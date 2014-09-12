@@ -12,7 +12,7 @@
 !!  of orthonormality constraints. This should speedup the convergence by
 !!  reducing the effective number of degrees of freedom.
 subroutine optimize_coeffs(iproc, nproc, orbs, tmb, ldiis_coeff, fnrm, fnrm_crit, itmax, energy, sd_fit_curve, &
-    factor, itout, it_scc, it_cdft, order_taylor, reorder, num_extra)
+    factor, itout, it_scc, it_cdft, order_taylor, max_inversion_error, reorder, num_extra)
   use module_base
   use module_types
   use module_interfaces, fake_name => optimize_coeffs
@@ -21,7 +21,9 @@ subroutine optimize_coeffs(iproc, nproc, orbs, tmb, ldiis_coeff, fnrm, fnrm_crit
   implicit none
 
   ! Calling arguments
-  integer,intent(in):: iproc, nproc, itmax, itout, it_scc, it_cdft, order_taylor
+  integer,intent(in):: iproc, nproc, itmax, itout, it_scc, it_cdft
+  integer,intent(inout) :: order_taylor
+  real(kind=8),intent(in) :: max_inversion_error
   type(orbitals_data),intent(in):: orbs
   type(DFT_wavefunction),intent(inout):: tmb
   type(DIIS_obj), intent(inout) :: ldiis_coeff
@@ -36,6 +38,7 @@ subroutine optimize_coeffs(iproc, nproc, orbs, tmb, ldiis_coeff, fnrm, fnrm_crit
   ! Local variables
   integer:: iorb, jorb, iiorb, ierr, it, itlast
   real(kind=gp),dimension(:,:),allocatable:: grad, grad_cov_or_coeffp !coeffp, grad_cov
+  real(kind=gp),dimension(:),allocatable:: mat_coeff_diag
   real(kind=gp) :: tt, ddot, energy0, pred_e
 
   call f_routine(id='optimize_coeffs')
@@ -77,9 +80,9 @@ subroutine optimize_coeffs(iproc, nproc, orbs, tmb, ldiis_coeff, fnrm, fnrm_crit
       end if
 
      if (present(num_extra)) then
-        call calculate_coeff_gradient_extra(iproc,nproc,num_extra,tmb,order_taylor,orbs,grad_cov_or_coeffp,grad)
+        call calculate_coeff_gradient_extra(iproc,nproc,num_extra,tmb,order_taylor,max_inversion_error,orbs,grad_cov_or_coeffp,grad)
      else
-        call calculate_coeff_gradient(iproc,nproc,tmb,order_taylor,orbs,grad_cov_or_coeffp,grad)
+        call calculate_coeff_gradient(iproc,nproc,tmb,order_taylor,max_inversion_error,orbs,grad_cov_or_coeffp,grad)
      end if
 
      ! Precondition the gradient (only making things worse...)
@@ -131,7 +134,7 @@ subroutine optimize_coeffs(iproc, nproc, orbs, tmb, ldiis_coeff, fnrm, fnrm_crit
         call timing(iproc,'dirmin_sddiis','OF')
         if (present(num_extra)) then   
            if (sd_fit_curve) call find_alpha_sd(iproc,nproc,ldiis_coeff%alpha_coeff,tmb,tmb%orbs,&
-                grad_cov_or_coeffp,grad,energy0,fnrm,pred_e)
+                grad_cov_or_coeffp,grad,energy0,fnrm,pred_e,order_taylor)
            call timing(iproc,'dirmin_sddiis','ON')
            do iorb=1,tmb%orbs%norbp
               iiorb = tmb%orbs%isorb + iorb
@@ -141,7 +144,7 @@ subroutine optimize_coeffs(iproc, nproc, orbs, tmb, ldiis_coeff, fnrm, fnrm_crit
            end do
         else
            if (sd_fit_curve) call find_alpha_sd(iproc,nproc,ldiis_coeff%alpha_coeff,tmb,orbs,&
-                grad_cov_or_coeffp,grad,energy0,fnrm,pred_e)
+                grad_cov_or_coeffp,grad,energy0,fnrm,pred_e,order_taylor)
            call timing(iproc,'dirmin_sddiis','ON')
            do iorb=1,orbs%norbp
               iiorb = orbs%isorb + iorb
@@ -197,6 +200,7 @@ subroutine optimize_coeffs(iproc, nproc, orbs, tmb, ldiis_coeff, fnrm, fnrm_crit
      !   call reordering_coeffs(iproc, nproc, 0, orbs, tmb%orbs, tmb%linmat%ham, tmb%linmat%ovrlp, tmb%coeff, .false.)
      !end if
 
+
      ! do twice with approx S^_1/2, as not quite good enough at preserving charge if only once, but exact too expensive
      ! instead of twice could add some criterion to check accuracy?
      if (present(num_extra)) then
@@ -204,6 +208,16 @@ subroutine optimize_coeffs(iproc, nproc, orbs, tmb, ldiis_coeff, fnrm, fnrm_crit
              tmb%orbs, tmb%linmat%s, tmb%linmat%ks_e, tmb%linmat%ovrlp_, tmb%coeff, orbs)
         !call reorthonormalize_coeff(iproc, nproc, orbs%norb+num_extra, -8, -8, 1, tmb%orbs, tmb%linmat%ovrlp, tmb%coeff)
      else
+        ! first need to check if we're at least close to normalized, otherwise reorthonormalize_coeff may explode (should maybe incorporate this into reorthonormalize_coeff)
+
+        ! should really check this first, for now just normalize anyway
+        !mat_coeff_diag=f_malloc(orbs%norb,id='mat_coeff_diag')
+        !call calculate_coeffMatcoeff_diag(tmb%linmat%ovrlp_%matrix,tmb%orbs,orbs,tmb%coeff,mat_coeff_diag)
+        !do iorb=1,orbs%norb
+        !   call dscal(tmb%orbs%norb,1.0d0/sqrt(mat_coeff_diag(iorb)),tmb%coeff(1,iorb),1)
+        !end do
+        !call f_free(mat_coeff_diag)
+
         call reorthonormalize_coeff(iproc, nproc, orbs%norb, -8, -8, order_taylor, &
              tmb%orbs, tmb%linmat%s, tmb%linmat%ks, tmb%linmat%ovrlp_, tmb%coeff, orbs)
         !call reorthonormalize_coeff(iproc, nproc, orbs%norb, -8, -8, 1, tmb%orbs, tmb%linmat%ovrlp, tmb%coeff, orbs)
@@ -345,7 +359,7 @@ subroutine coeff_weight_analysis(iproc, nproc, input, ksorbs, tmb, ref_frags)
   !real(kind=8), dimension(:,:,:), allocatable :: weight_coeff
   real(kind=8), dimension(:,:), allocatable :: weight_coeff_diag
   real(kind=8), dimension(:,:), pointer :: ovrlp_half
-  real(kind=8) :: error
+  real(kind=8) :: max_error, mean_error
   type(sparse_matrix) :: weight_matrix
   type(matrices) :: inv_ovrlp
   character(len=256) :: subname='coeff_weight_analysis'
@@ -372,7 +386,7 @@ subroutine coeff_weight_analysis(iproc, nproc, input, ksorbs, tmb, ref_frags)
        tmb%orthpar%blocksize_pdsyev, imode=2, &
        ovrlp_smat=tmb%linmat%s, inv_ovrlp_smat=tmb%linmat%l, &
        ovrlp_mat=tmb%linmat%ovrlp_, inv_ovrlp_mat=inv_ovrlp, check_accur=.true., &
-       error=error)
+       max_error=max_error, mean_error=mean_error)
   call f_free_ptr(tmb%linmat%ovrlp_%matrix)
 
   do ifrag=1,input%frag%nfrag
@@ -849,12 +863,12 @@ end subroutine order_coeffs_by_energy
 !!end subroutine reordering_coeffs
 
 
-subroutine find_alpha_sd(iproc,nproc,alpha,tmb,orbs,coeffp,grad,energy0,fnrm,pred_e)
+subroutine find_alpha_sd(iproc,nproc,alpha,tmb,orbs,coeffp,grad,energy0,fnrm,pred_e,taylor_order)
   use module_base
   use module_types
   use module_interfaces
   implicit none
-  integer, intent(in) :: iproc, nproc
+  integer, intent(in) :: iproc, nproc, taylor_order
   real(kind=gp), intent(inout) :: alpha
   type(DFT_wavefunction) :: tmb
   type(orbitals_data), intent(in) :: orbs
@@ -886,10 +900,10 @@ subroutine find_alpha_sd(iproc,nproc,alpha,tmb,orbs,coeffp,grad,energy0,fnrm,pre
 
   ! do twice with approx S^_1/2, as not quite good enough at preserving charge if only once, but exact too expensive
   ! instead of twice could add some criterion to check accuracy?
-  call reorthonormalize_coeff(iproc, nproc, orbs%norb, -8, -8, 1, tmb%orbs, &
+  call reorthonormalize_coeff(iproc, nproc, orbs%norb, -8, -8, taylor_order, tmb%orbs, &
        tmb%linmat%s, tmb%linmat%ks, tmb%linmat%ovrlp_, coeff_tmp, orbs)
-  call reorthonormalize_coeff(iproc, nproc, orbs%norb, -8, -8, 1, tmb%orbs, &
-       tmb%linmat%s, tmb%linmat%ks, tmb%linmat%ovrlp_, coeff_tmp, orbs)
+  !call reorthonormalize_coeff(iproc, nproc, orbs%norb, -8, -8, 1, tmb%orbs, &
+  !     tmb%linmat%s, tmb%linmat%ks, tmb%linmat%ovrlp_, coeff_tmp, orbs)
   call calculate_kernel_and_energy(iproc,nproc,tmb%linmat%l,tmb%linmat%m,&
        tmb%linmat%kernel_, tmb%linmat%ham_, energy1,&
        coeff_tmp,orbs,tmb%orbs,.true.)
@@ -967,7 +981,7 @@ end subroutine calculate_kernel_and_energy
 
 !> calculate grad_cov_i^a = f_i (I_ab - S_ag K^gb) H_bg c_i^d
 !! then grad=S^-1grad_cov
-subroutine calculate_coeff_gradient(iproc,nproc,tmb,order_taylor,KSorbs,grad_cov,grad)
+subroutine calculate_coeff_gradient(iproc,nproc,tmb,order_taylor,max_inversion_error,KSorbs,grad_cov,grad)
   use module_base
   use module_types
   use module_interfaces
@@ -975,7 +989,9 @@ subroutine calculate_coeff_gradient(iproc,nproc,tmb,order_taylor,KSorbs,grad_cov
                                matrices_null, allocate_matrices, deallocate_matrices
   implicit none
 
-  integer, intent(in) :: iproc, nproc, order_taylor
+  integer, intent(in) :: iproc, nproc
+  integer,intent(inout) :: order_taylor
+  real(kind=8),intent(in) :: max_inversion_error
   type(DFT_wavefunction), intent(inout) :: tmb
   type(orbitals_data), intent(in) :: KSorbs
   real(gp), dimension(tmb%orbs%norb,KSorbs%norbp), intent(out) :: grad_cov, grad  ! could make grad_cov KSorbs%norbp
@@ -990,7 +1006,7 @@ subroutine calculate_coeff_gradient(iproc,nproc,tmb,order_taylor,KSorbs,grad_cov
   integer :: itmp, itrials
   integer :: ncount1, ncount_rate, ncount_max, ncount2
   real(kind=4) :: tr0, tr1
-  real(kind=8) :: deviation, time, error, maxerror
+  real(kind=8) :: deviation, time, max_error, mean_error, maxerror
 
 
   call f_routine(id='calculate_coeff_gradient')
@@ -1078,7 +1094,8 @@ subroutine calculate_coeff_gradient(iproc,nproc,tmb,order_taylor,KSorbs,grad_cov
           imode=2, &
           ovrlp_smat=tmb%linmat%s, inv_ovrlp_smat=tmb%linmat%l, &
           ovrlp_mat=tmb%linmat%ovrlp_, inv_ovrlp_mat=inv_ovrlp_, check_accur=.true., &
-          error=error)
+          max_error=max_error, mean_error=mean_error)
+     call check_taylor_order(mean_error, max_inversion_error, order_taylor)
 
      !!!DEBUG checking S^-1 etc.
      !!!test dense version of S^-1
@@ -1228,12 +1245,9 @@ subroutine calculate_coeff_gradient(iproc,nproc,tmb,order_taylor,KSorbs,grad_cov
      !!END DEBUG
 
      call timing(iproc,'dirmin_dgesv','ON')
-     ! This is a bit strange...
      if (KSorbs%norbp>0) then
         call dgemm('n', 'n', tmb%orbs%norb, KSorbs%norbp, tmb%orbs%norb, 1.d0, inv_ovrlp_%matrix(1,1), &
              tmb%orbs%norb, grad_cov(1,1), tmb%orbs%norb, 0.d0, grad(1,1), tmb%orbs%norb)
-     else
-         if (KSorbs%norbp>0) call vcopy(tmb%orbs%norb*KSorbs%norbp,grad_cov(1,1),1,grad(1,1),1)
      end if
      call f_free_ptr(inv_ovrlp)
   else
@@ -1268,7 +1282,7 @@ end subroutine calculate_coeff_gradient
 
 !> calculate grad_cov_i^a = f_i (I_ab - S_ag K^gb) H_bg c_i^d
 !! then grad=S^-1grad_cov
-subroutine calculate_coeff_gradient_extra(iproc,nproc,num_extra,tmb,order_taylor,KSorbs,grad_cov,grad)
+subroutine calculate_coeff_gradient_extra(iproc,nproc,num_extra,tmb,order_taylor,max_inversion_error,KSorbs,grad_cov,grad)
   use module_base
   use module_types
   use module_interfaces
@@ -1276,7 +1290,9 @@ subroutine calculate_coeff_gradient_extra(iproc,nproc,num_extra,tmb,order_taylor
                                matrices_null, allocate_matrices, deallocate_matrices
   implicit none
 
-  integer, intent(in) :: iproc, nproc, num_extra, order_taylor
+  integer, intent(in) :: iproc, nproc, num_extra
+  integer,intent(inout) :: order_taylor
+  real(kind=8),intent(in) :: max_inversion_error
   type(DFT_wavefunction), intent(inout) :: tmb
   type(orbitals_data), intent(in) :: KSorbs
   real(gp), dimension(tmb%orbs%norb,tmb%orbs%norbp), intent(out) :: grad_cov, grad  ! could make grad_cov KSorbs%norbp
@@ -1286,7 +1302,7 @@ subroutine calculate_coeff_gradient_extra(iproc,nproc,num_extra,tmb,order_taylor
   real(gp),dimension(:,:),pointer ::  inv_ovrlp
   real(kind=gp), dimension(:), allocatable:: occup_tmp
   real(kind=gp), dimension(:,:), allocatable:: grad_full
-  real(kind=gp) :: error
+  real(kind=gp) :: max_error, mean_error
   type(matrices) :: inv_ovrlp_
 
   call f_routine(id='calculate_coeff_gradient_extra')
@@ -1391,7 +1407,8 @@ subroutine calculate_coeff_gradient_extra(iproc,nproc,num_extra,tmb,order_taylor
      call overlapPowerGeneral(iproc, nproc, order_taylor, 1, -8, &
           imode=2, ovrlp_smat=tmb%linmat%s, inv_ovrlp_smat=tmb%linmat%l, &
           ovrlp_mat=tmb%linmat%ovrlp_, inv_ovrlp_mat=inv_ovrlp_, check_accur=.true., &
-          error=error)
+          max_error=max_error, mean_error=mean_error)
+     call check_taylor_order(mean_error, max_inversion_error, order_taylor)
 
      if (tmb%orbs%norbp>0) then
         call dgemm('n', 'n', tmb%orbs%norb, tmb%orbs%norbp, tmb%orbs%norb, 1.d0, inv_ovrlp_%matrix(1,1), &

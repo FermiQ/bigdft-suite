@@ -671,6 +671,7 @@ subroutine local_potential_dimensions(iproc,Lzd,orbs,xc,ndimfirstproc)
   integer, dimension(:,:), allocatable :: ilrtable
 
   call timing(iproc, 'calc_bounds   ', 'ON')
+  call f_routine(id='local_potential_dimensions')
   
   if(Lzd%nlr > 1) then
      ilrtable = f_malloc((/ orbs%norbp, 2 /),id='ilrtable')
@@ -757,7 +758,7 @@ subroutine local_potential_dimensions(iproc,Lzd,orbs,xc,ndimfirstproc)
 
   call f_free(ilrtable)
 
-
+  call f_release_routine()
   call timing(iproc, 'calc_bounds   ', 'OF')
 
 end subroutine local_potential_dimensions
@@ -850,7 +851,7 @@ end subroutine print_orbital_distribution
 
 
 subroutine build_ks_orbitals(iproc, nproc, tmb, KSwfn, at, rxyz, denspot, GPU, &
-           energs, nlpsp, input, &
+           energs, nlpsp, input, order_taylor, &
            energy, energyDiff, energyold)
   use module_base
   use module_types
@@ -872,13 +873,13 @@ subroutine build_ks_orbitals(iproc, nproc, tmb, KSwfn, at, rxyz, denspot, GPU, &
   type(energy_terms),intent(inout) :: energs
   type(DFT_PSP_projectors), intent(inout) :: nlpsp
   type(input_variables),intent(in) :: input
+  integer,intent(inout) :: order_taylor
   real(kind=8),intent(out) :: energy, energyDiff
   real(kind=8), intent(inout) :: energyold
 
   ! Local variables
   type(orbitals_data) :: orbs
   type(comms_cubic) :: comms
-  type(sparse_matrix) :: ham_small ! for FOE
   real(gp) :: fnrm
   logical :: rho_negative
   integer :: infoCoeff, nvctrp, npsidim_global
@@ -908,8 +909,8 @@ subroutine build_ks_orbitals(iproc, nproc, tmb, KSwfn, at, rxyz, denspot, GPU, &
 
   tmb%can_use_transposed=.false.
   call get_coeff(iproc, nproc, LINEAR_MIXDENS_SIMPLE, KSwfn%orbs, at, rxyz, denspot, GPU, infoCoeff, &
-       energs, nlpsp, input%SIC, tmb, fnrm, .true., .false., .true., ham_small, 0, 0, 0, 0, &
-       input%lin%order_taylor,input%purification_quickreturn,input%adjust_FOE_temperature,&
+       energs, nlpsp, input%SIC, tmb, fnrm, .true., .false., .true., 0, 0, 0, 0, &
+       order_taylor,input%lin%max_inversion_error,input%purification_quickreturn,&
        input%calculate_KS_residue,input%calculate_gap)
 
 
@@ -925,15 +926,10 @@ subroutine build_ks_orbitals(iproc, nproc, tmb, KSwfn, at, rxyz, denspot, GPU, &
   !energyDiff=energy-energyold
   !energyold=energy
 
-  if(tmb%can_use_transposed) then
-      iall=-product(shape(tmb%psit_c))*kind(tmb%psit_c)
-      deallocate(tmb%psit_c, stat=istat)
-      call memocc(istat, iall, 'tmb%psit_c', subname)
-      iall=-product(shape(tmb%psit_f))*kind(tmb%psit_f)
-      deallocate(tmb%psit_f, stat=istat)
-      call memocc(istat, iall, 'tmb%psit_f', subname)
-
-  end if
+  !!if(tmb%can_use_transposed) then
+  !!    call f_free_ptr(tmb%psit_c)
+  !!    call f_free_ptr(tmb%psit_f)
+  !!end if
 
   ! Create communication arrays for support functions in the global box
   
@@ -1015,22 +1011,17 @@ subroutine build_ks_orbitals(iproc, nproc, tmb, KSwfn, at, rxyz, denspot, GPU, &
   call updatePotential(input%nspin,denspot,energs%eh,energs%exc,energs%evxc)
   tmb%can_use_transposed=.false.
   call get_coeff(iproc, nproc, LINEAR_MIXDENS_SIMPLE, KSwfn%orbs, at, rxyz, denspot, GPU, infoCoeff, &
-       energs, nlpsp, input%SIC, tmb, fnrm, .true., .false., .true., ham_small, 0, 0, 0, 0, &
-       input%lin%order_taylor, input%purification_quickreturn, input%adjust_FOE_temperature, &
+       energs, nlpsp, input%SIC, tmb, fnrm, .true., .false., .true., 0, 0, 0, 0, &
+       order_taylor, input%lin%max_inversion_error, input%purification_quickreturn, &
        input%calculate_KS_residue, input%calculate_gap, updatekernel=.false.)
   energy=energs%ebs-energs%eh+energs%exc-energs%evxc-energs%eexctX+energs%eion+energs%edisp
   energyDiff=energy-energyold
   energyold=energy
 
-  if(tmb%can_use_transposed) then
-      iall=-product(shape(tmb%psit_c))*kind(tmb%psit_c)
-      deallocate(tmb%psit_c, stat=istat)
-      call memocc(istat, iall, 'tmb%psit_c', subname)
-      iall=-product(shape(tmb%psit_f))*kind(tmb%psit_f)
-      deallocate(tmb%psit_f, stat=istat)
-      call memocc(istat, iall, 'tmb%psit_f', subname)
-
-  end if
+  !!if(tmb%can_use_transposed) then
+  !!    call f_free_ptr(tmb%psit_c)
+  !!    call f_free_ptr(tmb%psit_f)
+  !!end if
 
 end subroutine build_ks_orbitals
 
@@ -1156,7 +1147,7 @@ subroutine loewdin_charge_analysis(iproc,tmb,atoms,denspot,&
   integer :: ifrag,iorb,ifrag_ref,isforb,istat,ierr,jorb
   real(kind=gp), allocatable, dimension(:,:) :: proj_mat, proj_ovrlp_half, weight_matrixp
   character(len=*),parameter :: subname='calculate_weight_matrix_lowdin'
-  real(kind=gp) :: error
+  real(kind=gp) :: max_error, mean_error
   type(matrices) :: inv_ovrlp
 
   ! new variables
@@ -1180,18 +1171,18 @@ subroutine loewdin_charge_analysis(iproc,tmb,atoms,denspot,&
 
   if (calculate_overlap_matrix) then
      if(.not.tmb%can_use_transposed) then
-         if(.not.associated(tmb%psit_c)) then
-             tmb%psit_c = f_malloc_ptr(sum(tmb%collcom%nrecvcounts_c),id='tmb%psit_c')
-             psit_c_associated=.false.
-         else
-             psit_c_associated=.true.
-         end if
-         if(.not.associated(tmb%psit_f)) then
-             tmb%psit_f = f_malloc_ptr(7*sum(tmb%collcom%nrecvcounts_f),id='tmb%psit_f')
-             psit_f_associated=.false.
-         else
-             psit_f_associated=.true.
-         end if
+         !!if(.not.associated(tmb%psit_c)) then
+         !!    tmb%psit_c = f_malloc_ptr(sum(tmb%collcom%nrecvcounts_c),id='tmb%psit_c')
+         !!    psit_c_associated=.false.
+         !!else
+         !!    psit_c_associated=.true.
+         !!end if
+         !!if(.not.associated(tmb%psit_f)) then
+         !!    tmb%psit_f = f_malloc_ptr(7*sum(tmb%collcom%nrecvcounts_f),id='tmb%psit_f')
+         !!    psit_f_associated=.false.
+         !!else
+         !!    psit_f_associated=.true.
+         !!end if
          call transpose_localized(bigdft_mpi%iproc, bigdft_mpi%nproc, tmb%npsidim_orbs, tmb%orbs, tmb%collcom, &
               tmb%psi, tmb%psit_c, tmb%psit_f, tmb%lzd)
          tmb%can_use_transposed=.true.
@@ -1203,14 +1194,14 @@ subroutine loewdin_charge_analysis(iproc,tmb,atoms,denspot,&
      !tmb%linmat%ovrlp%matrix_compr=tmb%linmat%ovrlp_%matrix_compr
 
 
-     if (.not.psit_c_associated) then
-        call f_free_ptr(tmb%psit_c)
-        tmb%can_use_transposed=.false.
-     end if
-     if (.not.psit_f_associated) then
-        call f_free_ptr(tmb%psit_f)
-        tmb%can_use_transposed=.false.
-     end if
+     !!if (.not.psit_c_associated) then
+     !!   call f_free_ptr(tmb%psit_c)
+     !!   tmb%can_use_transposed=.false.
+     !!end if
+     !!if (.not.psit_f_associated) then
+     !!   call f_free_ptr(tmb%psit_f)
+     !!   tmb%can_use_transposed=.false.
+     !!end if
   end if
 
   if (calculate_ovrlp_half) then
@@ -1221,7 +1212,7 @@ subroutine loewdin_charge_analysis(iproc,tmb,atoms,denspot,&
           tmb%orthpar%blocksize_pdsyev, &
           imode=2, ovrlp_smat=tmb%linmat%s, inv_ovrlp_smat=tmb%linmat%l, &
           ovrlp_mat=tmb%linmat%ovrlp_, inv_ovrlp_mat=inv_ovrlp, check_accur=.true., &
-          error=error)
+          max_error=max_error, mean_error=mean_error)
      !!ovrlp_half=tmb%linmat%ovrlp%matrix
      call f_free_ptr(tmb%linmat%ovrlp_%matrix)
   end if

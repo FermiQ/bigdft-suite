@@ -20,15 +20,16 @@ program memguess
    use module_fragments
    use yaml_output
    use module_atoms, only: set_astruct_from_file
+   use internal_coordinates
    implicit none
    character(len=*), parameter :: subname='memguess'
-   character(len=20) :: tatonam, radical
+   character(len=30) :: tatonam, radical
    character(len=40) :: comment
    character(len=1024) :: fcomment
    character(len=128) :: fileFrom, fileTo,filename_wfn
    character(len=50) :: posinp
    logical :: optimise,GPUtest,atwf,convert=.false.,exportwf=.false.
-   logical :: disable_deprecation = .false.,convertpos=.false.
+   logical :: disable_deprecation = .false.,convertpos=.false.,transform_coordinates=.false.
    integer :: ntimes,nproc,i_stat,i_all,output_grid, i_arg,istat
    integer :: nspin,iorb,norbu,norbd,nspinor,norb,iorbp,iorb_out
    integer :: norbgpu,ng
@@ -49,10 +50,21 @@ program memguess
    type(system_fragment), dimension(:), pointer :: ref_frags
    character(len=3) :: in_name !lr408
    integer :: i, inputpsi, input_wf_format
+   integer,parameter :: nconfig=1
+   character(len=60),dimension(nconfig) :: arr_radical,arr_posinp
+   character(len=60) :: run_id, infile, outfile
+   integer, dimension(4) :: mpi_info
    !real(gp) :: tcpu0,tcpu1,tel
    !integer :: ncount0,ncount1,ncount_max,ncount_rate
    !! By Ali
-   integer :: ierror
+   integer :: ierror, iat
+   integer,dimension(:),allocatable :: na, nb, nc
+   integer,dimension(:,:),allocatable :: atoms_ref
+   real(kind=8),dimension(:,:),allocatable :: rxyz_int
+   !real(kind=8),parameter :: degree=57.295779513d0
+   real(kind=8),parameter :: degree=1.d0
+   character(len=6) :: direction
+   logical :: file_exists
 
    call f_lib_initialize()
    !initialize errors and timings as bigdft routines are called
@@ -216,6 +228,17 @@ program memguess
             write(*,'(1x,5a)')&
                &   'convert input file "', trim(fileFrom),'" file to "', trim(fileTo),'"'
             exit loop_getargs
+         else if (trim(tatonam)=='transform-coordinates') then
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = direction)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = fileFrom)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = fileTo)
+            write(*,'(1x,5a)')&
+               &   'convert input file "', trim(fileFrom),'" file to "', trim(fileTo),'"'
+            transform_coordinates=.true.
+            exit loop_getargs
          else if (trim(tatonam) == 'dd') then
             ! dd: disable deprecation message
             disable_deprecation = .true.
@@ -263,8 +286,7 @@ program memguess
            & rhocoeff, at%astruct%nat, at%astruct%rxyz, at%astruct%iatype, at%nzatom)
       at%astruct%ntypes = size(at%nzatom) - ndebug
       write(*,*) "Write new density file..."
-      allocate(dpbox%ngatherarr(0:0,2+ndebug),stat=i_stat)
-      call memocc(i_stat,dpbox%ngatherarr,'ngatherarr',subname)
+      dpbox%ngatherarr = f_malloc_ptr((/ 0.to.0, 1.to.2 /),id='dpbox%ngatherarr')
 
       call plot_density(0,1,trim(fileTo),at,at%astruct%rxyz,dpbox,nspin,rhocoeff)
       write(*,*) "Done"
@@ -289,17 +311,105 @@ program memguess
       end if
       
       if (associated(fxyz)) then
-         call write_atomic_file(fileTo(1:irad-1),energy,at%astruct%rxyz,at,&
-              trim(fcomment) // ' (converted from '//trim(fileFrom)//")", fxyz)
+         call write_atomic_file(fileTo(1:irad-1),energy,at%astruct%rxyz,at%astruct%ixyz_int,at,&
+              trim(fcomment) // ' (converted from '//trim(fileFrom)//")", forces=fxyz)
 
-         i_all=-product(shape(fxyz))*kind(fxyz)
-         deallocate(fxyz,stat=i_stat)
-         call memocc(i_stat,i_all,'fxyz',subname)
+         call f_free_ptr(fxyz)
       else
-         call write_atomic_file(fileTo(1:irad-1),energy,at%astruct%rxyz,at,&
+         call write_atomic_file(fileTo(1:irad-1),energy,at%astruct%rxyz,at%astruct%ixyz_int,at,&
               trim(fcomment) // ' (converted from '//trim(fileFrom)//")")
       end if
       stop
+   end if
+
+   if (transform_coordinates) then
+       if (direction=='carint') then
+           write(*,*) 'Converting cartesian coordinates to internal coordinates.'
+       else if (direction=='intcar') then
+           write(*,*) 'Converting internal coordinates to cartesian coordinates.'
+       else if (direction=='carcar') then
+           write(*,*) 'Converting cartesian coordinates to cartesian coordinates.'
+       else
+           call f_err_throw("wrong switch for coordinate transforms", err_name='BIGDFT_RUNTIME_ERROR')
+       end if
+       call set_astruct_from_file(trim(fileFrom),0,at%astruct,i_stat,fcomment,energy,fxyz)
+       if (i_stat /=0) stop 'error on input file parsing' 
+
+       !find the format of the output file
+       if (index(fileTo,'.xyz') > 0) then
+          irad=index(fileTo,'.xyz')
+          at%astruct%inputfile_format='xyz  '
+       else if (index(fileTo,'.ascii') > 0) then
+          irad=index(fileTo,'.ascii')
+          at%astruct%inputfile_format='ascii'
+       else if (index(fileTo,'.int') > 0) then
+          irad=index(fileTo,'.int')
+          at%astruct%inputfile_format='int  '
+       else if (index(fileTo,'.yaml') > 0) then
+          irad=index(fileTo,'.yaml')
+          at%astruct%inputfile_format='yaml '
+       else
+          irad = len(trim(fileTo)) + 1
+       end if
+
+       ! Check whether the output file format is correct
+       if (direction=='carint') then
+           ! output file must be .int
+           if (at%astruct%inputfile_format/='int  ')then
+               call f_err_throw("wrong output format for the coordinate transform", err_name='BIGDFT_RUNTIME_ERROR')
+           end if
+       else if (direction=='intcar' .or. direction=='carcar') then
+           ! output file must be .xyz, .ascii or. .yaml
+           if (at%astruct%inputfile_format/='xyz  ' .and. &
+               at%astruct%inputfile_format/='ascii' .and. &
+               at%astruct%inputfile_format/='yaml ')then
+               call f_err_throw("wrong output format for the coordinate transform", err_name='BIGDFT_RUNTIME_ERROR')
+           end if
+       end if
+
+
+       !!call bigdft_get_run_ids(nconfig,trim(run_id),arr_radical,arr_posinp,ierror)
+       !!call run_objects_init_from_files(runObj, radical, posinp)
+       na = f_malloc(at%astruct%nat,id='na')
+       nb = f_malloc(at%astruct%nat,id='nb')
+       nc = f_malloc(at%astruct%nat,id='nc')
+       rxyz_int = f_malloc((/ 3, at%astruct%nat /),id='rxyz_int')
+
+       if (direction=='carint') then
+           inquire(file='posinp.fix',exist=file_exists)
+           if (file_exists) then
+               atoms_ref = f_malloc((/3,at%astruct%nat/),id='atoms_ref')
+               open(unit=123,file='posinp.fix')
+               do iat=1,at%astruct%nat
+                   read(123,*) atoms_ref(1:3,iat)
+               end do
+               call get_neighbors(at%astruct%rxyz, at%astruct%nat, &
+                    at%astruct%ixyz_int(1,:), at%astruct%ixyz_int(2,:),at%astruct%ixyz_int(3,:), &
+                    atoms_ref)
+               call f_free(atoms_ref)
+           else
+               call get_neighbors(at%astruct%rxyz, at%astruct%nat, &
+                    at%astruct%ixyz_int(1,:), at%astruct%ixyz_int(2,:),at%astruct%ixyz_int(3,:))
+           end if
+           !call xyzint(at%astruct%rxyz, at%astruct%nat, &
+           !     at%astruct%ixyz_int(1,:), at%astruct%ixyz_int(2,:),at%astruct%ixyz_int(3,:), &
+           !     degree, at%astruct%rxyz_int)
+           !! The bond angle must be modified (take 180 degrees minus the angle)
+           !at%astruct%rxyz_int(2:2,1:at%astruct%nat) = pi_param - at%astruct%rxyz_int(2:2,1:at%astruct%nat)
+           call write_atomic_file(trim(fileTo(1:irad-1)),UNINITIALIZED(123.d0),at%astruct%rxyz_int,&
+                at%astruct%ixyz_int,at,trim(fcomment) // ' (converted from '//trim(fileFrom)//")")
+       else if (direction=='intcar' .or. direction=='carcar') then
+           call write_atomic_file(trim(fileTo(1:irad-1)),UNINITIALIZED(123.d0),at%astruct%rxyz,&
+                at%astruct%ixyz_int,at,trim(fcomment) // ' (converted from '//trim(fileFrom)//")")
+       end if
+
+       write(*,*) 'Done.'
+
+       call f_free(na)
+       call f_free(nb)
+       call f_free(nc)
+       call f_free(rxyz_int)
+       stop
    end if
 
    if (trim(radical) == "input") then
@@ -321,7 +431,8 @@ program memguess
       end if
       write(*,'(1x,a)')'Writing optimised positions in file posopt.[xyz,ascii]...'
       write(comment,'(a)')'POSITIONS IN OPTIMIZED CELL '
-      call write_atomic_file('posopt',0.d0,runObj%atoms%astruct%rxyz,runObj%atoms,trim(comment))
+      call write_atomic_file('posopt',0.d0,runObj%atoms%astruct%rxyz,&
+           runObj%atoms%astruct%ixyz_int,runObj%atoms,trim(comment))
       !call wtxyz('posopt',0.d0,rxyz,atoms,trim(comment))
    end if
 
@@ -345,9 +456,9 @@ program memguess
    if (.not. exportwf) then
       call print_memory_estimation(mem)
    else
-      allocate(runObj%rst%KSwfn%psi((runObj%rst%KSwfn%Lzd%Glr%wfd%nvctr_c+&
-           & 7*runObj%rst%KSwfn%Lzd%Glr%wfd%nvctr_f)*runObj%rst%KSwfn%orbs%nspinor+ndebug),stat=i_stat)
-      call memocc(i_stat,runObj%rst%KSwfn%psi,'psi',subname)
+      runObj%rst%KSwfn%psi = f_malloc_ptr((runObj%rst%KSwfn%Lzd%Glr%wfd%nvctr_c+&
+           & 7*runObj%rst%KSwfn%Lzd%Glr%wfd%nvctr_f)*runObj%rst%KSwfn%orbs%nspinor+ndebug,&
+           id='runObj%rst%KSwfn%psi')
 
       ! Optionally compute iorbp from arguments in case of ETSF.
       if (export_wf_ikpt < 1 .or. export_wf_ikpt > runObj%rst%KSwfn%orbs%nkpts) stop "Wrong k-point"
@@ -382,6 +493,8 @@ program memguess
            & runObj%inputs%hx,runObj%inputs%hy,runObj%inputs%hz,runObj%atoms%astruct%rxyz, &
            & runObj%rst%KSwfn%psi((runObj%rst%KSwfn%Lzd%Glr%wfd%nvctr_c+&
            & 7*runObj%rst%KSwfn%Lzd%Glr%wfd%nvctr_f) * (export_wf_ispinor - 1) + 1))
+      deallocate(ref_frags)
+      nullify(ref_frags)
    end if
 
    if (GPUtest) then
@@ -438,17 +551,13 @@ program memguess
       nullify(G%rxyz)
       call gaussian_pswf_basis(ng,.false.,0,runObj%inputs%nspin,runObj%atoms,runObj%atoms%astruct%rxyz,G,gbd_occ)
       !for the moment multiply the number of coefficients for each channel
-      allocate(rhocoeff((ng*(ng+1))/2,4,1,1+ndebug),stat=i_stat)
-      call memocc(i_stat,rhocoeff,'rhocoeff',subname)
-      allocate(rhoexpo((ng*(ng+1))/2+ndebug),stat=i_stat)
-      call memocc(i_stat,rhoexpo,'rhoexpo',subname)
+      rhocoeff = f_malloc_ptr((/ (ng*(ng+1))/2, 4, 1, 1 /),id='rhocoeff')
+      rhoexpo = f_malloc((ng*(ng+1))/2,id='rhoexpo')
 
       call plot_gatom_basis('gatom',1,ng,G,gbd_occ,rhocoeff,rhoexpo)
 
       if (associated(gbd_occ)) then
-         i_all=-product(shape(gbd_occ))*kind(gbd_occ)
-         deallocate(gbd_occ,stat=i_stat)
-         call memocc(i_stat,i_all,'gbd_occ',subname)
+         call f_free_ptr(gbd_occ)
          nullify(gbd_occ)
       end if
       !deallocate the gaussian basis descriptors
@@ -477,12 +586,8 @@ program memguess
       !!$  !deallocate the gaussian basis descriptors
       !!$  call deallocate_gwf(G,subname)
 
-      i_all=-product(shape(rhoexpo))*kind(rhoexpo)
-      deallocate(rhoexpo,stat=i_stat)
-      call memocc(i_stat,i_all,'rhoexpo',subname)
-      i_all=-product(shape(rhocoeff))*kind(rhocoeff)
-      deallocate(rhocoeff,stat=i_stat)
-      call memocc(i_stat,i_all,'rhocoeff',subname)
+      call f_free(rhoexpo)
+      call f_free_ptr(rhocoeff)
 
    end if
 
@@ -535,8 +640,7 @@ subroutine optimise_volume(atoms,crmult,frmult,hx,hy,hz,rxyz,radii_cf)
    real(gp), dimension(3,3) :: urot
    real(gp), dimension(:,:), allocatable :: txyz
 
-   allocate(txyz(3,atoms%astruct%nat+ndebug),stat=i_stat)
-   call memocc(i_stat,txyz,'txyz',subname)
+   txyz = f_malloc((/ 3, atoms%astruct%nat /),id='txyz')
    call system_size(atoms,rxyz,radii_cf,crmult,frmult,hx,hy,hz,.false.,Glr,shift)
    !call volume(nat,rxyz,vol)
    vol=atoms%astruct%cell_dim(1)*atoms%astruct%cell_dim(2)*atoms%astruct%cell_dim(3)
@@ -618,9 +722,7 @@ subroutine optimise_volume(atoms,crmult,frmult,hx,hy,hz,rxyz,radii_cf)
       endif
    end do loop_rotations
 
-   i_all=-product(shape(txyz))*kind(txyz)
-   deallocate(txyz,stat=i_stat)
-   call memocc(i_stat,i_all,'txyz',subname)
+   call f_free(txyz)
 
 END SUBROUTINE optimise_volume
 
@@ -647,8 +749,7 @@ subroutine shift_periodic_directions(at,rxyz,radii_cf)
       maxsh=max(maxsh,5_gp*radii_cf(ityp,1))
    end do
 
-   allocate(txyz(3,at%astruct%nat+ndebug),stat=i_stat)
-   call memocc(i_stat,txyz,'txyz',subname)
+   txyz = f_malloc((/ 3, at%astruct%nat /),id='txyz')
 
    call calc_vol(at%astruct%geocode,at%astruct%nat,rxyz,vol)
 
@@ -719,9 +820,7 @@ subroutine shift_periodic_directions(at,rxyz,radii_cf)
       end do loop_shiftz
    end if
 
-   i_all=-product(shape(txyz))*kind(txyz)
-   deallocate(txyz,stat=i_stat)
-   call memocc(i_stat,i_all,'txyz',subname)
+   call f_free(txyz)
 
 END SUBROUTINE shift_periodic_directions
 
@@ -816,8 +915,7 @@ subroutine compare_cpu_gpu_hamiltonian(iproc,nproc,matacc,at,orbs,&
    !extract the gaussian basis from the pseudowavefunctions
    call gaussian_pswf_basis(21,.false.,iproc,nspin,at,rxyz,G,gbd_occ)
 
-   allocate(gaucoeffs(G%ncoeff,orbs%norbp*orbs%nspinor+ndebug),stat=i_stat)
-   call memocc(i_stat,gaucoeffs,'gaucoeffs',subname)
+   gaucoeffs = f_malloc((/ G%ncoeff, orbs%norbp*orbs%nspinor /),id='gaucoeffs')
 
    !fill randomly the gaussian coefficients for the orbitals considered
    do iorb=1,orbs%norbp*orbs%nspinor
@@ -828,10 +926,8 @@ subroutine compare_cpu_gpu_hamiltonian(iproc,nproc,matacc,at,orbs,&
    end do
 
    !allocate the wavefunctions
-   allocate(psi(Lzd%Glr%wfd%nvctr_c+7*Lzd%Glr%wfd%nvctr_f,orbs%nspinor*orbs%norbp+ndebug),stat=i_stat)
-   call memocc(i_stat,psi,'psi',subname)
-   allocate(hpsi(Lzd%Glr%wfd%nvctr_c+7*Lzd%Glr%wfd%nvctr_f,orbs%nspinor*orbs%norbp+ndebug),stat=i_stat)
-   call memocc(i_stat,hpsi,'hpsi',subname)
+   psi = f_malloc((/ Lzd%Glr%wfd%nvctr_c+7*Lzd%Glr%wfd%nvctr_f, orbs%nspinor*orbs%norbp /),id='psi')
+   hpsi = f_malloc((/ Lzd%Glr%wfd%nvctr_c+7*Lzd%Glr%wfd%nvctr_f , orbs%nspinor*orbs%norbp+ndebug /),id='hpsi')
 
    call to_zero(Lzd%Glr%wfd%nvctr_c+7*Lzd%Glr%wfd%nvctr_f*orbs%nspinor*orbs%norbp,psi)
    call to_zero(Lzd%Glr%wfd%nvctr_c+7*Lzd%Glr%wfd%nvctr_f*orbs%nspinor*orbs%norbp,hpsi)
@@ -840,28 +936,19 @@ subroutine compare_cpu_gpu_hamiltonian(iproc,nproc,matacc,at,orbs,&
    call gaussians_to_wavelets(iproc,nproc,at%astruct%geocode,orbs,Lzd%Glr%d,&
            hx,hy,hz,Lzd%Glr%wfd,G,gaucoeffs,psi)
 
-   i_all=-product(shape(gaucoeffs))*kind(gaucoeffs)
-   deallocate(gaucoeffs,stat=i_stat)
-   call memocc(i_stat,i_all,'gaucoeffs',subname)
-
-   i_all=-product(shape(gbd_occ))*kind(gbd_occ)
-   deallocate(gbd_occ,stat=i_stat)
-   call memocc(i_stat,i_all,'gbd_occ',subname)
+   call f_free(gaucoeffs)
+   call f_free_ptr(gbd_occ)
 
    !deallocate the gaussian basis descriptors
    call deallocate_gwf(G,subname)
 
    !allocate and initialise the potential and the density
-   allocate(pot(Lzd%Glr%d%n1i,Lzd%Glr%d%n2i,Lzd%Glr%d%n3i,nspin+ndebug),stat=i_stat)
-   call memocc(i_stat,pot,'pot',subname)
-   allocate(rho(Lzd%Glr%d%n1i,Lzd%Glr%d%n2i,Lzd%Glr%d%n3i,nspin+ndebug),stat=i_stat)
-   call memocc(i_stat,rho,'rho',subname)
+   pot = f_malloc((/ Lzd%Glr%d%n1i, Lzd%Glr%d%n2i, Lzd%Glr%d%n3i, nspin /),id='pot')
+   rho = f_malloc((/ Lzd%Glr%d%n1i, Lzd%Glr%d%n2i, Lzd%Glr%d%n3i, nspin /),id='rho')
 
    !here the potential can be used for building the density
-   allocate(nscatterarr(0:nproc-1,4+ndebug),stat=i_stat)
-   call memocc(i_stat,nscatterarr,'nscatterarr',subname)
-   allocate(ngatherarr(0:nproc-1,2+ndebug),stat=i_stat)
-   call memocc(i_stat,nscatterarr,'nscatterarr',subname)
+   nscatterarr = f_malloc((/ 0.to.nproc-1, 1.to.4 /),id='nscatterarr')
+   ngatherarr = f_malloc((/ 0.to.nproc-1, 1.to.2 /),id='ngatherarr')
 
    if (ixc < 0) then
       call xc_init(xc, ixc, XC_MIXED, nspin)
@@ -956,12 +1043,8 @@ subroutine compare_cpu_gpu_hamiltonian(iproc,nproc,matacc,at,orbs,&
    !GPUtime=real(t1-t0,kind=8)
    GPUtime=real(itsc1-itsc0,kind=8)*1.d-9
 
-   i_all=-product(shape(nscatterarr))*kind(nscatterarr)
-   deallocate(nscatterarr,stat=i_stat)
-   call memocc(i_stat,i_all,'nscatterarr',subname)
-   i_all=-product(shape(ngatherarr))*kind(ngatherarr)
-   deallocate(ngatherarr,stat=i_stat)
-   call memocc(i_stat,i_all,'ngatherarr',subname)
+   call f_free(nscatterarr)
+   call f_free(ngatherarr)
 
 
    !compare the results between the different actions of the hamiltonian
@@ -970,9 +1053,7 @@ subroutine compare_cpu_gpu_hamiltonian(iproc,nproc,matacc,at,orbs,&
         & real(Lzd%Glr%d%n1i*Lzd%Glr%d%n2i*Lzd%Glr%d%n3i,kind=8)*192.d0,pot,rho,&
         Lzd%Glr%d%n1i*Lzd%Glr%d%n2i*Lzd%Glr%d%n3i,ntimes*orbs%norbp,.false.,Rden)
 
-   i_all=-product(shape(rho))*kind(rho)
-   deallocate(rho,stat=i_stat)
-   call memocc(i_stat,i_all,'rho',subname)
+   call f_free(rho)
 
 
    !here the grid spacings are the small ones
@@ -1005,14 +1086,11 @@ subroutine compare_cpu_gpu_hamiltonian(iproc,nproc,matacc,at,orbs,&
    call nanosec(itsc0)
    xc%ixc = 0
    do j=1,ntimes
-      allocate(pottmp(Lzd%Glr%d%n1i*Lzd%Glr%d%n2i*Lzd%Glr%d%n3i*(nspin+ndebug)),stat=i_stat)
-      call memocc(i_stat,pottmp,'pottmp',subname)
+      pottmp = f_malloc_ptr(Lzd%Glr%d%n1i*Lzd%Glr%d%n2i*Lzd%Glr%d%n3i*(nspin+ndebug),id='pottmp')
       call vcopy(Lzd%Glr%d%n1i*Lzd%Glr%d%n2i*Lzd%Glr%d%n3i*(nspin+ndebug),pot(1,1,1,1),1,pottmp(1),1)
       call local_hamiltonian(iproc,nproc,orbs%npsidim_orbs,orbs,Lzd,hx,hy,hz,0,confdatarr,pottmp,psi,hpsi, &
            fake_pkernelSIC,xc,0.0_gp,ekin_sum,epot_sum,eSIC_DC)
-      i_all=-product(shape(pottmp))*kind(pottmp)
-      deallocate(pottmp,stat=i_stat)
-      call memocc(i_stat,i_all,'pottmp',subname)
+      call f_free_ptr(pottmp)
    end do
    xc%ixc = ixc
    call nanosec(itsc1)
@@ -1025,8 +1103,7 @@ subroutine compare_cpu_gpu_hamiltonian(iproc,nproc,matacc,at,orbs,&
    !call gpu_locham(Lzd%Glr%d%n1,Lzd%Glr%d%n2,Lzd%Glr%d%n3,hx,hy,hz,orbs,GPU,ekinGPU,epotGPU)
 
    !apply the GPU hamiltonian and put the results in the hpsi_GPU array
-   allocate(GPU%hpsi_ASYNC((Lzd%Glr%wfd%nvctr_c+7*Lzd%Glr%wfd%nvctr_f)*orbs%nspinor*orbs%norbp),stat=i_stat)
-   call memocc(i_stat,GPU%hpsi_ASYNC,'GPU%hpsi_ASYNC',subname)
+   GPU%hpsi_ASYNC = f_malloc_ptr((Lzd%Glr%wfd%nvctr_c+7*Lzd%Glr%wfd%nvctr_f)*orbs%nspinor*orbs%norbp,id='GPU%hpsi_ASYNC')
 
    !take timings
    call nanosec(itsc0)
@@ -1049,17 +1126,14 @@ subroutine compare_cpu_gpu_hamiltonian(iproc,nproc,matacc,at,orbs,&
       &   real(Lzd%Glr%d%n1i*Lzd%Glr%d%n2i*Lzd%Glr%d%n3i,kind=8)*real(192+46*3+192+2,kind=8),hpsi,GPU%hpsi_ASYNC,&
    orbs%norbp*orbs%nspinor*(Lzd%Glr%wfd%nvctr_c+7*Lzd%Glr%wfd%nvctr_f),ntimes*orbs%norbp,.false.,Rham)
 
-   i_all=-product(shape(pot))*kind(pot)
-   deallocate(pot,stat=i_stat)
-   call memocc(i_stat,i_all,'pot',subname)
+   call f_free(pot)
 
    write(*,'(1x,a)')repeat('-',34)//' CPU-GPU comparison: Linear Algebra (Blas)'
 
    !perform the scalar product between the hpsi wavefunctions
    !actually this is <hpsi|hpsi> it has no meaning.
    !this works only if nspinor==1
-   allocate(overlap(orbs%norbp,orbs%norbp,2+ndebug),stat=i_stat)
-   call memocc(i_stat,overlap,'overlap',subname)
+   overlap = f_malloc((/ orbs%norbp, orbs%norbp, 2 /),id='overlap')
 
    call nanosec(itsc0)
    do j=1,ntimes
@@ -1112,9 +1186,7 @@ subroutine compare_cpu_gpu_hamiltonian(iproc,nproc,matacc,at,orbs,&
         real(Lzd%Glr%wfd%nvctr_c+7*Lzd%Glr%wfd%nvctr_f,kind=8),overlap(1,1,1),overlap(1,1,2),&
         orbs%norbp**2,ntimes,.false.,Rsyrk)
 
-   i_all=-product(shape(overlap))*kind(overlap)
-   deallocate(overlap,stat=i_stat)
-   call memocc(i_stat,i_all,'overlap',subname)
+   call f_free(overlap)
 
 
    !-------------------now the same for preconditioning
@@ -1155,15 +1227,9 @@ subroutine compare_cpu_gpu_hamiltonian(iproc,nproc,matacc,at,orbs,&
       &   real(Lzd%Glr%d%n1i*Lzd%Glr%d%n2i*Lzd%Glr%d%n3i,kind=8)*real((192+46*3+192+2-1+12)*(ncong+1),kind=8),hpsi,GPU%hpsi_ASYNC,&
    orbs%norbp*orbs%nspinor*(Lzd%Glr%wfd%nvctr_c+7*Lzd%Glr%wfd%nvctr_f),ntimes*orbs%norbp,.false.,Rprec)
 
-   i_all=-product(shape(GPU%hpsi_ASYNC))*kind(GPU%hpsi_ASYNC)
-   deallocate(GPU%hpsi_ASYNC,stat=i_stat)
-   call memocc(i_stat,i_all,'GPU%hpsi_ASYNC',subname)
-   i_all=-product(shape(psi))*kind(psi)
-   deallocate(psi,stat=i_stat)
-   call memocc(i_stat,i_all,'psi',subname)
-   i_all=-product(shape(hpsi))*kind(hpsi)
-   deallocate(hpsi,stat=i_stat)
-   call memocc(i_stat,i_all,'hpsi',subname)
+   call f_free_ptr(GPU%hpsi_ASYNC)
+   call f_free(psi)
+   call f_free(hpsi)
 
 
    !free the card at the end
@@ -1272,8 +1338,7 @@ subroutine take_psi_from_file(filename,in_frag,hx,hy,hz,lr,at,rxyz,orbs,psi,iorb
    real(wp), allocatable, dimension(:) :: lpsi
    type(orbitals_data) :: lin_orbs
 
-   allocate(rxyz_file(at%astruct%nat,3+ndebug),stat=i_stat)
-   call memocc(i_stat,rxyz_file,'rxyz_file',subname)
+   rxyz_file = f_malloc((/ at%astruct%nat, 3 /),id='rxyz_file')
 
    iformat = wave_format_from_filename(0, filename)
    if (iformat == WF_FORMAT_PLAIN .or. iformat == WF_FORMAT_BINARY) then
@@ -1288,9 +1353,7 @@ subroutine take_psi_from_file(filename,in_frag,hx,hy,hz,lr,at,rxyz,orbs,psi,iorb
       call ext_buffers_coarse(pery,nb2)
       call ext_buffers_coarse(perz,nb3)
 
-      allocate(psifscf(-nb1:2*lr%d%n1+1+nb1,-nb2:2*lr%d%n2+1+nb2, &
-           & -nb3:2*lr%d%n3+1+nb3+ndebug),stat=i_stat)
-      call memocc(i_stat,psifscf,'psifscf',subname)
+      psifscf = f_malloc((/ -nb1.to.2*lr%d%n1+1+nb1, -nb2.to.2*lr%d%n2+1+nb2, -nb3.to.2*lr%d%n3+1+nb3 /),id='psifscf')
 
       !find the value of iorbp
       read(filename(index(filename, ".", back = .true.)+2:len(filename)),*) iorbp
@@ -1334,7 +1397,7 @@ subroutine take_psi_from_file(filename,in_frag,hx,hy,hz,lr,at,rxyz,orbs,psi,iorb
 
          filename_start = trim(filename_start)//"/minBasis"
 
-         allocate(lpsi(1:Lzd%llr(1)%wfd%nvctr_c+7*Lzd%llr(1)%wfd%nvctr_f))
+         lpsi = f_malloc(1.to.Lzd%llr(1)%wfd%nvctr_c+7*Lzd%llr(1)%wfd%nvctr_f,id='lpsi')
       end if
 
       if (iformat == WF_FORMAT_BINARY) then
@@ -1358,7 +1421,7 @@ subroutine take_psi_from_file(filename,in_frag,hx,hy,hz,lr,at,rxyz,orbs,psi,iorb
          call Lpsi_to_global2(0,Lzd%llr(1)%wfd%nvctr_c+7*Lzd%llr(1)%wfd%nvctr_f, &
               lr%wfd%nvctr_c+7*lr%wfd%nvctr_f,1,1,1,lr,Lzd%Llr(1),lpsi,psi)
 
-         deallocate(lpsi)
+         call f_free(lpsi)
       end if
 
       ! Update iorbp
@@ -1366,17 +1429,13 @@ subroutine take_psi_from_file(filename,in_frag,hx,hy,hz,lr,at,rxyz,orbs,psi,iorb
 
       close(99)
 
-      i_all=-product(shape(psifscf))*kind(psifscf)
-      deallocate(psifscf,stat=i_stat)
-      call memocc(i_stat,i_all,'psifscf',subname)
+      call f_free(psifscf)
 
    else if (iformat == WF_FORMAT_ETSF) then
       call read_one_wave_etsf(0,filename,iorbp,0,orbs%nspinor,lr%d%n1,lr%d%n2,lr%d%n3,&
            & hx,hy,hz,at,rxyz_file,rxyz,lr%wfd,psi,eval_fake)
    end if
-   i_all=-product(shape(rxyz_file))*kind(rxyz_file)
-   deallocate(rxyz_file,stat=i_stat)
-   call memocc(i_stat,i_all,'rxyz_file',subname)
+   call f_free(rxyz_file)
 END SUBROUTINE take_psi_from_file
 
 

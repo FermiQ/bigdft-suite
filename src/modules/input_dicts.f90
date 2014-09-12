@@ -824,10 +824,10 @@ contains
        end if
     case('F')
        ! Default, store nothing and erase key if already exist.
-       if (has_key(dict, ASTRUCT_CELL)) call pop(dict, ASTRUCT_CELL)
+       if (has_key(dict, ASTRUCT_CELL)) call dict_remove(dict, ASTRUCT_CELL)
     end select BC
 
-    if (has_key(dict, ASTRUCT_POSITIONS)) call pop(dict, ASTRUCT_POSITIONS)
+    if (has_key(dict, ASTRUCT_POSITIONS)) call dict_remove(dict, ASTRUCT_POSITIONS)
     pos => dict // ASTRUCT_POSITIONS
     do iat=1,astruct%nat
        call dict_init(at)
@@ -841,6 +841,12 @@ contains
        call charge_and_spol(astruct%input_polarization(iat),ichg,ispol)
        if (ichg /= 0) call set(at // "IGChg", ichg)
        if (ispol /= 0) call set(at // "IGSpin", ispol)
+       ! information for internal coordinates
+       if (astruct%inputfile_format=='int') then
+           call set(at // "int_ref_atoms_1", astruct%ixyz_int(1,iat))
+           call set(at // "int_ref_atoms_2", astruct%ixyz_int(2,iat))
+           call set(at // "int_ref_atoms_3", astruct%ixyz_int(3,iat))
+       end if
        call add(pos, at)
     end do
 
@@ -1025,6 +1031,12 @@ contains
              else
                 nsgn = -1
              end if
+          else if (trim(str) == "int_ref_atoms_1") then
+             astruct%ixyz_int(1,iat) = at
+          else if (trim(str) == "int_ref_atoms_2") then
+             astruct%ixyz_int(2,iat) = at
+          else if (trim(str) == "int_ref_atoms_3") then
+             astruct%ixyz_int(3,iat) = at
           else if (dict_len(at) == 3) then
              astruct%iatype(iat) = types // dict_key(at)
              astruct%rxyz(:, iat) = at
@@ -1456,7 +1468,7 @@ contains
     integer :: iat
     type(dictionary), pointer :: pos, fxyz
 
-    if (has_key(dict, GOUT_FORCES)) call pop(dict, GOUT_FORCES)
+    if (has_key(dict, GOUT_FORCES)) call dict_remove(dict, GOUT_FORCES)
     if (associated(outs%fxyz)) then
        pos => dict // GOUT_FORCES
        do iat=1,astruct%nat
@@ -1468,7 +1480,7 @@ contains
        end do
     end if
 
-    if (has_key(dict, GOUT_ENERGY)) call pop(dict, GOUT_ENERGY)
+    if (has_key(dict, GOUT_ENERGY)) call dict_remove(dict, GOUT_ENERGY)
     if (outs%energy /= UNINITIALIZED(outs%energy)) &
          & call set(dict // GOUT_ENERGY, outs%energy)
 

@@ -41,7 +41,7 @@ subroutine inputguessConfinement(iproc, nproc, at, input, hx, hy, hz, &
   ! Local variables
   type(gaussian_basis) :: G !basis for davidson IG
   character(len=*), parameter :: subname='inputguessConfinement'
-  integer :: istat,iall,iat,nspin_ig,iorb,nvirt,norbat
+  integer :: istat,iall,iat,nspin_ig,iorb,nvirt,norbat,methTransformOverlap
   real(gp) :: hxh,hyh,hzh,eks,fnrm,V3prb,x0,tt
   integer, dimension(:,:), allocatable :: norbsc_arr
   real(gp), dimension(:), allocatable :: locrad
@@ -59,10 +59,9 @@ subroutine inputguessConfinement(iproc, nproc, at, input, hx, hy, hz, &
   real(kind=8) :: rcov,rprb,ehomo,amu,pnrm
   integer :: nsccode,mxpl,mxchg,inl
   type(mixrhopotDIISParameters) :: mixdiis
-  type(sparse_matrix) :: ham_small ! for FOE
   logical :: finished, can_use_ham
   type(confpot_data), dimension(:), allocatable :: confdatarrtmp
-  integer :: info_basis_functions
+  integer :: info_basis_functions, order_taylor
   real(kind=8) :: ratio_deltas, trace, trace_old, fnrm_tmb
   logical :: ortho_on, reduce_conf, rho_negative
   type(localizedDIISParameters) :: ldiis
@@ -425,9 +424,7 @@ subroutine inputguessConfinement(iproc, nproc, at, input, hx, hy, hz, &
        psigau(1,1,min(tmb%orbs%isorb+1,tmb%orbs%norb)),tmb%psi)
 
 
-  iall=-product(shape(psigau))*kind(psigau)
-  deallocate(psigau,stat=istat)
-  call memocc(istat,iall,'psigau',subname)
+  call f_free_ptr(psigau)
 
   call deallocate_gwf(G,subname)
   ! Deallocate locrad, which is not used any longer.
@@ -544,7 +541,6 @@ subroutine inputguessConfinement(iproc, nproc, at, input, hx, hy, hz, &
 
   if (.not. input%lin%iterative_orthogonalization) then
       ! Standard orthonomalization
-      !!if(iproc==0) write(*,*) 'calling orthonormalizeLocalized (exact)'
       if (iproc==0) call yaml_map('orthonormalization of input guess','standard')
       ! CHEATING here and passing tmb%linmat%denskern instead of tmb%linmat%inv_ovrlp
       !write(*,'(a,i4,4i8)') 'IG: iproc, lbound, ubound, minval, maxval',&
@@ -552,7 +548,8 @@ subroutine inputguessConfinement(iproc, nproc, at, input, hx, hy, hz, &
       !ubound(tmb%linmat%inv_ovrlp%matrixindex_in_compressed_fortransposed,2),&
       !minval(tmb%collcom%indexrecvorbital_c),maxval(tmb%collcom%indexrecvorbital_c)
       !!if (iproc==0) write(*,*) 'WARNING: no ortho in inguess'
-      call orthonormalizeLocalized(iproc, nproc, -1, tmb%npsidim_orbs, tmb%orbs, tmb%lzd, &
+      methTransformOverlap=-1
+      call orthonormalizeLocalized(iproc, nproc, methTransformOverlap, 1.d0, tmb%npsidim_orbs, tmb%orbs, tmb%lzd, &
            tmb%linmat%s, tmb%linmat%l, &
            tmb%collcom, tmb%orthpar, tmb%psi, tmb%psit_c, tmb%psit_f, tmb%can_use_transposed, &
            tmb%foe_obj)
@@ -655,14 +652,15 @@ subroutine inputguessConfinement(iproc, nproc, at, input, hx, hy, hz, &
          call yaml_open_sequence('support function optimization',label=&
                                            'it_supfun'//trim(adjustl(yaml_toa(0,fmt='(i3.3)'))))
      end if
+     order_taylor=input%lin%order_taylor ! since this is intent(inout)
      call getLocalizedBasis(iproc,nproc,at,orbs,rxyz,denspot,GPU,trace,trace_old,fnrm_tmb,&
          info_basis_functions,nlpsp,input%lin%scf_mode,ldiis,input%SIC,tmb,energs, &
          input%lin%nItPrecond,TARGET_FUNCTION_IS_TRACE,input%lin%correctionOrthoconstraint,&
          50,&
          ratio_deltas,ortho_on,input%lin%extra_states,0,1.d-3,input%experimental_mode,input%lin%early_stop,&
          input%lin%gnrm_dynamic, input%lin%min_gnrm_for_dynamic, &
-         can_use_ham, input%lin%order_taylor, input%kappa_conv, input%method_updatekernel,&
-         input%purification_quickreturn, input%adjust_FOE_temperature, input%correction_co_contra)
+         can_use_ham, order_taylor, input%lin%max_inversion_error, input%kappa_conv, input%method_updatekernel,&
+         input%purification_quickreturn, input%correction_co_contra)
      reduce_conf=.true.
      call yaml_close_sequence()
      call yaml_close_map()
@@ -672,8 +670,6 @@ subroutine inputguessConfinement(iproc, nproc, at, input, hx, hy, hz, &
  end if
 
 
-  !call nullify_sparse_matrix(ham_small) ! nullify anyway
-  ham_small=sparse_matrix_null()
 
   !!if (iproc==0) then
   !!    call yaml_close_map()
@@ -691,26 +687,16 @@ subroutine inputguessConfinement(iproc, nproc, at, input, hx, hy, hz, &
       !call yaml_comment('kernel iter:'//yaml_toa(0,fmt='(i6)'),hfill='-')
   end if
 
+  order_taylor=input%lin%order_taylor ! since this is intent(inout)
   if (input%lin%scf_mode==LINEAR_FOE) then
-
-      call sparse_copy_pattern(tmb%linmat%s,ham_small,iproc,subname)
-      !!allocate(ham_small%matrix_compr(ham_small%nvctr), stat=istat)
-      !!call memocc(istat, ham_small%matrix_compr, 'ham_small%matrix_compr', subname)
-      ham_small%matrix_compr=f_malloc_ptr(ham_small%nvctr,id='ham_small%matrix_compr')
-
       call get_coeff(iproc,nproc,LINEAR_FOE,orbs,at,rxyz,denspot,GPU,infoCoeff,energs,nlpsp,&
-           input%SIC,tmb,fnrm,.true.,.false.,.true.,ham_small,0,0,0,0,input%lin%order_taylor,&
-           input%purification_quickreturn,input%adjust_FOE_temperature,&
+           input%SIC,tmb,fnrm,.true.,.false.,.true.,0,0,0,0,order_taylor,input%lin%max_inversion_error,&
+           input%purification_quickreturn,&
            input%calculate_KS_residue,input%calculate_gap)
-
-      if (input%lin%scf_mode==LINEAR_FOE) then ! deallocate ham_small
-         call deallocate_sparse_matrix(ham_small,subname)
-      end if
-
   else
       call get_coeff(iproc,nproc,LINEAR_MIXDENS_SIMPLE,orbs,at,rxyz,denspot,GPU,infoCoeff,energs,nlpsp,&
-           input%SIC,tmb,fnrm,.true.,.false.,.true.,ham_small,0,0,0,0,input%lin%order_taylor,&
-           input%purification_quickreturn,input%adjust_FOE_temperature,&
+           input%SIC,tmb,fnrm,.true.,.false.,.true.,0,0,0,0,order_taylor,input%lin%max_inversion_error,&
+           input%purification_quickreturn,&
            input%calculate_KS_residue,input%calculate_gap)
 
       call vcopy(kswfn%orbs%norb,tmb%orbs%eval(1),1,kswfn%orbs%eval(1),1)
@@ -720,6 +706,7 @@ subroutine inputguessConfinement(iproc, nproc, at, input, hx, hy, hz, &
       end if
 
   end if
+
 
   call communicate_basis_for_density_collective(iproc, nproc, tmb%lzd, max(tmb%npsidim_orbs,tmb%npsidim_comp), &
        tmb%orbs, tmb%psi, tmb%collcom_sr)
@@ -801,16 +788,12 @@ subroutine inputguessConfinement(iproc, nproc, at, input, hx, hy, hz, &
   ! Important: Don't use for the rest of the code
   tmb%ham_descr%can_use_transposed = .false.
 
-  if(associated(tmb%ham_descr%psit_c)) then
-      iall=-product(shape(tmb%ham_descr%psit_c))*kind(tmb%ham_descr%psit_c)
-      deallocate(tmb%ham_descr%psit_c, stat=istat)
-      call memocc(istat, iall, 'tmb%ham_descr%psit_c', subname)
-  end if
-  if(associated(tmb%ham_descr%psit_f)) then
-      iall=-product(shape(tmb%ham_descr%psit_f))*kind(tmb%ham_descr%psit_f)
-      deallocate(tmb%ham_descr%psit_f, stat=istat)
-      call memocc(istat, iall, 'tmb%ham_descr%psit_f', subname)
-  end if
+  !if(associated(tmb%ham_descr%psit_c)) then
+  !    call f_free_ptr(tmb%ham_descr%psit_c)
+  !end if
+  !if(associated(tmb%ham_descr%psit_f)) then
+  !    call f_free_ptr(tmb%ham_descr%psit_f)
+  !end if
   
   !if (iproc==0) then
   !    call yaml_close_map()

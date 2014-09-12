@@ -24,7 +24,7 @@ program driver
   integer,parameter :: itype=1
   character(len=1),parameter :: jobz='v', uplo='l'
   integer,parameter :: n=64
-  real(kind=8) :: val, error
+  real(kind=8) :: val, max_error, mean_error
   real(kind=8),dimension(:,:),allocatable :: ovrlp, ovrlp2
   integer :: norb, nseg, nvctr, iorb, jorb, iorder, power, blocksize, icheck, imode
 
@@ -42,9 +42,9 @@ program driver
   integer,parameter :: SPARSE=1
   integer,parameter :: DENSE=2
 
-  integer :: ncount1, ncount_rate, ncount_max, ncount2
+  integer :: ncount1, ncount_rate, ncount_max, ncount2, i, j, start
   real(kind=4) :: tr0, tr1
-  real(kind=8) :: time, time2,tt
+  real(kind=8) :: time, time2, tmp, tt
   real :: rn
   real(kind=8), external :: ddot, dnrm2
   logical, parameter :: timer_on=.false.        !time the different methods
@@ -119,6 +119,19 @@ program driver
               end if
           end do
       end do
+  !DEBUG
+  !else if (orbs%norb==984.or..true.) then
+  !    start=241
+  !    open(100)
+  !    do iorb=1,984
+  !        do jorb=1,984
+  !            read(100,*) i,j,tmp
+  !            if (iorb<orbs%norb+start.and.jorb<orbs%norb+start.and.iorb>=start.and.jorb>=start) &
+  !                 ovrlp(jorb-start+1,iorb-start+1)=tmp
+  !        end do
+  !    end do
+  !    close(100)
+  !END DEBUG
   else
       ! above approach has problems for testing larger matrices
       allocate(ovrlp2(orbs%norb,orbs%norb))
@@ -181,8 +194,9 @@ program driver
       keyg_tmp(2,iseg)=iiorb
   end do
 
-  if (ortho_check) call deviation_from_unity_parallel(iproc, nproc, orbs%norb, orbs%norb, 0, ovrlp, error)
-  if (ortho_check.and.iproc==0) call yaml_map('deviation from unity',error)
+  if (ortho_check) call deviation_from_unity_parallel(iproc, nproc, orbs%norb, orbs%norb, 0, ovrlp, smat_A, max_error, mean_error)
+  if (ortho_check.and.iproc==0) call yaml_map('max deviation from unity',max_error)
+  if (ortho_check.and.iproc==0) call yaml_map('mean deviation from unity',mean_error)
   if (iproc==0) call yaml_comment('starting the checks',hfill='=')
 
   do icheck=1,ncheck
@@ -209,7 +223,7 @@ program driver
           if (timer_on) call system_clock(ncount1,ncount_rate,ncount_max)
           call overlapPowerGeneral(iproc, nproc, iorder, power, blocksize, &
                imode, ovrlp_smat=smat_A, inv_ovrlp_smat=smat_B, ovrlp_mat=mat_A, inv_ovrlp_mat=inv_mat_B, &
-               check_accur=.true., error=error)
+               check_accur=.true., max_error=max_error, mean_error=mean_error)
           if (timer_on) call cpu_time(tr1)
           if (timer_on) call system_clock(ncount2,ncount_rate,ncount_max)
           if (timer_on) time=real(tr1-tr0,kind=8)
@@ -222,7 +236,7 @@ program driver
           if (timer_on) call system_clock(ncount1,ncount_rate,ncount_max)
           call overlapPowerGeneral(iproc, nproc, iorder, power, blocksize, &
                imode, ovrlp_smat=smat_A, inv_ovrlp_smat=smat_B, ovrlp_mat=mat_A, inv_ovrlp_mat=inv_mat_B, &
-               check_accur=.true., error=error)
+               check_accur=.true., max_error=max_error, mean_error=mean_error)
                !!foe_nseg=smat_A%nseg, foe_kernel_nsegline=smat_A%nsegline, &
                !!foe_istsegline=smat_A%istsegline, foe_keyg=smat_A%keyg)
            !if (iorder==0) call compress_matrix(iproc, smat_B)
@@ -232,7 +246,8 @@ program driver
           if (timer_on) time2=dble(ncount2-ncount1)/dble(ncount_rate)
       end if
       if (print_matrices.and.iproc==0) call write_matrix_compressed('final result', smat_B, inv_mat_B)
-      if (iproc==0) call yaml_map('error of the result',error)
+      if (iproc==0) call yaml_map('Max error of the result',max_error)
+      if (iproc==0) call yaml_map('Mean error of the result',mean_error)
       if (timer_on.and.iproc==0) call yaml_map('time taken (cpu)',time)
       if (timer_on.and.iproc==0) call yaml_map('time taken (system)',time2)
   end do

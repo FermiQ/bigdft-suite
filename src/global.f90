@@ -120,14 +120,10 @@ program MINHOP
   if (bigdft_mpi%iproc == 0) call yaml_map('(MH) mdmin=',mdmin)
 
   ! allocate other arrays
-  allocate(vxyz(3,natoms+ndebug),stat=i_stat)
-  call memocc(i_stat,vxyz,'vxyz',subname)
-  allocate(gg(3,natoms+ndebug),stat=i_stat)
-  call memocc(i_stat,gg,'gg',subname)
-  allocate(poshop(3,natoms+ndebug),stat=i_stat)
-  call memocc(i_stat,poshop,'poshop',subname)
-  allocate(rcov(natoms+ndebug),stat=i_stat)
-  call memocc(i_stat,rcov,'rcov',subname)
+  vxyz = f_malloc((/ 3, natoms /),id='vxyz')
+  gg = f_malloc((/ 3, natoms /),id='gg')
+  poshop = f_malloc((/ 3, natoms /),id='poshop')
+  rcov = f_malloc(natoms,id='rcov')
 
   call give_rcov(bigdft_mpi%iproc,atoms,natoms,rcov)
 
@@ -191,8 +187,7 @@ program MINHOP
      if (bigdft_mpi%iproc == 0) call yaml_map('error (norbs), i_stat',i_stat)
      stop
   end if
-  allocate(ksevals(nksevals+ndebug),stat=i_stat)
-  call memocc(i_stat,ksevals,'ksevals',subname)
+  ksevals = f_malloc(nksevals,id='ksevals')
 
 
   energyold=1.d100
@@ -225,7 +220,7 @@ program MINHOP
      write(fn4,'(i4.4)') ngeopt
      write(comment,'(a,1pe10.3)')'fnrm= ',tt
      call write_atomic_file('posimed_'//fn4//'_'//trim(bigdft_run_id_toa()),&
-          outs%energy,atoms%astruct%rxyz,atoms,trim(comment),forces=outs%fxyz)
+          outs%energy,atoms%astruct%rxyz,atoms%astruct%ixyz_int,atoms,trim(comment),forces=outs%fxyz)
       open(unit=864,file='ksemed_'//fn4//'_'//trim(bigdft_run_id_toa()))
       do i=1,nksevals
       write(864,*) ksevals(i)
@@ -233,8 +228,15 @@ program MINHOP
       close(864)
   endif
 
-  call ha_trans(atoms%astruct%nat,atoms%astruct%rxyz)
+  if (atoms%astruct%geocode=='F') call ha_trans(atoms%astruct%nat,atoms%astruct%rxyz)
 
+!  if ( .not. atoms%astruct%geocode=='F') then 
+!         write(*,*) 'Generating new input guess'
+!          inputs_opt%inputPsiId=0
+!          call run_objects_associate(runObj, inputs_opt, atoms, rst)
+!          call call_bigdft(runObj,outs,bigdft_mpi%nproc,bigdft_mpi%iproc,infocode)
+!          inputs_opt%inputPsiId=1
+!  endif   
   call run_objects_associate(runObj, inputs_opt, atoms, rst)
   call geopt(runObj, outs, bigdft_mpi%nproc,bigdft_mpi%iproc,ncount_bigdft)
   if (bigdft_mpi%iproc == 0) call yaml_map('(MH) Wvfnctn Opt. steps for accurate geo. rel of initial conf.',ncount_bigdft)
@@ -251,7 +253,7 @@ program MINHOP
      write(fn4,'(i4.4)') ngeopt
      write(comment,'(a,1pe10.3)')'fnrm= ',tt
      call write_atomic_file('poslocm_'//fn4//'_'//trim(bigdft_run_id_toa()),&
-          outs%energy,atoms%astruct%rxyz,atoms,trim(comment),forces=outs%fxyz)
+          outs%energy,atoms%astruct%rxyz,atoms%astruct%ixyz_int,atoms,trim(comment),forces=outs%fxyz)
       open(unit=864,file='kseloc_'//fn4//'_'//trim(bigdft_run_id_toa()))
       do i=1,nksevals
       write(864,*) ksevals(i)
@@ -260,12 +262,9 @@ program MINHOP
   endif
   
         nid=natoms
-        allocate(fp(nid))
-          call memocc(i_stat,fp,'fp',subname)
-        allocate(wfp(nid))
-          call memocc(i_stat,wfp,'wfp',subname)
-        allocate(fphop(nid))
-          call memocc(i_stat,fphop,'fphop',subname)
+        fp = f_malloc(nid,id='fp')
+        wfp = f_malloc(nid,id='wfp')
+        fphop = f_malloc(nid,id='fphop')
 
   call fingerprint(bigdft_mpi%iproc,atoms%astruct%nat,nid,atoms%astruct%rxyz,rcov,fp, & 
                    atoms%astruct%geocode,atoms%astruct%cell_dim)
@@ -287,14 +286,10 @@ program MINHOP
   if (bigdft_mpi%iproc == 0 .and. nlmin.gt.nlminx) call yaml_scalar('nlmin>nlminx')
   if (nlmin.gt.nlminx) stop 'nlmin>nlminx'
 
-        allocate(en_arr(nlminx))
-          call memocc(i_stat,en_arr,'en_arr',subname)
-        allocate(ct_arr(nlminx))
-          call memocc(i_stat,ct_arr,'ct_arr',subname)
-        allocate(fp_arr(nid,nlminx))
-          call memocc(i_stat,fp_arr,'fp_arr',subname)
-        allocate(pl_arr(3,natoms,nlminx))
-          call memocc(i_stat,pl_arr,'pl_arr',subname)
+        en_arr = f_malloc(nlminx,id='en_arr')
+        ct_arr = f_malloc(nlminx,id='ct_arr')
+        fp_arr = f_malloc((/ nid, nlminx /),id='fp_arr')
+        pl_arr = f_malloc((/ 3, natoms, nlminx /),id='pl_arr')
         if (nlmin.eq.0) then 
             if (bigdft_mpi%iproc == 0) call yaml_map('(MH) New run with nlminx=',nlminx)
         else
@@ -402,8 +397,7 @@ program MINHOP
   nlmin_old=nlmin
   CPUcheck=.false.
 
-  allocate(pos(3,atoms%astruct%nat+ndebug),stat=i_stat)
-  call memocc(i_stat,pos,'pos',subname)
+  pos = f_malloc_ptr((/ 3, atoms%astruct%nat /),id='pos')
   call vcopy(3*atoms%astruct%nat, atoms%astruct%rxyz(1,1) , 1, pos(1,1), 1)
 
   !C outer (hopping) loop
@@ -468,7 +462,7 @@ program MINHOP
      write(fn4,'(i4.4)') ngeopt
      write(comment,'(a,1pe10.3)')'fnrm= ',tt
      call write_atomic_file('posimed_'//fn4//'_'//trim(bigdft_run_id_toa()),&
-          e_pos,pos,atoms,trim(comment),forces=outs%fxyz)
+          e_pos,pos,atoms%astruct%ixyz_int,atoms,trim(comment),forces=outs%fxyz)
       open(unit=864,file='ksemed_'//fn4//'_'//trim(bigdft_run_id_toa()))
       do i=1,nksevals
       write(864,*) ksevals(i)
@@ -476,9 +470,17 @@ program MINHOP
       close(864)
   endif
 
+  if (atoms%astruct%geocode=='F') call  ha_trans(atoms%astruct%nat,atoms%astruct%rxyz)
 
-  call  ha_trans(atoms%astruct%nat,atoms%astruct%rxyz)
+!  if ( .not. atoms%astruct%geocode=='F') then 
+!         write(*,*) 'Generating new input guess'
+!          inputs_opt%inputPsiId=0
+!          call run_objects_associate(runObj, inputs_opt, atoms, rst)
+!          call call_bigdft(runObj,outs,bigdft_mpi%nproc,bigdft_mpi%iproc,infocode)
+!          inputs_opt%inputPsiId=1
+!  endif   
   call run_objects_associate(runObj, inputs_opt, atoms, rst)
+
   call geopt(runObj, outs, bigdft_mpi%nproc,bigdft_mpi%iproc,ncount_bigdft)
   if (bigdft_mpi%iproc == 0) call yaml_map('(MH) Wvfnctn Opt. steps for accurate geo. rel of MD conf',ncount_bigdft)
      count_bfgs=count_bfgs+ncount_bigdft
@@ -497,7 +499,7 @@ program MINHOP
      write(fn4,'(i4.4)') ngeopt
      write(comment,'(a,1pe10.3)')'fnrm= ',tt
      call write_atomic_file('poslocm_'//fn4//'_'//trim(bigdft_run_id_toa()),&
-          outs%energy,atoms%astruct%rxyz,atoms,trim(comment),forces=outs%fxyz)
+          outs%energy,atoms%astruct%rxyz,atoms%astruct%ixyz_int,atoms,trim(comment),forces=outs%fxyz)
         open(unit=864,file='kseloc_'//fn4//'_'//trim(bigdft_run_id_toa()))
         do i=1,nksevals
           write(864,*) ksevals(i)
@@ -616,7 +618,7 @@ program MINHOP
      enddo
      if (bigdft_mpi%iproc == 0) then
         !call yaml_open_map('(MH) Write poscur file')
-       call write_atomic_file('poscur'//trim(bigdft_run_id_toa()),e_pos,pos,atoms,'')
+       call write_atomic_file('poscur'//trim(bigdft_run_id_toa()),e_pos,pos,atoms%astruct%ixyz_int,atoms,'')
        call yaml_map('(MH) poscur.xyz for  RESTART written',.true.)
 
        write(2,'(1x,f10.0,1x,1pe21.14,2(1x,1pe10.3),3(1x,0pf5.2),a)')  &
@@ -695,58 +697,19 @@ end do hopping_loop
 
   ! deallocation of global's variables
 
-  i_all=-product(shape(pos))*kind(pos)
-  deallocate(pos,stat=i_stat)
-  call memocc(i_stat,i_all,'pos',subname)
-
-  i_all=-product(shape(en_arr))*kind(en_arr)
-  deallocate(en_arr,stat=i_stat)
-  call memocc(i_stat,i_all,'en_arr',subname)
-
-  i_all=-product(shape(ct_arr))*kind(ct_arr)
-  deallocate(ct_arr,stat=i_stat)
-  call memocc(i_stat,i_all,'ct_arr',subname)
-
-  i_all=-product(shape(fp_arr))*kind(fp_arr)
-  deallocate(fp_arr,stat=i_stat)
-  call memocc(i_stat,i_all,'fp_arr',subname)
-
-  i_all=-product(shape(fp))*kind(fp)
-  deallocate(fp,stat=i_stat)
-  call memocc(i_stat,i_all,'fp',subname)
-
-  i_all=-product(shape(wfp))*kind(wfp)
-  deallocate(wfp,stat=i_stat)
-  call memocc(i_stat,i_all,'wfp',subname)
-
-  i_all=-product(shape(vxyz))*kind(vxyz)
-  deallocate(vxyz,stat=i_stat)
-  call memocc(i_stat,i_all,'vxyz',subname)
-
-  i_all=-product(shape(gg))*kind(gg)
-  deallocate(gg,stat=i_stat)
-  call memocc(i_stat,i_all,'gg',subname)
-
-  i_all=-product(shape(pl_arr))*kind(pl_arr)
-  deallocate(pl_arr,stat=i_stat)
-  call memocc(i_stat,i_all,'pl_arr',subname)
-
-  i_all=-product(shape(poshop))*kind(poshop)
-  deallocate(poshop,stat=i_stat)
-  call memocc(i_stat,i_all,'poshop',subname)
-
-  i_all=-product(shape(fphop))*kind(fphop)
-  deallocate(fphop,stat=i_stat)
-  call memocc(i_stat,i_all,'fphop',subname)
-
-
-  i_all=-product(shape(rcov))*kind(rcov)
-  deallocate(rcov,stat=i_stat)
-  call memocc(i_stat,i_all,'rcov',subname)
-
-  i_all=-product(shape(ksevals))*kind(ksevals)
-  deallocate(ksevals,stat=i_stat)
-  call memocc(i_stat,i_all,'ksevals',subname)
+  call f_free_ptr(pos)
+  call f_free(en_arr)
+  call f_free(ct_arr)
+  call f_free(fp_arr)
+  call f_free(fp)
+  call f_free(wfp)
+  call f_free(vxyz)
+  call f_free(gg)
+  call f_free(pl_arr)
+  call f_free(poshop)
+  call f_free(fphop)
+  call f_free(rcov)
+  call f_free(ksevals)
 
   call deallocate_global_output(outs)
   call run_objects_free_container(runObj)
@@ -849,7 +812,8 @@ rkin=dot(3*atoms%astruct%nat,vxyz(1,1),1,vxyz(1,1),1)
 
        if (iproc == 0) then
           write(fn4,'(i4.4)') istep
-          call write_atomic_file(trim(inputs_md%dir_output)//'posmd_'//fn4,outs%energy,atoms%astruct%rxyz,atoms,'',forces=outs%fxyz)
+          call write_atomic_file(trim(inputs_md%dir_output)//'posmd_'//fn4,outs%energy,&
+              atoms%astruct%rxyz,atoms%astruct%ixyz_int,atoms,'',forces=outs%fxyz)
        end if
 
        en0000=outs%energy-e0
@@ -861,7 +825,7 @@ rkin=dot(3*atoms%astruct%nat,vxyz(1,1),1,vxyz(1,1),1)
           write(fn4,'(i4.4)') ngeopt
           write(comment,'(a,i3)')'nummin= ',nummin
           call write_atomic_file('poslocm_'//fn4//'_'//trim(bigdft_run_id_toa()), & 
-               outs%energy,atoms%astruct%rxyz,atoms,trim(comment),forces=outs%fxyz)
+               outs%energy,atoms%astruct%rxyz,atoms%astruct%ixyz_int,atoms,trim(comment),forces=outs%fxyz)
        endif
        econs_max=max(econs_max,rkin+outs%energy)
        econs_min=min(econs_min,rkin+outs%energy)
@@ -1015,7 +979,7 @@ rkin=dot(3*atoms%astruct%nat,vxyz(1,1),1,vxyz(1,1),1)
        write(comment,'(a,1pe10.3)')'res= ',res
        if (iproc == 0) &
             call write_atomic_file(trim(inputs_md%dir_output)//'possoft_'//fn4,&
-            outs%energy,atoms%astruct%rxyz,atoms,trim(comment),forces=outs%fxyz)
+            outs%energy,atoms%astruct%rxyz,atoms%astruct%ixyz_int,atoms,trim(comment),forces=outs%fxyz)
       
        if(iproc==0) then
           call yaml_open_map('(MH) soften',flow=.true.)
@@ -1058,7 +1022,8 @@ rkin=dot(3*atoms%astruct%nat,vxyz(1,1),1,vxyz(1,1),1)
         call axpy(3*atoms%astruct%nat, -1.d0, pos0(1), 1, vxyz(1), 1)
        write(comment,'(a,1pe10.3)')'curv= ',curv
        if (iproc == 0) &
-            call write_atomic_file(trim(inputs_md%dir_output)//'posvxyz',0.d0,vxyz,atoms,trim(comment),forces=outs%fxyz)
+            call write_atomic_file(trim(inputs_md%dir_output)//'posvxyz',0.d0,vxyz,atoms%astruct%ixyz_int,&
+                 atoms,trim(comment),forces=outs%fxyz)
 
        call elim_moment(atoms%astruct%nat,vxyz)
        if (atoms%astruct%geocode == 'F') &
@@ -1537,7 +1502,8 @@ subroutine winter(nat,at,nid,nlminx,nlmin,en_delta,fp_delta, &
      !C generate filename and open files
      write(fn5,'(i5.5)') k
      !        write(comment,'(a,1pe15.8)')'energy= ',en_arr(k)
-     call  write_atomic_file('poslow'//fn5//'_'//trim(bigdft_run_id_toa()),en_arr(k),pl_arr(1,1,k),at,'')
+     call  write_atomic_file('poslow'//fn5//'_'//trim(bigdft_run_id_toa()),en_arr(k),pl_arr(1,1,k),&
+           at%astruct%ixyz_int,at,'')
   end do
 
   call yaml_map('(MH) poslow files written',.true.)
@@ -1880,6 +1846,7 @@ subroutine fixfrag_posvel(iproc,nat,rcov,pos,vel,option,occured)
 !!use module_types
 !!use m_ab6_symmetry
 use yaml_output
+use dynamic_memory
 implicit none
 integer, intent(in) :: iproc,nat
 !type(atoms_data), intent(in) :: at
@@ -1965,7 +1932,7 @@ if(nfrag.ne.1) then          !"if there is fragmentation..."
       !   if(nfrag.ne.1) then          !"if there is fragmentation..."
 
       !Find out which fragment is the main cluster
-      allocate(fragcount(nfrag))
+      fragcount = f_malloc(nfrag,id='fragcount')
       fragcount=0
       do ifrag=1,nfrag
          do iat=1,nat
@@ -2017,7 +1984,7 @@ if(nfrag.ne.1) then          !"if there is fragmentation..."
 
          endif
       enddo
-      deallocate(fragcount)
+      call f_free(fragcount)
       if(iproc==0) then
          call yaml_comment('(MH) FIX: Fragmentation fixed! Keep on hopping...')
          call yaml_close_map()
@@ -2035,8 +2002,10 @@ if(nfrag.ne.1) then          !"if there is fragmentation..."
       !   if(nfrag.ne.1) then          !"if there is fragmentation..."
       if(iproc==0) call yaml_map('(MH) FIX: Preparing to invert velocities, option:',option)
       !Compute center of mass of all fragments and the collectiove velocity of each fragment
-      allocate(cm_frags(3,nfrag),vel_frags(3,nfrag),nat_frags(nfrag))
-      allocate(invert(nfrag))
+      cm_frags = f_malloc((/ 3, nfrag /),id='cm_frags')
+      vel_frags = f_malloc((/ 3, nfrag /),id='vel_frags')
+      nat_frags = f_malloc(nfrag,id='nat_frags')
+      invert = f_malloc(nfrag,id='invert')
       cm_frags(:,:)=0.d0
       vel_frags(:,:)=0.d0
       nat_frags(:)=0         !number of atoms per fragment
@@ -2173,8 +2142,10 @@ if(nfrag.ne.1) then          !"if there is fragmentation..."
       !Checkend kinetic energy after inversion
 
 
-      deallocate(cm_frags,vel_frags,nat_frags)
-      deallocate(invert)
+      call f_free(cm_frags)
+      call f_free(vel_frags)
+      call f_free(nat_frags)
+      call f_free(invert)
       !   endif
       !else
       !   stop "Wrong option within ff-rv"
@@ -2252,8 +2223,8 @@ logical ,dimension(nat) :: onsurface
 
     ylow=ymin+ilow*.25d0
     yhigh=ymin+ihigh*.25d0
-    if (iproc.eq.0) write(*,*) "#MH ylow,ycen,yhigh",ylow,ymin+icen*.25d0,yhigh
-             write(1000+iproc,*) "#MH ylow,ycen,yhigh",ylow,ymin+icen*.25d0,yhigh
+    if (iproc.eq.0) write(*,'(a,3(1x,e10.3))') "#MH ylow,ycen,yhigh",ylow,ymin+icen*.25d0,yhigh
+!             write(1000+iproc,'(a,3(1x,e10.3))') "#MH ylow,ycen,yhigh",ylow,ymin+icen*.25d0,yhigh
 
 if (option.eq.2) then
 
@@ -2750,6 +2721,7 @@ subroutine fingerprint(iproc,nat,nid,rxyz,rcov,fp,geocode,alat)
 ! calculates an overlap matrix for atom centered GTO of the form:
 !    s-type: 1/norm_s  exp(-(1/2)*(r/rcov)**2)
 !   px type: 1/norm_p exp(-(1/2)*(r/rcov)**2) x/r  and analageously for py and pz
+use dynamic_memory
 implicit none !real*8 (a-h,o-z)
 integer  nat,nid ,iproc,  info
 real*8 :: rxyz(3,nat),fp(nid),rcov(nat),tau(3),alat(3)
@@ -2788,7 +2760,8 @@ character(len=1) :: geocode
 if(nid .ne. nat .and. nid .ne. 4*nat) stop ' nid should be either nat or  4*nat '
 
 
-allocate(om(nid,nid),work(nid,nid))
+om = f_malloc((/nid,nid/),id='om')
+work =  f_malloc((/nid,nid/),id='work')
 om(:,:)=0.d0
 
     do i1=-n1,n1
@@ -2912,7 +2885,8 @@ endif  ! both s and p
  if (info.ne.0) stop 'info'
  if (iproc.eq.0) write(*,'(a,20(e10.3))') '(MH) fingerprint ',(fp(i1),i1=1,nid)
 
-deallocate(om,work)
+call f_free(om)
+call f_free(work)
 end subroutine fingerprint
 
 
