@@ -13,11 +13,13 @@ program wvl
 
   use Poisson_Solver, except_dp => dp, except_gp => gp, except_wp => wp
   use BigDFT_API
+  use bigdft_run
   use dynamic_memory
   use yaml_output
   use module_input_dicts
   use module_interfaces, only: inputs_from_dict
   use module_atoms, only: deallocate_atoms_data
+  use communications_base, only: deallocate_comms
   use communications_init, only: orbitals_communicators
   use communications, only: transpose_v, untranspose_v
   implicit none
@@ -49,20 +51,19 @@ program wvl
   integer, dimension(:,:,:), allocatable :: irrzon
   real(dp), dimension(:,:,:), allocatable :: phnons
   type(coulomb_operator) :: pkernel
-  type(dictionary), pointer :: user_inputs
+  type(dictionary), pointer :: user_inputs,options
   !temporary variables
-  integer, dimension(4) :: mpi_info
+  !integer, dimension(4) :: mpi_info
   character(len=60) :: run_id
 
   call f_lib_initialize()
-   !-finds the number of taskgroup size
-   !-initializes the mpi_environment for each group
-   !-decides the radical name for each run
-   call bigdft_init(mpi_info,nconfig,run_id,ierr)
-
-   !just for backward compatibility
-   iproc=mpi_info(1)
-   nproc=mpi_info(2)
+  nullify(options)
+  !-initializes the mpi_environment for each group
+  call bigdft_init(options)
+  call dict_free(options)
+!just for backward compatibility
+  iproc=bigdft_mpi%iproc
+  nproc=bigdft_mpi%nproc
    call dict_init(user_inputs)
    call user_dict_from_files(user_inputs, 'input', 'posinp', bigdft_mpi)
    call inputs_from_dict(inputs, atoms, user_inputs)
@@ -127,7 +128,7 @@ program wvl
                    & trim(yaml_toa(max(orbs%npsidim_orbs,orbs%npsidim_comp))))
   !write(*,*) "Proc", iproc, " allocates psi to",max(orbs%npsidim_orbs,orbs%npsidim_comp)
 
-  call bigdft_utils_flush(unit=6)
+  call yaml_flush_document()
   call MPI_BARRIER(MPI_COMM_WORLD, ierr)
 
   !-------------------------!
@@ -149,7 +150,7 @@ program wvl
                       & trim(yaml_toa(orbs%isorb + i)) // " is of norm " // trim(yaml_toa(nrm)))
   end do
 
-  call bigdft_utils_flush(unit=6)
+  call yaml_flush_document()
   call MPI_BARRIER(MPI_COMM_WORLD, ierr)
 
   !---------------------------!
@@ -181,11 +182,11 @@ program wvl
   end if
   if (iproc == 0) then
      !uses yaml_output routine to provide example
-     call yaml_open_sequence('The overlap matrix is')
+     call yaml_sequence_open('The overlap matrix is')
           do j = 1, orbs%norb, 1
              call yaml_sequence(trim(yaml_toa(ovrlp(:, j),fmt='(g18.8)')))
           end do
-     call yaml_close_sequence()
+     call yaml_sequence_close()
      !write(*,*) "The overlap matrix is:"
      !do j = 1, orbs%norb, 1
      !   write(*, "(A)", advance = "NO") "("
@@ -201,7 +202,7 @@ program wvl
   call untranspose_v(iproc,nproc,orbs,Lzd%glr%wfd,comms,psi(1),work_add=w(1))
   deallocate(w)
 
-  call bigdft_utils_flush(unit=6)
+  call yaml_flush_document()
   call MPI_BARRIER(MPI_COMM_WORLD, ierr)
 
   !-------------------------!
@@ -253,7 +254,7 @@ program wvl
   call sumrho(dpcom,orbs,Lzd,GPU,atoms%astruct%sym,rhodsc,xc,psi,rho_p)
   call communicate_density(dpcom,orbs%nspin,rhodsc,rho_p,rhor,.false.)
 
-  call deallocate_rho_descriptors(rhodsc,"main")
+  call deallocate_rho_descriptors(rhodsc)
 
   ! Example of calculation of the energy of the local potential of the pseudos.
   pkernel=pkernel_init(.true.,iproc,nproc,0,&
@@ -301,15 +302,15 @@ program wvl
   deallocate(rxyz_old)
   deallocate(psi)
 
-  call deallocate_comms(comms,"main")
+  call deallocate_comms(comms)
   call deallocate_wfd(Lzd%Glr%wfd)
 
-  call deallocate_bounds(Lzd%Glr%geocode,Lzd%Glr%hybrid_on,Lzd%Glr%bounds,"main")
+  call deallocate_bounds(Lzd%Glr%geocode,Lzd%Glr%hybrid_on,Lzd%Glr%bounds)
 
-  call deallocate_Lzd_except_Glr(Lzd,"main")
+  call deallocate_Lzd_except_Glr(Lzd)
   !deallocate(Lzd%Glr%projflg)
 
-  call deallocate_orbs(orbs,"main")
+  call deallocate_orbs(orbs)
 
   call deallocate_atoms_data(atoms) 
   call xc_end(xc)

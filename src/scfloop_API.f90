@@ -12,8 +12,9 @@
 !> Module determining the Self-Consistent Loop API
 module scfloop_API
 
-  use module_base
-  use module_types
+  use bigdft_run
+!!$  use module_base
+!!$  use module_types
 
   implicit none
 
@@ -44,8 +45,7 @@ end module scfloop_API
 subroutine scfloop_main(acell, epot, fcart, grad, itime, me, natom, rprimd, xred)
   use scfloop_API
   use module_base
-  use module_types
-  use module_interfaces
+  use bigdft_run
 
   implicit none
 
@@ -113,24 +113,24 @@ END SUBROUTINE scfloop_main
 subroutine scfloop_output(acell, epot, ekin, fred, itime, me, natom, rprimd, vel, xred)
   use scfloop_API
   use module_base
-  use module_types
-  use module_interfaces
+  !use module_types
+  use module_interfaces, only: write_atomic_file
 
   implicit none
 
   !Arguments
   integer, intent(in) :: natom, itime, me
   real(dp), intent(in) :: epot, ekin
-  real(dp), intent(in) :: acell(3)
-  real(dp), intent(in) :: xred(3,natom)
-  real(dp), intent(in) :: fred(3, natom), vel(3, natom),rprimd(3,3)
+  real(dp), dimension(3), intent(in) :: acell
+  real(dp), dimension(3,natom), intent(in) :: xred
+  real(dp), dimension(3,natom), intent(in) :: fred, vel, rprimd
   !Local variables
   character(len=*), parameter :: subname='scfloop_output'
   character(len = 5) :: fn5
   character(len = 40) :: comment
-  integer :: i, i_stat, i_all
   real :: fnrm
   real(dp), dimension(:,:), allocatable :: xcart,fcart
+  integer :: i
 
   if (me /= 0) return
 

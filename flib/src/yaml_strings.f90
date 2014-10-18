@@ -35,8 +35,8 @@ module yaml_strings
 
   !Public routines
   public ::  yaml_toa, buffer_string, align_message, shiftstr,yaml_date_toa
-  public :: yaml_date_and_time_toa,yaml_time_toa,is_atoi,is_atof,is_atol
-  public :: read_fraction_string
+  public :: yaml_date_and_time_toa,yaml_time_toa,is_atoi,is_atof,is_atol,is_atoli
+  public :: read_fraction_string,f_strcpy
 
 contains
 
@@ -78,20 +78,20 @@ contains
 
 
   !> Write the strings as they were written by write
-  pure subroutine string_assignment(stra,strb)
+  pure subroutine f_strcpy(dest,src)
     implicit none
-    character(len=*), intent(out) :: stra
-    character(len=*), intent(in) :: strb
+    character(len=*), intent(out) :: dest
+    character(len=*), intent(in) :: src
     !local variables
     integer :: i
 
-    stra=repeat(' ',len(stra))
+    dest=repeat(' ',len(dest))
     
-    do i=1,min(len(stra),len(strb))
-       stra(i:i)=strb(i:i)
+    do i=1,min(len(src),len(dest))
+       dest(i:i)=src(i:i)
     end do
     
-  end subroutine string_assignment
+  end subroutine f_strcpy
 
 
   !> Add a buffer to a string and increase its length
@@ -214,15 +214,15 @@ contains
   pure function yaml_ctoa(d,fmt)
     implicit none
     character(len=*), intent(in) :: d
-    character(len=max_value_length) :: yaml_ctoa
+    character(len=len(d)) :: yaml_ctoa
     character(len=*), optional, intent(in) :: fmt
 
     if (present(fmt)) then
-       write(yaml_ctoa(1:max_value_length),fmt) trim(d)
+       write(yaml_ctoa,fmt) trim(d)
     else
-       yaml_ctoa(1:max_value_length)=trim(d)
+       call f_strcpy(src=d,dest=yaml_ctoa)
+       !yaml_ctoa(1:max_value_length)=trim(d)
     end if
-
   end function yaml_ctoa
 
 
@@ -492,6 +492,28 @@ contains
     yes=ierr==0
   end function is_atoi
 
+  !>find if a string is a long integer
+  !! use the portable mode described in 
+  !! http://flibs.sourceforge.net/fortran_aspects.html#check_integers
+  !! note that this function also gives positive answer if the character fits with ddefault integer type
+  !! therefore care should be taken in the usage (use only when long is needed)
+  pure function is_atoli(str) result(yes)
+    implicit none
+    character(len=*), intent(in) :: str
+    logical :: yes
+    !local variables
+    integer :: ierr
+    integer(kind=8) :: ival
+    character(len=20) :: form
+
+    !fill the string describing the format to be used for reading
+    !use the trimmed string and the yaml_toa function as i0 can add extra zeros in the specifications
+    write(form,'(a20)')'(i'//adjustl(trim(yaml_itoa(len_trim(str),fmt='(i17)')))//')' 
+    read(str,trim(form),iostat=ierr)ival
+    yes=ierr==0
+  end function is_atoli
+
+
   !>check if str contains a floating point number. 
   !!note that in principle this function gives positive answer also 
   !!if the number in str is an integer. Therefore is_atoi should be used to check before
@@ -525,7 +547,10 @@ contains
     ie=len(trim(str))
     is=max(scan(trim(str),' '),1)
     yes=scan(str(is:ie),' ') ==0 !there is no other space in the string
-    if (yes) yes= (ie-is+1==3 .and. str(is:ie)=='Yes') .or. (ie-is+1==2 .and. str(is:ie)=='No')
+    if (yes) yes= (ie-is+1==3 .and. any(str(is:ie) == ['Yes', 'yes', 'YES'])) &
+       &     .or. (ie-is+1==2 .and. any(str(is:ie) == ['No', 'no', 'NO'])) &
+       &     .or. (ie-is+1==4 .and. any(str(is:ie) == ['True', 'true', 'TRUE'])) &
+       &     .or. (ie-is+1==5 .and. any(str(is:ie) == ['False', 'false', 'FALSE']))
   end function is_atol
 
   !> Read a real or real/real, real:real 

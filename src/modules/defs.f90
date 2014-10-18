@@ -65,8 +65,15 @@ module module_defs
   real(gp), parameter :: AU_GPa=29421.010901602753_gp                   !< 1 Ha/Bohr^3 in GPa
   real(gp), parameter :: Radian_Degree = 57.29577951308232087679_gp     !< 1 radian in degrees
 
-  !> Evergreens
+  !> Evergreen
   real(dp), parameter :: pi_param=3.141592653589793238462643383279502884197_dp
+
+  !> Error codes, to be documented little by little
+  integer :: BIGDFT_RUNTIME_ERROR                   !< Error during runtime
+  integer :: BIGDFT_MPI_ERROR                       !< See error definitions below
+  integer :: BIGDFT_LINALG_ERROR                    !< To be moved to linalg wrappers
+  integer :: BIGDFT_INPUT_VARIABLES_ERROR           !< Problems in parsing or in consistency of input variables
+  integer :: BIGDFT_INPUT_FILE_ERROR                !< The file does not exist!
 
   !> Code constants.
   !real(gp), parameter :: UNINITIALISED = -123456789._gp
@@ -76,15 +83,19 @@ module module_defs
      module procedure uninitialized_dbl,uninitialized_int,uninitialized_real,uninitialized_long, uninitialized_logical
   end interface
 
-  interface
-     subroutine bigdft_utils_flush(unit)
-       integer, intent(in) :: unit
-     end subroutine bigdft_utils_flush
-  end interface
+  interface safe_exp
+     module procedure safe_dexp
+  end interface safe_exp
+
+!!$  interface
+!!$     subroutine bigdft_utils_flush(unit)
+!!$       integer, intent(in) :: unit
+!!$     end subroutine bigdft_utils_flush
+!!$  end interface
 
   contains
 
-    function uninitialized_int(one) 
+    pure function uninitialized_int(one) 
       implicit none
       integer(kind = 4), intent(in) :: one
       integer(kind = 4) :: uninitialized_int
@@ -93,7 +104,7 @@ module module_defs
       uninitialized_int=-123456789
     end function uninitialized_int
 
-    function uninitialized_long(one) 
+    pure function uninitialized_long(one) 
       implicit none
       integer(kind = 8), intent(in) :: one
       integer(kind = 8) :: uninitialized_long
@@ -102,7 +113,7 @@ module module_defs
       uninitialized_long=-123456789
     end function uninitialized_long
 
-    function uninitialized_real(one) 
+    pure function uninitialized_real(one) 
       implicit none
       real(kind=4), intent(in) :: one
       real(kind=4) :: uninitialized_real
@@ -111,7 +122,7 @@ module module_defs
       uninitialized_real=-123456789.e0
     end function uninitialized_real
 
-    function uninitialized_dbl(one) 
+    pure function uninitialized_dbl(one) 
       implicit none
       real(kind=8), intent(in) :: one
       real(kind=8) :: uninitialized_dbl
@@ -120,7 +131,7 @@ module module_defs
       uninitialized_dbl=-123456789.d0
     end function uninitialized_dbl
 
-    function uninitialized_logical(one) 
+    pure function uninitialized_logical(one) 
       implicit none
       logical, intent(in) :: one
       logical :: uninitialized_logical
@@ -264,5 +275,43 @@ module module_defs
          call MPI_ABORT(bigdft_mpi%mpi_comm, ierr, ie)
       end if
     end function fdot_denpot
+
+    !> fpe-free way of calling exp.
+    !! Crop the results to zero in the case of underflow
+    pure function safe_dexp(x,extra_crop_order,underflow) result(ex)
+      implicit none
+      !> argument of the exponential function
+      double precision, intent(in) :: x
+      !> determine the value under which the result is assumed to be zero
+      double precision, intent(in), optional :: underflow
+      !> further restrict the valid range of the function
+      !! by the order of magnitude indicated.
+      !! Useful when the function has to be multiplied by extra terms
+      !! The default is log of epsilon**2
+      integer, intent(in), optional :: extra_crop_order
+      double precision :: ex
+      !local variables
+      !> if the exponent is bigger than this value, the result is tiny(1.0)
+      double precision, parameter :: mn_expo=-708.396418532264d0 ! = log(tiny(1.d0))
+      !> if the exponent is lower than this value, the result is huge(1.0)
+      double precision, parameter :: mx_expo=709.78271289338397d0 ! = log(huge(1.d0))
+      !> the value of the cropping
+      double precision, parameter :: crop_expo=72.0873067782343d0 ! = -2*log(epsilon(1.d0))
+      double precision :: crop,mn,mx
+
+      crop=crop_expo
+      if (present(extra_crop_order)) crop=real(extra_crop_order,kind=8)
+      mn=mn_expo+crop
+      mx=mx_expo-crop
+      if (present(underflow)) mn=log(abs(underflow))
+      if (x > mn .and. x< mx) then
+         ex=exp(x)
+      else if (x <= mn) then
+         ex=0.d0
+      else
+         ex=exp(mx)
+      end if
+         
+    end function safe_dexp
 
 end module module_defs

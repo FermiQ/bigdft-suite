@@ -87,6 +87,10 @@
      COMMENT: Max. iterations of wfn. opt. steps
      RANGE: [0, 10000]
      default: 50
+   itermin:
+     COMMENT: Min. iterations of wfn. opt. steps
+     RANGE: [0, 10000]
+     default: 0
    nrepmax:
      COMMENT: Max. number of re-diag. runs
      RANGE: [0, 1000]
@@ -351,6 +355,21 @@
        - SBFGS
      RANGE: [0, 1000]
      default: 10
+   biomode:
+     COMMENT: Enable mode for biomolecules.
+     CONDITION:
+       MASTER_KEY: method
+       WHEN:
+       - SBFGS
+     default: No
+   beta_stretchx:
+     COMMENT: Stepsize for steepest descent in stretching mode direction (only if in biomode)
+     CONDITION:
+       MASTER_KEY: biomode
+       WHEN:
+       - Yes
+     RANGE: [0., 100.]
+     default: 5e-1
    maxrise:
      COMMENT: maximum allowed rise in energy in one geopt step
      CONDITION:
@@ -571,7 +590,7 @@
      COMMENT: No. of additional bands
      RANGE: [0, 10000]
      default: 0
-   Tel:
+   tel:
      COMMENT: Electronic temperature
      RANGE: [0., 1e6]
      default: 0.
@@ -764,7 +783,7 @@
    ef_interpol_det:
      COMMENT: FOE max determinant of cubic interpolation matrix
      RANGE: [0., 1.]
-     default: 1e-20
+     default: 1.e-12
    ef_interpol_chargediff:
      COMMENT: FOE max charge difference for interpolation
      RANGE: [0., 1000.]

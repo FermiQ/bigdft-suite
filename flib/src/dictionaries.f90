@@ -12,7 +12,7 @@
 module dictionaries
    use exception_callbacks
    use dictionaries_base
-   use yaml_strings, only: read_fraction_string
+   use yaml_strings, only: read_fraction_string,yaml_toa
    implicit none
 
    private
@@ -28,6 +28,10 @@ module dictionaries
       character(len=max_field_length) :: value=' '
      type(dictionary), pointer :: child => null()
    end type dictionary_container
+
+   type, public :: f_dict 
+      type(dictionary), pointer :: d =>null()
+   end type f_dict
 
    !> Error codes
    integer, save, public :: DICT_KEY_ABSENT
@@ -45,25 +49,26 @@ module dictionaries
    end interface
 
    interface operator(.item.)
-      module procedure item_char,item_dict
+      module procedure item_char,item_dict,item_dbl,item_int
    end interface
 
    interface operator(.is.)
       module procedure dict_cont_new_with_value, dict_cont_new_with_dict
-      module procedure dict_cont_new_with_int
+      module procedure dict_cont_new_with_int,dict_cont_new_with_dbl
+      module procedure dict_cont_new_with_int_v,dict_cont_new_with_dbl_v,dict_cont_new_with_value_v
    end interface 
 
    interface operator(.in.)
       module procedure key_in_dictionary
-   end interface operator(.in.)
+   end interface 
 
    interface operator(.notin.)
       module procedure key_notin_dictionary
-   end interface operator(.notin.)
+   end interface 
 
    interface operator(.pop.)
       module procedure pop_key,pop_item
-   end interface operator(.pop.)
+   end interface 
 
 !   interface operator(.poplast.)
 !      module procedure pop_last_item
@@ -81,6 +86,8 @@ module dictionaries
    interface assignment(=)
       module procedure get_value,get_integer,get_real,get_double,get_long,get_lg
       module procedure get_rvec,get_dvec,get_ilvec,get_ivec,get_lvec
+      !safe getter from list_container
+      module procedure safe_get_dict,safe_get_integer,safe_get_double,safe_get_real,safe_get_char
    end interface
 
    interface dict_remove
@@ -89,11 +96,24 @@ module dictionaries
 
    interface set
       module procedure put_child,put_value,put_list,put_integer,put_real,put_double,put_long,put_lg
+      module procedure put_listd,put_listi
    end interface
 
    interface add
       module procedure add_char,add_dict,add_integer,add_real,add_double,add_long, add_log
    end interface
+
+   !> used to retrieve the pointer to the dictionary which has the key,
+   !! if the keys exists. In the case it does not, it returns a nullified dictionary
+   !! should be used in assignments, like for example val= dict .get. "key"
+   interface operator(.get.)
+      module procedure list_container_if_key_exists
+   end interface
+
+   interface dict_iter
+      module procedure dict_iter, dict_iter_lc
+   end interface
+
 
    interface list_new
       module procedure list_new,list_new_elems
@@ -110,25 +130,25 @@ module dictionaries
    public :: set,dict_init,dict_free,append,prepend,add
    public :: dict_copy, dict_update,dict_remove,dict_remove_last
    !> Handle exceptions
-   public :: find_key,dict_len,dict_size,dict_key,dict_item,dict_value,dict_next,dict_iter,has_key,dict_keys
-   public :: dict_new,list_new
+   public :: find_key,dict_len,dict_size,dict_key,dict_item,dict_value,dict_next
+   public :: dict_new,list_new,dict_iter,has_key,dict_keys
    !> Public elements of dictionary_base
    public :: operator(.is.),operator(.item.)
    public :: operator(.pop.),operator(.notin.)
-   public :: operator(==),operator(/=),operator(.in.)
+   public :: operator(==),operator(/=),operator(.in.),operator(.get.)
    public :: dictionary,max_field_length,dict_get_num
 
 
    !> Header of error handling part
    !! Some parameters
-   character(len=*), parameter :: errid='Id'
-   character(len=*), parameter :: errmsg='Message'
-   character(len=*), parameter :: erract='Action'
-   character(len=*), parameter :: errclbk='Callback Procedure Address'
-   character(len=*), parameter :: errclbkadd='Callback Procedure Data Address'
+   character(len=*), parameter :: ERRID='Id'
+   character(len=*), parameter :: ERRMSG='Message'
+   character(len=*), parameter :: ERRACT='Action'
+   character(len=*), parameter :: ERRCLBK='Callback Procedure Address'
+   character(len=*), parameter :: ERRCLBKADD='Callback Procedure Data Address'
 
-   character(len=*), parameter :: errunspec='UNSPECIFIED'
-   character(len=*), parameter :: errundef='UNKNOWN'
+   character(len=*), parameter :: ERRUNSPEC='UNSPECIFIED'
+   character(len=*), parameter :: ERRUNDEF='UNKNOWN'
 
    character(len=*), parameter :: ERR_ADD_INFO='Additional Info'
 
@@ -136,11 +156,24 @@ module dictionaries
 
    type(dictionary), pointer :: dict_errors=>null()        !< the global dictionaries of possible errors, nullified if not initialized
    type(dictionary), pointer :: dict_present_error=>null() !< local pointer of present error, nullified if success
+  
+   
+   !> Stack of dict_present_error for nested try (opne and close)
+   type, private :: error_stack
+     type(dictionary), pointer :: current => null()   !< dict_present_error point to here.
+     type(error_stack), pointer :: previous => null() !< previous error
+   end type error_stack
+
+   type(error_stack), pointer :: error_pipelines=>null() !< Stack of errors for try clause
+ 
 
    !> Public variables of the error handling module
    public :: f_err_initialize,f_err_finalize
-   public :: f_get_last_error,f_get_error_definitions
-   public :: f_err_define,f_err_check,f_err_raise,f_err_clean,f_err_pop,f_get_error_dict,f_err_throw
+   !!@todo Change the names into f_err_xxx
+   public :: f_get_last_error,f_get_error_definitions,f_get_error_dict
+   public :: f_err_define
+   public :: f_err_check,f_err_raise,f_err_clean,f_err_pop,f_err_throw
+
 
    ! Public variables of the callback module
    public :: f_err_set_callback,f_err_unset_callback
@@ -149,7 +182,7 @@ module dictionaries
    public :: f_loc,f_get_past_error,f_get_no_of_errors
 
    !for internal f_lib usage
-   public :: dictionaries_errors
+   public :: dictionaries_errors,TYPE_DICT,TYPE_LIST
 
 
 contains
@@ -173,7 +206,7 @@ contains
           'The item of this list is not correct',DICT_ITEM_NOT_VALID,&
           err_action='Internal error, contact developers')
      call f_err_define('DICT_VALUE_ABSENT',&
-          'The value for this key is absent',DICT_VALUE_ABSENT)
+          'The value for this key/value is absent',DICT_VALUE_ABSENT)
      call f_err_define('DICT_INVALID',&
           'Dictionary is not associated',DICT_INVALID)
      call f_err_define('DICT_INVALID_LIST',&
@@ -195,7 +228,7 @@ contains
      type(dictionary), pointer :: subd
      !local variables
      integer :: indx
-     type(dictionary), pointer :: dict_item
+     !type(dictionary), pointer :: dict_item
 
      nullify(subd)
      indx=-1
@@ -234,7 +267,7 @@ contains
      integer, intent(in) :: item
      type(dictionary), pointer :: subd
      !local variables
-     type(dictionary), pointer :: dict_item
+     !type(dictionary), pointer :: dict_item
 
      nullify(subd)
 
@@ -444,8 +477,6 @@ contains
      include 'dict_add-inc.f90'
    end subroutine add_log
 
-
-
    !> Defines a dictionary from a array of storage data
    function dict_new(dicts)
 !     use yaml_output
@@ -518,27 +549,24 @@ contains
 
 
    !> Defines a new dictionary from a key and a value
-   function dict_cont_new_with_value(key, val)
+   !pure 
+   function dict_cont_new_with_value(key, val) result(cont)
      implicit none
-     character(len = *), intent(in) :: key, val
-     type(dictionary_container) :: dict_cont_new_with_value
-
-     dict_cont_new_with_value%key(1:max_field_length) = key
-     dict_cont_new_with_value%value(1:max_field_length) = val
-
+     character(len = *), intent(in) :: val
+     include 'dict_cont-inc.f90'
    end function dict_cont_new_with_value
 
-   function dict_cont_new_with_int(key, val)
-     use yaml_strings, only: yaml_toa
+   pure function dict_cont_new_with_int(key, val) result(cont)
      implicit none
-     character(len = *), intent(in) :: key
      integer, intent(in) :: val
-     type(dictionary_container) :: dict_cont_new_with_int
-
-     dict_cont_new_with_int%key(1:max_field_length) = key
-     dict_cont_new_with_int%value(1:max_field_length) = yaml_toa(val)
-
+     include 'dict_cont-inc.f90'
    end function dict_cont_new_with_int
+
+   pure function dict_cont_new_with_dbl(key, val) result(cont)
+     implicit none
+     double precision, intent(in) :: val
+     include 'dict_cont-inc.f90'
+   end function dict_cont_new_with_dbl
 
    function dict_cont_new_with_dict(key, val)
      implicit none
@@ -550,6 +578,26 @@ contains
      dict_cont_new_with_dict%child => val
 
    end function dict_cont_new_with_dict
+
+   !arrays
+   function dict_cont_new_with_value_v(key, val) result(cont)
+     implicit none
+     character(len = *), dimension(:), intent(in) :: val
+     include 'dict_cont_arr-inc.f90'
+   end function dict_cont_new_with_value_v
+
+   function dict_cont_new_with_dbl_v(key, val) result(cont)
+     implicit none
+     double precision, dimension(:), intent(in) :: val
+     include 'dict_cont_arr-inc.f90'
+   end function dict_cont_new_with_dbl_v
+
+   function dict_cont_new_with_int_v(key, val) result(cont)
+     implicit none
+     integer, dimension(:), intent(in) :: val
+     include 'dict_cont_arr-inc.f90'
+   end function dict_cont_new_with_int_v
+
 
    !>initialize the iterator to be used with next
    function dict_iter(dict)
@@ -563,6 +611,18 @@ contains
         nullify(dict_iter)
      end if
    end function dict_iter
+
+   !>version of the function to be used with list container
+   !! to be used when .get. operator is called
+   function dict_iter_lc(list)
+     implicit none
+     type(list_container), intent(in) :: list
+     type(dictionary), pointer :: dict_iter_lc
+
+     dict_iter_lc => dict_iter(list%dict)
+
+   end function dict_iter_lc
+
 
    function dict_next(dict)
      implicit none
@@ -660,7 +720,7 @@ contains
 
 
    !> Returns the position of the name in the dictionary
-   !! returns 0 if the dictionary is nullified or the name is absent
+   !! returns -1 if the dictionary is nullified or the name is absent
    function find_index(dict,name)
      implicit none
      type(dictionary), pointer, intent(in) :: dict
@@ -670,7 +730,7 @@ contains
      integer :: ind
      type(dictionary), pointer :: dict_tmp
 
-     find_index =0
+     find_index =-1
      ind=-1
      if (associated(dict)) then
         dict_tmp=>dict_next(dict)
@@ -742,7 +802,7 @@ contains
        logical, intent(in) :: dst
        !local variables
        type(dictionary), pointer :: dict_first !<in case of first occurrence
-       type(dictionary), pointer :: dict_update !<dict to update data%item field
+!!$       type(dictionary), pointer :: dict_update !<dict to update data%item field
 
        if (associated(dict)) then
 !          print *,dict%data%item,trim(dict%data%key)
@@ -846,7 +906,12 @@ contains
      character(len=*), intent(in) :: key
      logical :: key_in_dictionary
      
-     key_in_dictionary=has_key(dict,key)
+     !if it is a list check the value
+     if (dict_len(dict) > 0) then
+        key_in_dictionary = (dict .index. key) >= 0
+     else
+        key_in_dictionary=has_key(dict,key)
+     end if
    end function key_in_dictionary
 
    function key_notin_dictionary(key,dict)
@@ -855,7 +920,7 @@ contains
      character(len=*), intent(in) :: key
      logical :: key_notin_dictionary
 
-     key_notin_dictionary=.not. has_key(dict,key)
+     key_notin_dictionary=.not. key_in_dictionary(key,dict)
    end function key_notin_dictionary
 
 
@@ -917,6 +982,17 @@ contains
         call dict_free(subd)
         return
      end if
+     !here the treatment of the scalar dictionary can be 
+     !inserted (left commented for the moment)
+!!$     if (associated(subd)) then
+!!$        !if the dictionary is a scalar free it
+!!$        if (dict_len(subd) == 0 .and. dict_size(subd) == 0 .and. &
+!!$             len_trim(dict_key(subd))==0) then 
+!!$           call set(dict,dict_value(subd))
+!!$           call dict_free(subd)
+!!$           return
+!!$        end if
+!!$     end if
 
      if (f_err_raise(no_key(dict),err_id=DICT_KEY_ABSENT)) return
 
@@ -1014,7 +1090,12 @@ contains
      character(len=*), intent(in) :: val
      if (f_err_raise(no_key(dict),err_id=DICT_KEY_ABSENT)) return
      !call check_key(dict)
-
+     !raise an error if not a value is put
+     if (trim(val) == NOT_A_VALUE) then
+        call f_err_throw('Invalid assignment for key "'//&
+             trim(dict%data%key)//'"',err_id=DICT_VALUE_ABSENT)
+        return
+     end if
      if (associated(dict%child)) call dict_free(dict%child)
 
      call set_field(val,dict%data%value)
@@ -1022,21 +1103,24 @@ contains
    end subroutine put_value
 
 
-   !> Assign the value to the dictionary (to be rewritten)
-   subroutine put_list(dict,list)!,nitems)
+   !> Assign the value to the dictionary 
+   subroutine put_list(dict,list)
      implicit none
-     type(dictionary), pointer :: dict
-!     integer, intent(in) :: nitems
      character(len=*), dimension(:), intent(in) :: list
-     !local variables
-     integer :: item,nitems
-
-     nitems=size(list)
-     do item=1,nitems
-        call set(dict//(item-1),list(item))
-     end do
-
+     include 'set_arr-inc.f90'
    end subroutine put_list
+
+   subroutine put_listd(dict,list)
+     implicit none
+     double precision, dimension(:), intent(in) :: list
+     include 'set_arr-inc.f90'
+   end subroutine put_listd
+
+   subroutine put_listi(dict,list)
+     implicit none
+     integer, dimension(:), intent(in) :: list
+     include 'set_arr-inc.f90'
+   end subroutine put_listi
 
 
    elemental function item_char(val) result(elem)
@@ -1048,6 +1132,25 @@ contains
 
    end function item_char
 
+   elemental function item_dbl(val) result(elem)
+     implicit none
+     double precision, intent(in) :: val
+     type(list_container) :: elem
+
+     elem%val(1:max_field_length)=yaml_toa(val)
+
+   end function item_dbl
+
+   elemental function item_int(val) result(elem)
+     implicit none
+     integer, intent(in) :: val
+     type(list_container) :: elem
+
+     elem%val(1:max_field_length)=yaml_toa(val)
+
+   end function item_int
+
+
 
    function item_dict(val) result(elem)
      implicit none
@@ -1056,7 +1159,19 @@ contains
 
      elem%dict=>val
    end function item_dict
+   
+   !> internal procedure for .get. operator interface
+   function list_container_if_key_exists(dict,key) result(list)
+     implicit none
+     type(dictionary), pointer, intent(in) :: dict
+     character(len=*), intent(in) :: key
+     type(list_container) :: list
+     
+     !if the dictionary is not associated, the list container is empty
+     if (trim(key) .in. dict) list%dict=>dict//trim(key)
+     !one might add a functionalty which implements the scalar value in list%val
 
+   end function list_container_if_key_exists
 
    !> Creates a list from a table of dictionaries
    function list_new(dicts)
@@ -1171,7 +1286,6 @@ contains
      if (f_err_raise(ierror/=0 .or. .not. is_atoi(val),'Value '//val,err_id=DICT_CONVERSION_ERROR)) return    
    end subroutine get_integer
 
-
    !> Set and get routines for different types
    subroutine get_long(ival,dict)
      implicit none
@@ -1275,9 +1389,9 @@ contains
 
      !take value
      val=dict
-     if (index(trim(val),'Yes') > 0) then
+     if (any(index(trim(val),['Yes', 'yes', 'YES']) > 0) .or. any(index(trim(val),['True', 'true', 'TRUE']) > 0)) then
         ival=.true.
-     else if (index(trim(val),'No') > 0) then
+     else if (any(index(trim(val),['No', 'no', 'NO']) > 0) .or. any(index(trim(val),['False', 'false', 'FALSE']) > 0)) then
         ival=.false.
      else
         call f_err_throw('Value '//val,err_id=DICT_CONVERSION_ERROR)
@@ -1303,6 +1417,46 @@ contains
      if (f_err_raise(ierror/=0,'Value '//val,err_id=DICT_CONVERSION_ERROR)) return
 
    end subroutine get_double
+
+   !safe getter, uses list_container as generated from the .get. operator
+   subroutine safe_get_dict(dict,el)
+     implicit none
+     type(dictionary), pointer, intent(inout) :: dict
+     type(list_container), intent(in) :: el
+     if (associated(el%dict)) then
+        dict=>el%dict
+     else
+        nullify(dict)
+     end if
+   end subroutine safe_get_dict
+
+   subroutine safe_get_integer(val,el)
+     implicit none
+     integer, intent(inout) :: val
+     type(list_container), intent(in) :: el
+     if (associated(el%dict)) val=el%dict
+   end subroutine safe_get_integer
+
+   subroutine safe_get_double(val,el)
+     implicit none
+     double precision, intent(inout) :: val
+     type(list_container), intent(in) :: el
+     if (associated(el%dict)) val=el%dict
+   end subroutine safe_get_double
+
+   subroutine safe_get_real(val,el)
+     implicit none
+     real, intent(inout) :: val
+     type(list_container), intent(in) :: el
+     if (associated(el%dict)) val=el%dict
+   end subroutine safe_get_real
+
+   subroutine safe_get_char(val,el)
+     implicit none
+     character(len=*), intent(inout) :: val
+     type(list_container), intent(in) :: el
+     if (associated(el%dict)) val=el%dict
+   end subroutine safe_get_char
 
 
    !> Assign the value to the dictionary
@@ -1447,12 +1601,12 @@ contains
    end subroutine dict_update
 
 
-   subroutine dict_copy(dict, ref)
+   subroutine dict_copy(dest, src)
      implicit none
-     type(dictionary), pointer :: dict, ref
+     type(dictionary), pointer :: src, dest
 
-     if (.not. associated(dict)) call dict_init(dict)
-     call copy(dict, ref)
+     if (.not. associated(dest)) call dict_init(dest)
+     call copy(dest, src)
 
      contains
        recursive subroutine copy(dict, ref)

@@ -33,8 +33,8 @@ module module_xc
 
 
   !> Structure containing the information to call the routines for the calculation of the xc functionals
-  type libxc_functional
-     private
+  type, public :: libxc_functional
+     !private
      type(xc_f90_pointer_t) :: conf !< the pointer used to call the library
      type(xc_f90_pointer_t) :: info !< Information about the functional
   end type libxc_functional
@@ -69,6 +69,8 @@ module module_xc
        &    xc_exctXfac, &
        &    xc_end, &
        &    xc_get_name
+
+
 
 contains
 
@@ -220,7 +222,7 @@ contains
        !write(*,"(1x,A84)") "XC functional provided by ABINIT."
     else
        call yaml_map('XC functional implementation','libXC')
-       call yaml_open_sequence('Reference Papers')
+       call yaml_sequence_open('Reference Papers')
        call yaml_sequence('"Comput. Phys. Commun. 183, 2272 (2012)"')
        do i = 1, 2
           if (xcObj%family(i) == 0) cycle
@@ -235,7 +237,7 @@ contains
              end do
           end if
        end do
-       call yaml_close_sequence()
+       call yaml_sequence_close()
     end if
   end subroutine obj_dump_
 

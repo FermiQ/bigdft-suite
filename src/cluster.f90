@@ -8,213 +8,6 @@
 !!   For the list of contributors, see ~/AUTHORS 
  
 
-!> Routine to use BigDFT as a blackbox
-subroutine call_bigdft(runObj,outs,nproc,iproc,infocode)
-  use module_base
-  use module_types
-  use module_interfaces, except_this_one => call_bigdft
-  use yaml_output
-  use communications_base
-  implicit none
-  integer, intent(in) :: iproc,nproc
-  type(run_objects), intent(inout) :: runObj
-  type(DFT_global_output), intent(inout) :: outs
-  integer, intent(inout) :: infocode
-
-  !local variables
-  character(len=*), parameter :: subname='call_bigdft'
-  character(len=40) :: comment
-  logical :: exists
-  integer :: i_stat,i_all,ierr,inputPsiId_orig,iat,iorb,istep
-  real(gp) :: maxdiff
-
-  !temporary interface, not needed anymore since all arguments are structures
-!!$  interface
-!!$     subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,pressure,&
-!!$          KSwfn,tmb,&!psi,Lzd,gaucoeffs,gbd,orbs,
-!!$          rxyz_old,hx_old,hy_old,hz_old,in,GPU,infocode)
-!!$       use module_base
-!!$       use module_types
-!!$       implicit none
-!!$       integer, intent(in) :: nproc,iproc
-!!$       integer, intent(out) :: infocode
-!!$       real(gp), intent(inout) :: hx_old,hy_old,hz_old
-!!$       type(input_variables), intent(in) :: in
-!!$       !type(local_zone_descriptors), intent(inout) :: Lzd
-!!$       type(atoms_data), intent(inout) :: atoms
-!!$       !type(gaussian_basis), intent(inout) :: gbd
-!!$       !type(orbitals_data), intent(inout) :: orbs
-!!$       type(GPU_pointers), intent(inout) :: GPU
-!!$       type(DFT_wavefunction), intent(inout) :: KSwfn,tmb
-!!$       type(energy_terms), intent(out), target :: energs
-!!$       real(gp), intent(out) :: energy,fnoise,pressure
-!!$       real(gp), dimension(3,atoms%astruct%nat), target, intent(inout) :: rxyz
-!!$       real(gp), dimension(6), intent(out) :: strten
-!!$       real(gp), dimension(3,atoms%astruct%nat), intent(out) :: fxyz
-!!$     END SUBROUTINE cluster
-!!$  end interface
-
-  !put a barrier for all the processes
-  call MPI_BARRIER(bigdft_mpi%mpi_comm,ierr)
-  call f_routine(id=subname)
-
-  !Check the consistency between MPI processes of the atomic coordinates
-  maxdiff=mpimaxdiff(runObj%atoms%astruct%rxyz,comm=bigdft_mpi%mpi_comm)
-  !call check_array_consistency(maxdiff, nproc, runObj%atoms%astruct%rxyz, bigdft_mpi%mpi_comm)
-  if (iproc==0 .and. maxdiff > epsilon(1.0_gp)) &
-       call yaml_warning('Input positions not identical! '//&
-       '(difference:'//trim(yaml_toa(maxdiff))//' )')
-
-  !fill the rxyz array with the positions
-  !wrap the atoms in the periodic directions when needed
-  select case(runObj%atoms%astruct%geocode)
-  case('P')
-     do iat=1,runObj%atoms%astruct%nat
-        runObj%rst%rxyz_new(1,iat)=modulo(runObj%atoms%astruct%rxyz(1,iat),runObj%atoms%astruct%cell_dim(1))
-        runObj%rst%rxyz_new(2,iat)=modulo(runObj%atoms%astruct%rxyz(2,iat),runObj%atoms%astruct%cell_dim(2))
-        runObj%rst%rxyz_new(3,iat)=modulo(runObj%atoms%astruct%rxyz(3,iat),runObj%atoms%astruct%cell_dim(3))
-     end do
-  case('S')
-     do iat=1,runObj%atoms%astruct%nat
-        runObj%rst%rxyz_new(1,iat)=modulo(runObj%atoms%astruct%rxyz(1,iat),runObj%atoms%astruct%cell_dim(1))
-        runObj%rst%rxyz_new(2,iat)=runObj%atoms%astruct%rxyz(2,iat)
-        runObj%rst%rxyz_new(3,iat)=modulo(runObj%atoms%astruct%rxyz(3,iat),runObj%atoms%astruct%cell_dim(3))
-     end do
-  case('W')
-     do iat=1,runObj%atoms%astruct%nat
-        runObj%rst%rxyz_new(1,iat)=runObj%atoms%astruct%rxyz(1,iat)
-        runObj%rst%rxyz_new(2,iat)=runObj%atoms%astruct%rxyz(2,iat)
-        runObj%rst%rxyz_new(3,iat)=modulo(runObj%atoms%astruct%rxyz(3,iat),runObj%atoms%astruct%cell_dim(3))
-     end do
-  case('F')
-     do iat=1,runObj%atoms%astruct%nat
-        runObj%rst%rxyz_new(1,iat)=runObj%atoms%astruct%rxyz(1,iat)
-        runObj%rst%rxyz_new(2,iat)=runObj%atoms%astruct%rxyz(2,iat)
-        runObj%rst%rxyz_new(3,iat)=runObj%atoms%astruct%rxyz(3,iat)
-     end do
-  end select
-
-  !assign the verbosity of the output
-  !the verbose variables is defined in module_base
-  verbose=runObj%inputs%verbosity
-
-  ! Use the restart for the linear scaling version... probably to be modified.
-  if(runObj%inputs%inputPsiId == INPUT_PSI_MEMORY_WVL) then
-      if (runObj%rst%version == LINEAR_VERSION) then
-          runObj%inputs%inputPsiId = INPUT_PSI_MEMORY_LINEAR
-          do iorb=1,runObj%rst%tmb%orbs%norb
-              if (runObj%inputs%lin%locrad_lowaccuracy(iorb) /=  runObj%inputs%lin%locrad_highaccuracy(iorb))then
-                  stop 'ERROR: at the moment the radii for low and high accuracy must be the same &
-                        &when using the linear restart!'
-              end if
-          end do
-      end if
-  end if
-  inputPsiId_orig=runObj%inputs%inputPsiId
-
-  loop_cluster: do
-     !allocate history container if it has not been done
-     if (runObj%inputs%wfn_history > 1  .and. .not. associated(runObj%rst%KSwfn%oldpsis)) then
-        allocate(runObj%rst%KSwfn%oldpsis(0:runObj%inputs%wfn_history+1))
-        runObj%rst%KSwfn%istep_history=0
-        do istep=0,runObj%inputs%wfn_history+1
-          runObj%rst%KSwfn%oldpsis(istep)=old_wavefunction_null() 
-        end do
-     end if
-
-     if (runObj%inputs%inputPsiId == INPUT_PSI_LCAO .and. associated(runObj%rst%KSwfn%psi)) then
-        !call f_free_ptr(runObj%rst%KSwfn%psi)
-        call f_free_ptr(runObj%rst%KSwfn%psi)
-
-        call f_free_ptr(runObj%rst%KSwfn%orbs%eval)
-
-        call deallocate_wfd(runObj%rst%KSwfn%Lzd%Glr%wfd)
-     end if
-
-     !experimental, finite difference method for calculating forces on particular quantities
-     inquire(file='input.finite_difference_forces',exist=exists)
-     if (exists) then
-        runObj%inputs%last_run=1 !do the last_run things nonetheless
-        runObj%inputs%inputPsiId = INPUT_PSI_LCAO !the first run always restart from IG
-        !experimental_modulebase_var_onlyfion=.true. !put only ionic forces in the forces
-     end if
-
-     !Main routine calculating the KS orbitals
-     call cluster(nproc,iproc,runObj%atoms,runObj%rst%rxyz_new, runObj%radii_cf, &
-          & outs%energy, outs%energs, outs%fxyz, outs%strten, outs%fnoise, outs%pressure,&
-          runObj%rst%KSwfn,runObj%rst%tmb,&
-          runObj%rst%rxyz_old,runObj%rst%hx_old,runObj%rst%hy_old,runObj%rst%hz_old,runObj%inputs,runObj%rst%GPU,infocode)
-
-     !save the new atomic positions in the rxyz_old array
-     do iat=1,runObj%atoms%astruct%nat
-        runObj%rst%rxyz_old(1,iat)=runObj%rst%rxyz_new(1,iat)
-        runObj%rst%rxyz_old(2,iat)=runObj%rst%rxyz_new(2,iat)
-        runObj%rst%rxyz_old(3,iat)=runObj%rst%rxyz_new(3,iat)
-     enddo
-
-     if (exists) then
-        call forces_via_finite_differences(iproc,nproc,runObj%atoms,runObj%inputs, &
-             & outs%energy,outs%fxyz,outs%fnoise,runObj%rst,infocode)
-     end if
-
-     !Check infocode in function of the inputPsiId parameters
-     !and change the strategy of input guess psi
-     if (runObj%inputs%inputPsiId == INPUT_PSI_MEMORY_WVL .and. infocode==2) then
-        if (runObj%inputs%gaussian_help) then
-           runObj%inputs%inputPsiId = INPUT_PSI_MEMORY_GAUSS
-        else
-           runObj%inputs%inputPsiId = INPUT_PSI_LCAO
-        end if
-     else if (runObj%inputs%inputPsiId == INPUT_PSI_MEMORY_LINEAR .and. infocode==2) then
-         ! problems after restart for linear version
-         runObj%inputs%inputPsiId = INPUT_PSI_LINEAR_AO
-     else if ((runObj%inputs%inputPsiId == INPUT_PSI_MEMORY_WVL .or. &
-               runObj%inputs%inputPsiId == INPUT_PSI_LCAO) .and. infocode==1) then
-        !runObj%inputs%inputPsiId=INPUT_PSI_LCAO !better to diagonalise than to restart an input guess
-        runObj%inputs%inputPsiId = INPUT_PSI_MEMORY_WVL
-        !if (iproc==0) then
-        !   call yaml_warning('Self-consistent cycle did not meet convergence criteria')
-        !   write(*,*)&
-        !        &   ' WARNING: Self-consistent cycle did not meet convergence criteria'
-        !end if
-        exit loop_cluster
-     else if (runObj%inputs%inputPsiId == INPUT_PSI_LCAO .and. infocode==3) then
-        if (iproc == 0) then
-           write( *,'(1x,a)')'Convergence error, cannot proceed.'
-           write( *,'(1x,a)')' writing positions in file posfail.xyz then exiting'
-           write(comment,'(a)')'UNCONVERGED WF '
-           !call wtxyz('posfail',energy,rxyz,atoms,trim(comment))
-           call write_atomic_file("posfail",outs%energy,runObj%rst%rxyz_new,&
-                runObj%atoms%astruct%ixyz_int,runObj%atoms,trim(comment))
-        end if
-
-        call f_free_ptr(runObj%rst%KSwfn%psi)
-        call f_free_ptr(runObj%rst%KSwfn%orbs%eval)
-
-        call deallocate_wfd(runObj%rst%KSwfn%Lzd%Glr%wfd)
-
-        !finalize memory counting (there are still at least positions and the forces allocated)
-        call memocc(0,0,'count','stop')
-
-        if (nproc > 1) call MPI_FINALIZE(ierr)
-
-        stop 'unnormal end'
-     else
-        exit loop_cluster
-     end if
-
-  end do loop_cluster
-
-  !preserve the previous value
-  runObj%inputs%inputPsiId=inputPsiId_orig
-
-  !put a barrier for all the processes
-  call f_release_routine()
-  call MPI_BARRIER(bigdft_mpi%mpi_comm,ierr)
-
-END SUBROUTINE call_bigdft
-
-
 !>  Main routine which does self-consistent loop.
 !!  Does not parse input file and no geometry optimization.
 !!  Does an electronic structure calculation. 
@@ -225,11 +18,13 @@ subroutine cluster(nproc,iproc,atoms,rxyz,radii_cf,energy,energs,fxyz,strten,fno
   use module_base
   use module_types
   use module_interfaces
+  use gaussians, only: nullify_gaussian_basis, deallocate_gwf
   use module_fragments
   use constrained_dft
   use Poisson_Solver, except_dp => dp, except_gp => gp, except_wp => wp
   use module_xc
   use communications_init, only: orbitals_communicators
+  use communications_base, only: deallocate_comms
 !  use vdwcorrection
   use yaml_output
   use gaussians, only: gaussian_basis
@@ -270,7 +65,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,radii_cf,energy,energs,fxyz,strten,fno
   integer :: i, input_wf_format, output_denspot
   integer :: n1,n2,n3
   integer :: ncount0,ncount1,ncount_rate,ncount_max,n1i,n2i,n3i
-  integer :: i_all,i_stat,ierr,inputpsi,igroup,ikpt,nproctiming,ifrag
+  integer :: ierr,inputpsi,igroup,ikpt,nproctiming,ifrag
   real :: tcpu0,tcpu1
   real(kind=8) :: tel
   type(grid_dimensions) :: d_old
@@ -320,6 +115,8 @@ subroutine cluster(nproc,iproc,atoms,rxyz,radii_cf,energy,energs,fxyz,strten,fno
   !real(kind=8) :: ddot
 
   call f_routine(id=subname)
+
+  energs = energy_terms_null()
 
   !copying the input variables for readability
   !this section is of course not needed
@@ -383,7 +180,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,radii_cf,energy,energs,fxyz,strten,fno
                 KSwfn%Lzd%Glr%wfd,KSwfn%psi,d_old%n1,d_old%n2,d_old%n3,wfd_old,psi_old)
         end if
         !already here due to new input guess
-        call deallocate_bounds(KSwfn%Lzd%Glr%geocode, KSwfn%Lzd%Glr%hybrid_on, KSwfn%lzd%glr%bounds, subname)
+        call deallocate_bounds(KSwfn%Lzd%Glr%geocode, KSwfn%Lzd%Glr%hybrid_on, KSwfn%lzd%glr%bounds)
      else
         inputpsi = INPUT_PSI_LCAO
      end if
@@ -471,7 +268,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,radii_cf,energy,energs,fxyz,strten,fno
      !!call init_p2p_tags(nproc)
      !!tag=0
 
-     call kswfn_init_comm(tmb, in, atoms, denspot%dpbox, iproc, nproc)
+     call kswfn_init_comm(tmb, denspot%dpbox, iproc, nproc)
      locreg_centers = f_malloc((/3,tmb%lzd%nlr/),id='locreg_centers')
      do ilr=1,tmb%lzd%nlr
          locreg_centers(1:3,ilr)=tmb%lzd%llr(ilr)%locregcenter(1:3)
@@ -509,12 +306,12 @@ subroutine cluster(nproc,iproc,atoms,rxyz,radii_cf,energy,energs,fxyz,strten,fno
           tmb%collcom, tmb%ham_descr%collcom, tmb%collcom_sr, tmb%linmat%s)
 
      if (in%check_matrix_compression) then
-         if (iproc==0) call yaml_open_map('Checking Compression/Uncompression of small sparse matrices')
+         if (iproc==0) call yaml_mapping_open('Checking Compression/Uncompression of small sparse matrices')
          !call check_matrix_compression(iproc,tmb%linmat%ham)
          !call check_matrix_compression(iproc,tmb%linmat%ovrlp)
          call check_matrix_compression(iproc, tmb%linmat%m, tmb%linmat%ham_)
          call check_matrix_compression(iproc, tmb%linmat%s, tmb%linmat%ovrlp_)
-         if (iproc ==0) call yaml_close_map()
+         if (iproc ==0) call yaml_mapping_close()
      end if
 
 
@@ -552,10 +349,10 @@ subroutine cluster(nproc,iproc,atoms,rxyz,radii_cf,energy,energs,fxyz,strten,fno
 
 
      if (in%check_matrix_compression) then
-         if (iproc==0) call yaml_open_map('Checking Compression/Uncompression of large sparse matrices')
+         if (iproc==0) call yaml_mapping_open('Checking Compression/Uncompression of large sparse matrices')
          !call check_matrix_compression(iproc,tmb%linmat%denskern_large)
          call check_matrix_compression(iproc, tmb%linmat%l, tmb%linmat%kernel_)
-         if (iproc ==0) call yaml_close_map()
+         if (iproc ==0) call yaml_mapping_close()
      end if
 
 
@@ -584,6 +381,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,radii_cf,energy,energs,fxyz,strten,fno
   optLoop%itrpmax = in%itrpmax
   optLoop%nrepmax = in%nrepmax
   optLoop%itermax = in%itermax
+  optLoop%itermin = in%itermin!Bastian
   optLoop%gnrm_cv = in%gnrm_cv
   optLoop%rpnrm_cv = in%rpnrm_cv
   optLoop%gnrm_startmix = in%gnrm_startmix
@@ -704,7 +502,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,radii_cf,energy,energs,fxyz,strten,fno
   !call deallocate_wfd(wfd_old,subname)
   ! modified by SM
   call deallocate_wfd(wfd_old)
-  call deallocate_local_zone_descriptors(lzd_old,subname)
+  call deallocate_local_zone_descriptors(lzd_old)
 
   !save the new grid spacing into the hgrid_old value
   hx_old=KSwfn%Lzd%hgrids(1)
@@ -737,7 +535,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,radii_cf,energy,energs,fxyz,strten,fno
 
      ! Treat the info code from the optimization routine.
      if (infocode == 2 .or. infocode == 3) then
-        call deallocate_bounds(KSwfn%Lzd%Glr%geocode, KSwfn%Lzd%Glr%hybrid_on, KSwfn%lzd%glr%bounds, subname)
+        call deallocate_bounds(KSwfn%Lzd%Glr%geocode, KSwfn%Lzd%Glr%hybrid_on, KSwfn%lzd%glr%bounds)
         call deallocate_before_exiting
         return
      end if
@@ -848,7 +646,9 @@ subroutine cluster(nproc,iproc,atoms,rxyz,radii_cf,energy,energs,fxyz,strten,fno
      ! keep only the essential part of the density, without the GGA bufffers
      denspot%rho_work = f_malloc_ptr(denspot%dpbox%ndimpot,id='denspot%rho_work')
      ioffset=kswfn%lzd%glr%d%n1i*kswfn%lzd%glr%d%n2i*denspot%dpbox%i3xcsh
-     call vcopy(denspot%dpbox%ndimpot,denspot%rhov(ioffset+1),1,denspot%rho_work(1),1)
+     if (denspot%dpbox%ndimpot>0) then
+         call vcopy(denspot%dpbox%ndimpot,denspot%rhov(ioffset+1),1,denspot%rho_work(1),1)
+     end if
 
      if (infocode==2) then
         !!! Allocate this array since it will be deallcoated in deallocate_before_exiting
@@ -947,7 +747,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,radii_cf,energy,energs,fxyz,strten,fno
         !control the accuracy of the expansion
         call check_gaussian_expansion(iproc,nproc,KSwfn%orbs,KSwfn%Lzd,KSwfn%psi,KSwfn%gbd,KSwfn%gaucoeffs)
 
-        call deallocate_gwf(KSwfn%gbd,subname)
+        call deallocate_gwf(KSwfn%gbd)
         call f_free_ptr(KSwfn%gaucoeffs)
         nullify(KSwfn%gbd%rxyz)
 
@@ -1102,6 +902,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,radii_cf,energy,energs,fxyz,strten,fno
         !define Local zone descriptors
         VTwfn%Lzd = KSwfn%Lzd
         VTwfn%orthpar=KSwfn%orthpar
+        VTwfn%SIC=SIC_data_null() !then fill it if needed
         allocate(VTwfn%confdatarr(VTwfn%orbs%norbp))
         call default_confinement_data(VTwfn%confdatarr,VTwfn%orbs%norbp)
 
@@ -1207,8 +1008,8 @@ subroutine cluster(nproc,iproc,atoms,rxyz,radii_cf,energy,energs,fxyz,strten,fno
 
         end if
 
-        call deallocate_comms(VTwfn%comms,subname)
-        call deallocate_orbs(VTwfn%orbs,subname)
+        call deallocate_comms(VTwfn%comms)
+        call deallocate_orbs(VTwfn%orbs)
 
         !in the case of band structure calculation, copy the values of the eigenvectors
         !into a new array to write them afterwards
@@ -1315,7 +1116,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,radii_cf,energy,energs,fxyz,strten,fno
         call vcopy(n1i*n2i*n3i*in%nspin,denspot%rhov(1),1,denspot%pot_work(1),1)
      end if
 
-     call dpbox_free(denspot%dpbox, subname)
+     call dpbox_free(denspot%dpbox)
 
      call f_free_ptr(denspot%rhov)
 
@@ -1335,13 +1136,13 @@ subroutine cluster(nproc,iproc,atoms,rxyz,radii_cf,energy,energs,fxyz,strten,fno
      energy=energs%ebs-energs%eh+energs%exc-energs%evxc-energs%evsic+energs%eion+energs%edisp-energs%eTS+energs%ePV
 
      if (iproc == 0) then
-        call yaml_open_map('Corrected Energies', flow=.true.)
+        call yaml_mapping_open('Corrected Energies', flow=.true.)
         call yaml_map('Ekin', energs%ekin, fmt='(1pe18.11)')
         call yaml_map('Epot', energs%epot, fmt='(1pe18.11)')
         call yaml_map('Eproj',energs%eproj,fmt='(1pe18.11)')
-        call yaml_close_map()
+        call yaml_mapping_close()
         call yaml_map('Total energy with tail correction',energy,fmt='(1pe24.17)')
-        call yaml_close_map()
+        call yaml_mapping_close()
         !write( *,'(1x,a,3(1x,1pe18.11))')&
         !     &   '  Corrected ekin,epot,eproj',energs%ekin,energs%epot,energs%eproj
         !write( *,'(1x,a,1x,1pe24.17)')&
@@ -1354,7 +1155,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,radii_cf,energy,energs,fxyz,strten,fno
      if (nproc > 1) call MPI_BARRIER(bigdft_mpi%mpi_comm,ierr)
      call f_free_ptr(denspot%rhov)
      call f_free_ptr(denspot%V_XC)
-     call dpbox_free(denspot%dpbox, subname)
+     call dpbox_free(denspot%dpbox)
   endif
   ! --- End if of tail calculation
 
@@ -1371,10 +1172,13 @@ subroutine cluster(nproc,iproc,atoms,rxyz,radii_cf,energy,energs,fxyz,strten,fno
   !?!    endif
 
   call deallocate_before_exiting
+
 contains
 
   !> Routine which deallocate the pointers and the arrays before exiting 
   subroutine deallocate_before_exiting
+    use communications_base, only: deallocate_comms
+    implicit none
     external :: gather_timings    
   !when this condition is verified we are in the middle of the SCF cycle
     if (infocode /=0 .and. infocode /=1 .and. inputpsi /= INPUT_PSI_EMPTY) then
@@ -1399,7 +1203,7 @@ contains
        call f_free_ptr(denspot%rhov)
        call f_free_ptr(denspot%V_XC)
 
-       call dpbox_free(denspot%dpbox, subname)
+       call dpbox_free(denspot%dpbox)
 
        call f_free_ptr(fion)
        call f_free_ptr(fdisp)
@@ -1414,7 +1218,7 @@ contains
     end if
 
     ! Free all remaining parts of denspot
-    call deallocate_rho_descriptors(denspot%rhod,subname)
+    call deallocate_rho_descriptors(denspot%rhod)
     if(associated(denspot%rho_C)) then
        call f_free_ptr(denspot%rho_C)
     end if
@@ -1426,15 +1230,15 @@ contains
     !                 .or. inputpsi == INPUT_PSI_MEMORY_LINEAR) then
     if (in%inguess_geopt/=1) then
         call deallocate_bounds(KSwfn%Lzd%Glr%geocode,KSwfn%Lzd%Glr%hybrid_on,&
-             KSwfn%Lzd%Glr%bounds,subname)
+             KSwfn%Lzd%Glr%bounds)
     end if
-    call deallocate_Lzd_except_Glr(KSwfn%Lzd, subname)
+    call deallocate_Lzd_except_Glr(KSwfn%Lzd)
 
 !    i_all=-product(shape(KSwfn%Lzd%Glr%projflg))*kind(KSwfn%Lzd%Glr%projflg)
 !    deallocate(KSwfn%Lzd%Glr%projflg,stat=i_stat)
 !    call memocc(i_stat,i_all,'Glr%projflg',subname)
-    call deallocate_comms(KSwfn%comms,subname)
-    call deallocate_orbs(KSwfn%orbs,subname)
+    call deallocate_comms(KSwfn%comms)
+    call deallocate_orbs(KSwfn%orbs)
     if (inputpsi /= INPUT_PSI_LINEAR_AO .and. inputpsi /= INPUT_PSI_DISK_LINEAR &
         .and. inputpsi /= INPUT_PSI_MEMORY_LINEAR) then
        deallocate(KSwfn%confdatarr)
@@ -1444,13 +1248,6 @@ contains
 
     ! Free projectors.
     call free_DFT_PSP_projectors(nlpsp)
-!!$    call deallocate_proj_descr(nlpsp,subname)
-!!$    i_all=-product(shape(proj))*kind(proj)
-!!$    deallocate(proj,stat=i_stat)
-!!$    call memocc(i_stat,i_all,'proj',subname)
-
-!       &
-!         &   write( *,'(1x,a,1x,i4,2(1x,f12.2))') 'CPU time/ELAPSED time for root process ', iproc,tel,tcpu1-tcpu0
 
     ! Stop signals
     if (in%signaling .and. iproc == 0) then
@@ -1464,12 +1261,6 @@ contains
        call wf_free_wrapper(KSwfn%c_obj)
        call wf_free_wrapper(tmb%c_obj)
     end if
-
-!!$    if(inputpsi ==  INPUT_PSI_LINEAR) then
-!!$        i_all=-product(shape(atoms%rloc))*kind(atoms%rloc)
-!!$        deallocate(atoms%rloc,stat=i_stat)
-!!$        call memocc(i_stat,i_all,'atoms%rloc',subname)
-!!$    end if
 
      if (iproc == 0 .and. (in%inputPsiId==1 .or. in%inputPsiId==0) .and. infocode==1) then
         call yaml_warning('Self-consistent cycle did not meet convergence criteria')
@@ -1490,10 +1281,10 @@ contains
     tel=dble(ncount1-ncount0)/dble(ncount_rate)
     if (iproc == 0) then
        call yaml_comment('Timing for root process',hfill='-')
-       call yaml_open_map('Timings for root process')
+       call yaml_mapping_open('Timings for root process')
        call yaml_map('CPU time (s)',tcpu1-tcpu0,fmt='(f12.2)')
        call yaml_map('Elapsed time (s)',tel,fmt='(f12.2)')
-       call yaml_close_map()
+       call yaml_mapping_close()
     end if
 
   END SUBROUTINE deallocate_before_exiting
@@ -1581,7 +1372,7 @@ subroutine kswfn_optimization_loop(iproc, nproc, opt, &
 
   ! allocate arrays necessary for DIIS convergence acceleration
   call allocate_diis_objects(idsx,in%alphadiis,sum(KSwfn%comms%ncntt(0:nproc-1)),&
-       KSwfn%orbs%nkptsp,KSwfn%orbs%nspinor,KSwfn%diis,subname)
+       KSwfn%orbs%nkptsp,KSwfn%orbs%nspinor,KSwfn%diis)
 
   !number of switching betweed DIIS and SD during self-consistent loop
   ndiis_sd_sw=0
@@ -1599,7 +1390,7 @@ subroutine kswfn_optimization_loop(iproc, nproc, opt, &
   !yaml output
   if (iproc==0) then
      call yaml_comment('Self-Consistent Cycle',hfill='-')
-     call yaml_open_sequence('Ground State Optimization')
+     call yaml_sequence_open('Ground State Optimization')
   end if
   opt%itrp=1
   rhopot_loop: do
@@ -1608,7 +1399,7 @@ subroutine kswfn_optimization_loop(iproc, nproc, opt, &
      !yaml output 
      if (iproc==0) then
         call yaml_sequence(advance='no')
-        call yaml_open_sequence("Hamiltonian Optimization",label=&
+        call yaml_sequence_open("Hamiltonian Optimization",label=&
              'itrp'//trim(adjustl(yaml_toa(opt%itrp,fmt='(i3.3)'))))
 
      end if
@@ -1621,14 +1412,14 @@ subroutine kswfn_optimization_loop(iproc, nproc, opt, &
         !yaml output 
         if (iproc==0) then
            call yaml_sequence(advance='no')
-           call yaml_open_map("Subspace Optimization",label=&
+           call yaml_mapping_open("Subspace Optimization",label=&
                 'itrep'//trim(adjustl(yaml_toa(opt%itrp,fmt='(i3.3)')))//'-'//&
                 trim(adjustl(yaml_toa(opt%itrep,fmt='(i2.2)'))))
         end if
 
         !yaml output
         if (iproc==0) then
-           call yaml_open_sequence("Wavefunctions Iterations")
+           call yaml_sequence_open("Wavefunctions Iterations")
         end if
         opt%iter=1
         iter_for_diis=0
@@ -1636,7 +1427,7 @@ subroutine kswfn_optimization_loop(iproc, nproc, opt, &
            if (opt%iter > opt%itermax) exit wfn_loop
 
            !control whether the minimisation iterations should end after the hamiltionian application
-           endloop= opt%gnrm <= opt%gnrm_cv .or. opt%iter == opt%itermax
+           endloop= (opt%gnrm <= opt%gnrm_cv .or. opt%iter == opt%itermax) .and. opt%iter >= opt%itermin !Bastian
 
            if (iproc == 0) then 
               !yaml output
@@ -1648,7 +1439,7 @@ subroutine kswfn_optimization_loop(iproc, nproc, opt, &
               else
                  call yaml_sequence(advance='no')
               end if
-              call yaml_open_map(flow=.true.)
+              call yaml_mapping_open(flow=.true.)
               if (verbose > 0) &
                    call yaml_comment('iter:'//yaml_toa(opt%iter,fmt='(i6)'),hfill='-')
            endif
@@ -1707,30 +1498,28 @@ subroutine kswfn_optimization_loop(iproc, nproc, opt, &
                  opt%infocode=2
               end if
            end if
-           !flush all writings on standart output
+           !flush all writings on standard output
            if (iproc==0) then
               !yaml output
-              call yaml_close_map() !iteration
-              call bigdft_utils_flush(unit=6)
+              call yaml_mapping_close() !iteration
+              call yaml_flush_document()
            end if
            ! Emergency exit case
            if (opt%infocode == 2 .or. opt%infocode == 3) then
               if (nproc > 1) call MPI_BARRIER(bigdft_mpi%mpi_comm,ierr)
               !>todo: change this return into a clean out of the routine, so the YAML is clean.
               if (iproc==0) then
-                 !call yaml_close_map()
-                 call yaml_close_sequence() !wfn iterations
-                 call yaml_close_map()
-                 call yaml_close_sequence() !itrep
+                 !call yaml_mapping_close()
+                 call yaml_sequence_close() !wfn iterations
+                 call yaml_mapping_close()
+                 call yaml_sequence_close() !itrep
                  if (opt%infocode==2) then
                     call yaml_warning('The norm of the residue is too large, need to recalculate input wavefunctions')
                  else if (opt%infocode ==3) then
                     call yaml_warning('The norm of the residue is too large also with input wavefunctions.')
                  end if
               end if
-
               exit rhopot_loop
-              !return
            end if
 
            if (opt%c_obj /= 0) then
@@ -1755,8 +1544,8 @@ subroutine kswfn_optimization_loop(iproc, nproc, opt, &
               write(final_out, "(A5)") "final"
            end if
            call write_energies(opt%iter,0,energs,opt%gnrm,gnrm_zero,final_out)
-           call yaml_close_map()
-
+           call yaml_mapping_close()
+           call yaml_flush_document()
            if (opt%itrpmax >1) then
               if ( KSwfn%diis%energy > KSwfn%diis%energy_min) &
                    call yaml_warning('Found an energy value lower than the ' // final_out // &
@@ -1773,10 +1562,9 @@ subroutine kswfn_optimization_loop(iproc, nproc, opt, &
         end if
 
         if (iproc==0) then
-           call yaml_close_sequence() !wfn iterations
+           call yaml_sequence_close() !wfn iterations
            if (opt%iter == opt%itermax .and. opt%infocode/=0) &
-             &  call yaml_warning('No convergence within the allowed number of minimization steps')
-             !&   write( *,'(1x,a)')'No convergence within the allowed number of minimization steps'
+                call yaml_warning('No convergence within the allowed number of minimization steps')
         end if
         call last_orthon(iproc,nproc,opt%iter,KSwfn,energs%evsum,.true.) !never deallocate psit and hpsi
 
@@ -1819,7 +1607,8 @@ subroutine kswfn_optimization_loop(iproc, nproc, opt, &
         end if
 
         if (iproc==0) then
-           call yaml_close_map()
+           call yaml_mapping_close()
+           call yaml_flush_document()
         end if
 
         if (opt%infocode ==0) exit subd_loop
@@ -1835,7 +1624,7 @@ subroutine kswfn_optimization_loop(iproc, nproc, opt, &
      end if
 
      if (iproc==0) then
-        call yaml_close_sequence() !itrep
+        call yaml_sequence_close() !itrep
      end if
 
 
@@ -1894,7 +1683,7 @@ subroutine kswfn_optimization_loop(iproc, nproc, opt, &
   if (opt%c_obj /= 0) then
      call optloop_emit_done(opt, OPTLOOP_HAMILTONIAN, energs, iproc, nproc)
   end if
-  if (iproc==0) call yaml_close_sequence() !opt%itrp
+  if (iproc==0) call yaml_sequence_close() !opt%itrp
   !recuperate the information coming from the last iteration (useful for post-processing of the document)
   !only if everything got OK
   if (iproc==0 .and. opt%infocode == BIGDFT_SUCCESS) &
@@ -1917,11 +1706,11 @@ subroutine kswfn_optimization_loop(iproc, nproc, opt, &
      call check_closed_shell(KSwfn%orbs,lcs)  
      if (abs(energs%evsum-energs%ebs) > 1.d-8 .and. iproc==0 .and. lcs) then
         call yaml_newline()
-        call yaml_open_map('Energy inconsistencies')
+        call yaml_mapping_open('Energy inconsistencies')
         call yaml_map('Band Structure Energy',energs%ebs,fmt='(1pe22.14)')
         call yaml_map('Sum of Eigenvalues',energs%evsum,fmt='(1pe22.14)')
         if (energs%evsum /= 0.0_gp) call yaml_map('Relative inconsistency',(energs%ebs-energs%evsum)/energs%evsum,fmt='(1pe9.2)')
-        call yaml_close_map()
+        call yaml_mapping_close()
         !write( *,'(1x,a,2(1x,1pe20.13))')&
         !  &   'Difference:evsum,energybs',energs%evsum,energs%ebs
      end if
@@ -1969,7 +1758,7 @@ subroutine kswfn_post_treatments(iproc, nproc, KSwfn, tmb, linear, &
 
   !Local variables
   character(len = *), parameter :: subname = "kswfn_post_treatments"
-  integer :: i_all, i_stat, jproc, nsize_psi, imode
+  integer ::  jproc, nsize_psi, imode
   real(dp), dimension(6) :: hstrten
   real(gp) :: ehart_fake
 
@@ -2008,7 +1797,9 @@ subroutine kswfn_post_treatments(iproc, nproc, KSwfn, tmb, linear, &
         denspot%pot_work = f_malloc_ptr(1,id='denspot%pot_work')
      end if
      ! Density already present in denspot%rho_work
-     call vcopy(denspot%dpbox%ndimpot,denspot%rho_work(1),1,denspot%pot_work(1),1)
+     if (denspot%dpbox%ndimpot>0) then
+         call vcopy(denspot%dpbox%ndimpot,denspot%rho_work(1),1,denspot%pot_work(1),1)
+     end if
      call H_potential('D',denspot%pkernel,denspot%pot_work,denspot%pot_work,ehart_fake,&
           0.0_dp,.false.,stress_tensor=hstrten)
   else
@@ -2084,7 +1875,7 @@ subroutine kswfn_post_treatments(iproc, nproc, KSwfn, tmb, linear, &
      ! to eventually be better sorted
      call synchronize_onesided_communication(iproc, nproc, tmb%ham_descr%comgp)
      call deallocate_p2pComms(tmb%ham_descr%comgp)
-     call deallocate_local_zone_descriptors(tmb%ham_descr%lzd, subname)
+     call deallocate_local_zone_descriptors(tmb%ham_descr%lzd)
      call deallocate_comms_linear(tmb%ham_descr%collcom)
      call deallocate_auxiliary_basis_function(subname, tmb%ham_descr%psi, tmb%hpsi)
 
