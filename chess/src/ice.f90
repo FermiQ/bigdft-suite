@@ -22,6 +22,10 @@
 !> Module Inverse Chebyshev Expansion
 module ice
   use sparsematrix_base
+  use dynamic_memory
+  use yaml_output
+  use dictionaries, only: f_err_throw
+  use time_profiling
   implicit none
 
   private
@@ -776,7 +780,8 @@ module ice
       betax = foe_data_get_real(ice_obj,"betax")
 
       !!@ TEMPORARY: eigenvalues of  the overlap matrix ###################
-      !call get_minmax_eigenvalues(iproc, ovrlp_smat, ovrlp_mat, eval_min, eval_max)
+      !!call get_minmax_eigenvalues(iproc, nproc, comm, -8, &
+      !!     ovrlp_smat, ovrlp_mat, eval_min, eval_max)
 
 
       ! Size of one Chebyshev polynomial matrix in compressed form (distributed)
@@ -818,7 +823,7 @@ module ice
            ovrlp_smat, inv_ovrlp_smat, ovrlp_mat, ice_obj, npl_min_fake, &
            inv_ovrlp(1)%matrix_compr, chebyshev_polynomials, &
            npl, scale_factor, shift_value, hamscal_compr, &
-           ex=ex, scaling_factor_low=2.0_mp, scaling_factor_up=0.5_mp, &
+           ex=ex, scaling_factor_low=1.2_mp, scaling_factor_up=1.0_mp/1.2_mp, &
            eval_multiplicator=eval_multiplicator, eval_multiplicator_total=eval_multiplicator_total, &
            cc=cc, max_errorx=max_error)
 
