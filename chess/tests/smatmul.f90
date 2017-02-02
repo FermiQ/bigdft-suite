@@ -30,7 +30,7 @@ program smatmul
   use sparsematrix_base, only: sparse_matrix, matrices, &
                                matrices_null, deallocate_sparse_matrix, deallocate_matrices, &
                                assignment(=), sparsematrix_malloc_ptr, sparsematrix_malloc, SPARSE_FULL, SPARSEMM_SEQ, &
-                               SPARSE_MATMUL_SMALL
+                               SPARSE_MATMUL_SMALL, ONESIDED_FULL
   use sparsematrix_init, only: bigdft_to_sparsebigdft, distribute_columns_on_processes_simple, check_symmetry
   use sparsematrix, only: write_matrix_compressed, &
                           write_sparsematrix_CCS, write_sparsematrix, &
@@ -121,8 +121,8 @@ program smatmul
   !!matA%matrix_compr = sparsematrix_malloc_ptr(smat, iaction=SPARSE_FULL, id='matA%matrix_compr')
   !!matA%matrix_compr = mat_compr
 
-  call sparse_matrix_and_matrices_init_from_file_bigdft('serial', filename, iproc, nproc,comm, smat, matA, &
-       init_matmul=.true.)!, nat=nat, ntypes=ntypes, nzatom=nzatom, nelpsp=nelpsp, &
+  call sparse_matrix_and_matrices_init_from_file_bigdft('serial_text', filename, iproc, nproc,comm, smat, matA, &
+       init_matmul=.true., filename_mult=filename)!, nat=nat, ntypes=ntypes, nzatom=nzatom, nelpsp=nelpsp, &
        !atomnames=atomnames, iatype=iatype, rxyz=rxyz, on_which_atom=on_which_atom)
 
   ! Check the symmetry

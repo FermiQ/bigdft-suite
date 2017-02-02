@@ -21,15 +21,15 @@ if BUILD_DYNAMIC_LIBS
 smatmul_LDADD += @LIB_FUTILE_LIBS@
 endif
 
-CLEANFILES = *.dat *.yaml report
+CLEANFILES = *.txt *.yaml report
 
 test-smatmul.out.yaml: smatmul
-	cp -f $(srcdir)/mat_114_8986.dat $(PWD)/matrix.dat
-	$(run_parallel) ./smatmul --filename=matrix.dat --nit=10 > test-smatmul.out.yaml
-	cp -f $(srcdir)/mat_600_33620.dat $(PWD)/matrix.dat
-	$(run_parallel) ./smatmul --filename=matrix.dat --nit=100 --verbosity=1 >> test-smatmul.out.yaml
-	cp -f $(srcdir)/mat_1202_77462.dat  $(PWD)/matrix.dat
-	$(run_parallel) ./smatmul --filename=matrix.dat --nit=20 --verbosity=1 >> test-smatmul.out.yaml
+	cp -f $(srcdir)/mat_114_8986.dat $(PWD)/matrix.txt
+	$(run_parallel) ./smatmul --filename=matrix.txt --nit=10 > test-smatmul.out.yaml
+	cp -f $(srcdir)/mat_600_33620.dat $(PWD)/matrix.txt
+	$(run_parallel) ./smatmul --filename=matrix.txt --nit=100 --verbosity=1 >> test-smatmul.out.yaml
+	cp -f $(srcdir)/mat_1202_77462.dat  $(PWD)/matrix.txt
+	$(run_parallel) ./smatmul --filename=matrix.txt --nit=20 --verbosity=1 >> test-smatmul.out.yaml
 
 
 check: report test-smatmul.out.yaml
