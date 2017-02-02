@@ -1,6 +1,6 @@
 ## Process this file with automake to produce Makefile.in
 
-CHECKS = test-ccs.report.yaml test-foeccs.report.yaml test-random.report.yaml test-eigenvalues.report.yaml
+CHECKS = test-ccs.report.yaml test-foeccs.report.yaml test-random.report.yaml #test-eigenvalues.report.yaml
 
 #include $(srcdir)/../check.mk
 

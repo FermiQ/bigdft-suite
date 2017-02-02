@@ -16,3 +16,7 @@ Keys to ignore:
 
 test-random:
  max error relative: 5.0e-9
+
+test-foeccs:
+ difference: 2.0e-11
+ trace(KS): 1.8e-11
