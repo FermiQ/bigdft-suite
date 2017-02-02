@@ -92,6 +92,12 @@ program smatmul
   nproc=mpisize()
   comm=mpiworld()
 
+  call f_malloc_set_status(memory_limit=0.e0,iproc=iproc)
+
+  ! Initialize the sparsematrix error handling and timing.
+  call sparsematrix_init_errors()
+  call sparsematrix_initialize_timing_categories()
+
   if (iproc==0) then
       call yaml_new_document()
   end if

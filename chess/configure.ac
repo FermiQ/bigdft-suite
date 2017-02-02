@@ -146,7 +146,6 @@ src/configure.inc
 src/Makefile
 chesspexsi/Makefile
 tests/Makefile
-tests/sparsematrix/Makefile
 ])
 
 AC_OUTPUT
