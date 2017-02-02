@@ -1,15 +1,15 @@
 ---
- total elements                        :  12996
- non-zero elements                     :  8986
-  #segments:  204
- sparsity in %                         :  30.86
- sparse matmul load balancing naive / optimized:  [  1.25,  1.01 ]
- taskgroup summary:
-   number of taskgroups                :  1
-   taskgroups overview:
-   -  {number of tasks:  4, IDs: { 0: {s:  1, e:  8986},  1: {s:  1, e:  8986},  2: {s:  1, 
- e:  8986},  3: {s:  1, e:  8986}}, 
- start / end:  [  1,  8986 ], start / end disjoint:  [  1,  8986 ]}
+# total elements                        :  12996
+# non-zero elements                     :  8986
+#  #segments:  204
+# sparsity in %                         :  30.86
+# sparse matmul load balancing naive / optimized:  [  1.25,  1.01 ]
+# taskgroup summary:
+#   number of taskgroups                :  1
+#   taskgroups overview:
+#   -  {number of tasks:  4, IDs: { 0: {s:  1, e:  8986},  1: {s:  1, e:  8986},  2: {s:  1, 
+# e:  8986},  3: {s:  1, e:  8986}}, 
+# start / end:  [  1,  8986 ], start / end disjoint:  [  1,  8986 ]}
  final result:
  -  {segment:  1, elements: [
  {coordinates:  [  1,  1 ], value:  1.7510680477311727E-004}, 
@@ -9213,17 +9213,17 @@
  Max No. of dictionaries used          :  1090 #( 857 still in use)
  Number of dictionary folders allocated:  1
 ---
- total elements                        :  360000
- non-zero elements                     :  33620
-  #segments:  11894
- sparsity in %                         :  90.66
- sparse matmul load balancing naive / optimized:  [  1.18,  1.01 ]
- taskgroup summary:
-   number of taskgroups                :  1
-   taskgroups overview:
-   -  {number of tasks:  4, IDs: { 0: {s:  1, e:  33620},  1: {s:  1, e:  33620},  2: {
- s:  1, e:  33620},  3: {s:  1, e:  33620}}, 
- start / end:  [  1,  33620 ], start / end disjoint:  [  1,  33620 ]}
+# total elements                        :  360000
+# non-zero elements                     :  33620
+#  #segments:  11894
+# sparsity in %                         :  90.66
+# sparse matmul load balancing naive / optimized:  [  1.18,  1.01 ]
+# taskgroup summary:
+#   number of taskgroups                :  1
+#   taskgroups overview:
+#   -  {number of tasks:  4, IDs: { 0: {s:  1, e:  33620},  1: {s:  1, e:  33620},  2: {
+# s:  1, e:  33620},  3: {s:  1, e:  33620}}, 
+# start / end:  [  1,  33620 ], start / end disjoint:  [  1,  33620 ]}
  Memory Consumption Report:
    Tot. No. of Allocations             :  94
    Tot. No. of Deallocations           :  94
@@ -9236,17 +9236,17 @@
  Max No. of dictionaries used          :  1090 #( 857 still in use)
  Number of dictionary folders allocated:  1
 ---
- total elements                        :  1444804
- non-zero elements                     :  77462
-  #segments:  1787
- sparsity in %                         :  94.64
- sparse matmul load balancing naive / optimized:  [  1.02,  1.00 ]
- taskgroup summary:
-   number of taskgroups                :  1
-   taskgroups overview:
-   -  {number of tasks:  4, IDs: { 0: {s:  1, e:  77462},  1: {s:  1, e:  77462},  2: {
- s:  1, e:  77462},  3: {s:  1, e:  77462}}, 
- start / end:  [  1,  77462 ], start / end disjoint:  [  1,  77462 ]}
+# total elements                        :  1444804
+# non-zero elements                     :  77462
+#  #segments:  1787
+# sparsity in %                         :  94.64
+# sparse matmul load balancing naive / optimized:  [  1.02,  1.00 ]
+# taskgroup summary:
+#   number of taskgroups                :  1
+#   taskgroups overview:
+#   -  {number of tasks:  4, IDs: { 0: {s:  1, e:  77462},  1: {s:  1, e:  77462},  2: {
+# s:  1, e:  77462},  3: {s:  1, e:  77462}}, 
+# start / end:  [  1,  77462 ], start / end disjoint:  [  1,  77462 ]}
  Memory Consumption Report:
    Tot. No. of Allocations             :  94
    Tot. No. of Deallocations           :  94

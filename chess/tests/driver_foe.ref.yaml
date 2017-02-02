@@ -145,7 +145,7 @@
    method                              : diagonalization
    mode                                : sequential
    Cross-check among MPI tasks:
-     max diff of eigenvectors          :  1.45E+00
+     max diff of eigenvectors          :  0.00E+00
      max diff of eigenvalues           :  4.00E-15
    communication strategy kernel       : ALLREDUCE
    Energy                              : -396.8331019161715
