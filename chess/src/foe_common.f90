@@ -2005,6 +2005,7 @@ module foe_common
                   end do main_loop
 
                   if (iproc==0) then
+                      call yaml_newline()
                       call yaml_mapping_open('summary',flow=.true.)
                       call yaml_map('nit',it)
                       call yaml_map('eF',foe_data_get_real(foe_obj,"ef"),fmt='(es13.6)')

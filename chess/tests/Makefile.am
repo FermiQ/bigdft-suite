@@ -125,6 +125,18 @@ define F_REGTEST_INSTRUCTIONS
     - $(run_parallel) ./smatmul \
         --filename=$(srcdir)/mat_1202_77462.txt \
         --nit=20 --verbosity=1
+- driver_eigenvalues:
+   binary: driver_eigenvalues
+   runs:
+    - $(run_parallel) ./driver_eigenvalues \
+        --metadata_file=$(srcdir)/sparsematrix_metadata-evals.dat \
+        --overlap_file=$(srcdir)/overlap_sparse-evals.txt \
+        --hamiltonian_file=$(srcdir)/hamiltonian_sparse-evals.txt \
+        --kernel_file=$(srcdir)/density_kernel_sparse-evals.txt \
+        --kernel_matmul_file=$(srcdir)/density_kernel_sparse_matmul-evals.txt \
+        --iev_min=151 \
+        --iev_max=156 \
+        --fscale=1.e-2
 endef
 export F_REGTEST_INSTRUCTIONS
 
