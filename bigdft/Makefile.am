@@ -5,7 +5,7 @@
 #	config/m4/gain.m4 \
 #	config/m4/introspection.m4
 
-EXTRA_DIST= config/m4 bigdft_environment.sh.in
+EXTRA_DIST= config/m4 bigdft_environment.sh.in bigdftvars.sh.in
 
 ACLOCAL_AMFLAGS = -I config/m4
 
@@ -16,7 +16,7 @@ dist_bin_SCRIPTS = bigdftvars.sh bigdft_environment.sh
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = bigdft.pc
 
-SUBDIRS = src
+SUBDIRS = src plugins
 
 # Tests subdir is included only if binaries are compiled.
 if BUILD_BINARIES

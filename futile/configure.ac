@@ -172,6 +172,7 @@ AC_CONFIG_FILES([
 Makefile
 futile.pc
 futile_environment.sh
+futilevars.sh
 doc/Makefile
 doc/Doxyfile
 flib/Makefile
@@ -182,6 +183,8 @@ c-bindings/futile_cst.h
 src/configure.inc
 src/f_memcheck
 src/Makefile
+src/python/Makefile
+src/python/futile/Makefile
 tests/Makefile
 tests/fft/Makefile
 tests/flib/Makefile

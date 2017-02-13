@@ -241,6 +241,7 @@ subroutine Electrostatic_Solver(kernel,rhov,energies,pot_ion,rho_ion,ehartree)
         call PB_iteration(n1,n23,i3s_pot_pb,kernel%PB_eta,kernel%cavity,rhov(1,1,i3s),kernel%w%pot,kernel%w%eps,&
              kernel%w%rho_ions,kernel%w%rho_pb,res_PB)
         if (kernel%method == PS_PCG_ENUM) call f_memcpy(src=kernel%w%rho_pb,dest=kernel%w%res)
+        call PS_reduce(res_PB,kernel)
         res_PB=sqrt(res_PB/product(kernel%ndims))
         if (wrtmsg) then
            call yaml_newline()
@@ -383,7 +384,8 @@ subroutine Electrostatic_Solver(kernel,rhov,energies,pot_ion,rho_ion,ehartree)
   !gather the full result in the case of datacode = G
   if (kernel%opt%datacode == 'G') call PS_gather(rhov,kernel)
 
-  if (build_c .or. .not. kernel%opt%only_electrostatic ) then
+
+  if (build_c) then
    kernel%IntSur=IntSur
    kernel%IntVol=IntVol
   end if
@@ -406,6 +408,17 @@ subroutine Electrostatic_Solver(kernel,rhov,energies,pot_ion,rho_ion,ehartree)
   if (present(ehartree)) then
      ehartree=energs%hartree
      call PS_reduce(ehartree,kernel)
+  end if
+
+  if (wrtmsg) then
+     if (kernel%cavity%gammaS*kernel%IntSur /= 0.0_gp) &
+          call yaml_map('Cavitation energy',kernel%cavity%gammaS*kernel%IntSur)
+     if (kernel%cavity%alphaS*kernel%IntSur /= 0.0_gp) &
+          call yaml_map('Repulsion energy',kernel%cavity%alphaS*kernel%IntSur)
+     if (kernel%cavity%betaV*kernel%IntVol /= 0.0_gp) &
+          call yaml_map('Dispersion energy',kernel%cavity%betaV*kernel%IntVol)
+     if (energs%cavitation /= 0.0_gp) &
+          call yaml_map('Non-eletrostatic energy',energs%cavitation)
   end if
 
   if (wrtmsg) call yaml_mapping_close()
@@ -629,8 +642,8 @@ subroutine Parallel_GPS(kernel,cudasolver,offset,strten,wrtmsg,rho_dist,use_inpu
         if (wrtmsg) then
            call yaml_newline()
            call yaml_sequence(advance='no')
-           call EPS_iter_output(ip,normb,normr,ratio,alpha,beta)
-           !call EPS_iter_output(ip,0.0_dp,normr,0.0_dp,0.0_dp,0.0_dp)
+           !call EPS_iter_output(ip,normb,normr,ratio,alpha,beta)
+           call EPS_iter_output(ip,0.0_dp,normr,0.0_dp,0.0_dp,0.0_dp)
         end if
         if (normr < kernel%minres .or. normr > max_ratioex) exit PCG_loop
      end do PCG_loop
