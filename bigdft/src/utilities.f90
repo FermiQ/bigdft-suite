@@ -355,7 +355,7 @@ program utilities
                 smmd, smat_s, smat_m, smat_l, &
                 ovrlp_mat, hamiltonian_mat, kernel_mat, smmd%rxyz, &
                 methodc, do_ortho=trim(do_ortho), projectormode='simple', &
-                calculate_multipole_matrices=.false., do_check=.false., &
+                do_check=.false., calculate_multipole_matrices=.false., centers_auto=.true., &
                 write_multipole_matrices_mode=0, &
                 multipole_matrix_in=(/(/ovrlp_mat/)/))
        case ('realspace','REALSPACE')
@@ -363,7 +363,7 @@ program utilities
                 smmd, smat_s, smat_m, smat_l, &
                 ovrlp_mat, hamiltonian_mat, kernel_mat, smmd%rxyz, &
                 methodc, do_ortho=trim(do_ortho), projectormode='simple', &
-                calculate_multipole_matrices=.false., do_check=.false., &
+                do_check=.false., calculate_multipole_matrices=.false., centers_auto=.true., &
                 write_multipole_matrices_mode=0, &
                 multipole_matrix_in=multipoles_matrices)
        case default

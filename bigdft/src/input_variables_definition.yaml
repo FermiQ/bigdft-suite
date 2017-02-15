@@ -1723,6 +1723,12 @@
        COMMENT: Decay length of the error function used to extract the eigenvalues (i.e. something like the resolution)
        default: 5.e-3
        RANGE: [0.0,1.e-1]
+     #centers_auto:
+     #  default: yes
+     multipole_centers:
+       COMMENT: Determines whether the multipole centers shall be determined automatically (i.e. taking the atoms) or whether they are provided manually
+       #default: yes
+       default: 0.0
 #Parameters for the localised basis set (or support function) for the linear scaling version
  lin_basis:
      nit:

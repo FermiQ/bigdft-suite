@@ -1864,9 +1864,10 @@ module multipole
      
     subroutine multipole_analysis_driver_new(iproc, nproc, comm, lmax, ixc, smmd, smats, smatm, smatl, &
                ovrlp, ham, kernel, rxyz, method, do_ortho, projectormode, &
-               calculate_multipole_matrices, do_check, write_multipole_matrices_mode, &
+               calculate_multipole_matrices, do_check, write_multipole_matrices_mode, centers_auto, &
                auxs, nphi, lphi, nphir, hgrids, orbs, collcom, collcom_sr, &
-               lzd, at, denspot, orthpar, shift, multipole_matrix_in, ice_obj, filename)
+               lzd, at, denspot, orthpar, shift, multipole_matrix_in, ice_obj, filename, &
+               multipole_centers)
       use module_base
       use module_types, only: orbitals_data, comms_linear, local_zone_descriptors, orthon_data, DFT_local_fields, comms_linear, &
                               linmat_auxiliary
@@ -1904,6 +1905,7 @@ module multipole
       character(len=*),intent(in) :: do_ortho
       character(len=*),intent(in) :: projectormode
       logical,intent(in) :: calculate_multipole_matrices, do_check
+      logical,intent(in) :: centers_auto
       integer,intent(in) :: write_multipole_matrices_mode
       type(linmat_auxiliary),intent(in),optional :: auxs
       integer,intent(in),optional :: nphi, nphir
@@ -1919,6 +1921,7 @@ module multipole
       type(matrices),dimension(-lmax:lmax,0:lmax),intent(in),target,optional :: multipole_matrix_in
       type(foe_data),intent(inout),optional :: ice_obj
       character(len=*),intent(in),optional :: filename
+      real(kind=8),dimension(3,smmd%nat),target,intent(in),optional :: multipole_centers
 
       ! Local variables
       integer :: methTransformOverlap, iat, ind, ispin, ishift, iorb, jorb, iiorb, l, m, itype, natpx, isatx, kat, n, i, kkat
@@ -1930,6 +1933,7 @@ module multipole
       real(kind=8),dimension(:),allocatable :: eval, work, newoverlap, newmultipole_matrix_large, newoverlap_large
       real(kind=8),dimension(:,:),allocatable :: Qmat_tilde, kp, locregcenter, overlap_small, tmpmat, tempmat
       real(kind=8),dimension(:,:,:),pointer :: atomic_multipoles
+      real(kind=8),dimension(:,:),pointer :: mp_centers
       real(kind=8),dimension(:),pointer :: atomic_monopoles_analytic
       real(kind=8),dimension(:,:,:),allocatable :: test_pot
       real(kind=8),dimension(:,:,:,:),allocatable :: lmp_extracted
@@ -2050,6 +2054,18 @@ module multipole
           call yaml_map('Method',trim(method))
           call yaml_map('Projector mode',trim(projectormode))
           call yaml_map('Orthogonalized support functions',trim(do_ortho))
+      end if
+
+      if (.not.centers_auto) then
+          if (.not.present(multipole_centers)) then
+              call f_err_throw("'multipole_centers' must be present if 'centers_auto' is true")
+          end if
+      end if
+
+      if (centers_auto) then
+          mp_centers => smmd%rxyz
+      else
+          mp_centers => multipole_centers
       end if
 
       if (calculate_multipole_matrices) then
@@ -2245,7 +2261,7 @@ module multipole
                   call extract_matrix(smatl, kernel_ortho, neighborx(1,kat), n, kernel_extracted)
                   if (l>0) then
                       call correct_multipole_origin(smmd%nat, l, m, n, smmd%nfvctr, natpx, kat, kkat, &
-                           smmd, smats, smmd%rxyz, neighborx, perx, pery, perz, acell, &
+                           smmd, smats, mp_centers, neighborx, perx, pery, perz, acell, &
                            lower_multipole_matrices, multipole_extracted)
                   end if
                   !do i=1,n
@@ -2320,7 +2336,8 @@ module multipole
       do impl=1,ep%nmpl
           ep%mpl(impl) = multipole_set_null()
           allocate(ep%mpl(impl)%qlm(0:lmax))
-          ep%mpl(impl)%rxyz = smmd%rxyz(1:3,impl)
+          !ep%mpl(impl)%rxyz = smmd%rxyz(1:3,impl)
+          ep%mpl(impl)%rxyz = mp_centers(1:3,impl)
           ep%mpl(impl)%sym = trim(names(impl))
           if (present(at)) then
               call get_psp_info(ep%mpl(impl)%sym, ixc, smmd, nelpsp, psp_source, rloc, at%psppar)
