@@ -39,24 +39,24 @@ program driver_random
   use foe_common, only: init_foe
   use wrapper_MPI
   use selinv, only: selinv_wrapper
-  use utilities, only: calculate_error
+  use utilities, only: calculate_error, median
 
   implicit none
 
   ! Variables
-  integer :: iproc, nproc, iseg, ierr, idum, ii, i, nthread
+  integer :: iproc, nproc, iseg, ierr, idum, ii, i, nthread, nit, it
   integer :: nfvctr, nvctr, nbuf_large, nbuf_mult, iwrite, scalapack_blocksize, ithreshold, icheck, j, pexsi_np_sym_fact
   type(sparse_matrix) :: smats
   type(sparse_matrix),dimension(1) :: smatl
   real(kind=4) :: tt_real
-  real(mp) :: tt, tt_rel
+  real(mp) :: tt, tt_rel, t1, t2
   real(mp),dimension(1) :: eval_min, eval_max
   type(matrices) :: mat1, mat2
   type(matrices),dimension(3) :: mat3
   real(mp) :: condition_number, expo, max_error, mean_error, betax
   real(mp) :: max_error_rel, mean_error_rel, evlow, evhigh, eval_multiplicator, accuracy_ice, accuracy_penalty
-  real(mp),dimension(:),allocatable :: charge_fake
-  type(foe_data) :: ice_obj
+  real(mp),dimension(:),allocatable :: charge_fake, times, sumarr
+  type(foe_data),dimension(:),allocatable :: ice_obj
   character(len=1024) :: infile, outfile, outmatmulfile, sparsegen_method, matgen_method, diag_algorithm
   character(len=1024) :: solution_method
   logical :: write_matrices, do_cubic_check
@@ -145,6 +145,7 @@ program driver_random
       pexsi_np_sym_fact = options//'pexsi_np_sym_fact'
       accuracy_ice = options//'accuracy_ice'
       accuracy_penalty = options//'accuracy_penalty'
+      nit = options//'nit'
 
       call dict_free(options)
 
@@ -189,6 +190,7 @@ program driver_random
       call yaml_mapping_close()
       call yaml_map('Accuracy of Chebyshev fit for ICE',accuracy_ice)
       call yaml_map('Accuracy of Chebyshev fit for the penalty function',accuracy_penalty)
+      call yaml_map('Number of iterations',nit)
   end if
 
   ! Send the input parameters to all MPI tasks
@@ -213,6 +215,7 @@ program driver_random
   call mpibcast(pexsi_np_sym_fact, root=0, comm=mpi_comm_world)
   call mpibcast(accuracy_ice, root=0, comm=mpi_comm_world)
   call mpibcast(accuracy_penalty, root=0, comm=mpi_comm_world)
+  call mpibcast(nit, root=0, comm=mpi_comm_world)
 
   ! Since there is no wrapper for logicals...
   if (iproc==0) then
@@ -271,15 +274,22 @@ program driver_random
   end if
 
 
+  times = f_malloc(nit,id='times')
+  sumarr = f_malloc(nit,id='sumarr')
+  allocate(ice_obj(nit))
+
+
   ! Initialize an object which holds some parameters for the Chebyshev expansion.
   ! It would also work without (then always the default values are taken), but when this
   ! object is provided some informations are stored between calls to the Chebyshev expansion,
   ! in this way improving the performance.
   ! Should maybe go to a wrapper.
   charge_fake = f_malloc0(1,id='charge_fake')
-  call init_foe(iproc, nproc, 1, charge_fake, ice_obj, evlow=evlow, evhigh=evhigh, &
-       betax=betax, eval_multiplicator=eval_multiplicator, &
-       accuracy_function=accuracy_ice, accuracy_penalty=accuracy_penalty)
+  do it=1,nit
+      call init_foe(iproc, nproc, 1, charge_fake, ice_obj(it), evlow=evlow, evhigh=evhigh, &
+           betax=betax, eval_multiplicator=eval_multiplicator, &
+           accuracy_function=accuracy_ice, accuracy_penalty=accuracy_penalty)
+  end do
   call f_free(charge_fake)
 
 
@@ -363,30 +373,78 @@ program driver_random
        gather_routine=gather_timings)
 
 
-  ! Calculate the desired matrix power
   if (iproc==0) then
-      call yaml_comment('Calculating mat^x',hfill='~')
-      call yaml_mapping_open('Calculating mat^x')
+      call yaml_sequence_open('Matrix power calculations')
   end if
-  if (trim(solution_method)=='ICE') then
-      call matrix_chebyshev_expansion(iproc, nproc, mpi_comm_world, &
-           1, (/expo/), smats, smatl(1), mat2, mat3(1), ice_obj=ice_obj)
-  else if (trim(solutioN_method)=='SelInv') then
-      if (expo/=-1.0_mp) then
-          call f_err_throw('Selecetd Inversion is only possible for the calculation of the inverse')
+  it_loop: do it=1,nit
+      t1 = mpi_wtime()
+      if (iproc==0) then
+          call yaml_comment('Kernel iteration number'//trim(yaml_toa(it)),hfill='=')
+          call yaml_sequence(advance='no')
       end if
-      call selinv_wrapper(iproc, nproc, mpi_comm_world, smats, smatl(1), mat2, pexsi_np_sym_fact, mat3(1))
-  else if (trim(solutioN_method)=='LAPACK') then
-      mat2%matrix = sparsematrix_malloc_ptr(smats, iaction=DENSE_FULL, id='mat2%matrix')
-      mat3(1)%matrix = sparsematrix_malloc_ptr(smats, iaction=DENSE_FULL, id='mat3(3)%matrix')
-      call matrix_power_dense_lapack(iproc, nproc, mpiworld(), scalapack_blocksize, .false., &
-            expo, smats, smatl(1), mat2, mat3(1), algorithm=diag_algorithm)
-      call f_free_ptr(mat2%matrix)
-      call f_free_ptr(mat3(1)%matrix)
-  else
-      call f_err_throw("wrong value for 'solution_method'; possible values are 'ICE', 'SelInv' or 'LAPACK'")
+      ! Calculate the desired matrix power
+      if (iproc==0) then
+          call yaml_comment('Calculating mat^x',hfill='~')
+          call yaml_mapping_open('Calculating mat^x')
+      end if
+      if (trim(solution_method)=='ICE') then
+          call matrix_chebyshev_expansion(iproc, nproc, mpi_comm_world, &
+               1, (/expo/), smats, smatl(1), mat2, mat3(1), ice_obj=ice_obj(it))
+      else if (trim(solutioN_method)=='SelInv') then
+          if (expo/=-1.0_mp) then
+              call f_err_throw('Selecetd Inversion is only possible for the calculation of the inverse')
+          end if
+          call selinv_wrapper(iproc, nproc, mpi_comm_world, smats, smatl(1), mat2, pexsi_np_sym_fact, mat3(1))
+      else if (trim(solutioN_method)=='LAPACK') then
+          mat2%matrix = sparsematrix_malloc_ptr(smats, iaction=DENSE_FULL, id='mat2%matrix')
+          mat3(1)%matrix = sparsematrix_malloc_ptr(smats, iaction=DENSE_FULL, id='mat3(3)%matrix')
+          call matrix_power_dense_lapack(iproc, nproc, mpiworld(), scalapack_blocksize, .false., &
+                expo, smats, smatl(1), mat2, mat3(1), algorithm=diag_algorithm)
+          call f_free_ptr(mat2%matrix)
+          call f_free_ptr(mat3(1)%matrix)
+      else
+          call f_err_throw("wrong value for 'solution_method'; possible values are 'ICE', 'SelInv' or 'LAPACK'")
+      end if
+      ! Calculation part done
+
+      call mpibarrier()
+      t2 = mpi_wtime()
+      times(it) = t2-t1
+      sumarr(it) = sum(mat3(1)%matrix_compr)
+  end do it_loop
+
+  if (iproc==0) then
+      call yaml_comment('Timings summary',hfill='=')
+      call yaml_sequence_close()
+      call yaml_sequence_open('Timinig summary')
+      do it=1,nit
+          call yaml_sequence(advance='no')
+          call yaml_mapping_open(flow=.true.)
+           call yaml_map('iteration',it)
+           call yaml_map('time',times(it))
+           call yaml_map('sum(M^a)',sumarr(it))
+          call yaml_mapping_close()
+      end do
+      call yaml_sequence_close()
+      call yaml_mapping_open('Timing analysis')
+       call yaml_mapping_open('All runs')
+        call yaml_map('Minimal',minval(times))
+        call yaml_map('Maximal',maxval(times))
+        call yaml_map('Average',sum(times)/real(nit,kind=mp))
+        call yaml_map('Median',median(nit, times))
+       call yamL_mapping_close()
+       if (nit>1) then
+           call yaml_mapping_open('Excluding first run')
+            call yaml_map('Minimal',minval(times(2:nit)))
+            call yaml_map('Maximal',maxval(times(2:nit)))
+            call yaml_map('Average',sum(times(2:nit))/real(nit-1,kind=mp))
+            call yaml_map('Median',median(nit-1, times(2:nit)))
+           call yamL_mapping_close()
+       end if
+      call yaml_mapping_close()
+      call yaml_scalar('',hfill='=')
   end if
-  ! Calculation part done
+
   !call timing(mpi_comm_world,'CALC','PR')
   call mpibarrier()
   call f_timing_checkpoint(ctr_name='CALC',mpi_comm=mpiworld(),nproc=mpisize(),&
@@ -407,7 +465,7 @@ program driver_random
       call yaml_mapping_open('Calculating mat^-x')
   end if
   call matrix_chebyshev_expansion(iproc, nproc, mpi_comm_world, &
-       1, (/-expo/), smats, smatl(1), mat2, mat3(2), ice_obj=ice_obj)
+       1, (/-expo/), smats, smatl(1), mat2, mat3(2), ice_obj=ice_obj(1))
 
   if (iproc==0) then
       call yaml_mapping_close()
@@ -436,14 +494,14 @@ program driver_random
   end if
 
   ! Reset the ICE object
-  call foe_data_deallocate(ice_obj)
+  call foe_data_deallocate(ice_obj(1))
   charge_fake = f_malloc0(1,id='charge_fake')
-  call init_foe(iproc, nproc, 1, charge_fake, ice_obj, evlow=evlow, evhigh=evhigh, &
+  call init_foe(iproc, nproc, 1, charge_fake, ice_obj(1), evlow=evlow, evhigh=evhigh, &
        betax=betax, eval_multiplicator=eval_multiplicator, &
        accuracy_function=accuracy_ice, accuracy_penalty=accuracy_penalty)
   call f_free(charge_fake)
   call matrix_chebyshev_expansion(iproc, nproc, mpi_comm_world, &
-       1, (/1.0_mp/expo/), smatl(1), smatl(1), mat3(1), mat3(3), ice_obj=ice_obj)
+       1, (/1.0_mp/expo/), smatl(1), smatl(1), mat3(1), mat3(3), ice_obj=ice_obj(1))
 
   if (iproc==0) then
       call yaml_mapping_close()
@@ -620,7 +678,11 @@ program driver_random
   call deallocate_matrices(mat3(3))
 
   ! Deallocate the object holding the parameters
-  call foe_data_deallocate(ice_obj)
+  call f_free(times)
+  call f_free(sumarr)
+  do it=1,nit
+      call foe_data_deallocate(ice_obj(it))
+  end do
 
   ! Gather the timings
   call mpibarrier()
@@ -854,6 +916,13 @@ subroutine commandline_options(parser)
        'Indicate the required accuracy for the Chebyshev fit for teh penalty function',&
        'Allowed values' .is. &
        'Double'))
+
+  call yaml_cl_parse_option(parser,'nit','1',&
+       'Number of iterations for the kernel caluculations (can be used for benchmarking)',&
+       help_dict=dict_new('Usage' .is. &
+       'Indicate the number of iterations for the kernel caluculations (can be used for benchmarking)',&
+       'Allowed values' .is. &
+       'Integer'))
 
 end subroutine commandline_options
 

@@ -24,6 +24,7 @@ module utilities
 
   public :: get_ccs_data_from_file
   public :: calculate_error
+  public :: median
 
   contains
 
@@ -183,5 +184,67 @@ module utilities
           call yaml_mapping_close()
         end subroutine print_errors
     end subroutine calculate_error
+
+
+
+    subroutine insertion_sort(n, arr)
+      use sparsematrix_base
+      implicit none
+
+      ! Calling variables
+      integer,intent(in) :: n
+      real(kind=mp),dimension(n),intent(inout) :: arr
+
+      ! Local variables
+      integer :: i, j
+      real(kind=mp) :: temp
+
+      do i=2,n
+          j = i-1
+          temp = arr(i)
+          !do while (j>=1 .and. arr(j)>temp)
+          do
+             if (j<1) exit
+             if (arr(j)<=temp) exit
+             arr(j+1) = arr(j)
+             j = j-1
+          end do
+          arr(j+1) = temp
+       end do
+
+    end subroutine insertion_sort
+
+
+
+    function median(n, a)
+      use futile
+      use sparsematrix_base
+      implicit none
+      integer,intent(in) :: n
+      real(kind=mp),dimension(n),intent(in) :: a
+      real(kind=mp) :: median
+    
+      ! Local variables
+      integer :: i, j
+      real(kind=mp) :: temp
+      real(kind=mp),dimension(:),allocatable :: arr
+    
+      arr = f_malloc(n,id='arr')
+      call f_memcpy(src=a, dest=arr)
+      ! Sort the data (insertion sort)
+      call insertion_sort(n, arr)
+    
+       ! Take the median
+       if (mod(n,2)==1) then
+           ! Odd n
+           median = arr(n-n/2)
+       else
+           ! Even n
+           median = 0.5_mp*(arr(n/2)+arr(n/2+1))
+       end if
+    
+      call f_free(arr)
+    
+    end function median
 
 end module utilities

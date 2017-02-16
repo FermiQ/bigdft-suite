@@ -36,7 +36,7 @@ program driver_foe
   use sparsematrix_init, only: matrixindex_in_compressed, write_sparsematrix_info, &
                                get_number_of_electrons, distribute_on_tasks
   ! The following module is an auxiliary module for this test
-  use utilities, only: get_ccs_data_from_file, calculate_error
+  use utilities, only: get_ccs_data_from_file, calculate_error, median
   use futile
   use wrapper_MPI
   use wrapper_linalg
@@ -51,15 +51,15 @@ program driver_foe
   type(matrices) :: mat_s, mat_h, mat_k, mat_ek
   type(matrices),dimension(1) :: mat_ovrlpminusonehalf
   type(sparse_matrix_metadata) :: smmd
-  integer :: nfvctr, nvctr, ierr, iproc, nproc, nthread, ncharge, nfvctr_mult, nvctr_mult, scalapack_blocksize, icheck
+  integer :: nfvctr, nvctr, ierr, iproc, nproc, nthread, ncharge, nfvctr_mult, nvctr_mult, scalapack_blocksize, icheck, it, nit
   integer :: ispin, ihomo, imax, ntemp, npl_max, pexsi_npoles, norbu, norbd, ii, info, norbp, isorb, norb, iorb, pexsi_np_sym_fact
   real(mp) :: pexsi_mumin, pexsi_mumax, pexsi_mu, pexsi_DeltaE, pexsi_temperature, pexsi_tol_charge
   integer,dimension(:),pointer :: row_ind, col_ptr, row_ind_mult, col_ptr_mult
   real(mp),dimension(:),pointer :: kernel, overlap, overlap_large
-  real(mp),dimension(:),allocatable :: charge, evals, eval_min, eval_max, eval_all, eval_occup, occup
+  real(mp),dimension(:),allocatable :: charge, evals, eval_min, eval_max, eval_all, eval_occup, occup, times, energies
   real(mp),dimension(:,:),allocatable :: coeff
-  real(mp) :: energy, tr_KS, tr_KS_check, ef, energy_fake, efermi, eTS, evlow, evhigh
-  type(foe_data) :: foe_obj, ice_obj
+  real(mp) :: energy, tr_KS, tr_KS_check, ef, energy_fake, efermi, eTS, evlow, evhigh, t1, t2
+  type(foe_data),dimension(:),allocatable :: foe_obj, ice_obj
   real(mp) :: tr, fscale, fscale_lowerbound, fscale_upperbound, accuracy_foe, accuracy_ice, accuracy_penalty
   type(dictionary),pointer :: dict_timing_info, options
   type(yaml_cl_parse) :: parser !< command line parser
@@ -158,6 +158,7 @@ program driver_foe
       accuracy_foe = options//'accuracy_foe'
       accuracy_ice = options//'accuracy_ice'
       accuracy_penalty = options//'accuracy_penalty'
+      nit = options//'nit'
      
       call dict_free(options)
 
@@ -192,6 +193,7 @@ program driver_foe
       call yaml_map('Accuracy of Chebyshev fit for FOE',accuracy_foe)
       call yaml_map('Accuracy of Chebyshev fit for ICE',accuracy_ice)
       call yaml_map('Accuracy of Chebyshev fit for the penalty function',accuracy_penalty)
+      call yaml_map('Number of iterations',nit)
       call yaml_mapping_close()
   end if
 
@@ -225,6 +227,7 @@ program driver_foe
   call mpibcast(accuracy_foe, root=0, comm=mpi_comm_world)
   call mpibcast(accuracy_ice, root=0, comm=mpi_comm_world)
   call mpibcast(accuracy_penalty, root=0, comm=mpi_comm_world)
+  call mpibcast(nit, root=0, comm=mpi_comm_world)
   ! Since there is no wrapper for logicals...
   if (iproc==0) then
       if (check_spectrum) then
@@ -328,18 +331,26 @@ program driver_foe
   call matrices_init(smat_k, mat_ek)
   call matrices_init(smat_k, mat_ovrlpminusonehalf(1))
 
-  ! Initialize the opaque object holding the parameters required for the Fermi Operator Expansion.
-  ! Only provide the mandatory values and take for the optional values the default ones.
+  times = f_malloc(nit,id='times')
+  energies = f_malloc(nit,id='energies')
+  allocate(foe_obj(nit))
+  allocate(ice_obj(nit))
+
   charge = f_malloc(smat_s%nspin,id='charge')
   charge(:) = real(ncharge,kind=mp)
-  call init_foe(iproc, nproc, smat_s%nspin, charge, foe_obj, &
-       fscale=fscale, fscale_lowerbound=fscale_lowerbound, fscale_upperbound=fscale_upperbound, &
-       evlow=evlow, evhigh=evhigh, &
-       ntemp = ntemp, ef=ef, npl_max=npl_max, &
-       accuracy_function=accuracy_foe, accuracy_penalty=accuracy_penalty)
-  ! Initialize the same object for the calculation of the inverse. Charge does not really make sense here...
-  call init_foe(iproc, nproc, smat_s%nspin, charge, ice_obj, evlow=0.5_mp, evhigh=1.5_mp, &
-       accuracy_function=accuracy_ice, accuracy_penalty=accuracy_penalty)
+  do it=1,nit
+      ! Initialize the opaque object holding the parameters required for the Fermi Operator Expansion.
+      ! Only provide the mandatory values and take for the optional values the default ones.
+      call init_foe(iproc, nproc, smat_s%nspin, charge, foe_obj(it), &
+           fscale=fscale, fscale_lowerbound=fscale_lowerbound, fscale_upperbound=fscale_upperbound, &
+           evlow=evlow, evhigh=evhigh, &
+           ntemp = ntemp, ef=ef, npl_max=npl_max, &
+           accuracy_function=accuracy_foe, accuracy_penalty=accuracy_penalty)
+      ! Initialize the same object for the calculation of the inverse. Charge does not really make sense here...
+      call init_foe(iproc, nproc, smat_s%nspin, charge, ice_obj(it), evlow=0.5_mp, evhigh=1.5_mp, &
+           accuracy_function=accuracy_ice, accuracy_penalty=accuracy_penalty)
+  end do
+
 
   call mpibarrier()
   call f_timing_checkpoint(ctr_name='INIT',mpi_comm=mpiworld(),nproc=mpisize(), &
@@ -391,56 +402,102 @@ program driver_foe
   ! and the one of smat_h within that of smat_k. It is your responsabilty to assure this, 
   ! the routine does only some minimal checks.
   ! The final result will be contained in mat_k%matrix_compr.
-  if (trim(kernel_method)=='FOE') then
-      call matrix_fermi_operator_expansion(iproc, nproc, mpi_comm_world, &
-           foe_obj, ice_obj, smat_s, smat_h, smat_k, &
-           mat_s, mat_h, mat_ovrlpminusonehalf, mat_k, energy, &
-           calculate_minusonehalf=.true., foe_verbosity=1, symmetrize_kernel=.true., &
-           calculate_energy_density_kernel=.true., energy_kernel=mat_ek)
-  else if (trim(kernel_method)=='PEXSI') then
-      call pexsi_wrapper(iproc, nproc, mpi_comm_world, smat_s, smat_h, smat_k, mat_s, mat_h, &
-           foe_data_get_real(foe_obj,"charge",1), pexsi_npoles, pexsi_mumin, pexsi_mumax, pexsi_mu, pexsi_DeltaE, &
-           pexsi_temperature, pexsi_tol_charge, pexsi_np_sym_fact, &
-           mat_k, energy, mat_ek)
-  else if (trim(kernel_method)=='LAPACK') then
-      norbu = smat_h%nfvctr
-      norbd = 0
-      norb = norbu + norbd
-      coeff = f_malloc((/smat_h%nfvctr,norb/),id='coeff')
-      eval_all = f_malloc(smat_h%nfvctr,id='eval_all')
-      eval_occup = f_malloc(norb,id='eval_occup')
-      call get_coeffs_diagonalization(iproc, nproc, mpi_comm_world, &
-           smat_h%nfvctr, norbu, norbd, norb, scalapack_blocksize, &
-           smat_s, smat_h, mat_s, mat_h, coeff, &
-           eval_all, eval_occup, info)
-      occup = f_malloc0(norb,id='occup')
-      if (smat_h%nspin/=1) call f_err_throw('The kernel calculation with LAPACK is currently not possible for nspin/=1')
-      ii = nint(0.5_mp*foe_data_get_real(foe_obj,"charge",1))
-      occup(1:ii) = 2.0_mp
-      call eval_to_occ(iproc, nproc, norbu, norbd, norb, 1, (/1.0_mp/), &
-           eval_occup, occup, .false., .true., pexsi_temperature, SMEARING_DIST_ERF, efermi, eTS, &
-           norbu, norbd)
-      call distribute_on_tasks(norb, iproc, nproc, norbp, isorb)
-      ! Density kernel
-      call calculate_kernel_and_energy(iproc, nproc, mpi_comm_world, &
-           smat_k, smat_h, mat_k, mat_h, energy,&
-           coeff, norbp, isorb, norbu, norb, occup, .true.)
-      ! Energy density kernel
-      do iorb=1,norb
-          occup(iorb) = occup(iorb)*eval_occup(iorb)
-      end do
-      call calculate_kernel_and_energy(iproc, nproc, mpi_comm_world, &
-           smat_k, smat_h, mat_ek, mat_h, energy_fake,&
-           coeff, norbp, isorb, norbu, norb, occup, .true.)
-      call f_free(coeff)
-      call f_free(eval_all)
-      call f_free(eval_occup)
-      call f_free(occup)
+  if (iproc==0) then
+      call yaml_sequence_open('Kernel calculations')
+  end if
+  it_loop: do it=1,nit
+      t1 = mpi_wtime()
       if (iproc==0) then
-          call yaml_mapping_close()
+          call yaml_comment('Kernel iteration number'//trim(yaml_toa(it)),hfill='=')
+          call yaml_sequence(advance='no')
       end if
-  else
-      call f_err_throw("wrong value for 'kernel_method'; possible values are 'FOE', 'PEXSI' or 'LAPACK'")
+      if (trim(kernel_method)=='FOE') then
+          call matrix_fermi_operator_expansion(iproc, nproc, mpi_comm_world, &
+               foe_obj(it), ice_obj(it), smat_s, smat_h, smat_k, &
+               mat_s, mat_h, mat_ovrlpminusonehalf, mat_k, energy, &
+               calculate_minusonehalf=.true., foe_verbosity=1, symmetrize_kernel=.true., &
+               calculate_energy_density_kernel=.true., energy_kernel=mat_ek)
+      else if (trim(kernel_method)=='PEXSI') then
+          call pexsi_wrapper(iproc, nproc, mpi_comm_world, smat_s, smat_h, smat_k, mat_s, mat_h, &
+               foe_data_get_real(foe_obj(it),"charge",1), pexsi_npoles, pexsi_mumin, pexsi_mumax, pexsi_mu, pexsi_DeltaE, &
+               pexsi_temperature, pexsi_tol_charge, pexsi_np_sym_fact, &
+               mat_k, energy, mat_ek)
+      else if (trim(kernel_method)=='LAPACK') then
+          norbu = smat_h%nfvctr
+          norbd = 0
+          norb = norbu + norbd
+          coeff = f_malloc((/smat_h%nfvctr,norb/),id='coeff')
+          eval_all = f_malloc(smat_h%nfvctr,id='eval_all')
+          eval_occup = f_malloc(norb,id='eval_occup')
+          call get_coeffs_diagonalization(iproc, nproc, mpi_comm_world, &
+               smat_h%nfvctr, norbu, norbd, norb, scalapack_blocksize, &
+               smat_s, smat_h, mat_s, mat_h, coeff, &
+               eval_all, eval_occup, info)
+          occup = f_malloc0(norb,id='occup')
+          if (smat_h%nspin/=1) call f_err_throw('The kernel calculation with LAPACK is currently not possible for nspin/=1')
+          ii = nint(0.5_mp*foe_data_get_real(foe_obj(it),"charge",1))
+          occup(1:ii) = 2.0_mp
+          call eval_to_occ(iproc, nproc, norbu, norbd, norb, 1, (/1.0_mp/), &
+               eval_occup, occup, .false., .true., pexsi_temperature, SMEARING_DIST_ERF, efermi, eTS, &
+               norbu, norbd)
+          call distribute_on_tasks(norb, iproc, nproc, norbp, isorb)
+          ! Density kernel
+          call calculate_kernel_and_energy(iproc, nproc, mpi_comm_world, &
+               smat_k, smat_h, mat_k, mat_h, energy,&
+               coeff, norbp, isorb, norbu, norb, occup, .true.)
+          ! Energy density kernel
+          do iorb=1,norb
+              occup(iorb) = occup(iorb)*eval_occup(iorb)
+          end do
+          call calculate_kernel_and_energy(iproc, nproc, mpi_comm_world, &
+               smat_k, smat_h, mat_ek, mat_h, energy_fake,&
+               coeff, norbp, isorb, norbu, norb, occup, .true.)
+          call f_free(coeff)
+          call f_free(eval_all)
+          call f_free(eval_occup)
+          call f_free(occup)
+          if (iproc==0) then
+              call yaml_mapping_close()
+          end if
+      else
+          call f_err_throw("wrong value for 'kernel_method'; possible values are 'FOE', 'PEXSI' or 'LAPACK'")
+      end if
+      call mpibarrier()
+      t2 = mpi_wtime()
+      times(it) = t2-t1
+      energies(it) = energy
+  end do it_loop
+
+  if (iproc==0) then
+      call yaml_comment('Timings summary',hfill='=')
+      call yaml_sequence_close()
+      call yaml_sequence_open('Timinig summary')
+      do it=1,nit
+          call yaml_sequence(advance='no')
+          call yaml_mapping_open(flow=.true.)
+           call yaml_map('iteration',it)
+           call yaml_map('time',times(it))
+           call yaml_map('energy',energies(it))
+          call yaml_mapping_close()
+      end do
+      call yaml_sequence_close()
+      call yaml_mapping_open('Timing analysis')
+       call yaml_mapping_open('All runs')
+        call yaml_map('Minimal',minval(times))
+        call yaml_map('Maximal',maxval(times))
+        call yaml_map('Average',sum(times)/real(nit,kind=mp))
+        call yaml_map('Median',median(nit, times))
+       call yamL_mapping_close()
+       if (nit>1) then
+           call yaml_mapping_open('Excluding first run')
+            call yaml_map('Minimal',minval(times(2:nit)))
+            call yaml_map('Maximal',maxval(times(2:nit)))
+            call yaml_map('Average',sum(times(2:nit))/real(nit-1,kind=mp))
+            call yaml_map('Median',median(nit-1, times(2:nit)))
+           call yaml_mapping_close()
+       end if
+      call yaml_mapping_close()
+      call yaml_scalar('',hfill='=')
   end if
 
   call mpibarrier()
@@ -505,7 +562,7 @@ program driver_foe
            eval_all, eval_occup, info)
       occup = f_malloc0(norb,id='occup')
       if (smat_h%nspin/=1) call f_err_throw('The kernel calculation with LAPACK is currently not possible for nspin/=1')
-      ii = nint(0.5_mp*foe_data_get_real(foe_obj,"charge",1))
+      ii = nint(0.5_mp*foe_data_get_real(foe_obj(1),"charge",1))
       occup(1:ii) = 2.0_mp
       call eval_to_occ(iproc, nproc, norbu, norbd, norb, 1, (/1.0_mp/), &
            eval_occup, occup, .false., .true., pexsi_temperature, SMEARING_DIST_ERF, efermi, eTS, &
@@ -527,8 +584,12 @@ program driver_foe
   end if
 
   ! Deallocate the object holding the FOE parameters
-  call foe_data_deallocate(foe_obj)
-  call foe_data_deallocate(ice_obj)
+  do it=1,nit
+      call foe_data_deallocate(foe_obj(it))
+      call foe_data_deallocate(ice_obj(it))
+  end do
+  call f_free(times)
+  call f_free(energies)
 
   ! Deallocate all the sparse matrix descriptors types
   call deallocate_sparse_matrix(smat_s)
@@ -830,8 +891,15 @@ subroutine commandline_options(parser)
   call yaml_cl_parse_option(parser,'accuracy_penalty','1.e-5',&
        'Required accuracy for the Chebyshev fit for the penalty function',&
        help_dict=dict_new('Usage' .is. &
-       'Indicate the required accuracy for the Chebyshev fit for teh penalty function',&
+       'Indicate the required accuracy for the Chebyshev fit for the penalty function',&
        'Allowed values' .is. &
        'Double'))
+
+  call yaml_cl_parse_option(parser,'nit','1',&
+       'Number of iterations for the kernel caluculations (can be used for benchmarking)',&
+       help_dict=dict_new('Usage' .is. &
+       'Indicate the number of iterations for the kernel caluculations (can be used for benchmarking)',&
+       'Allowed values' .is. &
+       'Integer'))
 
 end subroutine commandline_options

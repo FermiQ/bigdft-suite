@@ -11,6 +11,8 @@ Keys to ignore:
   - Walltime since initialization
   - Max No. of dictionaries used
   - Number of dictionary folders allocated
+  - Timinig summary
+  - Timing analysis
 
 driver_random:
   penalty: 15601.0
