@@ -1175,6 +1175,7 @@
        sw: Stillinger-Weber for Si
        bazant:  Bazant force for Si
        multi: Mixed approach where parts of the system are treated with different methods
+       plugin: state properties are calculated externally on a signal emission
      default: dft
    add_coulomb_force:
      COMMENT: Boolean to add coulomb force on top of any of above selected force
