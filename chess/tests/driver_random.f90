@@ -405,6 +405,9 @@ program driver_random
       else
           call f_err_throw("wrong value for 'solution_method'; possible values are 'ICE', 'SelInv' or 'LAPACK'")
       end if
+      if (iproc==0) then
+          call yaml_mapping_close()
+      end if
       ! Calculation part done
 
       call mpibarrier()
@@ -454,9 +457,6 @@ program driver_random
       call write_sparse_matrix('serial_text', iproc, nproc, mpi_comm_world, smatl(1), mat3(1), 'solutionmatrix_sparse')
   end if
 
-  if (iproc==0) then
-      call yaml_mapping_close()
-  end if
 
 
   ! Calculate the inverse of the desired matrix power
