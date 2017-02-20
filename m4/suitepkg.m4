@@ -114,7 +114,16 @@ AC_DEFUN([AX_PACKAGE],
 
   dnl eventually control if the library is statically linked or not
   LIB_$1_DYNAMIC_LIBS=$3
-  if test "$LIB_$1_LIBS" = "$LIB_$1_DYNAMIC_LIBS"; then
+  dnl Remove -L in detected LIBS to make comparison independant on -Llibdir,
+  dnl good luck.
+  ax_libs_alone=""
+  for word in $LIB_$1_LIBS ; do
+    case $word in
+      -L*) ;;
+      *) if test -z $ax_libs_alone ; then ax_libs_alone=$word; else ax_libs_alone="$ax_libs_alone $word" ; fi ;;
+    esac
+  done
+  if test "$ax_libs_alone" = "$LIB_$1_DYNAMIC_LIBS"; then
     ax_$1_static="no"
   else
     ax_$1_static="yes"
