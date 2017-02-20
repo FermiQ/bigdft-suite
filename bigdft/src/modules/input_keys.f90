@@ -626,7 +626,7 @@ contains
     !Local variables
     !type(dictionary), pointer :: profs, dict_frag
     logical :: found, userdef
-    integer :: ierr, norb_max, jtype, jxc
+    integer :: ierr, norb_max, jtype, jxc, ii
     real(gp) :: qelec_up, qelec_down
     character(len = max_field_length) :: msg,filename,run_id,input_id,posinp_id,outdir
     !  type(f_dict) :: dict
@@ -924,7 +924,8 @@ contains
                 &does not correspond to the number of atoms ('//trim(yaml_toa(atoms%astruct%nat))//')')
         end if
         do i=1,n
-            iter => dict//LIN_GENERAL//MULTIPOLE_CENTERS//'positions'//i-1
+            ii = i-1
+            iter => dict//LIN_GENERAL//MULTIPOLE_CENTERS//'positions'//ii
             key = trim(atoms%astruct%atomnames(atoms%astruct%iatype(i)))
             in%mp_centers(1:3,i) = iter//key
         end do
