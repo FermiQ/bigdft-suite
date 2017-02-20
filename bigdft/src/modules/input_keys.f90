@@ -1615,8 +1615,6 @@ contains
              in%run_mode=SW_RUN_MODE
           case('multi')
              in%run_mode=MULTI_RUN_MODE
-          case('plugin')
-             in%run_mode=PLUGIN_RUN_MODE
           case('bazant')
              in%run_mode=BAZANT_RUN_MODE
           case('plugin')
