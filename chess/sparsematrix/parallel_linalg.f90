@@ -43,7 +43,7 @@ module parallel_linalg
 
     !> @warning
     !! This works only if the matrices have the same sizes for all processes!!
-    subroutine dgemm_parallel(iproc, nproc, blocksize, comm, transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc)
+    subroutine dgemm_parallel(iproc, nproc, blocksize, comm, transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc, quiet)
       use dynamic_memory
       implicit none
     
@@ -51,28 +51,87 @@ module parallel_linalg
       integer,intent(in) :: iproc, nproc, blocksize, comm, m, n, k, lda, ldb, ldc
       character(len=1),intent(in) :: transa, transb
       real(kind=mp),intent(in) :: alpha, beta
-      real(kind=mp),dimension(lda,k),intent(in) :: a
-      real(kind=mp),dimension(ldb,n),intent(in) :: b
-      real(kind=mp),dimension(ldc,n),intent(out) :: c
+      real(kind=mp),dimension(:,:),intent(in),target :: a
+      real(kind=mp),dimension(:,:),intent(in),target :: b
+      real(kind=mp),dimension(:,:),intent(out) :: c
+      logical,intent(in),optional :: quiet
     
       ! Local variables
       integer :: ierr, i, j, istat, iall, ii1, ii2, mbrow, mbcol, nproc_scalapack, nprocrow, nproccol
       integer :: context, irow, icol, numroc, info
-      integer :: lnrow_a, lncol_a, lnrow_b, lncol_b, lnrow_c, lncol_c
+      integer :: lnrow_a, lncol_a, lnrow_b, lncol_b, lnrow_c, lncol_c, ka, kb, kc, lla, llb, llc
       real(kind=mp) :: tt1, tt2
       real(kind=mp),dimension(:,:),allocatable :: la, lb, lc
+      real(kind=mp),dimension(:,:),pointer :: aeff, beff
       integer,dimension(9) :: desc_lc, desc_la, desc_lb
       character(len=*),parameter :: subname='dgemm_parallel'
+      logical :: quiet_
 
       call f_routine(id='dgemm_parallel')
       !call timing(iproc, 'dgemm_parallel', 'ON')
       call f_timing(TCAT_HL_DGEMM,'ON')
 
+      quiet_ = .false.
+      if (present(quiet)) quiet_ = quiet
+
+      ! Check the dimensione of the array arguments...
+
+      ! Array a
+      lla = size(a,1)
+      ka = size(a,2)
+      if (lla/=lda) then
+              call f_err_throw('wrong first dimension of a; expected '//trim(yaml_toa(lda))//' but got '//trim(yaml_toa(lla)))
+      end if
+      select case (transa)
+      case ('N','n')
+          if (ka/=k) then
+              call f_err_throw('wrong second dimension of a; expected '//trim(yaml_toa(k))//' but got '//trim(yaml_toa(ka)))
+          end if
+      case ('T','t')
+          if (ka/=m) then
+              call f_err_throw('wrong second dimension of a; expected '//trim(yaml_toa(m))//' but got '//trim(yaml_toa(ka)))
+          end if
+      case default
+          call f_err_throw("wrong argument for 'transa'")
+      end select
+
+      ! Array b
+      llb = size(b,1)
+      kb = size(b,2)
+      if (llb/=ldb) then
+              call f_err_throw('wrong first dimension of c; expected '//trim(yaml_toa(ldb))//' but got '//trim(yaml_toa(llb)))
+      end if
+      select case (transb)
+      case ('N','n')
+          if (kb/=n) then
+              call f_err_throw('wrong second dimension of c; expected '//trim(yaml_toa(n))//' but got '//trim(yaml_toa(kb)))
+          end if
+      case ('T','t')
+          if (kb/=k) then
+              call f_err_throw('wrong second dimension of c; expected '//trim(yaml_toa(k))//' but got '//trim(yaml_toa(kb)))
+          end if
+      case default
+          call f_err_throw("wrong argument for 'transb'")
+      end select
+
+      ! Array b
+      llc = size(c,1)
+      kc = size(c,2)
+      if (llc/=ldc) then
+              call f_err_throw('wrong first dimension of c; expected '//trim(yaml_toa(ldc))//' but got '//trim(yaml_toa(llc)))
+      end if
+      if (kc/=n) then
+          call f_err_throw('wrong second dimension of c; expected '//trim(yaml_toa(n))//' but got '//trim(yaml_toa(kc)))
+      end if
+
+
       blocksize_if: if (blocksize<0) then
+          if (iproc==0 .and. .not.quiet_) call yaml_map('mode','sequential')
           call dgemm(transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc)
       else if (blocksize==0) then
           call f_err_throw('blocksize must not be zero')
       else blocksize_if
+          if (iproc==0 .and. .not.quiet_) call yaml_map('mode','parallel')
           ! Block size for scalapack
           mbrow=blocksize
           mbcol=blocksize
@@ -112,15 +171,52 @@ module parallel_linalg
           
           ! Only execute this part if this process has a part of the matrix to work on. 
           processIf: if(irow/=-1) then
+
+              ! Use auxiliary arrays to perform transposed operations
+              select case (transa)
+              case ('N','n')
+                  aeff => a
+              case ('T','t')
+                  aeff = f_malloc_ptr((/m,k/),id='aeff')
+                  do i=1,k
+                      do j=1,m
+                          aeff(j,i) = a(i,j)
+                      end do
+                  end do
+              end select
+
+              select case (transb)
+              case ('N','n')
+                  beff => b
+              case ('T','t')
+                  beff = f_malloc_ptr((/k,n/),id='beff')
+                  do i=1,n
+                      do j=1,k
+                          beff(j,i) = b(i,j)
+                      end do
+                  end do
+              end select
     
               ! Determine the size of the local matrix la (lnrow_a x lncol_a):
-              lnrow_a = max(numroc(m, mbrow, irow, 0, nprocrow),1)
-              lncol_a = max(numroc(k, mbcol, icol, 0, nproccol),1)
+              !!select case (transa)
+              !!case ('N','n')
+                  lnrow_a = max(numroc(m, mbrow, irow, 0, nprocrow),1)
+                  lncol_a = max(numroc(k, mbcol, icol, 0, nproccol),1)
+              !!case ('T','t')
+              !!    lnrow_a = max(numroc(k, mbrow, irow, 0, nprocrow),1)
+              !!    lncol_a = max(numroc(m, mbcol, icol, 0, nproccol),1)
+              !!end select
               !write(*,'(a,i0,a,i0,a,i0)') 'iproc ',iproc,' will have a local a of size ',lnrow_a,' x ',lncol_a
     
               ! Determine the size of the local matrix lb (lnrow_b x lncol_b):
-              lnrow_b = max(numroc(k, mbrow, irow, 0, nprocrow),1)
-              lncol_b = max(numroc(n, mbcol, icol, 0, nproccol),1)
+              !!select case (transb)
+              !!case ('N','n')
+                  lnrow_b = max(numroc(k, mbrow, irow, 0, nprocrow),1)
+                  lncol_b = max(numroc(n, mbcol, icol, 0, nproccol),1)
+              !!case ('T','t')
+              !!    lnrow_b = max(numroc(n, mbrow, irow, 0, nprocrow),1)
+              !!    lncol_b = max(numroc(k, mbcol, icol, 0, nproccol),1)
+              !!end select
               !write(*,'(a,i0,a,i0,a,i0)') 'iproc ',iproc,' will have a local b of size ',lnrow_b,' x ',lncol_b
     
               ! Determine the size of the local matrix lc (lnrow_c x lncol_c):
@@ -129,8 +225,18 @@ module parallel_linalg
               !write(*,'(a,i0,a,i0,a,i0)') 'iproc ',iproc,' will have a local c of size ',lnrow_c,' x ',lncol_c
           
               ! Initialize descriptor arrays.
-              call descinit(desc_la, m, k, mbrow, mbcol, 0, 0, context, lnrow_a, info)
-              call descinit(desc_lb, k, n, mbrow, mbcol, 0, 0, context, lnrow_b, info)
+              !!select case (transa)
+              !!case ('N','n')
+                  call descinit(desc_la, m, k, mbrow, mbcol, 0, 0, context, lnrow_a, info)
+              !!case ('T','t')
+              !!    call descinit(desc_la, k, m, mbrow, mbcol, 0, 0, context, lnrow_a, info)
+              !!end select
+              !!select case (transa)
+              !!case ('N','n')
+                  call descinit(desc_lb, k, n, mbrow, mbcol, 0, 0, context, lnrow_b, info)
+              !!case ('T','t')
+              !!    call descinit(desc_lb, n, k, mbrow, mbcol, 0, 0, context, lnrow_b, info)
+              !!end select
               call descinit(desc_lc, m, n, mbrow, mbcol, 0, 0, context, lnrow_c, info)
           
               ! Allocate the local arrays
@@ -142,18 +248,29 @@ module parallel_linalg
               ! The same for b and lb, cpectively.
               do i=1,k
                   do j=1,m
-                      call pdelset(la(1,1), j, i, desc_la, a(j,i))
+                      !call pdelset(la(1,1), j, i, desc_la, a(j,i))
+                      call pdelset(la(1,1), j, i, desc_la, aeff(j,i))
                   end do
               end do
               do i=1,n
                   do j=1,k
-                      call pdelset(lb(1,1), j, i, desc_lb, b(j,i))
+                      !call pdelset(lb(1,1), j, i, desc_lb, b(j,i))
+                      call pdelset(lb(1,1), j, i, desc_lb, beff(j,i))
                   end do
               end do
+
+              select case (transa)
+              case ('T','t')
+                  call f_free_ptr(aeff)
+              end select
+              select case (transb)
+              case ('T','t')
+                  call f_free_ptr(beff)
+              end select
           
           
               ! Do the matrix matrix multiplication.
-              call pdgemm(transa, transb, m, n, k, 1.d0, la(1,1), 1, 1, desc_la, lb(1,1), 1, 1, &
+              call pdgemm('n', 'n', m, n, k, 1.d0, la(1,1), 1, 1, desc_la, lb(1,1), 1, 1, &
                           desc_lb, 0.d0, lc(1,1), 1, 1, desc_lc)
           
           
@@ -191,7 +308,7 @@ module parallel_linalg
     
     
     
-    subroutine dsyev_parallel(iproc, nproc, blocksize, comm, jobz, uplo, n, a, lda, w, info)
+    subroutine dsyev_parallel(iproc, nproc, blocksize, comm, jobz, uplo, n, a, lda, w, info, quiet, algorithm)
       use dynamic_memory
       implicit none
       
@@ -201,23 +318,41 @@ module parallel_linalg
       character(len=1),intent(in) :: jobz, uplo
       real(kind=mp),dimension(lda,n),intent(inout) :: a
       real(kind=mp),dimension(n),intent(out) :: w
+      logical,intent(in),optional :: quiet
+      character(len=*),intent(in),optional :: algorithm
       
       ! Local variables
       integer :: ierr, mbrow, mbcol, i, j, istat, lwork, ii1, ii2, nproc_scalapack, iall, max_cluster_size
       integer :: nprocrow, nproccol, context, irow, icol, lnrow, lncol, numroc, liwork, neval_found, neval_computed, ii
-      integer :: icl
+      integer :: icl, ialg
       real(kind=mp) :: tt1, tt2
       real(kind=mp),dimension(:,:),allocatable :: la, la_tmp, lz
       real(kind=mp),dimension(:),allocatable :: work, gap
       integer,dimension(9) :: desc_lz, desc_la
       integer,dimension(:),allocatable :: iwork, ifail, icluster
       character(len=*),parameter :: subname='dsyev_parallel'
+      logical :: quiet_
 
       call f_routine(id='dsyev_parallel')
       !call timing(iproc, 'dsyev_parallel', 'ON')
       call f_timing(TCAT_SMAT_HL_DSYEV,'ON')
+
+      quiet_ = .false.
+      if (present(quiet)) quiet_ = quiet
+
+      ialg=2
+      if (present(algorithm)) then
+          if (trim(algorithm)=='pdsyevd') then
+              ialg=1
+          else if (trim(algorithm)=='pdsyevx') then
+              ialg=2
+          else
+              call f_err_throw("wrong value for algorithm, must be 'pdsyevd' or 'pdsyevx'")
+          end if
+      end if
       
       blocksize_if: if (blocksize<0) then
+          if (iproc==0 .and. .not.quiet_) call yaml_map('mode','sequential')
           ! Worksize query
           lwork = -1
           work = f_malloc(1,id='work')
@@ -231,6 +366,7 @@ module parallel_linalg
       else if (blocksize==0) then
           call f_err_throw('blocksize must not be zero')
       else blocksize_if
+          if (iproc==0 .and. .not.quiet_) call yaml_map('mode','parallel')
           ! Block size for scalapack
           mbrow=blocksize
           mbcol=blocksize
@@ -255,7 +391,13 @@ module parallel_linalg
           end do
           nproccol=nproc_scalapack/nprocrow
           !if(iproc==0) write(*,'(a,i0,a,i0,a)') 'calculation is done on process grid with dimension ',nprocrow,' x ',nproccol,'.'
-          if (iproc==0) call write_processor_setup('pdsyevx', nproc_scalapack, nprocrow, nproccol)
+          if (iproc==0) then
+              if (ialg==1) then
+                  call write_processor_setup('pdsyevd', nproc_scalapack, nprocrow, nproccol)
+              else if (ialg==2) then
+                  call write_processor_setup('pdsyevx', nproc_scalapack, nprocrow, nproccol)
+              end if
+          end if
     
           
           ! Initialize blacs context
@@ -307,10 +449,18 @@ module parallel_linalg
               liwork=-1
               work = f_malloc(100,id='work')
               iwork = f_malloc(100,id='iwork')
-              call pdsyevx(jobz, 'a', 'l', n, la(1,1), 1, 1, desc_la, &
-                            0.d0, 1.d0, 0, 1, -1.d0, neval_found, neval_computed, w(1), &
-                           -1.d0, lz(1,1), 1, 1, desc_lz, work, lwork, iwork, liwork, &
-                           ifail, icluster, gap, info)
+
+              algif1: if (ialg==1) then
+                  ! Eigenvectors only (i.e. jobz='n') appears not yet be implemented in the pdsyevd,
+                  ! see http://www.netlib.org/scalapack/explore-html/d6/d75/pdsyevd_8f_source.html
+                  call pdsyevd('v', uplo, n, la(1,1), 1, 1, desc_la, &
+                       w(1), lz(1,1), 1, 1, desc_lz, work, lwork, iwork, liwork, info)
+              else if (ialg==2) then algif1
+                  call pdsyevx(jobz, 'a', 'l', n, la(1,1), 1, 1, desc_la, &
+                                0.d0, 1.d0, 0, 1, -1.d0, neval_found, neval_computed, w(1), &
+                               -1.d0, lz(1,1), 1, 1, desc_lz, work, lwork, iwork, liwork, &
+                               ifail, icluster, gap, info)
+              end if algif1
               lwork=ceiling(work(1))
               lwork=lwork!+n**2 !to be sure to have enough workspace, to be optimized later.
               liwork=iwork(1)
@@ -319,56 +469,65 @@ module parallel_linalg
               call f_free(iwork)
               iwork = f_malloc(liwork,id='iwork')
 
-              max_cluster_size = 1
-              repeat_loop: do icl=1,2
+              algif2: if (ialg==1) then
                   call f_free(work)
-                  lwork = lwork + (max_cluster_size-1)*n
                   work = f_malloc(lwork,id='work')
+                  ! Eigenvectors only (i.e. jobz='n') appears not yet be implemented in the pdsyevd,
+                  ! see http://www.netlib.org/scalapack/explore-html/d6/d75/pdsyevd_8f_source.html
+                  call pdsyevd('v', uplo, n, la(1,1), 1, 1, desc_la, &
+                       w(1), lz(1,1), 1, 1, desc_lz, work, lwork, iwork, liwork, info)
+              else if (ialg==2) then algif2
+                  max_cluster_size = 1
+                  repeat_loop: do icl=1,2
+                      call f_free(work)
+                      lwork = lwork + (max_cluster_size-1)*n
+                      work = f_malloc(lwork,id='work')
           
-                  call f_memcpy(src=la, dest=la_tmp)
+                      call f_memcpy(src=la, dest=la_tmp)
 
-                  call pdsyevx(jobz, 'a', 'l', n, la_tmp(1,1), 1, 1, desc_la, &
-                               0.d0, 1.d0, 0, 1, -1.d0, neval_found, neval_computed, w(1), &
-                               -1.d0, lz(1,1), 1, 1, desc_lz, work, lwork, iwork, liwork, &
-                               ifail, icluster, gap, info)
-                  if(info==0) then
-                      ! Everything ok
-                      exit repeat_loop
-                  else if ((mod(info/2,2)/=0)) then
-                      ! This may happen if there is not enough workspace, 
-                      ! so increase the workspace and diagonalize again.
-                      if (iproc==0) then
-                          call yaml_warning('Some eigenvectors might not be orthogonal due to missing workspace, &
-                               &will repeat diagonalization')
-                          call yaml_sequence_open('Eigenvalue bounds of clusters with non-orthogonalized eigenvectors')
-                      end if
-                      ii = 0
-                      cluster_loop: do
-                          ii = ii + 1
-                          if (icluster(2*ii-1)/=0 .and. icluster(2*ii)/=0) then
-                              if (iproc==0) then
-                                  call yaml_sequence(advance='no')
-                                  call yaml_map('cluster boundary indices',(/icluster(2*ii-1),icluster(2*ii)/))
-                              end if
-                              max_cluster_size = max(max_cluster_size,icluster(2*ii)-icluster(2*ii-1)+1)
-                              if (icluster(2*ii+1)==0) then
-                                  exit cluster_loop
-                              end if
-                          else
-                              call f_err_throw('invalid values of icluster')
+                      call pdsyevx(jobz, 'a', 'l', n, la_tmp(1,1), 1, 1, desc_la, &
+                                   0.d0, 1.d0, 0, 1, -1.d0, neval_found, neval_computed, w(1), &
+                                   -1.d0, lz(1,1), 1, 1, desc_lz, work, lwork, iwork, liwork, &
+                                   ifail, icluster, gap, info)
+                      if(info==0) then
+                          ! Everything ok
+                          exit repeat_loop
+                      else if ((mod(info/2,2)/=0)) then
+                          ! This may happen if there is not enough workspace, 
+                          ! so increase the workspace and diagonalize again.
+                          if (iproc==0) then
+                              call yaml_warning('Some eigenvectors might not be orthogonal due to missing workspace, &
+                                   &will repeat diagonalization')
+                              call yaml_sequence_open('Eigenvalue bounds of clusters with non-orthogonalized eigenvectors')
                           end if
-                      end do cluster_loop
-                      if (iproc==0) then
-                          call yaml_sequence_close()
-                          call yaml_map('Maximal cluster size',max_cluster_size)
+                          ii = 0
+                          cluster_loop: do
+                              ii = ii + 1
+                              if (icluster(2*ii-1)/=0 .and. icluster(2*ii)/=0) then
+                                  if (iproc==0) then
+                                      call yaml_sequence(advance='no')
+                                      call yaml_map('cluster boundary indices',(/icluster(2*ii-1),icluster(2*ii)/))
+                                  end if
+                                  max_cluster_size = max(max_cluster_size,icluster(2*ii)-icluster(2*ii-1)+1)
+                                  if (icluster(2*ii+1)==0) then
+                                      exit cluster_loop
+                                  end if
+                              else
+                                  call f_err_throw('invalid values of icluster')
+                              end if
+                          end do cluster_loop
+                          if (iproc==0) then
+                              call yaml_sequence_close()
+                              call yaml_map('Maximal cluster size',max_cluster_size)
+                          end if
+                          !write(*,'(2(a,i0))') 'ERROR in pdsyevx on process ',iproc,', info=', info
+                          !stop
+                      else
+                          ! The error is not related to the workspace size, so let the calling routine handle it
+                          exit repeat_loop
                       end if
-                      !write(*,'(2(a,i0))') 'ERROR in pdsyevx on process ',iproc,', info=', info
-                      !stop
-                  else
-                      ! The error is not related to the workspace size, so let the calling routine handle it
-                      exit repeat_loop
-                  end if
-              end do repeat_loop
+                  end do repeat_loop
+              end if algif2
     
           
               ! Gather together the eigenvectors from all processes and store them in mat.
@@ -422,7 +581,7 @@ module parallel_linalg
     
     
     
-    subroutine dsygv_parallel(iproc, nproc, comm, blocksize, nprocMax, itype, jobz, uplo, n, a, lda, b, ldb, w, info)
+    subroutine dsygv_parallel(iproc, nproc, comm, blocksize, nprocMax, itype, jobz, uplo, n, a, lda, b, ldb, w, info, quiet)
       use dynamic_memory
       implicit none
       
@@ -433,159 +592,232 @@ module parallel_linalg
       real(kind=mp),dimension(lda,n),intent(inout) :: a
       real(kind=mp),dimension(ldb,n),intent(inout) :: b
       real(kind=mp),dimension(n),intent(out) :: w
+      logical,intent(in),optional :: quiet
       
       ! Local variables
-      integer :: ierr, mbrow, mbcol, i, j, istat, lwork, ii1, ii2, nproc_scalapack, iall
-      integer :: nprocrow, nproccol, context, irow, icol, lnrow, lncol, numroc, liwork, nw_found, nw_computed
+      integer :: ierr, mbrow, mbcol, i, j, istat, lwork, ii1, ii2, nproc_scalapack, max_cluster_size
+      integer :: nprocrow, nproccol, context, irow, icol, lnrow, lncol, numroc, liwork, nw_found, nw_computed, icl, ii
       real(kind=mp) :: tt1, tt2
-      real(kind=mp),dimension(:,:),allocatable :: la, lb, lz
+      real(kind=mp),dimension(:,:),allocatable :: la, la_tmp, lb_tmp, lb, lz
       real(kind=mp),dimension(:),allocatable :: work, gap
       integer,dimension(9) :: desc_lz, desc_la, desc_lb
       integer,dimension(:),allocatable :: iwork, ifail, icluster
       character(len=*),parameter :: subname='dsygv_parallel'
+      logical :: quiet_
 
       call f_routine(id='dsygv_parallel')
       
       !call timing(iproc,'dsygv_parallel','ON') 
       call f_timing(TCAT_SMAT_HL_DSYGV,'ON')
-      
-      ! Block size for scalapack
-      mbrow=blocksize
-      mbcol=blocksize
-      
-      ! Number of processes that will be involved in the calculation
-      tt1=dble(n)/dble(mbrow)
-      tt2=dble(n)/dble(mbcol)
-      ii1=ceiling(tt1)
-      ii2=ceiling(tt2)
-      !nproc_scalapack = min(ii1*ii2,nproc)
-      nproc_scalapack = min(ii1*ii2,nprocMax)
-      !nproc_scalapack = nproc
-      !if(iproc==0) write(*,'(a,i0,a)') 'scalapack will use ',nproc_scalapack,' processes.'
-      
-      ! process grid: number of processes per row and column
-      tt1=sqrt(dble(nproc_scalapack))
-      ii1=ceiling(tt1)
-      do i=ii1,nproc_scalapack
-          if(mod(nproc_scalapack,i)==0) then
-              nprocrow=i
-              exit
-          end if
-      end do
-      nproccol=nproc_scalapack/nprocrow
-      !if(iproc==0) write(*,'(a,i0,a,i0,a)') 'calculation is done on process grid with dimension ',nprocrow,' x ',nproccol,'.'
-      if (iproc==0) call write_processor_setup('pdsygvx', nproc_scalapack, nprocrow, nproccol)
-      
-      
-      ! Initialize blacs context
-      call blacs_get(-1, 0, context)
-      call blacs_gridinit(context, 'r', nprocrow, nproccol )
-      call blacs_gridinfo(context,nprocrow, nproccol, irow, icol)
-      !write(*,*) 'iproc, irow, icol', iproc, irow, icol
-      
-      ! Initialize the matrix mat to zero for processes that don't do the calculation.
-      ! For processes participating in the diagonalization, 
-      ! it will be partially (only at the position that process was working on) overwritten with the result. 
-      ! At the end we can the make an allreduce to get the correct result on all processes.
-      !if(irow==-1) call to_zero(lda*n, a(1,1))
-      if(irow==-1) call f_zero(a)
-    
-      ! Everything that follows is only done if the current process is part of the grid.
-      processIf: if(irow/=-1) then
-          ! Determine the size of the matrix (lnrow x lncol):
-          lnrow = max(numroc(n, mbrow, irow, 0, nprocrow),1)
-          lncol = max(numroc(n, mbcol, icol, 0, nproccol),1)
-          !write(*,'(a,i0,a,i0,a,i0)') 'iproc ',iproc,' will have a local matrix of size ',lnrow,' x ',lncol
-      
-          ! Initialize descriptor arrays.
-          call descinit(desc_la, n, n, mbrow, mbcol, 0, 0, context, lnrow, info)
-          call descinit(desc_lb, n, n, mbrow, mbcol, 0, 0, context, lnrow, info)
-          call descinit(desc_lz, n, n, mbrow, mbcol, 0, 0, context, lnrow, info)
-      
-          ! Allocate the local array la
-          la = f_malloc((/ lnrow, lncol /),id='la')
-          lb = f_malloc((/ lnrow, lncol /),id='lb')
-      
-          ! Copy the global array mat to the local array la.
-          ! The same for lb and b, respectively.
-          !call vcopy(n**2, a(1,1), 1, mat(1,1), 1)
-          !call vcopy(n**2, b(1,1), 1, b(1,1), 1)
-          do i=1,n
-              do j=1,n
-                  call pdelset(la(1,1), j, i, desc_la, a(j,i))
-                  call pdelset(lb(1,1), j, i, desc_lb, b(j,i))
-              end do
-          end do
-      
-      
-          ! Solve the generalized eigenvalue problem.
-          lz = f_malloc((/ lnrow, lncol /),id='lz')
-          ifail = f_malloc(n,id='ifail')
-          icluster = f_malloc(2*nprocrow*nproccol,id='icluster')
-          gap = f_malloc(nprocrow*nproccol,id='gap')
-      
-          ! workspace query
-          lwork=-1
-          liwork=-1
-          work = f_malloc(100,id='work')
-          iwork = f_malloc(100,id='iwork')
-          call pdsygvx(itype, jobz, 'a', uplo, n, la(1,1), 1, 1, desc_la, lb(1,1), 1, 1, &
-                       desc_lb, 0.d0, 1.d0, 0, 1, -1.d0, nw_found, nw_computed, w(1), &
-                       -1.d0, lz(1,1), 1, 1, desc_lz, work, lwork, iwork, liwork, &
-                       ifail, icluster, gap, info)
-          lwork=ceiling(work(1))
-          lwork=lwork+n**2 !to be sure to have enough workspace, to be optimized later.
-          liwork=iwork(1)
-          liwork=liwork+n**2 !to be sure to have enough workspace, to be optimized later.
-          !write(*,*) 'iproc, lwork, liwork', iproc, lwork, liwork
+
+      quiet_ = .false.
+      if (present(quiet)) quiet_ = quiet
+
+      blocksize_if: if (blocksize<0) then
+          if (iproc==0) call yaml_map('mode','sequential')
+          ! Worksize query
+          lwork = -1
+          work = f_malloc(1,id='work')
+          call dsygv(itype, jobz, uplo, n, a, lda, b, ldb, w, work, lwork, info)
+          lwork = work(1)
           call f_free(work)
-          call f_free(iwork)
-      
+
           work = f_malloc(lwork,id='work')
-          iwork = f_malloc(liwork,id='iwork')
-      
-          call pdsygvx(1, 'v', 'a', 'l', n, la(1,1), 1, 1, desc_la, lb(1,1), 1, 1, &
-                       desc_lb, 0.d0, 1.d0, 0, 1, -1.d0, nw_found, nw_computed, w(1), &
-                       -1.d0, lz(1,1), 1, 1, desc_lz, work, lwork, iwork, liwork, &
-                       ifail, icluster, gap, info)
-          if(info/=0) then
-              write(*,'(2(a,i0))') 'ERROR in pdsygvx on process ',iproc,', info=',info
-          end if
-      
-          ! Gather together the eigenvectors from all processes and store them in mat.
-          do i=1,n
-              do j=1,n
-                  call pdelset2(a(j,i), lz(1,1), j, i, desc_la, 0.d0)
-              end do
-          end do
-      
-      
-          call f_free(la)
-          call f_free(lz)
-          call f_free(lb)
+          call dsygv(itype, jobz, uplo, n, a, lda, b, ldb, w, work, lwork, info)
           call f_free(work)
-          call f_free(iwork)
-          call f_free(ifail)
-          call f_free(icluster)
-          call f_free(gap)
+      else if (blocksize==0) then
+          call f_err_throw('blocksize must not be zero')
+      else blocksize_if
+          if (iproc==0 .and. .not.quiet_) call yaml_map('mode','parallel')
+          ! Block size for scalapack
+          mbrow=blocksize
+          mbcol=blocksize
+          
+          ! Number of processes that will be involved in the calculation
+          tt1=dble(n)/dble(mbrow)
+          tt2=dble(n)/dble(mbcol)
+          ii1=ceiling(tt1)
+          ii2=ceiling(tt2)
+          !nproc_scalapack = min(ii1*ii2,nproc)
+          nproc_scalapack = min(ii1*ii2,nprocMax)
+          !nproc_scalapack = nproc
+          !if(iproc==0) write(*,'(a,i0,a)') 'scalapack will use ',nproc_scalapack,' processes.'
+          
+          ! process grid: number of processes per row and column
+          tt1=sqrt(dble(nproc_scalapack))
+          ii1=ceiling(tt1)
+          do i=ii1,nproc_scalapack
+              if(mod(nproc_scalapack,i)==0) then
+                  nprocrow=i
+                  exit
+              end if
+          end do
+          nproccol=nproc_scalapack/nprocrow
+          !if(iproc==0) write(*,'(a,i0,a,i0,a)') 'calculation is done on process grid with dimension ',nprocrow,' x ',nproccol,'.'
+          if (iproc==0) call write_processor_setup('pdsygvx', nproc_scalapack, nprocrow, nproccol)
+          
+          
+          ! Initialize blacs context
+          call blacs_get(-1, 0, context)
+          call blacs_gridinit(context, 'r', nprocrow, nproccol )
+          call blacs_gridinfo(context,nprocrow, nproccol, irow, icol)
+          !write(*,*) 'iproc, irow, icol', iproc, irow, icol
+          
+          ! Initialize the matrix mat to zero for processes that don't do the calculation.
+          ! For processes participating in the diagonalization, 
+          ! it will be partially (only at the position that process was working on) overwritten with the result. 
+          ! At the end we can the make an allreduce to get the correct result on all processes.
+          !if(irow==-1) call to_zero(lda*n, a(1,1))
+          if(irow==-1) call f_zero(a)
     
-          call blacs_gridexit(context)
-      
-      end if processIF
-      
-      ! Gather the eigenvectors on all processes.
-      if (nproc > 1) then
-         call mpiallred(a, mpi_sum, comm=comm)
-      end if
-      
-      ! Broadcast the eigenvalues if required. If nproc_scalapack==nproc, then all processes
-      ! diagonalized the matrix and therefore have the eigenvalues.
-      if(nproc_scalapack/=nproc) then
-          call mpi_bcast(w(1), n, mpi_double_precision, 0, comm, ierr)
-          call mpi_bcast(info, 1, mpi_integer, 0, comm, ierr)
-      end if
+          ! Everything that follows is only done if the current process is part of the grid.
+          processIf: if(irow/=-1) then
+              ! Determine the size of the matrix (lnrow x lncol):
+              lnrow = max(numroc(n, mbrow, irow, 0, nprocrow),1)
+              lncol = max(numroc(n, mbcol, icol, 0, nproccol),1)
+              !write(*,'(a,i0,a,i0,a,i0)') 'iproc ',iproc,' will have a local matrix of size ',lnrow,' x ',lncol
+          
+              ! Initialize descriptor arrays.
+              call descinit(desc_la, n, n, mbrow, mbcol, 0, 0, context, lnrow, info)
+              call descinit(desc_lb, n, n, mbrow, mbcol, 0, 0, context, lnrow, info)
+              call descinit(desc_lz, n, n, mbrow, mbcol, 0, 0, context, lnrow, info)
+          
+              ! Allocate the local array la
+              la = f_malloc((/ lnrow, lncol /),id='la')
+              la_tmp = f_malloc((/ lnrow, lncol /),id='la_tmp')
+              lb = f_malloc((/ lnrow, lncol /),id='lb')
+              lb_tmp = f_malloc((/ lnrow, lncol /),id='lb_tmp')
+          
+              ! Copy the global array mat to the local array la.
+              ! The same for lb and b, respectively.
+              !call vcopy(n**2, a(1,1), 1, mat(1,1), 1)
+              !call vcopy(n**2, b(1,1), 1, b(1,1), 1)
+              do i=1,n
+                  do j=1,n
+                      call pdelset(la(1,1), j, i, desc_la, a(j,i))
+                      call pdelset(lb(1,1), j, i, desc_lb, b(j,i))
+                  end do
+              end do
+          
+          
+              ! Solve the generalized eigenvalue problem.
+              lz = f_malloc((/ lnrow, lncol /),id='lz')
+              ifail = f_malloc(n,id='ifail')
+              icluster = f_malloc(2*nprocrow*nproccol,id='icluster')
+              gap = f_malloc(nprocrow*nproccol,id='gap')
+          
+              ! workspace query
+              lwork=-1
+              liwork=-1
+              work = f_malloc(100,id='work')
+              iwork = f_malloc(100,id='iwork')
+              call pdsygvx(itype, jobz, 'a', uplo, n, la(1,1), 1, 1, desc_la, lb(1,1), 1, 1, &
+                           desc_lb, 0.d0, 1.d0, 0, 1, -1.d0, nw_found, nw_computed, w(1), &
+                           -1.d0, lz(1,1), 1, 1, desc_lz, work, lwork, iwork, liwork, &
+                           ifail, icluster, gap, info)
+              lwork=ceiling(work(1))
+              lwork=lwork+n**2 !to be sure to have enough workspace, to be optimized later.
+              liwork=iwork(1)
+              liwork=liwork+n**2 !to be sure to have enough workspace, to be optimized later.
+              !write(*,*) 'iproc, lwork, liwork', iproc, lwork, liwork
+              call f_free(work)
+              call f_free(iwork)
+          
+              work = f_malloc(lwork,id='work')
+              iwork = f_malloc(liwork,id='iwork')
+
+              max_cluster_size = 1
+              repeat_loop: do icl=1,2
+                  call f_free(work)
+                  lwork = lwork + (max_cluster_size-1)*n
+                  work = f_malloc(lwork,id='work')
+          
+                  call f_memcpy(src=la, dest=la_tmp)
+                  call f_memcpy(src=lb, dest=lb_tmp)
+          
+                  call pdsygvx(1, 'v', 'a', 'l', n, la_tmp(1,1), 1, 1, desc_la, lb_tmp(1,1), 1, 1, &
+                               desc_lb, 0.d0, 1.d0, 0, 1, -1.d0, nw_found, nw_computed, w(1), &
+                               -1.d0, lz(1,1), 1, 1, desc_lz, work, lwork, iwork, liwork, &
+                               ifail, icluster, gap, info)
+                  !!if(info/=0) then
+                  !!    write(*,'(2(a,i0))') 'ERROR in pdsygvx on process ',iproc,', info=',info
+                  !!end if
+                  if(info==0) then
+                      ! Everything ok
+                      exit repeat_loop
+                  else if ((mod(info/2,2)/=0)) then
+                      ! This may happen if there is not enough workspace, 
+                      ! so increase the workspace and diagonalize again.
+                      if (iproc==0) then
+                          call yaml_warning('Some eigenvectors might not be orthogonal due to missing workspace, &
+                               &will repeat diagonalization')
+                          call yaml_sequence_open('Eigenvalue bounds of clusters with non-orthogonalized eigenvectors')
+                      end if
+                      ii = 0
+                      cluster_loop: do
+                          ii = ii + 1
+                          if (icluster(2*ii-1)/=0 .and. icluster(2*ii)/=0) then
+                              if (iproc==0) then
+                                  call yaml_sequence(advance='no')
+                                  call yaml_map('cluster boundary indices',(/icluster(2*ii-1),icluster(2*ii)/))
+                              end if
+                              max_cluster_size = max(max_cluster_size,icluster(2*ii)-icluster(2*ii-1)+1)
+                              if (icluster(2*ii+1)==0) then
+                                  exit cluster_loop
+                              end if
+                          else
+                              call f_err_throw('invalid values of icluster')
+                          end if
+                      end do cluster_loop
+                      if (iproc==0) then
+                          call yaml_sequence_close()
+                          call yaml_map('Maximal cluster size',max_cluster_size)
+                      end if
+                      !write(*,'(2(a,i0))') 'ERROR in pdsyevx on process ',iproc,', info=', info
+                      !stop
+                  else
+                      ! The error is not related to the workspace size, so let the calling routine handle it
+                      exit repeat_loop
+                  end if
+              end do repeat_loop
+          
+              ! Gather together the eigenvectors from all processes and store them in mat.
+              do i=1,n
+                  do j=1,n
+                      call pdelset2(a(j,i), lz(1,1), j, i, desc_la, 0.d0)
+                  end do
+              end do
+          
+          
+              call f_free(la)
+              call f_free(la_tmp)
+              call f_free(lz)
+              call f_free(lb)
+              call f_free(lb_tmp)
+              call f_free(work)
+              call f_free(iwork)
+              call f_free(ifail)
+              call f_free(icluster)
+              call f_free(gap)
     
-     !call blacs_exit(0)
+              call blacs_gridexit(context)
+          
+          end if processIF
+          
+          ! Gather the eigenvectors on all processes.
+          if (nproc > 1) then
+             call mpiallred(a, mpi_sum, comm=comm)
+          end if
+          
+          ! Broadcast the eigenvalues if required. If nproc_scalapack==nproc, then all processes
+          ! diagonalized the matrix and therefore have the eigenvalues.
+          if(nproc_scalapack/=nproc) then
+              call mpi_bcast(w(1), n, mpi_double_precision, 0, comm, ierr)
+              call mpi_bcast(info, 1, mpi_integer, 0, comm, ierr)
+          end if
+    
+          !call blacs_exit(0)
+      end if blocksize_if
     
       !call timing(iproc,'dsygv_parallel','OF') 
       call f_timing(TCAT_SMAT_HL_DSYGV,'OF')
@@ -608,7 +840,7 @@ module parallel_linalg
       real(8),dimension(ldb,nrhs),intent(inout):: b
       
       ! Local variables
-      integer:: ierr, mbrow, mbcol, i, j, istat, ii1, ii2, nproc_scalapack, iall
+      integer:: ierr, mbrow, mbcol, i, j, istat, ii1, ii2, nproc_scalapack
       integer:: nprocrow, nproccol, context, irow, icol, lnrow_a, lncol_a, lnrow_b, lncol_b, numroc
       real(8):: tt1, tt2
       real(8),dimension(:,:),allocatable:: la, lb

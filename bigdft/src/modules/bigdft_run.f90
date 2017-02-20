@@ -76,9 +76,9 @@ module bigdft_run
   !> Public signals for run_objects type.
   character(len = *), parameter, public :: RUN_OBJECTS_TYPE = "run_objects"
   character(len = *), parameter, public :: INIT_SIG = "init"
+  character(len = *), parameter, public :: STATE_CALCULATOR_SIG = "state_calculator"
   character(len = *), parameter, public :: DESTROY_SIG = "destroy"
   character(len = *), parameter, public :: PRE_SCF_SIG = "pre"
-  character(len = *), parameter, public :: EVAL_SCF_SIG = "compute"
   character(len = *), parameter, public :: POST_SCF_SIG = "post"
 
   character(len = *), parameter, public :: PROCESS_RUN_TYPE = "process_run"
@@ -882,9 +882,9 @@ contains
 
     call f_object_add_signal(RUN_OBJECTS_TYPE, INIT_SIG, 1)
     call f_object_add_signal(RUN_OBJECTS_TYPE, PRE_SCF_SIG, 1)
-    call f_object_add_signal(RUN_OBJECTS_TYPE, EVAL_SCF_SIG, 3)
     call f_object_add_signal(RUN_OBJECTS_TYPE, POST_SCF_SIG, 2)
     call f_object_add_signal(RUN_OBJECTS_TYPE, "join", 3)
+    call f_object_add_signal(RUN_OBJECTS_TYPE, STATE_CALCULATOR_SIG, 4)
     call f_object_add_signal(RUN_OBJECTS_TYPE, DESTROY_SIG, 1)
 
     call f_object_new_("state_properties")
@@ -909,6 +909,7 @@ contains
     write(runObj%label, "(A)") " "
     nullify(runObj%run_mode)
     runObj%nstate=0
+    runObj%add_coulomb_force=.false.
     nullify(runObj%user_inputs)
     nullify(runObj%inputs)
     nullify(runObj%atoms)
@@ -1195,6 +1196,7 @@ contains
 
        call nullify_run_objects(runObj%sections(i))
        runObj%sections(i)%add_coulomb_force = runObj%inputs%add_coulomb_force
+
        ! We just do a shallow copy here, because we don't need to store the input dictionary.
        runObj%sections(i)%user_inputs => runObj%user_inputs // dict_value(sect)
        ! Generate posinp if necessary.
@@ -1532,7 +1534,7 @@ contains
     posinp_name=.false.
     if ('name' .in. opts) then
        !check if the names are given as a list or as a scalar
-       if (dict_len(opts) > 0) then
+       if (dict_len(opts//'name') > 0) then
           call dict_copy(dict_run,opts//'name')
        else
           run_id = opts//'name'
@@ -1842,6 +1844,7 @@ contains
     use SWpotential
     use wrapper_linalg, only: vscal
     use module_f_objects
+    use module_atoms, only: astruct_constraints
     implicit none
     !parameters
     type(run_objects), intent(inout) :: runObj
@@ -1893,6 +1896,9 @@ contains
           end if
        end if
     end if
+
+    !inform the user about specified constraints (experimental routine)
+    call astruct_constraints(runObj%atoms%astruct)
 
     ! Apply the constraints expressed in internal coordinates
     if (runObj%atoms%astruct%inputfile_format=='int') then
@@ -1990,11 +1996,12 @@ contains
        ! periodic boundary conditions
        call bazant_energyandforces(nat, rxyz_ptr, outs%fxyz, outs%energy)
     case ('PLUGIN_RUN_MODE')
-       if (.not. f_object_has_signal(RUN_OBJECTS_TYPE, EVAL_SCF_SIG)) &
+       if (.not. f_object_has_signal(RUN_OBJECTS_TYPE, STATE_CALCULATOR_SIG)) &
             & call run_objects_type_init()
-       if (f_object_signal_prepare(RUN_OBJECTS_TYPE, EVAL_SCF_SIG, sig)) then
+       if (f_object_signal_prepare(RUN_OBJECTS_TYPE, STATE_CALCULATOR_SIG, sig)) then
           call f_object_signal_add_arg(sig, runObj)
           call f_object_signal_add_arg(sig, outs)
+          call f_object_signal_add_arg(sig, runObj%inputs%plugin_id)
           call f_object_signal_add_arg(sig, infocode)
           call f_object_signal_emit(sig)
        else

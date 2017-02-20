@@ -270,6 +270,23 @@ subroutine subspace_update(ncplx,nvctrp,norb,y,a,x)
 
 end subroutine subspace_update
 
+!>get the diagonal part of the lagrange multiplier (to be used in alternative to Subspace Diagonalisation)
+!! these might be used instead of eigenvalues in the SIC case or in the usage of alternative WFN OPY schemes
+subroutine get_lm_diagonal(ncplx,norb,lambda,eval)
+  use module_defs, only: wp
+  implicit none
+  integer, intent(in) :: ncplx,norb
+  real(wp), dimension(ncplx,norb,norb), intent(in) :: lambda
+  real(wp), dimension(norb), intent(out) :: eval
+  !local variables
+  integer :: iorb
+
+  !always real part only
+  do iorb=1,norb
+     eval(iorb)=lambda(1,iorb,iorb)
+  end do
+end subroutine get_lm_diagonal
+
 !>calculates the lagrange multiplier matrix and correct it with the 
 !!contributions coming from the occupation numbers if they are 
 !! not the same
@@ -423,26 +440,30 @@ subroutine orthoconstraint(iproc,nproc,orbs,comms,symm,tr_min,psi,hpsi,scprsum,s
 
         call subspace_matrix(symm,psi(ispsi),hpsi(ispsi),&
              ncomplex,ncomponents,norb,alag(ndim_ovrlp(ispin,ikpt-1)+1))
-
-!!$        if(nspinor==1) then
-!!$           if (symm) then
-!!$              !call gemmsy('T','N',norb,norb,nvctrp,1.0_wp,psi(ispsi),&
-!!$              call gemm('T','N',norb,norb,nvctrp,1.0_wp,psi(ispsi),&
-!!$                   max(1,nvctrp),hpsi(ispsi),max(1,nvctrp),0.0_wp,&
-!!$                   alag(ndim_ovrlp(ispin,ikpt-1)+1),norb)
-!!$           else
-!!$              call gemm('T','N',norb,norb,nvctrp,1.0_wp,psi(ispsi),&
-!!$                   ! TEMPORARYcall gemmsy('T','N',norb,norb,nvctrp,1.0_wp,psi(ispsi),&
-!!$                   max(1,nvctrp),hpsi(ispsi),max(1,nvctrp),0.0_wp,&
-!!$                   alag(ndim_ovrlp(ispin,ikpt-1)+1),norb)
-!!$           end if
-!!$        else
-!!$        !this part should be recheck in the case of nspinor == 2
-!!$        call c_gemm('C','N',norb,norb,ncomp*nvctrp,(1.0_wp,0.0_wp),psi(ispsi),&
-!!$             max(1,ncomp*nvctrp), &
-!!$             hpsi(ispsi),max(1,ncomp*nvctrp),(0.0_wp,0.0_wp),&
-!!$             alag(ndim_ovrlp(ispin,ikpt-1)+1),norb)
-!!$        end if
+if (iproc==0 .and. .false.) then
+ call yaml_map('Symm',symm)
+ call yaml_map('Lagrange Multiplier',tr_min)
+ call yaml_map('Subspace matrix',reshape(alag(ndim_ovrlp(ispin,ikpt-1)+1:),[norb,norb]))
+end if
+!       if(nspinor==1) then
+!           if (symm) then
+!              !call gemmsy('T','N',norb,norb,nvctrp,1.0_wp,psi(ispsi),&
+!              call gemm('T','N',norb,norb,nvctrp,1.0_wp,psi(ispsi),&
+!                   max(1,nvctrp),hpsi(ispsi),max(1,nvctrp),0.0_wp,&
+!                   alag(ndim_ovrlp(ispin,ikpt-1)+1),norb)
+!           else
+!              call gemm('T','N',norb,norb,nvctrp,1.0_wp,psi(ispsi),&
+!                   ! TEMPORARYcall gemmsy('T','N',norb,norb,nvctrp,1.0_wp,psi(ispsi),&
+!                   max(1,nvctrp),hpsi(ispsi),max(1,nvctrp),0.0_wp,&
+!                   alag(ndim_ovrlp(ispin,ikpt-1)+1),norb)
+!           end if
+!        else
+!        !this part should be recheck in the case of nspinor == 2
+!        call c_gemm('C','N',norb,norb,ncomp*nvctrp,(1.0_wp,0.0_wp),psi(ispsi),&
+!             max(1,ncomp*nvctrp), &
+!             hpsi(ispsi),max(1,ncomp*nvctrp),(0.0_wp,0.0_wp),&
+!             alag(ndim_ovrlp(ispin,ikpt-1)+1),norb)
+!        end if
 
 
         ispsi=ispsi+nvctrp*norb*nspinor
@@ -465,7 +486,7 @@ subroutine orthoconstraint(iproc,nproc,orbs,comms,symm,tr_min,psi,hpsi,scprsum,s
   !calculate the sum of the diagonal of the overlap matrix, for each k-point
   scprsum=0.0_dp
   !maximum deviation of the symmetri for all the k-points and processors
-  redarr=0.0_wp
+  redarr=0.0_gp
   !for each k-point calculate the gradient
   ispsi=1
   do ikptp=1,orbs%nkptsp
@@ -485,6 +506,9 @@ subroutine orthoconstraint(iproc,nproc,orbs,comms,symm,tr_min,psi,hpsi,scprsum,s
         call lagrange_multiplier(symm,.not. tr_min,orbs%occup((ikpt-1)*orbs%norb+1+ise),&
              ncomplex,norb,&
              alag(ndim_ovrlp(ispin,ikpt-1)+1),trace,asymm,mix)
+
+        !temporary
+        !call get_lm_diagonal(ncomplex,norb,alag(ndim_ovrlp(ispin,ikpt-1)+1),orbs%eval((ikpt-1)*orbs%norb+1+ise))
 
 !!$        !correct the orthogonality constraint if there are some orbitals which have zero occupation number
 !!!      if (symm) then

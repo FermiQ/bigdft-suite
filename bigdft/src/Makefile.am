@@ -1,3 +1,4 @@
+
 ## Process this file with automake to produce Makefile.in
 
 # Main targets.
@@ -28,8 +29,7 @@ EXTRA_DIST = \
 	wavelib/intots.inc \
 	wavelib/recs16.inc \
 	wavelib/sym_16.inc \
-	init/pspconf.in.f90 \
-	input_variables_definition.yaml
+	init/pspconf.in.f90
 
 # Build targets, binaries and libraries.
 # -------------
@@ -195,8 +195,7 @@ low_level = \
 ##	$(cp2k_interfacemod) 	wfn_opt/exctX_op2p.f90 \
 
 # C objects
-c_level = posfiles.c \
-	input_variables_description.c
+c_level = posfiles.c $(DATABASE_SOURCES)
 
 libmain_a_SOURCES = \
 	$(c_level) \
@@ -218,11 +217,13 @@ pspconf.f90: init/pspconf.in.f90
 
 libbigdft_1_a_SOURCES =
 
-input_variables_description.o: input_variables_definition-inc.h
+YAML_DATABASE = input_variables_definition.yaml bigdft_bibliography.yaml
+
+#input_variables_description.o: input_variables_definition-inc.h
 #build the fortran include file with the stream of input variables into a local string
 #the sed command below will transform the entire yaml document into a c string, to be passed to fortran
-input_variables_definition-inc.h: input_variables_definition.yaml
-	$(SED) -e "s/^/\"/;s/$$/\\\n\"/" $< > $@
+#input_variables_definition-inc.h: input_variables_definition.yaml
+###	$(SED) -e "s/^/\"/;s/$$/\\\n\"/" $< > $@
 
 tmp-libbigdft/extract.stamp: $(subs_static_library) $(out_static_library)
 	test -e "tmp-libbigdft" || $(INSTALL) -d -m 755 tmp-libbigdft
@@ -259,7 +260,7 @@ install-data-hook:
 #abscalc_additional= 
 
 bigdft_SOURCES = BigDFT.f90
-bigdft_LDADD = $(bigdft_library)
+bigdft_LDADD = $(bigdft_library) @FC_EXPORTS@
 
 #rism_SOURCES = rism.f90 rismlowlevel.f90
 #rism_LDADD = $(bigdft_library)
@@ -287,13 +288,13 @@ test_forces_LDADD = $(bigdft_library)
 
 #to be adjusted: when the compiler has MPI built-in libraries the linker finds multiple definitions
 memguess_SOURCES = memguess.f90 MPIfake.f90
-memguess_LDADD = $(bigdft_library)
+memguess_LDADD = $(bigdft_library) @FC_EXPORTS@
 
 utilities_SOURCES = utilities.f90
 utilities_LDADD = $(bigdft_library)
 
 frequencies_SOURCES = frequencies.f90
-frequencies_LDADD = $(bigdft_library)
+frequencies_LDADD = $(bigdft_library) @FC_EXPORTS@
 
 if BUILD_DYNAMIC_LIBS
 bigdft_LDADD += @LIB_FUTILE_LIBS@
@@ -305,8 +306,10 @@ test_forces_LDADD += @LIB_FUTILE_LIBS@
 BigDFT2Wannier_LDADD += @LIB_FUTILE_LIBS@ @LINALG_LIBS@
 endif
 
+CLEANFILES = *.@MODULE_EXT@ bindings_dbus.* introspect libbigdft-1.*
 
-CLEANFILES = *.@MODULE_EXT@ bindings_dbus.* introspect libbigdft-1.* input_variables_definition-inc.h
+include $(srcdir)/import_database.mk
+
 clean-local:
 	rm -rf tmp-libbigdft
 

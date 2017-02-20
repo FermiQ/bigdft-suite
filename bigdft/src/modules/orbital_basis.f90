@@ -775,6 +775,7 @@ contains
     npot=psi%nspinor
     if (psi%nspinor == 2) npot=1
 
+
     exctXcoeff=xc_exctXfac(xc)
     call daub_to_isf_locham(psi%nspinor,psi%lr,wrk_lh,psi%phi_wvl,psir)
 
@@ -1343,7 +1344,7 @@ contains
     it=orbital_basis_iterator(ob)
     do while(ket_next(it))
        if (.not. totreat(it%iorbp)) &
-            call f_err_throw('Error for iterator (1), iorb='+iorb,err_name='BIGDFT_RUNTIME_ERROR')
+            call f_err_throw('Error for iterator (1), iorb='+it%iorbp,err_name='BIGDFT_RUNTIME_ERROR')
        totreat(it%iorbp)=.false.
     end do
 !print *,'totreat',totreat

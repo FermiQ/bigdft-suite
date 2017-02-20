@@ -18,7 +18,7 @@ BUILDONE=' buildone '
 TINDERBOX=' tinderbox -o buildlogs '
 DOT=' dot '
 DOTCMD=' | dot -Edir=back -Tpng > buildprocedure.png '
-DIST='  dist --dist-only bigdft-suite '
+DIST='  dist --dist-only '#bigdft-suite '
 RCFILE='buildrc'
 SETUP=' setup '
 GREP_M4_COMMENTS=" | grep -v dnl | grep -v '#' "
@@ -192,6 +192,10 @@ class BigDFTInstaller():
             print indent + 'Configuration options:'
             print indent*2 + "Source: Configuration file '%s'" % os.path.abspath(self.rcfile)
         while not self.yes:
+            if not self.branch: 
+                print indent + '#WARNING: You are compiling from a User Branch. Developments are discouraged in this case' 
+                print indent + '# as compilation errors might lead to source deletion. For extensive developments the usage'
+                print indent + '# of a versioned branch is advised. Please ignore this warning if you are not a developer.'
             ok = raw_input('Do you want to continue (Y/n)? ')
             if ok == 'n' or ok=='N':
                 exit(0)
@@ -342,12 +346,12 @@ class BigDFTInstaller():
     def dist(self):
         "Perform make dist action"
         import os
-        tarfile=os.path.join(self.builddir,'bigdft-suite.tar.gz')
+        tarfile=os.path.join(self.builddir,self.package+'-suite.tar.gz')
         disttime0=self.filename_time(tarfile)
-        os.system(self.jhb+DIST)
+        os.system(self.jhb+DIST+self.package+"-suite")
         disttime1=self.filename_time(tarfile)
         if not (disttime1 == disttime0):
-            print 'SUCCESS: distribution file "bigdft-suite.tar.gz" generated correctly'
+            print 'SUCCESS: distribution file "'+self.package+'-suite.tar.gz" generated correctly'
         else:
             print 'WARNING: the dist file seems not have been updated or generated correctly'
 
@@ -416,6 +420,7 @@ class BigDFTInstaller():
         libs=self.get_output('pkg-config --libs '+self.package)
         #add the external linalg at the end to avod linking problems
         linalg=self.get_output('pkg-config --variable linalglibs '+self.package)
+        plugin=self.get_output('pkg-config --variable plugin '+self.package)
         print '--------- Linking line to build with package "'+self.package+'":'
         print "  "+includes+libs
 
