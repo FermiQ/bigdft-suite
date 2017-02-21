@@ -33,14 +33,10 @@ AC_DEFUN([AX_PACKAGE],
   AC_ARG_WITH(lcv-libs, AS_HELP_STRING([--with-lcv-libs], [Give the linker flags for an external lcv modules (default = None).]), [ax_$1_libs=$withval], [ax_$1_libs=])
   AC_ARG_WITH(lcv-incs, AS_HELP_STRING([--with-lcv-incs], [Give the compiler include flags for an external lcv library (default = None).]), [ax_$1_incdir=$withval], [ax_$1_incdir=])
 
-  AC_LANG_PUSH(Fortran)
-  dnl AC_REQUIRE([AC_PROG_FC])
-  dnl AC_REQUIRE([PKG_PROG_PKG_CONFIG])
-
-  AC_MSG_CHECKING([for $1 via PKG_CONFIG]) 
+  
   dnl try first with pkg-config
   PKG_CHECK_MODULES([$1],
-                    [lcv >= $2],
+                    [m4_default([$9], [lcv]) >= $2],
                     [ax_have_$1=yes],
                     [ax_have_$1=no])
   if test "$ax_have_$1" = "yes" ; then
@@ -53,14 +49,19 @@ AC_DEFUN([AX_PACKAGE],
       LIB_$1_CFLAGS=$$1_CFLAGS
     fi
     LIB_$1_LIBS=$$1_LIBS
+    AC_MSG_CHECKING([for $1 LIBS]) 
+    AC_MSG_RESULT("LIB_$1_LIBS= $LIB_$1_LIBS")
+    AC_MSG_CHECKING([for $1 CFLAGS]) 
+    AC_MSG_RESULT("LIB_$1_CFLAGS= $LIB_$1_CFLAGS")
   fi
-  AC_MSG_RESULT(
-  "LIB_$1_LIBS= $LIB_$1_LIBS" 
-  "LIB_$1_CFLAGS=$LIB_$1_CFLAGS" "have=" $ax_have_$1 "hello=" lcv)
 
   dnl try by hand search if failed
   if test "$ax_have_$1" != "yes" ; then
     dnl Test the modules for compilation
+
+    AC_LANG_PUSH(m4_default([$8], [Fortran]))
+    dnl AC_REQUIRE([AC_PROG_FC])
+    dnl AC_REQUIRE([PKG_PROG_PKG_CONFIG])
     
     dnl Test the modules for compilation
     AC_MSG_CHECKING([for lcv modules])
@@ -101,7 +102,7 @@ AC_DEFUN([AX_PACKAGE],
   
     LIBS=$LIBS_SVG
     FCFLAGS=$FCFLAGS_SVG
-    AC_LANG_POP(Fortran)
+    AC_LANG_POP(m4_default([$8], [Fortran]))
     
     if test "$ax_have_$1" = "yes" -a "$with$1mod" = "yes" ; then
       LIB_$1_CFLAGS=$ax_$1_incdir
