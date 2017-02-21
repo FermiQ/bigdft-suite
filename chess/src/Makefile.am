@@ -134,7 +134,7 @@ libCheSS-1.a: $(libCheSS_1_a_OBJECTS) tmp-libCheSS/extract.stamp
 
 #dependencies
 $(modules): $(libCheSS_1_a_OBJECTS)
-foe_common.o: foe_base.o chebyshev.o fermi_level.o
+foe_common.o: foe_base.o chebyshev.o fermi_level.o chess_base.o
 ice.o: chebyshev.o foe_base.o foe_common.o fermi_level.o
 matrix_operations.o: ice.o foe_base.o
 foe.o: chebyshev.o foe_base.o foe_common.o fermi_level.o matrix_operations.o
