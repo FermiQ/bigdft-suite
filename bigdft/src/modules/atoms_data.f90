@@ -127,7 +127,7 @@ module module_atoms
   public :: atomic_structure_null,nullify_atomic_structure,deallocate_atomic_structure
   public :: astruct_merge_to_dict, astruct_at_from_dict
   public :: deallocate_symmetry_data,set_symmetry_data
-  public :: set_astruct_from_file,astruct_dump_to_file
+  public :: set_astruct_from_file,astruct_dump_to_file,set_astruct_from_openbabel
   public :: allocate_atoms_data,move_this_coordinate,frozen_itof
   public :: rxyz_inside_box,check_atoms_positions
   public :: atomic_data_set_from_dict,atoms_iter,atoms_iter_next,atoms_iter_ensure_attr
@@ -1086,6 +1086,28 @@ contains
 
     END SUBROUTINE set_astruct_from_file
 
+    subroutine set_astruct_from_openbabel(astruct, obfile)
+      use dictionaries
+      implicit none
+      type(atomic_structure), intent(out) :: astruct
+      character(len = *), intent(in) :: obfile
+
+      type(dictionary), pointer :: dict
+
+      interface
+         subroutine openbabel_load(d, f)
+           use dictionaries
+           implicit none
+           type(dictionary), pointer :: d
+           character(len = *), intent(in) :: f
+         end subroutine openbabel_load
+      end interface
+
+      call dict_init(dict)
+      call openbabel_load(dict, obfile)
+      call astruct_set_from_dict(dict, astruct)
+      call dict_free(dict)
+    end subroutine set_astruct_from_openbabel
 
     !> Write an atomic file
     !! Yaml output included
@@ -2554,3 +2576,23 @@ contains
     end do
   end subroutine expand
 END SUBROUTINE astruct_from_subset
+
+subroutine astruct_set_cell(dict, cell)
+  use dictionaries
+  implicit none
+  type(dictionary), pointer :: dict
+  double precision, dimension(3), intent(in) :: cell
+
+  call set(dict // "cell", cell)
+end subroutine astruct_set_cell
+
+subroutine astruct_add_atom(dict, xyz, symbol, slen)
+  use dictionaries
+  implicit none
+  type(dictionary), pointer :: dict
+  double precision, dimension(3), intent(in) :: xyz
+  integer, intent(in) :: slen
+  character(len = slen), intent(in) :: symbol
+
+  call add(dict // "positions", dict_new(symbol .is. xyz))
+end subroutine astruct_add_atom

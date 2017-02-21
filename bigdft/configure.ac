@@ -199,6 +199,25 @@ AX_LIBGAIN()
 AX_ARCHIVE()
 AX_AMBERTOOLS()
 AX_ALBORZ()
+AX_PACKAGE([OPENBABEL],[2.0],[-lopenbabel],[],[],
+           [
+#include <openbabel/obmolecformat.h>
+#include <openbabel/mol.h>
+
+using namespace OpenBabel;
+
+int main(int argc, char **argv)
+{
+  std::ifstream fin("test.xyz");
+  std::istream* pIn = &fin;
+  OpenBabel::OBConversion conv(pIn, NULL);
+
+  return 0;  
+}
+],
+           [OpenBabel::OBConversion conv],
+           [C++], [openbabel-2.0])
+AM_CONDITIONAL(HAVE_OPENBABEL, test $ax_have_OPENBABEL = "yes")
 dnl PEXSI
 AC_ARG_WITH(pexsi, AS_HELP_STRING([--with-pexsi],
             [Give the link-line for PEXSI.]),
@@ -287,7 +306,7 @@ else
 fi
 
 dnl Agregate all the optional libs.
-LIB_BIGDFT_DEPS="$LIB_ABINIT_LIBS $LIB_XC_LIBS $LIB_GAIN_LIBS $CP2K_LINKLINE $LIB_AMBERTOOLS_LIBS $LIB_ALBORZ_LIBS $LIBOCL_LIBS $LIBETSFIO_LIBS $LIB_ARCHIVE_LIBS $LIB_CHESS_DYNAMIC_LIBS $LIB_PSOLVER_DYNAMIC_LIBS $LIB_FUTILE_LIBS $PEXSI_LINKLINE"
+LIB_BIGDFT_DEPS="$LIB_ABINIT_LIBS $LIB_XC_LIBS $LIB_GAIN_LIBS $CP2K_LINKLINE $LIB_AMBERTOOLS_LIBS $LIB_ALBORZ_LIBS $LIBOCL_LIBS $LIBETSFIO_LIBS $LIB_ARCHIVE_LIBS $LIB_CHESS_DYNAMIC_LIBS $LIB_PSOLVER_DYNAMIC_LIBS $LIB_FUTILE_LIBS $PEXSI_LINKLINE $LIB_OPENBABEL_LIBS"
 if test $ax_FUTILE_static != "yes" ; then
    LIB_BIGDFT_DEPS="$LIB_BIGDFT_DEPS $LIBCUDA_LIBS $LINALG_LIBS $GLIB_LIBS $MPI_LDFLAGS $MPI_LIBS $PYTHON_LIBS"
 fi
@@ -414,6 +433,9 @@ Options:
    | nab Compiler:           $NAB
   With CP2K:                 $ax_have_cp2k
   With PEXSI:                $ax_have_pexsi
+  With OpenBabel:            $ax_have_OPENBABEL
+   | C++ flags:              $LIB_OPENBABEL_CFLAGS
+   | linked libraries:       $LIB_OPENBABEL_LIBS
   With libXC:                $ac_use_libxc
    | internal built:         $ac_build_libxc
    | include dir.:           $LIBXC_INCLUDE

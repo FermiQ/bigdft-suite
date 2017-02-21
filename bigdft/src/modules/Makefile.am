@@ -39,6 +39,11 @@ endif
 #PEXSI_SRC = pexsi_base.f90 pexsi_interfaces_fake.f90 pexsi.f90
 #endif
 
+if HAVE_OPENBABEL
+openbabel_sources = openbabel.cpp
+else
+openbabel_sources = openbabel_fake.cpp
+endif
 
 libmodules_a_SOURCES = ab7_mixing.f90 \
 	dpbox.f90 \
@@ -93,6 +98,7 @@ libmodules_a_SOURCES = ab7_mixing.f90 \
 	configure.c \
 	$(alborz_interfacemod) \
 	$(cp2k_interfacemod) \
+	$(openbabel_sources) \
 	module_dftbp.f90 \
 	sw_potential.f90
 
@@ -213,6 +219,7 @@ EXTRA_DIST = $(ATOMS_INCLUDES) $(COMMS_INCLUDES)
 CLEANFILES = *.mod
 
 AM_FCFLAGS = -I. -I$(srcdir) -I$(top_builddir)/includes @MPI_INCLUDE@ @LIBABINIT_INCLUDE@ @LIB_XC_CFLAGS@ @LIB_FUTILE_CFLAGS@
+AM_CXXFLAGS = @LIB_OPENBABEL_CFLAGS@
 
 # Hack for XLF strange DEFS option.
 PPFCCOMPILE = $(FC) $(DEFS:-D%=@FCDEFS@%) $(DEFAULT_INCLUDES) $(INCLUDES) \
