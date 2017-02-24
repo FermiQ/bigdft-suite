@@ -53,7 +53,7 @@ program driver_foe
   type(sparse_matrix_metadata) :: smmd
   integer :: nfvctr, nvctr, ierr, iproc, nproc, nthread, ncharge, nfvctr_mult, nvctr_mult, scalapack_blocksize, icheck, it, nit
   integer :: ispin, ihomo, imax, ntemp, npl_max, pexsi_npoles, norbu, norbd, ii, info, norbp, isorb, norb, iorb, pexsi_np_sym_fact
-  real(mp) :: pexsi_mumin, pexsi_mumax, pexsi_mu, pexsi_DeltaE, pexsi_temperature, pexsi_tol_charge
+  real(mp) :: pexsi_mumin, pexsi_mumax, pexsi_mu, pexsi_DeltaE, pexsi_temperature, pexsi_tol_charge, betax
   integer,dimension(:),pointer :: row_ind, col_ptr, row_ind_mult, col_ptr_mult
   real(mp),dimension(:),pointer :: kernel, overlap, overlap_large
   real(mp),dimension(:),allocatable :: charge, evals, eval_min, eval_max, eval_all, eval_occup, occup, times, energies
@@ -64,7 +64,7 @@ program driver_foe
   type(dictionary),pointer :: dict_timing_info, options
   type(yaml_cl_parse) :: parser !< command line parser
   character(len=1024) :: metadata_file, overlap_file, hamiltonian_file, kernel_file, kernel_matmul_file
-  character(len=1024) :: sparsity_format, matrix_format, kernel_method
+  character(len=1024) :: sparsity_format, matrix_format, kernel_method, inversion_method
   logical :: check_spectrum, do_cubic_check
   integer,parameter :: nthreshold = 10 !< number of checks with threshold
   real(mp),dimension(nthreshold),parameter :: threshold = (/ 1.e-1_mp, &
@@ -159,6 +159,8 @@ program driver_foe
       accuracy_ice = options//'accuracy_ice'
       accuracy_penalty = options//'accuracy_penalty'
       nit = options//'nit'
+      betax = options//'betax'
+      inversion_method = options//'inversion_method'
      
       call dict_free(options)
 
@@ -179,6 +181,7 @@ program driver_foe
       call yaml_map('Initial minimal eigenvalue',evlow)
       call yaml_map('Initial maximal eigenvalue',evhigh)
       call yaml_map('Iterations with varying temperatures',ntemp)
+      call yaml_map('betax',betax)
       call yaml_map('Guess for Fermi energy',ef)
       call yaml_map('Maximal polynomial degree',npl_max)
       call yaml_map('PEXSI number of poles',pexsi_npoles)
@@ -194,6 +197,7 @@ program driver_foe
       call yaml_map('Accuracy of Chebyshev fit for ICE',accuracy_ice)
       call yaml_map('Accuracy of Chebyshev fit for the penalty function',accuracy_penalty)
       call yaml_map('Number of iterations',nit)
+      call yaml_map('Inversion method for the overlap matrix in FOE',inversion_method)
       call yaml_mapping_close()
   end if
 
@@ -228,6 +232,8 @@ program driver_foe
   call mpibcast(accuracy_ice, root=0, comm=mpi_comm_world)
   call mpibcast(accuracy_penalty, root=0, comm=mpi_comm_world)
   call mpibcast(nit, root=0, comm=mpi_comm_world)
+  call mpibcast(betax, root=0, comm=mpi_comm_world)
+  call mpibcast(inversion_method, root=0, comm=mpi_comm_world)
   ! Since there is no wrapper for logicals...
   if (iproc==0) then
       if (check_spectrum) then
@@ -343,11 +349,12 @@ program driver_foe
       ! Only provide the mandatory values and take for the optional values the default ones.
       call init_foe(iproc, nproc, smat_s%nspin, charge, foe_obj(it), &
            fscale=fscale, fscale_lowerbound=fscale_lowerbound, fscale_upperbound=fscale_upperbound, &
-           evlow=evlow, evhigh=evhigh, &
+           evlow=evlow, evhigh=evhigh, betax=betax, &
            ntemp = ntemp, ef=ef, npl_max=npl_max, &
            accuracy_function=accuracy_foe, accuracy_penalty=accuracy_penalty)
       ! Initialize the same object for the calculation of the inverse. Charge does not really make sense here...
-      call init_foe(iproc, nproc, smat_s%nspin, charge, ice_obj(it), evlow=0.5_mp, evhigh=1.5_mp, &
+      call init_foe(iproc, nproc, smat_s%nspin, charge, ice_obj(it), &
+           evlow=0.5_mp, evhigh=1.5_mp, betax=betax, &
            accuracy_function=accuracy_ice, accuracy_penalty=accuracy_penalty)
   end do
 
@@ -416,7 +423,8 @@ program driver_foe
                foe_obj(it), ice_obj(it), smat_s, smat_h, smat_k, &
                mat_s, mat_h, mat_ovrlpminusonehalf, mat_k, energy, &
                calculate_minusonehalf=.true., foe_verbosity=1, symmetrize_kernel=.true., &
-               calculate_energy_density_kernel=.true., energy_kernel=mat_ek)
+               calculate_energy_density_kernel=.true., energy_kernel=mat_ek, &
+               inversion_method=inversion_method)
       else if (trim(kernel_method)=='PEXSI') then
           call pexsi_wrapper(iproc, nproc, mpi_comm_world, smat_s, smat_h, smat_k, mat_s, mat_h, &
                foe_data_get_real(foe_obj(it),"charge",1), pexsi_npoles, pexsi_mumin, pexsi_mumax, pexsi_mu, pexsi_DeltaE, &
@@ -456,9 +464,9 @@ program driver_foe
           call f_free(eval_all)
           call f_free(eval_occup)
           call f_free(occup)
-          if (iproc==0) then
-              call yaml_mapping_close()
-          end if
+          !if (iproc==0) then
+          !    call yaml_mapping_close()
+          !end if
       else
           call f_err_throw("wrong value for 'kernel_method'; possible values are 'FOE', 'PEXSI' or 'LAPACK'")
       end if
@@ -901,5 +909,19 @@ subroutine commandline_options(parser)
        'Indicate the number of iterations for the kernel caluculations (can be used for benchmarking)',&
        'Allowed values' .is. &
        'Integer'))
+
+  call yaml_cl_parse_option(parser,'betax','-500.0',&
+       'betax for the penalty function',&
+       help_dict=dict_new('Usage' .is. &
+       'Indicate the betax value, which is used in the exponential of the penalty function',&
+       'Allowed values' .is. &
+       'Double'))
+
+  call yaml_cl_parse_option(parser,'inversion_method','ICE',&
+       'Inversion method for the overlap matrix in FOE',&
+       help_dict=dict_new('Usage' .is. &
+       'Inversion method for the overlap matrix in FOE',&
+       'Allowed values' .is. &
+       'String'))
 
 end subroutine commandline_options
