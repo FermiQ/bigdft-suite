@@ -246,8 +246,6 @@ subroutine finalize_hartree_results(sumpion,gpu,kernel,pot_ion,m1,m2,m3p,&
      end if
 
   else
-     !write(*,*) 'iproc, m1, md2, m2, m3p', iproc, m1, md2, m2, m3p
-     write(*,*) 'm1, md1, md2, m2, md3p, m3p', m1, md1, md2, m2, md3p, m3p
      !recollect the final data
      n3delta=md2-m2 !this is the y dimension
      if (sumpion) then
