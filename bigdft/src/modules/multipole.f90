@@ -1930,7 +1930,7 @@ module multipole
       type(matrices),dimension(-lmax:lmax,0:lmax),intent(in),target,optional :: multipole_matrix_in
       type(foe_data),intent(inout),optional :: ice_obj
       character(len=*),intent(in),optional :: filename
-      real(kind=8),dimension(3,smmd%nat),target,intent(in),optional :: multipole_centers
+      real(kind=8),dimension(:,:),target,intent(in),optional :: multipole_centers
 
       ! Local variables
       integer :: methTransformOverlap, iat, ind, ispin, ishift, iorb, jorb, iiorb, l, m, itype, natpx, isatx, kat, n, i, kkat
@@ -2068,6 +2068,12 @@ module multipole
       if (.not.centers_auto) then
           if (.not.present(multipole_centers)) then
               call f_err_throw("'multipole_centers' must be present if 'centers_auto' is true")
+          end if
+          if (size(multipole_centers,1)/=3) then
+              call f_err_throw('wrong 1st dimension of array multipole_centers')
+          end if
+          if (size(multipole_centers,2)/=smmd%nat) then
+              call f_err_throw('wrong 2nd dimension of array multipole_centers')
           end if
       end if
 
