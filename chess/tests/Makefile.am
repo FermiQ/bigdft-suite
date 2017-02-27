@@ -111,7 +111,8 @@ define F_REGTEST_INSTRUCTIONS
         --hamiltonian_file=$(srcdir)/hamiltonian_ccs.txt \
         --kernel_file=$(srcdir)/density_kernel_ccs.txt \
         --kernel_matmul_file=$(srcdir)/density_kernel_matmul_ccs.txt \
-        --check_spectrum=yes
+        --check_spectrum=yes \
+		--betax=1000
 - smatmul:
    binary: smatmul
    runs:

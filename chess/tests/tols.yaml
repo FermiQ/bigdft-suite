@@ -13,6 +13,7 @@ Keys to ignore:
   - Number of dictionary folders allocated
   - Timinig summary
   - Timing analysis
+  - taskgroup summary
 
 driver_random:
   penalty: 15601.0
