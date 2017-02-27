@@ -1930,7 +1930,7 @@ module multipole
       type(matrices),dimension(-lmax:lmax,0:lmax),intent(in),target,optional :: multipole_matrix_in
       type(foe_data),intent(inout),optional :: ice_obj
       character(len=*),intent(in),optional :: filename
-      real(kind=8),dimension(3,smmd%nat),target,intent(in),optional :: multipole_centers
+      real(kind=8),dimension(:,:),target,intent(in),optional :: multipole_centers
 
       ! Local variables
       integer :: methTransformOverlap, iat, ind, ispin, ishift, iorb, jorb, iiorb, l, m, itype, natpx, isatx, kat, n, i, kkat
@@ -1983,8 +1983,12 @@ module multipole
       character(len=14) :: matname
       character(len=128) :: sparse_format
 
+write(*,*) 'in multipole_analysis_driver'
+
 
       call f_routine(id='multipole_analysis_driver')
+
+call yaml_map('in multipole_analysis_driver',.true.)
 
       if (smatl%nspin/=1) then
           call f_err_throw('Atomic multipole analysis not yet ready for nspin>1')
@@ -2068,6 +2072,12 @@ module multipole
       if (.not.centers_auto) then
           if (.not.present(multipole_centers)) then
               call f_err_throw("'multipole_centers' must be present if 'centers_auto' is true")
+          end if
+          if (size(multipole_centers,1)/=3) then
+              call f_err_throw('wrong 1st dimension of array multipole_centers')
+          end if
+          if (size(multipole_centers,2)/=smmd%nat) then
+              call f_err_throw('wrong 2nd dimension of array multipole_centers')
           end if
       end if
 
@@ -2233,6 +2243,8 @@ module multipole
       do l=0,lmax
           do m=-l,l
 
+              call yaml_map('l,m',(/l,m/))
+
               call f_zero(multipole_matrix%matrix_compr)
 
               ! Calculate the multipole matrix
@@ -2367,6 +2379,7 @@ module multipole
       ep%nmpl = smmd%nat
       allocate(ep%mpl(ep%nmpl))
       do impl=1,ep%nmpl
+          call yaml_map('impl',impl)
           ep%mpl(impl) = multipole_set_null()
           allocate(ep%mpl(impl)%qlm(0:lmax))
           !ep%mpl(impl)%rxyz = smmd%rxyz(1:3,impl)
@@ -2396,6 +2409,7 @@ module multipole
       end do
 
       if (iproc==0) then
+          call yaml_map('Calling write_multipoles_new',.true.)
           call yaml_comment('Final result of the multipole analysis',hfill='~')
           call write_multipoles_new(ep, lmax, smmd%units)
       end if

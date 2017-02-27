@@ -1142,6 +1142,7 @@ end if
       call support_function_gross_multipoles(iproc, nproc, tmb, at, at%astruct%shift, denspot)
   end if
 
+call yaml_map('input%lin%charge_multipoles',input%lin%charge_multipoles)
   if (input%lin%charge_multipoles>0) then
     !!$$ UNCOMMENT FOR TEST  !!write(200+iproc,*) tmb%linmat%ovrlp_%matrix_compr
     !!$$ UNCOMMENT FOR TEST  !!write(210+iproc,*) tmb%linmat%kernel_%matrix_compr
@@ -1237,6 +1238,8 @@ end if
           if (.not.input%mp_centers_auto) then
               mp_centers => input%mp_centers
           end if
+call yaml_map('input%mp_centers_auto',input%mp_centers_auto)
+          call yaml_map('Calling multipole_analysis_driver_new',.true.)
           call multipole_analysis_driver_new(iproc, nproc, bigdft_mpi%mpi_comm, lmax, input%ixc, tmb%linmat%smmd, &
                tmb%linmat%s, tmb%linmat%m, tmb%linmat%l, &
                tmb%linmat%ovrlp_, tmb%linmat%ham_, tmb%linmat%kernel_, &
@@ -1247,6 +1250,7 @@ end if
                hgrids=tmb%lzd%hgrids, orbs=tmb%orbs, collcom=tmb%collcom, collcom_sr=tmb%collcom_sr, &
                lzd=tmb%lzd, at=at, denspot=denspot, orthpar=tmb%orthpar, shift=at%astruct%shift, &
                ice_obj=tmb%ice_obj, filename=trim(input%dir_output), multipole_centers=mp_centers)
+          call yaml_map('After multipole_analysis_driver_new',.true.)
   end if
 
 
