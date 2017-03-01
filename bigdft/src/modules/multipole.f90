@@ -1957,6 +1957,7 @@ module multipole
       logical :: perx, pery, perz, write_matrices
       logical,dimension(:,:),allocatable :: neighborx
       integer,dimension(:),allocatable :: nx, inwhichlocreg_reverse
+      integer,dimension(:,:),allocatable :: mat_lookup_s, mat_lookup_l
       character(len=20),dimension(:),allocatable :: names
       real(kind=8) :: rr1, rr2, rr3
       real(kind=8),dimension(3) :: dipole_check
@@ -2144,6 +2145,8 @@ module multipole
       nx = f_malloc(natpx,id='nx')
       call determine_submatrix_sizes(natpx, isatx, smmd, smatl, neighborx, nx, nmax)
       projx = f_malloc((/nmax**2,natpx/),id='projx')
+      mat_lookup_s = f_malloc((/nmax**2,natpx/),id='mat_lookup_s')
+      mat_lookup_l = f_malloc((/nmax**2,natpx/),id='mat_lookup_l')
 
       ! Calculate the matrix for the projector matrix, which is S^-1 for Mulliken and Id for Loewdin.
       ! However, to be consistent (error cancellation of the inverse etc), we calculate for Loewdin the matrix as [S^-1/2*S*S^-1/2]^-1
@@ -2236,6 +2239,12 @@ module multipole
       acell(2)=smmd%cell_dim(2)
       acell(3)=smmd%cell_dim(3)
 
+      do kat=1,natpx
+          n = nx(kat)
+          call init_extract_matrix_lookup(smats, neighborx(1,kat), n, mat_lookup_s(1,kat))
+          call init_extract_matrix_lookup(smatl, neighborx(1,kat), n, mat_lookup_l(1,kat))
+      end do
+
       do l=0,lmax
           do m=-l,l
 
@@ -2294,14 +2303,14 @@ module multipole
                   kernel_extracted = f_malloc((/n,n/),id='kernel_extracted')
                   multipole_extracted = f_malloc((/n,n/),id='multipole_extracted')
                   call extract_matrix(smats, multipole_matrix%matrix_compr, &
-                      neighborx(1,kat), n, multipole_extracted)
+                      neighborx(1,kat), n, mat_lookup_s(1,kat), multipole_extracted)
                   ! The minus sign is required since the phi*S_lm*phi represent the electronic charge which is a negative quantity
                   call dscal(n**2, -1.d0, multipole_extracted(1,1), 1)
-                  call extract_matrix(smatl, kernel_ortho, neighborx(1,kat), n, kernel_extracted)
+                  call extract_matrix(smatl, kernel_ortho, neighborx(1,kat), n, mat_lookup_l(1,kat), kernel_extracted)
                   if (l>0) then
                       call correct_multipole_origin(smmd%nat, l, m, n, smmd%nfvctr, natpx, kat, kkat, &
                            smmd, smats, mp_centers, neighborx, perx, pery, perz, acell, &
-                           lower_multipole_matrices, multipole_extracted)
+                           lower_multipole_matrices, mat_lookup_s(1,kat), multipole_extracted)
                   end if
                   !do i=1,n
                   !    do j=1,n
@@ -2309,7 +2318,8 @@ module multipole
                   !    end do
                   !end do
                   if (trim(method)=='loewdin') then
-                          call extract_matrix(smatl, inv_ovrlp(1)%matrix_compr, neighborx(1,kat), n, projx(1,kat))
+                          call extract_matrix(smatl, inv_ovrlp(1)%matrix_compr, neighborx(1,kat), &
+                               n, mat_lookup_l(1,kat), projx(1,kat))
                           iiorb = 0
                           do iorb=1,smats%nfvctr
                               if (neighborx(iorb,kat)) then
@@ -2550,6 +2560,8 @@ module multipole
       !    call f_free(phi_ortho)
       !end if
       call f_free(projx)
+      call f_free(mat_lookup_s)
+      call f_free(mat_lookup_l)
       call f_free(nx)
       call f_free(neighborx)
       call f_free_ptr(atomic_multipoles)
@@ -2566,7 +2578,7 @@ module multipole
 
 
 
-  subroutine extract_matrix(smat, matrix_compr, neighbor, n, matrix)
+  subroutine extract_matrix(smat, matrix_compr, neighbor, n, mat_lookup, matrix)
     use module_defs
     use dynamic_memory
     use f_utils
@@ -2579,6 +2591,7 @@ module multipole
     real(kind=8),dimension(smat%nvctrp_tg*smat%nspin),intent(in) :: matrix_compr
     logical,dimension(smat%nfvctr),intent(in) :: neighbor
     integer,intent(in) :: n
+    integer,dimension(n,n),intent(in) :: mat_lookup
     real(kind=8),dimension(n,n),intent(out) :: matrix
 
     ! Local variables
@@ -2587,6 +2600,100 @@ module multipole
     integer,dimension(:),allocatable :: lookup
 
     call f_routine(id='extract_matrix')
+
+    !optional_present = present(ilup)
+
+    !$omp parallel default(none) &
+    !$omp shared(n, mat_lookup, matrix_compr, matrix, smat) &
+    !$omp private(i, j, ind)
+    !$omp do
+    do i=1,n
+        do j=1,n
+            ind = mat_lookup(j,i)
+            if (ind>0) then
+                matrix(j,i) = matrix_compr(ind-smat%isvctrp_tg)
+            else
+                matrix(j,i) = 0.d0
+            end if
+        end do
+    end do
+    !$omp end do
+    !$omp end parallel
+
+    !!lookup = f_malloc(smat%nfvctr,id='lookup')
+    !!ii = 0
+    !!do i=1,smat%nfvctr
+    !!    if (neighbor(i)) then
+    !!        ii = ii + 1
+    !!        lookup(i) = ii
+    !!    end if
+    !!end do
+
+
+    !!icheck = 0
+    !!ii = 0
+    !!!SM: The function matrixindex_in_compressed is rather expensive, so probably worth to use OpenMP all the time
+    !!!$omp parallel default(none) &
+    !!!$omp shared(smat, neighbor, lookup, matrix, matrix_compr, icheck) &
+    !!!$omp private(i, jj, ii, j, ind)
+    !!!$omp do schedule(guided) reduction(+: icheck)
+    !!do i=1,smat%nfvctr
+    !!    if (neighbor(i)) then
+    !!        jj = 0
+    !!        ii = lookup(i)
+    !!        do j=1,smat%nfvctr
+    !!            if (neighbor(j)) then
+    !!                icheck = icheck + 1
+    !!                jj = jj + 1
+    !!                !if (jj==1) ii = ii + 1 !new column if we are at the first line element of a a column
+    !!                ind =  matrixindex_in_compressed(smat, j, i)
+    !!                if (ind>0) then
+    !!                    matrix(jj,ii) = matrix_compr(ind-smat%isvctrp_tg)
+    !!                else
+    !!                    matrix(jj,ii) = 0.d0
+    !!                end if
+    !!                !if (optional_present) then
+    !!                !    ilup(1,jj,ii) = j
+    !!                !    ilup(2,jj,ii) = i
+    !!                !end if
+    !!            end if
+    !!        end do
+    !!    end if
+    !!end do
+    !!!$omp end do
+    !!!$omp end parallel
+    !!if (icheck>n**2) then
+    !!    call f_err_throw('icheck('//adjustl(trim(yaml_toa(icheck)))//') > n**2('//&
+    !!        &adjustl(trim(yaml_toa(n**2)))//')',err_name='BIGDFT_RUNTIME_ERROR')
+    !!end if
+
+    !!call f_free(lookup)
+
+    call f_release_routine()
+
+  end subroutine extract_matrix
+
+
+  subroutine init_extract_matrix_lookup(smat, neighbor, n, matrix_lookup)
+    use module_defs
+    use dynamic_memory
+    use f_utils
+    use sparsematrix_base,only: sparse_matrix, matrices
+    use sparsematrix_init, only: matrixindex_in_compressed
+    implicit none
+
+    ! Calling arguments
+    type(sparse_matrix),intent(in) :: smat
+    logical,dimension(smat%nfvctr),intent(in) :: neighbor
+    integer,intent(in) :: n
+    integer,dimension(n,n),intent(out) :: matrix_lookup
+
+    ! Local variables
+    integer :: icheck, ii, jj, i, j, ind
+    !logical :: optional_present
+    integer,dimension(:),allocatable :: lookup
+
+    call f_routine(id='init_extract_matrix_lookup')
 
     !optional_present = present(ilup)
 
@@ -2604,7 +2711,7 @@ module multipole
     ii = 0
     !SM: The function matrixindex_in_compressed is rather expensive, so probably worth to use OpenMP all the time
     !$omp parallel default(none) &
-    !$omp shared(smat, neighbor, lookup, matrix, matrix_compr, icheck) &
+    !$omp shared(smat, neighbor, lookup, matrix_lookup, icheck) &
     !$omp private(i, jj, ii, j, ind)
     !$omp do schedule(guided) reduction(+: icheck)
     do i=1,smat%nfvctr
@@ -2617,11 +2724,12 @@ module multipole
                     jj = jj + 1
                     !if (jj==1) ii = ii + 1 !new column if we are at the first line element of a a column
                     ind =  matrixindex_in_compressed(smat, j, i)
-                    if (ind>0) then
-                        matrix(jj,ii) = matrix_compr(ind-smat%isvctrp_tg)
-                    else
-                        matrix(jj,ii) = 0.d0
-                    end if
+                    matrix_lookup(jj,ii) = ind
+                    !!if (ind>0) then
+                    !!    matrix(jj,ii) = matrix_compr(ind-smat%isvctrp_tg)
+                    !!else
+                    !!    matrix(jj,ii) = 0.d0
+                    !!end if
                     !if (optional_present) then
                     !    ilup(1,jj,ii) = j
                     !    ilup(2,jj,ii) = i
@@ -2641,7 +2749,7 @@ module multipole
 
     call f_release_routine()
 
-  end subroutine extract_matrix
+  end subroutine init_extract_matrix_lookup
 
 
 
@@ -4713,7 +4821,7 @@ end subroutine calculate_rpowerx_matrices
 
     subroutine correct_multipole_origin(nat, l, m, n, nlr, natpx, kat, kkat, &
                smmd, smats, rxyz, neighborx, perx, pery, perz, acell, &
-               lower_multipole_matrices, multipole_extracted)
+               lower_multipole_matrices, mat_lookup, multipole_extracted)
       use sparsematrix_base, only: sparse_matrix_metadata, sparse_matrix, matrices
       use module_types, only: orbitals_data
       implicit none
@@ -4727,6 +4835,7 @@ end subroutine calculate_rpowerx_matrices
       logical,intent(in) :: perx, pery, perz
       real(kind=8),dimension(3),intent(in) :: acell
       type(matrices),dimension(-1:1,0:1),intent(in):: lower_multipole_matrices
+      integer,dimension(n,n),intent(in) :: mat_lookup
       real(kind=8),dimension(n,n),intent(inout) :: multipole_extracted
 
       ! Local variables
@@ -4741,7 +4850,7 @@ end subroutine calculate_rpowerx_matrices
             lmp_extracted = f_malloc((/1.to.n,1.to.n,0.to.0,0.to.0/),id='lmp_extracted')
             tmpmat = f_malloc((/n,n/),id='tmpmat')
             call extract_matrix(smats, lower_multipole_matrices(0,0)%matrix_compr, &
-                 neighborx(1,kat), n, lmp_extracted(1,1,0,0))
+                 neighborx(1,kat), n, mat_lookup, lmp_extracted(1,1,0,0))
             select case (m)
             case (-1)
                 ii = 0
@@ -4790,10 +4899,10 @@ end subroutine calculate_rpowerx_matrices
             lmp_extracted = f_malloc((/1.to.n,1.to.n,-1.to.1,0.to.1/),id='lmp_extracted')
             tmpmat = f_malloc((/n,n/),id='tmpmat')
             call extract_matrix(smats, lower_multipole_matrices(0,0)%matrix_compr, &
-                 neighborx(1,kat), n, lmp_extracted(1,1,0,0))
+                 neighborx(1,kat), n, mat_lookup, lmp_extracted(1,1,0,0))
             do i=-1,1
                 call extract_matrix(smats, lower_multipole_matrices(i,1)%matrix_compr, &
-                     neighborx(1,kat), n, lmp_extracted(1,1,i,1))
+                     neighborx(1,kat), n, mat_lookup, lmp_extracted(1,1,i,1))
             end do
             select case (m)
             case (-2)
