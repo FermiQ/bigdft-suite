@@ -71,6 +71,14 @@
      COMMENT: Required accuracy for the Chebyshev fit for the penalty function
      default: 1.e-5
      RANGE: [1.e-10,1.e-3]
+   betax_foe:
+     COMMENT: the exponent in the exponential penalty function which is used to determine the eigenvalue bounds for FOE
+     default: -1000.0
+     RANGE: [-10000.0,-100.0]
+   betax_ice:
+     COMMENT: the exponent in the exponential penalty function which is used to determine the eigenvalue bounds for ICE
+     default: -1000.0
+     RANGE: [-10000.0,-100.0]
    #fscale:
    #  COMMENT: Decay length of the error function
    #  DESCRIPTION: |

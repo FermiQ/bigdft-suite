@@ -54,7 +54,7 @@ module foe
       use chebyshev, only: chebyshev_clean, chebyshev_fast
       use foe_common, only: evnoise, &
                             retransform_ext, get_chebyshev_expansion_coefficients, &
-                            find_fermi_level, get_polynomial_degree, &
+                            find_fermi_level, &
                             calculate_trace_distributed_new, get_bounds_and_polynomials
       use module_func
       use dynamic_memory
@@ -259,14 +259,14 @@ module foe
                smats=smats, ovrlp_=ovrlp_, ovrlp_minus_one_half_=ovrlp_minus_one_half_(1), &
                efarr=efarr, fscale_arr=fscale_arr, max_errorx=max_error)
 
-          if (iproc==0) then
-              call yaml_mapping_open('summary',flow=.true.)
-              call yaml_map('npl',npl)
-              call yaml_map('bounds', &
-                   (/foe_data_get_real(ice_obj,"evlow",1),foe_data_get_real(ice_obj,"evhigh",1)/),fmt='(f6.2)')
-              call yaml_map('exp accur',max_error,fmt='(es8.2)')
-              call yaml_mapping_close()
-          end if
+          !!if (iproc==0) then
+          !!    call yaml_mapping_open('summary',flow=.true.)
+          !!    call yaml_map('npl',npl)
+          !!    call yaml_map('bounds', &
+          !!         (/foe_data_get_real(ice_obj,"evlow",1),foe_data_get_real(ice_obj,"evhigh",1)/),fmt='(f6.2)')
+          !!    call yaml_map('exp accur',max_error,fmt='(es8.2)')
+          !!    call yaml_mapping_close()
+          !!end if
 
           call find_fermi_level(iproc, nproc, comm, npl, chebyshev_polynomials, &
                foe_verbosity, 'test', smatl, 1, foe_obj, kernel_, calculate_spin_channels)
