@@ -2318,26 +2318,28 @@ module multipole
                   !    end do
                   !end do
                   if (trim(method)=='loewdin') then
-                          call extract_matrix(smatl, inv_ovrlp(1)%matrix_compr, neighborx(1,kat), &
-                               n, mat_lookup_l(1,kat), projx(1,kat))
-                          iiorb = 0
-                          do iorb=1,smats%nfvctr
-                              if (neighborx(iorb,kat)) then
-                                  iiorb = iiorb + 1
-                                  if (smmd%on_which_atom(iorb)/=kkat) then
-                                      do jorb=1,n
-                                          projx((iiorb-1)*n+jorb,kat) = 0.d0
-                                      end do
-                                  end if
-                              end if
-                          end do
+                      call extract_matrix(smatl, inv_ovrlp(1)%matrix_compr, neighborx(1,kat), &
+                           n, mat_lookup_l(1,kat), projx(1,kat))
+                      call prepare_loewdin_projector(smats, smmd, n, kkat, neighborx(1,kat), projx(1,kat))
+                      !!iiorb = 0
+                      !!do iorb=1,smats%nfvctr
+                      !!    if (neighborx(iorb,kat)) then
+                      !!        iiorb = iiorb + 1
+                      !!        if (smmd%on_which_atom(iorb)/=kkat) then
+                      !!            do jorb=1,n
+                      !!                projx((iiorb-1)*n+jorb,kat) = 0.d0
+                      !!            end do
+                      !!        end if
+                      !!    end if
+                      !!end do
                   end if
                   !do i=1,n**2
                   !    write(*,*) 'i, j, projx(i,kat)', i, j, projx(i,kat)
                   !end do
-                  call gemm('n', 'n', n, n, n, 1.d0, kernel_extracted(1,1), n, &
-                       projx(1,kat), n, 0.d0, qmat_tilde(1,1), n)
-                  call gemm('n', 'n', n, n, n, 1.d0, qmat_tilde(1,1), n, multipole_extracted(1,1), n, 0.d0, kp(1,1), n)
+                  call calculate_population_matrix(n, kernel_extracted, projx(1,kat), multipole_extracted, qmat_tilde, kp)
+                  !!call gemm('n', 'n', n, n, n, 1.d0, kernel_extracted(1,1), n, &
+                  !!     projx(1,kat), n, 0.d0, qmat_tilde(1,1), n)
+                  !!call gemm('n', 'n', n, n, n, 1.d0, qmat_tilde(1,1), n, multipole_extracted(1,1), n, 0.d0, kp(1,1), n)
                   call f_free(kernel_extracted)
                   call f_free(multipole_extracted)
                   tt = 0.d0
@@ -5693,5 +5695,58 @@ end subroutine calculate_rpowerx_matrices
       end do
 
     end subroutine determine_submatrix_sizes
+
+
+    subroutine calculate_population_matrix(n, kernel_extracted, projx, multipole_extracted, qmat_tilde, kp)
+      implicit none
+
+      ! Calling arguments
+      integer,intent(in) :: n
+      real(kind=8),dimension(n,n),intent(in) :: kernel_extracted, projx, multipole_extracted
+      real(kind=8),dimension(n,n),intent(inout) ::qmat_tilde
+      real(kind=8),dimension(n,n),intent(out) :: kp
+
+      call f_routine(id='calculate_population_matrix')
+
+      call gemm('n', 'n', n, n, n, 1.d0, kernel_extracted(1,1), n, &
+           projx(1,1), n, 0.d0, qmat_tilde(1,1), n)
+      call gemm('n', 'n', n, n, n, 1.d0, qmat_tilde(1,1), n, multipole_extracted(1,1), n, 0.d0, kp(1,1), n)
+
+      call f_release_routine()
+
+    end subroutine calculate_population_matrix
+
+
+    subroutine prepare_loewdin_projector(smats, smmd, n, kkat, neighborx, projx)
+      use sparsematrix_base, only: sparse_matrix, sparse_matrix_metadata
+      implicit none
+
+      ! Calling arguments
+      type(sparse_matrix),intent(in) :: smats
+      type(sparse_matrix_metadata),intent(in) :: smmd
+      integer,intent(in) :: n, kkat
+      logical,dimension(smats%nfvctr),intent(in) :: neighborx
+      real(kind=8),dimension(n**2),intent(inout) :: projx
+
+      ! Local variables
+      integer :: iiorb, iorb, jorb
+
+      call f_routine(id='prepare_loewdin_projector')
+
+      iiorb = 0
+      do iorb=1,smats%nfvctr
+          if (neighborx(iorb)) then
+              iiorb = iiorb + 1
+              if (smmd%on_which_atom(iorb)/=kkat) then
+                  do jorb=1,n
+                      projx((iiorb-1)*n+jorb) = 0.d0
+                  end do
+              end if
+          end if
+      end do
+
+      call f_release_routine()
+
+    end subroutine prepare_loewdin_projector
 
 end module multipole
