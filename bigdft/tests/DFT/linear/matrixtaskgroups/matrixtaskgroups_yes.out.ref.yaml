@@ -1615,9 +1615,7 @@
    Orthoconstraint:  Yes, summary: {npl:  110, bounds:  [  0.500,  1.500 ], 
                               exp accur:  [  2.14E-14 ]}, summary: {npl:  110, bounds: [
   0.500,  1.500], exp accur:  [  2.14E-14,  3.75E-14,  5.11E-14 ]}, 
-                                                                correction orthoconstraint:  , 
-                                                                           Preconditioning:  , 
-                                                                                     rel D:  , 
+ correction orthoconstraint:  Yes, Preconditioning:  Yes, rel D:  0.00E+00, 
  iter:  1, fnrm:  9.43E-01, Omega: {HYBRID:  1.796272565779309E+02}, D:  1.80E+02, 
                                     D best:  1.80E+02, 
                             exit criterion: net number of iterations}

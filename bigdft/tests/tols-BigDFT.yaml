@@ -621,9 +621,9 @@ rotate_read1:
  EXC: 1.1e-10
  EH: 1.0e-9
  orthog_energy: 2.4e-11
- energy: 9.2e-11
+ energy: 9.3e-11
  energydiff: 8.3e-11
- Omega: 8.1e-11
+ Omega: 9.3e-11
  D: 1.1e-10
  Energy (Hartree): 8.7e-11
  Maxdiff for transpose (checksum): 9.4e-10
@@ -635,7 +635,7 @@ rotate_read2:
  energy: 7.4e-11
  Omega: 7.1e-11
  Epot: 1.1e-9
- Energy (Hartree): 6.5e-11
+ Energy (Hartree): 6.6e-11
  Maxdiff for transpose (checksum): 9.4e-10
 
 rotate_write:
@@ -740,7 +740,7 @@ molecule_dmin:
  eBS: 8.6e-9
  e: 1.4e-10
  Average noise forces: 4.1e-11
- Energy (Hartree): 1.4e-10
+ Energy (Hartree): 1.6e-10
  Maxdiff for transpose (checksum): 1.9e-09
  Force Norm (Hartree/Bohr): 2.7e-11
  Clean forces norm (Ha/Bohr): 1.2e-11
@@ -951,7 +951,7 @@ water_dirmin:
  etot: 1.7e-10
  energydiff: 3.3e-11
  D: 1.1e-09
- Energy (Hartree): 1.5e-10
+ Energy (Hartree): 1.6e-10
  Maxdiff for transpose (checksum): 2.4e-10
  Keys to ignore:
   - WARNINGS
@@ -970,8 +970,8 @@ water_mixdens:
  energydiff: 2.5e-11
  etot: 1.7e-10
  Omega: 1.7e-10
- Energy (Hartree): 1.5e-10
- Maxdiff for transpose (checksum): 2.4e-10
+ Energy (Hartree): 1.6e-10
+ Maxdiff for transpose (checksum): 4.7e-10
  Keys to ignore:
   - WARNINGS
 
@@ -986,8 +986,8 @@ water_mixpot:
  energy: 1.8e-10
  Omega: 1.8e-10
  etot: 1.8e-10
- Energy (Hartree): 1.7e-10
- Maxdiff for transpose (checksum): 2.4e-10
+ Energy (Hartree): 1.8e-10
+ Maxdiff for transpose (checksum): 4.7e-10
  Keys to ignore:
   - WARNINGS
 
@@ -1009,7 +1009,7 @@ deltascf_read_charge:
  EH: 1.1e-9
  Energy (Hartree): 2.4e-10
  D: 1.01e-9
- Maxdiff for transpose (checksum): 9.4e-10
+ Maxdiff for transpose (checksum): 1.4e-9
  Total charge: 2.1e-11
  Force Norm (Hartree/Bohr): 4.5e-11
 
@@ -1026,7 +1026,7 @@ deltascf_write_neut:
  Enl: 4.1e-9
  energy: 2.5e-10
  D: 6.1e-9
- Energy (Hartree): 2.1e-10
+ Energy (Hartree): 2.2e-10
  Maxdiff for transpose (checksum): 3.8e-9
  Total charge: 2.1e-11
 
@@ -1326,7 +1326,7 @@ reformat_read:
  Energy (Hartree): 5.7e-10
  Force Norm (Hartree/Bohr): 6.3e-10
  Total charge: 3.0e-11
- Maxdiff for transpose (checksum): 9.4e-10
+ Maxdiff for transpose (checksum): 1.9e-9
 
 reformat_write:
  Kohn-Sham residue: 4.1e-4

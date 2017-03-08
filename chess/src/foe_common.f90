@@ -2521,6 +2521,7 @@ module foe_common
                           call yaml_map('npl determined by','function')
                       end if
                       if (do_scaling) call yaml_map('scale',eval_multiplicator_total,fmt='(es9.2)')
+                      call yaml_newline()
                       call yaml_map('bounds', &
                            (/foe_data_get_real(foe_obj,"evlow",1),foe_data_get_real(foe_obj,"evhigh",1)/),fmt='(f7.3)')
                       call yaml_map('exp accur',max_error,fmt='(es8.2)')
@@ -2626,6 +2627,7 @@ module foe_common
               call yaml_map('npl determined by','function')
           end if
           if (do_scaling) call yaml_map('scale',eval_multiplicator_total,fmt='(es9.2)')
+          call yaml_newline()
           call yaml_map('bounds', &
                (/foe_data_get_real(foe_obj,"evlow",1),foe_data_get_real(foe_obj,"evhigh",1)/),fmt='(f7.3)')
           call yaml_map('exp accur',max_error,fmt='(es8.2)')
