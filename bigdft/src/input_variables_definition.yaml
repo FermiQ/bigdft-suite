@@ -2322,6 +2322,7 @@ linear:
    Sn: {nbasis: 4, rloc: 6.5}
    Fe: {nbasis: 13, rloc: 8.0}
    Cu: {nbasis: 9, rloc: 7.0}
+   W:  {nbasis: 9, rloc: 7.5}
  ig_occupation:
    Fe:
      3s: 2.0
@@ -2335,6 +2336,10 @@ linear:
      3d: 10.0
      4s: 1.0
      4p: 0.0
+   W:
+     6s: 2.0
+     5d: 4.0
+     6p: 0.0
 md:
   COMMENT: Molecular dynamics input parameters for H2O molecules
   geopt:
