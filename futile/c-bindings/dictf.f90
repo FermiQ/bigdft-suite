@@ -218,3 +218,93 @@ subroutine bind_dict_free(dict)
 
   call dict_free(dict)
 end subroutine bind_dict_free
+
+subroutine bind_dict_set_double_array(dict,key,keylen,array,arraylen)
+  use f_precisions
+  use dictionaries
+  type(dictionary), pointer :: dict
+  integer, intent(in) :: keylen,arraylen
+  character(len=keylen), intent(in) :: key
+  real(f_double), dimension(arraylen), intent(in) :: array
+
+  call set(dict // key, array)
+end subroutine bind_dict_set_double_array
+
+subroutine bind_dict_set_dict(dict,key,keylen,val)
+  use dictionaries
+  type(dictionary), pointer :: dict,val
+  integer, intent(in) :: keylen
+  character(len=keylen), intent(in) :: key
+
+  call set(dict // key, val)
+end subroutine bind_dict_set_dict
+
+subroutine bind_dict_add_dict(dict,val)
+  use dictionaries
+  type(dictionary), pointer :: dict,val
+
+  call add(dict, val)
+end subroutine bind_dict_add_dict
+
+subroutine bind_dict_add_double(dict,val)
+  use dictionaries
+  use f_precisions
+  type(dictionary), pointer :: dict
+  real(f_double), intent(in) :: val
+
+  call add(dict, val)
+end subroutine bind_dict_add_double
+
+
+subroutine bind_dict_get_double_array(dict,key,keylen,array,arraylen,istat)
+  use f_precisions
+  use dictionaries
+  type(dictionary), pointer :: dict
+  integer, intent(in) :: keylen,arraylen
+  character(len=keylen), intent(in) :: key
+  integer, intent(out) :: istat
+  real(f_double), dimension(arraylen), intent(out) :: array
+  
+  istat=1
+  if (key .in. dict) then
+     istat=0
+     array=dict//key
+  end if
+
+end subroutine bind_dict_get_double_array
+
+subroutine bind_dict_get_dict(dict,key,keylen,val,istat)
+  use f_precisions
+  use dictionaries
+  type(dictionary), pointer :: dict,val
+  integer, intent(in) :: keylen
+  character(len=keylen), intent(in) :: key
+  integer, intent(out) :: istat
+  
+  istat=1
+  if (key .in. dict) then
+     istat=0
+     val=>dict//key
+  end if
+
+end subroutine bind_dict_get_dict
+
+subroutine bind_iter_null(iter)
+  use dictionaries
+  type(dictionary), pointer :: iter
+  nullify(iter)
+end subroutine bind_iter_null
+
+subroutine bind_iterate(iter,dict,istat)
+  use dictionaries
+  type(dictionary), pointer :: iter,dict
+  istat=1
+  if (associated(iter)) then
+     iter=>dict_next(iter)
+  else
+     iter => dict_iter(dict)
+  end if
+  if(associated(iter)) istat=0
+
+  !if (iterate(iter,on=dict)) istat=0
+end subroutine bind_iterate

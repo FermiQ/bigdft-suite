@@ -12,8 +12,6 @@
 
 #undef hz
 
-#define max_field_length 256
-
 /* bind_dict_append futile/c-bindings/dictf.f90:36 */
 /* Fortran header:
 subroutine bind_dict_append(dict)
@@ -211,4 +209,61 @@ character(len = max_field_length), intent(out) :: buf
 void FC_FUNC_(bind_dict_value, BIND_DICT_VALUE)(const f90_dictionary_pointer *dict, 
                                                 char *buf, 
                                                 int str_ln_1);
+/* bind_dict_set_dict ./c-bindings/dictf.f90:233 */
+/* Fortran header:
+subroutine bind_dict_set_dict(dict,key,keylen,val)
+use dictionaries
+type(dictionary), pointer :: dict,val
+integer, intent(in) :: keylen
+character(len=keylen), intent(in) :: key
+*/
+void FC_FUNC_(bind_dict_set_dict, BIND_DICT_SET_DICT)(f90_dictionary_pointer *dict, 
+                                                      const char *key, 
+                                                      const int *keylen, 
+                                                      f90_dictionary_pointer *val,
+						      int str_ln_1);
+/* bind_dict_set_double_array ./c-bindings/dictf.f90:222 */
+/* Fortran header:
+subroutine bind_dict_set_double_array(dict,key,keylen,array,arraylen)
+use f_precisions
+use dictionaries
+type(dictionary), pointer :: dict
+integer, intent(in) :: keylen,arraylen
+character(len=keylen), intent(in) :: key
+real(f_double), dimension(arraylen), intent(in) :: array
+*/
+void FC_FUNC_(bind_dict_set_double_array, BIND_DICT_SET_DOUBLE_ARRAY)(f90_dictionary_pointer *dict,
+								      const char *key, 
+                                                                      const int *keylen, 
+                                                                      const double *array, 
+                                                                      const int *arraylen,
+								      int str_ln_1);
+
+void FC_FUNC_(bind_dict_get_double_array, BIND_DICT_GET_DOUBLE_ARRAY)(f90_dictionary_pointer *dict,
+								      const char *key, 
+                                                                      const int *keylen, 
+                                                                      double *array, 
+                                                                      const int *arraylen,
+								      int *istat,
+								      int str_ln_1);
+
+void FC_FUNC_(bind_dict_get_dict, BIND_DICT_GET_DICT)(f90_dictionary_pointer *dict, 
+                                                      const char *key, 
+                                                      const int *keylen, 
+                                                      f90_dictionary_pointer *val,
+						      int *istat,
+						      int str_ln_1);
+
+void FC_FUNC_(bind_dict_add_dict, BIND_DICT_ADD_DICT)(f90_dictionary_pointer *dict, 
+                                                      f90_dictionary_pointer *val);
+
+
+void FC_FUNC_(bind_dict_add_double, BIND_DICT_ADD_DOUBLE)(f90_dictionary_pointer *dict, 
+							  const double *val);
+
+ /*subroutine bind_dict_add_dict(dict,val)
+  use dictionaries
+  type(dictionary), pointer :: dict,val*/
+
+
 #endif
