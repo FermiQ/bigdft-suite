@@ -1179,10 +1179,6 @@ contains
          call wtascii(iunit,energy_,rxyz_,astruct,comment)
          if (present(forces)) call wtascii_forces(iunit,forces,astruct)
       case ('int')
-         !if (.not.present(na) .or. .not.present(nb) .or. .not.present(nc)) then
-         !    call f_err_throw('na, nb, nc must be present to write a file in internal coordinates', &
-         !         err_name='BIGDFT_RUNTIME_ERROR')
-         !end if
          rxyz_int = f_malloc((/3,astruct%nat/),id='rxyz_int')
          !call wtint(iunit,energy_,rxyz,astruct,comment,ixyz(1,:),ixyz(2,:),ixyz(3,:))
          call xyzint(rxyz_, astruct%nat, &
@@ -1459,7 +1455,8 @@ contains
       atoms => dict_iter(dict // ASTRUCT_POSITIONS)
       do while(associated(atoms))
          call astruct_at_from_dict(atoms, symbol = str)
-         if (.not. has_key(types, str)) then
+         !if (.not. has_key(types, str)) then
+         if (str .notin. types) then
             ityp = ityp + 1
             call set(types // str, ityp)
          end if
@@ -2596,3 +2593,10 @@ subroutine astruct_add_atom(dict, xyz, symbol, slen)
 
   call add(dict // "positions", dict_new(symbol .is. xyz))
 end subroutine astruct_add_atom
+
+subroutine astruct_get_types_dict(dict,types)
+  use dictionaries
+  use module_atoms, only: astruct_dict_get_types
+  type(dictionary), pointer :: dict,types
+  call astruct_dict_get_types(dict,types)
+end subroutine astruct_get_types_dict

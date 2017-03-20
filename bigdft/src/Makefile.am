@@ -47,12 +47,14 @@ subs_static_library = \
 if BUILD_DYNAMIC_LIBS
 bigdft_dynamic_library = libbigdft-1.so.@BIGDFT_MINOR_VERSION@.0.@BIGDFT_MICRO_VERSION@
 bigdft_soname_library = libbigdft-1.so.@BIGDFT_MINOR_VERSION@
+bigdft_deps = @LIB_BIGDFT_DEPS@
 bigdft_library = $(bigdft_soname_library)
 AM_LDFLAGS = -Wl,-rpath=$(DESTDIR)$(dynlibdir)
 else
 bigdft_dynamic_library =
 bigdft_soname_library =
-bigdft_library = libbigdft-1.a @LIB_BIGDFT_DEPS@ @LINALG_LIBS@
+bigdft_deps = @LIB_BIGDFT_DEPS@ @LINALG_LIBS@
+bigdft_library = libbigdft-1.a $(bigdft_deps)
 endif
 
 if BUILD_BINARIES
@@ -67,6 +69,11 @@ local_binaries =
 scripts_sources =
 sub_dirs_bin =
 check_PROGRAMS =
+endif
+
+if HAVE_OPENBABEL
+openbabel_dependency = modules/libbabel.so.@BIGDFT_MINOR_VERSION@
+bigdft_deps += -Lmodules -lbabel
 endif
 
 # Additional sources.
@@ -238,8 +245,8 @@ libbigdft-1.a: $(libmain_a_OBJECTS) tmp-libbigdft/extract.stamp
 	$(AR) $(ARFLAGS) $@ $(libmain_a_OBJECTS) tmp-libbigdft/*.o
 	$(RANLIB) $@
 
-$(bigdft_dynamic_library): $(libmain_a_OBJECTS) tmp-libbigdft/extract.stamp
-	$(FC) $(FCFLAGS) -shared $(LDFLAGS) $(AM_LDFLAGS) -Wl,-soname=$(bigdft_soname_library) -o $@ $(libmain_a_OBJECTS) tmp-libbigdft/*.o @LIB_BIGDFT_DEPS@
+$(bigdft_dynamic_library): $(libmain_a_OBJECTS) tmp-libbigdft/extract.stamp $(openbabel_dependency)
+	$(FC) $(FCFLAGS) -shared $(LDFLAGS) $(AM_LDFLAGS) -Wl,-soname=$(bigdft_soname_library) -o $@ $(libmain_a_OBJECTS) tmp-libbigdft/*.o $(bigdft_deps)
 	@chmod a+x $@
 
 libbigdft-1.so.@BIGDFT_MINOR_VERSION@: $(bigdft_dynamic_library)

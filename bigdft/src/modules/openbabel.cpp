@@ -15,16 +15,17 @@
 
 #include <config.h>
 #include <stdlib.h>
+extern "C" {
+#include <futile.h>
+}
+extern "C" void FC_FUNC_(astruct_get_types_dict, ASTRUCT_GET_TYPES_DICT)(f90_dictionary_pointer* dict, f90_dictionary_pointer* types);
 
-extern "C" void FC_FUNC_(astruct_set_cell, ASTRUCT_SET_CELL)(void *, const double [3]);
-extern "C" void FC_FUNC_(astruct_add_atom, ASTRUCT_ADD_ATOM)(void *, const double [3], const char*, int *, unsigned int);
-
-extern "C" void FC_FUNC_(openbabel_load, OPENBABEL_LOAD)(void *dict_posinp,
-                                                       const char *filename, unsigned int flen)
+extern "C" void FC_FUNC_(openbabel_load, OPENBABEL_LOAD)(f90_dictionary_pointer *dict_posinp,
+                                                         const char *filename, unsigned int *flen)
 {
-  char *fname = (char*)malloc(sizeof(char) * (flen + 1));
-  memcpy(fname, filename, sizeof(char) * flen);
-  fname[flen] = '\0';
+  char *fname = (char*)malloc(sizeof(char) * (*flen + 1));
+  memcpy(fname, filename, sizeof(char) * *flen);
+  fname[*flen] = '\0';
   std::ifstream fin(fname);
   OpenBabel::OBConversion conv(&fin, NULL);
 
@@ -45,7 +46,7 @@ extern "C" void FC_FUNC_(openbabel_load, OPENBABEL_LOAD)(void *dict_posinp,
 
   /* Store if the file is periodic or not. */
   double vect[3], cell[3];
-  OpenBabel::OBUnitCell *uc = (OpenBabel::OBUnitCell*)mol.GetData(OpenBabel::OBGenericDataType::UnitCell);
+  OpenBabel::OBUnitCell *uc(static_cast<OpenBabel::OBUnitCell*>(mol.GetData(OpenBabel::OBGenericDataType::UnitCell)));
   if (uc)
     {
       double rprimdFull[9];
@@ -62,7 +63,7 @@ extern "C" void FC_FUNC_(openbabel_load, OPENBABEL_LOAD)(void *dict_posinp,
       cell[2] = rprimdFull[8];
       uc->GetOffset().Get(vect);
       uc->FillUnitCell(&mol);
-      FC_FUNC_(astruct_set_cell, ASTRUCT_SET_CELL)(dict_posinp, cell);
+      dict_set_double_array(dict_posinp, "cell", cell, 3);
     }
   else
     {
@@ -70,6 +71,10 @@ extern "C" void FC_FUNC_(openbabel_load, OPENBABEL_LOAD)(void *dict_posinp,
       vect[1] = 0.;
       vect[2] = 0.;
     }
+
+  /* retrieve positions */
+  f90_dictionary_pointer dict_positions;
+  dict_init(&dict_positions);
 
   /* Stores coordinates. */
   FOR_ATOMS_OF_MOL(a, mol)
@@ -82,9 +87,91 @@ extern "C" void FC_FUNC_(openbabel_load, OPENBABEL_LOAD)(void *dict_posinp,
                  xyz[1] / cell[1] > 1 - 1e-6 ||
                  xyz[2] / cell[2] > 1 - 1e-6))
         continue;
-      const char *symbol = OpenBabel::etab.GetSymbol(a->GetAtomicNum());
-      int len = strlen(symbol);
-      FC_FUNC_(astruct_add_atom, ASTRUCT_ADD_ATOM)(dict_posinp, xyz,
-                                                   symbol, &len, len);
+      f90_dictionary_pointer atom;
+      dict_init(&atom);
+      dict_set_double_array(&atom, OpenBabel::etab.GetSymbol(a->GetAtomicNum()), xyz, 3);
+      dict_add_dict(&dict_positions, &atom);
     }
+
+  dict_set_dict(dict_posinp, "positions", &dict_positions);
+}
+
+extern "C" void FC_FUNC_(openbabel_dump, OPENBABEL_DUMP)(f90_dictionary_pointer *dict_posinp,
+                                                         f90_dictionary_pointer *dict_types,
+							 const char *filename, unsigned int *flen)
+{
+
+  /* Ensure output file */
+  char *fname = (char*)malloc(sizeof(char) * (*flen + 1));
+  memcpy(fname, filename, sizeof(char) * *flen);
+  fname[*flen] = '\0';
+  std::ofstream fout(fname);
+
+  OpenBabel::OBConversion conv(NULL, &fout);
+
+  OpenBabel::OBFormat *pFormat;
+  pFormat = conv.FormatFromExt(fname);
+
+  free(fname);
+
+  if (!pFormat || (pFormat->Flags() & NOTWRITABLE))
+    return;
+
+  conv.SetOutFormat(pFormat);
+
+
+  /* Create a new OpenBabel object. */
+  OpenBabel::OBMol mol;
+  OpenBabel::OBUnitCell *cell;
+
+  /* if cell key exists */
+  double acell[3];
+  if (dict_get_double_array(dict_posinp, "cell", acell, 3))
+    {
+      OpenBabel::vector3 a(0.,0.,0.), b(0.,0.,0.), c(0.,0.,0.);
+      double rprimdFull[3][3];
+      memset(rprimdFull, 0, sizeof(double)*9);
+      rprimdFull[0][0]=acell[0];
+      rprimdFull[1][1]=acell[1];
+      rprimdFull[2][2]=acell[2];
+      a.Set(rprimdFull[0]);
+      b.Set(rprimdFull[1]);
+      c.Set(rprimdFull[2]);
+      cell=new OpenBabel::OBUnitCell;
+      cell->SetData(a, b, c);
+      mol.SetData(cell);    
+    }
+
+  /*iterate on atoms */
+  f90_dictionary_pointer dict_positions;
+  if (dict_get_dict(dict_posinp, "positions", &dict_positions))
+    {
+      f90_dictionary_iterator it_atom;
+      dict_iter_new(&it_atom, &dict_positions);
+      while (iterate(&it_atom))
+	{
+          #define UNSET -123456789.0
+	  f90_dictionary_pointer coord;
+	  double xyz[3] = {UNSET, UNSET, UNSET};
+	  f90_dictionary_iterator it_type;
+	  dict_iter_new(&it_type, dict_types);
+	  while (iterate(&it_type))
+	    {
+	      if (dict_get_double_array(&it_atom.dict, it_type.key, xyz, 3))
+		break;
+	    }
+          if (xyz[0] != UNSET && xyz[1] != UNSET && xyz[2] != UNSET)
+            {
+              OpenBabel::OBAtom *atom;
+              atom = mol.NewAtom();
+              atom->SetAtomicNum(OpenBabel::etab.GetAtomicNum(it_type.value));
+              atom->SetVector(xyz[0], xyz[1], xyz[2]);
+            }
+	}
+    }
+  if (!conv.Write(&mol))
+    return;
+  
+  fout.close();
+ 
 }

@@ -1,86 +1,39 @@
 #ifndef DICT_H
 #define DICT_H
-
 #include "futile_cst.h"
+#include <stdbool.h>
 
 F_DEFINE_TYPE(dictionary);
 
-/******************************/
-/* FutileTree data structure */
-/******************************/
-#ifdef GLIB_MAJOR_VERSION
-#define FUTILE_TREE_TYPE    (futile_tree_get_type())
-#define FUTILE_TREE(obj)                                               \
-  (G_TYPE_CHECK_INSTANCE_CAST(obj, FUTILE_TREE_TYPE, FutileTree))
-#define FUTILE_TREE_CLASS(klass)                                       \
-  (G_TYPE_CHECK_CLASS_CAST(klass, FUTILE_TREE_TYPE, FutileTreeClass))
-#define FUTILE_TREE_GET_CLASS(obj)                                     \
-  (G_TYPE_INSTANCE_GET_CLASS(obj, FUTILE_TREE_TYPE, FutileTreeClass))
-#define FUTILE_IS_CLASS_TREE(klass)                    \
-  (G_TYPE_CHECK_CLASS_TYPE(klass, FUTILE_TREE_TYPE))
-#define FUTILE_IS_TYPE_TREE(obj)                       \
-  (G_TYPE_CHECK_INSTANCE_TYPE(obj, FUTILE_TREE_TYPE))
+#define max_field_length 256
 
-typedef struct _FutileTreeClass FutileTreeClass;
-struct _FutileTreeClass
-{
-  GObjectClass parent;
-};
-GType futile_tree_get_type(void);
-#else
-#define FUTILE_TREE_TYPE    (999)
-#define FUTILE_TREE(obj)    ((FutileTree*)obj)
-#endif
+typedef struct {
+  const f90_dictionary_pointer* parent;
+  f90_dictionary_pointer dict;
+  char key[max_field_length + 1];
+  char value[max_field_length + 1];
+} f90_dictionary_iterator;
 
-typedef struct _FutileTree FutileTree;
-struct _FutileTree
-{
-  /* Object management. */
-  GObject parent;
-  gboolean dispose_has_run;
+f90_dictionary_pointer* dict_new(void);
 
-  /* Private. */
-  f90_dictionary_pointer root;
-};
-typedef struct _FutileTreeIter FutileTreeIter;
-struct _FutileTreeIter
-{
-  FutileTree *tree;
-  f90_dictionary_pointer pointer;
-};
+void dict_set_double_array(f90_dictionary_pointer* dict, const char* key ,const double * array, size_t len);
 
-FutileTree *futile_tree_new      (FutileTreeIter *root);
-FutileTree *futile_tree_new_from_yaml(const gchar *buf, FutileTreeIter *root);
-void  futile_tree_unref          (FutileTree *tree);
+void dict_set_dict(f90_dictionary_pointer* dict, const char* key , f90_dictionary_pointer* value);
 
+void dict_add_dict(f90_dictionary_pointer* dict, f90_dictionary_pointer* value);
 
-void  futile_tree_iter_insert    (const FutileTreeIter *at, const gchar *key,
-                                  FutileTreeIter *leaf);
-void  futile_tree_iter_append    (const FutileTreeIter *at, FutileTreeIter *leaf);
-gboolean futile_tree_iter_at_key (const FutileTreeIter *at, const gchar *key,
-                                  FutileTreeIter *leaf);
-gboolean futile_tree_iter_at_item(const FutileTreeIter *at, guint id,
-                                  FutileTreeIter *leaf);
-gboolean futile_tree_iter_first  (const FutileTreeIter *at, FutileTreeIter *first);
-gboolean futile_tree_iter_next   (FutileTreeIter *iter);
+void dict_add_double(f90_dictionary_pointer* dict, double value);
 
-void  futile_tree_iter_add       (FutileTreeIter *iter, const gchar *value);
-void  futile_tree_iter_set       (FutileTreeIter *iter,
-                                  const gchar *id, const gchar *value);
-void  futile_tree_iter_set_array (FutileTreeIter *iter,
-                                  const gchar *id, const gchar **value);
-void  futile_tree_iter_set_tree  (FutileTreeIter *iter, const gchar *id,
-                                  const FutileTree *tree);
+bool dict_get_double_array(f90_dictionary_pointer* dict, const char* key , double * array, size_t len);
 
-gboolean futile_tree_iter_pop    (FutileTreeIter *iter, const gchar *key);
+bool dict_get_dict(f90_dictionary_pointer* dict, const char* key , f90_dictionary_pointer* value);
 
-gchar* futile_tree_iter_key      (const FutileTreeIter *iter);
-gchar* futile_tree_iter_value    (const FutileTreeIter *iter);
+void dict_iter_new(f90_dictionary_iterator *iter, const f90_dictionary_pointer *parent);
 
-guint futile_tree_iter_len       (const FutileTreeIter *iter);
+bool iterate(f90_dictionary_iterator *iter);
 
-void  futile_tree_dump           (FutileTree *tree, gint unit);
-void  futile_tree_dump_to_file   (FutileTree *tree, const gchar *filename);
-/*********************************/
+void dict_init(f90_dictionary_pointer *dict);
+
+void dict_free(f90_dictionary_pointer *dict);
 
 #endif

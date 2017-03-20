@@ -1,7 +1,8 @@
 # To be installed:
 noinst_LIBRARIES = libmodules.a
 module_DATA = $(modules)
-
+dynlibdir = $(libdir)
+dynlib_DATA = $(openbabel_soname_library)
 
 #if USE_MPI
 #mpi_include =
@@ -38,12 +39,6 @@ endif
 #else
 #PEXSI_SRC = pexsi_base.f90 pexsi_interfaces_fake.f90 pexsi.f90
 #endif
-
-if HAVE_OPENBABEL
-openbabel_sources = openbabel.cpp
-else
-openbabel_sources = openbabel_fake.cpp
-endif
 
 libmodules_a_SOURCES = ab7_mixing.f90 \
 	dpbox.f90 \
@@ -98,7 +93,7 @@ libmodules_a_SOURCES = ab7_mixing.f90 \
 	configure.c \
 	$(alborz_interfacemod) \
 	$(cp2k_interfacemod) \
-	$(openbabel_sources) \
+	$(openbabel_static_sources) \
 	module_dftbp.f90 \
 	sw_potential.f90
 
@@ -215,11 +210,21 @@ endif
 ATOMS_INCLUDES = astruct-inc.f90
 COMMS_INCLUDES = check_array-inc.f90
 
+if HAVE_OPENBABEL
+openbabel_dynamic_sources = openbabel.cpp
+openbabel_dynamic_library = libbabel.so.@BIGDFT_MINOR_VERSION@.0.@BIGDFT_MICRO_VERSION@
+openbabel_soname_library = libbabel.so.@BIGDFT_MINOR_VERSION@
+openbabel_library = $(openbabel_soname_library)
+AM_LDFLAGS = -Wl,-rpath=$(DESTDIR)$(dynlibdir)
+else
+openbabel_static_sources = openbabel_fake.cpp
+endif
+
 EXTRA_DIST = $(ATOMS_INCLUDES) $(COMMS_INCLUDES)
 CLEANFILES = *.mod
 
 AM_FCFLAGS = -I. -I$(srcdir) -I$(top_builddir)/includes @MPI_INCLUDE@ @LIBABINIT_INCLUDE@ @LIB_XC_CFLAGS@ @LIB_FUTILE_CFLAGS@
-AM_CXXFLAGS = @LIB_OPENBABEL_CFLAGS@
+AM_CXXFLAGS = @LIB_FUTILE_CFLAGS@ @LIB_OPENBABEL_CFLAGS@
 
 # Hack for XLF strange DEFS option.
 PPFCCOMPILE = $(FC) $(DEFS:-D%=@FCDEFS@%) $(DEFAULT_INCLUDES) $(INCLUDES) \
@@ -302,3 +307,19 @@ insmod: $(modules) libmodules.a
 	  $(INSTALL) -m 644  $$mod $(top_builddir)/includes ; \
 	done
 #	test -z "$(mpi_include)" || $(INSTALL) -m 644 mpif.h $(top_builddir)/includes
+
+$(openbabel_dynamic_library): $(openbabel_dynamic_sources)
+	$(CXX) $(CXXFLAGS) @LIB_OPENBABEL_CFLAGS@ -shared -I$(top_builddir) @LIB_FUTILE_CFLAGS@ $(LDFLAGS) $(AM_LDFLAGS) -Wl,-soname=$(openbabel_soname_library) -o $@ $< @LIB_OPENBABEL_LIBS@ @LIB_FUTILE_LIBS@
+	@chmod a+x $@
+
+$(openbabel_soname_library): $(openbabel_dynamic_library)
+	ln -fs $^ $@
+	ln -fs $@ libbabel.so
+
+install-data-hook:
+	if test -n "$(openbabel_dynamic_library)" ; then \
+	  cd $(DESTDIR)$(dynlibdir) ; \
+	  chmod a+x $(openbabel_dynamic_library) ; \
+	  ln -fs $(openbabel_dynamic_library) $(openbabel_soname_library) ; \
+	  ln -fs $(openbabel_soname_library) libbabel.so ; \
+	fi
