@@ -36,7 +36,7 @@ module multipole
 
       ! Local variables
       integer :: iat, ityp, impl
-      real(gp) :: r, charge, emp
+      real(gp) :: r, charge, emp, qq
 
       !write(*,*) 'WARNING DEBUG HERE!!!!!!!!!!!!!!!!!!!!!!!!!'
       !return
@@ -53,7 +53,14 @@ module multipole
               if (associated(ep%mpl(impl)%qlm(0)%q)) then
                   ! For the multipoles, a positive value corresponds to a
                   ! negative charge! Therefore multiply by -1
-                  charge = real(at%nelpsp(ityp),gp)*real(-1.0_gp*ep%mpl(impl)%qlm(0)%q(1),kind=gp)
+                  if (ep%mpl(impl)%mpchar=='G') then
+                      ! Gross value, subtract core countercharge
+                      qq = -1.0_gp*ep%mpl(impl)%qlm(0)%q(1) - real(ep%mpl(impl)%nzion,kind=gp)
+                  else if (ep%mpl(impl)%mpchar=='N') then
+                      ! Net value, take as is
+                      qq = -1.0_gp*ep%mpl(impl)%qlm(0)%q(1)
+                  end if
+                  charge = real(at%nelpsp(ityp),gp)*qq
                   emp = emp + charge/r
                   fion(1,iat) = fion(1,iat) + charge/(r**3)*(at%astruct%rxyz(1,iat)-ep%mpl(impl)%rxyz(1))
                   fion(2,iat) = fion(2,iat) + charge/(r**3)*(at%astruct%rxyz(2,iat)-ep%mpl(impl)%rxyz(2))
@@ -89,7 +96,7 @@ module multipole
 
       ! Local variables
       integer :: impl, jmpl
-      real(gp) :: r, charge, emp
+      real(gp) :: r, charge, emp, qqi, qqj
 
       !write(*,*) 'WARNING DEBUG HERE!!!!!!!!!!!!!!!!!!!!!!!!!'
       !return
@@ -98,17 +105,35 @@ module multipole
 
       emp = 0.0_gp
       do impl=1,ep%nmpl
-          do jmpl=impl+1,ep%nmpl
-              r = sqrt((ep%mpl(impl)%rxyz(1)-ep%mpl(jmpl)%rxyz(1))**2 + &
-                       (ep%mpl(impl)%rxyz(2)-ep%mpl(jmpl)%rxyz(2))**2 + &
-                       (ep%mpl(impl)%rxyz(3)-ep%mpl(jmpl)%rxyz(3))**2)
-              if (associated(ep%mpl(impl)%qlm(0)%q)) then
-                  ! For the multipoles, a positive value corresponds to a
-                  ! negative charge, therefore multiply by -1. Actually it doesn't matter
-                  charge = real(-1.0_gp*ep%mpl(impl)%qlm(0)%q(1),kind=gp)*real(-1.0_gp*ep%mpl(jmpl)%qlm(0)%q(1),kind=gp)
-                  emp = emp + charge/r
+          if (associated(ep%mpl(impl)%qlm(0)%q)) then
+              ! For the multipoles, a positive value corresponds to a
+              ! negative charge, therefore multiply by -1. Actually it doesn't matter
+              if (ep%mpl(impl)%mpchar=='G') then
+                  ! Gross value, subtract core countercharge
+                  qqi = -1.0_gp*ep%mpl(impl)%qlm(0)%q(1) - real(ep%mpl(impl)%nzion,kind=gp)
+              else if (ep%mpl(impl)%mpchar=='N') then
+                  ! Net value, take as is
+                  qqi = -1.0_gp*ep%mpl(impl)%qlm(0)%q(1)
               end if
-          end do
+              do jmpl=impl+1,ep%nmpl
+                  if (associated(ep%mpl(jmpl)%qlm(0)%q)) then
+                      ! For the multipoles, a positive value corresponds to a
+                      ! negative charge, therefore multiply by -1. Actually it doesn't matter
+                      if (ep%mpl(jmpl)%mpchar=='G') then
+                          ! Gross value, subtract core countercharge
+                          qqj = -1.0_gp*ep%mpl(jmpl)%qlm(0)%q(1) - real(ep%mpl(jmpl)%nzion,kind=gp)
+                      else if (ep%mpl(jmpl)%mpchar=='N') then
+                          ! Net value, take as is
+                          qqj = -1.0_gp*ep%mpl(jmpl)%qlm(0)%q(1)
+                      end if
+                      r = sqrt((ep%mpl(impl)%rxyz(1)-ep%mpl(jmpl)%rxyz(1))**2 + &
+                               (ep%mpl(impl)%rxyz(2)-ep%mpl(jmpl)%rxyz(2))**2 + &
+                               (ep%mpl(impl)%rxyz(3)-ep%mpl(jmpl)%rxyz(3))**2)
+                      charge = qqi*qqj
+                      emp = emp + charge/r
+                  end if
+              end do
+          end if
       end do
 
       if (iproc==0) then
@@ -165,8 +190,9 @@ module multipole
       real(dp),dimension(:,:,:),allocatable :: density, density_cores
       real(dp),dimension(:,:,:,:),allocatable :: density_loc, potential_loc
       real(kind=8),dimension(0:lmax) :: sigma
-      real(8),dimension(:),allocatable :: monopole
-      real(8),dimension(:,:),allocatable :: norm, dipole, quadrupole, norm_check
+      real(8),dimension(:,:),allocatable :: monopole
+      real(8),dimension(:,:,:),allocatable :: dipole, quadrupole
+      real(8),dimension(:,:),allocatable :: norm, norm_check
       real(kind=8),dimension(:,:,:),allocatable :: gaussians1, gaussians2, gaussians3
       logical,dimension(:),allocatable :: norm_ok, skip3_array
       real(kind=8),parameter :: norm_threshold = 1.d-2
@@ -262,9 +288,9 @@ module multipole
     
           norm = f_malloc((/0.to.2,1.to.ep%nmpl/),id='norm')
           norm_check = f_malloc((/0.to.2,1.to.ep%nmpl/),id='norm_check')
-          monopole = f_malloc(ep%nmpl,id='monopole')
-          dipole = f_malloc((/3,ep%nmpl/),id='dipole')
-          quadrupole = f_malloc((/5,ep%nmpl/),id='quadrupole')
+          monopole = f_malloc((/1.to.ep%nmpl,0.to.nthread-1/),id='monopole')
+          dipole = f_malloc((/1.to.3,1.to.ep%nmpl,0.to.nthread-1/),id='dipole')
+          quadrupole = f_malloc((/1.to.5,1.to.ep%nmpl,0.to.nthread-1/),id='quadrupole')
           norm_ok = f_malloc0(ep%nmpl,id='norm_ok')
 
 
@@ -364,29 +390,32 @@ module multipole
          do impl=1,ep%nmpl
              !! Search the rloc and zion of the corresponding pseudopotential
              !call get_psp_info(trim(ep%mpl(impl)%sym), ixc, at, nelpsp(impl), psp_source(impl), rloc(impl))
-             if(norm_ok(impl)) then
-                 ! The following routine needs the shifted positions
-                 if (present(center_cores)) then
-                     rx = center_cores(1,impl) - shift(1)
-                     ry = center_cores(2,impl) - shift(2)
-                     rz = center_cores(3,impl) - shift(3)
-                 else
-                     rx = ep%mpl(impl)%rxyz(1) - shift(1)
-                     ry = ep%mpl(impl)%rxyz(2) - shift(2)
-                     rz = ep%mpl(impl)%rxyz(3) - shift(3)
+             if (ep%mpl(impl)%mpchar=='G') then
+                 ! The core counter charge has only to be considered if the electronic multipoles are the gross values
+                 if(norm_ok(impl)) then
+                     ! The following routine needs the shifted positions
+                     if (present(center_cores)) then
+                         rx = center_cores(1,impl) - shift(1)
+                         ry = center_cores(2,impl) - shift(2)
+                         rz = center_cores(3,impl) - shift(3)
+                     else
+                         rx = ep%mpl(impl)%rxyz(1) - shift(1)
+                         ry = ep%mpl(impl)%rxyz(2) - shift(2)
+                         rz = ep%mpl(impl)%rxyz(3) - shift(3)
+                     end if
+                     call gaussian_density(perx, pery, perz, n1i, n2i, n3i, nbl1, nbl2, nbl3, i3s, n3pi, hxh, hyh, hzh, &
+                          rx, ry, rz, &
+                          ep%mpl(impl)%sigma(0), ep%mpl(impl)%nzion, at%multipole_preserving, use_iterator, at%mp_isf, &
+                          denspot%dpbox, nmpx, nmpy, nmpz, mpx, mpy, mpz, ndensity, density_cores, rholeaked)
+                     !!call gaussian_density(perx, pery, perz, n1i, n2i, n3i, nbl1, nbl2, nbl3, i3s, n3pi, hxh, hyh, hzh, &
+                     !!     rx, ry, rz, &
+                     !!     ep%mpl(impl)%sigma(0), nelpsp(impl), at%multipole_preserving, use_iterator, at%mp_isf, &
+                     !!     denspot%dpbox, nmpx, nmpy, nmpz, mpx, mpy, mpz, ndensity, density_cores, rholeaked)
+                     !!call gaussian_density(perx, pery, perz, n1i, n2i, n3i, nbl1, nbl2, nbl3, i3s, n3pi, hxh, hyh, hzh, &
+                     !!     rx, ry, rz, &
+                     !!     rloc(impl), nelpsp(impl), at%multipole_preserving, use_iterator, at%mp_isf, &
+                     !!     denspot%dpbox, nmpx, nmpy, nmpz, mpx, mpy, mpz, ndensity, density_cores, rholeaked)
                  end if
-                 call gaussian_density(perx, pery, perz, n1i, n2i, n3i, nbl1, nbl2, nbl3, i3s, n3pi, hxh, hyh, hzh, &
-                      rx, ry, rz, &
-                      ep%mpl(impl)%sigma(0), ep%mpl(impl)%nzion, at%multipole_preserving, use_iterator, at%mp_isf, &
-                      denspot%dpbox, nmpx, nmpy, nmpz, mpx, mpy, mpz, ndensity, density_cores, rholeaked)
-                 !!call gaussian_density(perx, pery, perz, n1i, n2i, n3i, nbl1, nbl2, nbl3, i3s, n3pi, hxh, hyh, hzh, &
-                 !!     rx, ry, rz, &
-                 !!     ep%mpl(impl)%sigma(0), nelpsp(impl), at%multipole_preserving, use_iterator, at%mp_isf, &
-                 !!     denspot%dpbox, nmpx, nmpy, nmpz, mpx, mpy, mpz, ndensity, density_cores, rholeaked)
-                 !!call gaussian_density(perx, pery, perz, n1i, n2i, n3i, nbl1, nbl2, nbl3, i3s, n3pi, hxh, hyh, hzh, &
-                 !!     rx, ry, rz, &
-                 !!     rloc(impl), nelpsp(impl), at%multipole_preserving, use_iterator, at%mp_isf, &
-                 !!     denspot%dpbox, nmpx, nmpy, nmpz, mpx, mpy, mpz, ndensity, density_cores, rholeaked)
              end if
          end do
 !! UNCOMMENT FOR TEST          do i3=is3,ie3
@@ -507,16 +536,17 @@ module multipole
                                       mm = 0
                                       do m=-l,l
                                           mm = mm + 1
-                                          ! For the monopole term, the atomic core charge (which has been expressed using a Gaussian
-                                          ! above) has to be added in order to compensate it. In addition the sign has to be
-                                          ! switched since the charge density is a positive quantity.
-                                          if (l==0) then
-                                              !qq = -(ep%mpl(impl)%qlm(l)%q(mm) - real(nelpsp(impl),kind=8))
-                                              qq = -(ep%mpl(impl)%qlm(l)%q(mm) - real(ep%mpl(impl)%nzion,kind=8))
-                                              !qq = -ep%mpl(impl)%qlm(l)%q(mm)
-                                          else
+                                          !!! For the monopole term, the atomic core charge (which has been expressed using a Gaussian
+                                          !!! above) has to be added in order to compensate it in case that the net charges have been provided.
+                                          !!! In addition the sign has to be switched since the charge density is a positive quantity.
+                                          !!if (l==0 .and. ep%mpl(impl)%mpchar=='N') then
+                                          !!    !qq = -(ep%mpl(impl)%qlm(l)%q(mm) - real(nelpsp(impl),kind=8))
+                                          !!    qq = -(ep%mpl(impl)%qlm(l)%q(mm) - real(ep%mpl(impl)%nzion,kind=8))
+                                          !!    !qq = -ep%mpl(impl)%qlm(l)%q(mm)
+                                          !!else
+                                              ! The sign has to be switched since the charge density is a positive quantity.
                                               qq = -ep%mpl(impl)%qlm(l)%q(mm)
-                                          end if
+                                          !!end if
                                           ttt = qq*&
                                                 real(2*l+1,kind=8)*solid_harmonic(0, l, m, r(1), r(2), r(3))*&
                                                 sqrt(4.d0*pi/real(2*l+1,kind=8))*gg!*sqrt(4.d0*pi_param)
@@ -529,20 +559,20 @@ module multipole
                               ! Again calculate the multipole values to verify whether they are represented exactly
                               ll = 0
                               m = 0
-                              monopole(impl) = monopole(impl) + tt*hhh*&
+                              monopole(impl,ithread) = monopole(impl,ithread) + tt*hhh*&
                                                solid_harmonic(0,ll,m,r(1),r(2),r(3))*&
                                                sqrt(4.d0*pi/real(2*ll+1,kind=8))
                               ll = 1
                               do m=-ll,ll
                                   ii = m + 2
-                                  dipole(ii,impl) = dipole(ii,impl) + tt*hhh*&
+                                  dipole(ii,impl,ithread) = dipole(ii,impl,ithread) + tt*hhh*&
                                                    solid_harmonic(0,ll,m,r(1),r(2),r(3))*&
                                                    sqrt(4.d0*pi/real(2*ll+1,kind=8))
                               end do
                               ll = 2
                               do m=-ll,ll
                                   ii = m + 3
-                                  quadrupole(ii,impl) = quadrupole(ii,impl) + tt*hhh*&
+                                  quadrupole(ii,impl,ithread) = quadrupole(ii,impl,ithread) + tt*hhh*&
                                                    solid_harmonic(0,ll,m,r(1),r(2),r(3))*&
                                                    sqrt(4.d0*pi/real(2*ll+1,kind=8))
                               end do
@@ -660,12 +690,18 @@ module multipole
 !! UNCOMMENT FOR TEST                        at,at%astruct%rxyz,denspot%pkernel,1,density)
 
           !write(*,*) 'DEBUG: tt',tt
+
+          do ithread=1,nthread-1
+              call axpy(ep%nmpl, 1.0_gp, monopole(1,ithread), 1, monopole(1,0), 1)
+              call axpy(3*ep%nmpl, 1.0_gp, dipole(1,1,ithread), 1, dipole(1,1,0), 1)
+              call axpy(5*ep%nmpl, 1.0_gp, quadrupole(1,1,ithread), 1, quadrupole(1,1,0), 1)
+          end do
           
           if (nproc>1) then
               call mpiallred(norm_check, mpi_sum, comm=bigdft_mpi%mpi_comm)
-              call mpiallred(monopole, mpi_sum, comm=bigdft_mpi%mpi_comm)
-              call mpiallred(dipole, mpi_sum, comm=bigdft_mpi%mpi_comm)
-              call mpiallred(quadrupole, mpi_sum, comm=bigdft_mpi%mpi_comm)
+              call mpiallred(monopole(1:ep%nmpl,0), mpi_sum, comm=bigdft_mpi%mpi_comm)
+              call mpiallred(dipole(1:3,1:ep%nmpl,0), mpi_sum, comm=bigdft_mpi%mpi_comm)
+              call mpiallred(quadrupole(1:5,1:ep%nmpl,0), mpi_sum, comm=bigdft_mpi%mpi_comm)
           end if
     
     
@@ -717,21 +753,23 @@ module multipole
                               mm = 0
                               do m=-l,l
                                   mm = mm + 1
-                                  if (l==0) then
-                                      !qq = -(ep%mpl(impl)%qlm(l)%q(mm)-real(nelpsp(impl),kind=8))
-                                      qq = -(ep%mpl(impl)%qlm(l)%q(mm)-real(ep%mpl(impl)%nzion,kind=8))
-                                      !qq = -ep%mpl(impl)%qlm(l)%q(mm)
-                                  else
+                                  !!if (l==0) then
+                                  !!    !qq = -(ep%mpl(impl)%qlm(l)%q(mm)-real(nelpsp(impl),kind=8))
+                                  !!    qq = -(ep%mpl(impl)%qlm(l)%q(mm)-real(ep%mpl(impl)%nzion,kind=8))
+                                  !!    !qq = -ep%mpl(impl)%qlm(l)%q(mm)
+                                  !!else
                                       qq = -ep%mpl(impl)%qlm(l)%q(mm)
-                                  end if
+                                  !!end if
                                   if (abs(qq)>1.d-8) then
                                       select case (l)
                                       case (0)
-                                          max_error(l) = max(max_error(l),monopole(impl)/qq)
+                                          !call yaml_map('monopole(impl)',monopole(impl))
+                                          max_error(l) = max(max_error(l),monopole(impl,0)/qq)
                                       case (1)
-                                          max_error(l) = max(max_error(l),dipole(mm,impl)/qq)
+                                          !call yaml_map('dipole(mm,impl)',dipole(mm,impl))
+                                          max_error(l) = max(max_error(l),dipole(mm,impl,0)/qq)
                                       case (2)
-                                          max_error(l) = max(max_error(l),quadrupole(mm,impl)/qq)
+                                          max_error(l) = max(max_error(l),quadrupole(mm,impl,0)/qq)
                                       end select
                                   else
                                       error_meaningful(l) = 1
@@ -1007,7 +1045,7 @@ module multipole
 
 
 
-    subroutine write_multipoles_new(ep, ll, units, delta_rxyz, on_which_atom, scaled, monopoles_analytic)
+    subroutine write_multipoles_new(ep, ll, units, delta_rxyz, on_which_atom, scaled, monopoles_analytic, do_guess_type)
       use yaml_output
       use numerics, only: Bohr_Ang
       use f_precisions, only: db => f_double
@@ -1024,6 +1062,7 @@ module multipole
       real(kind=8),dimension(ep%nmpl),intent(in),optional :: scaled !< can be used to display by how muched the multipoles have been scaled
       real(kind=8),dimension(ep%nmpl),intent(in),optional :: monopoles_analytic !< can be used to sidplay also the "analytical"
                                                                                 !! monopoles (i.e. the ones calculated directly with the overlap matrix, without numerical integration)
+      logical,intent(in),optional :: do_guess_type !< guess the domninating character of the multipole
       
       ! Local variables
       character(len=20) :: atomname
@@ -1032,7 +1071,7 @@ module multipole
       real(kind=8) :: factor, convert_units, tt!, get_normalization, get_test_factor
       real(kind=8),dimension(:,:,:),allocatable :: multipoles_tmp
       real(kind=8),dimension(-ll:ll,0:ll) :: multipoles
-      logical :: present_delta_rxyz, present_on_which_atom, present_scaled, present_monopoles_analytic
+      logical :: present_delta_rxyz, present_on_which_atom, present_scaled, present_monopoles_analytic, do_guess_type_
 
       call f_routine(id='write_multipoles_new')
 
@@ -1040,6 +1079,9 @@ module multipole
       present_on_which_atom = present(on_which_atom)
       present_scaled = present(scaled)
       present_monopoles_analytic = present(monopoles_analytic)
+
+      do_guess_type_ = .true.
+      if (present(do_guess_type)) do_guess_type_ = do_guess_type
 
 
           ! See whether a conversion of the units is necessary
@@ -1058,7 +1100,11 @@ module multipole
           call yaml_map('units',trim(units))
           tt = 0.d0
           do impl=1,ep%nmpl
-              tt = tt + ep%mpl(impl)%qlm(0)%q(1)
+              if (ep%mpl(impl)%mpchar=='G') then
+                  tt = tt + ep%mpl(impl)%qlm(0)%q(1) + real(ep%mpl(impl)%nzion,kind=8)
+              else if (ep%mpl(impl)%mpchar=='N') then
+                  tt = tt + ep%mpl(impl)%qlm(0)%q(1)
+              end if
           end do
           call yaml_map('global monopole',tt,fmt='(es13.6)')
           if (present_monopoles_analytic) then
@@ -1072,7 +1118,18 @@ module multipole
                   call yaml_map('Atom number',on_which_atom(impl))
               end if
               call yaml_map('r',convert_units*ep%mpl(impl)%rxyz)
-              call yaml_map('nzion',ep%mpl(impl)%nzion)
+              if (ep%mpl(impl)%mpchar=='G') then
+                  call yaml_map('multipole character','gross')
+              else if (ep%mpl(impl)%mpchar=='N') then
+                  call yaml_map('multipole character','net')
+              else
+                  call f_err_throw('wrong multipole character: possible values are '&
+                       &//trim(yaml_toa('G'))//' or '//trim(yaml_toa('N'))//&
+                       &', but you specified '//trim(ep%mpl(impl)%mpchar))
+              end if
+              if (ep%mpl(impl)%nzion/=0) then
+                  call yaml_map('nzion',ep%mpl(impl)%nzion)
+              end if
               if (present_delta_rxyz) then
                   call yaml_map('Delta r',convert_units*delta_rxyz(1:3,impl),fmt='(es13.6)')
               end if
@@ -1084,15 +1141,19 @@ module multipole
                   call yaml_map('q0 analytic',monopoles_analytic(impl),fmt='(1es13.6)')
               end if
               do l=0,ll
-                  call yaml_map('q'//adjustl(trim(yaml_toa(l))),ep%mpl(impl)%qlm(l)%q(:),fmt='(1es13.6)')
-                  multipoles(-l:l,l) = ep%mpl(impl)%qlm(l)%q(1:2*l+1)
-                  call yaml_newline()
+                  if (associated(ep%mpl(impl)%qlm(l)%q)) then
+                      call yaml_map('q'//adjustl(trim(yaml_toa(l))),ep%mpl(impl)%qlm(l)%q(:),fmt='(1es13.6)')
+                      multipoles(-l:l,l) = ep%mpl(impl)%qlm(l)%q(1:2*l+1)
+                      call yaml_newline()
+                  end if
               end do
               if (present_scaled) then
                   call yaml_map('scaling factor',scaled(impl),fmt='(es9.2)')
               end if
-              function_type = guess_type(ll, multipoles)
-              call yaml_map('type',trim(function_type))
+              if (do_guess_type_) then
+                  function_type = guess_type(ll, multipoles)
+                  call yaml_map('type',trim(function_type))
+              end if
           end do
           call yaml_sequence_close()
           call yaml_mapping_close()
@@ -2366,12 +2427,13 @@ module multipole
       call mpiallred(atomic_multipoles, mpi_sum, comm=bigdft_mpi%mpi_comm)
 
 
-      ! The monopole term should be the net charge, i.e. add the positive atomic charges
-      do iat=1,smmd%nat
-          itype = smmd%iatype(iat)
-          q = real(smmd%nelpsp(itype),kind=8)
-          atomic_multipoles(0,0,iat) = atomic_multipoles(0,0,iat) + q
-      end do
+      !! The monopole term should be the net charge, i.e. add the positive atomic charges
+      ! Keep the gross charges
+      !!do iat=1,smmd%nat
+      !!    itype = smmd%iatype(iat)
+      !!    q = real(smmd%nelpsp(itype),kind=8)
+      !!    atomic_multipoles(0,0,iat) = atomic_multipoles(0,0,iat) + q
+      !!end do
 
 
       names = f_malloc_str(len(names),smmd%nat,id='names')
@@ -2382,14 +2444,24 @@ module multipole
 
 
       ep = external_potential_descriptors_null()
-      ep%nmpl = smmd%nat
+      if (centers_auto) then
+          ! Same number of multipoles as atoms.
+          ep%nmpl = smmd%nat
+      else
+          ! Two sets of multipoles: one for the specified centers, one for the countercharge of the cores
+          ep%nmpl = 2*smmd%nat
+      end if
       allocate(ep%mpl(ep%nmpl))
       do impl=1,ep%nmpl
           ep%mpl(impl) = multipole_set_null()
           allocate(ep%mpl(impl)%qlm(0:lmax))
           !ep%mpl(impl)%rxyz = smmd%rxyz(1:3,impl)
-          ep%mpl(impl)%rxyz = mp_centers(1:3,impl)
-          ep%mpl(impl)%sym = trim(names(impl))
+          if (impl<=smmd%nat) then
+              ep%mpl(impl)%rxyz = mp_centers(1:3,impl)
+          else
+              ep%mpl(impl)%rxyz = smmd%rxyz(1:3,mod(impl-1,smmd%nat)+1)
+          end if
+          ep%mpl(impl)%sym = trim(names(mod(impl-1,smmd%nat)+1))
           if (present(at)) then
               call get_psp_info(ep%mpl(impl)%sym, ixc, smmd, nelpsp, psp_source, rloc, at%psppar)
           else
@@ -2398,24 +2470,36 @@ module multipole
           if (psp_source/=0 .and. iproc==0) then
               call yaml_warning('Taking internal PSP information for multipole '//trim(yaml_toa(impl)))
           end if
-          ep%mpl(impl)%nzion = nelpsp
           ep%mpl(impl)%sigma(0:lmax) = rloc
-          do l=0,lmax
-              ep%mpl(impl)%qlm(l) = multipole_null()
-              !if (l>=3) cycle
-              ep%mpl(impl)%qlm(l)%q = f_malloc0_ptr(2*l+1,id='q')
-              mm = 0
-              !if (l>0) cycle
-              do m=-l,l
-                  mm = mm + 1
-                  ep%mpl(impl)%qlm(l)%q(mm) = atomic_multipoles(m,l,impl)
+          if (centers_auto) then
+              ep%mpl(impl)%nzion = nelpsp
+          end if
+          ep%mpl(impl)%mpchar = 'G'
+          if (impl<=smmd%nat) then
+              ! Electronic part
+              do l=0,lmax
+                  ep%mpl(impl)%qlm(l) = multipole_null()
+                  ep%mpl(impl)%qlm(l)%q = f_malloc0_ptr(2*l+1,id='q')
+                  mm = 0
+                  do m=-l,l
+                      mm = mm + 1
+                      ep%mpl(impl)%qlm(l)%q(mm) = atomic_multipoles(m,l,impl)
+                  end do
               end do
-          end do
+          else
+              ! Core part
+              !ep%mpl(impl)%nzion = nelpsp
+              do l=0,lmax
+                  ep%mpl(impl)%qlm(l) = multipole_null()
+              end do
+              ep%mpl(impl)%qlm(0)%q = f_malloc0_ptr(1,id='q')
+              ep%mpl(impl)%qlm(0)%q(1) = real(nelpsp,kind=8)
+          end if
       end do
 
       if (iproc==0) then
           call yaml_comment('Final result of the multipole analysis',hfill='~')
-          call write_multipoles_new(ep, lmax, smmd%units)
+          call write_multipoles_new(ep, lmax, smmd%units, do_guess_type=.false.)
       end if
 
 
@@ -2446,16 +2530,19 @@ module multipole
                   ep_check%mpl(impl)%rxyz = ep%mpl(impl)%rxyz
                   ep_check%mpl(impl)%sym = ep%mpl(impl)%sym
                   ep_check%mpl(impl)%nzion = ep%mpl(impl)%nzion
+                  ep_check%mpl(impl)%mpchar = ep%mpl(impl)%mpchar
                   do l=0,lmax
                       ep_check%mpl(impl)%sigma(l) = ep%mpl(impl)%sigma(l)
                       ep_check%mpl(impl)%qlm(l) = multipole_null()
                       if (l>lcheck) cycle
-                      ep_check%mpl(impl)%qlm(l)%q = f_malloc0_ptr(2*l+1,id='q')
-                      mm = 0
-                      do m=-l,l
-                          mm = mm + 1
-                          ep_check%mpl(impl)%qlm(l)%q(mm) = ep%mpl(impl)%qlm(l)%q(mm)
-                      end do
+                      if (associated(ep%mpl(impl)%qlm(l)%q)) then
+                         ep_check%mpl(impl)%qlm(l)%q = f_malloc0_ptr(2*l+1,id='q')
+                         mm = 0
+                         do m=-l,l
+                             mm = mm + 1
+                             ep_check%mpl(impl)%qlm(l)%q(mm) = ep%mpl(impl)%qlm(l)%q(mm)
+                         end do
+                     end if
                   end do
               end do
               call dcopy(size(denspot%V_ext,1)*size(denspot%V_ext,2)*size(denspot%V_ext,3), &
@@ -3743,6 +3830,7 @@ module multipole
           allocate(ep%mpl(iorb)%qlm(0:lmax))
           ep%mpl(iorb)%rxyz = center_orb(1:3,iorb)
           ep%mpl(iorb)%sym = trim(names(iorb))
+          ep%mpl(iorb)%mpchar = 'G'
           do l=0,lmax
               ep%mpl(iorb)%qlm(l) = multipole_null()
               !if (l>=3) cycle
