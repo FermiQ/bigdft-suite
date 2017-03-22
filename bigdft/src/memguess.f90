@@ -1570,7 +1570,7 @@ program memguess
    if (exportproj) then
       call free_DFT_PSP_projectors(nlpsp)
       DistProjApply = .true.
-      call createProjectorsArrays(runObj%rst%KSwfn%Lzd%Glr, &
+      call createProjectorsArrays(iproc,nproc,runObj%rst%KSwfn%Lzd%Glr, &
            & runObj%atoms%astruct%rxyz,runObj%atoms,runObj%rst%KSwfn%orbs, &
            & runObj%inputs%frmult,runObj%inputs%frmult, &
            & runObj%rst%KSwfn%Lzd%hgrids(1),runObj%rst%KSwfn%Lzd%hgrids(2), &
