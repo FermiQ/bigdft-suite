@@ -168,6 +168,7 @@ SiBulk:
  Last Iteration: 7.01e-10
  Atomic Forces (Ha/Bohr): 7.01e-10
  Clean forces norm (Ha/Bohr): 3.3e-10
+ Force Norm (Hartree/Bohr): 2.3e-10
  Average noise forces: 9.3e-10
  HOMO LUMO gap (AU, eV): 1.8e-10
  PV (Ha): 1.89e-10
@@ -175,6 +176,7 @@ SiBulk:
  e_occupied: 1.42e-11
  Orbitals: 1.42e-11
  GPa: 2.0e-9
+ Quadrupole Moment (AU): 8.8e-11
  # Necessary for GPU runs, to be updated...
  Keys to ignore:
   - Residues per orbital
@@ -222,6 +224,7 @@ Graphene:
 
 TiMix:
  Epsilon: 1.e-10
+ Average noise forces: 1.1e-10
 
 GEOPT-BFGS:
  Epsilon: 2.71e-10
@@ -1935,7 +1938,7 @@ periodic_water:
  Maxdiff for transpose (checksum): 4.7e-10
  decay length of error function: 1.1e-05
  Atomic Forces (Ha/Bohr): 1.3e-11
- trace(KH): 2.0e-11
+ trace(KH): 3.0e-11
 
 
 surface_boronnitride:
@@ -2195,6 +2198,8 @@ igortho_19:
  P vector: 1.001e-05
  exp accur: 1.1e-08
  norm(P): 1.1e-06
+ trace(KH): 1.9e-06
+ trace(KS): 3.1e-11
 
 igortho_44:
  Atomic Forces (Ha/Bohr): 3.6e-6
@@ -2246,6 +2251,9 @@ igortho_44:
  int(V): 1.1e-3
  Err %: 0.10
  Asymmetry of kernel: 1.1e-06
+ trace(KH): 2.4e-4
+ trace(KS): 4.6e-09
+
  Keys to ignore:
   - Calculating wavelets expansion of projectors, found warnings
   - found warnings
@@ -2297,6 +2305,9 @@ igortho_94:
  P vector: 2.01e-05
  norm(P): 3.9e-05
  exp accur: 1.0e-08
+ trace(KH): 1.2e-05
+ trace(KS): 3.4e-11
+
 
 extendedfrags_nofrags:
  eF: 9.5e-6

@@ -38,7 +38,7 @@ subroutine localize_projectors(iproc,nproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,
 
   call f_routine(id='localize_projectors')
   
-  istart=1
+  istart=0
   nl%nproj=0
   nl%nprojel=0
 
@@ -194,6 +194,8 @@ subroutine localize_projectors(iproc,nproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,
   call f_free(reducearr)
   call mpiallred(nl%nproj, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
   call mpiallred(nl%nprojel, 1, mpi_max, comm=bigdft_mpi%mpi_comm)
+  call mpiallred(istart, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
+  istart = istart + 1
 
 
   !control the strategy to be applied following the memory limit
