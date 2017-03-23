@@ -112,7 +112,7 @@ define F_REGTEST_INSTRUCTIONS
         --kernel_file=$(srcdir)/density_kernel_ccs.txt \
         --kernel_matmul_file=$(srcdir)/density_kernel_matmul_ccs.txt \
         --check_spectrum=yes \
-		--betax=1000
+		--betax=-1000
 - smatmul:
    binary: smatmul
    runs:
