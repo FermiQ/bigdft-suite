@@ -2,7 +2,7 @@
 noinst_LIBRARIES = libmodules.a
 module_DATA = $(modules)
 dynlibdir = $(libdir)
-dynlib_DATA = $(openbabel_soname_library)
+dynlib_DATA = $(openbabel_dynamic_library)
 
 #if USE_MPI
 #mpi_include =
