@@ -309,7 +309,7 @@ insmod: $(modules) libmodules.a
 #	test -z "$(mpi_include)" || $(INSTALL) -m 644 mpif.h $(top_builddir)/includes
 
 $(openbabel_dynamic_library): $(openbabel_dynamic_sources)
-	$(CXX) $(CXXFLAGS) @LIB_OPENBABEL_CFLAGS@ -shared -I$(top_builddir) @LIB_FUTILE_CFLAGS@ $(LDFLAGS) $(AM_LDFLAGS) -Wl,-soname=$(openbabel_soname_library) -o $@ $< @LIB_OPENBABEL_LIBS@ @LIB_FUTILE_LIBS@
+	$(CXX) $(CXXFLAGS) @CC_PIC_FLAG@ @LIB_OPENBABEL_CFLAGS@ -shared -I$(top_builddir) @LIB_FUTILE_CFLAGS@ $(LDFLAGS) $(AM_LDFLAGS) -Wl,-soname=$(openbabel_soname_library) -o $@ $< @LIB_OPENBABEL_LIBS@ @LIB_FUTILE_LIBS@ 
 	@chmod a+x $@
 
 $(openbabel_soname_library): $(openbabel_dynamic_library)

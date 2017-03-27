@@ -744,25 +744,25 @@ contains
      if (.not. associated(iter)) iter => dict_iter(on) !to prevent infinite loop
    end function iterating_dict
 
-   function iterating_list_container(iter,on) result(iterate)
-     implicit none
-     type(dictionary), pointer :: iter
-     type(list_container), intent(in) :: on
-     logical :: iterate
-
-     if (.not. associated(on%dict)) then
-        iterate=.false.
-        return
-     end if
-     if (.not. associated(iter)) then
-        iter => dict_iter(on%dict)
-     else
-        iter => dict_next(iter)
-     end if
-     iterate=associated(iter)
-     if (.not. associated(iter)) iter => dict_iter(on%dict) !to prevent infinite loop
-
-   end function iterating_list_container
+!!$   function iterating_list_container(iter,on) result(iterate)
+!!$     implicit none
+!!$     type(dictionary), pointer :: iter
+!!$     type(list_container), intent(in) :: on
+!!$     logical :: iterate
+!!$
+!!$     if (.not. associated(on%dict)) then
+!!$        iterate=.false.
+!!$        return
+!!$     end if
+!!$     if (.not. associated(iter)) then
+!!$        iter => dict_iter(on%dict)
+!!$     else
+!!$        iter => dict_next(iter)
+!!$     end if
+!!$     iterate=associated(iter)
+!!$     if (.not. associated(iter)) iter => dict_iter(on%dict) !to prevent infinite loop
+!!$
+!!$   end function iterating_list_container
 
 
    function dicts_are_not_equal(dict1,dict2) result(notequal)
