@@ -160,6 +160,10 @@ module highlevel_wrappers
       real(kind=8),dimension(:),allocatable :: eval
       external :: gather_timings
 
+      integer :: nspin_test, nfvctr_test, ntmb_test
+      real(mp),dimension(:),pointer :: eval_tmp
+      real(mp),dimension(:,:),pointer :: coeff_tmp
+
       call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, trim(overlap_file), &
            iproc, nproc, mpiworld(), smat_s, ovrlp_mat, &
            init_matmul=.false.)
@@ -189,13 +193,9 @@ module highlevel_wrappers
           if (.not.present(coeff_file)) then
               call f_err_throw("'coeff_file' is not present")
           end if
-          iunit=99
-          call f_open_file(iunit, file=trim(coeff_file), binary=.false.)
-          call write_linear_coefficients(iproc, 0, trim(coeff_file), 2, smmd%nat, smmd%rxyz, &
-               smmd%iatype, smmd%ntypes, smmd%nzatom, &
-               smmd%nelpsp, smmd%atomnames, smat_s%nfvctr, &
+          call write_linear_coefficients(matrix_format, iproc, nproc, mpiworld(), 0, &
+               trim(coeff_file), 2, smat_s%nfvctr, &
                smat_s%nfvctr, smat_s%nspin, hamiltonian_mat%matrix, eval)
-          call f_close(iunit)
       end if
 
       if (present(evals_out)) then

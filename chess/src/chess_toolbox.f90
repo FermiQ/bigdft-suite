@@ -525,7 +525,8 @@ program chess_toolbox
        iunit = 99
        !if (iproc==0) call yaml_comment('Reading from file '//trim(coeff_file),hfill='~')
        call f_open_file(iunit, file=trim(coeff_file), binary=.false.)
-       call read_linear_coefficients(trim(coeff_file), nspin, ntmb, norbks, coeff_ptr, &
+       call read_linear_coefficients('serial_text', iproc, nproc, mpiworld(), &
+            trim(coeff_file), nspin, ntmb, norbks, coeff_ptr, &
             eval=eval_ptr)
        call f_close(iunit)
 
