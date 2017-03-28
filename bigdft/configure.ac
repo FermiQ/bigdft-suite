@@ -315,6 +315,10 @@ LIB_BIGDFT_PKG=""
 if test $ax_build_dynamic != "yes" ; then
   LIB_BIGDFT_PKG="$LIB_BIGDFT_DEPS"
 fi
+if test $ax_have_OPENBABEL = "yes" ; then
+  LIB_BIGDFT_PKG="-lbabel $LIB_BIGDFT_PKG"
+fi
+
 AC_SUBST(LIB_BIGDFT_PKG)
 dnl LIB_BIGDFT_DEPS="$LIB_BIGDFT_DEPS $LIB_PSOLVER_LIBS $LIB_FUTILE_LIBS"
 AC_SUBST(LIB_BIGDFT_DEPS)
