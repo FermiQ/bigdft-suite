@@ -51,7 +51,7 @@ modules = f_lib_package.@MODULE_EXT@ futile.@MODULE_EXT@
 endif
 
 AM_FCFLAGS = -I. -I$(top_builddir)/dicts/ -I$(top_builddir)/flib @MPI_INCLUDE@ @FC_PIC_FLAG@
-AM_CPPFLAGS = -I. -I$(top_builddir) -I$(top_builddir)/c-bindings -I$(top_srcdir)/c-bindings @GLIB_CFLAGS@ @PYTHON_INCLUDES@ -D'PYTHON_EXECDIR="$(pyexecdir)"'
+AM_CPPFLAGS = -I. -I$(top_builddir) -I$(top_builddir)/c-bindings -I$(top_srcdir)/c-bindings -I$(top_srcdir)/dicts @GLIB_CFLAGS@ @PYTHON_INCLUDES@ -D'PYTHON_EXECDIR="$(pyexecdir)"'
 
 if BUILD_DYNAMIC_LIBS
 flib_libraries = -lfutile-1
