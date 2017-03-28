@@ -161,6 +161,8 @@ if test $ax_build_dynamic != "yes" ; then
   LIB_FUTILE_LIBS="$LIB_FUTILE_LIBS $LIBS_EXT_DEPS $LIBS"
 fi
 AC_SUBST(LIB_FUTILE_LIBS)
+LIB_DICTS_LIBS=-ldicts
+AC_SUBST(LIB_DICTS_LIBS)
 
 dnl Test for the developers' documentation.
 AX_DOC()
@@ -171,6 +173,7 @@ dnl Give the name of file.in to transform to file
 AC_CONFIG_FILES([
 Makefile
 futile.pc
+libdicts.pc
 futile_environment.sh
 futilevars.sh
 dicts/Makefile

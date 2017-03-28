@@ -1,6 +1,6 @@
 # To be installed:
-noinst_LIBRARIES = libdicts.a
-module_DATA      = $(modules)
+lib_LIBRARIES = libdicts.a
+module_DATA   = $(modules)
 
 include_HEADERS = futile_cst.h dict.h
 

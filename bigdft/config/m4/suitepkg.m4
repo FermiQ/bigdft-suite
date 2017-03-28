@@ -121,7 +121,7 @@ AC_DEFUN([AX_PACKAGE],
   for word in $LIB_$1_LIBS ; do
     case $word in
       -L*) ;;
-      *) if test -z $ax_libs_alone ; then ax_libs_alone=$word; else ax_libs_alone="$ax_libs_alone $word" ; fi ;;
+      *) if test -z "$ax_libs_alone" ; then ax_libs_alone=$word; else ax_libs_alone="$ax_libs_alone $word" ; fi ;;
     esac
   done
   if test "$ax_libs_alone" = "$LIB_$1_DYNAMIC_LIBS"; then

@@ -38,6 +38,16 @@ if test $ax_have_FUTILE != "yes" ; then
   AC_MSG_ERROR([Futile library not found, cannot proceed.])
 fi
 fi
+AX_PACKAGE([LIBDICTS],[1.8],[-ldicts],[],[],
+ 	     [program main
+     use dictionaries
+
+     type(dictionary), pointer :: dict
+
+     call dict_init(dict)
+   end program],
+ 	[call f_lib_initialize()
+])
 ])
 dnl AC_DEFUN([AX_FLIB],
 dnl [dnl Test for FLib
