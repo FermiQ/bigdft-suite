@@ -18,7 +18,7 @@ ACLOCAL_AMFLAGS = -I config/m4
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = futile.pc
 
-SUBDIRS = flib c-bindings wrappers src
+SUBDIRS = dicts flib c-bindings wrappers src
 
 dist_bin_SCRIPTS = futilevars.sh futile_environment.sh unienv.sh
 

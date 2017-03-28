@@ -41,12 +41,6 @@ void FC_FUNC_(c_memcopy, C_MEMCOPY)(void *to, long long int * fromadd, int *ln)
   memcpy(to, from, sizeof(char) * *ln);
 }
 
-void FC_FUNC_(callable_void, CALLABLE_VOID)(FFunc_void *func)
-{
-  if (func)
-    (*func)();
-}
-
 void FC_FUNC_(callable_arg, CALLABLE_ARG)(FFunc_arg *func, void **a)
 {
   if (func && a)
