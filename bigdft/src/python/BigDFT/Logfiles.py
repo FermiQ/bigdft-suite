@@ -42,10 +42,18 @@ BUILTIN={
 
 
 def get_log(f):
-    "Transform a logfile into a python dictionary"
+    """Transform a logfile into a python dictionary"""
     return yaml.load(open(f, "r").read(), Loader = yaml.CLoader)
 
 def get_logs(files,safe_mode=False,select_document=None):
+   """
+   Return a list of loaded logfiles from files, which is a list
+   of paths leading to logfiles.
+   
+   Optional arguments:
+     - safe_mode:
+     - select_document:
+   """
    logs=[]
    for filename in files:
      rawfile=open(filename, "r").read()
@@ -55,7 +63,7 @@ def get_logs(files,safe_mode=False,select_document=None):
         print('WARNING: More than one document are present',e)
         if safe_mode or select_document is not None:
             documents=rawfile.split('---\n')
-            print('Safe mode, Found',len(documents),'documents,try loading them separately')
+            print('Safe mode, Found',len(documents),'documents, try loading them separately')
             actual_doc=-1
             for i,raw_doc in enumerate(documents):
                 if len(raw_doc)==0: continue
@@ -85,7 +93,7 @@ def get_logs(files,safe_mode=False,select_document=None):
    return logs
 
 def floatify(scalar):
-    "Useful to make float from strings compatible from fortran"
+    """Useful to make float from strings compatible from fortran"""
     import numpy
     if isinstance(scalar,str):
         return float(scalar.replace('d','e').replace('D','E'))
