@@ -46,7 +46,10 @@ AX_PACKAGE([LIBDICTS],[1.8],[-ldicts],[],[],
 
      call dict_init(dict)
    end program],
- 	[call f_lib_initialize()
+ 	[use f_precisions, only: f_address
+	integer(f_address) :: iloc
+	integer(f_address), external :: f_loc
+	iloc=f_loc(iloc)
 ])
 ])
 dnl AC_DEFUN([AX_FLIB],

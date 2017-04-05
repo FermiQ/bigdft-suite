@@ -8,7 +8,7 @@
 # distribution.
 #
 AC_DEFUN([AX_BIGDFT],
-[dnl Test for PSolver
+[dnl Test for BigDFT
 AC_REQUIRE([AX_FLIB])
 AC_REQUIRE([AX_LINALG])
 AC_REQUIRE([AX_MPI])
