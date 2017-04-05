@@ -44,17 +44,28 @@ subs_static_library = \
 	OpenCL/libOpenCL.a \
 	bindings/libbindings.a
 
+bigdft_deps =
+bigdft_library =
+
+if HAVE_OPENBABEL
+openbabel_dependency = modules/libbabel.so.@BIGDFT_MINOR_VERSION@
+bigdft_deps += -Lsrc/modules -lbabel
+if BUILD_DYNAMIC_LIBS
+bigdft_library += -Lsrc/modules -lbabel
+endif
+endif
+
 if BUILD_DYNAMIC_LIBS
 bigdft_dynamic_library = libbigdft-1.so.@BIGDFT_MINOR_VERSION@.0.@BIGDFT_MICRO_VERSION@
 bigdft_soname_library = libbigdft-1.so.@BIGDFT_MINOR_VERSION@
-bigdft_deps = @LIB_BIGDFT_DEPS@
-bigdft_library = $(bigdft_soname_library)
+bigdft_deps += @LIB_BIGDFT_DEPS@
+bigdft_library += $(bigdft_soname_library)
 AM_LDFLAGS = -Wl,-rpath=$(DESTDIR)$(dynlibdir)
 else
 bigdft_dynamic_library =
 bigdft_soname_library =
-bigdft_deps = @LIB_BIGDFT_DEPS@ @LINALG_LIBS@
-bigdft_library = libbigdft-1.a $(bigdft_deps)
+bigdft_deps += @LIB_BIGDFT_DEPS@ @LINALG_LIBS@
+bigdft_library += libbigdft-1.a $(bigdft_deps)
 endif
 
 if BUILD_BINARIES
@@ -69,14 +80,6 @@ local_binaries =
 scripts_sources =
 sub_dirs_bin =
 check_PROGRAMS =
-endif
-
-if HAVE_OPENBABEL
-openbabel_dependency = modules/libbabel.so.@BIGDFT_MINOR_VERSION@
-bigdft_deps += -Lmodules -lbabel
-if BUILD_DYNAMIC_LIBS
-bigdft_library += -Lmodules -lbabel
-endif
 endif
 
 # Additional sources.
