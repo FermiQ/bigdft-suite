@@ -75,6 +75,8 @@
             if (ierrsfx /= 0) then
                read(line,*, iostat = ierrsfx) iat
                write(astruct%units, "(A)") "bohr"
+               if (f_err_raise((ierrsfx /= 0), "Missing number of atoms on line 1 of '" &
+                    & // trim(filename)//"'.",err_id=BIGDFT_INPUT_VARIABLES_ERROR)) return
                if (bigdft_mpi%iproc==0) call yaml_warning('No units specified in the xyz input file.'//&
                     ' Atomic Units are assumed implicitly. If convergence problems arise check this.')
             end if
