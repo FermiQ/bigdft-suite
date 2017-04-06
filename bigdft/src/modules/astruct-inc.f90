@@ -1005,6 +1005,7 @@ subroutine parse_extra_info(att, extra, errmess)
   character(len=4) :: suffix
   logical :: go
   integer :: ierr,ierr1,ierr2,nspol,nchrg
+  real :: r_nspol, r_nchrg
   type(dictionary), pointer :: dict
   !case with all the information
   !print *,'ex'//trim(extra)//'ex'
@@ -1018,23 +1019,26 @@ subroutine parse_extra_info(att, extra, errmess)
      call dict_free(dict)
   else
      ! Old case.
-     read(extra,*,iostat=ierr) nspol,nchrg,suffix
+     read(extra,*,iostat=ierr) r_nspol,r_nchrg,suffix
      if (extra == 'nothing') then !case with empty information
         nspol=0
         nchrg=0
         suffix='    '
      else if (ierr /= 0) then !case with partial information
-        read(extra,*,iostat=ierr1) nspol,suffix
+        read(extra,*,iostat=ierr1) r_nspol,suffix
         if (ierr1 == 0) then
+           nspol = int(r_nspol)
            !Format nspol frzchain
            nchrg=0
            call valid_frzchain(trim(suffix),go)
            if (.not. go) then
-              read(suffix,*,iostat=ierr2) nchrg
+              read(suffix,*,iostat=ierr2) r_nchrg
               suffix='    '
               if (ierr2 /= 0) then
                  nchrg = 0
                  call error
+              else
+                 nchrg = int(r_nchrg)
               end if
            end if
         else
@@ -1047,13 +1051,18 @@ subroutine parse_extra_info(att, extra, errmess)
            else
               suffix='    '
               nchrg=0
-              read(extra,*,iostat=ierr2) nspol
+              read(extra,*,iostat=ierr2) r_nspol
               if (ierr2 /=0) then
                  call error
                  nspol=0
+              else
+                 nspol = int(r_nspol)
               end if
            end if
         end if
+     else
+        nspol = int(r_nspol)
+        nchrg = int(r_nchrg)
      end if
 
      ! convert everything into a dict.
