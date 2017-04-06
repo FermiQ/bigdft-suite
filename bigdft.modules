@@ -40,6 +40,11 @@
     <branch repo="local" module="yaml-0.1.6.tar.gz" version="0.1.6" checkoutdir="yaml"/>
   </autotools>
 
+  <cmake id="openbabel">
+    <!--<branch repo="libyaml" module="yaml-0.1.4.tar.gz" version="0.1.4"/>-->
+    <branch repo="local" module="openbabel-2.4.1.tar.gz" version="2.4.1" checkoutdir="openbabel"/>
+  </cmake>
+
   <distutils id="PyYAML">
     <!--<branch repo="libyaml" module="PyYAML-3.10.tar.gz" version="3.10"/>-->
     <branch repo="local" module="PyYAML-3.11.tar.gz" version="3.11" checkoutdir="PyYAML"/>
@@ -115,6 +120,7 @@
       <dep package="psolver"/>
       <dep package="libABINIT"/>
       <dep package="GaIn"/>
+      <dep package="openbabel"/>
       <if condition-set="testing">
         <dep package="PyYAML"/>
       </if>

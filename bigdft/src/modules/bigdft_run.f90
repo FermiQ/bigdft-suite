@@ -885,7 +885,7 @@ contains
     call f_object_add_signal(RUN_OBJECTS_TYPE, PRE_SCF_SIG, 1)
     call f_object_add_signal(RUN_OBJECTS_TYPE, POST_SCF_SIG, 2)
     call f_object_add_signal(RUN_OBJECTS_TYPE, "join", 3)
-    call f_object_add_signal(RUN_OBJECTS_TYPE, STATE_CALCULATOR_SIG, 3)
+    call f_object_add_signal(RUN_OBJECTS_TYPE, STATE_CALCULATOR_SIG, 4)
     call f_object_add_signal(RUN_OBJECTS_TYPE, DESTROY_SIG, 1)
 
     call f_object_new_("state_properties")
@@ -1091,7 +1091,8 @@ contains
     !associate the run_mode
     runObj%run_mode => runObj%inputs%run_mode
     runObj%add_coulomb_force = runObj%inputs%add_coulomb_force
-    if (runObj%run_mode == QM_RUN_MODE .or. runObj%run_mode == MULTI_RUN_MODE) then
+    if (runObj%run_mode == QM_RUN_MODE .or. runObj%run_mode == MULTI_RUN_MODE &
+         & .or. runObj%run_mode == PLUGIN_RUN_MODE) then
        call f_enum_attr(runObj%run_mode, RUN_MODE_CREATE_DOCUMENT)
     end if
 
@@ -1179,8 +1180,7 @@ contains
     end if
 
     ln = dict_len(runObj%user_inputs // MODE_VARIABLES // SECTIONS)
-    allocate(runObj%sections(ln)) ! associated(runObj%sections) can be used
-                                  ! to test if runObj is top level.
+    allocate(runObj%sections(ln))
     if (ln == 0) then
        call f_release_routine()
        return
@@ -1978,15 +1978,19 @@ contains
        ! Calculates bazant forces betweeen given atomic configuration using
        ! periodic boundary conditions
        call bazant_energyandforces(nat, rxyz_ptr, outs%fxyz, outs%energy)
-    case('PLUGIN_RUN_MODE')
-
+    case ('PLUGIN_RUN_MODE')
+       if (.not. f_object_has_signal(RUN_OBJECTS_TYPE, STATE_CALCULATOR_SIG)) &
+            & call run_objects_type_init()
        if (f_object_signal_prepare(RUN_OBJECTS_TYPE, STATE_CALCULATOR_SIG, sig)) then
           call f_object_signal_add_arg(sig, runObj)
           call f_object_signal_add_arg(sig, outs)
           call f_object_signal_add_arg(sig, runObj%inputs%plugin_id)
+          call f_object_signal_add_arg(sig, infocode)
           call f_object_signal_emit(sig)
+       else
+          call f_err_throw('Ask for plugin calculation '//&
+               'but no signal connected.',err_name='BIGDFT_RUNTIME_ERROR')
        end if
-
     case default
        call f_err_throw('Following method for evaluation of '//&
             'energies and forces is unknown: '+ enum_int(runObj%run_mode)//&
