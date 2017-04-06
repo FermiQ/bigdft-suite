@@ -83,7 +83,7 @@ module vdwcorrection
   integer, parameter, public :: VDW_DAMP_WU_YANG_2 = 3
   integer, parameter, public :: VDW_DAMP_GRIMME_D2 = 4
   integer, parameter, public :: VDW_DAMP_GRIMME_D3 = 5
-  character(len = 34), dimension(6), parameter :: vdw_correction_names = &
+  character(len = 34), dimension(6), parameter, public :: vdw_correction_names = &
        & (/ "none                              ",   &
        &    "Damp from Elstner                 ",   &    
        &    "Damp from Wu & Yang               ",   &
