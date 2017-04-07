@@ -49,9 +49,9 @@ bigdft_library =
 
 if HAVE_OPENBABEL
 openbabel_dependency = modules/libbabel.so.@BIGDFT_MINOR_VERSION@
-bigdft_deps += -Lsrc/modules -lbabel
+bigdft_deps += -Lmodules -lbabel
 if BUILD_DYNAMIC_LIBS
-bigdft_library += -Lsrc/modules -lbabel
+bigdft_library += -Lmodules -lbabel
 endif
 endif
 
