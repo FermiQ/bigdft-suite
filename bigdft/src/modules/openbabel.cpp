@@ -35,14 +35,22 @@ extern "C" void FC_FUNC_(openbabel_load, OPENBABEL_LOAD)(f90_dictionary_pointer 
   free(fname);
 
   if (!pFormat || (pFormat->Flags() & NOTREADABLE))
-    return;
+    {
+      err_throw_by_name("Unknown format for OpenBabel.",
+                        "BIGDFT_INPUT_VARIABLES_ERROR");
+      return;
+    }
 
   conv.SetInFormat(pFormat);
 
   OpenBabel::OBMol mol;
 
   if (!conv.Read(&mol))
-    return;
+    {
+      err_throw_by_name("Error while reading OpenBabel format.",
+                        "BIGDFT_INPUT_VARIABLES_ERROR");
+      return;
+    }
 
   /* Store if the file is periodic or not. */
   double vect[3], cell[3];
@@ -57,7 +65,11 @@ extern "C" void FC_FUNC_(openbabel_load, OPENBABEL_LOAD)(f90_dictionary_pointer 
           rprimdFull[5] > 1e-12 || rprimdFull[5] < -1e-12 ||
           rprimdFull[6] > 1e-12 || rprimdFull[6] < -1e-12 ||
           rprimdFull[7] > 1e-12 || rprimdFull[7] < -1e-12)
-        return;
+        {
+          err_throw_by_name("Non orthorhombic cell.",
+                            "BIGDFT_INPUT_VARIABLES_ERROR");
+          return;
+        }
       cell[0] = rprimdFull[0];
       cell[1] = rprimdFull[4];
       cell[2] = rprimdFull[8];
@@ -115,7 +127,11 @@ extern "C" void FC_FUNC_(openbabel_dump, OPENBABEL_DUMP)(f90_dictionary_pointer 
   free(fname);
 
   if (!pFormat || (pFormat->Flags() & NOTWRITABLE))
-    return;
+    {
+      err_throw_by_name("Unknown format for OpenBabel.",
+                        "BIGDFT_RUNTIME_ERROR");
+      return;
+    }
 
   conv.SetOutFormat(pFormat);
 
@@ -170,7 +186,11 @@ extern "C" void FC_FUNC_(openbabel_dump, OPENBABEL_DUMP)(f90_dictionary_pointer 
 	}
     }
   if (!conv.Write(&mol))
-    return;
+    {
+      err_throw_by_name("Error while writing OpenBabel format.",
+                        "BIGDFT_RUNTIME_ERROR");
+      return;
+    }
   
   fout.close();
  
