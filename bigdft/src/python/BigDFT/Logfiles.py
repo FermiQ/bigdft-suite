@@ -17,7 +17,7 @@ BUILTIN={
                  PRINT: "Number of Atoms", GLOBAL: True},
     "energy": {PATH: [["Last Iteration", "FKS"],["Last Iteration", "EKS"], ["Energy (Hartree)"]], 
                     PRINT: "Energy", GLOBAL: False},
-    "fermi_level": {PATH:[["Ground State Optimization", -1, "Fermi Energy"]], 
+    "fermi_level": {PATH:[["Ground State Optimization", -1, "Fermi Energy"], ["Ground State Optimization", -1, "Hamiltonian Optimization", -1, "Subspace Optimization", "Fermi Energy"]],
                          PRINT: True, GLOBAL: False},
     'astruct': {PATH: [ ['Atomic structure']]},
     'evals': {PATH: [ ["Complete list of energy eigenvalues"], [ "Ground State Optimization", -1, "Orbitals"],
@@ -35,24 +35,35 @@ BUILTIN={
     'magnetization': {PATH:[[ "Ground State Optimization", -1, "Total magnetization"],
                             ["Ground State Optimization",-1,"Hamiltonian Optimization",-1,"Subspace Optimization","Total magnetization"]],
                       PRINT: "Total magnetization of the system"},
+    'support_functions': {PATH: [["Gross support functions moments",'Multipole coefficients','values']]},
+    'electrostatic_multipoles': {PATH: [['Multipole coefficients','values']]},
     'symmetry': {PATH: [ ['Atomic System Properties','Space group']], 
                  PRINT: "Symmetry group", GLOBAL: True}}
 
+
 def get_log(f):
-    "Transform a logfile into a python dictionary"
+    """Transform a logfile into a python dictionary"""
     return yaml.load(open(f, "r").read(), Loader = yaml.CLoader)
 
 def get_logs(files,safe_mode=False,select_document=None):
+   """
+   Return a list of loaded logfiles from files, which is a list
+   of paths leading to logfiles.
+   
+   Optional arguments:
+     - safe_mode:
+     - select_document:
+   """
    logs=[]
    for filename in files:
      rawfile=open(filename, "r").read()
      try:
         logs+=[yaml.load(rawfile, Loader = yaml.CLoader)]
-     except Exception,e:
-        print 'WARNING: More than one document are present',e
+     except Exception as e:
+        print('WARNING: More than one document are present',e)
         if safe_mode or select_document is not None:
             documents=rawfile.split('---\n')
-            print 'Safe mode, Found',len(documents),'documents,try loading them separately'
+            print('Safe mode, Found',len(documents),'documents, try loading them separately')
             actual_doc=-1
             for i,raw_doc in enumerate(documents):
                 if len(raw_doc)==0: continue
@@ -60,10 +71,10 @@ def get_logs(files,safe_mode=False,select_document=None):
                 if select_document is not None and actual_doc not in select_document: continue
                 try:
                     logs.append(yaml.load(raw_doc,Loader=yaml.CLoader))
-                    print 'Document',i,'...loaded.'
-                except Exception,f:
-                    print 'Document',i,'...NOT loaded.'
-                    print f
+                    print('Document',i,'...loaded.')
+                except Exception as f:
+                    print('Document',i,'...NOT loaded.')
+                    print(f)
                     #logs+=[None]
                     #print "warning, skipping logfile",filename
         else:
@@ -75,14 +86,14 @@ def get_logs(files,safe_mode=False,select_document=None):
                     lg=dict(test[a]) 
                     if lg is not None: logs+=[lg]
                 #logs+=yaml.load_all(rawfile, Loader = yaml.CLoader)
-            except Exception,e:
-                print e
-                print 'WARNING: Usual loading of the document have some errors, some documents might not be there'
-                print 'Consider to put safe_mode=True'
+            except Exception as e:
+                print(e)
+                print('WARNING: Usual loading of the document have some errors, some documents might not be there')
+                print('Consider to put safe_mode=True')
    return logs
 
 def floatify(scalar):
-    "Useful to make float from strings compatible from fortran"
+    """Useful to make float from strings compatible from fortran"""
     import numpy
     if isinstance(scalar,str):
         return float(scalar.replace('d','e').replace('D','E'))
@@ -124,10 +135,10 @@ def perform_operations(variables,ops,debug=False):
 ##    #first evaluate the given variables
     for key in variables:
         command=key+"="+str(variables[key])
-        if debug: print command
+        if debug: print(command)
         exec(command)
         #then evaluate the given expression
-    if debug: print ops
+    if debug: print(ops)
     #exec(glstr+ops, globals(), locals())
     exec(ops, globals(), locals())
 
@@ -206,7 +217,7 @@ class Logfile():
                 instance._initialize_class(d)
                 self._instances.append(instance)
             #then we should find the best values for the dictionary
-            print 'Found',len(self._instances),'different runs'
+            print('Found',len(self._instances),'different runs')	
             import numpy
             #initalize the class with the dictionary corresponding to the lower value of the energy
             ens=[(l.energy if hasattr(l,'energy') else 1.e100) for l in self._instances] 
@@ -217,7 +228,7 @@ class Logfile():
         if hasattr(self,'_instances'):
             return self._instances[index]
         else:
-            print 'index not available'
+            print('index not available')
             raise 
     def __str__(self):
         return self._print_information()
@@ -262,10 +273,10 @@ class Logfile():
         "Returns an instance of the BrillouinZone class, useful for band strucure"
         import BZ
         if self.nkpt==1: 
-            print 'WARNING: Brillouin Zone plot cannot be defined properly with only one k-point'
+            print('WARNING: Brillouin Zone plot cannot be defined properly with only one k-point')
             #raise
         mesh=self.kpt_mesh
-	if isinstance(mesh,int): mesh=[mesh,]*3
+        if isinstance(mesh,int): mesh=[mesh,]*3
         if self.astruct['Cell'][1]==float('inf'): mesh[1]=1
         return BZ.BrillouinZone(self.astruct,mesh,self.evals,self.fermi_level)
     def wfn_plot(self):
@@ -278,7 +289,7 @@ class Logfile():
         forces=[]
         ferr=[]
         if not hasattr(self,'_instances'): 
-            print 'ERROR: No geopt plot possible, single point run'
+            print('ERROR: No geopt plot possible, single point run')
             return
         for l in self._instances:
             if hasattr(l,'forcemax') and hasattr(l,'energy'):
@@ -295,7 +306,7 @@ class Logfile():
             if hasattr(self,'forcemax_cv'): plt.axhline(self.forcemax_cv,color='k',linestyle='--')
             plt.show()
         else:
-            print 'No plot necessary, less than two points found'
+            print('No plot necessary, less than two points found')
     
 
     def _print_information(self):

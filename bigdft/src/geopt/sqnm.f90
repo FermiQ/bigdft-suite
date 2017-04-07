@@ -105,6 +105,8 @@ subroutine sqnm(runObj,outsIO,nproc,iproc,verbosity,ncount_bigdft,fail)
    real(gp) :: dnrm2
    type(f_tree) :: f_info
 
+   if(iproc==0)call yaml_cite('Schaefer2015')
+
    f_info=f_tree_new()
 
    !set parameters
@@ -235,7 +237,7 @@ subroutine sqnm(runObj,outsIO,nproc,iproc,verbosity,ncount_bigdft,fail)
       if (debug.and.iproc==0) write(100,*) 'it:',it,etot,fnrm,itswitch
       nhist=nhist+1
 
-      if (fnrm.gt.steepthresh .or. it.le.itswitch ) then
+      if (fmax.gt.steepthresh .or. it.le.itswitch ) then
          ndim=0
          steep=.true.
          if (it.gt.itswitch) itswitch=it+nhistx
