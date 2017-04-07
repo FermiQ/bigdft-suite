@@ -1,4 +1,4 @@
-check_PROGRAMS = dict
+check_PROGRAMS = dict err
 
 #we have to reduce the dict directory such as to move this test only there
 AM_LDFLAGS = -L$(top_builddir)/src
@@ -13,6 +13,7 @@ endif
 dict_SOURCES = dict.c
 dict_LDADD =  $(flib_libraries) @GLIB_LIBS@ $(FCLIBS)
 
-AM_CFLAGS = -I$(top_builddir)/dicts -I$(top_srcdir)/dicts
-AM_CPPFLAGS = -I$(top_builddir)/dicts -I$(top_srcdir)/dicts @GLIB_CFLAGS@
-AM_FCFLAGS = -I$(top_builddir)/dicts -I$(top_builddir)/flib
+err_SOURCES = err.c
+err_LDADD =  $(flib_libraries) @GLIB_LIBS@ $(FCLIBS)
+
+AM_CPPFLAGS = -I$(top_srcdir)/c-bindings -I$(top_builddir)/dicts -I$(top_srcdir)/dicts @GLIB_CFLAGS@

@@ -2,11 +2,14 @@
 lib_LIBRARIES = libdicts.a
 module_DATA   = $(modules)
 
-include_HEADERS = futile_cst.h dict.h
+include_HEADERS = futile_cst.h dict.h err.h
 
 libdicts_a_SOURCES = \
 	yaml_strings.f90 dictionaries_base.f90 dictionaries.f90 \
-	callbacks.f90 f_precisions.f90 dict.c dict.h dict-fapi.h dictf.f90 addresses.h addresses.c
+	callbacks.f90 f_precisions.f90 \
+	dict.c dict-fapi.h dictf.f90 \
+	err.c err-fapi.h errf.f90 \
+	addresses.h addresses.c
 
 STRINGS_INCLUDES = yaml_toa-inc.f90 yaml_toa-arr-inc.f90 yaml_plus-inc.f90
 ERR_INCLUDES = get_err-inc.f90
