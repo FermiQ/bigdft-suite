@@ -194,11 +194,21 @@ def plot_wfn_convergence(wfn_it,gnrm_cv):
 class Logfile():
     """Define the generic class to handle a logfile given by 'filename',
     a list of logfiles given by filename_list."""
-    def __init__(self,filename=None,dictionary=None,filename_list=None,label=None,load_only=None):
-        """Import a Logfile from a filename in yaml format."""
+    def __init__(self,filename=None,dictionary=None,filename_list=None,archive=None,label=None,load_only=None):
+        """Import a Logfile from a filename in yaml format, a list of filenames,
+        a dictionary or an archive (compressed tar file)."""
         filelist=None
+        dicts = None
         self.label=label
-        if filename is not None: 
+        if archive is not None:
+            import tarfile
+            from futile import Yaml
+            tar = tarfile.open(archive)
+            dicts = []
+            for member in tar.getmembers():
+                f = tar.extractfile(member)
+                dicts.append(Yaml.load(stream=f.read()))
+        elif filename is not None: 
             if self.label is None: self.label=filename
             filelist=[filename]
         elif filename_list is not None:
@@ -210,7 +220,7 @@ class Logfile():
         elif dictionary:
             #print 'there',label
             dicts=[dictionary]
-        else:
+        if not dicts:
             dicts=[]
         #print 'dicts',len(dicts)
         #initialize the logfile with the first document
