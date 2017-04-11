@@ -1,7 +1,8 @@
+#This module needs: numpy, matplotlib, scipy, ase, spglib 
 import numpy
 
 def get_ev(ev,keys=None,ikpt=1):
-    "Get the correct list of the energies for this eigenvalue"
+    """Get the correct list of the energies for this eigenvalue."""
     res=False
     if keys is None:
         ener=ev.get('e')
@@ -25,7 +26,7 @@ def get_ev(ev,keys=None,ikpt=1):
 
 
 class BandArray(numpy.ndarray):
-    "Defines the array of data for one band. It is a dictionary which contains a numpy array for both spin channels"
+    """Defines the array of data for one band. It is a dictionary which contains a numpy array for both spin channels."""
     def __new__(cls,*args,**kwargs): #logdata,ikpt=0,kpt=(0.0,0.0,0.0):
         "Takes the data from the logfile and convert it"
         evs=[[],[]]
@@ -59,8 +60,9 @@ class BandArray(numpy.ndarray):
         self.kpt=kpt
         self.kwgt=kwgt
 
+
 class BZPath():
-    "Defines a set of points which are associated to a path in the reduced Brillouin Zone"
+    """Defines a set of points which are associated to a path in the reduced Brillouin Zone."""
     def __init__(self,lattice,path,special_points,npts=50):
         import ase.dft.kpoints as ase
         self.special_points=special_points
@@ -76,6 +78,7 @@ class BZPath():
                 path_tmp.append(p.values()[0])
                 self.symbols.append(p.keys()[0])
         self.path,self.xaxis,self.xlabel=ase.get_bandpath(path_tmp,lattice,npts)
+
 
 class BrillouinZone():
     def __init__(self,astruct,mesh,evals,fermi_energy):
@@ -174,7 +177,8 @@ class BrillouinZone():
         print 'Interpolation bias',sanity
     def plot(self,path=None,npts=50):
         if path is None: 
-            ppath=BZPath(self.lattice,self.special_paths[0]+['G',],self.special_points,npts)
+            #ppath=BZPath(self.lattice,self.special_paths[0]+['G',],self.special_points,npts)
+            ppath=BZPath(self.lattice,self.special_paths[0],self.special_points,npts)
         else:
             ppath=path
         toto=self.interpolator(ppath.path)

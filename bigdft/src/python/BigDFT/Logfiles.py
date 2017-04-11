@@ -1,3 +1,4 @@
+#This module needs: yaml, futile, matplotlib, numpy, BZ, DoS
 import yaml
 
 EVAL = "eval"
@@ -42,83 +43,91 @@ BUILTIN={
 
 
 def get_log(f):
-    "Transform a logfile into a python dictionary"
+    """Transform a logfile into a python dictionary."""
     return yaml.load(open(f, "r").read(), Loader = yaml.CLoader)
 
+
 def get_logs(files,safe_mode=False,select_document=None):
-   logs=[]
-   for filename in files:
-     rawfile=open(filename, "r").read()
-     try:
-        logs+=[yaml.load(rawfile, Loader = yaml.CLoader)]
-     except Exception,e:
-        print 'WARNING: More than one document are present',e
-        if safe_mode or select_document is not None:
-            documents=rawfile.split('---\n')
-            print 'Safe mode, Found',len(documents),'documents,try loading them separately'
-            actual_doc=-1
-            for i,raw_doc in enumerate(documents):
-                if len(raw_doc)==0: continue
-                actual_doc+=1
-                if select_document is not None and actual_doc not in select_document: continue
-                try:
-                    logs.append(yaml.load(raw_doc,Loader=yaml.CLoader))
-                    print 'Document',i,'...loaded.'
-                except Exception,f:
-                    print 'Document',i,'...NOT loaded.'
-                    print f
-                    #logs+=[None]
-                    #print "warning, skipping logfile",filename
-        else:
-            try: 
-                from futile import Yaml
-                test=Yaml.YamlDB(rawfile)
-                for a in range(len(test)):
-                    # we should use another representation for the logfile, to be changed
-                    lg=dict(test[a]) 
-                    if lg is not None: logs+=[lg]
-                #logs+=yaml.load_all(rawfile, Loader = yaml.CLoader)
-            except Exception,e:
-                print e
-                print 'WARNING: Usual loading of the document have some errors, some documents might not be there'
-                print 'Consider to put safe_mode=True'
-   return logs
+    """Transform a list of files into a list of dictionaries."""
+    logs=[]
+    for filename in files:
+      rawfile=open(filename, "r").read()
+      try:
+         logs+=[yaml.load(rawfile, Loader = yaml.CLoader)]
+      except Exception,e:
+         print 'WARNING: More than one document are present',e
+         if safe_mode or select_document is not None:
+             documents=rawfile.split('---\n')
+             print 'Safe mode, Found',len(documents),'documents,try loading them separately'
+             actual_doc=-1
+             for i,raw_doc in enumerate(documents):
+                 if len(raw_doc)==0: continue
+                 actual_doc+=1
+                 if select_document is not None and actual_doc not in select_document: continue
+                 try:
+                     logs.append(yaml.load(raw_doc,Loader=yaml.CLoader))
+                     print 'Document',i,'...loaded.'
+                 except Exception,f:
+                     print 'Document',i,'...NOT loaded.'
+                     print f
+                     #logs+=[None]
+                     #print "warning, skipping logfile",filename
+         else:
+             try: 
+                 from futile import Yaml
+                 test=Yaml.YamlDB(rawfile)
+                 for a in range(len(test)):
+                     # we should use another representation for the logfile, to be changed
+                     lg=dict(test[a]) 
+                     if lg is not None: logs+=[lg]
+                 #logs+=yaml.load_all(rawfile, Loader = yaml.CLoader)
+             except Exception,e:
+                 print e
+                 print 'WARNING: Usual loading of the document have some errors, some documents might not be there'
+                 print 'Consider to put safe_mode=True'
+    return logs
+
 
 def floatify(scalar):
-    "Useful to make float from strings compatible from fortran"
+    """Useful to make float from strings compatible from fortran."""
     import numpy
     if isinstance(scalar,str):
         return float(scalar.replace('d','e').replace('D','E'))
     else:
         return scalar
 
-# this is a tentative function written to extract information from the runs
+
+# This is a tentative function written to extract information from the runs
 def document_quantities(doc,to_extract):
-  analysis={}
-  for quantity in to_extract:
-    if quantity in PRE_POST: continue
-    #follow the levels indicated to find the quantity
-    field=to_extract[quantity]
-    if type(field) is not type([]) is not type({}) and field in BUILTIN:
-        paths=BUILTIN[field][PATH]
-    else:
-        paths=[field]
-    #now try to find the first of the different alternatives
-    for path in paths:
-      #print path,BUILTIN,BUILTIN.keys(),field in BUILTIN,field
-      value=doc
-      for key in path:
-        #as soon as there is a problem the quantity is null
-        try:
-          value=value[key]
-        except:
-          value=None
-          break
-      if value is not None: break        
-    analysis[quantity]=value
-  return analysis    
+    """Extract information from the runs."""
+    analysis={}
+    for quantity in to_extract:
+      if quantity in PRE_POST: continue
+      #follow the levels indicated to find the quantity
+      field=to_extract[quantity]
+      if type(field) is not type([]) is not type({}) and field in BUILTIN:
+          paths=BUILTIN[field][PATH]
+      else:
+          paths=[field]
+      #now try to find the first of the different alternatives
+      for path in paths:
+        #print path,BUILTIN,BUILTIN.keys(),field in BUILTIN,field
+        value=doc
+        for key in path:
+          #as soon as there is a problem the quantity is null
+          try:
+            value=value[key]
+          except:
+            value=None
+            break
+        if value is not None: break
+      analysis[quantity]=value
+    return analysis
+
 
 def perform_operations(variables,ops,debug=False):
+    """Perform operations given by 'ops'.
+    'variables' is a dictionary of variables i.e. key=value."""
 ##    glstr=''
 ##    if globs is not None:
 ##        for var in globs:
@@ -134,7 +143,9 @@ def perform_operations(variables,ops,debug=False):
     #exec(glstr+ops, globals(), locals())
     exec(ops, globals(), locals())
 
+
 def process_logfiles(files,instructions,debug=False):
+    """Process the logfiles in files with the dictionary 'instructions'."""
     import sys
     glstr='global __LAST_FILE__ \n'
     glstr+='__LAST_FILE__='+str(len(files))+'\n'
@@ -152,8 +163,9 @@ def process_logfiles(files,instructions,debug=False):
             #print doc_res,instructions
             if EVAL in instructions: perform_operations(doc_res,instructions[EVAL],debug=debug)
 
+
 def find_iterations(log):
-    "Identify the different block of the iterations of the wavefunctions optimization"
+    """Identify the different block of the iterations of the wavefunctions optimization."""
     import numpy
     for itrp in log['Ground State Optimization']:
         rpnrm=[]
@@ -165,8 +177,9 @@ def find_iterations(log):
     rpnrm=numpy.array(rpnrm)
     return rpnrm
 
+
 def plot_wfn_convergence(wfn_it,gnrm_cv):
-    "Plot the convergence of the wavefunction coming from the find_iterations function" 
+    """Plot the convergence of the wavefunction coming from the find_iterations function.""" 
     import matplotlib.pyplot as plt
     import numpy 
     plt.semilogy(numpy.ravel(wfn_it))
@@ -179,8 +192,10 @@ def plot_wfn_convergence(wfn_it,gnrm_cv):
 
 
 class Logfile():
+    """Define the generic class to handle a logfile given by 'filename',
+    a list of logfiles given by filename_list."""
     def __init__(self,filename=None,dictionary=None,filename_list=None,label=None,load_only=None):
-        "Import a Logfile from a filename in yaml format"
+        """Import a Logfile from a filename in yaml format."""
         filelist=None
         self.label=label
         if filename is not None: 
@@ -195,6 +210,8 @@ class Logfile():
         elif dictionary:
             #print 'there',label
             dicts=[dictionary]
+        else:
+            dicts=[]
         #print 'dicts',len(dicts)
         #initialize the logfile with the first document
         self._initialize_class(dicts[0])
@@ -216,14 +233,18 @@ class Logfile():
             self.reference_log=numpy.argmin(ens)
             #print 'Energies',ens
             self._initialize_class(dicts[self.reference_log])
+    #
     def __getitem__(self,index):
         if hasattr(self,'_instances'):
             return self._instances[index]
         else:
             print 'index not available'
-            raise 
+            raise
+    #
     def __str__(self):
+        """Dispaly short information about the logfile"""
         return self._print_information()
+    #
     def _initialize_class(self,d):
         import numpy
         self.log=d
@@ -249,34 +270,42 @@ class Logfile():
         if not hasattr(self,'fermi_level') and hasattr(self,'evals'):
             import numpy
             self.fermi_level=float(max(numpy.ravel(self.evals)))
+    #
     def _get_bz(self,ev,kpts):
+        """Get the Brillouin Zone."""
         evals=[]
         import BZ
         for i,kp in enumerate(kpts):
             evals.append(BZ.BandArray(ev,ikpt=i+1,kpt=kp['Rc'],kwgt=kp['Wgt']))
         return evals
+    #
     def get_dos(self,label=None,npts=2500):
-        "Get the density of states from the logfile"
+        """Get the density of states from the logfile."""
         import DoS
         reload(DoS)
         lbl=self.label if label is None else label
         return DoS.DoS(bandarrays=self.evals,label=lbl,units='AU',fermi_level=self.fermi_level,npts=npts)
+    #
     def get_brillouin_zone(self):
-        "Returns an instance of the BrillouinZone class, useful for band strucure"
+        """Returns an instance of the BrillouinZone class, useful for band structure."""
         import BZ
         if self.nkpt==1: 
             print 'WARNING: Brillouin Zone plot cannot be defined properly with only one k-point'
             #raise
         mesh=self.kpt_mesh
-	if isinstance(mesh,int): mesh=[mesh,]*3
+        if isinstance(mesh,int): 
+            mesh=[mesh,]*3
         if self.astruct['Cell'][1]==float('inf'): mesh[1]=1
         return BZ.BrillouinZone(self.astruct,mesh,self.evals,self.fermi_level)
+    #
     def wfn_plot(self):
+        """Plot the wavefunction convergence."""
         wfn_it=find_iterations(self.log)
         plot_wfn_convergence(wfn_it,self.gnrm_cv)
+    #
     def geopt_plot(self):
+        """For a set of logfiles construct the convergence plot if available."""
         import numpy
-        #for a set of logfiles construct the convergence plot if available
         energies=[]
         forces=[]
         ferr=[]
@@ -299,9 +328,10 @@ class Logfile():
             plt.show()
         else:
             print 'No plot necessary, less than two points found'
-    
-
+    #
+    #
     def _print_information(self):
+        """Display short information about the logfile (used by str)."""
         import yaml,numpy
         summary=[{'Atom types': 
                   numpy.unique([ at.keys()[0] for at in self.astruct['Positions']]).tolist()},
