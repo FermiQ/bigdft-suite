@@ -192,42 +192,45 @@ def plot_wfn_convergence(wfn_it,gnrm_cv):
 
 
 class Logfile():
-    """Define the generic class to handle a logfile given by 'filename',
-    a list of logfiles given by filename_list."""
-    def __init__(self,filename=None,dictionary=None,filename_list=None,archive=None,label=None,load_only=None):
-        """Import a Logfile from a filename in yaml format, a list of filenames,
-        a dictionary or an archive (compressed tar file)."""
-        filelist=None
-        dicts = None
-        self.label=label
-        if archive is not None:
+    """Import a Logfile from a filename in yaml format, a list of filenames,
+        a dictionary or an archive (compressed tar file):
+        l = Logfile('one.yaml','two.yaml')
+        l = Logfile(archive='calc.tgz')
+        l = Logfile(archive='calc.tgz',member='one.yaml')"""
+    #def __init__(self,filename=None,dictionary=None,filename_list=None,archive=None,label=None,load_only=None):
+    def __init__(self,*args,**kwargs):
+        dicts = []
+        #Read the dictionary kwargs
+        arch = kwargs.get("archive")
+        member = kwargs.get("member")
+        label = kwargs.get("label")
+        dictionary=kwargs.get("dictionary")
+        if arch:
+            #An archive is detected
             import tarfile
             from futile import Yaml
-            tar = tarfile.open(archive)
-            dicts = []
-            for member in tar.getmembers():
-                f = tar.extractfile(member)
+            tar = tarfile.open(arch)
+            members = [ tar.getmember(member) ] if member else tar.getmembers()
+            for memb in members:
+                f = tar.extractfile(memb)
                 dicts.append(Yaml.load(stream=f.read()))
-        elif filename is not None: 
-            if self.label is None: self.label=filename
-            filelist=[filename]
-        elif filename_list is not None:
-            if self.label is None: self.label=filename_list[0]
-            filelist=filename_list
-        if filelist:
-            #print 'here',label
-            dicts=get_logs(filelist,select_document=load_only)
         elif dictionary:
-            #print 'there',label
+            #Read the dictionary
             dicts=[dictionary]
+        elif args:
+            #Read the list of files (member replaces load_only...)
+            dicts=get_logs(args,select_document=member)
+            label = label if label else args[0]
+        #Set the label
+        self.label=label
         if not dicts:
-            dicts=[]
-        #print 'dicts',len(dicts)
-        #initialize the logfile with the first document
+            raise ValueError("No log information provided.")
+        #Initialize the logfile with the first document
         self._initialize_class(dicts[0])
         if len(dicts)>1:
             #first initialize the instances with the previous logfile such as to provide the
-            #correct information (we should however decide what to do if some run did not converged)
+            #correct information
+            #(we should however decide what to do if some run did not converged)
             self._instances=[]
             for i,d in enumerate(dicts):
                 dtmp=dicts[0]
@@ -238,7 +241,7 @@ class Logfile():
             #then we should find the best values for the dictionary
             print 'Found',len(self._instances),'different runs'
             import numpy
-            #initalize the class with the dictionary corresponding to the lower value of the energy
+            #Initialize the class with the dictionary corresponding to the lower value of the energy
             ens=[(l.energy if hasattr(l,'energy') else 1.e100) for l in self._instances] 
             self.reference_log=numpy.argmin(ens)
             #print 'Energies',ens
@@ -355,3 +358,7 @@ class Logfile():
             summary.append({name: getattr(self,field)})
         if hasattr(self,'evals'): summary.append({'No. of KS orbitals per k-point': self.evals[0].info})
         return yaml.dump(summary,default_flow_style=False)
+
+if __name__ == "__main__":
+    #Create a logfile: should give an error (ValueError: No log information provided.)
+    l = Logfile()

@@ -84,14 +84,14 @@ class BrillouinZone():
     def __init__(self,astruct,mesh,evals,fermi_energy):
         import spglib,numpy
         celltmp=[ a if a!=float('inf') else 1.0 for a in astruct['Cell']]
-	self.lattice=numpy.diag(celltmp)
+        self.lattice=numpy.diag(celltmp)
         print 'lattice',self.lattice
-	pos=[ [ a/b if b!=float('inf') else 0.0 for a,b in zip(at.values()[0], celltmp)]for at in astruct['Positions']]
+        pos=[ [ a/b if b!=float('inf') else 0.0 for a,b in zip(at.values()[0], celltmp)]for at in astruct['Positions']]
         atoms=[ at.keys()[0] for at in astruct['Positions']]
-	ianames,iatype=numpy.unique(atoms,return_inverse=True) #[1,]*4+[2,]*4 #we should write a function for the iatype
+        ianames,iatype=numpy.unique(atoms,return_inverse=True) #[1,]*4+[2,]*4 #we should write a function for the iatype
         #print 'iatype', iatype
-	cell=(self.lattice,pos,iatype)
-	print 'spacegroup',spglib.get_spacegroup(cell, symprec=1e-5)
+        cell=(self.lattice,pos,iatype)
+        print 'spacegroup',spglib.get_spacegroup(cell, symprec=1e-5)
         #then define the pathes and special points
         import ase.dft.kpoints as ase
         #we should adapt the 'cubic'
@@ -105,53 +105,53 @@ class BrillouinZone():
         self.special_points=ase.get_special_points(lattice_string, self.lattice, eps=0.0001)
         self.special_paths=ase.special_paths[lattice_string]
         self.fermi_energy=fermi_energy
-	#dataset = spglib.get_symmetry_dataset(cell, symprec=1e-3)
-	#print dataset
-	#the shift has also to be put if present
-	mapping, grid = spglib.get_ir_reciprocal_mesh(mesh, cell, is_shift=[0, 0, 0])
-	lookup=[]
-	for ikpt in numpy.unique(mapping):
-	    ltmp=[]
-	    for ind, (m, g) in enumerate(zip(mapping, grid)):
-	        if m==ikpt:
-	            ltmp.append((g,ind))
-	    lookup.append(ltmp)
+        #dataset = spglib.get_symmetry_dataset(cell, symprec=1e-3)
+        #print dataset
+        #the shift has also to be put if present
+        mapping, grid = spglib.get_ir_reciprocal_mesh(mesh, cell, is_shift=[0, 0, 0])
+        lookup=[]
+        for ikpt in numpy.unique(mapping):
+            ltmp=[]
+            for ind, (m, g) in enumerate(zip(mapping, grid)):
+                if m==ikpt:
+                    ltmp.append((g,ind))
+            lookup.append(ltmp)
         print 'irreductible k-points',len(lookup)
         #print 'mapping',mapping
         #print 'grid',len(grid),numpy.max(grid)
-	coords=numpy.array(grid, dtype = numpy.float)/mesh
+        coords=numpy.array(grid, dtype = numpy.float)/mesh
         #print 'coords',coords
         #print 'shape',coords.shape
-	#print grid #[ x+mesh[0]*y+mesh[0]*mesh[1]*z for x,y,z in grid]
-	#brillouin zone
+        #print grid #[ x+mesh[0]*y+mesh[0]*mesh[1]*z for x,y,z in grid]
+        #brillouin zone
         kp=numpy.array([ k.kpt for k in evals])
-	ourkpt=numpy.rint(kp*(numpy.array(mesh))).astype(int)
+        ourkpt=numpy.rint(kp*(numpy.array(mesh))).astype(int)
         #print ourkpt
-	bz=numpy.ndarray((coords.shape[0],evals[0].size),dtype=float)
-	#print bz
-	shift=(numpy.array(mesh)-1)/2
+        bz=numpy.ndarray((coords.shape[0],evals[0].size),dtype=float)
+        #print bz
+        shift=(numpy.array(mesh)-1)/2
         #print 'shift',shift
-	for ik in lookup:
-	    irrk=None
-	    for orbs,bzk in zip(evals,ourkpt):
-	        for (kt,ind) in ik:
-	            if (bzk==kt).all():
-	                irrk=orbs
-	                #print 'hello',orbs.kpt,kt
-	                break 
-	        if irrk is not None: break
-	    if irrk is None:
-	        print 'error in ik',ik
-	        print 'our',ourkpt
-	        print 'spglib',grid
-	        print 'mapping',mapping
-	    for (kt,ind) in ik:
-	        #r=kt+shift
+        for ik in lookup:
+            irrk=None
+            for orbs,bzk in zip(evals,ourkpt):
+                for (kt,ind) in ik:
+                    if (bzk==kt).all():
+                        irrk=orbs
+                        #print 'hello',orbs.kpt,kt
+                        break 
+                if irrk is not None: break
+            if irrk is None:
+                print 'error in ik',ik
+                print 'our',ourkpt
+                print 'spglib',grid
+                print 'mapping',mapping
+            for (kt,ind) in ik:
+                #r=kt+shift
                 #ind=numpy.argwhere([(g==kt).all() for g in grid])
                 #print 'ik',kt,r,ind
-	        #print irrk.shape, bz.shape
-	        #bz[r[0],r[1],r[2],:]=irrk.reshape(irrk.size)
-	        bz[ind,:]=irrk.reshape(irrk.size)
+                #print irrk.shape, bz.shape
+                #bz[r[0],r[1],r[2],:]=irrk.reshape(irrk.size)
+                bz[ind,:]=irrk.reshape(irrk.size)
         #duplicate coordinates for the interpolation
         bztmp=bz#.reshape((mesh[0]*mesh[1]*mesh[2], -1))
         #print bztmp
