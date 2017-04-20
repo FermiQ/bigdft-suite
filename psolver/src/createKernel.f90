@@ -1,7 +1,7 @@
 !> @file
 !!    Routines to create the kernel for Poisson solver
 !! @author
-!!    Copyright (C) 2002-2013 BigDFT group  (LG)
+!!    Copyright (C) 2002-2017 BigDFT group  (LG)<br/>
 !!    This file is distributed under the terms of the
 !!    GNU General Public License, see ~/COPYING file
 !!    or http://www.gnu.org/copyleft/gpl.txt .
@@ -9,7 +9,6 @@
 
 
 !> Initialization of the Poisson kernel
-!! @ingroup PSOLVER
 function pkernel_init_old(verb,iproc,nproc,igpu,geocode,ndims,hgrids,itype_scf,&
      alg,cavity,mu0_screening,angrad,mpi_env,taskgroup_size) result(kernel)
   use yaml_output
@@ -169,7 +168,6 @@ end function pkernel_init_old
 !> Allocate a pointer which corresponds to the zero-padded FFT slice needed for
 !! calculating the convolution with the kernel expressed in the interpolating scaling
 !! function basis. The kernel pointer is unallocated on input, allocated on output.
-!! @ingroup PSOLVER
 subroutine pkernel_set(kernel,eps,dlogeps,oneoeps,oneosqrteps,corr,verbose) !optional arguments
   use yaml_output
   use dynamic_memory
@@ -201,7 +199,7 @@ subroutine pkernel_set(kernel,eps,dlogeps,oneoeps,oneosqrteps,corr,verbose) !opt
   character(len=*), parameter :: subname='createKernel'
   integer :: m1,m2,m3,n1,n2,n3,md1,md2,md3,nd1,nd2,nd3,i_stat
   integer :: jproc,nlimd,nlimk,jfd,jhd,jzd,jfk,jhk,jzk,npd,npk
-  real(kind=8) :: alphat,betat,gammat,mu0t
+  real(kind=8) :: mu0t
   real(kind=8), dimension(:), allocatable :: pkernel2
   integer :: i1,i2,i3,j1,j2,j3,ind,indt,switch_alg,size2,sizek,kernelnproc,size3
   integer :: n3pr1,n3pr2,istart,jend,i23,i3s,n23,displ,gpuPCGRed
@@ -217,9 +215,6 @@ subroutine pkernel_set(kernel,eps,dlogeps,oneoeps,oneosqrteps,corr,verbose) !opt
   dump=wrtmsg .and. kernel%mpi_env%iproc+kernel%mpi_env%igroup==0
 
   mu0t=kernel%mu
-  alphat=kernel%angrad(1)
-  betat=kernel%angrad(2)
-  gammat=kernel%angrad(3)
 
   if (dump) then
      if (mu0t==0.0_gp) then
@@ -286,7 +281,9 @@ subroutine pkernel_set(kernel,eps,dlogeps,oneoeps,oneosqrteps,corr,verbose) !opt
      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
      call Periodic_Kernel(n1,n2,n3,nd1,nd2,nd3,&
           kernel%hgrids(1),kernel%hgrids(2),kernel%hgrids(3),&
-          kernel%itype_scf,kernel%kernel,kernel%mpi_env%iproc,kernelnproc,mu0t,alphat,betat,gammat,n3pr2,n3pr1)
+          kernel%itype_scf,kernel%kernel,kernel%mpi_env%iproc,kernelnproc,&
+          !mu0t,alphat,betat,gammat,&
+          n3pr2,n3pr1)
 
      nlimd=n2
      nlimk=n3/2+1
@@ -306,7 +303,7 @@ subroutine pkernel_set(kernel,eps,dlogeps,oneoeps,oneosqrteps,corr,verbose) !opt
      !Build the Kernel
      call S_FFT_dimensions(kernel%ndims(1),kernel%ndims(2),kernel%ndims(3),&
           m1,m2,m3,n1,n2,n3,md1,md2,md3,nd1,nd2,nd3,kernel%mpi_env%nproc,&
-          kernel%igpu,.false.,non_ortho=kernel%angrad(1)/= onehalf*pi)
+          kernel%igpu,.false.,non_ortho=.not. kernel%mesh%orthorhombic)
 
 
      if (kernel%igpu > 0) then
@@ -358,8 +355,8 @@ subroutine pkernel_set(kernel,eps,dlogeps,oneoeps,oneosqrteps,corr,verbose) !opt
      call Surfaces_Kernel(kernel%mpi_env%iproc,kernelnproc,&
           kernel%mpi_env%mpi_comm,kernel%inplane_mpi%mpi_comm,&
           n1,n2,n3,m3,nd1,nd2,nd3,&
-          kernel%hgrids(1),kernel%hgrids(3),kernel%hgrids(2),&
-          kernel%itype_scf,kernel%kernel,mu0t,alphat)!,betat,gammat)!,n3pr2,n3pr1)
+          kernel%mesh,&
+          kernel%itype_scf,kernel%kernel,mu0t)!,alphat)!,betat,gammat)!,n3pr2,n3pr1)
 
      !last plane calculated for the density and the kernel
      nlimd=n2
@@ -1332,9 +1329,10 @@ subroutine pkernel_build_epsilon(kernel,edens,eps0,depsdrho,dsurfdrho)
 
 end subroutine pkernel_build_epsilon
 
-!>new version of the pkernel_build epsilon Routine,
-!! with explicit workarrays. This version is supposed not to allocate
-!! any array
+
+!> New version of the pkernel_build epsilon Routine,
+!! with explicit workarrays.
+!! This version is supposed not to allocate any array
 subroutine rebuild_cavity_from_rho(rho_full,nabla_rho,nabla2_rho,delta_rho,cc_rho,depsdrho,dsurfdrho,&
      kernel,IntSur,IntVol)
   use FDder
@@ -1380,10 +1378,10 @@ subroutine inplane_partitioning(mpi_env,mdz,n2wires,n3planes,part_mpi,inplane_mp
   use wrapper_mpi
   use yaml_output
   implicit none
-  integer, intent(in) :: mdz !< dimension of the density in the z direction
+  integer, intent(in) :: mdz              !< dimension of the density in the z direction
   integer, intent(in) :: n2wires,n3planes !<number of interesting wires in a plane and number of interesting planes
   type(mpi_environment), intent(in) :: mpi_env !< global env of Psolver
-  integer, intent(out) :: n3pr1,n3pr2 !< mpi grid of processors based on mpi_env
+  integer, intent(out) :: n3pr1,n3pr2     !< mpi grid of processors based on mpi_env
   type(mpi_environment), intent(out) :: inplane_mpi,part_mpi !<internal environments for the partitioning
   !local variables
 

@@ -88,7 +88,7 @@ if HAVE_AMBERTOOLS
 ambertools_wrap= wrap.c
 ###for amber supp.:
 wrap.o:     wrap.c
-	$(NAB) -I$(top_builddir) -c  -g $<
+	$(NAB) -I$(top_builddir) -c  -g @CC_PIC_FLAG@  $<
 else
 ambertools_wrap= wrap_fake.f90
 endif
@@ -224,6 +224,7 @@ YAML_DATABASE = input_variables_definition.yaml bigdft_bibliography.yaml
 #the sed command below will transform the entire yaml document into a c string, to be passed to fortran
 #input_variables_definition-inc.h: input_variables_definition.yaml
 ###	$(SED) -e "s/^/\"/;s/$$/\\\n\"/" $< > $@
+
 
 tmp-libbigdft/extract.stamp: $(subs_static_library) $(out_static_library)
 	test -e "tmp-libbigdft" || $(INSTALL) -d -m 755 tmp-libbigdft

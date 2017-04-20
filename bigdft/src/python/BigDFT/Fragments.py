@@ -1,4 +1,5 @@
 AU_to_A=0.52917721092
+Debye_to_AU = 0.393430307
 
 class XYZfile():
     def __init__(self,filename=None,units='atomic'):
@@ -7,7 +8,7 @@ class XYZfile():
         self.units=units
         self.fac=1.0
         if units == 'angstroem': self.fac=AU_to_A
-    def append(self,array,basename='',names=None):
+    def append(self,array,basename='',names=None,attributes=None):
         "Add lines to the file position list"
         nm=basename
         for i,r in enumerate(array):
@@ -15,6 +16,7 @@ class XYZfile():
             line=str(nm)
             for t in r:
                 line+=' '+str(self.fac*t)
+            if attributes is not None: line+=' '+str(attributes[i])
             self.lines.append(line+'\n')
     def dump(self,position='w'):
         "Dump the file as it is now ready for writing"
@@ -78,6 +80,42 @@ class Lattice():
                         if app: transl.append(vect)
         return transl
 
+
+class RotoTranslation():
+    "Define a transformation which can be applied to a group of atoms"
+    def __init__(self,pos1,pos2):
+        try:
+            import wahba
+            self.R,self.t,self.J=wahba.rigid_transform_3D(pos1,pos2)
+        except Exception,e:
+            print 'Error',e
+            self.R,self.t,self.J=(None,None,1.0e10)
+    def dot(self,pos):
+        "Apply the rototranslations on the set of positions provided by pos"
+        import wahba as w,numpy as np
+        if self.t is None:
+            res=w.apply_R(self.R,pos)
+        elif self.R is None:
+            res=w.apply_t(self.t,pos)
+        else:
+            res=w.apply_Rt(self.R,self.t,pos)
+        return res
+    def invert(self):
+        self.t=-self.t
+        if self.R is not None: self.R=self.R.T
+
+class Translation(RotoTranslation):
+    def __init__(self,t):
+        import numpy
+        self.R=None
+        self.t=numpy.mat(t).reshape(3,1)
+        self.J=0.0
+class Rotation(RotoTranslation):
+    def __init__(self,R):
+        self.t=None
+        self.R=R
+        self.J=0.0
+
 class Fragment():
     protected_keys=['q0','q1','q2','sigma']
     def __init__(self,atomlist=None,id='Unknown',units='AU'):
@@ -106,11 +144,11 @@ class Fragment():
         "Transform the fragment information into a dictionary ready to be put as external potential"
         lat=[]
         for at in self.atoms:
-            dat={}
+            dat=at.copy()
             dat['r']=list(at[self.__torxyz(at)])
             dat['sym']=self.element(at)
             for k in self.protected_keys:
-                if k in at: dat[k]=at[k].tolist()
+                if k in at: dat[k]=list(at[k]) #.tolist()
             lat.append(dat)
         return lat
     def append(self,atom=None,sym=None,positions=None):
@@ -142,20 +180,60 @@ class Fragment():
     def centroid(self):
         import numpy
         return numpy.ravel(numpy.mean(self.positions, axis=0))
-    def transform(self,R=None,t=None):
+    def center_of_charge(self,zion):
+        cc=0.0
+        qtot=0.0
+        for at in self.atoms:
+            netcharge=at.get('q0')[0]
+            sym=self.element(at)
+            zcharge=zion[sym]
+            elcharge=zcharge-netcharge
+            cc+=elcharge*self.rxyz(at)
+            qtot+=elcharge
+        return cc/qtot
+    def transform(self,Rt): #R=None,t=None):
         "Apply a rototranslation of the fragment positions"
-        import wahba as w,numpy as np
-        if t is None:
-            self.positions=w.apply_R(R,self.positions)
-        elif R is None:
-            self.positions=w.apply_t(t,self.positions)
-        else:
-            self.positions=w.apply_Rt(R,t,self.positions)
+        import numpy as np
+        self.positions=Rt.dot(self.positions)
+        #import wahba as w,numpy as np
+        #if t is None:
+        #    self.positions=w.apply_R(R,self.positions)
+        #elif R is None:
+        #    self.positions=w.apply_t(t,self.positions)
+        #else:
+        #    self.positions=w.apply_Rt(R,t,self.positions)
         #then replace the correct positions at the atoms
         for at,r in zip(self.atoms,self.positions):
             k=self.__torxyz(at)
             at[k]=np.ravel(r).tolist()
         #further treatments have to be added for the atomic multipoles
+    def line_up(self):
+        "Align the principal axis of inertia of the fragments along the coordinate axis. Also shift the fragment such as its centroid is zero."
+        import numpy
+        Shift=Translation(self.centroid())
+        Shift.invert()
+        self.transform(Shift)
+        #now the centroid is zero
+        I=self.ellipsoid()
+        w,v=numpy.linalg.eig(I)
+        Redress=Rotation(v.T)
+        self.transform(Redress)
+        #now the principal axis of inertia are on the coordinate axis
+    def ellipsoid(self,center=0.0):
+        import numpy as np
+        I=np.mat(np.zeros(9).reshape(3,3))
+        for at in self.atoms:
+            rxyz=self.rxyz(at)-center
+            I[0,0]+=rxyz[0]**2 #rxyz[1]**2+rxyz[2]**2
+            I[1,1]+=rxyz[1]**2 #rxyz[0]**2+rxyz[2]**2
+            I[2,2]+=rxyz[2]**2 #rxyz[1]**2+rxyz[0]**2
+            I[0,1]+=rxyz[1]*rxyz[0]
+            I[1,0]+=rxyz[1]*rxyz[0]
+            I[0,2]+=rxyz[2]*rxyz[0]
+            I[2,0]+=rxyz[2]*rxyz[0]
+            I[1,2]+=rxyz[2]*rxyz[1]
+            I[2,1]+=rxyz[2]*rxyz[1]
+        return I        
     def q0(self,atom):
         "Provides the charge of the atom"
         charge=atom.get('q0')
@@ -216,18 +294,27 @@ class Fragment():
         else:
             return None
 
+
                         
 class System():
     "A system is defined by a collection of Fragments. It might be given by one single fragment"
     def __init__(self,mp_dict=None,xyz=None,nat_reference=None,units='AU',transformations=None,reference_fragments=None):
         self.fragments=[]
         self.CMs=[]
-        self.units=units
+        self._get_units(units)
         if xyz is not None: self.fill_from_xyz(xyz,nat_reference)
         if mp_dict is not None: self.fill_from_mp_dict(mp_dict,nat_reference)
         if transformations is not None: self.recompose(transformations,reference_fragments)
     def __len__(self):
         return sum([len(frag) for frag in self.fragments])
+    def _get_units(self,unt):
+        self.units=unt
+        if unt=='angstroem':
+            self.units='A'
+        elif unt=='atomic' or unt=='bohr':
+            self.units='AU'
+    def _bigdft_units(self):
+        return 'angstroem' if self.units=='A' else 'atomic'
     def fill_from_xyz(self,file,nat_reference):
         "Import the fragment information from a xyz file"
         fil=open(file,'r')
@@ -242,10 +329,7 @@ class System():
                     nat-=nt
                     if len(pos)==2:
                         unt=pos[1]
-                        if unt=='angstroem':
-                            self.units='A'
-                        elif unt=='atomic' or unt=='bohr':
-                            self.units='AU'
+                        self._get_units(unt)
                     if frag is not None: self.append(frag)
                     frag=Fragment(units=self.units)
                     iat=0
@@ -275,19 +359,19 @@ class System():
     def xyz(self,filename=None,units='atomic'):
         import numpy as np
         f=XYZfile(filename,units)
-        for frag in self.fragments:
+        for i,frag in enumerate(self.fragments):
             names=[ frag.element(at) for at in frag.atoms]
             posarr=[ np.ravel(r) for r in frag.positions]
-            f.append(posarr,names=names)
+            f.append(posarr,names=names,attributes=[{'frag': [frag.id, i+1]}]*len(frag))
         f.dump()
     def dict(self,filename=None):
         atoms=[]
         for f in self.fragments:
             atoms+=f.dict()
-        if self.units != 'A': 
-            print 'Dictionary version not available if the system is given in AU'
-            raise Exception
-        dc={'units': 'angstroem','global monopole': float(self.Q()), 'values': atoms}
+        #if self.units != 'A': 
+        #    print 'Dictionary version not available if the system is given in AU'
+        #    raise Exception
+        dc={'units': self._bigdft_units(),'global monopole': float(self.Q()), 'values': atoms}
         return dc
     def append(self,frag):
         "Append a fragment to the System class"
@@ -309,12 +393,14 @@ class System():
         #return self.fragments[imin]
     def fragment_transformation(self,frag1,frag2):
         "returns the transformation among fragments if exists"
-        try:
-            import wahba
-            roto,translation,J=wahba.rigid_transform_3D(frag1.positions,frag2.positions)
-        except:
-            roto,translation,J=(None,None,1.0e10)
-        return roto,translation,J
+        return RotoTranslation(frag1.positions,frag2.positions)
+        #try:
+        #    import wahba
+        #    roto,translation,J=wahba.rigid_transform_3D(frag1.positions,frag2.positions)
+        #except Exception,e:
+        #    print 'Error',e
+        #    roto,translation,J=(None,None,1.0e10)
+        #return roto,translation,J
     def decompose(self,reference_fragments):
         "Decompose the system into reference fragments"
         assert type(reference_fragments) == type([])
@@ -323,15 +409,16 @@ class System():
             transf=[]
             Js=[]
             for ref in reference_fragments:
-                r,t,j=self.fragment_transformation(ref,frag)
-                transf.append({'R':r,'t':t})
-                Js.append(j)
+                #r,t,j=self.fragment_transformation(ref,frag)
+                RT=self.fragment_transformation(ref,frag)
+                transf.append({'RT': RT})#{'R':r,'t':t})
+                #Js.append(j)
             #choose the minimal one
             import numpy
-            Jchosen=numpy.argmin(Js)
+            Jchosen=numpy.argmin([rt['RT'].J for rt in transf])
             ref=transf[Jchosen]
             ref['ref']=reference_fragments[Jchosen]
-            ref['J']=Js[Jchosen]
+            #ref['J']=Js[Jchosen]
             ref['id']=Jchosen
             self.decomposition.append(ref)
     def recompose(self,transformations=None,reference_fragments=None):
@@ -350,7 +437,8 @@ class System():
                 frag=copy.deepcopy(reference_fragments[idf])
             else:
                 frag=copy.deepcopy(item['ref'])
-            frag.transform(item['R'],item['t'])
+            #frag.transform(item['R'],item['t'])
+            frag.transform(item['RT'])
             self.append(frag)
     def Q(self):
             "Provides the global monopole of the system given as a sum of the monopoles of the atoms"
@@ -388,13 +476,14 @@ def distance(i,j):
     return numpy.sqrt(numpy.dot(vec,vec.T))
 
 def wahba_fragment(frag1,frag2):
-    "Solve the wahba's problem among fragments"
+    "Solve the wahba's problem among fragments, deprecated routine"
     import wahba #should be cleaned
-    #For each of the fragment build the list of the coordinated
+    #For each of the fragment build the list of the coordinates
     roto,translation,J=wahba.rigid_transform_3D(frag1.positions,frag2.positions)
     return roto,translation,J
 
 def rotot_collection(ref_frag,lookup,fragments):
+    "Deprecated routine, only for backward compatibility"
     W=[]
     for f in lookup:
         refF=lookup[ref_frag]
