@@ -702,7 +702,7 @@ subroutine tmb_overlap_onsite(iproc, nproc, imethod_overlap, at, tmb, rxyz)
                                deallocate_matrices, deallocate_sparse_matrix, &
                                assignment(=), sparsematrix_malloc_ptr, SPARSE_TASKGROUP
   use sparsematrix_wrappers, only: init_sparse_matrix_wrapper
-  use sparsematrix_init, only: init_matrix_taskgroups
+  use sparsematrix_init, only: get_sparsematrix_local_extent, get_spasematrix_local_rows_columns, init_matrix_taskgroups
   use bigdft_matrices, only: check_local_matrix_extents, init_matrixindex_in_compressed_fortransposed
   use transposed_operations, only: calculate_overlap_transposed, normalize_transposed
   !!use bounds, only: ext_buffers
@@ -1006,13 +1006,16 @@ subroutine tmb_overlap_onsite(iproc, nproc, imethod_overlap, at, tmb, rxyz)
   call init_matrixindex_in_compressed_fortransposed(iproc, nproc, &
        collcom_tmp, collcom_tmp, collcom_tmp, smat_tmp, &
        aux)
+
   iirow(1) = smat_tmp%nfvctr
   iirow(2) = 1
   iicol(1) = smat_tmp%nfvctr
   iicol(2) = 1
+  call get_sparsematrix_local_extent(iproc, nproc, tmb%linmat%smmd, smat_tmp, ind_min, ind_mas)
   call check_local_matrix_extents(iproc, nproc, &
        collcom_tmp, collcom_tmp, tmb%linmat%smmd, smat_tmp, aux, &
-       ind_min, ind_mas, irow, icol)
+       ind_min, ind_mas)
+  call get_spasematrix_local_rows_columns(smat_tmp, ind_min, ind_mas, irow, icol)
   iirow(1) = min(irow(1),iirow(1))
   iirow(2) = max(irow(2),iirow(2))
   iicol(1) = min(icol(1),iicol(1))

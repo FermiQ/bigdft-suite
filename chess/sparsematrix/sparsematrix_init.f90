@@ -56,6 +56,8 @@ module sparsematrix_init
   public :: distribute_on_tasks
   public :: write_sparsematrix_info
   public :: get_number_of_electrons
+  public :: get_sparsematrix_local_extent
+  public :: get_spasematrix_local_rows_columns
 
 
   contains
@@ -5573,5 +5575,217 @@ module sparsematrix_init
    !!   write(*,'(A,/,10i3)')'swap array :',IASWAP
    !! 
    !!end program TestMergeSort
+
+
+    !> Copied from projector_for_charge_analysis and extract_matrix
+    subroutine check_projector_charge_analysis(iproc, nproc, smmd, smat, ind_min, ind_max)
+      use module_base
+      use sparsematrix_base, only: sparse_matrix, sparse_matrix_metadata
+      implicit none
+
+      ! Calling arguments
+      integer,intent(in) :: iproc, nproc
+      type(sparse_matrix_metadata),intent(in) :: smmd
+      type(sparse_matrix),intent(in) :: smat
+      integer,intent(inout) :: ind_min, ind_max
+
+      integer :: ii, natp, jj, isat, kat, iatold, kkat, i, iat, j, ind
+      integer,dimension(:),allocatable :: orbs_atom_id
+      integer,dimension(:),allocatable :: neighbor_id
+      integer,parameter :: ntmb_max = 16 !maximal number of TMBs per atom
+
+      ! Parallelization over the number of atoms
+      ii = smmd%nat/nproc
+      natp = ii
+      jj = smmd%nat - nproc*natp
+      if (iproc<jj) then
+          natp = natp + 1
+      end if
+      isat = (iproc)*ii + min(iproc,jj)
+
+      orbs_atom_id = f_malloc0(natp,id='orbs_atom_id')
+      do i=1,smat%nfvctr
+          kkat = smmd%on_which_atom(i)
+          if (kkat>isat .and. kkat<=isat+natp) then
+              kat = kkat - isat
+              orbs_atom_id(kat) = i
+              !!!!exit !onyl have to search for the first TMB on each atom
+          end if
+      end do
+
+      neighbor_id = f_malloc(0.to.smat%nfvctr,id='neighbor_id')
+      do kat=1,natp
+          ! Determine the "neighbors"
+          iatold = 0
+          kkat = kat + isat
+          neighbor_id(0) = 0
+          !do ii=1,orbs_atom_id(0,kat)
+              i = orbs_atom_id(kat)
+              do j=1,smat%nfvctr
+                  ind =  matrixindex_in_compressed(smat, j, i)
+                  if (ind/=0) then
+                     neighbor_id(0) = neighbor_id(0) + 1
+                     neighbor_id(neighbor_id(0)) = j
+                  end if
+              end do
+          !end do
+
+          ! Determine the size of the matrix needed
+          do ii=1,neighbor_id(0)
+              i = neighbor_id(ii)
+              do jj=1,neighbor_id(0)
+                  j = neighbor_id(jj)
+                  ind =  matrixindex_in_compressed(smat, j, i)
+                  if (ind>0) then
+                      ind_min = min(ind_min,ind)
+                      ind_max = max(ind_max,ind)
+                  end if
+              end do
+          end do
+      end do
+
+      call f_free(orbs_atom_id)
+      call f_free(neighbor_id)
+
+    end subroutine check_projector_charge_analysis
+
+
+    subroutine check_ortho_inguess(smat,ind_min,ind_max)
+      use module_base
+      use sparsematrix_base, only: sparse_matrix
+      implicit none
+      type(sparse_matrix),intent(in) :: smat
+      integer, intent(inout) :: ind_min,ind_max
+      !local variables
+      integer :: iorb, iiorb, isegstart, isegend, iseg, j, i, jorb, korb, ind, nthread, ithread
+      logical, dimension(:,:), allocatable :: in_neighborhood
+      !$ integer :: omp_get_max_threads, omp_get_thread_num
+
+      !call f_routine(id='check_ortho_inguess')
+
+      ! Allocate the array for all threads to avoid that it has to be declared private
+      nthread = 1
+      !$ nthread = omp_get_max_threads()
+      in_neighborhood = f_malloc((/1.to.smat%nfvctr,0.to.nthread-1/),id='in_neighborhood')
+
+      ithread = 0
+      !$omp parallel default(none) &
+      !$omp shared(smat, in_neighborhood, ind_min, ind_max) &
+      !$omp private(iorb, iiorb, isegstart, isegend, iseg, j, jorb, korb, ind,i) &
+      !$omp firstprivate(ithread)
+      !$omp do reduction(min: ind_min) reduction(max: ind_max)
+      do iorb=1,smat%nfvctrp
+         !$ ithread = omp_get_thread_num()
+
+         iiorb = smat%isfvctr + iorb
+         isegstart = smat%istsegline(iiorb)
+         isegend = smat%istsegline(iiorb) + smat%nsegline(iiorb) -1
+         in_neighborhood(:,ithread) = .false.
+         do iseg=isegstart,isegend
+            ! A segment is always on one line, therefore no double loop
+            j = smat%keyg(1,2,iseg)
+            do i=smat%keyg(1,1,iseg),smat%keyg(2,1,iseg)
+               in_neighborhood(i,ithread) = .true.
+            end do
+         end do
+
+         do jorb=1,smat%nfvctr
+            if (.not.in_neighborhood(jorb,ithread)) cycle
+            do korb=1,smat%nfvctr
+               if (.not.in_neighborhood(korb,ithread)) cycle
+               ind = matrixindex_in_compressed(smat,korb,jorb)
+               if (ind>0) then
+                  ind_min = min(ind_min,ind)
+                  ind_max = max(ind_max,ind)
+               end if
+            end do
+         end do
+
+      end do
+      !$omp end do
+      !$omp end parallel
+
+      call f_free(in_neighborhood)
+
+
+      !call f_release_routine()
+
+    end subroutine check_ortho_inguess
+
+
+
+   subroutine get_sparsematrix_local_extent(iproc, nproc, smmd, smat, ind_min, ind_max)
+     use sparsematrix_base, only: sparse_matrix, sparse_matrix_metadata
+     implicit none
+
+     ! Calling arguments
+     integer,intent(in) :: iproc, nproc
+     type(sparse_matrix_metadata),intent(in) :: smmd
+     type(sparse_matrix),intent(in) :: smat
+     integer,intent(inout) :: ind_min, ind_max
+
+     call check_compress_distributed_layout(smat,ind_min,ind_max)
+     if (smat%smatmul_initialized) then
+         call check_matmul_layout(smat%smmm%nseq,smat%smmm%indices_extract_sequential,ind_min,ind_max)
+     end if
+     call check_ortho_inguess(smat,ind_min,ind_max)
+     call check_projector_charge_analysis(iproc, nproc, smmd, smat, ind_min, ind_max)
+
+   end subroutine get_sparsematrix_local_extent
+
+
+   subroutine get_spasematrix_local_rows_columns(smat, ind_min, ind_max, irow, icol)
+     use sparsematrix_base, only: sparse_matrix, sparse_matrix_metadata
+     implicit none
+
+     ! Calling arguments
+     type(sparse_matrix),intent(in) :: smat
+     integer,intent(out) :: ind_min, ind_max
+     integer,dimension(2),intent(out) :: irow, icol
+
+     ! Local variables
+     integer :: i, ii_ref, iseg, iorb, jorb, ii
+     logical :: found
+
+     ! Get the global indices of ind_min and ind_max
+     do i=1,2
+         if (i==1) then
+             ii_ref = ind_min
+         else
+             ii_ref = ind_max
+         end if
+         ! Search the indices iorb,jorb corresponding to ii_ref
+         found=.false.
+
+         ! not sure if OpenMP is really worth it here
+         !$omp parallel default(none) &
+         !$omp private(iseg,ii,iorb,jorb) &
+         !$omp shared(smat,ii_ref,irow,icol,found,i)
+         !$omp do
+         outloop: do iseg=1,smat%nseg
+             if (.not. found) then
+                iorb = smat%keyg(1,2,iseg)
+                do jorb=smat%keyg(1,1,iseg),smat%keyg(2,1,iseg)
+                    ii = matrixindex_in_compressed(smat, jorb, iorb)
+                    !if (iproc==0) write(*,'(a,5i9)') 'i, ii_ref, ii, iorb, jorb', i, ii_ref, ii, iorb, jorb
+                    if (ii==ii_ref) then
+                        irow(i) = jorb
+                        icol(i) = iorb
+                        !exit outloop
+                        !SM: I think one should do this within a critical section since it is shared, just to be sure...
+                        !$omp critical
+                        found=.true.
+                        !$omp end critical
+                    end if
+                end do
+             end if
+         end do outloop
+         !$omp end do
+         !$omp end parallel
+
+     end do
+
+    end subroutine get_spasematrix_local_rows_columns
+
 
 end module sparsematrix_init
