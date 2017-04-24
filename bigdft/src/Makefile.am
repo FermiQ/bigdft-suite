@@ -52,6 +52,8 @@ openbabel_dependency = modules/libbabel.so.@BIGDFT_MINOR_VERSION@
 bigdft_deps += -Lmodules -lbabel
 if BUILD_DYNAMIC_LIBS
 bigdft_library += -Lmodules -lbabel
+else
+AM_LDFLAGS = @FC_RPATH@$(DESTDIR)$(dynlibdir)
 endif
 endif
 
