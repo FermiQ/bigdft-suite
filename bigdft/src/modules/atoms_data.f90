@@ -2317,7 +2317,33 @@ subroutine astruct_set_displacement(astruct, randdis)
 
    call rxyz_inside_box(astruct)
 
-END SUBROUTINE astruct_set_displacement
+ END SUBROUTINE astruct_set_displacement
+
+ subroutine astruct_distance(astruct, rxyz, dxyz, iat1, iat2)
+   use module_defs, only: gp
+   use module_atoms, only: atomic_structure
+   implicit none
+   type(atomic_structure), intent(in) :: astruct
+   real(gp), dimension(3, astruct%nat), intent(in) :: rxyz
+   real(gp), dimension(3), intent(out) :: dxyz
+   integer, intent(in) :: iat1, iat2
+   
+   logical, dimension(3) :: per
+
+   select case(astruct%geocode)
+   case ("P")
+      per = (/ .true., .true., .true. /)
+   case ("S")
+      per = (/ .true., .false., .true. /)
+   case ("W")
+      per = (/ .false., .true., .false. /)
+   case default
+      per = (/ .false., .false., .false. /)
+   end select
+
+   dxyz(:) = rxyz(:, iat2) - rxyz(:, iat1)
+   where (per) dxyz = dxyz - astruct%cell_dim * nint(dxyz / astruct%cell_dim)
+ END SUBROUTINE astruct_distance
 
 !> Compute a list of neighbours for the given structure.
 subroutine astruct_neighbours(astruct, rxyz, neighb)

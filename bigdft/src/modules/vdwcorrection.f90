@@ -980,6 +980,7 @@ contains
     integer       :: atom1, atom2   ! atom counters for loops
     integer       :: nzatom1   ! Atomic number of atom 1
     integer       :: nzatom2   ! Atomic number of atom 2
+    real(gp), dimension(3) :: dxyz ! Vector between atom 1 and atom 2 wrt. periodicity
     real(kind=GP) :: distance  ! Distance between pairs of atoms
     real(kind=GP) :: sqdist    ! Square distance between pairs of atoms
     real(kind=GP) :: c6coeff   ! The c6coefficient of the pair
@@ -1008,13 +1009,11 @@ contains
              nzatom1 = atoms%nzatom(atoms%astruct%iatype(atom1))
              nzatom2 = atoms%nzatom(atoms%astruct%iatype(atom2))
 
+             call astruct_distance(atoms%astruct, rxyz, dxyz, atom1, atom2)
              ! qoh: Calculate distance between each pair of atoms
-             sqdist=(rxyz(1,atom1) - rxyz(1,atom2))**2 &
-                  + (rxyz(2,atom1) - rxyz(2,atom2))**2 &
-                  + (rxyz(3,atom1) - rxyz(3,atom2))**2 
+             sqdist = dxyz(1) ** 2 + dxyz(2) ** 2 + dxyz(3) ** 2
              distance = sqrt(sqdist)
              ! qoh: distance**6 = sqdist**3
-
 
              if (sqdist < 20000_GP) then
                 if (dispersion < 5) then
@@ -1102,6 +1101,7 @@ contains
     integer       :: nzatom1     ! Atomic number of atom 1
     integer       :: nzatom2     ! Atomic number of atom 2
     integer       :: nzatom3     ! Atomic number of atom 3
+    real(gp), dimension(3) :: dxyz ! Vector between atom 1 and atom 2 wrt. periodicity
     real(kind=GP) :: distance    ! Distance between pairs of atoms
     real(kind=GP) :: sqdist      ! Square distance between pairs of atoms
     real(kind=GP) :: c6coeff     ! The c6coefficient of the pair
@@ -1112,9 +1112,9 @@ contains
 
     ! vama D3
     integer       :: atom3       ! atom counters for loops
-    real(kind=GP) :: dxAj, dyAj, dzAj
-    real(kind=GP) :: dxAk, dyAk, dzAk
-    real(kind=GP) :: dxjk, dyjk, dzjk
+!!$    real(kind=GP) :: dxAj, dyAj, dzAj
+!!$    real(kind=GP) :: dxAk, dyAk, dzAk
+!!$    real(kind=GP) :: dxjk, dyjk, dzjk
     real(kind=GP) :: r0aj, r0jk, r0ak
     real(kind=GP) :: rAj,rjk,rAk
     real(kind=GP) :: Qfac
@@ -1123,8 +1123,8 @@ contains
     real(kind=GP) :: tmp6, tmp8
     real(kind=GP) :: tmp6a, tmp8a
     real(kind=GP) :: cnA, cnj, c6Aj
-    real(kind=GP), DIMENSION(:,:), allocatable            :: cnij
-    real(kind=GP), DIMENSION(:,:,:), allocatable  :: cnijk
+    real(kind=GP), DIMENSION(:,:), allocatable :: cnij
+    real(kind=GP), DIMENSION(:,:,:), allocatable :: cnijk
     real(kind=GP), DIMENSION(3) :: grad_c6
 
     call f_routine(id='vdwcorrection_calculate_forces')
@@ -1153,10 +1153,9 @@ contains
                    ! qoh: Calculate c6 coefficient
                    c6coeff = vdwcorrection_c6(nzatom1,nzatom2,dispersion)
 
+                   call astruct_distance(atoms%astruct, rxyz, dxyz, atom1, atom2)
                    ! qoh: Calculate distance between each pair of atoms
-                   sqdist=(rxyz(1,atom2) - rxyz(1,atom1))**2 &
-                        + (rxyz(2,atom2) - rxyz(2,atom1))**2 &
-                        + (rxyz(3,atom2) - rxyz(3,atom1))**2 
+                   sqdist = dxyz(1) ** 2 + dxyz(2) ** 2 + dxyz(3) ** 2
                    distance = sqrt(sqdist)
 
                    ! qoh : Get damping function
@@ -1196,10 +1195,13 @@ contains
                 nzatom1 = atoms%nzatom(atoms%astruct%iatype(atom1))
                 nzatom2 = atoms%nzatom(atoms%astruct%iatype(atom2))
 
-                dxAj = rxyz(1,atom1) - rxyz(1,atom2)
-                dyAj = rxyz(2,atom1) - rxyz(2,atom2)
-                dzAj = rxyz(3,atom1) - rxyz(3,atom2)
-                rAj = dxAj**2+dyAj**2+dzAj**2
+                call astruct_distance(atoms%astruct, rxyz, dxyz, atom2, atom1)
+                rAj = dxyz(1) ** 2 + dxyz(2) ** 2 + dxyz(3) ** 2
+
+!!$                dxAj = rxyz(1,atom1) - rxyz(1,atom2)
+!!$                dyAj = rxyz(2,atom1) - rxyz(2,atom2)
+!!$                dzAj = rxyz(3,atom1) - rxyz(3,atom2)
+!!$                rAj = dxAj**2+dyAj**2+dzAj**2
 
                 distance = sqrt(rAj)
 
@@ -1232,8 +1234,8 @@ contains
 
 !            dx contribution to A
 
-                tmp6a = tmp6*dxAj
-                tmp8a = tmp8*dxAj
+                tmp6a = tmp6*dxyz(1)
+                tmp8a = tmp8*dxyz(1)
                 vdw_forces(1,atom1) = vdw_forces(1,atom1) -(&
                   +(1.0_GP-fdmp6*fac6*vdwparams%alpha)*tmp6a&
                   -fdmp6*vdwparams%s6*grad_c6(1)/(rAj**3.0_GP)&
@@ -1242,8 +1244,8 @@ contains
 
 !            dy contribution to A
 
-                tmp6a = tmp6*dyAj
-                tmp8a = tmp8*dyAj
+                tmp6a = tmp6*dxyz(2)
+                tmp8a = tmp8*dxyz(2)
                 vdw_forces(2,atom1) = vdw_forces(2,atom1) - (&
                   +(1.0_GP-fdmp6*fac6*vdwparams%alpha)*tmp6a&
                   -fdmp6*vdwparams%s6*grad_c6(2)/(rAj**3.0_GP)&
@@ -1252,8 +1254,8 @@ contains
  
 !            dz contribution to A
  
-                tmp6a = tmp6*dzAj
-                tmp8a = tmp8*dzAj
+                tmp6a = tmp6*dxyz(3)
+                tmp8a = tmp8*dxyz(3)
   
                 vdw_forces(3,atom1) = vdw_forces(3,atom1) -(&
                   +(1.0_GP-fdmp6*fac6*vdwparams%alpha)*tmp6a&
@@ -1267,9 +1269,11 @@ contains
 
              do atom2=2,atoms%astruct%nat
                 if (atom2 .eq. atom1) cycle
-                rAj = sqrt((rxyz(1,atom1) - rxyz(1,atom2))**2 &
-                       + (rxyz(2,atom1) - rxyz(2,atom2))**2 &
-                       + (rxyz(3,atom1) - rxyz(3,atom2))**2)
+                call astruct_distance(atoms%astruct, rxyz, dxyz, atom2, atom1)
+                rAj = dxyz(1) ** 2 + dxyz(2) ** 2 + dxyz(3) ** 2
+!!$                rAj = sqrt((rxyz(1,atom1) - rxyz(1,atom2))**2 &
+!!$                       + (rxyz(2,atom1) - rxyz(2,atom2))**2 &
+!!$                       + (rxyz(3,atom1) - rxyz(3,atom2))**2)
 
                 r0aj = vdwparams%r0AB(nzatom1,nzatom2)
 
@@ -1283,17 +1287,21 @@ contains
                     nzatom3 = atoms%nzatom(atoms%astruct%iatype(atom3))
                     if (atom1.eq.atom3) cycle
 
-                    dxAk = rxyz(1,atom1) - rxyz(1,atom3)
-                    dyAk = rxyz(2,atom1) - rxyz(2,atom3)
-                    dzAk = rxyz(3,atom1) - rxyz(3,atom3)
-                    rAk = dxAk**2+dyAk**2+dzAk**2
+                    call astruct_distance(atoms%astruct, rxyz, dxyz, atom3, atom1)
+                    rAk = dxyz(1) ** 2 + dxyz(2) ** 2 + dxyz(3) ** 2
+!!$                    dxAk = rxyz(1,atom1) - rxyz(1,atom3)
+!!$                    dyAk = rxyz(2,atom1) - rxyz(2,atom3)
+!!$                    dzAk = rxyz(3,atom1) - rxyz(3,atom3)
+!!$                    rAk = dxAk**2+dyAk**2+dzAk**2
 
                     r0ak = vdwparams%r0AB(nzatom1,nzatom3)
 
-                    dxjk = rxyz(1,atom2) - rxyz(1,atom3)
-                    dyjk = rxyz(2,atom2) - rxyz(2,atom3)
-                    dzjk = rxyz(3,atom2) - rxyz(3,atom3)
-                    rjk = dxjk**2+dyjk**2+dzjk**2
+                    call astruct_distance(atoms%astruct, rxyz, dxyz, atom3, atom2)
+                    rjk = dxyz(1) ** 2 + dxyz(2) ** 2 + dxyz(3) ** 2
+!!$                    dxjk = rxyz(1,atom2) - rxyz(1,atom3)
+!!$                    dyjk = rxyz(2,atom2) - rxyz(2,atom3)
+!!$                    dzjk = rxyz(3,atom2) - rxyz(3,atom3)
+!!$                    rjk = dxjk**2+dyjk**2+dzjk**2
 
                     r0jk = vdwparams%r0AB(nzatom2,nzatom3)
 !
