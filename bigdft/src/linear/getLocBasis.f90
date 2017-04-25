@@ -999,9 +999,10 @@ subroutine getLocalizedBasis(iproc,nproc,at,orbs,rxyz,denspot,GPU,trH,trH_old,&
                tmb%psit_c, tmb%psit_c, tmb%psit_f, tmb%psit_f, tmb%linmat%s, tmb%linmat%auxs, tmb%linmat%ovrlp_)
           !if (iproc==0) call yaml_newline()
           !if (iproc==0) call yaml_sequence_open('kernel update by renormalization')
-          if (it==1 .or. energy_increased .or. .not.experimental_mode) then
+          if (it==1 .or. energy_increased .or. .not.experimental_mode .or. complete_reset) then
               ! Calculate S^1/2, as it can not be taken from memory
               power(1)=2
+              if (iproc==0) call yaml_warning('call overlapPowerGeneral')
               call overlapPowerGeneral(iproc, nproc,bigdft_mpi%mpi_comm,&
                    order_taylor, 1, power(1), -1, &
                    imode=1, ovrlp_smat=tmb%linmat%s, inv_ovrlp_smat=tmb%linmat%l, &
@@ -1012,7 +1013,8 @@ subroutine getLocalizedBasis(iproc,nproc,at,orbs,rxyz,denspot,GPU,trH,trH_old,&
               call check_taylor_order(iproc, mean_error, max_inversion_error, order_taylor)
           end if
           !if (.not.energy_increased) then
-          if (.not.recovered_old_kernel) then
+          if (.not.recovered_old_kernel .and. .not.complete_reset) then
+              if (iproc==0) call yaml_warning('call renormalize_kernel')
               call renormalize_kernel(iproc, nproc, order_taylor, max_inversion_error, tmb, tmb%linmat%ovrlp_, ovrlp_old)
           end if
       end if
@@ -1197,6 +1199,7 @@ subroutine getLocalizedBasis(iproc,nproc,at,orbs,rxyz,denspot,GPU,trH,trH_old,&
               call yaml_map('Recovering old support functions and kernel',.true.)
           end if
           recovered_old_kernel = .true.
+          if (iproc==0) call yaml_warning('set recovered_old_kernel to true')
 
 
           ! Recalculate the matrix powers
@@ -1236,6 +1239,7 @@ subroutine getLocalizedBasis(iproc,nproc,at,orbs,rxyz,denspot,GPU,trH,trH_old,&
       else
           can_use_ham=.true.
           recovered_old_kernel = .false.
+          if (iproc==0) call yaml_warning('set recovered_old_kernel to false')
       end if 
 
 
