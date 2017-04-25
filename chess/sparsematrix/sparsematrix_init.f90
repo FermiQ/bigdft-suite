@@ -5579,7 +5579,7 @@ module sparsematrix_init
 
     !> Copied from projector_for_charge_analysis and extract_matrix
     subroutine check_projector_charge_analysis(iproc, nproc, smmd, smat, ind_min, ind_max)
-      use module_base
+      use dynamic_memory
       use sparsematrix_base, only: sparse_matrix, sparse_matrix_metadata
       implicit none
 
@@ -5651,7 +5651,7 @@ module sparsematrix_init
 
 
     subroutine check_ortho_inguess(smat,ind_min,ind_max)
-      use module_base
+      use dynamic_memory
       use sparsematrix_base, only: sparse_matrix
       implicit none
       type(sparse_matrix),intent(in) :: smat
