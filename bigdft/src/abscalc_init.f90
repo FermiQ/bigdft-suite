@@ -191,7 +191,7 @@ END SUBROUTINE fillPawProjOnTheFly
 
 
 !> Determine localization region for all preconditioning projectors, but do not yet fill the descriptor arrays
-subroutine createPcProjectorsArrays(iproc,n1,n2,n3,rxyz,at,orbs,&
+subroutine createPcProjectorsArrays(iproc,nproc,n1,n2,n3,rxyz,at,orbs,&
      cpmult,fpmult,hx,hy,hz, ecut_pc, &
      PPD, Glr)
   !use module_base
@@ -202,7 +202,7 @@ subroutine createPcProjectorsArrays(iproc,n1,n2,n3,rxyz,at,orbs,&
   use gaussians, only: deallocate_gwf
   use psp_projectors, only: bounds_to_plr_limits
   implicit none
-  integer, intent(in) :: iproc,n1,n2,n3
+  integer, intent(in) :: iproc,nproc,n1,n2,n3
   real(gp), intent(in) :: cpmult,fpmult,hx,hy,hz
   type(atoms_data), intent(in) :: at
   type(orbitals_data), intent(in) :: orbs
@@ -263,7 +263,7 @@ subroutine createPcProjectorsArrays(iproc,n1,n2,n3,rxyz,at,orbs,&
   logrid = f_malloc((/ 0.to.n1, 0.to.n2, 0.to.n3 /),id='logrid')
 
 
-  call localize_projectors(iproc,n1,n2,n3,hx,hy,hz,Pcpmult,fpmult,rxyz,&
+  call localize_projectors(iproc,nproc,n1,n2,n3,hx,hy,hz,Pcpmult,fpmult,rxyz,&
        logrid,at,orbs,PPD%pc_nl)
 
   ! the above routine counts atomic projector and the number of their element for psp

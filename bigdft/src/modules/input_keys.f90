@@ -370,7 +370,9 @@ module module_input_keys
      !> Global MPI group size (will be written in the mpi_environment)
      ! integer :: mpi_groupsize
 
-     type(external_potential_descriptors) :: ep
+     type(external_potential_descriptors) :: ep !< contains the multipoles for the external potential
+     logical :: mp_centers_auto !< indicates whether the multipole centers shall be determined automatically (i.e. the atoms) or provided manually
+     real(kind=8),dimension(:,:),pointer :: mp_centers !< contains the positions of the multipoles to be calculated
 
      ! Linear scaling parameters
      type(linearInputParameters) :: lin    !< Linear scaling data
@@ -624,21 +626,22 @@ contains
     !Local variables
     !type(dictionary), pointer :: profs, dict_frag
     logical :: found, userdef
-    integer :: ierr, norb_max, jtype, jxc
+    integer :: ierr, norb_max, jtype, jxc, ii
     real(gp) :: qelec_up, qelec_down
     character(len = max_field_length) :: msg,filename,run_id,input_id,posinp_id,outdir
     !  type(f_dict) :: dict
-    type(dictionary), pointer :: dict_minimal, var, lvl, types
+    type(dictionary), pointer :: dict_minimal, var, lvl, types, iter
 
     integer, parameter :: pawlcutd = 10, pawlmix = 10, pawnphi = 13, pawntheta = 12, pawxcdev = 1
     integer, parameter :: usepotzero = 0
-    integer :: nsym,unt, xclevel, iat, mpsang
+    integer :: nsym,unt, xclevel, iat, mpsang, i, n
     real(gp) :: gsqcut_shp, rloc, projr, rlocmin
     real(gp), dimension(2) :: cfrmults
     !type(external_potential_descriptors) :: ep
     !integer :: impl, l
     type(xc_info) :: xc
     logical :: free,positions
+    character(len=20) :: key
 
     call f_routine(id='inputs_from_dict')
 
@@ -870,6 +873,40 @@ contains
 
     ! Process the multipoles for the external potential
     call multipoles_from_dict(dict//DFT_VARIABLES//EXTERNAL_POTENTIAL, in%ep)
+    ! Check whether the multipole centers shall be determined automatically (i.e. taking the atoms)
+    ! or whether they are provided manually.
+    in%mp_centers_auto = .true.
+    if (CENTERS_AUTO .in. dict//LIN_GENERAL//MULTIPOLE_CENTERS) then
+        in%mp_centers_auto = dict//LIN_GENERAL//MULTIPOLE_CENTERS//CENTERS_AUTO
+    end if
+    if (in%mp_centers_auto) then
+        nullify(in%mp_centers)
+    else
+        ! Specify the centers manually
+        if (.not. ('positions' .in. dict//LIN_GENERAL//MULTIPOLE_CENTERS)) then
+            call f_err_throw('No multipole centers are provided')
+        end if
+        n = dict_len(dict//LIN_GENERAL//MULTIPOLE_CENTERS//'positions')
+        in%mp_centers = f_malloc_ptr((/3,n/),id='in%mp_centers')
+        if (n/=atoms%astruct%nat) then
+            call f_err_throw('The number of multipole centers ('//trim(yaml_toa(n))//') &
+                &does not correspond to the number of atoms ('//trim(yaml_toa(atoms%astruct%nat))//')')
+        end if
+        do i=1,n
+            ii = i-1
+            iter => dict//LIN_GENERAL//MULTIPOLE_CENTERS//'positions'//ii
+            key = trim(atoms%astruct%atomnames(atoms%astruct%iatype(i)))
+            in%mp_centers(1:3,i) = iter//key
+        end do
+    end if
+    !!do impl=1,in%ep%nmpl
+    !!    call yaml_map('rxyz',in%ep%mpl(impl)%rxyz)
+    !!    do l=0,lmax
+    !!         if(associated(in%ep%mpl(impl)%qlm(l)%q)) then
+    !!             call yaml_map(trim(yaml_toa(l)),in%ep%mpl(impl)%qlm(l)%q)
+    !!         end if
+    !!    end do
+    !!end do
 
     ! No use anymore of the types.
     call dict_free(types)
@@ -2137,10 +2174,11 @@ contains
           in%lin%calculate_FOE_eigenvalues(1:2) = val
        case (PRECISION_FOE_EIGENVALUES)
           in%lin%precision_FOE_eigenvalues = val
+       case (MULTIPOLE_CENTERS)
+          ! Do nothing
        case DEFAULT
           if (bigdft_mpi%iproc==0) &
                call yaml_warning("unknown input key '" // trim(level) // "/" // trim(dict_key(val)) // "'")
-               write(*,*) 'CALCULATE_FOE_EIGENVALUES'
        end select
     case (LIN_BASIS)
        select case (trim(dict_key(val)))
@@ -2593,6 +2631,7 @@ contains
     call deallocateBasicArraysInput(in%lin)
     call deallocateInputFragArrays(in%frag)
     call deallocate_external_potential_descriptors(in%ep)
+    call f_free_ptr(in%mp_centers)
 
     ! Stop the signaling stuff.
     !Destroy C wrappers on Fortran objects,

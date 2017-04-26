@@ -112,6 +112,7 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
   integer, dimension(:,:), allocatable :: ioffset_isf
   integer :: is1, is2, is3, ie1, ie2, ie3, i1, i2, i3, ii, jj, info, ist
   real(kind=8), dimension(:), pointer :: hpsit_c, hpsit_f
+  real(kind=8),dimension(:,:),pointer :: mp_centers
 
   real(kind=gp) :: ebs, vgrad_old, vgrad, valpha, vold, vgrad2, vold_tmp, conv_crit_TMB, best_charge_diff, cdft_charge_thresh
   real(kind=gp) :: eproj, ekin
@@ -1232,16 +1233,20 @@ end if
           !!     nphi=tmb%npsidim_orbs, lphi=tmb%psi, nphir=max(tmb%collcom_sr%ndimpsi_c,1), &
           !!     hgrids=tmb%lzd%hgrids, orbs=tmb%orbs, collcom=tmb%collcom, collcom_sr=tmb%collcom_sr, &
           !!     lzd=tmb%lzd, at=at, denspot=denspot, orthpar=tmb%orthpar, shift=shift)
+          nullify(mp_centers)
+          if (.not.input%mp_centers_auto) then
+              mp_centers => input%mp_centers
+          end if
           call multipole_analysis_driver_new(iproc, nproc, bigdft_mpi%mpi_comm, lmax, input%ixc, tmb%linmat%smmd, &
                tmb%linmat%s, tmb%linmat%m, tmb%linmat%l, &
                tmb%linmat%ovrlp_, tmb%linmat%ham_, tmb%linmat%kernel_, &
                rxyz, method, do_ortho, projectormode, &
                calculate_multipole_matrices=.true., do_check=.true., &
-               write_multipole_matrices_mode=input%lin%output_mat_format, &
+               write_multipole_matrices_mode=input%lin%output_mat_format, centers_auto=input%mp_centers_auto,&
                auxs=tmb%linmat%auxs, nphi=tmb%npsidim_orbs, lphi=tmb%psi, nphir=max(tmb%collcom_sr%ndimpsi_c,1), &
                hgrids=tmb%lzd%hgrids, orbs=tmb%orbs, collcom=tmb%collcom, collcom_sr=tmb%collcom_sr, &
                lzd=tmb%lzd, at=at, denspot=denspot, orthpar=tmb%orthpar, shift=at%astruct%shift, &
-               ice_obj=tmb%ice_obj, filename=trim(input%dir_output))
+               ice_obj=tmb%ice_obj, filename=trim(input%dir_output), multipole_centers=mp_centers)
   end if
 
 
@@ -1373,8 +1378,8 @@ end if
   if (mod(input%lin%output_coeff_format,10) /= WF_FORMAT_NONE) then
       !call write_linear_coefficients(0, trim(input%dir_output)//'KS_coeffs.bin', at, rxyz, &
       !     tmb%linmat%l%nfvctr, tmb%orbs%norb, tmb%linmat%l%nspin, tmb%coeff, tmb%orbs%eval)
-      call write_linear_coefficients(bigdft_mpi%iproc, 0, trim(input%dir_output)//'KS_coeffs.bin', 2, at%astruct%nat, &
-           at%astruct%rxyz, at%astruct%iatype, at%astruct%ntypes, at%nzatom, at%nelpsp, at%astruct%atomnames, &
+      call write_linear_coefficients('serial_text', bigdft_mpi%iproc, bigdft_mpi%nproc, bigdft_mpi%mpi_comm, 0, &
+           trim(input%dir_output)//'KS_coeffs.bin', 2, &
            tmb%linmat%l%nfvctr, tmb%orbs%norb, tmb%linmat%l%nspin, tmb%coeff, tmb%orbs%eval)
   end if
 
