@@ -222,7 +222,6 @@
     <dependencies>
       <dep package="spred"/>
       <dep package="PyYAML"/>
-      <dep package="ipython"/>
     </dependencies>
   </metamodule>
 
