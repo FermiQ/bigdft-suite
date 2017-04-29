@@ -452,7 +452,7 @@ subroutine abscalc(nproc,iproc,atoms,rxyz,&
    call orbitals_descriptors(iproc,nproc,1,1,0,in%nspin,1,in%gen_nkpt,in%gen_kpt,in%gen_wkpt,orbs,LINEAR_PARTITION_NONE)
    call orbitals_communicators(iproc,nproc,KSwfn%Lzd%Glr,orbs,comms)  
    call orbital_basis_associate(ob,orbs=orbs,Glr=KSwfn%Lzd%Glr)
-   call createProjectorsArrays(KSwfn%Lzd%Glr,rxyz,atoms,ob,&
+   call createProjectorsArrays(iproc,nproc,KSwfn%Lzd%Glr,rxyz,atoms,ob,&
         cpmult,fpmult,hx,hy,hz,.false.,nlpsp,.true.)
    call orbital_basis_release(ob)
    if (iproc == 0) call print_nlpsp(nlpsp)
@@ -538,7 +538,7 @@ subroutine abscalc(nproc,iproc,atoms,rxyz,&
       PPD%DistProjApply  =  DistProjApply
       ! the following routine calls  localize_projectors again
       ! but this should be in coherence with the previous call for psp projectos 
-      call createPcProjectorsArrays(iproc,n1,n2,n3,rxyz,atoms,orbs,&
+      call createPcProjectorsArrays(iproc,nproc,n1,n2,n3,rxyz,atoms,orbs,&
            cpmult,fpmult,hx,hy,hz,-0.1_gp, &
            PPD, KSwfn%Lzd%Glr  )
       call timing(iproc,'CrtPcProjects ','OF')

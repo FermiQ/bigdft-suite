@@ -398,13 +398,12 @@ module rhopotential
       use dynamic_memory
       use wrapper_mpi
       use wrapper_linalg
-      use module_types
       use module_defs
       use module_base, only: bigdft_mpi
       use yaml_output
-      use sparsematrix_base, only: sparse_matrix
+      use sparsematrix_base, only: sparse_matrix, matrices
       use bigdft_matrices, only: get_modulo_array
-      use module_types, only: linmat_auxiliary
+      use module_types, only: linmat_auxiliary, comms_linear
       implicit none
     
       ! Calling arguments
