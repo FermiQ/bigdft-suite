@@ -2216,25 +2216,6 @@ subroutine kswfn_post_treatments(iproc, nproc, KSwfn, tmb, linear, &
   if (atoms%astruct%sym%symObj >= 0 .and. denspot%pkernel%geocode=='P') &
        call symm_stress(hstrten,atoms%astruct%sym%symObj)
 
-!!$     if (denspot%dpbox%ndimpot>0) then
-!!$        !!denspot%pot_work = f_malloc_ptr(denspot%dpbox%ndimpot,id='denspot%pot_work')
-!!$        denspot%pot_work = f_malloc_ptr(denspot%dpbox%ndimrhopot,id='denspot%pot_work')
-!!$     else
-!!$        denspot%pot_work = f_malloc_ptr(1,id='denspot%pot_work')
-!!$     end if
-!!$     ! Density already present in denspot%rho_work
-!!$     call f_memcpy(n=denspot%dpbox%ndimpot,src=denspot%rho_work(1),&
-!!$          dest=denspot%pot_work(1))
-!!$     !call denspot_set_rhov_status(denspot, CHARGE_DENSITY, -1,iproc,nproc)
-!!$     call H_potential('D',denspot%pkernel,denspot%pot_work,denspot%pot_work,ehart_fake,&
-!!$          0.0_dp,.false.,stress_tensor=hstrten)
-!!$  else
-!!$     call density_and_hpot(denspot%dpbox,atoms%astruct%sym,KSwfn%orbs,KSwfn%Lzd,&
-!!$          denspot%pkernel,denspot%rhod, GPU, denspot%xc, &
-!!$          KSwfn%psi,denspot%rho_work,denspot%pot_work,denspot%rho_ion,hstrten)
-!!$  end if
-
-
   !SM: for a spin polarized calculation, rho_work already contains the full
   !density in the first half of the array. Therefore I think that calc_dipole should be
   !called with nspin=1 and not nspin=2 as it used to be.
