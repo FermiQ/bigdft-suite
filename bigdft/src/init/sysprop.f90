@@ -29,7 +29,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
   use public_enums
   use f_enums
   use locreg_operations
-  use locregs_init, only: initLocregs
+  use locregs_init, only: initLocregs,lr_set
   use orbitalbasis
   use chess_base, only: chess_init
   implicit none
@@ -81,13 +81,18 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
   h_input=(/ in%hx, in%hy, in%hz /)
   call lzd_set_hgrids(Lzd,h_input) 
 
-  ! Determine size alat of overall simulation cell and shift atom positions
-  ! then calculate the size in units of the grid space
-  call system_size(atoms,rxyz,in%crmult,in%frmult,&
-       Lzd%hgrids(1),Lzd%hgrids(2),Lzd%hgrids(3),OCLconv,Lzd%Glr)
-  if (iproc == 0 .and. dump) &
-       & call print_atoms_and_grid(Lzd%Glr, atoms, rxyz, &
-       & Lzd%hgrids(1),Lzd%hgrids(2),Lzd%hgrids(3))
+  ! Create wavefunctions descriptors and allocate them inside the global locreg desc.
+  calculate_bounds = .not. (inputpsi .hasattr. 'LINEAR')
+  call lr_set(lzd%Glr,iproc,OCLconv,dump,in%crmult,in%frmult,lzd%hgrids,rxyz,atoms,&
+       calculate_bounds,output_grid_)
+
+!!$  ! Determine size alat of overall simulation cell and shift atom positions
+!!$  ! then calculate the size in units of the grid space
+!!$  call system_size(atoms,rxyz,in%crmult,in%frmult,&
+!!$       Lzd%hgrids(1),Lzd%hgrids(2),Lzd%hgrids(3),OCLconv,Lzd%Glr)
+!!$  if (iproc == 0 .and. dump) &
+!!$       & call print_atoms_and_grid(Lzd%Glr, atoms, rxyz, &
+!!$       & Lzd%hgrids(1),Lzd%hgrids(2),Lzd%hgrids(3))
   if (present(locregcenters)) then
       do iat=1,atoms%astruct%nat
           locregcenters(1:3,iat)=locregcenters(1:3,iat)-atoms%astruct%shift(1:3)
@@ -96,7 +101,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
               locregcenters(3,iat)<dble(0)*lzd%hgrids(3) .or. locregcenters(3,iat)>dble(lzd%glr%d%n3+1)*lzd%hgrids(3)) then
               call f_err_throw('locregcenter outside of global box!', err_name='BIGDFT_RUNTIME_ERROR')
           end if
-      end do
+       end do
   end if
 
   ! Initialize the object holding the CheSS parameters
@@ -126,14 +131,9 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
      end if
   end if
 
-  ! Create wavefunctions descriptors and allocate them inside the global locreg desc.
-  calculate_bounds = .not. (inputpsi .hasattr. 'LINEAR')
-!!$  (inputpsi /= INPUT_PSI_LINEAR_AO .and. &
-!!$                      inputpsi /= INPUT_PSI_DISK_LINEAR .and. &
-!!$                      inputpsi /= INPUT_PSI_MEMORY_LINEAR)
-  call createWavefunctionsDescriptors(iproc,Lzd%hgrids(1),Lzd%hgrids(2),Lzd%hgrids(3),atoms,&
-       rxyz,in%crmult,in%frmult,calculate_bounds,Lzd%Glr, output_grid_)
-  if (iproc == 0 .and. dump) call print_wfd(Lzd%Glr%wfd)
+!!$  call createWavefunctionsDescriptors(iproc,Lzd%hgrids(1),Lzd%hgrids(2),Lzd%hgrids(3),atoms,&
+!!$       rxyz,in%crmult,in%frmult,calculate_bounds,Lzd%Glr, output_grid_)
+!!$  if (iproc == 0 .and. dump) call print_wfd(Lzd%Glr%wfd)
 
   ! Create global orbs data structure.
   if(in%nspin==4) then

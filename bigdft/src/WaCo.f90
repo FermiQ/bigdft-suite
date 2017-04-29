@@ -28,6 +28,7 @@ program WaCo
    use locregs_init, only: determine_locregsphere_parallel
    use locreg_operations, only: psi_to_locreg2,workarr_sumrho,&
         initialize_work_arrays_sumrho,deallocate_work_arrays_sumrho
+   use locregs_init, only: lr_set
    implicit none
    character :: filetype*4,outputype*4
    type(locreg_descriptors) :: Glr
@@ -169,21 +170,25 @@ program WaCo
 
    call system_properties(iproc,nproc,input,atoms,orbs)
 
-   ! Determine size alat of overall simulation cell and shift atom positions
-   ! then calculate the size in units of the grid space
-   call system_size(atoms,atoms%astruct%rxyz,input%crmult,input%frmult,input%hx,input%hy,input%hz,&
-        .false.,Glr)
-   if (iproc == 0) &
-        & call print_atoms_and_grid(Glr, atoms, atoms%astruct%rxyz, input%hx,input%hy,input%hz)
+   call lr_set(Glr,iproc,.false.,.true.,input%crmult,input%frmult,&
+        [input%hx,input%hy,input%hz],atoms%astruct%rxyz,atoms,&
+        .true.,.false.)
+
+!!$   ! Determine size alat of overall simulation cell and shift atom positions
+!!$   ! then calculate the size in units of the grid space
+!!$   call system_size(atoms,atoms%astruct%rxyz,input%crmult,input%frmult,input%hx,input%hy,input%hz,&
+!!$        .false.,Glr)
+!!$   if (iproc == 0) &
+!!$        & call print_atoms_and_grid(Glr, atoms, atoms%astruct%rxyz, input%hx,input%hy,input%hz)
    
    box(1) = atoms%astruct%cell_dim(1)*b2a !Glr%d%n1*input%hx * b2a
    box(2) = atoms%astruct%cell_dim(2)*b2a !Glr%d%n2*input%hy * b2a
    box(3) = atoms%astruct%cell_dim(3)*b2a !Glr%d%n3*input%hz * b2a
 
-   ! Create wavefunctions descriptors and allocate them inside the global locreg desc.
-   call createWavefunctionsDescriptors(iproc,input%hx,input%hy,input%hz,&
-        atoms,atoms%astruct%rxyz,input%crmult,input%frmult,.true.,Glr)
-   if (iproc == 0) call print_wfd(Glr%wfd)
+!!$   ! Create wavefunctions descriptors and allocate them inside the global locreg desc.
+!!$   call createWavefunctionsDescriptors(iproc,input%hx,input%hy,input%hz,&
+!!$        atoms,atoms%astruct%rxyz,input%crmult,input%frmult,.true.,Glr)
+!!$   if (iproc == 0) call print_wfd(Glr%wfd)
 
    !#################################################################
    ! Read Other files

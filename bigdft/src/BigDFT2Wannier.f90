@@ -24,6 +24,7 @@ program BigDFT2Wannier
    use bounds, only: ext_buffers
    use locreg_operations
    use io, only: writemywaves
+   use locregs_init, only: lr_set
    implicit none
    character :: filetype*4
    !etsf
@@ -174,19 +175,20 @@ program BigDFT2Wannier
    ! use the new lzd type for compatibility reasons, i.e. replace Glr by glr%lzd
    lzd=default_lzd()
 
-
-   ! Determine size alat of overall simulation cell and shift atom positions
-   ! then calculate the size in units of the grid space
-   call system_size(atoms,atoms%astruct%rxyz,input%crmult,input%frmult,input%hx,input%hy,input%hz,&
-      &   .false.,lzd%Glr)
-   if (iproc == 0) &
-        & call print_atoms_and_grid(lzd%Glr, atoms, atoms%astruct%rxyz, input%hx,input%hy,input%hz)
-
-   ! Create wavefunctions descriptors and allocate them inside the global locreg desc.
-   call createWavefunctionsDescriptors(iproc,input%hx,input%hy,input%hz,&
-      & atoms,atoms%astruct%rxyz,input%crmult,input%frmult,.true.,lzd%Glr)
-   if (iproc == 0) call print_wfd(lzd%Glr%wfd)
-
+   call lr_set(lzd%Glr,iproc,.false.,.true.,input%crmult,input%frmult,&
+        [input%hx,input%hy,input%hz],atoms%astruct%rxyz,atoms,&
+        .true.,.false.)
+!!$   ! Determine size alat of overall simulation cell and shift atom positions
+!!$   ! then calculate the size in units of the grid space
+!!$   call system_size(atoms,atoms%astruct%rxyz,input%crmult,input%frmult,input%hx,input%hy,input%hz,&
+!!$      &   .false.,lzd%Glr)
+!!$   if (iproc == 0) &
+!!$        & call print_atoms_and_grid(lzd%Glr, atoms, atoms%astruct%rxyz, input%hx,input%hy,input%hz)
+!!$
+!!$   ! Create wavefunctions descriptors and allocate them inside the global locreg desc.
+!!$   call createWavefunctionsDescriptors(iproc,input%hx,input%hy,input%hz,&
+!!$      & atoms,atoms%astruct%rxyz,input%crmult,input%frmult,.true.,lzd%Glr)
+!!$   if (iproc == 0) call print_wfd(lzd%Glr%wfd)
 
    ! Allocate communications arrays (allocate it before Projectors because of the definition of iskpts and nkptsp)
    call orbitals_communicators(iproc,nproc,lzd%Glr,orbs,comms)

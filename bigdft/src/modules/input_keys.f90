@@ -658,9 +658,11 @@ contains
     if (free .and. positions) call f_err_throw('No given atoms with free boundary conditions',&
                 & ERR_NAME='BIGDFT_INPUT_VARIABLES_ERROR')
 
-    call astruct_set(atoms%astruct,dict // POSINP,in%randdis,in%disableSym,in%symTol,in%elecfield,in%nspin,&
-         bigdft_mpi%iproc == 0)
-!!$    call astruct_set_from_dict(dict // POSINP, atoms%astruct)
+    !this cannot be called as the input variables are not ready at this stage
+!!$    call astruct_set(atoms%astruct,dict // POSINP,in%randdis,in%disableSym,in%symTol,in%elecfield,in%nspin,&
+!!$         bigdft_mpi%iproc == 0)
+
+    call astruct_set_from_dict(dict // POSINP, atoms%astruct)
 
     ! Generate the dict of types for later use.
     call astruct_dict_get_types(dict // POSINP, types)
@@ -776,11 +778,11 @@ contains
     ! Cross check values of input_variables.
     call input_analyze(in,atoms%astruct)
 
-!!$    ! Shake atoms, if required.
-!!$    call astruct_set_displacement(atoms%astruct, in%randdis)
+    ! Shake atoms, if required.
+    call astruct_set_displacement(atoms%astruct, in%randdis)
     if (bigdft_mpi%nproc > 1) call mpibarrier(bigdft_mpi%mpi_comm)
-!!$    ! Update atoms with symmetry information
-!!$    call astruct_set_symmetries(atoms%astruct, in%disableSym, in%symTol, in%elecfield, in%nspin)
+    ! Update atoms with symmetry information
+    call astruct_set_symmetries(atoms%astruct, in%disableSym, in%symTol, in%elecfield, in%nspin)
 
     call kpt_input_analyse(bigdft_mpi%iproc, in, dict//KPT_VARIABLES, &
          & atoms%astruct%sym, atoms%astruct%geocode, atoms%astruct%cell_dim)
@@ -847,8 +849,8 @@ contains
        call f_err_throw('GPU calculation not implemented with non-collinear spin',err_name='BIGDFT_INPUT_VARIABLES_ERROR')
     end if
 
-!!$    !control atom positions
-!!$    call check_atoms_positions(atoms%astruct, (bigdft_mpi%iproc == 0))
+    !control atom positions
+    call check_atoms_positions(atoms%astruct, (bigdft_mpi%iproc == 0))
 
     ! Warn for all INPUT_VAR_ILLEGAL errors.
     do while (f_err_pop(err_name='INPUT_VAR_ILLEGAL', add_msg = msg) /= 0)
