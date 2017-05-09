@@ -211,10 +211,11 @@ class Logfile():
             from futile import Yaml
             tar = tarfile.open(arch)
             members = [ tar.getmember(member) ] if member else tar.getmembers()
-            print members
+            #print members
             for memb in members:
                 f = tar.extractfile(memb)
                 dicts.append(Yaml.load(stream=f.read()))
+                #dicts[-1]['label'] = memb.name #Add the label (name of the file)
         elif dictionary:
             #Read the dictionary
             dicts=[dictionary]
@@ -234,8 +235,10 @@ class Logfile():
             #(we should however decide what to do if some run did not converged)
             self._instances=[]
             for i,d in enumerate(dicts):
+                #label=d.get('label','log'+str(i))
+                label = 'log'+str(i)
                 dtmp=dicts[0]
-                instance=Logfile(dictionary=dtmp,label='log'+str(i))
+                instance=Logfile(dictionary=dtmp,label=label)
                 #now update the instance with the other value
                 instance._initialize_class(d)
                 self._instances.append(instance)
