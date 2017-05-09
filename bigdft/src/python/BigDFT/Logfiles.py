@@ -211,6 +211,7 @@ class Logfile():
             from futile import Yaml
             tar = tarfile.open(arch)
             members = [ tar.getmember(member) ] if member else tar.getmembers()
+            print members
             for memb in members:
                 f = tar.extractfile(memb)
                 dicts.append(Yaml.load(stream=f.read()))
