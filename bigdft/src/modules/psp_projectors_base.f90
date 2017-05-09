@@ -9,7 +9,6 @@ module psp_projectors_base
 
   integer,parameter,public :: NCPLX_MAX = 2
 
-
   !> Non local pseudopotential descriptors
   type, public :: nonlocal_psp_descriptors
      integer :: mproj !< number of projectors for this descriptor

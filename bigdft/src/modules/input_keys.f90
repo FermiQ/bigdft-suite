@@ -370,7 +370,9 @@ module module_input_keys
      !> Global MPI group size (will be written in the mpi_environment)
      ! integer :: mpi_groupsize
 
-     type(external_potential_descriptors) :: ep
+     type(external_potential_descriptors) :: ep !< contains the multipoles for the external potential
+     logical :: mp_centers_auto !< indicates whether the multipole centers shall be determined automatically (i.e. the atoms) or provided manually
+     real(kind=8),dimension(:,:),pointer :: mp_centers !< contains the positions of the multipoles to be calculated
 
      ! Linear scaling parameters
      type(linearInputParameters) :: lin    !< Linear scaling data
@@ -624,21 +626,22 @@ contains
     !Local variables
     !type(dictionary), pointer :: profs, dict_frag
     logical :: found, userdef
-    integer :: ierr, norb_max, jtype, jxc
+    integer :: ierr, norb_max, jtype, jxc, ii
     real(gp) :: qelec_up, qelec_down
     character(len = max_field_length) :: msg,filename,run_id,input_id,posinp_id,outdir
     !  type(f_dict) :: dict
-    type(dictionary), pointer :: dict_minimal, var, lvl, types
+    type(dictionary), pointer :: dict_minimal, var, lvl, types, iter
 
     integer, parameter :: pawlcutd = 10, pawlmix = 10, pawnphi = 13, pawntheta = 12, pawxcdev = 1
     integer, parameter :: usepotzero = 0
-    integer :: nsym,unt, xclevel, iat, mpsang
+    integer :: nsym,unt, xclevel, iat, mpsang, i, n
     real(gp) :: gsqcut_shp, rloc, projr, rlocmin
     real(gp), dimension(2) :: cfrmults
     !type(external_potential_descriptors) :: ep
     !integer :: impl, l
     type(xc_info) :: xc
     logical :: free,positions
+    character(len=20) :: key
 
     call f_routine(id='inputs_from_dict')
 
@@ -655,7 +658,12 @@ contains
     if (free .and. positions) call f_err_throw('No given atoms with free boundary conditions',&
                 & ERR_NAME='BIGDFT_INPUT_VARIABLES_ERROR')
 
+    !this cannot be called as the input variables are not ready at this stage
+!!$    call astruct_set(atoms%astruct,dict // POSINP,in%randdis,in%disableSym,in%symTol,in%elecfield,in%nspin,&
+!!$         bigdft_mpi%iproc == 0)
+
     call astruct_set_from_dict(dict // POSINP, atoms%astruct)
+
     ! Generate the dict of types for later use.
     call astruct_dict_get_types(dict // POSINP, types)
 
@@ -675,7 +683,6 @@ contains
 
     !copy the CheSS dictionary
     call dict_copy(src=dict // CHESS, dest=in%chess_dict)
-
 
     ! Add missing pseudo information.
     projr = dict // PERF_VARIABLES // PROJRAD
@@ -780,17 +787,20 @@ contains
     call kpt_input_analyse(bigdft_mpi%iproc, in, dict//KPT_VARIABLES, &
          & atoms%astruct%sym, atoms%astruct%geocode, atoms%astruct%cell_dim)
 
-    ! Update atoms with pseudo information.
-    call psp_dict_analyse(dict, atoms, in%frmult)
-    call atomic_data_set_from_dict(dict,IG_OCCUPATION, atoms, in%nspin)
+    call atoms_fill(atoms,dict,in%frmult,in%nspin,&
+         in%multipole_preserving,in%mp_isf,in%ixc,in%alpha_hartree_fock)
 
-    !fill the requests for the atomic density matrix
-    call atoms_gamma_from_dict(dict//OUTPUT_VARIABLES//ATOMIC_DENSITY_MATRIX,dict//DFT_VARIABLES//OCCUPANCY_CONTROL,&
-     lmax_ao,atoms%astruct,atoms%dogamma,atoms%gamma_targets)
-
-    ! Add multipole preserving information
-    atoms%multipole_preserving = in%multipole_preserving
-    atoms%mp_isf = in%mp_isf
+!!$    ! Update atoms with pseudo information.
+!!$    call psp_dict_analyse(dict, atoms, in%frmult)
+!!$    call atomic_data_set_from_dict(dict,IG_OCCUPATION, atoms, in%nspin)
+!!$
+!!$    !fill the requests for the atomic density matrix
+!!$    call atoms_gamma_from_dict(dict//OUTPUT_VARIABLES//ATOMIC_DENSITY_MATRIX,dict//DFT_VARIABLES//OCCUPANCY_CONTROL,&
+!!$     lmax_ao,atoms%astruct,atoms%dogamma,atoms%gamma_targets)
+!!$
+!!$    ! Add multipole preserving information
+!!$    atoms%multipole_preserving = in%multipole_preserving
+!!$    atoms%mp_isf = in%mp_isf
 
     ! Generate orbital occupation
     call read_n_orbitals(bigdft_mpi%iproc, qelec_up, qelec_down, norb_max, atoms, &
@@ -800,24 +810,24 @@ contains
          in%gen_nkpt, in%nspin, in%norbsempty, qelec_up, qelec_down, norb_max)
     in%gen_norb = in%gen_norbu + in%gen_norbd
 
-    ! Complement PAW initialisation.
-    if (any(atoms%npspcode == PSPCODE_PAW)) then
-     call xc_init(xc, in%ixc, XC_MIXED, 1, in%alpha_hartree_fock)
-     xclevel = 1 ! xclevel=XC functional level (1=LDA, 2=GGA)
-     if (xc_isgga(xc)) xclevel = 2
-     call xc_end(xc)
-     !gsqcut_shp = two*abs(dtset%diecut)*dtset%dilatmx**2/pi**2
-     gsqcut_shp = 2._gp * 2.2_gp / pi_param ** 2
-     nsym = 0
-     call symmetry_get_n_sym(atoms%astruct%sym%symObj, nsym, ierr)
-     mpsang = -1
-     do iat = 1, atoms%astruct%nat
-        mpsang = max(mpsang, maxval(atoms%pawtab(iat)%orbitals))
-     end do
-     call abi_pawinit(1, gsqcut_shp, pawlcutd, pawlmix, mpsang + 1, &
-          & pawnphi, nsym, pawntheta, atoms%pawang, atoms%pawrad, 0, &
-          & atoms%pawtab, pawxcdev, xclevel, usepotzero)
-    end if
+!!$    ! Complement PAW initialisation.
+!!$    if (any(atoms%npspcode == PSPCODE_PAW)) then
+!!$     call xc_init(xc, in%ixc, XC_MIXED, 1, in%alpha_hartree_fock)
+!!$     xclevel = 1 ! xclevel=XC functional level (1=LDA, 2=GGA)
+!!$     if (xc_isgga(xc)) xclevel = 2
+!!$     call xc_end(xc)
+!!$     !gsqcut_shp = two*abs(dtset%diecut)*dtset%dilatmx**2/pi**2
+!!$     gsqcut_shp = 2._gp * 2.2_gp / pi_param ** 2
+!!$     nsym = 0
+!!$     call symmetry_get_n_sym(atoms%astruct%sym%symObj, nsym, ierr)
+!!$     mpsang = -1
+!!$     do iat = 1, atoms%astruct%nat
+!!$        mpsang = max(mpsang, maxval(atoms%pawtab(iat)%orbitals))
+!!$     end do
+!!$     call abi_pawinit(1, gsqcut_shp, pawlcutd, pawlmix, mpsang + 1, &
+!!$          & pawnphi, nsym, pawntheta, atoms%pawang, atoms%pawrad, 0, &
+!!$          & atoms%pawtab, pawxcdev, xclevel, usepotzero)
+!!$    end if
 
     if (in%gen_nkpt > 1 .and. (in%inputpsiid .hasattr. 'GAUSSIAN')) then
        call f_err_throw('Gaussian projection is not implemented with k-point support',err_name='BIGDFT_INPUT_VARIABLES_ERROR')
@@ -870,6 +880,32 @@ contains
 
     ! Process the multipoles for the external potential
     call multipoles_from_dict(dict//DFT_VARIABLES//EXTERNAL_POTENTIAL, in%ep)
+    ! Check whether the multipole centers shall be determined automatically (i.e. taking the atoms)
+    ! or whether they are provided manually.
+    in%mp_centers_auto = .true.
+    if (CENTERS_AUTO .in. dict//LIN_GENERAL//MULTIPOLE_CENTERS) then
+        in%mp_centers_auto = dict//LIN_GENERAL//MULTIPOLE_CENTERS//CENTERS_AUTO
+    end if
+    if (in%mp_centers_auto) then
+        nullify(in%mp_centers)
+    else
+        ! Specify the centers manually
+        if (.not. ('positions' .in. dict//LIN_GENERAL//MULTIPOLE_CENTERS)) then
+            call f_err_throw('No multipole centers are provided')
+        end if
+        n = dict_len(dict//LIN_GENERAL//MULTIPOLE_CENTERS//'positions')
+        in%mp_centers = f_malloc_ptr((/3,n/),id='in%mp_centers')
+        if (n/=atoms%astruct%nat) then
+            call f_err_throw('The number of multipole centers ('//trim(yaml_toa(n))//') &
+                &does not correspond to the number of atoms ('//trim(yaml_toa(atoms%astruct%nat))//')')
+        end if
+        do i=1,n
+            ii = i-1
+            iter => dict//LIN_GENERAL//MULTIPOLE_CENTERS//'positions'//ii
+            key = trim(atoms%astruct%atomnames(atoms%astruct%iatype(i)))
+            in%mp_centers(1:3,i) = iter//key
+        end do
+    end if
 
     ! No use anymore of the types.
     call dict_free(types)
@@ -2137,10 +2173,11 @@ contains
           in%lin%calculate_FOE_eigenvalues(1:2) = val
        case (PRECISION_FOE_EIGENVALUES)
           in%lin%precision_FOE_eigenvalues = val
+       case (MULTIPOLE_CENTERS)
+          ! Do nothing
        case DEFAULT
           if (bigdft_mpi%iproc==0) &
                call yaml_warning("unknown input key '" // trim(level) // "/" // trim(dict_key(val)) // "'")
-               write(*,*) 'CALCULATE_FOE_EIGENVALUES'
        end select
     case (LIN_BASIS)
        select case (trim(dict_key(val)))
@@ -2593,6 +2630,7 @@ contains
     call deallocateBasicArraysInput(in%lin)
     call deallocateInputFragArrays(in%frag)
     call deallocate_external_potential_descriptors(in%ep)
+    call f_free_ptr(in%mp_centers)
 
     ! Stop the signaling stuff.
     !Destroy C wrappers on Fortran objects,

@@ -182,6 +182,7 @@ subroutine abscalc(nproc,iproc,atoms,rxyz,&
    use IObox
    use orbitalbasis
    use io, only: plot_density
+   use locregs_init, only: lr_set
    implicit none
    integer, intent(in) :: nproc,iproc
    real(gp), intent(inout) :: hx_old,hy_old,hz_old
@@ -410,25 +411,27 @@ subroutine abscalc(nproc,iproc,atoms,rxyz,&
 
    call nullify_locreg_descriptors(KSwfn%Lzd%Glr)
 
+   KSwfn%Lzd%hgrids(1)=hx
+   KSwfn%Lzd%hgrids(2)=hy
+   KSwfn%Lzd%hgrids(3)=hz
+
    ! Determine size alat of overall simulation cell and shift atom positions
    ! then calculate the size in units of the grid space
-
-   call system_size(atoms,rxyz,crmult,frmult,hx,hy,hz,.false.,KSwfn%Lzd%Glr)
-   if (iproc == 0) call print_atoms_and_grid(KSwfn%Lzd%Glr, atoms, rxyz, hx, hy, hz)
+   call lr_set(KSwfn%Lzd%Glr,iproc,.false.,.true.,crmult,frmult,&
+        KSwfn%Lzd%hgrids,rxyz,atoms,.true.,.false.)
+!!$   call system_size(atoms,rxyz,crmult,frmult,hx,hy,hz,.false.,KSwfn%Lzd%Glr)
+!!$   if (iproc == 0) call print_atoms_and_grid(KSwfn%Lzd%Glr, atoms, rxyz, hx, hy, hz)
 
    if ( KSwfn%orbs%nspinor.gt.1) then
       !!  hybrid_on is not compatible with kpoints
      KSwfn%Lzd%Glr%hybrid_on=.false.
    endif
 
-   ! Create wavefunctions descriptors and allocate them inside the global locreg desc.
-   call createWavefunctionsDescriptors(iproc,hx,hy,hz,&
-       atoms,rxyz,crmult,frmult,.true.,KSwfn%Lzd%Glr)
-   if (iproc == 0) call print_wfd(KSwfn%Lzd%Glr%wfd)
+!!$   ! Create wavefunctions descriptors and allocate them inside the global locreg desc.
+!!$   call createWavefunctionsDescriptors(iproc,hx,hy,hz,&
+!!$       atoms,rxyz,crmult,frmult,.true.,KSwfn%Lzd%Glr)
+!!$   if (iproc == 0) call print_wfd(KSwfn%Lzd%Glr%wfd)
 
-   KSwfn%Lzd%hgrids(1)=hx
-   KSwfn%Lzd%hgrids(2)=hy
-   KSwfn%Lzd%hgrids(3)=hz
 
    !variables substitution for the PSolver part
    hxh=0.5d0*hx
@@ -452,7 +455,7 @@ subroutine abscalc(nproc,iproc,atoms,rxyz,&
    call orbitals_descriptors(iproc,nproc,1,1,0,in%nspin,1,in%gen_nkpt,in%gen_kpt,in%gen_wkpt,orbs,LINEAR_PARTITION_NONE)
    call orbitals_communicators(iproc,nproc,KSwfn%Lzd%Glr,orbs,comms)  
    call orbital_basis_associate(ob,orbs=orbs,Glr=KSwfn%Lzd%Glr)
-   call createProjectorsArrays(KSwfn%Lzd%Glr,rxyz,atoms,ob,&
+   call createProjectorsArrays(iproc,nproc,KSwfn%Lzd%Glr,rxyz,atoms,ob,&
         cpmult,fpmult,hx,hy,hz,.false.,nlpsp,.true.)
    call orbital_basis_release(ob)
    if (iproc == 0) call print_nlpsp(nlpsp)
@@ -538,7 +541,7 @@ subroutine abscalc(nproc,iproc,atoms,rxyz,&
       PPD%DistProjApply  =  DistProjApply
       ! the following routine calls  localize_projectors again
       ! but this should be in coherence with the previous call for psp projectos 
-      call createPcProjectorsArrays(iproc,n1,n2,n3,rxyz,atoms,orbs,&
+      call createPcProjectorsArrays(iproc,nproc,n1,n2,n3,rxyz,atoms,orbs,&
            cpmult,fpmult,hx,hy,hz,-0.1_gp, &
            PPD, KSwfn%Lzd%Glr  )
       call timing(iproc,'CrtPcProjects ','OF')

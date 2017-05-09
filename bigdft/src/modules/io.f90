@@ -2661,7 +2661,7 @@ module io
 
 
    subroutine get_sparse_matrix_format(iformat, sparse_format)
-     use module_base
+     use dictionaries, only: f_err_throw !module_base
      implicit none
      integer,intent(in) :: iformat
      character(len=*),intent(out) :: sparse_format

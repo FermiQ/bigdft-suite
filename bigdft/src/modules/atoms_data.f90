@@ -1487,15 +1487,17 @@ contains
 
     !> complete the atoms structure with the remaining information.
     !! must be called after the call to astruct_set
-    subroutine atoms_fill(atoms,dict,dict_targets,frmult,nspin,multipole_preserving,mp_isf,ixc,alpha_hartree_fock)
+    subroutine atoms_fill(atoms,dict,frmult,nspin,multipole_preserving,mp_isf,ixc,alpha_hartree_fock)
       use ao_inguess, only: lmax_ao
-      use public_keys, only: IG_OCCUPATION
+      use public_keys, only: IG_OCCUPATION,OUTPUT_VARIABLES,ATOMIC_DENSITY_MATRIX,&
+           DFT_VARIABLES,OCCUPANCY_CONTROL
       use public_enums, only: PSPCODE_PAW
       use abi_interfaces_add_libpaw, only : abi_pawinit
       use module_xc
       use numerics, only: pi_param => pi
       use m_ab6_symmetry
       use dynamic_memory, only: f_routine,f_release_routine
+      use dictionaries
       implicit none
       integer, intent(in) :: nspin
       integer, intent(in) :: mp_isf               !< Interpolating scaling function order for multipole preserving
@@ -1504,20 +1506,26 @@ contains
       real(gp), intent(in) :: alpha_hartree_fock !< exact exchange contribution
       real(gp), intent(in) :: frmult           !< Used to scale the PAW radius projector
       type(atoms_data), intent(inout) :: atoms
-      type(dictionary), pointer :: dict,dict_targets
+      type(dictionary), pointer :: dict
       !local variables
       integer, parameter :: pawlcutd = 10, pawlmix = 10, pawnphi = 13, pawntheta = 12, pawxcdev = 1
       integer, parameter :: usepotzero = 0
       integer :: iat,ierr,mpsang,nsym,xclevel
       real(gp) :: gsqcut_shp
       type(xc_info) :: xc
+      type(dictionary), pointer :: dict_targets,dict_gamma
 
       call f_routine(id='atoms_fill')
 
       !fill the rest of the atoms structure
       call psp_dict_analyse(dict, atoms,frmult)
       call atomic_data_set_from_dict(dict,IG_OCCUPATION, atoms,nspin)
-      call atoms_gamma_from_dict(dict,dict_targets,&
+      !use get as the keys might not be there
+      dict_gamma= dict .get. OUTPUT_VARIABLES
+      dict_gamma= dict_gamma .get. ATOMIC_DENSITY_MATRIX
+      dict_targets= dict .get. DFT_VARIABLES
+      dict_targets= dict_targets .get. OCCUPANCY_CONTROL
+      call atoms_gamma_from_dict(dict_gamma,dict_targets,&
            lmax_ao,atoms%astruct,atoms%dogamma,atoms%gamma_targets)
       ! Add multipole preserving information
       atoms%multipole_preserving = multipole_preserving
