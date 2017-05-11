@@ -913,29 +913,21 @@ subroutine print_atomic_variables(atoms, hmax, ixc, dispersion)
      end if
      !see if nonlocal terms are present
      nonloc=.false.
-     verify_nl: do l=1,3
-        do i=3,0,-1
-           j=i
-           if (atoms%psppar(l,i,ityp) /= 0._gp) exit
-        end do
-        if (j /=0) then
+     verify_nl: do l=1,4
+        if (any(atoms%psppar(l,0:3,ityp) /= 0._gp)) then
            nonloc=.true.
            exit verify_nl
         end if
      end do verify_nl
      if (nonloc) then
         call yaml_sequence_open('NonLocal PSP Parameters')
-        do l=1,3
-           do i=3,0,-1
-              j=i
-              if (atoms%psppar(l,i,ityp) /= 0._gp) exit
-           end do
-           if (j /=0) then
+        do l=1,4
+           if (any(atoms%psppar(l,0:3,ityp) /= 0._gp)) then
               call yaml_sequence(advance='no')
               call yaml_map('Channel (l)',l-1)
               call yaml_map('Rloc',atoms%psppar(l,0,ityp),fmt='(f9.5)')
               hij=0._gp
-              do i=1,j
+              do i=1,3
                  hij(i,i)=atoms%psppar(l,i,ityp)
               end do
               if (atoms%npspcode(ityp) == PSPCODE_HGH) then !traditional HGH convention
