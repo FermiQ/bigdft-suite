@@ -1361,6 +1361,7 @@ contains
 
     use module_types, only: input_variables, atoms_data
     use dictionaries, only: f_err_raise
+    use yaml_strings, only: yaml_toa
 
     implicit none
 
@@ -1390,12 +1391,11 @@ contains
                & 'Unoptimised dispersion parameters used for ' &
                & // trim(atoms%astruct%atomnames(itype)), err_name='BIGDFT_RUNTIME_ERROR')) &
                & return
-          elseif (f_err_raise(.not. any(optimised == atoms%nzatom(itype)) .and. &
+          if (f_err_raise(.not. any(optimised == atoms%nzatom(itype)) .and. &
                & .not. any(unoptimised == atoms%nzatom(itype)), &
                & 'No dispersion parameters available for ' &
                & // trim(atoms%astruct%atomnames(itype)), err_name='BIGDFT_RUNTIME_ERROR')) &
                & return 
-          end if
        end do
 
        if (f_err_raise(.not. any(xcfoptimised == ixc), &
