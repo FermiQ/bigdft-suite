@@ -875,7 +875,6 @@ contains
        case default  
           vdwparams%s6=1.0000_GP
        end select
-
 !! radii scale
        vdwparams%radscale=1.1000_GP
 
@@ -918,19 +917,19 @@ contains
        case(14)            ! revpbe
           vdwparams%sr6 = 0.923
           vdwparams%s8 = 1.010
-       case(-406)       ! pbe0
+       case(-406, -406000)       ! pbe0
           vdwparams%sr6 = 1.278_GP
           vdwparams%s8  = 0.928_GP
-       case(-170000)       ! b97-d
+       case(-170, -170000)       ! b97-d
           vdwparams%sr6 = 0.892_GP
           vdwparams%s8  = 0.909_GP
        case(-106132)       ! b-p
           vdwparams%sr6 = 1.139_GP
           vdwparams%s8  = 1.683_GP
-       case(-416)       ! b-lyp
+       case(-416, -416000)       ! b-lyp
           vdwparams%sr6 = 1.094_GP
           vdwparams%s8  = 1.682_GP
-       case(-402)       ! b3-lyp
+       case(-402, -402000)       ! b3-lyp
           vdwparams%sr6 = 1.261_GP
           vdwparams%s8  = 1.703_GP
        case(-202231)       ! tpss
@@ -1361,6 +1360,7 @@ contains
   subroutine vdwcorrection_warnings(atoms,dispersion,ixc)
 
     use module_types, only: input_variables, atoms_data
+    use dictionaries, only: f_err_raise
 
     implicit none
 
@@ -1376,7 +1376,7 @@ contains
 !   ic corrections November 12th 2013
     integer, parameter :: xcfoptimised(5) = (/11,-101130,14,15,-109134/)
     integer, parameter :: xcfoptimisedgrimme(13) = (/11,-101130,14,-406000,-406,-170000,-170,&
-                          -106132,-416000,-416,-402000,-402,-202231/) 
+                          -106132,-416000,-416,-402000,-402,-202231/)
 !   integer, parameter :: xcfoptimised(4) = (/11,14,15,200/)
 
 !   if (in%dispersion /= 0) then 
@@ -1385,37 +1385,36 @@ contains
 
        ! qoh: Loop over types to check we have parameters
        do itype=1,atoms%astruct%ntypes
-          if (any(unoptimised == atoms%nzatom(itype)) .and. &
-               any(xcfoptimised == ixc)) then 
-!   ic corrections November 12th 2013
-             write(*,'(a,a7)') 'WARNING: Unoptimised dispersion &
-              &parameters used for ', atoms%astruct%atomnames(itype)
-!            write(*,'(a,a2)') 'WARNING: Unoptimised dispersion &
-!   ic corrections November 12th 2013
-          elseif (.not. any(optimised == atoms%nzatom(itype)) .and. &
-               .not. any(unoptimised == atoms%nzatom(itype))) then
-!   ic corrections November 12th 2013
-             write(*,'(a,a7)') 'WARNING: No dispersion parameters &
-                  &available for ', atoms%astruct%atomnames(itype) 
-!            write(*,'(a,a2)') 'WARNING: No dispersion parameters &
-!   ic corrections November 12th 2013
+          if (f_err_raise(any(unoptimised == atoms%nzatom(itype)) .and. &
+               & any(xcfoptimised == ixc), &
+               & 'Unoptimised dispersion parameters used for ' &
+               & // trim(atoms%astruct%atomnames(itype)), err_name='BIGDFT_RUNTIME_ERROR')) &
+               & return
+          elseif (f_err_raise(.not. any(optimised == atoms%nzatom(itype)) .and. &
+               & .not. any(unoptimised == atoms%nzatom(itype)), &
+               & 'No dispersion parameters available for ' &
+               & // trim(atoms%astruct%atomnames(itype)), err_name='BIGDFT_RUNTIME_ERROR')) &
+               & return 
           end if
        end do
 
-       if (.not. any(xcfoptimised == ixc)) &
-!           ic corrections August 26th 2013
-            write(*,'(a,i7)') 'WARNING: No optimised Hill-Skylaris dispersion parameters &
-            &available for ixc=', ixc
-!           write(*,'(a,i2)') 'WARNING: No optimised dispersion parameters &
-!           ic corrections August 26th 2013
+       if (f_err_raise(.not. any(xcfoptimised == ixc), &
+            & 'No optimised Hill-Skylaris dispersion parameters available for ixc=' &
+            & // trim(yaml_toa(ixc, fmt='(i7)')), err_name='BIGDFT_RUNTIME_ERROR')) &
+            & return
     end if
 !   ic corrections November 12th 2013
-    if (dispersion == 4) then 
-       if (.not. any(xcfoptimisedgrimme == ixc)) &
-            write(*,'(a,i7)') 'WARNING: No optimised Grimme dispersion parameters &
-            &available for ixc=', ixc
+    if (dispersion == 4 .or. dispersion == 5) then 
+       if (f_err_raise(.not. any(xcfoptimisedgrimme == ixc), &
+            & 'No optimised Grimme dispersion parameters available for ixc=' &
+            & // trim(yaml_toa(ixc, fmt='(i7)')), err_name='BIGDFT_RUNTIME_ERROR')) &
+            & return
     end if
-!   ic corrections November 12th 2013
+    !   ic corrections November 12th 2013
+    if (f_err_raise(atoms%astruct%geocode /= 'F', &
+         & 'Dispersion is made for non-isolated systems.', &
+         & err_name='BIGDFT_RUNTIME_ERROR')) &
+         & return
   END SUBROUTINE vdwcorrection_warnings
 
 
