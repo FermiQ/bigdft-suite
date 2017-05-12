@@ -802,14 +802,14 @@ subroutine print_atomic_variables(atoms, hmax, ixc)
   integer :: i,j,j0,l,ityp,iat,natyp,mproj,inlcc
   real(gp) :: minrad
   real(gp), dimension(3,3) :: hij
-  real(gp), dimension(2,2,3) :: offdiagarr
+  real(gp), dimension(2,2,4) :: offdiagarr
   character(len=500) :: name_xc1, name_xc2
 
   !If no atoms...
   if (atoms%astruct%ntypes == 0) return
 
   !print the pseudopotential matrices
-  do l=1,3
+  do l=1,4
      do i=1,2
         do j=i+1,3
            offdiagarr(i,j-i,l)=0._gp
@@ -833,6 +833,13 @@ subroutine print_atomic_variables(atoms, hmax, ixc)
                  if (j==3)   offdiagarr(i,j-i,l)=0.5_gp*sqrt(63._gp/143._gp)
               else
                  offdiagarr(i,j-i,l)=-9._gp*sqrt(1._gp/143._gp)
+              end if
+           else if (l==4) then
+              if (i==1) then
+                 if (j==2)   offdiagarr(i,j-i,l)=-0.5_gp*sqrt(9._gp/11._gp)
+                 if (j==3)   offdiagarr(i,j-i,l)=0.5_gp*sqrt(33._gp/65._gp)
+              else
+                 offdiagarr(i,j-i,l)=-11._gp*sqrt(1._gp/195._gp)
               end if
            end if
         end do
