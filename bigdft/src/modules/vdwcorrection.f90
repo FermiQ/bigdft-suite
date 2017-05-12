@@ -1378,7 +1378,9 @@ contains
     integer, parameter :: xcfoptimised(5) = (/11,-101130,14,15,-109134/)
     integer, parameter :: xcfoptimisedgrimme(13) = (/11,-101130,14,-406000,-406,-170000,-170,&
                           -106132,-416000,-416,-402000,-402,-202231/)
-!   integer, parameter :: xcfoptimised(4) = (/11,14,15,200/)
+    !   integer, parameter :: xcfoptimised(4) = (/11,14,15,200/)
+
+    if (dispersion == 0) return
 
 !   if (in%dispersion /= 0) then 
     if (0 < dispersion .and. dispersion < 4) then 
