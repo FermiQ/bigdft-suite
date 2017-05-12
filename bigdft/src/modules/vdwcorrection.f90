@@ -1380,8 +1380,6 @@ contains
                           -106132,-416000,-416,-402000,-402,-202231/)
     !   integer, parameter :: xcfoptimised(4) = (/11,14,15,200/)
 
-    if (dispersion == 0) return
-
 !   if (in%dispersion /= 0) then 
     if (0 < dispersion .and. dispersion < 4) then 
 !   ic corrections November 12th 2013
