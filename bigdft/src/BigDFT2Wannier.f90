@@ -1782,7 +1782,8 @@ END SUBROUTINE radialpart
 subroutine write_functions(w_sph, w_ang, w_rad, fn1, fn2, fn3, np, Glr, &
       &   hxh, hyh, hzh, atoms, rxyz, sph_har, func_r, ylm)
   use module_defs, only: gp
-   use module_types
+  use module_types
+  use locregs
    implicit none
 
    ! I/O variables
@@ -2112,6 +2113,7 @@ subroutine write_unk_bin(Glr,orbs,orbsv,orbsb,input,atoms,rxyz,n_occ,n_virt,virt
    use bounds, only: ext_buffers
    use locreg_operations
    use module_interfaces, only: readmywaves
+   use locregs
    implicit none
    ! I/O variables
    type(locreg_descriptors), intent(in) :: Glr

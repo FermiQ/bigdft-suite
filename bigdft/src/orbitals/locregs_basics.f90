@@ -290,7 +290,7 @@ END SUBROUTINE psi_to_tpsi
 !! The input array y is not overwritten
 subroutine comb_shrink_hyb(n1,n2,n3,nfl1,nfu1,nfl2,nfu2,nfl3,nfu3,w1,w2,y,xc,xf,sb)
   use module_defs, only: wp
-  use locregs, only: shrink_bounds
+  use bounds, only: shrink_bounds
   implicit none
   type(shrink_bounds),intent(in):: sb
   integer, intent(in) :: n1,n2,n3,nfl1,nfu1,nfl2,nfu2,nfl3,nfu3
@@ -325,7 +325,7 @@ END SUBROUTINE comb_shrink_hyb
 subroutine comb_grow_all_hybrid(n1,n2,n3,nfl1,nfu1,nfl2,nfu2,nfl3,nfu3,nw1,nw2&
      ,w1,w2,xc,xf,y,gb)
   use module_defs, only: wp
-  use locregs, only: grow_bounds
+  use bounds, only: grow_bounds
   implicit none
   type(grow_bounds),intent(in):: gb
   integer,intent(in)::n1,n2,n3,nfl1,nfu1,nfl2,nfu2,nfl3,nfu3,nw1,nw2

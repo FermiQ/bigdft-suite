@@ -12,6 +12,7 @@
 subroutine preconditionall(orbs,lr,hx,hy,hz,ncong,hpsi,gnrm,gnrm_zero)
   use module_base
   use module_types
+  use locregs
   implicit none
   integer, intent(in) :: ncong
   real(gp), intent(in) :: hx,hy,hz
@@ -550,6 +551,7 @@ END SUBROUTINE precondition_residue
 subroutine finalise_precond_residue(geocode,hybrid_on,ncplx,wfd,scal,x)
   use module_base
   use module_types
+  use compression
   implicit none
   character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
   logical, intent(in) :: hybrid_on
@@ -585,6 +587,7 @@ END SUBROUTINE finalise_precond_residue
 subroutine calculate_rmr_new(geocode,hybrid_on,ncplx,wfd,scal,r,b,rmr_new)
   use module_base
   use module_types
+  use compression
   implicit none
   character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
   logical, intent(in) :: hybrid_on

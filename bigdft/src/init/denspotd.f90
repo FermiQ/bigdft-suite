@@ -504,6 +504,7 @@ subroutine allocateRhoPot(Glr,nspin,atoms,rxyz,denspot)
   use module_base
   use module_types
   use module_interfaces, only: calculate_rhocore
+  use locregs
   implicit none
   integer, intent(in) :: nspin
   type(locreg_descriptors), intent(in) :: Glr

@@ -375,7 +375,6 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
   !!   deallocate(ref_frags)
   !!end if
 
-
   ! Calculate all projectors, or allocate array for on-the-fly calculation
   ! SM: For a linear scaling calculation, some parts can be done later.
   ! SM: The following flag is false for linear scaling and true otherwise.
@@ -527,7 +526,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
        end if
 
        call initLocregs(iproc, nproc, lzd_lin, Lzd_lin%hgrids(1), Lzd_lin%hgrids(2),Lzd_lin%hgrids(3), &
-            atoms%astruct, lorbs, Lzd_lin%Glr, 's')
+            atoms%astruct%rxyz,lzd_lin%llr(:)%locrad, lorbs, Lzd_lin%Glr, 's')
        call update_wavefunctions_size(lzd_lin,lnpsidim_orbs,lnpsidim_comp,lorbs,iproc,nproc)
      end subroutine init_lzd_linear
 

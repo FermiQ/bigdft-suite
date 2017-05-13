@@ -6,7 +6,93 @@
 !!    GNU General Public License, see ~/COPYING file
 !!    or http://www.gnu.org/copyleft/gpl.txt .
 !!    For the list of contributors, see ~/AUTHORS 
+subroutine spatially_resolved_dos(ob,hpsi)
+  use module_base
+  use orbitalbasis
+  use locreg_operations
+  implicit none
+  type(orbital_basis), intent(inout) :: ob
+  real(wp), dimension(ob%orbs%npsidim_orbs), intent(in) :: hpsi
+  !local variables
+  logical :: assert_cubic
+  integer :: ispinor
+  type(workarr_sumrho) :: w
+  type(ket) :: psi_it
+  real(wp), dimension(:,:), allocatable :: psir,hpsir,epsx,epsy,epsz
+  real(wp), dimension(:), pointer :: psi_ptr,hpsi_ptr
 
+  if (ob%orbs%nspinor > 2) &
+       call f_err_throw('Spatially resolved DoS not available for spinors',&
+       err_name='BIGDFT_INPUT_VARIABLES_ERROR')
+
+  call f_routine(id='spatially_resolved_dos')
+
+  !this is only menaningful for the cubic code
+  assert_cubic=.true.
+  psi_it=orbital_basis_iterator(ob)
+  do while(ket_next_locreg(psi_it))
+     call f_assert(assert_cubic,'Spatially resolved density of states only valid with nlr=1')
+     !here the iterator over the points of the locreg has to be created
+     call initialize_work_arrays_sumrho(psi_it%lr,.true.,w)
+     !real space basis function, per orbital components
+     psir = f_malloc(1.to.psi_it%ket_dims,id='psir')
+     hpsir = f_malloc(1.to.psi_it%ket_dims,id='hpsir')
+     epsx=f_malloc(psi_it%lr%d%n1i,id='epsx')
+     epsy=f_malloc(psi_it%lr%d%n2i,id='epsy')
+     epsz=f_malloc(psi_it%lr%d%n3i,id='epsz')
+     do while(ket_next(psi_it,ilr=psi_it%ilr))
+        do ispinor=1,ob%orbs%nspinor
+           psi_ptr=>ob_subket_ptr(psi_it,ispinor)
+           hpsi_ptr=>ob_ket_map(hpsi,psi_it,ispinor)
+           call daub_to_isf(psi_it%lr,w,psi_ptr,psir(1,ispinor))
+           call daub_to_isf(psi_it%lr,w,hpsi_ptr,hpsir(1,ispinor))
+        end do
+        call calculate_sdos(psi_it%nspinor,psi_it%lr%bit,psir,hpsir,&
+             epsx(1,psi_it%iorbp),epsy(1,psi_it%iorbp),epsz(1,psi_it%iorbp))
+     end do
+     !deallocations of work arrays
+     call f_free(psir)
+     call f_free(hpsir)
+     call deallocate_work_arrays_sumrho(w)
+     assert_cubic=.false. !we should exit now
+  end do
+
+  call f_release_routine()
+
+end subroutine spatially_resolved_dos
+
+subroutine calculate_sdos(nspinor,boxit,psi,hpsi,epsx,epsy,epsz)
+  use box
+  use module_defs
+  use f_utils, only: f_zero
+  implicit none
+  type(box_iterator) :: boxit
+  integer, intent(in) :: nspinor
+  real(wp), dimension(boxit%mesh%ndim,nspinor), intent(in) :: psi,hpsi
+  real(wp), dimension(boxit%mesh%ndims(1)), intent(out) :: epsx
+  real(wp), dimension(boxit%mesh%ndims(2)), intent(out) :: epsy
+  real(wp), dimension(boxit%mesh%ndims(3)), intent(out) :: epsz
+  !local variables
+  real(wp) :: tt
+  
+  !here we have to initialize the iterator over the total box
+  call f_zero(epsx)
+  call f_zero(epsy)
+  call f_zero(epsz)
+
+  do while(box_next_z(boxit))
+     do while(box_next_y(boxit))
+        do while(box_next_x(boxit))
+           tt=0.0_wp!here the product psi*hpsi, real and imaginary
+           tt=tt*boxit%mesh%volume_element
+           epsz(boxit%k)=epsz(boxit%k)+tt
+           epsy(boxit%j)=epsy(boxit%j)+tt
+           epsx(boxit%i)=epsx(boxit%i)+tt
+        end do
+     end do
+  end do
+
+end subroutine calculate_sdos
 
 !> Perform all the projection associated to local variables
 subroutine local_analysis(iproc,nproc,hx,hy,hz,at,rxyz,lr,orbs,orbsv,psi,psivirt)
@@ -14,6 +100,7 @@ subroutine local_analysis(iproc,nproc,hx,hy,hz,at,rxyz,lr,orbs,orbsv,psi,psivirt
    use module_types
    use module_interfaces, only: gaussian_pswf_basis
    use gaussians, only: deallocate_gwf
+   use locregs
    implicit none
    integer, intent(in) :: iproc,nproc
    real(gp), intent(in) :: hx,hy,hz
@@ -29,7 +116,7 @@ subroutine local_analysis(iproc,nproc,hx,hy,hz,at,rxyz,lr,orbs,orbsv,psi,psivirt
    !type(atoms_data) :: atc
    type(gaussian_basis) :: G
    real(wp), dimension(:,:), allocatable :: allpsigau,dualcoeffs
-   real(gp), dimension(:,:), allocatable :: radii_cf_fake,thetaphi
+   real(gp), dimension(:,:), allocatable :: thetaphi
    real(gp), dimension(:), pointer :: Gocc
    !real(gp), dimension(:,:), pointer :: cxyz
 
@@ -45,13 +132,6 @@ subroutine local_analysis(iproc,nproc,hx,hy,hz,at,rxyz,lr,orbs,orbsv,psi,psivirt
    !are different from the atoms.
    !NOTE: this means that the MCPA can be done only on SP calculations
    !call read_input_variables(iproc,'posinp','input.dft','','','',inc,atc,cxyz)
-
-   !allocate(radii_cf_fake(atc%ntypes,3+ndebug),stat=i_stat)
-   !call memocc(i_stat,radii_cf_fake,'radii_cf_fake',subname)
-
-   radii_cf_fake = f_malloc((/ at%astruct%ntypes, 3 /),id='radii_cf_fake')
-
-
    !call read_system_variables('input.occup',iproc,inc,atc,radii_cf_fake,nelec,&
    !     norb,norbu,norbd,iunit)
 
@@ -83,10 +163,10 @@ subroutine local_analysis(iproc,nproc,hx,hy,hz,at,rxyz,lr,orbs,orbsv,psi,psivirt
            allpsigau(1,orbs%norbp+min(1,norbpv)))
    end if
    !calculate dual coefficients
-   dualcoeffs = f_malloc((/ G%ncoeff*orbs%nspinor, orbs%norbp+norbpv /),id='dualcoeffs')
-   if (G%ncoeff*orbs%nspinor*(orbs%norbp+norbpv)>0) then
-       call vcopy(G%ncoeff*orbs%nspinor*(orbs%norbp+norbpv),allpsigau(1,1),1,dualcoeffs(1,1),1)
-   end if
+   dualcoeffs = f_malloc(src=allpsigau,id='dualcoeffs')
+   !if (G%ncoeff*orbs%nspinor*(orbs%norbp+norbpv)>0) then
+   !    call vcopy(G%ncoeff*orbs%nspinor*(orbs%norbp+norbpv),allpsigau(1,1),1,dualcoeffs(1,1),1)
+   !end if
    !build dual coefficients
    call dual_gaussian_coefficients(orbs%nspinor*(orbs%norbp+norbpv),G,dualcoeffs)
 
@@ -111,10 +191,6 @@ subroutine local_analysis(iproc,nproc,hx,hy,hz,at,rxyz,lr,orbs,orbsv,psi,psivirt
    !deallocate the auxiliary structures for the calculations
    !call deallocate_atoms(atc,subname) 
    !call free_input_variables(inc)
-   call f_free(radii_cf_fake)
-   !i_all=-product(shape(cxyz))*kind(cxyz)
-   !deallocate(cxyz,stat=i_stat)
-   !call memocc(i_stat,i_all,'cxyz',subname)
    call f_free_ptr(Gocc)
 
 END SUBROUTINE local_analysis

@@ -5537,7 +5537,7 @@ end subroutine calculate_rpowerx_matrices
       use module_defs
       use dynamic_memory
       use f_utils
-      use module_types, only: locreg_descriptors
+      use locregs, only: locreg_descriptors
       use bounds, only: geocode_buffers
       implicit none
 

@@ -379,6 +379,7 @@ subroutine local_partial_density(nproc,rsflag,nscatterarr,&
    use module_types
    use module_interfaces, only: partial_density_free
    use locreg_operations
+   use locregs
    implicit none
    logical, intent(in) :: rsflag
    integer, intent(in) :: nproc,nrhotot
@@ -1024,6 +1025,7 @@ subroutine uncompress_rho_old(sprho_comp,dprho_comp,&
       &   lr,nspin,rhodsc,rho_uncomp,i3s,n3d)
    use module_base
    use module_types
+   use locregs
    implicit none
    integer,intent(in) :: nspin,i3s,n3d
    type(locreg_descriptors), intent(in) :: lr 

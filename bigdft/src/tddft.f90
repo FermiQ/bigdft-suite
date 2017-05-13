@@ -13,6 +13,7 @@ subroutine tddft_casida(iproc,nproc,atoms,rxyz,hxh,hyh,hzh,n3p,n3parr,Glr,tddft_
      orbsv,i3s,fxc,pkernelseq,psi,psiv,exc_fac)
   use module_base
   use module_types
+  use locregs
   implicit none
   integer, intent(in) :: iproc,nproc,n3p,i3s
   real(gp), intent(in) :: hxh,hyh,hzh

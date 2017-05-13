@@ -181,6 +181,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
        use module_defs, only: gp,wp,dp
        use module_types
        use gaussians, only: gaussian_basis
+       use locregs
        implicit none
        type(atoms_data), intent(in) :: at
        type(orbitals_data), intent(in) :: orbs
@@ -208,6 +209,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
        use communications_base, only: comms_cubic
        use module_xc
        use module_dpbox
+       use locregs
        implicit none
        integer, intent(in) :: iproc,nproc
        integer, intent(in) :: nvirt

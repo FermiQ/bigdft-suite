@@ -11,58 +11,14 @@
 !> Datatypes for localization regions descriptors
 module locregs
   use module_base
+  use box, only: cell,box_iterator
+  use compression
+  use bounds, only: convolutions_bounds
   implicit none
 
   private 
 
-  !> Bounds for coarse and fine grids for kinetic operations
-  !! Useful only for isolated systems AND in CPU
-  type, public :: kinetic_bounds
-     integer, dimension(:,:,:), pointer :: ibyz_c !< coarse (2,0:n2,0:n3)
-     integer, dimension(:,:,:), pointer :: ibxz_c !< coarse (2,0:n1,0:n3)
-     integer, dimension(:,:,:), pointer :: ibxy_c !< coarse (2,0:n1,0:n2)
-     integer, dimension(:,:,:), pointer :: ibyz_f !< fine (2,0:n2,0:n3)
-     integer, dimension(:,:,:), pointer :: ibxz_f !< fine (2,0:n1,0:n3)
-     integer, dimension(:,:,:), pointer :: ibxy_f !< fine (2,0:n1,0:n2)
-  end type kinetic_bounds
-
-
-  !> Bounds to compress the wavefunctions
-  !! Useful only for isolated systems AND in CPU
-  type, public :: shrink_bounds
-     integer, dimension(:,:,:), pointer :: ibzzx_c,ibyyzz_c
-     integer, dimension(:,:,:), pointer :: ibxy_ff,ibzzx_f,ibyyzz_f
-  end type shrink_bounds
-
-
-  !> Bounds to uncompress the wavefunctions
-  !! Useful only for isolated systems AND in CPU
-  type, public :: grow_bounds
-     integer, dimension(:,:,:), pointer :: ibzxx_c,ibxxyy_c
-     integer, dimension(:,:,:), pointer :: ibyz_ff,ibzxx_f,ibxxyy_f
-  end type grow_bounds
-
-
-  !> Bounds for convolutions operations
-  !! Useful only for isolated systems AND in CPU
-  type, public :: convolutions_bounds
-     type(kinetic_bounds) :: kb
-     type(shrink_bounds) :: sb
-     type(grow_bounds) :: gb
-     integer, dimension(:,:,:), pointer :: ibyyzz_r !< real space border
-  end type convolutions_bounds
-
-
-  !> Used for lookup table for compressed wavefunctions
-  type, public :: wavefunctions_descriptors
-     integer :: nvctr_c,nvctr_f,nseg_c,nseg_f
-     integer, dimension(:,:), pointer :: keyglob
-     integer, dimension(:,:), pointer :: keygloc
-     integer, dimension(:), pointer :: keyvloc,keyvglob
-  end type wavefunctions_descriptors
-
-
-  !> Grid dimensions in old different wavelet basis
+  !> Grid dimensions in all different wavelet basis
   type, public :: grid_dimensions
      integer :: n1,n2,n3                      !< Coarse grid dimensions
      integer :: nfl1,nfu1,nfl2,nfu2,nfl3,nfu3 !< Lower and upper indices of fine grid in 3D 
@@ -85,91 +41,19 @@ module locregs
      type(grid_dimensions) :: d             !< Grid dimensions in old different wavelet basis
      type(wavefunctions_descriptors) :: wfd
      type(convolutions_bounds) :: bounds
+     type(cell) :: mesh !<defines the cell of the system 
+                        !! (should replace the other geometrical informations)
+     !>iterator over the mesh degrees of freedom
+     type(box_iterator) :: bit
   end type locreg_descriptors
 
   public :: nullify_locreg_descriptors,locreg_null
   public :: deallocate_locreg_descriptors,deallocate_wfd
   public :: allocate_wfd,copy_locreg_descriptors,copy_grid_dimensions,nullify_wfd
-  public :: check_overlap,check_overlap_cubic_periodic,check_overlap_from_descriptors_periodic
-  public :: check_whether_bounds_overlap
-  public :: get_extent_of_overlap
-
-  interface check_whether_bounds_overlap
-    module procedure check_whether_bounds_overlap_int
-    module procedure check_whether_bounds_overlap_long
-  end interface check_whether_bounds_overlap
-  
-  interface get_extent_of_overlap
-    module procedure get_extent_of_overlap_int
-    module procedure get_extent_of_overlap_long
-  end interface get_extent_of_overlap
+  public :: check_overlap,check_overlap_cubic_periodic,check_overlap_from_descriptors_periodic,lr_box
+  public :: init_lr
 
 contains
-
-  !constructors
-  pure function convolutions_bounds_null() result(bounds)
-    implicit none
-    type(convolutions_bounds) :: bounds
-    call nullify_convolutions_bounds(bounds)
-  end function convolutions_bounds_null
-
-  pure subroutine nullify_convolutions_bounds(bounds)
-    implicit none
-    type(convolutions_bounds), intent(out) :: bounds
-    call nullify_kinetic_bounds(bounds%kb)
-    call nullify_shrink_bounds(bounds%sb)
-    call nullify_grow_bounds(bounds%gb)
-    nullify(bounds%ibyyzz_r)
-  end subroutine nullify_convolutions_bounds
-
-  pure function kinetic_bounds_null() result(kb)
-    implicit none
-    type(kinetic_bounds) :: kb
-    call nullify_kinetic_bounds(kb)
-  end function kinetic_bounds_null
-
-  pure subroutine nullify_kinetic_bounds(kb)
-    implicit none
-    type(kinetic_bounds), intent(out) :: kb
-    nullify(kb%ibyz_c)
-    nullify(kb%ibxz_c)
-    nullify(kb%ibxy_c)
-    nullify(kb%ibyz_f)
-    nullify(kb%ibxz_f)
-    nullify(kb%ibxy_f)
-  end subroutine nullify_kinetic_bounds
-
-  pure function shrink_bounds_null() result(sb)
-    implicit none
-    type(shrink_bounds) :: sb
-    call nullify_shrink_bounds(sb)
-  end function shrink_bounds_null
-
-  pure subroutine nullify_shrink_bounds(sb)
-    implicit none
-    type(shrink_bounds), intent(out) :: sb
-    nullify(sb%ibzzx_c)
-    nullify(sb%ibyyzz_c)
-    nullify(sb%ibxy_ff)
-    nullify(sb%ibzzx_f)
-    nullify(sb%ibyyzz_f)
-  end subroutine nullify_shrink_bounds
-
-  pure function grow_bounds_null() result(gb)
-    implicit none
-    type(grow_bounds) :: gb
-    call nullify_grow_bounds(gb)
-  end function grow_bounds_null
-
-  pure subroutine nullify_grow_bounds(gb)
-    implicit none
-    type(grow_bounds), intent(out) :: gb
-    nullify(gb%ibzxx_c)
-    nullify(gb%ibxxyy_c)
-    nullify(gb%ibyz_ff)
-    nullify(gb%ibzxx_f)
-    nullify(gb%ibxxyy_f)
-  end subroutine nullify_grow_bounds
 
   pure function grid_null() result(g)
     type(grid_dimensions) :: g
@@ -187,25 +71,6 @@ contains
     g%n3i  =0
   end function grid_null
 
-  pure function wfd_null() result(wfd)
-    implicit none
-    type(wavefunctions_descriptors) :: wfd
-    call nullify_wfd(wfd)
-  end function wfd_null
-
-  pure subroutine nullify_wfd(wfd)
-    implicit none
-    type(wavefunctions_descriptors), intent(out) :: wfd
-    wfd%nvctr_c=0
-    wfd%nvctr_f=0
-    wfd%nseg_c=0
-    wfd%nseg_f=0
-    nullify(wfd%keyglob)
-    nullify(wfd%keygloc)
-    nullify(wfd%keyvglob)
-    nullify(wfd%keyvloc)
-  end subroutine nullify_wfd
-
   pure function locreg_null() result(lr)
     implicit none
     type(locreg_descriptors) :: lr
@@ -213,6 +78,8 @@ contains
   end function locreg_null
 
   pure subroutine nullify_locreg_descriptors(lr)
+    use box
+    use bounds, only: nullify_convolutions_bounds
     implicit none
     type(locreg_descriptors), intent(out) :: lr
     lr%geocode='F'
@@ -229,50 +96,14 @@ contains
     call nullify_wfd(lr%wfd)
     call nullify_convolutions_bounds(lr%bounds)
     lr%locregCenter=(/0.0_gp,0.0_gp,0.0_gp/) 
-    lr%locrad=0 
+    lr%locrad=0
+    lr%mesh=cell_null()
+    call nullify_box_iterator(lr%bit)
   end subroutine nullify_locreg_descriptors
-
-  !> Initializations
-  subroutine allocate_wfd(wfd)
-    use module_base
-    implicit none
-    type(wavefunctions_descriptors), intent(inout) :: wfd
-    !local variables
-    integer :: nsegs
-
-    nsegs=max(1,wfd%nseg_c+wfd%nseg_f)
-    wfd%keyvloc=f_malloc_ptr(nsegs,id='wfd%keyvloc')
-    wfd%keyvglob=f_malloc_ptr(nsegs,id='wfd%keyvglob')
-    wfd%keyglob=f_malloc_ptr((/2,nsegs/),id='wfd%keyglob')
-    wfd%keygloc=f_malloc_ptr((/2,nsegs/),id='wfd%keygloc')
-  END SUBROUTINE allocate_wfd
-
-  !> De-Allocate wavefunctions_descriptors
-  subroutine deallocate_wfd(wfd)
-    use module_base
-    implicit none
-    type(wavefunctions_descriptors), intent(inout) :: wfd
-
-    !in case the two objects points to the same target
-    if (associated(wfd%keyglob, target = wfd%keygloc)) then
-       !assuming that globals has been created afterwards
-       nullify(wfd%keygloc)
-       call f_free_ptr(wfd%keyglob)
-    else
-       call f_free_ptr(wfd%keygloc)
-       call f_free_ptr(wfd%keyglob)
-    end if
-    if (associated(wfd%keyvloc, target= wfd%keyvglob)) then
-       nullify(wfd%keyvloc)
-       call f_free_ptr(wfd%keyvglob)
-    else
-       call f_free_ptr(wfd%keyvloc)
-       call f_free_ptr(wfd%keyvglob)
-    end if
-  END SUBROUTINE deallocate_wfd
 
   !> Destructors
   subroutine deallocate_locreg_descriptors(lr)
+    use bounds
     implicit none
     ! Calling arguments
     type(locreg_descriptors),intent(inout):: lr
@@ -282,64 +113,11 @@ contains
     
   end subroutine deallocate_locreg_descriptors
 
-  subroutine deallocate_convolutions_bounds(bounds)
-    implicit none
-    type(convolutions_bounds),intent(inout):: bounds
-
-    call f_free_ptr(bounds%ibyyzz_r)
-
-    call deallocate_kinetic_bounds(bounds%kb)
-    call deallocate_shrink_bounds(bounds%sb)
-    call deallocate_grow_bounds(bounds%gb)
-
-  end subroutine deallocate_convolutions_bounds
-
-  subroutine deallocate_kinetic_bounds(kb)
-    implicit none
-    ! Calling arguments
-    type(kinetic_bounds),intent(inout):: kb
-
-    call f_free_ptr(kb%ibyz_c)
-    call f_free_ptr(kb%ibxz_c)
-    call f_free_ptr(kb%ibxy_c)
-    call f_free_ptr(kb%ibyz_f)
-    call f_free_ptr(kb%ibxz_f)
-    call f_free_ptr(kb%ibxy_f)
-
-  end subroutine deallocate_kinetic_bounds
-
-
-  subroutine deallocate_shrink_bounds(sb)
-    implicit none
-    ! Calling arguments
-    type(shrink_bounds),intent(inout):: sb
-
-    call f_free_ptr(sb%ibzzx_c)
-    call f_free_ptr(sb%ibyyzz_c)
-    call f_free_ptr(sb%ibxy_ff)
-    call f_free_ptr(sb%ibzzx_f)
-    call f_free_ptr(sb%ibyyzz_f)
-
-  end subroutine deallocate_shrink_bounds
-
-
-  subroutine deallocate_grow_bounds(gb)
-    implicit none
-    ! Calling arguments
-    type(grow_bounds),intent(inout):: gb
-
-    call f_free_ptr(gb%ibzxx_c)
-    call f_free_ptr(gb%ibxxyy_c)
-    call f_free_ptr(gb%ibyz_ff)
-    call f_free_ptr(gb%ibzxx_f)
-    call f_free_ptr(gb%ibxxyy_f)
-
-  end subroutine deallocate_grow_bounds
-
   !> Methods for copying the structures, can be needed to avoid recalculating them
   !! should be better by defining a f_malloc inheriting the shapes and the structure from other array
   !! of the type dest=f_malloc(src=source,id='dest')
   subroutine copy_locreg_descriptors(glrin, glrout)
+    use bounds
     implicit none
     ! Calling arguments
     type(locreg_descriptors), intent(in) :: glrin !<input locreg. Unchanged on exit.
@@ -364,14 +142,8 @@ contains
     call copy_wavefunctions_descriptors(glrin%wfd, glrout%wfd)
     call copy_convolutions_bounds(glrin%bounds, glrout%bounds)
 
-!!$    !copy bound when needed
-!!$    if(glrin%geocode == 'F' .or. (glrin%geocode == 'P' .and. glrin%hybrid_on)) then
-!!$       call copy_convolutions_bounds(glrin%geocode, glrin%bounds, glrout%bounds,&
-!!$            'copy_locreg_descriptors') !to be removed when bounds are allocated properly
-!!$    else
-!!$       call nullify_convolutions_bounds(glrout%bounds)
-!!$    end if
-
+    glrout%mesh=glrin%mesh
+    glrout%bit=glrin%bit
   end subroutine copy_locreg_descriptors
   pure subroutine copy_grid_dimensions(din, dout)
     implicit none
@@ -394,105 +166,11 @@ contains
 
   end subroutine copy_grid_dimensions
 
-  subroutine copy_wavefunctions_descriptors(wfdin, wfdout)
-    implicit none
-    ! Calling arguments
-    type(wavefunctions_descriptors), intent(in) :: wfdin
-    type(wavefunctions_descriptors), intent(out) :: wfdout
-
-    ! Local variables
-    !integer:: istat,iis1, iie1, iis2, iie2,i1, i2, iall
-
-    !nullify all pointers first
-    call nullify_wfd(wfdout)
-
-    wfdout%nvctr_c = wfdin%nvctr_c
-    wfdout%nvctr_f = wfdin%nvctr_f
-    wfdout%nseg_c = wfdin%nseg_c
-    wfdout%nseg_f = wfdin%nseg_f
-
-    !new method
-    wfdout%keygloc=f_malloc_ptr(src_ptr=wfdin%keygloc,id='wfdout%keygloc')
-    wfdout%keyglob=f_malloc_ptr(src_ptr=wfdin%keyglob,id='wfdout%keyglob')
-    wfdout%keyvloc=f_malloc_ptr(src_ptr=wfdin%keyvloc,id='wfdout%keyvloc')
-    wfdout%keyvglob=f_malloc_ptr(src_ptr=wfdin%keyvglob,id='wfdout%keyvglob')
-
-!!$    !no need to insert lbounds as the allocation start from 1
-!!$    if (associated(wfdin%keygloc)) wfdout%keygloc=f_malloc_ptr(src=wfdin%keygloc,id='wfdout%keygloc')
-!!$    if (associated(wfdin%keyglob)) wfdout%keyglob=f_malloc_ptr(src=wfdin%keyglob,id='wfdout%keyglob')
-!!$    if (associated(wfdin%keyvloc)) wfdout%keyvloc=f_malloc_ptr(src=wfdin%keyvloc,id='wfdout%keyvloc')
-!!$    if (associated(wfdin%keyvglob))wfdout%keyvglob=f_malloc_ptr(src=wfdin%keyvglob,id='wfdout%keyvglob')
-
-
-  end subroutine copy_wavefunctions_descriptors
-
-
-  subroutine copy_convolutions_bounds(boundsin, boundsout)
-    implicit none
-    type(convolutions_bounds),intent(in):: boundsin
-    type(convolutions_bounds),intent(inout):: boundsout
-
-    call copy_kinetic_bounds(boundsin%kb, boundsout%kb)
-    call copy_shrink_bounds(boundsin%sb, boundsout%sb)
-    call copy_grow_bounds(boundsin%gb, boundsout%gb)
-    boundsout%ibyyzz_r = f_malloc_ptr(src_ptr=boundsin%ibyyzz_r,id='boundsout%ibyyzz_r')
-
-  end subroutine copy_convolutions_bounds
-
-  subroutine copy_kinetic_bounds(kbin, kbout)
-    implicit none
-    ! Calling arguments
-    type(kinetic_bounds),intent(in):: kbin
-    type(kinetic_bounds),intent(inout):: kbout
-
-    kbout%ibyz_c = f_malloc_ptr(src_ptr=kbin%ibyz_c,id='kbout%ibyz_c')
-    kbout%ibxz_c = f_malloc_ptr(src_ptr=kbin%ibxz_c,id='kbout%ibxz_c')
-    kbout%ibxy_c = f_malloc_ptr(src_ptr=kbin%ibxy_c,id='kbout%ibxy_c')
-    kbout%ibyz_f = f_malloc_ptr(src_ptr=kbin%ibyz_f,id='kbout%ibyz_f')
-    kbout%ibxz_f = f_malloc_ptr(src_ptr=kbin%ibxz_f,id='kbout%ibxz_f')
-    kbout%ibxy_f = f_malloc_ptr(src_ptr=kbin%ibxy_f,id='kbout%ibxy_f')
-
-  end subroutine copy_kinetic_bounds
-
-
-
-  subroutine copy_shrink_bounds(sbin, sbout)
-    implicit none
-
-    ! Calling arguments
-    type(shrink_bounds),intent(in):: sbin
-    type(shrink_bounds),intent(inout):: sbout
-
-    sbout%ibzzx_c = f_malloc_ptr(src_ptr=sbin%ibzzx_c,id='sbout%ibzzx_c')
-    sbout%ibyyzz_c= f_malloc_ptr(src_ptr=sbin%ibyyzz_c,id='sbout%ibyyzz_c')
-    sbout%ibxy_ff = f_malloc_ptr(src_ptr=sbin%ibxy_ff,id='sbout%ibxy_ff')
-    sbout%ibzzx_f = f_malloc_ptr(src_ptr=sbin%ibzzx_f,id='sbout%ibzzx_f')
-    sbout%ibyyzz_f= f_malloc_ptr(src_ptr=sbin%ibyyzz_f,id='sbout%ibyyzz_f')
-
-  end subroutine copy_shrink_bounds
-
-
-  subroutine copy_grow_bounds(gbin, gbout)
-    implicit none
-
-    ! Calling arguments
-    type(grow_bounds),intent(in):: gbin
-    type(grow_bounds),intent(inout):: gbout
-
-    gbout%ibzxx_c = f_malloc_ptr(src_ptr=gbin%ibzxx_c,id='gbout%ibzxx_c')
-    gbout%ibxxyy_c= f_malloc_ptr(src_ptr=gbin%ibxxyy_c,id='gbout%ibxxyy_c')
-    gbout%ibyz_ff = f_malloc_ptr(src_ptr=gbin%ibyz_ff,id='gbout%ibyz_ff')
-    gbout%ibzxx_f = f_malloc_ptr(src_ptr=gbin%ibzxx_f,id='gbout%ibzxx_f')
-    gbout%ibxxyy_f= f_malloc_ptr(src_ptr=gbin%ibxxyy_f,id='gbout%ibxxyy_f')
-
-  end subroutine copy_grow_bounds
-
-
   !> Almost degenerate with get_number_of_overlap_region
   !! should merge the two... prefering this one since argument list is better 
   subroutine check_overlap_cubic_periodic(Glr,Ilr,Jlr,isoverlap)
     use module_base
-    !use communications_init, only: check_whether_bounds_overlap
+    use bounds, only: check_whether_bounds_overlap
     implicit none
     type(locreg_descriptors), intent(in) :: Glr
     type(locreg_descriptors), intent(in) :: Ilr
@@ -575,302 +253,6 @@ contains
   
   end subroutine check_overlap_cubic_periodic
 
-
-
-    !!!> Checks whether a segment with bounds i1,i2 (where i2 might be smaller
-    !!!! than i1 due to periodic boundary conditions) overlaps with a segment with
-    !!!! bounds j1,2 (where j1<=j2)
-    !> Checks whether a segment with bounds i1,i2 (where i2 might be smaller
-    !! than i1 due to periodic boundary conditions) overlaps with a segment with
-    !! bounds j1,2 (where j2 might be smaller than j1)
-    function check_whether_bounds_overlap_int(i1, i2, j1, j2) result(overlap)
-      implicit none
-      ! Calling arguments
-      integer(kind=4),intent(in) :: i1, i2, j1, j2
-      logical :: overlap
-      ! Local variables
-      integer :: periodic
-
-      ! If the end is smaller than the start, we have a periodic wrap around
-      periodic = 0
-      if (i2<i1) then
-          periodic = periodic + 1
-      end if
-      if (j2<j1) then
-          periodic = periodic + 1
-      end if
-
-      ! Check whether there is an overlap
-      select case(periodic)
-      case(2)
-          ! If both segments have a wrap around, they necessarily overlap
-          overlap = .true.
-      case(1)
-          overlap = (i1<=j2 & !i2>=j1 due to periodic wrap around 
-               .or. i2>=j1)   !i1<=j2 due to periodic wrap around
-      case(0)
-          overlap = (i2>=j1 .and. i1<=j2)
-      case default
-          stop 'wrong value of periodic'
-      end select
-
-    end function check_whether_bounds_overlap_int
-
-
-    function check_whether_bounds_overlap_long(i1, i2, j1, j2) result(overlap)
-      implicit none
-      ! Calling arguments
-      integer(kind=8),intent(in) :: i1, i2, j1, j2
-      logical :: overlap
-      ! Local variables
-      integer :: periodic
-
-      ! If the end is smaller than the start, we have a periodic wrap around
-      periodic = 0
-      if (i2<i1) then
-          periodic = periodic + 1
-      end if
-      if (j2<j1) then
-          periodic = periodic + 1
-      end if
-
-      ! Check whether there is an overlap
-      select case(periodic)
-      case(2)
-          ! If both segments have a wrap around, they necessarily overlap
-          overlap = .true.
-      case(1)
-          overlap = (i1<=j2 & !i2>=j1 due to periodic wrap around 
-               .or. i2>=j1)   !i1<=j2 due to periodic wrap around
-      case(0)
-          overlap = (i2>=j1 .and. i1<=j2)
-      case default
-          stop 'wrong value of periodic'
-      end select
-
-    end function check_whether_bounds_overlap_long
-
-
-    !> Checks whether a segment with bounds i1,i2 (where i2 might be smaller
-    !! than i1 due to periodic boundary conditions) overlaps with a segment with
-    !! bounds j1,2 (where j1<=j2). Is so, it gives the starting point, ending
-    !! point and the extent of the (possibly two) overlaps.
-    subroutine get_extent_of_overlap_int(i1, i2, j1, j2, n, ks, ke, nlen)
-      use dictionaries, only: f_err_throw
-      use yaml_strings, only: operator(//)
-      implicit none
-      ! Calling arguments
-      integer(kind=4),intent(in) :: i1, i2, j1, j2
-      integer(kind=4),intent(out) :: n !<number of overlaps
-      integer(kind=4),dimension(2),intent(out) :: ks, ke, nlen
-      ! Local variables
-      integer :: ks1, ke1, ks2, ke2
-      logical :: periodic, case1, case2, found_case
-
-      ks(:) = 0
-      ke(:) = 0
-      nlen(:) = 0
-
-      if (j2<j1) then
-          call f_err_throw('j2<j1: '//&
-               'i1='//i1//', i2='//i2//&
-               ', j1='//j1//', j2='//j2,&
-               err_name='BIGDFT_RUNTIME_ERROR')
-!!$          call f_err_throw('j2<j1: '//&
-!!$               &'i1='//trim(yaml_toa(i1,fmt='(i0)'))//&
-!!$               &', i2='//trim(yaml_toa(i2,fmt='(i0)'))//&
-!!$               &', j1='//trim(yaml_toa(j1,fmt='(i0)'))//&
-!!$               &', j2='//trim(yaml_toa(j2,fmt='(i0)'))&
-!!$               ,err_name='BIGDFT_RUNTIME_ERROR')
-      end if
-
-      ! Check whether there is an overlap
-      if (check_whether_bounds_overlap(i1, i2, j1, j2)) then
-          ! If the end is smaller than the start, we have a periodic wrap around
-          periodic = (i2<i1)
-          if (periodic) then
-              found_case = .false.
-              if (i2>=j1) then
-                  ks1 = j1 !don't need to check i1 due to periodic wrap around
-                  ke1 = min(i2,j2)
-                  found_case = .true.
-                  case1 = .true.
-              else
-                  ks1=huge(i2)
-                  ke1=-huge(i2)
-                  case1 = .false.
-              end if
-              if (i1<=j2) then
-                  ks2 = max(i1,j1)
-                  ke2 = j2 !don't need to check i2 due to periodic wrap around
-                  found_case = .true.
-                  case2 = .true.
-              else
-                  ks2=huge(i1)
-                  ke2=-huge(i1)
-                  case2 = .false.
-              end if
-              if (.not. found_case) then
-                  call f_err_throw('Cannot determine overlap',err_name='BIGDFT_RUNTIME_ERROR')
-              end if
-              if (case1 .and. case2) then
-                  ! There are two overlaps
-                  n = 2
-                  ks(1) = ks1
-                  ke(1) = ke1
-                  nlen(1) = ke(1) - ks(1) + 1
-                  ks(2) = ks2
-                  ke(2) = ke2
-                  nlen(2) = ke(2) - ks(2) + 1
-              else
-                  n = 1
-                  ks = min(ks1,ks2)
-                  ke = max(ke1,ke2)
-                  nlen = ke(1) - ks(1) + 1
-              end if
-          else
-              n = 1
-              ks(1) = max(i1,j1)
-              ke(1) = min(i2,j2)
-              nlen(1) = ke(1) - ks(1) + 1
-          end if
-          !write(*,'(a,7i8)') 'i1, i2, j1, j2, is, ie, n', i1, i2, j1, j2, is, ie, n
-      else
-          n = 0
-          ks(1) = -1
-          ke(1) = -1
-          nlen(1) = 0
-      end if
-
-      if (nlen(1)<0) then
-          call f_err_throw('nlen(1)<0: '//&
-               &'i1='//  i1//&
-               &', i2='//i2//&
-               &', j1='//j1//&
-               &', j2='//j2//&
-               &', ks='//ks(1)//&
-               &', ke='//ke(1)&
-               ,err_name='BIGDFT_RUNTIME_ERROR')
-      end if
-
-      if (nlen(2)<0) then
-         call f_err_throw('nlen(2)<0: i1='//  i1//&
-              ', i2='//i2//&
-              ', j1='//j1//&
-              ', j2='//j2//&
-              ', ks='//ks(2)//&
-              ', ke='//ke(2)&
-              ,err_name='BIGDFT_RUNTIME_ERROR')
-      end if
-
-    end subroutine get_extent_of_overlap_int
-
-
-    subroutine get_extent_of_overlap_long(i1, i2, j1, j2, n, ks, ke, nlen)
-      use dictionaries, only: f_err_throw
-      use yaml_strings, only: operator(//)
-      implicit none
-      ! Calling arguments
-      integer(kind=8),intent(in) :: i1, i2, j1, j2
-      integer(kind=8),intent(out) :: n
-      integer(kind=8),dimension(2),intent(out) :: ks, ke, nlen
-      ! Local variables
-      integer(kind=8) :: ks1, ke1, ks2, ke2
-      logical :: periodic, case1, case2, found_case
-
-      ks(:) = 0
-      ke(:) = 0
-      nlen(:) = 0
-
-      if (j2<j1) then
-          call f_err_throw('j2<j1: '//&
-               &'i1='  //i1//&
-               &', i2='//i2//&
-               &', j1='//j1//&
-               &', j2='//j2&
-               ,err_name='BIGDFT_RUNTIME_ERROR')
-      end if
-
-      ! Check whether there is an overlap
-      if (check_whether_bounds_overlap(i1, i2, j1, j2)) then
-          ! If the end is smaller than the start, we have a periodic wrap around
-          periodic = (i2<i1)
-          if (periodic) then
-              found_case = .false.
-              if (i2>=j1) then
-                  ks1 = j1 !don't need to check i1 due to periodic wrap around
-                  ke1 = min(i2,j2)
-                  found_case = .true.
-                  case1 = .true.
-              else
-                  ks1=huge(i2)
-                  ke1=-huge(i2)
-                  case1 = .false.
-              end if
-              if (i1<=j2) then
-                  ks2 = max(i1,j1)
-                  ke2 = j2 !don't need to check i2 due to periodic wrap around
-                  found_case = .true.
-                  case2 = .true.
-              else
-                  ks2=huge(i1)
-                  ke2=-huge(i1)
-                  case2 = .false.
-              end if
-              if (.not. found_case) then
-                  call f_err_throw('Cannot determine overlap',err_name='BIGDFT_RUNTIME_ERROR')
-              end if
-              if (case1 .and. case2) then
-                  ! There are two overlaps
-                  n = 2
-                  ks(1) = ks1
-                  ke(1) = ke1
-                  nlen(1) = ke(1) - ks(1) + 1
-                  ks(2) = ks2
-                  ke(2) = ke2
-                  nlen(2) = ke(2) - ks(2) + 1
-              else
-                  n = 1
-                  ks = min(ks1,ks2)
-                  ke = max(ke1,ke2)
-                  nlen = ke(1) - ks(1) + 1
-              end if
-          else
-              n = 1
-              ks(1) = max(i1,j1)
-              ke(1) = min(i2,j2)
-              nlen(1) = ke(1) - ks(1) + 1
-          end if
-          !write(*,'(a,7i8)') 'i1, i2, j1, j2, is, ie, n', i1, i2, j1, j2, is, ie, n
-      else
-          n = 0
-          ks(1) = -1
-          ke(1) = -1
-          nlen(1) = 0
-      end if
-
-      if (nlen(1)<0) then
-          call f_err_throw('nlen(1)<0: i1='//  i1//&
-               &', i2='//i2//&
-               &', j1='//j1//&
-               &', j2='//j2//&
-               &', ks='//ks(1)//&
-               &', ke='//ke(1)&
-               ,err_name='BIGDFT_RUNTIME_ERROR')
-      end if
-
-      if (nlen(2)<0) then
-          call f_err_throw('nlen(2)<0: i1='//  i1//&
-               &', i2='//i2//&
-               &', j1='//j1//&
-               &', j2='//j2//&
-               &', ks='//ks(2)//&
-               &', ke='//ke(2)&
-               ,err_name='BIGDFT_RUNTIME_ERROR')
-      end if
-
-    end subroutine get_extent_of_overlap_long
-
     subroutine check_overlap(Llr_i, Llr_j, Glr, overlap)
       implicit none
 
@@ -951,6 +333,371 @@ contains
       end if
 
     end subroutine check_overlap_from_descriptors_periodic
+
+    pure function grid_init(peri,n1,n2,n3,nfl1,nfl2,nfl3,nfu1,nfu2,nfu3,&
+         ns1,ns2,ns3) result(g)
+      implicit none
+      integer, intent(in) :: n1,n2,n3
+      integer, intent(in) :: nfl1,nfl2,nfl3,nfu1,nfu2,nfu3
+      integer, intent(in) :: ns1,ns2,ns3
+      logical, dimension(3), intent(in) :: peri !<periodic dimensions
+      type(grid_dimensions) :: g
+      !local variables
+      integer, parameter :: ISF_GROW_BUFFER=31
+      integer :: isx,isy,isz
+      
+      g%n1=n1-ns1
+      g%n2=n2-ns2
+      g%n3=n3-ns3
+
+      !dimensions of the fine grid inside the localisation region
+      g%nfl1=max(ns1,nfl1)-ns1
+      g%nfl2=max(ns2,nfl2)-ns2
+      g%nfl3=max(ns3,nfl3)-ns3
+
+      !NOTE: This will not work with symmetries (must change it)
+      g%nfu1=min(n1,nfu1)-ns1
+      g%nfu2=min(n2,nfu2)-ns2
+      g%nfu3=min(n3,nfu3)-ns3
+
+      if (peri(1)) then
+         g%n1i=2*g%n1+2
+      else
+         g%n1i=2*g%n1+ISF_GROW_BUFFER
+      end if
+      if (peri(2)) then
+         g%n2i=2*g%n2+2
+      else
+         g%n2i=2*g%n2+ISF_GROW_BUFFER
+      end if
+      if (peri(3)) then
+         g%n3i=2*g%n3+2
+      else
+         g%n3i=2*g%n3+ISF_GROW_BUFFER
+      end if
+
+    end function grid_init
+
+    !> Create the localisation region information for cubic code
+    subroutine init_lr(lr,geocode,hgridsh,n1,n2,n3,nfl1,nfl2,nfl3,nfu1,nfu2,nfu3,&
+         hybrid_flag,isx,isy,isz,global_geocode,wfd,bnds)
+      use compression
+      use bounds
+      use box
+      implicit none
+      logical, intent(in) :: hybrid_flag
+      character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+      integer, intent(in) :: n1,n2,n3,nfl1,nfl2,nfl3,nfu1,nfu2,nfu3
+      real(gp), dimension(3), intent(in) :: hgridsh
+      character(len=1), intent(in), optional :: global_geocode
+      !>have to be present with global_geocode
+      integer, intent(in), optional :: isx,isy,isz 
+      type(wavefunctions_descriptors), intent(in), optional :: wfd
+      type(convolutions_bounds), intent(in), optional :: bnds
+      type(locreg_descriptors), intent(inout) :: lr
+      !local variables
+      integer, parameter :: S0_GROW_BUFFER=14
+      integer :: Gnbl1,Gnbl2,Gnbl3,Gnbr1,Gnbr2,Gnbr3
+      integer :: Lnbl1,Lnbl2,Lnbl3,Lnbr1,Lnbr2,Lnbr3
+      logical, dimension(3) :: peri,peri_glob
+
+      lr%geocode=geocode
+      lr%ns1=0
+      lr%ns2=0
+      lr%ns3=0
+      if (present(isx)) lr%ns1=isx
+      if (present(isy)) lr%ns2=isy
+      if (present(isz)) lr%ns3=isz
+
+      peri(1)=geocode /= 'F'
+      peri(2)=geocode == 'P'
+      peri(3)=geocode /= 'F'
+
+      lr%d=grid_init(peri,n1,n2,n3,nfl1,nfl2,nfl3,nfu1,nfu2,nfu3,&
+         lr%ns1,lr%ns2,lr%ns3)
+
+      lr%mesh=cell_new(geocode,[lr%d%n1i,lr%d%n2i,lr%d%n3i],hgridsh)
+
+      Gnbl1=0
+      Gnbl2=0
+      Gnbl3=0
+      if (present(global_geocode)) then
+         peri_glob(1)=(global_geocode /= 'F')
+         peri_glob(2)=(global_geocode == 'P')
+         peri_glob(3)=(global_geocode /= 'F')
+         call ext_buffers(peri_glob(1),Gnbl1,Gnbr1)
+         call ext_buffers(peri_glob(2),Gnbl2,Gnbr2)
+         call ext_buffers(peri_glob(3),Gnbl3,Gnbr3)
+         call ext_buffers(peri(1),Lnbl1,Lnbr1)
+         call ext_buffers(peri(2),Lnbl2,Lnbr2)
+         call ext_buffers(peri(3),Lnbl3,Lnbr3)
+      end if
+      lr%nsi1=0
+      lr%nsi2=0
+      lr%nsi3=0
+      if (present(isx)) lr%nsi1= 2 * lr%ns1 - (Lnbl1 - Gnbl1)
+      if (present(isy)) lr%nsi2= 2 * lr%ns2 - (Lnbl2 - Gnbl2)
+      if (present(isz)) lr%nsi3= 2 * lr%ns3 - (Lnbl3 - Gnbl3)
+      
+
+      lr%hybrid_on = hybrid_flag
+      lr%hybrid_on=lr%hybrid_on .and. (nfu1-nfl1+S0_GROW_BUFFER < n1+1)
+      lr%hybrid_on=lr%hybrid_on .and. (nfu2-nfl2+S0_GROW_BUFFER < n2+1)
+      lr%hybrid_on=lr%hybrid_on .and. (nfu3-nfl3+S0_GROW_BUFFER < n3+1)
+
+      if (present(wfd)) lr%wfd=wfd !it just associates the pointers
+      if (geocode == 'F' .and. present(bnds)) lr%bounds=bnds
+
+      lr%bit=box_iter(lr%mesh,origin=locreg_mesh_origin(lr%mesh))
+
+    END SUBROUTINE init_lr
+
+    !> initalize the box-related components of the localization regions
+    subroutine lr_box(lr,Glr,hgrids,nbox,correct)
+      use bounds, only: ext_buffers
+      implicit none
+      logical, intent(in) :: correct
+      !> Sub-box to iterate over the points (ex. around atoms)
+      !! start and end points for each direction
+      integer, dimension(2,3), intent(in) :: nbox
+      real(gp), dimension(3), intent(in) :: hgrids
+      type(locreg_descriptors), intent(in) :: Glr
+      type(locreg_descriptors), intent(inout) :: lr
+      !local variables
+      character(len=1) :: geocode
+      logical :: Gperx,Gpery,Gperz,xperiodic,yperiodic,zperiodic
+      integer :: isx,iex,isy,iey,isz,iez
+      integer :: Gnbl1,Gnbl2,Gnbl3,Gnbr1,Gnbr2,Gnbr3
+      integer :: Lnbl1,Lnbl2,Lnbl3,Lnbr1,Lnbr2,Lnbr3
+      integer :: ln1,ln2,ln3
+      logical, dimension(3) :: peri
+      integer, dimension(3) :: outofzone
+
+      !initialize out of zone
+      outofzone (:) = 0
+
+      ! Localization regions should have free boundary conditions by default
+      isx=nbox(1,1)
+      iex=nbox(2,1)
+      isy=nbox(1,2)
+      iey=nbox(2,2)
+      isz=nbox(1,3)
+      iez=nbox(2,3)
+
+      ln1 = iex-isx
+      ln2 = iey-isy
+      ln3 = iez-isz
+
+      geocode='F'
+
+      !assign the starting/ending points and outofzone for the different
+      ! geometries
+      select case(Glr%geocode)
+      case('F')
+         isx=max(isx,Glr%ns1)
+         isy=max(isy,Glr%ns2)
+         isz=max(isz,Glr%ns3)
+
+         iex=min(iex,Glr%ns1+Glr%d%n1)
+         iey=min(iey,Glr%ns2+Glr%d%n2)
+         iez=min(iez,Glr%ns3+Glr%d%n3)
+
+      case('S')
+         ! Get starting and ending for x direction     
+         if (iex - isx >= Glr%d%n1) then       
+            isx=Glr%ns1
+            iex=Glr%ns1 + Glr%d%n1
+            xperiodic = .true.
+         else
+            if (correct) then
+               isx=modulo(isx,Glr%d%n1+1) + Glr%ns1
+               iex= ln1 + isx
+            end if
+            if (iex > Glr%ns1+Glr%d%n1) then
+               outofzone(1)=modulo(iex,Glr%d%n1+1)
+            end if
+         end if
+
+         ! Get starting and ending for y direction (perpendicular to surface)
+         isy=max(isy,Glr%ns2)
+         iey=min(iey,Glr%ns2 + Glr%d%n2)
+         outofzone(2) = 0
+
+         !Get starting and ending for z direction
+         if (iez - isz >= Glr%d%n3) then
+            isz=Glr%ns3 
+            iez=Glr%ns3 + Glr%d%n3
+            zperiodic = .true.
+         else
+            if (correct) then
+               isz=modulo(isz,Glr%d%n3+1) +  Glr%ns3
+               iez= ln3 + isz
+            end if
+            if (iez > Glr%ns3+Glr%d%n3) then
+               outofzone(3)=modulo(iez,Glr%d%n3+1)
+            end if
+         end if
+         if(xperiodic .and. zperiodic) then
+            geocode = 'S'
+         end if
+
+      case('P')
+         ! Get starting and ending for x direction     
+         if (iex - isx >= Glr%d%n1) then       
+            isx=Glr%ns1
+            iex=Glr%ns1 + Glr%d%n1
+            xperiodic = .true.
+         else
+            if (correct) then
+               isx=modulo(isx,Glr%d%n1+1) + Glr%ns1
+               iex= ln1 + isx
+            end if
+            if (iex > Glr%ns1+Glr%d%n1) then
+               outofzone(1)=modulo(iex,Glr%d%n1+1)
+            end if
+         end if
+
+         ! Get starting and ending for y direction (perpendicular to surface)
+         if (iey - isy >= Glr%d%n2) then       
+            isy=Glr%ns2
+            iey=Glr%ns2 + Glr%d%n2
+            yperiodic = .true.
+         else
+            if (correct) then
+               isy=modulo(isy,Glr%d%n2+1) + Glr%ns2
+               iey= ln2 + isy
+            end if
+            if (iey > Glr%ns2+Glr%d%n2) then
+               outofzone(2)=modulo(iey,Glr%d%n2+1)
+            end if
+         end if
+
+         !Get starting and ending for z direction
+         if (iez - isz >= Glr%d%n3) then
+            isz=Glr%ns3 
+            iez=Glr%ns3 + Glr%d%n3
+            zperiodic = .true.
+         else
+            if (correct) then
+               isz=modulo(isz,Glr%d%n3+1) +  Glr%ns3
+               iez= ln3 + isz
+            end if
+            if (iez > Glr%ns3+Glr%d%n3) then
+               outofzone(3)=modulo(iez,Glr%d%n3+1)
+            end if
+         end if
+         if(xperiodic .and. yperiodic .and. zperiodic ) then
+            geocode = 'P'
+         end if
+      end select
+
+      ! Make sure that the localization regions are not periodic
+      if (xperiodic .or. yperiodic .or. zperiodic) then
+         call f_err_throw('The size of the localization region '&
+              &//&!trim(yaml_toa(ilr,fmt='(i0)'))//&
+              &' is larger than that of the global region.&
+              & Reduce the localization radii or use the cubic version',&
+              & err_name='BIGDFT_RUNTIME_ERROR')
+      end if
+
+      call init_lr(lr,geocode,0.5_gp*hgrids,iex,iey,iez,&
+           Glr%d%nfl1,Glr%d%nfl2,Glr%d%nfl3,&
+           Glr%d%nfu1,Glr%d%nfu2,Glr%d%nfu3,&
+           .false.,isx,isy,isz,Glr%geocode)
+
+      !assign outofzone
+      lr%outofzone(:) = outofzone(:)
+
+!!$      !values for the starting point of the cube for wavelet grid
+!!$      lr%ns1=isx
+!!$      lr%ns2=isy
+!!$      lr%ns3=isz
+!!$
+!!$      ! Set the conditions for ext_buffers (conditions for buffer size)
+!!$      Gperx=(Glr%geocode /= 'F')
+!!$      Gpery=(Glr%geocode == 'P')
+!!$      Gperz=(Glr%geocode /= 'F')
+!!$      peri(1)=(lr%geocode /= 'F')
+!!$      peri(2)=(lr%geocode == 'P')
+!!$      peri(3)=(lr%geocode /= 'F')
+!!$
+!!$      !calculate the size of the buffers of interpolating function grid
+!!$      call ext_buffers(Gperx,Gnbl1,Gnbr1)
+!!$      call ext_buffers(Gpery,Gnbl2,Gnbr2)
+!!$      call ext_buffers(Gperz,Gnbl3,Gnbr3)
+!!$      call ext_buffers(peri(1),Lnbl1,Lnbr1)
+!!$      call ext_buffers(peri(2),Lnbl2,Lnbr2)
+!!$      call ext_buffers(peri(3),Lnbl3,Lnbr3)
+!!$
+!!$      !starting point of the region for interpolating functions grid
+!!$      lr%nsi1= 2 * lr%ns1 - (Lnbl1 - Gnbl1)
+!!$      lr%nsi2= 2 * lr%ns2 - (Lnbl2 - Gnbl2)
+!!$      lr%nsi3= 2 * lr%ns3 - (Lnbl3 - Gnbl3)
+!!$      !write(*,*) 'ilr, lr%nsi3',ilr, lr%nsi3
+!!$
+!!$      lr%d=grid_init(peri,iex,iey,iez,&
+!!$           Glr%d%nfl1,Glr%d%nfl2,Glr%d%nfl3,&
+!!$           Glr%d%nfu1,Glr%d%nfu2,Glr%d%nfu3,&
+!!$           isx,isy,isz)
+
+!!$      !dimensions of the localisation region
+!!$      lr%d%n1=iex-isx
+!!$      lr%d%n2=iey-isy
+!!$      lr%d%n3=iez-isz
+!!$
+!!$      !dimensions of the fine grid inside the localisation region
+!!$      lr%d%nfl1=max(isx,Glr%d%nfl1)-isx ! should we really substract isx (probably because the routines are coded with 0 as origin)?
+!!$      lr%d%nfl2=max(isy,Glr%d%nfl2)-isy
+!!$      lr%d%nfl3=max(isz,Glr%d%nfl3)-isz
+!!$
+!!$      !NOTE: This will not work with symmetries (must change it)
+!!$      lr%d%nfu1=min(iex,Glr%d%nfu1)-isx
+!!$      lr%d%nfu2=min(iey,Glr%d%nfu2)-isy
+!!$      lr%d%nfu3=min(iez,Glr%d%nfu3)-isz
+!!$
+!!$      !dimensions of the interpolating scaling functions grid (reduce to +2 for periodic)
+!!$      if(lr%geocode == 'F') then
+!!$         lr%d%n1i=2*lr%d%n1+31
+!!$         lr%d%n2i=2*lr%d%n2+31
+!!$         lr%d%n3i=2*lr%d%n3+31
+!!$      else if(lr%geocode == 'S') then
+!!$         lr%d%n1i=2*lr%d%n1+2
+!!$         lr%d%n2i=2*lr%d%n2+31
+!!$         lr%d%n3i=2*lr%d%n3+2
+!!$      else
+!!$         lr%d%n1i=2*lr%d%n1+2
+!!$         lr%d%n2i=2*lr%d%n2+2
+!!$         lr%d%n3i=2*lr%d%n3+2
+!!$      end if
+
+      ! Make sure that the extent of the interpolating functions grid for the
+      ! locreg is not larger than the that of the global box.
+      if (lr%d%n1i>Glr%d%n1i) then
+         call f_err_throw('The interpolating functions grid in x dimension for locreg '&
+              &//&!trim(yaml_toa(ilr,fmt='(i0)'))//&
+              '('//trim(yaml_toa(lr%d%n1i,fmt='(i0)'))//')&
+              & is larger than that of the global region('//trim(yaml_toa(Glr%d%n1i,fmt='(i0)'))//').&
+              & Reduce the localization radii or use the cubic version',&
+              & err_name='BIGDFT_RUNTIME_ERROR')
+      end if
+      if (lr%d%n2i>Glr%d%n2i) then
+         call f_err_throw('The interpolating functions grid in y dimension for locreg '&
+              !&//trim(yaml_toa(ilr,fmt='(i0)'))&
+              //'('//trim(yaml_toa(lr%d%n2i,fmt='(i0)'))//')&
+              & is larger than that of the global region('//trim(yaml_toa(Glr%d%n2i,fmt='(i0)'))//').&
+              & Reduce the localization radii or use the cubic version',&
+              & err_name='BIGDFT_RUNTIME_ERROR')
+      end if
+      if (lr%d%n3i>Glr%d%n3i) then
+         call f_err_throw('The interpolating functions grid in z dimension for locreg '&
+              !&//trim(yaml_toa(ilr,fmt='(i0)'))&
+              //'('//trim(yaml_toa(lr%d%n3i,fmt='(i0)'))//')&
+              & is larger than that of the global region('//trim(yaml_toa(Glr%d%n3i,fmt='(i0)'))//').&
+              & Reduce the localization radii or use the cubic version',&
+              & err_name='BIGDFT_RUNTIME_ERROR')
+      end if
+      
+    end subroutine lr_box
 
 
 end module locregs

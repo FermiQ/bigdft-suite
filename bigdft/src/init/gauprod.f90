@@ -1028,6 +1028,7 @@ END FUNCTION xfac
 subroutine wavelets_to_gaussians(geocode,norbp,nspinor,n1,n2,n3,G,thetaphi,hx,hy,hz,wfd,psi,coeffs)
   use module_base
   use module_types
+  use compression
   implicit none
   character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
   integer, intent(in) :: norbp,n1,n2,n3,nspinor
@@ -1062,6 +1063,7 @@ subroutine orbital_projection(geocode,n1,n2,n3,nat,rxyz,thetaphi,nshell,ndoc,nam
   use module_base
   use module_types
   use gaussians
+  use compression
   implicit none
   character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
   integer, intent(in) :: n1,n2,n3,nat,nshltot,nexpo,ncoeff
@@ -1158,6 +1160,7 @@ subroutine lsh_projection(geocode,l,ng,xp,psiat,n1,n2,n3,rxyz,thetaphi,hx,hy,hz,
      wfd,psi,coeffs)
   use module_base
   use module_types
+  use compression
   implicit none
   character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
   integer, intent(in) :: l,ng,n1,n2,n3

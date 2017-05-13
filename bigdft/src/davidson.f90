@@ -1817,6 +1817,7 @@ subroutine write_eigen_objects(iproc,occorbs,nspin,nvirt,nplot,hx,hy,hz,at,rxyz,
    use module_base
    use module_types
    use yaml_output
+   use locregs
    implicit none
    logical, intent(in) :: occorbs
    integer, intent(in) :: iproc,nspin,nvirt,nplot!,output_wf_format

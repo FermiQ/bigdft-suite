@@ -11,13 +11,13 @@
 !> Calculate the exact exchange potential
 subroutine exact_exchange_potential(iproc,nproc,geocode,xc,nspin,lr,orbs,n3parr,n3p,&
      hxh,hyh,hzh,pkernel,psi,psir,eexctX)
-
   use module_base
   use module_types
   use Poisson_Solver, except_dp => dp, except_gp => gp
   use module_xc
   use yaml_output
   use locreg_operations
+  use locregs
   implicit none
   character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode             !< Determine Boundary conditions
   integer, intent(in) :: iproc,nproc                  !< MPI information
@@ -317,6 +317,7 @@ subroutine prepare_psirocc(iproc,nproc,lr,orbsocc,n3p,n3parr,psiocc,psirocc)
   use module_base
   use module_types
   use locreg_operations
+  use locregs
   implicit none
   integer, intent(in) :: iproc,nproc,n3p
   type(locreg_descriptors), intent(in) :: lr
@@ -421,6 +422,7 @@ subroutine exact_exchange_potential_virt(iproc,nproc,geocode,nspin,lr,orbsocc,or
   use Poisson_Solver, except_dp => dp, except_gp => gp
   use yaml_output
   use locreg_operations
+  use locregs
   implicit none
   character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
   integer, intent(in) :: iproc,nproc,n3p,nspin
@@ -685,6 +687,7 @@ subroutine exact_exchange_potential_round(iproc,nproc,xc,nspin,lr,orbs,&
   use module_xc
   use yaml_output
   use locreg_operations
+  use locregs
   implicit none
   integer, intent(in) :: iproc,nproc,nspin
   real(gp), intent(in) :: hxh,hyh,hzh
