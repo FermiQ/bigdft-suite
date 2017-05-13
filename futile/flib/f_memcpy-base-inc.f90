@@ -13,4 +13,4 @@
      return
   end if
   if (ns <=0) return
-  call c_memcopy(dest,f_loc(src),ns*kind(src))
+  call c_memcopy(dest,f_loc(src),ns)
