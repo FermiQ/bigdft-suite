@@ -13,8 +13,8 @@ subroutine f_memcpy_i0(dest,src,n)
   integer(f_integer) :: src !<source buffer address
   !local variables
   integer(f_long) :: ns,nd
-  ns=n
-  nd=n
+  ns=n*kind(src)
+  nd=n*kind(dest)
   include 'f_memcpy-base-inc.f90'
 end subroutine f_memcpy_i0
 
@@ -275,8 +275,8 @@ subroutine f_memcpy_li0(dest,src,n)
   integer(f_long) :: src !<source buffer address
   !local variables
   integer(f_long) :: ns,nd
-  ns=n
-  nd=n
+  ns=n*kind(src)
+  nd=n*kind(dest)
   include 'f_memcpy-base-inc.f90'
 end subroutine f_memcpy_li0
 
@@ -288,8 +288,8 @@ subroutine f_memcpy_d0(dest,src,n)
   double precision :: src !<source buffer address
   !local variables
   integer(f_long) :: ns,nd
-  ns=n
-  nd=n
+  ns=n*kind(src)
+  nd=n*kind(dest)
   include 'f_memcpy-base-inc.f90'
 end subroutine f_memcpy_d0
 
@@ -345,7 +345,7 @@ subroutine f_memcpy_d1d0(dest,src,n)
   double precision, dimension(:), intent(in) :: src !<source buffer address
   !local variables
   integer(f_long) :: ns,nd
-  ns=n 
+  ns=n*kind(src) 
   nd=f_sizeof(src) !inverted 
   include 'f_memcpy-base-inc.f90'
 end subroutine f_memcpy_d1d0
@@ -358,7 +358,7 @@ subroutine f_memcpy_d0d1(dest,src,n)
   !local variables
   integer(f_long) :: ns,nd
   nd=f_sizeof(dest)
-  ns=n
+  ns=n*kind(src)
   include 'f_memcpy-base-inc.f90'
 end subroutine f_memcpy_d0d1
 
@@ -370,7 +370,7 @@ subroutine f_memcpy_d0d2(dest,src,n)
   !local variables
   integer(f_long) :: ns,nd
   nd=f_sizeof(dest)
-  ns=n
+  ns=n*kind(src)
   include 'f_memcpy-base-inc.f90'
 end subroutine f_memcpy_d0d2
 
@@ -382,7 +382,7 @@ subroutine f_memcpy_d0d3(dest,src,n)
   !local variables
   integer(f_long) :: ns,nd
   nd=f_sizeof(dest)
-  ns=n
+  ns=n*kind(src)
   include 'f_memcpy-base-inc.f90'
 end subroutine f_memcpy_d0d3
 
@@ -394,7 +394,7 @@ subroutine f_memcpy_d3d0(dest,src,n)
   !local variables
   integer(f_long) :: ns,nd
   nd=f_sizeof(src)
-  ns=n
+  ns=n*kind(src)
   include 'f_memcpy-base-inc.f90'
 end subroutine f_memcpy_d3d0
 
@@ -406,7 +406,7 @@ subroutine f_memcpy_d2d0(dest,src,n)
   !local variables
   integer(f_long) :: ns,nd
   nd=f_sizeof(src)
-  ns=n
+  ns=n*kind(src)
   include 'f_memcpy-base-inc.f90'
 end subroutine f_memcpy_d2d0
 
@@ -419,7 +419,7 @@ subroutine f_memcpy_li0li1(dest,src,n)
   !local variables
   integer(f_long) :: ns,nd
   nd=f_sizeof(dest)
-  ns=n
+  ns=n*kind(src)
   include 'f_memcpy-base-inc.f90'
 end subroutine f_memcpy_li0li1
 
@@ -431,7 +431,7 @@ subroutine f_memcpy_i0i1(dest,src,n)
   !local variables
   integer(f_long) :: ns,nd
   nd=f_sizeof(dest)
-  ns=n
+  ns=n*kind(src)
   include 'f_memcpy-base-inc.f90'
 end subroutine f_memcpy_i0i1
 
@@ -443,7 +443,7 @@ subroutine f_memcpy_i2i0(dest,src,n)
   !local variables
   integer(f_long) :: ns,nd
   nd=f_sizeof(src)
-  ns=n
+  ns=n*kind(src)
   include 'f_memcpy-base-inc.f90'
 end subroutine f_memcpy_i2i0
 
@@ -455,7 +455,7 @@ subroutine f_memcpy_li2li0(dest,src,n)
   !local variables
   integer(f_long) :: ns,nd
   nd=f_sizeof(src)
-  ns=n
+  ns=n*kind(src)
   include 'f_memcpy-base-inc.f90'
 end subroutine f_memcpy_li2li0
 
@@ -512,8 +512,8 @@ subroutine f_memcpy_r0(dest,src,n)
   real :: src !<source buffer address
   !local variables
   integer(f_long) :: ns,nd
-  ns=n
-  nd=n
+  ns=n*kind(src)
+  nd=n*kind(dest)
   include 'f_memcpy-base-inc.f90'
 end subroutine f_memcpy_r0
 
@@ -524,8 +524,8 @@ subroutine f_memcpy_l0(dest,src,n)
   logical :: src !<source buffer address
   !local variables
   integer(f_long) :: ns,nd
-  ns=n
-  nd=n
+  ns=n*kind(src)
+  nd=n*kind(dest)
   include 'f_memcpy-base-inc.f90'
 end subroutine f_memcpy_l0
 

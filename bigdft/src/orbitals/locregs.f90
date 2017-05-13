@@ -490,6 +490,10 @@ contains
 
       geocode='F'
 
+      xperiodic = .false.
+      yperiodic = .false.
+      zperiodic = .false. 
+
       !assign the starting/ending points and outofzone for the different
       ! geometries
       select case(Glr%geocode)
