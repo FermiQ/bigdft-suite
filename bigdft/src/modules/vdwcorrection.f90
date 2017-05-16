@@ -964,7 +964,7 @@ contains
   !! Modified for BigDFT in March/April 2009 by Quintin Hill.
   subroutine vdwcorrection_calculate_energy(dispersion_energy,rxyz,atoms,dispersion)!,iproc)
 
-    use module_types
+    use module_atoms
 
     implicit none
 
@@ -1083,7 +1083,7 @@ contains
   !! Modified for BigDFT in March/April 2009 by Quintin Hill.
   SUBROUTINE vdwcorrection_calculate_forces(vdw_forces,rxyz,atoms,dispersion) 
 
-    use module_types
+    use module_atoms
 
     implicit none
 
@@ -1359,7 +1359,7 @@ contains
   ! Quintin Hill added functional check on 23/02/2009.
   subroutine vdwcorrection_warnings(atoms,dispersion,ixc)
 
-    use module_types, only: input_variables, atoms_data
+    use module_atoms
     use dictionaries, only: f_err_raise
     use yaml_strings, only: yaml_toa
 
@@ -1526,8 +1526,6 @@ contains
   !! @author
   !! Written by Quintin Hill in July 2008.
   function vdwcorrection_drvdamping(nzatom1,nzatom2,separation,dispersion)
-
-    use module_types, only: input_variables
 
     implicit none
 
@@ -9425,7 +9423,7 @@ contains
   end function c6cn
   function crd_nr(iat,nat,xyz,atoms)
     
-      use module_types
+      use module_atoms
  
       implicit none
  
@@ -9456,7 +9454,7 @@ contains
 
   subroutine crd_nr_der(n,xyz,cnij,cnijk,atoms)
  
-      use module_types
+      use module_atoms
       implicit none
 
       type(atoms_data),                 intent(in) :: atoms
@@ -9496,7 +9494,7 @@ contains
   END SUBROUTINE crd_nr_der
   !!subroutine c6_grad(grad,iat,jat,kat,x,z,n,cnij,cnijk,atoms)
   subroutine c6_grad(grad,iat,jat,kat,x,n,cnij,cnijk,atoms)
-      use module_types
+      use module_atoms
       implicit none
  
       type(atoms_data),                 intent(in) :: atoms
