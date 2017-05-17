@@ -1096,6 +1096,7 @@ subroutine print_atoms_and_grid(Glr, atoms, rxyz, hx, hy, hz)
   use module_types
   use yaml_output
   use yaml_strings
+  use locregs
   implicit none
   !Arguments
   type(atoms_data), intent(in) :: atoms
@@ -1322,8 +1323,8 @@ END SUBROUTINE wtyaml
 
 !> Display the waefunctions descriptors (segments and points)
 subroutine print_wfd(wfd)
-  use module_types, only: wavefunctions_descriptors
   use yaml_output
+  use compression
   implicit none
   type(wavefunctions_descriptors), intent(in) :: wfd
 

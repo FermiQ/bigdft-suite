@@ -17,6 +17,7 @@ subroutine createWavefunctionsDescriptors(iproc,hx,hy,hz,atoms,rxyz,&
   use module_types
   use yaml_output
   use module_interfaces, only: export_grids
+  use locregs
   implicit none
   !Arguments
   type(atoms_data), intent(in) :: atoms
@@ -70,9 +71,6 @@ subroutine createWavefunctionsDescriptors(iproc,hx,hy,hz,atoms,rxyz,&
      if (iproc ==0) then
         call yaml_warning('The coarse grid does not fill the entire periodic box')
         call yaml_comment('Errors due to translational invariance breaking may occur')
-        !write(*,*) ' ERROR: the coarse grid does not fill the entire periodic box'
-        !write(*,*) '          errors due to translational invariance breaking may occur'
-        !stop
      end if
   end if
 
@@ -95,6 +93,7 @@ subroutine wfd_from_grids(logrid_c, logrid_f, calculate_bounds, Glr)
   use module_base
    use locregs
    use bounds, only: make_bounds, make_all_ib, make_bounds_per, make_all_ib_per
+   use locregs
    !use yaml_output
    implicit none
    !Arguments
@@ -227,6 +226,7 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
   use ao_inguess, only: lmax_ao
   use locreg_operations, only: set_wfd_to_wfd
   use sparsematrix_init,only: distribute_on_tasks
+  use locregs
   implicit none
   integer,intent(in) :: iproc,nproc
   real(gp), intent(in) :: cpmult,fpmult,hx,hy,hz
@@ -1038,6 +1038,7 @@ subroutine input_wf_memory(iproc, atoms, &
      & rxyz, lzd, psi, orbs)
   use module_base, only: gp,wp,f_free_ptr
   use module_types
+  use compression
   implicit none
 
   integer, intent(in) :: iproc
@@ -1733,6 +1734,7 @@ subroutine input_wf_disk(iproc, nproc, input_wf_format, d, hx, hy, hz, &
   use module_types
   use module_interfaces, only: readmywaves
   use public_enums
+  use compression
   implicit none
 
   integer, intent(in) :: iproc, nproc, input_wf_format
@@ -2575,6 +2577,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
           & rxyz, lzd, psi, orbs)
        use module_defs, only: gp,wp
        use module_types
+       use compression
        implicit none
        integer, intent(in) :: iproc
        type(atoms_data), intent(in) :: atoms
@@ -2592,6 +2595,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
           in, atoms, rxyz, wfd, orbs, psi)
        use module_defs
        use module_types
+       use compression
        implicit none
        integer, intent(in) :: iproc, nproc, input_wf_format
        type(grid_dimensions), intent(in) :: d

@@ -66,7 +66,7 @@ module box
   end interface square
 
   public :: cell_r,cell_periodic_dims,distance,closest_r,square,cell_new,box_iter,box_next_point
-  public :: cell_geocode,box_next_x,box_next_y,box_next_z,dotp,cell_null
+  public :: cell_geocode,box_next_x,box_next_y,box_next_z,dotp,cell_null,nullify_box_iterator
 
 contains
 
@@ -104,6 +104,7 @@ contains
     boxit%nbox=-1 
     boxit%oxyz=-1.0_gp
     boxit%rxyz=-1.0_gp
+    boxit%tmp=0.0_gp
     nullify(boxit%mesh)
     boxit%whole=.false.
   end subroutine nullify_box_iterator

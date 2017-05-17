@@ -153,6 +153,7 @@ module psp_projectors
   ! are modified
   subroutine update_nlpsp(nl,nlr,lrs,Glr,lr_mask)
     use locreg_operations
+    use compression
     implicit none
     integer, intent(in) :: nlr
     type(locreg_descriptors), intent(in) :: Glr
@@ -209,6 +210,7 @@ module psp_projectors
        ncplx_w,n_w,wfd_w,tolr,psi_pack,scpr,pdpsi,hpdpsi,psi,hpsi,eproj)
     use pseudopotentials, only: apply_hij_coeff,atomic_proj_coeff
     use locreg_operations
+    use compression
     implicit none
     integer, intent(in) :: ncplx_p !< number of complex components of the projector
     integer, intent(in) :: n_p !< number of elements of the projector
@@ -346,7 +348,7 @@ module psp_projectors
   end function get_proj_locreg
 
   function projector_has_overlap(iat, ilr, llr, glr, nl) result(overlap)
-    use locreg_operations, only: wfd_to_wfd_skip
+    use compression, only: wfd_to_wfd_skip
     implicit none
     ! Calling arguments
     integer,intent(in) :: iat, ilr
@@ -381,8 +383,7 @@ subroutine NL_HGH_application(hij,ncplx_p,n_p,wfd_p,proj,&
      ncplx_w,n_w,wfd_w,tolr,psi_pack,scpr,pdpsi,hpdpsi,psi,hpsi,eproj)
   use module_defs, only : gp,wp
   use psp_projectors, only: hgh_psp_application
-  use locregs, only: wavefunctions_descriptors
-  use locreg_operations, only: wfd_to_wfd
+  use compression, only: wfd_to_wfd,wavefunctions_descriptors
   implicit none
   integer, intent(in) :: ncplx_p,n_p,ncplx_w,n_w
   !> interaction between the wavefuntion and the psp projector
@@ -414,7 +415,7 @@ end subroutine NL_HGH_application
 !! accumulate the result on the array hpsi and calculate scpr @f$<p|psi_w>$@f such that energy can be expressed in the form @f$\sum_w <psi_w|p> hp <p|psi_w>@f$
 subroutine apply_oneproj_operator(wfd_p,proj,hp,n_w,wfd_w,psi,hpsi,scpr)
   use module_base
-  use module_types, only: wavefunctions_descriptors
+  use compression, only: wavefunctions_descriptors
   implicit none
   integer, intent(in) :: n_w !< complex components of the wavefunction
   real(wp), intent(in) :: hp !<coefficient of the projector operator

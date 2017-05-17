@@ -64,6 +64,7 @@ subroutine calculate_forces(iproc,nproc,psolver_groupsize,Glr,atoms,ob,nlpsp,rxy
   use module_forces
   use forces_linear
   use orbitalbasis
+  use locregs
   implicit none
   logical, intent(in) :: calculate_strten
   logical, intent(in) :: refill_proj
@@ -866,6 +867,8 @@ subroutine nonlocal_forces(lr,hx,hy,hz,at,rxyz,&
        PSPCODE_PAW
   use orbitalbasis
   use ao_inguess, only: lmax_ao
+  use compression
+  use locregs
   implicit none
   !Arguments-------------
   type(atoms_data), intent(in) :: at
@@ -4232,6 +4235,7 @@ subroutine local_hamiltonian_stress(orbs,lr,hx,hy,hz,psi,tens)
   use module_types
   use module_xc
   use locreg_operations
+  use locregs
   implicit none
   real(gp), intent(in) :: hx,hy,hz
   type(orbitals_data), intent(in) :: orbs

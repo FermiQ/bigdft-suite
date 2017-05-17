@@ -535,7 +535,6 @@ program f_buffer_allocations
   call yaml_comment('',hfill='~')
   call f_free_ptr(d1_ptr)
   call f_free_ptr(d1_ptr_exotic)
-
   call f_lib_finalize()
 
   contains
@@ -546,7 +545,8 @@ program f_buffer_allocations
       character(len=*), intent(in) :: typeb
       integer, dimension(:), intent(in) :: shp,lbnd,ubnd
 
-      call yaml_mapping_open(typeb//' buffer,kind '//trim(yaml_toa(sizeof)))
+      !call yaml_mapping_open(typeb//' buffer,kind '//trim(yaml_toa(sizeof)))
+      call yaml_mapping_open(typeb//' buffer, kind '+sizeof+', rank'+size(shp))
         call yaml_map('Shape',shp)
         call yaml_map('Lbound',lbnd)
         call yaml_map('Ubound',ubnd)

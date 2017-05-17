@@ -2,6 +2,7 @@ module psp_projectors_base
   use module_base
   use gaussians
   use locregs
+  use compression
   use locreg_operations
   implicit none
 

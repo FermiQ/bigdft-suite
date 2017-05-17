@@ -17,7 +17,7 @@ module dynamic_memory_base
   use f_precisions
   use yaml_parse, only: yaml_load
   use yaml_output, only: yaml_map
-  use f_utils, only: f_time,f_zero
+  use f_utils, only: f_time,f_zero,f_sizeof
   use iso_c_binding
   use smpi_shared
   use f_environment

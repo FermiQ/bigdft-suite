@@ -494,6 +494,7 @@ subroutine fill_projectors_old(lr,hx,hy,hz,at,orbs,rxyz,nlpsp,idir)
 use module_base
 use module_types
 use yaml_output
+use locregs
 implicit none
 integer, intent(in) :: idir
 real(gp), intent(in) :: hx,hy,hz
@@ -1974,8 +1975,7 @@ subroutine calc_coeff_proj(l,i,m,nterm_max,nterm,lx,ly,lz,fac_arr)
 END SUBROUTINE calc_coeff_proj
 
 subroutine plr_segs_and_vctrs(plr,nseg_c,nseg_f,nvctr_c,nvctr_f)
-  use module_base
-  use module_types
+  use locregs
   implicit none
   type(locreg_descriptors), intent(in) :: plr
   integer, intent(out) :: nseg_c,nseg_f,nvctr_c,nvctr_f

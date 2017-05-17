@@ -1697,7 +1697,6 @@ module io
     subroutine io_gcoordToLocreg(n1, n2, n3, nvctr_c, nvctr_f, gcoord_c, gcoord_f, lr)
       use module_base
       use locregs
-  
       implicit none
       !Arguments
       integer, intent(in) :: n1, n2, n3, nvctr_c, nvctr_f
@@ -2440,6 +2439,7 @@ module io
     subroutine plot_locreg_grids(iproc, nspinor, nspin, orbitalNumber, llr, glr, atoms, rxyz, hx, hy, hz)
       use module_base
       use module_types
+      use locregs
       use locreg_operations, only: lpsi_to_global2
       implicit none
       
@@ -2779,6 +2779,7 @@ module io
      use yaml_output
      use module_interfaces, only: open_filename_of_iorb
      use public_enums
+     use compression
      implicit none
      integer, intent(in) :: iproc,n1,n2,n3,iformat
      real(gp), intent(in) :: hx,hy,hz

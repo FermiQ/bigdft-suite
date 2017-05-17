@@ -804,13 +804,6 @@ subroutine LocalHamiltonianApplication(iproc,nproc,at,npsidim_orbs,orbs,&
      !call timing(iproc,'ApplyLocPotKin','OF')
   else
 
-
-!!$      !temporary allocation
-!!$      allocate(fake_pot(Lzd%Glr%d%n1i*Lzd%Glr%d%n2i*Lzd%Glr%d%n3i*orbs%nspin),stat=i_stat)
-!!$      call memocc(i_stat,fake_pot,'fake_pot',subname)
-!!$
-!!$      call f_zero(Lzd%Glr%d%n1i*Lzd%Glr%d%n2i*Lzd%Glr%d%n3i*orbs%nspin,fake_pot(1))
-
      !local hamiltonian application for different methods
      !print *,'here',ipotmethod,associated(pkernelSIC)
      if (PotOrKin==1) then ! both

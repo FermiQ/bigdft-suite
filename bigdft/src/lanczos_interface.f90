@@ -1335,6 +1335,7 @@ contains
     !use module_base
     use module_types
     use gaussians
+    use compression
     implicit none
     character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
     integer, intent(in) :: iproc,nproc
@@ -1680,10 +1681,6 @@ contains
     endif
 
     call full_local_potential(iproc,nproc,orbs,Lzd,0,dpcom,xc,potential,pot)
-
-!!$   call full_local_potential(iproc,nproc,ndimpot,Lzd%Glr%d%n1i*Lzd%Glr%d%n2i*Lzd%Glr%d%n3i,&
-!!$        in%nspin,Lzd%Glr%d%n1i*Lzd%Glr%d%n2i*Lzd%Glr%d%n3i*in%nspin,0,&
-!!$        orbs,Lzd,0,ngatherarr,potential,pot)
 
     ha%in_iat_absorber=in_iat_absorber
     ha%Labsorber  = in%L_absorber
