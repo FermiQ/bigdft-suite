@@ -1416,7 +1416,8 @@ subroutine print_orbitals(orbs, geocode)
 
   nelec = int(sum(orbs%occup) + 1d-12) / orbs%nkpts
 
-  call yaml_comment('Occupation Numbers',hfill='-')
+  call yaml_comment('Electronic Orbital Initialization',hfill='-')
+  !call yaml_comment('Occupation Numbers',hfill='-')
   call yaml_map('Total Number of Electrons',nelec,fmt='(i8)')
 
   ! Number of orbitals

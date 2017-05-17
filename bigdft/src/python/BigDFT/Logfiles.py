@@ -193,11 +193,12 @@ def plot_wfn_convergence(wfn_it,gnrm_cv):
 
 class Logfile():
     """Import a Logfile from a filename in yaml format, a list of filenames,
-        a dictionary or an archive (compressed tar file):
+        an archive (compressed tar file), aidctionaory or a list od dictionaries:
         l = Logfile('one.yaml','two.yaml')
         l = Logfile(archive='calc.tgz')
-        l = Logfile(archive='calc.tgz',member='one.yaml')"""
-    #def __init__(self,filename=None,dictionary=None,filename_list=None,archive=None,label=None,load_only=None):
+        l = Logfile(archive='calc.tgz',member='one.yaml')
+        l = Logfile(dictionary=dict)
+        l = Logfile(dictionary=[dict1, dict2])"""
     def __init__(self,*args,**kwargs):
         dicts = []
         #Read the dictionary kwargs
@@ -217,8 +218,8 @@ class Logfile():
                 dicts.append(Yaml.load(stream=f.read()))
                 #dicts[-1]['label'] = memb.name #Add the label (name of the file)
         elif dictionary:
-            #Read the dictionary
-            dicts=[dictionary]
+            #Read the dictionary or a list of dictionaries or from a generator
+            dicts = dictionary if isinstance(dictionary,list) else [d for d in dictionary]
         elif args:
             #Read the list of files (member replaces load_only...)
             dicts=get_logs(args,select_document=member)
@@ -259,7 +260,7 @@ class Logfile():
             raise
     #
     def __str__(self):
-        """Dispaly short information about the logfile"""
+        """Display short information about the logfile"""
         return self._print_information()
     #
     def _initialize_class(self,d):

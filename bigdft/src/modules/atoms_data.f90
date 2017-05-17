@@ -1886,7 +1886,6 @@ contains
       real(gp), dimension(0:4,0:6) :: psppar
       logical :: pawpatch, l
       integer :: paw_tot_l,  paw_tot_q, paw_tot_coefficients, paw_tot_matrices
-      character(len = max_field_length) :: fpaw
 
       call f_routine(id='psp_dict_analyse')
 
