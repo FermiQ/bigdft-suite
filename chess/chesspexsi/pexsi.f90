@@ -153,7 +153,7 @@ module pexsi
           call mpi_comm_split( comm, isProcRead, iproc, readComm, ierr )
           
       if (iproc<maxproc) then
-          
+       
             call f_timing(TCAT_PEXSI_DISTRIBUTE,'ON')
             call distribute_matrix(iproc, maxproc, nfvctr, nvctr, col_ptr, row_ind, mat_h, mat_s, &
                  nfvctr_local, nvctr_local, isvctr_local, col_ptr_local, row_ind_local, mat_h_local, mat_s_local)
@@ -167,13 +167,13 @@ module pexsi
             call f_timing(TCAT_PEXSI_COMMUNICATE,'ON')
             nfvctr_local_min = nfvctr_local
             nfvctr_local_max = nfvctr_local
-            call mpiallred(nfvctr_local_min,count=1,op=mpi_min,comm=readComm)
-            call mpiallred(nfvctr_local_max,count=1,op=mpi_max,comm=readComm)
+!            call mpiallred(nfvctr_local_min,count=1,op=mpi_min,comm=readComm)
+!            call mpiallred(nfvctr_local_max,count=1,op=mpi_max,comm=readComm)
             nfvctr_local_avg = real(nfvctr,kind=8)/real(maxproc,kind=8)
             nvctr_local_min = nvctr_local
             nvctr_local_max = nvctr_local
-            call mpiallred(nvctr_local_min,count=1,op=mpi_min,comm=readComm)
-            call mpiallred(nvctr_local_max,count=1,op=mpi_max,comm=readComm)
+!            call mpiallred(nvctr_local_min,count=1,op=mpi_min,comm=readComm)
+!            call mpiallred(nvctr_local_max,count=1,op=mpi_max,comm=readComm)
             nvctr_local_avg = real(nvctr,kind=8)/real(maxproc,kind=8)
             call f_timing(TCAT_PEXSI_COMMUNICATE,'OF')
           
@@ -361,10 +361,12 @@ module pexsi
           
           ! Gather the local copies of the kernel
           call f_zero(kernel)
+          do i=1,nvctr_local
+              kernel(isvctr_local+i-1) = DMnzvalLocal(i)
+          end do
           if (present(energy_kernel)) then
+              call f_zero(energy_kernel)
               do i=1,nvctr_local
-                  !write(*,*) 'iproc, i, isvctr_local+i-1', iproc, i, isvctr_local+i-1
-                  kernel(isvctr_local+i-1) = DMnzvalLocal(i)
                   energy_kernel(isvctr_local+i-1) = EDMnzvalLocal(i)
               end do
           end if

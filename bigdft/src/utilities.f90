@@ -309,6 +309,7 @@ program utilities
        end if
 
        ! Check which multipole matrices are present
+       ll = -1
        do l=0,lmax
            file_present(:) = .false.
            do m=-l,l
