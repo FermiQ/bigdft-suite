@@ -32,14 +32,13 @@ subroutine spatially_resolved_dos(ob,hpsi)
   psi_it=orbital_basis_iterator(ob)
   do while(ket_next_locreg(psi_it))
      call f_assert(assert_cubic,'Spatially resolved density of states only valid with nlr=1')
-     !here the iterator over the points of the locreg has to be created
      call initialize_work_arrays_sumrho(psi_it%lr,.true.,w)
      !real space basis function, per orbital components
      psir = f_malloc(1.to.psi_it%ket_dims,id='psir')
      hpsir = f_malloc(1.to.psi_it%ket_dims,id='hpsir')
-     epsx=f_malloc(psi_it%lr%d%n1i,id='epsx')
-     epsy=f_malloc(psi_it%lr%d%n2i,id='epsy')
-     epsz=f_malloc(psi_it%lr%d%n3i,id='epsz')
+     epsx=f_malloc([psi_it%lr%d%n1i,ob%orbs%norbp],id='epsx')
+     epsy=f_malloc([psi_it%lr%d%n2i,ob%orbs%norbp],id='epsy')
+     epsz=f_malloc([psi_it%lr%d%n3i,ob%orbs%norbp],id='epsz')
      do while(ket_next(psi_it,ilr=psi_it%ilr))
         do ispinor=1,ob%orbs%nspinor
            psi_ptr=>ob_subket_ptr(psi_it,ispinor)
@@ -50,12 +49,28 @@ subroutine spatially_resolved_dos(ob,hpsi)
         call calculate_sdos(psi_it%nspinor,psi_it%lr%bit,psir,hpsir,&
              epsx(1,psi_it%iorbp),epsy(1,psi_it%iorbp),epsz(1,psi_it%iorbp))
      end do
+     !here we might gather the arrays for printout
+     !call mpigather(sendbuf=epsx,recvbuf=epsx_tot,comm=bigdft_mpi%mpi_comm)
+     !call write_sdos(psi_it%lr%d%n1i,psi_it%lr%d%n2i,psi_it%lr%d%n3i,ob%orbs%norb,epsx_tot,epsy_tot,epsz_tot)
      !deallocations of work arrays
      call f_free(psir)
      call f_free(hpsir)
      call deallocate_work_arrays_sumrho(w)
      assert_cubic=.false. !we should exit now
   end do
+  !this should guarantee that the parallel arrays have been allocated
+  if (assert_cubic) then
+     epsx=f_malloc([1,1],id='epsx')
+     epsy=f_malloc([1,1],id='epsy')
+     epsz=f_malloc([1,1],id='epsz')
+  end if
+
+
+
+
+  call f_free(epsx)
+  call f_free(epsy)
+  call f_free(epsz)
 
   call f_release_routine()
 
@@ -83,16 +98,79 @@ subroutine calculate_sdos(nspinor,boxit,psi,hpsi,epsx,epsy,epsz)
   do while(box_next_z(boxit))
      do while(box_next_y(boxit))
         do while(box_next_x(boxit))
-           tt=0.0_wp!here the product psi*hpsi, real and imaginary
-           tt=tt*boxit%mesh%volume_element
+           tt=psi(boxit%ind,1)*hpsi(boxit%ind,1)
            epsz(boxit%k)=epsz(boxit%k)+tt
            epsy(boxit%j)=epsy(boxit%j)+tt
            epsx(boxit%i)=epsx(boxit%i)+tt
         end do
      end do
+     !print *,boxit%i,boxit%j,boxit%k,boxit%rxyz
   end do
 
+  !print *,'sums',sum(epsx),sum(epsy),sum(epsz)
+
 end subroutine calculate_sdos
+
+subroutine write_sdos(bit,norbp,norb,n1i,n2i,n3i,epsx,epsy,epsz)
+  use module_base
+  use box
+  implicit none
+  type(box_iterator) :: bit
+  integer, intent(in) :: norbp,norb,n1i,n2i,n3i
+  real(wp), dimension(n1i,norbp), intent(in) :: epsx
+  real(wp), dimension(n2i,norbp), intent(in) :: epsy
+  real(wp), dimension(n3i,norbp), intent(in) :: epsz
+  !local variables
+  integer :: unt
+  real(wp), dimension(:), pointer :: epsx_tot,epsy_tot,epsz_tot
+
+  !here we may gather the results and write the file
+  epsx_tot=>mpigathered(epsx,comm=bigdft_mpi%mpi_comm)
+  epsy_tot=>mpigathered(epsy,comm=bigdft_mpi%mpi_comm)
+  epsz_tot=>mpigathered(epsz,comm=bigdft_mpi%mpi_comm)
+
+  unt=82
+  if (bigdft_mpi%iproc==0) then
+     call f_open_file(unt,'sdos_x.dat')
+     do while(box_next_x(bit))
+        write(unt,'(1pg26.16e3)',advance='no')bit%rxyz(1)
+        call dump_sdos_line(unt,bit%i,n1i,norb,epsx_tot)
+     end do
+     call f_close(unt)
+     call f_open_file(unt,'sdos_y.dat')
+     do while(box_next_y(bit))
+        write(unt,'(1pg26.16e3)',advance='no')bit%rxyz(2)
+        call dump_sdos_line(unt,bit%j,n2i,norb,epsy_tot)
+     end do
+     call f_close(unt)
+     call f_open_file(unt,'sdos_z.dat')
+     do while(box_next_z(bit))
+        write(unt,'(1pg26.16e3)',advance='no')bit%rxyz(3)
+        call dump_sdos_line(unt,bit%k,n3i,norb,epsz_tot)
+     end do
+     call f_close(unt)
+  end if
+
+  call f_free_ptr(epsx_tot)
+  call f_free_ptr(epsy_tot)
+  call f_free_ptr(epsz_tot)
+
+end subroutine write_sdos
+
+subroutine dump_sdos_line(unt,i,ni,norb,epsi)
+  use module_defs, only: wp
+  implicit none
+  integer, intent(in) :: unt,i,ni,norb
+  real(wp), dimension(ni,norb), intent(in) :: epsi
+  !local variables
+  integer :: iorb
+  do iorb=1,norb-1
+     write(unt,'(1pg26.16e3)',advance='no')epsi(i,iorb)
+  end do
+  write(unt,'(1pg26.16e3)')epsi(i,norb)
+
+end subroutine dump_sdos_line
+
 
 !> Perform all the projection associated to local variables
 subroutine local_analysis(iproc,nproc,hx,hy,hz,at,rxyz,lr,orbs,orbsv,psi,psivirt)
