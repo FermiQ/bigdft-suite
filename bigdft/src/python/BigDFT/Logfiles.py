@@ -224,6 +224,11 @@ class Logfile():
             raise 
     def __str__(self):
         return self._print_information()
+    def __len__(self):
+        if hasattr(self,'_instances'):
+            return len(self._instances)
+        else:
+            return 0 #single point run
     def _initialize_class(self,d):
         import numpy
         self.log=d
