@@ -1407,7 +1407,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
         ! Do a full DOS calculation.
         if (iproc == 0) call global_analysis(KSwfn%orbs, in%Tel,in%occopt,trim(in%dir_output) // "dos.gnuplot")
      end if
-     if (.false.) then !spatially resolved DOS
+     if (.true.) then !spatially resolved DOS
         if (iproc==0) call yaml_comment('Calculating Spatially Resolved DOS',hfill='-')
         !apply the hamiltonian to the perturbed wavefunctions
         hpsi_tmp=f_malloc(max(KSwfn%orbs%npsidim_orbs,KSwfn%orbs%npsidim_comp),id='hpsi_tmp')
@@ -1421,7 +1421,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
              denspot%pkernelseq)
         call orbital_basis_associate(ob_occ,orbs=KSwfn%orbs,&
              Lzd=KSwfn%Lzd,phis_wvl=KSwfn%psi,comms=KSwfn%comms)
-        call spatially_resolved_dos(ob_occ,hpsi_tmp)
+        call spatially_resolved_dos(ob_occ,hpsi_tmp,trim(in%dir_output))
         call orbital_basis_release(ob_occ)
         if (nproc > 1) then
            call f_free_ptr(denspot%pot_work)

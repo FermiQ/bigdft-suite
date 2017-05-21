@@ -1571,15 +1571,15 @@ contains
     ncount_(1)=size(sendbuf)   
     iproc=mpirank(comm)
     nproc=mpisize(comm)
-
-    ncounts=f_malloc(nproc,id='ncounts')
+   
+    ncounts=f_malloc0(nproc,id='ncounts')
     ndispls=f_malloc(nproc,id='ndispls')
 
     call mpigather(sendbuf=ncount_,recvbuf=ncounts,root=root,comm=comm)
 
     ndispls(1)=0
     do jproc=2,nproc
-       ndispls(jproc)=ndispls(jproc-1)+ncounts(jproc)
+       ndispls(jproc)=ndispls(jproc-1)+ncounts(jproc-1)
     end do
     root_=0
     if (present(root)) root_=root
@@ -1593,15 +1593,19 @@ contains
        ptr=f_malloc_ptr(1,id='ptr')
     end if
 
-    !then perform the call to the gatherv routine
-    call MPI_GATHERV(sendbuf,ncount_(1),mpitype(sendbuf),&
-         ptr,ncounts,ndispls,mpitype(recvbuf),&
-         root_,comm_,ierr)
+    if (nproc==1) then
+       call f_memcpy(src=sendbuf,dest=ptr)
+    else
+       !then perform the call to the gatherv routine
+       call MPI_GATHERV(sendbuf,ncount_(1),mpitype(sendbuf),&
+            ptr,ncounts,ndispls,mpitype(recvbuf),&
+            root_,comm_,ierr)
 
-    if (ierr /=0) then
-       call f_err_throw('An error in calling to MPI_GATHERV occured',&
-            err_id=ERR_MPI_WRAPPERS)
-       return
+       if (ierr /=0) then
+          call f_err_throw('An error in calling to MPI_GATHERV occured',&
+               err_id=ERR_MPI_WRAPPERS)
+          return
+       end if
     end if
 
     if (iproc /= root_) call f_free_ptr(ptr)
