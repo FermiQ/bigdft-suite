@@ -300,7 +300,10 @@ subroutine direct_minimization(iproc,nproc,in,at,nvirt,rxyz,rhopot,nlpsp, &
             &   psiw(1),out_add=VTwfn%psi(1))
       end if
 
-      if (iproc == 0) call yaml_mapping_close()
+      if (iproc == 0) then
+         call yaml_mapping_close()
+         call yaml_flush_document()
+      end if
 
    end do wfn_loop
 

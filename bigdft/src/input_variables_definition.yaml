@@ -473,6 +473,13 @@
      The atomic species or the atoms written as Atom No are specified, followed by a list
      of the shells for which the density matrix can be plotted
     default: None
+  sdos:
+    COMMENT: Spatially-resolved density of states
+    DESCRIPTION: |
+     Plots the density of states by calculating the value of psi*Hpsi per each KS orbital, 
+     resolved among x,y or z.
+    default: No
+
   #potentials:
   #  format: CUBE
   #  frequence: iteration, SCF

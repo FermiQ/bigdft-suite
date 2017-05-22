@@ -1407,7 +1407,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
         ! Do a full DOS calculation.
         if (iproc == 0) call global_analysis(KSwfn%orbs, in%Tel,in%occopt,trim(in%dir_output) // "dos.gnuplot")
      end if
-     if (.true.) then !spatially resolved DOS
+     if (in%sdos) then !spatially resolved DOS
         if (iproc==0) call yaml_comment('Calculating Spatially Resolved DOS',hfill='-')
         !apply the hamiltonian to the perturbed wavefunctions
         hpsi_tmp=f_malloc(max(KSwfn%orbs%npsidim_orbs,KSwfn%orbs%npsidim_comp),id='hpsi_tmp')

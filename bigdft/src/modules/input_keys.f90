@@ -243,6 +243,9 @@ module module_input_keys
      !> atomic density matrix requests
      type(dictionary), pointer :: at_gamma
 
+     !> calculate spatial density of states
+     logical :: sdos
+
      !> For absorption calculations
      integer :: iabscalc_type   !< 0 non calc, 1 cheb ,  2 lanc
      !! integer :: iat_absorber, L_absorber, N_absorber, rpower_absorber, Linit_absorber
@@ -2469,6 +2472,7 @@ contains
     nullify(in%at_gamma)
     call f_zero(in%calculate_strten)
     call f_zero(in%nab_options)
+    in%sdos=.false.
     in%profiling_depth=-1
     in%plugin_id = 0
     in%gen_norb = UNINITIALIZED(0)
