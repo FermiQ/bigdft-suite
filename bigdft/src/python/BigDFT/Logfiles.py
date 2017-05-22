@@ -43,12 +43,19 @@ BUILTIN={
 
 
 def get_log(f):
-    """Transform a logfile into a python dictionary."""
+    """Transform a logfile into a python dictionary"""
     return yaml.load(open(f, "r").read(), Loader = yaml.CLoader)
 
 
 def get_logs(files,safe_mode=False,select_document=None):
-    """Transform a list of files into a list of dictionaries."""
+   """
+   Return a list of loaded logfiles from files, which is a list
+   of paths leading to logfiles.
+   
+   Optional arguments:
+     - safe_mode:
+     - select_document:
+   """
     logs=[]
     for filename in files:
       rawfile=open(filename, "r").read()
@@ -89,7 +96,7 @@ def get_logs(files,safe_mode=False,select_document=None):
 
 
 def floatify(scalar):
-    """Useful to make float from strings compatible from fortran."""
+    """Useful to make float from strings compatible from fortran"""
     import numpy
     if isinstance(scalar,str):
         return float(scalar.replace('d','e').replace('D','E'))
@@ -136,10 +143,10 @@ def perform_operations(variables,ops,debug=False):
 ##    #first evaluate the given variables
     for key in variables:
         command=key+"="+str(variables[key])
-        if debug: print command
+        if debug: print(command)
         exec(command)
         #then evaluate the given expression
-    if debug: print ops
+    if debug: print(ops)
     #exec(glstr+ops, globals(), locals())
     exec(ops, globals(), locals())
 
@@ -244,7 +251,7 @@ class Logfile():
                 instance._initialize_class(d)
                 self._instances.append(instance)
             #then we should find the best values for the dictionary
-            print 'Found',len(self._instances),'different runs'
+            print('Found',len(self._instances),'different runs')	
             import numpy
             #Initialize the class with the dictionary corresponding to the lower value of the energy
             ens=[(l.energy if hasattr(l,'energy') else 1.e100) for l in self._instances] 
@@ -256,7 +263,7 @@ class Logfile():
         if hasattr(self,'_instances'):
             return self._instances[index]
         else:
-            print 'index not available'
+            print('index not available')
             raise
     #
     def __str__(self):
@@ -313,10 +320,10 @@ class Logfile():
         """Returns an instance of the BrillouinZone class, useful for band structure."""
         import BZ
         if self.nkpt==1: 
-            print 'WARNING: Brillouin Zone plot cannot be defined properly with only one k-point'
+            print('WARNING: Brillouin Zone plot cannot be defined properly with only one k-point')
             #raise
         mesh=self.kpt_mesh
-        if isinstance(mesh,int): 
+        if isinstance(mesh,int): mesh=[mesh,]*3
             mesh=[mesh,]*3
         if self.astruct['Cell'][1]==float('inf'): mesh[1]=1
         return BZ.BrillouinZone(self.astruct,mesh,self.evals,self.fermi_level)
@@ -333,7 +340,7 @@ class Logfile():
         forces=[]
         ferr=[]
         if not hasattr(self,'_instances'): 
-            print 'ERROR: No geopt plot possible, single point run'
+            print('ERROR: No geopt plot possible, single point run')
             return
         for l in self._instances:
             if hasattr(l,'forcemax') and hasattr(l,'energy'):
@@ -350,7 +357,7 @@ class Logfile():
             if hasattr(self,'forcemax_cv'): plt.axhline(self.forcemax_cv,color='k',linestyle='--')
             plt.show()
         else:
-            print 'No plot necessary, less than two points found'
+            print('No plot necessary, less than two points found')
     #
     #
     def _print_information(self):

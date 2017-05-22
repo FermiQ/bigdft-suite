@@ -9,7 +9,7 @@
 !!    For the list of contributors, see ~/AUTHORS 
 */
 #include <config.h>
-#define _GNU_SOURCE
+#define __GNU_SOURCE
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,6 +18,8 @@
 #define FC_STR(str) #str
 #define FC_QUOTE(str) FC_STR(str)
 #define FC_SYMBOL(sym,SYM) FC_QUOTE(FC_FUNC(sym,SYM))
+
+#define RTLD_NEXT RTLD_DEFAULT
 
 static void* (*real_malloc)(size_t)=NULL;
 
