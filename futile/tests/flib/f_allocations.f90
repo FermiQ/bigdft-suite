@@ -8,7 +8,6 @@
 !!    For the list of contributors, see ~/AUTHORS
 program f_buffer_allocations
   use futile
-  use wrapper_mpi
   implicit none
   !declare a number of allocatable arrays an pointers of different implicit type and ranks
   logical, dimension(:), allocatable ::             l1
@@ -537,6 +536,7 @@ program f_buffer_allocations
   call f_free_ptr(d1_ptr)
   call f_free_ptr(d1_ptr_exotic)
   call f_lib_finalize()
+
   contains
 
     subroutine buffer_info(shp,lbnd,ubnd,sizeof,typeb)

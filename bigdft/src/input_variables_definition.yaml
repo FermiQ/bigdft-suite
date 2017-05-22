@@ -339,33 +339,33 @@
      DESCRIPTION: |
         Determine the dimension of the subspace i.e. the number of virtual orbitals
         to calculate via a Davidson diagonalisation.
-
         Usually unoccupied orbitals are not calculated since they are not needed for the total energy and other
         physical properties of the electronic ground state.
 
         Putting norbv to a non-zero value will result in the calculation of norbv virtual orbitals in a postprocessing
-        routine after the occupied orbitals have been calculated, which uses Davidson iterative treatment . nplot
-        of these orbitals will be written in the virtual.*.pot files and nplot (if that many exist) of the highest
-        occupied orbitals will be written in the orbital.*.pot file The Kohn Sham eigenvalues are written in the
-        ordinary output file. nvirt corresponds to the actual number of orbitals the convergence process is taking
+        routine after the occupied orbitals have been calculated, which uses Davidson iterative treatment.
+        nvirt (< norbv) determines to the number of converged orbitals during the convergence process which is taking
         care of during the Davidson iterations.
+        nplot of these orbitals will be written in the virtual.*.pot files and nplot (if that many exist) of the highest
+        occupied orbitals will be written in the orbital.*.pot file. The Kohn Sham eigenvalues are written in the
+        ordinary output file. 
      RANGE: [-9999, 9999]
      default: 0
    nvirt:
-     COMMENT: No. of virtual orbs
+     COMMENT: No. of converged virtual orbs (< norbv)
      DESCRIPTION: |
         Determine the dimension of the subspace i.e. the number of virtual orbitals
-        to calculate via a Davidson diagonalisation. (should be < norbv)
-
+        to be converged via a Davidson diagonalisation. (should be < norbv)
         Usually unoccupied orbitals are not calculated since they are not needed for the total energy and other
         physical properties of the electronic ground state.
 
         Putting norbv to a non-zero value will result in the calculation of norbv virtual orbitals in a postprocessing
-        routine after the occupied orbitals have been calculated, which uses Davidson iterative treatment . nplot
-        of these orbitals will be written in the virtual.*.pot files and nplot (if that many exist) of the highest
-        occupied orbitals will be written in the orbital.*.pot file The Kohn Sham eigenvalues are written in the
-        ordinary output file. nvirt corresponds to the actual number of orbitals the convergence process is taking
+        routine after the occupied orbitals have been calculated, which uses Davidson iterative treatment.
+        nvirt (< norbv) determines to the number of converged orbitals during the convergence process which is taking
         care of during the Davidson iterations.
+        nplot of these orbitals will be written in the virtual.*.pot files and nplot (if that many exist) of the highest
+        occupied orbitals will be written in the orbital.*.pot file. The Kohn Sham eigenvalues are written in the
+        ordinary output file. 
      RANGE: [0, 9999]
      default: 0
    nplot:

@@ -1675,11 +1675,11 @@ contains
     logical, intent(out), optional :: skip !<if .true. the code should not be run as the logfile is existing already
     !local variables
     integer, parameter :: ntrials=1
-    logical :: log_to_disk,skip_tmp,exists
+    logical :: log_to_disk,skip_tmp
     integer :: lgt,unit_log,ierrr,trials
     integer(kind=4) :: ierr
     character(len = max_field_length) :: writing_directory, run_name,posinp_id
-    character(len=500) :: logfilename,path,filename
+    character(len=500) :: logfilename,path
     integer :: iproc_node, nproc_node
 
     ! Get user input writing_directory.

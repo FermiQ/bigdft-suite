@@ -638,8 +638,9 @@ contains
     integer, parameter :: pawlcutd = 10, pawlmix = 10, pawnphi = 13, pawntheta = 12, pawxcdev = 1
     integer, parameter :: usepotzero = 0
     integer :: nsym,unt, xclevel, iat, mpsang, i, n
-    real(gp) :: gsqcut_shp, rloc, projr, rlocmin
+    real(gp) :: rloc, projr, rlocmin
     real(gp), dimension(2) :: cfrmults
+    !real(gp) :: gsqcut_shp
     !type(external_potential_descriptors) :: ep
     !integer :: impl, l
     type(xc_info) :: xc

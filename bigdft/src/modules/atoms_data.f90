@@ -127,7 +127,7 @@ module module_atoms
   public :: atomic_structure_null,nullify_atomic_structure,deallocate_atomic_structure
   public :: astruct_merge_to_dict, astruct_at_from_dict
   public :: deallocate_symmetry_data,set_symmetry_data
-  public :: set_astruct_from_file,astruct_dump_to_file
+  public :: set_astruct_from_file,astruct_dump_to_file,set_astruct_from_openbabel
   public :: allocate_atoms_data,move_this_coordinate,frozen_itof
   public :: rxyz_inside_box,check_atoms_positions
   public :: atomic_data_set_from_dict,atoms_iter,atoms_iter_next,atoms_iter_ensure_attr
@@ -1106,6 +1106,28 @@ contains
 
     END SUBROUTINE set_astruct_from_file
 
+    subroutine set_astruct_from_openbabel(astruct, obfile)
+      use dictionaries
+      implicit none
+      type(atomic_structure), intent(out) :: astruct
+      character(len = *), intent(in) :: obfile
+
+      type(dictionary), pointer :: dict
+
+      interface
+         subroutine openbabel_load(d, f)
+           use dictionaries
+           implicit none
+           type(dictionary), pointer :: d
+           character(len = *), intent(in) :: f
+         end subroutine openbabel_load
+      end interface
+
+      call dict_init(dict)
+      call openbabel_load(dict, obfile)
+      call astruct_set_from_dict(dict, astruct)
+      call dict_free(dict)
+    end subroutine set_astruct_from_openbabel
 
     !> Write an atomic file
     !! Yaml output included
@@ -1177,10 +1199,6 @@ contains
          call wtascii(iunit,energy_,rxyz_,astruct,comment)
          if (present(forces)) call wtascii_forces(iunit,forces,astruct)
       case ('int')
-         !if (.not.present(na) .or. .not.present(nb) .or. .not.present(nc)) then
-         !    call f_err_throw('na, nb, nc must be present to write a file in internal coordinates', &
-         !         err_name='BIGDFT_RUNTIME_ERROR')
-         !end if
          rxyz_int = f_malloc((/3,astruct%nat/),id='rxyz_int')
          !call wtint(iunit,energy_,rxyz,astruct,comment,ixyz(1,:),ixyz(2,:),ixyz(3,:))
          call xyzint(rxyz_, astruct%nat, &
@@ -1457,7 +1475,8 @@ contains
       atoms => dict_iter(dict // ASTRUCT_POSITIONS)
       do while(associated(atoms))
          call astruct_at_from_dict(atoms, symbol = str)
-         if (.not. has_key(types, str)) then
+         !if (.not. has_key(types, str)) then
+         if (str .notin. types) then
             ityp = ityp + 1
             call set(types // str, ityp)
          end if
@@ -1867,7 +1886,6 @@ contains
       real(gp), dimension(0:4,0:6) :: psppar
       logical :: pawpatch, l
       integer :: paw_tot_l,  paw_tot_q, paw_tot_coefficients, paw_tot_matrices
-      character(len = max_field_length) :: fpaw
 
       call f_routine(id='psp_dict_analyse')
 
@@ -2609,3 +2627,30 @@ contains
     end do
   end subroutine expand
 END SUBROUTINE astruct_from_subset
+
+subroutine astruct_set_cell(dict, cell)
+  use dictionaries
+  implicit none
+  type(dictionary), pointer :: dict
+  double precision, dimension(3), intent(in) :: cell
+
+  call set(dict // "cell", cell)
+end subroutine astruct_set_cell
+
+subroutine astruct_add_atom(dict, xyz, symbol, slen)
+  use dictionaries
+  implicit none
+  type(dictionary), pointer :: dict
+  double precision, dimension(3), intent(in) :: xyz
+  integer, intent(in) :: slen
+  character(len = slen), intent(in) :: symbol
+
+  call add(dict // "positions", dict_new(symbol .is. xyz))
+end subroutine astruct_add_atom
+
+subroutine astruct_get_types_dict(dict,types)
+  use dictionaries
+  use module_atoms, only: astruct_dict_get_types
+  type(dictionary), pointer :: dict,types
+  call astruct_dict_get_types(dict,types)
+end subroutine astruct_get_types_dict

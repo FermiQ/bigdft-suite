@@ -2493,16 +2493,17 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
   !wvl+PAW objects
   type(DFT_PSP_projectors) :: nl
   logical :: overlap_calculated, perx,pery,perz, rho_negative
-  real(gp) :: tx,ty,tz,displ!,mindist
+  real(gp) :: displ!,tx,ty,tz,mindist
   real(gp), dimension(:), pointer :: in_frag_charge
   integer :: infoCoeff, iorb, nstates_max, order_taylor, npspcode, scf_mode
   real(kind=8) :: pnrm
   integer, dimension(:,:,:), pointer :: frag_env_mapping
   type(work_mpiaccumulate) :: energs_work
   type(orbital_basis) :: ob
-  !!real(gp), dimension(:,:), allocatable :: ks, ksk
-  !!real(gp) :: nonidem
-  integer :: itmb, jtmb, ispin, ifrag_ref, max_nbasis_env, ifrag
+  !real(gp), dimension(:,:), allocatable :: ks, ksk
+  !real(gp) :: nonidem
+  !integer :: itmb, jtmb, ispin, ifrag
+  integer :: ifrag_ref, max_nbasis_env
   real(gp) :: e_paw, e_pawdc, compch_sph, e_nl
   type(cell) :: mesh
   interface
@@ -3498,7 +3499,7 @@ subroutine input_check_psi_id(inputpsi, input_wf_format, dir_output, orbs, lorbs
   use module_input_keys, only: inputpsiid_set_policy
   implicit none
   integer, intent(out) :: input_wf_format         !< (out) Format of WF
-  type(f_enumerator), intent(inout) :: inputpsi              !< (in) indicate how check input psi, (out) give how to build psi
+  type(f_enumerator), intent(inout) :: inputpsi   !< (in) indicate how check input psi, (out) give how to build psi
                                                   !! INPUT_PSI_DISK_WVL: psi on the disk (wavelets), check if the wavefunctions are all present
                                                   !!                     otherwise switch to normal input guess
                                                   !! INPUT_PSI_DISK_LINEAR: psi on memory (linear version)
