@@ -221,7 +221,7 @@ else
 openbabel_static_sources = openbabel_fake.cpp
 endif
 
-EXTRA_DIST = $(ATOMS_INCLUDES) $(COMMS_INCLUDES)
+EXTRA_DIST = $(ATOMS_INCLUDES) $(COMMS_INCLUDES) openbabel.cpp
 CLEANFILES = *.mod libbabel.so*
 
 AM_FCFLAGS = -I. -I$(srcdir) -I$(top_builddir)/includes @MPI_INCLUDE@ @LIBABINIT_INCLUDE@ @LIB_XC_CFLAGS@ @LIB_FUTILE_CFLAGS@

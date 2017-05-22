@@ -621,6 +621,7 @@ contains
     use wrapper_MPI, only: mpibarrier
     use abi_interfaces_add_libpaw, only : abi_pawinit
     use PStypes, only: SETUP_VARIABLES,VERBOSITY
+    use vdwcorrection, only: vdwcorrection_warnings
     implicit none
     !Arguments
     type(input_variables), intent(out) :: in
@@ -853,6 +854,10 @@ contains
        call f_err_throw('GPU calculation not implemented with non-collinear spin',err_name='BIGDFT_INPUT_VARIABLES_ERROR')
     end if
 
+    if (in%dispersion /= 0) then
+       call vdwcorrection_warnings(atoms, in%dispersion, in%ixc)
+    end if
+    
     !control atom positions
     call check_atoms_positions(atoms%astruct, (bigdft_mpi%iproc == 0))
 

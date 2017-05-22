@@ -967,6 +967,7 @@ subroutine find_extra_info(line,extra,nspace)
   !local variables
   logical :: space
   integer :: i,ispace
+  integer :: a, b
 
   call f_zero(extra)
   i=1
@@ -982,6 +983,18 @@ subroutine find_extra_info(line,extra,nspace)
      !print *,line(i:i),ispace
      if (ispace==nspace) then
         extra=line(i:min(len(line),i+len(extra)-1))
+        ! Remove TAB character from within extra, in case.
+        a = index(extra, char(9))
+        do while (a > 0)
+           extra(a:a) = ' '
+           b = index(extra(a+1:), char(9))
+           if (b > 0) then
+              a = a + b
+           else
+              a = 0
+           end if
+        end do
+
         exit find_space
      end if
      if (i==len(line)) then

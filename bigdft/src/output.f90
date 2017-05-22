@@ -785,32 +785,31 @@ end subroutine write_atomic_density_matrix
 !> Assign some of the physical system variables
 !! Performs also some cross-checks with other variables
 !! The pointers in atoms structure have to be associated or nullified.
-subroutine print_atomic_variables(atoms, hmax, ixc, dispersion)
+subroutine print_atomic_variables(atoms, hmax, ixc)
   use module_base
   use module_types
   use public_enums, only: RADII_SOURCE,PSPCODE_HGH,PSPCODE_HGH_K,PSPCODE_HGH_K_NLCC,&
        PSPCODE_PAW,PSPCODE_GTH
   use public_keys, only: COEFF_KEY
   use module_xc
-  use vdwcorrection
   use yaml_output
   implicit none
   type(atoms_data), intent(in) :: atoms
   real(gp), intent(in) :: hmax
-  integer, intent(in) :: ixc, dispersion
+  integer, intent(in) :: ixc
   !Local variables
   logical :: nonloc
   integer :: i,j,j0,l,ityp,iat,natyp,mproj,inlcc
   real(gp) :: minrad
   real(gp), dimension(3,3) :: hij
-  real(gp), dimension(2,2,3) :: offdiagarr
+  real(gp), dimension(2,2,4) :: offdiagarr
   character(len=500) :: name_xc1, name_xc2
 
   !If no atoms...
   if (atoms%astruct%ntypes == 0) return
 
   !print the pseudopotential matrices
-  do l=1,3
+  do l=1,4
      do i=1,2
         do j=i+1,3
            offdiagarr(i,j-i,l)=0._gp
@@ -834,6 +833,13 @@ subroutine print_atomic_variables(atoms, hmax, ixc, dispersion)
                  if (j==3)   offdiagarr(i,j-i,l)=0.5_gp*sqrt(63._gp/143._gp)
               else
                  offdiagarr(i,j-i,l)=-9._gp*sqrt(1._gp/143._gp)
+              end if
+           else if (l==4) then
+              if (i==1) then
+                 if (j==2)   offdiagarr(i,j-i,l)=-0.5_gp*sqrt(9._gp/11._gp)
+                 if (j==3)   offdiagarr(i,j-i,l)=0.5_gp*sqrt(33._gp/65._gp)
+              else
+                 offdiagarr(i,j-i,l)=-11._gp*sqrt(1._gp/195._gp)
               end if
            end if
         end do
@@ -913,29 +919,21 @@ subroutine print_atomic_variables(atoms, hmax, ixc, dispersion)
      end if
      !see if nonlocal terms are present
      nonloc=.false.
-     verify_nl: do l=1,3
-        do i=3,0,-1
-           j=i
-           if (atoms%psppar(l,i,ityp) /= 0._gp) exit
-        end do
-        if (j /=0) then
+     verify_nl: do l=1,4
+        if (any(atoms%psppar(l,0:3,ityp) /= 0._gp)) then
            nonloc=.true.
            exit verify_nl
         end if
      end do verify_nl
      if (nonloc) then
         call yaml_sequence_open('NonLocal PSP Parameters')
-        do l=1,3
-           do i=3,0,-1
-              j=i
-              if (atoms%psppar(l,i,ityp) /= 0._gp) exit
-           end do
-           if (j /=0) then
+        do l=1,4
+           if (any(atoms%psppar(l,0:3,ityp) /= 0._gp)) then
               call yaml_sequence(advance='no')
               call yaml_map('Channel (l)',l-1)
               call yaml_map('Rloc',atoms%psppar(l,0,ityp),fmt='(f9.5)')
               hij=0._gp
-              do i=1,j
+              do i=1,3
                  hij(i,i)=atoms%psppar(l,i,ityp)
               end do
               if (atoms%npspcode(ityp) == PSPCODE_HGH) then !traditional HGH convention
@@ -1013,8 +1011,6 @@ subroutine print_atomic_variables(atoms, hmax, ixc, dispersion)
 !!!  tt=dble(norb)/dble(nproc)
 !!!  norbp=int((1.d0-eps_mach*tt) + tt)
 !!!  !if (verb.eq.0) write(*,'(1x,a,1x,i0)') 'norbp=',norbp
-
-  call vdwcorrection_warnings(atoms, dispersion, ixc)
 
   ! if linear scaling applied with more then InputGuess, then go read input.lin for radii
   !  if (in%linear /= 'OFF' .and. in%linear /= 'LIG') then
