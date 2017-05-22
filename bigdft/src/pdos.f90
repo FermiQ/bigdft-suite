@@ -6,11 +6,13 @@
 !!    GNU General Public License, see ~/COPYING file
 !!    or http://www.gnu.org/copyleft/gpl.txt .
 !!    For the list of contributors, see ~/AUTHORS 
-subroutine spatially_resolved_dos(ob,hpsi)
+subroutine spatially_resolved_dos(ob,hpsi,output_dir)
   use module_base
   use orbitalbasis
   use locreg_operations
+  use box, only: box_iterator
   implicit none
+  character(len=*), intent(in) :: output_dir
   type(orbital_basis), intent(inout) :: ob
   real(wp), dimension(ob%orbs%npsidim_orbs), intent(in) :: hpsi
   !local variables
@@ -18,6 +20,7 @@ subroutine spatially_resolved_dos(ob,hpsi)
   integer :: ispinor
   type(workarr_sumrho) :: w
   type(ket) :: psi_it
+  type(box_iterator) :: box_it
   real(wp), dimension(:,:), allocatable :: psir,hpsir,epsx,epsy,epsz
   real(wp), dimension(:), pointer :: psi_ptr,hpsi_ptr
 
@@ -30,8 +33,9 @@ subroutine spatially_resolved_dos(ob,hpsi)
   !this is only menaningful for the cubic code
   assert_cubic=.true.
   psi_it=orbital_basis_iterator(ob)
-  do while(ket_next_locreg(psi_it))
-     call f_assert(assert_cubic,'Spatially resolved density of states only valid with nlr=1')
+  loop_glr: do while(ket_next_locreg(psi_it))
+     call f_assert(assert_cubic,&
+          'Spatially resolved density of states only valid with nlr=1')
      call initialize_work_arrays_sumrho(psi_it%lr,.true.,w)
      !real space basis function, per orbital components
      psir = f_malloc(1.to.psi_it%ket_dims,id='psir')
@@ -49,24 +53,26 @@ subroutine spatially_resolved_dos(ob,hpsi)
         call calculate_sdos(psi_it%nspinor,psi_it%lr%bit,psir,hpsir,&
              epsx(1,psi_it%iorbp),epsy(1,psi_it%iorbp),epsz(1,psi_it%iorbp))
      end do
-     !here we might gather the arrays for printout
-     !call mpigather(sendbuf=epsx,recvbuf=epsx_tot,comm=bigdft_mpi%mpi_comm)
-     !call write_sdos(psi_it%lr%d%n1i,psi_it%lr%d%n2i,psi_it%lr%d%n3i,ob%orbs%norb,epsx_tot,epsy_tot,epsz_tot)
      !deallocations of work arrays
      call f_free(psir)
      call f_free(hpsir)
      call deallocate_work_arrays_sumrho(w)
-     assert_cubic=.false. !we should exit now
-  end do
+     assert_cubic=.false. !we should exit now as we need the iterator
+     box_it=psi_it%lr%bit
+     exit loop_glr
+  end do loop_glr
   !this should guarantee that the parallel arrays have been allocated
   if (assert_cubic) then
      epsx=f_malloc([1,1],id='epsx')
      epsy=f_malloc([1,1],id='epsy')
      epsz=f_malloc([1,1],id='epsz')
+     box_it=ob%td%Glr%bit
   end if
 
+  call write_sdos(box_it,ob%orbs%norbp,ob%orbs%norb,&
+       epsx,epsy,epsz,output_dir)
 
-
+  call orbital_basis_release(ob)
 
   call f_free(epsx)
   call f_free(epsy)
@@ -111,15 +117,17 @@ subroutine calculate_sdos(nspinor,boxit,psi,hpsi,epsx,epsy,epsz)
 
 end subroutine calculate_sdos
 
-subroutine write_sdos(bit,norbp,norb,n1i,n2i,n3i,epsx,epsy,epsz)
+subroutine write_sdos(bit,norbp,norb,epsx,epsy,epsz,output_dir)
   use module_base
   use box
+  use yaml_output
   implicit none
   type(box_iterator) :: bit
-  integer, intent(in) :: norbp,norb,n1i,n2i,n3i
-  real(wp), dimension(n1i,norbp), intent(in) :: epsx
-  real(wp), dimension(n2i,norbp), intent(in) :: epsy
-  real(wp), dimension(n3i,norbp), intent(in) :: epsz
+  character(len=*), intent(in) :: output_dir
+  integer, intent(in) :: norbp,norb
+  real(wp), dimension(bit%mesh%ndims(1),norbp), intent(in) :: epsx
+  real(wp), dimension(bit%mesh%ndims(2),norbp), intent(in) :: epsy
+  real(wp), dimension(bit%mesh%ndims(3),norbp), intent(in) :: epsz
   !local variables
   integer :: unt
   real(wp), dimension(:), pointer :: epsx_tot,epsy_tot,epsz_tot
@@ -131,24 +139,33 @@ subroutine write_sdos(bit,norbp,norb,n1i,n2i,n3i,epsx,epsy,epsz)
 
   unt=82
   if (bigdft_mpi%iproc==0) then
-     call f_open_file(unt,'sdos_x.dat')
+     call f_open_file(unt,output_dir//'sdos_x.dat')
      do while(box_next_x(bit))
         write(unt,'(1pg26.16e3)',advance='no')bit%rxyz(1)
-        call dump_sdos_line(unt,bit%i,n1i,norb,epsx_tot)
+        call dump_sdos_line(unt,bit%i,bit%mesh%ndims(1),norb,epsx_tot)
      end do
      call f_close(unt)
-     call f_open_file(unt,'sdos_y.dat')
+     call yaml_map('Spatially resolved among x, file',&
+          output_dir//'sdos_x.dat')
+
+     call f_open_file(unt,output_dir//'sdos_y.dat')
      do while(box_next_y(bit))
         write(unt,'(1pg26.16e3)',advance='no')bit%rxyz(2)
-        call dump_sdos_line(unt,bit%j,n2i,norb,epsy_tot)
+        call dump_sdos_line(unt,bit%j,bit%mesh%ndims(2),norb,epsy_tot)
      end do
      call f_close(unt)
-     call f_open_file(unt,'sdos_z.dat')
+     call yaml_map('Spatially resolved among y, file',&
+          output_dir//'sdos_y.dat')
+
+     call f_open_file(unt,output_dir//'sdos_z.dat')
      do while(box_next_z(bit))
         write(unt,'(1pg26.16e3)',advance='no')bit%rxyz(3)
-        call dump_sdos_line(unt,bit%k,n3i,norb,epsz_tot)
+        call dump_sdos_line(unt,bit%k,bit%mesh%ndims(3),norb,epsz_tot)
      end do
      call f_close(unt)
+     call yaml_map('Spatially resolved among z, file',&
+          output_dir//'sdos_z.dat')
+
   end if
 
   call f_free_ptr(epsx_tot)
@@ -436,35 +453,21 @@ subroutine mulliken_charge_population(iproc,nproc,orbs,Gocc,G,coeff,duals)
            msumiat(2)=msumiat(2)+mchg(icoeff,2)
            if (iproc == 0) then
               call yaml_mapping_open(trim(shname))!, flow=.true.)
-             !write(*,'(1x,(i6),5x,a,2x,a,a,1x,f7.2,2x,2("|",1x,f8.5,1x),2(a,f8.5))')&
-              !     iat,'|',shname,'|',rad,(mchg(icoeff,ispin),ispin=1,2),'  | ',&
-              !     mchg(icoeff,1)-mchg(icoeff,2),' | ',Gocc(icoeff)-(mchg(icoeff,1)+mchg(icoeff,2))
               if (orbs%nspinor /= 4) then
                     call yaml_map('Rad',rad,fmt='(f8.5)')
                     call yaml_map('Chg (up,down)', mchg(icoeff,1:2), fmt='(f8.5)')
                     call yaml_map('Partial Chg',sum(mchg(icoeff,1:2)),fmt='(f8.5)')
                     call yaml_map('Mag Pol',mchg(icoeff,1)-mchg(icoeff,2),fmt='(f8.5)')
                     call yaml_map('Net Chg',Gocc(icoeff)-(mchg(icoeff,1)+mchg(icoeff,2)),fmt='(f8.5)')
-                 !write(*,'(1x,(i6),5x,a,2x,a,a,1x,f7.2,2x,2("|",1x,f8.5,1x),3(a,f8.5))')&
-                 !     iat,'|',shname,'|',rad,(mchg(icoeff,ispin),ispin=1,2),'  | ',sum(mchg(icoeff,1:2)),'  | ' , &
-                 !     mchg(icoeff,1)-mchg(icoeff,2),' | ',Gocc(icoeff)-(mchg(icoeff,1)+mchg(icoeff,2))
               else
                  mi(1)=mi(1)+magn(icoeff,1)
                  mi(2)=mi(2)+magn(icoeff,2)
                  mi(3)=mi(3)+magn(icoeff,3)
-                 !write(*,'(1x,(i6),5x,a,2x,a,a,1x,f7.2,2x,2("|",1x,f8.5,1x),3(a,f8.5))')&
-                 !     iat,'|',shname,'|',rad,(mchg(icoeff,ispin),ispin=1,2),'  | ',sum(mchg(icoeff,1:2)),'  | ' , &
-                 !     magn(icoeff,1),' | ',Gocc(icoeff)-(mchg(icoeff,1)+mchg(icoeff,2))
                     call yaml_map('Rad',rad,fmt='(f8.5)')
                     call yaml_map('Chg (Maj,Min)', mchg(icoeff,1:2), fmt='(f8.5)')
                     call yaml_map('Partial Chg',sum(mchg(icoeff,1:2)),fmt='(f8.5)')
                     call yaml_map('Mag Comp',magn(icoeff,1:3),fmt='(f8.5)')
                     call yaml_map('Net Chg',Gocc(icoeff)-(mchg(icoeff,1)+mchg(icoeff,2)),fmt='(f8.5)')
-                 !write(*,'(1x,(i6),5x,a,2x,a,a,1x,f7.2,2x,2("|",1x,f8.5,1x),3(a,f8.5))')&
-                 !     iat,'|',shname,'|',rad,(mchg(icoeff,ispin),ispin=1,2),'  | ',sum(mchg(icoeff,1:2)),'  | ' , &
-                 !     magn(icoeff,1),' | ',Gocc(icoeff)-(mchg(icoeff,1)+mchg(icoeff,2))
-                 !write(*,'(t74,a,f8.5,a)')'| ', magn(icoeff,2),' | '
-                 !write(*,'(t74,a,f8.5,a)')'| ', magn(icoeff,3),' | '
               end if
               call yaml_mapping_close()
            end if
@@ -473,26 +476,14 @@ subroutine mulliken_charge_population(iproc,nproc,orbs,Gocc,G,coeff,duals)
            nchannels=nchannels+1
         end do
      end do
-     !if (iproc == 0) write(*,'(15x,a,2("|",1x,f8.5,1x),2(a,f8.5))')&
-     !     '  Center Quantities : ',&
-     !     (msumiat(ispin),ispin=1,2),'  | ',msumiat(1)-msumiat(2),' | ',&
-     !     sumch-(msumiat(1)+msumiat(2))
      if (iproc == 0) then
         if (orbs%nspinor == 4) then
            call yaml_comment('Chg (Maj)| Chg (Min)  |Partial Chg| Mag Comp |  Net Chg')
-        !   !write(*,'(1x,a)')'Center No. |    Shell    | Rad (AU) | Chg (Maj)| Chg (Min)  |Partial Chg| Mag Comp |  Net Chg'
-        else
-           call yaml_comment('Chg (up) | Chg (down) |Partial Chg| Mag Pol  |  Net Chg')
-        !   !write(*,'(1x,a)')'Center No. |    Shell    | Rad (AU) | Chg (up) | Chg (down) |Partial Chg| Mag Pol  |  Net Chg'
         end if
         if (orbs%nspinor /= 4) then
            call yaml_map('Center Quantities', &
                 & (/ msumiat(1),msumiat(2), msumiat(1)+msumiat(2), msumiat(1)-msumiat(2), &
                 & sumch-(msumiat(1)+msumiat(2)) /), fmt='(f7.4)')
-           !write(*,'(15x,a,2("|",1x,f8.5,1x),3(a,f8.5))')&
-           !     '  Center Quantities : ',&
-           !     (msumiat(ispin),ispin=1,2),'  | ',msumiat(1)+msumiat(2),'  | ',msumiat(1)-msumiat(2),' | ',&
-           !     sumch-(msumiat(1)+msumiat(2))
         else
            mtot(1)=mtot(1)+mi(1)
            mtot(2)=mtot(2)+mi(2)
@@ -501,17 +492,9 @@ subroutine mulliken_charge_population(iproc,nproc,orbs,Gocc,G,coeff,duals)
                 & (/ msumiat(1),msumiat(2), msumiat(1)+msumiat(2), mi(1), &
                 & sumch-(msumiat(1)+msumiat(2)), &
                 & mi(2), mi(3) /), fmt='(f7.4)')
-           !write(*,'(15x,a,2("|",1x,f8.5,1x),3(a,f8.5))')&
-           !     '  Center Quantities : ',&
-           !     (msumiat(ispin),ispin=1,2),'  | ',msumiat(1)+msumiat(2),'  | ', mi(1),' | ',&
-           !     sumch-(msumiat(1)+msumiat(2))
-           !write(*,'(t74,a,f8.5,a)')'| ', mi(2),' | '
-           !write(*,'(t74,a,f8.5,a)')'| ', mi(3),' | '
         end if
      end if
      msum=msum+msumiat(1)+msumiat(2)
-     !if (iproc == 0) write(*,'(1x,a)')repeat('-',93)
- !    call yaml_mapping_close()
   end do
 
   if (iproc==0)call yaml_sequence_close()
