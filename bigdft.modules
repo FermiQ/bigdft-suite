@@ -54,7 +54,7 @@
 
   <autotools id="libABINIT" check-target="false" autogen-sh="autoreconf">
     <branch repo="local" module="libABINIT-6.8+12.tar.gz" version="6.8+12" checkoutdir="libABINIT">
-      <patch file="libABINIT.patch" />
+      <!-- <patch file="libABINIT.patch" /> -->
     </branch>
     <dependencies>
       <dep package="futile"/>
