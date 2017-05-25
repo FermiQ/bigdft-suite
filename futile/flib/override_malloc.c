@@ -9,7 +9,7 @@
 !!    For the list of contributors, see ~/AUTHORS 
 */
 #include <config.h>
-#define __GNU_SOURCE
+#define _GNU_SOURCE
 
 #include <stdio.h>
 #include <stdlib.h>

@@ -41,7 +41,6 @@
   </autotools>
 
   <cmake id="openbabel">
-    <!--<branch repo="libyaml" module="yaml-0.1.4.tar.gz" version="0.1.4"/>-->
     <branch repo="local" module="openbabel-2.4.1.tar.gz" version="2.4.1" checkoutdir="openbabel"/>
   </cmake>
 
@@ -120,7 +119,7 @@
       <dep package="psolver"/>
       <dep package="libABINIT"/>
       <dep package="GaIn"/>
-      <dep package="openbabel"/>
+      <!-- <dep package="openbabel"/> -->
       <if condition-set="testing">
         <dep package="PyYAML"/>
       </if>
@@ -207,7 +206,6 @@
     </dependencies>
   </distutils>
 
-
 <!--  <autotools id="cmake-dev">
     <branch repo="cmake-rep" module="cmake-3.3.2.tar.gz"
             version="3.3.2"/>
@@ -228,6 +226,13 @@
     <dependencies>
       <dep package="spred"/>
       <dep package="PyYAML"/>
+      <dep package="openbabel"/>
+    </dependencies>
+  </metamodule>
+
+  <metamodule id="spred-suite">
+    <dependencies>
+      <dep package="bigdft-suite"/>
     </dependencies>
   </metamodule>
 

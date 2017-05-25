@@ -48,14 +48,14 @@ def get_log(f):
 
 
 def get_logs(files,safe_mode=False,select_document=None):
-   """
-   Return a list of loaded logfiles from files, which is a list
-   of paths leading to logfiles.
-   
-   Optional arguments:
-     - safe_mode:
-     - select_document:
-   """
+    """
+    Return a list of loaded logfiles from files, which is a list
+    of paths leading to logfiles.
+    
+    Optional arguments:
+    - safe_mode:
+    - select_document:
+    """
     logs=[]
     for filename in files:
       rawfile=open(filename, "r").read()
@@ -324,7 +324,6 @@ class Logfile():
             #raise
         mesh=self.kpt_mesh
         if isinstance(mesh,int): mesh=[mesh,]*3
-            mesh=[mesh,]*3
         if self.astruct['Cell'][1]==float('inf'): mesh[1]=1
         return BZ.BrillouinZone(self.astruct,mesh,self.evals,self.fermi_level)
     #
