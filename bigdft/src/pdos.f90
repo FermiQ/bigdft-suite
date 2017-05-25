@@ -69,7 +69,7 @@ subroutine spatially_resolved_dos(ob,hpsi,output_dir)
      box_it=ob%td%Glr%bit
   end if
 
-  call write_sdos(box_it,ob%orbs%norbp,ob%orbs%norb,&
+  call write_sdos(box_it,ob%orbs%norbp,ob%orbs%norb*ob%orbs%nkpts,&
        epsx,epsy,epsz,output_dir)
 
   call orbital_basis_release(ob)
