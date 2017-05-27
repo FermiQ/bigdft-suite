@@ -3353,9 +3353,10 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
              .true.,0,0,0,0,order_taylor,in%lin%max_inversion_error,&
              in%calculate_KS_residue,in%calculate_gap, &
              energs_work,.false.,in%lin%coeff_factor,in%tel,in%occopt,&
-             in%cp%pexsi%pexsi_npoles,in%cp%pexsi%pexsi_mumin,&
+             in%cp%pexsi%pexsi_npoles,in%cp%pexsi%pexsi_nproc_per_pole,in%cp%pexsi%pexsi_mumin,&
              in%cp%pexsi%pexsi_mumax,in%cp%pexsi%pexsi_mu,in%cp%pexsi%pexsi_DeltaE,&
-             in%cp%pexsi%pexsi_temperature,in%cp%pexsi%pexsi_tol_charge,in%cp%pexsi%pexsi_np_sym_fact) !in%lin%extra_states) - assume no extra states as haven't set occs for this yet
+             in%cp%pexsi%pexsi_temperature,in%cp%pexsi%pexsi_tol_charge,in%cp%pexsi%pexsi_np_sym_fact, &
+             in%cp%pexsi%pexsi_do_inertia_count, in%cp%pexsi%pexsi_max_iter) !in%lin%extra_states) - assume no extra states as haven't set occs for this yet
 
         call deallocate_work_mpiaccumulate(energs_work)
 

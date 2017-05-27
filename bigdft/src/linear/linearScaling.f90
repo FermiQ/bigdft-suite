@@ -475,9 +475,10 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
                      infoCoeff,energs,nlpsp,input%SIC,tmb,pnrm,calculate_overlap,invert_overlap_matrix,.true.,update_phi,&
                      .true.,input%lin%extra_states,itout,0,0,norder_taylor,input%lin%max_inversion_error,&
                      input%calculate_KS_residue,input%calculate_gap,energs_work,.false.,input%lin%coeff_factor,&
-                     input%tel, input%occopt, input%cp%pexsi%pexsi_npoles, &
+                     input%tel, input%occopt, input%cp%pexsi%pexsi_npoles, input%cp%pexsi%pexsi_nproc_per_pole, &
                      input%cp%pexsi%pexsi_mumin,input%cp%pexsi%pexsi_mumax,input%cp%pexsi%pexsi_mu,input%cp%pexsi%pexsi_DeltaE, &
                      input%cp%pexsi%pexsi_temperature,input%cp%pexsi%pexsi_tol_charge,input%cp%pexsi%pexsi_np_sym_fact, &
+                     input%cp%pexsi%pexsi_do_inertia_count, input%cp%pexsi%pexsi_max_iter, &
                      convcrit_dmin,nitdmin,input%lin%curvefit_dmin,ldiis_coeff, &
                      hphi_pspandkin=hphi_pspandkin,eproj=eproj,ekin=ekin)
                 !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%l, tmb%linmat%kernel_)
@@ -981,9 +982,10 @@ end if
            .true.,input%lin%extra_states,itout,0,0,norder_taylor,input%lin%max_inversion_error,&
            input%calculate_KS_residue,input%calculate_gap,energs_work,update_kernel,input%lin%coeff_factor, &
            input%tel, input%occopt, &
-           input%cp%pexsi%pexsi_npoles,input%cp%pexsi%pexsi_mumin,&
+           input%cp%pexsi%pexsi_npoles,input%cp%pexsi%pexsi_nproc_per_pole,input%cp%pexsi%pexsi_mumin,&
            input%cp%pexsi%pexsi_mumax,input%cp%pexsi%pexsi_mu,input%cp%pexsi%pexsi_DeltaE, &
-           input%cp%pexsi%pexsi_temperature,input%cp%pexsi%pexsi_tol_charge,input%cp%pexsi%pexsi_np_sym_fact)
+           input%cp%pexsi%pexsi_temperature,input%cp%pexsi%pexsi_tol_charge,input%cp%pexsi%pexsi_np_sym_fact, &
+           input%cp%pexsi%pexsi_do_inertia_count, input%cp%pexsi%pexsi_max_iter)
        !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%l, tmb%linmat%kernel_)
 
        !!if (input%lin%scf_mode==LINEAR_FOE) then
@@ -1568,9 +1570,10 @@ end if
                          invert_overlap_matrix,calculate_pspandkin,update_phi,&
                          calculate_ham,input%lin%extra_states,itout,it_scc,cdft_it,norder_taylor,input%lin%max_inversion_error,&
                          input%calculate_KS_residue,input%calculate_gap,energs_work,remove_coupling_terms,input%lin%coeff_factor,&
-                         input%tel, input%occopt,input%cp%pexsi%pexsi_npoles,&
+                         input%tel, input%occopt,input%cp%pexsi%pexsi_npoles, input%cp%pexsi%pexsi_nproc_per_pole, &
                          input%cp%pexsi%pexsi_mumin,input%cp%pexsi%pexsi_mumax,input%cp%pexsi%pexsi_mu,input%cp%pexsi%pexsi_DeltaE,&
                          input%cp%pexsi%pexsi_temperature,input%cp%pexsi%pexsi_tol_charge,input%cp%pexsi%pexsi_np_sym_fact, &
+                         input%cp%pexsi%pexsi_do_inertia_count, input%cp%pexsi%pexsi_max_iter, &
                          convcrit_dmin,nitdmin,input%lin%curvefit_dmin,ldiis_coeff,reorder,cdft, &
                          hphi_pspandkin=hphi_pspandkin,eproj=eproj,ekin=ekin)
                     call get_lagrange_mult(cdft_it,vgrad)
@@ -1590,9 +1593,10 @@ end if
                       calculate_ham,input%lin%extra_states,itout,it_scc,cdft_it,norder_taylor,input%lin%max_inversion_error,&
                       input%calculate_KS_residue,input%calculate_gap,energs_work,remove_coupling_terms,input%lin%coeff_factor,&
                       input%tel, input%occopt, &
-                      input%cp%pexsi%pexsi_npoles,input%cp%pexsi%pexsi_mumin,&
+                      input%cp%pexsi%pexsi_npoles,input%cp%pexsi%pexsi_nproc_per_pole,input%cp%pexsi%pexsi_mumin,&
                       input%cp%pexsi%pexsi_mumax,input%cp%pexsi%pexsi_mu,input%cp%pexsi%pexsi_DeltaE,&
                       input%cp%pexsi%pexsi_temperature,input%cp%pexsi%pexsi_tol_charge,input%cp%pexsi%pexsi_np_sym_fact,&
+                      input%cp%pexsi%pexsi_do_inertia_count, input%cp%pexsi%pexsi_max_iter, &
                       convcrit_dmin,nitdmin,input%lin%curvefit_dmin,ldiis_coeff,reorder, &
                       hphi_pspandkin=hphi_pspandkin,eproj=eproj,ekin=ekin)
                end if
@@ -1626,9 +1630,10 @@ end if
                          invert_overlap_matrix,calculate_pspandkin,update_phi,&
                          calculate_ham,input%lin%extra_states,itout,it_scc,cdft_it,norder_taylor,input%lin%max_inversion_error,&
                          input%calculate_KS_residue,input%calculate_gap,energs_work,remove_coupling_terms,input%lin%coeff_factor,&
-                         input%tel, input%occopt,input%cp%pexsi%pexsi_npoles,&
+                         input%tel, input%occopt,input%cp%pexsi%pexsi_npoles,input%cp%pexsi%pexsi_nproc_per_pole,&
                          input%cp%pexsi%pexsi_mumin,input%cp%pexsi%pexsi_mumax,input%cp%pexsi%pexsi_mu,input%cp%pexsi%pexsi_DeltaE,&
                          input%cp%pexsi%pexsi_temperature,input%cp%pexsi%pexsi_tol_charge,input%cp%pexsi%pexsi_np_sym_fact,&
+                         input%cp%pexsi%pexsi_do_inertia_count, input%cp%pexsi%pexsi_max_iter, &
                          convcrit_dmin,nitdmin,input%lin%curvefit_dmin,ldiis_coeff,reorder,cdft, &
                          hphi_pspandkin=hphi_pspandkin,eproj=eproj,ekin=ekin)
                     call get_lagrange_mult(cdft_it,vgrad)
@@ -1648,9 +1653,10 @@ end if
                       calculate_ham,input%lin%extra_states,itout,it_scc,cdft_it,norder_taylor,input%lin%max_inversion_error,&
                       input%calculate_KS_residue,input%calculate_gap,energs_work,remove_coupling_terms,input%lin%coeff_factor,&
                       input%tel, input%occopt, &
-                      input%cp%pexsi%pexsi_npoles,input%cp%pexsi%pexsi_mumin,&
+                      input%cp%pexsi%pexsi_npoles,input%cp%pexsi%pexsi_nproc_per_pole,input%cp%pexsi%pexsi_mumin,&
                       input%cp%pexsi%pexsi_mumax,input%cp%pexsi%pexsi_mu,input%cp%pexsi%pexsi_DeltaE,&
                       input%cp%pexsi%pexsi_temperature,input%cp%pexsi%pexsi_tol_charge,input%cp%pexsi%pexsi_np_sym_fact,&
+                      input%cp%pexsi%pexsi_do_inertia_count, input%cp%pexsi%pexsi_max_iter, &
                       convcrit_dmin,nitdmin,input%lin%curvefit_dmin,ldiis_coeff,reorder, &
                       hphi_pspandkin=hphi_pspandkin,eproj=eproj,ekin=ekin)
               end if
