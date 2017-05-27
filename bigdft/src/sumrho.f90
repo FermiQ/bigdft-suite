@@ -108,7 +108,7 @@ subroutine sumrho(dpbox,orbs,Lzd,GPU,symObj,rhodsc,xc,psi,rho_p,mapping)
    integer :: iorb
    integer,dimension(:),allocatable:: localmapping
 
-   writeout=dpbox%mpi_env%iproc + dpbox%mpi_env%igroup==0 .and. verbose >= 1
+   writeout=dpbox%mpi_env%iproc + dpbox%mpi_env%igroup==0 .and. get_verbose_level() >= 1
 
    call timing(dpbox%mpi_env%iproc,'Rho_comput    ','ON')
 
@@ -202,7 +202,7 @@ subroutine communicate_density(dpbox,nspin,rhodsc,rho_p,rho,keep_rhop)
   real(gp),dimension(:,:),allocatable :: dprho_comp
   real(4) ,dimension(:,:),allocatable :: sprho_comp
   
-  dump=dpbox%mpi_env%iproc + dpbox%mpi_env%igroup == 0 .and. verbose >= 1
+  dump=dpbox%mpi_env%iproc + dpbox%mpi_env%igroup == 0 .and. get_verbose_level() >= 1
 
   !write(*,*) 'iproc,TIMING:SR1'!,dpbox%iproc_world,real(ncount1-ncount0)/real(ncount_rate)
   !the density must be communicated to meet the shape of the poisson solver

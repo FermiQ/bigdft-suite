@@ -119,6 +119,10 @@ contains
           call set(dict // PSOLVER // 'setup' // 'accel',st)
           call dict_remove(vals,PSOLVER //'/accel')
        end if
+       st = vals // VERBOSITY
+       call set(dict//OUTPUT_VARIABLES//VERBOSITY,st)
+       call dict_remove(vals,VERBOSITY)
+
        call set(dict//PERF_VARIABLES, vals)
     end if
 

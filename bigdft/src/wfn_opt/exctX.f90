@@ -196,7 +196,7 @@ subroutine exact_exchange_potential(iproc,nproc,geocode,xc,nspin,lr,orbs,n3parr,
               !print *,'test',iproc,iorb,jorb,sum(rp_ij(:,:,:,igran))
               !partial exchange term for each partial density
               ncall=ncall+1
-              if (iproc == 0 .and. verbose > 1) then
+              if (iproc == 0 .and. get_verbose_level() > 1) then
                  !write(*,*)'Exact exchange calculation: spin, orbitals:',ispin,iorb,jorb
                  call yaml_comment('Exact exchange calculation: ' // trim(yaml_toa( nint(real(ncall,gp)/ &
                  &    real(orbs%norbu*(orbs%norbu+1)/2+orbs%norbd*(orbs%norbd+1)/2,gp)*100.0_gp),fmt='(i3)')) // '%')
@@ -590,7 +590,7 @@ subroutine exact_exchange_potential_virt(iproc,nproc,geocode,nspin,lr,orbsocc,or
            if (orbsvirt%spinsgn(iorb) == sign .and. orbsocc%spinsgn(jorb) == sign) then
 
               !partial exchange term for each partial density
-              if (iproc == 0 .and. verbose > 1) then
+              if (iproc == 0 .and. get_verbose_level() > 1) then
                  call yaml_map('Exact exchange calculation (spin, orbitals)', (/ispin,iorb,jorb /))
                  !write(*,*)'Exact exchange calculation: spin, orbitals:',ispin,iorb,jorb
               end if
@@ -1284,7 +1284,7 @@ subroutine exact_exchange_potential_round(iproc,nproc,xc,nspin,lr,orbs,&
                     end if
                     ncalls=ncalls+1
                     !Poisson solver in sequential
-                    if (iproc == iprocref .and. verbose > 1) then
+                    if (iproc == iprocref .and. get_verbose_level() > 1) then
                        call yaml_comment('Exact exchange calculation: ' // trim(yaml_toa( &
                             nint(real(ncalls,gp)/real(ncalltot,gp)*100.0_gp),fmt='(i3)')) //'%')
                        !write(*,'(1x,a,i3,a2)')'Exact exchange calculation: ',&
@@ -1918,7 +1918,7 @@ subroutine exact_exchange_potential_round_clean(iproc,nproc,xc,nspin,ndim,orbs,&
            call internal_calculation_exctx(istep,sfac,pkernel,orbs%norb,orbs%occup,orbs%spinsgn,&
                 jprocsr(SEND_RES,igroup,istep) /= mpirank_null(),norbi,norbj,iorbs,jorbs_tmp,&
                 phi_i,phi_j,eexctX,rp_ij)
-           if (iproc == iprocref .and. verbose > 1 .and. igroup==1) then
+           if (iproc == iprocref .and. get_verbose_level() > 1 .and. igroup==1) then
               if (istep == 0) then
                  ncalls=ncalls+((norbi-iorbs+1)*(norbj-jorbs+1+1))/2
               else

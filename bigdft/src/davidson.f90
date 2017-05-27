@@ -232,7 +232,7 @@ subroutine direct_minimization(iproc,nproc,in,at,nvirt,rxyz,rhopot,nlpsp, &
 
    wfn_loop: do iter=1,in%itermax_virt
 
-      if (iproc == 0 .and. verbose > 0) then
+      if (iproc == 0 .and. get_verbose_level() > 0) then
          call yaml_comment('iter=' // trim(yaml_toa(iter)),hfill='-')
          call yaml_sequence(advance='no')
          call yaml_mapping_open(flow=.true.)
@@ -264,7 +264,7 @@ subroutine direct_minimization(iproc,nproc,in,at,nvirt,rxyz,rhopot,nlpsp, &
       !check for convergence or whether max. numb. of iterations exceeded
       if (endloop) then
          if (iproc == 0) then
-            if (verbose > 1) call yaml_map('Minimization iterations required',iter)
+            if (get_verbose_level() > 1) call yaml_map('Minimization iterations required',iter)
             call write_energies(iter,energs,gnrm,0.d0,' ')
             call yaml_mapping_close()
             call yaml_comment('End of Virtual Wavefunction Optimisation',hfill='-')
@@ -311,7 +311,7 @@ subroutine direct_minimization(iproc,nproc,in,at,nvirt,rxyz,rhopot,nlpsp, &
       call yaml_sequence_close() !wfn iterations
       if (iter == in%itermax_virt) then
          call yaml_warning('No convergence within the allowed number of minimization steps')
-      else if (verbose > 1) then
+      else if (get_verbose_level() > 1) then
          call yaml_map('Minimization iterations required',iter)
       end if
    end if
@@ -499,7 +499,7 @@ subroutine davidson(iproc,nproc,in,at,&
    !last index of e and hamovr are for mpi_alLzd%Glreduce.
    !e (eigenvalues) is also used as 2 work arrays
 
-   msg=verbose > 2 .and. iproc ==0! no extended output
+   msg=get_verbose_level() > 2 .and. iproc ==0! no extended output
    !msg =(iproc==0)!extended output
 
    if (iproc==0) &
@@ -1201,7 +1201,7 @@ subroutine davidson(iproc,nproc,in,at,&
       call transpose_v(iproc,nproc,orbsv,lzd%glr%wfd,commsv,v(1),psiw(1))
       call transpose_v(iproc,nproc,orbsv,lzd%glr%wfd,commsv,hv(1),psiw(1))
 
-      !if(iproc==0 .and. verbose > 1) write(*,'(1x,a)')"done. "
+      !if(iproc==0 .and. get_verbose_level() > 1) write(*,'(1x,a)')"done. "
       call timing(iproc,'Davidson      ','ON')
       iter=iter+1
       if(iter>in%itermax_virt)then !an input variable should be put

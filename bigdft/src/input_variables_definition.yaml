@@ -467,6 +467,14 @@
 #output parameters, decide what to dump of write to file
  output:
   DESCRIPTION: Output parameters, control the information that will be printed out
+  verbosity:
+    COMMENT: Verbosity of the output
+    EXCLUSIVE:
+      0: Very low
+      1: Low
+      2: Medium
+      3: High
+    default: 2
   atomic_density_matrix:
     COMMENT: Dictionary of the atoms for which the atomic density matrix has to be plotted
     DESCRIPTION: |
@@ -479,14 +487,13 @@
      Plots the density of states by calculating the value of psi*Hpsi per each KS orbital, 
      resolved among x,y or z.
     default: No
-
   #potentials:
   #  format: CUBE
   #  frequence: iteration, SCF
     
 #K points parameters
  kpt:
-   DESCRIPTION: K points XXXXXXX defined in the Brillouin zone for periodic system calculations
+   DESCRIPTION: K points defined in the Brillouin zone for periodic system calculations
    method:
      COMMENT: K-point sampling method
      EXCLUSIVE:
@@ -1377,14 +1384,6 @@
    store_index:
      COMMENT: Store indices or recalculate them for linear scaling
      default: Yes
-   verbosity:
-     COMMENT: Verbosity of the output
-     EXCLUSIVE:
-       0: ???
-       1: ???
-       2: ???
-       3: ???
-     default: 2
    psp_onfly:
      COMMENT: Calculate pseudopotential projectors on the fly
      default: Yes

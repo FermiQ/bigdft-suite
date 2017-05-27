@@ -246,7 +246,7 @@ subroutine preconditionall2(iproc,nproc,orbs,Lzd,hx,hy,hz,ncong,npsidim,hpsi,con
   gnrm_zero=0.0_dp
 
   !prepare the arrays for the 
-  if (verbose >= 3) then
+  if (get_verbose_level() >= 3) then
      gnrmp = f_malloc(max(orbs%norbp, 1),id='gnrmp')
   end if
 
@@ -299,7 +299,7 @@ subroutine preconditionall2(iproc,nproc,orbs,Lzd,hx,hy,hz,ncong,npsidim,hpsi,con
            !write(*,*)'iorb,gnrm',orbs%isorb+iorb,scpr**2,ilr
            gnrm=gnrm+orbs%kwgts(orbs%iokpt(iorb))*scpr**2
         end if
-        if (verbose >= 3) then
+        if (get_verbose_level() >= 3) then
            gnrm_orb=gnrm_orb+scpr
            if (inds+ncplx-1==orbs%nspinor) gnrmp(iorb)=gnrm_orb
            !write(*,*) 'iorb,gnrm,ilr',orbs%isorb+iorb,scpr,ilr,gnrm_orb,iproc
@@ -414,7 +414,7 @@ subroutine preconditionall2(iproc,nproc,orbs,Lzd,hx,hy,hz,ncong,npsidim,hpsi,con
 !!$    call f_free(hpsir)
 !!$ end if
   !gather the results of the gnrm per orbital in the case of high verbosity
-  if (verbose >= 3) then
+  if (get_verbose_level() >= 3) then
      gnrms = f_malloc0(orbs%norb*orbs%nkpts,id='gnrms')
      !prepare displacements arrays
      ncntdsp = f_malloc((/ nproc, 2 /),id='ncntdsp')

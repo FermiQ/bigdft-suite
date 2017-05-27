@@ -325,7 +325,7 @@ subroutine gaussian_pswf_basis(ng,enlargerprb,iproc,nspin,at,rxyz,G,Gocc, gaenes
      ishltmp=0
      !call count_atomic_shells(nspin_print,at%aoig(iat)%aocc,occup,nl)
      if (ityx > ntypesx) then
-        if (iproc == 0 .and. verbose > 1) then
+        if (iproc == 0 .and. get_verbose_level() > 1) then
            call yaml_map('Generation of input wavefunction data for atom ', trim(at%astruct%atomnames(ityp)))
            call print_eleconf(nspin_print,&
                 at%aoig(iat)%aocc,at%aoig(iat)%nl_sc)

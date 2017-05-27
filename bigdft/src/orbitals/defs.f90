@@ -18,7 +18,7 @@ module module_defs
 
   include 'configure.inc' !< Include variables set from configure.
 
-  integer, public :: verbose=2    !< Verbosity of the output, control the level of writing (normal by default)
+  integer :: verbose=2    !< Verbosity of the output, control the level of writing (normal by default)
 
   ! General precision, density and the wavefunctions types
   integer, parameter, public :: gp=f_double!kind(1.0d0)  !< general-type precision
@@ -63,14 +63,12 @@ module module_defs
   !> Code constants.
   !real(gp), parameter :: UNINITIALISED = -123456789._gp
 
-  private :: f_double,f_simple,f_long,f_short,f_integer
-
   !interface for uninitialized variable
   interface UNINITIALIZED
      module procedure uninitialized_dbl,uninitialized_int,uninitialized_real,uninitialized_long, uninitialized_logical
   end interface
 
-  public :: UNINITIALIZED
+  public :: UNINITIALIZED,get_verbose_level,set_verbose_level
 
   contains
 
@@ -118,5 +116,17 @@ module module_defs
       foo = kind(one)
       uninitialized_logical=.false.
     end function uninitialized_logical
+
+    pure function get_verbose_level()
+      implicit none
+      integer :: get_verbose_level
+      get_verbose_level=verbose
+    end function get_verbose_level
+
+    subroutine set_verbose_level(verbosity)
+      implicit none
+      integer, intent(in) :: verbosity
+      verbose=verbosity
+    end subroutine set_verbose_level
 
 end module module_defs

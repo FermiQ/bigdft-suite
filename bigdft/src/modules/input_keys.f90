@@ -1649,11 +1649,14 @@ contains
                call yaml_warning("unknown input key '" // trim(level) // "/" // trim(dict_key(val)) // "'")
        end select
     case (OUTPUT_VARIABLES)
-        ! the DFT variables ------------------------------------------------------
-        select case (trim(dict_key(val)))
-        case(ATOMIC_DENSITY_MATRIX)
+       select case (trim(dict_key(val)))
+       case (VERBOSITY)
+          in%verbosity = val
+       case(ATOMIC_DENSITY_MATRIX)
           call dict_copy(src=val,dest=in%at_gamma)
-        end select
+       case(SPATIAL_DOS)
+          in%sdos=val
+       end select
     case (DFT_VARIABLES)
        ! the DFT variables ------------------------------------------------------
        select case (trim(dict_key(val)))
@@ -1762,8 +1765,6 @@ contains
           in%profiling_depth = val
        case (FFTCACHE)
           in%ncache_fft = val
-       case (VERBOSITY)
-          in%verbosity = val
        case (TOLSYM)
           in%symTol = val
        case (PROJRAD)

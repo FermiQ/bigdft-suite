@@ -172,7 +172,7 @@ subroutine write_eigenvalues_data(etol,orbs,mom_vec)
      call yaml_map("Total magnetization",mpol,fmt='(f9.6)')
   end if
 
-  if (verbose > 1) then
+  if (get_verbose_level() > 1) then
      call yaml_comment('Eigenvalues and New Occupation Numbers')
 
      call yaml_sequence_open('Orbitals',flow=.true.)
@@ -453,7 +453,7 @@ subroutine write_ig_eigenvectors(etol,orbse,nspin,norb,norbu,norbd)
                !write(*,'(1x,a,i0,a,1x,1pe21.14,a)') &
                !   &   'evale(',iorb,')=',orbse%eval(iorb+iorbst),trim(message)
             else
-               !if ((iorb <= 5 .or. iorb >= orbse%norbu-5) .or. verbose > 0) &
+               !if ((iorb <= 5 .or. iorb >= orbse%norbu-5) .or. get_verbose_level() > 0) &
                !write(*,'(1x,a,i0,a,1x,1pe21.14)') &
                !   &   'evale(',iorb,')=',orbse%eval(iorb+iorbst)
             end if
@@ -488,7 +488,7 @@ subroutine write_ig_eigenvectors(etol,orbse,nspin,norb,norbu,norbd)
             message='    Last-> '
             preval(2)=orbse%eval(iorb+orbse%norbu+iorbst)
          end if
-         if ((iorb <= 5 .or. iorb >= orbse%norbu-5) .or. verbose > 0) then
+         if ((iorb <= 5 .or. iorb >= orbse%norbu-5) .or. get_verbose_level() > 0) then
             call yaml_sequence()
             call write_orbital_data(orbse%eval(iorb+iorbst),&
                  orbse%occup(iorb+iorbst),&
@@ -504,7 +504,7 @@ subroutine write_ig_eigenvectors(etol,orbse,nspin,norb,norbu,norbd)
             !   &   'evale(',iorb,',u)=',orbse%eval(iorb+iorbst),message,&
             !   &   'evale(',iorb,',d)=',orbse%eval(iorb+orbse%norbu+iorbst)
          else
-            !if ((iorb <= 5 .or. iorb >= orbse%norbu-5) .or. verbose > 0) &
+            !if ((iorb <= 5 .or. iorb >= orbse%norbu-5) .or. get_verbose_level() > 0) &
             !write(*,'(1x,a,i4,a,1x,1pe21.14,12x,a,i4,a,1x,1pe21.14)') &
             !   &   'evale(',iorb,',u)=',orbse%eval(iorb+iorbst),&
             !   &   'evale(',iorb,',d)=',orbse%eval(iorb+orbse%norbu+iorbst)
@@ -587,10 +587,10 @@ subroutine write_diis_weights(ncplx,idsx,ngroup,nkpts,itdiis,rds)
   !local variables
   integer :: j,igroup,ikpt
   character(len=2) :: mesupdw
-  if (verbose < 10) then
+  if (get_verbose_level() < 10) then
      !we restrict the printing to the first k point only.
      if (ngroup==1) then
-        if (verbose >0) then
+        if (get_verbose_level() >0) then
 !!$           write(*,'(1x,a,2x,18(1x,1pe9.2))')&
 !!$             'DIIS wgts:',reshape(rds(1:ncplx,1:itdiis+1,1,1),&
 !!$             (/ncplx*(itdiis+1)/))!,&
@@ -610,7 +610,7 @@ subroutine write_diis_weights(ncplx,idsx,ngroup,nkpts,itdiis,rds)
         end do
 !        write(70,'(a)')']'
         !'(',ttr,tti,')'
-     else if (verbose >0) then
+     else if (get_verbose_level() >0) then
         do igroup=1,ngroup
            if (igroup==1) mesupdw='up'
            if (igroup==2) mesupdw='dw'
@@ -618,7 +618,7 @@ subroutine write_diis_weights(ncplx,idsx,ngroup,nkpts,itdiis,rds)
                 (rds(1:ncplx,j,igroup,1),j=1,itdiis+1)
         end do
      end if
-  else if (verbose >0) then
+  else if (get_verbose_level() >0) then
      do ikpt = 1, nkpts
         if (ngroup==1) then
            write(*,'(1x,a,I3.3,a,2x,9(1x,(1pe9.2)))')'DIIS wgts (kpt #', ikpt, &

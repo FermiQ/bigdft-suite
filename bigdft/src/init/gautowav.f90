@@ -504,7 +504,7 @@ subroutine gaussians_to_wavelets(iproc,nproc,geocode,orbs,grid,hx,hy,hz,wfd,G,wf
 
   call gaudim_check(iexpo,icoeff,ishell,G%nexpo,G%ncoeff,G%nshltot)
 
-  if (iproc ==0  .and. verbose > 1) then
+  if (iproc ==0  .and. get_verbose_level() > 1) then
      call yaml_map('Wavelet conversion succeeded',.true.)
      !write(*,'(1x,a)')'done.'
   end if
@@ -612,7 +612,7 @@ subroutine gaussians_to_wavelets_new(iproc,nproc,Lzd,orbs,G,wfn_gau,psi)
   end do
 
 !  if (iproc ==0  .and. verbose > 1) write(*,'(1x,a)')'done.'
-  if (iproc ==0  .and. verbose > 1) then
+  if (iproc ==0  .and. get_verbose_level() > 1) then
      call yaml_map('Wavelet conversion succeeded',.true.)
      !write(*,'(1x,a)')'done.'
   end if
@@ -687,7 +687,7 @@ subroutine gaussians_to_wavelets_mask(ob,hgrids,G,wfn_gau,mask)
      tt=max(tt,abs(1.0_dp-totnorm))
   end do
 
-  if (bigdft_mpi%iproc ==0  .and. verbose > 1) then
+  if (bigdft_mpi%iproc ==0  .and. get_verbose_level() > 1) then
      call yaml_map('Wavelet conversion succeeded',.true.)
   end if
 
