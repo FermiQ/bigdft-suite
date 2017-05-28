@@ -462,7 +462,7 @@ module get_basis
               if (it==1 .or. energy_increased .or. .not.experimental_mode .or. complete_reset) then
                   ! Calculate S^1/2, as it can not be taken from memory
                   power(1)=2
-                  if (iproc==0) call yaml_warning('call overlapPowerGeneral')
+                  !if (iproc==0) call yaml_warning('call overlapPowerGeneral')
                   call overlapPowerGeneral(iproc, nproc,bigdft_mpi%mpi_comm,&
                        order_taylor, 1, power(1), -1, &
                        imode=1, ovrlp_smat=tmb%linmat%s, inv_ovrlp_smat=tmb%linmat%l, &
@@ -474,7 +474,7 @@ module get_basis
               end if
               !if (.not.energy_increased) then
               if (.not.recovered_old_kernel .and. .not.complete_reset) then
-                  if (iproc==0) call yaml_warning('call renormalize_kernel')
+                  !if (iproc==0) call yaml_warning('call renormalize_kernel')
                   call renormalize_kernel(iproc, nproc, order_taylor, max_inversion_error, tmb, tmb%linmat%ovrlp_, ovrlp_old)
               end if
           end if
@@ -699,7 +699,7 @@ module get_basis
           else
               can_use_ham=.true.
               recovered_old_kernel = .false.
-              if (iproc==0) call yaml_warning('set recovered_old_kernel to false')
+              !if (iproc==0) call yaml_warning('set recovered_old_kernel to false')
           end if 
     
     
