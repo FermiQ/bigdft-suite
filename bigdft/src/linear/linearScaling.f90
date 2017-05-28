@@ -14,9 +14,10 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
 
   use module_base
   use module_types
-  use module_interfaces, only: allocate_precond_arrays, deallocate_precond_arrays, &
-       & getLocalizedBasis, get_coeff, write_eigenvalues_data, &
+  use module_interfaces, only: write_eigenvalues_data, &
        & write_orbital_density,inputguessconfinement
+  use get_basis, only: getLocalizedBasis, allocate_precond_arrays, deallocate_precond_arrays
+  use get_kernel, only: get_coeff, calculate_gap_FOE, coeff_weight_analysis
   use yaml_output
   use module_fragments
   use constrained_dft
@@ -1504,7 +1505,7 @@ end if
     !! in a post-processing way.
     !SM: Must be cleaned up a lot!
     subroutine scf_kernel(nit_scc, remove_coupling_terms, update_phi)
-      use module_interfaces, only: get_coeff, write_eigenvalues_data
+      use module_interfaces, only: write_eigenvalues_data
        implicit none
 
        ! Calling arguments

@@ -537,10 +537,11 @@ module postprocessing_linear
                energy, energyDiff, energyold, ref_frags, frag_coeffs)
       use module_base
       use module_types
-      use module_interfaces, only: get_coeff, write_eigenvalues_data, write_orbital_density
+      use module_interfaces, only: write_eigenvalues_data, write_orbital_density
+      use get_kernel, only: get_coeff
       use communications_base, only: comms_cubic
       use communications_init, only: orbitals_communicators
-      use communications, only: transpose_v, untranspose_v
+      use communications, only: transpose_v, untranspose_v, communicate_basis_for_density_collective
       use sparsematrix_base, only: sparse_matrix, sparsematrix_malloc, assignment(=), SPARSE_FULL
       use sparsematrix, only: gather_matrix_from_taskgroups_inplace, extract_taskgroup_inplace
       use yaml_output

@@ -16,9 +16,10 @@ subroutine inputguessConfinement(iproc, nproc, at, input, hx, hy, hz, &
      rxyz, nlpsp, GPU, orbs, kswfn, tmb, denspot, rhopotold, energs, &
      locregcenters)
   use module_base
-  use module_interfaces, only: allocate_precond_arrays, deallocate_precond_arrays, &
-       & getLocalizedBasis, get_coeff, inputguess_gaussian_orbitals, &
+  use module_interfaces, only: inputguess_gaussian_orbitals, &
        & write_eigenvalues_data
+  use get_basis, only: getLocalizedBasis, allocate_precond_arrays, deallocate_precond_arrays
+  use get_kernel, only: get_coeff
   use io, only: write_energies
   use module_types
   use gaussians, only: gaussian_basis, deallocate_gwf, nullify_gaussian_basis
@@ -30,6 +31,7 @@ subroutine inputguessConfinement(iproc, nproc, at, input, hx, hy, hz, &
   use sparsematrix, only: gather_matrix_from_taskgroups_inplace, extract_taskgroup_inplace
   use communications_base, only: work_transpose, &
                                  work_transpose_null, allocate_work_transpose, deallocate_work_transpose
+  use communications, only: communicate_basis_for_density_collective
   use rhopotential, only: updatePotential, sumrho_for_TMBs, corrections_for_negative_charge
   use public_enums
   use ao_inguess, only: aoig_data, aoig_data_null, aoig_set

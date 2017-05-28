@@ -1076,10 +1076,11 @@ subroutine input_memory_linear(iproc, nproc, at, KSwfn, tmb, tmb_old, denspot, i
   use module_base
   use module_types
   use module_interfaces, only: inputguessConfinement, reformat_supportfunctions
+  use get_kernel, only: reconstruct_kernel, renormalize_kernel
   use module_fragments
   use yaml_output
   use communications_base, only: deallocate_comms_linear, TRANSPOSE_FULL
-  use communications, only: transpose_localized, untranspose_localized
+  use communications, only: transpose_localized, untranspose_localized, communicate_basis_for_density_collective
   use constrained_dft
   use sparsematrix_base, only: sparsematrix_malloc, sparsematrix_malloc_ptr, DENSE_PARALLEL, SPARSE_FULL, &
                                assignment(=), deallocate_sparse_matrix, deallocate_matrices, DENSE_FULL, &
@@ -2444,9 +2445,11 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
      locregcenters)
   use module_base
   use module_types
-  use module_interfaces, only: get_coeff, inputguessConfinement, &
+  use get_kernel, only: reconstruct_kernel, reorthonormalize_coeff
+  use module_interfaces, only: inputguessConfinement, &
        & read_gaussian_information, readmywaves_linear_new, &
        & restart_from_gaussians, sumrho, write_orbital_density
+  use get_kernel, only: get_coeff
   use module_fragments
   use constrained_dft
   use dynamic_memory
@@ -2457,7 +2460,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
                                sparsematrix_malloc_ptr, DENSE_FULL, SPARSE_TASKGROUP
   use sparsematrix, only: uncompress_matrix2, compress_matrix
   use communications_base, only: TRANSPOSE_FULL
-  use communications, only: transpose_localized, untranspose_localized
+  use communications, only: transpose_localized, untranspose_localized, communicate_basis_for_density_collective
   use psp_projectors_base, only: free_DFT_PSP_projectors
   use sparsematrix, only: gather_matrix_from_taskgroups_inplace, extract_taskgroup_inplace
   use transposed_operations, only: normalize_transposed, calculate_overlap_transposed
