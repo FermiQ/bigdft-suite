@@ -162,7 +162,7 @@ program driver_foe
       nit = options//'nit'
       betax = options//'betax'
       inversion_method = options//'inversion_method'
-      pexsi_nproc_per_pole = options//'nproc_per_pole'
+      pexsi_nproc_per_pole = options//'pexsi_nproc_per_pole'
       pexsi_do_inertia_count = options//'pexsi_do_inertia_count'
       pexsi_max_iter = options//'pexsi_max_iter'
       pexsi_verbosity = options//'pexsi_verbosity'

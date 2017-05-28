@@ -659,7 +659,7 @@ module get_basis
                   call yaml_map('Recovering old support functions and kernel',.true.)
               end if
               recovered_old_kernel = .true.
-              if (iproc==0) call yaml_warning('set recovered_old_kernel to true')
+              !if (iproc==0) call yaml_warning('set recovered_old_kernel to true')
     
     
               ! Recalculate the matrix powers
