@@ -479,6 +479,7 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
                      input%cp%pexsi%pexsi_mumin,input%cp%pexsi%pexsi_mumax,input%cp%pexsi%pexsi_mu,input%cp%pexsi%pexsi_DeltaE, &
                      input%cp%pexsi%pexsi_temperature,input%cp%pexsi%pexsi_tol_charge,input%cp%pexsi%pexsi_np_sym_fact, &
                      input%cp%pexsi%pexsi_do_inertia_count, input%cp%pexsi%pexsi_max_iter, &
+                     input%cp%pexsi%pexsi_verbosity, &
                      convcrit_dmin,nitdmin,input%lin%curvefit_dmin,ldiis_coeff, &
                      hphi_pspandkin=hphi_pspandkin,eproj=eproj,ekin=ekin)
                 !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%l, tmb%linmat%kernel_)
@@ -985,7 +986,8 @@ end if
            input%cp%pexsi%pexsi_npoles,input%cp%pexsi%pexsi_nproc_per_pole,input%cp%pexsi%pexsi_mumin,&
            input%cp%pexsi%pexsi_mumax,input%cp%pexsi%pexsi_mu,input%cp%pexsi%pexsi_DeltaE, &
            input%cp%pexsi%pexsi_temperature,input%cp%pexsi%pexsi_tol_charge,input%cp%pexsi%pexsi_np_sym_fact, &
-           input%cp%pexsi%pexsi_do_inertia_count, input%cp%pexsi%pexsi_max_iter)
+           input%cp%pexsi%pexsi_do_inertia_count, input%cp%pexsi%pexsi_max_iter, &
+           input%cp%pexsi%pexsi_verbosity)
        !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%l, tmb%linmat%kernel_)
 
        !!if (input%lin%scf_mode==LINEAR_FOE) then
@@ -1574,6 +1576,7 @@ end if
                          input%cp%pexsi%pexsi_mumin,input%cp%pexsi%pexsi_mumax,input%cp%pexsi%pexsi_mu,input%cp%pexsi%pexsi_DeltaE,&
                          input%cp%pexsi%pexsi_temperature,input%cp%pexsi%pexsi_tol_charge,input%cp%pexsi%pexsi_np_sym_fact, &
                          input%cp%pexsi%pexsi_do_inertia_count, input%cp%pexsi%pexsi_max_iter, &
+                         input%cp%pexsi%pexsi_verbosity, &
                          convcrit_dmin,nitdmin,input%lin%curvefit_dmin,ldiis_coeff,reorder,cdft, &
                          hphi_pspandkin=hphi_pspandkin,eproj=eproj,ekin=ekin)
                     call get_lagrange_mult(cdft_it,vgrad)
@@ -1597,6 +1600,7 @@ end if
                       input%cp%pexsi%pexsi_mumax,input%cp%pexsi%pexsi_mu,input%cp%pexsi%pexsi_DeltaE,&
                       input%cp%pexsi%pexsi_temperature,input%cp%pexsi%pexsi_tol_charge,input%cp%pexsi%pexsi_np_sym_fact,&
                       input%cp%pexsi%pexsi_do_inertia_count, input%cp%pexsi%pexsi_max_iter, &
+                      input%cp%pexsi%pexsi_verbosity, &
                       convcrit_dmin,nitdmin,input%lin%curvefit_dmin,ldiis_coeff,reorder, &
                       hphi_pspandkin=hphi_pspandkin,eproj=eproj,ekin=ekin)
                end if
@@ -1634,6 +1638,7 @@ end if
                          input%cp%pexsi%pexsi_mumin,input%cp%pexsi%pexsi_mumax,input%cp%pexsi%pexsi_mu,input%cp%pexsi%pexsi_DeltaE,&
                          input%cp%pexsi%pexsi_temperature,input%cp%pexsi%pexsi_tol_charge,input%cp%pexsi%pexsi_np_sym_fact,&
                          input%cp%pexsi%pexsi_do_inertia_count, input%cp%pexsi%pexsi_max_iter, &
+                         input%cp%pexsi%pexsi_verbosity, &
                          convcrit_dmin,nitdmin,input%lin%curvefit_dmin,ldiis_coeff,reorder,cdft, &
                          hphi_pspandkin=hphi_pspandkin,eproj=eproj,ekin=ekin)
                     call get_lagrange_mult(cdft_it,vgrad)
@@ -1657,6 +1662,7 @@ end if
                       input%cp%pexsi%pexsi_mumax,input%cp%pexsi%pexsi_mu,input%cp%pexsi%pexsi_DeltaE,&
                       input%cp%pexsi%pexsi_temperature,input%cp%pexsi%pexsi_tol_charge,input%cp%pexsi%pexsi_np_sym_fact,&
                       input%cp%pexsi%pexsi_do_inertia_count, input%cp%pexsi%pexsi_max_iter, &
+                      input%cp%pexsi%pexsi_verbosity, &
                       convcrit_dmin,nitdmin,input%lin%curvefit_dmin,ldiis_coeff,reorder, &
                       hphi_pspandkin=hphi_pspandkin,eproj=eproj,ekin=ekin)
               end if

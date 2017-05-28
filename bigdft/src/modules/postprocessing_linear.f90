@@ -627,7 +627,8 @@ module postprocessing_linear
               input%tel, input%occopt, input%cp%pexsi%pexsi_npoles, input%cp%pexsi%pexsi_nproc_per_pole, &
               input%cp%pexsi%pexsi_mumin, input%cp%pexsi%pexsi_mumax, input%cp%pexsi%pexsi_mu, input%cp%pexsi%pexsi_DeltaE, &
               input%cp%pexsi%pexsi_temperature, input%cp%pexsi%pexsi_tol_charge, input%cp%pexsi%pexsi_np_sym_fact, &
-              input%cp%pexsi%pexsi_do_inertia_count, input%cp%pexsi%pexsi_max_iter)
+              input%cp%pexsi%pexsi_do_inertia_count, input%cp%pexsi%pexsi_max_iter, &
+              input%cp%pexsi%pexsi_verbosity)
          !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%l, tmb%linmat%kernel_)
     
          if (bigdft_mpi%iproc ==0) then
@@ -793,7 +794,7 @@ module postprocessing_linear
            input%cp%pexsi%pexsi_mumin, input%cp%pexsi%pexsi_mumax, input%cp%pexsi%pexsi_mu, input%cp%pexsi%pexsi_DeltaE, &
            input%cp%pexsi%pexsi_temperature, input%cp%pexsi%pexsi_tol_charge, &
            input%cp%pexsi%pexsi_np_sym_fact, input%cp%pexsi%pexsi_do_inertia_count, input%cp%pexsi%pexsi_max_iter, &
-           updatekernel=.false.)
+           input%cp%pexsi%pexsi_verbosity, updatekernel=.false.)
       !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%l, tmb%linmat%kernel_)
       energy=energs%ebs-energs%eh+energs%exc-energs%evxc-energs%eexctX+energs%eion+energs%edisp
       energyDiff=energy-energyold

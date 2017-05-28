@@ -981,7 +981,8 @@ subroutine inputguessConfinement(iproc, nproc, at, input, hx, hy, hz, &
            input%cp%pexsi%pexsi_npoles,input%cp%pexsi%pexsi_nproc_per_pole,input%cp%pexsi%pexsi_mumin,&
            input%cp%pexsi%pexsi_mumax,input%cp%pexsi%pexsi_mu,input%cp%pexsi%pexsi_DeltaE,&
            input%cp%pexsi%pexsi_temperature,input%cp%pexsi%pexsi_tol_charge,input%cp%pexsi%pexsi_np_sym_fact, &
-           input%cp%pexsi%pexsi_do_inertia_count, input%cp%pexsi%pexsi_max_iter)
+           input%cp%pexsi%pexsi_do_inertia_count, input%cp%pexsi%pexsi_max_iter, &
+           input%cp%pexsi%pexsi_verbosity)
   else
       call get_coeff(iproc,nproc,LINEAR_MIXDENS_SIMPLE,orbs,at,rxyz,denspot,GPU,infoCoeff,energs,nlpsp,&
            input%SIC,tmb,fnrm,.true.,.true.,.true.,.false.,.true.,0,0,0,0,order_taylor,input%lin%max_inversion_error,&
@@ -990,7 +991,8 @@ subroutine inputguessConfinement(iproc, nproc, at, input, hx, hy, hz, &
            input%cp%pexsi%pexsi_npoles,input%cp%pexsi%pexsi_nproc_per_pole,input%cp%pexsi%pexsi_mumin,&
            input%cp%pexsi%pexsi_mumax,input%cp%pexsi%pexsi_mu,input%cp%pexsi%pexsi_DeltaE, &
            input%cp%pexsi%pexsi_temperature,input%cp%pexsi%pexsi_tol_charge,input%cp%pexsi%pexsi_np_sym_fact, &
-           input%cp%pexsi%pexsi_do_inertia_count, input%cp%pexsi%pexsi_max_iter)
+           input%cp%pexsi%pexsi_do_inertia_count, input%cp%pexsi%pexsi_max_iter, &
+           input%cp%pexsi%pexsi_verbosity)
 
       !call vcopy(kswfn%orbs%norb,tmb%orbs%eval(1),1,kswfn%orbs%eval(1),1)
       ! Keep the ocupations for the moment.. maybe to be activated later (with a better if statement)

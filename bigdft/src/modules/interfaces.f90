@@ -873,7 +873,7 @@ module module_interfaces
         calculate_KS_residue,calculate_gap,energs_work,remove_coupling_terms,factor,tel,occopt,&
         pexsi_npoles,pexsi_nproc_per_pole,pexsi_mumin,pexsi_mumax,pexsi_mu,&
         pexsi_DeltaE,pexsi_temperature, pexsi_tol_charge, pexsi_np_sym_fact,&
-        pexsi_do_inertia_count, pexsi_max_iter, &
+        pexsi_do_inertia_count, pexsi_max_iter, pexsi_verbosity, &
         convcrit_dmin,nitdmin,curvefit_dmin,ldiis_coeff,reorder,cdft, updatekernel,hphi_pspandkin,eproj,ekin)
       use module_defs, only: gp,dp,wp
       use module_types
@@ -902,7 +902,7 @@ module module_interfaces
       type(work_mpiaccumulate),intent(inout) :: energs_work
       logical,intent(in) :: remove_coupling_terms
       real(kind=8), intent(in) :: factor, tel
-      integer,intent(in) :: pexsi_npoles, pexsi_nproc_per_pole, pexsi_np_sym_fact, pexsi_max_iter
+      integer,intent(in) :: pexsi_npoles, pexsi_nproc_per_pole, pexsi_np_sym_fact, pexsi_max_iter, pexsi_verbosity
       logical,intent(in) :: pexsi_do_inertia_count
       real(kind=8),intent(in) :: pexsi_mumin,pexsi_mumax,pexsi_mu,pexsi_DeltaE,pexsi_temperature, pexsi_tol_charge
       type(DIIS_obj),intent(inout),optional :: ldiis_coeff ! for dmin only

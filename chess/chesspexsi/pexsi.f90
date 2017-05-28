@@ -52,7 +52,7 @@ module pexsi
       !> @date 2014-04-02
       subroutine pexsi_driver(iproc, nproc, comm, nfvctr, nvctr, row_ind, col_ptr, &
                  mat_h, mat_s, charge, npoles, nproc_per_pole_input, mumin, mumax, mu, &
-                 DeltaE, temperature, tol_charge, np_sym_fact, do_inertia_count, max_iter, &
+                 DeltaE, temperature, tol_charge, np_sym_fact, do_inertia_count, max_iter, verbosity, &
                  kernel, energy, energy_kernel)
       !use module_base
       use pexsi_base, only: f_ppexsi_options
@@ -79,7 +79,7 @@ module pexsi
       integer,dimension(nfvctr),intent(in) :: col_ptr !< col_ptr from the CCS format
       real(kind=8),dimension(nvctr),intent(in) :: mat_h, mat_s
       real(kind=8),intent(in) :: charge
-      integer,intent(in) :: npoles, max_iter
+      integer,intent(in) :: npoles, max_iter, verbosity
       logical,intent(in) :: do_inertia_count
       integer,intent(in) :: nproc_per_pole_input !< number of processors per pole
       real(kind=8),intent(in) :: mumin, mumax, mu, DeltaE, temperature, tol_charge
@@ -291,6 +291,7 @@ module pexsi
           options%npSymbFact = int(np_sym_fact,kind=c_int)
           options%isInertiaCount = do_inertia_count
           options%maxPEXSIIter = int(max_iter,kind=c_int)
+          options%verbosity = int(verbosity,kind=c_int)
 
           if (iproc==0) then
               call yaml_mapping_open('PEXSI parameters')
@@ -571,7 +572,7 @@ module pexsi
 
     subroutine pexsi_wrapper(iproc, nproc, comm, smats, smatm, smatl, ovrlp, ham, &
                charge, npoles, nproc_per_pole, mumin, mumax, mu, DeltaE, temperature, tol_charge, np_sym_fact, &
-               do_inertia_count, max_iter, &
+               do_inertia_count, max_iter, verbosity, &
                kernel, ebs, energy_kernel)
       use futile
       use sparsematrix_base
@@ -583,7 +584,7 @@ module pexsi
       integer,intent(in) :: iproc, nproc, comm
       type(sparse_matrix),intent(in) :: smats, smatm, smatl
       type(matrices),intent(in) :: ovrlp, ham
-      integer,intent(in) :: npoles, nproc_per_pole, np_sym_fact, max_iter
+      integer,intent(in) :: npoles, nproc_per_pole, np_sym_fact, max_iter, verbosity
       logical,intent(in) :: do_inertia_count
       real(kind=8),intent(in) :: charge, mumin, mumax, mu, DeltaE, temperature, tol_charge
       type(matrices),intent(out) :: kernel
@@ -616,12 +617,12 @@ module pexsi
       if (present(energy_kernel)) then
           call pexsi_driver(iproc, nproc, comm, smatl%nfvctr, smatl%nvctr, row_ind, col_ptr, &
                ham_large, ovrlp_large, charge, npoles, nproc_per_pole, &
-               mumin, mumax, mu, DeltaE, temperature, tol_charge, np_sym_fact, do_inertia_count, max_iter, &
+               mumin, mumax, mu, DeltaE, temperature, tol_charge, np_sym_fact, do_inertia_count, max_iter, verbosity,  &
                kernel%matrix_compr, ebs, energy_kernel%matrix_compr)
       else
           call pexsi_driver(iproc, nproc, comm, smatl%nfvctr, smatl%nvctr, row_ind, col_ptr, &
                ham_large, ovrlp_large, charge, npoles, nproc_per_pole, &
-               mumin, mumax, mu, DeltaE, temperature, tol_charge, np_sym_fact, do_inertia_count, max_iter, &
+               mumin, mumax, mu, DeltaE, temperature, tol_charge, np_sym_fact, do_inertia_count, max_iter, verbosity, &
                kernel%matrix_compr, ebs)
       end if
     

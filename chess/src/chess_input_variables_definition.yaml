@@ -156,3 +156,11 @@
      DESCRIPTION: Maximal number of PEXSI iterations
      default: 10
      RANGE: [1,100]
+   pexsi_verbosity:
+     COMMENT: Verbosity level of the PEXSI solver
+     DESCRIPTION: Verbosity level of the PEXSI solver
+     default: 0
+     EXCLUSIVE: 
+       0: minimal output
+       1: standard output
+       2: detailed output

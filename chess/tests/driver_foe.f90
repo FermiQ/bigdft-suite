@@ -53,7 +53,7 @@ program driver_foe
   type(sparse_matrix_metadata) :: smmd
   integer :: nfvctr, nvctr, ierr, iproc, nproc, nthread, ncharge, nfvctr_mult, nvctr_mult, scalapack_blocksize, icheck, it, nit
   integer :: ispin, ihomo, imax, ntemp, npl_max, pexsi_npoles, norbu, norbd, ii, info, norbp, isorb, norb, iorb, pexsi_np_sym_fact
-  integer :: pexsi_nproc_per_pole, pexsi_max_iter
+  integer :: pexsi_nproc_per_pole, pexsi_max_iter, pexsi_verbosity
   real(mp) :: pexsi_mumin, pexsi_mumax, pexsi_mu, pexsi_DeltaE, pexsi_temperature, pexsi_tol_charge, betax
   integer,dimension(:),pointer :: row_ind, col_ptr, row_ind_mult, col_ptr_mult
   real(mp),dimension(:),pointer :: kernel, overlap, overlap_large
@@ -165,6 +165,7 @@ program driver_foe
       pexsi_nproc_per_pole = options//'nproc_per_pole'
       pexsi_do_inertia_count = options//'pexsi_do_inertia_count'
       pexsi_max_iter = options//'pexsi_max_iter'
+      pexsi_verbosity = options//'pexsi_verbosity'
      
       call dict_free(options)
 
@@ -199,6 +200,7 @@ program driver_foe
       call yaml_map('PEXSI number of procs for symbolic factorization',pexsi_np_sym_fact)
       call yaml_map('PEXSI do inertia count',pexsi_do_inertia_count)
       call yaml_map('PEXSI max number of iterations',pexsi_max_iter)
+      call yaml_map('PEXSI vernosity level',pexsi_verbosity)
       call yaml_map('Do a check with cubic scaling (Sca)LAPACK',do_cubic_check)
       call yaml_map('Accuracy of Chebyshev fit for FOE',accuracy_foe)
       call yaml_map('Accuracy of Chebyshev fit for ICE',accuracy_ice)
@@ -237,6 +239,7 @@ program driver_foe
   call mpibcast(pexsi_tol_charge, root=0, comm=mpi_comm_world)
   call mpibcast(pexsi_np_sym_fact, root=0, comm=mpi_comm_world)
   call mpibcast(pexsi_max_iter, root=0, comm=mpi_comm_world)
+  call mpibcast(pexsi_verbosity, root=0, comm=mpi_comm_world)
   call mpibcast(accuracy_foe, root=0, comm=mpi_comm_world)
   call mpibcast(accuracy_ice, root=0, comm=mpi_comm_world)
   call mpibcast(accuracy_penalty, root=0, comm=mpi_comm_world)
@@ -452,6 +455,7 @@ program driver_foe
                foe_data_get_real(foe_obj(it),"charge",1), pexsi_npoles, pexsi_nproc_per_pole, &
                pexsi_mumin, pexsi_mumax, pexsi_mu, pexsi_DeltaE, &
                pexsi_temperature, pexsi_tol_charge, pexsi_np_sym_fact, &
+               pexsi_do_inertia_count, pexsi_max_iter, pexsi_verbosity, &
                mat_k, energy, mat_ek)
       else if (trim(kernel_method)=='LAPACK') then
           norbu = smat_h%nfvctr
@@ -902,6 +906,13 @@ subroutine commandline_options(parser)
        'Indicate the maximal number of PEXSI iterations',&
        help_dict=dict_new('Usage' .is. &
        'Indicate the maximal number of PEXSI iterations',&
+       'Allowed values' .is. &
+       'Integer'))
+
+  call yaml_cl_parse_option(parser,'pexsi_verbosity','1',&
+       'Indicate the verbosity level of the PEXSI solver',&
+       help_dict=dict_new('Usage' .is. &
+       'Indicate the verbosity level of the PEXSI solver',&
        'Allowed values' .is. &
        'Integer'))
 

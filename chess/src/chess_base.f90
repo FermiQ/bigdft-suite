@@ -64,8 +64,9 @@ module chess_base
     real(mp) :: pexsi_tol_charge
     integer :: pexsi_np_sym_fact
     real(mp) :: pexsi_DeltaE
-    integer :: pexsi_max_iter
     logical :: pexsi_do_inertia_count
+    integer :: pexsi_max_iter
+    integer :: pexsi_verbosity
   end type pexsi_params
 
   !> Public types
@@ -103,6 +104,7 @@ module chess_base
   character(len=*),parameter :: PEXSI_NP_SYM_FACT      = "pexsi_np_sym_fact"
   character(len=*),parameter :: PEXSI_DELTAE           = "pexsi_DeltaE"
   character(len=*),parameter :: PEXSI_MAX_ITER         = "pexsi_max_iter"
+  character(len=*),parameter :: PEXSI_VERBOSITY        = "pexsi_verbosity"
   character(len=*),parameter :: PEXSI_DO_INERTIA_COUNT = "pexsi_do_inertia_count"
   character(len=*),parameter :: ACCURACY_FOE           = "accuracy_foe"
   character(len=*),parameter :: ACCURACY_ICE           = "accuracy_ice"
@@ -161,8 +163,9 @@ module chess_base
       pp%pexsi_tol_charge = 0.0_mp
       pp%pexsi_np_sym_fact = 0
       pp%pexsi_DeltaE = 0.0_mp
-      pp%pexsi_max_iter = 0
       pp%pexsi_do_inertia_count = .false.
+      pp%pexsi_max_iter = 0
+      pp%pexsi_verbosity = 0
     end function pexsi_params_null
 
 
@@ -344,10 +347,12 @@ module chess_base
               cp%pexsi%pexsi_np_sym_fact = val
           case(PEXSI_DELTAE)
               cp%pexsi%pexsi_DeltaE = val
-          case(PEXSI_MAX_ITER)
-              cp%pexsi%pexsi_max_iter = val
           case(PEXSI_DO_INERTIA_COUNT)
               cp%pexsi%pexsi_do_inertia_count = val
+          case(PEXSI_MAX_ITER)
+              cp%pexsi%pexsi_max_iter = val
+          case(PEXSI_VERBOSITY)
+              cp%pexsi%pexsi_verbosity = val
           case default
               call yaml_warning("unknown input key '" // trim(level) // "/" // trim(dict_key(val)) // "'")
           end select
