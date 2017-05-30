@@ -82,6 +82,7 @@ subroutine spatially_resolved_dos(ob,hpsi,output_dir)
 
 end subroutine spatially_resolved_dos
 
+!> write the real part of the spatially resolved density of states in the arrays epsx,y,z
 subroutine calculate_sdos(nspinor,boxit,psi,hpsi,epsx,epsy,epsz)
   use box
   use module_defs
@@ -105,6 +106,7 @@ subroutine calculate_sdos(nspinor,boxit,psi,hpsi,epsx,epsy,epsz)
      do while(box_next_y(boxit))
         do while(box_next_x(boxit))
            tt=psi(boxit%ind,1)*hpsi(boxit%ind,1)
+           if (nspinor==2) tt=tt+psi(boxit%ind,2)*hpsi(boxit%ind,2)
            epsz(boxit%k)=epsz(boxit%k)+tt
            epsy(boxit%j)=epsy(boxit%j)+tt
            epsx(boxit%i)=epsx(boxit%i)+tt
@@ -139,14 +141,15 @@ subroutine write_sdos(bit,norbp,norb,epsx,epsy,epsz,output_dir)
 
   unt=82
   if (bigdft_mpi%iproc==0) then
+     call yaml_sequence_open('SDos files',advance='no')
+     call yaml_comment('Domain directions resolutions (a,b,c)')
      call f_open_file(unt,output_dir//'sdos_x.dat')
      do while(box_next_x(bit))
         write(unt,'(1pg26.16e3)',advance='no')bit%rxyz(1)
         call dump_sdos_line(unt,bit%i,bit%mesh%ndims(1),norb,epsx_tot)
      end do
      call f_close(unt)
-     call yaml_map('Spatially resolved among x, file',&
-          output_dir//'sdos_x.dat')
+     call yaml_sequence(output_dir//'sdos_x.dat')
 
      call f_open_file(unt,output_dir//'sdos_y.dat')
      do while(box_next_y(bit))
@@ -154,8 +157,7 @@ subroutine write_sdos(bit,norbp,norb,epsx,epsy,epsz,output_dir)
         call dump_sdos_line(unt,bit%j,bit%mesh%ndims(2),norb,epsy_tot)
      end do
      call f_close(unt)
-     call yaml_map('Spatially resolved among y, file',&
-          output_dir//'sdos_y.dat')
+     call yaml_sequence(output_dir//'sdos_y.dat')
 
      call f_open_file(unt,output_dir//'sdos_z.dat')
      do while(box_next_z(bit))
@@ -163,8 +165,9 @@ subroutine write_sdos(bit,norbp,norb,epsx,epsy,epsz,output_dir)
         call dump_sdos_line(unt,bit%k,bit%mesh%ndims(3),norb,epsz_tot)
      end do
      call f_close(unt)
-     call yaml_map('Spatially resolved among z, file',&
-          output_dir//'sdos_z.dat')
+     call yaml_sequence(output_dir//'sdos_z.dat')
+     
+     call yaml_sequence_close()
 
   end if
 

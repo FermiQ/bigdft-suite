@@ -38,6 +38,7 @@ BUILTIN={
                       PRINT: "Total magnetization of the system"},
     'support_functions': {PATH: [["Gross support functions moments",'Multipole coefficients','values']]},
     'electrostatic_multipoles': {PATH: [['Multipole coefficients','values']]},
+    'sdos': {PATH: [['SDos files']], GLOBAL: True},
     'symmetry': {PATH: [ ['Atomic System Properties','Space group']], 
                  PRINT: "Symmetry group", GLOBAL: True}}
 
@@ -215,7 +216,7 @@ class Logfile():
         dictionary=kwargs.get("dictionary")
         if arch:
             #An archive is detected
-            import tarfile
+            import tarfile,os
             from futile import Yaml
             tar = tarfile.open(arch)
             members = [ tar.getmember(member) ] if member else tar.getmembers()
@@ -224,15 +225,20 @@ class Logfile():
                 f = tar.extractfile(memb)
                 dicts.append(Yaml.load(stream=f.read()))
                 #dicts[-1]['label'] = memb.name #Add the label (name of the file)
+            srcdir=os.path.dirname(arch)
         elif dictionary:
             #Read the dictionary or a list of dictionaries or from a generator
             dicts = dictionary if isinstance(dictionary,list) else [d for d in dictionary]
+            srcdir=''
         elif args:
+            import os
             #Read the list of files (member replaces load_only...)
             dicts=get_logs(args,select_document=member)
             label = label if label else args[0]
+            srcdir=os.path.dirname(args[0])
         #Set the label
         self.label=label
+        self.srcdir=os.path.abspath('.' if srcdir == '' else srcdir)
         if not dicts:
             raise ValueError("No log information provided.")
         #Initialize the logfile with the first document
@@ -300,6 +306,45 @@ class Logfile():
         if not hasattr(self,'fermi_level') and hasattr(self,'evals'):
             import numpy
             self.fermi_level=float(max(numpy.ravel(self.evals)))
+        if hasattr(self,'sdos'):
+            import os
+            #load the different sdos files
+            sd=[]
+            for f in self.sdos:
+                try:
+                    data=numpy.loadtxt(os.path.join(self.srcdir,f))
+                except:
+                    data=None
+                if data is not None:
+                    xs=[]
+                    ba=[]
+                    for line in data:
+                        xs.append(line[0])
+                        ba.append(self._sdos_line_to_orbitals(line))
+                    sd.append({'coord':xs,'dos':ba})
+                else:
+                    sd.append(None)
+            self.sdos=sd
+    #
+    def _sdos_line_to_orbitals(self,sorbs):
+        import BZ
+        evals=[]
+        iorb=1
+        #renorm=len(xs)
+        #iterate on k-points
+        kpts=self.kpts if hasattr(self,'kpts') else [{'Rc':[0.0,0.0,0.0],'Wgt':1.0}]
+        for i,kp in enumerate(kpts):
+            ev=[]
+            #iterate on the subspaces of the kpoint
+            for ispin,norb in enumerate(self.evals[0].info):
+                for iorbk in range(norb):
+                    #renorm postponed
+                    ev.append({'e':sorbs[iorb+iorbk],'s':1-2*ispin,'k':i+1})
+                    #ev.append({'e':np.sum([ so[iorb+iorbk] for so in sd]),'s':1-2*ispin,'k':i+1})
+                iorb+=norb
+            evals.append(BZ.BandArray(ev,ikpt=i+1,kpt=kp['Rc'],kwgt=kp['Wgt']))
+        return evals
+	
     #
     def _get_bz(self,ev,kpts):
         """Get the Brillouin Zone."""
@@ -312,7 +357,6 @@ class Logfile():
     def get_dos(self,label=None,npts=2500):
         """Get the density of states from the logfile."""
         import DoS
-        reload(DoS)
         lbl=self.label if label is None else label
         return DoS.DoS(bandarrays=self.evals,label=lbl,units='AU',fermi_level=self.fermi_level,npts=npts)
     #

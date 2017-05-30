@@ -29,24 +29,33 @@ class BandArray(numpy.ndarray):
     """Defines the array of data for one band. It is a dictionary which contains a numpy array for both spin channels."""
     def __new__(cls,*args,**kwargs): #logdata,ikpt=0,kpt=(0.0,0.0,0.0):
         "Takes the data from the logfile and convert it"
-        evs=[[],[]]
-        logdata=kwargs.get("logdata", args[0])
-        ikpt=kwargs.get("ikpt", 1 if len(args) < 2 else args[1])
-        for ev in logdata:
-            occ=get_ev(ev,['e_occ','e_occupied'],ikpt=ikpt)
-            vrt=get_ev(ev,['e_vrt','e_virt'],ikpt=ikpt)
-            eigen=occ or vrt
-            if not eigen: eigen=get_ev(ev,ikpt=ikpt)
-            if not eigen: continue
-            for i,e in enumerate(eigen):
-                if e: evs[i].append(e)
-        #here we can create the numpy array
-        #data=numpy.full((2 if len(evs[1])>0 else 1, max(map(len,evs))), numpy.nan)
-        data=numpy.ndarray.__new__(cls,shape=(2 if len(evs[1])>0 else 1, max(map(len,evs))),dtype=numpy.float)
+        datain=kwargs.get("data", None)
+        if datain is not None:
+            evs=datain
+            shape0=len(evs)
+            norbs=(map(len,evs))
+            if len(norbs)==1: norbs=[norbs[0],0]
+        else:
+            evs=[[],[]]
+            logdata=kwargs.get("logdata", args[0])
+            ikpt=kwargs.get("ikpt", 1 if len(args) < 2 else args[1])
+            for ev in logdata:
+                occ=get_ev(ev,['e_occ','e_occupied'],ikpt=ikpt)
+                vrt=get_ev(ev,['e_vrt','e_virt'],ikpt=ikpt)
+                eigen=occ or vrt
+                if not eigen: eigen=get_ev(ev,ikpt=ikpt)
+                if not eigen: continue
+                for i,e in enumerate(eigen):
+                    if e: evs[i].append(e)
+            shape0=2 if len(evs[1])>0 else 1
+            norbs=(map(len,evs))
+        data=numpy.ndarray.__new__(cls,shape=(shape0, max(norbs)),
+                                   dtype=numpy.float)
         data.fill(numpy.nan)
         data[0,:len(evs[0])]=evs[0]
-        if len(evs[1])>0: data[1,:len(evs[1])]=evs[1]
-        data.info=(map(len,evs))
+        if norbs[1]>0: 
+            data[1,:len(evs[1])]=evs[1]
+        data.info=norbs #(map(len,evs))
         return data
     def __init__(self,*args,**kwargs):
         ikpt=kwargs.get("ikpt", 1 if len(args) < 2 else args[1])
@@ -59,7 +68,13 @@ class BandArray(numpy.ndarray):
         self.ikpt=ikpt
         self.kpt=kpt
         self.kwgt=kwgt
-
+    def __add__(self,b):
+        if hasattr(b,'kpt') and (b.kpt != self.kpt): 
+            raise ValueError, 'cannot sum BandArray with different kpoints'
+        if hasattr(b,'kwgt') and (b.kwgt != self.kwgt): 
+            raise ValueError, 'cannot sum BandArray with different kweights'
+        c=super(type(self),self).__add__(b)
+        return BandArray(data=c,ikpt=self.ikpt,kpt=self.kpt,kwgt=self.kwgt)
 
 class BZPath():
     """Defines a set of points which are associated to a path in the reduced Brillouin Zone."""
