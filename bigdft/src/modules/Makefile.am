@@ -272,7 +272,7 @@ transposed_operations.o: types.o bigdft_matrices.o
 module_forces.o: types.o 
 unitary_tests.o: types.o interfaces.o communications_init.o communications.o transposed_operations.o rhopotential.o
 io.o: types.o interfaces.o input_keys.o
-postprocessing_linear.o: types.o interfaces.o communications.o transposed_operations.o rhopotential.o sort.o communications_init.o locregs_init.o multipole_base.o multipole.o io.o
+postprocessing_linear.o: types.o interfaces.o communications.o transposed_operations.o rhopotential.o sort.o communications_init.o locregs_init.o multipole_base.o multipole.o io.o get_kernel.o
 rhopotential.o: types.o interfaces.o communications.o bigdft_matrices.o
 multipole.o: multipole_base.o interfaces.o orthonormalization.o io.o orbital_basis.o
 orbital_basis.o:  types.o interfaces.o communications.o
@@ -282,7 +282,7 @@ forces_linear.o: types.o psp_projectors.o transposed_operations.o
 sw_potential.o: atoms_data.o
 bigdft_matrices.o: types.o sparsematrix_wrappers.o
 get_basis.o: types.o interfaces.o communications.o rhopotential.o constrained_dft.o fragment_base.o fragments.o transposed_operations.o locregs_init.o get_kernel.o
-get_kernel.o: types.o interfaces.o diis_module.o communications.o constrained_dft.o rhopotential.o transposed_operations.o locregs_init.o
+get_kernel.o: types.o interfaces.o diis_module.o communications.o constrained_dft.o rhopotential.o transposed_operations.o locregs_init.o orthonormalization.o
 ##pexsi.o also depends on pexsi_interfaces, but it is not known which one...
 #if HAVE_PEXSI
 #pexsi_interfaces.o: pexsi_base.o
