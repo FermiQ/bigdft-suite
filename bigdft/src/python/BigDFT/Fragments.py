@@ -173,6 +173,8 @@ class Fragment():
     def rxyz(self,atom):
         import numpy as np
         k=self.__torxyz(atom)
+        print k,atom
+        print 'here'
         return self.to_AU*np.array(atom[k])
     def __positions(self):
         import numpy
