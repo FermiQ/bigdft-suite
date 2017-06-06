@@ -551,7 +551,7 @@ subroutine LocalHamiltonianApplication(iproc,nproc,at,npsidim_orbs,orbs,&
   character(len=*), parameter :: subname='LocalHamiltonianApplication'
   logical :: exctX,op2p_flag, symmetric
   integer :: n3p,ispot,ipotmethod,ngroup,prc,isorb,jproc,ndim,norbp
-  integer :: igpu,i_stat,nsize,nspinor
+  integer :: igpu,gpudirect,i_stat,nsize,nspinor
   real(gp) :: evsic_tmp, ekin, epot,sfac
   real(f_double) :: tel,trm
   type(coulomb_operator) :: pkernelSIC
@@ -696,8 +696,16 @@ subroutine LocalHamiltonianApplication(iproc,nproc,at,npsidim_orbs,orbs,&
            else
               igpu=pkernel%igpu
            end if
-           call initialize_OP2P_data(OP2P,bigdft_mpi%mpi_comm,iproc,nproc,ngroup,ndim,nobj_par,igpu,symmetric)
-           if(igpu==1 .and. OP2P%gpudirect==1) pkernel%stay_on_gpu=1
+
+           gpudirect=0
+           !check that we did not deactivate gpudirect manually
+           if(igpu==1 .and. pkernel%use_gpu_direct) gpudirect=1
+
+           call initialize_OP2P_data(OP2P,bigdft_mpi%mpi_comm,iproc,nproc,ngroup,ndim,nobj_par,gpudirect,symmetric)
+
+           !initialization deactivates gpudirect if not enough memory
+           if(gpudirect==1 .and. OP2P%gpudirect==1) pkernel%stay_on_gpu=1
+
            !allocate work array for the internal exctx calculation
            rp_ij = f_malloc(ndim,id='rp_ij')
            energs%eexctX=0.0_gp
@@ -848,6 +856,9 @@ subroutine LocalHamiltonianApplication(iproc,nproc,at,npsidim_orbs,orbs,&
               call local_hamiltonian_ket(psi_it,Lzd%hgrids,ipotmethod,xc,&
                    pkernelSIC,wrk_lh,psir,vsicpsir,hpsi_ptr,pot,eSIC_DCi,SIC%alpha,epot,ekin)
               energs%ekin=energs%ekin+fi*ekin
+!!if(iproc==0)then
+!!write(*,'(a,3(x,es14.7))')'Ekin per orbital',fi,ekin,fi*ekin
+!!endif
               energs%epot=energs%epot+fi*epot
               energs%evsic=energs%evsic+SIC%alpha*eSIC_DCi
               !print *,'test',psi_it%iorb,sum(hpsi_ptr)
@@ -2457,84 +2468,86 @@ end subroutine eigensystem_info
  end subroutine orbs_get_gap
 
 
-subroutine eFermi_nosmearing(iproc,orbs)
-   use module_base
-   use module_types
-   use yaml_output
-   implicit none
-   integer, intent(in) :: iproc
-   type(orbitals_data), intent(inout) :: orbs
-   !local variables
-   integer :: iu,id,n,nzeroorbs,ikpt,iorb
-   real(gp) :: charge
-   real(wp) :: eF
+!!subroutine eFermi_nosmearing(iproc,orbs)
+!!   use module_base
+!!   use module_types
+!!   use yaml_output
+!!   implicit none
+!!   integer, intent(in) :: iproc
+!!   type(orbitals_data), intent(inout) :: orbs
+!!   !local variables
+!!   integer :: iu,id,n,nzeroorbs,ikpt,iorb
+!!   real(gp) :: charge
+!!   real(wp) :: eF
+!!
+!!   call f_routine(id='eFermi_nosmearing')
+!!   !SM: I think iu and id should be initialized to these values, in case the
+!!   ! large if will not be executed.
+!!   iu=orbs%norbu
+!!   id=orbs%norbd
+!!   eF = 0._wp
+!!   do ikpt=1,orbs%nkpts
+!!      !number of zero orbitals for the given k-point
+!!      nzeroorbs=0
+!!      !overall charge of the system
+!!      charge=0.0_gp
+!!      do iorb=1,orbs%norb
+!!         if (orbs%occup(iorb+(ikpt-1)*orbs%norb) == 0.0_gp) then
+!!            nzeroorbs=nzeroorbs+1
+!!         else
+!!            charge=charge+orbs%occup(iorb+(ikpt-1)*orbs%norb)
+!!         end if
+!!      end do
+!!      if (nzeroorbs /= 0 .and. orbs%norbd .gt.0) then
+!!         do iorb=1,orbs%norbu-1
+!!            if (orbs%eval((ikpt-1)*orbs%norb+iorb) > orbs%eval((ikpt-1)*orbs%norb+iorb+1)) &
+!!               &   write(*,*) 'wrong ordering of up EVs',iorb,iorb+1
+!!         end do
+!!         do iorb=1,orbs%norbd-1
+!!            if (orbs%eval((ikpt-1)*orbs%norb+iorb+orbs%norbu) > orbs%eval((ikpt-1)*orbs%norb+iorb+1+orbs%norbu))&
+!!               &   write(*,*) 'wrong ordering of dw EVs',iorb+orbs%norbu,iorb+1+orbs%norbu
+!!         enddo
+!!
+!!         iu=0
+!!         id=0
+!!         n=0
+!!         do while (real(n,gp) < charge)
+!!            if (orbs%eval((ikpt-1)*orbs%norb+iu+1) <= orbs%eval((ikpt-1)*orbs%norb+id+1+orbs%norbu)) then
+!!               iu=iu+1
+!!               eF=orbs%eval((ikpt-1)*orbs%norb+iu+1)
+!!            else
+!!               id=id+1
+!!               eF=orbs%eval((ikpt-1)*orbs%norb+id+1+orbs%norbu)
+!!            endif
+!!            n=n+1
+!!         enddo
+!!         if (iproc==0) then
+!!            !write(*,'(1x,a,1pe21.14,a,i4)') 'Suggested Homo energy level',eF,', Spin polarization',iu-id
+!!            call yaml_map('Suggested Fermi Level',ef,fmt='(1pe21.14)')
+!!            call yaml_map('Suggested Spin pol.',iu-id,fmt='(i4)')
+!!         end if
+!!         !write(*,*) 'up,down, up-down',iu,id,iu-id
+!!      end if
+!!   end do
+!!   orbs%efermi=eF
+!!   !assign the values for the occupation numbers
+!!   do iorb=1,iu
+!!      orbs%occup(iorb)=1.0_gp
+!!   end do
+!!   do iorb=iu+1,orbs%norbu
+!!      orbs%occup(iorb)=0.0_gp
+!!   end do
+!!   do iorb=1,id
+!!      orbs%occup(iorb+orbs%norbu)=1.0_gp
+!!   end do
+!!   do iorb=id+1,orbs%norbd
+!!      orbs%occup(iorb+orbs%norbu)=0.0_gp
+!!   end do
+!!
+!!   call f_release_routine()
+!!
+!!END SUBROUTINE eFermi_nosmearing
 
-   call f_routine(id='eFermi_nosmearing')
-   !SM: I think iu and id should be initialized to these values, in case the
-   ! large if will not be executed.
-   iu=orbs%norbu
-   id=orbs%norbd
-   eF = 0._wp
-   do ikpt=1,orbs%nkpts
-      !number of zero orbitals for the given k-point
-      nzeroorbs=0
-      !overall charge of the system
-      charge=0.0_gp
-      do iorb=1,orbs%norb
-         if (orbs%occup(iorb+(ikpt-1)*orbs%norb) == 0.0_gp) then
-            nzeroorbs=nzeroorbs+1
-         else
-            charge=charge+orbs%occup(iorb+(ikpt-1)*orbs%norb)
-         end if
-      end do
-      if (nzeroorbs /= 0 .and. orbs%norbd .gt.0) then
-         do iorb=1,orbs%norbu-1
-            if (orbs%eval((ikpt-1)*orbs%norb+iorb) > orbs%eval((ikpt-1)*orbs%norb+iorb+1)) &
-               &   write(*,*) 'wrong ordering of up EVs',iorb,iorb+1
-         end do
-         do iorb=1,orbs%norbd-1
-            if (orbs%eval((ikpt-1)*orbs%norb+iorb+orbs%norbu) > orbs%eval((ikpt-1)*orbs%norb+iorb+1+orbs%norbu))&
-               &   write(*,*) 'wrong ordering of dw EVs',iorb+orbs%norbu,iorb+1+orbs%norbu
-         enddo
-
-         iu=0
-         id=0
-         n=0
-         do while (real(n,gp) < charge)
-            if (orbs%eval((ikpt-1)*orbs%norb+iu+1) <= orbs%eval((ikpt-1)*orbs%norb+id+1+orbs%norbu)) then
-               iu=iu+1
-               eF=orbs%eval((ikpt-1)*orbs%norb+iu+1)
-            else
-               id=id+1
-               eF=orbs%eval((ikpt-1)*orbs%norb+id+1+orbs%norbu)
-            endif
-            n=n+1
-         enddo
-         if (iproc==0) then
-            !write(*,'(1x,a,1pe21.14,a,i4)') 'Suggested Homo energy level',eF,', Spin polarization',iu-id
-            call yaml_map('Suggested Fermi Level',ef,fmt='(1pe21.14)')
-            call yaml_map('Suggested Spin pol.',iu-id,fmt='(i4)')
-         end if
-         !write(*,*) 'up,down, up-down',iu,id,iu-id
-      end if
-   end do
-   orbs%efermi=eF
-   !assign the values for the occupation numbers
-   do iorb=1,iu
-      orbs%occup(iorb)=1.0_gp
-   end do
-   do iorb=iu+1,orbs%norbu
-      orbs%occup(iorb)=0.0_gp
-   end do
-   do iorb=1,id
-      orbs%occup(iorb+orbs%norbu)=1.0_gp
-   end do
-   do iorb=id+1,orbs%norbd
-      orbs%occup(iorb+orbs%norbu)=0.0_gp
-   end do
-
-   call f_release_routine()
-END SUBROUTINE eFermi_nosmearing
 
 
 !>   Calculate magnetic moments
