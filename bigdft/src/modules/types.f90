@@ -583,8 +583,9 @@ module module_types
 
 
  public :: gaussian_basis
- public :: nullify_local_zone_descriptors,locreg_descriptors
- public :: wavefunctions_descriptors,atoms_data,DFT_PSP_projectors
+ public :: nullify_local_zone_descriptors!,locreg_descriptors
+ !public :: wavefunctions_descriptors,atoms_data,DFT_PSP_projectors
+ public :: atoms_data,DFT_PSP_projectors
  public :: grid_dimensions,p2pComms,comms_linear,sparse_matrix,matrices
  public :: coulomb_operator,symmetry_data,atomic_structure,comms_cubic
  public :: nonlocal_psp_descriptors

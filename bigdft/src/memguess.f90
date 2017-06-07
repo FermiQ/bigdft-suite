@@ -1470,7 +1470,6 @@ program memguess
       !call wtxyz('posopt',0.d0,rxyz,atoms,trim(comment))
    end if
 
-
    call print_dft_parameters(runObj%inputs,runObj%atoms)
 
    !Time initialization
@@ -1570,7 +1569,7 @@ program memguess
    if (exportproj) then
       call free_DFT_PSP_projectors(nlpsp)
       DistProjApply = .true.
-      call createProjectorsArrays(runObj%rst%KSwfn%Lzd%Glr, &
+      call createProjectorsArrays(iproc,nproc,runObj%rst%KSwfn%Lzd%Glr, &
            & runObj%atoms%astruct%rxyz,runObj%atoms,runObj%rst%KSwfn%orbs, &
            & runObj%inputs%frmult,runObj%inputs%frmult, &
            & runObj%rst%KSwfn%Lzd%hgrids(1),runObj%rst%KSwfn%Lzd%hgrids(2), &
@@ -1719,6 +1718,7 @@ END PROGRAM memguess
 subroutine optimise_volume(atoms,crmult,frmult,hx,hy,hz,rxyz)
    use module_base
    use module_types
+   use locregs
    implicit none
    type(atoms_data), intent(inout) :: atoms
    real(gp), intent(in) :: crmult,frmult
@@ -2465,6 +2465,7 @@ subroutine take_psi_from_file(filename,in_frag,hx,hy,hz,lr,at,rxyz,orbs,psi,iorb
    use module_input_keys, only: wave_format_from_filename
    use public_enums
    use bounds, only: ext_buffers_coarse
+   use locregs
    implicit none
    integer, intent(inout) :: iorbp, ispinor
    real(gp), intent(in) :: hx,hy,hz

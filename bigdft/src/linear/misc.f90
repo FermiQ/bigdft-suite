@@ -159,6 +159,7 @@ subroutine plot_one_orbdens(lr, at, orbs, rxyz, hgrids, filename, iorb, iorb_shi
   use module_base
   use module_types
   use module_interfaces, only: filename_of_iorb, plot_wf
+  use locregs
   implicit none
 
   ! Calling arguments
@@ -1215,6 +1216,7 @@ subroutine analyze_one_wavefunction(lr, hgrids, npsidim, psi, ioffset, center, s
   use module_base
   use module_types
   use locreg_operations
+  use locregs
   implicit none
 
   ! Calling arguments

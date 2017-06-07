@@ -1,7 +1,7 @@
 import yaml
     
 def kw_pop(*args,**kwargs):
-    """ Treatment of kwargs. Eliminate from kwargs the tuple in args"""
+    """Treatment of kwargs. Eliminate from kwargs the tuple in args."""
     arg=kwargs.copy()
     key,default=args
     if key in arg:
@@ -11,6 +11,7 @@ def kw_pop(*args,**kwargs):
 
 #function which removes from a set of lines the yaml_fields contained in the to_remove list
 def clean_logfile(logfile_lines,to_remove):
+  """Removes from a set of lines the yaml_fields contained in the to_remove list."""
   line_rev=logfile_lines #list of the lines of the logfile
   #loop in the reversed from (such as to parse by blocks)
   extra_lines=20 #internal variable to be customized
@@ -135,13 +136,13 @@ def dump(data,filename=None,raw=False,tar=None):
             f.write(todump)
     else:
         import sys
-        sys,stdout.write(todump)
+        sys.stdout.write(todump)
 
 class YamlDB(dict):
     """Yaml Database, read from a file or a stream
     Attributes:
 
-    file: take the databese from a file
+    file: take the database from a file
     stream: associate the stream as the value of the dictionary
     singledoc: guarantees that the provided stream can only contain one document
     ignore: A list of keys that will not be considered in the loading.

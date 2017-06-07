@@ -1,8 +1,46 @@
 module bounds
-  use locregs
+  use compression, only: wavefunctions_descriptors
   implicit none
 
   private
+
+  !> Bounds for coarse and fine grids for kinetic operations
+  !! Useful only for isolated systems AND in CPU
+  type, public :: kinetic_bounds
+     integer, dimension(:,:,:), pointer :: ibyz_c !< coarse (2,0:n2,0:n3)
+     integer, dimension(:,:,:), pointer :: ibxz_c !< coarse (2,0:n1,0:n3)
+     integer, dimension(:,:,:), pointer :: ibxy_c !< coarse (2,0:n1,0:n2)
+     integer, dimension(:,:,:), pointer :: ibyz_f !< fine (2,0:n2,0:n3)
+     integer, dimension(:,:,:), pointer :: ibxz_f !< fine (2,0:n1,0:n3)
+     integer, dimension(:,:,:), pointer :: ibxy_f !< fine (2,0:n1,0:n2)
+  end type kinetic_bounds
+
+
+  !> Bounds to compress the wavefunctions
+  !! Useful only for isolated systems AND in CPU
+  type, public :: shrink_bounds
+     integer, dimension(:,:,:), pointer :: ibzzx_c,ibyyzz_c
+     integer, dimension(:,:,:), pointer :: ibxy_ff,ibzzx_f,ibyyzz_f
+  end type shrink_bounds
+
+
+  !> Bounds to uncompress the wavefunctions
+  !! Useful only for isolated systems AND in CPU
+  type, public :: grow_bounds
+     integer, dimension(:,:,:), pointer :: ibzxx_c,ibxxyy_c
+     integer, dimension(:,:,:), pointer :: ibyz_ff,ibzxx_f,ibxxyy_f
+  end type grow_bounds
+
+
+  !> Bounds for convolutions operations
+  !! Useful only for isolated systems AND in CPU
+  type, public :: convolutions_bounds
+     type(kinetic_bounds) :: kb
+     type(shrink_bounds) :: sb
+     type(grow_bounds) :: gb
+     integer, dimension(:,:,:), pointer :: ibyyzz_r !< real space border
+  end type convolutions_bounds
+
 
   !> Public routines
   public :: locreg_bounds
@@ -14,8 +52,496 @@ module bounds
   public :: make_all_ib_per
   public :: geocode_buffers
   public :: locreg_mesh_origin,locreg_mesh_shape
+  public :: check_whether_bounds_overlap
+  public :: get_extent_of_overlap
+  public :: nullify_convolutions_bounds
+  public :: deallocate_convolutions_bounds
+  public :: copy_convolutions_bounds
+
+  interface check_whether_bounds_overlap
+    module procedure check_whether_bounds_overlap_int
+    module procedure check_whether_bounds_overlap_long
+  end interface check_whether_bounds_overlap
+  
+  interface get_extent_of_overlap
+    module procedure get_extent_of_overlap_int
+    module procedure get_extent_of_overlap_long
+  end interface get_extent_of_overlap
 
   contains
+
+!!$    !constructors
+!!$    pure function convolutions_bounds_null() result(bounds)
+!!$      implicit none
+!!$      type(convolutions_bounds) :: bounds
+!!$      call nullify_convolutions_bounds(bounds)
+!!$    end function convolutions_bounds_null
+
+    pure subroutine nullify_convolutions_bounds(bounds)
+      implicit none
+      type(convolutions_bounds), intent(out) :: bounds
+      call nullify_kinetic_bounds(bounds%kb)
+      call nullify_shrink_bounds(bounds%sb)
+      call nullify_grow_bounds(bounds%gb)
+      nullify(bounds%ibyyzz_r)
+    end subroutine nullify_convolutions_bounds
+
+!!$    pure function kinetic_bounds_null() result(kb)
+!!$      implicit none
+!!$      type(kinetic_bounds) :: kb
+!!$      call nullify_kinetic_bounds(kb)
+!!$    end function kinetic_bounds_null
+
+    pure subroutine nullify_kinetic_bounds(kb)
+      implicit none
+      type(kinetic_bounds), intent(out) :: kb
+      nullify(kb%ibyz_c)
+      nullify(kb%ibxz_c)
+      nullify(kb%ibxy_c)
+      nullify(kb%ibyz_f)
+      nullify(kb%ibxz_f)
+      nullify(kb%ibxy_f)
+    end subroutine nullify_kinetic_bounds
+
+!!$    pure function shrink_bounds_null() result(sb)
+!!$      implicit none
+!!$      type(shrink_bounds) :: sb
+!!$      call nullify_shrink_bounds(sb)
+!!$    end function shrink_bounds_null
+
+    pure subroutine nullify_shrink_bounds(sb)
+      implicit none
+      type(shrink_bounds), intent(out) :: sb
+      nullify(sb%ibzzx_c)
+      nullify(sb%ibyyzz_c)
+      nullify(sb%ibxy_ff)
+      nullify(sb%ibzzx_f)
+      nullify(sb%ibyyzz_f)
+    end subroutine nullify_shrink_bounds
+
+!!$    pure function grow_bounds_null() result(gb)
+!!$      implicit none
+!!$      type(grow_bounds) :: gb
+!!$      call nullify_grow_bounds(gb)
+!!$    end function grow_bounds_null
+
+    pure subroutine nullify_grow_bounds(gb)
+      implicit none
+      type(grow_bounds), intent(out) :: gb
+      nullify(gb%ibzxx_c)
+      nullify(gb%ibxxyy_c)
+      nullify(gb%ibyz_ff)
+      nullify(gb%ibzxx_f)
+      nullify(gb%ibxxyy_f)
+    end subroutine nullify_grow_bounds
+
+    subroutine deallocate_convolutions_bounds(bounds)
+      use dynamic_memory
+      implicit none
+      type(convolutions_bounds),intent(inout):: bounds
+
+      call f_free_ptr(bounds%ibyyzz_r)
+
+      call deallocate_kinetic_bounds(bounds%kb)
+      call deallocate_shrink_bounds(bounds%sb)
+      call deallocate_grow_bounds(bounds%gb)
+
+    end subroutine deallocate_convolutions_bounds
+
+    subroutine deallocate_kinetic_bounds(kb)
+      use dynamic_memory
+      implicit none
+      ! Calling arguments
+      type(kinetic_bounds),intent(inout):: kb
+
+      call f_free_ptr(kb%ibyz_c)
+      call f_free_ptr(kb%ibxz_c)
+      call f_free_ptr(kb%ibxy_c)
+      call f_free_ptr(kb%ibyz_f)
+      call f_free_ptr(kb%ibxz_f)
+      call f_free_ptr(kb%ibxy_f)
+
+    end subroutine deallocate_kinetic_bounds
+
+    subroutine deallocate_shrink_bounds(sb)
+      use dynamic_memory
+      implicit none
+      ! Calling arguments
+      type(shrink_bounds),intent(inout):: sb
+
+      call f_free_ptr(sb%ibzzx_c)
+      call f_free_ptr(sb%ibyyzz_c)
+      call f_free_ptr(sb%ibxy_ff)
+      call f_free_ptr(sb%ibzzx_f)
+      call f_free_ptr(sb%ibyyzz_f)
+
+    end subroutine deallocate_shrink_bounds
+
+
+    subroutine deallocate_grow_bounds(gb)
+      use dynamic_memory
+      implicit none
+      ! Calling arguments
+      type(grow_bounds),intent(inout):: gb
+
+      call f_free_ptr(gb%ibzxx_c)
+      call f_free_ptr(gb%ibxxyy_c)
+      call f_free_ptr(gb%ibyz_ff)
+      call f_free_ptr(gb%ibzxx_f)
+      call f_free_ptr(gb%ibxxyy_f)
+
+    end subroutine deallocate_grow_bounds
+
+    subroutine copy_convolutions_bounds(boundsin, boundsout)
+      use dynamic_memory
+      implicit none
+      type(convolutions_bounds),intent(in):: boundsin
+      type(convolutions_bounds),intent(inout):: boundsout
+
+      call copy_kinetic_bounds(boundsin%kb, boundsout%kb)
+      call copy_shrink_bounds(boundsin%sb, boundsout%sb)
+      call copy_grow_bounds(boundsin%gb, boundsout%gb)
+      boundsout%ibyyzz_r = f_malloc_ptr(src_ptr=boundsin%ibyyzz_r,id='boundsout%ibyyzz_r')
+
+    end subroutine copy_convolutions_bounds
+
+    subroutine copy_kinetic_bounds(kbin, kbout)
+      use dynamic_memory
+      implicit none
+      ! Calling arguments
+      type(kinetic_bounds),intent(in):: kbin
+      type(kinetic_bounds),intent(inout):: kbout
+
+      kbout%ibyz_c = f_malloc_ptr(src_ptr=kbin%ibyz_c,id='kbout%ibyz_c')
+      kbout%ibxz_c = f_malloc_ptr(src_ptr=kbin%ibxz_c,id='kbout%ibxz_c')
+      kbout%ibxy_c = f_malloc_ptr(src_ptr=kbin%ibxy_c,id='kbout%ibxy_c')
+      kbout%ibyz_f = f_malloc_ptr(src_ptr=kbin%ibyz_f,id='kbout%ibyz_f')
+      kbout%ibxz_f = f_malloc_ptr(src_ptr=kbin%ibxz_f,id='kbout%ibxz_f')
+      kbout%ibxy_f = f_malloc_ptr(src_ptr=kbin%ibxy_f,id='kbout%ibxy_f')
+
+    end subroutine copy_kinetic_bounds
+
+
+
+    subroutine copy_shrink_bounds(sbin, sbout)
+      use dynamic_memory
+      implicit none
+
+      ! Calling arguments
+      type(shrink_bounds),intent(in):: sbin
+      type(shrink_bounds),intent(inout):: sbout
+
+      sbout%ibzzx_c = f_malloc_ptr(src_ptr=sbin%ibzzx_c,id='sbout%ibzzx_c')
+      sbout%ibyyzz_c= f_malloc_ptr(src_ptr=sbin%ibyyzz_c,id='sbout%ibyyzz_c')
+      sbout%ibxy_ff = f_malloc_ptr(src_ptr=sbin%ibxy_ff,id='sbout%ibxy_ff')
+      sbout%ibzzx_f = f_malloc_ptr(src_ptr=sbin%ibzzx_f,id='sbout%ibzzx_f')
+      sbout%ibyyzz_f= f_malloc_ptr(src_ptr=sbin%ibyyzz_f,id='sbout%ibyyzz_f')
+
+    end subroutine copy_shrink_bounds
+
+
+    subroutine copy_grow_bounds(gbin, gbout)
+      use dynamic_memory
+      implicit none
+
+      ! Calling arguments
+      type(grow_bounds),intent(in):: gbin
+      type(grow_bounds),intent(inout):: gbout
+
+      gbout%ibzxx_c = f_malloc_ptr(src_ptr=gbin%ibzxx_c,id='gbout%ibzxx_c')
+      gbout%ibxxyy_c= f_malloc_ptr(src_ptr=gbin%ibxxyy_c,id='gbout%ibxxyy_c')
+      gbout%ibyz_ff = f_malloc_ptr(src_ptr=gbin%ibyz_ff,id='gbout%ibyz_ff')
+      gbout%ibzxx_f = f_malloc_ptr(src_ptr=gbin%ibzxx_f,id='gbout%ibzxx_f')
+      gbout%ibxxyy_f= f_malloc_ptr(src_ptr=gbin%ibxxyy_f,id='gbout%ibxxyy_f')
+
+    end subroutine copy_grow_bounds
+!!!> Checks whether a segment with bounds i1,i2 (where i2 might be smaller
+!!!! than i1 due to periodic boundary conditions) overlaps with a segment with
+!!!! bounds j1,2 (where j1<=j2)
+    !> Checks whether a segment with bounds i1,i2 (where i2 might be smaller
+    !! than i1 due to periodic boundary conditions) overlaps with a segment with
+    !! bounds j1,2 (where j2 might be smaller than j1)
+    function check_whether_bounds_overlap_int(i1, i2, j1, j2) result(overlap)
+      implicit none
+      ! Calling arguments
+      integer(kind=4),intent(in) :: i1, i2, j1, j2
+      logical :: overlap
+      ! Local variables
+      integer :: periodic
+
+      ! If the end is smaller than the start, we have a periodic wrap around
+      periodic = 0
+      if (i2<i1) then
+         periodic = periodic + 1
+      end if
+      if (j2<j1) then
+         periodic = periodic + 1
+      end if
+
+      ! Check whether there is an overlap
+      select case(periodic)
+      case(2)
+         ! If both segments have a wrap around, they necessarily overlap
+         overlap = .true.
+      case(1)
+         overlap = (i1<=j2 & !i2>=j1 due to periodic wrap around 
+              .or. i2>=j1)   !i1<=j2 due to periodic wrap around
+      case(0)
+         overlap = (i2>=j1 .and. i1<=j2)
+      case default
+         stop 'wrong value of periodic'
+      end select
+
+    end function check_whether_bounds_overlap_int
+
+
+    function check_whether_bounds_overlap_long(i1, i2, j1, j2) result(overlap)
+      implicit none
+      ! Calling arguments
+      integer(kind=8),intent(in) :: i1, i2, j1, j2
+      logical :: overlap
+      ! Local variables
+      integer :: periodic
+
+      ! If the end is smaller than the start, we have a periodic wrap around
+      periodic = 0
+      if (i2<i1) then
+         periodic = periodic + 1
+      end if
+      if (j2<j1) then
+         periodic = periodic + 1
+      end if
+
+      ! Check whether there is an overlap
+      select case(periodic)
+      case(2)
+         ! If both segments have a wrap around, they necessarily overlap
+         overlap = .true.
+      case(1)
+         overlap = (i1<=j2 & !i2>=j1 due to periodic wrap around 
+              .or. i2>=j1)   !i1<=j2 due to periodic wrap around
+      case(0)
+         overlap = (i2>=j1 .and. i1<=j2)
+      case default
+         stop 'wrong value of periodic'
+      end select
+
+    end function check_whether_bounds_overlap_long
+
+    !> Checks whether a segment with bounds i1,i2 (where i2 might be smaller
+    !! than i1 due to periodic boundary conditions) overlaps with a segment with
+    !! bounds j1,2 (where j1<=j2). Is so, it gives the starting point, ending
+    !! point and the extent of the (possibly two) overlaps.
+    subroutine get_extent_of_overlap_int(i1, i2, j1, j2, n, ks, ke, nlen)
+      use dictionaries, only: f_err_throw
+      use yaml_strings, only: operator(//)
+      implicit none
+      ! Calling arguments
+      integer(kind=4),intent(in) :: i1, i2, j1, j2
+      integer(kind=4),intent(out) :: n !<number of overlaps
+      integer(kind=4),dimension(2),intent(out) :: ks, ke, nlen
+      ! Local variables
+      integer :: ks1, ke1, ks2, ke2
+      logical :: periodic, case1, case2, found_case
+
+      ks(:) = 0
+      ke(:) = 0
+      nlen(:) = 0
+
+      if (j2<j1) then
+         call f_err_throw('j2<j1: '//&
+              'i1='//i1//', i2='//i2//&
+              ', j1='//j1//', j2='//j2,&
+              err_name='BIGDFT_RUNTIME_ERROR')
+      end if
+
+      ! Check whether there is an overlap
+      if (check_whether_bounds_overlap(i1, i2, j1, j2)) then
+         ! If the end is smaller than the start, we have a periodic wrap around
+         periodic = (i2<i1)
+         if (periodic) then
+            found_case = .false.
+            if (i2>=j1) then
+               ks1 = j1 !don't need to check i1 due to periodic wrap around
+               ke1 = min(i2,j2)
+               found_case = .true.
+               case1 = .true.
+            else
+               ks1=huge(i2)
+               ke1=-huge(i2)
+               case1 = .false.
+            end if
+            if (i1<=j2) then
+               ks2 = max(i1,j1)
+               ke2 = j2 !don't need to check i2 due to periodic wrap around
+               found_case = .true.
+               case2 = .true.
+            else
+               ks2=huge(i1)
+               ke2=-huge(i1)
+               case2 = .false.
+            end if
+            if (.not. found_case) then
+               call f_err_throw('Cannot determine overlap',err_name='BIGDFT_RUNTIME_ERROR')
+            end if
+            if (case1 .and. case2) then
+               ! There are two overlaps
+               n = 2
+               ks(1) = ks1
+               ke(1) = ke1
+               nlen(1) = ke(1) - ks(1) + 1
+               ks(2) = ks2
+               ke(2) = ke2
+               nlen(2) = ke(2) - ks(2) + 1
+            else
+               n = 1
+               ks = min(ks1,ks2)
+               ke = max(ke1,ke2)
+               nlen = ke(1) - ks(1) + 1
+            end if
+         else
+            n = 1
+            ks(1) = max(i1,j1)
+            ke(1) = min(i2,j2)
+            nlen(1) = ke(1) - ks(1) + 1
+         end if
+         !write(*,'(a,7i8)') 'i1, i2, j1, j2, is, ie, n', i1, i2, j1, j2, is, ie, n
+      else
+         n = 0
+         ks(1) = -1
+         ke(1) = -1
+         nlen(1) = 0
+      end if
+
+      if (nlen(1)<0) then
+         call f_err_throw('nlen(1)<0: '//&
+              &'i1='//  i1//&
+              &', i2='//i2//&
+              &', j1='//j1//&
+              &', j2='//j2//&
+              &', ks='//ks(1)//&
+              &', ke='//ke(1)&
+              ,err_name='BIGDFT_RUNTIME_ERROR')
+      end if
+
+      if (nlen(2)<0) then
+         call f_err_throw('nlen(2)<0: i1='//  i1//&
+              ', i2='//i2//&
+              ', j1='//j1//&
+              ', j2='//j2//&
+              ', ks='//ks(2)//&
+              ', ke='//ke(2)&
+              ,err_name='BIGDFT_RUNTIME_ERROR')
+      end if
+
+    end subroutine get_extent_of_overlap_int
+
+
+    subroutine get_extent_of_overlap_long(i1, i2, j1, j2, n, ks, ke, nlen)
+      use dictionaries, only: f_err_throw
+      use yaml_strings, only: operator(//)
+      implicit none
+      ! Calling arguments
+      integer(kind=8),intent(in) :: i1, i2, j1, j2
+      integer(kind=8),intent(out) :: n
+      integer(kind=8),dimension(2),intent(out) :: ks, ke, nlen
+      ! Local variables
+      integer(kind=8) :: ks1, ke1, ks2, ke2
+      logical :: periodic, case1, case2, found_case
+
+      ks(:) = 0
+      ke(:) = 0
+      nlen(:) = 0
+
+      if (j2<j1) then
+         call f_err_throw('j2<j1: '//&
+              &'i1='  //i1//&
+              &', i2='//i2//&
+              &', j1='//j1//&
+              &', j2='//j2&
+              ,err_name='BIGDFT_RUNTIME_ERROR')
+      end if
+
+      ! Check whether there is an overlap
+      if (check_whether_bounds_overlap(i1, i2, j1, j2)) then
+         ! If the end is smaller than the start, we have a periodic wrap around
+         periodic = (i2<i1)
+         if (periodic) then
+            found_case = .false.
+            if (i2>=j1) then
+               ks1 = j1 !don't need to check i1 due to periodic wrap around
+               ke1 = min(i2,j2)
+               found_case = .true.
+               case1 = .true.
+            else
+               ks1=huge(i2)
+               ke1=-huge(i2)
+               case1 = .false.
+            end if
+            if (i1<=j2) then
+               ks2 = max(i1,j1)
+               ke2 = j2 !don't need to check i2 due to periodic wrap around
+               found_case = .true.
+               case2 = .true.
+            else
+               ks2=huge(i1)
+               ke2=-huge(i1)
+               case2 = .false.
+            end if
+            if (.not. found_case) then
+               call f_err_throw('Cannot determine overlap',err_name='BIGDFT_RUNTIME_ERROR')
+            end if
+            if (case1 .and. case2) then
+               ! There are two overlaps
+               n = 2
+               ks(1) = ks1
+               ke(1) = ke1
+               nlen(1) = ke(1) - ks(1) + 1
+               ks(2) = ks2
+               ke(2) = ke2
+               nlen(2) = ke(2) - ks(2) + 1
+            else
+               n = 1
+               ks = min(ks1,ks2)
+               ke = max(ke1,ke2)
+               nlen = ke(1) - ks(1) + 1
+            end if
+         else
+            n = 1
+            ks(1) = max(i1,j1)
+            ke(1) = min(i2,j2)
+            nlen(1) = ke(1) - ks(1) + 1
+         end if
+         !write(*,'(a,7i8)') 'i1, i2, j1, j2, is, ie, n', i1, i2, j1, j2, is, ie, n
+      else
+         n = 0
+         ks(1) = -1
+         ke(1) = -1
+         nlen(1) = 0
+      end if
+
+      if (nlen(1)<0) then
+         call f_err_throw('nlen(1)<0: i1='//  i1//&
+              &', i2='//i2//&
+              &', j1='//j1//&
+              &', j2='//j2//&
+              &', ks='//ks(1)//&
+              &', ke='//ke(1)&
+              ,err_name='BIGDFT_RUNTIME_ERROR')
+      end if
+
+      if (nlen(2)<0) then
+         call f_err_throw('nlen(2)<0: i1='//  i1//&
+              &', i2='//i2//&
+              &', j1='//j1//&
+              &', j2='//j2//&
+              &', ks='//ks(2)//&
+              &', ke='//ke(2)&
+              ,err_name='BIGDFT_RUNTIME_ERROR')
+      end if
+
+    end subroutine get_extent_of_overlap_long
+
 
     !> Calculates the bounds arrays needed for convolutions
     subroutine locreg_bounds(n1,n2,n3,nfl1,nfu1,nfl2,nfu2,nfl3,nfu3,wfd,bounds)
@@ -81,7 +607,6 @@ module bounds
 
     subroutine wfd_to_logrids(n1,n2,n3,wfd,logrid_c,logrid_f)
       use module_base
-      use locregs
       implicit none
       !Arguments
       integer, intent(in) :: n1,n2,n3
@@ -625,7 +1150,6 @@ module bounds
     !> Define the bounds of wavefunctions for periodic systems
     subroutine make_bounds_per(n1,n2,n3,nfl1,nfu1,nfl2,nfu2,nfl3,nfu3,cbounds,wfd)
       use module_base
-      use locregs
       implicit none
       type(wavefunctions_descriptors), intent(in) :: wfd
       type(convolutions_bounds),intent(out):: cbounds

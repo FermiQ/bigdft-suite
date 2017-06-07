@@ -35,7 +35,7 @@ subroutine initialize_DFT_local_fields(denspot, ixc, nspden, alpha_hf)
 
   denspot%psoffset=0.0_gp
 
-  if (verbose >1) then
+  if (get_verbose_level() >1) then
      denspot%PSquiet='NO '
   else
      denspot%PSquiet='YES'
@@ -504,6 +504,7 @@ subroutine allocateRhoPot(Glr,nspin,atoms,rxyz,denspot)
   use module_base
   use module_types
   use module_interfaces, only: calculate_rhocore
+  use locregs
   implicit none
   integer, intent(in) :: nspin
   type(locreg_descriptors), intent(in) :: Glr

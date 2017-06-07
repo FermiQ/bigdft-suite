@@ -1,9 +1,9 @@
 !> @file
 !!    Main routine to perform Poisson solver calculation
 !! @author
-!!    Creation date: February 2007
+!!    Creation date: February 2007<br/>
 !!    Luigi Genovese
-!!    Copyright (C) 2002-2013 BigDFT group 
+!!    Copyright (C) 2002-2017 BigDFT group<br/>
 !!    This file is distributed under the terms of the
 !!    GNU General Public License, see ~/COPYING file
 !!    or http://www.gnu.org/copyleft/gpl.txt .
@@ -47,7 +47,7 @@ subroutine Electrostatic_Solver(kernel,rhov,energies,pot_ion,rho_ion,ehartree)
   !> Additional external density that is added to the output input, if present.
   !! The treatment of the Poisson Equation is done with the sum of the two densities whereas the rho-dependent cavity and some components
   !! of the energies are calculated only with the input rho.
-  real(dp), dimension(kernel%ndims(1),kernel%ndims(2),kernel%grid%n3p), intent(inout), optional, target :: rho_ion
+  real(dp), dimension(kernel%ndims(1), kernel%ndims(2), kernel%grid%n3p), intent(inout), optional, target :: rho_ion
   !> Electrostatic Energy of the system given as @f$\int \rho \cdot V @f$, where @f$\rho@f$ and @f$V@f$ correspond to the 
   !! values of rhov array in input and output, respectively. This value is already reduced such that each of the 
   !! MPI tasks have the same value
@@ -400,14 +400,14 @@ subroutine Electrostatic_Solver(kernel,rhov,energies,pot_ion,rho_ion,ehartree)
   energs%cavitation=(kernel%cavity%gammaS+kernel%cavity%alphaS)*kernel%IntSur+&
        kernel%cavity%betaV*kernel%IntVol
 
+  call PS_reduce(energs,kernel)
+
   if (present(energies)) then
-     call PS_reduce(energs,kernel)
      energies=energs
   end if
 
   if (present(ehartree)) then
      ehartree=energs%hartree
-     call PS_reduce(ehartree,kernel)
   end if
 
   if (wrtmsg) then
@@ -469,9 +469,7 @@ subroutine Parallel_GPS(kernel,cudasolver,offset,strten,wrtmsg,rho_dist,use_inpu
      if (use_input_guess) then
         !gathering the data to obtain the distribution array
         !call PS_gather(kernel%w%pot,kernel) !not needed as in PI the W%pot array is global
-        call update_rhopol(kernel%geocode,kernel%ndims(1),kernel%ndims(2),&
-             kernel%ndims(3),&
-             kernel%w%pot,kernel%nord,kernel%hgrids,1.0_dp,kernel%w%eps,&
+        call update_rhopol(kernel%mesh,kernel%w%pot,kernel%nord,1.0_dp,kernel%w%eps,&
              kernel%w%dlogeps,kernel%w%rho,rhores2)
      end if
 
@@ -504,9 +502,7 @@ subroutine Parallel_GPS(kernel,cudasolver,offset,strten,wrtmsg,rho_dist,use_inpu
 
         !update rhopol and calculate residue
         !reduction of the residue not necessary
-        call update_rhopol(kernel%geocode,kernel%ndims(1),kernel%ndims(2),&
-             kernel%ndims(3),&
-             kernel%w%pot,kernel%nord,kernel%hgrids,kernel%PI_eta,kernel%w%eps,&
+        call update_rhopol(kernel%mesh,kernel%w%pot,kernel%nord,kernel%PI_eta,kernel%w%eps,&
              kernel%w%dlogeps,kernel%w%rho,rhores2)
 
         rhores2=sqrt(rhores2/rpoints)

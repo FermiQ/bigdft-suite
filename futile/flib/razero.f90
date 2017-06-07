@@ -449,79 +449,99 @@ subroutine icopy(n,dx,incx,dy,incy)
 
 end subroutine icopy
 
-
-subroutine diff_i(n,a,b,diff)
+subroutine diff_i(n,a,b,diff,idiff)
+  use f_precisions, only: f_long
   implicit none
-  integer, intent(in) :: n
+  integer(f_long), intent(in) :: n
   integer, dimension(n), intent(in) :: a
   integer, dimension(n), intent(in) :: b
   integer, intent(out) :: diff
+  integer(f_long), intent(out) :: idiff
   !local variables
-  integer :: i
+  integer(f_long) :: i
 
   diff=0
   do i=1,n
-     diff=max(diff,abs(a(i)-b(i)))
+     if (diff < abs(a(i)-b(i))) then
+        diff=max(diff,abs(a(i)-b(i)))
+        idiff=i
+     end if
   end do
 end subroutine diff_i
 
 
-subroutine diff_li(n,a,b,diff)
+subroutine diff_li(n,a,b,diff,idiff)
+  use f_precisions, only: f_long
   implicit none
-  integer, intent(in) :: n
+  integer(f_long), intent(in) :: n
   integer(kind=8), dimension(n), intent(in) :: a
   integer(kind=8), dimension(n), intent(in) :: b
   integer(kind=8), intent(out) :: diff
+  integer(f_long), intent(out) :: idiff
   !local variables
-  integer :: i
+  integer(f_long) :: i
 
   diff=int(0,kind=8)
   do i=1,n
-     diff=max(diff,abs(a(i)-b(i)))
+     if (diff < abs(a(i)-b(i))) then
+        diff=max(diff,abs(a(i)-b(i)))
+        idiff=i
+     end if
   end do
 end subroutine diff_li
 
 
-subroutine diff_r(n,a,b,diff)
+subroutine diff_r(n,a,b,diff,idiff)
+  use f_precisions, only: f_long
   implicit none
-  integer, intent(in) :: n
+  integer(f_long), intent(in) :: n
   real, dimension(n), intent(in) :: a
   real, dimension(n), intent(in) :: b
   real, intent(out) :: diff
+  integer(f_long), intent(out) :: idiff
   !local variables
-  integer :: i
+  integer(f_long) :: i
 
   diff=0.0e0
   do i=1,n
-     diff=max(diff,abs(a(i)-b(i)))
+     if (diff < abs(a(i)-b(i))) then
+        diff=max(diff,abs(a(i)-b(i)))
+        idiff=i
+     end if
   end do
 end subroutine diff_r
 
 
-subroutine diff_d(n,a,b,diff)
+subroutine diff_d(n,a,b,diff,idiff)
+  use f_precisions, only: f_long
   implicit none
-  integer, intent(in) :: n
+  integer(f_long), intent(in) :: n
   double precision, dimension(n), intent(in) :: a
   double precision, dimension(n), intent(in) :: b
   double precision, intent(out) :: diff
+  integer(f_long), intent(out) :: idiff
   !local variables
-  integer :: i
+  integer(f_long) :: i
 
   diff=0.0d0
   do i=1,n
-     diff=max(diff,abs(a(i)-b(i)))
+     if (diff < abs(a(i)-b(i))) then
+        diff=max(diff,abs(a(i)-b(i)))
+        idiff=i
+     end if
   end do
 end subroutine diff_d
 
 
 subroutine diff_l(n,a,b,diff)
+  use f_precisions, only: f_long
   implicit none
-  integer, intent(in) :: n
+  integer(f_long), intent(in) :: n
   logical, dimension(n), intent(in) :: a
   logical, dimension(n), intent(in) :: b
   logical, intent(out) :: diff
   !local variables
-  integer :: i
+  integer(f_long) :: i
 
   diff=.false.
   do i=1,n
@@ -531,29 +551,35 @@ subroutine diff_l(n,a,b,diff)
 end subroutine diff_l
 
 
-subroutine diff_ci(n,a,b,diff)
+subroutine diff_ci(n,a,b,diff,idiff)
+  use f_precisions, only: f_long
   implicit none
-  integer, intent(in) :: n
+  integer(f_long), intent(in) :: n
   character, dimension(n), intent(in) :: a
   integer, dimension(n), intent(in) :: b
   integer, intent(out) :: diff
+  integer(f_long), intent(out) :: idiff
   !local variables
-  integer :: i
+  integer(f_long) :: i
 
   diff=0
   do i=1,n
-     diff=max(diff,abs(ichar(a(i))-b(i)))
+     if (diff < abs(ichar(a(i))-b(i))) then
+        diff=max(diff,abs(ichar(a(i))-b(i)))
+        idiff=i
+     end if
   end do
 end subroutine diff_ci
 
 
 subroutine f_itoa(n,src,dest)
+  use f_precisions, only: f_long
   implicit none
-  integer, intent(in) :: n
+  integer(f_long), intent(in) :: n
   integer(kind=4), dimension(n), intent(in) :: src
   character, dimension(n), intent(out) :: dest
   !local variables
-  integer :: i
+  integer(f_long) :: i
   
   do i=1,n
      dest(i)=achar(src(i))
@@ -565,11 +591,11 @@ end subroutine f_itoa
 subroutine f_litoa(n,src,dest)
   use f_precisions, only: f_long
   implicit none
-  integer, intent(in) :: n
+  integer(f_long), intent(in) :: n
   integer(f_long), dimension(n), intent(in) :: src
   character, dimension(n), intent(out) :: dest
   !local variables
-  integer :: i
+  integer(f_long) :: i
   
   do i=1,n
      dest(i)=achar(src(i))
@@ -578,13 +604,13 @@ subroutine f_litoa(n,src,dest)
 end subroutine f_litoa
 
 subroutine f_atoi(n,src,dest)
-  use f_precisions, only: f_integer
+  use f_precisions, only: f_integer,f_long
   implicit none
-  integer, intent(in) :: n
+  integer(f_long), intent(in) :: n
   character, dimension(n), intent(in) :: src
   integer(f_integer), dimension(n), intent(out) :: dest
   !local variables
-  integer :: i
+  integer(f_long) :: i
   
   do i=1,n
      dest(i)=ichar(src(i))
@@ -595,11 +621,11 @@ end subroutine f_atoi
 subroutine f_atoli(n,src,dest)
   use f_precisions, only: f_long
   implicit none
-  integer, intent(in) :: n
+  integer(f_long), intent(in) :: n
   character, dimension(n), intent(in) :: src
   integer(f_long), dimension(n), intent(out) :: dest
   !local variables
-  integer :: i
+  integer(f_long) :: i
   
   do i=1,n
      dest(i)=ichar(src(i))

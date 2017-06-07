@@ -47,7 +47,8 @@ subroutine init_foe_wrapper(iproc, nproc, input, orbs_KS, tmprtr, foe_obj)
        fscale_lowerbound=input%cp%foe%fscale_lowerbound, &
        fscale_upperbound=input%cp%foe%fscale_upperbound,  &
        eval_multiplicator=1.d0, &
-       accuracy_function=input%cp%foe%accuracy_foe, accuracy_penalty=input%cp%foe%accuracy_penalty)
+       accuracy_function=input%cp%foe%accuracy_foe, accuracy_penalty=input%cp%foe%accuracy_penalty, &
+       betax=input%cp%foe%betax_foe)
 
   call f_release_routine()
 
@@ -63,7 +64,7 @@ subroutine check_linear_and_create_Lzd(iproc,nproc,linType,Lzd,atoms,orbs,nspin,
   use ao_inguess, only: atomic_info
   use locregs, only: locreg_null,copy_locreg_descriptors
   use public_enums
-  use locregs_init, only: determine_locreg_parallel, check_linear_inputguess
+  use locregs_init, only: check_linear_inputguess,initlocregs
   implicit none
 
   integer, intent(in) :: iproc,nproc,nspin
@@ -136,13 +137,16 @@ subroutine check_linear_and_create_Lzd(iproc,nproc,linType,Lzd,atoms,orbs,nspin,
         ! calculateBounds indicate whether the arrays with the bounds (for convolutions...) shall also
         ! be allocated and calculated. In principle this is only necessary if the current process has orbitals
         ! in this localization region.
-        calculateBounds = f_malloc(lzd%nlr,id='calculateBounds')
-        calculateBounds=.true.
-!        call determine_locreg_periodic(iproc,Lzd%nlr,rxyz,locrad,hx,hy,hz,Lzd%Glr,Lzd%Llr,calculateBounds)
-        call determine_locreg_parallel(iproc,nproc,Lzd%nlr,rxyz,locrad,&
-             Lzd%hgrids(1),Lzd%hgrids(2),Lzd%hgrids(3),Lzd%Glr,Lzd%Llr,&
-             orbs,calculateBounds)
-        call f_free(calculateBounds)
+        call initLocregs(iproc, nproc, lzd,&
+             Lzd%hgrids(1),Lzd%hgrids(2),Lzd%hgrids(3),&
+             rxyz,locrad, orbs,Lzd%Glr,'c')
+!!$        calculateBounds = f_malloc(lzd%nlr,id='calculateBounds')
+!!$        calculateBounds=.true.
+!!$!        call determine_locreg_periodic(iproc,Lzd%nlr,rxyz,locrad,hx,hy,hz,Lzd%Glr,Lzd%Llr,calculateBounds)
+!!$        call determine_locreg_parallel(iproc,nproc,Lzd%nlr,rxyz,locrad,&
+!!$             Lzd%hgrids(1),Lzd%hgrids(2),Lzd%hgrids(3),Lzd%Glr,Lzd%Llr,&
+!!$             orbs,calculateBounds)
+!!$        call f_free(calculateBounds)
         call f_free(locrad)
 
         ! determine the wavefunction dimension
@@ -151,6 +155,7 @@ subroutine check_linear_and_create_Lzd(iproc,nproc,linType,Lzd,atoms,orbs,nspin,
   else
      Lzd%lintyp = 2
   end if
+
 
 !DEBUG
 !!if(iproc==0)then
@@ -196,10 +201,10 @@ subroutine create_LzdLIG(iproc,nproc,nspin,linearmode,hx,hy,hz,Glr,atoms,orbs,rx
   use module_types
   use module_xc
   use ao_inguess, only: atomic_info
-  use locregs, only: locreg_null,copy_locreg_descriptors
+  use locregs, only: locreg_null,copy_locreg_descriptors,locreg_descriptors
   use public_enums
-  use locregs_init, only: determine_locreg_parallel, check_linear_inputguess
-  use psp_projectors, only: update_nlpsp
+  use locregs_init, only: check_linear_inputguess,initLocregs
+  use psp_projectors, only: update_nlpsp  
   implicit none
 
   integer, intent(in) :: iproc,nproc,nspin
@@ -285,13 +290,17 @@ subroutine create_LzdLIG(iproc,nproc,nspin,linearmode,hx,hy,hz,Glr,atoms,orbs,rx
         ! calculateBounds indicate whether the arrays with the bounds (for convolutions...) shall also
         ! be allocated and calculated. In principle this is only necessary if the current process has orbitals
         ! in this localization region.
-        calculateBounds=f_malloc(lzd%nlr,id='calculateBounds')
-        calculateBounds=.true.
-        !        call determine_locreg_periodic(iproc,Lzd%nlr,rxyz,locrad,hx,hy,hz,Glr,Lzd%Llr,calculateBounds)
-        call determine_locreg_parallel(iproc,nproc,Lzd%nlr,rxyz,locrad,&
-             hx,hy,hz,Glr,Lzd%Llr,&
-             orbs,calculateBounds)
-        call f_free(calculateBounds)
+!!$        calculateBounds=f_malloc(lzd%nlr,id='calculateBounds')
+!!$        calculateBounds=.true.
+!!$        !        call determine_locreg_periodic(iproc,Lzd%nlr,rxyz,locrad,hx,hy,hz,Glr,Lzd%Llr,calculateBounds)
+!!$        call determine_locreg_parallel(iproc,nproc,Lzd%nlr,rxyz,locrad,&
+!!$             hx,hy,hz,Glr,Lzd%Llr,&
+!!$             orbs,calculateBounds)
+!!$        call f_free(calculateBounds)
+
+        call initLocregs(iproc, nproc, lzd, hx, hy, hz, &
+             rxyz,locrad, orbs, Glr,'c') 
+
         call f_free(locrad)
 
         ! determine the wavefunction dimension
@@ -577,7 +586,7 @@ subroutine update_locreg(iproc, nproc, nlr, locrad, locrad_kernel, locrad_mult, 
                                  initialize_communication_potential
   use foe_base, only: foe_data, foe_data_null
   use foe_common, only: init_foe
-  use locregs, only: locreg_null,copy_locreg_descriptors
+  use locregs, only: locreg_null,copy_locreg_descriptors,locreg_descriptors
   use locregs_init, only: initLocregs
   implicit none
 
@@ -636,7 +645,7 @@ subroutine update_locreg(iproc, nproc, nlr, locrad, locrad_kernel, locrad_mult, 
       lzd%llr(ilr)%locregCenter=locregCenter(:,ilr)
   end do
   call timing(iproc,'updatelocreg1','OF')
-  call initLocregs(iproc, nproc, lzd, hx, hy, hz, astruct, orbs, glr_tmp, 's')!, llborbs)
+  call initLocregs(iproc, nproc, lzd, hx, hy, hz, astruct%rxyz,lzd%llr(:)%locrad, orbs, glr_tmp, 's')!, llborbs)
   call timing(iproc,'updatelocreg1','ON')
   call nullify_locreg_descriptors(lzd%glr)
   call copy_locreg_descriptors(glr_tmp, lzd%glr)
@@ -677,7 +686,8 @@ subroutine update_locreg(iproc, nproc, nlr, locrad, locrad_kernel, locrad_mult, 
            fscale_lowerbound=input%cp%foe%fscale_lowerbound, &
            fscale_upperbound=input%cp%foe%fscale_upperbound, &
            eval_multiplicator=1.d0, &
-           accuracy_function=input%cp%foe%accuracy_ice, accuracy_penalty=input%cp%foe%accuracy_penalty)
+           accuracy_function=input%cp%foe%accuracy_ice, accuracy_penalty=input%cp%foe%accuracy_penalty, &
+           betax=input%cp%foe%betax_ice)
       call f_free(charge_fake)
 
   end if
