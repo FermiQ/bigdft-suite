@@ -1,4 +1,8 @@
 #include <config.h>
+#include <stdlib.h>
+extern "C" {
+#include <futile.h>
+}
 
 void FC_FUNC_(openbabel_load, OPENBABEL_LOAD)(f90_dictionary_pointer *dict_posinp,
                                               const char *filename, unsigned int *flen)
