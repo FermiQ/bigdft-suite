@@ -5740,7 +5740,7 @@ module sparsematrix_init
 
      ! Calling arguments
      type(sparse_matrix),intent(in) :: smat
-     integer,intent(out) :: ind_min, ind_max
+     integer,intent(in) :: ind_min, ind_max
      integer,dimension(2),intent(out) :: irow, icol
 
      ! Local variables

@@ -286,7 +286,7 @@ module pexsi
           options%deltaE   = real(2.0_mp*DeltaE ,kind=c_double)
           options%numPole  = int(npoles,kind=c_int)
           options%temperature = real(2.0_mp*temperature,kind=c_double)
-          options%muPEXSISafeGuard = real(0.2d0,kind=c_double)
+          options%muPEXSISafeGuard = real(1.0d-2,kind=c_double)
           options%numElectronPEXSITolerance = real(tol_charge,kind=c_double)
           options%npSymbFact = int(np_sym_fact,kind=c_int)
           options%isInertiaCount = do_inertia_count
