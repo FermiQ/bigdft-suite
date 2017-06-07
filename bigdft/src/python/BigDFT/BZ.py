@@ -118,7 +118,7 @@ class BrillouinZone():
             lattice_string='orthorhombic'
         print 'Lattice found:',lattice_string
         self.special_points=ase.get_special_points(lattice_string, self.lattice, eps=0.0001)
-        self.special_paths=ase.special_paths[lattice_string]
+        self.special_paths=ase.parse_path_string(ase.special_paths[lattice_string])
         self.fermi_energy=fermi_energy
         #dataset = spglib.get_symmetry_dataset(cell, symprec=1e-3)
         #print dataset
