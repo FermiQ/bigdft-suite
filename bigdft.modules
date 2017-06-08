@@ -16,6 +16,7 @@
 
   <repository type="tarball" name="simgrid" href="http://gforge.inria.fr/frs/download.php/file/35817/"/>
   <repository type="git" name="simgrid-dev" href="https://scm.gforge.inria.fr/anonscm/git/"/>
+  <repository type="git" name="pyyaml" href="https://github.com/dcaliste/"/>
   <repository type="git" name="ipython" href="https://github.com/ipython/"/>
 
 
@@ -46,10 +47,12 @@
 
   <distutils id="PyYAML">
     <!--<branch repo="libyaml" module="PyYAML-3.10.tar.gz" version="3.10"/>-->
-    <branch repo="local" module="PyYAML-3.11.tar.gz" version="3.11" checkoutdir="PyYAML"/>
+    <!--<branch repo="local" module="PyYAML-3.11.tar.gz" version="3.11" checkoutdir="PyYAML"/>-->
     <!--<branch repo="local" module="PyYAML-3.12.tar.gz" version="3.12" checkoutdir="PyYAML"/>-->
+    <branch repo="pyyaml"  module="pyyaml" checkoutdir="PyYAML"/>
     <dependencies>
       <dep package="libyaml"/>
+      <dep package="cython"/>
     </dependencies>
   </distutils>
 
@@ -242,5 +245,15 @@
       <dep package="chess"/>
     </dependencies>
   </metamodule>
+
+  <repository type="system" name="system"/>
+
+  <systemmodule id="cython">
+    <branch repo="system"/>
+    <systemdependencies>
+      <dep type="path" name="cython"/>
+    </systemdependencies>
+  </systemmodule>
+
 
 </moduleset>

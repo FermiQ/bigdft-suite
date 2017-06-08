@@ -367,7 +367,8 @@ class Logfile():
         """Get the density of states from the logfile."""
         import DoS
         lbl=self.label if label is None else label
-        return DoS.DoS(bandarrays=self.evals,label=lbl,units='AU',fermi_level=self.fermi_level,npts=npts)
+        sdos=self.sdos if hasattr(self,'sdos') else None
+        return DoS.DoS(bandarrays=self.evals,label=lbl,units='AU',fermi_level=self.fermi_level,npts=npts,sdos=sdos)
     #
     def get_brillouin_zone(self):
         """Returns an instance of the BrillouinZone class, useful for band structure."""

@@ -176,7 +176,7 @@ class DoS():
         axsigma = plt.axes([0.2, 0.93, 0.65, 0.03], axisbg=axcolor)
         self.ssig = Slider(axsigma, 'Smearing', 0.0, 0.4, valinit=sigma)
         self.ssig.on_changed(self.update)
-        if self.sdos:
+        if hasattr(self,'sdos') and self.sdos:
             self._set_sdos_selector()
             self._set_sdos()
         plt.show()
