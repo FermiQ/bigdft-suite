@@ -391,6 +391,7 @@ module get_basis
                   ! Calculate S^1/2, as it can not be taken from memory
                   power(1)=2
                   !if (iproc==0) call yaml_warning('call overlapPowerGeneral')
+                  !!if (iproc==0) write(*,*) 'call overlapPowerGeneral'
                   call overlapPowerGeneral(iproc, nproc,bigdft_mpi%mpi_comm,&
                        order_taylor, 1, power(1), -1, &
                        imode=1, ovrlp_smat=tmb%linmat%s, inv_ovrlp_smat=tmb%linmat%l, &
@@ -403,7 +404,22 @@ module get_basis
               !if (.not.energy_increased) then
               if (.not.recovered_old_kernel .and. .not.complete_reset) then
                   !if (iproc==0) call yaml_warning('call renormalize_kernel')
+                  !!if (iproc==0) write(*,*) 'sum(S), sum(Sold), sum(S-1)',&
+                  !!sum(tmb%linmat%ovrlp_%matrix_compr), sum(ovrlp_old%matrix_compr), sum(tmb%linmat%ovrlppowers_(1)%matrix_compr)
+                  !!if (iproc==0) write(*,*) 'before renorm: sum(K)', sum(tmb%linmat%kernel_%matrix_compr)
                   call renormalize_kernel(iproc, nproc, order_taylor, max_inversion_error, tmb, tmb%linmat%ovrlp_, ovrlp_old)
+                  !!if (iproc==0) write(*,*) 'after renorm: sum(K)', sum(tmb%linmat%kernel_%matrix_compr)
+              else
+                  ! Calculate S^1/2 for the overlap matrix
+                   power=(/2,-2,1/)
+                   call overlapPowerGeneral(iproc, nproc, bigdft_mpi%mpi_comm, &
+                        order_taylor, 3, power, -1, &
+                        imode=1, ovrlp_smat=tmb%linmat%s, inv_ovrlp_smat=tmb%linmat%l, &
+                        ovrlp_mat=tmb%linmat%ovrlp_, inv_ovrlp_mat=tmb%linmat%ovrlppowers_, &
+                        verbosity=0, &
+                        check_accur=order_taylor<1000, max_error=max_error, mean_error=mean_error, &
+                        ice_obj=tmb%ice_obj)
+                   call check_taylor_order(iproc, mean_error, max_inversion_error, order_taylor)
               end if
           end if
     
@@ -1444,6 +1460,7 @@ module get_basis
     
       if(target_function==TARGET_FUNCTION_IS_ENERGY .or. &
          target_function==TARGET_FUNCTION_IS_HYBRID) then
+         !write(*,*) 'sum(K)',sum(tmb%linmat%kernel_%matrix_compr)
          call build_gradient(iproc, nproc, tmb, target_function, hpsit_c, hpsit_f, hpsittmp_c, hpsittmp_f)
       end if
     
@@ -1479,6 +1496,7 @@ module get_basis
     
           ! Transform to the larger sparse region in order to be compatible with tmb%ham_descr%collcom.
           ! To this end use ham_.
+          !if (iproc==0) write(*,*) 'sum(S)',sum(tmb%linmat%ovrlp_%matrix_compr)
           call transform_sparse_matrix(iproc, tmb%linmat%s, tmb%linmat%m, SPARSE_TASKGROUP, 'small_to_large', &
                smat_in=tmb%linmat%ovrlp_%matrix_compr, lmat_out=tmb%linmat%ham_%matrix_compr)
     
@@ -1531,6 +1549,8 @@ module get_basis
       !!        write(4222,'(a,i8,2es14.6)') 'i, tmb%ham_descr%psit_f(i), hpsit_f(i)', i, tmb%ham_descr%psit_f(i), hpsit_f(i)
       !!    end do
       !!end if
+
+      !!if (iproc==0) write(*,*) 'before orthoconstr: sum(tmb%hpsi)',sum(tmb%hpsi)
     
       call orthoconstraintNonorthogonal(iproc, nproc, tmb%ham_descr%lzd, &
            tmb%ham_descr%npsidim_orbs, tmb%ham_descr%npsidim_comp, &
@@ -1547,6 +1567,8 @@ module get_basis
       call calculate_trace_start()
       call untranspose_localized(iproc, nproc, tmb%ham_descr%npsidim_orbs, tmb%orbs, tmb%ham_descr%collcom, &
            TRANSPOSE_GATHER, hpsit_c, hpsit_f, tmb%hpsi, tmb%ham_descr%lzd, wt_hphi)
+
+      !!if (iproc==0) write(*,*) 'after orthoconstr: sum(tmb%hpsi)',sum(tmb%hpsi)
     
     
       !EXPERIMENTAL and therefore deactivated
@@ -1931,6 +1953,7 @@ module get_basis
              iiorb=tmb%orbs%isorb+iorb
              ii=matrixindex_in_compressed(tmb%linmat%m,iiorb,iiorb)
              trH = trH + tmb%linmat%ham_%matrix_compr(ii-tmb%linmat%m%isvctrp_tg)
+             !write(*,*) 'iorb, tr', iorb, tmb%linmat%ham_%matrix_compr(ii-tmb%linmat%m%isvctrp_tg)
           end do
           call timing(iproc,'calctrace_comp','OF')
           call timing(iproc,'calctrace_comm','ON')

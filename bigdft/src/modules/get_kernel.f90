@@ -1166,6 +1166,8 @@ module get_kernel
            check_accur=order_taylor<1000, max_error=max_error, mean_error=mean_error, &
            ice_obj=tmb%ice_obj)
       call check_taylor_order(iproc, mean_error, max_inversion_error, order_taylor)
+      
+      !!if (iproc==0) write(*,*) 'in sub: sum(s-1)',sum(tmb%linmat%ovrlppowers_(1)%matrix_compr)
     
       do ispin=1,tmb%linmat%l%nspin
           ilshift = (ispin-1)*tmb%linmat%l%nvctrp_tg
