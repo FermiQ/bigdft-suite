@@ -155,8 +155,7 @@ module locreg_operations
             noverlap=noverlap+1
          end if
       end do
-      lut_tolr = f_malloc_ptr(noverlap,id='lut_tolr')
-      lut_tolr = STRATEGY_SKIP
+      lut_tolr = f_malloc0_ptr(noverlap,id='lut_tolr')
 
       ! Now assign the values
       ioverlap=0
@@ -189,8 +188,6 @@ module locreg_operations
       !ioverlap=0
       do ilr=1,noverlap
          iilr=lut_tolr(ilr)
-         !if (iilr==PSP_APPLY_STRATEGY_SKIP) cycle
-         !ioverlap=ioverlap+1
          !this will set to PSP_APPLY_STRATEGY_SKIP the projector application
          call nullify_wfd_to_wfd(tolr(ilr))
          !now control if the projector overlaps with this locreg
@@ -208,7 +205,8 @@ module locreg_operations
          !then the best strategy can be decided according to total number of 
          !common points
          !complete stategy, the packing array is created after first projector
-         if (overlap) tolr(ilr)%strategy=STRATEGY_MASK_PACK
+!!$         if (overlap) tolr(ilr)%strategy=STRATEGY_MASK_PACK
+         if (overlap) call tolr_set_strategy(tolr(ilr),'MASK_PACK')
          !masking is used but packing is not created, 
          !useful when only one projector has to be applied
          !tolr(ilr)%strategy=PSP_APPLY_STRATEGY_MASK

@@ -971,18 +971,13 @@ contains
     !shouldwrite=.false.
 
     shouldwrite= &!shouldwrite .or. &
-                                !in%output_wf_format /= WF_FORMAT_NONE .or. &    !write wavefunctions
          in%output_wf /= ENUM_EMPTY .or. &    !write wavefunctions
          in%output_denspot /= ENUM_EMPTY .or. & !write output density
          in%ncount_cluster_x > 1 .or. &                  !write posouts or posmds
-         !in%inputPsiId == 2 .or. &                       !have wavefunctions to read
-         !in%inputPsiId == 12 .or.  &                     !read in gaussian basis
          (in%inputPsiId .hasattr. 'FILE') .or. &
-         (in%inputPsiId .hasattr. 'GAUSSIAN') .or. &
-         !in%gaussian_help .or. &                         !Mulliken and local density of states
+         (in%inputPsiId .hasattr. 'GAUSSIAN') .or. &   !Mulliken and local density of states
          bigdft_mpi%ngroup > 1   .or. &                  !taskgroups have been inserted
          mod(in%lin%plotBasisFunctions,10) > 0 .or. &    !dumping of basis functions for locreg runs
-         !in%inputPsiId == 102 .or. &                     !reading of basis functions
          in%write_orbitals>0 .or. &                      !writing the KS orbitals in the linear case
          mod(in%lin%output_mat_format,10)>0 .or. &       !writing the sparse linear matrices
          mod(in%lin%output_coeff_format,10)>0 .or. &          !writing the linear KS coefficients

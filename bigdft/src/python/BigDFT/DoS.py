@@ -8,8 +8,36 @@ class DiracSuperposition():
     Defines as superposition of Dirac deltas which can be used to 
     plot the density of states
     """
-    def __init__(self):
-        pass
+    def __init__(self,dos,wgts=[1.0]):
+        """
+        Parameters:
+        dos: array containing the density of states per eack k-point. Should be of shape 2
+        wgts: containts the weights of each of the k-points
+        """
+        self.dos=dos 
+        self.norm=wgts
+
+    def curve(self,xs,sigma,wgts=None):
+        import numpy as np
+        dos_g = []
+        for e_i in xs:
+            nkpt=dos.shape[0]
+            value=0.0
+            for norm,dos in zip(self.norm,self.dos):
+                peaks=self.peak(e_i,dos,sigma)*norm
+                value+=np.sum(peaks)
+            dos_g.append(value) #Append data corresponding to each energy grid
+        return np.array(dos_g)
+
+    def peak(self,omega,e,sigma):
+        """
+        Define if a peak is a Gaussian or a Lorenzian (temporarily only the gaussian is defined)
+        """
+        import numpy as np
+        nfac=np.sqrt(2.0*np.pi)
+        val=np.exp( - (omega - e)**2 / (2.0 * sigma**2))/(nfac*sigma)
+        return val
+
 
 def _bandarray_to_data(jspin,bandarrays):
     lbl= 'up' if jspin==0 else 'dw'

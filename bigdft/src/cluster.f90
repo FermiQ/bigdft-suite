@@ -1028,7 +1028,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
      end if
 
      !refill projectors for tails, davidson
-     refill_proj=((in%rbuf > 0.0_gp) .or. DoDavidson) .and. DoLastRunThings
+     refill_proj=((in%rbuf > 0.0_gp) .or. DoDavidson .or. in%sdos) .and. DoLastRunThings
      if (inputpsi .hasattr. 'CUBIC') then
         fpulay = f_malloc0_ptr((/ 3, atoms%astruct%nat /),id='fpulay')
      end if

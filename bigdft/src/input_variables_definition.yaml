@@ -1420,7 +1420,7 @@
    experimental_mode:
      COMMENT: Activate the experimental mode in linear scaling
      default: No
-   write_orbitals:
+   write_orbitals: #to be moved in the output field
      COMMENT: Linear scaling write KS orbitals for cubic restart (might take lot of disk space!)
      default: 0
      EXCLUSIVE:

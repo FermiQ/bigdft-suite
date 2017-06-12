@@ -1,5 +1,6 @@
 #This module needs: yaml, futile, matplotlib, numpy, BZ, DoS
 import yaml
+from futile.Utils import write
 
 EVAL = "eval"
 SETUP = "let"
@@ -303,6 +304,9 @@ class Logfile():
             elif hasattr(self,att) and not BUILTIN[att].get(GLOBAL):
                 delattr(self,att)
         #then postprocess the particular cases
+        if not hasattr(self,'fermi_level') and hasattr(self,'evals'):
+            self._fermi_level_from_evals(self.evals)
+
         if hasattr(self,'kpts'):
             self.nkpt=len(self.kpts)
             if hasattr(self,'evals'): self.evals=self._get_bz(self.evals,self.kpts)
@@ -312,9 +316,6 @@ class Logfile():
         elif hasattr(self,'evals'):
             import BZ
             self.evals=[BZ.BandArray(self.evals),]
-        if not hasattr(self,'fermi_level') and hasattr(self,'evals'):
-            import numpy
-            self.fermi_level=float(max(numpy.ravel(self.evals)))
         if hasattr(self,'sdos'):
             import os
             #load the different sdos files
@@ -334,6 +335,23 @@ class Logfile():
                 else:
                     sd.append(None)
             self.sdos=sd
+    #
+    def _fermi_level_from_evals(self,evals):
+        import numpy
+        #this works when the representation of the evals is only with occupied states
+        #write('evals',self.evals)
+        fl=None
+        for iorb,ev in enumerate(evals):
+            e=ev.get('e')
+            if e is not None:
+                fref=ev['f'] if iorb==0 else fref
+                fl=e
+                if ev['f']<0.5*fref: break
+            e=ev.get('e_occ',ev.get('e_occupied'))
+            if e is not None: fl=e
+            e=ev.get('e_vrt',ev.get('e_virt'))
+            if e is not None: break
+        self.fermi_level=fl
     #
     def _sdos_line_to_orbitals(self,sorbs):
         import BZ

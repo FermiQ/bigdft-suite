@@ -591,7 +591,7 @@ module module_types
  public :: nonlocal_psp_descriptors
  public :: default_lzd,find_category,old_wavefunction_null,old_wavefunction_free
  public :: bigdft_init_errors,bigdft_init_timing_categories
- public :: deallocate_orbs,deallocate_locreg_descriptors,nullify_wfd
+ public :: deallocate_orbs,deallocate_locreg_descriptors
  public :: deallocate_paw_objects!,deallocate_wfd,
  public :: old_wavefunction_set
  public :: nullify_locreg_descriptors
