@@ -114,7 +114,7 @@ if basic_configuration() is not None:
     module_autogenargs['psolver'  ]= basic_configuration()
     module_autogenargs['spred'    ]= basic_configuration()
 
-branches['PyYAML']='minloader'
+#branches['PyYAML']='minloader'
  
 # control parts of the build process
 nonetwork     = False  # never touch the network

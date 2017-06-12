@@ -48,11 +48,11 @@
   <distutils id="PyYAML">
     <!--<branch repo="libyaml" module="PyYAML-3.10.tar.gz" version="3.10"/>-->
     <!--<branch repo="local" module="PyYAML-3.11.tar.gz" version="3.11" checkoutdir="PyYAML"/>-->
-    <!--<branch repo="local" module="PyYAML-3.12.tar.gz" version="3.12" checkoutdir="PyYAML"/>-->
-    <branch repo="pyyaml"  module="pyyaml" checkoutdir="PyYAML"/>
+    <branch repo="local" module="PyYAML-3.12.tar.gz" version="3.12" checkoutdir="PyYAML"/>
+    <!--<branch repo="pyyaml"  module="pyyaml" checkoutdir="PyYAML"/>-->
     <dependencies>
       <dep package="libyaml"/>
-      <dep package="cython"/>
+      <!--<dep package="cython"/>-->
     </dependencies>
   </distutils>
 
@@ -209,6 +209,14 @@
       <dep package="PyYAML"/>
     </dependencies>
   </distutils>
+
+  <distutils id="PyBigDFT">
+    <branch repo="local" module="PyBigDFT-0.1.tar.gz" version="0.1" checkoutdir="PyBigDFT"/>
+    <dependencies>
+      <dep package="bigdft"/>
+    </dependencies>
+  </distutils>
+
 
 <!--  <autotools id="cmake-dev">
     <branch repo="cmake-rep" module="cmake-3.3.2.tar.gz"

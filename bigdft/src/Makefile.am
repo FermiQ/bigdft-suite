@@ -22,8 +22,7 @@ SUBDIRS = \
 	OpenCL \
 	bindings \
 	geopt \
-	python \
-	$(sub_dirs_bin)
+	$(sub_dirs_bin) #python removed
 
 EXTRA_DIST = \
 	wavelib/intots.inc \

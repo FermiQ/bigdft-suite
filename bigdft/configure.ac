@@ -368,9 +368,6 @@ src/convolutions-c/Makefile
 src/bindings/Makefile
 src/bindings/bigdft_cst.h
 src/geopt/Makefile
-src/python/Makefile
-src/python/BigDFT/Makefile
-src/python/BigDFT/scripts/Makefile
 src/tools/Makefile
 src/tools/bader/Makefile
 plugins/Makefile
