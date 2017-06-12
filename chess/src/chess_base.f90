@@ -56,6 +56,7 @@ module chess_base
 
   type :: pexsi_params
     integer :: pexsi_npoles
+    integer :: pexsi_nproc_per_pole
     real(mp) :: pexsi_mumin
     real(mp) :: pexsi_mumax
     real(mp) :: pexsi_mu
@@ -63,6 +64,9 @@ module chess_base
     real(mp) :: pexsi_tol_charge
     integer :: pexsi_np_sym_fact
     real(mp) :: pexsi_DeltaE
+    logical :: pexsi_do_inertia_count
+    integer :: pexsi_max_iter
+    integer :: pexsi_verbosity
   end type pexsi_params
 
   !> Public types
@@ -91,6 +95,7 @@ module chess_base
   character(len=*),parameter :: MAXPROC_PDSYEV         = "maxproc_pdsyev"
   character(len=*),parameter :: MAXPROC_PDGEMM         = "maxproc_pdgemm"
   character(len=*),parameter :: PEXSI_NPOLES           = "pexsi_npoles"
+  character(len=*),parameter :: PEXSI_NPROC_PER_POLE   = "pexsi_nproc_per_pole"
   character(len=*),parameter :: PEXSI_MUMIN            = "pexsi_mumin"
   character(len=*),parameter :: PEXSI_MUMAX            = "pexsi_mumax"
   character(len=*),parameter :: PEXSI_MU               = "pexsi_mu"
@@ -98,6 +103,9 @@ module chess_base
   character(len=*),parameter :: PEXSI_TOL_CHARGE       = "pexsi_tol_charge"
   character(len=*),parameter :: PEXSI_NP_SYM_FACT      = "pexsi_np_sym_fact"
   character(len=*),parameter :: PEXSI_DELTAE           = "pexsi_DeltaE"
+  character(len=*),parameter :: PEXSI_MAX_ITER         = "pexsi_max_iter"
+  character(len=*),parameter :: PEXSI_VERBOSITY        = "pexsi_verbosity"
+  character(len=*),parameter :: PEXSI_DO_INERTIA_COUNT = "pexsi_do_inertia_count"
   character(len=*),parameter :: ACCURACY_FOE           = "accuracy_foe"
   character(len=*),parameter :: ACCURACY_ICE           = "accuracy_ice"
   character(len=*),parameter :: ACCURACY_PENALTY       = "accuracy_penalty"
@@ -147,6 +155,7 @@ module chess_base
       implicit none
       type(pexsi_params) :: pp
       pp%pexsi_npoles = 0
+      pp%pexsi_nproc_per_pole = 0
       pp%pexsi_mumin = 0.0_mp
       pp%pexsi_mumax = 0.0_mp
       pp%pexsi_mu = 0.0_mp
@@ -154,6 +163,9 @@ module chess_base
       pp%pexsi_tol_charge = 0.0_mp
       pp%pexsi_np_sym_fact = 0
       pp%pexsi_DeltaE = 0.0_mp
+      pp%pexsi_do_inertia_count = .false.
+      pp%pexsi_max_iter = 0
+      pp%pexsi_verbosity = 0
     end function pexsi_params_null
 
 
@@ -319,6 +331,8 @@ module chess_base
           select case (trim(dict_key(val)))
           case(PEXSI_NPOLES)
               cp%pexsi%pexsi_npoles = val
+          case(PEXSI_NPROC_PER_POLE)
+              cp%pexsi%pexsi_nproc_per_pole = val
           case(PEXSI_MUMIN)
               cp%pexsi%pexsi_mumin = val
           case(PEXSI_MUMAX)
@@ -333,6 +347,12 @@ module chess_base
               cp%pexsi%pexsi_np_sym_fact = val
           case(PEXSI_DELTAE)
               cp%pexsi%pexsi_DeltaE = val
+          case(PEXSI_DO_INERTIA_COUNT)
+              cp%pexsi%pexsi_do_inertia_count = val
+          case(PEXSI_MAX_ITER)
+              cp%pexsi%pexsi_max_iter = val
+          case(PEXSI_VERBOSITY)
+              cp%pexsi%pexsi_verbosity = val
           case default
               call yaml_warning("unknown input key '" // trim(level) // "/" // trim(dict_key(val)) // "'")
           end select

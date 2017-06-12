@@ -4,6 +4,7 @@ subroutine fragment_coeffs_to_kernel(iproc,input,input_frag_charge,ref_frags,tmb
   use yaml_output
   use module_base
   use module_types
+  use get_kernel, only: reorthonormalize_coeff
   use module_fragments
   use communications_base, only: TRANSPOSE_FULL
   use communications, only: transpose_localized
@@ -567,6 +568,7 @@ contains
 
   subroutine reorder_and_print_coeffs()
     use module_interfaces, only: write_eigenvalues_data
+    use get_kernel, only: order_coeffs_by_energy
     implicit none
 
     !!print*,'nstates_max:',nstates_max,ksorbs%norb,tmb%orbs%norb
@@ -579,7 +581,7 @@ contains
     ! reorder unoccupied states so that extra states functions correctly
     ! still needed just in case number of empty bands doesn't divide by number of fragments
     ipiv=f_malloc(tmb%orbs%norb,id='ipiv')
-    call order_coeffs_by_energy(tmb%orbs%norb-nstates_max,tmb%orbs%norb,tmb%coeff(1,nstates_max+1),&
+    call order_coeffs_by_energy(tmb%orbs%norb-nstates_max,tmb%orbs%norb,tmb%coeff(1:,nstates_max+1:),&
          eval_tmp(nstates_max+1),ipiv(1))!,tmb%orbs%eval(nstates_max+1))
     eval_tmp2=f_malloc(tmb%orbs%norb-nstates_max,id='eval_tmp2')
     call vcopy(tmb%orbs%norb-nstates_max,tmb%orbs%eval(nstates_max+1),1,eval_tmp2(1),1)
@@ -592,7 +594,7 @@ contains
     end do
     call f_free(eval_tmp2)
     ! reorder ksorbs%norb states by energy - no longer taking charge as input
-    call order_coeffs_by_energy(ksorbs%norb,tmb%orbs%norb,tmb%coeff(1,1),eval_tmp(1),ipiv(1))!,tmb%orbs%eval(1))
+    call order_coeffs_by_energy(ksorbs%norb,tmb%orbs%norb,tmb%coeff,eval_tmp(1),ipiv(1))!,tmb%orbs%eval(1))
             !eval_tmp2=f_malloc(tmb%orbs%norb,id='eval_tmp2')
             !call vcopy(tmb%orbs%norb,tmb%orbs%occup(1),1,eval_tmp2(1),1)
             !do itmb=1,ksorbs%norb

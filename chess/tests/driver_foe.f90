@@ -53,6 +53,7 @@ program driver_foe
   type(sparse_matrix_metadata) :: smmd
   integer :: nfvctr, nvctr, ierr, iproc, nproc, nthread, ncharge, nfvctr_mult, nvctr_mult, scalapack_blocksize, icheck, it, nit
   integer :: ispin, ihomo, imax, ntemp, npl_max, pexsi_npoles, norbu, norbd, ii, info, norbp, isorb, norb, iorb, pexsi_np_sym_fact
+  integer :: pexsi_nproc_per_pole, pexsi_max_iter, pexsi_verbosity
   real(mp) :: pexsi_mumin, pexsi_mumax, pexsi_mu, pexsi_DeltaE, pexsi_temperature, pexsi_tol_charge, betax
   integer,dimension(:),pointer :: row_ind, col_ptr, row_ind_mult, col_ptr_mult
   real(mp),dimension(:),pointer :: kernel, overlap, overlap_large
@@ -65,7 +66,7 @@ program driver_foe
   type(yaml_cl_parse) :: parser !< command line parser
   character(len=1024) :: metadata_file, overlap_file, hamiltonian_file, kernel_file, kernel_matmul_file
   character(len=1024) :: sparsity_format, matrix_format, kernel_method, inversion_method
-  logical :: check_spectrum, do_cubic_check
+  logical :: check_spectrum, do_cubic_check, pexsi_do_inertia_count
   integer,parameter :: nthreshold = 10 !< number of checks with threshold
   real(mp),dimension(nthreshold),parameter :: threshold = (/ 1.e-1_mp, &
                                                              1.e-2_mp, &
@@ -161,6 +162,10 @@ program driver_foe
       nit = options//'nit'
       betax = options//'betax'
       inversion_method = options//'inversion_method'
+      pexsi_nproc_per_pole = options//'pexsi_nproc_per_pole'
+      pexsi_do_inertia_count = options//'pexsi_do_inertia_count'
+      pexsi_max_iter = options//'pexsi_max_iter'
+      pexsi_verbosity = options//'pexsi_verbosity'
      
       call dict_free(options)
 
@@ -185,6 +190,7 @@ program driver_foe
       call yaml_map('Guess for Fermi energy',ef)
       call yaml_map('Maximal polynomial degree',npl_max)
       call yaml_map('PEXSI number of poles',pexsi_npoles)
+      call yaml_map('PEXSI number of procs per poles',pexsi_nproc_per_pole)
       call yaml_map('PEXSI mu min',pexsi_mumin)
       call yaml_map('PEXSI mu max',pexsi_mumax)
       call yaml_map('PEXSI mu',pexsi_mu)
@@ -192,6 +198,9 @@ program driver_foe
       call yaml_map('PEXSI temperature',pexsi_temperature)
       call yaml_map('PEXSI charge tolerance',pexsi_tol_charge)
       call yaml_map('PEXSI number of procs for symbolic factorization',pexsi_np_sym_fact)
+      call yaml_map('PEXSI do inertia count',pexsi_do_inertia_count)
+      call yaml_map('PEXSI max number of iterations',pexsi_max_iter)
+      call yaml_map('PEXSI vernosity level',pexsi_verbosity)
       call yaml_map('Do a check with cubic scaling (Sca)LAPACK',do_cubic_check)
       call yaml_map('Accuracy of Chebyshev fit for FOE',accuracy_foe)
       call yaml_map('Accuracy of Chebyshev fit for ICE',accuracy_ice)
@@ -221,6 +230,7 @@ program driver_foe
   call mpibcast(ef, root=0, comm=mpi_comm_world)
   call mpibcast(npl_max, root=0, comm=mpi_comm_world)
   call mpibcast(pexsi_npoles, root=0, comm=mpi_comm_world)
+  call mpibcast(pexsi_nproc_per_pole, root=0, comm=mpi_comm_world)
   call mpibcast(pexsi_mumin, root=0, comm=mpi_comm_world)
   call mpibcast(pexsi_mumax, root=0, comm=mpi_comm_world)
   call mpibcast(pexsi_mu, root=0, comm=mpi_comm_world)
@@ -228,6 +238,8 @@ program driver_foe
   call mpibcast(pexsi_temperature, root=0, comm=mpi_comm_world)
   call mpibcast(pexsi_tol_charge, root=0, comm=mpi_comm_world)
   call mpibcast(pexsi_np_sym_fact, root=0, comm=mpi_comm_world)
+  call mpibcast(pexsi_max_iter, root=0, comm=mpi_comm_world)
+  call mpibcast(pexsi_verbosity, root=0, comm=mpi_comm_world)
   call mpibcast(accuracy_foe, root=0, comm=mpi_comm_world)
   call mpibcast(accuracy_ice, root=0, comm=mpi_comm_world)
   call mpibcast(accuracy_penalty, root=0, comm=mpi_comm_world)
@@ -260,6 +272,19 @@ program driver_foe
       do_cubic_check = .true.
   else
       do_cubic_check = .false.
+  end if
+  if (iproc==0) then
+      if (pexsi_do_inertia_count) then
+          icheck = 1
+      else
+          icheck = 0
+      end if
+  end if
+  call mpibcast(icheck, root=0, comm=mpi_comm_world)
+  if (icheck==1) then
+      pexsi_do_inertia_count = .true.
+  else
+      pexsi_do_inertia_count = .false.
   end if
 
 
@@ -427,8 +452,10 @@ program driver_foe
                inversion_method=inversion_method)
       else if (trim(kernel_method)=='PEXSI') then
           call pexsi_wrapper(iproc, nproc, mpi_comm_world, smat_s, smat_h, smat_k, mat_s, mat_h, &
-               foe_data_get_real(foe_obj(it),"charge",1), pexsi_npoles, pexsi_mumin, pexsi_mumax, pexsi_mu, pexsi_DeltaE, &
+               foe_data_get_real(foe_obj(it),"charge",1), pexsi_npoles, pexsi_nproc_per_pole, &
+               pexsi_mumin, pexsi_mumax, pexsi_mu, pexsi_DeltaE, &
                pexsi_temperature, pexsi_tol_charge, pexsi_np_sym_fact, &
+               pexsi_do_inertia_count, pexsi_max_iter, pexsi_verbosity, &
                mat_k, energy, mat_ek)
       else if (trim(kernel_method)=='LAPACK') then
           norbu = smat_h%nfvctr
@@ -810,6 +837,13 @@ subroutine commandline_options(parser)
        'Allowed values' .is. &
        'Integer'))
 
+  call yaml_cl_parse_option(parser,'pexsi_nproc_per_pole','1',&
+       'Indicate the number of processors to be used per pole by PEXSI',&
+       help_dict=dict_new('Usage' .is. &
+       'Indicate the number of processors to be used per pole by PEXSI',&
+       'Allowed values' .is. &
+       'Integer'))
+
   call yaml_cl_parse_option(parser,'pexsi_mumin','-1.0',&
        'Initial guess for the lower bound of the chemical potential used by PEXSI',&
        help_dict=dict_new('Usage' .is. &
@@ -858,6 +892,27 @@ subroutine commandline_options(parser)
        'Indicate the number of tasks used for the symbolic factorization within PEXSI',&
        help_dict=dict_new('Usage' .is. &
        'Indicate the number of tasks used for the symbolic factorization within PEXSI',&
+       'Allowed values' .is. &
+       'Integer'))
+
+  call yaml_cl_parse_option(parser,'pexsi_do_inertia_count','.true.',&
+       'Indicate whether PEXSI should use the inertia count at each iteration',&
+       help_dict=dict_new('Usage' .is. &
+       'Indicate whether PEXSI should use the inertia count at each iteration',&
+       'Allowed values' .is. &
+       'Logical'))
+
+  call yaml_cl_parse_option(parser,'pexsi_max_iter','10',&
+       'Indicate the maximal number of PEXSI iterations',&
+       help_dict=dict_new('Usage' .is. &
+       'Indicate the maximal number of PEXSI iterations',&
+       'Allowed values' .is. &
+       'Integer'))
+
+  call yaml_cl_parse_option(parser,'pexsi_verbosity','1',&
+       'Indicate the verbosity level of the PEXSI solver',&
+       help_dict=dict_new('Usage' .is. &
+       'Indicate the verbosity level of the PEXSI solver',&
        'Allowed values' .is. &
        'Integer'))
 

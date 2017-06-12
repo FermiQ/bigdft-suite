@@ -189,7 +189,6 @@ low_level = \
 	linear/cleanup.f90 \
 	linear/filterModule.f90 \
 	linear/misc.f90 \
-	linear/getLocBasis.f90 \
 	linear/convolutions_aux.f90 \
 	linear/convolutions.f90 \
 	linear/locReg_orbitals.f90 \
@@ -201,8 +200,6 @@ low_level = \
 	linear/mixdiis.f90 \
 	linear/copyTypes.f90 \
 	linear/derivativeBasis.f90 \
-	linear/hpsiortho_linear.f90 \
-	linear/optimize_coeffs.f90 \
 	linear/transferintegrals.f90 \
 	linear/cdft.f90 \
 	linear/frags.f90\

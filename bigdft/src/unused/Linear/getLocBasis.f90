@@ -4500,3 +4500,57 @@ subroutine purify_kernel(iproc, nproc, tmb, overlap_calculated, it_shift, it_opt
       end subroutine calculate_overlap_onehalf
 
 end subroutine purify_kernel
+
+
+! WARNING: WILL MOST PROBABLY NOT WORK IN PARALLEL!!!!!!!!!!!
+subroutine write_pexsi_matrices(iproc, nproc, smat_h, smat_s, matrix_compr_h, matrix_compr_s)
+  use module_base
+  use sparsematrix_init, only: sparsebigdft_to_ccs
+  use sparsematrix_io, only:  write_ccs_matrix
+  use sparsematrix_base, only: sparse_matrix, sparsematrix_malloc_ptr, &
+                               assignment(=), SPARSE_FULL
+  use sparsematrix, only: transform_sparsity_pattern
+  use yaml_output
+  implicit none
+
+  ! Calling arguments
+  integer,intent(in) :: iproc, nproc
+  type(sparse_matrix),intent(in) :: smat_h, smat_s
+  real(kind=8),dimension(smat_h%smmm%nvctrp),intent(inout) :: matrix_compr_h
+  real(kind=8),dimension(smat_s%smmm%nvctrp),intent(inout) :: matrix_compr_s
+
+  ! Local variables
+  real(kind=8),dimension(:),pointer :: matrix_compr_sl
+  integer,dimension(:),pointer :: row_ind, col_ptr
+
+  call f_routine(id='write_pexsi_matrices')
+
+  stop 'not correct'
+
+  if (nproc/=1) then
+      !call f_err_throw('not yet tested in parallel')
+      call yaml_warning('not yet tested in parallel')
+  end if
+
+  matrix_compr_sl = sparsematrix_malloc_ptr(smat_h, iaction=SPARSE_FULL, id='matrix_compr_sl')
+  call transform_sparsity_pattern(iproc, smat_h%nfvctr, smat_s%smmm%nvctrp_mm, smat_s%smmm%isvctr_mm, &
+       smat_s%nseg, smat_s%keyv, smat_s%keyg, smat_s%smmm%line_and_column_mm, &
+       smat_h%smmm%nvctrp, smat_h%smmm%isvctr, smat_h%smmm%nseg, smat_h%smmm%keyv, smat_h%smmm%keyg, &
+       smat_h%smmm%istsegline, 'small_to_large', &
+       matrix_s_in=matrix_compr_s, matrix_l_out=matrix_compr_sl)
+
+  row_ind = f_malloc_ptr(smat_h%nvctr,id='row_ind')
+  col_ptr = f_malloc_ptr(smat_h%nfvctr,id='col_ptr')
+
+  call sparsebigdft_to_ccs(smat_h%nfvctr, smat_h%nvctr, smat_h%nseg, smat_h%keyg, row_ind, col_ptr)
+
+  call write_ccs_matrix('overlap_sparse_PEXSI.bin', smat_h%nfvctr, smat_h%nvctr, row_ind, col_ptr, matrix_compr_sl)
+  call write_ccs_matrix('hamiltonian_sparse_PEXSI.bin', smat_h%nfvctr, smat_h%nvctr, row_ind, col_ptr, matrix_compr_h)
+
+  call f_free_ptr(matrix_compr_sl)
+  call f_free_ptr(row_ind)
+  call f_free_ptr(col_ptr)
+
+  call f_release_routine()
+
+end subroutine write_pexsi_matrices

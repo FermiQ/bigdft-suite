@@ -16,9 +16,10 @@ subroutine inputguessConfinement(iproc, nproc, at, input, hx, hy, hz, &
      rxyz, nlpsp, GPU, orbs, kswfn, tmb, denspot, rhopotold, energs, &
      locregcenters)
   use module_base
-  use module_interfaces, only: allocate_precond_arrays, deallocate_precond_arrays, &
-       & getLocalizedBasis, get_coeff, inputguess_gaussian_orbitals, &
+  use module_interfaces, only: inputguess_gaussian_orbitals, &
        & write_eigenvalues_data
+  use get_basis, only: getLocalizedBasis, allocate_precond_arrays, deallocate_precond_arrays
+  use get_kernel, only: get_coeff
   use io, only: write_energies
   use module_types
   use gaussians, only: gaussian_basis, deallocate_gwf, nullify_gaussian_basis
@@ -30,6 +31,7 @@ subroutine inputguessConfinement(iproc, nproc, at, input, hx, hy, hz, &
   use sparsematrix, only: gather_matrix_from_taskgroups_inplace, extract_taskgroup_inplace
   use communications_base, only: work_transpose, &
                                  work_transpose_null, allocate_work_transpose, deallocate_work_transpose
+  use communications, only: communicate_basis_for_density_collective
   use rhopotential, only: updatePotential, sumrho_for_TMBs, corrections_for_negative_charge
   use public_enums
   use ao_inguess, only: aoig_data, aoig_data_null, aoig_set
@@ -978,17 +980,21 @@ subroutine inputguessConfinement(iproc, nproc, at, input, hx, hy, hz, &
            input%SIC,tmb,fnrm,.true.,.true.,.true.,.false.,.true.,0,0,0,0,order_taylor,input%lin%max_inversion_error,&
            input%calculate_KS_residue,input%calculate_gap, energs_work, .false., input%lin%coeff_factor,&
            input%tel, input%occopt, &
-           input%cp%pexsi%pexsi_npoles,input%cp%pexsi%pexsi_mumin,&
+           input%cp%pexsi%pexsi_npoles,input%cp%pexsi%pexsi_nproc_per_pole,input%cp%pexsi%pexsi_mumin,&
            input%cp%pexsi%pexsi_mumax,input%cp%pexsi%pexsi_mu,input%cp%pexsi%pexsi_DeltaE,&
-           input%cp%pexsi%pexsi_temperature,input%cp%pexsi%pexsi_tol_charge,input%cp%pexsi%pexsi_np_sym_fact)
+           input%cp%pexsi%pexsi_temperature,input%cp%pexsi%pexsi_tol_charge,input%cp%pexsi%pexsi_np_sym_fact, &
+           input%cp%pexsi%pexsi_do_inertia_count, input%cp%pexsi%pexsi_max_iter, &
+           input%cp%pexsi%pexsi_verbosity)
   else
       call get_coeff(iproc,nproc,LINEAR_MIXDENS_SIMPLE,orbs,at,rxyz,denspot,GPU,infoCoeff,energs,nlpsp,&
            input%SIC,tmb,fnrm,.true.,.true.,.true.,.false.,.true.,0,0,0,0,order_taylor,input%lin%max_inversion_error,&
            input%calculate_KS_residue,input%calculate_gap, energs_work, .false., input%lin%coeff_factor, &
            input%tel, input%occopt, &
-           input%cp%pexsi%pexsi_npoles,input%cp%pexsi%pexsi_mumin,&
+           input%cp%pexsi%pexsi_npoles,input%cp%pexsi%pexsi_nproc_per_pole,input%cp%pexsi%pexsi_mumin,&
            input%cp%pexsi%pexsi_mumax,input%cp%pexsi%pexsi_mu,input%cp%pexsi%pexsi_DeltaE, &
-           input%cp%pexsi%pexsi_temperature,input%cp%pexsi%pexsi_tol_charge,input%cp%pexsi%pexsi_np_sym_fact)
+           input%cp%pexsi%pexsi_temperature,input%cp%pexsi%pexsi_tol_charge,input%cp%pexsi%pexsi_np_sym_fact, &
+           input%cp%pexsi%pexsi_do_inertia_count, input%cp%pexsi%pexsi_max_iter, &
+           input%cp%pexsi%pexsi_verbosity)
 
       !call vcopy(kswfn%orbs%norb,tmb%orbs%eval(1),1,kswfn%orbs%eval(1),1)
       ! Keep the ocupations for the moment.. maybe to be activated later (with a better if statement)
