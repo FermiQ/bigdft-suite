@@ -463,7 +463,7 @@ module get_basis
                meanAlpha, alpha_max, energy_increased, tmb, lhphiold, overlap_calculated, energs_base, &
                hpsit_c, hpsit_f, nit_precond, target_function, correction_orthoconstraint, hpsi_small, &
                experimental_mode, calculate_inverse, &
-               correction_co_contra, hpsi_noprecond=hpsi_tmp, norder_taylor=order_taylor, &
+               correction_co_contra, recovered_old_kernel, hpsi_noprecond=hpsi_tmp, norder_taylor=order_taylor, &
                max_inversion_error=max_inversion_error, &
                precond_convol_workarrays=precond_convol_workarrays, precond_workarrays=precond_workarrays, &
                wt_hphi=wt_hphi, wt_philarge=wt_philarge, &
@@ -603,6 +603,8 @@ module get_basis
                   call yaml_map('Recovering old support functions and kernel',.true.)
               end if
               recovered_old_kernel = .true.
+              !ldiis%switchSD = .true.
+              alpha(:) = alpha(:)*0.6d0
               !if (iproc==0) call yaml_warning('set recovered_old_kernel to true')
     
     
@@ -634,7 +636,7 @@ module get_basis
                      allow_increase=.true.
                   end if
                   cycle
-              else if(it_tot<3*nit_basis) then ! stop orthonormalizing the tmbs
+              else if(it_tot<3*nit_basis .and. .not.experimental_mode) then ! stop orthonormalizing the tmbs
                  if (iproc==0) call yaml_newline()
                  if (iproc==0) call yaml_warning('Energy increasing, switching off orthonormalization of tmbs')
                  ortho_on=.false.
@@ -1218,7 +1220,7 @@ module get_basis
               ldiis%switchSD=.true.
           end if
           ! to indicate that no orthonormalization is required... (CHECK THIS!)
-          if(ldiis%isx==0) ldiis%switchSD=.true. 
+          !if(ldiis%isx==0) ldiis%switchSD=.true. 
       end if
     
     end subroutine DIISorSD
@@ -1352,8 +1354,8 @@ module get_basis
                ldiis, fnrmOldArr, fnrm_old, alpha, trH, trHold, fnrm, alpha_mean, alpha_max, &
                energy_increased, tmb, lhphiold, overlap_calculated, &
                energs, hpsit_c, hpsit_f, nit_precond, target_function, correction_orthoconstraint, &
-               hpsi_small, experimental_mode, calculate_inverse, correction_co_contra, hpsi_noprecond, &
-               norder_taylor, max_inversion_error, precond_convol_workarrays, precond_workarrays,&
+               hpsi_small, experimental_mode, calculate_inverse, correction_co_contra, recovered_old_kernel, &
+               hpsi_noprecond, norder_taylor, max_inversion_error, precond_convol_workarrays, precond_workarrays,&
                wt_hphi, wt_philarge, &
                cdft, input_frag, ref_frags)
       use module_base
@@ -1395,7 +1397,7 @@ module get_basis
       real(kind=8),dimension(tmb%ham_descr%collcom%ndimind_c) :: hpsit_c
       real(kind=8),dimension(7*tmb%ham_descr%collcom%ndimind_f) :: hpsit_f
       integer, intent(in) :: nit_precond, target_function, correction_orthoconstraint
-      logical, intent(in) :: experimental_mode, calculate_inverse, correction_co_contra
+      logical, intent(in) :: experimental_mode, calculate_inverse, correction_co_contra, recovered_old_kernel
       real(kind=8), dimension(tmb%npsidim_orbs), intent(out) :: hpsi_small
       real(kind=8), dimension(tmb%npsidim_orbs),intent(out) :: hpsi_noprecond
       type(workarrays_quartic_convolutions),dimension(tmb%orbs%norbp),intent(inout) :: precond_convol_workarrays
@@ -1558,7 +1560,7 @@ module get_basis
            tmb%linmat, tmb%ham_descr%psi, tmb%hpsi, &
            tmb%linmat%m, tmb%linmat%auxm, tmb%linmat%ham_, tmb%ham_descr%psit_c, tmb%ham_descr%psit_f, &
            hpsit_c, hpsit_f, tmb%ham_descr%can_use_transposed, &
-           overlap_calculated, experimental_mode, calculate_inverse, norder_taylor, max_inversion_error, &
+           overlap_calculated, calculate_inverse, norder_taylor, max_inversion_error, &
            tmb%npsidim_orbs, tmb%lzd, hpsi_noprecond, wt_philarge, wt_hphi)
     
     
@@ -1770,7 +1772,7 @@ module get_basis
     
       ! Determine whether the target function is increasing
       !if(.not. ldiis%switchSD .and. ldiis%isx==0) then
-      if(.not. ldiis%switchSD) then
+      if(.not. ldiis%switchSD .and. .not.recovered_old_kernel) then
           if(trH > ldiis%trmin+1.d-12*abs(ldiis%trmin)) then !1.d-12 is here to tolerate some noise...
               !!if(iproc==0) write(*,'(1x,a,es18.10,a,es18.10)') &
               !!    'WARNING: the target function is larger than its minimal value reached so far:',trH,' > ', ldiis%trmin

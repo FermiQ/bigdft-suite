@@ -564,7 +564,7 @@ module orthonormalization
     subroutine orthoconstraintNonorthogonal(iproc, nproc, lzd, npsidim_orbs, npsidim_comp, orbs, collcom, orthpar, ice_obj, &
                correction_orthoconstraint, linmat, lphi, lhphi, lagmat, lagmat_aux, lagmat_, psit_c, psit_f, &
                hpsit_c, hpsit_f, &
-               can_use_transposed, overlap_calculated, experimental_mode, calculate_inverse, norder_taylor, max_inversion_error, &
+               can_use_transposed, overlap_calculated, calculate_inverse, norder_taylor, max_inversion_error, &
                npsidim_orbs_small, lzd_small, hpsi_noprecond, wt_philarge, wt_hphi)
       use module_base
       use module_types
@@ -605,7 +605,7 @@ module orthonormalization
       real(kind=8),dimension(:),pointer :: psit_c, psit_f
       logical,intent(inout) :: can_use_transposed, overlap_calculated
       type(linear_matrices),intent(inout) :: linmat ! change to ovrlp and inv_ovrlp, and use inv_ovrlp instead of denskern
-      logical,intent(in) :: experimental_mode, calculate_inverse
+      logical,intent(in) :: calculate_inverse
       integer,intent(inout) :: norder_taylor
       real(kind=8),intent(in) :: max_inversion_error
       real(kind=8),dimension(npsidim_orbs_small),intent(out) :: hpsi_noprecond
