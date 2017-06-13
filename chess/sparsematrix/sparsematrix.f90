@@ -2600,7 +2600,7 @@ module sparsematrix
 
 
     subroutine matrix_power_dense_lapack(iproc, nproc, comm, scalapack_blocksize, keep_full_result, &
-               exp_power, smat_in, smat_out, mat_in, mat_out, algorithm)
+               exp_power, smat_in, smat_out, mat_in, mat_out, algorithm, overwrite)
       use dynamic_memory
       implicit none
 
@@ -2612,10 +2612,12 @@ module sparsematrix
       type(matrices),intent(inout) :: mat_in
       type(matrices),intent(out) :: mat_out
       character(len=*),intent(in),optional :: algorithm
+      logical,intent(in),optional :: overwrite
 
       ! Local variables
       integer :: blocksize
       real(kind=8),dimension(:,:),allocatable :: mat_in_dense, mat_out_dense
+      logical :: overwrite_
 
       call f_routine(id='operation_using_dense_lapack')
 
@@ -2644,12 +2646,14 @@ module sparsematrix
       mat_out_dense = f_malloc((/smat_out%nfvctr,smat_out%nfvctr/),id='mat_out_dense')
       call uncompress_matrix(iproc, nproc, &
            smat_in, mat_in%matrix_compr, mat_in_dense)
+      overwrite_ = .false.
+      if (present(overwrite)) overwrite_ = overwrite
       if (present(algorithm)) then
           call matrix_power_dense(iproc, nproc, comm, scalapack_blocksize, smat_in%nfvctr, &
-               mat_in_dense, exp_power, mat_out_dense, algorithm=algorithm)
+               mat_in_dense, exp_power, mat_out_dense, algorithm=algorithm, overwrite=overwrite_)
       else
           call matrix_power_dense(iproc, nproc, comm, scalapack_blocksize, smat_in%nfvctr, &
-               mat_in_dense, exp_power, mat_out_dense)
+               mat_in_dense, exp_power, mat_out_dense, overwrite=overwrite_)
       end if
       call compress_matrix(iproc, nproc, smat_out, mat_out_dense, mat_out%matrix_compr)
       if (keep_full_result) then
@@ -2666,7 +2670,7 @@ module sparsematrix
 
 
     !> Calculate matrix**power, using the dense matrix and exact LAPACK operations
-    subroutine matrix_power_dense(iproc, nproc, comm, blocksize, n, mat_in, ex, mat_out, algorithm)
+    subroutine matrix_power_dense(iproc, nproc, comm, blocksize, n, mat_in, ex, mat_out, algorithm, overwrite)
       !use module_base
       use parallel_linalg, only: dgemm_parallel, dsyev_parallel
       use dynamic_memory
@@ -2674,35 +2678,45 @@ module sparsematrix
 
       ! Calling arguments
       integer,intent(in) :: iproc, nproc, comm, blocksize, n
-      real(kind=8),dimension(n,n),intent(in) :: mat_in
+      real(kind=8),dimension(n,n),intent(inout),target :: mat_in
       real(kind=8),intent(in) :: ex
       real(kind=8),dimension(n,n),intent(out) :: mat_out
       character(len=*),intent(in),optional :: algorithm
+      logical,intent(in),optional :: overwrite
 
       ! Local variables
       integer :: i, j, info
       real(kind=8) :: tt
-      real(kind=8),dimension(:,:,:),allocatable :: mat_tmp
+      real(kind=8),dimension(:,:),pointer :: mat_diag
+      real(kind=8),dimension(:,:),pointer :: mat_tmp
       real(kind=8),dimension(:),allocatable :: eval
+      logical :: overwrite_
 
       call f_routine(id='matrix_power_dense')
 
+      overwrite_ = .false.
+      if (present(overwrite)) overwrite_ = overwrite
 
       ! Diagonalize the matrix
-      mat_tmp = f_malloc((/n,n,2/),id='mat_tmp')
-      eval = f_malloc(n,id='mat_tmp')
-      ! f_memcpy can cause segfault for large matrices (I assume integer overflows)
-      !call f_memcpy(src=mat_in, dest=mat_tmp)
-      do i=1,n
-          do j=1,n
-              mat_tmp(j,i,1) = mat_in(j,i)
+      if (overwrite_) then
+          mat_diag => mat_in
+      else
+          mat_diag = f_malloc_ptr((/n,n/),id='mat_diag')
+          ! f_memcpy can cause segfault for large matrices (I assume integer overflows)
+          !call f_memcpy(src=mat_in, dest=mat_tmp)
+          do i=1,n
+              do j=1,n
+                  mat_diag(j,i) = mat_in(j,i)
+              end do
           end do
-      end do
+      end if
+      eval = f_malloc(n,id='eval')
+      mat_tmp = f_malloc_ptr((/n,n/),id='mat_tmp')
 
       if (present(algorithm)) then
-          call dsyev_parallel(iproc, nproc, blocksize, comm, 'v', 'l', n, mat_tmp, n, eval, info, algorithm=algorithm)
+          call dsyev_parallel(iproc, nproc, blocksize, comm, 'v', 'l', n, mat_diag, n, eval, info, algorithm=algorithm)
       else
-          call dsyev_parallel(iproc, nproc, blocksize, comm, 'v', 'l', n, mat_tmp, n, eval, info)
+          call dsyev_parallel(iproc, nproc, blocksize, comm, 'v', 'l', n, mat_diag, n, eval, info)
       endif
       if (info /= 0) then
           if (iproc==0) then
@@ -2714,17 +2728,20 @@ module sparsematrix
       do i=1,n
           tt = eval(i)**ex
           do j=1,n
-              mat_tmp(j,i,2) = mat_tmp(j,i,1)*tt
+              mat_tmp(j,i) = mat_diag(j,i)*tt
           end do
       end do
 
       ! Apply the diagonalized matrix to the matrix constructed above
-      call dgemm_parallel(iproc, nproc, blocksize, comm, 'n', 't', n, n, n, 1.d0, mat_tmp(1:,1:,1), n, &
-           mat_tmp(1:,1:,2), n, 0.d0, mat_out, n)
+      call dgemm_parallel(iproc, nproc, blocksize, comm, 'n', 't', n, n, n, 1.d0, mat_diag, n, &
+           mat_tmp, n, 0.d0, mat_out, n)
       !call dgemm_parallel(iproc, nproc, -1, comm, 'n', 't', n, n, n, 1.d0, mat_tmp(1:,1:,1), n, &
       !     mat_tmp(1:,1:,2), n, 0.d0, mat_out, n)
 
-      call f_free(mat_tmp)
+      if (.not.overwrite_) then
+          call f_free_ptr(mat_diag)
+      end if
+      call f_free_ptr(mat_tmp)
       call f_free(eval)
 
       call f_release_routine()

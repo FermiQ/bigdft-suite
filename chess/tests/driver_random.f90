@@ -44,7 +44,7 @@ program driver_random
   implicit none
 
   ! Variables
-  integer :: iproc, nproc, iseg, ierr, idum, ii, i, nthread, nit, it
+  integer :: iproc, nproc, iseg, ierr, idum, ii, i, nthread, nit, it, icons
   integer :: nfvctr, nvctr, nbuf_large, nbuf_mult, iwrite, scalapack_blocksize, ithreshold, icheck, j, pexsi_np_sym_fact
   type(sparse_matrix) :: smats
   type(sparse_matrix),dimension(1) :: smatl
@@ -59,7 +59,7 @@ program driver_random
   type(foe_data),dimension(:),allocatable :: ice_obj
   character(len=1024) :: infile, outfile, outmatmulfile, sparsegen_method, matgen_method, diag_algorithm
   character(len=1024) :: solution_method
-  logical :: write_matrices, do_cubic_check
+  logical :: write_matrices, do_cubic_check, init_matmul, do_consistency_checks
   type(dictionary), pointer :: options, dict_timing_info
   type(yaml_cl_parse) :: parser !< command line parser
   external :: gather_timings
@@ -88,7 +88,7 @@ program driver_random
   iproc=mpirank()
   nproc=mpisize()
 
-  call f_malloc_set_status(memory_limit=0.e0,iproc=iproc)
+  call f_malloc_set_status(memory_limit=0.e0,iproc=iproc, output_level=2, logfile_name='mem.log')
 
   ! Initialize the sparse matrix errors and timings.
   call sparsematrix_init_errors()
@@ -146,6 +146,7 @@ program driver_random
       accuracy_ice = options//'accuracy_ice'
       accuracy_penalty = options//'accuracy_penalty'
       nit = options//'nit'
+      do_consistency_checks = options//'do_consistency_checks'
 
       call dict_free(options)
 
@@ -191,6 +192,7 @@ program driver_random
       call yaml_map('Accuracy of Chebyshev fit for ICE',accuracy_ice)
       call yaml_map('Accuracy of Chebyshev fit for the penalty function',accuracy_penalty)
       call yaml_map('Number of iterations',nit)
+      call yaml_map('Do consistency checks',do_consistency_checks)
   end if
 
   ! Send the input parameters to all MPI tasks
@@ -229,9 +231,15 @@ program driver_random
       else
           icheck = 0
       end if
+      if (do_consistency_checks) then
+          icons = 1
+      else
+          icons = 0
+      end if
   end if
   call mpibcast(iwrite, root=0, comm=mpi_comm_world)
   call mpibcast(icheck, root=0, comm=mpi_comm_world)
+  call mpibcast(icons, root=0, comm=mpi_comm_world)
   if (iwrite==1) then
       write_matrices = .true.
   else
@@ -241,6 +249,11 @@ program driver_random
       do_cubic_check = .true.
   else
       do_cubic_check = .false.
+  end if
+  if (icons==1) then
+      do_consistency_checks = .true.
+  else
+      do_consistency_checks = .false.
   end if
 
 
@@ -260,9 +273,17 @@ program driver_random
               iproc, nproc, mpi_comm_world, smats, mat2,&
               init_matmul=.false.)
       end if
+      select case(trim(solution_method))
+      case ('ICE', 'SelInv')
+          init_matmul = .true.
+      case('LAPACK')
+          init_matmul = .false.
+      case default
+          call f_err_throw('wrong value for kernel_method')
+      end select
       call sparse_matrix_init_from_file_bigdft('serial_text', trim(outfile), &
           iproc, nproc, mpi_comm_world, smatl(1), &
-          init_matmul=.true., filename_mult=trim(outmatmulfile))
+          init_matmul=init_matmul, filename_mult=trim(outmatmulfile))
   end if
 
   ! Write a summary of the sparse matrix layout 
@@ -390,7 +411,7 @@ program driver_random
       if (trim(solution_method)=='ICE') then
           call matrix_chebyshev_expansion(iproc, nproc, mpi_comm_world, &
                1, (/expo/), smats, smatl(1), mat2, mat3(1), ice_obj=ice_obj(it))
-      else if (trim(solutioN_method)=='SelInv') then
+      else if (trim(solution_method)=='SelInv') then
           if (expo/=-1.0_mp) then
               call f_err_throw('Selecetd Inversion is only possible for the calculation of the inverse')
           end if
@@ -399,7 +420,7 @@ program driver_random
           mat2%matrix = sparsematrix_malloc_ptr(smats, iaction=DENSE_FULL, id='mat2%matrix')
           mat3(1)%matrix = sparsematrix_malloc_ptr(smats, iaction=DENSE_FULL, id='mat3(3)%matrix')
           call matrix_power_dense_lapack(iproc, nproc, mpiworld(), scalapack_blocksize, .false., &
-                expo, smats, smatl(1), mat2, mat3(1), algorithm=diag_algorithm)
+                expo, smats, smatl(1), mat2, mat3(1), algorithm=diag_algorithm, overwrite=.true.)
           call f_free_ptr(mat2%matrix)
           call f_free_ptr(mat3(1)%matrix)
       else
@@ -459,65 +480,69 @@ program driver_random
 
 
 
-  ! Calculate the inverse of the desired matrix power
-  if (iproc==0) then
-      call yaml_comment('Calculating mat^-x',hfill='~')
-      call yaml_mapping_open('Calculating mat^-x')
-  end if
-  call matrix_chebyshev_expansion(iproc, nproc, mpi_comm_world, &
-       1, (/-expo/), smats, smatl(1), mat2, mat3(2), ice_obj=ice_obj(1))
+  consistency_checks: if (do_consistency_checks) then
 
-  if (iproc==0) then
-      call yaml_mapping_close()
-  end if
+      ! Calculate the inverse of the desired matrix power
+      if (iproc==0) then
+          call yaml_comment('Calculating mat^-x',hfill='~')
+          call yaml_mapping_open('Calculating mat^-x')
+      end if
+      call matrix_chebyshev_expansion(iproc, nproc, mpi_comm_world, &
+           1, (/-expo/), smats, smatl(1), mat2, mat3(2), ice_obj=ice_obj(1))
+    
+      if (iproc==0) then
+          call yaml_mapping_close()
+      end if
+    
+      ! Multiply the two resulting matrices.
+      if (iproc==0) then
+          call yaml_comment('Calculating mat^x*mat^-x',hfill='~')
+      end if
+      call matrix_matrix_multiplication(iproc, nproc, smatl(1), mat3(1), mat3(2), mat3(3))
+    
+      ! Check the result
+      call check_deviation_from_unity_sparse(iproc, smatl(1), mat3(3), max_error, mean_error)
+      if (iproc==0) then
+          call yaml_mapping_open('Check the deviation from unity of the operation mat^x*mat^-x')
+          call yaml_map('max_error',max_error,fmt='(es10.3)')
+          call yaml_map('mean_error',mean_error,fmt='(es10.3)')
+          call yaml_mapping_close()
+      end if
+    
+    
+      ! Calculate the inverse operation, applied to the operation itsel, i.e. (mat^x)^(1/x)
+      if (iproc==0) then
+          call yaml_comment('Calculating (mat^x)^(1/x)',hfill='~')
+          call yaml_mapping_open('Calculating (mat^x)^(1/x)')
+      end if
+    
+      ! Reset the ICE object
+      call foe_data_deallocate(ice_obj(1))
+      charge_fake = f_malloc0(1,id='charge_fake')
+      call init_foe(iproc, nproc, 1, charge_fake, ice_obj(1), evlow=evlow, evhigh=evhigh, &
+           betax=betax, eval_multiplicator=eval_multiplicator, &
+           accuracy_function=accuracy_ice, accuracy_penalty=accuracy_penalty)
+      call f_free(charge_fake)
+      call matrix_chebyshev_expansion(iproc, nproc, mpi_comm_world, &
+           1, (/1.0_mp/expo/), smatl(1), smatl(1), mat3(1), mat3(3), ice_obj=ice_obj(1))
+    
+      if (iproc==0) then
+          call yaml_mapping_close()
+      end if
+    
+      ! Calculate the errors
+      call transform_sparse_matrix(iproc, smats, smatl(1), SPARSE_FULL, 'small_to_large', &
+                   smat_in=mat2%matrix_compr, lmat_out=mat3(2)%matrix_compr)
+    
+      call calculate_error(iproc, smatl(1), mat3(3), mat3(2), nthreshold, threshold, .false., &
+           'Check the deviation from the original matrix')
+    
+      !call timing(mpi_comm_world,'CHECK_LINEAR','PR')
+      call mpibarrier()
+      call f_timing_checkpoint(ctr_name='CHECK_LINEAR',mpi_comm=mpiworld(),nproc=mpisize(),&
+           gather_routine=gather_timings)
 
-  ! Multiply the two resulting matrices.
-  if (iproc==0) then
-      call yaml_comment('Calculating mat^x*mat^-x',hfill='~')
-  end if
-  call matrix_matrix_multiplication(iproc, nproc, smatl(1), mat3(1), mat3(2), mat3(3))
-
-  ! Check the result
-  call check_deviation_from_unity_sparse(iproc, smatl(1), mat3(3), max_error, mean_error)
-  if (iproc==0) then
-      call yaml_mapping_open('Check the deviation from unity of the operation mat^x*mat^-x')
-      call yaml_map('max_error',max_error,fmt='(es10.3)')
-      call yaml_map('mean_error',mean_error,fmt='(es10.3)')
-      call yaml_mapping_close()
-  end if
-
-
-  ! Calculate the inverse operation, applied to the operation itsel, i.e. (mat^x)^-x
-  if (iproc==0) then
-      call yaml_comment('Calculating (mat^x)^(1/x)',hfill='~')
-      call yaml_mapping_open('Calculating (mat^x)^(1/x)')
-  end if
-
-  ! Reset the ICE object
-  call foe_data_deallocate(ice_obj(1))
-  charge_fake = f_malloc0(1,id='charge_fake')
-  call init_foe(iproc, nproc, 1, charge_fake, ice_obj(1), evlow=evlow, evhigh=evhigh, &
-       betax=betax, eval_multiplicator=eval_multiplicator, &
-       accuracy_function=accuracy_ice, accuracy_penalty=accuracy_penalty)
-  call f_free(charge_fake)
-  call matrix_chebyshev_expansion(iproc, nproc, mpi_comm_world, &
-       1, (/1.0_mp/expo/), smatl(1), smatl(1), mat3(1), mat3(3), ice_obj=ice_obj(1))
-
-  if (iproc==0) then
-      call yaml_mapping_close()
-  end if
-
-  ! Calculate the errors
-  call transform_sparse_matrix(iproc, smats, smatl(1), SPARSE_FULL, 'small_to_large', &
-               smat_in=mat2%matrix_compr, lmat_out=mat3(2)%matrix_compr)
-
-  call calculate_error(iproc, smatl(1), mat3(3), mat3(2), nthreshold, threshold, .false., &
-       'Check the deviation from the original matrix')
-
-  !call timing(mpi_comm_world,'CHECK_LINEAR','PR')
-  call mpibarrier()
-  call f_timing_checkpoint(ctr_name='CHECK_LINEAR',mpi_comm=mpiworld(),nproc=mpisize(),&
-       gather_routine=gather_timings)
+  end if consistency_checks
 
 
   cubic_check:if (do_cubic_check) then
@@ -923,6 +948,13 @@ subroutine commandline_options(parser)
        'Indicate the number of iterations for the kernel caluculations (can be used for benchmarking)',&
        'Allowed values' .is. &
        'Integer'))
+
+   call yaml_cl_parse_option(parser,'do_consistency_checks','1',&
+       'Perform consistency checks of the result (done with CheSS): mat^x*mat^-x and (mat^x)^(1/x)',&
+       help_dict=dict_new('Usage' .is. &
+       'Perform consistency checks of the result (done with CheSS): mat^x*mat^-x and (mat^x)^(1/x)',&
+       'Allowed values' .is. &
+       'Logical'))
 
 end subroutine commandline_options
 

@@ -66,7 +66,7 @@ program driver_foe
   type(yaml_cl_parse) :: parser !< command line parser
   character(len=1024) :: metadata_file, overlap_file, hamiltonian_file, kernel_file, kernel_matmul_file
   character(len=1024) :: sparsity_format, matrix_format, kernel_method, inversion_method
-  logical :: check_spectrum, do_cubic_check, pexsi_do_inertia_count
+  logical :: check_spectrum, do_cubic_check, pexsi_do_inertia_count, init_matmul
   integer,parameter :: nthreshold = 10 !< number of checks with threshold
   real(mp),dimension(nthreshold),parameter :: threshold = (/ 1.e-1_mp, &
                                                              1.e-2_mp, &
@@ -334,8 +334,16 @@ program driver_foe
            iproc, nproc, mpi_comm_world, smat_s, mat_s, init_matmul=.false.)
       call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, hamiltonian_file, &
            iproc, nproc, mpi_comm_world, smat_h, mat_h, init_matmul=.false.)
+      select case(trim(kernel_method))
+      case ('FOE', 'PEXSI')
+          init_matmul = .true.
+      case('LAPACK')
+          init_matmul = .false.
+      case default
+          call f_err_throw('wrong value for kernel_method')
+      end select
       call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, kernel_file, &
-           iproc, nproc, mpi_comm_world, smat_k, mat_k, init_matmul=.true., filename_mult=trim(kernel_matmul_file))
+           iproc, nproc, mpi_comm_world, smat_k, mat_k, init_matmul=init_matmul, filename_mult=trim(kernel_matmul_file))
   else
       call f_err_throw('Wrong sparsity format')
   end if
