@@ -50,7 +50,7 @@
      COMMENT: c(f)rmult*radii_cf(:,1(2))=coarse(fine) atom-based radius
      DESCRIPTION: Coarse and fine multiplier as [4.0, 8.0].
                  These numbers determine the extension of the coarse and fine region respectively.
-     RANGE: [0., 100.]
+     RANGE: [0., 20.]
      default: [5., 8.]
    ixc:
      COMMENT: Exchange-correlation parameter (LDA=1,PBE=11)
@@ -339,33 +339,33 @@
      DESCRIPTION: |
         Determine the dimension of the subspace i.e. the number of virtual orbitals
         to calculate via a Davidson diagonalisation.
-
         Usually unoccupied orbitals are not calculated since they are not needed for the total energy and other
         physical properties of the electronic ground state.
 
         Putting norbv to a non-zero value will result in the calculation of norbv virtual orbitals in a postprocessing
-        routine after the occupied orbitals have been calculated, which uses Davidson iterative treatment . nplot
-        of these orbitals will be written in the virtual.*.pot files and nplot (if that many exist) of the highest
-        occupied orbitals will be written in the orbital.*.pot file The Kohn Sham eigenvalues are written in the
-        ordinary output file. nvirt corresponds to the actual number of orbitals the convergence process is taking
+        routine after the occupied orbitals have been calculated, which uses Davidson iterative treatment.
+        nvirt (< norbv) determines to the number of converged orbitals during the convergence process which is taking
         care of during the Davidson iterations.
+        nplot of these orbitals will be written in the virtual.*.pot files and nplot (if that many exist) of the highest
+        occupied orbitals will be written in the orbital.*.pot file. The Kohn Sham eigenvalues are written in the
+        ordinary output file. 
      RANGE: [-9999, 9999]
      default: 0
    nvirt:
-     COMMENT: No. of virtual orbs
+     COMMENT: No. of converged virtual orbs (< norbv)
      DESCRIPTION: |
         Determine the dimension of the subspace i.e. the number of virtual orbitals
-        to calculate via a Davidson diagonalisation. (should be < norbv)
-
+        to be converged via a Davidson diagonalisation. (should be < norbv)
         Usually unoccupied orbitals are not calculated since they are not needed for the total energy and other
         physical properties of the electronic ground state.
 
         Putting norbv to a non-zero value will result in the calculation of norbv virtual orbitals in a postprocessing
-        routine after the occupied orbitals have been calculated, which uses Davidson iterative treatment . nplot
-        of these orbitals will be written in the virtual.*.pot files and nplot (if that many exist) of the highest
-        occupied orbitals will be written in the orbital.*.pot file The Kohn Sham eigenvalues are written in the
-        ordinary output file. nvirt corresponds to the actual number of orbitals the convergence process is taking
+        routine after the occupied orbitals have been calculated, which uses Davidson iterative treatment.
+        nvirt (< norbv) determines to the number of converged orbitals during the convergence process which is taking
         care of during the Davidson iterations.
+        nplot of these orbitals will be written in the virtual.*.pot files and nplot (if that many exist) of the highest
+        occupied orbitals will be written in the orbital.*.pot file. The Kohn Sham eigenvalues are written in the
+        ordinary output file. 
      RANGE: [0, 9999]
      default: 0
    nplot:
@@ -467,19 +467,33 @@
 #output parameters, decide what to dump of write to file
  output:
   DESCRIPTION: Output parameters, control the information that will be printed out
+  verbosity:
+    COMMENT: Verbosity of the output
+    EXCLUSIVE:
+      0: Very low
+      1: Low
+      2: Medium
+      3: High
+    default: 2
   atomic_density_matrix:
     COMMENT: Dictionary of the atoms for which the atomic density matrix has to be plotted
     DESCRIPTION: |
      The atomic species or the atoms written as Atom No are specified, followed by a list
      of the shells for which the density matrix can be plotted
     default: None
+  sdos:
+    COMMENT: Spatially-resolved density of states
+    DESCRIPTION: |
+     Plots the density of states by calculating the value of psi*Hpsi per each KS orbital, 
+     resolved among x,y or z.
+    default: No
   #potentials:
   #  format: CUBE
   #  frequence: iteration, SCF
     
 #K points parameters
  kpt:
-   DESCRIPTION: K points XXXXXXX defined in the Brillouin zone for periodic system calculations
+   DESCRIPTION: K points defined in the Brillouin zone for periodic system calculations
    method:
      COMMENT: K-point sampling method
      EXCLUSIVE:
@@ -799,14 +813,14 @@
      RANGE: [0., 1.]
      default: 1e-4
    steepthresh:
-     COMMENT: If fnrm < steepthresh, geopt method uses steepest descent
+     COMMENT: If fmax < steepthresh, geopt method uses steepest descent
      CONDITION:
        MASTER_KEY: method
        WHEN:
        - SBFGS
        - SQNM
      RANGE: [0., 1e10]
-     default: 0.5
+     default: 0.1
    trustr:
      COMMENT: Maximum displacement of single atom
      CONDITION:
@@ -1370,14 +1384,6 @@
    store_index:
      COMMENT: Store indices or recalculate them for linear scaling
      default: Yes
-   verbosity:
-     COMMENT: Verbosity of the output
-     EXCLUSIVE:
-       0: ???
-       1: ???
-       2: ???
-       3: ???
-     default: 2
    psp_onfly:
      COMMENT: Calculate pseudopotential projectors on the fly
      default: Yes
@@ -1414,7 +1420,7 @@
    experimental_mode:
      COMMENT: Activate the experimental mode in linear scaling
      default: No
-   write_orbitals:
+   write_orbitals: #to be moved in the output field
      COMMENT: Linear scaling write KS orbitals for cubic restart (might take lot of disk space!)
      default: 0
      EXCLUSIVE:
@@ -1455,6 +1461,8 @@
        0: AO
        1: REFORMAT
      default: 0
+     ao: 0
+     reformat: 1
    imethod_overlap:
      COMMENT: Method to calculate the overlap matrices (1=old, 2=new)
      EXCLUSIVE:
@@ -1723,6 +1731,12 @@
        COMMENT: Decay length of the error function used to extract the eigenvalues (i.e. something like the resolution)
        default: 5.e-3
        RANGE: [0.0,1.e-1]
+     #centers_auto:
+     #  default: yes
+     multipole_centers:
+       COMMENT: Determines whether the multipole centers shall be determined automatically (i.e. taking the atoms) or whether they are provided manually
+       #default: yes
+       default: 0.0
 #Parameters for the localised basis set (or support function) for the linear scaling version
  lin_basis:
      nit:
@@ -1940,11 +1954,6 @@
                      * 4 (s,p orbital types)
                      * 9 (s,p,d orbital types)
                      * 16 (s,p,d,f orbital types)
-       EXCLUSIVE:
-         1: s orbital type
-         4: s,p orbital types
-         9: s,p,d orbital types
-         16: s,p,d,f orbital types
        default: 4
      ao_confinement:
        COMMENT: Prefactor for the input guess confining potential
@@ -2126,6 +2135,7 @@ linear_accurate:
     Na: {nbasis: 1, rloc: 7.5}
     K:  {nbasis: 1, rloc: 8.0}
     Sn: {nbasis: 4, rloc: 6.5}
+
 linear_moderate:
   COMMENT: Appropriate input parameters for a moderate accuracy linear scaling calculation
   DESCRIPTION: |
@@ -2246,7 +2256,6 @@ linear:
  DESCRIPTION: |
          Basic parameters to perform a linear calculation.
  dft:
-   hgrids: 0.50
    disablesym: Yes
    inputpsiid: linear
  chess:
@@ -2316,6 +2325,7 @@ linear:
    Sn: {nbasis: 4, rloc: 6.5}
    Fe: {nbasis: 13, rloc: 8.0}
    Cu: {nbasis: 9, rloc: 7.0}
+   W:  {nbasis: 9, rloc: 7.5}
  ig_occupation:
    Fe:
      3s: 2.0
@@ -2329,6 +2339,24 @@ linear:
      3d: 10.0
      4s: 1.0
      4p: 0.0
+   W:
+     6s: 2.0
+     5d: 4.0
+     6p: 0.0
+linear_fragments:
+  COMMENT: Input parameters to be added to the linear profile for fragment calculationn (templates ready)
+  #import: linear #to be tested
+  lin_general:
+    hybrid: No
+    nit: 1
+  lin_kernel:
+    nit: 100 #here it is better to put a large value
+    rpnrm_cv: 1.e-10
+  lin_basis: {nit: 1}
+  perf:
+    experimental_mode: No
+    adjust_kernel_threshold: No
+    adjust_kernel_iterations: No
 md:
   COMMENT: Molecular dynamics input parameters for H2O molecules
   geopt:

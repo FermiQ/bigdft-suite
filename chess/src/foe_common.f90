@@ -152,7 +152,7 @@ module foe_common
   public :: retransform_ext
   public :: init_foe
   public :: find_fermi_level
-  public :: get_polynomial_degree
+  !!public :: get_polynomial_degree
   public :: calculate_trace_distributed_new
   public :: get_bounds_and_polynomials
 
@@ -944,12 +944,11 @@ module foe_common
 
         call f_routine(id='retransform_ext')
 
-
         ! Check the arguments
         select case (onesided_action)
         case (ONESIDED_POST,ONESIDED_GATHER)
-            if (.not.present(windowsx)) call f_err_throw('windowsx not present')
             if (nproc>1) then
+               if (.not.present(windowsx)) call f_err_throw('windowsx not present')
                 if (size(windowsx)/=smat%ntaskgroup) then
                     call f_err_throw('size(windowsx)='//trim(yaml_toa(size(windowsx))) //&
                          &' /= smat%ntaskgroup='//trim(yaml_toa(smat%ntaskgroup)))
@@ -2005,6 +2004,7 @@ module foe_common
                   end do main_loop
 
                   if (iproc==0) then
+                      call yaml_newline()
                       call yaml_mapping_open('summary',flow=.true.)
                       call yaml_map('nit',it)
                       call yaml_map('eF',foe_data_get_real(foe_obj,"ef"),fmt='(es13.6)')
@@ -2096,7 +2096,7 @@ module foe_common
     !> Determine the polynomial degree which yields the desired precision
     subroutine get_polynomial_degree(iproc, nproc, comm, ispin, ncalc, fun, foe_obj, &
                npl_min, npl_max, npl_stride, accuracy_function, accuracy_penalty, verbosity, npl, cc, &
-               max_error, x_max_error, mean_error, anoise, &
+               max_error, x_max_error, mean_error, anoise, increase_degree_for_penaltyfunction, &
                ex, ef, fscale)
       use foe_base, only: foe_data, foe_data_get_real
       use yaml_output
@@ -2113,11 +2113,12 @@ module foe_common
       real(kind=mp),dimension(:,:,:),pointer,intent(inout) :: cc
       real(kind=mp),dimension(ncalc),intent(out) :: max_error, x_max_error, mean_error
       real(kind=mp),intent(out) :: anoise
+      logical,intent(out) :: increase_degree_for_penaltyfunction
       real(kind=mp),dimension(ncalc),intent(in),optional :: ex, ef, fscale
 
       ! Local variables
       integer :: ipl, icalc, j, jpl
-      logical :: error_ok, found_degree
+      logical :: error_ok, found, found_degree
       real(kind=mp),dimension(:,:,:),allocatable :: cc_trial
       real(kind=mp) :: x_max_error_penaltyfunction, max_error_penaltyfunction, mean_error_penaltyfunction
 
@@ -2154,6 +2155,7 @@ module foe_common
       cc_trial = f_malloc0((/npl_max,ncalc,3/),id='cc_trial')
 
       found_degree = .false.
+      increase_degree_for_penaltyfunction = .false.
       degree_loop: do ipl=npl_min,npl_max,npl_stride
 
           if (foe_data_get_real(foe_obj,"evhigh",ispin)<=0.d0) then
@@ -2215,6 +2217,7 @@ module foe_common
                   end do
                   if (max_error_penaltyfunction>accuracy_penalty) then
                       error_ok = .false.
+                      increase_degree_for_penaltyfunction = .true.
                   end if
               end do
           end if
@@ -2425,6 +2428,7 @@ module foe_common
       real(mp) :: anoise, tt
       real(kind=mp),dimension(:,:,:),pointer :: cc_
       logical,dimension(2) :: eval_bounds_ok, eval_bounds_ok_allspins, scale_matrix
+      logical :: increase_degree_for_penaltyfunction
       type(matrices) :: ham_scaled
 
       call f_routine(id='get_bounds_and_polynomials')
@@ -2496,12 +2500,12 @@ module foe_common
                   if (func_name==FUNCTION_ERRORFUNCTION) then
                       call get_polynomial_degree(iproc, nproc, comm, 1, ncalc, FUNCTION_ERRORFUNCTION, foe_obj, &
                            npl_min, npl_max, npl_stride, accuracy_function, accuracy_penalty, 0, npl, cc_, &
-                           max_error, x_max_error, mean_error, anoise, &
+                           max_error, x_max_error, mean_error, anoise, increase_degree_for_penaltyfunction, &
                            ef=efarr, fscale=fscale_arr)
                   else if (func_name==FUNCTION_POLYNOMIAL) then
                       call get_polynomial_degree(iproc, nproc, comm, 1, ncalc, FUNCTION_POLYNOMIAL, foe_obj, &
                            npl_min, npl_max, npl_stride, accuracy_function, accuracy_penalty, 0, npl, cc_, &
-                           max_error, x_max_error, mean_error, anoise, &
+                           max_error, x_max_error, mean_error, anoise, increase_degree_for_penaltyfunction, &
                            ex=ex)
                   end if
                   npl_min = npl !to be used to speed up the search for npl in a following iteration
@@ -2510,7 +2514,13 @@ module foe_common
                       call yaml_sequence(advance='no')
                       call yaml_mapping_open(flow=.true.)
                       call yaml_map('npl',npl)
+                      if (increase_degree_for_penaltyfunction) then
+                          call yaml_map('npl determined by','penalty')
+                      else
+                          call yaml_map('npl determined by','function')
+                      end if
                       if (do_scaling) call yaml_map('scale',eval_multiplicator_total,fmt='(es9.2)')
+                      call yaml_newline()
                       call yaml_map('bounds', &
                            (/foe_data_get_real(foe_obj,"evlow",1),foe_data_get_real(foe_obj,"evhigh",1)/),fmt='(f7.3)')
                       call yaml_map('exp accur',max_error,fmt='(es8.2)')
@@ -2606,6 +2616,23 @@ module foe_common
       if (iproc==0 .and. foe_verbosity>0) then
           call yaml_sequence_close()
       end if
+
+      if (iproc==0) then
+          call yaml_mapping_open('summary',flow=.true.)
+          call yaml_map('npl',npl)
+          if (increase_degree_for_penaltyfunction) then
+              call yaml_map('npl determined by','penalty')
+          else
+              call yaml_map('npl determined by','function')
+          end if
+          if (do_scaling) call yaml_map('scale',eval_multiplicator_total,fmt='(es9.2)')
+          call yaml_newline()
+          call yaml_map('bounds', &
+               (/foe_data_get_real(foe_obj,"evlow",1),foe_data_get_real(foe_obj,"evhigh",1)/),fmt='(f7.3)')
+          call yaml_map('exp accur',max_error,fmt='(es8.2)')
+          call yaml_mapping_close()
+      end if
+
 
       if (do_scaling) then
           call deallocate_matrices(ham_scaled)

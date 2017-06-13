@@ -22,6 +22,7 @@ endif
 
 mod_src = defs.f90 base.f90 \
 	public_keys.f90 \
+	compression.f90 \
 	locregs.f90 \
 	gaussians.f90 \
 	locreg_operations.f90 \
@@ -66,6 +67,7 @@ modules = MODULE_BASE.@MODULE_EXT@ \
 	MODULE_XC.@MODULE_EXT@ \
 	PSEUDOPOTENTIALS.@MODULE_EXT@ \
 	LOCREGS.@MODULE_EXT@ \
+	COMPRESSION.@MODULE_EXT@ \
 	COMMUNICATIONS_BASE.@MODULE_EXT@
 else
 modules = module_base.@MODULE_EXT@ \
@@ -79,6 +81,7 @@ modules = module_base.@MODULE_EXT@ \
 	locreg_operations.@MODULE_EXT@ \
 	pseudopotentials.@MODULE_EXT@ \
 	locregs.@MODULE_EXT@ \
+	compression.@MODULE_EXT@ \
 	communications_base.@MODULE_EXT@
 endif
 
@@ -96,13 +99,14 @@ endif
 
 #dependencies
 base.o: defs.o public_keys.o
-locregs.o: base.o
-bounds.o: locregs.o
+compression.o: defs.o
+locregs.o: base.o compression.o bounds.o
+bounds.o: compression.o
 gaussians.o: base.o
 locreg_operations.o: locregs.o
 potential.o: locreg_operations.o
 daubisf.o precondLinear.o locregs_basics.o: locreg_operations.o
-ao_inguess.o: $(AO_INCLUDES) base.o 
+ao_inguess.o: $(AO_INCLUDES) base.o public_keys.o
 pseudopotentials.o: defs.o ao_inguess.o public_keys.o xc.o
 xc.o: base.o
 communications_base.o: base.o
@@ -110,18 +114,20 @@ $(routines:.f90=.o): defs.o
 
 convolut_common_per.o conv_per_common.o conv_per_optim.o: base.o
 
-MODULE_BASE.@MODULE_EXT@ module_base.@MODULE_EXT@: base.o
-MODULE_DEFS.@MODULE_EXT@ module_defs.@MODULE_EXT@: defs.o
-PUBLIC_KEYS.@MODULE_EXT@ public_keys.@MODULE_EXT@: public_keys.o
-PUBLIC_ENUMS.@MODULE_EXT@ public_enums.@MODULE_EXT@: public_keys.o
-GAUSSIANS.@MODULE_EXT@ gaussians.@MODULE_EXT@: gaussians.o
-AO_INGUESS.@MODULE_EXT@ ao_inguess.@MODULE_EXT@: ao_inguess.o
-BOUNDS.@MODULE_EXT@ bounds.@MODULE_EXT@: bounds.o
-LOCREG_OPERATIONS.@MODULE_EXT@ locreg_operations.@MODULE_EXT@: locreg_operations.o
-MODULE_XC.@MODULE_EXT@ module_xc.@MODULE_EXT@: xc.o
-PSEUDOPOTENTIALS.@MODULE_EXT@ pseudopotentials.@MODULE_EXT@: pseudopotentials.o
-LOCREGS.@MODULE_EXT@ locregs.@MODULE_EXT@: locregs.o
-COMMUNICATIONS_BASE.@MODULE_EXT@ communications_base.@MODULE_EXT@: communications_base.o
+$(modules): $(liborbitals_a_OBJECTS)
+
+#MODULE_BASE.@MODULE_EXT@ module_base.@MODULE_EXT@: base.o
+#MODULE_DEFS.@MODULE_EXT@ module_defs.@MODULE_EXT@: defs.o
+#PUBLIC_KEYS.@MODULE_EXT@ public_keys.@MODULE_EXT@: public_keys.o
+#PUBLIC_ENUMS.@MODULE_EXT@ public_enums.@MODULE_EXT@: public_keys.o
+#GAUSSIANS.@MODULE_EXT@ gaussians.@MODULE_EXT@: gaussians.o
+#AO_INGUESS.@MODULE_EXT@ ao_inguess.@MODULE_EXT@: ao_inguess.o
+#BOUNDS.@MODULE_EXT@ bounds.@MODULE_EXT@: bounds.o
+#LOCREG_OPERATIONS.@MODULE_EXT@ locreg_operations.@MODULE_EXT@: locreg_operations.o
+#MODULE_XC.@MODULE_EXT@ module_xc.@MODULE_EXT@: xc.o
+#PSEUDOPOTENTIALS.@MODULE_EXT@ pseudopotentials.@MODULE_EXT@: pseudopotentials.o
+#LOCREGS.@MODULE_EXT@ locregs.@MODULE_EXT@: locregs.o
+#COMMUNICATIONS_BASE.@MODULE_EXT@ communications_base.@MODULE_EXT@: communications_base.o
 
 # Copy modules in a common include directory.
 all: all-am insmod

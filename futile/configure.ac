@@ -17,7 +17,7 @@ AC_CONFIG_HEADERS(config.h)
 AC_CONFIG_MACRO_DIR([config/m4])
 
 dnl Init something, don't know exactly what...
-AM_INIT_AUTOMAKE([-Wno-portability])
+AM_INIT_AUTOMAKE([-Wno-portability, subdir-objects])
 dnl To keep the object files in the same structure as the source files (pb does not work with libABINIT)
 dnl AM_INIT_AUTOMAKE([--warnings=no-portability, subdir-objects])
 
@@ -161,9 +161,33 @@ if test $ax_build_dynamic != "yes" ; then
   LIB_FUTILE_LIBS="$LIB_FUTILE_LIBS $LIBS_EXT_DEPS $LIBS"
 fi
 AC_SUBST(LIB_FUTILE_LIBS)
+LIB_DICTS_LIBS=-ldicts
+AC_SUBST(LIB_DICTS_LIBS)
 
 dnl Test for the developers' documentation.
-AX_DOC()
+AC_CHECK_PROG(ac_have_doxygen, [doxygen], [yes], [no])
+AC_ARG_ENABLE(devel-doc,
+              AS_HELP_STRING([--enable-devel-doc],
+                             [compile documentation for developers using Doxygen.]),
+              ac_devel_doc=$enableval, ac_devel_doc="no")
+AM_CONDITIONAL(BUILD_DEVDOC, test x"$ac_have_doxygen" = x"yes" -a x"$ac_devel_doc" = x"yes")
+dnl Test for the documentation.
+AC_CHECK_PROG(ac_have_pdflatex, [pdflatex], [yes], [no])
+AM_CONDITIONAL(BUILD_PDFDOC, test x"$ac_have_pdflatex" = x"yes" -a x"$ac_devel_doc" = x"yes")
+
+dnl LIB_PSOLVER_DEPS="$LIBETSFIO_LIBS $LIBCUDA_LIBS $LINALG_LIBS $MPI_LDFLAGS $MPI_LIBS"
+dnl LIB_PSOLVER_PKG=""
+dnl if test $ax_build_dynamic != "yes" ; then
+dnl   LIB_PSOLVER_PKG="$LIB_PSOLVER_DEPS"
+dnl fi
+dnl AC_SUBST(LIB_PSOLVER_PKG)
+dnl LIB_PSOLVER_DEPS="$LIB_PSOLVER_DEPS $LIB_FUTILE_LIBS"
+dnl AC_SUBST(LIB_PSOLVER_DEPS)
+
+
+dnl default installation directories
+docdir="${docdir}"
+AC_SUBST(docdir)
 
 AC_SUBST(CONFIG_ARGS, [$ac_configure_args])
 
@@ -171,21 +195,25 @@ dnl Give the name of file.in to transform to file
 AC_CONFIG_FILES([
 Makefile
 futile.pc
+libdicts.pc
 futile_environment.sh
 futilevars.sh
+config/Doxyfile
+dicts/Makefile
+dicts/futile_cst.h
 doc/Makefile
 doc/Doxyfile
 flib/Makefile
 flib/f_utils.inc
 wrappers/Makefile
 c-bindings/Makefile
-c-bindings/futile_cst.h
 src/configure.inc
 src/f_memcheck
 src/Makefile
 src/python/Makefile
 src/python/futile/Makefile
 tests/Makefile
+tests/dicts/Makefile
 tests/fft/Makefile
 tests/flib/Makefile
 tests/wrappers/Makefile

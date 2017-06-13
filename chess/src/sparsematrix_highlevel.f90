@@ -790,7 +790,7 @@ module sparsematrix_highlevel
     subroutine matrix_fermi_operator_expansion(iproc, nproc, comm, foe_obj, ice_obj, smat_s, smat_h, smat_k, &
                overlap, ham, overlap_minus_one_half, kernel, ebs, &
                calculate_minusonehalf, foe_verbosity, symmetrize_kernel, calculate_energy_density_kernel, calculate_spin_channels, &
-               energy_kernel)
+               energy_kernel, inversion_method, pexsi_np_sym_fact)
       use foe_base, only: foe_data
       use foe, only: fermi_operator_expansion_new
       use dynamic_memory
@@ -808,11 +808,14 @@ module sparsematrix_highlevel
       integer,intent(in),optional :: foe_verbosity
       type(matrices),intent(inout),optional :: energy_kernel
       logical,dimension(smat_k%nspin),intent(in),optional :: calculate_spin_channels
+      character(len=*),intent(in),optional :: inversion_method
+      integer,intent(in),optional :: pexsi_np_sym_fact
 
       ! Local variables
       logical :: calculate_minusonehalf_, symmetrize_kernel_, calculate_energy_density_kernel_
-      integer :: foe_verbosity_
+      integer :: foe_verbosity_, pexsi_np_sym_fact_
       logical,dimension(smat_k%nspin) :: calculate_spin_channels_
+      character(len=1024) :: inversion_method_
 
       call f_routine(id='matrix_fermi_operator_expansion')
 
@@ -826,6 +829,10 @@ module sparsematrix_highlevel
       if (present(calculate_energy_density_kernel)) calculate_energy_density_kernel_ = calculate_energy_density_kernel
       calculate_spin_channels_(:) = .true.
       if (present(calculate_spin_channels)) calculate_spin_channels_(:) = calculate_spin_channels
+      inversion_method_ = 'ICE'
+      if (present(inversion_method)) inversion_method_ = inversion_method
+      pexsi_np_sym_fact_ = 1
+      if (present(pexsi_np_sym_fact)) pexsi_np_sym_fact_ = pexsi_np_sym_fact
 
       ! Check the optional arguments
       if (calculate_energy_density_kernel_) then
@@ -874,13 +881,14 @@ module sparsematrix_highlevel
       if (calculate_energy_density_kernel_) then
           call fermi_operator_expansion_new(iproc, nproc, comm, &
                ebs, &
-               calculate_minusonehalf_, foe_verbosity_, &
+               calculate_minusonehalf_, foe_verbosity_, inversion_method_, pexsi_np_sym_fact_, &
                smat_s, smat_h, smat_k, ham, overlap, overlap_minus_one_half, kernel, foe_obj, ice_obj, &
-               symmetrize_kernel_, calculate_energy_density_kernel_, calculate_spin_channels_, energy_kernel_=energy_kernel)
+               symmetrize_kernel_, calculate_energy_density_kernel_, calculate_spin_channels_, &
+               energy_kernel_=energy_kernel)
       else
           call fermi_operator_expansion_new(iproc, nproc, comm, &
                ebs, &
-               calculate_minusonehalf_, foe_verbosity_, &
+               calculate_minusonehalf_, foe_verbosity_, inversion_method_, pexsi_np_sym_fact_, &
                smat_s, smat_h, smat_k, ham, overlap, overlap_minus_one_half, kernel, foe_obj, ice_obj, &
                symmetrize_kernel_, calculate_energy_density_kernel_, calculate_spin_channels_)
       end if

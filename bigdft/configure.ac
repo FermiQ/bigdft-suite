@@ -7,7 +7,7 @@ dnl  - PACKAGE_TARNAME, the name used for the tarball ;
 dnl  - PACKAGE_VERSION, the version ;
 dnl  - PACKAGE_STRING, the name + the version ;
 dnl  - PACKAGE_BUGREPORT, the mail.
-AC_INIT([BigDFT - DFT over wavelets],[1.8],[Damien.Caliste@cea.fr],[bigdft])
+AC_INIT([BigDFT - DFT over wavelets],[1.8.1],[Damien.Caliste@cea.fr],[bigdft])
 
 dnl All temporary building files are put in this directory.
 dnl his must be called before AM_INIT_AUTOMAKE
@@ -199,6 +199,25 @@ AX_LIBGAIN()
 AX_ARCHIVE()
 AX_AMBERTOOLS()
 AX_ALBORZ()
+AX_PACKAGE([OPENBABEL],[2.0],[-lopenbabel],[],[],
+           [
+#include <openbabel/obmolecformat.h>
+#include <openbabel/mol.h>
+
+using namespace OpenBabel;
+
+int main(int argc, char **argv)
+{
+  std::ifstream fin("test.xyz");
+  std::istream* pIn = &fin;
+  OpenBabel::OBConversion conv(pIn, NULL);
+
+  return 0;  
+}
+],
+           [OpenBabel::OBConversion conv],
+           [C++], [openbabel-2.0])
+AM_CONDITIONAL(HAVE_OPENBABEL, test $ax_have_OPENBABEL = "yes")
 dnl PEXSI
 AC_ARG_WITH(pexsi, AS_HELP_STRING([--with-pexsi],
             [Give the link-line for PEXSI.]),
@@ -296,6 +315,10 @@ LIB_BIGDFT_PKG=""
 if test $ax_build_dynamic != "yes" ; then
   LIB_BIGDFT_PKG="$LIB_BIGDFT_DEPS"
 fi
+if test $ax_have_OPENBABEL = "yes" ; then
+  LIB_BIGDFT_PKG="-lbabel $LIB_BIGDFT_PKG"
+fi
+
 AC_SUBST(LIB_BIGDFT_PKG)
 dnl LIB_BIGDFT_DEPS="$LIB_BIGDFT_DEPS $LIB_PSOLVER_LIBS $LIB_FUTILE_LIBS"
 AC_SUBST(LIB_BIGDFT_DEPS)
@@ -414,6 +437,9 @@ Options:
    | nab Compiler:           $NAB
   With CP2K:                 $ax_have_cp2k
   With PEXSI:                $ax_have_pexsi
+  With OpenBabel:            $ax_have_OPENBABEL
+   | C++ flags:              $LIB_OPENBABEL_CFLAGS
+   | linked libraries:       $LIB_OPENBABEL_LIBS
   With libXC:                $ac_use_libxc
    | internal built:         $ac_build_libxc
    | include dir.:           $LIBXC_INCLUDE

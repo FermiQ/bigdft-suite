@@ -1339,7 +1339,8 @@ module communications
     !> Locreg communication
     subroutine communicate_locreg_descriptors_basics(iproc, nproc, nlr, rootarr, orbs, llr)
       use module_base
-      use module_types, only: orbitals_data, locreg_descriptors
+      use module_types, only: orbitals_data
+      use locregs, only: locreg_descriptors
       implicit none
     
       ! Calling arguments
@@ -1546,7 +1547,8 @@ module communications
        use dictionaries
        use wrapper_mpi
        use module_base, only: bigdft_mpi
-       use module_types, only: orbitals_data, locreg_descriptors
+       use module_types, only: orbitals_data
+       use locregs, only: locreg_descriptors
        use wrapper_linalg
        use locregs, only: allocate_wfd, check_overlap_cubic_periodic
        use yaml_output
@@ -2038,7 +2040,9 @@ module communications
     !> Get the offset of the data of locreg iilr
     function get_offset(nlr, llr, orbs, norb_max, iiproc, iilr, locregs_local, mask)
       use module_base
-      use module_types, only: orbitals_data, locreg_descriptors
+      use module_types, only: orbitals_data
+      use locregs, only: locreg_descriptors
+
       implicit none
       integer,intent(in) :: nlr, norb_max, iiproc, iilr
       type(locreg_descriptors),dimension(nlr),intent(inout) :: llr
@@ -2107,6 +2111,7 @@ module communications
                out_add) !optional
       use module_base
       use module_types
+      use compression
       implicit none
       integer, intent(in) :: iproc,nproc
       type(orbitals_data), intent(in) :: orbs
@@ -2159,6 +2164,7 @@ module communications
          work_add,out_add) !optional
       use module_base
       use module_types
+      use compression
       implicit none
       integer, intent(in) :: iproc,nproc
       type(orbitals_data), intent(in) :: orbs

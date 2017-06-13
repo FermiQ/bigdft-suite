@@ -64,6 +64,7 @@ subroutine calculate_forces(iproc,nproc,psolver_groupsize,Glr,atoms,ob,nlpsp,rxy
   use module_forces
   use forces_linear
   use orbitalbasis
+  use locregs
   implicit none
   logical, intent(in) :: calculate_strten
   logical, intent(in) :: refill_proj
@@ -147,7 +148,7 @@ subroutine calculate_forces(iproc,nproc,psolver_groupsize,Glr,atoms,ob,nlpsp,rxy
   if (extra_timing) call cpu_time(tr1)
   if (extra_timing) time1=real(tr1-tr0,kind=8)
 
-  if (iproc == 0 .and. verbose > 1) call yaml_map('Calculate Non Local forces',(nlpsp%nprojel > 0))
+  if (iproc == 0 .and. get_verbose_level() > 1) call yaml_map('Calculate Non Local forces',(nlpsp%nprojel > 0))
 
   !LG: can we relax the constraint for psolver taskgroups in the case of stress tensors?
   if (atoms%astruct%geocode == 'P' .and. psolver_groupsize == nproc .and. calculate_strten) then
@@ -238,7 +239,7 @@ subroutine calculate_forces(iproc,nproc,psolver_groupsize,Glr,atoms,ob,nlpsp,rxy
         ucvol=atoms%astruct%cell_dim(1)*atoms%astruct%cell_dim(2)*atoms%astruct%cell_dim(3) !orthorombic cell
         if (iproc==0) call yaml_mapping_open('Stress Tensor')
         !sum and symmetrize results
-     if (iproc==0 .and. verbose > 2) then
+     if (iproc==0 .and. get_verbose_level() > 2) then
         call write_strten_info(.false.,ewaldstr,ucvol,pressure,'Ewald')
         call write_strten_info(.false.,hstrten,ucvol,pressure,'Hartree')
         call write_strten_info(.false.,xcstr,ucvol,pressure,'XC')
@@ -253,7 +254,7 @@ subroutine calculate_forces(iproc,nproc,psolver_groupsize,Glr,atoms,ob,nlpsp,rxy
         !here we should add the pretty printings
         do i=1,4
            if (atoms%astruct%sym%symObj >= 0) call symm_stress(strtens(1,i),atoms%astruct%sym%symObj)
-           if (iproc==0 .and. verbose>2)&
+           if (iproc==0 .and. get_verbose_level()>2)&
                 call write_strten_info(.false.,strtens(1,i),ucvol,pressure,trim(messages(i)))
            do j=1,6
               strten(j)=strten(j)+strtens(j,i)
@@ -481,7 +482,7 @@ subroutine rhocore_forces(iproc,atoms,dpbox,nspin,rxyz,potxc,fxyz)
         !print *,'iat,iproc',iat,iproc,frcx*hxh*hyh*hzh*spinfac*oneo4pi
      end do
 
-     if (iproc == 0 .and. verbose > 1) call yaml_map('Calculate NLCC forces',.true.)
+     if (iproc == 0 .and. get_verbose_level() > 1) call yaml_map('Calculate NLCC forces',.true.)
   end if
 
   call f_release_routine()
@@ -557,7 +558,7 @@ subroutine local_forces(iproc,at,rxyz,hxh,hyh,hzh,&
   charge=charge*hxh*hyh*hzh
 
 
-!!!  if (iproc == 0 .and. verbose > 1) call yaml_mapping_open('Calculate local forces',flow=.true.)
+!!!  if (iproc == 0 .and. get_verbose_level() > 1) call yaml_mapping_open('Calculate local forces',flow=.true.)
 
   !Determine the maximal bounds for mpx, mpy, mpz (1D-integral)
   if (at%astruct%nat >0) then
@@ -839,15 +840,15 @@ subroutine local_forces(iproc,at,rxyz,hxh,hyh,hzh,&
 !locstrten(1:3)=locstrten(1:3)+charge*psoffset/(hxh*hyh*hzh)/real(n1i*n2i*n3p,kind=8)
 
 !!!  forceleaked=forceleaked*hxh*hyh*hzh
-  !if (iproc == 0 .and. verbose > 1) write(*,'(a,1pe12.5)') 'done. Leaked force: ',forceleaked
+  !if (iproc == 0 .and. get_verbose_level() > 1) write(*,'(a,1pe12.5)') 'done. Leaked force: ',forceleaked
 
-  !if (iproc == 0 .and. verbose > 1) write(*,'(a,1pe12.5)') 'done. Leaked force: ',forceleaked
-!!!  if (iproc == 0 .and. verbose > 1) then
+  !if (iproc == 0 .and. get_verbose_level() > 1) write(*,'(a,1pe12.5)') 'done. Leaked force: ',forceleaked
+!!!  if (iproc == 0 .and. get_verbose_level() > 1) then
 !!!     call yaml_map('Leaked force',trim(yaml_toa(forceleaked,fmt='(1pe12.5)')))
 !!!     call yaml_mapping_close()
 !!!  end if
 
-  if (iproc == 0 .and. verbose > 1) call yaml_map('Calculate local forces',.true.)
+  if (iproc == 0 .and. get_verbose_level() > 1) call yaml_map('Calculate local forces',.true.)
 
   if (at%multipole_preserving) call finalize_real_space_conversion()
 
@@ -866,6 +867,8 @@ subroutine nonlocal_forces(lr,hx,hy,hz,at,rxyz,&
        PSPCODE_PAW
   use orbitalbasis
   use ao_inguess, only: lmax_ao
+  use compression
+  use locregs
   implicit none
   !Arguments-------------
   type(atoms_data), intent(in) :: at
@@ -4232,6 +4235,7 @@ subroutine local_hamiltonian_stress(orbs,lr,hx,hy,hz,psi,tens)
   use module_types
   use module_xc
   use locreg_operations
+  use locregs
   implicit none
   real(gp), intent(in) :: hx,hy,hz
   type(orbitals_data), intent(in) :: orbs

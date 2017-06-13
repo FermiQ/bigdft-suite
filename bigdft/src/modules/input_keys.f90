@@ -243,6 +243,9 @@ module module_input_keys
      !> atomic density matrix requests
      type(dictionary), pointer :: at_gamma
 
+     !> calculate spatial density of states
+     logical :: sdos
+
      !> For absorption calculations
      integer :: iabscalc_type   !< 0 non calc, 1 cheb ,  2 lanc
      !! integer :: iat_absorber, L_absorber, N_absorber, rpower_absorber, Linit_absorber
@@ -370,7 +373,9 @@ module module_input_keys
      !> Global MPI group size (will be written in the mpi_environment)
      ! integer :: mpi_groupsize
 
-     type(external_potential_descriptors) :: ep
+     type(external_potential_descriptors) :: ep !< contains the multipoles for the external potential
+     logical :: mp_centers_auto !< indicates whether the multipole centers shall be determined automatically (i.e. the atoms) or provided manually
+     real(kind=8),dimension(:,:),pointer :: mp_centers !< contains the positions of the multipoles to be calculated
 
      ! Linear scaling parameters
      type(linearInputParameters) :: lin    !< Linear scaling data
@@ -616,6 +621,7 @@ contains
     use wrapper_MPI, only: mpibarrier
     use abi_interfaces_add_libpaw, only : abi_pawinit
     use PStypes, only: SETUP_VARIABLES,VERBOSITY
+    use vdwcorrection, only: vdwcorrection_warnings
     implicit none
     !Arguments
     type(input_variables), intent(out) :: in
@@ -624,21 +630,23 @@ contains
     !Local variables
     !type(dictionary), pointer :: profs, dict_frag
     logical :: found, userdef
-    integer :: ierr, norb_max, jtype, jxc
+    integer :: ierr, norb_max, jtype, jxc, ii
     real(gp) :: qelec_up, qelec_down
     character(len = max_field_length) :: msg,filename,run_id,input_id,posinp_id,outdir
     !  type(f_dict) :: dict
-    type(dictionary), pointer :: dict_minimal, var, lvl, types
+    type(dictionary), pointer :: dict_minimal, var, lvl, types, iter
 
     integer, parameter :: pawlcutd = 10, pawlmix = 10, pawnphi = 13, pawntheta = 12, pawxcdev = 1
     integer, parameter :: usepotzero = 0
-    integer :: nsym,unt, xclevel, iat, mpsang
-    real(gp) :: gsqcut_shp, rloc, projr, rlocmin
+    integer :: nsym,unt, xclevel, iat, mpsang, i, n
+    real(gp) :: rloc, projr, rlocmin
     real(gp), dimension(2) :: cfrmults
+    !real(gp) :: gsqcut_shp
     !type(external_potential_descriptors) :: ep
     !integer :: impl, l
     type(xc_info) :: xc
     logical :: free,positions
+    character(len=20) :: key
 
     call f_routine(id='inputs_from_dict')
 
@@ -655,7 +663,12 @@ contains
     if (free .and. positions) call f_err_throw('No given atoms with free boundary conditions',&
                 & ERR_NAME='BIGDFT_INPUT_VARIABLES_ERROR')
 
+    !this cannot be called as the input variables are not ready at this stage
+!!$    call astruct_set(atoms%astruct,dict // POSINP,in%randdis,in%disableSym,in%symTol,in%elecfield,in%nspin,&
+!!$         bigdft_mpi%iproc == 0)
+
     call astruct_set_from_dict(dict // POSINP, atoms%astruct)
+
     ! Generate the dict of types for later use.
     call astruct_dict_get_types(dict // POSINP, types)
 
@@ -676,17 +689,14 @@ contains
     !copy the CheSS dictionary
     call dict_copy(src=dict // CHESS, dest=in%chess_dict)
 
-
     ! Add missing pseudo information.
     projr = dict // PERF_VARIABLES // PROJRAD
     cfrmults = dict // DFT_VARIABLES // RMULT
     jxc = dict // DFT_VARIABLES // IXC
-    !var => dict_iter(types)
-    !do while(associated(var))
+
     nullify(var)
     do while(iterating(var,on=types))
        call psp_dict_fill_all(dict, trim(dict_key(var)), jxc, projr, cfrmults(1), cfrmults(2))
-       !var => dict_next(var)
     end do
 
     ! Update interdependent values.
@@ -782,17 +792,20 @@ contains
     call kpt_input_analyse(bigdft_mpi%iproc, in, dict//KPT_VARIABLES, &
          & atoms%astruct%sym, atoms%astruct%geocode, atoms%astruct%cell_dim)
 
-    ! Update atoms with pseudo information.
-    call psp_dict_analyse(dict, atoms, in%frmult)
-    call atomic_data_set_from_dict(dict,IG_OCCUPATION, atoms, in%nspin)
+    call atoms_fill(atoms,dict,in%frmult,in%nspin,&
+         in%multipole_preserving,in%mp_isf,in%ixc,in%alpha_hartree_fock)
 
-    !fill the requests for the atomic density matrix
-    call atoms_gamma_from_dict(dict//OUTPUT_VARIABLES//ATOMIC_DENSITY_MATRIX,dict//DFT_VARIABLES//OCCUPANCY_CONTROL,&
-     lmax_ao,atoms%astruct,atoms%dogamma,atoms%gamma_targets)
-
-    ! Add multipole preserving information
-    atoms%multipole_preserving = in%multipole_preserving
-    atoms%mp_isf = in%mp_isf
+!!$    ! Update atoms with pseudo information.
+!!$    call psp_dict_analyse(dict, atoms, in%frmult)
+!!$    call atomic_data_set_from_dict(dict,IG_OCCUPATION, atoms, in%nspin)
+!!$
+!!$    !fill the requests for the atomic density matrix
+!!$    call atoms_gamma_from_dict(dict//OUTPUT_VARIABLES//ATOMIC_DENSITY_MATRIX,dict//DFT_VARIABLES//OCCUPANCY_CONTROL,&
+!!$     lmax_ao,atoms%astruct,atoms%dogamma,atoms%gamma_targets)
+!!$
+!!$    ! Add multipole preserving information
+!!$    atoms%multipole_preserving = in%multipole_preserving
+!!$    atoms%mp_isf = in%mp_isf
 
     ! Generate orbital occupation
     call read_n_orbitals(bigdft_mpi%iproc, qelec_up, qelec_down, norb_max, atoms, &
@@ -802,32 +815,28 @@ contains
          in%gen_nkpt, in%nspin, in%norbsempty, qelec_up, qelec_down, norb_max)
     in%gen_norb = in%gen_norbu + in%gen_norbd
 
-    ! Complement PAW initialisation.
-    if (any(atoms%npspcode == PSPCODE_PAW)) then
-     call xc_init(xc, in%ixc, XC_MIXED, 1, in%alpha_hartree_fock)
-     xclevel = 1 ! xclevel=XC functional level (1=LDA, 2=GGA)
-     if (xc_isgga(xc)) xclevel = 2
-     call xc_end(xc)
-     !gsqcut_shp = two*abs(dtset%diecut)*dtset%dilatmx**2/pi**2
-     gsqcut_shp = 2._gp * 2.2_gp / pi_param ** 2
-     nsym = 0
-     call symmetry_get_n_sym(atoms%astruct%sym%symObj, nsym, ierr)
-     mpsang = -1
-     do iat = 1, atoms%astruct%nat
-        mpsang = max(mpsang, maxval(atoms%pawtab(iat)%orbitals))
-     end do
-     call abi_pawinit(1, gsqcut_shp, pawlcutd, pawlmix, mpsang + 1, &
-          & pawnphi, nsym, pawntheta, atoms%pawang, atoms%pawrad, 0, &
-          & atoms%pawtab, pawxcdev, xclevel, usepotzero)
-    end if
+!!$    ! Complement PAW initialisation.
+!!$    if (any(atoms%npspcode == PSPCODE_PAW)) then
+!!$     call xc_init(xc, in%ixc, XC_MIXED, 1, in%alpha_hartree_fock)
+!!$     xclevel = 1 ! xclevel=XC functional level (1=LDA, 2=GGA)
+!!$     if (xc_isgga(xc)) xclevel = 2
+!!$     call xc_end(xc)
+!!$     !gsqcut_shp = two*abs(dtset%diecut)*dtset%dilatmx**2/pi**2
+!!$     gsqcut_shp = 2._gp * 2.2_gp / pi_param ** 2
+!!$     nsym = 0
+!!$     call symmetry_get_n_sym(atoms%astruct%sym%symObj, nsym, ierr)
+!!$     mpsang = -1
+!!$     do iat = 1, atoms%astruct%nat
+!!$        mpsang = max(mpsang, maxval(atoms%pawtab(iat)%orbitals))
+!!$     end do
+!!$     call abi_pawinit(1, gsqcut_shp, pawlcutd, pawlmix, mpsang + 1, &
+!!$          & pawnphi, nsym, pawntheta, atoms%pawang, atoms%pawrad, 0, &
+!!$          & atoms%pawtab, pawxcdev, xclevel, usepotzero)
+!!$    end if
 
     if (in%gen_nkpt > 1 .and. (in%inputpsiid .hasattr. 'GAUSSIAN')) then
        call f_err_throw('Gaussian projection is not implemented with k-point support',err_name='BIGDFT_INPUT_VARIABLES_ERROR')
     end if
-
-!!$    if(in%inputpsiid == INPUT_PSI_LINEAR_AO .or. &
-!!$         in%inputpsiid == INPUT_PSI_MEMORY_LINEAR .or. &
-!!$         in%inputpsiid == INPUT_PSI_DISK_LINEAR) &
     if (in%inputpsiid .hasattr. 'LINEAR') DistProjApply=.true.
     if(in%linear /= INPUT_IG_OFF .and. in%linear /= INPUT_IG_LIG) then
        !only on the fly calculation
@@ -843,29 +852,14 @@ contains
     ! Stop the code if it is trying to run GPU with spin=4
     if (in%nspin == 4 .and. in%matacc%iacceleration /= 0) then
        call f_err_throw('GPU calculation not implemented with non-collinear spin',err_name='BIGDFT_INPUT_VARIABLES_ERROR')
-!!$     if (bigdft_mpi%iproc==0) call yaml_warning('GPU calculation not implemented with non-collinear spin')
-!!$     call MPI_ABORT(bigdft_mpi%mpi_comm,0,ierr)
     end if
 
+    if (in%dispersion /= 0) then
+       call vdwcorrection_warnings(atoms, in%dispersion, in%ixc)
+    end if
+    
     !control atom positions
     call check_atoms_positions(atoms%astruct, (bigdft_mpi%iproc == 0))
-
-!!$  ! Stop code for unproper input variables combination.
-!!$  if (in%ncount_cluster_x > 0 .and. .not. in%disableSym .and. atoms%geocode == 'S') then
-!!$     if (bigdft_mpi%iproc==0) then
-!!$        write(*,'(1x,a)') 'Change "F" into "T" in the last line of "input.dft"'
-!!$        write(*,'(1x,a)') 'Forces are not implemented with symmetry support, disable symmetry please (T)'
-!!$     end if
-!!$     call MPI_ABORT(bigdft_mpi%mpi_comm,0,ierr)
-!!$  end if
-
-!!$  if (bigdft_mpi%iproc == 0) then
-!!$     profs => input_keys_get_profiles("")
-!!$     call yaml_dict_dump(profs)
-!!$     call dict_free(profs)
-!!$  end if
-
-    !call mpi_barrier(bigdft_mpi%mpi_comm,ierr)
 
     ! Warn for all INPUT_VAR_ILLEGAL errors.
     do while (f_err_pop(err_name='INPUT_VAR_ILLEGAL', add_msg = msg) /= 0)
@@ -889,26 +883,38 @@ contains
        found = TRANSFER_INTEGRALS .in. dict // FRAG_VARIABLES
        if (found) in%lin%calc_transfer_integrals=dict//FRAG_VARIABLES//TRANSFER_INTEGRALS
        call frag_from_dict(dict//FRAG_VARIABLES,in%frag)
-
-!!$     ! again recheck
-!!$     call dict_from_frag(in%frag,dict_frag)
-!!$     call yaml_map('again',dict_frag)
-!!$     call dict_free(dict_frag)
-!!$     stop
     else
        call default_fragmentInputParameters(in%frag)
     end if
 
     ! Process the multipoles for the external potential
     call multipoles_from_dict(dict//DFT_VARIABLES//EXTERNAL_POTENTIAL, in%ep)
-    !!do impl=1,in%ep%nmpl
-    !!    call yaml_map('rxyz',in%ep%mpl(impl)%rxyz)
-    !!    do l=0,lmax
-    !!         if(associated(in%ep%mpl(impl)%qlm(l)%q)) then
-    !!             call yaml_map(trim(yaml_toa(l)),in%ep%mpl(impl)%qlm(l)%q)
-    !!         end if
-    !!    end do
-    !!end do
+    ! Check whether the multipole centers shall be determined automatically (i.e. taking the atoms)
+    ! or whether they are provided manually.
+    in%mp_centers_auto = .true.
+    if (CENTERS_AUTO .in. dict//LIN_GENERAL//MULTIPOLE_CENTERS) then
+        in%mp_centers_auto = dict//LIN_GENERAL//MULTIPOLE_CENTERS//CENTERS_AUTO
+    end if
+    if (in%mp_centers_auto) then
+        nullify(in%mp_centers)
+    else
+        ! Specify the centers manually
+        if (.not. ('positions' .in. dict//LIN_GENERAL//MULTIPOLE_CENTERS)) then
+            call f_err_throw('No multipole centers are provided')
+        end if
+        n = dict_len(dict//LIN_GENERAL//MULTIPOLE_CENTERS//'positions')
+        in%mp_centers = f_malloc_ptr((/3,n/),id='in%mp_centers')
+        if (n/=atoms%astruct%nat) then
+            call f_err_throw('The number of multipole centers ('//trim(yaml_toa(n))//') &
+                &does not correspond to the number of atoms ('//trim(yaml_toa(atoms%astruct%nat))//')')
+        end if
+        do i=1,n
+            ii = i-1
+            iter => dict//LIN_GENERAL//MULTIPOLE_CENTERS//'positions'//ii
+            key = trim(atoms%astruct%atomnames(atoms%astruct%iatype(i)))
+            in%mp_centers(1:3,i) = iter//key
+        end do
+    end if
 
     ! No use anymore of the types.
     call dict_free(types)
@@ -965,18 +971,13 @@ contains
     !shouldwrite=.false.
 
     shouldwrite= &!shouldwrite .or. &
-                                !in%output_wf_format /= WF_FORMAT_NONE .or. &    !write wavefunctions
          in%output_wf /= ENUM_EMPTY .or. &    !write wavefunctions
          in%output_denspot /= ENUM_EMPTY .or. & !write output density
          in%ncount_cluster_x > 1 .or. &                  !write posouts or posmds
-         !in%inputPsiId == 2 .or. &                       !have wavefunctions to read
-         !in%inputPsiId == 12 .or.  &                     !read in gaussian basis
          (in%inputPsiId .hasattr. 'FILE') .or. &
-         (in%inputPsiId .hasattr. 'GAUSSIAN') .or. &
-         !in%gaussian_help .or. &                         !Mulliken and local density of states
+         (in%inputPsiId .hasattr. 'GAUSSIAN') .or. &   !Mulliken and local density of states
          bigdft_mpi%ngroup > 1   .or. &                  !taskgroups have been inserted
          mod(in%lin%plotBasisFunctions,10) > 0 .or. &    !dumping of basis functions for locreg runs
-         !in%inputPsiId == 102 .or. &                     !reading of basis functions
          in%write_orbitals>0 .or. &                      !writing the KS orbitals in the linear case
          mod(in%lin%output_mat_format,10)>0 .or. &       !writing the sparse linear matrices
          mod(in%lin%output_coeff_format,10)>0 .or. &          !writing the linear KS coefficients
@@ -1643,11 +1644,14 @@ contains
                call yaml_warning("unknown input key '" // trim(level) // "/" // trim(dict_key(val)) // "'")
        end select
     case (OUTPUT_VARIABLES)
-        ! the DFT variables ------------------------------------------------------
-        select case (trim(dict_key(val)))
-        case(ATOMIC_DENSITY_MATRIX)
+       select case (trim(dict_key(val)))
+       case (VERBOSITY)
+          in%verbosity = val
+       case(ATOMIC_DENSITY_MATRIX)
           call dict_copy(src=val,dest=in%at_gamma)
-        end select
+       case(SPATIAL_DOS)
+          in%sdos=val
+       end select
     case (DFT_VARIABLES)
        ! the DFT variables ------------------------------------------------------
        select case (trim(dict_key(val)))
@@ -1756,8 +1760,6 @@ contains
           in%profiling_depth = val
        case (FFTCACHE)
           in%ncache_fft = val
-       case (VERBOSITY)
-          in%verbosity = val
        case (TOLSYM)
           in%symTol = val
        case (PROJRAD)
@@ -2176,10 +2178,11 @@ contains
           in%lin%calculate_FOE_eigenvalues(1:2) = val
        case (PRECISION_FOE_EIGENVALUES)
           in%lin%precision_FOE_eigenvalues = val
+       case (MULTIPOLE_CENTERS)
+          ! Do nothing
        case DEFAULT
           if (bigdft_mpi%iproc==0) &
                call yaml_warning("unknown input key '" // trim(level) // "/" // trim(dict_key(val)) // "'")
-               write(*,*) 'CALCULATE_FOE_EIGENVALUES'
        end select
     case (LIN_BASIS)
        select case (trim(dict_key(val)))
@@ -2471,6 +2474,7 @@ contains
     nullify(in%at_gamma)
     call f_zero(in%calculate_strten)
     call f_zero(in%nab_options)
+    in%sdos=.false.
     in%profiling_depth=-1
     in%plugin_id = 0
     in%gen_norb = UNINITIALIZED(0)
@@ -2632,6 +2636,7 @@ contains
     call deallocateBasicArraysInput(in%lin)
     call deallocateInputFragArrays(in%frag)
     call deallocate_external_potential_descriptors(in%ep)
+    call f_free_ptr(in%mp_centers)
 
     ! Stop the signaling stuff.
     !Destroy C wrappers on Fortran objects,

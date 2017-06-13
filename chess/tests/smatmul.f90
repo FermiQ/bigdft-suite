@@ -27,10 +27,10 @@ program smatmul
   !use yaml_parse, only: yaml_cl_parse, yaml_cl_parse_null, yaml_cl_parse_free, yaml_cl_parse_cmd_line
   !use dictionaries
   !use yaml_output
-  use sparsematrix_base, only: sparse_matrix, matrices, &
-                               matrices_null, deallocate_sparse_matrix, deallocate_matrices, &
-                               assignment(=), sparsematrix_malloc_ptr, sparsematrix_malloc, SPARSE_FULL, SPARSEMM_SEQ, &
-                               SPARSE_MATMUL_SMALL
+  use sparsematrix_base!, only: sparse_matrix, matrices, &
+                       !        matrices_null, deallocate_sparse_matrix, deallocate_matrices, &
+                       !        assignment(=), sparsematrix_malloc_ptr, sparsematrix_malloc, SPARSE_FULL, SPARSEMM_SEQ, &
+                       !        SPARSE_MATMUL_SMALL, ONESIDED_FULL
   use sparsematrix_init, only: bigdft_to_sparsebigdft, distribute_columns_on_processes_simple, check_symmetry
   use sparsematrix, only: write_matrix_compressed, &
                           write_sparsematrix_CCS, write_sparsematrix, &
@@ -92,6 +92,12 @@ program smatmul
   nproc=mpisize()
   comm=mpiworld()
 
+  call f_malloc_set_status(memory_limit=0.e0,iproc=iproc)
+
+  ! Initialize the sparsematrix error handling and timing.
+  call sparsematrix_init_errors()
+  call sparsematrix_initialize_timing_categories()
+
   if (iproc==0) then
       call yaml_new_document()
   end if
@@ -121,8 +127,8 @@ program smatmul
   !!matA%matrix_compr = sparsematrix_malloc_ptr(smat, iaction=SPARSE_FULL, id='matA%matrix_compr')
   !!matA%matrix_compr = mat_compr
 
-  call sparse_matrix_and_matrices_init_from_file_bigdft('serial', filename, iproc, nproc,comm, smat, matA, &
-       init_matmul=.true.)!, nat=nat, ntypes=ntypes, nzatom=nzatom, nelpsp=nelpsp, &
+  call sparse_matrix_and_matrices_init_from_file_bigdft('serial_text', filename, iproc, nproc,comm, smat, matA, &
+       init_matmul=.true., filename_mult=filename)!, nat=nat, ntypes=ntypes, nzatom=nzatom, nelpsp=nelpsp, &
        !atomnames=atomnames, iatype=iatype, rxyz=rxyz, on_which_atom=on_which_atom)
 
   ! Check the symmetry
@@ -181,7 +187,7 @@ program smatmul
   call f_timing_checkpoint(ctr_name='FINISH',mpi_comm=comm,nproc=nproc,&
        gather_routine=gather_timings)
 
-  call build_dict_info(dict_timing_info)
+  call build_dict_info(iproc, nproc, dict_timing_info)
   call f_timing_stop(mpi_comm=comm, nproc=nproc, &
        gather_routine=gather_timings, dict_info=dict_timing_info)
   call dict_free(dict_timing_info)
@@ -194,42 +200,42 @@ program smatmul
 
   call f_lib_finalize()
 
-  contains
-   !> construct the dictionary needed for the timing information
-    subroutine build_dict_info(dict_info)
-      !use module_base
-      use dynamic_memory
-      use dictionaries
-      implicit none
-      include 'mpif.h'
-      type(dictionary), pointer :: dict_info
-      !local variables
-      integer :: ierr,namelen,nthreads
-      type(dictionary), pointer :: dict_tmp,list
-      !$ integer :: omp_get_max_threads
+  !!contains
+  !! !> construct the dictionary needed for the timing information
+  !!  subroutine build_dict_info(dict_info)
+  !!    !use module_base
+  !!    use dynamic_memory
+  !!    use dictionaries
+  !!    implicit none
+  !!    include 'mpif.h'
+  !!    type(dictionary), pointer :: dict_info
+  !!    !local variables
+  !!    integer :: ierr,namelen,nthreads
+  !!    type(dictionary), pointer :: dict_tmp,list
+  !!    !$ integer :: omp_get_max_threads
 
-      call dict_init(dict_info)
-!  bastian: comment out 4 followinf lines for debug purposes (7.12.2014)
-      !if (DoLastRunThings) then
-         call f_malloc_dump_status(dict_summary=dict_tmp)
-         call set(dict_info//'Routines timing and number of calls',dict_tmp)
-      !end if
-      nthreads = 0
-      !$  nthreads=omp_get_max_threads()
-      call set(dict_info//'CPU parallelism'//'MPI tasks',nproc)
-      if (nthreads /= 0) call set(dict_info//'CPU parallelism'//'OMP threads',&
-           nthreads)
+  !!    call dict_init(dict_info)
+! !! bastian: comment out 4 followinf lines for debug purposes (7.12.2014)
+  !!    !if (DoLastRunThings) then
+  !!       call f_malloc_dump_status(dict_summary=dict_tmp)
+  !!       call set(dict_info//'Routines timing and number of calls',dict_tmp)
+  !!    !end if
+  !!    nthreads = 0
+  !!    !$  nthreads=omp_get_max_threads()
+  !!    call set(dict_info//'CPU parallelism'//'MPI tasks',nproc)
+  !!    if (nthreads /= 0) call set(dict_info//'CPU parallelism'//'OMP threads',&
+  !!         nthreads)
 
-      if (nproc>1) then
-         call mpihostnames_list(comm,list)
-         if (iproc==0) then
-            call set(dict_info//'Hostnames',list)
-         else
-            call dict_free(list)
-         end if
-      end if
+  !!    if (nproc>1) then
+  !!       call mpihostnames_list(comm,list)
+  !!       if (iproc==0) then
+  !!          call set(dict_info//'Hostnames',list)
+  !!       else
+  !!          call dict_free(list)
+  !!       end if
+  !!    end if
 
-    end subroutine build_dict_info
+  !!  end subroutine build_dict_info
 
 end program smatmul
 
