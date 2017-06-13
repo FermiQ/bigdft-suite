@@ -359,8 +359,9 @@ src/bigdft-tool
 src/Makefile
 src/modules/Makefile
 src/modules/configure.c
+src/locregs/Makefile
+src/locregs/configure.inc
 src/orbitals/Makefile
-src/orbitals/configure.inc
 src/xcPSolver/Makefile
 src/CUDA/Makefile
 src/OpenCL/Makefile

@@ -14,6 +14,7 @@ dynlib_DATA         = $(bigdft_dynamic_library)
 # Sub-directories.
 # ---------------
 SUBDIRS = \
+	locregs \
 	orbitals \
 	modules \
 	xcPSolver \
@@ -22,7 +23,7 @@ SUBDIRS = \
 	OpenCL \
 	bindings \
 	geopt \
-	$(sub_dirs_bin) #python removed
+	$(sub_dirs_bin)
 
 EXTRA_DIST = \
 	wavelib/intots.inc \
@@ -37,6 +38,7 @@ noinst_LIBRARIES = libmain.a libabscalc.a
 subs_static_library = \
 	modules/libmodules.a \
 	CUDA/libCUDA.a \
+	locregs/liblocregs.a \
 	orbitals/liborbitals.a \
 	geopt/libgeopt.a \
 	xcPSolver/libxcPSolver.a \
