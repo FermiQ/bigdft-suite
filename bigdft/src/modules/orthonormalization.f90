@@ -563,7 +563,7 @@ module orthonormalization
     !! use sparsity of density kernel for all inverse quantities
     subroutine orthoconstraintNonorthogonal(iproc, nproc, lzd, npsidim_orbs, npsidim_comp, orbs, collcom, orthpar, ice_obj, &
                correction_orthoconstraint, linmat, lphi, lhphi, lagmat, lagmat_aux, lagmat_, psit_c, psit_f, &
-               hpsit_c, hpsit_f, &
+               hpsit_c, hpsit_f, hpsit_c_orig, hpsit_f_orig, &
                can_use_transposed, overlap_calculated, calculate_inverse, norder_taylor, max_inversion_error, &
                npsidim_orbs_small, lzd_small, hpsi_noprecond, wt_philarge, wt_hphi)
       use module_base
@@ -600,8 +600,10 @@ module orthonormalization
       type(sparse_matrix),intent(in) :: lagmat
       type(linmat_auxiliary),intent(in) :: lagmat_aux
       type(matrices),intent(out) :: lagmat_
-      real(kind=8),dimension(collcom%ndimind_c),intent(inout) :: hpsit_c
+      real(kind=8),dimension(collcom%ndimind_c),intent(inout) :: hpsit_c 
       real(kind=8),dimension(7*collcom%ndimind_f),intent(inout) :: hpsit_f
+      real(kind=8),dimension(collcom%ndimind_c),intent(in) :: hpsit_c_orig
+      real(kind=8),dimension(7*collcom%ndimind_f),intent(in) :: hpsit_f_orig
       real(kind=8),dimension(:),pointer :: psit_c, psit_f
       logical,intent(inout) :: can_use_transposed, overlap_calculated
       type(linear_matrices),intent(inout) :: linmat ! change to ovrlp and inv_ovrlp, and use inv_ovrlp instead of denskern
@@ -613,11 +615,11 @@ module orthonormalization
       type(work_transpose),intent(out) :: wt_hphi
     
       ! Local variables
-      real(kind=8) :: max_error, mean_error
+      real(kind=8) :: max_error, mean_error, trH
       real(kind=8),dimension(:),allocatable :: tmp_mat_compr, hpsit_tmp_c, hpsit_tmp_f, hphi_nococontra
       integer,dimension(:),allocatable :: ipiv
       type(matrices),dimension(1) :: inv_ovrlp_
-      integer :: ist, ispin
+      integer :: ist, ispin, ii, iorb, iiorb
       integer, dimension(1) :: power
       real(8),dimension(:),allocatable :: inv_ovrlp_seq, lagmat_large, tmpmat, tmparr
       real(8),dimension(:,:),allocatable :: lagmatp, inv_lagmatp
@@ -663,7 +665,22 @@ module orthonormalization
       call transpose_localized(iproc, nproc, npsidim_orbs, orbs, collcom, &
            TRANSPOSE_GATHER, lphi, psit_c, psit_f, lzd, wt_philarge)
       can_use_transposed=.true.
+
+      !@NEW Calculate Omega in a different way ####################################
+      ! Calculate <phi_alpha|g^beta>
+      call calculate_overlap_transposed(iproc, nproc, orbs, collcom, &
+           psit_c, hpsit_c_orig, psit_f, hpsit_f_orig, lagmat, lagmat_aux, lagmat_)
+      trH=0.d0
+      do iorb=1,lagmat%nfvctr
+         iiorb=lagmat%isfvctr+iorb
+         ii=matrixindex_in_compressed(lagmat,iiorb,iiorb)
+         trH = trH + lagmat_%matrix_compr(ii-lagmat%isvctrp_tg)
+      end do
+      call mpiallred(trH, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
+      if (iproc==0) call yaml_map('Omega new',trH)
+      !############################################################################
     
+
       ! Calculate <phi_alpha|g_beta>
       call calculate_overlap_transposed(iproc, nproc, orbs, collcom, psit_c, hpsit_c, psit_f, hpsit_f, lagmat, lagmat_aux, lagmat_)
       !call gather_matrix_from_taskgroups_inplace(iproc, nproc, lagmat, lagmat_)
@@ -676,7 +693,9 @@ module orthonormalization
       tmp_mat_compr = sparsematrix_malloc(linmat%l,iaction=SPARSE_TASKGROUP,id='tmp_mat_compr')
       call transform_sparse_matrix(iproc, linmat%m, linmat%l, SPARSE_TASKGROUP, 'small_to_large', &
            smat_in=lagmat_%matrix_compr, lmat_out=tmp_mat_compr)
+      !!write(*,*) 'WARNING HERE: symmetrize commented!!!'
       call symmetrize_matrix(linmat%l, 'minus', tmp_mat_compr, lagmat_large)
+      !lagmat_large=-tmp_mat_compr
       call f_free(tmp_mat_compr)
     
     

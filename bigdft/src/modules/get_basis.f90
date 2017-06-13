@@ -1415,7 +1415,7 @@ module get_basis
       integer :: lwork, info, ishift,ispin, iseg, request
       real(kind=8) :: ddot, tt, fnrmOvrlp_tot, fnrm_tot, fnrmold_tot, tt2, trkw, trH_sendbuf
       real(kind=8), dimension(:), pointer :: hpsittmp_c, hpsittmp_f
-      real(kind=8), dimension(:), allocatable :: hpsi_conf
+      real(kind=8), dimension(:), allocatable :: hpsi_conf, hpsit_c_orig, hpsit_f_orig
       real(kind=8), dimension(:), pointer :: kernel_compr_tmp
       real(kind=8), dimension(:), allocatable :: prefac, tmparr
       real(kind=8),dimension(2) :: reducearr
@@ -1465,6 +1465,14 @@ module get_basis
          !write(*,*) 'sum(K)',sum(tmb%linmat%kernel_%matrix_compr)
          call build_gradient(iproc, nproc, tmb, target_function, hpsit_c, hpsit_f, hpsittmp_c, hpsittmp_f)
       end if
+
+
+      !@NEW Calculate Omega in a different way ####################################
+      hpsit_c_orig = f_malloc(tmb%ham_descr%collcom%ndimind_c,id='hpsit_c_orig')
+      hpsit_f_orig = f_malloc(7*tmb%ham_descr%collcom%ndimind_f,id='hpsit_f_orig')
+      call f_memcpy(src=hpsit_c, dest=hpsit_c_orig)
+      call f_memcpy(src=hpsit_f, dest=hpsit_f_orig)
+      !############################################################################
     
      
       ! WARNING: TO BE CHECKED!!!!
@@ -1559,9 +1567,13 @@ module get_basis
            tmb%orbs, tmb%ham_descr%collcom, tmb%orthpar, tmb%ice_obj, correction_orthoconstraint, &
            tmb%linmat, tmb%ham_descr%psi, tmb%hpsi, &
            tmb%linmat%m, tmb%linmat%auxm, tmb%linmat%ham_, tmb%ham_descr%psit_c, tmb%ham_descr%psit_f, &
-           hpsit_c, hpsit_f, tmb%ham_descr%can_use_transposed, &
+           hpsit_c, hpsit_f, hpsit_c_orig, hpsit_f_orig, &
+           tmb%ham_descr%can_use_transposed, &
            overlap_calculated, calculate_inverse, norder_taylor, max_inversion_error, &
            tmb%npsidim_orbs, tmb%lzd, hpsi_noprecond, wt_philarge, wt_hphi)
+
+      call f_free(hpsit_c_orig)
+      call f_free(hpsit_f_orig)
     
     
       ! Calculate trace (or band structure energy, resp.)
@@ -1764,6 +1776,7 @@ module get_basis
       ! trH is now the total energy (name is misleading, correct this)
       ! Multiply by 2 because when minimizing trace we don't have kernel
       if(tmb%orbs%nspin==1 .and. target_function==TARGET_FUNCTION_IS_TRACE) trH=2.d0*trH
+      if (iproc==0) call yaml_map('Omega old',trH)
       !!if (iproc==0) write(*,'(a,6es17.8)') 'eh, exc, evxc, eexctX, eion, edisp', &
       !!    energs%eh,energs%exc,energs%evxc,energs%eexctX,energs%eion,energs%edisp
       trH=trH-energs%eh+energs%exc-energs%evxc-energs%eexctX+energs%eion+energs%edisp
