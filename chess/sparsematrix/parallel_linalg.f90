@@ -160,7 +160,8 @@ module parallel_linalg
                   end if
               end do
           end if
-          call mpi_fence(window)
+          call mpi_fenceandfree(window)
+          window = mpiwindow(ldc*n, c(1,1), comm)
           if (iproc/=0) then
               call mpiget(c(1,1), ldc*n, 0, int(0,kind=mpi_address_kind), window)
           end if
