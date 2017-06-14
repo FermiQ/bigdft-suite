@@ -155,12 +155,18 @@ module parallel_linalg
               do jproc=0,nproc-1
                   if (jproc/=iproc) then
                       !write(*,*) 'iproc, jproc, n, il, ir', iproc, jproc, np_all(jproc), is_all(jproc)+1, is_all(jproc)
-                      call mpiget(c(1,is_all(jproc)+1), ldc*np_all(jproc), jproc, int(ldc*is_all(jproc),kind=mpi_address_kind), window)
+                      call mpiget(c(1,is_all(jproc)+1), ldc*np_all(jproc), jproc, &
+                           int(ldc*is_all(jproc),kind=mpi_address_kind), window)
                   end if
               end do
           end if
+          call mpi_fence(window)
+          if (iproc/=0) then
+              call mpiget(c(1,1), ldc*n, 0, int(0,kind=mpi_address_kind), window)
+          end if
           call mpi_fenceandfree(window)
-          call mpibcast(c, root=0, comm=comm)
+          !call mpi_fenceandfree(window)
+          !call mpibcast(c, root=0, comm=comm)
           call f_free(np_all)
           call f_free(is_all)
           !call mpiallred(c, mpi_sum, comm=comm)
