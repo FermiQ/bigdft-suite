@@ -2609,41 +2609,52 @@ module sparsematrix
       logical,intent(in) :: keep_full_result
       real(mp),intent(in) :: exp_power
       type(sparse_matrix),intent(in) :: smat_in, smat_out
-      type(matrices),intent(inout) :: mat_in
-      type(matrices),intent(out) :: mat_out
+      type(matrices),intent(inout),target :: mat_in
+      type(matrices),intent(out),target :: mat_out
       character(len=*),intent(in),optional :: algorithm
       logical,intent(in),optional :: overwrite
 
       ! Local variables
       integer :: blocksize
-      real(kind=8),dimension(:,:),allocatable :: mat_in_dense, mat_out_dense
-      logical :: overwrite_
+      real(kind=8),dimension(:,:),pointer :: mat_in_dense, mat_out_dense
+      logical :: full_available, overwrite_
 
       call f_routine(id='operation_using_dense_lapack')
 
-      if (keep_full_result) then
-          if (.not.associated(mat_in%matrix)) then
-              call f_err_throw('mat_in%matrix must be associated')
-          end if
-          if (size(mat_in%matrix,1)/=smat_in%nfvctr) then
-              call f_err_throw('wrong first dimension of mat_in%matrix')
-          end if
-          if (size(mat_in%matrix,2)/=smat_in%nfvctr) then
-              call f_err_throw('wrong second dimension of mat_in%matrix')
-          end if
-          if (.not.associated(mat_out%matrix)) then
-              call f_err_throw('mat_out%matrix must be associated')
-          end if
-          if (size(mat_out%matrix,1)/=smat_out%nfvctr) then
-              call f_err_throw('wrong first dimension of mat_out%matrix')
-          end if
-          if (size(mat_out%matrix,2)/=smat_out%nfvctr) then
-              call f_err_throw('wrong second dimension of mat_out%matrix')
-          end if
+      ! Check the validity of the arguments
+      full_available = .true.
+      if (.not.associated(mat_in%matrix)) then
+          if (keep_full_result) call f_err_throw('mat_in%matrix must be associated')
+          full_available = .false.
+      end if
+      if (size(mat_in%matrix,1)/=smat_in%nfvctr) then
+          if (keep_full_result) call f_err_throw('wrong first dimension of mat_in%matrix')
+          full_available = .false.
+      end if
+      if (size(mat_in%matrix,2)/=smat_in%nfvctr) then
+          if (keep_full_result) call f_err_throw('wrong second dimension of mat_in%matrix')
+          full_available = .false.
+      end if
+      if (.not.associated(mat_out%matrix)) then
+          if (keep_full_result) call f_err_throw('mat_out%matrix must be associated')
+          full_available = .false.
+      end if
+      if (size(mat_out%matrix,1)/=smat_out%nfvctr) then
+          if (keep_full_result) call f_err_throw('wrong first dimension of mat_out%matrix')
+          full_available = .false.
+      end if
+      if (size(mat_out%matrix,2)/=smat_out%nfvctr) then
+          if (keep_full_result) call f_err_throw('wrong second dimension of mat_out%matrix')
+          full_available = .false.
       end if
 
-      mat_in_dense = f_malloc((/smat_in%nfvctr,smat_in%nfvctr/),id='mat_in_dense')
-      mat_out_dense = f_malloc((/smat_out%nfvctr,smat_out%nfvctr/),id='mat_out_dense')
+      if (full_available) then
+          mat_in_dense => mat_in%matrix(:,:,1)
+          mat_out_dense => mat_out%matrix(:,:,1)
+      else
+          mat_in_dense = f_malloc_ptr((/smat_in%nfvctr,smat_in%nfvctr/),id='mat_in_dense')
+          mat_out_dense = f_malloc_ptr((/smat_out%nfvctr,smat_out%nfvctr/),id='mat_out_dense')
+      end if
       call uncompress_matrix(iproc, nproc, &
            smat_in, mat_in%matrix_compr, mat_in_dense)
       overwrite_ = .false.
@@ -2656,12 +2667,14 @@ module sparsematrix
                mat_in_dense, exp_power, mat_out_dense, overwrite=overwrite_)
       end if
       call compress_matrix(iproc, nproc, smat_out, mat_out_dense, mat_out%matrix_compr)
-      if (keep_full_result) then
-          call f_memcpy(src=mat_in_dense, dest=mat_in%matrix)
-          call f_memcpy(src=mat_out_dense, dest=mat_out%matrix)
+      !!if (keep_full_result) then
+      !!    call f_memcpy(src=mat_in_dense, dest=mat_in%matrix)
+      !!    call f_memcpy(src=mat_out_dense, dest=mat_out%matrix)
+      !!end if
+      if (.not.full_available) then
+          call f_free_ptr(mat_in_dense)
+          call f_free_ptr(mat_out_dense)
       end if
-      call f_free(mat_in_dense)
-      call f_free(mat_out_dense)
 
       call f_release_routine()
 

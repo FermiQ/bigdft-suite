@@ -281,6 +281,10 @@ program driver_random
       case default
           call f_err_throw('wrong value for kernel_method')
       end select
+      if (do_consistency_checks) then
+          ! Since these checks are done with CheSS, init_matmul must be true
+          init_matmul = .true.
+      end if
       call sparse_matrix_init_from_file_bigdft('serial_text', trim(outfile), &
           iproc, nproc, mpi_comm_world, smatl(1), &
           init_matmul=init_matmul, filename_mult=trim(outmatmulfile))
@@ -315,9 +319,12 @@ program driver_random
 
 
   ! Allocate the matrices
+  mat3(:) = matrices_null()
   call matrices_init(smatl(1), mat3(1))
-  call matrices_init(smatl(1), mat3(2))
-  call matrices_init(smatl(1), mat3(3))
+  if (do_consistency_checks) then
+      call matrices_init(smatl(1), mat3(2))
+      call matrices_init(smatl(1), mat3(3))
+  end if
 
   !!write(*,*) 'smats%istartend_local(1),smats%istartend_local(2)',smats%istartend_local(1),smats%istartend_local(2)
   !!do i=1,size(smats%transposed_lookup_local)
