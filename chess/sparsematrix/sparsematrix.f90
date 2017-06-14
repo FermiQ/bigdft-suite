@@ -2599,13 +2599,13 @@ module sparsematrix
 
 
 
-    subroutine matrix_power_dense_lapack(iproc, nproc, comm, scalapack_blocksize, keep_full_result, &
+    subroutine matrix_power_dense_lapack(iproc, nproc, comm, blocksize_diag, blocksize_matmul, keep_full_result, &
                exp_power, smat_in, smat_out, mat_in, mat_out, algorithm, overwrite)
       use dynamic_memory
       implicit none
 
       ! Calling arguments
-      integer,intent(in) :: iproc, nproc, comm, scalapack_blocksize
+      integer,intent(in) :: iproc, nproc, comm, blocksize_diag, blocksize_matmul
       logical,intent(in) :: keep_full_result
       real(mp),intent(in) :: exp_power
       type(sparse_matrix),intent(in) :: smat_in, smat_out
@@ -2615,7 +2615,6 @@ module sparsematrix
       logical,intent(in),optional :: overwrite
 
       ! Local variables
-      integer :: blocksize
       real(kind=8),dimension(:,:),pointer :: mat_in_dense, mat_out_dense
       logical :: full_available, overwrite_
 
@@ -2660,10 +2659,10 @@ module sparsematrix
       overwrite_ = .false.
       if (present(overwrite)) overwrite_ = overwrite
       if (present(algorithm)) then
-          call matrix_power_dense(iproc, nproc, comm, scalapack_blocksize, smat_in%nfvctr, &
+          call matrix_power_dense(iproc, nproc, comm, blocksize_diag, blocksize_matmul, smat_in%nfvctr, &
                mat_in_dense, exp_power, mat_out_dense, algorithm=algorithm, overwrite=overwrite_)
       else
-          call matrix_power_dense(iproc, nproc, comm, scalapack_blocksize, smat_in%nfvctr, &
+          call matrix_power_dense(iproc, nproc, comm, blocksize_diag, blocksize_matmul, smat_in%nfvctr, &
                mat_in_dense, exp_power, mat_out_dense, overwrite=overwrite_)
       end if
       call compress_matrix(iproc, nproc, smat_out, mat_out_dense, mat_out%matrix_compr)
@@ -2683,14 +2682,15 @@ module sparsematrix
 
 
     !> Calculate matrix**power, using the dense matrix and exact LAPACK operations
-    subroutine matrix_power_dense(iproc, nproc, comm, blocksize, n, mat_in, ex, mat_out, algorithm, overwrite)
+    subroutine matrix_power_dense(iproc, nproc, comm, blocksize_diag, blocksize_matmul, &
+               n, mat_in, ex, mat_out, algorithm, overwrite)
       !use module_base
       use parallel_linalg, only: dgemm_parallel, dsyev_parallel
       use dynamic_memory
       implicit none
 
       ! Calling arguments
-      integer,intent(in) :: iproc, nproc, comm, blocksize, n
+      integer,intent(in) :: iproc, nproc, comm, blocksize_diag, blocksize_matmul, n
       real(kind=8),dimension(n,n),intent(inout),target :: mat_in
       real(kind=8),intent(in) :: ex
       real(kind=8),dimension(n,n),intent(out) :: mat_out
@@ -2727,9 +2727,9 @@ module sparsematrix
       mat_tmp = f_malloc_ptr((/n,n/),id='mat_tmp')
 
       if (present(algorithm)) then
-          call dsyev_parallel(iproc, nproc, blocksize, comm, 'v', 'l', n, mat_diag, n, eval, info, algorithm=algorithm)
+          call dsyev_parallel(iproc, nproc, blocksize_diag, comm, 'v', 'l', n, mat_diag, n, eval, info, algorithm=algorithm)
       else
-          call dsyev_parallel(iproc, nproc, blocksize, comm, 'v', 'l', n, mat_diag, n, eval, info)
+          call dsyev_parallel(iproc, nproc, blocksize_diag, comm, 'v', 'l', n, mat_diag, n, eval, info)
       endif
       if (info /= 0) then
           if (iproc==0) then
@@ -2745,8 +2745,10 @@ module sparsematrix
           end do
       end do
 
+      call f_free(eval)
+
       ! Apply the diagonalized matrix to the matrix constructed above
-      call dgemm_parallel(iproc, nproc, blocksize, comm, 'n', 't', n, n, n, 1.d0, mat_diag, n, &
+      call dgemm_parallel(iproc, nproc, blocksize_matmul, comm, 'n', 't', n, n, n, 1.d0, mat_diag, n, &
            mat_tmp, n, 0.d0, mat_out, n)
       !call dgemm_parallel(iproc, nproc, -1, comm, 'n', 't', n, n, n, 1.d0, mat_tmp(1:,1:,1), n, &
       !     mat_tmp(1:,1:,2), n, 0.d0, mat_out, n)
@@ -2755,7 +2757,6 @@ module sparsematrix
           call f_free_ptr(mat_diag)
       end if
       call f_free_ptr(mat_tmp)
-      call f_free(eval)
 
       call f_release_routine()
 

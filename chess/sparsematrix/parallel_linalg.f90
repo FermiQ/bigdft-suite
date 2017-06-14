@@ -20,6 +20,7 @@
 
 module parallel_linalg
   use sparsematrix_base
+  use sparsematrix_init, only: distribute_on_tasks
   use dictionaries
   use yaml_output
   use wrapper_mpi
@@ -58,7 +59,7 @@ module parallel_linalg
     
       ! Local variables
       integer :: ierr, i, j, istat, iall, ii1, ii2, mbrow, mbcol, nproc_scalapack, nprocrow, nproccol
-      integer :: context, irow, icol, numroc, info
+      integer :: context, irow, icol, numroc, info, is, np
       integer :: lnrow_a, lncol_a, lnrow_b, lncol_b, lnrow_c, lncol_c, ka, kb, kc, lla, llb, llc
       real(kind=mp) :: tt1, tt2
       real(kind=mp),dimension(:,:),allocatable :: la, lb, lc
@@ -99,16 +100,16 @@ module parallel_linalg
       llb = size(b,1)
       kb = size(b,2)
       if (llb/=ldb) then
-              call f_err_throw('wrong first dimension of c; expected '//trim(yaml_toa(ldb))//' but got '//trim(yaml_toa(llb)))
+              call f_err_throw('wrong first dimension of b; expected '//trim(yaml_toa(ldb))//' but got '//trim(yaml_toa(llb)))
       end if
       select case (transb)
       case ('N','n')
           if (kb/=n) then
-              call f_err_throw('wrong second dimension of c; expected '//trim(yaml_toa(n))//' but got '//trim(yaml_toa(kb)))
+              call f_err_throw('wrong second dimension of b; expected '//trim(yaml_toa(n))//' but got '//trim(yaml_toa(kb)))
           end if
       case ('T','t')
           if (kb/=k) then
-              call f_err_throw('wrong second dimension of c; expected '//trim(yaml_toa(k))//' but got '//trim(yaml_toa(kb)))
+              call f_err_throw('wrong second dimension of b; expected '//trim(yaml_toa(k))//' but got '//trim(yaml_toa(kb)))
           end if
       case default
           call f_err_throw("wrong argument for 'transb'")
@@ -127,7 +128,22 @@ module parallel_linalg
 
       blocksize_if: if (blocksize<0) then
           if (iproc==0 .and. .not.quiet_) call yaml_map('mode','sequential')
-          call dgemm(transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc)
+          call distribute_on_tasks(n, iproc, nproc, np, is)
+          ! Set to zero those elements which are not handled by task iproc
+          call f_zero(c(:,1:is))
+          call f_zero(c(:,is+np+1:n))
+          if (np>0) then
+              select case(transb)
+              case ('N','n')
+                  call dgemm(transa, transb, m, np, k, alpha, a, lda, b(1,is+1), ldb, beta, c(1,is+1), ldc)
+              case ('T','t')
+                  call dgemm(transa, transb, m, np, k, alpha, a, lda, b(is+1,1), ldb, beta, c(1,is+1), ldc)
+              case default
+                  call f_err_throw("wrong argument for 'transb'")
+              end select
+          end if
+          call mpiallred(c, mpi_sum, comm=comm)
+          !call dgemm(transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc)
       else if (blocksize==0) then
           call f_err_throw('blocksize must not be zero')
       else blocksize_if

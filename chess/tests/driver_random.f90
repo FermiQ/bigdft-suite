@@ -45,7 +45,8 @@ program driver_random
 
   ! Variables
   integer :: iproc, nproc, iseg, ierr, idum, ii, i, nthread, nit, it, icons
-  integer :: nfvctr, nvctr, nbuf_large, nbuf_mult, iwrite, scalapack_blocksize, ithreshold, icheck, j, pexsi_np_sym_fact
+  integer :: nfvctr, nvctr, nbuf_large, nbuf_mult, iwrite, blocksize_diag, blocksize_matmul
+  integer :: ithreshold, icheck, j, pexsi_np_sym_fact
   type(sparse_matrix) :: smats
   type(sparse_matrix),dimension(1) :: smatl
   real(kind=4) :: tt_real
@@ -135,7 +136,8 @@ program driver_random
       matgen_method = options//'matgen_method'
       write_matrices = options//'write_matrices'
       betax = options//'betax'
-      scalapack_blocksize = options//'scalapack_blocksize'
+      blocksize_diag = options//'blocksize_diag'
+      blocksize_matmul = options//'blocksize_matmul'
       evlow = options//'evlow'
       evhigh = options//'evhigh'
       do_cubic_check = options//'do_cubic_check'
@@ -183,7 +185,8 @@ program driver_random
       call yaml_map('betax',betax,fmt='(f9.1)')
       call yaml_map('Initial minimal eigenvalue',evlow)
       call yaml_map('Initial maximal eigenvalue',evhigh)
-      call yaml_map('scalapack_blocksize',scalapack_blocksize)
+      call yaml_map('blocksize_diag',blocksize_diag)
+      call yaml_map('blocksize_matmul',blocksize_matmul)
       call yaml_map('ScaLAPACK diagonalization algorithm',diag_algorithm)
       call yaml_map('ICE multiplication factor',eval_multiplicator)
       call yaml_map('PEXSI number of procs for symbolic factorization',pexsi_np_sym_fact)
@@ -209,7 +212,8 @@ program driver_random
   call mpibcast(matgen_method, root=0, comm=mpi_comm_world)
   call mpibcast(solution_method, root=0, comm=mpi_comm_world)
   call mpibcast(betax, root=0, comm=mpi_comm_world)
-  call mpibcast(scalapack_blocksize, root=0, comm=mpi_comm_world)
+  call mpibcast(blocksize_diag, root=0, comm=mpi_comm_world)
+  call mpibcast(blocksize_matmul, root=0, comm=mpi_comm_world)
   call mpibcast(evlow, root=0, comm=mpi_comm_world)
   call mpibcast(evhigh, root=0, comm=mpi_comm_world)
   call mpibcast(diag_algorithm, root=0, comm=mpi_comm_world)
@@ -380,7 +384,7 @@ program driver_random
        gather_routine=gather_timings)
 
   ! Calculate the minimal and maximal eigenvalue, to determine the condition number
-  call get_minmax_eigenvalues(iproc, nproc, mpiworld(), 'standard', scalapack_blocksize, &
+  call get_minmax_eigenvalues(iproc, nproc, mpiworld(), 'standard', blocksize_diag, &
        smats, mat2, eval_min, eval_max, &
        algorithm=diag_algorithm, quiet=.true.)
   if (iproc==0) then
@@ -426,7 +430,7 @@ program driver_random
       else if (trim(solutioN_method)=='LAPACK') then
           mat2%matrix = sparsematrix_malloc_ptr(smats, iaction=DENSE_FULL, id='mat2%matrix')
           mat3(1)%matrix = sparsematrix_malloc_ptr(smats, iaction=DENSE_FULL, id='mat3(3)%matrix')
-          call matrix_power_dense_lapack(iproc, nproc, mpiworld(), scalapack_blocksize, .false., &
+          call matrix_power_dense_lapack(iproc, nproc, mpiworld(), blocksize_diag, blocksize_matmul, .false., &
                 expo, smats, smatl(1), mat2, mat3(1), algorithm=diag_algorithm, overwrite=.true.)
           call f_free_ptr(mat2%matrix)
           call f_free_ptr(mat3(1)%matrix)
@@ -560,7 +564,7 @@ program driver_random
       !call operation_using_dense_lapack(iproc, nproc, smats_in, mat_in)
       mat2%matrix = sparsematrix_malloc_ptr(smats, iaction=DENSE_FULL, id='mat2%matrix')
       mat3(3)%matrix = sparsematrix_malloc_ptr(smats, iaction=DENSE_FULL, id='mat3(3)%matrix')
-      call matrix_power_dense_lapack(iproc, nproc, mpiworld(), scalapack_blocksize, .true., &
+      call matrix_power_dense_lapack(iproc, nproc, mpiworld(), blocksize_diag, blocksize_matmul, .true., &
             expo, smats, smatl(1), mat2, mat3(3), algorithm=diag_algorithm)
       call mpibarrier()
       call f_timing_checkpoint(ctr_name='CALC_CUBIC',mpi_comm=mpiworld(),nproc=mpisize(),&
@@ -879,10 +883,19 @@ subroutine commandline_options(parser)
        'Allowed values' .is. &
        'Double'))
 
-  call yaml_cl_parse_option(parser,'scalapack_blocksize','-1',&
-       'blocksize for ScaLAPACK (negative for standard LAPACK)',&
+  call yaml_cl_parse_option(parser,'blocksize_diag','-1',&
+       'blocksize for ScaLAPACK diagonalization (negative for standard LAPACK)',&
        help_dict=dict_new('Usage' .is. &
-       'Indicate the blocksize to be used by ScaLAPACK. If negative, then the standard LAPACK routines will be used',&
+       'Indicate the blocksize to be used by ScaLAPACK for the diagonalization.'&
+       &' If negative, then the standard LAPACK routines will be used',&
+       'Allowed values' .is. &
+       'Integer'))
+
+  call yaml_cl_parse_option(parser,'blocksize_matmul','-1',&
+       'blocksize for ScaLAPACK matrix multiplication (negative for standard LAPACK)',&
+       help_dict=dict_new('Usage' .is. &
+       'Indicate the blocksize to be used by ScaLAPACK for the matrix multiplication.'&
+       &' If negative, then the standard LAPACK routines will be used',&
        'Allowed values' .is. &
        'Integer'))
 
