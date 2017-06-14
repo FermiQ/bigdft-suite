@@ -2724,7 +2724,7 @@ module sparsematrix
           end do
       end if
       eval = f_malloc(n,id='eval')
-      mat_tmp = f_malloc_ptr((/n,n/),id='mat_tmp')
+      !mat_tmp = f_malloc_ptr((/n,n/),id='mat_tmp')
 
       if (present(algorithm)) then
           call dsyev_parallel(iproc, nproc, blocksize_diag, comm, 'v', 'l', n, mat_diag, n, eval, info, algorithm=algorithm)
@@ -2737,26 +2737,31 @@ module sparsematrix
           end if
       end if
 
-      ! Multiply a diagonal matrix containing the eigenvalues to the power ex with the diagonalized matrix
+      ! Multiply a diagonal matrix containing the eigenvalues to the power ex with the diagonalized matrix.
+      ! Actually rather take the square root since later on this matrix will be multiplied with its own.
       do i=1,n
-          tt = eval(i)**ex
-          do j=1,n
-              mat_tmp(j,i) = mat_diag(j,i)*tt
-          end do
+          !tt = eval(i)**ex
+          tt = sqrt(eval(i)**ex)
+          call dscal(n, tt, mat_diag(1,i), 1)
+          !do j=1,n
+          !    mat_tmp(j,i) = mat_diag(j,i)*tt
+          !end do
       end do
 
       call f_free(eval)
 
       ! Apply the diagonalized matrix to the matrix constructed above
+      !call dgemm_parallel(iproc, nproc, blocksize_matmul, comm, 'n', 't', n, n, n, 1.d0, mat_diag, n, &
+      !     mat_tmp, n, 0.d0, mat_out, n)
       call dgemm_parallel(iproc, nproc, blocksize_matmul, comm, 'n', 't', n, n, n, 1.d0, mat_diag, n, &
-           mat_tmp, n, 0.d0, mat_out, n)
+           mat_diag, n, 0.d0, mat_out, n)
       !call dgemm_parallel(iproc, nproc, -1, comm, 'n', 't', n, n, n, 1.d0, mat_tmp(1:,1:,1), n, &
       !     mat_tmp(1:,1:,2), n, 0.d0, mat_out, n)
 
       if (.not.overwrite_) then
           call f_free_ptr(mat_diag)
       end if
-      call f_free_ptr(mat_tmp)
+      !call f_free_ptr(mat_tmp)
 
       call f_release_routine()
 
