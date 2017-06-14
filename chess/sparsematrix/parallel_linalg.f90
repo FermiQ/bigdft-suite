@@ -59,12 +59,13 @@ module parallel_linalg
     
       ! Local variables
       integer :: ierr, i, j, istat, iall, ii1, ii2, mbrow, mbcol, nproc_scalapack, nprocrow, nproccol
-      integer :: context, irow, icol, numroc, info, is, np
-      integer :: lnrow_a, lncol_a, lnrow_b, lncol_b, lnrow_c, lncol_c, ka, kb, kc, lla, llb, llc
+      integer :: context, irow, icol, numroc, info, is, np, jproc
+      integer :: lnrow_a, lncol_a, lnrow_b, lncol_b, lnrow_c, lncol_c, ka, kb, kc, lla, llb, llc, window
       real(kind=mp) :: tt1, tt2
       real(kind=mp),dimension(:,:),allocatable :: la, lb, lc
       real(kind=mp),dimension(:,:),pointer :: aeff, beff
       integer,dimension(9) :: desc_lc, desc_la, desc_lb
+      integer,dimension(:),allocatable :: np_all, is_all
       character(len=*),parameter :: subname='dgemm_parallel'
       logical :: quiet_
 
@@ -142,7 +143,25 @@ module parallel_linalg
                   call f_err_throw("wrong argument for 'transb'")
               end select
           end if
-          call mpiallred(c, mpi_sum, comm=comm)
+          ! Communicate the result
+          np_all = f_malloc0((/0.to.nproc-1/),id='np_all')
+          is_all = f_malloc0((/0.to.nproc-1/),id='is_all')
+          np_all(iproc) = np
+          is_all(iproc) = is
+          call mpiallred(np_all, mpi_sum, comm)
+          call mpiallred(is_all, mpi_sum, comm)
+          window = mpiwindow(ldc*n, c(1,1), comm)
+          if (iproc==0) then
+              do jproc=0,nproc-1
+                  !write(*,*) 'iproc, jproc, n, il, ir', iproc, jproc, np_all(jproc), is_all(jproc)+1, is_all(jproc)
+                  call mpiget(c(1,is_all(jproc)+1), ldc*np_all(jproc), jproc, int(ldc*is_all(jproc),kind=mpi_address_kind), window)
+              end do
+          end if
+          call mpi_fenceandfree(window)
+          call mpibcast(c, root=0, comm=comm)
+          call f_free(np_all)
+          call f_free(is_all)
+          !call mpiallred(c, mpi_sum, comm=comm)
           !call dgemm(transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc)
       else if (blocksize==0) then
           call f_err_throw('blocksize must not be zero')
