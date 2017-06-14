@@ -26,7 +26,6 @@ module locreg_operations
      real(gp) :: damping                !< Damping factor to be used after the restart
   end type confpot_data
 
-
   !> Contains the work arrays needed for expressing wavefunction in real space
   !! with all the BC
   type, public :: workarr_sumrho

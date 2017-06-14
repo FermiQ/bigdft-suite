@@ -487,6 +487,22 @@
      Plots the density of states by calculating the value of psi*Hpsi per each KS orbital, 
      resolved among x,y or z.
     default: No
+  orbitals: 
+    COMMENT: Write KS orbitals in the full simulation domain (might take lot of disk space!)
+    default: No
+    EXCLUSIVE:
+       No: No output
+       text: Output in wavelet basis
+       binary: Binary file output
+       text_with_densities: In addition output wavefunction densities in interpolating scaling functions (cube file)
+       text_with_cube: In addition output wavefunctions in interpolating scaling functions (cube file)
+  outputpsiid:
+    COMMENT: basename of the output wavefunctions files written in the data directory
+    default: wavefunction
+    DESCRIPTION: |
+      Define the basename of all the files associated to the output of the wavefunctions.
+      Can be reused in the inputpsiid input parameter.
+
   #potentials:
   #  format: CUBE
   #  frequence: iteration, SCF
@@ -1420,14 +1436,6 @@
    experimental_mode:
      COMMENT: Activate the experimental mode in linear scaling
      default: No
-   write_orbitals: #to be moved in the output field
-     COMMENT: Linear scaling write KS orbitals for cubic restart (might take lot of disk space!)
-     default: 0
-     EXCLUSIVE:
-       0: No output
-       1: Output in wavelet basis
-       2: In addition output wavefunction densities in interpolating scaling functions (cube file)
-       3: In addition output wavefunctions in interpolating scaling functions (cube file)
    explicit_locregcenters:
      COMMENT: Linear scaling explicitly specify localization centers
      default: No

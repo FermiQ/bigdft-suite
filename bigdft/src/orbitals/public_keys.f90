@@ -202,12 +202,6 @@ module public_keys
   character(len = *), parameter :: STORE_INDEX = "store_index"
   character(len = *), parameter :: VERBOSITY = "verbosity"
   character(len = *), parameter :: PSP_ONFLY = "psp_onfly"
-!!  character(len = *), parameter :: PDSYEV_BLOCKSIZE = "pdsyev_blocksize"
-!!  character(len = *), parameter :: PDGEMM_BLOCKSIZE = "pdgemm_blocksize"
-!!  character(len = *), parameter :: MAXPROC_PDSYEV = "maxproc_pdsyev"
-!!  character(len = *), parameter :: MAXPROC_PDGEMM = "maxproc_pdgemm"
-!!  character(len = *), parameter :: EF_INTERPOL_DET = "ef_interpol_det"
-!!  character(len = *), parameter :: EF_INTERPOL_CHARGEDIFF = "ef_interpol_chargediff"
   character(len = *), parameter :: MIXING_AFTER_INPUTGUESS = "mixing_after_inputguess"
   character(len = *), parameter :: ITERATIVE_ORTHOGONALIZATION = "iterative_orthogonalization"
   character(len = *), parameter :: MULTIPOLE_PRESERVING = "multipole_preserving"
@@ -215,7 +209,8 @@ module public_keys
   character(len = *), parameter :: CHECK_SUMRHO = "check_sumrho"
   character(len = *), parameter :: CHECK_OVERLAP = "check_overlap"
   character(len = *), parameter :: EXPERIMENTAL_MODE = "experimental_mode"
-  character(len = *), parameter :: WRITE_ORBITALS = "write_orbitals"
+  character(len = *), parameter :: WRITE_ORBITALS = "orbitals"
+  character(len = *), parameter :: OUTPUTPSIID = "outputpsiid"
   character(len = *), parameter :: EXPLICIT_LOCREGCENTERS = "explicit_locregcenters"
   character(len = *), parameter :: CALCULATE_KS_RESIDUE = "calculate_KS_residue"
   character(len = *), parameter :: INTERMEDIATE_FORCES = "intermediate_forces"
@@ -437,6 +432,8 @@ module public_enums
   type(f_enumerator), public :: ENUM_CUBE =f_enumerator('CUBE',CUBE,null())
   type(f_enumerator), public :: ENUM_BINARY =f_enumerator('BINARY',BINARY,null())
 
+  !> enumerators defining the operations
+  type(f_enumerator), public :: ENUM_DENSITY =f_enumerator('DENSITY',CHARGE_DENSITY,null())
 
   !> Input wf parameters. @relates module_types::input_variables::inputpsiid @relates inputpsiid
   !! used to define the inputpsiid enumerator and the corresponding attributes

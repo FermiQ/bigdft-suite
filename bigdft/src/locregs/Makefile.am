@@ -36,6 +36,11 @@ CLEANFILES = $(modules)
 
 AM_FCFLAGS = -I. -I$(srcdir) -I$(top_builddir)/includes @LIB_FUTILE_CFLAGS@
 
+check_PROGRAMS = locreg_test
+
+locreg_test_SOURCES = locreg_test.f90
+locreg_test_LDADD = -L$(builddir) -llocregs @LIB_FUTILE_LIBS@ @LINALG_LIBS@
+
 # Hack for MIC compilation.
 if USE_MIC
 defs.o: defs.f90 configure.inc
@@ -45,13 +50,12 @@ defs.o: configure.inc
 endif
 
 #dependencies
-base.o: defs.o
-compression.o: defs.o
 locregs.o: base.o compression.o bounds.o
 bounds.o: compression.o
 locreg_operations.o: locregs.o
 locregs_basics.o: locreg_operations.o
-$(routines:.f90=.o): defs.o
+$(sources:.f90=.o): defs.o
+locreg_test.o: liblocregs.a
 
 $(modules): $(liblocregs_a_OBJECTS)
 

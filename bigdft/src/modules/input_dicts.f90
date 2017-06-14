@@ -101,8 +101,8 @@ contains
     type(dictionary), pointer :: dict            !< Input dictionary
     !local variables
     character(len = 100) :: f0
-    character(len=max_field_length) :: st
-    type(dictionary), pointer :: vals
+    character(len=max_field_length) :: st,key
+    type(dictionary), pointer :: vals,to_out,iter
 
     ! Parse all files.
     call set_inputfile(f0, radical, PERF_VARIABLES)
@@ -119,9 +119,15 @@ contains
           call set(dict // PSOLVER // 'setup' // 'accel',st)
           call dict_remove(vals,PSOLVER //'/accel')
        end if
-       st = vals // VERBOSITY
-       call set(dict//OUTPUT_VARIABLES//VERBOSITY,st)
-       call dict_remove(vals,VERBOSITY)
+       to_out=>list_new(.item. VERBOSITY, .item. WRITE_ORBITALS)
+       nullify(iter)
+       do while(iterating(iter,on=to_out))
+          key=dict_value(iter)
+          st = vals // trim(key)
+          call set(dict//OUTPUT_VARIABLES//trim(key),st)
+          call dict_remove(vals,trim(key))
+       end do
+       call dict_free(to_out)
 
        call set(dict//PERF_VARIABLES, vals)
     end if

@@ -817,7 +817,7 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
   end if
 
 
-  if (input%write_orbitals>0) then
+  if (input%output_wf /= ENUM_EMPTY) then
      if (input%lin%fragment_calculation .and. write_fragments) then
         frag_coeffs=.true.
      else if (write_full_system) then

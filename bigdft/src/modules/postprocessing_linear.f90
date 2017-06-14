@@ -730,7 +730,9 @@ module postprocessing_linear
 
     
       !!write(*,*) 'iproc, input%output_wf_format',iproc, WF_FORMAT_PLAIN
-      call writemywaves(iproc,trim(input%dir_output)//"wavefunction", WF_FORMAT_PLAIN, &
+      call writemywaves(iproc,&
+           trim(input%dir_output)//trim(input%outputpsiid),&
+           f_int(input%output_wf), &
            orbs, KSwfn%Lzd%Glr%d%n1, KSwfn%Lzd%Glr%d%n2, KSwfn%Lzd%Glr%d%n3, &
            KSwfn%Lzd%hgrids(1), KSwfn%Lzd%hgrids(2), KSwfn%Lzd%hgrids(3), &
            at, rxyz, KSwfn%Lzd%Glr%wfd, phiwork_global)
@@ -741,7 +743,7 @@ module postprocessing_linear
 !!$           at, rxyz, KSwfn%Lzd%Glr%wfd, phiwork_global)
 
     
-      if (input%write_orbitals==2) then
+      if (input%output_wf .hasattr. ENUM_DENSITY) then
           if (frag_coeffs) then
              call write_orbital_density(iproc, .false., mod(input%lin%plotBasisFunctions,10), &
                   trim(input%dir_output)//'KSDens', &
@@ -751,7 +753,7 @@ module postprocessing_linear
                   trim(input%dir_output)//'KSDensFrag', &
                   KSwfn%orbs%npsidim_orbs, phiwork_global, KSwfn%orbs, KSwfn%lzd, at, rxyz, .true.)
           end if
-      else if (input%write_orbitals==3) then 
+      else if (input%output_wf .hasattr. ENUM_CUBE) then 
           if (frag_coeffs) then
               call write_orbital_density(iproc, .false., mod(input%lin%plotBasisFunctions,10), &
                    trim(input%dir_output)//'KSFrag', &

@@ -526,7 +526,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
      nullify(tmb%linmat%ks)
      nullify(tmb%linmat%ks_e)
      if (in%lin%scf_mode/=LINEAR_FOE .or. &
-         (mod(in%lin%plotBasisFunctions,10) /= WF_FORMAT_NONE) .or. in%lin%diag_end .or. in%write_orbitals>0 &
+         (mod(in%lin%plotBasisFunctions,10) /= WF_FORMAT_NONE) .or. in%lin%diag_end .or. in%output_wf /= ENUM_EMPTY  &
          .or. f_int(inputpsi) == INPUT_PSI_DISK_LINEAR) then
 
          if (in%lin%fragment_calculation) then
@@ -584,7 +584,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
      end if
 
      if (in%lin%scf_mode/=LINEAR_FOE .or. &
-         (mod(in%lin%plotBasisFunctions,10) /= WF_FORMAT_NONE) .or. in%lin%diag_end .or. in%write_orbitals>0 &
+         (mod(in%lin%plotBasisFunctions,10) /= WF_FORMAT_NONE) .or. in%lin%diag_end .or. in%output_wf /= ENUM_EMPTY &
           .or. f_int(inputpsi) == INPUT_PSI_DISK_LINEAR .or. mod(in%lin%output_coeff_format,10) /= WF_FORMAT_NONE) then
         tmb%coeff = f_malloc_ptr((/ tmb%linmat%m%nfvctr , tmb%orbs%norb /),id='tmb%coeff')
      else
@@ -976,8 +976,8 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
         call f_free_ptr(KSwfn%gaucoeffs)
         nullify(KSwfn%gbd%rxyz)
 
-     else
-        call writemywaves(iproc,trim(in%dir_output) // "wavefunction", f_int(in%output_wf), &
+     else if (inputpsi .hasattr. 'CUBIC') then
+        call writemywaves(iproc,trim(in%dir_output) // trim(in%outputpsiid), f_int(in%output_wf), &
              KSwfn%orbs,n1,n2,n3,KSwfn%Lzd%hgrids(1),KSwfn%Lzd%hgrids(2),KSwfn%Lzd%hgrids(3),&
              atoms,rxyz,KSwfn%Lzd%Glr%wfd,KSwfn%psi)
      end if
