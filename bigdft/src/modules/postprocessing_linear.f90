@@ -581,7 +581,7 @@ module postprocessing_linear
       integer,dimension(:,:),allocatable :: ioffset_isf
       integer :: nstates_max, ndimcoeff, ist, nsize, iorb
       logical :: overlap_calculated=.false. ! recalculate just to be safe
-      real(kind=8), allocatable, dimension(:) :: coeff_tmp
+      real(kind=8), allocatable, dimension(:,:) :: coeff_tmp
 
       nullify(mom_vec_fake)
     
@@ -660,7 +660,6 @@ module postprocessing_linear
       call copy_orbitals_data(tmb%orbs, orbs, subname)
       call orbitals_communicators(iproc, nproc, tmb%lzd%glr, orbs, comms)
     
-    
       ! Transform the support functions to the global box
       ! WARNING: WILL NOT WORK WITH K-POINTS, CHECK THIS
       npsidim_global=max(tmb%orbs%norbp*(tmb%lzd%glr%wfd%nvctr_c+7*tmb%lzd%glr%wfd%nvctr_f), &
@@ -678,27 +677,32 @@ module postprocessing_linear
       !assume not cdft, so can use in%frag%charge instead of modifying it
       if (frag_coeffs) then
            !don't overwrite coeffs
-           ndimcoeff=size(tmb%coeff)
-           coeff_tmp=f_malloc(ndimcoeff, id='coeff_tmp')
-           call vcopy(ndimcoeff,tmb%coeff(1,1),1,coeff_tmp(1),1)
+!!$           ndimcoeff=size(tmb%coeff)
+!!$           coeff_tmp=f_malloc(ndimcoeff, id='coeff_tmp')
+!!$           call vcopy(ndimcoeff,tmb%coeff(1,1),1,coeff_tmp(1,1),1)
+           coeff_tmp=f_malloc(src=tmb%coeff, id='coeff_tmp')
            call fragment_coeffs_to_kernel(iproc,input,input%frag%charge,ref_frags,tmb,KSwfn%orbs,overlap_calculated,&
                 nstates_max,input%lin%constrained_dft,input%lin%kernel_restart_mode,input%lin%kernel_restart_noise)
       end if
     
-      ! WARNING: WILL NOT WORK WITH K-POINTS, CHECK THIS
       nvctrp=comms%nvctr_par(iproc,0)*orbs%nspinor
-      call dgemm('n', 'n', nvctrp, KSwfn%orbs%norb, tmb%linmat%m%nfvctr, 1.d0, phi_global, nvctrp, tmb%coeff(1,1), &
+      call dgemm('n', 'n', nvctrp, orbs%norb, tmb%linmat%m%nfvctr, 1.d0, phi_global, nvctrp, tmb%coeff(1,1), &
                  tmb%linmat%m%nfvctr, 0.d0, phiwork_global, nvctrp)
 
-      if (frag_coeffs) then
-           call vcopy(ndimcoeff,coeff_tmp(1),1,tmb%coeff(1,1),1)
-           call f_free(coeff_tmp)
-      end if
+!!$      nvctrp=comms%nvctr_par(iproc,0)*orbs%nspinor
+!!$      call dgemm('n', 'n', nvctrp, KSwfn%orbs%norb, tmb%linmat%m%nfvctr, 1.d0, phi_global, nvctrp, tmb%coeff(1,1), &
+!!$                 tmb%linmat%m%nfvctr, 0.d0, phiwork_global, nvctrp)
+
+      if (frag_coeffs) call f_memcpy(src=coeff_tmp,dest=tmb%coeff)
+!!$           call vcopy(ndimcoeff,coeff_tmp(1,1),1,tmb%coeff(1,1),1)
+!!$           call f_free(coeff_tmp)
+!!$      end if
       
-      call untranspose_v(iproc, nproc, KSwfn%orbs, tmb%lzd%glr%wfd, KSwfn%comms, phiwork_global(1), phi_global(1))  
+!!$      call untranspose_v(iproc, nproc, KSwfn%orbs, tmb%lzd%glr%wfd, KSwfn%comms, phiwork_global(1), phi_global(1))  
+
+      call untranspose_v(iproc, nproc, orbs, tmb%lzd%glr%wfd, comms, phiwork_global(1), phi_global(1))  
     
       call f_free_ptr(phi_global)
-    
       !!ist=1
       !!do iorb=1,KSwfn%orbs%norbp
       !!    do i=1,tmb%lzd%glr%wfd%nvctr_c+7*tmb%lzd%glr%wfd%nvctr_f
@@ -726,12 +730,20 @@ module postprocessing_linear
 
     
       !!write(*,*) 'iproc, input%output_wf_format',iproc, WF_FORMAT_PLAIN
-      call writemywaves(iproc,trim(input%dir_output)//"wavefunction", WF_FORMAT_PLAIN, &
-           KSwfn%orbs, KSwfn%Lzd%Glr%d%n1, KSwfn%Lzd%Glr%d%n2, KSwfn%Lzd%Glr%d%n3, &
+      call writemywaves(iproc,&
+           trim(input%dir_output)//trim(input%outputpsiid),&
+           f_int(input%output_wf), &
+           orbs, KSwfn%Lzd%Glr%d%n1, KSwfn%Lzd%Glr%d%n2, KSwfn%Lzd%Glr%d%n3, &
            KSwfn%Lzd%hgrids(1), KSwfn%Lzd%hgrids(2), KSwfn%Lzd%hgrids(3), &
            at, rxyz, KSwfn%Lzd%Glr%wfd, phiwork_global)
+
+!!$      call writemywaves(iproc,trim(input%dir_output)//"wavefunction", WF_FORMAT_PLAIN, &
+!!$           KSwfn%orbs, KSwfn%Lzd%Glr%d%n1, KSwfn%Lzd%Glr%d%n2, KSwfn%Lzd%Glr%d%n3, &
+!!$           KSwfn%Lzd%hgrids(1), KSwfn%Lzd%hgrids(2), KSwfn%Lzd%hgrids(3), &
+!!$           at, rxyz, KSwfn%Lzd%Glr%wfd, phiwork_global)
+
     
-      if (input%write_orbitals==2) then
+      if (input%output_wf .hasattr. ENUM_DENSITY) then
           if (frag_coeffs) then
              call write_orbital_density(iproc, .false., mod(input%lin%plotBasisFunctions,10), &
                   trim(input%dir_output)//'KSDens', &
@@ -741,7 +753,7 @@ module postprocessing_linear
                   trim(input%dir_output)//'KSDensFrag', &
                   KSwfn%orbs%npsidim_orbs, phiwork_global, KSwfn%orbs, KSwfn%lzd, at, rxyz, .true.)
           end if
-      else if (input%write_orbitals==3) then 
+      else if (input%output_wf .hasattr. ENUM_CUBE) then 
           if (frag_coeffs) then
               call write_orbital_density(iproc, .false., mod(input%lin%plotBasisFunctions,10), &
                    trim(input%dir_output)//'KSFrag', &

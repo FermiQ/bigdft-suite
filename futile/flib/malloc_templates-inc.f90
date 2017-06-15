@@ -56,7 +56,7 @@
 !  if (size(shape(array))==m%rank) then
 !     call pad_array(array,m%put_to_zero,m%shape,ndebug)
 !     !also fill the array with the values of the source if the address is identified in the source
-!     if (m%srcdata_add > int(0,kind=8)) call c_memcopy(array,m%srcdata_add,product(shape(array))*kind(array))
+!     if (m%srcdata_add > int(0,kind=8)) call c_memcopy(array,m%srcdata_add,f_sizeof(array))
 !     !profile the array allocation
 !     iadd=int(0,kind=8)
 !        !write the address of the first element in the address string
@@ -264,8 +264,8 @@ subroutine c1_all(array,m)
   end if
   !allocate the array
   allocate(array(m%lbounds(1):m%ubounds(1)+ndebug),stat=ierror)
-  !include 'allocate-c-inc.f90'
-  include 'allocate-inc.f90'
+  include 'allocate-c-inc.f90'
+  !include 'allocate-inc.f90'
 end subroutine c1_all
 
 
@@ -298,6 +298,25 @@ subroutine ll1_all_free(array)
   include 'deallocate-profile-inc.f90' 
   include 'deallocate-inc.f90' 
 end subroutine ll1_all_free
+
+subroutine ll2_all(array,m)
+  use metadata_interfaces, metadata_address => getl1
+  implicit none
+  type(malloc_information_all), intent(in) :: m
+  logical(f_byte), dimension(:,:), allocatable, intent(inout) :: array
+  include 'allocate-profile-inc.f90' 
+  !allocate the array
+  allocate(array(m%lbounds(1):m%ubounds(1),m%lbounds(2):m%ubounds(2)+ndebug),stat=ierror)
+  include 'allocate-inc.f90'
+end subroutine ll2_all
+
+subroutine ll2_all_free(array)
+  use metadata_interfaces, metadata_address => getl1
+  implicit none
+  logical(f_byte), dimension(:,:), allocatable, intent(inout) :: array
+  include 'deallocate-profile-inc.f90' 
+  include 'deallocate-inc.f90' 
+end subroutine ll2_all_free
 
 
 subroutine l1_all(array,m)
@@ -1103,8 +1122,8 @@ subroutine c1_ptr(array,m)
   end if
   !allocate the array
   allocate(array(m%lbounds(1):m%ubounds(1)+ndebug),stat=ierror)
-  !include 'allocate-c-inc.f90'
-  include 'allocate-inc.f90'
+  include 'allocate-c-inc.f90'
+  !include 'allocate-inc.f90'
 end subroutine c1_ptr
 
 !subroutine c1_ptr_free(length,array)

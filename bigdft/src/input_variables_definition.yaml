@@ -339,33 +339,33 @@
      DESCRIPTION: |
         Determine the dimension of the subspace i.e. the number of virtual orbitals
         to calculate via a Davidson diagonalisation.
-
         Usually unoccupied orbitals are not calculated since they are not needed for the total energy and other
         physical properties of the electronic ground state.
 
         Putting norbv to a non-zero value will result in the calculation of norbv virtual orbitals in a postprocessing
-        routine after the occupied orbitals have been calculated, which uses Davidson iterative treatment . nplot
-        of these orbitals will be written in the virtual.*.pot files and nplot (if that many exist) of the highest
-        occupied orbitals will be written in the orbital.*.pot file The Kohn Sham eigenvalues are written in the
-        ordinary output file. nvirt corresponds to the actual number of orbitals the convergence process is taking
+        routine after the occupied orbitals have been calculated, which uses Davidson iterative treatment.
+        nvirt (< norbv) determines to the number of converged orbitals during the convergence process which is taking
         care of during the Davidson iterations.
+        nplot of these orbitals will be written in the virtual.*.pot files and nplot (if that many exist) of the highest
+        occupied orbitals will be written in the orbital.*.pot file. The Kohn Sham eigenvalues are written in the
+        ordinary output file. 
      RANGE: [-9999, 9999]
      default: 0
    nvirt:
-     COMMENT: No. of virtual orbs
+     COMMENT: No. of converged virtual orbs (< norbv)
      DESCRIPTION: |
         Determine the dimension of the subspace i.e. the number of virtual orbitals
-        to calculate via a Davidson diagonalisation. (should be < norbv)
-
+        to be converged via a Davidson diagonalisation. (should be < norbv)
         Usually unoccupied orbitals are not calculated since they are not needed for the total energy and other
         physical properties of the electronic ground state.
 
         Putting norbv to a non-zero value will result in the calculation of norbv virtual orbitals in a postprocessing
-        routine after the occupied orbitals have been calculated, which uses Davidson iterative treatment . nplot
-        of these orbitals will be written in the virtual.*.pot files and nplot (if that many exist) of the highest
-        occupied orbitals will be written in the orbital.*.pot file The Kohn Sham eigenvalues are written in the
-        ordinary output file. nvirt corresponds to the actual number of orbitals the convergence process is taking
+        routine after the occupied orbitals have been calculated, which uses Davidson iterative treatment.
+        nvirt (< norbv) determines to the number of converged orbitals during the convergence process which is taking
         care of during the Davidson iterations.
+        nplot of these orbitals will be written in the virtual.*.pot files and nplot (if that many exist) of the highest
+        occupied orbitals will be written in the orbital.*.pot file. The Kohn Sham eigenvalues are written in the
+        ordinary output file. 
      RANGE: [0, 9999]
      default: 0
    nplot:
@@ -467,19 +467,49 @@
 #output parameters, decide what to dump of write to file
  output:
   DESCRIPTION: Output parameters, control the information that will be printed out
+  verbosity:
+    COMMENT: Verbosity of the output
+    EXCLUSIVE:
+      0: Very low
+      1: Low
+      2: Medium
+      3: High
+    default: 2
   atomic_density_matrix:
     COMMENT: Dictionary of the atoms for which the atomic density matrix has to be plotted
     DESCRIPTION: |
      The atomic species or the atoms written as Atom No are specified, followed by a list
      of the shells for which the density matrix can be plotted
     default: None
+  sdos:
+    COMMENT: Spatially-resolved density of states
+    DESCRIPTION: |
+     Plots the density of states by calculating the value of psi*Hpsi per each KS orbital, 
+     resolved among x,y or z.
+    default: No
+  orbitals: 
+    COMMENT: Write KS orbitals in the full simulation domain (might take lot of disk space!)
+    default: No
+    EXCLUSIVE:
+       No: No output
+       text: Output in wavelet basis
+       binary: Binary file output
+       text_with_densities: In addition output wavefunction densities in interpolating scaling functions (cube file)
+       text_with_cube: In addition output wavefunctions in interpolating scaling functions (cube file)
+  outputpsiid:
+    COMMENT: basename of the output wavefunctions files written in the data directory
+    default: wavefunction
+    DESCRIPTION: |
+      Define the basename of all the files associated to the output of the wavefunctions.
+      Can be reused in the inputpsiid input parameter.
+
   #potentials:
   #  format: CUBE
   #  frequence: iteration, SCF
     
 #K points parameters
  kpt:
-   DESCRIPTION: K points XXXXXXX defined in the Brillouin zone for periodic system calculations
+   DESCRIPTION: K points defined in the Brillouin zone for periodic system calculations
    method:
      COMMENT: K-point sampling method
      EXCLUSIVE:
@@ -1370,14 +1400,6 @@
    store_index:
      COMMENT: Store indices or recalculate them for linear scaling
      default: Yes
-   verbosity:
-     COMMENT: Verbosity of the output
-     EXCLUSIVE:
-       0: ???
-       1: ???
-       2: ???
-       3: ???
-     default: 2
    psp_onfly:
      COMMENT: Calculate pseudopotential projectors on the fly
      default: Yes
@@ -1414,14 +1436,6 @@
    experimental_mode:
      COMMENT: Activate the experimental mode in linear scaling
      default: No
-   write_orbitals:
-     COMMENT: Linear scaling write KS orbitals for cubic restart (might take lot of disk space!)
-     default: 0
-     EXCLUSIVE:
-       0: No output
-       1: Output in wavelet basis
-       2: In addition output wavefunction densities in interpolating scaling functions (cube file)
-       3: In addition output wavefunctions in interpolating scaling functions (cube file)
    explicit_locregcenters:
      COMMENT: Linear scaling explicitly specify localization centers
      default: No

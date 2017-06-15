@@ -51,6 +51,7 @@ subroutine coupling_matrix_prelim(iproc,nproc,geocode,tddft_approach,nspin,lr,or
   use Poisson_Solver, except_dp => dp, except_gp => gp
   use yaml_output
   use bounds, only: ext_buffers
+  use locregs
   implicit none
   character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
   character(len=4), intent(in) :: tddft_approach

@@ -583,14 +583,15 @@ module module_types
 
 
  public :: gaussian_basis
- public :: nullify_local_zone_descriptors,locreg_descriptors
- public :: wavefunctions_descriptors,atoms_data,DFT_PSP_projectors
+ public :: nullify_local_zone_descriptors!,locreg_descriptors
+ !public :: wavefunctions_descriptors,atoms_data,DFT_PSP_projectors
+ public :: atoms_data,DFT_PSP_projectors
  public :: grid_dimensions,p2pComms,comms_linear,sparse_matrix,matrices
  public :: coulomb_operator,symmetry_data,atomic_structure,comms_cubic
  public :: nonlocal_psp_descriptors
  public :: default_lzd,find_category,old_wavefunction_null,old_wavefunction_free
  public :: bigdft_init_errors,bigdft_init_timing_categories
- public :: deallocate_orbs,deallocate_locreg_descriptors,nullify_wfd
+ public :: deallocate_orbs,deallocate_locreg_descriptors
  public :: deallocate_paw_objects!,deallocate_wfd,
  public :: old_wavefunction_set
  public :: nullify_locreg_descriptors

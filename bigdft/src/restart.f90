@@ -14,6 +14,7 @@ subroutine copy_old_wavefunctions(nproc,orbs,psi,&
   use module_base
   use module_types
   use yaml_output
+  use compression
   implicit none
   integer, intent(in) :: nproc
   type(orbitals_data), intent(in) :: orbs
@@ -70,6 +71,7 @@ subroutine reformatmywaves(iproc,orbs,at,&
   use yaml_output
   use box
   use bounds, only: ext_buffers_coarse
+  use compression
   implicit none
   integer, intent(in) :: iproc,n1_old,n2_old,n3_old,n1,n2,n3
   real(gp), intent(in) :: hx_old,hy_old,hz_old,hx,hy,hz
@@ -276,6 +278,7 @@ subroutine readmywaves(iproc,filename,iformat,orbs,n1,n2,n3,hx,hy,hz,at,rxyz_old
   use module_interfaces, only: open_filename_of_iorb
   use public_enums
   use bounds, only: ext_buffers_coarse
+  use compression
   implicit none
   integer, intent(in) :: iproc,n1,n2,n3, iformat
   real(gp), intent(in) :: hx,hy,hz

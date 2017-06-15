@@ -166,7 +166,7 @@ subroutine localize_projectors(iproc,nproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,
   enddo
 
   ! Distribute the data to all process, using an allreduce
-  call mpiallred(reducearr, mpi_sum, comm=bigdft_mpi%mpi_comm)
+  if (nproc > 1) call mpiallred(reducearr, mpi_sum, comm=bigdft_mpi%mpi_comm)
   !$omp parallel default(none) shared(at, nl, reducearr) private(iat)
   !$omp do schedule(static)
   do iat=1,at%astruct%nat
@@ -203,9 +203,6 @@ subroutine localize_projectors(iproc,nproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,
   !control the memory of the projectors expressed in GB
   if (memorylimit /= 0.e0 .and. .not. DistProjApply .and. &
        real(istart-1,kind=4) > memorylimit*134217728.0e0) then
-!!$     if (iproc == 0) then
-!!$        write(*,'(44x,a)') '------ On-the-fly projectors application'
-!!$     end if
      DistProjApply =.true.
   end if
 
@@ -497,6 +494,7 @@ subroutine fill_projectors_old(lr,hx,hy,hz,at,orbs,rxyz,nlpsp,idir)
 use module_base
 use module_types
 use yaml_output
+use locregs
 implicit none
 integer, intent(in) :: idir
 real(gp), intent(in) :: hx,hy,hz
@@ -1977,8 +1975,7 @@ subroutine calc_coeff_proj(l,i,m,nterm_max,nterm,lx,ly,lz,fac_arr)
 END SUBROUTINE calc_coeff_proj
 
 subroutine plr_segs_and_vctrs(plr,nseg_c,nseg_f,nvctr_c,nvctr_f)
-  use module_base
-  use module_types
+  use locregs
   implicit none
   type(locreg_descriptors), intent(in) :: plr
   integer, intent(out) :: nseg_c,nseg_f,nvctr_c,nvctr_f

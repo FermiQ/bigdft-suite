@@ -219,7 +219,6 @@ module module_input_keys
      type(f_enumerator) :: output_denspot        !< 0= No output, 1= density, 2= density+potential
      integer :: dispersion            !< Dispersion term
      type(f_enumerator) :: output_wf!_format      !< Output Wavefunction format
-     !integer :: output_denspot_format !< Format for the output density and potential
      real(gp) :: hx,hy,hz   !< Step grid parameter (hgrid)
      integer :: nx,ny,nz   !< Number of divisions
      real(gp) :: crmult     !< Coarse radius multiplier
@@ -242,6 +241,9 @@ module module_input_keys
 
      !> atomic density matrix requests
      type(dictionary), pointer :: at_gamma
+
+     !> calculate spatial density of states
+     logical :: sdos
 
      !> For absorption calculations
      integer :: iabscalc_type   !< 0 non calc, 1 cheb ,  2 lanc
@@ -370,6 +372,9 @@ module module_input_keys
      !> Global MPI group size (will be written in the mpi_environment)
      ! integer :: mpi_groupsize
 
+     !>id of the output wavefunctions
+     character(len=64) :: outputpsiid
+
      type(external_potential_descriptors) :: ep !< contains the multipoles for the external potential
      logical :: mp_centers_auto !< indicates whether the multipole centers shall be determined automatically (i.e. the atoms) or provided manually
      real(kind=8),dimension(:,:),pointer :: mp_centers !< contains the positions of the multipoles to be calculated
@@ -381,7 +386,7 @@ module module_input_keys
      integer :: check_sumrho               !< (LS) Perform a check of sumrho (no check, light check or full check)
      integer :: check_overlap              !< (LS) Perform a check of the overlap calculation
      logical :: experimental_mode          !< (LS) Activate the experimental mode
-     integer :: write_orbitals             !< (LS) Write KS orbitals for cubic restart (0: no, 1: wvl, 2: wvl+isf)
+     !integer :: write_orbitals             !< (LS) Write KS orbitals for cubic restart (0: no, 1: wvl, 2: wvl+isf)
      logical :: explicit_locregcenters     !< (LS) Explicitely specify localization centers
      logical :: calculate_KS_residue       !< (LS) Calculate Kohn-Sham residue
      logical :: intermediate_forces        !< (LS) Calculate intermediate forces
@@ -618,6 +623,7 @@ contains
     use wrapper_MPI, only: mpibarrier
     use abi_interfaces_add_libpaw, only : abi_pawinit
     use PStypes, only: SETUP_VARIABLES,VERBOSITY
+    use vdwcorrection, only: vdwcorrection_warnings
     implicit none
     !Arguments
     type(input_variables), intent(out) :: in
@@ -635,8 +641,9 @@ contains
     integer, parameter :: pawlcutd = 10, pawlmix = 10, pawnphi = 13, pawntheta = 12, pawxcdev = 1
     integer, parameter :: usepotzero = 0
     integer :: nsym,unt, xclevel, iat, mpsang, i, n
-    real(gp) :: gsqcut_shp, rloc, projr, rlocmin
+    real(gp) :: rloc, projr, rlocmin
     real(gp), dimension(2) :: cfrmults
+    !real(gp) :: gsqcut_shp
     !type(external_potential_descriptors) :: ep
     !integer :: impl, l
     type(xc_info) :: xc
@@ -658,7 +665,12 @@ contains
     if (free .and. positions) call f_err_throw('No given atoms with free boundary conditions',&
                 & ERR_NAME='BIGDFT_INPUT_VARIABLES_ERROR')
 
+    !this cannot be called as the input variables are not ready at this stage
+!!$    call astruct_set(atoms%astruct,dict // POSINP,in%randdis,in%disableSym,in%symTol,in%elecfield,in%nspin,&
+!!$         bigdft_mpi%iproc == 0)
+
     call astruct_set_from_dict(dict // POSINP, atoms%astruct)
+
     ! Generate the dict of types for later use.
     call astruct_dict_get_types(dict // POSINP, types)
 
@@ -679,17 +691,14 @@ contains
     !copy the CheSS dictionary
     call dict_copy(src=dict // CHESS, dest=in%chess_dict)
 
-
     ! Add missing pseudo information.
     projr = dict // PERF_VARIABLES // PROJRAD
     cfrmults = dict // DFT_VARIABLES // RMULT
     jxc = dict // DFT_VARIABLES // IXC
-    !var => dict_iter(types)
-    !do while(associated(var))
+
     nullify(var)
     do while(iterating(var,on=types))
        call psp_dict_fill_all(dict, trim(dict_key(var)), jxc, projr, cfrmults(1), cfrmults(2))
-       !var => dict_next(var)
     end do
 
     ! Update interdependent values.
@@ -785,17 +794,20 @@ contains
     call kpt_input_analyse(bigdft_mpi%iproc, in, dict//KPT_VARIABLES, &
          & atoms%astruct%sym, atoms%astruct%geocode, atoms%astruct%cell_dim)
 
-    ! Update atoms with pseudo information.
-    call psp_dict_analyse(dict, atoms, in%frmult)
-    call atomic_data_set_from_dict(dict,IG_OCCUPATION, atoms, in%nspin)
+    call atoms_fill(atoms,dict,in%frmult,in%nspin,&
+         in%multipole_preserving,in%mp_isf,in%ixc,in%alpha_hartree_fock)
 
-    !fill the requests for the atomic density matrix
-    call atoms_gamma_from_dict(dict//OUTPUT_VARIABLES//ATOMIC_DENSITY_MATRIX,dict//DFT_VARIABLES//OCCUPANCY_CONTROL,&
-     lmax_ao,atoms%astruct,atoms%dogamma,atoms%gamma_targets)
-
-    ! Add multipole preserving information
-    atoms%multipole_preserving = in%multipole_preserving
-    atoms%mp_isf = in%mp_isf
+!!$    ! Update atoms with pseudo information.
+!!$    call psp_dict_analyse(dict, atoms, in%frmult)
+!!$    call atomic_data_set_from_dict(dict,IG_OCCUPATION, atoms, in%nspin)
+!!$
+!!$    !fill the requests for the atomic density matrix
+!!$    call atoms_gamma_from_dict(dict//OUTPUT_VARIABLES//ATOMIC_DENSITY_MATRIX,dict//DFT_VARIABLES//OCCUPANCY_CONTROL,&
+!!$     lmax_ao,atoms%astruct,atoms%dogamma,atoms%gamma_targets)
+!!$
+!!$    ! Add multipole preserving information
+!!$    atoms%multipole_preserving = in%multipole_preserving
+!!$    atoms%mp_isf = in%mp_isf
 
     ! Generate orbital occupation
     call read_n_orbitals(bigdft_mpi%iproc, qelec_up, qelec_down, norb_max, atoms, &
@@ -805,32 +817,28 @@ contains
          in%gen_nkpt, in%nspin, in%norbsempty, qelec_up, qelec_down, norb_max)
     in%gen_norb = in%gen_norbu + in%gen_norbd
 
-    ! Complement PAW initialisation.
-    if (any(atoms%npspcode == PSPCODE_PAW)) then
-     call xc_init(xc, in%ixc, XC_MIXED, 1, in%alpha_hartree_fock)
-     xclevel = 1 ! xclevel=XC functional level (1=LDA, 2=GGA)
-     if (xc_isgga(xc)) xclevel = 2
-     call xc_end(xc)
-     !gsqcut_shp = two*abs(dtset%diecut)*dtset%dilatmx**2/pi**2
-     gsqcut_shp = 2._gp * 2.2_gp / pi_param ** 2
-     nsym = 0
-     call symmetry_get_n_sym(atoms%astruct%sym%symObj, nsym, ierr)
-     mpsang = -1
-     do iat = 1, atoms%astruct%nat
-        mpsang = max(mpsang, maxval(atoms%pawtab(iat)%orbitals))
-     end do
-     call abi_pawinit(1, gsqcut_shp, pawlcutd, pawlmix, mpsang + 1, &
-          & pawnphi, nsym, pawntheta, atoms%pawang, atoms%pawrad, 0, &
-          & atoms%pawtab, pawxcdev, xclevel, usepotzero)
-    end if
+!!$    ! Complement PAW initialisation.
+!!$    if (any(atoms%npspcode == PSPCODE_PAW)) then
+!!$     call xc_init(xc, in%ixc, XC_MIXED, 1, in%alpha_hartree_fock)
+!!$     xclevel = 1 ! xclevel=XC functional level (1=LDA, 2=GGA)
+!!$     if (xc_isgga(xc)) xclevel = 2
+!!$     call xc_end(xc)
+!!$     !gsqcut_shp = two*abs(dtset%diecut)*dtset%dilatmx**2/pi**2
+!!$     gsqcut_shp = 2._gp * 2.2_gp / pi_param ** 2
+!!$     nsym = 0
+!!$     call symmetry_get_n_sym(atoms%astruct%sym%symObj, nsym, ierr)
+!!$     mpsang = -1
+!!$     do iat = 1, atoms%astruct%nat
+!!$        mpsang = max(mpsang, maxval(atoms%pawtab(iat)%orbitals))
+!!$     end do
+!!$     call abi_pawinit(1, gsqcut_shp, pawlcutd, pawlmix, mpsang + 1, &
+!!$          & pawnphi, nsym, pawntheta, atoms%pawang, atoms%pawrad, 0, &
+!!$          & atoms%pawtab, pawxcdev, xclevel, usepotzero)
+!!$    end if
 
     if (in%gen_nkpt > 1 .and. (in%inputpsiid .hasattr. 'GAUSSIAN')) then
        call f_err_throw('Gaussian projection is not implemented with k-point support',err_name='BIGDFT_INPUT_VARIABLES_ERROR')
     end if
-
-!!$    if(in%inputpsiid == INPUT_PSI_LINEAR_AO .or. &
-!!$         in%inputpsiid == INPUT_PSI_MEMORY_LINEAR .or. &
-!!$         in%inputpsiid == INPUT_PSI_DISK_LINEAR) &
     if (in%inputpsiid .hasattr. 'LINEAR') DistProjApply=.true.
     if(in%linear /= INPUT_IG_OFF .and. in%linear /= INPUT_IG_LIG) then
        !only on the fly calculation
@@ -846,29 +854,14 @@ contains
     ! Stop the code if it is trying to run GPU with spin=4
     if (in%nspin == 4 .and. in%matacc%iacceleration /= 0) then
        call f_err_throw('GPU calculation not implemented with non-collinear spin',err_name='BIGDFT_INPUT_VARIABLES_ERROR')
-!!$     if (bigdft_mpi%iproc==0) call yaml_warning('GPU calculation not implemented with non-collinear spin')
-!!$     call MPI_ABORT(bigdft_mpi%mpi_comm,0,ierr)
     end if
 
+    if (in%dispersion /= 0) then
+       call vdwcorrection_warnings(atoms, in%dispersion, in%ixc)
+    end if
+    
     !control atom positions
     call check_atoms_positions(atoms%astruct, (bigdft_mpi%iproc == 0))
-
-!!$  ! Stop code for unproper input variables combination.
-!!$  if (in%ncount_cluster_x > 0 .and. .not. in%disableSym .and. atoms%geocode == 'S') then
-!!$     if (bigdft_mpi%iproc==0) then
-!!$        write(*,'(1x,a)') 'Change "F" into "T" in the last line of "input.dft"'
-!!$        write(*,'(1x,a)') 'Forces are not implemented with symmetry support, disable symmetry please (T)'
-!!$     end if
-!!$     call MPI_ABORT(bigdft_mpi%mpi_comm,0,ierr)
-!!$  end if
-
-!!$  if (bigdft_mpi%iproc == 0) then
-!!$     profs => input_keys_get_profiles("")
-!!$     call yaml_dict_dump(profs)
-!!$     call dict_free(profs)
-!!$  end if
-
-    !call mpi_barrier(bigdft_mpi%mpi_comm,ierr)
 
     ! Warn for all INPUT_VAR_ILLEGAL errors.
     do while (f_err_pop(err_name='INPUT_VAR_ILLEGAL', add_msg = msg) /= 0)
@@ -892,12 +885,6 @@ contains
        found = TRANSFER_INTEGRALS .in. dict // FRAG_VARIABLES
        if (found) in%lin%calc_transfer_integrals=dict//FRAG_VARIABLES//TRANSFER_INTEGRALS
        call frag_from_dict(dict//FRAG_VARIABLES,in%frag)
-
-!!$     ! again recheck
-!!$     call dict_from_frag(in%frag,dict_frag)
-!!$     call yaml_map('again',dict_frag)
-!!$     call dict_free(dict_frag)
-!!$     stop
     else
        call default_fragmentInputParameters(in%frag)
     end if
@@ -930,14 +917,6 @@ contains
             in%mp_centers(1:3,i) = iter//key
         end do
     end if
-    !!do impl=1,in%ep%nmpl
-    !!    call yaml_map('rxyz',in%ep%mpl(impl)%rxyz)
-    !!    do l=0,lmax
-    !!         if(associated(in%ep%mpl(impl)%qlm(l)%q)) then
-    !!             call yaml_map(trim(yaml_toa(l)),in%ep%mpl(impl)%qlm(l)%q)
-    !!         end if
-    !!    end do
-    !!end do
 
     ! No use anymore of the types.
     call dict_free(types)
@@ -994,19 +973,14 @@ contains
     !shouldwrite=.false.
 
     shouldwrite= &!shouldwrite .or. &
-                                !in%output_wf_format /= WF_FORMAT_NONE .or. &    !write wavefunctions
          in%output_wf /= ENUM_EMPTY .or. &    !write wavefunctions
          in%output_denspot /= ENUM_EMPTY .or. & !write output density
          in%ncount_cluster_x > 1 .or. &                  !write posouts or posmds
-         !in%inputPsiId == 2 .or. &                       !have wavefunctions to read
-         !in%inputPsiId == 12 .or.  &                     !read in gaussian basis
          (in%inputPsiId .hasattr. 'FILE') .or. &
-         (in%inputPsiId .hasattr. 'GAUSSIAN') .or. &
-         !in%gaussian_help .or. &                         !Mulliken and local density of states
+         (in%inputPsiId .hasattr. 'GAUSSIAN') .or. &   !Mulliken and local density of states
          bigdft_mpi%ngroup > 1   .or. &                  !taskgroups have been inserted
          mod(in%lin%plotBasisFunctions,10) > 0 .or. &    !dumping of basis functions for locreg runs
-         !in%inputPsiId == 102 .or. &                     !reading of basis functions
-         in%write_orbitals>0 .or. &                      !writing the KS orbitals in the linear case
+         !in%write_orbitals>0 .or. &                      !writing the KS orbitals in the linear case
          mod(in%lin%output_mat_format,10)>0 .or. &       !writing the sparse linear matrices
          mod(in%lin%output_coeff_format,10)>0 .or. &          !writing the linear KS coefficients
          in%mdsteps>0                                !write the MD restart file always in dir_output
@@ -1561,6 +1535,29 @@ contains
 
   end subroutine set_output_wf
 
+  subroutine set_output_wf_from_text(profile,output_wf)
+    implicit none
+    character(len=*), intent(in) :: profile
+    type(f_enumerator), intent(out) :: output_wf
+
+    select case(trim(profile))
+    case('No')
+       output_wf=ENUM_EMPTY
+    case('text')
+       output_wf=ENUM_TEXT
+    case('binary')
+       output_wf=ENUM_BINARY
+    case('text_with_densities')
+       output_wf=ENUM_TEXT
+       call f_enum_attr(output_wf,ENUM_DENSITY)
+    case('text_with_cube')
+       output_wf=ENUM_TEXT
+       call f_enum_attr(output_wf,ENUM_CUBE)
+    end select
+
+  end subroutine set_output_wf_from_text
+
+
   subroutine set_output_denspot(profile,output_denspot)
     implicit none
     integer, intent(in) :: profile
@@ -1672,11 +1669,21 @@ contains
                call yaml_warning("unknown input key '" // trim(level) // "/" // trim(dict_key(val)) // "'")
        end select
     case (OUTPUT_VARIABLES)
-        ! the DFT variables ------------------------------------------------------
-        select case (trim(dict_key(val)))
-        case(ATOMIC_DENSITY_MATRIX)
+       select case (trim(dict_key(val)))
+       case (VERBOSITY)
+          in%verbosity = val
+       case(ATOMIC_DENSITY_MATRIX)
           call dict_copy(src=val,dest=in%at_gamma)
-        end select
+       case(SPATIAL_DOS)
+          in%sdos=val
+       case (WRITE_ORBITALS)
+          ! linear scaling: write KS orbitals for cubic restart
+          !in%write_orbitals = val
+          str=val
+          call set_output_wf_from_text(str,in%output_wf)
+       case (OUTPUTPSIID)
+          in%outputpsiid=val
+       end select
     case (DFT_VARIABLES)
        ! the DFT variables ------------------------------------------------------
        select case (trim(dict_key(val)))
@@ -1732,15 +1739,12 @@ contains
        case (INPUTPSIID)
           ipos=val
           call set_inputpsiid(ipos,in%inputPsiId)
-          !in%inputPsiId = val
        case (OUTPUT_WF)
           ipos=val
           call set_output_wf(ipos,in%output_wf)
-          !in%output_wf = val
        case (OUTPUT_DENSPOT)
           ipos=val
           call set_output_denspot(ipos,in%output_denspot)
-          !in%output_denspot = val
        case (RBUF)
           in%rbuf = val ! Tail treatment.
        case (NCONGT)
@@ -1785,8 +1789,6 @@ contains
           in%profiling_depth = val
        case (FFTCACHE)
           in%ncache_fft = val
-       case (VERBOSITY)
-          in%verbosity = val
        case (TOLSYM)
           in%symTol = val
        case (PROJRAD)
@@ -1900,9 +1902,6 @@ contains
           in%check_overlap = val
        case (EXPERIMENTAL_MODE)
           in%experimental_mode = val
-       case (WRITE_ORBITALS)
-          ! linear scaling: write KS orbitals for cubic restart
-          in%write_orbitals = val
        case (EXPLICIT_LOCREGCENTERS)
           ! linear scaling: explicitely specify localization centers
           in%explicit_locregcenters = val
@@ -2490,6 +2489,7 @@ contains
     !call f_zero(in%set_epsilon)
     call f_zero(in%dir_output)
     call f_zero(in%dir_perturbation)
+    call f_zero(in%outputpsiid)
     call f_zero(in%naming_id)
     nullify(in%gen_kpt)
     nullify(in%gen_wkpt)
@@ -2501,6 +2501,7 @@ contains
     nullify(in%at_gamma)
     call f_zero(in%calculate_strten)
     call f_zero(in%nab_options)
+    in%sdos=.false.
     in%profiling_depth=-1
     in%plugin_id = 0
     in%gen_norb = UNINITIALIZED(0)

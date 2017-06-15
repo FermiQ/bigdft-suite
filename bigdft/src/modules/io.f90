@@ -1141,7 +1141,7 @@ module io
          enddo
       enddo
     
-      if (verbose >= 2 .and. bigdft_mpi%iproc==0) call yaml_map('Wavefunction written No.',iorb)
+      if (get_verbose_level() >= 2 .and. bigdft_mpi%iproc==0) call yaml_map('Wavefunction written No.',iorb)
       !if (verbose >= 2) write(*,'(1x,i0,a)') iorb,'th wavefunction written'
     
     END SUBROUTINE writeonewave_linear
@@ -1697,7 +1697,6 @@ module io
     subroutine io_gcoordToLocreg(n1, n2, n3, nvctr_c, nvctr_f, gcoord_c, gcoord_f, lr)
       use module_base
       use locregs
-  
       implicit none
       !Arguments
       integer, intent(in) :: n1, n2, n3, nvctr_c, nvctr_f
@@ -2283,7 +2282,7 @@ module io
               end if
          end do
       end do  
-      if (verbose >= 2 .and. bigdft_mpi%iproc==0) call yaml_map('Wavefunction coefficients written',.true.)
+      if (get_verbose_level() >= 2 .and. bigdft_mpi%iproc==0) call yaml_map('Wavefunction coefficients written',.true.)
     
     END SUBROUTINE writeLinearCoefficients
 
@@ -2440,6 +2439,7 @@ module io
     subroutine plot_locreg_grids(iproc, nspinor, nspin, orbitalNumber, llr, glr, atoms, rxyz, hx, hy, hz)
       use module_base
       use module_types
+      use locregs
       use locreg_operations, only: lpsi_to_global2
       implicit none
       
@@ -2575,12 +2575,12 @@ module io
       if (present(label)) label_ = trim(label)
     
       if (len(trim(comment)) > 0 .and. .not.write_only_energies) then
-         if (verbose >0) call yaml_newline()
+         if (get_verbose_level() >0) call yaml_newline()
          call write_iter()
-         if (verbose >0) call yaml_comment(trim(comment))
+         if (get_verbose_level() >0) call yaml_comment(trim(comment))
       end if
     
-      yesen=verbose > 0
+      yesen=get_verbose_level() > 0
       if (present(scf_mode)) yesen=yesen .and. .not. (scf_mode .hasattr. 'MIXING')
     
       if (yesen) then
@@ -2624,8 +2624,8 @@ module io
          call yaml_newline()
          if (len(trim(comment)) == 0) then
             call write_iter()
-            if (verbose >0) call yaml_newline()
-         else if (verbose > 1 .and. present(scf_mode)) then
+            if (get_verbose_level() >0) call yaml_newline()
+         else if (get_verbose_level() > 1 .and. present(scf_mode)) then
             call yaml_map('SCF criterion',scf_mode)
          end if
       end if
@@ -2661,7 +2661,7 @@ module io
 
 
    subroutine get_sparse_matrix_format(iformat, sparse_format)
-     use module_base
+     use dictionaries, only: f_err_throw !module_base
      implicit none
      integer,intent(in) :: iformat
      character(len=*),intent(out) :: sparse_format
@@ -2765,7 +2765,7 @@ module io
         enddo
      enddo
    
-     if (bigdft_mpi%iproc == 0 .and. verbose >= 2) &
+     if (bigdft_mpi%iproc == 0 .and. get_verbose_level() >= 2) &
         & call yaml_comment(trim(yaml_toa(iorb)) //'th wavefunction written')
      !if (verbose >= 2) write(*,'(1x,i0,a)') iorb,'th wavefunction written'
    
@@ -2779,6 +2779,7 @@ module io
      use yaml_output
      use module_interfaces, only: open_filename_of_iorb
      use public_enums
+     use compression
      implicit none
      integer, intent(in) :: iproc,n1,n2,n3,iformat
      real(gp), intent(in) :: hx,hy,hz

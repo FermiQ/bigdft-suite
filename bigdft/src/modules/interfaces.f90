@@ -19,6 +19,7 @@ module module_interfaces
             &   wfd_old,psi_old)
         use module_defs, only: wp
         use module_types
+        use compression
          implicit none
          integer, intent(in) :: nproc
          type(orbitals_data), intent(in) :: orbs
@@ -52,6 +53,7 @@ module module_interfaces
            &   crmult,frmult,calculate_bounds,Glr,output_denspot)
        use module_defs, only: gp
        use module_types
+       use locregs
         implicit none
         !Arguments
         type(atoms_data), intent(in) :: atoms
@@ -498,7 +500,8 @@ module module_interfaces
       interface
         subroutine local_analysis(iproc,nproc,hx,hy,hz,at,rxyz,lr,orbs,orbsv,psi,psivirt)
         use module_defs, only: gp,wp
-         use module_types
+        use module_types
+        use locregs
          implicit none
          integer, intent(in) :: iproc,nproc
          real(gp), intent(in) :: hx,hy,hz
@@ -593,7 +596,8 @@ module module_interfaces
       interface
         subroutine write_eigen_objects(iproc,occorbs,nspin,nvirt,nplot,hx,hy,hz,at,rxyz,lr,orbs,orbsv,psi,psivirt)
         use module_defs, only: gp,wp
-         use module_types
+        use module_types
+        use locregs
          implicit none
          logical, intent(in) :: occorbs
          integer, intent(in) :: iproc,nspin,nvirt,nplot
@@ -671,7 +675,8 @@ module module_interfaces
         subroutine NK_SIC_potential(lr,orbs,xc,fref,hgrids,pkernel,psi,poti,eSIC_DC,potandrho,wxdsave)
         use module_defs, only: gp,wp,dp
         use module_types
-         use module_xc
+        use module_xc
+        use locregs
          implicit none
          real(gp), intent(in) :: fref
          type(locreg_descriptors), intent(in) :: lr
@@ -693,6 +698,7 @@ module module_interfaces
          wfd,psi,orblist)
          use module_defs, only: gp,dp,wp
          use module_types
+         use compression
          implicit none
          integer, intent(in) :: iproc,n1,n2,n3, iformat
          real(gp), intent(in) :: hx,hy,hz
@@ -978,6 +984,7 @@ module module_interfaces
          use module_types
          use foe_base, only: foe_data
          use communications_base, only: p2pComms
+         use locregs
          implicit none
          integer,intent(in):: iproc, nproc, nlr
          integer,intent(out) :: npsidim_orbs, npsidim_comp
@@ -1264,6 +1271,7 @@ module module_interfaces
        use module_defs, only: gp,dp,wp
        use module_types
        use module_fragments
+       use locregs
        implicit none
        integer, dimension(3), intent(in) :: n,n_old
        real(gp), dimension(3), intent(in) :: hgrids,hgrids_old
@@ -1336,6 +1344,8 @@ module module_interfaces
        use module_defs, only: gp,dp,wp
        use module_types
        use gaussians, only:gaussian_basis
+       use locregs
+       use compression
        implicit none
        integer, intent(in) :: iproc
        real(gp), intent(in) :: hx,hy,hz

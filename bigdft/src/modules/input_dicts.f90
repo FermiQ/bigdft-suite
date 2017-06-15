@@ -101,8 +101,8 @@ contains
     type(dictionary), pointer :: dict            !< Input dictionary
     !local variables
     character(len = 100) :: f0
-    character(len=max_field_length) :: st
-    type(dictionary), pointer :: vals
+    character(len=max_field_length) :: st,key
+    type(dictionary), pointer :: vals,to_out,iter
 
     ! Parse all files.
     call set_inputfile(f0, radical, PERF_VARIABLES)
@@ -119,6 +119,16 @@ contains
           call set(dict // PSOLVER // 'setup' // 'accel',st)
           call dict_remove(vals,PSOLVER //'/accel')
        end if
+       to_out=>list_new(.item. VERBOSITY, .item. WRITE_ORBITALS)
+       nullify(iter)
+       do while(iterating(iter,on=to_out))
+          key=dict_value(iter)
+          st = vals // trim(key)
+          call set(dict//OUTPUT_VARIABLES//trim(key),st)
+          call dict_remove(vals,trim(key))
+       end do
+       call dict_free(to_out)
+
        call set(dict//PERF_VARIABLES, vals)
     end if
 
@@ -1675,11 +1685,11 @@ contains
     logical, intent(out), optional :: skip !<if .true. the code should not be run as the logfile is existing already
     !local variables
     integer, parameter :: ntrials=1
-    logical :: log_to_disk,skip_tmp,exists
+    logical :: log_to_disk,skip_tmp
     integer :: lgt,unit_log,ierrr,trials
     integer(kind=4) :: ierr
     character(len = max_field_length) :: writing_directory, run_name,posinp_id
-    character(len=500) :: logfilename,path,filename
+    character(len=500) :: logfilename,path
     integer :: iproc_node, nproc_node
 
     ! Get user input writing_directory.

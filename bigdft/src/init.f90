@@ -17,6 +17,7 @@ subroutine createWavefunctionsDescriptors(iproc,hx,hy,hz,atoms,rxyz,&
   use module_types
   use yaml_output
   use module_interfaces, only: export_grids
+  use locregs
   implicit none
   !Arguments
   type(atoms_data), intent(in) :: atoms
@@ -70,9 +71,6 @@ subroutine createWavefunctionsDescriptors(iproc,hx,hy,hz,atoms,rxyz,&
      if (iproc ==0) then
         call yaml_warning('The coarse grid does not fill the entire periodic box')
         call yaml_comment('Errors due to translational invariance breaking may occur')
-        !write(*,*) ' ERROR: the coarse grid does not fill the entire periodic box'
-        !write(*,*) '          errors due to translational invariance breaking may occur'
-        !stop
      end if
   end if
 
@@ -95,6 +93,7 @@ subroutine wfd_from_grids(logrid_c, logrid_f, calculate_bounds, Glr)
   use module_base
    use locregs
    use bounds, only: make_bounds, make_all_ib, make_bounds_per, make_all_ib_per
+   use locregs
    !use yaml_output
    implicit none
    !Arguments
@@ -227,6 +226,7 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
   use ao_inguess, only: lmax_ao
   use locreg_operations, only: set_wfd_to_wfd
   use sparsematrix_init,only: distribute_on_tasks
+  use locregs
   implicit none
   integer,intent(in) :: iproc,nproc
   real(gp), intent(in) :: cpmult,fpmult,hx,hy,hz
@@ -247,14 +247,7 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
   integer, dimension(:), allocatable :: nbsegs_cf,keyg_lin
   logical, dimension(:,:,:), allocatable :: logrid
   integer,dimension(:,:),allocatable :: reducearr
-!  logical :: init_projectors_completely_
   call f_routine(id=subname)
-
-!!$  if (present(init_projectors_completely)) then
-!!$      init_projectors_completely_ = init_projectors_completely
-!!$  else
-!!$      init_projectors_completely_ = .true.
-!!$  end if
 
   call nullify_structure()
 
@@ -1045,6 +1038,7 @@ subroutine input_wf_memory(iproc, atoms, &
      & rxyz, lzd, psi, orbs)
   use module_base, only: gp,wp,f_free_ptr
   use module_types
+  use compression
   implicit none
 
   integer, intent(in) :: iproc
@@ -1741,6 +1735,7 @@ subroutine input_wf_disk(iproc, nproc, input_wf_format, d, hx, hy, hz, &
   use module_types
   use module_interfaces, only: readmywaves
   use public_enums
+  use compression
   implicit none
 
   integer, intent(in) :: iproc, nproc, input_wf_format
@@ -2284,7 +2279,8 @@ subroutine input_wf_diag(iproc,nproc,at,denspot,&
   etol=accurex/real(orbse%norbu,gp)
 
   !if (iproc == 0 .and. verbose > 1 .and. at%astruct%geocode=='F') write(*,'(1x,a,2(f19.10))') 'done. ekin_sum,eks:',energs%ekin,eks
-  if (iproc == 0 .and. verbose > 1 .and. at%astruct%geocode=='F') call yaml_map('Expected kinetic energy',eks,fmt='(f19.10)')
+  if (iproc == 0 .and. get_verbose_level() > 1 .and. at%astruct%geocode=='F') &
+       call yaml_map('Expected kinetic energy',eks,fmt='(f19.10)')
   if (iproc==0) call yaml_newline()
 
   call total_energies(energs, 0, iproc)
@@ -2501,16 +2497,17 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
   !wvl+PAW objects
   type(DFT_PSP_projectors) :: nl
   logical :: overlap_calculated, perx,pery,perz, rho_negative
-  real(gp) :: tx,ty,tz,displ!,mindist
+  real(gp) :: displ!,tx,ty,tz,mindist
   real(gp), dimension(:), pointer :: in_frag_charge
   integer :: infoCoeff, iorb, nstates_max, order_taylor, npspcode, scf_mode
   real(kind=8) :: pnrm
   integer, dimension(:,:,:), pointer :: frag_env_mapping
   type(work_mpiaccumulate) :: energs_work
   type(orbital_basis) :: ob
-  !!real(gp), dimension(:,:), allocatable :: ks, ksk
-  !!real(gp) :: nonidem
-  integer :: itmb, jtmb, ispin, ifrag_ref, max_nbasis_env, ifrag
+  !real(gp), dimension(:,:), allocatable :: ks, ksk
+  !real(gp) :: nonidem
+  !integer :: itmb, jtmb, ispin, ifrag
+  integer :: ifrag_ref, max_nbasis_env
   real(gp) :: e_paw, e_pawdc, compch_sph, e_nl
   type(cell) :: mesh
   interface
@@ -2584,6 +2581,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
           & rxyz, lzd, psi, orbs)
        use module_defs, only: gp,wp
        use module_types
+       use compression
        implicit none
        integer, intent(in) :: iproc
        type(atoms_data), intent(in) :: atoms
@@ -2601,6 +2599,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
           in, atoms, rxyz, wfd, orbs, psi)
        use module_defs
        use module_types
+       use compression
        implicit none
        integer, intent(in) :: iproc, nproc, input_wf_format
        type(grid_dimensions), intent(in) :: d
@@ -3505,7 +3504,7 @@ subroutine input_check_psi_id(inputpsi, input_wf_format, dir_output, orbs, lorbs
   use module_input_keys, only: inputpsiid_set_policy
   implicit none
   integer, intent(out) :: input_wf_format         !< (out) Format of WF
-  type(f_enumerator), intent(inout) :: inputpsi              !< (in) indicate how check input psi, (out) give how to build psi
+  type(f_enumerator), intent(inout) :: inputpsi   !< (in) indicate how check input psi, (out) give how to build psi
                                                   !! INPUT_PSI_DISK_WVL: psi on the disk (wavelets), check if the wavefunctions are all present
                                                   !!                     otherwise switch to normal input guess
                                                   !! INPUT_PSI_DISK_LINEAR: psi on memory (linear version)

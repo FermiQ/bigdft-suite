@@ -99,7 +99,7 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
 !!$  logical :: overlap_calculated
   integer :: mix_hist, info_basis_functions, nit_scc, cur_it_highaccuracy, nit_scc_changed
   real(kind=8) :: pnrm_out, alpha_mix, ratio_deltas, convcrit_dmin, ehart_ps
-  logical :: lowaccur_converged, exit_outer_loop, calculate_overlap, invert_overlap_matrix
+  logical :: lowaccur_converged, exit_outer_loop, calculate_overlap, invert_overlap_matrix,frag_coeffs
   real(kind=8), dimension(:), allocatable :: locrad, kernel_orig, inv_full, inv_cropped
   real(kind=8), dimension(:), allocatable :: kernel_cropped, ham_cropped, kernel_foe_cropped, ham_large
   real(kind=8), dimension(:), allocatable :: hamtilde_compr
@@ -817,34 +817,16 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
   end if
 
 
-  if (input%write_orbitals>0) then
-      if (write_full_system) then
-         call build_ks_orbitals(iproc, nproc, tmb, KSwfn, at, rxyz, denspot, GPU, &
-                  energs, nlpsp, input, norder_taylor,&
-                  energy, energyDiff, energyold, ref_frags, .false.)
-      end if
+  if (input%output_wf /= ENUM_EMPTY) then
+     if (input%lin%fragment_calculation .and. write_fragments) then
+        frag_coeffs=.true.
+     else if (write_full_system) then
+        frag_coeffs=.false.
+     end if
+     call build_ks_orbitals(iproc, nproc, tmb, KSwfn, at, rxyz, denspot, GPU, &
+          energs, nlpsp, input, norder_taylor,&
+          energy, energyDiff, energyold, ref_frags,frag_coeffs)
 
-      if (input%lin%fragment_calculation .and. write_fragments) then
-         call build_ks_orbitals(iproc, nproc, tmb, KSwfn, at, rxyz, denspot, GPU, &
-                  energs, nlpsp, input, norder_taylor,&
-                  energy, energyDiff, energyold, ref_frags, .true.)
-      end if
-
-      !call write_orbital_density(iproc, .false., input%lin%plotBasisFunctions, 'KS', &
-      !     KSwfn%orbs%npsidim_orbs, KSwfn%psi, KSwfn%orbs, KSwfn%lzd, at)
-
-      !ioffset_isf = f_malloc((/3,orbs%norbp/),id='ioffset_isf')
-      !do iorb=1,orbs%norbp
-      !    !iiorb = tmb%orbs%isorb + iorb
-      !    !ilr = tmb%orbs%inwhichlocreg(iiorb)
-      !    !call geocode_buffers(tmb%lzd%Llr(ilr)%geocode, tmb%lzd%glr%geocode, nl1, nl2, nl3)
-      !    ioffset_isf(1,iorb) = 0 !tmb%lzd%llr(ilr)%nsi1 - nl1 - 1
-      !    ioffset_isf(2,iorb) = 0 !tmb%lzd%llr(ilr)%nsi2 - nl2 - 1
-      !    ioffset_isf(3,iorb) = 0 !tmb%lzd%llr(ilr)%nsi3 - nl3 - 1
-      !    !write(*,'(a,3es16.8)') 'iorb, rxyzConf(3), locregcenter(3)', iorb, tmb%confdatarr(iorb)%rxyzConf(3), tmb%lzd%llr(ilr)%locregcenter(3)
-      !end do
-      !call analyze_wavefunctions('global', tmb%lzd, orbs, KSwfn%orbs%npsidim_orbs, %psi, ioffset_isf)
-      !call f_free(ioffset_isf)
   end if
 
 
