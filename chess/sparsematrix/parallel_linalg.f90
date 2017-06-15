@@ -59,7 +59,7 @@ module parallel_linalg
     
       ! Local variables
       integer :: ierr, i, j, istat, iall, ii1, ii2, mbrow, mbcol, nproc_scalapack, nprocrow, nproccol
-      integer :: context, irow, icol, numroc, info, is, np, jproc, maxsize_mpiget, nn
+      integer :: context, irow, icol, numroc, info, is, np, jproc, maxsize_mpibcast, nn
       integer :: lnrow_a, lncol_a, lnrow_b, lncol_b, lnrow_c, lncol_c, ka, kb, kc, lla, llb, llc, window
       real(kind=mp) :: tt1, tt2
       real(kind=mp),dimension(:,:),allocatable :: la, lb, lc
@@ -68,7 +68,7 @@ module parallel_linalg
       integer,dimension(:),allocatable :: np_all, is_all
       character(len=*),parameter :: subname='dgemm_parallel'
       logical :: quiet_
-      integer,parameter :: maxsize_mpiget_x = 33554432 !67108864 !number of elements correspoding to 512MB in double precision
+      integer,parameter :: maxsize_mpibcast_x = 67108864 !number of elements correspoding to 512MB in double precision
 
       call f_routine(id='dgemm_parallel')
       !call timing(iproc, 'dgemm_parallel', 'ON')
@@ -155,51 +155,30 @@ module parallel_linalg
           if (iproc==0) then
               do jproc=0,nproc-1
                   if (jproc/=iproc) then
-                      !write(*,*) 'iproc, jproc, n, il, ir', iproc, jproc, np_all(jproc), is_all(jproc)+1, is_all(jproc)
                       call mpiget(c(1,is_all(jproc)+1), ldc*np_all(jproc), jproc, &
                            int(ldc*is_all(jproc),kind=mpi_address_kind), window)
-          !            call mpi_fence(window)
                   end if
               end do
-          end if
-          !!call mpi_fenceandfree(window)
-          !!call mpibarrier(comm=comm)
-          call mpi_fence(window)
-          !window = mpiwindow(ldc*n, c(1,1), comm)
-          if (iproc/=0) then
-              ! An mpiget on the entire matrix led to crashes, so do it in chunks of maximal size maxsize_mpiget.
-              ! Make sure that this chunk is at least as large as one column of the matrix.
-              maxsize_mpiget = max(maxsize_mpiget_x, ldc)
-              is = 0
-              nn = 0
-              do i=1,n
-                  if (nn>maxsize_mpiget) then
-                      if (iproc==1) call yaml_map('1 i, is, nn',(/i, is, nn/))
-                      call mpiget(c(1,is+1), nn, 0, int(is,kind=mpi_address_kind), window)
-          !            call mpi_fence(window)
-                      !!call mpiget(c(1,is_all(jproc)+1), ldc*np_all(jproc), 0, &
-                      !!     int(ldc*is_all(jproc),kind=mpi_address_kind), window)
-                      is = is + nn
-                      nn = 0
-                  end if
-                  nn = nn + ldc
-              end do
-              if (nn>0) then
-                  if (iproc==1) call yaml_map('2 i, is, nn',(/i, is, nn/))
-                  call mpiget(c(1,is+1), nn, 0, int(is,kind=mpi_address_kind), window)
-              end if
-              !call mpiget(c(1,1), ldc*n, 0, int(0,kind=mpi_address_kind), window)
           end if
           call mpi_fenceandfree(window)
-          !!do jproc=0,nproc-1
-          !!    call mpibcast(c(:,jproc), root=0, comm=comm)
-          !!end do
-          !call mpi_fenceandfree(window)
-          !call mpibcast(c, root=0, comm=comm)
+          maxsize_mpibcast = max(maxsize_mpibcast_x, ldc)
+          is = 0
+          nn = 0
+          do i=1,n
+              if (nn>maxsize_mpibcast) then
+                  !if (iproc==1) call yaml_map('1 i, is, nn',(/i, is, nn/))
+                  call mpibcast(c(1,is+1), count=nn, root=0, comm=comm)
+                  is = is + nn/ldc
+                  nn = 0
+              end if
+              nn = nn + ldc
+          end do
+          if (nn>0) then
+              !if (iproc==1) call yaml_map('2 i, is, nn',(/i, is, nn/))
+              call mpibcast(c(1,is+1), count=nn, root=0, comm=comm)
+          end if
           call f_free(np_all)
           call f_free(is_all)
-          !call mpiallred(c, mpi_sum, comm=comm)
-          !call dgemm(transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc)
       else if (blocksize==0) then
           call f_err_throw('blocksize must not be zero')
       else blocksize_if
