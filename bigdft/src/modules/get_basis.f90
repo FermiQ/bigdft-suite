@@ -604,7 +604,8 @@ module get_basis
               end if
               recovered_old_kernel = .true.
               !ldiis%switchSD = .true.
-              alpha(:) = alpha(:)*0.6d0
+              !write(*,*) 'cut alpha 0.6 main'
+              !alpha(:) = alpha(:)*0.6d0
               !if (iproc==0) call yaml_warning('set recovered_old_kernel to true')
     
     
@@ -1776,7 +1777,7 @@ module get_basis
       ! trH is now the total energy (name is misleading, correct this)
       ! Multiply by 2 because when minimizing trace we don't have kernel
       if(tmb%orbs%nspin==1 .and. target_function==TARGET_FUNCTION_IS_TRACE) trH=2.d0*trH
-      if (iproc==0) call yaml_map('Omega old',trH)
+      !if (iproc==0) call yaml_map('Omega old',trH)
       !!if (iproc==0) write(*,'(a,6es17.8)') 'eh, exc, evxc, eexctX, eion, edisp', &
       !!    energs%eh,energs%exc,energs%evxc,energs%eexctX,energs%eion,energs%edisp
       trH=trH-energs%eh+energs%exc-energs%evxc-energs%eexctX+energs%eion+energs%edisp
@@ -1826,8 +1827,10 @@ module get_basis
                       tt2=tt2/sqrt(tt*fnrmOldArr(iorb))
                       ! apply thresholds so that alpha never goes below around 1.d-2 and above around 2
                       if(tt2>.6d0 .and. trH<trHold .and. alpha(iorb)<1.8d0) then
+                          !write(*,*) 'incr alpha 1.1 sub'
                           alpha(iorb)=alpha(iorb)*1.1d0
                       else if (alpha(iorb)>1.7d-3) then
+                          !write(*,*) 'cut alpha 0.6 sub'
                           alpha(iorb)=alpha(iorb)*.6d0
                       end if
                   end if
@@ -1855,7 +1858,9 @@ module get_basis
           ! apply thresholds so that alpha never goes below around 1.d-2 and above around 2
           if(tt2>.6d0 .and. trH<trHold .and. alpha(1)<1.8d0) then ! take alpha(1) since the value is the same for all
               alpha(:)=alpha(:)*1.1d0
+              !write(*,*) 'incr alpha 1.1 sub'
           else if (alpha(1)>1.7d-3) then
+              !write(*,*) 'cut alpha 0.6 sub'
               alpha(:)=alpha(:)*.6d0
           end if
       end if
