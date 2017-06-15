@@ -158,7 +158,7 @@ module parallel_linalg
                       !write(*,*) 'iproc, jproc, n, il, ir', iproc, jproc, np_all(jproc), is_all(jproc)+1, is_all(jproc)
                       call mpiget(c(1,is_all(jproc)+1), ldc*np_all(jproc), jproc, &
                            int(ldc*is_all(jproc),kind=mpi_address_kind), window)
-                      call mpi_fence(window)
+          !            call mpi_fence(window)
                   end if
               end do
           end if
@@ -176,7 +176,7 @@ module parallel_linalg
                   if (nn>maxsize_mpiget) then
                       if (iproc==1) call yaml_map('1 i, is, nn',(/i, is, nn/))
                       call mpiget(c(1,is+1), nn, 0, int(is,kind=mpi_address_kind), window)
-                      call mpi_fence(window)
+          !            call mpi_fence(window)
                       !!call mpiget(c(1,is_all(jproc)+1), ldc*np_all(jproc), 0, &
                       !!     int(ldc*is_all(jproc),kind=mpi_address_kind), window)
                       is = is + nn
