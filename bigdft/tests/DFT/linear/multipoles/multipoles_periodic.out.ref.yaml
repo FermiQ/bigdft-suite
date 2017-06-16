@@ -156,7 +156,6 @@
    signaltimeout                       : 0 #      Time out on startup for signal connection (in seconds)
    domain                              : ~ #      Domain to add to the hostname to find the IP
    inguess_geopt                       : 0 #      Input guess to be used during the optimization
-   verbosity                           : 2 #      Verbosity of the output
    psp_onfly                           : Yes #    Calculate pseudopotential projectors on the fly
    multipole_preserving                : No #     (EXPERIMENTAL) Preserve the multipole moment of the ionic density
    mp_isf                              : 16 #     (EXPERIMENTAL) Interpolating scaling function or lifted dual order for the multipole 
@@ -165,7 +164,6 @@
    iterative_orthogonalization         : No #     Iterative_orthogonalization for input guess orbitals
    check_sumrho                        : 1 #      Enables linear sumrho check
    check_overlap                       : 1 #      Enables linear overlap check
-   write_orbitals                      : 0 #      Linear scaling write KS orbitals for cubic restart (might take lot of disk space!)
    explicit_locregcenters              : No #     Linear scaling explicitly specify localization centers
    intermediate_forces                 : No #     Linear scaling calculate intermediate forces
    kappa_conv                          : 0.1 #    Exit kappa for extended input guess (experimental mode)

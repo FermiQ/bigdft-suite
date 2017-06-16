@@ -114,7 +114,6 @@
    itermax_occ_ctrl                    : 0 #      Number of iterations of occupancy control scheme. Should be between itermin and 
     #                                              itermax
  perf:
-   write_orbitals                      : 1 #      Linear scaling write KS orbitals for cubic restart (might take lot of disk space!)
    wf_extent_analysis                  : Yes #    perform an analysis of the extent of the support functions (and possibly KS orbitals)
    correction_co_contra                : no #     linear scaling correction covariant / contravariant gradient
    debug                               : No #     Debug option
