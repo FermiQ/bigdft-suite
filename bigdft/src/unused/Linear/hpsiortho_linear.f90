@@ -52,16 +52,16 @@ subroutine calculate_residue_ks(iproc, nproc, num_extra, ksorbs, tmb, hpsit_c, h
 
   !call nullify_sparse_matrix(grad_ovrlp)
   grad_ovrlp=sparse_matrix_null()
-  !call sparse_copy_pattern(tmb%linmat%m, grad_ovrlp, iproc, subname)
-  call copy_sparse_matrix(tmb%linmat%m, grad_ovrlp)
+  !call sparse_copy_pattern(tmb%linmat%smat(2), grad_ovrlp, iproc, subname)
+  call copy_sparse_matrix(tmb%linmat%smat(2), grad_ovrlp)
   !grad_ovrlp%matrix_compr=f_malloc_ptr(grad_ovrlp%nvctr,id='grad_ovrlp%matrix_compr')
   grad_ovrlp_ = matrices_null()
-  call allocate_matrices(tmb%linmat%m, allocate_full=.false., &
+  call allocate_matrices(tmb%linmat%smat(2), allocate_full=.false., &
        matname='grad_ovrlp_', mat=grad_ovrlp_)
 
   call calculate_overlap_transposed(iproc, nproc, tmb%orbs, tmb%ham_descr%collcom, hpsit_c, hpsit_c, &
-       hpsit_f, hpsit_f, tmb%linmat%m, tmb%linmat%auxm, grad_ovrlp_)
-  !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%m, grad_ovrlp_)
+       hpsit_f, hpsit_f, tmb%linmat%smat(2), tmb%linmat%auxm, grad_ovrlp_)
+  !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%smat(2), grad_ovrlp_)
   !! This can then be deleted if the transition to the new type has been completed.
   !grad_ovrlp%matrix_compr=grad_ovrlp_%matrix_compr
 
@@ -108,14 +108,14 @@ subroutine calculate_residue_ks(iproc, nproc, num_extra, ksorbs, tmb, hpsit_c, h
   ! calculate Tr[Kg]  (not recalculating kernel as don't have the correct occs here)
   !call calculate_kernel_and_energy(iproc,nproc,denskern,grad_coeff,ksres_sum,tmb%coeff,orbs,tmb%orbs,.true.)
   grad_ovrlp_ = matrices_null()
-  call allocate_matrices(tmb%linmat%m, allocate_full=.false., matname='grad_ovrlp_', mat=grad_ovrlp_)
+  call allocate_matrices(tmb%linmat%smat(2), allocate_full=.false., matname='grad_ovrlp_', mat=grad_ovrlp_)
   !grad_ovrlp_%matrix_compr=grad_ovrlp%matrix_compr
-  !!call extract_taskgroup_inplace(tmb%linmat%l, tmb%linmat%kernel_)
+  !!call extract_taskgroup_inplace(tmb%linmat%smat(3), tmb%linmat%kernel_)
   call extract_taskgroup_inplace(grad_ovrlp, grad_ovrlp_)
-  call calculate_kernel_and_energy(iproc,nproc,bigdft_mpi%mpi_comm,tmb%linmat%l,grad_ovrlp,&
+  call calculate_kernel_and_energy(iproc,nproc,bigdft_mpi%mpi_comm,tmb%linmat%smat(3),grad_ovrlp,&
        tmb%linmat%kernel_, grad_ovrlp_, &
        ksres_sum,tmb%coeff,tmb%orbs%norbp, tmb%orbs%isorb, tmb%orbs%norbu, tmb%orbs%norb, tmb%orbs%occup, .false.)
-  !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%l, tmb%linmat%kernel_)
+  !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%smat(3), tmb%linmat%kernel_)
   !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, grad_ovrlp, grad_ovrlp_)
   call deallocate_matrices(grad_ovrlp_)
   if (iproc==0) write(*,*) 'KS residue from trace',&

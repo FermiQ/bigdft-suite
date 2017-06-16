@@ -3339,15 +3339,15 @@ module sparsematrix_init
               end do search_out
           end do
           if (ind_min>ind_min1) then
-              write(*,*) 'ind_min, ind_min1', ind_min, ind_min1
+              write(*,*) 'iproc, ind_min, ind_min1', iproc, ind_min, ind_min1
               call f_err_throw('ind_min>ind_min1')
           end if
           if (ind_max<ind_max1) then
-              write(*,*) 'ind_max, ind_max1', ind_max, ind_max1
+              write(*,*) 'iproc, ind_max, ind_max1', iproc, ind_max, ind_max1
               call f_err_throw('ind_max<ind_max1')
           end if
-          !!write(*,'(a,i3,3x,2(2i6,4x))') 'iproc, ind_min, ind_max, ind_min1, ind_max1', &
-          !!    iproc, ind_min, ind_max,  ind_min1, ind_max1
+          !!write(*,'(a,i3,3x,4(2i6,4x))') 'iproc, ind_min, ind_max, ind_min1, ind_max1, iirow, iicol', &
+          !!    iproc, ind_min, ind_max,  ind_min1, ind_max1, iirow, iicol
           !@ END NEW #################################################################
 
 
@@ -5723,7 +5723,10 @@ module sparsematrix_init
      integer,intent(in) :: iproc, nproc
      type(sparse_matrix_metadata),intent(in) :: smmd
      type(sparse_matrix),intent(in) :: smat
-     integer,intent(inout) :: ind_min, ind_max
+     integer,intent(out) :: ind_min, ind_max
+
+     ind_min = smat%nvctr
+     ind_max = 0
 
      call check_compress_distributed_layout(smat,ind_min,ind_max)
      if (smat%smatmul_initialized) then
@@ -5786,15 +5789,18 @@ module sparsematrix_init
 
      end do
 
+     !write(*,'(a,i5,3x,3(2i6,3x))') 'iproc, ind_min, ind_max, irow, icol', mpirank(mpi_comm_world), ind_min, ind_max, irow, icol
+
     end subroutine get_sparsematrix_local_rows_columns
 
 
 
-    subroutine init_matrix_taskgroups_wrapper(iproc, nproc, comm, smmd, nmat, smat, ind_minmax)
+    subroutine init_matrix_taskgroups_wrapper(iproc, nproc, comm, enable_matrix_taskgroups, smmd, nmat, smat, ind_minmax)
       use dynamic_memory
       implicit none
       ! Calling arguments
       integer,intent(in) :: iproc, nproc, comm
+      logical,intent(in) :: enable_matrix_taskgroups
       type(sparse_matrix_metadata),intent(in) :: smmd
       integer,intent(in) :: nmat
       type(sparse_matrix),dimension(nmat),intent(inout) :: smat
@@ -5821,18 +5827,24 @@ module sparsematrix_init
       do imat=1,nmat
           call get_sparsematrix_local_extent(iproc, nproc, smmd, smat(imat), &
                ind_minmax_smat(1,imat), ind_minmax_smat(2,imat))
+          !!if (iproc==1) write(*,*) 'A: imat, ind_minmax_smat(:,imat)', imat, ind_minmax_smat(:,imat)
           ind_minmax_smat(1,imat) = min(ind_minmax_smat(1,imat),ind_minmax(1,imat))
           ind_minmax_smat(2,imat) = max(ind_minmax_smat(2,imat),ind_minmax(2,imat))
+          !!if (iproc==1) write(*,*) 'A: imat, ind_minmax_smat(:,imat)', imat, ind_minmax_smat(:,imat)
           call get_sparsematrix_local_rows_columns(smat(imat), ind_minmax_smat(1,imat), ind_minmax_smat(2,imat), &
                irow_smat, icol_smat)
+          !!if (iproc==1) write(*,*) 'A: imat, irow_smat, icol_smat', imat, irow_smat, icol_smat
           irow_minmax(1) = min(irow_smat(1),irow_minmax(1))
           irow_minmax(2) = max(irow_smat(2),irow_minmax(2))
           icol_minmax(1) = min(icol_smat(1),icol_minmax(1))
           icol_minmax(2) = max(icol_smat(2),icol_minmax(2))
+          !!if (iproc==1) write(*,*) 'A: imat, irow_minmax, icol_minmax', imat, irow_minmax, icol_minmax
       end do
       do imat=1,nmat
-          call init_matrix_taskgroups(iproc, nproc, comm, .true., smat(imat), &
-               ind_minmax_smat(1,imat), ind_minmax_smat(2,imat), irow_minmax, icol_minmax)
+          !!write(*,*) 'iproc, imat, ind_minmax(:,imat), ind_minmax_smat(:,imat), irow_minmax, icol_minmax', &
+          !!            iproc, imat, ind_minmax(:,imat), ind_minmax_smat(:,imat), irow_minmax, icol_minmax
+          call init_matrix_taskgroups(iproc, nproc, comm, enable_matrix_taskgroups, smat(imat), &
+               ind_minmax_smat(1,imat), ind_minmax_smat(2,imat), icol_minmax, irow_minmax)!, icol_minmax)
       end do
 
       call f_free(ind_minmax_smat)
