@@ -1,4 +1,5 @@
 import numpy
+from futile.Utils import write
 
 AU_eV=27.31138386
 
@@ -14,20 +15,26 @@ class DiracSuperposition():
         dos: array containing the density of states per eack k-point. Should be of shape 2
         wgts: containts the weights of each of the k-points
         """
+        import numpy as np
         self.dos=dos 
         self.norm=wgts
+        #set range for this distribution
+        e_min=1.e100
+        e_max=-1.e100
+        ddos=np.ravel(dos)
+        if len(ddos)> 0:
+            e_min = min(e_min,np.min(ddos) - 0.05*(np.max(ddos) - np.min(ddos)))
+            e_max = max(e_max,np.max(ddos) + 0.05*(np.max(ddos) - np.min(ddos)))
+        self.xlim=(e_min,e_max)
 
     def curve(self,xs,sigma,wgts=None):
         import numpy as np
-        dos_g = []
-        for e_i in xs:
-            nkpt=dos.shape[0]
-            value=0.0
-            for norm,dos in zip(self.norm,self.dos):
-                peaks=self.peak(e_i,dos,sigma)*norm
-                value+=np.sum(peaks)
-            dos_g.append(value) #Append data corresponding to each energy grid
-        return np.array(dos_g)
+        dos_g=0.0
+        for norm,dos in zip(self.norm,self.dos):
+            kptcurve=self.peaks(xs,dos,norm,sigma)
+            if wgts is not None: kptcurve*=wgts
+            dos_g+=kptcurve
+        return xs,dos_g
 
     def peak(self,omega,e,sigma):
         """
@@ -38,6 +45,15 @@ class DiracSuperposition():
         val=np.exp( - (omega - e)**2 / (2.0 * sigma**2))/(nfac*sigma)
         return val
 
+    def peaks(self,xs,dos,norm,sigma):
+        """
+        Return the array of the whole set of peaks
+        """
+        import numpy as np
+        curve=0.0
+        for e in dos:
+            curve+=self.peak(xs,e,sigma)*norm
+        return curve
 
 def _bandarray_to_data(jspin,bandarrays):
     lbl= 'up' if jspin==0 else 'dw'
@@ -60,7 +76,7 @@ class DoS():
         import numpy as np
         self.ens=[]
         self.labels=[]
-        self.norms=[]
+        #self.norms=[]
         self.npts=npts
         if bandarrays is not None: self.append_from_bandarray(bandarrays,label)
         if evals is not None: self.append_from_dict(evals,label)
@@ -132,12 +148,12 @@ class DoS():
                     break
         return res
     def append(self,energies,label=None,units='eV',norm=1.0):
-        self.ens.append(self.conversion_factor(units)*energies)
-        if label is not None:
-            self.labels.append(label)
-        else:
-            self.labels.append(str(len(self.labels)+1))
-        self.norms.append(norm)
+        if type(norm)!=type(1.0) and len(norm)==0: return
+        dos=self.conversion_factor(units)*energies
+        self.ens.append(DiracSuperposition(dos,wgts=norm))
+        lbl=label if label is not None else str(len(self.labels)+1)
+        self.labels.append(lbl)
+        #self.norms.append(norm)
         self.range=self._set_range()
     def conversion_factor(self,units):
         if units == 'AU':
@@ -156,10 +172,13 @@ class DoS():
         e_min=1.e100
         e_max=-1.e100
         for dos in self.ens:
-            ddos=np.ravel(dos)
-            if len(ddos)==0: continue
-            e_min = min(e_min,np.min(ddos) - 0.05*(np.max(ddos) - np.min(ddos)))
-            e_max = max(e_max,np.max(ddos) + 0.05*(np.max(ddos) - np.min(ddos)))
+            mn,mx=dos.xlim
+            e_min=min(e_min,mn)
+            e_max=max(e_max,mx)
+            #ddos=np.ravel(dos)
+            #if len(ddos)==0: continue
+            #e_min = min(e_min,np.min(ddos) - 0.05*(np.max(ddos) - np.min(ddos)))
+            #e_max = max(e_max,np.max(ddos) + 0.05*(np.max(ddos) - np.min(ddos)))
         return np.arange( e_min, e_max, (e_max-e_min)/npts )
     def curve(self,dos,norm,sigma=None):
         import numpy as np
@@ -179,7 +198,9 @@ class DoS():
     def dump(self,sigma=None):
         "For Gnuplot"
         if sigma is None: sigma=self.sigma
-        data=[self.curve(dos,norm=self.norms[i],sigma=sigma) for i,dos in enumerate(self.ens)]
+        #data=[self.curve(dos,norm=self.norms[i],sigma=sigma) for i,dos in enumerate(self.ens)]
+        data=[ dos.curve(self.range,sigma=sigma)[1] for dos in self.ens]
+
         for i,e in enumerate(self.range):
             print e,' '.join(map(str,[d[i] for d in data]))
     def plot(self,sigma=None,legend=False):
@@ -190,7 +211,9 @@ class DoS():
         self.fig, self.ax1 = plt.subplots()
         self.plotl=[]
         for i,dos in enumerate(self.ens):
-            self.plotl.append(self.ax1.plot(self.range,self.curve(dos,norm=self.norms[i],sigma=sigma),label=self.labels[i]))
+            #self.plotl.append(self.ax1.plot(self.range,self.curve(dos,norm=self.norms[i],sigma=sigma),label=self.labels[i]))
+            self.plotl.append(self.ax1.plot(
+                *dos.curve(self.range,sigma=sigma),label=self.labels[i]))
         plt.xlabel('Energy [eV]', fontsize=18)
         plt.ylabel('DoS', fontsize=18)
         if self.ef is not None:
@@ -291,7 +314,9 @@ class DoS():
     def update(self,val):
         sig = self.ssig.val
         for i,dos in enumerate(self.ens):
-            self.plotl[i][0].set_ydata(self.curve(dos,norm=self.norms[i],sigma=sig))
+            self.plotl[i][0].set_ydata(dos.curve(self.range,sigma=sig)[1])
+            #self.plotl[i][0].set_ydata(self.curve(dos,norm=self.norms[i],sigma=sig))
+
         self.ax1.relim()
         self.ax1.autoscale_view()
         self.fig.canvas.draw_idle()
