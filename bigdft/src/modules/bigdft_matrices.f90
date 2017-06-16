@@ -15,7 +15,7 @@ module bigdft_matrices
                ind_min, ind_max)
           use module_base
           use sparsematrix_base, only: sparse_matrix, sparse_matrix_metadata
-          use sparsematrix_init, only: get_sparsematrix_local_extent, get_spasematrix_local_rows_columns
+          use sparsematrix_init, only: get_sparsematrix_local_extent, get_sparsematrix_local_rows_columns
           use communications_base, only: comms_linear
           use module_types, only: linmat_auxiliary
           implicit none
@@ -94,7 +94,7 @@ module bigdft_matrices
 
           !!write(*,'(a,3i8)') 'after check_local_matrix_extents: iproc, ind_min, ind_max', iproc, ind_min, ind_max
 
-          !!call get_spasematrix_local_rows_columns(smat, ind_min, ind_max, irow, icol)
+          !!call get_sparsematrix_local_rows_columns(smat, ind_min, ind_max, irow, icol)
 
           !!! Get the global indices of ind_min and ind_max
           !!do i=1,2
@@ -448,9 +448,9 @@ module bigdft_matrices
       use module_base
       use module_types
       use sparsematrix_wrappers, only: init_sparse_matrix_wrapper, check_kernel_cutoff
-      use sparsematrix_init, only: get_sparsematrix_local_extent, get_spasematrix_local_rows_columns, &
-                                   sparse_matrix_metadata_init, init_matrix_taskgroups
+      use sparsematrix_init, only: sparse_matrix_metadata_init, init_matrix_taskgroups_wrapper
       use yaml_output
+      use sparsematrix_memory, only: sparse_matrix_null
       implicit none
 
       ! Calling arguments
@@ -461,13 +461,15 @@ module bigdft_matrices
       type(local_zone_descriptors),intent(inout) :: lzd_s
       type(local_zone_descriptors),intent(in) :: lzd_m
       type(input_variables), intent(inout) :: in
-      type(linear_matrices),intent(inout) :: linmat
+      type(linear_matrices),intent(inout),target :: linmat
 
       ! Local variables
       integer,dimension(2) :: irow, icol, iirow, iicol
       integer :: ind_min_s, ind_mas_s
       integer :: ind_min_m, ind_mas_m
       integer :: ind_min_l, ind_mas_l
+      type(sparse_matrix) :: smat_test
+      type(sparse_matrix),dimension(3) :: smat_ptr
 
       call sparse_matrix_metadata_init(atoms%astruct%geocode, atoms%astruct%cell_dim, orbs%norb, &
            atoms%astruct%nat, atoms%astruct%ntypes, atoms%astruct%units, &           
@@ -476,6 +478,7 @@ module bigdft_matrices
 
       ! Do not initialize the matrix multiplication to save memory. The multiplications
       ! are always done with the linmat%l type.
+      allocate(linmat%s(1))
       call init_sparse_matrix_wrapper(iproc, nproc, &
            in%nspin, orbs, lzd_s, atoms%astruct, &
            in%store_index, init_matmul=.false., imode=1, smat=linmat%s)
@@ -485,6 +488,7 @@ module bigdft_matrices
 
       ! Do not initialize the matrix multiplication to save memory. The multiplications
       ! are always done with the linmat%l type.
+      allocate(linmat%m(1))
       call init_sparse_matrix_wrapper(iproc, nproc, &
            in%nspin, orbs, lzd_m, atoms%astruct, &
            in%store_index, init_matmul=.false., imode=1, smat=linmat%m)
@@ -497,6 +501,7 @@ module bigdft_matrices
           call yaml_comment('Sparse matrix initialization',hfill='-')
       end if
       call check_kernel_cutoff(iproc, orbs, atoms, in%hamapp_radius_incr, lzd_s)
+      allocate(linmat%l(1))
       call init_sparse_matrix_wrapper(iproc, nproc, &
            in%nspin, orbs, lzd_s, atoms%astruct, &
            in%store_index, init_matmul=.true., imode=2, smat=linmat%l, smat_ref=linmat%m)
@@ -504,56 +509,83 @@ module bigdft_matrices
            collcom_s, collcom_m, collcom_s_sr, linmat%l, &
            linmat%auxl)
 
+     ! This is to make sure that the sparse matrices can also used in form of an array...
+     linmat%s => linmat%smat(1)
+     linmat%m => linmat%smat(2)
+     linmat%l => linmat%smat(3)
 
-     iirow(1) = linmat%s%nfvctr
-     iirow(2) = 1
-     iicol(1) = linmat%s%nfvctr
-     iicol(2) = 1
 
-     call get_sparsematrix_local_extent(iproc, nproc, linmat%smmd, linmat%s, ind_min_s, ind_mas_s)
+     !!iirow(1) = linmat%s%nfvctr
+     !!iirow(2) = 1
+     !!iicol(1) = linmat%s%nfvctr
+     !!iicol(2) = 1
+
+     !!call get_sparsematrix_local_extent(iproc, nproc, linmat%smmd, linmat%s, ind_min_s, ind_mas_s)
      call check_local_matrix_extents(iproc, nproc, collcom_s, &
           collcom_s_sr, linmat%smmd, linmat%s, linmat%auxs, &
           ind_min_s, ind_mas_s)
-     call get_spasematrix_local_rows_columns(linmat%s, ind_min_s, ind_mas_s, irow, icol)
-     iirow(1) = min(irow(1),iirow(1))
-     iirow(2) = max(irow(2),iirow(2))
-     iicol(1) = min(icol(1),iicol(1))
-     iicol(2) = max(icol(2),iicol(2))
+     !!call get_sparsematrix_local_rows_columns(linmat%s, ind_min_s, ind_mas_s, irow, icol)
+     !!iirow(1) = min(irow(1),iirow(1))
+     !!iirow(2) = max(irow(2),iirow(2))
+     !!iicol(1) = min(icol(1),iicol(1))
+     !!iicol(2) = max(icol(2),iicol(2))
 
-     call get_sparsematrix_local_extent(iproc, nproc, linmat%smmd, linmat%m, ind_min_m, ind_mas_m)
+     !!call get_sparsematrix_local_extent(iproc, nproc, linmat%smmd, linmat%m, ind_min_m, ind_mas_m)
      call check_local_matrix_extents(iproc, nproc, collcom_m, &
           collcom_s_sr, linmat%smmd, linmat%m, linmat%auxm, &
           ind_min_m, ind_mas_m)
-     call get_spasematrix_local_rows_columns(linmat%m, ind_min_m, ind_mas_m, irow, icol)
-     iirow(1) = min(irow(1),iirow(1))
-     iirow(2) = max(irow(2),iirow(2))
-     iicol(1) = min(icol(1),iicol(1))
-     iicol(2) = max(icol(2),iicol(2))
+     !!call get_sparsematrix_local_rows_columns(linmat%m, ind_min_m, ind_mas_m, irow, icol)
+     !!iirow(1) = min(irow(1),iirow(1))
+     !!iirow(2) = max(irow(2),iirow(2))
+     !!iicol(1) = min(icol(1),iicol(1))
+     !!iicol(2) = max(icol(2),iicol(2))
 
-     call get_sparsematrix_local_extent(iproc, nproc, linmat%smmd, linmat%l, ind_min_l, ind_mas_l)
+     !!call get_sparsematrix_local_extent(iproc, nproc, linmat%smmd, linmat%l, ind_min_l, ind_mas_l)
      call check_local_matrix_extents(iproc, nproc, collcom_m, &
           collcom_s_sr, linmat%smmd, linmat%l, linmat%auxl, &
           ind_min_l, ind_mas_l)
-     call get_spasematrix_local_rows_columns(linmat%l, ind_min_l, ind_mas_l, irow, icol)
-     iirow(1) = min(irow(1),iirow(1))
-     iirow(2) = max(irow(2),iirow(2))
-     iicol(1) = min(icol(1),iicol(1))
-     iicol(2) = max(icol(2),iicol(2))
+     !!call get_sparsematrix_local_rows_columns(linmat%l, ind_min_l, ind_mas_l, irow, icol)
+     !!iirow(1) = min(irow(1),iirow(1))
+     !!iirow(2) = max(irow(2),iirow(2))
+     !!iicol(1) = min(icol(1),iicol(1))
+     !!iicol(2) = max(icol(2),iicol(2))
 
 
 
-      call init_matrix_taskgroups(iproc, nproc, bigdft_mpi%mpi_comm, in%enable_matrix_taskgroups, linmat%s, &
-           ind_min_s, ind_mas_s, &
-           iirow, iicol)
-      !!write(*,*) 'after s'
-      call init_matrix_taskgroups(iproc, nproc, bigdft_mpi%mpi_comm, in%enable_matrix_taskgroups, linmat%m, &
-           ind_min_m, ind_mas_m, &
-           iirow, iicol)
-      !!write(*,*) 'after m'
-      call init_matrix_taskgroups(iproc, nproc, bigdft_mpi%mpi_comm, in%enable_matrix_taskgroups, linmat%l, &
-           ind_min_l, ind_mas_l, &
-           iirow, iicol)
-      !!write(*,*) 'after l'
+      !!call init_matrix_taskgroups(iproc, nproc, bigdft_mpi%mpi_comm, in%enable_matrix_taskgroups, linmat%s, &
+      !!     ind_min_s, ind_mas_s, &
+      !!     iirow, iicol)
+      !!!!write(*,*) 'after s'
+      !!call init_matrix_taskgroups(iproc, nproc, bigdft_mpi%mpi_comm, in%enable_matrix_taskgroups, linmat%m, &
+      !!     ind_min_m, ind_mas_m, &
+      !!     iirow, iicol)
+      !!!!write(*,*) 'after m'
+      !!call init_matrix_taskgroups(iproc, nproc, bigdft_mpi%mpi_comm, in%enable_matrix_taskgroups, linmat%l, &
+      !!     ind_min_l, ind_mas_l, &
+      !!     iirow, iicol)
+      !!!!write(*,*) 'after l'
+
+      !smat_test = linmat%s
+      !associate(smat_test => linmat%s)
+      !end associate
+
+      !allocate(smat_ptr(3))
+      !smat_ptr(1) = sparse_matrix_null()
+      !associate ( smat_ptr(1) => linmat%s , smat_ptr(2) => linmat%m , smat_ptr(3) => linmat%l)
+      !associate ( smat_test => linmat%s )
+      !smat_ptr(1) = linmat%s
+      !smat_ptr(2) = linmat%m
+      !smat_ptr(3) = linmat%l
+      call init_matrix_taskgroups_wrapper(iproc, nproc, bigdft_mpi%mpi_comm, linmat%smmd, &
+           3, linmat%smat, &
+           (/(/ind_min_s,ind_mas_s/),(/ind_min_m,ind_mas_m/),(/ind_min_l,ind_mas_l/)/))
+      !call init_matrix_taskgroups_wrapper(iproc, nproc, bigdft_mpi%mpi_comm, linmat%smmd, &
+      !     3, (/linmat%s,linmat%m,linmat%l/), &
+      !     (/(/ind_min_s,ind_mas_s/),(/ind_min_m,ind_mas_m/),(/ind_min_l,ind_mas_l/)/))
+      !end associate
+
+      !deallocate(smat_ptr)
+
     end subroutine init_bigdft_matrices
 
 end module bigdft_matrices

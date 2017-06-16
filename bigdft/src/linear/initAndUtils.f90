@@ -1190,7 +1190,7 @@ subroutine adjust_locregs_and_confinement(iproc, nproc, hx, hy, hz, at, input, &
   use sparsematrix_base, only: sparse_matrix_null, deallocate_sparse_matrix, allocate_matrices, deallocate_matrices, &
                                SPARSE_TASKGROUP, assignment(=), sparsematrix_malloc_ptr
   use sparsematrix_wrappers, only: init_sparse_matrix_wrapper, init_sparse_matrix_for_KSorbs, check_kernel_cutoff
-  use sparsematrix_init, only: get_sparsematrix_local_extent, get_spasematrix_local_rows_columns, &
+  use sparsematrix_init, only: get_sparsematrix_local_extent, get_sparsematrix_local_rows_columns, &
                                init_matrix_taskgroups, sparse_matrix_metadata_init
   use bigdft_matrices, only: check_local_matrix_extents, init_matrixindex_in_compressed_fortransposed
   use foe_base, only: foe_data_deallocate
@@ -1417,7 +1417,7 @@ subroutine adjust_locregs_and_confinement(iproc, nproc, hx, hy, hz, at, input, &
      call check_local_matrix_extents(iproc, nproc, tmb%collcom, &
           tmb%collcom_sr, tmb%linmat%smmd, tmb%linmat%s, tmb%linmat%auxs, &
           ind_min_s, ind_mas_s)
-     call get_spasematrix_local_rows_columns(tmb%linmat%s, ind_min_s, ind_mas_s, irow, icol)
+     call get_sparsematrix_local_rows_columns(tmb%linmat%s, ind_min_s, ind_mas_s, irow, icol)
      iirow(1) = min(irow(1),iirow(1))
      iirow(2) = max(irow(2),iirow(2))
      iicol(1) = min(icol(1),iicol(1))
@@ -1427,7 +1427,7 @@ subroutine adjust_locregs_and_confinement(iproc, nproc, hx, hy, hz, at, input, &
      call check_local_matrix_extents(iproc, nproc, tmb%ham_descr%collcom, &
           tmb%collcom_sr, tmb%linmat%smmd, tmb%linmat%m, tmb%linmat%auxm, &
           ind_min_m, ind_mas_m)
-     call get_spasematrix_local_rows_columns(tmb%linmat%m, ind_min_m, ind_mas_m, irow, icol)
+     call get_sparsematrix_local_rows_columns(tmb%linmat%m, ind_min_m, ind_mas_m, irow, icol)
      iirow(1) = min(irow(1),iirow(1))
      iirow(2) = max(irow(2),iirow(2))
      iicol(1) = min(icol(1),iicol(1))
@@ -1437,7 +1437,7 @@ subroutine adjust_locregs_and_confinement(iproc, nproc, hx, hy, hz, at, input, &
      call check_local_matrix_extents(iproc, nproc, tmb%ham_descr%collcom, &
           tmb%collcom_sr, tmb%linmat%smmd, tmb%linmat%l, tmb%linmat%auxl, &
           ind_min_l, ind_mas_l)
-     call get_spasematrix_local_rows_columns(tmb%linmat%l, ind_min_l, ind_mas_l, irow, icol)
+     call get_sparsematrix_local_rows_columns(tmb%linmat%l, ind_min_l, ind_mas_l, irow, icol)
      iirow(1) = min(irow(1),iirow(1))
      iirow(2) = max(irow(2),iirow(2))
      iicol(1) = min(icol(1),iicol(1))
