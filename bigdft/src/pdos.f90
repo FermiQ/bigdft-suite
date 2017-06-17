@@ -46,7 +46,7 @@ subroutine spatially_resolved_dos(ob,output_dir)
      do while(ket_next(psi_it,ilr=psi_it%ilr))
         do ispinor=1,ob%orbs%nspinor
            psi_ptr=>ob_subket_ptr(psi_it,ispinor)
-           hpsi_ptr=>ob_ket_map(hpsi,psi_it,ispinor)
+           !hpsi_ptr=>ob_ket_map(hpsi,psi_it,ispinor)
            call daub_to_isf(psi_it%lr,w,psi_ptr,psir(1,ispinor))
            !call daub_to_isf(psi_it%lr,w,hpsi_ptr,hpsir(1,ispinor))
         end do
