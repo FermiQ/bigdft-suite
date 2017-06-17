@@ -116,7 +116,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
   ! Variables for the virtual orbitals and band diagram.
   integer :: nkptv, nvirtu, nvirtd
   real(gp), dimension(:), allocatable :: wkptv,psi_perturbed,hpsi_perturbed
-  real(gp), dimension(:), allocatable :: h2psi_perturbed,hpsi_tmp
+  real(gp), dimension(:), allocatable :: h2psi_perturbed!,hpsi_tmp
   type(f_enumerator) :: inputpsi,output_denspot
   type(dictionary), pointer :: dict_timing_info
   type(orbital_basis) :: ob,ob_occ,ob_virt,ob_prime
@@ -1408,26 +1408,26 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
      end if
      if (in%sdos) then !spatially resolved DOS
         if (iproc==0) call yaml_comment('Calculating Spatially Resolved DOS',hfill='-')
-        !apply the hamiltonian to the perturbed wavefunctions
-        hpsi_tmp=f_malloc(max(KSwfn%orbs%npsidim_orbs,KSwfn%orbs%npsidim_comp),id='hpsi_tmp')
-        !allocate the potential in the full box
-        call full_local_potential(iproc,nproc,KSwfn%orbs,KSwfn%Lzd,0,&
-             denspot%dpbox,denspot%xc,denspot%rhov,denspot%pot_work)
-        call FullHamiltonianApplication(iproc,nproc,atoms,KSwfn%orbs,&
-             KSwfn%Lzd,nlpsp,KSwfn%confdatarr,denspot%dpbox%ngatherarr,denspot%pot_work,&
-             KSwfn%psi,hpsi_tmp,&
-             KSwfn%PAW,energs_fake,in%SIC,GPU,denspot%xc,&
-             denspot%pkernelseq)
+!!$        !apply the hamiltonian to the perturbed wavefunctions
+!!$        hpsi_tmp=f_malloc(max(KSwfn%orbs%npsidim_orbs,KSwfn%orbs%npsidim_comp),id='hpsi_tmp')
+!!$        !allocate the potential in the full box
+!!$        call full_local_potential(iproc,nproc,KSwfn%orbs,KSwfn%Lzd,0,&
+!!$             denspot%dpbox,denspot%xc,denspot%rhov,denspot%pot_work)
+!!$        call FullHamiltonianApplication(iproc,nproc,atoms,KSwfn%orbs,&
+!!$             KSwfn%Lzd,nlpsp,KSwfn%confdatarr,denspot%dpbox%ngatherarr,denspot%pot_work,&
+!!$             KSwfn%psi,hpsi_tmp,&
+!!$             KSwfn%PAW,energs_fake,in%SIC,GPU,denspot%xc,&
+!!$             denspot%pkernelseq)
         call orbital_basis_associate(ob_occ,orbs=KSwfn%orbs,&
              Lzd=KSwfn%Lzd,phis_wvl=KSwfn%psi,comms=KSwfn%comms)
-        call spatially_resolved_dos(ob_occ,hpsi_tmp,trim(in%dir_output))
+        call spatially_resolved_dos(ob_occ,trim(in%dir_output))
         call orbital_basis_release(ob_occ)
         if (nproc > 1) then
            call f_free_ptr(denspot%pot_work)
         else
            nullify(denspot%pot_work)
         end if       
-        call f_free(hpsi_tmp)
+!!$        call f_free(hpsi_tmp)
      end if
   end if
   if (((in%exctxpar == 'OP2P' .and. xc_exctXfac(denspot%xc) /= 0.0_gp) &
