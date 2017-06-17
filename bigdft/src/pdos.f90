@@ -6,7 +6,7 @@
 !!    GNU General Public License, see ~/COPYING file
 !!    or http://www.gnu.org/copyleft/gpl.txt .
 !!    For the list of contributors, see ~/AUTHORS 
-subroutine spatially_resolved_dos(ob,hpsi,output_dir)
+subroutine spatially_resolved_dos(ob,output_dir)
   use module_base
   use orbitalbasis
   use locreg_operations
@@ -14,15 +14,15 @@ subroutine spatially_resolved_dos(ob,hpsi,output_dir)
   implicit none
   character(len=*), intent(in) :: output_dir
   type(orbital_basis), intent(inout) :: ob
-  real(wp), dimension(ob%orbs%npsidim_orbs), intent(in) :: hpsi
+  !real(wp), dimension(ob%orbs%npsidim_orbs), intent(in) :: hpsi
   !local variables
   logical :: assert_cubic
   integer :: ispinor
   type(workarr_sumrho) :: w
   type(ket) :: psi_it
   type(box_iterator) :: box_it
-  real(wp), dimension(:,:), allocatable :: psir,hpsir,epsx,epsy,epsz
-  real(wp), dimension(:), pointer :: psi_ptr,hpsi_ptr
+  real(wp), dimension(:,:), allocatable :: psir,epsx,epsy,epsz!,hpsir
+  real(wp), dimension(:), pointer :: psi_ptr!,hpsi_ptr
 
   if (ob%orbs%nspinor > 2) &
        call f_err_throw('Spatially resolved DoS not available for spinors',&
@@ -39,7 +39,7 @@ subroutine spatially_resolved_dos(ob,hpsi,output_dir)
      call initialize_work_arrays_sumrho(psi_it%lr,.true.,w)
      !real space basis function, per orbital components
      psir = f_malloc(1.to.psi_it%ket_dims,id='psir')
-     hpsir = f_malloc(1.to.psi_it%ket_dims,id='hpsir')
+     !hpsir = f_malloc(1.to.psi_it%ket_dims,id='hpsir')
      epsx=f_malloc([psi_it%lr%d%n1i,ob%orbs%norbp],id='epsx')
      epsy=f_malloc([psi_it%lr%d%n2i,ob%orbs%norbp],id='epsy')
      epsz=f_malloc([psi_it%lr%d%n3i,ob%orbs%norbp],id='epsz')
@@ -48,14 +48,14 @@ subroutine spatially_resolved_dos(ob,hpsi,output_dir)
            psi_ptr=>ob_subket_ptr(psi_it,ispinor)
            hpsi_ptr=>ob_ket_map(hpsi,psi_it,ispinor)
            call daub_to_isf(psi_it%lr,w,psi_ptr,psir(1,ispinor))
-           call daub_to_isf(psi_it%lr,w,hpsi_ptr,hpsir(1,ispinor))
+           !call daub_to_isf(psi_it%lr,w,hpsi_ptr,hpsir(1,ispinor))
         end do
-        call calculate_sdos(psi_it%nspinor,psi_it%lr%bit,psir,hpsir,&
+        call calculate_sdos(psi_it%nspinor,psi_it%lr%bit,psir,&!hpsir,&
              epsx(1,psi_it%iorbp),epsy(1,psi_it%iorbp),epsz(1,psi_it%iorbp))
      end do
      !deallocations of work arrays
      call f_free(psir)
-     call f_free(hpsir)
+     !call f_free(hpsir)
      call deallocate_work_arrays_sumrho(w)
      assert_cubic=.false. !we should exit now as we need the iterator
      box_it=psi_it%lr%bit
@@ -83,14 +83,15 @@ subroutine spatially_resolved_dos(ob,hpsi,output_dir)
 end subroutine spatially_resolved_dos
 
 !> write the real part of the spatially resolved density of states in the arrays epsx,y,z
-subroutine calculate_sdos(nspinor,boxit,psi,hpsi,epsx,epsy,epsz)
+subroutine calculate_sdos(nspinor,boxit,psi,&!hpsi,&
+     epsx,epsy,epsz)
   use box
   use module_defs
   use f_utils, only: f_zero
   implicit none
   type(box_iterator) :: boxit
   integer, intent(in) :: nspinor
-  real(wp), dimension(boxit%mesh%ndim,nspinor), intent(in) :: psi,hpsi
+  real(wp), dimension(boxit%mesh%ndim,nspinor), intent(in) :: psi!,hpsi
   real(wp), dimension(boxit%mesh%ndims(1)), intent(out) :: epsx
   real(wp), dimension(boxit%mesh%ndims(2)), intent(out) :: epsy
   real(wp), dimension(boxit%mesh%ndims(3)), intent(out) :: epsz
@@ -105,8 +106,8 @@ subroutine calculate_sdos(nspinor,boxit,psi,hpsi,epsx,epsy,epsz)
   do while(box_next_z(boxit))
      do while(box_next_y(boxit))
         do while(box_next_x(boxit))
-           tt=psi(boxit%ind,1)*hpsi(boxit%ind,1)
-           if (nspinor==2) tt=tt+psi(boxit%ind,2)*hpsi(boxit%ind,2)
+           tt=psi(boxit%ind,1)**2!hpsi(boxit%ind,1)
+           if (nspinor==2) tt=tt+psi(boxit%ind,2)**2!hpsi(boxit%ind,2)
            epsz(boxit%k)=epsz(boxit%k)+tt
            epsy(boxit%j)=epsy(boxit%j)+tt
            epsx(boxit%i)=epsx(boxit%i)+tt
