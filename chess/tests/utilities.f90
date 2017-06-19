@@ -169,9 +169,9 @@ module utilities
           call mpiallred(mean_error_rel, 1, mpi_sum, comm=comm)
           call mpiallred(max_error_rel, 1, mpi_max, comm=comm)
           do ithreshold=1,nthreshold
-              call mpiallred(nrel_threshold, mpi_sum, comm=comm)
-              call mpiallred(mean_error_rel_threshold, mpi_sum, comm=comm)
-              call mpiallred(max_error_rel_threshold, mpi_max, comm=comm)
+              call mpiallred(nrel_threshold(ithreshold), 1, mpi_sum, comm=comm)
+              call mpiallred(mean_error_rel_threshold(ithreshold), 1, mpi_sum, comm=comm)
+              call mpiallred(max_error_rel_threshold(ithreshold), 1, mpi_max, comm=comm)
           end do
         end subroutine communicate_errors
     

@@ -1602,11 +1602,13 @@ module sparsematrix
    end subroutine extract_taskgroup
 
 
-    subroutine write_matrix_compressed(message, smat, mat)
+    subroutine write_matrix_compressed(iproc, nproc, comm, message, smat, mat)
       use yaml_output
+      use dynamic_memory
       implicit none
     
       ! Calling arguments
+      integer,intent(in) :: iproc, nproc, comm
       character(len=*),intent(in) :: message
       type(sparse_matrix),intent(in) :: smat
       type(matrices),intent(in) :: mat
@@ -1614,6 +1616,7 @@ module sparsematrix
       ! Local variables
       !integer, dimension(2) :: irowcol
       integer :: iseg, i, ii
+      real(kind=mp),dimension(:),allocatable :: matrix_compr
       !integer :: iorb, jorb
     
       !!call yaml_sequence_open(trim(message))
@@ -1629,37 +1632,45 @@ module sparsematrix
       !!    call yaml_newline()
       !!end do
       !!call yaml_sequence_close()
+
+      matrix_compr = sparsematrix_malloc(smat,iaction=SPARSE_FULL,id='matrix_compr')
+      call gather_matrix_from_taskgroups(iproc, nproc, comm, &
+           smat, mat%matrix_compr, matrix_compr)
     
-      call yaml_sequence_open(trim(message))
-      do iseg=1,smat%nseg
-          ! A segment is always on one line, therefore no double loop
-          call yaml_sequence(advance='no')
-          !ilen=smat%keyg(2,iseg)-smat%keyg(1,iseg)+1
-          call yaml_mapping_open(flow=.true.)
-          call yaml_map('segment',iseg)
-          call yaml_sequence_open('elements')
-          !istart=smat%keyv(iseg)
-          !iend=smat%keyv(iseg)+ilen-1
-          !do i=istart,iend
-          ii=smat%keyv(iseg)
-          do i=smat%keyg(1,1,iseg),smat%keyg(2,1,iseg)
-              call yaml_newline()
+      if (iproc==0) then
+          call yaml_sequence_open(trim(message))
+          do iseg=1,smat%nseg
+              ! A segment is always on one line, therefore no double loop
               call yaml_sequence(advance='no')
+              !ilen=smat%keyg(2,iseg)-smat%keyg(1,iseg)+1
               call yaml_mapping_open(flow=.true.)
-              !irowcol=orb_from_index(smat,i)
-              !iorb=orb_from_index(1,i)
-              !jorb=orb_from_index(2,i)
-              call yaml_map('coordinates',(/smat%keyg(1,2,iseg),i/))
-              call yaml_map('value',mat%matrix_compr(ii))
+              call yaml_map('segment',iseg)
+              call yaml_sequence_open('elements')
+              !istart=smat%keyv(iseg)
+              !iend=smat%keyv(iseg)+ilen-1
+              !do i=istart,iend
+              ii=smat%keyv(iseg)
+              do i=smat%keyg(1,1,iseg),smat%keyg(2,1,iseg)
+                  call yaml_newline()
+                  call yaml_sequence(advance='no')
+                  call yaml_mapping_open(flow=.true.)
+                  !irowcol=orb_from_index(smat,i)
+                  !iorb=orb_from_index(1,i)
+                  !jorb=orb_from_index(2,i)
+                  call yaml_map('coordinates',(/smat%keyg(1,2,iseg),i/))
+                  call yaml_map('value',matrix_compr(ii))
+                  call yaml_mapping_close()
+                  ii=ii+1
+              end do
+              call yaml_sequence_close()
+              !call yaml_map('values',smat%matrix_compr(istart:iend))
               call yaml_mapping_close()
-              ii=ii+1
+              call yaml_newline()
           end do
           call yaml_sequence_close()
-          !call yaml_map('values',smat%matrix_compr(istart:iend))
-          call yaml_mapping_close()
-          call yaml_newline()
-      end do
-      call yaml_sequence_close()
+      end if
+
+      call f_free(matrix_compr)
     
     end subroutine write_matrix_compressed
 

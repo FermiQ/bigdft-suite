@@ -303,9 +303,9 @@ program driver_random
   end if
 
 
-  call sparse_matrix_metadata_init_from_file(trim(metadata_file), smmd)
+  !!call sparse_matrix_metadata_init_from_file(trim(metadata_file), smmd)
 
-  call init_matrix_taskgroups_wrapper(iproc, nproc, mpi_comm_world, .true., smmd, 2, smat)
+  call init_matrix_taskgroups_wrapper(iproc, nproc, mpi_comm_world, .true., 2, smat)
 
 
   ! Write a summary of the sparse matrix layout 
@@ -730,8 +730,8 @@ program driver_random
   call deallocate_sparse_matrix(smat(1))
   call deallocate_sparse_matrix(smat(2))
 
-  ! Deallocate the meta data
-  call deallocate_sparse_matrix_metadata(smmd)
+  !! Deallocate the meta data
+  !call deallocate_sparse_matrix_metadata(smmd)
 
   ! Deallocat the sparse matrices
   call deallocate_matrices(mat2)

@@ -353,7 +353,7 @@ program driver_foe
 
   call sparse_matrix_metadata_init_from_file(trim(metadata_file), smmd)
 
-  call init_matrix_taskgroups_wrapper(iproc, nproc, mpi_comm_world, .true., smmd, 3, smat)
+  call init_matrix_taskgroups_wrapper(iproc, nproc, mpi_comm_world, .true., 3, smat)
 
   call resize_matrix_to_taskgroup(smat(1), mat_s)
   call resize_matrix_to_taskgroup(smat(2), mat_h)

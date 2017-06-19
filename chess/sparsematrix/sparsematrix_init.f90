@@ -4983,7 +4983,7 @@ module sparsematrix_init
       !!write(*,*) 'nonzero',nonzero
       call init_sparse_matrix(iproc, nproc, comm, nfvctr, &
            nnonzero, nonzero, nnonzero_buf_mult, nonzero_buf_mult, smat, init_matmul=init_matmul)
-      call init_matrix_taskgroups(iproc, nproc, comm, parallel_layout=.false., smat=smat)
+      !!call init_matrix_taskgroups(iproc, nproc, comm, parallel_layout=.false., smat=smat)
 
       if (calc_nextra) then
           do iextra=1,nextra_
@@ -4991,7 +4991,7 @@ module sparsematrix_init
                nnonzero_extra(iextra), nonzero_extra(:,:,iextra), &
                nnonzero_buf_mult, nonzero_buf_mult, smat_extra(iextra), &
                init_matmul=init_matmul_extra(iextra))
-          call init_matrix_taskgroups(iproc, nproc, comm, parallel_layout=.false., smat=smat_extra(iextra))
+          !!call init_matrix_taskgroups(iproc, nproc, comm, parallel_layout=.false., smat=smat_extra(iextra))
           end do
       end if
 
@@ -5715,13 +5715,13 @@ module sparsematrix_init
 
 
 
-   subroutine get_sparsematrix_local_extent(iproc, nproc, smmd, smat, ind_min, ind_max)
+   subroutine get_sparsematrix_local_extent(iproc, nproc, smat, ind_min, ind_max)
      use sparsematrix_base, only: sparse_matrix, sparse_matrix_metadata
      implicit none
 
      ! Calling arguments
      integer,intent(in) :: iproc, nproc
-     type(sparse_matrix_metadata),intent(in) :: smmd
+     !!type(sparse_matrix_metadata),intent(in) :: smmd
      type(sparse_matrix),intent(in) :: smat
      integer,intent(out) :: ind_min, ind_max
 
@@ -5733,7 +5733,7 @@ module sparsematrix_init
          call check_matmul_layout(smat%smmm%nseq,smat%smmm%indices_extract_sequential,ind_min,ind_max)
      end if
      call check_ortho_inguess(smat,ind_min,ind_max)
-     call check_projector_charge_analysis(iproc, nproc, smmd, smat, ind_min, ind_max)
+     !!call check_projector_charge_analysis(iproc, nproc, smmd, smat, ind_min, ind_max)
 
    end subroutine get_sparsematrix_local_extent
 
@@ -5795,13 +5795,12 @@ module sparsematrix_init
 
 
 
-    subroutine init_matrix_taskgroups_wrapper(iproc, nproc, comm, enable_matrix_taskgroups, smmd, nmat, smat, ind_minmax)
+    subroutine init_matrix_taskgroups_wrapper(iproc, nproc, comm, enable_matrix_taskgroups, nmat, smat, ind_minmax)
       use dynamic_memory
       implicit none
       ! Calling arguments
       integer,intent(in) :: iproc, nproc, comm
       logical,intent(in) :: enable_matrix_taskgroups
-      type(sparse_matrix_metadata),intent(in) :: smmd
       integer,intent(in) :: nmat
       type(sparse_matrix),dimension(nmat),intent(inout) :: smat
       integer,dimension(2,nmat),intent(in),optional :: ind_minmax
@@ -5825,7 +5824,7 @@ module sparsematrix_init
       icol_minmax(1) = smat(1)%nfvctr
       icol_minmax(2) = 1
       do imat=1,nmat
-          call get_sparsematrix_local_extent(iproc, nproc, smmd, smat(imat), &
+          call get_sparsematrix_local_extent(iproc, nproc, smat(imat), &
                ind_minmax_smat(1,imat), ind_minmax_smat(2,imat))
           if (present(ind_minmax)) then
               ind_minmax_smat(1,imat) = min(ind_minmax_smat(1,imat),ind_minmax(1,imat))

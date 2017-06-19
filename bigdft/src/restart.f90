@@ -1026,8 +1026,7 @@ subroutine tmb_overlap_onsite(iproc, nproc, imethod_overlap, at, tmb, rxyz)
 
   !!call init_matrix_taskgroups(iproc, nproc, bigdft_mpi%mpi_comm, .false., smat_tmp)
   call init_matrix_taskgroups_wrapper(iproc, nproc, bigdft_mpi%mpi_comm, .false., &
-       tmb%linmat%smmd, 1, smat_tmp(1), &
-       (/(/ind_min,ind_mas/)/))
+       1, smat_tmp(1), (/(/ind_min,ind_mas/)/))
 
 
   mat_tmp = matrices_null()

@@ -18,7 +18,8 @@
    betax                               : -500.0
    Initial minimal eigenvalue          :  0.5
    Initial maximal eigenvalue          :  1.5
-   scalapack_blocksize                 : -1
+   blocksize_diag                      : -1
+   blocksize_matmul                    : -1
    ScaLAPACK diagonalization algorithm : pdsyevx
    ICE multiplication factor           :  1.0
    PEXSI number of procs for symbolic factorization:  16
@@ -262,7 +263,8 @@
    betax                               : -500.0
    Initial minimal eigenvalue          :  0.5
    Initial maximal eigenvalue          :  1.5
-   scalapack_blocksize                 : -1
+   blocksize_diag                      : -1
+   blocksize_matmul                    : -1
    ScaLAPACK diagonalization algorithm : pdsyevx
    ICE multiplication factor           :  1.0
    PEXSI number of procs for symbolic factorization:  16

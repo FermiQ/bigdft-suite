@@ -82,10 +82,11 @@ module bigdft_matrices
           if (extra_timing) call cpu_time(tr0)
           if (extra_timing) time3=real(tr0-tr1,kind=8)    
     
-          ! Now check the pseudo-exact orthonormalization during the input guess
+          !!!! Now check the pseudo-exact orthonormalization during the input guess
           !call check_ortho_inguess()
           !!call check_ortho_inguess(smat,ind_min,ind_max)
           !write(*,'(a,2i8)') 'after check_ortho_inguess: ind_min, ind_max', ind_min, ind_max
+          call check_projector_charge_analysis(iproc, nproc, smmd, smat, ind_min, ind_max)
           if (extra_timing) call cpu_time(tr1)
           if (extra_timing) time4=real(tr1-tr0,kind=8)        
 
@@ -518,7 +519,7 @@ module bigdft_matrices
            ind_min_l, ind_max_l)
 
       call init_matrix_taskgroups_wrapper(iproc, nproc, bigdft_mpi%mpi_comm, in%enable_matrix_taskgroups, &
-           linmat%smmd, 3, linmat%smat, &
+           3, linmat%smat, &
            (/(/ind_min_s,ind_max_s/),(/ind_min_m,ind_max_m/),(/ind_min_l,ind_max_l/)/))
 
     end subroutine init_bigdft_matrices

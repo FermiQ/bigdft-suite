@@ -1456,7 +1456,7 @@ subroutine adjust_locregs_and_confinement(iproc, nproc, hx, hy, hz, at, input, &
      !!     ind_min_l, ind_mas_l, &
      !!     iirow, iicol)
      call init_matrix_taskgroups_wrapper(iproc, nproc, bigdft_mpi%mpi_comm, input%enable_matrix_taskgroups, &
-          tmb%linmat%smmd, 3, tmb%linmat%smat, &
+          3, tmb%linmat%smat, &
           (/(/ind_min_s,ind_mas_s/),(/ind_min_m,ind_mas_m/),(/ind_min_l,ind_mas_l/)/))
 
 
