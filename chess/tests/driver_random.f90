@@ -49,7 +49,7 @@ program driver_random
   ! Variables
   integer :: iproc, nproc, iseg, ierr, idum, ii, i, nthread, nit, it, icons
   integer :: nfvctr, nvctr, nbuf_large, nbuf_mult, iwrite, blocksize_diag, blocksize_matmul
-  integer :: ithreshold, icheck, j, pexsi_np_sym_fact
+  integer :: ithreshold, icheck, j, pexsi_np_sym_fact, output_level, profiling_depth
   type(sparse_matrix),dimension(2) :: smat
   type(sparse_matrix_metadata) :: smmd
   real(kind=4) :: tt_real
@@ -92,11 +92,20 @@ program driver_random
   iproc=mpirank()
   nproc=mpisize()
 
-  call f_malloc_set_status(memory_limit=0.e0,iproc=iproc, output_level=2, logfile_name='mem.log')
+  ! Read in the parameters for the run.
+  call read_and_communicate_input_variables()
+
+  call f_malloc_set_status(memory_limit=0.e0,iproc=iproc,output_level=output_level,&
+       logfile_name='mem.log',profiling_depth=profiling_depth)
 
   ! Initialize the sparse matrix errors and timings.
   call sparsematrix_init_errors()
   call sparsematrix_initialize_timing_categories()
+
+  if (iproc==0) then
+      call yaml_new_document()
+      !call print_logo()
+  end if
 
   ! Timing initialization
   call mpibarrier()
@@ -117,45 +126,9 @@ program driver_random
       call yaml_mapping_close()
   end if
 
-  ! Read in the parameters for the run and print them.
+
+
   if (iproc==0) then
-      !!call yaml_comment('Required input: nfvctr, nvctr, nbuf_large, nbuf_mult, condition_number, expo')
-
-      parser=yaml_cl_parse_null()
-      call commandline_options(parser)
-      call yaml_cl_parse_cmd_line(parser,args=options)
-      call yaml_cl_parse_free(parser)
-
-      metadata_file = options//'metadata_file'
-      nfvctr = options//'nfvctr'
-      nvctr = options//'nvctr'
-      nbuf_large = options//'nbuf_large'
-      nbuf_mult = options//'nbuf_mult'
-      condition_number = options//'condition_number'
-      expo = options//'expo'
-      infile = options//'infile'
-      outfile = options//'outfile'
-      outmatmulfile = options//'outmatmulfile'
-      sparsegen_method = options//'sparsegen_method'
-      matgen_method = options//'matgen_method'
-      write_matrices = options//'write_matrices'
-      betax = options//'betax'
-      blocksize_diag = options//'blocksize_diag'
-      blocksize_matmul = options//'blocksize_matmul'
-      evlow = options//'evlow'
-      evhigh = options//'evhigh'
-      do_cubic_check = options//'do_cubic_check'
-      diag_algorithm = options//'diag_algorithm'
-      eval_multiplicator = options//'eval_multiplicator'
-      solution_method = options//'solution_method'
-      pexsi_np_sym_fact = options//'pexsi_np_sym_fact'
-      accuracy_ice = options//'accuracy_ice'
-      accuracy_penalty = options//'accuracy_penalty'
-      nit = options//'nit'
-      do_consistency_checks = options//'do_consistency_checks'
-
-      call dict_free(options)
-
       call yaml_mapping_open('Input parameters')
       call yaml_map('Metadata file',trim(metadata_file))
       call yaml_map('Sparsity pattern generation',trim(sparsegen_method))
@@ -202,70 +175,6 @@ program driver_random
       call yaml_map('Number of iterations',nit)
       call yaml_map('Do consistency checks',do_consistency_checks)
   end if
-
-  ! Send the input parameters to all MPI tasks
-  call mpibcast(metadata_file, root=0, comm=mpi_comm_world)
-  call mpibcast(nfvctr, root=0, comm=mpi_comm_world)
-  call mpibcast(nvctr, root=0, comm=mpi_comm_world)
-  call mpibcast(nbuf_large, root=0, comm=mpi_comm_world)
-  call mpibcast(nbuf_mult, root=0, comm=mpi_comm_world)
-  call mpibcast(condition_number, root=0, comm=mpi_comm_world)
-  call mpibcast(expo, root=0, comm=mpi_comm_world)
-  call mpibcast(infile, root=0, comm=mpi_comm_world)
-  call mpibcast(outfile, root=0, comm=mpi_comm_world)
-  call mpibcast(outmatmulfile, root=0, comm=mpi_comm_world)
-  call mpibcast(sparsegen_method, root=0, comm=mpi_comm_world)
-  call mpibcast(matgen_method, root=0, comm=mpi_comm_world)
-  call mpibcast(solution_method, root=0, comm=mpi_comm_world)
-  call mpibcast(betax, root=0, comm=mpi_comm_world)
-  call mpibcast(blocksize_diag, root=0, comm=mpi_comm_world)
-  call mpibcast(blocksize_matmul, root=0, comm=mpi_comm_world)
-  call mpibcast(evlow, root=0, comm=mpi_comm_world)
-  call mpibcast(evhigh, root=0, comm=mpi_comm_world)
-  call mpibcast(diag_algorithm, root=0, comm=mpi_comm_world)
-  call mpibcast(eval_multiplicator, root=0, comm=mpi_comm_world)
-  call mpibcast(pexsi_np_sym_fact, root=0, comm=mpi_comm_world)
-  call mpibcast(accuracy_ice, root=0, comm=mpi_comm_world)
-  call mpibcast(accuracy_penalty, root=0, comm=mpi_comm_world)
-  call mpibcast(nit, root=0, comm=mpi_comm_world)
-
-  ! Since there is no wrapper for logicals...
-  if (iproc==0) then
-      if (write_matrices) then
-          iwrite = 1
-      else
-          iwrite = 0
-      end if
-      if (do_cubic_check) then
-          icheck = 1
-      else
-          icheck = 0
-      end if
-      if (do_consistency_checks) then
-          icons = 1
-      else
-          icons = 0
-      end if
-  end if
-  call mpibcast(iwrite, root=0, comm=mpi_comm_world)
-  call mpibcast(icheck, root=0, comm=mpi_comm_world)
-  call mpibcast(icons, root=0, comm=mpi_comm_world)
-  if (iwrite==1) then
-      write_matrices = .true.
-  else
-      write_matrices = .false.
-  end if
-  if (icheck==1) then
-      do_cubic_check = .true.
-  else
-      do_cubic_check = .false.
-  end if
-  if (icons==1) then
-      do_consistency_checks = .true.
-  else
-      do_consistency_checks = .false.
-  end if
-
 
 
   if (trim(sparsegen_method)=='random') then
@@ -338,15 +247,15 @@ program driver_random
 
   ! Allocate the matrices
   mat3(:) = matrices_null()
-  call matrices_init(smat(2), mat3(1))
-  call resize_matrix_to_taskgroup(smat(2), mat3(1))
+  call matrices_init(smat(2), mat3(1), matsize=SPARSE_TASKGROUP)
+  !!call resize_matrix_to_taskgroup(smat(2), mat3(1))
   if (do_consistency_checks) then
-      call matrices_init(smat(2), mat3(2))
-      call resize_matrix_to_taskgroup(smat(2), mat3(2))
+      call matrices_init(smat(2), mat3(2), matsize=SPARSE_TASKGROUP)
+      !!call resize_matrix_to_taskgroup(smat(2), mat3(2))
   end if
   if (do_consistency_checks .or. do_cubic_check) then
-      call matrices_init(smat(2), mat3(3))
-      call resize_matrix_to_taskgroup(smat(2), mat3(3))
+      call matrices_init(smat(2), mat3(3), matsize=SPARSE_TASKGROUP)
+      !!call resize_matrix_to_taskgroup(smat(2), mat3(3))
   end if
 
   !!write(*,*) 'smat(1)%istartend_local(1),smat(1)%istartend_local(2)',smat(1)%istartend_local(1),smat(1)%istartend_local(2)
@@ -373,6 +282,7 @@ program driver_random
       ! matrix by the inverse of nfvctr (i.e. its dimension), then the sum of each line
       ! is between 0 and 1.
       call dscal(smat(1)%nvctr, 1.0_mp/real(smat(1)%nfvctr,kind=8), mat1%matrix_compr(1), 1)
+      write(*,*) 'after dscal'
     
       ! By construction, the sum of each line is between 0 and 1. If we thus set the diagonal
       ! to 1, we get a diagonally dominant matrix, which is positive definite.
@@ -808,6 +718,117 @@ program driver_random
 
   !!  end subroutine build_dict_info
 
+  contains 
+
+    subroutine read_and_communicate_input_variables()
+
+      ! Read in the parameters
+      if (iproc==0) then
+          !!call yaml_comment('Required input: nfvctr, nvctr, nbuf_large, nbuf_mult, condition_number, expo')
+
+          parser=yaml_cl_parse_null()
+          call commandline_options(parser)
+          call yaml_cl_parse_cmd_line(parser,args=options)
+          call yaml_cl_parse_free(parser)
+
+          metadata_file = options//'metadata_file'
+          nfvctr = options//'nfvctr'
+          nvctr = options//'nvctr'
+          nbuf_large = options//'nbuf_large'
+          nbuf_mult = options//'nbuf_mult'
+          condition_number = options//'condition_number'
+          expo = options//'expo'
+          infile = options//'infile'
+          outfile = options//'outfile'
+          outmatmulfile = options//'outmatmulfile'
+          sparsegen_method = options//'sparsegen_method'
+          matgen_method = options//'matgen_method'
+          write_matrices = options//'write_matrices'
+          betax = options//'betax'
+          blocksize_diag = options//'blocksize_diag'
+          blocksize_matmul = options//'blocksize_matmul'
+          evlow = options//'evlow'
+          evhigh = options//'evhigh'
+          do_cubic_check = options//'do_cubic_check'
+          diag_algorithm = options//'diag_algorithm'
+          eval_multiplicator = options//'eval_multiplicator'
+          solution_method = options//'solution_method'
+          pexsi_np_sym_fact = options//'pexsi_np_sym_fact'
+          accuracy_ice = options//'accuracy_ice'
+          accuracy_penalty = options//'accuracy_penalty'
+          nit = options//'nit'
+          do_consistency_checks = options//'do_consistency_checks'
+          output_level = options//'output_level'
+          profiling_depth = options//'profiling_depth'
+
+          call dict_free(options)
+      end if
+
+      ! Send the input parameters to all MPI tasks
+      call mpibcast(metadata_file, root=0, comm=mpi_comm_world)
+      call mpibcast(nfvctr, root=0, comm=mpi_comm_world)
+      call mpibcast(nvctr, root=0, comm=mpi_comm_world)
+      call mpibcast(nbuf_large, root=0, comm=mpi_comm_world)
+      call mpibcast(nbuf_mult, root=0, comm=mpi_comm_world)
+      call mpibcast(condition_number, root=0, comm=mpi_comm_world)
+      call mpibcast(expo, root=0, comm=mpi_comm_world)
+      call mpibcast(infile, root=0, comm=mpi_comm_world)
+      call mpibcast(outfile, root=0, comm=mpi_comm_world)
+      call mpibcast(outmatmulfile, root=0, comm=mpi_comm_world)
+      call mpibcast(sparsegen_method, root=0, comm=mpi_comm_world)
+      call mpibcast(matgen_method, root=0, comm=mpi_comm_world)
+      call mpibcast(solution_method, root=0, comm=mpi_comm_world)
+      call mpibcast(betax, root=0, comm=mpi_comm_world)
+      call mpibcast(blocksize_diag, root=0, comm=mpi_comm_world)
+      call mpibcast(blocksize_matmul, root=0, comm=mpi_comm_world)
+      call mpibcast(evlow, root=0, comm=mpi_comm_world)
+      call mpibcast(evhigh, root=0, comm=mpi_comm_world)
+      call mpibcast(diag_algorithm, root=0, comm=mpi_comm_world)
+      call mpibcast(eval_multiplicator, root=0, comm=mpi_comm_world)
+      call mpibcast(pexsi_np_sym_fact, root=0, comm=mpi_comm_world)
+      call mpibcast(accuracy_ice, root=0, comm=mpi_comm_world)
+      call mpibcast(accuracy_penalty, root=0, comm=mpi_comm_world)
+      call mpibcast(nit, root=0, comm=mpi_comm_world)
+
+      ! Since there is no wrapper for logicals...
+      if (iproc==0) then
+          if (write_matrices) then
+              iwrite = 1
+          else
+              iwrite = 0
+          end if
+          if (do_cubic_check) then
+              icheck = 1
+          else
+              icheck = 0
+          end if
+          if (do_consistency_checks) then
+              icons = 1
+          else
+              icons = 0
+          end if
+      end if
+      call mpibcast(iwrite, root=0, comm=mpi_comm_world)
+      call mpibcast(icheck, root=0, comm=mpi_comm_world)
+      call mpibcast(icons, root=0, comm=mpi_comm_world)
+      if (iwrite==1) then
+          write_matrices = .true.
+      else
+          write_matrices = .false.
+      end if
+      if (icheck==1) then
+          do_cubic_check = .true.
+      else
+          do_cubic_check = .false.
+      end if
+      if (icons==1) then
+          do_consistency_checks = .true.
+      else
+          do_consistency_checks = .false.
+      end if
+
+    end subroutine read_and_communicate_input_variables
+
 end program driver_random
 
 
@@ -1010,6 +1031,18 @@ subroutine commandline_options(parser)
        'Allowed values' .is. &
        'Logical'))
 
+  call yaml_cl_parse_option(parser,'output_level','0',&
+       'Output level of the routine profiling',&
+       help_dict=dict_new('Usage' .is. &
+       'Indicate the output level of the routine profiling',&
+       'Allowed values' .is. &
+       'Integer'))
+
+  call yaml_cl_parse_option(parser,'profiling_depth','-1',&
+       'Depth of the individual routine timing profiling',&
+       help_dict=dict_new('Usage' .is. &
+       'Indicate the depth of the individual routine timing profiling',&
+       'Allowed values' .is. &
+       'Integer'))
+
 end subroutine commandline_options
-
-
