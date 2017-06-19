@@ -131,7 +131,7 @@ module dynamic_memory_base
 
   interface f_memcpy
      module procedure f_memcpy_i0,f_memcpy_i1,f_memcpy_i2
-     module procedure f_memcpy_i0i1,f_memcpy_i1i2,f_memcpy_i2i1,f_memcpy_i2i0
+     module procedure f_memcpy_i0i1,f_memcpy_i1i2,f_memcpy_i1i3,f_memcpy_i2i1,f_memcpy_i2i0,f_memcpy_i3i1
      module procedure f_memcpy_li0,f_memcpy_li1
      module procedure f_memcpy_li0li1,f_memcpy_li1li2,f_memcpy_li2li1,f_memcpy_li2li0
      module procedure f_memcpy_l1
@@ -147,7 +147,7 @@ module dynamic_memory_base
   interface f_maxdiff
      module procedure f_maxdiff_i0,f_maxdiff_i1
      module procedure f_maxdiff_li0,f_maxdiff_li1
-     module procedure f_maxdiff_i0i1,f_maxdiff_i1i2,f_maxdiff_i2i1
+     module procedure f_maxdiff_i0i1,f_maxdiff_i1i2,f_maxdiff_i2i1,f_maxdiff_i3i1
      module procedure f_maxdiff_li0li1,f_maxdiff_li1li2,f_maxdiff_li2li1
      module procedure f_maxdiff_r0
      module procedure f_maxdiff_d0,f_maxdiff_d1,f_maxdiff_d2

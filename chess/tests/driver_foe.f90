@@ -55,7 +55,7 @@ program driver_foe
   type(sparse_matrix_metadata) :: smmd
   integer :: nfvctr, nvctr, ierr, iproc, nproc, nthread, ncharge, nfvctr_mult, nvctr_mult, scalapack_blocksize, icheck, it, nit
   integer :: ispin, ihomo, imax, ntemp, npl_max, pexsi_npoles, norbu, norbd, ii, info, norbp, isorb, norb, iorb, pexsi_np_sym_fact
-  integer :: pexsi_nproc_per_pole, pexsi_max_iter, pexsi_verbosity
+  integer :: pexsi_nproc_per_pole, pexsi_max_iter, pexsi_verbosity, output_level, profiling_depth
   real(mp) :: pexsi_mumin, pexsi_mumax, pexsi_mu, pexsi_DeltaE, pexsi_temperature, pexsi_tol_charge, betax
   integer,dimension(:),pointer :: row_ind, col_ptr, row_ind_mult, col_ptr_mult
   real(mp),dimension(:),pointer :: kernel, overlap, overlap_large
@@ -94,8 +94,15 @@ program driver_foe
   iproc=mpirank()
   nproc=mpisize()
 
+  ! Read in the parameters for the run.
+  call read_and_communicate_input_variables()
+
+
+
+
   !call f_malloc_set_status(memory_limit=0.e0,iproc=iproc)
-  call f_malloc_set_status(memory_limit=0.e0,iproc=iproc,output_level=2,logfile_name='mem.log')
+  call f_malloc_set_status(memory_limit=0.e0,iproc=iproc,output_level=output_level,&
+       logfile_name='mem.log',profiling_depth=profiling_depth)
 
   ! Initialize the sparsematrix error handling and timing.
   call sparsematrix_init_errors()
@@ -125,53 +132,9 @@ program driver_foe
       call yaml_mapping_close()
   end if
 
-  ! Read in the parameters for the run and print them.
+
+
   if (iproc==0) then
-      parser=yaml_cl_parse_null()
-      call commandline_options(parser)
-      call yaml_cl_parse_cmd_line(parser,args=options)
-      call yaml_cl_parse_free(parser)
-
-      metadata_file = options//'metadata_file'
-      overlap_file = options//'overlap_file'
-      hamiltonian_file = options//'hamiltonian_file'
-      kernel_file = options//'kernel_file'
-      kernel_matmul_file = options//'kernel_matmul_file'
-      sparsity_format = options//'sparsity_format'
-      matrix_format = options//'matrix_format'
-      kernel_method = options//'kernel_method'
-      scalapack_blocksize = options//'scalapack_blocksize'
-      check_spectrum = options//'check_spectrum'
-      fscale = options//'fscale'
-      fscale_lowerbound = options//'fscale_lowerbound'
-      fscale_upperbound = options//'fscale_upperbound'
-      evlow = options//'evlow'
-      evhigh = options//'evhigh'
-      ntemp = options//'ntemp'
-      ef = options//'ef'
-      npl_max = options//'npl_max'
-      pexsi_npoles = options//'pexsi_npoles'
-      pexsi_mumin = options//'pexsi_mumin'
-      pexsi_mumax = options//'pexsi_mumax'
-      pexsi_mu = options//'pexsi_mu'
-      pexsi_temperature = options//'pexsi_temperature'
-      pexsi_tol_charge = options//'pexsi_tol_charge'
-      pexsi_np_sym_fact = options//'pexsi_np_sym_fact'
-      pexsi_DeltaE = options//'pexsi_DeltaE'
-      do_cubic_check = options//'do_cubic_check'
-      accuracy_foe = options//'accuracy_foe'
-      accuracy_ice = options//'accuracy_ice'
-      accuracy_penalty = options//'accuracy_penalty'
-      nit = options//'nit'
-      betax = options//'betax'
-      inversion_method = options//'inversion_method'
-      pexsi_nproc_per_pole = options//'pexsi_nproc_per_pole'
-      pexsi_do_inertia_count = options//'pexsi_do_inertia_count'
-      pexsi_max_iter = options//'pexsi_max_iter'
-      pexsi_verbosity = options//'pexsi_verbosity'
-     
-      call dict_free(options)
-
       call yaml_mapping_open('Input parameters')
       call yaml_map('Sparsity format',trim(sparsity_format))
       call yaml_map('Matrix format',trim(matrix_format))
@@ -210,84 +173,9 @@ program driver_foe
       call yaml_map('Accuracy of Chebyshev fit for the penalty function',accuracy_penalty)
       call yaml_map('Number of iterations',nit)
       call yaml_map('Inversion method for the overlap matrix in FOE',inversion_method)
+      call yaml_map('Routine profiling output level',output_level)
+      call yaml_map('Routine timing profiling depth',profiling_depth)
       call yaml_mapping_close()
-  end if
-
-  ! Send the input parameters to all MPI tasks
-  call mpibcast(sparsity_format, root=0, comm=mpi_comm_world)
-  call mpibcast(matrix_format, root=0, comm=mpi_comm_world)
-  call mpibcast(metadata_file, root=0, comm=mpi_comm_world)
-  call mpibcast(overlap_file, root=0, comm=mpi_comm_world)
-  call mpibcast(hamiltonian_file, root=0, comm=mpi_comm_world)
-  call mpibcast(kernel_file, root=0, comm=mpi_comm_world)
-  call mpibcast(kernel_matmul_file, root=0, comm=mpi_comm_world)
-  call mpibcast(kernel_method, root=0, comm=mpi_comm_world)
-  call mpibcast(scalapack_blocksize, root=0, comm=mpi_comm_world)
-  call mpibcast(kernel_matmul_file, root=0, comm=mpi_comm_world)
-  call mpibcast(fscale, root=0, comm=mpi_comm_world)
-  call mpibcast(fscale_lowerbound, root=0, comm=mpi_comm_world)
-  call mpibcast(fscale_upperbound, root=0, comm=mpi_comm_world)
-  call mpibcast(evlow, root=0, comm=mpi_comm_world)
-  call mpibcast(evhigh, root=0, comm=mpi_comm_world)
-  call mpibcast(ntemp, root=0, comm=mpi_comm_world)
-  call mpibcast(ef, root=0, comm=mpi_comm_world)
-  call mpibcast(npl_max, root=0, comm=mpi_comm_world)
-  call mpibcast(pexsi_npoles, root=0, comm=mpi_comm_world)
-  call mpibcast(pexsi_nproc_per_pole, root=0, comm=mpi_comm_world)
-  call mpibcast(pexsi_mumin, root=0, comm=mpi_comm_world)
-  call mpibcast(pexsi_mumax, root=0, comm=mpi_comm_world)
-  call mpibcast(pexsi_mu, root=0, comm=mpi_comm_world)
-  call mpibcast(pexsi_DeltaE, root=0, comm=mpi_comm_world)
-  call mpibcast(pexsi_temperature, root=0, comm=mpi_comm_world)
-  call mpibcast(pexsi_tol_charge, root=0, comm=mpi_comm_world)
-  call mpibcast(pexsi_np_sym_fact, root=0, comm=mpi_comm_world)
-  call mpibcast(pexsi_max_iter, root=0, comm=mpi_comm_world)
-  call mpibcast(pexsi_verbosity, root=0, comm=mpi_comm_world)
-  call mpibcast(accuracy_foe, root=0, comm=mpi_comm_world)
-  call mpibcast(accuracy_ice, root=0, comm=mpi_comm_world)
-  call mpibcast(accuracy_penalty, root=0, comm=mpi_comm_world)
-  call mpibcast(nit, root=0, comm=mpi_comm_world)
-  call mpibcast(betax, root=0, comm=mpi_comm_world)
-  call mpibcast(inversion_method, root=0, comm=mpi_comm_world)
-  ! Since there is no wrapper for logicals...
-  if (iproc==0) then
-      if (check_spectrum) then
-          icheck = 1
-      else
-          icheck = 0
-      end if
-  end if
-  call mpibcast(icheck, root=0, comm=mpi_comm_world)
-  if (icheck==1) then
-      check_spectrum = .true.
-  else
-      check_spectrum = .false.
-  end if
-  if (iproc==0) then
-      if (do_cubic_check) then
-          icheck = 1
-      else
-          icheck = 0
-      end if
-  end if
-  call mpibcast(icheck, root=0, comm=mpi_comm_world)
-  if (icheck==1) then
-      do_cubic_check = .true.
-  else
-      do_cubic_check = .false.
-  end if
-  if (iproc==0) then
-      if (pexsi_do_inertia_count) then
-          icheck = 1
-      else
-          icheck = 0
-      end if
-  end if
-  call mpibcast(icheck, root=0, comm=mpi_comm_world)
-  if (icheck==1) then
-      pexsi_do_inertia_count = .true.
-  else
-      pexsi_do_inertia_count = .false.
   end if
 
 
@@ -730,6 +618,139 @@ program driver_foe
 
   !!  end subroutine build_dict_info
 
+
+  contains 
+
+    subroutine read_and_communicate_input_variables()
+
+      if (iproc==0) then
+          parser=yaml_cl_parse_null()
+          call commandline_options(parser)
+          call yaml_cl_parse_cmd_line(parser,args=options)
+          call yaml_cl_parse_free(parser)
+
+          metadata_file = options//'metadata_file'
+          overlap_file = options//'overlap_file'
+          hamiltonian_file = options//'hamiltonian_file'
+          kernel_file = options//'kernel_file'
+          kernel_matmul_file = options//'kernel_matmul_file'
+          sparsity_format = options//'sparsity_format'
+          matrix_format = options//'matrix_format'
+          kernel_method = options//'kernel_method'
+          scalapack_blocksize = options//'scalapack_blocksize'
+          check_spectrum = options//'check_spectrum'
+          fscale = options//'fscale'
+          fscale_lowerbound = options//'fscale_lowerbound'
+          fscale_upperbound = options//'fscale_upperbound'
+          evlow = options//'evlow'
+          evhigh = options//'evhigh'
+          ntemp = options//'ntemp'
+          ef = options//'ef'
+          npl_max = options//'npl_max'
+          pexsi_npoles = options//'pexsi_npoles'
+          pexsi_mumin = options//'pexsi_mumin'
+          pexsi_mumax = options//'pexsi_mumax'
+          pexsi_mu = options//'pexsi_mu'
+          pexsi_temperature = options//'pexsi_temperature'
+          pexsi_tol_charge = options//'pexsi_tol_charge'
+          pexsi_np_sym_fact = options//'pexsi_np_sym_fact'
+          pexsi_DeltaE = options//'pexsi_DeltaE'
+          do_cubic_check = options//'do_cubic_check'
+          accuracy_foe = options//'accuracy_foe'
+          accuracy_ice = options//'accuracy_ice'
+          accuracy_penalty = options//'accuracy_penalty'
+          nit = options//'nit'
+          betax = options//'betax'
+          inversion_method = options//'inversion_method'
+          pexsi_nproc_per_pole = options//'pexsi_nproc_per_pole'
+          pexsi_do_inertia_count = options//'pexsi_do_inertia_count'
+          pexsi_max_iter = options//'pexsi_max_iter'
+          pexsi_verbosity = options//'pexsi_verbosity'
+          output_level = options//'output_level'
+          profiling_depth = options//'profiling_depth'
+         
+          call dict_free(options)
+      end if
+
+      ! Send the input parameters to all MPI tasks
+      call mpibcast(sparsity_format, root=0, comm=mpi_comm_world)
+      call mpibcast(matrix_format, root=0, comm=mpi_comm_world)
+      call mpibcast(metadata_file, root=0, comm=mpi_comm_world)
+      call mpibcast(overlap_file, root=0, comm=mpi_comm_world)
+      call mpibcast(hamiltonian_file, root=0, comm=mpi_comm_world)
+      call mpibcast(kernel_file, root=0, comm=mpi_comm_world)
+      call mpibcast(kernel_matmul_file, root=0, comm=mpi_comm_world)
+      call mpibcast(kernel_method, root=0, comm=mpi_comm_world)
+      call mpibcast(scalapack_blocksize, root=0, comm=mpi_comm_world)
+      call mpibcast(kernel_matmul_file, root=0, comm=mpi_comm_world)
+      call mpibcast(fscale, root=0, comm=mpi_comm_world)
+      call mpibcast(fscale_lowerbound, root=0, comm=mpi_comm_world)
+      call mpibcast(fscale_upperbound, root=0, comm=mpi_comm_world)
+      call mpibcast(evlow, root=0, comm=mpi_comm_world)
+      call mpibcast(evhigh, root=0, comm=mpi_comm_world)
+      call mpibcast(ntemp, root=0, comm=mpi_comm_world)
+      call mpibcast(ef, root=0, comm=mpi_comm_world)
+      call mpibcast(npl_max, root=0, comm=mpi_comm_world)
+      call mpibcast(pexsi_npoles, root=0, comm=mpi_comm_world)
+      call mpibcast(pexsi_nproc_per_pole, root=0, comm=mpi_comm_world)
+      call mpibcast(pexsi_mumin, root=0, comm=mpi_comm_world)
+      call mpibcast(pexsi_mumax, root=0, comm=mpi_comm_world)
+      call mpibcast(pexsi_mu, root=0, comm=mpi_comm_world)
+      call mpibcast(pexsi_DeltaE, root=0, comm=mpi_comm_world)
+      call mpibcast(pexsi_temperature, root=0, comm=mpi_comm_world)
+      call mpibcast(pexsi_tol_charge, root=0, comm=mpi_comm_world)
+      call mpibcast(pexsi_np_sym_fact, root=0, comm=mpi_comm_world)
+      call mpibcast(pexsi_max_iter, root=0, comm=mpi_comm_world)
+      call mpibcast(pexsi_verbosity, root=0, comm=mpi_comm_world)
+      call mpibcast(accuracy_foe, root=0, comm=mpi_comm_world)
+      call mpibcast(accuracy_ice, root=0, comm=mpi_comm_world)
+      call mpibcast(accuracy_penalty, root=0, comm=mpi_comm_world)
+      call mpibcast(nit, root=0, comm=mpi_comm_world)
+      call mpibcast(betax, root=0, comm=mpi_comm_world)
+      call mpibcast(inversion_method, root=0, comm=mpi_comm_world)
+      ! Since there is no wrapper for logicals...
+      if (iproc==0) then
+          if (check_spectrum) then
+              icheck = 1
+          else
+              icheck = 0
+          end if
+      end if
+      call mpibcast(icheck, root=0, comm=mpi_comm_world)
+      if (icheck==1) then
+          check_spectrum = .true.
+      else
+          check_spectrum = .false.
+      end if
+      if (iproc==0) then
+          if (do_cubic_check) then
+              icheck = 1
+          else
+              icheck = 0
+          end if
+      end if
+      call mpibcast(icheck, root=0, comm=mpi_comm_world)
+      if (icheck==1) then
+          do_cubic_check = .true.
+      else
+          do_cubic_check = .false.
+      end if
+      if (iproc==0) then
+          if (pexsi_do_inertia_count) then
+              icheck = 1
+          else
+              icheck = 0
+          end if
+      end if
+      call mpibcast(icheck, root=0, comm=mpi_comm_world)
+      if (icheck==1) then
+          pexsi_do_inertia_count = .true.
+      else
+          pexsi_do_inertia_count = .false.
+      end if
+
+    end subroutine read_and_communicate_input_variables
+
 end program driver_foe
 
 
@@ -999,5 +1020,19 @@ subroutine commandline_options(parser)
        'Inversion method for the overlap matrix in FOE',&
        'Allowed values' .is. &
        'String'))
+
+  call yaml_cl_parse_option(parser,'output_level','0',&
+       'Output level of the routine profiling',&
+       help_dict=dict_new('Usage' .is. &
+       'Indicate the output level of the routine profiling',&
+       'Allowed values' .is. &
+       'Integer'))
+
+  call yaml_cl_parse_option(parser,'profiling_depth','-1',&
+       'Depth of the individual routine timing profiling',&
+       help_dict=dict_new('Usage' .is. &
+       'Indicate the depth of the individual routine timing profiling',&
+       'Allowed values' .is. &
+       'Integer'))
 
 end subroutine commandline_options
