@@ -1996,12 +1996,7 @@ subroutine dump_eigenfunctions(dir_output,nplot,at,hgrids,lr,orbs,orbsv,rxyz,psi
   real(wp), dimension(lr%wfd%nvctr_c+7*lr%wfd%nvctr_f), intent(in) :: psi,psivirt !<occupied and virtual eigenfunctions
   !local variables
   integer :: ind,iorb
-  real(gp) :: hx,hy,hz
   character(len=300) :: orbname,denname
-
-  hx=hgrids(1)
-  hy=hgrids(2)
-  hz=hgrids(3)
 
   !add a modulo operator to get rid of the particular k-point
   do iorb=1,orbsv%norbp!requested: nvirt of nvirte orbitals
@@ -2017,8 +2012,8 @@ subroutine dump_eigenfunctions(dir_output,nplot,at,hgrids,lr,orbs,orbsv,rxyz,psi
      write(denname,'(A,i4.4)')trim(dir_output)//'denvirt',iorb+orbsv%isorb
      !write(comment,'(1pe10.3)')orbsv%eval(iorb+orbsv%isorb)!e(modulo(iorb+orbsv%isorb-1,orbsv%norb)+1,orbsv%iokpt(iorb),1)
 
-     call plot_wf(.false.,trim(orbname),1,at,1.0_wp,lr,hx,hy,hz,rxyz,psivirt(ind:))
-     call plot_wf(.false.,trim(denname),2,at,1.0_wp,lr,hx,hy,hz,rxyz,psivirt(ind:))
+     call plot_wf(.false.,trim(orbname),1,at,1.0_wp,lr,hgrids,rxyz,psivirt(ind:))
+     call plot_wf(.false.,trim(denname),2,at,1.0_wp,lr,hgrids,rxyz,psivirt(ind:))
 
   end do
 
@@ -2030,8 +2025,8 @@ subroutine dump_eigenfunctions(dir_output,nplot,at,hgrids,lr,orbs,orbsv,rxyz,psi
         write(denname,'(A,i4.4)')trim(dir_output)//'densocc',iorb+orbs%isorb
         !write(comment,'(1pe10.3)')orbs%eval(iorb+orbs%isorb)
 
-        call plot_wf(.false.,trim(orbname),1,at,1.0_wp,lr,hx,hy,hz,rxyz,psi(ind:))
-        call plot_wf(.false.,trim(denname),2,at,1.0_wp,lr,hx,hy,hz,rxyz,psi(ind:))
+        call plot_wf(.false.,trim(orbname),1,at,1.0_wp,lr,hgrids,rxyz,psi(ind:))
+        call plot_wf(.false.,trim(denname),2,at,1.0_wp,lr,hgrids,rxyz,psi(ind:))
 
      endif
   end do
