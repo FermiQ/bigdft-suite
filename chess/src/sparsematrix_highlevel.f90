@@ -562,15 +562,22 @@ module sparsematrix_highlevel
     end subroutine matrices_init_from_data
 
 
-    subroutine matrices_init(smat, mat)
+    subroutine matrices_init(smat, mat, matsize)
       implicit none
 
       ! Calling arguments
       type(sparse_matrix),intent(in) :: smat
       type(matrices),intent(out) :: mat
+      integer,intent(in),optional :: matsize
+
+      ! Local variables
+      integer :: matsize_
+
+      matsize_ = SPARSE_FULL
+      if (present(matsize)) matsize_ = matsize
 
       mat = matrices_null()
-      mat%matrix_compr = sparsematrix_malloc_ptr(smat, iaction=SPARSE_FULL, id='mat%matrix_compr')
+      mat%matrix_compr = sparsematrix_malloc_ptr(smat, iaction=matsize_, id='mat%matrix_compr')
 
     end subroutine matrices_init
 

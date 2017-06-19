@@ -2647,6 +2647,12 @@ module sparsematrix
           if (keep_full_result) call f_err_throw('wrong second dimension of mat_out%matrix')
           full_available = .false.
       end if
+      if (size(mat_in%matrix_compr)/=smat_in%nvctrp_tg) then
+          call f_err_throw('wrong dimension of mat_in%matrix_compr')
+      end if
+      if (size(mat_out%matrix_compr)/=smat_out%nvctrp_tg) then
+          call f_err_throw('wrong dimension of mat_out%matrix_compr')
+      end if
 
       if (full_available) then
           mat_in_dense => mat_in%matrix(:,:,1)
@@ -2655,7 +2661,7 @@ module sparsematrix
           mat_in_dense = f_malloc_ptr((/smat_in%nfvctr,smat_in%nfvctr/),id='mat_in_dense')
           mat_out_dense = f_malloc_ptr((/smat_out%nfvctr,smat_out%nfvctr/),id='mat_out_dense')
       end if
-      call uncompress_matrix(iproc, nproc, &
+      call uncompress_matrix2(iproc, nproc, comm, &
            smat_in, mat_in%matrix_compr, mat_in_dense)
       overwrite_ = .false.
       if (present(overwrite)) overwrite_ = overwrite
@@ -2666,7 +2672,7 @@ module sparsematrix
           call matrix_power_dense(iproc, nproc, comm, blocksize_diag, blocksize_matmul, smat_in%nfvctr, &
                mat_in_dense, exp_power, mat_out_dense, overwrite=overwrite_)
       end if
-      call compress_matrix(iproc, nproc, smat_out, mat_out_dense, mat_out%matrix_compr)
+      call compress_matrix2(iproc, nproc, smat_out, mat_out_dense, mat_out%matrix_compr)
       !!if (keep_full_result) then
       !!    call f_memcpy(src=mat_in_dense, dest=mat_in%matrix)
       !!    call f_memcpy(src=mat_out_dense, dest=mat_out%matrix)

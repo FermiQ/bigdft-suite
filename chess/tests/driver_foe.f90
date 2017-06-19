@@ -376,12 +376,10 @@ program driver_foe
       ! Otherwise already done above
       call matrices_init(smat(3), mat_k)
   end if
-  call matrices_init(smat(3), mat_ek)
-  call matrices_init(smat(3), mat_ovrlpminusonehalf(1))
+  call matrices_init(smat(3), mat_ek, matsize=SPARSE_TASKGROUP)
+  call matrices_init(smat(3), mat_ovrlpminusonehalf(1), matsize=SPARSE_TASKGROUP)
 
   call resize_matrix_to_taskgroup(smat(3), mat_k)
-  call resize_matrix_to_taskgroup(smat(3), mat_ek)
-  call resize_matrix_to_taskgroup(smat(3), mat_ovrlpminusonehalf(1))
 
   times = f_malloc(nit,id='times')
   energies = f_malloc(nit,id='energies')
@@ -633,7 +631,7 @@ program driver_foe
       if (iproc==0) then
           call yaml_map('Energy',energy)
       end if
-      call calculate_error(iproc, smat(3), mat_k, mat_ek, nthreshold, threshold, .false., &
+      call calculate_error(iproc, nproc, mpiworld(), smat(3), mat_k, mat_ek, nthreshold, threshold, .false., &
            'Check the deviation from the exact result using LAPACK')
       call f_free(coeff)
       call f_free(eval_all)

@@ -50,14 +50,15 @@ module utilities
     end subroutine get_ccs_data_from_file
 
 
-    subroutine calculate_error(iproc, smat, mat, mat_ref, nthreshold, threshold, check_full_matrix, header)
+    subroutine calculate_error(iproc, nproc, comm, smat, mat, mat_ref, nthreshold, threshold, check_full_matrix, header)
       use futile
+      use wrapper_mpi
       use sparsematrix_base
       use sparsematrix_types, only: sparse_matrix, matrices
       implicit none
     
       ! Calling arguments
-      integer,intent(in) :: iproc, nthreshold
+      integer,intent(in) :: iproc, nproc, comm, nthreshold
       type(sparse_matrix),intent(in) :: smat
       type(matrices),intent(in) :: mat, mat_ref
       real(mp),dimension(nthreshold),intent(in) :: threshold
@@ -68,21 +69,24 @@ module utilities
       real(mp) :: max_error, mean_error, max_error_rel, mean_error_rel, tt, tt_rel, tt_ref
       real(mp),dimension(nthreshold) :: max_error_rel_threshold, mean_error_rel_threshold
       integer,dimension(nthreshold) :: nrel_threshold
-      integer :: i, j, ithreshold
+      integer :: i, ii, j, ithreshold
     
     
       ! Sparse matrices
       call set_to_zero()
-      do i=1,smat%nvctr
+      !!do i=1,smat%nvctr
+      do i=smat%isvctr+1,smat%isvctr+smat%nvctrp
+          ii = i - smat%isvctrp_tg
           !tt = abs(mat%matrix_compr(i)-mat_ref%matrix_compr(i))
-          tt = (mat%matrix_compr(i)-mat_ref%matrix_compr(i))**2
+          tt = (mat%matrix_compr(ii)-mat_ref%matrix_compr(ii))**2
           !tt_rel = tt/abs(mat_ref%matrix_compr(i))
-          tt_rel = tt/(mat_ref%matrix_compr(i))**2
-          tt_ref = mat_ref%matrix_compr(i)
+          tt_rel = tt/(mat_ref%matrix_compr(ii))**2
+          tt_ref = mat_ref%matrix_compr(ii)
           call calculate_errors()
           !write(*,*) 'mat%matrix_compr(i), mat_ref%matrix_compr(i), max_error_rel', &
           !            mat%matrix_compr(i), mat_ref%matrix_compr(i), max_error_rel
       end do
+      call communicate_errors()
       !mean_error = mean_error/real(smat%nvctr,kind=8)
       mean_error = sqrt(mean_error)/real(smat%nvctr,kind=8)
       max_error = sqrt(max_error)
@@ -157,6 +161,19 @@ module utilities
               end if
           end do
         end subroutine calculate_errors
+
+        subroutine communicate_errors()
+          implicit none
+          call mpiallred(mean_error, 1, mpi_sum, comm=comm)
+          call mpiallred(max_error, 1, mpi_max, comm=comm)
+          call mpiallred(mean_error_rel, 1, mpi_sum, comm=comm)
+          call mpiallred(max_error_rel, 1, mpi_max, comm=comm)
+          do ithreshold=1,nthreshold
+              call mpiallred(nrel_threshold, mpi_sum, comm=comm)
+              call mpiallred(mean_error_rel_threshold, mpi_sum, comm=comm)
+              call mpiallred(max_error_rel_threshold, mpi_max, comm=comm)
+          end do
+        end subroutine communicate_errors
     
         subroutine print_errors(header)
           implicit none
