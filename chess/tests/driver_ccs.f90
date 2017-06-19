@@ -116,7 +116,7 @@ program driver_css
   ! Extract the compressed matrix from the data type. The first routine allocates an array with the correct size,
   ! the second one extracts the result.
   val = sparsematrix_malloc_ptr(smat2, iaction=SPARSE_FULL, id='val')
-  call matrices_get_values(smat2, mat2(1), val)
+  call matrices_get_values(iproc, nproc, mpiworld(), smat2, 'sparse_full', 'sparse_full', mat2(1), val)
 
   ! Prepare a new matrix data type.
   call matrices_init(smat2, mat2(2))

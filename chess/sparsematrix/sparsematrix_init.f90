@@ -2557,9 +2557,9 @@ module sparsematrix_init
           call f_free_ptr(on_which_atom_)
       end if
 
-      ! since no taskgroups are used, the values of iirow and iicol are just set to
-      ! the minimum and maximum, respectively.
-      call init_matrix_taskgroups(iproc, nproc, comm, .false., smat)
+      !!! since no taskgroups are used, the values of iirow and iicol are just set to
+      !!! the minimum and maximum, respectively.
+      !!call init_matrix_taskgroups(iproc, nproc, comm, .false., smat)
 
       call f_free(nonzero)
       if (init_matmul_) then
@@ -5804,7 +5804,7 @@ module sparsematrix_init
       type(sparse_matrix_metadata),intent(in) :: smmd
       integer,intent(in) :: nmat
       type(sparse_matrix),dimension(nmat),intent(inout) :: smat
-      integer,dimension(2,nmat),intent(in) :: ind_minmax
+      integer,dimension(2,nmat),intent(in),optional :: ind_minmax
       ! Local variables
       integer :: imat, imin_smat, imax_smat
       integer,dimension(2) :: irow_minmax, icol_minmax
@@ -5827,22 +5827,18 @@ module sparsematrix_init
       do imat=1,nmat
           call get_sparsematrix_local_extent(iproc, nproc, smmd, smat(imat), &
                ind_minmax_smat(1,imat), ind_minmax_smat(2,imat))
-          !!if (iproc==1) write(*,*) 'A: imat, ind_minmax_smat(:,imat)', imat, ind_minmax_smat(:,imat)
-          ind_minmax_smat(1,imat) = min(ind_minmax_smat(1,imat),ind_minmax(1,imat))
-          ind_minmax_smat(2,imat) = max(ind_minmax_smat(2,imat),ind_minmax(2,imat))
-          !!if (iproc==1) write(*,*) 'A: imat, ind_minmax_smat(:,imat)', imat, ind_minmax_smat(:,imat)
+          if (present(ind_minmax)) then
+              ind_minmax_smat(1,imat) = min(ind_minmax_smat(1,imat),ind_minmax(1,imat))
+              ind_minmax_smat(2,imat) = max(ind_minmax_smat(2,imat),ind_minmax(2,imat))
+          end if
           call get_sparsematrix_local_rows_columns(smat(imat), ind_minmax_smat(1,imat), ind_minmax_smat(2,imat), &
                irow_smat, icol_smat)
-          !!if (iproc==1) write(*,*) 'A: imat, irow_smat, icol_smat', imat, irow_smat, icol_smat
           irow_minmax(1) = min(irow_smat(1),irow_minmax(1))
           irow_minmax(2) = max(irow_smat(2),irow_minmax(2))
           icol_minmax(1) = min(icol_smat(1),icol_minmax(1))
           icol_minmax(2) = max(icol_smat(2),icol_minmax(2))
-          !!if (iproc==1) write(*,*) 'A: imat, irow_minmax, icol_minmax', imat, irow_minmax, icol_minmax
       end do
       do imat=1,nmat
-          !!write(*,*) 'iproc, imat, ind_minmax(:,imat), ind_minmax_smat(:,imat), irow_minmax, icol_minmax', &
-          !!            iproc, imat, ind_minmax(:,imat), ind_minmax_smat(:,imat), irow_minmax, icol_minmax
           call init_matrix_taskgroups(iproc, nproc, comm, enable_matrix_taskgroups, smat(imat), &
                ind_minmax_smat(1,imat), ind_minmax_smat(2,imat), icol_minmax, irow_minmax)!, icol_minmax)
       end do

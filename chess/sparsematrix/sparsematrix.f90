@@ -60,6 +60,7 @@ module sparsematrix
   public :: matrix_power_dense_lapack
   public :: diagonalizeHamiltonian2
   public :: get_minmax_eigenvalues
+  public :: resize_matrix_to_taskgroup
 
 
   interface compress_matrix_distributed_wrapper
@@ -3013,7 +3014,7 @@ module sparsematrix
 
       ! Local variables
       integer :: iseg, ii, i, lwork, info, ispin, ishift, imode
-      real(kind=mp),dimension(:,:),allocatable :: tempmat, tempmat2
+      real(kind=mp),dimension(:,:,:),allocatable :: tempmat, tempmat2
       real(kind=mp),dimension(:),allocatable :: eval, work
       logical :: quiet_
 
@@ -3034,45 +3035,50 @@ module sparsematrix
       quiet_ = .false.
       if (present(quiet)) quiet_ = quiet
 
-      tempmat = f_malloc0((/smat%nfvctr,smat%nfvctr/),id='tempmat')
       eval = f_malloc(smat%nfvctr,id='eval')
+
+      tempmat = f_malloc0((/smat%nfvctr,smat%nfvctr,smat%nspin/),id='tempmat')
+      call uncompress_matrix2(iproc, nproc, comm, smat, mat%matrix_compr, tempmat)
+      if (imode==2) then
+          tempmat2 = f_malloc0((/smat%nfvctr,smat%nfvctr,smat%nspin/),id='tempmat2')
+          call uncompress_matrix2(iproc, nproc, comm, smat2, mat2%matrix_compr, tempmat2)
+      end if
 
       do ispin=1,smat%nspin
 
-          call f_zero(tempmat)
 
           ishift = (ispin-1)*smat%nvctr
 
-          do iseg=1,smat%nseg
-              ii=smat%keyv(iseg)
-              do i=smat%keyg(1,1,iseg),smat%keyg(2,1,iseg)
-                  tempmat(i,smat%keyg(1,2,iseg)) = mat%matrix_compr(ishift+ii)
-                  ii = ii + 1
-              end do
-          end do
+          !!do iseg=1,smat%nseg
+          !!    ii=smat%keyv(iseg)
+          !!    do i=smat%keyg(1,1,iseg),smat%keyg(2,1,iseg)
+          !!        tempmat(i,smat%keyg(1,2,iseg)) = mat%matrix_compr(ishift+ii)
+          !!        ii = ii + 1
+          !!    end do
+          !!end do
 
-          if (imode==2) then
-              tempmat2 = f_malloc0((/smat%nfvctr,smat%nfvctr/),id='tempmat2')
-              do iseg=1,smat2%nseg
-                  ii=smat2%keyv(iseg)
-                  do i=smat2%keyg(1,1,iseg),smat2%keyg(2,1,iseg)
-                      tempmat2(i,smat2%keyg(1,2,iseg)) = mat2%matrix_compr(ishift+ii)
-                      ii = ii + 1
-                  end do
-              end do
-          end if
+          !!if (imode==2) then
+          !!    tempmat2 = f_malloc0((/smat%nfvctr,smat%nfvctr/),id='tempmat2')
+          !!    do iseg=1,smat2%nseg
+          !!        ii=smat2%keyv(iseg)
+          !!        do i=smat2%keyg(1,1,iseg),smat2%keyg(2,1,iseg)
+          !!            tempmat2(i,smat2%keyg(1,2,iseg)) = mat2%matrix_compr(ishift+ii)
+          !!            ii = ii + 1
+          !!        end do
+          !!    end do
+          !!end if
 
           if (imode==1) then
               if (present(algorithm)) then
                   call dsyev_parallel(iproc, nproc, scalapack_blocksize, comm, 'n', 'l', &
-                       smat%nfvctr, tempmat, smat%nfvctr, eval, info, algorithm=algorithm)
+                       smat%nfvctr, tempmat(:,:,ispin), smat%nfvctr, eval, info, algorithm=algorithm)
               else
                   call dsyev_parallel(iproc, nproc, scalapack_blocksize, comm, 'n', 'l', &
-                       smat%nfvctr, tempmat, smat%nfvctr, eval, info)
+                       smat%nfvctr, tempmat(:,:,ispin), smat%nfvctr, eval, info)
               end if
           else if (imode==2) then
               call dsygv_parallel(iproc, nproc, comm, scalapack_blocksize, nproc, 1, 'n', 'l', &
-                   smat%nfvctr, tempmat, smat%nfvctr, tempmat2, smat%nfvctr, eval, info)
+                   smat%nfvctr, tempmat(:,:,ispin), smat%nfvctr, tempmat2(:,:,ispin), smat%nfvctr, eval, info)
           end if
           if (info/=0) then
               if (iproc==0) then
@@ -3104,5 +3110,28 @@ module sparsematrix
       call f_release_routine()
 
     end subroutine get_minmax_eigenvalues
+
+
+    subroutine resize_matrix_to_taskgroup(smat, mat)
+      use futile
+      implicit none
+      ! Calling arguments
+      type(sparse_matrix),intent(in) :: smat
+      type(matrices),intent(inout) :: mat
+      ! Local variables
+      real(kind=mp),dimension(:),allocatable :: mat_tg
+
+      call f_routine(id='resize_matrix_to_taskgroup')
+
+      mat_tg = sparsematrix_malloc(smat,iaction=SPARSE_TASKGROUP,id='mat_tg')
+      call extract_taskgroup(smat, mat%matrix_compr, mat_tg)
+      call f_free_ptr(mat%matrix_compr)
+      mat%matrix_compr = sparsematrix_malloc_ptr(smat,iaction=SPARSE_TASKGROUP,id='mat%matrix_compr')
+      call f_memcpy(src=mat_tg, dest=mat%matrix_compr)
+      call f_free(mat_tg)
+
+      call f_release_routine()
+
+    end subroutine resize_matrix_to_taskgroup
 
 end module sparsematrix

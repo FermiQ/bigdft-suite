@@ -601,26 +601,76 @@ module sparsematrix_highlevel
     end subroutine matrices_set_values
 
 
-    subroutine matrices_get_values(smat, mat, val)
+    subroutine matrices_get_values(iproc, nproc, comm, smat, size_in, size_out, mat, val)
       use dynamic_memory
+      use sparsematrix, only: extract_taskgroup, &
+                              gather_matrix_from_taskgroups
       implicit none
 
       ! Calling arguments
+      integer,intent(in) :: iproc, nproc, comm
       type(sparse_matrix),intent(in) :: smat
+      character(len=*),intent(in) :: size_in, size_out
       type(matrices),intent(in) :: mat
       real(kind=mp),dimension(:),intent(inout) :: val
 
       call f_routine(id='matrices_get_values')
 
-      if (size(mat%matrix_compr)/=smat%nvctr) then
-          call f_err_throw('The size of the matrix array which should be set is wrong: '&
-               &//trim(yaml_toa(size(mat%matrix_compr)))//' instead of '//trim(yaml_toa(smat%nvctr)))
-      end if
-      if (size(val)/=smat%nvctr) then
-          call f_err_throw('The size of the array used to set the matrix contents is wrong: '&
-               &//trim(yaml_toa(size(val)))//' instead of '//trim(yaml_toa(smat%nvctr)))
-      end if
-      call f_memcpy(src=mat%matrix_compr, dest=val)
+      ! Check the input matrix size 
+      select case (trim(size_in))
+      case ('sparse_full','SPARSE_FULL')
+          if (size(mat%matrix_compr)/=smat%nvctr) then
+              call f_err_throw('The size of the matrix array used to get the matrix contents is wrong: '&
+                   &//trim(yaml_toa(size(mat%matrix_compr)))//' instead of '//trim(yaml_toa(smat%nvctr)))
+          end if
+      case ('sparse_taskgroup','SPARSE_TASKGROUP')
+          if (size(mat%matrix_compr)/=smat%nvctrp_tg) then
+              call f_err_throw('The size of the matrix array used to get the matrix contents is wrong: '&
+                   &//trim(yaml_toa(size(mat%matrix_compr)))//' instead of '//trim(yaml_toa(smat%nvctrp_tg)))
+          end if
+      case default
+          call f_err_throw('wrong input matrix size: '//trim(size_in)//' instead of sparse_full or sparse_taskgroup')
+      end select
+
+      ! Check the output matrix size 
+      select case (trim(size_out))
+      case ('sparse_full','SPARSE_FULL')
+          if (size(val)/=smat%nvctr) then
+              call f_err_throw('The size of the array to get the matrix contents is wrong: '&
+                   &//trim(yaml_toa(size(val)))//' instead of '//trim(yaml_toa(smat%nvctr)))
+          end if
+      case ('sparse_taskgroup','SPARSE_TASKGROUP')
+          if (size(val)/=smat%nvctrp_tg) then
+              call f_err_throw('The size of the array to get the matrix contents is wrong: '&
+                   &//trim(yaml_toa(size(val)))//' instead of '//trim(yaml_toa(smat%nvctrp_tg)))
+          end if
+      case default
+          call f_err_throw('wrong output matrix size: '//trim(size_out)//' instead of sparse_full or sparse_taskgroup')
+      end select
+
+
+      select case (trim(size_in))
+      case ('sparse_full','SPARSE_FULL')
+          select case (trim(size_out))
+          case ('sparse_full','SPARSE_FULL')
+              call f_memcpy(src=mat%matrix_compr, dest=val)
+          case ('sparse_taskgroup','SPARSE_TASKGROUP')
+              call extract_taskgroup(smat, mat%matrix_compr, val)
+          case default
+              call f_err_throw('wrong value for size_out: '//trim(size_out))
+          end select
+      case ('sparse_taskgroup','SPARSE_TASKGROUP')
+          select case (trim(size_out))
+          case ('sparse_full','SPARSE_FULL')
+              call gather_matrix_from_taskgroups(iproc, nproc, comm, smat, mat%matrix_compr, val)
+          case ('sparse_taskgroup','SPARSE_TASKGROUP')
+              call f_memcpy(src=mat%matrix_compr, dest=val)
+          case default
+              call f_err_throw('wrong value for size_out: '//trim(size_out))
+          end select
+      case default
+          call f_err_throw('wrong value for size_in: '//trim(size_in))
+      end select
 
       call f_release_routine()
 
