@@ -147,6 +147,8 @@ module coeffs
       real(kind=mp), dimension(denskern%nfvctr,norb), intent(in) :: coeff
     
       integer :: iorb, jorb, ind_ham, ind_denskern, ierr, iorbp, is, ie, ispin
+
+      call f_routine(id='calculate_kernel_and_energy')
     
       if (calculate_kernel) then 
          !!call extract_taskgroup_inplace(denskern, denskern_mat)
@@ -196,6 +198,7 @@ module coeffs
       !!end if
       !call timing(iproc,'calc_energy','OF')
       call f_timing(TCAT_SMAT_MULTIPLICATION,'OF')
+      call f_release_routine()
     
     end subroutine calculate_kernel_and_energy
 

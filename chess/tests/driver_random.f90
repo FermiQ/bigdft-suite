@@ -174,6 +174,8 @@ program driver_random
       call yaml_map('Accuracy of Chebyshev fit for the penalty function',accuracy_penalty)
       call yaml_map('Number of iterations',nit)
       call yaml_map('Do consistency checks',do_consistency_checks)
+      call yaml_map('Routine profiling output level',output_level)
+      call yaml_map('Routine timing profiling depth',profiling_depth)
   end if
 
 
@@ -191,8 +193,6 @@ program driver_random
           call sparse_matrix_and_matrices_init_from_file_bigdft('serial_text', trim(infile), &
               iproc, nproc, mpi_comm_world, smat(1), mat2,&
               init_matmul=.false.)
-          ! Resize the matrix to the rask group
-          call resize_matrix_to_taskgroup(smat(1), mat2)
       end if
       select case(trim(solution_method))
       case ('ICE', 'SelInv')
@@ -248,25 +248,19 @@ program driver_random
   ! Allocate the matrices
   mat3(:) = matrices_null()
   call matrices_init(smat(2), mat3(1), matsize=SPARSE_TASKGROUP)
-  !!call resize_matrix_to_taskgroup(smat(2), mat3(1))
   if (do_consistency_checks) then
       call matrices_init(smat(2), mat3(2), matsize=SPARSE_TASKGROUP)
-      !!call resize_matrix_to_taskgroup(smat(2), mat3(2))
   end if
   if (do_consistency_checks .or. do_cubic_check) then
       call matrices_init(smat(2), mat3(3), matsize=SPARSE_TASKGROUP)
-      !!call resize_matrix_to_taskgroup(smat(2), mat3(3))
   end if
-
-  !!write(*,*) 'smat(1)%istartend_local(1),smat(1)%istartend_local(2)',smat(1)%istartend_local(1),smat(1)%istartend_local(2)
-  !!do i=1,size(smat(1)%transposed_lookup_local)
-  !!    write(*,*) 'i, tll(i)', i, smat(1)%transposed_lookup_local(i)
-  !!end do
 
   if (trim(matgen_method)=='random') then
 
       call matrices_init(smat(1), mat1)
       call matrices_init(smat(1), mat2, matsize=SPARSE_TASKGROUP)
+
+
     
       ! Fill the matrix with random entries
       idum = 0
@@ -277,12 +271,12 @@ program driver_random
           call f_random_number(tt_real)
           mat1%matrix_compr(i) = real(tt_real,kind=8)
       end do
+
     
       ! By construction, all elements lie between 0 and 1. If we thus scale the
       ! matrix by the inverse of nfvctr (i.e. its dimension), then the sum of each line
       ! is between 0 and 1.
       call dscal(smat(1)%nvctr, 1.0_mp/real(smat(1)%nfvctr,kind=8), mat1%matrix_compr(1), 1)
-      write(*,*) 'after dscal'
     
       ! By construction, the sum of each line is between 0 and 1. If we thus set the diagonal
       ! to 1, we get a diagonally dominant matrix, which is positive definite.
@@ -294,19 +288,23 @@ program driver_random
           tt = real(tt_real,kind=8)*condition_number
           mat1%matrix_compr(ii) = 1.0_mp + tt
       end do
+
     
       ! Scale the matrix by the condition number, which should move down the largest
       ! eigenvalue of the order of 1.
       call dscal(smat(1)%nvctr, 1.0_mp/condition_number, mat1%matrix_compr(1), 1)
 
-      ! Resize the matrix to the rask group
+
+      ! Resize the matrix to the task group
       call resize_matrix_to_taskgroup(smat(1), mat1)
 
       ! Symmetrize the matrix
       call symmetrize_matrix(smat(1), 'plus', mat1%matrix_compr, mat2%matrix_compr)
 
       call deallocate_matrices(mat1)
-
+  else
+      ! Resize the matrix to the rask group
+      call resize_matrix_to_taskgroup(smat(1), mat2)
   end if
 
 
