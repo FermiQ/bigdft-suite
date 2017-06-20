@@ -859,7 +859,7 @@ contains
     if (in%dispersion /= 0) then
        call vdwcorrection_warnings(atoms, in%dispersion, in%ixc)
     end if
-    
+
     !control atom positions
     call check_atoms_positions(atoms%astruct, (bigdft_mpi%iproc == 0))
 
@@ -1647,7 +1647,7 @@ contains
              in%run_mode=PLUGIN_RUN_MODE
           end select
        case(ADD_COULOMB_FORCE_KEY)
-          in%add_coulomb_force = val          
+          in%add_coulomb_force = val
        case(PLUGIN_ID)
           in%plugin_id = val
        case(MM_PARAMSET)
@@ -1739,9 +1739,9 @@ contains
        case (INPUTPSIID)
           ipos=val
           call set_inputpsiid(ipos,in%inputPsiId)
-       case (OUTPUT_WF)
-          ipos=val
-          call set_output_wf(ipos,in%output_wf)
+       !case (OUTPUT_WF)
+       !ipos=val
+       !call set_output_wf(ipos,in%output_wf)
        case (OUTPUT_DENSPOT)
           ipos=val
           call set_output_denspot(ipos,in%output_denspot)
