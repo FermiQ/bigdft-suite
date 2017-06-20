@@ -12,17 +12,15 @@
 !! @details Should be used in the error handling module
 !! The user of this module is able to define the stopping routine, the new error and the error codes
 module exception_callbacks
-
+  use f_precisions
   implicit none
   private
 
   !> Address of the generic callback functions, valid for errors with non-specific callbacks
-  integer(kind=8) :: callback_add=0
-  integer(kind=8) :: callback_data_add=0
+  integer(f_address) :: callback_add=0
+  integer(f_address) :: callback_data_add=0
   !> Address of the overrided severe error
-  integer(kind=8) :: severe_callback_add=0
-
-  integer(kind=8), external :: f_loc
+  integer(f_address) :: severe_callback_add=0
 
   interface f_err_set_callback
      module procedure err_set_callback_simple,err_set_callback_advanced
@@ -48,7 +46,7 @@ contains
   subroutine err_abort(callback,callback_data)
     !use metadata_interfaces
     implicit none
-    integer(kind=8), intent(in) :: callback,callback_data
+    integer(f_address), intent(in) :: callback,callback_data
 
     if (callback_data /=0 .and. callback /=0) then
        call callable_void(callback) !for the moment data are ignored
@@ -74,7 +72,7 @@ contains
 
   subroutine err_set_callback_advanced(callback,callback_data_address)
     implicit none
-    integer(kind=8), intent(in) :: callback_data_address
+    integer(f_address), intent(in) :: callback_data_address
     external :: callback
     !$ include 'halt_omp-inc.f90'
 
@@ -131,18 +129,5 @@ contains
     call f_dump_last_error()
     stop 'Severe error, cannot proceed'
   end subroutine f_err_severe_internal
-  
 
 end module exception_callbacks
-
-!> Function which identifies the address of the scalar object
-!! associated to a unknown quantity
-function f_loc(routine)
-  use f_precisions, only: f_address
-  implicit none
-  external :: routine       !< Object
-  integer(f_address) :: f_loc  !< Address of the object routine
-
-  call getlongaddress(routine,f_loc)
-
-end function f_loc
