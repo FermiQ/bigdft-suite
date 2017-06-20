@@ -256,6 +256,7 @@ contains
 
   !> Initialize the error messages
   subroutine yaml_output_errors()
+    use exception_callbacks, only: f_err_set_last_error_callback
     implicit none
     !initialize error messages
     call f_err_define('YAML_INVALID','Generic error of yaml module, invalid operation',&

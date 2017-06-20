@@ -31,10 +31,6 @@ module dictionaries
      type(dictionary), pointer :: child => null()
    end type dictionary_container
 
-   !> Addresses of the error dump callbacks functions
-   integer(f_address) :: last_error_callback_add=0
-
-
    !> Error codes
    integer, save, public :: DICT_KEY_ABSENT
    integer, save, public :: DICT_VALUE_ABSENT
@@ -145,7 +141,6 @@ module dictionaries
    public :: operator(.pop.),operator(.notin.)
    public :: operator(==),operator(/=),operator(.in.),operator(.get.)
    public :: dictionary,max_field_length,dict_get_num,iterating
-   public :: f_err_set_last_error_callback
 
 
    interface dict_next_build

@@ -529,7 +529,6 @@
     end if
   end function f_err_pop
 
-
   !> Activate the exception handling for all errors
   !! also the errors which have f_err_severe as callbacks
   !! multiple calls to f_err_open_try have the same effect of one call
@@ -545,7 +544,6 @@
     dict_present_error=>error_pipelines%current
 
   end subroutine f_err_open_try
-
 
   !> Close the try environment. At the end of the try environment
   !! the errors are cleaned. To recover an error in a try environment
@@ -585,31 +583,5 @@
     type(dictionary), pointer :: f_get_error_definitions
     f_get_error_definitions => dict_errors
   end function f_get_error_definitions
-
-  !> Print error information about last error
-  subroutine f_dump_last_error()
-    implicit none
-    !local variables
-    integer :: ierr
-    character(len=max_field_length) :: add_msg
-
-    if (last_error_callback_add /= 0) then
-       call callable_void(last_error_callback_add)
-    else
-      ierr=f_get_last_error(add_msg)
-       write(*,*) 'Found Error id:',ierr
-       write(*,*) 'Additional Info',add_msg
-    end if
-  end subroutine f_dump_last_error
-
-  !> Defines the error routine which have to be used
-  subroutine f_err_set_last_error_callback(callback)
-    implicit none
-    external :: callback !< Error routine which will be called
-    !$ include 'halt_omp-inc.f90'
-
-    last_error_callback_add=f_loc(callback)
-
-  end subroutine f_err_set_last_error_callback
 
 !!$end module error_handling
