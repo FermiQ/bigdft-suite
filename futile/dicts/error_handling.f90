@@ -612,27 +612,4 @@
 
   end subroutine f_err_set_last_error_callback
 
-  subroutine f_dump_last_error_yaml()
-    use dictionaries, only: f_get_error_dict,f_get_last_error,max_field_length
-    use yaml_output, only: yaml_dict_dump,yaml_map,yaml_flush_document
-    implicit none
-    !local variables
-    integer :: ierr
-    character(len=max_field_length) :: add_msg
-
-    ierr=f_get_last_error(add_msg)
-
-    if (ierr /=0) then
-       call yaml_dict_dump(f_get_error_dict(ierr))
-       if (trim(add_msg)/= 'UNKNOWN') call yaml_map('Additional Info',add_msg)
-    end if
-    call yaml_flush_document()
-  end subroutine f_dump_last_error_yaml
-
-
-  !> routine that can be overridden to dump the dictionary of errors
-  subroutine f_dump_err_dict
-
-  end subroutine f_dump_err_dict
-
 !!$end module error_handling

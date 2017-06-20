@@ -66,7 +66,7 @@ module yaml_output
      type(dictionary), pointer :: dict_warning=>null()            !< Dictionary of warnings emitted in the stream
      !character(len=tot_max_record_length), dimension(:), pointer :: buffer !<
      !> papers which are cited in the stream
-     type(dictionary), pointer :: dict_references=>null() 
+     type(dictionary), pointer :: dict_references=>null()
   end type yaml_stream
 
   type(yaml_stream), dimension(tot_streams), save :: streams    !< Private array containing the streams
@@ -270,8 +270,27 @@ contains
          err_action='This is an internal error of yaml_output module, contact developers')
     !the module is ready for usage
     call dict_init(stream_files)
+    call f_err_set_last_error_callback(f_dump_last_error_yaml)
     module_initialized=.true.
   end subroutine yaml_output_errors
+
+  subroutine f_dump_last_error_yaml()
+    use dictionaries, only: f_get_error_dict,f_get_last_error,max_field_length
+    !use yaml_output, only: yaml_dict_dump,yaml_map,yaml_flush_document
+    implicit none
+    !local variables
+    integer :: ierr
+    character(len=max_field_length) :: add_msg
+
+    ierr=f_get_last_error(add_msg)
+
+    if (ierr /=0) then
+       call yaml_dict_dump(f_get_error_dict(ierr))
+       if (trim(add_msg)/= 'UNKNOWN') call yaml_map('Additional Info',add_msg)
+    end if
+    call yaml_flush_document()
+  end subroutine f_dump_last_error_yaml
+
 
   !> Set the default stream of the module. Return  a STREAM_ALREADY_PRESENT errcode if
   !! The stream has not be initialized.
@@ -680,7 +699,7 @@ contains
     streams(strm)%unit=unit_prev
 
   end subroutine yaml_release_document
- 
+
   function stream_id(unit) result(strm)
     implicit none
     integer, intent(in), optional :: unit
@@ -1241,7 +1260,7 @@ contains
     implicit none
     character(len=*), intent(in) :: mapname             !< @copydoc doc::mapname
     character(len=*), intent(in) :: mapvalue            !< scalar value of the mapping may be of any scalar type
-                                                        !! it is internally converted to character with the usage 
+                                                        !! it is internally converted to character with the usage
                                                         !! of @link yaml_output::yaml_toa @endlink function
     character(len=*), optional, intent(in) :: label     !< @copydoc doc::label
     character(len=*), optional, intent(in) :: tag       !< @copydoc doc::tag
