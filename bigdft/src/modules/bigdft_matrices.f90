@@ -15,7 +15,8 @@ module bigdft_matrices
                ind_min, ind_max)
           use module_base
           use sparsematrix_base, only: sparse_matrix, sparse_matrix_metadata
-          use sparsematrix_init, only: get_sparsematrix_local_rows_columns
+          use sparsematrix_init, only: get_sparsematrix_local_rows_columns, &
+                                       check_projector_charge_analysis
           use communications_base, only: comms_linear
           use module_types, only: linmat_auxiliary
           implicit none
