@@ -34,7 +34,7 @@ program chess_toolbox
    !!use module_atoms, only: atoms_data, atoms_data_null, deallocate_atoms_data
    use sparsematrix_base
    use sparsematrix_init, only: bigdft_to_sparsebigdft, distribute_columns_on_processes_simple, &
-                                write_sparsematrix_info
+                                write_sparsematrix_info, init_matrix_taskgroups_wrapper
    use sparsematrix_io, only: read_sparse_matrix, write_sparse_matrix, write_dense_matrix
    use sparsematrix, only: uncompress_matrix, uncompress_matrix_distributed2, diagonalizeHamiltonian2, &
                            transform_sparse_matrix, compress_matrix, get_minmax_eigenvalues
@@ -102,6 +102,7 @@ program chess_toolbox
    type(matrices),dimension(1) :: ovrlp_minus_one_half
    type(matrices),dimension(:,:),allocatable :: multipoles_matrices
    type(sparse_matrix) :: smat_s, smat_m, smat_l, smat
+   type(sparse_matrix),dimension(1) :: smat_arr1
    type(dictionary), pointer :: dict_timing_info
    integer :: iunit, nat, iat, iat_prev, ii, iitype, iorb, itmb, itype, ival, ios, ipdos, ispin
    integer :: jtmb, norbks, npdos, npt, ntmb, jjtmb, nat_frag, nfvctr_frag, i, iiat
@@ -824,28 +825,35 @@ program chess_toolbox
            !if (iproc==0) call yaml_comment('Reading from file '//trim(infile),hfill='~')
            call sparse_matrix_and_matrices_init_from_file_bigdft('serial_text', trim(infile), &
                 iproc, nproc, mpiworld(), &
-                smat, mat, init_matmul=.false.)
+                smat_arr1(1), mat, init_matmul=.false.)
        case (2)
            !if (iproc==0) call yaml_comment('Reading from file '//trim(infile),hfill='~')
            call sparse_matrix_and_matrices_init_from_file_ccs(trim(infile), iproc, nproc, &
-                mpiworld(), smat, mat, init_matmul=.false.)
+                mpiworld(), smat_arr1(1), mat, init_matmul=.false.)
        case(4)
            !if (iproc==0) call yaml_comment('Reading from file '//trim(infile),hfill='~')
            call sparse_matrix_and_matrices_init_from_file_bigdft('parallel_mpi-native', trim(infile), &
                 iproc, nproc, mpiworld(), &
-                smat, mat, init_matmul=.false.)
+                smat_arr1(1), mat, init_matmul=.false.)
        end select
+       call init_matrix_taskgroups_wrapper(iproc, nproc, mpiworld(), .false., 1, smat_arr1)
+       if (iproc==0) then
+           call yaml_mapping_open('Matrix properties')
+           call write_sparsematrix_info(smat_arr1(1), 'Input matrix')
+           call yaml_mapping_close()
+       end if
+
        select case (iconv)
        case (1)
-           row_ind = f_malloc_ptr(smat%nvctr,id='row_ind')
-           col_ptr = f_malloc_ptr(smat%nfvctr,id='col_ptr')
-           call ccs_data_from_sparse_matrix(smat, row_ind, col_ptr)
-           if (iproc==0) call ccs_matrix_write(trim(outfile), smat, row_ind, col_ptr, mat)
+           row_ind = f_malloc_ptr(smat_arr1(1)%nvctr,id='row_ind')
+           col_ptr = f_malloc_ptr(smat_arr1(1)%nfvctr,id='col_ptr')
+           call ccs_data_from_sparse_matrix(smat_arr1(1), row_ind, col_ptr)
+           if (iproc==0) call ccs_matrix_write(trim(outfile), smat_arr1(1), row_ind, col_ptr, mat)
            call f_free_ptr(row_ind)
            call f_free_ptr(col_ptr)
        case (2,4,5)
            !!call sparse_matrix_and_matrices_init_from_file_ccs(trim(infile), iproc, nproc, &
-           !!     mpiworld(), smat, mat, init_matmul=.false.)
+           !!     mpiworld(), smat_arr1, mat, init_matmul=.false.)
            if (len(outfile)>1024) then
                call f_err_throw('filename is too long')
            end if
@@ -859,21 +867,21 @@ program chess_toolbox
                    call f_err_throw('Wrong file extension; must be .txt, but found '//trim(outfile_extension))
                end if
                call write_sparse_matrix('serial_text', iproc, nproc, mpiworld(), &
-                    smat, mat, trim(outfile_base))
+                    smat_arr1(1), mat, trim(outfile_base))
            case (5)
                if (trim(outfile_extension)/='.mpi') then
                    call f_err_throw('Wrong file extension; must be .mpi, but found '//trim(outfile_extension))
                end if
                call write_sparse_matrix('parallel_mpi-native', iproc, nproc, mpiworld(), &
-                    smat, mat, trim(outfile_base))
+                    smat_arr1(1), mat, trim(outfile_base))
            end select
        case (3)
-           call write_dense_matrix(iproc, nproc, mpiworld(), smat, mat, &
+           call write_dense_matrix(iproc, nproc, mpiworld(), smat_arr1(1), mat, &
                 uncompress=.true., filename=trim(outfile), binary=.false.)
 
        end select
 
-       call deallocate_sparse_matrix(smat)
+       call deallocate_sparse_matrix(smat_arr1(1))
        call deallocate_matrices(mat)
    end if
 
