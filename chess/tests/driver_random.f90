@@ -49,12 +49,12 @@ program driver_random
   ! Variables
   integer :: iproc, nproc, iseg, ierr, idum, ii, i, nthread, nit, it, icons
   integer :: nfvctr, nvctr, nbuf_large, nbuf_mult, iwrite, blocksize_diag, blocksize_matmul
-  integer :: ithreshold, icheck, j, pexsi_np_sym_fact, output_level, profiling_depth
+  integer :: ithreshold, icheck, ispec, j, pexsi_np_sym_fact, output_level, profiling_depth
   type(sparse_matrix),dimension(2) :: smat
   type(sparse_matrix_metadata) :: smmd
   real(kind=4) :: tt_real
   real(mp) :: tt, tt_rel, t1, t2
-  real(mp),dimension(1) :: eval_min, eval_max
+  real(mp),dimension(:),allocatable :: eval_min, eval_max
   type(matrices) :: mat1, mat2
   type(matrices),dimension(3) :: mat3
   real(mp) :: condition_number, expo, max_error, mean_error, betax
@@ -63,7 +63,7 @@ program driver_random
   type(foe_data),dimension(:),allocatable :: ice_obj
   character(len=1024) :: infile, outfile, outmatmulfile, sparsegen_method, matgen_method, diag_algorithm
   character(len=1024) :: metadata_file, solution_method
-  logical :: write_matrices, do_cubic_check, init_matmul, do_consistency_checks
+  logical :: write_matrices, do_cubic_check, init_matmul, do_consistency_checks, check_spectrum
   type(dictionary), pointer :: options, dict_timing_info
   type(yaml_cl_parse) :: parser !< command line parser
   external :: gather_timings
@@ -315,15 +315,21 @@ program driver_random
        gather_routine=gather_timings)
 
   ! Calculate the minimal and maximal eigenvalue, to determine the condition number
-  call get_minmax_eigenvalues(iproc, nproc, mpiworld(), 'standard', blocksize_diag, &
-       smat(1), mat2, eval_min, eval_max, &
-       algorithm=diag_algorithm, quiet=.true.)
-  if (iproc==0) then
-      call yaml_mapping_open('Eigenvalue properties')
-      call yaml_map('Minimal',eval_min)
-      call yaml_map('Maximal',eval_max)
-      call yaml_map('Condition number',eval_max/eval_min)
-      call yaml_mapping_close()
+  if (check_spectrum) then
+      eval_min = f_malloc(smat(1)%nspin,id='eval_min')
+      eval_max = f_malloc(smat(1)%nspin,id='eval_max')
+      call get_minmax_eigenvalues(iproc, nproc, mpiworld(), 'standard', blocksize_diag, &
+           smat(1), mat2, eval_min, eval_max, &
+           algorithm=diag_algorithm, quiet=.true.)
+      if (iproc==0) then
+          call yaml_mapping_open('Eigenvalue properties')
+          call yaml_map('Minimal',eval_min)
+          call yaml_map('Maximal',eval_max)
+          call yaml_map('Condition number',eval_max/eval_min)
+          call yaml_mapping_close()
+      end if
+      call f_free(eval_min)
+      call f_free(eval_max)
   end if
 
   !call write_dense_matrix(iproc, nproc, mpi_comm_world, smat(1), mat2, 'randommatrix.dat', binary=.false.)
@@ -758,6 +764,7 @@ program driver_random
           do_consistency_checks = options//'do_consistency_checks'
           output_level = options//'output_level'
           profiling_depth = options//'profiling_depth'
+          check_spectrum = options//'check_spectrum'
 
           call dict_free(options)
       end if
@@ -805,10 +812,16 @@ program driver_random
           else
               icons = 0
           end if
+          if (check_spectrum) then
+              ispec = 1
+          else
+              ispec = 0
+          end if
       end if
       call mpibcast(iwrite, root=0, comm=mpi_comm_world)
       call mpibcast(icheck, root=0, comm=mpi_comm_world)
       call mpibcast(icons, root=0, comm=mpi_comm_world)
+      call mpibcast(ispec, root=0, comm=mpi_comm_world)
       if (iwrite==1) then
           write_matrices = .true.
       else
@@ -823,6 +836,11 @@ program driver_random
           do_consistency_checks = .true.
       else
           do_consistency_checks = .false.
+      end if
+      if (ispec==1) then
+          check_spectrum = .true.
+      else
+          check_spectrum = .false.
       end if
 
     end subroutine read_and_communicate_input_variables
@@ -1042,5 +1060,12 @@ subroutine commandline_options(parser)
        'Indicate the depth of the individual routine timing profiling',&
        'Allowed values' .is. &
        'Integer'))
+
+  call yaml_cl_parse_option(parser,'check_spectrum','.false.',&
+       'Indicate whether the spectral properties of the Hamiltonian shall be calculated',&
+       help_dict=dict_new('Usage' .is. &
+       'Indicate whether the spectral properties of the Hamiltonian shall be calculated by a diagonalization',&
+       'Allowed values' .is. &
+       'Logical'))
 
 end subroutine commandline_options
