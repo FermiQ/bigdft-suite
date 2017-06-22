@@ -37,6 +37,7 @@ program driver_foe
   use sparsematrix_init, only: matrixindex_in_compressed, write_sparsematrix_info, &
                                get_number_of_electrons, distribute_on_tasks, &
                                init_matrix_taskgroups_wrapper
+  use sparsematrix_io, only: write_dense_matrix, write_sparse_matrix
   ! The following module is an auxiliary module for this test
   use utilities, only: get_ccs_data_from_file, calculate_error, median
   use futile
@@ -68,7 +69,7 @@ program driver_foe
   type(yaml_cl_parse) :: parser !< command line parser
   character(len=1024) :: metadata_file, overlap_file, hamiltonian_file, kernel_file, kernel_matmul_file
   character(len=1024) :: sparsity_format, matrix_format, kernel_method, inversion_method
-  logical :: check_spectrum, do_cubic_check, pexsi_do_inertia_count, init_matmul
+  logical :: check_spectrum, do_cubic_check, pexsi_do_inertia_count, init_matmul, keep_dense_kernel, write_kernel
   integer,parameter :: nthreshold = 10 !< number of checks with threshold
   real(mp),dimension(nthreshold),parameter :: threshold = (/ 1.e-1_mp, &
                                                              1.e-2_mp, &
@@ -175,6 +176,8 @@ program driver_foe
       call yaml_map('Inversion method for the overlap matrix in FOE',inversion_method)
       call yaml_map('Routine profiling output level',output_level)
       call yaml_map('Routine timing profiling depth',profiling_depth)
+      call yaml_map('Keep the dense kernel',keep_dense_kernel)
+      call yaml_map('Write the density kernel to disk',write_kernel)
       call yaml_mapping_close()
   end if
 
@@ -384,9 +387,13 @@ program driver_foe
                norbu, norbd)
           call distribute_on_tasks(norb, iproc, nproc, norbp, isorb)
           ! Density kernel
+          if (keep_dense_kernel) then
+              mat_k%matrix = sparsematrix_malloc_ptr(smat(3), iaction=DENSE_FULL, id='mat_k%matrix')
+          end if
           call calculate_kernel_and_energy(iproc, nproc, mpi_comm_world, &
                smat(3), smat(2), mat_k, mat_h, energy,&
-               coeff, norbp, isorb, norbu, norb, occup, .true.)
+               coeff, norbp, isorb, norbu, norb, occup, .true., &
+               keep_uncompressed=keep_dense_kernel)
           ! Energy density kernel
           do iorb=1,norb
               occup(iorb) = occup(iorb)*eval_occup(iorb)
@@ -409,6 +416,15 @@ program driver_foe
       times(it) = t2-t1
       energies(it) = energy
   end do it_loop
+
+  if (write_kernel) then
+      call write_sparse_matrix('serial_text', iproc, nproc, mpi_comm_world, smat(3), mat_k, 'kernel_output_sparse')
+      if (keep_dense_kernel) then
+          call write_dense_matrix(iproc, nproc, mpiworld(), smat(3), mat_k, &
+               uncompress=.false., filename='kernel_output_dense.txt', binary=.false.)
+      end if
+  end if
+
 
   if (iproc==0) then
       call yaml_comment('Timings summary',hfill='=')
@@ -668,6 +684,8 @@ program driver_foe
           pexsi_verbosity = options//'pexsi_verbosity'
           output_level = options//'output_level'
           profiling_depth = options//'profiling_depth'
+          keep_dense_kernel = options//'keep_dense_kernel'
+          write_kernel = options//'write_kernel'
          
           call dict_free(options)
       end if
@@ -747,6 +765,32 @@ program driver_foe
           pexsi_do_inertia_count = .true.
       else
           pexsi_do_inertia_count = .false.
+      end if
+      if (iproc==0) then
+          if (keep_dense_kernel) then
+              icheck = 1
+          else
+              icheck = 0
+          end if
+      end if
+      call mpibcast(icheck, root=0, comm=mpi_comm_world)
+      if (icheck==1) then
+          keep_dense_kernel = .true.
+      else
+          keep_dense_kernel = .false.
+      end if
+      if (iproc==0) then
+          if (write_kernel) then
+              icheck = 1
+          else
+              icheck = 0
+          end if
+      end if
+      call mpibcast(icheck, root=0, comm=mpi_comm_world)
+      if (icheck==1) then
+          write_kernel = .true.
+      else
+          write_kernel = .false.
       end if
 
     end subroutine read_and_communicate_input_variables
@@ -1034,5 +1078,20 @@ subroutine commandline_options(parser)
        'Indicate the depth of the individual routine timing profiling',&
        'Allowed values' .is. &
        'Integer'))
+
+  call yaml_cl_parse_option(parser,'keep_dense_kernel','.false.',&
+       'Keep the dense kernel calculated by LAPACK',&
+       help_dict=dict_new('Usage' .is. &
+       'Indicate whether the dense kernel calculated by LAPACK should be kept',&
+       'Allowed values' .is. &
+       'Logical'))
+
+  call yaml_cl_parse_option(parser,'write_kernel','.false.',&
+       'Write the calculated density kernel matrix to disk',&
+       help_dict=dict_new('Usage' .is. &
+       'Indicate whether the calculated density kernel matrix shall be written to disk',&
+       'Allowed values' .is. &
+       'Logical'))
+
 
 end subroutine commandline_options
