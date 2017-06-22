@@ -1825,6 +1825,7 @@ contains
     use f_utils
     use yaml_strings
     use yaml_output, only: yaml_map
+    use module_base, only: bigdft_mpi
     implicit none
     character(len=*), intent(in) :: id
     logical, intent(out) :: exists
@@ -1845,7 +1846,7 @@ contains
        call f_file_exists(filename+'.'+exts(iext),exists)
        if (exists) exit
     end do
-    if (exists) call yaml_map('<BigDFT> Run already performed, found final file',&
+    if (exists .and. bigdft_mpi%iproc==0) call yaml_map('<BigDFT> Run already performed, found final file',&
            filename+'.'+exts(iext),unit=6)
 
   end subroutine final_file_exists
