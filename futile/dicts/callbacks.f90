@@ -21,6 +21,9 @@ module exception_callbacks
   integer(f_address) :: callback_data_add=0
   !> Address of the overrided severe error
   integer(f_address) :: severe_callback_add=0
+  !> Addresses of the error dump callbacks functions
+  integer(f_address) :: last_error_callback_add=0
+
 
   interface f_err_set_callback
      module procedure err_set_callback_simple,err_set_callback_advanced
@@ -30,8 +33,9 @@ module exception_callbacks
   public :: f_err_set_callback
   public :: f_err_unset_callback
   public :: f_err_severe, f_err_severe_override, f_err_severe_restore
-  public :: f_err_ignore
-  
+  public :: f_err_ignore,f_dump_last_error
+  public :: f_err_set_last_error_callback
+
   !> Internal variables for f_lib usage
   public :: callback_add
   public :: callback_data_add
@@ -87,6 +91,7 @@ contains
     !!$ include 'halt_omp-inc.f90'
     callback_add=0
     callback_data_add=0
+    last_error_callback_add=0
   end subroutine f_err_unset_callback
 
 
@@ -129,5 +134,27 @@ contains
     call f_dump_last_error()
     stop 'Severe error, cannot proceed'
   end subroutine f_err_severe_internal
+
+  !> Print error information about last error
+  subroutine f_dump_last_error()
+    implicit none
+    if (last_error_callback_add /= 0) then
+       call callable_void(last_error_callback_add)
+    !else
+    ! call f_err_severe()
+    !write(*,*) 'Found Error id:',ierr
+    !write(*,*) 'Additional Info',add_msg
+    end if
+  end subroutine f_dump_last_error
+
+  !> Defines the error routine which have to be used
+  subroutine f_err_set_last_error_callback(callback)
+    implicit none
+    external :: callback !< Error routine which will be called
+    !$ include 'halt_omp-inc.f90'
+
+    last_error_callback_add=f_loc(callback)
+
+  end subroutine f_err_set_last_error_callback
 
 end module exception_callbacks
