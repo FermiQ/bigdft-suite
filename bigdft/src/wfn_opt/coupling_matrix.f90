@@ -94,8 +94,6 @@ subroutine calculate_coupling_matrix(iproc,nproc,boxit,tddft_approach,nspin,ndim
 
   if (iproc==0) bar=f_progress_bar_new(nstep=((nalphap+1)*nalphap)/2)
 
-  print *,'nalphap' 
-
   call PS_set_options(pkernel,verbose=.false.)
   istep=0
   do iap=1,nalphap
