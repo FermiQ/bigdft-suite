@@ -14,6 +14,7 @@ Keys to ignore:
   - Timinig summary
   - Timing analysis
   - taskgroup summary
+  - Cross-check among MPI tasks
 
 driver_random:
   penalty: 4650001
@@ -24,4 +25,4 @@ driver_foe:
   difference: 2.0e-11
   trace(KS): 1.8e-11
   max diff of eigenvectors: 2.5e-11
-  penalty: 240001
+  penalty: 241001
