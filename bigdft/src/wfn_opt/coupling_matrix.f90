@@ -779,6 +779,8 @@ subroutine coupling_matrix_prelim(iproc,nproc,geocode,tddft_approach,nspin,lr,or
   end if
   !end test
 
+  call f_savetxt('old_coupling_matrix.txt',Kbig) ! we are in the nspin=1 case
+
   !Find the excitattion energy.
   if (nspin==1) then
      call DSYEV('V','U',ndipoles,Kbig,ndipoles,omega,work,lwork,info)
