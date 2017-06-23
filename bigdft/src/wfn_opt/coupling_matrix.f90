@@ -121,7 +121,7 @@ subroutine calculate_coupling_matrix(iproc,nproc,boxit,tddft_approach,nspin,ndim
        !now we have to calculate the corresponding element of the RPA part of the coupling matrix
        do ibq=1,iap
          ibeta=transitions(ALPHA_,ibq)
-         iq=transitions(P_,iap)
+         iq=transitions(P_,ibq)
          jspin=transitions(SPIN_,ibq)
          ebq=orbsvirt%eval(ibeta)-orbsocc%eval(iq)
 
