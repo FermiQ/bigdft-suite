@@ -224,6 +224,8 @@ subroutine calculate_coupling_matrix(iproc,nproc,boxit,tddft_approach,nspin,ndim
      call f_free(Kaux)
      call f_free_ptr(Kbig)
   end if
+  call f_free(rho_ias)
+  call f_free(v_ias)
 
   call f_release_routine()
 

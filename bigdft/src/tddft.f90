@@ -47,8 +47,8 @@ subroutine tddft_casida(iproc,nproc,atoms,rxyz,hxh,hyh,hzh,n3p,n3parr,Glr,tddft_
   call calculate_coupling_matrix(iproc,nproc,bitp,tddft_approach,orbs%nspin,Glr%d%n1i*Glr%d%n2i*n3p,orbs,orbsv,&
        chargec,pkernelseq,fxc,psirocc,psirvirt)
 
-!!$  call coupling_matrix_prelim(iproc,nproc,atoms%astruct%geocode,tddft_approach,orbs%nspin,Glr,orbs,orbsv,&
-!!$       i3s,n3p,hxh,hyh,hzh,chargec,pkernelseq,fxc,psirocc,psirvirt,exc_fac)
+  call coupling_matrix_prelim(iproc,nproc,atoms%astruct%geocode,tddft_approach,orbs%nspin,Glr,orbs,orbsv,&
+       i3s,n3p,hxh,hyh,hzh,chargec,pkernelseq,fxc,psirocc,psirvirt,exc_fac)
 
   call f_free(psirocc)
 
