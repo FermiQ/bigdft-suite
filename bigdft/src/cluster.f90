@@ -1344,7 +1344,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
                 denspot%dpbox%mesh%hgrids(1),denspot%dpbox%mesh%hgrids(2),denspot%dpbox%mesh%hgrids(3),&
                 denspot%dpbox%n3p,denspot%dpbox%ngatherarr(0,1),&
                 KSwfn%Lzd%Glr,in%tddft_approach,KSwfn%orbs,VTwfn%orbs,denspot%dpbox%i3s+denspot%dpbox%i3xcsh,&
-                denspot%f_XC,denspot%pkernelseq,KSwfn%psi,VTwfn%psi,exc_fac)
+                denspot%f_XC,denspot%pkernelseq,KSwfn%psi,VTwfn%psi,exc_fac,denspot%dpbox%bitp)
 
            call f_free_ptr(denspot%f_XC)
 

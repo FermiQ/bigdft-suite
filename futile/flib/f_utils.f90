@@ -117,6 +117,10 @@ module f_utils
      module procedure f_assert, f_assert_double
   end interface f_assert
 
+  interface f_savetxt
+     module procedure f_savetxt_d2
+  end interface f_savetxt
+
   !to be verified if clock_gettime is without side-effect, otherwise the routine cannot be pure
   interface
      pure subroutine nanosec(itime)
@@ -132,7 +136,7 @@ module f_utils
      module procedure f_null_i1_ptr,f_null_i2_ptr
   end interface assignment(=)
 
-  public :: f_diff,f_file_unit,f_mkdir
+  public :: f_diff,f_file_unit,f_mkdir,f_savetxt
   public :: f_utils_errors,f_utils_recl,f_file_exists,f_close,f_zero
   public :: f_get_free_unit,f_delete_file,f_getpid,f_rewind,f_open_file
   public :: f_iostream_from_file,f_iostream_from_lstring,f_increment
@@ -695,6 +699,28 @@ contains
     end if
 
   end subroutine f_open_file
+
+  subroutine f_savetxt_d2(file,data)
+    implicit none
+    real(f_double), dimension(:,:), intent(in) :: data
+    character(len=*), intent(in) :: file
+    !local variables
+    integer :: unt,nlines,ncols,icol,iline
+    unt=90
+    call f_open_file(unt,file)
+
+    nlines=size(data,dim=2)
+    ncols=size(data,dim=1)
+
+    do iline=1,nlines
+       do icol=1,ncols-1
+          write(unt,'(1pg26.16e3)',advance='no')data(icol,iline)
+       end do
+       write(unt,'(1pg26.16e3)')data(ncols,iline)
+    end do
+
+    call f_close(unt)
+  end subroutine f_savetxt_d2
 
   subroutine f_iostream_from_file(ios, filename)
     implicit none
