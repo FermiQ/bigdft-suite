@@ -64,7 +64,7 @@ subroutine calculate_coupling_matrix(iproc,nproc,boxit,tddft_approach,nspin,ndim
   !local variables
   integer, parameter :: ALPHA_=2,P_=1,SPIN_=3
   integer :: imulti,jmulti,spinindex,ialpha,ip,ibeta,iq,ispin,jspin,ntda
-  integer :: nmulti,ndipoles,iap,ibq,nalphap
+  integer :: nmulti,ndipoles,iap,ibq,nalphap,istep
   real(wp) :: eap,ebq,krpa,kfxc,q
   type(f_progress_bar) :: bar
   integer, dimension(:,:), allocatable :: transitions
@@ -92,10 +92,12 @@ subroutine calculate_coupling_matrix(iproc,nproc,boxit,tddft_approach,nspin,ndim
   !For nspin=1, define an auxiliary matrix for spin-off-diagonal terms.
   if (nspin==1) Kaux = f_malloc0([nmulti, nmulti],id='Kaux')
 
-  if (iproc==0) bar=f_progress_bar_new(nstep=nalphap)
+  if (iproc==0) bar=f_progress_bar_new(nstep=((nalphap+1)*nalphap)/2)
+
+  print *,'nalphap' 
 
   call PS_set_options(pkernel,verbose=.false.)
-
+  istep=0
   do iap=1,nalphap
        ialpha=transitions(ALPHA_,iap)
        ip=transitions(P_,iap)
@@ -110,7 +112,8 @@ subroutine calculate_coupling_matrix(iproc,nproc,boxit,tddft_approach,nspin,ndim
          boxit%tmp=boxit%rxyz-center_of_charge
          dipoles(:,iap)=dipoles(:,iap)+boxit%tmp*q
        end do
-       dipoles(:,iap)=sqrt(eap)*dipoles(:,iap)
+       !dipoles(:,iap)=sqrt(eap)*dipoles(:,iap)
+       dipoles(:,iap)=dipoles(:,iap)
 
        !for every rho iap  calculate the corresponding potential
        !copy the transition  density in the inout structure
@@ -151,8 +154,9 @@ subroutine calculate_coupling_matrix(iproc,nproc,boxit,tddft_approach,nspin,ndim
              Kaux(iap,ibq)=Kaux(iap,ibq)*2.0_wp*sqrt(eap)*sqrt(ebq)
            end if
          end if
+         istep=istep+1
        end do
-       if (iproc==0) call dump_progress_bar(bar,step=iap)
+       if (iproc==0) call dump_progress_bar(bar,step=istep)
      end do
   !If more than one processor, then perform the MPI_all_reduce of K (and of Kaux if nspin=1) and of dipoles.
   if (nproc > 1) then
