@@ -105,13 +105,13 @@ subroutine calculate_coupling_matrix(iproc,nproc,boxit,tddft_approach,nspin,ndim
        !extraction fo the coefficients d_i
        do while(box_next_point(boxit))
          !fill the rho_ias array
-         rho_ias(boxit%ind,iap)=psirocc(boxit%ind,ip)*psivirtr(boxit%ind,ialpha)
-         q=rho_ias(boxit%ind,iap)*boxit%mesh%volume_element
+         rho_ias(boxit%ind,iap)=psirocc(boxit%ind,ip)*psivirtr(boxit%ind,ialpha)/boxit%mesh%volume_element
+         q=rho_ias(boxit%ind,iap)
          boxit%tmp=boxit%rxyz-center_of_charge
          dipoles(:,iap)=dipoles(:,iap)+boxit%tmp*q
        end do
        !dipoles(:,iap)=sqrt(eap)*dipoles(:,iap)
-       dipoles(:,iap)=dipoles(:,iap)
+       dipoles(:,iap)=dipoles(:,iap)*boxit%mesh%volume_element
 
        !for every rho iap  calculate the corresponding potential
        !copy the transition  density in the inout structure
@@ -133,14 +133,14 @@ subroutine calculate_coupling_matrix(iproc,nproc,boxit,tddft_approach,nspin,ndim
          spinindex=ispin+jspin-1
          kfxc=0.0_wp
          do while(box_next_point(boxit))
-           kfxc=kfxc+rho_ias(boxit%ind,iap)*rho_ias(boxit%ind,ibq)*dvxcdrho(boxit%ind,spinindex)
+           kfxc=kfxc+rho_ias(boxit%ind,iap)*rho_ias(boxit%ind,ibq)*dvxcdrho(boxit%ind,spinindex)*boxit%mesh%volume_element
          end do
          K(iap,ibq)=K(iap,ibq)+kfxc
          !in the nspin=1 case we also have to calculate the off-diagonal term
          if (nspin==1) then
            kfxc=0.0_wp
            do while(box_next_point(boxit))
-             kfxc=kfxc+rho_ias(boxit%ind,iap)*rho_ias(boxit%ind,ibq)*dvxcdrho(boxit%ind,2)
+             kfxc=kfxc+rho_ias(boxit%ind,iap)*rho_ias(boxit%ind,ibq)*dvxcdrho(boxit%ind,2)*boxit%mesh%volume_element
            end do
            Kaux(iap,ibq)=Kaux(iap,ibq)+kfxc
          end if
