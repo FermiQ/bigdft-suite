@@ -110,8 +110,7 @@ subroutine calculate_coupling_matrix(iproc,nproc,boxit,tddft_approach,nspin,ndim
          boxit%tmp=boxit%rxyz-center_of_charge
          dipoles(:,iap)=dipoles(:,iap)+boxit%tmp*q
        end do
-       !dipoles(:,iap)=sqrt(eap)*dipoles(:,iap)
-       dipoles(:,iap)=dipoles(:,iap)*boxit%mesh%volume_element
+       dipoles(:,iap)=sqrt(eap)*dipoles(:,iap)*boxit%mesh%volume_element
 
        !for every rho iap  calculate the corresponding potential
        !copy the transition  density in the inout structure
@@ -684,7 +683,7 @@ subroutine coupling_matrix_prelim(iproc,nproc,geocode,tddft_approach,nspin,lr,or
      call vcopy(3*nmulti,dipoles(1,1),1,dipoles(1,nmulti+1),1)
   end if
 
-  !
+ 
   call dscal(3*ndipoles,hxh*hyh*hzh,dipoles(1,1),1)
 
   !Build the upper triangular part of K (and Kaux if nspin=1)
