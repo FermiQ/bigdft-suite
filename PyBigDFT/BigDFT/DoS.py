@@ -17,7 +17,10 @@ class DiracSuperposition():
         """
         import numpy as np
         self.dos=dos 
-        self.norm=wgts
+        if type(wgts)==type(1.0):
+            self.norm=[wgts]
+        else:
+            self.norm=wgts
         #set range for this distribution
         e_min=1.e100
         e_max=-1.e100
@@ -85,7 +88,7 @@ class DoS():
         self.npts=npts
         if bandarrays is not None: self.append_from_bandarray(bandarrays,label)
         if evals is not None: self.append_from_dict(evals,label)
-        if energies is not None: self.append(energies,label=label,units=units,norm=norm)
+        if energies is not None: self.append(np.array([energies]),label=label,units=units,norm=(np.array([norm]) if type(norm)==type(1.0) else norm))
         self.sigma=self.conversion_factor(units)*sigma
         self.fermi_level(fermi_level,units=units)
         if sdos is not None: self._embed_sdos(sdos)

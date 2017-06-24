@@ -58,6 +58,7 @@ module sparsematrix_init
   public :: get_number_of_electrons
   public :: get_sparsematrix_local_extent
   public :: get_spasematrix_local_rows_columns
+  !public :: check_projector_charge_analysis
 
 
   contains

@@ -6,8 +6,6 @@
 !!    GNU General Public License, see ~/COPYING file
 !!    or http://www.gnu.org/copyleft/gpl.txt .
 !!    For the list of contributors, see ~/AUTHORS
-
-
 subroutine center_of_charge(at,rxyz,cc)
   use module_base
   use module_types
