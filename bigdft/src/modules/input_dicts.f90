@@ -101,8 +101,8 @@ contains
     type(dictionary), pointer :: dict            !< Input dictionary
     !local variables
     character(len = 100) :: f0
-    character(len=max_field_length) :: st,key
-    type(dictionary), pointer :: vals,to_out,iter
+    character(len=max_field_length) :: st,key,target_key
+    type(dictionary), pointer :: vals,to_out,iter,conversion,tmp
 
     ! Parse all files.
     call set_inputfile(f0, radical, PERF_VARIABLES)
@@ -137,14 +137,23 @@ contains
     call read_dft_from_text_format(mpi_env%iproc,vals, trim(f0))
     if (associated(vals)) then
       to_out=>list_new(.item. OUTPUT_WF)
+      conversion=>dict_new(OUTPUT_WF .is. &
+           dict_new('key' .is. WRITE_ORBITALS,&
+           '0' .is. 'No', '1' .is. 'text', '2' .is. 'binary', '3' .is. 'etsf'))
       nullify(iter)
       do while(iterating(iter,on=to_out))
          key=dict_value(iter)
          st = vals // trim(key)
-         call set(dict//OUTPUT_VARIABLES//trim(key),st)
+         target_key=key
+         tmp=conversion .get. key
+         if (associated(tmp)) then
+            target_key=tmp//'key'
+            st=tmp .get. st
+         end if
+         call set(dict//OUTPUT_VARIABLES//trim(target_key),st)
          call dict_remove(vals,trim(key))
       end do
-      call dict_free(to_out)
+      call dict_free(to_out,conversion)
       call set(dict//DFT_VARIABLES, vals)
     end if
 

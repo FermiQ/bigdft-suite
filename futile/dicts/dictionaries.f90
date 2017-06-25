@@ -109,7 +109,7 @@ module dictionaries
    end interface
 
    interface dict_get
-      module procedure dict_get_l
+      module procedure dict_get_l,dict_get_c
    end interface dict_get
 
    interface dict_iter
@@ -1361,6 +1361,16 @@ contains
      val=default
      val=dict .get. key
    end function dict_get_l
+
+   function dict_get_c(dict,key,default) result(val)
+     implicit none
+     type(dictionary), pointer :: dict
+     character(len=*), intent(in) :: key
+     character(len=*), intent(in) :: default
+     character(len=max_field_length) :: val
+     val=default
+     val=dict .get. key
+   end function dict_get_c
 
    !> Internal procedure for .get. operator interface
    function list_container_if_key_exists(dict,key) result(list)

@@ -259,8 +259,9 @@ run_message:
 	fi
 
 %.pre-in: $(abs_top_builddir)/src/bigdft-tool
-	@name=`basename $@ .out.out | $(SED) "s/[^_]*_\?\(.*\)$$/\1/"` ; \
-	if test -n "$$name"; then \
+	@for i in *.out.ref.yaml ; do \
+	name=`basename $$i .out.ref.yaml | $(SED) "s/[^_]*_\?\(.*\)$$/\1/"` ; \
+	if !(test -z "$$name" -o  "$$name" = memguess); then \
 	   if test ! -f $$name".yaml"; then \
 	      echo "$(run_serial) $(abs_top_builddir)/src/bigdft-tool -l -n 1 --name=$$name"; \
 	      $(run_serial) $(abs_top_builddir)/src/bigdft-tool -l -n 1 --name=$$name; \
@@ -271,7 +272,8 @@ run_message:
 	      echo "$(run_serial) $(abs_top_builddir)/src/bigdft-tool -l -n 1"; \
 	      $(run_serial) $(abs_top_builddir)/src/bigdft-tool -l -n 1; \
 	   fi; \
-	fi
+	fi ;\
+	done
 
 %.run: %.in run_message
 	@name=`basename $@ .run` ; dir=$$name-test ; \
