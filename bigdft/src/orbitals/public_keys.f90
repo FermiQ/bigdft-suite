@@ -139,6 +139,7 @@ module public_keys
   character(len = *), parameter :: NOSE_MTS_SIZE = "nose_mts_size"
   character(len = *), parameter :: NOSE_YOSHIDA_FACTOR = "nose_yoshida_factor"
   character(len = *), parameter :: NOSE_FREQUENCY = "nose_frequency"
+  character(len = *), parameter :: ALWAYS_FROM_SCRATCH = "always_from_scratch"
   character(len = *), parameter :: WAVEFUNCTION_EXTRAPOLATION="wavefunction_extrapolation"
   character(len = *), parameter :: RESTART_POS="restart_pos"
   character(len = *), parameter :: RESTART_VEL="restart_vel"

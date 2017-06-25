@@ -1067,6 +1067,9 @@
      DESCRIPTION: A value greater than 0 activates wfn extrapolation
      EXCLUSIVE: [ 0, 1, 2, 4 ]
      default: 0
+   always_from_scratch:
+     COMMENT: When true, always restart wavefunctions from scratch to eliminate dissipation effects
+     default: No
    restart_nose:
      COMMENT: Restart Nose Hoover Chain information from md.restart
      default: No

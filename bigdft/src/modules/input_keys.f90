@@ -335,6 +335,7 @@ module module_input_keys
      logical  :: restart_nose
      logical  :: restart_pos
      logical  :: restart_vel
+     logical  :: always_from_scratch
 
      ! Performance variables from input.perf
      logical :: debug      !< Debug option (used by memocc)
@@ -2078,6 +2079,8 @@ contains
           in%restart_vel = val
        case (RESTART_POS)
           in%restart_pos = val
+       case (ALWAYS_FROM_SCRATCH)
+          in%always_from_scratch = val
        case DEFAULT
           if (bigdft_mpi%iproc==0) &
                call yaml_warning("unknown input key '" // trim(level) // "/" // trim(dict_key(val)) // "'")
@@ -2525,6 +2528,8 @@ contains
     call tddft_input_variables_default(in)
     !Default for Self-Interaction Correction variables
     call sic_input_variables_default(in)
+    !molecular dynamics vars
+    call md_input_variables_default(in)
     ! Default for signaling
     in%gmainloop = 0.d0
     ! Default for lin.
@@ -2617,6 +2622,7 @@ contains
     in%nmultint = 1
     in%nsuzuki  = 7
     in%nosefrq  = 3000.d0
+    in%always_from_scratch=.false.
   END SUBROUTINE md_input_variables_default
 
   !> Assign default values for self-interaction correction variables
