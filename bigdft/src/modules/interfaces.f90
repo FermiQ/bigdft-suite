@@ -1363,7 +1363,7 @@ module module_interfaces
   end interface
 
   interface
-     subroutine plot_wf(units_provided,orbname,nexpo,at,factor,lr,hx,hy,hz,rxyz,psi, &
+     subroutine plot_wf(units_provided,orbname,nexpo,at,factor,lr,hgrids,rxyz,psi, &
           unit0_, unitx_, unity_, unitz_)
        use module_defs, only: gp,dp,wp
        use locregs, only: locreg_descriptors
@@ -1373,7 +1373,7 @@ module module_interfaces
        character(len=*) :: orbname
        integer, intent(in) :: nexpo
        real(dp), intent(in) :: factor
-       real(gp), intent(in) :: hx,hy,hz
+       real(gp), dimension(3), intent(in) :: hgrids
        type(atoms_data), intent(in) :: at
        real(gp), dimension(3,at%astruct%nat), intent(in) :: rxyz
        type(locreg_descriptors), intent(in) :: lr
