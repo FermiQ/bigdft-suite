@@ -112,6 +112,9 @@ AX_MPI()
 AX_LINALG()
 AX_FLIB()
 AX_CHESS()
+if test "$ax_have_CHESS" != "yes" ; then
+  AC_MSG_ERROR(["Cannot find CheSS library."])
+fi
 AX_PSOLVER()
 if test "$ax_have_PSOLVER" != "yes" ; then
   AC_MSG_ERROR(["Cannot find PSolver library."])

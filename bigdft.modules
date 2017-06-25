@@ -22,8 +22,11 @@
 
   <repository type="tarball" name="metis"
               href="http://glaros.dtc.umn.edu/gkhome/fetch/sw/parmetis/"/>
-<!--  <repository type="tarball" name="cmake-rep"
-              href="https://cmake.org/files/v3.3/"/> -->
+  <repository type="tarball" name="cmake-rep"
+              href="https://cmake.org/files/v3.3/"/> 
+  <repository type="tarball" name="netlib"
+              href="http://www.netlib.org/lapack/"/> 
+
 
   <repository type="tarball" name="local" href="./"/>
 
@@ -44,6 +47,12 @@
   <cmake id="openbabel">
     <branch repo="local" module="openbabel-2.4.1.tar.gz" version="2.4.1" checkoutdir="openbabel"/>
   </cmake>
+
+  <cmake id="lapack">
+    <branch repo="netlib" module="lapack-3.7.0.tgz" version="3.7.0" checkoutdir="lapack"/>
+  </cmake>
+
+
 
   <distutils id="PyYAML">
     <!--<branch repo="libyaml" module="PyYAML-3.10.tar.gz" version="3.10"/>-->
@@ -217,8 +226,7 @@
     </dependencies>
   </distutils>
 
-
-<!--  <autotools id="cmake-dev">
+  <!-- <autotools id="cmake-dev">
     <branch repo="cmake-rep" module="cmake-3.3.2.tar.gz"
             version="3.3.2"/>
     <dependencies>
