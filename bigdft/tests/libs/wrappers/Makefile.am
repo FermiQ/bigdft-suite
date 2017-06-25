@@ -14,11 +14,6 @@ include $(srcdir)/../check.mk
 
 SUBDIRS =
 
-if HAVE_OPENBABEL
-babel_prg = babel
-babel_report = babel.out.report.yaml
-endif
-
 check_PROGRAMS = check_wrappers hooks $(babel_prg)
 
 AM_LDFLAGS = -L$(top_builddir)/src
@@ -28,6 +23,17 @@ bigdft_library = $(top_builddir)/src/libbigdft-1.so.@BIGDFT_MINOR_VERSION@
 else
 bigdft_library = $(top_builddir)/src/libbigdft-1.a @LIB_BIGDFT_DEPS@
 endif
+
+if HAVE_OPENBABEL
+babel_prg = babel
+babel_report = babel.out.report.yaml
+bigdft_library += $(top_builddir)/src/modules/libbabel.so.@BIGDFT_MINOR_VERSION@
+if BUILD_DYNAMIC_LIBS
+else
+AM_LDFLAGS += -Wl,-rpath=$(abs_top_builddir)/src/modules
+endif
+endif
+
 
 check_wrappers_SOURCES = check_wrappers.c
 check_wrappers_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir)/src/bindings -I$(top_builddir)/src/bindings @GLIB_CFLAGS@
@@ -39,7 +45,7 @@ hooks_LDADD = $(bigdft_library) @LIB_FUTILE_LIBS@
 
 babel_SOURCES = babel.f90
 babel_FCFLAGS = @LIB_FUTILE_CFLAGS@
-babel_LDADD = $(bigdft_library) $(top_builddir)/src/modules/libbabel.so.@BIGDFT_MINOR_VERSION@ @LIB_FUTILE_LIBS@
+babel_LDADD = $(bigdft_library) @LIB_FUTILE_LIBS@
 
 
 EXTRA_DIST = wrappers.out.ref.yaml posinp.ref.yaml pywrappers.out.ref.yaml check_wrappers.py.in babel.out.ref.yaml TiO2.cif
