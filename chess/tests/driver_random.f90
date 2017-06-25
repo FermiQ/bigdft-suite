@@ -95,8 +95,8 @@ program driver_random
   ! Read in the parameters for the run.
   call read_and_communicate_input_variables()
 
-  call f_malloc_set_status(memory_limit=0.e0,iproc=iproc,output_level=output_level,&
-       logfile_name='mem.log',profiling_depth=profiling_depth)
+  call f_malloc_set_status(iproc=iproc,output_level=output_level,&
+       logfile_name='mem.log')
 
   ! Initialize the sparse matrix errors and timings.
   call sparsematrix_init_errors()

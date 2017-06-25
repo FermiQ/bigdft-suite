@@ -59,6 +59,7 @@ module sparsematrix_init
   public :: get_sparsematrix_local_extent
   public :: get_sparsematrix_local_rows_columns
   public :: init_matrix_taskgroups_wrapper
+  public :: check_projector_charge_analysis
 
 
   contains
