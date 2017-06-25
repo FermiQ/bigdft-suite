@@ -40,6 +40,17 @@ subroutine f_memcpy_i2(dest,src)
   include 'f_memcpy-base-inc.f90'
 end subroutine f_memcpy_i2
 
+subroutine f_memcpy_i3(dest,src)
+  implicit none
+  integer(f_integer), dimension(:,:,:), intent(inout) :: dest !<destination buffer
+  integer(f_integer), dimension(:,:,:), intent(in) :: src !<source buffer 
+  !local variables
+  integer(f_long) :: ns,nd
+  nd=f_sizeof(dest)
+  ns=f_sizeof(src)
+  include 'f_memcpy-base-inc.f90'
+end subroutine f_memcpy_i3
+
 
 !!$subroutine f_memcpy_il0(dest,src,n)
 !!$  implicit none
@@ -87,6 +98,17 @@ subroutine f_memcpy_i1i2(dest,src)
   include 'f_memcpy-base-inc.f90'
 end subroutine f_memcpy_i1i2
 
+subroutine f_memcpy_i1i3(dest,src)
+  implicit none
+  integer(f_integer), dimension(:), intent(inout) :: dest !<destination buffer
+  integer(f_integer), dimension(:,:,:), intent(in) :: src !<source buffer 
+  !local variables
+  integer(f_long) :: ns,nd
+  nd=f_sizeof(dest)
+  ns=f_sizeof(src)
+  include 'f_memcpy-base-inc.f90'
+end subroutine f_memcpy_i1i3
+
 subroutine f_memcpy_li1li2(dest,src)
   implicit none
   integer(f_long), dimension(:), intent(inout) :: dest !<destination buffer
@@ -108,6 +130,17 @@ subroutine f_memcpy_i2i1(dest,src)
   ns=f_sizeof(src)
   include 'f_memcpy-base-inc.f90'
 end subroutine f_memcpy_i2i1
+
+subroutine f_memcpy_i3i1(dest,src)
+  implicit none
+  integer(f_integer), dimension(:,:,:), intent(inout) :: dest !<destination buffer
+  integer(f_integer), dimension(:), intent(in) :: src !<source buffer 
+  !local variables
+  integer(f_long) :: ns,nd
+  nd=f_sizeof(dest)
+  ns=f_sizeof(src)
+  include 'f_memcpy-base-inc.f90'
+end subroutine f_memcpy_i3i1
 
 subroutine f_memcpy_li2li1(dest,src)
   implicit none
@@ -751,6 +784,19 @@ function f_maxdiff_i2i1(a,b,n) result(maxdiff)
   ns=f_sizeof(b)
   include 'f_maxdiff-base-inc.f90'
 end function f_maxdiff_i2i1
+function f_maxdiff_i3i1(a,b,n) result(maxdiff)
+  use f_utils, only: f_diff
+  implicit none
+  integer(f_integer), dimension(:,:,:), intent(in) :: a 
+  integer(f_integer), dimension(:), intent(in) :: b
+  integer(f_integer) :: maxdiff
+  integer, intent(in), optional :: n
+  !local variables
+  integer(f_long) :: ns,nd,cnt
+  nd=f_sizeof(a)
+  ns=f_sizeof(b)
+  include 'f_maxdiff-base-inc.f90'
+end function f_maxdiff_i3i1
 function f_maxdiff_li2li1(a,b,n) result(maxdiff)
   use f_utils, only: f_diff
   implicit none

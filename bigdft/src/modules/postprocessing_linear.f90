@@ -88,7 +88,7 @@ module postprocessing_linear
 
     
       !inv_ovrlp(1) = matrices_null()
-      !call allocate_matrices(tmb%linmat%l, allocate_full=.true., matname='inv_ovrlp', mat=inv_ovrlp(1))
+      !call allocate_matrices(tmb%linmat%smat(3), allocate_full=.true., matname='inv_ovrlp', mat=inv_ovrlp(1))
     
     
     
@@ -112,8 +112,8 @@ module postprocessing_linear
          end if
     
          call calculate_overlap_transposed(bigdft_mpi%iproc, bigdft_mpi%nproc, tmb%orbs, tmb%collcom, tmb%psit_c, &
-              tmb%psit_c, tmb%psit_f, tmb%psit_f, tmb%linmat%s, tmb%linmat%auxs, tmb%linmat%ovrlp_)
-         !!call gather_matrix_from_taskgroups_inplace(bigdft_mpi%iproc, bigdft_mpi%nproc, tmb%linmat%s, tmb%linmat%ovrlp_)
+              tmb%psit_c, tmb%psit_f, tmb%psit_f, tmb%linmat%smat(1), tmb%linmat%auxs, tmb%linmat%ovrlp_)
+         !!call gather_matrix_from_taskgroups_inplace(bigdft_mpi%iproc, bigdft_mpi%nproc, tmb%linmat%smat(1), tmb%linmat%ovrlp_)
          ! This can then be deleted if the transition to the new type has been completed.
          !tmb%linmat%ovrlp%matrix_compr=tmb%linmat%ovrlp_%matrix_compr
     
@@ -129,20 +129,20 @@ module postprocessing_linear
       end if
 
       !call loewdin_charge_analysis_core(bigdft_mpi%iproc, bigdft_mpi%nproc, tmb%orbs%norb, tmb%orbs%norbp, tmb%orbs%isorb, &
-      !         tmb%orbs%norb_par, tmb%orbs%isorb_par, meth_overlap, tmb%linmat%s, tmb%linmat%l, atoms, &
+      !         tmb%orbs%norb_par, tmb%orbs%isorb_par, meth_overlap, tmb%linmat%smat(1), tmb%linmat%smat(3), atoms, &
       !         tmb%linmat%kernel_, tmb%linmat%ovrlp_)
       if (optionals_present) then
           call loewdin_charge_analysis_core(CHARGE_ANALYSIS_LOEWDIN, bigdft_mpi%iproc, bigdft_mpi%nproc, &
-               tmb%linmat%s%nfvctr, tmb%linmat%s%nfvctrp, tmb%linmat%s%isfvctr, &
-               tmb%linmat%s%nfvctr_par, tmb%linmat%s%isfvctr_par, &
-               meth_overlap, blocksize, tmb%linmat%smmd, tmb%linmat%s, tmb%linmat%l, atoms, &
+               tmb%linmat%smat(1)%nfvctr, tmb%linmat%smat(1)%nfvctrp, tmb%linmat%smat(1)%isfvctr, &
+               tmb%linmat%smat(1)%nfvctr_par, tmb%linmat%smat(1)%isfvctr_par, &
+               meth_overlap, blocksize, tmb%linmat%smmd, tmb%linmat%smat(1), tmb%linmat%smat(3), atoms, &
                tmb%linmat%kernel_, tmb%linmat%ovrlp_, &
                ntheta=ntheta, istheta=istheta, theta=theta)
       else
           call loewdin_charge_analysis_core(CHARGE_ANALYSIS_LOEWDIN, bigdft_mpi%iproc, bigdft_mpi%nproc, &
-               tmb%linmat%s%nfvctr, tmb%linmat%s%nfvctrp, tmb%linmat%s%isfvctr, &
-               tmb%linmat%s%nfvctr_par, tmb%linmat%s%isfvctr_par, &
-               meth_overlap, blocksize, tmb%linmat%smmd, tmb%linmat%s, tmb%linmat%l, atoms, &
+               tmb%linmat%smat(1)%nfvctr, tmb%linmat%smat(1)%nfvctrp, tmb%linmat%smat(1)%isfvctr, &
+               tmb%linmat%smat(1)%nfvctr_par, tmb%linmat%smat(1)%isfvctr_par, &
+               meth_overlap, blocksize, tmb%linmat%smmd, tmb%linmat%smat(1), tmb%linmat%smat(3), atoms, &
                tmb%linmat%kernel_, tmb%linmat%ovrlp_)
       end if
     
@@ -600,13 +600,13 @@ module postprocessing_linear
       call communicate_basis_for_density_collective(iproc, nproc, tmb%lzd, &
            max(tmb%npsidim_orbs,tmb%npsidim_comp), tmb%orbs, tmb%psi, tmb%collcom_sr)
     
-      tmparr = sparsematrix_malloc(tmb%linmat%l,iaction=SPARSE_FULL,id='tmparr')
-      call vcopy(tmb%linmat%l%nvctr, tmb%linmat%kernel_%matrix_compr(1), 1, tmparr(1), 1)
-      !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%l, tmb%linmat%kernel_)
+      tmparr = sparsematrix_malloc(tmb%linmat%smat(3),iaction=SPARSE_FULL,id='tmparr')
+      call vcopy(tmb%linmat%smat(3)%nvctr, tmb%linmat%kernel_%matrix_compr(1), 1, tmparr(1), 1)
+      !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%smat(3), tmb%linmat%kernel_)
       call sumrho_for_TMBs(iproc, nproc, KSwfn%Lzd%hgrids(1), KSwfn%Lzd%hgrids(2), KSwfn%Lzd%hgrids(3), &
-           tmb%collcom_sr, tmb%linmat%l, tmb%linmat%auxl, tmb%linmat%kernel_, denspot%dpbox%ndimrhopot, &
+           tmb%collcom_sr, tmb%linmat%smat(3), tmb%linmat%auxl, tmb%linmat%kernel_, denspot%dpbox%ndimrhopot, &
            denspot%rhov, rho_negative)
-      call vcopy(tmb%linmat%l%nvctr, tmparr(1), 1, tmb%linmat%kernel_%matrix_compr(1), 1)
+      call vcopy(tmb%linmat%smat(3)%nvctr, tmparr(1), 1, tmb%linmat%kernel_%matrix_compr(1), 1)
       call f_free(tmparr)
     
       if (rho_negative) then
@@ -619,7 +619,7 @@ module postprocessing_linear
       call updatePotential(input%nspin,denspot,energs)!%eh,energs%exc,energs%evxc)
     
       tmb%can_use_transposed=.false.
-      !!call extract_taskgroup_inplace(tmb%linmat%l, tmb%linmat%kernel_)
+      !!call extract_taskgroup_inplace(tmb%linmat%smat(3), tmb%linmat%kernel_)
       if (.not. frag_coeffs) then
          call get_coeff(iproc, nproc, LINEAR_MIXDENS_SIMPLE, KSwfn%orbs, at, rxyz, denspot, GPU, infoCoeff, &
               energs, nlpsp, input%SIC, tmb, fnrm, .true., .true., .true., .false., .true., 0, 0, 0, 0, &
@@ -630,7 +630,7 @@ module postprocessing_linear
               input%cp%pexsi%pexsi_temperature, input%cp%pexsi%pexsi_tol_charge, input%cp%pexsi%pexsi_np_sym_fact, &
               input%cp%pexsi%pexsi_do_inertia_count, input%cp%pexsi%pexsi_max_iter, &
               input%cp%pexsi%pexsi_verbosity)
-         !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%l, tmb%linmat%kernel_)
+         !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%smat(3), tmb%linmat%kernel_)
     
          if (bigdft_mpi%iproc ==0) then
             call write_eigenvalues_data(0.1d0,KSwfn%orbs,mom_vec_fake)
@@ -686,12 +686,12 @@ module postprocessing_linear
       end if
     
       nvctrp=comms%nvctr_par(iproc,0)*orbs%nspinor
-      call dgemm('n', 'n', nvctrp, orbs%norb, tmb%linmat%m%nfvctr, 1.d0, phi_global, nvctrp, tmb%coeff(1,1), &
-                 tmb%linmat%m%nfvctr, 0.d0, phiwork_global, nvctrp)
+      call dgemm('n', 'n', nvctrp, orbs%norb, tmb%linmat%smat(2)%nfvctr, 1.d0, phi_global, nvctrp, tmb%coeff(1,1), &
+                 tmb%linmat%smat(2)%nfvctr, 0.d0, phiwork_global, nvctrp)
 
 !!$      nvctrp=comms%nvctr_par(iproc,0)*orbs%nspinor
-!!$      call dgemm('n', 'n', nvctrp, KSwfn%orbs%norb, tmb%linmat%m%nfvctr, 1.d0, phi_global, nvctrp, tmb%coeff(1,1), &
-!!$                 tmb%linmat%m%nfvctr, 0.d0, phiwork_global, nvctrp)
+!!$      call dgemm('n', 'n', nvctrp, KSwfn%orbs%norb, tmb%linmat%smat(2)%nfvctr, 1.d0, phi_global, nvctrp, tmb%coeff(1,1), &
+!!$                 tmb%linmat%smat(2)%nfvctr, 0.d0, phiwork_global, nvctrp)
 
       if (frag_coeffs) call f_memcpy(src=coeff_tmp,dest=tmb%coeff)
 !!$           call vcopy(ndimcoeff,coeff_tmp(1,1),1,tmb%coeff(1,1),1)
@@ -782,13 +782,13 @@ module postprocessing_linear
       ! which will be calculated by the cubic restart.
       call communicate_basis_for_density_collective(iproc, nproc, tmb%lzd, &
            max(tmb%npsidim_orbs,tmb%npsidim_comp), tmb%orbs, tmb%psi, tmb%collcom_sr)
-      tmparr = sparsematrix_malloc(tmb%linmat%l,iaction=SPARSE_FULL,id='tmparr')
-      call vcopy(tmb%linmat%l%nvctr, tmb%linmat%kernel_%matrix_compr(1), 1, tmparr(1), 1)
-      !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%l, tmb%linmat%kernel_)
+      tmparr = sparsematrix_malloc(tmb%linmat%smat(3),iaction=SPARSE_FULL,id='tmparr')
+      call vcopy(tmb%linmat%smat(3)%nvctr, tmb%linmat%kernel_%matrix_compr(1), 1, tmparr(1), 1)
+      !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%smat(3), tmb%linmat%kernel_)
       call sumrho_for_TMBs(iproc, nproc, KSwfn%Lzd%hgrids(1), KSwfn%Lzd%hgrids(2), KSwfn%Lzd%hgrids(3), &
-           tmb%collcom_sr, tmb%linmat%l, tmb%linmat%auxl, tmb%linmat%kernel_, denspot%dpbox%ndimrhopot, &
+           tmb%collcom_sr, tmb%linmat%smat(3), tmb%linmat%auxl, tmb%linmat%kernel_, denspot%dpbox%ndimrhopot, &
            denspot%rhov, rho_negative)
-      call vcopy(tmb%linmat%l%nvctr, tmparr(1), 1, tmb%linmat%kernel_%matrix_compr(1), 1)
+      call vcopy(tmb%linmat%smat(3)%nvctr, tmparr(1), 1, tmb%linmat%kernel_%matrix_compr(1), 1)
       call f_free(tmparr)
       if (rho_negative) then
           call corrections_for_negative_charge(iproc, nproc, at, denspot)
@@ -798,7 +798,7 @@ module postprocessing_linear
       end if
       call updatePotential(input%nspin,denspot,energs)!%eh,energs%exc,energs%evxc)
       tmb%can_use_transposed=.false.
-      !!call extract_taskgroup_inplace(tmb%linmat%l, tmb%linmat%kernel_)
+      !!call extract_taskgroup_inplace(tmb%linmat%smat(3), tmb%linmat%kernel_)
       call get_coeff(iproc, nproc, LINEAR_MIXDENS_SIMPLE, KSwfn%orbs, at, rxyz, denspot, GPU, infoCoeff, &
            energs, nlpsp, input%SIC, tmb, fnrm, .true., .true., .true., .false., .true., 0, 0, 0, 0, &
            order_taylor, input%lin%max_inversion_error, &
@@ -808,7 +808,7 @@ module postprocessing_linear
            input%cp%pexsi%pexsi_temperature, input%cp%pexsi%pexsi_tol_charge, &
            input%cp%pexsi%pexsi_np_sym_fact, input%cp%pexsi%pexsi_do_inertia_count, input%cp%pexsi%pexsi_max_iter, &
            input%cp%pexsi%pexsi_verbosity, updatekernel=.false.)
-      !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%l, tmb%linmat%kernel_)
+      !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%smat(3), tmb%linmat%kernel_)
       energy=energs%ebs-energs%eh+energs%exc-energs%evxc-energs%eexctX+energs%eion+energs%edisp
       energyDiff=energy-energyold
       energyold=energy

@@ -339,7 +339,7 @@ module module_input_keys
      ! Performance variables from input.perf
      logical :: debug      !< Debug option (used by memocc)
      integer :: ncache_fft !< Cache size for FFT
-     integer :: profiling_depth
+     !integer :: profiling_depth
      real(gp) :: projrad   !< Coarse radius of the projectors in units of the maxrad
      real(gp) :: symTol    !< Tolerance for symmetry detection.
      integer :: linear
@@ -748,12 +748,12 @@ contains
          dest=filename)
     if (.not. in%debug) then
        if (in%verbosity==3) then
-          call f_malloc_set_status(output_level=1, iproc=bigdft_mpi%iproc,logfile_name=filename,profiling_depth=in%profiling_depth)
+          call f_malloc_set_status(output_level=1, iproc=bigdft_mpi%iproc,logfile_name=filename)!,profiling_depth=in%profiling_depth)
        else
-          call f_malloc_set_status(output_level=0, iproc=bigdft_mpi%iproc,profiling_depth=in%profiling_depth)
+          call f_malloc_set_status(output_level=0, iproc=bigdft_mpi%iproc)!,profiling_depth=in%profiling_depth)
        end if
     else
-       call f_malloc_set_status(output_level=2, iproc=bigdft_mpi%iproc,logfile_name=filename,profiling_depth=in%profiling_depth)
+       call f_malloc_set_status(output_level=2, iproc=bigdft_mpi%iproc,logfile_name=filename)!,profiling_depth=in%profiling_depth)
     end if
 
     call nullifyInputLinparameters(in%lin)
@@ -1785,8 +1785,8 @@ contains
        select case (trim(dict_key(val)))
        case (DEBUG)
           in%debug = val
-       case (PROFILING_DEPTH)
-          in%profiling_depth = val
+       !case (PROFILING_DEPTH)
+       !   in%profiling_depth = val
        case (FFTCACHE)
           in%ncache_fft = val
        case (TOLSYM)
@@ -2502,7 +2502,7 @@ contains
     call f_zero(in%calculate_strten)
     call f_zero(in%nab_options)
     in%sdos=.false.
-    in%profiling_depth=-1
+    !in%profiling_depth=-1
     in%plugin_id = 0
     in%gen_norb = UNINITIALIZED(0)
     in%gen_norbu = UNINITIALIZED(0)

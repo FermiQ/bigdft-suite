@@ -57,8 +57,9 @@ module sparsematrix_init
   public :: write_sparsematrix_info
   public :: get_number_of_electrons
   public :: get_sparsematrix_local_extent
-  public :: get_spasematrix_local_rows_columns
-  !public :: check_projector_charge_analysis
+  public :: get_sparsematrix_local_rows_columns
+  public :: init_matrix_taskgroups_wrapper
+  public :: check_projector_charge_analysis
 
 
   contains
@@ -2557,9 +2558,9 @@ module sparsematrix_init
           call f_free_ptr(on_which_atom_)
       end if
 
-      ! since no taskgroups are used, the values of iirow and iicol are just set to
-      ! the minimum and maximum, respectively.
-      call init_matrix_taskgroups(iproc, nproc, comm, .false., smat)
+      !!! since no taskgroups are used, the values of iirow and iicol are just set to
+      !!! the minimum and maximum, respectively.
+      !!call init_matrix_taskgroups(iproc, nproc, comm, .false., smat)
 
       call f_free(nonzero)
       if (init_matmul_) then
@@ -3339,15 +3340,15 @@ module sparsematrix_init
               end do search_out
           end do
           if (ind_min>ind_min1) then
-              write(*,*) 'ind_min, ind_min1', ind_min, ind_min1
+              write(*,*) 'iproc, ind_min, ind_min1', iproc, ind_min, ind_min1
               call f_err_throw('ind_min>ind_min1')
           end if
           if (ind_max<ind_max1) then
-              write(*,*) 'ind_max, ind_max1', ind_max, ind_max1
+              write(*,*) 'iproc, ind_max, ind_max1', iproc, ind_max, ind_max1
               call f_err_throw('ind_max<ind_max1')
           end if
-          !!write(*,'(a,i3,3x,2(2i6,4x))') 'iproc, ind_min, ind_max, ind_min1, ind_max1', &
-          !!    iproc, ind_min, ind_max,  ind_min1, ind_max1
+          !!write(*,'(a,i3,3x,4(2i6,4x))') 'iproc, ind_min, ind_max, ind_min1, ind_max1, iirow, iicol', &
+          !!    iproc, ind_min, ind_max,  ind_min1, ind_max1, iirow, iicol
           !@ END NEW #################################################################
 
 
@@ -4983,7 +4984,7 @@ module sparsematrix_init
       !!write(*,*) 'nonzero',nonzero
       call init_sparse_matrix(iproc, nproc, comm, nfvctr, &
            nnonzero, nonzero, nnonzero_buf_mult, nonzero_buf_mult, smat, init_matmul=init_matmul)
-      call init_matrix_taskgroups(iproc, nproc, comm, parallel_layout=.false., smat=smat)
+      !!call init_matrix_taskgroups(iproc, nproc, comm, parallel_layout=.false., smat=smat)
 
       if (calc_nextra) then
           do iextra=1,nextra_
@@ -4991,7 +4992,7 @@ module sparsematrix_init
                nnonzero_extra(iextra), nonzero_extra(:,:,iextra), &
                nnonzero_buf_mult, nonzero_buf_mult, smat_extra(iextra), &
                init_matmul=init_matmul_extra(iextra))
-          call init_matrix_taskgroups(iproc, nproc, comm, parallel_layout=.false., smat=smat_extra(iextra))
+          !!call init_matrix_taskgroups(iproc, nproc, comm, parallel_layout=.false., smat=smat_extra(iextra))
           end do
       end if
 
@@ -5715,33 +5716,36 @@ module sparsematrix_init
 
 
 
-   subroutine get_sparsematrix_local_extent(iproc, nproc, smmd, smat, ind_min, ind_max)
+   subroutine get_sparsematrix_local_extent(iproc, nproc, smat, ind_min, ind_max)
      use sparsematrix_base, only: sparse_matrix, sparse_matrix_metadata
      implicit none
 
      ! Calling arguments
      integer,intent(in) :: iproc, nproc
-     type(sparse_matrix_metadata),intent(in) :: smmd
+     !!type(sparse_matrix_metadata),intent(in) :: smmd
      type(sparse_matrix),intent(in) :: smat
-     integer,intent(inout) :: ind_min, ind_max
+     integer,intent(out) :: ind_min, ind_max
+
+     ind_min = smat%nvctr
+     ind_max = 0
 
      call check_compress_distributed_layout(smat,ind_min,ind_max)
      if (smat%smatmul_initialized) then
          call check_matmul_layout(smat%smmm%nseq,smat%smmm%indices_extract_sequential,ind_min,ind_max)
      end if
      call check_ortho_inguess(smat,ind_min,ind_max)
-     call check_projector_charge_analysis(iproc, nproc, smmd, smat, ind_min, ind_max)
+     !!call check_projector_charge_analysis(iproc, nproc, smmd, smat, ind_min, ind_max)
 
    end subroutine get_sparsematrix_local_extent
 
 
-   subroutine get_spasematrix_local_rows_columns(smat, ind_min, ind_max, irow, icol)
+   subroutine get_sparsematrix_local_rows_columns(smat, ind_min, ind_max, irow, icol)
      use sparsematrix_base, only: sparse_matrix, sparse_matrix_metadata
      implicit none
 
      ! Calling arguments
      type(sparse_matrix),intent(in) :: smat
-     integer,intent(out) :: ind_min, ind_max
+     integer,intent(in) :: ind_min, ind_max
      integer,dimension(2),intent(out) :: irow, icol
 
      ! Local variables
@@ -5786,7 +5790,62 @@ module sparsematrix_init
 
      end do
 
-    end subroutine get_spasematrix_local_rows_columns
+     !write(*,'(a,i5,3x,3(2i6,3x))') 'iproc, ind_min, ind_max, irow, icol', mpirank(mpi_comm_world), ind_min, ind_max, irow, icol
+
+    end subroutine get_sparsematrix_local_rows_columns
+
+
+
+    subroutine init_matrix_taskgroups_wrapper(iproc, nproc, comm, enable_matrix_taskgroups, nmat, smat, ind_minmax)
+      use dynamic_memory
+      implicit none
+      ! Calling arguments
+      integer,intent(in) :: iproc, nproc, comm
+      logical,intent(in) :: enable_matrix_taskgroups
+      integer,intent(in) :: nmat
+      type(sparse_matrix),dimension(nmat),intent(inout) :: smat
+      integer,dimension(2,nmat),intent(in),optional :: ind_minmax
+      ! Local variables
+      integer :: imat, imin_smat, imax_smat
+      integer,dimension(2) :: irow_minmax, icol_minmax
+      integer,dimension(2) :: irow_smat, icol_smat
+      integer,dimension(:,:),allocatable :: ind_minmax_smat
+
+      ! Some sanity checks
+      do imat=2,nmat
+          if (smat(imat)%nfvctr/=smat(1)%nfvctr) then
+              call f_err_throw('Inconsistency of the matrix sizes')
+          end if
+      end do
+
+      ind_minmax_smat = f_malloc((/2,nmat/),id='ind_minmax_smat')
+
+      irow_minmax(1) = smat(1)%nfvctr
+      irow_minmax(2) = 1
+      icol_minmax(1) = smat(1)%nfvctr
+      icol_minmax(2) = 1
+      do imat=1,nmat
+          call get_sparsematrix_local_extent(iproc, nproc, smat(imat), &
+               ind_minmax_smat(1,imat), ind_minmax_smat(2,imat))
+          if (present(ind_minmax)) then
+              ind_minmax_smat(1,imat) = min(ind_minmax_smat(1,imat),ind_minmax(1,imat))
+              ind_minmax_smat(2,imat) = max(ind_minmax_smat(2,imat),ind_minmax(2,imat))
+          end if
+          call get_sparsematrix_local_rows_columns(smat(imat), ind_minmax_smat(1,imat), ind_minmax_smat(2,imat), &
+               irow_smat, icol_smat)
+          irow_minmax(1) = min(irow_smat(1),irow_minmax(1))
+          irow_minmax(2) = max(irow_smat(2),irow_minmax(2))
+          icol_minmax(1) = min(icol_smat(1),icol_minmax(1))
+          icol_minmax(2) = max(icol_smat(2),icol_minmax(2))
+      end do
+      do imat=1,nmat
+          call init_matrix_taskgroups(iproc, nproc, comm, enable_matrix_taskgroups, smat(imat), &
+               ind_minmax_smat(1,imat), ind_minmax_smat(2,imat), icol_minmax, irow_minmax)!, icol_minmax)
+      end do
+
+      call f_free(ind_minmax_smat)
+
+    end subroutine init_matrix_taskgroups_wrapper
 
 
 end module sparsematrix_init

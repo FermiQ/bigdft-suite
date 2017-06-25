@@ -32,9 +32,11 @@ program driver_foe
                                     matrix_matrix_multiplication, matrix_fermi_operator_expansion, &
                                     trace_A, trace_AB, sparse_matrix_metadata_init_from_file, &
                                     sparse_matrix_and_matrices_init_from_file_bigdft
-  use sparsematrix, only: write_matrix_compressed, transform_sparse_matrix, get_minmax_eigenvalues
+  use sparsematrix, only: write_matrix_compressed, transform_sparse_matrix, get_minmax_eigenvalues, &
+                          resize_matrix_to_taskgroup
   use sparsematrix_init, only: matrixindex_in_compressed, write_sparsematrix_info, &
-                               get_number_of_electrons, distribute_on_tasks
+                               get_number_of_electrons, distribute_on_tasks, &
+                               init_matrix_taskgroups_wrapper
   ! The following module is an auxiliary module for this test
   use utilities, only: get_ccs_data_from_file, calculate_error, median
   use futile
@@ -47,13 +49,13 @@ program driver_foe
   implicit none
 
   ! Variables
-  type(sparse_matrix) :: smat_s, smat_h, smat_k
+  type(sparse_matrix),dimension(3) :: smat
   type(matrices) :: mat_s, mat_h, mat_k, mat_ek
   type(matrices),dimension(1) :: mat_ovrlpminusonehalf
   type(sparse_matrix_metadata) :: smmd
   integer :: nfvctr, nvctr, ierr, iproc, nproc, nthread, ncharge, nfvctr_mult, nvctr_mult, scalapack_blocksize, icheck, it, nit
   integer :: ispin, ihomo, imax, ntemp, npl_max, pexsi_npoles, norbu, norbd, ii, info, norbp, isorb, norb, iorb, pexsi_np_sym_fact
-  integer :: pexsi_nproc_per_pole, pexsi_max_iter, pexsi_verbosity
+  integer :: pexsi_nproc_per_pole, pexsi_max_iter, pexsi_verbosity, output_level, profiling_depth
   real(mp) :: pexsi_mumin, pexsi_mumax, pexsi_mu, pexsi_DeltaE, pexsi_temperature, pexsi_tol_charge, betax
   integer,dimension(:),pointer :: row_ind, col_ptr, row_ind_mult, col_ptr_mult
   real(mp),dimension(:),pointer :: kernel, overlap, overlap_large
@@ -66,7 +68,7 @@ program driver_foe
   type(yaml_cl_parse) :: parser !< command line parser
   character(len=1024) :: metadata_file, overlap_file, hamiltonian_file, kernel_file, kernel_matmul_file
   character(len=1024) :: sparsity_format, matrix_format, kernel_method, inversion_method
-  logical :: check_spectrum, do_cubic_check, pexsi_do_inertia_count
+  logical :: check_spectrum, do_cubic_check, pexsi_do_inertia_count, init_matmul
   integer,parameter :: nthreshold = 10 !< number of checks with threshold
   real(mp),dimension(nthreshold),parameter :: threshold = (/ 1.e-1_mp, &
                                                              1.e-2_mp, &
@@ -92,7 +94,12 @@ program driver_foe
   iproc=mpirank()
   nproc=mpisize()
 
-  call f_malloc_set_status(memory_limit=0.e0,iproc=iproc)
+  ! Read in the parameters for the run.
+  call read_and_communicate_input_variables()
+
+
+  call f_malloc_set_status(iproc=iproc,output_level=output_level,&
+       logfile_name='mem.log')
 
   ! Initialize the sparsematrix error handling and timing.
   call sparsematrix_init_errors()
@@ -122,53 +129,9 @@ program driver_foe
       call yaml_mapping_close()
   end if
 
-  ! Read in the parameters for the run and print them.
+
+
   if (iproc==0) then
-      parser=yaml_cl_parse_null()
-      call commandline_options(parser)
-      call yaml_cl_parse_cmd_line(parser,args=options)
-      call yaml_cl_parse_free(parser)
-
-      metadata_file = options//'metadata_file'
-      overlap_file = options//'overlap_file'
-      hamiltonian_file = options//'hamiltonian_file'
-      kernel_file = options//'kernel_file'
-      kernel_matmul_file = options//'kernel_matmul_file'
-      sparsity_format = options//'sparsity_format'
-      matrix_format = options//'matrix_format'
-      kernel_method = options//'kernel_method'
-      scalapack_blocksize = options//'scalapack_blocksize'
-      check_spectrum = options//'check_spectrum'
-      fscale = options//'fscale'
-      fscale_lowerbound = options//'fscale_lowerbound'
-      fscale_upperbound = options//'fscale_upperbound'
-      evlow = options//'evlow'
-      evhigh = options//'evhigh'
-      ntemp = options//'ntemp'
-      ef = options//'ef'
-      npl_max = options//'npl_max'
-      pexsi_npoles = options//'pexsi_npoles'
-      pexsi_mumin = options//'pexsi_mumin'
-      pexsi_mumax = options//'pexsi_mumax'
-      pexsi_mu = options//'pexsi_mu'
-      pexsi_temperature = options//'pexsi_temperature'
-      pexsi_tol_charge = options//'pexsi_tol_charge'
-      pexsi_np_sym_fact = options//'pexsi_np_sym_fact'
-      pexsi_DeltaE = options//'pexsi_DeltaE'
-      do_cubic_check = options//'do_cubic_check'
-      accuracy_foe = options//'accuracy_foe'
-      accuracy_ice = options//'accuracy_ice'
-      accuracy_penalty = options//'accuracy_penalty'
-      nit = options//'nit'
-      betax = options//'betax'
-      inversion_method = options//'inversion_method'
-      pexsi_nproc_per_pole = options//'pexsi_nproc_per_pole'
-      pexsi_do_inertia_count = options//'pexsi_do_inertia_count'
-      pexsi_max_iter = options//'pexsi_max_iter'
-      pexsi_verbosity = options//'pexsi_verbosity'
-     
-      call dict_free(options)
-
       call yaml_mapping_open('Input parameters')
       call yaml_map('Sparsity format',trim(sparsity_format))
       call yaml_map('Matrix format',trim(matrix_format))
@@ -207,89 +170,14 @@ program driver_foe
       call yaml_map('Accuracy of Chebyshev fit for the penalty function',accuracy_penalty)
       call yaml_map('Number of iterations',nit)
       call yaml_map('Inversion method for the overlap matrix in FOE',inversion_method)
+      call yaml_map('Routine profiling output level',output_level)
+      call yaml_map('Routine timing profiling depth',profiling_depth)
       call yaml_mapping_close()
   end if
 
-  ! Send the input parameters to all MPI tasks
-  call mpibcast(sparsity_format, root=0, comm=mpi_comm_world)
-  call mpibcast(matrix_format, root=0, comm=mpi_comm_world)
-  call mpibcast(metadata_file, root=0, comm=mpi_comm_world)
-  call mpibcast(overlap_file, root=0, comm=mpi_comm_world)
-  call mpibcast(hamiltonian_file, root=0, comm=mpi_comm_world)
-  call mpibcast(kernel_file, root=0, comm=mpi_comm_world)
-  call mpibcast(kernel_matmul_file, root=0, comm=mpi_comm_world)
-  call mpibcast(kernel_method, root=0, comm=mpi_comm_world)
-  call mpibcast(scalapack_blocksize, root=0, comm=mpi_comm_world)
-  call mpibcast(kernel_matmul_file, root=0, comm=mpi_comm_world)
-  call mpibcast(fscale, root=0, comm=mpi_comm_world)
-  call mpibcast(fscale_lowerbound, root=0, comm=mpi_comm_world)
-  call mpibcast(fscale_upperbound, root=0, comm=mpi_comm_world)
-  call mpibcast(evlow, root=0, comm=mpi_comm_world)
-  call mpibcast(evhigh, root=0, comm=mpi_comm_world)
-  call mpibcast(ntemp, root=0, comm=mpi_comm_world)
-  call mpibcast(ef, root=0, comm=mpi_comm_world)
-  call mpibcast(npl_max, root=0, comm=mpi_comm_world)
-  call mpibcast(pexsi_npoles, root=0, comm=mpi_comm_world)
-  call mpibcast(pexsi_nproc_per_pole, root=0, comm=mpi_comm_world)
-  call mpibcast(pexsi_mumin, root=0, comm=mpi_comm_world)
-  call mpibcast(pexsi_mumax, root=0, comm=mpi_comm_world)
-  call mpibcast(pexsi_mu, root=0, comm=mpi_comm_world)
-  call mpibcast(pexsi_DeltaE, root=0, comm=mpi_comm_world)
-  call mpibcast(pexsi_temperature, root=0, comm=mpi_comm_world)
-  call mpibcast(pexsi_tol_charge, root=0, comm=mpi_comm_world)
-  call mpibcast(pexsi_np_sym_fact, root=0, comm=mpi_comm_world)
-  call mpibcast(pexsi_max_iter, root=0, comm=mpi_comm_world)
-  call mpibcast(pexsi_verbosity, root=0, comm=mpi_comm_world)
-  call mpibcast(accuracy_foe, root=0, comm=mpi_comm_world)
-  call mpibcast(accuracy_ice, root=0, comm=mpi_comm_world)
-  call mpibcast(accuracy_penalty, root=0, comm=mpi_comm_world)
-  call mpibcast(nit, root=0, comm=mpi_comm_world)
-  call mpibcast(betax, root=0, comm=mpi_comm_world)
-  call mpibcast(inversion_method, root=0, comm=mpi_comm_world)
-  ! Since there is no wrapper for logicals...
-  if (iproc==0) then
-      if (check_spectrum) then
-          icheck = 1
-      else
-          icheck = 0
-      end if
-  end if
-  call mpibcast(icheck, root=0, comm=mpi_comm_world)
-  if (icheck==1) then
-      check_spectrum = .true.
-  else
-      check_spectrum = .false.
-  end if
-  if (iproc==0) then
-      if (do_cubic_check) then
-          icheck = 1
-      else
-          icheck = 0
-      end if
-  end if
-  call mpibcast(icheck, root=0, comm=mpi_comm_world)
-  if (icheck==1) then
-      do_cubic_check = .true.
-  else
-      do_cubic_check = .false.
-  end if
-  if (iproc==0) then
-      if (pexsi_do_inertia_count) then
-          icheck = 1
-      else
-          icheck = 0
-      end if
-  end if
-  call mpibcast(icheck, root=0, comm=mpi_comm_world)
-  if (icheck==1) then
-      pexsi_do_inertia_count = .true.
-  else
-      pexsi_do_inertia_count = .false.
-  end if
 
 
-
-  ! Read in the overlap matrix and create the type containing the sparse matrix descriptors (smat_s) as well as
+  ! Read in the overlap matrix and create the type containing the sparse matrix descriptors (smat(1)) as well as
   ! the type which contains the matrix data (overlap). The matrix element are stored in mat_s%matrix_compr.
   ! Do the same also for the Hamiltonian matrix.
   if (trim(sparsity_format)=='ccs') then
@@ -301,14 +189,14 @@ program driver_foe
       !    call yaml_map('Reading from file','overlap_ccs.txt')
       !end if
       call sparse_matrix_and_matrices_init_from_file_ccs(trim(overlap_file), &
-           iproc, nproc, mpi_comm_world, smat_s, mat_s)
+           iproc, nproc, mpi_comm_world, smat(1), mat_s)
 
       !if (iproc==0) then
       !    call yaml_scalar('Initializing Hamiltonian matrix',hfill='-')
       !    call yaml_map('Reading from file','hamiltonian_ccs.txt')
       !end if
       call sparse_matrix_and_matrices_init_from_file_ccs(trim(hamiltonian_file), &
-           iproc, nproc, mpi_comm_world, smat_h, mat_h)
+           iproc, nproc, mpi_comm_world, smat(2), mat_h)
 
       ! Create another matrix type, this time directly with the CCS format descriptors.
       ! Get these descriptors from an auxiliary routine using matrix3.dat
@@ -323,7 +211,7 @@ program driver_foe
           call f_err_throw('nfvctr_mult/=nfvctr',err_name='SPARSEMATRIX_INITIALIZATION_ERROR')
       end if
       call sparse_matrix_init_from_data_ccs(iproc, nproc, mpi_comm_world, &
-           nfvctr, nvctr, row_ind, col_ptr, smat_k, &
+           nfvctr, nvctr, row_ind, col_ptr, smat(3), &
            init_matmul=.true., nvctr_mult=nvctr_mult, row_ind_mult=row_ind_mult, col_ptr_mult=col_ptr_mult)
       call f_free_ptr(row_ind)
       call f_free_ptr(col_ptr)
@@ -331,24 +219,38 @@ program driver_foe
       call f_free_ptr(col_ptr_mult)
   else if (trim(sparsity_format)=='bigdft') then
       call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, overlap_file, &
-           iproc, nproc, mpi_comm_world, smat_s, mat_s, init_matmul=.false.)
+           iproc, nproc, mpi_comm_world, smat(1), mat_s, init_matmul=.false.)
       call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, hamiltonian_file, &
-           iproc, nproc, mpi_comm_world, smat_h, mat_h, init_matmul=.false.)
+           iproc, nproc, mpi_comm_world, smat(2), mat_h, init_matmul=.false.)
+      select case(trim(kernel_method))
+      case ('FOE', 'PEXSI')
+          init_matmul = .true.
+      case('LAPACK')
+          init_matmul = .false.
+      case default
+          call f_err_throw('wrong value for kernel_method')
+      end select
       call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, kernel_file, &
-           iproc, nproc, mpi_comm_world, smat_k, mat_k, init_matmul=.true., filename_mult=trim(kernel_matmul_file))
+           iproc, nproc, mpi_comm_world, smat(3), mat_k, init_matmul=init_matmul, filename_mult=trim(kernel_matmul_file))
   else
       call f_err_throw('Wrong sparsity format')
   end if
 
+  call sparse_matrix_metadata_init_from_file(trim(metadata_file), smmd)
+
+  call init_matrix_taskgroups_wrapper(iproc, nproc, mpi_comm_world, .true., 3, smat)
+
+  call resize_matrix_to_taskgroup(smat(1), mat_s)
+  call resize_matrix_to_taskgroup(smat(2), mat_h)
+
   if (iproc==0) then
       call yaml_mapping_open('Matrix properties')
-      call write_sparsematrix_info(smat_s, 'Overlap matrix')
-      call write_sparsematrix_info(smat_h, 'Hamiltonian matrix')
-      call write_sparsematrix_info(smat_k, 'Density kernel')
+      call write_sparsematrix_info(smat(1), 'Overlap matrix')
+      call write_sparsematrix_info(smat(2), 'Hamiltonian matrix')
+      call write_sparsematrix_info(smat(3), 'Density kernel')
       call yaml_mapping_close()
   end if
 
-  call sparse_matrix_metadata_init_from_file(trim(metadata_file), smmd)
   call get_number_of_electrons(smmd, ncharge)
   if (iproc==0) then
       call yaml_map('Number of electrons',ncharge)
@@ -357,28 +259,30 @@ program driver_foe
   ! Prepares the type containing the matrix data.
   if (trim(sparsity_format)=='ccs') then
       ! Otherwise already done above
-      call matrices_init(smat_k, mat_k)
+      call matrices_init(smat(3), mat_k)
   end if
-  call matrices_init(smat_k, mat_ek)
-  call matrices_init(smat_k, mat_ovrlpminusonehalf(1))
+  call matrices_init(smat(3), mat_ek, matsize=SPARSE_TASKGROUP)
+  call matrices_init(smat(3), mat_ovrlpminusonehalf(1), matsize=SPARSE_TASKGROUP)
+
+  call resize_matrix_to_taskgroup(smat(3), mat_k)
 
   times = f_malloc(nit,id='times')
   energies = f_malloc(nit,id='energies')
   allocate(foe_obj(nit))
   allocate(ice_obj(nit))
 
-  charge = f_malloc(smat_s%nspin,id='charge')
+  charge = f_malloc(smat(1)%nspin,id='charge')
   charge(:) = real(ncharge,kind=mp)
   do it=1,nit
       ! Initialize the opaque object holding the parameters required for the Fermi Operator Expansion.
       ! Only provide the mandatory values and take for the optional values the default ones.
-      call init_foe(iproc, nproc, smat_s%nspin, charge, foe_obj(it), &
+      call init_foe(iproc, nproc, smat(1)%nspin, charge, foe_obj(it), &
            fscale=fscale, fscale_lowerbound=fscale_lowerbound, fscale_upperbound=fscale_upperbound, &
            evlow=evlow, evhigh=evhigh, betax=betax, &
            ntemp = ntemp, ef=ef, npl_max=npl_max, &
            accuracy_function=accuracy_foe, accuracy_penalty=accuracy_penalty)
       ! Initialize the same object for the calculation of the inverse. Charge does not really make sense here...
-      call init_foe(iproc, nproc, smat_s%nspin, charge, ice_obj(it), &
+      call init_foe(iproc, nproc, smat(1)%nspin, charge, ice_obj(it), &
            evlow=0.5_mp, evhigh=1.5_mp, betax=betax, &
            accuracy_function=accuracy_ice, accuracy_penalty=accuracy_penalty)
   end do
@@ -389,15 +293,15 @@ program driver_foe
        gather_routine=gather_timings)
 
   if(check_spectrum) then
-      evals = f_malloc(smat_h%nfvctr,id='evals')
-      eval_min = f_malloc(smat_h%nspin,id='eval_min')
-      eval_max = f_malloc(smat_h%nspin,id='eval_max')
+      evals = f_malloc(smat(2)%nfvctr,id='evals')
+      eval_min = f_malloc(smat(2)%nspin,id='eval_min')
+      eval_max = f_malloc(smat(2)%nspin,id='eval_max')
       call get_minmax_eigenvalues(iproc, nproc, mpiworld(), 'generalized', scalapack_blocksize, &
-           smat_h, mat_h, eval_min, eval_max, quiet=.true., smat2=smat_s, mat2=mat_s, evals=evals)
+           smat(2), mat_h, eval_min, eval_max, quiet=.true., smat2=smat(1), mat2=mat_s, evals=evals)
       if (iproc==0) then
           call yaml_mapping_open('Hamiltonian spectrum')
-          do ispin=1,smat_h%nspin
-              if (smat_h%nspin>1) then
+          do ispin=1,smat(2)%nspin
+              if (smat(2)%nspin>1) then
                   if (ispin==1) then
                       call yaml_mapping_open('Spin up')
                   else if (ispin==2) then
@@ -408,12 +312,12 @@ program driver_foe
                   ihomo = ncharge/2
               end if
               call yaml_map('Lowest eigenvalue',evals(1))
-              call yaml_map('Highest eigenvalue',evals(smat_h%nfvctr))
+              call yaml_map('Highest eigenvalue',evals(smat(2)%nfvctr))
               call yaml_map('HOMO eigenvalue',evals(ihomo))
               call yaml_map('LUMO eigenvalue',evals(ihomo+1))
-              call yaml_map('Spectral width',evals(smat_h%nfvctr)-evals(1))
+              call yaml_map('Spectral width',evals(smat(2)%nfvctr)-evals(1))
               call yaml_map('HOMO-lUMO gap',evals(ihomo+1)-evals(ihomo))
-              if (smat_h%nspin>1) then
+              if (smat(2)%nspin>1) then
                   call yaml_mapping_close()
               end if
               call yaml_mapping_close()
@@ -428,10 +332,10 @@ program driver_foe
   call f_timing_checkpoint(ctr_name='INFO',mpi_comm=mpiworld(),nproc=mpisize(), &
        gather_routine=gather_timings)
 
-  ! Calculate the density kernel for the system described by the pair smat_s/mat_s and smat_h/mat_h and 
-  ! store the result in smat_k/mat_k.
-  ! Attention: The sparsity pattern of smat_s must be contained within that of smat_h
-  ! and the one of smat_h within that of smat_k. It is your responsabilty to assure this, 
+  ! Calculate the density kernel for the system described by the pair smat(1)/mat_s and smat(2)/mat_h and 
+  ! store the result in smat(3)/mat_k.
+  ! Attention: The sparsity pattern of smat(1) must be contained within that of smat(2)
+  ! and the one of smat(2) within that of smat(3). It is your responsabilty to assure this, 
   ! the routine does only some minimal checks.
   ! The final result will be contained in mat_k%matrix_compr.
   if (iproc==0) then
@@ -445,31 +349,31 @@ program driver_foe
       end if
       if (trim(kernel_method)=='FOE') then
           call matrix_fermi_operator_expansion(iproc, nproc, mpi_comm_world, &
-               foe_obj(it), ice_obj(it), smat_s, smat_h, smat_k, &
+               foe_obj(it), ice_obj(it), smat(1), smat(2), smat(3), &
                mat_s, mat_h, mat_ovrlpminusonehalf, mat_k, energy, &
                calculate_minusonehalf=.true., foe_verbosity=1, symmetrize_kernel=.true., &
                calculate_energy_density_kernel=.true., energy_kernel=mat_ek, &
                inversion_method=inversion_method)
       else if (trim(kernel_method)=='PEXSI') then
-          call pexsi_wrapper(iproc, nproc, mpi_comm_world, smat_s, smat_h, smat_k, mat_s, mat_h, &
+          call pexsi_wrapper(iproc, nproc, mpi_comm_world, smat(1), smat(2), smat(3), mat_s, mat_h, &
                foe_data_get_real(foe_obj(it),"charge",1), pexsi_npoles, pexsi_nproc_per_pole, &
                pexsi_mumin, pexsi_mumax, pexsi_mu, pexsi_DeltaE, &
                pexsi_temperature, pexsi_tol_charge, pexsi_np_sym_fact, &
                pexsi_do_inertia_count, pexsi_max_iter, pexsi_verbosity, &
                mat_k, energy, mat_ek)
       else if (trim(kernel_method)=='LAPACK') then
-          norbu = smat_h%nfvctr
+          norbu = smat(2)%nfvctr
           norbd = 0
           norb = norbu + norbd
-          coeff = f_malloc((/smat_h%nfvctr,norb/),id='coeff')
-          eval_all = f_malloc(smat_h%nfvctr,id='eval_all')
+          coeff = f_malloc((/smat(2)%nfvctr,norb/),id='coeff')
+          eval_all = f_malloc(smat(2)%nfvctr,id='eval_all')
           eval_occup = f_malloc(norb,id='eval_occup')
           call get_coeffs_diagonalization(iproc, nproc, mpi_comm_world, &
-               smat_h%nfvctr, norbu, norbd, norb, scalapack_blocksize, &
-               smat_s, smat_h, mat_s, mat_h, coeff, &
+               smat(2)%nfvctr, norbu, norbd, norb, scalapack_blocksize, &
+               smat(1), smat(2), mat_s, mat_h, coeff, &
                eval_all, eval_occup, info)
           occup = f_malloc0(norb,id='occup')
-          if (smat_h%nspin/=1) call f_err_throw('The kernel calculation with LAPACK is currently not possible for nspin/=1')
+          if (smat(2)%nspin/=1) call f_err_throw('The kernel calculation with LAPACK is currently not possible for nspin/=1')
           ii = nint(0.5_mp*foe_data_get_real(foe_obj(it),"charge",1))
           occup(1:ii) = 2.0_mp
           call eval_to_occ(iproc, nproc, norbu, norbd, norb, 1, (/1.0_mp/), &
@@ -478,14 +382,14 @@ program driver_foe
           call distribute_on_tasks(norb, iproc, nproc, norbp, isorb)
           ! Density kernel
           call calculate_kernel_and_energy(iproc, nproc, mpi_comm_world, &
-               smat_k, smat_h, mat_k, mat_h, energy,&
+               smat(3), smat(2), mat_k, mat_h, energy,&
                coeff, norbp, isorb, norbu, norb, occup, .true.)
           ! Energy density kernel
           do iorb=1,norb
               occup(iorb) = occup(iorb)*eval_occup(iorb)
           end do
           call calculate_kernel_and_energy(iproc, nproc, mpi_comm_world, &
-               smat_k, smat_h, mat_ek, mat_h, energy_fake,&
+               smat(3), smat(2), mat_ek, mat_h, energy_fake,&
                coeff, norbp, isorb, norbu, norb, occup, .true.)
           call f_free(coeff)
           call f_free(eval_all)
@@ -539,8 +443,8 @@ program driver_foe
   call f_timing_checkpoint(ctr_name='CALC',mpi_comm=mpiworld(),nproc=mpisize(), &
        gather_routine=gather_timings)
 
-  !tr = trace_A(iproc, nproc, mpi_comm_world, smat_k, mat_ek, 1)
-  tr = trace_AB(iproc, nproc, mpi_comm_world, smat_s, smat_k, mat_s, mat_ek, 1)
+  !tr = trace_A(iproc, nproc, mpi_comm_world, smat(3), mat_ek, 1)
+  tr = trace_AB(iproc, nproc, mpi_comm_world, smat(1), smat(3), mat_s, mat_ek, 1)
   if (iproc==0) then
       call yaml_map('Energy from FOE',energy)
       call yaml_map('Trace of energy density kernel', tr)
@@ -548,32 +452,34 @@ program driver_foe
   end if
 
   !! Write the result in YAML format to the standard output (required for non-regression tests).
-  !if (iproc==0) call write_matrix_compressed('Result of FOE', smat_k, mat_k)
+  !if (iproc==0) call write_matrix_compressed('Result of FOE', smat(3), mat_k)
 
   ! Calculate trace(KS)
-  !tr_KS = trace_sparse(iproc, nproc, smat_s, smat_k, mat_s%matrix_compr, mat_k%matrix_compr, 1)
-  tr_KS = trace_AB(iproc, nproc, mpi_comm_world, smat_s, smat_k, mat_s, mat_k, 1)
+  !tr_KS = trace_sparse(iproc, nproc, smat(1), smat(3), mat_s%matrix_compr, mat_k%matrix_compr, 1)
+  tr_KS = trace_AB(iproc, nproc, mpi_comm_world, smat(1), smat(3), mat_s, mat_k, 1)
 
   ! Write the result
   if (iproc==0) call yaml_map('trace(KS)',tr_KS)
 
   ! Extract the compressed kernel matrix from the data type.
   ! The first routine allocates an array with the correct size, the second one extracts the result.
-  kernel = sparsematrix_malloc_ptr(smat_k, iaction=SPARSE_FULL, id='kernel')
-  call matrices_get_values(smat_k, mat_k, kernel)
+  kernel = sparsematrix_malloc_ptr(smat(3), iaction=SPARSE_FULL, id='kernel')
+  !call matrices_get_values(smat(3), mat_k, kernel)
+  call matrices_get_values(iproc, nproc, mpiworld(), smat(3), 'sparse_taskgroup', 'sparse_full', mat_k, kernel)
 
   ! Do the same also for the overlap matrix
-  overlap = sparsematrix_malloc_ptr(smat_s, iaction=SPARSE_FULL, id='overlap')
-  call matrices_get_values(smat_s, mat_s, overlap)
+  overlap = sparsematrix_malloc_ptr(smat(1), iaction=SPARSE_FULL, id='overlap')
+  !call matrices_get_values(smat(1), mat_s, overlap)
+  call matrices_get_values(iproc, nproc, mpiworld(), smat(1), 'sparse_taskgroup', 'sparse_full', mat_s, overlap)
 
   ! Transform the overlap matrix to the sparsity pattern of the kernel
-  overlap_large = sparsematrix_malloc_ptr(smat_k, iaction=SPARSE_FULL, id='overlap_large')
-  call transform_sparse_matrix(iproc, smat_s, smat_k, SPARSE_FULL, 'small_to_large', &
+  overlap_large = sparsematrix_malloc_ptr(smat(3), iaction=SPARSE_FULL, id='overlap_large')
+  call transform_sparse_matrix(iproc, smat(1), smat(3), SPARSE_FULL, 'small_to_large', &
        smat_in=overlap, lmat_out=overlap_large)
 
   ! Again calculate trace(KS), this time directly with the array holding the data.
   ! Since both matrices are symmetric and have now the same sparsity pattern, this is a simple ddot.
-  tr_KS_check = dot(smat_k%nvctr, kernel(1), 1, overlap_large(1), 1)
+  tr_KS_check = dot(smat(3)%nvctr, kernel(1), 1, overlap_large(1), 1)
 
   ! Write the result
   if (iproc==0) call yaml_map('trace(KS) check',tr_KS_check)
@@ -585,18 +491,18 @@ program driver_foe
       if (iproc==0) then
           call yaml_mapping_open('Calculate kernel with LAPACK')
       end if
-      norbu = smat_h%nfvctr
+      norbu = smat(2)%nfvctr
       norbd = 0
       norb = norbu + norbd
-      coeff = f_malloc((/smat_h%nfvctr,norb/),id='coeff')
-      eval_all = f_malloc(smat_h%nfvctr,id='eval_all')
+      coeff = f_malloc((/smat(2)%nfvctr,norb/),id='coeff')
+      eval_all = f_malloc(smat(2)%nfvctr,id='eval_all')
       eval_occup = f_malloc(norb,id='eval_occup')
       call get_coeffs_diagonalization(iproc, nproc, mpi_comm_world, &
-           smat_h%nfvctr, norbu, norbd, norb, scalapack_blocksize, &
-           smat_s, smat_h, mat_s, mat_h, coeff, &
+           smat(2)%nfvctr, norbu, norbd, norb, scalapack_blocksize, &
+           smat(1), smat(2), mat_s, mat_h, coeff, &
            eval_all, eval_occup, info)
       occup = f_malloc0(norb,id='occup')
-      if (smat_h%nspin/=1) call f_err_throw('The kernel calculation with LAPACK is currently not possible for nspin/=1')
+      if (smat(2)%nspin/=1) call f_err_throw('The kernel calculation with LAPACK is currently not possible for nspin/=1')
       ii = nint(0.5_mp*foe_data_get_real(foe_obj(1),"charge",1))
       occup(1:ii) = 2.0_mp
       call eval_to_occ(iproc, nproc, norbu, norbd, norb, 1, (/1.0_mp/), &
@@ -605,12 +511,12 @@ program driver_foe
       call distribute_on_tasks(norb, iproc, nproc, norbp, isorb)
       ! Density kernel... Use mat_ek to store this reference kernel.
       call calculate_kernel_and_energy(iproc, nproc, mpi_comm_world, &
-           smat_k, smat_h, mat_ek, mat_h, energy,&
+           smat(3), smat(2), mat_ek, mat_h, energy,&
            coeff, norbp, isorb, norbu, norb, occup, .true.)
       if (iproc==0) then
           call yaml_map('Energy',energy)
       end if
-      call calculate_error(iproc, smat_k, mat_k, mat_ek, nthreshold, threshold, .false., &
+      call calculate_error(iproc, nproc, mpiworld(), smat(3), mat_k, mat_ek, nthreshold, threshold, .false., &
            'Check the deviation from the exact result using LAPACK')
       call f_free(coeff)
       call f_free(eval_all)
@@ -627,9 +533,9 @@ program driver_foe
   call f_free(energies)
 
   ! Deallocate all the sparse matrix descriptors types
-  call deallocate_sparse_matrix(smat_s)
-  call deallocate_sparse_matrix(smat_h)
-  call deallocate_sparse_matrix(smat_k)
+  call deallocate_sparse_matrix(smat(1))
+  call deallocate_sparse_matrix(smat(2))
+  call deallocate_sparse_matrix(smat(3))
   call deallocate_sparse_matrix_metadata(smmd)
 
   ! Deallocate all the matrix data types
@@ -708,6 +614,139 @@ program driver_foe
   !!    call f_free_str(MPI_MAX_PROCESSOR_NAME,nodename)
 
   !!  end subroutine build_dict_info
+
+
+  contains 
+
+    subroutine read_and_communicate_input_variables()
+
+      if (iproc==0) then
+          parser=yaml_cl_parse_null()
+          call commandline_options(parser)
+          call yaml_cl_parse_cmd_line(parser,args=options)
+          call yaml_cl_parse_free(parser)
+
+          metadata_file = options//'metadata_file'
+          overlap_file = options//'overlap_file'
+          hamiltonian_file = options//'hamiltonian_file'
+          kernel_file = options//'kernel_file'
+          kernel_matmul_file = options//'kernel_matmul_file'
+          sparsity_format = options//'sparsity_format'
+          matrix_format = options//'matrix_format'
+          kernel_method = options//'kernel_method'
+          scalapack_blocksize = options//'scalapack_blocksize'
+          check_spectrum = options//'check_spectrum'
+          fscale = options//'fscale'
+          fscale_lowerbound = options//'fscale_lowerbound'
+          fscale_upperbound = options//'fscale_upperbound'
+          evlow = options//'evlow'
+          evhigh = options//'evhigh'
+          ntemp = options//'ntemp'
+          ef = options//'ef'
+          npl_max = options//'npl_max'
+          pexsi_npoles = options//'pexsi_npoles'
+          pexsi_mumin = options//'pexsi_mumin'
+          pexsi_mumax = options//'pexsi_mumax'
+          pexsi_mu = options//'pexsi_mu'
+          pexsi_temperature = options//'pexsi_temperature'
+          pexsi_tol_charge = options//'pexsi_tol_charge'
+          pexsi_np_sym_fact = options//'pexsi_np_sym_fact'
+          pexsi_DeltaE = options//'pexsi_DeltaE'
+          do_cubic_check = options//'do_cubic_check'
+          accuracy_foe = options//'accuracy_foe'
+          accuracy_ice = options//'accuracy_ice'
+          accuracy_penalty = options//'accuracy_penalty'
+          nit = options//'nit'
+          betax = options//'betax'
+          inversion_method = options//'inversion_method'
+          pexsi_nproc_per_pole = options//'pexsi_nproc_per_pole'
+          pexsi_do_inertia_count = options//'pexsi_do_inertia_count'
+          pexsi_max_iter = options//'pexsi_max_iter'
+          pexsi_verbosity = options//'pexsi_verbosity'
+          output_level = options//'output_level'
+          profiling_depth = options//'profiling_depth'
+         
+          call dict_free(options)
+      end if
+
+      ! Send the input parameters to all MPI tasks
+      call mpibcast(sparsity_format, root=0, comm=mpi_comm_world)
+      call mpibcast(matrix_format, root=0, comm=mpi_comm_world)
+      call mpibcast(metadata_file, root=0, comm=mpi_comm_world)
+      call mpibcast(overlap_file, root=0, comm=mpi_comm_world)
+      call mpibcast(hamiltonian_file, root=0, comm=mpi_comm_world)
+      call mpibcast(kernel_file, root=0, comm=mpi_comm_world)
+      call mpibcast(kernel_matmul_file, root=0, comm=mpi_comm_world)
+      call mpibcast(kernel_method, root=0, comm=mpi_comm_world)
+      call mpibcast(scalapack_blocksize, root=0, comm=mpi_comm_world)
+      call mpibcast(kernel_matmul_file, root=0, comm=mpi_comm_world)
+      call mpibcast(fscale, root=0, comm=mpi_comm_world)
+      call mpibcast(fscale_lowerbound, root=0, comm=mpi_comm_world)
+      call mpibcast(fscale_upperbound, root=0, comm=mpi_comm_world)
+      call mpibcast(evlow, root=0, comm=mpi_comm_world)
+      call mpibcast(evhigh, root=0, comm=mpi_comm_world)
+      call mpibcast(ntemp, root=0, comm=mpi_comm_world)
+      call mpibcast(ef, root=0, comm=mpi_comm_world)
+      call mpibcast(npl_max, root=0, comm=mpi_comm_world)
+      call mpibcast(pexsi_npoles, root=0, comm=mpi_comm_world)
+      call mpibcast(pexsi_nproc_per_pole, root=0, comm=mpi_comm_world)
+      call mpibcast(pexsi_mumin, root=0, comm=mpi_comm_world)
+      call mpibcast(pexsi_mumax, root=0, comm=mpi_comm_world)
+      call mpibcast(pexsi_mu, root=0, comm=mpi_comm_world)
+      call mpibcast(pexsi_DeltaE, root=0, comm=mpi_comm_world)
+      call mpibcast(pexsi_temperature, root=0, comm=mpi_comm_world)
+      call mpibcast(pexsi_tol_charge, root=0, comm=mpi_comm_world)
+      call mpibcast(pexsi_np_sym_fact, root=0, comm=mpi_comm_world)
+      call mpibcast(pexsi_max_iter, root=0, comm=mpi_comm_world)
+      call mpibcast(pexsi_verbosity, root=0, comm=mpi_comm_world)
+      call mpibcast(accuracy_foe, root=0, comm=mpi_comm_world)
+      call mpibcast(accuracy_ice, root=0, comm=mpi_comm_world)
+      call mpibcast(accuracy_penalty, root=0, comm=mpi_comm_world)
+      call mpibcast(nit, root=0, comm=mpi_comm_world)
+      call mpibcast(betax, root=0, comm=mpi_comm_world)
+      call mpibcast(inversion_method, root=0, comm=mpi_comm_world)
+      ! Since there is no wrapper for logicals...
+      if (iproc==0) then
+          if (check_spectrum) then
+              icheck = 1
+          else
+              icheck = 0
+          end if
+      end if
+      call mpibcast(icheck, root=0, comm=mpi_comm_world)
+      if (icheck==1) then
+          check_spectrum = .true.
+      else
+          check_spectrum = .false.
+      end if
+      if (iproc==0) then
+          if (do_cubic_check) then
+              icheck = 1
+          else
+              icheck = 0
+          end if
+      end if
+      call mpibcast(icheck, root=0, comm=mpi_comm_world)
+      if (icheck==1) then
+          do_cubic_check = .true.
+      else
+          do_cubic_check = .false.
+      end if
+      if (iproc==0) then
+          if (pexsi_do_inertia_count) then
+              icheck = 1
+          else
+              icheck = 0
+          end if
+      end if
+      call mpibcast(icheck, root=0, comm=mpi_comm_world)
+      if (icheck==1) then
+          pexsi_do_inertia_count = .true.
+      else
+          pexsi_do_inertia_count = .false.
+      end if
+
+    end subroutine read_and_communicate_input_variables
 
 end program driver_foe
 
@@ -978,5 +1017,19 @@ subroutine commandline_options(parser)
        'Inversion method for the overlap matrix in FOE',&
        'Allowed values' .is. &
        'String'))
+
+  call yaml_cl_parse_option(parser,'output_level','0',&
+       'Output level of the routine profiling',&
+       help_dict=dict_new('Usage' .is. &
+       'Indicate the output level of the routine profiling',&
+       'Allowed values' .is. &
+       'Integer'))
+
+  call yaml_cl_parse_option(parser,'profiling_depth','-1',&
+       'Depth of the individual routine timing profiling',&
+       help_dict=dict_new('Usage' .is. &
+       'Indicate the depth of the individual routine timing profiling',&
+       'Allowed values' .is. &
+       'Integer'))
 
 end subroutine commandline_options

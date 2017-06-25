@@ -146,9 +146,10 @@ $(abs_top_builddir)/src/BigDFT2Wannier: $(abs_top_srcdir)/src/BigDFT2Wannier.f90
 	if test -f list_posinp; then \
 	   name=`echo '--runs-file=list_posinp --taskgroup-size=1'`; \
 	fi; \
+	if [ "$$name" == "" ] ; then name="input" ; fi ; \
 	if test -n "${LD_LIBRARY_PATH}" ; then export LD_LIBRARY_PATH=${LD_LIBRARY_PATH} ; fi ; \
-	echo "Running $(run_parallel) $(abs_top_builddir)/src/bigdft -l yes $$name > $@" ; \
-	$(run_parallel) $(abs_top_builddir)/src/bigdft -l yes $$name > $@ ; \
+	echo "Running $(run_parallel) $(abs_top_builddir)/src/bigdft -l yes -n $$name > $@" ; \
+	$(run_parallel) $(abs_top_builddir)/src/bigdft -l yes -n $$name > $@ ; \
 	if test -f list_posinp; then cat `awk '{print $$2}' list_posinp | $(SED) "s/^\(.*\)$$/log-\1.yaml/g"` > log.yaml ; fi ; \
 	name=`basename $@ .out` ; \
 	$(MAKE) -f ../Makefile $$name".post-out"

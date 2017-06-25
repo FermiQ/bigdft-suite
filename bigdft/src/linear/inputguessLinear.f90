@@ -567,22 +567,22 @@ subroutine inputguessConfinement(iproc, nproc, at, input, hx, hy, hz, &
 
   !Put the Density kernel to identity for now
   !call to_zero(tmb%linmat%denskern%nvctr, tmb%linmat%denskern%matrix_compr(1))
-  call f_zero(tmb%linmat%l%nvctrp_tg*input%nspin, tmb%linmat%kernel_%matrix_compr(1))
+  call f_zero(tmb%linmat%smat(3)%nvctrp_tg*input%nspin, tmb%linmat%kernel_%matrix_compr(1))
 
 
   do iorb=1,tmb%orbs%norb
      !ii=matrixindex_in_compressed(tmb%linmat%denskern,iorb,iorb)
-     ii=matrixindex_in_compressed(tmb%linmat%l,iorb,iorb)
-     ind=mod(ii-1,tmb%linmat%l%nvctr)+1 !spin-independent index
-     !!if (ii<tmb%linmat%l%istartend_local(1)) cycle
-     !!if (ii>tmb%linmat%l%istartend_local(2)) exit
-     if (ind<=tmb%linmat%l%isvctrp_tg) cycle
-     if (ind>tmb%linmat%l%isvctrp_tg+tmb%linmat%l%nvctrp_tg) cycle
-     ispin = (ii-1)/tmb%linmat%l%nvctr
-     ispinshift = ispin*tmb%linmat%l%nvctrp_tg
+     ii=matrixindex_in_compressed(tmb%linmat%smat(3),iorb,iorb)
+     ind=mod(ii-1,tmb%linmat%smat(3)%nvctr)+1 !spin-independent index
+     !!if (ii<tmb%linmat%smat(3)%istartend_local(1)) cycle
+     !!if (ii>tmb%linmat%smat(3)%istartend_local(2)) exit
+     if (ind<=tmb%linmat%smat(3)%isvctrp_tg) cycle
+     if (ind>tmb%linmat%smat(3)%isvctrp_tg+tmb%linmat%smat(3)%nvctrp_tg) cycle
+     ispin = (ii-1)/tmb%linmat%smat(3)%nvctr
+     ispinshift = ispin*tmb%linmat%smat(3)%nvctrp_tg
      !tmb%linmat%denskern%matrix_compr(ii)=1.d0*tmb%orbs%occup(inversemapping(iorb))
      !tmb%linmat%denskern%matrix_compr(ii)=1.d0*tmb%orbs%occup(iorb)
-     tmb%linmat%kernel_%matrix_compr(ind+ispinshift-tmb%linmat%l%isvctrp_tg)=1.d0*tmb%orbs%occup(iorb)
+     tmb%linmat%kernel_%matrix_compr(ind+ispinshift-tmb%linmat%smat(3)%isvctrp_tg)=1.d0*tmb%orbs%occup(iorb)
   end do
 
   call timing(iproc,'lin_inputguess','OF')
@@ -591,7 +591,7 @@ subroutine inputguessConfinement(iproc, nproc, at, input, hx, hy, hz, &
   call communicate_basis_for_density_collective(iproc, nproc, tmb%lzd, max(tmb%npsidim_orbs,tmb%npsidim_comp), &
        tmb%orbs, tmb%psi, tmb%collcom_sr)
   call sumrho_for_TMBs(iproc, nproc, tmb%Lzd%hgrids(1), tmb%Lzd%hgrids(2), tmb%Lzd%hgrids(3), &
-       tmb%collcom_sr, tmb%linmat%l, tmb%linmat%auxl, tmb%linmat%kernel_, denspot%dpbox%ndimrhopot, &
+       tmb%collcom_sr, tmb%linmat%smat(3), tmb%linmat%auxl, tmb%linmat%kernel_, denspot%dpbox%ndimrhopot, &
        denspot%rhov, rho_negative)
   !!jj=0
   !!do ispin=1,input%nspin
@@ -760,7 +760,7 @@ subroutine inputguessConfinement(iproc, nproc, at, input, hx, hy, hz, &
           !    end if
           !end do
           call orthonormalizeLocalized(iproc, nproc, methTransformOverlap, 1.d0, tmb%npsidim_orbs, tmb%orbs, tmb%lzd, &
-               tmb%linmat%s, tmb%linmat%auxs, tmb%linmat%l, tmb%linmat%auxl, &
+               tmb%linmat%smat(1), tmb%linmat%auxs, tmb%linmat%smat(3), tmb%linmat%auxl, &
                tmb%collcom, tmb%orthpar, tmb%psi, tmb%psit_c, tmb%psit_f, tmb%can_use_transposed)
                 
      else
@@ -819,8 +819,8 @@ subroutine inputguessConfinement(iproc, nproc, at, input, hx, hy, hz, &
     !!!!             !!end do
     !!!!             !!call yaml_sequence_close()
     !!!!             call gramschmidt_subset(iproc, nproc, -1, tmb%npsidim_orbs, &                                  
-    !!!!                  tmb%orbs, at, minorbs_type, maxorbs_type, tmb%lzd, tmb%linmat%s, &
-    !!!!                  tmb%linmat%l, tmb%collcom, tmb%orthpar, &
+    !!!!                  tmb%orbs, at, minorbs_type, maxorbs_type, tmb%lzd, tmb%linmat%smat(1), &
+    !!!!                  tmb%linmat%smat(3), tmb%collcom, tmb%orthpar, &
     !!!!                  tmb%psi, tmb%psit_c, tmb%psit_f, tmb%can_use_transposed)
     !!!!         end if
     !!!!         !!if (iproc==0) then
@@ -838,8 +838,8 @@ subroutine inputguessConfinement(iproc, nproc, at, input, hx, hy, hz, &
     !!!!         !!end if
     !!!!         !write(*,*) 'call orthonormalize_subset, methTransformOverlap', methTransformOverlap
     !!!!         call orthonormalize_subset(iproc, nproc, -1, tmb%npsidim_orbs, &                                  
-    !!!!              tmb%orbs, at, minorbs_type, maxorbs_type, tmb%lzd, tmb%linmat%s, &
-    !!!!              tmb%linmat%l, tmb%collcom, tmb%orthpar, &
+    !!!!              tmb%orbs, at, minorbs_type, maxorbs_type, tmb%lzd, tmb%linmat%smat(1), &
+    !!!!              tmb%linmat%smat(3), tmb%collcom, tmb%orthpar, &
     !!!!              tmb%psi, tmb%psit_c, tmb%psit_f, tmb%can_use_transposed)
     !!!!         if (finished) exit ortho_loop
     !!!!         iortho=iortho+1
@@ -899,7 +899,7 @@ subroutine inputguessConfinement(iproc, nproc, at, input, hx, hy, hz, &
                                            'it_supfun'//trim(adjustl(yaml_toa(0,fmt='(i3.3)'))))
      end if
      order_taylor=input%lin%order_taylor ! since this is intent(inout)
-     !!call extract_taskgroup_inplace(tmb%linmat%l, tmb%linmat%kernel_)
+     !!call extract_taskgroup_inplace(tmb%linmat%smat(3), tmb%linmat%kernel_)
      call allocate_precond_arrays(tmb%orbs, tmb%lzd, tmb%confdatarr, precond_convol_workarrays, precond_workarrays)
      wt_philarge = work_transpose_null()
      wt_hphi = work_transpose_null()
@@ -928,7 +928,7 @@ subroutine inputguessConfinement(iproc, nproc, at, input, hx, hy, hz, &
      call deallocate_work_transpose(wt_philarge)
      call deallocate_work_transpose(wt_hphi)
      call deallocate_work_transpose(wt_phi)
-     !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%l, tmb%linmat%kernel_)
+     !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%smat(3), tmb%linmat%kernel_)
      reduce_conf=.true.
      call yaml_sequence_close()
      call yaml_mapping_close()
@@ -973,7 +973,7 @@ subroutine inputguessConfinement(iproc, nproc, at, input, hx, hy, hz, &
   !!end do
 
   order_taylor=input%lin%order_taylor ! since this is intent(inout)
-  !!call extract_taskgroup_inplace(tmb%linmat%l, tmb%linmat%kernel_)
+  !!call extract_taskgroup_inplace(tmb%linmat%smat(3), tmb%linmat%kernel_)
 
   if (input%lin%scf_mode==LINEAR_FOE .or. input%lin%scf_mode==LINEAR_PEXSI) then
       call get_coeff(iproc,nproc,input%lin%scf_mode,orbs,at,rxyz,denspot,GPU,infoCoeff,energs,nlpsp,&
@@ -1005,7 +1005,7 @@ subroutine inputguessConfinement(iproc, nproc, at, input, hx, hy, hz, &
          call write_eigenvalues_data(0.1d0,kswfn%orbs,mom_vec_fake)
       end if
   end if
-  !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%l, tmb%linmat%kernel_)
+  !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%smat(3), tmb%linmat%kernel_)
 
   call deallocate_work_mpiaccumulate(energs_work)
 
@@ -1022,13 +1022,13 @@ subroutine inputguessConfinement(iproc, nproc, at, input, hx, hy, hz, &
     call write_energies(0,energs,0.d0,0.d0,'',only_energies=.true.)
   end if
 
-  !!tmparr = sparsematrix_malloc(tmb%linmat%l,iaction=SPARSE_FULL,id='tmparr')
-  !!call vcopy(tmb%linmat%l%nvctr, tmb%linmat%kernel_%matrix_compr(1), 1, tmparr(1), 1)
-  !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%l, tmb%linmat%kernel_)
+  !!tmparr = sparsematrix_malloc(tmb%linmat%smat(3),iaction=SPARSE_FULL,id='tmparr')
+  !!call vcopy(tmb%linmat%smat(3)%nvctr, tmb%linmat%kernel_%matrix_compr(1), 1, tmparr(1), 1)
+  !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%smat(3), tmb%linmat%kernel_)
   call sumrho_for_TMBs(iproc, nproc, tmb%Lzd%hgrids(1), tmb%Lzd%hgrids(2), tmb%Lzd%hgrids(3), &
-       tmb%collcom_sr, tmb%linmat%l, tmb%linmat%auxl, tmb%linmat%kernel_, denspot%dpbox%ndimrhopot, &
+       tmb%collcom_sr, tmb%linmat%smat(3), tmb%linmat%auxl, tmb%linmat%kernel_, denspot%dpbox%ndimrhopot, &
        denspot%rhov, rho_negative)
-  !!call vcopy(tmb%linmat%l%nvctr, tmparr(1), 1, tmb%linmat%kernel_%matrix_compr(1), 1)
+  !!call vcopy(tmb%linmat%smat(3)%nvctr, tmparr(1), 1, tmb%linmat%kernel_%matrix_compr(1), 1)
   !!call f_free(tmparr)
 
   if (rho_negative) then

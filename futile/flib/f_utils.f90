@@ -60,7 +60,7 @@ module f_utils
      module procedure f_diff_i,f_diff_r,f_diff_d,f_diff_li,f_diff_l
      module procedure f_diff_d2d3,f_diff_d2d1,f_diff_d1d2,f_diff_d2,f_diff_d1
      module procedure f_diff_d3
-     module procedure f_diff_i2i1,f_diff_i1,f_diff_i2,f_diff_i1i2
+     module procedure f_diff_i2i1,f_diff_i3i1,f_diff_i1,f_diff_i2,f_diff_i1i2
      module procedure f_diff_li2li1,f_diff_li1,f_diff_li2,f_diff_li1li2
      module procedure f_diff_d0d1,f_diff_i0i1, f_diff_li0li1
      module procedure f_diff_c1i1,f_diff_c0i1
@@ -874,6 +874,17 @@ contains
     external :: diff_i
     call diff_i(n,a(1,1),b(1),diff,idiff)
   end subroutine f_diff_i2i1
+  subroutine f_diff_i3i1(n,a,b,diff)
+    implicit none
+    integer(f_long), intent(in) :: n
+    integer(f_integer), dimension(:,:,:),   intent(in) :: a
+    integer(f_integer), dimension(:), intent(in) :: b
+    integer(f_integer), intent(out) :: diff
+    !local variables
+    integer(f_long) :: idiff
+    external :: diff_i
+    call diff_i(n,a(1,1,1),b(1),diff,idiff)
+  end subroutine f_diff_i3i1
   subroutine f_diff_i2(n,a,b,diff)
     implicit none
     integer(f_long), intent(in) :: n

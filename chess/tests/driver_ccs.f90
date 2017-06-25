@@ -67,7 +67,7 @@ program driver_css
   iproc=mpirank()
   nproc=mpisize()
 
-  call f_malloc_set_status(memory_limit=0.e0,iproc=iproc)
+  call f_malloc_set_status(iproc=iproc)
 
   ! Initialize the sparsematrix error handling and timing.
   call sparsematrix_init_errors()
@@ -104,7 +104,7 @@ program driver_css
        smat1, smat2, mat1, mat2(1))
 
   ! Write the result in YAML format to the standard output (required for non-regression tests).
-  if (iproc==0) call write_matrix_compressed('Result of first matrix', smat2, mat2(1))
+  if (iproc==0) call write_matrix_compressed(iproc, nproc, mpiworld(), 'Result of first matrix', smat2, mat2(1))
 
   ! Create another matrix type, this time directly with the CCS format descriptors.
   ! Get these descriptors from an auxiliary routine using again matrix2.dat
@@ -116,7 +116,7 @@ program driver_css
   ! Extract the compressed matrix from the data type. The first routine allocates an array with the correct size,
   ! the second one extracts the result.
   val = sparsematrix_malloc_ptr(smat2, iaction=SPARSE_FULL, id='val')
-  call matrices_get_values(smat2, mat2(1), val)
+  call matrices_get_values(iproc, nproc, mpiworld(), smat2, 'sparse_full', 'sparse_full', mat2(1), val)
 
   ! Prepare a new matrix data type.
   call matrices_init(smat2, mat2(2))
@@ -139,8 +139,8 @@ program driver_css
        smat2, smat3, mat2(2), mat3)
 
   ! Write the result in YAML format to the standard output (required for non-regression tests).
-  if (iproc==0) call write_matrix_compressed('Result of second matrix', smat3, mat3(1))
-  if (iproc==0) call write_matrix_compressed('Result of third matrix', smat3, mat3(2))
+  if (iproc==0) call write_matrix_compressed(iproc, nproc, mpiworld(), 'Result of second matrix', smat3, mat3(1))
+  if (iproc==0) call write_matrix_compressed(iproc, nproc, mpiworld(), 'Result of third matrix', smat3, mat3(2))
 
   ! Calculate the CCS descriptors from the sparse_matrix type.
   call ccs_data_from_sparse_matrix(smat3, row_ind, col_ptr)
@@ -159,7 +159,7 @@ program driver_css
   call ccs_matrix_write('unity.dat', smat3, row_ind, col_ptr, mat2(1))
 
   ! Write the result also in YAML format to the standard output (required for non-regression tests).
-  if (iproc==0) call write_matrix_compressed('Result of fourth matrix', smat3, mat2(1))
+  if (iproc==0) call write_matrix_compressed(iproc, nproc, mpiworld(), 'Result of fourth matrix', smat3, mat2(1))
 
   ! Deallocate all the sparse matrix descriptrs types
   call deallocate_sparse_matrix(smat1)

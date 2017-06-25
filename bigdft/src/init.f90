@@ -1220,13 +1220,13 @@ subroutine input_memory_linear(iproc, nproc, at, KSwfn, tmb, tmb_old, denspot, i
       call vcopy(tmb%orbs%norbu*tmb%orbs%norb, tmb_old%coeff(1,1), 1, tmb%coeff(1,1), 1)
   else if (FOE_restart==RESTART_REFORMAT) then
       ! Extract to a dense format, since this is independent of the sparsity pattern
-      kernelp = sparsematrix_malloc(tmb%linmat%l, iaction=DENSE_PARALLEL, id='kernelp')
+      kernelp = sparsematrix_malloc(tmb%linmat%smat(3), iaction=DENSE_PARALLEL, id='kernelp')
 
-      do ispin=1,tmb%linmat%s%nspin
-         ishift=(ispin-1)*tmb%linmat%l%nvctrp_tg
-         call uncompress_matrix_distributed2(iproc, tmb_old%linmat%l, DENSE_PARALLEL, &
+      do ispin=1,tmb%linmat%smat(1)%nspin
+         ishift=(ispin-1)*tmb%linmat%smat(3)%nvctrp_tg
+         call uncompress_matrix_distributed2(iproc, tmb_old%linmat%smat(3), DENSE_PARALLEL, &
               tmb_old%linmat%kernel_%matrix_compr(ishift+1:), kernelp)
-         call compress_matrix_distributed_wrapper(iproc, nproc, tmb%linmat%l, DENSE_PARALLEL, &
+         call compress_matrix_distributed_wrapper(iproc, nproc, tmb%linmat%smat(3), DENSE_PARALLEL, &
               kernelp, ONESIDED_FULL, tmb%linmat%kernel_%matrix_compr(ishift+1:))
       end do
       call f_free(kernelp)
@@ -1279,7 +1279,7 @@ subroutine input_memory_linear(iproc, nproc, at, KSwfn, tmb, tmb_old, denspot, i
          !!%%  tmb%can_use_transposed=.false.
          !!%%  methTransformOverlap=-1
          !!%%  call orthonormalizeLocalized(iproc, nproc, methTransformOverlap, max_inversion_error, tmb%npsidim_orbs, &
-         !!%%       tmb%orbs, tmb%lzd, tmb%linmat%s, tmb%linmat%l, tmb%collcom, tmb%orthpar, tmb%psi, tmb%psit_c, tmb%psit_f, &
+         !!%%       tmb%orbs, tmb%lzd, tmb%linmat%smat(1), tmb%linmat%smat(3), tmb%collcom, tmb%orthpar, tmb%psi, tmb%psit_c, tmb%psit_f, &
          !!%%       tmb%can_use_transposed, tmb%foe_obj)
          !!%% ! Standard orthonomalization
          !!%% if (iproc==0) call yaml_map('orthonormalization of input guess','standard')
@@ -1294,26 +1294,26 @@ subroutine input_memory_linear(iproc, nproc, at, KSwfn, tmb, tmb_old, denspot, i
          if (iproc==0) call yaml_map('orthonormalization of input guess','standard')
          do it=1,10
               call orthonormalizeLocalized(iproc, nproc, methTransformOverlap, 1.d0, tmb%npsidim_orbs, tmb%orbs, tmb%lzd, &
-                   tmb%linmat%s, tmb%linmat%auxs, tmb%linmat%l, tmb%linmat%auxl, &
+                   tmb%linmat%smat(1), tmb%linmat%auxs, tmb%linmat%smat(3), tmb%linmat%auxl, &
                    tmb%collcom, tmb%orthpar, tmb%psi, tmb%psit_c, tmb%psit_f, tmb%can_use_transposed)
               call transpose_localized(iproc, nproc, tmb%npsidim_orbs, tmb%orbs, tmb%collcom, &
                    TRANSPOSE_FULL, tmb%psi, tmb%psit_c, tmb%psit_f, tmb%lzd)
               call calculate_overlap_transposed(iproc, nproc, tmb%orbs, tmb%collcom, tmb%psit_c, tmb%psit_c, &
-                   tmb%psit_f, tmb%psit_f, tmb%linmat%s, tmb%linmat%auxs, tmb%linmat%ovrlp_)
-              !call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%s, tmb%linmat%ovrlp_)
-               ovrlp_fullp = sparsematrix_malloc(tmb%linmat%l,iaction=DENSE_PARALLEL,id='ovrlp_fullp')
+                   tmb%psit_f, tmb%psit_f, tmb%linmat%smat(1), tmb%linmat%auxs, tmb%linmat%ovrlp_)
+              !call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%smat(1), tmb%linmat%ovrlp_)
+               ovrlp_fullp = sparsematrix_malloc(tmb%linmat%smat(3),iaction=DENSE_PARALLEL,id='ovrlp_fullp')
                max_deviation=0.d0
                mean_deviation=0.d0
-               do ispin=1,tmb%linmat%s%nspin
-                   ishift=(ispin-1)*tmb%linmat%s%nvctrp_tg
-                   call uncompress_matrix_distributed2(iproc, tmb%linmat%s, DENSE_PARALLEL, &
+               do ispin=1,tmb%linmat%smat(1)%nspin
+                   ishift=(ispin-1)*tmb%linmat%smat(1)%nvctrp_tg
+                   call uncompress_matrix_distributed2(iproc, tmb%linmat%smat(1), DENSE_PARALLEL, &
                         tmb%linmat%ovrlp_%matrix_compr(ishift+1:), ovrlp_fullp)
                    call deviation_from_unity_parallel(iproc, nproc, bigdft_mpi%mpi_comm, &
-                        tmb%linmat%s%nfvctr, tmb%linmat%s%nfvctrp, &
-                        tmb%linmat%s%isfvctr, ovrlp_fullp, &
-                        tmb%linmat%s, max_deviation_p, mean_deviation_p)
-                   max_deviation = max_deviation + max_deviation_p/real(tmb%linmat%s%nspin,kind=8)
-                   mean_deviation = mean_deviation + mean_deviation_p/real(tmb%linmat%s%nspin,kind=8)
+                        tmb%linmat%smat(1)%nfvctr, tmb%linmat%smat(1)%nfvctrp, &
+                        tmb%linmat%smat(1)%isfvctr, ovrlp_fullp, &
+                        tmb%linmat%smat(1), max_deviation_p, mean_deviation_p)
+                   max_deviation = max_deviation + max_deviation_p/real(tmb%linmat%smat(1)%nspin,kind=8)
+                   mean_deviation = mean_deviation + mean_deviation_p/real(tmb%linmat%smat(1)%nspin,kind=8)
                end do
                call f_free(ovrlp_fullp)
                if (iproc==0) then
@@ -1406,7 +1406,7 @@ subroutine input_memory_linear(iproc, nproc, at, KSwfn, tmb, tmb_old, denspot, i
        !call transpose_localized(iproc, nproc, tmb%npsidim_orbs, tmb%orbs, tmb%collcom, &
        !     TRANSPOSE_FULL, tmb%psi, tmb%psit_c, tmb%psit_f, tmb%lzd)
        !call calculate_overlap_transposed(iproc, nproc, tmb%orbs, tmb%collcom, tmb%psit_c, tmb%psit_c, &
-       !     tmb%psit_f, tmb%psit_f, tmb%linmat%s, tmb%linmat%ovrlp_)
+       !     tmb%psit_f, tmb%psit_f, tmb%linmat%smat(1), tmb%linmat%ovrlp_)
        !if (iproc==0) call yaml_map('ovrlp',tmb%linmat%ovrlp_%matrix_compr)
        !call getLocalizedBasis(iproc,nproc,at,tmb%orbs,rxyz,denspot,GPU,trace,trace_old,fnrm_tmb,&
        !    info_basis_functions,nlpsp,input%lin%scf_mode,ldiis,input%SIC,tmb,energs, &
@@ -1428,23 +1428,23 @@ subroutine input_memory_linear(iproc, nproc, at, KSwfn, tmb, tmb_old, denspot, i
        call transpose_localized(iproc, nproc, tmb_old%npsidim_orbs, tmb_old%orbs, tmb_old%collcom, &
             TRANSPOSE_FULL, tmb_old%psi, tmb_old%psit_c, tmb_old%psit_f, tmb_old%lzd)
        call calculate_overlap_transposed(iproc, nproc, tmb_old%orbs, tmb_old%collcom, tmb_old%psit_c, tmb_old%psit_c, &
-            tmb_old%psit_f, tmb_old%psit_f, tmb_old%linmat%s, tmb_old%linmat%auxs, tmb_old%linmat%ovrlp_)
-       !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb_old%linmat%s, tmb_old%linmat%ovrlp_)
+            tmb_old%psit_f, tmb_old%psit_f, tmb_old%linmat%smat(1), tmb_old%linmat%auxs, tmb_old%linmat%ovrlp_)
+       !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb_old%linmat%smat(1), tmb_old%linmat%ovrlp_)
        call transpose_localized(iproc, nproc, tmb%npsidim_orbs, tmb%orbs, tmb%collcom, &
             TRANSPOSE_FULL, tmb%psi, tmb%psit_c, tmb%psit_f, tmb%lzd)
        call calculate_overlap_transposed(iproc, nproc, tmb%orbs, tmb%collcom, tmb%psit_c, tmb%psit_c, &
-            tmb%psit_f, tmb%psit_f, tmb%linmat%s, tmb%linmat%auxs, tmb%linmat%ovrlp_)
+            tmb%psit_f, tmb%psit_f, tmb%linmat%smat(1), tmb%linmat%auxs, tmb%linmat%ovrlp_)
 
 
        !! ### TEMP #######################################
        !! diagonalize the old overlap matrix
-       !ovrlp_full = sparsematrix_malloc(tmb_old%linmat%s, iaction=DENSE_FULL,id='ovrlp_full')
-       !eval = f_malloc(tmb_old%linmat%s%nfvctr,id='eval')
-       !if (lwork<4*tmb_old%linmat%s%nfvctr) stop 'lwork<4*tmb_old%linmat%s%nfvctr'
-       !call uncompress_matrix2(iproc, nproc, tmb_old%linmat%s, tmb_old%linmat%ovrlp_%matrix_compr, ovrlp_full)
+       !ovrlp_full = sparsematrix_malloc(tmb_old%linmat%smat(1), iaction=DENSE_FULL,id='ovrlp_full')
+       !eval = f_malloc(tmb_old%linmat%smat(1)%nfvctr,id='eval')
+       !if (lwork<4*tmb_old%linmat%smat(1)%nfvctr) stop 'lwork<4*tmb_old%linmat%smat(1)%nfvctr'
+       !call uncompress_matrix2(iproc, nproc, tmb_old%linmat%smat(1), tmb_old%linmat%ovrlp_%matrix_compr, ovrlp_full)
        !if (iproc==0) call yaml_map('ovrlp_old',ovrlp_full(:,:,1))
-       !call dsyev('n', 'l', tmb_old%linmat%s%nfvctr, ovrlp_full, tmb_old%linmat%s%nfvctr, eval, work, lwork, info)
-       !if (iproc==0) write(*,'(a,2es13.4)') 'min/max eval', eval(1), eval(tmb_old%linmat%s%nfvctr)
+       !call dsyev('n', 'l', tmb_old%linmat%smat(1)%nfvctr, ovrlp_full, tmb_old%linmat%smat(1)%nfvctr, eval, work, lwork, info)
+       !if (iproc==0) write(*,'(a,2es13.4)') 'min/max eval', eval(1), eval(tmb_old%linmat%smat(1)%nfvctr)
        !call f_free(ovrlp_full)
        !call f_free(eval)
        !! ### TEMP #######################################
@@ -1453,30 +1453,30 @@ subroutine input_memory_linear(iproc, nproc, at, KSwfn, tmb, tmb_old, denspot, i
        call f_free_ptr(tmb_old%psit_f)
 
        ! Transform the old overlap matrix to the new sparsity format, by going via the full format.
-       ovrlpp = sparsematrix_malloc(tmb%linmat%s, iaction=DENSE_PARALLEL, id='ovrlpp')
+       ovrlpp = sparsematrix_malloc(tmb%linmat%smat(1), iaction=DENSE_PARALLEL, id='ovrlpp')
 
-       ovrlp_old%matrix_compr = sparsematrix_malloc_ptr(tmb%linmat%s, &
+       ovrlp_old%matrix_compr = sparsematrix_malloc_ptr(tmb%linmat%smat(1), &
                                  iaction=SPARSE_TASKGROUP, id='ovrlp_old%matrix_compr')
 
-       do ispin=1,tmb%linmat%s%nspin
-          ishift=(ispin-1)*tmb%linmat%s%nvctrp_tg
-          call uncompress_matrix_distributed2(iproc, tmb_old%linmat%s, DENSE_PARALLEL, &
+       do ispin=1,tmb%linmat%smat(1)%nspin
+          ishift=(ispin-1)*tmb%linmat%smat(1)%nvctrp_tg
+          call uncompress_matrix_distributed2(iproc, tmb_old%linmat%smat(1), DENSE_PARALLEL, &
                tmb_old%linmat%ovrlp_%matrix_compr(ishift+1:), ovrlpp)
-          !call uncompress_matrix_distributed2(iproc, tmb_old%linmat%s, DENSE_PARALLEL, tmb_old%linmat%ovrlp_%matrix_compr, ovrlpp)
+          !call uncompress_matrix_distributed2(iproc, tmb_old%linmat%smat(1), DENSE_PARALLEL, tmb_old%linmat%ovrlp_%matrix_compr, ovrlpp)
 
           ! Allocate the matrix with the new sparsity pattern
           !call f_free_ptr(tmb_old%linmat%ovrlp_%matrix_compr)
-          !tmb_old%linmat%ovrlp_%matrix_compr = f_malloc_ptr(tmb%linmat%s%nvctr,id='tmb_old%linmat%ovrlp_%matrix_compr')
-          !!tmb_old%linmat%ovrlp_%matrix_compr = sparsematrix_malloc_ptr(tmb%linmat%s,iaction=SPARSE_TASKGROUP, &
+          !tmb_old%linmat%ovrlp_%matrix_compr = f_malloc_ptr(tmb%linmat%smat(1)%nvctr,id='tmb_old%linmat%ovrlp_%matrix_compr')
+          !!tmb_old%linmat%ovrlp_%matrix_compr = sparsematrix_malloc_ptr(tmb%linmat%smat(1),iaction=SPARSE_TASKGROUP, &
           !!                                                             id='tmb_old%linmat%ovrlp_%matrix_compr')
 
-          !call compress_matrix_distributed(iproc, nproc, tmb%linmat%s, DENSE_PARALLEL, &
-          !     ovrlpp, tmb_old%linmat%ovrlp_%matrix_compr(tmb%linmat%s%isvctrp_tg+1:))
+          !call compress_matrix_distributed(iproc, nproc, tmb%linmat%smat(1), DENSE_PARALLEL, &
+          !     ovrlpp, tmb_old%linmat%ovrlp_%matrix_compr(tmb%linmat%smat(1)%isvctrp_tg+1:))
 
-          !ovrlp_old%matrix_compr = sparsematrix_malloc_ptr(tmb%linmat%l, &
+          !ovrlp_old%matrix_compr = sparsematrix_malloc_ptr(tmb%linmat%smat(3), &
           !                       iaction=SPARSE_TASKGROUP, id='ovrlp_old%matrix_compr')
 
-          call compress_matrix_distributed_wrapper(iproc, nproc, tmb%linmat%s, DENSE_PARALLEL, &
+          call compress_matrix_distributed_wrapper(iproc, nproc, tmb%linmat%smat(1), DENSE_PARALLEL, &
                ovrlpp, ONESIDED_FULL, ovrlp_old%matrix_compr(ishift+1:))
 
        end do
@@ -1486,18 +1486,18 @@ subroutine input_memory_linear(iproc, nproc, at, KSwfn, tmb, tmb_old, denspot, i
        order_taylor = input%lin%order_taylor
        power(1)=2
        call overlapPowerGeneral(iproc, nproc, bigdft_mpi%mpi_comm, order_taylor, 1, power, -1, &
-            imode=1, ovrlp_smat=tmb%linmat%s, inv_ovrlp_smat=tmb%linmat%l, &
+            imode=1, ovrlp_smat=tmb%linmat%smat(1), inv_ovrlp_smat=tmb%linmat%smat(3), &
             ovrlp_mat=ovrlp_old, inv_ovrlp_mat=tmb%linmat%ovrlppowers_(1), &
             check_accur=.true., max_error=max_error, mean_error=mean_error)
        call check_taylor_order(iproc, mean_error, input%lin%max_inversion_error, order_taylor)
 
-       !!call extract_taskgroup_inplace(tmb%linmat%l, tmb%linmat%kernel_)
+       !!call extract_taskgroup_inplace(tmb%linmat%smat(3), tmb%linmat%kernel_)
        norder_taylor = input%lin%order_taylor !since it is inout
        call renormalize_kernel(iproc, nproc, norder_taylor, input%lin%max_inversion_error, tmb, &
             tmb%linmat%ovrlp_, tmb_old%linmat%ovrlp_)
-       !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%l, tmb%linmat%kernel_)
+       !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%smat(3), tmb%linmat%kernel_)
 
-       !call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%s, tmb%linmat%ovrlp_)
+       !call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%smat(1), tmb%linmat%ovrlp_)
 
        call f_free_ptr(ovrlp_old%matrix_compr)
   else
@@ -1528,20 +1528,20 @@ subroutine input_memory_linear(iproc, nproc, at, KSwfn, tmb, tmb_old, denspot, i
   call f_free_ptr(tmb_old%linmat%kernel_%matrix_compr)
 
   !!if (associated(tmb_old%linmat%ks)) then
-  !!    do ispin=1,tmb_old%linmat%l%nspin
+  !!    do ispin=1,tmb_old%linmat%smat(3)%nspin
   !!        call deallocate_sparse_matrix(tmb_old%linmat%ks(ispin))
   !!    end do
   !!    deallocate(tmb_old%linmat%ks)
   !!end if
   !!if (associated(tmb_old%linmat%ks_e)) then
-  !!    do ispin=1,tmb_old%linmat%l%nspin
+  !!    do ispin=1,tmb_old%linmat%smat(3)%nspin
   !!        call deallocate_sparse_matrix(tmb_old%linmat%ks_e(ispin))
   !!    end do
   !!    deallocate(tmb_old%linmat%ks_e)
   !!end if
-  !!call deallocate_sparse_matrix(tmb_old%linmat%s)
-  !!call deallocate_sparse_matrix(tmb_old%linmat%m)
-  !!call deallocate_sparse_matrix(tmb_old%linmat%l)
+  !!call deallocate_sparse_matrix(tmb_old%linmat%smat(1))
+  !!call deallocate_sparse_matrix(tmb_old%linmat%smat(2))
+  !!call deallocate_sparse_matrix(tmb_old%linmat%smat(3))
   !!call deallocate_matrices(tmb_old%linmat%ham_)
   !!call deallocate_matrices(tmb_old%linmat%ovrlp_)
   !!call deallocate_matrices(tmb_old%linmat%kernel_)
@@ -1567,13 +1567,13 @@ subroutine input_memory_linear(iproc, nproc, at, KSwfn, tmb, tmb_old, denspot, i
            tmb%orbs, tmb%psi, tmb%collcom_sr)
       !tmb%linmat%kernel_%matrix_compr = tmb%linmat%denskern_large%matrix_compr
 
-      tmparr = sparsematrix_malloc(tmb%linmat%l,iaction=SPARSE_TASKGROUP,id='tmparr')
-      call vcopy(tmb%linmat%l%nvctrp_tg, tmb%linmat%kernel_%matrix_compr(1), 1, tmparr(1), 1)
-      !call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%l, tmb%linmat%kernel_)
+      tmparr = sparsematrix_malloc(tmb%linmat%smat(3),iaction=SPARSE_TASKGROUP,id='tmparr')
+      call vcopy(tmb%linmat%smat(3)%nvctrp_tg, tmb%linmat%kernel_%matrix_compr(1), 1, tmparr(1), 1)
+      !call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%smat(3), tmb%linmat%kernel_)
       call sumrho_for_TMBs(iproc, nproc, KSwfn%Lzd%hgrids(1), KSwfn%Lzd%hgrids(2), KSwfn%Lzd%hgrids(3), &
-           tmb%collcom_sr, tmb%linmat%l, tmb%linmat%auxl, tmb%linmat%kernel_, denspot%dpbox%ndimrhopot, &
+           tmb%collcom_sr, tmb%linmat%smat(3), tmb%linmat%auxl, tmb%linmat%kernel_, denspot%dpbox%ndimrhopot, &
            denspot%rhov, rho_negative)
-      call vcopy(tmb%linmat%l%nvctrp_tg, tmparr(1), 1, tmb%linmat%kernel_%matrix_compr(1), 1)
+      call vcopy(tmb%linmat%smat(3)%nvctrp_tg, tmparr(1), 1, tmb%linmat%kernel_%matrix_compr(1), 1)
       call f_free(tmparr)
 
      if (rho_negative) then
@@ -1586,7 +1586,7 @@ subroutine input_memory_linear(iproc, nproc, at, KSwfn, tmb, tmb_old, denspot, i
      ! CDFT: calculate w(r) and w_ab, define some initial guess for V and initialize other cdft_data stuff
      call timing(iproc,'constraineddft','ON')
      if (input%lin%constrained_dft) then
-        call cdft_data_allocate(cdft,tmb%linmat%m)
+        call cdft_data_allocate(cdft,tmb%linmat%smat(2))
         if (trim(cdft%method)=='fragment_density') then ! fragment density approach
            if (input%lin%calc_transfer_integrals) stop 'Must use Lowdin for CDFT transfer integral calculations for now'
            if (input%lin%diag_start) stop 'Diag at start probably not working for fragment_density'
@@ -1682,7 +1682,7 @@ subroutine input_memory_linear(iproc, nproc, at, KSwfn, tmb, tmb_old, denspot, i
       !           tmb%orbs, tmb%psi, tmb%collcom_sr)
       !      !tmb%linmat%kernel_%matrix_compr = tmb%linmat%denskern_large%matrix_compr
       !      call sumrho_for_TMBs(iproc, nproc, KSwfn%Lzd%hgrids(1), KSwfn%Lzd%hgrids(2), KSwfn%Lzd%hgrids(3), &
-      !           tmb%collcom_sr, tmb%linmat%l, tmb%linmat%kernel_, denspot%dpbox%ndimrhopot, &
+      !           tmb%collcom_sr, tmb%linmat%smat(3), tmb%linmat%kernel_, denspot%dpbox%ndimrhopot, &
       !           denspot%rhov, rho_negative)
       !     if (rho_negative) then
       !         call corrections_for_negative_charge(iproc, nproc, KSwfn, at, input, tmb, denspot)
@@ -1720,7 +1720,7 @@ subroutine input_memory_linear(iproc, nproc, at, KSwfn, tmb, tmb_old, denspot, i
       tmb%can_use_transposed = .false.
       methTransformOverlap=-1
       call orthonormalizeLocalized(iproc, nproc, methTransformOverlap, 1.d0, tmb%npsidim_orbs, tmb%orbs, tmb%lzd, &
-           tmb%linmat%s, tmb%linmat%auxs, tmb%linmat%l, tmb%linmat%auxl, &
+           tmb%linmat%smat(1), tmb%linmat%auxs, tmb%linmat%smat(3), tmb%linmat%auxl, &
            tmb%collcom, tmb%orthpar, tmb%psi, tmb%psit_c, tmb%psit_f, tmb%can_use_transposed)
   end if
 
@@ -3014,7 +3014,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
 
      ! Also calculate the overlap matrix.. not needed here, but in other parts of the code. Should be improved...
      call calculate_overlap_transposed(iproc, nproc, tmb%orbs, tmb%collcom, tmb%psit_c, tmb%psit_c, &
-          tmb%psit_f, tmb%psit_f, tmb%linmat%s, tmb%linmat%auxs, tmb%linmat%ovrlp_)
+          tmb%psit_f, tmb%psit_f, tmb%linmat%smat(1), tmb%linmat%auxs, tmb%linmat%ovrlp_)
 
      call untranspose_localized(iproc, nproc, tmb%npsidim_orbs, tmb%orbs, tmb%collcom, &
           TRANSPOSE_FULL, tmb%psit_c, tmb%psit_f, tmb%psi, tmb%lzd)
@@ -3093,9 +3093,9 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
         end if
 
         !! debug
-        !tmb%linmat%kernel_%matrix = sparsematrix_malloc_ptr(tmb%linmat%l, DENSE_FULL, id='tmb%linmat%kernel__%matrix')
+        !tmb%linmat%kernel_%matrix = sparsematrix_malloc_ptr(tmb%linmat%smat(3), DENSE_FULL, id='tmb%linmat%kernel__%matrix')
         !!call uncompress_matrix(bigdft_mpi%iproc,tmb%linmat%kernel_)
-        !call uncompress_matrix2(iproc, nproc, bigdft_mpi%mpi_comm, tmb%linmat%l, tmb%linmat%kernel_%matrix_compr, tmb%linmat%kernel_%matrix)
+        !call uncompress_matrix2(iproc, nproc, bigdft_mpi%mpi_comm, tmb%linmat%smat(3), tmb%linmat%kernel_%matrix_compr, tmb%linmat%kernel_%matrix)
         !if (iproc==0) then
         !   open(30)
         !   do itmb=1,tmb%orbs%norb
@@ -3119,13 +3119,15 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
         ! not sure how often it will be useful but should fix this
         if (in%lin%kernel_restart_mode==LIN_RESTART_KERNEL .or. in%lin%kernel_restart_mode==LIN_RESTART_DIAG_KERNEL) then
            ! for now assuming reading was from file in dense format
-           tmb%linmat%kernel_%matrix = sparsematrix_malloc_ptr(tmb%linmat%l,iaction=DENSE_FULL,id='tmb%linmat%kernel_%matrix')
-           call vcopy(tmb%linmat%l%nfvctr*tmb%linmat%l%nfvctr*tmb%orbs%nspinor,ref_frags(1)%kernel(1,1,1),1,&
+           tmb%linmat%kernel_%matrix = sparsematrix_malloc_ptr(tmb%linmat%smat(3),&
+               iaction=DENSE_FULL,id='tmb%linmat%kernel_%matrix')
+           call vcopy(tmb%linmat%smat(3)%nfvctr*tmb%linmat%smat(3)%nfvctr*tmb%orbs%nspinor,ref_frags(1)%kernel(1,1,1),1,&
                 tmb%linmat%kernel_%matrix(1,1,1),1)
-           call compress_matrix(iproc,nproc,tmb%linmat%l,inmat=tmb%linmat%kernel_%matrix,outmat=tmb%linmat%kernel_%matrix_compr)
+           call compress_matrix(iproc,nproc,tmb%linmat%smat(3), &
+                inmat=tmb%linmat%kernel_%matrix,outmat=tmb%linmat%kernel_%matrix_compr)
            call f_free_ptr(tmb%linmat%kernel_%matrix)
         else
-           call vcopy(tmb%orbs%norb*tmb%linmat%l%nfvctr,ref_frags(1)%coeff(1,1),1,tmb%coeff(1,1),1)
+           call vcopy(tmb%orbs%norb*tmb%linmat%smat(3)%nfvctr,ref_frags(1)%coeff(1,1),1,tmb%coeff(1,1),1)
            call vcopy(tmb%orbs%norb,ref_frags(1)%eval(1),1,tmb%orbs%eval(1),1)
         end if
         !if (kernel_restart) call vcopy(tmb%orbs%norb,ref_frags(1)%kernel(1,1),1,tmb%linmat%(1),1)
@@ -3146,20 +3148,20 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
         !     tmb%orthpar%blocksize_pdgemm, tmb%orbs, tmb, overlap_calculated)
 
         ! already calculated in fragment_coeffs_to_kernel
-        tmb%linmat%ovrlp_%matrix = sparsematrix_malloc_ptr(tmb%linmat%s, iaction=DENSE_FULL, id='tmb%linmat%ovrlp_%matrix')
-        call uncompress_matrix2(iproc, nproc, bigdft_mpi%mpi_comm, tmb%linmat%s, &
+        tmb%linmat%ovrlp_%matrix = sparsematrix_malloc_ptr(tmb%linmat%smat(1), iaction=DENSE_FULL, id='tmb%linmat%ovrlp_%matrix')
+        call uncompress_matrix2(iproc, nproc, bigdft_mpi%mpi_comm, tmb%linmat%smat(1), &
              tmb%linmat%ovrlp_%matrix_compr, tmb%linmat%ovrlp_%matrix)
 
         ! can't call reconstruct directly as need to use ks_e (which has size of tmb) not ks
         call reorthonormalize_coeff(iproc, nproc, tmb%orbs%norb, tmb%orthpar%blocksize_pdsyev, tmb%orthpar%blocksize_pdgemm, &
-             in%lin%order_taylor, tmb%orbs, tmb%linmat%s, tmb%linmat%ks_e, tmb%linmat%ovrlp_, tmb%coeff, tmb%orbs)
+             in%lin%order_taylor, tmb%orbs, tmb%linmat%smat(1), tmb%linmat%ks_e, tmb%linmat%ovrlp_, tmb%coeff, tmb%orbs)
 
         call f_free_ptr(tmb%linmat%ovrlp_%matrix)
 
         ! Recalculate the kernel
         call calculate_density_kernel(iproc, nproc, bigdft_mpi%mpi_comm, .true., &
              tmb%orbs%norbp, tmb%orbs%isorb, tmb%orbs%norbu, tmb%orbs%norb, &
-             tmb%orbs%occup, tmb%coeff, tmb%linmat%l, tmb%linmat%kernel_)
+             tmb%orbs%occup, tmb%coeff, tmb%linmat%smat(3), tmb%linmat%kernel_)
 
         !reset occ
         !call to_zero(tmb%orbs%norb,tmb%orbs%occup(1))
@@ -3178,7 +3180,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
               !!!!    call yaml_map('Initial kernel purification',.true.)
               !!!!end if
               !!!!!overlap_calculated=.true.
-              !!!!do ispin=1,tmb%linmat%l%nspin
+              !!!!do ispin=1,tmb%linmat%smat(3)%nspin
 
               !!!!    !subroutine purify_kernel(iproc, nproc, tmb, overlap_calculated, it_shift, it_opt, order_taylor, &
               !!!!    !           max_inversion_error, purification_quickreturn, ispin)
@@ -3195,9 +3197,9 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
      end if
 
      !! debug
-     !tmb%linmat%kernel_%matrix = sparsematrix_malloc_ptr(tmb%linmat%l, DENSE_FULL, id='tmb%linmat%kernel__%matrix')
+     !tmb%linmat%kernel_%matrix = sparsematrix_malloc_ptr(tmb%linmat%smat(3), DENSE_FULL, id='tmb%linmat%kernel__%matrix')
      !!call uncompress_matrix(bigdft_mpi%iproc,tmb%linmat%kernel_)
-     !call uncompress_matrix2(iproc, nproc, tmb%linmat%l, tmb%linmat%kernel_%matrix_compr, tmb%linmat%kernel_%matrix)
+     !call uncompress_matrix2(iproc, nproc, tmb%linmat%smat(3), tmb%linmat%kernel_%matrix_compr, tmb%linmat%kernel_%matrix)
      !if (iproc==0) then
      !   open(31)
      !   do itmb=1,tmb%orbs%norb
@@ -3248,13 +3250,13 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
           tmb%orbs, tmb%psi, tmb%collcom_sr)
 
      !tmb%linmat%kernel_%matrix_compr = tmb%linmat%denskern_large%matrix_compr
-     tmparr = sparsematrix_malloc(tmb%linmat%l,iaction=SPARSE_TASKGROUP,id='tmparr')
-     call vcopy(tmb%linmat%l%nvctrp_tg, tmb%linmat%kernel_%matrix_compr(1), 1, tmparr(1), 1)
-     !call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%l, tmb%linmat%kernel_)
+     tmparr = sparsematrix_malloc(tmb%linmat%smat(3),iaction=SPARSE_TASKGROUP,id='tmparr')
+     call vcopy(tmb%linmat%smat(3)%nvctrp_tg, tmb%linmat%kernel_%matrix_compr(1), 1, tmparr(1), 1)
+     !call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%smat(3), tmb%linmat%kernel_)
      call sumrho_for_TMBs(iproc, nproc, KSwfn%Lzd%hgrids(1), KSwfn%Lzd%hgrids(2), KSwfn%Lzd%hgrids(3), &
-          tmb%collcom_sr, tmb%linmat%l, tmb%linmat%auxl, tmb%linmat%kernel_, denspot%dpbox%ndimrhopot, &
+          tmb%collcom_sr, tmb%linmat%smat(3), tmb%linmat%auxl, tmb%linmat%kernel_, denspot%dpbox%ndimrhopot, &
           denspot%rhov, rho_negative)
-     call vcopy(tmb%linmat%l%nvctrp_tg, tmparr(1), 1, tmb%linmat%kernel_%matrix_compr(1), 1)
+     call vcopy(tmb%linmat%smat(3)%nvctrp_tg, tmparr(1), 1, tmb%linmat%kernel_%matrix_compr(1), 1)
      call f_free(tmparr)
      if (rho_negative) then
          !!if (iproc==0) call yaml_warning('Charge density contains negative points, need to increase FOE cutoff')
@@ -3266,7 +3268,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
      ! CDFT: calculate w(r) and w_ab, define some initial guess for V and initialize other cdft_data stuff
      call timing(iproc,'constraineddft','ON')
      if (in%lin%constrained_dft) then
-        call cdft_data_allocate(cdft,tmb%linmat%m)
+        call cdft_data_allocate(cdft,tmb%linmat%smat(2))
         if (trim(cdft%method)=='fragment_density') then ! fragment density approach
            if (in%lin%calc_transfer_integrals) stop 'Must use Lowdin for CDFT transfer integral calculations for now'
            if (in%lin%diag_start) stop 'Diag at start probably not working for fragment_density'
@@ -3336,7 +3338,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
         !end do
         !end if
         order_taylor=in%lin%order_taylor ! since this is intent(inout)
-        !!call extract_taskgroup_inplace(tmb%linmat%l, tmb%linmat%kernel_)
+        !!call extract_taskgroup_inplace(tmb%linmat%smat(3), tmb%linmat%kernel_)
 
         energs_work = work_mpiaccumulate_null()
         energs_work%ncount = 4
@@ -3362,7 +3364,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
 
         call deallocate_work_mpiaccumulate(energs_work)
 
-        !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%l, tmb%linmat%kernel_)
+        !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%smat(3), tmb%linmat%kernel_)
 
         !if (iproc==0) then
         !print*,'coeffs after extra diag:'
@@ -3390,9 +3392,9 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
      end if
 
      !! debug
-     !tmb%linmat%kernel_%matrix = sparsematrix_malloc_ptr(tmb%linmat%l, DENSE_FULL, id='tmb%linmat%kernel__%matrix')
+     !tmb%linmat%kernel_%matrix = sparsematrix_malloc_ptr(tmb%linmat%smat(3), DENSE_FULL, id='tmb%linmat%kernel__%matrix')
      !!call uncompress_matrix(bigdft_mpi%iproc,tmb%linmat%kernel_)
-     !call uncompress_matrix2(iproc, nproc, tmb%linmat%l, tmb%linmat%kernel_%matrix_compr, tmb%linmat%kernel_%matrix)
+     !call uncompress_matrix2(iproc, nproc, tmb%linmat%smat(3), tmb%linmat%kernel_%matrix_compr, tmb%linmat%kernel_%matrix)
      !if (iproc==0) then
      !   open(32)
      !   do itmb=1,tmb%orbs%norb

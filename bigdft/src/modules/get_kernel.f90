@@ -251,11 +251,11 @@ module get_kernel
     
     
           call calculate_overlap_transposed(iproc, nproc, tmb%orbs, tmb%ham_descr%collcom, &
-               tmb%ham_descr%psit_c, hpsit_c, tmb%ham_descr%psit_f, hpsit_f, tmb%linmat%m, tmb%linmat%auxm, tmb%linmat%ham_)
-          !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%m, tmb%linmat%ham_)
+               tmb%ham_descr%psit_c, hpsit_c, tmb%ham_descr%psit_f, hpsit_f, tmb%linmat%smat(2), tmb%linmat%auxm, tmb%linmat%ham_)
+          !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%smat(2), tmb%linmat%ham_)
     
     
-    !!  call diagonalize_subset(iproc, nproc, tmb%orbs, tmb%linmat%s, tmb%linmat%ovrlp_, tmb%linmat%m, tmb%linmat%ham_)
+    !!  call diagonalize_subset(iproc, nproc, tmb%orbs, tmb%linmat%smat(1), tmb%linmat%ovrlp_, tmb%linmat%smat(2), tmb%linmat%ham_)
     !!  if (iproc==0) then
     !!      do iorb=1,tmb%orbs%norb
     !!          write(*,*) 'iorb, tmb%orbs%eval(iorb)',iorb,tmb%orbs%eval(iorb)
@@ -280,26 +280,26 @@ module get_kernel
     
           if (iproc==0) call yaml_map('calculate overlap matrix',.true.)
           call calculate_overlap_transposed(iproc, nproc, tmb%orbs, tmb%collcom, tmb%psit_c, &
-               tmb%psit_c, tmb%psit_f, tmb%psit_f, tmb%linmat%s, tmb%linmat%auxs, tmb%linmat%ovrlp_)
-          !call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%s, tmb%linmat%ovrlp_)
+               tmb%psit_c, tmb%psit_f, tmb%psit_f, tmb%linmat%smat(1), tmb%linmat%auxs, tmb%linmat%ovrlp_)
+          !call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%smat(1), tmb%linmat%ovrlp_)
       end if
     
-      ovrlp_fullp = sparsematrix_malloc(tmb%linmat%l,iaction=DENSE_PARALLEL,id='ovrlp_fullp')
+      ovrlp_fullp = sparsematrix_malloc(tmb%linmat%smat(3),iaction=DENSE_PARALLEL,id='ovrlp_fullp')
       max_deviation=0.d0
       mean_deviation=0.d0
-      do ispin=1,tmb%linmat%s%nspin
-          ishift=(ispin-1)*tmb%linmat%s%nvctrp_tg
-          call uncompress_matrix_distributed2(iproc, tmb%linmat%s, DENSE_PARALLEL, &
+      do ispin=1,tmb%linmat%smat(1)%nspin
+          ishift=(ispin-1)*tmb%linmat%smat(1)%nvctrp_tg
+          call uncompress_matrix_distributed2(iproc, tmb%linmat%smat(1), DENSE_PARALLEL, &
                tmb%linmat%ovrlp_%matrix_compr(ishift+1:), ovrlp_fullp)
           call deviation_from_unity_parallel(iproc, nproc, bigdft_mpi%mpi_comm, &
-               tmb%linmat%s%nfvctr, tmb%linmat%s%nfvctrp, &
-               tmb%linmat%s%isfvctr, ovrlp_fullp, &
-               tmb%linmat%s, max_deviation_p, mean_deviation_p)
+               tmb%linmat%smat(1)%nfvctr, tmb%linmat%smat(1)%nfvctrp, &
+               tmb%linmat%smat(1)%isfvctr, ovrlp_fullp, &
+               tmb%linmat%smat(1), max_deviation_p, mean_deviation_p)
           !!call deviation_from_unity_parallel_new(iproc, nproc, bigdft_mpi%mpi_comm, &
-          !!     tmb%linmat%ovrlp_%matrix_compr(ishift+1:), tmb%linmat%s, &
+          !!     tmb%linmat%ovrlp_%matrix_compr(ishift+1:), tmb%linmat%smat(1), &
           !!     max_deviation_p, mean_deviation_p)
-          max_deviation = max_deviation + max_deviation_p/real(tmb%linmat%s%nspin,kind=8)
-          mean_deviation = mean_deviation + mean_deviation_p/real(tmb%linmat%s%nspin,kind=8)
+          max_deviation = max_deviation + max_deviation_p/real(tmb%linmat%smat(1)%nspin,kind=8)
+          mean_deviation = mean_deviation + mean_deviation_p/real(tmb%linmat%smat(1)%nspin,kind=8)
       end do
       call f_free(ovrlp_fullp)
       !if (iproc==0) then
@@ -316,62 +316,62 @@ module get_kernel
       ! CDFT: add V*w_ab to Hamiltonian here - assuming ham and weight matrix have the same sparsity...
       if (present(cdft)) then
          call timing(iproc,'constraineddft','ON')
-         call daxpy(tmb%linmat%m%nvctr,cdft%lag_mult,cdft%weight_matrix_%matrix_compr,1,tmb%linmat%ham_%matrix_compr,1)
+         call daxpy(tmb%linmat%smat(2)%nvctr,cdft%lag_mult,cdft%weight_matrix_%matrix_compr,1,tmb%linmat%ham_%matrix_compr,1)
          call timing(iproc,'constraineddft','OF') 
       end if
     
       if (remove_coupling_terms) then
           call delete_coupling_terms(iproc, nproc, bigdft_mpi%mpi_comm, &
-               tmb%linmat%smmd, tmb%linmat%s, tmb%linmat%ovrlp_%matrix_compr)
+               tmb%linmat%smmd, tmb%linmat%smat(1), tmb%linmat%ovrlp_%matrix_compr)
           call delete_coupling_terms(iproc, nproc, bigdft_mpi%mpi_comm, &
-               tmb%linmat%smmd, tmb%linmat%m, tmb%linmat%ham_%matrix_compr)
+               tmb%linmat%smmd, tmb%linmat%smat(2), tmb%linmat%ham_%matrix_compr)
           call delete_coupling_terms(iproc, nproc, bigdft_mpi%mpi_comm, &
-               tmb%linmat%smmd, tmb%linmat%l, tmb%linmat%kernel_%matrix_compr)
+               tmb%linmat%smmd, tmb%linmat%smat(3), tmb%linmat%kernel_%matrix_compr)
       end if
       ! Calculate the asymmetry of S and H
       call max_asymmetry_of_matrix(iproc, nproc, bigdft_mpi%mpi_comm, &
-           tmb%linmat%s, tmb%linmat%ovrlp_%matrix_compr, asymm_S)
+           tmb%linmat%smat(1), tmb%linmat%ovrlp_%matrix_compr, asymm_S)
       call max_asymmetry_of_matrix(iproc, nproc, bigdft_mpi%mpi_comm, &
-           tmb%linmat%m, tmb%linmat%ham_%matrix_compr, asymm_H)
+           tmb%linmat%smat(2), tmb%linmat%ham_%matrix_compr, asymm_H)
     
       !!if (scf_mode/=LINEAR_FOE .and. scf_mode/=LINEAR_PEXSI) then
-      !!    tmb%linmat%ham_%matrix = sparsematrix_malloc_ptr(tmb%linmat%m, iaction=DENSE_FULL, id='tmb%linmat%ham_%matrix')
+      !!    tmb%linmat%ham_%matrix = sparsematrix_malloc_ptr(tmb%linmat%smat(2), iaction=DENSE_FULL, id='tmb%linmat%ham_%matrix')
       !!    !call yaml_map('Ham1com',tmb%linmat%ham_%matrix_compr)
       !!    !call yaml_map('ovrlpcom',tmb%linmat%ovrlp_%matrix_compr)
     
-      !!    tmb%linmat%ovrlp_%matrix = sparsematrix_malloc_ptr(tmb%linmat%s, iaction=DENSE_FULL, id='tmb%linmat%ovrlp_%matrix')
-      !!    !call uncompress_matrix(iproc, tmb%linmat%m, &
+      !!    tmb%linmat%ovrlp_%matrix = sparsematrix_malloc_ptr(tmb%linmat%smat(1), iaction=DENSE_FULL, id='tmb%linmat%ovrlp_%matrix')
+      !!    !call uncompress_matrix(iproc, tmb%linmat%smat(2), &
       !!    !     inmat=tmb%linmat%ham_%matrix_compr, outmat=tmb%linmat%ham_%matrix)
-      !!    !call uncompress_matrix(iproc, tmb%linmat%s, &
+      !!    !call uncompress_matrix(iproc, tmb%linmat%smat(1), &
       !!    !     inmat=tmb%linmat%ovrlp_%matrix_compr, outmat=tmb%linmat%ovrlp_%matrix)
-      !!    do ispin=1,tmb%linmat%m%nspin
-      !!        ishifts = (ispin-1)*tmb%linmat%s%nvctrp_tg
-      !!        ishiftm = (ispin-1)*tmb%linmat%m%nvctrp_tg
-      !!        call f_zero(tmb%linmat%m%nfvctr**2, tmb%linmat%ham_%matrix(1,1,ispin))
-      !!        tempmat = sparsematrix_malloc(tmb%linmat%m, iaction=DENSE_PARALLEL, id='tempmat')
-      !!        call uncompress_matrix_distributed2(iproc, tmb%linmat%m, DENSE_PARALLEL, &
-      !!             tmb%linmat%ham_%matrix_compr(ishiftm+1:ishiftm+tmb%linmat%m%nvctrp_tg), tempmat)
-      !!        if (tmb%linmat%m%nfvctrp>0) then
-      !!            call vcopy(tmb%linmat%m%nfvctr*tmb%linmat%m%nfvctrp, tempmat(1,1), 1, &
-      !!                 tmb%linmat%ham_%matrix(1,tmb%linmat%m%isfvctr+1,ispin), 1)
+      !!    do ispin=1,tmb%linmat%smat(2)%nspin
+      !!        ishifts = (ispin-1)*tmb%linmat%smat(1)%nvctrp_tg
+      !!        ishiftm = (ispin-1)*tmb%linmat%smat(2)%nvctrp_tg
+      !!        call f_zero(tmb%linmat%smat(2)%nfvctr**2, tmb%linmat%ham_%matrix(1,1,ispin))
+      !!        tempmat = sparsematrix_malloc(tmb%linmat%smat(2), iaction=DENSE_PARALLEL, id='tempmat')
+      !!        call uncompress_matrix_distributed2(iproc, tmb%linmat%smat(2), DENSE_PARALLEL, &
+      !!             tmb%linmat%ham_%matrix_compr(ishiftm+1:ishiftm+tmb%linmat%smat(2)%nvctrp_tg), tempmat)
+      !!        if (tmb%linmat%smat(2)%nfvctrp>0) then
+      !!            call vcopy(tmb%linmat%smat(2)%nfvctr*tmb%linmat%smat(2)%nfvctrp, tempmat(1,1), 1, &
+      !!                 tmb%linmat%ham_%matrix(1,tmb%linmat%smat(2)%isfvctr+1,ispin), 1)
       !!        end if
       !!        call f_free(tempmat)
       !!        if (nproc>1) then
-      !!            call mpiallred(tmb%linmat%ham_%matrix(1,1,ispin), tmb%linmat%m%nfvctr**2, &
+      !!            call mpiallred(tmb%linmat%ham_%matrix(1,1,ispin), tmb%linmat%smat(2)%nfvctr**2, &
       !!                 mpi_sum, comm=bigdft_mpi%mpi_comm)
       !!        end if
     
-      !!        call f_zero(tmb%linmat%s%nfvctr**2, tmb%linmat%ovrlp_%matrix(1,1,ispin))
-      !!        tempmat = sparsematrix_malloc(tmb%linmat%s, iaction=DENSE_PARALLEL, id='tempmat')
-      !!        call uncompress_matrix_distributed2(iproc, tmb%linmat%s, DENSE_PARALLEL, &
+      !!        call f_zero(tmb%linmat%smat(1)%nfvctr**2, tmb%linmat%ovrlp_%matrix(1,1,ispin))
+      !!        tempmat = sparsematrix_malloc(tmb%linmat%smat(1), iaction=DENSE_PARALLEL, id='tempmat')
+      !!        call uncompress_matrix_distributed2(iproc, tmb%linmat%smat(1), DENSE_PARALLEL, &
       !!             tmb%linmat%ovrlp_%matrix_compr(ishifts+1:), tempmat)
-      !!        if (tmb%linmat%m%nfvctrp>0) then
-      !!            call vcopy(tmb%linmat%s%nfvctr*tmb%linmat%s%nfvctrp, tempmat(1,1), 1, &
-      !!                 tmb%linmat%ovrlp_%matrix(1,tmb%linmat%s%isfvctr+1,ispin), 1)
+      !!        if (tmb%linmat%smat(2)%nfvctrp>0) then
+      !!            call vcopy(tmb%linmat%smat(1)%nfvctr*tmb%linmat%smat(1)%nfvctrp, tempmat(1,1), 1, &
+      !!                 tmb%linmat%ovrlp_%matrix(1,tmb%linmat%smat(1)%isfvctr+1,ispin), 1)
       !!        end if
       !!        call f_free(tempmat)
       !!        if (nproc>1) then
-      !!            call mpiallred(tmb%linmat%ovrlp_%matrix(1,1,ispin), tmb%linmat%s%nfvctr**2, &
+      !!            call mpiallred(tmb%linmat%ovrlp_%matrix(1,1,ispin), tmb%linmat%smat(1)%nfvctr**2, &
       !!                 mpi_sum, comm=bigdft_mpi%mpi_comm)
       !!        end if
       !!    end do
@@ -379,8 +379,8 @@ module get_kernel
     
       if(scf_mode==LINEAR_MIXPOT_SIMPLE .or. scf_mode==LINEAR_MIXDENS_SIMPLE) then
           call get_coeffs_diagonalization(iproc, nproc, bigdft_mpi%mpi_comm, &
-               tmb%linmat%m%nfvctr, orbs%norbu, orbs%norbd, orbs%norb, tmb%orthpar%blocksize_pdsyev, &
-               tmb%linmat%s, tmb%linmat%m, tmb%linmat%ovrlp_, tmb%linmat%ham_, tmb%coeff, &
+               tmb%linmat%smat(2)%nfvctr, orbs%norbu, orbs%norbd, orbs%norb, tmb%orthpar%blocksize_pdsyev, &
+               tmb%linmat%smat(1), tmb%linmat%smat(2), tmb%linmat%ovrlp_, tmb%linmat%ham_, tmb%coeff, &
                tmb%orbs%eval, orbs%eval, infoCoeff)
       else if (scf_mode==LINEAR_DIRECT_MINIMIZATION) then
          if(.not.present(ldiis_coeff)) &
@@ -388,11 +388,11 @@ module get_kernel
               err_name='BIGDFT_RUNTIME_ERROR')
          ! call routine which updates coeffs for tmb%orbs%norb or orbs%norb depending on whether or not extra states are required
          if (iproc==0) call yaml_map('method','directmin')
-         tmb%linmat%ovrlp_%matrix = sparsematrix_malloc_ptr(tmb%linmat%s, iaction=DENSE_FULL, id='tmb%linmat%ovrlp_%matrix')
-         tmb%linmat%ham_%matrix = sparsematrix_malloc_ptr(tmb%linmat%m, iaction=DENSE_FULL, id='tmb%linmat%ham_%matrix')
-         call uncompress_matrix2(iproc, nproc, bigdft_mpi%mpi_comm, tmb%linmat%s, &
+         tmb%linmat%ovrlp_%matrix = sparsematrix_malloc_ptr(tmb%linmat%smat(1), iaction=DENSE_FULL, id='tmb%linmat%ovrlp_%matrix')
+         tmb%linmat%ham_%matrix = sparsematrix_malloc_ptr(tmb%linmat%smat(2), iaction=DENSE_FULL, id='tmb%linmat%ham_%matrix')
+         call uncompress_matrix2(iproc, nproc, bigdft_mpi%mpi_comm, tmb%linmat%smat(1), &
               tmb%linmat%ovrlp_%matrix_compr, tmb%linmat%ovrlp_%matrix)
-         call uncompress_matrix2(iproc, nproc, bigdft_mpi%mpi_comm, tmb%linmat%m, &
+         call uncompress_matrix2(iproc, nproc, bigdft_mpi%mpi_comm, tmb%linmat%smat(2), &
               tmb%linmat%ham_%matrix_compr, tmb%linmat%ham_%matrix)
          if (extra_states>0) then
             call optimize_coeffs(iproc, nproc, orbs, tmb, ldiis_coeff, fnrm, convcrit_dmin, nitdmin, energs%ebs, &
@@ -408,11 +408,11 @@ module get_kernel
       ! CDFT: subtract V*w_ab from Hamiltonian so that we are calculating the correct energy
       if (present(cdft)) then
          call timing(iproc,'constraineddft','ON')
-         tmparr = sparsematrix_malloc(tmb%linmat%m,iaction=SPARSE_FULL,id='tmparr')
+         tmparr = sparsematrix_malloc(tmb%linmat%smat(2),iaction=SPARSE_FULL,id='tmparr')
          call gather_matrix_from_taskgroups(iproc, nproc, bigdft_mpi%mpi_comm, &
-              tmb%linmat%m, tmb%linmat%ham_%matrix_compr, tmparr)
-         call daxpy(tmb%linmat%m%nvctr*tmb%linmat%m%nspin,-cdft%lag_mult,cdft%weight_matrix_%matrix_compr,1,tmparr,1)
-         call extract_taskgroup(tmb%linmat%m, tmparr, tmb%linmat%ham_%matrix_compr)
+              tmb%linmat%smat(2), tmb%linmat%ham_%matrix_compr, tmparr)
+         call daxpy(tmb%linmat%smat(2)%nvctr*tmb%linmat%smat(2)%nspin,-cdft%lag_mult,cdft%weight_matrix_%matrix_compr,1,tmparr,1)
+         call extract_taskgroup(tmb%linmat%smat(2), tmparr, tmb%linmat%ham_%matrix_compr)
          call f_free(tmparr)
          call timing(iproc,'constraineddft','OF') 
       end if
@@ -420,12 +420,12 @@ module get_kernel
       if (scf_mode/=LINEAR_FOE .and. scf_mode/=LINEAR_PEXSI) then
           call evaltoocc(iproc,nproc,.false.,tel,orbs,occopt)
           if (scf_mode/=LINEAR_DIRECT_MINIMIZATION) then
-             call calculate_kernel_and_energy(iproc,nproc,bigdft_mpi%mpi_comm,tmb%linmat%l,tmb%linmat%m, &
+             call calculate_kernel_and_energy(iproc,nproc,bigdft_mpi%mpi_comm,tmb%linmat%smat(3),tmb%linmat%smat(2), &
                   tmb%linmat%kernel_, tmb%linmat%ham_, energs%ebs,&
                   tmb%coeff, orbs%norbp, orbs%isorb, orbs%norbu, orbs%norb, orbs%occup, update_kernel)
           else if (present(cdft)) then
              ! for directmin we have the kernel already, but only the CDFT function not actual energy for CDFT
-             call calculate_kernel_and_energy(iproc,nproc,bigdft_mpi%mpi_comm,tmb%linmat%l,tmb%linmat%m, &
+             call calculate_kernel_and_energy(iproc,nproc,bigdft_mpi%mpi_comm,tmb%linmat%smat(3),tmb%linmat%smat(2), &
                   tmb%linmat%kernel_, tmb%linmat%ham_, energs%ebs,&
                   tmb%coeff,orbs%norbp, orbs%isorb, orbs%norbu, orbs%norb, orbs%occup, .false.)
           end if
@@ -436,20 +436,23 @@ module get_kernel
           ! CDFT: add V*w_ab to Hamiltonian here - assuming ham and weight matrix have the same sparsity...
           if (present(cdft)) then
              call timing(iproc,'constraineddft','ON')
-             call daxpy(tmb%linmat%m%nvctr,cdft%lag_mult,cdft%weight_matrix_%matrix_compr,1,tmb%linmat%ham_%matrix_compr,1)
+             call daxpy(tmb%linmat%smat(2)%nvctr,cdft%lag_mult,cdft%weight_matrix_%matrix_compr,1,&
+                  tmb%linmat%ham_%matrix_compr,1)
              call timing(iproc,'constraineddft','OF') 
           end if
     
           if (calculate_gap) then
-              tmb%linmat%ham_%matrix = sparsematrix_malloc_ptr(tmb%linmat%m, iaction=DENSE_FULL, id='tmb%linmat%ham_%matrix')
-              !!tmparr = sparsematrix_malloc(tmb%linmat%m,iaction=SPARSE_FULL,id='tmparr')
-              !!call gather_matrix_from_taskgroups(iproc, nproc, tmb%linmat%m, tmb%linmat%ham_%matrix_compr, tmparr)
+              tmb%linmat%ham_%matrix = sparsematrix_malloc_ptr(tmb%linmat%smat(2), &
+                  iaction=DENSE_FULL, id='tmb%linmat%ham_%matrix')
+              !!tmparr = sparsematrix_malloc(tmb%linmat%smat(2),iaction=SPARSE_FULL,id='tmparr')
+              !!call gather_matrix_from_taskgroups(iproc, nproc, tmb%linmat%smat(2), tmb%linmat%ham_%matrix_compr, tmparr)
               call uncompress_matrix2(iproc, nproc, bigdft_mpi%mpi_comm, &
-                   tmb%linmat%m, tmb%linmat%ham_%matrix_compr, tmb%linmat%ham_%matrix)
+                   tmb%linmat%smat(2), tmb%linmat%ham_%matrix_compr, tmb%linmat%ham_%matrix)
               !!call f_free(tmparr)
-              tmb%linmat%ovrlp_%matrix = sparsematrix_malloc_ptr(tmb%linmat%s, iaction=DENSE_FULL, id='tmb%linmat%ovrlp_%matrix')
+              tmb%linmat%ovrlp_%matrix = sparsematrix_malloc_ptr(tmb%linmat%smat(1), &
+                  iaction=DENSE_FULL, id='tmb%linmat%ovrlp_%matrix')
               call uncompress_matrix2(iproc, nproc, bigdft_mpi%mpi_comm, &
-                   tmb%linmat%s, tmb%linmat%ovrlp_%matrix_compr, tmb%linmat%ovrlp_%matrix)
+                   tmb%linmat%smat(1), tmb%linmat%ovrlp_%matrix_compr, tmb%linmat%ovrlp_%matrix)
               ! Keep the Hamiltonian and the overlap since they will be overwritten by the diagonalization.
               matrixElements=f_malloc((/tmb%orbs%norb,tmb%orbs%norb,2/),id='matrixElements')
               !SM: need to fix the spin here
@@ -471,7 +474,7 @@ module get_kernel
           if (scf_mode==LINEAR_PEXSI) then
               if (iproc==0) call yaml_map('method','PEXSI')
               call pexsi_wrapper(iproc, nproc, bigdft_mpi%mpi_comm, &
-                   tmb%linmat%s, tmb%linmat%m, tmb%linmat%l, &
+                   tmb%linmat%smat(1), tmb%linmat%smat(2), tmb%linmat%smat(3), &
                    tmb%linmat%ovrlp_, tmb%linmat%ham_, &
                    foe_data_get_real(tmb%foe_obj,"charge",1), pexsi_npoles, pexsi_nproc_per_pole, &
                    pexsi_mumin, pexsi_mumax, &
@@ -482,7 +485,7 @@ module get_kernel
               if (iproc==0) call yaml_map('method','FOE')
     
               call matrix_fermi_operator_expansion(iproc, nproc, bigdft_mpi%mpi_comm, &
-                   tmb%foe_obj, tmb%ice_obj, tmb%linmat%s, tmb%linmat%m, tmb%linmat%l, &
+                   tmb%foe_obj, tmb%ice_obj, tmb%linmat%smat(1), tmb%linmat%smat(2), tmb%linmat%smat(3), &
                    tmb%linmat%ovrlp_, tmb%linmat%ham_, tmb%linmat%ovrlppowers_(2), tmb%linmat%kernel_, &
                    energs%ebs, &
                    calculate_minusonehalf=invert_overlap_matrix, foe_verbosity=1, symmetrize_kernel=.true.)
@@ -495,17 +498,18 @@ module get_kernel
           ! CDFT: subtract V*w_ab from Hamiltonian so that we are calculating the correct energy
           if (present(cdft)) then
              call timing(iproc,'constraineddft','ON')
-             tmparr = sparsematrix_malloc(tmb%linmat%m,iaction=SPARSE_FULL,id='tmparr')
+             tmparr = sparsematrix_malloc(tmb%linmat%smat(2),iaction=SPARSE_FULL,id='tmparr')
              call gather_matrix_from_taskgroups(iproc, nproc, bigdft_mpi%mpi_comm, &
-                  tmb%linmat%m, tmb%linmat%ham_%matrix_compr, tmparr)
-             call daxpy(tmb%linmat%m%nvctr*tmb%linmat%m%nspin,-cdft%lag_mult,cdft%weight_matrix_%matrix_compr,1,tmparr,1)
-             call extract_taskgroup(tmb%linmat%m, tmparr, tmb%linmat%ham_%matrix_compr)
+                  tmb%linmat%smat(2), tmb%linmat%ham_%matrix_compr, tmparr)
+             call daxpy(tmb%linmat%smat(2)%nvctr*tmb%linmat%smat(2)%nspin,-cdft%lag_mult,&
+                  cdft%weight_matrix_%matrix_compr,1,tmparr,1)
+             call extract_taskgroup(tmb%linmat%smat(2), tmparr, tmb%linmat%ham_%matrix_compr)
              call f_free(tmparr)
              call timing(iproc,'constraineddft','OF') 
     
              ! we have ebs and the kernel already, but only the CDFT function not actual energy for CDFT
              ! maybe pass both Hamiltonians to FOE to save calculation ebs twice?
-             call calculate_kernel_and_energy(iproc,nproc,bigdft_mpi%mpi_comm,tmb%linmat%l,tmb%linmat%m, &
+             call calculate_kernel_and_energy(iproc,nproc,bigdft_mpi%mpi_comm,tmb%linmat%smat(3),tmb%linmat%smat(2), &
                   tmb%linmat%kernel_, tmb%linmat%ham_, energs%ebs,&
                   tmb%coeff,orbs%norbp, orbs%isorb, orbs%norbu, orbs%norb, orbs%occup, .false.)
     
@@ -514,7 +518,7 @@ module get_kernel
       end if
     
       call max_asymmetry_of_matrix(iproc, nproc, bigdft_mpi%mpi_comm, &
-           tmb%linmat%l, tmb%linmat%kernel_%matrix_compr, asymm_K)
+           tmb%linmat%smat(3), tmb%linmat%kernel_%matrix_compr, asymm_K)
     
       if (iproc==0) then
           call yaml_mapping_open('Asymmetry of the matrices')
@@ -605,8 +609,8 @@ module get_kernel
     
          call calculate_overlap_transposed(iproc, nproc, tmb%orbs, tmb%collcom, &
               tmb%psit_c, tmb%psit_c, tmb%psit_f, tmb%psit_f, &
-              tmb%linmat%s, tmb%linmat%auxs, tmb%linmat%ovrlp_)
-         !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%s, tmb%linmat%ovrlp_)
+              tmb%linmat%smat(1), tmb%linmat%auxs, tmb%linmat%ovrlp_)
+         !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%smat(1), tmb%linmat%ovrlp_)
          ! This can then be deleted if the transition to the new type has been completed.
          !tmb%linmat%ovrlp%matrix_compr=tmb%linmat%ovrlp_%matrix_compr
     
@@ -614,21 +618,21 @@ module get_kernel
          overlap_calculated=.true.
       end if
     
-      tmb%linmat%ovrlp_%matrix = sparsematrix_malloc_ptr(tmb%linmat%s, iaction=DENSE_FULL, id='tmb%linmat%ovrlp_%matrix')
-      !!do i=1,tmb%linmat%s%nspin*tmb%linmat%s%nvctr
+      tmb%linmat%ovrlp_%matrix = sparsematrix_malloc_ptr(tmb%linmat%smat(1), iaction=DENSE_FULL, id='tmb%linmat%ovrlp_%matrix')
+      !!do i=1,tmb%linmat%smat(1)%nspin*tmb%linmat%smat(1)%nvctr
       !!    write(2500,'(a,i8,es16.5)') 'i, tmb%linmat%ovrlp_%matrix_compr(i)', i, tmb%linmat%ovrlp_%matrix_compr(i)
       !!end do
       call uncompress_matrix2(iproc, nproc, bigdft_mpi%mpi_comm, &
-           tmb%linmat%s, tmb%linmat%ovrlp_%matrix_compr, tmb%linmat%ovrlp_%matrix)
-      !!do ispin=1,tmb%linmat%s%nspin
-      !!    do i=1,tmb%linmat%s%nfvctr
-      !!        do j=1,tmb%linmat%s%nfvctr
+           tmb%linmat%smat(1), tmb%linmat%ovrlp_%matrix_compr, tmb%linmat%ovrlp_%matrix)
+      !!do ispin=1,tmb%linmat%smat(1)%nspin
+      !!    do i=1,tmb%linmat%smat(1)%nfvctr
+      !!        do j=1,tmb%linmat%smat(1)%nfvctr
       !!            write(2600,'(a,3i8,es16.5)') 'ispin, i, j, tmb%linmat%ovrlp_%matrix(j,i,ispin)', ispin, i, j, tmb%linmat%ovrlp_%matrix(j,i,ispin)
       !!        end do
       !!    end do
       !!end do
       call reorthonormalize_coeff(iproc, nproc, orbs%norb, blocksize_dsyev, blocksize_pdgemm, inversion_method, &
-           tmb%orbs, tmb%linmat%s, tmb%linmat%ks, tmb%linmat%ovrlp_, tmb%coeff, orbs)
+           tmb%orbs, tmb%linmat%smat(1), tmb%linmat%ks, tmb%linmat%ovrlp_, tmb%coeff, orbs)
     
       call f_free_ptr(tmb%linmat%ovrlp_%matrix)
     
@@ -636,7 +640,7 @@ module get_kernel
       ! Recalculate the kernel
       call calculate_density_kernel(iproc, nproc, bigdft_mpi%mpi_comm, .true., &
            orbs%norbp, orbs%isorb, orbs%norbu, orbs%norb, orbs%occup, &
-           tmb%coeff, tmb%linmat%l, tmb%linmat%kernel_)
+           tmb%coeff, tmb%linmat%smat(3), tmb%linmat%kernel_)
       !call transform_sparse_matrix(tmb%linmat%denskern, tmb%linmat%denskern_large, 'large_to_small')
     
     end subroutine reconstruct_kernel
@@ -1138,49 +1142,51 @@ module get_kernel
     
       call f_routine(id='renormalize_kernel')
     
-      windowsx1 = f_malloc((/tmb%linmat%l%ntaskgroup,tmb%linmat%l%nspin/),id='windowsx1')
-      !windowsx2 = f_malloc(tmb%linmat%l%ntaskgroup,id='windowsx2')
-      kernelpp_work1 = f_malloc(tmb%linmat%l%smmm%nvctrp*tmb%linmat%l%nspin,id='kernelpp_work1')
-      !kernelpp_work2 = f_malloc(tmb%linmat%l%smmm%nvctrp*tmb%linmat%l%nspin,id='kernelpp_work2')
-      matrix_local1 = f_malloc_ptr(tmb%linmat%l%smmm%nvctrp_mm*tmb%linmat%l%nspin,id='matrix_local1')
+      windowsx1 = f_malloc((/tmb%linmat%smat(3)%ntaskgroup,tmb%linmat%smat(3)%nspin/),id='windowsx1')
+      !windowsx2 = f_malloc(tmb%linmat%smat(3)%ntaskgroup,id='windowsx2')
+      kernelpp_work1 = f_malloc(tmb%linmat%smat(3)%smmm%nvctrp*tmb%linmat%smat(3)%nspin,id='kernelpp_work1')
+      !kernelpp_work2 = f_malloc(tmb%linmat%smat(3)%smmm%nvctrp*tmb%linmat%smat(3)%nspin,id='kernelpp_work2')
+      matrix_local1 = f_malloc_ptr(tmb%linmat%smat(3)%smmm%nvctrp_mm*tmb%linmat%smat(3)%nspin,id='matrix_local1')
     
       ! Calculate S^1/2 * K * S^1/2. Take the value of S^1/2 from memory (was
       ! calculated in the last call to this routine or (it it is the first call)
       ! just before the call.
-      do ispin=1,tmb%linmat%l%nspin
-          ilshift = (ispin-1)*tmb%linmat%l%nvctrp_tg
-          ilshiftpp = (ispin-1)*tmb%linmat%l%smmm%nvctrp
-          isl = (ispin-1)*tmb%linmat%l%smmm%nvctrp_mm
-          call retransform_ext(iproc, nproc, tmb%linmat%l, ONESIDED_POST, kernelpp_work1(ilshiftpp+1:), &
+      do ispin=1,tmb%linmat%smat(3)%nspin
+          ilshift = (ispin-1)*tmb%linmat%smat(3)%nvctrp_tg
+          ilshiftpp = (ispin-1)*tmb%linmat%smat(3)%smmm%nvctrp
+          isl = (ispin-1)*tmb%linmat%smat(3)%smmm%nvctrp_mm
+          call retransform_ext(iproc, nproc, tmb%linmat%smat(3), ONESIDED_POST, kernelpp_work1(ilshiftpp+1:), &
                tmb%linmat%ovrlppowers_(1)%matrix_compr(ilshift+1:), tmb%linmat%kernel_%matrix_compr(ilshift+1:), &
-               matrix_localx=matrix_local1(isl+1:isl+tmb%linmat%l%smmm%nvctrp_mm), windowsx=windowsx1(:,ispin))
+               matrix_localx=matrix_local1(isl+1:isl+tmb%linmat%smat(3)%smmm%nvctrp_mm), windowsx=windowsx1(:,ispin))
       end do
     
       ! Calculate S^1/2 for the overlap matrix
       power=(/2,-2,1/)
       call overlapPowerGeneral(iproc, nproc, bigdft_mpi%mpi_comm, &
            order_taylor, 3, power, -1, &
-           imode=1, ovrlp_smat=tmb%linmat%s, inv_ovrlp_smat=tmb%linmat%l, &
+           imode=1, ovrlp_smat=tmb%linmat%smat(1), inv_ovrlp_smat=tmb%linmat%smat(3), &
            ovrlp_mat=ovrlp, inv_ovrlp_mat=tmb%linmat%ovrlppowers_, &
            verbosity=0, &
            check_accur=order_taylor<1000, max_error=max_error, mean_error=mean_error, &
            ice_obj=tmb%ice_obj)
       call check_taylor_order(iproc, mean_error, max_inversion_error, order_taylor)
+      
+      !!if (iproc==0) write(*,*) 'in sub: sum(s-1)',sum(tmb%linmat%ovrlppowers_(1)%matrix_compr)
     
-      do ispin=1,tmb%linmat%l%nspin
-          ilshift = (ispin-1)*tmb%linmat%l%nvctrp_tg
-          ilshiftpp = (ispin-1)*tmb%linmat%l%smmm%nvctrp
-          isl = (ispin-1)*tmb%linmat%l%smmm%nvctrp_mm
-          call retransform_ext(iproc, nproc, tmb%linmat%l, ONESIDED_GATHER, kernelpp_work1(ilshiftpp+1:), &
+      do ispin=1,tmb%linmat%smat(3)%nspin
+          ilshift = (ispin-1)*tmb%linmat%smat(3)%nvctrp_tg
+          ilshiftpp = (ispin-1)*tmb%linmat%smat(3)%smmm%nvctrp
+          isl = (ispin-1)*tmb%linmat%smat(3)%smmm%nvctrp_mm
+          call retransform_ext(iproc, nproc, tmb%linmat%smat(3), ONESIDED_GATHER, kernelpp_work1(ilshiftpp+1:), &
                tmb%linmat%ovrlppowers_(1)%matrix_compr(ilshift+1:), tmb%linmat%kernel_%matrix_compr(ilshift+1:), &
-               matrix_localx=matrix_local1(isl+1:isl+tmb%linmat%l%smmm%nvctrp_mm), windowsx=windowsx1(:,ispin))
+               matrix_localx=matrix_local1(isl+1:isl+tmb%linmat%smat(3)%smmm%nvctrp_mm), windowsx=windowsx1(:,ispin))
       end do
     
       ! Calculate S^-1/2 * K * S^-1/2
-      do ispin=1,tmb%linmat%l%nspin
-          ilshift = (ispin-1)*tmb%linmat%l%nvctrp_tg
-          ilshiftpp = (ispin-1)*tmb%linmat%l%smmm%nvctrp
-          call retransform_ext(iproc, nproc, tmb%linmat%l, ONESIDED_FULL, kernelpp_work1(ilshiftpp+1:), &
+      do ispin=1,tmb%linmat%smat(3)%nspin
+          ilshift = (ispin-1)*tmb%linmat%smat(3)%nvctrp_tg
+          ilshiftpp = (ispin-1)*tmb%linmat%smat(3)%smmm%nvctrp
+          call retransform_ext(iproc, nproc, tmb%linmat%smat(3), ONESIDED_FULL, kernelpp_work1(ilshiftpp+1:), &
                tmb%linmat%ovrlppowers_(2)%matrix_compr(ilshift+1:), tmb%linmat%kernel_%matrix_compr(ilshift+1:), &
                windowsx=windowsx1(:,ispin))
       end do
@@ -1309,7 +1315,8 @@ module get_kernel
     
               ! determine the HOMO
               kernel(1) = matrices_null()
-              kernel(1)%matrix_compr = sparsematrix_malloc_ptr(tmb%linmat%l, iaction=SPARSE_TASKGROUP, id='kernel%matrix_compr')
+              kernel(1)%matrix_compr = sparsematrix_malloc_ptr(tmb%linmat%smat(3), &
+                  iaction=SPARSE_TASKGROUP, id='kernel%matrix_compr')
               foe_obj = foe_data_null()
               call init_foe_wrapper(iproc, nproc, input, orbs_KS, 0.d0, foe_obj)
     
@@ -1330,21 +1337,21 @@ module get_kernel
               !call fermi_operator_expansion_new(iproc, nproc, &
               !     ebs, &
               !     .true., 2, &
-              !     tmb%linmat%s, tmb%linmat%m, tmb%linmat%l, &
+              !     tmb%linmat%smat(1), tmb%linmat%smat(2), tmb%linmat%smat(3), &
               !     tmb%linmat%ham_, tmb%linmat%ovrlp_, tmb%linmat%ovrlppowers_(2), kernel(1), foe_obj)
               if (iproc==0) then
                   call yaml_mapping_open('calculate HOMO kernel')
                   call yaml_map('target charge',foe_data_get_real(foe_obj,"charge",1))
               end if
               call matrix_fermi_operator_expansion(iproc, nproc, bigdft_mpi%mpi_comm, &
-                   foe_obj, tmb%ice_obj, tmb%linmat%s, tmb%linmat%m, tmb%linmat%l, &
+                   foe_obj, tmb%ice_obj, tmb%linmat%smat(1), tmb%linmat%smat(2), tmb%linmat%smat(3), &
                    tmb%linmat%ovrlp_, tmb%linmat%ham_, tmb%linmat%ovrlppowers_(2), kernel(1), &
                    ebs, calculate_minusonehalf=.true., foe_verbosity=1, symmetrize_kernel=.true.)!, &
                    !calculate_spin_channels=calculate_spin_channels)
               !call fermi_operator_expansion(iproc, nproc, &
               !     ebs, norder_taylor, input%lin%max_inversion_error, &
               !     .true., 2, &
-              !     'HOMO', tmb%linmat%s, tmb%linmat%m, tmb%linmat%l, &
+              !     'HOMO', tmb%linmat%smat(1), tmb%linmat%smat(2), tmb%linmat%smat(3), &
               !     tmb%linmat%ham_, tmb%linmat%ovrlp_, tmb%linmat%ovrlppowers_(2), kernel(1), foe_obj)
               !do ispin=1,input%nspin
                   !e_homo(ispin) = foe_data_get_real(foe_obj,"ef",ispin)
@@ -1355,7 +1362,8 @@ module get_kernel
     
               ! determine the LUMO
               kernel(2) = matrices_null()
-              kernel(2)%matrix_compr = sparsematrix_malloc_ptr(tmb%linmat%l, iaction=SPARSE_TASKGROUP, id='kernel%matrix_compr')
+              kernel(2)%matrix_compr = sparsematrix_malloc_ptr(tmb%linmat%smat(3), &
+                  iaction=SPARSE_TASKGROUP, id='kernel%matrix_compr')
               foe_obj = foe_data_null()
               call init_foe_wrapper(iproc, nproc, input, orbs_KS, 0.d0, foe_obj)
     
@@ -1376,21 +1384,21 @@ module get_kernel
               !call fermi_operator_expansion_new(iproc, nproc, &
               !     ebs, &
               !     .true., 2, &
-              !     tmb%linmat%s, tmb%linmat%m, tmb%linmat%l, &
+              !     tmb%linmat%smat(1), tmb%linmat%smat(2), tmb%linmat%smat(3), &
               !     tmb%linmat%ham_, tmb%linmat%ovrlp_, tmb%linmat%ovrlppowers_(2), kernel(2), foe_obj)
               if (iproc==0) then
                   call yaml_mapping_open('calculate LUMO kernel')
                   call yaml_map('target charge',foe_data_get_real(foe_obj,"charge",1))
               end if
               call matrix_fermi_operator_expansion(iproc, nproc, bigdft_mpi%mpi_comm, &
-                   foe_obj, tmb%ice_obj, tmb%linmat%s, tmb%linmat%m, tmb%linmat%l, &
+                   foe_obj, tmb%ice_obj, tmb%linmat%smat(1), tmb%linmat%smat(2), tmb%linmat%smat(3), &
                    tmb%linmat%ovrlp_, tmb%linmat%ham_, tmb%linmat%ovrlppowers_(2), kernel(1), &
                    ebs, calculate_minusonehalf=.true., foe_verbosity=1, symmetrize_kernel=.true.)!, &
                    !calculate_spin_channels=calculate_spin_channels)
               !call fermi_operator_expansion(iproc, nproc, &
               !     ebs, norder_taylor, input%lin%max_inversion_error, &
               !     .true., 2, &
-              !     'LUMO', tmb%linmat%s, tmb%linmat%m, tmb%linmat%l, &
+              !     'LUMO', tmb%linmat%smat(1), tmb%linmat%smat(2), tmb%linmat%smat(3), &
               !     tmb%linmat%ham_, tmb%linmat%ovrlp_, tmb%linmat%ovrlppowers_(2), kernel(2), foe_obj)
               !do ispin=1,input%nspin
                   !e_lumo(ispin) = foe_data_get_real(foe_obj,"ef",ispin)
@@ -1475,25 +1483,25 @@ module get_kernel
      
       !call nullify_sparse_matrix(gradmat)
       gradmat=matrices_null()
-      call allocate_matrices(tmb%linmat%m, allocate_full=.true., &
+      call allocate_matrices(tmb%linmat%smat(2), allocate_full=.true., &
            matname='gradmat', mat=gradmat)
     
       call calculate_overlap_transposed(iproc, nproc, tmb%orbs, tmb%ham_descr%collcom, &
-           hpsit_c, hpsit_c, hpsit_f, hpsit_f, tmb%linmat%m, tmb%linmat%auxm, gradmat)
-      !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%m, gradmat)
+           hpsit_c, hpsit_c, hpsit_f, hpsit_f, tmb%linmat%smat(2), tmb%linmat%auxm, gradmat)
+      !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%smat(2), gradmat)
     
     
       !gradmat%matrix=f_malloc_ptr((/tmb%orbs%norb,tmb%orbs%norb/),id='gradmat%matrix')
-      tmb%linmat%ham_%matrix = sparsematrix_malloc_ptr(tmb%linmat%m, iaction=DENSE_FULL, id='tmb%linmat%ham_%matrix')
-      tmb%linmat%kernel_%matrix = sparsematrix_malloc_ptr(tmb%linmat%l, iaction=DENSE_FULL, id='tmb%linmat%kernel_%matrix')
+      tmb%linmat%ham_%matrix = sparsematrix_malloc_ptr(tmb%linmat%smat(2), iaction=DENSE_FULL, id='tmb%linmat%ham_%matrix')
+      tmb%linmat%kernel_%matrix = sparsematrix_malloc_ptr(tmb%linmat%smat(3), iaction=DENSE_FULL, id='tmb%linmat%kernel_%matrix')
       call uncompress_matrix2(iproc, nproc, bigdft_mpi%mpi_comm, &
-           tmb%linmat%m, gradmat%matrix_compr, gradmat%matrix)
+           tmb%linmat%smat(2), gradmat%matrix_compr, gradmat%matrix)
       call uncompress_matrix2(iproc, nproc, bigdft_mpi%mpi_comm, &
-           tmb%linmat%m, tmb%linmat%ham_%matrix_compr, tmb%linmat%ham_%matrix)
+           tmb%linmat%smat(2), tmb%linmat%ham_%matrix_compr, tmb%linmat%ham_%matrix)
       call uncompress_matrix2(iproc, nproc, bigdft_mpi%mpi_comm, &
-           tmb%linmat%l, tmb%linmat%kernel_%matrix_compr, tmb%linmat%kernel_%matrix)
-      KH=f_malloc0((/tmb%linmat%l%nfvctr,tmb%linmat%l%nfvctr,tmb%linmat%l%nspin/),id='KH')
-      KHKH=f_malloc0((/tmb%linmat%l%nfvctr,tmb%linmat%l%nfvctr,tmb%linmat%l%nspin/),id='KHKH')
+           tmb%linmat%smat(3), tmb%linmat%kernel_%matrix_compr, tmb%linmat%kernel_%matrix)
+      KH=f_malloc0((/tmb%linmat%smat(3)%nfvctr,tmb%linmat%smat(3)%nfvctr,tmb%linmat%smat(3)%nspin/),id='KH')
+      KHKH=f_malloc0((/tmb%linmat%smat(3)%nfvctr,tmb%linmat%smat(3)%nfvctr,tmb%linmat%smat(3)%nspin/),id='KHKH')
     
       ! scale_factor takes into account the occupancies which are present in the kernel
       if (KSorbs%nspin==1) then
@@ -1525,10 +1533,11 @@ module get_kernel
               else
                   ispin=2
               end if
-              ii=mod(iiorb-1,tmb%linmat%l%nfvctr)+1
-              call dgemm('n', 'n', tmb%linmat%l%nfvctr, 1, tmb%linmat%l%nfvctr, 1.0d0, tmb%linmat%kernel_%matrix(1,1,ispin), &
-                   tmb%linmat%l%nfvctr, tmb%linmat%ham_%matrix(1,ii,ispin), tmb%linmat%l%nfvctr, &
-                   0.d0, KH(1,ii,ispin), tmb%linmat%l%nfvctr)
+              ii=mod(iiorb-1,tmb%linmat%smat(3)%nfvctr)+1
+              call dgemm('n', 'n', tmb%linmat%smat(3)%nfvctr, 1, &
+                  tmb%linmat%smat(3)%nfvctr, 1.0d0, tmb%linmat%kernel_%matrix(1,1,ispin), &
+                   tmb%linmat%smat(3)%nfvctr, tmb%linmat%ham_%matrix(1,ii,ispin), tmb%linmat%smat(3)%nfvctr, &
+                   0.d0, KH(1,ii,ispin), tmb%linmat%smat(3)%nfvctr)
           end do
       end if
     
@@ -1547,10 +1556,10 @@ module get_kernel
               else
                   ispin=2
               end if
-              ii=mod(iiorb-1,tmb%linmat%l%nfvctr)+1
-              call dgemm('n', 'n', tmb%linmat%l%nfvctr, 1, tmb%linmat%l%nfvctr, scale_factor, KH(1,1,ispin), &
-                   tmb%linmat%l%nfvctr, KH(1,ii,ispin), tmb%linmat%l%nfvctr, &
-                   0.d0, KHKH(1,ii,ispin), tmb%linmat%l%nfvctr)
+              ii=mod(iiorb-1,tmb%linmat%smat(3)%nfvctr)+1
+              call dgemm('n', 'n', tmb%linmat%smat(3)%nfvctr, 1, tmb%linmat%smat(3)%nfvctr, scale_factor, KH(1,1,ispin), &
+                   tmb%linmat%smat(3)%nfvctr, KH(1,ii,ispin), tmb%linmat%smat(3)%nfvctr, &
+                   0.d0, KHKH(1,ii,ispin), tmb%linmat%smat(3)%nfvctr)
           end do
       end if
     
@@ -1558,7 +1567,7 @@ module get_kernel
           call mpiallred(KHKH, mpi_sum, comm=bigdft_mpi%mpi_comm)
       end if
       call f_free(KH)
-      Kgrad=f_malloc0((/tmb%linmat%l%nfvctr,tmb%linmat%l%nfvctr,tmb%linmat%l%nspin/),id='Kgrad')
+      Kgrad=f_malloc0((/tmb%linmat%smat(3)%nfvctr,tmb%linmat%smat(3)%nfvctr,tmb%linmat%smat(3)%nspin/),id='Kgrad')
       if (tmb%orbs%norbp>0) then
           !!call dgemm('n', 'n', tmb%orbs%norb, tmb%orbs%norbp, tmb%orbs%norb, 1.0d0, tmb%linmat%kernel_%matrix, &
           !!     tmb%orbs%norb, gradmat%matrix(1,tmb%orbs%isorb+1,1), tmb%orbs%norb, &
@@ -1570,10 +1579,11 @@ module get_kernel
               else
                   ispin=2
               end if
-              ii=mod(iiorb-1,tmb%linmat%l%nfvctr)+1
-              call dgemm('n', 'n', tmb%linmat%l%nfvctr, 1, tmb%linmat%l%nfvctr, 1.0d0, tmb%linmat%kernel_%matrix(1,1,ispin), &
-                   tmb%linmat%l%nfvctr, gradmat%matrix(1,ii,ispin), tmb%linmat%l%nfvctr, &
-                   0.d0, Kgrad(1,ii,ispin), tmb%linmat%l%nfvctr)
+              ii=mod(iiorb-1,tmb%linmat%smat(3)%nfvctr)+1
+              call dgemm('n', 'n', tmb%linmat%smat(3)%nfvctr, 1, tmb%linmat%smat(3)%nfvctr, &
+                   1.0d0, tmb%linmat%kernel_%matrix(1,1,ispin), &
+                   tmb%linmat%smat(3)%nfvctr, gradmat%matrix(1,ii,ispin), tmb%linmat%smat(3)%nfvctr, &
+                   0.d0, Kgrad(1,ii,ispin), tmb%linmat%smat(3)%nfvctr)
           end do
       end if
     
@@ -1611,8 +1621,8 @@ module get_kernel
       end do
     
       KSres=0.d0
-      do ispin=1,tmb%linmat%l%nspin
-          do iorb=1,tmb%linmat%l%nfvctr
+      do ispin=1,tmb%linmat%smat(3)%nspin
+          do iorb=1,tmb%linmat%smat(3)%nfvctr
               KSres=KSres+Kgrad(iorb,iorb,ispin)-KHKH(iorb,iorb,ispin)
           end do
       end do
@@ -1672,7 +1682,7 @@ module get_kernel
       real(kind=gp) :: tt, ddot, energy0, pred_e
     
     
-      !!if (present(num_extra) .and. tmb%linmat%m%nspin==2) then
+      !!if (present(num_extra) .and. tmb%linmat%smat(2)%nspin==2) then
       !!    stop 'ERROR: optimize_coeffs not yet implemented for nspin=2 and num_extra present!'
       !!end if
     
@@ -1690,20 +1700,20 @@ module get_kernel
     
       if (ldiis_coeff%idsx == 0 .and. sd_fit_curve) then
          ! calculate initial energy for SD line fitting and printing (maybe don't need to (re)calculate kernel here?)
-         !!call extract_taskgroup_inplace(tmb%linmat%l, tmb%linmat%kernel_)
-         !!call extract_taskgroup_inplace(tmb%linmat%m, tmb%linmat%ham_)
-         call calculate_kernel_and_energy(iproc,nproc,bigdft_mpi%mpi_comm,tmb%linmat%l,tmb%linmat%m, &
+         !!call extract_taskgroup_inplace(tmb%linmat%smat(3), tmb%linmat%kernel_)
+         !!call extract_taskgroup_inplace(tmb%linmat%smat(2), tmb%linmat%ham_)
+         call calculate_kernel_and_energy(iproc,nproc,bigdft_mpi%mpi_comm,tmb%linmat%smat(3),tmb%linmat%smat(2), &
               tmb%linmat%kernel_, tmb%linmat%ham_, energy0,&
               tmb%coeff, orbs%norbp, orbs%isorb, orbs%norbu, orbs%norb, orbs%occup,.true.)
-         !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%l, tmb%linmat%kernel_)
-         !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%m, tmb%linmat%ham_)
+         !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%smat(3), tmb%linmat%kernel_)
+         !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%smat(2), tmb%linmat%ham_)
          !tmb%linmat%denskern_large%matrix_compr = tmb%linmat%kernel_%matrix_compr
       else
          energy0=energy
       end if
     
-      grad=f_malloc((/tmb%linmat%m%nfvctr,orbs%norbp/), id='grad')
-      grad_cov_or_coeffp=f_malloc((/tmb%linmat%m%nfvctr,orbs%norbp/), id='grad_cov_or_coeffp')
+      grad=f_malloc((/tmb%linmat%smat(2)%nfvctr,orbs%norbp/), id='grad')
+      grad_cov_or_coeffp=f_malloc((/tmb%linmat%smat(2)%nfvctr,orbs%norbp/), id='grad_cov_or_coeffp')
     
       if (iproc==0) then
           call yaml_newline()
@@ -1730,16 +1740,16 @@ module get_kernel
          !!    else
          !!        ispin=2
          !!    end if
-         !!    do jorb=1,tmb%linmat%m%nfvctr
+         !!    do jorb=1,tmb%linmat%smat(2)%nfvctr
          !!        write(5300+10*iproc+ispin,'(a,2i8,es18.7)') 'iiorb, jorb, coeff(jorb,iiorb)', iiorb, jorb, tmb%coeff(jorb,iiorb)
          !!    end do
          !!end do
     
          if (present(num_extra)) then
             if (num_extra > 0) then
-               if (tmb%linmat%m%nspin==1) then
+               if (tmb%linmat%smat(2)%nspin==1) then
                    tt = 2.0_gp
-               else if (tmb%linmat%m%nspin==2) then
+               else if (tmb%linmat%smat(2)%nspin==2) then
                    tt = 1.0_gp
                end if
                do iorb=1,orbs%norb
@@ -1759,8 +1769,8 @@ module get_kernel
          ! scale the gradient by a factor of 2 in case of spin polarized calculation
          ! in order to make the gradient analogous to the case of no polarization
          ! (in that case the gradient is included in the kernel).
-         if (tmb%linmat%l%nspin==2) then
-             call dscal(orbs%norbp*tmb%linmat%m%nfvctr, 2.d0, grad, 1)
+         if (tmb%linmat%smat(3)%nspin==2) then
+             call dscal(orbs%norbp*tmb%linmat%smat(2)%nfvctr, 2.d0, grad, 1)
          end if
     
          !!do iorb=1,orbs%norbp
@@ -1770,7 +1780,7 @@ module get_kernel
          !!    else
          !!        ispin=2
          !!    end if
-         !!    do jorb=1,tmb%linmat%m%nfvctr
+         !!    do jorb=1,tmb%linmat%smat(2)%nfvctr
          !!        write(5400+10*iproc+ispin,'(a,2i8,2es18.7)') 'iiorb, jorb, coeff(jorb,iiorb),grad(jorb,iorb)', iiorb, jorb, tmb%coeff(jorb,iiorb), grad(jorb,iorb)
          !!    end do
          !!end do
@@ -1783,7 +1793,7 @@ module get_kernel
          !For fnrm, we only sum on the occupied KS orbitals
          tt=0.d0
          do iorb=1,orbs%norbp
-             tt=tt+ddot(tmb%linmat%m%nfvctr, grad_cov_or_coeffp(1,iorb), 1, grad(1,iorb), 1)
+             tt=tt+ddot(tmb%linmat%smat(2)%nfvctr, grad_cov_or_coeffp(1,iorb), 1, grad(1,iorb), 1)
          end do
     
          if (nproc > 1) then
@@ -1792,7 +1802,7 @@ module get_kernel
          fnrm=2.0_gp*tt
     
          !scale the gradient - useful for fragments/constrained
-         call dscal(tmb%linmat%m%nfvctr*orbs%norbp,factor,grad,1)
+         call dscal(tmb%linmat%smat(2)%nfvctr*orbs%norbp,factor,grad,1)
     
          !write(*,*) 'present(num_extra), ldiis_coeff%idsx', present(num_extra), ldiis_coeff%idsx
          if (ldiis_coeff%idsx > 0) then !do DIIS
@@ -1800,12 +1810,12 @@ module get_kernel
             ldiis_coeff%mids=mod(ldiis_coeff%ids,ldiis_coeff%idsx)+1
             ldiis_coeff%ids=ldiis_coeff%ids+1
     
-            if (orbs%norbp>0) call vcopy(tmb%linmat%m%nfvctr*orbs%norbp,tmb%coeff(1,orbs%isorb+1), &
+            if (orbs%norbp>0) call vcopy(tmb%linmat%smat(2)%nfvctr*orbs%norbp,tmb%coeff(1,orbs%isorb+1), &
                 1,grad_cov_or_coeffp(1,1),1)
     
             iproc_arr(1)=iproc
-            ncomp(1)=tmb%linmat%m%nfvctr*orbs%norbp
-            call diis_opt(iproc,nproc,1,0,1,iproc_arr,ncomp,tmb%linmat%m%nfvctr*orbs%norbp, &
+            ncomp(1)=tmb%linmat%smat(2)%nfvctr*orbs%norbp
+            call diis_opt(iproc,nproc,1,0,1,iproc_arr,ncomp,tmb%linmat%smat(2)%nfvctr*orbs%norbp, &
                  grad_cov_or_coeffp,grad,ldiis_coeff) 
          else  !steepest descent with curve fitting for line minimization
             call timing(iproc,'dirmin_sddiis','OF')
@@ -1814,7 +1824,7 @@ module get_kernel
             call timing(iproc,'dirmin_sddiis','ON')
             do iorb=1,orbs%norbp
                iiorb = orbs%isorb + iorb
-               do jorb=1,tmb%linmat%m%nfvctr
+               do jorb=1,tmb%linmat%smat(2)%nfvctr
                   grad_cov_or_coeffp(jorb,iorb)=tmb%coeff(jorb,iiorb)-ldiis_coeff%alpha_coeff*grad(jorb,iorb)
                end do
             end do
@@ -1827,7 +1837,7 @@ module get_kernel
          !!    else
          !!        ispin=2
          !!    end if
-         !!    do jorb=1,tmb%linmat%m%nfvctr
+         !!    do jorb=1,tmb%linmat%smat(2)%nfvctr
          !!        write(4500+10*iproc+ispin,'(a,2i8,es18.7)') 'iiorb, jorb, grad_cov_or_coeffp(jorb,iorb)', iiorb, jorb, grad_cov_or_coeffp(jorb,iorb)
          !!    end do
          !!end do
@@ -1837,11 +1847,11 @@ module get_kernel
     
          call timing(iproc,'dirmin_allgat','ON')
          if(nproc > 1) then 
-            call mpi_allgatherv(grad_cov_or_coeffp, tmb%linmat%m%nfvctr*orbs%norbp, mpi_double_precision, tmb%coeff, &
-               tmb%linmat%m%nfvctr*orbs%norb_par(:,0), tmb%linmat%m%nfvctr*orbs%isorb_par, mpi_double_precision, &
+            call mpi_allgatherv(grad_cov_or_coeffp, tmb%linmat%smat(2)%nfvctr*orbs%norbp, mpi_double_precision, tmb%coeff, &
+               tmb%linmat%smat(2)%nfvctr*orbs%norb_par(:,0), tmb%linmat%smat(2)%nfvctr*orbs%isorb_par, mpi_double_precision, &
                bigdft_mpi%mpi_comm, ierr)
          else
-            call vcopy(tmb%linmat%m%nfvctr*orbs%norb,grad_cov_or_coeffp(1,1),1,tmb%coeff(1,1),1)
+            call vcopy(tmb%linmat%smat(2)%nfvctr*orbs%norb,grad_cov_or_coeffp(1,1),1,tmb%coeff(1,1),1)
          end if
     
          call timing(iproc,'dirmin_allgat','OF')
@@ -1849,7 +1859,7 @@ module get_kernel
          fnrm=sqrt(fnrm/dble(orbs%norb))
          ! Multiply the gradient by sqrt(2) to make it homologous to the case of
          ! no spin polarization (since with polarization norb is doubled).
-         if (tmb%linmat%l%nspin==2) then
+         if (tmb%linmat%smat(3)%nspin==2) then
              fnrm=fnrm*sqrt(2.d0)
          end if
     
@@ -1861,7 +1871,7 @@ module get_kernel
          !!    else
          !!        ispin=2
          !!    end if
-         !!    do jorb=1,tmb%linmat%m%nfvctr
+         !!    do jorb=1,tmb%linmat%smat(2)%nfvctr
          !!        write(4600+10*iproc+ispin,'(a,2i8,es18.7)') 'iiorb, jorb, coeff(jorb,iiorb)', iiorb, jorb, tmb%coeff(jorb,iiorb)
          !!    end do
          !!end do
@@ -1889,7 +1899,7 @@ module get_kernel
          !!    else
          !!        ispin=2
          !!    end if
-         !!    do jorb=1,tmb%linmat%m%nfvctr
+         !!    do jorb=1,tmb%linmat%smat(2)%nfvctr
          !!        write(5200+10*iproc+ispin,'(a,2i8,es18.7)') 'iiorb, jorb, coeff(jorb,iiorb)', iiorb, jorb, tmb%coeff(jorb,iiorb)
          !!    end do
          !!end do
@@ -1908,7 +1918,7 @@ module get_kernel
          !call f_free(mat_coeff_diag)
     
          call reorthonormalize_coeff(iproc, nproc, orbs%norb, -8, -8, order_taylor, &
-              tmb%orbs, tmb%linmat%s, tmb%linmat%ks, tmb%linmat%ovrlp_, tmb%coeff, orbs)
+              tmb%orbs, tmb%linmat%smat(1), tmb%linmat%ks, tmb%linmat%ovrlp_, tmb%coeff, orbs)
          !call reorthonormalize_coeff(iproc, nproc, orbs%norb, -8, -8, 1, tmb%orbs, tmb%linmat%ovrlp, tmb%coeff, orbs)
          !!!!!!!!!!!!!!!!!!!!!!!!
          !can't put coeffs directly in ksorbs%eval as intent in, so change after - problem with orthonormality of coeffs so adding extra
@@ -1926,18 +1936,18 @@ module get_kernel
          !!    else
          !!        ispin=2
          !!    end if
-         !!    do jorb=1,tmb%linmat%m%nfvctr
+         !!    do jorb=1,tmb%linmat%smat(2)%nfvctr
          !!        write(5100+10*iproc+ispin,'(a,2i8,es18.7)') 'iiorb, jorb, coeff(jorb,iiorb)', iiorb, jorb, tmb%coeff(jorb,iiorb)
          !!    end do
          !!end do
     
-         !!call extract_taskgroup_inplace(tmb%linmat%l, tmb%linmat%kernel_)
-         !!call extract_taskgroup_inplace(tmb%linmat%m, tmb%linmat%ham_)
-         call calculate_kernel_and_energy(iproc,nproc,bigdft_mpi%mpi_comm,tmb%linmat%l,tmb%linmat%m,&
+         !!call extract_taskgroup_inplace(tmb%linmat%smat(3), tmb%linmat%kernel_)
+         !!call extract_taskgroup_inplace(tmb%linmat%smat(2), tmb%linmat%ham_)
+         call calculate_kernel_and_energy(iproc,nproc,bigdft_mpi%mpi_comm,tmb%linmat%smat(3),tmb%linmat%smat(2),&
               tmb%linmat%kernel_, tmb%linmat%ham_, energy,&
               tmb%coeff,orbs%norbp, orbs%isorb, orbs%norbu, orbs%norb, orbs%occup,.true.)
-         !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%l, tmb%linmat%kernel_)
-         !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%m, tmb%linmat%ham_)
+         !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%smat(3), tmb%linmat%kernel_)
+         !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%smat(2), tmb%linmat%ham_)
     
          !tmb%linmat%denskern_large%matrix_compr = tmb%linmat%kernel_%matrix_compr
          !write(127,*) ldiis_coeff%alpha_coeff,energy
@@ -2087,25 +2097,25 @@ module get_kernel
       !call nullify_sparse_matrix(weight_matrix)
       weight_matrix=sparse_matrix_null()
       weight_matrix_=matrices_null()
-      !call sparse_copy_pattern(tmb%linmat%m, weight_matrix, iproc, subname)
-      call copy_sparse_matrix(tmb%linmat%m, weight_matrix)
+      !call sparse_copy_pattern(tmb%linmat%smat(2), weight_matrix, iproc, subname)
+      call copy_sparse_matrix(tmb%linmat%smat(2), weight_matrix)
       !weight_matrix_%matrix_compr=f_malloc_ptr(weight_matrix%nvctr,id='weight_matrix%matrix_compr')
       weight_matrix_%matrix_compr=sparsematrix_malloc_ptr(weight_matrix,iaction=SPARSE_FULL,id='weight_matrix%matrix_compr')
     
       inv_ovrlp(1) = matrices_null()
-      call allocate_matrices(tmb%linmat%l, allocate_full=.true., matname='inv_ovrlp', mat=inv_ovrlp(1))
+      call allocate_matrices(tmb%linmat%smat(3), allocate_full=.true., matname='inv_ovrlp', mat=inv_ovrlp(1))
     
       !weight_coeff=f_malloc((/ksorbs%norb,ksorbs%norb,input%frag%nfrag/), id='weight_coeff')
       weight_coeff_diag=f_malloc((/ksorbs%norb,input%frag%nfrag/), id='weight_coeff')
       !ovrlp_half=f_malloc_ptr((/tmb%orbs%norb,tmb%orbs%norb/), id='ovrlp_half')
-      tmb%linmat%ovrlp_%matrix = sparsematrix_malloc_ptr(tmb%linmat%s, DENSE_FULL, id='tmb%linmat%ovrlp_%matrix')
+      tmb%linmat%ovrlp_%matrix = sparsematrix_malloc_ptr(tmb%linmat%smat(1), DENSE_FULL, id='tmb%linmat%ovrlp_%matrix')
       call uncompress_matrix2(bigdft_mpi%iproc, bigdft_mpi%nproc, bigdft_mpi%mpi_comm, &
-           tmb%linmat%s, tmb%linmat%ovrlp_%matrix_compr, tmb%linmat%ovrlp_%matrix)
+           tmb%linmat%smat(1), tmb%linmat%ovrlp_%matrix_compr, tmb%linmat%ovrlp_%matrix)
       power(1)=2
       call overlapPowerGeneral(bigdft_mpi%iproc, bigdft_mpi%nproc, bigdft_mpi%mpi_comm, &
            input%lin%order_taylor, 1, power, &
            tmb%orthpar%blocksize_pdsyev, imode=2, &
-           ovrlp_smat=tmb%linmat%s, inv_ovrlp_smat=tmb%linmat%l, &
+           ovrlp_smat=tmb%linmat%smat(1), inv_ovrlp_smat=tmb%linmat%smat(3), &
            ovrlp_mat=tmb%linmat%ovrlp_, inv_ovrlp_mat=inv_ovrlp, check_accur=.true., &
            max_error=max_error, mean_error=mean_error)
       call f_free_ptr(tmb%linmat%ovrlp_%matrix)
@@ -2626,32 +2636,32 @@ module get_kernel
       coeff_tmp=f_malloc((/tmb%orbs%norb,tmb%orbs%norb/),id='coeff_tmp')
       do iorb=1,orbs%norbp
          iiorb = orbs%isorb + iorb
-         do jorb=1,tmb%linmat%m%nfvctr
+         do jorb=1,tmb%linmat%smat(2)%nfvctr
             coeffp(jorb,iorb)=tmb%coeff(jorb,iiorb)-alpha*grad(jorb,iorb)
          end do
       end do
     
       if(nproc > 1) then 
-         call mpi_allgatherv(coeffp, tmb%linmat%m%nfvctr*orbs%norbp, mpi_double_precision, coeff_tmp, &
-              tmb%linmat%m%nfvctr*orbs%norb_par(:,0), tmb%linmat%m%nfvctr*orbs%isorb_par, &
+         call mpi_allgatherv(coeffp, tmb%linmat%smat(2)%nfvctr*orbs%norbp, mpi_double_precision, coeff_tmp, &
+              tmb%linmat%smat(2)%nfvctr*orbs%norb_par(:,0), tmb%linmat%smat(2)%nfvctr*orbs%isorb_par, &
               mpi_double_precision, bigdft_mpi%mpi_comm, ierr)
       else
-         call vcopy(tmb%linmat%m%nfvctr*orbs%norb,coeffp(1,1),1,coeff_tmp(1,1),1)
+         call vcopy(tmb%linmat%smat(2)%nfvctr*orbs%norb,coeffp(1,1),1,coeff_tmp(1,1),1)
       end if
     
       ! do twice with approx S^_1/2, as not quite good enough at preserving charge if only once, but exact too expensive
       ! instead of twice could add some criterion to check accuracy?
       call reorthonormalize_coeff(iproc, nproc, orbs%norb, -8, -8, taylor_order, tmb%orbs, &
-           tmb%linmat%s, tmb%linmat%ks, tmb%linmat%ovrlp_, coeff_tmp, orbs)
+           tmb%linmat%smat(1), tmb%linmat%ks, tmb%linmat%ovrlp_, coeff_tmp, orbs)
       !call reorthonormalize_coeff(iproc, nproc, orbs%norb, -8, -8, 1, tmb%orbs, &
-      !     tmb%linmat%s, tmb%linmat%ks, tmb%linmat%ovrlp_, coeff_tmp, orbs)
-      !!call extract_taskgroup_inplace(tmb%linmat%l, tmb%linmat%kernel_)
-      !!call extract_taskgroup_inplace(tmb%linmat%m, tmb%linmat%ham_)
-      call calculate_kernel_and_energy(iproc,nproc,bigdft_mpi%mpi_comm,tmb%linmat%l,tmb%linmat%m,&
+      !     tmb%linmat%smat(1), tmb%linmat%ks, tmb%linmat%ovrlp_, coeff_tmp, orbs)
+      !!call extract_taskgroup_inplace(tmb%linmat%smat(3), tmb%linmat%kernel_)
+      !!call extract_taskgroup_inplace(tmb%linmat%smat(2), tmb%linmat%ham_)
+      call calculate_kernel_and_energy(iproc,nproc,bigdft_mpi%mpi_comm,tmb%linmat%smat(3),tmb%linmat%smat(2),&
            tmb%linmat%kernel_, tmb%linmat%ham_, energy1,&
            coeff_tmp,orbs%norbp, orbs%isorb, orbs%norbu, orbs%norb, orbs%occup,.true.)
-      !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%l, tmb%linmat%kernel_)
-      !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%m, tmb%linmat%ham_)
+      !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%smat(3), tmb%linmat%kernel_)
+      !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%smat(2), tmb%linmat%ham_)
       !tmb%linmat%denskern_large%matrix_compr = tmb%linmat%kernel_%matrix_compr
       call f_free(coeff_tmp)
     
@@ -2696,7 +2706,7 @@ module get_kernel
       real(kind=8),intent(in) :: max_inversion_error
       type(DFT_wavefunction), intent(inout) :: tmb
       type(orbitals_data), intent(in) :: KSorbs
-      real(gp), dimension(tmb%linmat%m%nfvctr,KSorbs%norbp), intent(out) :: grad_cov, grad  ! could make grad_cov KSorbs%norbp
+      real(gp), dimension(tmb%linmat%smat(2)%nfvctr,KSorbs%norbp), intent(out) :: grad_cov, grad  ! could make grad_cov KSorbs%norbp
     
       integer :: iorb, iiorb, info, ierr, ispin
       integer, dimension(1) :: power
@@ -2716,13 +2726,13 @@ module get_kernel
       call timing(iproc,'dirmin_lagmat1','ON')
     
       inv_ovrlp_(1) = matrices_null()
-      call allocate_matrices(tmb%linmat%l, allocate_full=.true., matname='inv_ovrlp_', mat=inv_ovrlp_(1))
+      call allocate_matrices(tmb%linmat%smat(3), allocate_full=.true., matname='inv_ovrlp_', mat=inv_ovrlp_(1))
     
     
       ! we have the kernel already, but need it to not contain occupations so recalculate here
       ! don't want to lose information in the compress/uncompress process - ideally need to change sparsity pattern of kernel
       !call calculate_density_kernel(iproc, nproc, .false., KSorbs, tmb%orbs, tmb%coeff, tmb%linmat%denskern)
-      tmb%linmat%kernel_%matrix = sparsematrix_malloc_ptr(tmb%linmat%l, iaction=DENSE_FULL, id='tmb%linmat%kernel_%matrix')
+      tmb%linmat%kernel_%matrix = sparsematrix_malloc_ptr(tmb%linmat%smat(3), iaction=DENSE_FULL, id='tmb%linmat%kernel_%matrix')
     
       !!do iorb=1,KSorbs%norbp
       !!    iiorb=KSorbs%isorb+iorb
@@ -2731,7 +2741,7 @@ module get_kernel
       !!    else
       !!        ispin=2
       !!    end if
-      !!    do jorb=1,tmb%linmat%m%nfvctr
+      !!    do jorb=1,tmb%linmat%smat(2)%nfvctr
       !!        write(4900+10*iproc+ispin,'(a,2i8,es18.7)') 'iiorb, jorb, coeff(jorb,iiorb)', iiorb, jorb, tmb%coeff(jorb,iiorb)
       !!    end do
       !!end do
@@ -2742,46 +2752,46 @@ module get_kernel
       !!    else
       !!        ispin=2
       !!    end if
-      !!    do jorb=1,tmb%linmat%m%nfvctr
+      !!    do jorb=1,tmb%linmat%smat(2)%nfvctr
       !!        write(4800+10*iproc+ispin,'(a,2i8,es18.7)') 'iiorb, jorb, coeff(jorb,iiorb)', iiorb, jorb, tmb%coeff(jorb,iiorb)
       !!    end do
       !!end do
     
      !call uncompress_matrix(iproc,tmb%linmat%denskern)
-      !!call extract_taskgroup_inplace(tmb%linmat%l, tmb%linmat%kernel_)
+      !!call extract_taskgroup_inplace(tmb%linmat%smat(3), tmb%linmat%kernel_)
       call calculate_density_kernel(iproc, nproc, bigdft_mpi%mpi_comm, .false., &
            KSorbs%norbp, KSorbs%isorb, KSorbs%norbu, KSorbs%norb, KSorbs%occup, &
-           tmb%coeff, tmb%linmat%l, tmb%linmat%kernel_, .true.)
-      !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%l, tmb%linmat%kernel_)
+           tmb%coeff, tmb%linmat%smat(3), tmb%linmat%kernel_, .true.)
+      !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%smat(3), tmb%linmat%kernel_)
     
-      sk=f_malloc0((/tmb%linmat%m%nfvctrp,tmb%linmat%m%nfvctr,tmb%linmat%m%nspin/), id='sk')
+      sk=f_malloc0((/tmb%linmat%smat(2)%nfvctrp,tmb%linmat%smat(2)%nfvctr,tmb%linmat%smat(2)%nspin/), id='sk')
     
       ! calculate I-S*K - first set sk to identity
-      do ispin=1,tmb%linmat%m%nspin
-          do iorb=1,tmb%linmat%m%nfvctrp
-              iiorb=mod(tmb%linmat%m%isfvctr+iorb-1,tmb%linmat%m%nfvctr)+1
+      do ispin=1,tmb%linmat%smat(2)%nspin
+          do iorb=1,tmb%linmat%smat(2)%nfvctrp
+              iiorb=mod(tmb%linmat%smat(2)%isfvctr+iorb-1,tmb%linmat%smat(2)%nfvctr)+1
               sk(iorb,iiorb,ispin) = 1.d0
           end do 
       end do
     
-      if (tmb%linmat%m%nfvctrp>0) then
-          do ispin=1,tmb%linmat%m%nspin
-              call dgemm('t', 'n', tmb%linmat%m%nfvctrp, tmb%linmat%m%nfvctr, tmb%linmat%m%nfvctr, -1.d0, &
-                   tmb%linmat%ovrlp_%matrix(1,tmb%linmat%m%isfvctr+1,ispin), tmb%linmat%m%nfvctr, &
-                   tmb%linmat%kernel_%matrix(1,1,ispin), tmb%linmat%m%nfvctr, 1.d0, sk(1,1,ispin), tmb%linmat%m%nfvctrp)
+      if (tmb%linmat%smat(2)%nfvctrp>0) then
+          do ispin=1,tmb%linmat%smat(2)%nspin
+              call dgemm('t', 'n', tmb%linmat%smat(2)%nfvctrp, tmb%linmat%smat(2)%nfvctr, tmb%linmat%smat(2)%nfvctr, -1.d0, &
+                   tmb%linmat%ovrlp_%matrix(1,tmb%linmat%smat(2)%isfvctr+1,ispin), tmb%linmat%smat(2)%nfvctr, &
+                   tmb%linmat%kernel_%matrix(1,1,ispin), tmb%linmat%smat(2)%nfvctr, 1.d0, sk(1,1,ispin), tmb%linmat%smat(2)%nfvctrp)
           end do
       end if
-      !!do ispin=1,tmb%linmat%m%nspin
-      !!    do iorb=1,tmb%linmat%m%nfvctr
-      !!        do jorb=1,tmb%linmat%m%nfvctr
+      !!do ispin=1,tmb%linmat%smat(2)%nspin
+      !!    do iorb=1,tmb%linmat%smat(2)%nfvctr
+      !!        do jorb=1,tmb%linmat%smat(2)%nfvctr
       !!            write(6300+10*iproc+ispin,'(a,2i8,es16.6)') 'iorb, jorb, tmb%linmat%ovrlp_%matrix(jorb,iorb,ispin)', iorb, jorb, tmb%linmat%ovrlp_%matrix(jorb,iorb,ispin)
       !!            write(6400+10*iproc+ispin,'(a,2i8,es16.6)') 'iorb, jorb, tmb%linmat%kernel_%matrix(jorb,iorb,ispin)', iorb, jorb, tmb%linmat%kernel_%matrix(jorb,iorb,ispin)
       !!        end do
       !!    end do
       !!end do
-      !!do ispin=1,tmb%linmat%m%nspin
-      !!    do iorb=1,tmb%linmat%m%nfvctr
-      !!        do jorb=1,tmb%linmat%m%nfvctrp
+      !!do ispin=1,tmb%linmat%smat(2)%nspin
+      !!    do iorb=1,tmb%linmat%smat(2)%nfvctr
+      !!        do jorb=1,tmb%linmat%smat(2)%nfvctrp
       !!            write(6100+10*iproc+ispin,'(a,2i8,es16.6)') 'iorb, jorb, sk(jorb,iorb,ispin)', iorb, jorb, sk(jorb,iorb,ispin)
       !!        end do
       !!    end do
@@ -2790,19 +2800,19 @@ module get_kernel
       ! coeffs and therefore kernel will change, so no need to keep it
       call f_free_ptr(tmb%linmat%kernel_%matrix)
     
-      skhp=f_malloc((/tmb%linmat%m%nfvctr,max(tmb%linmat%m%nfvctrp,1),tmb%linmat%m%nspin/), id='skhp')
+      skhp=f_malloc((/tmb%linmat%smat(2)%nfvctr,max(tmb%linmat%smat(2)%nfvctrp,1),tmb%linmat%smat(2)%nspin/), id='skhp')
     
       ! multiply by H to get (I_ab - S_ag K^gb) H_bd, or in this case the transpose of the above
-      if (tmb%linmat%m%nfvctrp>0) then
-          do ispin=1,tmb%linmat%m%nspin
-              call dgemm('t', 't', tmb%linmat%m%nfvctr, tmb%linmat%m%nfvctrp, tmb%linmat%m%nfvctr, &
-                   1.d0, tmb%linmat%ham_%matrix(1,1,ispin), tmb%linmat%m%nfvctr, &
-                   sk(1,1,ispin), tmb%linmat%m%nfvctrp, 0.d0, skhp(1,1,ispin), tmb%linmat%m%nfvctr)
+      if (tmb%linmat%smat(2)%nfvctrp>0) then
+          do ispin=1,tmb%linmat%smat(2)%nspin
+              call dgemm('t', 't', tmb%linmat%smat(2)%nfvctr, tmb%linmat%smat(2)%nfvctrp, tmb%linmat%smat(2)%nfvctr, &
+                   1.d0, tmb%linmat%ham_%matrix(1,1,ispin), tmb%linmat%smat(2)%nfvctr, &
+                   sk(1,1,ispin), tmb%linmat%smat(2)%nfvctrp, 0.d0, skhp(1,1,ispin), tmb%linmat%smat(2)%nfvctr)
           end do
       end if
-      !!do ispin=1,tmb%linmat%m%nspin
-      !!    do iorb=1,tmb%linmat%m%nfvctrp
-      !!        do jorb=1,tmb%linmat%m%nfvctr
+      !!do ispin=1,tmb%linmat%smat(2)%nspin
+      !!    do iorb=1,tmb%linmat%smat(2)%nfvctrp
+      !!        do jorb=1,tmb%linmat%smat(2)%nfvctr
       !!            write(6200+10*iproc+ispin,'(a,2i8,es16.6)') 'iorb, jorb, skhp(jorb,iorb,ispin)', iorb, jorb, skhp(jorb,iorb,ispin)
       !!        end do
       !!    end do
@@ -2810,25 +2820,25 @@ module get_kernel
     
       call f_free(sk)
     
-      skh=f_malloc((/tmb%linmat%m%nfvctr,tmb%linmat%m%nfvctr,tmb%linmat%m%nspin/), id='skh')
+      skh=f_malloc((/tmb%linmat%smat(2)%nfvctr,tmb%linmat%smat(2)%nfvctr,tmb%linmat%smat(2)%nspin/), id='skh')
     
       call timing(iproc,'dirmin_lagmat1','OF')
       call timing(iproc,'dirmin_lagmat2','ON')
     
       ! gather together
       if(nproc > 1) then
-          do ispin=1,tmb%linmat%m%nspin
-             call mpi_allgatherv(skhp(1,1,ispin), tmb%linmat%m%nfvctr*tmb%linmat%m%nfvctrp, &
-                mpi_double_precision, skh(1,1,ispin), tmb%linmat%m%nfvctr*tmb%linmat%m%nfvctr_par, &
-                tmb%linmat%m%nfvctr*tmb%linmat%m%isfvctr_par, mpi_double_precision, bigdft_mpi%mpi_comm, ierr)
+          do ispin=1,tmb%linmat%smat(2)%nspin
+             call mpi_allgatherv(skhp(1,1,ispin), tmb%linmat%smat(2)%nfvctr*tmb%linmat%smat(2)%nfvctrp, &
+                mpi_double_precision, skh(1,1,ispin), tmb%linmat%smat(2)%nfvctr*tmb%linmat%smat(2)%nfvctr_par, &
+                tmb%linmat%smat(2)%nfvctr*tmb%linmat%smat(2)%isfvctr_par, mpi_double_precision, bigdft_mpi%mpi_comm, ierr)
           end do
       else
-         call vcopy(tmb%linmat%m%nfvctr*tmb%linmat%m%nfvctrp*tmb%linmat%m%nspin,skhp(1,1,1),1,skh(1,1,1),1)
+         call vcopy(tmb%linmat%smat(2)%nfvctr*tmb%linmat%smat(2)%nfvctrp*tmb%linmat%smat(2)%nspin,skhp(1,1,1),1,skh(1,1,1),1)
       end if
     
-      !!do ispin=1,tmb%linmat%m%nspin
-      !!    do iorb=1,tmb%linmat%m%nfvctr
-      !!        do jorb=1,tmb%linmat%m%nfvctr
+      !!do ispin=1,tmb%linmat%smat(2)%nspin
+      !!    do iorb=1,tmb%linmat%smat(2)%nfvctr
+      !!        do jorb=1,tmb%linmat%smat(2)%nfvctr
       !!            write(6000+10*iproc+ispin,'(a,2i8,es16.6)') 'iorb, jorb, skh(jorb,iorb,ispin)', iorb, jorb, skh(jorb,iorb,ispin)
       !!        end do
       !!    end do
@@ -2850,9 +2860,9 @@ module get_kernel
              else
                  ispin=2
              end if
-             call dgemm('t', 'n', tmb%linmat%m%nfvctr, 1, tmb%linmat%m%nfvctr, 1.d0, skh(1,1,ispin), &
-                  tmb%linmat%m%nfvctr, tmb%coeff(1,KSorbs%isorb+iorb), tmb%linmat%m%nfvctr, &
-                  0.d0, grad_cov(1,iorb), tmb%linmat%m%nfvctr)
+             call dgemm('t', 'n', tmb%linmat%smat(2)%nfvctr, 1, tmb%linmat%smat(2)%nfvctr, 1.d0, skh(1,1,ispin), &
+                  tmb%linmat%smat(2)%nfvctr, tmb%coeff(1,KSorbs%isorb+iorb), tmb%linmat%smat(2)%nfvctr, &
+                  0.d0, grad_cov(1,iorb), tmb%linmat%smat(2)%nfvctr)
          end do
       end if
     
@@ -2875,7 +2885,7 @@ module get_kernel
          call overlapPowerGeneral(iproc, nproc, bigdft_mpi%mpi_comm, &
               order_taylor, 1, power, -8, &
               imode=2, &
-              ovrlp_smat=tmb%linmat%s, inv_ovrlp_smat=tmb%linmat%l, &
+              ovrlp_smat=tmb%linmat%smat(1), inv_ovrlp_smat=tmb%linmat%smat(3), &
               ovrlp_mat=tmb%linmat%ovrlp_, inv_ovrlp_mat=inv_ovrlp_, check_accur=.true., &
               max_error=max_error, mean_error=mean_error)
          call check_taylor_order(iproc, mean_error, max_inversion_error, order_taylor)
@@ -3038,27 +3048,29 @@ module get_kernel
                  else
                      ispin=2
                  end if
-                 call dgemm('n', 'n', tmb%linmat%m%nfvctr, 1, tmb%linmat%m%nfvctr, 1.d0, inv_ovrlp_(1)%matrix(1,1,ispin), &
-                      tmb%linmat%m%nfvctr, grad_cov(1,iorb), tmb%linmat%m%nfvctr, 0.d0, grad(1,iorb), tmb%linmat%m%nfvctr)
+                 call dgemm('n', 'n', tmb%linmat%smat(2)%nfvctr, 1, tmb%linmat%smat(2)%nfvctr, &
+                      1.d0, inv_ovrlp_(1)%matrix(1,1,ispin), &
+                      tmb%linmat%smat(2)%nfvctr, grad_cov(1,iorb), tmb%linmat%smat(2)%nfvctr, &
+                      0.d0, grad(1,iorb), tmb%linmat%smat(2)%nfvctr)
              end do
          end if
          call f_free_ptr(inv_ovrlp)
       else
          info = 0 ! needed for when some processors have orbs%norbp=0
-         grad_full=f_malloc((/tmb%linmat%m%nfvctr,KSorbs%norb/),id='grad_full')
+         grad_full=f_malloc((/tmb%linmat%smat(2)%nfvctr,KSorbs%norb/),id='grad_full')
          ! do allgather instead of allred so we can keep grad as per proc
          if(nproc > 1) then 
-            call mpi_allgatherv(grad_cov, tmb%linmat%m%nfvctr*KSorbs%norbp, mpi_double_precision, grad_full, &
-                 tmb%linmat%m%nfvctr*KSorbs%norb_par(:,0), tmb%linmat%m%nfvctr*KSorbs%isorb_par, &
+            call mpi_allgatherv(grad_cov, tmb%linmat%smat(2)%nfvctr*KSorbs%norbp, mpi_double_precision, grad_full, &
+                 tmb%linmat%smat(2)%nfvctr*KSorbs%norb_par(:,0), tmb%linmat%smat(2)%nfvctr*KSorbs%isorb_par, &
                  mpi_double_precision, bigdft_mpi%mpi_comm, ierr)
          else
-            call vcopy(tmb%linmat%m%nfvctr*KSorbs%norb,grad_cov(1,1),1,grad_full(1,1),1)
+            call vcopy(tmb%linmat%smat(2)%nfvctr*KSorbs%norb,grad_cov(1,1),1,grad_full(1,1),1)
          end if
     
          call dgesv_parallel(iproc, tmb%orthpar%nproc_pdsyev, tmb%orthpar%blocksize_pdsyev, bigdft_mpi%mpi_comm, &
-              tmb%linmat%m%nfvctr, KSorbs%norb, tmb%linmat%ovrlp_%matrix, tmb%linmat%m%nfvctr, &
-              grad_full, tmb%linmat%m%nfvctr, info)
-         call vcopy(tmb%linmat%m%nfvctr*KSorbs%norbp,grad_full(1,KSorbs%isorb+1),1,grad(1,1),1)
+              tmb%linmat%smat(2)%nfvctr, KSorbs%norb, tmb%linmat%ovrlp_%matrix, tmb%linmat%smat(2)%nfvctr, &
+              grad_full, tmb%linmat%smat(2)%nfvctr, info)
+         call vcopy(tmb%linmat%smat(2)%nfvctr*KSorbs%norbp,grad_full(1,KSorbs%isorb+1),1,grad(1,1),1)
     
          call f_free(grad_full)
          if(info/=0) then
@@ -3093,7 +3105,7 @@ module get_kernel
     !!  real(kind=8),intent(in) :: max_inversion_error
     !!  type(DFT_wavefunction), intent(inout) :: tmb
     !!  type(orbitals_data), intent(in) :: KSorbs
-    !!  real(gp), dimension(tmb%linmat%m%nfvctr,tmb%orbs%norbp), intent(out) :: grad_cov, grad  ! could make grad_cov KSorbs%norbp
+    !!  real(gp), dimension(tmb%linmat%smat(2)%nfvctr,tmb%orbs%norbp), intent(out) :: grad_cov, grad  ! could make grad_cov KSorbs%norbp
     !!
     !!  integer :: iorb, iiorb, info, ierr, ispin
     !!  integer, dimension(1) :: power
@@ -3104,13 +3116,13 @@ module get_kernel
     !!  real(kind=gp) :: max_error, mean_error
     !!  type(matrices),dimension(1) :: inv_ovrlp_
     !!
-    !!  !!if (tmb%linmat%m%nspin==2) stop 'ERROR: calculate_coeff_gradient_extra not yet implemented for npsin==2'
+    !!  !!if (tmb%linmat%smat(2)%nspin==2) stop 'ERROR: calculate_coeff_gradient_extra not yet implemented for npsin==2'
     !!
     !!  call f_routine(id='calculate_coeff_gradient_extra')
     !!  call timing(iproc,'dirmin_lagmat1','ON')
     !!
     !!  inv_ovrlp_(1) = matrices_null()
-    !!  call allocate_matrices(tmb%linmat%l, allocate_full=.true., matname='inv_ovrlp_', mat=inv_ovrlp_(1))
+    !!  call allocate_matrices(tmb%linmat%smat(3), allocate_full=.true., matname='inv_ovrlp_', mat=inv_ovrlp_(1))
     !!
     !!
     !!  occup_tmp=f_malloc(tmb%orbs%norb,id='occup_tmp')
@@ -3123,34 +3135,34 @@ module get_kernel
     !!
     !!  ! we have the kernel already, but need it to not contain occupations so recalculate here
     !!  !call calculate_density_kernel(iproc, nproc, .true., tmb%orbs, tmb%orbs, tmb%coeff, tmb%linmat%denskern)
-    !!  tmb%linmat%kernel_%matrix = sparsematrix_malloc_ptr(tmb%linmat%l, iaction=DENSE_FULL, id='tmb%linmat%kernel_%matrix')
+    !!  tmb%linmat%kernel_%matrix = sparsematrix_malloc_ptr(tmb%linmat%smat(3), iaction=DENSE_FULL, id='tmb%linmat%kernel_%matrix')
     !!  !call uncompress_matrix(iproc,tmb%linmat%denskern)
     !!  !!call calculate_density_kernel_uncompressed (iproc, nproc, .true., tmb%orbs, tmb%orbs, tmb%coeff, tmb%linmat%kernel_%matrix)
-    !!  !!call extract_taskgroup_inplace(tmb%linmat%l, tmb%linmat%kernel_)
+    !!  !!call extract_taskgroup_inplace(tmb%linmat%smat(3), tmb%linmat%kernel_)
     !!  call calculate_density_kernel(iproc, nproc, .true., tmb%orbs, tmb%orbs, &
-    !!       tmb%coeff, tmb%linmat%l, tmb%linmat%kernel_, .true.)
-    !!  !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%l, tmb%linmat%kernel_)
+    !!       tmb%coeff, tmb%linmat%smat(3), tmb%linmat%kernel_, .true.)
+    !!  !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%smat(3), tmb%linmat%kernel_)
     !!
     !!
     !!  call vcopy(tmb%orbs%norb,occup_tmp(1),1,tmb%orbs%occup(1),1)
     !!  call f_free(occup_tmp)
     !!
-    !!  sk=f_malloc0((/tmb%linmat%l%nfvctrp,tmb%linmat%l%nfvctr,tmb%linmat%l%nspin/), id='sk')
+    !!  sk=f_malloc0((/tmb%linmat%smat(3)%nfvctrp,tmb%linmat%smat(3)%nfvctr,tmb%linmat%smat(3)%nspin/), id='sk')
     !!
     !!  ! calculate I-S*K - first set sk to identity
-    !!  do ispin=1,tmb%linmat%l%nspin
-    !!     do iorb=1,tmb%linmat%l%nfvctrp
-    !!        iiorb=mod(tmb%linmat%l%isfvctr+iorb-1,tmb%linmat%l%nfvctr)+1
+    !!  do ispin=1,tmb%linmat%smat(3)%nspin
+    !!     do iorb=1,tmb%linmat%smat(3)%nfvctrp
+    !!        iiorb=mod(tmb%linmat%smat(3)%isfvctr+iorb-1,tmb%linmat%smat(3)%nfvctr)+1
     !!        sk(iorb,iiorb,ispin) = 1.d0
     !!     end do 
     !!  end do
     !!
     !!
-    !!  if (tmb%linmat%l%nfvctrp>0) then
-    !!     do ispin=1,tmb%linmat%l%nspin
-    !!        call dgemm('t', 'n', tmb%linmat%l%nfvctrp, tmb%linmat%l%nfvctr, tmb%linmat%l%nfvctr, -1.d0, &
-    !!             tmb%linmat%ovrlp_%matrix(1,tmb%linmat%l%isfvctr+1,ispin), tmb%linmat%l%nfvctr, &
-    !!             tmb%linmat%kernel_%matrix(1,1,ispin), tmb%linmat%l%nfvctr, 1.d0, sk(1,1,ispin), tmb%linmat%l%nfvctrp)
+    !!  if (tmb%linmat%smat(3)%nfvctrp>0) then
+    !!     do ispin=1,tmb%linmat%smat(3)%nspin
+    !!        call dgemm('t', 'n', tmb%linmat%smat(3)%nfvctrp, tmb%linmat%smat(3)%nfvctr, tmb%linmat%smat(3)%nfvctr, -1.d0, &
+    !!             tmb%linmat%ovrlp_%matrix(1,tmb%linmat%smat(3)%isfvctr+1,ispin), tmb%linmat%smat(3)%nfvctr, &
+    !!             tmb%linmat%kernel_%matrix(1,1,ispin), tmb%linmat%smat(3)%nfvctr, 1.d0, sk(1,1,ispin), tmb%linmat%smat(3)%nfvctrp)
     !!      end do
     !!  end if
     !!
@@ -3158,36 +3170,36 @@ module get_kernel
     !!  ! coeffs and therefore kernel will change, so no need to keep it
     !!  call f_free_ptr(tmb%linmat%kernel_%matrix)
     !!
-    !!  skhp=f_malloc((/tmb%linmat%l%nfvctr,tmb%linmat%l%nfvctrp,tmb%linmat%l%nspin/), id='skhp')
+    !!  skhp=f_malloc((/tmb%linmat%smat(3)%nfvctr,tmb%linmat%smat(3)%nfvctrp,tmb%linmat%smat(3)%nspin/), id='skhp')
     !!
     !!  ! multiply by H to get (I_ab - S_ag K^gb) H_bd, or in this case the transpose of the above
-    !!  if (tmb%linmat%l%nfvctrp>0) then
-    !!     do ispin=1,tmb%linmat%l%nspin
-    !!        call dgemm('t', 't', tmb%linmat%l%nfvctr, tmb%linmat%l%nfvctrp, tmb%linmat%l%nfvctr, &
+    !!  if (tmb%linmat%smat(3)%nfvctrp>0) then
+    !!     do ispin=1,tmb%linmat%smat(3)%nspin
+    !!        call dgemm('t', 't', tmb%linmat%smat(3)%nfvctr, tmb%linmat%smat(3)%nfvctrp, tmb%linmat%smat(3)%nfvctr, &
     !!             1.d0, tmb%linmat%ham_%matrix(1,1,ispin), &
-    !!             tmb%linmat%l%nfvctr, sk(1,1,ispin), tmb%linmat%l%nfvctrp, 0.d0, skhp(1,1,ispin), tmb%linmat%l%nfvctr)
+    !!             tmb%linmat%smat(3)%nfvctr, sk(1,1,ispin), tmb%linmat%smat(3)%nfvctrp, 0.d0, skhp(1,1,ispin), tmb%linmat%smat(3)%nfvctr)
     !!      end do
     !!  end if
     !!
     !!
     !!  call f_free(sk)
     !!
-    !!  skh=f_malloc((/tmb%linmat%l%nfvctr,tmb%linmat%l%nfvctr,tmb%linmat%l%nspin/), id='skh')
+    !!  skh=f_malloc((/tmb%linmat%smat(3)%nfvctr,tmb%linmat%smat(3)%nfvctr,tmb%linmat%smat(3)%nspin/), id='skh')
     !!
     !!  call timing(iproc,'dirmin_lagmat1','OF')
     !!  call timing(iproc,'dirmin_lagmat2','ON')
     !!
     !!  ! gather together
     !!  if(nproc > 1) then
-    !!     do ispin=1,tmb%linmat%l%nspin
-    !!        call mpi_allgatherv(skhp(1,1,ispin), tmb%linmat%l%nfvctr*tmb%linmat%l%nfvctrp, &
+    !!     do ispin=1,tmb%linmat%smat(3)%nspin
+    !!        call mpi_allgatherv(skhp(1,1,ispin), tmb%linmat%smat(3)%nfvctr*tmb%linmat%smat(3)%nfvctrp, &
     !!            mpi_double_precision, skh(1,1,ispin), &
-    !!            tmb%linmat%l%nfvctr*tmb%linmat%l%nfvctr_par(:), &
-    !!            tmb%linmat%l%nfvctr*tmb%linmat%l%isfvctr_par, &
+    !!            tmb%linmat%smat(3)%nfvctr*tmb%linmat%smat(3)%nfvctr_par(:), &
+    !!            tmb%linmat%smat(3)%nfvctr*tmb%linmat%smat(3)%isfvctr_par, &
     !!            mpi_double_precision, bigdft_mpi%mpi_comm, ierr)
     !!     end do
     !!  else
-    !!     call vcopy(tmb%linmat%l%nfvctrp*tmb%linmat%l%nfvctr*tmb%linmat%l%nspin,skhp(1,1,1),1,skh(1,1,1),1)
+    !!     call vcopy(tmb%linmat%smat(3)%nfvctrp*tmb%linmat%smat(3)%nfvctr*tmb%linmat%smat(3)%nspin,skhp(1,1,1),1,skh(1,1,1),1)
     !!  end if
     !!
     !!
@@ -3197,17 +3209,17 @@ module get_kernel
     !!  call f_free(skhp)
     !!
     !!  ! calc for i on this proc: (I_ab - S_ag K^gb) H_bg c_i^d
-    !!  if (tmb%linmat%l%nfvctrp>0) then
-    !!     do iorb=1,tmb%linmat%l%nfvctrp
-    !!        iiorb=tmb%linmat%l%isfvctr+iorb
+    !!  if (tmb%linmat%smat(3)%nfvctrp>0) then
+    !!     do iorb=1,tmb%linmat%smat(3)%nfvctrp
+    !!        iiorb=tmb%linmat%smat(3)%isfvctr+iorb
     !!        if (tmb%orbs%spinsgn(iiorb)>0.d0) then
     !!            ispin=1
     !!        else
     !!            ispin=2
     !!        end if
-    !!        call dgemm('t', 'n', tmb%linmat%l%nfvctr, 1, tmb%linmat%l%nfvctr, 1.d0, skh(1,1,ispin), &
-    !!             tmb%linmat%l%nfvctr, tmb%coeff(1,tmb%linmat%l%isfvctr+iorb), tmb%linmat%l%nfvctr, &
-    !!             0.d0, grad_cov(1,iorb), tmb%linmat%l%nfvctr)
+    !!        call dgemm('t', 'n', tmb%linmat%smat(3)%nfvctr, 1, tmb%linmat%smat(3)%nfvctr, 1.d0, skh(1,1,ispin), &
+    !!             tmb%linmat%smat(3)%nfvctr, tmb%coeff(1,tmb%linmat%smat(3)%isfvctr+iorb), tmb%linmat%smat(3)%nfvctr, &
+    !!             0.d0, grad_cov(1,iorb), tmb%linmat%smat(3)%nfvctr)
     !!      end do
     !!  end if
     !!
@@ -3238,33 +3250,33 @@ module get_kernel
     !!     power(1)=1
     !!     call overlapPowerGeneral(iproc, nproc, bigdft_mpi%mpi_comm, &
     !!          order_taylor, 1, power, -8, &
-    !!          imode=2, ovrlp_smat=tmb%linmat%s, inv_ovrlp_smat=tmb%linmat%l, &
+    !!          imode=2, ovrlp_smat=tmb%linmat%smat(1), inv_ovrlp_smat=tmb%linmat%smat(3), &
     !!          ovrlp_mat=tmb%linmat%ovrlp_, inv_ovrlp_mat=inv_ovrlp_, check_accur=.true., &
     !!          max_error=max_error, mean_error=mean_error)
     !!     call check_taylor_order(iproc, mean_error, max_inversion_error, order_taylor)
     !!
     !!     if (tmb%orbs%norbp>0) then
-    !!        call dgemm('n', 'n', tmb%linmat%l%nfvctr, tmb%orbs%norbp, tmb%linmat%l%nfvctr, 1.d0, inv_ovrlp_(1)%matrix(1,1,1), &
-    !!             tmb%linmat%l%nfvctr, grad_cov(1,1), tmb%linmat%l%nfvctr, 0.d0, grad(1,1), tmb%linmat%l%nfvctr)
+    !!        call dgemm('n', 'n', tmb%linmat%smat(3)%nfvctr, tmb%orbs%norbp, tmb%linmat%smat(3)%nfvctr, 1.d0, inv_ovrlp_(1)%matrix(1,1,1), &
+    !!             tmb%linmat%smat(3)%nfvctr, grad_cov(1,1), tmb%linmat%smat(3)%nfvctr, 0.d0, grad(1,1), tmb%linmat%smat(3)%nfvctr)
     !!     end if
     !!     !!call f_free_ptr(inv_ovrlp)
     !!  else
     !!      grad_full=f_malloc((/tmb%orbs%norb,tmb%orbs%norb/),id='grad_full')
     !!      ! do allgather instead of allred so we can keep grad as per proc
     !!      if(nproc > 1) then 
-    !!         call mpi_allgatherv(grad_cov, tmb%linmat%l%nfvctr*tmb%orbs%norbp, &
+    !!         call mpi_allgatherv(grad_cov, tmb%linmat%smat(3)%nfvctr*tmb%orbs%norbp, &
     !!              mpi_double_precision, grad_full, &
-    !!              tmb%linmat%l%nfvctr*tmb%orbs%norb_par(:,0), &
-    !!              tmb%linmat%l%nfvctr*tmb%orbs%isorb_par, mpi_double_precision, bigdft_mpi%mpi_comm, ierr)
+    !!              tmb%linmat%smat(3)%nfvctr*tmb%orbs%norb_par(:,0), &
+    !!              tmb%linmat%smat(3)%nfvctr*tmb%orbs%isorb_par, mpi_double_precision, bigdft_mpi%mpi_comm, ierr)
     !!      else
-    !!         call vcopy(tmb%linmat%l%nfvctr*tmb%orbs%norb,grad_cov(1,1),1,grad_full(1,1),1)
+    !!         call vcopy(tmb%linmat%smat(3)%nfvctr*tmb%orbs%norb,grad_cov(1,1),1,grad_full(1,1),1)
     !!      end if
     !!      !call mpiallred(grad(1,1), tmb%orbs%norb*tmb%orbs%norb, mpi_sum, bigdft_mpi%mpi_comm, ierr)
     !!
     !!      call dgesv_parallel(iproc, tmb%orthpar%nproc_pdsyev, tmb%orthpar%blocksize_pdsyev, bigdft_mpi%mpi_comm, &
     !!           tmb%orbs%norb, tmb%orbs%norb, tmb%linmat%ovrlp_%matrix, tmb%orbs%norb, grad_full, tmb%orbs%norb, info)
     !!
-    !!      call vcopy(tmb%linmat%l%nfvctr*tmb%orbs%norbp,grad_full(1,tmb%orbs%isorb+1),1,grad(1,1),1)
+    !!      call vcopy(tmb%linmat%smat(3)%nfvctr*tmb%orbs%norbp,grad_full(1,tmb%orbs%isorb+1),1,grad(1,1),1)
     !!
     !!      call f_free(grad_full)
     !!
