@@ -1149,7 +1149,7 @@ module get_kernel
       matrix_local1 = f_malloc_ptr(tmb%linmat%smat(3)%smmm%nvctrp_mm*tmb%linmat%smat(3)%nspin,id='matrix_local1')
     
       ! Calculate S^1/2 * K * S^1/2. Take the value of S^1/2 from memory (was
-      ! calculated in the last call to this routine or (it it is the first call)
+      ! calculated in the last call to this routine or (if it is the first call)
       ! just before the call.
       do ispin=1,tmb%linmat%smat(3)%nspin
           ilshift = (ispin-1)*tmb%linmat%smat(3)%nvctrp_tg

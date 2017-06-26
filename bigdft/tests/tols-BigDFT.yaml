@@ -2208,7 +2208,7 @@ igortho_19:
  Total charge: 5.9e-9
  relative difference: 1.6e-9
  difference from reference kernel: 3.0e-8
- D: 6.0e-8
+ D: 1.1e-7
  Tr(K): 1.1e-7
  total charge correction: 4.1e-11
  multiplicator for the confinement: 4.3e-11
@@ -2326,8 +2326,8 @@ igortho_94:
  P vector: 2.01e-05
  norm(P): 3.9e-05
  exp accur: 1.0e-08
- trace(KH): 1.8e-05
- trace(KS): 3.5e-11
+ trace(KH): 3.8e-05
+ trace(KS): 7.6e-11
 
 
 extendedfrags_nofrags:

@@ -105,7 +105,7 @@ module wrapper_MPI
 
   interface mpibcast
      module procedure mpibcast_i0,mpibcast_li0,mpibcast_d0,mpibcast_c0
-     module procedure mpibcast_c1,mpibcast_d1,mpibcast_d2,mpibcast_i1,mpibcast_i2, mpibcast_i3
+     module procedure mpibcast_c1,mpibcast_d1,mpibcast_d2,mpibcast_d3,mpibcast_i1,mpibcast_i2, mpibcast_i3
   end interface mpibcast
 
   interface mpiscatter
@@ -1958,6 +1958,19 @@ contains
     include 'bcast-decl-arr-inc.f90'
     include 'bcast-inc.f90'
   end subroutine mpibcast_d2
+
+  subroutine mpibcast_d3(buffer,root,comm,check,maxdiff)
+    use dynamic_memory
+    use dictionaries, only: f_err_throw
+    use yaml_output !for check=.true.
+    use f_utils, only: f_zero
+    implicit none
+    double precision, dimension(:,:,:), intent(inout) ::  buffer
+    double precision, intent(out), optional :: maxdiff
+    double precision, dimension(:), allocatable :: array_diff
+    include 'bcast-decl-arr-inc.f90'
+    include 'bcast-inc.f90'
+  end subroutine mpibcast_d3
 
   subroutine mpiscatter_i1i1(sendbuf, recvbuf, root, comm)
     use dictionaries, only: f_err_throw,f_err_define

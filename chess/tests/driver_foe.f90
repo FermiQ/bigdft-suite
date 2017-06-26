@@ -33,7 +33,7 @@ program driver_foe
                                     trace_A, trace_AB, sparse_matrix_metadata_init_from_file, &
                                     sparse_matrix_and_matrices_init_from_file_bigdft
   use sparsematrix, only: write_matrix_compressed, transform_sparse_matrix, get_minmax_eigenvalues, &
-                          resize_matrix_to_taskgroup
+                          resize_matrix_to_taskgroup, matrix_power_dense_lapack
   use sparsematrix_init, only: matrixindex_in_compressed, write_sparsematrix_info, &
                                get_number_of_electrons, distribute_on_tasks, &
                                init_matrix_taskgroups_wrapper
@@ -51,7 +51,7 @@ program driver_foe
 
   ! Variables
   type(sparse_matrix),dimension(3) :: smat
-  type(matrices) :: mat_s, mat_h, mat_k, mat_ek
+  type(matrices) :: mat_s, mat_h, mat_k, mat_ek, mat_inv, mat_ks
   type(matrices),dimension(1) :: mat_ovrlpminusonehalf
   type(sparse_matrix_metadata) :: smmd
   integer :: nfvctr, nvctr, ierr, iproc, nproc, nthread, ncharge, nfvctr_mult, nvctr_mult, scalapack_blocksize, icheck, it, nit
@@ -70,6 +70,7 @@ program driver_foe
   character(len=1024) :: metadata_file, overlap_file, hamiltonian_file, kernel_file, kernel_matmul_file
   character(len=1024) :: sparsity_format, matrix_format, kernel_method, inversion_method
   logical :: check_spectrum, do_cubic_check, pexsi_do_inertia_count, init_matmul, keep_dense_kernel, write_kernel
+  logical :: write_symmetrized_kernel
   integer,parameter :: nthreshold = 10 !< number of checks with threshold
   real(mp),dimension(nthreshold),parameter :: threshold = (/ 1.e-1_mp, &
                                                              1.e-2_mp, &
@@ -414,11 +415,43 @@ program driver_foe
       energies(it) = energy
   end do it_loop
 
+  if (write_symmetrized_kernel) then
+      if (.not.keep_dense_kernel) call yaml_warning("If 'keep_dense_kernel=no', 'keep_dense_kernel' will have no effect")
+      if (.not.write_kernel) call yaml_warning("If 'write_kernel=no', 'keep_dense_kernel' will have no effect")
+  end if
+
   if (write_kernel) then
       call write_sparse_matrix('serial_text', iproc, nproc, mpi_comm_world, smat(3), mat_k, 'kernel_output_sparse')
       if (keep_dense_kernel) then
           call write_dense_matrix(iproc, nproc, mpiworld(), smat(3), mat_k, &
                uncompress=.false., filename='kernel_output_dense.txt', binary=.false.)
+          if (write_symmetrized_kernel) then
+              mat_inv = matrices_null()
+              mat_inv%matrix = sparsematrix_malloc_ptr(smat(3), iaction=DENSE_FULL, id='mat_inv%matrix')
+              mat_inv%matrix_compr = sparsematrix_malloc_ptr(smat(3), iaction=SPARSE_TASKGROUP, id='mat_inv%matrix')
+              mat_ks = matrices_null()
+              mat_ks%matrix = sparsematrix_malloc_ptr(smat(3), iaction=DENSE_FULL, id='mat_ks%matrix')
+              mat_s%matrix = sparsematrix_malloc_ptr(smat(1), iaction=DENSE_FULL, id='mat_s%matrix')
+              call matrix_power_dense_lapack(iproc, nproc, mpiworld(), scalapack_blocksize, -1, .true., &
+                   0.5_mp, smat(1), smat(3), mat_s, mat_inv)
+              ! Use mat_h%matrix as workarray
+              mat_h%matrix = sparsematrix_malloc_ptr(smat(2), iaction=DENSE_FULL, id='mat_h%matrix')
+              call gemm('n', 'n', smat(1)%nfvctr, smat(1)%nfvctr, smat(1)%nfvctr, 1.0_mp, &
+                   mat_inv%matrix(1,1,1), smat(1)%nfvctr, mat_k%matrix(1,1,1), smat(1)%nfvctr, &
+                   0.0_mp, mat_h%matrix(1,1,1), smat(1)%nfvctr)
+              call gemm('n', 'n', smat(1)%nfvctr, smat(1)%nfvctr, smat(1)%nfvctr, 1.0_mp, &
+                   mat_h%matrix(1,1,1), smat(1)%nfvctr, mat_inv%matrix(1,1,1), smat(1)%nfvctr, &
+                   0.0_mp, mat_ks%matrix(1,1,1), smat(1)%nfvctr)
+              !!energy = 0.d0
+              !!do it=1,smat(3)%nfvctr
+              !!    energy = energy + mat_ks%matrix(it,it,1)
+              !!end do
+              !!if (iproc==0) write(*,*) 'tt',energy
+              call write_dense_matrix(iproc, nproc, mpiworld(), smat(3), mat_ks, &
+                   uncompress=.false., filename='kernel_output_symmetrized_dense.txt', binary=.false.)
+              call deallocate_matrices(mat_inv)
+              call deallocate_matrices(mat_ks)
+          end if
       end if
   end if
 
@@ -683,6 +716,7 @@ program driver_foe
           profiling_depth = options//'profiling_depth'
           keep_dense_kernel = options//'keep_dense_kernel'
           write_kernel = options//'write_kernel'
+          write_symmetrized_kernel = options//'write_symmetrized_kernel'
          
           call dict_free(options)
       end if
@@ -788,6 +822,19 @@ program driver_foe
           write_kernel = .true.
       else
           write_kernel = .false.
+      end if
+      if (iproc==0) then
+          if (write_symmetrized_kernel) then
+              icheck = 1
+          else
+              icheck = 0
+          end if
+      end if
+      call mpibcast(icheck, root=0, comm=mpi_comm_world)
+      if (icheck==1) then
+          write_symmetrized_kernel = .true.
+      else
+          write_symmetrized_kernel = .false.
       end if
 
     end subroutine read_and_communicate_input_variables
@@ -1087,6 +1134,15 @@ subroutine commandline_options(parser)
        'Write the calculated density kernel matrix to disk',&
        help_dict=dict_new('Usage' .is. &
        'Indicate whether the calculated density kernel matrix shall be written to disk',&
+       'Allowed values' .is. &
+       'Logical'))
+
+  call yaml_cl_parse_option(parser,'write_symmetrized_kernel','.false.',&
+       'Calculate the symmetrized density kernel (S^1/2*K*S^1/2) and write it to disk &
+       &(requires write_kernel=yes and keep_dense_kernel=yes)',&
+       help_dict=dict_new('Usage' .is. &
+       'Calculate the symmetrized density kernel (S^1/2*K*S^1/2) and write it to disk &
+       &(requires write_kernel=yes and keep_dense_kernel=yes)',&
        'Allowed values' .is. &
        'Logical'))
 
