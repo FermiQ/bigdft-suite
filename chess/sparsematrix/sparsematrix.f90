@@ -3141,7 +3141,7 @@ module sparsematrix
       ! Local variables
       real(kind=mp),dimension(:),allocatable :: mat_tg
 
-      call f_routine(id='resize_matrix_to_taskgroup')
+      !call f_routine(id='resize_matrix_to_taskgroup')
 
       mat_tg = sparsematrix_malloc(smat,iaction=SPARSE_TASKGROUP,id='mat_tg')
       call extract_taskgroup(smat, mat%matrix_compr, mat_tg)
@@ -3150,7 +3150,7 @@ module sparsematrix
       call f_memcpy(src=mat_tg, dest=mat%matrix_compr)
       call f_free(mat_tg)
 
-      call f_release_routine()
+      !call f_release_routine()
 
     end subroutine resize_matrix_to_taskgroup
 
