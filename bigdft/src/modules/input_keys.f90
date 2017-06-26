@@ -335,11 +335,12 @@ module module_input_keys
      logical  :: restart_nose
      logical  :: restart_pos
      logical  :: restart_vel
+     logical  :: always_from_scratch
 
      ! Performance variables from input.perf
      logical :: debug      !< Debug option (used by memocc)
      integer :: ncache_fft !< Cache size for FFT
-     integer :: profiling_depth
+     !integer :: profiling_depth
      real(gp) :: projrad   !< Coarse radius of the projectors in units of the maxrad
      real(gp) :: symTol    !< Tolerance for symmetry detection.
      integer :: linear
@@ -748,12 +749,12 @@ contains
          dest=filename)
     if (.not. in%debug) then
        if (in%verbosity==3) then
-          call f_malloc_set_status(output_level=1, iproc=bigdft_mpi%iproc,logfile_name=filename,profiling_depth=in%profiling_depth)
+          call f_malloc_set_status(output_level=1, iproc=bigdft_mpi%iproc,logfile_name=filename)!,profiling_depth=in%profiling_depth)
        else
-          call f_malloc_set_status(output_level=0, iproc=bigdft_mpi%iproc,profiling_depth=in%profiling_depth)
+          call f_malloc_set_status(output_level=0, iproc=bigdft_mpi%iproc)!,profiling_depth=in%profiling_depth)
        end if
     else
-       call f_malloc_set_status(output_level=2, iproc=bigdft_mpi%iproc,logfile_name=filename,profiling_depth=in%profiling_depth)
+       call f_malloc_set_status(output_level=2, iproc=bigdft_mpi%iproc,logfile_name=filename)!,profiling_depth=in%profiling_depth)
     end if
 
     call nullifyInputLinparameters(in%lin)
@@ -859,7 +860,7 @@ contains
     if (in%dispersion /= 0) then
        call vdwcorrection_warnings(atoms, in%dispersion, in%ixc)
     end if
-    
+
     !control atom positions
     call check_atoms_positions(atoms%astruct, (bigdft_mpi%iproc == 0))
 
@@ -1647,7 +1648,7 @@ contains
              in%run_mode=PLUGIN_RUN_MODE
           end select
        case(ADD_COULOMB_FORCE_KEY)
-          in%add_coulomb_force = val          
+          in%add_coulomb_force = val
        case(PLUGIN_ID)
           in%plugin_id = val
        case(MM_PARAMSET)
@@ -1739,9 +1740,9 @@ contains
        case (INPUTPSIID)
           ipos=val
           call set_inputpsiid(ipos,in%inputPsiId)
-       case (OUTPUT_WF)
-          ipos=val
-          call set_output_wf(ipos,in%output_wf)
+       !case (OUTPUT_WF)
+       !ipos=val
+       !call set_output_wf(ipos,in%output_wf)
        case (OUTPUT_DENSPOT)
           ipos=val
           call set_output_denspot(ipos,in%output_denspot)
@@ -1785,8 +1786,8 @@ contains
        select case (trim(dict_key(val)))
        case (DEBUG)
           in%debug = val
-       case (PROFILING_DEPTH)
-          in%profiling_depth = val
+       !case (PROFILING_DEPTH)
+       !   in%profiling_depth = val
        case (FFTCACHE)
           in%ncache_fft = val
        case (TOLSYM)
@@ -2078,6 +2079,8 @@ contains
           in%restart_vel = val
        case (RESTART_POS)
           in%restart_pos = val
+       case (ALWAYS_FROM_SCRATCH)
+          in%always_from_scratch = val
        case DEFAULT
           if (bigdft_mpi%iproc==0) &
                call yaml_warning("unknown input key '" // trim(level) // "/" // trim(dict_key(val)) // "'")
@@ -2502,7 +2505,7 @@ contains
     call f_zero(in%calculate_strten)
     call f_zero(in%nab_options)
     in%sdos=.false.
-    in%profiling_depth=-1
+    !in%profiling_depth=-1
     in%plugin_id = 0
     in%gen_norb = UNINITIALIZED(0)
     in%gen_norbu = UNINITIALIZED(0)
@@ -2525,6 +2528,8 @@ contains
     call tddft_input_variables_default(in)
     !Default for Self-Interaction Correction variables
     call sic_input_variables_default(in)
+    !molecular dynamics vars
+    call md_input_variables_default(in)
     ! Default for signaling
     in%gmainloop = 0.d0
     ! Default for lin.
@@ -2617,6 +2622,7 @@ contains
     in%nmultint = 1
     in%nsuzuki  = 7
     in%nosefrq  = 3000.d0
+    in%always_from_scratch=.false.
   END SUBROUTINE md_input_variables_default
 
   !> Assign default values for self-interaction correction variables

@@ -17,7 +17,10 @@ class DiracSuperposition():
         """
         import numpy as np
         self.dos=dos 
-        self.norm=wgts
+        if type(wgts)==type(1.0):
+            self.norm=[wgts]
+        else:
+            self.norm=wgts
         #set range for this distribution
         e_min=1.e100
         e_max=-1.e100
@@ -30,9 +33,14 @@ class DiracSuperposition():
     def curve(self,xs,sigma,wgts=None):
         import numpy as np
         dos_g=0.0
+        idos=0
         for norm,dos in zip(self.norm,self.dos):
-            kptcurve=self.peaks(xs,dos,norm,sigma)
-            if wgts is not None: kptcurve*=wgts
+            if wgts is not None: 
+                norms=wgts[idos]*norm
+                idos+=1
+            else:
+                norms=np.ones(len(dos))*norm
+            kptcurve=self.peaks(xs,dos,norms,sigma)
             dos_g+=kptcurve
         return xs,dos_g
 
@@ -45,14 +53,14 @@ class DiracSuperposition():
         val=np.exp( - (omega - e)**2 / (2.0 * sigma**2))/(nfac*sigma)
         return val
 
-    def peaks(self,xs,dos,norm,sigma):
+    def peaks(self,xs,dos,norms,sigma):
         """
         Return the array of the whole set of peaks
         """
         import numpy as np
         curve=0.0
-        for e in dos:
-            curve+=self.peak(xs,e,sigma)*norm
+        for e,nrm in zip(dos,norms):
+            curve+=self.peak(xs,e,sigma)*nrm
         return curve
 
 def _bandarray_to_data(jspin,bandarrays):
@@ -80,26 +88,25 @@ class DoS():
         self.npts=npts
         if bandarrays is not None: self.append_from_bandarray(bandarrays,label)
         if evals is not None: self.append_from_dict(evals,label)
-        if energies is not None: self.append(energies,label=label,units=units,norm=norm)
+        if energies is not None: self.append(np.array([energies]),label=label,units=units,norm=(np.array([norm]) if type(norm)==type(1.0) else norm))
         self.sigma=self.conversion_factor(units)*sigma
         self.fermi_level(fermi_level,units=units)
         if sdos is not None: self._embed_sdos(sdos)
     def _embed_sdos(self,sdos):
         import numpy as np
         self.sdos=[]
-        for xdos in sdos:
-            doslist=[]
-            for sli in xdos['dos']:
-                ens=[None,None]
-                labels=[None,None]
-                norms=[None,None]
-                for jspin in range(2):
-                    kptlists,labels[jspin]=_bandarray_to_data(jspin,sli)
-                    ens[jspin]=self.conversion_factor('AU')*np.array(kptlists[0])
-                    norms[jspin]=np.array(kptlists[1])
-                doslist.append(ens)
-            #the norms are all supposed to be equal, therefore take the last
-            self.sdos.append({'coord':xdos['coord'],'doslist':doslist,'norms':norms,'labels':labels})
+        for i,xdos in enumerate(sdos):
+            self.sdos.append({'coord':xdos['coord']})
+            jdos=0
+            for subspin in xdos['dos']:
+                if len(subspin[0])==0: continue
+                d={'doslist':subspin}
+                try:
+                    self.ens[jdos]['sdos'].append(d)
+                except:
+                    self.ens[jdos]['sdos']=[d]
+                jdos+=1
+
 
     def append_from_bandarray(self,bandarrays,label):
         "Important for kpoints DOS"
@@ -150,7 +157,7 @@ class DoS():
     def append(self,energies,label=None,units='eV',norm=1.0):
         if type(norm)!=type(1.0) and len(norm)==0: return
         dos=self.conversion_factor(units)*energies
-        self.ens.append(DiracSuperposition(dos,wgts=norm))
+        self.ens.append({'dos':DiracSuperposition(dos,wgts=norm)})
         lbl=label if label is not None else str(len(self.labels)+1)
         self.labels.append(lbl)
         #self.norms.append(norm)
@@ -172,13 +179,9 @@ class DoS():
         e_min=1.e100
         e_max=-1.e100
         for dos in self.ens:
-            mn,mx=dos.xlim
+            mn,mx=dos['dos'].xlim
             e_min=min(e_min,mn)
             e_max=max(e_max,mx)
-            #ddos=np.ravel(dos)
-            #if len(ddos)==0: continue
-            #e_min = min(e_min,np.min(ddos) - 0.05*(np.max(ddos) - np.min(ddos)))
-            #e_max = max(e_max,np.max(ddos) + 0.05*(np.max(ddos) - np.min(ddos)))
         return np.arange( e_min, e_max, (e_max-e_min)/npts )
     def curve(self,dos,norm,sigma=None):
         import numpy as np
@@ -199,7 +202,7 @@ class DoS():
         "For Gnuplot"
         if sigma is None: sigma=self.sigma
         #data=[self.curve(dos,norm=self.norms[i],sigma=sigma) for i,dos in enumerate(self.ens)]
-        data=[ dos.curve(self.range,sigma=sigma)[1] for dos in self.ens]
+        data=[ dos['dos'].curve(self.range,sigma=sigma)[1] for dos in self.ens]
 
         for i,e in enumerate(self.range):
             print e,' '.join(map(str,[d[i] for d in data]))
@@ -213,7 +216,7 @@ class DoS():
         for i,dos in enumerate(self.ens):
             #self.plotl.append(self.ax1.plot(self.range,self.curve(dos,norm=self.norms[i],sigma=sigma),label=self.labels[i]))
             self.plotl.append(self.ax1.plot(
-                *dos.curve(self.range,sigma=sigma),label=self.labels[i]))
+                *dos['dos'].curve(self.range,sigma=sigma),label=self.labels[i]))
         plt.xlabel('Energy [eV]', fontsize=18)
         plt.ylabel('DoS', fontsize=18)
         if self.ef is not None:
@@ -244,21 +247,19 @@ class DoS():
         self._set_sdos_sliders(numpy.min(xs),numpy.max(xs))
         self._update_sdos(0.0) #fake value as it is unused
 
-    def _sdos_curve(self,vmin,vmax,ispin):
+    def _sdos_curve(self,sdos,vmin,vmax):
         import numpy
         xs=self.sdos[self.isdos]['coord']
         imin=numpy.argmin(numpy.abs(xs-vmin))
         imax=numpy.argmin(numpy.abs(xs-vmax))
-        doslist=self.sdos[self.isdos]['doslist']
-        norms=self.sdos[self.isdos]['norms'][ispin]
-        #tocurve=doslist[imin][ispin]
-        tocurve=numpy.sum([ d[ispin] for d in doslist[imin:imax+1]],axis=0)
-        #print 'here',tocurve,float(len(xs))/float(imax+1-imin)
-        #for i in range(imin+1,imax+1):
-        #    toadd=doslist[i][ispin]
-        #    print 'toadd',toadd
-        #    tocurve=[t+v for t,v in zip(tocurve,toadd)]
-        return float(len(xs))/float(imax+1-imin)*tocurve,norms
+        doslist=sdos[self.isdos]['doslist']
+        #norms=self.sdos[self.isdos]['norms'][ispin]
+        tocurve=[0.0 for i in doslist[imin]]
+        for d in doslist[imin:imax+1]:
+            tocurve=[ t+dd for t,dd in zip(tocurve,d)]
+        #tocurve=numpy.sum([ d[ispin] for d in doslist[imin:imax+1]],axis=0)
+        return tocurve
+        #float(len(xs))/float(imax+1-imin)*tocurve,norms
 
     def _update_sdos(self,val):
         isdos=self.isdos
@@ -281,12 +282,20 @@ class DoS():
             vmin=vmax
         #now plot the sdos curve associated to the given value
         sig = self.ssig.val
-        tocurve,norm=self._sdos_curve(vmin,vmax,0)
-        curve=self.curve(tocurve,norm=norm,sigma=sig)
-        if hasattr(self,'_sdos_plot'):
-            self._sdos_plot[0].set_ydata(curve)
+        curves=[]
+        for dos in self.ens:
+            if 'sdos' not in dos: continue
+            renorms=self._sdos_curve(dos['sdos'],vmin,vmax)
+            curve=dos['dos'].curve(self.range,sigma=sig,wgts=renorms)
+            curves.append(curve)
+        if hasattr(self,'_sdos_plots'):
+            for pl,curve in zip(self._sdos_plots,curves):
+                pl[0].set_ydata(curve[1])
         else:
-            self._sdos_plot=self.ax1.plot(self.range,curve,label='sdos')
+            self._sdos_plots=[]
+            for c in curves:
+                self._sdos_plots.append(
+                    self.ax1.plot(*c,label='sdos'))
         self.ax1.relim()
         self.ax1.autoscale_view()
         self.fig.canvas.draw_idle()
@@ -314,7 +323,7 @@ class DoS():
     def update(self,val):
         sig = self.ssig.val
         for i,dos in enumerate(self.ens):
-            self.plotl[i][0].set_ydata(dos.curve(self.range,sigma=sig)[1])
+            self.plotl[i][0].set_ydata(dos['dos'].curve(self.range,sigma=sig)[1])
             #self.plotl[i][0].set_ydata(self.curve(dos,norm=self.norms[i],sigma=sig))
 
         self.ax1.relim()

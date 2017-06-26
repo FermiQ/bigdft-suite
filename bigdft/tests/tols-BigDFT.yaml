@@ -73,6 +73,10 @@ Keys to ignore:
  - SCF criterion
  - cavitation
  - minres
+ - verbosity
+ - output_wf
+ - write_orbitals
+ - profiling_depth
  #- avg pot difference (actual/min)
  #- number of tasks
  #- IDs

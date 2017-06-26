@@ -14,7 +14,7 @@ module public_keys
   character(len = *), parameter :: MODE_VARIABLES = "mode"
   character(len = *), parameter :: METHOD_KEY = "method"
   character(len = *), parameter :: RUN_NAME_KEY = "name"
-  
+
   character(len = *), parameter :: SKIP_RUN = "skip_run"
   character(len = *), parameter :: PY_HOOKS = "py_hooks"
   character(len = *), parameter :: PLUGINS = "plugins"
@@ -69,8 +69,8 @@ module public_keys
   character(len = *), parameter :: CHESS = "chess"
 
   character(len = *), parameter :: OUTPUT_VARIABLES = "output"
-  character(len = *), parameter :: ATOMIC_DENSITY_MATRIX = "atomic_density_matrix" 
-  character(len = *), parameter :: SPATIAL_DOS = "sdos" 
+  character(len = *), parameter :: ATOMIC_DENSITY_MATRIX = "atomic_density_matrix"
+  character(len = *), parameter :: SPATIAL_DOS = "sdos"
 
   character(len = *), parameter :: KPT_VARIABLES = "kpt"
   character(len = *), parameter :: KPT_METHOD = "method"
@@ -139,6 +139,7 @@ module public_keys
   character(len = *), parameter :: NOSE_MTS_SIZE = "nose_mts_size"
   character(len = *), parameter :: NOSE_YOSHIDA_FACTOR = "nose_yoshida_factor"
   character(len = *), parameter :: NOSE_FREQUENCY = "nose_frequency"
+  character(len = *), parameter :: ALWAYS_FROM_SCRATCH = "always_from_scratch"
   character(len = *), parameter :: WAVEFUNCTION_EXTRAPOLATION="wavefunction_extrapolation"
   character(len = *), parameter :: RESTART_POS="restart_pos"
   character(len = *), parameter :: RESTART_VEL="restart_vel"
@@ -176,7 +177,7 @@ module public_keys
 
   character(len = *), parameter :: PERF_VARIABLES = "perf"
   character(len = *), parameter :: DEBUG = "debug"
-  character(len = *), parameter :: PROFILING_DEPTH = "profiling_depth"
+  !character(len = *), parameter :: PROFILING_DEPTH = "profiling_depth"
   character(len = *), parameter :: FFTCACHE = "fftcache"
   character(len = *), parameter :: ACCEL = "accel"
   character(len = *), parameter :: OCL_PLATFORM = "ocl_platform"
@@ -601,10 +602,10 @@ module public_enums
   type(f_enumerator), parameter, public :: SW_RUN_MODE                 = &
        & f_enumerator('SW_RUN_MODE',-988,null())
   type(f_enumerator), parameter, public :: BAZANT_RUN_MODE             = &
-       & f_enumerator('BAZANT_RUN_MODE',-987,null()) 
+       & f_enumerator('BAZANT_RUN_MODE',-987,null())
   type(f_enumerator), parameter, public :: ALBORZ_RUN_MODE             = &
-       & f_enumerator('ALBORZ_RUN_MODE',-986,null()) 
+       & f_enumerator('ALBORZ_RUN_MODE',-986,null())
   type(f_enumerator), parameter, public :: PLUGIN_RUN_MODE             = &
-       & f_enumerator('PLUGIN_RUN_MODE',-985,null()) 
+       & f_enumerator('PLUGIN_RUN_MODE',-985,null())
 
 end module public_enums

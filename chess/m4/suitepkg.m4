@@ -111,6 +111,10 @@ AC_DEFUN([AX_PACKAGE],
     else
       ax_have_$1="no"
     fi
+    AC_MSG_CHECKING([for $1 LIBS]) 
+    AC_MSG_RESULT("LIB_$1_LIBS= $LIB_$1_LIBS")
+    AC_MSG_CHECKING([for $1 CFLAGS]) 
+    AC_MSG_RESULT("LIB_$1_CFLAGS= $LIB_$1_CFLAGS")
   fi
 
   dnl eventually control if the library is statically linked or not

@@ -327,10 +327,12 @@ class Logfile():
                     data=None
                 if data is not None:
                     xs=[]
-                    ba=[]
+                    ba=[[],[]]
                     for line in data:
                         xs.append(line[0])
-                        ba.append(self._sdos_line_to_orbitals(line))
+                        ss=self._sdos_line_to_orbitals(line)
+                        for ispin in [0,1]:
+                            ba[ispin].append(ss[ispin])
                     sd.append({'coord':xs,'dos':ba})
                 else:
                     sd.append(None)
@@ -353,7 +355,7 @@ class Logfile():
             if e is not None: break
         self.fermi_level=fl
     #
-    def _sdos_line_to_orbitals(self,sorbs):
+    def _sdos_line_to_orbitals_old(self,sorbs):
         import BZ
         evals=[]
         iorb=1
@@ -371,7 +373,25 @@ class Logfile():
                 iorb+=norb
             evals.append(BZ.BandArray(ev,ikpt=i+1,kpt=kp['Rc'],kwgt=kp['Wgt']))
         return evals
-	
+    #
+    def _sdos_line_to_orbitals(self,sorbs):
+        import BZ,numpy as np
+        evals=[]
+        iorb=1
+        sdos=[[],[]]
+        for ikpt,band in enumerate(self.evals):
+            sdoskpt=[[],[]]
+            for ispin,norb in enumerate(band.info):
+                if norb==0: continue
+                bands=band[ispin]
+                for i in range(norb):
+                    val=sorbs[iorb]
+                    e=bands[i]
+                    #val/=e #not needed anymore
+                    iorb+=1
+                    sdoskpt[ispin].append(val)
+                sdos[ispin].append(np.array(sdoskpt[ispin]))
+        return sdos
     #
     def _get_bz(self,ev,kpts):
         """Get the Brillouin Zone."""
@@ -384,6 +404,7 @@ class Logfile():
     def get_dos(self,label=None,npts=2500):
         """Get the density of states from the logfile."""
         import DoS
+        #reload(DoS)
         lbl=self.label if label is None else label
         sdos=self.sdos if hasattr(self,'sdos') else None
         return DoS.DoS(bandarrays=self.evals,label=lbl,units='AU',fermi_level=self.fermi_level,npts=npts,sdos=sdos)
