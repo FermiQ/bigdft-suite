@@ -364,7 +364,7 @@ program driver_random
               call f_err_throw('Selecetd Inversion is only possible for the calculation of the inverse')
           end if
           call selinv_wrapper(iproc, nproc, mpi_comm_world, smat(1), smat(2), mat2, pexsi_np_sym_fact, mat3(1))
-      else if (trim(solutioN_method)=='LAPACK') then
+      else if (trim(solution_method)=='LAPACK') then
           mat2%matrix = sparsematrix_malloc_ptr(smat(1), iaction=DENSE_FULL, id='mat2%matrix')
           mat3(1)%matrix = sparsematrix_malloc_ptr(smat(1), iaction=DENSE_FULL, id='mat3(3)%matrix')
           call matrix_power_dense_lapack(iproc, nproc, mpiworld(), blocksize_diag, blocksize_matmul, .false., &

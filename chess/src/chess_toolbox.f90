@@ -1578,11 +1578,6 @@ program chess_toolbox
    end if
 
 
-   !!if (symmetrize_density_kernel) then
-   !!    call read_dense_matrix(binary, filename, iproc, nproc, comm, nfvctr, nspin, matrix)
-   !!end if
-
-
    call build_dict_info(iproc, nproc, dict_timing_info)
    call f_timing_stop(mpi_comm=mpiworld(),nproc=nproc,&
         gather_routine=gather_timings,dict_info=dict_timing_info)
