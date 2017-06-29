@@ -117,7 +117,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
   ! Variables for the virtual orbitals and band diagram.
   integer :: nkptv, nvirtu, nvirtd
   real(gp), dimension(:), allocatable :: wkptv,psi_perturbed,hpsi_perturbed
-  real(gp), dimension(:), allocatable :: h2psi_perturbed
+  real(gp), dimension(:), allocatable :: h2psi_perturbed,hpsi_tmp
   type(f_enumerator) :: inputpsi,output_denspot
   type(dictionary), pointer :: dict_timing_info
   type(orbital_basis) :: ob,ob_occ,ob_virt,ob_prime
@@ -302,7 +302,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
 
   !Time initialization
   call f_timing_reset(filename=trim(in%dir_output)//'time'+in%naming_id+'.yaml',master=iproc==0,&
-       verbose_mode=verbose>2 .and. nproc>1)
+       verbose_mode=get_verbose_level()>2 .and. nproc>1)
   call cpu_time(tcpu0)
   call system_clock(ncount0,ncount_rate,ncount_max)
 
@@ -413,7 +413,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
   call MemoryEstimator(nproc,in%idsx,KSwfn%Lzd%Glr,&
        KSwfn%orbs%norb,KSwfn%orbs%nspinor,KSwfn%orbs%nkpts,&
        nlpsp%nprojel,in%nspin,in%itrpmax,f_int(in%scf),mem)
-  if (.not.(inputpsi .hasattr. 'LINEAR') .and. iproc==0 .and. verbose > 0) then
+  if (.not.(inputpsi .hasattr. 'LINEAR') .and. iproc==0 .and. get_verbose_level() > 0) then
       call print_memory_estimation(mem)
   end if
 
@@ -934,7 +934,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
   !if (in%gaussian_help) then
   if (in%inputPsiId .hasattr. 'GAUSSIAN') then
      call timing(iproc,'gauss_proj','ON')
-     if (iproc == 0.and.verbose >1) then
+     if (iproc == 0.and.get_verbose_level() >1) then
         call yaml_comment('Gaussian Basis Projection',hfill='-')
      end if
 
@@ -1060,8 +1060,6 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
 
   call f_free_ptr(fion)
   call f_free_ptr(fdisp)
-
-  call deallocate_paw_objects(KSwfn%paw)
 
   !if (nvirt > 0 .and. in%inputPsiId == 0) then
   if (DoDavidson .and. (inputpsi .hasattr. 'CUBIC')) then
@@ -1394,19 +1392,44 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
           KSwfn%orbs,KSwfn%orbs,rxyz,KSwfn%psi,KSwfn%psi)
   end if
 
-  !perform here the mulliken charge and density of states
-  !localise them on the basis of gatom of a number of atoms
-  if ((inputpsi .hasattr. 'GAUSSIAN') .and. DoLastRunThings .and. (inputpsi .hasattr. 'CUBIC')) then
-     !here one must check if psivirt should have been kept allocated
-     if (.not. DoDavidson) then
-        VTwfn%orbs%norb=0
-        VTwfn%orbs%norbp=0
+  if (DoLastRunThings) then
+     !perform here the mulliken charge and density of states
+     !localise them on the basis of gatom of a number of atoms
+     if ((inputpsi .hasattr. 'GAUSSIAN') .and. (inputpsi .hasattr. 'CUBIC')) then
+        !here one must check if psivirt should have been kept allocated
+        if (.not. DoDavidson) then
+           VTwfn%orbs%norb=0
+           VTwfn%orbs%norbp=0
+        end if
+        call local_analysis(iproc,nproc,KSwfn%Lzd%hgrids(1),KSwfn%Lzd%hgrids(2),KSwfn%Lzd%hgrids(3),&
+             atoms,rxyz,KSwfn%Lzd%Glr,KSwfn%orbs,VTwfn%orbs,KSwfn%psi,VTwfn%psi)
+     else if (optLoop%itrpmax /= 1 .and. get_verbose_level() >= 2) then
+        ! Do a full DOS calculation.
+        if (iproc == 0) call global_analysis(KSwfn%orbs, in%Tel,in%occopt,trim(in%dir_output) // "dos.gnuplot")
      end if
-     call local_analysis(iproc,nproc,KSwfn%Lzd%hgrids(1),KSwfn%Lzd%hgrids(2),KSwfn%Lzd%hgrids(3),&
-          atoms,rxyz,KSwfn%Lzd%Glr,KSwfn%orbs,VTwfn%orbs,KSwfn%psi,VTwfn%psi)
-  else if (DoLastRunThings .and. optLoop%itrpmax /= 1 .and. verbose >= 2) then
-     ! Do a full DOS calculation.
-     if (iproc == 0) call global_analysis(KSwfn%orbs, in%Tel,in%occopt,trim(in%dir_output) // "dos.gnuplot")
+     if (in%sdos) then !spatially resolved DOS
+        if (iproc==0) call yaml_comment('Calculating Spatially Resolved DOS',hfill='-')
+        !apply the hamiltonian to the perturbed wavefunctions
+        hpsi_tmp=f_malloc(max(KSwfn%orbs%npsidim_orbs,KSwfn%orbs%npsidim_comp),id='hpsi_tmp')
+        !allocate the potential in the full box
+        call full_local_potential(iproc,nproc,KSwfn%orbs,KSwfn%Lzd,0,&
+             denspot%dpbox,denspot%xc,denspot%rhov,denspot%pot_work)
+        call FullHamiltonianApplication(iproc,nproc,atoms,KSwfn%orbs,&
+             KSwfn%Lzd,nlpsp,KSwfn%confdatarr,denspot%dpbox%ngatherarr,denspot%pot_work,&
+             KSwfn%psi,hpsi_tmp,&
+             KSwfn%PAW,energs_fake,in%SIC,GPU,denspot%xc,&
+             denspot%pkernelseq)
+        call orbital_basis_associate(ob_occ,orbs=KSwfn%orbs,&
+             Lzd=KSwfn%Lzd,phis_wvl=KSwfn%psi,comms=KSwfn%comms)
+        call spatially_resolved_dos(ob_occ,hpsi_tmp,trim(in%dir_output))
+        call orbital_basis_release(ob_occ)
+        if (nproc > 1) then
+           call f_free_ptr(denspot%pot_work)
+        else
+           nullify(denspot%pot_work)
+        end if       
+        call f_free(hpsi_tmp)
+     end if
   end if
   if (((in%exctxpar == 'OP2P' .and. xc_exctXfac(denspot%xc) /= 0.0_gp) &
        .or. in%SIC%alpha /= 0.0_gp) .and. nproc >1) then
@@ -1417,6 +1440,8 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
   else if (nproc == 1 .and. (in%exctxpar == 'OP2P' .or. in%SIC%alpha /= 0.0_gp)) then
      nullify(denspot%pkernelseq%kernel)
   end if
+
+  call deallocate_paw_objects(KSwfn%paw)
 
   !------------------------------------------------------------------------
   if ((in%rbuf > 0.0_gp) .and. atoms%astruct%geocode == 'F' .and. DoLastRunThings ) then
@@ -1750,7 +1775,7 @@ subroutine kswfn_optimization_loop(iproc, nproc, opt, &
                  call yaml_sequence(advance='no')
               end if
               call yaml_mapping_open(flow=.true.)
-              if (verbose > 0) &
+              if (get_verbose_level() > 0) &
                    call yaml_comment('iter:'//yaml_toa(opt%iter,fmt='(i6)'),hfill='-')
            endif
 

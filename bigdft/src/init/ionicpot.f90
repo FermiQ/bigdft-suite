@@ -3699,7 +3699,7 @@ subroutine CounterIonPotential(iproc,in,shift,dpbox,pkernel,npot_ion,pot_ion)
   !read the specifications of the counter ions from pseudopotentials
 !  radii_cf = f_malloc((/ at%astruct%ntypes, 3 /),id='radii_cf')
 !  radii_cf = at%radii_cf
-  if (iproc == 0) call print_atomic_variables(at, max(in%hx,in%hy,in%hz), in%ixc, in%dispersion)
+  if (iproc == 0) call print_atomic_variables(at, max(in%hx,in%hy,in%hz), in%ixc)
 
 
   !initialize the work arrays needed to integrate with isf

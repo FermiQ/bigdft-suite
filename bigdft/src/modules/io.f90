@@ -1141,7 +1141,7 @@ module io
          enddo
       enddo
     
-      if (verbose >= 2 .and. bigdft_mpi%iproc==0) call yaml_map('Wavefunction written No.',iorb)
+      if (get_verbose_level() >= 2 .and. bigdft_mpi%iproc==0) call yaml_map('Wavefunction written No.',iorb)
       !if (verbose >= 2) write(*,'(1x,i0,a)') iorb,'th wavefunction written'
     
     END SUBROUTINE writeonewave_linear
@@ -2282,7 +2282,7 @@ module io
               end if
          end do
       end do  
-      if (verbose >= 2 .and. bigdft_mpi%iproc==0) call yaml_map('Wavefunction coefficients written',.true.)
+      if (get_verbose_level() >= 2 .and. bigdft_mpi%iproc==0) call yaml_map('Wavefunction coefficients written',.true.)
     
     END SUBROUTINE writeLinearCoefficients
 
@@ -2575,12 +2575,12 @@ module io
       if (present(label)) label_ = trim(label)
     
       if (len(trim(comment)) > 0 .and. .not.write_only_energies) then
-         if (verbose >0) call yaml_newline()
+         if (get_verbose_level() >0) call yaml_newline()
          call write_iter()
-         if (verbose >0) call yaml_comment(trim(comment))
+         if (get_verbose_level() >0) call yaml_comment(trim(comment))
       end if
     
-      yesen=verbose > 0
+      yesen=get_verbose_level() > 0
       if (present(scf_mode)) yesen=yesen .and. .not. (scf_mode .hasattr. 'MIXING')
     
       if (yesen) then
@@ -2624,8 +2624,8 @@ module io
          call yaml_newline()
          if (len(trim(comment)) == 0) then
             call write_iter()
-            if (verbose >0) call yaml_newline()
-         else if (verbose > 1 .and. present(scf_mode)) then
+            if (get_verbose_level() >0) call yaml_newline()
+         else if (get_verbose_level() > 1 .and. present(scf_mode)) then
             call yaml_map('SCF criterion',scf_mode)
          end if
       end if
@@ -2765,7 +2765,7 @@ module io
         enddo
      enddo
    
-     if (bigdft_mpi%iproc == 0 .and. verbose >= 2) &
+     if (bigdft_mpi%iproc == 0 .and. get_verbose_level() >= 2) &
         & call yaml_comment(trim(yaml_toa(iorb)) //'th wavefunction written')
      !if (verbose >= 2) write(*,'(1x,i0,a)') iorb,'th wavefunction written'
    

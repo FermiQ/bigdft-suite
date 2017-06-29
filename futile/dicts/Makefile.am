@@ -2,20 +2,22 @@
 lib_LIBRARIES = libdicts.a
 module_DATA   = $(modules)
 
-include_HEADERS = futile_cst.h dict.h
+include_HEADERS = futile_cst.h dict.h err.h
 
 libdicts_a_SOURCES = \
 	yaml_strings.f90 dictionaries_base.f90 dictionaries.f90 \
-	callbacks.f90 f_precisions.f90 dict.c dict.h dict-fapi.h dictf.f90 addresses.h addresses.c
+	callbacks.f90 f_precisions.f90 \
+	dict.c dict-fapi.h dictf.f90 \
+	err.c err-fapi.h errf.f90 \
+	addresses.h addresses.c
 
 STRINGS_INCLUDES = yaml_toa-inc.f90 yaml_toa-arr-inc.f90 yaml_plus-inc.f90
 ERR_INCLUDES = get_err-inc.f90
 DICT_INCLUDES = error_handling.f90 $(ERR_INCLUDES) dict_add-inc.f90 dict_getvec-inc.f90 \
 	set_arr-inc.f90 dict_cont-inc.f90 dict_cont_arr-inc.f90
-GETADD_INCLUDES = getadd-c-inc.f90
 NOOMP_INCLUDES = halt_omp-inc.f90
 
-EXTRA_DIST = $(STRINGS_INCLUDES) $(DICT_INCLUDES) $(GETADD_INCLUDES) $(NOOMP_INCLUDES)
+EXTRA_DIST = $(STRINGS_INCLUDES) $(DICT_INCLUDES) $(NOOMP_INCLUDES)
 DISTCLEANFILES = futile_cst.h
 
 # Module files.
@@ -45,3 +47,4 @@ dictionaries_base.o: yaml_strings.o
 dictionaries.o: yaml_strings.o dictionaries_base.o $(DICT_INCLUDES) callbacks.o
 callbacks.o: $(NOOMP_INCLUDES) f_precisions.o
 dictf.o: dictionaries.o
+errf.o: dictionaries.o

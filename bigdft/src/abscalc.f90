@@ -121,7 +121,7 @@ subroutine call_abscalc(nproc,iproc,runObj,energy,fxyz,infocode)
 
    !assign the verbosity of the output
    !the verbose variables is defined in module_base
-   verbose=runObj%inputs%verbosity
+   call set_verbose_level(runObj%inputs%verbosity)
 
    !Assign a value for energy to avoid compiler warning and to check the calculation
    energy = huge(1.d0)
@@ -401,7 +401,7 @@ subroutine abscalc(nproc,iproc,atoms,rxyz,&
    end if
 
    !character string for quieting the Poisson solver
-   if (verbose >1) then
+   if (get_verbose_level() >1) then
       PSquiet='NO'
    else
       PSquiet='YES'
@@ -467,7 +467,7 @@ subroutine abscalc(nproc,iproc,atoms,rxyz,&
    call MemoryEstimator(nproc,idsx,KSwfn%Lzd%Glr,&
         orbs%norb,orbs%nspinor,orbs%nkpts,nlpsp%nprojel,&
         in%nspin,in%itrpmax,f_int(in%scf),mem)
-   if (iproc==0 .and. verbose > 0) call print_memory_estimation(mem)
+   if (iproc==0 .and. get_verbose_level() > 0) call print_memory_estimation(mem)
 
    !complete dpbox initialization
    call dpbox_set(dpcom,KSwfn%Lzd,xc,iproc,nproc,MPI_COMM_WORLD,&
@@ -513,9 +513,7 @@ subroutine abscalc(nproc,iproc,atoms,rxyz,&
    pkernel=pkernel_init(iproc,nproc,in%PS_dict,&
         atoms%astruct%geocode,dpcom%mesh%ndims,dpcom%mesh%hgrids)
 
-   call pkernel_set(pkernel,verbose=(verbose > 1))
-   !call createKernel(iproc,nproc,atoms%astruct%geocode,dpcom%ndims,dpcom%hgrids,ndegree_ip,pkernel,&
-   !     (verbose > 1))
+   call pkernel_set(pkernel,verbose=(get_verbose_level() > 1))
 
    !calculate the irreductible zone for this region, if necessary.
    call set_symmetry_data(atoms%astruct%sym,atoms%astruct%geocode,&

@@ -41,13 +41,14 @@
   </autotools>
 
   <cmake id="openbabel">
-    <!--<branch repo="libyaml" module="yaml-0.1.4.tar.gz" version="0.1.4"/>-->
     <branch repo="local" module="openbabel-2.4.1.tar.gz" version="2.4.1" checkoutdir="openbabel"/>
   </cmake>
+
 
   <distutils id="PyYAML">
     <!--<branch repo="libyaml" module="PyYAML-3.10.tar.gz" version="3.10"/>-->
     <branch repo="local" module="PyYAML-3.11.tar.gz" version="3.11" checkoutdir="PyYAML"/>
+    <!--<branch repo="local" module="PyYAML-3.12.tar.gz" version="3.12" checkoutdir="PyYAML"/>-->
     <dependencies>
       <dep package="libyaml"/>
     </dependencies>
@@ -55,7 +56,7 @@
 
   <autotools id="libABINIT" check-target="false" autogen-sh="autoreconf">
     <branch repo="local" module="libABINIT-6.8+12.tar.gz" version="6.8+12" checkoutdir="libABINIT">
-      <patch file="libABINIT.patch" />
+      <!-- <patch file="libABINIT.patch" /> -->
     </branch>
     <dependencies>
       <dep package="futile"/>
@@ -120,7 +121,7 @@
       <dep package="psolver"/>
       <dep package="libABINIT"/>
       <dep package="GaIn"/>
-      <dep package="openbabel"/>
+      <!-- <dep package="openbabel"/> -->
       <if condition-set="testing">
         <dep package="PyYAML"/>
       </if>
@@ -207,7 +208,6 @@
     </dependencies>
   </distutils>
 
-
 <!--  <autotools id="cmake-dev">
     <branch repo="cmake-rep" module="cmake-3.3.2.tar.gz"
             version="3.3.2"/>
@@ -228,6 +228,13 @@
     <dependencies>
       <dep package="spred"/>
       <dep package="PyYAML"/>
+      <dep package="openbabel"/>
+    </dependencies>
+  </metamodule>
+
+  <metamodule id="spred-suite">
+    <dependencies>
+      <dep package="bigdft-suite"/>
     </dependencies>
   </metamodule>
 

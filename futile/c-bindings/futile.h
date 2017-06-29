@@ -3,6 +3,7 @@
 #include "futile_cst.h"
 #include "dict.h"
 #include "tree.h"
+#include "err.h"
 
 void futile_initialize();
 void futile_finalize();

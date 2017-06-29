@@ -73,8 +73,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
   if (present(output_grid)) output_grid_ = output_grid
 
   if (iproc == 0 .and. dump) &
-       & call print_atomic_variables(atoms, max(in%hx,in%hy,in%hz), &
-       & in%ixc, in%dispersion)
+       & call print_atomic_variables(atoms, max(in%hx,in%hy,in%hz), in%ixc)
 
   !grid spacings of the zone descriptors (not correct, the set is done by system size)
   Lzd=default_lzd()
@@ -118,7 +117,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
 
      ! Create the Poisson solver kernels.
      call system_initKernels(.true.,iproc,nproc,atoms%astruct%geocode,in,denspot)
-     call system_createKernels(denspot, (verbose > 1))
+     call system_createKernels(denspot, (get_verbose_level() > 1))
      if (denspot%pkernel%method .hasattr. 'rigid') then
         call epsilon_cavity(atoms,rxyz,denspot%pkernel)
         !allocate cavity, in the case of nonvacuum treatment

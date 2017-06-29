@@ -624,7 +624,7 @@ subroutine psimix(iproc,nproc,ndim_psi,orbs,comms,diis,hpsit,psit)
      if (iproc == 0) then
         !if (verbose > 0) write(*,'(1x,a,1pe11.3)') 'alpha=',diis%alpha
         !yaml output
-        if (verbose > 0) call yaml_map('SDalpha',diis%alpha,fmt='(1pe11.3)')
+        if (get_verbose_level() > 0) call yaml_map('SDalpha',diis%alpha,fmt='(1pe11.3)')
 !        write(70,'(1x,a,1pe11.3)') 'SDalpha: ',diis%alpha
      end if
      call axpy(sum(comms%ncntt(0:nproc-1)),-diis%alpha,hpsit(1),1,psit(1),1)
@@ -963,9 +963,9 @@ subroutine diisstp(iproc,nproc,orbs,comms,diis)
   end do
 
   ! Output to screen, depending on policy.
-  if (verbose >= 10) then
-     call broadcast_kpt_objects(nproc, orbs%nkpts, ncplx*ngroup*(diis%idsx+1), rds, orbs%ikptproc)
-  end if
+!!$  if (verbose >= 10) then
+!!$     call broadcast_kpt_objects(nproc, orbs%nkpts, ncplx*ngroup*(diis%idsx+1), rds, orbs%ikptproc)
+!!$  end if
 
 !!$           ttr=0.0_dp
 !!$           tti=0.0_dp

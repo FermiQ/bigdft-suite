@@ -1855,8 +1855,8 @@ contains
 !!$    write_mapping= runObj%run_mode /= 'QM_RUN_MODE' .and. bigdft_mpi%iproc==0 .and. verbose > 0
     !open the document if the run_mode has not it inside
     write_mapping = (bigdft_mpi%iproc==0 .and. &
-        & .not. (runObj%run_mode .hasattr. RUN_MODE_CREATE_DOCUMENT) .and. &
-        & verbose > 0)
+         .not. (runObj%run_mode .hasattr. RUN_MODE_CREATE_DOCUMENT) .and. &
+         get_verbose_level() > 0)
     if (write_mapping) then
        call yaml_sequence(advance='no')
        call yaml_mapping_open(trim(f_str(runObj%run_mode)),flow=.true.)
@@ -2124,7 +2124,7 @@ contains
     call rxyz_inside_box(runObj%atoms%astruct,rxyz=runObj%rst%rxyz_new)
     !assign the verbosity of the output
     !the verbose variables is defined in module_defs
-    verbose=runObj%inputs%verbosity
+    call set_verbose_level(runObj%inputs%verbosity)
 
     ! Use the restart for the linear scaling version... probably to be modified.
 !!$    if(runObj%inputs%inputPsiId == INPUT_PSI_MEMORY_WVL) then

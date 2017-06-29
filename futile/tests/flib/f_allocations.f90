@@ -546,7 +546,7 @@ program f_buffer_allocations
       integer, dimension(:), intent(in) :: shp,lbnd,ubnd
 
       !call yaml_mapping_open(typeb//' buffer,kind '//trim(yaml_toa(sizeof)))
-      call yaml_mapping_open(typeb//' buffer, kind '+sizeof+', rank'+size(shp))
+      call yaml_mapping_open(typeb//' buffer, kind '+sizeof+', rank'+yaml_toa(size(shp)))
         call yaml_map('Shape',shp)
         call yaml_map('Lbound',lbnd)
         call yaml_map('Ubound',ubnd)

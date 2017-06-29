@@ -243,6 +243,9 @@ module module_input_keys
      !> atomic density matrix requests
      type(dictionary), pointer :: at_gamma
 
+     !> calculate spatial density of states
+     logical :: sdos
+
      !> For absorption calculations
      integer :: iabscalc_type   !< 0 non calc, 1 cheb ,  2 lanc
      !! integer :: iat_absorber, L_absorber, N_absorber, rpower_absorber, Linit_absorber
@@ -618,6 +621,7 @@ contains
     use wrapper_MPI, only: mpibarrier
     use abi_interfaces_add_libpaw, only : abi_pawinit
     use PStypes, only: SETUP_VARIABLES,VERBOSITY
+    use vdwcorrection, only: vdwcorrection_warnings
     implicit none
     !Arguments
     type(input_variables), intent(out) :: in
@@ -850,6 +854,10 @@ contains
        call f_err_throw('GPU calculation not implemented with non-collinear spin',err_name='BIGDFT_INPUT_VARIABLES_ERROR')
     end if
 
+    if (in%dispersion /= 0) then
+       call vdwcorrection_warnings(atoms, in%dispersion, in%ixc)
+    end if
+    
     !control atom positions
     call check_atoms_positions(atoms%astruct, (bigdft_mpi%iproc == 0))
 
@@ -1641,11 +1649,14 @@ contains
                call yaml_warning("unknown input key '" // trim(level) // "/" // trim(dict_key(val)) // "'")
        end select
     case (OUTPUT_VARIABLES)
-        ! the DFT variables ------------------------------------------------------
-        select case (trim(dict_key(val)))
-        case(ATOMIC_DENSITY_MATRIX)
+       select case (trim(dict_key(val)))
+       case (VERBOSITY)
+          in%verbosity = val
+       case(ATOMIC_DENSITY_MATRIX)
           call dict_copy(src=val,dest=in%at_gamma)
-        end select
+       case(SPATIAL_DOS)
+          in%sdos=val
+       end select
     case (DFT_VARIABLES)
        ! the DFT variables ------------------------------------------------------
        select case (trim(dict_key(val)))
@@ -1754,8 +1765,6 @@ contains
           in%profiling_depth = val
        case (FFTCACHE)
           in%ncache_fft = val
-       case (VERBOSITY)
-          in%verbosity = val
        case (TOLSYM)
           in%symTol = val
        case (PROJRAD)
@@ -2470,6 +2479,7 @@ contains
     nullify(in%at_gamma)
     call f_zero(in%calculate_strten)
     call f_zero(in%nab_options)
+    in%sdos=.false.
     in%profiling_depth=-1
     in%plugin_id = 0
     in%gen_norb = UNINITIALIZED(0)

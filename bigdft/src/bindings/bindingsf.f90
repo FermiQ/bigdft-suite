@@ -1714,7 +1714,6 @@ subroutine run_objects_nullify_volatile(runObj)
   use f_enums
   use public_enums
   use bigdft_run, only: run_objects
-  use module_defs, only: verbose
   use yaml_output, only: yaml_sequence_close
   use module_base, only: bigdft_mpi
   implicit none

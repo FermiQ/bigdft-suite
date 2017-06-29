@@ -4824,7 +4824,7 @@ module communications_init
     
       !print the distribution scheme used for this set of orbital
       !in the case of multiple k-points
-      if (iproc == 0 .and. verbose > 1 .and. orbs%nkpts > 1) then
+      if (iproc == 0 .and. get_verbose_level() > 1 .and. orbs%nkpts > 1) then
          call print_distribution_schemes(nproc,orbs%nkpts,norb_par(0,1),nvctr_par(0,1))
       end if
     

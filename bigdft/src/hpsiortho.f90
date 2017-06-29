@@ -138,7 +138,7 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
         !$ if (unblock_comms_den) call OMP_SET_NUM_THREADS(nthread_max-1)
 
         !nonlocal hamiltonian
-        !$ if (verbose > 2 .and. iproc==0 .and. unblock_comms_den)&
+        !$ if (get_verbose_level() > 2 .and. iproc==0 .and. unblock_comms_den)&
         !$ & print *,'NonLocalHamiltonian with nthread:, out to:' ,omp_get_max_threads(),nthread_max
         call NonLocalHamiltonianApplication(iproc,atoms,wfn%orbs%npsidim_orbs,wfn%orbs,&
              wfn%Lzd,nlpsp,wfn%psi,wfn%hpsi,energs%eproj,wfn%paw)
@@ -353,7 +353,7 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
      !$ if (unblock_comms_pot) call OMP_SET_NUM_THREADS(nthread_max-1)
 
      !nonlocal hamiltonian
-     !$ if (verbose > 2 .and. iproc==0 .and. unblock_comms_pot)&
+     !$ if (get_verbose_level() > 2 .and. iproc==0 .and. unblock_comms_pot)&
      !$ & call yaml_map('NonLocalHamiltonian with nthread out to',[omp_get_max_threads(),nthread_max])
      call NonLocalHamiltonianApplication(iproc,atoms,wfn%orbs%npsidim_orbs,wfn%orbs,&
           wfn%Lzd,nlpsp,wfn%psi,wfn%hpsi,energs%eproj,wfn%paw)
@@ -387,7 +387,7 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
   if (associated(nlpsp%gamma_mmp) .and. nproc > 1) &
        call mpiallred(nlpsp%gamma_mmp,op=MPI_SUM,comm=bigdft_mpi%mpi_comm)
 
-  if (iproc==0 .and. verbose > 1) call write_atomic_density_matrix(wfn%orbs%nspin,atoms%astruct,nlpsp)
+  if (iproc==0 .and. get_verbose_level() > 1) call write_atomic_density_matrix(wfn%orbs%nspin,atoms%astruct,nlpsp)
 
   !here we might rework the value of gamma in case we would like to apply some extra
   !term in the following iteration
@@ -418,7 +418,7 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
   !deallocate potential
   call free_full_potential(denspot%dpbox%mpi_env%nproc,linflag,denspot%xc,denspot%pot_work)
   !----
-  if (iproc==0 .and. verbose > 0) then
+  if (iproc==0 .and. get_verbose_level() > 0) then
      if (correcth==2) then
         call yaml_map('Hamiltonian Applied',.false.)
         call yaml_comment('Only local potential')
@@ -572,7 +572,7 @@ subroutine LocalHamiltonianApplication(iproc,nproc,at,npsidim_orbs,orbs,&
   call f_routine(id=subname)
 
   ! local potential and kinetic energy for all orbitals belonging to iproc
-  !if (iproc==0 .and. verbose > 1) then
+  !if (iproc==0 .and. get_verbose_level() > 1) then
   !call yaml_comment('Hamiltonian application, ',advance='no')
   !write(*,'(1x,a)',advance='no')&
   !     'Hamiltonian application...'
@@ -1908,7 +1908,7 @@ subroutine calculate_energy_and_gradient(iter,iproc,nproc,GPU,ncong,scf_mode,&
      call transpose_v(iproc,nproc,wfn%orbs,wfn%lzd%glr%wfd,wfn%comms,wfn%psit(1),wfn%psit(1))
   end if
 
-!!$  if (iproc==0 .and. verbose > 0) then
+!!$  if (iproc==0 .and. get_verbose_level() > 0) then
 !!$     call yaml_map('Symmetrize Lagr. Multiplier',wfn%SIC%alpha/=0.0_gp)
 !!$  end if
 
@@ -1945,7 +1945,7 @@ subroutine calculate_energy_and_gradient(iter,iproc,nproc,GPU,ncong,scf_mode,&
      wfn%diis%energy=energs%eKS!trH-eh+exc-evxc-eexctX+eion+edisp(not correct for non-integer occnums)
   end if
 
-  if (iproc==0 .and. verbose > 0) then
+  if (iproc==0 .and. get_verbose_level() > 0) then
      call yaml_map('Orthoconstraint',.true.)
   end if
 
@@ -2017,16 +2017,16 @@ subroutine calculate_energy_and_gradient(iter,iproc,nproc,GPU,ncong,scf_mode,&
      gnrm_zero=0.0_gp
   end if
 
-  !if (iproc==0 .and. verbose > 1) write(*,'(1x,a)') 'done.'
+  !if (iproc==0 .and. get_verbose_level() > 1) write(*,'(1x,a)') 'done.'
 
-  if (iproc==0  .and. verbose > 0) then
+  if (iproc==0  .and. get_verbose_level() > 0) then
      call yaml_map('Preconditioning',.true.)
      call yaml_newline()
   end if
 
   if (wfn%orbs%nspinor == 4) then
      !only the root process has the correct array
-     if(iproc==0 .and. verbose > 0) then
+     if(iproc==0 .and. get_verbose_level() > 0) then
         call yaml_sequence_open('Magnetic polarization per orbital')
         call yaml_newline()
         !write(*,'(1x,a)')&
@@ -2106,7 +2106,7 @@ subroutine hpsitopsi(iproc,nproc,iter,idsx,wfn,&
         wfn%hpsi(1),wfn%psi(1))
 
    !!experimental, orthogonalize the preconditioned gradient wrt wavefunction
-   !call orthon_virt_occup(iproc,nproc,orbs,orbs,comms,comms,psit,hpsi,(verbose > 2))
+   !call orthon_virt_occup(iproc,nproc,orbs,orbs,comms,comms,psit,hpsi,(get_verbose_level() > 2))
 
    !apply the minimization method (DIIS or steepest descent)
    if (iter > 0) then
@@ -2136,7 +2136,7 @@ subroutine hpsitopsi(iproc,nproc,iter,idsx,wfn,&
           & call transpose_v(iproc,nproc,wfn%orbs,wfn%lzd%glr%wfd,wfn%comms,wfn%psi(1),wfn%hpsi(1))
    end if
 
-   if (iproc == 0 .and. verbose > 1) then
+   if (iproc == 0 .and. get_verbose_level() > 1) then
       !write(*,'(1x,a)',advance='no')&
       !&   'Orthogonalization...'
       call yaml_map('Orthogonalization Method',wfn%orthpar%methortho,fmt='(i3)')
@@ -2153,7 +2153,7 @@ subroutine hpsitopsi(iproc,nproc,iter,idsx,wfn,&
 !!$      !debug:
 !!$      call checkortho_paw(iproc,wfn%orbs%norb*wfn%orbs%nspinor,&
 !!$           wfn%comms%nvctr_par(iproc,0),wfn%psit,wfn%paw%spsi)
-!!$      if (iproc == 0 .and. verbose > 1) then
+!!$      if (iproc == 0 .and. get_verbose_level() > 1) then
 !!$         call yaml_sequence_open('cprj(:,1) (5 first orbitals)')
 !!$         do iat=1,wfn%paw%natom
 !!$            call yaml_mapping_open("atom" // trim(yaml_toa(iat, fmt = "(I0)")))
@@ -2175,7 +2175,7 @@ subroutine hpsitopsi(iproc,nproc,iter,idsx,wfn,&
       nullify(wfn%psit)
    end if
 
-   !if (iproc == 0 .and. verbose > 1) write(*,'(1x,a)') 'done.'
+   !if (iproc == 0 .and. get_verbose_level() > 1) write(*,'(1x,a)') 'done.'
 
    ! Emit that new wavefunctions are ready.
    if (wfn%c_obj /= 0) then

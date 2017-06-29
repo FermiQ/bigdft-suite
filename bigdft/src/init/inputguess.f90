@@ -370,7 +370,7 @@ subroutine AtomicOrbitals(iproc,at,rxyz,norbe,orbse,norbsc,&
 
    !print *,'atomx types',ntypesx
 
-   if (iproc == 0 .and. verbose > 1) then
+   if (iproc == 0 .and. get_verbose_level() > 1) then
       call yaml_newline()
       call yaml_sequence_open('Atomic Input Orbital Generation')
       call yaml_newline()
@@ -390,7 +390,7 @@ subroutine AtomicOrbitals(iproc,at,rxyz,norbe,orbse,norbsc,&
       ishltmp=0
       !call count_atomic_shells(nspin_print,at%aoig(iat)%aocc,occup,nl)
       if (ityx > ntypesx) then
-         if (iproc == 0 .and. verbose > 1) then
+         if (iproc == 0 .and. get_verbose_level() > 1) then
             call yaml_sequence(advance='no')
             call yaml_mapping_open(flow=.true.)
             call yaml_map('Atom Type',trim(at%astruct%atomnames(ity)))
@@ -418,7 +418,7 @@ subroutine AtomicOrbitals(iproc,at,rxyz,norbe,orbse,norbsc,&
                   ng-1,xp(1,ityx),psiat(1,1,ityx),.false.)
          end if
          ntypesx=ntypesx+1
-         if (iproc == 0 .and. verbose > 1) then
+         if (iproc == 0 .and. get_verbose_level() > 1) then
             !write(*,'(1x,a)')'done.'
             call yaml_mapping_close()
          end if
@@ -442,7 +442,7 @@ subroutine AtomicOrbitals(iproc,at,rxyz,norbe,orbse,norbsc,&
          !stop 
       end if
    end do
-   if (iproc == 0 .and. verbose > 1) then
+   if (iproc == 0 .and. get_verbose_level() > 1) then
       call yaml_sequence_close()
       call yaml_newline()
    end if

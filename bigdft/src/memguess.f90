@@ -1470,7 +1470,6 @@ program memguess
       !call wtxyz('posopt',0.d0,rxyz,atoms,trim(comment))
    end if
 
-
    call print_dft_parameters(runObj%inputs,runObj%atoms)
 
    !Time initialization

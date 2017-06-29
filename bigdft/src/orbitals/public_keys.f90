@@ -70,6 +70,7 @@ module public_keys
 
   character(len = *), parameter :: OUTPUT_VARIABLES = "output"
   character(len = *), parameter :: ATOMIC_DENSITY_MATRIX = "atomic_density_matrix" 
+  character(len = *), parameter :: SPATIAL_DOS = "sdos" 
 
   character(len = *), parameter :: KPT_VARIABLES = "kpt"
   character(len = *), parameter :: KPT_METHOD = "method"

@@ -2277,7 +2277,8 @@ subroutine input_wf_diag(iproc,nproc,at,denspot,&
   etol=accurex/real(orbse%norbu,gp)
 
   !if (iproc == 0 .and. verbose > 1 .and. at%astruct%geocode=='F') write(*,'(1x,a,2(f19.10))') 'done. ekin_sum,eks:',energs%ekin,eks
-  if (iproc == 0 .and. verbose > 1 .and. at%astruct%geocode=='F') call yaml_map('Expected kinetic energy',eks,fmt='(f19.10)')
+  if (iproc == 0 .and. get_verbose_level() > 1 .and. at%astruct%geocode=='F') &
+       call yaml_map('Expected kinetic energy',eks,fmt='(f19.10)')
   if (iproc==0) call yaml_newline()
 
   call total_energies(energs, 0, iproc)

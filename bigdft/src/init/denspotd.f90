@@ -35,7 +35,7 @@ subroutine initialize_DFT_local_fields(denspot, ixc, nspden, alpha_hf)
 
   denspot%psoffset=0.0_gp
 
-  if (verbose >1) then
+  if (get_verbose_level() >1) then
      denspot%PSquiet='NO '
   else
      denspot%PSquiet='YES'
