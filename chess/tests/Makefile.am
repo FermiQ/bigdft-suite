@@ -92,14 +92,16 @@ define F_REGTEST_INSTRUCTIONS
         --nfvctr=100 \
         --nvctr=10000 \
         --condition_number=50 \
-        --expo=-1
+        --expo=-1 \
+        --do_consistency_checks=.true.
     - $(run_parallel) ./driver_random \
          --sparsegen_method=random \
          --matgen_method=random \
          --nfvctr=2000 \
          --nvctr=100000 \
          --condition_number=100 \
-         --expo=-0.5
+         --expo=-0.5 \
+         --do_consistency_checks=.true.
 - driver_foe:
    binary: driver_foe
    runs:   

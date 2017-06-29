@@ -219,7 +219,6 @@ module module_input_keys
      type(f_enumerator) :: output_denspot        !< 0= No output, 1= density, 2= density+potential
      integer :: dispersion            !< Dispersion term
      type(f_enumerator) :: output_wf!_format      !< Output Wavefunction format
-     !integer :: output_denspot_format !< Format for the output density and potential
      real(gp) :: hx,hy,hz   !< Step grid parameter (hgrid)
      integer :: nx,ny,nz   !< Number of divisions
      real(gp) :: crmult     !< Coarse radius multiplier
@@ -336,11 +335,12 @@ module module_input_keys
      logical  :: restart_nose
      logical  :: restart_pos
      logical  :: restart_vel
+     logical  :: always_from_scratch
 
      ! Performance variables from input.perf
      logical :: debug      !< Debug option (used by memocc)
      integer :: ncache_fft !< Cache size for FFT
-     integer :: profiling_depth
+     !integer :: profiling_depth
      real(gp) :: projrad   !< Coarse radius of the projectors in units of the maxrad
      real(gp) :: symTol    !< Tolerance for symmetry detection.
      integer :: linear
@@ -373,6 +373,9 @@ module module_input_keys
      !> Global MPI group size (will be written in the mpi_environment)
      ! integer :: mpi_groupsize
 
+     !>id of the output wavefunctions
+     character(len=64) :: outputpsiid
+
      type(external_potential_descriptors) :: ep !< contains the multipoles for the external potential
      logical :: mp_centers_auto !< indicates whether the multipole centers shall be determined automatically (i.e. the atoms) or provided manually
      real(kind=8),dimension(:,:),pointer :: mp_centers !< contains the positions of the multipoles to be calculated
@@ -384,7 +387,7 @@ module module_input_keys
      integer :: check_sumrho               !< (LS) Perform a check of sumrho (no check, light check or full check)
      integer :: check_overlap              !< (LS) Perform a check of the overlap calculation
      logical :: experimental_mode          !< (LS) Activate the experimental mode
-     integer :: write_orbitals             !< (LS) Write KS orbitals for cubic restart (0: no, 1: wvl, 2: wvl+isf)
+     !integer :: write_orbitals             !< (LS) Write KS orbitals for cubic restart (0: no, 1: wvl, 2: wvl+isf)
      logical :: explicit_locregcenters     !< (LS) Explicitely specify localization centers
      logical :: calculate_KS_residue       !< (LS) Calculate Kohn-Sham residue
      logical :: intermediate_forces        !< (LS) Calculate intermediate forces
@@ -746,12 +749,12 @@ contains
          dest=filename)
     if (.not. in%debug) then
        if (in%verbosity==3) then
-          call f_malloc_set_status(output_level=1, iproc=bigdft_mpi%iproc,logfile_name=filename,profiling_depth=in%profiling_depth)
+          call f_malloc_set_status(output_level=1, iproc=bigdft_mpi%iproc,logfile_name=filename)!,profiling_depth=in%profiling_depth)
        else
-          call f_malloc_set_status(output_level=0, iproc=bigdft_mpi%iproc,profiling_depth=in%profiling_depth)
+          call f_malloc_set_status(output_level=0, iproc=bigdft_mpi%iproc)!,profiling_depth=in%profiling_depth)
        end if
     else
-       call f_malloc_set_status(output_level=2, iproc=bigdft_mpi%iproc,logfile_name=filename,profiling_depth=in%profiling_depth)
+       call f_malloc_set_status(output_level=2, iproc=bigdft_mpi%iproc,logfile_name=filename)!,profiling_depth=in%profiling_depth)
     end if
 
     call nullifyInputLinparameters(in%lin)
@@ -857,7 +860,7 @@ contains
     if (in%dispersion /= 0) then
        call vdwcorrection_warnings(atoms, in%dispersion, in%ixc)
     end if
-    
+
     !control atom positions
     call check_atoms_positions(atoms%astruct, (bigdft_mpi%iproc == 0))
 
@@ -971,19 +974,14 @@ contains
     !shouldwrite=.false.
 
     shouldwrite= &!shouldwrite .or. &
-                                !in%output_wf_format /= WF_FORMAT_NONE .or. &    !write wavefunctions
          in%output_wf /= ENUM_EMPTY .or. &    !write wavefunctions
          in%output_denspot /= ENUM_EMPTY .or. & !write output density
          in%ncount_cluster_x > 1 .or. &                  !write posouts or posmds
-         !in%inputPsiId == 2 .or. &                       !have wavefunctions to read
-         !in%inputPsiId == 12 .or.  &                     !read in gaussian basis
          (in%inputPsiId .hasattr. 'FILE') .or. &
-         (in%inputPsiId .hasattr. 'GAUSSIAN') .or. &
-         !in%gaussian_help .or. &                         !Mulliken and local density of states
+         (in%inputPsiId .hasattr. 'GAUSSIAN') .or. &   !Mulliken and local density of states
          bigdft_mpi%ngroup > 1   .or. &                  !taskgroups have been inserted
          mod(in%lin%plotBasisFunctions,10) > 0 .or. &    !dumping of basis functions for locreg runs
-         !in%inputPsiId == 102 .or. &                     !reading of basis functions
-         in%write_orbitals>0 .or. &                      !writing the KS orbitals in the linear case
+         !in%write_orbitals>0 .or. &                      !writing the KS orbitals in the linear case
          mod(in%lin%output_mat_format,10)>0 .or. &       !writing the sparse linear matrices
          mod(in%lin%output_coeff_format,10)>0 .or. &          !writing the linear KS coefficients
          in%mdsteps>0                                !write the MD restart file always in dir_output
@@ -1538,6 +1536,29 @@ contains
 
   end subroutine set_output_wf
 
+  subroutine set_output_wf_from_text(profile,output_wf)
+    implicit none
+    character(len=*), intent(in) :: profile
+    type(f_enumerator), intent(out) :: output_wf
+
+    select case(trim(profile))
+    case('No')
+       output_wf=ENUM_EMPTY
+    case('text')
+       output_wf=ENUM_TEXT
+    case('binary')
+       output_wf=ENUM_BINARY
+    case('text_with_densities')
+       output_wf=ENUM_TEXT
+       call f_enum_attr(output_wf,ENUM_DENSITY)
+    case('text_with_cube')
+       output_wf=ENUM_TEXT
+       call f_enum_attr(output_wf,ENUM_CUBE)
+    end select
+
+  end subroutine set_output_wf_from_text
+
+
   subroutine set_output_denspot(profile,output_denspot)
     implicit none
     integer, intent(in) :: profile
@@ -1627,7 +1648,7 @@ contains
              in%run_mode=PLUGIN_RUN_MODE
           end select
        case(ADD_COULOMB_FORCE_KEY)
-          in%add_coulomb_force = val          
+          in%add_coulomb_force = val
        case(PLUGIN_ID)
           in%plugin_id = val
        case(MM_PARAMSET)
@@ -1656,6 +1677,13 @@ contains
           call dict_copy(src=val,dest=in%at_gamma)
        case(SPATIAL_DOS)
           in%sdos=val
+       case (WRITE_ORBITALS)
+          ! linear scaling: write KS orbitals for cubic restart
+          !in%write_orbitals = val
+          str=val
+          call set_output_wf_from_text(str,in%output_wf)
+       case (OUTPUTPSIID)
+          in%outputpsiid=val
        end select
     case (DFT_VARIABLES)
        ! the DFT variables ------------------------------------------------------
@@ -1712,15 +1740,12 @@ contains
        case (INPUTPSIID)
           ipos=val
           call set_inputpsiid(ipos,in%inputPsiId)
-          !in%inputPsiId = val
-       case (OUTPUT_WF)
-          ipos=val
-          call set_output_wf(ipos,in%output_wf)
-          !in%output_wf = val
+       !case (OUTPUT_WF)
+       !ipos=val
+       !call set_output_wf(ipos,in%output_wf)
        case (OUTPUT_DENSPOT)
           ipos=val
           call set_output_denspot(ipos,in%output_denspot)
-          !in%output_denspot = val
        case (RBUF)
           in%rbuf = val ! Tail treatment.
        case (NCONGT)
@@ -1761,8 +1786,8 @@ contains
        select case (trim(dict_key(val)))
        case (DEBUG)
           in%debug = val
-       case (PROFILING_DEPTH)
-          in%profiling_depth = val
+       !case (PROFILING_DEPTH)
+       !   in%profiling_depth = val
        case (FFTCACHE)
           in%ncache_fft = val
        case (TOLSYM)
@@ -1878,9 +1903,6 @@ contains
           in%check_overlap = val
        case (EXPERIMENTAL_MODE)
           in%experimental_mode = val
-       case (WRITE_ORBITALS)
-          ! linear scaling: write KS orbitals for cubic restart
-          in%write_orbitals = val
        case (EXPLICIT_LOCREGCENTERS)
           ! linear scaling: explicitely specify localization centers
           in%explicit_locregcenters = val
@@ -2057,6 +2079,8 @@ contains
           in%restart_vel = val
        case (RESTART_POS)
           in%restart_pos = val
+       case (ALWAYS_FROM_SCRATCH)
+          in%always_from_scratch = val
        case DEFAULT
           if (bigdft_mpi%iproc==0) &
                call yaml_warning("unknown input key '" // trim(level) // "/" // trim(dict_key(val)) // "'")
@@ -2468,6 +2492,7 @@ contains
     !call f_zero(in%set_epsilon)
     call f_zero(in%dir_output)
     call f_zero(in%dir_perturbation)
+    call f_zero(in%outputpsiid)
     call f_zero(in%naming_id)
     nullify(in%gen_kpt)
     nullify(in%gen_wkpt)
@@ -2480,7 +2505,7 @@ contains
     call f_zero(in%calculate_strten)
     call f_zero(in%nab_options)
     in%sdos=.false.
-    in%profiling_depth=-1
+    !in%profiling_depth=-1
     in%plugin_id = 0
     in%gen_norb = UNINITIALIZED(0)
     in%gen_norbu = UNINITIALIZED(0)
@@ -2503,6 +2528,8 @@ contains
     call tddft_input_variables_default(in)
     !Default for Self-Interaction Correction variables
     call sic_input_variables_default(in)
+    !molecular dynamics vars
+    call md_input_variables_default(in)
     ! Default for signaling
     in%gmainloop = 0.d0
     ! Default for lin.
@@ -2595,6 +2622,7 @@ contains
     in%nmultint = 1
     in%nsuzuki  = 7
     in%nosefrq  = 3000.d0
+    in%always_from_scratch=.false.
   END SUBROUTINE md_input_variables_default
 
   !> Assign default values for self-interaction correction variables

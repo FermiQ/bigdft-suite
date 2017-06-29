@@ -11,6 +11,8 @@ module compression
   use module_defs, only: wp
   implicit none
 
+  private 
+
   !> Parameters identifying the different strategy for the application of a projector
   !! in a localisation region
   integer, parameter :: STRATEGY_SKIP=0 !< The projector is not applied. This might happend when ilr and iat does not interact
@@ -41,10 +43,10 @@ module compression
 
 
   public :: allocate_wfd,deallocate_wfd,copy_wavefunctions_descriptors
-  public :: deallocate_wfd_to_wfd
-  public :: nullify_wfd_to_wfd
+  public :: deallocate_wfd_to_wfd,nullify_wfd
+  public :: nullify_wfd_to_wfd,tolr_set_strategy
   public :: cproj_dot,cproj_pr_p_psi,pr_dot_psi
-  public :: wfd_to_wfd_skip,free_tolr_ptr
+  public :: wfd_to_wfd_skip,free_tolr_ptr,init_tolr
 
 contains
 
@@ -224,6 +226,25 @@ contains
 
   end subroutine init_tolr
 
+  subroutine tolr_set_strategy(tolr,strategy)
+    use dictionaries, only: f_err_throw
+    implicit none
+    character(len=*), intent(in) :: strategy
+    type(wfd_to_wfd), intent(inout) :: tolr
+    select case(trim(strategy))
+    case('MASK_PACK','mask_pack')
+       tolr%strategy=STRATEGY_MASK_PACK
+    case('MASK','mask')
+       tolr%strategy=STRATEGY_MASK
+    case('KEYS','keys')
+       tolr%strategy=STRATEGY_KEYS
+    case('KEYS_PACK','keys_pack')
+       tolr%strategy=STRATEGY_KEYS_PACK
+    case default
+       call f_err_throw('Unknown wfd_to_wfd strategy')
+    end select
+    
+  end subroutine tolr_set_strategy
 
   !>find the size of the mask array for a given couple plr - llr
   subroutine mask_sizes(wfd_w,wfd_p,keyag_lin_cf,nbsegs_cf,nmseg_c,nmseg_f)

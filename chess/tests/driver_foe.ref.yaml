@@ -27,9 +27,11 @@
    Initial minimal eigenvalue          : -0.5
    Initial maximal eigenvalue          :  0.5
    Iterations with varying temperatures:  4
+   betax                               : -1000.0
    Guess for Fermi energy              :  0.0
    Maximal polynomial degree           :  5000
    PEXSI number of poles               :  40
+   PEXSI number of procs per poles     :  1
    PEXSI mu min                        : -1.0
    PEXSI mu max                        :  1.0
    PEXSI mu                            :  0.0
@@ -37,11 +39,15 @@
    PEXSI temperature                   :  1.0E-003
    PEXSI charge tolerance              :  1.0E-003
    PEXSI number of procs for symbolic factorization:  16
+   PEXSI do inertia count              :  Yes
+   PEXSI max number of iterations      :  10
+   PEXSI vernosity level               :  1
    Do a check with cubic scaling (Sca)LAPACK:  Yes
    Accuracy of Chebyshev fit for FOE   :  1.0000000000000001E-005
    Accuracy of Chebyshev fit for ICE   :  1.0E-008
    Accuracy of Chebyshev fit for the penalty function:  1.0000000000000001E-005
    Number of iterations                :  1
+   Inversion method for the overlap matrix in FOE: ICE
  Matrix properties:
    Overlap matrix:
      total elements                    :  360000

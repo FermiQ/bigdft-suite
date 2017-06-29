@@ -3544,7 +3544,7 @@ module multipole
 
    !call multipole_analysis_driver(iproc, nproc, 2, tmb%npsidim_orbs, tmb%psi, &
    !     max(tmb%collcom_sr%ndimpsi_c,1), at, tmb%lzd%hgrids, &
-   !     tmb%orbs, tmb%linmat%s, tmb%linmat%m, tmb%linmat%l, tmb%collcom, tmb%lzd, &
+   !     tmb%orbs, tmb%linmat%smat(1), tmb%linmat%smat(2), tmb%linmat%smat(3), tmb%collcom, tmb%lzd, &
    !     tmb%orthpar, tmb%linmat%ovrlp_, tmb%linmat%ham_, tmb%linmat%kernel_, rxyz, &
    !     method='projector')
 
@@ -3622,7 +3622,7 @@ module multipole
 
    call f_routine(id='support_function_gross_multipoles')
 
-   if (tmb%linmat%l%nspin/=1) then
+   if (tmb%linmat%smat(3)%nspin/=1) then
        call f_err_throw('Support function multipole analysis not yet ready for nspin>1')
    end if
 
@@ -3637,7 +3637,7 @@ module multipole
        can_use_transposed = .false.
        call orthonormalizeLocalized(iproc, nproc, methTransformOverlap, &
             1.d-8, tmb%npsidim_orbs, tmb%orbs, tmb%lzd, &
-            tmb%linmat%s, tmb%linmat%auxs, tmb%linmat%l, tmb%linmat%auxl, &
+            tmb%linmat%smat(1), tmb%linmat%auxs, tmb%linmat%smat(3), tmb%linmat%auxl, &
             tmb%collcom, tmb%orthpar, &
             phi_ortho, phit_c, phit_f, &
             can_use_transposed)
@@ -3645,9 +3645,9 @@ module multipole
        !!call transpose_localized(iproc, nproc, tmb%npsidim_orbs, tmb%orbs, tmb%collcom, &
        !!     TRANSPOSE_FULL, phi_ortho, phit_c, phit_f, tmb%lzd)
        !!multipole_matrix = matrices_null()
-       !!multipole_matrix%matrix_compr = sparsematrix_malloc_ptr(tmb%linmat%s, SPARSE_FULL, id='multipole_matrix%matrix_compr')
+       !!multipole_matrix%matrix_compr = sparsematrix_malloc_ptr(tmb%linmat%smat(1), SPARSE_FULL, id='multipole_matrix%matrix_compr')
        !!call calculate_overlap_transposed(iproc, nproc, tmb%orbs, tmb%collcom, &
-       !!     phit_c, phit_c, phit_f, phit_f, tmb%linmat%s, multipole_matrix)
+       !!     phit_c, phit_c, phit_f, phit_f, tmb%linmat%smat(1), multipole_matrix)
        !!if (iproc==0) then
        !!    do i=1,size(multipole_matrix%matrix_compr)
        !!        write(*,*) 'i, mat', i, multipole_matrix%matrix_compr(i)
@@ -3675,7 +3675,7 @@ module multipole
    center_locreg = f_malloc0((/3,tmb%lzd%nlr/),id='center_locreg')
    center_orb = f_malloc0((/3,tmb%lzd%nlr/),id='center_orb')
    multipole_matrix = matrices_null()
-   multipole_matrix%matrix_compr = sparsematrix_malloc_ptr(tmb%linmat%s, SPARSE_TASKGROUP, id='multipole_matrix%matrix_compr')
+   multipole_matrix%matrix_compr = sparsematrix_malloc_ptr(tmb%linmat%smat(1), SPARSE_TASKGROUP, id='multipole_matrix%matrix_compr')
 
   ! Set phi1 to 1
   phi1r = f_malloc(max(tmb%collcom_sr%ndimpsi_c,1),id='phi1r')
@@ -3765,12 +3765,12 @@ module multipole
 !!$          ! Calculate the multipole matrix
 !!$          call calculate_multipole_matrix(iproc, nproc, l, m, tmb%npsidim_orbs, phi1, phi_ortho, &
 !!$               max(tmb%collcom_sr%ndimpsi_c,1), tmb%lzd%hgrids, &
-!!$               tmb%orbs, tmb%collcom, tmb%lzd, tmb%linmat%s, center_locreg, 'box', multipole_matrix)! =>>multipoles
+!!$               tmb%orbs, tmb%collcom, tmb%lzd, tmb%linmat%smat(1), center_locreg, 'box', multipole_matrix)! =>>multipoles
 !!$          !write(*,*) 'multipole_matrix%matrix_compr(1)',multipole_matrix%matrix_compr(1)
 !!$          ! Take the diagonal elements and scale by factor (anyway there is no really physical meaning in the actual numbers)
 !!$          do iorb=1,tmb%orbs%norbp
 !!$              iiorb = tmb%orbs%isorb + iorb
-!!$              ind = matrixindex_in_compressed(tmb%linmat%s, iiorb, iiorb)
+!!$              ind = matrixindex_in_compressed(tmb%linmat%smat(1), iiorb, iiorb)
 !!$              multipoles(m,l,iiorb) = multipole_matrix%matrix_compr(ind)*factor
 !!$              !write(*,*) 'iorb, multipoles(:,:,iiorb)',iorb, multipoles(:,:,iiorb)
 !!$          end do

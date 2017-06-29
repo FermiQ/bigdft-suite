@@ -89,6 +89,9 @@ contains
     implicit none
     integer(f_long), intent(in) :: data
     character(len=len(yaml_int_fmt)) :: fmt_li
+    !local variables
+    integer :: kindt
+    kindt=kind(data) !to remove compilation warning
     fmt_li=yaml_int_fmt
   end function fmt_li
 
@@ -96,6 +99,9 @@ contains
     implicit none
     integer(f_integer), intent(in) :: data
     character(len=len(yaml_int_fmt)) :: fmt_i
+    !local variables
+    integer :: kindt
+    kindt=kind(data) !to remove compilation warning
     fmt_i=yaml_int_fmt
   end function fmt_i
 
@@ -103,6 +109,10 @@ contains
     implicit none
     real(f_simple), intent(in) :: data
     character(len=len(yaml_real_fmt)) :: fmt_r
+    !local variables
+    integer :: kindt
+    kindt=kind(data) !to remove compilation warning
+
     fmt_r=yaml_real_fmt
   end function fmt_r
 
@@ -110,6 +120,10 @@ contains
     implicit none
     real(f_double), intent(in) :: data
     character(len=len(yaml_dble_fmt)) :: fmt_d
+    !local variables
+    integer :: kindt
+    kindt=kind(data) !to remove compilation warning
+
     fmt_d=yaml_dble_fmt
   end function fmt_d
 
@@ -117,6 +131,10 @@ contains
     implicit none
     character(len=*), intent(in) :: data
     character(len=len(yaml_char_fmt)) :: fmt_a
+    !local variables
+    integer :: kindt
+    kindt=kind(data) !to remove compilation warning
+
     fmt_a=yaml_char_fmt
   end function fmt_a
 

@@ -24,14 +24,17 @@ program driver_random
   use sparsematrix_base
   use sparsematrix_types, only: sparse_matrix
   use sparsematrix_init, only: generate_random_symmetric_sparsity_pattern, &
-                               matrixindex_in_compressed, write_sparsematrix_info
+                               matrixindex_in_compressed, write_sparsematrix_info, &
+                               init_matrix_taskgroups_wrapper
   use sparsematrix, only: symmetrize_matrix, check_deviation_from_unity_sparse, &
                           matrix_power_dense_lapack, get_minmax_eigenvalues, &
-                          uncompress_matrix, transform_sparse_matrix
+                          uncompress_matrix, uncompress_matrix2, transform_sparse_matrix, &
+                          resize_matrix_to_taskgroup
   use sparsematrix_highlevel, only: matrix_chebyshev_expansion, matrices_init, &
                                     matrix_matrix_multiplication, &
                                     sparse_matrix_init_from_file_bigdft, &
-                                    sparse_matrix_and_matrices_init_from_file_bigdft
+                                    sparse_matrix_and_matrices_init_from_file_bigdft, &
+                                    sparse_matrix_metadata_init_from_file
   use sparsematrix_io, only: write_dense_matrix, write_sparse_matrix
   !use random, only: builtin_rand
   use f_random, only: f_random_number
@@ -44,10 +47,11 @@ program driver_random
   implicit none
 
   ! Variables
-  integer :: iproc, nproc, iseg, ierr, idum, ii, i, nthread, nit, it
-  integer :: nfvctr, nvctr, nbuf_large, nbuf_mult, iwrite, scalapack_blocksize, ithreshold, icheck, j, pexsi_np_sym_fact
-  type(sparse_matrix) :: smats
-  type(sparse_matrix),dimension(1) :: smatl
+  integer :: iproc, nproc, iseg, ierr, idum, ii, i, nthread, nit, it, icons
+  integer :: nfvctr, nvctr, nbuf_large, nbuf_mult, iwrite, blocksize_diag, blocksize_matmul
+  integer :: ithreshold, icheck, j, pexsi_np_sym_fact, output_level, profiling_depth
+  type(sparse_matrix),dimension(2) :: smat
+  type(sparse_matrix_metadata) :: smmd
   real(kind=4) :: tt_real
   real(mp) :: tt, tt_rel, t1, t2
   real(mp),dimension(1) :: eval_min, eval_max
@@ -58,8 +62,8 @@ program driver_random
   real(mp),dimension(:),allocatable :: charge_fake, times, sumarr
   type(foe_data),dimension(:),allocatable :: ice_obj
   character(len=1024) :: infile, outfile, outmatmulfile, sparsegen_method, matgen_method, diag_algorithm
-  character(len=1024) :: solution_method
-  logical :: write_matrices, do_cubic_check
+  character(len=1024) :: metadata_file, solution_method
+  logical :: write_matrices, do_cubic_check, init_matmul, do_consistency_checks
   type(dictionary), pointer :: options, dict_timing_info
   type(yaml_cl_parse) :: parser !< command line parser
   external :: gather_timings
@@ -88,11 +92,20 @@ program driver_random
   iproc=mpirank()
   nproc=mpisize()
 
-  call f_malloc_set_status(memory_limit=0.e0,iproc=iproc)
+  ! Read in the parameters for the run.
+  call read_and_communicate_input_variables()
+
+  call f_malloc_set_status(iproc=iproc,output_level=output_level,&
+       logfile_name='mem.log')
 
   ! Initialize the sparse matrix errors and timings.
   call sparsematrix_init_errors()
   call sparsematrix_initialize_timing_categories()
+
+  if (iproc==0) then
+      call yaml_new_document()
+      !call print_logo()
+  end if
 
   ! Timing initialization
   call mpibarrier()
@@ -113,43 +126,11 @@ program driver_random
       call yaml_mapping_close()
   end if
 
-  ! Read in the parameters for the run and print them.
+
+
   if (iproc==0) then
-      !!call yaml_comment('Required input: nfvctr, nvctr, nbuf_large, nbuf_mult, condition_number, expo')
-
-      parser=yaml_cl_parse_null()
-      call commandline_options(parser)
-      call yaml_cl_parse_cmd_line(parser,args=options)
-      call yaml_cl_parse_free(parser)
-
-      nfvctr = options//'nfvctr'
-      nvctr = options//'nvctr'
-      nbuf_large = options//'nbuf_large'
-      nbuf_mult = options//'nbuf_mult'
-      condition_number = options//'condition_number'
-      expo = options//'expo'
-      infile = options//'infile'
-      outfile = options//'outfile'
-      outmatmulfile = options//'outmatmulfile'
-      sparsegen_method = options//'sparsegen_method'
-      matgen_method = options//'matgen_method'
-      write_matrices = options//'write_matrices'
-      betax = options//'betax'
-      scalapack_blocksize = options//'scalapack_blocksize'
-      evlow = options//'evlow'
-      evhigh = options//'evhigh'
-      do_cubic_check = options//'do_cubic_check'
-      diag_algorithm = options//'diag_algorithm'
-      eval_multiplicator = options//'eval_multiplicator'
-      solution_method = options//'solution_method'
-      pexsi_np_sym_fact = options//'pexsi_np_sym_fact'
-      accuracy_ice = options//'accuracy_ice'
-      accuracy_penalty = options//'accuracy_penalty'
-      nit = options//'nit'
-
-      call dict_free(options)
-
       call yaml_mapping_open('Input parameters')
+      call yaml_map('Metadata file',trim(metadata_file))
       call yaml_map('Sparsity pattern generation',trim(sparsegen_method))
       call yaml_map('Matrix content generation',trim(matgen_method))
       if (trim(sparsegen_method)=='random') then
@@ -182,7 +163,8 @@ program driver_random
       call yaml_map('betax',betax,fmt='(f9.1)')
       call yaml_map('Initial minimal eigenvalue',evlow)
       call yaml_map('Initial maximal eigenvalue',evhigh)
-      call yaml_map('scalapack_blocksize',scalapack_blocksize)
+      call yaml_map('blocksize_diag',blocksize_diag)
+      call yaml_map('blocksize_matmul',blocksize_matmul)
       call yaml_map('ScaLAPACK diagonalization algorithm',diag_algorithm)
       call yaml_map('ICE multiplication factor',eval_multiplicator)
       call yaml_map('PEXSI number of procs for symbolic factorization',pexsi_np_sym_fact)
@@ -191,85 +173,55 @@ program driver_random
       call yaml_map('Accuracy of Chebyshev fit for ICE',accuracy_ice)
       call yaml_map('Accuracy of Chebyshev fit for the penalty function',accuracy_penalty)
       call yaml_map('Number of iterations',nit)
+      call yaml_map('Do consistency checks',do_consistency_checks)
+      call yaml_map('Routine profiling output level',output_level)
+      call yaml_map('Routine timing profiling depth',profiling_depth)
   end if
-
-  ! Send the input parameters to all MPI tasks
-  call mpibcast(nfvctr, root=0, comm=mpi_comm_world)
-  call mpibcast(nvctr, root=0, comm=mpi_comm_world)
-  call mpibcast(nbuf_large, root=0, comm=mpi_comm_world)
-  call mpibcast(nbuf_mult, root=0, comm=mpi_comm_world)
-  call mpibcast(condition_number, root=0, comm=mpi_comm_world)
-  call mpibcast(expo, root=0, comm=mpi_comm_world)
-  call mpibcast(infile, root=0, comm=mpi_comm_world)
-  call mpibcast(outfile, root=0, comm=mpi_comm_world)
-  call mpibcast(outmatmulfile, root=0, comm=mpi_comm_world)
-  call mpibcast(sparsegen_method, root=0, comm=mpi_comm_world)
-  call mpibcast(matgen_method, root=0, comm=mpi_comm_world)
-  call mpibcast(solution_method, root=0, comm=mpi_comm_world)
-  call mpibcast(betax, root=0, comm=mpi_comm_world)
-  call mpibcast(scalapack_blocksize, root=0, comm=mpi_comm_world)
-  call mpibcast(evlow, root=0, comm=mpi_comm_world)
-  call mpibcast(evhigh, root=0, comm=mpi_comm_world)
-  call mpibcast(diag_algorithm, root=0, comm=mpi_comm_world)
-  call mpibcast(eval_multiplicator, root=0, comm=mpi_comm_world)
-  call mpibcast(pexsi_np_sym_fact, root=0, comm=mpi_comm_world)
-  call mpibcast(accuracy_ice, root=0, comm=mpi_comm_world)
-  call mpibcast(accuracy_penalty, root=0, comm=mpi_comm_world)
-  call mpibcast(nit, root=0, comm=mpi_comm_world)
-
-  ! Since there is no wrapper for logicals...
-  if (iproc==0) then
-      if (write_matrices) then
-          iwrite = 1
-      else
-          iwrite = 0
-      end if
-      if (do_cubic_check) then
-          icheck = 1
-      else
-          icheck = 0
-      end if
-  end if
-  call mpibcast(iwrite, root=0, comm=mpi_comm_world)
-  call mpibcast(icheck, root=0, comm=mpi_comm_world)
-  if (iwrite==1) then
-      write_matrices = .true.
-  else
-      write_matrices = .false.
-  end if
-  if (icheck==1) then
-      do_cubic_check = .true.
-  else
-      do_cubic_check = .false.
-  end if
-
 
 
   if (trim(sparsegen_method)=='random') then
       ! Generate a random sparsity pattern
       call generate_random_symmetric_sparsity_pattern(iproc, nproc, mpi_comm_world, &
-           nfvctr, nvctr, nbuf_mult, .false., smats, &
-           1, (/nbuf_large/), (/.true./), smatl)
+           nfvctr, nvctr, nbuf_mult, .false., smat(1), &
+           1, (/nbuf_large/), (/.true./), smat(2:2))
   else
       if (trim(matgen_method)=='random') then
           call sparse_matrix_init_from_file_bigdft('serial_text', trim(infile), &
-              iproc, nproc, mpi_comm_world, smats, &
+              iproc, nproc, mpi_comm_world, smat(1), &
               init_matmul=.false.)
       else if (trim(matgen_method)=='file') then
           call sparse_matrix_and_matrices_init_from_file_bigdft('serial_text', trim(infile), &
-              iproc, nproc, mpi_comm_world, smats, mat2,&
+              iproc, nproc, mpi_comm_world, smat(1), mat2,&
               init_matmul=.false.)
       end if
+      select case(trim(solution_method))
+      case ('ICE', 'SelInv')
+          init_matmul = .true.
+      case('LAPACK')
+          init_matmul = .false.
+      case default
+          call f_err_throw('wrong value for kernel_method')
+      end select
+      if (do_consistency_checks) then
+          ! Since these checks are done with CheSS, init_matmul must be true
+          init_matmul = .true.
+      end if
       call sparse_matrix_init_from_file_bigdft('serial_text', trim(outfile), &
-          iproc, nproc, mpi_comm_world, smatl(1), &
-          init_matmul=.true., filename_mult=trim(outmatmulfile))
+          iproc, nproc, mpi_comm_world, smat(2), &
+          init_matmul=init_matmul, filename_mult=trim(outmatmulfile))
   end if
+
+
+  !!call sparse_matrix_metadata_init_from_file(trim(metadata_file), smmd)
+
+  call init_matrix_taskgroups_wrapper(iproc, nproc, mpi_comm_world, .true., 2, smat)
+
 
   ! Write a summary of the sparse matrix layout 
   if (iproc==0) then
       call yaml_mapping_open('Matrix properties')
-      call write_sparsematrix_info(smats, 'Random matrix')
-      call write_sparsematrix_info(smatl(1), 'Large random matrix')
+      call write_sparsematrix_info(smat(1), 'Random matrix')
+      call write_sparsematrix_info(smat(2), 'Large random matrix')
       call yaml_mapping_close()
   end if
 
@@ -294,56 +246,67 @@ program driver_random
 
 
   ! Allocate the matrices
-  call matrices_init(smatl(1), mat3(1))
-  call matrices_init(smatl(1), mat3(2))
-  call matrices_init(smatl(1), mat3(3))
-
-  !!write(*,*) 'smats%istartend_local(1),smats%istartend_local(2)',smats%istartend_local(1),smats%istartend_local(2)
-  !!do i=1,size(smats%transposed_lookup_local)
-  !!    write(*,*) 'i, tll(i)', i, smats%transposed_lookup_local(i)
-  !!end do
+  mat3(:) = matrices_null()
+  call matrices_init(smat(2), mat3(1), matsize=SPARSE_TASKGROUP)
+  if (do_consistency_checks) then
+      call matrices_init(smat(2), mat3(2), matsize=SPARSE_TASKGROUP)
+  end if
+  if (do_consistency_checks .or. do_cubic_check) then
+      call matrices_init(smat(2), mat3(3), matsize=SPARSE_TASKGROUP)
+  end if
 
   if (trim(matgen_method)=='random') then
 
-      call matrices_init(smats, mat1)
-      call matrices_init(smats, mat2)
+      call matrices_init(smat(1), mat1)
+      call matrices_init(smat(1), mat2, matsize=SPARSE_TASKGROUP)
+
+
     
       ! Fill the matrix with random entries
       idum = 0
       !tt_real = builtin_rand(idum, reset=.true.)
       call f_random_number(tt_real, reset=.true.)
-      do i=1,smats%nvctr
+      do i=1,smat(1)%nvctr
           !tt_real = builtin_rand(idum)
           call f_random_number(tt_real)
           mat1%matrix_compr(i) = real(tt_real,kind=8)
       end do
-    
-      ! Symmetrize the matrix
-      call symmetrize_matrix(smats, 'plus', mat1%matrix_compr, mat2%matrix_compr)
 
-      call deallocate_matrices(mat1)
     
       ! By construction, all elements lie between 0 and 1. If we thus scale the
       ! matrix by the inverse of nfvctr (i.e. its dimension), then the sum of each line
       ! is between 0 and 1.
-      call dscal(smats%nvctr, 1.0_mp/real(smats%nfvctr,kind=8), mat2%matrix_compr(1), 1)
+      call dscal(smat(1)%nvctr, 1.0_mp/real(smat(1)%nfvctr,kind=8), mat1%matrix_compr(1), 1)
     
       ! By construction, the sum of each line is between 0 and 1. If we thus set the diagonal
       ! to 1, we get a diagonally dominant matrix, which is positive definite.
       ! Additionally, we add to the diagonal elements a random number between 0 and the condition number.
-      do i=1,smats%nfvctr
-          ii = matrixindex_in_compressed(smats, i, i)
+      do i=1,smat(1)%nfvctr
+          ii = matrixindex_in_compressed(smat(1), i, i)
           !tt_real = builtin_rand(idum)
           call f_random_number(tt_real)
           tt = real(tt_real,kind=8)*condition_number
-          mat2%matrix_compr(ii) = 1.0_mp + tt
+          mat1%matrix_compr(ii) = 1.0_mp + tt
       end do
+
     
       ! Scale the matrix by the condition number, which should move down the largest
       ! eigenvalue of the order of 1.
-      call dscal(smats%nvctr, 1.0_mp/condition_number, mat2%matrix_compr(1), 1)
+      call dscal(smat(1)%nvctr, 1.0_mp/condition_number, mat1%matrix_compr(1), 1)
 
+
+      ! Resize the matrix to the task group
+      call resize_matrix_to_taskgroup(smat(1), mat1)
+
+      ! Symmetrize the matrix
+      call symmetrize_matrix(smat(1), 'plus', mat1%matrix_compr, mat2%matrix_compr)
+
+      call deallocate_matrices(mat1)
+  else
+      ! Resize the matrix to the rask group
+      call resize_matrix_to_taskgroup(smat(1), mat2)
   end if
+
 
   ! Initialization part done
   !call timing(mpi_comm_world,'INIT','PR')
@@ -352,8 +315,8 @@ program driver_random
        gather_routine=gather_timings)
 
   ! Calculate the minimal and maximal eigenvalue, to determine the condition number
-  call get_minmax_eigenvalues(iproc, nproc, mpiworld(), 'standard', scalapack_blocksize, &
-       smats, mat2, eval_min, eval_max, &
+  call get_minmax_eigenvalues(iproc, nproc, mpiworld(), 'standard', blocksize_diag, &
+       smat(1), mat2, eval_min, eval_max, &
        algorithm=diag_algorithm, quiet=.true.)
   if (iproc==0) then
       call yaml_mapping_open('Eigenvalue properties')
@@ -363,9 +326,9 @@ program driver_random
       call yaml_mapping_close()
   end if
 
-  !call write_dense_matrix(iproc, nproc, mpi_comm_world, smats, mat2, 'randommatrix.dat', binary=.false.)
+  !call write_dense_matrix(iproc, nproc, mpi_comm_world, smat(1), mat2, 'randommatrix.dat', binary=.false.)
   if (write_matrices) then
-      call write_sparse_matrix('serial_text', iproc, nproc, mpi_comm_world, smats, mat2, 'randommatrix_sparse')
+      call write_sparse_matrix('serial_text', iproc, nproc, mpi_comm_world, smat(1), mat2, 'randommatrix_sparse')
   end if
 
   call mpibarrier()
@@ -389,17 +352,17 @@ program driver_random
       end if
       if (trim(solution_method)=='ICE') then
           call matrix_chebyshev_expansion(iproc, nproc, mpi_comm_world, &
-               1, (/expo/), smats, smatl(1), mat2, mat3(1), ice_obj=ice_obj(it))
-      else if (trim(solutioN_method)=='SelInv') then
+               1, (/expo/), smat(1), smat(2), mat2, mat3(1), ice_obj=ice_obj(it))
+      else if (trim(solution_method)=='SelInv') then
           if (expo/=-1.0_mp) then
               call f_err_throw('Selecetd Inversion is only possible for the calculation of the inverse')
           end if
-          call selinv_wrapper(iproc, nproc, mpi_comm_world, smats, smatl(1), mat2, pexsi_np_sym_fact, mat3(1))
+          call selinv_wrapper(iproc, nproc, mpi_comm_world, smat(1), smat(2), mat2, pexsi_np_sym_fact, mat3(1))
       else if (trim(solutioN_method)=='LAPACK') then
-          mat2%matrix = sparsematrix_malloc_ptr(smats, iaction=DENSE_FULL, id='mat2%matrix')
-          mat3(1)%matrix = sparsematrix_malloc_ptr(smats, iaction=DENSE_FULL, id='mat3(3)%matrix')
-          call matrix_power_dense_lapack(iproc, nproc, mpiworld(), scalapack_blocksize, .false., &
-                expo, smats, smatl(1), mat2, mat3(1), algorithm=diag_algorithm)
+          mat2%matrix = sparsematrix_malloc_ptr(smat(1), iaction=DENSE_FULL, id='mat2%matrix')
+          mat3(1)%matrix = sparsematrix_malloc_ptr(smat(1), iaction=DENSE_FULL, id='mat3(3)%matrix')
+          call matrix_power_dense_lapack(iproc, nproc, mpiworld(), blocksize_diag, blocksize_matmul, .false., &
+                expo, smat(1), smat(2), mat2, mat3(1), algorithm=diag_algorithm, overwrite=.true.)
           call f_free_ptr(mat2%matrix)
           call f_free_ptr(mat3(1)%matrix)
       else
@@ -454,70 +417,74 @@ program driver_random
        gather_routine=gather_timings)
 
   if (write_matrices) then
-      call write_sparse_matrix('serial_text', iproc, nproc, mpi_comm_world, smatl(1), mat3(1), 'solutionmatrix_sparse')
+      call write_sparse_matrix('serial_text', iproc, nproc, mpi_comm_world, smat(2), mat3(1), 'solutionmatrix_sparse')
   end if
 
 
 
-  ! Calculate the inverse of the desired matrix power
-  if (iproc==0) then
-      call yaml_comment('Calculating mat^-x',hfill='~')
-      call yaml_mapping_open('Calculating mat^-x')
-  end if
-  call matrix_chebyshev_expansion(iproc, nproc, mpi_comm_world, &
-       1, (/-expo/), smats, smatl(1), mat2, mat3(2), ice_obj=ice_obj(1))
+  consistency_checks: if (do_consistency_checks) then
 
-  if (iproc==0) then
-      call yaml_mapping_close()
-  end if
+      ! Calculate the inverse of the desired matrix power
+      if (iproc==0) then
+          call yaml_comment('Calculating mat^-x',hfill='~')
+          call yaml_mapping_open('Calculating mat^-x')
+      end if
+      call matrix_chebyshev_expansion(iproc, nproc, mpi_comm_world, &
+           1, (/-expo/), smat(1), smat(2), mat2, mat3(2), ice_obj=ice_obj(1))
+    
+      if (iproc==0) then
+          call yaml_mapping_close()
+      end if
+    
+      ! Multiply the two resulting matrices.
+      if (iproc==0) then
+          call yaml_comment('Calculating mat^x*mat^-x',hfill='~')
+      end if
+      call matrix_matrix_multiplication(iproc, nproc, smat(2), mat3(1), mat3(2), mat3(3))
+    
+      ! Check the result
+      call check_deviation_from_unity_sparse(iproc, smat(2), mat3(3), max_error, mean_error)
+      if (iproc==0) then
+          call yaml_mapping_open('Check the deviation from unity of the operation mat^x*mat^-x')
+          call yaml_map('max_error',max_error,fmt='(es10.3)')
+          call yaml_map('mean_error',mean_error,fmt='(es10.3)')
+          call yaml_mapping_close()
+      end if
+    
+    
+      ! Calculate the inverse operation, applied to the operation itsel, i.e. (mat^x)^(1/x)
+      if (iproc==0) then
+          call yaml_comment('Calculating (mat^x)^(1/x)',hfill='~')
+          call yaml_mapping_open('Calculating (mat^x)^(1/x)')
+      end if
+    
+      ! Reset the ICE object
+      call foe_data_deallocate(ice_obj(1))
+      charge_fake = f_malloc0(1,id='charge_fake')
+      call init_foe(iproc, nproc, 1, charge_fake, ice_obj(1), evlow=evlow, evhigh=evhigh, &
+           betax=betax, eval_multiplicator=eval_multiplicator, &
+           accuracy_function=accuracy_ice, accuracy_penalty=accuracy_penalty)
+      call f_free(charge_fake)
+      call matrix_chebyshev_expansion(iproc, nproc, mpi_comm_world, &
+           1, (/1.0_mp/expo/), smat(2), smat(2), mat3(1), mat3(3), ice_obj=ice_obj(1))
+    
+      if (iproc==0) then
+          call yaml_mapping_close()
+      end if
+    
+      ! Calculate the errors
+      call transform_sparse_matrix(iproc, smat(1), smat(2), SPARSE_TASKGROUP, 'small_to_large', &
+                   smat_in=mat2%matrix_compr, lmat_out=mat3(2)%matrix_compr)
+    
+      call calculate_error(iproc, nproc, mpiworld(), smat(2), mat3(3), mat3(2), nthreshold, threshold, .false., &
+           'Check the deviation from the original matrix')
+    
+      !call timing(mpi_comm_world,'CHECK_LINEAR','PR')
+      call mpibarrier()
+      call f_timing_checkpoint(ctr_name='CHECK_LINEAR',mpi_comm=mpiworld(),nproc=mpisize(),&
+           gather_routine=gather_timings)
 
-  ! Multiply the two resulting matrices.
-  if (iproc==0) then
-      call yaml_comment('Calculating mat^x*mat^-x',hfill='~')
-  end if
-  call matrix_matrix_multiplication(iproc, nproc, smatl(1), mat3(1), mat3(2), mat3(3))
-
-  ! Check the result
-  call check_deviation_from_unity_sparse(iproc, smatl(1), mat3(3), max_error, mean_error)
-  if (iproc==0) then
-      call yaml_mapping_open('Check the deviation from unity of the operation mat^x*mat^-x')
-      call yaml_map('max_error',max_error,fmt='(es10.3)')
-      call yaml_map('mean_error',mean_error,fmt='(es10.3)')
-      call yaml_mapping_close()
-  end if
-
-
-  ! Calculate the inverse operation, applied to the operation itsel, i.e. (mat^x)^-x
-  if (iproc==0) then
-      call yaml_comment('Calculating (mat^x)^(1/x)',hfill='~')
-      call yaml_mapping_open('Calculating (mat^x)^(1/x)')
-  end if
-
-  ! Reset the ICE object
-  call foe_data_deallocate(ice_obj(1))
-  charge_fake = f_malloc0(1,id='charge_fake')
-  call init_foe(iproc, nproc, 1, charge_fake, ice_obj(1), evlow=evlow, evhigh=evhigh, &
-       betax=betax, eval_multiplicator=eval_multiplicator, &
-       accuracy_function=accuracy_ice, accuracy_penalty=accuracy_penalty)
-  call f_free(charge_fake)
-  call matrix_chebyshev_expansion(iproc, nproc, mpi_comm_world, &
-       1, (/1.0_mp/expo/), smatl(1), smatl(1), mat3(1), mat3(3), ice_obj=ice_obj(1))
-
-  if (iproc==0) then
-      call yaml_mapping_close()
-  end if
-
-  ! Calculate the errors
-  call transform_sparse_matrix(iproc, smats, smatl(1), SPARSE_FULL, 'small_to_large', &
-               smat_in=mat2%matrix_compr, lmat_out=mat3(2)%matrix_compr)
-
-  call calculate_error(iproc, smatl(1), mat3(3), mat3(2), nthreshold, threshold, .false., &
-       'Check the deviation from the original matrix')
-
-  !call timing(mpi_comm_world,'CHECK_LINEAR','PR')
-  call mpibarrier()
-  call f_timing_checkpoint(ctr_name='CHECK_LINEAR',mpi_comm=mpiworld(),nproc=mpisize(),&
-       gather_routine=gather_timings)
+  end if consistency_checks
 
 
   cubic_check:if (do_cubic_check) then
@@ -525,28 +492,28 @@ program driver_random
       if (iproc==0) then
           call yaml_comment('Do the same calculation using dense LAPACK',hfill='~')
       end if
-      !call operation_using_dense_lapack(iproc, nproc, smats_in, mat_in)
-      mat2%matrix = sparsematrix_malloc_ptr(smats, iaction=DENSE_FULL, id='mat2%matrix')
-      mat3(3)%matrix = sparsematrix_malloc_ptr(smats, iaction=DENSE_FULL, id='mat3(3)%matrix')
-      call matrix_power_dense_lapack(iproc, nproc, mpiworld(), scalapack_blocksize, .true., &
-            expo, smats, smatl(1), mat2, mat3(3), algorithm=diag_algorithm)
+      !call operation_using_dense_lapack(iproc, nproc, smat(1)_in, mat_in)
+      mat2%matrix = sparsematrix_malloc_ptr(smat(1), iaction=DENSE_FULL, id='mat2%matrix')
+      mat3(3)%matrix = sparsematrix_malloc_ptr(smat(1), iaction=DENSE_FULL, id='mat3(3)%matrix')
+      call matrix_power_dense_lapack(iproc, nproc, mpiworld(), blocksize_diag, blocksize_matmul, .true., &
+            expo, smat(1), smat(2), mat2, mat3(3), algorithm=diag_algorithm)
       call mpibarrier()
       call f_timing_checkpoint(ctr_name='CALC_CUBIC',mpi_comm=mpiworld(),nproc=mpisize(),&
            gather_routine=gather_timings)
       if (write_matrices) then
-          call write_dense_matrix(iproc, nproc, mpiworld(), smatl(1), mat3(3), &
+          call write_dense_matrix(iproc, nproc, mpiworld(), smat(2), mat3(3), &
                uncompress=.false., filename='solutionmatrix_dense', binary=.false.)
-          call write_dense_matrix(iproc, nproc, mpiworld(), smatl(1), mat2, &
+          call write_dense_matrix(iproc, nproc, mpiworld(), smat(2), mat2, &
                uncompress=.false., filename='randommatrix_dense', binary=.false.)
       end if
-      !call write_dense_matrix(iproc, nproc, mpi_comm_world, smatl(1), mat3(1), 'resultchebyshev.dat', binary=.false.)
-      !call write_dense_matrix(iproc, nproc, mpi_comm_world, smatl(1), mat3(3), 'resultlapack.dat', binary=.false.)
+      !call write_dense_matrix(iproc, nproc, mpi_comm_world, smat(2), mat3(1), 'resultchebyshev.dat', binary=.false.)
+      !call write_dense_matrix(iproc, nproc, mpi_comm_world, smat(2), mat3(3), 'resultlapack.dat', binary=.false.)
 
-      mat3(1)%matrix = sparsematrix_malloc0_ptr(smatl(1), iaction=DENSE_FULL,id=' mat3(1)%matrix')
-      call uncompress_matrix(iproc, nproc, smatl(1), mat3(1)%matrix_compr, mat3(1)%matrix)
+      mat3(1)%matrix = sparsematrix_malloc0_ptr(smat(2), iaction=DENSE_FULL,id=' mat3(1)%matrix')
+      call uncompress_matrix2(iproc, nproc, mpiworld(), smat(2), mat3(1)%matrix_compr, mat3(1)%matrix)
 
       ! Calculate the errors
-      call calculate_error(iproc, smatl(1), mat3(1), mat3(3), nthreshold, threshold, .true., &
+      call calculate_error(iproc, nproc, mpiworld(), smat(2), mat3(1), mat3(3), nthreshold, threshold, .true., &
            'Check the deviation from the exact result using BLAS')
 
       !!! Sparse matrices
@@ -557,7 +524,7 @@ program driver_random
       !!max_error_rel_threshold(:) = 0.0_mp
       !!mean_error_rel_threshold(:) = 0.0_mp
       !!nrel_threshold(:) = 0
-      !!do i=1,smatl(1)%nvctr
+      !!do i=1,smat(2)%nvctr
       !!    tt = abs(mat3(1)%matrix_compr(i)-mat3(3)%matrix_compr(i))
       !!    tt_rel = tt/abs(mat3(3)%matrix_compr(i))
       !!    mean_error = mean_error + tt
@@ -572,8 +539,8 @@ program driver_random
       !!        end if
       !!    end do
       !!end do
-      !!mean_error = mean_error/real(smatl(1)%nvctr,kind=8)
-      !!mean_error_rel = mean_error_rel/real(smatl(1)%nvctr,kind=8)
+      !!mean_error = mean_error/real(smat(2)%nvctr,kind=8)
+      !!mean_error_rel = mean_error_rel/real(smat(2)%nvctr,kind=8)
       !!do ithreshold=1,nthreshold
       !!    mean_error_rel_threshold(ithreshold) = mean_error_rel_threshold(ithreshold)/real(nrel_threshold(ithreshold),kind=8)
       !!end do
@@ -610,8 +577,8 @@ program driver_random
       !!max_error_rel_threshold(:) = 0.0_mp
       !!mean_error_rel_threshold(:) = 0.0_mp
       !!nrel_threshold(:) = 0
-      !!do i=1,smatl(1)%nfvctr
-      !!    do j=1,smatl(1)%nfvctr
+      !!do i=1,smat(2)%nfvctr
+      !!    do j=1,smat(2)%nfvctr
       !!        tt = abs(mat3(1)%matrix(j,i,1)-mat3(3)%matrix(j,i,1))
       !!        tt_rel = tt/abs(mat3(3)%matrix(j,i,1))
       !!        mean_error = mean_error + tt
@@ -627,8 +594,8 @@ program driver_random
       !!        end do
       !!    end do
       !!end do
-      !!mean_error = mean_error/real(smatl(1)%nvctr,kind=8)
-      !!mean_error_rel = mean_error_rel/real(smatl(1)%nvctr,kind=8)
+      !!mean_error = mean_error/real(smat(2)%nvctr,kind=8)
+      !!mean_error_rel = mean_error_rel/real(smat(2)%nvctr,kind=8)
       !!do ithreshold=1,nthreshold
       !!    mean_error_rel_threshold(ithreshold) = mean_error_rel_threshold(ithreshold)/real(nrel_threshold(ithreshold),kind=8)
       !!end do
@@ -668,8 +635,11 @@ program driver_random
 
 
   ! Deallocate the sparse matrix descriptors type
-  call deallocate_sparse_matrix(smats)
-  call deallocate_sparse_matrix(smatl(1))
+  call deallocate_sparse_matrix(smat(1))
+  call deallocate_sparse_matrix(smat(2))
+
+  !! Deallocate the meta data
+  !call deallocate_sparse_matrix_metadata(smmd)
 
   ! Deallocat the sparse matrices
   call deallocate_matrices(mat2)
@@ -746,6 +716,117 @@ program driver_random
 
   !!  end subroutine build_dict_info
 
+  contains 
+
+    subroutine read_and_communicate_input_variables()
+
+      ! Read in the parameters
+      if (iproc==0) then
+          !!call yaml_comment('Required input: nfvctr, nvctr, nbuf_large, nbuf_mult, condition_number, expo')
+
+          parser=yaml_cl_parse_null()
+          call commandline_options(parser)
+          call yaml_cl_parse_cmd_line(parser,args=options)
+          call yaml_cl_parse_free(parser)
+
+          metadata_file = options//'metadata_file'
+          nfvctr = options//'nfvctr'
+          nvctr = options//'nvctr'
+          nbuf_large = options//'nbuf_large'
+          nbuf_mult = options//'nbuf_mult'
+          condition_number = options//'condition_number'
+          expo = options//'expo'
+          infile = options//'infile'
+          outfile = options//'outfile'
+          outmatmulfile = options//'outmatmulfile'
+          sparsegen_method = options//'sparsegen_method'
+          matgen_method = options//'matgen_method'
+          write_matrices = options//'write_matrices'
+          betax = options//'betax'
+          blocksize_diag = options//'blocksize_diag'
+          blocksize_matmul = options//'blocksize_matmul'
+          evlow = options//'evlow'
+          evhigh = options//'evhigh'
+          do_cubic_check = options//'do_cubic_check'
+          diag_algorithm = options//'diag_algorithm'
+          eval_multiplicator = options//'eval_multiplicator'
+          solution_method = options//'solution_method'
+          pexsi_np_sym_fact = options//'pexsi_np_sym_fact'
+          accuracy_ice = options//'accuracy_ice'
+          accuracy_penalty = options//'accuracy_penalty'
+          nit = options//'nit'
+          do_consistency_checks = options//'do_consistency_checks'
+          output_level = options//'output_level'
+          profiling_depth = options//'profiling_depth'
+
+          call dict_free(options)
+      end if
+
+      ! Send the input parameters to all MPI tasks
+      call mpibcast(metadata_file, root=0, comm=mpi_comm_world)
+      call mpibcast(nfvctr, root=0, comm=mpi_comm_world)
+      call mpibcast(nvctr, root=0, comm=mpi_comm_world)
+      call mpibcast(nbuf_large, root=0, comm=mpi_comm_world)
+      call mpibcast(nbuf_mult, root=0, comm=mpi_comm_world)
+      call mpibcast(condition_number, root=0, comm=mpi_comm_world)
+      call mpibcast(expo, root=0, comm=mpi_comm_world)
+      call mpibcast(infile, root=0, comm=mpi_comm_world)
+      call mpibcast(outfile, root=0, comm=mpi_comm_world)
+      call mpibcast(outmatmulfile, root=0, comm=mpi_comm_world)
+      call mpibcast(sparsegen_method, root=0, comm=mpi_comm_world)
+      call mpibcast(matgen_method, root=0, comm=mpi_comm_world)
+      call mpibcast(solution_method, root=0, comm=mpi_comm_world)
+      call mpibcast(betax, root=0, comm=mpi_comm_world)
+      call mpibcast(blocksize_diag, root=0, comm=mpi_comm_world)
+      call mpibcast(blocksize_matmul, root=0, comm=mpi_comm_world)
+      call mpibcast(evlow, root=0, comm=mpi_comm_world)
+      call mpibcast(evhigh, root=0, comm=mpi_comm_world)
+      call mpibcast(diag_algorithm, root=0, comm=mpi_comm_world)
+      call mpibcast(eval_multiplicator, root=0, comm=mpi_comm_world)
+      call mpibcast(pexsi_np_sym_fact, root=0, comm=mpi_comm_world)
+      call mpibcast(accuracy_ice, root=0, comm=mpi_comm_world)
+      call mpibcast(accuracy_penalty, root=0, comm=mpi_comm_world)
+      call mpibcast(nit, root=0, comm=mpi_comm_world)
+
+      ! Since there is no wrapper for logicals...
+      if (iproc==0) then
+          if (write_matrices) then
+              iwrite = 1
+          else
+              iwrite = 0
+          end if
+          if (do_cubic_check) then
+              icheck = 1
+          else
+              icheck = 0
+          end if
+          if (do_consistency_checks) then
+              icons = 1
+          else
+              icons = 0
+          end if
+      end if
+      call mpibcast(iwrite, root=0, comm=mpi_comm_world)
+      call mpibcast(icheck, root=0, comm=mpi_comm_world)
+      call mpibcast(icons, root=0, comm=mpi_comm_world)
+      if (iwrite==1) then
+          write_matrices = .true.
+      else
+          write_matrices = .false.
+      end if
+      if (icheck==1) then
+          do_cubic_check = .true.
+      else
+          do_cubic_check = .false.
+      end if
+      if (icons==1) then
+          do_consistency_checks = .true.
+      else
+          do_consistency_checks = .false.
+      end if
+
+    end subroutine read_and_communicate_input_variables
+
 end program driver_random
 
 
@@ -755,6 +836,14 @@ subroutine commandline_options(parser)
   use dictionaries, only: dict_new,operator(.is.)
   implicit none
   type(yaml_cl_parse),intent(inout) :: parser
+
+
+  call yaml_cl_parse_option(parser,'metadata_file','sparsematrix_metadata.dat',&
+       'input file with the matrix metadata',&
+       help_dict=dict_new('Usage' .is. &
+       'Input file with the matrix metadata',&
+       'Allowed values' .is. &
+       'String'))
 
   call yaml_cl_parse_option(parser,'nfvctr','0',&
        'matrix size',&
@@ -847,10 +936,19 @@ subroutine commandline_options(parser)
        'Allowed values' .is. &
        'Double'))
 
-  call yaml_cl_parse_option(parser,'scalapack_blocksize','-1',&
-       'blocksize for ScaLAPACK (negative for standard LAPACK)',&
+  call yaml_cl_parse_option(parser,'blocksize_diag','-1',&
+       'blocksize for ScaLAPACK diagonalization (negative for standard LAPACK)',&
        help_dict=dict_new('Usage' .is. &
-       'Indicate the blocksize to be used by ScaLAPACK. If negative, then the standard LAPACK routines will be used',&
+       'Indicate the blocksize to be used by ScaLAPACK for the diagonalization.'&
+       &' If negative, then the standard LAPACK routines will be used',&
+       'Allowed values' .is. &
+       'Integer'))
+
+  call yaml_cl_parse_option(parser,'blocksize_matmul','-1',&
+       'blocksize for ScaLAPACK matrix multiplication (negative for standard LAPACK)',&
+       help_dict=dict_new('Usage' .is. &
+       'Indicate the blocksize to be used by ScaLAPACK for the matrix multiplication.'&
+       &' If negative, then the standard LAPACK routines will be used',&
        'Allowed values' .is. &
        'Integer'))
 
@@ -924,6 +1022,25 @@ subroutine commandline_options(parser)
        'Allowed values' .is. &
        'Integer'))
 
+   call yaml_cl_parse_option(parser,'do_consistency_checks','.false.',&
+       'Perform consistency checks of the result (done with CheSS): mat^x*mat^-x and (mat^x)^(1/x)',&
+       help_dict=dict_new('Usage' .is. &
+       'Perform consistency checks of the result (done with CheSS): mat^x*mat^-x and (mat^x)^(1/x)',&
+       'Allowed values' .is. &
+       'Logical'))
+
+  call yaml_cl_parse_option(parser,'output_level','0',&
+       'Output level of the routine profiling',&
+       help_dict=dict_new('Usage' .is. &
+       'Indicate the output level of the routine profiling',&
+       'Allowed values' .is. &
+       'Integer'))
+
+  call yaml_cl_parse_option(parser,'profiling_depth','-1',&
+       'Depth of the individual routine timing profiling',&
+       help_dict=dict_new('Usage' .is. &
+       'Indicate the depth of the individual routine timing profiling',&
+       'Allowed values' .is. &
+       'Integer'))
+
 end subroutine commandline_options
-
-

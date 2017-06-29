@@ -198,12 +198,12 @@ subroutine plot_one_orbdens(lr, at, orbs, rxyz, hgrids, filename, iorb, iorb_shi
   !call f_open_file(iunitz, file=filez, binary=binary)
   if (dens) then
      call plot_wf(.true.,trim(filebase0), 2, at, 1.d0, lr, &
-          hgrids(1), hgrids(2), hgrids(3), &
+          hgrids, &
           rxyz, psi_g, &
           iunit0, iunitx, iunity, iunitz)
   else
      call plot_wf(.true.,trim(filebase0), 1, at, 1.d0, lr, &
-          hgrids(1), hgrids(2), hgrids(3), &
+          hgrids, &
           rxyz, psi_g, &
           iunit0, iunitx, iunity, iunitz)
   end if
