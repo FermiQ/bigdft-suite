@@ -42,59 +42,68 @@ BUILTIN={
     'symmetry': {PATH: [ ['Atomic System Properties','Space group']], 
                  PRINT: "Symmetry group", GLOBAL: True}}
 
-
-def get_log(f):
-    """Transform a logfile into a python dictionary"""
-    return yaml.load(open(f, "r").read(), Loader = yaml.CLoader)
-
-
-def get_logs(files,safe_mode=False,select_document=None):
+def get_logs(files,select_document=None):
     """
     Return a list of loaded logfiles from files, which is a list
     of paths leading to logfiles.
     
     Optional arguments:
-    - safe_mode:
     - select_document:
     """
+    from futile import Yaml
     logs=[]
     for filename in files:
-      rawfile=open(filename, "r").read()
-      try:
-         logs+=[yaml.load(rawfile, Loader = yaml.CLoader)]
-      except Exception,e:
-         print 'WARNING: More than one document are present',e
-         if safe_mode or select_document is not None:
-             documents=rawfile.split('---\n')
-             print 'Safe mode, Found',len(documents),'documents,try loading them separately'
-             actual_doc=-1
-             for i,raw_doc in enumerate(documents):
-                 if len(raw_doc)==0: continue
-                 actual_doc+=1
-                 if select_document is not None and actual_doc not in select_document: continue
-                 try:
-                     logs.append(yaml.load(raw_doc,Loader=yaml.CLoader))
-                     print 'Document',i,'...loaded.'
-                 except Exception,f:
-                     print 'Document',i,'...NOT loaded.'
-                     print f
-                     #logs+=[None]
-                     #print "warning, skipping logfile",filename
-         else:
-             try: 
-                 from futile import Yaml
-                 test=Yaml.YamlDB(rawfile)
-                 for a in range(len(test)):
-                     # we should use another representation for the logfile, to be changed
-                     lg=dict(test[a]) 
-                     if lg is not None: logs+=[lg]
-                 #logs+=yaml.load_all(rawfile, Loader = yaml.CLoader)
-             except Exception,e:
-                 print e
-                 print 'WARNING: Usual loading of the document have some errors, some documents might not be there'
-                 print 'Consider to put safe_mode=True'
+        logs+=Yaml.load(filename,doc_lists=True,safe_mode=True)
     return logs
 
+##
+##def get_logs(files,safe_mode=False,select_document=None):
+##    """
+##    Return a list of loaded logfiles from files, which is a list
+##    of paths leading to logfiles.
+##    
+##    Optional arguments:
+##    - safe_mode:
+##    - select_document:
+##    """
+##    logs=[]
+##    for filename in files:
+##      rawfile=open(filename, "r").read()
+##      try:
+##         logs+=[yaml.load(rawfile, Loader = yaml.CLoader)]
+##      except Exception,e:
+##         print 'WARNING: More than one document are present',e
+##         if safe_mode or select_document is not None:
+##             documents=rawfile.split('---\n')
+##             print 'Safe mode, Found',len(documents),'documents,try loading them separately'
+##             actual_doc=-1
+##             for i,raw_doc in enumerate(documents):
+##                 if len(raw_doc)==0: continue
+##                 actual_doc+=1
+##                 if select_document is not None and actual_doc not in select_document: continue
+##                 try:
+##                     logs.append(yaml.load(raw_doc,Loader=yaml.CLoader))
+##                     print 'Document',i,'...loaded.'
+##                 except Exception,f:
+##                     print 'Document',i,'...NOT loaded.'
+##                     print f
+##                     #logs+=[None]
+##                     #print "warning, skipping logfile",filename
+##         else:
+##             try: 
+##                 from futile import Yaml
+##                 test=Yaml.YamlDB(rawfile)
+##                 for a in range(len(test)):
+##                     # we should use another representation for the logfile, to be changed
+##                     lg=dict(test[a]) 
+##                     if lg is not None: logs+=[lg]
+##                 #logs+=yaml.load_all(rawfile, Loader = yaml.CLoader)
+##             except Exception,e:
+##                 print e
+##                 print 'WARNING: Usual loading of the document have some errors, some documents might not be there'
+##                 print 'Consider to put safe_mode=True'
+##    return logs
+##
 
 def floatify(scalar):
     """Useful to make float from strings compatible from fortran"""
