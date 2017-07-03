@@ -3709,11 +3709,20 @@ module communications_init
        end do
     
        if (nspin*ii/=ndimind+nspin) then
-           stop '(nspin*ii/=ndimind+nspin)'
+           call f_err_throw('(nspin*ii/=ndimind+nspin)')
        end if
-       if(maxval(gridpoint_start)>ndimind) stop '1: maxval(gridpoint_start)>sum(nrecvcountc)'
-       if(minval(indexrecvbuf)<istartend(1,iproc)) stop '1: minval(indexrecvbuf)<istartend(1,iproc)'
-       if(maxval(indexrecvbuf)>istartend(2,iproc)) stop '1: maxval(indexrecvbuf)>istartend(2,iproc)'
+       if(maxval(gridpoint_start)>ndimind) then
+           call f_err_throw(trim(yaml_toa(maxval(gridpoint_start)))//&
+               &'=maxval(gridpoint_start) > ndimind='//trim(yaml_toa(ndimind)))
+       end if
+       if(minval(indexrecvbuf)<istartend(1,iproc)) then
+           call f_err_throw(trim(yaml_toa(minval(indexrecvbuf)))//&
+               &'=minval(indexrecvbuf) < istartend(1,iproc)='//istartend(1,iproc))
+       end if
+       if(maxval(indexrecvbuf)>istartend(2,iproc)) then
+          call f_err_throw(trim(yaml_toa(maxval(indexrecvbuf)))//&
+              &'=maxval(indexrecvbuf) > istartend(2,iproc)='//trim(yaml_toa(istartend(2,iproc))))
+       end if
     
        !!allocate(iextract(ndimind), stat=istat)
        !!call memocc(istat, iextract, 'iextract', subname)
