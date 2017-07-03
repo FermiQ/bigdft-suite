@@ -208,18 +208,40 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
 
         !!           denspot%rhov denspot%rhov+2.e-7   STEFAN Goedecker
 
-     !to reproduce the previous behaviour save the density in the temporary array
-     if(wfn%orbs%nspinor==4) then
-        temp=f_malloc(src=denspot%rhov,id='temp')
-        m_norm=f_malloc0(size(denspot%rhov),id='m_norm')
-        temp2=f_malloc0(size(denspot%rhov),id='temp2')
-        call get_local_magnetization(denspot%dpbox%ndimrho,temp,m_norm,temp2)
-        call f_free(temp2)
-     end if
+!!$     !to reproduce the previous behaviour save the density in the temporary array
+!!$     if(wfn%orbs%nspinor==4) then
+!!$        temp=f_malloc(src=denspot%rhov,id='temp')
+!!$        m_norm=f_malloc0(size(denspot%rhov),id='m_norm')
+!!$        temp2=f_malloc0(size(denspot%rhov),id='temp2')
+!!$        call get_local_magnetization(denspot%dpbox%ndimrho,temp,m_norm,temp2)
+!!$        call f_free(temp2)
+!!$     end if
+
+!!!>     !here we need to calculate the atomic magnetic moments of the provided density
+!!!>     call atomic_magnetic_moments(denspot%bitp,denspot%dpbox%ndimpot,atoms%astruct%nat,rxyz,radii,&
+!!!>          denspot%rhov(1+dpbox%mesh%ndims(1)*dpbox%mesh%ndims(2)*dpbox%i3xcsh),cfd%rho_at,cfd%m_at)
+!!!>     if (nproc > 1) then
+!!!>        call mpiallred(rho_at,op=MPI_SUM,comm=bigdft_mpi%mpi_comm)
+!!!>        call mpiallred(m_at,op=MPI_SUM,comm=bigdft_mpi%mpi_comm)
+!!!>     end if
+!!!>     type(cfd_data) :: cfd
+!!!>
+!!!>     call cfd_init(cfd,nat=nat,rxyz=rxyz,iatype)
+!!!>
+!!!>     call cfd_dump_info()
+!!!>
+!!!>     !here there should be a call to the CFD routines
+!!!>     call cfd_magnetic_field(cfd)
+!!!>
 
      call exchange_and_correlation(denspot%xc,denspot%dpbox,&
           denspot%rhov,energs%exc,energs%evxc,wfn%orbs%nspin,denspot%rho_C,&
           denspot%rhohat,denspot%V_XC,xcstr)
+
+!!!!>     !here the constraingin magnetic field is added on top of the local xc potential
+!!!!>     call atomic_magnetic_field(denspot%bitp,denspot%dpbox%ndimpot,atoms%astruct%nat,rxyz,radii,&
+!!!!>          cfd%B_at,denspot%V_XC)
+!!!!>
 
 !!$        call XC_potential(atoms%astruct%geocode,'D',denspot%pkernel%mpi_env%iproc,denspot%pkernel%mpi_env%nproc,&
 !!$             denspot%pkernel%mpi_env%mpi_comm,&
@@ -247,27 +269,35 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
         !sum the two potentials in rhopot array
         !fill the other part, for spin, polarised
         ishift=denspot%dpbox%ndimpot
-        do ispin=2,wfn%orbs%nspin
+        if (wfn%orbs%nspin ==4) then
+           call f_zero(2*denspot%dpbox%ndimpot,denspot%rhov(1+ishift))
            call f_memcpy(n=denspot%dpbox%ndimpot,src=denspot%rhov(1),&
-                dest=denspot%rhov(1+ishift))
-           ishift=ishift+denspot%dpbox%ndimpot
-        end do
+                dest=denspot%rhov(1+3*ishift))
+        else
+           do ispin=2,wfn%orbs%nspin
+              call f_memcpy(n=denspot%dpbox%ndimpot,src=denspot%rhov(1),&
+                   dest=denspot%rhov(1+ishift))
+              ishift=ishift+denspot%dpbox%ndimpot
+           end do
+        end if
 !!$        if (wfn%orbs%nspin == 2) then
 !!$           call vcopy(denspot%dpbox%ndimpot,denspot%rhov(1),1,&
 !!$                denspot%rhov(1+denspot%dpbox%ndimpot),1)
 !!$        end if
+
         !spin up and down together with the XC part
         call axpy(denspot%dpbox%ndimpot*wfn%orbs%nspin,&
              1.0_dp,denspot%V_XC(1,1,1,1),1,&
              denspot%rhov(1),1)
 
+
         !put this term for the implementation of the (presumably incorrect) previous version
-        if (wfn%orbs%nspinor==4) then
-           !here temp is (still) the original density whereas rhov contains the full V_HXC
-          call get_spinorial_potential(denspot%dpbox%ndimpot,denspot%rhov,m_norm,temp)
-          call f_memcpy(src=temp,dest=denspot%rhov)
-          call f_free(temp,m_norm)
-       end if
+!!$        if (wfn%orbs%nspinor==4) then
+!!$           !here temp is (still) the original density whereas rhov contains the full V_HXC
+!!$          call get_spinorial_potential(denspot%dpbox%ndimpot,denspot%rhov,m_norm,temp)
+!!$          call f_memcpy(src=temp,dest=denspot%rhov)
+!!$          call f_free(temp,m_norm)
+!!$       end if
 
 
 !!$        !here a external potential with spinorial indices can be added

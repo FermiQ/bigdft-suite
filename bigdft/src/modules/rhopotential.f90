@@ -840,11 +840,13 @@ module rhopotential
 
           call exchange_and_correlation_collinear(xcObj,dpbox,&
                rho_diag,exc,vxc,2,rhocore,rhohat,potxc,xcstr,dvxcdrho)
+          !comment out this term for the implementation of the (presumably incorrect) previous version
+          call get_spinorial_potential(dpbox%ndimpot,potxc,m_norm,rho)
+
+          call f_memcpy(src=rho,dest=potxc)
           !copy the charge density in the first components of rho
           call f_memcpy(n=dpbox%ndimpot,src=rho_diag(1,1),dest=rho(1,1))
 
-          !comment out this term for the implementation of the (presumably incorrect) previous version
-          !call get_spinorial_potential(dpbox%ndimpot,rho,m_norm,potxc)
 
           call f_free(rho_diag)
           call f_free(m_norm)

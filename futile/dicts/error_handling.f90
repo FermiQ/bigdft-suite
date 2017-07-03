@@ -171,31 +171,34 @@
     logical :: f_err_raise
     !local variables
     !    integer :: new_errcode
-    integer(kind=8) :: clbk_data_add
+!    integer(kind=8) :: clbk_data_add
 
     f_err_raise=condition
     !once the error has been identified add it to the present errors and call callback function if needed
     if (f_err_raise) then
-       clbk_data_add=callback_data_add
-       if (present(callback_data)) clbk_data_add=callback_data
+       call f_err_throw(err_msg=err_msg%msg,err_name=err_name,err_id=err_id,&
+            callback=callback,callback_data=callback_data)
 
-       if (present(callback)) then
-          if (present(err_id)) then
-             call f_err_throw(err_msg%msg,err_id=err_id,callback=callback,callback_data=clbk_data_add)
-          else if (present(err_name)) then
-             call f_err_throw(err_msg%msg,err_name=err_name,callback=callback,callback_data=clbk_data_add)
-          else
-             call f_err_throw(err_msg%msg,callback=callback,callback_data=clbk_data_add)
-          end if
-       else
-          if (present(err_id)) then
-             call f_err_throw(err_msg%msg,err_id=err_id,callback_data=clbk_data_add)
-          else if (present(err_name)) then
-             call f_err_throw(err_msg%msg,err_name=err_name,callback_data=clbk_data_add)
-          else
-             call f_err_throw(err_msg%msg,callback_data=clbk_data_add)
-          end if
-       end if
+!!$       clbk_data_add=callback_data_add
+!!$       if (present(callback_data)) clbk_data_add=callback_data
+!!$
+!!$       if (present(callback)) then
+!!$          if (present(err_id)) then
+!!$             call f_err_throw(err_msg%msg,err_id=err_id,callback=callback,callback_data=clbk_data_add)
+!!$          else if (present(err_name)) then
+!!$             call f_err_throw(err_msg%msg,err_name=err_name,callback=callback,callback_data=clbk_data_add)
+!!$          else
+!!$             call f_err_throw(err_msg%msg,callback=callback,callback_data=clbk_data_add)
+!!$          end if
+!!$       else
+!!$          if (present(err_id)) then
+!!$             call f_err_throw(err_msg%msg,err_id=err_id,callback_data=clbk_data_add)
+!!$          else if (present(err_name)) then
+!!$             call f_err_throw(err_msg%msg,err_name=err_name,callback_data=clbk_data_add)
+!!$          else
+!!$             call f_err_throw(err_msg%msg,callback_data=clbk_data_add)
+!!$          end if
+!!$       end if
     end if
   end function f_err_raise_str
 
@@ -218,11 +221,11 @@
     logical :: f_err_raise
     !local variables
 !    integer :: new_errcode
-    integer(kind=8) :: clbk_data_add
+!    integer(kind=8) :: clbk_data_add
 !    integer(kind=8) :: clbk_add
 !    character(len=max_field_length), dimension(1) :: keys
 !    type(dictionary), pointer :: dict_tmp
-    character(len=max_field_length) :: message
+!    character(len=max_field_length) :: message
 
     if (present(condition)) then
        f_err_raise=condition
@@ -231,33 +234,35 @@
     end if
     !once the error has been identified add it to the present errors and call callback function if needed
     if (f_err_raise) then
-       !throw the error with the annoying stuff of optional variables
-       if (present(err_msg)) then
-          message(1:len(message))=err_msg
-       else
-          message(1:len(message))='UNKNOWN'
-       end if
-
-       clbk_data_add=callback_data_add
-       if (present(callback_data)) clbk_data_add=callback_data
-
-       if (present(callback)) then
-          if (present(err_id)) then
-             call f_err_throw(message,err_id=err_id,callback=callback,callback_data=clbk_data_add)
-          else if (present(err_name)) then
-             call f_err_throw(message,err_name=err_name,callback=callback,callback_data=clbk_data_add)
-          else
-             call f_err_throw(message,callback=callback,callback_data=clbk_data_add)
-          end if
-       else
-          if (present(err_id)) then
-             call f_err_throw(message,err_id=err_id,callback_data=clbk_data_add)
-          else if (present(err_name)) then
-             call f_err_throw(message,err_name=err_name,callback_data=clbk_data_add)
-          else
-             call f_err_throw(message,callback_data=clbk_data_add)
-          end if
-       end if
+       call f_err_throw(err_msg=err_msg,err_name=err_name,err_id=err_id,&
+            callback=callback,callback_data=callback_data)
+!!$       !throw the error with the annoying stuff of optional variables
+!!$       if (present(err_msg)) then
+!!$          message(1:len(message))=err_msg
+!!$       else
+!!$          message(1:len(message))='UNKNOWN'
+!!$       end if
+!!$
+!!$       clbk_data_add=callback_data_add
+!!$       if (present(callback_data)) clbk_data_add=callback_data
+!!$
+!!$       if (present(callback)) then
+!!$          if (present(err_id)) then
+!!$             call f_err_throw(message,err_id=err_id,callback=callback,callback_data=clbk_data_add)
+!!$          else if (present(err_name)) then
+!!$             call f_err_throw(message,err_name=err_name,callback=callback,callback_data=clbk_data_add)
+!!$          else
+!!$             call f_err_throw(message,callback=callback,callback_data=clbk_data_add)
+!!$          end if
+!!$       else
+!!$          if (present(err_id)) then
+!!$             call f_err_throw(message,err_id=err_id,callback_data=clbk_data_add)
+!!$          else if (present(err_name)) then
+!!$             call f_err_throw(message,err_name=err_name,callback_data=clbk_data_add)
+!!$          else
+!!$             call f_err_throw(message,callback_data=clbk_data_add)
+!!$          end if
+!!$       end if
     end if
   end function f_err_raise
 
@@ -368,29 +373,34 @@
     external :: callback
     optional :: callback
     !local variables
-    integer(kind=8) :: clbk_data_add
+!    integer(kind=8) :: clbk_data_add
 !!$    integer(kind=8) :: clbk_add
 
-    clbk_data_add=callback_data_add
-    if (present(callback_data)) clbk_data_add=callback_data
 
-    if (present(callback)) then
-       if (present(err_id)) then
-          call f_err_throw_c(message%msg,err_id=err_id,callback=callback,callback_data=clbk_data_add)
-       else if (present(err_name)) then
-          call f_err_throw_c(message%msg,err_name=err_name,callback=callback,callback_data=clbk_data_add)
-       else
-          call f_err_throw_c(message%msg,callback=callback,callback_data=clbk_data_add)
-       end if
-    else
-       if (present(err_id)) then
-          call f_err_throw_c(message%msg,err_id=err_id,callback_data=clbk_data_add)
-       else if (present(err_name)) then
-          call f_err_throw_c(message%msg,err_name=err_name,callback_data=clbk_data_add)
-       else
-          call f_err_throw_c(message%msg,callback_data=clbk_data_add)
-       end if
-    end if
+    call f_err_throw_c(err_msg=message%msg,err_id=err_id,err_name=err_name,&
+         callback=callback,callback_data=callback_data)
+
+!!$
+!!$    clbk_data_add=callback_data_add
+!!$    if (present(callback_data)) clbk_data_add=callback_data
+!!$
+!!$    if (present(callback)) then
+!!$       if (present(err_id)) then
+!!$          call f_err_throw_c(message%msg,err_id=err_id,callback=callback,callback_data=clbk_data_add)
+!!$       else if (present(err_name)) then
+!!$          call f_err_throw_c(message%msg,err_name=err_name,callback=callback,callback_data=clbk_data_add)
+!!$       else
+!!$          call f_err_throw_c(message%msg,callback=callback,callback_data=clbk_data_add)
+!!$       end if
+!!$    else
+!!$       if (present(err_id)) then
+!!$          call f_err_throw_c(message%msg,err_id=err_id,callback_data=clbk_data_add)
+!!$       else if (present(err_name)) then
+!!$          call f_err_throw_c(message%msg,err_name=err_name,callback_data=clbk_data_add)
+!!$       else
+!!$          call f_err_throw_c(message%msg,callback_data=clbk_data_add)
+!!$       end if
+!!$    end if
   end subroutine f_err_throw_str
 
 

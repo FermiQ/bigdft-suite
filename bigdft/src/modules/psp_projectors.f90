@@ -595,10 +595,10 @@ subroutine atomic_PSP_density_matrix_update(transp,lmax,l,ncplx,n_w,sp,fac,gamma
       where( abs(pp) < 1.e-10) pp=0.0_wp
 
       !density values
-      rho(1)=0.5_wp*(pp(1)*p(1)+pp(2)*p(2)+pp(3)*p(3)+pp(4)*p(4))
-      rho(2)=p(1)*pp(3)+p(2)*pp(4)
-      rho(3)=p(1)*pp(4)-p(2)*pp(3) !this seems with the opposite sign
-      rho(4)=0.5_wp*(p(1)*pp(1)+p(2)*pp(2)-pp(3)*p(3)-pp(4)*p(4))
+      rho(1)=pp(1)*p(1)+pp(2)*p(2)+pp(3)*p(3)+pp(4)*p(4)
+      rho(2)=2.0_wp*(p(1)*pp(3)+p(2)*pp(4))
+      rho(3)=2.0_wp*(p(1)*pp(4)-p(2)*pp(3)) !this seems with the opposite sign
+      rho(4)=p(1)*pp(1)+p(2)*pp(2)-pp(3)*p(3)-pp(4)*p(4)
 
     end function pauli_representation
 

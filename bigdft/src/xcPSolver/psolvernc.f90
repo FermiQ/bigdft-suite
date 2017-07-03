@@ -661,13 +661,14 @@ end subroutine get_local_magnetization
 
 subroutine get_spinorial_potential(ndim,pot_diag,m_norm,rhopot)
   use module_defs, only: dp
+  implicit none
   integer, intent(in) :: ndim!< size of the array
-  real(dp), dimension(ndim,2), intent(in) :: pot_diag !<local collinear co
+  real(dp), dimension(ndim,2), intent(in) :: pot_diag !<local collinear XC
   real(dp), dimension(ndim), intent(in) :: m_norm !< local magnetization
   real(dp), dimension(ndim,4), intent(inout) :: rhopot !<density spinorial components
   !local variables
   integer :: idx
-  real(dp) :: rhon,rhos
+  real(dp) :: rhon,rhos,factor
 
   do idx=1,ndim
      rhon=(pot_diag(idx,1)+pot_diag(idx,2))*0.5_dp
@@ -683,3 +684,78 @@ subroutine get_spinorial_potential(ndim,pot_diag,m_norm,rhopot)
      rhopot(idx,4)=rhon-rhopot(idx,4)*factor
   end do
 end subroutine get_spinorial_potential
+
+subroutine atomic_magnetic_moments(bitp,nrhodim,nat,rxyz,radii,rho,rho_at,m_at)
+  use module_defs, only: gp,dp
+  use box
+  use f_functions
+  use dynamic_memory
+  implicit none
+  integer, intent(in) :: nat,nrhodim
+  real(gp), dimension(nat), intent(in) :: radii
+  real(gp), dimension(3,nat), intent(in) :: rxyz
+  real(dp), dimension(nrhodim,4), intent(in) :: rho
+  type(box_iterator) :: bitp !<iterator over the potential degrees of freedom
+  real(dp), dimension(nat), intent(out) :: rho_at
+  real(dp), dimension(3,nat), intent(out) :: m_at
+  !local variables
+  integer :: iat
+  real(dp) :: r,rat_tmp,smearing
+  type(f_function) :: func
+  real(dp), dimension(3) :: mat_tmp
+  call f_routine(id='atomic_magnetic_moments')
+  !iterate over the atoms
+
+  do iat=1,nat
+     !iterate on the cell, centering of the atoms
+     mat_tmp=0.0_dp
+     rat_tmp=0.0_dp
+     func=f_function_new(f_erf,scale=radii(iat))
+     do while(box_next_point(bitp))
+        r=distance(bitp%mesh,bitp%rxyz,rxyz(:,iat))
+        smearing=eval(func,r)
+        rat_tmp=rat_tmp+smearing*rho(bitp%ind,1)
+        mat_tmp(1)=mat_tmp(1)+smearing*rho(bitp%ind,2)
+        mat_tmp(2)=mat_tmp(2)+smearing*rho(bitp%ind,3)
+        mat_tmp(3)=mat_tmp(3)+smearing*rho(bitp%ind,4)
+     end do
+     m_at(:,iat)=mat_tmp
+     rho_at(iat)=rat_tmp
+  end do
+  call f_release_routine()
+end subroutine atomic_magnetic_moments
+
+subroutine atomic_magnetic_field(bitp,npotdim,nat,rxyz,radii,B_at,pot)
+  use module_defs, only: gp,dp
+  use box
+  use f_functions
+  use dynamic_memory
+  implicit none
+  integer, intent(in) :: nat,npotdim
+  real(gp), dimension(nat), intent(in) :: radii
+  real(gp), dimension(3,nat), intent(in) :: rxyz
+  real(dp), dimension(3,nat), intent(in) :: B_at
+  real(dp), dimension(npotdim,4), intent(inout) :: pot
+  type(box_iterator) :: bitp !<iterator over the potential degrees of freedom
+  !local variables
+  integer :: iat
+  real(dp) :: r,smearing
+  type(f_function) :: func
+
+  call f_routine(id='atomic_magnetic_field')
+  !iterate over the atoms
+
+  do iat=1,nat
+     !iterate on the cell, centering of the atoms
+     func=f_function_new(f_erf,scale=radii(iat))
+     do while(box_next_point(bitp))
+        r=distance(bitp%mesh,bitp%rxyz,rxyz(:,iat))
+        smearing=eval(func,r)
+        pot(bitp%ind,1)=pot(bitp%ind,1)+B_at(3,iat)*smearing
+        pot(bitp%ind,2)=pot(bitp%ind,2)+B_at(1,iat)*smearing
+        pot(bitp%ind,3)=pot(bitp%ind,3)-B_at(2,iat)*smearing
+        pot(bitp%ind,4)=pot(bitp%ind,4)-B_at(3,iat)*smearing
+     end do
+  end do
+  call f_release_routine()
+end subroutine atomic_magnetic_field
