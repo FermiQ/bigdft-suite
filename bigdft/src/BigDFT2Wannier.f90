@@ -174,9 +174,10 @@ program BigDFT2Wannier
 
    ! use the new lzd type for compatibility reasons, i.e. replace Glr by glr%lzd
    lzd=default_lzd()
+   lzd%hgrids=[input%hx,input%hy,input%hz]
 
    call lr_set(lzd%Glr,iproc,.false.,.true.,input%crmult,input%frmult,&
-        [input%hx,input%hy,input%hz],atoms%astruct%rxyz,atoms,&
+        lzd%hgrids,atoms%astruct%rxyz,atoms,&
         .true.,.false.)
 !!$   ! Determine size alat of overall simulation cell and shift atom positions
 !!$   ! then calculate the size in units of the grid space
