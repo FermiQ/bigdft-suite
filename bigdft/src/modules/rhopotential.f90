@@ -21,7 +21,7 @@ module rhopotential
   public :: clean_rho
   public :: corrections_for_negative_charge
   public :: extract_potential
-  public :: exchange_and_correlation
+  public :: exchange_and_correlation,set_cfd_data
 
   contains
 
@@ -1122,6 +1122,44 @@ module rhopotential
        end subroutine substract_from_vexcu
 
      END SUBROUTINE exchange_and_correlation_collinear
+
+     subroutine set_cfd_data(cfd,mesh,astruct,rxyz)
+       use module_defs, only: gp
+       use module_cfd
+       use box
+       use module_atoms
+       use dynamic_memory
+       implicit none
+       type(atomic_structure), intent(in) :: astruct
+       type(cell), intent(in) :: mesh
+       real(gp), dimension(3,astruct%nat), intent(in) :: rxyz
+       type(cfd_data), intent(out) :: cfd
+       !local variables
+       integer :: jat
+       real(gp) :: r
+       type(atoms_iterator) :: atit
+       type(atomic_neighbours) :: nnit
+
+       !fill the positions
+       call cfd_allocate(cfd,astruct%nat)
+       call f_memcpy(src=rxyz,dest=cfd%rxyz)
+
+       !adjust the radii with the nn iterator
+       !iterate above atoms
+       atit=atoms_iter(astruct)
+       !iterate of nearest neighbors
+       call astruct_neighbours(astruct, rxyz, nnit)
+       loop_at: do while(atoms_iter_next(atit))
+          call astruct_neighbours_iter(nnit, atit%iat)
+          do while(astruct_neighbours_next(nnit, jat))
+             !set the radius as the distance bw the atom iat and its nearest
+             r=distance(mesh,rxyz(1,atit%iat),rxyz(1,jat))
+             call cfd_set_radius(cfd,atit%iat,0.5_gp*r)
+             cycle loop_at
+          end do
+       end do loop_at
+       call deallocate_atomic_neighbours(nnit)       
+     end subroutine set_cfd_data
 
 
 end module rhopotential

@@ -33,6 +33,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
   use orbitalbasis
   use chess_base, only: chess_init
   use module_dpbox, only: dpbox_set
+  use rhopotential, only: set_cfd_data
   implicit none
   integer, intent(in) :: iproc,nproc 
   logical, intent(in) :: dry_run, dump
@@ -382,6 +383,8 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
           denspot%dpbox,in%rho_commun,rxyz,denspot%rhod)
      !allocate the arrays.
      call allocateRhoPot(Lzd%Glr,in%nspin,atoms,rxyz,denspot)
+     !here insert the conditional for the constrained field dynamics
+     call set_cfd_data(denspot%cfd,Lzd%Glr%mesh,atoms%astruct,rxyz)
   end if
 
   !calculate the irreductible zone for this region, if necessary.

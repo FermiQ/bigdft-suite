@@ -713,7 +713,7 @@ subroutine atomic_magnetic_moments(bitp,nrhodim,nat,rxyz,radii,rho,rho_at,m_at)
      func=f_function_new(f_erf,scale=radii(iat))
      do while(box_next_point(bitp))
         r=distance(bitp%mesh,bitp%rxyz,rxyz(:,iat))
-        smearing=eval(func,r)
+        smearing=eval(func,r)*bitp%mesh%volume_element
         rat_tmp=rat_tmp+smearing*rho(bitp%ind,1)
         mat_tmp(1)=mat_tmp(1)+smearing*rho(bitp%ind,2)
         mat_tmp(2)=mat_tmp(2)+smearing*rho(bitp%ind,3)
@@ -750,7 +750,7 @@ subroutine atomic_magnetic_field(bitp,npotdim,nat,rxyz,radii,B_at,pot)
      func=f_function_new(f_erf,scale=radii(iat))
      do while(box_next_point(bitp))
         r=distance(bitp%mesh,bitp%rxyz,rxyz(:,iat))
-        smearing=eval(func,r)
+        smearing=eval(func,r)*bitp%mesh%volume_element
         pot(bitp%ind,1)=pot(bitp%ind,1)+B_at(3,iat)*smearing
         pot(bitp%ind,2)=pot(bitp%ind,2)+B_at(1,iat)*smearing
         pot(bitp%ind,3)=pot(bitp%ind,3)-B_at(2,iat)*smearing

@@ -1462,7 +1462,6 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
      call f_free_ptr(denspot%V_XC)
      if (nproc > 1) call f_free_ptr(denspot%rhov)
 
-     !pass hx instead of hgrid since we are only in free BC
      call CalculateTailCorrection(iproc,nproc,atoms,in%rbuf,KSwfn%orbs,&
           KSwfn%Lzd%Glr,nlpsp,in%ncongt,denspot%pot_work,KSwfn%Lzd%hgrids,&
           rxyz,in%crmult,in%frmult,in%nspin,&

@@ -24,6 +24,7 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
   use rhopotential, only: full_local_potential
   use public_enums
   use rhopotential, only: updatePotential,exchange_and_correlation
+  use module_cfd, only: cfd_dump_info
   implicit none
   !Arguments
   logical, intent(in) :: scf  !< If .false. do not calculate the self-consistent potential
@@ -217,22 +218,25 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
 !!$        call f_free(temp2)
 !!$     end if
 
-!!!>     !here we need to calculate the atomic magnetic moments of the provided density
-!!!>     call atomic_magnetic_moments(denspot%bitp,denspot%dpbox%ndimpot,atoms%astruct%nat,rxyz,radii,&
-!!!>          denspot%rhov(1+dpbox%mesh%ndims(1)*dpbox%mesh%ndims(2)*dpbox%i3xcsh),cfd%rho_at,cfd%m_at)
-!!!>     if (nproc > 1) then
-!!!>        call mpiallred(rho_at,op=MPI_SUM,comm=bigdft_mpi%mpi_comm)
-!!!>        call mpiallred(m_at,op=MPI_SUM,comm=bigdft_mpi%mpi_comm)
-!!!>     end if
+     !here we need to calculate the atomic magnetic moments of the provided density
+     !the conditional should be added
+     call atomic_magnetic_moments(denspot%dpbox%bitp,denspot%dpbox%ndimpot,atoms%astruct%nat,denspot%cfd%rxyz,denspot%cfd%radii,&
+          denspot%rhov(1+denspot%dpbox%mesh%ndims(1)*denspot%dpbox%mesh%ndims(2)*denspot%dpbox%i3xcsh),&
+          denspot%cfd%rho_at,denspot%cfd%m_at)
+     if (nproc > 1) then
+        call mpiallred(denspot%cfd%rho_at,op=MPI_SUM,comm=bigdft_mpi%mpi_comm)
+        call mpiallred(denspot%cfd%m_at,op=MPI_SUM,comm=bigdft_mpi%mpi_comm)
+     end if
 !!!>     type(cfd_data) :: cfd
 !!!>
 !!!>     call cfd_init(cfd,nat=nat,rxyz=rxyz,iatype)
 !!!>
-!!!>     call cfd_dump_info()
+     if(iproc==0) call cfd_dump_info(denspot%cfd)
 !!!>
 !!!>     !here there should be a call to the CFD routines
 !!!>     call cfd_magnetic_field(cfd)
 !!!>
+     
 
      call exchange_and_correlation(denspot%xc,denspot%dpbox,&
           denspot%rhov,energs%exc,energs%evxc,wfn%orbs%nspin,denspot%rho_C,&
