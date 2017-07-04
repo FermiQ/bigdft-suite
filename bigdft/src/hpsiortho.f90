@@ -220,32 +220,34 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
 
      !here we need to calculate the atomic magnetic moments of the provided density
      !the conditional should be added
-     call atomic_magnetic_moments(denspot%dpbox%bitp,denspot%dpbox%ndimpot,atoms%astruct%nat,denspot%cfd%rxyz,denspot%cfd%radii,&
-          denspot%rhov(1+denspot%dpbox%mesh%ndims(1)*denspot%dpbox%mesh%ndims(2)*denspot%dpbox%i3xcsh),&
-          denspot%cfd%rho_at,denspot%cfd%m_at)
-     if (nproc > 1) then
-        call mpiallred(denspot%cfd%rho_at,op=MPI_SUM,comm=bigdft_mpi%mpi_comm)
-        call mpiallred(denspot%cfd%m_at,op=MPI_SUM,comm=bigdft_mpi%mpi_comm)
-     end if
-!!!>     type(cfd_data) :: cfd
-!!!>
-!!!>     call cfd_init(cfd,nat=nat,rxyz=rxyz,iatype)
-!!!>
-     if(iproc==0) call cfd_dump_info(denspot%cfd)
+     if (denspot%cfd%nat >0) then
+        call atomic_magnetic_moments(denspot%dpbox%bitp,denspot%dpbox%ndimpot,atoms%astruct%nat,denspot%cfd%rxyz,denspot%cfd%radii,&
+             denspot%rhov(1+denspot%dpbox%mesh%ndims(1)*denspot%dpbox%mesh%ndims(2)*denspot%dpbox%i3xcsh),&
+             denspot%cfd%rho_at,denspot%cfd%m_at)
+        if (nproc > 1) then
+           call mpiallred(denspot%cfd%rho_at,op=MPI_SUM,comm=bigdft_mpi%mpi_comm)
+           call mpiallred(denspot%cfd%m_at,op=MPI_SUM,comm=bigdft_mpi%mpi_comm)
+        end if
+        if(iproc==0) call cfd_dump_info(denspot%cfd)
 !!!>
 !!!>     !here there should be a call to the CFD routines
 !!!>     call cfd_magnetic_field(cfd)
 !!!>
+     end if
      
 
      call exchange_and_correlation(denspot%xc,denspot%dpbox,&
           denspot%rhov,energs%exc,energs%evxc,wfn%orbs%nspin,denspot%rho_C,&
           denspot%rhohat,denspot%V_XC,xcstr)
 
-!!!!>     !here the constraingin magnetic field is added on top of the local xc potential
-!!!!>     call atomic_magnetic_field(denspot%bitp,denspot%dpbox%ndimpot,atoms%astruct%nat,rxyz,radii,&
-!!!!>          cfd%B_at,denspot%V_XC)
-!!!!>
+     if (denspot%cfd%nat >0) then
+!!$        !here the constraingin magnetic field is added on top of the local xc potential
+!!$        call f_zero(denspot%cfd%B_at)
+!!$        denspot%cfd%B_at(1,1)=0.5_gp
+!!$        denspot%cfd%B_at(1,2)=0.5_gp
+!!$        call atomic_magnetic_field(denspot%dpbox%bitp,denspot%dpbox%ndimpot,atoms%astruct%nat,&
+!!$             denspot%cfd%rxyz,denspot%cfd%radii,denspot%cfd%B_at,denspot%V_XC)
+     end if
 
 !!$        call XC_potential(atoms%astruct%geocode,'D',denspot%pkernel%mpi_env%iproc,denspot%pkernel%mpi_env%nproc,&
 !!$             denspot%pkernel%mpi_env%mpi_comm,&

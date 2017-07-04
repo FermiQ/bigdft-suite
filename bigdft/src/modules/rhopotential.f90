@@ -1129,6 +1129,7 @@ module rhopotential
        use box
        use module_atoms
        use dynamic_memory
+       use yaml_output
        implicit none
        type(atomic_structure), intent(in) :: astruct
        type(cell), intent(in) :: mesh
@@ -1142,7 +1143,8 @@ module rhopotential
 
        !fill the positions
        call cfd_allocate(cfd,astruct%nat)
-       call f_memcpy(src=rxyz,dest=cfd%rxyz)
+
+       call cfd_set_centers(cfd,rxyz)
 
        !adjust the radii with the nn iterator
        !iterate above atoms

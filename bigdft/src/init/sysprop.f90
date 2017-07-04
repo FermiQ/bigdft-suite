@@ -384,7 +384,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
      !allocate the arrays.
      call allocateRhoPot(Lzd%Glr,in%nspin,atoms,rxyz,denspot)
      !here insert the conditional for the constrained field dynamics
-     call set_cfd_data(denspot%cfd,Lzd%Glr%mesh,atoms%astruct,rxyz)
+     if (in%calculate_magnetic_torque) call set_cfd_data(denspot%cfd,Lzd%Glr%mesh,atoms%astruct,rxyz)
   end if
 
   !calculate the irreductible zone for this region, if necessary.

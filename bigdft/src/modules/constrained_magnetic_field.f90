@@ -29,6 +29,7 @@ module module_cfd
   end type cfd_data
 
   public :: cfd_allocate,cfd_free,cfd_set_radius,cfd_dump_info
+  public :: cfd_set_centers
 
 contains
   
@@ -75,6 +76,25 @@ contains
     cfd%rho_at=f_malloc_ptr(nat,id='cfd%rho_at')
 
   end subroutine cfd_allocate
+
+!!$  function cfd_get_centers_ptr(cfd) result(ptr)
+!!$    implicit none
+!!$    type(cfd_data), intent(inout) :: cfd
+!!$    real(gp), dimension(:,:), pointer :: ptr
+!!$
+!!$    ptr => cfd%rxyz
+!!$
+!!$  end function cfd_get_centers_ptr
+
+  subroutine cfd_set_centers(cfd,rxyz)
+    implicit none
+    type(cfd_data), intent(inout) :: cfd
+    real(gp), dimension(3,cfd%nat), intent(in) :: rxyz
+    
+    call f_memcpy(src=rxyz,dest=cfd%rxyz)
+
+  end subroutine cfd_set_centers
+    
 
   pure subroutine cfd_set_radius(cfd,iat,radius)
     implicit none

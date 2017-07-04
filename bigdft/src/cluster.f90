@@ -1517,6 +1517,7 @@ contains
   !> Routine which deallocate the pointers and the arrays before exiting
   subroutine deallocate_before_exiting
     use communications_base, only: deallocate_comms
+    use module_cfd, only: cfd_free
     implicit none
     external :: gather_timings
   !when this condition is verified we are in the middle of the SCF cycle
@@ -1539,6 +1540,7 @@ contains
        call f_free_ptr(denspot%V_XC)
 
        call dpbox_free(denspot%dpbox)
+       call cfd_free(denspot%cfd)
 
        call f_free_ptr(fion)
        call f_free_ptr(fdisp)

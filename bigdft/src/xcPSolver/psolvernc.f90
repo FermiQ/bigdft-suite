@@ -690,6 +690,7 @@ subroutine atomic_magnetic_moments(bitp,nrhodim,nat,rxyz,radii,rho,rho_at,m_at)
   use box
   use f_functions
   use dynamic_memory
+  use f_ternary
   implicit none
   integer, intent(in) :: nat,nrhodim
   real(gp), dimension(nat), intent(in) :: radii
@@ -710,10 +711,11 @@ subroutine atomic_magnetic_moments(bitp,nrhodim,nat,rxyz,radii,rho,rho_at,m_at)
      !iterate on the cell, centering of the atoms
      mat_tmp=0.0_dp
      rat_tmp=0.0_dp
-     func=f_function_new(f_erf,scale=radii(iat))
+     func=f_function_new(f_erf,scale=1.0_dp)
      do while(box_next_point(bitp))
         r=distance(bitp%mesh,bitp%rxyz,rxyz(:,iat))
-        smearing=eval(func,r)*bitp%mesh%volume_element
+        !smearing=0.5_gp*(1.0_dp-eval(func,r-radii(iat)))*bitp%mesh%volume_element
+        smearing=.if. (r<radii(iat)) .then. bitp%mesh%volume_element .else. 0.0_gp
         rat_tmp=rat_tmp+smearing*rho(bitp%ind,1)
         mat_tmp(1)=mat_tmp(1)+smearing*rho(bitp%ind,2)
         mat_tmp(2)=mat_tmp(2)+smearing*rho(bitp%ind,3)
@@ -730,6 +732,7 @@ subroutine atomic_magnetic_field(bitp,npotdim,nat,rxyz,radii,B_at,pot)
   use box
   use f_functions
   use dynamic_memory
+  use f_ternary
   implicit none
   integer, intent(in) :: nat,npotdim
   real(gp), dimension(nat), intent(in) :: radii
@@ -750,7 +753,8 @@ subroutine atomic_magnetic_field(bitp,npotdim,nat,rxyz,radii,B_at,pot)
      func=f_function_new(f_erf,scale=radii(iat))
      do while(box_next_point(bitp))
         r=distance(bitp%mesh,bitp%rxyz,rxyz(:,iat))
-        smearing=eval(func,r)*bitp%mesh%volume_element
+        !smearing=1.0_dp-eval(func,r)
+        smearing=.if. (r<radii(iat)) .then. 1.0_gp .else. 0.0_gp
         pot(bitp%ind,1)=pot(bitp%ind,1)+B_at(3,iat)*smearing
         pot(bitp%ind,2)=pot(bitp%ind,2)+B_at(1,iat)*smearing
         pot(bitp%ind,3)=pot(bitp%ind,3)-B_at(2,iat)*smearing
