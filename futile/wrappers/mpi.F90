@@ -142,11 +142,11 @@ module wrapper_MPI
   end interface mpiaccumulate
 
   interface mpitypesize
-    module procedure mpitypesize_d0, mpitypesize_d1, mpitypesize_i0, mpitypesize_l0
+    module procedure mpitypesize_d0, mpitypesize_d1, mpitypesize_i0, mpitypesize_long0, mpitypesize_l0
   end interface mpitypesize
 
   interface mpiwindow
-    module procedure mpiwindow_d0, mpiwindow_i0, mpiwindow_l0
+    module procedure mpiwindow_d0, mpiwindow_i0, mpiwindow_long0, mpiwindow_l0
   end interface mpiwindow
 
   !> Interface for MPI_ALLGATHERV routine
@@ -165,6 +165,10 @@ module wrapper_MPI
   interface mpiialltoallv
       module procedure mpiialltoallv_double
   end interface mpiialltoallv
+
+  interface mpi_get_alltoallv
+      module procedure mpi_get_alltoallv_i, mpi_get_alltoallv_l
+  end interface mpi_get_alltoallv
 
 !!$  interface mpiaccumulate
 !!$      module procedure mpiaccumulate_double
@@ -2196,6 +2200,19 @@ contains
     end if
   end function mpitypesize_i0
 
+  function mpitypesize_long0(foo) result(sizeof)
+    use dictionaries, only: f_err_throw,f_err_define
+    implicit none
+    integer(f_long), intent(in) :: foo
+    integer :: sizeof, ierr
+
+    call mpi_type_size(mpi_long, sizeof, ierr)
+    if (ierr/=0) then
+       call f_err_throw('Error in mpi_type_size',&
+            err_id=ERR_MPI_WRAPPERS)
+    end if
+  end function mpitypesize_long0
+
   function mpitypesize_l0(foo) result(sizeof)
     use dictionaries, only: f_err_throw,f_err_define
     implicit none
@@ -2308,6 +2325,39 @@ contains
 
 
   end function mpiwindow_i0
+
+  function mpiwindow_long0(size,base,comm) result(window)
+    use dictionaries, only: f_err_throw,f_err_define
+    implicit none
+    integer,intent(in) :: size
+    integer(f_long),intent(in) :: base
+    integer,intent(in) :: comm
+    !local variables
+    integer :: sizeof,info,ierr
+    integer :: window
+
+    sizeof=mpitypesize(base)
+    info=mpiinfo("no_locks", "true")
+
+    call mpi_win_create(base, int(size,kind=mpi_address_kind)*int(sizeof,kind=mpi_address_kind), &
+         sizeof, info,comm, window, ierr)
+
+    if (ierr/=0) then
+       call f_err_throw('Error in mpi_win_create',&
+            err_id=ERR_MPI_WRAPPERS)
+    end if
+
+    call mpiinfofree(info)
+
+    call mpi_win_fence(MPI_MODE_NOPRECEDE, window, ierr)
+    if (ierr/=0) then
+       call f_err_throw('Error in mpi_win_fence',&
+            err_id=ERR_MPI_WRAPPERS)
+    end if
+
+
+  end function mpiwindow_long0
+
 
   function mpiwindow_l0(size,base,comm) result(window)
     use dictionaries, only: f_err_throw,f_err_define
@@ -3031,6 +3081,75 @@ contains
        end if
     end if
   end subroutine mpiwait
+
+
+
+  subroutine mpi_get_alltoallv_i(iproc, nproc, comm, nsendcounts, nsenddspls, nrecvcounts, nrecvdspls, sendbuf, recvbuf)
+    use dynamic_memory
+    implicit none
+  
+    integer,intent(in) :: iproc, nproc, comm
+    integer,dimension(0:nproc-1),intent(in) :: nsendcounts, nsenddspls, nrecvcounts, nrecvdspls
+    integer(f_integer),dimension(sum(nsendcounts)),intent(in) :: sendbuf
+    integer(f_integer),dimension(sum(nrecvcounts)),intent(in) :: recvbuf
+  
+    integer :: ierr, info, window, jproc
+    integer,dimension(:),allocatable :: nsenddspls_remote
+  
+    nsenddspls_remote = f_malloc(0.to.nproc-1,id='nsenddspls_remote')
+  
+    call mpi_alltoall(nsenddspls, 1, mpi_integer, &
+                      nsenddspls_remote, 1, mpi_integer, &
+                      comm, ierr)
+  
+    info=mpiinfo("no_locks", "true")
+    window = mpiwindow(size(sendbuf), sendbuf(1), comm)
+    do jproc=0,nproc-1
+        call mpi_get(recvbuf(nrecvdspls(jproc)+1), nrecvcounts(jproc), mpitype(recvbuf), &
+                     jproc, int(nsenddspls_remote(jproc),kind=mpi_address_kind), &
+                     nrecvcounts(jproc), mpitype(sendbuf), window, ierr)
+    end do
+    call mpi_fenceandfree(window)
+    call mpiinfofree(info)
+
+    call f_free(nsenddspls_remote)
+  
+  end subroutine mpi_get_alltoallv_i
+
+
+  subroutine mpi_get_alltoallv_l(iproc, nproc, comm, nsendcounts, nsenddspls, nrecvcounts, nrecvdspls, sendbuf, recvbuf)
+    use dynamic_memory
+    implicit none
+  
+    integer,intent(in) :: iproc, nproc, comm
+    integer,dimension(0:nproc-1),intent(in) :: nsendcounts, nsenddspls, nrecvcounts, nrecvdspls
+    integer(f_long),dimension(sum(nsendcounts)),intent(in) :: sendbuf
+    integer(f_long),dimension(sum(nrecvcounts)),intent(in) :: recvbuf
+  
+    integer :: ierr, info, window, jproc
+    integer,dimension(:),allocatable :: nsenddspls_remote
+  
+    nsenddspls_remote = f_malloc(0.to.nproc-1,id='nsenddspls_remote')
+  
+    call mpi_alltoall(nsenddspls, 1, mpi_integer, &
+                      nsenddspls_remote, 1, mpi_integer, &
+                      comm, ierr)
+  
+    info=mpiinfo("no_locks", "true")
+    window = mpiwindow(size(sendbuf), sendbuf(1), comm)
+    do jproc=0,nproc-1
+        call mpi_get(recvbuf(nrecvdspls(jproc)+1), nrecvcounts(jproc), mpitype(recvbuf), &
+                     jproc, int(nsenddspls_remote(jproc),kind=mpi_address_kind), &
+                     nrecvcounts(jproc), mpitype(sendbuf), window, ierr)
+    end do
+    call mpi_fenceandfree(window)
+    call mpiinfofree(info)
+
+    call f_free(nsenddspls_remote)
+  
+  end subroutine mpi_get_alltoallv_l
+
+
 
 end module wrapper_MPI
 
