@@ -234,7 +234,6 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
 !!!>     call cfd_magnetic_field(cfd)
 !!!>
      end if
-     
 
      call exchange_and_correlation(denspot%xc,denspot%dpbox,&
           denspot%rhov,energs%exc,energs%evxc,wfn%orbs%nspin,denspot%rho_C,&

@@ -1540,8 +1540,6 @@ contains
        call f_free_ptr(denspot%V_XC)
 
        call dpbox_free(denspot%dpbox)
-       call cfd_free(denspot%cfd)
-
        call f_free_ptr(fion)
        call f_free_ptr(fdisp)
     end if
@@ -1563,9 +1561,9 @@ contains
     if(associated(denspot%rho_C)) then
        call f_free_ptr(denspot%rho_C)
     end if
-    if(associated(denspot%rhohat)) then
-       call f_free_ptr(denspot%rhohat)
-    end if
+    call f_free_ptr(denspot%rhohat)
+    call cfd_free(denspot%cfd)
+       
     call f_free(denspot0)
 
     ! Free all remaining parts of KSwfn
