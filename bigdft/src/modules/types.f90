@@ -190,9 +190,10 @@ module module_types
   end type linmat_auxiliary
   
   type,public :: linear_matrices
-      type(sparse_matrix) :: s !< small: sparsity pattern given by support function cutoff
-      type(sparse_matrix) :: m !< medium: sparsity pattern given by SHAMOP cutoff
-      type(sparse_matrix) :: l !< medium: sparsity pattern given by kernel cutoff
+      type(sparse_matrix),dimension(3) :: smat !< small: sparsity pattern given by support function cutoff
+                                               !! medium: sparsity pattern given by SHAMOP cutoff
+                                               !! medium: sparsity pattern given by kernel cutoff
+
       type(sparse_matrix),dimension(:),pointer :: ks !< sparsity pattern for the KS orbitals (i.e. dense); spin up and down
       type(sparse_matrix),dimension(:),pointer :: ks_e !< sparsity pattern for the KS orbitals including extra stated (i.e. dense); spin up and down
       type(sparse_matrix_metadata) :: smmd !< metadata of the sparse matrices
@@ -591,7 +592,7 @@ module module_types
  public :: nonlocal_psp_descriptors
  public :: default_lzd,find_category,old_wavefunction_null,old_wavefunction_free
  public :: bigdft_init_errors,bigdft_init_timing_categories
- public :: deallocate_orbs,deallocate_locreg_descriptors,nullify_wfd
+ public :: deallocate_orbs,deallocate_locreg_descriptors
  public :: deallocate_paw_objects!,deallocate_wfd,
  public :: old_wavefunction_set
  public :: nullify_locreg_descriptors
@@ -1558,9 +1559,9 @@ contains
     type(linear_matrices) :: linmat
     integer :: i
     linmat%smmd = sparse_matrix_metadata_null()
-    linmat%s = sparse_matrix_null()
-    linmat%m = sparse_matrix_null()
-    linmat%l = sparse_matrix_null()
+    linmat%smat(1) = sparse_matrix_null()
+    linmat%smat(2) = sparse_matrix_null()
+    linmat%smat(3) = sparse_matrix_null()
     nullify(linmat%ks)
     nullify(linmat%ks_e)
     linmat%ovrlp_ = matrices_null()
@@ -1588,9 +1589,9 @@ contains
     type(linear_matrices),intent(inout) :: linmat
     integer :: i, ispin
     call deallocate_sparse_matrix_metadata(linmat%smmd)
-    call deallocate_sparse_matrix(linmat%s)
-    call deallocate_sparse_matrix(linmat%m)
-    call deallocate_sparse_matrix(linmat%l)
+    call deallocate_sparse_matrix(linmat%smat(1))
+    call deallocate_sparse_matrix(linmat%smat(2))
+    call deallocate_sparse_matrix(linmat%smat(3))
     call deallocate_matrices(linmat%ovrlp_)
     call deallocate_matrices(linmat%ham_)
     call deallocate_matrices(linmat%kernel_)

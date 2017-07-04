@@ -1329,6 +1329,10 @@ module FDder
                tmp(3)=dz/hz
 
                !retrieve the previous treatment
+               ! To be activate (and comment the dotp line) to work properly.
+               !res = dlogeps(1,i1,i2,i3)*tmp(1) + &
+               !     dlogeps(2,i1,i2,i3)*tmp(2) + dlogeps(3,i1,i2,i3)*tmp(3)
+
                res = dotp(mesh,dlogeps(1,i1,i2,i3),tmp)
                res = res*oneofourpi
                rho=rhopol(i1,i2,i3)

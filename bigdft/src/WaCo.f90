@@ -169,9 +169,12 @@ program WaCo
    call read_input_waco(trim(radical)//'.waco',nwannCon,ConstList,linear,nbandCon,bandlist) 
 
    call system_properties(iproc,nproc,input,atoms,orbs)
+   
+   lzd=default_lzd()
+   lzd%hgrids=[input%hx,input%hy,input%hz]
 
    call lr_set(Glr,iproc,.false.,.true.,input%crmult,input%frmult,&
-        [input%hx,input%hy,input%hz],atoms%astruct%rxyz,atoms,&
+        lzd%hgrids,atoms%astruct%rxyz,atoms,&
         .true.,.false.)
 
 !!$   ! Determine size alat of overall simulation cell and shift atom positions

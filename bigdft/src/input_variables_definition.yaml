@@ -232,38 +232,38 @@
      #Here follow two shortcuts for linear
      linear: 100
      linear_restart: 102
-   output_wf:
-     COMMENT: Output of the support functions
-     DESCRIPTION: |
-       controls the output of wavefunctions on disk at the end of the calculation
-
-          - output_wf = 0, Do not write the wavefunctions to disk.
-
-          - output_wf = 1, The output wavefunctions are written at the end of the wavefunction optimization into
-          plain text files. If InputPsiId was greater than 10 the wavefunction will be written in the Gaussian
-          approximation into a single wavefunctions.gau file otherwise into wavefunction. files. Writing a
-          wavefunction. file for each orbital can take a considerable amount of time and disk space.
-
-          - output_wf = 2, The output wavefunctions are written at the end of the wavefunction optimization into
-          Fortran binary files. This format is not portable between compilers and machines.
-
-          - output_wf = 3, The output wavefunctions are written at the end of the wavefunction optimization into
-          ETSF binary files. This format is portable between compilers and machines since based on NetCDF. Parallel
-          IO are taken into account.
-     default: 0
-     EXCLUSIVE:
-       0: None
-       1: Wavelet, Plain text
-       2: Wavelet, Fortran binary
-       3: Wavelet, ETSF file format
-       #10: None
-       #11: Wavelet and Interpolating Scaling Function, Plain text
-       #12: Wavelet and Interpolating Scaling Function, Fortran binary
-       #13: Wavelet and Interpolating Scaling Function, ETSF file format
-       #20: None
-       #21: Wavelet and Interpolating Scaling Function (wavefunction), Plain text
-       #22: Wavelet and Interpolating Scaling Function (wavefunction), Fortran binary
-       #23: Wavelet and Interpolating Scaling Function (wavefunction), ETSF file format
+  #  output_wf:
+  #    COMMENT: Output of the support functions
+  #    DESCRIPTION: |
+  #      controls the output of wavefunctions on disk at the end of the calculation
+   #
+  #         - output_wf = 0, Do not write the wavefunctions to disk.
+   #
+  #         - output_wf = 1, The output wavefunctions are written at the end of the wavefunction optimization into
+  #         plain text files. If InputPsiId was greater than 10 the wavefunction will be written in the Gaussian
+  #         approximation into a single wavefunctions.gau file otherwise into wavefunction. files. Writing a
+  #         wavefunction. file for each orbital can take a considerable amount of time and disk space.
+   #
+  #         - output_wf = 2, The output wavefunctions are written at the end of the wavefunction optimization into
+  #         Fortran binary files. This format is not portable between compilers and machines.
+   #
+  #         - output_wf = 3, The output wavefunctions are written at the end of the wavefunction optimization into
+  #         ETSF binary files. This format is portable between compilers and machines since based on NetCDF. Parallel
+  #         IO are taken into account.
+  #    default: 0
+  #    EXCLUSIVE:
+  #      0: None
+  #      1: Wavelet, Plain text
+  #      2: Wavelet, Fortran binary
+  #      3: Wavelet, ETSF file format
+  #      #10: None
+  #      #11: Wavelet and Interpolating Scaling Function, Plain text
+  #      #12: Wavelet and Interpolating Scaling Function, Fortran binary
+  #      #13: Wavelet and Interpolating Scaling Function, ETSF file format
+  #      #20: None
+  #      #21: Wavelet and Interpolating Scaling Function (wavefunction), Plain text
+  #      #22: Wavelet and Interpolating Scaling Function (wavefunction), Fortran binary
+  #      #23: Wavelet and Interpolating Scaling Function (wavefunction), ETSF file format
    output_denspot:
      COMMENT: Output of the density or the potential
      DESCRIPTION: |
@@ -348,7 +348,7 @@
         care of during the Davidson iterations.
         nplot of these orbitals will be written in the virtual.*.pot files and nplot (if that many exist) of the highest
         occupied orbitals will be written in the orbital.*.pot file. The Kohn Sham eigenvalues are written in the
-        ordinary output file. 
+        ordinary output file.
      RANGE: [-9999, 9999]
      default: 0
    nvirt:
@@ -365,7 +365,7 @@
         care of during the Davidson iterations.
         nplot of these orbitals will be written in the virtual.*.pot files and nplot (if that many exist) of the highest
         occupied orbitals will be written in the orbital.*.pot file. The Kohn Sham eigenvalues are written in the
-        ordinary output file. 
+        ordinary output file.
      RANGE: [0, 9999]
      default: 0
    nplot:
@@ -484,13 +484,30 @@
   sdos:
     COMMENT: Spatially-resolved density of states
     DESCRIPTION: |
-     Plots the density of states by calculating the value of psi*Hpsi per each KS orbital, 
+     Plots the density of states by calculating the value of psi*Hpsi per each KS orbital,
      resolved among x,y or z.
     default: No
+  orbitals:
+    COMMENT: Write KS orbitals in the full simulation domain (might take lot of disk space!)
+    default: No
+    EXCLUSIVE:
+       No: No output
+       text: Output in wavelet basis
+       binary: Binary file output
+       text_with_densities: In addition output wavefunction densities in interpolating scaling functions (cube file)
+       text_with_cube: In addition output wavefunctions in interpolating scaling functions (cube file)
+       etsf: ETSF file format
+  outputpsiid:
+    COMMENT: basename of the output wavefunctions files written in the data directory
+    default: wavefunction
+    DESCRIPTION: |
+      Define the basename of all the files associated to the output of the wavefunctions.
+      Can be reused in the inputpsiid input parameter.
+
   #potentials:
   #  format: CUBE
   #  frequence: iteration, SCF
-    
+
 #K points parameters
  kpt:
    DESCRIPTION: K points defined in the Brillouin zone for periodic system calculations
@@ -727,7 +744,7 @@
        where it is around 8).
        In contrast to the SDCG method, the BFGS method is not very sensitive to the correct stepsize but
        nevertheless one should try to find reasonable values also in this case.
-   
+
        SQNM: For many systems 1 is a good stepsize. Some systems can be minimized more efficiently with
        a larger stepsize.
      CONDITION:
@@ -1050,6 +1067,9 @@
      DESCRIPTION: A value greater than 0 activates wfn extrapolation
      EXCLUSIVE: [ 0, 1, 2, 4 ]
      default: 0
+   always_from_scratch:
+     COMMENT: When true, always restart wavefunctions from scratch to eliminate dissipation effects
+     default: No
    restart_nose:
      COMMENT: Restart Nose Hoover Chain information from md.restart
      default: No
@@ -1270,9 +1290,9 @@
      DESCRIPTION: |
        The debug mode is enable mainly for memory profiling.
      default: No
-   profiling_depth:
-     COMMENT: Maximum level of the profiling for the tracking of the routines
-     default: -1
+#  profiling_depth:
+#     COMMENT: Maximum level of the profiling for the tracking of the routines
+#     default: -1
    fftcache:
      COMMENT: Cache size for the FFT
      DESCRIPTION: |
@@ -1336,16 +1356,6 @@
    rho_commun:
      COMMENT: Density communication scheme (DBL, RSC, MIX)
      default: DEF
-#   psolver_groupsize:
-#     COMMENT: Size of Poisson Solver taskgroups (0=nproc)
-#     RANGE: [0, 1000000]
-#     default: 0
-#   psolver_accel:
-#     COMMENT: Acceleration of the Poisson Solver (0=none, 1=CUDA)
-#     EXCLUSIVE:
-#       0: None
-#       1: CUDA
-#     default: 0
    unblock_comms:
      COMMENT: Overlap Communications of fields (OFF,DEN,POT)
      EXCLUSIVE:
@@ -1420,14 +1430,6 @@
    experimental_mode:
      COMMENT: Activate the experimental mode in linear scaling
      default: No
-   write_orbitals:
-     COMMENT: Linear scaling write KS orbitals for cubic restart (might take lot of disk space!)
-     default: 0
-     EXCLUSIVE:
-       0: No output
-       1: Output in wavelet basis
-       2: In addition output wavefunction densities in interpolating scaling functions (cube file)
-       3: In addition output wavefunctions in interpolating scaling functions (cube file)
    explicit_locregcenters:
      COMMENT: Linear scaling explicitly specify localization centers
      default: No
@@ -1485,13 +1487,6 @@
    wf_extent_analysis:
      COMMENT: Perform an analysis of the extent of the support functions (and possibly KS orbitals)
      default: False
-#   gps_method:
-#     COMMENT: Method for the Generalized Poisson Equation
-#     EXCLUSIVE:
-#        VAC: Vacuum (ordinary treatment)
-#        PI: Polarization Iteration
-#        PCG: Preconditioned Conjugate Gradient
-#     default: VAC
    foe_gap:
      COMMENT: Use the FOE method to calculate the HOMO-LUMO gap at the end of a calculation
      default: False
@@ -1835,7 +1830,7 @@
        RANGE:  [0,1]
      orthogonalize_ao:
        COMMENT: Orthogonalize the atomic orbitals used as input guess
-       default: Yes    
+       default: Yes
      reset_DIIS_history:
        COMMENT: Reset the DIIS history when starting the loop which optimizes the support functions
        default: No

@@ -60,7 +60,7 @@ module f_utils
      module procedure f_diff_i,f_diff_r,f_diff_d,f_diff_li,f_diff_l
      module procedure f_diff_d2d3,f_diff_d2d1,f_diff_d1d2,f_diff_d2,f_diff_d1
      module procedure f_diff_d3
-     module procedure f_diff_i2i1,f_diff_i1,f_diff_i2,f_diff_i1i2
+     module procedure f_diff_i2i1,f_diff_i3i1,f_diff_i1,f_diff_i2,f_diff_i1i2
      module procedure f_diff_li2li1,f_diff_li1,f_diff_li2,f_diff_li1li2
      module procedure f_diff_d0d1,f_diff_i0i1, f_diff_li0li1
      module procedure f_diff_c1i1,f_diff_c0i1
@@ -117,6 +117,10 @@ module f_utils
      module procedure f_assert, f_assert_double
   end interface f_assert
 
+  interface f_savetxt
+     module procedure f_savetxt_d2
+  end interface f_savetxt
+
   !to be verified if clock_gettime is without side-effect, otherwise the routine cannot be pure
   interface
      pure subroutine nanosec(itime)
@@ -132,7 +136,7 @@ module f_utils
      module procedure f_null_i1_ptr,f_null_i2_ptr
   end interface assignment(=)
 
-  public :: f_diff,f_file_unit,f_mkdir
+  public :: f_diff,f_file_unit,f_mkdir,f_savetxt
   public :: f_utils_errors,f_utils_recl,f_file_exists,f_close,f_zero
   public :: f_get_free_unit,f_delete_file,f_getpid,f_rewind,f_open_file
   public :: f_iostream_from_file,f_iostream_from_lstring,f_increment
@@ -696,6 +700,28 @@ contains
 
   end subroutine f_open_file
 
+  subroutine f_savetxt_d2(file,data)
+    implicit none
+    real(f_double), dimension(:,:), intent(in) :: data
+    character(len=*), intent(in) :: file
+    !local variables
+    integer :: unt,nlines,ncols,icol,iline
+    unt=90
+    call f_open_file(unt,file)
+
+    nlines=size(data,dim=2)
+    ncols=size(data,dim=1)
+
+    do iline=1,nlines
+       do icol=1,ncols-1
+          write(unt,'(1pg26.16e3)',advance='no')data(icol,iline)
+       end do
+       write(unt,'(1pg26.16e3)')data(ncols,iline)
+    end do
+
+    call f_close(unt)
+  end subroutine f_savetxt_d2
+
   subroutine f_iostream_from_file(ios, filename)
     implicit none
     type(io_stream), intent(out) :: ios
@@ -848,6 +874,17 @@ contains
     external :: diff_i
     call diff_i(n,a(1,1),b(1),diff,idiff)
   end subroutine f_diff_i2i1
+  subroutine f_diff_i3i1(n,a,b,diff)
+    implicit none
+    integer(f_long), intent(in) :: n
+    integer(f_integer), dimension(:,:,:),   intent(in) :: a
+    integer(f_integer), dimension(:), intent(in) :: b
+    integer(f_integer), intent(out) :: diff
+    !local variables
+    integer(f_long) :: idiff
+    external :: diff_i
+    call diff_i(n,a(1,1,1),b(1),diff,idiff)
+  end subroutine f_diff_i3i1
   subroutine f_diff_i2(n,a,b,diff)
     implicit none
     integer(f_long), intent(in) :: n

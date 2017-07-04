@@ -16,9 +16,12 @@ Keys to ignore:
   - taskgroup summary
 
 driver_random:
-  penalty: 15601.0
+  penalty: 96001
+  max error relative: 8.1e-9
+  mean error relative: 4.5e-10
 
 driver_foe:
   difference: 2.0e-11
   trace(KS): 1.8e-11
   max diff of eigenvectors: 2.5e-11
+  penalty: 150001

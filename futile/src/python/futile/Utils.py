@@ -7,6 +7,14 @@ from __future__ import print_function
 from matplotlib.widgets import AxesWidget
 import six
 
+def write(*args,**kwargs):
+    """
+    Wrapper for print function or print to ensure compatibility with python 2
+    The arguments are used similarly as the print_function 
+    They can also be generalized to python 2 cases
+    """
+    return print(*args,**kwargs)
+
 #interesting slider for vertical matplotlib
 #taken from https://stackoverflow.com/questions/25934279/add-a-vertical-slider-with-matplotlib
 class VertSlider(AxesWidget):

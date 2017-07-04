@@ -157,7 +157,7 @@ END SUBROUTINE call_abscalc
 subroutine abscalc(nproc,iproc,atoms,rxyz,&
      KSwfn,hx_old,hy_old,hz_old,in,GPU,infocode)
    !use module_base
-   use module_dpbox, only: denspot_distribution
+   use module_dpbox, only: denspot_distribution,dpbox_set
    !use module_types
    use module_input_keys, only: input_variables
    use module_interfaces, only: IonicEnergyandForces, &
@@ -470,9 +470,9 @@ subroutine abscalc(nproc,iproc,atoms,rxyz,&
    if (iproc==0 .and. get_verbose_level() > 0) call print_memory_estimation(mem)
 
    !complete dpbox initialization
-   call dpbox_set(dpcom,KSwfn%Lzd,xc,iproc,nproc,MPI_COMM_WORLD,&
+   call dpbox_set(dpcom,KSwfn%Lzd%Glr%mesh,xc,iproc,nproc,MPI_COMM_WORLD,&
         !in%PSolver_groupsize, &
-        in%SIC%approach,atoms%astruct%geocode,nspin)!
+        in%SIC%approach,nspin)!
    !,in%matacc%PSolver_igpu)
 
   call density_descriptors(iproc,nproc,xc,in%nspin,in%crmult,in%frmult,atoms,&

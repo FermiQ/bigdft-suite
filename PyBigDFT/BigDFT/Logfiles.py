@@ -1,5 +1,6 @@
 #This module needs: yaml, futile, matplotlib, numpy, BZ, DoS
 import yaml
+from futile.Utils import write
 
 EVAL = "eval"
 SETUP = "let"
@@ -303,6 +304,9 @@ class Logfile():
             elif hasattr(self,att) and not BUILTIN[att].get(GLOBAL):
                 delattr(self,att)
         #then postprocess the particular cases
+        if not hasattr(self,'fermi_level') and hasattr(self,'evals'):
+            self._fermi_level_from_evals(self.evals)
+
         if hasattr(self,'kpts'):
             self.nkpt=len(self.kpts)
             if hasattr(self,'evals'): self.evals=self._get_bz(self.evals,self.kpts)
@@ -312,9 +316,6 @@ class Logfile():
         elif hasattr(self,'evals'):
             import BZ
             self.evals=[BZ.BandArray(self.evals),]
-        if not hasattr(self,'fermi_level') and hasattr(self,'evals'):
-            import numpy
-            self.fermi_level=float(max(numpy.ravel(self.evals)))
         if hasattr(self,'sdos'):
             import os
             #load the different sdos files
@@ -326,16 +327,35 @@ class Logfile():
                     data=None
                 if data is not None:
                     xs=[]
-                    ba=[]
+                    ba=[[],[]]
                     for line in data:
                         xs.append(line[0])
-                        ba.append(self._sdos_line_to_orbitals(line))
+                        ss=self._sdos_line_to_orbitals(line)
+                        for ispin in [0,1]:
+                            ba[ispin].append(ss[ispin])
                     sd.append({'coord':xs,'dos':ba})
                 else:
                     sd.append(None)
             self.sdos=sd
     #
-    def _sdos_line_to_orbitals(self,sorbs):
+    def _fermi_level_from_evals(self,evals):
+        import numpy
+        #this works when the representation of the evals is only with occupied states
+        #write('evals',self.evals)
+        fl=None
+        for iorb,ev in enumerate(evals):
+            e=ev.get('e')
+            if e is not None:
+                fref=ev['f'] if iorb==0 else fref
+                fl=e
+                if ev['f']<0.5*fref: break
+            e=ev.get('e_occ',ev.get('e_occupied'))
+            if e is not None: fl=e
+            e=ev.get('e_vrt',ev.get('e_virt'))
+            if e is not None: break
+        self.fermi_level=fl
+    #
+    def _sdos_line_to_orbitals_old(self,sorbs):
         import BZ
         evals=[]
         iorb=1
@@ -353,7 +373,25 @@ class Logfile():
                 iorb+=norb
             evals.append(BZ.BandArray(ev,ikpt=i+1,kpt=kp['Rc'],kwgt=kp['Wgt']))
         return evals
-	
+    #
+    def _sdos_line_to_orbitals(self,sorbs):
+        import BZ,numpy as np
+        evals=[]
+        iorb=1
+        sdos=[[],[]]
+        for ikpt,band in enumerate(self.evals):
+            sdoskpt=[[],[]]
+            for ispin,norb in enumerate(band.info):
+                if norb==0: continue
+                bands=band[ispin]
+                for i in range(norb):
+                    val=sorbs[iorb]
+                    e=bands[i]
+                    #val/=e #not needed anymore
+                    iorb+=1
+                    sdoskpt[ispin].append(val)
+                sdos[ispin].append(np.array(sdoskpt[ispin]))
+        return sdos
     #
     def _get_bz(self,ev,kpts):
         """Get the Brillouin Zone."""
@@ -366,8 +404,10 @@ class Logfile():
     def get_dos(self,label=None,npts=2500):
         """Get the density of states from the logfile."""
         import DoS
+        #reload(DoS)
         lbl=self.label if label is None else label
-        return DoS.DoS(bandarrays=self.evals,label=lbl,units='AU',fermi_level=self.fermi_level,npts=npts)
+        sdos=self.sdos if hasattr(self,'sdos') else None
+        return DoS.DoS(bandarrays=self.evals,label=lbl,units='AU',fermi_level=self.fermi_level,npts=npts,sdos=sdos)
     #
     def get_brillouin_zone(self):
         """Returns an instance of the BrillouinZone class, useful for band structure."""

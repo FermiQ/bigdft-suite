@@ -39,7 +39,7 @@ module locregs_init
       type(atoms_data), intent(inout) :: atoms
       real(gp), intent(in) :: crmult,frmult
       real(gp), dimension(3,atoms%astruct%nat), intent(inout) :: rxyz
-      real(gp), dimension(3), intent(in) :: hgrids
+      real(gp), dimension(3), intent(inout) :: hgrids
       logical, intent(in) :: calculate_bounds,output_grid
 
       lr=locreg_null()

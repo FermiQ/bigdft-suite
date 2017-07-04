@@ -123,10 +123,12 @@ class Fragment():
         self.id=id
         self.to_AU=1.0
         if units == 'A': self.to_AU=1.0/AU_to_A
+        self.allset=False
         if atomlist is not None:
             for i in atomlist:
                 self.append(i)
-            self.positions=self.__positions()  #update positions
+        self.positions=self.__positions()  #update positions
+        self.allset=True
     def __len__(self):
         return len(self.atoms)
     #def __str__(self):
@@ -156,7 +158,7 @@ class Fragment():
             self.atoms.append(atom)
         elif sym is not None:
             self.atoms.append({sym: positions})
-        self.positions=self.__positions()  #update positions
+        if self.allset: self.positions=self.__positions()  #update positions
     def element(self,atom):
         "Provides the name of the element"
         el=self.__torxyz(atom)
@@ -168,13 +170,10 @@ class Fragment():
         for k in ks:
             if k not in self.protected_keys and type(atom[k])==type([]):
                 if len(atom[k])==3: return k
-        print 'atom',atom
         raise ValueError
     def rxyz(self,atom):
         import numpy as np
         k=self.__torxyz(atom)
-        print k,atom
-        print 'here'
         return self.to_AU*np.array(atom[k])
     def __positions(self):
         import numpy
@@ -296,7 +295,6 @@ class Fragment():
         else:
             return None
 
-
                         
 class System():
     "A system is defined by a collection of Fragments. It might be given by one single fragment"
@@ -358,6 +356,7 @@ class System():
                 if len(frag) !=0: self.append(frag)
                 frag=Fragment(units=self.units)
                 iat=0
+        if nat_reference is None: self.append(frag) #case of one single fragment
     def xyz(self,filename=None,units='atomic'):
         import numpy as np
         f=XYZfile(filename,units)

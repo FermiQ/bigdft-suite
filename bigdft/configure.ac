@@ -112,6 +112,9 @@ AX_MPI()
 AX_LINALG()
 AX_FLIB()
 AX_CHESS()
+if test "$ax_have_CHESS" != "yes" ; then
+  AC_MSG_ERROR(["Cannot find CheSS library."])
+fi
 AX_PSOLVER()
 if test "$ax_have_PSOLVER" != "yes" ; then
   AC_MSG_ERROR(["Cannot find PSolver library."])
@@ -359,8 +362,9 @@ src/bigdft-tool
 src/Makefile
 src/modules/Makefile
 src/modules/configure.c
+src/locregs/Makefile
+src/locregs/configure.inc
 src/orbitals/Makefile
-src/orbitals/configure.inc
 src/xcPSolver/Makefile
 src/CUDA/Makefile
 src/OpenCL/Makefile
@@ -368,9 +372,6 @@ src/convolutions-c/Makefile
 src/bindings/Makefile
 src/bindings/bigdft_cst.h
 src/geopt/Makefile
-src/python/Makefile
-src/python/BigDFT/Makefile
-src/python/BigDFT/scripts/Makefile
 src/tools/Makefile
 src/tools/bader/Makefile
 plugins/Makefile

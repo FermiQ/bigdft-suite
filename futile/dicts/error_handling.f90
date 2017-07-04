@@ -64,9 +64,9 @@
     call dict_init(error_pipelines%current)
     dict_present_error=>error_pipelines%current
     call dict_init(dict_errors)
-  end subroutine f_err_initialize 
+  end subroutine f_err_initialize
 
-  
+
   !> Call at the end of the program to finalize the error module (deallocation + report)
   subroutine f_err_finalize()
     implicit none
@@ -100,7 +100,7 @@
     character(len=*), intent(in) :: err_name               !< name of the error
     character(len=*), intent(in) :: err_msg                !< error message
     integer, intent(out) :: err_id                         !< code of the error
-    integer(kind=8), intent(in), optional :: callback_data !< ??? not really sure 
+    integer(kind=8), intent(in), optional :: callback_data !< ??? not really sure
     character(len=*), intent(in), optional :: err_action   !< ??? not really sure
     external :: callback
     optional :: callback
@@ -131,12 +131,12 @@
             call set(dict_error//err_name//errclbkadd,callback_data)
     end if
 
-    !if (associated(dict_errors)) 
+    !if (associated(dict_errors))
     call add(dict_errors,dict_error)
 
   end subroutine f_err_define
 
-  
+
   !> This function returns true if a generic error has been raised
   !! in case of specified errors, it returns true if an error of this kind has been raised
   function f_err_check(err_id,err_name)
@@ -148,7 +148,7 @@
 
     !check if a particular error has been found
     if (get_error==-1) then
-       f_err_check = dict_len(dict_present_error) /= 0 
+       f_err_check = dict_len(dict_present_error) /= 0
     else
        !otherwise check is some error is present
        f_err_check =  get_error/=0
@@ -183,7 +183,7 @@
           if (present(err_id)) then
              call f_err_throw(err_msg%msg,err_id=err_id,callback=callback,callback_data=clbk_data_add)
           else if (present(err_name)) then
-             call f_err_throw(err_msg%msg,err_name=err_name,callback=callback,callback_data=clbk_data_add) 
+             call f_err_throw(err_msg%msg,err_name=err_name,callback=callback,callback_data=clbk_data_add)
           else
              call f_err_throw(err_msg%msg,callback=callback,callback_data=clbk_data_add)
           end if
@@ -200,7 +200,7 @@
   end function f_err_raise_str
 
 
-  !> This routine should be generalized to allow the possiblity of addin customized message at the 
+  !> This routine should be generalized to allow the possiblity of addin customized message at the
   !! raise of the error. Also customized callback should be allowed
   !! @warning This function is detected as recursive by gfortran
   recursive function f_err_raise(condition,err_msg,err_id,err_name,callback,callback_data)
@@ -245,7 +245,7 @@
           if (present(err_id)) then
              call f_err_throw(message,err_id=err_id,callback=callback,callback_data=clbk_data_add)
           else if (present(err_name)) then
-             call f_err_throw(message,err_name=err_name,callback=callback,callback_data=clbk_data_add) 
+             call f_err_throw(message,err_name=err_name,callback=callback,callback_data=clbk_data_add)
           else
              call f_err_throw(message,callback=callback,callback_data=clbk_data_add)
           end if
@@ -265,7 +265,7 @@
   !> Raise the error indicated
   !! @warning:  This routine might formally call itself, i.e. it uses methods that might raise exceptions
   !! it is developer's responsibility to avoid deadlocks
-  recursive subroutine f_err_throw_c(err_msg,err_id,err_name,callback,callback_data) 
+  recursive subroutine f_err_throw_c(err_msg,err_id,err_name,callback,callback_data)
     use yaml_strings, only: yaml_toa
     implicit none
     integer, intent(in), optional :: err_id                    !< The code of the error to be raised.
@@ -330,11 +330,11 @@
     !if we are in a try-catch environment, no callback has
     !to be called after the error is produced
     if (try_environment) then
-       !identify callback function 
+       !identify callback function
        clbk_add=f_loc(f_err_ignore)
        clbk_data_add=int(0,kind=8)
     else
-       !identify callback function 
+       !identify callback function
        clbk_add=callback_add
        clbk_data_add=callback_data_add
        if (present(callback_data)) clbk_data_add=callback_data
@@ -344,7 +344,7 @@
           !find the callback in the error definition
           !these data can be inserted in a function
           dict_tmp=>f_get_error_dict(new_errcode)
-          !that is how dict_keys function should be called      
+          !that is how dict_keys function should be called
           if (dict_size(dict_tmp) <= size(keys)) keys=dict_keys(dict_tmp)
           dict_tmp=>dict_tmp//trim(keys(1))
 
@@ -356,7 +356,7 @@
   end subroutine f_err_throw_c
 
 
-  subroutine f_err_throw_str(message,err_id,err_name,callback,callback_data) 
+  subroutine f_err_throw_str(message,err_id,err_name,callback,callback_data)
     use yaml_strings, only: f_string
     implicit none
     integer, intent(in), optional :: err_id                    !< The code of the error to be raised.
@@ -378,7 +378,7 @@
        if (present(err_id)) then
           call f_err_throw_c(message%msg,err_id=err_id,callback=callback,callback_data=clbk_data_add)
        else if (present(err_name)) then
-          call f_err_throw_c(message%msg,err_name=err_name,callback=callback,callback_data=clbk_data_add) 
+          call f_err_throw_c(message%msg,err_name=err_name,callback=callback,callback_data=clbk_data_add)
        else
           call f_err_throw_c(message%msg,callback=callback,callback_data=clbk_data_add)
        end if
@@ -427,10 +427,10 @@
     integer, intent(in) :: ierr_num
     character(len=*), optional :: add_msg
     integer :: f_get_past_error
-    
+
     f_get_past_error=get_error_id(ierr_num)
     if (present(add_msg)) call get_error_msg(ierr_num,add_msg)
-    
+
   end function f_get_past_error
 
 
@@ -472,7 +472,7 @@
     if (ierr >= 0) then
        f_get_last_error=dict_present_error//ierr//ERRID
        if (present(add_msg)) add_msg=dict_present_error//ierr//ERR_ADD_INFO
-      
+
     else
        f_get_last_error=0
        if (present(add_msg)) add_msg=repeat(' ',len(add_msg))
@@ -529,7 +529,6 @@
     end if
   end function f_err_pop
 
-
   !> Activate the exception handling for all errors
   !! also the errors which have f_err_severe as callbacks
   !! multiple calls to f_err_open_try have the same effect of one call
@@ -546,10 +545,9 @@
 
   end subroutine f_err_open_try
 
-
   !> Close the try environment. At the end of the try environment
-  !! the errors are cleaned. To recover an error in a try environment 
-  !! the correct behaviour is to perform f_err_check before calling 
+  !! the errors are cleaned. To recover an error in a try environment
+  !! the correct behaviour is to perform f_err_check before calling
   !! f_err_close_try
   subroutine f_err_close_try(exceptions)
     implicit none

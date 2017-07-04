@@ -705,7 +705,7 @@ subroutine tmb_overlap_onsite(iproc, nproc, imethod_overlap, at, tmb, rxyz)
                                deallocate_matrices, deallocate_sparse_matrix, &
                                assignment(=), sparsematrix_malloc_ptr, SPARSE_TASKGROUP
   use sparsematrix_wrappers, only: init_sparse_matrix_wrapper
-  use sparsematrix_init, only: init_matrix_taskgroups
+  use sparsematrix_init, only: init_matrix_taskgroups_wrapper
   use bigdft_matrices, only: check_local_matrix_extents, init_matrixindex_in_compressed_fortransposed
   use transposed_operations, only: calculate_overlap_transposed, normalize_transposed
   !!use bounds, only: ext_buffers
@@ -735,7 +735,7 @@ subroutine tmb_overlap_onsite(iproc, nproc, imethod_overlap, at, tmb, rxyz)
   type(fragment_transformation) :: frag_trans
   integer :: ierr, ncount, iroot, jproc, ndim_tmp1
   integer,dimension(:),allocatable :: workarray
-  type(sparse_matrix) :: smat_tmp
+  type(sparse_matrix),dimension(1) :: smat_tmp
   type(matrices) :: mat_tmp
   integer,dimension(2) :: irow, icol, iirow, iicol
   logical :: wrap_around
@@ -999,32 +999,38 @@ subroutine tmb_overlap_onsite(iproc, nproc, imethod_overlap, at, tmb, rxyz)
   !call nullify_comms_linear(collcom_tmp)
   collcom_tmp=comms_linear_null()
   call init_comms_linear(iproc, nproc, imethod_overlap, ndim_tmp, tmb%orbs, lzd_tmp, &
-       tmb%linmat%m%nspin, collcom_tmp)
+       tmb%linmat%smat(2)%nspin, collcom_tmp)
 
-  smat_tmp = sparse_matrix_null()
+  smat_tmp(1) = sparse_matrix_null()
   aux = linmat_auxiliary_null()
   ! Do not initialize the matrix multiplication to save memory. 
-  call init_sparse_matrix_wrapper(iproc, nproc, tmb%linmat%s%nspin, tmb%orbs, &
-       lzd_tmp, at%astruct, .false., init_matmul=.false., imode=2, smat=smat_tmp)
+  call init_sparse_matrix_wrapper(iproc, nproc, tmb%linmat%smat(1)%nspin, tmb%orbs, &
+       lzd_tmp, at%astruct, .false., init_matmul=.false., imode=2, smat=smat_tmp(1))
   call init_matrixindex_in_compressed_fortransposed(iproc, nproc, &
-       collcom_tmp, collcom_tmp, collcom_tmp, smat_tmp, &
+       collcom_tmp, collcom_tmp, collcom_tmp, smat_tmp(1), &
        aux)
-  iirow(1) = smat_tmp%nfvctr
-  iirow(2) = 1
-  iicol(1) = smat_tmp%nfvctr
-  iicol(2) = 1
-  call check_local_matrix_extents(iproc, nproc, &
-       collcom_tmp, collcom_tmp, tmb%linmat%smmd, smat_tmp, aux, &
-       ind_min, ind_mas, irow, icol)
-  iirow(1) = min(irow(1),iirow(1))
-  iirow(2) = max(irow(2),iirow(2))
-  iicol(1) = min(icol(1),iicol(1))
-  iicol(2) = max(icol(2),iicol(2))
 
-  call init_matrix_taskgroups(iproc, nproc, bigdft_mpi%mpi_comm, .false., smat_tmp)
+  !!iirow(1) = smat_tmp%nfvctr
+  !!iirow(2) = 1
+  !!iicol(1) = smat_tmp%nfvctr
+  !!iicol(2) = 1
+  !!call get_sparsematrix_local_extent(iproc, nproc, tmb%linmat%smmd, smat_tmp, ind_min, ind_mas)
+  call check_local_matrix_extents(iproc, nproc, &
+       collcom_tmp, collcom_tmp, tmb%linmat%smmd, smat_tmp(1), aux, &
+       ind_min, ind_mas)
+  !!call get_sparsematrix_local_rows_columns(smat_tmp, ind_min, ind_mas, irow, icol)
+  !!iirow(1) = min(irow(1),iirow(1))
+  !!iirow(2) = max(irow(2),iirow(2))
+  !!iicol(1) = min(icol(1),iicol(1))
+  !!iicol(2) = max(icol(2),iicol(2))
+
+  !!call init_matrix_taskgroups(iproc, nproc, bigdft_mpi%mpi_comm, .false., smat_tmp)
+  call init_matrix_taskgroups_wrapper(iproc, nproc, bigdft_mpi%mpi_comm, .false., &
+       1, smat_tmp(1), (/(/ind_min,ind_mas/)/))
+
 
   mat_tmp = matrices_null()
-  mat_tmp%matrix_compr = sparsematrix_malloc_ptr(smat_tmp, iaction=SPARSE_TASKGROUP,id='mat_tmp%matrix_compr')
+  mat_tmp%matrix_compr = sparsematrix_malloc_ptr(smat_tmp(1), iaction=SPARSE_TASKGROUP,id='mat_tmp%matrix_compr')
 
   psit_c_tmp = f_malloc_ptr(sum(collcom_tmp%nrecvcounts_c),id='psit_c_tmp')
   psit_f_tmp = f_malloc_ptr(7*sum(collcom_tmp%nrecvcounts_f),id='psit_f_tmp')
@@ -1035,18 +1041,18 @@ subroutine tmb_overlap_onsite(iproc, nproc, imethod_overlap, at, tmb, rxyz)
   ! normalize psi
   !skip the normalize psi step
   !norm = f_malloc_ptr(tmb%orbs%norb,id='norm')
-  !call normalize_transposed(iproc, nproc, tmb%orbs, tmb%linmat%s%nspin, collcom_tmp, psit_c_tmp, psit_f_tmp, norm)
+  !call normalize_transposed(iproc, nproc, tmb%orbs, tmb%linmat%smat(1)%nspin, collcom_tmp, psit_c_tmp, psit_f_tmp, norm)
   !call f_free_ptr(norm)
 
   !!call calculate_pulay_overlap(iproc, nproc, tmb%orbs, tmb%orbs, collcom_tmp, collcom_tmp, &
   !!     psit_c_tmp, psit_c_tmp, psit_f_tmp, psit_f_tmp, tmb%linmat%ovrlp_%matrix)
   call calculate_overlap_transposed(iproc, nproc, tmb%orbs, collcom_tmp, &
-                 psit_c_tmp, psit_c_tmp, psit_f_tmp, psit_f_tmp, smat_tmp, aux, mat_tmp)
-  !call uncompress_matrix(iproc, tmb%linmat%s, mat_tmp%matrix_compr, tmb%linmat%ovrlp_%matrix)
-  call uncompress_matrix(iproc, nproc, smat_tmp, mat_tmp%matrix_compr, tmb%linmat%ovrlp_%matrix)
+                 psit_c_tmp, psit_c_tmp, psit_f_tmp, psit_f_tmp, smat_tmp(1), aux, mat_tmp)
+  !call uncompress_matrix(iproc, tmb%linmat%smat(1), mat_tmp%matrix_compr, tmb%linmat%ovrlp_%matrix)
+  call uncompress_matrix(iproc, nproc, smat_tmp(1), mat_tmp%matrix_compr, tmb%linmat%ovrlp_%matrix)
 
   call deallocate_matrices(mat_tmp)
-  call deallocate_sparse_matrix(smat_tmp)
+  call deallocate_sparse_matrix(smat_tmp(1))
   call deallocate_linmat_auxiliary(aux)
 
 !!!# DEBUG #######

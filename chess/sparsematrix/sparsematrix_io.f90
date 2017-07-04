@@ -75,6 +75,7 @@ module sparsematrix_io
 
 
     subroutine read_sparse_matrix(mode, filename, iproc, nproc, comm, nspin, nfvctr, nseg, nvctr, keyv, keyg, mat_compr)
+      use time_profiling
       use dynamic_memory
       use f_utils
       implicit none
@@ -96,6 +97,7 @@ module sparsematrix_io
       logical :: read_rxyz, read_on_which_atom, file_present
 
       call f_routine(id='read_sparse_matrix')
+      call f_timing(TCAT_SMAT_READ,'ON')
 
       if (iproc==0) call yaml_comment('Reading from file '//trim(filename),hfill='~')
       inquire(file=trim(filename),exist=file_present)
@@ -121,29 +123,49 @@ module sparsematrix_io
                    err_name='SPARSEMATRIX_IO_ERROR')
           end if
 
-          iunit = 99
-          call f_open_file(iunit, file=trim(filename), binary=.false.)
+          if (iproc==0) then
 
-          read(iunit,*) nspin, nfvctr, nseg, nvctr
-          keyv = f_malloc_ptr(nseg,id='keyv')
-          keyg = f_malloc_ptr((/2,2,nseg/),id='keyg')
+              ! Read in the matrix on task 0
+              iunit = 99
+              call f_open_file(iunit, file=trim(filename), binary=.false.)
 
-          do iseg=1,nseg
-              read(iunit,*) keyv(iseg), keyg(1,1,iseg), keyg(2,1,iseg), keyg(1,2,iseg), keyg(2,2,iseg)
-          end do
+              read(iunit,*) nspin, nfvctr, nseg, nvctr
+              keyv = f_malloc_ptr(nseg,id='keyv')
+              keyg = f_malloc_ptr((/2,2,nseg/),id='keyg')
 
-          mat_compr = f_malloc_ptr(nvctr*nspin,id='mat_compr')
-          ind = 0
-          do ispin=1,nspin
               do iseg=1,nseg
-                  icol = keyg(1,2,iseg)
-                  do jorb=keyg(1,1,iseg),keyg(2,1,iseg)
-                      irow = jorb
-                      ind = ind + 1
-                      read(iunit,*) mat_compr(ind)
+                  read(iunit,*) keyv(iseg), keyg(1,1,iseg), keyg(2,1,iseg), keyg(1,2,iseg), keyg(2,2,iseg)
+              end do
+
+              mat_compr = f_malloc_ptr(nvctr*nspin,id='mat_compr')
+              ind = 0
+              do ispin=1,nspin
+                  do iseg=1,nseg
+                      icol = keyg(1,2,iseg)
+                      do jorb=keyg(1,1,iseg),keyg(2,1,iseg)
+                          irow = jorb
+                          ind = ind + 1
+                          read(iunit,*) mat_compr(ind)
+                      end do
                   end do
               end do
-          end do
+          end if
+
+          ! Communicate to the other tasks
+          call mpibcast(nspin, count=1, root=0, comm=comm)
+          call mpibcast(nfvctr, count=1, root=0, comm=comm)
+          call mpibcast(nseg, count=1, root=0, comm=comm)
+          call mpibcast(nvctr, count=1, root=0, comm=comm)
+          if (iproc/=0) then
+              keyv = f_malloc_ptr(nseg,id='keyv')
+              keyg = f_malloc_ptr((/2,2,nseg/),id='keyg')
+          end if
+          call mpibcast(keyv, root=0, comm=comm)
+          call mpibcast(keyg, root=0, comm=comm)
+          if (iproc/=0) then
+              mat_compr = f_malloc_ptr(nvctr*nspin,id='mat_compr')
+          end if
+          call mpibcast(mat_compr, root=0, comm=comm)
 
       else
           call f_err_throw("wrong value for 'mode'")
@@ -151,6 +173,7 @@ module sparsematrix_io
 
       call f_close(iunit)
 
+      call f_timing(TCAT_SMAT_READ,'OF')
       call f_release_routine()
 
     end subroutine read_sparse_matrix

@@ -37,15 +37,39 @@ class GIBinding():
         self.out=None
         self.runObj=None
         BigDFT.lib_finalize()
-        
+
+#define the calculator from the system
+class SystemCalculator():
+    def __init__(self,omp,mpi):
+        import os
+        #save variables for future use
+        self.omp=str(omp)
+        self.mpi=str(mpi)
+        #verify if $BIGDFT_ROOT is in the environment
+        assert 'BIGDFT_ROOT' in os.environ
+        self.command ='mpirun -np '+self.mpi+' $BIGDFT_ROOT/bigdft'
+    def run(self,name='',outdir='',run_name='',skip=False):
+        import os
+        from futile.Utils import write
+        #set the number of omp threads
+        os.environ['OMP_NUM_THREADS']=self.omp
+        #adjust the command line with options
+        command=self.command
+        if len(name)>0: command+=' -n '+name
+        if len(run_name) > 0: command +=' -r '+run_name
+        if len(outdir)>0: command+=' -d '+outdir
+        if skip: command+=' -s Yes'
+        write('Executing command: ',command)
+        os.system(command)
+
 #test the calculators
 if __name__=='__main__':
     basicinput="""
 #mode: {method: lj}
 logfile: No
 dft: { ixc: HF, nspin: 2}
-posinp: 
-   positions: 
+posinp:
+   positions:
    - {Be : [0.0, 0.0, 0.0]}#, IGSpin: -1}
    - {Be : [0.0, 0.0, 1.0]}#, IGSpin: 1}
 #   properties: {format: yaml}
@@ -79,7 +103,7 @@ psppar.Be: {Pseudopotential XC: 11}
         energy.append(out.eKS)
         pos.append(pos[-1]+sh)
         if study.iproc==0: print 'iter',i,'shift',sh,'energy',out.eKS
-        
+
     out=None
     print 'End of the calculations'
 

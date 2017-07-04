@@ -506,7 +506,7 @@ subroutine test_functions_new2(mesh,acell,a_gauss,mu0,density,potential)
   !local variables
   integer, parameter :: DENSITY_=1,POTENTIAL_=2
   logical :: separable
-  !integer :: i
+  integer :: i
   real(dp) :: a2,factor
   type(f_function), dimension(3) :: funcs 
 

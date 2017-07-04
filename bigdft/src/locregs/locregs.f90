@@ -49,7 +49,7 @@ module locregs
 
   public :: nullify_locreg_descriptors,locreg_null
   public :: deallocate_locreg_descriptors,deallocate_wfd
-  public :: allocate_wfd,copy_locreg_descriptors,copy_grid_dimensions,nullify_wfd
+  public :: allocate_wfd,copy_locreg_descriptors,copy_grid_dimensions
   public :: check_overlap,check_overlap_cubic_periodic,check_overlap_from_descriptors_periodic,lr_box
   public :: init_lr
 

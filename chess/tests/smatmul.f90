@@ -31,12 +31,13 @@ program smatmul
                        !        matrices_null, deallocate_sparse_matrix, deallocate_matrices, &
                        !        assignment(=), sparsematrix_malloc_ptr, sparsematrix_malloc, SPARSE_FULL, SPARSEMM_SEQ, &
                        !        SPARSE_MATMUL_SMALL, ONESIDED_FULL
-  use sparsematrix_init, only: bigdft_to_sparsebigdft, distribute_columns_on_processes_simple, check_symmetry
+  use sparsematrix_init, only: bigdft_to_sparsebigdft, distribute_columns_on_processes_simple, check_symmetry, &
+                               init_matrix_taskgroups_wrapper, write_sparsematrix_info
   use sparsematrix, only: write_matrix_compressed, &
-                          write_sparsematrix_CCS, write_sparsematrix, &
                           sparsemm_new, sequential_acces_matrix_fast2, &
-                          compress_matrix_distributed_wrapper
-  use sparsematrix_io, only: read_sparse_matrix
+                          compress_matrix_distributed_wrapper, &
+                          resize_matrix_to_taskgroup
+  use sparsematrix_io, only: read_sparse_matrix, write_sparse_matrix
   use sparsematrix_highlevel, only: sparse_matrix_and_matrices_init_from_file_bigdft
   implicit none
 
@@ -52,9 +53,8 @@ program smatmul
   integer,dimension(:,:,:),pointer :: keyg
   character(len=20),dimension(:),pointer :: atomnames
   real(kind=8),dimension(:,:),pointer :: rxyz
-  type(sparse_matrix) :: smat
+  type(sparse_matrix),dimension(1) :: smat
   type(matrices) :: matA
-  type(matrices),dimension(1) :: matB
   real(kind=8) :: max_error, mean_error
   logical :: symmetric
   real(kind=8) :: time_start, time_end
@@ -92,7 +92,7 @@ program smatmul
   nproc=mpisize()
   comm=mpiworld()
 
-  call f_malloc_set_status(memory_limit=0.e0,iproc=iproc)
+  call f_malloc_set_status(iproc=iproc)
 
   ! Initialize the sparsematrix error handling and timing.
   call sparsematrix_init_errors()
@@ -127,16 +127,27 @@ program smatmul
   !!matA%matrix_compr = sparsematrix_malloc_ptr(smat, iaction=SPARSE_FULL, id='matA%matrix_compr')
   !!matA%matrix_compr = mat_compr
 
-  call sparse_matrix_and_matrices_init_from_file_bigdft('serial_text', filename, iproc, nproc,comm, smat, matA, &
+  call sparse_matrix_and_matrices_init_from_file_bigdft('serial_text', filename, iproc, nproc,comm, smat(1), matA, &
        init_matmul=.true., filename_mult=filename)!, nat=nat, ntypes=ntypes, nzatom=nzatom, nelpsp=nelpsp, &
        !atomnames=atomnames, iatype=iatype, rxyz=rxyz, on_which_atom=on_which_atom)
 
+  call init_matrix_taskgroups_wrapper(iproc, nproc, mpi_comm_world, .true., 1, smat)
+  call resize_matrix_to_taskgroup(smat(1), matA)
+
+  if (iproc==0) then
+      call yaml_mapping_open('Matrix properties')
+      call write_sparsematrix_info(smat(1), 'Input matrix')
+      call yaml_mapping_close()
+  end if
+
+
   ! Check the symmetry
-  symmetric = check_symmetry(smat)
+  symmetric = check_symmetry(smat(1))
   if (.not.symmetric) stop 'ERROR not symmetric'
   
   ! Write the original matrix
-  if (iproc==0) call write_sparsematrix('original_bigdft.dat', smat, matA)
+  !if (iproc==0) call write_sparsematrix('original_bigdft.dat', smat(1), matA)
+  call write_sparse_matrix('serial_text', iproc, nproc, comm, smat(1), matA, 'original_bigdft.dat')
 
   call f_timing_checkpoint(ctr_name='INIT',mpi_comm=comm,nproc=nproc,&
        gather_routine=gather_timings)
@@ -145,22 +156,25 @@ program smatmul
   call mpibarrier(comm)
   time_start = mpi_wtime()
 
-  mat_seq = sparsematrix_malloc(smat, iaction=SPARSEMM_SEQ, id='mat_seq')
-  vector_in = f_malloc0(smat%smmm%nvctrp,id='vector_in')
-  vector_out = f_malloc0(smat%smmm%nvctrp,id='vector_out')
-  call sequential_acces_matrix_fast2(smat, matA%matrix_compr, mat_seq)
+  mat_seq = sparsematrix_malloc(smat(1), iaction=SPARSEMM_SEQ, id='mat_seq')
+  vector_in = f_malloc0(smat(1)%smmm%nvctrp,id='vector_in')
+  vector_out = f_malloc0(smat(1)%smmm%nvctrp,id='vector_out')
+  call sequential_acces_matrix_fast2(smat(1), matA%matrix_compr, mat_seq)
 
-  call vcopy(smat%smmm%nvctrp, matA%matrix_compr(smat%smmm%isvctr_mm_par(iproc)+1), 1, vector_in(1), 1)
+  !call vcopy(smat(1)%smmm%nvctrp, matA%matrix_compr(smat(1)%smmm%isvctr_mm_par(iproc)+1), 1, vector_in(1), 1)
+  call vcopy(smat(1)%smmm%nvctrp, matA%matrix_compr(smat(1)%smmm%isvctr_mm_par(iproc)+1-smat(1)%isvctrp_tg), &
+       1, vector_in(1), 1)
   do it=1,nit
-      call sparsemm_new(iproc, smat, mat_seq, vector_in, vector_out)
-      call vcopy(smat%smmm%nvctrp, vector_out(1), 1, vector_in(1), 1)
+      call sparsemm_new(iproc, smat(1), mat_seq, vector_in, vector_out)
+      call vcopy(smat(1)%smmm%nvctrp, vector_out(1), 1, vector_in(1), 1)
   end do
 
 
-  call compress_matrix_distributed_wrapper(iproc, nproc, smat, SPARSE_MATMUL_SMALL, &
+  call compress_matrix_distributed_wrapper(iproc, nproc, smat(1), SPARSE_MATMUL_SMALL, &
        vector_out, ONESIDED_FULL, matA%matrix_compr)
-  if (iproc==0 .and. verbosity==2) then
-      call write_matrix_compressed('final result', smat, matA)
+  !if (iproc==0 .and. verbosity==2) then
+  if (verbosity==2) then
+      call write_matrix_compressed(iproc, nproc, mpiworld(), 'final result', smat(1), matA)
   end if
 
   call mpibarrier(comm)
@@ -169,7 +183,7 @@ program smatmul
        gather_routine=gather_timings)
 
   ! Deallocations
-  call deallocate_sparse_matrix(smat)
+  call deallocate_sparse_matrix(smat(1))
   call deallocate_matrices(matA)
   !call f_free_ptr(keyv)
   !call f_free_ptr(keyg)
