@@ -113,15 +113,20 @@ contains
     integer :: iat
 
     call yaml_newline()
-    call yaml_mapping_open('Local information on the magnetic centers')
+    call yaml_sequence_open('Local information on the magnetic centers')
     do iat=1,cfd%nat
        call yaml_newline()
+       call yaml_sequence(advance='no')
+       call yaml_mapping_open(flow=.true.)
        call yaml_map('R',cfd%rxyz(:,iat)) !position
        call yaml_map('D',cfd%radii(iat)) !radius
+       call yaml_newline()
        call yaml_map('M',cfd%m_at(:,iat),fmt='(1pe12.5)') !mag mom
        call yaml_map('C',cfd%rho_at(iat)) !charge
+       call yaml_mapping_close()
     end do
-    call yaml_mapping_close()
+    call yaml_sequence_close()
+    call yaml_newline()
 
   end subroutine cfd_dump_info
 
