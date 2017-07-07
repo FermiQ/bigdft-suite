@@ -3,7 +3,7 @@
 # Main targets.
 # ------------
 dynlibdir           = $(libdir)
-bin_PROGRAMS        = splsad NEB global globaltool mhgps mhgpstool lowest_pathway coulomb_global frequencies
+bin_PROGRAMS        = splsad NEB global globaltool mhgps mhgpstool lowest_pathway coulomb_global # frequencies
 EXTRA_PROGRAMS      = bart #NEB_images
 dist_bin_SCRIPTS    = NEB_driver.sh
 lib_LIBRARIES       = libspred-1.a
@@ -35,7 +35,7 @@ spred_dynamic_library =
 spred_soname_library =
 spred_library = libspred-1.a @LIB_SPRED_DEPS@
 endif
-binaries_sources = splsad NEB global globaltool mhgps mhgpstool lowest_pathway coulomb_global frequencies
+binaries_sources = splsad NEB global globaltool mhgps mhgpstool lowest_pathway coulomb_global # frequencies
 
 
 AM_FCFLAGS = -I. @MPI_INCLUDE@ @LIB_BIGDFT_CFLAGS@

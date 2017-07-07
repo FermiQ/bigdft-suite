@@ -38,7 +38,7 @@ module box
      integer :: i3e !<ending point in the dimension z
      integer :: i23 !<collapsed index in 23 dimension
      integer :: ind !<one-dimensional index for arrays
-     !< 3D indices in absolute coordinates in the given box specified by boxat
+     !> 3D indices in absolute coordinates in the given box specified by boxat
      integer, dimension(3)  :: ibox  
      !> actual index inside the box
      integer :: i,j,k !better as scalars
