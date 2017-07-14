@@ -173,12 +173,18 @@ module bigdft_matrices
             i0i=i0+i
             iiorb=collcom%indexrecvorbital_c(i0i)
             !iorb=moduloarray(iiorb)
-            iorb = modulo(iiorb-mat_ind_compr(iiorb)%offset_compr,nfvctr)+1
+            !iorb = modulo(iiorb-mat_ind_compr(iiorb)%offset_compr,nfvctr)+1
             do j=1,ii
                i0j=i0+j
+               !jjorb=collcom%indexrecvorbital_c(i0j)
                jjorb=collcom%indexrecvorbital_c(i0j)
                !jorb=moduloarray(jjorb)
-               jorb = modulo(jjorb-mat_ind_compr(iiorb)%offset_compr,nfvctr)+1
+               !jorb = modulo(jjorb-mat_ind_compr(iiorb)%offset_compr,nfvctr)+1
+               if (jjorb<mat_ind_compr(iiorb)%offset_compr) then
+                   jorb = jjorb + nfvctr
+               else
+                   jorb = jjorb
+               end if
                !ind = smat%matrixindex_in_compressed_fortransposed(jorb,iorb)
                !ind = matrixindex_in_compressed_fortransposed(jorb,iorb)
                !!if (jorb>ubound(mat_ind_compr(iiorb)%ind_compr,1)) then
@@ -202,12 +208,18 @@ module bigdft_matrices
          do i=1,ii
             i0i=i0+i
             iiorb=collcom%indexrecvorbital_f(i0i)
-            iorb=moduloarray(iiorb)
+            !iorb=moduloarray(iiorb)
             do j=1,ii
                i0j=i0+j
+               !jjorb=collcom%indexrecvorbital_f(i0j)
                jjorb=collcom%indexrecvorbital_f(i0j)
                !jorb=moduloarray(jjorb)
-               jorb = modulo(jjorb-mat_ind_compr(iiorb)%offset_compr,nfvctr)+1
+               !jorb = modulo(jjorb-mat_ind_compr(iiorb)%offset_compr,nfvctr)+1
+               if (jjorb<mat_ind_compr(iiorb)%offset_compr) then
+                   jorb = jjorb + nfvctr
+               else
+                   jorb = jjorb
+               end if
                !ind = smat%matrixindex_in_compressed_fortransposed(jorb,iorb)
                !ind = matrixindex_in_compressed_fortransposed(jorb,iorb)
                ind = mat_ind_compr(iiorb)%ind_compr(jorb)
@@ -243,16 +255,26 @@ module bigdft_matrices
 
       !$omp parallel default(none) &
       !$omp private(ipt,ii,i0,iiorb,iorb,ind,i) &
-      !$omp shared(collcom_sr,moduloarray,mat_ind_compr,ind_min,ind_max)
+      !$omp shared(collcom_sr,moduloarray,mat_ind_compr,ind_min,ind_max,nfvctr)
       !$omp do reduction(min: ind_min) reduction(max: ind_max)
       do ipt=1,collcom_sr%nptsp_c
          ii=collcom_sr%norb_per_gridpoint_c(ipt)
          i0=collcom_sr%isptsp_c(ipt)
          do i=1,ii
             iiorb=collcom_sr%indexrecvorbital_c(i0+i)
-            iorb=moduloarray(iiorb)
+            !iorb=collcom_sr%indexrecvorbital_c(i0+i)
+            if (iorb<mat_ind_compr(iiorb)%offset_compr) then
+                iorb = iiorb + nfvctr
+            else
+                iorb = iiorb
+            end if
+            !iorb=moduloarray(iiorb)
             !ind=smat%matrixindex_in_compressed_fortransposed(iiorb,iiorb)
             !ind=matrixindex_in_compressed_fortransposed(iorb,iorb)
+            !!if (iorb>ubound(mat_ind_compr(iiorb)%ind_compr,1)) then
+            !!    write(*,*) 'ipt, i, iiorb, iorb, lbound(ind_compr), ubound(ind_compr)', &
+            !!        ipt, i, iiorb, iorb, lbound(mat_ind_compr(iiorb)%ind_compr,1), ubound(mat_ind_compr(iiorb)%ind_compr,1)
+            !!end if
             ind = mat_ind_compr(iiorb)%ind_compr(iorb)
             !ind=get_transposed_index(smat,iiorb,iiorb)
             ind_min = min(ind_min,ind)
@@ -369,13 +391,15 @@ module bigdft_matrices
           nlen = imax - imin + 1
           !write(*,*) 'ifvctr, imin_old(ifvctr), imax_old(ifvctr), imin_new(ifvctr), imax_new(ifvctr), imin, imax, nlen', &
           !            ifvctr, imin_old(ifvctr), imax_old(ifvctr), imin_new(ifvctr), imax_new(ifvctr), imin, imax, nlen
-          aux%mat_ind_compr(ifvctr)%ind_compr = f_malloc_ptr(nlen,id='aux%linmat%mat_ind_compr%ind_compr')
+          !aux%mat_ind_compr(ifvctr)%ind_compr = f_malloc_ptr(nlen,id='aux%linmat%mat_ind_compr%ind_compr')
+          aux%mat_ind_compr(ifvctr)%ind_compr = f_malloc_ptr(imin.to.imax,id='aux%linmat%mat_ind_compr%ind_compr')
           !$omp parallel do default(private) shared(sparsemat,aux,imin,imax,ifvctr)
           do jorb=imin,imax
-              j = jorb - imin + 1
+              !j = jorb - imin + 1
               jjorb = mod(jorb-1,sparsemat%nfvctr)+1
               !aux%mat_ind_compr(ifvctr)%ind_compr(j)=matrixindex_in_compressed(sparsemat, ifvctr, jjorb)
-              aux%mat_ind_compr(ifvctr)%ind_compr(j)=matrixindex_in_compressed(sparsemat, jjorb, ifvctr)
+              !aux%mat_ind_compr(ifvctr)%ind_compr(j)=matrixindex_in_compressed(sparsemat, jjorb, ifvctr)
+              aux%mat_ind_compr(ifvctr)%ind_compr(jorb)=matrixindex_in_compressed(sparsemat, jjorb, ifvctr)
           end do
           !$omp end parallel do
       end do
