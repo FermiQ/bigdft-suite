@@ -430,7 +430,7 @@ module rhopotential
     
       call f_routine('sumrho_for_TMBs')
 
-      call get_modulo_array(denskern%nfvctr, aux%offset_matrixindex_in_compressed_fortransposed, moduloarray)
+      call get_modulo_array(denskern%nfvctr, aux%mat_ind_compr, moduloarray)
     
       ! check whether all entries of the charge density are positive
       rho_negative=.false.
@@ -493,18 +493,29 @@ module rhopotential
               tt=1.e-20_dp
               do i=1,ii
                   iiorb=collcom_sr%indexrecvorbital_c(i0+i) - iorb_shift
-                  iorb=moduloarray(iiorb)
+                  !iorb=moduloarray(iiorb)
+                  iorb=modulo(iiorb-aux%mat_ind_compr(iiorb)%offset_compr,denskern%nfvctr)+1
                   tt1=collcom_sr%psit_c(i0+i)
-                  ind=aux%matrixindex_in_compressed_fortransposed(iorb,iorb)
+                  !ind=aux%matrixindex_in_compressed_fortransposed(iorb,iorb)
+                  ind = aux%mat_ind_compr(iiorb)%ind_compr(iorb)
                   ind=ind+ishift_mat-denskern%isvctrp_tg
                   tt=tt+denskern_%matrix_compr(ind)*tt1*tt1
                   tt2=2.0_dp*tt1
                   do j=i+1,ii
                       jjorb=collcom_sr%indexrecvorbital_c(i0+j) - iorb_shift
-                      jorb=moduloarray(jjorb)
-                      ind=aux%matrixindex_in_compressed_fortransposed(jorb,iorb)
+                      !jorb=moduloarray(jjorb)
+                      jorb=modulo(jjorb-aux%mat_ind_compr(iiorb)%offset_compr,denskern%nfvctr)+1
+                      !ind=aux%matrixindex_in_compressed_fortransposed(jorb,iorb)
+                      !if (jorb>size(aux%mat_ind_compr(iiorb)%ind_compr)) then
+                      !    write(*,*) 'ipt, i, ii, j, iiorb, iorb, jjorb, jorb, offset_compr(iiorb), moduloarray(jjorb)', &
+                      !           ipt, i, ii, j, iiorb, iorb, jjorb, jorb, aux%mat_ind_compr(iiorb)%offset_compr, moduloarray(jjorb)
+                      !end if
+                      ind = aux%mat_ind_compr(iiorb)%ind_compr(jorb)
                       if (ind==0) cycle
                       ind=ind+ishift_mat-denskern%isvctrp_tg
+                      !if (ind>size(denskern_%matrix_compr)) then
+                      !    write(*,*) 'ipt, i, iiorb, iorb, jjorb, jorb, ind', ipt, i, iiorb, iorb, jjorb, jorb, ind
+                      !end if
                       tt=tt+denskern_%matrix_compr(ind)*tt2*collcom_sr%psit_c(i0+j)
                   end do
               end do

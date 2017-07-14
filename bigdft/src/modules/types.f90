@@ -184,11 +184,16 @@ module module_types
   !  integer :: evbounds_isatur, evboundsshrink_isatur, evbounds_nsatur, evboundsshrink_nsatur !< variables to check whether the eigenvalue bounds might be too big
   !end type foe_data
 
-  type,public :: linmat_auxiliary
-      integer,dimension(:,:),pointer :: matrixindex_in_compressed_fortransposed !< lookup arrays for transposed operations
-      integer :: offset_matrixindex_in_compressed_fortransposed
-  end type linmat_auxiliary
+
+  type,public :: matrixindex_in_compressed_fortransposed
+      integer,dimension(:),pointer :: ind_compr !< lookup arrays for transposed operations
+      integer :: offset_compr
+  end type matrixindex_in_compressed_fortransposed
   
+  type,public :: linmat_auxiliary
+      type(matrixindex_in_compressed_fortransposed),dimension(:),pointer :: mat_ind_compr
+  end type linmat_auxiliary
+
   type,public :: linear_matrices
       type(sparse_matrix),dimension(3) :: smat !< small: sparsity pattern given by support function cutoff
                                                !! medium: sparsity pattern given by SHAMOP cutoff
@@ -606,6 +611,7 @@ module module_types
  public :: SIC_data,orthon_data,input_variables,evaltoocc
  public :: linear_matrices_null, linmat_auxiliary_null, deallocate_linmat_auxiliary
  public :: deallocate_linear_matrices
+ public :: matrixindex_in_compressed_fortransposed_null
 
 
 
@@ -1546,11 +1552,17 @@ contains
 
   END SUBROUTINE evaltoocc
 
+  function matrixindex_in_compressed_fortransposed_null() result (mat_ind_compr)
+    implicit none
+    type(matrixindex_in_compressed_fortransposed) :: mat_ind_compr
+    nullify(mat_ind_compr%ind_compr)
+    mat_ind_compr%offset_compr = 0
+  end function matrixindex_in_compressed_fortransposed_null
+
   function linmat_auxiliary_null() result (aux)
     implicit none
     type(linmat_auxiliary) :: aux
-    nullify(aux%matrixindex_in_compressed_fortransposed)
-    aux%offset_matrixindex_in_compressed_fortransposed = 0
+    nullify(aux%mat_ind_compr)
   end function linmat_auxiliary_null
 
   function linear_matrices_null() result(linmat)
@@ -1575,10 +1587,20 @@ contains
     linmat%auxs = linmat_auxiliary_null()
   end function linear_matrices_null
 
+  subroutine deallocate_matrixindex_in_compressed_fortransposed(mat_ind_compr)
+    implicit none
+    type(matrixindex_in_compressed_fortransposed),intent(inout) :: mat_ind_compr
+    call f_free_ptr(mat_ind_compr%ind_compr)
+  end subroutine deallocate_matrixindex_in_compressed_fortransposed
+
   subroutine deallocate_linmat_auxiliary(aux)
     implicit none
     type(linmat_auxiliary),intent(inout) :: aux
-    call f_free_ptr(aux%matrixindex_in_compressed_fortransposed)
+    integer :: i
+    do i=lbound(aux%mat_ind_compr,1),ubound(aux%mat_ind_compr,1)
+        call deallocate_matrixindex_in_compressed_fortransposed(aux%mat_ind_compr(i))
+    end do
+    deallocate(aux%mat_ind_compr)
   end subroutine deallocate_linmat_auxiliary
 
   subroutine deallocate_linear_matrices(linmat)

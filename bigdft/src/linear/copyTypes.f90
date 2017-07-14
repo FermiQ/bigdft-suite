@@ -567,13 +567,31 @@ subroutine copy_comms_linear(comms_in, comms_out)
 
 end subroutine copy_comms_linear
 
+
 subroutine copy_linmat_auxiliary(aux_in, aux_out)
   use dynamic_memory
-  use module_types, only: linmat_auxiliary
+  use module_types, only: linmat_auxiliary, matrixindex_in_compressed_fortransposed_null
   implicit none
   type(linmat_auxiliary),intent(in) :: aux_in
   type(linmat_auxiliary),intent(out) :: aux_out
-  aux_out%matrixindex_in_compressed_fortransposed = f_malloc_ptr(src_ptr=aux_in%matrixindex_in_compressed_fortransposed, &
-      id='aux_out%matrixindex_in_compressed_fortransposed')
-  aux_out%offset_matrixindex_in_compressed_fortransposed = aux_in%offset_matrixindex_in_compressed_fortransposed
+  integer :: i
+  !!aux_out%matrixindex_in_compressed_fortransposed = f_malloc_ptr(src_ptr=aux_in%matrixindex_in_compressed_fortransposed, &
+  !!    id='aux_out%matrixindex_in_compressed_fortransposed')
+  !!aux_out%offset_matrixindex_in_compressed_fortransposed = aux_in%offset_matrixindex_in_compressed_fortransposed
+  allocate(aux_out%mat_ind_compr(lbound(aux_in%mat_ind_compr,1):ubound(aux_in%mat_ind_compr,1)))
+  do i=lbound(aux_in%mat_ind_compr,1),ubound(aux_in%mat_ind_compr,1)
+      aux_out%mat_ind_compr(i) = matrixindex_in_compressed_fortransposed_null()
+      call copy_matrixindex_in_compressed_fortransposed(aux_in%mat_ind_compr(i), aux_out%mat_ind_compr(i))    
+  end do
 end subroutine copy_linmat_auxiliary
+
+
+subroutine copy_matrixindex_in_compressed_fortransposed(mat_ind_compr_in, mat_ind_compr_out)
+  use dynamic_memory
+  use module_types, only: matrixindex_in_compressed_fortransposed
+  implicit none
+  type(matrixindex_in_compressed_fortransposed),intent(in) :: mat_ind_compr_in
+  type(matrixindex_in_compressed_fortransposed),intent(out) :: mat_ind_compr_out
+  mat_ind_compr_out%ind_compr = f_malloc_ptr(src_ptr=mat_ind_compr_out%ind_compr,id='mat_ind_compr_out%ind_compr')
+  mat_ind_compr_out%offset_compr = mat_ind_compr_in%offset_compr
+end subroutine copy_matrixindex_in_compressed_fortransposed

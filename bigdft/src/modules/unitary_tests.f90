@@ -277,7 +277,6 @@ module unitary_tests
       nxyz=lzd%glr%d%n1i*lzd%glr%d%n2i*lzd%glr%d%n3i
 
       call mpi_barrier(bigdft_mpi%mpi_comm, ierr)
-      call mpi_barrier(bigdft_mpi%mpi_comm, ierr)
 
       ! Fill the direct array with a recognizable pattern
       ist=0
@@ -343,7 +342,6 @@ module unitary_tests
       end if
 
       call mpi_barrier(bigdft_mpi%mpi_comm, ierr)
-      call mpi_barrier(bigdft_mpi%mpi_comm, ierr)
 
       ! Rearrange data
       call transpose_switch_psir(collcom_sr, psir, psirwork)
@@ -402,7 +400,6 @@ module unitary_tests
       call f_free(psirtwork)
 
       call mpi_barrier(bigdft_mpi%mpi_comm, ierr)
-      call mpi_barrier(bigdft_mpi%mpi_comm, ierr)
 
       ! Check the layout of the transposed data
       maxdiff=0.d0
@@ -454,7 +451,6 @@ module unitary_tests
           call mpiallred(sumdiff, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
           call mpiallred(maxdiff, 1, mpi_max, comm=bigdft_mpi%mpi_comm)
       end if
-      call mpi_barrier(bigdft_mpi%mpi_comm, ierr)
       call mpi_barrier(bigdft_mpi%mpi_comm, ierr)
 
       ! Get mean value for the sum
