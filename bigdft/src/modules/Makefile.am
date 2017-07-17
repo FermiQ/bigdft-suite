@@ -96,6 +96,7 @@ libmodules_a_SOURCES = ab7_mixing.f90 \
 	$(cp2k_interfacemod) \
 	$(openbabel_static_sources) \
 	module_dftbp.f90 \
+	constrained_magnetic_field.f90 \
 	sw_potential.f90 \
 	get_basis.f90 \
 	get_kernel.f90
@@ -121,6 +122,7 @@ modules = MODULE_TYPES.@MODULE_EXT@ \
 	MODULE_DPBOX.@MODULE_EXT@ \
 	REFORMATTING.@MODULE_EXT@ \
 	MODULE_ATOMS.@MODULE_EXT@ \
+	MODULE_CFD.@MODULE_EXT@ \
 	COMMUNICATIONS_INIT.@MODULE_EXT@ \
 	COMMUNICATIONS.@MODULE_EXT@ \
 	SPARSEMATRIX_WRAPPERS.@MODULE_EXT@ \
@@ -176,6 +178,7 @@ modules = module_types.@MODULE_EXT@ \
 	module_dpbox.@MODULE_EXT@ \
 	reformatting.@MODULE_EXT@ \
 	module_atoms.@MODULE_EXT@ \
+	module_cfd.@MODULE_EXT@ \
 	communications_init.@MODULE_EXT@ \
 	communications.@MODULE_EXT@ \
 	sparsematrix_wrappers.@MODULE_EXT@ \
@@ -286,7 +289,7 @@ module_forces.o: types.o
 unitary_tests.o: types.o interfaces.o communications_init.o communications.o transposed_operations.o rhopotential.o
 io.o: types.o interfaces.o input_keys.o
 postprocessing_linear.o: types.o interfaces.o communications.o transposed_operations.o rhopotential.o sort.o communications_init.o locregs_init.o multipole_base.o multipole.o io.o get_kernel.o
-rhopotential.o: types.o interfaces.o communications.o bigdft_matrices.o
+rhopotential.o: types.o interfaces.o communications.o bigdft_matrices.o constrained_magnetic_field.o atoms_data.o
 multipole.o: multipole_base.o interfaces.o orthonormalization.o io.o orbital_basis.o
 orbital_basis.o:  types.o interfaces.o communications.o
 orthonormalization.o: types.o communications.o transposed_operations.o atoms_data.o

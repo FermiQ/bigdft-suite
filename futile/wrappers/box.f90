@@ -145,9 +145,11 @@ contains
     type(box_iterator) :: boxit
     
     call nullify_box_iterator(boxit)
-    
+
+    !if the mesh is invalid (e.g. no dims, return)
+    if (mesh%ndim==0) return
     !associate the mesh
-    boxit%mesh => mesh
+    boxit%mesh => mesh 
 
     call f_zero(boxit%oxyz)
     if (present(origin)) boxit%oxyz=origin

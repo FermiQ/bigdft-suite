@@ -607,7 +607,7 @@ contains
             call f_strcpy(src=dict_key(iter),dest=shell)
             ishell=shell_toi(shell)
             !let us now see if the matrix has been already extracted
-            do ispin=1,2
+            do ispin=1,2 !HERE we should generalize to spinorial indices
                if (.not. fromname .or. .not. associated(gamma_ntypes(ishell,ispin,it%ityp)%ptr)) &
                     call get_gamma_target(iter,ishell,ispin,gamma_targets(ishell,ispin,it%iat))
                if (fromname) then
@@ -2281,6 +2281,8 @@ subroutine allocate_atoms_nat(atoms)
        id='dogamma')
 
   !put also spin in the allocations
+  !@todo here we have to decide if we need occupancy control in the
+  !noncollinear case
   atoms%gamma_targets=f_malloc_ptr([0.to.lmax_ao,1.to.2,1.to.atoms%astruct%nat],id='gamma_targets')
 
 END SUBROUTINE allocate_atoms_nat
@@ -2372,7 +2374,8 @@ subroutine astruct_set_displacement(astruct, randdis)
    call rxyz_inside_box(astruct)
 
  END SUBROUTINE astruct_set_displacement
-
+ 
+ !> this routine should be merged with the cell definition in the box module
  subroutine astruct_distance(astruct, rxyz, dxyz, iat1, iat2)
    use module_defs, only: gp
    use module_atoms, only: atomic_structure

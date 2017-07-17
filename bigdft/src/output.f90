@@ -52,31 +52,6 @@ subroutine print_logo()
   call yaml_scalar('|     |     |     |     |     |   DDDDDD       F         TTTT          ')
   call yaml_scalar('|_____|_____|_____|_____|_____|______                    www.bigdft.org   "')
 
-  !old version
-!!$  call yaml_scalar('      TTTT         F       DDDDD    ')
-!!$  call yaml_scalar('     T    T               D         ')
-!!$  call yaml_scalar('    T     T        F     D          ')
-!!$  call yaml_scalar('    T    T         F     D        D ')
-!!$  call yaml_scalar('    TTTTT          F     D         D')
-!!$  call yaml_scalar('    T    T         F     D         D')
-!!$  call yaml_scalar('    T     T        F     D         D')
-!!$  call yaml_scalar('    T      T       F     D         D')
-!!$  call yaml_scalar('    T     T     FFFF     D         D')
-!!$  call yaml_scalar('    T TTTT         F      D        D')
-!!$  call yaml_scalar('    T             F        D      D ')
-!!$  call yaml_scalar('TTTTTTTTT    FFFFF          DDDDDD  ')
-!!$  call yaml_scalar('  gggggg          iiiii    BBBBBBBBB')
-!!$  call yaml_scalar(' g      g        i             B    ')
-!!$  call yaml_scalar('g        g      i         BBBB B    ')
-!!$  call yaml_scalar('g         g     iiii     B     B    ')
-!!$  call yaml_scalar('g         g     i       B      B    ')
-!!$  call yaml_scalar('g         g     i        B     B    ')
-!!$  call yaml_scalar('g         g     i         B    B    ')
-!!$  call yaml_scalar('g         g     i          BBBBB    ')
-!!$  call yaml_scalar(' g        g     i         B    B    ')
-!!$  call yaml_scalar('          g     i        B     B    ')
-!!$  call yaml_scalar('         g               B    B     ')
-!!$  call yaml_scalar('    ggggg       i         BBBB      ')
   call yaml_mapping_close()
 
   call yaml_map('Reference Paper','The Journal of Chemical Physics 129, 014109 (2008)')
@@ -743,40 +718,52 @@ subroutine write_atomic_density_matrix(nspin,astruct,nl)
   type(DFT_PSP_projectors), intent(in) :: nl
   type(atomic_structure), intent(in) :: astruct
   !local variables
+  logical :: flowrite
   integer :: ispin,l
   integer, dimension(0:lmax_ao) :: igamma
   character(len=32) :: msg
   type(atoms_iterator) :: atit
 
+  call yaml_stream_attributes(flowrite=flowrite)
+
   if (.not. associated(nl%iagamma)) return
+  call yaml_newline()
   call yaml_sequence_open('Atomic density matrix in the PSP projectors')
   !iterate above atoms
   atit=atoms_iter(astruct)
   do while(atoms_iter_next(atit))
-    igamma=nl%iagamma(:,atit%iat)
-    if (all(igamma == 0)) cycle
-    call yaml_newline()
-    call yaml_sequence(advance='no')
-    call yaml_map('Symbol',trim(atit%name),advance='no')
-    call yaml_comment('Atom '//trim(yaml_toa(atit%iat)))
-    do l=0,lmax_ao
-      !for the moment no imaginary part printed out
-      if (igamma(l) == 0) cycle
-      call yaml_mapping_open('Channel '//ishell_toa(l))
-      do ispin=1,nspin
-         call yaml_newline()
-        if (nspin==1) then
-          call f_strcpy(src='Matrix',dest=msg)
-        else if (ispin==1) then
-          call f_strcpy(src='Spin up',dest=msg)
-        else if (ispin==2) then
-          call f_strcpy(src='Spin down',dest=msg)
+     igamma=nl%iagamma(:,atit%iat)
+     if (all(igamma == 0)) cycle
+     call yaml_newline()
+     call yaml_sequence(advance='no')
+     if (flowrite) call yaml_mapping_open()
+     call yaml_map('Symbol',trim(atit%name),advance='no')
+     call yaml_comment('Atom '//trim(yaml_toa(atit%iat)))
+     do l=0,lmax_ao
+        !for the moment no imaginary part printed out
+        if (igamma(l) == 0) cycle
+        call yaml_mapping_open('Channel '//ishell_toa(l))
+        if (nspin==4) then
+           call yaml_newline()
+           call yaml_map('Matrix',&
+                nl%gamma_mmp(:,1:2*l+1,1:2*l+1,igamma(l),1),fmt='(1pg12.2)')
+        else
+           do ispin=1,nspin
+              call yaml_newline()
+              if (nspin==1) then
+                 call f_strcpy(src='Matrix',dest=msg)
+              else if (ispin==1) then
+                 call f_strcpy(src='Spin up',dest=msg)
+              else if (ispin==2) then
+                 call f_strcpy(src='Spin down',dest=msg)
+              end if
+              call yaml_map(trim(msg),&
+                   nl%gamma_mmp(1,1:2*l+1,1:2*l+1,igamma(l),ispin),fmt='(1pg12.2)')
+           end do
         end if
-        call yaml_map(trim(msg),&
-            nl%gamma_mmp(1,1:2*l+1,1:2*l+1,igamma(l),ispin),fmt='(1pg12.2)')
-      end do
-      call yaml_mapping_close()
-    end do
+        call yaml_mapping_close()
+     end do
+     if (flowrite) call yaml_mapping_close()
   end do
   call yaml_sequence_close()
 end subroutine write_atomic_density_matrix
