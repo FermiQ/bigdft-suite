@@ -495,26 +495,21 @@ module rhopotential
                   iiorb=collcom_sr%indexrecvorbital_c(i0+i) - iorb_shift
                   !iorb=moduloarray(iiorb)
                   !iorb=modulo(iiorb-aux%mat_ind_compr(iiorb)%offset_compr,denskern%nfvctr)+1
-                  if (iiorb<aux%mat_ind_compr(iiorb)%offset_compr) then
-                      iorb = iiorb + denskern%nfvctr
-                  else
-                      iorb = iiorb
-                  end if
+                  iorb=aux%mat_ind_compr(iiorb)%iorb_mod(iiorb)
                   tt1=collcom_sr%psit_c(i0+i)
                   !ind=aux%matrixindex_in_compressed_fortransposed(iorb,iorb)
                   ind = aux%mat_ind_compr(iiorb)%ind_compr(iorb)
                   ind=ind+ishift_mat-denskern%isvctrp_tg
+                  if (ind==0) then
+                      write(*,*) 'i, iiorb, iorb, ind', i, iiorb, iorb, ind
+                  end if
                   tt=tt+denskern_%matrix_compr(ind)*tt1*tt1
                   tt2=2.0_dp*tt1
                   do j=i+1,ii
                       jjorb=collcom_sr%indexrecvorbital_c(i0+j) - iorb_shift
                       !jorb=moduloarray(jjorb)
                       !jorb=modulo(jjorb-aux%mat_ind_compr(iiorb)%offset_compr,denskern%nfvctr)+1
-                      if (jjorb<aux%mat_ind_compr(iiorb)%offset_compr) then
-                          jorb = jjorb + denskern%nfvctr
-                      else
-                          jorb = jjorb
-                      end if
+                      jorb=aux%mat_ind_compr(iiorb)%iorb_mod(jjorb)
                       !ind=aux%matrixindex_in_compressed_fortransposed(jorb,iorb)
                       !if (jorb>size(aux%mat_ind_compr(iiorb)%ind_compr)) then
                       !    write(*,*) 'ipt, i, ii, j, iiorb, iorb, jjorb, jorb, offset_compr(iiorb), moduloarray(jjorb)', &
