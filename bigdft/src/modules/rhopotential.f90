@@ -402,7 +402,6 @@ module rhopotential
       use module_base, only: bigdft_mpi
       use yaml_output
       use sparsematrix_base, only: sparse_matrix, matrices
-      use bigdft_matrices, only: get_modulo_array
       use module_types, only: linmat_auxiliary, comms_linear
       implicit none
     
@@ -430,7 +429,7 @@ module rhopotential
     
       call f_routine('sumrho_for_TMBs')
 
-      call get_modulo_array(denskern%nfvctr, aux%mat_ind_compr, moduloarray)
+      !!call get_modulo_array(denskern%nfvctr, aux%mat_ind_compr, moduloarray)
     
       ! check whether all entries of the charge density are positive
       rho_negative=.false.
@@ -493,49 +492,20 @@ module rhopotential
               tt=1.e-20_dp
               do i=1,ii
                   iiorb=collcom_sr%indexrecvorbital_c(i0+i) - iorb_shift
-                  !iorb=moduloarray(iiorb)
-                  !iorb=modulo(iiorb-aux%mat_ind_compr(iiorb)%offset_compr,denskern%nfvctr)+1
-                  !ia = iiorb-aux%mat_ind_compr(iiorb)%offset_compr
-                  !ib = denskern%nfvctr
-                  !iorb = ia - floor(real(ia,kind=8)/real(ib,kind=8))*ib + 1
-                  !ia = iiorb-aux%mat_ind_compr(iiorb)%offset_compr
-                  !ib = -(sign(1,ia) + 1)
-                  !ib = 2**ib
-                  !iorb = ia + ib*denskern%nfvctr + 1
                   ia = iiorb-aux%mat_ind_compr2(iiorb)%offset_compr
                   ib = sign(1,ia)
                   tt1=collcom_sr%psit_c(i0+i)
-                  !ind=aux%matrixindex_in_compressed_fortransposed(iorb,iorb)
-                  !ind = aux%mat_ind_compr(iiorb)%ind_compr(iorb)
                   ind = aux%mat_ind_compr2(iiorb)%section(ib)%ind_compr(iiorb)
                   ind=ind+ishift_mat-denskern%isvctrp_tg
                   tt=tt+denskern_%matrix_compr(ind)*tt1*tt1
                   tt2=2.0_dp*tt1
                   do j=i+1,ii
                       jjorb=collcom_sr%indexrecvorbital_c(i0+j) - iorb_shift
-                      !jorb=moduloarray(jjorb)
-                      !jorb=modulo(jjorb-aux%mat_ind_compr(iiorb)%offset_compr,denskern%nfvctr)+1
-                      !ia = jjorb-aux%mat_ind_compr(iiorb)%offset_compr
-                      !ib = denskern%nfvctr
-                      !jorb = ia - floor(real(ia,kind=8)/real(ib,kind=8))*ib + 1
-                      !ia = jjorb-aux%mat_ind_compr(iiorb)%offset_compr
-                      !ib = -(sign(1,ia) + 1)
-                      !ib = 2**ib
-                      !jorb = ia + ib*denskern%nfvctr + 1
                       ia = iiorb-aux%mat_ind_compr2(iiorb)%offset_compr
                       ib = sign(1,ia)
-                      !ind=aux%matrixindex_in_compressed_fortransposed(jorb,iorb)
-                      !if (jorb>size(aux%mat_ind_compr(iiorb)%ind_compr)) then
-                      !    write(*,*) 'ipt, i, ii, j, iiorb, iorb, jjorb, jorb, offset_compr(iiorb), moduloarray(jjorb)', &
-                      !           ipt, i, ii, j, iiorb, iorb, jjorb, jorb, aux%mat_ind_compr(iiorb)%offset_compr, moduloarray(jjorb)
-                      !end if
-                      !ind = aux%mat_ind_compr(iiorb)%ind_compr(jorb)
                       ind = aux%mat_ind_compr2(iiorb)%section(ib)%ind_compr(jjorb)
                       if (ind==0) cycle
                       ind=ind+ishift_mat-denskern%isvctrp_tg
-                      !if (ind>size(denskern_%matrix_compr)) then
-                      !    write(*,*) 'ipt, i, iiorb, iorb, jjorb, jorb, ind', ipt, i, iiorb, iorb, jjorb, jorb, ind
-                      !end if
                       tt=tt+denskern_%matrix_compr(ind)*tt2*collcom_sr%psit_c(i0+j)
                   end do
               end do
@@ -548,7 +518,7 @@ module rhopotential
           !$omp end parallel
       end do
     
-      call f_free_ptr(moduloarray)
+      !call f_free_ptr(moduloarray)
     
       !if (print_local .and. iproc==0) write(*,'(a)') 'done.'
     

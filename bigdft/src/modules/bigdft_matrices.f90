@@ -4,7 +4,7 @@ module bigdft_matrices
   private
 
   public :: check_local_matrix_extents
-  public :: get_modulo_array
+  !!public :: get_modulo_array
   public :: init_matrixindex_in_compressed_fortransposed
   public :: init_bigdft_matrices
 
@@ -50,9 +50,9 @@ module bigdft_matrices
           if (extra_timing) call cpu_time(tr0)
           ! The operations done in the transposed wavefunction layout
           !call check_transposed_layout()
-          call get_modulo_array(smat%nfvctr, aux%mat_ind_compr, moduloarray)
-          write(*,*) 'moduloarray',moduloarray
-          call find_minmax_transposed(aux%mat_ind_compr,collcom,smat%nfvctr,moduloarray,ind_min,ind_max)
+          !call get_modulo_array(smat%nfvctr, aux%mat_ind_compr2, moduloarray)
+          !write(*,*) 'moduloarray',moduloarray
+          call find_minmax_transposed(aux%mat_ind_compr2,collcom,smat%nfvctr,ind_min,ind_max)
 
           !write(*,'(a,2i8)') 'after check_transposed_layout: ind_min, ind_max', ind_min, ind_max
           if (extra_timing) call cpu_time(tr1)
@@ -77,9 +77,9 @@ module bigdft_matrices
     
           ! Now check the sumrho operations
           !call check_sumrho_layout()
-          call check_sumrho_layout(collcom_sr,smat%nfvctr,moduloarray,aux%mat_ind_compr,ind_min,ind_max)
+          call check_sumrho_layout(collcom_sr,smat%nfvctr,aux%mat_ind_compr2,ind_min,ind_max)
 
-          call f_free_ptr(moduloarray)
+          !call f_free_ptr(moduloarray)
           !write(*,'(a,2i8)') 'after check_sumrho_layout: ind_min, ind_max', ind_min, ind_max
           if (extra_timing) call cpu_time(tr0)
           if (extra_timing) time3=real(tr0-tr1,kind=8)    
@@ -149,22 +149,22 @@ module bigdft_matrices
     end subroutine check_local_matrix_extents
 
 
-    subroutine find_minmax_transposed(mat_ind_compr,collcom,nfvctr,moduloarray,ind_min,ind_max)
+    subroutine find_minmax_transposed(mat_ind_compr2,collcom,nfvctr,ind_min,ind_max)
       use communications_base, only: comms_linear
-      use module_types, only: matrixindex_in_compressed_fortransposed
+      use module_types, only: matrixindex_in_compressed_fortransposed2
       implicit none
       integer, intent(in) :: nfvctr
       type(comms_linear),intent(in) :: collcom
       !integer, dimension(:,:), intent(in) :: matrixindex_in_compressed_fortransposed
-      type(matrixindex_in_compressed_fortransposed),dimension(nfvctr),intent(in) :: mat_ind_compr
-      integer, dimension(nfvctr), intent(in) :: moduloarray
+      type(matrixindex_in_compressed_fortransposed2),dimension(nfvctr),intent(in) :: mat_ind_compr2
+      !integer, dimension(nfvctr), intent(in) :: moduloarray
       integer, intent(inout) :: ind_min,ind_max
       !local variables
-      integer :: ipt, ii, i0, i, i0i, iiorb, j, i0j, jjorb, ind, iorb, jorb
+      integer :: ipt, ii, i0, i, i0i, iiorb, j, i0j, jjorb, ind, iorb, jorb, ia, ib
 
       !$omp parallel default(none) &
-      !$omp private(ipt,ii,i0,i,i0i,iiorb,iorb,j,i0j,jjorb,jorb,ind) &
-      !$omp shared(collcom,moduloarray,ind_min,ind_max,mat_ind_compr,nfvctr)
+      !$omp private(ipt,ii,i0,i,i0i,iiorb,iorb,j,i0j,jjorb,jorb,ind,ia,ib) &
+      !$omp shared(collcom,ind_min,ind_max,mat_ind_compr2,nfvctr)
       !$omp do reduction(min: ind_min) reduction(max: ind_max)
       do ipt=1,collcom%nptsp_c
          ii=collcom%norb_per_gridpoint_c(ipt)
@@ -173,12 +173,12 @@ module bigdft_matrices
             i0i=i0+i
             iiorb=collcom%indexrecvorbital_c(i0i)
             !iorb=moduloarray(iiorb)
-            iorb = modulo(iiorb-mat_ind_compr(iiorb)%offset_compr,nfvctr)+1
+            iorb = modulo(iiorb-mat_ind_compr2(iiorb)%offset_compr,nfvctr)+1
             do j=1,ii
                i0j=i0+j
                jjorb=collcom%indexrecvorbital_c(i0j)
                !jorb=moduloarray(jjorb)
-               jorb = modulo(jjorb-mat_ind_compr(iiorb)%offset_compr,nfvctr)+1
+               !jorb = modulo(jjorb-mat_ind_compr(iiorb)%offset_compr,nfvctr)+1
                !ind = smat%matrixindex_in_compressed_fortransposed(jorb,iorb)
                !ind = matrixindex_in_compressed_fortransposed(jorb,iorb)
                !!if (jorb>ubound(mat_ind_compr(iiorb)%ind_compr,1)) then
@@ -187,7 +187,10 @@ module bigdft_matrices
                !!                lbound(mat_ind_compr(iiorb)%ind_compr,1), &
                !!                ubound(mat_ind_compr(iiorb)%ind_compr,1)
                !!end if
-               ind = mat_ind_compr(iiorb)%ind_compr(jorb)
+               !ind = mat_ind_compr(iiorb)%ind_compr(jorb)
+               ia = jjorb-mat_ind_compr2(iiorb)%offset_compr
+               ib = sign(1,ia)
+               ind = mat_ind_compr2(iiorb)%section(ib)%ind_compr(jjorb)
                ind_min = min(ind_min,ind)
                ind_max = max(ind_max,ind)
             end do
@@ -202,15 +205,18 @@ module bigdft_matrices
          do i=1,ii
             i0i=i0+i
             iiorb=collcom%indexrecvorbital_f(i0i)
-            iorb=moduloarray(iiorb)
+            !iorb=moduloarray(iiorb)
             do j=1,ii
                i0j=i0+j
                jjorb=collcom%indexrecvorbital_f(i0j)
                !jorb=moduloarray(jjorb)
-               jorb = modulo(jjorb-mat_ind_compr(iiorb)%offset_compr,nfvctr)+1
+               !!jorb = modulo(jjorb-mat_ind_compr(iiorb)%offset_compr,nfvctr)+1
                !ind = smat%matrixindex_in_compressed_fortransposed(jorb,iorb)
                !ind = matrixindex_in_compressed_fortransposed(jorb,iorb)
-               ind = mat_ind_compr(iiorb)%ind_compr(jorb)
+               !!ind = mat_ind_compr(iiorb)%ind_compr(jorb)
+               ia = jjorb-mat_ind_compr2(iiorb)%offset_compr
+               ib = sign(1,ia)
+               ind = mat_ind_compr2(iiorb)%section(ib)%ind_compr(jjorb)
                ind_min = min(ind_min,ind)
                ind_min = min(ind_min,ind)
                ind_max = max(ind_max,ind)
@@ -227,33 +233,36 @@ module bigdft_matrices
 
 
 
-    subroutine check_sumrho_layout(collcom_sr,nfvctr,moduloarray,mat_ind_compr,ind_min,ind_max)
+    subroutine check_sumrho_layout(collcom_sr,nfvctr,mat_ind_compr2,ind_min,ind_max)
       use communications_base, only: comms_linear
       use sparsematrix_init, only: matrixindex_in_compressed
-      use module_types, only: matrixindex_in_compressed_fortransposed
+      use module_types, only: matrixindex_in_compressed_fortransposed2
       implicit none
       integer, intent(in) :: nfvctr
       type(comms_linear),intent(in) :: collcom_sr
       !integer, dimension(:,:), intent(in) :: matrixindex_in_compressed_fortransposed
-      type(matrixindex_in_compressed_fortransposed),dimension(nfvctr),intent(in) :: mat_ind_compr
-      integer, dimension(nfvctr), intent(in) :: moduloarray
+      type(matrixindex_in_compressed_fortransposed2),dimension(nfvctr),intent(in) :: mat_ind_compr2
+      !integer, dimension(nfvctr), intent(in) :: moduloarray
       integer, intent(inout) :: ind_min,ind_max
       !local variables
-      integer :: ipt, ii, i0, i, iiorb, ind, iorb
+      integer :: ipt, ii, i0, i, iiorb, ind, iorb, ia, ib
 
       !$omp parallel default(none) &
-      !$omp private(ipt,ii,i0,iiorb,iorb,ind,i) &
-      !$omp shared(collcom_sr,moduloarray,mat_ind_compr,ind_min,ind_max)
+      !$omp private(ipt,ii,i0,iiorb,iorb,ind,i,ia,ib) &
+      !$omp shared(collcom_sr,mat_ind_compr2,ind_min,ind_max)
       !$omp do reduction(min: ind_min) reduction(max: ind_max)
       do ipt=1,collcom_sr%nptsp_c
          ii=collcom_sr%norb_per_gridpoint_c(ipt)
          i0=collcom_sr%isptsp_c(ipt)
          do i=1,ii
             iiorb=collcom_sr%indexrecvorbital_c(i0+i)
-            iorb=moduloarray(iiorb)
+            !iorb=moduloarray(iiorb)
+            ia = iiorb-mat_ind_compr2(iiorb)%offset_compr
+            ib = sign(1,ia)
+            ind = mat_ind_compr2(iiorb)%section(ib)%ind_compr(iiorb)
             !ind=smat%matrixindex_in_compressed_fortransposed(iiorb,iiorb)
             !ind=matrixindex_in_compressed_fortransposed(iorb,iorb)
-            ind = mat_ind_compr(iiorb)%ind_compr(iorb)
+            !ind = mat_ind_compr(iiorb)%ind_compr(iorb)
             !ind=get_transposed_index(smat,iiorb,iiorb)
             ind_min = min(ind_min,ind)
             ind_max = max(ind_max,ind)
@@ -265,27 +274,27 @@ module bigdft_matrices
 
 
 
-    subroutine get_modulo_array(nfvctr, mat_ind_compr, moduloarray)
-      use module_base
-      use module_types, only: matrixindex_in_compressed_fortransposed
-      implicit none
-      ! Calling arguments
-      integer,intent(in) :: nfvctr
-      type(matrixindex_in_compressed_fortransposed),dimension(nfvctr),intent(in) :: mat_ind_compr
-      integer,dimension(:),pointer :: moduloarray
-      ! Local variables
-      integer :: i
-      moduloarray = f_malloc_ptr(nfvctr,id='moduloarray')
-      !$omp parallel default(none) &
-      !$omp shared(moduloarray,nfvctr, mat_ind_compr) &
-      !$omp private(i)
-      !$omp do
-      do i=1,nfvctr
-          moduloarray(i) = modulo(i-mat_ind_compr(i)%offset_compr,nfvctr)+1
-      end do
-      !$omp end do
-      !$omp end parallel
-    end subroutine get_modulo_array
+    !!subroutine get_modulo_array(nfvctr, mat_ind_compr, moduloarray)
+    !!  use module_base
+    !!  use module_types, only: matrixindex_in_compressed_fortransposed2
+    !!  implicit none
+    !!  ! Calling arguments
+    !!  integer,intent(in) :: nfvctr
+    !!  type(matrixindex_in_compressed_fortransposed),dimension(nfvctr),intent(in) :: mat_ind_compr
+    !!  integer,dimension(:),pointer :: moduloarray
+    !!  ! Local variables
+    !!  integer :: i
+    !!  moduloarray = f_malloc_ptr(nfvctr,id='moduloarray')
+    !!  !$omp parallel default(none) &
+    !!  !$omp shared(moduloarray,nfvctr, mat_ind_compr) &
+    !!  !$omp private(i)
+    !!  !$omp do
+    !!  do i=1,nfvctr
+    !!      moduloarray(i) = modulo(i-mat_ind_compr(i)%offset_compr,nfvctr)+1
+    !!  end do
+    !!  !$omp end do
+    !!  !$omp end parallel
+    !!end subroutine get_modulo_array
 
 
     subroutine init_matrixindex_in_compressed_fortransposed(iproc, nproc, collcom, collcom_shamop, &
@@ -294,8 +303,7 @@ module bigdft_matrices
       use sparsematrix_base, only: sparse_matrix
       use communications_base, only: comms_linear
       use sparsematrix_init, only: matrixindex_in_compressed
-      use module_types, only: linmat_auxiliary, matrixindex_in_compressed_fortransposed_null, &
-                              matrixindex_in_compressed_fortransposed2_null
+      use module_types, only: linmat_auxiliary, matrixindex_in_compressed_fortransposed2_null
       implicit none
       
       ! Calling arguments
@@ -346,7 +354,7 @@ module bigdft_matrices
       call get_minmax_lines(collcom_shamop, sparsemat, 'f', imin_old, imax_old, imin_new, imax_new)
       call get_minmax_lines(collcom_sr, sparsemat, 'c', imin_old, imax_old, imin_new, imax_new)
 
-      allocate(aux%mat_ind_compr(sparsemat%nfvctr))
+      !!allocate(aux%mat_ind_compr(sparsemat%nfvctr))
       allocate(aux%mat_ind_compr2(sparsemat%nfvctr))
       do ifvctr=1,sparsemat%nfvctr
           ! Determine with which size the array should be allocated
@@ -366,14 +374,14 @@ module bigdft_matrices
                   imax = imax_old(ifvctr)
               end if
           end if
-          aux%mat_ind_compr(ifvctr) = matrixindex_in_compressed_fortransposed_null()
+          !!aux%mat_ind_compr(ifvctr) = matrixindex_in_compressed_fortransposed_null()
           aux%mat_ind_compr2(ifvctr) = matrixindex_in_compressed_fortransposed2_null()
-          aux%mat_ind_compr(ifvctr)%offset_compr = imin
+          !!aux%mat_ind_compr(ifvctr)%offset_compr = imin
           aux%mat_ind_compr2(ifvctr)%offset_compr = imin
           nlen = imax - imin + 1
           !write(*,*) 'ifvctr, imin_old(ifvctr), imax_old(ifvctr), imin_new(ifvctr), imax_new(ifvctr), imin, imax, nlen', &
           !            ifvctr, imin_old(ifvctr), imax_old(ifvctr), imin_new(ifvctr), imax_new(ifvctr), imin, imax, nlen
-          aux%mat_ind_compr(ifvctr)%ind_compr = f_malloc_ptr(nlen,id='aux%linmat%mat_ind_compr%ind_compr')
+          !!aux%mat_ind_compr(ifvctr)%ind_compr = f_malloc_ptr(nlen,id='aux%linmat%mat_ind_compr%ind_compr')
           aux%mat_ind_compr2(ifvctr)%section(1)%ind_compr = &
               f_malloc_ptr(imin.to.min(imax,sparsemat%nfvctr),id='aux%linmat%mat_ind_compr%ind_compr')
           aux%mat_ind_compr2(ifvctr)%section(-1)%ind_compr = &
@@ -383,7 +391,7 @@ module bigdft_matrices
               j = jorb - imin + 1
               jjorb = mod(jorb-1,sparsemat%nfvctr)+1
               !aux%mat_ind_compr(ifvctr)%ind_compr(j)=matrixindex_in_compressed(sparsemat, ifvctr, jjorb)
-              aux%mat_ind_compr(ifvctr)%ind_compr(j)=matrixindex_in_compressed(sparsemat, jjorb, ifvctr)
+              !!aux%mat_ind_compr(ifvctr)%ind_compr(j)=matrixindex_in_compressed(sparsemat, jjorb, ifvctr)
               if (jjorb<=sparsemat%nfvctr) then
                   aux%mat_ind_compr2(ifvctr)%section(1)%ind_compr(jorb) = &
                       matrixindex_in_compressed(sparsemat, jjorb, ifvctr)
