@@ -530,6 +530,7 @@ module communications_init
               end do
               !$omp end parallel
           end if
+          call f_free_ptr(ise)
       end do
 
       ! First a local check, then reduction for later
