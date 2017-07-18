@@ -294,7 +294,8 @@ module bigdft_matrices
       use sparsematrix_base, only: sparse_matrix
       use communications_base, only: comms_linear
       use sparsematrix_init, only: matrixindex_in_compressed
-      use module_types, only: linmat_auxiliary, matrixindex_in_compressed_fortransposed_null
+      use module_types, only: linmat_auxiliary, matrixindex_in_compressed_fortransposed_null, &
+                              matrixindex_in_compressed_fortransposed2_null
       implicit none
       
       ! Calling arguments
@@ -346,6 +347,7 @@ module bigdft_matrices
       call get_minmax_lines(collcom_sr, sparsemat, 'c', imin_old, imax_old, imin_new, imax_new)
 
       allocate(aux%mat_ind_compr(sparsemat%nfvctr))
+      allocate(aux%mat_ind_compr2(sparsemat%nfvctr))
       do ifvctr=1,sparsemat%nfvctr
           ! Determine with which size the array should be allocated
           if (imax_new(ifvctr)-imin_new(ifvctr)<0) then
@@ -365,17 +367,30 @@ module bigdft_matrices
               end if
           end if
           aux%mat_ind_compr(ifvctr) = matrixindex_in_compressed_fortransposed_null()
+          aux%mat_ind_compr2(ifvctr) = matrixindex_in_compressed_fortransposed2_null()
           aux%mat_ind_compr(ifvctr)%offset_compr = imin
+          aux%mat_ind_compr2(ifvctr)%offset_compr = imin
           nlen = imax - imin + 1
           !write(*,*) 'ifvctr, imin_old(ifvctr), imax_old(ifvctr), imin_new(ifvctr), imax_new(ifvctr), imin, imax, nlen', &
           !            ifvctr, imin_old(ifvctr), imax_old(ifvctr), imin_new(ifvctr), imax_new(ifvctr), imin, imax, nlen
           aux%mat_ind_compr(ifvctr)%ind_compr = f_malloc_ptr(nlen,id='aux%linmat%mat_ind_compr%ind_compr')
+          aux%mat_ind_compr2(ifvctr)%section(1)%ind_compr = &
+              f_malloc_ptr(imin.to.min(imax,sparsemat%nfvctr),id='aux%linmat%mat_ind_compr%ind_compr')
+          aux%mat_ind_compr2(ifvctr)%section(-1)%ind_compr = &
+              f_malloc_ptr(1.to.imax-sparsemat%nfvctr,id='aux%linmat%mat_ind_compr%ind_compr')
           !$omp parallel do default(private) shared(sparsemat,aux,imin,imax,ifvctr)
           do jorb=imin,imax
               j = jorb - imin + 1
               jjorb = mod(jorb-1,sparsemat%nfvctr)+1
               !aux%mat_ind_compr(ifvctr)%ind_compr(j)=matrixindex_in_compressed(sparsemat, ifvctr, jjorb)
               aux%mat_ind_compr(ifvctr)%ind_compr(j)=matrixindex_in_compressed(sparsemat, jjorb, ifvctr)
+              if (jjorb<=sparsemat%nfvctr) then
+                  aux%mat_ind_compr2(ifvctr)%section(1)%ind_compr(jorb) = &
+                      matrixindex_in_compressed(sparsemat, jjorb, ifvctr)
+              else
+                  aux%mat_ind_compr2(ifvctr)%section(-1)%ind_compr(jorb-sparsemat%nfvctr) = &
+                      matrixindex_in_compressed(sparsemat, jjorb, ifvctr)
+              end if
           end do
           !$omp end parallel do
       end do

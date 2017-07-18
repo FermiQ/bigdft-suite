@@ -498,13 +498,16 @@ module rhopotential
                   !ia = iiorb-aux%mat_ind_compr(iiorb)%offset_compr
                   !ib = denskern%nfvctr
                   !iorb = ia - floor(real(ia,kind=8)/real(ib,kind=8))*ib + 1
-                  ia = iiorb-aux%mat_ind_compr(iiorb)%offset_compr
-                  ib = -(sign(1,ia) + 1)
-                  ib = 2**ib
-                  iorb = ia + ib*denskern%nfvctr + 1
+                  !ia = iiorb-aux%mat_ind_compr(iiorb)%offset_compr
+                  !ib = -(sign(1,ia) + 1)
+                  !ib = 2**ib
+                  !iorb = ia + ib*denskern%nfvctr + 1
+                  ia = iiorb-aux%mat_ind_compr2(iiorb)%offset_compr
+                  ib = sign(1,ia)
                   tt1=collcom_sr%psit_c(i0+i)
                   !ind=aux%matrixindex_in_compressed_fortransposed(iorb,iorb)
-                  ind = aux%mat_ind_compr(iiorb)%ind_compr(iorb)
+                  !ind = aux%mat_ind_compr(iiorb)%ind_compr(iorb)
+                  ind = aux%mat_ind_compr2(iiorb)%section(ib)%ind_compr(iiorb)
                   ind=ind+ishift_mat-denskern%isvctrp_tg
                   tt=tt+denskern_%matrix_compr(ind)*tt1*tt1
                   tt2=2.0_dp*tt1
@@ -515,16 +518,19 @@ module rhopotential
                       !ia = jjorb-aux%mat_ind_compr(iiorb)%offset_compr
                       !ib = denskern%nfvctr
                       !jorb = ia - floor(real(ia,kind=8)/real(ib,kind=8))*ib + 1
-                      ia = jjorb-aux%mat_ind_compr(iiorb)%offset_compr
-                      ib = -(sign(1,ia) + 1)
-                      ib = 2**ib
-                      jorb = ia + ib*denskern%nfvctr + 1
+                      !ia = jjorb-aux%mat_ind_compr(iiorb)%offset_compr
+                      !ib = -(sign(1,ia) + 1)
+                      !ib = 2**ib
+                      !jorb = ia + ib*denskern%nfvctr + 1
+                      ia = iiorb-aux%mat_ind_compr2(iiorb)%offset_compr
+                      ib = sign(1,ia)
                       !ind=aux%matrixindex_in_compressed_fortransposed(jorb,iorb)
                       !if (jorb>size(aux%mat_ind_compr(iiorb)%ind_compr)) then
                       !    write(*,*) 'ipt, i, ii, j, iiorb, iorb, jjorb, jorb, offset_compr(iiorb), moduloarray(jjorb)', &
                       !           ipt, i, ii, j, iiorb, iorb, jjorb, jorb, aux%mat_ind_compr(iiorb)%offset_compr, moduloarray(jjorb)
                       !end if
-                      ind = aux%mat_ind_compr(iiorb)%ind_compr(jorb)
+                      !ind = aux%mat_ind_compr(iiorb)%ind_compr(jorb)
+                      ind = aux%mat_ind_compr2(iiorb)%section(ib)%ind_compr(jjorb)
                       if (ind==0) cycle
                       ind=ind+ishift_mat-denskern%isvctrp_tg
                       !if (ind>size(denskern_%matrix_compr)) then

@@ -184,14 +184,15 @@ module module_types
   !  integer :: evbounds_isatur, evboundsshrink_isatur, evbounds_nsatur, evboundsshrink_nsatur !< variables to check whether the eigenvalue bounds might be too big
   !end type foe_data
 
-  !!type, public :: matrixindex_lookup
-  !!    integer,dimension(:),pointer :: ind_compr
-  !!end type matrixindex_lookup
+  type, public :: matrixindex_lookup
+      integer,dimension(:),pointer :: ind_compr
+  end type matrixindex_lookup
 
-  !!type,public :: matrixindex_in_compressed_fortransposed
-  !!    type(matrixindex_lookup),dimension(-1:1) :: section !< One section for the "negative" and one for the "positive" part (the 0 in the middle is unavoidable)
-  !!    integer :: offset_compr
-  !!end type matrixindex_in_compressed_fortransposed
+  type,public :: matrixindex_in_compressed_fortransposed2
+      type(matrixindex_lookup),dimension(-1:1) :: section !< One section for the "negative" and one for the "positive" part (the 0 in the middle is unavoidable)
+      integer :: offset_compr
+  end type matrixindex_in_compressed_fortransposed2
+
   type,public :: matrixindex_in_compressed_fortransposed
       integer,dimension(:),pointer :: ind_compr !< lookup arrays for transposed operations
       integer :: offset_compr
@@ -199,6 +200,7 @@ module module_types
   
   type,public :: linmat_auxiliary
       type(matrixindex_in_compressed_fortransposed),dimension(:),pointer :: mat_ind_compr
+      type(matrixindex_in_compressed_fortransposed2),dimension(:),pointer :: mat_ind_compr2
   end type linmat_auxiliary
 
   type,public :: linear_matrices
@@ -619,6 +621,7 @@ module module_types
  public :: linear_matrices_null, linmat_auxiliary_null, deallocate_linmat_auxiliary
  public :: deallocate_linear_matrices
  public :: matrixindex_in_compressed_fortransposed_null
+ public :: matrixindex_in_compressed_fortransposed2_null
 
 
 
@@ -1558,6 +1561,15 @@ contains
     !!end if
 
   END SUBROUTINE evaltoocc
+
+  function matrixindex_in_compressed_fortransposed2_null() result (mat_ind_compr)
+    implicit none
+    type(matrixindex_in_compressed_fortransposed2) :: mat_ind_compr
+    nullify(mat_ind_compr%section(-1)%ind_compr)
+    nullify(mat_ind_compr%section(0)%ind_compr)
+    nullify(mat_ind_compr%section(1)%ind_compr)
+    mat_ind_compr%offset_compr = 0
+  end function matrixindex_in_compressed_fortransposed2_null
 
   function matrixindex_in_compressed_fortransposed_null() result (mat_ind_compr)
     implicit none

@@ -570,7 +570,8 @@ end subroutine copy_comms_linear
 
 subroutine copy_linmat_auxiliary(aux_in, aux_out)
   use dynamic_memory
-  use module_types, only: linmat_auxiliary, matrixindex_in_compressed_fortransposed_null
+  use module_types, only: linmat_auxiliary, matrixindex_in_compressed_fortransposed_null, &
+                          matrixindex_in_compressed_fortransposed2_null
   implicit none
   type(linmat_auxiliary),intent(in) :: aux_in
   type(linmat_auxiliary),intent(out) :: aux_out
@@ -581,6 +582,7 @@ subroutine copy_linmat_auxiliary(aux_in, aux_out)
   allocate(aux_out%mat_ind_compr(lbound(aux_in%mat_ind_compr,1):ubound(aux_in%mat_ind_compr,1)))
   do i=lbound(aux_in%mat_ind_compr,1),ubound(aux_in%mat_ind_compr,1)
       aux_out%mat_ind_compr(i) = matrixindex_in_compressed_fortransposed_null()
+      aux_out%mat_ind_compr2(i) = matrixindex_in_compressed_fortransposed2_null()
       call copy_matrixindex_in_compressed_fortransposed(aux_in%mat_ind_compr(i), aux_out%mat_ind_compr(i))    
   end do
 end subroutine copy_linmat_auxiliary
