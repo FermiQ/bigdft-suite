@@ -184,9 +184,15 @@ module module_types
   !  integer :: evbounds_isatur, evboundsshrink_isatur, evbounds_nsatur, evboundsshrink_nsatur !< variables to check whether the eigenvalue bounds might be too big
   !end type foe_data
 
+  !!type, public :: matrixindex_lookup
+  !!    integer,dimension(:),pointer :: ind_compr
+  !!end type matrixindex_lookup
 
+  !!type,public :: matrixindex_in_compressed_fortransposed
+  !!    type(matrixindex_lookup),dimension(-1:1) :: section !< One section for the "negative" and one for the "positive" part (the 0 in the middle is unavoidable)
+  !!    integer :: offset_compr
+  !!end type matrixindex_in_compressed_fortransposed
   type,public :: matrixindex_in_compressed_fortransposed
-      integer,dimension(:),pointer :: iorb_mod  !< lookup arrays for transposed operations (modulo of TMB IDs)
       integer,dimension(:),pointer :: ind_compr !< lookup arrays for transposed operations
       integer :: offset_compr
   end type matrixindex_in_compressed_fortransposed
@@ -1557,7 +1563,6 @@ contains
     implicit none
     type(matrixindex_in_compressed_fortransposed) :: mat_ind_compr
     nullify(mat_ind_compr%ind_compr)
-    nullify(mat_ind_compr%iorb_mod)
     mat_ind_compr%offset_compr = 0
   end function matrixindex_in_compressed_fortransposed_null
 
