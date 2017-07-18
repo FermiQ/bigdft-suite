@@ -403,6 +403,11 @@ module bigdft_matrices
           !$omp end parallel do
       end do
 
+      call f_free(imin_old)
+      call f_free(imax_old)
+      call f_free(imin_new)
+      call f_free(imax_new)
+
       !!!do i=1,size(collcom%indexrecvorbital_c)
       !!!    ii = mod(collcom%indexrecvorbital_c(i)-1,sparsemat%nfvctr)+1
       !!!    imin_old = min(imin_old,ii)
