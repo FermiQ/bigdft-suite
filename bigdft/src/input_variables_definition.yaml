@@ -129,7 +129,7 @@
      RANGE: [0, 10000]
      default: 50
    itermin:
-     COMMENT: Minimal iterations of wfn. optimzed steps
+     COMMENT: Minimal iterations of wfn. optimized steps
      RANGE: [0, 10000]
      default: 0
    nrepmax:

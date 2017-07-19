@@ -1,4 +1,5 @@
-#This module needs: yaml, futile, matplotlib, numpy, BZ, DoS
+#This module needs: os, yaml, futile, matplotlib, numpy, BZ, DoS
+import os
 import yaml
 from futile.Utils import write
 
@@ -226,7 +227,7 @@ class Logfile():
         dictionary=kwargs.get("dictionary")
         if arch:
             #An archive is detected
-            import tarfile,os
+            import tarfile
             from futile import Yaml
             tar = tarfile.open(arch)
             members = [ tar.getmember(member) ] if member else tar.getmembers()
@@ -241,7 +242,6 @@ class Logfile():
             dicts = dictionary if isinstance(dictionary,list) else [d for d in dictionary]
             srcdir=''
         elif args:
-            import os
             #Read the list of files (member replaces load_only...)
             dicts=get_logs(args,select_document=member)
             label = label if label else args[0]
