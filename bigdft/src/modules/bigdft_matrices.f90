@@ -303,7 +303,7 @@ module bigdft_matrices
       use sparsematrix_base, only: sparse_matrix
       use communications_base, only: comms_linear
       use sparsematrix_init, only: matrixindex_in_compressed
-      use module_types, only: linmat_auxiliary, matrixindex_in_compressed_fortransposed2_null
+      use module_types, only: linmat_auxiliary, matrixindex_in_compressed_fortransposed2_null, linmat_auxiliary_null
       implicit none
       
       ! Calling arguments
@@ -334,6 +334,8 @@ module bigdft_matrices
       !imax=max(imax,maxval(collcom_shamop%indexrecvorbital_c))
       !imax=max(imax,maxval(collcom_shamop%indexrecvorbital_f))
       !imax=max(imax,maxval(collcom_sr%indexrecvorbital_c))
+
+      aux = linmat_auxiliary_null()
 
       imin_old = f_malloc(sparsemat%nfvctr,id='imin_old')
       imax_old = f_malloc(sparsemat%nfvctr,id='imax_old')
