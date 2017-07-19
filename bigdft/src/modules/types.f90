@@ -1582,7 +1582,8 @@ contains
     implicit none
     type(linmat_auxiliary) :: aux
     !nullify(aux%mat_ind_compr)
-    aux%mat_ind_compr2 = matrixindex_in_compressed_fortransposed2_null()
+    !aux%mat_ind_compr2 = matrixindex_in_compressed_fortransposed2_null()
+    nullify(aux%mat_ind_compr2)
   end function linmat_auxiliary_null
 
   function linear_matrices_null() result(linmat)
