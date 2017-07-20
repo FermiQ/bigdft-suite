@@ -384,10 +384,14 @@ module bigdft_matrices
           !write(*,*) 'ifvctr, imin_old(ifvctr), imax_old(ifvctr), imin_new(ifvctr), imax_new(ifvctr), imin, imax, nlen', &
           !            ifvctr, imin_old(ifvctr), imax_old(ifvctr), imin_new(ifvctr), imax_new(ifvctr), imin, imax, nlen
           !!aux%mat_ind_compr(ifvctr)%ind_compr = f_malloc_ptr(nlen,id='aux%linmat%mat_ind_compr%ind_compr')
-          aux%mat_ind_compr2(ifvctr)%section(1)%ind_compr = &
-              f_malloc_ptr(imin.to.min(imax,sparsemat%nfvctr),id='aux%linmat%mat_ind_compr%ind_compr')
-          aux%mat_ind_compr2(ifvctr)%section(-1)%ind_compr = &
-              f_malloc_ptr(1.to.imax-sparsemat%nfvctr,id='aux%linmat%mat_ind_compr%ind_compr')
+          if (min(imax,sparsemat%nfvctr)>=imin) then
+              aux%mat_ind_compr2(ifvctr)%section(1)%ind_compr = &
+                  f_malloc_ptr(imin.to.min(imax,sparsemat%nfvctr),id='aux%linmat%mat_ind_compr%ind_compr')
+          end if
+          if (imax-sparsemat%nfvctr>=1) then
+              aux%mat_ind_compr2(ifvctr)%section(-1)%ind_compr = &
+                  f_malloc_ptr(1.to.imax-sparsemat%nfvctr,id='aux%linmat%mat_ind_compr%ind_compr')
+          end if
           !$omp parallel do default(private) shared(sparsemat,aux,imin,imax,ifvctr)
           do jorb=imin,imax
               j = jorb - imin + 1

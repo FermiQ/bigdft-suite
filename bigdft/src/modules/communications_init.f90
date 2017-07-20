@@ -3277,6 +3277,8 @@ module communications_init
       integer(kind=8) :: indglob3a, indglob3, indglob2, indglob
       integer(kind=8),dimension(:),allocatable :: indexsendbuf, indexrecvbuf
       integer(kind=8) :: iilong, ilong
+
+      call f_routine(id='get_switch_indices_sumrho')
     
     
       nsend = f_malloc(0.to.nproc-1,id='nsend')
@@ -3504,6 +3506,7 @@ module communications_init
       call f_free(gridpoint_start_tmp)
       call f_free(nsend)
     
+      call f_release_routine()
     
     end subroutine get_switch_indices_sumrho
 

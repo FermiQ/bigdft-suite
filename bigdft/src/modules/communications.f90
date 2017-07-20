@@ -968,6 +968,7 @@ module communications
     subroutine transpose_communicate_psir(iproc, nproc, collcom_sr, psirwork, psirtwork)
       use module_base
       use wrapper_linalg, only: vcopy
+      use wrapper_mpi, only: mpi_get_alltoallv
       implicit none
     
       ! Calling arguments
@@ -980,10 +981,13 @@ module communications
       integer :: ierr
     
       call f_routine(id='transpose_communicate_psir')
-    
+
       if (nproc>1) then
-          call mpi_alltoallv(psirwork, collcom_sr%nsendcounts_c, collcom_sr%nsenddspls_c, mpi_double_precision, psirtwork, &
-               collcom_sr%nrecvcounts_c, collcom_sr%nrecvdspls_c, mpi_double_precision, bigdft_mpi%mpi_comm, ierr)
+          !call mpi_alltoallv(psirwork, collcom_sr%nsendcounts_c, collcom_sr%nsenddspls_c, mpi_double_precision, psirtwork, &
+          !     collcom_sr%nrecvcounts_c, collcom_sr%nrecvdspls_c, mpi_double_precision, bigdft_mpi%mpi_comm, ierr)
+          call mpi_get_alltoallv(iproc, nproc, bigdft_mpi%mpi_comm, &
+               collcom_sr%nsendcounts_c, collcom_sr%nsenddspls_c, &
+               collcom_sr%nrecvcounts_c, collcom_sr%nrecvdspls_c, psirwork, psirtwork)
       else
          !call vcopy(collcom_sr%ndimpsi_c, psirwork(1), 1, psirtwork(1), 1)
          call f_memcpy(src=psirwork,dest=psirtwork)
