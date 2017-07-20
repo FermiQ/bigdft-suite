@@ -68,7 +68,7 @@ module wrapper_MPI
      module procedure mpitype_i1,mpitype_i2,mpitype_i3
      module procedure mpitype_l3
      module procedure mpitype_r1,mpitype_r2,mpitype_r3,mpitype_r4
-     module procedure mpitype_d1,mpitype_d2,mpitype_d3,mpitype_d4,mpitype_d5
+     module procedure mpitype_d1,mpitype_d2,mpitype_d3,mpitype_d4,mpitype_d5,mpitype_d6
      module procedure mpitype_c1
      module procedure mpitype_li1,mpitype_li2,mpitype_li3
   end interface mpitype
@@ -159,7 +159,8 @@ module wrapper_MPI
   end interface mpiiallred
 
   interface mpialltoallv
-      module procedure mpialltoallv_int, mpialltoallv_long, mpialltoallv_double
+      module procedure mpialltoallv_int11, mpialltoallv_long11, mpialltoallv_double11
+      module procedure mpialltoallv_double61
   end interface mpialltoallv
 
   interface mpiialltoallv
@@ -965,6 +966,12 @@ contains
     integer :: mt
     mt=MPI_DOUBLE_PRECISION
   end function mpitype_d5
+  pure function mpitype_d6(data) result(mt)
+    implicit none
+    double precision, dimension(:,:,:,:,:,:), intent(in) :: data
+    integer :: mt
+    mt=MPI_DOUBLE_PRECISION
+  end function mpitype_d6
 
   pure function mpitype_r1(data) result(mt)
     implicit none
@@ -1506,32 +1513,58 @@ contains
 
 
 
-  subroutine mpialltoallv_int(sendbuf, sendcounts, sdispls, recvbuf, recvcounts, rdispls, comm)
+  subroutine mpialltoallv_int11(sendbuf, sendcounts, sdispls, recvbuf, recvcounts, rdispls, comm)
     use dictionaries, only: f_err_throw
     use dynamic_memory
-    implicit none
-    integer(f_integer),intent(in) :: sendbuf
-    integer(f_integer),intent(out) :: recvbuf
-    include 'alltoallv-inc.f90'
-  end subroutine mpialltoallv_int
+    use yaml_output
+    use iso_c_binding
 
-  subroutine mpialltoallv_long(sendbuf, sendcounts, sdispls, recvbuf, recvcounts, rdispls, comm)
+    implicit none
+    integer(f_integer),dimension(:),intent(in),target :: sendbuf
+    integer(f_integer),dimension(:),intent(out),target :: recvbuf
+    integer(f_integer),dimension(:),pointer :: sendbuf_1d
+    integer(f_integer),dimension(:),pointer :: recvbuf_1d
+    include 'alltoallv-inc.f90'
+  end subroutine mpialltoallv_int11
+
+  subroutine mpialltoallv_long11(sendbuf, sendcounts, sdispls, recvbuf, recvcounts, rdispls, comm)
     use dictionaries, only: f_err_throw,f_err_define
     use dynamic_memory
+    use yaml_output
+    use iso_c_binding
     implicit none
-    integer(f_long),intent(in) :: sendbuf
-    integer(f_long),intent(out) :: recvbuf
+    integer(f_long),dimension(:),intent(in),target :: sendbuf
+    integer(f_long),dimension(:),intent(out),target :: recvbuf
+    integer(f_long),dimension(:),pointer :: sendbuf_1d
+    integer(f_long),dimension(:),pointer :: recvbuf_1d
     include 'alltoallv-inc.f90'
-  end subroutine mpialltoallv_long
+  end subroutine mpialltoallv_long11
 
-  subroutine mpialltoallv_double(sendbuf, sendcounts, sdispls, recvbuf, recvcounts, rdispls, comm)
+  subroutine mpialltoallv_double11(sendbuf, sendcounts, sdispls, recvbuf, recvcounts, rdispls, comm)
     use dictionaries, only: f_err_throw,f_err_define
     use dynamic_memory
+    use yaml_output
+    use iso_c_binding
     implicit none
-    double precision,intent(in) :: sendbuf
-    double precision,intent(out) :: recvbuf
+    double precision,dimension(:),intent(in),target :: sendbuf
+    double precision,dimension(:),intent(out),target :: recvbuf
+    double precision,dimension(:),pointer :: sendbuf_1d
+    double precision,dimension(:),pointer :: recvbuf_1d
     include 'alltoallv-inc.f90'
-  end subroutine mpialltoallv_double
+  end subroutine mpialltoallv_double11
+
+  subroutine mpialltoallv_double61(sendbuf, sendcounts, sdispls, recvbuf, recvcounts, rdispls, comm)
+    use dictionaries, only: f_err_throw,f_err_define
+    use dynamic_memory
+    use yaml_output
+    use iso_c_binding
+    implicit none
+    double precision,dimension(:,:,:,:,:,:),intent(in),target :: sendbuf
+    double precision,dimension(:),intent(out),target :: recvbuf
+    double precision,dimension(:),pointer :: sendbuf_1d
+    double precision,dimension(:),pointer :: recvbuf_1d
+    include 'alltoallv-inc.f90'
+  end subroutine mpialltoallv_double61
 
   function mpireduce_i0(sendbuf,op,root,comm) result(recv)
     implicit none
@@ -3087,34 +3120,10 @@ contains
   subroutine mpi_get_alltoallv_i(iproc, nproc, comm, nsendcounts, nsenddspls, nrecvcounts, nrecvdspls, sendbuf, recvbuf)
     use dynamic_memory
     implicit none
-  
-    integer,intent(in) :: iproc, nproc, comm
-    integer,dimension(0:nproc-1),intent(in) :: nsendcounts, nsenddspls, nrecvcounts, nrecvdspls
-    integer(f_integer),dimension(sum(nsendcounts)),intent(in) :: sendbuf
-    integer(f_integer),dimension(sum(nrecvcounts)),intent(in) :: recvbuf
-  
-    integer :: ierr, info, window, jproc
-    integer,dimension(:),allocatable :: nsenddspls_remote
-  
-    nsenddspls_remote = f_malloc(0.to.nproc-1,id='nsenddspls_remote')
-  
-    call mpi_alltoall(nsenddspls, 1, mpi_integer, &
-                      nsenddspls_remote, 1, mpi_integer, &
-                      comm, ierr)
-  
-    info=mpiinfo("no_locks", "true")
-    window = mpiwindow(size(sendbuf), sendbuf(1), comm)
-    do jproc=0,nproc-1
-        if (nrecvcounts(jproc)>0) then
-            call mpi_get(recvbuf(nrecvdspls(jproc)+1), nrecvcounts(jproc), mpitype(recvbuf), &
-                         jproc, int(nsenddspls_remote(jproc),kind=mpi_address_kind), &
-                         nrecvcounts(jproc), mpitype(sendbuf), window, ierr)
-        end if
-    end do
-    call mpi_fenceandfree(window)
-    call mpiinfofree(info)
+    integer(f_integer),dimension(:),intent(in) :: sendbuf
+    integer(f_integer),dimension(:),intent(in) :: recvbuf
 
-    call f_free(nsenddspls_remote)
+    include 'mpi_get_alltoallv-inc.f90'
   
   end subroutine mpi_get_alltoallv_i
 
@@ -3122,69 +3131,21 @@ contains
   subroutine mpi_get_alltoallv_l(iproc, nproc, comm, nsendcounts, nsenddspls, nrecvcounts, nrecvdspls, sendbuf, recvbuf)
     use dynamic_memory
     implicit none
+    integer(f_long),dimension(:),intent(in) :: sendbuf
+    integer(f_long),dimension(:),intent(in) :: recvbuf
   
-    integer,intent(in) :: iproc, nproc, comm
-    integer,dimension(0:nproc-1),intent(in) :: nsendcounts, nsenddspls, nrecvcounts, nrecvdspls
-    integer(f_long),dimension(sum(nsendcounts)),intent(in) :: sendbuf
-    integer(f_long),dimension(sum(nrecvcounts)),intent(in) :: recvbuf
-  
-    integer :: ierr, info, window, jproc
-    integer,dimension(:),allocatable :: nsenddspls_remote
+    include 'mpi_get_alltoallv-inc.f90'
 
-    nsenddspls_remote = f_malloc(0.to.nproc-1,id='nsenddspls_remote')
-  
-    call mpi_alltoall(nsenddspls, 1, mpi_integer, &
-                      nsenddspls_remote, 1, mpi_integer, &
-                      comm, ierr)
-  
-    info=mpiinfo("no_locks", "true")
-    window = mpiwindow(size(sendbuf), sendbuf(1), comm)
-    do jproc=0,nproc-1
-        if (nrecvcounts(jproc)>0) then
-            call mpi_get(recvbuf(nrecvdspls(jproc)+1), nrecvcounts(jproc), mpitype(recvbuf), &
-                         jproc, int(nsenddspls_remote(jproc),kind=mpi_address_kind), &
-                         nrecvcounts(jproc), mpitype(sendbuf), window, ierr)
-        end if
-    end do
-    call mpi_fenceandfree(window)
-    call mpiinfofree(info)
-
-    call f_free(nsenddspls_remote)
-  
   end subroutine mpi_get_alltoallv_l
 
 
   subroutine mpi_get_alltoallv_d(iproc, nproc, comm, nsendcounts, nsenddspls, nrecvcounts, nrecvdspls, sendbuf, recvbuf)
     use dynamic_memory
     implicit none
-  
-    integer,intent(in) :: iproc, nproc, comm
-    integer,dimension(0:nproc-1),intent(in) :: nsendcounts, nsenddspls, nrecvcounts, nrecvdspls
-    double precision,dimension(sum(nsendcounts)),intent(in) :: sendbuf
-    double precision,dimension(sum(nrecvcounts)),intent(in) :: recvbuf
-  
-    integer :: ierr, info, window, jproc
-    integer,dimension(:),allocatable :: nsenddspls_remote
+    double precision,dimension(:),intent(in) :: sendbuf
+    double precision,dimension(:),intent(in) :: recvbuf
 
-    nsenddspls_remote = f_malloc(0.to.nproc-1,id='nsenddspls_remote')
-  
-    call mpi_alltoall(nsenddspls, 1, mpi_integer, &
-                      nsenddspls_remote, 1, mpi_integer, &
-                      comm, ierr)
-  
-    info=mpiinfo("no_locks", "true")
-    window = mpiwindow(size(sendbuf), sendbuf(1), comm)
-    do jproc=0,nproc-1
-        if (nrecvcounts(jproc)>0) then
-            call mpi_get(recvbuf(nrecvdspls(jproc)+1), nrecvcounts(jproc), mpitype(recvbuf), &
-                         jproc, int(nsenddspls_remote(jproc),kind=mpi_address_kind), &
-                         nrecvcounts(jproc), mpitype(sendbuf), window, ierr)
-        end if
-    end do
-    call mpi_fenceandfree(window)
-    call mpiinfofree(info)
-
-    call f_free(nsenddspls_remote)
+    include 'mpi_get_alltoallv-inc.f90'
   
   end subroutine mpi_get_alltoallv_d
 
