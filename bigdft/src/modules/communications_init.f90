@@ -316,8 +316,8 @@ module communications_init
       
       ! Local variables
       integer :: iorb, iiorb, i0, i1, i2, i3, ii, iseg, ilr, istart, iend, i, j0, j1, ii1, ii2, ii3, n1p1, np
-      integer :: i3e, ii3s, ii3e, is, ie, jproc, ncount
-      integer :: isize,je,jj3,js,k,n,nthread,ithread
+      integer :: i3e, ii3s, ii3e, is, ie, jproc, ncount, jj3s, jj3e
+      integer :: isize,je,jj3,js,k,n,nthread,ithread,jthread
       !integer :: ierr, request_c, request_f, size_of_double, info, window
       real(kind=8), dimension(:) ,allocatable :: reducearr
       !real(kind=8),dimension(:,:,:),allocatable :: weightloc
@@ -374,7 +374,7 @@ module communications_init
           n1p1=lzd%glr%d%n1+1
           np=n1p1*(lzd%glr%d%n2+1)
 
-          call distribute_on_threads(ii3s, ii3e, nthread, ise)
+          call distribute_on_threads(1, ii3e-ii3s+1, nthread, ise)
 
           if (lzd%llr(ilr)%wfd%nseg_c>0) then
               ithread = 0
@@ -384,13 +384,18 @@ module communications_init
               !$omp firstprivate(ithread)
               !$ ithread = omp_get_thread_num()
               do iseg=1,lzd%llr(ilr)%wfd%nseg_c
-                  j0=lzd%llr(ilr)%wfd%keyglob(1,iseg)
-                  j1=lzd%llr(ilr)%wfd%keyglob(2,iseg)
+                  j0=lzd%llr(ilr)%wfd%keygloc(1,iseg)
                   ii=j0-1
-                  i3=ii/np
-                  ii3=i3
-                  !write(*,*) 'ithread, jj3, ise(:,ithread)',ithread, jj3, ise(:,ithread)
-                  if (ii3>=ise(1,ithread) .and. ii3<=ise(2,ithread)) then
+                  i3=ii/np+1
+                  if (i3>=ise(1,ithread) .and. i3<=ise(2,ithread)) then
+
+                      j0=lzd%llr(ilr)%wfd%keyglob(1,iseg)
+                      j1=lzd%llr(ilr)%wfd%keyglob(2,iseg)
+                      ii=j0-1
+                      i3=ii/np
+                      ii3=i3
+
+                      !write(*,*) 'ithread, jj3, ise(:,ithread)',ithread, jj3, ise(:,ithread)
                       jj3=modulo(ii3-i3start,(lzd%glr%d%n3+1))+1
                       if (jj3>j3end) then
                           write(*,'(a,5i8)') 'ii3, i3start, lzd%glr%d%n3, jj3, j3end', ii3, i3start, lzd%glr%d%n3, jj3, j3end
@@ -490,7 +495,7 @@ module communications_init
           n1p1=lzd%glr%d%n1+1
           np=n1p1*(lzd%glr%d%n2+1)
 
-          call distribute_on_threads(ii3s, ii3e, nthread, ise)
+          call distribute_on_threads(1, ii3e-ii3s+1, nthread, ise)
 
           istart=lzd%llr(ilr)%wfd%nseg_c+min(1,lzd%llr(ilr)%wfd%nseg_f)
           iend=istart+lzd%llr(ilr)%wfd%nseg_f-1
@@ -502,13 +507,17 @@ module communications_init
               !$omp firstprivate(ithread)
               !$ ithread = omp_get_thread_num()
               do iseg=istart,iend
-                  j0=lzd%llr(ilr)%wfd%keyglob(1,iseg)
-                  j1=lzd%llr(ilr)%wfd%keyglob(2,iseg)
+                  j0=lzd%llr(ilr)%wfd%keygloc(1,iseg)
                   ii=j0-1
-                  i3=ii/np
-                  ii3=i3
-                  jj3=modulo(ii3-i3start,(lzd%glr%d%n3+1))+1
-                  if (ii3>=ise(1,ithread) .and. ii3<=ise(2,ithread)) then
+                  i3=ii/np+1
+                  if (i3>=ise(1,ithread) .and. i3<=ise(2,ithread)) then
+
+                      j0=lzd%llr(ilr)%wfd%keyglob(1,iseg)
+                      j1=lzd%llr(ilr)%wfd%keyglob(2,iseg)
+                      ii=j0-1
+                      i3=ii/np
+                      ii3=i3
+                      jj3=modulo(ii3-i3start,(lzd%glr%d%n3+1))+1
                       if (jj3>j3end) then
                           write(*,'(a,5i8)') 'ii3, i3start, lzd%glr%d%n3, jj3, j3end', ii3, i3start, lzd%glr%d%n3, jj3, j3end
                           call f_err_throw('strange 1.1')
