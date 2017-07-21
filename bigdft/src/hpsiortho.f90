@@ -50,7 +50,7 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
   !integer :: ii,jj
   !$ integer :: omp_get_max_threads,omp_get_thread_num,omp_get_num_threads
   real(gp) :: compch_sph
-  real(wp), dimension(:), allocatable :: temp,m_norm,temp2 !to be removed
+  !$ real(wp), dimension(:), allocatable :: temp,m_norm,temp2 !to be removed
 
 
   call f_routine(id=subname)
@@ -661,6 +661,7 @@ subroutine LocalHamiltonianApplication(iproc,nproc,at,npsidim_orbs,orbs,&
   ipotmethod=0
   if (exctX) ipotmethod=1
 
+
   !the PZ-SIC correction does not makes sense for virtual orbitals procedure
   !if alphaSIC is zero no SIC correction
   if (SIC%approach == 'PZ' .and. .not. present(orbsocc) .and. SIC%alpha /= 0.0_gp ) ipotmethod=2
@@ -984,6 +985,7 @@ subroutine LocalHamiltonianApplication(iproc,nproc,at,npsidim_orbs,orbs,&
 
 END SUBROUTINE LocalHamiltonianApplication
 
+
 subroutine NonLocalHamiltonianApplication(iproc,at,npsidim_orbs,orbs,&
      Lzd,nl,psi,hpsi,eproj_sum,paw)
   use module_base
@@ -1181,6 +1183,7 @@ contains
 
   end subroutine nl_psp_application
 
+
   subroutine allocate_prj_ptr(iat,ityp,ispin,at,nl,prj)
     integer, intent(in) :: iat,ispin,ityp
     type(atoms_data), intent(in) :: at
@@ -1189,7 +1192,7 @@ contains
     !local variables
     integer, parameter :: LMAX=3,IMAX=3
     logical :: occ_ctrl
-    integer :: i,l,j,igamma,m,mp
+    integer :: i,l,j,igamma,m
     real(gp), dimension(3,3,4) :: hij
 
     igamma=0
@@ -1798,7 +1801,7 @@ subroutine SynchronizeHamiltonianApplication(nproc,npsidim_orbs,orbs,Lzd,GPU,xc,
    !local variables
    character(len=*), parameter :: subname='SynchronizeHamiltonianApplication'
    logical :: exctX
-   integer :: iorb,ispsi,ilr,nvctr
+   integer :: iorb,ispsi,ilr
    real(gp), dimension(4) :: wrkallred
 
    call f_routine(id='SynchronizeHamiltonianApplication')

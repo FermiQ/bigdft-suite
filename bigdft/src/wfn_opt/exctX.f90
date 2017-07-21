@@ -1,7 +1,7 @@
 !> @file
 !!   Routines to calculate the exact exchange potential
 !! @author
-!!    Copyright (C) 2010-2013 BigDFT group 
+!!    Copyright (C) 2010-2017 BigDFT group 
 !!    This file is distributed under the terms of the
 !!    GNU General Public License, see ~/COPYING file
 !!    or http://www.gnu.org/copyleft/gpl.txt .
@@ -1548,6 +1548,7 @@ subroutine exact_exchange_potential_round(iproc,nproc,xc,nspin,lr,orbs,&
 
 END SUBROUTINE exact_exchange_potential_round
 
+
 !> Calculate the exact exchange potential on occupied orbitals
 !! within the symmetric round-robin scheme
 !! the psi is already given in the real-space form
@@ -1577,12 +1578,11 @@ subroutine exact_exchange_potential_round_clean(iproc,nproc,xc,nspin,ndim,orbs,&
   integer, parameter :: SEND_DATA=1,RECV_DATA=2,SEND_RES=3,RECV_RES=4
   integer, parameter :: DATA_=1,RES_=2
   logical :: doit,symmetric
-  integer :: ierr,ndata_comms,nres_comms,isnow,irnow,isnow2,irnow2,jsorb,norbp,source,dest,nstep_max,nsteps
-  integer :: i,igroup,ngroup,ngroupp,nend,isorb,iorbs,jorbs,ii,count,istep,jproc,iorb,jorbs_tmp,norbpu,norbpd
+  integer :: ndata_comms,nres_comms,isnow,irnow,isnow2,irnow2,jsorb,norbp,source,dest,nstep_max,nsteps
+  integer :: igroup,ngroup,ngroupp,nend,isorb,iorbs,jorbs,ii,count,istep,jproc,jorbs_tmp
   integer :: icount,nprocgr,iprocgrs,iprocgrr,itestproc,norbi,norbj,ncalltot,icountmax,iprocref,ncalls
-  real(gp) :: ehart,exctXfac,sfac
+  real(gp) :: exctXfac,sfac
   integer, dimension(4) :: mpireq,mpireq2
-  type(workarr_sumrho) :: w
   integer, dimension(:), allocatable :: igrpr,ndatac
   integer, dimension(:,:), allocatable :: nvctr_par
   integer, dimension(:,:,:), allocatable :: jprocsr,iprocpm1,ndatas,iorbgr

@@ -1,6 +1,6 @@
 # Give here the list of existing tests
 tests_cpu_only = Graphene FeHyb
-tests_cpu_only_long = H Mn2 SIC H-Rydberg
+tests_cpu_only_long = H Mn2 SIC H-Rydberg H-HF
 tests_ocl_only = OCL
 
 #initialize

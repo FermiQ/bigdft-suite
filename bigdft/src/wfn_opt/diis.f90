@@ -461,7 +461,8 @@ subroutine mix_rhopot(iproc,nproc,npoints,alphamix,mix,rhopot,istep,&
   real(dp), dimension(npoints), intent(inout) :: rhopot
   real(gp), intent(out) :: rpnrm
   !local variables
-  integer :: ierr,ie,ii
+  integer :: ierr,ii
+  !integer :: ie
   character(len = *), parameter :: subname = "mix_rhopot"
   character(len = 500) :: errmess
   integer, allocatable :: user_data(:)
@@ -505,8 +506,9 @@ subroutine mix_rhopot(iproc,nproc,npoints,alphamix,mix,rhopot,istep,&
        & bigdft_mpi%mpi_comm, (nproc > 1), ierr, errmess, resnrm = rpnrm, &
        & fnrm = fnrm_denpot_forlinear, fdot = fdot_denpot_forlinear, user_data = user_data)
   if (ierr /= AB7_NO_ERROR) then
-     if (iproc == 0) write(0,*) errmess
-     call MPI_ABORT(bigdft_mpi%mpi_comm, ierr, ie)
+    call f_err_throw(trim(errmess),err_name='BIGDFT_RUNTIME_ERROR')
+    !if (iproc == 0) write(0,*) errmess
+    !call MPI_ABORT(bigdft_mpi%mpi_comm, ierr, ie)
   end if
   !write(*,'(a,i7,2es16.7)') 'in mix_rhopot: iproc, rpnrm, ddot', iproc, rpnrm, ddot(npoints,rhopot,1,rhopot,1)
   nsize = int(n1,kind=8)*int(n2,kind=8)*int(n3,kind=8)
