@@ -19,6 +19,7 @@ module communications_init
   public :: init_comms_linear_sumrho
   public :: initialize_communication_potential
   public :: orbitals_communicators
+  public :: write_memory_requirements_collcom
 
 
   contains
@@ -4749,5 +4750,83 @@ module communications_init
       call f_release_routine()
 
     end subroutine communicate_weights
+
+
+    subroutine write_memory_requirements_collcom(iproc, nproc, comm, message, comms)
+      use module_base, only: bigdft_mpi
+      use wrapper_mpi
+      use yaml_output
+      implicit none
+
+      ! Calling arguments
+      integer,intent(in) :: iproc, nproc, comm
+      character(len=*),intent(in) :: message
+      type(comms_linear),intent(in) :: comms
+      
+      ! Local variables
+      integer(kind=8) :: nsize_direct, nsize_direct_min, nsize_direct_max, nsize_direct_all
+      integer(kind=8) :: nsize_transposed, nsize_transposed_min, nsize_transposed_max, nsize_transposed_all
+      integer(kind=8) :: nsize_grid, nsize_grid_min, nsize_grid_max, nsize_grid_all
+
+      nsize_direct = size(comms%irecvbuf_c)*kind(comms%irecvbuf_c) + &
+                     size(comms%isendbuf_c)*kind(comms%isendbuf_c)
+      nsize_transposed = size(comms%indexrecvorbital_c)*kind(comms%indexrecvorbital_c) + &
+                         size(comms%iextract_c)*kind(comms%iextract_c) + &
+                         size(comms%iexpand_c)*kind(comms%iexpand_c)
+      nsize_grid = size(comms%isptsp_c)*kind(comms%isptsp_c) + &
+                   size(comms%norb_per_gridpoint_c)*kind(comms%norb_per_gridpoint_c)
+
+      nsize_direct_min = nsize_direct
+      nsize_direct_max = nsize_direct
+      nsize_direct_all = nsize_direct
+      call mpiallred(nsize_direct_min, 1, mpi_min, comm=comm)
+      call mpiallred(nsize_direct_max, 1, mpi_max, comm=comm)
+      call mpiallred(nsize_direct_all, 1, mpi_sum, comm=comm)
+      nsize_direct_all = nint(real(nsize_direct_all,kind=8)/real(nproc,kind=8))
+
+      nsize_transposed_min = nsize_transposed
+      nsize_transposed_max = nsize_transposed
+      nsize_transposed_all = nsize_transposed
+      call mpiallred(nsize_transposed_min, 1, mpi_min, comm=comm)
+      call mpiallred(nsize_transposed_max, 1, mpi_max, comm=comm)
+      call mpiallred(nsize_transposed_all, 1, mpi_sum, comm=comm)
+      nsize_transposed_all = nint(real(nsize_transposed_all,kind=8)/real(nproc,kind=8))
+
+      nsize_grid_min = nsize_grid
+      nsize_grid_max = nsize_grid
+      nsize_grid_all = nsize_grid
+      call mpiallred(nsize_grid_min, 1, mpi_min, comm=comm)
+      call mpiallred(nsize_grid_max, 1, mpi_max, comm=comm)
+      call mpiallred(nsize_grid_all, 1, mpi_sum, comm=comm)
+      nsize_grid_all = nint(real(nsize_grid_all,kind=8)/real(nproc,kind=8))
+
+      if (iproc==0) then
+          call yaml_mapping_open(trim(message))
+          call yaml_mapping_open('Direct layout')
+          call yaml_map('Minimal',mb(nsize_direct_min))
+          call yaml_map('Maximal',mb(nsize_direct_max))
+          call yaml_map('Average',mb(nsize_direct_all))
+          call yaml_mapping_close()
+          call yaml_mapping_open('Transposed layout')
+          call yaml_map('Minimal',mb(nsize_transposed_min))
+          call yaml_map('Maximal',mb(nsize_transposed_max))
+          call yaml_map('Average',mb(nsize_transposed_all))
+          call yaml_mapping_close()
+          call yaml_mapping_open('Grid quantities')
+          call yaml_map('Minimal',mb(nsize_grid_min))
+          call yaml_map('Maximal',mb(nsize_grid_max))
+          call yaml_map('Average',mb(nsize_grid_all))
+          call yaml_mapping_close()
+          call yaml_mapping_close()
+      end if
+
+      contains
+        function mb(i)
+            integer(kind=8) :: i
+            integer :: mb
+            mb = nint(real(i,kind=8)/(1024.d0*1024.d0))
+         end function mb
+    end subroutine write_memory_requirements_collcom
+
 
 end module communications_init

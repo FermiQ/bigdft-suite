@@ -588,6 +588,7 @@ subroutine update_locreg(iproc, nproc, nlr, locrad, locrad_kernel, locrad_mult, 
   use foe_common, only: init_foe
   use locregs, only: locreg_null,copy_locreg_descriptors,locreg_descriptors
   use locregs_init, only: initLocregs
+  use yaml_output
   implicit none
 
   ! Calling arguments
@@ -693,8 +694,15 @@ subroutine update_locreg(iproc, nproc, nlr, locrad, locrad_kernel, locrad_mult, 
   end if
 
   call init_comms_linear(iproc, nproc, input%imethod_overlap, npsidim_orbs, orbs, lzd, input%nspin, lbcollcom)
+  if (iproc==0) then
+      call yaml_map('Large locregs communication initialized',.true.)
+  end if
+
   if (present(lbcollcom_sr)) then
       call init_comms_linear_sumrho(iproc, nproc, lzd, orbs, input%nspin, nscatterarr, lbcollcom_sr)
+      if (iproc==0) then
+          call yaml_map('Large locregs sumrho communication initialized',.true.)
+      end if
   end if
 
   call initialize_communication_potential(iproc, nproc, nscatterarr, orbs, lzd, input%nspin, lbcomgp)
