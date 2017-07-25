@@ -381,8 +381,8 @@ module bigdft_matrices
           !!aux%mat_ind_compr(ifvctr)%offset_compr = imin
           aux%mat_ind_compr2(ifvctr)%offset_compr = imin
           nlen = imax - imin + 1
-          !write(*,*) 'ifvctr, imin_old(ifvctr), imax_old(ifvctr), imin_new(ifvctr), imax_new(ifvctr), imin, imax, nlen', &
-          !            ifvctr, imin_old(ifvctr), imax_old(ifvctr), imin_new(ifvctr), imax_new(ifvctr), imin, imax, nlen
+          !!write(*,*) 'iproc, ifvctr, imin_old(ifvctr), imax_old(ifvctr), imin_new(ifvctr), imax_new(ifvctr), imin, imax, nlen',&
+          !!            iproc, ifvctr, imin_old(ifvctr), imax_old(ifvctr), imin_new(ifvctr), imax_new(ifvctr), imin, imax, nlen
           !!aux%mat_ind_compr(ifvctr)%ind_compr = f_malloc_ptr(nlen,id='aux%linmat%mat_ind_compr%ind_compr')
           if (min(imax,sparsemat%nfvctr)>=imin) then
               aux%mat_ind_compr2(ifvctr)%section(1)%ind_compr = &
@@ -398,7 +398,7 @@ module bigdft_matrices
               jjorb = mod(jorb-1,sparsemat%nfvctr)+1
               !aux%mat_ind_compr(ifvctr)%ind_compr(j)=matrixindex_in_compressed(sparsemat, ifvctr, jjorb)
               !!aux%mat_ind_compr(ifvctr)%ind_compr(j)=matrixindex_in_compressed(sparsemat, jjorb, ifvctr)
-              if (jjorb<=sparsemat%nfvctr) then
+              if (jorb<=sparsemat%nfvctr) then
                   aux%mat_ind_compr2(ifvctr)%section(1)%ind_compr(jorb) = &
                       matrixindex_in_compressed(sparsemat, jjorb, ifvctr)
               else

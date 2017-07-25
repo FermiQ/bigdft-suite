@@ -501,8 +501,13 @@ module rhopotential
                   tt2=2.0_dp*tt1
                   do j=i+1,ii
                       jjorb=collcom_sr%indexrecvorbital_c(i0+j) - iorb_shift
-                      ia = iiorb-aux%mat_ind_compr2(iiorb)%offset_compr
+                      ia = jjorb-aux%mat_ind_compr2(iiorb)%offset_compr
                       ib = sign(1,ia)
+                      !!if (jjorb>ubound(aux%mat_ind_compr2(iiorb)%section(ib)%ind_compr,1)) then
+                      !!    write(1000+iproc,*) 'ipt, i, iiorb, offset, jjorb, ia, ib, ubound', &
+                      !!         ipt, i, iiorb, aux%mat_ind_compr2(iiorb)%offset_compr, jjorb, ia, ib, &
+                      !!         ubound(aux%mat_ind_compr2(iiorb)%section(ib)%ind_compr,1)
+                      !!end if
                       ind = aux%mat_ind_compr2(iiorb)%section(ib)%ind_compr(jjorb)
                       if (ind==0) cycle
                       ind=ind+ishift_mat-denskern%isvctrp_tg
