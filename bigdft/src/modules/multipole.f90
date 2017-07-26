@@ -4275,6 +4275,8 @@ module multipole
        call mpiallred(norm, mpi_sum, comm=bigdft_mpi%mpi_comm)
    end if
 
+   call f_free(i2skip)
+
    call f_release_routine()
 
  end subroutine calculate_norm
