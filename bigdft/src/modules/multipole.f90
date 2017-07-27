@@ -2582,7 +2582,7 @@ module multipole
               !mesh=cell_new(smmd%geocode,denspot%pkernel%ndims,denspot%pkernel%hgrids)
               call compare_charge_and_potential(denspot%dpbox%bitp,&!iproc, is1, ie1, is2, ie2, is3, ie3, &
                    smmd%nat, &
-                   rho_exact, rho_mp, pot_exact, pot_mp, denspot%pkernel, rxyz, &
+                   rho_exact, rho_mp, pot_exact, pot_mp, denspot%pkernel, at, rxyz, &
                    ncheck, check_threshold, charge_error, charge_total, potential_error, potential_total)
               !# NEW: compare the density and potential ##########################
               if (iproc==0) then
@@ -3801,61 +3801,63 @@ module multipole
 
  
   if (iproc==0) then
-      call yaml_sequence_open('Gross support functions moments')
-      call yaml_map('Orthonormalization',do_ortho)
-      iatype_tmp = f_malloc(tmb%orbs%norb,id='iatype_tmp')
-      delta_centers = f_malloc((/3,tmb%orbs%norb/),id='delta_centers')
-      iat_old = -1
-      names = f_malloc_str(len(names),tmb%orbs%norb,id='names')
+      call write_support_functions_multipoles(tmb, atoms, center_locreg, center_orb, lmax, scaled, &
+               shift, do_ortho, multipoles)
+      !!call yaml_sequence_open('Gross support functions moments')
+      !!call yaml_map('Orthonormalization',do_ortho)
+      !!iatype_tmp = f_malloc(tmb%orbs%norb,id='iatype_tmp')
+      !!delta_centers = f_malloc((/3,tmb%orbs%norb/),id='delta_centers')
+      !!iat_old = -1
+      !!names = f_malloc_str(len(names),tmb%orbs%norb,id='names')
 
-      ep = external_potential_descriptors_null()
-      ep%nmpl = tmb%orbs%norb
-      allocate(ep%mpl(ep%nmpl))
+      !!ep = external_potential_descriptors_null()
+      !!ep%nmpl = tmb%orbs%norb
+      !!allocate(ep%mpl(ep%nmpl))
 
-      do iorb=1,tmb%orbs%norb
-          iat = tmb%orbs%onwhichatom(iorb)
-          if (iat/=iat_old) then
-              ii = 1
-          else
-              ii = ii + 1
-          end if
-          iat_old = iat
-          ilr = tmb%orbs%inwhichlocreg(iorb)
-          itype = atoms%astruct%iatype(iat)
-          iatype_tmp(iorb) = itype
-          names(iorb) = trim(atoms%astruct%atomnames(itype))//'-'//adjustl(trim(yaml_toa(ii)))
-          ! delta_centers gives the difference between the charge center and the localization center
-          delta_centers(1:3,iorb) = center_locreg(1:3,ilr) - tmb%lzd%llr(ilr)%locregcenter(1:3)
-          !write(*,*) 'iorb, ilr, center_locreg(1:3,ilr) - tmb%lzd%llr(ilr)%locregcenter(1:3)', &
-          !           iorb, ilr, center_locreg(1:3,ilr) - tmb%lzd%llr(ilr)%locregcenter(1:3)
-          !write(*,*) 'iorb, delta_centers(1:3,iorb)', iorb, delta_centers(1:3,iorb)
-          ! Undo the global shift of the centers
-          center_orb(1:3,iorb) = center_orb(1:3,iorb) + shift(1:3)
+      !!do iorb=1,tmb%orbs%norb
+      !!    iat = tmb%orbs%onwhichatom(iorb)
+      !!    if (iat/=iat_old) then
+      !!        ii = 1
+      !!    else
+      !!        ii = ii + 1
+      !!    end if
+      !!    iat_old = iat
+      !!    ilr = tmb%orbs%inwhichlocreg(iorb)
+      !!    itype = atoms%astruct%iatype(iat)
+      !!    iatype_tmp(iorb) = itype
+      !!    names(iorb) = trim(atoms%astruct%atomnames(itype))//'-'//adjustl(trim(yaml_toa(ii)))
+      !!    ! delta_centers gives the difference between the charge center and the localization center
+      !!    delta_centers(1:3,iorb) = center_locreg(1:3,ilr) - tmb%lzd%llr(ilr)%locregcenter(1:3)
+      !!    !write(*,*) 'iorb, ilr, center_locreg(1:3,ilr) - tmb%lzd%llr(ilr)%locregcenter(1:3)', &
+      !!    !           iorb, ilr, center_locreg(1:3,ilr) - tmb%lzd%llr(ilr)%locregcenter(1:3)
+      !!    !write(*,*) 'iorb, delta_centers(1:3,iorb)', iorb, delta_centers(1:3,iorb)
+      !!    ! Undo the global shift of the centers
+      !!    center_orb(1:3,iorb) = center_orb(1:3,iorb) + shift(1:3)
 
-          ep%mpl(iorb) = multipole_set_null()
-          allocate(ep%mpl(iorb)%qlm(0:lmax))
-          ep%mpl(iorb)%rxyz = center_orb(1:3,iorb)
-          ep%mpl(iorb)%sym = trim(names(iorb))
-          ep%mpl(iorb)%mpchar = 'G'
-          do l=0,lmax
-              ep%mpl(iorb)%qlm(l) = multipole_null()
-              !if (l>=3) cycle
-              ep%mpl(iorb)%qlm(l)%q = f_malloc_ptr(2*l+1,id='q')
-              mm = 0
-              do m=-l,l
-                  mm = mm + 1
-                  ep%mpl(iorb)%qlm(l)%q(mm) = multipoles(m,l,iorb)
-              end do
-          end do
-      end do
-      call write_multipoles_new(ep, lmax, atoms%astruct%units, &
-           delta_centers, tmb%orbs%onwhichatom, scaled)
-      call deallocate_external_potential_descriptors(ep)
-      call f_free(delta_centers)
-      call f_free(iatype_tmp)
-      call f_free_str(len(names),names)
+      !!    ep%mpl(iorb) = multipole_set_null()
+      !!    allocate(ep%mpl(iorb)%qlm(0:lmax))
+      !!    ep%mpl(iorb)%rxyz = center_orb(1:3,iorb)
+      !!    ep%mpl(iorb)%sym = trim(names(iorb))
+      !!    ep%mpl(iorb)%mpchar = 'G'
+      !!    do l=0,lmax
+      !!        ep%mpl(iorb)%qlm(l) = multipole_null()
+      !!        !if (l>=3) cycle
+      !!        ep%mpl(iorb)%qlm(l)%q = f_malloc_ptr(2*l+1,id='q')
+      !!        mm = 0
+      !!        do m=-l,l
+      !!            mm = mm + 1
+      !!            ep%mpl(iorb)%qlm(l)%q(mm) = multipoles(m,l,iorb)
+      !!        end do
+      !!    end do
+      !!end do
+      !!call write_multipoles_new(ep, lmax, atoms%astruct%units, &
+      !!     delta_centers, tmb%orbs%onwhichatom, scaled)
+      !!call deallocate_external_potential_descriptors(ep)
+      !!call f_free(delta_centers)
+      !!call f_free(iatype_tmp)
+      !!call f_free_str(len(names),names)
       call f_free(scaled)
-      call yaml_sequence_close()
+      !!call yaml_sequence_close()
   end if
 
  
@@ -4221,7 +4223,7 @@ module multipole
    integer :: impl, i1, i2, i3, ii1, ii2, ii3, l, ithread, nthread
    real(kind=8) :: gg
    real(kind=8),dimension(0:lmax) :: gg23
-   logical,dimension(:,:),allocatable :: i2skip
+   !logical,dimension(:,:),allocatable :: i2skip
    logical :: i2skip_initialized
    !$ integer :: omp_get_max_threads, omp_get_thread_num
 
@@ -4229,7 +4231,7 @@ module multipole
 
    nthread = 1
    !$ nthread = omp_get_max_threads()
-   i2skip = f_malloc((/is2.to.ie2,0.to.nthread/),id='i2skip')
+   !i2skip = f_malloc((/is2.to.ie2,0.to.nthread/),id='i2skip')
 
    call f_zero(norm)
 
@@ -4287,14 +4289,28 @@ module multipole
    !$omp end do
    !$omp end parallel
 
-   ! Sum up the norms of the Gaussians.
-   if (nproc>1) then
-       call mpiallred(norm, mpi_sum, comm=bigdft_mpi%mpi_comm)
-   end if
+   call communicate_norm()
 
-   call f_free(i2skip)
+   !call f_free(i2skip)
 
    call f_release_routine()
+
+   contains
+
+     ! This routine is just here for the timing
+     subroutine communicate_norm()
+       implicit none
+
+       call f_routine(id='communicate_norm')
+
+       ! Sum up the norms of the Gaussians.
+       if (nproc>1) then
+           call mpiallred(norm, mpi_sum, comm=bigdft_mpi%mpi_comm)
+       end if
+
+       call f_release_routine()
+
+     end subroutine communicate_norm
 
  end subroutine calculate_norm
  
@@ -5431,26 +5447,32 @@ end subroutine calculate_rpowerx_matrices
 
 
     subroutine compare_charge_and_potential(boxit,nat,& !iproc, is1, ie1, is2, ie2, is3, ie3, nat, &
-               rho_exact, rho_mp, pot_exact, pot_mp, kernel, rxyz, &
+               rho_exact, rho_mp, pot_exact, pot_mp, kernel, at, rxyz, &
                ncheck, check_threshold, charge_error, external_volume, potential_error, potential_total)
     use PStypes, only: coulomb_operator
     use PSbox, only: PS_gather
     use box
+    use module_types, only: atoms_data
     implicit none
     ! Calling arguments
     !integer,intent(in) :: iproc, is1, ie1, is2, ie2, is3, ie3
     type(box_iterator), intent(inout) :: boxit
     integer, intent(in) :: nat, ncheck
     type(coulomb_operator),intent(in) :: kernel
+    type(atoms_data),intent(in) :: at
     real(kind=8),dimension(kernel%ndims(1)*kernel%ndims(2)*kernel%grid%n3p),intent(in) :: rho_exact, rho_mp, pot_exact, pot_mp
     real(kind=8),dimension(3,nat),intent(in) :: rxyz
     real(kind=8),dimension(ncheck),intent(in) :: check_threshold
     real(kind=8),dimension(ncheck),intent(out) :: charge_error, external_volume, potential_error, potential_total
 
     ! Local variables
-    integer :: i1, i2, i3, iat, icheck,icnt,igood, iclose, iiat
-    real(kind=8) :: qex, factor,vex
+    integer :: i1, i2, i3, iat, icheck,icnt,igood, iclose, iiat, nat_check, j3, j3s, j3e, zz
+    real(kind=8) :: qex, factor,vex, z, zmin, zmax, alat
     real(kind=8),parameter :: min_distance = 2.0d0
+    real(kind=8),dimension(3) :: ra, rb
+    logical :: perz
+    logical,dimension(:),allocatable :: atlist
+    integer,dimension(:),allocatable :: atlist_check
 !!$    logical,dimension(:,:,:),allocatable :: is_close
 
     call f_routine(id='compare_charge_and_potential')
@@ -5489,6 +5511,62 @@ end subroutine calculate_rpowerx_matrices
     call f_zero(potential_error)
     call f_zero(potential_total)
 
+    ! Get the minimal and maximal z value for the box
+    zmin = huge(1.d0)
+    zmax = -huge(1.d0)
+    !write(*,*) 'B: zmin, zmax', zmin, zmax
+    do while(box_next_point(boxit))
+        z = boxit%rxyz(3)
+        if (z<zmin) zmin = z
+        if (z>zmax) zmax = z
+    end do
+    !write(*,*) 'A: zmin, zmax', zmin, zmax
+
+    ! Determine which atoms are in this z-range, taking into account the min_distance
+    ! Conditions for periodicity
+    perz=(at%astruct%geocode /= 'F')
+    if (perz) then
+        j3s = -1
+        j3e = 1
+    else
+        j3s = 0
+        j3e = 0
+    end if
+
+    atlist = f_malloc(nat,id='atlist')
+    atlist(:) = .false.
+    alat = boxit%mesh%hgrids(3)*boxit%mesh%ndims(3)
+    nat_check = 0
+    do iat=1,nat
+        z = rxyz(3,iat)
+        do j3=j3s,j3e
+            zz = z + j3*alat
+            if (zz>zmin-min_distance .and. zz<zmax+min_distance) then
+                atlist(iat) = .true.
+                nat_check = nat_check + 1
+            end if
+            !write(*,*) 'zmin, zmax, z, atlist(iat)', zmin, zmax, z, atlist(iat)
+        end do
+    end do
+
+    !write(*,*) 'atlist', atlist
+
+    atlist_check = f_malloc(nat_check, id='atlist_check')
+    iiat = 0
+    do iat=1,nat
+        if (atlist(iat)) then
+            iiat = iiat + 1
+            atlist_check(iiat) = iat
+            !write(*,*) 'zmin, zmax, iiat, iat', zmin, zmax, iiat, iat
+        end if
+    end do
+    if (iiat/=nat_check) then
+        call f_err_throw(trim(yaml_toa(iiat))//'=iiat /= nat_check='//trim(yaml_toa(nat_check)))
+    end if
+    call f_free(atlist)
+
+
+
     !use the box iterator
     factor=boxit%mesh%volume_element
     icnt=0
@@ -5497,10 +5575,12 @@ end subroutine calculate_rpowerx_matrices
     box_loop: do while(box_next_point(boxit))
        icnt=icnt+1
        !do iat=1,nat
-       do iat=iclose,iclose+nat-1
-       iiat = mod(iat-1,nat)+1
+       do iat=1,nat_check
+       !do iat=iclose,iclose+nat-1
+       !iiat = mod(iat-1,nat)+1
+       iiat = atlist_check(iat)
           if (distance(boxit%mesh,boxit%rxyz,rxyz(:,iiat)) <= min_distance) then
-              iclose = iiat
+              !iclose = iiat
               cycle box_loop
           end if
        end do
@@ -5523,6 +5603,8 @@ end subroutine calculate_rpowerx_matrices
           end if
        end do
     end do box_loop
+
+    call f_free(atlist_check)
 
 !!$    do i3=0,kernel%ndims(3)-31-1
 !!$        z = i3*kernel%hgrids(3)
@@ -5883,5 +5965,94 @@ end subroutine calculate_rpowerx_matrices
       call f_release_routine()
 
     end subroutine prepare_loewdin_projector
+    
+
+    subroutine write_support_functions_multipoles(tmb, atoms, center_locreg, center_orb, lmax, scaled, &
+               shift, do_ortho, multipoles)
+      use yaml_output
+      use module_types, only: DFT_wavefunction, atoms_data
+      use multipole_base, only: external_potential_descriptors, external_potential_descriptors_null, &
+                             multipole_set_null, multipole_null, deallocate_external_potential_descriptors
+      implicit none
+
+      ! Calling arguments
+      type(DFT_wavefunction),intent(in) :: tmb
+      type(atoms_data),intent(in) :: atoms
+      real(kind=8),dimension(3,tmb%lzd%nlr),intent(in) :: center_locreg
+      real(kind=8),dimension(3,tmb%lzd%nlr),intent(inout) :: center_orb
+      integer,intent(in) :: lmax
+      real(kind=8),dimension(tmb%orbs%norb),intent(in) :: scaled
+      real(kind=8),dimension(3),intent(in) :: shift !< global shift of the atomic positions
+      character(len=*),intent(in) :: do_ortho
+      real(kind=8),dimension(-lmax:lmax,0:lmax,1:tmb%orbs%norb),intent(in) :: multipoles
+
+      ! Local variables
+      integer :: iat_old, iorb, iat, ii, ilr, itype, l, m, mm
+      integer,dimension(:),allocatable :: iatype_tmp
+      real(kind=8),dimension(:,:),allocatable :: delta_centers
+      character(len=20),dimension(:),allocatable :: names
+      type(external_potential_descriptors) :: ep
+
+      call f_routine(id='write_support_functions_multipoles')
+
+      call yaml_sequence_open('Gross support functions moments')
+      call yaml_map('Orthonormalization',do_ortho)
+      iatype_tmp = f_malloc(tmb%orbs%norb,id='iatype_tmp')
+      delta_centers = f_malloc((/3,tmb%orbs%norb/),id='delta_centers')
+      iat_old = -1
+      names = f_malloc_str(len(names),tmb%orbs%norb,id='names')
+
+      ep = external_potential_descriptors_null()
+      ep%nmpl = tmb%orbs%norb
+      allocate(ep%mpl(ep%nmpl))
+
+      do iorb=1,tmb%orbs%norb
+          iat = tmb%orbs%onwhichatom(iorb)
+          if (iat/=iat_old) then
+              ii = 1
+          else
+              ii = ii + 1
+          end if
+          iat_old = iat
+          ilr = tmb%orbs%inwhichlocreg(iorb)
+          itype = atoms%astruct%iatype(iat)
+          iatype_tmp(iorb) = itype
+          names(iorb) = trim(atoms%astruct%atomnames(itype))//'-'//adjustl(trim(yaml_toa(ii)))
+          ! delta_centers gives the difference between the charge center and the localization center
+          delta_centers(1:3,iorb) = center_locreg(1:3,ilr) - tmb%lzd%llr(ilr)%locregcenter(1:3)
+          !write(*,*) 'iorb, ilr, center_locreg(1:3,ilr) - tmb%lzd%llr(ilr)%locregcenter(1:3)', &
+          !           iorb, ilr, center_locreg(1:3,ilr) - tmb%lzd%llr(ilr)%locregcenter(1:3)
+          !write(*,*) 'iorb, delta_centers(1:3,iorb)', iorb, delta_centers(1:3,iorb)
+          ! Undo the global shift of the centers
+          center_orb(1:3,iorb) = center_orb(1:3,iorb) + shift(1:3)
+
+          ep%mpl(iorb) = multipole_set_null()
+          allocate(ep%mpl(iorb)%qlm(0:lmax))
+          ep%mpl(iorb)%rxyz = center_orb(1:3,iorb)
+          ep%mpl(iorb)%sym = trim(names(iorb))
+          ep%mpl(iorb)%mpchar = 'G'
+          do l=0,lmax
+              ep%mpl(iorb)%qlm(l) = multipole_null()
+              !if (l>=3) cycle
+              ep%mpl(iorb)%qlm(l)%q = f_malloc_ptr(2*l+1,id='q')
+              mm = 0
+              do m=-l,l
+                  mm = mm + 1
+                  ep%mpl(iorb)%qlm(l)%q(mm) = multipoles(m,l,iorb)
+              end do
+          end do
+      end do
+      call write_multipoles_new(ep, lmax, atoms%astruct%units, &
+           delta_centers, tmb%orbs%onwhichatom, scaled)
+      call deallocate_external_potential_descriptors(ep)
+      call f_free(delta_centers)
+      call f_free(iatype_tmp)
+      call f_free_str(len(names),names)
+
+      call yaml_sequence_close()
+
+      call f_release_routine()
+
+    end subroutine write_support_functions_multipoles
 
 end module multipole

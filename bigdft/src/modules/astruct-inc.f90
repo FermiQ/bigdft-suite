@@ -903,7 +903,7 @@ END SUBROUTINE archiveGetLine
 !! accoding to geocode value and cell if present
 subroutine rxyz_inside_box(astruct,rxyz)
   use module_defs, only: gp
-  use dynamic_memory, only: f_memcpy
+  use dynamic_memory, only: f_memcpy, f_routine, f_release_routine
   implicit none
   !> description of the atomic structure
   type(atomic_structure), intent(inout) :: astruct
@@ -913,6 +913,8 @@ subroutine rxyz_inside_box(astruct,rxyz)
   !local variables
   integer :: iat
   real(gp), dimension(:,:), pointer :: rxyz_
+
+  call f_routine(id='rxyz_inside_box')
 
   rxyz_ => astruct%rxyz
   if (present(rxyz)) rxyz_ => rxyz
@@ -954,6 +956,8 @@ subroutine rxyz_inside_box(astruct,rxyz)
      if (present(rxyz)) call f_memcpy(src=astruct%rxyz,dest=rxyz_)
      !Do nothing!
   end select
+
+  call f_release_routine()
 
 end subroutine rxyz_inside_box
 
