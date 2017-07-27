@@ -1498,6 +1498,8 @@ end if
        ! Local variables
        logical :: calculate_overlap, invert_overlap_matrix, calculate_pspandkin, calculate_ham
 
+       call f_routine(id='scf_kernel')
+
        ! Flag whether the Hamiltonian application should be done or not
        calculate_ham = .true.
 
@@ -1952,6 +1954,8 @@ end if
            end if
 
        end do kernel_loop
+
+       call f_release_routine()
 
     end subroutine scf_kernel
 

@@ -2503,10 +2503,11 @@ module multipole
           end if
       end do
 
-      if (iproc==0) then
-          call yaml_comment('Final result of the multipole analysis',hfill='~')
-          call write_multipoles_new(ep, lmax, smmd%units, do_guess_type=.false.)
-      end if
+      !!if (iproc==0) then
+      !!    call yaml_comment('Final result of the multipole analysis',hfill='~')
+      !!    call write_multipoles_new(ep, lmax, smmd%units, do_guess_type=.false.)
+      !!end if
+      call print_multipoles()
 
 
       if (do_check) then
@@ -2667,7 +2668,31 @@ module multipole
           call yaml_comment('Atomic multipole analysis done',hfill='=')
       end if
 
+
       call f_release_routine()
+
+
+      contains
+
+
+        ! This subroutine is just here to get the proper timings for the output
+        subroutine print_multipoles()
+          implicit none
+
+          call f_routine('print_multipoles')
+
+          if (iproc==0) then
+              call yaml_comment('Final result of the multipole analysis',hfill='~')
+              call write_multipoles_new(ep, lmax, smmd%units, do_guess_type=.false.)
+          end if
+
+          ! Put here a barrier to get the timings right
+          call mpibarrier(bigdft_mpi%mpi_comm)
+
+          call f_release_routine()
+
+        end subroutine print_multipoles
+
 
   end subroutine multipole_analysis_driver_new
 

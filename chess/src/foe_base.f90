@@ -58,6 +58,7 @@ module foe_base
   public :: foe_data_set_real
   public :: foe_data_get_real
   public :: foe_data_get_logical
+  public :: copy_foe_data
 
 
   contains
@@ -67,18 +68,15 @@ module foe_base
       use f_utils, only: f_none,assignment(=)
       implicit none
       type(foe_data) :: foe_obj
-      foe_obj%ef                      =f_none()
-      !foe_obj%ef                     = uninitialized(foe_obj%ef)
-      !foe_obj%evlow                  = uninitialized(foe_obj%evlow)
       nullify(foe_obj%evlow)
       nullify(foe_obj%evhigh)
       nullify(foe_obj%bisection_shift)
-      !foe_obj%bisection_shift        = uninitialized(foe_obj%bisection_shift)
+      nullify(foe_obj%charge)        
+      nullify(foe_obj%eval_multiplicator)
+      foe_obj%ef                     =f_none()
       foe_obj%fscale                 =f_none()! uninitialized(foe_obj%fscale)
       foe_obj%ef_interpol_det        =f_none()! uninitialized(foe_obj%ef_interpol_det)
       foe_obj%ef_interpol_chargediff =f_none()! uninitialized(foe_obj%ef_interpol_chargediff)
-      nullify(foe_obj%charge)        
-      !foe_obj%charge                !=f_none()! uninitialized(foe_obj%charge)
       foe_obj%fscale_lowerbound      =f_none()! uninitialized(foe_obj%fscale_lowerbound)
       foe_obj%fscale_upperbound      =f_none()! uninitialized(foe_obj%fscale_upperbound)
       foe_obj%tmprtr                 =f_none()! uninitialized(foe_obj%tmprtr)
@@ -88,7 +86,6 @@ module foe_base
       foe_obj%evboundsshrink_nsatur  =f_none()! uninitialized(foe_obj%evboundsshrink_nsatur)
       foe_obj%evlow_min              =f_none()! uninitialized(foe_obj%evlow_min)
       foe_obj%evhigh_max             =f_none()! uninitialized(foe_obj%evhigh_max)
-      nullify(foe_obj%eval_multiplicator)
       foe_obj%npl_min                =f_none()
       foe_obj%npl_max                =f_none()
       foe_obj%npl_stride             =f_none()
@@ -97,6 +94,49 @@ module foe_base
       foe_obj%accuracy_function      =f_none()
       foe_obj%accuracy_penalty       =f_none()
     end function foe_data_null
+
+
+    subroutine copy_foe_data(foe_obj_in, foe_obj_out)
+      use dynamic_memory
+      implicit none
+      type(foe_data),intent(in) :: foe_obj_in
+      type(foe_data),intent(out) :: foe_obj_out
+      foe_obj_out%evlow              = &
+          f_malloc_ptr(lbound(foe_obj_in%evlow).to.ubound(foe_obj_in%evlow))
+      foe_obj_out%evhigh             = &
+          f_malloc_ptr(lbound(foe_obj_in%evhigh).to.ubound(foe_obj_in%evhigh))
+      foe_obj_out%bisection_shift    = &
+          f_malloc_ptr(lbound(foe_obj_in%bisection_shift).to.ubound(foe_obj_in%bisection_shift))
+      foe_obj_out%charge             = &
+          f_malloc_ptr(lbound(foe_obj_in%charge).to.ubound(foe_obj_in%charge))
+      foe_obj_out%eval_multiplicator = &
+          f_malloc_ptr(lbound(foe_obj_in%eval_multiplicator).to.ubound(foe_obj_in%eval_multiplicator))
+      call f_memcpy(src=foe_obj_in%evlow,              dest=foe_obj_out%evlow)
+      call f_memcpy(src=foe_obj_in%evhigh,             dest=foe_obj_out%evhigh)
+      call f_memcpy(src=foe_obj_in%bisection_shift,    dest=foe_obj_out%bisection_shift)
+      call f_memcpy(src=foe_obj_in%charge,             dest=foe_obj_out%charge)
+      call f_memcpy(src=foe_obj_in%eval_multiplicator, dest=foe_obj_out%eval_multiplicator)
+      foe_obj_out%ef                     = foe_obj_in%ef
+      foe_obj_out%fscale                 = foe_obj_in%fscale
+      foe_obj_out%ef_interpol_det        = foe_obj_in%ef_interpol_det
+      foe_obj_out%ef_interpol_chargediff = foe_obj_in%ef_interpol_chargediff
+      foe_obj_out%fscale_lowerbound      = foe_obj_in%fscale_lowerbound
+      foe_obj_out%fscale_upperbound      = foe_obj_in%fscale_upperbound
+      foe_obj_out%tmprtr                 = foe_obj_in%tmprtr
+      foe_obj_out%evbounds_isatur        = foe_obj_in%evbounds_isatur
+      foe_obj_out%evboundsshrink_isatur  = foe_obj_in%evboundsshrink_isatur
+      foe_obj_out%evbounds_nsatur        = foe_obj_in%evbounds_nsatur
+      foe_obj_out%evboundsshrink_nsatur  = foe_obj_in%evboundsshrink_nsatur
+      foe_obj_out%evlow_min              = foe_obj_in%evlow_min
+      foe_obj_out%evhigh_max             = foe_obj_in%evhigh_max
+      foe_obj_out%npl_min                = foe_obj_in%npl_min
+      foe_obj_out%npl_max                = foe_obj_in%npl_max
+      foe_obj_out%npl_stride             = foe_obj_in%npl_stride
+      foe_obj_out%betax                  = foe_obj_in%betax
+      foe_obj_out%ntemp                  = foe_obj_in%ntemp
+      foe_obj_out%accuracy_function      = foe_obj_in%accuracy_function
+      foe_obj_out%accuracy_penalty       = foe_obj_in%accuracy_penalty
+    end subroutine copy_foe_data
 
 
     subroutine foe_data_deallocate(foe_obj)
