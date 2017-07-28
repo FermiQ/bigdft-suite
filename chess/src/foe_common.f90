@@ -823,11 +823,15 @@ module foe_common
           ! Transform all matrices to the large sparsity pattern.
           ! Takes some memory, but probably faster than the old way...
           mat1_large = sparsematrix_malloc(smatl, iaction=sparse_taskgroup, id='mat1_large')
-          call transform_sparse_matrix(iproc, smat1, smatl, sparse_taskgroup, 'small_to_large', &
+          !!call transform_sparse_matrix(iproc, smat1, smatl, sparse_taskgroup, 'small_to_large', &
+          !!     smat_in=mat1%matrix_compr, lmat_out=mat1_large)
+          call transform_sparse_matrix(iproc, smat1, smatl, sparse_matmul_small, 'small_to_large', &
                smat_in=mat1%matrix_compr, lmat_out=mat1_large)
           if (with_overlap) then
               mat2_large = sparsematrix_malloc(smatl, iaction=sparse_taskgroup, id='mat2_large')
-              call transform_sparse_matrix(iproc, smat2, smatl, sparse_taskgroup, 'small_to_large', &
+              !!call transform_sparse_matrix(iproc, smat2, smatl, sparse_taskgroup, 'small_to_large', &
+              !!     smat_in=mat2%matrix_compr, lmat_out=mat2_large)
+              call transform_sparse_matrix(iproc, smat2, smatl, sparse_matmul_small, 'small_to_large', &
                    smat_in=mat2%matrix_compr, lmat_out=mat2_large)
               !write(*,*) 'IN scale_and_shift_matrix: ispin, sum(H), sum(S)', &
               !    ispin, sum(mat1_large(ishift+1:ishift+smatl%nvctrp_tg)), &

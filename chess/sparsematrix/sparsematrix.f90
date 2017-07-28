@@ -445,7 +445,7 @@ module sparsematrix
       ! Local variables
       integer(kind=mp) :: isstart, isend, ilstart, ilend, iostart, ioend
       integer :: idir, icheck, isseg, ilseg, isoffset_tg, iloffset_tg, issegstartx, issegendx
-      integer :: ilength, iscostart, ilcostart, nssize, nlsize, i, ilsegstartx
+      integer :: ilength, iscostart, ilcostart, nssize, nlsize, i, ilsegstartx, ilsegendx
       integer :: ilsegstart, ispin, isshift, ilshift, isoffset, iloffset
       integer,parameter :: SMALL_TO_LARGE=1
       integer,parameter :: LARGE_TO_SMALL=2
@@ -456,6 +456,7 @@ module sparsematrix
       if (imode==SPARSE_FULL) then
           ilsegstartx = 1
           issegstartx = 1
+          ilsegendx = lmat%nseg
           issegendx = smat%nseg
           isoffset_tg = 0
           iloffset_tg = 0
@@ -464,6 +465,22 @@ module sparsematrix
       else if (imode==SPARSE_TASKGROUP) then
           ilsegstartx = lmat%iseseg_tg(1)
           issegstartx = smat%iseseg_tg(1)
+          ilsegendx = lmat%iseseg_tg(2)
+          issegendx = smat%iseseg_tg(2)
+          isoffset_tg = smat%isvctrp_tg
+          iloffset_tg = lmat%isvctrp_tg
+          nssize = smat%nvctrp_tg*smat%nspin
+          nlsize = lmat%nvctrp_tg*lmat%nspin
+      else if (imode==SPARSE_MATMUL_SMALL) then
+          if (direction/='small_to_large' .and. direction/='SMALL_TO_LARGE') then
+              call f_err_throw('SPARSE_MATMUL_SMALL only posible for small_to_large')
+          end if
+          if (.not.lmat%smatmul_initialized) then
+              call f_err_throw('lmat%smatmul_initialized mus be true')
+          end if
+          ilsegstartx = lmat%smmm%istartendseg_mm(1)
+          issegstartx = smat%iseseg_tg(1)
+          ilsegendx = lmat%smmm%istartendseg_mm(2)
           issegendx = smat%iseseg_tg(2)
           isoffset_tg = smat%isvctrp_tg
           iloffset_tg = lmat%isvctrp_tg
@@ -526,7 +543,7 @@ module sparsematrix
           ilsegstart = ilsegstartx
           !$omp parallel default(none) &
           !$omp shared(smat, lmat, issegstartx, issegendx, idir, icheck, isshift, ilshift, isoffset_tg, iloffset_tg) &
-          !$omp shared(smat_in, lmat_in, smat_out, lmat_out) &
+          !$omp shared(smat_in, lmat_in, smat_out, lmat_out, ilsegendx) &
           !$omp private(isseg, isstart, isend, ilstart, ilend, iostart, ioend) &
           !$omp private(isoffset, iloffset, iscostart, ilcostart, ilength,ilseg,i) &
           !$omp firstprivate(ilsegstart)
@@ -535,7 +552,7 @@ module sparsematrix
               isstart = int((smat%keyg(1,2,isseg)-1),kind=mp)*int(smat%nfvctr,kind=mp) + int(smat%keyg(1,1,isseg),kind=mp)
               isend = int((smat%keyg(2,2,isseg)-1),kind=mp)*int(smat%nfvctr,kind=mp) + int(smat%keyg(2,1,isseg),kind=mp)
               ! A segment is always on one line, therefore no double loop
-              lloop: do ilseg=ilsegstart,lmat%nseg
+              lloop: do ilseg=ilsegstart,ilsegendx
                   ilstart = int((lmat%keyg(1,2,ilseg)-1),kind=mp)*int(lmat%nfvctr,kind=mp) + int(lmat%keyg(1,1,ilseg),kind=mp)
                   ilend = int((lmat%keyg(2,2,ilseg)-1),kind=mp)*int(lmat%nfvctr,kind=mp) + int(lmat%keyg(2,1,ilseg),kind=mp)
     
@@ -587,12 +604,17 @@ module sparsematrix
 
       end do
     
-      ! all elements of the small matrix must have been processed, no matter in
-      ! which direction the transformation has been executed
-      !if (icheck/=smat%nvctr*smat%nspin) then
-      if (icheck/=nssize) then
-          write(*,'(a,2i8)') 'ERROR: icheck/=smat%nvctr*smat%nspin', icheck, smat%nvctr*smat%nspin
-          stop
+      if (imode==SPARSE_MATMUL_SMALL) then
+          !!if (icheck/=lmat%smmm%nvctrp_mm) then
+          !!    call f_err_throw(trim(yaml_toa(icheck))//'=icheck /= lmat%smmm%nvctrp_mm='//trim(yaml_toa(lmat%smmm%nvctrp_mm)))
+          !!end if
+      else
+          ! all elements of the small matrix must have been processed, no matter in
+          ! which direction the transformation has been executed
+          !if (icheck/=smat%nvctr*smat%nspin) then
+          if (icheck/=nssize) then
+              call f_err_throw(trim(yaml_toa(icheck))//'=icheck /= nssize='//trim(yaml_toa(nssize)))
+          end if
       end if
 
       !call timing(iproc,'transform_matr','RS')
