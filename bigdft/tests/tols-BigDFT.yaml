@@ -860,6 +860,7 @@ fructose:
  eval: 1.1e-6
  trace: 1.9e-11
  Average noise forces: 1.01e-10
+ trace(KH): 1.5e-11
  Keys to ignore:
   - Calculating wavelets expansion of projectors, found warnings
   - found warnings
@@ -1019,7 +1020,7 @@ deltascf_read_charge:
  Omega: 3.2e-10
  Raw forces norm (Ha/Bohr): 2.1e-10
  EH: 1.1e-9
- Energy (Hartree): 2.4e-10
+ Energy (Hartree): 2.6e-10
  D: 1.01e-9
  Maxdiff for transpose (checksum): 1.4e-9
  Total charge: 2.1e-11
@@ -1083,7 +1084,6 @@ onlyhigh:
  Epot: 2.8e-09
  Energies: 2.1e-9
  energy: 3.13e-10
- Epot: 1.1e-10
  Omega: 8.0e-10
  Orbitals: 1.1e-9
  Pulay Forces (Ha/Bohr): 1.4e-10
@@ -1094,6 +1094,7 @@ onlyhigh:
  Energy (Hartree): 1.6e-11
  Maxdiff for overlap calculation: 2.8e-08
  Maxdiff for transpose (checksum): 3.0e-11
+ norm(P): 1.5e-11
 
 rotatesmall_read1:
  Epsilon: 1.1e-11
@@ -2169,7 +2170,7 @@ multipoles_periodic:
   Average noise forces: 1.1e-10
   Maxdiff for transpose (checksum): 1.5e-11
   relative difference: 7.4e-10
-  trace(KH): 1.4e-10
+  trace(KH): 1.5e-10
 
 Xabsb2B.xabs.ref.yaml:
   Keys to ignore:

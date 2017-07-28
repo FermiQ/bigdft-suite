@@ -99,7 +99,7 @@ module pexsi
       real(c_double) :: totalEnergyH, totalEnergyS, totalFreeEnergy
       
       integer(c_int):: nprow, npcol, npSymbFact, outputFileIndex, ic
-      integer :: ierr, ii
+      integer :: ierr, ii, jj
       double precision:: timeSta, timeEnd
       integer(c_int):: info
       integer(c_intptr_t) :: plan
@@ -136,9 +136,9 @@ module pexsi
           ii = nproc
       end if
       ! Number of processor rows / columns
-      ii = max(1,floor(sqrt(real(ii,kind=8))))
-      nprow = int(ii,kind=c_int)
-      npcol = int(ii,kind=c_int)
+      jj = max(1,floor(sqrt(real(ii,kind=8))))
+      nprow = int(jj,kind=c_int)
+      npcol = int(ii/jj,kind=c_int)
       ! Actual number of processes used per pole
       nproc_per_pole = nprow*npcol
 
