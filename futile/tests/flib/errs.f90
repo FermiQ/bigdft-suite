@@ -16,6 +16,7 @@ subroutine test_error_handling()
   use yaml_output
 !!! [Use]
   use dictionaries
+  use yaml_strings, only: f_char
 !!! [Use]
   implicit none
   !local variables
@@ -56,7 +57,7 @@ subroutine test_error_handling()
 
   call f_err_clean()
 
-  call f_dump_possible_errors('This is the list of the errors')
+  call f_dump_possible_errors(f_char('This is the list of the errors'))
 
   call f_err_set_callback(abort2)
 

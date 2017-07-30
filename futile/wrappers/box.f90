@@ -49,6 +49,7 @@ module box
      real(gp), dimension(3) :: rxyz !<coordinates of the grid point
      real(gp), dimension(3) :: tmp !< size 3 array buffer to avoid the creation of temporary arrays
      logical :: whole !<to assess if we run over the entire box or not (no check over the internal point)
+     integer, dimension(2,3) :: subbox !<box of the local task
      !>reference mesh from which it starts
      type(cell), pointer :: mesh
   end type box_iterator

@@ -92,9 +92,6 @@ void FC_FUNC(getaddress, GETADDRESS)(void *ptr,char *address, int *lgaddress,
   //return;
 }
 
-
-
-
 void FC_FUNC(getdir, GETDIR)(const char *dir, int *lgDir,
                              char *out, int *lgOut,
                              int *status)

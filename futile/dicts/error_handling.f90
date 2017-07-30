@@ -57,6 +57,8 @@
     implicit none
     !local variables
     call f_err_unset_callback()
+    call f_err_unset_last_error_callback()
+    call f_err_unset_all_errors_callback()
     if (associated(error_pipelines)) then
        call error_pipelines_clean()
     end if
@@ -71,6 +73,8 @@
   subroutine f_err_finalize()
     implicit none
     call f_err_unset_callback()
+    call f_err_unset_last_error_callback()
+    call f_err_unset_all_errors_callback()
     call f_err_severe_restore()
     call dict_free(dict_errors)
     call error_pipelines_clean()
@@ -271,7 +275,7 @@
   !! @warning:  This routine might formally call itself, i.e. it uses methods that might raise exceptions
   !! it is developer's responsibility to avoid deadlocks
   recursive subroutine f_err_throw_c(err_msg,err_id,err_name,callback,callback_data)
-    use yaml_strings, only: yaml_toa
+    use yaml_strings, only: yaml_toa,f_char
     implicit none
     integer, intent(in), optional :: err_id                    !< The code of the error to be raised.
                                                                !! it should already have been defined by f_err_define
@@ -299,9 +303,9 @@
        new_errcode= max(dict_errors .index. err_name,ERR_GENERIC)
        !add a potentially verbose error list in case the specified error name has not been found
        if ((dict_errors .index. err_name) < ERR_GENERIC) then
-          call f_dump_possible_errors('Error raised, name entered= '//trim(err_name)//&
+          call f_dump_possible_errors(f_char('Error raised, name entered= '//trim(err_name)//&
                '. Errorcode found='//trim(yaml_toa(new_errcode))//&
-               '; index function returned'//trim(yaml_toa(dict_errors .index. err_name)))
+               '; index function returned'//trim(yaml_toa(dict_errors .index. err_name))))
        end if
     else if (present(err_id)) then
        new_errcode=ERR_GENERIC
@@ -309,7 +313,7 @@
           new_errcode=err_id
        else
           !add a potentially verbose error list in case the specified error name has not been found
-          call f_dump_possible_errors('Error raised, id='//trim(yaml_toa(err_id)))
+          call f_dump_possible_errors(f_char('Error raised, id='//trim(yaml_toa(err_id))))
        end if
     end if
 

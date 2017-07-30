@@ -195,7 +195,7 @@ module dictionaries
    public :: f_err_set_callback,f_err_unset_callback
    public :: f_err_open_try,f_err_close_try
    public :: f_err_severe,f_err_severe_override,f_err_severe_restore,f_err_ignore
-   public :: f_get_past_error,f_get_no_of_errors
+   public :: f_get_past_error,f_get_no_of_errors,f_dump_possible_errors
 
    !for internal f_lib usage
    public :: dictionaries_errors,TYPE_DICT,TYPE_LIST,dictionary_check_leak

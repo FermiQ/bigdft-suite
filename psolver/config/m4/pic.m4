@@ -111,7 +111,7 @@ AC_DEFUN([AX_FLAG_PIC],
         ;;
      failsafe)
         ax_compiler_wl='-Wl,'
-        ax_compiler_pic='-qpic -PIC -fPIC'
+        ax_compiler_pic='-fPIC -qpic -PIC'
         ax_compiler_static='-static'
         ;;
     esac
