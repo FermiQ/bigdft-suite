@@ -1,4 +1,5 @@
-#include "futile.h"
+#include "dict.h"
+#include "err.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -64,10 +65,10 @@ int main(int argc, char **argv)
 #ifdef GLIB_MAJOR_VERSION
   g_type_init();
 #endif
-  futile_initialize();
+  futile_dicts_initialize();
   RUN(test_f90_err_define());
   RUN(test_f90_err_by_id());
   RUN(test_f90_err_by_name());
-  futile_finalize();
+  futile_dicts_finalize();
   return 0;
 }

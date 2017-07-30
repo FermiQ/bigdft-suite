@@ -36,4 +36,7 @@ void dict_init(f90_dictionary_pointer *dict);
 
 void dict_free(f90_dictionary_pointer *dict);
 
+void futile_dicts_initialize();
+void futile_dicts_finalize();
+
 #endif

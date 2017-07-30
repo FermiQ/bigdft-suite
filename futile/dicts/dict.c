@@ -84,3 +84,12 @@ bool iterate(f90_dictionary_iterator* iter)
 
   return true;
 }
+
+void futile_dicts_initialize()
+{
+  FC_FUNC_(f_dicts_initialize, F_DICTS_INITIALIZE)();
+}
+void futile_dicts_finalize()
+{
+  FC_FUNC_(f_dicts_finalize, F_DICTS_FINALIZE)();
+}

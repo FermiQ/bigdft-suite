@@ -80,7 +80,7 @@ module yaml_strings
   public :: yaml_toa, buffer_string, align_message, shiftstr,yaml_date_toa
   public :: yaml_date_and_time_toa,yaml_time_toa,is_atoi,is_atof,is_atol,is_atoli
   public :: read_fraction_string,f_strcpy
-  public:: yaml_bold,yaml_blink,rstrip,f_char,convert_f_char
+  public:: yaml_bold,yaml_blink,rstrip,f_char_ptr,convert_f_char_ptr
   public :: operator(.eqv.),operator(.neqv.),operator(+),operator(//),operator(**),assignment(=)
 
 contains
@@ -977,20 +977,20 @@ contains
   end subroutine shiftstr
   
   !> convert a fortran string into a stack-allocated array
-  function f_char(str)
+  function f_char_ptr(str)
     implicit none
     character(len=*), intent(in) :: str
-    character, dimension(len_trim(str)+1) :: f_char
+    character, dimension(len_trim(str)+1) :: f_char_ptr
     !local variables
     integer :: i
     do i=1,len_trim(str)
-       f_char(i)=str(i:i)
+       f_char_ptr(i)=str(i:i)
     end do
     !i=len_trim(str)+1 !not needed by fortran norm
-    f_char(i)=char(0)
-  end function f_char
+    f_char_ptr(i)=char(0)
+  end function f_char_ptr
 
-  subroutine convert_f_char(src,dest)
+  subroutine convert_f_char_ptr(src,dest)
     implicit none
     character, dimension(*), intent(in) :: src
     character(len=*), intent(out) :: dest
@@ -1001,6 +1001,6 @@ contains
        if (src(i)==char(0)) exit seek_and_copy
        dest(i:i)=src(i)
     end do seek_and_copy
-  end subroutine convert_f_char
+  end subroutine convert_f_char_ptr
 
 end module yaml_strings

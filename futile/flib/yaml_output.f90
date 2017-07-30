@@ -312,7 +312,7 @@ contains
     call yaml_dict_dump(f_get_error_definitions())
     call yaml_mapping_close()
     call yaml_comment('End of error list',hfill='~')
-    call convert_f_char(src=extra_msg,dest=msg)
+    call convert_f_char_ptr(src=extra_msg,dest=msg)
     !if (len_trim(extra_msg) > 0) then
     if (len_trim(msg) > 0) then
        call yaml_map('Additional Info',trim(msg))

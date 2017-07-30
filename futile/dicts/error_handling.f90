@@ -275,7 +275,7 @@
   !! @warning:  This routine might formally call itself, i.e. it uses methods that might raise exceptions
   !! it is developer's responsibility to avoid deadlocks
   recursive subroutine f_err_throw_c(err_msg,err_id,err_name,callback,callback_data)
-    use yaml_strings, only: yaml_toa,f_char
+    use yaml_strings, only: yaml_toa,f_char_ptr
     implicit none
     integer, intent(in), optional :: err_id                    !< The code of the error to be raised.
                                                                !! it should already have been defined by f_err_define
@@ -303,7 +303,7 @@
        new_errcode= max(dict_errors .index. err_name,ERR_GENERIC)
        !add a potentially verbose error list in case the specified error name has not been found
        if ((dict_errors .index. err_name) < ERR_GENERIC) then
-          call f_dump_possible_errors(f_char('Error raised, name entered= '//trim(err_name)//&
+          call f_dump_possible_errors(f_char_ptr('Error raised, name entered= '//trim(err_name)//&
                '. Errorcode found='//trim(yaml_toa(new_errcode))//&
                '; index function returned'//trim(yaml_toa(dict_errors .index. err_name))))
        end if
@@ -313,7 +313,7 @@
           new_errcode=err_id
        else
           !add a potentially verbose error list in case the specified error name has not been found
-          call f_dump_possible_errors(f_char('Error raised, id='//trim(yaml_toa(err_id))))
+          call f_dump_possible_errors(f_char_ptr('Error raised, id='//trim(yaml_toa(err_id))))
        end if
     end if
 

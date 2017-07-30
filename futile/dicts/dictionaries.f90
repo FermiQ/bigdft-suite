@@ -203,7 +203,6 @@ module dictionaries
 
 contains
 
-
    !> Define the errors of the dictionary module
    subroutine dictionaries_errors()
      implicit none
@@ -1907,3 +1906,18 @@ contains
    include 'error_handling.f90'
 
 end module dictionaries
+
+subroutine f_dicts_initialize()
+  use dictionaries, only: f_err_initialize,dictionaries_errors
+  implicit none
+  !general initialization, for lowest level f_lib calling
+  call f_err_initialize()
+  call dictionaries_errors()
+end subroutine f_dicts_initialize
+
+subroutine f_dicts_finalize()
+  use dictionaries, only: f_err_finalize,dictionary_check_leak
+  implicit none
+  call f_err_finalize()
+  call dictionary_check_leak()
+end subroutine f_dicts_finalize
