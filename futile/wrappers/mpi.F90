@@ -1513,7 +1513,7 @@ contains
 
 
 
-  subroutine mpialltoallv_int11(sendbuf, sendcounts, sdispls, recvbuf, recvcounts, rdispls, comm)
+  subroutine mpialltoallv_int11(sendbuf, sendcounts, sdispls, recvbuf, recvcounts, rdispls, comm, algorithm)
     use dictionaries, only: f_err_throw
     use dynamic_memory
     use yaml_output
@@ -1526,7 +1526,7 @@ contains
     include 'alltoallv-inc.f90'
   end subroutine mpialltoallv_int11
 
-  subroutine mpialltoallv_long11(sendbuf, sendcounts, sdispls, recvbuf, recvcounts, rdispls, comm)
+  subroutine mpialltoallv_long11(sendbuf, sendcounts, sdispls, recvbuf, recvcounts, rdispls, comm, algorithm)
     use dictionaries, only: f_err_throw,f_err_define
     use dynamic_memory
     use yaml_output
@@ -1539,7 +1539,7 @@ contains
     include 'alltoallv-inc.f90'
   end subroutine mpialltoallv_long11
 
-  subroutine mpialltoallv_double11(sendbuf, sendcounts, sdispls, recvbuf, recvcounts, rdispls, comm)
+  subroutine mpialltoallv_double11(sendbuf, sendcounts, sdispls, recvbuf, recvcounts, rdispls, comm, algorithm)
     use dictionaries, only: f_err_throw,f_err_define
     use dynamic_memory
     use yaml_output

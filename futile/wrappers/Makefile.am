@@ -75,7 +75,8 @@ libwrappers_a_SOURCES = $(DGEMMSY_SOURCES) $(CUBLAS_SOURCES) $(OCL_SOURCES) \
 	numerics.f90 \
 	f_functions.f90 \
 	box.f90 \
-	harmonics.f90
+	harmonics.f90 \
+	test_mpi_wrappers.f90
 
 # Dependencies
 $(modules): $(libwrappers_a_OBJECTS)
@@ -87,6 +88,7 @@ f_functions.o: numerics.o box.o
 op2p_module.o: mpi.o linalg.o
 harmonics.o: numerics.o
 box.o: linalg.o
+test_mpi_wrappers.o: mpi.o
 #fft2d.o: fft3d.o
 
 AM_FCFLAGS = -I. -I$(top_builddir)/dicts/ -I$(top_builddir)/flib/ @MPI_INCLUDE@
@@ -106,7 +108,8 @@ modules = MODULE_FFT_SG.@MODULE_EXT@ \
 	F_FUNCTIONS.@MODULE_EXT@ \
 	F_HARMONICS.@MODULE_EXT@ \
 	NUMERICS.@MODULE_EXT@ \
-	BOX.@MODULE_EXT@
+	BOX.@MODULE_EXT@ \
+	TEST_MPI_WRAPPERS.@MODULE_EXT@
 else
 modules = module_fft_sg.@MODULE_EXT@ \
 	wrapper_linalg.@MODULE_EXT@ \
@@ -117,6 +120,7 @@ modules = module_fft_sg.@MODULE_EXT@ \
 	f_functions.@MODULE_EXT@ \
 	f_harmonics.@MODULE_EXT@ \
 	numerics.@MODULE_EXT@ \
-	box.@MODULE_EXT@
+	box.@MODULE_EXT@ \
+	test_mpi_wrappers.@MODULE_EXT@
 endif
 CLEANFILES = $(modules) mpif.h

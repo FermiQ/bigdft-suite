@@ -55,6 +55,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
   use io, only: plot_density,io_files_exists, writemywaves
   use PSbox, only: PS_gather
   use foe_common, only: init_foe
+  use test_mpi_wrappers, only: test_mpi_alltoallv
   implicit none
   !Arguments
   integer, intent(in) :: nproc,iproc
@@ -304,6 +305,10 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
        verbose_mode=get_verbose_level()>2 .and. nproc>1)
   call cpu_time(tcpu0)
   call system_clock(ncount0,ncount_rate,ncount_max)
+
+  ! Test MPI wrappers
+  call test_mpi_alltoallv(iproc, nproc, bigdft_mpi%mpi_comm, &
+       maxsize_local=1000000000, ntest=5)
 
   !Nullify for new input guess
   call nullify_local_zone_descriptors(lzd_old)
