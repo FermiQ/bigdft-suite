@@ -36,10 +36,10 @@
       end if
       !call mpi_get_alltoallv(iproc, nproc, comm, sendcounts, sdispls, &
       !     recvcounts, rdispls, sendbuf, recvbuf)
-      call c_f_pointer(c_loc(sendbuf), sendbuf_1d, [size(sendbuf)])
-      call c_f_pointer(c_loc(recvbuf), recvbuf_1d, [size(recvbuf)])
+      !!call c_f_pointer(c_loc(sendbuf), sendbuf_1d, [size(sendbuf)])
+      !!call c_f_pointer(c_loc(recvbuf), recvbuf_1d, [size(recvbuf)])
       call mpi_get_alltoallv(iproc, nproc, comm, sendcounts, sdispls, &
-           recvcounts, rdispls, sendbuf_1d, recvbuf_1d)
+           recvcounts, rdispls, sendbuf, recvbuf)
   else
   
       call mpi_alltoallv(sendbuf, sendcounts, sdispls, mpitype(sendbuf), &

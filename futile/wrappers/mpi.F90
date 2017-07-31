@@ -160,7 +160,7 @@ module wrapper_MPI
 
   interface mpialltoallv
       module procedure mpialltoallv_int11, mpialltoallv_long11, mpialltoallv_double11
-      module procedure mpialltoallv_double61
+      !module procedure mpialltoallv_double61
   end interface mpialltoallv
 
   interface mpiialltoallv
@@ -1517,8 +1517,7 @@ contains
     use dictionaries, only: f_err_throw
     use dynamic_memory
     use yaml_output
-    use iso_c_binding
-
+    !use iso_c_binding
     implicit none
     integer(f_integer),dimension(:),intent(in),target :: sendbuf
     integer(f_integer),dimension(:),intent(out),target :: recvbuf
@@ -1531,7 +1530,7 @@ contains
     use dictionaries, only: f_err_throw,f_err_define
     use dynamic_memory
     use yaml_output
-    use iso_c_binding
+    !use iso_c_binding
     implicit none
     integer(f_long),dimension(:),intent(in),target :: sendbuf
     integer(f_long),dimension(:),intent(out),target :: recvbuf
@@ -1544,7 +1543,7 @@ contains
     use dictionaries, only: f_err_throw,f_err_define
     use dynamic_memory
     use yaml_output
-    use iso_c_binding
+    !use iso_c_binding
     implicit none
     double precision,dimension(:),intent(in),target :: sendbuf
     double precision,dimension(:),intent(out),target :: recvbuf
@@ -1553,18 +1552,18 @@ contains
     include 'alltoallv-inc.f90'
   end subroutine mpialltoallv_double11
 
-  subroutine mpialltoallv_double61(sendbuf, sendcounts, sdispls, recvbuf, recvcounts, rdispls, comm)
-    use dictionaries, only: f_err_throw,f_err_define
-    use dynamic_memory
-    use yaml_output
-    use iso_c_binding
-    implicit none
-    double precision,dimension(:,:,:,:,:,:),intent(in),target :: sendbuf
-    double precision,dimension(:),intent(out),target :: recvbuf
-    double precision,dimension(:),pointer :: sendbuf_1d
-    double precision,dimension(:),pointer :: recvbuf_1d
-    include 'alltoallv-inc.f90'
-  end subroutine mpialltoallv_double61
+  !!subroutine mpialltoallv_double61(sendbuf, sendcounts, sdispls, recvbuf, recvcounts, rdispls, comm)
+  !!  use dictionaries, only: f_err_throw,f_err_define
+  !!  use dynamic_memory
+  !!  use yaml_output
+  !!  use iso_c_binding
+  !!  implicit none
+  !!  double precision,dimension(:,:,:,:,:,:),intent(in),target :: sendbuf
+  !!  double precision,dimension(:),intent(out),target :: recvbuf
+  !!  double precision,dimension(:),pointer :: sendbuf_1d
+  !!  double precision,dimension(:),pointer :: recvbuf_1d
+  !!  include 'alltoallv-inc.f90'
+  !!end subroutine mpialltoallv_double61
 
   function mpireduce_i0(sendbuf,op,root,comm) result(recv)
     implicit none
