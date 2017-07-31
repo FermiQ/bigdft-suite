@@ -5478,6 +5478,7 @@ end subroutine calculate_rpowerx_matrices
     use PSbox, only: PS_gather
     use box
     use module_types, only: atoms_data
+    use module_atoms, only: atoms_iterator, atoms_iter, atoms_iter_next
     implicit none
     ! Calling arguments
     !integer,intent(in) :: iproc, is1, ie1, is2, ie2, is3, ie3
@@ -5492,12 +5493,13 @@ end subroutine calculate_rpowerx_matrices
 
     ! Local variables
     integer :: i1, i2, i3, iat, icheck,icnt,igood, iclose, iiat, nat_check, j3, j3s, j3e, zz
-    real(kind=8) :: qex, factor,vex, z, zmin, zmax, alat
+    real(kind=8) :: qex, factor,vex, z, zmin, zmax
     real(kind=8),parameter :: min_distance = 2.0d0
-    real(kind=8),dimension(3) :: ra, rb
-    logical :: perz
-    logical,dimension(:),allocatable :: atlist
-    integer,dimension(:),allocatable :: atlist_check
+    real(kind=8),dimension(3) :: rmin, rmax, tmp
+    logical :: perz, internal
+    integer,dimension(:),allocatable :: atlist
+    type(atoms_iterator) :: atit
+    !integer,dimension(:),allocatable :: atlist_check
 !!$    logical,dimension(:,:,:),allocatable :: is_close
 
     call f_routine(id='compare_charge_and_potential')
@@ -5536,80 +5538,140 @@ end subroutine calculate_rpowerx_matrices
     call f_zero(potential_error)
     call f_zero(potential_total)
 
+    !!! Get the minimal and maximal z value for the box
+    !!zmin = huge(1.d0)
+    !!zmax = -huge(1.d0)
+    !!!write(*,*) 'B: zmin, zmax', zmin, zmax
+    !!do while(box_next_point(boxit))
+    !!    z = boxit%rxyz(3)
+    !!    if (z<zmin) zmin = z
+    !!    if (z>zmax) zmax = z
+    !!end do
+    !!!write(*,*) 'A: zmin, zmax', zmin, zmax
+
+    !!! Determine which atoms are in this z-range, taking into account the min_distance
+    !!! Conditions for periodicity
+    !!perz=(at%astruct%geocode /= 'F')
+    !!if (perz) then
+    !!    j3s = -1
+    !!    j3e = 1
+    !!else
+    !!    j3s = 0
+    !!    j3e = 0
+    !!end if
+
+    !!atlist = f_malloc(nat,id='atlist')
+    !!atlist(:) = .false.
+    !!alat = boxit%mesh%hgrids(3)*boxit%mesh%ndims(3)
+    !!nat_check = 0
+    !!do iat=1,nat
+    !!    z = rxyz(3,iat)
+    !!    do j3=j3s,j3e
+    !!        zz = z + j3*alat
+    !!        if (zz>zmin-min_distance .and. zz<zmax+min_distance) then
+    !!            atlist(iat) = .true.
+    !!            nat_check = nat_check + 1
+    !!        end if
+    !!        !write(*,*) 'zmin, zmax, z, atlist(iat)', zmin, zmax, z, atlist(iat)
+    !!    end do
+    !!end do
+
+    !!!write(*,*) 'atlist', atlist
+
+    !!atlist_check = f_malloc(nat_check, id='atlist_check')
+    !!iiat = 0
+    !!do iat=1,nat
+    !!    if (atlist(iat)) then
+    !!        iiat = iiat + 1
+    !!        atlist_check(iiat) = iat
+    !!        !write(*,*) 'zmin, zmax, iiat, iat', zmin, zmax, iiat, iat
+    !!    end if
+    !!end do
+    !!if (iiat/=nat_check) then
+    !!    call f_err_throw(trim(yaml_toa(iiat))//'=iiat /= nat_check='//trim(yaml_toa(nat_check)))
+    !!end if
+    !!call f_free(atlist)
+
+
+
+    !!!use the box iterator
+    factor=boxit%mesh%volume_element
+    !!icnt=0
+    !!igood=0
+    !!iclose = 1
+    !!box_loop: do while(box_next_point(boxit))
+    !!   icnt=icnt+1
+    !!   !do iat=1,nat
+    !!   do iat=1,nat_check
+    !!   !do iat=iclose,iclose+nat-1
+    !!   !iiat = mod(iat-1,nat)+1
+    !!   iiat = atlist_check(iat)
+    !!      if (distance(boxit%mesh,boxit%rxyz,rxyz(:,iiat)) <= min_distance) then
+    !!          !iclose = iiat
+    !!          cycle box_loop
+    !!      end if
+    !!   end do
+    !!   igood=igood+1
+    !!   ! Farther away from the atoms than the minimal distance
+    !!   qex = rho_exact(boxit%ind)
+    !!   vex = pot_exact(boxit%ind)
+    !!   do icheck=1,ncheck
+    !!      if (abs(qex)<check_threshold(icheck)) then
+    !!         ! Charge density smaller than the threshold
+    !!         !LG: it seems therefore normal than the density is not good as by hypothesis
+    !!         ! we only check that when it is small, thus the mp density will surely be smaller
+    !!         charge_error(icheck) = charge_error(icheck) + &
+    !!              abs(rho_mp(boxit%ind))*factor !qex-
+    !!         external_volume(icheck) = external_volume(icheck)+ factor
+    !!         potential_error(icheck) = potential_error(icheck) + &
+    !!              abs(vex-pot_mp(boxit%ind))*factor 
+    !!         potential_total(icheck) = potential_total(icheck) + &
+    !!              abs(vex)*factor
+    !!      end if
+    !!   end do
+    !!end do box_loop
+
+    !!call f_free(atlist_check)
+
+
     ! Get the minimal and maximal z value for the box
     zmin = huge(1.d0)
     zmax = -huge(1.d0)
-    !write(*,*) 'B: zmin, zmax', zmin, zmax
-    do while(box_next_point(boxit))
+    do while(box_next_z(boxit))
         z = boxit%rxyz(3)
         if (z<zmin) zmin = z
         if (z>zmax) zmax = z
     end do
-    !write(*,*) 'A: zmin, zmax', zmin, zmax
+    rmin=[0.0_gp,0.0_gp,zmin]
+    rmax=[0.0_gp,0.0_gp,zmax]
 
-    ! Determine which atoms are in this z-range, taking into account the min_distance
-    ! Conditions for periodicity
-    perz=(at%astruct%geocode /= 'F')
-    if (perz) then
-        j3s = -1
-        j3e = 1
-    else
-        j3s = 0
-        j3e = 0
-    end if
+    !exclude atoms which are well outside of the box
+    atlist = f_malloc0(nat,id='atlist')
+    nat_check=0
+    atit = atoms_iter(at%astruct)
+    atoms_loop: do while(atoms_iter_next(atit))
+       z=atit%rxyz(3)
+       internal= z>= zmin .and. z<=zmax
+       if (.not. internal) then
+          tmp=[0.0_gp,0.0_gp,z]
+          if (distance(boxit%mesh,tmp,rmin) > min_distance .or. &
+               distance(boxit%mesh,tmp,rmax) > min_distance) cycle
+       end if
+       call f_increment(nat_check)
+       atlist(nat_check)=atit%iat
+    end do atoms_loop
 
-    atlist = f_malloc(nat,id='atlist')
-    atlist(:) = .false.
-    alat = boxit%mesh%hgrids(3)*boxit%mesh%ndims(3)
-    nat_check = 0
-    do iat=1,nat
-        z = rxyz(3,iat)
-        do j3=j3s,j3e
-            zz = z + j3*alat
-            if (zz>zmin-min_distance .and. zz<zmax+min_distance) then
-                atlist(iat) = .true.
-                nat_check = nat_check + 1
-            end if
-            !write(*,*) 'zmin, zmax, z, atlist(iat)', zmin, zmax, z, atlist(iat)
-        end do
-    end do
+    !write(*,*) 'nat_check, atlist', nat_check, atlist
 
-    !write(*,*) 'atlist', atlist
-
-    atlist_check = f_malloc(nat_check, id='atlist_check')
-    iiat = 0
-    do iat=1,nat
-        if (atlist(iat)) then
-            iiat = iiat + 1
-            atlist_check(iiat) = iat
-            !write(*,*) 'zmin, zmax, iiat, iat', zmin, zmax, iiat, iat
-        end if
-    end do
-    if (iiat/=nat_check) then
-        call f_err_throw(trim(yaml_toa(iiat))//'=iiat /= nat_check='//trim(yaml_toa(nat_check)))
-    end if
-    call f_free(atlist)
-
-
-
-    !use the box iterator
-    factor=boxit%mesh%volume_element
-    icnt=0
-    igood=0
-    iclose = 1
-    box_loop: do while(box_next_point(boxit))
-       icnt=icnt+1
-       !do iat=1,nat
+    !then loop on the points which are "far" from all the atoms
+    box_loop: do while (box_next_point(boxit))
        do iat=1,nat_check
-       !do iat=iclose,iclose+nat-1
-       !iiat = mod(iat-1,nat)+1
-       iiat = atlist_check(iat)
-          if (distance(boxit%mesh,boxit%rxyz,rxyz(:,iiat)) <= min_distance) then
-              !iclose = iiat
+          !if there is only one atom which is close to this point exclude it
+          if (distance(boxit%mesh,boxit%rxyz,rxyz(:,atlist(iat))) < min_distance) then
               cycle box_loop
           end if
        end do
-       igood=igood+1
+       !write(*,*) "don't cycle"
        ! Farther away from the atoms than the minimal distance
        qex = rho_exact(boxit%ind)
        vex = pot_exact(boxit%ind)
@@ -5628,8 +5690,8 @@ end subroutine calculate_rpowerx_matrices
           end if
        end do
     end do box_loop
-
-    call f_free(atlist_check)
+    call f_free(atlist)
+    !write(*,*) 'charge_error, external_volume', charge_error, external_volume
 
 !!$    do i3=0,kernel%ndims(3)-31-1
 !!$        z = i3*kernel%hgrids(3)
