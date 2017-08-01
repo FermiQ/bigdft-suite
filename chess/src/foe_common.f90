@@ -178,6 +178,10 @@ module foe_common
 
       call f_routine(id='get_chebyshev_expansion_coefficients')
 
+      call f_routine(id='synchronize_mpi_tasks')
+      call mpibarrier(comm)
+      call f_release_routine()
+
       ! MPI parallelization... maybe only worth for large n?
       !call chebyshev_coefficients_init_parallelization(iproc, nproc, comm, n, np, is)
       ! Initialize the parallelization.

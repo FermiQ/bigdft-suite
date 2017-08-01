@@ -3392,11 +3392,14 @@ module communications_init
     
       if(nproc>1) then
           ! Communicate indexsendbuf
-          !!call mpialltoallv(indexsendbuf(1), nsendcounts, nsenddspls, &
-          !!     indexrecvbuf(1), nrecvcounts, nrecvdspls, bigdft_mpi%mpi_comm)
+          !call mpialltoallv(indexsendbuf, nsendcounts, nsenddspls, &
+          !     indexrecvbuf, nrecvcounts, nrecvdspls, bigdft_mpi%mpi_comm)
           call mpi_get_alltoallv(iproc, nproc, bigdft_mpi%mpi_comm, &
                nsendcounts, nsenddspls, nrecvcounts, nrecvdspls, &
                indexsendbuf, indexrecvbuf)
+          !do i=1,size(indexrecvbuf)
+          !    write(1000+iproc,*) 'i, indexrecvbuf(i)', i, indexrecvbuf(i)
+          !end do
           ! Communicate indexsendorbitals
           !call mpialltoallv(indexsendorbital(1), nsendcounts, nsenddspls, &
           !     indexrecvorbital(1), nrecvcounts, nrecvdspls, bigdft_mpi%mpi_comm)
