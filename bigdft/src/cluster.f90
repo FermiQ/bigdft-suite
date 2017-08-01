@@ -306,9 +306,9 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
   call cpu_time(tcpu0)
   call system_clock(ncount0,ncount_rate,ncount_max)
 
-  ! Test MPI wrappers
-  call test_mpi_alltoallv(iproc, nproc, bigdft_mpi%mpi_comm, &
-       maxsize_local=1000000000, ntest=5)
+  !!! Test MPI wrappers
+  !!call test_mpi_alltoallv(iproc, nproc, bigdft_mpi%mpi_comm, &
+  !!     maxsize_local=2000000000, ntest=5)
 
   !Nullify for new input guess
   call nullify_local_zone_descriptors(lzd_old)

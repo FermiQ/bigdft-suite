@@ -29,7 +29,7 @@
                     nsenddspls_remote, 1, mpi_integer, &
                     comm, ierr)
   
-  info=mpiinfo("no_locks", "true")
+  !info=mpiinfo("no_locks", "true")
   window = mpiwindow(size(sendbuf), sendbuf(1), comm)
   do jproc=0,nproc-1
       if (nrecvcounts(jproc)>0) then
@@ -39,6 +39,6 @@
       end if
   end do
   call mpi_fenceandfree(window)
-  call mpiinfofree(info)
+  !call mpiinfofree(info)
   
   call f_free(nsenddspls_remote)
