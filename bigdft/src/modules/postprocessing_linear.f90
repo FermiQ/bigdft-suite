@@ -670,7 +670,7 @@ module postprocessing_linear
            tmb%npsidim_orbs, &
            tmb%orbs%norbp*(tmb%lzd%glr%wfd%nvctr_c+7*tmb%lzd%glr%wfd%nvctr_f), tmb%lzd, &
            KSwfn%lzd, tmb%psi, phi_global, to_global=.true.)
-      call transpose_v(iproc, nproc, orbs, tmb%lzd%glr%wfd, comms, phi_global(1), phiwork_global(1))
+      call transpose_v(iproc, nproc, orbs, tmb%lzd%glr%wfd, comms, phi_global, phiwork_global)
     
       !apply frag coeffs instead (might still be orthonormalized)
       !could do this in transfer_integrals to get naming correct and be exactly equivalent, but just want to do easiest way for now
@@ -700,7 +700,7 @@ module postprocessing_linear
       
 !!$      call untranspose_v(iproc, nproc, KSwfn%orbs, tmb%lzd%glr%wfd, KSwfn%comms, phiwork_global(1), phi_global(1))  
 
-      call untranspose_v(iproc, nproc, orbs, tmb%lzd%glr%wfd, comms, phiwork_global(1), phi_global(1))  
+      call untranspose_v(iproc, nproc, orbs, tmb%lzd%glr%wfd, comms, phiwork_global, phi_global)  
     
       call f_free_ptr(phi_global)
       !!ist=1
@@ -891,7 +891,7 @@ module postprocessing_linear
            npsidim_orbs, &
            orbs%norbp*(lzd%glr%wfd%nvctr_c+7*lzd%glr%wfd%nvctr_f), lzd, &
            lzd, psi, phi_global, to_global=.true.)
-      call transpose_v(iproc, nproc, orbs, lzd%glr%wfd, comms, phi_global(1), phiwork_global(1))
+      call transpose_v(iproc, nproc, orbs, lzd%glr%wfd, comms, phi_global, phiwork_global)
     
     
       ! WARNING: WILL NOT WORK WITH K-POINTS, CHECK THIS
@@ -900,7 +900,7 @@ module postprocessing_linear
                  ntmb, 0.d0, phiwork_global, nvctrp)
 
       
-      call untranspose_v(iproc, nproc, orbs_ks, lzd%glr%wfd, comms_ks, phiwork_global(1), phi_global(1))  
+      call untranspose_v(iproc, nproc, orbs_ks, lzd%glr%wfd, comms_ks, phiwork_global, phi_global)  
     
       call f_free_ptr(phi_global)
     

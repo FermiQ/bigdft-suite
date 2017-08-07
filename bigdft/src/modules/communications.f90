@@ -32,6 +32,14 @@ module communications
   public :: communicate_basis_for_density_collective
 
 
+  interface transpose_v
+      module procedure transpose_v111, transpose_v222, transpose_v212!, transpose_v211
+  end interface transpose_v
+
+  interface untranspose_v
+      module procedure untranspose_v111, untranspose_v222, untranspose_v212!, untranspose_v211
+  end interface untranspose_v
+
   contains
 
 
@@ -985,9 +993,8 @@ module communications
       if (nproc>1) then
           !call mpi_alltoallv(psirwork, collcom_sr%nsendcounts_c, collcom_sr%nsenddspls_c, mpi_double_precision, psirtwork, &
           !     collcom_sr%nrecvcounts_c, collcom_sr%nrecvdspls_c, mpi_double_precision, bigdft_mpi%mpi_comm, ierr)
-          call mpi_get_alltoallv(iproc, nproc, bigdft_mpi%mpi_comm, &
-               collcom_sr%nsendcounts_c, collcom_sr%nsenddspls_c, &
-               collcom_sr%nrecvcounts_c, collcom_sr%nrecvdspls_c, psirwork, psirtwork)
+          call mpialltoallv(psirwork, collcom_sr%nsendcounts_c, collcom_sr%nsenddspls_c, &
+               psirtwork, collcom_sr%nrecvcounts_c, collcom_sr%nrecvdspls_c, bigdft_mpi%mpi_comm)
       else
          !call vcopy(collcom_sr%ndimpsi_c, psirwork(1), 1, psirtwork(1), 1)
          call f_memcpy(src=psirwork,dest=psirtwork)
@@ -2112,7 +2119,7 @@ module communications
     
     
     !> Transposition of the arrays, variable version (non homogeneous)
-    subroutine transpose_v(iproc,nproc,orbs,wfd,comms,psi_add,work_add,&
+    subroutine transpose_v111(iproc,nproc,orbs,wfd,comms,psi_add,work_add,&
                out_add) !optional
       use module_base
       use module_types
@@ -2125,14 +2132,159 @@ module communications
       type(comms_cubic), intent(in) :: comms
       !>address of the wavefunction elements (choice)
       !if out_add is absent, it is used for transpose
-      real(wp), intent(inout) :: psi_add
-      real(wp), intent(inout) :: work_add
+      real(wp), dimension(:), intent(inout) :: psi_add
+      real(wp), dimension(:), intent(inout) :: work_add
       !> size of the buffers, optional.
-      real(wp), optional :: out_add
+      real(wp), dimension(:), optional :: out_add
       !local variables
-      character(len=*), parameter :: subname='transpose_v'
+      integer :: nsize_psi, nsize_work
+
+
+      nsize_psi = size(psi_add)
+      nsize_work = size(work_add)
+      if (present(out_add)) then
+          if (size(out_add)/=nsize_psi) then
+              call f_err_throw('size(out_add)/=nsize_psi')
+          end if
+          call transpose_v_core(iproc,nproc,orbs,wfd,comms,nsize_psi,psi_add,nsize_work,work_add,&
+                   out_add) !optional
+      else
+          call transpose_v_core(iproc,nproc,orbs,wfd,comms,nsize_psi,psi_add,nsize_work,work_add)
+      end if
+    
+    END SUBROUTINE transpose_v111
+
+
+    !> Transposition of the arrays, variable version (non homogeneous)
+    subroutine transpose_v222(iproc,nproc,orbs,wfd,comms,psi_add,work_add,&
+               out_add) !optional
+      use module_base
+      use module_types
+      use compression
+      implicit none
+      integer, intent(in) :: iproc,nproc
+      type(orbitals_data), intent(in) :: orbs
+      type(wavefunctions_descriptors), intent(in) :: wfd
+      !type(local_zone_descriptors),intent(in) :: lzd
+      type(comms_cubic), intent(in) :: comms
+      !>address of the wavefunction elements (choice)
+      !if out_add is absent, it is used for transpose
+      real(wp), dimension(:,:), intent(inout) :: psi_add
+      real(wp), dimension(:,:), intent(inout) :: work_add
+      !> size of the buffers, optional.
+      real(wp), dimension(:,:), optional :: out_add
+      !local variables
+      integer :: nsize_psi, nsize_work
+    
+      nsize_psi = size(psi_add)
+      nsize_work = size(work_add)
+      if (present(out_add)) then
+          if (size(out_add)/=nsize_psi) then
+              call f_err_throw('size(out_add)/=nsize_psi')
+          end if
+          call transpose_v_core(iproc,nproc,orbs,wfd,comms,nsize_psi,psi_add,nsize_work,work_add,&
+                   out_add) !optional
+      else
+          call transpose_v_core(iproc,nproc,orbs,wfd,comms,nsize_psi,psi_add,nsize_work,work_add)
+      end if
+    
+    END SUBROUTINE transpose_v222
+
+
+    !> Transposition of the arrays, variable version (non homogeneous)
+    subroutine transpose_v212(iproc,nproc,orbs,wfd,comms,psi_add,work_add,&
+               out_add) !optional
+      use module_base
+      use module_types
+      use compression
+      implicit none
+      integer, intent(in) :: iproc,nproc
+      type(orbitals_data), intent(in) :: orbs
+      type(wavefunctions_descriptors), intent(in) :: wfd
+      !type(local_zone_descriptors),intent(in) :: lzd
+      type(comms_cubic), intent(in) :: comms
+      !>address of the wavefunction elements (choice)
+      !if out_add is absent, it is used for transpose
+      real(wp), dimension(:,:), intent(inout) :: psi_add
+      real(wp), dimension(:), intent(inout) :: work_add
+      !> size of the buffers, optional.
+      real(wp), dimension(:,:), optional :: out_add
+      !local variables
+      integer :: nsize_psi, nsize_work
+    
+      nsize_psi = size(psi_add)
+      nsize_work = size(work_add)
+      if (present(out_add)) then
+          if (size(out_add)/=nsize_psi) then
+              call f_err_throw('size(out_add)/=nsize_psi')
+          end if
+          call transpose_v_core(iproc,nproc,orbs,wfd,comms,nsize_psi,psi_add,nsize_work,work_add,&
+                   out_add) !optional
+      else
+          call transpose_v_core(iproc,nproc,orbs,wfd,comms,nsize_psi,psi_add,nsize_work,work_add)
+      end if
+    
+    END SUBROUTINE transpose_v212
+
+    !> Transposition of the arrays, variable version (non homogeneous)
+    subroutine transpose_v211(iproc,nproc,orbs,wfd,comms,psi_add,work_add,&
+               out_add) !optional
+      use module_base
+      use module_types
+      use compression
+      implicit none
+      integer, intent(in) :: iproc,nproc
+      type(orbitals_data), intent(in) :: orbs
+      type(wavefunctions_descriptors), intent(in) :: wfd
+      !type(local_zone_descriptors),intent(in) :: lzd
+      type(comms_cubic), intent(in) :: comms
+      !>address of the wavefunction elements (choice)
+      !if out_add is absent, it is used for transpose
+      real(wp), dimension(:,:), intent(inout) :: psi_add
+      real(wp), dimension(:), intent(inout) :: work_add
+      !> size of the buffers, optional.
+      real(wp), dimension(:), optional :: out_add
+      !local variables
+      integer :: nsize_psi, nsize_work
+    
+      nsize_psi = size(psi_add)
+      nsize_work = size(work_add)
+      if (present(out_add)) then
+          if (size(out_add)/=nsize_psi) then
+              call f_err_throw('size(out_add)/=nsize_psi')
+          end if
+          call transpose_v_core(iproc,nproc,orbs,wfd,comms,nsize_psi,psi_add,nsize_work,work_add,&
+                   out_add) !optional
+      else
+          call transpose_v_core(iproc,nproc,orbs,wfd,comms,nsize_psi,psi_add,nsize_work,work_add)
+      end if
+    
+    END SUBROUTINE transpose_v211
+
+
+
+    !> Transposition of the arrays, variable version (non homogeneous)
+    subroutine transpose_v_core(iproc,nproc,orbs,wfd,comms,nsize_psi,psi_add,nsize_work,work_add,&
+               out_add) !optional
+      use module_base
+      use module_types
+      use compression
+      implicit none
+      integer, intent(in) :: iproc,nproc, nsize_psi, nsize_work
+      type(orbitals_data), intent(in) :: orbs
+      type(wavefunctions_descriptors), intent(in) :: wfd
+      !type(local_zone_descriptors),intent(in) :: lzd
+      type(comms_cubic), intent(in) :: comms
+      !>address of the wavefunction elements (choice)
+      !if out_add is absent, it is used for transpose
+      real(wp), dimension(nsize_psi), intent(inout) :: psi_add
+      real(wp), dimension(nsize_work), intent(inout) :: work_add
+      !> size of the buffers, optional.
+      real(wp), dimension(nsize_psi), optional :: out_add
+      !local variables
+      character(len=*), parameter :: subname='transpose_v1'
       integer :: ierr
-      external :: switch_waves_v,psitransspi,MPI_ALLTOALLV
+      external :: switch_waves_v,psitransspi!,MPI_ALLTOALLV
     
       call timing(iproc,'Un-TransSwitch','ON')
     
@@ -2143,11 +2295,15 @@ module communications
          call timing(iproc,'Un-TransSwitch','OF')
          call timing(iproc,'Un-TransComm  ','ON')
          if (present(out_add)) then
-            call MPI_ALLTOALLV(work_add,comms%ncntd,comms%ndspld,mpidtypw, &
-                 out_add,comms%ncntt,comms%ndsplt,mpidtypw,bigdft_mpi%mpi_comm,ierr)
+            !!call MPI_ALLTOALLV(work_add,comms%ncntd,comms%ndspld,mpidtypw, &
+            !!     out_add,comms%ncntt,comms%ndsplt,mpidtypw,bigdft_mpi%mpi_comm,ierr)
+            call mpialltoallv(work_add,comms%ncntd,comms%ndspld, &
+                 out_add,comms%ncntt,comms%ndsplt,bigdft_mpi%mpi_comm)
          else
-            call MPI_ALLTOALLV(work_add,comms%ncntd,comms%ndspld,mpidtypw, &
-                 psi_add,comms%ncntt,comms%ndsplt,mpidtypw,bigdft_mpi%mpi_comm,ierr)
+            !!call MPI_ALLTOALLV(work_add,comms%ncntd,comms%ndspld,mpidtypw, &
+            !!     psi_add,comms%ncntt,comms%ndsplt,mpidtypw,bigdft_mpi%mpi_comm,ierr)
+            call mpialltoallv(work_add,comms%ncntd,comms%ndspld, &
+                 psi_add,comms%ncntt,comms%ndsplt,bigdft_mpi%mpi_comm)
          end if
          call timing(iproc,'Un-TransComm  ','OF')
          call timing(iproc,'Un-TransSwitch','ON')
@@ -2160,12 +2316,12 @@ module communications
     
       call timing(iproc,'Un-TransSwitch','OF')
     
-    END SUBROUTINE transpose_v
-
+    END SUBROUTINE transpose_v_core
 
     
     
-    subroutine untranspose_v(iproc,nproc,orbs,wfd,comms,psi_add,&
+
+    subroutine untranspose_v111(iproc,nproc,orbs,wfd,comms,psi_add,&
          work_add,out_add) !optional
       use module_base
       use module_types
@@ -2176,12 +2332,140 @@ module communications
       type(wavefunctions_descriptors), intent(in) :: wfd
       type(comms_cubic), intent(in) :: comms
       !real(wp), dimension((wfd%nvctr_c+7*wfd%nvctr_f)*orbs%nspinor*orbs%norbp), intent(inout) :: psi
-      real(wp),intent(inout) :: psi_add
-      real(wp),intent(inout) :: work_add
-      real(wp),intent(out),optional :: out_add !< Optional argument
+      real(wp),dimension(:),intent(inout) :: psi_add
+      real(wp),dimension(:),intent(inout) :: work_add
+      real(wp),dimension(:),intent(out),optional :: out_add !< Optional argument
+      !local variables
+      integer :: nsize_psi, nsize_work
+    
+      nsize_psi = size(psi_add)
+      nsize_work = size(work_add)
+      if (present(out_add)) then
+          if (size(out_add)/=nsize_psi) then
+              call f_err_throw('size(out_add)/=nsize_psi')
+          end if
+          call untranspose_v_core(iproc,nproc,orbs,wfd,comms,nsize_psi,psi_add,&
+             nsize_work,work_add,out_add) !optional
+      else
+          call untranspose_v_core(iproc,nproc,orbs,wfd,comms,nsize_psi,psi_add,&
+             nsize_work,work_add,out_add) !optional
+      end if
+
+    END SUBROUTINE untranspose_v111
+
+    subroutine untranspose_v222(iproc,nproc,orbs,wfd,comms,psi_add,&
+         work_add,out_add) !optional
+      use module_base
+      use module_types
+      use compression
+      implicit none
+      integer, intent(in) :: iproc,nproc
+      type(orbitals_data), intent(in) :: orbs
+      type(wavefunctions_descriptors), intent(in) :: wfd
+      type(comms_cubic), intent(in) :: comms
+      !real(wp), dimension((wfd%nvctr_c+7*wfd%nvctr_f)*orbs%nspinor*orbs%norbp), intent(inout) :: psi
+      real(wp),dimension(:,:),intent(inout) :: psi_add
+      real(wp),dimension(:,:),intent(inout) :: work_add
+      real(wp),dimension(:,:),intent(out),optional :: out_add !< Optional argument
+      !local variables
+      integer :: nsize_psi, nsize_work
+    
+      nsize_psi = size(psi_add)
+      nsize_work = size(work_add)
+      if (present(out_add)) then
+          if (size(out_add)/=nsize_psi) then
+              call f_err_throw('size(out_add)/=nsize_psi')
+          end if
+          call untranspose_v_core(iproc,nproc,orbs,wfd,comms,nsize_psi,psi_add,&
+             nsize_work,work_add,out_add) !optional
+      else
+          call untranspose_v_core(iproc,nproc,orbs,wfd,comms,nsize_psi,psi_add,&
+             nsize_work,work_add,out_add) !optional
+      end if
+
+    END SUBROUTINE untranspose_v222
+
+    subroutine untranspose_v212(iproc,nproc,orbs,wfd,comms,psi_add,&
+         work_add,out_add) !optional
+      use module_base
+      use module_types
+      use compression
+      implicit none
+      integer, intent(in) :: iproc,nproc
+      type(orbitals_data), intent(in) :: orbs
+      type(wavefunctions_descriptors), intent(in) :: wfd
+      type(comms_cubic), intent(in) :: comms
+      !real(wp), dimension((wfd%nvctr_c+7*wfd%nvctr_f)*orbs%nspinor*orbs%norbp), intent(inout) :: psi
+      real(wp),dimension(:,:),intent(inout) :: psi_add
+      real(wp),dimension(:),intent(inout) :: work_add
+      real(wp),dimension(:,:),intent(out),optional :: out_add !< Optional argument
+      !local variables
+      integer :: nsize_psi, nsize_work
+    
+      nsize_psi = size(psi_add)
+      nsize_work = size(work_add)
+      if (present(out_add)) then
+          if (size(out_add)/=nsize_psi) then
+              call f_err_throw('size(out_add)/=nsize_psi')
+          end if
+          call untranspose_v_core(iproc,nproc,orbs,wfd,comms,nsize_psi,psi_add,&
+             nsize_work,work_add,out_add) !optional
+      else
+          call untranspose_v_core(iproc,nproc,orbs,wfd,comms,nsize_psi,psi_add,&
+             nsize_work,work_add,out_add) !optional
+      end if
+
+    END SUBROUTINE untranspose_v212
+
+    subroutine untranspose_v211(iproc,nproc,orbs,wfd,comms,psi_add,&
+         work_add,out_add) !optional
+      use module_base
+      use module_types
+      use compression
+      implicit none
+      integer, intent(in) :: iproc,nproc
+      type(orbitals_data), intent(in) :: orbs
+      type(wavefunctions_descriptors), intent(in) :: wfd
+      type(comms_cubic), intent(in) :: comms
+      !real(wp), dimension((wfd%nvctr_c+7*wfd%nvctr_f)*orbs%nspinor*orbs%norbp), intent(inout) :: psi
+      real(wp),dimension(:,:),intent(inout) :: psi_add
+      real(wp),dimension(:),intent(inout) :: work_add
+      real(wp),dimension(:),intent(out),optional :: out_add !< Optional argument
+      !local variables
+      integer :: nsize_psi, nsize_work
+    
+      nsize_psi = size(psi_add)
+      nsize_work = size(work_add)
+      if (present(out_add)) then
+          if (size(out_add)/=nsize_psi) then
+              call f_err_throw('size(out_add)/=nsize_psi')
+          end if
+          call untranspose_v_core(iproc,nproc,orbs,wfd,comms,nsize_psi,psi_add,&
+             nsize_work,work_add,out_add) !optional
+      else
+          call untranspose_v_core(iproc,nproc,orbs,wfd,comms,nsize_psi,psi_add,&
+             nsize_work,work_add,out_add) !optional
+      end if
+
+    END SUBROUTINE untranspose_v211
+
+    subroutine untranspose_v_core(iproc,nproc,orbs,wfd,comms,nsize_psi,psi_add,&
+         nsize_work,work_add,out_add) !optional
+      use module_base
+      use module_types
+      use compression
+      implicit none
+      integer, intent(in) :: iproc,nproc,nsize_psi,nsize_work
+      type(orbitals_data), intent(in) :: orbs
+      type(wavefunctions_descriptors), intent(in) :: wfd
+      type(comms_cubic), intent(in) :: comms
+      !real(wp), dimension((wfd%nvctr_c+7*wfd%nvctr_f)*orbs%nspinor*orbs%norbp), intent(inout) :: psi
+      real(wp),dimension(nsize_psi),intent(inout) :: psi_add
+      real(wp),dimension(nsize_work),intent(inout) :: work_add
+      real(wp),dimension(nsize_psi),intent(out),optional :: out_add !< Optional argument
       !local variables
       integer :: ierr
-      external :: switch_waves_v,psitransspi,MPI_ALLTOALLV
+      external :: switch_waves_v,psitransspi!,MPI_ALLTOALLV
     
     
       call timing(iproc,'Un-TransSwitch','ON')
@@ -2189,8 +2473,10 @@ module communications
       if (nproc > 1) then
          call timing(iproc,'Un-TransSwitch','OF')
          call timing(iproc,'Un-TransComm  ','ON')
-         call MPI_ALLTOALLV(psi_add,comms%ncntt,comms%ndsplt,mpidtypw,  &
-              work_add,comms%ncntd,comms%ndspld,mpidtypw,bigdft_mpi%mpi_comm,ierr)
+         !!call MPI_ALLTOALLV(psi_add,comms%ncntt,comms%ndsplt,mpidtypw,  &
+         !!     work_add,comms%ncntd,comms%ndspld,mpidtypw,bigdft_mpi%mpi_comm,ierr)
+         call mpialltoallv(psi_add,comms%ncntt,comms%ndsplt,  &
+              work_add,comms%ncntd,comms%ndspld,bigdft_mpi%mpi_comm)
          call timing(iproc,'Un-TransComm  ','OF')
          call timing(iproc,'Un-TransSwitch','ON')
          if (present(out_add)) then
@@ -2211,7 +2497,8 @@ module communications
       end if
     
       call timing(iproc,'Un-TransSwitch','OF')
-    END SUBROUTINE untranspose_v
+    END SUBROUTINE untranspose_v_core
+
     
 
     !> Transposition of the arrays, variable version (non homogeneous)
@@ -2228,7 +2515,7 @@ module communications
       type(comms_cubic), intent(in) :: comms
       real(wp), dimension(:), pointer :: psi
       real(wp), dimension(:), pointer, optional :: work
-      real(wp), dimension(*), intent(out), optional :: outadd
+      real(wp), dimension(:), intent(out), optional :: outadd
       !local variables
       character(len=*), parameter :: subname='toglobal_and_transpose'
       integer :: psishift1,totshift,iorb,ilr,ldim,Gdim
@@ -2271,12 +2558,14 @@ module communications
       end if
     
       if (present(outadd)) then
-          call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,psi(1),work(1),outadd(1))
+          call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,psi,work,outadd)
       else
          if (.not. associated(work)) then
-            call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,psi(1),workdum)
+         !!   call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,psi,workdum)
+             call f_err_throw('The working pointer must be associated',&
+                  err_name='BIGDFT_RUNTIME_ERROR')
          else
-            call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,psi(1),work(1))
+            call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,psi,work)
          end if
       end if
     

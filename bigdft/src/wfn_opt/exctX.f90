@@ -120,8 +120,10 @@ subroutine exact_exchange_potential(iproc,nproc,geocode,xc,nspin,lr,orbs,n3parr,
         ncommarr(jproc,4)=ncommarr(jproc-1,4)+ncommarr(jproc-1,3)
      end do
 
-     call MPI_ALLTOALLV(psir,ncommarr(0,1),ncommarr(0,2),mpidtypw, &
-          psiw,ncommarr(0,3),ncommarr(0,4),mpidtypw,bigdft_mpi%mpi_comm,ierr)
+     !!call MPI_ALLTOALLV(psir,ncommarr(0,1),ncommarr(0,2),mpidtypw, &
+     !!     psiw,ncommarr(0,3),ncommarr(0,4),mpidtypw,bigdft_mpi%mpi_comm,ierr)
+     call mpialltoallv(psir,ncommarr(0:,1),ncommarr(0:,2), &
+          psiw,ncommarr(0:,3),ncommarr(0:,4),bigdft_mpi%mpi_comm)
 
   else
      call vcopy(lr%d%n1i*lr%d%n2i*n3p*orbs%norb,psir(1),1,psiw(1),1)
@@ -279,8 +281,10 @@ subroutine exact_exchange_potential(iproc,nproc,geocode,xc,nspin,lr,orbs,n3parr,
   if (nproc > 1) then
      !call vcopy(lr%d%n1i*lr%d%n2i*n3p*orbs%norb,psir,1,psirt,1)
      !recommunicate the values in the psir array
-     call MPI_ALLTOALLV(psir,ncommarr(0,3),ncommarr(0,4),mpidtypw, &
-          psiw,ncommarr(0,1),ncommarr(0,2),mpidtypw,bigdft_mpi%mpi_comm,ierr)
+     !!call MPI_ALLTOALLV(psir,ncommarr(0,3),ncommarr(0,4),mpidtypw, &
+     !!     psiw,ncommarr(0,1),ncommarr(0,2),mpidtypw,bigdft_mpi%mpi_comm,ierr)
+     call mpialltoallv(psir,ncommarr(0:,3),ncommarr(0:,4), &
+          psiw,ncommarr(0:,1),ncommarr(0:,2),bigdft_mpi%mpi_comm)
      !redress the potential
      ispsiw=1
      do iorb=1,orbs%norbp
@@ -398,8 +402,10 @@ subroutine prepare_psirocc(iproc,nproc,lr,orbsocc,n3p,n3parr,psiocc,psirocc)
         ncommocc(jproc,4)=ncommocc(jproc-1,4)+ncommocc(jproc-1,3)
      end do
 
-     call MPI_ALLTOALLV(psiwocc,ncommocc(0,1),ncommocc(0,2),mpidtypw, &
-          psirocc,ncommocc(0,3),ncommocc(0,4),mpidtypw,bigdft_mpi%mpi_comm,ierr)
+     !!call MPI_ALLTOALLV(psiwocc,ncommocc(0,1),ncommocc(0,2),mpidtypw, &
+     !!     psirocc,ncommocc(0,3),ncommocc(0,4),mpidtypw,bigdft_mpi%mpi_comm,ierr)
+     call mpialltoallv(psiwocc,ncommocc(0:,1),ncommocc(0:,2), &
+          psirocc,ncommocc(0:,3),ncommocc(0:,4),bigdft_mpi%mpi_comm)
   else
      call vcopy(lr%d%n1i*lr%d%n2i*n3p*orbsocc%norb,psiwocc(1),1,psirocc(1),1)
   end if
@@ -516,8 +522,10 @@ subroutine exact_exchange_potential_virt(iproc,nproc,geocode,nspin,lr,orbsocc,or
         ncommvirt(jproc,4)=ncommvirt(jproc-1,4)+ncommvirt(jproc-1,3)
      end do
 
-     call MPI_ALLTOALLV(psirvirt,ncommvirt(0,1),ncommvirt(0,2),mpidtypw, &
-          psiwvirt,ncommvirt(0,3),ncommvirt(0,4),mpidtypw,bigdft_mpi%mpi_comm,ierr)
+     !!call MPI_ALLTOALLV(psirvirt,ncommvirt(0,1),ncommvirt(0,2),mpidtypw, &
+     !!     psiwvirt,ncommvirt(0,3),ncommvirt(0,4),mpidtypw,bigdft_mpi%mpi_comm,ierr)
+     call mpialltoallv(psirvirt,ncommvirt(0:,1),ncommvirt(0:,2), &
+          psiwvirt,ncommvirt(0:,3),ncommvirt(0:,4),bigdft_mpi%mpi_comm)
 
   else
      call vcopy(lr%d%n1i*lr%d%n2i*n3p*orbsvirt%norb,psirvirt(1),1,psiwvirt(1),1)
@@ -644,8 +652,10 @@ subroutine exact_exchange_potential_virt(iproc,nproc,geocode,nspin,lr,orbsocc,or
   if (nproc > 1) then
      !call vcopy(lr%d%n1i*lr%d%n2i*n3p*orbs%norb,psir,1,psirt,1)
      !recommunicate the values in the psir array
-     call MPI_ALLTOALLV(psirvirt,ncommvirt(0,3),ncommvirt(0,4),mpidtypw, &
-          psiwvirt,ncommvirt(0,1),ncommvirt(0,2),mpidtypw,bigdft_mpi%mpi_comm,ierr)
+     !!call MPI_ALLTOALLV(psirvirt,ncommvirt(0,3),ncommvirt(0,4),mpidtypw, &
+     !!     psiwvirt,ncommvirt(0,1),ncommvirt(0,2),mpidtypw,bigdft_mpi%mpi_comm,ierr)
+     call mpialltoallv(psirvirt,ncommvirt(0:,3),ncommvirt(0:,4), &
+          psiwvirt,ncommvirt(0:,1),ncommvirt(0:,2),bigdft_mpi%mpi_comm)
      !redress the potential
      ispsiw=1
      do iorb=1,orbsvirt%norbp

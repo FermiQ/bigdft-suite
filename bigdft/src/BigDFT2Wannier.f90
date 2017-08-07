@@ -295,7 +295,7 @@ program BigDFT2Wannier
          
          if(nproc > 1) then
             pwork = f_malloc_ptr(npsidim,id='pwork')
-            call transpose_v(iproc,nproc,orbsv,lzd%glr%wfd,commsv,psi_etsfv(1),pwork(1))
+            call transpose_v(iproc,nproc,orbsv,lzd%glr%wfd,commsv,psi_etsfv,pwork)
             call f_free_ptr(pwork)
          end if
 
@@ -370,7 +370,7 @@ program BigDFT2Wannier
 
          ! Tranposition of the distribution of the spherical harmonics: orbitals -> components.
          pwork = f_malloc_ptr(npsidim2,id='pwork')
-         call transpose_v(iproc,nproc,orbsp,lzd%glr%wfd,commsp,sph_daub(1),pwork(1))
+         call transpose_v(iproc,nproc,orbsp,lzd%glr%wfd,commsp,sph_daub,pwork)
          call f_free_ptr(pwork)
          call timing(iproc,'ApplyProj     ','ON')
 
@@ -637,7 +637,7 @@ program BigDFT2Wannier
          ! Tranposition of distribution : orbitals -> components.
          if(nproc>1) then
             pwork = f_malloc_ptr(npsidim2,id='pwork')
-            call transpose_v(iproc,nproc,orbsp,lzd%glr%wfd,commsp,sph_daub(1),pwork(1))
+            call transpose_v(iproc,nproc,orbsp,lzd%glr%wfd,commsp,sph_daub,pwork)
             call f_free_ptr(pwork)
          end if
          call deallocate_projectors()
@@ -673,7 +673,7 @@ program BigDFT2Wannier
          !call f_zero(npsidim,psi_etsf2)
          if(nproc > 1) then
             pwork = f_malloc_ptr(npsidim,id='pwork')
-            call transpose_v(iproc,nproc,orbsb,lzd%glr%wfd,commsb,psi_etsf(1,1),pwork(1),out_add=psi_etsf2(1))
+            call transpose_v(iproc,nproc,orbsb,lzd%glr%wfd,commsb,psi_etsf,pwork,out_add=psi_etsf2)
             call f_free_ptr(pwork)
          else
             call vcopy(orbsb%norb*orbsb%nspinor*(lzd%Glr%wfd%nvctr_c+7*lzd%Glr%wfd%nvctr_f),psi_etsf(1,1),1,psi_etsf2(1),1)
@@ -685,7 +685,7 @@ program BigDFT2Wannier
          !call f_zero(npsidim,psi_etsf2)
          if(nproc > 1) then
             pwork = f_malloc_ptr(npsidim,id='pwork')
-            call transpose_v(iproc,nproc,orbsb,lzd%glr%wfd,commsb,psi_etsf(1,1),pwork(1),out_add=psi_etsf2(1))
+            call transpose_v(iproc,nproc,orbsb,lzd%glr%wfd,commsb,psi_etsf,pwork,out_add=psi_etsf2)
             call f_free_ptr(pwork)
          else
             call vcopy(orbsb%norb*orbs%nspinor*(lzd%Glr%wfd%nvctr_c+7*lzd%Glr%wfd%nvctr_f),psi_etsf(1,1),1,psi_etsf2(1),1)
@@ -722,7 +722,7 @@ program BigDFT2Wannier
          ! Now untranspose to make the psi
          if(nproc > 1) then
             pwork = f_malloc_ptr(npsidim,id='pwork')
-            call untranspose_v(iproc,nproc,orbsb,lzd%Glr%wfd,commsb,psi_etsf2(1),pwork(1),out_add=psi_etsf(1,1))
+            call untranspose_v(iproc,nproc,orbsb,lzd%Glr%wfd,commsb,psi_etsf2,pwork,out_add=psi_etsf)
             call f_free_ptr(pwork)
          else
             call vcopy(orbsb%norb*orbsb%nspinor*(lzd%Glr%wfd%nvctr_c+7*lzd%Glr%wfd%nvctr_f),psi_etsf2(1),1,psi_etsf(1,1),1)
@@ -870,8 +870,8 @@ program BigDFT2Wannier
          if(nproc>0 .or. orbsb%nspinor /=1) then
             call timing(iproc,'Input_comput  ','OF')
             pwork = f_malloc_ptr(npsidim,id='pwork')
-            call transpose_v(iproc,nproc,orbsb,lzd%glr%wfd,commsb,psi_daub_re(1),pwork(1))
-            call transpose_v(iproc,nproc,orbsb,lzd%glr%wfd,commsb,psi_daub_im(1),pwork(1))
+            call transpose_v(iproc,nproc,orbsb,lzd%glr%wfd,commsb,psi_daub_re,pwork)
+            call transpose_v(iproc,nproc,orbsb,lzd%glr%wfd,commsb,psi_daub_im,pwork)
             call f_free_ptr(pwork)
             call timing(iproc,'Input_comput  ','ON')
          end if

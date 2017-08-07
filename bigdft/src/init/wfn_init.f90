@@ -518,7 +518,7 @@ end if
   end if
 
   !this untranspose also the wavefunctions 
-  call untranspose_v(iproc,nproc,orbs,Lzd%Glr%wfd,comms, psit(1),hpsi(1),out_add=psi(1))
+  call untranspose_v(iproc,nproc,orbs,Lzd%Glr%wfd,comms, psit,hpsi,out_add=psi)
 
 !!$!here the checksum of the wavefunction can be extracted
 !!$do jproc=0,bigdft_mpi%nproc-1
@@ -2511,10 +2511,12 @@ subroutine orthonormalizePsi(iproc, nproc, norbtot, norb, norbp, norbpArr,&
 
       call timing(iproc, 'Input_comput', 'OF')
       call timing(iproc, 'Input_commun', 'ON')
-      call mpi_alltoallv(psiW(1), sendcounts, sdispls, mpi_double_precision, psiWTrans(1), &
-         &   recvcounts, rdispls, mpi_double_precision, newComm, ierr)
-      call mpi_alltoallv(overlapPsiW(1), sendcounts, sdispls, mpi_double_precision, overlapPsiWTrans(1),&
-         &   recvcounts, rdispls, mpi_double_precision, newComm, ierr)
+      !!call mpi_alltoallv(psiW(1), sendcounts, sdispls, mpi_double_precision, psiWTrans(1), &
+      !!   &   recvcounts, rdispls, mpi_double_precision, newComm, ierr)
+      call mpialltoallv(psiW, sendcounts, sdispls, psiWTrans, recvcounts, rdispls,  newComm)
+      !!call mpi_alltoallv(overlapPsiW(1), sendcounts, sdispls, mpi_double_precision, overlapPsiWTrans(1),&
+      !!   &   recvcounts, rdispls, mpi_double_precision, newComm, ierr)
+      call mpialltoallv(overlapPsiW, sendcounts, sdispls, overlapPsiWTrans, recvcounts, rdispls, newComm)
       call timing(iproc, 'Input_commun', 'OF')
       call timing(iproc, 'Input_comput', 'ON')
    else
@@ -2590,8 +2592,9 @@ subroutine orthonormalizePsi(iproc, nproc, norbtot, norb, norbp, norbpArr,&
       ! Now untranspose the vectors.
       call timing(iproc, 'Input_comput', 'OF')
       call timing(iproc, 'Input_commun', 'ON')
-      call mpi_alltoallv(psiWTrans(1), sendcounts, sdispls, mpi_double_precision, psiW(1),&
-         &   recvcounts, rdispls, mpi_double_precision, newComm, ierr)
+      !!call mpi_alltoallv(psiWTrans(1), sendcounts, sdispls, mpi_double_precision, psiW(1),&
+      !!   &   recvcounts, rdispls, mpi_double_precision, newComm, ierr)
+      call mpialltoallv(psiWTrans, sendcounts, sdispls, psiW, recvcounts, rdispls, newComm)
       call timing(iproc, 'Input_commun', 'OF')
       call timing(iproc, 'Input_comput', 'ON')
 
