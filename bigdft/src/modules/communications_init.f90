@@ -2216,17 +2216,23 @@ module communications_init
          end do
       end do
       !write(*,*) 'iitot,ndimpsi_c',iitot,ndimpsi_c
-      if(iitot/=ndimpsi_c) stop 'iitot/=ndimpsi_c'
+      if(iitot/=ndimpsi_c) then
+          call f_err_throw(trim(yaml_toa(iitot))//' = iitot /= ndimpsi_c = '//trim(yaml_toa(ndimpsi_c)))
+      end if
 
       ! Check only up to ndimpsi_c in case it was allocated with size 1 to avoid an allocation with size 0
       if (minval(indexsendorbital_c(1:ndimpsi_c))<1) then
-          write(*,*) 'minval(indexsendorbital_c)',minval(indexsendorbital_c)
-          stop 'minval(indexsendorbital_c)<1'
+          call f_err_throw(trim(yaml_toa(minval(indexsendorbital_c(1:ndimpsi_c))))//&
+               &' = minval(indexsendorbital_c(1:ndimpsi_c)) < 1')
       end if
     
       !check
       do jproc=0,nproc-1
-          if(nsend_c(jproc)/=nsendcounts_c(jproc)) stop 'nsend_c(jproc)/=nsendcounts_c(jproc)'
+          if(nsend_c(jproc)/=nsendcounts_c(jproc)) then
+              call f_err_throw(trim(yaml_toa(nsend_c(jproc)))//&
+                   &' = nsend_c(jproc) /= nsendcounts_c(jproc) ='//&
+                   &trim(yaml_toa(nsendcounts_c(jproc))))
+          end if
       end do
     
     
@@ -2286,12 +2292,13 @@ module communications_init
      
       end do
       
-      if(iitot/=ndimpsi_f) stop 'iitot/=ndimpsi_f'
+      if(iitot/=ndimpsi_f) then
+          call f_err_throw(trim(yaml_toa(iitot))//' = iitot /= ndimpsi_f = '//trim(yaml_toa(ndimpsi_f)))
+      end if
 
       ! Check only up to ndimpsi_f in case it was allocated with size 1 to avoid an allocation with size 0
       if (minval(indexsendorbital_f(1:ndimpsi_f))<1) then
-          write(*,*) 'minval(indexsendorbital_f)',minval(indexsendorbital_f)
-          stop 'minval(indexsendorbital_f)<1'
+          call f_err_throw(trim(yaml_toa(minval(indexsendorbital_f(1:ndimpsi_f))))//' = minval(indexsendorbital_f(1:ndimpsi_f) < 1')
       end if
     
       !$omp end sections
@@ -2300,7 +2307,11 @@ module communications_init
       !check
       do jproc=0,nproc-1
           !write(*,*) 'nsend(jproc), nsendcounts_f(jproc)', nsend(jproc), nsendcounts_f(jproc)
-          if(nsend_f(jproc)/=nsendcounts_f(jproc)) stop 'nsend_f(jproc)/=nsendcounts_f(jproc)'
+          if(nsend_f(jproc)/=nsendcounts_f(jproc)) then
+             call f_err_throw(trim(yaml_toa(nsend_f(jproc)))//&
+                  ' = nsend_f(jproc) /= nsendcounts_f(jproc) = '//&
+                  trim(yaml_toa(nsendcounts_f(jproc))))
+         end if
       end do
     
       indexsendorbital2 = f_malloc(max(1,ndimpsi_c),id='indexsendorbital2')
@@ -2382,8 +2393,16 @@ module communications_init
       end if
         
     
-      if(maxval(gridpoint_start_c)>sum(nrecvcounts_c)) stop '1: maxval(gridpoint_start_c)>sum(nrecvcounts_c)'
-      if(maxval(gridpoint_start_f)>sum(nrecvcounts_f)) stop '1: maxval(gridpoint_start_f)>sum(nrecvcounts_f)'
+      if(maxval(gridpoint_start_c)>sum(nrecvcounts_c)) then
+         call f_err_throw(trim(yaml_toa(maxval(gridpoint_start_c)))//&
+              &' = maxval(gridpoint_start_c) > sum(nrecvcounts_c) = '//&
+              &trim(yaml_toa(maxval(gridpoint_start_c))))
+      end if
+      if(maxval(gridpoint_start_f)>sum(nrecvcounts_f)) then
+          call f_err_throw(trim(yaml_toa(maxval(gridpoint_start_f)))//&
+               &' = maxval(gridpoint_start_f) > sum(nrecvcounts_f) = '//&
+               &trim(yaml_toa(sum(nrecvcounts_f))))
+      end if
 
       ! Rearrange the communicated data
       if (nspin==1) then
@@ -2409,9 +2428,13 @@ module communications_init
       !write(*,'(a,2i12)') 'sum(iextract_c), nint(weightp_c*(weightp_c+1.d0)*.5d0)', sum(iextract_c), nint(weightp_c*(weightp_c+1.d0)*.5d0)
       !if(sum(iextract_c)/=nint(weightp_c*(weightp_c+1.d0)*.5d0)) stop 'sum(iextract_c)/=nint(weightp_c*(weightp_c+1.d0)*.5d0)'
       if(maxval(iextract_c)>sum(nrecvcounts_c)) then
-          stop 'maxval(iextract_c)>sum(nrecvcounts_c)'
+          call f_err_throw(trim(yaml_toa(maxval(iextract_c)))//&
+               &' = maxval(iextract_c) > sum(nrecvcounts_c) = '//&
+               &trim(yaml_toa(sum(nrecvcounts_c))))
       end if
-      if(minval(iextract_c)<1) stop 'minval(iextract_c)<1'
+      if(minval(iextract_c)<1) then
+          call f_err_throw(trim(yaml_toa(minval(iextract_c)))//' = minval(iextract_c) < 1')
+      end if
     
       ! Rearrange the communicated data
       if (nspin==1) then
@@ -2434,8 +2457,14 @@ module communications_init
               gridpoint_start_f(ii)=gridpoint_start_f(ii)+1  
           end do
       end if
-      if(maxval(iextract_f)>sum(nrecvcounts_f)) stop 'maxval(iextract_f)>sum(nrecvcounts_f)'
-      if(minval(iextract_f)<1) stop 'minval(iextract_f)<1'
+      if(maxval(iextract_f)>sum(nrecvcounts_f)) then
+          call f_err_throw(trim(yaml_toa(maxval(iextract_f)))//&
+               &' = maxval(iextract_f) > sum(nrecvcounts_f) = '//&
+               &trim(yaml_toa(sum(nrecvcounts_f))))
+      end if
+      if(minval(iextract_f)<1) then
+          call f_err_throw(trim(yaml_toa(minval(iextract_f)))//' = minval(iextract_f) < 1')
+      end if
         
     
       ! Get the array to transfrom back the data
@@ -2459,10 +2488,22 @@ module communications_init
       call f_free(indexrecvorbital2)
     
     
-      if(minval(indexrecvorbital_c)<1) stop 'minval(indexrecvorbital_c)<1'
-      if(maxval(indexrecvorbital_c)>orbs%norb) stop 'maxval(indexrecvorbital_c)>orbs%norb'
-      if(minval(indexrecvorbital_f)<1) stop 'minval(indexrecvorbital_f)<1'
-      if(maxval(indexrecvorbital_f)>orbs%norb) stop 'maxval(indexrecvorbital_f)>orbs%norb'
+      if(minval(indexrecvorbital_c)<1) then
+          call f_err_throw(trim(yaml_toa(minval(indexrecvorbital_c)))//&
+               &' = minval(indexrecvorbital_c) < 1')
+      end if
+      if(maxval(indexrecvorbital_c)>orbs%norb) then
+         call f_err_throw(trim(yaml_toa(maxval(indexrecvorbital_c)))//&
+              &' = maxval(indexrecvorbital_c) > orbs%norb = '//trim(yaml_toa(orbs%norb)))
+      end if
+      if(minval(indexrecvorbital_f)<1) then
+         call f_err_throw(trim(yaml_toa(minval(indexrecvorbital_f)))//&
+              &' = minval(indexrecvorbital_f) < 1')
+      end if
+      if(maxval(indexrecvorbital_f)>orbs%norb) then
+         call f_err_throw(trim(yaml_toa(maxval(indexrecvorbital_f)))//&
+              &' = maxval(indexrecvorbital_f) > orbs%norb = '//trim(yaml_toa(orbs%norb)))
+      end if
     
 
       call f_free(indexsendorbital_c)
@@ -2995,7 +3036,9 @@ module communications_init
       if (tt/=real(lzd%glr%d%n1i,kind=8)*real(lzd%glr%d%n2i,kind=8)*real(lzd%glr%d%n3i,kind=8)) then
           write(*,'(a,2es24.14)') 'tt, real(lzd%glr%d%n1i,kind=8)*real(lzd%glr%d%n2i,kind=8)*real(lzd%glr%d%n3i,kind=8)', &
                       tt, real(lzd%glr%d%n1i,kind=8)*real(lzd%glr%d%n2i,kind=8)*real(lzd%glr%d%n3i,kind=8)
-          stop 'tt/=lzd%glr%d%n1i*lzd%glr%d%n2i*lzd%glr%d%n3i'
+          call f_err_throw(trim(yaml_toa(tt))//&
+               &' = tt /= lzd%glr%d%n1i*lzd%glr%d%n2i*lzd%glr%d%n3i = '//&
+               &trim(yaml_toa(lzd%glr%d%n1i*lzd%glr%d%n2i*lzd%glr%d%n3i)))
       end if
     
       call f_release_routine()
