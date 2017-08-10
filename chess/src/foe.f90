@@ -541,6 +541,54 @@ module foe
           end do
       end if
 
+
+
+      !# calculate the term TS #########################################################
+      !if (calculate_energy_density_kernel) then
+          !!if (.not.present(energy_kernel_)) then
+          !!    call f_err_throw('energy_kernel_ not present',err_name='SPARSEMATRIX_RUNTIME_ERROR')
+          !!end if
+          cc_check = f_malloc0((/npl,1,3/),id='cc_check')
+          call func_set(FUNCTION_ERRORFUNCTION_ENTROPY, efx=foe_data_get_real(foe_obj,"ef"), fscalex=fscale)
+          call get_chebyshev_expansion_coefficients(iproc, nproc, comm, &
+               foe_data_get_real(foe_obj,"evlow",1), &
+               foe_data_get_real(foe_obj,"evhigh",1), npl, func, cc_check(1,1,1), &
+               x_max_error_check(1), max_error_check(1), mean_error_check(1))
+          if (smatl%nspin==1) then
+              do ipl=1,npl
+                  cc_check(ipl,1,1)=2.d0*cc_check(ipl,1,1)
+                  cc_check(ipl,1,2)=2.d0*cc_check(ipl,1,2)
+                  cc_check(ipl,1,3)=2.d0*cc_check(ipl,1,3)
+              end do
+          end if
+          do ispin=1,smatl%nspin
+
+              if (.not.(calculate_spin_channels(ispin))) cycle
+
+              is=(ispin-1)*smatl%smmm%nvctrp
+              isshift=(ispin-1)*smats%nvctrp_tg
+              imshift=(ispin-1)*smatm%nvctrp_tg
+              ilshift=(ispin-1)*smatl%nvctrp_tg
+              call chebyshev_fast(iproc, nproc, nsize_polynomial, npl, &
+                   smatl%nfvctr, smatl%smmm%nfvctrp, &
+                   smatl, chebyshev_polynomials(:,:,ispin), 1, cc_check, fermi_check_new)
+              call f_free(cc_check)
+              call calculate_trace_distributed_new(iproc, nproc, comm, smatl, fermi_check_new, sumn_check)
+
+              if (iproc==0) then
+                  call yaml_map('eTS',sumn_check)
+              end if
+              !!call compress_matrix_distributed_wrapper(iproc, nproc, smatl, SPARSE_MATMUL_SMALL, &
+              !!     fermi_check_new, ONESIDED_FULL, fermi_check_compr(ilshift+1:))
+              !!! Calculate S^-1/2 * K * S^-1/2^T
+              !!call retransform_ext(iproc, nproc, smatl, ONESIDED_FULL, kernelpp_work(is+1:),  &
+              !!     ovrlp_minus_one_half_(1)%matrix_compr(ilshift+1:), fermi_check_compr(ilshift+1:))
+          end do
+      !end if
+      !# end calculate the term TS #####################################################
+
+
+
       call f_free_ptr(chebyshev_polynomials)
 
 

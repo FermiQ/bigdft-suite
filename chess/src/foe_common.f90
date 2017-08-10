@@ -43,6 +43,7 @@ module module_func
   integer,parameter,public :: FUNCTION_ERRORFUNCTION = 102
   integer,parameter,public :: FUNCTION_XTIMESERRORFUNCTION = 103
   integer,parameter,public :: FUNCTION_EXPONENTIAL = 104
+  integer,parameter,public :: FUNCTION_ERRORFUNCTION_ENTROPY = 105
 
   contains
 
@@ -78,6 +79,12 @@ module module_func
           beta = betax
           mua = muax
           mub = mubx
+      case(FUNCTION_ERRORFUNCTION_ENTROPY)
+          ifunc = FUNCTION_ERRORFUNCTION_ENTROPY
+          if (.not.present(efx)) call f_err_throw("'efx' not present")
+          if (.not.present(fscalex)) call f_err_throw("'fscalex' not present")
+          ef = efx
+          fscale = fscalex
       case default
           call f_err_throw("wrong value of 'ifuncx'")
       end select
@@ -87,19 +94,25 @@ module module_func
     end subroutine func_set
 
     function func(x)
+      use numerics, only: pi
       implicit none
+      ! Calling arguments
       real(kind=mp),intent(in) :: x
       real(kind=mp) :: func
+      ! Local parameters
+      real(kind=mp) :: sqrt_pi = sqrt(pi)
       select case (ifunc)
       case(FUNCTION_POLYNOMIAL)
           func = x**power
       case(FUNCTION_ERRORFUNCTION)
-          func = 0.5d0*erfcc((x-ef)*(1.d0/fscale))
+          func = 0.5_mp*erfcc((x-ef)*(1._mp/fscale))
       case(FUNCTION_XTIMESERRORFUNCTION)
-          func = x*0.5d0*erfcc((x-ef)*(1.d0/fscale))
+          func = x*0.5_mp*erfcc((x-ef)*(1._mp/fscale))
       case(FUNCTION_EXPONENTIAL)
           !func = safe_exp(beta*(x-mu))
           func = safe_exp(beta*(x-mua)) - safe_exp(-beta*(x-mub))
+      case(FUNCTION_ERRORFUNCTION_ENTROPY)
+          func = fscale/(2._mp*sqrt_pi)*safe_exp(-((x-ef)/fscale)**2)
       case default
           call f_err_throw("wrong value of 'ifunc'")
       end select
