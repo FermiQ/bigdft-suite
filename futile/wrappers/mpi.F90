@@ -2641,6 +2641,9 @@ contains
     ! Local variables
     integer :: ierr
 
+    if (count<0) then
+        call f_err_throw('count<0, value='//trim(yaml_toa(count)))
+    end if
     call mpi_accumulate(origin,count,mpitype(origin),target_rank, &
          target_disp,count,mpitype(origin), op, window, ierr)
     if (ierr/=0) then
