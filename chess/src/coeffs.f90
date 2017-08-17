@@ -174,6 +174,9 @@ module coeffs
       do ispin=1,denskern%nspin
           energy = energy + trace_AB(iproc, nproc, comm, ham, denskern, ham_mat, denskern_mat, ispin)
       end do
+      if (iproc==0) then
+          call yaml_map('trace(KH)',energy)
+      end if
     
       !!do iorbp=1,tmb_orbs%norbp
       !!   iorb=iorbp+tmb_orbs%isorb

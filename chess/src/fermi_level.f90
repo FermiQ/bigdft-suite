@@ -536,6 +536,13 @@ module fermi_level
       !integer :: ierr
       !type(fermi_aux) :: ft
 
+      if (iproc==0) then
+          call yaml_mapping_open('Determine Fermi level and occupation numbers')
+          call yaml_map('Smearing method',occopt)
+          call yaml_map('Electronic temperature',wf0)
+          call yaml_mapping_close()
+      end if
+
 
       exitfermi=.false.
       !if (iproc.lt.1)  write(1000+iproc,*)  'ENTER Fermilevel',norbu,norbd,occopt
