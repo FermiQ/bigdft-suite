@@ -38,7 +38,7 @@
      COMMENT: Maximal number of unsuccessful eigenvalue bounds shrinkings
      default: 4
    fscale:
-     COMMENT: Initial guess for the error fucntion decay length
+     COMMENT: Initial guess for the error function decay length
      DESCRIPTION: |
        Indicates the decay length of the error function which is used by the Fermi Operator Expasion to construct the density kernel.
        This value will be adjusted automatically if not chosen appropriately.

@@ -677,7 +677,7 @@ module orthonormalization
          trH = trH + lagmat_%matrix_compr(ii-lagmat%isvctrp_tg)
       end do
       call mpiallred(trH, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
-      !if (iproc==0) call yaml_map('Omega new',trH)
+      if (iproc==0) call yaml_map('Omega new',trH)
       !############################################################################
     
 

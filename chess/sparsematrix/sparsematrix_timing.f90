@@ -63,7 +63,7 @@ module sparsematrix_timing
     subroutine sparsematrix_initialize_timing_categories()
       use time_profiling, only: f_timing_category_group,f_timing_category
       implicit none
-      character(len=*), parameter :: smat_manip = 'spars ematrix manipulation'
+      character(len=*), parameter :: smat_manip = 'sparse matrix manipulation'
       character(len=*), parameter :: smat_init = 'sparse matrix initialization'
       character(len=*), parameter :: smat_comm = 'sparse matrix communications'
       character(len=*), parameter :: cme = 'chebyshev matrix expansion'

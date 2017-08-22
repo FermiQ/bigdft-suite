@@ -530,6 +530,12 @@ subroutine inputguessConfinement(iproc, nproc, at, input, hx, hy, hz, &
        psigau(1,1,1),tmb%psi)
   tmb%can_use_transposed=.false.
 
+  !!!call random_number(tmb%psi)
+  !!do i=1,size(tmb%psi)
+  !!    call random_number(tt)
+  !!    tmb%psi(i) = tmb%psi(i)+0.01*tt
+  !!end do
+
   !!ii=0
   !!do iorb=1,tmb%orbs%norbp
   !!    iiorb=tmb%orbs%isorb+iorb

@@ -1551,7 +1551,10 @@ module sparsematrix
      else
          call vcopy(smat%nvctrp_tg*smat%nspin, mat%matrix_compr(1), 1, mat_global(1), 1)
      end if
-     call vcopy(smat%nvctrp*smat%nspin, mat_global(1), 1, mat%matrix_compr(1), 1)
+
+     call f_free_ptr(mat%matrix_compr)
+     mat%matrix_compr = sparsematrix_malloc_ptr(smat,iaction=SPARSE_FULL,id='mat_global')
+     call f_memcpy(src=mat_global, dest=mat%matrix_compr)
      call f_free(mat_global)
 
      call f_release_routine()

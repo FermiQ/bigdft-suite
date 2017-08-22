@@ -133,7 +133,7 @@ module coeffs
 
 
     subroutine calculate_kernel_and_energy(iproc,nproc,comm,denskern,ham,denskern_mat,ham_mat, &
-               energy,coeff,norbp,isorb,norbu,norb,occup,calculate_kernel)
+               energy,coeff,norbp,isorb,norbu,norb,occup,calculate_kernel,keep_uncompressed)
       use sparsematrix_highlevel, only: trace_AB
       implicit none
       integer, intent(in) :: iproc, nproc, comm, norbp, isorb, norbu, norb
@@ -145,15 +145,25 @@ module coeffs
       logical, intent(in) :: calculate_kernel
       real(kind=mp), intent(out) :: energy
       real(kind=mp), dimension(denskern%nfvctr,norb), intent(in) :: coeff
+      logical,intent(in),optional :: keep_uncompressed
     
       integer :: iorb, jorb, ind_ham, ind_denskern, ierr, iorbp, is, ie, ispin
+      logical :: keep_uncompressed_
 
       call f_routine(id='calculate_kernel_and_energy')
+
+      keep_uncompressed_ = .false.
+      if (present(keep_uncompressed)) keep_uncompressed_ = keep_uncompressed
+      if (keep_uncompressed_) then
+          if (.not.associated(denskern_mat%matrix)) then
+              call f_err_throw('ERROR: denskern_mat%matrix must be associated if keep_uncompressed is true')
+          end if
+      end if
     
       if (calculate_kernel) then 
          !!call extract_taskgroup_inplace(denskern, denskern_mat)
          call calculate_density_kernel(iproc, nproc, comm, .true., norbp, isorb, norbu, norb, occup, &
-              coeff, denskern, denskern_mat)
+              coeff, denskern, denskern_mat, keep_uncompressed_)
          !call gather_matrix_from_taskgroups_inplace(iproc, nproc, denskern, denskern_mat)
          !denskern%matrix_compr = denskern_mat%matrix_compr
       end if
@@ -237,7 +247,9 @@ module coeffs
       end if
     
       if (keep_uncompressed) then
-          if (.not.associated(denskern_%matrix)) stop 'ERROR: denskern_%matrix must be associated if keep_uncompressed is true'
+          if (.not.associated(denskern_%matrix)) then
+              call f_err_throw('ERROR: denskern_%matrix must be associated if keep_uncompressed is true')
+          end if
       end if
     
       !!write(*,*) 'iproc, orbs_tmb%norbp, orbs_tmb%isorb, orbs_tmb%norb', &

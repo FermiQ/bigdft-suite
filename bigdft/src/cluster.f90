@@ -30,7 +30,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
   use Poisson_Solver, except_dp => dp, except_gp => gp
   use module_xc
   use m_libpaw_libxc, only: libxc_functionals_init, libxc_functionals_end
-  use communications_init, only: orbitals_communicators
+  use communications_init, only: orbitals_communicators, write_memory_requirements_collcom
   use communications_base, only: deallocate_comms
   !  use vdwcorrection
   use yaml_output
@@ -432,6 +432,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
      !!tag=0
 
      call kswfn_init_comm(tmb, denspot%dpbox, iproc, nproc, in%nspin, in%imethod_overlap)
+
      !!locreg_centers = f_malloc((/3,tmb%lzd%nlr/),id='locreg_centers')
      !!do ilr=1,tmb%lzd%nlr
      !!    locreg_centers(1:3,ilr)=tmb%lzd%llr(ilr)%locregcenter(1:3)
@@ -456,6 +457,16 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
      !!call increase_FOE_cutoff(iproc, nproc, tmb%lzd, atoms%astruct, in, KSwfn%orbs, tmb%orbs, tmb%foe_obj, .true.)
 
      call create_large_tmbs(iproc, nproc, KSwfn, tmb, denspot,nlpsp,in, atoms, rxyz, .false.)
+
+     if (iproc==0) then
+         call yaml_mapping_open('Workarray memory requirements for transposed communication')
+     end if
+     call write_memory_requirements_collcom(iproc, nproc, bigdft_mpi%mpi_comm, 'Normal locregs', tmb%collcom)
+     call write_memory_requirements_collcom(iproc, nproc, bigdft_mpi%mpi_comm, 'Normal locregs sumrho', tmb%collcom_sr)
+     call write_memory_requirements_collcom(iproc, nproc, bigdft_mpi%mpi_comm, 'Large locregs', tmb%ham_descr%collcom)
+     if (iproc==0) then
+         call yaml_mapping_close()
+     end if
 
      call init_bigdft_matrices(iproc, nproc, atoms, tmb%orbs, &
           tmb%collcom, tmb%collcom_sr, tmb%ham_descr%collcom, &

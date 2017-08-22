@@ -68,7 +68,7 @@ module wrapper_MPI
      module procedure mpitype_i1,mpitype_i2,mpitype_i3
      module procedure mpitype_l3
      module procedure mpitype_r1,mpitype_r2,mpitype_r3,mpitype_r4
-     module procedure mpitype_d1,mpitype_d2,mpitype_d3,mpitype_d4,mpitype_d5
+     module procedure mpitype_d1,mpitype_d2,mpitype_d3,mpitype_d4,mpitype_d5,mpitype_d6
      module procedure mpitype_c1
      module procedure mpitype_li1,mpitype_li2,mpitype_li3
   end interface mpitype
@@ -105,7 +105,7 @@ module wrapper_MPI
 
   interface mpibcast
      module procedure mpibcast_i0,mpibcast_li0,mpibcast_d0,mpibcast_c0
-     module procedure mpibcast_c1,mpibcast_d1,mpibcast_d2,mpibcast_i1,mpibcast_i2, mpibcast_i3
+     module procedure mpibcast_c1,mpibcast_d1,mpibcast_d2,mpibcast_d3,mpibcast_i1,mpibcast_i2, mpibcast_i3
   end interface mpibcast
 
   interface mpiscatter
@@ -142,11 +142,11 @@ module wrapper_MPI
   end interface mpiaccumulate
 
   interface mpitypesize
-    module procedure mpitypesize_d0, mpitypesize_d1, mpitypesize_i0, mpitypesize_l0
+    module procedure mpitypesize_d0, mpitypesize_d1, mpitypesize_i0, mpitypesize_long0, mpitypesize_l0
   end interface mpitypesize
 
   interface mpiwindow
-    module procedure mpiwindow_d0, mpiwindow_i0, mpiwindow_l0
+    module procedure mpiwindow_d0, mpiwindow_i0, mpiwindow_long0, mpiwindow_l0
   end interface mpiwindow
 
   !> Interface for MPI_ALLGATHERV routine
@@ -159,12 +159,17 @@ module wrapper_MPI
   end interface mpiiallred
 
   interface mpialltoallv
-      module procedure mpialltoallv_int, mpialltoallv_long, mpialltoallv_double
+      module procedure mpialltoallv_int11, mpialltoallv_long11, mpialltoallv_double11
+      module procedure mpialltoallv_double61
   end interface mpialltoallv
 
   interface mpiialltoallv
       module procedure mpiialltoallv_double
   end interface mpiialltoallv
+
+  interface mpi_get_alltoallv
+      module procedure mpi_get_alltoallv_i, mpi_get_alltoallv_l, mpi_get_alltoallv_d
+  end interface mpi_get_alltoallv
 
 !!$  interface mpiaccumulate
 !!$      module procedure mpiaccumulate_double
@@ -961,6 +966,12 @@ contains
     integer :: mt
     mt=MPI_DOUBLE_PRECISION
   end function mpitype_d5
+  pure function mpitype_d6(data) result(mt)
+    implicit none
+    double precision, dimension(:,:,:,:,:,:), intent(in) :: data
+    integer :: mt
+    mt=MPI_DOUBLE_PRECISION
+  end function mpitype_d6
 
   pure function mpitype_r1(data) result(mt)
     implicit none
@@ -1502,32 +1513,58 @@ contains
 
 
 
-  subroutine mpialltoallv_int(sendbuf, sendcounts, sdispls, recvbuf, recvcounts, rdispls, comm)
+  subroutine mpialltoallv_int11(sendbuf, sendcounts, sdispls, recvbuf, recvcounts, rdispls, comm)
     use dictionaries, only: f_err_throw
     use dynamic_memory
-    implicit none
-    integer(f_integer),intent(in) :: sendbuf
-    integer(f_integer),intent(out) :: recvbuf
-    include 'alltoallv-inc.f90'
-  end subroutine mpialltoallv_int
+    use yaml_output
+    use iso_c_binding
 
-  subroutine mpialltoallv_long(sendbuf, sendcounts, sdispls, recvbuf, recvcounts, rdispls, comm)
+    implicit none
+    integer(f_integer),dimension(:),intent(in),target :: sendbuf
+    integer(f_integer),dimension(:),intent(out),target :: recvbuf
+    integer(f_integer),dimension(:),pointer :: sendbuf_1d
+    integer(f_integer),dimension(:),pointer :: recvbuf_1d
+    include 'alltoallv-inc.f90'
+  end subroutine mpialltoallv_int11
+
+  subroutine mpialltoallv_long11(sendbuf, sendcounts, sdispls, recvbuf, recvcounts, rdispls, comm)
     use dictionaries, only: f_err_throw,f_err_define
     use dynamic_memory
+    use yaml_output
+    use iso_c_binding
     implicit none
-    integer(f_long),intent(in) :: sendbuf
-    integer(f_long),intent(out) :: recvbuf
+    integer(f_long),dimension(:),intent(in),target :: sendbuf
+    integer(f_long),dimension(:),intent(out),target :: recvbuf
+    integer(f_long),dimension(:),pointer :: sendbuf_1d
+    integer(f_long),dimension(:),pointer :: recvbuf_1d
     include 'alltoallv-inc.f90'
-  end subroutine mpialltoallv_long
+  end subroutine mpialltoallv_long11
 
-  subroutine mpialltoallv_double(sendbuf, sendcounts, sdispls, recvbuf, recvcounts, rdispls, comm)
+  subroutine mpialltoallv_double11(sendbuf, sendcounts, sdispls, recvbuf, recvcounts, rdispls, comm)
     use dictionaries, only: f_err_throw,f_err_define
     use dynamic_memory
+    use yaml_output
+    use iso_c_binding
     implicit none
-    double precision,intent(in) :: sendbuf
-    double precision,intent(out) :: recvbuf
+    double precision,dimension(:),intent(in),target :: sendbuf
+    double precision,dimension(:),intent(out),target :: recvbuf
+    double precision,dimension(:),pointer :: sendbuf_1d
+    double precision,dimension(:),pointer :: recvbuf_1d
     include 'alltoallv-inc.f90'
-  end subroutine mpialltoallv_double
+  end subroutine mpialltoallv_double11
+
+  subroutine mpialltoallv_double61(sendbuf, sendcounts, sdispls, recvbuf, recvcounts, rdispls, comm)
+    use dictionaries, only: f_err_throw,f_err_define
+    use dynamic_memory
+    use yaml_output
+    use iso_c_binding
+    implicit none
+    double precision,dimension(:,:,:,:,:,:),intent(in),target :: sendbuf
+    double precision,dimension(:),intent(out),target :: recvbuf
+    double precision,dimension(:),pointer :: sendbuf_1d
+    double precision,dimension(:),pointer :: recvbuf_1d
+    include 'alltoallv-inc.f90'
+  end subroutine mpialltoallv_double61
 
   function mpireduce_i0(sendbuf,op,root,comm) result(recv)
     implicit none
@@ -1959,6 +1996,19 @@ contains
     include 'bcast-inc.f90'
   end subroutine mpibcast_d2
 
+  subroutine mpibcast_d3(buffer,root,comm,check,maxdiff)
+    use dynamic_memory
+    use dictionaries, only: f_err_throw
+    use yaml_output !for check=.true.
+    use f_utils, only: f_zero
+    implicit none
+    double precision, dimension(:,:,:), intent(inout) ::  buffer
+    double precision, intent(out), optional :: maxdiff
+    double precision, dimension(:), allocatable :: array_diff
+    include 'bcast-decl-arr-inc.f90'
+    include 'bcast-inc.f90'
+  end subroutine mpibcast_d3
+
   subroutine mpiscatter_i1i1(sendbuf, recvbuf, root, comm)
     use dictionaries, only: f_err_throw,f_err_define
     implicit none
@@ -2183,6 +2233,19 @@ contains
     end if
   end function mpitypesize_i0
 
+  function mpitypesize_long0(foo) result(sizeof)
+    use dictionaries, only: f_err_throw,f_err_define
+    implicit none
+    integer(f_long), intent(in) :: foo
+    integer :: sizeof, ierr
+
+    call mpi_type_size(mpi_long, sizeof, ierr)
+    if (ierr/=0) then
+       call f_err_throw('Error in mpi_type_size',&
+            err_id=ERR_MPI_WRAPPERS)
+    end if
+  end function mpitypesize_long0
+
   function mpitypesize_l0(foo) result(sizeof)
     use dictionaries, only: f_err_throw,f_err_define
     implicit none
@@ -2295,6 +2358,39 @@ contains
 
 
   end function mpiwindow_i0
+
+  function mpiwindow_long0(size,base,comm) result(window)
+    use dictionaries, only: f_err_throw,f_err_define
+    implicit none
+    integer,intent(in) :: size
+    integer(f_long),intent(in) :: base
+    integer,intent(in) :: comm
+    !local variables
+    integer :: sizeof,info,ierr
+    integer :: window
+
+    sizeof=mpitypesize(base)
+    info=mpiinfo("no_locks", "true")
+
+    call mpi_win_create(base, int(size,kind=mpi_address_kind)*int(sizeof,kind=mpi_address_kind), &
+         sizeof, info,comm, window, ierr)
+
+    if (ierr/=0) then
+       call f_err_throw('Error in mpi_win_create',&
+            err_id=ERR_MPI_WRAPPERS)
+    end if
+
+    call mpiinfofree(info)
+
+    call mpi_win_fence(MPI_MODE_NOPRECEDE, window, ierr)
+    if (ierr/=0) then
+       call f_err_throw('Error in mpi_win_fence',&
+            err_id=ERR_MPI_WRAPPERS)
+    end if
+
+
+  end function mpiwindow_long0
+
 
   function mpiwindow_l0(size,base,comm) result(window)
     use dictionaries, only: f_err_throw,f_err_define
@@ -3018,6 +3114,42 @@ contains
        end if
     end if
   end subroutine mpiwait
+
+
+
+  subroutine mpi_get_alltoallv_i(iproc, nproc, comm, nsendcounts, nsenddspls, nrecvcounts, nrecvdspls, sendbuf, recvbuf)
+    use dynamic_memory
+    implicit none
+    integer(f_integer),dimension(:),intent(in) :: sendbuf
+    integer(f_integer),dimension(:),intent(in) :: recvbuf
+
+    include 'mpi_get_alltoallv-inc.f90'
+  
+  end subroutine mpi_get_alltoallv_i
+
+
+  subroutine mpi_get_alltoallv_l(iproc, nproc, comm, nsendcounts, nsenddspls, nrecvcounts, nrecvdspls, sendbuf, recvbuf)
+    use dynamic_memory
+    implicit none
+    integer(f_long),dimension(:),intent(in) :: sendbuf
+    integer(f_long),dimension(:),intent(in) :: recvbuf
+  
+    include 'mpi_get_alltoallv-inc.f90'
+
+  end subroutine mpi_get_alltoallv_l
+
+
+  subroutine mpi_get_alltoallv_d(iproc, nproc, comm, nsendcounts, nsenddspls, nrecvcounts, nrecvdspls, sendbuf, recvbuf)
+    use dynamic_memory
+    implicit none
+    double precision,dimension(:),intent(in) :: sendbuf
+    double precision,dimension(:),intent(in) :: recvbuf
+
+    include 'mpi_get_alltoallv-inc.f90'
+  
+  end subroutine mpi_get_alltoallv_d
+
+
 
 end module wrapper_MPI
 

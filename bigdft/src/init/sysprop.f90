@@ -1940,6 +1940,8 @@ subroutine kpts_to_procs_via_obj(nproc,nkpts,nobj,nobj_par)
   integer :: jkpt,nproc_per_kpt,nproc_left,kproc,nkpt_per_proc,nkpts_left
   real(gp) :: robjp,rounding_ratio
 
+  call f_routine(id='kpts_to_procs_via_obj')
+
   !decide the naive number of objects which should go to each processor.
   robjp=real(nobj,gp)*real(nkpts,gp)/real(nproc,gp)
   !print *,'hereweare',robjp,nobj   
@@ -2054,6 +2056,9 @@ subroutine kpts_to_procs_via_obj(nproc,nkpts,nobj,nobj_par)
         nobj_par(nproc-1,ikpt)=nobj_par(nproc-1,ikpt)+1
      end do
   end if
+
+  call f_release_routine()
+
 END SUBROUTINE kpts_to_procs_via_obj
 
 

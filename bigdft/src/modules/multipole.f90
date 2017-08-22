@@ -4205,35 +4205,57 @@ module multipole
    real(kind=8),dimension(0:2,ep%nmpl),intent(out) :: norm
 
    ! Local variables
-   integer :: impl, i1, i2, i3, ii1, ii2, ii3, l
+   integer :: impl, i1, i2, i3, ii1, ii2, ii3, l, ithread, nthread
    real(kind=8) :: gg
    real(kind=8),dimension(0:lmax) :: gg23
+   logical,dimension(:,:),allocatable :: i2skip
+   logical :: i2skip_initialized
+   !$ integer :: omp_get_max_threads, omp_get_thread_num
 
    call f_routine(id='calculate_norm')
 
+   nthread = 1
+   !$ nthread = omp_get_max_threads()
+   i2skip = f_malloc((/is2.to.ie2,0.to.nthread/),id='i2skip')
+
    call f_zero(norm)
 
+   ithread = 0
    !$omp parallel default(none) &
    !$omp shared(ep, is1, ie1, is2, ie2, is3, ie3, norm, hhh) &
-   !$omp shared(gaussians1, gaussians2, gaussians3, skip3_array) &
-   !$omp private(impl, i1, i2, i3, ii1, ii2, ii3, l, gg23, gg) 
+   !$omp shared(gaussians1, gaussians2, gaussians3, skip3_array, i2skip) &
+   !$omp private(impl, i1, i2, i3, ii1, ii2, ii3, l, gg23, gg, i2skip_initialized) &
+   !$omp firstprivate(ithread)
+   !$ ithread = omp_get_thread_num()
    !$omp do schedule(guided)
    impl_loop: do impl=1,ep%nmpl
        if (skip3_array(impl)) then
            !write(*,'(a,i0)') '#skip impl ',impl
            cycle impl_loop
        end if
+       i2skip_initialized = .false.
        i3loop: do i3=is3,ie3
            if (maxval(gaussians3(:,i3,impl))<1.d-20) cycle i3loop
+           if (.not.i2skip_initialized) then
+               do i2=is2,ie2
+                   if (maxval(gaussians2(:,i2,impl))<1.d-20) then
+                       i2skip(i2,ithread) = .true.
+                   else
+                       i2skip(i2,ithread) = .false.
+                   end if
+               end do
+               i2skip_initialized = .true.
+           end if
            ii3 = i3 - 15
            i2loop: do i2=is2,ie2
-               if (maxval(gaussians2(:,i2,impl))<1.d-20) cycle i2loop
+               !if (maxval(gaussians2(:,i2,impl))<1.d-20) cycle i2loop
+               if (i2skip(i2,ithread)) cycle i2loop
                ii2 = i2 - 15
                do l=0,lmax
                    gg23(l) = gaussians2(l,i2,impl)*gaussians3(l,i3,impl)
                end do
                i1loop: do i1=is1,ie1
-                   if (maxval(gaussians1(:,i1,impl))<1.d-20) cycle i1loop
+                   !if (maxval(gaussians1(:,i1,impl))<1.d-20) cycle i1loop
                    ii1 = i1 - 15
                    do l=0,lmax
                        ! Calculate the Gaussian as product of three 1D Gaussians
@@ -4252,6 +4274,8 @@ module multipole
    if (nproc>1) then
        call mpiallred(norm, mpi_sum, comm=bigdft_mpi%mpi_comm)
    end if
+
+   call f_free(i2skip)
 
    call f_release_routine()
 
