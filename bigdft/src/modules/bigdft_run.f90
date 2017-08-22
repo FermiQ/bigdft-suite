@@ -1,14 +1,14 @@
 !> @file
 !!  Define main module for using BigDFT as a blackbox
 !! @author
-!!    Copyright (C) 2007-2015 BigDFT group (LG, DC)
+!!    Copyright (C) 2007-2017 BigDFT group (LG, DC)<br/>
 !!    This file is distributed under the terms of the
 !!    GNU General Public License, see ~/COPYING file
 !!    or http://www.gnu.org/copyleft/gpl.txt .
 !!    For the list of contributors, see ~/AUTHORS
 
 
-!> Module handling the object for the runs of bigDFT (restart, output, ...)
+!> Module handling the object for the runs of BigDFT (restart, output, ...)
 module bigdft_run
   use module_defs, only: gp
   use dictionaries
@@ -19,24 +19,25 @@ module bigdft_run
   use f_utils
   use f_enums, f_str => str
   use module_input_dicts, only: bigdft_set_run_properties => dict_set_run_properties,&
-       bigdft_get_run_properties => dict_get_run_properties
+       bigdft_get_run_properties => dict_get_run_properties,&
+       final_positions_filename
   use public_enums
 
   private
 
-  !>  Used to restart a new DFT calculation or to save information
-  !!  for post-treatment
+  !> Used to restart a new DFT calculation or to save information
+  !! for post-treatment
   type, public :: QM_restart_objects
      type(f_reference_counter) :: refcnt
      integer :: version !< 0=cubic, 100=linear
      integer :: n1,n2,n3,nat
      real(gp), dimension(:,:), pointer :: rxyz_old,rxyz_new
      type(DFT_wavefunction) :: KSwfn !< Kohn-Sham wavefunctions
-     type(DFT_wavefunction) :: tmb !<support functions for linear scaling
+     type(DFT_wavefunction) :: tmb !< Support functions for linear scaling
      type(GPU_pointers) :: GPU
   end type QM_restart_objects
 
-  !>supplementary type in run_objects
+  !> Supplementary type in run_objects
   type, public :: MM_restart_objects
      type(f_reference_counter) :: refcnt
      !> array for temporary copy of atomic positions and forces
@@ -884,7 +885,7 @@ contains
     call f_object_add_signal(RUN_OBJECTS_TYPE, PRE_SCF_SIG, 1)
     call f_object_add_signal(RUN_OBJECTS_TYPE, POST_SCF_SIG, 2)
     call f_object_add_signal(RUN_OBJECTS_TYPE, "join", 3)
-    call f_object_add_signal(RUN_OBJECTS_TYPE, STATE_CALCULATOR_SIG, 3)
+    call f_object_add_signal(RUN_OBJECTS_TYPE, STATE_CALCULATOR_SIG, 4)
     call f_object_add_signal(RUN_OBJECTS_TYPE, DESTROY_SIG, 1)
 
     call f_object_new_("state_properties")
@@ -1090,7 +1091,8 @@ contains
     !associate the run_mode
     runObj%run_mode => runObj%inputs%run_mode
     runObj%add_coulomb_force = runObj%inputs%add_coulomb_force
-    if (runObj%run_mode == QM_RUN_MODE .or. runObj%run_mode == MULTI_RUN_MODE) then
+    if (runObj%run_mode == QM_RUN_MODE .or. runObj%run_mode == MULTI_RUN_MODE &
+         & .or. runObj%run_mode == PLUGIN_RUN_MODE) then
        call f_enum_attr(runObj%run_mode, RUN_MODE_CREATE_DOCUMENT)
     end if
 
@@ -1178,8 +1180,7 @@ contains
     end if
 
     ln = dict_len(runObj%user_inputs // MODE_VARIABLES // SECTIONS)
-    allocate(runObj%sections(ln)) ! associated(runObj%sections) can be used
-                                  ! to test if runObj is top level.
+    allocate(runObj%sections(ln))
     if (ln == 0) then
        call f_release_routine()
        return
@@ -1260,12 +1261,12 @@ contains
     !! which are provided by the informations given by run_dict
     type(run_objects), intent(in), optional :: source
     !local variables
-    logical :: dict_from_files,skip
+    logical :: dict_from_files,skip,exists
     integer :: i, ierr
     character(len=max_field_length) :: radical, posinp_id
     type(signal_ctx) :: sig
     type(dictionary), pointer :: iter
-    character(len = 256) :: mess
+    character(len = 256) :: mess,filename
 
     call f_routine(id='run_objects_init')
 
@@ -1283,8 +1284,8 @@ contains
        ! not anymore by user_inputs
        call create_log_file(run_dict,dict_from_files,skip)
        if (skip) then
-          call set(run_dict//SKIP_RUN,.true.)
-          return
+             call set(run_dict//SKIP_RUN,.true.)
+             return
        end if
 
        if (dict_from_files) then
@@ -1394,36 +1395,12 @@ contains
     ! Create sections if any.
     call set_section_objects(runObj)
 
-!!$    !init and update the restart objects
-!!$    if (associated(runObj%rst)) then
-!!$       call f_unref(runObj%rst%refcnt,count=count)
-!!$       if (count==0) then
-!!$          call free_QM_restart_objects(runObj%rst)
-!!$       else
-!!$          nullify(runObj%rst)
-!!$       end if
-!!$    else
-!!$       allocate(runObj%rst)
-!!$    end if
-!!$    call nullify_QM_restart_objects(runObj%rst)
     if(.not. associated(runObj%rst)) then
        allocate(runObj%rst)
        call nullify_QM_restart_objects(runObj%rst)
     end if
     call init_QM_restart_objects(bigdft_mpi%iproc,runObj%inputs,runObj%atoms,&
          runObj%rst)
-!!$    if (associated(runObj%mm_rst)) then
-!!$       call f_unref(runObj%mm_rst%refcnt,count=count)
-!!$       if (count==0) then
-!!$          call free_MM_restart_objects(runObj%mm_rst)
-!!$       else
-!!$          nullify(runObj%mm_rst)
-!!$       end if
-!!$    else
-!!$       allocate(runObj%mm_rst)
-!!$    end if
-!!$    !call free_MM_restart_objects(runObj%mm_rst)
-!!$    call nullify_MM_restart_objects(runObj%mm_rst)
     if (.not. associated(runObj%mm_rst)) then
        allocate(runObj%mm_rst)
        call nullify_MM_restart_objects(runObj%mm_rst)
@@ -1878,8 +1855,8 @@ contains
 !!$    write_mapping= runObj%run_mode /= 'QM_RUN_MODE' .and. bigdft_mpi%iproc==0 .and. verbose > 0
     !open the document if the run_mode has not it inside
     write_mapping = (bigdft_mpi%iproc==0 .and. &
-        & .not. (runObj%run_mode .hasattr. RUN_MODE_CREATE_DOCUMENT) .and. &
-        & verbose > 0)
+         .not. (runObj%run_mode .hasattr. RUN_MODE_CREATE_DOCUMENT) .and. &
+         get_verbose_level() > 0)
     if (write_mapping) then
        call yaml_sequence(advance='no')
        call yaml_mapping_open(trim(f_str(runObj%run_mode)),flow=.true.)
@@ -2001,15 +1978,19 @@ contains
        ! Calculates bazant forces betweeen given atomic configuration using
        ! periodic boundary conditions
        call bazant_energyandforces(nat, rxyz_ptr, outs%fxyz, outs%energy)
-    case('PLUGIN_RUN_MODE')
-
+    case ('PLUGIN_RUN_MODE')
+       if (.not. f_object_has_signal(RUN_OBJECTS_TYPE, STATE_CALCULATOR_SIG)) &
+            & call run_objects_type_init()
        if (f_object_signal_prepare(RUN_OBJECTS_TYPE, STATE_CALCULATOR_SIG, sig)) then
           call f_object_signal_add_arg(sig, runObj)
           call f_object_signal_add_arg(sig, outs)
           call f_object_signal_add_arg(sig, runObj%inputs%plugin_id)
+          call f_object_signal_add_arg(sig, infocode)
           call f_object_signal_emit(sig)
+       else
+          call f_err_throw('Ask for plugin calculation '//&
+               'but no signal connected.',err_name='BIGDFT_RUNTIME_ERROR')
        end if
-
     case default
        call f_err_throw('Following method for evaluation of '//&
             'energies and forces is unknown: '+ enum_int(runObj%run_mode)//&
@@ -2094,12 +2075,14 @@ contains
     end if
 
     if (runObj%inputs%ncount_cluster_x > 1) then
-       call f_strcpy(src='final_'+id,dest=filename)
+       !call f_strcpy(src='final_'+id,dest=filename)
+       call final_positions_filename(.false.,id,filename)
        call bigdft_write_atomic_file(runObj,outs,filename,&
             'FINAL CONFIGURATION',cwd_path=.true.)
 
     else
-       call f_strcpy(src='forces_'+id,dest=filename)
+       !call f_strcpy(src='forces_'+id,dest=filename)
+       call final_positions_filename(.true.,id,filename)
        call bigdft_write_atomic_file(runObj,outs,filename,&
             'Geometry + metaData forces',cwd_path=.true.)
 
@@ -2141,7 +2124,7 @@ contains
     call rxyz_inside_box(runObj%atoms%astruct,rxyz=runObj%rst%rxyz_new)
     !assign the verbosity of the output
     !the verbose variables is defined in module_defs
-    verbose=runObj%inputs%verbosity
+    call set_verbose_level(runObj%inputs%verbosity)
 
     ! Use the restart for the linear scaling version... probably to be modified.
 !!$    if(runObj%inputs%inputPsiId == INPUT_PSI_MEMORY_WVL) then

@@ -1,9 +1,9 @@
 !> @file
 !!    Main routine to perform Poisson solver calculation
 !! @author
-!!    Creation date: February 2007
+!!    Creation date: February 2007<br/>
 !!    Luigi Genovese
-!!    Copyright (C) 2002-2013 BigDFT group 
+!!    Copyright (C) 2002-2017 BigDFT group<br/>
 !!    This file is distributed under the terms of the
 !!    GNU General Public License, see ~/COPYING file
 !!    or http://www.gnu.org/copyleft/gpl.txt .
@@ -47,7 +47,7 @@ subroutine Electrostatic_Solver(kernel,rhov,energies,pot_ion,rho_ion,ehartree)
   !> Additional external density that is added to the output input, if present.
   !! The treatment of the Poisson Equation is done with the sum of the two densities whereas the rho-dependent cavity and some components
   !! of the energies are calculated only with the input rho.
-  real(dp), dimension(kernel%ndims(1),kernel%ndims(2),kernel%grid%n3p), intent(inout), optional, target :: rho_ion
+  real(dp), dimension(kernel%ndims(1), kernel%ndims(2), kernel%grid%n3p), intent(inout), optional, target :: rho_ion
   !> Electrostatic Energy of the system given as @f$\int \rho \cdot V @f$, where @f$\rho@f$ and @f$V@f$ correspond to the 
   !! values of rhov array in input and output, respectively. This value is already reduced such that each of the 
   !! MPI tasks have the same value
@@ -395,19 +395,19 @@ subroutine Electrostatic_Solver(kernel,rhov,energies,pot_ion,rho_ion,ehartree)
   end if
   !evaluating the total ehartree + e_static if needed
   !also cavitation energy can be given
-  energs%hartree=ehartreeLOC*0.5_dp*product(kernel%hgrids)
-  energs%eVextra=e_static*product(kernel%hgrids)
+  energs%hartree=ehartreeLOC*0.5_dp*kernel%mesh%volume_element!product(kernel%hgrids)
+  energs%eVextra=e_static*kernel%mesh%volume_element!product(kernel%hgrids)
   energs%cavitation=(kernel%cavity%gammaS+kernel%cavity%alphaS)*kernel%IntSur+&
        kernel%cavity%betaV*kernel%IntVol
 
+  call PS_reduce(energs,kernel)
+
   if (present(energies)) then
-     call PS_reduce(energs,kernel)
      energies=energs
   end if
 
   if (present(ehartree)) then
      ehartree=energs%hartree
-     call PS_reduce(ehartree,kernel)
   end if
 
   if (wrtmsg) then
@@ -469,9 +469,7 @@ subroutine Parallel_GPS(kernel,cudasolver,offset,strten,wrtmsg,rho_dist,use_inpu
      if (use_input_guess) then
         !gathering the data to obtain the distribution array
         !call PS_gather(kernel%w%pot,kernel) !not needed as in PI the W%pot array is global
-        call update_rhopol(kernel%geocode,kernel%ndims(1),kernel%ndims(2),&
-             kernel%ndims(3),&
-             kernel%w%pot,kernel%nord,kernel%hgrids,1.0_dp,kernel%w%eps,&
+        call update_rhopol(kernel%mesh,kernel%w%pot,kernel%nord,1.0_dp,kernel%w%eps,&
              kernel%w%dlogeps,kernel%w%rho,rhores2)
      end if
 
@@ -504,9 +502,7 @@ subroutine Parallel_GPS(kernel,cudasolver,offset,strten,wrtmsg,rho_dist,use_inpu
 
         !update rhopol and calculate residue
         !reduction of the residue not necessary
-        call update_rhopol(kernel%geocode,kernel%ndims(1),kernel%ndims(2),&
-             kernel%ndims(3),&
-             kernel%w%pot,kernel%nord,kernel%hgrids,kernel%PI_eta,kernel%w%eps,&
+        call update_rhopol(kernel%mesh,kernel%w%pot,kernel%nord,kernel%PI_eta,kernel%w%eps,&
              kernel%w%dlogeps,kernel%w%rho,rhores2)
 
         rhores2=sqrt(rhores2/rpoints)
@@ -1053,6 +1049,8 @@ end subroutine PS_dump_coulomb_operator
 !!    The XC enlarging due to GGA part is not present for surfaces and 
 !!    periodic boundary condition. This is related to the fact that the calculation of the
 !!    gradient and the White-Bird correction are not yet implemented for non-isolated systems
+!! @todo
+!!    This routine should be separated in the inner part and the outer part responsible of the gradient calculation
 !! @author Luigi Genovese
 !! @date February 2007
 subroutine PS_dim4allocation(geocode,datacode,iproc,nproc,n01,n02,n03,use_gradient,use_wb_corr,&
@@ -1146,7 +1144,8 @@ subroutine PS_dim4allocation(geocode,datacode,iproc,nproc,n01,n02,n03,use_gradie
    !formal start and end of the slice
    istart=iproc*(md2/nproc)
    iend=min((iproc+1)*md2/nproc,m2)
-   
+ 
+!this second part of the routine is of interest only for the XC part to be in agreement with Hattree potential distribution
    select case(datacode)
    case('D')
       call xc_dimensions(geocode,use_gradient,use_wb_corr,istart,iend,m2,nxc,nxcl,nxcr,nwbl,nwbr,i3s,i3xcsh)
@@ -1177,6 +1176,21 @@ END SUBROUTINE PS_dim4allocation
 
 !> Calculate the dimensions to be used for the XC part, taking into account also
 !! the White-bird correction which should be made for some GGA functionals
+!!dimension for exchange-correlation (different in the global or distributed case)
+!!let us calculate the dimension of the portion of the rho array to be passed 
+!!to the xc routine
+!!this portion will depend on the need of calculating the gradient or not, 
+!!and whether the White-Bird correction must be inserted or not 
+!!(absent only in the LB ixc=13 case)
+!
+!!nxc is the effective part of the third dimension that is being processed
+!!nxt is the dimension of the part of rho that must be passed to the gradient routine
+!!nwb is the dimension of the part of rho in the wb-postprocessing routine
+!!note: nxc <= nwb <= nxt
+!!the dimension are related by the values of nwbl and nwbr
+!!      nxc+nxcl+nxcr-2 = nwb
+!!      nwb+nwbl+nwbr = nxt
+!!
 !! @warning It is imperative that iend <=m2
 subroutine xc_dimensions(geocode,use_gradient,use_wb_corr,&
      & istart,iend,m2,nxc,nxcl,nxcr,nwbl,nwbr,i3s,i3xcsh)
@@ -1299,25 +1313,16 @@ subroutine P_FFT_dimensions(n01,n02,n03,m1,m2,m3,n1,n2,n3,md1,md2,md3,nd1,nd2,nd
 
  call fourier_dim(l1,n1)
  if (n1 /= m1) then
-    !print *,'the FFT in the x direction is not allowed'
-    !print *,'n01 dimension',n01
-    !stop
     call f_err_throw('The FFT in the x direction is not allowed, n01 dimension '//n01)
  end if
 
  call fourier_dim(l2,n2)
  if (n2 /= m2) then
-    !print *,'the FFT in the z direction is not allowed'
-    !print *,'n03 dimension',n03
-    !stop
     call f_err_throw('The FFT in the z direction is not allowed, n03 dimension '//n03)
  end if
  
  call fourier_dim(l3,n3)
  if (n3 /= m3) then
-    !print *,'the FFT in the y direction is not allowed'
-    !print *,'n02 dimension',n02
-    !stop
     call f_err_throw('The FFT in the y direction is not allowed, n02 dimension '//n02)
  end if
 
@@ -1329,11 +1334,8 @@ subroutine P_FFT_dimensions(n01,n02,n03,m1,m2,m3,n1,n2,n3,md1,md2,md3,nd1,nd2,nd
 
  !enlarge the md2 dimension to be compatible with MPI_ALLTOALL communication
  do while(nproc*(md2/nproc) < n2)
-    !151 if (nproc*(md2/nproc) < n2) then
     md2=md2+1
  end do
-!    goto 151
- !endif
  
  if (enlarge_md2) md2=(md2/nproc+1)*nproc
 
@@ -1345,10 +1347,7 @@ subroutine P_FFT_dimensions(n01,n02,n03,m1,m2,m3,n1,n2,n3,md1,md2,md3,nd1,nd2,nd
  
  !enlarge the md2 dimension to be compatible with MPI_ALLTOALL communication
  do while(modulo(nd3,nproc) /= 0)
-!250 if (modulo(nd3,nproc) /= 0) then
     nd3=nd3+1
-!    goto 250
-! endif
  end do
 
 END SUBROUTINE P_FFT_dimensions
