@@ -455,7 +455,8 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
           fscale_upperbound=in%cp%foe%fscale_upperbound, &
           eval_multiplicator=1.d0, &
           accuracy_function=in%cp%foe%accuracy_ice, accuracy_penalty=in%cp%foe%accuracy_penalty, &
-          betax=in%cp%foe%betax_ice)
+          betax=in%cp%foe%betax_ice, occupation_function=in%cp%foe%occupation_function, &
+          adjust_fscale=in%cp%foe%adjust_fscale)
      call f_free(charge_fake)
 
      !!call f_free(locreg_centers)

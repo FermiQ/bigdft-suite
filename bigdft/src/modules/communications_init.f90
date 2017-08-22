@@ -660,7 +660,7 @@ module communications_init
       end if
       if (tt/=weight_c_tot_check) then
           !write(*,'(a,2es20.10)') 'tt, weight_c_tot_check', tt, weight_c_tot_check
-          call f_err_throw(yaml_toa(tt)+'tt /= weight_c_tot_check='+yaml_toa(weight_c_tot_check))
+          call f_err_throw(yaml_toa(tt)+'=tt /= weight_c_tot_check='+yaml_toa(weight_c_tot_check))
       end if
 
       !write(*,*) 'sum(weightppp_c)', sum(weightppp_c)

@@ -134,6 +134,7 @@ module f_utils
      module procedure f_null_i0,f_null_d0,f_null_r0
      module procedure f_null_d1_ptr
      module procedure f_null_i1_ptr,f_null_i2_ptr
+     module procedure f_null_l0
   end interface assignment(=)
 
   public :: f_diff,f_file_unit,f_mkdir,f_savetxt
@@ -835,6 +836,14 @@ contains
     integer, dimension(:,:), intent(out), pointer :: val
     if (nl%none==NULL_) nullify(val)
   end subroutine f_null_i2_ptr
+
+  !>nullification information
+  pure subroutine f_null_l0(val,nl)
+    implicit none
+    type(f_none_object), intent(in) :: nl
+    logical, intent(out) :: val
+    if (nl%none==NULL_) val=.false.
+  end subroutine f_null_l0
 
   
   !>increment a integer, to be used in low-performance routines

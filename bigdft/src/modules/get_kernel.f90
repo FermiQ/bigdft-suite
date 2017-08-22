@@ -1323,6 +1323,7 @@ module get_kernel
               foe_obj = foe_data_null()
               !call init_foe_wrapper(iproc, nproc, input, orbs_KS, 0.d0, foe_obj)
               call copy_foe_data(tmb%foe_obj, foe_obj)
+              !write(*,*) 'tmb%foe_obj%fscale, foe_obj%fscale',tmb%foe_obj%fscale, foe_obj%fscale
     
               ! Round up the target charge (required for systems with non-integer charge)
               !call foe_data_set_real(foe_obj,"charge",qq,1)

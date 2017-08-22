@@ -39,11 +39,12 @@ module module_func
   public :: func
 
   ! Public parameters
-  integer,parameter,public :: FUNCTION_POLYNOMIAL = 101
-  integer,parameter,public :: FUNCTION_ERRORFUNCTION = 102
-  integer,parameter,public :: FUNCTION_XTIMESERRORFUNCTION = 103
-  integer,parameter,public :: FUNCTION_EXPONENTIAL = 104
+  integer,parameter,public :: FUNCTION_POLYNOMIAL            = 101
+  integer,parameter,public :: FUNCTION_ERRORFUNCTION         = 102
+  integer,parameter,public :: FUNCTION_XTIMESERRORFUNCTION   = 103
+  integer,parameter,public :: FUNCTION_EXPONENTIAL           = 104
   integer,parameter,public :: FUNCTION_ERRORFUNCTION_ENTROPY = 105
+  integer,parameter,public :: FUNCTION_FERMIFUNCTION         = 106
 
   contains
 
@@ -85,6 +86,12 @@ module module_func
           if (.not.present(fscalex)) call f_err_throw("'fscalex' not present")
           ef = efx
           fscale = fscalex
+      case(FUNCTION_FERMIFUNCTION)
+          ifunc = FUNCTION_FERMIFUNCTION
+          if (.not.present(efx)) call f_err_throw("'efx' not present")
+          if (.not.present(fscalex)) call f_err_throw("'fscalex' not present")
+          ef = efx
+          fscale = fscalex
       case default
           call f_err_throw("wrong value of 'ifuncx'")
       end select
@@ -113,6 +120,8 @@ module module_func
           func = safe_exp(beta*(x-mua)) - safe_exp(-beta*(x-mub))
       case(FUNCTION_ERRORFUNCTION_ENTROPY)
           func = fscale/(2._mp*sqrt_pi)*safe_exp(-((x-ef)/fscale)**2)
+      case(FUNCTION_FERMIFUNCTION)
+          func = 1._mp/(1._mp+safe_exp((x-ef)/fscale))
       case default
           call f_err_throw("wrong value of 'ifunc'")
       end select
@@ -1104,7 +1113,8 @@ module foe_common
     subroutine init_foe(iproc, nproc, nspin, charge, foe_obj, ef, tmprtr, evbounds_nsatur, evboundsshrink_nsatur, &
                evlow, evhigh, fscale, ef_interpol_det, ef_interpol_chargediff, &
                fscale_lowerbound, fscale_upperbound, eval_multiplicator, &
-               npl_min, npl_max, npl_stride, betax, ntemp, accuracy_function, accuracy_penalty)
+               npl_min, npl_max, npl_stride, betax, ntemp, accuracy_function, accuracy_penalty, occupation_function, &
+               adjust_fscale)
       use foe_base, only: foe_data, foe_data_set_int, foe_data_set_real, foe_data_set_logical, foe_data_get_real, foe_data_null
       use dynamic_memory
       use chess_base, only: chess_params, chess_input_dict, chess_init
@@ -1134,6 +1144,8 @@ module foe_common
       integer,intent(in),optional :: ntemp
       real(kind=mp),intent(in),optional :: accuracy_function
       real(kind=mp),intent(in),optional :: accuracy_penalty
+      integer,intent(in),optional :: occupation_function
+      logical,intent(in),optional :: adjust_fscale
 
       ! Local variables
       character(len=*), parameter :: subname='init_foe'
@@ -1157,6 +1169,8 @@ module foe_common
       integer :: ntemp_
       real(kind=mp) :: accuracy_function_
       real(kind=mp) :: accuracy_penalty_
+      integer :: occupation_function_
+      logical :: adjust_fscale_
       type(chess_params) :: cp
       type(dictionary),pointer :: dict
 
@@ -1181,6 +1195,8 @@ module foe_common
       ef_interpol_chargediff_ = cp%foe%ef_interpol_chargediff !1.0_mp
       fscale_lowerbound_ = cp%foe%fscale_lowerbound !5.d-3
       fscale_upperbound_ = cp%foe%fscale_upperbound !5.d-2
+      occupation_function_ = cp%foe%occupation_function
+      adjust_fscale_ = cp%foe%adjust_fscale
       tmprtr_ = 0.0_mp
       eval_multiplicator_ = 1.0_mp
       npl_min_ = 10
@@ -1210,6 +1226,8 @@ module foe_common
       if (present(ntemp)) ntemp_ = ntemp
       if (present(accuracy_function)) accuracy_function_ = accuracy_function
       if (present(accuracy_penalty)) accuracy_penalty_ = accuracy_penalty
+      if (present(occupation_function)) occupation_function_ = occupation_function
+      if (present(adjust_fscale)) adjust_fscale_ = adjust_fscale
     
       foe_obj = foe_data_null()
 
@@ -1231,6 +1249,8 @@ module foe_common
       call foe_data_set_int(foe_obj,"ntemp",ntemp_)
       call foe_data_set_real(foe_obj,"accuracy_function",accuracy_function_)
       call foe_data_set_real(foe_obj,"accuracy_penalty",accuracy_penalty_)
+      call foe_data_set_int(foe_obj,"occupation_function",occupation_function_)
+      call foe_data_set_logical(foe_obj,"adjust_fscale",adjust_fscale_)
 
       foe_obj%charge = f_malloc0_ptr(nspin,id='foe_obj%charge')
       foe_obj%evlow = f_malloc0_ptr(nspin,id='foe_obj%evlow')
@@ -1864,7 +1884,8 @@ module foe_common
                       !call timing(iproc, 'chebyshev_coef', 'ON')
                       call f_timing(TCAT_CME_COEFFICIENTS,'ON')
 
-                      call func_set(FUNCTION_ERRORFUNCTION, efx=foe_data_get_real(foe_obj,"ef"), fscalex=fscale)
+                      call func_set(foe_data_get_int(foe_obj,"occupation_function"), &
+                           efx=foe_data_get_real(foe_obj,"ef"), fscalex=fscale)
                       call get_chebyshev_expansion_coefficients(iproc, nproc, comm, foe_data_get_real(foe_obj,"evlow",1), &
                            foe_data_get_real(foe_obj,"evhigh",1), npl, func, cc(1,1,1), &
                            x_max_error, max_error, mean_error)
@@ -2149,7 +2170,7 @@ module foe_common
       select case (fun)
       case (FUNCTION_POLYNOMIAL)
           if (.not. present(ex)) call f_err_throw("arguments 'ex' is not present")
-      case (FUNCTION_ERRORFUNCTION)
+      case (FUNCTION_ERRORFUNCTION, FUNCTION_FERMIFUNCTION)
           if (.not. present(ef)) call f_err_throw("arguments 'ef' is not present")
           if (.not. present(fscale)) call f_err_throw("arguments 'fscale' is not present")
           !write(*,*) 'iproc, ef, fscale, evlow, evhigh', &
@@ -2194,6 +2215,10 @@ module foe_common
                   call func_set(FUNCTION_POLYNOMIAL, powerx=ex(icalc))
               case (FUNCTION_ERRORFUNCTION)
                   call func_set(FUNCTION_ERRORFUNCTION, efx=ef(icalc), fscalex=fscale(icalc))
+              case (FUNCTION_FERMIFUNCTION)
+                  call func_set(FUNCTION_FERMIFUNCTION, efx=ef(icalc), fscalex=fscale(icalc))
+              case default
+                  call f_err_throw('wrong value for fun')
               end select
               call get_chebyshev_expansion_coefficients(iproc, nproc, comm, foe_data_get_real(foe_obj,"evlow",ispin), &
                    foe_data_get_real(foe_obj,"evhigh",ispin), ipl, func, cc_trial(1:ipl,icalc,1), &
@@ -2466,7 +2491,7 @@ module foe_common
       end select
 
       select case (func_name)
-      case (FUNCTION_ERRORFUNCTION) 
+      case (FUNCTION_ERRORFUNCTION, FUNCTION_FERMIFUNCTION) 
           if (.not.present(efarr)) call f_err_throw('efarr not present')
           if (.not.present(fscale_arr)) call f_err_throw('fscale_arr not present')
       case (FUNCTION_POLYNOMIAL) !generalized eigenvalue problem, i.e. the overlap matrix must be provided
@@ -2518,8 +2543,9 @@ module foe_common
 
               if (jspin==1) then
     
-                  if (func_name==FUNCTION_ERRORFUNCTION) then
-                      call get_polynomial_degree(iproc, nproc, comm, 1, ncalc, FUNCTION_ERRORFUNCTION, foe_obj, &
+                  if (func_name==FUNCTION_ERRORFUNCTION .or. func_name==FUNCTION_FERMIFUNCTION) then
+                      call get_polynomial_degree(iproc, nproc, comm, 1, ncalc, &
+                           foe_data_get_int(foe_obj,"occupation_function"), foe_obj, &
                            npl_min, npl_max, npl_stride, accuracy_function, accuracy_penalty, 0, npl, cc_, &
                            max_error, x_max_error, mean_error, anoise, increase_degree_for_penaltyfunction, &
                            ef=efarr, fscale=fscale_arr)

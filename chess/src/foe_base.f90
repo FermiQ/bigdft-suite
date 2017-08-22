@@ -36,7 +36,7 @@ module foe_base
     real(kind=mp),dimension(:),pointer :: charge !< Total charge of the system (up/down spin)
     real(kind=mp) :: fscale_lowerbound           !< lower bound for the error function decay length
     real(kind=mp) :: fscale_upperbound           !< upper bound for the error function decay length
-    real(kind=mp) :: tmprtr                      !< temperature (actually not really... 0.d0 means error function with finite temperature)
+    real(kind=mp) :: tmprtr                      !< temperature
     integer :: evbounds_isatur, evboundsshrink_isatur, evbounds_nsatur, evboundsshrink_nsatur !< variables to check whether the eigenvalue bounds might be too big
     real(kind=mp) :: evlow_min, evhigh_max
     real(kind=mp),dimension(:),pointer :: eval_multiplicator !< multiplicative factor to scale the eigenvalue spectrum
@@ -47,6 +47,8 @@ module foe_base
     integer :: ntemp !< Number of FOE iterations with adapted temperature
     real(mp) :: accuracy_function !< Accuracy of the Chebyshev fit for the function to be approximated
     real(mp) :: accuracy_penalty !< Accuracy of the Chebyshev fit for the penalty function to estimate the eigenvalue bounds
+    integer :: occupation_function !< Function to determine the occupation numbers
+    logical :: adjust_fscale !< dynamically adjust fscale or not
   end type foe_data
 
 
@@ -93,6 +95,8 @@ module foe_base
       foe_obj%ntemp                  =f_none()
       foe_obj%accuracy_function      =f_none()
       foe_obj%accuracy_penalty       =f_none()
+      foe_obj%occupation_function    =f_none()
+      foe_obj%adjust_fscale          =f_none()
     end function foe_data_null
 
 
@@ -136,6 +140,8 @@ module foe_base
       foe_obj_out%ntemp                  = foe_obj_in%ntemp
       foe_obj_out%accuracy_function      = foe_obj_in%accuracy_function
       foe_obj_out%accuracy_penalty       = foe_obj_in%accuracy_penalty
+      foe_obj_out%occupation_function    = foe_obj_in%occupation_function
+      foe_obj_out%adjust_fscale          = foe_obj_in%adjust_fscale
     end subroutine copy_foe_data
 
 
@@ -175,6 +181,8 @@ module foe_base
           foe_obj%npl_stride = val
       case ("ntemp")
           foe_obj%ntemp = val
+      case ("occupation_function")
+          foe_obj%occupation_function = val
       case default
           call f_err_throw("wrong argument for "//trim(fieldname))
       end select
@@ -206,6 +214,8 @@ module foe_base
           val = foe_obj%npl_stride
       case ("ntemp")
           val = foe_obj%ntemp
+      case ("occupation_function")
+          val = foe_obj%occupation_function
       case default
           call f_err_throw("wrong argument for "//trim(fieldname))
       end select
@@ -374,6 +384,8 @@ module foe_base
       logical,intent(in) :: val
 
       select case (fieldname)
+      case ("adjust_fscale")
+          foe_obj%adjust_fscale = val
       case default
           call f_err_throw("wrong argument for "//trim(fieldname))
       end select
@@ -386,6 +398,8 @@ module foe_base
       character(len=*),intent(in) :: fieldname
 
       select case (fieldname)
+      case ("adjust_fscale")
+          val = foe_obj%adjust_fscale
       case default
           call f_err_throw("wrong argument for "//trim(fieldname))
       end select

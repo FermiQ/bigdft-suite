@@ -190,6 +190,8 @@ module foe
       fscale_new=1.d100
       ebs=0.d0
 
+      !write(*,*) 'temp_multiplicator, foe_data_get_real(foe_obj,"fscale")', &
+      !            temp_multiplicator, foe_data_get_real(foe_obj,"fscale")
       fscale_newx = temp_multiplicator*foe_data_get_real(foe_obj,"fscale")
 
       if (iproc==0) then
@@ -202,6 +204,8 @@ module foe
 
 
       fscale_new = fscale_newx
+      !write(*,*) 'foe_data_get_real(foe_obj,"fscale_lowerbound")',foe_data_get_real(foe_obj,"fscale_lowerbound")
+      !write(*,*) 'foe_data_get_real(foe_obj,"fscale_upperbound")',foe_data_get_real(foe_obj,"fscale_upperbound")
       fscale_new = max(fscale_new,foe_data_get_real(foe_obj,"fscale_lowerbound"))
       fscale_new = min(fscale_new,foe_data_get_real(foe_obj,"fscale_upperbound"))
       call foe_data_set_real(foe_obj,"fscale",fscale_new)
@@ -232,6 +236,7 @@ module foe
           evhigh_old=-1.d100
 
           if (iproc==0) then
+              call yaml_map('function to assign occupations',foe_data_get_int(foe_obj,"occupation_function"))
               call yaml_map('decay length of error function',fscale,fmt='(es10.3)')
           end if
 
@@ -253,7 +258,8 @@ module foe
           efarr(1) = foe_data_get_real(foe_obj,"ef")
           fscale_arr(1) = foe_data_get_real(foe_obj,"fscale",1)
           call get_bounds_and_polynomials(iproc, nproc, comm, 2, 1, npl_max, npl_stride, &
-               1, FUNCTION_ERRORFUNCTION, accuracy_function, accuracy_penalty, .false., 1.2_mp, 1.2_mp, foe_verbosity, &
+               1, foe_data_get_int(foe_obj,"occupation_function"), &
+               accuracy_function, accuracy_penalty, .false., 1.2_mp, 1.2_mp, foe_verbosity, &
                smatm, smatl, ham_, foe_obj, npl_min, ham_eff, & !kernel_%matrix_compr(ilshift+1:), &
                chebyshev_polynomials, npl, scale_factor, shift_value, hamscal_compr, &
                smats=smats, ovrlp_=ovrlp_, ovrlp_minus_one_half_=ovrlp_minus_one_half_(1), &
@@ -291,7 +297,7 @@ module foe
 
           npl_check = npl
           cc_check = f_malloc0((/npl_check,1,3/),id='cc_check')
-          call func_set(FUNCTION_ERRORFUNCTION, efx=foe_data_get_real(foe_obj,"ef"), fscalex=fscale_check)
+          call func_set(foe_data_get_int(foe_obj,"occupation_function"), efx=foe_data_get_real(foe_obj,"ef"), fscalex=fscale_check)
           call get_chebyshev_expansion_coefficients(iproc, nproc, comm, &
                foe_data_get_real(foe_obj,"evlow",1), &
                foe_data_get_real(foe_obj,"evhigh",1), npl_check, func, cc_check(1,1,1), &
@@ -409,34 +415,40 @@ module foe
               end if
           end if
 
-          if (diff<5.d-5) then
-              ! can decrease polynomial degree
-              if (iproc==0) call yaml_map('modify error function decay length','increase')
-              fscale_new=1.25d0*fscale_new
-              degree_sufficient=.true.
-          else if (diff>=5.d-5 .and. diff < 1.d-4) then
-              ! polynomial degree seems to be appropriate
-              degree_sufficient=.true.
-              if (iproc==0) call yaml_map('modify error function decay length','No')
-              fscale_new=fscale_new
+          if (foe_data_get_logical(foe_obj,"adjust_fscale")) then
+              ! Adjust fscale
+              if (diff<5.d-5) then
+                  ! can decrease polynomial degree
+                  if (iproc==0) call yaml_map('modify error function decay length','increase')
+                  fscale_new=1.25d0*fscale_new
+                  degree_sufficient=.true.
+              else if (diff>=5.d-5 .and. diff < 1.d-4) then
+                  ! polynomial degree seems to be appropriate
+                  degree_sufficient=.true.
+                  if (iproc==0) call yaml_map('modify error function decay length','No')
+                  fscale_new=fscale_new
+              else
+                  ! polynomial degree too small, increase and recalculate the kernel
+                  degree_sufficient=.false.
+                  if (iproc==0) call yaml_map('modify error function decay length','decrease')
+                  fscale_new=0.5d0*fscale_new
+              end if
+              if (fscale_new<foe_data_get_real(foe_obj,"fscale_lowerbound")) then
+                  fscale_new=foe_data_get_real(foe_obj,"fscale_lowerbound")
+                  if (iproc==0) call yaml_map('fscale reached lower limit; reset to', &
+                      foe_data_get_real(foe_obj,"fscale_lowerbound"))
+                  reached_limit=.true.
+              else if (fscale_new>foe_data_get_real(foe_obj,"fscale_upperbound")) then
+                  fscale_new=foe_data_get_real(foe_obj,"fscale_upperbound")
+                  if (iproc==0) call yaml_map('fscale reached upper limit; reset to', &
+                      foe_data_get_real(foe_obj,"fscale_upperbound"))
+                  reached_limit=.true.
+              else
+                  reached_limit=.false.
+              end if
           else
-              ! polynomial degree too small, increase and recalculate the kernel
-              degree_sufficient=.false.
-              if (iproc==0) call yaml_map('modify error function decay length','decrease')
-              fscale_new=0.5d0*fscale_new
-          end if
-          if (fscale_new<foe_data_get_real(foe_obj,"fscale_lowerbound")) then
-              fscale_new=foe_data_get_real(foe_obj,"fscale_lowerbound")
-              if (iproc==0) call yaml_map('fscale reached lower limit; reset to', &
-                  foe_data_get_real(foe_obj,"fscale_lowerbound"))
-              reached_limit=.true.
-          else if (fscale_new>foe_data_get_real(foe_obj,"fscale_upperbound")) then
-              fscale_new=foe_data_get_real(foe_obj,"fscale_upperbound")
-              if (iproc==0) call yaml_map('fscale reached upper limit; reset to', &
-                  foe_data_get_real(foe_obj,"fscale_upperbound"))
-              reached_limit=.true.
-          else
-              reached_limit=.false.
+              ! else exit
+              exit temp_loop
           end if
 
           call foe_data_set_real(foe_obj,"fscale",fscale_new)
