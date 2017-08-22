@@ -731,11 +731,11 @@ module postprocessing_linear
       if (input%write_orbitals==2) then
           if (frag_coeffs) then
              call write_orbital_density(iproc, .false., mod(input%lin%plotBasisFunctions,10), &
-                  trim(input%dir_output)//'KSDens', &
+                  trim(input%dir_output)//'KSDensFrag', &
                   KSwfn%orbs%npsidim_orbs, phiwork_global,  KSwfn%orbs, KSwfn%lzd, at, rxyz, .true.)
           else
              call write_orbital_density(iproc, .false., mod(input%lin%plotBasisFunctions,10), &
-                  trim(input%dir_output)//'KSDensFrag', &
+                  trim(input%dir_output)//'KSDens', &
                   KSwfn%orbs%npsidim_orbs, phiwork_global, KSwfn%orbs, KSwfn%lzd, at, rxyz, .true.)
           end if
       else if (input%write_orbitals==3) then 
