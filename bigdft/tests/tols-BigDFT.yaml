@@ -1094,7 +1094,7 @@ onlyhigh:
  Energy (Hartree): 1.6e-11
  Maxdiff for overlap calculation: 2.8e-08
  Maxdiff for transpose (checksum): 3.0e-11
- norm(P): 1.5e-11
+ norm(P): 5.0e-9
 
 rotatesmall_read1:
  Epsilon: 1.1e-11
@@ -1689,7 +1689,7 @@ O2spin_dirmin:
  Force Norm (Hartree/Bohr): 3.45e-5
  Maxdiff for transpose (checksum): 5.9e-11
  number of corrected points: 33.0
- ENERGY: 1.3e-7
+ ENERGY: 3.1e-7
 
 verysparse:
  Total charge: 2.3e-8
@@ -2925,3 +2925,61 @@ MD_LJ-NVE:
     T: 0.005
 MD_LJ-NVT:
     T: 0.005
+
+metals_errorfunction:
+   EBS: 3.7e-11
+   EBS higher temperature: 3.8e-11
+   EXC: 1.0e-10
+   Energy (Hartree): 2.5e-11
+   eF: 1.0e-9
+   energy: 2.5e-11
+   trace(KH): 3.7e-11
+
+metals_fermifunction:
+  EBS: 3.2e-11
+  EBS higher temperature: 3.1e-11
+  Enl: 1.1e-10
+  Omega new: 2.8e-11
+  Omega old: 2.8e-11
+  trace(KH): 3.2e-11
+
+metals_variable:
+  D Tr(K): 1.1e-3
+  EBS: 5.3e-06
+  EBS higher temperature: 5.5e-06
+  EH: 7.0e-6
+  EXC: 1.1e-06
+  Ekin: 4.5e-07
+  Energy (Hartree): 1.2e-05
+  Enl: 3.1e-07
+  Epot: 3.4e-06
+  EvXC: 1.4e-06
+  Force Norm (Hartree/Bohr): 5.7-07
+  HOMO energy: 2.0e-07
+  HOMO-LUMO gap (Ha): 2.3e-09
+  HOMO-LUMO gap (eV): 6.3e-08
+  LUMO energy: 2.0e-07
+  Omega new: 9.0e-7
+  Omega old: 9.0e-7
+  Total charge: 7.1e-11
+  Tr(K): 3.2e-4
+  difference: 2.4e-07
+  eF: 3.1e-07
+  eTS: 1.4e-09
+  energy: 1.2e-05
+  exp accur: 1.1e-08
+  q0: 1.1e-06
+  q1: 7.0e-07
+  q2: 2.0e-06
+  relative difference: 2.8e-08
+  total charge correction: 4.7e-10
+  trace: 2.2e-11
+  trace(KH): 5.3e-06
+  trace(KS): 7.1e-11
+  trace(Ktilde): 7.4e-11
+  Clean forces norm (Ha/Bohr): 1.7e-6
+  Raw forces norm (Ha/Bohr): 1.7e-6
+  Average noise forces: 4.3e-7
+  Atomic Forces (Ha/Bohr): 4.5e-7
+  Omega: 3.4e-7
+  Quadrupole Moment (AU): 1.0e-2
