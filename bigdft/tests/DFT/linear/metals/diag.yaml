@@ -1,0 +1,5 @@
+ lin_kernel:
+   linear_method: DIAG
+ mix:
+   norbsempty: 100
+   tel: 5.e-3

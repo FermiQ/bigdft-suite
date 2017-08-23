@@ -29,7 +29,8 @@ LONG_TESTDIRS = $(SHORT_TESTDIRS) \
 	   expfoegeopt \
 	   igortho \
        extendedfrags \
-	   matrixtaskgroups
+	   matrixtaskgroups \
+	   metals
 
 if HAVE_PEXSI
   LONG_TESTDIRS += pexsi
