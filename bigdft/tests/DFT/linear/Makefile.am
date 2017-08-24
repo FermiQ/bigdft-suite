@@ -11,26 +11,26 @@ SHORT_TESTDIRS= base \
 
 LONG_TESTDIRS = $(SHORT_TESTDIRS) \
 	Locreg \
-	   mixpotential \
-	   cleanup \
-       onlyhigh \
-	   restartdisk \
-	   foe \
-	   geopt \
-	   testforces \
-	   fructose \
-       hybrid-directmin \
-	   linearcubic \
-	   experimentalfoe \
-	   sparsity \
-	   explicit_locregcenters \
-	   geoptconstrained \
-	   O2spin \
-	   expfoegeopt \
-	   igortho \
-       extendedfrags \
-	   matrixtaskgroups \
-	   metals
+	mixpotential \
+	cleanup \
+    onlyhigh \
+	restartdisk \
+	foe \
+	geopt \
+	testforces \
+	fructose \
+    hybrid-directmin \
+	linearcubic \
+	experimentalfoe \
+	sparsity \
+	explicit_locregcenters \
+	geoptconstrained \
+	O2spin \
+	expfoegeopt \
+	igortho \
+    extendedfrags \
+	matrixtaskgroups \
+	metals
 
 if HAVE_PEXSI
   LONG_TESTDIRS += pexsi
