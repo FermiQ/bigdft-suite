@@ -1561,6 +1561,7 @@ geoptconstrained_BFGS:
  relative difference: 9.0e-11
  Total charge: 9.1e-11
  trace(Ktilde): 9.8e-11
+ FORCES norm(Ha/Bohr): 1.1e-9
 
 geoptconstrained_SDCG:
  eF: 8.7e-8

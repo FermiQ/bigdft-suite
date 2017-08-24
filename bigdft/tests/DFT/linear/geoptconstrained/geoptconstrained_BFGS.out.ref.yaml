@@ -2915,7 +2915,7 @@
    Geometry Method                     : BFGS
    Ncount_BigDFT                       :  1
    Geometry step                       :  0
-   FORCES norm(Ha/Bohr): { maxval:  1.13136E-02, fnrm2:  5.21232E-04, fluct:  0.00000E+00}
+   FORCES norm(Ha/Bohr): { maxval:  1.13136E-02, fnrm2:  5.21232E-04, fluct:  5.38042E-03}
    etot                                : -1.48939688253017E+01
    de                                  :  0.00E+00
    flt                                 :  [  5.38E-03,  5.38E-03 ]
@@ -4167,7 +4167,7 @@
    Geometry Method                     : BFGS
    Ncount_BigDFT                       :  2
    Geometry step                       :  1
-   FORCES norm(Ha/Bohr): { maxval:  1.09300E-02, fnrm2:  4.55029E-04, fluct:  0.00000E+00}
+   FORCES norm(Ha/Bohr): { maxval:  1.09300E-02, fnrm2:  4.55029E-04, fluct:  5.34846E-03}
    etot                                : -1.48941524780632E+01
    de                                  : -1.84E-04
    flt                                 :  [  5.35E-03,  5.35E-03 ]
@@ -5419,7 +5419,7 @@
    Geometry Method                     : BFGS
    Ncount_BigDFT                       :  3
    Geometry step                       :  2
-   FORCES norm(Ha/Bohr): { maxval:  9.40276E-03, fnrm2:  2.97214E-04, fluct:  0.00000E+00}
+   FORCES norm(Ha/Bohr): { maxval:  9.40276E-03, fnrm2:  2.97214E-04, fluct:  6.10042E-03}
    etot                                : -1.48944539367369E+01
    de                                  : -3.01E-04
    flt                                 :  [  6.1E-03,  6.10E-03 ]
@@ -6671,7 +6671,7 @@
    Geometry Method                     : BFGS
    Ncount_BigDFT                       :  4
    Geometry step                       :  3
-   FORCES norm(Ha/Bohr): { maxval:  8.93287E-03, fnrm2:  2.82909E-04, fluct:  0.00000E+00}
+   FORCES norm(Ha/Bohr): { maxval:  8.93287E-03, fnrm2:  2.82909E-04, fluct:  7.13650E-03}
    etot                                : -1.48945186451797E+01
    de                                  : -6.47E-05
    flt                                 :  [  7.14E-03,  7.14E-03 ]
