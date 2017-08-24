@@ -594,10 +594,10 @@ subroutine copy_matrixindex_in_compressed_fortransposed2(mat_ind_compr2_in, mat_
   type(matrixindex_in_compressed_fortransposed2),intent(in) :: mat_ind_compr2_in
   type(matrixindex_in_compressed_fortransposed2),intent(out) :: mat_ind_compr2_out
   mat_ind_compr2_out%section(-1)%ind_compr = &
-      f_malloc_ptr(src_ptr=mat_ind_compr2_out%section(-1)%ind_compr,id='mat_ind_compr2_out%ind_compr')
+      f_malloc_ptr(src_ptr=mat_ind_compr2_in%section(-1)%ind_compr,id='mat_ind_compr2_out%ind_compr')
   mat_ind_compr2_out%section(0)%ind_compr = &
-      f_malloc_ptr(src_ptr=mat_ind_compr2_out%section(0)%ind_compr,id='mat_ind_compr2_out%ind_compr')
+      f_malloc_ptr(src_ptr=mat_ind_compr2_in%section(0)%ind_compr,id='mat_ind_compr2_out%ind_compr')
   mat_ind_compr2_out%section(1)%ind_compr = &
-      f_malloc_ptr(src_ptr=mat_ind_compr2_out%section(1)%ind_compr,id='mat_ind_compr2_out%ind_compr')
+      f_malloc_ptr(src_ptr=mat_ind_compr2_in%section(1)%ind_compr,id='mat_ind_compr2_out%ind_compr')
   mat_ind_compr2_out%offset_compr = mat_ind_compr2_in%offset_compr
 end subroutine copy_matrixindex_in_compressed_fortransposed2

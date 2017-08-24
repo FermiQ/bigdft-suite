@@ -88,7 +88,7 @@ module foe
       real(kind=mp) :: anoise, scale_factor, shift_value, sumn, sumn_check, charge_diff, ef_interpol, ddot
       real(kind=mp) :: evlow_old, evhigh_old, det, determinant, sumn_old, ef_old, tt
       real(kind=mp) :: x_max_error_fake, max_error_fake, mean_error_fake
-      real(kind=mp) :: fscale, tt_ovrlp, tt_ham, diff, fscale_check, fscale_new, fscale_newx, asymm_K
+      real(kind=mp) :: fscale, tt_ovrlp, tt_ham, diff, fscale_check, fscale_new, fscale_newx, asymm_K, eTS
       logical :: restart, adjust_lower_bound, adjust_upper_bound, calculate_SHS, interpolation_possible
       logical,dimension(2) :: emergency_stop
       real(kind=mp),dimension(2) :: efarr, sumnarr, allredarr
@@ -573,6 +573,7 @@ module foe
                   cc_check(ipl,1,3)=2.d0*cc_check(ipl,1,3)
               end do
           end if
+          eTS = 0.0d0
           do ispin=1,smatl%nspin
 
               if (.not.(calculate_spin_channels(ispin))) cycle
@@ -584,18 +585,18 @@ module foe
               call chebyshev_fast(iproc, nproc, nsize_polynomial, npl, &
                    smatl%nfvctr, smatl%smmm%nfvctrp, &
                    smatl, chebyshev_polynomials(:,:,ispin), 1, cc_check, fermi_check_new)
-              call f_free(cc_check)
               call calculate_trace_distributed_new(iproc, nproc, comm, smatl, fermi_check_new, sumn_check)
-
-              if (iproc==0) then
-                  call yaml_map('eTS',sumn_check)
-              end if
+              eTS = eTS + sumn_check
               !!call compress_matrix_distributed_wrapper(iproc, nproc, smatl, SPARSE_MATMUL_SMALL, &
               !!     fermi_check_new, ONESIDED_FULL, fermi_check_compr(ilshift+1:))
               !!! Calculate S^-1/2 * K * S^-1/2^T
               !!call retransform_ext(iproc, nproc, smatl, ONESIDED_FULL, kernelpp_work(is+1:),  &
               !!     ovrlp_minus_one_half_(1)%matrix_compr(ilshift+1:), fermi_check_compr(ilshift+1:))
           end do
+          if (iproc==0) then
+              call yaml_map('eTS',sumn_check)
+          end if
+          call f_free(cc_check)
       !end if
       !# end calculate the term TS #####################################################
 

@@ -1750,6 +1750,7 @@ expfoegeopt:
  Total charge: 3.1e-11
  Energy (Hartree): 1.5e-11
  Maxdiff for transpose (checksum): 2.4e-10
+ Average noise forces: 1.0e-10
 
 log_model:
  System pseudo energy (Ha): 3.6e-11
