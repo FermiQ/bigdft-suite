@@ -37,7 +37,8 @@ program chess_toolbox
                                 write_sparsematrix_info, init_matrix_taskgroups_wrapper
    use sparsematrix_io, only: read_sparse_matrix, write_sparse_matrix, write_dense_matrix
    use sparsematrix, only: uncompress_matrix, uncompress_matrix_distributed2, diagonalizeHamiltonian2, &
-                           transform_sparse_matrix, compress_matrix, get_minmax_eigenvalues
+                           transform_sparse_matrix, compress_matrix, get_minmax_eigenvalues, &
+                           resize_matrix_to_taskgroup
    use sparsematrix_highlevel, only: sparse_matrix_and_matrices_init_from_file_bigdft, &
                                      sparse_matrix_and_matrices_init_from_file_ccs, &
                                      sparse_matrix_metadata_init_from_file, &
@@ -101,8 +102,9 @@ program chess_toolbox
    type(matrices) :: ovrlp_mat, hamiltonian_mat, kernel_mat, mat, ovrlp_large, KS_large, kernel_ortho
    type(matrices),dimension(1) :: ovrlp_minus_one_half
    type(matrices),dimension(:,:),allocatable :: multipoles_matrices
-   type(sparse_matrix) :: smat_s, smat_m, smat_l, smat
+   type(sparse_matrix) :: smat_s, smat_m, smat_l
    type(sparse_matrix),dimension(1) :: smat_arr1
+   type(sparse_matrix),dimension(2) :: smat
    type(dictionary), pointer :: dict_timing_info
    integer :: iunit, nat, iat, iat_prev, ii, iitype, iorb, itmb, itype, ival, ios, ipdos, ispin
    integer :: jtmb, norbks, npdos, npt, ntmb, jjtmb, nat_frag, nfvctr_frag, i, iiat
@@ -531,26 +533,48 @@ program chess_toolbox
             eval=eval_ptr)
        call f_close(iunit)
 
+       call sparse_matrix_metadata_init_from_file(trim(metadata_file), smmd)
+
        !if (iproc==0) call yaml_comment('Reading from file '//trim(overlap_file),hfill='~')
        call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, trim(overlap_file), &
-            iproc, nproc, mpiworld(), smat_s, ovrlp_mat, &
+            iproc, nproc, mpiworld(), smat(1), ovrlp_mat, &
             init_matmul=.false.)!, iatype=iatype, ntypes=ntypes, atomnames=atomnames, &
             !on_which_atom=on_which_atom)
-       call sparse_matrix_metadata_init_from_file(trim(metadata_file), smmd)
-       if (ntmb/=smat_s%nfvctr) call f_err_throw('ntmb/=smat_s%nfvctr')
-       ovrlp_mat%matrix = sparsematrix_malloc_ptr(smat_s, iaction=DENSE_PARALLEL, id='ovrlp_mat%matrix')
-       !call uncompress_matrix(iproc, smat_s, inmat=ovrlp_mat%matrix_compr, outmat=ovrlp_mat%matrix)
-       call uncompress_matrix_distributed2(iproc, smat_s, DENSE_PARALLEL, &
-            ovrlp_mat%matrix_compr, ovrlp_mat%matrix(1:,1:,1))
 
        !if (iproc==0) call yaml_comment('Reading from file '//trim(hamiltonian_file),hfill='~')
        call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, trim(hamiltonian_file), &
-            iproc, nproc, mpiworld(), smat_m, hamiltonian_mat, &
+            iproc, nproc, mpiworld(), smat(2), hamiltonian_mat, &
             init_matmul=.false.)
-       hamiltonian_mat%matrix = sparsematrix_malloc_ptr(smat_s, iaction=DENSE_PARALLEL, id='hamiltonian_mat%matrix')
-       !call uncompress_matrix(iproc, smat_m, inmat=hamiltonian_mat%matrix_compr, outmat=hamiltonian_mat%matrix)
-       call uncompress_matrix_distributed2(iproc, smat_m, DENSE_PARALLEL, &
+
+       call init_matrix_taskgroups_wrapper(iproc, nproc, mpi_comm_world, .true., 2, smat)
+
+       call resize_matrix_to_taskgroup(smat(1), ovrlp_mat)
+       call resize_matrix_to_taskgroup(smat(2), hamiltonian_mat)
+
+       if (iproc==0) then
+           call yaml_mapping_open('Matrix properties')
+           call write_sparsematrix_info(smat(1), 'Overlap matrix')
+           call write_sparsematrix_info(smat(2), 'Hamiltonian matrix')
+           call yaml_mapping_close()
+       end if
+
+
+
+       if (ntmb/=smat(1)%nfvctr) call f_err_throw('ntmb/=smat(1)%nfvctr')
+       ovrlp_mat%matrix = sparsematrix_malloc_ptr(smat(1), iaction=DENSE_PARALLEL, id='ovrlp_mat%matrix')
+       hamiltonian_mat%matrix = sparsematrix_malloc_ptr(smat(1), iaction=DENSE_PARALLEL, id='hamiltonian_mat%matrix')
+       call uncompress_matrix_distributed2(iproc, smat(1), DENSE_PARALLEL, &
+            ovrlp_mat%matrix_compr, ovrlp_mat%matrix(1:,1:,1))
+       call uncompress_matrix_distributed2(iproc, smat(2), DENSE_PARALLEL, &
             hamiltonian_mat%matrix_compr, hamiltonian_mat%matrix(1:,1:,1))
+
+
+       if (iproc==0) then
+           call yaml_mapping_open('Matrix properties')
+           call write_sparsematrix_info(smat(1), 'Overlap matrix')
+           call write_sparsematrix_info(smat_l, 'Density kernel')
+           call yaml_mapping_close()
+       end if
 
        iunit=99
        call f_open_file(iunit, file=pdos_file, binary=.false.)
@@ -635,7 +659,7 @@ program chess_toolbox
        occup_arr = f_malloc0((/npdos,norbks/),id='occup_arr')
        occups = f_malloc0(npdos,id='occups')
 
-       denskernel = f_malloc((/ntmb,smat_s%nfvctrp/),id='denskernel')
+       denskernel = f_malloc((/ntmb,smat(1)%nfvctrp/),id='denskernel')
        pdos = f_malloc0((/npt,npdos/),id='pdos')
        if (iproc==0) then
            call yaml_comment('PDoS calculation',hfill='~')
@@ -649,17 +673,17 @@ program chess_toolbox
            if (iproc==0) bar=f_progress_bar_new(nstep=norbks)
            do iorb=1,norbks
                if (iproc==0) call yaml_map('orbital being processed',iorb)
-               call gemm('n', 't', ntmb, smat_s%nfvctrp, 1, 1.d0, coeff_ptr(1,iorb), ntmb, &
-                    coeff_ptr(smat_s%isfvctr+1,iorb), ntmb, 0.d0, denskernel(1,1), ntmb)
+               call gemm('n', 't', ntmb, smat(1)%nfvctrp, 1, 1.d0, coeff_ptr(1,iorb), ntmb, &
+                    coeff_ptr(smat(1)%isfvctr+1,iorb), ntmb, 0.d0, denskernel(1,1), ntmb)
                energy = 0.d0
                call f_zero(occups)
                do ispin=1,nspin
                    !$omp parallel default(none) &
-                   !$omp shared(ispin,smat_s,ntmb,denskernel,hamiltonian_mat,energy) &
+                   !$omp shared(ispin,smat,ntmb,denskernel,hamiltonian_mat,energy) &
                    !$omp private(itmb,jtmb,jjtmb)
                    !$omp do reduction( + : energy)
-                   do jtmb=1,smat_s%nfvctrp
-                       jjtmb = smat_s%isfvctr + jtmb
+                   do jtmb=1,smat(1)%nfvctrp
+                       jjtmb = smat(1)%isfvctr + jtmb
                        do itmb=1,ntmb
                            energy = energy + denskernel(itmb,jtmb)*hamiltonian_mat%matrix(itmb,jtmb,ispin)
                        end do
@@ -671,11 +695,11 @@ program chess_toolbox
                !call mpiallred(energy, 1, mpi_sum, comm=mpiworld())
                do ispin=1,nspin
                    !$omp parallel default(none) &
-                   !$omp shared(ispin,smat_s,ntmb,denskernel,ovrlp_mat,calc_array,npdos,occups) &
+                   !$omp shared(ispin,smat,ntmb,denskernel,ovrlp_mat,calc_array,npdos,occups) &
                    !$omp private(itmb,jtmb,jjtmb,occup,ipdos)
                    !$omp do reduction(+:occups)
-                   do jtmb=1,smat_s%nfvctrp
-                       jjtmb = smat_s%isfvctr + jtmb
+                   do jtmb=1,smat(1)%nfvctrp
+                       jjtmb = smat(1)%isfvctr + jtmb
                        !if (calc_array(jjtmb,ipdos)) then
                            do itmb=1,ntmb!ipdos,ntmb,npdos
                                !if (calc_array(itmb,ipdos)) then
@@ -785,8 +809,8 @@ program chess_toolbox
        call f_free_ptr(eval_ptr)
        call deallocate_matrices(ovrlp_mat)
        call deallocate_matrices(hamiltonian_mat)
-       call deallocate_sparse_matrix(smat_s)
-       call deallocate_sparse_matrix(smat_m)
+       call deallocate_sparse_matrix(smat(1))
+       call deallocate_sparse_matrix(smat(2))
        call deallocate_sparse_matrix_metadata(smmd)
        !call f_free_ptr(iatype)
        !call f_free_str_ptr(len(atomnames),atomnames)
