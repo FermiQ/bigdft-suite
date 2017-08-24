@@ -240,7 +240,8 @@ module sparsematrix_io
       ! Write the matrices
       mat_compr = f_malloc0_ptr(nvctr*nspin,id='mat_compr')
       call distribute_on_tasks(nvctr, iproc, nproc, np, is)
-      disp = int((4+5*nseg)*size_of_integer+is*size_of_double,kind=mpi_offset_kind)
+      !disp = int((4+5*nseg)*size_of_integer+is*size_of_double,kind=mpi_offset_kind)
+      disp = 4+5*int(nseg,kind=mpi_offset_kind)*size_of_integer+int(is,kind=mpi_offset_kind)*size_of_double
       call mpi_file_set_view(thefile, disp, mpi_double_precision, mpi_double_precision, 'native', mpi_info_null, ierr) 
       if (np>1) then
           call mpi_file_read(thefile, mat_compr(is+1), np, mpi_double_precision, mpi_status_ignore, ierr)
