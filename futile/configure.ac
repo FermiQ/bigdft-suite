@@ -202,6 +202,7 @@ futilevars.sh
 config/Doxyfile
 dicts/Makefile
 dicts/futile_cst.h
+dicts/tests/Makefile
 doc/Makefile
 doc/Doxyfile
 flib/Makefile
@@ -214,7 +215,6 @@ src/Makefile
 src/python/Makefile
 src/python/futile/Makefile
 tests/Makefile
-tests/dicts/Makefile
 tests/fft/Makefile
 tests/flib/Makefile
 tests/wrappers/Makefile

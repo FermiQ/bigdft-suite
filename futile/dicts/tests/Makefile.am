@@ -11,6 +11,9 @@ flib_libraries = $(top_builddir)/src/libfutile-1.a @LIBS_EXT_DEPS@
 #flib_libraries = $(top_builddir)/dicts/libdicts.a @LIBS_EXT_DEPS@
 endif
 
+check:
+	$(builddir)/dict
+	$(builddir)/err
 
 dict_SOURCES = dict.c
 dict_LDADD =  $(flib_libraries) @GLIB_LIBS@ $(FCLIBS)
@@ -18,4 +21,4 @@ dict_LDADD =  $(flib_libraries) @GLIB_LIBS@ $(FCLIBS)
 err_SOURCES = err.c
 err_LDADD =  $(flib_libraries) @GLIB_LIBS@ $(FCLIBS)
 
-AM_CPPFLAGS = -I$(top_srcdir)/c-bindings -I$(top_builddir)/dicts -I$(top_srcdir)/dicts @GLIB_CFLAGS@
+AM_CPPFLAGS = -I$(top_builddir)/dicts -I$(top_srcdir)/dicts @GLIB_CFLAGS@
