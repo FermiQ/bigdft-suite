@@ -1254,7 +1254,7 @@ paracetamol:
  mean conf prefac: 1.1e-5
  Maxdiff for overlap calculation: 2.6e-07
  trace(Ktilde): 1.1e-9
- multiplicator for the confinement: 6.3e-10
+ multiplicator for the confinement: 7.8e-10
  trace(KH): 5.5e-09
  Force Norm (Hartree/Bohr): 3.6e-11
  Atomic Forces (Ha/Bohr): 4.1e-11
