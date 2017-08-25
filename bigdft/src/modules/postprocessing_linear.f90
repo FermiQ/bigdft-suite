@@ -767,8 +767,10 @@ module postprocessing_linear
     
       if (input%wf_extent_analysis) then
           ioffset_isf = f_malloc0((/3,KSwfn%orbs%norbp/),id='ioffset_isf')
+          !!call analyze_wavefunctions('Kohn Sham orbitals extent analysis', 'global', &
+          !!     KSwfn%lzd, KSwfn%orbs, KSwfn%orbs%npsidim_orbs, phiwork_global, ioffset_isf)
           call analyze_wavefunctions('Kohn Sham orbitals extent analysis', 'global', &
-               KSwfn%lzd, KSwfn%orbs, KSwfn%orbs%npsidim_orbs, phiwork_global, ioffset_isf)
+               KSwfn%lzd, tmb%orbs, npsidim_global, phiwork_global, ioffset_isf)
           call f_free(ioffset_isf)
       end if
     
