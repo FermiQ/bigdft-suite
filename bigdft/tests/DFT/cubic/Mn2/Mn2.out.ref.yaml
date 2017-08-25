@@ -473,11 +473,10 @@
    - Subspace Optimization: &itrep001-01
        Wavefunctions Iterations:
        -  { #---------------------------------------------------------------------- iter: 1
- GPU acceleration:  No, Rho Commun: RED_SCT, Total electronic charge:  13.999998480437, Magnetic density orientation: [
-  0.0000,  0.0000,  0.0000], 
- PSolver: {Geometry: free BC, dim:  [  101,  101,  125 ], proc:  4, ixc:  1}, 
-              Hamiltonian Applied:  Yes,       Orthoconstraint:  Yes, 
-    Preconditioning:  Yes, 
+ GPU acceleration:  No, Total electronic charge:  13.999998480433, Magnetic density orientation: [
+  0.0000,  0.0000, -0.0000], 
+ Poisson Solver: {BC: Free, Box:  [  101,  101,  125 ], MPI tasks:  1}, 
+ Hamiltonian Applied:  Yes, Orthoconstraint:  Yes, Preconditioning:  Yes, 
  Magnetic polarization per orbital: [
  {iorb:  1, M:  [  0.00000,  0.00000, -1.00000 ]}, 
  {iorb:  2, M:  [  0.00000,  0.00000,  1.00000 ]}, 
@@ -498,11 +497,10 @@
  iter:  1, EKS: -2.92673397364474184E+01, gnrm:  1.16E-01, D:  7.28E-02, 
  DIIS weights: [ 1.00E+00,  1.00E+00], Orthogonalization Method:  0}
        -  { #---------------------------------------------------------------------- iter: 2
- GPU acceleration:  No, Rho Commun: RED_SCT, Total electronic charge:  13.999998530426, Magnetic density orientation: [
-  0.0000,  0.0000,  0.0000], 
- PSolver: {Geometry: free BC, dim:  [  101,  101,  125 ], proc:  4, ixc:  1}, 
-              Hamiltonian Applied:  Yes,       Orthoconstraint:  Yes, 
-    Preconditioning:  Yes, 
+ GPU acceleration:  No, Total electronic charge:  13.999998530422, Magnetic density orientation: [
+  0.0000,  0.0000, -0.0000], 
+ Poisson Solver: {BC: Free, Box:  [  101,  101,  125 ], MPI tasks:  1}, 
+ Hamiltonian Applied:  Yes, Orthoconstraint:  Yes, Preconditioning:  Yes, 
  Magnetic polarization per orbital: [
  {iorb:  1, M:  [  0.00000,  0.00000, -1.00000 ]}, 
  {iorb:  2, M:  [  0.00000,  0.00000,  1.00000 ]}, 
@@ -523,11 +521,10 @@
  iter:  2, EKS: -2.93197795374554033E+01, gnrm:  3.40E-02, D: -5.24E-02, 
  DIIS weights: [ 7.92E-02,  9.21E-01, -9.32E-03], Orthogonalization Method:  0}
        -  { #---------------------------------------------------------------------- iter: 3
- GPU acceleration:  No, Rho Commun: RED_SCT, Total electronic charge:  13.999998527197, Magnetic density orientation: [
-  0.0000,  0.0000,  0.0000], 
- PSolver: {Geometry: free BC, dim:  [  101,  101,  125 ], proc:  4, ixc:  1}, 
-              Hamiltonian Applied:  Yes,       Orthoconstraint:  Yes, 
-    Preconditioning:  Yes, 
+ GPU acceleration:  No, Total electronic charge:  13.999998527193, Magnetic density orientation: [
+  0.0000,  0.0000, -0.0000], 
+ Poisson Solver: {BC: Free, Box:  [  101,  101,  125 ], MPI tasks:  1}, 
+ Hamiltonian Applied:  Yes, Orthoconstraint:  Yes, Preconditioning:  Yes, 
  Magnetic polarization per orbital: [
  {iorb:  1, M:  [  0.00000,  0.00000, -1.00000 ]}, 
  {iorb:  2, M:  [  0.00000,  0.00000,  1.00000 ]}, 
@@ -548,11 +545,10 @@
  iter:  3, EKS: -2.93296973649349795E+01, gnrm:  1.62E-02, D: -9.92E-03, 
  DIIS weights: [-1.96E-01, -1.19E-01,  1.31E+00, -2.76E-03], Orthogonalization Method:  0}
        -  { #---------------------------------------------------------------------- iter: 4
- GPU acceleration:  No, Rho Commun: RED_SCT, Total electronic charge:  13.999998523956, Magnetic density orientation: [
-  0.0000,  0.0000,  0.0000], 
- PSolver: {Geometry: free BC, dim:  [  101,  101,  125 ], proc:  4, ixc:  1}, 
-              Hamiltonian Applied:  Yes,       Orthoconstraint:  Yes, 
-    Preconditioning:  Yes, 
+ GPU acceleration:  No, Total electronic charge:  13.999998523953, Magnetic density orientation: [
+  0.0000,  0.0000, -0.0000], 
+ Poisson Solver: {BC: Free, Box:  [  101,  101,  125 ], MPI tasks:  1}, 
+ Hamiltonian Applied:  Yes, Orthoconstraint:  Yes, Preconditioning:  Yes, 
  Magnetic polarization per orbital: [
  {iorb:  1, M:  [  0.00000,  0.00000, -1.00000 ]}, 
  {iorb:  2, M:  [  0.00000,  0.00000,  1.00000 ]}, 
@@ -574,11 +570,10 @@
  DIIS weights: [-5.94E-03, -2.62E-01,  5.19E-02,  1.22E+00, -5.68E-04], 
      Orthogonalization Method:  0}
        -  { #---------------------------------------------------------------------- iter: 5
- GPU acceleration:  No, Rho Commun: RED_SCT, Total electronic charge:  13.999998523184, Magnetic density orientation: [
-  0.0000,  0.0000,  0.0000], 
- PSolver: {Geometry: free BC, dim:  [  101,  101,  125 ], proc:  4, ixc:  1}, 
-              Hamiltonian Applied:  Yes,       Orthoconstraint:  Yes, 
-    Preconditioning:  Yes, 
+ GPU acceleration:  No, Total electronic charge:  13.999998523180, Magnetic density orientation: [
+  0.0000,  0.0000, -0.0000], 
+ Poisson Solver: {BC: Free, Box:  [  101,  101,  125 ], MPI tasks:  1}, 
+ Hamiltonian Applied:  Yes, Orthoconstraint:  Yes, Preconditioning:  Yes, 
  Magnetic polarization per orbital: [
  {iorb:  1, M:  [  0.00000,  0.00000, -1.00000 ]}, 
  {iorb:  2, M:  [  0.00000,  0.00000,  1.00000 ]}, 
@@ -600,11 +595,10 @@
  DIIS weights: [ 3.64E-02,  7.55E-02, -2.41E-01, -1.66E-01,  1.30E+00, -2.14E-04], 
      Orthogonalization Method:  0}
        -  { #---------------------------------------------------------------------- iter: 6
- GPU acceleration:  No, Rho Commun: RED_SCT, Total electronic charge:  13.999998524199, Magnetic density orientation: [
-  0.0000,  0.0000,  0.0000], 
- PSolver: {Geometry: free BC, dim:  [  101,  101,  125 ], proc:  4, ixc:  1}, 
-              Hamiltonian Applied:  Yes,       Orthoconstraint:  Yes, 
-    Preconditioning:  Yes, 
+ GPU acceleration:  No, Total electronic charge:  13.999998524195, Magnetic density orientation: [
+  0.0000,  0.0000, -0.0000], 
+ Poisson Solver: {BC: Free, Box:  [  101,  101,  125 ], MPI tasks:  1}, 
+ Hamiltonian Applied:  Yes, Orthoconstraint:  Yes, Preconditioning:  Yes, 
  Magnetic polarization per orbital: [
  {iorb:  1, M:  [  0.00000,  0.00000, -1.00000 ]}, 
  {iorb:  2, M:  [  0.00000,  0.00000,  1.00000 ]}, 
@@ -626,11 +620,10 @@
  DIIS weights: [-1.03E-02,  8.65E-02,  1.28E-02, -3.88E-01, -1.80E-01,  1.48E+00, 
                 -1.31E-04],           Orthogonalization Method:  0}
        -  { #---------------------------------------------------------------------- iter: 7
- GPU acceleration:  No, Rho Commun: RED_SCT, Total electronic charge:  13.999998524549, Magnetic density orientation: [
-  0.0000,  0.0000,  0.0000], 
- PSolver: {Geometry: free BC, dim:  [  101,  101,  125 ], proc:  4, ixc:  1}, 
-              Hamiltonian Applied:  Yes,       Orthoconstraint:  Yes, 
-    Preconditioning:  Yes, 
+ GPU acceleration:  No, Total electronic charge:  13.999998524544, Magnetic density orientation: [
+  0.0000,  0.0000, -0.0000], 
+ Poisson Solver: {BC: Free, Box:  [  101,  101,  125 ], MPI tasks:  1}, 
+ Hamiltonian Applied:  Yes, Orthoconstraint:  Yes, Preconditioning:  Yes, 
  Magnetic polarization per orbital: [
  {iorb:  1, M:  [  0.00000,  0.00000, -1.00000 ]}, 
  {iorb:  2, M:  [  0.00000,  0.00000,  1.00000 ]}, 
@@ -652,11 +645,10 @@
  DIIS weights: [-3.78E-02,  3.77E-02,  1.44E-01, -2.44E-01, -7.83E-01,  1.88E+00, 
                 -7.24E-05],           Orthogonalization Method:  0}
        -  { #---------------------------------------------------------------------- iter: 8
- GPU acceleration:  No, Rho Commun: RED_SCT, Total electronic charge:  13.999998524575, Magnetic density orientation: [
-  0.0000,  0.0000,  0.0000], 
- PSolver: {Geometry: free BC, dim:  [  101,  101,  125 ], proc:  4, ixc:  1}, 
-              Hamiltonian Applied:  Yes,       Orthoconstraint:  Yes, 
-    Preconditioning:  Yes, 
+ GPU acceleration:  No, Total electronic charge:  13.999998524572, Magnetic density orientation: [
+  0.0000,  0.0000, -0.0000], 
+ Poisson Solver: {BC: Free, Box:  [  101,  101,  125 ], MPI tasks:  1}, 
+ Hamiltonian Applied:  Yes, Orthoconstraint:  Yes, Preconditioning:  Yes, 
  Magnetic polarization per orbital: [
  {iorb:  1, M:  [  0.00000,  0.00000, -1.00000 ]}, 
  {iorb:  2, M:  [  0.00000,  0.00000,  1.00000 ]}, 
@@ -678,11 +670,10 @@
  DIIS weights: [ 2.83E-03,  5.82E-02,  2.35E-01, -8.89E-01, -3.33E-02,  1.63E+00, 
                 -2.81E-05],           Orthogonalization Method:  0}
        -  { #---------------------------------------------------------------------- iter: 9
- GPU acceleration:  No, Rho Commun: RED_SCT, Total electronic charge:  13.999998524577, Magnetic density orientation: [
-  0.0000,  0.0000,  0.0000], 
- PSolver: {Geometry: free BC, dim:  [  101,  101,  125 ], proc:  4, ixc:  1}, 
-              Hamiltonian Applied:  Yes,       Orthoconstraint:  Yes, 
-    Preconditioning:  Yes, 
+ GPU acceleration:  No, Total electronic charge:  13.999998524573, Magnetic density orientation: [
+  0.0000,  0.0000, -0.0000], 
+ Poisson Solver: {BC: Free, Box:  [  101,  101,  125 ], MPI tasks:  1}, 
+ Hamiltonian Applied:  Yes, Orthoconstraint:  Yes, Preconditioning:  Yes, 
  Magnetic polarization per orbital: [
  {iorb:  1, M:  [  0.00000,  0.00000, -1.00000 ]}, 
  {iorb:  2, M:  [  0.00000,  0.00000,  1.00000 ]}, 
@@ -704,11 +695,10 @@
  DIIS weights: [-2.97E-02,  1.99E-01, -6.73E-02, -8.33E-01,  4.10E-01,  1.32E+00, 
                 -1.03E-05],           Orthogonalization Method:  0}
        -  { #--------------------------------------------------------------------- iter: 10
- GPU acceleration:  No, Rho Commun: RED_SCT, Total electronic charge:  13.999998524628, Magnetic density orientation: [
-  0.0000,  0.0000,  0.0000], 
- PSolver: {Geometry: free BC, dim:  [  101,  101,  125 ], proc:  4, ixc:  1}, 
-              Hamiltonian Applied:  Yes,       Orthoconstraint:  Yes, 
-    Preconditioning:  Yes, 
+ GPU acceleration:  No, Total electronic charge:  13.999998524624, Magnetic density orientation: [
+  0.0000,  0.0000, -0.0000], 
+ Poisson Solver: {BC: Free, Box:  [  101,  101,  125 ], MPI tasks:  1}, 
+ Hamiltonian Applied:  Yes, Orthoconstraint:  Yes, Preconditioning:  Yes, 
  Magnetic polarization per orbital: [
  {iorb:  1, M:  [  0.00000,  0.00000, -1.00000 ]}, 
  {iorb:  2, M:  [  0.00000,  0.00000,  1.00000 ]}, 
@@ -730,11 +720,10 @@
  DIIS weights: [ 4.07E-03,  5.04E-02, -7.75E-02, -2.00E-01,  4.41E-02,  1.18E+00, 
                 -3.10E-06],           Orthogonalization Method:  0}
        -  { #--------------------------------------------------------------------- iter: 11
- GPU acceleration:  No, Rho Commun: RED_SCT, Total electronic charge:  13.999998524726, Magnetic density orientation: [
-  0.0000,  0.0000,  0.0000], 
- PSolver: {Geometry: free BC, dim:  [  101,  101,  125 ], proc:  4, ixc:  1}, 
-              Hamiltonian Applied:  Yes,       Orthoconstraint:  Yes, 
-    Preconditioning:  Yes, 
+ GPU acceleration:  No, Total electronic charge:  13.999998524722, Magnetic density orientation: [
+  0.0000,  0.0000, -0.0000], 
+ Poisson Solver: {BC: Free, Box:  [  101,  101,  125 ], MPI tasks:  1}, 
+ Hamiltonian Applied:  Yes, Orthoconstraint:  Yes, Preconditioning:  Yes, 
  Magnetic polarization per orbital: [
  {iorb:  1, M:  [  0.00000,  0.00000, -1.00000 ]}, 
  {iorb:  2, M:  [  0.00000,  0.00000,  1.00000 ]}, 
@@ -756,11 +745,10 @@
  DIIS weights: [-5.05E-02,  1.42E-01, -3.40E-02, -2.97E-01,  2.23E-01,  1.02E+00, 
                 -1.23E-06],           Orthogonalization Method:  0}
        -  { #--------------------------------------------------------------------- iter: 12
- GPU acceleration:  No, Rho Commun: RED_SCT, Total electronic charge:  13.999998524804, Magnetic density orientation: [
-  0.0000,  0.0000,  0.0000], 
- PSolver: {Geometry: free BC, dim:  [  101,  101,  125 ], proc:  4, ixc:  1}, 
-              Hamiltonian Applied:  Yes,       Orthoconstraint:  Yes, 
-    Preconditioning:  Yes, 
+ GPU acceleration:  No, Total electronic charge:  13.999998524800, Magnetic density orientation: [
+  0.0000,  0.0000, -0.0000], 
+ Poisson Solver: {BC: Free, Box:  [  101,  101,  125 ], MPI tasks:  1}, 
+ Hamiltonian Applied:  Yes, Orthoconstraint:  Yes, Preconditioning:  Yes, 
  Magnetic polarization per orbital: [
  {iorb:  1, M:  [  0.00000,  0.00000, -1.00000 ]}, 
  {iorb:  2, M:  [  0.00000,  0.00000,  1.00000 ]}, 
@@ -782,11 +770,10 @@
  DIIS weights: [ 4.70E-02,  6.47E-03, -1.52E-01, -6.64E-02,  1.35E-01,  1.03E+00, 
                 -8.47E-07],           Orthogonalization Method:  0}
        -  { #--------------------------------------------------------------------- iter: 13
- GPU acceleration:  No, Rho Commun: RED_SCT, Total electronic charge:  13.999998524833, Magnetic density orientation: [
-  0.0000,  0.0000,  0.0000], 
- PSolver: {Geometry: free BC, dim:  [  101,  101,  125 ], proc:  4, ixc:  1}, 
-              Hamiltonian Applied:  Yes,       Orthoconstraint:  Yes, 
-    Preconditioning:  Yes, 
+ GPU acceleration:  No, Total electronic charge:  13.999998524829, Magnetic density orientation: [
+  0.0000,  0.0000, -0.0000], 
+ Poisson Solver: {BC: Free, Box:  [  101,  101,  125 ], MPI tasks:  1}, 
+ Hamiltonian Applied:  Yes, Orthoconstraint:  Yes, Preconditioning:  Yes, 
  Magnetic polarization per orbital: [
  {iorb:  1, M:  [  0.00000,  0.00000, -1.00000 ]}, 
  {iorb:  2, M:  [  0.00000,  0.00000,  1.00000 ]}, 
@@ -808,11 +795,10 @@
  DIIS weights: [-9.46E-03,  3.27E-02,  8.96E-02, -3.24E-01, -3.27E-01,  1.54E+00, 
                 -6.30E-07],           Orthogonalization Method:  0}
        -  { #--------------------------------------------------------------------- iter: 14
- GPU acceleration:  No, Rho Commun: RED_SCT, Total electronic charge:  13.999998524860, Magnetic density orientation: [
-  0.0000,  0.0000,  0.0000], 
- PSolver: {Geometry: free BC, dim:  [  101,  101,  125 ], proc:  4, ixc:  1}, 
-              Hamiltonian Applied:  Yes,       Orthoconstraint:  Yes, 
-    Preconditioning:  Yes, 
+ GPU acceleration:  No, Total electronic charge:  13.999998524856, Magnetic density orientation: [
+  0.0000,  0.0000, -0.0000], 
+ Poisson Solver: {BC: Free, Box:  [  101,  101,  125 ], MPI tasks:  1}, 
+ Hamiltonian Applied:  Yes, Orthoconstraint:  Yes, Preconditioning:  Yes, 
  Magnetic polarization per orbital: [
  {iorb:  1, M:  [  0.00000,  0.00000, -1.00000 ]}, 
  {iorb:  2, M:  [  0.00000,  0.00000,  1.00000 ]}, 
@@ -834,11 +820,10 @@
  DIIS weights: [-3.09E-02,  8.70E-02,  8.72E-02, -2.89E-01, -8.83E-01,  2.03E+00, 
                 -5.19E-07],           Orthogonalization Method:  0}
        -  { #--------------------------------------------------------------------- iter: 15
- GPU acceleration:  No, Rho Commun: RED_SCT, Total electronic charge:  13.999998524883, Magnetic density orientation: [
-  0.0000,  0.0000,  0.0000], 
- PSolver: {Geometry: free BC, dim:  [  101,  101,  125 ], proc:  4, ixc:  1}, 
-              Hamiltonian Applied:  Yes,       Orthoconstraint:  Yes, 
-    Preconditioning:  Yes, 
+ GPU acceleration:  No, Total electronic charge:  13.999998524879, Magnetic density orientation: [
+  0.0000,  0.0000, -0.0000], 
+ Poisson Solver: {BC: Free, Box:  [  101,  101,  125 ], MPI tasks:  1}, 
+ Hamiltonian Applied:  Yes, Orthoconstraint:  Yes, Preconditioning:  Yes, 
  Magnetic polarization per orbital: [
  {iorb:  1, M:  [  0.00000,  0.00000, -1.00000 ]}, 
  {iorb:  2, M:  [  0.00000,  0.00000,  1.00000 ]}, 
@@ -860,11 +845,10 @@
  DIIS weights: [-1.24E-02,  1.06E-01, -3.32E-03, -9.28E-01,  1.72E-01,  1.67E+00, 
                 -4.02E-07],           Orthogonalization Method:  0}
        -  { #--------------------------------------------------------------------- iter: 16
- GPU acceleration:  No, Rho Commun: RED_SCT, Total electronic charge:  13.999998524920, Magnetic density orientation: [
-  0.0000,  0.0000,  0.0000], 
- PSolver: {Geometry: free BC, dim:  [  101,  101,  125 ], proc:  4, ixc:  1}, 
-              Hamiltonian Applied:  Yes,       Orthoconstraint:  Yes, 
-    Preconditioning:  Yes, 
+ GPU acceleration:  No, Total electronic charge:  13.999998524915, Magnetic density orientation: [
+  0.0000,  0.0000, -0.0000], 
+ Poisson Solver: {BC: Free, Box:  [  101,  101,  125 ], MPI tasks:  1}, 
+ Hamiltonian Applied:  Yes, Orthoconstraint:  Yes, Preconditioning:  Yes, 
  Magnetic polarization per orbital: [
  {iorb:  1, M:  [  0.00000,  0.00000, -1.00000 ]}, 
  {iorb:  2, M:  [  0.00000,  0.00000,  1.00000 ]}, 
@@ -886,11 +870,10 @@
  DIIS weights: [-1.80E-01,  3.11E-01,  1.79E+00, -3.13E+00, -3.34E-01,  2.54E+00, 
                 -2.03E-07],           Orthogonalization Method:  0}
        -  { #--------------------------------------------------------------------- iter: 17
- GPU acceleration:  No, Rho Commun: RED_SCT, Total electronic charge:  13.999998524965, Magnetic density orientation: [
-  0.0000,  0.0000,  0.0000], 
- PSolver: {Geometry: free BC, dim:  [  101,  101,  125 ], proc:  4, ixc:  1}, 
-              Hamiltonian Applied:  Yes,       Orthoconstraint:  Yes, 
-    Preconditioning:  Yes, 
+ GPU acceleration:  No, Total electronic charge:  13.999998524961, Magnetic density orientation: [
+  0.0000,  0.0000, -0.0000], 
+ Poisson Solver: {BC: Free, Box:  [  101,  101,  125 ], MPI tasks:  1}, 
+ Hamiltonian Applied:  Yes, Orthoconstraint:  Yes, Preconditioning:  Yes, 
  Magnetic polarization per orbital: [
  {iorb:  1, M:  [  0.00000,  0.00000, -1.00000 ]}, 
  {iorb:  2, M:  [  0.00000,  0.00000,  1.00000 ]}, 
@@ -912,10 +895,10 @@
  DIIS weights: [-1.55E-01,  8.28E-01, -9.47E-01, -5.36E-01,  6.24E-01,  1.19E+00, 
                 -1.16E-07],           Orthogonalization Method:  0}
        -  &FINAL001  { #---------------------------------------------------------- iter: 18
- GPU acceleration:  No, Rho Commun: RED_SCT, Total electronic charge:  13.999998525000, Magnetic density orientation: [
-  0.0000,  0.0000,  0.0000], 
- PSolver: {Geometry: free BC, dim:  [  101,  101,  125 ], proc:  4, ixc:  1}, 
-              Hamiltonian Applied:  Yes, 
+ GPU acceleration:  No, Total electronic charge:  13.999998524996, Magnetic density orientation: [
+  0.0000,  0.0000, -0.0000], 
+ Poisson Solver: {BC: Free, Box:  [  101,  101,  125 ], MPI tasks:  1}, 
+ Hamiltonian Applied:  Yes, 
  iter:  18, EKS: -2.93378123196097746E+01, gnrm:  4.79E-04, D: -5.28E-06,  #FINAL
  Energies: {Ekin:  4.94090945286E+01, Epot: -2.16706788568E+01, Enl: -3.18732042807E+01, 
               EH:  3.68455561709E+01,  EXC: -6.92430905761E+00, EvXC: -9.13785334458E+00, 
@@ -961,7 +944,7 @@
    -  [ 1.3896E-03,  3.5479E+00,  2.0599E-03]
    -  [ 2.0599E-03,  2.0599E-03, -7.0959E+00]
    trace                               : -1.38E-11
- Calculate local forces: Yes
+ Calculate local forces                :  Yes
  Calculate Non Local forces            :  Yes
  Average noise forces: {x:  1.59065999E-04, y:  1.59066055E-04, z:  1.13091970E-04, 
                     total:  2.51781245E-04}
