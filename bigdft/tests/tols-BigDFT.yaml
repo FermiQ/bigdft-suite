@@ -180,6 +180,7 @@ SiBulk:
  e_occupied: 1.42e-11
  Orbitals: 1.42e-11
  GPa: 2.0e-9
+ Q matrix: 7.6e-9
  Quadrupole Moment (AU): 8.8e-11
  # Necessary for GPU runs, to be updated...
  Keys to ignore:
@@ -313,6 +314,7 @@ H-Rydberg_H:
 TiSmear:
  Epsilon: 5.e-11
  EKS: 5.6e-11
+ Epot: 1.0e-10
 
 H2O-CP2K:
  Total energy with tail correction: 1.8e-11
