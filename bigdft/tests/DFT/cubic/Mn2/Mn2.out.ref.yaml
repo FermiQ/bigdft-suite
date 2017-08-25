@@ -138,9 +138,9 @@
    randdis                             : 0. #     Random displacement amplitude
    betax                               : 4. #     Stepsize for the geometry optimization
  mix:
-   iscf                                : 0 #      Mixing parameters
+   iscf                                : 0 #      Mixing scheme (default=0 i.e. direct minimization)
    itrpmax                             : 1 #      Maximum number of diagonalisation iterations
-   rpnrm_cv                            : 1e-4 #   Stop criterion on the residue of potential or density
+   rpnrm_cv                            : 1.e-4 #  Stop criterion on the residue of potential or density
    norbsempty                          : 0 #      No. of additional bands
    tel                                 : 0. #     Electronic temperature
    occopt                              : 1 #      Smearing method
@@ -184,24 +184,24 @@
      Coarse PSP                        : 1.010866427064831
      Source                            : Hard-Coded
  lin_general:
-   hybrid                              : No #     activate the hybrid mode; if activated, only the low accuracy values will be relevant
-   nit: [100, 100] #                              number of iteration with low/high accuracy
-   rpnrm_cv: [1.e-12, 1.e-12] #                   convergence criterion for low/high accuracy
-   conf_damping                        : -0.5 #   how the confinement should be decreased, only relevant for hybrid mode; negative -> 
+   hybrid                              : No #     Activate the hybrid mode; if activated, only the low accuracy values will be relevant
+   nit: [100, 100] #                              Number of iteration with low/high accuracy
+   rpnrm_cv: [1.e-12, 1.e-12] #                   Convergence criterion for low/high accuracy
+   conf_damping                        : -0.5 #   How the confinement should be decreased, only relevant for hybrid mode; negative -> 
     #                                              automatic
-   taylor_order                        : 0 #      order of the Taylor approximation; 0 -> exact
-   max_inversion_error                 : 1.d0 #   linear scaling maximal error of the Taylor approximations to calculate the inverse of 
+   taylor_order                        : 0 #      Order of the Taylor approximation; 0 -> exact
+   max_inversion_error                 : 1.d0 #   Linear scaling maximal error of the Taylor approximations to calculate the inverse of 
     #                                              the overlap matrix
    output_wf                           : 0 #      output basis functions; 0 no output, 1 formatted output, 2 Fortran bin, 3 ETSF
    calc_dipole                         : No #     calculate dipole
    subspace_diag                       : No #     diagonalization at the end
    extra_states                        : 0 #      extra states to optimize (dmin only)
  lin_basis:
-   nit: [4, 5] #                                  maximal number of iterations in the optimization of the 
+   nit: [4, 5] #                                  Maximal number of iterations in the optimization of the 
     #                                              support functions
    idsx: [6, 6] #                                 DIIS history for optimization of the support functions 
     #                                              (low/high accuracy); 0 -> SD
-   gnrm_cv: [1.e-2, 1.e-4] #                      convergence criterion for the optimization of the support functions 
+   gnrm_cv: [1.e-2, 1.e-4] #                      Convergence criterion for the optimization of the support functions 
     #                                              (low/high accuracy)
    deltae_cv                           : 1.e-4 #  total relative energy difference to stop the optimization ('experimental_mode' only)
    gnrm_dyn                            : 1.e-4 #  dynamic convergence criterion ('experimental_mode' only)
@@ -212,31 +212,39 @@
    fix_basis                           : 1.e-10 # fix the support functions if the density change is below this threshold
    correction_orthoconstraint          : 1 #      correction for the slight non-orthonormality in the orthoconstraint
  lin_kernel:
-   nstep: [1, 1] #                                number of steps taken when updating the coefficients via 
+   nstep: [1, 1] #                                Number of steps taken when updating the coefficients via 
     #                                              direct minimization for each iteration of 
     #                                              the density kernel loop
-   nit: [5, 5] #                                  number of iterations in the (self-consistent) 
+   nit: [5, 5] #                                  Number of iterations in the (self-consistent) 
     #                                              optimization of the density kernel
    idsx_coeff: [0, 0] #                           DIIS history for direct mininimization
-   idsx: [0, 0] #                                 mixing method; 0 -> linear mixing, >=1 -> Pulay mixing
-   alphamix: [0.5, 0.5] #                         mixing parameter (low/high accuracy)
-   gnrm_cv_coeff: [1.e-5, 1.e-5] #                convergence criterion on the gradient for direct minimization
-   rpnrm_cv: [1.e-10, 1.e-10] #                   convergence criterion (change in density/potential) for the kernel 
+   idsx: [0, 0] #                                 Mixing method; 0 -> linear mixing, >=1 -> Pulay mixing
+   alphamix: [0.5, 0.5] #                         Mixing parameter (low/high accuracy)
+   gnrm_cv_coeff: [1.e-5, 1.e-5] #                Convergence criterion on the gradient for direct minimization
+   rpnrm_cv: [1.e-10, 1.e-10] #                   Convergence criterion (change in density/potential) for the kernel 
     #                                              optimization
-   linear_method                       : DIAG #   method to optimize the density kernel
-   mixing_method                       : DEN #    quantity to be mixed
-   alpha_sd_coeff                      : 0.2 #    initial step size for SD for direct minimization
-   alpha_fit_coeff                     : No #     update the SD step size by fitting a quadratic polynomial to the energy along the 
+   linear_method                       : DIAG #   Method to optimize the density kernel
+   mixing_method                       : DEN #    Quantity to be mixed
+   alpha_sd_coeff                      : 0.2 #    Initial step size for SD for direct minimization
+   alpha_fit_coeff                     : No #     Update the SD step size by fitting a quadratic polynomial to the energy along the 
     #                                              direction of the gradient during direct 
     #                                              mininimization.
     #                                              automatically if chosen unproperly
  lin_basis_params:
-   nbasis                              : 4 #      number of support functions per atom
-   ao_confinement                      : 8.3e-3 # prefactor for the input guess confining potential
-   confinement: [8.3e-3, 0.0] #                   prefactor for the confining potential (low/high accuracy)
-   rloc: [7.0, 7.0] #                             localization radius for the support functions
-   rloc_kernel                         : 9.0 #    localization radius for the density kernel
-   rloc_kernel_foe                     : 14.0 #   cutoff radius for the FOE matrix vector multiplications
+   nbasis                              : 4 #      Number of support functions per atom
+   ao_confinement                      : 8.3e-3 # Prefactor for the input guess confining potential
+   confinement: [8.3e-3, 0.0] #                   Prefactor for the confining potential (low/high accuracy)
+   rloc: [7.0, 7.0] #                             Localization radius for the support functions
+   rloc_kernel                         : 9.0 #    Localization radius for the density kernel
+   rloc_kernel_foe                     : 14.0 #   Cutoff radius for the FOE matrix vector multiplications
+ posinp:
+    #---------------------------------------------- Atomic positions (by default bohr units)
+   positions:
+   - Mn: [0.0, 0.0, 0.0]
+   - Mn: [0.0, 0.0, 5.19674]
+   properties:
+     format                            : xyz
+     source                            : posinp.xyz
   #--------------------------------------------------------------------------------------- |
  Data Writing directory                : ./data/
   #-------------------------------------------------- Input Atomic System (file: posinp.xyz)
@@ -274,10 +282,9 @@
      DIIS History length               :  6
      Max. Wfn Iterations               :  &itermax  20
      Max. Subspace Diagonalizations    :  10
-     Input wavefunction policy         : LCAO # 0
-     Output wavefunction policy        : none # 0
-     Output grid policy                : none # 0
-     Output grid format                : text # 0
+     Input wavefunction policy         : INPUT_PSI_LCAO # 0
+     Output wavefunction policy        : NONE # 0
+     Output grid policy                : NONE # 0
      Virtual orbitals                  :  0
      Number of plotted density orbitals:  0
    Density/Potential:
@@ -321,7 +328,7 @@
      -  [  0.00000,  0.00000,  0.00000 ]
    No. of projectors                   :  14
    PSP XC                              : "XC: Teter 93"
-  #-------------------------------------------------------------------------- Atom Positions
+  #----------------------------------------------- Atom Positions (specified and grid units)
  Atomic positions within the cell (Atomic and Grid Units):
  - Mn: {AU:  [  7.8750,  7.8750,  7.9766 ], GU:  [  17.500,  17.500,  17.726 ]} # 0001
  - Mn: {AU:  [  7.8750,  7.8750,  13.173 ], GU:  [  17.500,  17.500,  29.274 ]} # 0002
@@ -366,7 +373,7 @@
    Fine resolution grid:
      No. of segments                   :  212
      No. of points                     :  1664
-  #---------------------------------------------------------------------- Occupation Numbers
+  #------------------------------------------------------------------- Kernel Initialization
  Total Number of Electrons             :  14
  Spin treatment                        : Spinorial (non-collinearity possible)
  Orbitals Repartition:
@@ -415,11 +422,9 @@
      MPI tasks  1- 2                   :  6
      MPI tasks  3- 3                   :  5
    Atomic Input Orbital Generation:
-   -  {Atom Type: Mn, Electronic configuration: {s: [ 1.00,  1.00], d: [ 1.00,  0.00, 
-                                                                         1.00,  0.00, 
-                                                                         1.00,  0.00, 
-                                                                         1.00,  0.00, 
-                                                                         1.00,  0.00]}}
+   -  {Atom Type: Mn, Electronic configuration: {
+ s: [ 1.00,  1.00], 
+ d: [ 1.00,  0.00,  1.00,  0.00,  1.00,  0.00,  1.00,  0.00,  1.00,  0.00]}}
    Wavelet conversion succeeded        :  Yes
    Deviation from normalization        :  8.96E-04
    GPU acceleration                    :  No
