@@ -76,8 +76,8 @@ program PS_StressCheck
   character(len=1) :: datacode
   character(len=30) :: mode
   real(kind=8), dimension(:,:,:), allocatable :: density,rhopot,potential,pot_ion
-  real(kind=8), dimension(:), allocatable :: ene_acell,dene
-  real(kind=8), dimension(:,:), allocatable :: stress_ana
+  real(kind=8), dimension(:), allocatable :: ene_acell,dene,vol
+  real(kind=8), dimension(:,:), allocatable :: stress_ana,dVda
   real(kind=8), dimension(:,:,:), allocatable :: stress_ps
   logical :: volstress 
   type(coulomb_operator) :: karray
@@ -97,7 +97,7 @@ program PS_StressCheck
   real(dp), dimension(6) :: stresst
   logical :: alsoserial,onlykernel
   integer :: m1,m2,m3,n1,n2,n3,md1,md2,md3,nd1,nd2,nd3
-  logical :: wrtfiles=.false.
+  logical :: wrtfiles=.true.
   !triclinic lattice
   real(kind=8) :: alpha,beta,gamma,detg
   real(kind=8) :: ang_var,ang_start,ang_end
@@ -167,14 +167,16 @@ program PS_StressCheck
 
   !Allocation of the energy vs acell vector
   ene_acell = f_malloc((/ nstress /),id='ene_acell')
+  vol = f_malloc((/ nstress /),id='vol')
   dene = f_malloc((/ nstress /),id='dene')
   stress_ana = f_malloc((/ nstress, 3 /),id='stress_ana')
+  dVda = f_malloc((/ nstress, 3 /),id='dVda')
   stress_ps = f_malloc((/ nstress, 6, 3 /),id='stress_ps')
   unit3=205
   unit14=214
   unit15=215
   if (wrtfiles) call f_open_file(unit=unit3,file='func_ene_acell.dat')
-
+  vol=0.d0
   ang_start=10.d0
   ang_end  =90.d0
   da=1.d0
@@ -188,7 +190,8 @@ program PS_StressCheck
    ii_fin=3
   end if
 
-  do ii=1,ii_fin ! loop on the three x, y, z components.
+  !do ii=1,ii_fin ! loop on the three x, y, z components.
+  do ii=2,2 ! loop on the three x, y, z components.
 
   do is=1,nstress
 
@@ -245,7 +248,9 @@ program PS_StressCheck
     call yaml_map('Product of the two',matmul(mesh%gu,mesh%gd))
     call yaml_map('Covariant determinant',mesh%detgd)
    end if
-
+   dVda(is,1)=2.d0*(acell**3)*sin(alpha)*(cos(alpha)-cos(beta)*cos(gamma))
+   dVda(is,2)=2.d0*(acell**3)*sin(beta)*(cos(beta)-cos(alpha)*cos(gamma))
+   dVda(is,3)=2.d0*(acell**3)*sin(gamma)*(cos(gamma)-cos(alpha)*cos(beta))
    
 !!   hgrids=(/hx,hy,hz/)
 !!   !grid for the free BC case
@@ -330,11 +335,13 @@ program PS_StressCheck
 
   mesh=karray%mesh
 
-   if (iproc==0) then
+  vol(is)=real(n01*n02*n03,kind=8)*mesh%volume_element
+  if (iproc==0) then
     call yaml_map('box size',acell)
     call yaml_map('hgrids',hgrids)
     call yaml_map('volume element',mesh%volume_element)
-   end if
+    call yaml_map('Cell volume =',vol(is))
+  end if
 
 
   call pkernel_set(karray,verbose=.true.)
@@ -621,14 +628,16 @@ program PS_StressCheck
   call fssnord1DmatNabla('F',nstress,da,ene_acell,dene,nord)
 
    do is=1,nstress
-    acell_var=acell+real((is-1),kind=8)*da
-    if (volstress) then
-     stress_ana(is,ii)=-dene(is)/(acell_var*acell_var)
-    else
-     stress_ana(is,ii)=-dene(is)/(acell*acell)
-    end if
-    if (wrtfiles) write(unit3,'(1(1x,i8),5(1x,1pe26.14e3))')is,acell_var,ene_acell(is),dene(is),&
-                  stress_ana(is,ii),stress_ps(is,ii,ii)
+    !acell_var=acell+real((is-1),kind=8)*da
+    !if (volstress) then
+    ! stress_ana(is,ii)=-dene(is)/(acell_var*acell_var)
+    !else
+     !stress_ana(is,ii)=-dene(is)/(acell*acell)
+     !stress_ana(is,ii)=dene(is)/(acell*acell)!/vol(is)
+     stress_ana(is,ii)=-dene(is)*dVda(is,ii)!/vol(is)
+    !end if
+    if (wrtfiles) write(unit3,'(1(1x,i8),6(1x,1pe26.14e3))')is,vol(is),ene_acell(is),dene(is),&
+                  stress_ana(is,ii),stress_ps(is,ii,ii),stress_ps(is,5,ii),dVda(is,2)
    end do
 
   end do ! loop external to the stress one, for the three x,y,z directions.
@@ -662,9 +671,11 @@ program PS_StressCheck
   end if
 
   call f_free(ene_acell)
+  call f_free(vol)
   call f_free(dene)
   call f_free(stress_ps)
   call f_free(stress_ana)
+  call f_free(dVda)
   call dict_free(dict)
   if (wrtfiles) call f_close(unit3)
 
@@ -879,7 +890,7 @@ subroutine test_functions(mesh,geocode,ixc,n01,n02,n03,acell,acell_var,a_gauss,h
 !!     az=acell*0.05d0
 
      ifx=FUNC_COSINE !FUNC_SHRINK_GAUSSIAN
-     ify=FUNC_COSINE !FUNC_SHRINK_GAUSSIAN
+     ify=FUNC_SHRINK_GAUSSIAN
      ifz=FUNC_COSINE !FUNC_SHRINK_GAUSSIAN
      !parameters of the test functions
      ax=length
@@ -1079,6 +1090,15 @@ subroutine test_functions(mesh,geocode,ixc,n01,n02,n03,acell,acell_var,a_gauss,h
 !!!     ax=length*0.05d0
 !!!     ay=length*0.05d0
 !!!     az=length*0.05d0
+
+     ! New to test stress in non-ortho
+     ifx=FUNC_COSINE !FUNC_SHRINK_GAUSSIAN
+     ify=FUNC_SHRINK_GAUSSIAN
+     ifz=FUNC_COSINE !FUNC_SHRINK_GAUSSIAN
+     !parameters of the test functions
+     ax=length
+     ay=length
+     az=length
 
      !b's are not used, actually
      bx=2.d0!real(nu,kind=8)
