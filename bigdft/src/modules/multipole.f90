@@ -5650,18 +5650,17 @@ end subroutine calculate_rpowerx_matrices
     nat_check=0
     atit = atoms_iter(at%astruct)
     atoms_loop: do while(atoms_iter_next(atit))
-       z=atit%rxyz(3)
-       internal= z>= zmin .and. z<=zmax
+       z=rxyz(3,atit%iat)
+       internal = (z>=zmin .and. z<=zmax)
        if (.not. internal) then
           tmp=[0.0_gp,0.0_gp,z]
-          if (distance(boxit%mesh,tmp,rmin) > min_distance .or. &
+          if (distance(boxit%mesh,tmp,rmin) > min_distance .and. &
                distance(boxit%mesh,tmp,rmax) > min_distance) cycle
        end if
        call f_increment(nat_check)
        atlist(nat_check)=atit%iat
     end do atoms_loop
 
-    !write(*,*) 'nat_check, atlist', nat_check, atlist
 
     !then loop on the points which are "far" from all the atoms
     box_loop: do while (box_next_point(boxit))
@@ -5740,8 +5739,6 @@ end subroutine calculate_rpowerx_matrices
        call mpiallred(external_volume, mpi_sum, comm=bigdft_mpi%mpi_comm)
        call mpiallred(potential_error, mpi_sum, comm=bigdft_mpi%mpi_comm)
        call mpiallred(potential_total, mpi_sum, comm=bigdft_mpi%mpi_comm)
-       call mpiallred(icnt,1,op=mpi_sum, comm=bigdft_mpi%mpi_comm)
-       call mpiallred(igood,1,op=mpi_sum, comm=bigdft_mpi%mpi_comm)
     end if
 
     call f_release_routine()
