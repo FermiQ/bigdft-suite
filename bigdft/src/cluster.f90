@@ -1687,11 +1687,13 @@ contains
     nodename=f_malloc0_str(MPI_MAX_PROCESSOR_NAME,0.to.bigdft_mpi%nproc-1,id='nodename')
     if (bigdft_mpi%nproc>1) then
        nodename_local=mpihostname()
-       !call MPI_GET_PROCESSOR_NAME(nodename_local,namelen,ierr)
-       !gather the result between all the process
-       call MPI_GATHER(nodename_local,MPI_MAX_PROCESSOR_NAME,MPI_CHARACTER,&
-            nodename(0),MPI_MAX_PROCESSOR_NAME,MPI_CHARACTER,0,&
-            bigdft_mpi%mpi_comm,ierr)
+
+       call mpigather(MPI_MAX_PROCESSOR_NAME,nodename_local,nodename,&
+            comm=bigdft_mpi%mpi_comm)
+!!$       !gather the result between all the process
+!!$       call MPI_GATHER(nodename_local,MPI_MAX_PROCESSOR_NAME,MPI_CHARACTER,&
+!!$            nodename(0),MPI_MAX_PROCESSOR_NAME,MPI_CHARACTER,0,&
+!!$            bigdft_mpi%mpi_comm,ierr)
        if (bigdft_mpi%iproc==0) call set(dict_info//'Hostnames',&
                list_new(.item. nodename))
     end if
@@ -1736,7 +1738,7 @@ subroutine kswfn_optimization_loop(iproc, nproc, opt, &
   !temporary variables for PAPI computation
   ! real(kind=4) :: rtime, ptime,  mflops
   ! integer(kind=8) ::flpops
-
+  call f_routine(id=subname)
 !  !start PAPI counting
 !  if (iproc==0) call PAPIF_flops(rtime, ptime, flpops, mflops,ierr)
 
@@ -1950,6 +1952,7 @@ subroutine kswfn_optimization_loop(iproc, nproc, opt, &
         end if
 
         call last_orthon(iproc,nproc,opt%iter,KSwfn,energs%evsum,.true.) !never deallocate psit and hpsi
+
 !!$        !EXPERIMENTAL
 !!$        !check if after convergence the integral equation associated with Helmholtz' Green function is satisfied
 !!$        !note: valid only for negative-energy eigenstates
@@ -2124,6 +2127,7 @@ subroutine kswfn_optimization_loop(iproc, nproc, opt, &
   ! Clean denspot parts only needed in the SCF loop.
   call denspot_free_history(denspot)
 
+  call f_release_routine()
 END SUBROUTINE kswfn_optimization_loop
 
 
@@ -2325,15 +2329,6 @@ subroutine kswfn_post_treatments(iproc, nproc, KSwfn, tmb, linear, &
          call plot_density(iproc,nproc,trim(dir_output)//'electronic_density' // gridformat,&
               atoms,rxyz,denspot%pkernel,denspot%dpbox%nrhodim,denspot%rho_work)
       end if
-!---------------------------------------------------
-!!$! giuseppe fisicaro dielectric cavity
-!!$     if (denspot%pkernel%method /= 'VAC') then
-!!$        !this will have to be replaced by a routine which plots the pkernel information
-!!$        if (iproc == 0) call yaml_map('Writing dielectric cavity in file','dielectric_cavity'//gridformat)
-        
-!!$        call plot_density(iproc,nproc,trim(dir_output)//'dielectric_cavity' // gridformat,&
-!!$             atoms,rxyz,denspot%pkernel,denspot%dpbox%nrhodim,denspot%pkernel%w%eps)
-!!$     end if
 
      call PS_dump_coulomb_operator(denspot%pkernel,trim(dir_output))
 !---------------------------------------------------
