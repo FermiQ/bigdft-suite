@@ -5,8 +5,11 @@
    ixc: PBE (ABINIT)
    itermax: 10
    nrepmax: 5
-   output_wf: 2
+   #output_wf: 2
    disablesym: Yes
+ output:
+   verbosity: 2
+   orbitals: text
  perf:
    linear: FUL
    check_sumrho: 2
