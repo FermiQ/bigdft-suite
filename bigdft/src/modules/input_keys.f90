@@ -19,6 +19,7 @@ module module_input_keys
   use multipole_base, only: external_potential_descriptors
   use dynamic_memory
   use fragment_base
+  use chess_base, only: chess_params
   implicit none
 
   private
@@ -93,15 +94,16 @@ module module_input_keys
      integer :: mixHist_lowaccuracy
      integer :: mixHist_highaccuracy
      integer :: dmin_hist_lowaccuracy, dmin_hist_highaccuracy
-     integer :: blocksize_pdgemm, blocksize_pdsyev
-     integer :: correctionOrthoconstraint, nproc_pdsyev, nproc_pdgemm
+     !integer :: blocksize_pdgemm, blocksize_pdsyev
+     integer :: correctionOrthoconstraint!, nproc_pdsyev, nproc_pdgemm
      integer :: nit_lowaccuracy, nit_highaccuracy, nItdmin_lowaccuracy, nItdmin_highaccuracy
      integer :: nItSCCWhenFixed_lowaccuracy, nItSCCWhenFixed_highaccuracy, nit_extendedIG
      real(kind=8) :: convCrit_lowaccuracy, convCrit_highaccuracy, convCrit_extendedIG
-     real(kind=8) :: alphaSD, alphaDIIS, evlow, evhigh, ef_interpol_chargediff
+     real(kind=8) :: alphaSD, alphaDIIS!, evlow, evhigh!, ef_interpol_chargediff
      real(kind=8) :: alpha_mix_lowaccuracy, alpha_mix_highaccuracy, reduce_confinement_factor, ef_interpol_det
      integer :: plotBasisFunctions
-     real(kind=8) :: fscale, deltaenergy_multiplier_TMBexit, deltaenergy_multiplier_TMBfix, coeff_factor
+     !real(kind=8) :: fscale
+     real(kind=8) :: deltaenergy_multiplier_TMBexit, deltaenergy_multiplier_TMBfix, coeff_factor
      real(kind=8) :: lowaccuracy_conv_crit, convCritMix_lowaccuracy, convCritMix_highaccuracy
      real(kind=8) :: highaccuracy_conv_crit, support_functions_converged, alphaSD_coeff
      real(kind=8) :: convCritDmin_lowaccuracy, convCritDmin_highaccuracy
@@ -128,9 +130,11 @@ module module_input_keys
      real(kind=8) :: frag_neighbour_cutoff !< distance cutoff for including neighbouring atoms
      integer :: charge_multipoles !< Calculate the multipoles expansion coefficients of the charge density (0:no, >0:yes)
      integer :: kernel_restart_mode !< How to generate the kernel in a restart calculation
-     integer :: pexsi_npoles !< number of poles used by PEXSI
-     real(kind=8) :: pexsi_mumin, pexsi_mumax, pexsi_mu !< minimal, maximal and first chemical potential for PEXSI
-     real(kind=8) :: pexsi_temperature, pexsi_tol_charge !< temperature and tolerance on the number of electrons used by PEXSI
+     !integer :: pexsi_npoles !< number of poles used by PEXSI
+     !real(kind=8) :: pexsi_mumin, pexsi_mumax, pexsi_mu !< minimal, maximal and first chemical potential for PEXSI
+     !real(kind=8) :: pexsi_temperature, pexsi_tol_charge !< temperature and tolerance on the number of electrons used by PEXSI
+     !real(kind=8) :: pexsi_DeltaE ! An upper bound for the spectral radius of S^-1H for PEXSI
+     !integer :: pexsi_np_sym_fact !< number of prcos used for the symbolic factorization used by PEXSI
      real(kind=8) :: kernel_restart_noise !< How much noise to add when restarting kernel (or coefficients) in a restart calculation
      logical :: plot_locreg_grids
      integer,dimension(2) :: calculate_FOE_eigenvalues !< First and last eigenvalue to be calculated using the FOE procedure
@@ -197,6 +201,7 @@ module module_input_keys
      integer :: nrepmax
      integer :: occupancy_control_itermax !< number of maximal iterations to apply occupancy control
      integer :: occupancy_control_nrepmax !< number of maximal re-diagonalizations to apply occupancy control
+     real(gp) :: alpha_hartree_fock !< exact exchange contribution
      integer :: ncong       !< Number of conjugate gradient iterations for the preconditioner
      integer :: idsx        !< DIIS history
      integer :: ncongt      !< Number of conjugate garident for the tail treatment
@@ -214,7 +219,6 @@ module module_input_keys
      type(f_enumerator) :: output_denspot        !< 0= No output, 1= density, 2= density+potential
      integer :: dispersion            !< Dispersion term
      type(f_enumerator) :: output_wf!_format      !< Output Wavefunction format
-     !integer :: output_denspot_format !< Format for the output density and potential
      real(gp) :: hx,hy,hz   !< Step grid parameter (hgrid)
      integer :: nx,ny,nz   !< Number of divisions
      real(gp) :: crmult     !< Coarse radius multiplier
@@ -226,13 +230,22 @@ module module_input_keys
      logical :: disableSym                 !< .true. disable symmetry
      !> boolean to activate the calculation of the stress tensor
      logical :: calculate_strten
+     !> calculate the magnetic torque as in the constrained field dynamics
+     logical :: calculate_magnetic_torque
      !character(len=8) :: set_epsilon !< method for setting the dielectric constant
 
      !> solver parameters
      type(dictionary), pointer :: PS_dict,PS_dict_seq
 
+     !> CheSS parameters
+     type(dictionary), pointer :: chess_dict
+     type(chess_params) :: cp
+
      !> atomic density matrix requests
      type(dictionary), pointer :: at_gamma
+
+     !> calculate spatial density of states
+     logical :: sdos
 
      !> For absorption calculations
      integer :: iabscalc_type   !< 0 non calc, 1 cheb ,  2 lanc
@@ -324,11 +337,12 @@ module module_input_keys
      logical  :: restart_nose
      logical  :: restart_pos
      logical  :: restart_vel
+     logical  :: always_from_scratch
 
      ! Performance variables from input.perf
      logical :: debug      !< Debug option (used by memocc)
      integer :: ncache_fft !< Cache size for FFT
-     integer :: profiling_depth
+     !integer :: profiling_depth
      real(gp) :: projrad   !< Coarse radius of the projectors in units of the maxrad
      real(gp) :: symTol    !< Tolerance for symmetry detection.
      integer :: linear
@@ -361,7 +375,12 @@ module module_input_keys
      !> Global MPI group size (will be written in the mpi_environment)
      ! integer :: mpi_groupsize
 
-     type(external_potential_descriptors) :: ep
+     !>id of the output wavefunctions
+     character(len=64) :: outputpsiid
+
+     type(external_potential_descriptors) :: ep !< contains the multipoles for the external potential
+     logical :: mp_centers_auto !< indicates whether the multipole centers shall be determined automatically (i.e. the atoms) or provided manually
+     real(kind=8),dimension(:,:),pointer :: mp_centers !< contains the positions of the multipoles to be calculated
 
      ! Linear scaling parameters
      type(linearInputParameters) :: lin    !< Linear scaling data
@@ -370,7 +389,7 @@ module module_input_keys
      integer :: check_sumrho               !< (LS) Perform a check of sumrho (no check, light check or full check)
      integer :: check_overlap              !< (LS) Perform a check of the overlap calculation
      logical :: experimental_mode          !< (LS) Activate the experimental mode
-     integer :: write_orbitals             !< (LS) Write KS orbitals for cubic restart (0: no, 1: wvl, 2: wvl+isf)
+     !integer :: write_orbitals             !< (LS) Write KS orbitals for cubic restart (0: no, 1: wvl, 2: wvl+isf)
      logical :: explicit_locregcenters     !< (LS) Explicitely specify localization centers
      logical :: calculate_KS_residue       !< (LS) Calculate Kohn-Sham residue
      logical :: intermediate_forces        !< (LS) Calculate intermediate forces
@@ -378,11 +397,11 @@ module module_input_keys
      !> linear scaling: exit kappa for extended input guess (experimental mode)
      real(kind=8) :: kappa_conv
 
-     !> linear scaling: number of FOE cycles before the eigenvalue bounds are shrinked
-     integer :: evbounds_nsatur
+     !!!> linear scaling: number of FOE cycles before the eigenvalue bounds are shrinked
+     !!integer :: evbounds_nsatur
 
-     !> linear scaling: maximal number of unsuccessful eigenvalue bounds shrinkings
-     integer :: evboundsshrink_nsatur
+     !!!> linear scaling: maximal number of unsuccessful eigenvalue bounds shrinkings
+     !!integer :: evboundsshrink_nsatur
 
      !> linear scaling: calculate the HOMO LUMO gap even when FOE is used for the kernel calculation
      logical :: calculate_gap
@@ -399,11 +418,11 @@ module module_input_keys
      !> linear scaling: correction covariant / contravariant gradient
      logical :: correction_co_contra
 
-     !> linear scaling: lower bound for the error function decay length
-     real(kind=8) :: fscale_lowerbound
+     !!!> linear scaling: lower bound for the error function decay length
+     !!real(kind=8) :: fscale_lowerbound
 
-     !> linear scaling: upper bound for the error function decay length
-     real(kind=8) :: fscale_upperbound
+     !!!> linear scaling: upper bound for the error function decay length
+     !!real(kind=8) :: fscale_upperbound
 
      !> linear scaling: Restart method to be used for the FOE method
      integer :: FOE_restart
@@ -510,42 +529,55 @@ contains
 
   !> Allocate and initialize the variables 'parameters', 'params' and 'parsed_parameters'/
   subroutine input_keys_init()
-    use yaml_output
+    !use yaml_output
     use dynamic_memory
     use yaml_parse
-    use f_precisions, only: f_integer
+    use f_bibliography
+    !use f_precisions, only: f_integer
     implicit none
-    !local variables
-    integer(f_integer) :: params_size
-    !integer(kind = 8) :: cbuf_add !< address of c buffer
-    character, dimension(:), allocatable :: params
+!!$    !local variables
+!!$    integer(f_integer) :: params_size
+!!$    !integer(kind = 8) :: cbuf_add !< address of c buffer
+!!$    character, dimension(:), allocatable :: params
+    type(dictionary), pointer :: biblio
+    external :: get_input_variables_definition
+    external :: get_bigdft_bibliography !we put it here but there might be a better place
 
     call f_routine(id='input_keys_init')
 
-    !alternative filling of parameters from hard-coded source file
-    !call getstaticinputdef(cbuf_add,params_size)
-    call getinputdefsize(params_size)
-    !allocate array
-    params=f_malloc_str(1,params_size,id='params')
-    !fill it and parse dictionary
-    !print *,'after', f_loc(params),f_loc(params(1)),'shape',shape(params),params_size
-    !print *,'cbuf_add',cbuf_add
-    call getinputdef(params)
-    !write(*,*)'here definition'
-    !write(*,'('//trim(yaml_toa(params_size))//'a)')params
+    call yaml_parse_database(parsed_parameters,&
+         get_input_variables_definition)
 
-    !call copycbuffer(params,cbuf_add,params_size)
-    !print *,'there',params_size
-    call yaml_parse_from_char_array(parsed_parameters,params)
+!!$    !alternative filling of parameters from hard-coded source file
+!!$    !call getstaticinputdef(cbuf_add,params_size)
+!!$    call getinputdefsize(params_size)
+!!$    !allocate array
+!!$    params=f_malloc_str(1,params_size,id='params')
+!!$    !fill it and parse dictionary
+!!$    !print *,'after', f_loc(params),f_loc(params(1)),'shape',shape(params),params_size
+!!$    !print *,'cbuf_add',cbuf_add
+!!$    call getinputdef(params)
+!!$    !write(*,*)'here definition'
+!!$    !write(*,'('//trim(yaml_toa(params_size))//'a)')params
+!!$
+!!$    !call copycbuffer(params,cbuf_add,params_size)
+!!$    !print *,'there',params_size
+!!$    call yaml_parse_from_char_array(parsed_parameters,params)
+!!$    call f_free_str(1,params)
+
     !there is only one document in the input variables specifications
     parameters=>parsed_parameters//0
     profiles => parsed_parameters//1
-    call f_free_str(1,params)
 
     !call yaml_dict_dump(parameters, comment_key = COMMENT)
 
 !!$    !in the case the errors have not been initialized before
 !!$    call input_keys_errors()
+
+    !then update the bibliography here
+    call yaml_parse_database(biblio,get_bigdft_bibliography)
+    call f_bib_update(biblio//0) !only first document
+    call dict_free(biblio)
 
     call f_release_routine()
 
@@ -594,6 +626,7 @@ contains
     use wrapper_MPI, only: mpibarrier
     use abi_interfaces_add_libpaw, only : abi_pawinit
     use PStypes, only: SETUP_VARIABLES,VERBOSITY
+    use vdwcorrection, only: vdwcorrection_warnings
     implicit none
     !Arguments
     type(input_variables), intent(out) :: in
@@ -602,21 +635,23 @@ contains
     !Local variables
     !type(dictionary), pointer :: profs, dict_frag
     logical :: found, userdef
-    integer :: ierr, norb_max, jtype, jxc
+    integer :: ierr, norb_max, jtype, jxc, ii
     real(gp) :: qelec_up, qelec_down
     character(len = max_field_length) :: msg,filename,run_id,input_id,posinp_id,outdir
     !  type(f_dict) :: dict
-    type(dictionary), pointer :: dict_minimal, var, lvl, types
+    type(dictionary), pointer :: dict_minimal, var, lvl, types, iter
 
     integer, parameter :: pawlcutd = 10, pawlmix = 10, pawnphi = 13, pawntheta = 12, pawxcdev = 1
     integer, parameter :: usepotzero = 0
-    integer :: nsym,unt, xclevel, iat, mpsang
-    real(gp) :: gsqcut_shp, rloc, projr, rlocmin
+    integer :: nsym,unt, xclevel, iat, mpsang, i, n
+    real(gp) :: rloc, projr, rlocmin
     real(gp), dimension(2) :: cfrmults
+    !real(gp) :: gsqcut_shp
     !type(external_potential_descriptors) :: ep
     !integer :: impl, l
     type(xc_info) :: xc
     logical :: free,positions
+    character(len=20) :: key
 
     call f_routine(id='inputs_from_dict')
 
@@ -633,7 +668,12 @@ contains
     if (free .and. positions) call f_err_throw('No given atoms with free boundary conditions',&
                 & ERR_NAME='BIGDFT_INPUT_VARIABLES_ERROR')
 
+    !this cannot be called as the input variables are not ready at this stage
+!!$    call astruct_set(atoms%astruct,dict // POSINP,in%randdis,in%disableSym,in%symTol,in%elecfield,in%nspin,&
+!!$         bigdft_mpi%iproc == 0)
+
     call astruct_set_from_dict(dict // POSINP, atoms%astruct)
+
     ! Generate the dict of types for later use.
     call astruct_dict_get_types(dict // POSINP, types)
 
@@ -651,16 +691,17 @@ contains
     !then other treatments for the sequential solver might be added
     call set(in%PS_dict_seq // SETUP_VARIABLES // VERBOSITY, .false.)
 
+    !copy the CheSS dictionary
+    call dict_copy(src=dict // CHESS, dest=in%chess_dict)
+
     ! Add missing pseudo information.
     projr = dict // PERF_VARIABLES // PROJRAD
     cfrmults = dict // DFT_VARIABLES // RMULT
     jxc = dict // DFT_VARIABLES // IXC
-    !var => dict_iter(types)
-    !do while(associated(var))
+
     nullify(var)
     do while(iterating(var,on=types))
        call psp_dict_fill_all(dict, trim(dict_key(var)), jxc, projr, cfrmults(1), cfrmults(2))
-       !var => dict_next(var)
     end do
 
     ! Update interdependent values.
@@ -710,12 +751,12 @@ contains
          dest=filename)
     if (.not. in%debug) then
        if (in%verbosity==3) then
-          call f_malloc_set_status(output_level=1, iproc=bigdft_mpi%iproc,logfile_name=filename,profiling_depth=in%profiling_depth)
+          call f_malloc_set_status(output_level=1, iproc=bigdft_mpi%iproc,logfile_name=filename)!,profiling_depth=in%profiling_depth)
        else
-          call f_malloc_set_status(output_level=0, iproc=bigdft_mpi%iproc,profiling_depth=in%profiling_depth)
+          call f_malloc_set_status(output_level=0, iproc=bigdft_mpi%iproc)!,profiling_depth=in%profiling_depth)
        end if
     else
-       call f_malloc_set_status(output_level=2, iproc=bigdft_mpi%iproc,logfile_name=filename,profiling_depth=in%profiling_depth)
+       call f_malloc_set_status(output_level=2, iproc=bigdft_mpi%iproc,logfile_name=filename)!,profiling_depth=in%profiling_depth)
     end if
 
     call nullifyInputLinparameters(in%lin)
@@ -756,17 +797,20 @@ contains
     call kpt_input_analyse(bigdft_mpi%iproc, in, dict//KPT_VARIABLES, &
          & atoms%astruct%sym, atoms%astruct%geocode, atoms%astruct%cell_dim)
 
-    ! Update atoms with pseudo information.
-    call psp_dict_analyse(dict, atoms, in%frmult)
-    call atomic_data_set_from_dict(dict,IG_OCCUPATION, atoms, in%nspin)
+    call atoms_fill(atoms,dict,in%frmult,in%nspin,&
+         in%multipole_preserving,in%mp_isf,in%ixc,in%alpha_hartree_fock)
 
-    !fill the requests for the atomic density matrix
-    call atoms_gamma_from_dict(dict//OUTPUT_VARIABLES//ATOMIC_DENSITY_MATRIX,dict//DFT_VARIABLES//OCCUPANCY_CONTROL,&
-     lmax_ao,atoms%astruct,atoms%dogamma,atoms%gamma_targets)
-
-    ! Add multipole preserving information
-    atoms%multipole_preserving = in%multipole_preserving
-    atoms%mp_isf = in%mp_isf
+!!$    ! Update atoms with pseudo information.
+!!$    call psp_dict_analyse(dict, atoms, in%frmult)
+!!$    call atomic_data_set_from_dict(dict,IG_OCCUPATION, atoms, in%nspin)
+!!$
+!!$    !fill the requests for the atomic density matrix
+!!$    call atoms_gamma_from_dict(dict//OUTPUT_VARIABLES//ATOMIC_DENSITY_MATRIX,dict//DFT_VARIABLES//OCCUPANCY_CONTROL,&
+!!$     lmax_ao,atoms%astruct,atoms%dogamma,atoms%gamma_targets)
+!!$
+!!$    ! Add multipole preserving information
+!!$    atoms%multipole_preserving = in%multipole_preserving
+!!$    atoms%mp_isf = in%mp_isf
 
     ! Generate orbital occupation
     call read_n_orbitals(bigdft_mpi%iproc, qelec_up, qelec_down, norb_max, atoms, &
@@ -776,32 +820,28 @@ contains
          in%gen_nkpt, in%nspin, in%norbsempty, qelec_up, qelec_down, norb_max)
     in%gen_norb = in%gen_norbu + in%gen_norbd
 
-    ! Complement PAW initialisation.
-    if (any(atoms%npspcode == PSPCODE_PAW)) then
-     call xc_init(xc, in%ixc, XC_MIXED, 1)
-     xclevel = 1 ! xclevel=XC functional level (1=LDA, 2=GGA)
-     if (xc_isgga(xc)) xclevel = 2
-     call xc_end(xc)
-     !gsqcut_shp = two*abs(dtset%diecut)*dtset%dilatmx**2/pi**2
-     gsqcut_shp = 2._gp * 2.2_gp / pi_param ** 2
-     nsym = 0
-     call symmetry_get_n_sym(atoms%astruct%sym%symObj, nsym, ierr)
-     mpsang = -1
-     do iat = 1, atoms%astruct%nat
-        mpsang = max(mpsang, maxval(atoms%pawtab(iat)%orbitals))
-     end do
-     call abi_pawinit(1, gsqcut_shp, pawlcutd, pawlmix, mpsang + 1, &
-          & pawnphi, nsym, pawntheta, atoms%pawang, atoms%pawrad, 0, &
-          & atoms%pawtab, pawxcdev, xclevel, usepotzero)
-    end if
+!!$    ! Complement PAW initialisation.
+!!$    if (any(atoms%npspcode == PSPCODE_PAW)) then
+!!$     call xc_init(xc, in%ixc, XC_MIXED, 1, in%alpha_hartree_fock)
+!!$     xclevel = 1 ! xclevel=XC functional level (1=LDA, 2=GGA)
+!!$     if (xc_isgga(xc)) xclevel = 2
+!!$     call xc_end(xc)
+!!$     !gsqcut_shp = two*abs(dtset%diecut)*dtset%dilatmx**2/pi**2
+!!$     gsqcut_shp = 2._gp * 2.2_gp / pi_param ** 2
+!!$     nsym = 0
+!!$     call symmetry_get_n_sym(atoms%astruct%sym%symObj, nsym, ierr)
+!!$     mpsang = -1
+!!$     do iat = 1, atoms%astruct%nat
+!!$        mpsang = max(mpsang, maxval(atoms%pawtab(iat)%orbitals))
+!!$     end do
+!!$     call abi_pawinit(1, gsqcut_shp, pawlcutd, pawlmix, mpsang + 1, &
+!!$          & pawnphi, nsym, pawntheta, atoms%pawang, atoms%pawrad, 0, &
+!!$          & atoms%pawtab, pawxcdev, xclevel, usepotzero)
+!!$    end if
 
     if (in%gen_nkpt > 1 .and. (in%inputpsiid .hasattr. 'GAUSSIAN')) then
        call f_err_throw('Gaussian projection is not implemented with k-point support',err_name='BIGDFT_INPUT_VARIABLES_ERROR')
     end if
-
-!!$    if(in%inputpsiid == INPUT_PSI_LINEAR_AO .or. &
-!!$         in%inputpsiid == INPUT_PSI_MEMORY_LINEAR .or. &
-!!$         in%inputpsiid == INPUT_PSI_DISK_LINEAR) &
     if (in%inputpsiid .hasattr. 'LINEAR') DistProjApply=.true.
     if(in%linear /= INPUT_IG_OFF .and. in%linear /= INPUT_IG_LIG) then
        !only on the fly calculation
@@ -817,29 +857,14 @@ contains
     ! Stop the code if it is trying to run GPU with spin=4
     if (in%nspin == 4 .and. in%matacc%iacceleration /= 0) then
        call f_err_throw('GPU calculation not implemented with non-collinear spin',err_name='BIGDFT_INPUT_VARIABLES_ERROR')
-!!$     if (bigdft_mpi%iproc==0) call yaml_warning('GPU calculation not implemented with non-collinear spin')
-!!$     call MPI_ABORT(bigdft_mpi%mpi_comm,0,ierr)
+    end if
+
+    if (in%dispersion /= 0) then
+       call vdwcorrection_warnings(atoms, in%dispersion, in%ixc)
     end if
 
     !control atom positions
     call check_atoms_positions(atoms%astruct, (bigdft_mpi%iproc == 0))
-
-!!$  ! Stop code for unproper input variables combination.
-!!$  if (in%ncount_cluster_x > 0 .and. .not. in%disableSym .and. atoms%geocode == 'S') then
-!!$     if (bigdft_mpi%iproc==0) then
-!!$        write(*,'(1x,a)') 'Change "F" into "T" in the last line of "input.dft"'
-!!$        write(*,'(1x,a)') 'Forces are not implemented with symmetry support, disable symmetry please (T)'
-!!$     end if
-!!$     call MPI_ABORT(bigdft_mpi%mpi_comm,0,ierr)
-!!$  end if
-
-!!$  if (bigdft_mpi%iproc == 0) then
-!!$     profs => input_keys_get_profiles("")
-!!$     call yaml_dict_dump(profs)
-!!$     call dict_free(profs)
-!!$  end if
-
-    !call mpi_barrier(bigdft_mpi%mpi_comm,ierr)
 
     ! Warn for all INPUT_VAR_ILLEGAL errors.
     do while (f_err_pop(err_name='INPUT_VAR_ILLEGAL', add_msg = msg) /= 0)
@@ -863,26 +888,38 @@ contains
        found = TRANSFER_INTEGRALS .in. dict // FRAG_VARIABLES
        if (found) in%lin%calc_transfer_integrals=dict//FRAG_VARIABLES//TRANSFER_INTEGRALS
        call frag_from_dict(dict//FRAG_VARIABLES,in%frag)
-
-!!$     ! again recheck
-!!$     call dict_from_frag(in%frag,dict_frag)
-!!$     call yaml_map('again',dict_frag)
-!!$     call dict_free(dict_frag)
-!!$     stop
     else
        call default_fragmentInputParameters(in%frag)
     end if
 
     ! Process the multipoles for the external potential
     call multipoles_from_dict(dict//DFT_VARIABLES//EXTERNAL_POTENTIAL, in%ep)
-    !!do impl=1,in%ep%nmpl
-    !!    call yaml_map('rxyz',in%ep%mpl(impl)%rxyz)
-    !!    do l=0,lmax
-    !!         if(associated(in%ep%mpl(impl)%qlm(l)%q)) then
-    !!             call yaml_map(trim(yaml_toa(l)),in%ep%mpl(impl)%qlm(l)%q)
-    !!         end if
-    !!    end do
-    !!end do
+    ! Check whether the multipole centers shall be determined automatically (i.e. taking the atoms)
+    ! or whether they are provided manually.
+    in%mp_centers_auto = .true.
+    if (CENTERS_AUTO .in. dict//LIN_GENERAL//MULTIPOLE_CENTERS) then
+        in%mp_centers_auto = dict//LIN_GENERAL//MULTIPOLE_CENTERS//CENTERS_AUTO
+    end if
+    if (in%mp_centers_auto) then
+        nullify(in%mp_centers)
+    else
+        ! Specify the centers manually
+        if (.not. ('positions' .in. dict//LIN_GENERAL//MULTIPOLE_CENTERS)) then
+            call f_err_throw('No multipole centers are provided')
+        end if
+        n = dict_len(dict//LIN_GENERAL//MULTIPOLE_CENTERS//'positions')
+        in%mp_centers = f_malloc_ptr((/3,n/),id='in%mp_centers')
+        if (n/=atoms%astruct%nat) then
+            call f_err_throw('The number of multipole centers ('//trim(yaml_toa(n))//') &
+                &does not correspond to the number of atoms ('//trim(yaml_toa(atoms%astruct%nat))//')')
+        end if
+        do i=1,n
+            ii = i-1
+            iter => dict//LIN_GENERAL//MULTIPOLE_CENTERS//'positions'//ii
+            key = trim(atoms%astruct%atomnames(atoms%astruct%iatype(i)))
+            in%mp_centers(1:3,i) = iter//key
+        end do
+    end if
 
     ! No use anymore of the types.
     call dict_free(types)
@@ -939,19 +976,14 @@ contains
     !shouldwrite=.false.
 
     shouldwrite= &!shouldwrite .or. &
-                                !in%output_wf_format /= WF_FORMAT_NONE .or. &    !write wavefunctions
          in%output_wf /= ENUM_EMPTY .or. &    !write wavefunctions
          in%output_denspot /= ENUM_EMPTY .or. & !write output density
          in%ncount_cluster_x > 1 .or. &                  !write posouts or posmds
-         !in%inputPsiId == 2 .or. &                       !have wavefunctions to read
-         !in%inputPsiId == 12 .or.  &                     !read in gaussian basis
          (in%inputPsiId .hasattr. 'FILE') .or. &
-         (in%inputPsiId .hasattr. 'GAUSSIAN') .or. &
-         !in%gaussian_help .or. &                         !Mulliken and local density of states
+         (in%inputPsiId .hasattr. 'GAUSSIAN') .or. &   !Mulliken and local density of states
          bigdft_mpi%ngroup > 1   .or. &                  !taskgroups have been inserted
          mod(in%lin%plotBasisFunctions,10) > 0 .or. &    !dumping of basis functions for locreg runs
-         !in%inputPsiId == 102 .or. &                     !reading of basis functions
-         in%write_orbitals>0 .or. &                      !writing the KS orbitals in the linear case
+         !in%write_orbitals>0 .or. &                      !writing the KS orbitals in the linear case
          mod(in%lin%output_mat_format,10)>0 .or. &       !writing the sparse linear matrices
          mod(in%lin%output_coeff_format,10)>0 .or. &          !writing the linear KS coefficients
          in%mdsteps>0                                !write the MD restart file always in dir_output
@@ -984,12 +1016,14 @@ contains
     use public_keys
     use yaml_strings, only: operator(.eqv.)
     use yaml_output
+    use dictionaries
     use PStypes, only: PS_input_dict
+    use chess_base, only: chess_input_dict
     !use yaml_output
     implicit none
     type(dictionary), pointer :: dict,dict_minimal
     !local variables
-    type(dictionary), pointer :: as_is,nested,dict_ps_min,tmp
+    type(dictionary), pointer :: as_is,nested,dict_ps_min,dict_chess_min,tmp
     character(max_field_length) :: meth
     real(gp) :: dtmax_, betax_
     logical :: free,dftvar
@@ -1019,6 +1053,10 @@ contains
     !then we can complete the Poisson solver dictionary
     call PS_input_dict(dict // PSOLVER,dict_ps_min)
 
+    !then we can complete the CheSS dictionary
+    !call yaml_map('dict // CHESS',dict // CHESS)
+    call chess_input_dict(dict // CHESS,dict_chess_min)
+
     call input_file_complete(parameters,dict,imports=profiles,nocheck=nested,verbose=.true.)
 
     !create a shortened dictionary which will be associated to the given run
@@ -1035,6 +1073,7 @@ contains
 
     call input_file_minimal(parameters,dict,dict_minimal,nested,as_is)
     if (associated(dict_ps_min)) call set(dict_minimal // PSOLVER,dict_ps_min)
+    if (associated(dict_chess_min)) call set(dict_minimal // CHESS,dict_chess_min)
     call dict_free(nested,as_is)
 
 
@@ -1499,6 +1538,29 @@ contains
 
   end subroutine set_output_wf
 
+  subroutine set_output_wf_from_text(profile,output_wf)
+    implicit none
+    character(len=*), intent(in) :: profile
+    type(f_enumerator), intent(out) :: output_wf
+
+    select case(trim(profile))
+    case('No')
+       output_wf=ENUM_EMPTY
+    case('text')
+       output_wf=ENUM_TEXT
+    case('binary')
+       output_wf=ENUM_BINARY
+    case('text_with_densities')
+       output_wf=ENUM_TEXT
+       call f_enum_attr(output_wf,ENUM_DENSITY)
+    case('text_with_cube')
+       output_wf=ENUM_TEXT
+       call f_enum_attr(output_wf,ENUM_CUBE)
+    end select
+
+  end subroutine set_output_wf_from_text
+
+
   subroutine set_output_denspot(profile,output_denspot)
     implicit none
     integer, intent(in) :: profile
@@ -1588,7 +1650,7 @@ contains
              in%run_mode=PLUGIN_RUN_MODE
           end select
        case(ADD_COULOMB_FORCE_KEY)
-          in%add_coulomb_force = val          
+          in%add_coulomb_force = val
        case(PLUGIN_ID)
           in%plugin_id = val
        case(MM_PARAMSET)
@@ -1610,11 +1672,21 @@ contains
                call yaml_warning("unknown input key '" // trim(level) // "/" // trim(dict_key(val)) // "'")
        end select
     case (OUTPUT_VARIABLES)
-        ! the DFT variables ------------------------------------------------------
-        select case (trim(dict_key(val)))
-        case(ATOMIC_DENSITY_MATRIX)
+       select case (trim(dict_key(val)))
+       case (VERBOSITY)
+          in%verbosity = val
+       case(ATOMIC_DENSITY_MATRIX)
           call dict_copy(src=val,dest=in%at_gamma)
-        end select
+       case(SPATIAL_DOS)
+          in%sdos=val
+       case (WRITE_ORBITALS)
+          ! linear scaling: write KS orbitals for cubic restart
+          !in%write_orbitals = val
+          str=val
+          call set_output_wf_from_text(str,in%output_wf)
+       case (OUTPUTPSIID)
+          in%outputpsiid=val
+       end select
     case (DFT_VARIABLES)
        ! the DFT variables ------------------------------------------------------
        select case (trim(dict_key(val)))
@@ -1670,15 +1742,12 @@ contains
        case (INPUTPSIID)
           ipos=val
           call set_inputpsiid(ipos,in%inputPsiId)
-          !in%inputPsiId = val
-       case (OUTPUT_WF)
-          ipos=val
-          call set_output_wf(ipos,in%output_wf)
-          !in%output_wf = val
+       !case (OUTPUT_WF)
+       !ipos=val
+       !call set_output_wf(ipos,in%output_wf)
        case (OUTPUT_DENSPOT)
           ipos=val
           call set_output_denspot(ipos,in%output_denspot)
-          !in%output_denspot = val
        case (RBUF)
           in%rbuf = val ! Tail treatment.
        case (NCONGT)
@@ -1695,21 +1764,12 @@ contains
           in%itermax_virt = val
        case (DISABLE_SYM)
           in%disableSym = val ! Line to disable symmetries.
-!!$       case (SOLVENT)
-!!$          in%set_epsilon= val
-!!$          dummy_char = val
-!!$          select case(trim(dummy_char))
-!!$          case ("vacuum")
-!!$             in%set_epsilon =EPSILON_VACUUM
-!!$          case("rigid")
-!!$             in%set_epsilon =EPSILON_RIGID_CAVITY
-!!$          case("sccs")
-!!$             in%set_epsilon =EPSILON_SCCS
-!!$          end select
        case (EXTERNAL_POTENTIAL)
           ! Do nothing?
        case(CALCULATE_STRTEN)
           in%calculate_strten=val
+       case(MAGNETIC_TORQUE)
+          in%calculate_magnetic_torque=val
        case (PLOT_MPPOT_AXES)
            in%plot_mppot_axes = val
        case (PLOT_POT_AXES)
@@ -1719,6 +1779,8 @@ contains
           in%occupancy_control_itermax=val
        case (OCCUPANCY_CONTROL_NREPMAX)
           in%occupancy_control_nrepmax=val
+       case (ALPHA_HARTREE_FOCK)
+          in%alpha_hartree_fock=val
        case DEFAULT
           if (bigdft_mpi%iproc==0) &
                call yaml_warning("unknown input key '" // trim(level) // "/" // trim(dict_key(val)) // "'")
@@ -1728,12 +1790,10 @@ contains
        select case (trim(dict_key(val)))
        case (DEBUG)
           in%debug = val
-       case (PROFILING_DEPTH)
-          in%profiling_depth = val
+       !case (PROFILING_DEPTH)
+       !   in%profiling_depth = val
        case (FFTCACHE)
           in%ncache_fft = val
-       case (VERBOSITY)
-          in%verbosity = val
        case (TOLSYM)
           in%symTol = val
        case (PROJRAD)
@@ -1817,27 +1877,27 @@ contains
           end if
        case (STORE_INDEX)
           in%store_index = val
-       case (PDSYEV_BLOCKSIZE)
-          !block size for pdsyev/pdsygv, pdgemm (negative -> sequential)
-          in%lin%blocksize_pdsyev = val
-       case (PDGEMM_BLOCKSIZE)
-          in%lin%blocksize_pdgemm = val
-       case (MAXPROC_PDSYEV)
-          !max number of process uses for pdsyev/pdsygv, pdgemm
-          in%lin%nproc_pdsyev = val
-       case (MAXPROC_PDGEMM)
-          in%lin%nproc_pdgemm = val
-       case (EF_INTERPOL_DET)
-          !FOE: if the determinant of the interpolation matrix to find the Fermi energy
-          !is smaller than this value, switch from cubic to linear interpolation.
-          in%lin%ef_interpol_det = val
-       case (EF_INTERPOL_CHARGEDIFF)
-          in%lin%ef_interpol_chargediff = val
-          !determines whether a mixing step shall be preformed after the input guess !(linear version)
+       !!case (PDSYEV_BLOCKSIZE)
+       !!   !block size for pdsyev/pdsygv, pdgemm (negative -> sequential)
+       !!   in%lin%blocksize_pdsyev = val
+       !!case (PDGEMM_BLOCKSIZE)
+       !!   in%lin%blocksize_pdgemm = val
+       !!case (MAXPROC_PDSYEV)
+       !!   !max number of process uses for pdsyev/pdsygv, pdgemm
+       !!   in%lin%nproc_pdsyev = val
+       !!case (MAXPROC_PDGEMM)
+       !!   in%lin%nproc_pdgemm = val
+       !!case (EF_INTERPOL_DET)
+       !!   !FOE: if the determinant of the interpolation matrix to find the Fermi energy
+       !!   !is smaller than this value, switch from cubic to linear interpolation.
+       !!   in%lin%ef_interpol_det = val
+       !!case (EF_INTERPOL_CHARGEDIFF)
+       !!   in%lin%ef_interpol_chargediff = val
        case (MIXING_AFTER_INPUTGUESS)
+          !determines whether a mixing step shall be preformed after the input guess !(linear version)
           in%lin%mixing_after_inputguess = val
-          !determines whether the input guess support functions are orthogonalized iteratively (T) or in the standard way (F)
        case (ITERATIVE_ORTHOGONALIZATION)
+          !determines whether the input guess support functions are orthogonalized iteratively (T) or in the standard way (F)
           in%lin%iterative_orthogonalization = val
        case (CHECK_SUMRHO)
           in%check_sumrho = val
@@ -1847,9 +1907,6 @@ contains
           in%check_overlap = val
        case (EXPERIMENTAL_MODE)
           in%experimental_mode = val
-       case (WRITE_ORBITALS)
-          ! linear scaling: write KS orbitals for cubic restart
-          in%write_orbitals = val
        case (EXPLICIT_LOCREGCENTERS)
           ! linear scaling: explicitely specify localization centers
           in%explicit_locregcenters = val
@@ -1862,12 +1919,12 @@ contains
        case (KAPPA_CONV)
           ! linear scaling: exit kappa for extended input guess (experimental mode)
           in%kappa_conv = val
-       case (EVBOUNDS_NSATUR)
-          ! linear scaling: number of FOE cycles before the eigenvalue bounds are shrinked
-          in%evbounds_nsatur = val
-       case(EVBOUNDSSHRINK_NSATUR)
-          ! linear scaling: maximal number of unsuccessful eigenvalue bounds shrinkings
-          in%evboundsshrink_nsatur = val
+       !!case (EVBOUNDS_NSATUR)
+       !!   ! linear scaling: number of FOE cycles before the eigenvalue bounds are shrinked
+       !!   in%evbounds_nsatur = val
+       !!case(EVBOUNDSSHRINK_NSATUR)
+       !!   ! linear scaling: maximal number of unsuccessful eigenvalue bounds shrinkings
+       !!   in%evboundsshrink_nsatur = val
        case (CALCULATE_GAP)
           ! linear scaling: calculate the HOMO LUMO gap even when FOE is used for the kernel calculation
           in%calculate_gap = val
@@ -1883,12 +1940,12 @@ contains
        case (CORRECTION_CO_CONTRA)
           ! linear scaling: correction covariant / contravariant gradient
           in%correction_co_contra = val
-       case (FSCALE_LOWERBOUND)
-          ! linear scaling: lower bound for the error function decay length
-          in%fscale_lowerbound = val
-       case (FSCALE_UPPERBOUND)
-          ! linear scaling: upper bound for the error function decay length
-          in%fscale_upperbound = val
+       !!case (FSCALE_LOWERBOUND)
+       !!   ! linear scaling: lower bound for the error function decay length
+       !!   in%fscale_lowerbound = val
+       !!case (FSCALE_UPPERBOUND)
+       !!   ! linear scaling: upper bound for the error function decay length
+       !!   in%fscale_upperbound = val
        case (FOE_RESTART)
           ! linear scaling: Restart method to be used for the FOE method
           in%FOE_restart = val
@@ -2026,6 +2083,8 @@ contains
           in%restart_vel = val
        case (RESTART_POS)
           in%restart_pos = val
+       case (ALWAYS_FROM_SCRATCH)
+          in%always_from_scratch = val
        case DEFAULT
           if (bigdft_mpi%iproc==0) &
                call yaml_warning("unknown input key '" // trim(level) // "/" // trim(dict_key(val)) // "'")
@@ -2152,10 +2211,11 @@ contains
           in%lin%calculate_FOE_eigenvalues(1:2) = val
        case (PRECISION_FOE_EIGENVALUES)
           in%lin%precision_FOE_eigenvalues = val
+       case (MULTIPOLE_CENTERS)
+          ! Do nothing
        case DEFAULT
           if (bigdft_mpi%iproc==0) &
                call yaml_warning("unknown input key '" // trim(level) // "/" // trim(dict_key(val)) // "'")
-               write(*,*) 'CALCULATE_FOE_EIGENVALUES'
        end select
     case (LIN_BASIS)
        select case (trim(dict_key(val)))
@@ -2253,32 +2313,93 @@ contains
           in%lin%alphaSD_coeff = val
        case (ALPHA_FIT_COEFF)
           in%lin%curvefit_dmin = val
-       case (EVAL_RANGE_FOE)
-          dummy_gp(1:2) = val
-          in%lin%evlow = dummy_gp(1)
-          in%lin%evhigh = dummy_gp(2)
-       case (FSCALE_FOE)
-          in%lin%fscale = val
+       !!case (EVAL_RANGE_FOE)
+       !!   dummy_gp(1:2) = val
+       !!   in%lin%evlow = dummy_gp(1)
+       !!   in%lin%evhigh = dummy_gp(2)
+       !!case (FSCALE_FOE)
+       !!   in%lin%fscale = val
        case (COEFF_SCALING_FACTOR)
           in%lin%coeff_factor = val
        case (DELTA_PNRM)
           in%lin%delta_pnrm = val
-       case (PEXSI_NPOLES)
-          in%lin%pexsi_npoles = val
-       case (PEXSI_MUMIN)
-          in%lin%pexsi_mumin = val
-       case (PEXSI_MUMAX)
-          in%lin%pexsi_mumax = val
-       case (PEXSI_MU)
-          in%lin%pexsi_mu = val
-       case (PEXSI_TEMPERATURE)
-          in%lin%pexsi_temperature = val
-       case (PEXSI_TOL_CHARGE)
-          in%lin%pexsi_tol_charge = val
+       !!case (PEXSI_NPOLES)
+       !!   in%lin%pexsi_npoles = val
+       !!case (PEXSI_MUMIN)
+       !!   in%lin%pexsi_mumin = val
+       !!case (PEXSI_MUMAX)
+       !!   in%lin%pexsi_mumax = val
+       !!case (PEXSI_MU)
+       !!   in%lin%pexsi_mu = val
+       !!case (PEXSI_DELTAE)
+       !!   in%lin%pexsi_DeltaE = val
+       !!case (PEXSI_TEMPERATURE)
+       !!   in%lin%pexsi_temperature = val
+       !!case (PEXSI_TOL_CHARGE)
+       !!   in%lin%pexsi_tol_charge = val
+       !!case (PEXSI_NP_SYM_FACT)
+       !!   in%lin%pexsi_np_sym_fact = val
        case DEFAULT
           call yaml_warning("unknown input key '" // trim(level) // "/" // trim(dict_key(val)) // "'")
        end select
        ! the KPT variables ------------------------------------------------------
+    ! The CheSS variables...will be moved later
+    !!case (CHESS)
+    !!   write(*,*) 'trim(dict_key(val)) ',trim(dict_key(val))
+    !!   select case (trim(dict_key(val)))
+    !!   case (EF_INTERPOL_DET)
+    !!      !FOE: if the determinant of the interpolation matrix to find the Fermi energy
+    !!      !is smaller than this value, switch from cubic to linear interpolation.
+    !!      in%lin%ef_interpol_det = val
+    !!   case (EF_INTERPOL_CHARGEDIFF)
+    !!      in%lin%ef_interpol_chargediff = val
+    !!   case (PDSYEV_BLOCKSIZE)
+    !!      !block size for pdsyev/pdsygv, pdgemm (negative -> sequential)
+    !!      in%lin%blocksize_pdsyev = val
+    !!   case (PDGEMM_BLOCKSIZE)
+    !!      in%lin%blocksize_pdgemm = val
+    !!   case (MAXPROC_PDSYEV)
+    !!      !max number of process uses for pdsyev/pdsygv, pdgemm
+    !!      in%lin%nproc_pdsyev = val
+    !!   case (MAXPROC_PDGEMM)
+    !!      in%lin%nproc_pdgemm = val
+    !!   case (EVBOUNDS_NSATUR)
+    !!      ! linear scaling: number of FOE cycles before the eigenvalue bounds are shrinked
+    !!      in%evbounds_nsatur = val
+    !!   case(EVBOUNDSSHRINK_NSATUR)
+    !!      ! linear scaling: maximal number of unsuccessful eigenvalue bounds shrinkings
+    !!      in%evboundsshrink_nsatur = val
+    !!   case (FSCALE_LOWERBOUND)
+    !!      ! linear scaling: lower bound for the error function decay length
+    !!      in%fscale_lowerbound = val
+    !!   case (FSCALE_UPPERBOUND)
+    !!      ! linear scaling: upper bound for the error function decay length
+    !!      in%fscale_upperbound = val
+    !!   case (EVAL_RANGE_FOE)
+    !!      dummy_gp(1:2) = val
+    !!      in%lin%evlow = dummy_gp(1)
+    !!      in%lin%evhigh = dummy_gp(2)
+    !!   case (FSCALE_FOE)
+    !!      in%lin%fscale = val
+    !!   case (PEXSI_NPOLES)
+    !!      in%lin%pexsi_npoles = val
+    !!   case (PEXSI_MUMIN)
+    !!      in%lin%pexsi_mumin = val
+    !!   case (PEXSI_MUMAX)
+    !!      in%lin%pexsi_mumax = val
+    !!   case (PEXSI_MU)
+    !!      in%lin%pexsi_mu = val
+    !!   case (PEXSI_DELTAE)
+    !!      in%lin%pexsi_DeltaE = val
+    !!   case (PEXSI_TEMPERATURE)
+    !!      in%lin%pexsi_temperature = val
+    !!   case (PEXSI_TOL_CHARGE)
+    !!      in%lin%pexsi_tol_charge = val
+    !!   case (PEXSI_NP_SYM_FACT)
+    !!      in%lin%pexsi_np_sym_fact = val
+    !!   case DEFAULT
+    !!      call yaml_warning("unknown input key '" // trim(level) // "/" // trim(dict_key(val)) // "'")
+    !!   end select
     case (KPT_VARIABLES)
     case (LIN_BASIS_PARAMS)
     case (OCCUPATION)
@@ -2375,6 +2496,7 @@ contains
     !call f_zero(in%set_epsilon)
     call f_zero(in%dir_output)
     call f_zero(in%dir_perturbation)
+    call f_zero(in%outputpsiid)
     call f_zero(in%naming_id)
     nullify(in%gen_kpt)
     nullify(in%gen_wkpt)
@@ -2382,10 +2504,13 @@ contains
     nullify(in%nkptsv_group)
     nullify(in%PS_dict)
     nullify(in%PS_dict_seq)
+    nullify(in%chess_dict)
     nullify(in%at_gamma)
     call f_zero(in%calculate_strten)
+    call f_zero(in%calculate_magnetic_torque)
     call f_zero(in%nab_options)
-    in%profiling_depth=-1
+    in%sdos=.false.
+    !in%profiling_depth=-1
     in%plugin_id = 0
     in%gen_norb = UNINITIALIZED(0)
     in%gen_norbu = UNINITIALIZED(0)
@@ -2394,6 +2519,7 @@ contains
     call f_zero(in%itermax_virt)
     call f_zero(in%occupancy_control_itermax)
     in%occupancy_control_nrepmax=1
+    in%alpha_hartree_fock=-1.d0
     nullify(in%gen_occup)
     ! Default abscalc variables
     call abscalc_input_variables_default(in)
@@ -2407,6 +2533,8 @@ contains
     call tddft_input_variables_default(in)
     !Default for Self-Interaction Correction variables
     call sic_input_variables_default(in)
+    !molecular dynamics vars
+    call md_input_variables_default(in)
     ! Default for signaling
     in%gmainloop = 0.d0
     ! Default for lin.
@@ -2433,6 +2561,7 @@ contains
 
   !> Assign default values for mixing variables
   subroutine mix_input_variables_default(in)
+    use fermi_level, only: SMEARING_DIST_ERF
     implicit none
     type(input_variables), intent(inout) :: in
 
@@ -2498,6 +2627,7 @@ contains
     in%nmultint = 1
     in%nsuzuki  = 7
     in%nosefrq  = 3000.d0
+    in%always_from_scratch=.false.
   END SUBROUTINE md_input_variables_default
 
   !> Assign default values for self-interaction correction variables
@@ -2534,6 +2664,7 @@ contains
     call f_ref_free(in%refcnt)
     call dict_free(in%PS_dict)
     call dict_free(in%PS_dict_seq)
+    call dict_free(in%chess_dict)
     call dict_free(in%at_gamma)
     call free_geopt_variables(in)
     call free_kpt_variables(in)
@@ -2543,6 +2674,7 @@ contains
     call deallocateBasicArraysInput(in%lin)
     call deallocateInputFragArrays(in%frag)
     call deallocate_external_potential_descriptors(in%ep)
+    call f_free_ptr(in%mp_centers)
 
     ! Stop the signaling stuff.
     !Destroy C wrappers on Fortran objects,
@@ -3326,7 +3458,6 @@ contains
   !> Read from all input files and build a dictionary
   recursive subroutine user_dict_from_files(dict,radical,posinp_name, mpi_env)
     use yaml_output
-    use dictionaries_base, only: TYPE_DICT, TYPE_LIST
     use wrapper_MPI, only: mpi_environment
     use public_keys, only: POSINP, IG_OCCUPATION, MODE_VARIABLES, SECTIONS, METHOD_KEY
     use yaml_strings, only: f_strcpy

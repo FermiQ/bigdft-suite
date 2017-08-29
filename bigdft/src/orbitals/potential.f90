@@ -12,7 +12,9 @@
 !! Support the adding of a confining potential and the localisation region of the potential
 subroutine apply_potential_lr_conf_noconf(n1i,n2i,n3i,n1ip,n2ip,n3ip,ishift,n2,n3,&
      nspinor,npot,psir,pot,epot,confdata,ibyyzz_r,psir_noconf,econf)
-  use module_base
+  use module_defs
+  use dynamic_memory
+  use dictionaries
   use locreg_operations, only: confpot_data
   implicit none
   integer, intent(in) :: n1i,n2i,n3i,n1ip,n2ip,n3ip,n2,n3,nspinor,npot
@@ -156,14 +158,41 @@ subroutine apply_potential_lr_conf_noconf(n1i,n2i,n3i,n1ip,n2ip,n3ip,ishift,n2,n
      end do
      !$omp end do
   end do
-  
-  !!!$omp critical
-  !!epot=epot+epot_p
-  !!
-  !!econf=econf+econf_p
-  !!!$omp end critical
-  
   !$omp end parallel
+
+  
+!!!>  !$omp parallel default(private) &
+!!!>  !$omp shared(psir,pot1,epot,potorder_half,confdata,econf,ntasks) &
+!!!>  !$omp firstprivate(bit)
+!!!>  !$omp do reduction(+:epot,econf) (case 0)
+!!!>  !$omp taskloop (case(2))
+!!!>  do itask=1,ntasks
+!!!>     call box_iter_split(bit,ntasks,split_dim=2,itask=itask)
+!!!>     !$omp task (case(1))
+!!!>     do while(box_next_point(bit))
+!!!>        r=distance(bit%mesh,bit%rxyz,confdata%rxyzConf)
+!!!>        r2=r**2
+!!!>        cp=confdata%prefac*r2**potorder_half
+!!!>        psir1=psir(bit%ind,ispinor)
+!!!>        !the local potential is always real (npot=1) + confining term
+!!!>        ii3=i3-ishift(3)
+!!!>        ii2=i2-ishift(2)
+!!!>        ii1=i1-ishift(1)
+!!!>        pot1=pot(ii1,ii2,ii3,1)+cp
+!!!>        tt11=pot1*psir1
+!!!>
+!!!>        pot1_noconf=pot(ii1,ii2,ii3,1)
+!!!>        tt11_noconf=pot1_noconf*psir1
+!!!>        psir_noconf(bit%ind,ispinor) = tt11_noconf
+!!!>        econf=econf+cp*psir1*psir1
+!!!>        epot=epot+tt11*psir1
+!!!>        psir(bit%ind,ispinor)=tt11
+!!!>     end do
+!!!>  end do
+!!!>  !$omp taskwait (case(1))
+!!!>  !call box_iter_merge(bit) !not necessary for the declaration as firstprivate (in principle)
+!!!>  !$omp end parallel
+!!!>
 
   call f_release_routine()
 
@@ -173,7 +202,10 @@ END SUBROUTINE apply_potential_lr_conf_noconf
 !! Support the adding of a confining potential and the localisation region of the potential
 subroutine apply_potential_lr_conf(n1i,n2i,n3i,n1ip,n2ip,n3ip,ishift,n2,n3,&
      nspinor,npot,psir,pot,epot,confdata,ibyyzz_r)
-  use module_base
+  use module_defs
+  use dynamic_memory
+  use dictionaries
+ 
   use locreg_operations, only: confpot_data
   implicit none
   integer, intent(in) :: n1i,n2i,n3i,n1ip,n2ip,n3ip,n2,n3,nspinor,npot
@@ -328,7 +360,9 @@ END SUBROUTINE apply_potential_lr_conf
 !> Routine for applying the local potential
 !! Support the adding of a confining potential and the localisation region of the potential
 subroutine apply_potential_lr_conf_nobounds(n1i,n2i,n3i,n1ip,n2ip,n3ip,ishift,n2,n3,nspinor,npot,psir,pot,epot,confdata)
-  use module_base
+  use module_defs
+  use dynamic_memory
+  use dictionaries
   use locreg_operations, only: confpot_data
   implicit none
   integer, intent(in) :: n1i,n2i,n3i,n1ip,n2ip,n3ip,n2,n3,nspinor,npot
@@ -814,7 +848,9 @@ END SUBROUTINE apply_potential_lr_conf_nobounds
 !>   routine for applying the local potential
 !! Support the adding of a confining potential and the localisation region of the potential
 subroutine apply_potential_lr_nobounds(n1i,n2i,n3i,n1ip,n2ip,n3ip,ishift,n2,n3,nspinor,npot,psir,pot,epot)
-  use module_base
+  use module_defs
+  use dynamic_memory
+  use dictionaries
   use locreg_operations, only: confpot_data
   implicit none
   integer, intent(in) :: n1i,n2i,n3i,n1ip,n2ip,n3ip,n2,n3,nspinor,npot
@@ -1011,7 +1047,9 @@ END SUBROUTINE apply_potential_lr_nobounds
 !>   routine for applying the local potential
 !! Support the adding of a confining potential and the localisation region of the potential
 subroutine apply_potential_lr_bounds(n1i,n2i,n3i,n1ip,n2ip,n3ip,ishift,n2,n3,nspinor,npot,psir,pot,epot,ibyyzz_r)
-  use module_base
+  use module_defs
+  use dynamic_memory
+  use dictionaries
   use locreg_operations,  only: confpot_data
   implicit none
   integer, intent(in) :: n1i,n2i,n3i,n1ip,n2ip,n3ip,n2,n3,nspinor,npot

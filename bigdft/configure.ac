@@ -7,7 +7,7 @@ dnl  - PACKAGE_TARNAME, the name used for the tarball ;
 dnl  - PACKAGE_VERSION, the version ;
 dnl  - PACKAGE_STRING, the name + the version ;
 dnl  - PACKAGE_BUGREPORT, the mail.
-AC_INIT([BigDFT - DFT over wavelets],[1.8],[Damien.Caliste@cea.fr],[bigdft])
+AC_INIT([BigDFT - DFT over wavelets],[1.8.1],[Damien.Caliste@cea.fr],[bigdft])
 
 dnl All temporary building files are put in this directory.
 dnl his must be called before AM_INIT_AUTOMAKE
@@ -112,6 +112,9 @@ AX_MPI()
 AX_LINALG()
 AX_FLIB()
 AX_CHESS()
+if test "$ax_have_CHESS" != "yes" ; then
+  AC_MSG_ERROR(["Cannot find CheSS library."])
+fi
 AX_PSOLVER()
 if test "$ax_have_PSOLVER" != "yes" ; then
   AC_MSG_ERROR(["Cannot find PSolver library."])
@@ -199,6 +202,25 @@ AX_LIBGAIN()
 AX_ARCHIVE()
 AX_AMBERTOOLS()
 AX_ALBORZ()
+AX_PACKAGE([OPENBABEL],[2.0],[-lopenbabel],[],[],
+           [
+#include <openbabel/obmolecformat.h>
+#include <openbabel/mol.h>
+
+using namespace OpenBabel;
+
+int main(int argc, char **argv)
+{
+  std::ifstream fin("test.xyz");
+  std::istream* pIn = &fin;
+  OpenBabel::OBConversion conv(pIn, NULL);
+
+  return 0;  
+}
+],
+           [OpenBabel::OBConversion conv],
+           [C++], [openbabel-2.0])
+AM_CONDITIONAL(HAVE_OPENBABEL, test $ax_have_OPENBABEL = "yes")
 dnl PEXSI
 AC_ARG_WITH(pexsi, AS_HELP_STRING([--with-pexsi],
             [Give the link-line for PEXSI.]),
@@ -287,7 +309,7 @@ else
 fi
 
 dnl Agregate all the optional libs.
-LIB_BIGDFT_DEPS="$LIB_ABINIT_LIBS $LIB_XC_LIBS $LIB_GAIN_LIBS $CP2K_LINKLINE $PEXSI_LINKLINE $LIB_AMBERTOOLS_LIBS $LIB_ALBORZ_LIBS $LIBOCL_LIBS $LIBETSFIO_LIBS $LIB_ARCHIVE_LIBS $LIB_CHESS_DYNAMIC_LIBS $LIB_PSOLVER_DYNAMIC_LIBS $LIB_FUTILE_LIBS"
+LIB_BIGDFT_DEPS="$LIB_ABINIT_LIBS $LIB_XC_LIBS $LIB_GAIN_LIBS $CP2K_LINKLINE $LIB_AMBERTOOLS_LIBS $LIB_ALBORZ_LIBS $LIBOCL_LIBS $LIBETSFIO_LIBS $LIB_ARCHIVE_LIBS $LIB_CHESS_DYNAMIC_LIBS $LIB_PSOLVER_DYNAMIC_LIBS $LIB_FUTILE_LIBS $PEXSI_LINKLINE"
 if test $ax_FUTILE_static != "yes" ; then
    LIB_BIGDFT_DEPS="$LIB_BIGDFT_DEPS $LIBCUDA_LIBS $LINALG_LIBS $GLIB_LIBS $MPI_LDFLAGS $MPI_LIBS $PYTHON_LIBS"
 fi
@@ -296,6 +318,10 @@ LIB_BIGDFT_PKG=""
 if test $ax_build_dynamic != "yes" ; then
   LIB_BIGDFT_PKG="$LIB_BIGDFT_DEPS"
 fi
+if test $ax_have_OPENBABEL = "yes" ; then
+  LIB_BIGDFT_PKG="-lbabel $LIB_BIGDFT_PKG"
+fi
+
 AC_SUBST(LIB_BIGDFT_PKG)
 dnl LIB_BIGDFT_DEPS="$LIB_BIGDFT_DEPS $LIB_PSOLVER_LIBS $LIB_FUTILE_LIBS"
 AC_SUBST(LIB_BIGDFT_DEPS)
@@ -336,8 +362,9 @@ src/bigdft-tool
 src/Makefile
 src/modules/Makefile
 src/modules/configure.c
+src/locregs/Makefile
+src/locregs/configure.inc
 src/orbitals/Makefile
-src/orbitals/configure.inc
 src/xcPSolver/Makefile
 src/CUDA/Makefile
 src/OpenCL/Makefile
@@ -345,9 +372,6 @@ src/convolutions-c/Makefile
 src/bindings/Makefile
 src/bindings/bigdft_cst.h
 src/geopt/Makefile
-src/python/Makefile
-src/python/BigDFT/Makefile
-src/python/BigDFT/scripts/Makefile
 src/tools/Makefile
 src/tools/bader/Makefile
 plugins/Makefile
@@ -414,6 +438,9 @@ Options:
    | nab Compiler:           $NAB
   With CP2K:                 $ax_have_cp2k
   With PEXSI:                $ax_have_pexsi
+  With OpenBabel:            $ax_have_OPENBABEL
+   | C++ flags:              $LIB_OPENBABEL_CFLAGS
+   | linked libraries:       $LIB_OPENBABEL_LIBS
   With libXC:                $ac_use_libxc
    | internal built:         $ac_build_libxc
    | include dir.:           $LIBXC_INCLUDE

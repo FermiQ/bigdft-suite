@@ -1,5 +1,5 @@
 !> @file
-!>  Modules which contains all the interfaces to parse input dictionary.
+!ORB>  Modules which contains all the interfaces to parse input dictionary.
 !! @author
 !!    Copyright (C) 2013-2014 BigDFT group
 !!    This file is distributed under the terms of the
@@ -101,8 +101,8 @@ contains
     type(dictionary), pointer :: dict            !< Input dictionary
     !local variables
     character(len = 100) :: f0
-    character(len=max_field_length) :: st
-    type(dictionary), pointer :: vals
+    character(len=max_field_length) :: st,key,target_key
+    type(dictionary), pointer :: vals,to_out,iter,conversion,tmp
 
     ! Parse all files.
     call set_inputfile(f0, radical, PERF_VARIABLES)
@@ -119,13 +119,43 @@ contains
           call set(dict // PSOLVER // 'setup' // 'accel',st)
           call dict_remove(vals,PSOLVER //'/accel')
        end if
+       to_out=>list_new(.item. VERBOSITY, .item. WRITE_ORBITALS)
+       nullify(iter)
+       do while(iterating(iter,on=to_out))
+          key=dict_value(iter)
+          st = vals // trim(key)
+          call set(dict//OUTPUT_VARIABLES//trim(key),st)
+          call dict_remove(vals,trim(key))
+       end do
+       call dict_free(to_out)
+
        call set(dict//PERF_VARIABLES, vals)
     end if
 
     call set_inputfile(f0, radical, DFT_VARIABLES)
     nullify(vals)
     call read_dft_from_text_format(mpi_env%iproc,vals, trim(f0))
-    if (associated(vals)) call set(dict//DFT_VARIABLES, vals)
+    if (associated(vals)) then
+      to_out=>list_new(.item. OUTPUT_WF)
+      conversion=>dict_new(OUTPUT_WF .is. &
+           dict_new('key' .is. WRITE_ORBITALS,&
+           '0' .is. 'No', '1' .is. 'text', '2' .is. 'binary', '3' .is. 'etsf'))
+      nullify(iter)
+      do while(iterating(iter,on=to_out))
+         key=dict_value(iter)
+         st = vals // trim(key)
+         target_key=key
+         tmp=conversion .get. key
+         if (associated(tmp)) then
+            target_key=tmp//'key'
+            st=tmp .get. st
+         end if
+         call set(dict//OUTPUT_VARIABLES//trim(target_key),st)
+         call dict_remove(vals,trim(key))
+      end do
+      call dict_free(to_out,conversion)
+      call set(dict//DFT_VARIABLES, vals)
+    end if
 
     call set_inputfile(f0, radical, KPT_VARIABLES)
     nullify(vals)
@@ -775,24 +805,24 @@ contains
     call input_var("mp_isf", 16, "Interpolating scaling function for the multipole preserving option",dummy_int)
     call set(dict // MP_ISF, dummy_int)
 
-    !block size for pdsyev/pdsygv, pdgemm (negative -> sequential)
-    call input_var("pdsyev_blocksize",-8,"SCALAPACK linear scaling blocksize",dummy_int) !ranges=(/-100,1000/)
-    call set(dict // PDSYEV_BLOCKSIZE, dummy_int)
-    call input_var("pdgemm_blocksize",-8,"SCALAPACK linear scaling blocksize",dummy_int) !ranges=(/-100,1000/)
-    call set(dict // PDGEMM_BLOCKSIZE, dummy_int)
+!!    !block size for pdsyev/pdsygv, pdgemm (negative -> sequential)
+!!    call input_var("pdsyev_blocksize",-8,"SCALAPACK linear scaling blocksize",dummy_int) !ranges=(/-100,1000/)
+!!    call set(dict // PDSYEV_BLOCKSIZE, dummy_int)
+!!    call input_var("pdgemm_blocksize",-8,"SCALAPACK linear scaling blocksize",dummy_int) !ranges=(/-100,1000/)
+!!    call set(dict // PDGEMM_BLOCKSIZE, dummy_int)
 
-    !max number of process uses for pdsyev/pdsygv, pdgemm
-    call input_var("maxproc_pdsyev",4,"SCALAPACK linear scaling max num procs",dummy_int) !ranges=(/1,100000/)
-    call set(dict // MAXPROC_PDSYEV, dummy_int)
-    call input_var("maxproc_pdgemm",4,"SCALAPACK linear scaling max num procs",dummy_int) !ranges=(/1,100000/)
-    call set(dict // MAXPROC_PDGEMM, dummy_int)
+!!    !max number of process uses for pdsyev/pdsygv, pdgemm
+!!    call input_var("maxproc_pdsyev",4,"SCALAPACK linear scaling max num procs",dummy_int) !ranges=(/1,100000/)
+!!    call set(dict // MAXPROC_PDSYEV, dummy_int)
+!!    call input_var("maxproc_pdgemm",4,"SCALAPACK linear scaling max num procs",dummy_int) !ranges=(/1,100000/)
+!!    call set(dict // MAXPROC_PDGEMM, dummy_int)
 
-    !FOE: if the determinant of the interpolation matrix to find the Fermi energy
-    !is smaller than this value, switch from cubic to linear interpolation.
-    call input_var("ef_interpol_det",1.d-20,"FOE: max ",dummy_real)
-    call set(dict // EF_INTERPOL_DET, dummy_real, fmt = "(E9.2)")
-    call input_var("ef_interpol_chargediff",1.d0,"FOE: max ",dummy_real)
-    call set(dict // EF_INTERPOL_CHARGEDIFF, dummy_real, fmt = "(E9.2)")
+!!    !FOE: if the determinant of the interpolation matrix to find the Fermi energy
+!!    !is smaller than this value, switch from cubic to linear interpolation.
+!!    call input_var("ef_interpol_det",1.d-20,"FOE: max ",dummy_real)
+!!    call set(dict // EF_INTERPOL_DET, dummy_real, fmt = "(E9.2)")
+!!    call input_var("ef_interpol_chargediff",1.d0,"FOE: max ",dummy_real)
+!!    call set(dict // EF_INTERPOL_CHARGEDIFF, dummy_real, fmt = "(E9.2)")
 
     !determines whether a mixing step shall be preformed after the input guess !(linear version)
     call input_var("mixing_after_inputguess",1,"mixing after inguess (0/1/2)",dummy_int)
@@ -826,11 +856,11 @@ contains
     call input_var("kappa_conv", 0.1d0, "exit kappa for extended input guess (experimental mode)", dummy_real)
     call set(dict // KAPPA_CONV, dummy_real)
 
-    call input_var("evbounds_nsatur", 3, "number of FOE cycles before the eigenvalue bounds are shrinked", dummy_int)
-    call set(dict // EVBOUNDS_NSATUR, dummy_int)
-
-    call input_var("evboundsshrink_nsatur", 4, "maximal number of unsuccessful eigenvalue bounds shrinkings", dummy_int)
-    call set(dict // EVBOUNDSSHRINK_NSATUR, dummy_int)
+!!    call input_var("evbounds_nsatur", 3, "number of FOE cycles before the eigenvalue bounds are shrinked", dummy_int)
+!!    call set(dict // EVBOUNDS_NSATUR, dummy_int)
+!!
+!!    call input_var("evboundsshrink_nsatur", 4, "maximal number of unsuccessful eigenvalue bounds shrinkings", dummy_int)
+!!    call set(dict // EVBOUNDSSHRINK_NSATUR, dummy_int)
 
     call input_var("calculate_gap", .false., "calculate the HOMO LUMO gap", dummy_bool)
     call set(dict // CALCULATE_GAP, dummy_bool)
@@ -847,11 +877,11 @@ contains
     call input_var("correction_co_contra", .true., "correction covariant / contravariant gradient", dummy_bool)
     call set(dict // CORRECTION_CO_CONTRA, dummy_bool)
 
-    call input_var("fscale_lowerbound", 5.d-3, "lower bound for the error function decay length", dummy_real)
-    call set(dict // FSCALE_LOWERBOUND, dummy_real)
-
-    call input_var("fscale_upperbound", 5.d-2, "upper bound for the error function decay length", dummy_real)
-    call set(dict // FSCALE_UPPERBOUND, dummy_real)
+!!    call input_var("fscale_lowerbound", 5.d-3, "lower bound for the error function decay length", dummy_real)
+!!    call set(dict // FSCALE_LOWERBOUND, dummy_real)
+!!
+!!    call input_var("fscale_upperbound", 5.d-2, "upper bound for the error function decay length", dummy_real)
+!!    call set(dict // FSCALE_UPPERBOUND, dummy_real)
 
     call input_var("imethod_overlap", 1, (/1,2/), "lin scaling method to calculate overlap matrix (1:old, 2:new)", dummy_int)
     call set(dict // IMETHOD_OVERLAP, dummy_int)
@@ -1264,15 +1294,16 @@ module module_input_dicts
   public :: occupation_data_file_merge_to_dict
   public :: dict_set_run_properties,dict_get_run_properties,dict_run_new,bigdft_options
   public :: set_dict_run_file,create_log_file,dict_run_validate,read_input_dict_from_files
+  public :: final_positions_filename
 
   !> Keys of a run dict. All private, use get_run_prop() and set_run_prop() to change them.
   character(len = *), parameter :: RADICAL_NAME = "radical"
   character(len = *), parameter :: INPUT_NAME   = "input_file"
   character(len = *), parameter :: OUTDIR       = "outdir"
+  character(len = *), parameter :: SKIP_IF_LOGFILE= "skip"
   character(len = *), parameter :: LOGFILE      = "logfile"
   character(len = *), parameter :: USE_FILES    = "run_from_files"
   character(len = *), parameter :: MINIMAL_FILE_KEY = "input_minimal_file"
-
 
 contains
 
@@ -1304,6 +1335,12 @@ contains
          'When "Yes", write the result of the run in file "log.yaml" or "log-<name>.yaml" if the run has a specified name.',&
          'Allowed values' .is. &
          'Boolean (yaml syntax). Automatically set to true when using runs-file or output directory different from "."'))
+
+    call yaml_cl_parse_option(parser,'skip','No',&
+         'skip run if logfile exists','s',&
+         dict_new('Usage' .is. &
+         'When "Yes", and the logfile already exists, do not perform the run',&
+         'Allowed values' .is. 'Boolean (yaml syntax).'))
 
     call yaml_cl_parse_option(parser,'runs-file','None',&
          'list_posinp filename','r',&
@@ -1359,6 +1396,11 @@ contains
        lval = .true.
     end if
     call set(drun // USE_FILES, lval)
+
+    lval=.false.
+    lval=options .get. SKIP_IF_LOGFILE
+    call dict_set_run_properties(drun, skip_if_logfile_exists = lval)
+
     call add(options//'BigDFT', drun)
   end subroutine set_dict_run_file
 
@@ -1414,7 +1456,7 @@ contains
 
   !> set the parameters of the run
   subroutine dict_set_run_properties(run,run_id,input_id,posinp_id, &
-       & outdir_id,log_to_disk,run_from_files,minimal_file)
+       outdir_id,log_to_disk,run_from_files,minimal_file,skip_if_logfile_exists)
     use public_keys, only: POSINP
     implicit none
     type(dictionary), pointer :: run !< nullified if not initialized
@@ -1424,6 +1466,7 @@ contains
     character(len=*), intent(in), optional :: minimal_file !< filename of the minimal input file
     logical, intent(in), optional :: log_to_disk !< Write logfile to disk instead of screen.
     logical, intent(in), optional :: run_from_files !< Run_objects should be initialised from files.
+    logical, intent(in), optional :: skip_if_logfile_exists !<if true the code should exit if the logfile exists
 
     integer :: lgt
 
@@ -1434,8 +1477,6 @@ contains
           call set(run // RADICAL_NAME, trim(run_id))
        else
           call set(run // RADICAL_NAME, LOGFILE) !this is if the logfile is then reused as input file
-          !call set(run // INPUT_NAME, " ")
-          !call set(run // POSINP, " ")
        end if
     end if
     if (present(input_id)) call set(run // INPUT_NAME, trim(input_id))
@@ -1452,6 +1493,8 @@ contains
     if (present(run_from_files)) call set(run // USE_FILES, run_from_files)
 
     if (present(minimal_file)) call set(run // MINIMAL_FILE_KEY, minimal_file)
+
+    if (present(skip_if_logfile_exists)) call set(run // SKIP_IF_LOGFILE, skip_if_logfile_exists)
 
   end subroutine dict_set_run_properties
 
@@ -1473,7 +1516,7 @@ contains
 
   !> get the parameters of the run
   subroutine dict_get_run_properties(run,run_id,input_id,posinp_id,naming_id, &
-       & outdir_id,log_to_disk,run_from_files, minimal_file)
+       & outdir_id,log_to_disk,run_from_files, minimal_file,skip_if_logfile_exists)
     use public_keys, only: POSINP
     use f_utils, only: f_zero
     use yaml_strings, only: f_strcpy
@@ -1485,6 +1528,7 @@ contains
     character(len=*), intent(out), optional :: minimal_file !< filename of the minimal input file
     logical, intent(inout), optional :: log_to_disk
     logical, intent(inout), optional :: run_from_files
+    logical, intent(inout), optional :: skip_if_logfile_exists !<if true the code should exit if the logfile exists
 
     if (present(input_id)) then
        call get_run_field(run,INPUT_NAME,input_id,'input')
@@ -1507,6 +1551,7 @@ contains
     if (present(outdir_id) .and. has_key(run, OUTDIR)) outdir_id = run // OUTDIR
     if (present(log_to_disk) .and. has_key(run, LOGFILE)) log_to_disk = run // LOGFILE
     if (present(run_from_files) .and. has_key(run, USE_FILES)) run_from_files = run // USE_FILES
+    if (present(skip_if_logfile_exists)) skip_if_logfile_exists = run .get. SKIP_IF_LOGFILE
 
     if (present(minimal_file)) then
        if (MINIMAL_FILE_KEY .in. run) then
@@ -1559,13 +1604,14 @@ contains
     valid_entries=>list_new([&
          .item. OUTDIR,&
          .item. RADICAL_NAME,&
+         .item. SKIP_IF_LOGFILE, &
          .item. USE_FILES,&
          .item. INPUT_NAME,&
          .item. LOGFILE,&
          .item. POSINP,&
          .item. MODE_VARIABLES,&
          .item. PERF_VARIABLES,&
-         .item. DFT_VARIABLES,&   
+         .item. DFT_VARIABLES,&
          .item. PSOLVER,&
          .item. KPT_VARIABLES,&
          .item. OUTPUT_VARIABLES,&
@@ -1584,7 +1630,8 @@ contains
          .item. MINIMAL_FILE_KEY,&
          .item. F_IMPORT_KEY,&
          .item. PY_HOOKS,&
-         .item. PLUGINS])
+         .item. PLUGINS,&
+         .item. CHESS])
     ! If we have mode // sections, then, we need to exclude all
     ! section keys, they will be checked later.
     nullify(mode)
@@ -1647,7 +1694,7 @@ contains
   end subroutine dict_run_validate
 
 
-  subroutine create_log_file(dict,dict_from_files)
+  subroutine create_log_file(dict,dict_from_files,skip)
     use module_base, enum_int => f_int
     use yaml_strings
     use yaml_output
@@ -1655,14 +1702,15 @@ contains
     implicit none
     type(dictionary), pointer :: dict
     logical, intent(out) :: dict_from_files !<identifies if the dictionary comes from files
+    logical, intent(out), optional :: skip !<if .true. the code should not be run as the logfile is existing already
     !local variables
     integer, parameter :: ntrials=1
+    logical :: log_to_disk,skip_tmp
     integer :: lgt,unit_log,ierrr,trials
     integer(kind=4) :: ierr
-    character(len = max_field_length) :: writing_directory, run_name
+    character(len = max_field_length) :: writing_directory, run_name,posinp_id
     character(len=500) :: logfilename,path
     integer :: iproc_node, nproc_node
-    logical :: log_to_disk
 
     ! Get user input writing_directory.
     writing_directory = "."
@@ -1687,10 +1735,19 @@ contains
 
     ! Test if logging on disk is required.
     log_to_disk = (bigdft_mpi%ngroup > 1)
-    call dict_get_run_properties(dict, log_to_disk = log_to_disk) !< May overwrite with user choice
+    call dict_get_run_properties(dict, log_to_disk = log_to_disk,skip_if_logfile_exists=skip_tmp) !< May overwrite with user choice
 
     ! Save modified infos in dict.
     call dict_set_run_properties(dict, outdir_id = writing_directory, log_to_disk = log_to_disk)
+
+    if(present(skip)) skip=.false.
+    if (log_to_disk .and. skip_tmp .and. present(skip)) then
+       call dict_get_run_properties(dict, naming_id = run_name, posinp_id = posinp_id)
+       logfilename = "log"//trim(run_name)//".yaml"
+       call f_file_exists(trim(writing_directory)//trim(logfilename),skip)
+       if (skip) call final_file_exists(posinp_id,skip)
+       if (skip) return
+    end if
 
     ! Now, create the logfile if needed.
     if (bigdft_mpi%iproc == 0) then
@@ -1759,6 +1816,50 @@ contains
 
   END SUBROUTINE create_log_file
 
+  pure subroutine final_positions_filename(singlepoint,id,filename)
+    use yaml_strings
+    implicit none
+    logical, intent(in) :: singlepoint
+    character(len=*), intent(in) :: id
+    character(len=*), intent(out) :: filename
+    if (singlepoint) then
+       call f_strcpy(src='forces_'+id,dest=filename)
+    else
+       call f_strcpy(src='final_'+id,dest=filename)
+    end if
+  end subroutine final_positions_filename
+
+  !> get the information about the final file position
+  subroutine final_file_exists(id,exists)
+    use f_utils
+    use yaml_strings
+    use yaml_output, only: yaml_map
+    use module_base, only: bigdft_mpi
+    implicit none
+    character(len=*), intent(in) :: id
+    logical, intent(out) :: exists
+    !local variables
+    integer, parameter :: next=4
+    character(len=5), dimension(next), parameter :: exts=['xyz  ','yaml ','ascii','int  ']
+    integer :: iext
+    character(len=128) :: filename
+
+    exists=.false.
+    do iext=1,next
+       !search if the file witnessing the successful end exists
+       !try both single point or not
+       call final_positions_filename(.false.,id,filename)
+       call f_file_exists(filename+'.'+exts(iext),exists)
+       if (exists) exit
+       call final_positions_filename(.true.,id,filename)
+       call f_file_exists(filename+'.'+exts(iext),exists)
+       if (exists) exit
+    end do
+    if (exists .and. bigdft_mpi%iproc==0) call yaml_map('<BigDFT> Run already performed, found final file',&
+           filename+'.'+exts(iext),unit=6)
+
+  end subroutine final_file_exists
+
   !> Routine to read YAML input files and create input dictionary.
   !! Update the input dictionary with the result of yaml_parse
   subroutine merge_input_file_to_dict(dict, fname, mpi_env,document_id)
@@ -1796,10 +1897,6 @@ contains
     if (mpi_env%iproc == 0) then
        call copyCBuffer(fbuf, cbuf, cbuf_len)
        call freeCBuffer(cbuf)
-!       if (mpi_env%nproc > 1 .and. cbuf_len > 0) &
-!            & call mpi_bcast(fbuf(1), int(cbuf_len), MPI_CHARACTER, 0, mpi_env%mpi_comm, ierr)
-!    else
-!       if (cbuf_len > 0) call mpi_bcast(fbuf(1), int(cbuf_len), MPI_CHARACTER, 0, mpi_env%mpi_comm, ierr)
     end if
 
     !this call can be replaced with the size of the character array

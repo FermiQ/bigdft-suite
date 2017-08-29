@@ -123,11 +123,11 @@ module module_atoms
 
 
   !Public routines
-  public :: atoms_data_null,nullify_atoms_data,deallocate_atoms_data
+  public :: atoms_data_null,nullify_atoms_data,deallocate_atoms_data,atoms_fill
   public :: atomic_structure_null,nullify_atomic_structure,deallocate_atomic_structure
   public :: astruct_merge_to_dict, astruct_at_from_dict
   public :: deallocate_symmetry_data,set_symmetry_data
-  public :: set_astruct_from_file,astruct_dump_to_file
+  public :: set_astruct_from_file,astruct_dump_to_file,set_astruct_from_openbabel
   public :: allocate_atoms_data,move_this_coordinate,frozen_itof
   public :: rxyz_inside_box,check_atoms_positions
   public :: atomic_data_set_from_dict,atoms_iter,atoms_iter_next,atoms_iter_ensure_attr
@@ -139,7 +139,7 @@ module module_atoms
   public :: astruct_set_from_dict
   public :: astruct_file_merge_to_dict,atoms_file_merge_to_dict
   public :: psp_dict_analyse, nlcc_set_from_dict,atoms_gamma_from_dict
-  public :: astruct_constraints
+  public :: astruct_constraints,astruct_set
 
 
 contains
@@ -607,7 +607,7 @@ contains
             call f_strcpy(src=dict_key(iter),dest=shell)
             ishell=shell_toi(shell)
             !let us now see if the matrix has been already extracted
-            do ispin=1,2
+            do ispin=1,2 !HERE we should generalize to spinorial indices
                if (.not. fromname .or. .not. associated(gamma_ntypes(ishell,ispin,it%ityp)%ptr)) &
                     call get_gamma_target(iter,ishell,ispin,gamma_targets(ishell,ispin,it%iat))
                if (fromname) then
@@ -823,6 +823,26 @@ contains
 
 
     ! allocations, and setters
+    !> fill the atomic structure datatype
+    subroutine astruct_set(astruct,dict_posinp,randdis,disableSym,symTol,elecfield,nspin,simplify)
+      implicit none
+      type(atomic_structure), intent(out) :: astruct      !< Contains all info
+      type(dictionary), pointer :: dict_posinp
+      logical, intent(in) :: simplify
+      real(gp), intent(in) :: randdis !< random displacement
+      logical, intent(in) :: disableSym
+      real(gp), intent(in) :: symtol
+      real(gp), dimension(3), intent(in) :: elecfield
+      integer, intent(in) :: nspin
+
+      call nullify_atomic_structure(astruct)
+      !astruct initialization
+      call astruct_set_from_dict(dict_posinp, astruct)
+      ! Shake atoms, if required.
+      call astruct_set_displacement(astruct, randdis)
+      call astruct_set_symmetries(astruct, disableSym,symTol,elecfield,nspin)
+      call check_atoms_positions(astruct,simplify)
+    end subroutine astruct_set
 
 
     !> Read atomic file
@@ -1086,6 +1106,28 @@ contains
 
     END SUBROUTINE set_astruct_from_file
 
+    subroutine set_astruct_from_openbabel(astruct, obfile)
+      use dictionaries
+      implicit none
+      type(atomic_structure), intent(out) :: astruct
+      character(len = *), intent(in) :: obfile
+
+      type(dictionary), pointer :: dict
+
+      interface
+         subroutine openbabel_load(d, f)
+           use dictionaries
+           implicit none
+           type(dictionary), pointer :: d
+           character(len = *), intent(in) :: f
+         end subroutine openbabel_load
+      end interface
+
+      call dict_init(dict)
+      call openbabel_load(dict, obfile)
+      call astruct_set_from_dict(dict, astruct)
+      call dict_free(dict)
+    end subroutine set_astruct_from_openbabel
 
     !> Write an atomic file
     !! Yaml output included
@@ -1157,10 +1199,6 @@ contains
          call wtascii(iunit,energy_,rxyz_,astruct,comment)
          if (present(forces)) call wtascii_forces(iunit,forces,astruct)
       case ('int')
-         !if (.not.present(na) .or. .not.present(nb) .or. .not.present(nc)) then
-         !    call f_err_throw('na, nb, nc must be present to write a file in internal coordinates', &
-         !         err_name='BIGDFT_RUNTIME_ERROR')
-         !end if
          rxyz_int = f_malloc((/3,astruct%nat/),id='rxyz_int')
          !call wtint(iunit,energy_,rxyz,astruct,comment,ixyz(1,:),ixyz(2,:),ixyz(3,:))
          call xyzint(rxyz_, astruct%nat, &
@@ -1437,13 +1475,83 @@ contains
       atoms => dict_iter(dict // ASTRUCT_POSITIONS)
       do while(associated(atoms))
          call astruct_at_from_dict(atoms, symbol = str)
-         if (.not. has_key(types, str)) then
+         !if (.not. has_key(types, str)) then
+         if (str .notin. types) then
             ityp = ityp + 1
             call set(types // str, ityp)
          end if
          atoms => dict_next(atoms)
       end do
     end subroutine astruct_dict_get_types
+
+
+    !> complete the atoms structure with the remaining information.
+    !! must be called after the call to astruct_set
+    subroutine atoms_fill(atoms,dict,frmult,nspin,multipole_preserving,mp_isf,ixc,alpha_hartree_fock)
+      use ao_inguess, only: lmax_ao
+      use public_keys, only: IG_OCCUPATION,OUTPUT_VARIABLES,ATOMIC_DENSITY_MATRIX,&
+           DFT_VARIABLES,OCCUPANCY_CONTROL
+      use public_enums, only: PSPCODE_PAW
+      use abi_interfaces_add_libpaw, only : abi_pawinit
+      use module_xc
+      use numerics, only: pi_param => pi
+      use m_ab6_symmetry
+      use dynamic_memory, only: f_routine,f_release_routine
+      use dictionaries
+      implicit none
+      integer, intent(in) :: nspin
+      integer, intent(in) :: mp_isf               !< Interpolating scaling function order for multipole preserving
+      integer, intent(in) :: ixc         !< XC functional Id
+      logical, intent(in) :: multipole_preserving !< Preserve multipole for ionic charge (integrated isf)
+      real(gp), intent(in) :: alpha_hartree_fock !< exact exchange contribution
+      real(gp), intent(in) :: frmult           !< Used to scale the PAW radius projector
+      type(atoms_data), intent(inout) :: atoms
+      type(dictionary), pointer :: dict
+      !local variables
+      integer, parameter :: pawlcutd = 10, pawlmix = 10, pawnphi = 13, pawntheta = 12, pawxcdev = 1
+      integer, parameter :: usepotzero = 0
+      integer :: iat,ierr,mpsang,nsym,xclevel
+      real(gp) :: gsqcut_shp
+      type(xc_info) :: xc
+      type(dictionary), pointer :: dict_targets,dict_gamma
+
+      call f_routine(id='atoms_fill')
+
+      !fill the rest of the atoms structure
+      call psp_dict_analyse(dict, atoms,frmult)
+      call atomic_data_set_from_dict(dict,IG_OCCUPATION, atoms,nspin)
+      !use get as the keys might not be there
+      dict_gamma= dict .get. OUTPUT_VARIABLES
+      dict_gamma= dict_gamma .get. ATOMIC_DENSITY_MATRIX
+      dict_targets= dict .get. DFT_VARIABLES
+      dict_targets= dict_targets .get. OCCUPANCY_CONTROL
+      call atoms_gamma_from_dict(dict_gamma,dict_targets,&
+           lmax_ao,atoms%astruct,atoms%dogamma,atoms%gamma_targets)
+      ! Add multipole preserving information
+      atoms%multipole_preserving = multipole_preserving
+      atoms%mp_isf = mp_isf
+      ! Complement PAW initialisation.
+      if (any(atoms%npspcode == PSPCODE_PAW)) then
+         call xc_init(xc, ixc, XC_MIXED, 1, alpha_hartree_fock)
+         xclevel = 1 ! xclevel=XC functional level (1=LDA, 2=GGA)
+         if (xc_isgga(xc)) xclevel = 2
+         call xc_end(xc)
+         !gsqcut_shp = two*abs(dtset%diecut)*dtset%dilatmx**2/pi**2
+         gsqcut_shp = 2._gp * 2.2_gp / pi_param ** 2
+         nsym = 0
+         call symmetry_get_n_sym(atoms%astruct%sym%symObj, nsym, ierr)
+         mpsang = -1
+         do iat = 1, atoms%astruct%nat
+            mpsang = max(mpsang, maxval(atoms%pawtab(iat)%orbitals))
+         end do
+         call abi_pawinit(1, gsqcut_shp, pawlcutd, pawlmix, mpsang + 1, &
+              & pawnphi, nsym, pawntheta, atoms%pawang, atoms%pawrad, 0, &
+              & atoms%pawtab, pawxcdev, xclevel, usepotzero)
+      end if
+      
+      call f_release_routine()
+
+    end subroutine atoms_fill
 
 
     !> Read old psppar file (check if not already in the dictionary) and merge to dict
@@ -1778,7 +1886,6 @@ contains
       real(gp), dimension(0:4,0:6) :: psppar
       logical :: pawpatch, l
       integer :: paw_tot_l,  paw_tot_q, paw_tot_coefficients, paw_tot_matrices
-      character(len = max_field_length) :: fpaw
 
       call f_routine(id='psp_dict_analyse')
 
@@ -1798,40 +1905,6 @@ contains
               atoms%pawrad,atoms%pawtab,atoms%epsatm)
          atoms%radii_cf(ityp,1:3) = radii_cf(1:3)
          atoms%psppar(0:4,0:6,ityp) = psppar(0:4,0:6)
-!!$         call psp_set_from_dict(dict // filename, l, &
-!!$              & atoms%nzatom(ityp), atoms%nelpsp(ityp), atoms%npspcode(ityp), &
-!!$              & atoms%ixcpsp(ityp), atoms%iradii_source(ityp), radii_cf, rloc, lcoeff, psppar)
-!!$         !To eliminate the runtime warning due to the copy of the array (TD)
-!!$         atoms%radii_cf(ityp,:)=radii_cf(:)
-!!$         atoms%psppar(0,0,ityp)=rloc
-!!$         atoms%psppar(0,1:4,ityp)=lcoeff
-!!$         atoms%psppar(1:4,0:6,ityp)=psppar
-!!$
-!!$         l = .false.
-!!$         if (has_key(dict // filename, "PAW patch")) l = dict // filename // "PAW patch"
-!!$         pawpatch = pawpatch .and. l
-!!$
-!!$         ! PAW case.
-!!$         if (l .and. atoms%npspcode(ityp) == PSPCODE_PAW) then
-!!$            ! Allocate the PAW arrays on the fly.
-!!$            if (.not. associated(atoms%pawrad)) then
-!!$               allocate(atoms%pawrad(atoms%astruct%ntypes))
-!!$               allocate(atoms%pawtab(atoms%astruct%ntypes))
-!!$               atoms%epsatm = f_malloc_ptr(atoms%astruct%ntypes, id = "epsatm")
-!!$               do ityp2 = 1, atoms%astruct%ntypes
-!!$                  !call pawrad_nullify(atoms%pawrad(ityp2))
-!!$                  call pawtab_nullify(atoms%pawtab(ityp2))
-!!$               end do
-!!$            end if
-!!$            ! Re-read the pseudo for PAW arrays.
-!!$            fpaw = dict // filename // SOURCE_KEY
-!!$            call libxc_functionals_init(atoms%ixcpsp(ityp), 1)
-!!$            call paw_from_file(atoms%pawrad(ityp), atoms%pawtab(ityp), &
-!!$                 & atoms%epsatm(ityp), trim(fpaw), &
-!!$                 & atoms%nzatom(ityp), atoms%nelpsp(ityp), atoms%ixcpsp(ityp))
-!!$            atoms%radii_cf(ityp, 3) = atoms%pawtab(ityp)%rpaw !/ frmult + 0.01
-!!$            call libxc_functionals_end()
-!!$         end if
       end do
       call nlcc_set_from_dict(dict, atoms)
 
@@ -2208,6 +2281,8 @@ subroutine allocate_atoms_nat(atoms)
        id='dogamma')
 
   !put also spin in the allocations
+  !@todo here we have to decide if we need occupancy control in the
+  !noncollinear case
   atoms%gamma_targets=f_malloc_ptr([0.to.lmax_ao,1.to.2,1.to.atoms%astruct%nat],id='gamma_targets')
 
 END SUBROUTINE allocate_atoms_nat
@@ -2298,7 +2373,34 @@ subroutine astruct_set_displacement(astruct, randdis)
 
    call rxyz_inside_box(astruct)
 
-END SUBROUTINE astruct_set_displacement
+ END SUBROUTINE astruct_set_displacement
+ 
+ !> this routine should be merged with the cell definition in the box module
+ subroutine astruct_distance(astruct, rxyz, dxyz, iat1, iat2)
+   use module_defs, only: gp
+   use module_atoms, only: atomic_structure
+   implicit none
+   type(atomic_structure), intent(in) :: astruct
+   real(gp), dimension(3, astruct%nat), intent(in) :: rxyz
+   real(gp), dimension(3), intent(out) :: dxyz
+   integer, intent(in) :: iat1, iat2
+   
+   logical, dimension(3) :: per
+
+   select case(astruct%geocode)
+   case ("P")
+      per = (/ .true., .true., .true. /)
+   case ("S")
+      per = (/ .true., .false., .true. /)
+   case ("W")
+      per = (/ .false., .true., .false. /)
+   case default
+      per = (/ .false., .false., .false. /)
+   end select
+
+   dxyz(:) = rxyz(:, iat2) - rxyz(:, iat1)
+   where (per) dxyz = dxyz - astruct%cell_dim * nint(dxyz / astruct%cell_dim)
+ END SUBROUTINE astruct_distance
 
 !> Compute a list of neighbours for the given structure.
 subroutine astruct_neighbours(astruct, rxyz, neighb)
@@ -2554,3 +2656,30 @@ contains
     end do
   end subroutine expand
 END SUBROUTINE astruct_from_subset
+
+subroutine astruct_set_cell(dict, cell)
+  use dictionaries
+  implicit none
+  type(dictionary), pointer :: dict
+  double precision, dimension(3), intent(in) :: cell
+
+  call set(dict // "cell", cell)
+end subroutine astruct_set_cell
+
+subroutine astruct_add_atom(dict, xyz, symbol, slen)
+  use dictionaries
+  implicit none
+  type(dictionary), pointer :: dict
+  double precision, dimension(3), intent(in) :: xyz
+  integer, intent(in) :: slen
+  character(len = slen), intent(in) :: symbol
+
+  call add(dict // "positions", dict_new(symbol .is. xyz))
+end subroutine astruct_add_atom
+
+subroutine astruct_get_types_dict(dict,types)
+  use dictionaries
+  use module_atoms, only: astruct_dict_get_types
+  type(dictionary), pointer :: dict,types
+  call astruct_dict_get_types(dict,types)
+end subroutine astruct_get_types_dict

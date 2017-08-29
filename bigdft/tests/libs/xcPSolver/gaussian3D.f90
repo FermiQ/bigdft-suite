@@ -12,6 +12,7 @@
 program MP_gaussian
   use module_base
   use gaussians
+  use multipole_preserving
   use yaml_output
   use yaml_parse
   use pseudopotentials
@@ -96,7 +97,7 @@ program MP_gaussian
   call yaml_map('Overlap matrix with GaIn library',S2ab,fmt='(1pg12.3)')
   call yaml_map('Elapsed time',real(t1-t0,f_double)*1.e-9)
 
-  call f_diff(G%ncoeff**2,Sab,S2ab,diff)
+  call f_diff(int(G%ncoeff**2,f_long),Sab,S2ab,diff)
   call yaml_map('Maxdiff of both objects',diff)
 
   call yaml_mapping_close()
@@ -227,7 +228,7 @@ end program MP_gaussian
 !> Classify the quality of a multipole extraction in both cases
 subroutine evaluate_moments3D(nmoms,npts,hgrid,pgauss,pow,x0,y0,z0,fj_phi,fj_coll,moments)
   use module_base, only: gp
-  use gaussians, only: mp_exp
+  use multipole_preserving, only: mp_exp
   implicit none
   !Arguments
   integer, intent(in) :: npts,pow,nmoms

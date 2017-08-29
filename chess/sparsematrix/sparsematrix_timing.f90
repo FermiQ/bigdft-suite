@@ -43,6 +43,15 @@ module sparsematrix_timing
   integer,public,save :: TCAT_SMAT_HL_DGESV = TIMING_UNINITIALIZED
   integer,public,save :: TCAT_SMAT_HL_DPOTRF = TIMING_UNINITIALIZED
   integer,public,save :: TCAT_SMAT_HL_DPOTRI = TIMING_UNINITIALIZED
+  integer,public,save :: TCAT_PEXSI_INIT = TIMING_UNINITIALIZED
+  integer,public,save :: TCAT_PEXSI_DISTRIBUTE = TIMING_UNINITIALIZED
+  integer,public,save :: TCAT_PEXSI_KERNEL = TIMING_UNINITIALIZED
+  integer,public,save :: TCAT_PEXSI_FACTORIZATION = TIMING_UNINITIALIZED
+  integer,public,save :: TCAT_PEXSI_INVERSE = TIMING_UNINITIALIZED
+  integer,public,save :: TCAT_PEXSI_RETRIEVE = TIMING_UNINITIALIZED
+  integer,public,save :: TCAT_PEXSI_FINALIZE = TIMING_UNINITIALIZED
+  integer,public,save :: TCAT_PEXSI_COMMUNICATE = TIMING_UNINITIALIZED
+  integer,public,save :: TCAT_SMAT_READ = TIMING_UNINITIALIZED
 
   !> Public routines
   public :: sparsematrix_initialize_timing_categories
@@ -54,11 +63,13 @@ module sparsematrix_timing
     subroutine sparsematrix_initialize_timing_categories()
       use time_profiling, only: f_timing_category_group,f_timing_category
       implicit none
-      character(len=*), parameter :: smat_manip = 'sparsematrix manipulation'
-      character(len=*), parameter :: smat_init = 'sparsematrix initialization'
-      character(len=*), parameter :: smat_comm = 'sparsematrix communications'
+      character(len=*), parameter :: smat_manip = 'spars ematrix manipulation'
+      character(len=*), parameter :: smat_init = 'sparse matrix initialization'
+      character(len=*), parameter :: smat_comm = 'sparse matrix communications'
       character(len=*), parameter :: cme = 'chebyshev matrix expansion'
       character(len=*), parameter :: smat_blaslapack = 'BLAS / LAPACK'
+      character(len=*), parameter :: smat_pexsi = 'PEXSI'
+      character(len=*), parameter :: smat_io = 'sparse matrix I/O'
   
   
       ! Definition of the groups
@@ -67,6 +78,8 @@ module sparsematrix_timing
       call f_timing_category_group(smat_comm, 'sparse matrix communications')
       call f_timing_category_group(cme, 'chebyshev matrix expansion')
       call f_timing_category_group(smat_blaslapack, 'BLAS/LAPACK')
+      call f_timing_category_group(smat_pexsi, 'PEXSI')
+      call f_timing_category_group(smat_io, 'sparse matrix I/O')
   
       ! Define the timing categories
   
@@ -81,9 +94,12 @@ module sparsematrix_timing
            '(un)compression communication of sparse matrices', TCAT_SMAT_COMPRESSION_COMMUNICATION)
       call f_timing_category('Sparse matrix transformation', smat_manip, &
            'sparsity pattern transformation of sparse matrices', TCAT_SMAT_TRANSFORMATION)
-  
       call f_timing_category('Sparse matrix multiplication', smat_manip, &
            'sparse matrix matrix multiplication', TCAT_SMAT_MULTIPLICATION)
+
+      ! I/O operations
+      call f_timing_category('Sparse matrix read', smat_io, &
+           'Reading of the sparse matrices', TCAT_SMAT_READ)
   
       ! Chebyshev Matrix Expansion timing
       call f_timing_category('CME auxiliary', cme, &
@@ -114,6 +130,24 @@ module sparsematrix_timing
            '(Sca)LAPACK DPOTRF', TCAT_SMAT_HL_DPOTRF)
       call f_timing_category('DPOTRI', smat_blaslapack, &
            '(Sca)LAPACK DPOTRI', TCAT_SMAT_HL_DPOTRI)
+
+      ! PEXSI timing
+      call f_timing_category('PEXSI Init', smat_pexsi, &
+           'PEXSI initialization', TCAT_PEXSI_INIT)
+      call f_timing_category('PEXSI Distribute', smat_pexsi, &
+           'PEXSI matrix distribution', TCAT_PEXSI_DISTRIBUTE)
+      call f_timing_category('PEXSI Kernel', smat_pexsi, &
+           'PEXSI kernel calculation', TCAT_PEXSI_KERNEL)
+      call f_timing_category('PEXSI Factorization', smat_pexsi, &
+           'PEXSI factorization', TCAT_PEXSI_FACTORIZATION)
+      call f_timing_category('PEXSI Inverse', smat_pexsi, &
+           'PEXSI inverse calculation', TCAT_PEXSI_INVERSE)
+      call f_timing_category('PEXSI Retrieve', smat_pexsi, &
+           'PEXSI matrix retrieval', TCAT_PEXSI_RETRIEVE)
+      call f_timing_category('PEXSI Finalize', smat_pexsi, &
+           'PEXSI finalize', TCAT_PEXSI_FINALIZE)
+      call f_timing_category('PEXSI Communicate', smat_pexsi, &
+           'PEXSI communicate', TCAT_PEXSI_COMMUNICATE)
   
     end subroutine sparsematrix_initialize_timing_categories
 

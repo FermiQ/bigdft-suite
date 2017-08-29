@@ -683,7 +683,7 @@
       call communicate_basis_for_density_collective(iproc, nproc, tmb%lzd, &
            max(tmb%npsidim_orbs,tmb%npsidim_comp), tmb%orbs, tmb%psi, tmb%collcom_sr)
       call sumrho_for_TMBs(iproc, nproc, KSwfn%Lzd%hgrids(1), KSwfn%Lzd%hgrids(2), KSwfn%Lzd%hgrids(3), &
-           tmb%collcom_sr, tmb%linmat%l, tmb%linmat%kernel_, denspot%dpbox%ndimrhopot, &
+           tmb%collcom_sr, tmb%linmat%smat(3), tmb%linmat%kernel_, denspot%dpbox%ndimrhopot, &
            denspot%rhov, rho_negative)
       if (rho_negative) then
           call corrections_for_negative_charge(iproc, nproc, KSwfn, at, input, tmb, denspot)
@@ -699,8 +699,8 @@
            energs, nlpsp, input%SIC, tmb, fnrm, .true., .true., .false., .true., 0, 0, 0, 0, &
            order_taylor,input%lin%max_inversion_error,input%purification_quickreturn,&
            input%calculate_KS_residue,input%calculate_gap,energs_work, .false., input%lin%coeff_factor, &
-           input%lin%pexsi_npoles, input%lin%pexsi_mumin, input%lin%pexsi_mumax, input%lin%pexsi_mu, &
-           input%lin%pexsi_temperature, input%lin%pexsi_tol_charge)
+           input%cp%pexsi%pexsi_npoles, input%cp%pexsi%pexsi_mumin, input%cp%pexsi%pexsi_mumax, input%cp%pexsi%pexsi_mu, &
+           input%cp%pexsi%pexsi_temperature, input%cp%pexsi%pexsi_tol_charge)
     
       if (bigdft_mpi%iproc ==0) then
          call write_eigenvalues_data(0.1d0,KSwfn%orbs,mom_vec_fake)
@@ -808,7 +808,7 @@
       call communicate_basis_for_density_collective(iproc, nproc, tmb%lzd, &
            max(tmb%npsidim_orbs,tmb%npsidim_comp), tmb%orbs, tmb%psi, tmb%collcom_sr)
       call sumrho_for_TMBs(iproc, nproc, KSwfn%Lzd%hgrids(1), KSwfn%Lzd%hgrids(2), KSwfn%Lzd%hgrids(3), &
-           tmb%collcom_sr, tmb%linmat%l, tmb%linmat%kernel_, denspot%dpbox%ndimrhopot, &
+           tmb%collcom_sr, tmb%linmat%smat(3), tmb%linmat%kernel_, denspot%dpbox%ndimrhopot, &
            denspot%rhov, rho_negative)
       if (rho_negative) then
           call corrections_for_negative_charge(iproc, nproc, KSwfn, at, input, tmb, denspot)
@@ -822,8 +822,8 @@
            energs, nlpsp, input%SIC, tmb, fnrm, .true., .true., .false., .true., 0, 0, 0, 0, &
            order_taylor, input%lin%max_inversion_error, input%purification_quickreturn, &
            input%calculate_KS_residue, input%calculate_gap, energs_work, .false., input%lin%coeff_factor, &
-           input%lin%pexsi_npoles, input%lin%pexsi_mumin, input%lin%pexsi_mumax, input%lin%pexsi_mu, &
-           input%lin%pexsi_temperature, input%lin%pexsi_tol_charge, updatekernel=.false.)
+           input%cp%pexsi%pexsi_npoles, input%cp%pexsi%pexsi_mumin, input%cp%pexsi%pexsi_mumax, input%cp%pexsi%pexsi_mu, &
+           input%cp%pexsi%pexsi_temperature, input%cp%pexsi%pexsi_tol_charge, updatekernel=.false.)
       energy=energs%ebs-energs%eh+energs%exc-energs%evxc-energs%eexctX+energs%eion+energs%edisp
       energyDiff=energy-energyold
       energyold=energy

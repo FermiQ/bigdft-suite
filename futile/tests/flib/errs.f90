@@ -16,6 +16,7 @@ subroutine test_error_handling()
   use yaml_output
 !!! [Use]
   use dictionaries
+  use yaml_strings, only: f_char_ptr
 !!! [Use]
   implicit none
   !local variables
@@ -25,9 +26,9 @@ subroutine test_error_handling()
   type(dictionary), pointer :: dict
 
   call yaml_comment('Error Handling Module Test',hfill='~')
-   
+
   call f_err_severe_override(abort2)
- 
+
 !!! [Error Define]
   call f_err_define(err_name='ERR_TOTO',&
        err_msg='This is the error message for the error of kind 1 and it is written extensively'//&
@@ -41,14 +42,14 @@ subroutine test_error_handling()
   call f_err_define(err_name='ERR_GRAVE',err_msg='test2',err_id=ERR_GRAVE,&
        callback=f_err_severe)
 !!! [Error Define]
-  call yaml_map("Raising the TOTO error, errcode",ERR_TOTO) 
+  call yaml_map("Raising the TOTO error, errcode",ERR_TOTO)
 
   if (f_err_raise(.true.,'Extra message added',err_id=ERR_TOTO)) continue ! return
 
   call yaml_map('Print the error ID',f_get_last_error())
-    call yaml_map("Raising the TOTO error, by name, without condition",'ERR_TOTO') 
+    call yaml_map("Raising the TOTO error, by name, without condition",'ERR_TOTO')
   if (f_err_raise(err_msg='Extra message added again',err_name='ERR_TOTO')) continue ! return
-  
+
   call yaml_map("Callback done, errcode",ERR_TOTO)
 
 !  call f_err_severe_restore()
@@ -56,7 +57,7 @@ subroutine test_error_handling()
 
   call f_err_clean()
 
-  call f_dump_possible_errors('This is the list of the errors')
+  call f_dump_possible_errors(f_char_ptr('This is the list of the errors'))
 
   call f_err_set_callback(abort2)
 
@@ -101,6 +102,7 @@ end subroutine test_error_handling
 
 subroutine abort1()
   use yaml_output
+  use exception_callbacks
   implicit none
   call f_dump_last_error()
   call yaml_comment('Ouille',hfill='!')
@@ -109,6 +111,7 @@ end subroutine abort1
 
 subroutine abort2()
   use yaml_output
+  use exception_callbacks
   implicit none
   call f_dump_last_error()
   call yaml_comment('Aie',hfill='!')
@@ -117,6 +120,7 @@ end subroutine abort2
 
 subroutine abort_toto()
   use yaml_output
+  use exception_callbacks
   implicit none
   call f_dump_last_error()
   call yaml_comment('TOTO',hfill='!')
@@ -125,6 +129,7 @@ end subroutine abort_toto
 
 subroutine abort_titi()
   use yaml_output
+  use exception_callbacks
   implicit none
   call f_dump_last_error()
   call yaml_comment('TITI',hfill='!')

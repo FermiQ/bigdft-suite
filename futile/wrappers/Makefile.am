@@ -73,6 +73,7 @@ libwrappers_a_SOURCES = $(DGEMMSY_SOURCES) $(CUBLAS_SOURCES) $(OCL_SOURCES) \
 	op2p_module.f90 \
 	numerics.f90 \
 	f_functions.f90 \
+	box.f90 \
 	harmonics.f90
 
 # Dependencies
@@ -80,14 +81,14 @@ $(modules): $(libwrappers_a_OBJECTS)
 interface_cuda_fake.o: linalg.o
 interface_dgemmsy_fake.o: linalg.o
 f_blas.o: linalg.o
-interface_dgemmsy_fake.o: linalg.o
 mpi.o: $(mpi_include)
-f_functions.o: numerics.o
+f_functions.o: numerics.o box.o
 op2p_module.o: mpi.o linalg.o
 harmonics.o: numerics.o
+box.o: linalg.o
 #fft2d.o: fft3d.o
 
-AM_FCFLAGS = -I. -I$(top_builddir)/flib/ @MPI_INCLUDE@
+AM_FCFLAGS = -I. -I$(top_builddir)/dicts/ -I$(top_builddir)/flib/ @MPI_INCLUDE@
 AM_CPPFLAGS = @DGEMMSY_CPPFLAGS@
 if USE_CUDA_GPU
 AM_CPPFLAGS += -I@CUDA_PATH@/include
@@ -103,7 +104,8 @@ modules = MODULE_FFT_SG.@MODULE_EXT@ \
 	OVERLAP_POINT_TO_POINT.@MODULE_EXT@ \
 	F_FUNCTIONS.@MODULE_EXT@ \
 	F_HARMONICS.@MODULE_EXT@ \
-	NUMERICS.@MODULE_EXT@
+	NUMERICS.@MODULE_EXT@ \
+	BOX.@MODULE_EXT@
 else
 modules = module_fft_sg.@MODULE_EXT@ \
 	wrapper_linalg.@MODULE_EXT@ \
@@ -113,16 +115,7 @@ modules = module_fft_sg.@MODULE_EXT@ \
 	overlap_point_to_point.@MODULE_EXT@ \
 	f_functions.@MODULE_EXT@ \
 	f_harmonics.@MODULE_EXT@ \
-	numerics.@MODULE_EXT@
+	numerics.@MODULE_EXT@ \
+	box.@MODULE_EXT@
 endif
 CLEANFILES = $(modules) mpif.h
-
-# Copy modules in a common include directory.
-all: all-am insmod
-install: install-am insmod
-check: check-am insmod
-insmod: $(modules)
-	test -e "$(top_builddir)/includes" || $(INSTALL) -d -m 755 $(top_builddir)/includes
-	for mod in "$(modules)" ; do \
-	  $(INSTALL) -m 644  $$mod $(top_builddir)/includes ; \
-	done

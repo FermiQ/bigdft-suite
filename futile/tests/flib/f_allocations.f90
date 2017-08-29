@@ -186,7 +186,7 @@ program f_buffer_allocations
   !l7=f_malloc(n7,id='l7'); call buffer_info(shape(l7),lbound(l7),ubound(l7),kind(l7),'Logical'); call f_free(l7)
 
   b1=f_malloc(n1,id='b1'); call buffer_info(shape(b1),lbound(b1),ubound(b1),kind(b1),'Byte'); call f_free(b1)
-  !b2=f_malloc(n2,id='b2'); call buffer_info(shape(b2),lbound(b2),ubound(b2),kind(b2),'Byte'); call f_free(b2)
+  b2=f_malloc(n2,id='b2'); call buffer_info(shape(b2),lbound(b2),ubound(b2),kind(b2),'Byte'); call f_free(b2)
   !b3=f_malloc(n3,id='b3'); call buffer_info(shape(b3),lbound(b3),ubound(b3),kind(b3),'Byte'); call f_free(b3)
   !b4=f_malloc(n4,id='b4'); call buffer_info(shape(b4),lbound(b4),ubound(b4),kind(b4),'Byte'); call f_free(b4)
   !b5=f_malloc(n5,id='b5'); call buffer_info(shape(b5),lbound(b5),ubound(b5),kind(b5),'Byte'); call f_free(b5)
@@ -535,7 +535,6 @@ program f_buffer_allocations
   call yaml_comment('',hfill='~')
   call f_free_ptr(d1_ptr)
   call f_free_ptr(d1_ptr_exotic)
-
   call f_lib_finalize()
 
   contains
@@ -546,7 +545,8 @@ program f_buffer_allocations
       character(len=*), intent(in) :: typeb
       integer, dimension(:), intent(in) :: shp,lbnd,ubnd
 
-      call yaml_mapping_open(typeb//' buffer,kind '//trim(yaml_toa(sizeof)))
+      !call yaml_mapping_open(typeb//' buffer,kind '//trim(yaml_toa(sizeof)))
+      call yaml_mapping_open(typeb//' buffer, kind '+sizeof+', rank'+yaml_toa(size(shp)))
         call yaml_map('Shape',shp)
         call yaml_map('Lbound',lbnd)
         call yaml_map('Ubound',ubnd)

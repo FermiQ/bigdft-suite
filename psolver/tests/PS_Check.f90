@@ -2,7 +2,7 @@
 !!  Performs a check of the Poisson Solver suite by running with different regimes
 !!  and for different choices of the XC functionals
 !! @author
-!!    Copyright (C) 2002-2013 BigDFT group 
+!!    Copyright (C) 2002-2017 BigDFT group<br/>
 !!    This file is distributed under the terms of the
 !!    GNU General Public License, see ~/COPYING file
 !!    or http://www.gnu.org/copyleft/gpl.txt .
@@ -59,7 +59,8 @@ program PS_Check
   !initialize categories for the Poisson Solver
   call PS_initialize_timing_categories()
 
-  call f_malloc_set_status(memory_limit=0.e0,iproc=iproc)
+  call f_malloc_set_status(iproc=iproc)
+  !call f_malloc_set_status(memory_limit=0.e0,iproc=iproc)
   call f_routine(id='PS_Check')
 
   bigdft_mpi%mpi_comm=MPI_COMM_WORLD !workaround to be removed

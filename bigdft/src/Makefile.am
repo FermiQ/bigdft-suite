@@ -14,6 +14,7 @@ dynlib_DATA         = $(bigdft_dynamic_library)
 # Sub-directories.
 # ---------------
 SUBDIRS = \
+	locregs \
 	orbitals \
 	modules \
 	xcPSolver \
@@ -22,15 +23,13 @@ SUBDIRS = \
 	OpenCL \
 	bindings \
 	geopt \
-	python \
 	$(sub_dirs_bin)
 
 EXTRA_DIST = \
 	wavelib/intots.inc \
 	wavelib/recs16.inc \
 	wavelib/sym_16.inc \
-	init/pspconf.in.f90 \
-	input_variables_definition.yaml
+	init/pspconf.in.f90
 
 # Build targets, binaries and libraries.
 # -------------
@@ -39,21 +38,37 @@ noinst_LIBRARIES = libmain.a libabscalc.a
 subs_static_library = \
 	modules/libmodules.a \
 	CUDA/libCUDA.a \
+	locregs/liblocregs.a \
 	orbitals/liborbitals.a \
 	geopt/libgeopt.a \
 	xcPSolver/libxcPSolver.a \
 	OpenCL/libOpenCL.a \
 	bindings/libbindings.a
 
+bigdft_deps =
+bigdft_library =
+
+if HAVE_OPENBABEL
+openbabel_dependency = modules/libbabel.so.@BIGDFT_MINOR_VERSION@
+bigdft_deps += -Lmodules -lbabel
+if BUILD_DYNAMIC_LIBS
+bigdft_library += -Lmodules -lbabel
+else
+AM_LDFLAGS = @FC_RPATH@$(DESTDIR)$(dynlibdir)
+endif
+endif
+
 if BUILD_DYNAMIC_LIBS
 bigdft_dynamic_library = libbigdft-1.so.@BIGDFT_MINOR_VERSION@.0.@BIGDFT_MICRO_VERSION@
 bigdft_soname_library = libbigdft-1.so.@BIGDFT_MINOR_VERSION@
-bigdft_library = $(bigdft_soname_library)
+bigdft_deps += @LIB_BIGDFT_DEPS@
+bigdft_library += $(bigdft_soname_library)
 AM_LDFLAGS = -Wl,-rpath=$(DESTDIR)$(dynlibdir)
 else
 bigdft_dynamic_library =
 bigdft_soname_library =
-bigdft_library = libbigdft-1.a @LIB_BIGDFT_DEPS@ @LINALG_LIBS@
+bigdft_deps += @LIB_BIGDFT_DEPS@ @LINALG_LIBS@
+bigdft_library += libbigdft-1.a $(bigdft_deps)
 endif
 
 if BUILD_BINARIES
@@ -89,7 +104,7 @@ if HAVE_AMBERTOOLS
 ambertools_wrap= wrap.c
 ###for amber supp.:
 wrap.o:     wrap.c
-	$(NAB) -I$(top_builddir) -c  -g $<
+	$(NAB) -I$(top_builddir) -c  -g @CC_PIC_FLAG@  $<
 else
 ambertools_wrap= wrap_fake.f90
 endif
@@ -175,7 +190,6 @@ low_level = \
 	linear/cleanup.f90 \
 	linear/filterModule.f90 \
 	linear/misc.f90 \
-	linear/getLocBasis.f90 \
 	linear/convolutions_aux.f90 \
 	linear/convolutions.f90 \
 	linear/locReg_orbitals.f90 \
@@ -187,8 +201,6 @@ low_level = \
 	linear/mixdiis.f90 \
 	linear/copyTypes.f90 \
 	linear/derivativeBasis.f90 \
-	linear/hpsiortho_linear.f90 \
-	linear/optimize_coeffs.f90 \
 	linear/transferintegrals.f90 \
 	linear/cdft.f90 \
 	linear/frags.f90\
@@ -196,8 +208,7 @@ low_level = \
 ##	$(cp2k_interfacemod) 	wfn_opt/exctX_op2p.f90 \
 
 # C objects
-c_level = posfiles.c \
-	input_variables_description.c
+c_level = posfiles.c $(DATABASE_SOURCES)
 
 libmain_a_SOURCES = \
 	$(c_level) \
@@ -219,11 +230,13 @@ pspconf.f90: init/pspconf.in.f90
 
 libbigdft_1_a_SOURCES =
 
-input_variables_description.o: input_variables_definition-inc.h
+YAML_DATABASE = input_variables_definition.yaml bigdft_bibliography.yaml
+
+#input_variables_description.o: input_variables_definition-inc.h
 #build the fortran include file with the stream of input variables into a local string
 #the sed command below will transform the entire yaml document into a c string, to be passed to fortran
-input_variables_definition-inc.h: input_variables_definition.yaml
-	$(SED) -e "s/^/\"/;s/$$/\\\n\"/" $< > $@
+#input_variables_definition-inc.h: input_variables_definition.yaml
+###	$(SED) -e "s/^/\"/;s/$$/\\\n\"/" $< > $@
 
 tmp-libbigdft/extract.stamp: $(subs_static_library) $(out_static_library)
 	test -e "tmp-libbigdft" || $(INSTALL) -d -m 755 tmp-libbigdft
@@ -238,8 +251,8 @@ libbigdft-1.a: $(libmain_a_OBJECTS) tmp-libbigdft/extract.stamp
 	$(AR) $(ARFLAGS) $@ $(libmain_a_OBJECTS) tmp-libbigdft/*.o
 	$(RANLIB) $@
 
-$(bigdft_dynamic_library): $(libmain_a_OBJECTS) tmp-libbigdft/extract.stamp
-	$(FC) $(FCFLAGS) -shared $(LDFLAGS) $(AM_LDFLAGS) -Wl,-soname=$(bigdft_soname_library) -o $@ $(libmain_a_OBJECTS) tmp-libbigdft/*.o @LIB_BIGDFT_DEPS@
+$(bigdft_dynamic_library): $(libmain_a_OBJECTS) tmp-libbigdft/extract.stamp $(openbabel_dependency)
+	$(FC) $(FCFLAGS) -shared $(LDFLAGS) $(AM_LDFLAGS) -Wl,-soname=$(bigdft_soname_library) -o $@ $(libmain_a_OBJECTS) tmp-libbigdft/*.o $(bigdft_deps)
 	@chmod a+x $@
 
 libbigdft-1.so.@BIGDFT_MINOR_VERSION@: $(bigdft_dynamic_library)
@@ -306,8 +319,10 @@ test_forces_LDADD += @LIB_FUTILE_LIBS@
 BigDFT2Wannier_LDADD += @LIB_FUTILE_LIBS@ @LINALG_LIBS@
 endif
 
+CLEANFILES = *.@MODULE_EXT@ bindings_dbus.* introspect libbigdft-1.*
 
-CLEANFILES = *.@MODULE_EXT@ bindings_dbus.* introspect libbigdft-1.* input_variables_definition-inc.h
+include $(srcdir)/import_database.mk
+
 clean-local:
 	rm -rf tmp-libbigdft
 
@@ -367,6 +382,7 @@ $(gir_DATA): $(G_IR_SCANNER) $(bigdft_soname_library)
 		--output=$(gir_DATA) \
 		--library=bigdft-1 \
 		--no-libtool \
+		--library-path=$(builddir)/modules \
 		-DGLIB_MAJOR_VERSION=2 -L$(builddir) \
 		-I$(srcdir)/bindings -I$(builddir)/bindings \
 		$(srcdir)/bindings/bigdft.h \

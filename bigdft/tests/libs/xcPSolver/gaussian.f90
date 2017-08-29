@@ -15,6 +15,7 @@ program MP_gaussian
   use gaussians
   use yaml_output
   use gaussdaub
+  use multipole_preserving
   implicit none
   integer, parameter :: iplot=14,iunit=16 !< File unit for the plots
   integer, parameter :: nmoms=16          !< Number of calculated moments
@@ -212,7 +213,7 @@ program MP_gaussian
 !!$        call gau_daub_1d(.false.,1, x0, [ 0 ], 0.d0, 1, [ sqrt(0.5_gp/pgauss) ], &
 !!$             1, [ 1.d0 ], hgrid,nres,-npts,2*npts,1,f_mus,nw,work)
         !now calculate the diff with respect to the original
-        call f_diff(size(f_mu),f_mu,transpose(f_mus(isigma,:,:,istep)),diff)
+        call f_diff(f_sizeof(f_mu),f_mu,transpose(f_mus(isigma,:,:,istep)),diff)
         !the f_diff routine seems not working here
         call yaml_map('Diffs',[diff,sum(abs(f_mu-transpose(f_mus(isigma,:,:,istep))))])
         diff=sum(abs(f_mu-transpose(f_mus(isigma,:,:,istep))))
@@ -329,7 +330,7 @@ contains
   !> Classify the quality of a multipole extraction in both cases
   subroutine evaluate_moments(nmoms,npts,hgrid,pgauss,pow,x0,fj_phi,fj_coll,fj_lag,moments)
     use module_base, only: gp,safe_exp,f_open_file,f_close,yaml_toa
-    use gaussians, only: mp_exp, scfdotf
+    use multipole_preserving, only: mp_exp, scfdotf
     implicit none
     !Arguments
     integer, intent(in) :: npts,pow,nmoms

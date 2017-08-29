@@ -407,13 +407,15 @@ subroutine fill_functions_arrays(separable,mesh,funcs,factor,density,potential)
   real(dp), dimension(mesh%ndim), intent(out) :: density,potential
   !local variables
   integer, parameter :: DENSITY_=1,POTENTIAL_=2 !to improve readability
+  type(box_iterator) :: bit
 
+  bit=box_iter(mesh,centered=.true.)
   if (separable) then
-     call separable_3d_function(mesh,funcs,-factor*fourpi,potential)
-     call separable_3d_laplacian(mesh,funcs,factor,density)
+     call separable_3d_function(bit,funcs,-factor*fourpi,potential)
+     call separable_3d_laplacian(bit,funcs,factor,density)
   else
-     call radial_3d_function(mesh,funcs(DENSITY_),factor,density)
-     call radial_3d_function(mesh,funcs(POTENTIAL_),1.0_dp,potential)
+     call radial_3d_function(bit,funcs(DENSITY_),factor,density)
+     call radial_3d_function(bit,funcs(POTENTIAL_),1.0_dp,potential)
   end if
 end subroutine fill_functions_arrays
   
@@ -465,12 +467,15 @@ subroutine test_functions_new(mesh,nspden,a_gauss,&
      factor = 1.d0/(a_gauss*a2*pi*sqrt(pi))
      funcs(DENSITY_)=f_function_new(f_gaussian,exponent=1.0_dp/a2)
      funcs(POTENTIAL_)=f_function_new(f_erf,scale=a_gauss/sqrt(2.0_dp))
+     
+     !test call
+     call radial_3d_function_mp(mesh,0.5_dp*a2,density)
   end select
 
   !laplacian potential = -4pi density
   call fill_functions_arrays(cell_geocode(mesh) /= 'F',mesh,funcs,factor,&
        density,potential)
-
+  
   !treatment for rhopot and pot_ion
   call f_memcpy(src=density,dest=rhopot)
 
@@ -514,7 +519,14 @@ subroutine test_functions_new2(mesh,acell,a_gauss,mu0,density,potential)
      do i=1,3
         funcs(i)=f_function_new(f_shrink_gaussian,&
              length=acell)
+        !funcs(i)=f_function_new(f_exp_cosine,&
+        !     length=acell,frequency=2.0_dp)
      end do
+!!$     funcs(1)=f_function_new(f_exp_cosine,&
+!!$          length=acell,frequency=2.0_dp)
+!!$     funcs(2)=f_function_new(f_shrink_gaussian,&
+!!$          length=acell)
+!!$     funcs(3)=funcs(1)
      factor=1.0_dp
      separable=.true.
   case('S')
@@ -551,100 +563,43 @@ subroutine test_functions_new2(mesh,acell,a_gauss,mu0,density,potential)
   
 end subroutine test_functions_new2
 
-
-subroutine radial_3d_function(mesh,func,factor,f)
+subroutine radial_3d_function_mp(mesh,rloc,f)
   use f_functions
   use PSbase, only: dp
   use box
+  use multipole_preserving
+  use dynamic_memory
   implicit none
-  real(dp), intent(in) :: factor
+  real(dp), intent(in) :: rloc
   type(cell), intent(in) :: mesh
-  type(f_function), intent(in) :: func
   real(dp), dimension(mesh%ndims(1),mesh%ndims(2),mesh%ndims(3)), intent(out) :: f
   !local variables
-  real(dp) :: r2,r
+  integer, parameter :: mp_isf=16
   type(box_iterator) :: bit
+  real(dp), dimension(:), allocatable :: mpx,mpy,mpz
+
+  mpx=f_malloc(mesh%ndims(1),id='mpx')
+  mpy=f_malloc(mesh%ndims(2),id='mpy')
+  mpz=f_malloc(mesh%ndims(3),id='mpz')
+
+  !test of the multipole preserving routine
+  !initialize the work arrays needed to integrate with isf
+  !names of the routines to be redefined
+  call initialize_real_space_conversion(isf_m=mp_isf)
 
   bit=box_iter(mesh,centered=.true.)
-  do while(box_next_point(bit))
-     r2=square(mesh,bit%rxyz)
-     r = sqrt(r2)
-     f(bit%i,bit%j,bit%k) =factor*eval(func,r)
-  end do
+  call gaussian_density(bit%oxyz,rloc,1,.true.,.false.,bit,&
+       mp_isf,mesh%ndims(1)-1,mesh%ndims(2)-1,mesh%ndims(3)-1,&
+       mpx, mpy, mpz,int(mesh%ndim),f)
 
-end subroutine radial_3d_function
+!!$  do while(box_next_point(bit))
+!!$     r2=square(mesh,bit%rxyz)
+!!$     r = sqrt(r2)
+!!$     f(bit%i,bit%j,bit%k) =factor*eval(func,r)
+!!$  end do
 
-!> fill a function and its laplacian
-subroutine separable_3d_function(mesh,funcs,factor,f)
-  use f_functions
-  use PSbase, only: dp
-  use box
-  implicit none
-  real(dp), intent(in) :: factor
-  type(cell), intent(in) :: mesh
-  type(f_function), dimension(3), intent(in) :: funcs
-  real(dp), dimension(mesh%ndims(1),mesh%ndims(2),mesh%ndims(3)), intent(out) :: f
-  !local variables
-  real(dp) :: fx,fy,fz
-  type(box_iterator) :: bit
-  bit=box_iter(mesh,centered=.true.)
-  do while(box_next_z(bit))
-     fz=eval(funcs(3),bit%rxyz(3))
-     do while(box_next_y(bit))
-        fy=eval(funcs(2),bit%rxyz(2))
-        do while(box_next_x(bit))
-           fx=eval(funcs(1),bit%rxyz(1))
-           f(bit%i,bit%j,bit%k) = factor*fx*fy*fz
-        end do
-     end do
-  end do
-end subroutine separable_3d_function
+  call f_free(mpx,mpy,mpz)
 
-!> fill a function and its laplacian
-subroutine separable_3d_laplacian(mesh,funcs,factor,f)
-  use f_functions
-  use PSbase, only: dp
-  use box
-  implicit none
-  real(dp), intent(in) :: factor
-  type(cell), intent(in) :: mesh
-  type(f_function), dimension(3), intent(in) :: funcs
-  real(dp), dimension(mesh%ndims(1),mesh%ndims(2),mesh%ndims(3)), intent(out) :: f
-  !local variables
-  real(dp) :: fx,fy,fz,fx1,fx2,fy1,fy2,fz1,fz2
-  type(box_iterator) :: bit
-  bit=box_iter(mesh,centered=.true.)
-  if (.not. mesh%orthorhombic) then
-     do while(box_next_z(bit))
-        fz=eval(funcs(3),bit%rxyz(3))
-        fz1=diff(funcs(3),bit%rxyz(3))
-        fz2=diff(funcs(3),bit%rxyz(3),order=2)
-        do while(box_next_y(bit))
-           fy=eval(funcs(2),bit%rxyz(2))
-           fy1=diff(funcs(2),bit%rxyz(2))
-           fy2=diff(funcs(2),bit%rxyz(2),order=2)
-           do while(box_next_x(bit))
-              fx=eval(funcs(1),bit%rxyz(1))
-              fx1=diff(funcs(1),bit%rxyz(1))
-              fx2=diff(funcs(1),bit%rxyz(1),order=2)
-              f(bit%i,bit%j,bit%k) = factor*((mesh%gu(1,1)*fx2*fy*fz+mesh%gu(2,2)*fx*fy2*fz+mesh%gu(3,3)*fx*fy*fz2)+&
-                   2.0_dp*(mesh%gu(1,2)*fx1*fy1*fz+mesh%gu(1,3)*fx1*fy*fz1+mesh%gu(2,3)*fx*fy1*fz1))
-           end do
-        end do
-     end do
-  else
-     do while(box_next_z(bit))
-        fz=eval(funcs(3),bit%rxyz(3))
-        fz2=diff(funcs(3),bit%rxyz(3),order=2)
-        do while(box_next_y(bit))
-           fy=eval(funcs(2),bit%rxyz(2))
-           fy2=diff(funcs(2),bit%rxyz(2),order=2)
-           do while(box_next_x(bit))
-              fx=eval(funcs(1),bit%rxyz(1))
-              fx2=diff(funcs(1),bit%rxyz(1),order=2)
-              f(bit%i,bit%j,bit%k) = factor*(fx2*fy*fz+fx*fy2*fz+fx*fy*fz2)
-           end do
-        end do
-     end do
-  end if
-end subroutine separable_3d_laplacian
+  call finalize_real_space_conversion()
+
+end subroutine radial_3d_function_mp

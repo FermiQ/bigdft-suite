@@ -50,7 +50,7 @@
      COMMENT: c(f)rmult*radii_cf(:,1(2))=coarse(fine) atom-based radius
      DESCRIPTION: Coarse and fine multiplier as [4.0, 8.0].
                  These numbers determine the extension of the coarse and fine region respectively.
-     RANGE: [0., 100.]
+     RANGE: [0., 20.]
      default: [5., 8.]
    ixc:
      COMMENT: Exchange-correlation parameter (LDA=1,PBE=11)
@@ -232,38 +232,38 @@
      #Here follow two shortcuts for linear
      linear: 100
      linear_restart: 102
-   output_wf:
-     COMMENT: Output of the support functions
-     DESCRIPTION: |
-       controls the output of wavefunctions on disk at the end of the calculation
-
-          - output_wf = 0, Do not write the wavefunctions to disk.
-
-          - output_wf = 1, The output wavefunctions are written at the end of the wavefunction optimization into
-          plain text files. If InputPsiId was greater than 10 the wavefunction will be written in the Gaussian
-          approximation into a single wavefunctions.gau file otherwise into wavefunction. files. Writing a
-          wavefunction. file for each orbital can take a considerable amount of time and disk space.
-
-          - output_wf = 2, The output wavefunctions are written at the end of the wavefunction optimization into
-          Fortran binary files. This format is not portable between compilers and machines.
-
-          - output_wf = 3, The output wavefunctions are written at the end of the wavefunction optimization into
-          ETSF binary files. This format is portable between compilers and machines since based on NetCDF. Parallel
-          IO are taken into account.
-     default: 0
-     EXCLUSIVE:
-       0: None
-       1: Wavelet, Plain text
-       2: Wavelet, Fortran binary
-       3: Wavelet, ETSF file format
-       #10: None
-       #11: Wavelet and Interpolating Scaling Function, Plain text
-       #12: Wavelet and Interpolating Scaling Function, Fortran binary
-       #13: Wavelet and Interpolating Scaling Function, ETSF file format
-       #20: None
-       #21: Wavelet and Interpolating Scaling Function (wavefunction), Plain text
-       #22: Wavelet and Interpolating Scaling Function (wavefunction), Fortran binary
-       #23: Wavelet and Interpolating Scaling Function (wavefunction), ETSF file format
+  #  output_wf:
+  #    COMMENT: Output of the support functions
+  #    DESCRIPTION: |
+  #      controls the output of wavefunctions on disk at the end of the calculation
+   #
+  #         - output_wf = 0, Do not write the wavefunctions to disk.
+   #
+  #         - output_wf = 1, The output wavefunctions are written at the end of the wavefunction optimization into
+  #         plain text files. If InputPsiId was greater than 10 the wavefunction will be written in the Gaussian
+  #         approximation into a single wavefunctions.gau file otherwise into wavefunction. files. Writing a
+  #         wavefunction. file for each orbital can take a considerable amount of time and disk space.
+   #
+  #         - output_wf = 2, The output wavefunctions are written at the end of the wavefunction optimization into
+  #         Fortran binary files. This format is not portable between compilers and machines.
+   #
+  #         - output_wf = 3, The output wavefunctions are written at the end of the wavefunction optimization into
+  #         ETSF binary files. This format is portable between compilers and machines since based on NetCDF. Parallel
+  #         IO are taken into account.
+  #    default: 0
+  #    EXCLUSIVE:
+  #      0: None
+  #      1: Wavelet, Plain text
+  #      2: Wavelet, Fortran binary
+  #      3: Wavelet, ETSF file format
+  #      #10: None
+  #      #11: Wavelet and Interpolating Scaling Function, Plain text
+  #      #12: Wavelet and Interpolating Scaling Function, Fortran binary
+  #      #13: Wavelet and Interpolating Scaling Function, ETSF file format
+  #      #20: None
+  #      #21: Wavelet and Interpolating Scaling Function (wavefunction), Plain text
+  #      #22: Wavelet and Interpolating Scaling Function (wavefunction), Fortran binary
+  #      #23: Wavelet and Interpolating Scaling Function (wavefunction), ETSF file format
    output_denspot:
      COMMENT: Output of the density or the potential
      DESCRIPTION: |
@@ -339,33 +339,33 @@
      DESCRIPTION: |
         Determine the dimension of the subspace i.e. the number of virtual orbitals
         to calculate via a Davidson diagonalisation.
-
         Usually unoccupied orbitals are not calculated since they are not needed for the total energy and other
         physical properties of the electronic ground state.
 
         Putting norbv to a non-zero value will result in the calculation of norbv virtual orbitals in a postprocessing
-        routine after the occupied orbitals have been calculated, which uses Davidson iterative treatment . nplot
-        of these orbitals will be written in the virtual.*.pot files and nplot (if that many exist) of the highest
-        occupied orbitals will be written in the orbital.*.pot file The Kohn Sham eigenvalues are written in the
-        ordinary output file. nvirt corresponds to the actual number of orbitals the convergence process is taking
+        routine after the occupied orbitals have been calculated, which uses Davidson iterative treatment.
+        nvirt (< norbv) determines to the number of converged orbitals during the convergence process which is taking
         care of during the Davidson iterations.
+        nplot of these orbitals will be written in the virtual.*.pot files and nplot (if that many exist) of the highest
+        occupied orbitals will be written in the orbital.*.pot file. The Kohn Sham eigenvalues are written in the
+        ordinary output file.
      RANGE: [-9999, 9999]
      default: 0
    nvirt:
-     COMMENT: No. of virtual orbs
+     COMMENT: No. of converged virtual orbs (< norbv)
      DESCRIPTION: |
         Determine the dimension of the subspace i.e. the number of virtual orbitals
-        to calculate via a Davidson diagonalisation. (should be < norbv)
-
+        to be converged via a Davidson diagonalisation. (should be < norbv)
         Usually unoccupied orbitals are not calculated since they are not needed for the total energy and other
         physical properties of the electronic ground state.
 
         Putting norbv to a non-zero value will result in the calculation of norbv virtual orbitals in a postprocessing
-        routine after the occupied orbitals have been calculated, which uses Davidson iterative treatment . nplot
-        of these orbitals will be written in the virtual.*.pot files and nplot (if that many exist) of the highest
-        occupied orbitals will be written in the orbital.*.pot file The Kohn Sham eigenvalues are written in the
-        ordinary output file. nvirt corresponds to the actual number of orbitals the convergence process is taking
+        routine after the occupied orbitals have been calculated, which uses Davidson iterative treatment.
+        nvirt (< norbv) determines to the number of converged orbitals during the convergence process which is taking
         care of during the Davidson iterations.
+        nplot of these orbitals will be written in the virtual.*.pot files and nplot (if that many exist) of the highest
+        occupied orbitals will be written in the orbital.*.pot file. The Kohn Sham eigenvalues are written in the
+        ordinary output file.
      RANGE: [0, 9999]
      default: 0
    nplot:
@@ -429,6 +429,13 @@
       In some cases, for example when doing MD for fixed volume systems, it might be useful to disable the
       calculation of the stress tensor, to save computational time.
      default: Yes
+   magnetic_torque:
+     COMMENT: Boolean to activate the calculation of the direction of the atomic magnetization which lowers the total energy
+     default: No
+     CONDITION:
+       MASTER_KEY: nspin
+       WHEN:
+       - 4
    plot_mppot_axes:
      COMMENT: Plot the potential generated by the multipoles along axes through this point. Negative values mean no plot.
      DESCRIPTION: |
@@ -458,22 +465,59 @@
    nrepmax_occ_ctrl:
      COMMENT: Number of re-diagonalizations of occupancy control scheme.
      default: 1
+   alpha_hf:
+     COMMENT: Part of the exact exchange contribution for hybrid functionals
+     DESCRIPTION: |
+       By default .25 for PBE0, and .2 for B3LYP
+     RANGE: [0.0,1.0]
+     default: -1.0
 #output parameters, decide what to dump of write to file
  output:
   DESCRIPTION: Output parameters, control the information that will be printed out
+  verbosity:
+    COMMENT: Verbosity of the output
+    EXCLUSIVE:
+      0: Very low
+      1: Low
+      2: Medium
+      3: High
+    default: 2
   atomic_density_matrix:
     COMMENT: Dictionary of the atoms for which the atomic density matrix has to be plotted
     DESCRIPTION: |
      The atomic species or the atoms written as Atom No are specified, followed by a list
      of the shells for which the density matrix can be plotted
     default: None
+  sdos:
+    COMMENT: Spatially-resolved density of states
+    DESCRIPTION: |
+     Plots the density of states by calculating the value of psi*Hpsi per each KS orbital,
+     resolved among x,y or z.
+    default: No
+  orbitals:
+    COMMENT: Write KS orbitals in the full simulation domain (might take lot of disk space!)
+    default: No
+    EXCLUSIVE:
+       No: No output
+       text: Output in wavelet basis
+       binary: Binary file output
+       text_with_densities: In addition output wavefunction densities in interpolating scaling functions (cube file)
+       text_with_cube: In addition output wavefunctions in interpolating scaling functions (cube file)
+       etsf: ETSF file format
+  outputpsiid:
+    COMMENT: basename of the output wavefunctions files written in the data directory
+    default: wavefunction
+    DESCRIPTION: |
+      Define the basename of all the files associated to the output of the wavefunctions.
+      Can be reused in the inputpsiid input parameter.
+
   #potentials:
   #  format: CUBE
   #  frequence: iteration, SCF
-    
+
 #K points parameters
  kpt:
-   DESCRIPTION: K points XXXXXXX defined in the Brillouin zone for periodic system calculations
+   DESCRIPTION: K points defined in the Brillouin zone for periodic system calculations
    method:
      COMMENT: K-point sampling method
      EXCLUSIVE:
@@ -699,7 +743,7 @@
        This is the stepsize for the geometry optimization.
 
        This stepsize is system dependent and it has therefore to be determined for each system.
-       If the VSSD method is used one can start with a small stepsize of around 1 and VSSD will suggest than
+       If the VSSD method is used one can start with a small stepsize of around 1 and VSSD will suggest then
        a better value for {betax} in the last line of the data/geopt.mon file. Whether the stepsize is correct
        can also be seen from the data/geopt.mon output of the SDCG method.
 
@@ -707,6 +751,9 @@
        where it is around 8).
        In contrast to the SDCG method, the BFGS method is not very sensitive to the correct stepsize but
        nevertheless one should try to find reasonable values also in this case.
+
+       SQNM: For many systems 1 is a good stepsize. Some systems can be minimized more efficiently with
+       a larger stepsize.
      CONDITION:
        MASTER_KEY: method
        WHEN:
@@ -790,14 +837,14 @@
      RANGE: [0., 1.]
      default: 1e-4
    steepthresh:
-     COMMENT: If fnrm < steepthresh, geopt method uses steepest descent
+     COMMENT: If fmax < steepthresh, geopt method uses steepest descent
      CONDITION:
        MASTER_KEY: method
        WHEN:
        - SBFGS
        - SQNM
      RANGE: [0., 1e10]
-     default: 0.5
+     default: 0.1
    trustr:
      COMMENT: Maximum displacement of single atom
      CONDITION:
@@ -1027,6 +1074,9 @@
      DESCRIPTION: A value greater than 0 activates wfn extrapolation
      EXCLUSIVE: [ 0, 1, 2, 4 ]
      default: 0
+   always_from_scratch:
+     COMMENT: When true, always restart wavefunctions from scratch to eliminate dissipation effects
+     default: No
    restart_nose:
      COMMENT: Restart Nose Hoover Chain information from md.restart
      default: No
@@ -1247,9 +1297,9 @@
      DESCRIPTION: |
        The debug mode is enable mainly for memory profiling.
      default: No
-   profiling_depth:
-     COMMENT: Maximum level of the profiling for the tracking of the routines
-     default: -1
+#  profiling_depth:
+#     COMMENT: Maximum level of the profiling for the tracking of the routines
+#     default: -1
    fftcache:
      COMMENT: Cache size for the FFT
      DESCRIPTION: |
@@ -1313,16 +1363,6 @@
    rho_commun:
      COMMENT: Density communication scheme (DBL, RSC, MIX)
      default: DEF
-#   psolver_groupsize:
-#     COMMENT: Size of Poisson Solver taskgroups (0=nproc)
-#     RANGE: [0, 1000000]
-#     default: 0
-#   psolver_accel:
-#     COMMENT: Acceleration of the Poisson Solver (0=none, 1=CUDA)
-#     EXCLUSIVE:
-#       0: None
-#       1: CUDA
-#     default: 0
    unblock_comms:
      COMMENT: Overlap Communications of fields (OFF,DEN,POT)
      EXCLUSIVE:
@@ -1361,14 +1401,6 @@
    store_index:
      COMMENT: Store indices or recalculate them for linear scaling
      default: Yes
-   verbosity:
-     COMMENT: Verbosity of the output
-     EXCLUSIVE:
-       0: ???
-       1: ???
-       2: ???
-       3: ???
-     default: 2
    psp_onfly:
      COMMENT: Calculate pseudopotential projectors on the fly
      default: Yes
@@ -1378,26 +1410,6 @@
    mp_isf:
      COMMENT: (EXPERIMENTAL) Interpolating scaling function or lifted dual order for the multipole preserving
      default: 16
-   pdsyev_blocksize:
-     COMMENT: SCALAPACK linear scaling blocksize
-     default: -8
-   pdgemm_blocksize:
-     COMMENT: SCALAPACK linear scaling blocksize
-     default: -8
-   maxproc_pdsyev:
-     COMMENT: SCALAPACK linear scaling max num procs
-     default: 4
-   maxproc_pdgemm:
-     COMMENT: SCALAPACK linear scaling max num procs
-     default: 4
-   ef_interpol_det:
-     COMMENT: FOE max determinant of cubic interpolation matrix
-     RANGE: [0., 1.]
-     default: 1.e-12
-   ef_interpol_chargediff:
-     COMMENT: FOE max charge difference for interpolation
-     RANGE: [0., 1000.]
-     default: 1.0
    mixing_after_inputguess:
      COMMENT: Mixing step after linear input guess
      EXCLUSIVE:
@@ -1425,14 +1437,6 @@
    experimental_mode:
      COMMENT: Activate the experimental mode in linear scaling
      default: No
-   write_orbitals:
-     COMMENT: Linear scaling write KS orbitals for cubic restart (might take lot of disk space!)
-     default: 0
-     EXCLUSIVE:
-       0: No output
-       1: Output in wavelet basis
-       2: In addition output wavefunction densities in interpolating scaling functions (cube file)
-       3: In addition output wavefunctions in interpolating scaling functions (cube file)
    explicit_locregcenters:
      COMMENT: Linear scaling explicitly specify localization centers
      default: No
@@ -1445,12 +1449,6 @@
    kappa_conv:
      COMMENT: Exit kappa for extended input guess (experimental mode)
      default: 0.1
-   evbounds_nsatur:
-     COMMENT: Number of FOE cycles before the eigenvalue bounds are shrinked (linear)
-     default: 3
-   evboundsshrink_nsatur:
-     COMMENT: Maximal number of unsuccessful eigenvalue bounds shrinkings
-     default: 4
    calculate_gap:
      COMMENT: Linear scaling calculate the HOMO LUMO gap
      default: No
@@ -1466,20 +1464,14 @@
    correction_co_contra:
      COMMENT: Linear scaling correction covariant / contravariant gradient
      default: Yes
-   fscale_lowerbound:
-     COMMENT: Linear scaling lower bound for the error function decay length
-     RANGE: [1.e-4,1.e-2]
-     default: 5.e-3
-   fscale_upperbound:
-     COMMENT: Linear scaling upper bound for the error function decay length
-     default: 5.e-2
-     RANGE: [1.e-2,1.0]
    FOE_restart:
      COMMENT: Restart method to be used for the FOE method
      EXCLUSVE:
        0: AO
        1: REFORMAT
      default: 0
+     ao: 0
+     reformat: 1
    imethod_overlap:
      COMMENT: Method to calculate the overlap matrices (1=old, 2=new)
      EXCLUSIVE:
@@ -1502,13 +1494,6 @@
    wf_extent_analysis:
      COMMENT: Perform an analysis of the extent of the support functions (and possibly KS orbitals)
      default: False
-#   gps_method:
-#     COMMENT: Method for the Generalized Poisson Equation
-#     EXCLUSIVE:
-#        VAC: Vacuum (ordinary treatment)
-#        PI: Polarization Iteration
-#        PCG: Preconditioned Conjugate Gradient
-#     default: VAC
    foe_gap:
      COMMENT: Use the FOE method to calculate the HOMO-LUMO gap at the end of a calculation
      default: False
@@ -1748,6 +1733,12 @@
        COMMENT: Decay length of the error function used to extract the eigenvalues (i.e. something like the resolution)
        default: 5.e-3
        RANGE: [0.0,1.e-1]
+     #centers_auto:
+     #  default: yes
+     multipole_centers:
+       COMMENT: Determines whether the multipole centers shall be determined automatically (i.e. taking the atoms) or whether they are provided manually
+       #default: yes
+       default: 0.0
 #Parameters for the localised basis set (or support function) for the linear scaling version
  lin_basis:
      nit:
@@ -1846,7 +1837,7 @@
        RANGE:  [0,1]
      orthogonalize_ao:
        COMMENT: Orthogonalize the atomic orbitals used as input guess
-       default: Yes    
+       default: Yes
      reset_DIIS_history:
        COMMENT: Reset the DIIS history when starting the loop which optimizes the support functions
        default: No
@@ -1941,20 +1932,6 @@
          Update the SD step size by fitting a quadratic polynomial to the energy
          along the direction of the gradient during direct mininimization.
        default: No
-     eval_range_foe:
-       COMMENT: Lower and upper bound of the eigenvalue spectrum, will be adjusted automatically if chosen unproperly
-       DESCRIPTION: |
-         Indicates the lower and upper bound of the eigenvalue spectrum which is used for the Fermi Operator Expansion.
-         This spectrum will be adjusted automatically if not chosen appropriately.
-       RANGE: [-10.0,10.0]
-       default: [-0.5,0.5]
-     fscale_foe:
-       COMMENT: Decay length of the error function
-       DESCRIPTION: |
-         Indicates the decay length of the error function which is used by the Fermi Operator Expasion to construct the density kernel.
-         This value will be adjusted automatically if not chosen appropriately.
-       RANGE: [1.e-3,5.e-2]
-       default: 2.e-2
      coeff_scaling_factor:
        COMMENT: Factor to scale the gradient in direct minimization
        DESCRIPTION: |
@@ -1969,38 +1946,6 @@
          The feature is deactivated for a value of -1.0
        default: -1.0
        RANGE: [-1.0,1.0]
-     pexsi_npoles:
-       COMMENT: Number of poles used by PEXSI
-       DESCRIPTION: number of poles used by PEXSI to calculate the density kernel from the Hamiltonian and overlap matrices
-       default: 40
-       RANGE: [20,200]
-     pexsi_mumin:
-       COMMENT: Initial guess for the lower bound of the chemical potential used by PEXSI
-       DESCRIPTION: |
-         Initial guesss for the lower bound of the chemical potential (in hartree?)
-         used by PEXSI, will be adjusted automatically later.
-       default: -1.0
-       RANGE: [-5.0,5.0]
-     pexsi_mumax:
-       COMMENT: Initial guess for the upper bound of the chemical potential used by PEXSI
-       DESCRIPTION: initial guesss for the upper bound of the chemical potential (in hartree?) used by PEXSI, will be adjusted automatically later
-       default: 1.0
-       RANGE: [-5.0,5.0]
-     pexsi_mu:
-       COMMENT: Initial guess for the  chemical potential used by PEXSI
-       DESCRIPTION: initial guesss for the chemical potential (in hartree?) used by PEXSI, will be adjusted automatically later
-       default: 0.5
-       RANGE: [-5.0,5.0]
-     pexsi_temperature:
-       COMMENT: Temperature used by PEXSI
-       DESCRIPTION: temperature (in atomic units?) used by PEXSI
-       default: 1.e-3
-       RANGE: [0.0,1.0]
-     pexsi_tol_charge:
-       COMMENT: Charge tolerance used PEXSI
-       DESCRIPTION: tolerance on the number of electrons used by PEXSI
-       default: 1.e-3
-       RANGE: [1.e-10,1.0]
 #Parameters to define the localized basis set or support functions (linear scaling version)
  lin_basis_params:
      nbasis:
@@ -2011,11 +1956,6 @@
                      * 4 (s,p orbital types)
                      * 9 (s,p,d orbital types)
                      * 16 (s,p,d,f orbital types)
-       EXCLUSIVE:
-         1: s orbital type
-         4: s,p orbital types
-         9: s,p,d orbital types
-         16: s,p,d,f orbital types
        default: 4
      ao_confinement:
        COMMENT: Prefactor for the input guess confining potential
@@ -2056,6 +1996,92 @@
                     Must be at least as large as the kernel cutoff.
        RANGE: [2.0,1000]
        default: 14.0
+ ## chess:
+ ##   ef_interpol_det:
+ ##     COMMENT: FOE max determinant of cubic interpolation matrix
+ ##     RANGE: [0., 1.]
+ ##     default: 1.e-12
+ ##   ef_interpol_chargediff:
+ ##     COMMENT: FOE max charge difference for interpolation
+ ##     RANGE: [0., 1000.]
+ ##     default: 1.0
+ ##   blocksize_pdsyev:
+ ##     COMMENT: SCALAPACK linear scaling blocksize
+ ##     default: -8
+ ##   pdgemm_blocksize:
+ ##     COMMENT: SCALAPACK linear scaling blocksize
+ ##     default: -8
+ ##   maxproc_pdsyev:
+ ##     COMMENT: SCALAPACK linear scaling max num procs
+ ##     default: 4
+ ##   maxproc_pdgemm:
+ ##     COMMENT: SCALAPACK linear scaling max num procs
+ ##     default: 4
+ ##   evbounds_nsatur:
+ ##     COMMENT: Number of FOE cycles before the eigenvalue bounds are shrinked (linear)
+ ##     default: 3
+ ##   evboundsshrink_nsatur:
+ ##     COMMENT: Maximal number of unsuccessful eigenvalue bounds shrinkings
+ ##     default: 4
+ ##   fscale_lowerbound:
+ ##     COMMENT: Linear scaling lower bound for the error function decay length
+ ##     RANGE: [1.e-4,1.e-2]
+ ##     default: 5.e-3
+ ##   fscale_upperbound:
+ ##     COMMENT: Linear scaling upper bound for the error function decay length
+ ##     default: 5.e-2
+ ##     RANGE: [1.e-2,1.0]
+ ##   eval_range_foe:
+ ##     COMMENT: Lower and upper bound of the eigenvalue spectrum, will be adjusted automatically if chosen unproperly
+ ##     DESCRIPTION: |
+ ##       Indicates the lower and upper bound of the eigenvalue spectrum which is used for the Fermi Operator Expansion.
+ ##       This spectrum will be adjusted automatically if not chosen appropriately.
+ ##     RANGE: [-10.0,10.0]
+ ##     default: [-0.5,0.5]
+ ##   fscale:
+ ##     COMMENT: Decay length of the error function
+ ##     DESCRIPTION: |
+ ##       Indicates the decay length of the error function which is used by the Fermi Operator Expasion to construct the density kernel.
+ ##       This value will be adjusted automatically if not chosen appropriately.
+ ##     RANGE: [1.e-3,5.e-2]
+ ##     default: 2.e-2
+ ##   pexsi_npoles:
+ ##     COMMENT: Number of poles used by PEXSI
+ ##     DESCRIPTION: number of poles used by PEXSI to calculate the density kernel from the Hamiltonian and overlap matrices
+ ##     default: 40
+ ##     RANGE: [20,200]
+ ##   pexsi_mumin:
+ ##     COMMENT: Initial guess for the lower bound of the chemical potential used by PEXSI
+ ##     DESCRIPTION: |
+ ##       Initial guesss for the lower bound of the chemical potential (in hartree)
+ ##       used by PEXSI, will be adjusted automatically later.
+ ##     default: -1.0
+ ##     RANGE: [-5.0,5.0]
+ ##   pexsi_mumax:
+ ##     COMMENT: Initial guess for the upper bound of the chemical potential used by PEXSI
+ ##     DESCRIPTION: initial guesss for the upper bound of the chemical potential (in hartree) used by PEXSI, will be adjusted automatically later
+ ##     default: 1.0
+ ##     RANGE: [-5.0,5.0]
+ ##   pexsi_mu:
+ ##     COMMENT: Initial guess for the  chemical potential used by PEXSI
+ ##     DESCRIPTION: initial guesss for the chemical potential (in hartree) used by PEXSI, will be adjusted automatically later
+ ##     default: 0.5
+ ##     RANGE: [-5.0,5.0]
+ ##   pexsi_temperature:
+ ##     COMMENT: Temperature used by PEXSI
+ ##     DESCRIPTION: temperature (in atomic units) used by PEXSI
+ ##     default: 1.e-3
+ ##     RANGE: [0.0,1.0]
+ ##   pexsi_tol_charge:
+ ##     COMMENT: Charge tolerance used PEXSI
+ ##     DESCRIPTION: tolerance on the number of electrons used by PEXSI
+ ##     default: 1.e-3
+ ##     RANGE: [1.e-10,1.0]
+ ##   pexsi_np_sym_fact:
+ ##     COMMENT: Number of tasks for the symbolic factorization used by PEXSI
+ ##     DESCRIPTION: Number of tasks used for the symbolic factorization within PEXSI. Too large values can apparently decrease the performance
+ ##     default: 16
+ ##     RANGE: [1,10000]
 --- #here starts the document of possible profiles, that have to be evoked with the 'import' keyword
 linear_accurate:
   COMMENT: Appropriate input parameters for a high accuracy linear scaling calculation
@@ -2065,8 +2091,10 @@ linear_accurate:
     hgrids: 0.3
     ixc: PBE
     inputpsiid: linear
+  chess:
+    foe:
+      ef_interpol_chargediff: 1.0
   perf:
-    ef_interpol_chargediff: 1.0
     experimental_mode: Yes
     correction_co_contra: Yes
     #check_sumrho: 1
@@ -2109,6 +2137,7 @@ linear_accurate:
     Na: {nbasis: 1, rloc: 7.5}
     K:  {nbasis: 1, rloc: 8.0}
     Sn: {nbasis: 4, rloc: 6.5}
+
 linear_moderate:
   COMMENT: Appropriate input parameters for a moderate accuracy linear scaling calculation
   DESCRIPTION: |
@@ -2118,8 +2147,10 @@ linear_moderate:
     hgrids: 0.3
     ixc: PBE
     inputpsiid: linear
+  chess:
+    foe:
+      ef_interpol_chargediff: 1.0
   perf:
-    ef_interpol_chargediff: 1.0
     experimental_mode: Yes
     correction_co_contra: Yes
   lin_general:
@@ -2227,11 +2258,14 @@ linear:
  DESCRIPTION: |
          Basic parameters to perform a linear calculation.
  dft:
-   hgrids: 0.50
    disablesym: Yes
    inputpsiid: linear
+ chess:
+   foe:
+     ef_interpol_chargediff: 1.0
+     eval_range_foe: [-1.0, 1.0]
+     fscale: 5.0e-2
  perf:
-   ef_interpol_chargediff: 1.0
    check_sumrho: 1
    check_overlap: 1
    experimental_mode: Yes
@@ -2273,8 +2307,6 @@ linear:
    rpnrm_cv: 1.0e-8
    alphamix: 0.1
    linear_method: FOE
-   eval_range_foe: [-1.0, 1.0]
-   fscale_foe: 5.0e-2
    delta_pnrm: 0.1
  lin_basis_params:
    ao_confinement: -1.0
@@ -2294,6 +2326,8 @@ linear:
    K:  {nbasis: 1, rloc: 8.0}
    Sn: {nbasis: 4, rloc: 6.5}
    Fe: {nbasis: 13, rloc: 8.0}
+   Cu: {nbasis: 9, rloc: 7.0}
+   W:  {nbasis: 9, rloc: 7.5}
  ig_occupation:
    Fe:
      3s: 2.0
@@ -2303,6 +2337,28 @@ linear:
        down: 2.0
      4s: 2.0
      4p: 0.0
+   Cu:
+     3d: 10.0
+     4s: 1.0
+     4p: 0.0
+   W:
+     6s: 2.0
+     5d: 4.0
+     6p: 0.0
+linear_fragments:
+  COMMENT: Input parameters to be added to the linear profile for fragment calculationn (templates ready)
+  #import: linear #to be tested
+  lin_general:
+    hybrid: No
+    nit: 1
+  lin_kernel:
+    nit: 100 #here it is better to put a large value
+    rpnrm_cv: 1.e-10
+  lin_basis: {nit: 1}
+  perf:
+    experimental_mode: No
+    adjust_kernel_threshold: No
+    adjust_kernel_iterations: No
 md:
   COMMENT: Molecular dynamics input parameters for H2O molecules
   geopt:

@@ -65,6 +65,8 @@ module yaml_output
      integer, dimension(tot_max_flow_events) :: flow_events=0     !< Set of events in the flow
      type(dictionary), pointer :: dict_warning=>null()            !< Dictionary of warnings emitted in the stream
      !character(len=tot_max_record_length), dimension(:), pointer :: buffer !<
+     !> papers which are cited in the stream
+     type(dictionary), pointer :: dict_references=>null()
   end type yaml_stream
 
   type(yaml_stream), dimension(tot_streams), save :: streams    !< Private array containing the streams
@@ -96,6 +98,8 @@ module yaml_output
      module procedure yaml_map_iv,yaml_map_dv,yaml_map_cv,yaml_map_rv,yaml_map_lv,yaml_map_liv
      !matrices (rank2)
      module procedure yaml_map_dm,yaml_map_rm,yaml_map_im,yaml_map_lm
+     !tensors (rank 3)
+     module procedure yaml_map_dt
   end interface
 
   interface yaml_warning
@@ -181,6 +185,7 @@ module yaml_output
   public :: yaml_get_default_stream,yaml_stream_attributes,yaml_close_all_streams
   public :: yaml_dict_dump,yaml_dict_dump_all
   public :: is_atoi,is_atof,is_atol,dump_dict_impl,dump_progress_bar
+  public :: yaml_cite,yaml_bib_dump
 
   !for internal f_lib usage
   public :: yaml_output_errors
@@ -191,7 +196,17 @@ contains
   pure function stream_null() result(strm)
     implicit none
     type(yaml_stream) :: strm
-
+    call nullify_stream(strm)
+  end function stream_null
+  pure subroutine nullify_stream(strm)
+    implicit none
+    type(yaml_stream), intent(inout) :: strm
+    call reset_document_in_stream(strm)
+    nullify(strm%dict_references)
+  end subroutine nullify_stream
+  pure subroutine reset_document_in_stream(strm)
+    implicit none
+    type(yaml_stream), intent(inout) :: strm
     strm%document_closed=.true.
     strm%pp_allowed=.true.
     strm%unit=6
@@ -213,7 +228,8 @@ contains
     strm%ievt_flow=0
     strm%flow_events=0
     nullify(strm%dict_warning)
-  end function stream_null
+  end subroutine reset_document_in_stream
+
 
   !> Initialize the variables of the module, like error definitions.
   !! should be called only once unless the module has been closed by close_all_streams
@@ -242,6 +258,7 @@ contains
 
   !> Initialize the error messages
   subroutine yaml_output_errors()
+    use exception_callbacks, only: f_err_set_last_error_callback,f_err_set_all_errors_callback
     implicit none
     !initialize error messages
     call f_err_define('YAML_INVALID','Generic error of yaml module, invalid operation',&
@@ -256,8 +273,54 @@ contains
          err_action='This is an internal error of yaml_output module, contact developers')
     !the module is ready for usage
     call dict_init(stream_files)
+    call f_err_set_last_error_callback(f_dump_last_error_yaml)
+    call f_err_set_all_errors_callback(f_dump_possible_errors_yaml)
     module_initialized=.true.
   end subroutine yaml_output_errors
+
+  subroutine f_dump_last_error_yaml()
+    use dictionaries, only: f_get_error_dict,f_get_last_error,max_field_length
+    !use yaml_output, only: yaml_dict_dump,yaml_map,yaml_flush_document
+    implicit none
+    !local variables
+    integer :: ierr
+    character(len=max_field_length) :: add_msg
+
+    ierr=f_get_last_error(add_msg)
+
+    if (ierr /=0) then
+       call yaml_dict_dump(f_get_error_dict(ierr))
+       if (trim(add_msg)/= 'UNKNOWN') call yaml_map('Additional Info',add_msg)
+    end if
+    call yaml_flush_document()
+  end subroutine f_dump_last_error_yaml
+
+  !> Dump the list of possible errors as they are defined at present
+  subroutine f_dump_possible_errors_yaml(extra_msg)
+    use dictionaries, only: f_get_error_definitions
+    use f_precisions, only: f_loc
+    implicit none
+    !character(len=*), intent(in) :: extra_msg
+    character, dimension(*), intent(in) :: extra_msg
+    !local variables
+    character(len=max_field_length) :: msg
+
+    call yaml_newline()
+    call yaml_comment('Error list',hfill='~')
+    call yaml_mapping_open('List of errors defined so far')
+    !  call yaml_dict_dump(f_get_error_definitions(),verbatim=.true.)
+    call yaml_dict_dump(f_get_error_definitions())
+    call yaml_mapping_close()
+    call yaml_comment('End of error list',hfill='~')
+    call convert_f_char_ptr(src=extra_msg,dest=msg)
+    !if (len_trim(extra_msg) > 0) then
+    if (len_trim(msg) > 0) then
+       call yaml_map('Additional Info',trim(msg))
+    else
+       call yaml_map('Dump ended',.true.)
+    end if
+  end subroutine f_dump_possible_errors_yaml
+
 
   !> Set the default stream of the module. Return  a STREAM_ALREADY_PRESENT errcode if
   !! The stream has not be initialized.
@@ -285,13 +348,32 @@ contains
 
   end subroutine yaml_get_default_stream
 
+  subroutine get_stream_filename(unit,filename)
+    implicit none
+    integer, intent(in) :: unit
+    character(len=*), intent(out) :: filename
+    !local variables
+    integer :: unt
+    type(dictionary), pointer :: iter
+
+    nullify(iter)
+    filename='stdout' !in case not found in the unit
+    do while(iterating(iter,on=stream_files))
+       unt=iter
+       if (unt==unit) then
+          filename=dict_key(iter)
+          exit
+       end if
+    end do
+  end subroutine get_stream_filename
+
 
   !> Get the unit associated to filename, if it is currently connected.
   subroutine yaml_stream_connected(filename, unit, istat)
     implicit none
     character(len=*), intent(in) :: filename !< Filename of the stream to inquire
     integer, intent(out)         :: unit     !< File unit specified by the user.(by default 6) Returns a error code if the unit
-    integer, optional, intent(out) :: istat  !< Status, zero if suceeded. When istat is present this routine is non-blocking, i.e. it does not raise exceptions.
+    integer, optional, intent(out) :: istat  !< Status, zero if suceeded.
 
     integer, parameter :: NO_ERRORS           = 0
 
@@ -313,18 +395,21 @@ contains
   subroutine yaml_set_stream(unit,filename,istat,tabbing,record_length,position,setdefault)
     use f_utils, only: f_utils_recl,f_get_free_unit,f_open_file
     implicit none
-    integer, optional, intent(in) :: unit              !< File unit specified by the user.(by default 6) Returns a error code if the unit
+    integer, optional, intent(in) :: unit  !< File unit specified by the user.(by default 6) Returns a error code if the unit
                                                        !! is not 6 and it has already been opened by the processor
     integer, optional, intent(in) :: tabbing           !< Indicate a tabbing for the stream (0 no tabbing, default)
-    integer, optional, intent(in) :: record_length     !< Maximum number of columns of the stream (default @link yaml_output::yaml_stream::tot_max_record_length @endlink)
+    !> Maximum number of columns of the stream (default @link yaml_output::yaml_stream::tot_max_record_length @endlink)
+    integer, optional, intent(in) :: record_length
     character(len=*), optional, intent(in) :: filename !< Filename of the stream
-    character(len=*), optional, intent(in) :: position !< specifier of the position while opening the unit (all fortran values of position specifier in open statement are valid)
-    integer, optional, intent(out) :: istat            !< Status, zero if suceeded. When istat is present this routine is non-blocking, i.e. it does not raise exceptions.
+    !> specifier of the position while opening the unit (all fortran values of position specifier in open statement are valid)
+    character(len=*), optional, intent(in) :: position
+    !> Status, zero if suceeded. When istat is present this routine is non-blocking, i.e. it does not raise exceptions.
+    integer, optional, intent(out) :: istat
     logical, optional, intent(in) :: setdefault        !< decide if the new stream will be set as default stream. True if absent
                                                        !! it is up the the user to deal with error signals sent by istat
 
     !local variables
-    integer, parameter :: NO_ERRORS           = 0
+    integer, parameter :: NO_ERRORS = 0
     logical :: unit_is_open,set_default,again
     integer :: istream,unt,ierr
     !integer(kind=8) :: recl_file
@@ -640,10 +725,23 @@ contains
 
     !Initialize the stream, keeping the file unit
     unit_prev=streams(strm)%unit
-    streams(strm)=stream_null()
+    call reset_document_in_stream(streams(strm))
     streams(strm)%unit=unit_prev
 
   end subroutine yaml_release_document
+
+  function stream_id(unit) result(strm)
+    implicit none
+    integer, intent(in), optional :: unit
+    integer :: strm
+    !local variables
+    integer :: unt
+
+    unt=DEFAULT_STREAM_ID
+    if (present(unit)) unt=unit
+    call get_stream(unt,strm)
+
+  end function stream_id
 
   !> close one stream and free its place
   !! should this stream be the default stream, stdout becomes the default
@@ -681,6 +779,8 @@ contains
     !release all the documents to print out warnings and free warning dictionary if it existed
     call yaml_release_document(unit=unt)
 
+    call yaml_purge_references(unit=unt)
+
     !close files which are not stdout and remove them from stream_files
     if (unt /= 6) close(unt)
     iter => dict_iter(stream_files)
@@ -717,6 +817,28 @@ contains
 
   end subroutine yaml_close_stream
 
+  subroutine yaml_purge_references(unit)
+    use yaml_strings, only: rstrip
+    use f_bibliography
+    implicit none
+    integer, intent(in), optional :: unit
+    !local variables
+    integer :: strm
+    character(len=128) :: filename,stream_out
+    strm=stream_id(unit=unit)
+    if (associated(streams(strm)%dict_references)) then
+       call get_stream_filename(streams(strm)%unit,stream_out)
+       call get_bib_filename(stream_out,filename)
+       call yaml_newline(unit=unit)
+       call yaml_comment('This program used features described in the following reference papers.',hfill='-',unit=unit)
+       call yaml_comment('Bibtex version of the citations can be found in file "'//trim(filename)//'"',hfill='-',unit=unit)
+       call yaml_bib_dump(streams(strm)%dict_references,unit=unit)
+       call dict_free(streams(strm)%dict_references)
+       call yaml_flush_document(unit=unit)
+    end if
+
+  end subroutine yaml_purge_references
+
   !> Close all the streams of all opened units
   !! The module will come back to its initial status
   subroutine yaml_close_all_streams()
@@ -733,6 +855,7 @@ contains
           call yaml_close_stream(unit=unt)
           !but its document can be released
        else
+          call yaml_purge_references(unit=unt)
           call yaml_release_document(unit=unt)
        end if
     end do
@@ -1167,7 +1290,7 @@ contains
     implicit none
     character(len=*), intent(in) :: mapname             !< @copydoc doc::mapname
     character(len=*), intent(in) :: mapvalue            !< scalar value of the mapping may be of any scalar type
-                                                        !! it is internally converted to character with the usage 
+                                                        !! it is internally converted to character with the usage
                                                         !! of @link yaml_output::yaml_toa @endlink function
     character(len=*), optional, intent(in) :: label     !< @copydoc doc::label
     character(len=*), optional, intent(in) :: tag       !< @copydoc doc::tag
@@ -1264,7 +1387,7 @@ contains
           icut=len_trim(mapvalue)-istr+1
           !print *,'icut',istr,icut,mapvalue(istr:istr+icut-1),cut,istr+icut-1,len_trim(mapvalue)
           msg_lgt=0
-         if (idbg==1000) exit cut_line !to avoid infinite loops
+         if (idbg==1000 .or. istr> len(mapvalue)) exit cut_line !to avoid infinite loops
        end do cut_line
        if (.not.streams(strm)%flowrite) call yaml_mapping_close(unit=unt)
     end if
@@ -1437,6 +1560,41 @@ contains
     logical, dimension(:,:), intent(in) :: mapvalue
     include 'yaml_map-mat-inc.f90'
   end subroutine yaml_map_lm
+
+  !> double-precision rank3 tensor
+  subroutine yaml_map_dt(mapname,mapvalue,label,advance,unit,fmt)
+    implicit none
+    real(kind=8), dimension(:,:,:), intent(in) :: mapvalue
+    character(len=*), intent(in) :: mapname
+    character(len=*), optional, intent(in) :: label,advance,fmt
+    integer, optional, intent(in) :: unit
+    !Local variables
+    integer :: strm,unt,irow,icol,ivec
+
+    unt=0
+    if (present(unit)) unt=unit
+    call get_stream(unt,strm)
+
+    !open the sequence associated to the matrix
+    call yaml_sequence_open(mapname,label=label,unit=unt)
+    do irow=lbound(mapvalue,3),ubound(mapvalue,3)
+       call yaml_newline(unit=unt)
+       call yaml_sequence(advance='no',unit=unt)
+       call yaml_sequence_open(flow=.true.,unit=unt)
+       do icol=lbound(mapvalue,2),ubound(mapvalue,2)
+          call yaml_sequence(advance='no',unit=unt)
+          call yaml_sequence_open(flow=.true.,unit=unt)
+          do ivec=lbound(mapvalue,1),ubound(mapvalue,1)
+             call yaml_sequence(trim(yaml_toa(mapvalue(ivec,icol,irow),fmt=fmt)),unit=unt)
+          end do
+          call yaml_sequence_close(unit=unt)
+       end do
+       call yaml_sequence_close(unit=unt)
+    end do
+
+    call yaml_sequence_close(advance=advance,unit=unt)
+
+  end subroutine yaml_map_dt
 
 
   !> Get the stream, initialize if not already present (except if istat present)
@@ -2439,5 +2597,77 @@ contains
     call f_utils_flush(streams(strm)%unit)
   end subroutine dump_progress_bar
 
+  subroutine yaml_cite(paper,unit)
+    use f_bibliography
+    use f_utils
+    implicit none
+    character(len=*), intent(in) :: paper !<the item to be cited in the bibliography
+    integer, intent(in), optional :: unit
+    !local variables
+    integer :: unt,istat,strm,unitfile
+    character(len=128) :: filename,stream_out
+    type(dictionary), pointer :: item,iter2,iter3
+
+    if (f_bib_item_exists(paper)) then
+       unt=DEFAULT_STREAM_ID
+       if (present(unit)) unt=unit
+       call get_stream(unt,strm,istat)
+       if (.not. associated(streams(strm)%dict_references)) then
+          call dict_init(streams(strm)%dict_references)
+          call get_stream_filename(streams(strm)%unit,stream_out)
+          call get_bib_filename(stream_out,filename)
+          unitfile=100
+
+          call f_open_file(unitfile,filename)
+          write(unitfile,'(a)')'% This program used features described in the following reference papers.'
+          write(unitfile,'(a)')'% Please consider citing these papers when using the results for scientific output.'
+          call f_close(unitfile) !close the file to flush its present value
+       end if
+       if (paper .notin. streams(strm)%dict_references) then
+          call add(streams(strm)%dict_references,paper)
+          call get_stream_filename(streams(strm)%unit,stream_out)
+          call get_bib_filename(stream_out,filename)
+          unitfile=100
+          call f_open_file(unitfile,filename,position='append')
+          item => f_bib_get_item(paper)
+          iter2=item .get. 'BIBTEX_REF'
+          nullify(iter3)
+          do while(iterating(iter3,on=iter2))
+             write(unitfile,'(a)')trim(dict_value(iter3))
+          end do
+          call f_close(unitfile) !close the file to flush its present value
+       end if
+    else
+       call yaml_warning('Missed citation; paper "'+paper+&
+            '" not present in the bibliography',unit=unit)
+    end if
+  end subroutine yaml_cite
+
+  subroutine yaml_bib_dump(citations,unit) !plus other variables for the format
+    use f_bibliography
+    use f_utils
+    implicit none
+    type(dictionary), pointer :: citations
+    integer, intent(in), optional :: unit !< yaml stream associated
+    !local variables
+    type(dictionary), pointer :: iter,item,iter2
+
+    call yaml_mapping_open('Citations',unit=unit)
+
+    nullify(iter)
+    do while(iterating(iter,on=citations))
+       item => f_bib_get_item(dict_value(iter))
+       call yaml_mapping_open(dict_value(iter),unit=unit)
+       nullify(iter2)
+       do while(iterating(iter2,on=item))
+          if (trim(dict_key(iter2)) /= 'BIBTEX_REF') &
+               call yaml_map(trim(dict_key(iter2)),iter2,unit=unit)
+       end do
+       call yaml_mapping_close(unit=unit)
+    end do
+
+    call yaml_mapping_close(unit=unit)
+
+  end subroutine yaml_bib_dump
 
 end module yaml_output

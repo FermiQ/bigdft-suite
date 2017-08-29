@@ -1,6 +1,11 @@
-
-!! Solver for the Generalized Poisson Equation. 
-!! @author Giuseppe Fisicaro
+!> @file
+!> Solver for the Generalized Poisson Equation.
+!! @author
+!!    Copyright (C) 2002-2017 BigDFT group  (Giuseppe Fisicaro)<br/>
+!!    This file is distributed under the terms of the
+!!    GNU General Public License, see ~/COPYING file
+!!    or http://www.gnu.org/copyleft/gpl.txt .
+!!    For the list of contributors, see ~/AUTHORS
 
 program GPS_3D
 
@@ -19,6 +24,7 @@ program GPS_3D
    use numerics
    use psolver_environment, only: rigid_cavity_arrays,rigid_cavity_forces,vacuum_eps
    use FDder
+   use f_blas, only: f_dot
    implicit none
    
    !now these parameters have to be specified from the command line
@@ -160,14 +166,15 @@ program GPS_3D
    angrad(3) = angdeg(3)/180.0_f_double*pi
 !   detg = 1.0d0 - dcos(alpha)**2 - dcos(beta)**2 - dcos(gamma)**2 + 2.0d0*dcos(alpha)*dcos(beta)*dcos(gamma)
   
-   mesh=cell_new(geocode,ndims,hgrids,angrad) 
+   mesh=cell_new(geocode,ndims,hgrids,alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3)) 
 
    call mpiinit()
    iproc=mpirank()
    nproc=mpisize()
 
    !control memory profiling
-   call f_malloc_set_status(memory_limit=0.e0,iproc=iproc)
+   call f_malloc_set_status(iproc=iproc)
+   !call f_malloc_set_status(memory_limit=0.e0,iproc=iproc)
    if (iproc ==0) then
         if (logyes) then
          call yaml_set_stream(record_length=92,tabbing=30,unit=70,filename='log.yaml',position='rewind')
@@ -400,8 +407,12 @@ program GPS_3D
    else if (Fgrid) then
     pkernel=pkernel_init(iproc,nproc,dict_input,geocode,ndimsf,hgridsf)
    else
-    pkernel=pkernel_init(iproc,nproc,dict_input,geocode,ndims,hgrids,angrad=(/beta,alpha,gamma/))
+      !pkernel=pkernel_init(iproc,nproc,dict_input,geocode,ndims,hgrids,angrad=(/beta,alpha,gamma/))
+      pkernel=pkernel_init(iproc,nproc,dict_input,geocode,ndims,hgrids,&
+           alpha_bc=alpha,beta_ac=beta,gamma_ab=gamma)
    end if
+
+   einit=0.5_dp*f_dot(rhopot,potential)*pkernel%mesh%volume_element
 
   call dict_free(dict_input)
   call pkernel_set(pkernel,verbose=.true.)
@@ -561,7 +572,7 @@ program GPS_3D
   hy=acell/real(n02,kind=8)
   hz=acell/real(n03,kind=8)
   hgrids=(/hx,hy,hz/)
-  mesh=cell_new(geocode,ndims,hgrids,angrad) 
+  mesh=cell_new(geocode,ndims,hgrids,alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3))
 
   eps=f_malloc([n01,n02,n03],id='eps')
   dlogeps=f_malloc([3,n01,n02,n03],id='dlogeps')
@@ -591,6 +602,7 @@ program GPS_3D
   call nabla_u_and_square(geocode,n01,n02,n03,eps,nabla_eps,oneoeps,&
        nord,hgrids)
   call div_u_i(geocode,n01,n02,n03,nabla_eps,oneosqrteps,nord,hgrids,corr)
+
 
   do i3=1,n03
      do i2=1,n02
