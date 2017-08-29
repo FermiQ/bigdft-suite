@@ -38,7 +38,7 @@ module box
      integer :: i3e !<ending point in the dimension z
      integer :: i23 !<collapsed index in 23 dimension
      integer :: ind !<one-dimensional index for arrays
-     !< 3D indices in absolute coordinates in the given box specified by boxat
+     !> 3D indices in absolute coordinates in the given box specified by boxat
      integer, dimension(3)  :: ibox  
      !> actual index inside the box
      integer :: i,j,k !better as scalars
@@ -49,6 +49,7 @@ module box
      real(gp), dimension(3) :: rxyz !<coordinates of the grid point
      real(gp), dimension(3) :: tmp !< size 3 array buffer to avoid the creation of temporary arrays
      logical :: whole !<to assess if we run over the entire box or not (no check over the internal point)
+     integer, dimension(2,3) :: subbox !<box of the local task
      !>reference mesh from which it starts
      type(cell), pointer :: mesh
   end type box_iterator
@@ -145,9 +146,11 @@ contains
     type(box_iterator) :: boxit
     
     call nullify_box_iterator(boxit)
-    
+
+    !if the mesh is invalid (e.g. no dims, return)
+    if (mesh%ndim==0) return
     !associate the mesh
-    boxit%mesh => mesh
+    boxit%mesh => mesh 
 
     call f_zero(boxit%oxyz)
     if (present(origin)) boxit%oxyz=origin

@@ -230,6 +230,8 @@ module module_input_keys
      logical :: disableSym                 !< .true. disable symmetry
      !> boolean to activate the calculation of the stress tensor
      logical :: calculate_strten
+     !> calculate the magnetic torque as in the constrained field dynamics
+     logical :: calculate_magnetic_torque
      !character(len=8) :: set_epsilon !< method for setting the dielectric constant
 
      !> solver parameters
@@ -1766,6 +1768,8 @@ contains
           ! Do nothing?
        case(CALCULATE_STRTEN)
           in%calculate_strten=val
+       case(MAGNETIC_TORQUE)
+          in%calculate_magnetic_torque=val
        case (PLOT_MPPOT_AXES)
            in%plot_mppot_axes = val
        case (PLOT_POT_AXES)
@@ -2503,6 +2507,7 @@ contains
     nullify(in%chess_dict)
     nullify(in%at_gamma)
     call f_zero(in%calculate_strten)
+    call f_zero(in%calculate_magnetic_torque)
     call f_zero(in%nab_options)
     in%sdos=.false.
     !in%profiling_depth=-1

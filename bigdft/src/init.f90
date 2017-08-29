@@ -227,6 +227,7 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
   use locreg_operations, only: set_wfd_to_wfd
   use sparsematrix_init,only: distribute_on_tasks
   use locregs
+  use f_ternary
   implicit none
   integer,intent(in) :: iproc,nproc
   real(gp), intent(in) :: cpmult,fpmult,hx,hy,hz
@@ -249,7 +250,7 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
   integer,dimension(:,:),allocatable :: reducearr
   call f_routine(id=subname)
 
-  call nullify_structure()
+  call init_structure()
 
   ! Convert the pseudo coefficients into gaussian projectors.
   if (all(at%npspcode == PSPCODE_PAW) .and. at%astruct%ntypes > 0) then
@@ -453,13 +454,12 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
 
   contains
 
-
-    subroutine nullify_structure()
+    subroutine init_structure()
       implicit none
       !local variables
-      integer :: igamma,l
+      integer :: igamma,l,nmat
 
-      call f_routine(id='nullify_structure')
+      call f_routine(id='init_structure')
 
       !start from a null structure
       nl=DFT_PSP_projectors_null()
@@ -474,6 +474,7 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
 
       !allocate the iagamma array in the case of needed density matrix
       if (any(at%dogamma)) then
+         nmat=.if. (ob%orbs%nspin == 4) .then. 4 .else. 2
         nl%iagamma=f_malloc0_ptr([0.to.lmax_ao,1.to.nl%natoms],id='iagamma')
         igamma=0
         do iat=1,nl%natoms
@@ -486,14 +487,14 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
            end do
         end do
         !then all the information for the density matrix allocation is available
-        nl%gamma_mmp=f_malloc_ptr([2,2*lmax_ao+1,2*lmax_ao+1,igamma,2],id='gamma_mmp')
+        nl%gamma_mmp=f_malloc_ptr([nmat,2*lmax_ao+1,2*lmax_ao+1,igamma,2],id='gamma_mmp')
         nl%apply_gamma_target=associated(at%gamma_targets)
-      end if
+     end if
 
       call f_release_routine()
 
-    end subroutine nullify_structure
-
+    end subroutine init_structure
+    
     subroutine allocate_arrays()
       use locregs, only: allocate_wfd
       implicit none

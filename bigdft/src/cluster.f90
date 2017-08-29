@@ -1479,7 +1479,6 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
      call f_free_ptr(denspot%V_XC)
      if (nproc > 1) call f_free_ptr(denspot%rhov)
 
-     !pass hx instead of hgrid since we are only in free BC
      call CalculateTailCorrection(iproc,nproc,atoms,in%rbuf,KSwfn%orbs,&
           KSwfn%Lzd%Glr,nlpsp,in%ncongt,denspot%pot_work,KSwfn%Lzd%hgrids,&
           rxyz,in%crmult,in%frmult,in%nspin,&
@@ -1535,6 +1534,7 @@ contains
   !> Routine which deallocate the pointers and the arrays before exiting
   subroutine deallocate_before_exiting
     use communications_base, only: deallocate_comms
+    use module_cfd, only: cfd_free
     implicit none
     external :: gather_timings
   !when this condition is verified we are in the middle of the SCF cycle
@@ -1557,7 +1557,6 @@ contains
        call f_free_ptr(denspot%V_XC)
 
        call dpbox_free(denspot%dpbox)
-
        call f_free_ptr(fion)
        call f_free_ptr(fdisp)
     end if
@@ -1579,9 +1578,9 @@ contains
     if(associated(denspot%rho_C)) then
        call f_free_ptr(denspot%rho_C)
     end if
-    if(associated(denspot%rhohat)) then
-       call f_free_ptr(denspot%rhohat)
-    end if
+    call f_free_ptr(denspot%rhohat)
+    call cfd_free(denspot%cfd)
+       
     call f_free(denspot0)
 
     ! Free all remaining parts of KSwfn

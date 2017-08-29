@@ -35,28 +35,6 @@ subroutine f_dump_all_errors(unit)
 end subroutine f_dump_all_errors
 
 
-!> Dump the list of possible errors as they are defined at present
-subroutine f_dump_possible_errors(extra_msg)
-  use yaml_output
-  use dictionaries, only: f_get_error_definitions
-  implicit none
-  character(len=*), intent(in) :: extra_msg
-
-  call yaml_newline()
-  call yaml_comment('Error list',hfill='~')
-  call yaml_mapping_open('List of errors defined so far')
-!  call yaml_dict_dump(f_get_error_definitions(),verbatim=.true.)
-  call yaml_dict_dump(f_get_error_definitions())
-  call yaml_mapping_close()
-  call yaml_comment('End of error list',hfill='~')
-  if (len_trim(extra_msg) > 0) then
-     call yaml_map('Additional Info',trim(extra_msg))
-  else
-     call yaml_map('Dump ended',.true.)
-  end if
-end subroutine f_dump_possible_errors
-
-
 !> Initialize all arrays and dictionaries for handling the errors
 subroutine initialize_flib_errors()
   use dictionaries, only: dictionaries_errors

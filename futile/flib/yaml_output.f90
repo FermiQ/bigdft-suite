@@ -98,6 +98,8 @@ module yaml_output
      module procedure yaml_map_iv,yaml_map_dv,yaml_map_cv,yaml_map_rv,yaml_map_lv,yaml_map_liv
      !matrices (rank2)
      module procedure yaml_map_dm,yaml_map_rm,yaml_map_im,yaml_map_lm
+     !tensors (rank 3)
+     module procedure yaml_map_dt
   end interface
 
   interface yaml_warning
@@ -256,7 +258,7 @@ contains
 
   !> Initialize the error messages
   subroutine yaml_output_errors()
-    use exception_callbacks, only: f_err_set_last_error_callback
+    use exception_callbacks, only: f_err_set_last_error_callback,f_err_set_all_errors_callback
     implicit none
     !initialize error messages
     call f_err_define('YAML_INVALID','Generic error of yaml module, invalid operation',&
@@ -272,6 +274,7 @@ contains
     !the module is ready for usage
     call dict_init(stream_files)
     call f_err_set_last_error_callback(f_dump_last_error_yaml)
+    call f_err_set_all_errors_callback(f_dump_possible_errors_yaml)
     module_initialized=.true.
   end subroutine yaml_output_errors
 
@@ -291,6 +294,32 @@ contains
     end if
     call yaml_flush_document()
   end subroutine f_dump_last_error_yaml
+
+  !> Dump the list of possible errors as they are defined at present
+  subroutine f_dump_possible_errors_yaml(extra_msg)
+    use dictionaries, only: f_get_error_definitions
+    use f_precisions, only: f_loc
+    implicit none
+    !character(len=*), intent(in) :: extra_msg
+    character, dimension(*), intent(in) :: extra_msg
+    !local variables
+    character(len=max_field_length) :: msg
+
+    call yaml_newline()
+    call yaml_comment('Error list',hfill='~')
+    call yaml_mapping_open('List of errors defined so far')
+    !  call yaml_dict_dump(f_get_error_definitions(),verbatim=.true.)
+    call yaml_dict_dump(f_get_error_definitions())
+    call yaml_mapping_close()
+    call yaml_comment('End of error list',hfill='~')
+    call convert_f_char_ptr(src=extra_msg,dest=msg)
+    !if (len_trim(extra_msg) > 0) then
+    if (len_trim(msg) > 0) then
+       call yaml_map('Additional Info',trim(msg))
+    else
+       call yaml_map('Dump ended',.true.)
+    end if
+  end subroutine f_dump_possible_errors_yaml
 
 
   !> Set the default stream of the module. Return  a STREAM_ALREADY_PRESENT errcode if
@@ -1531,6 +1560,41 @@ contains
     logical, dimension(:,:), intent(in) :: mapvalue
     include 'yaml_map-mat-inc.f90'
   end subroutine yaml_map_lm
+
+  !> double-precision rank3 tensor
+  subroutine yaml_map_dt(mapname,mapvalue,label,advance,unit,fmt)
+    implicit none
+    real(kind=8), dimension(:,:,:), intent(in) :: mapvalue
+    character(len=*), intent(in) :: mapname
+    character(len=*), optional, intent(in) :: label,advance,fmt
+    integer, optional, intent(in) :: unit
+    !Local variables
+    integer :: strm,unt,irow,icol,ivec
+
+    unt=0
+    if (present(unit)) unt=unit
+    call get_stream(unt,strm)
+
+    !open the sequence associated to the matrix
+    call yaml_sequence_open(mapname,label=label,unit=unt)
+    do irow=lbound(mapvalue,3),ubound(mapvalue,3)
+       call yaml_newline(unit=unt)
+       call yaml_sequence(advance='no',unit=unt)
+       call yaml_sequence_open(flow=.true.,unit=unt)
+       do icol=lbound(mapvalue,2),ubound(mapvalue,2)
+          call yaml_sequence(advance='no',unit=unt)
+          call yaml_sequence_open(flow=.true.,unit=unt)
+          do ivec=lbound(mapvalue,1),ubound(mapvalue,1)
+             call yaml_sequence(trim(yaml_toa(mapvalue(ivec,icol,irow),fmt=fmt)),unit=unt)
+          end do
+          call yaml_sequence_close(unit=unt)
+       end do
+       call yaml_sequence_close(unit=unt)
+    end do
+
+    call yaml_sequence_close(advance=advance,unit=unt)
+
+  end subroutine yaml_map_dt
 
 
   !> Get the stream, initialize if not already present (except if istat present)

@@ -33,6 +33,7 @@ module module_types
   use module_input_keys, only: SIC_data,orthon_data,input_variables
   use fragment_base, only: fragmentInputParameters
   use locreg_operations,only: confpot_data
+  use module_cfd
   implicit none
 
   private
@@ -311,7 +312,8 @@ module module_types
      !real(gp), dimension(3) :: hgrids    !< Grid spacings of denspot grid (half of the wvl grid)
      type(coulomb_operator) :: pkernel    !< Kernel of the Poisson Solver used for V_H[rho]
      type(coulomb_operator) :: pkernelseq !< For monoproc PS (useful for exactX, SIC,...)
-
+     !>constrained field dynamics local data
+     type(cfd_data) :: cfd
      integer(kind = 8) :: c_obj = 0       !< Storage of the C wrapper object.
   end type DFT_local_fields
 
