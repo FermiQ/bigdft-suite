@@ -1232,6 +1232,7 @@ module get_kernel
       integer,dimension(input%nspin) :: ntmb_spin
       real(kind=8),dimension(input%nspin) :: e_homo_spin, e_lumo_spin
       logical,dimension(input%nspin) :: calculate_spin_channels
+      real(kind=8),parameter :: charge_noise = 1.d-5
 
       call f_routine(id='calculate_gap_FOE')
     
@@ -1325,11 +1326,10 @@ module get_kernel
               call copy_foe_data(tmb%foe_obj, foe_obj)
               !write(*,*) 'tmb%foe_obj%fscale, foe_obj%fscale',tmb%foe_obj%fscale, foe_obj%fscale
     
-              ! Round up the target charge (required for systems with non-integer charge)
-              !call foe_data_set_real(foe_obj,"charge",qq,1)
-              !!qq = foe_data_get_real(foe_obj,"charge",1)
+              ! Round up the target charge (required for systems with non-integer charge).
+              ! Allow some small noise (necessary if the qq is just slightly larger than an integer)
               iqq = nint(qq)
-              if (real(iqq,kind=8)<qq) then
+              if (real(iqq,kind=8)+charge_noise<qq) then
                   qq = real(iqq+1,kind=8)
               else
                   qq = real(iqq,kind=8)
@@ -1374,10 +1374,9 @@ module get_kernel
               call copy_foe_data(tmb%foe_obj, foe_obj)
     
               ! Round up the target charge (required for systems with non-integer charge)
-              !call foe_data_set_real(foe_obj,"charge",qq,1)
-              !!qq = foe_data_get_real(foe_obj,"charge",1)
+              ! Allow some small noise (necessary if the qq is just slightly larger than an integer)
               iqq = nint(qq)
-              if (real(iqq,kind=8)<qq) then
+              if (real(iqq,kind=8)+charge_noise<qq) then
                   qq = real(iqq+1,kind=8)
               else
                   qq = real(iqq,kind=8)
