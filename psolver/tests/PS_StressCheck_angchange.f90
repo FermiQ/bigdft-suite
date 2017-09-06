@@ -76,7 +76,7 @@ program PS_StressCheck
   character(len=1) :: datacode
   character(len=30) :: mode
   real(kind=8), dimension(:,:,:), allocatable :: density,rhopot,potential,pot_ion
-  real(kind=8), dimension(:), allocatable :: ene_acell,dene,vol
+  real(kind=8), dimension(:), allocatable :: ene_acell,dene,vol,tra
   real(kind=8), dimension(:,:), allocatable :: stress_ana,dVda
   real(kind=8), dimension(:,:,:), allocatable :: stress_ps
   logical :: volstress 
@@ -99,7 +99,7 @@ program PS_StressCheck
   integer :: m1,m2,m3,n1,n2,n3,md1,md2,md3,nd1,nd2,nd3
   logical :: wrtfiles=.true.
   !triclinic lattice
-  real(kind=8) :: alpha,beta,gamma,detg
+  real(kind=8) :: alpha,beta,gamma,detg,fact,darad,cc,c
   real(kind=8) :: ang_var,ang_start,ang_end
   real(kind=8), dimension(:,:,:,:), pointer :: rhocore_fake
   type(dictionary), pointer :: options,input
@@ -169,6 +169,7 @@ program PS_StressCheck
   ene_acell = f_malloc((/ nstress /),id='ene_acell')
   vol = f_malloc((/ nstress /),id='vol')
   dene = f_malloc((/ nstress /),id='dene')
+  tra = f_malloc((/ nstress /),id='tra')
   stress_ana = f_malloc((/ nstress, 3 /),id='stress_ana')
   dVda = f_malloc((/ nstress, 3 /),id='dVda')
   stress_ps = f_malloc((/ nstress, 6, 3 /),id='stress_ps')
@@ -180,6 +181,7 @@ program PS_StressCheck
   ang_start=10.d0
   ang_end  =90.d0
   da=1.d0
+  darad = da/180.0_f_double*pi
   if (nstress.gt.1)  da=(ang_end-ang_start)/real(nstress-1,kind=8)
 
 
@@ -240,17 +242,6 @@ program PS_StressCheck
    angrad(2) = angdeg(2)/180.0_f_double*pi
    angrad(3) = angdeg(3)/180.0_f_double*pi
 
-   mesh=cell_new(geocode,ndims,hgrids,alpha_bc=alpha,beta_ac=beta,gamma_ab=gamma)
-   if (iproc==0) then
-    call yaml_map('Angles',[alpha,beta,gamma]*180.0_dp*oneopi)
-    call yaml_map('Contravariant Metric',mesh%gu)
-    call yaml_map('Covariant Metric',mesh%gd)
-    call yaml_map('Product of the two',matmul(mesh%gu,mesh%gd))
-    call yaml_map('Covariant determinant',mesh%detgd)
-   end if
-   dVda(is,1)=2.d0*(acell**3)*sin(alpha)*(cos(alpha)-cos(beta)*cos(gamma))
-   dVda(is,2)=2.d0*(acell**3)*sin(beta)*(cos(beta)-cos(alpha)*cos(gamma))
-   dVda(is,3)=2.d0*(acell**3)*sin(gamma)*(cos(gamma)-cos(alpha)*cos(beta))
    
 !!   hgrids=(/hx,hy,hz/)
 !!   !grid for the free BC case
@@ -333,14 +324,29 @@ program PS_StressCheck
        geocode,(/n01,n02,n03/),(/hx,hy,hz/),&
        alpha_bc=alpha,beta_ac=beta,gamma_ab=gamma)
 
-  mesh=karray%mesh
+!  mesh=karray%mesh
+   mesh=cell_new(geocode,ndims,hgrids,alpha_bc=alpha,beta_ac=beta,gamma_ab=gamma)
+   if (iproc==0) then
+    call yaml_map('Angles',[alpha,beta,gamma]*180.0_dp*oneopi)
+    call yaml_map('Contravariant Metric',mesh%gu)
+    call yaml_map('Covariant Metric',mesh%gd)
+    call yaml_map('Product of the two',matmul(mesh%gu,mesh%gd))
+    call yaml_map('Covariant determinant',mesh%detgd)
+   end if
+   dVda(is,1)=2.d0*(acell**3)*sin(alpha)*(cos(alpha)-cos(beta)*cos(gamma))
+   !dVda(is,2)=2.d0*(acell**3)*sin(beta)*(cos(beta)-cos(alpha)*cos(gamma))
+   dVda(is,2) = (acell**3)*cos(beta)
+   dVda(is,3)=2.d0*(acell**3)*sin(gamma)*(cos(gamma)-cos(alpha)*cos(beta))
 
-  vol(is)=real(n01*n02*n03,kind=8)*mesh%volume_element
+  cc=real(n01*n02*n03,kind=8)*mesh%volume_element
+  vol(is)=(acell**3)*sin(beta)
+  !vol(is)=(acell**3)*(sin(beta)-cos(beta)*cos(beta))
   if (iproc==0) then
     call yaml_map('box size',acell)
     call yaml_map('hgrids',hgrids)
     call yaml_map('volume element',mesh%volume_element)
     call yaml_map('Cell volume =',vol(is))
+    call yaml_map('Cell volume mesh =',cc)
   end if
 
 
@@ -360,7 +366,7 @@ program PS_StressCheck
 
      if (iproc==0) call yaml_map('ixc',ixc)
 
-     call test_functions(mesh,geocode,ixc,n01,n02,n03,acell,acell_var,a_gauss,hx,hy,hz,&
+     call test_functions(geocode,ixc,n01,n02,n03,acell,acell_var,a_gauss,hx,hy,hz,&
           density,potential,rhopot,pot_ion,0.0_dp,alpha,beta,gamma,ii,volstress) !onehalf*pi,onehalf*pi,onehalf*pi)!
 
      !calculate expected hartree enegy
@@ -433,6 +439,7 @@ program PS_StressCheck
      do i=1,6
       stress_ps(is,i,ii)=stresst(i)
      end do
+     tra(is)=(stresst(1)+stresst(2)+stresst(3))/3.d0
      eexcu=sum(density)*hx*hy*hx*sqrt(mesh%detgd)
      if (nproc >1) call mpiallred(eexcu,1,op=MPI_SUM)
      if (iproc==0) call yaml_map('potential integral',eexcu)
@@ -625,19 +632,26 @@ program PS_StressCheck
 ! End of the stress loop
 
 !post-processing of stress calculation
-  call fssnord1DmatNabla('F',nstress,da,ene_acell,dene,nord)
+  call fssnord1DmatNabla('F',nstress,darad,ene_acell,dene,nord)
 
    do is=1,nstress
+    ang_var = ang_start+real((is-1),kind=8)*da
+    ang_var = ang_var/180.0_f_double*pi
+    !fact=2.d0/(1.d0+tan(ang_var)*tan(ang_var))
+    c=sin(2.d0*ang_var)*sin(2.d0*ang_var)
+    fact=0.5d0*c/sqrt(1.d0-c)
     !acell_var=acell+real((is-1),kind=8)*da
     !if (volstress) then
     ! stress_ana(is,ii)=-dene(is)/(acell_var*acell_var)
     !else
      !stress_ana(is,ii)=-dene(is)/(acell*acell)
      !stress_ana(is,ii)=dene(is)/(acell*acell)!/vol(is)
-     stress_ana(is,ii)=-dene(is)*dVda(is,ii)!/vol(is)
+     stress_ana(is,ii)=dene(is)/dVda(is,ii)/vol(is)
+     !stress_ana(is,ii)=dene(is)*fact/vol(is) !/cos(ang_var)
     !end if
-    if (wrtfiles) write(unit3,'(1(1x,i8),6(1x,1pe26.14e3))')is,vol(is),ene_acell(is),dene(is),&
-                  stress_ana(is,ii),stress_ps(is,ii,ii),stress_ps(is,5,ii),dVda(is,2)
+    cc=stress_ana(is,ii)/stress_ps(is,ii,ii)
+    if (wrtfiles) write(unit3,'(1(1x,i8),9(1x,1pe26.14e3))')is,vol(is),ene_acell(is),dene(is),&
+                  stress_ana(is,ii),stress_ps(is,ii,ii),stress_ps(is,5,ii),dVda(is,2),cc,tra(is)
    end do
 
   end do ! loop external to the stress one, for the three x,y,z directions.
@@ -673,6 +687,7 @@ program PS_StressCheck
   call f_free(ene_acell)
   call f_free(vol)
   call f_free(dene)
+  call f_free(tra)
   call f_free(stress_ps)
   call f_free(stress_ana)
   call f_free(dVda)
@@ -750,13 +765,12 @@ end subroutine compare
 !! The parameters of the functions must be adjusted in order to have a sufficiently localized
 !! function in the isolated direction and an explicitly periodic function in the periodic ones.
 !! Beware of the high-frequency components that may falsify the results when hgrid is too high.
-subroutine test_functions(mesh,geocode,ixc,n01,n02,n03,acell,acell_var,a_gauss,hx,hy,hz,&
+subroutine test_functions(geocode,ixc,n01,n02,n03,acell,acell_var,a_gauss,hx,hy,hz,&
      density,potential,rhopot,pot_ion,mu0,alpha,beta,gamma,ii,volstress)
   use yaml_output
   use f_utils
   use box
   implicit none
-  type(cell) :: mesh
   character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::coulomb_operator::geocode
   integer, intent(in) :: n01,n02,n03,ixc
   real(kind=8), intent(in) :: acell,acell_var,a_gauss,hx,hy,hz,mu0
@@ -836,6 +850,7 @@ subroutine test_functions(mesh,geocode,ixc,n01,n02,n03,acell,acell_var,a_gauss,h
   if (ixc==0) denval=0.d0
 
   if (trim(geocode) == 'P') then
+     write(*,*)'we are here'
      !parameters for the test functions
      length=acell
      a=0.5d0/a_gauss**2
@@ -888,29 +903,37 @@ subroutine test_functions(mesh,geocode,ixc,n01,n02,n03,acell,acell_var,a_gauss,h
 !!     ax=acell*0.05d0
 !!     ay=acell*0.05d0
 !!     az=acell*0.05d0
+      ifx=FUNC_COSINE !FUNC_SHRINK_GAUSSIAN
+      ify=FUNC_COSINE !FUNC_SHRINK_GAUSSIAN
+      ifz=FUNC_COSINE !FUNC_SHRINK_GAUSSIAN
+      !parameters of the test functions
+      ax=length
+      ay=length
+      az=length
 
-     ifx=FUNC_COSINE !FUNC_SHRINK_GAUSSIAN
-     ify=FUNC_SHRINK_GAUSSIAN
-     ifz=FUNC_COSINE !FUNC_SHRINK_GAUSSIAN
-     !parameters of the test functions
-     ax=length
-     ay=length
-     az=length
+!     !test functions in the three directions
+!     ifx=FUNC_GAUSSIAN!_SHRINKED
+!     ify=FUNC_GAUSSIAN!_SHRINKED
+!     ifz=FUNC_GAUSSIAN!_SHRINKED
+!     !parameters of the test functions
+!     ax=acell*0.05d0
+!     ay=acell*0.05d0
+!     az=acell*0.05d0
+!
+!     if (volstress) then
+!      kx=acell/acell_var
+!      ky=acell/acell_var
+!      kz=acell/acell_var
+!     else
+!      if (ii.eq.1) then
+!       kx=acell/acell_var
+!      else if (ii.eq.2) then
+!       ky=acell/acell_var
+!      else if (ii.eq.3) then
+!       kz=acell/acell_var
+!      end if
+!     end if
 
-!!     if (volstress) then
-!!      kx=acell/acell_var
-!!      ky=acell/acell_var
-!!      kz=acell/acell_var
-!!     else
-!!      if (ii.eq.1) then
-!!       kx=acell/acell_var
-!!      else if (ii.eq.2) then
-!!       ky=acell/acell_var
-!!      else if (ii.eq.3) then
-!!       kz=acell/acell_var
-!!      end if
-!!     end if
- 
      !the following b's are not used, actually
      bx=2.d0!real(nu,kind=8)
      by=2.d0!real(nu,kind=8)

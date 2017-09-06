@@ -76,8 +76,8 @@ program PS_StressCheck
   character(len=1) :: datacode
   character(len=30) :: mode
   real(kind=8), dimension(:,:,:), allocatable :: density,rhopot,potential,pot_ion
-  real(kind=8), dimension(:), allocatable :: ene_acell,dene
-  real(kind=8), dimension(:,:), allocatable :: stress_ana
+  real(kind=8), dimension(:), allocatable :: ene_acell,dene,detgd(:),volele(:)
+  real(kind=8), dimension(:,:), allocatable :: stress_ana, val
   real(kind=8), dimension(:,:,:), allocatable :: stress_ps
   logical :: volstress 
   type(coulomb_operator) :: karray
@@ -97,9 +97,10 @@ program PS_StressCheck
   real(dp), dimension(6) :: stresst
   logical :: alsoserial,onlykernel
   integer :: m1,m2,m3,n1,n2,n3,md1,md2,md3,nd1,nd2,nd3
-  logical :: wrtfiles=.false.
+  logical :: wrtfiles=.true.
   !triclinic lattice
   real(kind=8) :: alpha,beta,gamma,detg
+  real(kind=8), dimension(3,3) :: stress_3_3
   real(kind=8), dimension(:,:,:,:), pointer :: rhocore_fake
   type(dictionary), pointer :: options,input
   external :: gather_timings  
@@ -174,8 +175,11 @@ program PS_StressCheck
 
    !Allocation of the energy vs acell vector
    ene_acell = f_malloc((/ nstress /),id='ene_acell')
+   detgd = f_malloc((/ nstress /),id='detgd')
+   volele = f_malloc((/ nstress /),id='volene')
    dene = f_malloc((/ nstress /),id='dene')
    stress_ana = f_malloc((/ nstress, 3 /),id='stress_ana')
+   val = f_malloc((/ nstress, 3 /),id='val')
    stress_ps = f_malloc((/ nstress, 6, 3 /),id='stress_ps')
    unit3=205
    unit14=214
@@ -192,7 +196,8 @@ program PS_StressCheck
    ii_fin=3
   end if
 
-  do ii=1,ii_fin ! loop on the three x, y, z components.
+  !do ii=1,ii_fin ! loop on the three x, y, z components.
+  do ii=2,2 !ii_fin ! loop on the three x, y, z components.
 
   do is=1,nstress
 
@@ -402,6 +407,24 @@ program PS_StressCheck
      do i=1,6
       stress_ps(is,i,ii)=stresst(i)
      end do
+
+     stress_3_3(1,1)=stresst(1)
+     stress_3_3(2,2)=stresst(2)
+     stress_3_3(3,3)=stresst(3)
+     stress_3_3(2,3)=stresst(4)
+     stress_3_3(1,3)=stresst(5)
+     stress_3_3(1,2)=stresst(6)
+     stress_3_3(3,2)=stress_3_3(2,3)
+     stress_3_3(3,1)=stress_3_3(1,3)
+     stress_3_3(2,1)=stress_3_3(1,2)
+  
+     val(is,ii)=0.d0
+     do i=1,3
+      val(is,ii)=val(is,ii)+mesh%gd(i,ii)*stress_3_3(i,ii)
+     end do
+     detgd(is)=mesh%detgd
+     volele(is)=mesh%volume_element/hx/hy/hz
+
      eexcu=sum(density)*hx*hy*hx*sqrt(mesh%detgd)
      if (nproc >1) call mpiallred(eexcu,1,op=MPI_SUM)
      if (iproc==0) call yaml_map('potential integral',eexcu)
@@ -601,13 +624,15 @@ program PS_StressCheck
     if (volstress) then
      stress_ana(is,ii)=-dene(is)/(acell_var*acell_var)
     else
+     !stress_ana(is,ii)=-dene(is)/(acell*acell)/mesh%detgd
      stress_ana(is,ii)=-dene(is)/(acell*acell)
     end if
-    if (wrtfiles) write(unit3,'(1(1x,i8),5(1x,1pe26.14e3))')is,acell_var,ene_acell(is),dene(is),&
-                  stress_ana(is,ii),stress_ps(is,ii,ii)
+    if (wrtfiles) write(unit3,'(1(1x,i8),7(1x,1pe26.14e3))')is,acell_var,ene_acell(is),dene(is),&
+                  stress_ana(is,ii),val(is,ii),detgd(is),volele(is)
    end do
 
-  end do ! loop external to the stress one, for the three x,y,z directions.
+
+  end do ! loop external ii to the stress one, for the three x,y,z directions.
 
   if (iproc==0) then
    call yaml_map('PS stress iteration', is)
@@ -623,24 +648,35 @@ program PS_StressCheck
     call yaml_mapping_close()
    end if
   else  
+   if (iproc==0) then
+    call yaml_map('Angles',[alpha,beta,gamma]*180.0_dp*oneopi)
+    call yaml_map('Contravariant Metric',mesh%gu)
+    call yaml_map('Covariant Metric',mesh%gd)
+    call yaml_map('Product of the two',matmul(mesh%gu,mesh%gd))
+    call yaml_map('Covariant determinant',mesh%detgd)
+   end if
+
    if (iproc == 0) then
     call yaml_comment('Stress post-processing',hfill='-')
     call yaml_mapping_open('Comparison between analytical vs psolver varing x,y,z individully')
     call yaml_map('Comparison at nstress/2',nstress/2)
     call yaml_map('stress analytical x',stress_ana(nstress/2,1))
-    call yaml_map('stress psolver x',stress_ps(nstress/2,1,1))
+    call yaml_map('stress psolver x',val(nstress/2,1))
     call yaml_map('stress analytical y',stress_ana(nstress/2,2))
-    call yaml_map('stress psolver y',stress_ps(nstress/2,2,2))
+    call yaml_map('stress psolver y',val(nstress/2,2))
     call yaml_map('stress analytical z',stress_ana(nstress/2,3))
-    call yaml_map('stress psolver z',stress_ps(nstress/2,3,3))
+    call yaml_map('stress psolver z',val(nstress/2,3))
     call yaml_mapping_close()
    end if
   end if
 
   call f_free(ene_acell)
+  call f_free(detgd)
+  call f_free(volele)
   call f_free(dene)
   call f_free(stress_ps)
   call f_free(stress_ana)
+  call f_free(val)
   call dict_free(dict)
   if (wrtfiles) call f_close(unit3)
 
@@ -838,6 +874,13 @@ subroutine test_functions(geocode,ixc,n01,n02,n03,acell,acell_var,a_gauss,hx,hy,
 !     ax=length
 !     ay=length
 !     az=length
+!      ifx=FUNC_COSINE !FUNC_SHRINK_GAUSSIAN
+!      ify=FUNC_COSINE !FUNC_SHRINK_GAUSSIAN
+!      ifz=FUNC_COSINE !FUNC_SHRINK_GAUSSIAN
+!      !parameters of the test functions
+!      ax=length
+!      ay=length
+!      az=length
 
      !test functions in the three directions
      ifx=FUNC_GAUSSIAN!_SHRINKED
