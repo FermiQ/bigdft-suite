@@ -66,6 +66,7 @@ program memguess
    type(memory_estimation) :: mem
    type(run_objects) :: runObj
    type(orbitals_data) :: orbstst
+   type(orbitals_data), pointer :: orbs
    type(DFT_PSP_projectors) :: nlpsp
    type(gaussian_basis) :: G !basis for davidson IG
    type(atoms_data) :: at
@@ -1529,15 +1530,39 @@ program memguess
            & 7*runObj%rst%KSwfn%Lzd%Glr%wfd%nvctr_f)*runObj%rst%KSwfn%orbs%nspinor,&
            id='runObj%rst%KSwfn%psi')
 
+      ! Determine if wavefunctions are occupied or virtuals.
+      i = index(filename_wfn, "/",back=.true.)+1
+      if (filename_wfn(i:min(i+3, len(filename_wfn))) == "virt") then
+         allocate(orbs)
+         call nullify_orbitals_data(orbs)
+         !the virtual orbitals should be in agreement with the traditional k-points
+         call orbitals_descriptors(0,nproc,abs(runObj%inputs%norbv) * runObj%inputs%nspin, &
+              & abs(runObj%inputs%norbv), abs(runObj%inputs%norbv) * (runObj%inputs%nspin - 1), &
+              & runObj%inputs%nspin, runObj%rst%KSwfn%orbs%nspinor, &
+              & runObj%rst%KSwfn%orbs%nkpts, runObj%rst%KSwfn%orbs%kpts, &
+              & runObj%rst%KSwfn%orbs%kwgts, orbs, LINEAR_PARTITION_NONE,&
+              & basedist=runObj%rst%KSwfn%orbs%norb_par(0:,1:), &
+              & basedistu=runObj%rst%KSwfn%orbs%norbu_par(0:,1:), &
+              & basedistd=runObj%rst%KSwfn%orbs%norbd_par(0:,1:))
+      else
+         orbs => runObj%rst%KSwfn%orbs
+      end if
+
       ! Optionally compute iorbp from arguments in case of ETSF.
-      if (export_wf_ikpt < 1 .or. export_wf_ikpt > runObj%rst%KSwfn%orbs%nkpts) stop "Wrong k-point"
-      if (export_wf_ispin < 1 .or. export_wf_ispin > runObj%rst%KSwfn%orbs%nspin) stop "Wrong spin"
-      if ((export_wf_ispin == 1 .and. &
-           & (export_wf_iband < 1 .or. export_wf_iband > runObj%rst%KSwfn%orbs%norbu)) .or. &
+      if (f_err_raise(export_wf_ikpt < 1 .or. export_wf_ikpt > orbs%nkpts, &
+           'The value ikpt is not compatible with the kpt dimension',&
+             err_name='BIGDFT_RUNTIME_ERROR')) return
+      if (f_err_raise(export_wf_ispin < 1 .or. export_wf_ispin > orbs%nspin, &
+           'The value ispin is not compatible with the spin dimension',&
+             err_name='BIGDFT_RUNTIME_ERROR')) return
+      if (f_err_raise((export_wf_ispin == 1 .and. &
+           & (export_wf_iband < 1 .or. export_wf_iband > orbs%norbu)) .or. &
            & (export_wf_ispin == 0 .and. &
-           & (export_wf_iband < 1 .or. export_wf_iband > runObj%rst%KSwfn%orbs%norbd))) stop "Wrong orbital"
-      iorbp = (export_wf_ikpt - 1) * runObj%rst%KSwfn%orbs%norb + &
-           & (export_wf_ispin - 1) * runObj%rst%KSwfn%orbs%norbu + export_wf_iband
+           & (export_wf_iband < 1 .or. export_wf_iband > orbs%norbd)), &
+           'The value iband is not compatible with the orbital dimension',&
+             err_name='BIGDFT_RUNTIME_ERROR')) return
+      iorbp = (export_wf_ikpt - 1) * orbs%norb + &
+           & (export_wf_ispin - 1) * orbs%norbu + export_wf_iband
 
       ! ref_frags to be allocated here
       i = index(filename_wfn, "/",back=.true.)+1
@@ -1553,10 +1578,15 @@ program memguess
       if (.not.associated(ref_frags)) allocate(ref_frags(runObj%inputs%frag%nfrag_ref))
       call take_psi_from_file(filename_wfn,runObj%inputs%frag, &
            & runObj%rst%KSwfn%Lzd%hgrids,runObj%rst%KSwfn%Lzd%Glr, &
-           & runObj%atoms,runObj%atoms%astruct%rxyz,runObj%rst%KSwfn%orbs,runObj%rst%KSwfn%psi,&
+           & runObj%atoms,runObj%atoms%astruct%rxyz,orbs,runObj%rst%KSwfn%psi,&
            & iorbp,export_wf_ispinor,ref_frags)
-      call filename_of_iorb(.false.,"wavefunction",runObj%rst%KSwfn%orbs,iorbp, &
-           & export_wf_ispinor,filename_wfn,iorb_out)
+      if (associated(orbs, runObj%rst%KSwfn%orbs)) then
+         call filename_of_iorb(.false.,"wavefunction",orbs,iorbp, &
+              & export_wf_ispinor,filename_wfn,iorb_out)
+      else
+         call filename_of_iorb(.false.,"virtual",orbs,iorbp, &
+              & export_wf_ispinor,filename_wfn,iorb_out)
+      end if
 
       call plot_wf(.false.,filename_wfn,1,runObj%atoms,1.0_wp,runObj%rst%KSwfn%Lzd%Glr, &
            & runObj%rst%KSwfn%Lzd%hgrids,runObj%atoms%astruct%rxyz, &
@@ -1564,6 +1594,11 @@ program memguess
            & 7*runObj%rst%KSwfn%Lzd%Glr%wfd%nvctr_f) * (export_wf_ispinor - 1) + 1:))
       deallocate(ref_frags)
       nullify(ref_frags)
+
+      if (.not. associated(orbs, runObj%rst%KSwfn%orbs)) then
+         call deallocate_orbitals_data(orbs)
+         deallocate(orbs)
+      end if
    end if
 
    if (exportproj) then
@@ -2525,6 +2560,18 @@ subroutine take_psi_from_file(filename,in_frag,hgrids,lr,at,rxyz,orbs,psi,iorbp,
       if (code == "R") ispinor = 1
       if (code == "I") ispinor = 2
 
+      if (f_err_raise(iorbp > orbs%norbu, &
+           'The value iorb read from the filename is not compatible with the orbital dimension',&
+             err_name='BIGDFT_RUNTIME_ERROR')) return
+      if (f_err_raise(ikpt > orbs%nkpts, &
+           'The value ikpt read from the filename is not compatible with the kpt dimension',&
+             err_name='BIGDFT_RUNTIME_ERROR')) return
+      if (f_err_raise(ispin > orbs%nspin, &
+           'The value ispin read from the filename is not compatible with the spin dimension',&
+             err_name='BIGDFT_RUNTIME_ERROR')) return
+      if (f_err_raise(ispinor > orbs%nspinor, &
+           'The value ispinor read from the filename is not compatible with the spinor dimension',&
+             err_name='BIGDFT_RUNTIME_ERROR')) return
 
 
       i = index(filename, "/",back=.true.)+1

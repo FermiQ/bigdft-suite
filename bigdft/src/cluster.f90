@@ -2286,7 +2286,7 @@ subroutine kswfn_post_treatments(iproc, nproc, KSwfn, tmb, linear, &
      if (iproc == 0) call yaml_map('Writing Hartree potential in file','hartree_potential'//gridformat)
      if (all(plot_pot_axes>=0)) then
         call plot_density(iproc,nproc,trim(dir_output)//'hartree_potential' // gridformat, &
-             atoms,rxyz,denspot%pkernel,denspot%dpbox%nrhodim,denspot%pot_work, &
+             atoms,rxyz,denspot%pkernel,1,denspot%pot_work, &
              ixyz0=plot_pot_axes)
      else if (any(plot_pot_axes>=0)) then
         call f_err_throw('The coordinates of the point through which '//&
@@ -2294,7 +2294,7 @@ subroutine kswfn_post_treatments(iproc, nproc, KSwfn, tmb, linear, &
              err_name='BIGDFT_RUNTIME_ERROR')
      else 
         call plot_density(iproc,nproc,trim(dir_output)//'hartree_potential' // gridformat, &
-             atoms,rxyz,denspot%pkernel,denspot%dpbox%nrhodim,denspot%pot_work)
+             atoms,rxyz,denspot%pkernel,1,denspot%pot_work)
      end if
   end if
 
