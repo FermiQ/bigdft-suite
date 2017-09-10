@@ -467,7 +467,7 @@ contains
       character(len=1) :: geocode
       logical :: Gperx,Gpery,Gperz,xperiodic,yperiodic,zperiodic
       integer :: isx,iex,isy,iey,isz,iez
-      integer :: Gnbl1,Gnbl2,Gnbl3,Gnbr1,Gnbr2,Gnbr3
+      !!$ integer :: Gnbl1,Gnbl2,Gnbl3,Gnbr1,Gnbr2,Gnbr3
       integer :: Lnbl1,Lnbl2,Lnbl3,Lnbr1,Lnbr2,Lnbr3
       integer :: ln1,ln2,ln3
       logical, dimension(3) :: peri

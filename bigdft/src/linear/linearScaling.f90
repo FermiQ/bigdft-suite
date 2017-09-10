@@ -2278,7 +2278,7 @@ end if
                 nit_energyoscillation = nit_energyoscillation + 1
                 if (iproc==0) then
                     call yaml_warning('oscillation of the energy, increase counter')
-                    call yaml_map('energy_scillation_counter',nit_energyoscillation)
+                    call yaml_map('energy_oscillation_counter',nit_energyoscillation)
                 end if
             end if
         end if

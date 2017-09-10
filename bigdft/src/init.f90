@@ -627,7 +627,7 @@ subroutine input_wf_random(psi, orbs)
   real(wp), dimension(:), pointer :: psi
 
   integer :: icoeff,jorb,iorb,nvctr
-  integer :: idum=0
+  !integer :: idum=0
   real(kind=4) :: tt
 
   !if (max(orbs%npsidim_comp,orbs%npsidim_orbs)>1) &
@@ -739,7 +739,7 @@ use wfn_extrap
   logical, parameter :: debug_flag=.false.
   integer :: istep,jstep,nvctr
   real(wp), dimension(:,:), allocatable :: psi_istep, psi_nstep
-  integer, save :: icall=0
+!  integer, save :: icall=0
 
   real(wp), dimension(0:5) :: cc
 !  real(wp), dimension(3), parameter :: c2 = (/0.5_wp,-2.0_wp,2.5_wp/)
@@ -750,7 +750,7 @@ use wfn_extrap
   integer,dimension(:),allocatable:: norbArr
 
   integer :: nspin,ispin
-  integer :: ii
+  !integer :: ii
 
   call f_routine(id='input_wf_memory_history_2')
 
@@ -1124,7 +1124,6 @@ subroutine input_memory_linear(iproc, nproc, at, KSwfn, tmb, tmb_old, denspot, i
   integer :: order_taylor, iortho, iat, jj, itype, inl, FOE_restart, i !, info_basis_functions
   integer,dimension(:),allocatable :: maxorbs_type, minorbs_type
   integer,dimension(:,:),allocatable :: nl_copy
-  logical,dimension(:),allocatable :: type_covered
   logical :: finished
   real(wp), dimension(:,:,:), pointer :: mom_vec_fake
   real(gp) :: max_shift !, fnrm

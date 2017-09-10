@@ -1,3 +1,12 @@
+!> @file
+!! @author
+!!    Copyright (C) 2013-2014 BigDFT group
+!!    This file is distributed under the terms of the
+!!    GNU General Public License, see ~/COPYING file
+!!    or http://www.gnu.org/copyleft/gpl.txt .
+!!    For the list of contributors, see ~/AUTHORS
+
+!> Module using the libABINIT routine for the potential or density mixing
 module module_mixing
 
   !use dynamic_memory
@@ -123,7 +132,7 @@ contains
        errid = AB7_ERROR_MIXING_ARG
        write(errmess, '(a,a,a,a)' )ch10,&
             & ' ab7_mixing_set_arrays: ERROR -',ch10,&
-            & '  Mixing must be done in real or Fourrier space only.'
+            & '  Mixing must be done in real or Fourier space only.'
        return
     end if
     if (iscf /= AB7_MIXING_EIG .and. iscf /= AB7_MIXING_SIMPLE .and. &
@@ -494,10 +503,11 @@ contains
     ! Do the mixing.
     resnrm_ = 0.d0
     if (mix%iscf == AB7_MIXING_EIG) then
-       !  This routine compute the eigenvalues of the SCF operator
+       !  This routine computes the eigenvalues of the SCF operator
        call abi_scfeig(istep, mix%space * mix%nfft, mix%nspden, &
             & mix%f_fftgr(:,:,mix%i_vrespc(1)), arr, &
             & mix%f_fftgr(:,:,1), mix%f_fftgr(:,:,4:5), errid, errmess)
+
     else if (mix%iscf == AB7_MIXING_SIMPLE .or. &
          & mix%iscf == AB7_MIXING_ANDERSON .or. &
          & mix%iscf == AB7_MIXING_ANDERSON_2 .or. &
@@ -520,6 +530,7 @@ contains
           !    to restrict iscf=2 for ionmov=5
           mix%xred(:,:) = mix%xred(:,:) + mix%dtn_pc(:,:)
        end if
+
     else if (mix%iscf == AB7_MIXING_CG_ENERGY .or. &
          & mix%iscf == AB7_MIXING_CG_ENERGY_2) then
        !  Optimize next vtrial using an algorithm based
@@ -571,6 +582,7 @@ contains
     call f_release_routine()
 
   end subroutine ab7_mixing_eval
+
 
   subroutine ab7_mixing_deallocate(mix)
 

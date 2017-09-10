@@ -6,7 +6,8 @@ if BUILD_DYNAMIC_LIBS
 flib_libraries = -lfutile-1
 AM_LDFLAGS += @FC_RPATH@$(abs_top_builddir)/src
 else
-flib_libraries = $(top_builddir)/dicts/libdicts.a @LIBS_EXT_DEPS@
+#With the line below, f_dump_possible_errors is missing!
+#flib_libraries = $(top_builddir)/dicts/libdicts.a @LIBS_EXT_DEPS@
 endif
 
 check:
