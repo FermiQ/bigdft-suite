@@ -89,54 +89,189 @@ subroutine test_box_functions()
   use box
   implicit none
   !local variables
-  integer :: i,i1,i2,i3
-  integer(f_long) :: t0,t1
-  real(gp) :: totdot,res
+  integer(f_long) :: tomp,tseq
   type(cell) :: mesh_ortho
   integer, dimension(3) :: ndims
   real(gp), dimension(:,:,:,:), allocatable :: v1,v2
 
+  ndims=[300,300,300]
 
-  ndims=[100,100,100]
-
-  mesh_ortho=cell_new('P',ndims,[1.0_gp,1.0_gp,1.0_gp])
+  mesh_ortho=cell_new('S',ndims,[1.0_gp,1.0_gp,1.0_gp])
 
   v1=f_malloc([3,ndims(1),ndims(2),ndims(3)],id='v1')
   v2=f_malloc([3,ndims(1),ndims(2),ndims(3)],id='v2')
 
-  do i3=1,ndims(3)
-     do i2=1,ndims(2)
-        do i1=1,ndims(1)
-           !the scalar product of these objects is 20.0
-           v1(:,i1,i2,i3)=[1.0_gp,2.0_gp,3.0_gp]
-           v2(:,i1,i2,i3)=[2.0_gp,3.0_gp,4.0_gp]
-        end do
-     end do
-  end do
+  call loop_dotp('SEQ',mesh_ortho,v1,v2,tseq)
+  call yaml_map('Normal loop, seq (ns)',tseq)
+  
+  call loop_dotp('OMP',mesh_ortho,v1,v2,tomp)
+  call yaml_map('Normal loop, omp (ns)',tomp)
 
-  totdot=0.0_gp
-  t0=f_time()
-  !$omp parallel do default(shared) &
-  !$omp private(i,res)&
-  !$omp reduction(+:totdot)
-  do i3=1,ndims(3)
-     do i2=1,ndims(2)
-        do i1=1,ndims(1)
-           res=dotp(mesh_ortho,v1(1,i1,i2,i3),v2(:,i1,i2,i3))
-           res=res/20.0_gp
-           totdot=totdot+res
-           v2(:,i1,i2,i3)=res
-        end do
-     end do
-  end do
-  !$omp end parallel do
-  t1=f_time()
+  call loop_dotp('ITR',mesh_ortho,v1,v2,tseq)
+  call yaml_map('Normal loop, itr (ns)',tseq)
 
-  call yaml_map('TotDot',totdot)
-  call yaml_map('TotSum',sum(v2))
-  call yaml_map('Time spent in the loop (ns)',t1-t0)
+  call loop_dotp('IOM',mesh_ortho,v1,v2,tseq)
+  call yaml_map('Normal loop, iom (ns)',tseq)
+
+  call loop_dotp('ITM',mesh_ortho,v1,v2,tseq)
+  call yaml_map('Normal loop, mpi (ns)',tseq)
 
   call f_free(v1)
   call f_free(v2)
 
 end subroutine test_box_functions
+
+subroutine loop_dotp(strategy,mesh,v1,v2,time)
+  use f_precisions
+  use box
+  use f_utils
+  use yaml_strings
+  use wrapper_MPI
+  implicit none
+  character(len=*), intent(in) :: strategy
+  type(cell), intent(in) :: mesh
+  real(f_double), dimension(3,mesh%ndims(1),mesh%ndims(2),mesh%ndims(3)), intent(inout) :: v1
+  real(f_double), dimension(3,mesh%ndims(1),mesh%ndims(2),mesh%ndims(3)), intent(inout) :: v2
+  integer(f_long), intent(out) :: time
+  !local variables
+  integer :: i1,i2,i3,n3p,i3s,ithread,nthread
+  integer(f_long) :: t0,t1
+  real(f_double) :: totdot,res
+  type(box_iterator) :: bit
+  integer, dimension(2,3) :: nbox
+  !$ integer, external ::  omp_get_thread_num,omp_get_num_threads
+
+  !initialization
+  do i3=1,mesh%ndims(3)
+     do i2=1,mesh%ndims(2)
+        do i1=1,mesh%ndims(1)
+           !the scalar product of these objects is 20.0
+           v1(:,i1,i2,i3)=[1.0_f_double,2.0_f_double,3.0_f_double]
+           v2(:,i1,i2,i3)=[2.0_f_double,3.0_f_double,4.0_f_double]
+        end do
+     end do
+  end do
+  t0=0
+  t1=0
+
+  select case(trim(strategy))
+  case('SEQ')
+     totdot=0.0_f_double
+     t0=f_time()
+     do i3=1,mesh%ndims(3)
+        do i2=1,mesh%ndims(2)
+           do i1=1,mesh%ndims(1)
+              res=dotp(mesh,v1(1,i1,i2,i3),v2(:,i1,i2,i3))
+              res=res/20.0_f_double
+              totdot=totdot+res
+              v2(:,i1,i2,i3)=res
+           end do
+        end do
+     end do
+     t1=f_time()
+  case('OMP')
+     totdot=0.0_f_double
+     t0=f_time()
+     !$omp parallel do default(shared) &
+     !$omp private(i1,i2,i3,res)&
+     !$omp reduction(+:totdot)
+     do i3=1,mesh%ndims(3)
+        do i2=1,mesh%ndims(2)
+           do i1=1,mesh%ndims(1)
+              res=dotp(mesh,v1(1,i1,i2,i3),v2(:,i1,i2,i3))
+              res=res/20.0_f_double
+              totdot=totdot+res
+              v2(:,i1,i2,i3)=res
+           end do
+        end do
+     end do
+     !$omp end parallel do
+     t1=f_time()
+  case('ITR') !iterator case
+     bit=box_iter(mesh)
+     totdot=0.0_f_double
+     t0=f_time()
+     do while(box_next_point(bit))
+        res=dotp(bit%mesh,v1(1,bit%i,bit%j,bit%k),v2(:,bit%i,bit%j,bit%k))
+        res=res/20.0_f_double
+        totdot=totdot+res
+        v2(:,bit%i,bit%j,bit%k)=res
+     end do
+     t1=f_time()
+  case('IOM') !iterator with omp
+     bit=box_iter(mesh)
+     totdot=0.0_f_double
+     t0=f_time()
+     nthread=1
+     !$omp parallel default(shared) &
+     !$omp private(res,ithread)&
+     !$omp firstprivate(bit)&
+     !$omp reduction(+:totdot)
+     ithread=0
+     !$ ithread=omp_get_thread_num()
+     !$ nthread=omp_get_num_threads()
+     call box_iter_split(bit,nthread,ithread)
+     do while(box_next_point(bit))
+        res=dotp(bit%mesh,v1(1,bit%i,bit%j,bit%k),v2(:,bit%i,bit%j,bit%k))
+        res=res/20.0_f_double
+        totdot=totdot+res
+        v2(:,bit%i,bit%j,bit%k)=res
+     end do
+     call box_iter_merge(bit)
+     !$omp end parallel
+     t1=f_time()
+  case('ITM') !iterator with mpi
+     call mpiinit()
+     nbox(1,:)=1
+     nbox(2,:)=mesh%ndims
+     call distribute_on_tasks(mesh%ndims(3),mpirank(),mpisize(),n3p,i3s)
+     nbox(1,3)=i3s+1
+     nbox(2,3)=i3s+n3p
+     !print *,'here',mpisize(),mpirank(),i3s,n3p,mesh%ndims(3)
+     bit=box_iter(mesh,i3s=i3s+1,n3p=n3p)
+     totdot=0.0_f_double
+     t0=f_time()
+     do while(box_next_point(bit))
+        res=dotp(bit%mesh,v1(1,bit%i,bit%j,bit%k),v2(:,bit%i,bit%j,bit%k))
+        res=res/20.0_f_double
+        totdot=totdot+res
+        v2(:,bit%i,bit%j,bit%k)=res
+     end do
+     call mpiallred(totdot,1,op=MPI_SUM)
+     !call mpigather
+     t1=f_time()
+     call mpifinalize()
+  end select
+  
+  !totdot should be the size of the array
+  call f_assert(int(totdot,f_long) == mesh%ndim,&
+       'Wrong reduction, found "'+totdot+'" instead of "'+mesh%ndim+'"')
+  !call yaml_map('TotDot',totdot)
+  !totsum should be the size of the array multipliled by three
+  call f_assert(sum(v2) == f_size(v2),&
+       'Wrong array writing, found "'+sum(v2)+'" instead of "'+f_size(v2)+'"')
+  !call yaml_map('TotSum',sum(v2))
+
+  time=t1-t0
+
+end subroutine loop_dotp
+
+! Parallelization a number n over nproc nasks
+subroutine distribute_on_tasks(n, iproc, nproc, np, is)
+  implicit none
+  ! Calling arguments
+  integer,intent(in) :: n, iproc, nproc
+  integer,intent(out) :: np, is
+
+  ! Local variables
+  integer :: ii
+
+  ! First distribute evenly... (LG: if n is, say, 34 and nproc is 7 - thus 8 MPI processes)
+  np = n/nproc                !(LG: we here have np=4) 
+  is = iproc*np               !(LG: is=iproc*4 : 0,4,8,12,16,20,24,28)
+  ! ... and now distribute the remaining objects.
+  ii = n-nproc*np             !(LG: ii=34-28=6)
+  if (iproc<ii) np = np + 1   !(LG: the first 6 tasks (iproc<=5) will have np=5)
+  is = is + min(iproc,ii)     !(LG: update is, so (iproc,np,is): (0,5,0),(1,5,5),(2,5,10),(3,5,15),(4,5,20),(5,5,25),(6,4,30),(7,4,34))
+
+end subroutine distribute_on_tasks

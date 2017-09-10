@@ -5276,13 +5276,13 @@ module sparsematrix_init
       ! Local variables
       integer :: ii
 
-      ! First distribute evenly...
-      np = n/nproc
-      is = iproc*np
-      ! ... and now distribute the remaining atoms.
-      ii = n-nproc*np
-      if (iproc<ii) np = np + 1
-      is = is + min(iproc,ii)
+      ! First distribute evenly... (LG: if n is, say, 34 and nproc is 7 - thus 8 MPI processes)
+      np = n/nproc                !(LG: we here have np=4) 
+      is = iproc*np               !(LG: is=iproc*4 : 0,4,8,12,16,20,24,28)
+      ! ... and now distribute the remaining objects.
+      ii = n-nproc*np             !(LG: ii=34-28=6)
+      if (iproc<ii) np = np + 1   !(LG: the first 6 tasks (iproc<=5) will have np=5)
+      is = is + min(iproc,ii)     !(LG: update is, so (iproc,np,is): (0,5,0),(1,5,5),(2,5,10),(3,5,15),(4,5,20),(5,5,25),(6,4,30),(7,4,34))
 
    end subroutine distribute_on_tasks
    

@@ -114,7 +114,7 @@ module f_utils
   end interface f_humantime
 
   interface f_assert
-     module procedure f_assert, f_assert_double
+     module procedure f_assert, f_assert_double,f_assert_str
   end interface f_assert
 
   interface f_savetxt
@@ -183,6 +183,19 @@ contains
          f_malloc_routine_name+'" not satisfied. Raising error...',&
          err_id=err_id,err_name=err_name)
   end subroutine f_assert
+
+  subroutine f_assert_str(condition,id,err_id,err_name)
+    use module_f_malloc, only: f_malloc_routine_name
+    use yaml_strings
+    use dictionaries
+    implicit none
+    logical, intent(in) :: condition
+    type(f_string), intent(in) :: id
+    integer, intent(in), optional :: err_id
+    character(len=*), intent(in), optional :: err_name
+    if (condition) return
+    call f_assert(condition,id%msg,err_id,err_name)
+  end subroutine f_assert_str
 
   subroutine f_assert_double(condition,id,err_id,err_name,tol)
     use module_f_malloc, only: f_malloc_namelen

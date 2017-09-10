@@ -4360,6 +4360,7 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
      !the iterator here is on the potential distribution
      do while(box_next_point(dpbox%bitp))
         q= - rho(dpbox%bitp%i,dpbox%bitp%j,dpbox%bitp%k-dpbox%bitp%i3s+1,ispin) *dpbox%mesh%volume_element
+        !q= - rho(dpbox%bitp%ibox(1),dpbox%bitp%ibox(2),dpbox%bitp%ibox(3),ispin) *dpbox%mesh%volume_element
         !write(*,*) 'i1, i2, i3, nl1, nl2, nl3, q', i1, i2, i3, nl1, nl2, nl3, q
         qtot=qtot+q
         dipole_el=dipole_el+q*(dpbox%bitp%rxyz-charge_center_cores)

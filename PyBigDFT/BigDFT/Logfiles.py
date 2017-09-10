@@ -236,15 +236,17 @@ class Logfile():
                 dicts.append(Yaml.load(stream=f.read()))
                 #dicts[-1]['label'] = memb.name #Add the label (name of the file)
             srcdir=os.path.dirname(arch)
+            label = label if label is not None else arch
         elif dictionary:
             #Read the dictionary or a list of dictionaries or from a generator
             dicts = dictionary if isinstance(dictionary,list) else [d for d in dictionary]
             srcdir=''
+            label = label if label is not None else 'dict'
         elif args:
             import os
             #Read the list of files (member replaces load_only...)
             dicts=get_logs(args,select_document=member)
-            label = label if label else args[0]
+            label = label if label is not None else args[0]
             srcdir=os.path.dirname(args[0])
         #Set the label
         self.label=label
