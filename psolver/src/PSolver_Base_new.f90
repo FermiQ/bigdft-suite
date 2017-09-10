@@ -2576,12 +2576,12 @@ subroutine P_multkernel_NO(nd1,nd2,n1,n2,n3,lot,nfft,jS,pot,zw,j3,mesh,offset,sc
       rhog2=rhog2/pi*scal**2
       if (j3 /= n3/2+1 .and. j3 /= 1) rhog2=2.0_dp*rhog2 !to consider the fact that we only treat half of the box  (to be reviewed for NO)
       !stress tensor components (to be reviewed for NO)
-      strten(1)=strten(1)+(pxyz(1)**2/g2-0.5_dp)*rhog2
-      strten(3)=strten(3)+(pxyz(3)**2/g2-0.5_dp)*rhog2
-      strten(2)=strten(2)+(pxyz(2)**2/g2-0.5_dp)*rhog2
-      strten(5)=strten(5)+(pxyz(1)*pxyz(3)/g2)*rhog2
-      strten(6)=strten(6)+(pxyz(1)*pxyz(2)/g2)*rhog2
-      strten(4)=strten(4)+(pxyz(3)*pxyz(2)/g2)*rhog2
+      strten(1)=strten(1)+(pxyz(1)**2/g2-mesh%gu(1,1)*0.5_dp)*rhog2
+      strten(3)=strten(3)+(pxyz(3)**2/g2-mesh%gu(3,3)*0.5_dp)*rhog2
+      strten(2)=strten(2)+(pxyz(2)**2/g2-mesh%gu(2,2)*0.5_dp)*rhog2
+      strten(5)=strten(5)+(pxyz(1)*pxyz(3)/g2-mesh%gu(1,3)*0.5_dp)*rhog2
+      strten(6)=strten(6)+(pxyz(1)*pxyz(2)/g2-mesh%gu(1,2)*0.5_dp)*rhog2
+      strten(4)=strten(4)+(pxyz(3)*pxyz(2)/g2-mesh%gu(3,2)*0.5_dp)*rhog2
 
       !then multiply the density for the kernel in Fourier space
       ker=pi*g2+mu0_square*oneofourpi

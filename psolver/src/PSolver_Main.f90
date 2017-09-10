@@ -63,6 +63,8 @@ subroutine Electrostatic_Solver(kernel,rhov,energies,pot_ion,rho_ion,ehartree)
   real(dp), dimension(:,:,:), allocatable :: rhopot_full,nabla2_rhopot,delta_rho,cc_rho
   real(dp), dimension(:,:,:,:), allocatable :: nabla_rho
   real(dp), dimension(:,:,:), pointer :: pot_ion_eff,vextra_eff
+  integer, parameter :: ECAV_=1,EREP_=2,EDIS_=3
+  real(dp), dimension(3) :: ecavs
   !character(len=3) :: quiet
 
   call f_routine(id='Electrostatic_Solver')
@@ -410,15 +412,33 @@ subroutine Electrostatic_Solver(kernel,rhov,energies,pot_ion,rho_ion,ehartree)
      ehartree=energs%hartree
   end if
 
+!!! Old lines -------------------------------------------------------------------
+!!  if (wrtmsg) then
+!!     if (kernel%cavity%gammaS*kernel%IntSur /= 0.0_gp) &
+!!          call yaml_map('Cavitation energy',kernel%cavity%gammaS*kernel%IntSur)
+!!     if (kernel%cavity%alphaS*kernel%IntSur /= 0.0_gp) &
+!!          call yaml_map('Repulsion energy',kernel%cavity%alphaS*kernel%IntSur)
+!!     if (kernel%cavity%betaV*kernel%IntVol /= 0.0_gp) &
+!!          call yaml_map('Dispersion energy',kernel%cavity%betaV*kernel%IntVol)
+!!     if (energs%cavitation /= 0.0_gp) &
+!!          call yaml_map('Non-eletrostatic energy',energs%cavitation)
+!!  end if
+
+  ecavs=0.0_dp
+  if ((.not.(kernel%method == PS_VAC_ENUM)) .or. (.not.kernel%opt%only_electrostatic)) then
+   ecavs(ECAV_)=kernel%cavity%gammaS*kernel%IntSur
+   ecavs(EREP_)=kernel%cavity%alphaS*kernel%IntSur
+   ecavs(EDIS_)=kernel%cavity%betaV*kernel%IntVol
+   call PS_reduce(ecavs,kernel)
+  end if 
   if (wrtmsg) then
-     if (kernel%cavity%gammaS*kernel%IntSur /= 0.0_gp) &
-          call yaml_map('Cavitation energy',kernel%cavity%gammaS*kernel%IntSur)
-     if (kernel%cavity%alphaS*kernel%IntSur /= 0.0_gp) &
-          call yaml_map('Repulsion energy',kernel%cavity%alphaS*kernel%IntSur)
-     if (kernel%cavity%betaV*kernel%IntVol /= 0.0_gp) &
-          call yaml_map('Dispersion energy',kernel%cavity%betaV*kernel%IntVol)
+   if (any(ecavs /= 0.0_gp)) then
+    call yaml_map('Cavitation energy',ecavs(ECAV_))
+    call yaml_map('Repulsion energy',ecavs(EREP_))
+    call yaml_map('Dispersion energy',ecavs(EDIS_))
      if (energs%cavitation /= 0.0_gp) &
-          call yaml_map('Non-eletrostatic energy',energs%cavitation)
+           call yaml_map('Non-eletrostatic energy',energs%cavitation)
+   end if
   end if
 
   if (wrtmsg) call yaml_mapping_close()
