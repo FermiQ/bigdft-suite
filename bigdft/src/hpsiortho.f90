@@ -232,6 +232,7 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
 !!!>
 !!!>     !here there should be a call to the CFD routines
 !!!>     call cfd_magnetic_field(cfd)
+!!!         call constrain(denspot%cfd%m_at,denspot%cfd%m_at,denspot%cfd%B_at,denspot%cfd%nat)
 !!!>
      end if
 
@@ -2097,25 +2098,26 @@ subroutine calculate_energy_and_gradient(iter,iproc,nproc,GPU,ncong,scf_mode,&
 
   if (wfn%orbs%nspinor == 4) then
      !only the root process has the correct array
-     if(iproc==0 .and. get_verbose_level() > 0) then
-        call yaml_sequence_open('Magnetic polarization per orbital')
-        call yaml_newline()
-        !write(*,'(1x,a)')&
-        !     &   'Magnetic polarization per orbital'
-!!$        write(*,'(1x,a)')&
-!!$             &   '  iorb    m_x       m_y       m_z'
-        do iorb=1,wfn%orbs%norb
-           call yaml_sequence(advance='no')
-           call yaml_mapping_open(flow=.true.)
-           call yaml_map('iorb',iorb,fmt='(i5)')
-           call yaml_map('M',(/(mom_vec(k,iorb,1)/mom_vec(1,iorb,1),k=2,4)/),fmt='(3f10.5)')
-           call yaml_mapping_close()
-           if (iorb < wfn%orbs%norb)call yaml_newline()
-           !write(*,'(1x,i5,3f10.5)') &
-           !     &   iorb,(mom_vec(k,iorb,1)/mom_vec(1,iorb,1),k=2,4)
-        end do
-        call yaml_sequence_close()
-     end if
+     ! AB supress this printout
+!!!      if(iproc==0 .and. get_verbose_level() > 0) then
+!!!         call yaml_sequence_open('Magnetic polarization per orbital')
+!!!         call yaml_newline()
+!!!         !write(*,'(1x,a)')&
+!!!         !     &   'Magnetic polarization per orbital'
+!!! !!$        write(*,'(1x,a)')&
+!!! !!$             &   '  iorb    m_x       m_y       m_z'
+!!!         do iorb=1,wfn%orbs%norb
+!!!            call yaml_sequence(advance='no')
+!!!            call yaml_mapping_open(flow=.true.)
+!!!            call yaml_map('iorb',iorb,fmt='(i5)')
+!!!            call yaml_map('M',(/(mom_vec(k,iorb,1)/mom_vec(1,iorb,1),k=2,4)/),fmt='(3f10.5)')
+!!!            call yaml_mapping_close()
+!!!            if (iorb < wfn%orbs%norb)call yaml_newline()
+!!!            !write(*,'(1x,i5,3f10.5)') &
+!!!            !     &   iorb,(mom_vec(k,iorb,1)/mom_vec(1,iorb,1),k=2,4)
+!!!         end do
+!!!         call yaml_sequence_close()
+!!!      end if
      call f_free_ptr(mom_vec)
   end if
 
