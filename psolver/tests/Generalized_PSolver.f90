@@ -749,7 +749,16 @@ program GPS_3D
               cc=cc-(x1**2+x2**2+x3**2)
               cc=cc*rho(i1,i2,i3)**3
               dd=sqrt(nabla2rho(i1,i2,i3))
-              cc=(cc/nabla2rho(i1,i2,i3)-deltarho(i1,i2,i3))/dd
+              if (dd.lt.1.0d-12) then
+               cc=0.d0
+              else
+               cc=(cc/nabla2rho(i1,i2,i3)-deltarho(i1,i2,i3))/dd
+              end if
+              !cc=cc-(x1**2+x2**2+x3**2)
+              !cc=cc*rho(i1,i2,i3)**3 
+              !dd=sqrt(r2)*abs(rho(i1,i2,i3))
+              !cc=cc*sqrt(r2)-(r2-3.d0) 
+              !cc=(cc/r2-(r2-3.d0))/sqrt(r2) 
               depsdrho(i1,i2,i3) = epsprime(rho(i1,i2,i3),pkernel%cavity)
               oneosqrteps(i1,i2,i3)=0.d0
               nabla_eps(i1,i2,i3,1:3)=0.d0
