@@ -97,7 +97,7 @@ program PS_StressCheck
   real(dp), dimension(6) :: stresst
   logical :: alsoserial,onlykernel
   integer :: m1,m2,m3,n1,n2,n3,md1,md2,md3,nd1,nd2,nd3
-  logical :: wrtfiles=.true.
+  logical :: wrtfiles=.false.
   !triclinic lattice
   real(kind=8) :: alpha,beta,gamma,detg
   real(kind=8), dimension(3,3) :: stress_3_3
@@ -196,8 +196,8 @@ program PS_StressCheck
    ii_fin=3
   end if
 
-  !do ii=1,ii_fin ! loop on the three x, y, z components.
-  do ii=2,2 !ii_fin ! loop on the three x, y, z components.
+  do ii=1,ii_fin ! loop on the three x, y, z components.
+  !do ii=2,2 !ii_fin ! loop on the three x, y, z components.
 
   do is=1,nstress
 
@@ -307,7 +307,7 @@ program PS_StressCheck
 
   karray=pkernel_init(iproc,nproc,dict,&
        geocode,(/n01,n02,n03/),(/hx,hy,hz/),&
-       alpha_bc=beta,beta_ac=alpha,gamma_ab=gamma)
+       alpha_bc=alpha,beta_ac=beta,gamma_ab=gamma)
 
   mesh=karray%mesh
 
@@ -335,7 +335,7 @@ program PS_StressCheck
      if (iproc==0) call yaml_map('ixc',ixc)
 
      call test_functions(geocode,ixc,n01,n02,n03,acell,acell_var,a_gauss,hx,hy,hz,&
-          density,potential,rhopot,pot_ion,0.0_dp,alpha,gamma,ii,volstress) !onehalf*pi,onehalf*pi,onehalf*pi)!
+          density,potential,rhopot,pot_ion,0.0_dp,ii,volstress) !onehalf*pi,onehalf*pi,onehalf*pi)!
 
      !calculate expected hartree enegy
      if (wrtfiles) then
@@ -420,10 +420,15 @@ program PS_StressCheck
   
      val(is,ii)=0.d0
      do i=1,3
-      val(is,ii)=val(is,ii)+mesh%gd(i,ii)*stress_3_3(i,ii)
+      val(is,ii)=val(is,ii)+mesh%gu(i,ii)*stress_3_3(i,ii)
      end do
      detgd(is)=mesh%detgd
-     volele(is)=mesh%volume_element/hx/hy/hz
+     volele(is)=mesh%volume_element
+     if (iproc==0) then
+    call yaml_map('Controvariant Metric',mesh%gu)
+    call yaml_map('Stress 3x3',stress_3_3)
+    call yaml_map('sum_i mesh%gu(i,ii)*stress_3_3(i,ii)',val(is,ii))
+    end if
 
      eexcu=sum(density)*hx*hy*hx*sqrt(mesh%detgd)
      if (nproc >1) call mpiallred(eexcu,1,op=MPI_SUM)
@@ -625,10 +630,12 @@ program PS_StressCheck
      stress_ana(is,ii)=-dene(is)/(acell_var*acell_var)
     else
      !stress_ana(is,ii)=-dene(is)/(acell*acell)/mesh%detgd
-     stress_ana(is,ii)=-dene(is)/(acell*acell)
+     stress_ana(is,ii)=-dene(is)/(acell*acell)/sqrt(mesh%detgd)
     end if
-    if (wrtfiles) write(unit3,'(1(1x,i8),7(1x,1pe26.14e3))')is,acell_var,ene_acell(is),dene(is),&
-                  stress_ana(is,ii),val(is,ii),detgd(is),volele(is)
+    if (wrtfiles) write(unit3,'(1(1x,i8),13(1x,1pe26.14e3))')is,acell_var,ene_acell(is),dene(is),&
+                  stress_ana(is,ii),val(is,ii),detgd(is),volele(is),&
+                  stress_ps(is,1,ii),stress_ps(is,2,ii),stress_ps(is,3,ii),&
+                  stress_ps(is,4,ii),stress_ps(is,5,ii),stress_ps(is,6,ii)
    end do
 
 
@@ -752,7 +759,7 @@ end subroutine compare
 !! function in the isolated direction and an explicitly periodic function in the periodic ones.
 !! Beware of the high-frequency components that may falsify the results when hgrid is too high.
 subroutine test_functions(geocode,ixc,n01,n02,n03,acell,acell_var,a_gauss,hx,hy,hz,&
-     density,potential,rhopot,pot_ion,mu0,alpha,gamma,ii,volstress)
+     density,potential,rhopot,pot_ion,mu0,ii,volstress)
   use yaml_output
   use f_utils
   implicit none
@@ -760,7 +767,6 @@ subroutine test_functions(geocode,ixc,n01,n02,n03,acell,acell_var,a_gauss,hx,hy,
   integer, intent(in) :: n01,n02,n03,ixc
   real(kind=8), intent(in) :: acell,acell_var,a_gauss,hx,hy,hz,mu0
   !triclinic lattice
-  real(kind=8), intent(in) :: alpha,gamma
   integer, intent(in) :: ii
   real(kind=8), dimension(n01,n02,n03), intent(out) :: density,potential,rhopot,pot_ion
   logical, intent(in) :: volstress
@@ -874,22 +880,22 @@ subroutine test_functions(geocode,ixc,n01,n02,n03,acell,acell_var,a_gauss,hx,hy,
 !     ax=length
 !     ay=length
 !     az=length
-!      ifx=FUNC_COSINE !FUNC_SHRINK_GAUSSIAN
-!      ify=FUNC_COSINE !FUNC_SHRINK_GAUSSIAN
-!      ifz=FUNC_COSINE !FUNC_SHRINK_GAUSSIAN
-!      !parameters of the test functions
-!      ax=length
-!      ay=length
-!      az=length
+      ifx=FUNC_COSINE !FUNC_SHRINK_GAUSSIAN
+      ify=FUNC_COSINE !FUNC_SHRINK_GAUSSIAN
+      ifz=FUNC_COSINE !FUNC_SHRINK_GAUSSIAN
+      !parameters of the test functions
+      ax=length
+      ay=length
+      az=length
 
-     !test functions in the three directions
-     ifx=FUNC_GAUSSIAN!_SHRINKED
-     ify=FUNC_GAUSSIAN!_SHRINKED
-     ifz=FUNC_GAUSSIAN!_SHRINKED
-     !parameters of the test functions
-     ax=acell*0.05d0
-     ay=acell*0.05d0
-     az=acell*0.05d0
+!     !test functions in the three directions
+!     ifx=FUNC_GAUSSIAN!_SHRINKED
+!     ify=FUNC_GAUSSIAN!_SHRINKED
+!     ifz=FUNC_GAUSSIAN!_SHRINKED
+!     !parameters of the test functions
+!     ax=acell*0.05d0
+!     ay=acell*0.05d0
+!     az=acell*0.05d0
 
      if (volstress) then
       kx=acell/acell_var

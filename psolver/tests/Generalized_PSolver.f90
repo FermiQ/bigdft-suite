@@ -72,7 +72,7 @@ program GPS_3D
    integer :: itype_scf,n_cell,iproc,nproc,ixc,n01,n02,n03,ifx,ify,ifz
    integer, parameter :: FUNC_GAUSSIAN = 2
    real(kind=8) :: hx,hy,hz,hgrid,sume,delta
-   real(kind=8) :: einit,IntSur,IntVol,agauss
+   real(kind=8) :: einit,IntSur,IntVol
    real(kind=8) :: ehartree,offset,epr,depsr,cc,kk,y,d
    real(kind=8) :: x1,x2,x3,fx,fy,fz,fx1,fy1,fz1,fx2,fy2,fz2,factor,ax,ay,az,bx,by,bz,length,r2,dd
    real(kind=8), dimension(:,:,:,:), allocatable :: density,rhopot,rvApp,rhoele,rhoion,potsol,rhopotf,densityf

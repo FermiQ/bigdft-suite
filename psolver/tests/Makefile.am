@@ -24,7 +24,7 @@ EXERCISE = Exercise/plot.gnuplot \
 
 EXTRA_DIST =  tols.yaml $(OTHERS)
 
-check_PROGRAMS = PS_Check PS_Program PS_Exercise Generalized_PSolver Fock PS_StressCheck PS_StressCheck_angchange
+check_PROGRAMS = PS_Check PS_Program PS_Exercise Generalized_PSolver Fock PS_StressCheck
 
 AM_FCFLAGS = -I. -I$(top_srcdir)/src -I$(top_builddir)/src @LIB_FUTILE_CFLAGS@ @LIBETSFIO_INCLUDE@ @MPI_INCLUDE@
 AM_LDFLAGS = -L$(top_builddir)/src
@@ -44,9 +44,6 @@ PS_Program_LDADD = $(psolver_library) @LINALG_LIBS@
 PS_StressCheck_SOURCES = PS_StressCheck.f90
 PS_StressCheck_LDADD = $(psolver_library) @LINALG_LIBS@
 
-PS_StressCheck_angchange_SOURCES = PS_StressCheck_angchange.f90
-PS_StressCheck_angchange_LDADD = $(psolver_library) @LINALG_LIBS@
-
 PS_Exercise_SOURCES = PS_Exercise.f90
 PS_Exercise_LDADD = $(psolver_library) @LINALG_LIBS@
 
@@ -60,7 +57,6 @@ if BUILD_DYNAMIC_LIBS
 PS_Check_LDADD += @LIB_FUTILE_LIBS@
 PS_Program_LDADD += @LIB_FUTILE_LIBS@
 PS_StressCheck_LDADD += @LIB_FUTILE_LIBS@
-PS_StressCheck_angchange_LDADD += @LIB_FUTILE_LIBS@
 PS_Exercise_LDADD += @LIB_FUTILE_LIBS@
 Generalized_PSolver_LDADD += @LIB_FUTILE_LIBS@
 Fock_LDADD += @LIB_FUTILE_LIBS@
@@ -149,5 +145,7 @@ define F_REGTEST_INSTRUCTIONS
     - $(run_parallel) ./PS_StressCheck -n 50 -g P -s 50
     # Check stress on x,y,z direction concurrently
     - $(run_parallel) ./PS_StressCheck -n 50 -g P -s 50 -v yes
+    # Check stress on x,y,z direction individually for a non-orthorhombic cell
+    - $(run_parallel) ./PS_StressCheck -n 50 -g P -s 50 -d [47,60,80]
 endef
 export F_REGTEST_INSTRUCTIONS

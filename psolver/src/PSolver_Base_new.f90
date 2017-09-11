@@ -2565,23 +2565,30 @@ subroutine P_multkernel_NO(nd1,nd2,n1,n2,n3,lot,nfft,jS,pot,zw,j3,mesh,offset,sc
     
     subroutine internal_loop()
       implicit none
+      integer :: i,j
       j1=i1+jS-1
       !running recip space coordinate
       pxyz(1)=p(j1,n1)/L1
       !square of modulus of recip space coordinate
       g2=square(mesh,pxyz)
+!      g2=0.0_gp
+!      do i=1,3
+!       do j=1,3
+!        g2=g2+mesh%gd(i,j)*pxyz(i)*pxyz(j)
+!       end do
+!      end do
 
       !density squared over modulus
       rhog2=(zw(1,i1,i2)**2+zw(2,i1,i2)**2)/g2
       rhog2=rhog2/pi*scal**2
       if (j3 /= n3/2+1 .and. j3 /= 1) rhog2=2.0_dp*rhog2 !to consider the fact that we only treat half of the box  (to be reviewed for NO)
       !stress tensor components (to be reviewed for NO)
-      strten(1)=strten(1)+(pxyz(1)**2/g2-mesh%gu(1,1)*0.5_dp)*rhog2
-      strten(3)=strten(3)+(pxyz(3)**2/g2-mesh%gu(3,3)*0.5_dp)*rhog2
-      strten(2)=strten(2)+(pxyz(2)**2/g2-mesh%gu(2,2)*0.5_dp)*rhog2
-      strten(5)=strten(5)+(pxyz(1)*pxyz(3)/g2-mesh%gu(1,3)*0.5_dp)*rhog2
-      strten(6)=strten(6)+(pxyz(1)*pxyz(2)/g2-mesh%gu(1,2)*0.5_dp)*rhog2
-      strten(4)=strten(4)+(pxyz(3)*pxyz(2)/g2-mesh%gu(3,2)*0.5_dp)*rhog2
+      strten(1)=strten(1)+(pxyz(1)**2/g2-mesh%gd(1,1)*0.5_dp)*rhog2
+      strten(3)=strten(3)+(pxyz(3)**2/g2-mesh%gd(3,3)*0.5_dp)*rhog2
+      strten(2)=strten(2)+(pxyz(2)**2/g2-mesh%gd(2,2)*0.5_dp)*rhog2
+      strten(5)=strten(5)+(pxyz(1)*pxyz(3)/g2-mesh%gd(1,3)*0.5_dp)*rhog2
+      strten(6)=strten(6)+(pxyz(1)*pxyz(2)/g2-mesh%gd(1,2)*0.5_dp)*rhog2
+      strten(4)=strten(4)+(pxyz(3)*pxyz(2)/g2-mesh%gd(3,2)*0.5_dp)*rhog2
 
       !then multiply the density for the kernel in Fourier space
       ker=pi*g2+mu0_square*oneofourpi
