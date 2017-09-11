@@ -1114,7 +1114,11 @@ module rhopotential
 !!$    vexcuRC=0.5*vexcuRC
 !!$ end if
          vexcuRC=dot(dpbox%ndimpot,rhoin(1,1,1+dpbox%i3xcsh,1),1,potxc(1,1),1)
-         if (nspin==2) vexcuRC=vexcuRC+dot(dpbox%ndimpot,rhoin(1,1,1+dpbox%i3xcsh,1),1,potxc(1,2),1)
+         if (nspin==2) then
+            vexcuRC=vexcuRC+dot(dpbox%ndimpot,rhoin(1,1,1+dpbox%i3xcsh,1),1,potxc(1,2),1)
+            !divide the results per two because of the spin multiplicity
+            vexcuRC=0.5_wp*vexcuRC
+         end if
          vexcuRC=vexcuRC*dpbox%mesh%volume_element
          !subtract this value from the vexcu
          vexcuLOC=vexcuLOC-vexcuRC
