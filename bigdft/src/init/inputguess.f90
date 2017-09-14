@@ -298,6 +298,7 @@ subroutine AtomicOrbitals(iproc,at,rxyz,norbe,orbse,norbsc,&
    integer :: noncoll,ig,ispinor,icoll,ikpts,ikorb,nlo,ntypesx,ityx,jat,ng,nspin_print
    !integer :: nsccode
    real(gp) :: ek,mx,my,mz,ma,mb,mc,md,tt
+   real(dp) :: rm
    real(gp) :: mnorm,fac,theta,phi,chi,chipphi,chimphi
    !logical, dimension(lmax,noccmax) :: semicore
    integer, dimension(2) :: iorbsc,iorbv
@@ -646,9 +647,24 @@ subroutine AtomicOrbitals(iproc,at,rxyz,norbe,orbse,norbsc,&
                                      mz=-mz
                                   end if
                                else
-                                  mx=0.0_gp
-                                  my=0.0_gp
-                                  mz=1.0_gp-2.0_gp*real(icoll-1,gp)
+                                  !mx=atmoments(1,iat)
+                                  !my=atmoments(2,iat)
+                                  !mz=atmoments(3,iat)
+ 
+                                  !if (orbse%occup(ikorb) == 0.0_gp) then
+                                  !   mx=-mx
+                                  !   my=-my
+                                  !   mz=-mz
+                                  !end if
+                                  !Possibly add a random fluctuaton to the unpolarized case
+                                  !Who would run a non-magnetic system with spinors anyway?
+                                  call random_number(rm)
+                                  mx=0.0_gp!+0.1_gp*(0.5-rm)
+                                  call random_number(rm)
+                                  my=0.0_gp!+0.1_gp*(0.5-rm)
+                                  call random_number(rm)
+                                  mz=1.0_gp-2.0_gp*real(icoll-1,gp)!+0.1_gp*(0.5-rm)
+                                  !
                                end if
  
 !!!                                 mx=atmoments(1,iat)

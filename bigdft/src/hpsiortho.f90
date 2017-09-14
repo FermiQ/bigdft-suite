@@ -24,7 +24,7 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
   use rhopotential, only: full_local_potential
   use public_enums
   use rhopotential, only: updatePotential,exchange_and_correlation
-  use module_cfd, only: cfd_dump_info
+  use module_cfd, only: cfd_dump_info, cfd_field
   implicit none
   !Arguments
   logical, intent(in) :: scf  !< If .false. do not calculate the self-consistent potential
@@ -242,11 +242,14 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
 
      if (denspot%cfd%nat >0) then
 !!$        !here the constraingin magnetic field is added on top of the local xc potential
+           ! First calculate the new constraining field
+           call cfd_field(denspot%cfd,iproc)
 !!$        call f_zero(denspot%cfd%B_at)
 !!$        denspot%cfd%B_at(1,1)=0.5_gp
 !!$        denspot%cfd%B_at(1,2)=0.5_gp
-!!$        call atomic_magnetic_field(denspot%dpbox%bitp,denspot%dpbox%ndimpot,atoms%astruct%nat,&
-!!$             denspot%cfd%rxyz,denspot%cfd%radii,denspot%cfd%B_at,denspot%V_XC)
+           ! Then apply the field
+        call atomic_magnetic_field(denspot%dpbox%bitp,denspot%dpbox%ndimpot,atoms%astruct%nat,&
+             denspot%cfd%rxyz,denspot%cfd%radii,denspot%cfd%B_at,denspot%V_XC)
      end if
 
 !!$        call XC_potential(atoms%astruct%geocode,'D',denspot%pkernel%mpi_env%iproc,denspot%pkernel%mpi_env%nproc,&
@@ -291,9 +294,10 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
 !!$                denspot%rhov(1+denspot%dpbox%ndimpot),1)
 !!$        end if
 
+        !AB ALERT
         !spin up and down together with the XC part
         call axpy(denspot%dpbox%ndimpot*wfn%orbs%nspin,&
-             1.0_dp,denspot%V_XC(1,1,1,1),1,&
+              1.0_dp,denspot%V_XC(1,1,1,1),1,&
              denspot%rhov(1),1)
 
 
