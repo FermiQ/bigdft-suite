@@ -764,7 +764,8 @@ module forces_linear
       integer,intent(in) :: iproc, nproc, ndir, i_max, l_max, m_max, nscalprod_send
       integer,dimension(0:nproc-1),intent(in) :: nat_par, isat_par
       type(atoms_data),intent(in) :: at
-      real(kind=8),dimension(1:2,0:ndir,1:m_max,1:i_max,1:l_max,1:nscalprod_send),intent(in) ::  scalprod_sendbuf_new
+      !real(kind=8),dimension(1:2,0:ndir,1:m_max,1:i_max,1:l_max,1:nscalprod_send),intent(in) ::  scalprod_sendbuf_new
+      real(kind=8),dimension(2*(ndir+1)*m_max*i_max*l_max*nscalprod_send),intent(in) ::  scalprod_sendbuf_new
       integer,dimension(at%astruct%nat),intent(inout) :: supfun_per_atom 
       integer,dimension(at%astruct%nat),intent(inout) :: is_supfun_per_atom
       integer,dimension(nscalprod_send),intent(inout) :: scalprod_send_lookup
@@ -812,8 +813,8 @@ module forces_linear
          nrecvdspls_tmp(jproc) = jproc
       end do
       if (nproc>1) then
-         call mpialltoallv(nsendcounts(0), nsendcounts_tmp, nsenddspls_tmp, &
-              nrecvcounts(0), nrecvcounts_tmp, nrecvdspls_tmp, bigdft_mpi%mpi_comm)
+         call mpialltoallv(nsendcounts, nsendcounts_tmp, nsenddspls_tmp, &
+              nrecvcounts, nrecvcounts_tmp, nrecvdspls_tmp, bigdft_mpi%mpi_comm)
       else
          call f_memcpy(n=nsendcounts_tmp(0), src=nsendcounts(0), dest=nrecvcounts(0))
       end if
@@ -831,8 +832,8 @@ module forces_linear
          nrecvdspls_tmp(jproc) = jproc*nat_par(iproc)
       end do
       if (nproc>1) then
-         call mpialltoallv(supfun_per_atom(1), nsendcounts_tmp, nsenddspls_tmp, &
-              supfun_per_atom_recv(1), nrecvcounts_tmp, nrecvdspls_tmp, bigdft_mpi%mpi_comm)
+         call mpialltoallv(supfun_per_atom, nsendcounts_tmp, nsenddspls_tmp, &
+              supfun_per_atom_recv, nrecvcounts_tmp, nrecvdspls_tmp, bigdft_mpi%mpi_comm)
       else
          call f_memcpy(n=nsendcounts_tmp(0), src=supfun_per_atom(1), dest=supfun_per_atom_recv(1))
       end if
@@ -847,8 +848,8 @@ module forces_linear
     
       ! Communicate the lookup array
       if (nproc>1) then
-         call mpialltoallv(scalprod_send_lookup(1), nsendcounts, nsenddspls, &
-              scalprod_lookup_recvbuf(1), nrecvcounts, nrecvdspls, bigdft_mpi%mpi_comm)
+         call mpialltoallv(scalprod_send_lookup, nsendcounts, nsenddspls, &
+              scalprod_lookup_recvbuf, nrecvcounts, nrecvdspls, bigdft_mpi%mpi_comm)
       else
          call f_memcpy(n=nsendcounts(0), src=scalprod_send_lookup(1), dest=scalprod_lookup_recvbuf(1))
       end if
@@ -860,10 +861,11 @@ module forces_linear
       nrecvcounts(:) = nrecvcounts(:)*ncount
       nrecvdspls(:) = nrecvdspls(:)*ncount
       if (nproc>1) then
-         call mpialltoallv(scalprod_sendbuf_new(1,0,1,1,1,1), nsendcounts, nsenddspls, &
-              scalprod_recvbuf(1), nrecvcounts, nrecvdspls, bigdft_mpi%mpi_comm)
+         call mpialltoallv(scalprod_sendbuf_new, nsendcounts, nsenddspls, &
+              scalprod_recvbuf, nrecvcounts, nrecvdspls, bigdft_mpi%mpi_comm)
       else
-         call f_memcpy(n=nsendcounts(0), src=scalprod_sendbuf_new(1,0,1,1,1,1), dest=scalprod_recvbuf(1))
+         !call f_memcpy(n=nsendcounts(0), src=scalprod_sendbuf_new(1,0,1,1,1,1), dest=scalprod_recvbuf(1))
+         call f_memcpy(n=nsendcounts(0), src=scalprod_sendbuf_new(1), dest=scalprod_recvbuf(1))
       end if
     
     

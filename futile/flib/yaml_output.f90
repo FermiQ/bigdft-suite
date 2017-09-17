@@ -904,7 +904,7 @@ contains
 
     !decide whether to write advanced or not
     !decide if advanced output or not
-    ladv=.not.stream%flowrite
+    ladv=.not.stream%flowrite .or. evt==COMMENT
     if (present(advance)) then
        if (trim(advance)=='no' .or. trim(advance)=='NO') then
           ladv=.false.

@@ -57,8 +57,8 @@ psit=f_malloc((/Lzd%Glr%wfd%nvctr_c+7*Lzd%Glr%wfd%nvctr_f,orbs%nspinor*orbs%norb
 psit_out=f_malloc((/Lzd%Glr%wfd%nvctr_c+7*Lzd%Glr%wfd%nvctr_f,orbs%nspinor*orbs%norbp/),id='psit_out')
 psi_out2=f_malloc((/Lzd%Glr%wfd%nvctr_c+7*Lzd%Glr%wfd%nvctr_f,orbs%nspinor*orbs%norbp/),id='psi_out2')
 
-call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,psi_in(1,1),&
-                 work(1),out_add=psit(1,1))
+call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,psi_in,&
+                 work,out_add=psit)
 !call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,psi_out(1),&
 !                 work(1),out_add=psit_out(1))
 
@@ -82,8 +82,8 @@ do ikptp=1,orbs%nkptsp
         call gemm('n','n',nvctrp,norb,norb,1.d0,psit(1,1),nvctrp, &
                    ovrlp(ndim_ovrlp(ispin,ikpt-1)+1),norb,0.d0,psit_out(1,1),nvctrp)
 
-        call untranspose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,psit_out(1,1),&
-                    work(1),out_add=psi_out2(1,1)) !NN: TODO should be outside this loop?
+        call untranspose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,psit_out,&
+                    work,out_add=psi_out2) !NN: TODO should be outside this loop?
 
 !!         do ii=1,(lzd%Glr%wfd%nvctr_c+7*lzd%Glr%wfd%nvctr_f)*orbs%nspinor*orbs%norbp
 !         do jj=1,orbs%nspinor*orbs%norbp
@@ -281,10 +281,10 @@ end do
 work_array =f_malloc_ptr(max(orbs%npsidim_orbs,orbs%npsidim_comp),id='work_array')
 psit = f_malloc_ptr(max(orbs%npsidim_orbs,orbs%npsidim_comp),id='psit')
 phit = f_malloc_ptr(max(orbs%npsidim_orbs,orbs%npsidim_comp),id='phit')
-call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,psi(1),&
-          &   work_array(1),out_add=psit(1))
-call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,phi(1),&
-          &   work_array(1),out_add=phit(1))
+call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,psi,&
+          &   work_array,out_add=psit)
+call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,phi,&
+          &   work_array,out_add=phit)
 
 ! Allocate overlap matrix
 ovrlp = f_malloc(ndim_ovrlp(nspin, orbs%nkpts),id='ovrlp')
@@ -526,10 +526,10 @@ integer :: ispin, jwfn, nsize
 work_array =f_malloc_ptr(max(orbs%npsidim_orbs,orbs%npsidim_comp),id='work_array')
 psit = f_malloc0_ptr(max(orbs%npsidim_orbs,orbs%npsidim_comp),id='psit')
 phit = f_malloc0_ptr(max(orbs%npsidim_orbs,orbs%npsidim_comp),id='phit')
-call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,psi(1),&
-          &   work_array(1),out_add=psit(1))
-call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,phi(1),&
-          &   work_array(1),out_add=phit(1))
+call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,psi,&
+          &   work_array,out_add=psit)
+call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,phi,&
+          &   work_array,out_add=phit)
 !
 
 !if(iproc.eq.0)print *, "!!!!NNdbg: calling my getoverlap2!!!!",iproc

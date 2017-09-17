@@ -1,0 +1,67 @@
+  #---------------------------------------------------------------------- Minimal input file
+  #This file indicates the minimal set of input variables which has to be given to perform 
+  #the run. The code would produce the same output if this file is used as input.
+ dft:
+   hgrids: 0.40
+   rmult: [4.0, 6.0]
+   ixc: PBE (ABINIT)
+   gnrm_cv: fast
+   itermax: 4
+   ncong: 5
+   idsx: 0
+   inputpsiid: linear
+   disablesym: Yes
+ perf:
+   store_index: No
+   experimental_mode: Yes
+   calculate_KS_residue: No
+   check_matrix_compression: No
+   FOE_restart: reformat
+   hamapp_radius_incr: 6
+   foe_gap: yes
+ lin_general:
+   hybrid: Yes
+   nit: 3 #50
+   rpnrm_cv: 1.e-9
+   taylor_order: 1020
+   max_inversion_error: 5.0e-8
+   output_mat: 1
+   charge_multipoles: 11
+ lin_basis:
+   nit: 8
+   gnrm_cv: 2.0e-3
+   gnrm_ig: 5.e-1
+   min_gnrm_for_dynamic: 4.0e-3
+   alpha_diis: 0.5
+   alpha_sd: 0.5
+   nstep_prec: 6
+   fix_basis: 1.0e-12
+   correction_orthoconstraint: 0
+ lin_kernel:
+   nstep: 10
+   nit: 6 #8
+   idsx_coeff: [6, 0]
+   idsx: 6
+   alphamix: 0.05
+   rpnrm_cv: 1.0e-8
+   linear_method: FOE
+ lin_basis_params:
+   Cu:
+     nbasis: 9
+     ao_confinement: -1.0
+     confinement: -1.0
+     rloc: 7.0
+     rloc_kernel: 11.0
+     rloc_kernel_foe: 13.0
+ ig_occupation:
+   Cu:
+     3d: 10.0
+     4s: 1.0
+     4p: 0.0
+ posinp:
+   units: angstroem
+   positions:
+   - Cu: [ 2.77931826633898904E+00,  1.13656435165699010E+00,  2.80793523706787962E+00]
+   - Cu: [-2.12788430528442163E+00, -2.92299156436188934E+00,  5.48498097180207700E-01]
+   - Cu: [-2.20329755335495880E+00,  3.92778459660187584E+00, -1.08528209649926821E+00]
+   - Cu: [ 1.58822273853782758E+00, -3.32847303917111204E-01, -4.41639535930022031E+00]

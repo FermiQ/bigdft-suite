@@ -60,7 +60,7 @@ else
 flib_libraries = libfutile-1.a @LIBS_EXT_DEPS@
 endif
 
-tmp-libfutile/extract.stamp: $(top_builddir)/dicts/libdicts.a $(top_builddir)/flib/libflib.a $(top_builddir)/c-bindings/libbindings.a $(top_builddir)/wrappers/libwrappers.a
+tmp-libfutile/extract.stamp: $(top_builddir)/dicts/libdicts.a $(top_builddir)/flib/libflib.a $(top_builddir)/c-bindings/libbindings.a $(top_builddir)/wrappers/libwrappers.a $(top_builddir)/wrappers/mpi/libfmpi.a
 	test -e "tmp-libfutile" || $(INSTALL) -d -m 755 tmp-libfutile
 	cd tmp-libfutile ; \
 	rm -f *; \

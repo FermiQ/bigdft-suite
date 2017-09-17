@@ -208,6 +208,8 @@ doc/Doxyfile
 flib/Makefile
 flib/f_utils.inc
 wrappers/Makefile
+wrappers/mpi/Makefile
+wrappers/mpi/mpi_config.inc
 c-bindings/Makefile
 src/configure.inc
 src/f_memcheck

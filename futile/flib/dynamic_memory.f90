@@ -130,16 +130,16 @@ module dynamic_memory_base
   end interface f_free_ptr
 
   interface f_memcpy
-     module procedure f_memcpy_i0,f_memcpy_i1,f_memcpy_i2
+     module procedure f_memcpy_i0,f_memcpy_i1,f_memcpy_i2,f_memcpy_i3
      module procedure f_memcpy_i0i1,f_memcpy_i1i2,f_memcpy_i1i3,f_memcpy_i2i1,f_memcpy_i2i0,f_memcpy_i3i1
      module procedure f_memcpy_li0,f_memcpy_li1
      module procedure f_memcpy_li0li1,f_memcpy_li1li2,f_memcpy_li2li1,f_memcpy_li2li0
      module procedure f_memcpy_l1
-     module procedure f_memcpy_r0
-     module procedure f_memcpy_d0,f_memcpy_d1,f_memcpy_d2,f_memcpy_d0d1
-     module procedure f_memcpy_d1d2,f_memcpy_d2d1,f_memcpy_d2d3,f_memcpy_d3,f_memcpy_d4,f_memcpy_d1d0
+     module procedure f_memcpy_r0,f_memcpy_r0r1
+     module procedure f_memcpy_d0,f_memcpy_d1,f_memcpy_d2,f_memcpy_d3,f_memcpy_d0d1
+     module procedure f_memcpy_d1d2,f_memcpy_d1d3,f_memcpy_d2d1,f_memcpy_d2d3,f_memcpy_d4,f_memcpy_d1d0
      module procedure f_memcpy_d0d3,f_memcpy_d0d2,f_memcpy_d3d0,f_memcpy_d2d0,f_memcpy_d3d2
-     module procedure f_memcpy_l0
+     module procedure f_memcpy_l0,f_memcpy_l0l1
      module procedure f_memcpy_c1i1,f_memcpy_i1c1,f_memcpy_c0i1
      module procedure f_memcpy_c1li1,f_memcpy_li1c1,f_memcpy_c0li1
   end interface f_memcpy
@@ -151,7 +151,7 @@ module dynamic_memory_base
      module procedure f_maxdiff_li0li1,f_maxdiff_li1li2,f_maxdiff_li2li1
      module procedure f_maxdiff_r0
      module procedure f_maxdiff_d0,f_maxdiff_d1,f_maxdiff_d2
-     module procedure f_maxdiff_d0d1,f_maxdiff_d1d2,f_maxdiff_d2d1,f_maxdiff_d2d3
+     module procedure f_maxdiff_d0d1,f_maxdiff_d1d2,f_maxdiff_d2d1,f_maxdiff_d3d1,f_maxdiff_d2d3
      module procedure f_maxdiff_l0
      module procedure f_maxdiff_c1i1,f_maxdiff_c0i1
      module procedure f_maxdiff_c1li1,f_maxdiff_c0li1

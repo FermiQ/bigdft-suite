@@ -99,7 +99,7 @@ module pexsi
       real(c_double) :: totalEnergyH, totalEnergyS, totalFreeEnergy
       
       integer(c_int):: nprow, npcol, npSymbFact, outputFileIndex, ic
-      integer :: ierr, ii
+      integer :: ierr, ii, jj
       double precision:: timeSta, timeEnd
       integer(c_int):: info
       integer(c_intptr_t) :: plan
@@ -136,9 +136,9 @@ module pexsi
           ii = nproc
       end if
       ! Number of processor rows / columns
-      ii = max(1,floor(sqrt(real(ii,kind=8))))
-      nprow = int(ii,kind=c_int)
-      npcol = int(ii,kind=c_int)
+      jj = max(1,floor(sqrt(real(ii,kind=8))))
+      nprow = int(jj,kind=c_int)
+      npcol = int(ii/jj,kind=c_int)
       ! Actual number of processes used per pole
       nproc_per_pole = nprow*npcol
 
@@ -289,7 +289,11 @@ module pexsi
           options%muPEXSISafeGuard = real(1.0d-2,kind=c_double)
           options%numElectronPEXSITolerance = real(tol_charge,kind=c_double)
           options%npSymbFact = int(np_sym_fact,kind=c_int)
-          options%isInertiaCount = do_inertia_count
+          if (do_inertia_count) then
+              options%isInertiaCount = 1
+          else
+              options%isInertiaCount = 0
+          end if
           options%maxPEXSIIter = int(max_iter,kind=c_int)
           options%verbosity = int(verbosity,kind=c_int)
 
@@ -576,7 +580,7 @@ module pexsi
                kernel, ebs, energy_kernel)
       use futile
       use sparsematrix_base
-      use sparsematrix, only: transform_sparse_matrix
+      use sparsematrix, only: transform_sparse_matrix, gather_matrix_from_taskgroups, extract_taskgroup
       use sparsematrix_init, only: sparsebigdft_to_ccs
       implicit none
     
@@ -593,7 +597,7 @@ module pexsi
     
       ! Local variables
       integer,dimension(:),allocatable :: row_ind, col_ptr
-      real(mp),dimension(:),allocatable :: ovrlp_large, ham_large
+      real(mp),dimension(:),allocatable :: ovrlp_large, ham_large, mat_global, mat2_global
     
       call f_routine(id='pexsi_wrapper')
     
@@ -605,26 +609,41 @@ module pexsi
       ! At the moment not working for nspin>1
       ovrlp_large = sparsematrix_malloc(smatl, iaction=SPARSE_FULL, id='ovrlp_large')
       ham_large = sparsematrix_malloc(smatl, iaction=SPARSE_FULL, id='ham_large')
-      if (smats%ntaskgroup/=1 .or. smatm%ntaskgroup/=1 .or. smatl%ntaskgroup/=1) then
-          call f_err_throw('PEXSI is not yet tested with matrix taskgroups', err_name='BIGDFT_RUNTIME_ERROR')
-      end if
+      !!if (smats%ntaskgroup/=1 .or. smatm%ntaskgroup/=1 .or. smatl%ntaskgroup/=1) then
+      !!    call f_err_throw('PEXSI is not yet tested with matrix taskgroups', err_name='BIGDFT_RUNTIME_ERROR')
+      !!end if
+
+      mat_global = sparsematrix_malloc(smats, iaction=SPARSE_FULL, id='mat_global')
+      call gather_matrix_from_taskgroups(iproc, nproc, comm, smats, ovrlp%matrix_compr, mat_global)
       call transform_sparse_matrix(iproc, smats, smatl, SPARSE_FULL, 'small_to_large', &
-           smat_in=ovrlp%matrix_compr, lmat_out=ovrlp_large)
+           smat_in=mat_global, lmat_out=ovrlp_large)
+      call f_free(mat_global)
+
+      mat_global = sparsematrix_malloc(smatm, iaction=SPARSE_FULL, id='mat_global')
+      call gather_matrix_from_taskgroups(iproc, nproc, comm, smatm, ham%matrix_compr, mat_global)
       call transform_sparse_matrix(iproc, smatm, smatl, SPARSE_FULL, 'small_to_large', &
-           smat_in=ham%matrix_compr, lmat_out=ham_large)
+           smat_in=mat_global, lmat_out=ham_large)
+      call f_free(mat_global)
       call f_timing(TCAT_SMAT_TRANSFORMATION,'OF')
       
+      mat_global = sparsematrix_malloc(smatl, iaction=SPARSE_FULL, id='mat_global')
       if (present(energy_kernel)) then
+          mat2_global = sparsematrix_malloc(smatl, iaction=SPARSE_FULL, id='mats_global')
           call pexsi_driver(iproc, nproc, comm, smatl%nfvctr, smatl%nvctr, row_ind, col_ptr, &
                ham_large, ovrlp_large, charge, npoles, nproc_per_pole, &
                mumin, mumax, mu, DeltaE, temperature, tol_charge, np_sym_fact, do_inertia_count, max_iter, verbosity,  &
-               kernel%matrix_compr, ebs, energy_kernel%matrix_compr)
+               mat_global, ebs, mat2_global)
+          call extract_taskgroup(smatl, mat_global, kernel%matrix_compr)
+          call extract_taskgroup(smatl, mat2_global, energy_kernel%matrix_compr)
+          call f_free(mat2_global)
       else
           call pexsi_driver(iproc, nproc, comm, smatl%nfvctr, smatl%nvctr, row_ind, col_ptr, &
                ham_large, ovrlp_large, charge, npoles, nproc_per_pole, &
                mumin, mumax, mu, DeltaE, temperature, tol_charge, np_sym_fact, do_inertia_count, max_iter, verbosity, &
-               kernel%matrix_compr, ebs)
+               mat_global, ebs)
+          call extract_taskgroup(smatl, mat_global, kernel%matrix_compr)
       end if
+      call f_free(mat_global)
     
       call f_free(ovrlp_large)
       call f_free(ham_large)

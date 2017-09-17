@@ -204,7 +204,7 @@ f_malloc.o: $(SIMGRID_DEP) $(F_MALLOC_INCLUDES)
 f_input_file.o: yaml_output.o dynamic_memory.o f_utils.o
 dynamic_memory.o: getadd.o yaml_output.o yaml_parse.o mem_profiling.o f_malloc.o f_utils.o $(DYN_INCLUDES) f_environment.o \
 	$(SIMGRID_SHARED_DEP)
-mem_profiling.o: yaml_output.o yaml_parse.o
+mem_profiling.o: yaml_output.o yaml_parse.o f_environment.o
 f_lib_highlev.o: yaml_output.o dynamic_memory.o yaml_parse.o $(NVTX_DEP) $(SIMGRID_DEP) time.o f_utils.o f_input_file.o
 f_refcnts.o: yaml_output.o
 f_trees.o: f_refcnts.o yaml_output.o yaml_parse.o

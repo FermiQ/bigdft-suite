@@ -1,3 +1,4 @@
+---
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ DRIVER FOR THE CHEBYSHEV MATRIX EXPANSION
  Timestamp of the run                  : 2017-02-16 16:14:11.140
@@ -243,6 +244,7 @@
  Walltime since initialization         :  00:00:04.722712129
  Max No. of dictionaries used          :  1087 #( 301 still in use)
  Number of dictionary folders allocated:  1
+---
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ DRIVER FOR THE CHEBYSHEV MATRIX EXPANSION
  Timestamp of the run                  : 2017-02-16 16:14:15.888

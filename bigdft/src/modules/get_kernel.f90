@@ -1149,7 +1149,7 @@ module get_kernel
       matrix_local1 = f_malloc_ptr(tmb%linmat%smat(3)%smmm%nvctrp_mm*tmb%linmat%smat(3)%nspin,id='matrix_local1')
     
       ! Calculate S^1/2 * K * S^1/2. Take the value of S^1/2 from memory (was
-      ! calculated in the last call to this routine or (it it is the first call)
+      ! calculated in the last call to this routine or (if it is the first call)
       ! just before the call.
       do ispin=1,tmb%linmat%smat(3)%nspin
           ilshift = (ispin-1)*tmb%linmat%smat(3)%nvctrp_tg
@@ -1206,7 +1206,8 @@ module get_kernel
     subroutine calculate_gap_FOE(iproc, nproc, input, orbs_KS, tmb)
       use module_base
       use module_types    
-      use foe_base, only: foe_data, foe_data_null, foe_data_get_real, foe_data_set_real, foe_data_deallocate
+      use foe_base, only: foe_data, foe_data_null, foe_data_get_real, foe_data_set_real, &
+                          foe_data_deallocate, copy_foe_data
       !use foe, only:  fermi_operator_expansion_new
       use sparsematrix_highlevel, only: matrix_fermi_operator_expansion
       use sparsematrix_base, only: matrices_null, sparsematrix_malloc_ptr, deallocate_matrices, &
@@ -1231,6 +1232,9 @@ module get_kernel
       integer,dimension(input%nspin) :: ntmb_spin
       real(kind=8),dimension(input%nspin) :: e_homo_spin, e_lumo_spin
       logical,dimension(input%nspin) :: calculate_spin_channels
+      real(kind=8),parameter :: charge_noise = 1.d-5
+
+      call f_routine(id='calculate_gap_FOE')
     
       if (iproc==0) call yaml_comment('FOE calculation for HOMO-LUMO analysis',hfill='=')
     
@@ -1318,13 +1322,14 @@ module get_kernel
               kernel(1)%matrix_compr = sparsematrix_malloc_ptr(tmb%linmat%smat(3), &
                   iaction=SPARSE_TASKGROUP, id='kernel%matrix_compr')
               foe_obj = foe_data_null()
-              call init_foe_wrapper(iproc, nproc, input, orbs_KS, 0.d0, foe_obj)
+              !call init_foe_wrapper(iproc, nproc, input, orbs_KS, 0.d0, foe_obj)
+              call copy_foe_data(tmb%foe_obj, foe_obj)
+              !write(*,*) 'tmb%foe_obj%fscale, foe_obj%fscale',tmb%foe_obj%fscale, foe_obj%fscale
     
-              ! Round up the target charge (required for systems with non-integer charge)
-              call foe_data_set_real(foe_obj,"charge",qq,1)
-              !!qq = foe_data_get_real(foe_obj,"charge",1)
+              ! Round up the target charge (required for systems with non-integer charge).
+              ! Allow some small noise (necessary if the qq is just slightly larger than an integer)
               iqq = nint(qq)
-              if (real(iqq,kind=8)<qq) then
+              if (real(iqq,kind=8)+charge_noise<qq) then
                   qq = real(iqq+1,kind=8)
               else
                   qq = real(iqq,kind=8)
@@ -1365,13 +1370,13 @@ module get_kernel
               kernel(2)%matrix_compr = sparsematrix_malloc_ptr(tmb%linmat%smat(3), &
                   iaction=SPARSE_TASKGROUP, id='kernel%matrix_compr')
               foe_obj = foe_data_null()
-              call init_foe_wrapper(iproc, nproc, input, orbs_KS, 0.d0, foe_obj)
+              !call init_foe_wrapper(iproc, nproc, input, orbs_KS, 0.d0, foe_obj)
+              call copy_foe_data(tmb%foe_obj, foe_obj)
     
               ! Round up the target charge (required for systems with non-integer charge)
-              call foe_data_set_real(foe_obj,"charge",qq,1)
-              !!qq = foe_data_get_real(foe_obj,"charge",1)
+              ! Allow some small noise (necessary if the qq is just slightly larger than an integer)
               iqq = nint(qq)
-              if (real(iqq,kind=8)<qq) then
+              if (real(iqq,kind=8)+charge_noise<qq) then
                   qq = real(iqq+1,kind=8)
               else
                   qq = real(iqq,kind=8)
@@ -1450,6 +1455,8 @@ module get_kernel
               call yaml_mapping_close()
           end if
       end if
+
+      call f_release_routine()
     
     end subroutine calculate_gap_FOE
 

@@ -1578,6 +1578,7 @@ module sparsematrix_init
       nout_thread = f_malloc0(0.to.nthread-1)
       line_and_column_all = f_malloc((/2,norb*norbp/),id='line_and_column_all')
       !nout=0
+      ithread = 0
       !$omp parallel default(none) &
       !$omp shared(ise, norbp, isorb, istsegline, nsegline, keyg) &
       !$omp shared(nout_thread, norb, line_and_column_all) &

@@ -57,7 +57,7 @@ subroutine calculate_coupling_matrix(iproc,nproc,boxit,tddft_approach,nspin,ndim
   real(wp), dimension(ndimp,orbsocc%norb), intent(in) :: psirocc
   real(wp), dimension(ndimp,orbsvirt%norb), intent(in) :: psivirtr
   real(wp), dimension(ndimp,max((nspin*(nspin+1))/2,2)), intent(in) :: dvxcdrho
-    type(coulomb_operator) :: pkernel
+  type(coulomb_operator) :: pkernel
   type(box_iterator) :: boxit
   !local variables
   integer, parameter :: ALPHA_=2,P_=1,SPIN_=3
@@ -253,7 +253,10 @@ contains
         !If the orbitals do not have the same spin, then cycle
         cycle loop_i
       end if
-      local=>list_new(.item.[iorbi,iorba,ispin])
+      tmp(P_)=iorbi
+      tmp(ALPHA_)=iorba
+      tmp(SPIN_)=ispin
+      local=>list_new(.item. tmp)
       call add(lookup,local)
    end do loop_i
 

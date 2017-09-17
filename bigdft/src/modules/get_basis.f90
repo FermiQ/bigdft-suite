@@ -1777,7 +1777,7 @@ module get_basis
       ! trH is now the total energy (name is misleading, correct this)
       ! Multiply by 2 because when minimizing trace we don't have kernel
       if(tmb%orbs%nspin==1 .and. target_function==TARGET_FUNCTION_IS_TRACE) trH=2.d0*trH
-      !if (iproc==0) call yaml_map('Omega old',trH)
+      if (iproc==0) call yaml_map('Omega old',trH)
       !!if (iproc==0) write(*,'(a,6es17.8)') 'eh, exc, evxc, eexctX, eion, edisp', &
       !!    energs%eh,energs%exc,energs%evxc,energs%eexctX,energs%eion,energs%edisp
       trH=trH-energs%eh+energs%exc-energs%evxc-energs%eexctX+energs%eion+energs%edisp

@@ -30,7 +30,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
   use Poisson_Solver, except_dp => dp, except_gp => gp
   use module_xc
   use m_libpaw_libxc, only: libxc_functionals_init, libxc_functionals_end
-  use communications_init, only: orbitals_communicators
+  use communications_init, only: orbitals_communicators, write_memory_requirements_collcom
   use communications_base, only: deallocate_comms
   !  use vdwcorrection
   use yaml_output
@@ -55,6 +55,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
   use io, only: plot_density,io_files_exists, writemywaves
   use PSbox, only: PS_gather
   use foe_common, only: init_foe
+  use test_mpi_wrappers, only: test_mpi_alltoallv
   implicit none
   !Arguments
   integer, intent(in) :: nproc,iproc
@@ -305,6 +306,10 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
   call cpu_time(tcpu0)
   call system_clock(ncount0,ncount_rate,ncount_max)
 
+  !!! Test MPI wrappers
+  !!call test_mpi_alltoallv(iproc, nproc, bigdft_mpi%mpi_comm, &
+  !!     maxsize_local=2000000000, ntest=5)
+
   !Nullify for new input guess
   call nullify_local_zone_descriptors(lzd_old)
   ! We save the variables that defined the previous psi if the restart is active
@@ -432,6 +437,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
      !!tag=0
 
      call kswfn_init_comm(tmb, denspot%dpbox, iproc, nproc, in%nspin, in%imethod_overlap)
+
      !!locreg_centers = f_malloc((/3,tmb%lzd%nlr/),id='locreg_centers')
      !!do ilr=1,tmb%lzd%nlr
      !!    locreg_centers(1:3,ilr)=tmb%lzd%llr(ilr)%locregcenter(1:3)
@@ -449,13 +455,24 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
           fscale_upperbound=in%cp%foe%fscale_upperbound, &
           eval_multiplicator=1.d0, &
           accuracy_function=in%cp%foe%accuracy_ice, accuracy_penalty=in%cp%foe%accuracy_penalty, &
-          betax=in%cp%foe%betax_ice)
+          betax=in%cp%foe%betax_ice, occupation_function=in%cp%foe%occupation_function, &
+          adjust_fscale=in%cp%foe%adjust_fscale)
      call f_free(charge_fake)
 
      !!call f_free(locreg_centers)
      !!call increase_FOE_cutoff(iproc, nproc, tmb%lzd, atoms%astruct, in, KSwfn%orbs, tmb%orbs, tmb%foe_obj, .true.)
 
      call create_large_tmbs(iproc, nproc, KSwfn, tmb, denspot,nlpsp,in, atoms, rxyz, .false.)
+
+     if (iproc==0) then
+         call yaml_mapping_open('Workarray memory requirements for transposed communication')
+     end if
+     call write_memory_requirements_collcom(iproc, nproc, bigdft_mpi%mpi_comm, 'Normal locregs', tmb%collcom)
+     call write_memory_requirements_collcom(iproc, nproc, bigdft_mpi%mpi_comm, 'Normal locregs sumrho', tmb%collcom_sr)
+     call write_memory_requirements_collcom(iproc, nproc, bigdft_mpi%mpi_comm, 'Large locregs', tmb%ham_descr%collcom)
+     if (iproc==0) then
+         call yaml_mapping_close()
+     end if
 
      call init_bigdft_matrices(iproc, nproc, atoms, tmb%orbs, &
           tmb%collcom, tmb%collcom_sr, tmb%ham_descr%collcom, &

@@ -58,7 +58,7 @@ module f_utils
   !> Interface for difference between two intrinsic types
   interface f_diff
      module procedure f_diff_i,f_diff_r,f_diff_d,f_diff_li,f_diff_l
-     module procedure f_diff_d2d3,f_diff_d2d1,f_diff_d1d2,f_diff_d2,f_diff_d1
+     module procedure f_diff_d2d3,f_diff_d2d1,f_diff_d3d1,f_diff_d1d2,f_diff_d2,f_diff_d1
      module procedure f_diff_d3
      module procedure f_diff_i2i1,f_diff_i3i1,f_diff_i1,f_diff_i2,f_diff_i1i2
      module procedure f_diff_li2li1,f_diff_li1,f_diff_li2,f_diff_li1li2
@@ -134,6 +134,7 @@ module f_utils
      module procedure f_null_i0,f_null_d0,f_null_r0
      module procedure f_null_d1_ptr
      module procedure f_null_i1_ptr,f_null_i2_ptr
+     module procedure f_null_l0
   end interface assignment(=)
 
   public :: f_diff,f_file_unit,f_mkdir,f_savetxt
@@ -849,6 +850,14 @@ contains
     if (nl%none==NULL_) nullify(val)
   end subroutine f_null_i2_ptr
 
+  !>nullification information
+  pure subroutine f_null_l0(val,nl)
+    implicit none
+    type(f_none_object), intent(in) :: nl
+    logical, intent(out) :: val
+    if (nl%none==NULL_) val=.false.
+  end subroutine f_null_l0
+
   
   !>increment a integer, to be used in low-performance routines
   !to improve readability
@@ -1048,6 +1057,17 @@ contains
     external ::  diff_d
     call diff_d(n,a(1,1),b(1),diff,idiff)
   end subroutine f_diff_d2d1
+  subroutine f_diff_d3d1(n,a,b,diff)
+    implicit none
+    integer(f_long), intent(in) :: n
+    double precision, dimension(:,:,:),   intent(in) :: a
+    double precision, dimension(:), intent(in) :: b
+    double precision, intent(out) :: diff
+    !local variables
+    integer(f_long) :: idiff
+    external ::  diff_d
+    call diff_d(n,a(1,1,1),b(1),diff,idiff)
+  end subroutine f_diff_d3d1
   subroutine f_diff_d0d1(n,a,b,diff)
     implicit none
     integer(f_long), intent(in) :: n
