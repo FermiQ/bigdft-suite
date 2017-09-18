@@ -74,6 +74,12 @@ subroutine PS_Check_options(parser)
        'Allowed values' .is. &
        'yaml Dictionary'))
 
+  call yaml_cl_parse_option(parser,'angdeg','90.0',&
+       'Angles','f',&
+       dict_new('Usage' .is. &
+       'Angles between box basis vectors',&
+       'Allowed values' .is. &
+       'Yaml list of reals. If a real value is given, all the angles will be identical.'))
 
 end subroutine PS_Check_options
 
