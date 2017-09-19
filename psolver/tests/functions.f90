@@ -34,6 +34,14 @@ subroutine PS_Check_options(parser)
        dict_new("PI" .is. 'Polarization iteration Method',&
        "PCG" .is. 'Preconditioned Conjugate Gradient')))
 
+  call yaml_cl_parse_option(parser,'cav','soft-sphere',&
+       'Cavity approach','c',&
+       dict_new('Usage' .is. &
+       'Set the approach to build up the cavity. A non present value implies vacuum treatment.',&
+       'Allowed values' .is. &
+       dict_new("soft-sphere" .is. 'Soft-sphere cavity',&
+       "sccs" .is. 'sccs charge-dependent cavity')))
+
   call yaml_cl_parse_option(parser,'seteps','4',&
        'Epsilon determination method','e',&
        dict_new('Usage' .is. &
