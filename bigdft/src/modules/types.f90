@@ -34,6 +34,7 @@ module module_types
   use fragment_base, only: fragmentInputParameters
   use locreg_operations,only: confpot_data
   use module_cfd
+  use module_asd
   implicit none
 
   private
@@ -300,6 +301,8 @@ module module_types
      type(coulomb_operator) :: pkernelseq !< For monoproc PS (useful for exactX, SIC,...)
      !>constrained field dynamics local data
      type(cfd_data) :: cfd
+     !>LLG dynamics data (move?)
+     type(asd_data) :: asd
      integer(kind = 8) :: c_obj = 0       !< Storage of the C wrapper object.
   end type DFT_local_fields
 

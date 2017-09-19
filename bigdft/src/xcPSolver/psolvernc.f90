@@ -758,10 +758,14 @@ subroutine atomic_magnetic_field(bitp,npotdim,nat,rxyz,radii,B_at,pot)
         r=distance(bitp%mesh,bitp%rxyz,rxyz(:,iat))
         !smearing=1.0_dp-eval(func,r)
         smearing=.if. (r<radii(iat)) .then. 1.0_gp .else. 0.0_gp
-        pot(bitp%ind,1)=pot(bitp%ind,1)+B_at(3,iat)*smearing
-        pot(bitp%ind,2)=pot(bitp%ind,2)+B_at(1,iat)*smearing
-        pot(bitp%ind,3)=pot(bitp%ind,3)-B_at(2,iat)*smearing
-        pot(bitp%ind,4)=pot(bitp%ind,4)-B_at(3,iat)*smearing
+        !!!$ pot(bitp%ind,1)=pot(bitp%ind,1)+B_at(3,iat)*smearing
+        !!!$ pot(bitp%ind,2)=pot(bitp%ind,2)+B_at(1,iat)*smearing
+        !!!$ pot(bitp%ind,3)=pot(bitp%ind,3)-B_at(2,iat)*smearing
+        !!!$ pot(bitp%ind,4)=pot(bitp%ind,4)-B_at(3,iat)*smearing
+        pot(bitp%ind,1)=pot(bitp%ind,1)-B_at(3,iat)*smearing
+        pot(bitp%ind,2)=pot(bitp%ind,2)-B_at(1,iat)*smearing
+        pot(bitp%ind,3)=pot(bitp%ind,3)+B_at(2,iat)*smearing
+        pot(bitp%ind,4)=pot(bitp%ind,4)+B_at(3,iat)*smearing
      end do
   end do
   call f_release_routine()

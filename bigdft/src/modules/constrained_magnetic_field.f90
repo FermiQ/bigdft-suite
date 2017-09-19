@@ -13,26 +13,28 @@ module module_cfd
    private
 
    !> temporary output file number
-   integer :: stdout = 6
+   integer :: stdout = 666
    !> type of constraining algorithm (2=regular Lagrange,3=orthogonal Lagrange,4=PID,5=Ma-Dudarev)
    integer :: i_cons = 0
    !> dimensionality of magnetism (3=xyz)
    integer, parameter :: ncomp=3
    !> conversion of units from Ry to Tesla. Used for EOM solver (need to adjust for current energy unit)
    real(gp), parameter :: b2t = 235298.924212429_gp
+   !> conversion of units from Ry to Tesla. Used for EOM solver (need to adjust for current energy unit)
+   real(gp), parameter :: cfd_thresh = 1.0e-7_gp
    !
-   !> error in the constrained moments
-   real(gp) :: constrained_mom_err
    !> Lagrange penalty factor (to be modified and moved)
-   real(gp) :: lambda = 10
+   real(gp) :: lambda = 10.0_gp
    !> temporary Lagrange penalty factor (to be modified and moved)
-   real(gp) :: lambda_t
+   real(gp) :: lambda_t = 1.0_gp
+   !> starting Lagrange penalty factor (to be modified and moved)
+   real(gp) :: lambda_0 = 1.0_gp
    !> Threshold for determining induced moments (currently not constraining induced moments)
    real(gp) :: induced_mom_thresh = 0.5_gp
    !> prefactor for future use 
    real(gp) :: cfd_prefac = 1.0_gp
    !> mixing factor for constraining b-field
-   real(gp) :: B_at_beta = 1.0_gp
+   real(gp) :: B_at_beta = 0.9_gp
    !> loop counter
    integer :: b_constr_iter
    !
@@ -60,10 +62,14 @@ module module_cfd
       real(gp), dimension(:,:), pointer :: d_delta => null()
       real(gp), dimension(:,:), pointer :: s_delta => null()
       real(gp), dimension(:,:), pointer :: dd_delta => null()
+      !> error in the constrained moments
+      real(gp) :: constrained_mom_err
+      !
    end type cfd_data
 
    public :: cfd_allocate,cfd_free,cfd_set_radius,cfd_dump_info
    public :: cfd_set_centers, cfd_read_external, cfd_field
+   public :: cfd_is_converged
 
 contains
 
@@ -105,6 +111,7 @@ contains
       call f_free_ptr(cfd%dd_delta)
       !
       call nullify_cfd_data(cfd)
+      close(unit=stdout)
    end subroutine cfd_free
 
    subroutine cfd_allocate(cfd,nat)
@@ -126,6 +133,7 @@ contains
       cfd%s_delta=f_malloc_ptr([3,nat],id='cfd%s_delta')
       cfd%dd_delta=f_malloc_ptr([3,nat],id='cfd%dd_delta')
 
+      open(file='cfd.log',unit=stdout)
    end subroutine cfd_allocate
 
    !!$  function cfd_get_centers_ptr(cfd) result(ptr)
@@ -188,7 +196,7 @@ contains
       !
       implicit none
       !
-      type(cfd_data), intent(in) :: cfd
+      type(cfd_data), intent(inout) :: cfd
       integer, intent(in) :: iproc !< Label of the process,from 0 to nproc-1
       !
       ! arguments
@@ -201,22 +209,23 @@ contains
       integer :: iidim,na
       real(gp), dimension(:,:), allocatable :: mom_tmp
       real(gp), dimension(3) :: e_i, e_out, c_in
-      real(gp), dimension(3) :: m_delta, B_at_new
+      real(gp), dimension(3) :: m_delta, B_at_new, B_diff
       real(gp) :: etcon, ma, mnorm
 
       !!!   cfd_prefac=b2t*omega/(dfftp%nr1*dfftp%nr2*dfftp%nr3)
       if(i_cons==0) return
 
       if(cfd_is_converged(cfd)) then
-         if(iproc==0) print *,"CFD converged, error:",constrained_mom_err
+         if(iproc==0) print *,"CFD converged, error:",cfd%constrained_mom_err
          return
       else
-         if(iproc==0) print *,"CFD not converged, error:",constrained_mom_err
+         if(iproc==0) print *,"CFD not converged, error:",cfd%constrained_mom_err
       end if
 
       allocate ( mom_tmp(ncomp,cfd%nat))
 
 
+      cfd%constrained_mom_err=0.0_gp
       do na=1,cfd%nat
          if (i_cons==2) then
             ! Lagrange multiplier without orthogonalization 
@@ -257,6 +266,7 @@ contains
                !m_delta=(e_i-e_out)
                ! Perp direction (works for bcc fe)
                m_delta=-(cfd%m_at(:,na)-sum(cfd%m_at(:,na)*e_i)*e_i)
+               !m_delta=-(e_out-norm2(e_out*e_i)*e_i)
             end if
             !
             ! Reducing the effect for first iteration (ie when cfd%d_delta=0)
@@ -275,22 +285,32 @@ contains
             if(iproc==0) write (stdout,'(4x,a,i4,3f15.8)' ) " | Input field        for atom ",na,cfd%B_at(:,na)
             !
             ! Check to don't mix first iteration
-            if(norm2(cfd%d_delta(:,na))>1e-15) cfd%s_delta(:,na)=cfd%s_delta(:,na)+m_delta
+            if(norm2(cfd%d_delta(:,na))>1e-15) cfd%s_delta(:,na)=cfd%s_delta(:,na)+m_delta*0.5_gp
 
             !cfd%B_at(:,na)=lambda_t*(1.20_gp*m_delta+0.35_gp*cfd%s_delta(:,na)+0.10_gp*cfd%dd_delta(:,na))
-            cfd%B_at(:,na)=lambda*(1.30_gp*m_delta+0.35_gp*cfd%s_delta(:,na)-0.10_gp*cfd%dd_delta(:,na))   !<-- use this for atoms
+            !cfd%B_at(:,na)=lambda_t*(1.30_gp*m_delta+0.35_gp*cfd%s_delta(:,na)-0.10_gp*cfd%dd_delta(:,na))   !<-- use this for atoms
+            !cfd%B_at(:,na)=lambda_t*(1.30_gp*m_delta+0.35_gp*cfd%s_delta(:,na)-0.10_gp*cfd%dd_delta(:,na))   !<-- use this for !atoms bigdft best
+            !B_diff=lambda_t*(2.00_gp*m_delta+0.20_gp*cfd%s_delta(:,na)-0.20_gp*cfd%dd_delta(:,na)) 
+            B_diff=lambda_t*(1.30_gp*m_delta+0.35_gp*cfd%s_delta(:,na)-0.10_gp*cfd%dd_delta(:,na))   !<-- use this for atoms
+            cfd%constrained_mom_err=cfd%constrained_mom_err+sum((cfd%B_at(:,na)-B_diff)**2)
+            cfd%B_at(:,na)=B_diff
+            !cfd%B_at(:,na)=lambda_t*(1.00_gp*m_delta+1.00_gp*cfd%s_delta(:,na)+0.10_gp*cfd%dd_delta(:,na))   !<-- use this for atoms
+            !cfd%B_at(:,na)=lambda_t*(1.20_gp*m_delta+0.30_gp*cfd%s_delta(:,na)-0.10_gp*cfd%dd_delta(:,na))   !<-- use this for atoms
+            !cfd%B_at(:,na)=lambda_t*(1.30_gp*m_delta+0.50_gp*cfd%s_delta(:,na)-0.10_gp*cfd%dd_delta(:,na))   !<-- test
 
             !cfd%B_at_pts(:,ir)=lambda_t*(1.00_gp*m_delta+0.12_gp*cfd%s_delta_pts(:,ir)+0.10_gp*cfd%dd_delta(:,na))   !ok for grids
 
             ! Calculate Zeeman-like constraining energy cost
             etcon = etcon + sum(cfd%B_at(:,na)*cfd%m_at(:,na))
-            cfd%d_delta(:,na)=m_delta
+            cfd%d_delta(:,na)=m_delta*0.5_gp
             !
-            if(iproc==0) write (stdout,'(4x,a,i4,3f15.8)' ) " | P  contribution    for atom ",na,cfd%d_delta(:,na)
-            if(iproc==0) write (stdout,'(4x,a,i4,3f15.8)' ) " | I  contribution    for atom ",na,cfd%s_delta(:,na)
-            if(iproc==0) write (stdout,'(4x,a,i4,3f15.8)' ) " | D  contribution    for atom ",na,cfd%dd_delta(:,na)
+            !if(iproc==0) write (stdout,'(4x,a,i4,3f15.8)' ) " | P  contribution    for atom ",na,cfd%d_delta(:,na)
+            if(iproc==0) write (stdout,'(4x,a,i4,3f15.8)' ) " | P  contribution    for atom ",na,m_delta*lambda_t*1.30_gp
+            if(iproc==0) write (stdout,'(4x,a,i4,3f15.8)' ) " | I  contribution    for atom ",na,cfd%s_delta(:,na)*lambda_t*0.35_gp
+            if(iproc==0) write (stdout,'(4x,a,i4,3f15.8)' ) " | D  contribution    for atom ",na,cfd%dd_delta(:,na)*lambda_t*-0.10_gp*(-1.0_gp)
             if(iproc==0) write (stdout,'(4x,a,i4,4f15.8)' ) " | Constraining field for atom ",na,cfd%B_at(:,na)
             if(iproc==0) write (stdout,'(4x,a,i4,3f15.4)' ) " | Constraining field for atom (t)",na,cfd_prefac*cfd%B_at(:,na)
+            if(iproc==0 .and. na==cfd%nat) write (stdout,'(4x,a,2f15.4,g14.6)' ) " | Lambda prefactors ",lambda_t,lambda
 
          else if (i_cons==5) then
             ! i_cons = 5 means that we try the Ma-Dudarev approach
@@ -298,7 +318,6 @@ contains
             !
             !
             if(iproc==0) write (stdout,'(2x,a)') ' Ma-Dudarev constraints '
-            constrained_mom_err=0.0_gp
             !
             ! Check moment magnitude
             ma = dsqrt(cfd%m_at(1,na)**2+cfd%m_at(2,na)**2+cfd%m_at(3,na)**2)
@@ -326,7 +345,7 @@ contains
                !
                ! calculate zeeman-like constraining energy cost
                etcon = etcon + lambda_t*(sqrt(sum(cfd%m_at(:,na)*cfd%m_at(:,na)))-sum(cfd%m_at(:,na)*e_i/ma))
-               constrained_mom_err = constrained_mom_err + sum(e_out-e_i)**2
+               cfd%constrained_mom_err = cfd%constrained_mom_err + sum(e_out-e_i)**2
                ! if(iproc==0) write (stdout,'(4x,a,i4,3f15.8)' ) " | new field          for atom ",na,B_at_new
                if(iproc==0) write (stdout,'(4x,a,i4,4f15.8)' ) " | Output field       for atom ",na,cfd%B_at(:,na),&
                   sum(cfd%B_at(:,na)*e_i)
@@ -338,11 +357,11 @@ contains
          end if
       end do ! na
       !
-      constrained_mom_err=sqrt(constrained_mom_err)/cfd%nat
+      cfd%constrained_mom_err=sqrt(cfd%constrained_mom_err)/cfd%nat
 
       b_constr_iter=b_constr_iter+1
       !if(i_cons==5) lambda_t=min(lambda_t+4_gp,100.0_gp)
-      if(i_cons==5) lambda_t=min(lambda_t+1.0_gp-lambda_t/lambda,lambda)
+      !if(i_cons==5) lambda_t=min(lambda_t+1.0_gp-lambda_t/lambda,lambda)
       !if(i_cons==3) lambda_t=min(lambda_t+1.0_gp-lambda_t/lambda,lambda)
       ! works for moderate lambdas
       !if(i_cons==3) then
@@ -355,17 +374,20 @@ contains
       !
       !
       ! scale up lambda in case of Lagrangian formulation
-      if(etcon<1.0d-2) lambda_t=min(1.2_gp*lambda_t,1.0e4_gp)
+      if(i_cons==5.and.etcon<1.0d-2) lambda_t=min(1.2_gp*lambda_t,1.0e4_gp)
       if(i_cons==3) lambda_t=min(lambda_t*(2.0_gp-lambda_t/lambda),lambda)
+      !if(i_cons==3) lambda_t=min(lambda_t*(2.0_gp-lambda_t/lambda),lambda)
       !if(i_cons==5) lambda_t=min(lambda_t*(2.0_gp-lambda_t/lambda),lambda)
-      if(i_cons==5) lambda_t=min(lambda_t+2.0_gp,lambda)
+      !if(i_cons==5) lambda_t=min(lambda_t+2.0_gp,lambda)
+     ! if(i_cons==5) lambda_t=min(lambda_t+1.0_gp,lambda)
       ! if(i_cons==4) lambda_t=min(lambda_t+1.0_gp,25.0_gp)
       !if(i_cons==4) lambda_t=lambda_t+1.0_gp
       !if(i_cons==5) lambda_t=lambda_t+lambda_t*min(0.1_gp,etcon**2)
       !if(i_cons==5) lambda_t=lambda_t*(1.0_gp+0.5_gp*(etcon))
-      !if(i_cons==5) lambda_t=lambda_t*(1.0_gp+2.0_gp*min(constrained_mom_err,0.1_gp))
-      if(i_cons==5) then
-         if(iproc==0) write (stdout,'(4x,a,f12.4a,g10.2)' ) " | New lambda_t: ", lambda_t, "     error: ", constrained_mom_err
+      !if(i_cons==5) lambda_t=lambda_t*(1.0_gp+2.0_gp*min(cfd%constrained_mom_err,0.1_gp))
+      if(i_cons==5.or.i_cons==4) then
+         if(iproc==0) write (stdout,'(4x,a,f12.4a,g10.2)' ) " | New lambda_t: ", lambda_t, "     error: ", cfd%constrained_mom_err
+         if(iproc==0) write (stdout,'(4x,a,f12.4a,g10.2)' ) " | New lambda  : ", lambda  
       end if
       if(iproc==0) write (stdout,'(4x,a)' ) " | -  "
       deallocate(mom_tmp)
@@ -392,8 +414,9 @@ contains
       !
       ! Then read controlling flags
       read(22,*,end=100) i_cons  ! which constraining scheme to choose 
-      read(22,*,end=100) lambda  ! Lagrange factor for certains schemes
+      read(22,*,end=100) lambda_0,lambda  ! Lagrange factor for certains schemes
       read(22,*,end=100) cfd_prefac ! Fudge factor for testing the magnitude of the field
+      lambda_t=lambda_0
       100 continue
       !
       close(22)
@@ -407,29 +430,34 @@ contains
       !
       implicit none
       !
-      type(cfd_data), intent(in) :: cfd  !< the currently used cfd object
+      type(cfd_data), intent(inout) :: cfd  !< the currently used cfd object
       !
       logical :: cfd_is_converged
       real(gp), dimension(3) :: e_in, e_out
       integer :: iat
       !
-      !constrained_mom_err=sqrt(sum((cfd%m_at(1:3,1:cfd%nat)-cfd%m_at_ref(1:3,1:cfd%nat))**2))
+      !cfd%constrained_mom_err=sqrt(sum((cfd%m_at(1:3,1:cfd%nat)-cfd%m_at_ref(1:3,1:cfd%nat))**2))
       !
-      constrained_mom_err=0.0_gp
-      do iat=1,cfd%nat
-         e_in=cfd%m_at_ref(:,iat)
-         e_in=e_in/norm2(e_in+1.0e-12_gp)
-         e_out=cfd%m_at(:,iat)
-         e_out=e_out/norm2(e_out+1.0e-12_gp)
-         constrained_mom_err=constrained_mom_err+sum((e_in-e_out)**2)
-         print '(7f12.6)',e_in,e_out,constrained_mom_err
-      end do
-      constrained_mom_err=sqrt(constrained_mom_err)
+      !!! cfd%constrained_mom_err=0.0_gp
+      !!! do iat=1,cfd%nat
+      !!!    e_in=cfd%m_at_ref(:,iat)
+      !!!    e_in=e_in/norm2(e_in+1.0e-12_gp)
+      !!!    e_out=cfd%m_at(:,iat)
+      !!!    e_out=e_out/norm2(e_out+1.0e-12_gp)
+      !!!    cfd%constrained_mom_err=cfd%constrained_mom_err+sum((e_in-e_out)**2)
+      !!!    !print '(7f12.6)',e_in,e_out,cfd%constrained_mom_err
+      !!! end do
+      !!! cfd%constrained_mom_err=sqrt(cfd%constrained_mom_err)
       !
-      cfd_is_converged=constrained_mom_err<1.0d-5
+      !cfd_is_converged=cfd%constrained_mom_err<5.0d-4
+      !cfd_is_converged=cfd%constrained_mom_err<1.0d-5
+      cfd_is_converged=cfd%constrained_mom_err<cfd_thresh.and.cfd%constrained_mom_err>0.0_gp
+      if(cfd_is_converged) write(999,'(3g14.6)') cfd%B_at
+      if(cfd_is_converged) lambda_t=lambda_0
       !
+      if(cfd_is_converged) cfd%constrained_mom_err=0.0_gp
       !print '(3f12.6)', cfd%m_at(:,:)
-      !print *,'ref.  moments',constrained_mom_err
+      !print *,'ref.  moments',cfd%constrained_mom_err
       !print '(3f12.6)', cfd%m_at_ref(:,:)
       !
       return

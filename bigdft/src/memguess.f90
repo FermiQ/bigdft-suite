@@ -1549,21 +1549,24 @@ program memguess
       end if
 
       ! Optionally compute iorbp from arguments in case of ETSF.
-      if (f_err_raise(export_wf_ikpt < 1 .or. export_wf_ikpt > orbs%nkpts, &
-           'The value ikpt is not compatible with the kpt dimension',&
-             err_name='BIGDFT_RUNTIME_ERROR')) then !exit !return
-       end if
-      if (f_err_raise(export_wf_ispin < 1 .or. export_wf_ispin > orbs%nspin, &
-           'The value ispin is not compatible with the spin dimension',&
-             err_name='BIGDFT_RUNTIME_ERROR')) then !exit !return
-       end if
-      if (f_err_raise((export_wf_ispin == 1 .and. &
-           & (export_wf_iband < 1 .or. export_wf_iband > orbs%norbu)) .or. &
-           & (export_wf_ispin == 0 .and. &
-           & (export_wf_iband < 1 .or. export_wf_iband > orbs%norbd)), &
-           'The value iband is not compatible with the orbital dimension',&
-             err_name='BIGDFT_RUNTIME_ERROR')) then !exit !return
-       end if
+      !if (f_err_raise(export_wf_ikpt < 1 .or. export_wf_ikpt > orbs%nkpts, &
+      !     'The value ikpt is not compatible with the kpt dimension',&
+      !       err_name='BIGDFT_RUNTIME_ERROR')) return
+      !    !then !exit !return
+      ! !end if
+      !if (f_err_raise(export_wf_ispin < 1 .or. export_wf_ispin > orbs%nspin, &
+      !     'The value ispin is not compatible with the spin dimension',&
+      !       err_name='BIGDFT_RUNTIME_ERROR')) return 
+      !    !then !exit !return
+      ! !end if
+      !if (f_err_raise((export_wf_ispin == 1 .and. &
+      !     & (export_wf_iband < 1 .or. export_wf_iband > orbs%norbu)) .or. &
+      !     & (export_wf_ispin == 0 .and. &
+      !     & (export_wf_iband < 1 .or. export_wf_iband > orbs%norbd)), &
+      !     'The value iband is not compatible with the orbital dimension',&
+      !       err_name='BIGDFT_RUNTIME_ERROR')) return 
+      !    !then !exit !return
+       !end if
       iorbp = (export_wf_ikpt - 1) * orbs%norb + &
            & (export_wf_ispin - 1) * orbs%norbu + export_wf_iband
 

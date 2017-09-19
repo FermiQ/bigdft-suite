@@ -24,7 +24,9 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
   use rhopotential, only: full_local_potential
   use public_enums
   use rhopotential, only: updatePotential,exchange_and_correlation
-  use module_cfd, only: cfd_dump_info, cfd_field
+  use module_cfd, only: cfd_dump_info, cfd_field, cfd_is_converged
+  use module_asd, only: asd_data, asd_wrapper, asd
+  !
   implicit none
   !Arguments
   logical, intent(in) :: scf  !< If .false. do not calculate the self-consistent potential
@@ -51,6 +53,8 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
   !$ integer :: omp_get_max_threads,omp_get_thread_num,omp_get_num_threads
   real(gp) :: compch_sph
   !$ real(wp), dimension(:), allocatable :: temp,m_norm,temp2 !to be removed
+  !!! Temporary asd data type. To be moved..
+  !!type(asd_data) :: asd
 
 
   call f_routine(id=subname)
@@ -243,13 +247,24 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
      if (denspot%cfd%nat >0) then
 !!$        !here the constraingin magnetic field is added on top of the local xc potential
            ! First calculate the new constraining field
-           call cfd_field(denspot%cfd,iproc)
+           if(iproc==0) call cfd_field(denspot%cfd,iproc)
+           call mpibcast(denspot%cfd%B_at,root=0,comm=bigdft_mpi%mpi_comm)!,check=.true.)
+           call mpibcast(denspot%cfd%constrained_mom_err,root=0,comm=bigdft_mpi%mpi_comm)!,check=.true.)
 !!$        call f_zero(denspot%cfd%B_at)
 !!$        denspot%cfd%B_at(1,1)=0.5_gp
 !!$        denspot%cfd%B_at(1,2)=0.5_gp
            ! Then apply the field
         call atomic_magnetic_field(denspot%dpbox%bitp,denspot%dpbox%ndimpot,atoms%astruct%nat,&
              denspot%cfd%rxyz,denspot%cfd%radii,denspot%cfd%B_at,denspot%V_XC)
+!          call mpiallred(denspot%cfd%B_at,op=MPI_SUM,comm=bigdft_mpi%mpi_comm)
+          if (cfd_is_converged(denspot%cfd)) then
+             if(iproc==0) print *, 'Calling ASD! moments_in:'
+             if(iproc==0) print '(3f12.6)', denspot%cfd%m_at_ref
+             if(iproc==0) call asd_wrapper(asd,denspot%cfd%m_at_ref,denspot%cfd%B_at,denspot%cfd%nat)
+             call mpibcast(denspot%cfd%m_at_ref,root=0,comm=bigdft_mpi%mpi_comm)!,check=.true.)
+             if(iproc==0) print *, 'ASD called... moments_out' 
+             if(iproc==0) print '(3f12.6)', denspot%cfd%m_at_ref
+          end if
      end if
 
 !!$        call XC_potential(atoms%astruct%geocode,'D',denspot%pkernel%mpi_env%iproc,denspot%pkernel%mpi_env%nproc,&
