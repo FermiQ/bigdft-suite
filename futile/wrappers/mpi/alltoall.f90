@@ -13,6 +13,7 @@ module f_alltoall
   use fmpi_types
   use dictionaries, only: f_err_throw
   use f_allreduce
+  use f_onesided
   implicit none
 
   private
@@ -29,7 +30,7 @@ module f_alltoall
 
 
   interface fmpi_alltoall
-     module procedure mpialltoallw_i11
+     module procedure mpialltoallw_d11
   end interface fmpi_alltoall
   
 !!$  interface mpialltoallv
@@ -134,26 +135,31 @@ module f_alltoall
      
     end function alltoall_algorithm
 
-    recursive subroutine mpialltoallw_i11(sendbuf, recvbuf, &
+    !recursive
+    subroutine mpialltoallw_d11(sendbuf, recvbuf, &
          count, sendcounts, sdispls, recvcounts, rdispls, comm, request, win, algorithm)
       use dynamic_memory
       use yaml_output
       use f_utils, only: f_size
+      use dictionaries
       !use iso_c_binding
       implicit none
-      integer(f_integer),dimension(:),intent(in)  :: sendbuf
-      integer(f_integer),dimension(:),intent(out) :: recvbuf
+      real(f_double), dimension(:),intent(in)  :: sendbuf
+      real(f_double), dimension(:),intent(out) :: recvbuf
       integer, intent(in), optional :: count
       integer, dimension(0:), intent(in), optional :: sendcounts,sdispls
       integer, dimension(0:), intent(in), optional :: recvcounts,rdispls
-      integer(fmpi_integer), intent(out), optional :: request,win
+      integer(fmpi_integer), intent(out), optional :: request
+      type(fmpi_win), intent(out), optional :: win
       integer,intent(in), optional :: comm
       type(f_enumerator), intent(in), optional :: algorithm
       ! Local variables
       integer :: algo,nproc,jproc
-      integer(fmpi_integer) :: ierr,window,cnt
+      integer(fmpi_integer) :: ierr,cnt
       integer(f_long) :: sizets,sizetr
       integer, dimension(:), allocatable :: nsenddspls_remote
+      type(dictionary), pointer :: dict_info
+      type(fmpi_win) :: window
       external :: MPI_ALLTOALL,MPI_ALLTOALLV
       
       nproc=mpisize(comm)
@@ -170,6 +176,7 @@ module f_alltoall
            cnt,sendcounts,sdispls,&
            cnt,recvcounts,rdispls,algorithm,comm)
       if (present(request)) request=FMPI_REQUEST_NULL
+      if (present(win)) algo=VARIABLE_ONE_SIDED_GET
       select case(algo)
       case(NOT_VARIABLE)
          call MPI_ALLTOALL(sendbuf,cnt,mpitype(sendbuf), &
@@ -184,17 +191,29 @@ module f_alltoall
          end if
       case(VARIABLE_ONE_SIDED_GET)
          nsenddspls_remote = f_malloc(0.to.nproc-1,id='nsenddspls_remote')
-         call fmpi_alltoall(sendbuf=sdispls,recvbuf=nsenddspls_remote,count=1,comm=comm)
+         !call fmpi_alltoall(sendbuf=sdispls,recvbuf=nsenddspls_remote,count=1,comm=comm) !TO BE ADDED ASAP
          !info=mpiinfo("no_locks", "true")
-         window = mpiwindow(size(sendbuf), sendbuf, comm)
+         dict_info=>dict_new('nolocks' .is. 'true')
+         !window = mpiwindow(size(sendbuf), sendbuf, comm)
+         call fmpi_win_create(window,sendbuf(1),size=sizets,dict_info=dict_info,comm=comm)
+         call fmpi_win_fence(window,FMPI_WIN_OPEN)
+
+         call dict_free(dict_info)
          do jproc=0,nproc-1
             if (recvcounts(jproc)>0) then
-               call fmpi_get(origin_addr=recvbuf,origin_displ=rdispls(jproc),target_rank=jproc,&
-                    target_disp=nsenddspls_remote(jproc),target_count=recvcounts(jproc),win=window)
+               call fmpi_get(origin_addr=recvbuf(1),origin_displ=rdispls(jproc),target_rank=jproc,&
+                    target_disp=int(nsenddspls_remote(jproc),fmpi_address),count=recvcounts(jproc),win=window)
             end if
          end do
-         call mpi_fenceandfree(window)
+         if (present(win)) then
+            win=window
+            !there should be no need to nullify window
+         else
+            call fmpi_win_fence(window,FMPI_WIN_CLOSE)
+            call fmpi_win_free(window)
+         end if
          !call mpiinfofree(info)
+         
          call f_free(nsenddspls_remote)
          ierr=FMPI_SUCCESS
       end select
@@ -204,7 +223,7 @@ module f_alltoall
          return
       end if
 
-    end subroutine mpialltoallw_i11
+    end subroutine mpialltoallw_d11
 
 !!$    subroutine mpialltoallv_long11(sendbuf, sendcounts, sdispls, recvbuf, recvcounts, rdispls, comm, algorithm)
 !!$      use dictionaries, only: f_err_throw,f_err_define

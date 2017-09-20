@@ -15,7 +15,11 @@ end module mpif_module
 module fmpi_types
   !renaming of the public constants
   use mpif_module, FMPI_IN_PLACE => MPI_IN_PLACE, FMPI_SUCCESS=>MPI_SUCCESS,&
-       FMPI_REQUEST_NULL=>MPI_REQUEST_NULL
+       FMPI_REQUEST_NULL=>MPI_REQUEST_NULL,FMPI_INFO_NULL=>MPI_INFO_NULL,FMPI_WIN_NULL=>MPI_WIN_NULL,&
+       FMPI_COMM_NULL=>MPI_COMM_NULL,FMPI_GROUP_NULL=>MPI_GROUP_NULL,&
+       FMPI_MODE_NOPRECEDE=>MPI_MODE_NOPRECEDE,&
+       FMPI_MODE_NOSUCCEED=>MPI_MODE_NOSUCCEED,FMPI_MODE_NOSTORE=>MPI_MODE_NOSTORE,&
+       FMPI_MODE_NOPUT=>MPI_MODE_NOPUT
   use f_precisions
   use f_enums
   use dictionaries, only: f_err_throw
@@ -34,8 +38,13 @@ module fmpi_types
      module procedure mpitype_li1,mpitype_li2,mpitype_li3
   end interface mpitype
 
+  interface mpitypesize
+    module procedure mpitypesize_d0, mpitypesize_d1, mpitypesize_i0, mpitypesize_long0, mpitypesize_l0
+  end interface mpitypesize
+
   !might be included in a config.inc file
   integer, parameter, public :: fmpi_integer=f_integer
+  integer, parameter, public :: fmpi_address=MPI_ADDRESS_KIND
 
   !> Error codes
   integer, public, save :: ERR_MPI_WRAPPERS
@@ -44,17 +53,20 @@ module fmpi_types
   !type(f_enumerator), public, target :: FMPI_OP=f_enumerator('MPI_OP',-10,null())
 
   !>enumerators of mpi ops
+  type(f_enumerator), public :: FMPI_LAND=f_enumerator('MPI_LAND',int(MPI_LAND),null())
   type(f_enumerator), public :: FMPI_LOR=f_enumerator('MPI_LOR',int(MPI_LOR),null())
+  type(f_enumerator), public :: FMPI_MAX=f_enumerator('MPI_MAX',int(MPI_MAX),null())
 
   !>enumerator of objects
   !type(f_enumerator), public :: FMPI_SUCCESS=f_enumerator('MPI_SUCCESS',int(MPI_SUCCESS),null())
   !type(f_enumerator), public :: FMPI_REQUEST_NULL=f_enumerator('MPI_REQUEST_NULL',int(MPI_REQUEST_NULL),null())
 
   !> while deciding the optimal strategy for handles leave them as integers
-  public :: FMPI_IN_PLACE,FMPI_REQUEST_NULL,FMPI_SUCCESS
+  public :: FMPI_IN_PLACE,FMPI_REQUEST_NULL,FMPI_SUCCESS,FMPI_INFO_NULL,FMPI_WIN_NULL,FMPI_COMM_NULL
+  public :: FMPI_MODE_NOPUT,FMPI_MODE_NOPRECEDE,FMPI_MODE_NOSTORE,FMPI_MODE_NOSUCCEED,FMPI_GROUP_NULL
 
 
-  public :: mpitype,mpirank,mpisize,fmpi_comm
+  public :: mpitype,mpirank,mpisize,fmpi_comm,mpitypesize
 
 
 
@@ -144,6 +156,75 @@ contains
     end if
 
   end function mpisize
+
+  function mpitypesize_d0(foo) result(sizeof)
+    use dictionaries, only: f_err_throw,f_err_define
+    implicit none
+    real(f_double), intent(in) :: foo
+    integer(fmpi_integer) :: sizeof, ierr
+    integer :: kindt
+    kindt=kind(foo) !to remove compilation warning
+
+    call mpi_type_size(mpi_double_precision, sizeof, ierr)
+    if (ierr/=0) then
+       call f_err_throw('Error in mpi_type_size',&
+            err_id=ERR_MPI_WRAPPERS)
+    end if
+  end function mpitypesize_d0
+
+  function mpitypesize_d1(foo) result(sizeof)
+    implicit none
+    real(f_double), dimension(:), intent(in) :: foo
+    integer :: sizeof
+    integer :: kindt
+    kindt=kind(foo) !to remove compilation warning
+    sizeof=mpitypesize(1.0_f_double)
+  end function mpitypesize_d1
+
+  function mpitypesize_i0(foo) result(sizeof)
+    use dictionaries, only: f_err_throw,f_err_define
+    implicit none
+    integer, intent(in) :: foo
+    integer(fmpi_integer) :: sizeof, ierr
+    integer :: kindt
+    kindt=kind(foo) !to remove compilation warning
+
+    call mpi_type_size(mpi_integer, sizeof, ierr)
+    if (ierr/=0) then
+       call f_err_throw('Error in mpi_type_size',&
+            err_id=ERR_MPI_WRAPPERS)
+    end if
+  end function mpitypesize_i0
+
+  function mpitypesize_long0(foo) result(sizeof)
+    use dictionaries, only: f_err_throw,f_err_define
+    implicit none
+    integer(f_long), intent(in) :: foo
+    integer(fmpi_integer) :: sizeof, ierr
+    integer :: kindt
+    kindt=kind(foo) !to remove compilation warning
+
+    call mpi_type_size(mpi_long, sizeof, ierr)
+    if (ierr/=0) then
+       call f_err_throw('Error in mpi_type_size',&
+            err_id=ERR_MPI_WRAPPERS)
+    end if
+  end function mpitypesize_long0
+
+  function mpitypesize_l0(foo) result(sizeof)
+    use dictionaries, only: f_err_throw,f_err_define
+    implicit none
+    logical, intent(in) :: foo
+    integer(fmpi_integer) :: sizeof, ierr
+    integer :: kindt
+    kindt=kind(foo) !to remove compilation warning
+
+    call mpi_type_size(mpi_logical, sizeof, ierr)
+    if (ierr/=0) then
+       call f_err_throw('Error in mpi_type_size',&
+            err_id=ERR_MPI_WRAPPERS)
+    end if
+  end function mpitypesize_l0
 
 
 

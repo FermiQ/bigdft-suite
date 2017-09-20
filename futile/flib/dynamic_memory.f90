@@ -158,7 +158,7 @@ module dynamic_memory_base
   end interface f_maxdiff
 
   interface f_subptr
-     module procedure f_subptr_d0
+     module procedure f_subptr_d0,f_subptr_d00!,f_subptr_i00
   end interface f_subptr
 
   public :: f_free,f_free_ptr,f_free_str,f_free_str_ptr,f_malloc_dump_status
@@ -1131,6 +1131,56 @@ contains
 
   end subroutine f_malloc_dump_status
 
+  function f_subptr_d00(ptr_addr,size,from,lbound) result(win)
+    implicit none
+    real(f_double) :: ptr_addr
+    real(f_double), dimension(:), pointer :: win
+    integer, intent(in), optional :: from
+    integer, intent(in) :: size
+    integer, intent(in), optional :: lbound !<in the case of different bounds for the pointer
+    !local variables
+    integer(f_kind) :: lb,ub,is,ie
+    interface
+       subroutine f_map_ptr_addr(lb,ub,is,ie,heap,ptr)
+         use module_f_malloc, only: f_kind
+         use f_precisions, only: f_double
+         implicit none
+         integer(f_kind) :: lb,ub,is,ie
+         real(f_double) :: heap
+         real(f_double), dimension(:), pointer :: ptr
+       end subroutine f_map_ptr_addr
+    end interface
+    nullify(win)
+    if (present(from)) then
+       is=from
+       ie=from+size-1
+    else
+       is=1
+       ie=size
+    end if
+
+    lb=1
+    if (present(lbound)) lb=lbound
+    ub=ie-is+lb
+    if (ub < lb) return
+
+    call f_map_ptr_addr(lb,ub,is,ie,ptr_addr,win)
+
+    !then perform the check for the subpointer region
+    if (get_lbnd(win) /= lb) call f_err_throw(&
+         'ERROR (f_subptr): expected shape does not match, '//&
+         trim(yaml_toa(get_lbnd(win)))//' vs. '//trim(yaml_toa(lb)),&
+         ERR_MALLOC_INTERNAL)
+
+    if (f_loc(win(lb)) /= f_loc(ptr_addr)) &
+         !.or. &
+         !f_loc(win(ub)) /= f_loc(ptr_addr)+int(size,f_address)*kind(ptr_addr)) 
+         call f_err_throw(&
+         'ERROR (f_subptr): addresses do not match, the allocating system has performed a copy',&
+         ERR_MALLOC_INTERNAL)
+
+  end function f_subptr_d00
+
   !>points toward a region of a given pointer
   function f_subptr_d0(ptr,region,from,size,lbound) result(win)
     implicit none
@@ -1302,7 +1352,6 @@ contains
   include 'malloc_templates-inc.f90'
 
 end module dynamic_memory_base
-
 
 module dynamic_memory
   use module_f_malloc

@@ -41,7 +41,7 @@ module f_allreduce
 
   integer, public, save :: TCAT_ALLRED_SMALL = TIMING_UNINITIALIZED
   integer, public, save :: TCAT_ALLRED_LARGE = TIMING_UNINITIALIZED
-  integer, parameter :: smallsize=5 !< limit for a communication with small size
+  integer, parameter, public :: smallsize=5 !< limit for a communication with small size
 
   contains
    

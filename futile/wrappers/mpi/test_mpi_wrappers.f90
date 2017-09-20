@@ -13,6 +13,8 @@ module test_mpi_wrappers
   use dynamic_memory
   use wrapper_mpi
   use yaml_output
+  use f_alltoall
+  use fmpi_types
   implicit none
 
   private
@@ -88,8 +90,11 @@ module test_mpi_wrappers
 
           do irep=1,nrep
               t1 = mpi_wtime()
-              call mpialltoallv(sendbuf, sendcounts, senddispls, &
-                   recvbuf, recvcounts, recvdispls, comm, algorithm='mpi_get')
+              !call mpialltoallv(sendbuf, sendcounts, senddispls, &
+              !     recvbuf, recvcounts, recvdispls, comm, algorithm='mpi_get')
+              call fmpi_alltoall(sendbuf,recvbuf=recvbuf,&
+                   sendcounts=sendcounts,sdispls=senddispls,&
+                   recvcounts=recvcounts,rdispls=recvdispls,comm=comm,algorithm=ALLTOALL_GET_ENUM)
               t2 = mpi_wtime()
               times(irep,1) = t2 - t1
               correct(1) = check_result(iproc, nproc, comm, itest, nstride, nsize_local, fac, recvbuf)
@@ -104,8 +109,12 @@ module test_mpi_wrappers
 
           do irep=1,nrep
               t1 = mpi_wtime()
-              call mpialltoallv(sendbuf, sendcounts, senddispls, &
-                   recvbuf, recvcounts, recvdispls, comm, algorithm='native')
+              !call mpialltoallv(sendbuf, sendcounts, senddispls, &
+              !     recvbuf, recvcounts, recvdispls, comm, algorithm='native')
+              call fmpi_alltoall(sendbuf,recvbuf=recvbuf,&
+                   sendcounts=sendcounts,sdispls=senddispls,&
+                   recvcounts=recvcounts,rdispls=recvdispls,comm=comm,algorithm=ALLTOALLV_ENUM)
+
               t2 = mpi_wtime()
               times(irep,2) = t2 - t1
               correct(2) = check_result(iproc, nproc, comm, itest, nstride, nsize_local, fac, recvbuf)
@@ -154,7 +163,7 @@ module test_mpi_wrappers
       ! Local variables
       integer :: iel, jproc, i
       real(f_double) :: val
-
+      
       check_result = .true.
       iel = 0
       do jproc=0,nproc-1
@@ -166,7 +175,8 @@ module test_mpi_wrappers
               end if
           end do
       end do
-      call mpiallred(check_result, 1, mpi_land, comm=comm)
+      !call mpiallred(check_result, 1, mpi_land, comm=comm)
+      call fmpi_allreduce(check_result, 1, FMPI_LAND, comm=comm)
     end function check_result
 
 

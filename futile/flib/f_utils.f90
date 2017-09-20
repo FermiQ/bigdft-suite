@@ -941,7 +941,6 @@ contains
     call diff_i(n,a(1),b(1,1),diff,idiff)
   end subroutine f_diff_i1i2
 
-
   subroutine f_diff_li(n,a_add,b_add,diff)
     implicit none
     integer(f_long), intent(in) :: n

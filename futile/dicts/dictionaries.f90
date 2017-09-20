@@ -1798,14 +1798,14 @@ contains
 
 
    !> Merge subd into dict.
-   subroutine dict_update(dict, subd)
+   subroutine dict_update(dest, src)
      implicit none
-     type(dictionary), pointer :: dict, subd
+     type(dictionary), pointer :: dest, src
 
-     if (.not.associated(dict)) then
-        call dict_copy(dict, subd)
+     if (.not.associated(dest)) then
+        call dict_copy(dest, src)
      else
-        call update(dict, subd)
+        call update(dest, src)
      end if
 
      contains

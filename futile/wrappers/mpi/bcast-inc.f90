@@ -44,7 +44,7 @@
   !in the case of maxdiff, the broadcast is followed by a allreduce on the difference
   if (present(maxdiff)) then
      maxdiff=f_maxdiff(buffer,array_diff,n=n)
-     call mpiallred(maxdiff,1,MPI_MAX,comm=mpi_comm)
+     call fmpi_allreduce(maxdiff,1,FMPI_MAX,comm=mpi_comm)
      call f_free(array_diff)
   end if
 

@@ -45,14 +45,15 @@ mpif.h:
 	echo "integer, parameter :: MPI_GROUP_NULL=0, MPI_PROC_NULL=0, MPI_WIN_NULL=0" >> mpif.h &&\
 	echo "real(kind=8), external :: mpi_wtime" >> mpif.h
 
-libfmpi_a_SOURCES = scalars.f90 allreduce.f90 alltoall.f90 \
+libfmpi_a_SOURCES = scalars.f90 allreduce.f90 alltoall.f90 onesided.f90 \
 	mpi.F90 $(mpi_source) test_mpi_wrappers.f90
 
 $(modules): $(libfmpi_a_OBJECTS)
 mpi.o: $(mpi_include) alltoall.o allreduce.o
 test_mpi_wrappers.o: mpi.o
+onesided.o: scalars.o
 allreduce.o: $(ALLREDUCE_INCLUDES) scalars.o
-alltoall.o: $(ALLTOALL_INCLUDES) allreduce.o
+alltoall.o: $(ALLTOALL_INCLUDES) allreduce.o onesided.o
 
 AM_FCFLAGS = -I. -I$(top_builddir)/dicts/ -I$(top_builddir)/flib/ @MPI_INCLUDE@
 
