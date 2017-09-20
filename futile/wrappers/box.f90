@@ -57,15 +57,23 @@ module box
 !!$     module procedure box_iter_c,box_iter_base
 !!$  end interface box_iter
 
-  interface dotp
-     module procedure dotp,dotp_add1,dotp_add2
-  end interface dotp
+  interface dotp_gu
+     module procedure dotp_gu,dotp_add1,dotp_add2
+  end interface dotp_gu
 
-  interface square
+  interface square_gu
      module procedure square,square_add
-  end interface square
+  end interface square_gu
 
-  public :: cell_r,cell_periodic_dims,distance,closest_r,square,cell_new,box_iter,box_next_point
+  interface dotp_gd
+     module procedure dotp_gd,dotp_add1,dotp_add2
+  end interface dotp_gd
+
+  interface square_gd
+     module procedure square_gd,square_add
+  end interface square_gd
+
+  public :: cell_r,cell_periodic_dims,distance,closest_r,square_gu,square_gd,cell_new,box_iter,box_next_point
   public :: cell_geocode,box_next_x,box_next_y,box_next_z,dotp,cell_null,nullify_box_iterator
 
 contains
@@ -808,6 +816,7 @@ contains
 
   !> Calculates the square of the vector r in the cell defined by mesh
   !! Takes into account the non-orthorhombicity of the box
+  !! with the controvariant metric (mesh%gu)
   pure function square(mesh,v)
     implicit none
     !> array of coordinate in the mesh reference frame
@@ -819,7 +828,7 @@ contains
     if (mesh%orthorhombic) then
        square=v(1)**2+v(2)**2+v(3)**2
     else
-       square=dotp(mesh,v,v)
+       square=dotp_gu(mesh,v,v)
     end if
 
   end function square
@@ -837,27 +846,45 @@ contains
 
   end function square_add
 
+  !> Calculates the square of the vector r in the cell defined by mesh
+  !! Takes into account the non-orthorhombicity of the box
+  !! with the covariant metric (mesh%gd)
+  pure function square_gd(mesh,v)
+    implicit none
+    !> array of coordinate in the mesh reference frame
+    real(gp), dimension(3), intent(in) :: v
+    type(cell), intent(in) :: mesh !<definition of the cell
+    real(gp) :: square_gd
+    integer :: i,j
 
-  pure function dotp(mesh,v1,v2)
+    if (mesh%orthorhombic) then
+       square_gd=v(1)**2+v(2)**2+v(3)**2
+    else
+       square_gd=dotp_gd(mesh,v,v)
+    end if
+
+  end function square_gd
+
+  pure function dotp_gu(mesh,v1,v2)
     implicit none
     real(gp), dimension(3), intent(in) :: v1,v2
     type(cell), intent(in) :: mesh !<definition of the cell
-    real(gp) :: dotp
+    real(gp) :: dotp_gu
     !local variables
     integer :: i,j
 
     if (mesh%orthorhombic) then
-       dotp=v1(1)*v2(1)+v1(2)*v2(2)+v1(3)*v2(3)
+       dotp_gu=v1(1)*v2(1)+v1(2)*v2(2)+v1(3)*v2(3)
     else
-       dotp=0.0_gp
+       dotp_gu=0.0_gp
        do i=1,3
           do j=1,3
-             dotp=dotp+mesh%gu(i,j)*v1(i)*v2(j)
+             dotp_gu=dotp_gu+mesh%gu(i,j)*v1(i)*v2(j)
           end do
        end do
     end if
 
-  end function dotp
+  end function dotp_gu
 
   function dotp_add2(mesh,v1,v2_add) result(dotp)
     implicit none
@@ -884,6 +911,27 @@ contains
     end if
 
   end function dotp_add1
+
+  pure function dotp_gd(mesh,v1,v2)
+    implicit none
+    real(gp), dimension(3), intent(in) :: v1,v2
+    type(cell), intent(in) :: mesh !<definition of the cell
+    real(gp) :: dotp_gd
+    !local variables
+    integer :: i,j
+
+    if (mesh%orthorhombic) then
+       dotp_gd=v1(1)*v2(1)+v1(2)*v2(2)+v1(3)*v2(3)
+    else
+       dotp_gd=0.0_gp
+       do i=1,3
+          do j=1,3
+             dotp_gd=dotp_gd+mesh%gd(i,j)*v1(i)*v2(j)
+          end do
+       end do
+    end if
+
+  end function dotp_gd
 
 end module box
 
