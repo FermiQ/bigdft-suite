@@ -21,7 +21,7 @@ module module_cfd
    !> conversion of units from Ry to Tesla. Used for EOM solver (need to adjust for current energy unit)
    real(gp), parameter :: b2t = 235298.924212429_gp
    !> conversion of units from Ry to Tesla. Used for EOM solver (need to adjust for current energy unit)
-   real(gp), parameter :: cfd_thresh = 1.0e-7_gp
+   real(gp), parameter :: cfd_thresh = 5.0e-7_gp
    !
    !> Lagrange penalty factor (to be modified and moved)
    real(gp) :: lambda = 10.0_gp
@@ -211,6 +211,10 @@ contains
       real(gp), dimension(3) :: e_i, e_out, c_in
       real(gp), dimension(3) :: m_delta, B_at_new, B_diff
       real(gp) :: etcon, ma, mnorm
+      ! PID factors (e_k in ref = m_delta here)
+      real(gp) :: K=-0.3d0, T_s= 0.3d0, T_i=3.0d0, T_d=-0.1d0
+      !real(gp) :: K=-0.3d0, T_s= 0.3d0, T_i=1.5d0, T_d=-0.1d0 !best so far
+      ! u_k = K*(e_k+I_k-1+T_s/T_i*e_k + T_d/T_s*(e_k-e_k_1))
 
       !!!   cfd_prefac=b2t*omega/(dfftp%nr1*dfftp%nr2*dfftp%nr3)
       if(i_cons==0) return
@@ -265,7 +269,8 @@ contains
                ! Full direction (untested)
                !m_delta=(e_i-e_out)
                ! Perp direction (works for bcc fe)
-               m_delta=-(cfd%m_at(:,na)-sum(cfd%m_at(:,na)*e_i)*e_i)
+               !m_delta=-(cfd%m_at(:,na)-sum(cfd%m_at(:,na)*e_i)*e_i)
+               m_delta=(cfd%m_at(:,na)-sum(cfd%m_at(:,na)*e_i)*e_i)
                !m_delta=-(e_out-norm2(e_out*e_i)*e_i)
             end if
             !
@@ -276,38 +281,35 @@ contains
             !gs
             !m_delta=-(e_out-norm2(e_out*e_i)*e_i)
             !
-            ! Check to don't mix first iteration
+            ! Check to don't mix first iteration (dd_delta=derivative)
             if(norm2(cfd%d_delta(:,na))>1e-15) cfd%dd_delta(:,na)=m_delta-cfd%d_delta(:,na)
             !
             if(iproc==0) write (stdout,'(4x,a,i4,3f15.8)' ) " | Output moments     for atom ",na,cfd%m_at(:,na)
-            if(iproc==0) write (stdout,'(4x,a,i4,3f15.8)' ) " | Input direction    for atom ",na,cfd%m_at_ref(:,na)/norm2(cfd%m_at_ref(:,na))
+            if(iproc==0) write (stdout,'(4x,a,i4,3f15.8)' ) " | Target direction   for atom ",na,cfd%m_at_ref(:,na)/norm2(cfd%m_at_ref(:,na))
             if(iproc==0) write (stdout,'(4x,a,i4,3f15.8)' ) " | Outut direction    for atom ",na,e_out
             if(iproc==0) write (stdout,'(4x,a,i4,3f15.8)' ) " | Input field        for atom ",na,cfd%B_at(:,na)
             !
-            ! Check to don't mix first iteration
-            if(norm2(cfd%d_delta(:,na))>1e-15) cfd%s_delta(:,na)=cfd%s_delta(:,na)+m_delta*0.5_gp
+            ! Check to don't mix first iteration (s_delta=integral=I_k)
+            if(norm2(cfd%d_delta(:,na))>1e-15) cfd%s_delta(:,na)=cfd%s_delta(:,na)+T_s/T_i*m_delta!*0.5_gp
 
             !cfd%B_at(:,na)=lambda_t*(1.20_gp*m_delta+0.35_gp*cfd%s_delta(:,na)+0.10_gp*cfd%dd_delta(:,na))
             !cfd%B_at(:,na)=lambda_t*(1.30_gp*m_delta+0.35_gp*cfd%s_delta(:,na)-0.10_gp*cfd%dd_delta(:,na))   !<-- use this for atoms
             !cfd%B_at(:,na)=lambda_t*(1.30_gp*m_delta+0.35_gp*cfd%s_delta(:,na)-0.10_gp*cfd%dd_delta(:,na))   !<-- use this for !atoms bigdft best
             !B_diff=lambda_t*(2.00_gp*m_delta+0.20_gp*cfd%s_delta(:,na)-0.20_gp*cfd%dd_delta(:,na)) 
-            B_diff=lambda_t*(1.30_gp*m_delta+0.35_gp*cfd%s_delta(:,na)-0.10_gp*cfd%dd_delta(:,na))   !<-- use this for atoms
+            B_diff=K*(m_delta+cfd%s_delta(:,na)+T_d/T_s*cfd%dd_delta(:,na))
             cfd%constrained_mom_err=cfd%constrained_mom_err+sum((cfd%B_at(:,na)-B_diff)**2)
             cfd%B_at(:,na)=B_diff
-            !cfd%B_at(:,na)=lambda_t*(1.00_gp*m_delta+1.00_gp*cfd%s_delta(:,na)+0.10_gp*cfd%dd_delta(:,na))   !<-- use this for atoms
-            !cfd%B_at(:,na)=lambda_t*(1.20_gp*m_delta+0.30_gp*cfd%s_delta(:,na)-0.10_gp*cfd%dd_delta(:,na))   !<-- use this for atoms
-            !cfd%B_at(:,na)=lambda_t*(1.30_gp*m_delta+0.50_gp*cfd%s_delta(:,na)-0.10_gp*cfd%dd_delta(:,na))   !<-- test
-
-            !cfd%B_at_pts(:,ir)=lambda_t*(1.00_gp*m_delta+0.12_gp*cfd%s_delta_pts(:,ir)+0.10_gp*cfd%dd_delta(:,na))   !ok for grids
 
             ! Calculate Zeeman-like constraining energy cost
             etcon = etcon + sum(cfd%B_at(:,na)*cfd%m_at(:,na))
-            cfd%d_delta(:,na)=m_delta*0.5_gp
+
+            ! d_delta=error=e_k
+            cfd%d_delta(:,na)=m_delta!*0.5_gp
             !
             !if(iproc==0) write (stdout,'(4x,a,i4,3f15.8)' ) " | P  contribution    for atom ",na,cfd%d_delta(:,na)
-            if(iproc==0) write (stdout,'(4x,a,i4,3f15.8)' ) " | P  contribution    for atom ",na,m_delta*lambda_t*1.30_gp
-            if(iproc==0) write (stdout,'(4x,a,i4,3f15.8)' ) " | I  contribution    for atom ",na,cfd%s_delta(:,na)*lambda_t*0.35_gp
-            if(iproc==0) write (stdout,'(4x,a,i4,3f15.8)' ) " | D  contribution    for atom ",na,cfd%dd_delta(:,na)*lambda_t*-0.10_gp*(-1.0_gp)
+            if(iproc==0) write (stdout,'(4x,a,i4,3f15.8)' ) " | P  contribution    for atom ",na,m_delta*K
+            if(iproc==0) write (stdout,'(4x,a,i4,3f15.8)' ) " | I  contribution    for atom ",na,cfd%s_delta(:,na)
+            if(iproc==0) write (stdout,'(4x,a,i4,3f15.8)' ) " | D  contribution    for atom ",na,cfd%dd_delta(:,na)*T_d/T_s
             if(iproc==0) write (stdout,'(4x,a,i4,4f15.8)' ) " | Constraining field for atom ",na,cfd%B_at(:,na)
             if(iproc==0) write (stdout,'(4x,a,i4,3f15.4)' ) " | Constraining field for atom (t)",na,cfd_prefac*cfd%B_at(:,na)
             if(iproc==0 .and. na==cfd%nat) write (stdout,'(4x,a,2f15.4,g14.6)' ) " | Lambda prefactors ",lambda_t,lambda
