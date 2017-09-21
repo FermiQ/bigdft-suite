@@ -416,7 +416,7 @@ contains
     end do loop_at
     eps=(cavity%epsilon0-vacuum_eps)*ep+vacuum_eps
     dleps=(eps-vacuum_eps)/eps*dha
-    d2ha=square(mesh,dha)
+    d2ha=square_gu(mesh,dha)
     sqd2ha=sqrt(d2ha)
     deps=(eps-vacuum_eps)*sqd2ha
     !corr=0.5_gp*(eps-vacuum_eps)/eps*(0.5_gp*d2ha*(1+eps)/eps+dcorrha)

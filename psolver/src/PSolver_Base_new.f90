@@ -2570,7 +2570,7 @@ subroutine P_multkernel_NO(nd1,nd2,n1,n2,n3,lot,nfft,jS,pot,zw,j3,mesh,offset,sc
       !running recip space coordinate
       pxyz(1)=p(j1,n1)/L1
       !square of modulus of recip space coordinate
-      g2=square(mesh,pxyz)
+      g2=square_gu(mesh,pxyz)
 !      g2=0.0_gp
 !      do i=1,3
 !       do j=1,3

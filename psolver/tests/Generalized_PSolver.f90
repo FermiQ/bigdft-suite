@@ -6833,12 +6833,12 @@ subroutine SetInitDensPot(mesh,n01,n02,n03,nspden,iproc,natreal,eps,dlogeps,SetE
         sumd=0.d0
         bit=box_iter(mesh,origin=rxyz(:,iat))
         do while(box_next_point(bit))
-           r2=square(mesh,bit%rxyz)
+           r2=square_gd(mesh,bit%rxyz)
            potential1(bit%i,bit%j,bit%k) = factor*safe_exp(-0.5d0*r2/(sigma**2))
            potential(bit%i,bit%j,bit%k) = potential(bit%i,bit%j,bit%k) + potential1(bit%i,bit%j,bit%k)
            sump=sump+potential(bit%i,bit%j,bit%k)
            offset=offset+potential(bit%i,bit%j,bit%k)
-           k1=dotp(mesh,dlogeps(1,bit%i,bit%j,bit%k),bit%rxyz)
+           k1=dotp_gu(mesh,dlogeps(1,bit%i,bit%j,bit%k),bit%rxyz)
            k1=-potential1(bit%i,bit%j,bit%k)*k1/(sigma**2)
            k2 = potential1(bit%i,bit%j,bit%k)*(r2/(sigma**2)-3.d0)/(sigma**2)
            dens = (-oneofourpi)*eps(bit%i,bit%j,bit%k)*(k1+k2)&
@@ -8056,7 +8056,7 @@ subroutine Eps_rigid_cavity_multiatoms(mesh,ndims,hgrids,natreal,rxyzreal,&
        !choose the closest atom
        do iat=1,nat
           bit%tmp=bit%rxyz-rxyz(:,iat)
-          d2=square(mesh,bit%tmp)
+          d2=square_gd(mesh,bit%tmp)
 !print *,'i,j,k',bit%i,bit%j,bit%k,d2,iat,bit%rxyz
           d=dsqrt(d2)
           !------------------------------------------------------------------
@@ -8118,7 +8118,7 @@ subroutine Eps_rigid_cavity_multiatoms(mesh,ndims,hgrids,natreal,rxyzreal,&
 !          d12 = d12 + deps(i)**2
        end do
 
-       d12=square(mesh,deps)
+       d12=square_gu(mesh,deps)
 
        dd=0.d0
        do jat=1,nat

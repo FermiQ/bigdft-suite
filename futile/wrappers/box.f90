@@ -74,7 +74,7 @@ module box
   end interface square_gd
 
   public :: cell_r,cell_periodic_dims,distance,closest_r,square_gu,square_gd,cell_new,box_iter,box_next_point
-  public :: cell_geocode,box_next_x,box_next_y,box_next_z,dotp,cell_null,nullify_box_iterator
+  public :: cell_geocode,box_next_x,box_next_y,box_next_z,dotp_gu,dotp_gd,cell_null,nullify_box_iterator
 
 contains
 
