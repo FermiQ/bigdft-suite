@@ -58,7 +58,7 @@ module box
 !!$  end interface box_iter
 
   interface dotp_gu
-     module procedure dotp_gu,dotp_add1,dotp_add2
+     module procedure dotp_gu,dotp_gu_add1,dotp_gu_add2
   end interface dotp_gu
 
   interface square_gu
@@ -66,11 +66,11 @@ module box
   end interface square_gu
 
   interface dotp_gd
-     module procedure dotp_gd,dotp_add1,dotp_add2
+     module procedure dotp_gd,dotp_gd_add1,dotp_gd_add2
   end interface dotp_gd
 
   interface square_gd
-     module procedure square_gd,square_add
+     module procedure square_gd,square_gd_add
   end interface square_gd
 
   public :: cell_r,cell_periodic_dims,distance,closest_r,square_gu,square_gd,cell_new,box_iter,box_next_point
@@ -842,6 +842,8 @@ contains
 
     if (mesh%orthorhombic) then
        call dotp_external_ortho(v_add,v_add,square)
+    else
+       call dotp_external_nonortho(mesh%gu,v_add,v_add,square)
     end if
 
   end function square_add
@@ -865,6 +867,21 @@ contains
 
   end function square_gd
 
+  function square_gd_add(mesh,v_add) result(square)
+    implicit none
+    !> array of coordinate in the mesh reference frame
+    real(gp) :: v_add
+    type(cell), intent(in) :: mesh !<definition of the cell
+    real(gp) :: square
+
+    if (mesh%orthorhombic) then
+       call dotp_external_ortho(v_add,v_add,square)
+    else
+       call dotp_external_nonortho(mesh%gd,v_add,v_add,square)
+    end if
+
+  end function square_gd_add
+
   pure function dotp_gu(mesh,v1,v2)
     implicit none
     real(gp), dimension(3), intent(in) :: v1,v2
@@ -886,7 +903,7 @@ contains
 
   end function dotp_gu
 
-  function dotp_add2(mesh,v1,v2_add) result(dotp)
+  function dotp_gu_add2(mesh,v1,v2_add) result(dotp)
     implicit none
     real(gp), dimension(3), intent(in) :: v1
     real(gp) :: v2_add !<intent in, cannot be declared as such
@@ -895,11 +912,13 @@ contains
 
     if (mesh%orthorhombic) then
        call dotp_external_ortho(v1,v2_add,dotp)
+    else
+       call dotp_external_nonortho(mesh%gu,v1,v2_add,dotp)
     end if
 
-  end function dotp_add2
+  end function dotp_gu_add2
 
-  function dotp_add1(mesh,v1_add,v2) result(dotp)
+  function dotp_gu_add1(mesh,v1_add,v2) result(dotp)
     implicit none
     real(gp), dimension(3), intent(in) :: v2
     real(gp) :: v1_add !<intent in, cannot be declared as such
@@ -908,9 +927,11 @@ contains
 
     if (mesh%orthorhombic) then
        call dotp_external_ortho(v1_add,v2,dotp)
+    else
+       call dotp_external_nonortho(mesh%gu,v1_add,v2,dotp)
     end if
 
-  end function dotp_add1
+  end function dotp_gu_add1
 
   pure function dotp_gd(mesh,v1,v2)
     implicit none
@@ -933,6 +954,36 @@ contains
 
   end function dotp_gd
 
+  function dotp_gd_add2(mesh,v1,v2_add) result(dotp)
+    implicit none
+    real(gp), dimension(3), intent(in) :: v1
+    real(gp) :: v2_add !<intent in, cannot be declared as such
+    type(cell), intent(in) :: mesh !<definition of the cell
+    real(gp) :: dotp
+
+    if (mesh%orthorhombic) then
+       call dotp_external_ortho(v1,v2_add,dotp)
+    else
+       call dotp_external_nonortho(mesh%gd,v1,v2_add,dotp)
+    end if
+
+  end function dotp_gd_add2
+
+  function dotp_gd_add1(mesh,v1_add,v2) result(dotp)
+    implicit none
+    real(gp), dimension(3), intent(in) :: v2
+    real(gp) :: v1_add !<intent in, cannot be declared as such
+    type(cell), intent(in) :: mesh !<definition of the cell
+    real(gp) :: dotp
+
+    if (mesh%orthorhombic) then
+       call dotp_external_ortho(v1_add,v2,dotp)
+    else
+       call dotp_external_nonortho(mesh%gd,v1_add,v2,dotp)
+    end if
+
+  end function dotp_gd_add1
+
 end module box
 
 subroutine dotp_external_ortho(v1,v2,dotp)  
@@ -943,3 +994,20 @@ subroutine dotp_external_ortho(v1,v2,dotp)
 
   dotp=v1(1)*v2(1)+v1(2)*v2(2)+v1(3)*v2(3)
 end subroutine dotp_external_ortho
+
+subroutine dotp_external_nonortho(g,v1,v2,dotp)  
+  use f_precisions, only: gp=>f_double
+  implicit none
+  real(gp), dimension(3,3), intent(in) :: g
+  real(gp), dimension(3), intent(in) :: v1,v2
+  real(gp), intent(out) :: dotp
+  !local variables
+  integer :: i,j
+
+       dotp=0.0_gp
+       do i=1,3
+          do j=1,3
+             dotp=dotp+g(i,j)*v1(i)*v2(j)
+          end do
+       end do
+end subroutine dotp_external_nonortho
