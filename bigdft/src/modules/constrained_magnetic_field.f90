@@ -457,7 +457,12 @@ contains
       if(cfd_is_converged) write(999,'(3g14.6)') cfd%B_at
       if(cfd_is_converged) lambda_t=lambda_0
       !
-      if(cfd_is_converged) cfd%constrained_mom_err=0.0_gp
+      if(cfd_is_converged) then
+         cfd%constrained_mom_err=0.0_gp
+         cfd%d_delta = 0.0_gp
+         cfd%s_delta = 0.0_gp
+         cfd%dd_delta = 0.0_gp
+      end if
       !print '(3f12.6)', cfd%m_at(:,:)
       !print *,'ref.  moments',cfd%constrained_mom_err
       !print '(3f12.6)', cfd%m_at_ref(:,:)
