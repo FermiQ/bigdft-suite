@@ -237,7 +237,7 @@ subroutine loop_dotp(strategy,mesh,v1,v2,time)
         totdot=totdot+res
         v2(:,bit%i,bit%j,bit%k)=res
      end do
-     call mpiallred(totdot,1,op=MPI_SUM)
+     call fmpi_allreduce(totdot,1,op=FMPI_SUM)
      !call mpigather
      t1=f_time()
      call mpifinalize()

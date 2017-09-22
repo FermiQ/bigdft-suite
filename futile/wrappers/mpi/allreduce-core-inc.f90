@@ -18,36 +18,36 @@
      if (present(request)) then
         call f_timer_interrupt(tcat)
         call MPI_IALLREDUCE(FMPI_IN_PLACE,sendbuf,ntot,&
-             mpitype(sendbuf),toi(op),mpi_comm,request,ierr)
+             mpitype(sendbuf),int(toi(op),fmpi_integer),mpi_comm,request,ierr)
         call f_timer_resume()
      else
         call f_timer_interrupt(tcat)
         call MPI_ALLREDUCE(FMPI_IN_PLACE,sendbuf,ntot,&
-             mpitype(sendbuf),toi(op),mpi_comm,ierr)
+             mpitype(sendbuf),int(toi(op),fmpi_integer),mpi_comm,ierr)
         call f_timer_resume()
      end if
   else if (present(recvbuf)) then
      if (present(request)) then
         call f_timer_interrupt(tcat)
         call MPI_IALLREDUCE(sendbuf,recvbuf,ntot,&
-             mpitype(sendbuf),toi(op),mpi_comm,request,ierr)
+             mpitype(sendbuf),int(toi(op),fmpi_integer),mpi_comm,request,ierr)
         call f_timer_resume()
      else
         call f_timer_interrupt(tcat)
         call MPI_ALLREDUCE(sendbuf,recvbuf,ntot,&
-             mpitype(sendbuf),toi(op),mpi_comm,ierr)
+             mpitype(sendbuf),int(toi(op),fmpi_integer),mpi_comm,ierr)
         call f_timer_resume()
      end if
   else
      if (present(request)) then
         call f_timer_interrupt(tcat)
         call MPI_IALLREDUCE(copybuf,sendbuf,ntot,&
-             mpitype(sendbuf),toi(op),mpi_comm,request,ierr)
+             mpitype(sendbuf),int(toi(op),fmpi_integer),mpi_comm,request,ierr)
         call f_timer_resume()
      else
         call f_timer_interrupt(tcat)
         call MPI_ALLREDUCE(copybuf,sendbuf,ntot,&
-             mpitype(sendbuf),toi(op),mpi_comm,ierr)
+             mpitype(sendbuf),int(toi(op),fmpi_integer),mpi_comm,ierr)
         call f_timer_resume()
      end if
      call f_free(copybuf)
