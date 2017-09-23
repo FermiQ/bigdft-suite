@@ -4485,7 +4485,7 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
       do iat=1,at%astruct%nat
          q=at%nelpsp(at%astruct%iatype(iat))
          tmpdip=rxyz(:,iat)-charge_center_cores
-         tt=square(dpbox%mesh,tmpdip)
+         tt=square_gd(dpbox%mesh,tmpdip)
           do i=1,3
              ri=rxyz(i,iat)-charge_center_cores(i)
              do j=1,3
@@ -4540,7 +4540,7 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
          do while(box_next_point(dpbox%bitp))
             q= - rho(dpbox%bitp%i,dpbox%bitp%j,dpbox%bitp%k-dpbox%bitp%i3s+1,ispin) *dpbox%mesh%volume_element
             tmpdip=dpbox%bitp%rxyz-charge_center_cores
-            tt=square(dpbox%mesh,tmpdip)
+            tt=square_gd(dpbox%mesh,tmpdip)
             do i=1,3
                ri=dpbox%bitp%rxyz(i)-charge_center_cores(i)
                do j=1,3

@@ -324,13 +324,9 @@ module sparsematrix_init
       !t2 = mpi_wtime()
       !write(*,*) 'iproc, time determine_sequential_length_new2', iproc, t2-t1
       !write(*,'(a,i3,3x,200i10)') 'iproc, nseq_per_line', iproc, nseq_per_line
-      call f_routine(id='mpiallred')
-      if (nproc>1) call mpiallred(nseq_per_line(1), norb, mpi_sum, comm=comm)
-      call f_release_routine()
+      if (nproc>1) call fmpi_allreduce(nseq_per_line(1), norb, FMPI_SUM, comm=comm)
       rseq=real(sparsemat%smmm%nseq,kind=mp) !real to prevent integer overflow
-      call f_routine(id='mpiallred')
-      if (nproc>1) call mpiallred(rseq, 1, mpi_sum, comm=comm)
-      call f_release_routine()
+      if (nproc>1) call fmpi_allreduce(rseq, 1, FMPI_SUM, comm=comm)
 
 
       rseq_per_line = f_malloc(norb,id='rseq_per_line')
@@ -388,10 +384,8 @@ module sparsematrix_init
       ! Get the load balancing
       rseq_max(2) = real(sparsemat%smmm%nseq,kind=mp)
       rseq_average(2) = rseq_max(2)/real(nproc,kind=mp)
-      call f_routine(id='mpiallred')
-      if (nproc>1) call mpiallred(rseq_max, mpi_max, comm=comm)
-      if (nproc>1) call mpiallred(rseq_average, mpi_sum, comm=comm)
-      call f_release_routine()
+      if (nproc>1) call fmpi_allreduce(rseq_max, FMPI_MAX, comm=comm)
+      if (nproc>1) call fmpi_allreduce(rseq_average, FMPI_SUM, comm=comm)
       ratio_before = rseq_max(1)/rseq_average(1)
       ratio_after = rseq_max(2)/rseq_average(2)
       !!if (iproc==0) then
@@ -413,11 +407,9 @@ module sparsematrix_init
       temparr = f_malloc0((/0.to.nproc-1,1.to.2/),id='isfvctr_par')
       temparr(iproc,1) = sparsemat%smmm%isfvctr
       temparr(iproc,2) = sparsemat%smmm%nfvctrp
-      call f_routine(id='mpiallred')
       if (nproc>1) then
-          call mpiallred(temparr,  mpi_sum, comm=comm)
+          call fmpi_allreduce(temparr,  FMPI_SUM, comm=comm)
       end if
-      call f_release_routine()
       !t1 = mpi_wtime()
       call init_matrix_parallelization(iproc, nproc, sparsemat%nfvctr, sparsemat%nseg, sparsemat%nvctr, &
            temparr(0,1), temparr(0,2), sparsemat%istsegline, sparsemat%keyv, &
@@ -571,11 +563,9 @@ module sparsematrix_init
 
       istartend_mm = f_malloc0((/1.to.2,0.to.nproc-1/),id='istartend_mm')
       istartend_mm(1:2,iproc) = sparsemat%smmm%istartend_mm(1:2)
-      call f_routine(id='mpiallred')
       if (nproc>1) then
-          call mpiallred(istartend_mm, mpi_sum, comm=comm)
+          call fmpi_allreduce(istartend_mm, FMPI_SUM, comm=comm)
       end if
-      call f_release_routine()
 
       ! Partition the entire matrix in disjoint submatrices
       istartend_dj = f_malloc((/1.to.2,0.to.nproc-1/),id='istartend_dj')
@@ -977,8 +967,8 @@ module sparsematrix_init
           end if
       end do
       if (nproc>1) then
-          call mpiallred(sparsemat%isfvctr_par, mpi_sum, comm=comm)
-          call mpiallred(sparsemat%nfvctr_par, mpi_sum, comm=comm)
+          call fmpi_allreduce(sparsemat%isfvctr_par, FMPI_SUM, comm=comm)
+          call fmpi_allreduce(sparsemat%nfvctr_par, FMPI_SUM, comm=comm)
       end if
 
       call allocate_sparse_matrix_basic(store_index_, norbu, nproc, sparsemat)
@@ -1006,9 +996,9 @@ module sparsematrix_init
       end do
 
       if (nproc>1) then
-          call mpiallred(sparsemat%nvctr, 1, mpi_sum,comm=comm)
-          call mpiallred(sparsemat%nseg, 1, mpi_sum, comm=comm)
-          call mpiallred(sparsemat%nsegline(1), sparsemat%nfvctr, mpi_sum, comm=comm)
+          call fmpi_allreduce(sparsemat%nvctr,sparsemat%nseg,op=FMPI_SUM,comm=comm)
+          !call fmpi_allreduce(sparsemat%nseg, 1, FMPI_SUM, comm=comm)
+          call fmpi_allreduce(sparsemat%nsegline(1), sparsemat%nfvctr, FMPI_SUM, comm=comm)
       end if
       if (extra_timing) call cpu_time(tr1)
       if (extra_timing) time0=real(tr1-tr0,kind=mp)
@@ -1039,14 +1029,14 @@ module sparsematrix_init
 
       ! check whether the number of elements agrees
       if (nproc>1) then
-          call mpiallred(ivctr, 1, mpi_sum, comm=comm)
+          call fmpi_allreduce(ivctr, 1, FMPI_SUM, comm=comm)
       end if
       if (ivctr/=sparsemat%nvctr) then
           write(*,'(a,2i8)') 'ERROR: ivctr/=sparsemat%nvctr', ivctr, sparsemat%nvctr
           stop
       end if
       if (nproc>1) then
-          call mpiallred(sparsemat%keyg(1,1,1), 2*2*sparsemat%nseg, mpi_sum, comm=comm)
+          call fmpi_allreduce(sparsemat%keyg(1,1,1), 2*2*sparsemat%nseg, FMPI_SUM, comm=comm)
       end if
 
       ! start of the segments
@@ -1080,7 +1070,7 @@ module sparsematrix_init
           !$omp end parallel do
 
           if (nproc>1) then
-              call mpiallred(sparsemat%matrixindex_in_compressed_arr(1,1), norbu*norbu, mpi_sum, comm=comm)
+              call fmpi_allreduce(sparsemat%matrixindex_in_compressed_arr(1,1), norbu*norbu, FMPI_SUM, comm=comm)
           end if
 
           !!! Initialize sparsemat%orb_from_index
@@ -1178,9 +1168,9 @@ module sparsematrix_init
               call nseg_perline(norbu, lut, nseg_mult, nvctr_mult, nsegline_mult(iiorb))
           end do
           if (nproc>1) then
-              call mpiallred(nvctr_mult, 1, mpi_sum, comm=comm)
-              call mpiallred(nseg_mult, 1, mpi_sum, comm=comm)
-              call mpiallred(nsegline_mult, mpi_sum, comm=comm)
+              call fmpi_allreduce(nvctr_mult,1,op=FMPI_SUM, comm=comm)
+              call fmpi_allreduce(nseg_mult, 1,FMPI_SUM, comm=comm)
+              call fmpi_allreduce(nsegline_mult,FMPI_SUM, comm=comm)
           end if
 
 
@@ -1204,14 +1194,14 @@ module sparsematrix_init
           end do
           ! check whether the number of elements agrees
           if (nproc>1) then
-              call mpiallred(ivctr_mult, 1, mpi_sum, comm=comm)
+              call fmpi_allreduce(ivctr_mult, 1, FMPI_SUM, comm=comm)
           end if
           if (ivctr_mult/=nvctr_mult) then
               write(*,'(a,2i8)') 'ERROR: ivctr_mult/=nvctr_mult', ivctr_mult, nvctr_mult
               stop
           end if
           if (nproc>1) then
-              call mpiallred(keyg_mult, mpi_sum, comm=comm)
+              call fmpi_allreduce(keyg_mult, FMPI_SUM, comm=comm)
           end if
 
           ! start of the segments
@@ -3377,7 +3367,7 @@ module sparsematrix_init
       iuse_startend(1,iproc) = ind_min
       iuse_startend(2,iproc) = ind_max
       if (nproc>1) then
-          call mpiallred(iuse_startend(1,0), 2*nproc, mpi_sum, comm=comm)
+          call fmpi_allreduce(iuse_startend(1,0), 2*nproc, FMPI_SUM, comm=comm)
       end if
 
       ! Make sure that the used parts are always "monotonically increasing"
@@ -3836,7 +3826,7 @@ module sparsematrix_init
       end if
 
       if (nproc>1) then
-          call mpiallred(smat%inwhichtaskgroup(1,0), 2*nproc, mpi_sum, comm=comm)
+          call fmpi_allreduce(smat%inwhichtaskgroup(1,0), 2*nproc, FMPI_SUM, comm=comm)
       end if
 
       ! Partition the entire matrix in disjoint submatrices
@@ -3917,7 +3907,7 @@ module sparsematrix_init
           tasks_per_taskgroup(iitaskgroup) = tasks_per_taskgroup(iitaskgroup) + 1
       end do
       if (nproc>1) then
-          call mpiallred(tasks_per_taskgroup, mpi_sum, comm=comm)
+          call fmpi_allreduce(tasks_per_taskgroup, FMPI_SUM, comm=comm)
       end if
       !if (iproc==0) write(*,'(a,i7,4x,1000i7)') 'iproc, tasks_per_taskgroup', iproc, tasks_per_taskgroup
       !call mpi_comm_group(bigdft_mpi%mpi_comm, group, ierr)
@@ -3938,7 +3928,7 @@ module sparsematrix_init
           in_taskgroup(iproc,iitaskgroups) = 1
       end do
       if (nproc>1) then
-          call mpiallred(in_taskgroup, mpi_sum, comm=comm)
+          call fmpi_allreduce(in_taskgroup, FMPI_SUM, comm=comm)
       end if
 
       allocate(smat%mpi_groups(smat%ntaskgroup))
@@ -5089,7 +5079,7 @@ module sparsematrix_init
           end do
       end do ij_loop
       !$omp end parallel
-      call mpiallred(ijfound, mpi_sum, comm)
+      call fmpi_allreduce(ijfound, FMPI_SUM, comm)
 
       ijflag(:,:,:) = 0
       do i=ii-nbuf,ii+nbuf

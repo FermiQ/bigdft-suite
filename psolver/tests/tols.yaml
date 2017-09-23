@@ -71,6 +71,10 @@ GPS_PCG: &PCGref
   offset: 2.18e-10
   Contravariant Metric: 1.4e-15
   Expected hartree energy: 2.0e-08
+  IntSur sccs cavity: 2.7e-10
+  IntSur soft-sphere cavity: 2.1044854747742647e-10
+  IntVol sccs cavity: 1.2385214631649433e-08
+  IntVol soft-sphere cavity: 2.1957191620458616e-10
 GPS_PI:
   offset: 2.6e-10
   dipole: 4.35e-09
@@ -106,18 +110,23 @@ Generalized_PSolver: #old values for reference
 PS_Check:
   itermax: 150.0
 PS_StressCheck:
-  Ehartree: 9.1e-13
+  Ehartree: 4.1e-12
   Max diff: 3.6e-15
   offset: 1.3e-11
   potential integral: 8.0e-12
-  stress analytical x: 1.2e-14
-  stress analytical y: 3.04e-14
-  stress analytical z: 3.25e-14
-  stress analytical: 1.61e-14
+  stress analytical x: 2.5e-13
+  stress analytical y: 2.5e-13
+  stress analytical z: 2.25e-13
+  stress analytical: 7.61e-14
   stress psolver trace: 1.47e-15
   stress psolver x: 1.0e-14
   stress psolver y: 7.0e-16
   stress psolver z: 1.0e-14
+  Angles: 7.3e-15
+  Contravariant Metric: 1.3e-15
+  Controvariant Metric: 1.3e-15
+  sum_i mesh%gu(i,ii)*stress_3_3(i,ii): 1.5e-15
   Keys to ignore:
     - Max diff at
     - processes
+

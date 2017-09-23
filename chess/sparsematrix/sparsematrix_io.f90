@@ -1,3 +1,4 @@
+
 !> @file
 !!   Sparse matrix I/O routines
 !! @author
@@ -234,8 +235,8 @@ module sparsematrix_io
           keyg(2,2,ii) = workarr_keys(5,i)
       end do
       call f_free(workarr_keys)
-      call mpiallred(keyv, mpi_sum, comm=comm)
-      call mpiallred(keyg, mpi_sum, comm=comm)
+      call fmpi_allreduce(keyv, FMPI_SUM, comm=comm)
+      call fmpi_allreduce(keyg, FMPI_SUM, comm=comm)
 
       ! Write the matrices
       mat_compr = f_malloc0_ptr(nvctr*nspin,id='mat_compr')
@@ -246,7 +247,7 @@ module sparsematrix_io
       if (np>1) then
           call mpi_file_read(thefile, mat_compr(is+1), np, mpi_double_precision, mpi_status_ignore, ierr)
       end if
-      call mpiallred(mat_compr, mpi_sum, comm=comm)
+      call fmpi_allreduce(mat_compr, FMPI_SUM, comm=comm)
 
       call mpi_file_close(thefile, ierr)      
 

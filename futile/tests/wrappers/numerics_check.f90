@@ -161,7 +161,7 @@ subroutine loop_dotp(strategy,mesh,v1,v2,time)
      do i3=1,mesh%ndims(3)
         do i2=1,mesh%ndims(2)
            do i1=1,mesh%ndims(1)
-              res=dotp(mesh,v1(1,i1,i2,i3),v2(:,i1,i2,i3))
+              res=dotp_gd(mesh,v1(1,i1,i2,i3),v2(:,i1,i2,i3))
               res=res/20.0_f_double
               totdot=totdot+res
               v2(:,i1,i2,i3)=res
@@ -178,7 +178,7 @@ subroutine loop_dotp(strategy,mesh,v1,v2,time)
      do i3=1,mesh%ndims(3)
         do i2=1,mesh%ndims(2)
            do i1=1,mesh%ndims(1)
-              res=dotp(mesh,v1(1,i1,i2,i3),v2(:,i1,i2,i3))
+              res=dotp_gd(mesh,v1(1,i1,i2,i3),v2(:,i1,i2,i3))
               res=res/20.0_f_double
               totdot=totdot+res
               v2(:,i1,i2,i3)=res
@@ -192,7 +192,7 @@ subroutine loop_dotp(strategy,mesh,v1,v2,time)
      totdot=0.0_f_double
      t0=f_time()
      do while(box_next_point(bit))
-        res=dotp(bit%mesh,v1(1,bit%i,bit%j,bit%k),v2(:,bit%i,bit%j,bit%k))
+        res=dotp_gd(bit%mesh,v1(1,bit%i,bit%j,bit%k),v2(:,bit%i,bit%j,bit%k))
         res=res/20.0_f_double
         totdot=totdot+res
         v2(:,bit%i,bit%j,bit%k)=res
@@ -212,7 +212,7 @@ subroutine loop_dotp(strategy,mesh,v1,v2,time)
      !$ nthread=omp_get_num_threads()
      call box_iter_split(bit,nthread,ithread)
      do while(box_next_point(bit))
-        res=dotp(bit%mesh,v1(1,bit%i,bit%j,bit%k),v2(:,bit%i,bit%j,bit%k))
+        res=dotp_gd(bit%mesh,v1(1,bit%i,bit%j,bit%k),v2(:,bit%i,bit%j,bit%k))
         res=res/20.0_f_double
         totdot=totdot+res
         v2(:,bit%i,bit%j,bit%k)=res
@@ -232,7 +232,7 @@ subroutine loop_dotp(strategy,mesh,v1,v2,time)
      totdot=0.0_f_double
      t0=f_time()
      do while(box_next_point(bit))
-        res=dotp(bit%mesh,v1(1,bit%i,bit%j,bit%k),v2(:,bit%i,bit%j,bit%k))
+        res=dotp_gd(bit%mesh,v1(1,bit%i,bit%j,bit%k),v2(:,bit%i,bit%j,bit%k))
         res=res/20.0_f_double
         totdot=totdot+res
         v2(:,bit%i,bit%j,bit%k)=res

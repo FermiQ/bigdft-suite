@@ -196,13 +196,13 @@ module pexsi
             call f_timing(TCAT_PEXSI_COMMUNICATE,'ON')
             nfvctr_local_min = nfvctr_local
             nfvctr_local_max = nfvctr_local
-!            call mpiallred(nfvctr_local_min,count=1,op=mpi_min,comm=readComm)
-!            call mpiallred(nfvctr_local_max,count=1,op=mpi_max,comm=readComm)
+!            call fmpi_allreduce(nfvctr_local_min,count=1,op=mpi_min,comm=readComm)
+!            call fmpi_allreduce(nfvctr_local_max,count=1,op=mpi_max,comm=readComm)
             nfvctr_local_avg = real(nfvctr,kind=8)/real(nproc_per_pole,kind=8)
             nvctr_local_min = nvctr_local
             nvctr_local_max = nvctr_local
-!            call mpiallred(nvctr_local_min,count=1,op=mpi_min,comm=readComm)
-!            call mpiallred(nvctr_local_max,count=1,op=mpi_max,comm=readComm)
+!            call fmpi_allreduce(nvctr_local_min,count=1,op=mpi_min,comm=readComm)
+!            call fmpi_allreduce(nvctr_local_max,count=1,op=mpi_max,comm=readComm)
             nvctr_local_avg = real(nvctr,kind=8)/real(nproc_per_pole,kind=8)
             call f_timing(TCAT_PEXSI_COMMUNICATE,'OF')
           
@@ -413,12 +413,12 @@ module pexsi
               end do
           end if
           call f_timing(TCAT_PEXSI_COMMUNICATE,'ON')
-          !call mpiallred(kernel,mpi_sum,comm=readComm)
-          call mpiallred(kernel,mpi_sum,comm=pexsi_comm)
+          !call fmpi_allreduce(kernel,FMPI_SUM,comm=readComm)
+          call fmpi_allreduce(kernel,FMPI_SUM,comm=pexsi_comm)
           call dscal(nvctr, 1.d0/real(npoleparallelization,kind=8), kernel, 1)
           if (present(energy_kernel)) then
-              !call mpiallred(energy_kernel,mpi_sum,comm=readComm)
-              call mpiallred(energy_kernel,mpi_sum,comm=pexsi_comm)
+              !call fmpi_allreduce(energy_kernel,FMPI_SUM,comm=readComm)
+              call fmpi_allreduce(energy_kernel,FMPI_SUM,comm=pexsi_comm)
               call dscal(nvctr, 1.d0/real(npoleparallelization,kind=8), energy_kernel, 1)
           end if
           call f_timing(TCAT_PEXSI_COMMUNICATE,'OF')

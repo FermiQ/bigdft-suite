@@ -688,7 +688,7 @@ contains
     ! Summarize on processors
     !fnrm_denpot = nrm_local
     if (bigdft_mpi%nproc>1) then
-       call mpiallred(sendbuf=nrm_local,count=1,op=MPI_SUM,&
+       call fmpi_allreduce(sendbuf=nrm_local,count=1,op=FMPI_SUM,&
             comm=bigdft_mpi%mpi_comm,recvbuf=fnrm_denpot)
 !!$       call MPI_ALLREDUCE(nrm_local, fnrm_denpot, 1, &
 !!$            & MPI_DOUBLE_PRECISION, MPI_SUM, bigdft_mpi%mpi_comm, ierr)
@@ -703,7 +703,7 @@ contains
 
   function fdot_denpot(x,y,cplex,nfft,nspden,opt_denpot,user_data)
 !    use m_ab7_mixing
-!    use wrapper_MPI, only: mpirank,mpiallred
+!    use wrapper_MPI, only: mpirank,fmpi_allreduce
     !use module_base, only: bigdft_mpi
     implicit none
     integer, intent(in) :: cplex,nfft,nspden,opt_denpot
@@ -769,7 +769,7 @@ contains
     ! Summarize on processors
     fdot_denpot = dot_local
     if (bigdft_mpi%nproc>1) then
-       call mpiallred(dot_local,1,MPI_SUM,comm=bigdft_mpi%mpi_comm,&
+       call fmpi_allreduce(dot_local,1,FMPI_SUM,comm=bigdft_mpi%mpi_comm,&
             recvbuf=fdot_denpot)
 !!$       call MPI_ALLREDUCE(dot_local, fdot_denpot, 1, &
 !!$            & MPI_DOUBLE_PRECISION, MPI_SUM, bigdft_mpi%mpi_comm, ierr)
@@ -782,7 +782,7 @@ contains
 
 
   function fnrm_denpot_forlinear(x,cplex,nfft,nspden,opt_denpot,user_data)
-!    use wrapper_MPI, only: mpirank,mpiallred,mpi_sum
+!    use wrapper_MPI, only: mpirank,fmpi_allreduce,mpi_sum
 !    use module_base, only: bigdft_mpi
     implicit none
     !Arguments
@@ -837,7 +837,7 @@ contains
     ! Summarize on processors
     !fnrm_denpot_forlinear = nrm_local
     if (bigdft_mpi%nproc>1) then
-        call mpiallred(sendbuf=nrm_local, count=1, op=mpi_sum, &
+        call fmpi_allreduce(sendbuf=nrm_local, count=1, op=FMPI_SUM, &
              comm=bigdft_mpi%mpi_comm, recvbuf=fnrm_denpot_forlinear)
     else
         fnrm_denpot_forlinear = nrm_local
@@ -847,7 +847,7 @@ contains
 
 
   function fdot_denpot_forlinear(x,y,cplex,nfft,nspden,opt_denpot,user_data)
-!    use wrapper_MPI, only: mpirank,mpiallred
+!    use wrapper_MPI, only: mpirank,fmpi_allreduce
     !use module_base, only: bigdft_mpi
     implicit none
     integer, intent(in) :: cplex,nfft,nspden,opt_denpot
@@ -922,7 +922,7 @@ contains
     ! Summarize on processors
     fdot_denpot_forlinear = dot_local
     if (bigdft_mpi%nproc>1) then
-        call mpiallred(dot_local,1,MPI_SUM,comm=bigdft_mpi%mpi_comm,&
+        call fmpi_allreduce(dot_local,1,FMPI_SUM,comm=bigdft_mpi%mpi_comm,&
              recvbuf=fdot_denpot_forlinear)
     else
         fdot_denpot_forlinear = dot_local

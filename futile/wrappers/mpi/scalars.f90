@@ -56,6 +56,7 @@ module fmpi_types
   type(f_enumerator), public :: FMPI_LAND=f_enumerator('MPI_LAND',int(MPI_LAND),null())
   type(f_enumerator), public :: FMPI_LOR=f_enumerator('MPI_LOR',int(MPI_LOR),null())
   type(f_enumerator), public :: FMPI_MAX=f_enumerator('MPI_MAX',int(MPI_MAX),null())
+  type(f_enumerator), public :: FMPI_MIN=f_enumerator('MPI_MIN',int(MPI_MIN),null())
   type(f_enumerator), public :: FMPI_SUM=f_enumerator('MPI_SUM',int(MPI_SUM),null())
 
   !>enumerator of objects

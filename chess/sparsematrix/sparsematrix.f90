@@ -146,7 +146,7 @@ module sparsematrix
          !!#end do
          !!#!$omp end parallel do
          !!#if (bigdft_mpi%nproc > 1) then
-         !!#   call mpiallred(sparsemat%matrix_compr(1), sparsemat%nvctr, mpi_sum, bigdft_mpi%mpi_comm)
+         !!#   call fmpi_allreduce(sparsemat%matrix_compr(1), sparsemat%nvctr, FMPI_SUM, bigdft_mpi%mpi_comm)
          !!#end if
       else
          stop 'this needs to be fixed'
@@ -266,7 +266,7 @@ module sparsematrix
          !!end do
          !!!$omp end parallel do
          !!if (bigdft_mpi%nproc > 1) then
-         !!   call mpiallred(sparsemat%matrix(1,1), sparsemat%nfvctr**2,mpi_sum,bigdft_mpi%mpi_comm)
+         !!   call fmpi_allreduce(sparsemat%matrix(1,1), sparsemat%nfvctr**2,FMPI_SUM,bigdft_mpi%mpi_comm)
          !!end if
       else
          stop 'needs to be fixed'
@@ -728,14 +728,14 @@ module sparsematrix
      real(kind=mp),dimension(:),target,intent(in) :: matrixp
      real(kind=mp),dimension(smat%nvctrp_tg),intent(out) :: matrix_compr
      real(kind=mp),dimension(:),intent(inout),target,optional :: matrix_localx
-     integer,dimension(:),intent(inout),optional :: windowsx
+     type(fmpi_win),dimension(:),intent(inout),optional :: windowsx
 
      ! Local variables
      integer :: isegstart, isegend, iseg, ii, jorb, iiorb, jjorb, nfvctrp, isfvctr, nvctrp, ierr, isvctr
      integer :: ncount, itg, iitg, ist_send, ist_recv, i, iline, icolumn, ind
      integer :: window, sizeof, jproc_send, iorb, jproc, info
      integer,dimension(:),pointer :: isvctr_par, nvctr_par
-     integer,dimension(:),allocatable :: request, windows
+     !integer,dimension(:),allocatable :: request, windows
      real(kind=mp),dimension(:),pointer :: matrix_local
      real(kind=mp),dimension(:),allocatable :: recvbuf
 
@@ -832,7 +832,7 @@ module sparsematrix
      real(kind=mp),dimension(:,:),intent(in) :: matrixp
      real(kind=mp),dimension(smat%nvctrp_tg),intent(out) :: matrix_compr
      real(kind=mp),dimension(:),intent(inout),target,optional :: matrix_localx
-     integer,dimension(:),intent(inout),optional :: windowsx
+     type(fmpi_win),dimension(:),intent(inout),optional :: windowsx
 
      ! Local variables
      integer :: isegstart, isegend, iseg, ii, jorb, iiorb, jjorb, nfvctrp, isfvctr, nvctrp, ierr, isvctr
@@ -928,13 +928,14 @@ module sparsematrix
          call f_err_throw('compress_matrix_distributed_wrapper_2 not yet functional for onesided_action/=ONESIDED_FULL')
      end if
 
-     if (present(windowsx)) then
-         call compress_matrix_distributed_core(iproc, nproc, smat, SPARSE_PARALLEL, &
+     !if (present(windowsx)) then
+     !no need to put the if for fortran norm
+     call compress_matrix_distributed_core(iproc, nproc, smat, SPARSE_PARALLEL, &
               matrix_local, onesided_action, matrix_compr, windowsx)
-     else
-         call compress_matrix_distributed_core(iproc, nproc, smat, SPARSE_PARALLEL, &
-              matrix_local, onesided_action, matrix_compr)
-     end if
+     !else
+     !    call compress_matrix_distributed_core(iproc, nproc, smat, SPARSE_PARALLEL, &
+     !         matrix_local, onesided_action, matrix_compr)
+     !end if
      call f_free_ptr(matrix_local)
      !@ END NEW #################
 
@@ -958,7 +959,7 @@ module sparsematrix
      !real(kind=mp),dimension(smat%smmm%nvctrp_mm),intent(in) :: matrixp
      real(kind=mp),dimension(:),intent(in) :: matrixp
      real(kind=mp),dimension(smat%nvctrp_tg),target,intent(out) :: matrix_compr
-     integer,dimension(:),intent(inout),target,optional :: windowsx
+     type(fmpi_win),dimension(:),intent(inout),target,optional :: windowsx
 
      ! Local variables
      integer :: isegstart, isegend, iseg, ii, jorb, iiorb, jjorb, nfvctrp, isfvctr, nvctrp, ierr, isvctr
@@ -966,7 +967,7 @@ module sparsematrix
      integer :: window, sizeof, jproc_send, iorb, jproc, info, nccomm
      real(kind=mp) :: window_fake
      integer,dimension(:),pointer :: isvctr_par, nvctr_par
-     integer,dimension(:),pointer :: windows
+     type(fmpi_win),dimension(:),pointer :: windows
      real(kind=mp),dimension(:),pointer :: matrix_local
      real(kind=mp),dimension(:),allocatable :: recvbuf
      integer,parameter :: ALLGATHERV=51, GET=52, GLOBAL_MATRIX=101, SUBMATRIX=102
@@ -1041,9 +1042,16 @@ module sparsematrix
                          iitg = smat%taskgroupid(itg)
                          ! Use a fake window if nvctrp is zero
                          if (nvctrp>0) then
-                             windows(iitg) = mpiwindow(nvctrp, matrixp(1), smat%mpi_groups(iitg)%mpi_comm)
+                            !windows(iitg) = mpiwindow(nvctrp, matrixp(1), smat%mpi_groups(iitg)%mpi_comm)
+                            call fmpi_win_create(windows(iitg),matrixp(1),&
+                                 int(nvctrp,f_long),&
+                                 comm=smat%mpi_groups(iitg)%mpi_comm)
+                            call fmpi_win_fence(windows(iitg),FMPI_WIN_OPEN)
                          else
-                             windows(iitg) = mpiwindow(1, window_fake, smat%mpi_groups(iitg)%mpi_comm)
+                            !windows(iitg) = mpiwindow(1, window_fake, smat%mpi_groups(iitg)%mpi_comm)
+                            call fmpi_win_create(windows(iitg),window_fake,&
+                                 int(1,f_long),comm=smat%mpi_groups(iitg)%mpi_comm)
+                            !no fence here
                          end if
                      end do
                      do jproc=1,nccomm
@@ -1060,8 +1068,10 @@ module sparsematrix
                          !call mpiget(matrix_compr(ist_recv), ncount, jproc_send, int(ist_send-1,kind=mpi_address_kind), window)
                          !!write(*,'(6(a,i0))') 'task ',iproc,' gets ',ncount,' elements at position ',ist_recv, &
                          !!                     ' from task ',jproc_send,' with offset ',ist_send-1,' on window ',iitg
-                         call mpiget(matrix_compr(ist_recv), ncount, jproc_send, &
-                              int(ist_send-1,kind=mpi_address_kind), windows(iitg))
+                         call fmpi_get(matrix_compr(ist_recv),jproc_send,&
+                              windows(iitg),ncount,int(ist_send-1,fmpi_address))
+!!$                         call mpiget(matrix_compr(ist_recv), ncount, jproc_send, &
+!!$                              int(ist_send-1,kind=mpi_address_kind), windows(iitg))
                      end do
                  else
                      ist_send = luccomm(2,1)
@@ -1077,10 +1087,13 @@ module sparsematrix
                      do itg=1,smat%ntaskgroupp
                          iitg = smat%taskgroupid(itg)
                          !!write(*,'(a,i0,a)') 'task ',iproc,' calls fence'
-                         call mpi_fenceandfree(windows(iitg))
+                         !call mpi_fenceandfree(windows(iitg))
+                         call fmpi_win_fence(windows(iitg),FMPI_WIN_CLOSE)
+                         call fmpi_win_free(windows(iitg))
+                         !LG: why closing the windows (that is what fenceanfree does) if we have windowsx?
                      end do
                      if (onesided_action==ONESIDED_FULL) then
-                         call f_free_ptr(windows)
+                         call free_fmpi_win_ptr(windows)
                      end if
                      !call mpi_fenceandfree(window)
                  end if
@@ -1496,7 +1509,7 @@ module sparsematrix
          !ncount = smat%smmm%istartend_mm_dj(2) - smat%smmm%istartend_mm_dj(1) + 1
          ncount = smat%nvctrp
          recvcounts(iproc) = ncount
-         call mpiallred(recvcounts(0), nproc, mpi_sum, comm=comm)
+         call fmpi_allreduce(recvcounts(0), nproc, FMPI_SUM, comm=comm)
          recvdspls(0) = 0
          do jproc=1,nproc-1
              recvdspls(jproc) = recvdspls(jproc-1) + recvcounts(jproc-1)
@@ -1554,7 +1567,7 @@ module sparsematrix
          !call to_zero(nproc, recvdspls(0))
          ncount = smat%smmm%istartend_mm_dj(2) - smat%smmm%istartend_mm_dj(1) + 1
          recvcounts(iproc) = ncount
-         call mpiallred(recvcounts(0), nproc, mpi_sum, comm=comm)
+         call fmpi_allreduce(recvcounts(0), nproc, FMPI_SUM, comm=comm)
          recvdspls(0) = 0
          do jproc=1,nproc-1
              recvdspls(jproc) = recvdspls(jproc-1) + recvcounts(jproc-1)
@@ -2071,7 +2084,7 @@ module sparsematrix
           tr = tr + mat(ind-smat%isvctrp_tg)
       end do
       if (nproc > 1) then
-          call mpiallred(tr, 1, mpi_sum, comm=comm)
+          call fmpi_allreduce(tr, 1, FMPI_SUM, comm=comm)
       end if
     
       call f_release_routine()
@@ -2139,7 +2152,7 @@ module sparsematrix
       !$omp end parallel
 
       if (nproc > 1) then
-          call mpiallred(sumn, 1, mpi_sum, comm=comm)
+          call fmpi_allreduce(sumn, 1, FMPI_SUM, comm=comm)
       end if
     
       call f_release_routine()
@@ -2222,10 +2235,13 @@ module sparsematrix
                   ist_recv = ncount + 1
                   ncount = smat%taskgroup_startend(2,1,iitg)-smat%taskgroup_startend(1,1,iitg)+1
                   !!call mpi_iallreduce(mat%matrix_compr(ist_send), recvbuf(ist_recv), ncount, &
-                  !!     mpi_double_precision, mpi_sum, smat%mpi_groups(iitg)%mpi_comm, request(itg), ierr)
+                  !!     mpi_double_precision, FMPI_SUM, smat%mpi_groups(iitg)%mpi_comm, request(itg), ierr)
                   if (smat%mpi_groups(iitg)%nproc>1) then
-                      call mpiiallred(mat%matrix_compr(ishift+ist_send), recvbuf(ist_recv), ncount, &
-                           mpi_sum, smat%mpi_groups(iitg)%mpi_comm, request(itg))
+                     !call mpiiallred(mat%matrix_compr(ishift+ist_send), recvbuf(ist_recv), ncount, &
+                     !      mpi_sum, smat%mpi_groups(iitg)%mpi_comm, request(itg))
+                     call fmpi_allreduce(sendbuf=mat%matrix_compr(ishift+ist_send),&
+                           recvbuf=recvbuf(ist_recv),count=ncount,op=FMPI_SUM,&
+                           comm=smat%mpi_groups(iitg)%mpi_comm,request=request(itg))
                   else
                       call vcopy(ncount, mat%matrix_compr(ishift+ist_send), 1, recvbuf(ist_recv), 1)
                   end if
@@ -2310,7 +2326,7 @@ module sparsematrix
           !$omp end do
           !$omp end parallel
       !!end do
-      call mpiallred(error_max, 1, mpi_max, comm=comm)
+      call fmpi_allreduce(error_max, 1, FMPI_MAX, comm=comm)
       !if (iproc==0) call yaml_map('max asymmetry',error_max)
 
       !!call f_free(mat_full)

@@ -29,6 +29,7 @@ module f_allreduce
      module procedure mpiallred_d1,mpiallred_d2,mpiallred_d3,mpiallred_d4,mpiallred_d5
      module procedure mpiallred_i1,mpiallred_i2,mpiallred_i3
      module procedure mpiallred_l3
+     module procedure mpiallred_multi_d0,mpiallred_multi_i0
   end interface fmpi_allreduce
 
 !!$  interface mpiiallred
@@ -77,8 +78,6 @@ module f_allreduce
     
     !> Interface for MPI_ALLREDUCE operations
     subroutine mpiallred_int(sendbuf,count,op,comm,recvbuf,request)
-      use dictionaries, only: f_err_throw,f_err_define
-      use dynamic_memory
       implicit none
       integer(f_integer) :: sendbuf
       integer(f_integer), intent(inout), optional :: recvbuf
@@ -87,8 +86,6 @@ module f_allreduce
     end subroutine mpiallred_int
 
     subroutine mpiallred_long(sendbuf,count,op,comm,recvbuf,request)
-      use dictionaries, only: f_err_throw,f_err_define
-      use dynamic_memory
       implicit none
       integer(f_long) :: sendbuf
       integer(f_long), intent(inout), optional :: recvbuf
@@ -98,8 +95,6 @@ module f_allreduce
 
     !> Interface for MPI_ALLREDUCE operations
     subroutine mpiallred_real(sendbuf,count,op,comm,recvbuf,request)
-      use dynamic_memory
-      use dictionaries, only: f_err_throw,f_err_define
       implicit none
       real(f_simple) :: sendbuf
       real(f_simple), intent(inout), optional :: recvbuf
@@ -108,8 +103,6 @@ module f_allreduce
     end subroutine mpiallred_real
 
     subroutine mpiallred_double(sendbuf,count,op,comm,recvbuf,request)
-      use dynamic_memory
-      use dictionaries, only: f_err_throw,f_err_define
       implicit none
       real(f_double) :: sendbuf
       real(f_double), intent(inout), optional :: recvbuf
@@ -118,8 +111,6 @@ module f_allreduce
     end subroutine mpiallred_double
 
     subroutine mpiallred_log(sendbuf,count,op,comm,recvbuf,request)
-      use dynamic_memory
-      use dictionaries, only: f_err_throw,f_err_define
       implicit none
       logical :: sendbuf
       logical, intent(inout), optional :: recvbuf
@@ -128,9 +119,6 @@ module f_allreduce
     end subroutine mpiallred_log
 
     subroutine mpiallred_i1(sendbuf,op,comm,recvbuf,request)
-      use dynamic_memory
-      use dictionaries, only: f_err_throw!,f_err_define
-      !    use yaml_strings, only: yaml_toa
       implicit none
       integer, dimension(:), intent(inout) :: sendbuf
       integer, dimension(:), intent(inout), optional :: recvbuf
@@ -139,9 +127,6 @@ module f_allreduce
     end subroutine mpiallred_i1
 
     subroutine mpiallred_i2(sendbuf,op,comm,recvbuf,request)
-      use dynamic_memory
-      use dictionaries, only: f_err_throw!,f_err_define
-      !    use yaml_strings, only: yaml_toa
       implicit none
       integer, dimension(:,:), intent(inout) :: sendbuf
       integer, dimension(:,:), intent(inout), optional :: recvbuf
@@ -150,9 +135,6 @@ module f_allreduce
     end subroutine mpiallred_i2
 
     subroutine mpiallred_i3(sendbuf,op,comm,recvbuf,request)
-      use dynamic_memory
-      use dictionaries, only: f_err_throw!,f_err_define
-      !    use yaml_strings, only: yaml_toa
       implicit none
       integer, dimension(:,:,:), intent(inout) :: sendbuf
       integer, dimension(:,:,:), intent(inout), optional :: recvbuf
@@ -161,9 +143,6 @@ module f_allreduce
     end subroutine mpiallred_i3
 
     subroutine mpiallred_l3(sendbuf,op,comm,recvbuf,request)
-      use dynamic_memory
-      use dictionaries, only: f_err_throw!,f_err_define
-      !    use yaml_strings, only: yaml_toa
       implicit none
       logical, dimension(:,:,:), intent(inout) :: sendbuf
       logical, dimension(:,:,:), intent(inout), optional :: recvbuf
@@ -173,9 +152,6 @@ module f_allreduce
 
 
     subroutine mpiallred_r1(sendbuf,op,comm,recvbuf,request)
-      use dynamic_memory
-      use dictionaries, only: f_err_throw!,f_err_refine
-      !    use yaml_strings, only: yaml_toa
       implicit none
       real, dimension(:), intent(inout) :: sendbuf
       real, dimension(:), intent(inout), optional :: recvbuf
@@ -184,9 +160,6 @@ module f_allreduce
     end subroutine mpiallred_r1
 
     subroutine mpiallred_r2(sendbuf,op,comm,recvbuf,request)
-      use dynamic_memory
-      use dictionaries, only: f_err_throw!,f_err_define
-      !    use yaml_strings, only: yaml_toa
       implicit none
       real, dimension(:,:), intent(inout) :: sendbuf
       real, dimension(:,:), intent(inout), optional :: recvbuf
@@ -195,9 +168,6 @@ module f_allreduce
     end subroutine mpiallred_r2
 
     subroutine mpiallred_r3(sendbuf,op,comm,recvbuf,request)
-      use dynamic_memory
-      use dictionaries, only: f_err_throw!,f_err_define
-      !    use yaml_strings, only: yaml_toa
       implicit none
       real, dimension(:,:,:), intent(inout) :: sendbuf
       real, dimension(:,:,:), intent(inout), optional :: recvbuf
@@ -206,9 +176,6 @@ module f_allreduce
     end subroutine mpiallred_r3
 
     subroutine mpiallred_r4(sendbuf,op,comm,recvbuf,request)
-      use dynamic_memory
-      use dictionaries, only: f_err_throw!,f_err_define
-      !    use yaml_strings, only: yaml_toa
       implicit none
       real, dimension(:,:,:,:), intent(inout) :: sendbuf
       real, dimension(:,:,:,:), intent(inout), optional :: recvbuf
@@ -217,9 +184,6 @@ module f_allreduce
     end subroutine mpiallred_r4
 
     subroutine mpiallred_d1(sendbuf,op,comm,recvbuf,request)
-      use dynamic_memory
-      use dictionaries, only: f_err_throw!,f_err_define
-      !    use yaml_strings, only: yaml_toa
       implicit none
       real(f_double), dimension(:), intent(inout) :: sendbuf
       real(f_double), dimension(:), intent(inout), optional :: recvbuf
@@ -228,9 +192,6 @@ module f_allreduce
     end subroutine mpiallred_d1
 
     subroutine mpiallred_d2(sendbuf,op,comm,recvbuf,request)
-      use dynamic_memory
-      use dictionaries, only: f_err_throw!,f_err_define
-      !    use yaml_strings, only: yaml_toa
       implicit none
       real(f_double), dimension(:,:), intent(inout) :: sendbuf
       real(f_double), dimension(:,:), intent(inout), optional :: recvbuf
@@ -239,9 +200,6 @@ module f_allreduce
     end subroutine mpiallred_d2
 
     subroutine mpiallred_d3(sendbuf,op,comm,recvbuf,request)
-      use dynamic_memory
-      use dictionaries, only: f_err_throw!,f_err_define
-      !    use yaml_strings, only: yaml_toa
       implicit none
       real(f_double), dimension(:,:,:), intent(inout) :: sendbuf
       real(f_double), dimension(:,:,:), intent(inout), optional :: recvbuf
@@ -250,9 +208,6 @@ module f_allreduce
     end subroutine mpiallred_d3
 
     subroutine mpiallred_d4(sendbuf,op,comm,recvbuf,request)
-      use dynamic_memory
-      use dictionaries, only: f_err_throw!,f_err_define
-      !    use yaml_strings, only: yaml_toa
       implicit none
       real(f_double), dimension(:,:,:,:), intent(inout) :: sendbuf
       real(f_double), dimension(:,:,:,:), intent(inout), optional :: recvbuf
@@ -261,14 +216,66 @@ module f_allreduce
     end subroutine mpiallred_d4
 
     subroutine mpiallred_d5(sendbuf,op,comm,recvbuf,request)
-      use dynamic_memory
-      use dictionaries, only: f_err_throw!,f_err_define
-      !    use yaml_strings, only: yaml_toa
       implicit none
       real(f_double), dimension(:,:,:,:,:), intent(inout) :: sendbuf
       real(f_double), dimension(:,:,:,:,:), intent(inout), optional :: recvbuf
       real(f_double), dimension(:,:,:,:,:), allocatable :: copybuf
       include 'allreduce-arr-inc.f90'
     end subroutine mpiallred_d5
+
+    !>routine for the calling of multiple scalars in one single call
+    subroutine mpiallred_multi_d0(val1,val2,&
+         val3,val4,val5,val6,val7,val8,val9,val10,op,comm,request)
+      implicit none
+      real(f_double) :: val1,val2
+      real(f_double), optional :: val3,val4,val5,val6,val7,val8,val9,val10
+      !local variables
+      real(f_double), dimension(10) :: tmpsend,tmprecv
+
+      include 'allreduce-multi-inc.f90'
+      
+    end subroutine mpiallred_multi_d0
+
+    !>routine for the calling of multiple scalars in one single call
+    subroutine mpiallred_multi_i0(val1,val2,val3,&
+         val4,val5,val6,val7,val8,val9,val10,op,comm,request)
+      implicit none
+      integer(f_integer) :: val1,val2,val3
+      integer(f_integer), optional :: val4,val5,val6,val7,val8,val9,val10
+      !local variables
+      integer(f_integer), dimension(10) :: tmpsend,tmprecv
+      type(f_enumerator), intent(in), optional :: op
+      integer, intent(in), optional :: comm
+      integer(fmpi_integer), intent(out), optional :: request
+
+      if (.not. present(op)) call f_err_throw('MPI_OP should be present in the multiple fmpi_allred',&
+           err_id=ERR_MPI_WRAPPERS)
+
+      tmpsend=0
+      tmpsend(1)=val1
+      tmpsend(2)=val2
+      tmpsend(3)=val3
+      if (present(val4)) tmpsend(4)=val4
+      if (present(val5)) tmpsend(5)=val5
+      if (present(val6)) tmpsend(6)=val6
+      if (present(val7)) tmpsend(7)=val7
+      if (present(val8)) tmpsend(8)=val8
+      if (present(val9)) tmpsend(9)=val9
+      if (present(val10)) tmpsend(10)=val10
+
+      call fmpi_allreduce(sendbuf=tmpsend,recvbuf=tmprecv,op=op,comm=comm,request=request)
+
+      val1=tmprecv(1)
+      val2=tmprecv(2)
+      val3=tmprecv(3)
+      if (present(val4)) val4=tmprecv(4)
+      if (present(val5)) val5=tmprecv(5)
+      if (present(val6)) val6=tmprecv(6)
+      if (present(val7)) val7=tmprecv(7)
+      if (present(val8)) val8=tmprecv(8)
+      if (present(val9)) val9=tmprecv(9)
+      if (present(val10)) val10=tmprecv(10)
+    end subroutine mpiallred_multi_i0
+
 
 end module f_allreduce

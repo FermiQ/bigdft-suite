@@ -1921,7 +1921,7 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
   use abi_interfaces_numeric, only: abi_derf_ab
   use public_enums, only: PSPCODE_PAW
   use bounds, only: ext_buffers
-  use box, only: cell_periodic_dims,cell_geocode,box_next_point,square,box_iterator
+  use box, only: cell_periodic_dims,cell_geocode,box_next_point,square_gd,box_iterator
   implicit none
 
   !Arguments
@@ -2786,7 +2786,7 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
      end if
      bitp=dpbox%bitp !shallow copy to avoid intent(out) in dpbox
      do while(box_next_point(bitp))
-        r2=square(dpbox%mesh,bitp%rxyz-rxyz(:,atit%iat))
+        r2=square_gd(dpbox%mesh,bitp%rxyz-rxyz(:,atit%iat))
         pot_ion(bitp%ind)=pot_ion(bitp%ind)+aval*r2
      end do
   end do

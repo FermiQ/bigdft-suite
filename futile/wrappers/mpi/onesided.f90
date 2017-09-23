@@ -32,6 +32,15 @@ module f_onesided
      module procedure mpiaccumulate_d0
   end interface mpiaccumulate
 
+  interface assignment(=)
+     module procedure win_allocate_w1,win_allocate_w2
+     module procedure win_allocate_w1_ptr
+  end interface assignment(=)
+
+  interface free_fmpi_win_arr
+     module procedure free_fmpi_win_arr,free_fmpi_win_arr2
+  end interface free_fmpi_win_arr
+
   type, public :: fmpi_info
      integer(fmpi_integer) :: handle=FMPI_INFO_NULL
      type(dictionary), pointer :: dict=>null()
@@ -58,7 +67,9 @@ module f_onesided
   !>Timing categories
   integer, public, save :: TCAT_FENCE        = TIMING_UNINITIALIZED
 
-  public :: fmpi_win_create,fmpi_win_fence,fmpi_win_free,fmpi_get
+  public :: fmpi_win_create,fmpi_win_fence,fmpi_win_free,fmpi_get,free_fmpi_win_ptr
+  public :: free_fmpi_win_arr
+  public :: assignment(=)
 
   contains
 
@@ -261,6 +272,96 @@ module f_onesided
 !!$
 !!$
 !!$    end function mpiwindow_l0
+
+    subroutine win_allocate_w1(array,m)
+      use dynamic_memory
+      implicit none
+      type(fmpi_win), dimension(:), allocatable, intent(inout) :: array
+      type(malloc_information_all), intent(in) :: m
+      !local variables
+      integer :: ierror
+
+      call f_timer_interrupt(TCAT_ARRAY_ALLOCATIONS)
+
+      allocate(array(m%lbounds(1):m%ubounds(1)),stat=ierror)
+
+      call malloc_validate(ierror,size(shape(array)),m)
+
+      !here the database for the allocation might be updated
+
+      call f_timer_resume()!TCAT_ARRAY_ALLOCATIONS
+
+    end subroutine win_allocate_w1
+    subroutine win_allocate_w2(array,m)
+      use dynamic_memory
+      implicit none
+      type(fmpi_win), dimension(:,:), allocatable, intent(inout) :: array
+      type(malloc_information_all), intent(in) :: m
+      !local variables
+      integer :: ierror
+
+      call f_timer_interrupt(TCAT_ARRAY_ALLOCATIONS)
+
+      allocate(array(m%lbounds(1):m%ubounds(1),m%lbounds(2):m%ubounds(2)),stat=ierror)
+
+      call malloc_validate(ierror,size(shape(array)),m)
+
+      !here the database for the allocation might be updated
+
+      call f_timer_resume()!TCAT_ARRAY_ALLOCATIONS
+
+    end subroutine win_allocate_w2
+
+    subroutine win_allocate_w1_ptr(array,m)
+      use dynamic_memory
+      implicit none
+      type(fmpi_win), dimension(:), pointer, intent(inout) :: array
+      type(malloc_information_ptr), intent(in) :: m
+      !local variables
+      integer :: ierror
+
+      call f_timer_interrupt(TCAT_ARRAY_ALLOCATIONS)
+
+      allocate(array(m%lbounds(1):m%ubounds(1)),stat=ierror)
+
+      call malloc_validate(ierror,size(shape(array)),m)
+
+      !here the database for the allocation might be updated
+
+      call f_timer_resume()!TCAT_ARRAY_ALLOCATIONS
+
+    end subroutine win_allocate_w1_ptr
+
+    subroutine free_fmpi_win_ptr(array)
+      use dynamic_memory
+      implicit none
+      type(fmpi_win), dimension(:), pointer :: array
+
+      call f_timer_interrupt(TCAT_ARRAY_ALLOCATIONS)
+      deallocate(array) !let it crash if istat=/0
+      nullify(array)
+      call f_timer_resume()!TCAT_ARRAY_ALLOCATIONS
+    end subroutine free_fmpi_win_ptr
+
+    subroutine free_fmpi_win_arr(array)
+      use dynamic_memory
+      implicit none
+      type(fmpi_win), dimension(:), allocatable, intent(inout) :: array
+
+      call f_timer_interrupt(TCAT_ARRAY_ALLOCATIONS)
+      deallocate(array) !let it crash if istat=/0
+      call f_timer_resume()!TCAT_ARRAY_ALLOCATIONS
+    end subroutine free_fmpi_win_arr
+
+    subroutine free_fmpi_win_arr2(array)
+      use dynamic_memory
+      implicit none
+      type(fmpi_win), dimension(:,:), allocatable, intent(inout) :: array
+
+      call f_timer_interrupt(TCAT_ARRAY_ALLOCATIONS)
+      deallocate(array) !let it crash if istat=/0
+      call f_timer_resume()!TCAT_ARRAY_ALLOCATIONS
+    end subroutine free_fmpi_win_arr2
 
 
   subroutine mpi_fence(window, assert)

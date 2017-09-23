@@ -207,7 +207,7 @@ module coeffs
       !!   !$omp end parallel
       !!end do
       !!if (nproc>1) then
-      !!   call mpiallred(energy, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
+      !!   call fmpi_allreduce(energy, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
       !!end if
       !call timing(iproc,'calc_energy','OF')
       call f_timing(TCAT_SMAT_MULTIPLICATION,'OF')
@@ -403,8 +403,8 @@ module coeffs
               if (nproc > 1) then
                   !call timing(iproc,'commun_kernel','ON')
                   call f_timing(TCAT_HL_MATRIX_COMMUNICATIONS,'ON')
-                  call mpiallred(denskern_%matrix(1,1,1), denskern%nspin*denskern%nfvctr**2, &
-                       mpi_sum, comm=comm)
+                  call fmpi_allreduce(denskern_%matrix(1,1,1), denskern%nspin*denskern%nfvctr**2, &
+                       FMPI_SUM, comm=comm)
                   !call timing(iproc,'commun_kernel','OF')
                   call f_timing(TCAT_HL_MATRIX_COMMUNICATIONS,'OF')
               end if
@@ -415,7 +415,7 @@ module coeffs
           if (nproc > 1) then
               !call timing(iproc,'commun_kernel','ON')
               call f_timing(TCAT_HL_MATRIX_COMMUNICATIONS,'ON')
-              call mpiallred(tmparr(1), denskern%nspin*denskern%nvctr, mpi_sum, comm=comm)
+              call fmpi_allreduce(tmparr(1), denskern%nspin*denskern%nvctr, FMPI_SUM, comm=comm)
               !call timing(iproc,'commun_kernel','OF')
               call f_timing(TCAT_HL_MATRIX_COMMUNICATIONS,'OF')
           end if

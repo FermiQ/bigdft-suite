@@ -4,7 +4,7 @@ module_DATA = $(modules)
 
 ALLTOALL_INCLUDES = alltoallv-inc.f90 mpi_get_alltoallv-inc.f90
 
-ALLREDUCE_INCLUDES = allreduce-inc.f90 allreduce-arr-inc.f90 allreduce-core-inc.f90 allreduce-decl-inc.f90
+ALLREDUCE_INCLUDES = allreduce-inc.f90 allreduce-arr-inc.f90 allreduce-core-inc.f90 allreduce-decl-inc.f90 allreduce-multi-inc.f90
 
 MPI_INCLUDES = gather-inc.f90 \
 	gather-inner-inc.f90 maxdiff-arr-inc.f90 maxdiff-inc.f90 \
@@ -64,6 +64,7 @@ modules = WRAPPER_MPI.@MODULE_EXT@ \
 	TEST_MPI_WRAPPERS.@MODULE_EXT@\
 	FMPI_TYPES.@MODULE_EXT@ \
 	F_ALLREDUCE.@MODULE_EXT@ \
+	F_ONESIDED.@MODULE_EXT@ \
 	F_ALLTOALL.@MODULE_EXT@
 else
 modules = wrapper_mpi.@MODULE_EXT@ \
@@ -71,6 +72,7 @@ modules = wrapper_mpi.@MODULE_EXT@ \
 	test_mpi_wrappers.@MODULE_EXT@ \
 	fmpi_types.@MODULE_EXT@ \
 	f_allreduce.@MODULE_EXT@ \
+	f_onesided.@MODULE_EXT@ \
 	f_alltoall.@MODULE_EXT@
 endif
 CLEANFILES = $(modules) mpif.h

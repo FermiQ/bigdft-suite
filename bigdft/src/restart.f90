@@ -3888,7 +3888,7 @@ subroutine reformat_check(reformat_needed,reformat_reason,tol,at,hgrids_old,hgri
   !write(*,'(a,3(3(f12.8,x),3x))') 'final centre box',centre_old_box,centre_new_box,da
   !write(*,'(a,3(3(f12.8,x),3x))') 'final centre',frag_trans%rot_center,frag_trans%rot_center_new
 
-  displ=square(mesh,da)!sqrt(da(1)**2+da(2)**2+da(3)**2)
+  displ=square_gd(mesh,da)!sqrt(da(1)**2+da(2)**2+da(3)**2)
 
   !reformatting criterion
   if (hgrids(1) == hgrids_old(1) .and. hgrids(2) == hgrids_old(2) .and. hgrids(3) == hgrids_old(3) &

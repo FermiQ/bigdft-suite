@@ -10,9 +10,7 @@
   if (m%srcdata_add == int(-1,f_address)) then
      nullify(array)
      if (f_nan_pad_size > 0) call togglepadding(0)
-     !$ if (not_omp) then
      call f_timer_resume()!TCAT_ARRAY_ALLOCATIONS
-     !$ end if
      !not possible: the pointer could have not been nullified call f_free_ptr(array) !to avoid memory leaks
      return
   end if

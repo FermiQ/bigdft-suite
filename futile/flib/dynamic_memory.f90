@@ -161,13 +161,18 @@ module dynamic_memory_base
      module procedure f_subptr_d0,f_subptr_d00!,f_subptr_i00
   end interface f_subptr
 
+  interface malloc_validate
+     module procedure validate_allocation_all,validate_allocation_ptr
+     module procedure validate_allocation_str_ptr,validate_allocation_str_all
+  end interface malloc_validate
+
   public :: f_free,f_free_ptr,f_free_str,f_free_str_ptr,f_malloc_dump_status
   public :: f_routine,f_release_routine,f_malloc_set_status,f_malloc_initialize,f_malloc_finalize
   public :: f_memcpy,f_maxdiff,f_update_database,f_purge_database,f_subptr
   public :: assignment(=),operator(.to.),operator(.plus.)
 
   !for internal f_lib usage
-  public :: dynamic_memory_errors
+  public :: dynamic_memory_errors,malloc_validate
 
 contains
 
@@ -292,6 +297,36 @@ contains
          mems(ictrl)%depth <= mems(ictrl)%profiling_depth .or. &
          mems(ictrl)%profiling_depth ==-1
   end subroutine set_depth
+
+
+  subroutine validate_allocation_all(ierror,rank,m)
+    implicit none
+    integer, intent(in) :: ierror,rank
+    type(malloc_information_all), intent(in) :: m
+    include 'allocation-validation-inc.f90'
+  end subroutine validate_allocation_all
+
+  subroutine validate_allocation_str_all(ierror,rank,m)
+    implicit none
+    integer, intent(in) :: ierror,rank
+    type(malloc_information_str_all), intent(in) :: m
+    include 'allocation-validation-inc.f90'
+  end subroutine validate_allocation_str_all
+
+  subroutine validate_allocation_ptr(ierror,rank,m)
+    implicit none
+    integer, intent(in) :: ierror,rank
+    type(malloc_information_ptr), intent(in) :: m
+    include 'allocation-validation-inc.f90'
+  end subroutine validate_allocation_ptr
+
+  subroutine validate_allocation_str_ptr(ierror,rank,m)
+    implicit none
+    integer, intent(in) :: ierror,rank
+    type(malloc_information_str_ptr), intent(in) :: m
+    include 'allocation-validation-inc.f90'
+  end subroutine validate_allocation_str_ptr
+
 
   !> This routine adds the corresponding subprogram name to the dictionary
   !! and prepend the dictionary to the global info dictionary

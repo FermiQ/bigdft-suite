@@ -23,6 +23,7 @@ module wrapper_MPI
   use mpif_module
   use fmpi_types!, only: ERR_MPI_WRAPPERS
   use f_allreduce
+  use f_onesided
   implicit none
 
   ! MPI handling
