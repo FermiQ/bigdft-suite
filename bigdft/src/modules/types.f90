@@ -223,7 +223,7 @@ module module_types
     integer :: ncount
     real(wp),dimension(:),pointer :: receivebuf
     real(wp),dimension(:),pointer :: sendbuf
-    integer :: window
+    type(fmpi_win) :: window
   end type work_mpiaccumulate
 
 
@@ -1075,7 +1075,7 @@ contains
     implicit none
     type(work_mpiaccumulate),intent(out) :: w
     w%ncount = 0
-    w%window = 0
+    !w%window = 0
     nullify(w%receivebuf)
     nullify(w%sendbuf)
   end subroutine nullify_work_mpiaccumulate

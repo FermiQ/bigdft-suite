@@ -17,20 +17,22 @@ module f_onesided
   private
 
   interface fmpi_win_create
-    module procedure mpiwindow_d0!, mpiwindow_i0, mpiwindow_long0, mpiwindow_l0
+    module procedure mpiwindowl_d0,mpiwindowi_d0!, mpiwindow_i0, mpiwindow_long0, mpiwindow_l0
+    module procedure mpiwindowl_i0,mpiwindowi_i0
+    module procedure mpiwindowl_li0,mpiwindowi_li0
  end interface fmpi_win_create
 
   interface fmpi_get
-     module procedure fmpi_get_d0
+     module procedure fmpi_get_d0,fmpi_get_i0,fmpi_get_li0
   end interface fmpi_get
 
   interface mpiput
      module procedure mpiput_d0
   end interface mpiput
 
-  interface mpiaccumulate
+  interface fmpi_accumulate
      module procedure mpiaccumulate_d0
-  end interface mpiaccumulate
+  end interface fmpi_accumulate
 
   interface assignment(=)
      module procedure win_allocate_w1,win_allocate_w2
@@ -68,7 +70,7 @@ module f_onesided
   integer, public, save :: TCAT_FENCE        = TIMING_UNINITIALIZED
 
   public :: fmpi_win_create,fmpi_win_fence,fmpi_win_free,fmpi_get,free_fmpi_win_ptr
-  public :: free_fmpi_win_arr
+  public :: free_fmpi_win_arr,fmpi_win_shut,fmpi_accumulate
   public :: assignment(=)
 
   contains
@@ -126,55 +128,61 @@ module f_onesided
       info%handle=FMPI_INFO_NULL
     end subroutine fmpi_info_free
 
-    subroutine mpiwindow_d0(win,base,size,comm,dict_info,info)
+    subroutine mpiwindowl_d0(win,base,size,comm,dict_info,info)
       implicit none
       real(f_double) :: base
       integer(f_long),intent(in) :: size
-      integer(fmpi_integer),intent(in), optional :: comm
-      type(dictionary), pointer, optional :: dict_info
-      type(fmpi_info), intent(in), optional :: info
-      type(fmpi_win) :: win
-      !local variables
-      integer(fmpi_integer) :: ierr,infohandle
-      type(fmpi_info) :: info_
 
-      infohandle=FMPI_INFO_NULL
-      if (present(dict_info)) then
-         call fmpi_info_create(info_)
-         call fmpi_info_set(info_,dict_info)
-         infohandle=info_%handle
-      end if
+      include 'win-create-inc.f90'
 
-      if (present(info)) then
-         infohandle=info%handle
-      end if
+    end subroutine mpiwindowl_d0
 
-      !info=mpiinfo("no_locks", "true")
+    subroutine mpiwindowi_d0(win,base,size,comm,dict_info,info)
+      implicit none
+      real(f_double) :: base
+      integer(f_integer),intent(in) :: size
 
-      win%disp_unit=mpitypesize(base)
-      win%size=int(size,fmpi_address)
-      win%comm=fmpi_comm(comm)
-      call mpi_win_create(base, win%size*win%disp_unit, &
-           win%disp_unit, infohandle,win%comm,win%handle, ierr)
+      include 'win-create-inc.f90'
 
-      if (ierr/=FMPI_SUCCESS) then
-         call f_err_throw('Error in mpi_win_create',&
-              err_id=ERR_MPI_WRAPPERS)
-      end if
+    end subroutine mpiwindowi_d0
 
-      if (present(dict_info)) then
-         call fmpi_info_free(info_)
-      end if
-      !call mpiinfofree(info)
+    subroutine mpiwindowi_i0(win,base,size,comm,dict_info,info)
+      implicit none
+      integer(f_integer) :: base
+      integer(f_integer),intent(in) :: size
 
-!!$      call mpi_win_fence(MPI_MODE_NOPRECEDE, window, ierr)
-!!$      if (ierr/=0) then
-!!$         call f_err_throw('Error in mpi_win_fence',&
-!!$              err_id=ERR_MPI_WRAPPERS)
-!!$      end if
+      include 'win-create-inc.f90'
+
+    end subroutine mpiwindowi_i0
+
+    subroutine mpiwindowl_i0(win,base,size,comm,dict_info,info)
+      implicit none
+      integer(f_integer) :: base
+      integer(f_long),intent(in) :: size
+
+      include 'win-create-inc.f90'
+
+    end subroutine mpiwindowl_i0
+
+    subroutine mpiwindowi_li0(win,base,size,comm,dict_info,info)
+      implicit none
+      integer(f_long) :: base
+      integer(f_integer),intent(in) :: size
+
+      include 'win-create-inc.f90'
+
+    end subroutine mpiwindowi_li0
+
+    subroutine mpiwindowl_li0(win,base,size,comm,dict_info,info)
+      implicit none
+      integer(f_long) :: base
+      integer(f_long),intent(in) :: size
+
+      include 'win-create-inc.f90'
+
+    end subroutine mpiwindowl_li0
 
 
-    end subroutine mpiwindow_d0
     
 !!$    function mpiwindow_i0(size,base,comm) result(window)
 !!$      use dictionaries, only: f_err_throw,f_err_define
@@ -509,34 +517,14 @@ module f_onesided
 
   end subroutine mpiwinwait
 
-
-  subroutine mpi_fenceandfree(window, assert)
+  !>fence and free
+  subroutine fmpi_win_shut(window)
     use dictionaries, only: f_err_throw,f_err_define
     ! Calling arguments
-    integer,intent(inout) :: window !<window to be synchronized and freed
-    integer,intent(in),optional :: assert
-
-    ! Local variables
-    integer :: ierr, assert_
-
-    if (present(assert)) then
-       assert_ = assert
-    else
-       assert_ = 0
-    end if
-
-    ! Synchronize the communication
-    call mpi_win_fence(assert_, window, ierr)
-    if (ierr/=0) then
-       call f_err_throw('Error in mpi_win_fence',&
-            err_id=ERR_MPI_WRAPPERS)
-    end if
-    call mpi_win_free(window, ierr)
-    if (ierr/=0) then
-       call f_err_throw('Error in mpi_win_fence',&
-            err_id=ERR_MPI_WRAPPERS)
-    end if
-  end subroutine mpi_fenceandfree
+    type(fmpi_win), intent(inout) :: window !<window to be synchronized and freed
+    call fmpi_win_fence(window,FMPI_WIN_CLOSE)
+    call fmpi_win_free(window)
+  end subroutine fmpi_win_shut
 
   subroutine mpiget_d0(origin,count,target_rank,target_disp,window)
     use dictionaries, only: f_err_throw,f_err_define
@@ -560,29 +548,28 @@ module f_onesided
     use dynamic_memory, only: f_subptr
     implicit none
     real(f_double) :: origin_addr
-    integer, intent(in) :: count
-    integer(fmpi_integer), intent(in) :: target_rank
-    integer(fmpi_address), intent(in) :: target_disp
-    type(fmpi_win), intent(in) :: win
-    integer, intent(in), optional :: origin_displ
     !local variables
     real(f_double), dimension(:), pointer :: origin_ptr
-    ! Local variables
-    integer :: from
-    integer(fmpi_integer) :: ierr
-    external :: MPI_GET
-
-    from=1
-    if(present(origin_displ)) from=origin_displ+1
-    origin_ptr=>f_subptr(origin_addr,count,from=from)
-    call MPI_GET(origin_ptr,count,mpitype(origin_ptr),target_rank, &
-         target_disp,int(count,fmpi_integer),win%disp_unit, win%handle, ierr)
-    if (ierr/=FMPI_SUCCESS) then
-       call f_err_throw('Error in mpi_get',&
-            err_id=ERR_MPI_WRAPPERS)
-    end if
+    include 'get-inc.f90'
   end subroutine fmpi_get_d0
 
+  subroutine fmpi_get_i0(origin_addr,target_rank,win,count,target_disp,origin_displ)
+    use dynamic_memory, only: f_subptr
+    implicit none
+    integer(f_integer) :: origin_addr
+    !local variables
+    integer(f_integer), dimension(:), pointer :: origin_ptr
+    include 'get-inc.f90'
+  end subroutine fmpi_get_i0
+
+  subroutine fmpi_get_li0(origin_addr,target_rank,win,count,target_disp,origin_displ)
+    use dynamic_memory, only: f_subptr
+    implicit none
+    integer(f_long) :: origin_addr
+    !local variables
+    integer(f_long), dimension(:), pointer :: origin_ptr
+    include 'get-inc.f90'
+  end subroutine fmpi_get_li0
 
 
   subroutine mpiput_d0(origin,count,target_rank,target_disp,window)
@@ -603,12 +590,14 @@ module f_onesided
     end if
   end subroutine mpiput_d0
 
-  subroutine mpiaccumulate_d0(origin,count,target_rank,target_disp,op,window)
+  subroutine mpiaccumulate_d0(origin,count,target_rank,target_disp,op,win)
     use yaml_strings    
     implicit none
-    double precision,intent(inout) :: origin !<fake intent(in)
-    integer,intent(in) :: count, target_rank,window,op
+    real(f_double) :: origin !<fake intent(in)
+    integer,intent(in) :: count, target_rank
     integer(fmpi_address),intent(in) :: target_disp
+    type(fmpi_win), intent(in) :: win
+    type(f_enumerator), intent(in) :: op
 
     ! Local variables
     integer :: ierr
@@ -617,7 +606,7 @@ module f_onesided
         call f_err_throw('count<0, value='//trim(yaml_toa(count)))
     end if
     call mpi_accumulate(origin,count,mpitype(origin),target_rank, &
-         target_disp,count,mpitype(origin), op, window, ierr)
+         target_disp,count,mpitype(origin),int(toi(op),fmpi_integer), win%handle, ierr)
     if (ierr/=0) then
        call f_err_throw('Error in mpi_accumulate',&
             err_id=ERR_MPI_WRAPPERS)

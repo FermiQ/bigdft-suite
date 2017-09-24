@@ -300,7 +300,7 @@ test_forces_SOURCES = test_forces.f90
 test_forces_LDADD = $(bigdft_library)
 
 #to be adjusted: when the compiler has MPI built-in libraries the linker finds multiple definitions
-memguess_SOURCES = memguess.f90 MPIfake.f90
+memguess_SOURCES = memguess.f90 # MPIfake.f90
 memguess_LDADD = $(bigdft_library) @FC_EXPORTS@
 
 utilities_SOURCES = utilities.f90

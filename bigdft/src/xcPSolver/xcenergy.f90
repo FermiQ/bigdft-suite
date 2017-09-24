@@ -657,7 +657,7 @@ subroutine XC_potential(geocode,datacode,iproc,nproc,mpi_comm,n01,n02,n03,xcObj,
 
      energies_mpi(1)=eexcuLOC
      energies_mpi(2)=vexcuLOC
-     call mpiallred(energies_mpi(1), 2,MPI_SUM,comm=mpi_comm,recvbuf=energies_mpi(3))
+     call fmpi_allreduce(energies_mpi(1), 2,FMPI_SUM,comm=mpi_comm,recvbuf=energies_mpi(3))
      exc=energies_mpi(3)
      vxc=energies_mpi(4)
 
@@ -666,12 +666,12 @@ subroutine XC_potential(geocode,datacode,iproc,nproc,mpi_comm,n01,n02,n03,xcObj,
 
         if (associated(rhocore)) then
         call calc_rhocstr(rhocstr,nxc,nxt,m1,m3,i3xcsh_fake,nspin,potxc,rhocore)
-        call mpiallred(rhocstr,MPI_SUM,comm=mpi_comm)
+        call fmpi_allreduce(rhocstr,FMPI_SUM,comm=mpi_comm)
         rhocstr=rhocstr/real(n01*n02*n03,dp)
         end if
 
      xcstr(1:3)=(exc-vxc)/real(n01*n02*n03,dp)/product(hgrids)!hx/hy/hz
-     call mpiallred(wbstr,MPI_SUM,comm=mpi_comm)
+     call fmpi_allreduce(wbstr,FMPI_SUM,comm=mpi_comm)
      wbstr=wbstr/real(n01*n02*n03,dp)
      xcstr(:)=xcstr(:)+wbstr(:)+rhocstr(:)
   end if

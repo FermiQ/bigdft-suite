@@ -155,9 +155,9 @@ subroutine calculate_coupling_matrix(iproc,nproc,boxit,tddft_approach,nspin,ndim
      end do
   !If more than one processor, then perform the MPI_all_reduce of K (and of Kaux if nspin=1) and of dipoles.
   if (nproc > 1) then
-     call mpiallred(K,MPI_SUM,comm=bigdft_mpi%mpi_comm)
-     if (nspin ==1) call mpiallred(Kaux,MPI_SUM,comm=bigdft_mpi%mpi_comm)
-     call mpiallred(dipoles(1,1),3*nmulti,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+     call fmpi_allreduce(K,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
+     if (nspin ==1) call fmpi_allreduce(Kaux,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
+     call fmpi_allreduce(dipoles(1,1),3*nmulti,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
   end if
 
 
@@ -674,9 +674,9 @@ subroutine coupling_matrix_prelim(iproc,nproc,geocode,tddft_approach,nspin,lr,or
 
   !If more than one processor, then perform the MPI_all_reduce of K (and of Kaux if nspin=1) and of dipoles.
   if (nproc > 1) then
-     call mpiallred(K,MPI_SUM,comm=bigdft_mpi%mpi_comm)
-     if (nspin ==1) call mpiallred(Kaux,MPI_SUM,comm=bigdft_mpi%mpi_comm)
-     call mpiallred(dipoles(1,1),3*nmulti,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+     call fmpi_allreduce(K,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
+     if (nspin ==1) call fmpi_allreduce(Kaux,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
+     call fmpi_allreduce(dipoles(1,1),3*nmulti,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
   end if
 
   !Copy the values of the dipoles in the second part of the array, given the occupation number of each orbital.

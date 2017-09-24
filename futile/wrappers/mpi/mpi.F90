@@ -24,6 +24,7 @@ module wrapper_MPI
   use fmpi_types!, only: ERR_MPI_WRAPPERS
   use f_allreduce
   use f_onesided
+  use f_alltoall
   implicit none
 
   ! MPI handling
@@ -2093,7 +2094,7 @@ subroutine getall_d(nproc,recvcounts,displs,window,nrecvbuffer,recvbuffer)
      jcount=recvcounts(jproc)
      jst=displs(jproc)
      if (jcount>0) then
-        call fmpi_get(recvbuffer(1),jproc,window,jcount,int(0,fmpi_address),jst)
+        call fmpi_get(recvbuffer(jst+1),jproc,window,jcount,int(0,fmpi_address))
         !call mpiget(recvbuffer(jst+1), jcount, jproc, int(0,kind=mpi_address_kind), window)
      end if
   end do

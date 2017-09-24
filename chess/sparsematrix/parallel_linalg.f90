@@ -157,9 +157,8 @@ module parallel_linalg
           if (iproc==0) then
               do jproc=0,nproc-1
                   if (jproc/=iproc) then
-                     call fmpi_get(c(1,1),jproc,window,ldc*np_all(jproc),&
-                          int(ldc*is_all(jproc),kind=fmpi_address),&
-                          is_all(jproc))
+                     call fmpi_get(c(1,is_all(jproc)+1),jproc,window,ldc*np_all(jproc),&
+                          int(ldc*is_all(jproc),kind=fmpi_address))
                      !call mpiget(c(1,is_all(jproc)+1), ldc*np_all(jproc), jproc, &
                      !int(ldc*is_all(jproc),kind=mpi_address_kind), window)
                   end if

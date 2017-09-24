@@ -285,7 +285,7 @@ END SUBROUTINE local_partial_densityLinear
 !!      call timing(iproc,'waitAllgatKern','OF')
 !!      if (nproc > 1) then
 !!          call timing(iproc,'commun_kernel','ON')
-!!          call mpiallred(kernel(1,1),orbs_tmb%norb**2, mpi_sum, bigdft_mpi%mpi_comm)
+!!          call fmpi_allreduce(kernel(1,1),orbs_tmb%norb**2, mpi_sum, bigdft_mpi%mpi_comm)
 !!          call timing(iproc,'commun_kernel','OF')
 !!      end if
 !!  end if
@@ -393,7 +393,7 @@ subroutine check_negative_rho(nspin,ndimrho, rho, rho_negative)
   end do 
 
   if (bigdft_mpi%nproc > 1) then
-     call mpiallred(irho, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
+     call fmpi_allreduce(irho, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
   end if
 
   if (irho>0) then

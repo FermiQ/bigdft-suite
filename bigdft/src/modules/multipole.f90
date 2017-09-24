@@ -704,10 +704,10 @@ module multipole
           end do
           
           if (nproc>1) then
-              call mpiallred(norm_check, mpi_sum, comm=bigdft_mpi%mpi_comm)
-              call mpiallred(monopole(1:ep%nmpl,0), mpi_sum, comm=bigdft_mpi%mpi_comm)
-              call mpiallred(dipole(1:3,1:ep%nmpl,0), mpi_sum, comm=bigdft_mpi%mpi_comm)
-              call mpiallred(quadrupole(1:5,1:ep%nmpl,0), mpi_sum, comm=bigdft_mpi%mpi_comm)
+              call fmpi_allreduce(norm_check, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+              call fmpi_allreduce(monopole(1:ep%nmpl,0), FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+              call fmpi_allreduce(dipole(1:3,1:ep%nmpl,0), FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+              call fmpi_allreduce(quadrupole(1:5,1:ep%nmpl,0), FMPI_SUM, comm=bigdft_mpi%mpi_comm)
           end if
     
     
@@ -2430,7 +2430,7 @@ module multipole
           call f_free(locregcenter)
       end if
 
-      call mpiallred(atomic_multipoles, mpi_sum, comm=bigdft_mpi%mpi_comm)
+      call fmpi_allreduce(atomic_multipoles, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
 
 
       !! The monopole term should be the net charge, i.e. add the positive atomic charges
@@ -3448,7 +3448,7 @@ module multipole
     end do
 
    if (nproc>1) then
-       call mpiallred(locregcenter, mpi_sum, comm=bigdft_mpi%mpi_comm)
+       call fmpi_allreduce(locregcenter, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
    end if
 
    ! Transform back to wavelets
@@ -3485,7 +3485,7 @@ module multipole
    end do
    call f_free(Qlm)
 
-  if (nproc > 1) call mpiallred(values,op=MPI_SUM,comm=bigdft_mpi%mpi_comm)
+  if (nproc > 1) call fmpi_allreduce(values,op=FMPI_SUM,comm=bigdft_mpi%mpi_comm)
   do l=0,lmax
      do m=-l,l !to copy also zeros
         errors(m,l) = 100.d0*abs(values(m,l)/get_test_factor(l,m)-1.d0)
@@ -3762,8 +3762,8 @@ module multipole
   end if
 
   if (nproc>1) then
-      call mpiallred(center_locreg, mpi_sum, comm=bigdft_mpi%mpi_comm)
-      call mpiallred(center_orb, mpi_sum, comm=bigdft_mpi%mpi_comm)
+      call fmpi_allreduce(center_locreg, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+      call fmpi_allreduce(center_orb, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
   end if
 
   hxh = 0.5d0*tmb%lzd%hgrids(1)
@@ -3819,9 +3819,9 @@ module multipole
  
  
   if (bigdft_mpi%nproc>1) then
-      call mpiallred(multipoles, mpi_sum, comm=bigdft_mpi%mpi_comm)
-      call mpiallred(scaled, mpi_sum, comm=bigdft_mpi%mpi_comm)
-      call mpiallred(rmax, mpi_sum, comm=bigdft_mpi%mpi_comm)
+      call fmpi_allreduce(multipoles, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+      call fmpi_allreduce(scaled, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+      call fmpi_allreduce(rmax, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
   end if
 
  
@@ -4066,7 +4066,7 @@ module multipole
  !!                          end do
  !!                      end do
  !!                  end do
- !!                  call mpiallred(diff, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
+ !!                  call fmpi_allreduce(diff, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
  !!                  !!tt = diff/(real(size(denspot%V_ext,1),kind=8)*&
  !!                  !!           real(size(denspot%V_ext,1),kind=8)*&
  !!                  !!           real(size(denspot%V_ext,1),kind=8))
@@ -4330,7 +4330,7 @@ module multipole
 
        ! Sum up the norms of the Gaussians.
        if (nproc>1) then
-           call mpiallred(norm, mpi_sum, comm=bigdft_mpi%mpi_comm)
+           call fmpi_allreduce(norm, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
        end if
 
        call f_release_routine()
@@ -4470,8 +4470,8 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
   end do
 
   !!call mpi_barrier(mpi_comm_world,ispin)
-  call mpiallred(qtot, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
-  call mpiallred(dipole_el, mpi_sum, comm=bigdft_mpi%mpi_comm)
+  call fmpi_allreduce(qtot, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+  call fmpi_allreduce(dipole_el, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
   !!call mpi_barrier(mpi_comm_world,ispin)
   !!write(*,*) 'after allred: iproc, dipole_el,sum(rho), qtot',bigdft_mpi%iproc,dipole_el,sum(rho), qtot
 
@@ -4529,11 +4529,11 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
 !!$              end do
 !!$      end do
 !!$          !!write(*,*) 'qtot',qtot
-!!$         call mpiallred(qtot, 1, mpi_sum, comm=bigdft_mpi%mpi_comm) !LG: why two spins parallelized that way?
+!!$         call fmpi_allreduce(qtot, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm) !LG: why two spins parallelized that way?
 !!$         charge_center_elec(1:3,ispin)=charge_center_elec(1:3,ispin)/qtot
 !!$      end do
 !!$
-!!$      call mpiallred(charge_center_elec, mpi_sum, comm=bigdft_mpi%mpi_comm)
+!!$      call fmpi_allreduce(charge_center_elec, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
 
        call f_zero(quadropole_el)
       do ispin=1,nspin
@@ -4611,7 +4611,7 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
       end do
 
       !!if (.not. is_net_charge) then
-          call mpiallred(quadropole_el, mpi_sum, comm=bigdft_mpi%mpi_comm)
+          call fmpi_allreduce(quadropole_el, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
           tmpquadrop=quadropole_cores+quadropole_el
       !!else
       !!    tmpquadrop=quadropole_el
@@ -5736,10 +5736,10 @@ end subroutine calculate_rpowerx_matrices
 !!$    call dscal(ncheck, factor, potential_error(1), 1)
 !!$    call dscal(ncheck, factor, potential_total(1), 1)
     if (bigdft_mpi%nproc > 1) then
-       call mpiallred(charge_error, mpi_sum, comm=bigdft_mpi%mpi_comm)
-       call mpiallred(external_volume, mpi_sum, comm=bigdft_mpi%mpi_comm)
-       call mpiallred(potential_error, mpi_sum, comm=bigdft_mpi%mpi_comm)
-       call mpiallred(potential_total, mpi_sum, comm=bigdft_mpi%mpi_comm)
+       call fmpi_allreduce(charge_error, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+       call fmpi_allreduce(external_volume, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+       call fmpi_allreduce(potential_error, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+       call fmpi_allreduce(potential_total, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
     end if
 
     call f_release_routine()
@@ -5940,12 +5940,12 @@ end subroutine calculate_rpowerx_matrices
 !!$    call dscal(ncheck, factor, potential_error(1), 1)
 !!$    call dscal(ncheck, factor, potential_total(1), 1)
     if (bigdft_mpi%nproc > 1) then
-       call mpiallred(charge_error, mpi_sum, comm=bigdft_mpi%mpi_comm)
-       call mpiallred(external_volume, mpi_sum, comm=bigdft_mpi%mpi_comm)
-       call mpiallred(potential_error, mpi_sum, comm=bigdft_mpi%mpi_comm)
-       call mpiallred(potential_total, mpi_sum, comm=bigdft_mpi%mpi_comm)
-       call mpiallred(icnt,1,op=mpi_sum, comm=bigdft_mpi%mpi_comm)
-       call mpiallred(igood,1,op=mpi_sum, comm=bigdft_mpi%mpi_comm)
+       call fmpi_allreduce(charge_error, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+       call fmpi_allreduce(external_volume, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+       call fmpi_allreduce(potential_error, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+       call fmpi_allreduce(potential_total, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+       call fmpi_allreduce(icnt,1,op=FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+       call fmpi_allreduce(igood,1,op=FMPI_SUM, comm=bigdft_mpi%mpi_comm)
     end if
 
     call f_release_routine()

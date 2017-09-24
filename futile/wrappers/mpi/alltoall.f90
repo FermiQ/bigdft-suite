@@ -17,7 +17,7 @@ module f_alltoall
   implicit none
 
   private
-  
+
   integer, parameter :: AUTOMATIC=0
   integer, parameter :: NOT_VARIABLE=10
   integer, parameter :: VARIABLE=11
@@ -30,7 +30,9 @@ module f_alltoall
 
 
   interface fmpi_alltoall
-     module procedure mpialltoallw_d11
+     module procedure mpialltoallw_d11,mpialltoallw_i11
+     module procedure mpialltoallw_li11
+     !module procedure mpialltoallw_d00,mpialltoallw_i00
   end interface fmpi_alltoall
   
 !!$  interface mpialltoallv
@@ -65,7 +67,8 @@ module f_alltoall
       integer, intent(in), optional :: comm
       integer :: algo
       !local variables
-      integer, parameter :: max_size = 100000000 !maximal number of elements sent and/or received on a proc using the standard MPI function
+      !>maximal number of elements sent and/or received on a proc using the standard MPI function
+      integer, parameter :: max_size = 100000000 
       logical :: large
       integer(f_long) :: sizecomms,sizecommr
 
@@ -135,95 +138,62 @@ module f_alltoall
      
     end function alltoall_algorithm
 
-    !recursive
+!!$    recursive subroutine mpialltoallw_i00(sendbuf, recvbuf, &
+!!$         count, sendcounts, sdispls, recvcounts, rdispls, comm, request, win, algorithm)
+!!$      use dynamic_memory
+!!$      use f_utils, only: f_size
+!!$      use dictionaries
+!!$      implicit none
+!!$      integer(f_integer) ::  sendbuf
+!!$      integer(f_integer) :: recvbuf
+!!$      include 'alltoallv-inc.f90'
+!!$    end subroutine mpialltoallw_i00
+
+
+    recursive subroutine mpialltoallw_i11(sendbuf, recvbuf, &
+         count, sendcounts, sdispls, recvcounts, rdispls, comm, request, win, algorithm)
+      use dynamic_memory
+      use f_utils, only: f_size
+      use dictionaries
+      implicit none
+      integer(f_integer), dimension(:),intent(in)  :: sendbuf
+      integer(f_integer), dimension(:),intent(out) :: recvbuf
+      include 'alltoallv-inc.f90'
+    end subroutine mpialltoallw_i11
+
+    recursive subroutine mpialltoallw_li11(sendbuf, recvbuf, &
+         count, sendcounts, sdispls, recvcounts, rdispls, comm, request, win, algorithm)
+      use dynamic_memory
+      use f_utils, only: f_size
+      use dictionaries
+      implicit none
+      integer(f_long), dimension(:),intent(in)  :: sendbuf
+      integer(f_long), dimension(:),intent(out) :: recvbuf
+      include 'alltoallv-inc.f90'
+    end subroutine mpialltoallw_li11
+
     subroutine mpialltoallw_d11(sendbuf, recvbuf, &
          count, sendcounts, sdispls, recvcounts, rdispls, comm, request, win, algorithm)
       use dynamic_memory
-      use yaml_output
       use f_utils, only: f_size
       use dictionaries
-      !use iso_c_binding
       implicit none
       real(f_double), dimension(:),intent(in)  :: sendbuf
       real(f_double), dimension(:),intent(out) :: recvbuf
-      integer, intent(in), optional :: count
-      integer, dimension(0:), intent(in), optional :: sendcounts,sdispls
-      integer, dimension(0:), intent(in), optional :: recvcounts,rdispls
-      integer(fmpi_integer), intent(out), optional :: request
-      type(fmpi_win), intent(out), optional :: win
-      integer,intent(in), optional :: comm
-      type(f_enumerator), intent(in), optional :: algorithm
-      ! Local variables
-      integer :: algo,nproc,jproc
-      integer(fmpi_integer) :: ierr,cnt
-      integer(f_long) :: sizets,sizetr
-      integer, dimension(:), allocatable :: nsenddspls_remote
-      type(dictionary), pointer :: dict_info
-      type(fmpi_win) :: window
-      external :: MPI_ALLTOALL,MPI_ALLTOALLV
-      
-      nproc=mpisize(comm)
-      sizets=f_size(sendbuf)
-      sizetr=f_size(recvbuf)
-      if (present(count)) then
-         cnt=count
-      else
-         !division of the components per nproc
-         cnt=min(sizets,sizetr)/nproc
-      end if
-      !otherwise determine algorithm
-      algo=alltoall_algorithm(nproc,sizets,sizetr,&
-           cnt,sendcounts,sdispls,&
-           cnt,recvcounts,rdispls,algorithm,comm)
-      if (present(request)) request=FMPI_REQUEST_NULL
-      if (present(win)) algo=VARIABLE_ONE_SIDED_GET
-      select case(algo)
-      case(NOT_VARIABLE)
-         call MPI_ALLTOALL(sendbuf,cnt,mpitype(sendbuf), &
-              recvbuf,cnt,mpitype(recvbuf),comm,ierr)
-      case(VARIABLE)
-         if (present(request)) then
-            call MPI_IALLTOALLV(sendbuf,sendcounts,sdispls,mpitype(sendbuf), &
-                 recvbuf,recvcounts,rdispls,mpitype(recvbuf),comm,request,ierr)
-         else
-            call MPI_ALLTOALLV(sendbuf,sendcounts,sdispls,mpitype(sendbuf), &
-                 recvbuf,recvcounts,rdispls,mpitype(recvbuf),comm,ierr)
-         end if
-      case(VARIABLE_ONE_SIDED_GET)
-         nsenddspls_remote = f_malloc(0.to.nproc-1,id='nsenddspls_remote')
-         !call fmpi_alltoall(sendbuf=sdispls,recvbuf=nsenddspls_remote,count=1,comm=comm) !TO BE ADDED ASAP
-         !info=mpiinfo("no_locks", "true")
-         dict_info=>dict_new('nolocks' .is. 'true')
-         !window = mpiwindow(size(sendbuf), sendbuf, comm)
-         call fmpi_win_create(window,sendbuf(1),size=sizets,dict_info=dict_info,comm=comm)
-         call fmpi_win_fence(window,FMPI_WIN_OPEN)
-
-         call dict_free(dict_info)
-         do jproc=0,nproc-1
-            if (recvcounts(jproc)>0) then
-               call fmpi_get(origin_addr=recvbuf(1),origin_displ=rdispls(jproc),target_rank=jproc,&
-                    target_disp=int(nsenddspls_remote(jproc),fmpi_address),count=recvcounts(jproc),win=window)
-            end if
-         end do
-         if (present(win)) then
-            win=window
-            !there should be no need to nullify window
-         else
-            call fmpi_win_fence(window,FMPI_WIN_CLOSE)
-            call fmpi_win_free(window)
-         end if
-         !call mpiinfofree(info)
-         
-         call f_free(nsenddspls_remote)
-         ierr=FMPI_SUCCESS
-      end select
-      if (ierr/=FMPI_SUCCESS) then
-         call f_err_throw('An error in calling to FMPI_ALLTOALL occured',&
-              err_id=ERR_MPI_WRAPPERS)
-         return
-      end if
-
+      include 'alltoallv-inc.f90'
     end subroutine mpialltoallw_d11
+
+!!$    subroutine mpialltoallw_d00(sendbuf, recvbuf, &
+!!$         count, sendcounts, sdispls, recvcounts, rdispls, comm, request, win, algorithm)
+!!$      use dynamic_memory
+!!$      use f_utils, only: f_size
+!!$      use dictionaries
+!!$      implicit none
+!!$      real(f_double) :: sendbuf
+!!$      real(f_double) :: recvbuf
+!!$      include 'alltoallv-inc.f90'
+!!$    end subroutine mpialltoallw_d00
+
 
 !!$    subroutine mpialltoallv_long11(sendbuf, sendcounts, sdispls, recvbuf, recvcounts, rdispls, comm, algorithm)
 !!$      use dictionaries, only: f_err_throw,f_err_define

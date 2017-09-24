@@ -1059,7 +1059,7 @@ contains
 end module module_f_malloc
 
 !> trick to use the element of a pointer as an address for subptr
-subroutine f_map_ptr_addr(lb,ub,is,ie,heap,ptr)
+subroutine f_map_ptr_addr_d0(lb,ub,is,ie,heap,ptr)
   use module_f_malloc, only: f_map_ptr,f_kind
   use f_precisions, only: f_double
   implicit none
@@ -1068,4 +1068,27 @@ subroutine f_map_ptr_addr(lb,ub,is,ie,heap,ptr)
   real(f_double), dimension(:), pointer :: ptr
 
   call f_map_ptr(lb,ub,heap(is:ie),ptr)
-end subroutine f_map_ptr_addr
+end subroutine f_map_ptr_addr_d0
+
+
+subroutine f_map_ptr_addr_i0(lb,ub,is,ie,heap,ptr)
+  use module_f_malloc, only: f_map_ptr,f_kind
+  use f_precisions, only: f_integer
+  implicit none
+  integer(f_kind) :: lb,ub,is,ie
+  integer(f_integer), dimension(*) :: heap
+  integer(f_integer), dimension(:), pointer :: ptr
+
+  call f_map_ptr(lb,ub,heap(is:ie),ptr)
+end subroutine f_map_ptr_addr_i0
+
+subroutine f_map_ptr_addr_li0(lb,ub,is,ie,heap,ptr)
+  use module_f_malloc, only: f_map_ptr,f_kind
+  use f_precisions, only: f_long
+  implicit none
+  integer(f_kind) :: lb,ub,is,ie
+  integer(f_long), dimension(*) :: heap
+  integer(f_long), dimension(:), pointer :: ptr
+
+  call f_map_ptr(lb,ub,heap(is:ie),ptr)
+end subroutine f_map_ptr_addr_li0

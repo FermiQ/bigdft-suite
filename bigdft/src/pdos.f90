@@ -387,8 +387,8 @@ subroutine mulliken_charge_population(iproc,nproc,orbs,Gocc,G,coeff,duals)
 
   !reduce the results
   if (nproc > 1) then
-     call mpiallred(mchg,MPI_SUM,comm=bigdft_mpi%mpi_comm)
-     call mpiallred(magn,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+     call fmpi_allreduce(mchg,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
+     call fmpi_allreduce(magn,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
   end if
 
   if (iproc == 0) then

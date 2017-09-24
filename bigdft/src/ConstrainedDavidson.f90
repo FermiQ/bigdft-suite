@@ -319,7 +319,7 @@ subroutine constrained_davidson(iproc,nproc,in,at,&
   if(nproc > 1)then
      !sum up the contributions of nproc sets with 
      !commsv%nvctr_par(iproc,1) wavelet coefficients each
-     call mpiallred(e,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+     call fmpi_allreduce(e,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
   end if
   !
   ! inform
@@ -456,7 +456,7 @@ subroutine constrained_davidson(iproc,nproc,in,at,&
      ! reduce if necessary
      if(nproc > 1)then
         !sum up the contributions of nproc sets with nvctrp wavelet coefficients each
-        call mpiallred(e(1,1,2),orbsv%norb*orbsv%nkpts,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+        call fmpi_allreduce(e(1,1,2),orbsv%norb*orbsv%nkpts,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
      end if
      !
      ! untranspose gradients for preconditionning
@@ -610,7 +610,7 @@ subroutine constrained_davidson(iproc,nproc,in,at,&
      ! reduce result if necessary 
      !
      if(nproc > 1)then
-        call mpiallred(hamovr,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+        call fmpi_allreduce(hamovr,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
      end if
      !
      ! check asymmetry
@@ -857,8 +857,8 @@ subroutine constrained_davidson(iproc,nproc,in,at,&
      if(nproc > 1)then
         !sum up the contributions of nproc sets with 
         !commsv%nvctr_par(iproc,1) wavelet coefficients each
-        call mpiallred( e,MPI_SUM,comm=bigdft_mpi%mpi_comm)
-        call mpiallred(eg,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+        call fmpi_allreduce( e,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
+        call fmpi_allreduce(eg,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
      end if
      !
      ! End Hamiltonian application:

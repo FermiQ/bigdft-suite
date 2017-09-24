@@ -141,7 +141,7 @@ subroutine direct_minimization(iproc,nproc,in,at,nvirt,rxyz,rhopot,nlpsp, &
         at,VTwfn%orbs,VTwfn%Lzd,VTwfn%comms,rxyz,in%nspin,&
         VTwfn%psi, max(VTwfn%orbs%npsidim_orbs, VTwfn%orbs%npsidim_comp))
 
-   if (bigdft_mpi%nproc > 1) call mpiallred(Vtwfn%orbs%eval,op=MPI_SUM,comm=bigdft_mpi%mpi_comm)
+   if (bigdft_mpi%nproc > 1) call fmpi_allreduce(Vtwfn%orbs%eval,op=FMPI_SUM,comm=bigdft_mpi%mpi_comm)
 
    !if(iproc==0) call yaml_map('Orthogonality to occupied psi',.true.)
    !if(iproc==0) write(*,'(1x,a)',advance="no") "Orthogonality to occupied psi..."
@@ -586,7 +586,7 @@ subroutine davidson(iproc,nproc,in,at,&
    call untranspose_v(iproc,nproc,orbsv,Lzd%Glr%wfd,commsv,v,psiw)
 
    if (in%itermax_virt <=0) then
-      if (bigdft_mpi%nproc > 1) call mpiallred(orbsv%eval,op=MPI_SUM,comm=bigdft_mpi%mpi_comm)
+      if (bigdft_mpi%nproc > 1) call fmpi_allreduce(orbsv%eval,op=FMPI_SUM,comm=bigdft_mpi%mpi_comm)
       call plot_and_finalize()
       return
    end if
@@ -669,7 +669,7 @@ subroutine davidson(iproc,nproc,in,at,&
    if(nproc > 1)then
       !sum up the contributions of nproc sets with
       !commsv%nvctr_par(iproc,1) wavelet coefficients each
-      call mpiallred(e,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+      call fmpi_allreduce(e,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
    end if
 
    !if(iproc==0)write(*,'(1x,a)')"done."
@@ -766,7 +766,7 @@ subroutine davidson(iproc,nproc,in,at,&
 
       if(nproc > 1)then
          !sum up the contributions of nproc sets with nvctrp wavelet coefficients each
-         call mpiallred(e(1,1,2),orbsv%norb*orbsv%nkpts,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+         call fmpi_allreduce(e(1,1,2),orbsv%norb*orbsv%nkpts,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
       end if
 
       gnrm=0._dp
@@ -843,7 +843,7 @@ subroutine davidson(iproc,nproc,in,at,&
       end if
       if(nproc > 1)then
          !sum up the contributions of nproc sets with nvctrp wavelet coefficients each
-         call mpiallred(e(1,1,2),orbsv%norb*orbsv%nkpts,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+         call fmpi_allreduce(e(1,1,2),orbsv%norb*orbsv%nkpts,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
       end if
       if (msg) then
          gnrm=0._dp
@@ -958,7 +958,7 @@ subroutine davidson(iproc,nproc,in,at,&
       
       if(nproc > 1)then
          !sum up the contributions of nproc sets with nvctrp wavelet coefficients each
-         call mpiallred(e(1,1,2),orbsv%norb*orbsv%nkpts,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+         call fmpi_allreduce(e(1,1,2),orbsv%norb*orbsv%nkpts,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
       end if
       if (msg) then
          gnrm=0.0_dp
@@ -1007,7 +1007,7 @@ subroutine davidson(iproc,nproc,in,at,&
 
       if(nproc > 1)then
          !sum up the contributions of nproc sets with nvctrp wavelet coefficients each
-         call mpiallred(hamovr,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+         call fmpi_allreduce(hamovr,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
       end if
 
       !if(iproc==0)write(*,'(1x,a)')"done."
@@ -2216,7 +2216,7 @@ subroutine evaluate_completeness_relation(ob_occ,ob_virt,ob_prime,hpsiprime,h2ps
      call subspace_matrix(.false.,ssp%phi_wvl,sso%phi_wvl,&
           ssp%ncplx,ssp%nvctr,ssp%norb,mat_ptr)
   end do
-  if (bigdft_mpi%nproc >1) call mpiallred(mat,op=MPI_SUM,comm=bigdft_mpi%mpi_comm)
+  if (bigdft_mpi%nproc >1) call fmpi_allreduce(mat,op=FMPI_SUM,comm=bigdft_mpi%mpi_comm)
   !substract the projector |psi'_j> -= sum_i |psi_i><psi_i|psi'_j>  
   call subspace_iterator_zip(ob_prime,ob_occ,ssp,sso)
   do while(subspace_next(ssp))
@@ -2240,7 +2240,7 @@ subroutine evaluate_completeness_relation(ob_occ,ob_virt,ob_prime,hpsiprime,h2ps
 !!$     call subspace_matrix(.false.,ssp%phi_wvl,ssp%phi_wvl,&
 !!$          ssp%ncplx,ssp%nvctr,ssp%norb,mat_ptr)
 !!$  end do
-  if (bigdft_mpi%nproc >1) call mpiallred(mat,op=MPI_SUM,comm=bigdft_mpi%mpi_comm)
+  if (bigdft_mpi%nproc >1) call fmpi_allreduce(mat,op=FMPI_SUM,comm=bigdft_mpi%mpi_comm)
 
   !now verify if the orbital differences can be expressed in the 
   !basis of the virtual states of the unperturbed hamiltonian
@@ -2268,7 +2268,7 @@ subroutine evaluate_completeness_relation(ob_occ,ob_virt,ob_prime,hpsiprime,h2ps
 !!$     end if
 !!$  end do
 
-  if (bigdft_mpi%nproc >1) call mpiallred(svp,op=MPI_SUM,comm=bigdft_mpi%mpi_comm)
+  if (bigdft_mpi%nproc >1) call fmpi_allreduce(svp,op=FMPI_SUM,comm=bigdft_mpi%mpi_comm)
 
   !now calculate the same quantities for the hppsiprime objects
   call subspace_iterator_zip(ob_prime,ob_occ,ssp,sso)
@@ -2278,7 +2278,7 @@ subroutine evaluate_completeness_relation(ob_occ,ob_virt,ob_prime,hpsiprime,h2ps
      call subspace_matrix(.false.,hpsi_ptr,sso%phi_wvl,&
           ssp%ncplx,ssp%nvctr,ssp%norb,mat_ptr)
   end do
-  if (bigdft_mpi%nproc >1) call mpiallred(mat,op=MPI_SUM,comm=bigdft_mpi%mpi_comm)
+  if (bigdft_mpi%nproc >1) call fmpi_allreduce(mat,op=FMPI_SUM,comm=bigdft_mpi%mpi_comm)
 
 !!$  ssp=subspace_iterator(ob_prime)
 !!$  ssv=subspace_iterator(ob_virt)
@@ -2297,7 +2297,7 @@ subroutine evaluate_completeness_relation(ob_occ,ob_virt,ob_prime,hpsiprime,h2ps
              ssp%ncplx,ssp%nvctr,ssv%norb,ssp%norb,svp_ptr)
      !end if
   end do
-  if (bigdft_mpi%nproc >1) call mpiallred(svp,op=MPI_SUM,comm=bigdft_mpi%mpi_comm)
+  if (bigdft_mpi%nproc >1) call fmpi_allreduce(svp,op=FMPI_SUM,comm=bigdft_mpi%mpi_comm)
 
   !now calculate the same quantities for the hppsiprime objects
   call subspace_iterator_zip(ob_prime,ob_occ,ssp,sso)
@@ -2307,7 +2307,7 @@ subroutine evaluate_completeness_relation(ob_occ,ob_virt,ob_prime,hpsiprime,h2ps
      call subspace_matrix(.false.,hpsi_ptr,sso%phi_wvl,&
           ssp%ncplx,ssp%nvctr,ssp%norb,mat_ptr)
   end do
-  if (bigdft_mpi%nproc >1) call mpiallred(mat,op=MPI_SUM,comm=bigdft_mpi%mpi_comm)
+  if (bigdft_mpi%nproc >1) call fmpi_allreduce(mat,op=FMPI_SUM,comm=bigdft_mpi%mpi_comm)
 
 !!$  ssp=subspace_iterator(ob_prime)
 !!$  ssv=subspace_iterator(ob_virt)
@@ -2326,7 +2326,7 @@ subroutine evaluate_completeness_relation(ob_occ,ob_virt,ob_prime,hpsiprime,h2ps
              ssp%ncplx,ssp%nvctr,ssv%norb,ssp%norb,svp_ptr)
      !end if
   end do
-  if (bigdft_mpi%nproc >1) call mpiallred(svp,op=MPI_SUM,comm=bigdft_mpi%mpi_comm)
+  if (bigdft_mpi%nproc >1) call fmpi_allreduce(svp,op=FMPI_SUM,comm=bigdft_mpi%mpi_comm)
 
   !to be printed out as it is the last one
   call subspace_iterator_zip(ob_prime,ob_virt,ssp,ssv)

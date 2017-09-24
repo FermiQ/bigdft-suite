@@ -349,7 +349,7 @@ module io
             !end do loop_iforb
 
             if (bigdft_mpi%nproc > 1) then
-               call mpiallred(frag_map, mpi_sum, comm=bigdft_mpi%mpi_comm)
+               call fmpi_allreduce(frag_map, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
             end if
 
             ! reconstruct atom->atom mapping part

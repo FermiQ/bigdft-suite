@@ -403,7 +403,7 @@ subroutine Overlap_PsiPsi(iproc,nproc,nspin,norbIn,orbs,comms,&
 !NNdbg
 
   if (nproc > 1) then
-     call mpiallred(ovrlp,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+     call fmpi_allreduce(ovrlp,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
   end if
 !NNdbg
   if(iproc.eq.0  .and. debug_flag)print *, "overlap-inside", ovrlp(1:ndim_ovrlp(nspin,orbs%nkpts))
@@ -484,7 +484,7 @@ subroutine Overlap_PhiPsi(iproc,nproc,nspin,norbIn,orbs,comms,&
   end do
 
   if (nproc > 1) then
-     call mpiallred(ovrlp,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+     call fmpi_allreduce(ovrlp,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
   end if
 !NNdbg
 !  if(iproc.eq.0)print *, "overlap-inside 2", ovrlp(1:ndim_ovrlp(nspin,orbs%nkpts))

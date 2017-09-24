@@ -227,8 +227,11 @@ module communications
           !!call mpi_alltoallv(wt%psiwork, wt%nsendcounts, wt%nsenddspls, mpi_double_precision, wt%psitwork, &
           !!     wt%nrecvcounts, wt%nrecvdspls, mpi_double_precision, bigdft_mpi%mpi_comm, ierr)
           if (nproc>1) then
-              call mpiialltoallv(wt%psiwork(1), wt%nsendcounts(0), wt%nsenddspls(0), mpi_double_precision, wt%psitwork(1), &
-                   wt%nrecvcounts(0), wt%nrecvdspls(0), mpi_double_precision, bigdft_mpi%mpi_comm, wt%request)
+             !call mpiialltoallv(wt%psiwork(1), wt%nsendcounts(0), wt%nsenddspls(0), mpi_double_precision, wt%psitwork(1), &
+             !wt%nrecvcounts(0), wt%nrecvdspls(0), mpi_double_precision, bigdft_mpi%mpi_comm, wt%request)
+             call fmpi_alltoall(sendbuf=wt%psiwork,sendcounts=wt%nsendcounts,sdispls=wt%nsenddspls,&
+                  recvbuf=wt%psitwork,recvcounts=wt%nrecvcounts,rdispls=wt%nrecvdspls,&
+                  comm=bigdft_mpi%mpi_comm,request=wt%request)
           else
               call vcopy(wt%nsendcounts(0), wt%psiwork(1), 1, wt%psitwork(1), 1)
               wt%request = MPI_REQUEST_NULL
@@ -481,8 +484,11 @@ module communications
           !! call mpi_alltoallv(psitwork_f, 7*collcom%nrecvcounts_f, 7*collcom%nrecvdspls_f, mpi_double_precision, psiwork_f, &
           !!      7*collcom%nsendcounts_f, 7*collcom%nsenddspls_f, mpi_double_precision, bigdft_mpi%mpi_comm, ierr)
           if (nproc>1) then
-              call mpiialltoallv(wt%psitwork(1), wt%nrecvcounts(0), wt%nrecvdspls(0), mpi_double_precision, wt%psiwork(1), &
-                   wt%nsendcounts(0), wt%nsenddspls(0), mpi_double_precision, bigdft_mpi%mpi_comm, wt%request)
+             !call mpiialltoallv(wt%psitwork(1), wt%nrecvcounts(0), wt%nrecvdspls(0), mpi_double_precision, wt%psiwork(1), &
+             !      wt%nsendcounts(0), wt%nsenddspls(0), mpi_double_precision, bigdft_mpi%mpi_comm, wt%request)
+             call fmpi_alltoall(sendbuf=wt%psitwork,sendcounts=wt%nrecvcounts,sdispls=wt%nrecvdspls,&
+                  recvbuf=wt%psiwork,recvcounts=wt%nsendcounts,rdispls=wt%nsenddspls,&
+                  comm=bigdft_mpi%mpi_comm,request=wt%request)
           else
               call vcopy(wt%nrecvcounts(0), wt%psitwork(1), 1, wt%psiwork(1), 1)
               wt%request = MPI_REQUEST_NULL
@@ -976,7 +982,7 @@ module communications
     subroutine transpose_communicate_psir(iproc, nproc, collcom_sr, psirwork, psirtwork)
       use module_base
       use wrapper_linalg, only: vcopy
-      use wrapper_mpi, only: mpi_get_alltoallv
+      !use wrapper_mpi, only: mpi_get_alltoallv
       implicit none
     
       ! Calling arguments
@@ -993,8 +999,8 @@ module communications
       if (nproc>1) then
           !call mpi_alltoallv(psirwork, collcom_sr%nsendcounts_c, collcom_sr%nsenddspls_c, mpi_double_precision, psirtwork, &
           !     collcom_sr%nrecvcounts_c, collcom_sr%nrecvdspls_c, mpi_double_precision, bigdft_mpi%mpi_comm, ierr)
-          call mpialltoallv(psirwork, collcom_sr%nsendcounts_c, collcom_sr%nsenddspls_c, &
-               psirtwork, collcom_sr%nrecvcounts_c, collcom_sr%nrecvdspls_c, bigdft_mpi%mpi_comm)
+         call fmpi_alltoall(sendbuf=psirwork,sendcounts=collcom_sr%nsendcounts_c,sdispls=collcom_sr%nsenddspls_c, &
+              recvbuf=psirtwork,recvcounts=collcom_sr%nrecvcounts_c,rdispls=collcom_sr%nrecvdspls_c,comm=bigdft_mpi%mpi_comm)
       else
          !call vcopy(collcom_sr%ndimpsi_c, psirwork(1), 1, psirtwork(1), 1)
          call f_memcpy(src=psirwork,dest=psirtwork)
@@ -1129,12 +1135,14 @@ module communications
                   else
                       size_of_double = 8
                   end if
-                  if (nproc>1 .and. rma_sync==RMA_SYNC_ACTIVE) then
-                      comm%window = mpiwindow(n1*n2*n3p(iproc)*comm%nspin, sendbuf(1), bigdft_mpi%mpi_comm)
-                  else if (nproc>1 .and. rma_sync==RMA_SYNC_PASSIVE) then
-                      !call mpi_win_create(sendbuf(1), int(n1*n2*n3p(iproc)*comm%nspin*size_of_double,kind=mpi_address_kind), &
-                      !     size_of_double, MPI_INFO_NULL, bigdft_mpi%mpi_comm, comm%window, ierr)
-                      comm%window = mpiwindow(n1*n2*n3p(iproc)*comm%nspin, sendbuf(1), bigdft_mpi%mpi_comm)
+                  if (nproc>1 .and. (rma_sync==RMA_SYNC_ACTIVE .or. rma_sync==RMA_SYNC_PASSIVE))  then
+                     !comm%window = mpiwindow(n1*n2*n3p(iproc)*comm%nspin, sendbuf(1), bigdft_mpi%mpi_comm)
+                     call fmpi_win_create(comm%window,sendbuf(1),&
+                           int(n1,f_long)*n2*n3p(iproc)*comm%nspin,bigdft_mpi%mpi_comm)
+!!$                  else if (nproc>1 .and. rma_sync==RMA_SYNC_PASSIVE) then
+!!$                      !call mpi_win_create(sendbuf(1), int(n1*n2*n3p(iproc)*comm%nspin*size_of_double,kind=mpi_address_kind), &
+!!$                      !     size_of_double, MPI_INFO_NULL, bigdft_mpi%mpi_comm, comm%window, ierr)
+!!$                      comm%window = mpiwindow(n1*n2*n3p(iproc)*comm%nspin, sendbuf(1), bigdft_mpi%mpi_comm)
                   end if
     
                   !!if (rma_sync==RMA_SYNC_ACTIVE) then
@@ -1210,12 +1218,12 @@ module communications
                                    end if
                                end if
                                if (nproc> 1 .and. rma_sync==RMA_SYNC_PASSIVE) then
-                                   call mpi_win_lock(MPI_LOCK_EXCLUSIVE, mpisource, 0, comm%window, ierr)
+                                   call mpi_win_lock(MPI_LOCK_EXCLUSIVE, mpisource, 0, comm%window%handle, ierr)
                                end if
                                if (nproc>1) then
                                    call mpi_get(recvbuf(ispin_shift+istdest), nsize, &
                                         mpi_double_precision, mpisource, int((isend_shift+istsource-1),kind=mpi_address_kind), &
-                                        1, comm%mpi_datatypes(joverlap), comm%window, ierr)
+                                        1, comm%mpi_datatypes(joverlap), comm%window%handle, ierr)
                                else
                                    ind = 0
                                    do i=1,iel
@@ -1229,13 +1237,14 @@ module communications
                                    end do
                                end if
                                if (nproc> 1 .and. rma_sync==RMA_SYNC_PASSIVE) then
-                                   call mpi_win_unlock(mpisource, comm%window, ierr)
+                                  !not sure that this is working as it should
+                                   call mpi_win_unlock(mpisource, comm%window%handle, ierr)
                                end if
                            end if
                        else
                            call mpi_get(recvbuf(ispin_shift+istdest), nit*lzd%glr%d%n1i*lzd%glr%d%n2i, &
                                 mpi_double_precision, mpisource, int((isend_shift+istsource-1),kind=mpi_address_kind), &
-                                nit*lzd%glr%d%n1i*lzd%glr%d%n2i, mpi_double_precision, comm%window, ierr)
+                                nit*lzd%glr%d%n1i*lzd%glr%d%n2i, mpi_double_precision, comm%window%handle, ierr)
                        end if
                        !!else
                        !!    call mpi_type_size(comm%mpi_datatypes(joverlap), nsize, ierr)
@@ -1321,7 +1330,8 @@ module communications
               !!call mpi_win_fence(mpi_mode_nosucceed, comm%window, ierr)
               !!call mpi_win_free(comm%window, ierr)
 
-              call mpi_fenceandfree(comm%window, mpi_mode_nosucceed)
+             !call mpi_fenceandfree(comm%window, mpi_mode_nosucceed)
+             call fmpi_win_shut(comm%window)
           else if (rma_sync==RMA_SYNC_PASSIVE) then
             !!  !!call mpi_win_unlock_all(comm%window, ierr)
             !!  do joverlap=1,comm%noverlaps
@@ -1333,7 +1343,7 @@ module communications
             !!           end if
             !!      end if
             !!  end do
-            call mpi_win_free(comm%window, ierr)
+             call fmpi_win_free(comm%window)
           end if
           do joverlap=1,comm%noverlaps
               call mpi_type_free(comm%mpi_datatypes(joverlap), ierr)
@@ -1577,7 +1587,7 @@ module communications
        ! Local variables
        integer :: ierr, jorb, ilr, jlr, root, max_sim_comms, norb_max
        !integer :: icomm, ilr_old, jtask, nalloc, nrecv
-       integer :: maxrecvdim, maxsenddim, ioffset, window, ist_dest, ist_source, ithread, nthread, mthread
+       integer :: maxrecvdim, maxsenddim, ioffset, ist_dest, ist_source, ithread, nthread, mthread
        integer :: iorb, jjorb, ncount, iiorb, size_of_int, info, jproc, ii, iilr, ncover, isproc, nprocp
        logical :: isoverlap
        character(len=*), parameter:: subname='communicate_locreg_descriptors_keys'
@@ -1590,6 +1600,7 @@ module communications
        integer(kind=mpi_address_kind),dimension(:,:),allocatable :: displacements
        logical,dimension(:),allocatable :: covered
        logical,dimension(:,:),allocatable :: mask
+       type(fmpi_win) :: window
        !$ integer :: omp_get_thread_num, omp_get_max_threads
 
        call f_routine(id=subname)
@@ -1688,10 +1699,10 @@ module communications
                !if (ilr==iilr) then
                    !write(*,*) 'COPY: iproc, ilr', iproc, ilr
                    ncount=llr(ilr)%wfd%nseg_c+llr(ilr)%wfd%nseg_f
-                   call vcopy(2*ncount, llr(ilr)%wfd%keygloc(1,1), 1, worksend(ioffset+1), 1)
-                   call vcopy(2*ncount, llr(ilr)%wfd%keyglob(1,1), 1, worksend(ioffset+2*ncount+1), 1)
-                   call vcopy(ncount, llr(ilr)%wfd%keyvloc(1), 1, worksend(ioffset+4*ncount+1), 1)
-                   call vcopy(ncount, llr(ilr)%wfd%keyvglob(1), 1, worksend(ioffset+5*ncount+1), 1)
+                   call f_memcpy(n=2*ncount,src=llr(ilr)%wfd%keygloc(1,1),dest=worksend(ioffset+1))
+                   call f_memcpy(n=2*ncount,src= llr(ilr)%wfd%keyglob(1,1),dest=worksend(ioffset+2*ncount+1))
+                   call f_memcpy(n=ncount,src=llr(ilr)%wfd%keyvloc(1),dest=worksend(ioffset+4*ncount+1))
+                   call f_memcpy(n=ncount,src=llr(ilr)%wfd%keyvglob(1),dest=worksend(ioffset+5*ncount+1))
                    ioffset=ioffset+6*ncount
                !end if
            end do
@@ -1706,7 +1717,9 @@ module communications
        !!call mpi_info_free(info, ierr)
        !!call mpi_win_fence(mpi_mode_noprecede, window, ierr)
        call mpi_type_size(mpi_integer, size_of_int, ierr)
-       window =  mpiwindow(maxsenddim, worksend(1),  bigdft_mpi%mpi_comm)
+       !window =  mpiwindow(maxsenddim, worksend(1),  bigdft_mpi%mpi_comm)
+       call fmpi_win_create(window,worksend(1),maxsenddim,bigdft_mpi%mpi_comm)
+       call fmpi_win_fence(window,FMPI_WIN_OPEN)
 
        ! Allocate the receive buffer
        maxrecvdim=0
@@ -1796,8 +1809,9 @@ module communications
                call f_err_throw('wrong size of derived_types(jproc)',err_name='BIGDFT_RUNTIME_ERROR')
            end if
            if (nrecvcounts(jproc)>0) then
+              !@todo this will have to be wrapped
                call mpi_get(workrecv(ist_dest), nrecvcounts(jproc), mpi_integer, jproc, &
-                    int(0,kind=mpi_address_kind), 1, derived_types(jproc), window, ierr)
+                    int(0,kind=mpi_address_kind), 1, derived_types(jproc), window%handle, ierr)
            end if
            ist_dest = ist_dest + nrecvcounts(jproc)
        end do
@@ -1809,11 +1823,12 @@ module communications
        !end do
 
        ! Synchronize the communication
-       call mpi_win_fence(mpi_mode_nosucceed, window, ierr)
+       !call mpi_win_fence(mpi_mode_nosucceed, window, ierr)
+       call fmpi_win_fence(window,FMPI_WIN_CLOSE)
        do jproc=0,nproc-1
            call mpi_type_free(derived_types(jproc), ierr)
        end do
-       call mpi_win_free(window, ierr)
+       call fmpi_win_free(window)
        call f_free(derived_types)
 
        call f_free(ncomm)
@@ -2297,13 +2312,13 @@ module communications
          if (present(out_add)) then
             !!call MPI_ALLTOALLV(work_add,comms%ncntd,comms%ndspld,mpidtypw, &
             !!     out_add,comms%ncntt,comms%ndsplt,mpidtypw,bigdft_mpi%mpi_comm,ierr)
-            call mpialltoallv(work_add,comms%ncntd,comms%ndspld, &
-                 out_add,comms%ncntt,comms%ndsplt,bigdft_mpi%mpi_comm)
+            call fmpi_alltoall(sendbuf=work_add,sendcounts=comms%ncntd,sdispls=comms%ndspld, &
+                 recvbuf=out_add,recvcounts=comms%ncntt,rdispls=comms%ndsplt,comm=bigdft_mpi%mpi_comm)
          else
             !!call MPI_ALLTOALLV(work_add,comms%ncntd,comms%ndspld,mpidtypw, &
             !!     psi_add,comms%ncntt,comms%ndsplt,mpidtypw,bigdft_mpi%mpi_comm,ierr)
-            call mpialltoallv(work_add,comms%ncntd,comms%ndspld, &
-                 psi_add,comms%ncntt,comms%ndsplt,bigdft_mpi%mpi_comm)
+            call fmpi_alltoall(sendbuf=work_add,sendcounts=comms%ncntd,sdispls=comms%ndspld, &
+                 recvbuf=psi_add,recvcounts=comms%ncntt,rdispls=comms%ndsplt,comm=bigdft_mpi%mpi_comm)
          end if
          call timing(iproc,'Un-TransComm  ','OF')
          call timing(iproc,'Un-TransSwitch','ON')
@@ -2475,8 +2490,8 @@ module communications
          call timing(iproc,'Un-TransComm  ','ON')
          !!call MPI_ALLTOALLV(psi_add,comms%ncntt,comms%ndsplt,mpidtypw,  &
          !!     work_add,comms%ncntd,comms%ndspld,mpidtypw,bigdft_mpi%mpi_comm,ierr)
-         call mpialltoallv(psi_add,comms%ncntt,comms%ndsplt,  &
-              work_add,comms%ncntd,comms%ndspld,bigdft_mpi%mpi_comm)
+         call fmpi_alltoall(sendbuf=psi_add,sendcounts=comms%ncntt,sdispls=comms%ndsplt,  &
+              recvbuf=work_add,recvcounts=comms%ncntd,rdispls=comms%ndspld,comm=bigdft_mpi%mpi_comm)
          call timing(iproc,'Un-TransComm  ','OF')
          call timing(iproc,'Un-TransSwitch','ON')
          if (present(out_add)) then

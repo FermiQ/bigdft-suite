@@ -11,8 +11,10 @@ MPI_INCLUDES = gather-inc.f90 \
 	bcast-inc.f90 bcast-decl-inc.f90 bcast-decl-arr-inc.f90 \
 	maxdiff-decl-inc.f90 maxdiff-end-inc.f90 \
 	allgather-inc.f90 scatter-inc.f90 scatterv-inc.f90 scatterv-decl-inc.f90 \
-	$(ALLREDUCE_INCLUDES) $(ALLTOALL_INCLUDES)
+	$(ALLREDUCE_INCLUDES) $(ALLTOALL_INCLUDES) $(WIN_INCLUDES)
 
+WIN_INCLUDES = win-create-inc.f90
+GET_INCLUDES = get-inc.f90
 
 if USE_MPI
 if HAVE_MPI3

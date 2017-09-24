@@ -43,7 +43,7 @@ subroutine mixPotential(iproc, nproc, n3d, n3p, Glr, input, alphaMix, rhopotOld,
   end do
 
   if (nproc > 1) then
-    call mpiallred(pnrm, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
+    call fmpi_allreduce(pnrm, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
   end if
 
   pnrm=sqrt(pnrm)/(Glr%d%n1i*Glr%d%n2i*Glr%d%n3i*input%nspin)
@@ -164,7 +164,7 @@ subroutine mixrhopotDIIS(iproc, nproc, n3d, n3p, glr, input, rhopot, rhopotold, 
   end do
 
   if (nproc > 1) then
-    call mpiallred(pnrm, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
+    call fmpi_allreduce(pnrm, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
   end if
 
   pnrm=sqrt(pnrm)/(glr%d%n1i*glr%d%n2i*glr%d%n3i)
@@ -208,8 +208,8 @@ subroutine mixrhopotDIIS(iproc, nproc, n3d, n3p, glr, input, rhopot, rhopotold, 
 
   ! Sum up over all processes.
   if (nproc > 1) then
-    call mpiallred(mixdiis%mat(1,min(mixdiis%isx,mixdiis%is)), min(mixdiis%is,mixdiis%isx), &
-         mpi_sum, comm=bigdft_mpi%mpi_comm)
+    call fmpi_allreduce(mixdiis%mat(1,min(mixdiis%isx,mixdiis%is)), min(mixdiis%is,mixdiis%isx), &
+         FMPI_SUM, comm=bigdft_mpi%mpi_comm)
   end if
 
   ! Copy the matrix to an auxiliary array and fill with the zeros and ones.

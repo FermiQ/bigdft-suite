@@ -79,12 +79,12 @@ module f_utils
   end interface f_sizeof
 
   interface f_size
-     module procedure f_size_i1,f_size_i2,f_size_i3,f_size_i4,f_size_i5
+     module procedure f_size_i0,f_size_i1,f_size_i2,f_size_i3,f_size_i4,f_size_i5
      module procedure f_size_li1,f_size_li2,f_size_li3,f_size_li4,f_size_li5
      module procedure f_size_b1,f_size_b2
      module procedure f_size_l1,f_size_l2,f_size_l3,f_size_l4,f_size_l5
      module procedure f_size_r1,f_size_r2,f_size_r3,f_size_r4,f_size_r5
-     module procedure f_size_d1,f_size_d2,f_size_d3,f_size_d4,f_size_d5,f_size_d6,f_size_d7
+     module procedure f_size_d0,f_size_d1,f_size_d2,f_size_d3,f_size_d4,f_size_d5,f_size_d6,f_size_d7
      module procedure f_size_z1,f_size_z2,f_size_z3,f_size_z4,f_size_z5
      module procedure f_size_c0,f_size_c1
   end interface f_size
@@ -1589,6 +1589,13 @@ contains
     integer(f_long) :: s; s=product(int(shape(datatype,f_long)))*int(2*kind(datatype),f_long)
   end function f_sizeof_z5
 
+  pure function f_size_i0(datatype) result(s)
+    integer(f_integer), intent(in) :: datatype
+    integer(f_long) :: s
+    !local variable
+    integer :: mt; mt=kind(datatype)
+    s=int(1,f_long)
+  end function f_size_i0
   pure function f_size_i1(datatype) result(s)
     integer(f_integer), dimension(:), intent(in) :: datatype
     integer(f_long) :: s; s=product(int(shape(datatype,f_long)))!*int(kind(datatype),f_long)
@@ -1664,6 +1671,13 @@ contains
   end function f_size_b2
 
 
+  pure function f_size_d0(datatype) result(s)
+    real(f_double), intent(in) :: datatype
+    integer(f_long) :: s
+    !local variable
+    integer :: mt; mt=kind(datatype)
+    s=int(1,f_long)
+  end function f_size_d0
   pure function f_size_d1(datatype) result(s)
     real(f_double), dimension(:), intent(in) :: datatype
     integer(f_long) :: s; s=product(int(shape(datatype,f_long)))!*int(kind(datatype),f_long)

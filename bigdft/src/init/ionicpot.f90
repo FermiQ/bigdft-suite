@@ -341,9 +341,9 @@ subroutine IonicEnergyandForces(iproc,nproc,dpbox,at,elecfield,&
      end do
      !!!$omp end do
      !!!$omp end parallel
-     call mpiallred(fion, mpi_sum, comm=bigdft_mpi%mpi_comm)
-     call mpiallred(eion, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
-     call mpiallred(eself, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
+     call fmpi_allreduce(fion, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+     call fmpi_allreduce(eion, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+     call fmpi_allreduce(eself, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
 
      !if (nproc==1 .and. slowion) print *,'eself',eself
 
@@ -711,7 +711,7 @@ subroutine IonicEnergyandForces(iproc,nproc,dpbox,at,elecfield,&
      end if !if dpbox%n3pi
 
      if (pkernel%mpi_env%nproc > 1) then
-        call mpiallred(fion,MPI_SUM,comm=pkernel%mpi_env%mpi_comm)
+        call fmpi_allreduce(fion,FMPI_SUM,comm=pkernel%mpi_env%mpi_comm)
      end if
 
      !if (iproc ==0) print *,'eion',eion,psoffset,shortlength
@@ -2260,7 +2260,7 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
      charges_mpi(2)=rholeaked
 
      !Reduce from all mpi proc
-     call mpiallred(charges_mpi,MPI_SUM,comm=pkernel%mpi_env%mpi_comm)
+     call fmpi_allreduce(charges_mpi,FMPI_SUM,comm=pkernel%mpi_env%mpi_comm)
 
      tt_tot=charges_mpi(1)
      rholeaked_tot=charges_mpi(2)
@@ -2372,7 +2372,7 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
         end if
 
         if (pkernel%mpi_env%nproc > 1) then
-           call mpiallred(maxdiff,1,MPI_MAX,comm=pkernel%mpi_env%mpi_comm)
+           call fmpi_allreduce(maxdiff,1,FMPI_MAX,comm=pkernel%mpi_env%mpi_comm)
         end if
 
         if (iproc == 0) call yaml_map('Check the ionic potential',maxdiff,fmt='(1pe24.17)')
@@ -3103,7 +3103,7 @@ subroutine external_potential(iproc,verb,at,rxyz,&
      charges_mpi(2)=rholeaked
 
      !Reduce from all mpi proc
-     call mpiallred(charges_mpi,MPI_SUM,comm=pkernel%mpi_env%mpi_comm)
+     call fmpi_allreduce(charges_mpi,FMPI_SUM,comm=pkernel%mpi_env%mpi_comm)
 
      tt_tot=charges_mpi(1)
      rholeaked_tot=charges_mpi(2)
@@ -3159,7 +3159,7 @@ subroutine external_potential(iproc,verb,at,rxyz,&
         end do
 
         if (pkernel%mpi_env%nproc > 1) then
-           call mpiallred(maxdiff,1,MPI_MAX,comm=pkernel%mpi_env%mpi_comm)
+           call fmpi_allreduce(maxdiff,1,FMPI_MAX,comm=pkernel%mpi_env%mpi_comm)
         end if
 
         if (iproc == 0) call yaml_map('Check the ionic potential',maxdiff,fmt='(1pe24.17)')
@@ -3914,7 +3914,7 @@ subroutine CounterIonPotential(iproc,in,shift,dpbox,pkernel,npot_ion,pot_ion)
      charges_mpi(1)=tt
      charges_mpi(2)=rholeaked
 
-     call mpiallred(charges_mpi,MPI_SUM,comm=pkernel%mpi_env%mpi_comm)
+     call fmpi_allreduce(charges_mpi,FMPI_SUM,comm=pkernel%mpi_env%mpi_comm)
 
      tt_tot=charges_mpi(1)
      rholeaked_tot=charges_mpi(2)
@@ -3990,7 +3990,7 @@ subroutine CounterIonPotential(iproc,in,shift,dpbox,pkernel,npot_ion,pot_ion)
 
 
         if (pkernel%mpi_env%nproc > 1) then
-           call mpiallred(maxdiff,1,MPI_MAX,comm=pkernel%mpi_env%mpi_comm)
+           call fmpi_allreduce(maxdiff,1,FMPI_MAX,comm=pkernel%mpi_env%mpi_comm)
         end if
 
         if (iproc == 0) call yaml_map('Check the ionic potential',maxdiff,fmt='(1pe24.17)')
