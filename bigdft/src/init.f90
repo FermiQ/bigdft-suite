@@ -217,14 +217,14 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
      cpmult,fpmult,hx,hy,hz,dry_run,nl,&
      init_projectors_completely)
   use module_base
-  use psp_projectors_base, only: DFT_PSP_projectors_null, nonlocal_psp_descriptors_null, allocate_workarrays_projectors
+  use psp_projectors_base, only: DFT_PSP_projectors_null, nonlocal_psp_descriptors_null
   use psp_projectors, only: bounds_to_plr_limits
   use module_types
   use gaussians, only: gaussian_basis, gaussian_basis_from_psp, gaussian_basis_from_paw
   use public_enums, only: PSPCODE_PAW
   use orbitalbasis
   use ao_inguess, only: lmax_ao
-  use locreg_operations, only: set_wfd_to_wfd
+  use locreg_operations, only: set_wfd_to_wfd, allocate_workarrays_projectors
   use sparsematrix_init,only: distribute_on_tasks
   use locregs
   use f_ternary

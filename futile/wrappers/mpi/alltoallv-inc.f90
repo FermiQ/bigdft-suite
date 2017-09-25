@@ -48,6 +48,7 @@
           recvbuf,cnt,mpitype(recvbuf),comm,ierr)
   case(VARIABLE)
      if (present(request)) then
+        ierr=FMPI_SUCCESS
         call MPI_IALLTOALLV(sendbuf,sendcounts,sdispls,mpitype(sendbuf), &
              recvbuf,recvcounts,rdispls,mpitype(recvbuf),comm,request,ierr)
      else
@@ -60,13 +61,13 @@
      !info=mpiinfo("no_locks", "true")
      dict_info=>dict_new('nolocks' .is. 'true')
      !window = mpiwindow(size(sendbuf), sendbuf, comm)
-     call fmpi_win_create(window,sendbuf(1),size=sizets,dict_info=dict_info,comm=comm)
+     call fmpi_win_create(window,sendbuf,size=sizets,dict_info=dict_info,comm=comm)
      call fmpi_win_fence(window,FMPI_WIN_OPEN)
 
      call dict_free(dict_info)
      do jproc=0,nproc-1
         if (recvcounts(jproc)>0) then
-           call fmpi_get(origin_addr=recvbuf(1),origin_displ=rdispls(jproc),target_rank=jproc,&
+           call fmpi_get(origin_addr=recvbuf,origin_displ=rdispls(jproc),target_rank=jproc,&
                 target_disp=int(nsenddspls_remote(jproc),fmpi_address),count=recvcounts(jproc),win=window)
         end if
      end do

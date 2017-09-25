@@ -574,6 +574,7 @@ use gaussians, only: gaussian_basis_new, gaussian_basis_iter, &
 use psp_projectors_base, only: DFT_PSP_projectors
 use yaml_output, only: yaml_warning
 use yaml_strings, only: yaml_toa
+use locreg_operations, only: gaussian_to_wavelets_locreg
 implicit none
 type(DFT_PSP_projectors), intent(inout) :: nl
 integer, intent(in) :: ityp, iat
@@ -625,19 +626,31 @@ character(len = 1), intent(in) :: geocode
      nc = (mbvctr_c+7*mbvctr_f) * (2*iter%l-1) * ncplx_k
      if (istart_c + nc > nl%nprojel+1) stop 'istart_c > nprojel+1'
      ! Loop on contraction, treat the first gaussian separately for performance reasons.
+!!$     if (gaussian_iter_next_gaussian(nl%proj_G, iter, coeff, expo)) &
+!!$          & call projector(geocode, iat, idir, iter%l, iter%n, coeff, expo, &
+!!$          & nl%pspd(iat)%gau_cut, nl%proj_G%rxyz(:, iat), lr%ns1, lr%ns2, lr%ns3, lr%d%n1, lr%d%n2, lr%d%n3, &
+!!$          & hx, hy, hz, kx, ky, kz, ncplx_k, nl%proj_G%ncplx, &
+!!$          & mbvctr_c, mbvctr_f, mbseg_c, mbseg_f, nl%pspd(iat)%plr%wfd%keyvglob, nl%pspd(iat)%plr%wfd%keyglob, &
+!!$          & nl%wpr,nl%proj(istart_c:))
+     !print *,lr%ns1, lr%ns2, lr%ns3, lr%d%n1, lr%d%n2, lr%d%n3
+     !print *,lr%mesh_coarse%ndims
+     !call mpibarrier()
      if (gaussian_iter_next_gaussian(nl%proj_G, iter, coeff, expo)) &
-          & call projector(geocode, iat, idir, iter%l, iter%n, coeff, expo, &
-          & nl%pspd(iat)%gau_cut, nl%proj_G%rxyz(:, iat), lr%ns1, lr%ns2, lr%ns3, lr%d%n1, lr%d%n2, lr%d%n3, &
-          & hx, hy, hz, kx, ky, kz, ncplx_k, nl%proj_G%ncplx, &
-          & mbvctr_c, mbvctr_f, mbseg_c, mbseg_f, nl%pspd(iat)%plr%wfd%keyvglob, nl%pspd(iat)%plr%wfd%keyglob, &
-          & nl%wpr,nl%proj(istart_c:))
+          call gaussian_to_wavelets_locreg(lr%mesh_coarse,idir,&
+          nl%proj_G%ncplx,coeff,expo,nl%pspd(iat)%gau_cut,iter%n,iter%l,&
+          nl%proj_G%rxyz(:, iat),[kx,ky,kz],&
+          ncplx_k,nl%pspd(iat)%plr%wfd,nl%wpr,nl%proj(istart_c:))
      do
         if (.not. gaussian_iter_next_gaussian(nl%proj_G, iter, coeff, expo)) exit
-        call projector(geocode, iat, idir, iter%l, iter%n, coeff, expo, &
-             & nl%pspd(iat)%gau_cut, nl%proj_G%rxyz(:, iat), lr%ns1, lr%ns2, lr%ns3, lr%d%n1, lr%d%n2, lr%d%n3, &
-             & hx, hy, hz, kx, ky, kz, ncplx_k, nl%proj_G%ncplx, &
-             & mbvctr_c, mbvctr_f, mbseg_c, mbseg_f, nl%pspd(iat)%plr%wfd%keyvglob, nl%pspd(iat)%plr%wfd%keyglob, &
-             & nl%wpr, proj_tmp)
+!!$        call projector(geocode, iat, idir, iter%l, iter%n, coeff, expo, &
+!!$             & nl%pspd(iat)%gau_cut, nl%proj_G%rxyz(:, iat), lr%ns1, lr%ns2, lr%ns3, lr%d%n1, lr%d%n2, lr%d%n3, &
+!!$             & hx, hy, hz, kx, ky, kz, ncplx_k, nl%proj_G%ncplx, &
+!!$             & mbvctr_c, mbvctr_f, mbseg_c, mbseg_f, nl%pspd(iat)%plr%wfd%keyvglob, nl%pspd(iat)%plr%wfd%keyglob, &
+!!$             & nl%wpr, proj_tmp)
+        call gaussian_to_wavelets_locreg(lr%mesh_coarse,idir,&
+             nl%proj_G%ncplx,coeff,expo,nl%pspd(iat)%gau_cut,iter%n,iter%l,&
+             nl%proj_G%rxyz(:, iat),[kx,ky,kz],&
+             ncplx_k,nl%pspd(iat)%plr%wfd,nl%wpr, proj_tmp)
         call axpy(nc, 1._wp, proj_tmp(1), 1, nl%proj(istart_c), 1)
      end do
      ! Check norm for each proj.
@@ -673,13 +686,12 @@ character(len = 1), intent(in) :: geocode
 
 end subroutine atom_projector
 
-
 subroutine projector(geocode,iat,idir,l,i,factor,gau_a,rpaw,rxyz,&
      ns1,ns2,ns3,n1,n2,n3,hx,hy,hz,kx,ky,kz,ncplx_k,ncplx_g,&
      mbvctr_c,mbvctr_f,mseg_c,mseg_f,keyv_p,keyg_p,wpr,proj)
   use module_base
   use module_types
-  use psp_projectors_base, only: workarrays_projectors
+  use locreg_operations, only: workarrays_projectors
   implicit none
   character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
   integer, intent(in) :: ns1,ns2,ns3,n1,n2,n3
@@ -832,7 +844,8 @@ subroutine crtproj(geocode,nterm,ns1,ns2,ns3,n1,n2,n3, &
      mvctr_c,mvctr_f,mseg_c,mseg_f,keyv_p,keyg_p,proj,wpr,gau_cut)
   use module_base
   use module_types
-  use psp_projectors_base, only: workarrays_projectors, NCPLX_MAX
+  !use psp_projectors_base, only: workarrays_projectors, NCPLX_MAX
+  use locreg_operations, only: workarrays_projectors,NCPLX_MAX
   !use gaussians
   implicit none
   character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode

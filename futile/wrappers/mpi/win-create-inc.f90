@@ -14,6 +14,7 @@
   !local variables
   integer(fmpi_integer) :: ierr,infohandle
   type(fmpi_info) :: info_
+  external :: MPI_WIN_CREATE
 
   infohandle=FMPI_INFO_NULL
   if (present(dict_info)) then
@@ -31,7 +32,7 @@
   win%disp_unit=mpitypesize(base)
   win%size=int(size,fmpi_address)
   win%comm=fmpi_comm(comm)
-  call mpi_win_create(base, win%size*win%disp_unit, &
+  call MPI_WIN_CREATE(base, win%size*win%disp_unit, &
        win%disp_unit, infohandle,win%comm,win%handle, ierr)
 
   if (ierr/=FMPI_SUCCESS) then

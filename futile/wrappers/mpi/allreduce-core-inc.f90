@@ -17,6 +17,7 @@
   if (in_place) then
      if (present(request)) then
         call f_timer_interrupt(tcat)
+        ierr=FMPI_SUCCESS
         call MPI_IALLREDUCE(FMPI_IN_PLACE,sendbuf,ntot,&
              mpitype(sendbuf),int(toi(op),fmpi_integer),mpi_comm,request,ierr)
         call f_timer_resume()

@@ -15,6 +15,8 @@ module locreg_operations
 
   private
 
+  integer,parameter,public :: NCPLX_MAX = 2
+
   !> Information for the confining potential to be used in TMB scheme
   !! The potential is supposed to be defined as prefac*(r-rC)**potorder
   type, public :: confpot_data
@@ -73,6 +75,12 @@ module locreg_operations
      real(wp), dimension(:,:,:,:), pointer :: yza_f, yzb_f, yzc_f, yze_f
   end type workarrays_quartic_convolutions
 
+  type,public :: workarrays_projectors
+     real(wp),pointer,dimension(:,:,:,:) :: wprojx,wprojy,wprojz
+     real(wp),pointer,dimension(:) :: wproj
+     real(wp),pointer,dimension(:,:,:) :: work
+  end type workarrays_projectors
+
 
   public :: psir_to_vpsi,isf_to_daub_kinetic
   public :: nullify_confpot_data 
@@ -86,8 +94,8 @@ module locreg_operations
   public :: memspace_work_arrays_sumrho,memspace_work_arrays_locham
   public :: allocate_work_arrays,init_local_work_arrays,deallocate_work_arrays
   public :: deallocate_workarrays_quartic_convolutions,zero_local_work_arrays
-
-  public :: set_wfd_to_wfd
+  public :: nullify_workarrays_projectors, allocate_workarrays_projectors, deallocate_workarrays_projectors
+  public :: set_wfd_to_wfd,gaussian_to_wavelets_locreg
 
   ! to avoid creating array temporaries
   interface initialize_work_arrays_sumrho
@@ -101,7 +109,99 @@ module locreg_operations
   end interface initialize_work_arrays_locham
 
 
+
   contains
+
+    pure function workarrays_projectors_null() result(wp)
+      implicit none
+      type(workarrays_projectors) :: wp
+      call nullify_workarrays_projectors(wp)
+    end function workarrays_projectors_null
+
+    pure subroutine nullify_workarrays_projectors(wp)
+      implicit none
+      type(workarrays_projectors),intent(out) :: wp
+      nullify(wp%wprojx)
+      nullify(wp%wprojy)
+      nullify(wp%wprojz)
+      nullify(wp%wproj)
+      nullify(wp%work)
+    end subroutine nullify_workarrays_projectors
+
+    subroutine allocate_workarrays_projectors(n1, n2, n3, wp)
+      implicit none
+      integer,intent(in) :: n1, n2, n3
+      type(workarrays_projectors),intent(inout) :: wp
+      integer,parameter :: nterm_max=20
+      integer,parameter :: nw=65536
+      wp%wprojx = f_malloc_ptr((/ 1.to.NCPLX_MAX, 0.to.n1, 1.to.2, 1.to.nterm_max /),id='wprojx')
+      wp%wprojy = f_malloc_ptr((/ 1.to.NCPLX_MAX, 0.to.n2, 1.to.2, 1.to.nterm_max /),id='wprojy')
+      wp%wprojz = f_malloc_ptr((/ 1.to.NCPLX_MAX, 0.to.n3, 1.to.2, 1.to.nterm_max /),id='wprojz')
+      wp%wproj = f_malloc_ptr(NCPLX_MAX*(max(n1,n2,n3)+1)*2,id='wprojz')
+      wp%work = f_malloc_ptr((/ 0.to.nw, 1.to.2, 1.to.2 /),id='work')
+    end subroutine allocate_workarrays_projectors
+
+    subroutine deallocate_workarrays_projectors(wp)
+      implicit none
+      type(workarrays_projectors),intent(inout) :: wp
+      call f_free_ptr(wp%wprojx)
+      call f_free_ptr(wp%wprojy)
+      call f_free_ptr(wp%wprojz)
+      call f_free_ptr(wp%wproj)
+      call f_free_ptr(wp%work)
+    end subroutine deallocate_workarrays_projectors
+
+    !>accumulate the coefficients of the expression of a given gaussian in wavelets on the array of
+    !!compressed data
+    subroutine gaussian_to_wavelets_locreg(mesh,ider,&
+         ncplx_g,coeff,sigma_and_expo,distance_cutoff,n,l,rxyz,kpoint,&
+         ncplx_p,wfd,wpr,psi)
+      use box
+      use compression
+      implicit none  
+      integer, intent(in) :: ider !<direction in which to perform the derivative (0 if any)
+      integer, intent(in) :: n !<principal quantum number
+      integer, intent(in) :: l !<angular momentum of the shell
+      integer, intent(in) :: ncplx_g !< 1 or 2 if the gaussian factor is real or complex respectively
+      integer, intent(in) :: ncplx_p !< 2 if the projector is supposed to be complex, 1 otherwise
+      real(gp), intent(in) :: distance_cutoff !< 1d-distance starting frm which the gaussian is assumed to be zero
+      type(cell), intent(in) :: mesh !<cell structure *of the wavelet box* (coarse grid)
+      type(wavefunctions_descriptors), intent(in) :: wfd !<projector descriptors for wavelets representation
+      real(gp), dimension(ncplx_g), intent(in) :: coeff !<prefactor of the gaussian
+      real(gp), dimension(ncplx_g), intent(in) :: sigma_and_expo !<exponents (sigma for the first element) of the gaussian (real and imaginary part)
+      real(gp), dimension(3), intent(in) :: rxyz !<center of the Gaussian
+      real(gp), dimension(3), intent(in) :: kpoint !<coordinate of the kpoint in reciprocal space
+      type(workarrays_projectors),intent(inout) :: wpr
+      !> wavelet expression, @todo: create a routine that accumulates instead of overwriting
+      real(wp), dimension(wfd%nvctr_c+7*wfd%nvctr_f,ncplx_p,2*l-1), intent(out) :: psi
+
+      !here iat is useless
+      call projector(cell_geocode(mesh), -1, ider,l,n, coeff, sigma_and_expo, &
+           distance_cutoff, rxyz,&
+           0,0,0,mesh%ndims(1),mesh%ndims(2),mesh%ndims(3), &
+           mesh%hgrids(1),mesh%hgrids(2),mesh%hgrids(3),&
+           kpoint(1),kpoint(2),kpoint(3), ncplx_p,ncplx_g, &
+           wfd%nvctr_c,wfd%nvctr_f,wfd%nseg_c,wfd%nseg_f,&
+           wfd%keyvglob,wfd%keyglob, &
+           wpr,psi) 
+
+!!$      !new method
+!!$      do i=1,3
+!!$         funcs(i)=f_function_new(f_gaussian,exponent=)
+!!$      end do
+!!$
+!!$      !for the moment only with s projectors (l=0,n=1)
+!!$      bit=box_iter(mesh,centered=.true.)
+!!$      !take the reference functions
+!!$      call separable_3d_function(bit,funcs,1.0_f_double,psir)
+!!$      call initialize_work_arrays_sumrho(lr,.true.,w)
+!!$      !from real space to wavelet
+!!$      call isf_to_daub(lr,w,psir,psi)
+  
+
+    end subroutine gaussian_to_wavelets_locreg
+
+
 
     !> initialize the information for matching the localisation region
     !! of each projector to all the localisation regions of the system
