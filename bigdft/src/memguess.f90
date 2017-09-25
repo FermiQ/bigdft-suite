@@ -112,7 +112,7 @@ program memguess
    real(kind=8),parameter :: degree=1.d0
    character(len=6) :: direction
    character(len=2) :: backslash
-   logical :: file_exists, found_bin
+   logical :: file_exists, found_bin, orbs_associated_occ
    logical,dimension(:,:),allocatable :: calc_array
    real(kind=8),parameter :: eps_roundoff=1.d-5
    type(sparse_matrix) :: smat_s, smat_m, smat_l
@@ -1544,8 +1544,10 @@ program memguess
               & basedist=runObj%rst%KSwfn%orbs%norb_par(0:,1:), &
               & basedistu=runObj%rst%KSwfn%orbs%norbu_par(0:,1:), &
               & basedistd=runObj%rst%KSwfn%orbs%norbd_par(0:,1:))
+         orbs_associated_occ=.false.
       else
          orbs => runObj%rst%KSwfn%orbs
+         orbs_associated_occ=.true.
       end if
 
       ! Optionally compute iorbp from arguments in case of ETSF.
@@ -1580,7 +1582,7 @@ program memguess
            & runObj%rst%KSwfn%Lzd%hgrids,runObj%rst%KSwfn%Lzd%Glr, &
            & runObj%atoms,runObj%atoms%astruct%rxyz,orbs,runObj%rst%KSwfn%psi,&
            & iorbp,export_wf_ispinor,ref_frags)
-      if (associated(orbs, runObj%rst%KSwfn%orbs)) then
+      if (orbs_associated_occ) then !associated(orbs, runObj%rst%KSwfn%orbs)) then
          call filename_of_iorb(.false.,"wavefunction",orbs,iorbp, &
               & export_wf_ispinor,filename_wfn,iorb_out)
       else
@@ -1595,7 +1597,7 @@ program memguess
       deallocate(ref_frags)
       nullify(ref_frags)
 
-      if (.not. associated(orbs, runObj%rst%KSwfn%orbs)) then
+      if (.not. orbs_associated_occ) then !(.not. associated(orbs, runObj%rst%KSwfn%orbs)) then
          call deallocate_orbitals_data(orbs)
          deallocate(orbs)
       end if
