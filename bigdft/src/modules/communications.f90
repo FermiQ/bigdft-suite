@@ -2575,7 +2575,7 @@ module communications
       if (present(outadd)) then
           call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,psi,work,outadd)
       else
-         if (.not. associated(work)) then
+         if (nproc > 1 .and. .not. associated(work)) then
          !!   call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,psi,workdum)
              call f_err_throw('The working pointer must be associated',&
                   err_name='BIGDFT_RUNTIME_ERROR')
