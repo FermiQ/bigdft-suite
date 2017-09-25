@@ -1551,16 +1551,16 @@ program memguess
       ! Optionally compute iorbp from arguments in case of ETSF.
       if (f_err_raise(export_wf_ikpt < 1 .or. export_wf_ikpt > orbs%nkpts, &
            'The value ikpt is not compatible with the kpt dimension',&
-             err_name='BIGDFT_RUNTIME_ERROR')) return
+             err_name='BIGDFT_RUNTIME_ERROR')) stop
       if (f_err_raise(export_wf_ispin < 1 .or. export_wf_ispin > orbs%nspin, &
            'The value ispin is not compatible with the spin dimension',&
-             err_name='BIGDFT_RUNTIME_ERROR')) return
+             err_name='BIGDFT_RUNTIME_ERROR')) stop
       if (f_err_raise((export_wf_ispin == 1 .and. &
            & (export_wf_iband < 1 .or. export_wf_iband > orbs%norbu)) .or. &
            & (export_wf_ispin == 0 .and. &
            & (export_wf_iband < 1 .or. export_wf_iband > orbs%norbd)), &
            'The value iband is not compatible with the orbital dimension',&
-             err_name='BIGDFT_RUNTIME_ERROR')) return
+             err_name='BIGDFT_RUNTIME_ERROR')) stop
       iorbp = (export_wf_ikpt - 1) * orbs%norb + &
            & (export_wf_ispin - 1) * orbs%norbu + export_wf_iband
 
@@ -2562,16 +2562,16 @@ subroutine take_psi_from_file(filename,in_frag,hgrids,lr,at,rxyz,orbs,psi,iorbp,
 
       if (f_err_raise(iorbp > orbs%norbu, &
            'The value iorb read from the filename is not compatible with the orbital dimension',&
-             err_name='BIGDFT_RUNTIME_ERROR')) return
+             err_name='BIGDFT_RUNTIME_ERROR')) stop
       if (f_err_raise(ikpt > orbs%nkpts, &
            'The value ikpt read from the filename is not compatible with the kpt dimension',&
-             err_name='BIGDFT_RUNTIME_ERROR')) return
+             err_name='BIGDFT_RUNTIME_ERROR')) stop
       if (f_err_raise(ispin > orbs%nspin, &
            'The value ispin read from the filename is not compatible with the spin dimension',&
-             err_name='BIGDFT_RUNTIME_ERROR')) return
+             err_name='BIGDFT_RUNTIME_ERROR')) stop
       if (f_err_raise(ispinor > orbs%nspinor, &
            'The value ispinor read from the filename is not compatible with the spinor dimension',&
-             err_name='BIGDFT_RUNTIME_ERROR')) return
+             err_name='BIGDFT_RUNTIME_ERROR')) stop
 
 
       i = index(filename, "/",back=.true.)+1
