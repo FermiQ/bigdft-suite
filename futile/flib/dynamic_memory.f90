@@ -159,6 +159,7 @@ module dynamic_memory_base
 
   interface f_subptr
      module procedure f_subptr_d0,f_subptr_d00,f_subptr_i00,f_subptr_li00
+     module procedure f_subptr_li0
   end interface f_subptr
 
   interface malloc_validate
@@ -1362,6 +1363,43 @@ contains
          ERR_MALLOC_INTERNAL)
 
   end function f_subptr_d0
+
+  !>points toward a region of a given pointer
+  function f_subptr_li0(ptr,region,from,size,lbound) result(win)
+    implicit none
+    integer(f_long), dimension(:), target :: ptr
+    integer(f_long), dimension(:), pointer :: win
+    type(array_bounds), intent(in), optional :: region
+    integer, intent(in), optional :: from
+    integer, intent(in), optional :: size
+    integer, intent(in), optional :: lbound !<in the case of different bounds for the pointer
+    !local variables
+    integer(f_kind) :: lb,ub,is,ie
+
+    nullify(win)
+    call subpointer_bounds(is,ie,lb,ub,region,from,size,lbound)
+    if (ub < lb) return
+
+    !perform the association on the window
+    if (lb==1) then
+       win => ptr(is:ie)
+    else
+       call f_map_ptr(lb,ub,ptr(is:ie),win)
+    end if
+
+    !then perform the check for the subpointer region
+    if (get_lbnd(win) /= lb) call f_err_throw(&
+         'ERROR (f_subptr): expected shape does not match, '//&
+         trim(yaml_toa(get_lbnd(win)))//' vs. '//trim(yaml_toa(lb)),&
+         ERR_MALLOC_INTERNAL)
+
+    if (f_loc(win(lb)) /= f_loc(ptr(is)) .or. &
+         f_loc(win(ub)) /= f_loc(ptr(ie))) call f_err_throw(&
+         'ERROR (f_subptr): addresses do not match, the allocating system has performed a copy',&
+         ERR_MALLOC_INTERNAL)
+
+  end function f_subptr_li0
+
 
   pure function get_lbnd_d0(win) result(get_lbnd)
     implicit none

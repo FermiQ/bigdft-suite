@@ -502,6 +502,16 @@ subroutine test_dictionaries1()
 !!! [newiter]
    call dict_free(dictA)
 
+   !test again the iterator in a compact form
+   dictA=>dict_new('nolocks' .is. 'true')
+   nullify(dict_tmp)
+   do while(iterating(dict_tmp,on=dictA))
+      call yaml_map('Iterating in dictA, compact form',.true.)
+      call yaml_map('Key of dictA, again',dict_key(dict_tmp))
+      call yaml_map('Value of dictA, again',dict_value(dict_tmp))
+   end do
+   call dict_free(dictA)
+
    !again the iterator on the elements of a list
    call yaml_mapping_open('Test of the iterator over a provided sequence')
    dictA=>yaml_load('[xyz,ascii,int,yaml]')

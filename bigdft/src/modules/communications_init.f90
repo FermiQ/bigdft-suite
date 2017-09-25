@@ -1915,7 +1915,7 @@ module communications_init
            call mpi_type_size(mpi_double_precision, size_of_double, ierr)
            !window = mpiwindow((lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*n3p, weightppp_c(0,0,1), bigdft_mpi%mpi_comm)
            call fmpi_win_create(window,weightppp_c(0,0,1),(lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*n3p,bigdft_mpi%mpi_comm)
-
+           call fmpi_win_fence(window,FMPI_WIN_OPEN)
            do jproc=0,nproc-1
                ! Check whether ther is an overlap
                is = max(i3min_c,i3s_par(jproc))
@@ -2026,7 +2026,7 @@ module communications_init
            call mpi_type_size(mpi_double_precision, size_of_double, ierr)
            !window = mpiwindow((lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*n3p, weightppp_f(0,0,1), bigdft_mpi%mpi_comm)
            call fmpi_win_create(window,weightppp_f(0,0,1),(lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*n3p,bigdft_mpi%mpi_comm)
-
+           call fmpi_win_fence(window,FMPI_WIN_OPEN)
            do jproc=0,nproc-1
                ! Check whether ther is an overlap
                is = max(i3min_f,i3s_par(jproc))
