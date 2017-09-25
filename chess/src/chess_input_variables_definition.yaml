@@ -38,7 +38,7 @@
      COMMENT: Maximal number of unsuccessful eigenvalue bounds shrinkings
      default: 4
    fscale:
-     COMMENT: Initial guess for the error fucntion decay length
+     COMMENT: Initial guess for the error function decay length
      DESCRIPTION: |
        Indicates the decay length of the error function which is used by the Fermi Operator Expasion to construct the density kernel.
        This value will be adjusted automatically if not chosen appropriately.
@@ -48,10 +48,18 @@
      COMMENT: Lower bound for the error function decay length
      RANGE: [1.e-4,1.e-2]
      default: 5.e-3
+     #CONDITION:
+     #  MASTER_KEY: adjust_fscale
+     #  WHEN:
+     #  - yes
    fscale_upperbound:
      COMMENT: Upper bound for the error function decay length
      default: 5.e-2
      RANGE: [1.e-2,1.0]
+     #CONDITION:
+     #  MASTER_KEY: adjust_fscale
+     #  WHEN:
+     #  - yes
    eval_range_foe:
      COMMENT: Lower and upper bound of the eigenvalue spectrum, will be adjusted automatically if chosen unproperly
      DESCRIPTION: |
@@ -79,6 +87,18 @@
      COMMENT: the exponent in the exponential penalty function which is used to determine the eigenvalue bounds for ICE
      default: -1000.0
      RANGE: [-10000.0,-10.0]
+   occupation_function:
+     COMMENT: the function to assign the occupation numbers
+     default: error_function
+     EXCLUSIVE: 
+       102: error_function
+       106: fermi_function
+     # shortcuts
+     error_function: 102
+     fermi_function: 106
+   adjust_fscale:
+     COMMENT: dynamically adjust the value of fscale or not
+     default: yes
    #fscale:
    #  COMMENT: Decay length of the error function
    #  DESCRIPTION: |
@@ -160,7 +180,3 @@
      COMMENT: Verbosity level of the PEXSI solver
      DESCRIPTION: Verbosity level of the PEXSI solver
      default: 0
-     EXCLUSIVE: 
-       0: minimal output
-       1: standard output
-       2: detailed output

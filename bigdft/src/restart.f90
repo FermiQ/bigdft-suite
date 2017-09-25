@@ -409,7 +409,7 @@ subroutine verify_file_presence(filerad,orbs,iformat,nproc,nforb)
      end do
   end do loop_plain
   !reduce the result among the other processors
-  if (nproc > 1) call mpiallred(allfiles,1,MPI_LAND,comm=bigdft_mpi%mpi_comm)
+  if (nproc > 1) call fmpi_allreduce(allfiles,1,FMPI_LAND,comm=bigdft_mpi%mpi_comm)
 
   if (allfiles) then
      iformat=WF_FORMAT_PLAIN
@@ -436,7 +436,7 @@ subroutine verify_file_presence(filerad,orbs,iformat,nproc,nforb)
      end do
   end do loop_binary
   !reduce the result among the other processors
-  if (nproc > 1) call mpiallred(allfiles,1,MPI_LAND,comm=bigdft_mpi%mpi_comm)
+  if (nproc > 1) call fmpi_allreduce(allfiles,1,FMPI_LAND,comm=bigdft_mpi%mpi_comm)
 
   if (allfiles) then
      iformat=WF_FORMAT_BINARY
@@ -1594,7 +1594,7 @@ subroutine tmb_overlap_onsite_rotate(iproc, nproc, input, at, tmb, rxyz, ref_fra
       if (iproc==0) write(*,'(F6.2,a)') 100.0d0*real(iiorb,dp)/real(tmb%orbs%norb,dp),'%'
   end do
 
-  call mpiallred(overlap, mpi_sum, comm=bigdft_mpi%mpi_comm)
+  call fmpi_allreduce(overlap, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
 
   ! print also various files useful for more direct analysis - eventually tidy this into better formatted outputs
   if (iproc==0) then
@@ -2422,7 +2422,7 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
      end do
 
      !if (bigdft_mpi%nproc > 1) then
-     !   call mpiallred(frag_env_mapping, mpi_sum, comm=bigdft_mpi%mpi_comm)
+     !   call fmpi_allreduce(frag_env_mapping, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
      !end if
 
      allocate(frag_trans_orb(tmb%orbs%norbp))
@@ -2545,7 +2545,7 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
   end if fragment_if
 
   !reduce the number of warnings
-  if (nproc >1) call mpiallred(itoo_big,1,op=MPI_SUM,comm=bigdft_mpi%mpi_comm)
+  if (nproc >1) call fmpi_allreduce(itoo_big,1,op=FMPI_SUM,comm=bigdft_mpi%mpi_comm)
 
   if (itoo_big > 0 .and. iproc==0) call yaml_warning('Found '//itoo_big//' warning of high Wahba cost functions')
 
@@ -3220,8 +3220,8 @@ subroutine initialize_linear_from_file(iproc,nproc,input_frag,astruct,rxyz,orbs,
   Lzd%nlr = orbs%norb
 
   ! Communication of the quantities
-  if (nproc > 1)  call mpiallred(orbs%onwhichatom(1),orbs%norb,MPI_SUM,comm=bigdft_mpi%mpi_comm)
-  if (nproc > 1)  call mpiallred(locrad,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+  if (nproc > 1)  call fmpi_allreduce(orbs%onwhichatom(1),orbs%norb,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
+  if (nproc > 1)  call fmpi_allreduce(locrad,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
 
   cxyz = f_malloc((/ 3, Lzd%nlr /),id='cxyz')
   lrad = f_malloc(Lzd%nlr,id='lrad')
@@ -3792,7 +3792,7 @@ subroutine reformat_supportfunctions(iproc,nproc,at,rxyz_old,rxyz,add_derivative
 
   ! Get the maximal shift among all tasks
   if (nproc>1) then
-      call mpiallred(max_shift, 1, mpi_max, comm=bigdft_mpi%mpi_comm)
+      call fmpi_allreduce(max_shift, 1, FMPI_MAX, comm=bigdft_mpi%mpi_comm)
   end if
   if (iproc==0) call yaml_map('max shift of a locreg center',max_shift,fmt='(es9.2)')
 
@@ -3995,7 +3995,7 @@ subroutine print_reformat_summary(iproc,nproc,reformat_reason)
   integer, intent(in) :: iproc,nproc
   integer, dimension(0:7), intent(inout) :: reformat_reason ! array giving reasons for reformatting
 
-  if (nproc > 1) call mpiallred(reformat_reason, mpi_sum, comm=bigdft_mpi%mpi_comm)
+  if (nproc > 1) call fmpi_allreduce(reformat_reason, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
 
   if (iproc==0) then
         call yaml_mapping_open('Overview of the reformatting (several categories may apply)')

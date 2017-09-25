@@ -57,6 +57,8 @@
     implicit none
     !local variables
     call f_err_unset_callback()
+    call f_err_unset_last_error_callback()
+    call f_err_unset_all_errors_callback()
     if (associated(error_pipelines)) then
        call error_pipelines_clean()
     end if
@@ -71,6 +73,8 @@
   subroutine f_err_finalize()
     implicit none
     call f_err_unset_callback()
+    call f_err_unset_last_error_callback()
+    call f_err_unset_all_errors_callback()
     call f_err_severe_restore()
     call dict_free(dict_errors)
     call error_pipelines_clean()
@@ -171,31 +175,34 @@
     logical :: f_err_raise
     !local variables
     !    integer :: new_errcode
-    integer(kind=8) :: clbk_data_add
+!    integer(kind=8) :: clbk_data_add
 
     f_err_raise=condition
     !once the error has been identified add it to the present errors and call callback function if needed
     if (f_err_raise) then
-       clbk_data_add=callback_data_add
-       if (present(callback_data)) clbk_data_add=callback_data
+       call f_err_throw(err_msg=err_msg%msg,err_name=err_name,err_id=err_id,&
+            callback=callback,callback_data=callback_data)
 
-       if (present(callback)) then
-          if (present(err_id)) then
-             call f_err_throw(err_msg%msg,err_id=err_id,callback=callback,callback_data=clbk_data_add)
-          else if (present(err_name)) then
-             call f_err_throw(err_msg%msg,err_name=err_name,callback=callback,callback_data=clbk_data_add)
-          else
-             call f_err_throw(err_msg%msg,callback=callback,callback_data=clbk_data_add)
-          end if
-       else
-          if (present(err_id)) then
-             call f_err_throw(err_msg%msg,err_id=err_id,callback_data=clbk_data_add)
-          else if (present(err_name)) then
-             call f_err_throw(err_msg%msg,err_name=err_name,callback_data=clbk_data_add)
-          else
-             call f_err_throw(err_msg%msg,callback_data=clbk_data_add)
-          end if
-       end if
+!!$       clbk_data_add=callback_data_add
+!!$       if (present(callback_data)) clbk_data_add=callback_data
+!!$
+!!$       if (present(callback)) then
+!!$          if (present(err_id)) then
+!!$             call f_err_throw(err_msg%msg,err_id=err_id,callback=callback,callback_data=clbk_data_add)
+!!$          else if (present(err_name)) then
+!!$             call f_err_throw(err_msg%msg,err_name=err_name,callback=callback,callback_data=clbk_data_add)
+!!$          else
+!!$             call f_err_throw(err_msg%msg,callback=callback,callback_data=clbk_data_add)
+!!$          end if
+!!$       else
+!!$          if (present(err_id)) then
+!!$             call f_err_throw(err_msg%msg,err_id=err_id,callback_data=clbk_data_add)
+!!$          else if (present(err_name)) then
+!!$             call f_err_throw(err_msg%msg,err_name=err_name,callback_data=clbk_data_add)
+!!$          else
+!!$             call f_err_throw(err_msg%msg,callback_data=clbk_data_add)
+!!$          end if
+!!$       end if
     end if
   end function f_err_raise_str
 
@@ -218,11 +225,11 @@
     logical :: f_err_raise
     !local variables
 !    integer :: new_errcode
-    integer(kind=8) :: clbk_data_add
+!    integer(kind=8) :: clbk_data_add
 !    integer(kind=8) :: clbk_add
 !    character(len=max_field_length), dimension(1) :: keys
 !    type(dictionary), pointer :: dict_tmp
-    character(len=max_field_length) :: message
+!    character(len=max_field_length) :: message
 
     if (present(condition)) then
        f_err_raise=condition
@@ -231,33 +238,35 @@
     end if
     !once the error has been identified add it to the present errors and call callback function if needed
     if (f_err_raise) then
-       !throw the error with the annoying stuff of optional variables
-       if (present(err_msg)) then
-          message(1:len(message))=err_msg
-       else
-          message(1:len(message))='UNKNOWN'
-       end if
-
-       clbk_data_add=callback_data_add
-       if (present(callback_data)) clbk_data_add=callback_data
-
-       if (present(callback)) then
-          if (present(err_id)) then
-             call f_err_throw(message,err_id=err_id,callback=callback,callback_data=clbk_data_add)
-          else if (present(err_name)) then
-             call f_err_throw(message,err_name=err_name,callback=callback,callback_data=clbk_data_add)
-          else
-             call f_err_throw(message,callback=callback,callback_data=clbk_data_add)
-          end if
-       else
-          if (present(err_id)) then
-             call f_err_throw(message,err_id=err_id,callback_data=clbk_data_add)
-          else if (present(err_name)) then
-             call f_err_throw(message,err_name=err_name,callback_data=clbk_data_add)
-          else
-             call f_err_throw(message,callback_data=clbk_data_add)
-          end if
-       end if
+       call f_err_throw(err_msg=err_msg,err_name=err_name,err_id=err_id,&
+            callback=callback,callback_data=callback_data)
+!!$       !throw the error with the annoying stuff of optional variables
+!!$       if (present(err_msg)) then
+!!$          message(1:len(message))=err_msg
+!!$       else
+!!$          message(1:len(message))='UNKNOWN'
+!!$       end if
+!!$
+!!$       clbk_data_add=callback_data_add
+!!$       if (present(callback_data)) clbk_data_add=callback_data
+!!$
+!!$       if (present(callback)) then
+!!$          if (present(err_id)) then
+!!$             call f_err_throw(message,err_id=err_id,callback=callback,callback_data=clbk_data_add)
+!!$          else if (present(err_name)) then
+!!$             call f_err_throw(message,err_name=err_name,callback=callback,callback_data=clbk_data_add)
+!!$          else
+!!$             call f_err_throw(message,callback=callback,callback_data=clbk_data_add)
+!!$          end if
+!!$       else
+!!$          if (present(err_id)) then
+!!$             call f_err_throw(message,err_id=err_id,callback_data=clbk_data_add)
+!!$          else if (present(err_name)) then
+!!$             call f_err_throw(message,err_name=err_name,callback_data=clbk_data_add)
+!!$          else
+!!$             call f_err_throw(message,callback_data=clbk_data_add)
+!!$          end if
+!!$       end if
     end if
   end function f_err_raise
 
@@ -266,7 +275,7 @@
   !! @warning:  This routine might formally call itself, i.e. it uses methods that might raise exceptions
   !! it is developer's responsibility to avoid deadlocks
   recursive subroutine f_err_throw_c(err_msg,err_id,err_name,callback,callback_data)
-    use yaml_strings, only: yaml_toa
+    use yaml_strings, only: yaml_toa,f_char_ptr
     implicit none
     integer, intent(in), optional :: err_id                    !< The code of the error to be raised.
                                                                !! it should already have been defined by f_err_define
@@ -294,9 +303,9 @@
        new_errcode= max(dict_errors .index. err_name,ERR_GENERIC)
        !add a potentially verbose error list in case the specified error name has not been found
        if ((dict_errors .index. err_name) < ERR_GENERIC) then
-          call f_dump_possible_errors('Error raised, name entered= '//trim(err_name)//&
+          call f_dump_possible_errors(f_char_ptr('Error raised, name entered= '//trim(err_name)//&
                '. Errorcode found='//trim(yaml_toa(new_errcode))//&
-               '; index function returned'//trim(yaml_toa(dict_errors .index. err_name)))
+               '; index function returned'//trim(yaml_toa(dict_errors .index. err_name))))
        end if
     else if (present(err_id)) then
        new_errcode=ERR_GENERIC
@@ -304,7 +313,7 @@
           new_errcode=err_id
        else
           !add a potentially verbose error list in case the specified error name has not been found
-          call f_dump_possible_errors('Error raised, id='//trim(yaml_toa(err_id)))
+          call f_dump_possible_errors(f_char_ptr('Error raised, id='//trim(yaml_toa(err_id))))
        end if
     end if
 
@@ -368,29 +377,34 @@
     external :: callback
     optional :: callback
     !local variables
-    integer(kind=8) :: clbk_data_add
+!    integer(kind=8) :: clbk_data_add
 !!$    integer(kind=8) :: clbk_add
 
-    clbk_data_add=callback_data_add
-    if (present(callback_data)) clbk_data_add=callback_data
 
-    if (present(callback)) then
-       if (present(err_id)) then
-          call f_err_throw_c(message%msg,err_id=err_id,callback=callback,callback_data=clbk_data_add)
-       else if (present(err_name)) then
-          call f_err_throw_c(message%msg,err_name=err_name,callback=callback,callback_data=clbk_data_add)
-       else
-          call f_err_throw_c(message%msg,callback=callback,callback_data=clbk_data_add)
-       end if
-    else
-       if (present(err_id)) then
-          call f_err_throw_c(message%msg,err_id=err_id,callback_data=clbk_data_add)
-       else if (present(err_name)) then
-          call f_err_throw_c(message%msg,err_name=err_name,callback_data=clbk_data_add)
-       else
-          call f_err_throw_c(message%msg,callback_data=clbk_data_add)
-       end if
-    end if
+    call f_err_throw_c(err_msg=message%msg,err_id=err_id,err_name=err_name,&
+         callback=callback,callback_data=callback_data)
+
+!!$
+!!$    clbk_data_add=callback_data_add
+!!$    if (present(callback_data)) clbk_data_add=callback_data
+!!$
+!!$    if (present(callback)) then
+!!$       if (present(err_id)) then
+!!$          call f_err_throw_c(message%msg,err_id=err_id,callback=callback,callback_data=clbk_data_add)
+!!$       else if (present(err_name)) then
+!!$          call f_err_throw_c(message%msg,err_name=err_name,callback=callback,callback_data=clbk_data_add)
+!!$       else
+!!$          call f_err_throw_c(message%msg,callback=callback,callback_data=clbk_data_add)
+!!$       end if
+!!$    else
+!!$       if (present(err_id)) then
+!!$          call f_err_throw_c(message%msg,err_id=err_id,callback_data=clbk_data_add)
+!!$       else if (present(err_name)) then
+!!$          call f_err_throw_c(message%msg,err_name=err_name,callback_data=clbk_data_add)
+!!$       else
+!!$          call f_err_throw_c(message%msg,callback_data=clbk_data_add)
+!!$       end if
+!!$    end if
   end subroutine f_err_throw_str
 
 

@@ -263,7 +263,7 @@ subroutine inputguessConfinement(iproc, nproc, at, input, hx, hy, hz, &
           end do
       end do
   end do
-  call mpiallred(mapping, mpi_sum, comm=bigdft_mpi%mpi_comm)
+  call fmpi_allreduce(mapping, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
   call f_free(nat_par)
 
 
@@ -278,7 +278,7 @@ subroutine inputguessConfinement(iproc, nproc, at, input, hx, hy, hz, &
           end if
       end do
   end do
-  call mpiallred(inversemapping, mpi_sum, comm=bigdft_mpi%mpi_comm)
+  call fmpi_allreduce(inversemapping, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
 
   nvirt=0
 
@@ -529,6 +529,12 @@ subroutine inputguessConfinement(iproc, nproc, at, input, hx, hy, hz, &
   call gaussians_to_wavelets_new(iproc,nproc,tmb%lzd,orbs_gauss,G,&
        psigau(1,1,1),tmb%psi)
   tmb%can_use_transposed=.false.
+
+  !!!call random_number(tmb%psi)
+  !!do i=1,size(tmb%psi)
+  !!    call random_number(tt)
+  !!    tmb%psi(i) = tmb%psi(i)+0.01*tt
+  !!end do
 
   !!ii=0
   !!do iorb=1,tmb%orbs%norbp

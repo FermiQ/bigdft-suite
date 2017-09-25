@@ -209,8 +209,8 @@
 !!  !!$  end do
 !!  !!$  if (nproc > 1) then
 !!  !!$     !reduce the overlap matrix between all the processors
-!!  !!$     call mpiallred(hamovr(1,1,1),2*nspin*ndim_hamovr*orbsu%nkpts,&
-!!  !!$          MPI_SUM,bigdft_mpi%mpi_comm,ierr)
+!!  !!$     call fmpi_allreduce(hamovr(1,1,1),2*nspin*ndim_hamovr*orbsu%nkpts,&
+!!  !!$          FMPI_SUM,bigdft_mpi%mpi_comm,ierr)
 !!  !!$  end if
 !!  !!$
 !!  !!$  !diagonalize hamovr
@@ -298,8 +298,8 @@
 !!  
 !!    !sum over all the partial residues
 !!    if (nproc > 1) then
-!!       call mpiallred(gnrm,1,MPI_SUM,bigdft_mpi%mpi_comm,ierr)
-!!       call mpiallred(gnrm_zero,1,MPI_SUM,bigdft_mpi%mpi_comm,ierr)
+!!       call fmpi_allreduce(gnrm,1,FMPI_SUM,bigdft_mpi%mpi_comm,ierr)
+!!       call fmpi_allreduce(gnrm_zero,1,FMPI_SUM,bigdft_mpi%mpi_comm,ierr)
 !!    endif
 !!  
 !!    !count the number of orbitals which have zero occupation number
@@ -461,7 +461,8 @@ subroutine mix_rhopot(iproc,nproc,npoints,alphamix,mix,rhopot,istep,&
   real(dp), dimension(npoints), intent(inout) :: rhopot
   real(gp), intent(out) :: rpnrm
   !local variables
-  integer :: ierr,ie,ii
+  integer :: ierr,ii
+  !integer :: ie
   character(len = *), parameter :: subname = "mix_rhopot"
   character(len = 500) :: errmess
   integer, allocatable :: user_data(:)
@@ -505,8 +506,9 @@ subroutine mix_rhopot(iproc,nproc,npoints,alphamix,mix,rhopot,istep,&
        & bigdft_mpi%mpi_comm, (nproc > 1), ierr, errmess, resnrm = rpnrm, &
        & fnrm = fnrm_denpot_forlinear, fdot = fdot_denpot_forlinear, user_data = user_data)
   if (ierr /= AB7_NO_ERROR) then
-     if (iproc == 0) write(0,*) errmess
-     call MPI_ABORT(bigdft_mpi%mpi_comm, ierr, ie)
+    call f_err_throw(trim(errmess),err_name='BIGDFT_RUNTIME_ERROR')
+    !if (iproc == 0) write(0,*) errmess
+    !call MPI_ABORT(bigdft_mpi%mpi_comm, ierr, ie)
   end if
   !write(*,'(a,i7,2es16.7)') 'in mix_rhopot: iproc, rpnrm, ddot', iproc, rpnrm, ddot(npoints,rhopot,1,rhopot,1)
   nsize = int(n1,kind=8)*int(n2,kind=8)*int(n3,kind=8)
@@ -797,7 +799,7 @@ subroutine diisstp(iproc,nproc,orbs,comms,diis)
                 int(nvctrp,kind=f_long)*int(orbs%norb,kind=f_long)*int(orbs%nspinor,kind=f_long)*int(diis%idsx,kind=f_long)
   end do
   if (nproc > 1) then
-     call mpiallred(rds,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+     call fmpi_allreduce(rds,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
   endif
 
   ispsi=1
@@ -1206,12 +1208,12 @@ END SUBROUTINE diisstp
 !!      end do
 !!
 !!      if (nproc > 1) then
-!!         call mpiallred(rds(1,1),(diisArr(iorb)%idsx+1)*orbs%nkpts,MPI_SUM,bigdft_mpi%mpi_comm,ierr)
+!!         call fmpi_allreduce(rds(1,1),(diisArr(iorb)%idsx+1)*orbs%nkpts,FMPI_SUM,bigdft_mpi%mpi_comm,ierr)
 !!!         call MPI_ALLREDUCE(MPI_IN_PLACE,rds,(diis%idsx+1)*orbs%nkpts,  & 
-!!!                     mpidtypw,MPI_SUM,bigdft_mpi%mpi_comm,ierr)
+!!!                     mpidtypw,FMPI_SUM,bigdft_mpi%mpi_comm,ierr)
 !!!
 !!!!         call MPI_ALLREDUCE(rds,ads(1,min(diis%idsx,ids),1),min(ids,diis%idsx),  & 
-!!!!                     MPI_DOUBLE_PRECISION,MPI_SUM,bigdft_mpi%mpi_comm,ierr)
+!!!!                     MPI_DOUBLE_PRECISION,FMPI_SUM,bigdft_mpi%mpi_comm,ierr)
 !!      endif
 !!      
 !!      ispsi=1

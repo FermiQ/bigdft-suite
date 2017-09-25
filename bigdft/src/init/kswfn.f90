@@ -123,6 +123,7 @@ subroutine kswfn_init_comm(wfn, dpbox, iproc, nproc, nspin, imethod_overlap)
   use communications_base, only: comms_linear_null
   use communications_init, only: init_comms_linear, init_comms_linear_sumrho, &
                                  initialize_communication_potential
+  use yaml_output
   implicit none
   integer, intent(in) :: iproc, nproc, nspin, imethod_overlap
   type(DFT_wavefunction), intent(inout) :: wfn
@@ -149,7 +150,14 @@ subroutine kswfn_init_comm(wfn, dpbox, iproc, nproc, nspin, imethod_overlap)
   wfn%collcom_sr=comms_linear_null()
 
   call init_comms_linear(iproc, nproc, imethod_overlap, wfn%npsidim_orbs, wfn%orbs, wfn%lzd, nspin, wfn%collcom)
+  if (iproc==0) then
+      call yaml_map('Normal locregs communication initialized',.true.)
+  end if
+
   call init_comms_linear_sumrho(iproc, nproc, wfn%lzd, wfn%orbs, nspin, dpbox%nscatterarr, wfn%collcom_sr)
+  if (iproc==0) then
+      call yaml_map('Normal locregs sumrho communication initialized',.true.)
+  end if
 
   call f_release_routine()
 

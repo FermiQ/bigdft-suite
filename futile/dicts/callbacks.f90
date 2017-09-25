@@ -23,6 +23,8 @@ module exception_callbacks
   integer(f_address) :: severe_callback_add=0
   !> Addresses of the error dump callbacks functions
   integer(f_address) :: last_error_callback_add=0
+  !> Addresses of the all errors error dump callbacks functions
+  integer(f_address) :: all_errors_callback_add=0
 
 
   interface f_err_set_callback
@@ -33,8 +35,11 @@ module exception_callbacks
   public :: f_err_set_callback
   public :: f_err_unset_callback
   public :: f_err_severe, f_err_severe_override, f_err_severe_restore
-  public :: f_err_ignore,f_dump_last_error
+  public :: f_err_ignore,f_dump_last_error,f_dump_possible_errors
   public :: f_err_set_last_error_callback
+  public :: f_err_unset_last_error_callback
+  public :: f_err_set_all_errors_callback
+  public :: f_err_unset_all_errors_callback
 
   !> Internal variables for f_lib usage
   public :: callback_add
@@ -91,7 +96,6 @@ contains
     !!$ include 'halt_omp-inc.f90'
     callback_add=0
     callback_data_add=0
-    last_error_callback_add=0
   end subroutine f_err_unset_callback
 
 
@@ -127,7 +131,6 @@ contains
     end if
   end subroutine f_err_severe
 
-
   !> Callback routine for severe errors
   subroutine f_err_severe_internal()
     implicit none
@@ -140,12 +143,16 @@ contains
     implicit none
     if (last_error_callback_add /= 0) then
        call callable_void(last_error_callback_add)
-    !else
-    ! call f_err_severe()
-    !write(*,*) 'Found Error id:',ierr
-    !write(*,*) 'Additional Info',add_msg
     end if
   end subroutine f_dump_last_error
+
+  subroutine f_dump_possible_errors(msg)
+    implicit none
+    character, dimension(*), intent(in) :: msg
+    if (all_errors_callback_add /= 0) then
+       call callable_arg(all_errors_callback_add,f_loc(msg))
+    end if
+  end subroutine f_dump_possible_errors
 
   !> Defines the error routine which have to be used
   subroutine f_err_set_last_error_callback(callback)
@@ -156,5 +163,30 @@ contains
     last_error_callback_add=f_loc(callback)
 
   end subroutine f_err_set_last_error_callback
+
+  subroutine f_err_unset_last_error_callback()
+    implicit none
+    last_error_callback_add=0
+  end subroutine f_err_unset_last_error_callback
+
+  subroutine f_err_unset_all_errors_callback()
+    implicit none
+    all_errors_callback_add=0
+  end subroutine f_err_unset_all_errors_callback
+
+  !> Defines the error routine which have to be used
+  subroutine f_err_set_all_errors_callback(callback)
+    implicit none
+    interface 
+       subroutine callback(msg)
+         implicit none
+         character, dimension(*), intent(in) :: msg
+       end subroutine callback
+    end interface
+    !$ include 'halt_omp-inc.f90'
+
+    all_errors_callback_add=f_loc(callback)
+
+  end subroutine f_err_set_all_errors_callback
 
 end module exception_callbacks

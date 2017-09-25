@@ -506,9 +506,12 @@ subroutine read_ascii_positions(ifile,filename,astruct,comment,energy,fxyz,getli
         end if
 
         if (reduced) then !add treatment for reduced coordinates
-           astruct%rxyz(1,iat)=modulo(astruct%rxyz(1,iat),1.0_gp)*astruct%cell_dim(1)
-           astruct%rxyz(2,iat)=modulo(astruct%rxyz(2,iat),1.0_gp)*astruct%cell_dim(2)
-           astruct%rxyz(3,iat)=modulo(astruct%rxyz(3,iat),1.0_gp)*astruct%cell_dim(3)
+           if (astruct%geocode == 'P' .or. astruct%geocode == 'S') &
+                & astruct%rxyz(1,iat)=modulo(astruct%rxyz(1,iat),1.0_gp)*astruct%cell_dim(1)
+           if (astruct%geocode == 'P') &
+                & astruct%rxyz(2,iat)=modulo(astruct%rxyz(2,iat),1.0_gp)*astruct%cell_dim(2)
+           if (astruct%geocode == 'P' .or. astruct%geocode == 'S') &
+                & astruct%rxyz(3,iat)=modulo(astruct%rxyz(3,iat),1.0_gp)*astruct%cell_dim(3)
         else if (astruct%geocode == 'P' .and. (.not. disableTrans)) then
            astruct%rxyz(1,iat)=modulo(astruct%rxyz(1,iat),astruct%cell_dim(1))
            astruct%rxyz(2,iat)=modulo(astruct%rxyz(2,iat),astruct%cell_dim(2))
@@ -903,7 +906,7 @@ END SUBROUTINE archiveGetLine
 !! accoding to geocode value and cell if present
 subroutine rxyz_inside_box(astruct,rxyz)
   use module_defs, only: gp
-  use dynamic_memory, only: f_memcpy
+  use dynamic_memory, only: f_memcpy, f_routine, f_release_routine
   implicit none
   !> description of the atomic structure
   type(atomic_structure), intent(inout) :: astruct
@@ -913,6 +916,8 @@ subroutine rxyz_inside_box(astruct,rxyz)
   !local variables
   integer :: iat
   real(gp), dimension(:,:), pointer :: rxyz_
+
+  call f_routine(id='rxyz_inside_box')
 
   rxyz_ => astruct%rxyz
   if (present(rxyz)) rxyz_ => rxyz
@@ -954,6 +959,8 @@ subroutine rxyz_inside_box(astruct,rxyz)
      if (present(rxyz)) call f_memcpy(src=astruct%rxyz,dest=rxyz_)
      !Do nothing!
   end select
+
+  call f_release_routine()
 
 end subroutine rxyz_inside_box
 

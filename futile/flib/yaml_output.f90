@@ -13,6 +13,7 @@
 module yaml_output
   use yaml_strings
   use dictionaries
+  use f_precisions
   !use error_handling
   implicit none
   private
@@ -110,7 +111,6 @@ module yaml_output
      module procedure yaml_comment_c,yaml_comment_str
   end interface
 
-
   !> Fake structure needed to document common arguments of the module
   type, private :: doc
      !> integer indicating the value of the column where the following
@@ -147,7 +147,6 @@ module yaml_output
      character(len=1) :: mapvalue
   end type doc
 
-
   !> @addtogroup FLIB_YAML
   !!@{ Public routines (API of the module).@n
   !! Here follows the routines which are important for the usage of the yaml_output module
@@ -172,8 +171,6 @@ module yaml_output
   !!                @link yaml_output::yaml_dict_dump_all @endlink
   !! @}
 
-
-
   !all the public routines below should be documented
   public :: yaml_new_document,yaml_release_document
   public :: yaml_map,yaml_mapping_open,yaml_mapping_close
@@ -184,7 +181,7 @@ module yaml_output
   public :: yaml_set_default_stream,yaml_close_stream,yaml_swap_stream
   public :: yaml_get_default_stream,yaml_stream_attributes,yaml_close_all_streams
   public :: yaml_dict_dump,yaml_dict_dump_all
-  public :: is_atoi,is_atof,is_atol,dump_dict_impl,dump_progress_bar
+  public :: is_atoi,is_atof,is_atol,yaml_dict_inspect,dump_progress_bar
   public :: yaml_cite,yaml_bib_dump
 
   !for internal f_lib usage
@@ -234,14 +231,14 @@ contains
   !> Initialize the variables of the module, like error definitions.
   !! should be called only once unless the module has been closed by close_all_streams
   subroutine assure_initialization()
-     implicit none
-     if (.not. module_initialized) module_initialized=associated(f_get_error_definitions())
+    implicit none
+    if (.not. module_initialized) module_initialized=associated(f_get_error_definitions())
 
-     if (.not. module_initialized) then
-        stop 'yaml_output module not initialized, f_lib_initialize not called'
-        !module_initialized=.true.
-        !call yaml_output_errors()
-     end if
+    if (.not. module_initialized) then
+       stop 'yaml_output module not initialized, f_lib_initialize not called'
+       !module_initialized=.true.
+       !call yaml_output_errors()
+    end if
 
   end subroutine assure_initialization
 
@@ -258,7 +255,7 @@ contains
 
   !> Initialize the error messages
   subroutine yaml_output_errors()
-    use exception_callbacks, only: f_err_set_last_error_callback
+    use exception_callbacks, only: f_err_set_last_error_callback,f_err_set_all_errors_callback
     implicit none
     !initialize error messages
     call f_err_define('YAML_INVALID','Generic error of yaml module, invalid operation',&
@@ -274,6 +271,7 @@ contains
     !the module is ready for usage
     call dict_init(stream_files)
     call f_err_set_last_error_callback(f_dump_last_error_yaml)
+    call f_err_set_all_errors_callback(f_dump_possible_errors_yaml)
     module_initialized=.true.
   end subroutine yaml_output_errors
 
@@ -293,6 +291,32 @@ contains
     end if
     call yaml_flush_document()
   end subroutine f_dump_last_error_yaml
+
+  !> Dump the list of possible errors as they are defined at present
+  subroutine f_dump_possible_errors_yaml(extra_msg)
+    use dictionaries, only: f_get_error_definitions
+    use f_precisions, only: f_loc
+    implicit none
+    !character(len=*), intent(in) :: extra_msg
+    character, dimension(*), intent(in) :: extra_msg
+    !local variables
+    character(len=max_field_length) :: msg
+
+    call yaml_newline()
+    call yaml_comment('Error list',hfill='~')
+    call yaml_mapping_open('List of errors defined so far')
+    !  call yaml_dict_dump(f_get_error_definitions(),verbatim=.true.)
+    call yaml_dict_dump(f_get_error_definitions())
+    call yaml_mapping_close()
+    call yaml_comment('End of error list',hfill='~')
+    call convert_f_char_ptr(src=extra_msg,dest=msg)
+    !if (len_trim(extra_msg) > 0) then
+    if (len_trim(msg) > 0) then
+       call yaml_map('Additional Info',trim(msg))
+    else
+       call yaml_map('Dump ended',.true.)
+    end if
+  end subroutine f_dump_possible_errors_yaml
 
 
   !> Set the default stream of the module. Return  a STREAM_ALREADY_PRESENT errcode if
@@ -369,7 +393,7 @@ contains
     use f_utils, only: f_utils_recl,f_get_free_unit,f_open_file
     implicit none
     integer, optional, intent(in) :: unit  !< File unit specified by the user.(by default 6) Returns a error code if the unit
-                                                       !! is not 6 and it has already been opened by the processor
+    !! is not 6 and it has already been opened by the processor
     integer, optional, intent(in) :: tabbing           !< Indicate a tabbing for the stream (0 no tabbing, default)
     !> Maximum number of columns of the stream (default @link yaml_output::yaml_stream::tot_max_record_length @endlink)
     integer, optional, intent(in) :: record_length
@@ -379,7 +403,7 @@ contains
     !> Status, zero if suceeded. When istat is present this routine is non-blocking, i.e. it does not raise exceptions.
     integer, optional, intent(out) :: istat
     logical, optional, intent(in) :: setdefault        !< decide if the new stream will be set as default stream. True if absent
-                                                       !! it is up the the user to deal with error signals sent by istat
+    !! it is up the the user to deal with error signals sent by istat
 
     !local variables
     integer, parameter :: NO_ERRORS = 0
@@ -417,7 +441,7 @@ contains
 !!$       if (unt_test /= unt) then
        inquire(unit=unt,opened=unit_is_open,iostat=ierr)
        if (f_err_raise(ierr /=0,'error in unit inquiring, ierr='//trim(yaml_toa(ierr)),&
-               YAML_INVALID)) return
+            YAML_INVALID)) return
        if (unit_is_open) then
           if(present(istat)) then
              istat=YAML_STREAM_ALREADY_PRESENT
@@ -619,8 +643,8 @@ contains
        call yaml_map('Indent value Saved',indent_previoust,unit=unt)
        call yaml_map('Write in Flow',flowritet,unit=unt)
        call yaml_map('Flow Level',iflowlevelt,unit=unt)
-         call yaml_map('Level',ilevelt,unit=unt)
-         call yaml_map('Last Level (flow==.false.)',ilastt,unit=unt)
+       call yaml_map('Level',ilevelt,unit=unt)
+       call yaml_map('Last Level (flow==.false.)',ilastt,unit=unt)
        call yaml_map('Active Tabulars',itab_activet,unit=unt)
        if (itab_activet>0) call yaml_map('Tabular Values',linetab(1:itab_activet),unit=unt)
        call yaml_mapping_close(unit=unt)
@@ -637,16 +661,14 @@ contains
     implicit none
     integer, optional, intent(in) :: unit !< @copydoc doc::unit
     !local variables
-    integer :: unt,strm
+    integer :: strm
 
-    unt=DEFAULT_STREAM_ID
-    if (present(unit)) unt=unit
-    call get_stream(unt,strm)
+    strm=stream_id(unit)
 
     if (streams(strm)%document_closed) then
        !Check all indentation
        if (streams(strm)%indent /= 1) then
-          call yaml_warning("Indentation error. Yaml Document has not been closed correctly",unit=stream_units(strm))
+          call yaml_warning("Indentation error. Yaml Document has not been closed correctly",unit=unit)
           streams(strm)%indent=1
        end if
        call dump(streams(strm),'---',event=DOCUMENT_START)
@@ -662,46 +684,13 @@ contains
     implicit none
     integer, optional, intent(in) :: unit  !< @copydoc doc::unit
     !local variables
-    integer :: unt,strm
+    integer :: strm
 
-    unt=DEFAULT_STREAM_ID
-    if (present(unit)) unt=unit
-    call get_stream(unt,strm)
+    strm=stream_id(unit)
 
     !call the flush routine which
     call f_utils_flush(streams(strm)%unit)
   end subroutine yaml_flush_document
-
-
-  !> Release the document. if a new_document is opened, the symbol of START_DOCUMENT "---"
-  !! will be displayed on the corresponding unit
-  !! After this routine is called, the new_document will become effective again
-  !! @ingroup FLIB_YAML
-  subroutine yaml_release_document(unit)
-    implicit none
-    integer, optional, intent(in) :: unit  !< @copydoc doc::unit
-    !local variables
-    integer :: unt,strm,unit_prev
-
-    unt=DEFAULT_STREAM_ID
-    if (present(unit)) unt=unit
-    call get_stream(unt,strm)
-
-    !here we should print the warnings which have been obtained
-    if (associated(streams(strm)%dict_warning)) then
-       call yaml_newline(unit=unt)
-       call yaml_comment('Warnings obtained during the run, check their relevance!',hfill='-',unit=unt)
-       call yaml_dict_dump(streams(strm)%dict_warning,flow=.false.,unit=unt)
-       call dict_free(streams(strm)%dict_warning)
-    end if
-    call yaml_flush_document(unit=unt)
-
-    !Initialize the stream, keeping the file unit
-    unit_prev=streams(strm)%unit
-    call reset_document_in_stream(streams(strm))
-    streams(strm)%unit=unit_prev
-
-  end subroutine yaml_release_document
 
   function stream_id(unit) result(strm)
     implicit none
@@ -750,9 +739,9 @@ contains
          err_id=YAML_UNIT_INCONSISTENCY)) return
 
     !release all the documents to print out warnings and free warning dictionary if it existed
-    call yaml_release_document(unit=unt)
+    call yaml_release_document(unit=unit)
 
-    call yaml_purge_references(unit=unt)
+    call yaml_purge_references(unit=unit)
 
     !close files which are not stdout and remove them from stream_files
     if (unt /= 6) close(unt)
@@ -819,7 +808,6 @@ contains
 
     !local variables
     integer :: istream,unt
-!!$    integer :: unts
 
     do istream=1,active_streams
        unt=stream_units(istream)
@@ -838,737 +826,6 @@ contains
     default_stream=1
     module_initialized=.false.
   end subroutine yaml_close_all_streams
-
-  !> Display a warning (yaml comment starting with '\#WARNING: ')
-  subroutine yaml_warning_str(message,level,unit)
-    implicit none
-    type(f_string), intent(in) :: message !< Warning message
-    integer, optional, intent(in) :: level  !< Level of the message (if < Wall then abort)
-    integer, optional, intent(in) :: unit   !< @copydoc doc::unit
-    !local variables
-    integer :: unt,strm
-    unt=DEFAULT_STREAM_ID
-    if (present(unit)) unt=unit
-    call get_stream(unt,strm)
-    if (present(level)) then
-       call yaml_warning_c(message%msg,level,unt)
-    else
-       call yaml_warning_c(message%msg,unit=unt)
-    end if
-  end subroutine yaml_warning_str
-
-  !> Display a warning (yaml comment starting with '\#WARNING: ')
-  subroutine yaml_warning_c(message,level,unit)
-    implicit none
-    character(len=*), intent(in) :: message !< Warning message
-    integer, optional, intent(in) :: level  !< Level of the message (if < Wall then abort)
-    integer, optional, intent(in) :: unit   !< @copydoc doc::unit
-    !local variables
-    integer :: unt,strm
-    integer :: idx
-    type(dictionary), pointer :: dict_tmp
-    dict_tmp => null() !for NAG compiler bug
-    unt=DEFAULT_STREAM_ID
-    if (present(unit)) unt=unit
-    call get_stream(unt,strm)
-
-!    call dump(streams(strm),' #WARNING: '//trim(message))
-    call yaml_comment('WARNING: '//trim(message),unit=unt)
-    !here we should add a collection of all the warning which are printed out in the code.
-    if (.not. streams(strm)%document_closed) then
-!!$       if (.not. associated(streams(strm)%dict_warning)) then
-!!$          call dict_init(streams(strm)%dict_warning)
-!!$          call set(streams(strm)%dict_warning//'WARNINGS'//0,trim(message))
-!!$       else
-!!$          !add the warning as a list
-!!$          dict_tmp=>streams(strm)%dict_warning//'WARNINGS'
-!!$          item=dict_tmp%data%nitems
-!!$          call set(dict_tmp//item,trim(message))
-!!$       end if
-       if (.not. associated(streams(strm)%dict_warning)) &
-            call dict_init(streams(strm)%dict_warning)
-       !add the warning as a list, if the warning does not exists
-       dict_tmp = streams(strm)%dict_warning .get. 'WARNINGS'
-       idx=dict_tmp .index. trim(message)
-       if (idx < 0) call add(streams(strm)%dict_warning//'WARNINGS',trim(message))
-    end if
-    if (present(level)) then
-       if (level <= streams(strm)%Wall) then
-          call dump(streams(strm),' Critical warning level reached, aborting...')
-          call yaml_release_document(unit=unt)
-          !stop
-          call f_err_throw(' Critical warning level reached, aborting...')
-       end if
-    end if
-  end subroutine yaml_warning_c
-
-  subroutine yaml_comment_str(message,advance,unit,hfill,tabbing)
-    implicit none
-    type(f_string), intent(in) :: message           !< The given comment (without #)
-    character(len=*), optional, intent(in) :: advance !< @copydoc doc::advance
-    integer, optional, intent(in) :: unit             !< @copydoc doc::unit
-    character(len=*), optional, intent(in) :: hfill   !< If present fill the line with the given character
-    integer, optional, intent(in) :: tabbing          !< Number of space for tabbing
-    !Local variables
-    integer :: unt,strm
-    character(len=3) :: adv
-
-    unt=DEFAULT_STREAM_ID
-    if (present(unit)) unt=unit
-    call get_stream(unt,strm)
-
-    !comment to be written
-    if (present(advance)) then
-       adv=advance
-    else
-       adv='yes'
-    end if
-
-    if (present(hfill) .and. present(tabbing)) then
-       call yaml_comment_c(message=message%msg,advance=adv,unit=unt,hfill=hfill,tabbing=tabbing)
-    else if (present(hfill)) then
-       call yaml_comment_c(message=message%msg,advance=adv,unit=unt,hfill=hfill)
-    else if (present(tabbing)) then
-       call yaml_comment_c(message=message%msg,advance=adv,unit=unt,tabbing=tabbing)
-    else
-       call yaml_comment_c(message=message%msg,advance=adv,unit=unt)
-    end if
-  end subroutine yaml_comment_str
-
-  !> Write a yaml comment (#......).
-  !! Split the comment if too long
-  subroutine yaml_comment_c(message,advance,unit,hfill,tabbing)
-    implicit none
-    character(len=*), intent(in) :: message           !< The given comment (without #)
-    character(len=*), optional, intent(in) :: advance !< @copydoc doc::advance
-    integer, optional, intent(in) :: unit             !< @copydoc doc::unit
-    character(len=*), optional, intent(in) :: hfill   !< If present fill the line with the given character
-    integer, optional, intent(in) :: tabbing          !< Number of space for tabbing
-    !Local variables
-    integer :: unt,strm,msg_lgt,tb,ipos
-    integer :: lstart,lend,lmsg,lspace,hmax
-    character(len=3) :: adv
-    character(len=tot_max_record_length) :: towrite
-
-    unt=DEFAULT_STREAM_ID
-    if (present(unit)) unt=unit
-    call get_stream(unt,strm)
-
-    !comment to be written
-    if (present(advance)) then
-       adv=advance
-    else
-       adv='yes'
-    end if
-
-    !Beginning of the message
-    lstart=1
-    !Length of the message to write (without blank characters)
-    lmsg=len_trim(message)
-
-    !Split the message if too long
-    do
-       !Position of the cursor
-       ipos=max(streams(strm)%icursor,streams(strm)%indent)
-
-       msg_lgt=0
-       if (present(tabbing)) then
-          tb=max(tabbing-ipos-1,1)
-          call buffer_string(towrite,len(towrite),repeat(' ',tb),msg_lgt)
-          ipos=ipos+tb
-       end if
-
-       !Detect the last character of the message
-       lend=len_trim(message(lstart:))
-       if (lend+msg_lgt+2 > streams(strm)%max_record_length) then
-          !We have an error from buffer_string so we split it!
-          !-1 to be less and -2 for the character '#'
-          lend=streams(strm)%max_record_length-msg_lgt-2
-          !We are looking for the first ' ' from the end
-          lspace=index(message(lstart:lstart+lend-1),' ',back=.true.)
-          if (lspace /= 0) then
-             lend = lspace
-          end if
-       end if
-       call buffer_string(towrite,len(towrite),message(lstart:lstart+lend-1),msg_lgt)
-
-       !print *,'there',trim(towrite),lstart,lend
-
-
-       !Check if possible to hfill
-       hmax = max(streams(strm)%max_record_length-ipos-len_trim(message)-3,0)
-       if (present(hfill)) hmax=hmax/len(hfill)
-       !print *,'hmax',hmax,streams(strm)%max_record_length,ipos,lmsg
-       if (present(hfill) .and. hmax > 0) then
-          !Fill with the given character and dump
-          call dump(streams(strm),repeat(hfill,hmax)//' '//towrite(1:msg_lgt),advance=adv,event=COMMENT)
-       else
-          !Dump the string towrite into the stream
-          !print *,'dumping here',msg_lgt,towrite(1:msg_lgt)
-          call dump(streams(strm),towrite(1:msg_lgt),advance=adv,event=COMMENT)
-       end if
-
-       !Check if all the message is written
-       !So we start from iend+1
-       lstart=lstart+lend
-       if (lstart>lmsg) then
-          exit
-       end if
-    end do
-
-  end subroutine yaml_comment_c
-
-
-  !> Write a scalar variable, takes care of indentation only
-  subroutine yaml_scalar(message,advance,unit,hfill)
-    implicit none
-    character(len=*), optional, intent(in) :: hfill   !< If present fill the line with the given character
-    character(len=*), intent(in) :: message           !< the message to be printed
-    integer, optional, intent(in) :: unit             !< @copydoc doc::unit
-    character(len=*), intent(in), optional :: advance !< @copydoc doc::advance
-    !local variables
-    integer :: unt,strm,hmax
-    character(len=3) :: adv
-
-    unt=DEFAULT_STREAM_ID
-    if (present(unit)) unt=unit
-    call get_stream(unt,strm)
-
-    !comment to be written
-    if (present(advance)) then
-       adv=advance
-    else
-       adv='yes'
-    end if
-    if (present(hfill)) then
-       hmax = max(streams(strm)%max_record_length-&
-            max(streams(strm)%icursor,streams(strm)%indent)-&
-            len_trim(message)-3,0)
-       hmax=hmax/len(hfill)
-
-       call dump(streams(strm),&
-            repeat(hfill,hmax)//' '//trim(message),&
-            advance=adv,event=COMMENT)
-    else
-       call dump(streams(strm),trim(message),advance=adv,event=SCALAR)
-    end if
-
-  end subroutine yaml_scalar
-
-
-  !> Opens a yaml mapping field.
-  !! Essentially, a mapping field can be thought as a dictionary of mappings.
-  !! See yaml spec at <a href="http://www.yaml.org/spec/1.2/spec.html#id2760395"> this page </a>
-  !! Therefore the yaml_mapping_open routine is necessary each time that
-  !! the value of a map is another map. See also @link yaml_output::yaml_map @endlink and @link yaml_output::yaml_mapping_close @endlink routines
-  !! @ingroup FLIB_YAML
-  subroutine yaml_mapping_open(mapname,label,tag,flow,tabbing,advance,unit)
-    implicit none
-    character(len=*), optional, intent(in) :: mapname !< Key of the sequence. @copydoc doc::mapname
-    character(len=*), optional, intent(in) :: label   !< @copydoc doc::label
-    character(len=*), optional, intent(in) :: tag     !< @copydoc doc::tag
-    logical, optional, intent(in) :: flow             !< @copydoc doc::flow
-    character(len=*), optional, intent(in) :: advance !< @copydoc doc::advance
-    integer, optional, intent(in) :: unit             !< @copydoc doc::unit
-    integer, optional, intent(in) :: tabbing          !< @copydoc doc::tabbing
-    include 'yaml_open-inc.f90'
-    call dump(streams(strm),towrite(1:msg_lgt),advance=trim(adv),event=MAPPING_START)
-
-  end subroutine yaml_mapping_open
-
-
-  !> Close the mapping. The mapping should have been previously opened by @link yaml_output::yaml_mapping_open @endlink
-  !! @ingroup FLIB_YAML
-  subroutine yaml_mapping_close(advance,unit)
-    implicit none
-    integer, optional, intent(in) :: unit !< @copydoc doc::unit
-    character(len=*), optional, intent(in) :: advance !<@copydoc doc::advance
-    !local variables
-    integer :: unt,strm
-    character(len=3) :: adv
-    logical :: doflow
-
-    unt=DEFAULT_STREAM_ID
-    if (present(unit)) unt=unit
-    call get_stream(unt,strm)
-
-    if (streams(strm)%iflowlevel > 1) then
-       adv='no'
-    else
-       adv='yes'
-    end if
-    if (present(advance)) adv=advance
-
-    call dump(streams(strm),' ',advance=trim(adv),event=MAPPING_END)
-
-    doflow = (streams(strm)%flowrite)
-    call close_level(streams(strm),doflow)
-
-  end subroutine yaml_mapping_close
-
-
-  !> Open a yaml sequence
-  subroutine yaml_sequence_open(mapname,label,tag,flow,tabbing,advance,unit)
-    implicit none
-    character(len=*), optional, intent(in) :: mapname !< Key of the sequence. @copydoc doc::mapname
-    character(len=*), optional, intent(in) :: label   !< @copydoc doc::label
-    character(len=*), optional, intent(in) :: tag     !< @copydoc doc::tag
-    logical, optional, intent(in) :: flow             !< @copydoc doc::flow
-    character(len=*), optional, intent(in) :: advance !< @copydoc doc::advance
-    integer, optional, intent(in) :: unit             !< @copydoc doc::unit
-    integer, optional, intent(in) :: tabbing          !< @copydoc doc::tabbing
-    include 'yaml_open-inc.f90'
-    call dump(streams(strm),towrite(1:msg_lgt),advance=trim(adv),event=SEQUENCE_START)
-
-  end subroutine yaml_sequence_open
-
-
-  !> Close a yaml sequence
-  subroutine yaml_sequence_close(advance,unit)
-    implicit none
-    character(len=*), optional, intent(in) :: advance
-    integer, optional, intent(in) :: unit
-    !local variables
-    integer :: unt,strm
-    character(len=3) :: adv
-    logical :: doflow
-
-    unt=DEFAULT_STREAM_ID
-    if (present(unit)) unt=unit
-    call get_stream(unt,strm)
-
-    if (streams(strm)%iflowlevel > 1) then
-       adv='no'
-    else
-       adv='yes'
-       if (present(advance)) adv=advance
-    end if
-
-    call dump(streams(strm),' ',advance=trim(adv),event=SEQUENCE_END)
-
-    doflow = (streams(strm)%flowrite)
-    call close_level(streams(strm),doflow)
-
-  end subroutine yaml_sequence_close
-
-
-  !> Add a new line in the flow
-  !! This routine has a effect only if a flow writing is active
-  !! Otherwise its effect is ignored
-  subroutine yaml_newline(unit)
-    implicit none
-    integer, optional, intent(in) :: unit !< @copydoc doc::unit
-    !local variables
-    integer :: unt,strm
-
-    unt=DEFAULT_STREAM_ID
-    if (present(unit)) unt=unit
-    call get_stream(unt,strm)
-
-    if (streams(strm)%icursor > 1) then
-    !if (streams(strm)%flowrite .and. streams(strm)%icursor > 1) then
-       call dump(streams(strm),' ',advance='yes',event=NEWLINE)
-    end if
-  end subroutine yaml_newline
-
-
-  !> Write directly a yaml sequence, i.e. en element of a list
-  subroutine yaml_sequence(seqvalue,label,advance,unit,padding)
-    implicit none
-    integer, optional, intent(in) :: unit               !< @copydoc doc::unit
-    character(len=*), optional, intent(in) :: label     !< @copydoc doc::label
-    character(len=*), optional, intent(in) :: seqvalue  !< value of the sequence
-    character(len=*), optional, intent(in) :: advance   !< @copydoc doc::advance
-    integer, intent(in), optional :: padding            !< pad the seqvalue with blanks to have more readable output
-    !local variables
-    integer :: msg_lgt,unt,strm,tb,istat,ipos,event,lstart,lend,lspace,lmsg
-    character(len=3) :: adv
-    character(len=tot_max_record_length) :: towrite
-
-    unt=DEFAULT_STREAM_ID
-    if (present(unit)) unt=unit
-    call get_stream(unt,strm)
-
-    adv='def' !default value
-    if (present(advance)) adv=advance
-
-    msg_lgt=0
-    !put the optional name
-    if (present(label)) then
-       call buffer_string(towrite,len(towrite),' &',msg_lgt)
-       call buffer_string(towrite,len(towrite),trim(label)//' ',msg_lgt)
-    end if
-
-    !Special case if not seqvalue
-    if (.not.present(seqvalue)) then
-       !Check padding
-       if (present(padding)) then
-          tb=padding-msg_lgt
-          if (tb > 0) call buffer_string(towrite,len(towrite),repeat(' ',tb),msg_lgt)
-       end if
-       call dump(streams(strm),towrite(1:msg_lgt),advance=trim(adv),event=SEQUENCE_ELEM,istat=istat)
-       return
-    end if
-
-    if (present(padding)) then
-       tb=padding-(len_trim(seqvalue)+msg_lgt)
-       if (tb > 0) call buffer_string(towrite,len(towrite),repeat(' ',tb),msg_lgt)
-    end if
-
-    !Beginning of the sequence
-    lstart=1
-    !Length of the sequence to write (without blank characters)
-    lmsg=len_trim(seqvalue)
-
-    !Split the sequence if too long
-    event=SEQUENCE_ELEM
-    do
-       !Position of the cursor
-       ipos=max(streams(strm)%icursor,streams(strm)%indent)
-
-       !Detect the last character of the sequence
-       lend=len_trim(seqvalue(lstart:))
-       if (lend+msg_lgt+2 > streams(strm)%max_record_length) then
-          !We have an error from buffer_string so we split it!
-          !-1 to be less and -2 for the character '#'
-          lend=streams(strm)%max_record_length-msg_lgt-2
-          !We are looking for the first ' ' from the end
-          lspace=index(seqvalue(lstart:lstart+lend-1),' ',back=.true.)
-          if (lspace /= 0) then
-             lend = lspace
-          end if
-       end if
-       call buffer_string(towrite,len(towrite),seqvalue(lstart:lstart+lend-1),msg_lgt)
-
-       !Dump the string towrite into the stream
-       call dump(streams(strm),towrite(1:msg_lgt),advance=adv,event=event)
-       !print *, "ee",towrite(1:msg_lgt),"ee"
-       !next line, it will be SCALAR
-       event=SCALAR
-       msg_lgt=0
-
-       !Check if all the sequence is written
-       !So we start from iend+1
-       lstart=lstart+lend
-       if (lstart>lmsg) then
-          exit
-       end if
-    end do
-
-  end subroutine yaml_sequence
-
-
-  !> Create a yaml map with a scalar value
-  subroutine yaml_map(mapname,mapvalue,label,tag,advance,unit)
-    implicit none
-    character(len=*), intent(in) :: mapname             !< @copydoc doc::mapname
-    character(len=*), intent(in) :: mapvalue            !< scalar value of the mapping may be of any scalar type
-                                                        !! it is internally converted to character with the usage
-                                                        !! of @link yaml_output::yaml_toa @endlink function
-    character(len=*), optional, intent(in) :: label     !< @copydoc doc::label
-    character(len=*), optional, intent(in) :: tag       !< @copydoc doc::tag
-    character(len=*), optional, intent(in) :: advance   !< @copydoc doc::advance
-    integer, optional, intent(in) :: unit               !< @copydoc doc::unit
-    !local variables
-    logical :: cut,redo_line
-    integer :: msg_lgt,strm,unt,icut,istr,ierr,msg_lgt_ck,idbg
-    character(len=3) :: adv
-    character(len=tot_max_record_length) :: towrite
-
-    unt=DEFAULT_STREAM_ID
-    if (present(unit)) unt=unit
-    call get_stream(unt,strm)
-
-    adv='def' !default value
-    if (present(advance)) adv=advance
-
-    msg_lgt=0
-
-    !put the message
-    call buffer_string(towrite,len(towrite),trim(mapname),msg_lgt)
-    !put the semicolon
-    call buffer_string(towrite,len(towrite),':',msg_lgt)
-    !put the optional tag
-    if (present(tag) .and. len_trim(tag) > 0) then
-       call buffer_string(towrite,len(towrite),' !',msg_lgt)
-       call buffer_string(towrite,len(towrite),trim(tag),msg_lgt)
-    end if
-    !put the optional name
-    if (present(label) .and. len_trim(label) > 0) then
-       call buffer_string(towrite,len(towrite),' &',msg_lgt)
-       call buffer_string(towrite,len(towrite),trim(label),msg_lgt)
-    end if
-    !put a space
-    call buffer_string(towrite,len(towrite),' ',msg_lgt)
-
-    !while putting the message verify that the string is not too long
-    msg_lgt_ck=msg_lgt
-    !print *, 'here'
-    if (len_trim(mapvalue) == 0) then
-       call buffer_string(towrite,len(towrite),"null",msg_lgt,istat=ierr)
-    else
-       call buffer_string(towrite,len(towrite),trim(mapvalue),msg_lgt,istat=ierr)
-    end if
-    !print *, 'here2',ierr
-    if (ierr ==0) then
-       call dump(streams(strm),towrite(1:msg_lgt),advance=trim(adv),event=MAPPING,istat=ierr)
-    end if
-    !print *, 'here2b',ierr
-    redo_line=ierr/=0
-    if (redo_line) then
-       !print *, 'here3',ierr,msg_lgt_ck,msg_lgt
-       if (streams(strm)%flowrite) then
-          call dump(streams(strm),towrite(1:msg_lgt_ck),advance=trim(adv),event=SCALAR)
-       else
-          if (present(label)) then
-             call yaml_mapping_open(mapname,label=label,unit=unt)
-          else
-             call yaml_mapping_open(mapname,unit=unt)
-          end if
-       end if
-!       if (streams(strm)%flowrite) call yaml_newline(unit=unt)
-       !first, if the cursor is already gone, carriage return
-       if (streams(strm)%icursor >= streams(strm)%max_record_length) call dump(streams(strm),' ',advance='yes',event=SCALAR)
-       icut=len_trim(mapvalue)
-       istr=1
-       cut=.true.
-       msg_lgt=0
-       idbg=0
-       cut_line: do while(cut)
-          idbg=idbg+1
-          !print *,'hereOUTPU',cut,icut,idbg,streams(strm)%icursor,streams(strm)%max_record_length
-       !verify where the message can be cut
-          !print *,'test2',index(trim((mapvalue(istr:istr+icut-1))),' ',back=.true.)
-          cut=.false.
-          cut_message :do while(icut > streams(strm)%max_record_length - &
-               max(streams(strm)%icursor,streams(strm)%indent))
-             icut=index(trim((mapvalue(istr:istr+icut-1))),' ',back=.true.)
-             !print *,'test',icut,streams(strm)%max_record_length,&
-             !     max(streams(strm)%icursor,streams(strm)%indent),&
-             !     streams(strm)%max_record_length - &
-             !     max(streams(strm)%icursor,streams(strm)%indent),istr
-             cut=.true.
-          end do cut_message
-          !if the first line is too long cut it abruptly
-          if (icut == 0) icut = streams(strm)%max_record_length - &
-               max(streams(strm)%icursor,streams(strm)%indent)+1
-          call buffer_string(towrite,len(towrite),mapvalue(istr:istr+icut-1),msg_lgt)
-          if (streams(strm)%flowrite .and. .not. cut) &
-               call buffer_string(towrite,len(towrite),',',msg_lgt)
-          call dump(streams(strm),towrite(1:msg_lgt),advance='yes',event=SCALAR)
-          istr=istr+icut
-          icut=len_trim(mapvalue)-istr+1
-          !print *,'icut',istr,icut,mapvalue(istr:istr+icut-1),cut,istr+icut-1,len_trim(mapvalue)
-          msg_lgt=0
-         if (idbg==1000 .or. istr> len(mapvalue)) exit cut_line !to avoid infinite loops
-       end do cut_line
-       if (.not.streams(strm)%flowrite) call yaml_mapping_close(unit=unt)
-    end if
-
-  end subroutine yaml_map
-
-  !> Create a yaml map with a scalar value
-  subroutine yaml_map_dict(mapname,mapvalue,label,unit,flow)
-    implicit none
-    character(len=*), intent(in) :: mapname             !< @copydoc doc::mapname
-    type(dictionary), pointer, intent(in) :: mapvalue   !< scalar value of the mapping may be of any scalar type
-                                                        !! it is internally converted to character with the usage of @link yaml_output::yaml_toa @endlink function
-    character(len=*), optional, intent(in) :: label     !< @copydoc doc::label
-    integer, optional, intent(in) :: unit               !< @copydoc doc::unit
-    logical, optional, intent(in) :: flow               !< @copydoc doc::flow
-    !local variables
-    integer :: strm,unt
-    character(len=max_field_length) :: lbl
-
-    unt=DEFAULT_STREAM_ID
-    if (present(unit)) unt=unit
-    call get_stream(unt,strm)
-
-    lbl(1:len(lbl))=' '
-    if (present(label)) lbl(1:len(lbl))=label
-
-    if (associated(mapvalue)) then
-       if (present(flow)) then
-          call yaml_mapping_open(mapname,label=lbl,flow=flow,unit=unt)
-          call yaml_dict_dump(mapvalue,unit=unt,flow=flow)
-       else
-          call yaml_mapping_open(mapname,label=lbl,unit=unt)
-          call yaml_dict_dump(mapvalue,unit=unt)
-       end if
-       call yaml_mapping_close(unit=unt)
-    else
-       call yaml_map(mapname,'<nullified dictionary>',label=lbl,unit=unt)
-    end if
-  end subroutine yaml_map_dict
-
-  !> Create a yaml map with a scalar value
-  subroutine yaml_map_enum(mapname,mapvalue,label,unit,flow)
-    use f_enums
-    implicit none
-    character(len=*), intent(in) :: mapname             !< @copydoc doc::mapname
-    type(f_enumerator), intent(in) :: mapvalue   !< scalar value of the mapping may be of any scalar type
-    !! it is internally converted to character with the usage of @link yaml_output::yaml_toa @endlink function
-    character(len=*), optional, intent(in) :: label     !< @copydoc doc::label
-    integer, optional, intent(in) :: unit               !< @copydoc doc::unit
-    logical, optional, intent(in) :: flow               !< @copydoc doc::flow
-    !local variables
-    integer :: strm,unt
-    character(len=max_field_length) :: lbl
-    type(f_enumerator), pointer :: iter
-
-    unt=DEFAULT_STREAM_ID
-    if (present(unit)) unt=unit
-    call get_stream(unt,strm)
-
-    lbl(1:len(lbl))=' '
-    if (present(label)) lbl(1:len(lbl))=label
-
-    !fortran norm should guarantee that the flow variable
-    !is passed only if present
-    call yaml_mapping_open(mapname,label=lbl,flow=flow,unit=unt)
-    !then the central indication for the enumerator
-    call yaml_map(trim(str(mapvalue)),toi(mapvalue),unit=unt)
-    iter=>mapvalue%family
-    if (associated(iter)) then
-       call yaml_mapping_open('Attributes',unit=unt)
-       do while(associated(iter))
-          call yaml_map(trim(str(iter)),toi(iter),unit=unt)
-          iter => iter%family
-       end do
-       call yaml_mapping_close(unit=unt)
-    end if
-    call yaml_mapping_close(unit=unt)
-  end subroutine yaml_map_enum
-
-
-  subroutine yaml_map_li(mapname,mapvalue,label,advance,unit,fmt)
-    implicit none
-    integer(kind=8), intent(in) :: mapvalue
-    include 'yaml_map-inc.f90'
-  end subroutine yaml_map_li
-
-  subroutine yaml_map_i(mapname,mapvalue,label,advance,unit,fmt)
-    implicit none
-    integer(kind=4), intent(in) :: mapvalue
-    include 'yaml_map-inc.f90'
-  end subroutine yaml_map_i
-
-  subroutine yaml_map_f(mapname,mapvalue,label,advance,unit,fmt)
-    implicit none
-    real, intent(in) :: mapvalue
-    include 'yaml_map-inc.f90'
-  end subroutine yaml_map_f
-
-  subroutine yaml_map_d(mapname,mapvalue,label,advance,unit,fmt)
-    implicit none
-    real(kind=8), intent(in) :: mapvalue
-    include 'yaml_map-inc.f90'
-  end subroutine yaml_map_d
-
-  subroutine yaml_map_l(mapname,mapvalue,label,advance,unit,fmt)
-    implicit none
-    logical,  intent(in) :: mapvalue
-    include 'yaml_map-inc.f90'
-  end subroutine yaml_map_l
-
-  subroutine yaml_map_dv(mapname,mapvalue,label,advance,unit,fmt)
-    implicit none
-    real(kind=8), dimension(:), intent(in) :: mapvalue
-    include 'yaml_map-arr-inc.f90'
-  end subroutine yaml_map_dv
-
-  subroutine yaml_map_rv(mapname,mapvalue,label,advance,unit,fmt)
-    implicit none
-    real, dimension(:), intent(in) :: mapvalue
-    include 'yaml_map-arr-inc.f90'
-  end subroutine yaml_map_rv
-
-
-  !> Character vector
-  subroutine yaml_map_cv(mapname,mapvalue,label,advance,unit,fmt)
-    implicit none
-    character(len=*), dimension(:), intent(in) :: mapvalue
-    include 'yaml_map-arr-inc.f90'
-  end subroutine yaml_map_cv
-
-  subroutine yaml_map_lv(mapname,mapvalue,label,advance,unit,fmt)
-    implicit none
-    logical, dimension(:), intent(in) :: mapvalue
-    include 'yaml_map-arr-inc.f90'
-  end subroutine yaml_map_lv
-
-  subroutine yaml_map_liv(mapname,mapvalue,label,advance,unit,fmt)
-    implicit none
-    integer(kind=8), dimension(:), intent(in) :: mapvalue
-    include 'yaml_map-arr-inc.f90'
-  end subroutine yaml_map_liv
-
-  subroutine yaml_map_iv(mapname,mapvalue,label,advance,unit,fmt)
-    implicit none
-    integer(kind=4), dimension(:), intent(in) :: mapvalue
-    include 'yaml_map-arr-inc.f90'
-  end subroutine yaml_map_iv
-
-  !> double-precision rank2 matrix
-  subroutine yaml_map_dm(mapname,mapvalue,label,advance,unit,fmt)
-    implicit none
-    real(kind=8), dimension(:,:), intent(in) :: mapvalue
-    include 'yaml_map-mat-inc.f90'
-  end subroutine yaml_map_dm
-
-  subroutine yaml_map_rm(mapname,mapvalue,label,advance,unit,fmt)
-    implicit none
-    real, dimension(:,:), intent(in) :: mapvalue
-    include 'yaml_map-mat-inc.f90'
-  end subroutine yaml_map_rm
-
-  subroutine yaml_map_im(mapname,mapvalue,label,advance,unit,fmt)
-    implicit none
-    integer, dimension(:,:), intent(in) :: mapvalue
-    include 'yaml_map-mat-inc.f90'
-  end subroutine yaml_map_im
-
-  subroutine yaml_map_lm(mapname,mapvalue,label,advance,unit,fmt)
-    implicit none
-    logical, dimension(:,:), intent(in) :: mapvalue
-    include 'yaml_map-mat-inc.f90'
-  end subroutine yaml_map_lm
-
-  !> double-precision rank3 tensor
-  subroutine yaml_map_dt(mapname,mapvalue,label,advance,unit,fmt)
-    implicit none
-    real(kind=8), dimension(:,:,:), intent(in) :: mapvalue
-    character(len=*), intent(in) :: mapname
-    character(len=*), optional, intent(in) :: label,advance,fmt
-    integer, optional, intent(in) :: unit
-    !Local variables
-    integer :: strm,unt,irow,icol,ivec
-
-    unt=0
-    if (present(unit)) unt=unit
-    call get_stream(unt,strm)
-
-    !open the sequence associated to the matrix
-    call yaml_sequence_open(mapname,label=label,unit=unt)
-    do irow=lbound(mapvalue,3),ubound(mapvalue,3)
-       call yaml_newline(unit=unt)
-       call yaml_sequence(advance='no',unit=unt)
-       call yaml_sequence_open(flow=.true.,unit=unt)
-       do icol=lbound(mapvalue,2),ubound(mapvalue,2)
-          call yaml_sequence(advance='no',unit=unt)
-          call yaml_sequence_open(flow=.true.,unit=unt)
-          do ivec=lbound(mapvalue,1),ubound(mapvalue,1)
-             call yaml_sequence(trim(yaml_toa(mapvalue(ivec,icol,irow),fmt=fmt)),unit=unt)
-          end do
-          call yaml_sequence_close(unit=unt)
-       end do
-       call yaml_sequence_close(unit=unt)
-    end do
-
-    call yaml_sequence_close(advance=advance,unit=unt)
-
-  end subroutine yaml_map_dt
-
 
   !> Get the stream, initialize if not already present (except if istat present)
   subroutine get_stream(unt,strm,istat)
@@ -1647,7 +904,7 @@ contains
 
     !decide whether to write advanced or not
     !decide if advanced output or not
-    ladv=.not.stream%flowrite
+    ladv=.not.stream%flowrite .or. evt==COMMENT
     if (present(advance)) then
        if (trim(advance)=='no' .or. trim(advance)=='NO') then
           ladv=.false.
@@ -1678,14 +935,14 @@ contains
     towrite=repeat(' ',len(towrite))
     msg_lgt=0
     !a empty message is not written
-!    print *,'thisone'
+    !    print *,'thisone'
     if (.not. present(istat)) then
        if (len_trim(message) > 0) &
             call buffer_string(towrite,len(towrite),message,msg_lgt)
     else
        call buffer_string(towrite,len(towrite),message,msg_lgt,istat=istat)
     end if
-!    print *,'not really'
+    !    print *,'not really'
     prefix_lgt=0
     !initialize it
     prefix=repeat(' ',len(prefix))
@@ -1982,7 +1239,7 @@ contains
       !write(*,fmt='(a,i0,i3,a)',advance="no") '(stream_indent ',stream%indent,stream%flowrite,')'
       if (.not.stream%flowrite .and. stream%icursor==1) then
          indent_value=stream%indent!max(stream%indent,0) !to prevent bugs
-      !if first time in the flow recuperate the saved indent
+         !if first time in the flow recuperate the saved indent
       else if (stream%icursor==1 .and. stream%iflowlevel==1 &
            .and. stream%ievt_flow==0) then
          indent_value=stream%indent_previous
@@ -1993,13 +1250,13 @@ contains
 
       if (evt==DOCUMENT_START) indent_value=0
 
-!      if (stream%icursor > 1) then
-!         indent_value=0
-!      else if(.not.stream%flowrite) then !other conditions have to be added here
-!         indent_value=max(stream%indent,0) !to prevent bugs
-!      else
-!         indent_value=stream%indent_previous
-!      end if
+      !      if (stream%icursor > 1) then
+      !         indent_value=0
+      !      else if(.not.stream%flowrite) then !other conditions have to be added here
+      !         indent_value=max(stream%indent,0) !to prevent bugs
+      !      else
+      !         indent_value=stream%indent_previous
+      !      end if
 
     end function indent_value
 
@@ -2054,12 +1311,12 @@ contains
     logical :: comma_not_needed
 
     comma_not_needed=evt==NONE           .or. &
-                     evt==MAPPING_START  .or. &
-                     evt==SEQUENCE_START .or. &
-                     evt==SCALAR         .or. &
-                     evt==COMMENT        .or. &
-                     evt==SEQUENCE_ELEM  .or. &
-                     evt==NEWLINE
+         evt==MAPPING_START  .or. &
+         evt==SEQUENCE_START .or. &
+         evt==SCALAR         .or. &
+         evt==COMMENT        .or. &
+         evt==SEQUENCE_ELEM  .or. &
+         evt==NEWLINE
   end function comma_not_needed
 
 
@@ -2069,8 +1326,8 @@ contains
     logical :: comma_potentially_needed
 
     comma_potentially_needed=evt==MAPPING_START  .or. &
-                             evt==SEQUENCE_START .or. &
-                             evt==SCALAR
+         evt==SEQUENCE_START .or. &
+         evt==SCALAR
 
   end function comma_potentially_needed
 
@@ -2186,6 +1443,653 @@ contains
     type(yaml_stream), intent(inout) :: stream
     stream%indent=max(stream%indent-stream%indent_step,0) !to prevent bugs
   end subroutine close_indent_level
+
+
+!!!  !>get the string associated to walltime format
+!!!  function yaml_walltime_toa(walltime) result(timestamp)
+!!!    implicit none
+!!!    integer(kind=8), intent(in) :: walltime
+!!!    character(len=tot_max_record_length) :: timestamp
+!!!    !local variables
+!!!    character(len=*), parameter :: fmt='(i2.2)'
+!!!    integer(kind=8), parameter :: billion=int(1000000000,kind=8),sixty=int(60,kind=8)
+!!!    integer(kind=8), parameter :: tsf=int(365,kind=8),tf=int(24,kind=8)
+!!!    integer(kind=8) :: s,ns,m,h,d,y
+!!!
+!!!    !get the seconds
+!!!    s=walltime/billion
+!!!    !then get nanosecs
+!!!    ns=walltime-s*billion
+!!!    !then take minutes from seconds
+!!!    m=s/sixty; s=s-m*sixty
+!!!    !and hours from minutes
+!!!    h=m/sixty; m=m-h*sixty
+!!!    !days
+!!!    d=h/tf; h=h-d*tf
+!!!    !years
+!!!    y=d/tsf; d=d-y*tsf
+!!!
+!!!    !test with new API to deal with strings
+!!!    !that would be the best solution
+!!!    call f_strcpy(dest=timestamp,src=&
+!!!         h**fmt+':'+m**fmt+':'+s**fmt+'.'ns**'(i9.9)'
+!!!
+!!!    !split the treatment in the case of multiple days
+!!!    if (d >0.0_f_double .or. y > 0.0_f_double ) call f_strcpy(&
+!!!         dest=timestamp,src=y+'y'//d+'d'+timestamp)
+!!!!!$    if (h > tf) then
+!!!!!$       !days
+!!!!!$       d=h/tf; h=h-d*tf
+!!!!!$       !years
+!!!!!$       y=d/tsf; d=d-y*tsf
+!!!       !and the winner is...
+!!!!!$       call f_strcpy(dest=timestamp,src=&
+!!!!!$            trim(adjustl(yaml_toa(y)))//'y '//&
+!!!!!$            trim(adjustl(yaml_toa(d)))//'d '//&
+!!!!!$            trim(adjustl(yaml_toa(h,fmt=fmt)))//':'//&
+!!!!!$            trim(adjustl(yaml_toa(m,fmt=fmt)))//':'//&
+!!!!!$            trim(adjustl(yaml_toa(s,fmt=fmt)))//'.'//&
+!!!!!$            trim(adjustl(yaml_toa(ns,fmt='(i9.9)'))))
+!!!!!$
+!!!!!$    else
+!!!!!$       !then put everything in the same string
+!!!!!$       call f_strcpy(dest=timestamp,src=&
+!!!!!$            trim(adjustl(yaml_toa(h,fmt=fmt)))//':'//&
+!!!!!$            trim(adjustl(yaml_toa(m,fmt=fmt)))//':'//&
+!!!!!$            trim(adjustl(yaml_toa(s,fmt=fmt)))//'.'//&
+!!!!!$            trim(adjustl(yaml_toa(ns,fmt='(i9.9)'))))
+!!!!!$    end if
+!!!
+!!!  end function yaml_walltime_toa
+!!!
+
+  !> to be used for debugging
+  subroutine yaml_dict_inspect(dict)
+    implicit none
+    type(dictionary), pointer :: dict
+    if (.not. associated(dict)) call yaml_map('Dictionary associated',.false.)
+    call yaml_mapping_open('Dictionary associated')
+    call yaml_map('Associations, child, parent, next, previous',[associated(dict%child),associated(dict%parent),&
+         associated(dict%next),associated(dict%previous)])
+    call yaml_mapping_open('Data structure')
+    call yaml_map('Item',dict%data%item)
+    call yaml_map('Nitems',dict%data%nitems)
+    call yaml_map('Nelems',dict%data%nelems)
+    call yaml_map('Key',dict%data%key)
+    call yaml_map('Value',dict%data%value)
+    call yaml_mapping_close()
+    call yaml_mapping_close()
+  end subroutine yaml_dict_inspect
+
+  !>write the status of the advancment of something
+  subroutine dump_progress_bar(bar,step,unit)
+    use f_precisions
+    use f_utils
+    implicit none
+    type(f_progress_bar), intent(inout) :: bar
+    integer, intent(in), optional :: step
+    integer, intent(in), optional :: unit
+    !local variables
+    logical :: last
+    integer :: strm
+!!$    character(len=18)::bar="#???% |          |"
+
+    strm=stream_id(unit=unit)
+
+!!$    j=int(percent)/10
+!!$    write(unit=bar(2:4),fmt="(i3)") 10*j
+!!$    do k=1, j
+!!$       bar(7+k:7+k)="*"
+!!$    enddo
+
+    !should check if the unit is tty if needed
+    if (bar%ncall==0) call yaml_newline(unit=unit)
+    last=.false.
+    if (present(step)) then
+       call update_progress_bar(bar,step)
+       last=step==bar%nstep
+    end if
+
+    !set the cursor to zero as the char(13) is a newline character
+    streams(strm)%icursor=0 !we have to add a carriage return character
+    if (f_tty(streams(strm)%unit) .and. .not. last) then
+       call yaml_comment(char(13)//'#'//bar%message,advance='no',unit=unit,hfill=' ')
+    else if (f_tty(streams(strm)%unit)) then
+       call yaml_comment(char(13)//'#'//bar%message,unit=unit,hfill=' ')
+    else
+       call yaml_comment(bar%message,unit=unit)
+    end if
+    !write(unit=unt,fmt="(a18)",advance='no')char(13)//bar
+    call f_utils_flush(streams(strm)%unit)
+  end subroutine dump_progress_bar
+
+  subroutine yaml_cite(paper,unit)
+    use f_bibliography
+    use f_utils
+    implicit none
+    character(len=*), intent(in) :: paper !<the item to be cited in the bibliography
+    integer, intent(in), optional :: unit
+    !local variables
+    integer :: unt,istat,strm,unitfile
+    character(len=128) :: filename,stream_out
+    type(dictionary), pointer :: item,iter2,iter3
+
+    if (f_bib_item_exists(paper)) then
+       unt=DEFAULT_STREAM_ID
+       if (present(unit)) unt=unit
+       call get_stream(unt,strm,istat)
+       if (.not. associated(streams(strm)%dict_references)) then
+          call dict_init(streams(strm)%dict_references)
+          call get_stream_filename(streams(strm)%unit,stream_out)
+          call get_bib_filename(stream_out,filename)
+          unitfile=100
+
+          call f_open_file(unitfile,filename)
+          write(unitfile,'(a)')'% This program used features described in the following reference papers.'
+          write(unitfile,'(a)')'% Please consider citing these papers when using the results for scientific output.'
+          call f_close(unitfile) !close the file to flush its present value
+       end if
+       if (paper .notin. streams(strm)%dict_references) then
+          call add(streams(strm)%dict_references,paper)
+          call get_stream_filename(streams(strm)%unit,stream_out)
+          call get_bib_filename(stream_out,filename)
+          unitfile=100
+          call f_open_file(unitfile,filename,position='append')
+          item => f_bib_get_item(paper)
+          iter2=item .get. 'BIBTEX_REF'
+          nullify(iter3)
+          do while(iterating(iter3,on=iter2))
+             write(unitfile,'(a)')trim(dict_value(iter3))
+          end do
+          call f_close(unitfile) !close the file to flush its present value
+       end if
+    else
+       call yaml_warning('Missed citation; paper "'+paper+&
+            '" not present in the bibliography',unit=unit)
+    end if
+  end subroutine yaml_cite
+
+  subroutine yaml_bib_dump(citations,unit) !plus other variables for the format
+    use f_bibliography
+    use f_utils
+    implicit none
+    type(dictionary), pointer :: citations
+    integer, intent(in), optional :: unit !< yaml stream associated
+    !local variables
+    type(dictionary), pointer :: iter,item,iter2
+
+    call yaml_mapping_open('Citations',unit=unit)
+
+    nullify(iter)
+    do while(iterating(iter,on=citations))
+       item => f_bib_get_item(dict_value(iter))
+       call yaml_mapping_open(dict_value(iter),unit=unit)
+       nullify(iter2)
+       do while(iterating(iter2,on=item))
+          if (trim(dict_key(iter2)) /= 'BIBTEX_REF') &
+               call yaml_map(trim(dict_key(iter2)),iter2,unit=unit)
+       end do
+       call yaml_mapping_close(unit=unit)
+    end do
+
+    call yaml_mapping_close(unit=unit)
+
+  end subroutine yaml_bib_dump
+
+
+  !> Display a warning (yaml comment starting with '\#WARNING: ')
+  subroutine yaml_warning_str(message,level,unit)
+    implicit none
+    type(f_string), intent(in) :: message !< Warning message
+    integer, optional, intent(in) :: level  !< Level of the message (if < Wall then abort)
+    integer, optional, intent(in) :: unit   !< @copydoc doc::unit
+
+    call yaml_warning_c(message%msg,level=level,unit=unit)
+  end subroutine yaml_warning_str
+
+  !> Display a warning (yaml comment starting with '\#WARNING: ')
+  subroutine yaml_warning_c(message,level,unit)
+    implicit none
+    character(len=*), intent(in) :: message !< Warning message
+    integer, optional, intent(in) :: level  !< Level of the message (if < Wall then abort)
+    integer, optional, intent(in) :: unit   !< @copydoc doc::unit
+    !local variables
+    integer :: strm
+    integer :: idx
+    type(dictionary), pointer :: dict_tmp
+    dict_tmp => null() !for NAG compiler bug
+
+    strm=stream_id(unit=unit)
+
+    !    call dump(streams(strm),' #WARNING: '//trim(message))
+    call yaml_comment('WARNING: '//trim(message),unit=unit)
+    !here we should add a collection of all the warning which are printed out in the code.
+    if (.not. streams(strm)%document_closed) then
+!!$       if (.not. associated(streams(strm)%dict_warning)) then
+!!$          call dict_init(streams(strm)%dict_warning)
+!!$          call set(streams(strm)%dict_warning//'WARNINGS'//0,trim(message))
+!!$       else
+!!$          !add the warning as a list
+!!$          dict_tmp=>streams(strm)%dict_warning//'WARNINGS'
+!!$          item=dict_tmp%data%nitems
+!!$          call set(dict_tmp//item,trim(message))
+!!$       end if
+       if (.not. associated(streams(strm)%dict_warning)) &
+            call dict_init(streams(strm)%dict_warning)
+       !add the warning as a list, if the warning does not exists
+       dict_tmp = streams(strm)%dict_warning .get. 'WARNINGS'
+       idx=dict_tmp .index. trim(message)
+       if (idx < 0) call add(streams(strm)%dict_warning//'WARNINGS',trim(message))
+    end if
+    if (present(level)) then
+       if (level <= streams(strm)%Wall) then
+          call dump(streams(strm),' Critical warning level reached, aborting...')
+          call yaml_release_document(unit=unit)
+          !stop
+          call f_err_throw(' Critical warning level reached, aborting...')
+       end if
+    end if
+  end subroutine yaml_warning_c
+
+  subroutine yaml_comment_str(message,advance,unit,hfill,tabbing)
+    implicit none
+    type(f_string), intent(in) :: message           !< The given comment (without #)
+    character(len=*), optional, intent(in) :: advance !< @copydoc doc::advance
+    integer, optional, intent(in) :: unit             !< @copydoc doc::unit
+    character(len=*), optional, intent(in) :: hfill   !< If present fill the line with the given character
+    integer, optional, intent(in) :: tabbing          !< Number of space for tabbing
+
+    call yaml_comment_c(message=message%msg,advance=advance,unit=unit,hfill=hfill,tabbing=tabbing)
+
+  end subroutine yaml_comment_str
+
+  !> Write a yaml comment (#......).
+  !! Split the comment if too long
+  subroutine yaml_comment_c(message,advance,unit,hfill,tabbing)
+    implicit none
+    character(len=*), intent(in) :: message           !< The given comment (without #)
+    character(len=*), optional, intent(in) :: advance !< @copydoc doc::advance
+    integer, optional, intent(in) :: unit             !< @copydoc doc::unit
+    character(len=*), optional, intent(in) :: hfill   !< If present fill the line with the given character
+    integer, optional, intent(in) :: tabbing          !< Number of space for tabbing
+    !Local variables
+    integer :: strm,msg_lgt,tb,ipos
+    integer :: lstart,lend,lmsg,lspace,hmax
+    character(len=tot_max_record_length) :: towrite
+
+    strm=stream_id(unit=unit)
+
+    !Beginning of the message
+    lstart=1
+    !Length of the message to write (without blank characters)
+    lmsg=len_trim(message)
+
+    !Split the message if too long
+    do
+       !Position of the cursor
+       ipos=max(streams(strm)%icursor,streams(strm)%indent)
+
+       msg_lgt=0
+       if (present(tabbing)) then
+          tb=max(tabbing-ipos-1,1)
+          call buffer_string(towrite,len(towrite),repeat(' ',tb),msg_lgt)
+          ipos=ipos+tb
+       end if
+
+       !Detect the last character of the message
+       lend=len_trim(message(lstart:))
+       if (lend+msg_lgt+2 > streams(strm)%max_record_length) then
+          !We have an error from buffer_string so we split it!
+          !-1 to be less and -2 for the character '#'
+          lend=streams(strm)%max_record_length-msg_lgt-2
+          !We are looking for the first ' ' from the end
+          lspace=index(message(lstart:lstart+lend-1),' ',back=.true.)
+          if (lspace /= 0) then
+             lend = lspace
+          end if
+       end if
+       call buffer_string(towrite,len(towrite),message(lstart:lstart+lend-1),msg_lgt)
+
+       !print *,'there',trim(towrite),lstart,lend
+
+
+       !Check if possible to hfill
+       hmax = max(streams(strm)%max_record_length-ipos-len_trim(message)-3,0)
+       if (present(hfill)) hmax=hmax/len(hfill)
+       !print *,'hmax',hmax,streams(strm)%max_record_length,ipos,lmsg
+       if (present(hfill) .and. hmax > 0) then
+          !Fill with the given character and dump
+          call dump(streams(strm),repeat(hfill,hmax)//' '//towrite(1:msg_lgt),advance=advance,event=COMMENT)
+       else
+          !Dump the string towrite into the stream
+          !print *,'dumping here',msg_lgt,towrite(1:msg_lgt)
+          call dump(streams(strm),towrite(1:msg_lgt),advance=advance,event=COMMENT)
+       end if
+
+       !Check if all the message is written
+       !So we start from iend+1
+       lstart=lstart+lend
+       if (lstart>lmsg) then
+          exit
+       end if
+    end do
+
+  end subroutine yaml_comment_c
+
+  !> Write a scalar variable, takes care of indentation only
+  subroutine yaml_scalar(message,advance,unit,hfill)
+    implicit none
+    character(len=*), optional, intent(in) :: hfill   !< If present fill the line with the given character
+    character(len=*), intent(in) :: message           !< the message to be printed
+    integer, optional, intent(in) :: unit             !< @copydoc doc::unit
+    character(len=*), intent(in), optional :: advance !< @copydoc doc::advance
+    !local variables
+    integer :: strm,hmax
+
+    strm=stream_id(unit=unit)
+
+    if (present(hfill)) then
+       hmax = max(streams(strm)%max_record_length-&
+            max(streams(strm)%icursor,streams(strm)%indent)-&
+            len_trim(message)-3,0)
+       hmax=hmax/len(hfill)
+
+       call dump(streams(strm),&
+            repeat(hfill,hmax)//' '//trim(message),&
+            advance=advance,event=COMMENT)
+    else
+       call dump(streams(strm),trim(message),advance=advance,event=SCALAR)
+    end if
+
+  end subroutine yaml_scalar
+
+  !> Opens a yaml mapping field.
+  !! Essentially, a mapping field can be thought as a dictionary of mappings.
+  !! See yaml spec at <a href="http://www.yaml.org/spec/1.2/spec.html#id2760395"> this page </a>
+  !! Therefore the yaml_mapping_open routine is necessary each time that
+  !! the value of a map is another map. See also @link yaml_output::yaml_map @endlink and @link yaml_output::yaml_mapping_close @endlink routines
+  !! @ingroup FLIB_YAML
+  subroutine yaml_mapping_open(mapname,label,tag,flow,tabbing,advance,unit)
+    implicit none
+    character(len=*), optional, intent(in) :: mapname !< Key of the sequence. @copydoc doc::mapname
+    character(len=*), optional, intent(in) :: label   !< @copydoc doc::label
+    character(len=*), optional, intent(in) :: tag     !< @copydoc doc::tag
+    logical, optional, intent(in) :: flow             !< @copydoc doc::flow
+    character(len=*), optional, intent(in) :: advance !< @copydoc doc::advance
+    integer, optional, intent(in) :: unit             !< @copydoc doc::unit
+    integer, optional, intent(in) :: tabbing          !< @copydoc doc::tabbing
+    include 'yaml_open-inc.f90'
+    call dump(streams(strm),towrite(1:msg_lgt),advance=trim(adv),event=MAPPING_START)
+
+  end subroutine yaml_mapping_open
+
+
+  !> Close the mapping. The mapping should have been previously opened by @link yaml_output::yaml_mapping_open @endlink
+  !! @ingroup FLIB_YAML
+  subroutine yaml_mapping_close(advance,unit)
+    implicit none
+    integer, optional, intent(in) :: unit !< @copydoc doc::unit
+    character(len=*), optional, intent(in) :: advance !<@copydoc doc::advance
+    !local variables
+    integer :: strm
+    character(len=3) :: adv
+    logical :: doflow
+
+    strm=stream_id(unit=unit)
+
+    if (streams(strm)%iflowlevel > 1) then
+       adv='no'
+    else
+       adv='yes'
+    end if
+    if (present(advance)) adv=advance
+
+    call dump(streams(strm),' ',advance=trim(adv),event=MAPPING_END)
+
+    doflow = (streams(strm)%flowrite)
+    call close_level(streams(strm),doflow)
+
+  end subroutine yaml_mapping_close
+
+
+  !> Open a yaml sequence
+  subroutine yaml_sequence_open(mapname,label,tag,flow,tabbing,advance,unit)
+    implicit none
+    character(len=*), optional, intent(in) :: mapname !< Key of the sequence. @copydoc doc::mapname
+    character(len=*), optional, intent(in) :: label   !< @copydoc doc::label
+    character(len=*), optional, intent(in) :: tag     !< @copydoc doc::tag
+    logical, optional, intent(in) :: flow             !< @copydoc doc::flow
+    character(len=*), optional, intent(in) :: advance !< @copydoc doc::advance
+    integer, optional, intent(in) :: unit             !< @copydoc doc::unit
+    integer, optional, intent(in) :: tabbing          !< @copydoc doc::tabbing
+    include 'yaml_open-inc.f90'
+    call dump(streams(strm),towrite(1:msg_lgt),advance=trim(adv),event=SEQUENCE_START)
+
+  end subroutine yaml_sequence_open
+
+
+  !> Close a yaml sequence
+  subroutine yaml_sequence_close(advance,unit)
+    implicit none
+    character(len=*), optional, intent(in) :: advance
+    integer, optional, intent(in) :: unit
+    !local variables
+    integer :: strm
+    character(len=3) :: adv
+    logical :: doflow
+
+    strm=stream_id(unit=unit)
+
+    if (streams(strm)%iflowlevel > 1) then
+       adv='no'
+    else
+       adv='yes'
+       if (present(advance)) adv=advance
+    end if
+
+    call dump(streams(strm),' ',advance=trim(adv),event=SEQUENCE_END)
+
+    doflow = (streams(strm)%flowrite)
+    call close_level(streams(strm),doflow)
+
+  end subroutine yaml_sequence_close
+
+
+  !> Add a new line in the flow
+  !! This routine has a effect only if a flow writing is active
+  !! Otherwise its effect is ignored
+  subroutine yaml_newline(unit)
+    implicit none
+    integer, optional, intent(in) :: unit !< @copydoc doc::unit
+    !local variables
+    integer :: strm
+
+    strm=stream_id(unit=unit)
+
+    if (streams(strm)%icursor > 1) then
+       !if (streams(strm)%flowrite .and. streams(strm)%icursor > 1) then
+       call dump(streams(strm),' ',advance='yes',event=NEWLINE)
+    end if
+  end subroutine yaml_newline
+
+  !> Write directly a yaml sequence, i.e. en element of a list
+  subroutine yaml_sequence(seqvalue,label,advance,unit,padding)
+    implicit none
+    integer, optional, intent(in) :: unit               !< @copydoc doc::unit
+    character(len=*), optional, intent(in) :: label     !< @copydoc doc::label
+    character(len=*), optional, intent(in) :: seqvalue  !< value of the sequence
+    character(len=*), optional, intent(in) :: advance   !< @copydoc doc::advance
+    integer, intent(in), optional :: padding            !< pad the seqvalue with blanks to have more readable output
+    !local variables
+    integer :: msg_lgt,strm,tb,istat,ipos,event,lstart,lend,lspace,lmsg
+    character(len=tot_max_record_length) :: towrite
+
+    strm=stream_id(unit=unit)
+
+    msg_lgt=0
+    !put the optional name
+    if (present(label)) then
+       call buffer_string(towrite,len(towrite),' &',msg_lgt)
+       call buffer_string(towrite,len(towrite),trim(label)//' ',msg_lgt)
+    end if
+
+    !Special case if not seqvalue
+    if (.not.present(seqvalue)) then
+       !Check padding
+       if (present(padding)) then
+          tb=padding-msg_lgt
+          if (tb > 0) call buffer_string(towrite,len(towrite),repeat(' ',tb),msg_lgt)
+       end if
+       call dump(streams(strm),towrite(1:msg_lgt),advance=advance,event=SEQUENCE_ELEM,istat=istat)
+       return
+    end if
+
+    if (present(padding)) then
+       tb=padding-(len_trim(seqvalue)+msg_lgt)
+       if (tb > 0) call buffer_string(towrite,len(towrite),repeat(' ',tb),msg_lgt)
+    end if
+
+    !Beginning of the sequence
+    lstart=1
+    !Length of the sequence to write (without blank characters)
+    lmsg=len_trim(seqvalue)
+
+    !Split the sequence if too long
+    event=SEQUENCE_ELEM
+    do
+       !Position of the cursor
+       ipos=max(streams(strm)%icursor,streams(strm)%indent)
+
+       !Detect the last character of the sequence
+       lend=len_trim(seqvalue(lstart:))
+       if (lend+msg_lgt+2 > streams(strm)%max_record_length) then
+          !We have an error from buffer_string so we split it!
+          !-1 to be less and -2 for the character '#'
+          lend=streams(strm)%max_record_length-msg_lgt-2
+          !We are looking for the first ' ' from the end
+          lspace=index(seqvalue(lstart:lstart+lend-1),' ',back=.true.)
+          if (lspace /= 0) then
+             lend = lspace
+          end if
+       end if
+       call buffer_string(towrite,len(towrite),seqvalue(lstart:lstart+lend-1),msg_lgt)
+
+       !Dump the string towrite into the stream
+       call dump(streams(strm),towrite(1:msg_lgt),advance=advance,event=event)
+       !print *, "ee",towrite(1:msg_lgt),"ee"
+       !next line, it will be SCALAR
+       event=SCALAR
+       msg_lgt=0
+
+       !Check if all the sequence is written
+       !So we start from iend+1
+       lstart=lstart+lend
+       if (lstart>lmsg) then
+          exit
+       end if
+    end do
+
+  end subroutine yaml_sequence
+
+
+  !> Create a yaml map with a scalar value
+  subroutine yaml_map(mapname,mapvalue,label,tag,advance,unit)
+    implicit none
+    character(len=*), intent(in) :: mapname             !< @copydoc doc::mapname
+    character(len=*), intent(in) :: mapvalue            !< scalar value of the mapping may be of any scalar type
+    !! it is internally converted to character with the usage
+    !! of @link yaml_output::yaml_toa @endlink function
+    character(len=*), optional, intent(in) :: label     !< @copydoc doc::label
+    character(len=*), optional, intent(in) :: tag       !< @copydoc doc::tag
+    character(len=*), optional, intent(in) :: advance   !< @copydoc doc::advance
+    integer, optional, intent(in) :: unit               !< @copydoc doc::unit
+    !local variables
+    logical :: cut,redo_line
+    integer :: msg_lgt,strm,icut,istr,ierr,msg_lgt_ck,idbg
+    character(len=tot_max_record_length) :: towrite
+
+    strm=stream_id(unit=unit)
+
+    msg_lgt=0
+
+    !put the message
+    call buffer_string(towrite,len(towrite),trim(mapname),msg_lgt)
+    !put the semicolon
+    call buffer_string(towrite,len(towrite),':',msg_lgt)
+    !put the optional tag
+    if (present(tag) .and. len_trim(tag) > 0) then
+       call buffer_string(towrite,len(towrite),' !',msg_lgt)
+       call buffer_string(towrite,len(towrite),trim(tag),msg_lgt)
+    end if
+    !put the optional name
+    if (present(label) .and. len_trim(label) > 0) then
+       call buffer_string(towrite,len(towrite),' &',msg_lgt)
+       call buffer_string(towrite,len(towrite),trim(label),msg_lgt)
+    end if
+    !put a space
+    call buffer_string(towrite,len(towrite),' ',msg_lgt)
+
+    !while putting the message verify that the string is not too long
+    msg_lgt_ck=msg_lgt
+    !print *, 'here'
+    if (len_trim(mapvalue) == 0) then
+       call buffer_string(towrite,len(towrite),"null",msg_lgt,istat=ierr)
+    else
+       call buffer_string(towrite,len(towrite),trim(mapvalue),msg_lgt,istat=ierr)
+    end if
+    !print *, 'here2',ierr
+    if (ierr ==0) then
+       call dump(streams(strm),towrite(1:msg_lgt),advance=advance,event=MAPPING,istat=ierr)
+    end if
+    !print *, 'here2b',ierr
+    redo_line=ierr/=0
+    if (redo_line) then
+       !print *, 'here3',ierr,msg_lgt_ck,msg_lgt
+       if (streams(strm)%flowrite) then
+          call dump(streams(strm),towrite(1:msg_lgt_ck),advance=advance,event=SCALAR)
+       else
+          call yaml_mapping_open(mapname,label=label,unit=unit)
+       end if
+       !       if (streams(strm)%flowrite) call yaml_newline(unit=unt)
+       !first, if the cursor is already gone, carriage return
+       if (streams(strm)%icursor >= streams(strm)%max_record_length) call dump(streams(strm),' ',advance='yes',event=SCALAR)
+       icut=len_trim(mapvalue)
+       istr=1
+       cut=.true.
+       msg_lgt=0
+       idbg=0
+       cut_line: do while(cut)
+          idbg=idbg+1
+          !print *,'hereOUTPU',cut,icut,idbg,streams(strm)%icursor,streams(strm)%max_record_length
+          !verify where the message can be cut
+          !print *,'test2',index(trim((mapvalue(istr:istr+icut-1))),' ',back=.true.)
+          cut=.false.
+          cut_message :do while(icut > streams(strm)%max_record_length - &
+               max(streams(strm)%icursor,streams(strm)%indent))
+             icut=index(trim((mapvalue(istr:istr+icut-1))),' ',back=.true.)
+             !print *,'test',icut,streams(strm)%max_record_length,&
+             !     max(streams(strm)%icursor,streams(strm)%indent),&
+             !     streams(strm)%max_record_length - &
+             !     max(streams(strm)%icursor,streams(strm)%indent),istr
+             cut=.true.
+          end do cut_message
+          !if the first line is too long cut it abruptly
+          if (icut == 0) icut = streams(strm)%max_record_length - &
+               max(streams(strm)%icursor,streams(strm)%indent)+1
+          call buffer_string(towrite,len(towrite),mapvalue(istr:istr+icut-1),msg_lgt)
+          if (streams(strm)%flowrite .and. .not. cut) &
+               call buffer_string(towrite,len(towrite),',',msg_lgt)
+          call dump(streams(strm),towrite(1:msg_lgt),advance='yes',event=SCALAR)
+          istr=istr+icut
+          icut=len_trim(mapvalue)-istr+1
+          !print *,'icut',istr,icut,mapvalue(istr:istr+icut-1),cut,istr+icut-1,len_trim(mapvalue)
+          msg_lgt=0
+          if (idbg==1000 .or. istr> len(mapvalue)) exit cut_line !to avoid infinite loops
+       end do cut_line
+       if (.not.streams(strm)%flowrite) call yaml_mapping_close(unit=unit)
+    end if
+
+  end subroutine yaml_map
 
   !> Dump a dictionary
   subroutine yaml_dict_dump(dict,unit,flow,verbatim)
@@ -2430,8 +2334,8 @@ contains
     if (f_err_raise(dict_len(dict) == 0,'The dictionary is not a list',&
          err_name='YAML_STREAM_NOT_FOUND')) return
 
-    flowrite=.false.
-    if (present(flow)) flowrite=flow
+    !flowrite=.false.
+    !if (present(flow)) flowrite=flow
     unt=DEFAULT_STREAM_ID
     if (present(unit)) unt=unit
     verb=.false.
@@ -2440,207 +2344,216 @@ contains
     do idoc=0,dict_len(dict)-1
        if (verb) then
           call yaml_comment('call yaml_new_document('//&
-              ',unit='//trim(adjustl(yaml_toa(unt)))//')')
+               ',unit='//trim(adjustl(yaml_toa(unt)))//')')
        else
-          call yaml_new_document(unit=unt)
+          call yaml_new_document(unit=unit)
        end if
-       call yaml_dict_dump(dict//idoc,unit=unt,flow=flow,verbatim=verb)
-       call yaml_release_document(unit=unt)
+       call yaml_dict_dump(dict//idoc,unit=unit,flow=flow,verbatim=verbatim)
+       call yaml_release_document(unit=unit)
     end do
 
   end subroutine yaml_dict_dump_all
 
-!!!  !>get the string associated to walltime format
-!!!  function yaml_walltime_toa(walltime) result(timestamp)
-!!!    implicit none
-!!!    integer(kind=8), intent(in) :: walltime
-!!!    character(len=tot_max_record_length) :: timestamp
-!!!    !local variables
-!!!    character(len=*), parameter :: fmt='(i2.2)'
-!!!    integer(kind=8), parameter :: billion=int(1000000000,kind=8),sixty=int(60,kind=8)
-!!!    integer(kind=8), parameter :: tsf=int(365,kind=8),tf=int(24,kind=8)
-!!!    integer(kind=8) :: s,ns,m,h,d,y
-!!!
-!!!    !get the seconds
-!!!    s=walltime/billion
-!!!    !then get nanosecs
-!!!    ns=walltime-s*billion
-!!!    !then take minutes from seconds
-!!!    m=s/sixty; s=s-m*sixty
-!!!    !and hours from minutes
-!!!    h=m/sixty; m=m-h*sixty
-!!!    !days
-!!!    d=h/tf; h=h-d*tf
-!!!    !years
-!!!    y=d/tsf; d=d-y*tsf
-!!!
-!!!    !test with new API to deal with strings
-!!!    !that would be the best solution
-!!!    call f_strcpy(dest=timestamp,src=&
-!!!         h**fmt+':'+m**fmt+':'+s**fmt+'.'ns**'(i9.9)'
-!!!
-!!!    !split the treatment in the case of multiple days
-!!!    if (d >0.0_f_double .or. y > 0.0_f_double ) call f_strcpy(&
-!!!         dest=timestamp,src=y+'y'//d+'d'+timestamp)
-!!!!!$    if (h > tf) then
-!!!!!$       !days
-!!!!!$       d=h/tf; h=h-d*tf
-!!!!!$       !years
-!!!!!$       y=d/tsf; d=d-y*tsf
-!!!       !and the winner is...
-!!!!!$       call f_strcpy(dest=timestamp,src=&
-!!!!!$            trim(adjustl(yaml_toa(y)))//'y '//&
-!!!!!$            trim(adjustl(yaml_toa(d)))//'d '//&
-!!!!!$            trim(adjustl(yaml_toa(h,fmt=fmt)))//':'//&
-!!!!!$            trim(adjustl(yaml_toa(m,fmt=fmt)))//':'//&
-!!!!!$            trim(adjustl(yaml_toa(s,fmt=fmt)))//'.'//&
-!!!!!$            trim(adjustl(yaml_toa(ns,fmt='(i9.9)'))))
-!!!!!$
-!!!!!$    else
-!!!!!$       !then put everything in the same string
-!!!!!$       call f_strcpy(dest=timestamp,src=&
-!!!!!$            trim(adjustl(yaml_toa(h,fmt=fmt)))//':'//&
-!!!!!$            trim(adjustl(yaml_toa(m,fmt=fmt)))//':'//&
-!!!!!$            trim(adjustl(yaml_toa(s,fmt=fmt)))//'.'//&
-!!!!!$            trim(adjustl(yaml_toa(ns,fmt='(i9.9)'))))
-!!!!!$    end if
-!!!
-!!!  end function yaml_walltime_toa
-!!!
-
-  !> to be used for debugging
-  subroutine dump_dict_impl(dict)
+  !> Release the document. if a new_document is opened, the symbol of START_DOCUMENT "---"
+  !! will be displayed on the corresponding unit
+  !! After this routine is called, the new_document will become effective again
+  !! @ingroup FLIB_YAML
+  subroutine yaml_release_document(unit)
     implicit none
-    type(dictionary), pointer :: dict
-    if (.not. associated(dict)) call yaml_map('Dictionary associated',.false.)
-    call yaml_mapping_open('Dictionary associated')
-    call yaml_map('Associations, child, parent, next, previous',[associated(dict%child),associated(dict%parent),&
-         associated(dict%next),associated(dict%previous)])
-    call yaml_mapping_open('Data structure')
-    call yaml_map('Item',dict%data%item)
-    call yaml_map('Nitems',dict%data%nitems)
-    call yaml_map('Nelems',dict%data%nelems)
-    call yaml_map('Key',dict%data%key)
-    call yaml_map('Value',dict%data%value)
-    call yaml_mapping_close()
-    call yaml_mapping_close()
-  end subroutine dump_dict_impl
-
-  !>write the status of the advancment of something
-  subroutine dump_progress_bar(bar,step,unit)
-    use f_precisions
-    use f_utils
-    implicit none
-    type(f_progress_bar), intent(inout) :: bar
-    integer, intent(in), optional :: step
-    integer, intent(in), optional :: unit
+    integer, optional, intent(in) :: unit  !< @copydoc doc::unit
     !local variables
-    logical :: last
-    integer :: unt,strm
-!!$    character(len=18)::bar="#???% |          |"
+    integer :: strm,unit_prev
 
-    unt=DEFAULT_STREAM_ID
-    if (present(unit)) unt=unit
-    call get_stream(unt,strm)
+    strm=stream_id(unit=unit)
 
-!!$    j=int(percent)/10
-!!$    write(unit=bar(2:4),fmt="(i3)") 10*j
-!!$    do k=1, j
-!!$       bar(7+k:7+k)="*"
-!!$    enddo
-
-    !should check if the unit is tty if needed
-    if (bar%ncall==0) call yaml_newline(unit=unt)
-    last=.false.
-    if (present(step)) then
-       call update_progress_bar(bar,step)
-       last=step==bar%nstep
+    !here we should print the warnings which have been obtained
+    if (associated(streams(strm)%dict_warning)) then
+       call yaml_newline(unit=unit)
+       call yaml_comment('Warnings obtained during the run, check their relevance!',hfill='-',unit=unit)
+       call yaml_dict_dump(streams(strm)%dict_warning,flow=.false.,unit=unit)
+       call dict_free(streams(strm)%dict_warning)
     end if
+    call yaml_flush_document(unit=unit)
 
-    !set the cursor to zero as the char(13) is a newline character
-    streams(strm)%icursor=0
-    if (f_tty(streams(strm)%unit) .and. .not. last) then
-       call yaml_comment(char(13)//'#'//bar%message,advance='no',unit=unt,hfill=' ')
-    else if (f_tty(streams(strm)%unit)) then
-       call yaml_comment(char(13)//'#'//bar%message,unit=unt,hfill=' ')
+    !Initialize the stream, keeping the file unit
+    unit_prev=streams(strm)%unit
+    call reset_document_in_stream(streams(strm))
+    streams(strm)%unit=unit_prev
+
+  end subroutine yaml_release_document
+
+  !> Create a yaml map with a scalar value
+  subroutine yaml_map_dict(mapname,mapvalue,label,unit,flow)
+    implicit none
+    character(len=*), intent(in) :: mapname             !< @copydoc doc::mapname
+    type(dictionary), pointer, intent(in) :: mapvalue   !< scalar value of the mapping may be of any scalar type
+    !! it is internally converted to character with the usage of @link yaml_output::yaml_toa @endlink function
+    character(len=*), optional, intent(in) :: label     !< @copydoc doc::label
+    integer, optional, intent(in) :: unit               !< @copydoc doc::unit
+    logical, optional, intent(in) :: flow               !< @copydoc doc::flow
+    !local variables
+
+    if (associated(mapvalue)) then
+       call yaml_mapping_open(mapname,label=label,flow=flow,unit=unit)
+       call yaml_dict_dump(mapvalue,unit=unit,flow=flow)
+       call yaml_mapping_close(unit=unit)
     else
-       call yaml_comment(bar%message,unit=unt)
+       call yaml_map(mapname,'<nullified dictionary>',label=label,unit=unit)
     end if
-    !write(unit=unt,fmt="(a18)",advance='no')char(13)//bar
-    call f_utils_flush(streams(strm)%unit)
-  end subroutine dump_progress_bar
+  end subroutine yaml_map_dict
 
-  subroutine yaml_cite(paper,unit)
-    use f_bibliography
-    use f_utils
+  !> Create a yaml map with a scalar value
+  subroutine yaml_map_enum(mapname,mapvalue,label,unit,flow)
+    use f_enums
     implicit none
-    character(len=*), intent(in) :: paper !<the item to be cited in the bibliography
-    integer, intent(in), optional :: unit
+    character(len=*), intent(in) :: mapname             !< @copydoc doc::mapname
+    type(f_enumerator), intent(in) :: mapvalue   !< scalar value of the mapping may be of any scalar type
+    !! it is internally converted to character with the usage of @link yaml_output::yaml_toa @endlink function
+    character(len=*), optional, intent(in) :: label     !< @copydoc doc::label
+    integer, optional, intent(in) :: unit               !< @copydoc doc::unit
+    logical, optional, intent(in) :: flow               !< @copydoc doc::flow
     !local variables
-    integer :: unt,istat,strm,unitfile
-    character(len=128) :: filename,stream_out
-    type(dictionary), pointer :: item,iter2,iter3
+    type(f_enumerator), pointer :: iter
 
-    if (f_bib_item_exists(paper)) then
-       unt=DEFAULT_STREAM_ID
-       if (present(unit)) unt=unit
-       call get_stream(unt,strm,istat)
-       if (.not. associated(streams(strm)%dict_references)) then
-          call dict_init(streams(strm)%dict_references)
-          call get_stream_filename(streams(strm)%unit,stream_out)
-          call get_bib_filename(stream_out,filename)
-          unitfile=100
-
-          call f_open_file(unitfile,filename)
-          write(unitfile,'(a)')'% This program used features described in the following reference papers.'
-          write(unitfile,'(a)')'% Please consider citing these papers when using the results for scientific output.'
-          call f_close(unitfile) !close the file to flush its present value
-       end if
-       if (paper .notin. streams(strm)%dict_references) then
-          call add(streams(strm)%dict_references,paper)
-          call get_stream_filename(streams(strm)%unit,stream_out)
-          call get_bib_filename(stream_out,filename)
-          unitfile=100
-          call f_open_file(unitfile,filename,position='append')
-          item => f_bib_get_item(paper)
-          iter2=item .get. 'BIBTEX_REF'
-          nullify(iter3)
-          do while(iterating(iter3,on=iter2))
-             write(unitfile,'(a)')trim(dict_value(iter3))
-          end do
-          call f_close(unitfile) !close the file to flush its present value
-       end if
-    else
-       call yaml_warning('Missed citation; paper "'+paper+&
-            '" not present in the bibliography',unit=unit)
-    end if
-  end subroutine yaml_cite
-
-  subroutine yaml_bib_dump(citations,unit) !plus other variables for the format
-    use f_bibliography
-    use f_utils
-    implicit none
-    type(dictionary), pointer :: citations
-    integer, intent(in), optional :: unit !< yaml stream associated
-    !local variables
-    type(dictionary), pointer :: iter,item,iter2
-
-    call yaml_mapping_open('Citations',unit=unit)
-
-    nullify(iter)
-    do while(iterating(iter,on=citations))
-       item => f_bib_get_item(dict_value(iter))
-       call yaml_mapping_open(dict_value(iter),unit=unit)
-       nullify(iter2)
-       do while(iterating(iter2,on=item))
-          if (trim(dict_key(iter2)) /= 'BIBTEX_REF') &
-               call yaml_map(trim(dict_key(iter2)),iter2,unit=unit)
+    !fortran norm should guarantee that the flow variable
+    !is passed only if present
+    call yaml_mapping_open(mapname,label=label,flow=flow,unit=unit)
+    !then the central indication for the enumerator
+    call yaml_map(trim(str(mapvalue)),toi(mapvalue),unit=unit)
+    iter=>mapvalue%family
+    if (associated(iter)) then
+       call yaml_mapping_open('Attributes',unit=unit)
+       do while(associated(iter))
+          call yaml_map(trim(str(iter)),toi(iter),unit=unit)
+          iter => iter%family
        end do
        call yaml_mapping_close(unit=unit)
+    end if
+    call yaml_mapping_close(unit=unit)
+  end subroutine yaml_map_enum
+
+  subroutine yaml_map_li(mapname,mapvalue,label,advance,unit,fmt)
+    implicit none
+    integer(f_long), intent(in) :: mapvalue
+    include 'yaml_map-inc.f90'
+  end subroutine yaml_map_li
+
+  subroutine yaml_map_i(mapname,mapvalue,label,advance,unit,fmt)
+    implicit none
+    integer(f_integer), intent(in) :: mapvalue
+    include 'yaml_map-inc.f90'
+  end subroutine yaml_map_i
+
+  subroutine yaml_map_f(mapname,mapvalue,label,advance,unit,fmt)
+    implicit none
+    real(f_simple), intent(in) :: mapvalue
+    include 'yaml_map-inc.f90'
+  end subroutine yaml_map_f
+
+  subroutine yaml_map_d(mapname,mapvalue,label,advance,unit,fmt)
+    implicit none
+    real(f_double), intent(in) :: mapvalue
+    include 'yaml_map-inc.f90'
+  end subroutine yaml_map_d
+
+  subroutine yaml_map_l(mapname,mapvalue,label,advance,unit,fmt)
+    implicit none
+    logical,  intent(in) :: mapvalue
+    include 'yaml_map-inc.f90'
+  end subroutine yaml_map_l
+
+  subroutine yaml_map_dv(mapname,mapvalue,label,advance,unit,fmt)
+    implicit none
+    real(f_double), dimension(:), intent(in) :: mapvalue
+    include 'yaml_map-arr-inc.f90'
+  end subroutine yaml_map_dv
+
+  subroutine yaml_map_rv(mapname,mapvalue,label,advance,unit,fmt)
+    implicit none
+    real(f_simple), dimension(:), intent(in) :: mapvalue
+    include 'yaml_map-arr-inc.f90'
+  end subroutine yaml_map_rv
+
+
+  !> Character vector
+  subroutine yaml_map_cv(mapname,mapvalue,label,advance,unit,fmt)
+    implicit none
+    character(len=*), dimension(:), intent(in) :: mapvalue
+    include 'yaml_map-arr-inc.f90'
+  end subroutine yaml_map_cv
+
+  subroutine yaml_map_lv(mapname,mapvalue,label,advance,unit,fmt)
+    implicit none
+    logical, dimension(:), intent(in) :: mapvalue
+    include 'yaml_map-arr-inc.f90'
+  end subroutine yaml_map_lv
+
+  subroutine yaml_map_liv(mapname,mapvalue,label,advance,unit,fmt)
+    implicit none
+    integer(f_long), dimension(:), intent(in) :: mapvalue
+    include 'yaml_map-arr-inc.f90'
+  end subroutine yaml_map_liv
+
+  subroutine yaml_map_iv(mapname,mapvalue,label,advance,unit,fmt)
+    implicit none
+    integer(f_integer), dimension(:), intent(in) :: mapvalue
+    include 'yaml_map-arr-inc.f90'
+  end subroutine yaml_map_iv
+
+  !> double-precision rank2 matrix
+  subroutine yaml_map_dm(mapname,mapvalue,label,advance,unit,fmt)
+    implicit none
+    real(f_double), dimension(:,:), intent(in) :: mapvalue
+    include 'yaml_map-mat-inc.f90'
+  end subroutine yaml_map_dm
+
+  subroutine yaml_map_rm(mapname,mapvalue,label,advance,unit,fmt)
+    implicit none
+    real(f_simple), dimension(:,:), intent(in) :: mapvalue
+    include 'yaml_map-mat-inc.f90'
+  end subroutine yaml_map_rm
+
+  subroutine yaml_map_im(mapname,mapvalue,label,advance,unit,fmt)
+    implicit none
+    integer(f_integer), dimension(:,:), intent(in) :: mapvalue
+    include 'yaml_map-mat-inc.f90'
+  end subroutine yaml_map_im
+
+  subroutine yaml_map_lm(mapname,mapvalue,label,advance,unit,fmt)
+    implicit none
+    logical, dimension(:,:), intent(in) :: mapvalue
+    include 'yaml_map-mat-inc.f90'
+  end subroutine yaml_map_lm
+
+  !> double-precision rank3 tensor
+  subroutine yaml_map_dt(mapname,mapvalue,label,advance,unit,fmt)
+    implicit none
+    real(f_double), dimension(:,:,:), intent(in) :: mapvalue
+    character(len=*), intent(in) :: mapname
+    character(len=*), optional, intent(in) :: label,advance,fmt
+    integer, optional, intent(in) :: unit
+    !Local variables
+    integer :: irow,icol,ivec
+
+    !open the sequence associated to the matrix
+    call yaml_sequence_open(mapname,label=label,unit=unit)
+    do irow=lbound(mapvalue,3),ubound(mapvalue,3)
+       call yaml_newline(unit=unit)
+       call yaml_sequence(advance='no',unit=unit)
+       call yaml_sequence_open(flow=.true.,unit=unit)
+       do icol=lbound(mapvalue,2),ubound(mapvalue,2)
+          call yaml_sequence(advance='no',unit=unit)
+          call yaml_sequence_open(flow=.true.,unit=unit)
+          do ivec=lbound(mapvalue,1),ubound(mapvalue,1)
+             call yaml_sequence(trim(yaml_toa(mapvalue(ivec,icol,irow),fmt=fmt)),unit=unit)
+          end do
+          call yaml_sequence_close(unit=unit)
+       end do
+       call yaml_sequence_close(unit=unit)
     end do
 
-    call yaml_mapping_close(unit=unit)
+    call yaml_sequence_close(advance=advance,unit=unit)
 
-  end subroutine yaml_bib_dump
+  end subroutine yaml_map_dt
 
 end module yaml_output

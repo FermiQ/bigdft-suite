@@ -19,6 +19,7 @@ module communications_init
   public :: init_comms_linear_sumrho
   public :: initialize_communication_potential
   public :: orbitals_communicators
+  public :: write_memory_requirements_collcom
 
 
   contains
@@ -43,7 +44,8 @@ module communications_init
       integer,dimension(:,:),allocatable :: istartend_c, istartend_f
       integer,dimension(:,:,:),allocatable :: index_in_global_c, index_in_global_f
       real(kind=8),dimension(:,:,:),allocatable :: weightloc_c, weightloc_f
-      integer :: window_c, window_f, i3start, i3end
+      integer :: i3start, i3end
+      type(fmpi_win) :: window_c,window_f
       real(kind=8) :: weight_c_tot_check, weight_f_tot_check
       
       real(kind=4) :: tr0, tr1, trt0, trt1
@@ -300,6 +302,7 @@ module communications_init
       use module_base, only: bigdft_mpi
       use yaml_output, only: yaml_map
       use bounds, only: get_extent_of_overlap
+      use sparsematrix_init, only: distribute_on_threads
       implicit none
       
       ! Calling arguments
@@ -309,14 +312,14 @@ module communications_init
       !real(kind=8),dimension(0:lzd%glr%d%n1,0:lzd%glr%d%n2,1:(i3end-i3start+1)),intent(inout) :: weightloc_c, weightloc_f
       !real(kind=8),dimension(0:lzd%glr%d%n1,0:lzd%glr%d%n2,i3start:i3end),intent(inout) :: weightloc_c, weightloc_f
       real(kind=8),dimension(0:lzd%glr%d%n1,0:lzd%glr%d%n2,j3start:j3end),intent(inout) :: weightloc_c, weightloc_f
-      integer,intent(inout) :: window_c, window_f
+      type(fmpi_win) ,intent(inout) :: window_c, window_f
       real(kind=8),dimension(0:lzd%glr%d%n1,0:lzd%glr%d%n2,1:max(1,n3p)),intent(out) :: weightppp_c, weightppp_f
       real(kind=8),intent(out) :: weight_c_tot_check, weight_f_tot_check
       
       ! Local variables
       integer :: iorb, iiorb, i0, i1, i2, i3, ii, iseg, ilr, istart, iend, i, j0, j1, ii1, ii2, ii3, n1p1, np
-      integer :: i3e, ii3s, ii3e, is, ie, jproc, ncount
-      integer :: imax,imin,isize,je,jj3,js,k,n
+      integer :: i3e, ii3s, ii3e, is, ie, jproc, ncount, jj3s, jj3e
+      integer :: isize,je,jj3,js,k,n,nthread,ithread,jthread
       !integer :: ierr, request_c, request_f, size_of_double, info, window
       real(kind=8), dimension(:) ,allocatable :: reducearr
       !real(kind=8),dimension(:,:,:),allocatable :: weightloc
@@ -324,12 +327,12 @@ module communications_init
       !real(kind=8) :: tt
       integer, dimension(2) :: ks, ke, nlen
       logical :: communicate
+      integer,dimension(:,:),pointer :: ise
+      !$ integer :: omp_get_thread_num
     
       call f_routine(id='get_weights')
     
       ii=(lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*(lzd%glr%d%n3+1)
-      !weight_c_tot=0.d0
-      !weight_f_tot=0.d0
     
    
 !      orbs_it=>orbital_iterator(orbs)
@@ -349,37 +352,16 @@ module communications_init
       i3startend(3,iproc) = i3s
       i3startend(4,iproc) = i3s+n3p-1
       if (nproc>1) then
-          call mpiallred(i3startend, mpi_sum, comm=bigdft_mpi%mpi_comm)
+          call fmpi_allreduce(i3startend, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
       end if
 
 
       !@NEW ##################################
       ! coarse part
-
-
-      !!i3start=1000000000
-      !!i3end=-1000000000
-      !!do iorb=1,orbs%norbp
-      !!    iiorb = orbs%isorb+iorb
-      !!    if (orbs%spinsgn(iiorb)<0.d0) cycle !consider only up orbitals
-      !!    ilr = orbs%inwhichlocreg(iiorb)
-      !!    i3start = min(i3start,lzd%llr(ilr)%ns3)
-      !!    i3end = max(i3end,lzd%llr(ilr)%ns3+lzd%llr(ilr)%d%n3)
-      !!end do
-      !!if (orbs%norbp==0) then
-      !!   !want i3end-i3start+1=0
-      !!   !i3start+1>lzd%glr%d%n3+1 or 1>i3end+1
-      !!   i3end=0
-      !!   i3start=1
-      !!end if
-
-      !weightloc = f_malloc0((/0.to.lzd%glr%d%n1,0.to.lzd%glr%d%n2,1.to.(i3end-i3start+1)/),id='weightloc')
       ncount = (lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)
       reducearr = f_malloc(ncount,id='reducearr')
 
 
-      !call to_zero((lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*n3p,weightppp_c(0,0,1))
-      i3e=i3s+n3p-1
       isize = 0
       communicate = .false.
       do iorb=1,orbs%norbp
@@ -391,67 +373,54 @@ module communications_init
           isize = isize + lzd%llr(ilr)%wfd%nvctr_c
           ii3s = lzd%llr(ilr)%ns3
           ii3e = ii3s + lzd%llr(ilr)%d%n3
-          !write(*,'(a,12i8)') 'init: iproc, iorb, ii3s, ii3e, i3s, i3e, ilr, ns1, ns2, ns3, owa', iproc, iorb, ii3s, ii3e, i3s, i3e,ilr,lzd%nlr,lzd%llr(ilr)%ns1,lzd%llr(ilr)%ns2,lzd%llr(ilr)%ns3,orbs%onwhichatom(iorb)
-          !if (ii3s+1>i3e .or. ii3e+1<i3s) cycle !+1 since ns3 starts at 0, but is3 at 1
-
-          !n1p1=lzd%llr(ilr)%d%n1+1
-          !np=n1p1*(lzd%llr(ilr)%d%n2+1)
           n1p1=lzd%glr%d%n1+1
           np=n1p1*(lzd%glr%d%n2+1)
 
+          call distribute_on_threads(1, ii3e-ii3s+1, nthread, ise)
+
           if (lzd%llr(ilr)%wfd%nseg_c>0) then
-              !!$omp do
-              imin=10000000
-              imax=-10000000
+              ithread = 0
+              !$omp parallel default(none) &
+              !$omp shared(lzd, ilr, j3start, j3end, np, n1p1, i3start, ise, weightloc_c) &
+              !$omp private(iseg, j0, j1, ii, i3, ii3, jj3, i2, i0, i1, ii2, ii1) &
+              !$omp firstprivate(ithread)
+              !$ ithread = omp_get_thread_num()
               do iseg=1,lzd%llr(ilr)%wfd%nseg_c
-                  j0=lzd%llr(ilr)%wfd%keyglob(1,iseg)
-                  j1=lzd%llr(ilr)%wfd%keyglob(2,iseg)
+                  j0=lzd%llr(ilr)%wfd%keygloc(1,iseg)
                   ii=j0-1
-                  i3=ii/np
-                  !ii3=i3+lzd%llr(ilr)%ns3
-                  ii3=i3
-                  if (ii3<imin) imin=ii3
-                  if (ii3>imax) imax=ii3
-                  !!if (ii3>i3end) stop 'strange 1'
-                  !!if (ii3<i3start) stop 'strange 2'
-                  !if (ii3+i3start>i3end) then
-                  !    write(*,*) 'ii3, i3start, i3end', ii3, i3start, i3end
-                  !    stop 'strange 1'
-                  !end if
-                  !if (ii3+i3start<i3start) then
-                  !    write(*,*) 'ii3, i3start, i3end', ii3, i3start, i3end
-                  !    stop 'strange 2'
-                  !end if
-                  jj3=modulo(ii3-i3start,(lzd%glr%d%n3+1))+1
-                  if (jj3>j3end) then
-                      write(*,'(a,5i8)') 'ii3, i3start, lzd%glr%d%n3, jj3, j3end', ii3, i3start, lzd%glr%d%n3, jj3, j3end
-                      call f_err_throw('strange 2.1')
+                  i3=ii/np+1
+                  if (i3>=ise(1,ithread) .and. i3<=ise(2,ithread)) then
+
+                      j0=lzd%llr(ilr)%wfd%keyglob(1,iseg)
+                      j1=lzd%llr(ilr)%wfd%keyglob(2,iseg)
+                      ii=j0-1
+                      i3=ii/np
+                      ii3=i3
+
+                      !write(*,*) 'ithread, jj3, ise(:,ithread)',ithread, jj3, ise(:,ithread)
+                      jj3=modulo(ii3-i3start,(lzd%glr%d%n3+1))+1
+                      if (jj3>j3end) then
+                          write(*,'(a,5i8)') 'ii3, i3start, lzd%glr%d%n3, jj3, j3end', ii3, i3start, lzd%glr%d%n3, jj3, j3end
+                          call f_err_throw('strange 2.1')
+                      end if
+                      if (jj3<j3start) then
+                          write(*,'(a,5i8)') 'ii3, i3start, lzd%glr%d%n3, jj3, j3start', ii3, i3start, lzd%glr%d%n3, jj3, j3start
+                          call f_err_throw('strange 2.2')
+                      end if
+                      ii=ii-i3*np
+                      i2=ii/n1p1
+                      i0=ii-i2*n1p1
+                      i1=i0+j1-j0
+                      ii2=i2
+                      do i=i0,i1
+                          ii1=i
+                          weightloc_c(ii1,ii2,jj3)=weightloc_c(ii1,ii2,jj3)+1.d0
+                      end do
                   end if
-                  if (jj3<j3start) then
-                      write(*,'(a,5i8)') 'ii3, i3start, lzd%glr%d%n3, jj3, j3start', ii3, i3start, lzd%glr%d%n3, jj3, j3start
-                      call f_err_throw('strange 2.2')
-                  end if
-                  !if (ii3+1<i3s) cycle
-                  !if (ii3+1>i3e) exit
-                  ii=ii-i3*np
-                  i2=ii/n1p1
-                  i0=ii-i2*n1p1
-                  i1=i0+j1-j0
-                  !!write(400,'(a,9i8)') 'j0, j1, ii, i0, i1, i2, i3, ii3, jj3',j0,j1,ii,i0,i1,i2,i3,ii3,jj3
-                  !ii2=i2+lzd%llr(ilr)%ns2
-                  ii2=i2
-                  do i=i0,i1
-                      !ii1=i+lzd%llr(ilr)%ns1
-                      ii1=i
-                      !weightppp_c(ii1,ii2,ii3+1-i3s+1)=weightppp_c(ii1,ii2,ii3+1-i3s+1)+1.d0
-                      !weightloc_c(ii1,ii2,ii3-i3start+1)=weightloc_c(ii1,ii2,ii3-i3start+1)+1.d0
-                      weightloc_c(ii1,ii2,jj3)=weightloc_c(ii1,ii2,jj3)+1.d0
-                      !weight_c_tot=weight_c_tot+1.d0
-                  end do
               end do
-              !!write(*,'(a,4i8)') 'iproc, ilr, imin, imax', iproc, ilr, imin, imax
-              !!$omp end do
+              !$omp end parallel
           end if
+          call f_free_ptr(ise)
       end do
 
       ! First a local check, then reduction for later
@@ -464,195 +433,56 @@ module communications_init
       end if
 
       if (nproc>1) then
-          call mpiallred(weight_c_tot_check, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
+          call fmpi_allreduce(weight_c_tot_check, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
       end if
 
 
-
-      !!tt = sum(weightloc_c)
-      !!call mpiallred(tt, 1, mpi_sum, bigdft_mpi%mpi_comm)
-      !!write(*,*) 'tt1',tt
-      
-
-
-      
-      !do i3=1,lzd%glr%d%n3+1
-      !    ! Check whether this slice has been (partially) calculated by iproc,
-      !    ! otherwise fill with zero
-      !    if (i3start+1<=i3 .and. i3<=i3end+1) then
-      !        call vcopy(ncount, weightloc(0,0,i3-i3start), 1, reducearr(1), 1)
-      !    else
-      !        call f_zero(reducearr)
-      !    end if
-
-      !    ! Communicate the slice and the zeros (a bit wasteful...)
-      !    if (nproc>1) then
-      !        call mpiallred(reducearr(1), ncount, mpi_sum, bigdft_mpi%mpi_comm)
-      !    end if
-
-      !    ! Check whether iproc needs this slice
-      !    if (i3s<=i3 .and. i3<=i3s+n3p-1) then
-      !        call vcopy(ncount, reducearr(1), 1, weightppp_c(0,0,i3-i3s+1), 1)
-      !    end if
-      !end do
-
-      !!do i3=1,max(1,n3p)
-      !!    do i2=0,lzd%glr%d%n2
-      !!        do i1=0,lzd%glr%d%n1
-      !!            write(1000+iproc,*) i1, i2, i3, weightppp_c(i1,i2,i3)
-      !!        end do
-      !!    end do
-      !!end do
-
-      !@NEW #########################################
-      !!weightppp_c = 0.d0
-      !!call mpi_type_size(mpi_double_precision, size_of_double, ierr)
-      !!call mpi_info_create(info, ierr)
-      !!call mpi_info_set(info, "no_locks", "true", ierr)
-      !!call mpi_win_create(weightppp_c(0,0,1), &
-      !!     int((lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*n3p*size_of_double,kind=mpi_address_kind), size_of_double, &
-      !!     info, bigdft_mpi%mpi_comm, window_c, ierr)
-      !!call mpi_info_free(info, ierr)
-      !!call mpi_win_fence(mpi_mode_noprecede, window_c, ierr)
 
       if (nproc>1) then
-          window_c = mpiwindow((lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*n3p, weightppp_c(0,0,1), bigdft_mpi%mpi_comm)
+         !window_c = mpiwindow((lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*n3p, weightppp_c(0,0,1), bigdft_mpi%mpi_comm)
+         call fmpi_win_create(window_c,weightppp_c(0,0,1),(lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*n3p,bigdft_mpi%mpi_comm)
+         call fmpi_win_fence(window_c,FMPI_WIN_OPEN)
       end if
 
 
-      !write(*,*) 'sum(weightloc_c)', sum(weightloc_c)
-      !do i3=j3start,j3end
-      !  do i2=0,lzd%glr%d%n2
-      !    do i1=0,lzd%glr%d%n1
-      !      write(1200,*) 'i1,i2,i3,val',i1,i2,i3+i3start-1,weightloc_c(i1,i2,i3)
-      !    end do
-      !  end do
-      !end do
-
-      !if (nproc>1) then
       if (communicate) then
-          do jproc=0,nproc-1
-              !Check whether there is an overlap
-              ! Start and end on task iproc, possibly out of box
-              !!is = max(i3startend(1,iproc),i3startend(3,jproc))
-              !!ie = min(i3startend(2,iproc),i3startend(4,jproc))
-              !!write(*,'(a,3i8)') 'i3startend(1,iproc),i3startend(3,jproc), is', i3startend(1,iproc),i3startend(3,jproc), is
-              !!write(*,'(a,3i8)') 'i3startend(2,iproc),i3startend(4,jproc), ie', i3startend(2,iproc),i3startend(4,jproc), ie
-              ! The min is for cases where a task has more than the entire box
-              is=modulo(i3startend(1,iproc)-1,lzd%glr%d%n3+1)+1
-              if (i3startend(2,iproc)-i3startend(1,iproc)>lzd%glr%d%n3) then 
-                  ie=modulo(min(is-1,i3startend(2,iproc))-1,lzd%glr%d%n3+1)+1
-              else
-                  ie=modulo(i3startend(2,iproc)-1,lzd%glr%d%n3+1)+1
-              end if
-              js=i3startend(3,jproc)
-              je=i3startend(4,jproc)
-              if (je>=js) then
-                  call get_extent_of_overlap(is, ie, js, je, n, ks, ke, nlen)
-                  !write(*,'(a,11i7)') 'is, ie, js, je, n, ks, ke, nlen', is, ie, js, je, n, ks, ke, nlen
-                  do k=1,n
-                      ! Undo the periodic wrap around if required
-                      !if (ks(k)>i3end) then
-                      !    ii=ks(k)-(lzd%glr%d%n3+1)
-                      !else
-                      !    ii=ks(k)
-                      !end if
-                      ii=modulo(ks(k)-i3start-1,(lzd%glr%d%n3+1))+1
-                      !write(*,'(a,9i9)') 'k, ks(k), ke(k), nlen(k), i3start, ii, ks(k), i3startend(3,jproc), n3p', k, ks(k), ke(k), nlen(k), i3start, ii, ks(k), i3startend(3,jproc), n3p
-                      if (nproc>1) then
-                         call mpiaccumulate(origin=weightloc_c(0,0,ii), count=(lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*nlen(k), &
-                               target_rank=jproc,&
-                               target_disp=int((lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*(ks(k)-i3startend(3,jproc)),&
-                               kind=mpi_address_kind), &
-                               op=MPI_SUM, window=window_c)
-                      else
-                          call axpy((lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*nlen(k), 1.d0, weightloc_c(0,0,ii), 1, &
-                               weightppp_c(0,0,1+(ks(k)-i3startend(3,jproc))), 1)
-                      end if
-                      !!call mpiaccumulate(weightloc_c(0,0,ks(k)-modulo(i3start-1,lzd%glr%d%n1+1)+1), (lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*nlen(k), &
-                      !!     jproc, int((lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*(ks(k)-i3startend(3,jproc)),kind=mpi_address_kind), &
-                      !!     (lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*nlen(k), mpi_sum, window_c)
-                  end do
-              end if
-              !if (ie-is>=0) then
-              !    !!call mpi_accumulate(weightloc_c(0,0,is-i3start), (lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*(ie-is+1), &
-              !    !!     mpi_double_precision, jproc, &
-              !    !!     int((lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*(is-i3startend(3,jproc)),kind=mpi_address_kind), &
-              !    !!     (lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*(ie-is+1), mpi_double_precision, &
-              !    !!     mpi_sum, window_c, ierr)
-              !    call mpiaccumulate(weightloc_c(0,0,is-i3start), (lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*(ie-is+1), &
-              !         jproc, int((lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*(is-i3startend(3,jproc)),kind=mpi_address_kind), &
-              !         (lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*(ie-is+1), mpi_sum, window_c)
-              !end if
-          end do
+          call communicate_weights(iproc, nproc, i3start, j3start, j3end, &
+               lzd%glr%d%n1, lzd%glr%d%n2, lzd%glr%d%n3, n3p, &
+               i3startend, weightloc_c, weightppp_c, window_c)
+          !!do jproc=0,nproc-1
+          !!    !Check whether there is an overlap
+          !!    ! Start and end on task iproc, possibly out of box
+          !!    ! The min is for cases where a task has more than the entire box
+          !!    is=modulo(i3startend(1,iproc)-1,lzd%glr%d%n3+1)+1
+          !!    if (i3startend(2,iproc)-i3startend(1,iproc)>lzd%glr%d%n3) then 
+          !!        ie=modulo(min(is-1,i3startend(2,iproc))-1,lzd%glr%d%n3+1)+1
+          !!    else
+          !!        ie=modulo(i3startend(2,iproc)-1,lzd%glr%d%n3+1)+1
+          !!    end if
+          !!    js=i3startend(3,jproc)
+          !!    je=i3startend(4,jproc)
+          !!    if (je>=js) then
+          !!        call get_extent_of_overlap(is, ie, js, je, n, ks, ke, nlen)
+          !!        do k=1,n
+          !!            ii=modulo(ks(k)-i3start-1,(lzd%glr%d%n3+1))+1
+          !!            if (nproc>1) then
+          !!               call mpiaccumulate(origin=weightloc_c(0,0,ii), count=(lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*nlen(k), &
+          !!                     target_rank=jproc,&
+          !!                     target_disp=int((lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*(ks(k)-i3startend(3,jproc)),&
+          !!                     kind=mpi_address_kind), &
+          !!                     op=FMPI_SUM, window=window_c)
+          !!            else
+          !!                call axpy((lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*nlen(k), 1.d0, weightloc_c(0,0,ii), 1, &
+          !!                     weightppp_c(0,0,1+(ks(k)-i3startend(3,jproc))), 1)
+          !!            end if
+          !!        end do
+          !!    end if
+          !!end do
       end if
-      !else
-      !    !!is = i3startend(1,iproc)
-      !    !!ie = i3startend(2,iproc)
-      !    !!call vcopy((lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*(ie-is+1), weightloc_c(0,0,is-i3start), 1, &
-      !    !!     weightppp_c(0,0,is-i3startend(3,iproc)+1), 1)
-      !    call f_memcpy(n=(lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*(j3end-j3start+1), src=weightloc_c(0,0,j3start), dest=weightppp_c(0,0,1))
-      !end if
-
-
-      !call f_free(i3startend)
-      !call mpi_win_fence(0, window_c, ierr)
-      !call mpi_win_free(window_c, ierr)
-      !@END NEW #####################################
-      !!do i3=1,max(1,n3p)
-      !!    do i2=0,lzd%glr%d%n2
-      !!        do i1=0,lzd%glr%d%n1
-      !!            write(2000+iproc,*) i1, i2, i3, weightppp_c(i1,i2,i3)
-      !!        end do
-      !!    end do
-      !!end do
-
-      !!call mpi_type_size(mpi_double_precision, size_of_double, ierr)
-      !!call mpi_info_create(info, ierr)
-      !!call mpi_info_set(info, "no_locks", "true", ierr)
-      !!call mpi_win_create(weightppp_c(0,0,1), &
-      !!     int((lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*n3p*size_of_double,kind=mpi_address_kind), size_of_double, &
-      !!     info, bigdft_mpi%mpi_comm, window, ierr)
-      !!call mpi_info_free(info, ierr)
-      !!call mpi_win_fence(mpi_mode_noprecede, window, ierr)
-      !!dummybuf = f_malloc((lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*n3p,id='dummybuf')
-      !!i3startend = f_malloc0((/1.to.2,0.to.nproc-1/),id='i3startend')
-      !!call mpiallred(i3startend(1,0), 2*nproc, mpi_sum, bigdft_mpi%mpi_comm)
-      !!do jproc=0,nproc-1
-      !!    !Check whether there is an overlap
-      !!    is = max(i3startend(1,iproc),i3startend(1,jproc))
-      !!    ie = min(i3startend(2,iproc),i3startend(2,jproc))
-      !!    if (ie-is>=0) then
-      !!        call mpi_fetch_and_op(weightloc_c(0,0,i2-i3startend(1,iproc)+1), dummybuf(1), &
-      !!             mpi_double_precision, jproc, &
-      !!             int(is-i3startend(1,jproc),kind=mpi_address_kind), mpi_sum, window, ierr)
-      !!    end if
-      !!end do
-      !!call mpi_win_fence(0, window, ierr)
-      !!call mpi_win_free(window, ierr)
-      !!call f_free(dummybuf)
-
-      !weight_c_tot = 0.d0
-      !do i3=1,n3p
-      !    do i2=0,lzd%glr%d%n2
-      !        do i1=0,lzd%glr%d%n1
-      !            weightppp_c(i1,i2,i3)=weightppp_c(i1,i2,i3)**2
-      !            weight_c_tot = weight_c_tot + weightppp_c(i1,i2,i3)
-      !        end do
-      !    end do
-      !end do
-      !if (nproc>1) then
-      !    call mpiallred(weight_c_tot, 1, mpi_sum, bigdft_mpi%mpi_comm)
-      !end if
 
 
 
       ! fine part
-      !if (i3end-i3start>=0) then
-      !    call to_zero((lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*(i3end-i3start+1), weightloc_f(0,0,1))
-      !end if
-      !call f_zero(weightloc)
-      !call to_zero((lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*n3p,weightppp_f(0,0,1))
       i3e=i3s+n3p-1
       isize = 0
       communicate = .false.
@@ -665,231 +495,120 @@ module communications_init
           isize = isize + lzd%llr(ilr)%wfd%nvctr_f
           ii3s = lzd%llr(ilr)%ns3
           ii3e = ii3s + lzd%llr(ilr)%d%n3
-          !!write(*,'(a,6i8)') 'init: iproc, iorb, ii3s, ii3e, i3s, i3e', iproc, iorb, ii3s, ii3e, i3s, i3e
-          !if (ii3s+1>i3e .or. ii3e+1<i3s) cycle !+1 since ns3 starts at 0, but is3 at 1
 
-          !n1p1=lzd%llr(ilr)%d%n1+1
-          !np=n1p1*(lzd%llr(ilr)%d%n2+1)
           n1p1=lzd%glr%d%n1+1
           np=n1p1*(lzd%glr%d%n2+1)
+
+          call distribute_on_threads(1, ii3e-ii3s+1, nthread, ise)
 
           istart=lzd%llr(ilr)%wfd%nseg_c+min(1,lzd%llr(ilr)%wfd%nseg_f)
           iend=istart+lzd%llr(ilr)%wfd%nseg_f-1
           if (istart<=iend) then
-              !!$omp do
+              ithread = 0
+              !$omp parallel default(none) &
+              !$omp shared(lzd, ilr, j3start, j3end, np, n1p1, i3start, istart, iend, ise, weightloc_f) &
+              !$omp private(iseg, j0, j1, ii, i3, ii3, jj3, i2, i0, i1, ii2, ii1) &
+              !$omp firstprivate(ithread)
+              !$ ithread = omp_get_thread_num()
               do iseg=istart,iend
-                  j0=lzd%llr(ilr)%wfd%keyglob(1,iseg)
-                  j1=lzd%llr(ilr)%wfd%keyglob(2,iseg)
+                  j0=lzd%llr(ilr)%wfd%keygloc(1,iseg)
                   ii=j0-1
-                  i3=ii/np
-                  !ii3=i3+lzd%llr(ilr)%ns3
-                  ii3=i3
-                  !if (ii3>i3end) stop 'strange 1'
-                  !if (ii3<i3start) stop 'strange 2'
-                  !!if (ii3+i3start>i3end) stop 'strange 1'
-                  !!if (ii3+i3start<i3start) stop 'strange 2'
-                  !if (ii3+1<i3s) cycle
-                  !if (ii3+1>i3e) exit
-                  jj3=modulo(ii3-i3start,(lzd%glr%d%n3+1))+1
-                  !!if (jj3>i3end) stop 'strange 1'
-                  !!if (jj3<i3start) stop 'strange 2'
-                  if (jj3>j3end) then
-                      write(*,'(a,5i8)') 'ii3, i3start, lzd%glr%d%n3, jj3, j3end', ii3, i3start, lzd%glr%d%n3, jj3, j3end
-                      call f_err_throw('strange 1.1')
+                  i3=ii/np+1
+                  if (i3>=ise(1,ithread) .and. i3<=ise(2,ithread)) then
+
+                      j0=lzd%llr(ilr)%wfd%keyglob(1,iseg)
+                      j1=lzd%llr(ilr)%wfd%keyglob(2,iseg)
+                      ii=j0-1
+                      i3=ii/np
+                      ii3=i3
+                      jj3=modulo(ii3-i3start,(lzd%glr%d%n3+1))+1
+                      if (jj3>j3end) then
+                          write(*,'(a,5i8)') 'ii3, i3start, lzd%glr%d%n3, jj3, j3end', ii3, i3start, lzd%glr%d%n3, jj3, j3end
+                          call f_err_throw('strange 1.1')
+                      end if
+                      if (jj3<j3start) then
+                          write(*,'(a,5i8)') 'ii3, i3start, lzd%glr%d%n3, jj3, j3start', ii3, i3start, lzd%glr%d%n3, jj3, j3start
+                          call f_err_throw('strange 1.2')
+                      end if
+                      ii=ii-i3*np
+                      i2=ii/n1p1
+                      i0=ii-i2*n1p1
+                      i1=i0+j1-j0
+                      ii2=i2
+                      do i=i0,i1
+                          ii1=i
+                          weightloc_f(ii1,ii2,jj3)=weightloc_f(ii1,ii2,jj3)+1.d0
+                      end do
                   end if
-                  if (jj3<j3start) then
-                      write(*,'(a,5i8)') 'ii3, i3start, lzd%glr%d%n3, jj3, j3start', ii3, i3start, lzd%glr%d%n3, jj3, j3start
-                      call f_err_throw('strange 1.2')
-                  end if
-                  ii=ii-i3*np
-                  i2=ii/n1p1
-                  i0=ii-i2*n1p1
-                  i1=i0+j1-j0
-                  !write(*,'(a,8i8)') 'jj, ii, j0, j1, i0, i1, i2, i3',jj,ii,j0,j1,i0,i1,i2,i3
-                  !ii2=i2+lzd%llr(ilr)%ns2
-                  ii2=i2
-                  do i=i0,i1
-                      !ii1=i+lzd%llr(ilr)%ns1
-                      ii1=i
-                      !weightppp_f(ii1,ii2,ii3+1-i3s+1)=weightppp_f(ii1,ii2,ii3+1-i3s+1)+1.d0
-                      !weightloc_f(ii1,ii2,ii3-i3start+1)=weightloc_f(ii1,ii2,ii3-i3start+1)+1.d0
-                      weightloc_f(ii1,ii2,jj3)=weightloc_f(ii1,ii2,jj3)+1.d0
-                      !if (ii1==33 .and. ii2==33 .and. jj3==10) write(*,'(a,3i8,f11.1)') 'NONZERO, j0, j1, ii3, wl(ii1,ii2,jj3)', j0, j1, ii3, weightloc_f(ii1,ii2,jj3)
-                      !if (ii1==33 .and. ii2==33 .and. ii3==125) write(*,'(a,3i8,f11.1)') 'NONZERO, j0, j1, jj3, wl(ii1,ii2,jj3)', j0, j1, jj3, weightloc_f(ii1,ii2,jj3)
-                  end do
               end do
-              !!$omp end do
+              !$omp end parallel
           end if
+          call f_free_ptr(ise)
       end do
 
       ! First a local check, then reduction for later
       weight_f_tot_check = sum(weightloc_f)
       if (nint(weight_f_tot_check)/=isize) then
-          !write(*,'(a,2i12)') 'weight_f_tot_check, isize', nint(weight_f_tot_check), isize
           call f_err_throw(trim(yaml_toa(nint(weight_f_tot_check)))//&
                       'weight_f_tot_check /= isize='//trim(yaml_toa(isize)))
       end if
 
       if (nproc>1) then
-          call mpiallred(weight_f_tot_check, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
+          call fmpi_allreduce(weight_f_tot_check, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
       end if
 
 
-      !write(*,*) 'sum(weightloc_f)', sum(weightloc_f)
-      !do i3=j3start,j3end
-      !  jj3=modulo(i3-i3start,lzd%glr%d%n3)+1
-      !  do i2=0,lzd%glr%d%n2
-      !    do i1=0,lzd%glr%d%n1
-      !      write(1201,'(a,4i8,f12.2)') 'i1,i2,i3,jj3,val',i1,i2,i3,jj3,weightloc_f(i1,i2,i3)
-      !    end do
-      !  end do
-      !end do
-
-      !do i3=1,lzd%glr%d%n3+1
-      !    ! Check whether this slice has been (partially) calculated by iproc,
-      !    ! otherwise fill with zero
-      !    if (i3start+1<=i3 .and. i3<=i3end+1) then
-      !        call vcopy(ncount, weightloc(0,0,i3-i3start), 1, reducearr(1), 1)
-      !    else
-      !        call to_zero(ncount, reducearr(1))
-      !    end if
-
-      !    ! Communicate the slice and the zeros (a bit wasteful...)
-      !    if (nproc>1) then
-      !        call mpiallred(reducearr(1), ncount, mpi_sum, bigdft_mpi%mpi_comm)
-      !    end if
-
-      !    ! Check whether iproc needs this slice
-      !    if (i3s<=i3 .and. i3<=i3s+n3p-1) then
-      !        call vcopy(ncount, reducearr(1), 1, weightppp_f(0,0,i3-i3s+1), 1)
-      !    end if
-      !end do
-
-      !@NEW #########################################
-      !call mpi_type_size(mpi_double_precision, size_of_double, ierr)
-      !call mpi_info_create(info, ierr)
-      !call mpi_info_set(info, "no_locks", "true", ierr)
-      !call mpi_win_create(weightppp_f(0,0,1), &
-      !     int((lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*n3p*size_of_double,kind=mpi_address_kind), size_of_double, &
-      !     info, bigdft_mpi%mpi_comm, window_f, ierr)
-      !call mpi_info_free(info, ierr)
-      !call mpi_win_fence(mpi_mode_noprecede, window_f, ierr)
 
       if (nproc>1) then
-          window_f = mpiwindow((lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*n3p, weightppp_f(0,0,1), bigdft_mpi%mpi_comm)
+         !window_f = mpiwindow((lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*n3p, weightppp_f(0,0,1), bigdft_mpi%mpi_comm)
+         call fmpi_win_create(window_f,weightppp_f(0,0,1),(lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*n3p,bigdft_mpi%mpi_comm)
+         call fmpi_win_fence(window_f,FMPI_WIN_OPEN)
       end if
-
-      !!i3startend = f_malloc0((/1.to.4,0.to.nproc-1/),id='i3startend')
-      !!i3startend(1,iproc) = i3start+1
-      !!i3startend(2,iproc) = i3end+1
-      !!i3startend(3,iproc) = i3s
-      !!i3startend(4,iproc) = i3s+n3p-1
-      !!call mpiallred(i3startend(1,0), 4*nproc, mpi_sum, bigdft_mpi%mpi_comm)
 
       if (communicate) then
-          do jproc=0,nproc-1
-              !Check whether there is an overlap
-              ! Start and end on task iproc, possibly out of box
-              !!is = max(i3startend(1,iproc),i3startend(3,jproc))
-              !!ie = min(i3startend(2,iproc),i3startend(4,jproc))
-              !!write(*,'(a,3i8)') 'i3startend(1,iproc),i3startend(3,jproc), is', i3startend(1,iproc),i3startend(3,jproc), is
-              !!write(*,'(a,3i8)') 'i3startend(2,iproc),i3startend(4,jproc), ie', i3startend(2,iproc),i3startend(4,jproc), ie
-              ! The min is for cases where a task has more than the entire box
-              is=modulo(i3startend(1,iproc)-1,lzd%glr%d%n3+1)+1
-              if (i3startend(2,iproc)-i3startend(1,iproc)>lzd%glr%d%n3) then 
-                  ie=modulo(min(is-1,i3startend(2,iproc))-1,lzd%glr%d%n3+1)+1
-              else
-                  ie=modulo(i3startend(2,iproc)-1,lzd%glr%d%n3+1)+1
-              end if
-              js=i3startend(3,jproc)
-              je=i3startend(4,jproc)
-              if (je>=js) then
-                  call get_extent_of_overlap(is, ie, js, je, n, ks, ke, nlen)
-                  do k=1,n
-                      ! Undo the periodic wrap around if required
-                      !if (ks(k)>i3end) then
-                      !    ii=ks(k)-(lzd%glr%d%n3+1)
-                      !else
-                      !    ii=ks(k)
-                      !end if
-                      ii=modulo(ks(k)-i3start-1,(lzd%glr%d%n3+1))+1
-                      !write(*,'(a,7i9)') 'k, ks(k), ke(k), nlen(k), i3start, ks(k)-i3startend(3,jproc), ii', k, ks(k), ke(k), nlen(k), i3start, ks(k)-i3startend(3,jproc), ii
-                      if (nproc>1) then
-                          call mpiaccumulate(origin=weightloc_f(0,0,ii), &
-                               count=(lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*nlen(k), &
-                               target_rank=jproc,&
-                               target_disp=int((lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*(ks(k)-i3startend(3,jproc)),&
-                               kind=mpi_address_kind), &
-                               op=mpi_sum, window=window_f)
-                      else
-                          call axpy((lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*nlen(k), 1.d0, weightloc_f(0,0,ii), 1, &
-                               weightppp_f(0,0,1+(ks(k)-i3startend(3,jproc))), 1)
-                      end if
-                      !!call mpiaccumulate(weightloc_c(0,0,ks(k)-modulo(i3start-1,lzd%glr%d%n1+1)+1), (lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*nlen(k), &
-                      !!     jproc, int((lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*(ks(k)-i3startend(3,jproc)),kind=mpi_address_kind), &
-                      !!     (lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*nlen(k), mpi_sum, window_c)
-                  end do
-              end if
-              !if (ie-is>=0) then
-              !    !!call mpi_accumulate(weightloc_c(0,0,is-i3start), (lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*(ie-is+1), &
-              !    !!     mpi_double_precision, jproc, &
-              !    !!     int((lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*(is-i3startend(3,jproc)),kind=mpi_address_kind), &
-              !    !!     (lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*(ie-is+1), mpi_double_precision, &
-              !    !!     mpi_sum, window_c, ierr)
-              !    call mpiaccumulate(weightloc_c(0,0,is-i3start), (lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*(ie-is+1), &
-              !         jproc, int((lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*(is-i3startend(3,jproc)),kind=mpi_address_kind), &
-              !         (lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*(ie-is+1), mpi_sum, window_c)
-              !end if
-              !!!Check whether there is an overlap
-              !!is = max(i3startend(1,iproc),i3startend(3,jproc))
-              !!ie = min(i3startend(2,iproc),i3startend(4,jproc))
-              !!if (ie-is>=0) then
-              !!    !call mpi_accumulate(weightloc_f(0,0,is-i3start), (lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*(ie-is+1), &
-              !!    !     mpi_double_precision, jproc, &
-              !!    !     int((lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*(is-i3startend(3,jproc)),kind=mpi_address_kind), &
-              !!    !     (lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*(ie-is+1), mpi_double_precision, &
-              !!    !     mpi_sum, window_f, ierr)
-              !!    call mpiaccumulate(weightloc_f(0,0,is-i3start), (lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*(ie-is+1), &
-              !!         jproc, int((lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*(is-i3startend(3,jproc)),kind=mpi_address_kind), &
-              !!         (lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*(ie-is+1), mpi_sum, window_f)
-              !!end if
-          end do
+          call communicate_weights(iproc, nproc, i3start, j3start, j3end, &
+               lzd%glr%d%n1, lzd%glr%d%n2, lzd%glr%d%n3, n3p, &
+               i3startend, weightloc_f, weightppp_f, window_f)
+          !!do jproc=0,nproc-1
+          !!    !Check whether there is an overlap
+          !!    ! Start and end on task iproc, possibly out of box
+          !!    ! The min is for cases where a task has more than the entire box
+          !!    is=modulo(i3startend(1,iproc)-1,lzd%glr%d%n3+1)+1
+          !!    if (i3startend(2,iproc)-i3startend(1,iproc)>lzd%glr%d%n3) then 
+          !!        ie=modulo(min(is-1,i3startend(2,iproc))-1,lzd%glr%d%n3+1)+1
+          !!    else
+          !!        ie=modulo(i3startend(2,iproc)-1,lzd%glr%d%n3+1)+1
+          !!    end if
+          !!    js=i3startend(3,jproc)
+          !!    je=i3startend(4,jproc)
+          !!    if (je>=js) then
+          !!        call get_extent_of_overlap(is, ie, js, je, n, ks, ke, nlen)
+          !!        do k=1,n
+          !!            ! Undo the periodic wrap around if required
+          !!            !if (ks(k)>i3end) then
+          !!            !    ii=ks(k)-(lzd%glr%d%n3+1)
+          !!            !else
+          !!            !    ii=ks(k)
+          !!            !end if
+          !!            ii=modulo(ks(k)-i3start-1,(lzd%glr%d%n3+1))+1
+          !!            if (nproc>1) then
+          !!                call mpiaccumulate(origin=weightloc_f(0,0,ii), &
+          !!                     count=(lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*nlen(k), &
+          !!                     target_rank=jproc,&
+          !!                     target_disp=int((lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*(ks(k)-i3startend(3,jproc)),&
+          !!                     kind=mpi_address_kind), &
+          !!                     op=FMPI_SUM, window=window_f)
+          !!            else
+          !!                call axpy((lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*nlen(k), 1.d0, weightloc_f(0,0,ii), 1, &
+          !!                     weightppp_f(0,0,1+(ks(k)-i3startend(3,jproc))), 1)
+          !!            end if
+          !!        end do
+          !!    end if
+          !!end do
       end if
-      !!else
-      !!    !!is = i3startend(1,iproc)
-      !!    !!ie = i3startend(2,iproc)
-      !!    !!call vcopy((lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*(ie-is+1), weightloc_f(0,0,is-i3start), 1, &
-      !!    !!     weightppp_f(0,0,is-i3startend(3,iproc)+1), 1)
-      !!    call f_memcpy(n=(lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*(j3end-j3start+1), src=weightloc_f(0,0,j3start), dest=weightppp_f(0,0,1))
-      !!end if
+
       call f_free(i3startend)
-      !call mpi_win_fence(0, window, ierr)
-      !call mpi_win_free(window, ierr)
-      !@END NEW #####################################
-
       call f_free(reducearr)
-      !call f_free(weightloc)
-
-
-      !weight_f_tot = 0.d0
-      !do i3=1,n3p
-      !    do i2=0,lzd%glr%d%n2
-      !        do i1=0,lzd%glr%d%n1
-      !            weightppp_f(i1,i2,i3)=weightppp_f(i1,i2,i3)**2
-      !            weight_f_tot = weight_f_tot + weightppp_f(i1,i2,i3)
-      !        end do
-      !    end do
-      !end do
-      !if (nproc>1) then
-      !    call mpiallred(weight_f_tot, 1, mpi_sum, bigdft_mpi%mpi_comm)
-      !end if
-      !write(*,*) 'iproc, weight_f_tot', iproc, weight_f_tot
-      !@ENDNEW ##################################
-
-      !!! Wait for the local completion of the mpi_raccumulate calls
-      !!call mpiwait(request_c)
-      !!call mpiwait(request_f)
-
 
       call f_release_routine()
     
@@ -908,7 +627,7 @@ module communications_init
       ! Calling arguments
       integer,intent(in) :: iproc, nproc, i3s, n3p
       type(local_zone_descriptors),intent(in) :: lzd
-      integer,intent(inout) :: window_c, window_f
+      type(fmpi_win), intent(inout) :: window_c, window_f
       real(kind=8),intent(in) :: weight_c_tot_check, weight_f_tot_check
       real(kind=8),dimension(0:lzd%glr%d%n1,0:lzd%glr%d%n2,1:max(1,n3p)),intent(inout) :: weightppp_c, weightppp_f
       real(kind=8),intent(out) :: weight_tot_c, weight_tot_f
@@ -937,16 +656,18 @@ module communications_init
       if (nproc>1) then
           !!call mpi_win_fence(0, window_c, ierr)
           !!call mpi_win_free(window_c, ierr)
-          call mpi_fenceandfree(window_c)
+         call fmpi_win_fence(window_c,FMPI_WIN_CLOSE)
+         call fmpi_win_free(window_c)
+         !call mpi_fenceandfree(window_c)
       end if
 
       tt=sum(weightppp_c)
       if (nproc>1) then
-          call mpiallred(tt, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
+          call fmpi_allreduce(tt, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
       end if
       if (tt/=weight_c_tot_check) then
           !write(*,'(a,2es20.10)') 'tt, weight_c_tot_check', tt, weight_c_tot_check
-          call f_err_throw(yaml_toa(tt)+'tt /= weight_c_tot_check='+yaml_toa(weight_c_tot_check))
+          call f_err_throw(yaml_toa(tt)+'=tt /= weight_c_tot_check='+yaml_toa(weight_c_tot_check))
       end if
 
       !write(*,*) 'sum(weightppp_c)', sum(weightppp_c)
@@ -968,7 +689,7 @@ module communications_init
           end do
       end do
       if (nproc>1) then
-          call mpiallred(weight_tot_c, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
+          call fmpi_allreduce(weight_tot_c, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
       end if
     
     
@@ -1004,7 +725,7 @@ module communications_init
           weight_per_process_c(iproc) = sum(weightppp_c)
           if (nproc>1) then
              !this array was allocated with npproc-1 before
-              call mpiallred(weight_per_process_c, mpi_sum, comm=bigdft_mpi%mpi_comm)
+              call fmpi_allreduce(weight_per_process_c, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
           end if
           if (sum(weight_per_process_c)/=weight_tot_c) then
               write(*,'(a,2f16.2)') 'sum(weight_per_process_c), weight_tot_c', sum(weight_per_process_c), weight_tot_c
@@ -1053,7 +774,7 @@ module communications_init
               end do
           end do
           if (nproc>1) then
-              call mpiallred(points_per_process, mpi_sum,comm=bigdft_mpi%mpi_comm)
+              call fmpi_allreduce(points_per_process, FMPI_SUM,comm=bigdft_mpi%mpi_comm)
           end if
 
 
@@ -1111,11 +832,11 @@ module communications_init
 
           ! Communicate the data and assign the processor specific values
           if (nproc>1) then
-              call mpiallred(istartend_c(1,0), 2*nproc, mpi_sum, comm=bigdft_mpi%mpi_comm) !a bit wasteful to communicate the zeros of the second entry...
-              call mpiallred(istartendseg_c, mpi_sum, comm=bigdft_mpi%mpi_comm) !a bit wasteful to communicate the zeros of the second entry...
-              call mpiallred(nval_c(0), nproc, mpi_sum, comm=bigdft_mpi%mpi_comm)
-              call mpiallred(weightpp_c(0), nproc, mpi_sum, comm=bigdft_mpi%mpi_comm)
-              call mpiallred(jjjproc, 1, mpi_max, comm=bigdft_mpi%mpi_comm)
+              call fmpi_allreduce(istartend_c(1,0), 2*nproc, FMPI_SUM, comm=bigdft_mpi%mpi_comm) !a bit wasteful to communicate the zeros of the second entry...
+              call fmpi_allreduce(istartendseg_c, FMPI_SUM, comm=bigdft_mpi%mpi_comm) !a bit wasteful to communicate the zeros of the second entry...
+              call fmpi_allreduce(nval_c(0), nproc, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+              call fmpi_allreduce(weightpp_c(0), nproc, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+              call fmpi_allreduce(jjjproc, 1, FMPI_MAX, comm=bigdft_mpi%mpi_comm)
           end if
           ! jjjproc is the last task which has been assigned
           !do jproc=0,nproc-2
@@ -1156,7 +877,7 @@ module communications_init
           ! Some checks
           ii_c=istartend_c(2,iproc)-istartend_c(1,iproc)+1
           if (nproc > 1) then
-            call mpiallred(ii_c, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
+            call fmpi_allreduce(ii_c, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
           end if
           if(ii_c/=lzd%glr%wfd%nvctr_c) then
              write(*,*) 'ii_c/=lzd%glr%wfd%nvctr_c',ii_c,lzd%glr%wfd%nvctr_c
@@ -1164,7 +885,7 @@ module communications_init
           end if
     
           if (nproc > 1) then
-             call mpiallred(weightp_c,1,mpi_sum,comm=bigdft_mpi%mpi_comm,recvbuf=tt)
+             call fmpi_allreduce(weightp_c,1,FMPI_SUM,comm=bigdft_mpi%mpi_comm,recvbuf=tt)
           else
               tt=weightp_c
           end if
@@ -1174,7 +895,7 @@ module communications_init
           end if
 
           if (nproc > 1) then
-             call mpiallred(nptsp_c, 1,mpi_sum, comm=bigdft_mpi%mpi_comm,recvbuf=ii)
+             call fmpi_allreduce(nptsp_c, 1,FMPI_SUM, comm=bigdft_mpi%mpi_comm,recvbuf=ii)
           else
               ii=nptsp_c
           end if
@@ -1193,13 +914,15 @@ module communications_init
       if (nproc>1) then
           !!call mpi_win_fence(0, window_f, ierr)
           !!call mpi_win_free(window_f, ierr)
-          call mpi_fenceandfree(window_f)
+         call fmpi_win_fence(window_f,FMPI_WIN_CLOSE)
+         call fmpi_win_free(window_f)
+         !call mpi_fenceandfree(window_f)
       end if
 
 
       tt=sum(weightppp_f)
       if (nproc>1) then
-          call mpiallred(tt, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
+          call fmpi_allreduce(tt, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
       end if
       if (tt/=weight_f_tot_check) then
           write(*,'(a,2es20.10)') 'tt, weight_f_tot_check', tt, weight_f_tot_check
@@ -1224,7 +947,7 @@ module communications_init
           end do
       end do
       if (nproc>1) then
-          call mpiallred(weight_tot_f, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
+          call fmpi_allreduce(weight_tot_f, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
       end if
 
       ! Ideal weight per process.
@@ -1252,7 +975,7 @@ module communications_init
 
           weight_per_process_f(iproc) = sum(weightppp_f)
           if (nproc>1) then
-              call mpiallred(weight_per_process_f(0), nproc, mpi_sum, comm=bigdft_mpi%mpi_comm)
+              call fmpi_allreduce(weight_per_process_f(0), nproc, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
           end if
           if (sum(weight_per_process_f)/=weight_tot_f) then
               write(*,'(a,2f16.2)') 'sum(weight_per_process_f), weight_tot_f', sum(weight_per_process_f), weight_tot_f
@@ -1303,7 +1026,7 @@ module communications_init
               end do
           end if
           if (nproc>1) then
-              call mpiallred(points_per_process(0), nproc, mpi_sum,comm=bigdft_mpi%mpi_comm)
+              call fmpi_allreduce(points_per_process(0), nproc, FMPI_SUM,comm=bigdft_mpi%mpi_comm)
           end if
 
 
@@ -1358,11 +1081,11 @@ module communications_init
 
           ! Communicate the data and assign the processor specific values
           if (nproc>1) then
-              call mpiallred(istartend_f(1,0), 2*nproc, mpi_sum,comm= bigdft_mpi%mpi_comm) !a bit wasteful to communicate the zeros of the second entry...
-              call mpiallred(istartendseg_f(1,0), 2*nproc, mpi_sum, comm=bigdft_mpi%mpi_comm) !a bit wasteful to communicate the zeros of the second entry...
-              call mpiallred(nval_f(0), nproc, mpi_sum, comm=bigdft_mpi%mpi_comm)
-              call mpiallred(weightpp_f(0), nproc, mpi_sum, comm=bigdft_mpi%mpi_comm)
-              call mpiallred(jjjproc, 1, mpi_max, comm=bigdft_mpi%mpi_comm)
+              call fmpi_allreduce(istartend_f(1,0), 2*nproc, FMPI_SUM,comm= bigdft_mpi%mpi_comm) !a bit wasteful to communicate the zeros of the second entry...
+              call fmpi_allreduce(istartendseg_f(1,0), 2*nproc, FMPI_SUM, comm=bigdft_mpi%mpi_comm) !a bit wasteful to communicate the zeros of the second entry...
+              call fmpi_allreduce(nval_f(0), nproc, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+              call fmpi_allreduce(weightpp_f(0), nproc, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+              call fmpi_allreduce(jjjproc, 1, FMPI_MAX, comm=bigdft_mpi%mpi_comm)
           end if
           ! jjjproc is the last task which has been assigned
           !!do jproc=0,nproc-2
@@ -1403,7 +1126,7 @@ module communications_init
           ! Some checks
           ii_f=istartend_f(2,iproc)-istartend_f(1,iproc)+1
           if (nproc > 1) then
-            call mpiallred(ii_f, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
+            call fmpi_allreduce(ii_f, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
           end if
           if(ii_f/=lzd%glr%wfd%nvctr_f) then
              write(*,*) 'ii_f/=lzd%glr%wfd%nvctr_f',ii_f,lzd%glr%wfd%nvctr_f
@@ -1411,7 +1134,7 @@ module communications_init
           end if
     
           if (nproc > 1) then
-             call mpiallred(weightp_f,1,mpi_sum, comm=bigdft_mpi%mpi_comm,recvbuf=tt)
+             call fmpi_allreduce(weightp_f,1,FMPI_SUM, comm=bigdft_mpi%mpi_comm,recvbuf=tt)
           else
               tt=weightp_f
           end if
@@ -1421,7 +1144,7 @@ module communications_init
           end if
 
           if (nproc > 1) then
-             call mpiallred(nptsp_f, 1,mpi_sum, comm=bigdft_mpi%mpi_comm,recvbuf=ii)
+             call fmpi_allreduce(nptsp_f, 1,FMPI_SUM, comm=bigdft_mpi%mpi_comm,recvbuf=ii)
           else
               ii=nptsp_f
           end if
@@ -1655,7 +1378,7 @@ module communications_init
 !!      ! some check
 !!      ii_f=istartend_f(2,iproc)-istartend_f(1,iproc)+1
 !!      if (nproc > 1) then
-!!        call mpiallred(ii_f, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
+!!        call fmpi_allreduce(ii_f, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
 !!      end if
 !!      !if(ii_f/=lzd%glr%wfd%nvctr_f) stop 'assign_weight_to_process: ii_f/=lzd%glr%wfd%nvctr_f'
 !!      if(ii_f/=lzd%glr%wfd%nvctr_f) then
@@ -1670,7 +1393,7 @@ module communications_init
 !!     
 !!      ii_c=istartend_c(2,iproc)-istartend_c(1,iproc)+1
 !!      if (nproc > 1) then
-!!        call mpiallred(ii_c, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
+!!        call fmpi_allreduce(ii_c, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
 !!      end if
 !!      if(ii_c/=lzd%glr%wfd%nvctr_c) then
 !!         write(*,*) 'ii_c/=lzd%glr%wfd%nvctr_c',ii_c,lzd%glr%wfd%nvctr_c
@@ -1679,8 +1402,8 @@ module communications_init
 !!    
 !!      ! some checks
 !!      if (nproc > 1) then
-!!         call mpiallred(weightp_c,1,mpi_sum, comm=bigdft_mpi%mpi_comm,recvbuf=tt)
-!!         !call mpi_allreduce(weightp_c, tt, 1, mpi_double_precision, mpi_sum, bigdft_mpi%mpi_comm, ierr)
+!!         call fmpi_allreduce(weightp_c,1,FMPI_SUM, comm=bigdft_mpi%mpi_comm,recvbuf=tt)
+!!         !call mpi_allreduce(weightp_c, tt, 1, mpi_double_precision, FMPI_SUM, bigdft_mpi%mpi_comm, ierr)
 !!      else
 !!          tt=weightp_c
 !!      end if
@@ -1689,8 +1412,8 @@ module communications_init
 !!         stop
 !!      end if
 !!      if (nproc > 1) then
-!!         call mpiallred(weightp_f,1,mpi_sum,comm=bigdft_mpi%mpi_comm,recvbuf=tt)
-!!         !call mpi_allreduce(weightp_f, tt, 1, mpi_double_precision, mpi_sum, bigdft_mpi%mpi_comm, ierr)
+!!         call fmpi_allreduce(weightp_f,1,FMPI_SUM,comm=bigdft_mpi%mpi_comm,recvbuf=tt)
+!!         !call mpi_allreduce(weightp_f, tt, 1, mpi_double_precision, FMPI_SUM, bigdft_mpi%mpi_comm, ierr)
 !!      else
 !!          tt=weightp_f
 !!      end if     
@@ -1699,8 +1422,8 @@ module communications_init
 !!         stop
 !!      end if
 !!      if (nproc > 1) then
-!!         call mpiallred(nptsp_c, 1,mpi_sum, comm=bigdft_mpi%mpi_comm,recvbuf=ii)
-!!         !call mpi_allreduce(nptsp_c, ii, 1, mpi_integer, mpi_sum, bigdft_mpi%mpi_comm, ierr)
+!!         call fmpi_allreduce(nptsp_c, 1,FMPI_SUM, comm=bigdft_mpi%mpi_comm,recvbuf=ii)
+!!         !call mpi_allreduce(nptsp_c, ii, 1, mpi_integer, FMPI_SUM, bigdft_mpi%mpi_comm, ierr)
 !!      else
 !!          ii=nptsp_c
 !!      end if
@@ -1709,8 +1432,8 @@ module communications_init
 !!         stop
 !!      end if
 !!      if (nproc > 1) then
-!!         call mpiallred(nptsp_f, 1,mpi_sum,comm= bigdft_mpi%mpi_comm,recvbuf=ii)
-!!         !call mpi_allreduce(nptsp_f, ii, 1, mpi_integer, mpi_sum, bigdft_mpi%mpi_comm, ierr)
+!!         call fmpi_allreduce(nptsp_f, 1,FMPI_SUM,comm= bigdft_mpi%mpi_comm,recvbuf=ii)
+!!         !call mpi_allreduce(nptsp_f, ii, 1, mpi_integer, FMPI_SUM, bigdft_mpi%mpi_comm, ierr)
 !!      else
 !!          ii=nptsp_f
 !!      end if
@@ -2084,10 +1807,13 @@ module communications_init
           nrecvdspls_tmp(jproc)=jproc
       end do
       if(nproc>1) then
-          call mpialltoallv(nsendcounts_c(0), nsendcounts_tmp, nsenddspls_tmp, &
-               nrecvcounts_c(0), nrecvcounts_tmp, nrecvdspls_tmp, bigdft_mpi%mpi_comm)
-          call mpialltoallv(nsendcounts_f(0), nsendcounts_tmp, nsenddspls_tmp, &
-               nrecvcounts_f(0), nrecvcounts_tmp, nrecvdspls_tmp, bigdft_mpi%mpi_comm)
+         !call mpialltoallv(nsendcounts_c, nsendcounts_tmp, nsenddspls_tmp, &
+         !      nrecvcounts_c, nrecvcounts_tmp, nrecvdspls_tmp, bigdft_mpi%mpi_comm)
+         !new api, uses the total size divided by nproc
+         call fmpi_alltoall(sendbuf=nsendcounts_c,recvbuf=nrecvcounts_c,comm=bigdft_mpi%mpi_comm)
+         !call mpialltoallv(nsendcounts_f, nsendcounts_tmp, nsenddspls_tmp, &
+         !      nrecvcounts_f, nrecvcounts_tmp, nrecvdspls_tmp, bigdft_mpi%mpi_comm)
+         call fmpi_alltoall(sendbuf=nsendcounts_f,recvbuf=nrecvcounts_f,comm=bigdft_mpi%mpi_comm)
       else
           nrecvcounts_c=nsendcounts_c
           nrecvcounts_f=nsendcounts_f
@@ -2142,7 +1868,8 @@ module communications_init
       ! Local variables
       integer :: ii, i1, i2, i3, iipt, iseg, jj, j0, j1, iitot, i, i0
       integer :: icheck_c,icheck_f,npgp_c,npgp_f,np,n1p1, jj3
-      integer :: window, i3min_c, i3max_c, i3min_f, i3max_f, size_of_double, ierr, jproc, is, ie, info, ncount
+      integer :: i3min_c, i3max_c, i3min_f, i3max_f, size_of_double, ierr, jproc, is, ie, info, ncount
+      type(fmpi_win) :: window
       integer,dimension(:),allocatable :: i3s_par, n3_par
       real(kind=8),dimension(:,:,:),pointer :: workrecv_c, workrecv_f
       !!integer,dimension(:),allocatable:: iseg_start_c, iseg_start_f
@@ -2172,10 +1899,10 @@ module communications_init
 
            i3s_par = f_malloc0(0.to.nproc-1,id='i3s_par')
            i3s_par(iproc)=i3s
-           call mpiallred(i3s_par,mpi_sum, comm=bigdft_mpi%mpi_comm)
+           call fmpi_allreduce(i3s_par,FMPI_SUM, comm=bigdft_mpi%mpi_comm)
            n3_par = f_malloc0(0.to.nproc-1,id='n3_par')
            n3_par(iproc)=n3p
-           call mpiallred(n3_par, mpi_sum, comm=bigdft_mpi%mpi_comm)
+           call fmpi_allreduce(n3_par, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
 
            !!call mpi_type_size(mpi_double_precision, size_of_double, ierr)
            !!call mpi_info_create(info, ierr)
@@ -2186,7 +1913,8 @@ module communications_init
            !!call mpi_info_free(info, ierr)
            !!call mpi_win_fence(mpi_mode_noprecede, window, ierr)
            call mpi_type_size(mpi_double_precision, size_of_double, ierr)
-           window = mpiwindow((lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*n3p, weightppp_c(0,0,1), bigdft_mpi%mpi_comm)
+           !window = mpiwindow((lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*n3p, weightppp_c(0,0,1), bigdft_mpi%mpi_comm)
+           call fmpi_win_create(window,weightppp_c(0,0,1),(lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*n3p,bigdft_mpi%mpi_comm)
 
            do jproc=0,nproc-1
                ! Check whether ther is an overlap
@@ -2198,9 +1926,12 @@ module communications_init
                    !                    ' lines at ',is,' from ',is-i3s_par(jproc)+1,' on process ', &
                    !                    jproc,'(i3s=',i3s_par(jproc),',n3p=',n3_par(jproc),')'
                    !if (iproc/=jproc) then
-                       call mpi_get(workrecv_c(0,0,is), ncount, mpi_double_precision, jproc, &
-                            int((is-i3s_par(jproc))*(lzd%glr%d%n1+1)*(lzd%glr%d%n2+1),kind=mpi_address_kind), &
-                            ncount, mpi_double_precision, window, ierr)
+                   !call mpi_get(workrecv_c(0,0,is), ncount, mpi_double_precision, jproc, &
+                   !     int((is-i3s_par(jproc))*(lzd%glr%d%n1+1)*(lzd%glr%d%n2+1),kind=mpi_address_kind), &
+                   !     ncount, mpi_double_precision, window, ierr)
+                   call fmpi_get(workrecv_c(0,0,is),count=ncount,target_rank=jproc,&
+                        target_disp=int((is-i3s_par(jproc)),fmpi_address)*(lzd%glr%d%n1+1)*(lzd%glr%d%n2+1),&
+                        win=window)
                    !else
                    !    ncount = (lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*(lzd%glr%d%n3+1)
                    !    call vcopy(ncount, weightppp_c(0,0,is-i3s_par(jproc)+1), 1, workrecv_c(0,0,is), 1)
@@ -2210,7 +1941,8 @@ module communications_init
            ! Synchronize the communication
            !!call mpi_win_fence(0, window, ierr)
            !!call mpi_win_free(window, ierr)
-           call mpi_fenceandfree(window)
+           call fmpi_win_shut(window)
+           !call mpi_fenceandfree(window)
 
        else
            workrecv_c => weightppp_c
@@ -2277,10 +2009,10 @@ module communications_init
 
            i3s_par = f_malloc0(0.to.nproc-1,id='i3s_par')
            i3s_par(iproc)=i3s
-           call mpiallred(i3s_par, mpi_sum, comm=bigdft_mpi%mpi_comm)
+           call fmpi_allreduce(i3s_par, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
            n3_par = f_malloc0(0.to.nproc-1,id='n3_par')
            n3_par(iproc)=n3p
-           call mpiallred(n3_par, mpi_sum, comm=bigdft_mpi%mpi_comm)
+           call fmpi_allreduce(n3_par, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
 
            ! Initialize the MPI window
            !!call mpi_type_size(mpi_double_precision, size_of_double, ierr)
@@ -2292,7 +2024,8 @@ module communications_init
            !!call mpi_info_free(info, ierr)
            !!call mpi_win_fence(mpi_mode_noprecede, window, ierr)
            call mpi_type_size(mpi_double_precision, size_of_double, ierr)
-           window = mpiwindow((lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*n3p, weightppp_f(0,0,1), bigdft_mpi%mpi_comm)
+           !window = mpiwindow((lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*n3p, weightppp_f(0,0,1), bigdft_mpi%mpi_comm)
+           call fmpi_win_create(window,weightppp_f(0,0,1),(lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*n3p,bigdft_mpi%mpi_comm)
 
            do jproc=0,nproc-1
                ! Check whether ther is an overlap
@@ -2303,15 +2036,19 @@ module communications_init
                    !!write(*,'(9(a,i0),a)') 'process ',iproc,'(i3min=',i3min_f,',i3max=',i3max_f,') gets ',(ie-is+1), &
                    !!                    ' lines at ',is,' from ',is-i3s_par(jproc)+1,' on process ', &
                    !!                    jproc,'(i3s=',i3s_par(jproc),',n3p=',n3_par(jproc),')'
-                   call mpi_get(workrecv_f(0,0,is), ncount, mpi_double_precision, jproc, &
-                        int((is-i3s_par(jproc))*(lzd%glr%d%n1+1)*(lzd%glr%d%n2+1),kind=mpi_address_kind), &
-                        ncount, mpi_double_precision, window, ierr)
+                   !call mpi_get(workrecv_f(0,0,is), ncount, mpi_double_precision, jproc, &
+                   !     int((is-i3s_par(jproc))*(lzd%glr%d%n1+1)*(lzd%glr%d%n2+1),kind=mpi_address_kind), &
+                   !     ncount, mpi_double_precision, window, ierr)
+                   call fmpi_get(workrecv_f(0,0,is),count=ncount,target_rank=jproc,&
+                        target_disp=int((is-i3s_par(jproc)),fmpi_address)*(lzd%glr%d%n1+1)*(lzd%glr%d%n2+1),&
+                        win=window)
                end if
            end do
            ! Synchronize the communication
            !!call mpi_win_fence(0, window, ierr)
            !!call mpi_win_free(window, ierr)
-           call mpi_fenceandfree(window)
+           call fmpi_win_shut(window)
+           !call mpi_fenceandfree(window)
        else
            workrecv_f => weightppp_f
        end if
@@ -2502,17 +2239,23 @@ module communications_init
          end do
       end do
       !write(*,*) 'iitot,ndimpsi_c',iitot,ndimpsi_c
-      if(iitot/=ndimpsi_c) stop 'iitot/=ndimpsi_c'
+      if(iitot/=ndimpsi_c) then
+          call f_err_throw(trim(yaml_toa(iitot))//' = iitot /= ndimpsi_c = '//trim(yaml_toa(ndimpsi_c)))
+      end if
 
       ! Check only up to ndimpsi_c in case it was allocated with size 1 to avoid an allocation with size 0
       if (minval(indexsendorbital_c(1:ndimpsi_c))<1) then
-          write(*,*) 'minval(indexsendorbital_c)',minval(indexsendorbital_c)
-          stop 'minval(indexsendorbital_c)<1'
+          call f_err_throw(trim(yaml_toa(minval(indexsendorbital_c(1:ndimpsi_c))))//&
+               &' = minval(indexsendorbital_c(1:ndimpsi_c)) < 1')
       end if
     
       !check
       do jproc=0,nproc-1
-          if(nsend_c(jproc)/=nsendcounts_c(jproc)) stop 'nsend_c(jproc)/=nsendcounts_c(jproc)'
+          if(nsend_c(jproc)/=nsendcounts_c(jproc)) then
+              call f_err_throw(trim(yaml_toa(nsend_c(jproc)))//&
+                   &' = nsend_c(jproc) /= nsendcounts_c(jproc) ='//&
+                   &trim(yaml_toa(nsendcounts_c(jproc))))
+          end if
       end do
     
     
@@ -2572,12 +2315,13 @@ module communications_init
      
       end do
       
-      if(iitot/=ndimpsi_f) stop 'iitot/=ndimpsi_f'
+      if(iitot/=ndimpsi_f) then
+          call f_err_throw(trim(yaml_toa(iitot))//' = iitot /= ndimpsi_f = '//trim(yaml_toa(ndimpsi_f)))
+      end if
 
       ! Check only up to ndimpsi_f in case it was allocated with size 1 to avoid an allocation with size 0
       if (minval(indexsendorbital_f(1:ndimpsi_f))<1) then
-          write(*,*) 'minval(indexsendorbital_f)',minval(indexsendorbital_f)
-          stop 'minval(indexsendorbital_f)<1'
+          call f_err_throw(trim(yaml_toa(minval(indexsendorbital_f(1:ndimpsi_f))))//' = minval(indexsendorbital_f(1:ndimpsi_f) < 1')
       end if
     
       !$omp end sections
@@ -2586,7 +2330,11 @@ module communications_init
       !check
       do jproc=0,nproc-1
           !write(*,*) 'nsend(jproc), nsendcounts_f(jproc)', nsend(jproc), nsendcounts_f(jproc)
-          if(nsend_f(jproc)/=nsendcounts_f(jproc)) stop 'nsend_f(jproc)/=nsendcounts_f(jproc)'
+          if(nsend_f(jproc)/=nsendcounts_f(jproc)) then
+             call f_err_throw(trim(yaml_toa(nsend_f(jproc)))//&
+                  ' = nsend_f(jproc) /= nsendcounts_f(jproc) = '//&
+                  trim(yaml_toa(nsendcounts_f(jproc))))
+         end if
       end do
     
       indexsendorbital2 = f_malloc(max(1,ndimpsi_c),id='indexsendorbital2')
@@ -2615,18 +2363,30 @@ module communications_init
     
       if(nproc>1) then
           ! Communicate indexsendbuf
-          call mpialltoallv(indexsendbuf_c(1), nsendcounts_c, nsenddspls_c, &
-               indexrecvbuf_c(1), nrecvcounts_c, nrecvdspls_c, bigdft_mpi%mpi_comm)
+         !call mpialltoallv(indexsendbuf_c, nsendcounts_c, nsenddspls_c, &
+         !      indexrecvbuf_c, nrecvcounts_c, nrecvdspls_c, bigdft_mpi%mpi_comm)
+         ! ! Communicate indexsendorbitals
+         ! call mpialltoallv(indexsendorbital_c, nsendcounts_c, nsenddspls_c, &
+         !      indexrecvorbital_c, nrecvcounts_c, nrecvdspls_c, bigdft_mpi%mpi_comm)
+          call fmpi_alltoall(sendbuf=indexsendbuf_c,sendcounts=nsendcounts_c,sdispls=nsenddspls_c, &
+               recvbuf=indexrecvbuf_c, recvcounts=nrecvcounts_c,rdispls=nrecvdspls_c,comm=bigdft_mpi%mpi_comm)
           ! Communicate indexsendorbitals
-          call mpialltoallv(indexsendorbital_c(1), nsendcounts_c, nsenddspls_c, &
-               indexrecvorbital_c(1), nrecvcounts_c, nrecvdspls_c, bigdft_mpi%mpi_comm)
-    
+          call fmpi_alltoall(sendbuf=indexsendorbital_c,sendcounts=nsendcounts_c,sdispls=nsenddspls_c, &
+               recvbuf=indexrecvorbital_c,recvcounts=nrecvcounts_c,rdispls=nrecvdspls_c,comm=bigdft_mpi%mpi_comm)
+          
           ! Communicate indexsendbuf
-          call mpialltoallv(indexsendbuf_f(1), nsendcounts_f, nsenddspls_f, &
-               indexrecvbuf_f(1), nrecvcounts_f, nrecvdspls_f, bigdft_mpi%mpi_comm)
+          call fmpi_alltoall(sendbuf=indexsendbuf_f,sendcounts=nsendcounts_f,sdispls=nsenddspls_f, &
+               recvbuf=indexrecvbuf_f,recvcounts=nrecvcounts_f,rdispls=nrecvdspls_f,comm=bigdft_mpi%mpi_comm)
           ! Communicate indexsendorbitals
-          call mpialltoallv(indexsendorbital_f(1), nsendcounts_f, nsenddspls_f, &
-               indexrecvorbital_f(1), nrecvcounts_f, nrecvdspls_f, bigdft_mpi%mpi_comm)
+          call fmpi_alltoall(sendbuf=indexsendorbital_f,sendcounts=nsendcounts_f,sdispls=nsenddspls_f, &
+               recvbuf=indexrecvorbital_f,recvcounts=nrecvcounts_f,rdispls=nrecvdspls_f,comm=bigdft_mpi%mpi_comm)
+!!$          ! Communicate indexsendbuf
+!!$          call mpialltoallv(indexsendbuf_f, nsendcounts_f, nsenddspls_f, &
+!!$               indexrecvbuf_f, nrecvcounts_f, nrecvdspls_f, bigdft_mpi%mpi_comm)
+!!$          ! Communicate indexsendorbitals
+!!$          call mpialltoallv(indexsendorbital_f, nsendcounts_f, nsenddspls_f, &
+!!$               indexrecvorbital_f, nrecvcounts_f, nrecvdspls_f, bigdft_mpi%mpi_comm)
+
        else
            indexrecvbuf_c=indexsendbuf_c
            indexrecvorbital_c=indexsendorbital_c
@@ -2668,8 +2428,16 @@ module communications_init
       end if
         
     
-      if(maxval(gridpoint_start_c)>sum(nrecvcounts_c)) stop '1: maxval(gridpoint_start_c)>sum(nrecvcounts_c)'
-      if(maxval(gridpoint_start_f)>sum(nrecvcounts_f)) stop '1: maxval(gridpoint_start_f)>sum(nrecvcounts_f)'
+      if(maxval(gridpoint_start_c)>sum(nrecvcounts_c)) then
+         call f_err_throw(trim(yaml_toa(maxval(gridpoint_start_c)))//&
+              &' = maxval(gridpoint_start_c) > sum(nrecvcounts_c) = '//&
+              &trim(yaml_toa(maxval(gridpoint_start_c))))
+      end if
+      if(maxval(gridpoint_start_f)>sum(nrecvcounts_f)) then
+          call f_err_throw(trim(yaml_toa(maxval(gridpoint_start_f)))//&
+               &' = maxval(gridpoint_start_f) > sum(nrecvcounts_f) = '//&
+               &trim(yaml_toa(sum(nrecvcounts_f))))
+      end if
 
       ! Rearrange the communicated data
       if (nspin==1) then
@@ -2695,9 +2463,13 @@ module communications_init
       !write(*,'(a,2i12)') 'sum(iextract_c), nint(weightp_c*(weightp_c+1.d0)*.5d0)', sum(iextract_c), nint(weightp_c*(weightp_c+1.d0)*.5d0)
       !if(sum(iextract_c)/=nint(weightp_c*(weightp_c+1.d0)*.5d0)) stop 'sum(iextract_c)/=nint(weightp_c*(weightp_c+1.d0)*.5d0)'
       if(maxval(iextract_c)>sum(nrecvcounts_c)) then
-          stop 'maxval(iextract_c)>sum(nrecvcounts_c)'
+          call f_err_throw(trim(yaml_toa(maxval(iextract_c)))//&
+               &' = maxval(iextract_c) > sum(nrecvcounts_c) = '//&
+               &trim(yaml_toa(sum(nrecvcounts_c))))
       end if
-      if(minval(iextract_c)<1) stop 'minval(iextract_c)<1'
+      if(minval(iextract_c)<1) then
+          call f_err_throw(trim(yaml_toa(minval(iextract_c)))//' = minval(iextract_c) < 1')
+      end if
     
       ! Rearrange the communicated data
       if (nspin==1) then
@@ -2720,8 +2492,14 @@ module communications_init
               gridpoint_start_f(ii)=gridpoint_start_f(ii)+1  
           end do
       end if
-      if(maxval(iextract_f)>sum(nrecvcounts_f)) stop 'maxval(iextract_f)>sum(nrecvcounts_f)'
-      if(minval(iextract_f)<1) stop 'minval(iextract_f)<1'
+      if(maxval(iextract_f)>sum(nrecvcounts_f)) then
+          call f_err_throw(trim(yaml_toa(maxval(iextract_f)))//&
+               &' = maxval(iextract_f) > sum(nrecvcounts_f) = '//&
+               &trim(yaml_toa(sum(nrecvcounts_f))))
+      end if
+      if(minval(iextract_f)<1) then
+          call f_err_throw(trim(yaml_toa(minval(iextract_f)))//' = minval(iextract_f) < 1')
+      end if
         
     
       ! Get the array to transfrom back the data
@@ -2745,10 +2523,22 @@ module communications_init
       call f_free(indexrecvorbital2)
     
     
-      if(minval(indexrecvorbital_c)<1) stop 'minval(indexrecvorbital_c)<1'
-      if(maxval(indexrecvorbital_c)>orbs%norb) stop 'maxval(indexrecvorbital_c)>orbs%norb'
-      if(minval(indexrecvorbital_f)<1) stop 'minval(indexrecvorbital_f)<1'
-      if(maxval(indexrecvorbital_f)>orbs%norb) stop 'maxval(indexrecvorbital_f)>orbs%norb'
+      if(minval(indexrecvorbital_c)<1) then
+          call f_err_throw(trim(yaml_toa(minval(indexrecvorbital_c)))//&
+               &' = minval(indexrecvorbital_c) < 1')
+      end if
+      if(maxval(indexrecvorbital_c)>orbs%norb) then
+         call f_err_throw(trim(yaml_toa(maxval(indexrecvorbital_c)))//&
+              &' = maxval(indexrecvorbital_c) > orbs%norb = '//trim(yaml_toa(orbs%norb)))
+      end if
+      if(minval(indexrecvorbital_f)<1) then
+         call f_err_throw(trim(yaml_toa(minval(indexrecvorbital_f)))//&
+              &' = minval(indexrecvorbital_f) < 1')
+      end if
+      if(maxval(indexrecvorbital_f)>orbs%norb) then
+         call f_err_throw(trim(yaml_toa(maxval(indexrecvorbital_f)))//&
+              &' = maxval(indexrecvorbital_f) > orbs%norb = '//trim(yaml_toa(orbs%norb)))
+      end if
     
 
       call f_free(indexsendorbital_c)
@@ -3120,10 +2910,10 @@ module communications_init
       end do
       weights_per_slice(iproc)=tt
       if (nproc > 1) then
-         call mpiallred(weights_per_slice(0), nproc, mpi_sum, comm=bigdft_mpi%mpi_comm)
-         call mpiallred(tt,1,mpi_sum, comm=bigdft_mpi%mpi_comm,recvbuf=weight_tot)
-         !call mpi_allreduce(tt, weight_tot, 1, mpi_double_precision, mpi_sum, bigdft_mpi%mpi_comm, ierr)
-         call mpiallred(weights_per_zpoint(1), lzd%glr%d%n3i, mpi_sum, comm=bigdft_mpi%mpi_comm)
+         call fmpi_allreduce(weights_per_slice(0), nproc, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+         call fmpi_allreduce(tt,1,FMPI_SUM, comm=bigdft_mpi%mpi_comm,recvbuf=weight_tot)
+         !call mpi_allreduce(tt, weight_tot, 1, mpi_double_precision, FMPI_SUM, bigdft_mpi%mpi_comm, ierr)
+         call fmpi_allreduce(weights_per_zpoint(1), lzd%glr%d%n3i, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
       else
          weight_tot=tt
       end if
@@ -3246,7 +3036,7 @@ module communications_init
     
         
       if (nproc > 1) then
-          ! call mpiallred(istartend(1,0), 2*nproc, mpi_sum, bigdft_mpi%mpi_comm)
+          ! call fmpi_allreduce(istartend(1,0), 2*nproc, FMPI_SUM, bigdft_mpi%mpi_comm)
           recvcounts = f_malloc(0.to.nproc-1,id='recvcounts')
           displs = f_malloc(0.to.nproc-1,id='displs')
           do jproc=0,nproc-1
@@ -3276,12 +3066,14 @@ module communications_init
       ! Some check
       tt=real(nptsp,kind=8)
       if (nproc > 1) then
-        call mpiallred(tt, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
+        call fmpi_allreduce(tt, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
       end if
       if (tt/=real(lzd%glr%d%n1i,kind=8)*real(lzd%glr%d%n2i,kind=8)*real(lzd%glr%d%n3i,kind=8)) then
           write(*,'(a,2es24.14)') 'tt, real(lzd%glr%d%n1i,kind=8)*real(lzd%glr%d%n2i,kind=8)*real(lzd%glr%d%n3i,kind=8)', &
                       tt, real(lzd%glr%d%n1i,kind=8)*real(lzd%glr%d%n2i,kind=8)*real(lzd%glr%d%n3i,kind=8)
-          stop 'tt/=lzd%glr%d%n1i*lzd%glr%d%n2i*lzd%glr%d%n3i'
+          call f_err_throw(trim(yaml_toa(tt))//&
+               &' = tt /= lzd%glr%d%n1i*lzd%glr%d%n2i*lzd%glr%d%n3i = '//&
+               &trim(yaml_toa(lzd%glr%d%n1i*lzd%glr%d%n2i*lzd%glr%d%n3i)))
       end if
     
       call f_release_routine()
@@ -3386,7 +3178,7 @@ module communications_init
     
       ! Some check
       if (nproc > 1) then
-        call mpiallred(weight_check, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
+        call fmpi_allreduce(weight_check, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
       end if
       if (abs(weight_check-weight_tot) > 1.d-3) then
           write(*,*) 'ERROR: weight_check/=weight_tot', weight_check, weight_tot
@@ -3520,8 +3312,9 @@ module communications_init
           nrecvdspls_tmp(jproc)=jproc
       end do
       if(nproc>1) then
-          call mpialltoallv(nsendcounts(0), nsendcounts_tmp, nsenddspls_tmp, &
-               nrecvcounts(0), nrecvcounts_tmp, nrecvdspls_tmp, bigdft_mpi%mpi_comm)
+         !call mpialltoallv(nsendcounts, nsendcounts_tmp, nsenddspls_tmp, &
+         !      nrecvcounts, nrecvcounts_tmp, nrecvdspls_tmp, bigdft_mpi%mpi_comm)
+         call fmpi_alltoall(sendbuf=nsendcounts,recvbuf=nrecvcounts,comm=bigdft_mpi%mpi_comm)
       else
           nrecvcounts=nsendcounts
       end if
@@ -3550,6 +3343,7 @@ module communications_init
                isendbuf, iextract, iexpand, indexrecvorbital)
       use module_base
       use module_types
+      use wrapper_mpi
       implicit none
     
       ! Calling arguments
@@ -3570,8 +3364,10 @@ module communications_init
       integer,dimension(:),allocatable :: gridpoint_start, gridpoint_start_tmp
       character(len=*),parameter :: subname='get_switch_indices_sumrho'
       integer(kind=8) :: indglob3a, indglob3, indglob2, indglob
-      integer(kind=8),dimension(:),allocatable :: indexsendbuf, indexrecvbuf
+      integer(f_long),dimension(:),allocatable :: indexsendbuf, indexrecvbuf
       integer(kind=8) :: iilong, ilong
+
+      call f_routine(id='get_switch_indices_sumrho')
     
     
       nsend = f_malloc(0.to.nproc-1,id='nsend')
@@ -3675,12 +3471,27 @@ module communications_init
     
       if(nproc>1) then
           ! Communicate indexsendbuf
-          call mpialltoallv(indexsendbuf(1), nsendcounts, nsenddspls, &
-               indexrecvbuf(1), nrecvcounts, nrecvdspls, bigdft_mpi%mpi_comm)
-          ! Communicate indexsendorbitals
-          call mpialltoallv(indexsendorbital(1), nsendcounts, nsenddspls, &
-               indexrecvorbital(1), nrecvcounts, nrecvdspls, bigdft_mpi%mpi_comm)
-       else
+          !call mpialltoallv(indexsendbuf, nsendcounts, nsenddspls, &
+         !     indexrecvbuf, nrecvcounts, nrecvdspls, bigdft_mpi%mpi_comm)
+!!$         call mpi_get_alltoallv(iproc, nproc, bigdft_mpi%mpi_comm, &
+!!$              nsendcounts, nsenddspls, nrecvcounts, nrecvdspls, &
+!!$              indexsendbuf, indexrecvbuf)
+         call fmpi_alltoall(sendbuf=indexsendbuf,sendcounts=nsendcounts,sdispls=nsenddspls,&
+              recvbuf=indexrecvbuf,recvcounts=nrecvcounts,rdispls=nrecvdspls,comm=bigdft_mpi%mpi_comm,&
+              algorithm=ALLTOALL_GET_ENUM)
+         !do i=1,size(indexrecvbuf)
+         !    write(1000+iproc,*) 'i, indexrecvbuf(i)', i, indexrecvbuf(i)
+         !end do
+         ! Communicate indexsendorbitals
+         !call mpialltoallv(indexsendorbital(1), nsendcounts, nsenddspls, &
+         !     indexrecvorbital(1), nrecvcounts, nrecvdspls, bigdft_mpi%mpi_comm)
+!!$         call mpi_get_alltoallv(iproc, nproc, bigdft_mpi%mpi_comm, &
+!!$              nsendcounts, nsenddspls, nrecvcounts, nrecvdspls, &
+!!$              indexsendorbital, indexrecvorbital)
+         call fmpi_alltoall(sendbuf=indexsendorbital,sendcounts=nsendcounts,sdispls=nsenddspls,&
+              recvbuf=indexrecvorbital,recvcounts=nrecvcounts,rdispls=nrecvdspls,comm=bigdft_mpi%mpi_comm,&
+              algorithm=ALLTOALL_GET_ENUM)
+      else
            indexrecvbuf=indexsendbuf
            indexrecvorbital=indexsendorbital
        end if
@@ -3709,11 +3520,20 @@ module communications_init
        end do
     
        if (nspin*ii/=ndimind+nspin) then
-           stop '(nspin*ii/=ndimind+nspin)'
+           call f_err_throw('(nspin*ii/=ndimind+nspin)')
        end if
-       if(maxval(gridpoint_start)>ndimind) stop '1: maxval(gridpoint_start)>sum(nrecvcountc)'
-       if(minval(indexrecvbuf)<istartend(1,iproc)) stop '1: minval(indexrecvbuf)<istartend(1,iproc)'
-       if(maxval(indexrecvbuf)>istartend(2,iproc)) stop '1: maxval(indexrecvbuf)>istartend(2,iproc)'
+       if(maxval(gridpoint_start)>ndimind) then
+           call f_err_throw(trim(yaml_toa(maxval(gridpoint_start)))//&
+               &'=maxval(gridpoint_start) > ndimind='//trim(yaml_toa(ndimind)))
+       end if
+       if(minval(indexrecvbuf)<istartend(1,iproc)) then
+           call f_err_throw(trim(yaml_toa(minval(indexrecvbuf)))//&
+               &'=minval(indexrecvbuf) < istartend(1,iproc)='//istartend(1,iproc))
+       end if
+       if(maxval(indexrecvbuf)>istartend(2,iproc)) then
+          call f_err_throw(trim(yaml_toa(maxval(indexrecvbuf)))//&
+              &'=maxval(indexrecvbuf) > istartend(2,iproc)='//trim(yaml_toa(istartend(2,iproc))))
+       end if
     
        !!allocate(iextract(ndimind), stat=istat)
        !!call memocc(istat, iextract, 'iextract', subname)
@@ -3784,6 +3604,7 @@ module communications_init
       call f_free(gridpoint_start_tmp)
       call f_free(nsend)
     
+      call f_release_routine()
     
     end subroutine get_switch_indices_sumrho
 
@@ -4057,7 +3878,7 @@ module communications_init
                    nel, nscatterarr(iproc,1), lzd%glr%d%n2i*lzd%glr%d%n1i
               stop 'nel/=nscatterarr(iproc,2)*lzd%glr%d%n2i*lzd%glr%d%n1i'
           end if
-          !!call mpiallred(nel_array(0), nproc, mpi_sum, bigdft_mpi%mpi_comm, ierr)
+          !!call fmpi_allreduce(nel_array(0), nproc, FMPI_SUM, bigdft_mpi%mpi_comm, ierr)
           !!if (nel_array(iproc)/=istartend(2,iproc)-istartend(1,iproc)+1) then
           !!    !stop 'nel_array(iproc)/=istartend(2,iproc)-istartend(1,iproc)+1'
           !!end if
@@ -4955,6 +4776,144 @@ module communications_init
     
     END SUBROUTINE orbitals_communicators
 
+
+    subroutine communicate_weights(iproc, nproc, i3start, j3start, j3end, n1, n2, n3, n3p, &
+               i3startend, weightloc, weightppp, window)
+      use dynamic_memory
+      use wrapper_mpi
+      use wrapper_linalg
+      use bounds, only: get_extent_of_overlap
+      implicit none
+
+      ! Calling arguments
+      integer,intent(in) :: iproc, nproc, i3start, j3start, j3end, n1, n2, n3, n3p
+      integer,dimension(1:4,0:nproc-1),intent(in) :: i3startend
+      real(kind=8),dimension(0:n1,0:n2,j3start:j3end),intent(inout) :: weightloc
+      real(kind=8),dimension(0:n1,0:n2,1:max(1,n3p)),intent(out) :: weightppp
+      type(fmpi_win),intent(inout) :: window
+
+      ! Local variables
+      integer :: jproc, is, ie, js, je, k, n, ii
+      integer,dimension(2) :: ks, ke, nlen
+
+      call f_routine(id='communicate_weights')
+
+      do jproc=0,nproc-1
+          !Check whether there is an overlap
+          ! Start and end on task iproc, possibly out of box
+          ! The min is for cases where a task has more than the entire box
+          is=modulo(i3startend(1,iproc)-1,n3+1)+1
+          if (i3startend(2,iproc)-i3startend(1,iproc)>n3) then 
+              ie=modulo(min(is-1,i3startend(2,iproc))-1,n3+1)+1
+          else
+              ie=modulo(i3startend(2,iproc)-1,n3+1)+1
+          end if
+          js=i3startend(3,jproc)
+          je=i3startend(4,jproc)
+          if (je>=js) then
+              call get_extent_of_overlap(is, ie, js, je, n, ks, ke, nlen)
+              do k=1,n
+                  ! Undo the periodic wrap around if required
+                  !if (ks(k)>i3end) then
+                  !    ii=ks(k)-(n3+1)
+                  !else
+                  !    ii=ks(k)
+                  !end if
+                  ii=modulo(ks(k)-i3start-1,(n3+1))+1
+                  if (nproc>1) then
+                     call fmpi_accumulate(origin=weightloc(0,0,ii), &
+                          count=(n1+1)*(n2+1)*nlen(k), &
+                          target_rank=jproc,&
+                          target_disp=int((n1+1),f_address)*(n2+1)*(ks(k)-i3startend(3,jproc)), &
+                          op=FMPI_SUM, win=window)
+                  else
+                      call axpy((n1+1)*(n2+1)*nlen(k), 1.d0, weightloc(0,0,ii), 1, &
+                           weightppp(0,0,1+(ks(k)-i3startend(3,jproc))), 1)
+                  end if
+              end do
+          end if
+      end do
+
+      call f_release_routine()
+
+    end subroutine communicate_weights
+
+
+    subroutine write_memory_requirements_collcom(iproc, nproc, comm, message, comms)
+      use module_base, only: bigdft_mpi
+      use wrapper_mpi
+      use yaml_output
+      implicit none
+
+      ! Calling arguments
+      integer,intent(in) :: iproc, nproc, comm
+      character(len=*),intent(in) :: message
+      type(comms_linear),intent(in) :: comms
+      
+      ! Local variables
+      integer(kind=8) :: nsize_direct, nsize_direct_min, nsize_direct_max, nsize_direct_all
+      integer(kind=8) :: nsize_transposed, nsize_transposed_min, nsize_transposed_max, nsize_transposed_all
+      integer(kind=8) :: nsize_grid, nsize_grid_min, nsize_grid_max, nsize_grid_all
+
+      nsize_direct = size(comms%irecvbuf_c)*kind(comms%irecvbuf_c) + &
+                     size(comms%isendbuf_c)*kind(comms%isendbuf_c)
+      nsize_transposed = size(comms%indexrecvorbital_c)*kind(comms%indexrecvorbital_c) + &
+                         size(comms%iextract_c)*kind(comms%iextract_c) + &
+                         size(comms%iexpand_c)*kind(comms%iexpand_c)
+      nsize_grid = size(comms%isptsp_c)*kind(comms%isptsp_c) + &
+                   size(comms%norb_per_gridpoint_c)*kind(comms%norb_per_gridpoint_c)
+
+      nsize_direct_min = nsize_direct
+      nsize_direct_max = nsize_direct
+      nsize_direct_all = nsize_direct
+      call fmpi_allreduce(nsize_direct_min, 1, FMPI_MIN, comm=comm)
+      call fmpi_allreduce(nsize_direct_max, 1, FMPI_MAX, comm=comm)
+      call fmpi_allreduce(nsize_direct_all, 1, FMPI_SUM, comm=comm)
+      nsize_direct_all = nint(real(nsize_direct_all,kind=8)/real(nproc,kind=8))
+
+      nsize_transposed_min = nsize_transposed
+      nsize_transposed_max = nsize_transposed
+      nsize_transposed_all = nsize_transposed
+      call fmpi_allreduce(nsize_transposed_min, 1, FMPI_MIN, comm=comm)
+      call fmpi_allreduce(nsize_transposed_max, 1, FMPI_MAX, comm=comm)
+      call fmpi_allreduce(nsize_transposed_all, 1, FMPI_SUM, comm=comm)
+      nsize_transposed_all = nint(real(nsize_transposed_all,kind=8)/real(nproc,kind=8))
+
+      nsize_grid_min = nsize_grid
+      nsize_grid_max = nsize_grid
+      nsize_grid_all = nsize_grid
+      call fmpi_allreduce(nsize_grid_min, 1, FMPI_MIN, comm=comm)
+      call fmpi_allreduce(nsize_grid_max, 1, FMPI_MAX, comm=comm)
+      call fmpi_allreduce(nsize_grid_all, 1, FMPI_SUM, comm=comm)
+      nsize_grid_all = nint(real(nsize_grid_all,kind=8)/real(nproc,kind=8))
+
+      if (iproc==0) then
+          call yaml_mapping_open(trim(message))
+          call yaml_mapping_open('Direct layout')
+          call yaml_map('Minimal',mb(nsize_direct_min))
+          call yaml_map('Maximal',mb(nsize_direct_max))
+          call yaml_map('Average',mb(nsize_direct_all))
+          call yaml_mapping_close()
+          call yaml_mapping_open('Transposed layout')
+          call yaml_map('Minimal',mb(nsize_transposed_min))
+          call yaml_map('Maximal',mb(nsize_transposed_max))
+          call yaml_map('Average',mb(nsize_transposed_all))
+          call yaml_mapping_close()
+          call yaml_mapping_open('Grid quantities')
+          call yaml_map('Minimal',mb(nsize_grid_min))
+          call yaml_map('Maximal',mb(nsize_grid_max))
+          call yaml_map('Average',mb(nsize_grid_all))
+          call yaml_mapping_close()
+          call yaml_mapping_close()
+      end if
+
+      contains
+        function mb(i)
+            integer(kind=8) :: i
+            integer :: mb
+            mb = nint(real(i,kind=8)/(1024.d0*1024.d0))
+         end function mb
+    end subroutine write_memory_requirements_collcom
 
 
 end module communications_init

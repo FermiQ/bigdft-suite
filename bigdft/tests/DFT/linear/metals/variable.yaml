@@ -1,0 +1,6 @@
+ chess:
+   foe:
+     fscale: 5.0E-003
+     fscale_lowerbound: 1.e-3
+     fscale_upperbound: 1.e-2
+     adjust_fscale: yes

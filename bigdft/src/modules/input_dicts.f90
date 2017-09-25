@@ -1,5 +1,5 @@
 !> @file
-!ORB>  Modules which contains all the interfaces to parse input dictionary.
+!!  Module which contains all the interfaces to parse input dictionary.
 !! @author
 !!    Copyright (C) 2013-2014 BigDFT group
 !!    This file is distributed under the terms of the

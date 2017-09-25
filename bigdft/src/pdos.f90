@@ -387,23 +387,14 @@ subroutine mulliken_charge_population(iproc,nproc,orbs,Gocc,G,coeff,duals)
 
   !reduce the results
   if (nproc > 1) then
-     call mpiallred(mchg,MPI_SUM,comm=bigdft_mpi%mpi_comm)
-     call mpiallred(magn,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+     call fmpi_allreduce(mchg,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
+     call fmpi_allreduce(magn,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
   end if
 
   if (iproc == 0) then
-     !write(*,'(1x,a)')repeat('-',48)//' Mulliken Charge Population Analysis'
-     !write(*,'(1x,a)')'Center No. |    Shell    | Rad (AU) | Chg (up) | Chg (down) | Net Pol  |Gross Chg'
-     !write(*,'(1x,a)')repeat('-',57)//' Mulliken Charge Population Analysis'
      call yaml_comment('Mulliken Charge Population Analysis',hfill='-')
      call yaml_sequence_open('Mulliken Charge Population Analysis')
      call yaml_newline()
-
-     !if (orbs%nspinor == 4) then
-     !   !write(*,'(1x,a)')'Center No. |    Shell    | Rad (AU) | Chg (Maj)| Chg (Min)  |Partial Chg| Mag Comp |  Net Chg'
-     !else
-     !   !write(*,'(1x,a)')'Center No. |    Shell    | Rad (AU) | Chg (up) | Chg (down) |Partial Chg| Mag Pol  |  Net Chg'
-     !end if
   end if
 
 !  do iorb=1,orbs%norbp  

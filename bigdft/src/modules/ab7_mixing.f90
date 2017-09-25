@@ -1,3 +1,12 @@
+!> @file
+!! @author
+!!    Copyright (C) 2013-2014 BigDFT group
+!!    This file is distributed under the terms of the
+!!    GNU General Public License, see ~/COPYING file
+!!    or http://www.gnu.org/copyleft/gpl.txt .
+!!    For the list of contributors, see ~/AUTHORS
+
+!> Module using the libABINIT routine for the potential or density mixing
 module module_mixing
 
   !use dynamic_memory
@@ -123,7 +132,7 @@ contains
        errid = AB7_ERROR_MIXING_ARG
        write(errmess, '(a,a,a,a)' )ch10,&
             & ' ab7_mixing_set_arrays: ERROR -',ch10,&
-            & '  Mixing must be done in real or Fourrier space only.'
+            & '  Mixing must be done in real or Fourier space only.'
        return
     end if
     if (iscf /= AB7_MIXING_EIG .and. iscf /= AB7_MIXING_SIMPLE .and. &
@@ -494,10 +503,11 @@ contains
     ! Do the mixing.
     resnrm_ = 0.d0
     if (mix%iscf == AB7_MIXING_EIG) then
-       !  This routine compute the eigenvalues of the SCF operator
+       !  This routine computes the eigenvalues of the SCF operator
        call abi_scfeig(istep, mix%space * mix%nfft, mix%nspden, &
             & mix%f_fftgr(:,:,mix%i_vrespc(1)), arr, &
             & mix%f_fftgr(:,:,1), mix%f_fftgr(:,:,4:5), errid, errmess)
+
     else if (mix%iscf == AB7_MIXING_SIMPLE .or. &
          & mix%iscf == AB7_MIXING_ANDERSON .or. &
          & mix%iscf == AB7_MIXING_ANDERSON_2 .or. &
@@ -520,6 +530,7 @@ contains
           !    to restrict iscf=2 for ionmov=5
           mix%xred(:,:) = mix%xred(:,:) + mix%dtn_pc(:,:)
        end if
+
     else if (mix%iscf == AB7_MIXING_CG_ENERGY .or. &
          & mix%iscf == AB7_MIXING_CG_ENERGY_2) then
        !  Optimize next vtrial using an algorithm based
@@ -571,6 +582,7 @@ contains
     call f_release_routine()
 
   end subroutine ab7_mixing_eval
+
 
   subroutine ab7_mixing_deallocate(mix)
 
@@ -676,7 +688,7 @@ contains
     ! Summarize on processors
     !fnrm_denpot = nrm_local
     if (bigdft_mpi%nproc>1) then
-       call mpiallred(sendbuf=nrm_local,count=1,op=MPI_SUM,&
+       call fmpi_allreduce(sendbuf=nrm_local,count=1,op=FMPI_SUM,&
             comm=bigdft_mpi%mpi_comm,recvbuf=fnrm_denpot)
 !!$       call MPI_ALLREDUCE(nrm_local, fnrm_denpot, 1, &
 !!$            & MPI_DOUBLE_PRECISION, MPI_SUM, bigdft_mpi%mpi_comm, ierr)
@@ -691,7 +703,7 @@ contains
 
   function fdot_denpot(x,y,cplex,nfft,nspden,opt_denpot,user_data)
 !    use m_ab7_mixing
-!    use wrapper_MPI, only: mpirank,mpiallred
+!    use wrapper_MPI, only: mpirank,fmpi_allreduce
     !use module_base, only: bigdft_mpi
     implicit none
     integer, intent(in) :: cplex,nfft,nspden,opt_denpot
@@ -757,7 +769,7 @@ contains
     ! Summarize on processors
     fdot_denpot = dot_local
     if (bigdft_mpi%nproc>1) then
-       call mpiallred(dot_local,1,MPI_SUM,comm=bigdft_mpi%mpi_comm,&
+       call fmpi_allreduce(dot_local,1,FMPI_SUM,comm=bigdft_mpi%mpi_comm,&
             recvbuf=fdot_denpot)
 !!$       call MPI_ALLREDUCE(dot_local, fdot_denpot, 1, &
 !!$            & MPI_DOUBLE_PRECISION, MPI_SUM, bigdft_mpi%mpi_comm, ierr)
@@ -770,7 +782,7 @@ contains
 
 
   function fnrm_denpot_forlinear(x,cplex,nfft,nspden,opt_denpot,user_data)
-!    use wrapper_MPI, only: mpirank,mpiallred,mpi_sum
+!    use wrapper_MPI, only: mpirank,fmpi_allreduce,mpi_sum
 !    use module_base, only: bigdft_mpi
     implicit none
     !Arguments
@@ -825,7 +837,7 @@ contains
     ! Summarize on processors
     !fnrm_denpot_forlinear = nrm_local
     if (bigdft_mpi%nproc>1) then
-        call mpiallred(sendbuf=nrm_local, count=1, op=mpi_sum, &
+        call fmpi_allreduce(sendbuf=nrm_local, count=1, op=FMPI_SUM, &
              comm=bigdft_mpi%mpi_comm, recvbuf=fnrm_denpot_forlinear)
     else
         fnrm_denpot_forlinear = nrm_local
@@ -835,7 +847,7 @@ contains
 
 
   function fdot_denpot_forlinear(x,y,cplex,nfft,nspden,opt_denpot,user_data)
-!    use wrapper_MPI, only: mpirank,mpiallred
+!    use wrapper_MPI, only: mpirank,fmpi_allreduce
     !use module_base, only: bigdft_mpi
     implicit none
     integer, intent(in) :: cplex,nfft,nspden,opt_denpot
@@ -910,7 +922,7 @@ contains
     ! Summarize on processors
     fdot_denpot_forlinear = dot_local
     if (bigdft_mpi%nproc>1) then
-        call mpiallred(dot_local,1,MPI_SUM,comm=bigdft_mpi%mpi_comm,&
+        call fmpi_allreduce(dot_local,1,FMPI_SUM,comm=bigdft_mpi%mpi_comm,&
              recvbuf=fdot_denpot_forlinear)
     else
         fdot_denpot_forlinear = dot_local

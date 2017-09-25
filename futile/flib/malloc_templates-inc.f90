@@ -1115,9 +1115,7 @@ subroutine c1_ptr(array,m)
   end if
   if (m%srcdata_add == int(-1,kind=8)) then
      call f_free_str_ptr(m%len,array) !to avoid memory leaks
-     !$ if (not_omp) then
      call f_timer_resume()!TCAT_ARRAY_ALLOCATIONS
-     !$ end if
      return
   end if
   !allocate the array

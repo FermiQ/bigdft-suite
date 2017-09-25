@@ -52,12 +52,12 @@ module lanczos_interface
   public :: EP_inizializza,EP_initialize_start,EP_allocate_for_eigenprob,&
        &   get_EP_dim,set_EP_shift,&
        &   EP_mat_mult,EP_make_dummy_vectors, EP_normalizza,EP_copy,EP_scalare,&
-       &   EP_copia_per_prova,&
        &   EP_set_all_random,EP_GramSchmidt,EP_add_from_vect_with_fact,&
        &   EP_Moltiplica, &
        &   EP_free,  EP_norma2_initialized_state ,EP_store_occupied_orbitals,EP_occprojections,&
        &   EP_multbyfact,EP_precondition,EP_Moltiplica4spectra,EP_ApplySinv,EP_ApplyS,&
        &   EP_scalare_multik,xabs_lanczos,xabs_cg,xabs_chebychev
+       !&   EP_copia_per_prova
 
 
   character(len=*), parameter :: subname='lanczos_interface'
@@ -75,8 +75,9 @@ module lanczos_interface
   integer :: EP_dim
   integer :: EP_dim_tot
 
-  real(wp), dimension(:), pointer :: Qvect_tmp,wrk, wrk1, wrk2
+  real(wp), dimension(:), pointer :: wrk1, wrk2
   real(wp), dimension(:), pointer :: EP_norma2_initialized_state
+  real(wp), dimension(:,:), pointer :: wrk, Qvect_tmp
 
   logical :: EP_doorthoocc
   integer :: EP_norb
@@ -151,8 +152,8 @@ contains
     !! arrays which are used in the direct rep after retrieval
     !! from transposed memory
 
-    Qvect_tmp = f_malloc_ptr(EP_dim_tot_touse , id='Qvect_tmp')
-    wrk = f_malloc_ptr(EP_dim_tot_touse,id='wrk')
+    Qvect_tmp = f_malloc_ptr((/EP_dim_tot_touse,1/) , id='Qvect_tmp')
+    wrk = f_malloc_ptr((/EP_dim_tot_touse,1/),id='wrk')
     wrk1 = f_malloc_ptr(EP_dim_tot_touse,id='wrk1')
     wrk2 = f_malloc_ptr(EP_dim_tot_touse,id='wrk2')
 
@@ -464,23 +465,23 @@ contains
   !  END FUNCTION EP_scalare_interna
   !
 
-  subroutine  EP_copia_per_prova(psi)
-    use communications, only: transpose_v
-    !Arguments
-    real(wp), dimension(*), target :: psi ! per testare happlication
-    !Local variables
-    integer :: i
+  !!subroutine  EP_copia_per_prova(psi)
+  !!  use communications, only: transpose_v
+  !!  !Arguments
+  !!  real(wp), dimension(*), target :: psi ! per testare happlication
+  !!  !Local variables
+  !!  integer :: i
 
-    if( ha%nproc/=1) then
-       call transpose_v(ha%iproc,ha%nproc,ha%orbs,ha%lzd%glr%wfd,ha%comms,&
-            &   psi(1),wrk(1),out_add=Qvect(1,0))  
-    else
-       do i=1, EP_dim_tot
-          Qvect(i,0)= psi(i)
-       enddo
-    endif
+  !!  if( ha%nproc/=1) then
+  !!     call transpose_v(ha%iproc,ha%nproc,ha%orbs,ha%lzd%glr%wfd,ha%comms,&
+  !!          &   psi,wrk,out_add=Qvect)  
+  !!  else
+  !!     do i=1, EP_dim_tot
+  !!        Qvect(i,0)= psi(i)
+  !!     enddo
+  !!  endif
 
-  END SUBROUTINE EP_copia_per_prova
+  !!END SUBROUTINE EP_copia_per_prova
 
   subroutine EP_initialize_start()
     use communications, only: transpose_v
@@ -492,7 +493,7 @@ contains
        !!if(EP_dim_tot.gt.0) then
        call f_zero(Qvect_tmp)
        call applyPAWprojectors(ha%orbs,ha%at,&
-            &   ha%hx,ha%hy,ha%hz,ha%Lzd%Glr,ha%PAWD,Qvect_tmp,Qvect_tmp, ha%at%paw_S_matrices, &
+            &   ha%hx,ha%hy,ha%hz,ha%Lzd%Glr,ha%PAWD,Qvect_tmp(:,1),Qvect_tmp(:,1), ha%at%paw_S_matrices, &
             &   .true. ,    ha%in_iat_absorber, ha%Labsorber+1, &
             &   ha%Gabs_coeffs               ) 
        !!end if
@@ -528,10 +529,10 @@ contains
 
     if( ha%nproc/=1) then
        call transpose_v(ha%iproc,ha%nproc,ha%orbs,ha%lzd%glr%wfd,ha%comms,&
-            &   Qvect_tmp(1),wrk(1),out_add=Qvect(1,0))
+            &   Qvect_tmp,wrk,out_add=Qvect)
     else
        do i=1, EP_dim_tot
-          Qvect(i,0)= Qvect_tmp(i)
+          Qvect(i,0)= Qvect_tmp(i,1)
        enddo
     endif
 
@@ -863,19 +864,19 @@ contains
     if( ha%nproc > 1) then
        if(i>=0) then
           call untranspose_v(ha%iproc,ha%nproc,ha%orbs,ha%Lzd%Glr%wfd,ha%comms,&
-               &   Qvect(1,i), wrk(1),out_add=Qvect_tmp(1) )  
+               &   Qvect(1:,i:), wrk,out_add=Qvect_tmp )  
        else
           call untranspose_v(ha%iproc,ha%nproc,ha%orbs,ha%Lzd%Glr%wfd,ha%comms,&
-               &   dumQvect(1,-i), wrk(1),out_add=Qvect_tmp(1) )  
+               &   dumQvect(1:,-i:), wrk,out_add=Qvect_tmp )  
        endif
     else
        if(i>=0) then
           do k=1, EP_dim_tot
-             Qvect_tmp(k)=  Qvect(k,i)
+             Qvect_tmp(k,1)=  Qvect(k,i)
           enddo
        else
           do k=1, EP_dim_tot
-             Qvect_tmp(k)=  dumQvect(k,-i)
+             Qvect_tmp(k,1)=  dumQvect(k,-i)
           enddo
        endif
     endif
@@ -896,7 +897,7 @@ contains
 !!$       wrk(ind+7)=Qvect_tmp(ind+7)*scal(7)       !  2 2 2
 !!$    enddo
 
-    call vcopy(EP_dim_tot, Qvect_tmp(1),1,wrk(1),1) 
+    call vcopy(EP_dim_tot, Qvect_tmp(1,1),1,wrk(1,1),1) 
 
 
     if( dopcproj) then
@@ -904,7 +905,7 @@ contains
        call f_zero(wrk1)
        ha%PPD%iproj_to_factor(:) =  1.0_gp
        call applyPCprojectors(ha%orbs,ha%at,ha%hx,ha%hy,ha%hz,&
-            &   ha%Lzd%Glr,ha%PPD,wrk,wrk1 )
+            &   ha%Lzd%Glr,ha%PPD,wrk(:,1),wrk1 )
 
 
        call f_zero(wrk2)
@@ -915,11 +916,11 @@ contains
        ha%PPD%iproj_to_factor =1.0_gp/(ha%PPD%iproj_to_factor**2 + gamma*gamma)
 
        call applyPCprojectors(ha%orbs,ha%at,ha%hx,ha%hy,ha%hz,&
-            &   ha%Lzd%Glr,ha%PPD,wrk,wrk2 )
+            &   ha%Lzd%Glr,ha%PPD,wrk(:,1),wrk2 )
 !!$
 !!$
 
-       call axpy(EP_dim_tot, -1.0_gp  ,  wrk1(1)   , 1,  wrk(1) , 1)
+       call axpy(EP_dim_tot, -1.0_gp  ,  wrk1(1)   , 1,  wrk(1,1) , 1)
 
     endif
 
@@ -927,7 +928,7 @@ contains
     call prec_fft_fast_spectra(ha%Lzd%Glr%d%n1,ha%Lzd%Glr%d%n2,ha%Lzd%Glr%d%n3,&
          &   ha%Lzd%Glr%wfd%nseg_c,ha%Lzd%Glr%wfd%nvctr_c,ha%Lzd%Glr%wfd%nseg_f,ha%Lzd%Glr%wfd%nvctr_f,&
          &   ha%Lzd%Glr%wfd%keygloc,ha%Lzd%Glr%wfd%keyvloc, &
-         &   ene, gamma,ha%hx,ha%hy,ha%hz,wrk(1:),&
+         &   ene, gamma,ha%hx,ha%hy,ha%hz,wrk(1:,1),&
          &   w%kern_k1,w%kern_k2,w%kern_k3,w%z1,w%z3,w%x_c,&
          &   nd1,nd2,nd3,n1f,n1b,n3f,n3b,nd1f,nd1b,nd3f,nd3b)
 
@@ -938,11 +939,11 @@ contains
        call f_zero(wrk1)
        ha%PPD%iproj_to_factor(:) =  1.0_gp
        call applyPCprojectors(ha%orbs,ha%at,ha%hx,ha%hy,ha%hz,&
-            &   ha%Lzd%Glr,ha%PPD,wrk,wrk1)
+            &   ha%Lzd%Glr,ha%PPD,wrk(:,1),wrk1)
 
 
-       call axpy(EP_dim_tot, -1.0_gp  ,  wrk1(1)   , 1,  wrk(1) , 1)
-       call axpy(EP_dim_tot, +1.0_gp  ,  wrk2(1)   , 1,  wrk(1) , 1)
+       call axpy(EP_dim_tot, -1.0_gp  ,  wrk1(1)   , 1,  wrk(1,1) , 1)
+       call axpy(EP_dim_tot, +1.0_gp  ,  wrk2(1)   , 1,  wrk(1,1) , 1)
     endif
 
 
@@ -953,19 +954,19 @@ contains
     if(p<0) then
        if(  ha%nproc/=1) then
           call transpose_v(ha%iproc,ha%nproc,ha%orbs,ha%lzd%glr%wfd,ha%comms,&
-               &   wrk(1),Qvect_tmp(1),out_add=dumQvect(1,-p))  
+               &   wrk,Qvect_tmp,out_add=dumQvect(1:,-p:))  
        else
           do k=1, EP_dim_tot
-             dumQvect(k,-p) =  wrk(k)
+             dumQvect(k,-p) =  wrk(k,1)
           enddo
        endif
     else
        if(  ha%nproc/=1) then
           call transpose_v(ha%iproc,ha%nproc,ha%orbs,ha%lzd%glr%wfd,ha%comms,&
-               &   wrk(1),Qvect_tmp(1),out_add=Qvect(1,p))  
+               &   wrk,Qvect_tmp,out_add=Qvect(1:,p:))  
        else
           do k=1, EP_dim_tot
-             Qvect(k,p) =  wrk(k)
+             Qvect(k,p) =  wrk(k,1)
           enddo
        endif
     endif
@@ -992,20 +993,20 @@ contains
     if( ha%nproc > 1) then
        if(i>=0) then
           call untranspose_v(ha%iproc,ha%nproc,ha%orbs,ha%Lzd%Glr%wfd,ha%comms,&
-               &   Qvect(1,i),wrk(1),out_add=Qvect_tmp(1) )  
+               &   Qvect(1:,i:),wrk,out_add=Qvect_tmp )  
        else
           call untranspose_v(ha%iproc,ha%nproc,ha%orbs,ha%Lzd%Glr%wfd,ha%comms,&
-               &   dumQvect(1,-i),wrk(1),out_add=Qvect_tmp(1) )  
+               &   dumQvect(1:,-i:),wrk,out_add=Qvect_tmp )  
        endif
     else
 
        if(i>=0) then
           do k=1, EP_dim_tot
-             Qvect_tmp(k)=  Qvect(k,i)
+             Qvect_tmp(k,1)=  Qvect(k,i)
           enddo
        else
           do k=1, EP_dim_tot
-             Qvect_tmp(k)=  dumQvect(k,-i)
+             Qvect_tmp(k,1)=  dumQvect(k,-i)
           enddo
        endif
     endif
@@ -1017,25 +1018,25 @@ contains
          ha%Lzd,ha%nlpsp,confdatarr,ha%ngatherarr,ha%potential,Qvect_tmp,wrk,paw,&
          ha%energs,ha%SIC,ha%GPU,ha%xc)
 
-    call axpy(EP_dim_tot, -ene  ,  Qvect_tmp(1)   , 1,  wrk(1) , 1)
-    call vcopy(EP_dim_tot,wrk(1),1,Qvect_tmp(1),1)
+    call axpy(EP_dim_tot, -ene  ,  Qvect_tmp(1,1)   , 1,  wrk(1,1) , 1)
+    call vcopy(EP_dim_tot,wrk(1,1),1,Qvect_tmp(1,1),1)
     !Qvect_tmp   =  wrk
 
     call FullHamiltonianApplication(ha%iproc,ha%nproc,ha%at,ha%orbs,&
          ha%Lzd,ha%nlpsp,confdatarr,ha%ngatherarr,ha%potential,Qvect_tmp,wrk,paw,&
          ha%energs,ha%SIC,ha%GPU,ha%xc)
 
-    call axpy(EP_dim_tot, -ene  ,  Qvect_tmp(1)   , 1,  wrk(1) , 1)
+    call axpy(EP_dim_tot, -ene  ,  Qvect_tmp(1,1)   , 1,  wrk(1,1) , 1)
 
     if(  ha%iproc ==0 ) write(*,*)" done "
 
     if(p<0) then
        if(  ha%nproc/=1) then
           call transpose_v(ha%iproc,ha%nproc,ha%orbs,ha%lzd%glr%wfd,ha%comms,&
-               &   wrk(1),Qvect_tmp(1),out_add=dumQvect(1,-p))  
+               &   wrk,Qvect_tmp,out_add=dumQvect(1:,-p:))  
        else
           do k=1, EP_dim_tot
-             dumQvect(k,-p) =  wrk(k)
+             dumQvect(k,-p) =  wrk(k,1)
           enddo
        endif
 
@@ -1053,10 +1054,10 @@ contains
     else
        if(  ha%nproc/=1) then
           call transpose_v(ha%iproc,ha%nproc,ha%orbs,ha%lzd%glr%wfd,ha%comms,&
-               &   wrk(1),Qvect_tmp(1),Qvect(1,p))  
+               &   wrk,Qvect_tmp,Qvect(1:,p:))  
        else
           do k=1, EP_dim_tot
-             Qvect(k,p) =  wrk(k)
+             Qvect(k,p) =  wrk(k,1)
           enddo
        endif
 
@@ -1090,19 +1091,19 @@ contains
     if( ha%nproc > 1) then
        if(i>=0) then
           call untranspose_v(ha%iproc,ha%nproc,ha%orbs,ha%Lzd%Glr%wfd,ha%comms,&
-               &   Qvect(1,i),wrk(1),out_add=Qvect_tmp(1) )  
+               &   Qvect(1:,i:),wrk,out_add=Qvect_tmp )  
        else
           call untranspose_v(ha%iproc,ha%nproc,ha%orbs,ha%Lzd%Glr%wfd,ha%comms,&
-               &   dumQvect(1,-i),wrk(1),out_add=Qvect_tmp(1) )  
+               &   dumQvect(1:,-i:),wrk,out_add=Qvect_tmp )  
        endif
     else
        if(i>=0) then
           do k=1, EP_dim_tot
-             Qvect_tmp(k)=  Qvect(k,i)
+             Qvect_tmp(k,1)=  Qvect(k,i)
           enddo
        else
           do k=1, EP_dim_tot
-             Qvect_tmp(k)=  dumQvect(k,-i)
+             Qvect_tmp(k,1)=  dumQvect(k,-i)
           enddo
        endif
     endif
@@ -1125,7 +1126,7 @@ contains
     if(  sum( ha%at%paw_NofL ).gt.0 ) then
        if(associated( ha%PAWD) ) then
           call applyPAWprojectors(ha%orbs,ha%at,&
-               &   ha%hx,ha%hy,ha%hz,ha%Lzd%Glr,ha%PAWD,Qvect_tmp,wrk,ha%at%paw_H_matrices, .false.  )
+               &   ha%hx,ha%hy,ha%hz,ha%Lzd%Glr,ha%PAWD,Qvect_tmp(:,1),wrk(:,1),ha%at%paw_H_matrices, .false.  )
 
 !!$          call f_zero(EP_dim_tot  ,  wrk1  )
 !!$          call applyPAWprojectors(ha%orbs,ha%at,&
@@ -1149,7 +1150,7 @@ contains
 
     if(ha%iproc.eq.0) then
        if(EP_shift /= 0 ) then
-          call axpy(EP_dim_tot, EP_shift  ,  Qvect_tmp(1)   , 1,  wrk(1) , 1)
+          call axpy(EP_dim_tot, EP_shift  ,  Qvect_tmp(1,1)   , 1,  wrk(1,1) , 1)
        endif
     endif
 
@@ -1157,19 +1158,19 @@ contains
     if(p<0) then
        if(  ha%nproc/=1) then
           call transpose_v(ha%iproc,ha%nproc,ha%orbs,ha%lzd%glr%wfd,ha%comms,&
-               &   wrk(1),Qvect_tmp(1),out_add=dumQvect(1,-p))  
+               &   wrk,Qvect_tmp,out_add=dumQvect(1:,-p:))  
        else
           do k=1, EP_dim_tot
-             dumQvect(k,-p) =  wrk(k)
+             dumQvect(k,-p) =  wrk(k,1)
           enddo
        endif
     else
        if(  ha%nproc/=1) then
           call transpose_v(ha%iproc,ha%nproc,ha%orbs,ha%lzd%glr%wfd,ha%comms,&
-               &   wrk(1),Qvect_tmp(1),out_add=Qvect(1,p))  
+               &   wrk,Qvect_tmp,out_add=Qvect(1:,p:))  
        else
           do k=1, EP_dim_tot
-             Qvect(k,p) =  wrk(k)
+             Qvect(k,p) =  wrk(k,1)
           enddo
        endif
     endif
@@ -1187,19 +1188,19 @@ contains
     if( ha%nproc > 1) then
        if(i>=0) then
           call untranspose_v(ha%iproc,ha%nproc,ha%orbs,ha%Lzd%Glr%wfd,ha%comms,&
-               &   Qvect(1,i),wrk(1),out_add=Qvect_tmp(1) )  
+               &   Qvect(1:,i:),wrk,out_add=Qvect_tmp )  
        else
           call untranspose_v(ha%iproc,ha%nproc,ha%orbs,ha%Lzd%Glr%wfd,ha%comms,&
-               &   dumQvect(1,-i),wrk(1),out_add=Qvect_tmp(1) )  
+               &   dumQvect(1:,-i:),wrk,out_add=Qvect_tmp )  
        endif
     else
        if(i>=0) then
           do k=1, EP_dim_tot
-             Qvect_tmp(k)=  Qvect(k,i)
+             Qvect_tmp(k,1)=  Qvect(k,i)
           enddo
        else
           do k=1, EP_dim_tot
-             Qvect_tmp(k)=  dumQvect(k,-i)
+             Qvect_tmp(k,1)=  dumQvect(k,-i)
           enddo
        endif
     endif
@@ -1207,13 +1208,13 @@ contains
     if(  sum( ha%at%paw_NofL ).gt.0 ) then
        if(  associated( ha%PAWD) ) then
           call applyPAWprojectors(ha%orbs,ha%at,&
-               &   ha%hx,ha%hy,ha%hz,ha%Lzd%Glr,ha%PAWD,Qvect_tmp,wrk, ha%at%paw_Sm1_matrices, &
+               &   ha%hx,ha%hy,ha%hz,ha%Lzd%Glr,ha%PAWD,Qvect_tmp(:,1),wrk(:,1), ha%at%paw_Sm1_matrices, &
                &   .false.)      
        endif
     endif
 
     do k=1, EP_dim_tot
-       wrk(k)=Qvect_tmp(k)+wrk(k)
+       wrk(k,1)=Qvect_tmp(k,1)+wrk(k,1)
     enddo
 
 
@@ -1221,19 +1222,19 @@ contains
     if(p<0) then
        if(  ha%nproc/=1) then
           call transpose_v(ha%iproc,ha%nproc,ha%orbs,ha%lzd%glr%wfd,ha%comms,&
-               &   wrk(1),Qvect_tmp(1),out_add=dumQvect(1,-p))  
+               &   wrk,Qvect_tmp,out_add=dumQvect(1:,-p:))  
        else
           do k=1, EP_dim_tot
-             dumQvect(k,-p) =  wrk(k)
+             dumQvect(k,-p) =  wrk(k,1)
           enddo
        endif
     else
        if(  ha%nproc/=1) then
           call transpose_v(ha%iproc,ha%nproc,ha%orbs,ha%lzd%glr%wfd,ha%comms,&
-               &   wrk(1),Qvect_tmp(1),out_add=Qvect(1,p))  
+               &   wrk,Qvect_tmp,out_add=Qvect(1:,p:))  
        else
           do k=1, EP_dim_tot
-             Qvect(k,p) =  wrk(k)
+             Qvect(k,p) =  wrk(k,1)
           enddo
        endif
     endif
@@ -1254,19 +1255,19 @@ contains
     if( ha%nproc > 1) then
        if(i>=0) then
           call untranspose_v(ha%iproc,ha%nproc,ha%orbs,ha%Lzd%Glr%wfd,ha%comms,&
-               &   Qvect(1,i),wrk(1),out_add=Qvect_tmp(1) )  
+               &   Qvect(1:,i:),wrk,out_add=Qvect_tmp )  
        else
           call untranspose_v(ha%iproc,ha%nproc,ha%orbs,ha%Lzd%Glr%wfd,ha%comms,&
-               &   dumQvect(1,-i),wrk(1),out_add=Qvect_tmp(1) )  
+               &   dumQvect(1:,-i:),wrk,out_add=Qvect_tmp )  
        endif
     else
        if(i>=0) then
           do k=1, EP_dim_tot
-             Qvect_tmp(k)=  Qvect(k,i)
+             Qvect_tmp(k,1)=  Qvect(k,i)
           enddo
        else
           do k=1, EP_dim_tot
-             Qvect_tmp(k)=  dumQvect(k,-i)
+             Qvect_tmp(k,1)=  dumQvect(k,-i)
           enddo
        endif
     endif
@@ -1274,31 +1275,31 @@ contains
     if(  sum( ha%at%paw_NofL ).gt.0 ) then
        if(  associated( ha%PAWD) ) then
           call applyPAWprojectors(ha%orbs,ha%at,&
-               &   ha%hx,ha%hy,ha%hz,ha%Lzd%Glr,ha%PAWD,Qvect_tmp,wrk, ha%at%paw_S_matrices, &
+               &   ha%hx,ha%hy,ha%hz,ha%Lzd%Glr,ha%PAWD,Qvect_tmp(:,1),wrk(:,1), ha%at%paw_S_matrices, &
                &   .false. )      
        endif
     endif
 
     do k=1, EP_dim_tot
-       wrk(k)=Qvect_tmp(k)+wrk(k)
+       wrk(k,1)=Qvect_tmp(k,1)+wrk(k,1)
     enddo
 
     if(p<0) then
        if(  ha%nproc/=1) then
           call transpose_v(ha%iproc,ha%nproc,ha%orbs,ha%lzd%glr%wfd,ha%comms,&
-               &   wrk(1),Qvect_tmp(1),out_add=dumQvect(1,-p))  
+               &   wrk,Qvect_tmp,out_add=dumQvect(1:,-p:))  
        else
           do k=1, EP_dim_tot
-             dumQvect(k,-p) =  wrk(k)
+             dumQvect(k,-p) =  wrk(k,1)
           enddo
        endif
     else
        if(  ha%nproc/=1) then
           call transpose_v(ha%iproc,ha%nproc,ha%orbs,ha%lzd%glr%wfd,ha%comms,&
-               &   wrk(1),Qvect_tmp(1),out_add=Qvect(1,p))  
+               &   wrk,Qvect_tmp,out_add=Qvect(1:,p:))  
        else
           do k=1, EP_dim_tot
-             Qvect(k,p) =  wrk(k)
+             Qvect(k,p) =  wrk(k,1)
           enddo
        endif
     endif

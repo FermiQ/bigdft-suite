@@ -62,6 +62,7 @@ module public_keys
   character(len = *), parameter :: ALPHA_HARTREE_FOCK= "alpha_hf"
   character(len = *), parameter :: RESET_DIIS_HISTORY = "reset_DIIS_history"
   character(len = *), parameter :: MULTIPOLE_CENTERS = "multipole_centers"
+  character(len = *), parameter :: MAGNETIC_TORQUE = "magnetic_torque"
   character(len = *), parameter :: CENTERS_AUTO = "centers_auto"
 
   character(len = *), parameter :: PSOLVER = "psolver"

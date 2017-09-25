@@ -33,6 +33,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
   use orbitalbasis
   use chess_base, only: chess_init
   use module_dpbox, only: dpbox_set
+  use rhopotential, only: set_cfd_data
   implicit none
   integer, intent(in) :: iproc,nproc 
   logical, intent(in) :: dry_run, dump
@@ -222,9 +223,9 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
          time_average(2) = time_max(2)/real(nproc,kind=8)
          totaltimes(iproc+1) = time_max(2)
          if (nproc>1) then
-             call mpiallred(time_max, mpi_max, comm=bigdft_mpi%mpi_comm)
-             call mpiallred(time_average, mpi_sum, comm=bigdft_mpi%mpi_comm)
-             call mpiallred(totaltimes, mpi_sum, comm=bigdft_mpi%mpi_comm)
+             call fmpi_allreduce(time_max, FMPI_MAX, comm=bigdft_mpi%mpi_comm)
+             call fmpi_allreduce(time_average, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+             call fmpi_allreduce(totaltimes, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
          end if
          !ratio_before = real(time_max(1),kind=8)/real(max(1.d0,time_min(1)),kind=8) !max to prevent divide by zero
          !ratio_after = real(time_max(2),kind=8)/real(max(1.d0,time_min(2)),kind=8) !max to prevent divide by zero
@@ -382,6 +383,8 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
           denspot%dpbox,in%rho_commun,rxyz,denspot%rhod)
      !allocate the arrays.
      call allocateRhoPot(Lzd%Glr,in%nspin,atoms,rxyz,denspot)
+     !here insert the conditional for the constrained field dynamics
+     if (in%calculate_magnetic_torque) call set_cfd_data(denspot%cfd,Lzd%Glr%mesh,atoms%astruct,rxyz)
   end if
 
   !calculate the irreductible zone for this region, if necessary.
@@ -532,7 +535,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
           times_convol(iiorb) = real(ii+jj,kind=8)
       end do
       if (nproc>1) then
-          call mpiallred(times_convol, mpi_sum, comm=bigdft_mpi%mpi_comm)
+          call fmpi_allreduce(times_convol, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
       end if
 
       return !###############################################3
@@ -630,7 +633,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
        call f_free(phi)
 
        if (nproc>1) then
-           call mpiallred(times_convol, mpi_sum, comm=bigdft_mpi%mpi_comm)
+           call fmpi_allreduce(times_convol, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
        end if
 
      end subroutine test_preconditioning
@@ -644,7 +647,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
      !!  ! Sum up the total size of all support functions
      !!  isize = int(lnpsidim_orbs,kind=8)
      !!  if (nproc>1) then
-     !!      call mpiallred(isize, 1, mpi_sum, bigdft_mpi%mpi_comm)
+     !!      call fmpi_allreduce(isize, 1, FMPI_SUM, bigdft_mpi%mpi_comm)
      !!  end if
 
      !!  ! Ideal size per task (integer division)
@@ -1536,7 +1539,7 @@ subroutine calculate_rhocore(at,rxyz,dpbox,rhocore)
      enddo
   enddo
 
-  if (bigdft_mpi%nproc > 1) call mpiallred(tt,1,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+  if (bigdft_mpi%nproc > 1) call fmpi_allreduce(tt,1,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
   tt=tt*dpbox%mesh%volume_element
   if (bigdft_mpi%iproc == 0) then
      call yaml_mapping_open('Analytic core charges for atom species')
@@ -1918,7 +1921,7 @@ END SUBROUTINE nlcc_start_position
 !!!      end if
 !!!  end do
 !!!  call MPI_Initialized(mpiflag,ierr)
-!!!  if(mpiflag /= 0 .and. nproc > 1) call mpiallred(orbs%isorb_par(0), nproc, mpi_sum, bigdft_mpi%mpi_comm, ierr)
+!!!  if(mpiflag /= 0 .and. nproc > 1) call fmpi_allreduce(orbs%isorb_par(0), nproc, FMPI_SUM, bigdft_mpi%mpi_comm, ierr)
 !!!
 !!!END SUBROUTINE orbitals_descriptors_forLinear
 
@@ -1936,6 +1939,8 @@ subroutine kpts_to_procs_via_obj(nproc,nkpts,nobj,nobj_par)
   integer :: jproc,ikpt,iobj,nobjp_max_kpt,nprocs_with_floor,jobj,nobjp
   integer :: jkpt,nproc_per_kpt,nproc_left,kproc,nkpt_per_proc,nkpts_left
   real(gp) :: robjp,rounding_ratio
+
+  call f_routine(id='kpts_to_procs_via_obj')
 
   !decide the naive number of objects which should go to each processor.
   robjp=real(nobj,gp)*real(nkpts,gp)/real(nproc,gp)
@@ -2051,6 +2056,9 @@ subroutine kpts_to_procs_via_obj(nproc,nkpts,nobj,nobj_par)
         nobj_par(nproc-1,ikpt)=nobj_par(nproc-1,ikpt)+1
      end do
   end if
+
+  call f_release_routine()
+
 END SUBROUTINE kpts_to_procs_via_obj
 
 

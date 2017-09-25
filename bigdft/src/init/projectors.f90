@@ -166,7 +166,7 @@ subroutine localize_projectors(iproc,nproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,
   enddo
 
   ! Distribute the data to all process, using an allreduce
-  if (nproc > 1) call mpiallred(reducearr, mpi_sum, comm=bigdft_mpi%mpi_comm)
+  if (nproc > 1) call fmpi_allreduce(reducearr, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
   !$omp parallel default(none) shared(at, nl, reducearr) private(iat)
   !$omp do schedule(static)
   do iat=1,at%astruct%nat
@@ -192,9 +192,9 @@ subroutine localize_projectors(iproc,nproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,
   !$omp end do
   !$omp end parallel
   call f_free(reducearr)
-  call mpiallred(nl%nproj, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
-  call mpiallred(nl%nprojel, 1, mpi_max, comm=bigdft_mpi%mpi_comm)
-  call mpiallred(istart, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
+  call fmpi_allreduce(nl%nproj, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+  call fmpi_allreduce(nl%nprojel, 1, FMPI_MAX, comm=bigdft_mpi%mpi_comm)
+  call fmpi_allreduce(istart, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
   istart = istart + 1
 
 

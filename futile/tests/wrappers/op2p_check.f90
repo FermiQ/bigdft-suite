@@ -571,7 +571,7 @@
           keepup =.false.
        end if
     end do outer_loop
-    if (nproc > 1) call mpiallred(KIJ,op=MPI_SUM)
+    if (nproc > 1) call fmpi_allreduce(KIJ,op=FMPI_SUM)
 
     if (mpirank()==0) then
        call yaml_map('KIJ',KIJ,fmt='(i5)')
@@ -628,8 +628,8 @@
 !!$    end do OP2P_outer_loop_init
 !!$    call free_OP2P_data(OP2P_outer)
 !!$    !then reduce the results of the communication for each of the steps
-!!$    call mpiallred(ncouples_local,op=MPI_SUM)
-!!$    call mpiallred(redundant_couples,op=MPI_SUM)
+!!$    call fmpi_allreduce(ncouples_local,op=MPI_SUM)
+!!$    call fmpi_allreduce(redundant_couples,op=MPI_SUM)
 !!$!call f_zero(redundant_couples)
 !!$    call f_free(fake_res_psi)
 !!$    call f_free(pseudopsi)
@@ -771,7 +771,7 @@
 !!$       end do
 !!$    end do
 !!$
-!!$    if (nproc > 1) call mpiallred(KIJ,op=MPI_SUM)
+!!$    if (nproc > 1) call fmpi_allreduce(KIJ,op=MPI_SUM)
 !!$
 !!$    if (iproc==0) then
 !!$       call yaml_map('KIJ',KIJ,fmt='(i5)')
@@ -807,7 +807,7 @@
 !!$       end do
 !!$    end do
 !!$    
-!!$    if (nproc > 1) call mpiallred(KIJc,op=MPI_SUM)
+!!$    if (nproc > 1) call fmpi_allreduce(KIJc,op=MPI_SUM)
 !!$
 !!$    if (iproc==0) then
 !!$       call yaml_map('KIJc',KIJc,fmt='(i5)')
@@ -885,7 +885,7 @@
 
   subroutine count_codensities(iproc,nproc,nobj_par,nearest_neighbor,ncouples_local_max,treated_couples,ncouples_local,nstep_outer)
     use futile    
-    use wrapper_MPI, only: MPI_SUM,mpiallred,mpiworld
+    use wrapper_MPI, only: FMPI_SUM,fmpi_allreduce,mpiworld
     use overlap_point_to_point
     implicit none
     logical, intent(in) :: nearest_neighbor
@@ -941,7 +941,7 @@
     end do OP2P_outer_loop_init
     call free_OP2P_data(OP2P_outer)
     !then reduce the results of the communication for each of the steps
-    call mpiallred(ncouples_local,op=MPI_SUM)
+    call fmpi_allreduce(ncouples_local,op=FMPI_SUM)
 
     !here we should put the summary
 

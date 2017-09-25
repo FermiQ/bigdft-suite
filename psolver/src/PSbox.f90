@@ -69,34 +69,37 @@ contains
   !> reduce all the given information 
   !! MPI_SUM is applied in the case of unspecified op
   subroutine reduce_scalar(val,kernel,op)
+    use f_enums
     implicit none
     real(dp), intent(inout) :: val
     type(coulomb_operator), intent(in) :: kernel
-    integer, intent(in), optional :: op !< operation to be done
+    type(f_enumerator), intent(in), optional :: op !< operation to be done
     !local variables
-    integer :: mpi_op
+    type(f_enumerator) :: mpi_op
 
-    mpi_op=MPI_SUM
+    mpi_op=FMPI_SUM
     if (present(op)) mpi_op=op
 
     if (kernel%mpi_env%nproc > 1) &
-         call mpiallred(val,1,op=mpi_op,comm=kernel%mpi_env%mpi_comm)
+         call fmpi_allreduce(val,1,op=mpi_op,comm=kernel%mpi_env%mpi_comm)
     
   end subroutine reduce_scalar
 
   subroutine reduce_array(val,kernel,op)
+    use f_enums
     implicit none
     real(dp), dimension(:), intent(inout) :: val
     type(coulomb_operator), intent(in) :: kernel
-    integer, intent(in), optional :: op !< operation to be done
+    type(f_enumerator), intent(in), optional :: op !< operation to be done
+    !integer, intent(in), optional :: op !< operation to be done
     !local variables
-    integer :: mpi_op
+    type(f_enumerator) :: mpi_op
 
-    mpi_op=MPI_SUM
+    mpi_op=FMPI_SUM
     if (present(op)) mpi_op=op
 
     if (kernel%mpi_env%nproc > 1) &
-         call mpiallred(val(1),size(val),op=mpi_op,comm=kernel%mpi_env%mpi_comm)
+         call fmpi_allreduce(val(1),size(val),op=mpi_op,comm=kernel%mpi_env%mpi_comm)
 
   end subroutine reduce_array
 

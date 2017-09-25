@@ -357,8 +357,8 @@ module get_kernel
       !!        end if
       !!        call f_free(tempmat)
       !!        if (nproc>1) then
-      !!            call mpiallred(tmb%linmat%ham_%matrix(1,1,ispin), tmb%linmat%smat(2)%nfvctr**2, &
-      !!                 mpi_sum, comm=bigdft_mpi%mpi_comm)
+      !!            call fmpi_allreduce(tmb%linmat%ham_%matrix(1,1,ispin), tmb%linmat%smat(2)%nfvctr**2, &
+      !!                 FMPI_SUM, comm=bigdft_mpi%mpi_comm)
       !!        end if
     
       !!        call f_zero(tmb%linmat%smat(1)%nfvctr**2, tmb%linmat%ovrlp_%matrix(1,1,ispin))
@@ -371,8 +371,8 @@ module get_kernel
       !!        end if
       !!        call f_free(tempmat)
       !!        if (nproc>1) then
-      !!            call mpiallred(tmb%linmat%ovrlp_%matrix(1,1,ispin), tmb%linmat%smat(1)%nfvctr**2, &
-      !!                 mpi_sum, comm=bigdft_mpi%mpi_comm)
+      !!            call fmpi_allreduce(tmb%linmat%ovrlp_%matrix(1,1,ispin), tmb%linmat%smat(1)%nfvctr**2, &
+      !!                 FMPI_SUM, comm=bigdft_mpi%mpi_comm)
       !!        end if
       !!    end do
       !!end if
@@ -543,7 +543,8 @@ module get_kernel
       if (calculate_ham) then
           if (nproc>1) then
               ! Wait for the communication of energs_work on root
-              call mpi_fenceandfree(energs_work%window)
+             !call mpi_fenceandfree(energs_work%window)
+             call fmpi_win_shut(energs_work%window)
           end if
     
           ! Copy the value, only necessary on root
@@ -830,7 +831,7 @@ module get_kernel
           if (nproc > 1) then
               call timing(iproc,'renormCoefCom1','OF')
               call timing(iproc,'renormCoefComm','ON')
-              call mpiallred(ovrlp_coeff, mpi_sum, comm=bigdft_mpi%mpi_comm)
+              call fmpi_allreduce(ovrlp_coeff, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
               call timing(iproc,'renormCoefComm','OF')
               call timing(iproc,'renormCoefCom1','ON')
           end if
@@ -857,7 +858,7 @@ module get_kernel
                  !!     ovrlp_coeff, &
                  !!     basis_overlap, max_error, mean_error)
               else
-                 ! It is necessary to call the routine since it has a built-in mpiallred.
+                 ! It is necessary to call the routine since it has a built-in fmpi_allreduce.
                  ! Use the first element of ovrlp_coeff; thanks to orbs%norbp==0 this should be safe
                  call deviation_from_unity_parallel(iproc, nproc, bigdft_mpi%mpi_comm, &
                       orbs%norb, orbs%norbp, orbs%isorb, &
@@ -968,7 +969,7 @@ module get_kernel
                 end if
     
                 if (nproc > 1) then
-                   call mpiallred(coeff_tmp, mpi_sum, comm=bigdft_mpi%mpi_comm)
+                   call fmpi_allreduce(coeff_tmp, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
                 end if
                 call vcopy(basis_overlap%nfvctr*norbx,coeff_tmp(1,1),1,coeff(1,1),1)
              else
@@ -1059,7 +1060,7 @@ module get_kernel
              call f_free(coeff_tmp)
     
              if (nproc>1) then
-                call mpiallred(ovrlp_coeff, MPI_SUM, comm=bigdft_mpi%mpi_comm)
+                call fmpi_allreduce(ovrlp_coeff, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
              end if
     
              if (norb==orbs%norb .and. basis_overlap%nspin==1) then
@@ -1070,7 +1071,7 @@ module get_kernel
                         ovrlp_coeff(1:orbs%norb,orbs%isorb+1:orbs%isorb+orbs%norbp), &
                         basis_overlap, max_error, mean_error)
                 else
-                   ! It is necessary to call the routine since it has a built-in mpiallred.
+                   ! It is necessary to call the routine since it has a built-in fmpi_allreduce.
                    ! Use the first element of ovrlp_coeff; thanks to orbs%norbp==0 this should be safe
                    call deviation_from_unity_parallel(iproc, nproc, bigdft_mpi%mpi_comm, &
                         orbs%norb, orbs%norbp, &
@@ -1136,7 +1137,7 @@ module get_kernel
       real(kind=8),dimension(:),allocatable :: inv_ovrlp_compr_seq, kernel_compr_seq
       integer,dimension(3) :: power
       integer :: ispin, ilshift, ilshiftpp, isl
-      integer,dimension(:,:),allocatable :: windowsx1
+      type(fmpi_win),dimension(:,:),allocatable :: windowsx1
       real(kind=8),dimension(:),allocatable :: kernelpp_work1, kernelpp_work2
       real(kind=8),dimension(:),pointer :: matrix_local1
     
@@ -1149,7 +1150,7 @@ module get_kernel
       matrix_local1 = f_malloc_ptr(tmb%linmat%smat(3)%smmm%nvctrp_mm*tmb%linmat%smat(3)%nspin,id='matrix_local1')
     
       ! Calculate S^1/2 * K * S^1/2. Take the value of S^1/2 from memory (was
-      ! calculated in the last call to this routine or (it it is the first call)
+      ! calculated in the last call to this routine or (if it is the first call)
       ! just before the call.
       do ispin=1,tmb%linmat%smat(3)%nspin
           ilshift = (ispin-1)*tmb%linmat%smat(3)%nvctrp_tg
@@ -1191,7 +1192,7 @@ module get_kernel
                windowsx=windowsx1(:,ispin))
       end do
     
-      call f_free(windowsx1)
+      call free_fmpi_win_arr(windowsx1)
       !call f_free(windowsx2)
       call f_free(kernelpp_work1)
       !call f_free(kernelpp_work2)
@@ -1206,7 +1207,8 @@ module get_kernel
     subroutine calculate_gap_FOE(iproc, nproc, input, orbs_KS, tmb)
       use module_base
       use module_types    
-      use foe_base, only: foe_data, foe_data_null, foe_data_get_real, foe_data_set_real, foe_data_deallocate
+      use foe_base, only: foe_data, foe_data_null, foe_data_get_real, foe_data_set_real, &
+                          foe_data_deallocate, copy_foe_data
       !use foe, only:  fermi_operator_expansion_new
       use sparsematrix_highlevel, only: matrix_fermi_operator_expansion
       use sparsematrix_base, only: matrices_null, sparsematrix_malloc_ptr, deallocate_matrices, &
@@ -1231,6 +1233,9 @@ module get_kernel
       integer,dimension(input%nspin) :: ntmb_spin
       real(kind=8),dimension(input%nspin) :: e_homo_spin, e_lumo_spin
       logical,dimension(input%nspin) :: calculate_spin_channels
+      real(kind=8),parameter :: charge_noise = 1.d-5
+
+      call f_routine(id='calculate_gap_FOE')
     
       if (iproc==0) call yaml_comment('FOE calculation for HOMO-LUMO analysis',hfill='=')
     
@@ -1318,13 +1323,14 @@ module get_kernel
               kernel(1)%matrix_compr = sparsematrix_malloc_ptr(tmb%linmat%smat(3), &
                   iaction=SPARSE_TASKGROUP, id='kernel%matrix_compr')
               foe_obj = foe_data_null()
-              call init_foe_wrapper(iproc, nproc, input, orbs_KS, 0.d0, foe_obj)
+              !call init_foe_wrapper(iproc, nproc, input, orbs_KS, 0.d0, foe_obj)
+              call copy_foe_data(tmb%foe_obj, foe_obj)
+              !write(*,*) 'tmb%foe_obj%fscale, foe_obj%fscale',tmb%foe_obj%fscale, foe_obj%fscale
     
-              ! Round up the target charge (required for systems with non-integer charge)
-              call foe_data_set_real(foe_obj,"charge",qq,1)
-              !!qq = foe_data_get_real(foe_obj,"charge",1)
+              ! Round up the target charge (required for systems with non-integer charge).
+              ! Allow some small noise (necessary if the qq is just slightly larger than an integer)
               iqq = nint(qq)
-              if (real(iqq,kind=8)<qq) then
+              if (real(iqq,kind=8)+charge_noise<qq) then
                   qq = real(iqq+1,kind=8)
               else
                   qq = real(iqq,kind=8)
@@ -1365,13 +1371,13 @@ module get_kernel
               kernel(2)%matrix_compr = sparsematrix_malloc_ptr(tmb%linmat%smat(3), &
                   iaction=SPARSE_TASKGROUP, id='kernel%matrix_compr')
               foe_obj = foe_data_null()
-              call init_foe_wrapper(iproc, nproc, input, orbs_KS, 0.d0, foe_obj)
+              !call init_foe_wrapper(iproc, nproc, input, orbs_KS, 0.d0, foe_obj)
+              call copy_foe_data(tmb%foe_obj, foe_obj)
     
               ! Round up the target charge (required for systems with non-integer charge)
-              call foe_data_set_real(foe_obj,"charge",qq,1)
-              !!qq = foe_data_get_real(foe_obj,"charge",1)
+              ! Allow some small noise (necessary if the qq is just slightly larger than an integer)
               iqq = nint(qq)
-              if (real(iqq,kind=8)<qq) then
+              if (real(iqq,kind=8)+charge_noise<qq) then
                   qq = real(iqq+1,kind=8)
               else
                   qq = real(iqq,kind=8)
@@ -1450,6 +1456,8 @@ module get_kernel
               call yaml_mapping_close()
           end if
       end if
+
+      call f_release_routine()
     
     end subroutine calculate_gap_FOE
 
@@ -1516,7 +1524,7 @@ module get_kernel
       !!     tmb%orbs%norb, tmb%linmat%ham%matrix, tmb%orbs%norb, 0.d0, KH, tmb%orbs%norb)
       !!call dgemm('n', 't', tmb%orbs%norbp, tmb%orbs%norbp, tmb%orbs%norb, scale_factor, KH, &
       !!     tmb%orbs%norb, KH, tmb%orbs%norb, 0.d0, KHKH, tmb%orbs%norb)
-      !!call mpiallred(KHKH(1,1), tmb%orbs%norb, mpi_sum, bigdft_mpi%mpi_comm, ierr)
+      !!call fmpi_allreduce(KHKH(1,1), tmb%orbs%norb, FMPI_SUM, bigdft_mpi%mpi_comm, ierr)
       !!call dgemm('n', 'n', tmb%orbs%norb, tmb%orbs%norb, tmb%orbs%norb, 1.0d0, tmb%linmat%denskern%matrix, &
       !!     tmb%orbs%norb, gradmat%matrix, tmb%orbs%norb, 0.d0, Kgrad, tmb%orbs%norb)
     
@@ -1542,7 +1550,7 @@ module get_kernel
       end if
     
       if (nproc > 1) then
-          call mpiallred(KH, mpi_sum, comm=bigdft_mpi%mpi_comm)
+          call fmpi_allreduce(KH, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
       end if
     
       if (tmb%orbs%norbp>0) then
@@ -1564,7 +1572,7 @@ module get_kernel
       end if
     
       if (nproc > 1) then
-          call mpiallred(KHKH, mpi_sum, comm=bigdft_mpi%mpi_comm)
+          call fmpi_allreduce(KHKH, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
       end if
       call f_free(KH)
       Kgrad=f_malloc0((/tmb%linmat%smat(3)%nfvctr,tmb%linmat%smat(3)%nfvctr,tmb%linmat%smat(3)%nspin/),id='Kgrad')
@@ -1588,7 +1596,7 @@ module get_kernel
       end if
     
       if (nproc > 1) then
-          call mpiallred(Kgrad, mpi_sum, comm=bigdft_mpi%mpi_comm)
+          call fmpi_allreduce(Kgrad, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
       end if
     
       !!if (iproc==0) then
@@ -1797,7 +1805,7 @@ module get_kernel
          end do
     
          if (nproc > 1) then
-            call mpiallred(tt, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
+            call fmpi_allreduce(tt, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
          end if
          fnrm=2.0_gp*tt
     
@@ -2318,7 +2326,7 @@ module get_kernel
       call f_free(coeff_tmp)
     
       if (nproc>1) then
-          call mpiallred(mat_coeff, mpi_sum, comm=bigdft_mpi%mpi_comm)
+          call fmpi_allreduce(mat_coeff, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
       end if
     
     end subroutine calculate_coeffMatcoeff
@@ -2370,7 +2378,7 @@ module get_kernel
             call mpi_allgatherv(mat_coeff_diagp, ksorbs%norbp, mpi_double_precision, mat_coeff_diag, &
                  ksorbs%norb_par(:,0), ksorbs%isorb_par, mpi_double_precision, bigdft_mpi%mpi_comm, ierr)
          else
-            call mpiallred(mat_coeff_diag, mpi_sum, comm=bigdft_mpi%mpi_comm)
+            call fmpi_allreduce(mat_coeff_diag, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
          end if
       else
          if (allgather) then
@@ -2477,7 +2485,7 @@ module get_kernel
     !!  call memocc(istat,iall,'coeff_tmp',subname)
     !!
     !!  if (nproc>1) then
-    !!      call mpiallred(ham_coeff(1,1), basis_orbs%norb**2, mpi_sum, bigdft_mpi%mpi_comm, ierr)
+    !!      call fmpi_allreduce(ham_coeff(1,1), basis_orbs%norb**2, FMPI_SUM, bigdft_mpi%mpi_comm, ierr)
     !!  end if
     !!
     !!  allocate(ovrlp_coeff(basis_orbs%norb,basis_orbs%norb), stat=istat)
@@ -2500,7 +2508,7 @@ module get_kernel
     !!  call memocc(istat,iall,'coeff_tmp',subname)
     !!
     !!  if (nproc>1) then
-    !!      call mpiallred(ovrlp_coeff(1,1), basis_orbs%norb**2, mpi_sum, bigdft_mpi%mpi_comm, ierr)
+    !!      call fmpi_allreduce(ovrlp_coeff(1,1), basis_orbs%norb**2, FMPI_SUM, bigdft_mpi%mpi_comm, ierr)
     !!  end if
     !!
     !!  ! above is overkill, actually just want diagonal elements but print off as a test out of curiosity
@@ -3271,7 +3279,7 @@ module get_kernel
     !!      else
     !!         call vcopy(tmb%linmat%smat(3)%nfvctr*tmb%orbs%norb,grad_cov(1,1),1,grad_full(1,1),1)
     !!      end if
-    !!      !call mpiallred(grad(1,1), tmb%orbs%norb*tmb%orbs%norb, mpi_sum, bigdft_mpi%mpi_comm, ierr)
+    !!      !call fmpi_allreduce(grad(1,1), tmb%orbs%norb*tmb%orbs%norb, FMPI_SUM, bigdft_mpi%mpi_comm, ierr)
     !!
     !!      call dgesv_parallel(iproc, tmb%orthpar%nproc_pdsyev, tmb%orthpar%blocksize_pdsyev, bigdft_mpi%mpi_comm, &
     !!           tmb%orbs%norb, tmb%orbs%norb, tmb%linmat%ovrlp_%matrix, tmb%orbs%norb, grad_full, tmb%orbs%norb, info)

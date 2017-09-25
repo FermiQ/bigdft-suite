@@ -17,6 +17,8 @@ DICT_INCLUDES = error_handling.f90 $(ERR_INCLUDES) dict_add-inc.f90 dict_getvec-
 	set_arr-inc.f90 dict_cont-inc.f90 dict_cont_arr-inc.f90
 NOOMP_INCLUDES = halt_omp-inc.f90
 
+SUBDIRS = tests
+
 EXTRA_DIST = $(STRINGS_INCLUDES) $(DICT_INCLUDES) $(NOOMP_INCLUDES)
 DISTCLEANFILES = futile_cst.h
 

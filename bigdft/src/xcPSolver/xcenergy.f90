@@ -1,7 +1,7 @@
 !> @file
 !!  Exact-exchange routines
 !! @author
-!!    Copyright (C) 2002-2011 BigDFT group 
+!!    Copyright (C) 2002-2017 BigDFT group
 !!    This file is distributed under the terms of the
 !!    GNU General Public License, see ~/COPYING file
 !!    or http://www.gnu.org/copyleft/gpl.txt .
@@ -319,21 +319,8 @@ subroutine mkcore_paw_iat(iproc,atoms,ityp,rx,ry,rz,cutoff,hxh,hyh,hzh,&
 
 end subroutine mkcore_paw_iat
 
+
 !> Given a charge density, calculates the exchange-correlation potential
-!! SYNOPSIS
-!!    @param nproc       number of processors
-!!    @param iproc       label of the process,from 0 to nproc-1
-!!    @param n01,n02,n03 global dimension in the three directions. They are the same no matter if the 
-!!                datacode is in 'G' or in 'D' position.
-!!    @param ixc         eXchange-Correlation code. Indicates the XC functional to be used 
-!!                for calculating XC energies and potential. 
-!!                ixc=0 indicates that no XC terms are computed. 
-!!                The XC functional codes follow the ABINIT convention.
-!!    @param hgrids    grid spacings. For the isolated BC case for the moment they are supposed to 
-!!                be equal in the three directions
-!!    @param rho         Main input array. it represents the density values on the grid points
-!!    @param potxc       Main output array, the values on the grid points of the XC potential
-!!    @param exc,vxc     XC energy and integral of @f$\rho V_{xc}@f$ respectively
 !! @warning
 !!    The dimensions of the arrays must be compatible with geocode, datacode, nproc, 
 !!    ixc and iproc. Since the arguments of these routines are indicated with the *, it
@@ -351,17 +338,23 @@ subroutine XC_potential(geocode,datacode,iproc,nproc,mpi_comm,n01,n02,n03,xcObj,
   use module_types, only: TCAT_EXCHANGECORR
   use abi_interfaces_xc_lowlevel, only: abi_mkdenpos
   implicit none
-  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+  character(len=1), intent(in) :: geocode  !< @copydoc poisson_solver::doc::geocode
   character(len=1), intent(in) :: datacode !< @copydoc poisson_solver::doc::datacode
-  integer, intent(in) :: iproc,nproc,n01,n02,n03,mpi_comm
+  integer, intent(in) :: iproc !< Label of the process,from 0 to nproc-1
+  integer, intent(in) :: nproc !< Number of processors
+  integer, intent(in) :: n01,n02,n03 !< Global dimension in the three directions. They are the same no matter if the 
+                                     !! datacode is in 'G' or in 'D' position.
+  integer, intent(in) :: mpi_comm
   integer, intent(in) :: nspin !< Value of the spin-polarisation
-  real(gp), dimension(3), intent(in) :: hgrids
-  type(xc_info), intent(in) :: xcObj
-  real(gp), intent(out) :: exc,vxc
-  real(dp), dimension(*), intent(inout) :: rho
-  real(wp), dimension(:,:,:,:), pointer :: rhocore !associated if useful
-  real(wp), dimension(:,:,:,:), pointer :: rhohat !associated if useful
-  real(wp), dimension(*), intent(out) :: potxc
+  real(gp), dimension(3), intent(in) :: hgrids !< grid spacings. 
+                                               !! For the isolated BC case they are supposed to 
+                                               !! be equal in the three directions
+  type(xc_info), intent(in) :: xcObj !< Contains all information about exchange-correlation functional
+  real(gp), intent(out) :: exc,vxc  !< XC energy and integral of @f$\rho V_{xc}@f$ respectively
+  real(dp), dimension(*), intent(inout) :: rho !< Main input array. Density values on the grid points
+  real(wp), dimension(:,:,:,:), pointer :: rhocore !< associated if useful
+  real(wp), dimension(:,:,:,:), pointer :: rhohat  !< associated if useful
+  real(wp), dimension(*), intent(out) :: potxc !< Main output array, the values on the grid points of the XC potential
   real(dp), dimension(6), intent(out) :: xcstr
   real(dp), dimension(:,:,:,:), target, intent(out), optional :: dvxcdrho
   !local variables
@@ -664,7 +657,7 @@ subroutine XC_potential(geocode,datacode,iproc,nproc,mpi_comm,n01,n02,n03,xcObj,
 
      energies_mpi(1)=eexcuLOC
      energies_mpi(2)=vexcuLOC
-     call mpiallred(energies_mpi(1), 2,MPI_SUM,comm=mpi_comm,recvbuf=energies_mpi(3))
+     call fmpi_allreduce(energies_mpi(1), 2,FMPI_SUM,comm=mpi_comm,recvbuf=energies_mpi(3))
      exc=energies_mpi(3)
      vxc=energies_mpi(4)
 
@@ -673,12 +666,12 @@ subroutine XC_potential(geocode,datacode,iproc,nproc,mpi_comm,n01,n02,n03,xcObj,
 
         if (associated(rhocore)) then
         call calc_rhocstr(rhocstr,nxc,nxt,m1,m3,i3xcsh_fake,nspin,potxc,rhocore)
-        call mpiallred(rhocstr,MPI_SUM,comm=mpi_comm)
+        call fmpi_allreduce(rhocstr,FMPI_SUM,comm=mpi_comm)
         rhocstr=rhocstr/real(n01*n02*n03,dp)
         end if
 
      xcstr(1:3)=(exc-vxc)/real(n01*n02*n03,dp)/product(hgrids)!hx/hy/hz
-     call mpiallred(wbstr,MPI_SUM,comm=mpi_comm)
+     call fmpi_allreduce(wbstr,FMPI_SUM,comm=mpi_comm)
      wbstr=wbstr/real(n01*n02*n03,dp)
      xcstr(:)=xcstr(:)+wbstr(:)+rhocstr(:)
   end if
@@ -749,6 +742,7 @@ subroutine XC_potential(geocode,datacode,iproc,nproc,mpi_comm,n01,n02,n03,xcObj,
   !if (iproc==0 .and. wrtmsg) write(*,'(a)')'done.'
 
 contains
+
 subroutine substract_from_vexcu(rhoin)
  implicit none
  real(wp),dimension(:,:,:,:),intent(in)::rhoin

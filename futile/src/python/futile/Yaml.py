@@ -1,4 +1,5 @@
 import yaml
+from Utils import write
     
 def kw_pop(*args,**kwargs):
     """Treatment of kwargs. Eliminate from kwargs the tuple in args."""
@@ -131,7 +132,7 @@ def load(file=None,stream=None,doc_lists=False,safe_mode=False):
                  (i.e. no yaml tags)
                  
     """
-    strm=stream if stream else open(file,'r')
+    strm=stream if stream else open(file,'r').read()
     try:
         ldr=yaml.MinLoader #seems only to work with the strings
     except:
@@ -139,7 +140,7 @@ def load(file=None,stream=None,doc_lists=False,safe_mode=False):
     try:
         ld=yaml.load(strm,Loader=ldr)
         if doc_lists: ld=[ld]
-    except:
+    except Exception,e:
         if safe_mode:
             documents=strm.split('---\n')
             for i,raw_doc in enumerate(documents):

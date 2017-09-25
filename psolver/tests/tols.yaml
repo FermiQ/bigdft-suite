@@ -71,7 +71,7 @@ GPS_PCG: &PCGref
   offset: 2.18e-10
   Contravariant Metric: 1.4e-15
   Expected hartree energy: 2.0e-08
-  IntSur sccs cavity: 2.148965450032847e-10
+  IntSur sccs cavity: 2.7e-10
   IntSur soft-sphere cavity: 2.1044854747742647e-10
   IntVol sccs cavity: 1.2385214631649433e-08
   IntVol soft-sphere cavity: 2.1957191620458616e-10

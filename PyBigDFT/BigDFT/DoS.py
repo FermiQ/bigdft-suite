@@ -1,7 +1,7 @@
 import numpy
 from futile.Utils import write
 
-AU_eV=27.31138386
+AU_eV=27.21138386
 
 
 class DiracSuperposition():

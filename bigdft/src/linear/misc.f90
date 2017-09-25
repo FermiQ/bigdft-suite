@@ -1186,7 +1186,7 @@ subroutine analyze_wavefunctions(output, region, lzd, orbs, npsidim, psi, ioffse
       ist = ist + ncount
   end do
 
-  call mpiallred(sigma_arr, mpi_sum, comm=bigdft_mpi%mpi_comm)
+  call fmpi_allreduce(sigma_arr, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
 
   if (trim(region)=='global') then
       !call deallocate_bounds(lzd%glr%geocode, lzd%glr%hybrid_on, lzd%glr%bounds)
@@ -1343,7 +1343,7 @@ subroutine analyze_kernel(ntmb, norb, nat, coeff, kernel, rxyz, on_which_atom)
       call gemm('n', 't', ntmb, ntmb, 1, 1.d0, coeff(1,iorb), ntmb, &
            coeff(1,iorb), ntmb, 1.d0, kernel_full(1,1), ntmb)
   end do
-  !call mpiallred(kernel%matrix, mpi_sum, comm=bigdft_mpi%mpi_comm)
+  !call fmpi_allreduce(kernel%matrix, mpi_sum, comm=bigdft_mpi%mpi_comm)
 
   call yaml_map('Output file for kernel analysis',trim(filename))
   call f_open_file(iunit, file=trim(filename), binary=.false.)

@@ -431,7 +431,7 @@ program PS_StressCheck
     end if
 
      eexcu=sum(density)*hx*hy*hx*sqrt(mesh%detgd)
-     if (nproc >1) call mpiallred(eexcu,1,op=MPI_SUM)
+     if (nproc >1) call fmpi_allreduce(eexcu,1,op=FMPI_SUM)
      if (iproc==0) call yaml_map('potential integral',eexcu)
 
      if (wrtfiles) then

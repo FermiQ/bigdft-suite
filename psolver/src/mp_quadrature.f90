@@ -295,11 +295,12 @@ subroutine gaussian_density(rxyz,rloc, zion, multipole_preservingl, use_iterator
 
   if (use_iterator) then
      do while(box_next_z(boxit))
-        fz=mpz(boxit%ibox(3)-boxit%nbox(1,3))
+        !fz=mpz(boxit%inext(3)-boxit%nbox(1,3))
+        fz=mpz(boxit%k-boxit%nbox(1,3)+1)
         do while(box_next_y(boxit))
-           fy=mpy(boxit%ibox(2)-boxit%nbox(1,2))
+           fy=mpy(boxit%j-boxit%nbox(1,2)+1)
            do while(box_next_x(boxit))
-              fx=mpx(boxit%ibox(1)-boxit%nbox(1,1))
+              fx=mpx(boxit%i-boxit%nbox(1,1)+1)
               xp=fx*fy*fz
               density(boxit%ind) = density(boxit%ind) - xp*charge
            end do

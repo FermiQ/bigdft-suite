@@ -2,7 +2,7 @@
 !!  Wrapper around XC library routines (both ABINIT and LibXC).
 !! @author
 !!    Copyright (C) 2008-2010 ABINIT group (MOliveira)
-!!    Copyright (C) 2008-2013 BigDFT group (DC)
+!!    Copyright (C) 2008-2017 BigDFT group (DC)
 !!    This file is distributed under the terms of the
 !!    GNU General Public License, see ~/COPYING file
 !!    or http://www.gnu.org/copyleft/gpl.txt .
@@ -364,12 +364,18 @@ contains
     type(xc_info), intent(in) :: xcObj
 
     xc_exctXfac = 0.d0
-    if (any(xcObj%family == XC_FAMILY_HYB_GGA)) then
+
+    !Special case for Hartree-Fock (seems in the XC_FAMILY_LDA??)
+    if (any(xcObj%id == XC_HARTREE_FOCK)) then
+       xc_exctXfac = 1.d0
+
+    !Hybrid GGA functionals
+    else if (any(xcObj%family == XC_FAMILY_HYB_GGA)) then
       ! Was the factor overriden in the input file ?
       if(xcObj%default_alpha .ne. -1.0d0) then
          xc_exctXfac=xcObj%default_alpha
          !write(*,*) 'Alpha HF was overriden : ', xc_exctXfac
-      else 
+      else
         do i=1,2
           !factors for the exact exchange contribution of different hybrid functionals
           if (xcObj%id(i) == 0) cycle
@@ -379,8 +385,6 @@ contains
                   XC_HYB_GGA_XC_HJS_B97X, XC_HYB_GGA_XC_CAM_B3LYP, &
                   XC_HYB_GGA_XC_TUNED_CAM_B3LYP, XC_HYB_GGA_XC_CAMY_BLYP) !! SCREENED HYB
               call xc_f90_hyb_cam_coef(xcObj%funcs(i)%conf, omega, alpha, xc_exctXfac)
-            case (XC_HARTREE_FOCK) !! PURE HF
-              xc_exctXfac = 1.d0
             case default !! HYB
               call xc_f90_hyb_exx_coef(xcObj%funcs(i)%conf,xc_exctXfac)
               !!!write(6,*)"id,fact",xcObj%id(i),xc_exctXfac
