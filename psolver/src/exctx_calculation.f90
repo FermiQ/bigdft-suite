@@ -24,7 +24,7 @@ subroutine internal_calculation_exctx(istep,factor,pkernel,norb,occup,spinsgn,re
   type(coulomb_operator), intent(inout) :: pkernel
   type(local_data), intent(inout) :: phi_i,phi_j
   real(gp), intent(inout) :: eexctX
-  real(wp), dimension(product(pkernel%ndims)), intent(out) :: rp_ij
+  real(wp), dimension(product(pkernel%mesh%ndims)), intent(out) :: rp_ij
   !local variables
   integer :: iorb,jorb,ndim,iorb_glb,jorb_glb,ishift,jshift,ishift_res,jshift_res,i
   real(gp) :: hfaci,hfacj,hfac2,ehart
@@ -34,7 +34,7 @@ subroutine internal_calculation_exctx(istep,factor,pkernel,norb,occup,spinsgn,re
 !!$  do ind=1,nloc_i
 !!$     iorb=
 
-  ndim=product(pkernel%ndims)
+  ndim=product(pkernel%mesh%ndims)
   if(pkernel%igpu==1 .and. pkernel%stay_on_gpu /= 1) then
     call synchronize()
  end if
@@ -99,7 +99,7 @@ subroutine exctx_pre_computation(iorb, jorb, rp_ij, phi1, phi2, pkernel)
   use Poisson_Solver
   implicit none
   type(coulomb_operator), intent(inout) :: pkernel
-  real(wp), dimension(product(pkernel%ndims)), intent(inout) :: rp_ij
+  real(wp), dimension(product(pkernel%mesh%ndims)), intent(inout) :: rp_ij
   type(local_data), intent(inout) :: phi1,phi2
   real(gp) :: hfac
   integer(f_address) :: myrho_GPU
@@ -107,13 +107,13 @@ subroutine exctx_pre_computation(iorb, jorb, rp_ij, phi1, phi2, pkernel)
   hfac=1.0_gp/product(pkernel%hgrids)
   shift1=phi1%displ(iorb)
   shift2=phi2%displ(jorb)
-  ndim=product(pkernel%ndims)
+  ndim=product(pkernel%mesh%ndims)
   if(pkernel%igpu==1 .and. pkernel%stay_on_gpu==1) then
    !   call cudamalloc(ndim,myrho_GPU,i_stat)
     !  if (i_stat /= 0) call f_err_throw('error cudamalloc myrho_GPU (GPU out of memory ?) ')
     !first attempt : send data each time, to remove later.
     !call reset_gpu_data(ndim,rp_ij,myrho_GPU)
-    call gpu_pre_computation(pkernel%ndims(1),pkernel%ndims(2),pkernel%ndims(3),&
+    call gpu_pre_computation(pkernel%mesh%ndims(1),pkernel%mesh%ndims(2),pkernel%mesh%ndims(3),&
             pkernel%w%rho_GPU, phi1%data_GPU,shift1,phi2%data_GPU,shift2,hfac)
     !call get_gpu_data(ndim,rp_ij,myrho_GPU)
 
@@ -139,7 +139,7 @@ subroutine exctx_post_computation(orb1, orb2, rp_ij, phi1, phi2, pkernel, norb, 
   use Poisson_Solver
   implicit none
   type(coulomb_operator), intent(inout) :: pkernel
-  real(wp), dimension(product(pkernel%ndims)), intent(inout) :: rp_ij
+  real(wp), dimension(product(pkernel%mesh%ndims)), intent(inout) :: rp_ij
   type(local_data), intent(inout) :: phi1,phi2
   integer, intent(in) :: norb
   real(gp), dimension(norb), intent(in) :: occup
@@ -155,7 +155,7 @@ subroutine exctx_post_computation(orb1, orb2, rp_ij, phi1, phi2, pkernel, norb, 
   shift2=phi2%displ(orb2)
 
   hfac1=-factor*occup(orb2_glb)
-  ndim=product(pkernel%ndims)
+  ndim=product(pkernel%mesh%ndims)
 
   if(pkernel%igpu==1 .and. pkernel%stay_on_gpu==1) then
       !call cudamalloc(ndim,myrho_GPU,i_stat)
@@ -164,7 +164,7 @@ subroutine exctx_post_computation(orb1, orb2, rp_ij, phi1, phi2, pkernel, norb, 
     !first attempt : send data each time, to remove later.
    ! call reset_gpu_data(ndim,rp_ij,myrho_GPU)
 
-    call gpu_post_computation(pkernel%ndims(1),pkernel%ndims(2),pkernel%ndims(3),&
+    call gpu_post_computation(pkernel%mesh%ndims(1),pkernel%mesh%ndims(2),pkernel%mesh%ndims(3),&
            pkernel%w%rho_GPU, phi1%res_GPU,shift1_res,phi2%data_GPU,shift2,hfac1)
 
      ! call cudafree(myrho_GPU)

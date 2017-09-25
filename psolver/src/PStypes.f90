@@ -193,7 +193,7 @@ module PStypes
      !! type of cavity to be used
      type(f_enumerator) :: method
      type(cell) :: mesh !< structure which includes all cell informations 
-     integer, dimension(3) :: ndims   !< dimension of the box of the density
+!     integer, dimension(3) :: ndims   !< dimension of the box of the density
      real(gp), dimension(3) :: hgrids !<grid spacings in each direction
      !real(gp), dimension(3) :: angrad !< angles in radiants between each of the axis
      type(cavity_data) :: cavity !< description of the cavity for the dielectric medium
@@ -373,7 +373,7 @@ contains
     k%opt=PSolver_options_null()
     k%mu=0.0_gp
     k%mesh=cell_null()
-    k%ndims=(/0,0,0/)
+!    k%ndims=(/0,0,0/)
     k%hgrids=(/0.0_gp,0.0_gp,0.0_gp/)
     nullify(k%kernel)
     k%plan=(/0,0,0,0,0/)
@@ -536,7 +536,7 @@ contains
     !geocode and ISF family
     kernel%geocode=geocode
     !dimensions and grid spacings
-    kernel%ndims=ndims
+!    kernel%ndims=ndims
     kernel%hgrids=hgrids
 
     !new treatment for the kernel input variables
@@ -945,10 +945,10 @@ contains
 !!$       end if
 
        if (.not. associated(kernel%w%pot))&
-            kernel%w%pot=f_malloc0_ptr([kernel%ndims(1),kernel%ndims(2)*kernel%ndims(3)],id='pot')
+            kernel%w%pot=f_malloc0_ptr([kernel%mesh%ndims(1),kernel%mesh%ndims(2)*kernel%mesh%ndims(3)],id='pot')
 
-       !kernel%w%pot=f_malloc_ptr([kernel%ndims(1),kernel%ndims(2)*kernel%ndims(3)],id='pot')
-       kernel%w%rho=f_malloc0_ptr([kernel%ndims(1),kernel%ndims(2)*kernel%ndims(3)],id='rho')
+       !kernel%w%pot=f_malloc_ptr([kernel%mesh%ndims(1),kernel%mesh%ndims(2)*kernel%mesh%ndims(3)],id='pot')
+       kernel%w%rho=f_malloc0_ptr([kernel%mesh%ndims(1),kernel%mesh%ndims(2)*kernel%mesh%ndims(3)],id='rho')
        kernel%w%rho_pol=f_malloc_ptr([n1,n23],id='rho_pol')
     end select
 
@@ -1027,8 +1027,8 @@ contains
     !local variables
     integer :: n1,n23,i1,i23
 
-    n1=kernel%ndims(1)
-    n23=kernel%ndims(2)*kernel%grid%n3p
+    n1=kernel%mesh%ndims(1)
+    n23=kernel%mesh%ndims(2)*kernel%grid%n3p
 !!$    call PS_allocate_cavity_workarrays(n1,n23,kernel%ndims,&
 !!$         kernel%method,kernel%w)
     if (present(vacuum)) then
@@ -1135,32 +1135,32 @@ contains
 
     if (present(corr)) then
        !check the dimensions (for the moment no parallelism)
-       if (any(shape(corr) /= kernel%ndims)) &
+       if (any(shape(corr) /= kernel%mesh%ndims)) &
             call f_err_throw('Error in the dimensions of the array corr,'//&
             trim(yaml_toa(shape(corr))))
     end if
     if (present(eps)) then
        !check the dimensions (for the moment no parallelism)
-       if (any(shape(eps) /= kernel%ndims)) &
+       if (any(shape(eps) /= kernel%mesh%ndims)) &
             call f_err_throw('Error in the dimensions of the array epsilon,'//&
             trim(yaml_toa(shape(eps))))
     end if
     if (present(oneoeps)) then
        !check the dimensions (for the moment no parallelism)
-       if (any(shape(oneoeps) /= kernel%ndims)) &
+       if (any(shape(oneoeps) /= kernel%mesh%ndims)) &
             call f_err_throw('Error in the dimensions of the array oneoeps,'//&
             trim(yaml_toa(shape(oneoeps))))
     end if
     if (present(oneosqrteps)) then
        !check the dimensions (for the moment no parallelism)
-       if (any(shape(oneosqrteps) /= kernel%ndims)) &
+       if (any(shape(oneosqrteps) /= kernel%mesh%ndims)) &
             call f_err_throw('Error in the dimensions of the array oneosqrteps,'//&
             trim(yaml_toa(shape(oneosqrteps))))
     end if
     if (present(dlogeps)) then
        !check the dimensions (for the moment no parallelism)
        if (any(shape(dlogeps) /= &
-            [3,kernel%ndims(1),kernel%ndims(2),kernel%ndims(3)])) &
+            [3,kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%mesh%ndims(3)])) &
             call f_err_throw('Error in the dimensions of the array dlogeps,'//&
             trim(yaml_toa(shape(dlogeps))))
     end if
@@ -1184,8 +1184,8 @@ contains
     !store the arrays needed for the method
     !the stored arrays are of rank two to collapse indices for
     !omp parallelism
-    n1=kernel%ndims(1)
-    n23=kernel%ndims(2)*kernel%grid%n3p
+    n1=kernel%mesh%ndims(1)
+    n23=kernel%mesh%ndims(2)*kernel%grid%n3p
     !starting point in third direction
     i3s=kernel%grid%istart+1
     if (kernel%grid%n3p==0) i3s=1
@@ -1203,19 +1203,19 @@ contains
              call f_memcpy(n=n1*n23,src=corr(1,1,i3s),dest=kernel%w%corr)
           else if (present(eps)) then
         !allocate work arrays
-             deps=f_malloc([kernel%ndims(1),kernel%ndims(2),kernel%ndims(3),3],id='deps')
-             de2 =f_malloc(kernel%ndims,id='de2')
-             ddeps=f_malloc(kernel%ndims,id='ddeps')
+             deps=f_malloc([kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%mesh%ndims(3),3],id='deps')
+             de2 =f_malloc(kernel%mesh%ndims,id='de2')
+             ddeps=f_malloc(kernel%mesh%ndims,id='ddeps')
 
-             call nabla_u_and_square(kernel%geocode,kernel%ndims(1),kernel%ndims(2),kernel%ndims(3),&
+             call nabla_u_and_square(kernel%geocode,kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%mesh%ndims(3),&
                   eps,deps,de2,kernel%nord,kernel%hgrids)
 
-             call div_u_i(kernel%geocode,kernel%ndims(1),kernel%ndims(2),kernel%ndims(3),&
+             call div_u_i(kernel%geocode,kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%mesh%ndims(3),&
                   deps,ddeps,kernel%nord,kernel%hgrids)
              i23=1
              do i3=i3s,i3s+kernel%grid%n3p-1!kernel%ndims(3)
-                do i2=1,kernel%ndims(2)
-                   do i1=1,kernel%ndims(1)
+                do i2=1,kernel%mesh%ndims(2)
+                   do i1=1,kernel%mesh%ndims(1)
                       kernel%w%corr(i1,i23)=(-0.125d0/pi)*&
                            (0.5d0*de2(i1,i2,i3)/eps(i1,i2,i3)-ddeps(i1,i2,i3))
                    end do
@@ -1226,7 +1226,7 @@ contains
              call f_free(ddeps)
              call f_free(de2)
           else if (all(prst)) then
-             mesh=cell_new(kernel%geocode,kernel%ndims,kernel%hgrids)
+             mesh=cell_new(kernel%geocode,kernel%mesh%ndims,kernel%hgrids)
              epsm1=(kernel%cavity%epsilon0-vacuum_eps)
              call f_zero(kernel%IntSur)
              call f_zero(kernel%IntVol)
@@ -1258,8 +1258,8 @@ contains
           else if (present(eps)) then
              i23=1
              do i3=i3s,i3s+kernel%grid%n3p-1!kernel%ndims(3)
-                do i2=1,kernel%ndims(2)
-                   do i1=1,kernel%ndims(1)
+                do i2=1,kernel%mesh%ndims(2)
+                   do i1=1,kernel%mesh%ndims(1)
                       kernel%w%oneoeps(i1,i23)=1.0_dp/sqrt(eps(i1,i2,i3))
                    end do
                    i23=i23+1
@@ -1290,18 +1290,18 @@ contains
           !then check the shapes
           if (any(shape(kernel%w%oneoeps) /= [n1,n23])) &
                call f_err_throw('Incorrect shape of oneoeps')
-          if (any(shape(kernel%w%dlogeps) /= [3,kernel%ndims(1),kernel%ndims(2),kernel%ndims(3)])) &
+          if (any(shape(kernel%w%dlogeps) /= [3,kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%mesh%ndims(3)])) &
                call f_err_throw('Incorrect shape of dlogeps')
           if (present(dlogeps)) then
              call f_memcpy(src=dlogeps,dest=kernel%w%dlogeps)
           else if (present(eps)) then
              !allocate arrays
-             deps=f_malloc([kernel%ndims(1),kernel%ndims(2),kernel%ndims(3),3],id='deps')
-             call nabla_u(kernel%geocode,kernel%ndims(1),kernel%ndims(2),kernel%ndims(3),&
+             deps=f_malloc([kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%mesh%ndims(3),3],id='deps')
+             call nabla_u(kernel%geocode,kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%mesh%ndims(3),&
                   eps,deps,kernel%nord,kernel%hgrids)
-             do i3=1,kernel%ndims(3)
-                do i2=1,kernel%ndims(2)
-                   do i1=1,kernel%ndims(1)
+             do i3=1,kernel%mesh%ndims(3)
+                do i2=1,kernel%mesh%ndims(2)
+                   do i1=1,kernel%mesh%ndims(1)
                       !switch and create the logarithmic derivative of epsilon
                       kernel%w%dlogeps(1,i1,i2,i3)=deps(i1,i2,i3,1)/eps(i1,i2,i3)
                       kernel%w%dlogeps(2,i1,i2,i3)=deps(i1,i2,i3,2)/eps(i1,i2,i3)
@@ -1311,13 +1311,13 @@ contains
              end do
              call f_free(deps)
           else if (all(prst)) then
-             mesh=cell_new(kernel%geocode,kernel%ndims,kernel%hgrids)
+             mesh=cell_new(kernel%geocode,kernel%mesh%ndims,kernel%hgrids)
              epsm1=(kernel%cavity%epsilon0-vacuum_eps)
              call f_zero(kernel%IntSur)
              call f_zero(kernel%IntVol)
              hh=mesh%volume_element
 
-             do i3=1,kernel%ndims(3)
+             do i3=1,kernel%mesh%ndims(3)
                 v(3)=cell_r(mesh,i3,dim=3)
                 do i2=1,mesh%ndims(2)
                    v(2)=cell_r(mesh,i2,dim=2)
@@ -1346,8 +1346,8 @@ contains
           else if (present(eps)) then
              i23=1
              do i3=i3s,i3s+kernel%grid%n3p-1!kernel%ndims(3)
-                do i2=1,kernel%ndims(2)
-                   do i1=1,kernel%ndims(1)
+                do i2=1,kernel%mesh%ndims(2)
+                   do i1=1,kernel%mesh%ndims(1)
                       kernel%w%oneoeps(i1,i23)=1.0_dp/eps(i1,i2,i3)
                    end do
                    i23=i23+1
@@ -1391,14 +1391,14 @@ contains
     real(dp) :: cc,epr,depsr,hh,tt,kk
     type(cell) :: mesh
     real(dp), dimension(3) :: v,dleps,deps
-    mesh=cell_new(kernel%geocode,kernel%ndims,kernel%hgrids)
+    mesh=cell_new(kernel%geocode,kernel%mesh%ndims,kernel%hgrids)
 
     do i3=1,kernel%grid%n3p
        v(3)=cell_r(mesh,i3+kernel%grid%istart,dim=3)
-       do i2=1,kernel%ndims(2)
+       do i2=1,kernel%mesh%ndims(2)
           v(2)=cell_r(mesh,i2,dim=2)
-          i23=i2+(i3-1)*kernel%ndims(2)
-          do i1=1,kernel%ndims(1)
+          i23=i2+(i3-1)*kernel%mesh%ndims(2)
+          do i1=1,kernel%mesh%ndims(1)
              tt=kernel%w%oneoeps(i1,i23) !nablapot2(r)
              v(1)=cell_r(mesh,i1,dim=1)
              !this is done to obtain the depsilon
@@ -1420,13 +1420,13 @@ contains
     use psolver_environment
     implicit none
     type(coulomb_operator), intent(inout) :: kernel
-    real(dp), dimension(kernel%ndims(1),kernel%ndims(2)*kernel%grid%n3p), intent(in) :: rho,nabla2_rho,delta_rho,cc_rho
+    real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2)*kernel%grid%n3p), intent(in) :: rho,nabla2_rho,delta_rho,cc_rho
     !> functional derivative of the sc epsilon with respect to 
     !! the electronic density, in distributed memory
-    real(dp), dimension(kernel%ndims(1),kernel%ndims(2)*kernel%grid%n3p), intent(out) :: depsdrho
+    real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2)*kernel%grid%n3p), intent(out) :: depsdrho
     !> functional derivative of the surface integral with respect to 
     !! the electronic density, in distributed memory
-    real(dp), dimension(kernel%ndims(1),kernel%ndims(2)*kernel%grid%n3p), intent(out) :: dsurfdrho
+    real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2)*kernel%grid%n3p), intent(out) :: dsurfdrho
     real(dp), intent(out) :: IntSur,IntVol
     !local variables
     real(dp), parameter :: innervalue = 0.9d0 !to be defined differently
@@ -1436,9 +1436,9 @@ contains
     IntSur=0.d0
     IntVol=0.d0
 
-    n01=kernel%ndims(1)
-    n02=kernel%ndims(2)
-    n03=kernel%ndims(3)
+    n01=kernel%mesh%ndims(1)
+    n02=kernel%mesh%ndims(2)
+    n03=kernel%mesh%ndims(3)
     !starting point in third direction
     i3s=kernel%grid%istart+1
     epsm1=(kernel%cavity%epsilon0-vacuum_eps)
@@ -1509,8 +1509,11 @@ contains
        end do
     end select
 
-    IntSur=IntSur*product(kernel%hgrids)/epsm1
-    IntVol=IntVol*product(kernel%hgrids)/epsm1
+    !IntSur=IntSur*product(kernel%hgrids)/epsm1
+    !IntVol=IntVol*product(kernel%hgrids)/epsm1
+    IntSur=IntSur*kernel%mesh%volume_element/epsm1
+    IntVol=IntVol*kernel%mesh%volume_element/epsm1
+     
 
   end subroutine build_cavity_from_rho
 
