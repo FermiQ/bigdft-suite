@@ -103,6 +103,7 @@ module f_onesided
            call f_err_throw('Error in mpi_info_set, window not created',&
            err_id=ERR_MPI_WRAPPERS)
 
+      nullify(iter)
       do while(iterating(iter,on=dict))
          call mpi_info_set(info%handle,trim(dict_key(iter)),trim(dict_value(iter)), ierr)
          if (ierr/=FMPI_SUCCESS) then
