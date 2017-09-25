@@ -942,16 +942,16 @@ subroutine epsilon_cavity(atoms,rxyz,pkernel)
 
   radii=f_malloc(atoms%astruct%nat,id='radii')
   !radii_nofact=f_malloc(atoms%astruct%nat,id='radii_nofact')
-  eps=f_malloc(pkernel%ndims,id='eps')
-  dlogeps=f_malloc([3,pkernel%ndims(1),pkernel%ndims(2),pkernel%ndims(3)],id='dlogeps')
-  oneoeps=f_malloc(pkernel%ndims,id='oneoeps')
-  oneosqrteps=f_malloc(pkernel%ndims,id='oneosqrteps')
-  corr=f_malloc(pkernel%ndims,id='corr')
-!!$  epst=f_malloc(pkernel%ndims,id='epst')
-!!$  dlogepst=f_malloc([3,pkernel%ndims(1),pkernel%ndims(2),pkernel%ndims(3)],id='dlogepst')
-!!$  oneoepst=f_malloc(pkernel%ndims,id='oneoepst')
-!!$  oneosqrtepst=f_malloc(pkernel%ndims,id='oneosqrtepst')
-!!$  corrt=f_malloc(pkernel%ndims,id='corrt')
+  eps=f_malloc(pkernel%mesh%ndims,id='eps')
+  dlogeps=f_malloc([3,pkernel%mesh%ndims(1),pkernel%mesh%ndims(2),pkernel%mesh%ndims(3)],id='dlogeps')
+  oneoeps=f_malloc(pkernel%mesh%ndims,id='oneoeps')
+  oneosqrteps=f_malloc(pkernel%mesh%ndims,id='oneosqrteps')
+  corr=f_malloc(pkernel%mesh%ndims,id='corr')
+!!$  epst=f_malloc(pkernel%mesh%ndims,id='epst')
+!!$  dlogepst=f_malloc([3,pkernel%mesh%ndims(1),pkernel%mesh%ndims(2),pkernel%mesh%ndims(3)],id='dlogepst')
+!!$  oneoepst=f_malloc(pkernel%mesh%ndims,id='oneoepst')
+!!$  oneosqrtepst=f_malloc(pkernel%mesh%ndims,id='oneosqrtepst')
+!!$  corrt=f_malloc(pkernel%mesh%ndims,id='corrt')
 
   it=atoms_iter(atoms%astruct)
   !python metod
@@ -1071,7 +1071,7 @@ subroutine epsilon_cavity(atoms,rxyz,pkernel)
   !here the pkernel_set_epsilon routine should been modified to accept
   !already the radii and the atoms
 
-  mesh=cell_new(atoms%astruct%geocode,pkernel%ndims,pkernel%hgrids)
+  mesh=cell_new(atoms%astruct%geocode,pkernel%mesh%ndims,pkernel%hgrids)
   origin=locreg_mesh_origin(mesh)
   rxyz_shifted=f_malloc([3,atoms%astruct%nat],id='rxyz_shifted')
   do iat=1,atoms%astruct%nat
@@ -1328,7 +1328,7 @@ subroutine epsinnersccs_cavity(atoms,rxyz,pkernel)
   real(gp), dimension(:,:,:), allocatable :: eps
 
   radii=f_malloc(atoms%astruct%nat,id='radii')
-  eps=f_malloc(pkernel%ndims,id='eps')
+  eps=f_malloc(pkernel%mesh%ndims,id='eps')
 
   it=atoms_iter(atoms%astruct)
   !python metod
@@ -1349,10 +1349,10 @@ subroutine epsinnersccs_cavity(atoms,rxyz,pkernel)
 !  if (bigdft_mpi%iproc==0) call yaml_map('Covalent radii',radii)
 
   call epsinnersccs_rigid_cavity_error_multiatoms_bc(atoms%astruct%geocode,&
-       pkernel%ndims,pkernel%hgrids,atoms%astruct%nat,rxyz,radii,delta,eps)
+       pkernel%mesh%ndims,pkernel%hgrids,atoms%astruct%nat,rxyz,radii,delta,eps)
 
-  n1=pkernel%ndims(1)
-  n23=pkernel%ndims(2)*pkernel%grid%n3p
+  n1=pkernel%mesh%ndims(1)
+  n23=pkernel%mesh%ndims(2)*pkernel%grid%n3p
   !starting point in third direction
   i3s=pkernel%grid%istart+1
   if (pkernel%grid%n3p==0) i3s=1
