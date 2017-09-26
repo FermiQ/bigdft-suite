@@ -167,32 +167,31 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
   ! Create linear orbs data structure.
   !if (inputpsi == INPUT_PSI_LINEAR_AO .or. inputpsi == INPUT_PSI_DISK_LINEAR &
   !    .or. inputpsi == INPUT_PSI_MEMORY_LINEAR) then
-  if ((inputpsi .hasattr. 'LINEAR') .and. .not. dry_run) then
-     !if (inputpsi == INPUT_PSI_LINEAR_AO .or. inputpsi == INPUT_PSI_DISK_LINEAR) then
+  if (inputpsi .hasattr. 'LINEAR') then
      if (.not. (inputpsi .hasattr. 'MEMORY')) then ! == INPUT_PSI_LINEAR_AO .or. inputpsi == INPUT_PSI_DISK_LINEAR) then
-         ! First do a simple redistribution
-         call init_linear_orbs(LINEAR_PARTITION_SIMPLE)
+        ! First do a simple redistribution
+        call init_linear_orbs(LINEAR_PARTITION_SIMPLE)
      else
-         ! Directly used the reference distribution
-         norb_par = f_malloc(0.to.nproc-1,id='norb_par')
-         norbu_par = f_malloc(0.to.nproc-1,id='norbu_par')
-         norbd_par = f_malloc(0.to.nproc-1,id='norbd_par')
-         if (.not.present(norb_par_ref)) then
-             call f_err_throw('norb_par_ref not present', err_name='BIGDFT_RUNTIME_ERROR')
-         end if
-         call vcopy(nproc, norb_par_ref(0), 1, norb_par(0), 1)
-         if (.not.present(norbu_par_ref)) then
-             call f_err_throw('norbu_par_ref not present', err_name='BIGDFT_RUNTIME_ERROR')
-         end if
-         call vcopy(nproc, norbu_par_ref(0), 1, norbu_par(0), 1)
-         if (.not.present(norbd_par_ref)) then
-             call f_err_throw('norbd_par_ref not present', err_name='BIGDFT_RUNTIME_ERROR')
-         end if
-         call vcopy(nproc, norbd_par_ref(0), 1, norbd_par(0), 1)
-         call init_linear_orbs(LINEAR_PARTITION_OPTIMAL)
-         call f_free(norb_par)
-         call f_free(norbu_par)
-         call f_free(norbd_par)
+        ! Directly used the reference distribution
+        norb_par = f_malloc(0.to.nproc-1,id='norb_par')
+        norbu_par = f_malloc(0.to.nproc-1,id='norbu_par')
+        norbd_par = f_malloc(0.to.nproc-1,id='norbd_par')
+        if (.not.present(norb_par_ref)) then
+           call f_err_throw('norb_par_ref not present', err_name='BIGDFT_RUNTIME_ERROR')
+        end if
+        call vcopy(nproc, norb_par_ref(0), 1, norb_par(0), 1)
+        if (.not.present(norbu_par_ref)) then
+           call f_err_throw('norbu_par_ref not present', err_name='BIGDFT_RUNTIME_ERROR')
+        end if
+        call vcopy(nproc, norbu_par_ref(0), 1, norbu_par(0), 1)
+        if (.not.present(norbd_par_ref)) then
+           call f_err_throw('norbd_par_ref not present', err_name='BIGDFT_RUNTIME_ERROR')
+        end if
+        call vcopy(nproc, norbd_par_ref(0), 1, norbd_par(0), 1)
+        call init_linear_orbs(LINEAR_PARTITION_OPTIMAL)
+        call f_free(norb_par)
+        call f_free(norbu_par)
+        call f_free(norbd_par)
      end if
      call fragment_stuff()
      call init_lzd_linear()
@@ -259,7 +258,6 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
          call f_free(totaltimes)
      end if
   end if
-  if ((inputpsi .hasattr. 'LINEAR') .and. dry_run) call yaml_warning("Orbital distribution not calculated for linear.")
 
   !In the case in which the number of orbitals is not "trivial" check whether they are too many
   if (inputpsi /= 'INPUT_PSI_RANDOM') then
@@ -508,6 +506,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
        use module_interfaces, only: initialize_linear_from_file
        use locregs_init, only: initLocregs
        use locregs, only: copy_locreg_descriptors
+       use sparsematrix_wrappers, only: check_kernel_cutoff
        implicit none
        call copy_locreg_descriptors(Lzd%Glr, lzd_lin%glr)
        call lzd_set_hgrids(lzd_lin, Lzd%hgrids)
@@ -532,9 +531,24 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
           end do
        end if
 
-       call initLocregs(iproc, nproc, lzd_lin, Lzd_lin%hgrids(1), Lzd_lin%hgrids(2),Lzd_lin%hgrids(3), &
-            atoms%astruct, lorbs, Lzd_lin%Glr, 's')
-       call update_wavefunctions_size(lzd_lin,lnpsidim_orbs,lnpsidim_comp,lorbs,iproc,nproc)
+       ! Make sure that the cutoff for the multiplications
+       ! is larger than the kernel cutoff
+       call check_kernel_cutoff(iproc, lorbs, atoms, in%hamapp_radius_incr, lzd_lin)
+       do ilr=1,lzd_lin%nlr
+          if (lzd_lin%llr(ilr)%locrad_mult < lzd_lin%llr(ilr)%locrad_kernel) then
+             call f_err_throw('rloc_kernel_foe ('//trim(yaml_toa(lzd_lin%llr(ilr)%locrad_mult,fmt='(f5.2)'))//&
+                  &') too small, must be at least as big as rloc_kernel('&
+                  &//trim(yaml_toa(lzd_lin%llr(ilr)%locrad_kernel,fmt='(f5.2)'))//')', err_id=BIGDFT_RUNTIME_ERROR)
+          end if
+       end do
+
+       if (.not. dry_run) then
+          call initLocregs(iproc, nproc, lzd_lin, Lzd_lin%hgrids(1), Lzd_lin%hgrids(2),Lzd_lin%hgrids(3), &
+               atoms%astruct, lorbs, Lzd_lin%Glr, 's')
+          call update_wavefunctions_size(lzd_lin,lnpsidim_orbs,lnpsidim_comp,lorbs,iproc,nproc)
+       else
+          call yaml_warning("Locregs not initialized for linear.")
+       end if
      end subroutine init_lzd_linear
 
 
