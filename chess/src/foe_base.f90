@@ -63,7 +63,7 @@ module foe_base
   contains
  
 
-    function foe_data_null() result(foe_obj)
+    pure function foe_data_null() result(foe_obj)
       use f_utils, only: f_none,assignment(=)
       implicit none
       type(foe_data) :: foe_obj
