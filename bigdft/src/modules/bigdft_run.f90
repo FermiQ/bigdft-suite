@@ -345,9 +345,7 @@ contains
   !> Allocate and nullify restart objects
   pure subroutine nullify_QM_restart_objects(rst)
     use module_defs, only: UNINITIALIZED
-    use module_types, only: nullify_local_zone_descriptors,nullify_paw_objects
-    use locregs, only: nullify_locreg_descriptors
-    use gaussians, only: nullify_gaussian_basis
+    use module_types, only: nullify_DFT_wavefunctions
     implicit none
     !Arguments
     type(QM_restart_objects), intent(out) :: rst
@@ -364,20 +362,10 @@ contains
     !nullify unallocated pointers
     !here whe should define the nullification of the whole
     !DFT wavefunction structure
-    rst%KSwfn%c_obj = 0
-    nullify(rst%KSwfn%psi)
-    nullify(rst%KSwfn%orbs%eval)
-    call nullify_paw_objects(rst%KSwfn%paw)
-    call nullify_paw_objects(rst%tmb%paw)
-
-    nullify(rst%KSwfn%gaucoeffs)
-    nullify(rst%KSwfn%oldpsis)
-
-    call nullify_locreg_descriptors(rst%KSwfn%Lzd%Glr)
-    call nullify_gaussian_basis(rst%KSwfn%gbd)
+    call nullify_DFT_wavefunctions(rst%KSwfn)
 
     !Nullify LZD for cubic version (new input guess)
-    call nullify_local_zone_descriptors(rst%tmb%lzd)
+    call nullify_DFT_wavefunctions(rst%tmb)
 
     !Nullify GPU data
     rst%GPU%OCLconv=.false.

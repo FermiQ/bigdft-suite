@@ -167,7 +167,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
   ! Create linear orbs data structure.
   !if (inputpsi == INPUT_PSI_LINEAR_AO .or. inputpsi == INPUT_PSI_DISK_LINEAR &
   !    .or. inputpsi == INPUT_PSI_MEMORY_LINEAR) then
-  if (inputpsi .hasattr. 'LINEAR') then
+  if ((inputpsi .hasattr. 'LINEAR') .and. .not. dry_run) then
      !if (inputpsi == INPUT_PSI_LINEAR_AO .or. inputpsi == INPUT_PSI_DISK_LINEAR) then
      if (.not. (inputpsi .hasattr. 'MEMORY')) then ! == INPUT_PSI_LINEAR_AO .or. inputpsi == INPUT_PSI_DISK_LINEAR) then
          ! First do a simple redistribution
@@ -259,7 +259,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
          call f_free(totaltimes)
      end if
   end if
-
+  if ((inputpsi .hasattr. 'LINEAR') .and. dry_run) call yaml_warning("Orbital distribution not calculated for linear.")
 
   !In the case in which the number of orbitals is not "trivial" check whether they are too many
   if (inputpsi /= 'INPUT_PSI_RANDOM') then
@@ -331,7 +331,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
   call orbitals_communicators(iproc,nproc,Lzd%Glr,orbs,comms)  
   !if (inputpsi == INPUT_PSI_LINEAR_AO .or. inputpsi == INPUT_PSI_DISK_LINEAR &
   !.or. inputpsi == INPUT_PSI_MEMORY_LINEAR) then
-  if (inputpsi .hasattr. 'LINEAR') then
+  if ((inputpsi .hasattr. 'LINEAR') .and. .not. dry_run) then
      if(iproc==0 .and. dump) call print_orbital_distribution(iproc, nproc, lorbs)
   end if
 

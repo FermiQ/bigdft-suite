@@ -506,7 +506,7 @@ subroutine input_wf_empty(iproc, nproc, psi, hpsi, psit, orbs, &
   if (trim(band_structure_filename) /= '') then
      !only the first processor should read this
      if (iproc == 0) then
-        call yaml_map('Reading local potential from file:',trim(band_structure_filename))
+        call yaml_map('Reading local potential from file',trim(band_structure_filename))
         !write(*,'(1x,a)')'Reading local potential from file:'//trim(band_structure_filename)
         call read_field_dimensions(trim(band_structure_filename),&
              atoms%astruct%geocode,ndims,nspin)

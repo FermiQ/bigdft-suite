@@ -600,7 +600,7 @@ module module_types
  public :: local_zone_descriptors_null
  public :: energy_terms_null, work_mpiaccumulate_null
  public :: allocate_work_mpiaccumulate, deallocate_work_mpiaccumulate
- public :: nullify_orbitals_data
+ public :: nullify_orbitals_data, nullify_DFT_wavefunctions
  public :: SIC_data,orthon_data,input_variables,evaltoocc
  public :: linear_matrices_null, linmat_auxiliary_null, deallocate_linmat_auxiliary
  public :: deallocate_linear_matrices
@@ -1221,7 +1221,46 @@ contains
     end if
   end subroutine find_category
 
-  subroutine nullify_orbitals_data(orbs)
+  pure subroutine nullify_DFT_wavefunctions(wfn)
+    use communications_base, only: comms_linear_null, p2pComms_null
+    use foe_base, only: foe_data_null
+    use gaussians, only: nullify_gaussian_basis
+    implicit none
+    type(DFT_wavefunction), intent(out) :: wfn
+
+    wfn%c_obj = 0
+
+    nullify(wfn%psi)
+    nullify(wfn%hpsi)
+    nullify(wfn%psit)
+    nullify(wfn%psit_c)
+    nullify(wfn%psit_f)
+    nullify(wfn%ham_descr%psi)
+    nullify(wfn%ham_descr%psit_c)
+    nullify(wfn%ham_descr%psit_f)
+
+    nullify(wfn%gaucoeffs)
+    nullify(wfn%oldpsis)
+
+    call nullify_paw_objects(wfn%paw)
+    call nullify_gaussian_basis(wfn%gbd)
+
+    wfn%comgp = p2pComms_null()
+    wfn%ham_descr%comgp = p2pComms_null()
+    wfn%linmat = linear_matrices_null()
+    call nullify_orbitals_data(wfn%orbs)
+    wfn%collcom = comms_linear_null()
+    wfn%ham_descr%collcom = comms_linear_null()
+    wfn%collcom_sr = comms_linear_null()
+    call nullify_local_zone_descriptors(wfn%lzd)
+    call nullify_local_zone_descriptors(wfn%ham_descr%lzd)
+    wfn%foe_obj = foe_data_null()
+    wfn%ice_obj = foe_data_null()
+
+    nullify(wfn%coeff)
+  END SUBROUTINE nullify_DFT_wavefunctions
+
+  pure subroutine nullify_orbitals_data(orbs)
     implicit none
 
     ! Calling arguments
@@ -1544,14 +1583,14 @@ contains
 
   END SUBROUTINE evaltoocc
 
-  function linmat_auxiliary_null() result (aux)
+  pure function linmat_auxiliary_null() result (aux)
     implicit none
     type(linmat_auxiliary) :: aux
     nullify(aux%matrixindex_in_compressed_fortransposed)
     aux%offset_matrixindex_in_compressed_fortransposed = 0
   end function linmat_auxiliary_null
 
-  function linear_matrices_null() result(linmat)
+  pure function linear_matrices_null() result(linmat)
     use sparsematrix_memory, only: sparse_matrix_metadata_null, sparse_matrix_null, matrices_null
     implicit none
     type(linear_matrices) :: linmat
@@ -1569,8 +1608,8 @@ contains
         linmat%ovrlppowers_(i) = matrices_null()
     end do
     linmat%auxs = linmat_auxiliary_null()
-    linmat%auxs = linmat_auxiliary_null()
-    linmat%auxs = linmat_auxiliary_null()
+    linmat%auxm = linmat_auxiliary_null()
+    linmat%auxl = linmat_auxiliary_null()
   end function linear_matrices_null
 
   subroutine deallocate_linmat_auxiliary(aux)

@@ -2644,25 +2644,27 @@ module locregs_init
       ! Calculate on_which_atom and in_which_locreg...
       norb_check = 0
       do ispin=1,nspin
-          iiorb = iisorb + (ispin-1)*norb_nospin
-          do iat=1,nat_par(iproc)
-              iiat = isat + iat
-              jjat = irxyz_ordered(iiat)
-              jjorb = (ispin-1)*norb_nospin
-              do jat=1,jjat-1
-                  jjorb = jjorb + norb_per_atom(jat)
-              end do
-              do iorb=1,norb_per_atom(jjat)
-                  iiorb = iiorb + 1
-                  jjorb = jjorb + 1
-                  on_which_atom(iiorb) = jjat
-                  in_which_locreg(iiorb) = jjorb
-                  norb_check = norb_check + 1
-              end do
-          end do   
+         iiorb = iisorb + (ispin-1)*norb_nospin
+         do iat=1,nat_par(iproc)
+            iiat = isat + iat
+            jjat = irxyz_ordered(iiat)
+            jjorb = (ispin-1)*norb_nospin
+            do jat=1,jjat-1
+               jjorb = jjorb + norb_per_atom(jat)
+            end do
+            do iorb=1,norb_per_atom(jjat)
+               iiorb = iiorb + 1
+               jjorb = jjorb + 1
+               on_which_atom(iiorb) = jjat
+               in_which_locreg(iiorb) = jjorb
+               norb_check = norb_check + 1
+            end do
+         end do
       end do
       call mpiallred(norb_check, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
-      if (norb_check/=norb) call f_err_throw('norb_check/=norb',err_name='BIGDFT_RUNTIME_ERROR')
+      if (norb_check/=norb) call f_err_throw('norb_check (' // &
+           & trim(yaml_toa(norb_check)) // ') /= norb (' // &
+           & trim(yaml_toa(norb)) // ')',err_name='BIGDFT_RUNTIME_ERROR')
 
       call mpiallred(on_which_atom, mpi_sum, comm=bigdft_mpi%mpi_comm)
       call mpiallred(in_which_locreg, mpi_sum, comm=bigdft_mpi%mpi_comm)

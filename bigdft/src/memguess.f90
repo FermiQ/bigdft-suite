@@ -1522,7 +1522,8 @@ program memguess
         runObj%inputs%nspin,runObj%inputs%itrpmax,f_int(runObj%inputs%scf),mem)
 
    if (runObj%run_mode /= MULTI_RUN_MODE .and. &
-        & .not. exportwf .and. .not. exportproj) then
+        & .not. exportwf .and. .not. exportproj .and. &
+        & .not.(inputpsi .hasattr. 'LINEAR')) then
       call print_memory_estimation(mem)
    end if
 
