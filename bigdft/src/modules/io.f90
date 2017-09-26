@@ -2420,12 +2420,12 @@ module io
       call f_routine(id='plot_density')
     
       pot_ion = &
-           f_malloc([kernel%ndims(1),kernel%ndims(2),kernel%ndims(3), nspin],id='pot_ion')
+           f_malloc([kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%mesh%ndims(3), nspin],id='pot_ion')
 
       call PS_gather(src=rho,dest=pot_ion,kernel=kernel,nsrc=nspin)
     
       if (iproc==0) then
-         call dump_field(filename,at%astruct%geocode,kernel%ndims,kernel%hgrids,nspin,pot_ion,&
+         call dump_field(filename,at%astruct%geocode,kernel%mesh%ndims,kernel%hgrids,nspin,pot_ion,&
               rxyz,at%astruct%iatype,at%nzatom,at%nelpsp,ixyz0=ixyz0)
       end if
     

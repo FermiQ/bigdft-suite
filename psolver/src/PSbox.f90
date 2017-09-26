@@ -35,7 +35,7 @@ contains
     !!array
     real(dp), dimension(*), intent(in) :: src
     type(coulomb_operator), intent(in) :: kernel
-    real(dp), dimension(kernel%ndims(1),kernel%ndims(2),kernel%ndims(3),*), intent(out), optional :: dest
+    real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%mesh%ndims(3),*), intent(out), optional :: dest
     integer, intent(in), optional :: nsrc !< number of copies of the array src (useful for spin-polarized)
     !local variables
     integer :: ispin,nspin,isrc
@@ -52,7 +52,7 @@ contains
              isrc=isrc+kernel%grid%m1*kernel%grid%m3*kernel%grid%n3p
           end do
        else
-          call f_memcpy(n=product(kernel%ndims)*nspin,src=src(1),dest=dest(1,1,1,1))
+          call f_memcpy(n=product(kernel%mesh%ndims)*nspin,src=src(1),dest=dest(1,1,1,1))
        end if
     else
        if (kernel%mpi_env%nproc > 1) then
@@ -131,7 +131,7 @@ contains
   subroutine PS_scatter(src,dest,kernel)
     implicit none
     type(coulomb_operator), intent(in) :: kernel
-    real(dp), dimension(kernel%ndims(1),kernel%ndims(2),kernel%ndims(3)), intent(in) :: src
+    real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%mesh%ndims(3)), intent(in) :: src
     real(dp), dimension(kernel%grid%m1,kernel%grid%m3*kernel%grid%n3p), intent(out), optional :: dest
 
     call mpiscatterv(sendbuf=src,sendcounts=kernel%counts,&
@@ -193,25 +193,25 @@ contains
     character(len=*), intent(in) :: filename
     type(coulomb_operator), intent(in) :: kernel
     real(dp), dimension(kernel%grid%m1,kernel%grid%m3*kernel%grid%n3p), optional :: src_dist
-    real(dp), dimension(kernel%ndims(1),kernel%ndims(2),kernel%ndims(3)), intent(in), optional :: src_full
+    real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%mesh%ndims(3)), intent(in), optional :: src_full
     integer, dimension(3), intent(in), optional :: ixyz0
     !local variables
     real(dp), dimension(:,:,:), allocatable :: work_full
 
     if (present(src_dist)) then
-       work_full=f_malloc(kernel%ndims,id='work_full')
+       work_full=f_malloc(kernel%mesh%ndims,id='work_full')
        call PS_gather(src=src_dist,dest=work_full,kernel=kernel)
        if (present(ixyz0)) then
-          call dump_field(filename,kernel%geocode,kernel%ndims,kernel%hgrids,1,work_full,ixyz0=ixyz0)
+          call dump_field(filename,kernel%geocode,kernel%mesh%ndims,kernel%hgrids,1,work_full,ixyz0=ixyz0)
        else
-          call dump_field(filename,kernel%geocode,kernel%ndims,kernel%hgrids,1,work_full)
+          call dump_field(filename,kernel%geocode,kernel%mesh%ndims,kernel%hgrids,1,work_full)
        end if
           call f_free(work_full)
     else if (present(src_full)) then
        if (present(ixyz0)) then
-          call dump_field(filename,kernel%geocode,kernel%ndims,kernel%hgrids,1,src_full,ixyz0=ixyz0)
+          call dump_field(filename,kernel%geocode,kernel%mesh%ndims,kernel%hgrids,1,src_full,ixyz0=ixyz0)
        else
-          call dump_field(filename,kernel%geocode,kernel%ndims,kernel%hgrids,1,src_full)
+          call dump_field(filename,kernel%geocode,kernel%mesh%ndims,kernel%hgrids,1,src_full)
        end if
     end if
 

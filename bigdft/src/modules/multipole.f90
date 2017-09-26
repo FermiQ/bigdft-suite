@@ -5487,7 +5487,8 @@ end subroutine calculate_rpowerx_matrices
     integer, intent(in) :: nat, ncheck
     type(coulomb_operator),intent(in) :: kernel
     type(atoms_data),intent(in) :: at
-    real(kind=8),dimension(kernel%ndims(1)*kernel%ndims(2)*kernel%grid%n3p),intent(in) :: rho_exact, rho_mp, pot_exact, pot_mp
+    real(kind=8),dimension(kernel%mesh%ndims(1)*kernel%mesh%ndims(2)*kernel%grid%n3p),intent(in) :: rho_exact,&
+                  rho_mp, pot_exact, pot_mp
     real(kind=8),dimension(3,nat),intent(in) :: rxyz
     real(kind=8),dimension(ncheck),intent(in) :: check_threshold
     real(kind=8),dimension(ncheck),intent(out) :: charge_error, external_volume, potential_error, potential_total
@@ -5821,7 +5822,8 @@ end subroutine calculate_rpowerx_matrices
     type(box_iterator), intent(inout) :: boxit
     integer, intent(in) :: nat, ncheck
     type(coulomb_operator),intent(in) :: kernel
-    real(kind=8),dimension(kernel%ndims(1)*kernel%ndims(2)*kernel%grid%n3p),intent(in) :: rho_exact, rho_mp, pot_exact, pot_mp
+    real(kind=8),dimension(kernel%mesh%ndims(1)*kernel%mesh%ndims(2)*kernel%grid%n3p),intent(in) :: rho_exact,&
+                 rho_mp, pot_exact, pot_mp
     real(kind=8),dimension(3,nat),intent(in) :: rxyz
     real(kind=8),dimension(ncheck),intent(in) :: check_threshold
     real(kind=8),dimension(ncheck),intent(out) :: charge_error, external_volume, potential_error, potential_total

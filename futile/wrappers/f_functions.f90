@@ -238,7 +238,7 @@ module f_functions
       !local variables
       real(f_double) :: r2
       r2=a*x**2
-      f=safe_exp(-r2) !<checked
+      f=safe_exp(-r2)!,underflow=1.e-30_f_double) !<checked
       select case(idiff)
       case(1)
          f=-2.0_f_double*a*x*f !<checked

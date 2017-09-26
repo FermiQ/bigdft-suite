@@ -687,7 +687,7 @@ contains
               &//&!trim(yaml_toa(ilr,fmt='(i0)'))//&
               '('//trim(yaml_toa(lr%d%n1i,fmt='(i0)'))//')&
               & is larger than that of the global region('//trim(yaml_toa(Glr%d%n1i,fmt='(i0)'))//').&
-              & Reduce the localization radii or use the cubic version',&
+              & Reduce the localization radii or use the cubic scaling version',&
               & err_name='BIGDFT_RUNTIME_ERROR')
       end if
       if (lr%d%n2i>Glr%d%n2i) then
@@ -695,7 +695,7 @@ contains
               !&//trim(yaml_toa(ilr,fmt='(i0)'))&
               //'('//trim(yaml_toa(lr%d%n2i,fmt='(i0)'))//')&
               & is larger than that of the global region('//trim(yaml_toa(Glr%d%n2i,fmt='(i0)'))//').&
-              & Reduce the localization radii or use the cubic version',&
+              & Reduce the localization radii or use the cubic scaling version',&
               & err_name='BIGDFT_RUNTIME_ERROR')
       end if
       if (lr%d%n3i>Glr%d%n3i) then
@@ -703,7 +703,7 @@ contains
               !&//trim(yaml_toa(ilr,fmt='(i0)'))&
               //'('//trim(yaml_toa(lr%d%n3i,fmt='(i0)'))//')&
               & is larger than that of the global region('//trim(yaml_toa(Glr%d%n3i,fmt='(i0)'))//').&
-              & Reduce the localization radii or use the cubic version',&
+              & Reduce the localization radii or use the cubic scaling version',&
               & err_name='BIGDFT_RUNTIME_ERROR')
       end if
 

@@ -11,11 +11,17 @@
 module locreg_operations
   use module_base
   use locregs
+  use f_enums
   implicit none
 
   private
 
   integer,parameter,public :: NCPLX_MAX = 2
+  integer, parameter :: SEPARABLE_1D=0
+  integer, parameter :: SEPARABLE_COLLOCATION=1
+
+  type(f_enumerator), public :: PROJECTION_1D_SEPARABLE=f_enumerator('SEPARABLE_1D',SEPARABLE_1D,null())
+  type(f_enumerator), public :: PROJECTION_RS_COLLOCATION=f_enumerator('REAL_SPACE_COLLOCATION',SEPARABLE_COLLOCATION,null())
 
   !> Information for the confining potential to be used in TMB scheme
   !! The potential is supposed to be defined as prefac*(r-rC)**potorder
@@ -108,8 +114,6 @@ module locreg_operations
       module procedure initialize_work_arrays_locham_llr
   end interface initialize_work_arrays_locham
 
-
-
   contains
 
     pure function workarrays_projectors_null() result(wp)
@@ -154,10 +158,11 @@ module locreg_operations
     !>accumulate the coefficients of the expression of a given gaussian in wavelets on the array of
     !!compressed data
     subroutine gaussian_to_wavelets_locreg(mesh,ider,&
-         ncplx_g,coeff,sigma_and_expo,distance_cutoff,n,l,rxyz,kpoint,&
-         ncplx_p,wfd,wpr,psi)
+         ncplx_g,coeff,expo,distance_cutoff,n,l,rxyz,kpoint,&
+         ncplx_p,lr,wpr,psi,method)
       use box
       use compression
+      use f_functions
       implicit none  
       integer, intent(in) :: ider !<direction in which to perform the derivative (0 if any)
       integer, intent(in) :: n !<principal quantum number
@@ -166,38 +171,71 @@ module locreg_operations
       integer, intent(in) :: ncplx_p !< 2 if the projector is supposed to be complex, 1 otherwise
       real(gp), intent(in) :: distance_cutoff !< 1d-distance starting frm which the gaussian is assumed to be zero
       type(cell), intent(in) :: mesh !<cell structure *of the wavelet box* (coarse grid)
-      type(wavefunctions_descriptors), intent(in) :: wfd !<projector descriptors for wavelets representation
+      type(locreg_descriptors), intent(in) :: lr !<projector descriptors for wavelets representation
       real(gp), dimension(ncplx_g), intent(in) :: coeff !<prefactor of the gaussian
-      real(gp), dimension(ncplx_g), intent(in) :: sigma_and_expo !<exponents (sigma for the first element) of the gaussian (real and imaginary part)
+      real(gp), dimension(ncplx_g), intent(in) :: expo !<exponents (1/2sigma^2 for the first element) of the gaussian (real and imaginary part)
       real(gp), dimension(3), intent(in) :: rxyz !<center of the Gaussian
       real(gp), dimension(3), intent(in) :: kpoint !<coordinate of the kpoint in reciprocal space
       type(workarrays_projectors),intent(inout) :: wpr
       !> wavelet expression, @todo: create a routine that accumulates instead of overwriting
-      real(wp), dimension(wfd%nvctr_c+7*wfd%nvctr_f,ncplx_p,2*l-1), intent(out) :: psi
+      real(wp), dimension(lr%wfd%nvctr_c+7*lr%wfd%nvctr_f,ncplx_p,2*l-1), intent(out) :: psi
+      type(f_enumerator), intent(in), optional :: method
+      !local variables
+      integer, parameter :: nterm_max=20 !if GTH nterm_max=4 (this value should go in a module)
+      integer :: i,m,meth
+      type(box_iterator) :: bit
+      type(workarr_sumrho) :: w
+      real(gp), dimension(3) :: oxyz
+      real(gp), dimension(ncplx_g) :: sigma_and_expo
+      integer, dimension(2*l-1) :: nterms
+      integer, dimension(nterm_max,3,2*l-1) :: lxyz
+      real(gp), dimension(ncplx_g,nterm_max,2*l-1) :: factors
+      type(f_function), dimension(3) :: funcs
+      real(f_double), dimension(:), allocatable :: projector_real
 
-      !here iat is useless
-      call projector(cell_geocode(mesh), -1, ider,l,n, coeff, sigma_and_expo, &
-           distance_cutoff, rxyz,&
-           0,0,0,mesh%ndims(1),mesh%ndims(2),mesh%ndims(3), &
-           mesh%hgrids(1),mesh%hgrids(2),mesh%hgrids(3),&
-           kpoint(1),kpoint(2),kpoint(3), ncplx_p,ncplx_g, &
-           wfd%nvctr_c,wfd%nvctr_f,wfd%nseg_c,wfd%nseg_f,&
-           wfd%keyvglob,wfd%keyglob, &
-           wpr,psi) 
+      meth=SEPARABLE_1D
+      if (present(method)) meth=toi(method)
 
-!!$      !new method
-!!$      do i=1,3
-!!$         funcs(i)=f_function_new(f_gaussian,exponent=)
-!!$      end do
-!!$
-!!$      !for the moment only with s projectors (l=0,n=1)
-!!$      bit=box_iter(mesh,centered=.true.)
-!!$      !take the reference functions
-!!$      call separable_3d_function(bit,funcs,1.0_f_double,psir)
-!!$      call initialize_work_arrays_sumrho(lr,.true.,w)
-!!$      !from real space to wavelet
-!!$      call isf_to_daub(lr,w,psir,psi)
-  
+      select case(meth)
+      case(SEPARABLE_1D)
+         !here iat is useless
+         call projector(cell_geocode(mesh), -1, ider,l,n, coeff, expo, &
+              distance_cutoff, rxyz,&
+              0,0,0,mesh%ndims(1),mesh%ndims(2),mesh%ndims(3), &
+              mesh%hgrids(1),mesh%hgrids(2),mesh%hgrids(3),&
+              kpoint(1),kpoint(2),kpoint(3), ncplx_p,ncplx_g, &
+              lr%wfd%nvctr_c,lr%wfd%nvctr_f,lr%wfd%nseg_c,lr%wfd%nseg_f,&
+              lr%wfd%keyvglob,lr%wfd%keyglob, &
+              wpr,psi) 
+      case(SEPARABLE_COLLOCATION)
+         call get_projector_coeffs(ncplx_g,l,n,ider,nterm_max,coeff,expo,&
+              nterms,lxyz,sigma_and_expo,factors)
+         !new method, still separable
+         projector_real=f_malloc(lr%mesh%ndim,id='psir')
+         !for the moment only with s projectors (l=0,n=1)
+         oxyz=lr%mesh%hgrids*[lr%nsi1,lr%nsi2,lr%nsi3]
+         oxyz=rxyz-oxyz
+         bit=box_iter(lr%mesh,origin=oxyz) !use here the real space mesh of the projector locreg
+         do m=1,2*l-1
+            do i=1,3
+               funcs(i)=f_function_new(f_gaussian,exponent=expo(1))
+            end do
+            !here we do not consider the lxyz terms yet
+            !take the reference functions
+            print *,size(projector_real),'real',lr%mesh%ndims,&
+                 lr%mesh%hgrids*[lr%nsi1,lr%nsi2,lr%nsi3],&
+                 lr%mesh_coarse%hgrids*[lr%ns1,lr%ns2,lr%ns3],rxyz,oxyz
+            call separable_3d_function(bit,funcs,factors(1,1,m)*sqrt(lr%mesh%volume_element),projector_real)
+         end do !not correctly written, it should be used to define the functions
+         
+         call f_zero(psi)
+         call initialize_work_arrays_sumrho(lr,.true.,w)
+         !from real space to wavelet
+         call isf_to_daub(lr,w,projector_real,psi)
+         !free work arrays
+         call deallocate_work_arrays_sumrho(w)
+         call f_free(projector_real)
+      end select
 
     end subroutine gaussian_to_wavelets_locreg
 

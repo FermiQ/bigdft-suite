@@ -228,6 +228,7 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
   use sparsematrix_init,only: distribute_on_tasks
   use locregs
   use f_ternary
+  use bounds, only: locreg_bounds
   implicit none
   integer,intent(in) :: iproc,nproc
   real(gp), intent(in) :: cpmult,fpmult,hx,hy,hz
@@ -431,6 +432,14 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
           if (init_projectors_completely) then
              call set_wfd_to_wfd(lr,nl%pspd(iat)%plr,&
                   keyg_lin,nbsegs_cf,nl%pspd(iat)%noverlap,nl%pspd(iat)%lut_tolr,nl%pspd(iat)%tolr)
+
+!!$             !let us try what happens with the new method
+!!$             !consideration, we should conceive differently the
+!!$             !initialization of the localisation regions
+!!$             call locreg_bounds(nl%pspd(iat)%plr%d%n1,nl%pspd(iat)%plr%d%n2,nl%pspd(iat)%plr%d%n3,&
+!!$                  nl%pspd(iat)%plr%d%nfl1,nl%pspd(iat)%plr%d%nfu1,nl%pspd(iat)%plr%d%nfl2,nl%pspd(iat)%plr%d%nfu2,&
+!!$                  nl%pspd(iat)%plr%d%nfl3,nl%pspd(iat)%plr%d%nfu3,nl%pspd(iat)%plr%wfd,nl%pspd(iat)%plr%bounds)
+
           end if
 
           ! This is done for wavefunctions but not for projectors ?

@@ -280,7 +280,7 @@ program PSolver_examples
      depsdrho=f_malloc([n1,n23],id='depsdrho')
      dsurfdrho=f_malloc([n1,n23],id='dsurfdrho')
 
-     call f_memcpy(n=product(pkernel%ndims),src=density(1,1,1),dest=rho(1,1,1))
+     call f_memcpy(n=product(pkernel%mesh%ndims),src=density(1,1,1),dest=rho(1,1,1))
 
      call rebuild_cavity_from_rho(rho,nabla_rho,nabla2_rhopot,delta_rho,cc_rho,depsdrho,dsurfdrho,&
           pkernel,IntSur,IntVol)    
