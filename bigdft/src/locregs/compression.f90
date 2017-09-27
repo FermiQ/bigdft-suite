@@ -46,7 +46,7 @@ module compression
   public :: deallocate_wfd_to_wfd,nullify_wfd
   public :: nullify_wfd_to_wfd,tolr_set_strategy
   public :: cproj_dot,cproj_pr_p_psi,pr_dot_psi
-  public :: wfd_to_wfd_skip,free_tolr_ptr,init_tolr
+  public :: wfd_to_wfd_skip,free_tolr_ptr,init_tolr,wnrm2
 
 contains
 
@@ -322,6 +322,17 @@ contains
     end if
 
   end subroutine init_mask
+
+  !> dot product of two wavefunctions given in the same set of descriptors
+  function wnrm2(ncplx,wfd,psi)
+    implicit none
+    integer, intent(in) :: ncplx
+    type(wavefunctions_descriptors), intent(in) :: wfd
+    real(wp), dimension(wfd%nvctr_c+7*wfd%nvctr_f,ncplx), intent(in) :: psi
+    real(wp) :: wnrm2
+    
+    call wnrm_wrap(ncplx,wfd%nvctr_c,wfd%nvctr_f,psi,wnrm2)
+  end function wnrm2
 
   subroutine pr_dot_psi(ncplx_p,n_p,wfd_p,pr,ncplx_w,n_w,wfd_w,psi,tolr,&
        wpack,scpr,cproj)

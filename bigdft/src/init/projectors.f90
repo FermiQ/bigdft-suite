@@ -19,6 +19,7 @@ subroutine localize_projectors(iproc,nproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,
   use psp_projectors, only: bounds_to_plr_limits, pregion_size
   use public_enums, only: PSPCODE_PAW
   use sparsematrix_init, only: distribute_on_tasks
+  use locregs, only: init_lr
   implicit none
   integer, intent(in) :: iproc,nproc,n1,n2,n3
   real(gp), intent(in) :: cpmult,fpmult,hx,hy,hz
@@ -33,6 +34,7 @@ subroutine localize_projectors(iproc,nproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,
   type(gaussian_basis_iter) :: iter
   integer :: istart,ityp,iat,mproj,nl1,nu1,nl2,nu2,nl3,nu3,mvctr,mseg,nprojelat,i,l
   integer :: ikpt,nkptsproj,ikptp,izero,natp,isat
+  integer :: ns1t,ns2t,ns3t,n1t,n2t,n3t
   real(gp) :: maxfullvol,totfullvol,totzerovol,fullvol,maxrad,maxzerovol,rad
   integer,dimension(:,:),allocatable :: reducearr
 
@@ -73,6 +75,9 @@ subroutine localize_projectors(iproc,nproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,
         call pregion_size(at%astruct%geocode,rxyz(1,iat),at%radii_cf(at%astruct%iatype(iat),3),&
              cpmult,hx,hy,hz,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3)
 
+        ns1t=nl1; ns2t=nl2; ns3t=nl3
+        n1t=nu1; n2t=nu2; n3t=nu3
+
         call bounds_to_plr_limits(.true.,1,nl%pspd(iat)%plr,&
              nl1,nl2,nl3,nu1,nu2,nu3)
 
@@ -103,6 +108,13 @@ subroutine localize_projectors(iproc,nproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,
              at%radii_cf(1,2),fpmult,hx,hy,hz,logrid)
         call num_segkeys(n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,logrid,mseg,mvctr)
         !if (iproc.eq.0) write(*,'(1x,a,2(1x,i0))') 'mseg,mvctr, fine  projectors ',mseg,mvctr
+
+!!$        !to be tested, particularly with respect to the
+!!$        !shift of the locreg for the origin of the
+!!$        !coordinate system
+!!$        call init_lr(nl%pspd(iat)%plr,'F',0.5_gp*[hx,hy,hz],&
+!!$             n1t,n2t,n3t,nl1,nl2,nl3,nu1,nu2,nu3,&
+!!$             .false.,ns1t,ns2t,ns3t,at%astruct%geocode)
 
         nl%pspd(iat)%plr%wfd%nseg_f=mseg
         nl%pspd(iat)%plr%wfd%nvctr_f=mvctr
@@ -574,6 +586,7 @@ use gaussians, only: gaussian_basis_new, gaussian_basis_iter, &
 use psp_projectors_base, only: DFT_PSP_projectors
 use yaml_output, only: yaml_warning
 use yaml_strings, only: yaml_toa
+use locreg_operations, only: gaussian_to_wavelets_locreg,PROJECTION_RS_COLLOCATION
 implicit none
 type(DFT_PSP_projectors), intent(inout) :: nl
 integer, intent(in) :: ityp, iat
@@ -625,19 +638,31 @@ character(len = 1), intent(in) :: geocode
      nc = (mbvctr_c+7*mbvctr_f) * (2*iter%l-1) * ncplx_k
      if (istart_c + nc > nl%nprojel+1) stop 'istart_c > nprojel+1'
      ! Loop on contraction, treat the first gaussian separately for performance reasons.
+!!$     if (gaussian_iter_next_gaussian(nl%proj_G, iter, coeff, expo)) &
+!!$          & call projector(geocode, iat, idir, iter%l, iter%n, coeff, expo, &
+!!$          & nl%pspd(iat)%gau_cut, nl%proj_G%rxyz(:, iat), lr%ns1, lr%ns2, lr%ns3, lr%d%n1, lr%d%n2, lr%d%n3, &
+!!$          & hx, hy, hz, kx, ky, kz, ncplx_k, nl%proj_G%ncplx, &
+!!$          & mbvctr_c, mbvctr_f, mbseg_c, mbseg_f, nl%pspd(iat)%plr%wfd%keyvglob, nl%pspd(iat)%plr%wfd%keyglob, &
+!!$          & nl%wpr,nl%proj(istart_c:))
+     !print *,lr%ns1, lr%ns2, lr%ns3, lr%d%n1, lr%d%n2, lr%d%n3
+     !print *,lr%mesh_coarse%ndims
+     !call mpibarrier()
      if (gaussian_iter_next_gaussian(nl%proj_G, iter, coeff, expo)) &
-          & call projector(geocode, iat, idir, iter%l, iter%n, coeff, expo, &
-          & nl%pspd(iat)%gau_cut, nl%proj_G%rxyz(:, iat), lr%ns1, lr%ns2, lr%ns3, lr%d%n1, lr%d%n2, lr%d%n3, &
-          & hx, hy, hz, kx, ky, kz, ncplx_k, nl%proj_G%ncplx, &
-          & mbvctr_c, mbvctr_f, mbseg_c, mbseg_f, nl%pspd(iat)%plr%wfd%keyvglob, nl%pspd(iat)%plr%wfd%keyglob, &
-          & nl%wpr,nl%proj(istart_c:))
+          call gaussian_to_wavelets_locreg(lr%mesh_coarse,idir,&
+          nl%proj_G%ncplx,coeff,expo,nl%pspd(iat)%gau_cut,iter%n,iter%l,&
+          nl%proj_G%rxyz(:, iat),[kx,ky,kz],&
+          ncplx_k,nl%pspd(iat)%plr,nl%wpr,nl%proj(istart_c:))!,method=PROJECTION_RS_COLLOCATION)
      do
         if (.not. gaussian_iter_next_gaussian(nl%proj_G, iter, coeff, expo)) exit
-        call projector(geocode, iat, idir, iter%l, iter%n, coeff, expo, &
-             & nl%pspd(iat)%gau_cut, nl%proj_G%rxyz(:, iat), lr%ns1, lr%ns2, lr%ns3, lr%d%n1, lr%d%n2, lr%d%n3, &
-             & hx, hy, hz, kx, ky, kz, ncplx_k, nl%proj_G%ncplx, &
-             & mbvctr_c, mbvctr_f, mbseg_c, mbseg_f, nl%pspd(iat)%plr%wfd%keyvglob, nl%pspd(iat)%plr%wfd%keyglob, &
-             & nl%wpr, proj_tmp)
+!!$        call projector(geocode, iat, idir, iter%l, iter%n, coeff, expo, &
+!!$             & nl%pspd(iat)%gau_cut, nl%proj_G%rxyz(:, iat), lr%ns1, lr%ns2, lr%ns3, lr%d%n1, lr%d%n2, lr%d%n3, &
+!!$             & hx, hy, hz, kx, ky, kz, ncplx_k, nl%proj_G%ncplx, &
+!!$             & mbvctr_c, mbvctr_f, mbseg_c, mbseg_f, nl%pspd(iat)%plr%wfd%keyvglob, nl%pspd(iat)%plr%wfd%keyglob, &
+!!$             & nl%wpr, proj_tmp)
+        call gaussian_to_wavelets_locreg(lr%mesh_coarse,idir,&
+             nl%proj_G%ncplx,coeff,expo,nl%pspd(iat)%gau_cut,iter%n,iter%l,&
+             nl%proj_G%rxyz(:, iat),[kx,ky,kz],&
+             ncplx_k,nl%pspd(iat)%plr,nl%wpr, proj_tmp)!,method=PROJECTION_RS_COLLOCATION)
         call axpy(nc, 1._wp, proj_tmp(1), 1, nl%proj(istart_c), 1)
      end do
      ! Check norm for each proj.
@@ -673,13 +698,112 @@ character(len = 1), intent(in) :: geocode
 
 end subroutine atom_projector
 
+subroutine get_projector_coeffs(ncplx_g,l,i,idir,nterm_max,factor,expo,&
+     nterms,lxyz,sigma_and_expo,factors)
+  use module_defs, only: gp
+  implicit none
+  integer, intent(in) :: ncplx_g,nterm_max
+  integer, intent(in) :: l,i
+  integer, intent(in) :: idir
+  real(gp), dimension(ncplx_g), intent(in) :: factor,expo
+  integer, dimension(2*l-1), intent(out) :: nterms
+  integer, dimension(nterm_max,3,2*l-1), intent(out) :: lxyz
+  real(gp), dimension(ncplx_g) :: sigma_and_expo
+  real(gp), dimension(ncplx_g,nterm_max,2*l-1), intent(out) :: factors
+  !local variables
+  integer :: m,idir2,iterm,j,nterm
+  real(gp) :: fpi,fgamma
+  integer, dimension(3) :: nterm_arr
+  integer, dimension(nterm_max) :: lx,ly,lz
+  integer, dimension(3,nterm_max,3) :: lxyz_arr
+  real(gp), dimension(nterm_max,3) :: fac_arr
+
+  
+  !this value can also be inserted as a parameter
+  if (ncplx_g == 1) then
+     !fpi=pi^-1/4 pi^-1/2, pi^-1/4 comes from sqrt(gamma(x)) and pi^-1/2 from Ylm.
+     !fpi=(4.0_gp*atan(1.0_gp))**(-.75_gp)
+     fpi=0.42377720812375763_gp
+     ! expo is real and given as alpha, need to convert it back as coefficient.
+     sigma_and_expo(1) = 1._gp / sqrt(2._gp * expo(1))
+     fgamma=sqrt(2.0_gp)*fpi/(sqrt(sigma_and_expo(1))**(2*(l-1)+4*i-1))
+  else
+     fgamma=0.0_gp
+     fpi=0.56418958354775628_gp
+     select case(l)
+     case(1) 
+        fgamma= 0.70710678118654757_gp !1.0/sqrt(2.0)
+        !1/sqrt(2.0)*fac_arr(1)=1/sqrt(2.0)* [1/sqrt(2.0)]=1/2
+        !1/2*fpi=1/2* [1/sqrt(pi)]=1/2 1/sqrt(pi) Factor for Y_00
+     case(2)
+        fgamma= 0.8660254037844386_gp !sqrt(3)/2.0
+     case(3)
+        fgamma= 1.3693063937629153_gp  !sqrt(3*5)/(2.0*sqrt(2))
+     case(4)
+        fgamma= 2.5617376914898995_gp  !sqrt(7*5*3)/(4.0) 
+     end select
+     fgamma = fgamma * fpi
+     sigma_and_expo(1) = 1._gp / sqrt(2._gp * expo(1))
+     sigma_and_expo(2) = expo(2)
+  end if
+  !start of the projectors expansion routine
+  do m=1,2*l-1
+
+     if (idir==0) then !normal projector calculation case
+        idir2=1
+        call calc_coeff_proj(l,i,m,nterm_max,nterm,lx,ly,lz,fac_arr)
+
+        do iterm=1,nterm
+           lxyz(iterm,1,m)=lx(iterm)
+           lxyz(iterm,2,m)=ly(iterm)
+           lxyz(iterm,3,m)=lz(iterm)
+           factors(:,iterm,m)=factor(:)*fgamma*fac_arr(iterm,idir2)
+        end do
+     else !calculation of projector derivative
+        idir2=mod(idir-1,3)+1
+        call calc_coeff_derproj(l,i,m,nterm_max,sigma_and_expo(1),nterm_arr,lxyz_arr,fac_arr)
+        nterm=nterm_arr(idir2)
+
+        do iterm=1,nterm
+           factors(:,iterm,m)=factor(:)*fgamma*fac_arr(iterm,idir2)
+!!$           lx(iterm)=lxyz_arr(1,iterm,idir2)
+!!$           ly(iterm)=lxyz_arr(2,iterm,idir2)
+!!$           lz(iterm)=lxyz_arr(3,iterm,idir2)        
+           do j=1,3
+              lxyz(iterm,j,m)=lxyz_arr(j,iterm,idir2)
+           end do
+           !seq : 11 22 33 12 23 13
+           select case(idir)
+           case(4,9)
+              lxyz(iterm,1,m)=lxyz(iterm,1,m)+1
+           case(5,7)
+              lxyz(iterm,2,m)=lxyz(iterm,2,m)+1
+           case(6,8)
+              lxyz(iterm,3,m)=lxyz(iterm,3,m)+1
+           end select
+!!$           select case(idir)
+!!$           case(4,9)
+!!$              lx(iterm)=lx(iterm)+1
+!!$           case(5,7)
+!!$              ly(iterm)=ly(iterm)+1
+!!$           case(6,8)
+!!$              lz(iterm)=lz(iterm)+1
+!!$           end select
+
+        end do
+     end if
+     nterms(m)=nterm
+  end do
+
+
+end subroutine get_projector_coeffs
 
 subroutine projector(geocode,iat,idir,l,i,factor,gau_a,rpaw,rxyz,&
      ns1,ns2,ns3,n1,n2,n3,hx,hy,hz,kx,ky,kz,ncplx_k,ncplx_g,&
      mbvctr_c,mbvctr_f,mseg_c,mseg_f,keyv_p,keyg_p,wpr,proj)
   use module_base
   use module_types
-  use psp_projectors_base, only: workarrays_projectors
+  use locreg_operations, only: workarrays_projectors
   implicit none
   character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
   integer, intent(in) :: ns1,ns2,ns3,n1,n2,n3
@@ -695,50 +819,56 @@ subroutine projector(geocode,iat,idir,l,i,factor,gau_a,rpaw,rxyz,&
   real(wp), dimension((mbvctr_c+7*mbvctr_f)*(2*l-1)*ncplx_k), intent(out) :: proj
   !Local variables
   integer, parameter :: nterm_max=20 !if GTH nterm_max=4
-  integer :: m,iterm
   !integer :: nl1_c,nu1_c,nl2_c,nu2_c,nl3_c,nu3_c,nl1_f,nu1_f,nl2_f,nu2_f,nl3_f,nu3_f
-  integer :: istart_c,nterm,idir2
-  real(gp) :: fpi,fgamma,rx,ry,rz
-  integer, dimension(3) :: nterm_arr
-  integer, dimension(nterm_max) :: lx,ly,lz
-  integer, dimension(3,nterm_max,3) :: lxyz_arr
-  real(gp), dimension(ncplx_g,nterm_max) :: factors
-  real(gp), dimension(nterm_max,3) :: fac_arr
+  integer :: istart_c,m
+  real(gp) :: rx,ry,rz
+!!$  integer :: iterm,nterm,idir2
+!!$  real(gp) :: fpi,fgamma
+!!$  integer, dimension(3) :: nterm_arr
+!!$  integer, dimension(nterm_max) :: lx,ly,lz
+!!$  integer, dimension(3,nterm_max,3) :: lxyz_arr
+!!$  real(gp), dimension(ncplx_g,nterm_max) :: factors
+!!$  real(gp), dimension(nterm_max,3) :: fac_arr
   real(gp), dimension(ncplx_g) :: gau_c
+  integer, dimension(2*l-1) :: nterms
+  integer, dimension(nterm_max,3,2*l-1) :: lxyz
+  real(gp), dimension(ncplx_g,nterm_max,2*l-1) :: factors
 
 
+  call get_projector_coeffs(ncplx_g,l,i,idir,nterm_max,factor,gau_a,&
+       nterms,lxyz,gau_c,factors)
   !call f_routine(id='projector')
 
-  !this value can also be inserted as a parameter
-  if (ncplx_g == 1) then
-     !fpi=pi^-1/4 pi^-1/2, pi^-1/4 comes from sqrt(gamma(x)) and pi^-1/2 from Ylm.
-     !fpi=(4.0_gp*atan(1.0_gp))**(-.75_gp)
-     fpi=0.42377720812375763_gp
-     ! gau_a is real and given as alpha, need to convert it back as coefficient.
-     gau_c(1) = 1._gp / sqrt(2._gp * gau_a(1))
-     fgamma=sqrt(2.0_gp)*fpi/(sqrt(gau_c(1))**(2*(l-1)+4*i-1))
-  else
-     fpi=0.56418958354775628_gp
-     if(l==1) then
-        fgamma= 0.70710678118654757_gp !1.0/sqrt(2.0)
-        !1/sqrt(2.0)*fac_arr(1)=1/sqrt(2.0)* [1/sqrt(2.0)]=1/2
-        !1/2*fpi=1/2* [1/sqrt(pi)]=1/2 1/sqrt(pi) Factor for Y_00
-     elseif(l==2) then
-        fgamma= 0.8660254037844386_gp !sqrt(3)/2.0
-     elseif(l==3) then
-        fgamma= 1.3693063937629153_gp  !sqrt(3*5)/(2.0*sqrt(2))
-     elseif(l==4) then
-        fgamma= 2.5617376914898995_gp  !sqrt(7*5*3)/(4.0) 
-     else
-        write(*,'(1x,a)')'error found!'
-        write(*,'(1x,a,i4)')&
-             'gamma_factor: l should be between 1 and 3, but l= ',l
-        stop
-     end if
-     fgamma = fgamma * fpi
-     gau_c(1) = 1._gp / sqrt(2._gp * gau_a(1))
-     gau_c(2) = gau_a(2)
-  end if
+!!$  !this value can also be inserted as a parameter
+!!$  if (ncplx_g == 1) then
+!!$     !fpi=pi^-1/4 pi^-1/2, pi^-1/4 comes from sqrt(gamma(x)) and pi^-1/2 from Ylm.
+!!$     !fpi=(4.0_gp*atan(1.0_gp))**(-.75_gp)
+!!$     fpi=0.42377720812375763_gp
+!!$     ! gau_a is real and given as alpha, need to convert it back as coefficient.
+!!$     gau_c(1) = 1._gp / sqrt(2._gp * gau_a(1))
+!!$     fgamma=sqrt(2.0_gp)*fpi/(sqrt(gau_c(1))**(2*(l-1)+4*i-1))
+!!$  else
+!!$     fpi=0.56418958354775628_gp
+!!$     if(l==1) then
+!!$        fgamma= 0.70710678118654757_gp !1.0/sqrt(2.0)
+!!$        !1/sqrt(2.0)*fac_arr(1)=1/sqrt(2.0)* [1/sqrt(2.0)]=1/2
+!!$        !1/2*fpi=1/2* [1/sqrt(pi)]=1/2 1/sqrt(pi) Factor for Y_00
+!!$     elseif(l==2) then
+!!$        fgamma= 0.8660254037844386_gp !sqrt(3)/2.0
+!!$     elseif(l==3) then
+!!$        fgamma= 1.3693063937629153_gp  !sqrt(3*5)/(2.0*sqrt(2))
+!!$     elseif(l==4) then
+!!$        fgamma= 2.5617376914898995_gp  !sqrt(7*5*3)/(4.0) 
+!!$     else
+!!$        write(*,'(1x,a)')'error found!'
+!!$        write(*,'(1x,a,i4)')&
+!!$             'gamma_factor: l should be between 1 and 3, but l= ',l
+!!$        stop
+!!$     end if
+!!$     fgamma = fgamma * fpi
+!!$     gau_c(1) = 1._gp / sqrt(2._gp * gau_a(1))
+!!$     gau_c(2) = gau_a(2)
+!!$  end if
 
   rx=rxyz(1) 
   ry=rxyz(2) 
@@ -748,63 +878,63 @@ subroutine projector(geocode,iat,idir,l,i,factor,gau_a,rpaw,rxyz,&
   !start of the projectors expansion routine
   do m=1,2*l-1
 
-     if (idir==0) then !normal projector calculation case
-        idir2=1
-        call calc_coeff_proj(l,i,m,nterm_max,nterm,lx,ly,lz,fac_arr)
-
-        do iterm=1,nterm
-           factors(:,iterm)=factor(:)*fgamma*fac_arr(iterm,idir2)
-        end do
-     else !calculation of projector derivative
-        idir2=mod(idir-1,3)+1
-        call calc_coeff_derproj(l,i,m,nterm_max,gau_c(1),nterm_arr,lxyz_arr,fac_arr)
-        nterm=nterm_arr(idir2)
-
-        do iterm=1,nterm
-           factors(:,iterm)=factor(:)*fgamma*fac_arr(iterm,idir2)
-           lx(iterm)=lxyz_arr(1,iterm,idir2)
-           ly(iterm)=lxyz_arr(2,iterm,idir2)
-           lz(iterm)=lxyz_arr(3,iterm,idir2)        
-
-!       nterm=nterm_arr(idir)
-!       do iterm=1,nterm
-!          factors(iterm)=fgamma*fac_arr(iterm,idir)
-!          lx(iterm)=lxyz_arr(1,iterm,idir)
-!          ly(iterm)=lxyz_arr(2,iterm,idir)
-!          lz(iterm)=lxyz_arr(3,iterm,idir)
-
-! sequence: 11 21 31 12 22 32 13 23 33 
-
-!if (idir > 3) then
-!        if (idir < 7) then
-!lx(iterm)=lx(iterm)+1
-!        else if (idir < 10) then
-!ly(iterm)=ly(iterm)+1
-!        else 
-!lz(iterm)=lz(iterm)+1
-!        endif
-!endif
-!seq : 11 22 33 12 23 13
-select case(idir)
-case(4,9)
-   lx(iterm)=lx(iterm)+1
-case(5,7)
-   ly(iterm)=ly(iterm)+1
-case(6,8)
-   lz(iterm)=lz(iterm)+1
-end select
-!if (idir == 4 .or. idir == 9) lx(iterm)=lx(iterm)+1
-!if (idir == 5 .or. idir == 7) ly(iterm)=ly(iterm)+1
-!if (idir == 6 .or. idir == 8) lz(iterm)=lz(iterm)+1
-
-        end do
-     end if
+!!$     if (idir==0) then !normal projector calculation case
+!!$        idir2=1
+!!$        call calc_coeff_proj(l,i,m,nterm_max,nterm,lx,ly,lz,fac_arr)
+!!$
+!!$        do iterm=1,nterm
+!!$           factors(:,iterm)=factor(:)*fgamma*fac_arr(iterm,idir2)
+!!$        end do
+!!$     else !calculation of projector derivative
+!!$        idir2=mod(idir-1,3)+1
+!!$        call calc_coeff_derproj(l,i,m,nterm_max,gau_c(1),nterm_arr,lxyz_arr,fac_arr)
+!!$        nterm=nterm_arr(idir2)
+!!$
+!!$        do iterm=1,nterm
+!!$           factors(:,iterm)=factor(:)*fgamma*fac_arr(iterm,idir2)
+!!$           lx(iterm)=lxyz_arr(1,iterm,idir2)
+!!$           ly(iterm)=lxyz_arr(2,iterm,idir2)
+!!$           lz(iterm)=lxyz_arr(3,iterm,idir2)        
+!!$
+!!$!       nterm=nterm_arr(idir)
+!!$!       do iterm=1,nterm
+!!$!          factors(iterm)=fgamma*fac_arr(iterm,idir)
+!!$!          lx(iterm)=lxyz_arr(1,iterm,idir)
+!!$!          ly(iterm)=lxyz_arr(2,iterm,idir)
+!!$!          lz(iterm)=lxyz_arr(3,iterm,idir)
+!!$
+!!$! sequence: 11 21 31 12 22 32 13 23 33 
+!!$
+!!$!if (idir > 3) then
+!!$!        if (idir < 7) then
+!!$!lx(iterm)=lx(iterm)+1
+!!$!        else if (idir < 10) then
+!!$!ly(iterm)=ly(iterm)+1
+!!$!        else 
+!!$!lz(iterm)=lz(iterm)+1
+!!$!        endif
+!!$!endif
+!!$!seq : 11 22 33 12 23 13
+!!$select case(idir)
+!!$case(4,9)
+!!$   lx(iterm)=lx(iterm)+1
+!!$case(5,7)
+!!$   ly(iterm)=ly(iterm)+1
+!!$case(6,8)
+!!$   lz(iterm)=lz(iterm)+1
+!!$end select
+!!$!if (idir == 4 .or. idir == 9) lx(iterm)=lx(iterm)+1
+!!$!if (idir == 5 .or. idir == 7) ly(iterm)=ly(iterm)+1
+!!$!if (idir == 6 .or. idir == 8) lz(iterm)=lz(iterm)+1
+!!$
+!!$        end do
+!!$     end if
 
 !!$     write(*,*) geocode,nterm,ns1,ns2,ns3,n1,n2,n3,lx(1:nterm),ly(1:nterm),lz(1:nterm), rpaw
 !!$     write(*,*) hx,hy,hz,kx,ky,kz,ncplx_g,ncplx_k
-     call crtproj(geocode,nterm,ns1,ns2,ns3,n1,n2,n3,&
+     call crtproj(geocode,nterms(m),ns1,ns2,ns3,n1,n2,n3,&
           hx,hy,hz,kx,ky,kz,ncplx_g,ncplx_k,&
-          gau_c,factors,rx,ry,rz,lx,ly,lz,&
+          gau_c,factors(1,1,m),rx,ry,rz,lxyz(1,1,m),lxyz(1,2,m),lxyz(1,3,m),&
           mbvctr_c,mbvctr_f,mseg_c,mseg_f,keyv_p,keyg_p,proj(istart_c),wpr,rpaw)
  
      !do iterm=1,nterm
@@ -832,7 +962,8 @@ subroutine crtproj(geocode,nterm,ns1,ns2,ns3,n1,n2,n3, &
      mvctr_c,mvctr_f,mseg_c,mseg_f,keyv_p,keyg_p,proj,wpr,gau_cut)
   use module_base
   use module_types
-  use psp_projectors_base, only: workarrays_projectors, NCPLX_MAX
+  !use psp_projectors_base, only: workarrays_projectors, NCPLX_MAX
+  use locreg_operations, only: workarrays_projectors,NCPLX_MAX
   !use gaussians
   implicit none
   character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode

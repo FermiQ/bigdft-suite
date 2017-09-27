@@ -1698,12 +1698,12 @@ contains
     integer,dimension(:),intent(in) :: recvcounts, displs
     integer,intent(in) :: comm, sendcount
     logical,intent(in),optional :: check_
-    integer,intent(out),pointer,optional :: window_
+    type(fmpi_win), intent(out), optional :: window_
     !local variables
     integer :: nproc,nrecvbuf
     !external :: getall
     logical :: check
-    integer,target:: window
+    type(fmpi_win) :: window 
 
     nproc=mpisize(comm)
     nrecvbuf=sum(recvcounts)
@@ -1723,15 +1723,19 @@ contains
           return
        end if
     end if
-    stop 'temporary broken'
+
 !!$    window = mpiwindow(sendcount,sendbuf,comm)
 !!$    if (present(window_)) window_ => window
-!!$
-!!$    call getall_d(nproc,recvcounts,displs,window,nrecvbuf,recvbuf)
-!!$
-!!$    if (.not. present(window_)) then
-!!$       call mpi_fenceandfree(window)
-!!$    end if
+
+    call fmpi_win_create(window,sendbuf,sendcount,comm=comm)
+    call fmpi_win_fence(window,FMPI_WIN_OPEN)
+    call getall_d(nproc,recvcounts,displs,window,nrecvbuf,recvbuf)
+
+    if (.not. present(window_)) then
+       call fmpi_win_shut(window)
+    else
+       window_=window
+    end if
 
   end subroutine mpi_get_to_allgatherv_double
 
@@ -2079,6 +2083,7 @@ end subroutine gather_timings
 
 
 !> used by get_to_allgatherv to pass the good addresses to the mpiget wrapper
+!! should be generalized to multiple communications
 subroutine getall_d(nproc,recvcounts,displs,window,nrecvbuffer,recvbuffer)
   use f_onesided, only: fmpi_get,fmpi_win !wrapper_MPI, only: mpiget, mpi_address_kind
   use fmpi_types, only: fmpi_address
@@ -2094,7 +2099,7 @@ subroutine getall_d(nproc,recvcounts,displs,window,nrecvbuffer,recvbuffer)
      jcount=recvcounts(jproc)
      jst=displs(jproc)
      if (jcount>0) then
-        call fmpi_get(recvbuffer(jst+1),jproc,window,jcount,int(0,fmpi_address))
+        call fmpi_get(recvbuffer(jst+1),jproc,window,jcount)
         !call mpiget(recvbuffer(jst+1), jcount, jproc, int(0,kind=mpi_address_kind), window)
      end if
   end do

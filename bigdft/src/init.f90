@@ -217,17 +217,18 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
      cpmult,fpmult,hx,hy,hz,dry_run,nl,&
      init_projectors_completely)
   use module_base
-  use psp_projectors_base, only: DFT_PSP_projectors_null, nonlocal_psp_descriptors_null, allocate_workarrays_projectors
+  use psp_projectors_base, only: DFT_PSP_projectors_null, nonlocal_psp_descriptors_null
   use psp_projectors, only: bounds_to_plr_limits
   use module_types
   use gaussians, only: gaussian_basis, gaussian_basis_from_psp, gaussian_basis_from_paw
   use public_enums, only: PSPCODE_PAW
   use orbitalbasis
   use ao_inguess, only: lmax_ao
-  use locreg_operations, only: set_wfd_to_wfd
+  use locreg_operations, only: set_wfd_to_wfd, allocate_workarrays_projectors
   use sparsematrix_init,only: distribute_on_tasks
   use locregs
   use f_ternary
+  use bounds, only: locreg_bounds
   implicit none
   integer,intent(in) :: iproc,nproc
   real(gp), intent(in) :: cpmult,fpmult,hx,hy,hz
@@ -431,6 +432,14 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
           if (init_projectors_completely) then
              call set_wfd_to_wfd(lr,nl%pspd(iat)%plr,&
                   keyg_lin,nbsegs_cf,nl%pspd(iat)%noverlap,nl%pspd(iat)%lut_tolr,nl%pspd(iat)%tolr)
+
+!!$             !let us try what happens with the new method
+!!$             !consideration, we should conceive differently the
+!!$             !initialization of the localisation regions
+!!$             call locreg_bounds(nl%pspd(iat)%plr%d%n1,nl%pspd(iat)%plr%d%n2,nl%pspd(iat)%plr%d%n3,&
+!!$                  nl%pspd(iat)%plr%d%nfl1,nl%pspd(iat)%plr%d%nfu1,nl%pspd(iat)%plr%d%nfl2,nl%pspd(iat)%plr%d%nfu2,&
+!!$                  nl%pspd(iat)%plr%d%nfl3,nl%pspd(iat)%plr%d%nfu3,nl%pspd(iat)%plr%wfd,nl%pspd(iat)%plr%bounds)
+
           end if
 
           ! This is done for wavefunctions but not for projectors ?

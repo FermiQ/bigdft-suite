@@ -14,7 +14,7 @@ include $(srcdir)/../check.mk
 
 SUBDIRS =
 
-check_PROGRAMS = check_wrappers hooks libconv $(babel_prg)
+check_PROGRAMS = check_wrappers hooks projection libconv $(babel_prg)
 
 AM_LDFLAGS = -L$(top_builddir)/src
 if BUILD_DYNAMIC_LIBS
@@ -43,9 +43,13 @@ hooks_SOURCES = hooks.f90
 hooks_FCFLAGS = -I$(top_builddir)/src/orbitals -I$(top_builddir)/src/modules @LIB_FUTILE_CFLAGS@
 hooks_LDADD = $(bigdft_library) @LIB_FUTILE_LIBS@
 
-libconv_SOURCES = libconv.f90
+libconv_SOURCES = libconv.f90 initialization.f90
 libconv_FCFLAGS = -I$(top_builddir)/src/orbitals -I$(top_builddir)/src/modules @LIB_FUTILE_CFLAGS@
 libconv_LDADD = $(bigdft_library) @LIB_FUTILE_LIBS@
+
+projection_SOURCES = projection.f90 initialization.f90
+projection_FCFLAGS = -I$(top_builddir)/src/locregs -I$(top_builddir)/src/orbitals -I$(top_builddir)/src/modules @LIB_FUTILE_CFLAGS@
+projection_LDADD = $(bigdft_library) @LIB_FUTILE_LIBS@
 
 
 babel_SOURCES = babel.f90

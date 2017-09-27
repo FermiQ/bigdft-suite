@@ -1315,6 +1315,8 @@ subroutine epsinnersccs_cavity(atoms,rxyz,pkernel)
   use f_enums, f_str => str
   use yaml_output
   use dictionaries, only: f_err_throw
+  use PStypes, only: epsilon_inner_cavity
+  use box
   implicit none
   type(atoms_data), intent(in) :: atoms
   real(gp), dimension(3,atoms%astruct%nat), intent(in) :: rxyz
@@ -1323,44 +1325,45 @@ subroutine epsinnersccs_cavity(atoms,rxyz,pkernel)
   !local variables
   integer :: i,n1,n23,i3s
   real(gp) :: delta
-  type(atoms_iterator) :: it
+  !type(atoms_iterator) :: it
   real(gp), dimension(:), allocatable :: radii
   real(gp), dimension(:,:,:), allocatable :: eps
 
   radii=f_malloc(atoms%astruct%nat,id='radii')
-  eps=f_malloc(pkernel%mesh%ndims,id='eps')
+!!$  eps=f_malloc(pkernel%mesh%ndims,id='eps')
 
-  it=atoms_iter(atoms%astruct)
-  !python metod
-  do while(atoms_iter_next(it))
-     !only amu is extracted here
-     call atomic_info(atoms%nzatom(it%ityp),atoms%nelpsp(it%ityp),&
-          rcov=radii(it%iat))
-  end do
+!!$  it=atoms_iter(atoms%astruct)
+!!$  !python metod
+!!$  do while(atoms_iter_next(it))
+!!$     !only amu is extracted here
+!!$     call atomic_info(atoms%nzatom(it%ityp),atoms%nelpsp(it%ityp),&
+!!$          rcov=radii(it%iat))
+!!$  end do
 
 !  if(bigdft_mpi%iproc==0) call yaml_map('Bohr_Ang',Bohr_Ang)
 
   delta=2.0*maxval(pkernel%mesh%hgrids)
 !  if(bigdft_mpi%iproc==0) call yaml_map('Delta cavity',delta)
-
   do i=1,atoms%astruct%nat
    radii(i) = 0.5d0/Bohr_Ang
   end do
 !  if (bigdft_mpi%iproc==0) call yaml_map('Covalent radii',radii)
 
-  call epsinnersccs_rigid_cavity_error_multiatoms_bc(atoms%astruct%geocode,&
-       pkernel%mesh%ndims,pkernel%mesh%hgrids,atoms%astruct%nat,rxyz,radii,delta,eps)
+  call epsilon_inner_cavity(pkernel,atoms%astruct%nat,rxyz,radii,delta)
 
-  n1=pkernel%mesh%ndims(1)
-  n23=pkernel%mesh%ndims(2)*pkernel%grid%n3p
-  !starting point in third direction
-  i3s=pkernel%grid%istart+1
-  if (pkernel%grid%n3p==0) i3s=1
-
-  call f_memcpy(n=n1*n23,src=eps(1,1,i3s),dest=pkernel%w%epsinnersccs)
+!!$  call epsinnersccs_rigid_cavity_error_multiatoms_bc(atoms%astruct%geocode,&
+!!$       pkernel%mesh%ndims,pkernel%hgrids,atoms%astruct%nat,rxyz,radii,delta,eps)
+!!$
+!!$  n1=pkernel%mesh%ndims(1)
+!!$  n23=pkernel%mesh%ndims(2)*pkernel%grid%n3p
+!!$  !starting point in third direction
+!!$  i3s=pkernel%grid%istart+1
+!!$  if (pkernel%grid%n3p==0) i3s=1
+!!$
+!!$  call f_memcpy(n=n1*n23,src=eps(1,1,i3s),dest=pkernel%w%epsinnersccs)
 
   call f_free(radii)
-  call f_free(eps)
+!!$  call f_free(eps)
 end subroutine epsinnersccs_cavity
 
 !> Calculate the important objects related to the physical properties of the system

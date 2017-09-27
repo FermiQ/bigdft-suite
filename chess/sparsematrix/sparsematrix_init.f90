@@ -996,7 +996,8 @@ module sparsematrix_init
       end do
 
       if (nproc>1) then
-          call fmpi_allreduce(sparsemat%nvctr,sparsemat%nseg,op=FMPI_SUM,comm=comm)
+          call fmpi_allreduce(sparsemat%nvctr,1,op=FMPI_SUM,comm=comm)
+          call fmpi_allreduce(sparsemat%nseg,1,op=FMPI_SUM,comm=comm)
           !call fmpi_allreduce(sparsemat%nseg, 1, FMPI_SUM, comm=comm)
           call fmpi_allreduce(sparsemat%nsegline(1), sparsemat%nfvctr, FMPI_SUM, comm=comm)
       end if

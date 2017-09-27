@@ -40,6 +40,7 @@ module fmpi_types
 
   interface mpitypesize
     module procedure mpitypesize_d0, mpitypesize_d1, mpitypesize_i0, mpitypesize_long0, mpitypesize_l0
+    module procedure mpitypesize_i1, mpitypesize_li1
   end interface mpitypesize
 
   !might be included in a config.inc file
@@ -198,6 +199,16 @@ contains
     end if
   end function mpitypesize_i0
 
+  function mpitypesize_i1(foo) result(sizeof)
+    implicit none
+    integer(f_integer), dimension(:), intent(in) :: foo
+    integer :: sizeof
+    integer :: kindt
+    kindt=kind(foo) !to remove compilation warning
+    sizeof=mpitypesize(int(1,f_integer))
+  end function mpitypesize_i1
+
+
   function mpitypesize_long0(foo) result(sizeof)
     use dictionaries, only: f_err_throw,f_err_define
     implicit none
@@ -206,12 +217,21 @@ contains
     integer :: kindt
     kindt=kind(foo) !to remove compilation warning
 
-    call mpi_type_size(mpi_long, sizeof, ierr)
+    call mpi_type_size(MPI_LONG, sizeof, ierr)
     if (ierr/=0) then
        call f_err_throw('Error in mpi_type_size',&
             err_id=ERR_MPI_WRAPPERS)
     end if
   end function mpitypesize_long0
+
+  function mpitypesize_li1(foo) result(sizeof)
+    implicit none
+    integer(f_long), dimension(:), intent(in) :: foo
+    integer :: sizeof
+    integer :: kindt
+    kindt=kind(foo) !to remove compilation warning
+    sizeof=mpitypesize(int(1,f_long))
+  end function mpitypesize_li1
 
   function mpitypesize_l0(foo) result(sizeof)
     use dictionaries, only: f_err_throw,f_err_define

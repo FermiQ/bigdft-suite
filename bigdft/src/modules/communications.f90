@@ -1139,6 +1139,7 @@ module communications
                      !comm%window = mpiwindow(n1*n2*n3p(iproc)*comm%nspin, sendbuf(1), bigdft_mpi%mpi_comm)
                      call fmpi_win_create(comm%window,sendbuf(1),&
                            int(n1,f_long)*n2*n3p(iproc)*comm%nspin,bigdft_mpi%mpi_comm)
+                     call fmpi_win_fence(comm%window,FMPI_WIN_OPEN)
 !!$                  else if (nproc>1 .and. rma_sync==RMA_SYNC_PASSIVE) then
 !!$                      !call mpi_win_create(sendbuf(1), int(n1*n2*n3p(iproc)*comm%nspin*size_of_double,kind=mpi_address_kind), &
 !!$                      !     size_of_double, MPI_INFO_NULL, bigdft_mpi%mpi_comm, comm%window, ierr)
