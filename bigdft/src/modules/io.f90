@@ -2425,7 +2425,7 @@ module io
       call PS_gather(src=rho,dest=pot_ion,kernel=kernel,nsrc=nspin)
     
       if (iproc==0) then
-         call dump_field(filename,at%astruct%geocode,kernel%mesh%ndims,kernel%hgrids,nspin,pot_ion,&
+         call dump_field(filename,kernel%mesh,nspin,pot_ion,&
               rxyz,at%astruct%iatype,at%nzatom,at%nelpsp,ixyz0=ixyz0)
       end if
     

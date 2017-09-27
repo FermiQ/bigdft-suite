@@ -104,7 +104,7 @@ subroutine exctx_pre_computation(iorb, jorb, rp_ij, phi1, phi2, pkernel)
   real(gp) :: hfac
   integer(f_address) :: myrho_GPU
   integer :: iorb,jorb,ndim,shift1,shift2,i,i_stat
-  hfac=1.0_gp/product(pkernel%hgrids)
+  hfac=1.0_gp/product(pkernel%mesh%hgrids)
   shift1=phi1%displ(iorb)
   shift2=phi2%displ(jorb)
   ndim=product(pkernel%mesh%ndims)
@@ -207,7 +207,7 @@ subroutine exctx_accum_eexctX(orb1, orb2, phi1, phi2, pkernel, norb, occup, fact
 
   if(pkernel%igpu==1 .and. pkernel%stay_on_gpu==1) then
     !this part is usually computed at the end of h_potential
-    hfac2=hfac2*0.5_dp*product(pkernel%hgrids) 
+    hfac2=hfac2*0.5_dp*product(pkernel%mesh%hgrids) 
 !    val = TRANSFER(pkernel%w%ehart_GPU, C_NULL_PTR)
 !    call c_f_pointer(val, sendbuf)
 !    call mpiallred(sendbuf,1,MPI_SUM,comm=pkernel%mpi_env%mpi_comm)

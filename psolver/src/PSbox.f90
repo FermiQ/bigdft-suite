@@ -202,16 +202,16 @@ contains
        work_full=f_malloc(kernel%mesh%ndims,id='work_full')
        call PS_gather(src=src_dist,dest=work_full,kernel=kernel)
        if (present(ixyz0)) then
-          call dump_field(filename,kernel%geocode,kernel%mesh%ndims,kernel%hgrids,1,work_full,ixyz0=ixyz0)
+          call dump_field(filename,kernel%mesh,1,work_full,ixyz0=ixyz0)
        else
-          call dump_field(filename,kernel%geocode,kernel%mesh%ndims,kernel%hgrids,1,work_full)
+          call dump_field(filename,kernel%mesh,1,work_full)
        end if
           call f_free(work_full)
     else if (present(src_full)) then
        if (present(ixyz0)) then
-          call dump_field(filename,kernel%geocode,kernel%mesh%ndims,kernel%hgrids,1,src_full,ixyz0=ixyz0)
+          call dump_field(filename,kernel%mesh,1,src_full,ixyz0=ixyz0)
        else
-          call dump_field(filename,kernel%geocode,kernel%mesh%ndims,kernel%hgrids,1,src_full)
+          call dump_field(filename,kernel%mesh,1,src_full)
        end if
     end if
 

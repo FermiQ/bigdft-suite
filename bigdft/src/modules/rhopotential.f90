@@ -33,6 +33,7 @@ module rhopotential
     use module_interfaces, only: XC_potential
     use Poisson_Solver, except_dp => dp, except_gp => gp
     use yaml_output
+    use box
     implicit none
     
     ! Calling arguments
@@ -53,7 +54,7 @@ module rhopotential
     
     if(nspin==4) then
        !this wrapper can be inserted inside the poisson solver 
-       call PSolverNC(denspot%pkernel%geocode,'D',denspot%pkernel%mpi_env%iproc,denspot%pkernel%mpi_env%nproc,&
+       call PSolverNC(cell_geocode(denspot%dpbox%mesh),'D',denspot%pkernel%mpi_env%iproc,denspot%pkernel%mpi_env%nproc,&
             denspot%dpbox%mesh%ndims(1),denspot%dpbox%mesh%ndims(2),&
             denspot%dpbox%mesh%ndims(3),&
             denspot%dpbox%n3d,denspot%xc,&
@@ -74,7 +75,7 @@ module rhopotential
           nullifyVXC=.true.
        end if
     
-       call XC_potential(denspot%pkernel%geocode,'D',denspot%pkernel%mpi_env%iproc,denspot%pkernel%mpi_env%nproc,&
+       call XC_potential(cell_geocode(denspot%dpbox%mesh),'D',denspot%pkernel%mpi_env%iproc,denspot%pkernel%mpi_env%nproc,&
             denspot%pkernel%mpi_env%mpi_comm,&
             denspot%dpbox%mesh%ndims(1),denspot%dpbox%mesh%ndims(2),denspot%dpbox%mesh%ndims(3),denspot%xc,&
             denspot%dpbox%mesh%hgrids,&

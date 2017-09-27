@@ -27,6 +27,7 @@
 !!    Wire boundary condition is missing
 subroutine Electrostatic_Solver(kernel,rhov,energies,pot_ion,rho_ion,ehartree)
   use FDder
+  use box
   implicit none
   !> kernel of the coulomb operator, it also contains metadata about the parallelisation scheme
   !! and the data distributions in the grid.
@@ -145,7 +146,7 @@ subroutine Electrostatic_Solver(kernel,rhov,energies,pot_ion,rho_ion,ehartree)
 
   if (wrtmsg) then
      call yaml_mapping_open('Poisson Solver')
-     select case(kernel%geocode)
+     select case(cell_geocode(kernel%mesh))
      case('F')
         call yaml_map('BC','Free')
      case('P')
@@ -209,7 +210,7 @@ subroutine Electrostatic_Solver(kernel,rhov,energies,pot_ion,rho_ion,ehartree)
   if (kernel%method /= PS_VAC_ENUM) then
      call f_zero(norm_nonvac)
      if (n23 >0) call nonvacuum_projection(n1,n23,rhov(1,1,i3s),kernel%w%oneoeps,norm_nonvac)
-     norm_nonvac=norm_nonvac*product(kernel%hgrids)
+     norm_nonvac=norm_nonvac*product(kernel%mesh%hgrids)
      call PS_reduce(norm_nonvac,kernel)
      if (wrtmsg) call yaml_map('Integral of the density in the nonvacuum region',norm_nonvac)
   end if
@@ -311,8 +312,7 @@ subroutine Electrostatic_Solver(kernel,rhov,energies,pot_ion,rho_ion,ehartree)
      !if statement for SC cavity
      if (calc_nabla2pot) then
         !in the PI method the potential is allocated as a full array
-        call nabla_u_square(kernel%geocode,kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%mesh%ndims(3),&
-             kernel%w%pot,nabla2_rhopot,kernel%nord,kernel%hgrids)
+        call nabla_u_square(kernel%mesh,kernel%w%pot,nabla2_rhopot,kernel%nord)
 !!$        call add_Vextra(n1,n23,nabla2_rhopot(1,1,i3sd2),&
 !!$             depsdrho,dsurfdrho,kernel%cavity,kernel%opt%only_electrostatic,&
 !!$             sum_pi,pot_ion_eff,vextra_eff)
@@ -332,8 +332,7 @@ subroutine Electrostatic_Solver(kernel,rhov,energies,pot_ion,rho_ion,ehartree)
 
      if (calc_nabla2pot) then
         call PS_gather(src=kernel%w%pot,dest=rhopot_full,kernel=kernel)
-        call nabla_u_square(kernel%geocode,kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%mesh%ndims(3),&
-             rhopot_full,nabla2_rhopot,kernel%nord,kernel%hgrids)
+        call nabla_u_square(kernel%mesh,rhopot_full,nabla2_rhopot,kernel%nord)
         call f_free(rhopot_full)
 !!$        call add_Vextra(n1,n23,nabla2_rhopot(1,1,i3sd2),&
 !!$             depsdrho,dsurfdrho,kernel%cavity,kernel%opt%only_electrostatic,&
@@ -397,8 +396,8 @@ subroutine Electrostatic_Solver(kernel,rhov,energies,pot_ion,rho_ion,ehartree)
   end if
   !evaluating the total ehartree + e_static if needed
   !also cavitation energy can be given
-  energs%hartree=ehartreeLOC*0.5_dp*kernel%mesh%volume_element!product(kernel%hgrids)
-  energs%eVextra=e_static*kernel%mesh%volume_element!product(kernel%hgrids)
+  energs%hartree=ehartreeLOC*0.5_dp*kernel%mesh%volume_element!product(kernel%mesh%hgrids)
+  energs%eVextra=e_static*kernel%mesh%volume_element!product(kernel%mesh%hgrids)
   energs%cavitation=(kernel%cavity%gammaS+kernel%cavity%alphaS)*kernel%IntSur+&
        kernel%cavity%betaV*kernel%IntVol
 
@@ -1038,24 +1037,21 @@ subroutine PS_dump_coulomb_operator(kernel,prefix)
      if (kernel%method .hasattr. PS_RIGID_ENUM) then
         !we might add the atoms in the case of a rigid cavity, they are in
         call dump_field(trim(prefix)//'dielectric_cavity',&
-             kernel%geocode,kernel%mesh%ndims,kernel%hgrids,1,&
-             global_arr,rxyz=kernel%w%rxyz)
+             kernel%mesh,1,global_arr,rxyz=kernel%w%rxyz)
      else
         !charge dependent case
         call dump_field(trim(prefix)//'dielectric_cavity',&
-             kernel%geocode,kernel%mesh%ndims,kernel%hgrids,1,global_arr)
+             kernel%mesh,1,global_arr)
      end if
      !now check if the polarization charge is available
      if (associated(kernel%w%rho_pol)) then
         call PS_gather(src=kernel%w%rho_pol,dest=global_arr,kernel=kernel)
-        call dump_field(trim(prefix)//'polarization_charge',&
-             kernel%geocode,kernel%mesh%ndims,kernel%hgrids,1,global_arr)
+        call dump_field(trim(prefix)//'polarization_charge',kernel%mesh,1,global_arr)
      end if
      !now check if the ionic charge of the Poisson boltzmann charge is available
      if (associated(kernel%w%rho_ions)) then
         call PS_gather(src=kernel%w%rho_ions,dest=global_arr,kernel=kernel)
-        call dump_field(trim(prefix)//'solvent_density',&
-             kernel%geocode,kernel%mesh%ndims,kernel%hgrids,1,global_arr)
+        call dump_field(trim(prefix)//'solvent_density',kernel%mesh,1,global_arr)
      end if
      call f_free(global_arr)
   end if
