@@ -1738,7 +1738,7 @@ contains
 !!!!!!
 
 
-  subroutine epsilon_inner_cavity(pkernel,nat,rxyz,radii,delta)
+  subroutine epsilon_inner_cavity(pkernel,nat,rxyz,radii,delta,oxyz)
     use box
     use psolver_environment
     implicit none
@@ -1746,13 +1746,13 @@ contains
     real(dp), intent(in) :: delta
     type(coulomb_operator), intent(inout) :: pkernel
     real(dp), dimension(nat), intent(in) :: radii
-    real(dp), dimension(3,nat), intent(in) :: rxyz
+    real(dp), dimension(3,nat), intent(in) :: rxyz,oxyz
     !local variables
     integer :: iat
     real(dp) :: tt,d
     type(box_iterator) :: bit
 
-    bit=box_iter(pkernel%mesh,i3s=pkernel%grid%istart+1,n3p=pkernel%grid%n3p)
+    bit=box_iter(pkernel%mesh,i3s=pkernel%grid%istart+1,n3p=pkernel%grid%n3p,origin=oxyz)
     do while(box_next_point(bit))
        !loop on atoms
        tt=1.0_dp
