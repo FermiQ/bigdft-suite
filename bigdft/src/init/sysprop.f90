@@ -1071,7 +1071,7 @@ subroutine epsilon_cavity(atoms,rxyz,pkernel)
   !here the pkernel_set_epsilon routine should been modified to accept
   !already the radii and the atoms
 
-  mesh=cell_new(atoms%astruct%geocode,pkernel%mesh%ndims,pkernel%hgrids)
+  mesh=cell_new(atoms%astruct%geocode,pkernel%mesh%ndims,pkernel%mesh%hgrids)
   origin=locreg_mesh_origin(mesh)
   rxyz_shifted=f_malloc([3,atoms%astruct%nat],id='rxyz_shifted')
   do iat=1,atoms%astruct%nat
@@ -1343,7 +1343,7 @@ subroutine epsinnersccs_cavity(atoms,rxyz,pkernel)
 
 !  if(bigdft_mpi%iproc==0) call yaml_map('Bohr_Ang',Bohr_Ang)
 
-  delta=2.0*maxval(pkernel%hgrids)
+  delta=2.0*maxval(pkernel%mesh%hgrids)
 !  if(bigdft_mpi%iproc==0) call yaml_map('Delta cavity',delta)
   do i=1,atoms%astruct%nat
    radii(i) = 0.5d0/Bohr_Ang

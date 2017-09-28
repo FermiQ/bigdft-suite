@@ -960,7 +960,7 @@ subroutine crtproj(geocode,nterm,ns1,ns2,ns3,n1,n2,n3, &
      hx,hy,hz,kx,ky,kz,ncplx_g,ncplx_k,&
      gau_a,fac_arr,rx,ry,rz,lx,ly,lz, & 
      mvctr_c,mvctr_f,mseg_c,mseg_f,keyv_p,keyg_p,proj,wpr,gau_cut)
-  use module_base
+  use module_base, fake_one=>one
   use module_types
   !use psp_projectors_base, only: workarrays_projectors, NCPLX_MAX
   use locreg_operations, only: workarrays_projectors,NCPLX_MAX

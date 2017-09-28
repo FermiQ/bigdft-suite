@@ -644,9 +644,8 @@ program GPS_3D
      end do
   end do
   
-  call nabla_u_and_square(geocode,n01,n02,n03,eps,nabla_eps,oneoeps,&
-       nord,hgrids)
-  call div_u_i(geocode,n01,n02,n03,nabla_eps,oneosqrteps,nord,hgrids,corr)
+  call nabla_u_and_square(pkernel%mesh,eps,nabla_eps,oneoeps,nord)
+  call div_u_i(pkernel%mesh,nabla_eps,oneosqrteps,nord,corr)
 
 
   do i3=1,n03

@@ -2127,6 +2127,7 @@ subroutine kswfn_post_treatments(iproc, nproc, KSwfn, tmb, linear, &
   use io, only: plot_density
   use module_xc, only: XC_NO_HARTREE
   use PSbox
+  use box
   implicit none
   !Arguments
   type(DFT_wavefunction), intent(in) :: KSwfn
@@ -2256,7 +2257,7 @@ subroutine kswfn_post_treatments(iproc, nproc, KSwfn, tmb, linear, &
 
   !In principle symmetrization of the stress tensor is not needed since the density has been 
   !already symmetrized
-  if (atoms%astruct%sym%symObj >= 0 .and. denspot%pkernel%geocode=='P') &
+  if (atoms%astruct%sym%symObj >= 0 .and. cell_geocode(denspot%pkernel%mesh)=='P') &
        call symm_stress(hstrten,atoms%astruct%sym%symObj)
 
   !SM: for a spin polarized calculation, rho_work already contains the full

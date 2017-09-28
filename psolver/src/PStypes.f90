@@ -182,7 +182,7 @@ module PStypes
      !!                The density is supposed to be periodic in z direction, 
      !!                which has to be compatible with the FFT.
      !!          - 'H' Helmholtz Equation Solver
-     character(len=1) :: geocode
+!     character(len=1) :: geocode
      !> method of embedding in the environment
      !!          - 'VAC' Poisson Equation in vacuum. Default case.
      !!          - 'PCG' Generalized Poisson Equation, Preconditioned Conjugate Gradient
@@ -194,7 +194,7 @@ module PStypes
      type(f_enumerator) :: method
      type(cell) :: mesh !< structure which includes all cell informations 
 !     integer, dimension(3) :: ndims   !< dimension of the box of the density
-     real(gp), dimension(3) :: hgrids !<grid spacings in each direction
+!     real(gp), dimension(3) :: hgrids !<grid spacings in each direction
      !real(gp), dimension(3) :: angrad !< angles in radiants between each of the axis
      type(cavity_data) :: cavity !< description of the cavity for the dielectric medium
      type(PSolver_options) :: opt !<Datatype controlling the operations of the solver
@@ -367,14 +367,14 @@ contains
     implicit none
     type(coulomb_operator) :: k
     k%itype_scf=0
-    k%geocode='F'
+!    k%geocode='F'
     call nullify_f_enum(k%method)
     k%cavity=cavity_default()
     k%opt=PSolver_options_null()
     k%mu=0.0_gp
     k%mesh=cell_null()
 !    k%ndims=(/0,0,0/)
-    k%hgrids=(/0.0_gp,0.0_gp,0.0_gp/)
+!    k%hgrids=(/0.0_gp,0.0_gp,0.0_gp/)
     nullify(k%kernel)
     k%plan=(/0,0,0,0,0/)
     k%geo=(/0,0,0/)
@@ -534,10 +534,10 @@ contains
 
     !these parts should be removed
     !geocode and ISF family
-    kernel%geocode=geocode
+!    kernel%geocode=geocode
     !dimensions and grid spacings
 !    kernel%ndims=ndims
-    kernel%hgrids=hgrids
+!    kernel%hgrids=hgrids
 
     !new treatment for the kernel input variables
     kernel%method=PS_VAC_ENUM
@@ -1207,11 +1207,9 @@ contains
              de2 =f_malloc(kernel%mesh%ndims,id='de2')
              ddeps=f_malloc(kernel%mesh%ndims,id='ddeps')
 
-             call nabla_u_and_square(kernel%geocode,kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%mesh%ndims(3),&
-                  eps,deps,de2,kernel%nord,kernel%hgrids)
+             call nabla_u_and_square(kernel%mesh,eps,deps,de2,kernel%nord)
 
-             call div_u_i(kernel%geocode,kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%mesh%ndims(3),&
-                  deps,ddeps,kernel%nord,kernel%hgrids)
+             call div_u_i(kernel%mesh,deps,ddeps,kernel%nord)
              i23=1
              do i3=i3s,i3s+kernel%grid%n3p-1!kernel%ndims(3)
                 do i2=1,kernel%mesh%ndims(2)
@@ -1226,7 +1224,7 @@ contains
              call f_free(ddeps)
              call f_free(de2)
           else if (all(prst)) then
-             mesh=cell_new(kernel%geocode,kernel%mesh%ndims,kernel%hgrids)
+             mesh=kernel%mesh !cell_new(kernel%geocode,kernel%mesh%ndims,kernel%mesh%hgrids)
              epsm1=(kernel%cavity%epsilon0-vacuum_eps)
              call f_zero(kernel%IntSur)
              call f_zero(kernel%IntVol)
@@ -1297,8 +1295,7 @@ contains
           else if (present(eps)) then
              !allocate arrays
              deps=f_malloc([kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%mesh%ndims(3),3],id='deps')
-             call nabla_u(kernel%geocode,kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%mesh%ndims(3),&
-                  eps,deps,kernel%nord,kernel%hgrids)
+             call nabla_u(kernel%mesh,eps,deps,kernel%nord)
              do i3=1,kernel%mesh%ndims(3)
                 do i2=1,kernel%mesh%ndims(2)
                    do i1=1,kernel%mesh%ndims(1)
@@ -1311,7 +1308,7 @@ contains
              end do
              call f_free(deps)
           else if (all(prst)) then
-             mesh=cell_new(kernel%geocode,kernel%mesh%ndims,kernel%hgrids)
+             mesh=kernel%mesh !cell_new(kernel%geocode,kernel%mesh%ndims,kernel%mesh%hgrids)
              epsm1=(kernel%cavity%epsilon0-vacuum_eps)
              call f_zero(kernel%IntSur)
              call f_zero(kernel%IntVol)
@@ -1391,7 +1388,7 @@ contains
     real(dp) :: cc,epr,depsr,hh,tt,kk
     type(cell) :: mesh
     real(dp), dimension(3) :: v,dleps,deps
-    mesh=cell_new(kernel%geocode,kernel%mesh%ndims,kernel%hgrids)
+    mesh=kernel%mesh !cell_new(kernel%geocode,kernel%mesh%ndims,kernel%mesh%hgrids)
 
     do i3=1,kernel%grid%n3p
        v(3)=cell_r(mesh,i3+kernel%grid%istart,dim=3)
@@ -1509,8 +1506,8 @@ contains
        end do
     end select
 
-    !IntSur=IntSur*product(kernel%hgrids)/epsm1
-    !IntVol=IntVol*product(kernel%hgrids)/epsm1
+    !IntSur=IntSur*product(kernel%mesh%hgrids)/epsm1
+    !IntVol=IntVol*product(kernel%mesh%hgrids)/epsm1
     IntSur=IntSur*kernel%mesh%volume_element/epsm1
     IntVol=IntVol*kernel%mesh%volume_element/epsm1
      

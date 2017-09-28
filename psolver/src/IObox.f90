@@ -694,28 +694,29 @@ module IObox
 
     END SUBROUTINE write_cube_fields
 
-    subroutine dump_field(filename,geocode,ndims,hgrids,nspin,rho,&
-         rxyz,iatype,nzatom,nelpsp,ixyz0)
+    subroutine dump_field(filename,mesh,nspin,rho,rxyz,iatype,nzatom,nelpsp,ixyz0)
       use dynamic_memory
       use dictionaries, only: f_err_throw
       use f_utils
       use IOboxETSF, only: write_etsf_density
       use yaml_strings
+      use box
       implicit none
       !integer,intent(in) :: fileunit0,fileunitx,fileunity,fileunitz
       integer, intent(in) :: nspin
-      character(len=1), intent(in) :: geocode
+      type(cell), intent(in) :: mesh
       character(len=*), intent(in) :: filename
-      integer, dimension(3), intent(in) :: ndims
-      real(gp), dimension(3), intent(in) :: hgrids
       !type(atoms_data), intent(in) :: at
-      real(dp), dimension(ndims(1),ndims(2),ndims(3),nspin), intent(in) :: rho
+      real(dp), dimension(mesh%ndims(1),mesh%ndims(2),mesh%ndims(3),nspin), intent(in) :: rho
       real(gp), dimension(:,:), intent(in), optional, target :: rxyz
       integer, dimension(:), intent(in), optional, target  :: iatype
       integer, dimension(:), intent(in), optional, target  :: nzatom !< of dimension ntypes
       integer, dimension(:), intent(in), optional, target  :: nelpsp !< of dimension ntypes
       integer, dimension(3), intent(in), optional ::  ixyz0 !< points that have to be plot as lines
       !local variables
+      character(len=1) :: geocode
+      integer, dimension(3) :: ndims
+      real(gp), dimension(3) :: hgrids
       character(len=5) :: suffix
       character(len=65) :: message
       integer :: ia,ib,isuffix,fformat,nat!ierr,n1i,n2i,n3i
@@ -735,6 +736,9 @@ module IObox
 
       call f_routine(id='dump_field')
 
+      geocode=cell_geocode(mesh)
+      ndims=mesh%ndims
+      hgrids=mesh%hgrids
       nat=0
       if (present(iatype)) then
          nat=size(iatype) !should also check the arguments

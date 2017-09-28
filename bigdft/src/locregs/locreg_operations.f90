@@ -211,7 +211,7 @@ module locreg_operations
          call get_projector_coeffs(ncplx_g,l,n,ider,nterm_max,coeff,expo,&
               nterms,lxyz,sigma_and_expo,factors)
          !new method, still separable
-         projector_real=f_malloc(lr%mesh%ndim,id='psir')
+         projector_real=f_malloc0(lr%mesh%ndim,id='psir')
          !for the moment only with s projectors (l=0,n=1)
          oxyz=lr%mesh%hgrids*[lr%nsi1,lr%nsi2,lr%nsi3]
          oxyz=rxyz-oxyz
@@ -222,9 +222,9 @@ module locreg_operations
             end do
             !here we do not consider the lxyz terms yet
             !take the reference functions
-            print *,size(projector_real),'real',lr%mesh%ndims,&
-                 lr%mesh%hgrids*[lr%nsi1,lr%nsi2,lr%nsi3],&
-                 lr%mesh_coarse%hgrids*[lr%ns1,lr%ns2,lr%ns3],rxyz,oxyz
+            !print *,size(projector_real),'real',lr%mesh%ndims,&
+            !     lr%mesh%hgrids*[lr%nsi1,lr%nsi2,lr%nsi3],&
+            !     lr%mesh_coarse%hgrids*[lr%ns1,lr%ns2,lr%ns3],rxyz,oxyz
             call separable_3d_function(bit,funcs,factors(1,1,m)*sqrt(lr%mesh%volume_element),projector_real)
          end do !not correctly written, it should be used to define the functions
          

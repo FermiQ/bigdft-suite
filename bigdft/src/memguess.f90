@@ -588,7 +588,7 @@ program memguess
       dpbox%ngatherarr = f_malloc_ptr((/ 0.to.0, 1.to.2 /),id='dpbox%ngatherarr')
 
       !call plot_density(0,1,trim(fileTo),at,at%astruct%rxyz,dpbox,nspin,rhocoeff)
-      call dump_field(trim(fileTo),at%astruct%geocode,dpbox%mesh%ndims,dpbox%mesh%hgrids,nspin,rhocoeff,&
+      call dump_field(trim(fileTo),dpbox%mesh,nspin,rhocoeff,&
                       at%astruct%rxyz,at%astruct%iatype,at%nzatom,at%nelpsp)
 
       call f_free_ptr(rhocoeff)
