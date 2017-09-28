@@ -1317,6 +1317,7 @@ subroutine epsinnersccs_cavity(atoms,rxyz,pkernel)
   use dictionaries, only: f_err_throw
   use PStypes, only: epsilon_inner_cavity
   use box
+  use bounds, only: locreg_mesh_origin
   implicit none
   type(atoms_data), intent(in) :: atoms
   real(gp), dimension(3,atoms%astruct%nat), intent(in) :: rxyz
@@ -1349,7 +1350,7 @@ subroutine epsinnersccs_cavity(atoms,rxyz,pkernel)
   end do
 !  if (bigdft_mpi%iproc==0) call yaml_map('Covalent radii',radii)
 
-  call epsilon_inner_cavity(pkernel,atoms%astruct%nat,rxyz,radii,delta)
+  call epsilon_inner_cavity(pkernel,atoms%astruct%nat,rxyz,radii,delta,locreg_mesh_origin(pkernel%mesh))
 
 !!$  call epsinnersccs_rigid_cavity_error_multiatoms_bc(atoms%astruct%geocode,&
 !!$       pkernel%mesh%ndims,pkernel%hgrids,atoms%astruct%nat,rxyz,radii,delta,eps)
