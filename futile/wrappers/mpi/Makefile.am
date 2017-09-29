@@ -77,7 +77,7 @@ modules = wrapper_mpi.@MODULE_EXT@ \
 	f_onesided.@MODULE_EXT@ \
 	f_alltoall.@MODULE_EXT@
 endif
-CLEANFILES = $(modules) mpif.h
+CLEANFILES = *.@MODULE_EXT@ mpif.h
 
 
 

@@ -32,7 +32,7 @@ modules = module_base.@MODULE_EXT@ \
 	compression.@MODULE_EXT@ 
 endif
 
-CLEANFILES = $(modules)
+CLEANFILES = *.@MODULE_EXT@
 
 AM_FCFLAGS = -I. -I$(srcdir) -I$(top_builddir)/includes @LIB_FUTILE_CFLAGS@
 
@@ -50,11 +50,13 @@ defs.o: configure.inc
 endif
 
 #dependencies
+base.o: defs.o
+compression.o: defs.o
 locregs.o: base.o compression.o bounds.o
 bounds.o: compression.o
 locreg_operations.o: locregs.o
 locregs_basics.o: locreg_operations.o
-$(sources:.f90=.o): defs.o
+scalar_product.o: defs.o
 locreg_test.o: liblocregs.a
 
 $(modules): $(liblocregs_a_OBJECTS)
