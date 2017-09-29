@@ -2058,19 +2058,21 @@ multipoles_OH-:
  Unitary check of the multipole calculations: 6.1e-2
  Force Norm (Hartree/Bohr): 1.1e-10
  Maxdiff for transpose (checksum): 1.5e-11
+ trace(KH): 1.2e-11
 
 multipoles_waterQM:
  Epot: 1.1e-10
  Ekin: 1.1e-10
  EH: 1.1e-10
- EBS: 1.4e-11
- EBS higher temperature: 1.4e-11
+ EBS: 1.7e-11
+ EBS higher temperature: 1.6e-11
  Maxdiff for transpose (checksum): 3.0e-11
  multiplicator for the confinement: 4.0e-11
  trace: 3.8e-11
  difference: 1.7e-11
  eF: 1.1e-8
  decay length of error function: 1.1e-05
+ trace(KH): 1.7e-11
 
 multipoles_waterQMQM:
  Epot: 1.1e-10
@@ -2085,6 +2087,7 @@ multipoles_waterQMQM:
  decay length of error function: 1.1e-05
  difference: 7.3e-11
  relative difference: 2.2e-11
+ trace(KH): 1.3e-11
 
 #multipoles_water:
 # Ekin: 1.1e-10

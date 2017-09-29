@@ -990,7 +990,7 @@ program chess_toolbox
        call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, trim(kernel_file), &
             iproc, nproc, mpiworld(), smat(2), kernel_mat, &
             init_matmul=.true., filename_mult=trim(kernel_matmul_file))
-       call init_matrix_taskgroups_wrapper(iproc, nproc, mpiworld(), .false., 1, smat)
+       call init_matrix_taskgroups_wrapper(iproc, nproc, mpiworld(), .false., 2, smat)
 
        if (iproc==0) then
            call yaml_mapping_open('Matrix properties')
