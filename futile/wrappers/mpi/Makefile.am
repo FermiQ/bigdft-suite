@@ -28,7 +28,7 @@ mpi_source = MPIfake.f90
 mpi_include = $(MPI_INCLUDES) mpif.h
 endif
 
-EXTRA_DIST = $(MPI_INCLUDES)
+EXTRA_DIST = $(MPI_INCLUDES) $(WIN_INCLUDES) $(GET_INCLUDES)
 
 #Fake mpif.h for serial compilation
 mpif.h:
