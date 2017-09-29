@@ -985,16 +985,17 @@ program chess_toolbox
    if (kernel_purity) then
        call sparse_matrix_metadata_init_from_file(trim(metadata_file), smmd)
        call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, trim(overlap_file), &
-            iproc, nproc, mpiworld(), smat_s, ovrlp_mat, &
+            iproc, nproc, mpiworld(), smat(1), ovrlp_mat, &
             init_matmul=.false.)
        call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, trim(kernel_file), &
-            iproc, nproc, mpiworld(), smat_l, kernel_mat, &
+            iproc, nproc, mpiworld(), smat(2), kernel_mat, &
             init_matmul=.true., filename_mult=trim(kernel_matmul_file))
+       call init_matrix_taskgroups_wrapper(iproc, nproc, mpiworld(), .false., 1, smat)
 
        if (iproc==0) then
            call yaml_mapping_open('Matrix properties')
-           call write_sparsematrix_info(smat_s, 'Overlap matrix')
-           call write_sparsematrix_info(smat_l, 'Density kernel')
+           call write_sparsematrix_info(smat(1), 'Overlap matrix')
+           call write_sparsematrix_info(smat(2), 'Density kernel')
            call yaml_mapping_close()
        end if
 
@@ -1009,18 +1010,18 @@ program chess_toolbox
 
        ! Calculate K'=S^1/2*K*S^1/2
        kernel_ortho = matrices_null()
-       kernel_ortho%matrix_compr = sparsematrix_malloc_ptr(smat_l, iaction=SPARSE_FULL, id='kernel_ortho%matrix_compr')
+       kernel_ortho%matrix_compr = sparsematrix_malloc_ptr(smat(2), iaction=SPARSE_FULL, id='kernel_ortho%matrix_compr')
        call matrix_for_orthonormal_basis(iproc, nproc, mpiworld(), &
-            1020, smat_s, smat_l, &
+            1020, smat(1), smat(2), &
             ovrlp_mat, kernel_mat, 'plus', kernel_ortho%matrix_compr)
 
 
        ovrlp_large = matrices_null()
-       ovrlp_large%matrix_compr = sparsematrix_malloc_ptr(smat_l, iaction=SPARSE_FULL, id='ovrlp_large%matrix_compr')
+       ovrlp_large%matrix_compr = sparsematrix_malloc_ptr(smat(2), iaction=SPARSE_FULL, id='ovrlp_large%matrix_compr')
        KS_large = matrices_null()
-       KS_large%matrix_compr = sparsematrix_malloc_ptr(smat_l, iaction=SPARSE_FULL, id='KS_large%matrix_compr')
+       KS_large%matrix_compr = sparsematrix_malloc_ptr(smat(2), iaction=SPARSE_FULL, id='KS_large%matrix_compr')
        fragment_atom_id = f_malloc(nat_frag,id='fragment_atom_id')
-       fragment_supfun_id = f_malloc(smat_l%nfvctr,id='fragment_supfun_id')
+       fragment_supfun_id = f_malloc(smat(2)%nfvctr,id='fragment_supfun_id')
        jat_start = 1
        found_a_fragment = .false.
        ifrag = 0
@@ -1056,7 +1057,7 @@ program chess_toolbox
            
            ! Count how many support functions belong to the fragment
            nfvctr_frag = 0
-           do i=1,smat_l%nfvctr
+           do i=1,smat(2)%nfvctr
                iiat = smmd%on_which_atom(i)
                do iat=1,nat_frag
                    if (iiat==fragment_atom_id(iat)) then
@@ -1074,13 +1075,13 @@ program chess_toolbox
            ksk_fragment = f_malloc((/nfvctr_frag,nfvctr_frag/),id='ksk_fragment')
            tmpmat = f_malloc((/nfvctr_frag,nfvctr_frag/),id='tmpmat')
 
-           if (smat_l%nspin==1) then
+           if (smat(2)%nspin==1) then
                factor = 0.5_mp
-           else if (smat_l%nspin==2) then
+           else if (smat(2)%nspin==2) then
                factor = 1.0_mp
            end if
 
-           call transform_sparse_matrix(iproc, smat_s, smat_l, SPARSE_FULL, 'small_to_large', &
+           call transform_sparse_matrix(iproc, smat(1), smat(2), SPARSE_FULL, 'small_to_large', &
                                         smat_in=ovrlp_mat%matrix_compr, lmat_out=ovrlp_large%matrix_compr)
 
            if (iproc==0) then
@@ -1091,9 +1092,9 @@ program chess_toolbox
            end if
 
            ! Calculate KSK-K for the submatrices
-           call extract_fragment_submatrix(smmd, smat_l, ovrlp_large, nat_frag, nfvctr_frag, &
+           call extract_fragment_submatrix(smmd, smat(2), ovrlp_large, nat_frag, nfvctr_frag, &
                 fragment_atom_id, fragment_supfun_id, overlap_fragment)
-           call extract_fragment_submatrix(smmd, smat_l, kernel_mat, nat_frag, nfvctr_frag, &
+           call extract_fragment_submatrix(smmd, smat(2), kernel_mat, nat_frag, nfvctr_frag, &
                 fragment_atom_id, fragment_supfun_id, kernel_fragment)
            call gemm('n', 'n', nfvctr_frag, nfvctr_frag, nfvctr_frag, factor, kernel_fragment(1,1), nfvctr_frag, &
                 overlap_fragment(1,1), nfvctr_frag, 0.d0, tmpmat(1,1), nfvctr_frag)
@@ -1124,8 +1125,8 @@ program chess_toolbox
            end if
 
            ! Calculate KS, extract the submatrices and calculate (KS)^2-(KS)
-           call matrix_matrix_multiplication(iproc, nproc, smat_l, kernel_mat, ovrlp_large, KS_large)
-           call extract_fragment_submatrix(smmd, smat_l, KS_large, nat_frag, nfvctr_frag, &
+           call matrix_matrix_multiplication(iproc, nproc, smat(2), kernel_mat, ovrlp_large, KS_large)
+           call extract_fragment_submatrix(smmd, smat(2), KS_large, nat_frag, nfvctr_frag, &
                 fragment_atom_id, fragment_supfun_id, kernel_fragment)
            call gemm('n', 'n', nfvctr_frag, nfvctr_frag, nfvctr_frag, factor, kernel_fragment(1,1), nfvctr_frag, &
                 kernel_fragment(1,1), nfvctr_frag, 0.d0, tmpmat(1,1), nfvctr_frag)
@@ -1155,7 +1156,7 @@ program chess_toolbox
                call yaml_mapping_close()
            end if
 
-           call extract_fragment_submatrix(smmd, smat_l, kernel_ortho, nat_frag, nfvctr_frag, &
+           call extract_fragment_submatrix(smmd, smat(2), kernel_ortho, nat_frag, nfvctr_frag, &
                 fragment_atom_id, fragment_supfun_id, kernel_fragment)
            call gemm('n', 'n', nfvctr_frag, nfvctr_frag, nfvctr_frag, factor, kernel_fragment(1,1), nfvctr_frag, &
                 kernel_fragment(1,1), nfvctr_frag, 0.d0, tmpmat(1,1), nfvctr_frag)
@@ -1198,8 +1199,8 @@ program chess_toolbox
        end if
 
        call deallocate_sparse_matrix_metadata(smmd)
-       call deallocate_sparse_matrix(smat_s)
-       call deallocate_sparse_matrix(smat_l)
+       call deallocate_sparse_matrix(smat(1))
+       call deallocate_sparse_matrix(smat(2))
        call deallocate_matrices(ovrlp_mat)
        call deallocate_matrices(kernel_mat)
        call deallocate_matrices(ovrlp_large)
