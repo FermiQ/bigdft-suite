@@ -18,6 +18,7 @@ subroutine PZ_SIC_potential(nspin,nspinor,hfac,spinval,lr,xc,&
   use Poisson_Solver, except_dp => dp, except_gp => gp
   use module_xc
   use locreg_operations
+  use locregs
   implicit none
   integer, intent(in) :: nspinor,nspin
   real(gp), intent(in) :: hfac,spinval
@@ -198,6 +199,7 @@ subroutine NK_SIC_potential(lr,orbs,xc,fref,hgrids,pkernel,psi,poti,eSIC_DC,pota
   use module_interfaces, only: XC_potential
   use Poisson_Solver, except_dp => dp, except_gp => gp
   use locreg_operations
+  use locregs
   implicit none
   real(gp), intent(in) :: fref
   type(locreg_descriptors), intent(in) :: lr
@@ -470,7 +472,7 @@ subroutine NK_SIC_potential(lr,orbs,xc,fref,hgrids,pkernel,psi,poti,eSIC_DC,pota
 
   if (.not. virtual) then
      !sum up the results of the off diagonal term
-     if (nproc >1) call mpiallred(wxd,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+     if (nproc >1) call fmpi_allreduce(wxd,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
 
      if (.not. savewxd) then
         !add to the potential orbital per orbital
@@ -514,6 +516,7 @@ subroutine psir_to_rhoi(fi,spinval,nspinrho,nspinor,lr,psir,rhoi)
   use module_base
   use module_types
   use module_interfaces, only: partial_density_free
+  use locregs
   implicit none
   integer, intent(in) :: nspinrho,nspinor
   real(gp), intent(in) :: fi      !< fi occupation number times k-point weigth divided by the volume unit

@@ -7,9 +7,7 @@
 !!    or http://www.gnu.org/copyleft/gpl.txt .
 !!    For the list of contributors, see ~/AUTHORS
 
-  !$ if (not_omp) then
   call f_timer_interrupt(TCAT_ARRAY_ALLOCATIONS)
-  !$ end if
 
   !here the size should be corrected with ndebug (or maybe not)
   ilsize=product(int(shape(array),kind=8))
@@ -38,18 +36,12 @@
   end if
 
   if (ierror/=0) then
-     !$ if (not_omp) then
      call f_timer_resume()!TCAT_ARRAY_ALLOCATIONS
-     !$ end if
      call f_err_throw('Deallocation problem, error code '//trim(yaml_toa(ierror)),&
           ERR_DEALLOCATE)
      return
   end if
 
-
-
-  !$ if (not_omp) then
   call f_timer_resume()!TCAT_ARRAY_ALLOCATIONS
-  !$ end if
   
   

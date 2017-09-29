@@ -4,7 +4,8 @@ bigdft.modules
 gnome.modules
 rcfiles/
 m4/
-libABINIT.patch
+glib.patch
+glib2.patch
 libffi-toolexeclibdir.patch
 wannier90-2.0.0.patch
 distfiles

@@ -51,7 +51,8 @@ module pexsi
       !> @brief FORTRAN version of the driver for solving KSDFT.
       !> @date 2014-04-02
       subroutine pexsi_driver(iproc, nproc, comm, nfvctr, nvctr, row_ind, col_ptr, &
-                 mat_h, mat_s, charge, npoles, mumin, mumax, mu, DeltaE, temperature, tol_charge, np_sym_fact, &
+                 mat_h, mat_s, charge, npoles, nproc_per_pole_input, mumin, mumax, mu, &
+                 DeltaE, temperature, tol_charge, np_sym_fact, do_inertia_count, max_iter, verbosity, &
                  kernel, energy, energy_kernel)
       !use module_base
       use pexsi_base, only: f_ppexsi_options
@@ -78,7 +79,9 @@ module pexsi
       integer,dimension(nfvctr),intent(in) :: col_ptr !< col_ptr from the CCS format
       real(kind=8),dimension(nvctr),intent(in) :: mat_h, mat_s
       real(kind=8),intent(in) :: charge
-      integer,intent(in) :: npoles
+      integer,intent(in) :: npoles, max_iter, verbosity
+      logical,intent(in) :: do_inertia_count
+      integer,intent(in) :: nproc_per_pole_input !< number of processors per pole
       real(kind=8),intent(in) :: mumin, mumax, mu, DeltaE, temperature, tol_charge
       real(kind=8),dimension(nvctr),intent(out) :: kernel
       real(kind=8),intent(out) :: energy
@@ -96,7 +99,7 @@ module pexsi
       real(c_double) :: totalEnergyH, totalEnergyS, totalFreeEnergy
       
       integer(c_int):: nprow, npcol, npSymbFact, outputFileIndex, ic
-      integer :: ierr, ii
+      integer :: ierr, ii, jj
       double precision:: timeSta, timeEnd
       integer(c_int):: info
       integer(c_intptr_t) :: plan
@@ -108,33 +111,51 @@ module pexsi
       integer :: nvctr_local_min, nvctr_local_max
       real(kind=8) :: nvctr_local_avg
       
-      integer:: i, j , nfvctr_local, nvctr_local, isvctr_local, maxproc
+      integer:: i, j , nfvctr_local, nvctr_local, isvctr_local, nproc_per_pole
       integer:: numColLocalFirst, firstCol
       integer:: irow, jcol
       
-      integer:: readComm
-      integer:: isProcRead
+      integer:: readComm, global_group, pexsi_group
+      integer:: isProcRead, npoleparallelization, nproc_used, pexsi_comm
       
       call f_routine(id='pexsi_driver')
 
       if (iproc==0) call yaml_comment('PEXSI calculation of kernel',hfill='~')
+
       
-      ! Determine the number of processes used.
+      ! Determine the actual number of processes used.
       ! Ideal number of processes per pole:
-      ii = nproc! / npoles
+      if (nproc_per_pole_input<=nproc) then
+          ii = nproc_per_pole_input! / npoles
+      else
+          if (iproc==0) then
+              call yaml_warning('Specified number of processes per poles ('//trim(yaml_toa(nproc_per_pole_input))//&
+                   &') is larger than the total number of processes ('//trim(yaml_toa(nproc))//&
+                   &'); value will be adjusted.')
+          end if
+          ii = nproc
+      end if
       ! Number of processor rows / columns
-      ii = max(1,floor(sqrt(real(ii,kind=8))))
-      nprow = int(ii,kind=c_int)
-      npcol = int(ii,kind=c_int)
-      ! "Highest" MPI task working
-      !maxproc = npoles*nprow*npcol
-      maxproc = nprow*npcol
+      jj = max(1,floor(sqrt(real(ii,kind=8))))
+      nprow = int(jj,kind=c_int)
+      npcol = int(ii/jj,kind=c_int)
+      ! Actual number of processes used per pole
+      nproc_per_pole = nprow*npcol
+
+      ! PEXSI parallelization over the poles
+      npoleparallelization = nproc/nproc_per_pole
+
+      ! How many processes will be used in total
+      nproc_used = npoleparallelization*nproc_per_pole
+      
 
       if (iproc==0) then
           call yaml_mapping_open('PEXSI parallelization')
           call yaml_map('Total number of cores',nproc)
-          call yaml_map('Number of cores used',maxproc)
+          call yaml_map('Number of cores per pole',nproc_per_pole)
           call yaml_map('Processor grid dimensions',(/nprow,npcol/))
+          call yaml_map('Number of cores used',nproc_used)
+          call yaml_map('parallelization over the pole',npoleparallelization)
           call yaml_mapping_close()
       end if
       
@@ -144,18 +165,26 @@ module pexsi
           !!npcol = int(2,kind=c_int)
           
           ! Split the processors to read matrix
-          if( iproc < maxproc ) then
+          !if( iproc < nproc_per_pole ) then
+          if( .true. ) then
             isProcRead = 1
           else
             isProcRead = 0
           endif
           
-          call mpi_comm_split( comm, isProcRead, iproc, readComm, ierr )
+          !call mpi_comm_split( comm, isProcRead, iproc, readComm, ierr )
+
+
+      call mpi_comm_group(comm, global_group, ierr)
+      call mpi_group_incl(global_group, nproc_used, (/(i,i=0,nproc_used-1)/), pexsi_group, ierr)
+      call mpi_comm_create(comm, pexsi_group, pexsi_comm, ierr)
           
-      if (iproc<maxproc) then
-          
+      !if (iproc<nproc_per_pole) then
+      !if (.true.) then
+      if (iproc<nproc_used) then
+       
             call f_timing(TCAT_PEXSI_DISTRIBUTE,'ON')
-            call distribute_matrix(iproc, maxproc, nfvctr, nvctr, col_ptr, row_ind, mat_h, mat_s, &
+            call distribute_matrix(mod(iproc,nproc_per_pole), nproc_per_pole, nfvctr, nvctr, col_ptr, row_ind, mat_h, mat_s, &
                  nfvctr_local, nvctr_local, isvctr_local, col_ptr_local, row_ind_local, mat_h_local, mat_s_local)
             call f_timing(TCAT_PEXSI_DISTRIBUTE,'OF')
             !Because they are C integers..?
@@ -167,14 +196,14 @@ module pexsi
             call f_timing(TCAT_PEXSI_COMMUNICATE,'ON')
             nfvctr_local_min = nfvctr_local
             nfvctr_local_max = nfvctr_local
-            call mpiallred(nfvctr_local_min,count=1,op=mpi_min,comm=readComm)
-            call mpiallred(nfvctr_local_max,count=1,op=mpi_max,comm=readComm)
-            nfvctr_local_avg = real(nfvctr,kind=8)/real(maxproc,kind=8)
+!            call fmpi_allreduce(nfvctr_local_min,count=1,op=mpi_min,comm=readComm)
+!            call fmpi_allreduce(nfvctr_local_max,count=1,op=mpi_max,comm=readComm)
+            nfvctr_local_avg = real(nfvctr,kind=8)/real(nproc_per_pole,kind=8)
             nvctr_local_min = nvctr_local
             nvctr_local_max = nvctr_local
-            call mpiallred(nvctr_local_min,count=1,op=mpi_min,comm=readComm)
-            call mpiallred(nvctr_local_max,count=1,op=mpi_max,comm=readComm)
-            nvctr_local_avg = real(nvctr,kind=8)/real(maxproc,kind=8)
+!            call fmpi_allreduce(nvctr_local_min,count=1,op=mpi_min,comm=readComm)
+!            call fmpi_allreduce(nvctr_local_max,count=1,op=mpi_max,comm=readComm)
+            nvctr_local_avg = real(nvctr,kind=8)/real(nproc_per_pole,kind=8)
             call f_timing(TCAT_PEXSI_COMMUNICATE,'OF')
           
             if(iproc== 0) then
@@ -226,8 +255,14 @@ module pexsi
           endif
           
           
+          !!plan = f_ppexsi_plan_initialize(&
+          !!  readComm,&
+          !!  nprow,&
+          !!  npcol,&
+          !!  outputFileIndex,&
+          !!  info )
           plan = f_ppexsi_plan_initialize(&
-            readComm,&
+            pexsi_comm,&
             nprow,&
             npcol,&
             outputFileIndex,&
@@ -243,7 +278,7 @@ module pexsi
 
           
           ! PEXSI assumes Rydbergs as units for the Hamiltonian, whereas the
-          ! inputs are givin in Hartree, so convert them (multiplication by 2)
+          ! inputs are given in Hartree, so convert them (multiplication by 2)
           numElectronExact = real(charge,kind=c_double)
           options%muMin0   = real(2.0_mp*mumin,kind=c_double)
           options%muMax0   = real(2.0_mp*mumax,kind=c_double)
@@ -251,9 +286,16 @@ module pexsi
           options%deltaE   = real(2.0_mp*DeltaE ,kind=c_double)
           options%numPole  = int(npoles,kind=c_int)
           options%temperature = real(2.0_mp*temperature,kind=c_double)
-          options%muPEXSISafeGuard = real(0.2d0,kind=c_double)
+          options%muPEXSISafeGuard = real(1.0d-2,kind=c_double)
           options%numElectronPEXSITolerance = real(tol_charge,kind=c_double)
           options%npSymbFact = int(np_sym_fact,kind=c_int)
+          if (do_inertia_count) then
+              options%isInertiaCount = 1
+          else
+              options%isInertiaCount = 0
+          end if
+          options%maxPEXSIIter = int(max_iter,kind=c_int)
+          options%verbosity = int(verbosity,kind=c_int)
 
           if (iproc==0) then
               call yaml_mapping_open('PEXSI parameters')
@@ -328,7 +370,7 @@ module pexsi
           !  write(*,*)  "Finish DFT driver."
           !endif
           
-          if( isProcRead == 1 ) then
+          !if( isProcRead == 1 ) then
             call f_timing(TCAT_PEXSI_RETRIEVE,'ON')
             call f_ppexsi_retrieve_real_symmetric_dft_matrix(&
               plan,&
@@ -348,7 +390,7 @@ module pexsi
                 call yaml_map('Total free energy',totalFreeEnergy)
                 call yaml_mapping_close()
             endif
-          endif
+          !endif
           
           energy = totalEnergyH
           
@@ -361,23 +403,29 @@ module pexsi
           
           ! Gather the local copies of the kernel
           call f_zero(kernel)
+          do i=1,nvctr_local
+              kernel(isvctr_local+i-1) = DMnzvalLocal(i)
+          end do
           if (present(energy_kernel)) then
+              call f_zero(energy_kernel)
               do i=1,nvctr_local
-                  !write(*,*) 'iproc, i, isvctr_local+i-1', iproc, i, isvctr_local+i-1
-                  kernel(isvctr_local+i-1) = DMnzvalLocal(i)
                   energy_kernel(isvctr_local+i-1) = EDMnzvalLocal(i)
               end do
           end if
           call f_timing(TCAT_PEXSI_COMMUNICATE,'ON')
-          call mpiallred(kernel,mpi_sum,comm=readComm)
+          !call fmpi_allreduce(kernel,FMPI_SUM,comm=readComm)
+          call fmpi_allreduce(kernel,FMPI_SUM,comm=pexsi_comm)
+          call dscal(nvctr, 1.d0/real(npoleparallelization,kind=8), kernel, 1)
           if (present(energy_kernel)) then
-              call mpiallred(energy_kernel,mpi_sum,comm=readComm)
+              !call fmpi_allreduce(energy_kernel,FMPI_SUM,comm=readComm)
+              call fmpi_allreduce(energy_kernel,FMPI_SUM,comm=pexsi_comm)
+              call dscal(nvctr, 1.d0/real(npoleparallelization,kind=8), energy_kernel, 1)
           end if
           call f_timing(TCAT_PEXSI_COMMUNICATE,'OF')
 
           !call mpi_finalize( ierr )
           
-          if( isProcRead == 1 ) then
+          !if( isProcRead == 1 ) then
             call f_free(colptrLocal)
             call f_free(rowindLocal)
             call f_free(HnzvalLocal)
@@ -385,7 +433,7 @@ module pexsi
             call f_free(DMnzvalLocal)
             call f_free(EDMnzvalLocal)
             call f_free(FDMnzvalLocal)
-          endif
+          !endif
 
         call f_free_ptr(col_ptr_local)
         call f_free_ptr(row_ind_local)
@@ -394,9 +442,11 @@ module pexsi
 
       end if
 
-      call mpi_comm_free( readComm, ierr )
+      if (iproc<nproc_used) then
+          call mpi_comm_free(pexsi_comm, ierr)
+      end if
 
-      ! In case readComm was not the same as the global communicator
+      ! In case not all processed participated in the PEXSI calculation
       call f_timing(TCAT_PEXSI_COMMUNICATE,'ON')
       call mpibcast(energy, root=0, comm=comm) 
       call mpibcast(kernel, root=0, comm=comm) 
@@ -525,11 +575,12 @@ module pexsi
 
 
     subroutine pexsi_wrapper(iproc, nproc, comm, smats, smatm, smatl, ovrlp, ham, &
-               charge, npoles, mumin, mumax, mu, DeltaE, temperature, tol_charge, np_sym_fact, &
+               charge, npoles, nproc_per_pole, mumin, mumax, mu, DeltaE, temperature, tol_charge, np_sym_fact, &
+               do_inertia_count, max_iter, verbosity, &
                kernel, ebs, energy_kernel)
       use futile
       use sparsematrix_base
-      use sparsematrix, only: transform_sparse_matrix
+      use sparsematrix, only: transform_sparse_matrix, gather_matrix_from_taskgroups, extract_taskgroup
       use sparsematrix_init, only: sparsebigdft_to_ccs
       implicit none
     
@@ -537,7 +588,8 @@ module pexsi
       integer,intent(in) :: iproc, nproc, comm
       type(sparse_matrix),intent(in) :: smats, smatm, smatl
       type(matrices),intent(in) :: ovrlp, ham
-      integer,intent(in) :: npoles, np_sym_fact
+      integer,intent(in) :: npoles, nproc_per_pole, np_sym_fact, max_iter, verbosity
+      logical,intent(in) :: do_inertia_count
       real(kind=8),intent(in) :: charge, mumin, mumax, mu, DeltaE, temperature, tol_charge
       type(matrices),intent(out) :: kernel
       real(kind=8),intent(out) :: ebs
@@ -545,7 +597,7 @@ module pexsi
     
       ! Local variables
       integer,dimension(:),allocatable :: row_ind, col_ptr
-      real(mp),dimension(:),allocatable :: ovrlp_large, ham_large
+      real(mp),dimension(:),allocatable :: ovrlp_large, ham_large, mat_global, mat2_global
     
       call f_routine(id='pexsi_wrapper')
     
@@ -557,26 +609,41 @@ module pexsi
       ! At the moment not working for nspin>1
       ovrlp_large = sparsematrix_malloc(smatl, iaction=SPARSE_FULL, id='ovrlp_large')
       ham_large = sparsematrix_malloc(smatl, iaction=SPARSE_FULL, id='ham_large')
-      if (smats%ntaskgroup/=1 .or. smatm%ntaskgroup/=1 .or. smatl%ntaskgroup/=1) then
-          call f_err_throw('PEXSI is not yet tested with matrix taskgroups', err_name='BIGDFT_RUNTIME_ERROR')
-      end if
+      !!if (smats%ntaskgroup/=1 .or. smatm%ntaskgroup/=1 .or. smatl%ntaskgroup/=1) then
+      !!    call f_err_throw('PEXSI is not yet tested with matrix taskgroups', err_name='BIGDFT_RUNTIME_ERROR')
+      !!end if
+
+      mat_global = sparsematrix_malloc(smats, iaction=SPARSE_FULL, id='mat_global')
+      call gather_matrix_from_taskgroups(iproc, nproc, comm, smats, ovrlp%matrix_compr, mat_global)
       call transform_sparse_matrix(iproc, smats, smatl, SPARSE_FULL, 'small_to_large', &
-           smat_in=ovrlp%matrix_compr, lmat_out=ovrlp_large)
+           smat_in=mat_global, lmat_out=ovrlp_large)
+      call f_free(mat_global)
+
+      mat_global = sparsematrix_malloc(smatm, iaction=SPARSE_FULL, id='mat_global')
+      call gather_matrix_from_taskgroups(iproc, nproc, comm, smatm, ham%matrix_compr, mat_global)
       call transform_sparse_matrix(iproc, smatm, smatl, SPARSE_FULL, 'small_to_large', &
-           smat_in=ham%matrix_compr, lmat_out=ham_large)
+           smat_in=mat_global, lmat_out=ham_large)
+      call f_free(mat_global)
       call f_timing(TCAT_SMAT_TRANSFORMATION,'OF')
       
+      mat_global = sparsematrix_malloc(smatl, iaction=SPARSE_FULL, id='mat_global')
       if (present(energy_kernel)) then
+          mat2_global = sparsematrix_malloc(smatl, iaction=SPARSE_FULL, id='mats_global')
           call pexsi_driver(iproc, nproc, comm, smatl%nfvctr, smatl%nvctr, row_ind, col_ptr, &
-               ham_large, ovrlp_large, charge, npoles, &
-               mumin, mumax, mu, DeltaE, temperature, tol_charge, np_sym_fact, &
-               kernel%matrix_compr, ebs, energy_kernel%matrix_compr)
+               ham_large, ovrlp_large, charge, npoles, nproc_per_pole, &
+               mumin, mumax, mu, DeltaE, temperature, tol_charge, np_sym_fact, do_inertia_count, max_iter, verbosity,  &
+               mat_global, ebs, mat2_global)
+          call extract_taskgroup(smatl, mat_global, kernel%matrix_compr)
+          call extract_taskgroup(smatl, mat2_global, energy_kernel%matrix_compr)
+          call f_free(mat2_global)
       else
           call pexsi_driver(iproc, nproc, comm, smatl%nfvctr, smatl%nvctr, row_ind, col_ptr, &
-               ham_large, ovrlp_large, charge, npoles, &
-               mumin, mumax, mu, DeltaE, temperature, tol_charge, np_sym_fact, &
-               kernel%matrix_compr, ebs)
+               ham_large, ovrlp_large, charge, npoles, nproc_per_pole, &
+               mumin, mumax, mu, DeltaE, temperature, tol_charge, np_sym_fact, do_inertia_count, max_iter, verbosity, &
+               mat_global, ebs)
+          call extract_taskgroup(smatl, mat_global, kernel%matrix_compr)
       end if
+      call f_free(mat_global)
     
       call f_free(ovrlp_large)
       call f_free(ham_large)

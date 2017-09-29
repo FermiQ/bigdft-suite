@@ -56,6 +56,10 @@ module sparsematrix_init
   public :: distribute_on_tasks
   public :: write_sparsematrix_info
   public :: get_number_of_electrons
+  public :: get_sparsematrix_local_extent
+  public :: get_sparsematrix_local_rows_columns
+  public :: init_matrix_taskgroups_wrapper
+  public :: check_projector_charge_analysis
 
 
   contains
@@ -320,13 +324,9 @@ module sparsematrix_init
       !t2 = mpi_wtime()
       !write(*,*) 'iproc, time determine_sequential_length_new2', iproc, t2-t1
       !write(*,'(a,i3,3x,200i10)') 'iproc, nseq_per_line', iproc, nseq_per_line
-      call f_routine(id='mpiallred')
-      if (nproc>1) call mpiallred(nseq_per_line(1), norb, mpi_sum, comm=comm)
-      call f_release_routine()
+      if (nproc>1) call fmpi_allreduce(nseq_per_line(1), norb, FMPI_SUM, comm=comm)
       rseq=real(sparsemat%smmm%nseq,kind=mp) !real to prevent integer overflow
-      call f_routine(id='mpiallred')
-      if (nproc>1) call mpiallred(rseq, 1, mpi_sum, comm=comm)
-      call f_release_routine()
+      if (nproc>1) call fmpi_allreduce(rseq, 1, FMPI_SUM, comm=comm)
 
 
       rseq_per_line = f_malloc(norb,id='rseq_per_line')
@@ -384,10 +384,8 @@ module sparsematrix_init
       ! Get the load balancing
       rseq_max(2) = real(sparsemat%smmm%nseq,kind=mp)
       rseq_average(2) = rseq_max(2)/real(nproc,kind=mp)
-      call f_routine(id='mpiallred')
-      if (nproc>1) call mpiallred(rseq_max, mpi_max, comm=comm)
-      if (nproc>1) call mpiallred(rseq_average, mpi_sum, comm=comm)
-      call f_release_routine()
+      if (nproc>1) call fmpi_allreduce(rseq_max, FMPI_MAX, comm=comm)
+      if (nproc>1) call fmpi_allreduce(rseq_average, FMPI_SUM, comm=comm)
       ratio_before = rseq_max(1)/rseq_average(1)
       ratio_after = rseq_max(2)/rseq_average(2)
       !!if (iproc==0) then
@@ -409,11 +407,9 @@ module sparsematrix_init
       temparr = f_malloc0((/0.to.nproc-1,1.to.2/),id='isfvctr_par')
       temparr(iproc,1) = sparsemat%smmm%isfvctr
       temparr(iproc,2) = sparsemat%smmm%nfvctrp
-      call f_routine(id='mpiallred')
       if (nproc>1) then
-          call mpiallred(temparr,  mpi_sum, comm=comm)
+          call fmpi_allreduce(temparr,  FMPI_SUM, comm=comm)
       end if
-      call f_release_routine()
       !t1 = mpi_wtime()
       call init_matrix_parallelization(iproc, nproc, sparsemat%nfvctr, sparsemat%nseg, sparsemat%nvctr, &
            temparr(0,1), temparr(0,2), sparsemat%istsegline, sparsemat%keyv, &
@@ -567,11 +563,9 @@ module sparsematrix_init
 
       istartend_mm = f_malloc0((/1.to.2,0.to.nproc-1/),id='istartend_mm')
       istartend_mm(1:2,iproc) = sparsemat%smmm%istartend_mm(1:2)
-      call f_routine(id='mpiallred')
       if (nproc>1) then
-          call mpiallred(istartend_mm, mpi_sum, comm=comm)
+          call fmpi_allreduce(istartend_mm, FMPI_SUM, comm=comm)
       end if
-      call f_release_routine()
 
       ! Partition the entire matrix in disjoint submatrices
       istartend_dj = f_malloc((/1.to.2,0.to.nproc-1/),id='istartend_dj')
@@ -973,8 +967,8 @@ module sparsematrix_init
           end if
       end do
       if (nproc>1) then
-          call mpiallred(sparsemat%isfvctr_par, mpi_sum, comm=comm)
-          call mpiallred(sparsemat%nfvctr_par, mpi_sum, comm=comm)
+          call fmpi_allreduce(sparsemat%isfvctr_par, FMPI_SUM, comm=comm)
+          call fmpi_allreduce(sparsemat%nfvctr_par, FMPI_SUM, comm=comm)
       end if
 
       call allocate_sparse_matrix_basic(store_index_, norbu, nproc, sparsemat)
@@ -1002,9 +996,10 @@ module sparsematrix_init
       end do
 
       if (nproc>1) then
-          call mpiallred(sparsemat%nvctr, 1, mpi_sum,comm=comm)
-          call mpiallred(sparsemat%nseg, 1, mpi_sum, comm=comm)
-          call mpiallred(sparsemat%nsegline(1), sparsemat%nfvctr, mpi_sum, comm=comm)
+          call fmpi_allreduce(sparsemat%nvctr,1,op=FMPI_SUM,comm=comm)
+          call fmpi_allreduce(sparsemat%nseg,1,op=FMPI_SUM,comm=comm)
+          !call fmpi_allreduce(sparsemat%nseg, 1, FMPI_SUM, comm=comm)
+          call fmpi_allreduce(sparsemat%nsegline(1), sparsemat%nfvctr, FMPI_SUM, comm=comm)
       end if
       if (extra_timing) call cpu_time(tr1)
       if (extra_timing) time0=real(tr1-tr0,kind=mp)
@@ -1035,14 +1030,14 @@ module sparsematrix_init
 
       ! check whether the number of elements agrees
       if (nproc>1) then
-          call mpiallred(ivctr, 1, mpi_sum, comm=comm)
+          call fmpi_allreduce(ivctr, 1, FMPI_SUM, comm=comm)
       end if
       if (ivctr/=sparsemat%nvctr) then
           write(*,'(a,2i8)') 'ERROR: ivctr/=sparsemat%nvctr', ivctr, sparsemat%nvctr
           stop
       end if
       if (nproc>1) then
-          call mpiallred(sparsemat%keyg(1,1,1), 2*2*sparsemat%nseg, mpi_sum, comm=comm)
+          call fmpi_allreduce(sparsemat%keyg(1,1,1), 2*2*sparsemat%nseg, FMPI_SUM, comm=comm)
       end if
 
       ! start of the segments
@@ -1076,7 +1071,7 @@ module sparsematrix_init
           !$omp end parallel do
 
           if (nproc>1) then
-              call mpiallred(sparsemat%matrixindex_in_compressed_arr(1,1), norbu*norbu, mpi_sum, comm=comm)
+              call fmpi_allreduce(sparsemat%matrixindex_in_compressed_arr(1,1), norbu*norbu, FMPI_SUM, comm=comm)
           end if
 
           !!! Initialize sparsemat%orb_from_index
@@ -1174,9 +1169,9 @@ module sparsematrix_init
               call nseg_perline(norbu, lut, nseg_mult, nvctr_mult, nsegline_mult(iiorb))
           end do
           if (nproc>1) then
-              call mpiallred(nvctr_mult, 1, mpi_sum, comm=comm)
-              call mpiallred(nseg_mult, 1, mpi_sum, comm=comm)
-              call mpiallred(nsegline_mult, mpi_sum, comm=comm)
+              call fmpi_allreduce(nvctr_mult,1,op=FMPI_SUM, comm=comm)
+              call fmpi_allreduce(nseg_mult, 1,FMPI_SUM, comm=comm)
+              call fmpi_allreduce(nsegline_mult,FMPI_SUM, comm=comm)
           end if
 
 
@@ -1200,14 +1195,14 @@ module sparsematrix_init
           end do
           ! check whether the number of elements agrees
           if (nproc>1) then
-              call mpiallred(ivctr_mult, 1, mpi_sum, comm=comm)
+              call fmpi_allreduce(ivctr_mult, 1, FMPI_SUM, comm=comm)
           end if
           if (ivctr_mult/=nvctr_mult) then
               write(*,'(a,2i8)') 'ERROR: ivctr_mult/=nvctr_mult', ivctr_mult, nvctr_mult
               stop
           end if
           if (nproc>1) then
-              call mpiallred(keyg_mult, mpi_sum, comm=comm)
+              call fmpi_allreduce(keyg_mult, FMPI_SUM, comm=comm)
           end if
 
           ! start of the segments
@@ -1574,6 +1569,7 @@ module sparsematrix_init
       nout_thread = f_malloc0(0.to.nthread-1)
       line_and_column_all = f_malloc((/2,norb*norbp/),id='line_and_column_all')
       !nout=0
+      ithread = 0
       !$omp parallel default(none) &
       !$omp shared(ise, norbp, isorb, istsegline, nsegline, keyg) &
       !$omp shared(nout_thread, norb, line_and_column_all) &
@@ -2554,9 +2550,9 @@ module sparsematrix_init
           call f_free_ptr(on_which_atom_)
       end if
 
-      ! since no taskgroups are used, the values of iirow and iicol are just set to
-      ! the minimum and maximum, respectively.
-      call init_matrix_taskgroups(iproc, nproc, comm, .false., smat)
+      !!! since no taskgroups are used, the values of iirow and iicol are just set to
+      !!! the minimum and maximum, respectively.
+      !!call init_matrix_taskgroups(iproc, nproc, comm, .false., smat)
 
       call f_free(nonzero)
       if (init_matmul_) then
@@ -3336,15 +3332,15 @@ module sparsematrix_init
               end do search_out
           end do
           if (ind_min>ind_min1) then
-              write(*,*) 'ind_min, ind_min1', ind_min, ind_min1
+              write(*,*) 'iproc, ind_min, ind_min1', iproc, ind_min, ind_min1
               call f_err_throw('ind_min>ind_min1')
           end if
           if (ind_max<ind_max1) then
-              write(*,*) 'ind_max, ind_max1', ind_max, ind_max1
+              write(*,*) 'iproc, ind_max, ind_max1', iproc, ind_max, ind_max1
               call f_err_throw('ind_max<ind_max1')
           end if
-          !!write(*,'(a,i3,3x,2(2i6,4x))') 'iproc, ind_min, ind_max, ind_min1, ind_max1', &
-          !!    iproc, ind_min, ind_max,  ind_min1, ind_max1
+          !!write(*,'(a,i3,3x,4(2i6,4x))') 'iproc, ind_min, ind_max, ind_min1, ind_max1, iirow, iicol', &
+          !!    iproc, ind_min, ind_max,  ind_min1, ind_max1, iirow, iicol
           !@ END NEW #################################################################
 
 
@@ -3372,7 +3368,7 @@ module sparsematrix_init
       iuse_startend(1,iproc) = ind_min
       iuse_startend(2,iproc) = ind_max
       if (nproc>1) then
-          call mpiallred(iuse_startend(1,0), 2*nproc, mpi_sum, comm=comm)
+          call fmpi_allreduce(iuse_startend(1,0), 2*nproc, FMPI_SUM, comm=comm)
       end if
 
       ! Make sure that the used parts are always "monotonically increasing"
@@ -3831,7 +3827,7 @@ module sparsematrix_init
       end if
 
       if (nproc>1) then
-          call mpiallred(smat%inwhichtaskgroup(1,0), 2*nproc, mpi_sum, comm=comm)
+          call fmpi_allreduce(smat%inwhichtaskgroup(1,0), 2*nproc, FMPI_SUM, comm=comm)
       end if
 
       ! Partition the entire matrix in disjoint submatrices
@@ -3912,7 +3908,7 @@ module sparsematrix_init
           tasks_per_taskgroup(iitaskgroup) = tasks_per_taskgroup(iitaskgroup) + 1
       end do
       if (nproc>1) then
-          call mpiallred(tasks_per_taskgroup, mpi_sum, comm=comm)
+          call fmpi_allreduce(tasks_per_taskgroup, FMPI_SUM, comm=comm)
       end if
       !if (iproc==0) write(*,'(a,i7,4x,1000i7)') 'iproc, tasks_per_taskgroup', iproc, tasks_per_taskgroup
       !call mpi_comm_group(bigdft_mpi%mpi_comm, group, ierr)
@@ -3933,7 +3929,7 @@ module sparsematrix_init
           in_taskgroup(iproc,iitaskgroups) = 1
       end do
       if (nproc>1) then
-          call mpiallred(in_taskgroup, mpi_sum, comm=comm)
+          call fmpi_allreduce(in_taskgroup, FMPI_SUM, comm=comm)
       end if
 
       allocate(smat%mpi_groups(smat%ntaskgroup))
@@ -4980,7 +4976,7 @@ module sparsematrix_init
       !!write(*,*) 'nonzero',nonzero
       call init_sparse_matrix(iproc, nproc, comm, nfvctr, &
            nnonzero, nonzero, nnonzero_buf_mult, nonzero_buf_mult, smat, init_matmul=init_matmul)
-      call init_matrix_taskgroups(iproc, nproc, comm, parallel_layout=.false., smat=smat)
+      !!call init_matrix_taskgroups(iproc, nproc, comm, parallel_layout=.false., smat=smat)
 
       if (calc_nextra) then
           do iextra=1,nextra_
@@ -4988,7 +4984,7 @@ module sparsematrix_init
                nnonzero_extra(iextra), nonzero_extra(:,:,iextra), &
                nnonzero_buf_mult, nonzero_buf_mult, smat_extra(iextra), &
                init_matmul=init_matmul_extra(iextra))
-          call init_matrix_taskgroups(iproc, nproc, comm, parallel_layout=.false., smat=smat_extra(iextra))
+          !!call init_matrix_taskgroups(iproc, nproc, comm, parallel_layout=.false., smat=smat_extra(iextra))
           end do
       end if
 
@@ -5084,7 +5080,7 @@ module sparsematrix_init
           end do
       end do ij_loop
       !$omp end parallel
-      call mpiallred(ijfound, mpi_sum, comm)
+      call fmpi_allreduce(ijfound, FMPI_SUM, comm)
 
       ijflag(:,:,:) = 0
       do i=ii-nbuf,ii+nbuf
@@ -5272,13 +5268,13 @@ module sparsematrix_init
       ! Local variables
       integer :: ii
 
-      ! First distribute evenly...
-      np = n/nproc
-      is = iproc*np
-      ! ... and now distribute the remaining atoms.
-      ii = n-nproc*np
-      if (iproc<ii) np = np + 1
-      is = is + min(iproc,ii)
+      ! First distribute evenly... (LG: if n is, say, 34 and nproc is 7 - thus 8 MPI processes)
+      np = n/nproc                !(LG: we here have np=4) 
+      is = iproc*np               !(LG: is=iproc*4 : 0,4,8,12,16,20,24,28)
+      ! ... and now distribute the remaining objects.
+      ii = n-nproc*np             !(LG: ii=34-28=6)
+      if (iproc<ii) np = np + 1   !(LG: the first 6 tasks (iproc<=5) will have np=5)
+      is = is + min(iproc,ii)     !(LG: update is, so (iproc,np,is): (0,5,0),(1,5,5),(2,5,10),(3,5,15),(4,5,20),(5,5,25),(6,4,30),(7,4,34))
 
    end subroutine distribute_on_tasks
    
@@ -5573,5 +5569,275 @@ module sparsematrix_init
    !!   write(*,'(A,/,10i3)')'swap array :',IASWAP
    !! 
    !!end program TestMergeSort
+
+
+    !> Copied from projector_for_charge_analysis and extract_matrix
+    subroutine check_projector_charge_analysis(iproc, nproc, smmd, smat, ind_min, ind_max)
+      use dynamic_memory
+      use sparsematrix_base, only: sparse_matrix, sparse_matrix_metadata
+      implicit none
+
+      ! Calling arguments
+      integer,intent(in) :: iproc, nproc
+      type(sparse_matrix_metadata),intent(in) :: smmd
+      type(sparse_matrix),intent(in) :: smat
+      integer,intent(inout) :: ind_min, ind_max
+
+      integer :: ii, natp, jj, isat, kat, iatold, kkat, i, iat, j, ind
+      integer,dimension(:),allocatable :: orbs_atom_id
+      integer,dimension(:),allocatable :: neighbor_id
+      integer,parameter :: ntmb_max = 16 !maximal number of TMBs per atom
+
+      ! Parallelization over the number of atoms
+      ii = smmd%nat/nproc
+      natp = ii
+      jj = smmd%nat - nproc*natp
+      if (iproc<jj) then
+          natp = natp + 1
+      end if
+      isat = (iproc)*ii + min(iproc,jj)
+
+      orbs_atom_id = f_malloc0(natp,id='orbs_atom_id')
+      do i=1,smat%nfvctr
+          kkat = smmd%on_which_atom(i)
+          if (kkat>isat .and. kkat<=isat+natp) then
+              kat = kkat - isat
+              orbs_atom_id(kat) = i
+              !!!!exit !onyl have to search for the first TMB on each atom
+          end if
+      end do
+
+      neighbor_id = f_malloc(0.to.smat%nfvctr,id='neighbor_id')
+      do kat=1,natp
+          ! Determine the "neighbors"
+          iatold = 0
+          kkat = kat + isat
+          neighbor_id(0) = 0
+          !do ii=1,orbs_atom_id(0,kat)
+              i = orbs_atom_id(kat)
+              do j=1,smat%nfvctr
+                  ind =  matrixindex_in_compressed(smat, j, i)
+                  if (ind/=0) then
+                     neighbor_id(0) = neighbor_id(0) + 1
+                     neighbor_id(neighbor_id(0)) = j
+                  end if
+              end do
+          !end do
+
+          ! Determine the size of the matrix needed
+          do ii=1,neighbor_id(0)
+              i = neighbor_id(ii)
+              do jj=1,neighbor_id(0)
+                  j = neighbor_id(jj)
+                  ind =  matrixindex_in_compressed(smat, j, i)
+                  if (ind>0) then
+                      ind_min = min(ind_min,ind)
+                      ind_max = max(ind_max,ind)
+                  end if
+              end do
+          end do
+      end do
+
+      call f_free(orbs_atom_id)
+      call f_free(neighbor_id)
+
+    end subroutine check_projector_charge_analysis
+
+
+    subroutine check_ortho_inguess(smat,ind_min,ind_max)
+      use dynamic_memory
+      use sparsematrix_base, only: sparse_matrix
+      implicit none
+      type(sparse_matrix),intent(in) :: smat
+      integer, intent(inout) :: ind_min,ind_max
+      !local variables
+      integer :: iorb, iiorb, isegstart, isegend, iseg, j, i, jorb, korb, ind, nthread, ithread
+      logical, dimension(:,:), allocatable :: in_neighborhood
+      !$ integer :: omp_get_max_threads, omp_get_thread_num
+
+      !call f_routine(id='check_ortho_inguess')
+
+      ! Allocate the array for all threads to avoid that it has to be declared private
+      nthread = 1
+      !$ nthread = omp_get_max_threads()
+      in_neighborhood = f_malloc((/1.to.smat%nfvctr,0.to.nthread-1/),id='in_neighborhood')
+
+      ithread = 0
+      !$omp parallel default(none) &
+      !$omp shared(smat, in_neighborhood, ind_min, ind_max) &
+      !$omp private(iorb, iiorb, isegstart, isegend, iseg, j, jorb, korb, ind,i) &
+      !$omp firstprivate(ithread)
+      !$omp do reduction(min: ind_min) reduction(max: ind_max)
+      do iorb=1,smat%nfvctrp
+         !$ ithread = omp_get_thread_num()
+
+         iiorb = smat%isfvctr + iorb
+         isegstart = smat%istsegline(iiorb)
+         isegend = smat%istsegline(iiorb) + smat%nsegline(iiorb) -1
+         in_neighborhood(:,ithread) = .false.
+         do iseg=isegstart,isegend
+            ! A segment is always on one line, therefore no double loop
+            j = smat%keyg(1,2,iseg)
+            do i=smat%keyg(1,1,iseg),smat%keyg(2,1,iseg)
+               in_neighborhood(i,ithread) = .true.
+            end do
+         end do
+
+         do jorb=1,smat%nfvctr
+            if (.not.in_neighborhood(jorb,ithread)) cycle
+            do korb=1,smat%nfvctr
+               if (.not.in_neighborhood(korb,ithread)) cycle
+               ind = matrixindex_in_compressed(smat,korb,jorb)
+               if (ind>0) then
+                  ind_min = min(ind_min,ind)
+                  ind_max = max(ind_max,ind)
+               end if
+            end do
+         end do
+
+      end do
+      !$omp end do
+      !$omp end parallel
+
+      call f_free(in_neighborhood)
+
+
+      !call f_release_routine()
+
+    end subroutine check_ortho_inguess
+
+
+
+   subroutine get_sparsematrix_local_extent(iproc, nproc, smat, ind_min, ind_max)
+     use sparsematrix_base, only: sparse_matrix, sparse_matrix_metadata
+     implicit none
+
+     ! Calling arguments
+     integer,intent(in) :: iproc, nproc
+     !!type(sparse_matrix_metadata),intent(in) :: smmd
+     type(sparse_matrix),intent(in) :: smat
+     integer,intent(out) :: ind_min, ind_max
+
+     ind_min = smat%nvctr
+     ind_max = 0
+
+     call check_compress_distributed_layout(smat,ind_min,ind_max)
+     if (smat%smatmul_initialized) then
+         call check_matmul_layout(smat%smmm%nseq,smat%smmm%indices_extract_sequential,ind_min,ind_max)
+     end if
+     call check_ortho_inguess(smat,ind_min,ind_max)
+     !!call check_projector_charge_analysis(iproc, nproc, smmd, smat, ind_min, ind_max)
+
+   end subroutine get_sparsematrix_local_extent
+
+
+   subroutine get_sparsematrix_local_rows_columns(smat, ind_min, ind_max, irow, icol)
+     use sparsematrix_base, only: sparse_matrix, sparse_matrix_metadata
+     implicit none
+
+     ! Calling arguments
+     type(sparse_matrix),intent(in) :: smat
+     integer,intent(in) :: ind_min, ind_max
+     integer,dimension(2),intent(out) :: irow, icol
+
+     ! Local variables
+     integer :: i, ii_ref, iseg, iorb, jorb, ii
+     logical :: found
+
+     ! Get the global indices of ind_min and ind_max
+     do i=1,2
+         if (i==1) then
+             ii_ref = ind_min
+         else
+             ii_ref = ind_max
+         end if
+         ! Search the indices iorb,jorb corresponding to ii_ref
+         found=.false.
+
+         ! not sure if OpenMP is really worth it here
+         !$omp parallel default(none) &
+         !$omp private(iseg,ii,iorb,jorb) &
+         !$omp shared(smat,ii_ref,irow,icol,found,i)
+         !$omp do
+         outloop: do iseg=1,smat%nseg
+             if (.not. found) then
+                iorb = smat%keyg(1,2,iseg)
+                do jorb=smat%keyg(1,1,iseg),smat%keyg(2,1,iseg)
+                    ii = matrixindex_in_compressed(smat, jorb, iorb)
+                    !if (iproc==0) write(*,'(a,5i9)') 'i, ii_ref, ii, iorb, jorb', i, ii_ref, ii, iorb, jorb
+                    if (ii==ii_ref) then
+                        irow(i) = jorb
+                        icol(i) = iorb
+                        !exit outloop
+                        !SM: I think one should do this within a critical section since it is shared, just to be sure...
+                        !$omp critical
+                        found=.true.
+                        !$omp end critical
+                    end if
+                end do
+             end if
+         end do outloop
+         !$omp end do
+         !$omp end parallel
+
+     end do
+
+     !write(*,'(a,i5,3x,3(2i6,3x))') 'iproc, ind_min, ind_max, irow, icol', mpirank(mpi_comm_world), ind_min, ind_max, irow, icol
+
+    end subroutine get_sparsematrix_local_rows_columns
+
+
+
+    subroutine init_matrix_taskgroups_wrapper(iproc, nproc, comm, enable_matrix_taskgroups, nmat, smat, ind_minmax)
+      use dynamic_memory
+      implicit none
+      ! Calling arguments
+      integer,intent(in) :: iproc, nproc, comm
+      logical,intent(in) :: enable_matrix_taskgroups
+      integer,intent(in) :: nmat
+      type(sparse_matrix),dimension(nmat),intent(inout) :: smat
+      integer,dimension(2,nmat),intent(in),optional :: ind_minmax
+      ! Local variables
+      integer :: imat, imin_smat, imax_smat
+      integer,dimension(2) :: irow_minmax, icol_minmax
+      integer,dimension(2) :: irow_smat, icol_smat
+      integer,dimension(:,:),allocatable :: ind_minmax_smat
+
+      ! Some sanity checks
+      do imat=2,nmat
+          if (smat(imat)%nfvctr/=smat(1)%nfvctr) then
+              call f_err_throw('Inconsistency of the matrix sizes')
+          end if
+      end do
+
+      ind_minmax_smat = f_malloc((/2,nmat/),id='ind_minmax_smat')
+
+      irow_minmax(1) = smat(1)%nfvctr
+      irow_minmax(2) = 1
+      icol_minmax(1) = smat(1)%nfvctr
+      icol_minmax(2) = 1
+      do imat=1,nmat
+          call get_sparsematrix_local_extent(iproc, nproc, smat(imat), &
+               ind_minmax_smat(1,imat), ind_minmax_smat(2,imat))
+          if (present(ind_minmax)) then
+              ind_minmax_smat(1,imat) = min(ind_minmax_smat(1,imat),ind_minmax(1,imat))
+              ind_minmax_smat(2,imat) = max(ind_minmax_smat(2,imat),ind_minmax(2,imat))
+          end if
+          call get_sparsematrix_local_rows_columns(smat(imat), ind_minmax_smat(1,imat), ind_minmax_smat(2,imat), &
+               irow_smat, icol_smat)
+          irow_minmax(1) = min(irow_smat(1),irow_minmax(1))
+          irow_minmax(2) = max(irow_smat(2),irow_minmax(2))
+          icol_minmax(1) = min(icol_smat(1),icol_minmax(1))
+          icol_minmax(2) = max(icol_smat(2),icol_minmax(2))
+      end do
+      do imat=1,nmat
+          call init_matrix_taskgroups(iproc, nproc, comm, enable_matrix_taskgroups, smat(imat), &
+               ind_minmax_smat(1,imat), ind_minmax_smat(2,imat), icol_minmax, irow_minmax)!, icol_minmax)
+      end do
+
+      call f_free(ind_minmax_smat)
+
+    end subroutine init_matrix_taskgroups_wrapper
+
 
 end module sparsematrix_init

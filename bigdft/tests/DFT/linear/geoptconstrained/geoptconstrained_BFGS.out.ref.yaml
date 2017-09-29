@@ -133,7 +133,6 @@
    domain                              : ~ #      Domain to add to the hostname to find the IP
    inguess_geopt                       : 0 #      Input guess to be used during the optimization
    store_index                         : Yes #    Store indices or recalculate them for linear scaling
-   verbosity                           : 2 #      Verbosity of the output
    psp_onfly                           : Yes #    Calculate pseudopotential projectors on the fly
    multipole_preserving                : No #     (EXPERIMENTAL) Preserve the multipole moment of the ionic density
    mp_isf                              : 16 #     (EXPERIMENTAL) Interpolating scaling function or lifted dual order for the multipole 
@@ -142,7 +141,6 @@
    check_sumrho                        : 1 #      Enables linear sumrho check
    check_overlap                       : 1 #      Enables linear overlap check
    experimental_mode                   : No #     Activate the experimental mode in linear scaling
-   write_orbitals                      : 0 #      Linear scaling write KS orbitals for cubic restart (might take lot of disk space!)
    explicit_locregcenters              : No #     Linear scaling explicitly specify localization centers
    calculate_KS_residue                : Yes #    Linear scaling calculate Kohn-Sham residue
    intermediate_forces                 : No #     Linear scaling calculate intermediate forces
@@ -479,6 +477,12 @@
      Rloc                              :  0.30455
      h_ij matrix:
      -  [  9.52284,  0.00000,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
+   - Channel (l)                       :  1
+     Rloc                              :  0.23268
+     h_ij matrix:
+     -  [  0.00000,  0.00000,  0.00000 ]
      -  [  0.00000,  0.00000,  0.00000 ]
      -  [  0.00000,  0.00000,  0.00000 ]
    No. of projectors                   :  1
@@ -1720,6 +1724,12 @@
      -  [  9.52284,  0.00000,  0.00000 ]
      -  [  0.00000,  0.00000,  0.00000 ]
      -  [  0.00000,  0.00000,  0.00000 ]
+   - Channel (l)                       :  1
+     Rloc                              :  0.23268
+     h_ij matrix:
+     -  [  0.00000,  0.00000,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
    No. of projectors                   :  1
    PSP XC                              : "XC: Teter 93"
  - Symbol                              : H #Type No.  02
@@ -2905,7 +2915,7 @@
    Geometry Method                     : BFGS
    Ncount_BigDFT                       :  1
    Geometry step                       :  0
-   FORCES norm(Ha/Bohr): { maxval:  1.13136E-02, fnrm2:  2.28305E-02, fluct:  0.00000E+00}
+   FORCES norm(Ha/Bohr): { maxval:  1.13136E-02, fnrm2:  5.21232E-04, fluct:  5.38042E-03}
    etot                                : -1.48939688253017E+01
    de                                  :  0.00E+00
    flt                                 :  [  5.38E-03,  5.38E-03 ]
@@ -2964,6 +2974,12 @@
      Rloc                              :  0.30455
      h_ij matrix:
      -  [  9.52284,  0.00000,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
+   - Channel (l)                       :  1
+     Rloc                              :  0.23268
+     h_ij matrix:
+     -  [  0.00000,  0.00000,  0.00000 ]
      -  [  0.00000,  0.00000,  0.00000 ]
      -  [  0.00000,  0.00000,  0.00000 ]
    No. of projectors                   :  1
@@ -4151,7 +4167,7 @@
    Geometry Method                     : BFGS
    Ncount_BigDFT                       :  2
    Geometry step                       :  1
-   FORCES norm(Ha/Bohr): { maxval:  1.09300E-02, fnrm2:  2.13314E-02, fluct:  0.00000E+00}
+   FORCES norm(Ha/Bohr): { maxval:  1.09300E-02, fnrm2:  4.55029E-04, fluct:  5.34846E-03}
    etot                                : -1.48941524780632E+01
    de                                  : -1.84E-04
    flt                                 :  [  5.35E-03,  5.35E-03 ]
@@ -4210,6 +4226,12 @@
      Rloc                              :  0.30455
      h_ij matrix:
      -  [  9.52284,  0.00000,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
+   - Channel (l)                       :  1
+     Rloc                              :  0.23268
+     h_ij matrix:
+     -  [  0.00000,  0.00000,  0.00000 ]
      -  [  0.00000,  0.00000,  0.00000 ]
      -  [  0.00000,  0.00000,  0.00000 ]
    No. of projectors                   :  1
@@ -5397,7 +5419,7 @@
    Geometry Method                     : BFGS
    Ncount_BigDFT                       :  3
    Geometry step                       :  2
-   FORCES norm(Ha/Bohr): { maxval:  9.40276E-03, fnrm2:  1.72399E-02, fluct:  0.00000E+00}
+   FORCES norm(Ha/Bohr): { maxval:  9.40276E-03, fnrm2:  2.97214E-04, fluct:  6.10042E-03}
    etot                                : -1.48944539367369E+01
    de                                  : -3.01E-04
    flt                                 :  [  6.1E-03,  6.10E-03 ]
@@ -5456,6 +5478,12 @@
      Rloc                              :  0.30455
      h_ij matrix:
      -  [  9.52284,  0.00000,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
+   - Channel (l)                       :  1
+     Rloc                              :  0.23268
+     h_ij matrix:
+     -  [  0.00000,  0.00000,  0.00000 ]
      -  [  0.00000,  0.00000,  0.00000 ]
      -  [  0.00000,  0.00000,  0.00000 ]
    No. of projectors                   :  1
@@ -6643,7 +6671,7 @@
    Geometry Method                     : BFGS
    Ncount_BigDFT                       :  4
    Geometry step                       :  3
-   FORCES norm(Ha/Bohr): { maxval:  8.93287E-03, fnrm2:  1.68199E-02, fluct:  0.00000E+00}
+   FORCES norm(Ha/Bohr): { maxval:  8.93287E-03, fnrm2:  2.82909E-04, fluct:  7.13650E-03}
    etot                                : -1.48945186451797E+01
    de                                  : -6.47E-05
    flt                                 :  [  7.14E-03,  7.14E-03 ]

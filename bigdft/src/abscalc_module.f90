@@ -249,6 +249,7 @@ contains
        &   sup_iatom, sup_l, sup_arraym)
     use module_base
     use module_types
+    use locregs
     implicit none
 
     type(orbitals_data), intent(inout) :: orbs
@@ -256,7 +257,7 @@ contains
     real(gp), intent(in) :: hx,hy,hz
     type(locreg_descriptors), intent(in) :: Glr
     type(pawproj_data_type) ::PAWD
-    real(wp), dimension(:), pointer :: psi, hpsi, paw_matrix
+    real(wp), dimension(:) :: psi, hpsi, paw_matrix
     logical ::  dosuperposition
     integer , optional :: sup_iatom, sup_l
     real(wp) , dimension(:), pointer, optional :: sup_arraym 
@@ -525,7 +526,7 @@ contains
 
     use module_base
     use module_types
-
+    use locregs
     implicit none
 
     type(orbitals_data), intent(inout) :: orbs
@@ -533,7 +534,7 @@ contains
     real(gp), intent(in) :: hx,hy,hz
     type(locreg_descriptors), intent(in) :: Glr
     type(pcproj_data_type) ::PPD
-    real(wp), dimension(:), pointer :: psi, hpsi
+    real(wp), dimension(:) :: psi, hpsi
     logical, optional :: dotest
 
 

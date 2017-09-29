@@ -39,9 +39,10 @@ module foe
 
     subroutine fermi_operator_expansion_new(iproc, nproc, comm, &
                ebs, &
-               calculate_minusonehalf, foe_verbosity, &
+               calculate_minusonehalf, foe_verbosity, inversion_method, pexsi_np_sym_fact, &
                smats, smatm, smatl, ham_, ovrlp_, ovrlp_minus_one_half_, kernel_, foe_obj, ice_obj, &
-               symmetrize_kernel, calculate_energy_density_kernel, calculate_spin_channels,  energy_kernel_)
+               symmetrize_kernel, calculate_energy_density_kernel, calculate_spin_channels, &
+               energy_kernel_)
       use sparsematrix, only: compress_matrix, uncompress_matrix, &
                               transform_sparsity_pattern, compress_matrix_distributed_wrapper, &
                               trace_sparse_matrix_product, symmetrize_matrix, max_asymmetry_of_matrix, &
@@ -53,7 +54,7 @@ module foe
       use chebyshev, only: chebyshev_clean, chebyshev_fast
       use foe_common, only: evnoise, &
                             retransform_ext, get_chebyshev_expansion_coefficients, &
-                            find_fermi_level, get_polynomial_degree, &
+                            find_fermi_level, &
                             calculate_trace_distributed_new, get_bounds_and_polynomials
       use module_func
       use dynamic_memory
@@ -64,6 +65,8 @@ module foe
       real(kind=mp),intent(out) :: ebs
       logical,intent(in) :: calculate_minusonehalf, symmetrize_kernel, calculate_energy_density_kernel
       integer,intent(in) :: foe_verbosity
+      character(len=*),intent(in) :: inversion_method
+      integer,intent(in) :: pexsi_np_sym_fact
       type(sparse_matrix),intent(in) :: smats, smatm, smatl
       type(matrices),intent(in) :: ham_, ovrlp_
       type(matrices),dimension(1),intent(inout) :: ovrlp_minus_one_half_
@@ -85,7 +88,7 @@ module foe
       real(kind=mp) :: anoise, scale_factor, shift_value, sumn, sumn_check, charge_diff, ef_interpol, ddot
       real(kind=mp) :: evlow_old, evhigh_old, det, determinant, sumn_old, ef_old, tt
       real(kind=mp) :: x_max_error_fake, max_error_fake, mean_error_fake
-      real(kind=mp) :: fscale, tt_ovrlp, tt_ham, diff, fscale_check, fscale_new, fscale_newx, asymm_K
+      real(kind=mp) :: fscale, tt_ovrlp, tt_ham, diff, fscale_check, fscale_new, fscale_newx, asymm_K, eTS
       logical :: restart, adjust_lower_bound, adjust_upper_bound, calculate_SHS, interpolation_possible
       logical,dimension(2) :: emergency_stop
       real(kind=mp),dimension(2) :: efarr, sumnarr, allredarr
@@ -110,7 +113,7 @@ module foe
       real(mp) :: ebs_check_allspins
       real(mp),dimension(:),allocatable :: sumn_allspins, ebs_spins
       integer :: npl_max, npl_stride
-      integer,dimension(:,:),allocatable :: windowsx_kernel, windowsx_kernel_check
+      type(fmpi_win), dimension(:,:),allocatable :: windowsx_kernel, windowsx_kernel_check
 
 
 
@@ -157,8 +160,8 @@ module foe
       if (iproc==0) call yaml_mapping_open('S^-1/2')
       if (calculate_minusonehalf) then
           if (iproc==0) call yaml_map('Can take from memory',.false.)
-          call overlap_minus_onehalf(iproc, nproc, comm, smats, smatl, ovrlp_, ovrlp_minus_one_half_, &
-               ice_obj=ice_obj) !has internal timer
+          call overlap_minus_onehalf(inversion_method, iproc, nproc, comm, smats, smatl, ovrlp_, ovrlp_minus_one_half_, &
+               ice_obj=ice_obj, pexsi_np_sym_fact=pexsi_np_sym_fact)
       else
           if (iproc==0) call yaml_map('Can take from memory',.true.)
       end if
@@ -187,6 +190,8 @@ module foe
       fscale_new=1.d100
       ebs=0.d0
 
+      !write(*,*) 'temp_multiplicator, foe_data_get_real(foe_obj,"fscale")', &
+      !            temp_multiplicator, foe_data_get_real(foe_obj,"fscale")
       fscale_newx = temp_multiplicator*foe_data_get_real(foe_obj,"fscale")
 
       if (iproc==0) then
@@ -199,6 +204,8 @@ module foe
 
 
       fscale_new = fscale_newx
+      !write(*,*) 'foe_data_get_real(foe_obj,"fscale_lowerbound")',foe_data_get_real(foe_obj,"fscale_lowerbound")
+      !write(*,*) 'foe_data_get_real(foe_obj,"fscale_upperbound")',foe_data_get_real(foe_obj,"fscale_upperbound")
       fscale_new = max(fscale_new,foe_data_get_real(foe_obj,"fscale_lowerbound"))
       fscale_new = min(fscale_new,foe_data_get_real(foe_obj,"fscale_upperbound"))
       call foe_data_set_real(foe_obj,"fscale",fscale_new)
@@ -229,6 +236,7 @@ module foe
           evhigh_old=-1.d100
 
           if (iproc==0) then
+              call yaml_map('function to assign occupations',foe_data_get_int(foe_obj,"occupation_function"))
               call yaml_map('decay length of error function',fscale,fmt='(es10.3)')
           end if
 
@@ -250,20 +258,21 @@ module foe
           efarr(1) = foe_data_get_real(foe_obj,"ef")
           fscale_arr(1) = foe_data_get_real(foe_obj,"fscale",1)
           call get_bounds_and_polynomials(iproc, nproc, comm, 2, 1, npl_max, npl_stride, &
-               1, FUNCTION_ERRORFUNCTION, accuracy_function, accuracy_penalty, .false., 1.2_mp, 1.2_mp, foe_verbosity, &
+               1, foe_data_get_int(foe_obj,"occupation_function"), &
+               accuracy_function, accuracy_penalty, .false., 1.2_mp, 1.2_mp, foe_verbosity, &
                smatm, smatl, ham_, foe_obj, npl_min, ham_eff, & !kernel_%matrix_compr(ilshift+1:), &
                chebyshev_polynomials, npl, scale_factor, shift_value, hamscal_compr, &
                smats=smats, ovrlp_=ovrlp_, ovrlp_minus_one_half_=ovrlp_minus_one_half_(1), &
                efarr=efarr, fscale_arr=fscale_arr, max_errorx=max_error)
 
-          if (iproc==0) then
-              call yaml_mapping_open('summary',flow=.true.)
-              call yaml_map('npl',npl)
-              call yaml_map('bounds', &
-                   (/foe_data_get_real(ice_obj,"evlow",1),foe_data_get_real(ice_obj,"evhigh",1)/),fmt='(f6.2)')
-              call yaml_map('exp accur',max_error,fmt='(es8.2)')
-              call yaml_mapping_close()
-          end if
+          !!if (iproc==0) then
+          !!    call yaml_mapping_open('summary',flow=.true.)
+          !!    call yaml_map('npl',npl)
+          !!    call yaml_map('bounds', &
+          !!         (/foe_data_get_real(ice_obj,"evlow",1),foe_data_get_real(ice_obj,"evhigh",1)/),fmt='(f6.2)')
+          !!    call yaml_map('exp accur',max_error,fmt='(es8.2)')
+          !!    call yaml_mapping_close()
+          !!end if
 
           call find_fermi_level(iproc, nproc, comm, npl, chebyshev_polynomials, &
                foe_verbosity, 'test', smatl, 1, foe_obj, kernel_, calculate_spin_channels)
@@ -288,7 +297,7 @@ module foe
 
           npl_check = npl
           cc_check = f_malloc0((/npl_check,1,3/),id='cc_check')
-          call func_set(FUNCTION_ERRORFUNCTION, efx=foe_data_get_real(foe_obj,"ef"), fscalex=fscale_check)
+          call func_set(foe_data_get_int(foe_obj,"occupation_function"), efx=foe_data_get_real(foe_obj,"ef"), fscalex=fscale_check)
           call get_chebyshev_expansion_coefficients(iproc, nproc, comm, &
                foe_data_get_real(foe_obj,"evlow",1), &
                foe_data_get_real(foe_obj,"evhigh",1), npl_check, func, cc_check(1,1,1), &
@@ -371,7 +380,7 @@ module foe
               temparr(1) = ebs_spins(ispin) !ebsp
               temparr(2) = ebs_check
               if (nproc>1) then
-                  call mpiallred(temparr, mpi_sum, comm=comm)
+                  call fmpi_allreduce(temparr, FMPI_SUM, comm=comm)
               end if
               ebsp = temparr(1)
               ebs_check = temparr(2)
@@ -406,34 +415,40 @@ module foe
               end if
           end if
 
-          if (diff<5.d-5) then
-              ! can decrease polynomial degree
-              if (iproc==0) call yaml_map('modify error function decay length','increase')
-              fscale_new=1.25d0*fscale_new
-              degree_sufficient=.true.
-          else if (diff>=5.d-5 .and. diff < 1.d-4) then
-              ! polynomial degree seems to be appropriate
-              degree_sufficient=.true.
-              if (iproc==0) call yaml_map('modify error function decay length','No')
-              fscale_new=fscale_new
+          if (foe_data_get_logical(foe_obj,"adjust_fscale")) then
+              ! Adjust fscale
+              if (diff<5.d-5) then
+                  ! can decrease polynomial degree
+                  if (iproc==0) call yaml_map('modify error function decay length','increase')
+                  fscale_new=1.25d0*fscale_new
+                  degree_sufficient=.true.
+              else if (diff>=5.d-5 .and. diff < 1.d-4) then
+                  ! polynomial degree seems to be appropriate
+                  degree_sufficient=.true.
+                  if (iproc==0) call yaml_map('modify error function decay length','No')
+                  fscale_new=fscale_new
+              else
+                  ! polynomial degree too small, increase and recalculate the kernel
+                  degree_sufficient=.false.
+                  if (iproc==0) call yaml_map('modify error function decay length','decrease')
+                  fscale_new=0.5d0*fscale_new
+              end if
+              if (fscale_new<foe_data_get_real(foe_obj,"fscale_lowerbound")) then
+                  fscale_new=foe_data_get_real(foe_obj,"fscale_lowerbound")
+                  if (iproc==0) call yaml_map('fscale reached lower limit; reset to', &
+                      foe_data_get_real(foe_obj,"fscale_lowerbound"))
+                  reached_limit=.true.
+              else if (fscale_new>foe_data_get_real(foe_obj,"fscale_upperbound")) then
+                  fscale_new=foe_data_get_real(foe_obj,"fscale_upperbound")
+                  if (iproc==0) call yaml_map('fscale reached upper limit; reset to', &
+                      foe_data_get_real(foe_obj,"fscale_upperbound"))
+                  reached_limit=.true.
+              else
+                  reached_limit=.false.
+              end if
           else
-              ! polynomial degree too small, increase and recalculate the kernel
-              degree_sufficient=.false.
-              if (iproc==0) call yaml_map('modify error function decay length','decrease')
-              fscale_new=0.5d0*fscale_new
-          end if
-          if (fscale_new<foe_data_get_real(foe_obj,"fscale_lowerbound")) then
-              fscale_new=foe_data_get_real(foe_obj,"fscale_lowerbound")
-              if (iproc==0) call yaml_map('fscale reached lower limit; reset to', &
-                  foe_data_get_real(foe_obj,"fscale_lowerbound"))
-              reached_limit=.true.
-          else if (fscale_new>foe_data_get_real(foe_obj,"fscale_upperbound")) then
-              fscale_new=foe_data_get_real(foe_obj,"fscale_upperbound")
-              if (iproc==0) call yaml_map('fscale reached upper limit; reset to', &
-                  foe_data_get_real(foe_obj,"fscale_upperbound"))
-              reached_limit=.true.
-          else
-              reached_limit=.false.
+              ! else exit
+              exit temp_loop
           end if
 
           call foe_data_set_real(foe_obj,"fscale",fscale_new)
@@ -446,7 +461,7 @@ module foe
 !!$          end do
 !!$
 !!$          if (nproc > 1) then
-!!$              call mpiallred(diff, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
+!!$              call fmpi_allreduce(diff, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
 !!$          end if
 !!$
 !!$          diff=sqrt(diff)
@@ -484,7 +499,7 @@ module foe
           ncount = smatl%smmm%istartend_mm_dj(2) - smatl%smmm%istartend_mm_dj(1) + 1
           istl = smatl%smmm%istartend_mm_dj(1)-smatl%isvctrp_tg
           ebsp = ddot(ncount, kernel_%matrix_compr(ilshift+istl), 1, hamscal_compr(ilshift+istl), 1)
-          call mpiallred(ebsp, 1, mpi_sum, comm=comm)
+          call fmpi_allreduce(ebsp, 1, FMPI_SUM, comm=comm)
           ebsp = ebsp/scale_factor+shift_value*sumn
           ebs = ebs + ebsp
       end do
@@ -538,6 +553,55 @@ module foe
           end do
       end if
 
+
+
+      !# calculate the term TS #########################################################
+      !if (calculate_energy_density_kernel) then
+          !!if (.not.present(energy_kernel_)) then
+          !!    call f_err_throw('energy_kernel_ not present',err_name='SPARSEMATRIX_RUNTIME_ERROR')
+          !!end if
+          cc_check = f_malloc0((/npl,1,3/),id='cc_check')
+          call func_set(FUNCTION_ERRORFUNCTION_ENTROPY, efx=foe_data_get_real(foe_obj,"ef"), fscalex=fscale)
+          call get_chebyshev_expansion_coefficients(iproc, nproc, comm, &
+               foe_data_get_real(foe_obj,"evlow",1), &
+               foe_data_get_real(foe_obj,"evhigh",1), npl, func, cc_check(1,1,1), &
+               x_max_error_check(1), max_error_check(1), mean_error_check(1))
+          if (smatl%nspin==1) then
+              do ipl=1,npl
+                  cc_check(ipl,1,1)=2.d0*cc_check(ipl,1,1)
+                  cc_check(ipl,1,2)=2.d0*cc_check(ipl,1,2)
+                  cc_check(ipl,1,3)=2.d0*cc_check(ipl,1,3)
+              end do
+          end if
+          eTS = 0.0d0
+          do ispin=1,smatl%nspin
+
+              if (.not.(calculate_spin_channels(ispin))) cycle
+
+              is=(ispin-1)*smatl%smmm%nvctrp
+              isshift=(ispin-1)*smats%nvctrp_tg
+              imshift=(ispin-1)*smatm%nvctrp_tg
+              ilshift=(ispin-1)*smatl%nvctrp_tg
+              call chebyshev_fast(iproc, nproc, nsize_polynomial, npl, &
+                   smatl%nfvctr, smatl%smmm%nfvctrp, &
+                   smatl, chebyshev_polynomials(:,:,ispin), 1, cc_check, fermi_check_new)
+              call calculate_trace_distributed_new(iproc, nproc, comm, smatl, fermi_check_new, sumn_check)
+              eTS = eTS + sumn_check
+              !!call compress_matrix_distributed_wrapper(iproc, nproc, smatl, SPARSE_MATMUL_SMALL, &
+              !!     fermi_check_new, ONESIDED_FULL, fermi_check_compr(ilshift+1:))
+              !!! Calculate S^-1/2 * K * S^-1/2^T
+              !!call retransform_ext(iproc, nproc, smatl, ONESIDED_FULL, kernelpp_work(is+1:),  &
+              !!     ovrlp_minus_one_half_(1)%matrix_compr(ilshift+1:), fermi_check_compr(ilshift+1:))
+          end do
+          if (iproc==0) then
+              call yaml_map('eTS',sumn_check)
+          end if
+          call f_free(cc_check)
+      !end if
+      !# end calculate the term TS #####################################################
+
+
+
       call f_free_ptr(chebyshev_polynomials)
 
 
@@ -553,8 +617,8 @@ module foe
 
       call f_free(kernelpp_work)
       call f_free(kernelpp_check_work)
-      call f_free(windowsx_kernel)
-      call f_free(windowsx_kernel_check)
+      call free_fmpi_win_arr(windowsx_kernel)
+      call free_fmpi_win_arr(windowsx_kernel_check)
       call f_free(matrix_local)
       !call f_free(matrix_local_check)
       call f_free(sumn_allspins)
@@ -714,7 +778,7 @@ module foe
       hamscal_compr = sparsematrix_malloc(smatl, iaction=SPARSE_TASKGROUP, id='hamscal_compr')
 
       !if (iproc==0) call yaml_map('S^-1/2','recalculate')
-      call overlap_minus_onehalf(iproc, nproc, comm, smats, smatl, ovrlp_, ovrlp_minus_one_half_, &
+      call overlap_minus_onehalf('ICE', iproc, nproc, comm, smats, smatl, ovrlp_, ovrlp_minus_one_half_, &
           verbosity=0) !has internal timer
 
       ! Use kernel_%matrix_compr as workarray to save memory
@@ -770,19 +834,22 @@ module foe
     end subroutine get_selected_eigenvalues
 
 
-    subroutine overlap_minus_onehalf(iproc, nproc, comm, smats, smatl, ovrlp_, ovrlp_minus_one_half_, &
-               verbosity, ice_obj)
+    subroutine overlap_minus_onehalf(method, iproc, nproc, comm, smats, smatl, ovrlp_, ovrlp_minus_one_half_, &
+               verbosity, ice_obj, pexsi_np_sym_fact)
       use foe_base, only: foe_data
       use ice, only: inverse_chebyshev_expansion_new
+      use selinv, only: selinv_wrapper
       use dynamic_memory
       implicit none
       ! Calling arguments
+      character(len=*),intent(in) :: method
       integer,intent(in) :: iproc, nproc, comm
       type(sparse_matrix),intent(in) :: smats, smatl
       type(matrices),intent(in) :: ovrlp_
       type(matrices),dimension(1),intent(out) :: ovrlp_minus_one_half_
       integer,intent(in),optional :: verbosity
       type(foe_data),intent(inout),optional :: ice_obj
+      integer,intent(in),optional :: pexsi_np_sym_fact
       ! Local variables
       integer :: verbosity_
       real(mp),dimension(1) :: ex
@@ -792,18 +859,27 @@ module foe
       verbosity_ = 1
       if (present(verbosity)) verbosity_ = verbosity
     
-      ! Can't use the wrapper, since it is at a higher level in the hierarchy (to be improved)
-      ex=-0.5d0
-      if (present(ice_obj)) then
-          call inverse_chebyshev_expansion_new(iproc, nproc, comm, &
-               ovrlp_smat=smats, inv_ovrlp_smat=smatl, ncalc=1, ex=ex, &
-               ovrlp_mat=ovrlp_, inv_ovrlp=ovrlp_minus_one_half_, &
-               verbosity=verbosity_, ice_objx=ice_obj)
+      if (trim(method)=='ICE') then
+          ! Can't use the wrapper, since it is at a higher level in the hierarchy (to be improved)
+          ex=-0.5d0
+          if (present(ice_obj)) then
+              call inverse_chebyshev_expansion_new(iproc, nproc, comm, &
+                   ovrlp_smat=smats, inv_ovrlp_smat=smatl, ncalc=1, ex=ex, &
+                   ovrlp_mat=ovrlp_, inv_ovrlp=ovrlp_minus_one_half_, &
+                   verbosity=verbosity_, ice_objx=ice_obj)
+          else
+              call inverse_chebyshev_expansion_new(iproc, nproc, comm, &
+                   ovrlp_smat=smats, inv_ovrlp_smat=smatl, ncalc=1, ex=ex, &
+                   ovrlp_mat=ovrlp_, inv_ovrlp=ovrlp_minus_one_half_, &
+                   verbosity=verbosity_)
+          end if
+      else if (trim(method)=='SelInv') then
+          if (.not.present(pexsi_np_sym_fact)) then
+              call f_err_throw("To use Selected Inversion the argument 'pexsi_np_sym_fact' must be present")
+          end if
+          call selinv_wrapper(iproc, nproc, comm, smats, smatl, ovrlp_, pexsi_np_sym_fact, ovrlp_minus_one_half_(1))
       else
-          call inverse_chebyshev_expansion_new(iproc, nproc, comm, &
-               ovrlp_smat=smats, inv_ovrlp_smat=smatl, ncalc=1, ex=ex, &
-               ovrlp_mat=ovrlp_, inv_ovrlp=ovrlp_minus_one_half_, &
-               verbosity=verbosity_)
+          call f_err_throw("'method' must be 'ICE' or SelInv', but you specified '"//trim(method)//"'")
       end if
     
       call f_release_routine()

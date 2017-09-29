@@ -7,7 +7,7 @@ dnl  - PACKAGE_TARNAME, the name used for the tarball ;
 dnl  - PACKAGE_VERSION, the version ;
 dnl  - PACKAGE_STRING, the name + the version ;
 dnl  - PACKAGE_BUGREPORT, the mail.
-AC_INIT([BigDFT - DFT over wavelets],[1.8],[Damien.Caliste@cea.fr],[bigdft])
+AC_INIT([BigDFT - DFT over wavelets],[1.8.1],[Damien.Caliste@cea.fr],[bigdft])
 
 dnl All temporary building files are put in this directory.
 dnl his must be called before AM_INIT_AUTOMAKE
@@ -112,6 +112,9 @@ AX_MPI()
 AX_LINALG()
 AX_FLIB()
 AX_CHESS()
+if test "$ax_have_CHESS" != "yes" ; then
+  AC_MSG_ERROR(["Cannot find CheSS library."])
+fi
 AX_PSOLVER()
 if test "$ax_have_PSOLVER" != "yes" ; then
   AC_MSG_ERROR(["Cannot find PSolver library."])
@@ -359,8 +362,9 @@ src/bigdft-tool
 src/Makefile
 src/modules/Makefile
 src/modules/configure.c
+src/locregs/Makefile
+src/locregs/configure.inc
 src/orbitals/Makefile
-src/orbitals/configure.inc
 src/xcPSolver/Makefile
 src/CUDA/Makefile
 src/OpenCL/Makefile
@@ -368,9 +372,6 @@ src/convolutions-c/Makefile
 src/bindings/Makefile
 src/bindings/bigdft_cst.h
 src/geopt/Makefile
-src/python/Makefile
-src/python/BigDFT/Makefile
-src/python/BigDFT/scripts/Makefile
 src/tools/Makefile
 src/tools/bader/Makefile
 plugins/Makefile

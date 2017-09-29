@@ -14,6 +14,7 @@ dynlib_DATA         = $(bigdft_dynamic_library)
 # Sub-directories.
 # ---------------
 SUBDIRS = \
+	locregs \
 	orbitals \
 	modules \
 	xcPSolver \
@@ -22,7 +23,6 @@ SUBDIRS = \
 	OpenCL \
 	bindings \
 	geopt \
-	python \
 	$(sub_dirs_bin)
 
 EXTRA_DIST = \
@@ -38,6 +38,7 @@ noinst_LIBRARIES = libmain.a libabscalc.a
 subs_static_library = \
 	modules/libmodules.a \
 	CUDA/libCUDA.a \
+	locregs/liblocregs.a \
 	orbitals/liborbitals.a \
 	geopt/libgeopt.a \
 	xcPSolver/libxcPSolver.a \
@@ -103,7 +104,7 @@ if HAVE_AMBERTOOLS
 ambertools_wrap= wrap.c
 ###for amber supp.:
 wrap.o:     wrap.c
-	$(NAB) -I$(top_builddir) -c  -g $<
+	$(NAB) -I$(top_builddir) -c  -g @CC_PIC_FLAG@  $<
 else
 ambertools_wrap= wrap_fake.f90
 endif
@@ -189,7 +190,6 @@ low_level = \
 	linear/cleanup.f90 \
 	linear/filterModule.f90 \
 	linear/misc.f90 \
-	linear/getLocBasis.f90 \
 	linear/convolutions_aux.f90 \
 	linear/convolutions.f90 \
 	linear/locReg_orbitals.f90 \
@@ -201,8 +201,6 @@ low_level = \
 	linear/mixdiis.f90 \
 	linear/copyTypes.f90 \
 	linear/derivativeBasis.f90 \
-	linear/hpsiortho_linear.f90 \
-	linear/optimize_coeffs.f90 \
 	linear/transferintegrals.f90 \
 	linear/cdft.f90 \
 	linear/frags.f90\
@@ -384,6 +382,7 @@ $(gir_DATA): $(G_IR_SCANNER) $(bigdft_soname_library)
 		--output=$(gir_DATA) \
 		--library=bigdft-1 \
 		--no-libtool \
+		--library-path=$(builddir)/modules \
 		-DGLIB_MAJOR_VERSION=2 -L$(builddir) \
 		-I$(srcdir)/bindings -I$(builddir)/bindings \
 		$(srcdir)/bindings/bigdft.h \

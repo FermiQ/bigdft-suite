@@ -156,7 +156,6 @@
    check_sumrho                        : 1 #      Enables linear sumrho check
    check_overlap                       : 1 #      Enables linear overlap check
    experimental_mode                   : No #     Activate the experimental mode in linear scaling
-   write_orbitals                      : 0 #      Linear scaling write KS orbitals for cubic restart (might take lot of disk space!)
    explicit_locregcenters              : No #     Linear scaling explicitly specify localization centers
    calculate_KS_residue                : Yes #    Linear scaling calculate Kohn-Sham residue
    intermediate_forces                 : No #     Linear scaling calculate intermediate forces
@@ -453,6 +452,12 @@
      Rloc                              :  0.30455
      h_ij matrix:
      -  [  9.52284,  0.00000,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
+   - Channel (l)                       :  1
+     Rloc                              :  0.23268
+     h_ij matrix:
+     -  [  0.00000,  0.00000,  0.00000 ]
      -  [  0.00000,  0.00000,  0.00000 ]
      -  [  0.00000,  0.00000,  0.00000 ]
    No. of projectors                   :  1
@@ -1093,6 +1098,12 @@
      -  [  9.52284,  0.00000,  0.00000 ]
      -  [  0.00000,  0.00000,  0.00000 ]
      -  [  0.00000,  0.00000,  0.00000 ]
+   - Channel (l)                       :  1
+     Rloc                              :  0.23268
+     h_ij matrix:
+     -  [  0.00000,  0.00000,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
    No. of projectors                   :  1
    PSP XC                              : "XC: Teter 93"
  - Symbol                              : H #Type No.  02
@@ -1684,7 +1695,7 @@
    Geometry Method                     : BFGS
    Ncount_BigDFT                       :  1
    Geometry step                       :  0
-   FORCES norm(Ha/Bohr): { maxval:  8.13915E-02, fnrm2:  3.45060E-01, fluct:  0.00000E+00}
+   FORCES norm(Ha/Bohr): { maxval:  8.13915E-02, fnrm2:  1.19066E-01, fluct:  6.69668E-03}
    etot                                : -7.49285730594315E+01
    de                                  :  0.00E+00
    flt                                 :  [  6.7E-03,  6.70E-03 ]
@@ -1739,6 +1750,12 @@
      Rloc                              :  0.30455
      h_ij matrix:
      -  [  9.52284,  0.00000,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
+   - Channel (l)                       :  1
+     Rloc                              :  0.23268
+     h_ij matrix:
+     -  [  0.00000,  0.00000,  0.00000 ]
      -  [  0.00000,  0.00000,  0.00000 ]
      -  [  0.00000,  0.00000,  0.00000 ]
    No. of projectors                   :  1
@@ -2333,7 +2350,7 @@
    Geometry Method                     : BFGS
    Ncount_BigDFT                       :  2
    Geometry step                       :  1
-   FORCES norm(Ha/Bohr): { maxval:  7.80761E-01, fnrm2:  3.36912E+00, fluct:  0.00000E+00}
+   FORCES norm(Ha/Bohr): { maxval:  7.80761E-01, fnrm2:  1.13510E+01, fluct:  6.69668E-03}
    etot                                : -7.40066680961057E+01
    de                                  :  9.22E-01
    flt                                 :  [  6.7E-03,  6.70E-03 ]
@@ -2388,6 +2405,12 @@
      Rloc                              :  0.30455
      h_ij matrix:
      -  [  9.52284,  0.00000,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
+   - Channel (l)                       :  1
+     Rloc                              :  0.23268
+     h_ij matrix:
+     -  [  0.00000,  0.00000,  0.00000 ]
      -  [  0.00000,  0.00000,  0.00000 ]
      -  [  0.00000,  0.00000,  0.00000 ]
    No. of projectors                   :  1
@@ -2981,7 +3004,7 @@
    Geometry Method                     : BFGS
    Ncount_BigDFT                       :  3
    Geometry step                       :  2
-   FORCES norm(Ha/Bohr): { maxval:  1.73051E-01, fnrm2:  5.78981E-01, fluct:  0.00000E+00}
+   FORCES norm(Ha/Bohr): { maxval:  1.73051E-01, fnrm2:  3.35219E-01, fluct:  1.25346E-01}
    etot                                : -7.50586754415579E+01
    de                                  : -1.30E-01
    flt                                 :  [  1.25E-01,  1.25E-01 ]
@@ -3036,6 +3059,12 @@
      Rloc                              :  0.30455
      h_ij matrix:
      -  [  9.52284,  0.00000,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
+   - Channel (l)                       :  1
+     Rloc                              :  0.23268
+     h_ij matrix:
+     -  [  0.00000,  0.00000,  0.00000 ]
      -  [  0.00000,  0.00000,  0.00000 ]
      -  [  0.00000,  0.00000,  0.00000 ]
    No. of projectors                   :  1
@@ -3629,7 +3658,7 @@
    Geometry Method                     : BFGS
    Ncount_BigDFT                       :  4
    Geometry step                       :  3
-   FORCES norm(Ha/Bohr): { maxval:  1.20906E+00, fnrm2:  4.75819E+00, fluct:  0.00000E+00}
+   FORCES norm(Ha/Bohr): { maxval:  1.20906E+00, fnrm2:  2.26403E+01, fluct:  1.25346E-01}
    etot                                : -7.16101937090151E+01
    de                                  :  3.45E+00
    flt                                 :  [  1.25E-01,  1.25E-01 ]

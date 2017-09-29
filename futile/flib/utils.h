@@ -16,7 +16,6 @@
 
 #include <addresses.h>
 
-typedef void (*FFunc_arg)(void *a);
 typedef void (*FFunc_str)(void *a, int ln);
 
 typedef void (*FFunc_arg_arg)(void *a, void *a2);

@@ -24,7 +24,7 @@ EXERCISE = Exercise/plot.gnuplot \
 
 EXTRA_DIST =  tols.yaml $(OTHERS)
 
-check_PROGRAMS = PS_Check PS_Program PS_Exercise Generalized_PSolver Fock PS_StressCheck
+check_PROGRAMS = PS_Check PS_Program PS_Exercise Generalized_PSolver Fock PS_StressCheck PSolver_examples
 
 AM_FCFLAGS = -I. -I$(top_srcdir)/src -I$(top_builddir)/src @LIB_FUTILE_CFLAGS@ @LIBETSFIO_INCLUDE@ @MPI_INCLUDE@
 AM_LDFLAGS = -L$(top_builddir)/src
@@ -50,6 +50,9 @@ PS_Exercise_LDADD = $(psolver_library) @LINALG_LIBS@
 Generalized_PSolver_SOURCES = Generalized_PSolver.f90
 Generalized_PSolver_LDADD = $(psolver_library) @LINALG_LIBS@
 
+PSolver_examples_SOURCES = PSolver_examples.f90 functions.f90
+PSolver_examples_LDADD = $(psolver_library) @LINALG_LIBS@
+
 Fock_SOURCES = Fock.f90 functions.f90
 Fock_LDADD = $(psolver_library) @LINALG_LIBS@
 
@@ -59,6 +62,7 @@ PS_Program_LDADD += @LIB_FUTILE_LIBS@
 PS_StressCheck_LDADD += @LIB_FUTILE_LIBS@
 PS_Exercise_LDADD += @LIB_FUTILE_LIBS@
 Generalized_PSolver_LDADD += @LIB_FUTILE_LIBS@
+PSolver_examples_LDADD += @LIB_FUTILE_LIBS@
 Fock_LDADD += @LIB_FUTILE_LIBS@
 endif
 
@@ -104,8 +108,8 @@ define F_REGTEST_INSTRUCTIONS
     # broken - $(run_parallel) ./PS_Program -n [57,48,63] -g F > PS_Basics.out.yaml
     - $(run_parallel) ./PS_Program -n [64,64,64] -g P
     - $(run_parallel) ./PS_Program -n [32,64,48] -g S
-    - $(run_parallel) ./PS_Program -n [32,64,48] -g S -d [89,90,90]
-    - $(run_parallel) ./PS_Program -n [32,64,48] -g S -d [60,90,90]
+    - $(run_parallel) ./PS_Program -n [32,64,48] -g S -d [90,89,90]
+    - $(run_parallel) ./PS_Program -n [32,64,48] -g S -d [90,60,90]
     # broken - $(run_parallel) ./PS_Program -n [32,64,48] -g W >> PS_Basics.out.yaml
 - PS_Check:
    runs:
@@ -145,5 +149,7 @@ define F_REGTEST_INSTRUCTIONS
     - $(run_parallel) ./PS_StressCheck -n 50 -g P -s 50
     # Check stress on x,y,z direction concurrently
     - $(run_parallel) ./PS_StressCheck -n 50 -g P -s 50 -v yes
+    # Check stress on x,y,z direction individually for a non-orthorhombic cell
+    - $(run_parallel) ./PS_StressCheck -n 50 -g P -s 50 -d [47,60,80]
 endef
 export F_REGTEST_INSTRUCTIONS

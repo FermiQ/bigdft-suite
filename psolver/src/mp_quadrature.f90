@@ -274,29 +274,41 @@ subroutine gaussian_density(rxyz,rloc, zion, multipole_preservingl, use_iterator
      call f_err_throw('Temporary array in z direction too small')
   end if
 
+  !$omp parallel
+  !$omp do
   do i1=isx,iex
      mpx(i1-isx) = mp_exp(hxh,rx,rlocinv2sq,i1,0,multipole_preservingl)
   end do
+  !$omp end do nowait
+  !$omp do
   do i2=isy,iey
      mpy(i2-isy) = mp_exp(hyh,ry,rlocinv2sq,i2,0,multipole_preservingl)
   end do
+  !$omp end do nowait
+  !$omp do
   do i3=isz,iez
      mpz(i3-isz) = mp_exp(hzh,rz,rlocinv2sq,i3,0,multipole_preservingl)
   end do
+  !$omp end do
+  !$omp end parallel
+
 
   if (use_iterator) then
      do while(box_next_z(boxit))
-        fz=mpz(boxit%ibox(3)-boxit%nbox(1,3))
+        !fz=mpz(boxit%inext(3)-boxit%nbox(1,3))
+        fz=mpz(boxit%k-boxit%nbox(1,3)+1)
         do while(box_next_y(boxit))
-           fy=mpy(boxit%ibox(2)-boxit%nbox(1,2))
+           fy=mpy(boxit%j-boxit%nbox(1,2)+1)
            do while(box_next_x(boxit))
-              fx=mpx(boxit%ibox(1)-boxit%nbox(1,1))
+              fx=mpx(boxit%i-boxit%nbox(1,1)+1)
               xp=fx*fy*fz
               density(boxit%ind) = density(boxit%ind) - xp*charge
            end do
         end do
      end do
   else
+     !$omp parallel do default(shared) &
+     !$omp private(i3,i2,i1,zp,yp,xp,ind,j1,j2,j3,gox,goz,goy)
      do i3=isz,iez
         zp = mpz(i3-isz)
         if (abs(zp) < mp_tiny) cycle
@@ -316,8 +328,8 @@ subroutine gaussian_density(rxyz,rloc, zion, multipole_preservingl, use_iterator
            enddo
         enddo
      enddo
+     !$omp end parallel do
   end if
-
   call f_release_routine()
 
 contains

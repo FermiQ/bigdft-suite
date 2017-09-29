@@ -30,7 +30,7 @@ subroutine copy_tmbs(iproc, tmbin, tmbout, subname)
   tmbout%npsidim_orbs = tmbin%npsidim_orbs
 
   if (associated(tmbin%coeff)) then !(in%lin%scf_mode/=LINEAR_FOE) then ! should move this check to copy_old_coeffs
-      call copy_old_coefficients(tmbin%orbs%norb, tmbin%linmat%l%nfvctr, tmbin%coeff, tmbout%coeff)
+      call copy_old_coefficients(tmbin%orbs%norb, tmbin%linmat%smat(3)%nfvctr, tmbin%coeff, tmbout%coeff)
   else
       nullify(tmbout%coeff)
   end if
@@ -445,12 +445,12 @@ subroutine copy_linear_matrices(linmat_in, linmat_out)
   integer :: ispin, i
 
   call copy_sparse_matrix_metadata(linmat_in%smmd, linmat_out%smmd)
-  call copy_sparse_matrix(linmat_in%s, linmat_out%s)
-  call copy_sparse_matrix(linmat_in%m, linmat_out%m)
-  call copy_sparse_matrix(linmat_in%l, linmat_out%l)
+  call copy_sparse_matrix(linmat_in%smat(1), linmat_out%smat(1))
+  call copy_sparse_matrix(linmat_in%smat(2), linmat_out%smat(2))
+  call copy_sparse_matrix(linmat_in%smat(3), linmat_out%smat(3))
   if (associated(linmat_in%ks)) then
-      allocate(linmat_out%ks(linmat_in%l%nspin))
-      do ispin=1,linmat_in%l%nspin
+      allocate(linmat_out%ks(linmat_in%smat(3)%nspin))
+      do ispin=1,linmat_in%smat(3)%nspin
           linmat_out%ks(ispin) = sparse_matrix_null()
           call copy_sparse_matrix(linmat_in%ks(ispin), linmat_out%ks(ispin))
       end do
@@ -458,8 +458,8 @@ subroutine copy_linear_matrices(linmat_in, linmat_out)
       nullify(linmat_out%ks)
   end if
   if (associated(linmat_in%ks_e)) then
-      allocate(linmat_out%ks_e(linmat_in%l%nspin))
-      do ispin=1,linmat_in%l%nspin
+      allocate(linmat_out%ks_e(linmat_in%smat(3)%nspin))
+      do ispin=1,linmat_in%smat(3)%nspin
           linmat_out%ks_e(ispin) = sparse_matrix_null()
           call copy_sparse_matrix(linmat_in%ks_e(ispin), linmat_out%ks_e(ispin))
       end do
@@ -567,13 +567,37 @@ subroutine copy_comms_linear(comms_in, comms_out)
 
 end subroutine copy_comms_linear
 
+
 subroutine copy_linmat_auxiliary(aux_in, aux_out)
   use dynamic_memory
-  use module_types, only: linmat_auxiliary
+  use module_types, only: linmat_auxiliary, matrixindex_in_compressed_fortransposed2_null
   implicit none
   type(linmat_auxiliary),intent(in) :: aux_in
   type(linmat_auxiliary),intent(out) :: aux_out
-  aux_out%matrixindex_in_compressed_fortransposed = f_malloc_ptr(src_ptr=aux_in%matrixindex_in_compressed_fortransposed, &
-      id='aux_out%matrixindex_in_compressed_fortransposed')
-  aux_out%offset_matrixindex_in_compressed_fortransposed = aux_in%offset_matrixindex_in_compressed_fortransposed
+  integer :: i
+  !!aux_out%matrixindex_in_compressed_fortransposed = f_malloc_ptr(src_ptr=aux_in%matrixindex_in_compressed_fortransposed, &
+  !!    id='aux_out%matrixindex_in_compressed_fortransposed')
+  !!aux_out%offset_matrixindex_in_compressed_fortransposed = aux_in%offset_matrixindex_in_compressed_fortransposed
+  allocate(aux_out%mat_ind_compr2(lbound(aux_in%mat_ind_compr2,1):ubound(aux_in%mat_ind_compr2,1)))
+  do i=lbound(aux_in%mat_ind_compr2,1),ubound(aux_in%mat_ind_compr2,1)
+      !!aux_out%mat_ind_compr(i) = matrixindex_in_compressed_fortransposed_null()
+      aux_out%mat_ind_compr2(i) = matrixindex_in_compressed_fortransposed2_null()
+      call copy_matrixindex_in_compressed_fortransposed2(aux_in%mat_ind_compr2(i), aux_out%mat_ind_compr2(i))
+  end do
 end subroutine copy_linmat_auxiliary
+
+
+subroutine copy_matrixindex_in_compressed_fortransposed2(mat_ind_compr2_in, mat_ind_compr2_out)
+  use dynamic_memory
+  use module_types, only: matrixindex_in_compressed_fortransposed2
+  implicit none
+  type(matrixindex_in_compressed_fortransposed2),intent(in) :: mat_ind_compr2_in
+  type(matrixindex_in_compressed_fortransposed2),intent(out) :: mat_ind_compr2_out
+  mat_ind_compr2_out%section(-1)%ind_compr = &
+      f_malloc_ptr(src_ptr=mat_ind_compr2_in%section(-1)%ind_compr,id='mat_ind_compr2_out%ind_compr')
+  mat_ind_compr2_out%section(0)%ind_compr = &
+      f_malloc_ptr(src_ptr=mat_ind_compr2_in%section(0)%ind_compr,id='mat_ind_compr2_out%ind_compr')
+  mat_ind_compr2_out%section(1)%ind_compr = &
+      f_malloc_ptr(src_ptr=mat_ind_compr2_in%section(1)%ind_compr,id='mat_ind_compr2_out%ind_compr')
+  mat_ind_compr2_out%offset_compr = mat_ind_compr2_in%offset_compr
+end subroutine copy_matrixindex_in_compressed_fortransposed2

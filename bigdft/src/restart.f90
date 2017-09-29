@@ -14,6 +14,7 @@ subroutine copy_old_wavefunctions(nproc,orbs,psi,&
   use module_base
   use module_types
   use yaml_output
+  use compression
   implicit none
   integer, intent(in) :: nproc
   type(orbitals_data), intent(in) :: orbs
@@ -70,6 +71,7 @@ subroutine reformatmywaves(iproc,orbs,at,&
   use yaml_output
   use box
   use bounds, only: ext_buffers_coarse
+  use compression
   implicit none
   integer, intent(in) :: iproc,n1_old,n2_old,n3_old,n1,n2,n3
   real(gp), intent(in) :: hx_old,hy_old,hz_old,hx,hy,hz
@@ -276,6 +278,7 @@ subroutine readmywaves(iproc,filename,iformat,orbs,n1,n2,n3,hx,hy,hz,at,rxyz_old
   use module_interfaces, only: open_filename_of_iorb
   use public_enums
   use bounds, only: ext_buffers_coarse
+  use compression
   implicit none
   integer, intent(in) :: iproc,n1,n2,n3, iformat
   real(gp), intent(in) :: hx,hy,hz
@@ -406,7 +409,7 @@ subroutine verify_file_presence(filerad,orbs,iformat,nproc,nforb)
      end do
   end do loop_plain
   !reduce the result among the other processors
-  if (nproc > 1) call mpiallred(allfiles,1,MPI_LAND,comm=bigdft_mpi%mpi_comm)
+  if (nproc > 1) call fmpi_allreduce(allfiles,1,FMPI_LAND,comm=bigdft_mpi%mpi_comm)
 
   if (allfiles) then
      iformat=WF_FORMAT_PLAIN
@@ -433,7 +436,7 @@ subroutine verify_file_presence(filerad,orbs,iformat,nproc,nforb)
      end do
   end do loop_binary
   !reduce the result among the other processors
-  if (nproc > 1) call mpiallred(allfiles,1,MPI_LAND,comm=bigdft_mpi%mpi_comm)
+  if (nproc > 1) call fmpi_allreduce(allfiles,1,FMPI_LAND,comm=bigdft_mpi%mpi_comm)
 
   if (allfiles) then
      iformat=WF_FORMAT_BINARY
@@ -702,7 +705,7 @@ subroutine tmb_overlap_onsite(iproc, nproc, imethod_overlap, at, tmb, rxyz)
                                deallocate_matrices, deallocate_sparse_matrix, &
                                assignment(=), sparsematrix_malloc_ptr, SPARSE_TASKGROUP
   use sparsematrix_wrappers, only: init_sparse_matrix_wrapper
-  use sparsematrix_init, only: init_matrix_taskgroups
+  use sparsematrix_init, only: init_matrix_taskgroups_wrapper
   use bigdft_matrices, only: check_local_matrix_extents, init_matrixindex_in_compressed_fortransposed
   use transposed_operations, only: calculate_overlap_transposed, normalize_transposed
   !!use bounds, only: ext_buffers
@@ -732,7 +735,7 @@ subroutine tmb_overlap_onsite(iproc, nproc, imethod_overlap, at, tmb, rxyz)
   type(fragment_transformation) :: frag_trans
   integer :: ierr, ncount, iroot, jproc, ndim_tmp1
   integer,dimension(:),allocatable :: workarray
-  type(sparse_matrix) :: smat_tmp
+  type(sparse_matrix),dimension(1) :: smat_tmp
   type(matrices) :: mat_tmp
   integer,dimension(2) :: irow, icol, iirow, iicol
   logical :: wrap_around
@@ -996,32 +999,38 @@ subroutine tmb_overlap_onsite(iproc, nproc, imethod_overlap, at, tmb, rxyz)
   !call nullify_comms_linear(collcom_tmp)
   collcom_tmp=comms_linear_null()
   call init_comms_linear(iproc, nproc, imethod_overlap, ndim_tmp, tmb%orbs, lzd_tmp, &
-       tmb%linmat%m%nspin, collcom_tmp)
+       tmb%linmat%smat(2)%nspin, collcom_tmp)
 
-  smat_tmp = sparse_matrix_null()
+  smat_tmp(1) = sparse_matrix_null()
   aux = linmat_auxiliary_null()
   ! Do not initialize the matrix multiplication to save memory. 
-  call init_sparse_matrix_wrapper(iproc, nproc, tmb%linmat%s%nspin, tmb%orbs, &
-       lzd_tmp, at%astruct, .false., init_matmul=.false., imode=2, smat=smat_tmp)
+  call init_sparse_matrix_wrapper(iproc, nproc, tmb%linmat%smat(1)%nspin, tmb%orbs, &
+       lzd_tmp, at%astruct, .false., init_matmul=.false., imode=2, smat=smat_tmp(1))
   call init_matrixindex_in_compressed_fortransposed(iproc, nproc, &
-       collcom_tmp, collcom_tmp, collcom_tmp, smat_tmp, &
+       collcom_tmp, collcom_tmp, collcom_tmp, smat_tmp(1), &
        aux)
-  iirow(1) = smat_tmp%nfvctr
-  iirow(2) = 1
-  iicol(1) = smat_tmp%nfvctr
-  iicol(2) = 1
-  call check_local_matrix_extents(iproc, nproc, &
-       collcom_tmp, collcom_tmp, tmb%linmat%smmd, smat_tmp, aux, &
-       ind_min, ind_mas, irow, icol)
-  iirow(1) = min(irow(1),iirow(1))
-  iirow(2) = max(irow(2),iirow(2))
-  iicol(1) = min(icol(1),iicol(1))
-  iicol(2) = max(icol(2),iicol(2))
 
-  call init_matrix_taskgroups(iproc, nproc, bigdft_mpi%mpi_comm, .false., smat_tmp)
+  !!iirow(1) = smat_tmp%nfvctr
+  !!iirow(2) = 1
+  !!iicol(1) = smat_tmp%nfvctr
+  !!iicol(2) = 1
+  !!call get_sparsematrix_local_extent(iproc, nproc, tmb%linmat%smmd, smat_tmp, ind_min, ind_mas)
+  call check_local_matrix_extents(iproc, nproc, &
+       collcom_tmp, collcom_tmp, tmb%linmat%smmd, smat_tmp(1), aux, &
+       ind_min, ind_mas)
+  !!call get_sparsematrix_local_rows_columns(smat_tmp, ind_min, ind_mas, irow, icol)
+  !!iirow(1) = min(irow(1),iirow(1))
+  !!iirow(2) = max(irow(2),iirow(2))
+  !!iicol(1) = min(icol(1),iicol(1))
+  !!iicol(2) = max(icol(2),iicol(2))
+
+  !!call init_matrix_taskgroups(iproc, nproc, bigdft_mpi%mpi_comm, .false., smat_tmp)
+  call init_matrix_taskgroups_wrapper(iproc, nproc, bigdft_mpi%mpi_comm, .false., &
+       1, smat_tmp(1), (/(/ind_min,ind_mas/)/))
+
 
   mat_tmp = matrices_null()
-  mat_tmp%matrix_compr = sparsematrix_malloc_ptr(smat_tmp, iaction=SPARSE_TASKGROUP,id='mat_tmp%matrix_compr')
+  mat_tmp%matrix_compr = sparsematrix_malloc_ptr(smat_tmp(1), iaction=SPARSE_TASKGROUP,id='mat_tmp%matrix_compr')
 
   psit_c_tmp = f_malloc_ptr(sum(collcom_tmp%nrecvcounts_c),id='psit_c_tmp')
   psit_f_tmp = f_malloc_ptr(7*sum(collcom_tmp%nrecvcounts_f),id='psit_f_tmp')
@@ -1032,18 +1041,18 @@ subroutine tmb_overlap_onsite(iproc, nproc, imethod_overlap, at, tmb, rxyz)
   ! normalize psi
   !skip the normalize psi step
   !norm = f_malloc_ptr(tmb%orbs%norb,id='norm')
-  !call normalize_transposed(iproc, nproc, tmb%orbs, tmb%linmat%s%nspin, collcom_tmp, psit_c_tmp, psit_f_tmp, norm)
+  !call normalize_transposed(iproc, nproc, tmb%orbs, tmb%linmat%smat(1)%nspin, collcom_tmp, psit_c_tmp, psit_f_tmp, norm)
   !call f_free_ptr(norm)
 
   !!call calculate_pulay_overlap(iproc, nproc, tmb%orbs, tmb%orbs, collcom_tmp, collcom_tmp, &
   !!     psit_c_tmp, psit_c_tmp, psit_f_tmp, psit_f_tmp, tmb%linmat%ovrlp_%matrix)
   call calculate_overlap_transposed(iproc, nproc, tmb%orbs, collcom_tmp, &
-                 psit_c_tmp, psit_c_tmp, psit_f_tmp, psit_f_tmp, smat_tmp, aux, mat_tmp)
-  !call uncompress_matrix(iproc, tmb%linmat%s, mat_tmp%matrix_compr, tmb%linmat%ovrlp_%matrix)
-  call uncompress_matrix(iproc, nproc, smat_tmp, mat_tmp%matrix_compr, tmb%linmat%ovrlp_%matrix)
+                 psit_c_tmp, psit_c_tmp, psit_f_tmp, psit_f_tmp, smat_tmp(1), aux, mat_tmp)
+  !call uncompress_matrix(iproc, tmb%linmat%smat(1), mat_tmp%matrix_compr, tmb%linmat%ovrlp_%matrix)
+  call uncompress_matrix(iproc, nproc, smat_tmp(1), mat_tmp%matrix_compr, tmb%linmat%ovrlp_%matrix)
 
   call deallocate_matrices(mat_tmp)
-  call deallocate_sparse_matrix(smat_tmp)
+  call deallocate_sparse_matrix(smat_tmp(1))
   call deallocate_linmat_auxiliary(aux)
 
 !!!# DEBUG #######
@@ -1585,7 +1594,7 @@ subroutine tmb_overlap_onsite_rotate(iproc, nproc, input, at, tmb, rxyz, ref_fra
       if (iproc==0) write(*,'(F6.2,a)') 100.0d0*real(iiorb,dp)/real(tmb%orbs%norb,dp),'%'
   end do
 
-  call mpiallred(overlap, mpi_sum, comm=bigdft_mpi%mpi_comm)
+  call fmpi_allreduce(overlap, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
 
   ! print also various files useful for more direct analysis - eventually tidy this into better formatted outputs
   if (iproc==0) then
@@ -2413,7 +2422,7 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
      end do
 
      !if (bigdft_mpi%nproc > 1) then
-     !   call mpiallred(frag_env_mapping, mpi_sum, comm=bigdft_mpi%mpi_comm)
+     !   call fmpi_allreduce(frag_env_mapping, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
      !end if
 
      allocate(frag_trans_orb(tmb%orbs%norbp))
@@ -2536,7 +2545,7 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
   end if fragment_if
 
   !reduce the number of warnings
-  if (nproc >1) call mpiallred(itoo_big,1,op=MPI_SUM,comm=bigdft_mpi%mpi_comm)
+  if (nproc >1) call fmpi_allreduce(itoo_big,1,op=FMPI_SUM,comm=bigdft_mpi%mpi_comm)
 
   if (itoo_big > 0 .and. iproc==0) call yaml_warning('Found '//itoo_big//' warning of high Wahba cost functions')
 
@@ -3211,8 +3220,8 @@ subroutine initialize_linear_from_file(iproc,nproc,input_frag,astruct,rxyz,orbs,
   Lzd%nlr = orbs%norb
 
   ! Communication of the quantities
-  if (nproc > 1)  call mpiallred(orbs%onwhichatom(1),orbs%norb,MPI_SUM,comm=bigdft_mpi%mpi_comm)
-  if (nproc > 1)  call mpiallred(locrad,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+  if (nproc > 1)  call fmpi_allreduce(orbs%onwhichatom(1),orbs%norb,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
+  if (nproc > 1)  call fmpi_allreduce(locrad,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
 
   cxyz = f_malloc((/ 3, Lzd%nlr /),id='cxyz')
   lrad = f_malloc(Lzd%nlr,id='lrad')
@@ -3783,7 +3792,7 @@ subroutine reformat_supportfunctions(iproc,nproc,at,rxyz_old,rxyz,add_derivative
 
   ! Get the maximal shift among all tasks
   if (nproc>1) then
-      call mpiallred(max_shift, 1, mpi_max, comm=bigdft_mpi%mpi_comm)
+      call fmpi_allreduce(max_shift, 1, FMPI_MAX, comm=bigdft_mpi%mpi_comm)
   end if
   if (iproc==0) call yaml_map('max shift of a locreg center',max_shift,fmt='(es9.2)')
 
@@ -3879,7 +3888,7 @@ subroutine reformat_check(reformat_needed,reformat_reason,tol,at,hgrids_old,hgri
   !write(*,'(a,3(3(f12.8,x),3x))') 'final centre box',centre_old_box,centre_new_box,da
   !write(*,'(a,3(3(f12.8,x),3x))') 'final centre',frag_trans%rot_center,frag_trans%rot_center_new
 
-  displ=square(mesh,da)!sqrt(da(1)**2+da(2)**2+da(3)**2)
+  displ=square_gd(mesh,da)!sqrt(da(1)**2+da(2)**2+da(3)**2)
 
   !reformatting criterion
   if (hgrids(1) == hgrids_old(1) .and. hgrids(2) == hgrids_old(2) .and. hgrids(3) == hgrids_old(3) &
@@ -3986,7 +3995,7 @@ subroutine print_reformat_summary(iproc,nproc,reformat_reason)
   integer, intent(in) :: iproc,nproc
   integer, dimension(0:7), intent(inout) :: reformat_reason ! array giving reasons for reformatting
 
-  if (nproc > 1) call mpiallred(reformat_reason, mpi_sum, comm=bigdft_mpi%mpi_comm)
+  if (nproc > 1) call fmpi_allreduce(reformat_reason, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
 
   if (iproc==0) then
         call yaml_mapping_open('Overview of the reformatting (several categories may apply)')

@@ -26,38 +26,38 @@ module FDder
     !!
     !! output:
     !! du(ngrid)   = first derivative values at the grid points
-    subroutine nabla_u_and_square(geocode,n01,n02,n03,u,du,du2,nord,hgrids)
+    subroutine nabla_u_and_square(mesh,u,du,du2,nord)
       use dictionaries, only: f_err_throw
+      use box
       implicit none
 
-
       !c..declare the pass
-      character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
-      integer, intent(in) :: n01,n02,n03,nord
-      real(kind=8), dimension(3), intent(in) :: hgrids
-      real(kind=8), dimension(n01,n02,n03), intent(in) :: u
-      real(kind=8), dimension(n01,n02,n03,3), intent(out) :: du !<nabla of u
-      real(kind=8), dimension(n01,n02,n03) :: du2 !<square module of nabla u
+      type(cell), intent(in) :: mesh !< @copydoc poisson_solver::doc::mesh
+      integer, intent(in) :: nord
+      real(kind=8), dimension(mesh%ndims(1),mesh%ndims(2),mesh%ndims(3)), intent(in) :: u
+      real(kind=8), dimension(mesh%ndims(1),mesh%ndims(2),mesh%ndims(3),3), intent(out) :: du !<nabla of u
+      real(kind=8), dimension(mesh%ndims(1),mesh%ndims(2),mesh%ndims(3)) :: du2 !<square module of nabla u
 
       !c..local variables
-      integer :: n,m,n_cell
+      integer :: n,m,n_cell,n01,n02,n03
       integer :: i,j,i1,i2,i3,ii
       real(kind=8), dimension(-nord/2:nord/2,-nord/2:nord/2) :: c1D, c1D_1, c1D_2, c1D_3
       real(kind=8) :: hx,hy,hz,d
-      logical :: perx,pery,perz
+      logical, dimension(3) :: peri
 
+      n01=mesh%ndims(1)
+      n02=mesh%ndims(2)
+      n03=mesh%ndims(3)
       n = nord+1
       m = nord/2
-      hx = hgrids(1)!acell/real(n01,kind=8)
-      hy = hgrids(2)!acell/real(n02,kind=8)
-      hz = hgrids(3)!acell/real(n03,kind=8)
+      hx = mesh%hgrids(1)
+      hy = mesh%hgrids(2)
+      hz = mesh%hgrids(3)
       n_cell = max(n01,n02,n03)
 
       !buffers associated to the geocode
       !conditions for periodicity in the three directions
-      perx=(geocode /= 'F')
-      pery=(geocode == 'P')
-      perz=(geocode /= 'F')
+      peri=cell_periodic_dims(mesh)
 
       ! Beware that n_cell has to be > than n.
       if (n_cell.lt.n) then
@@ -89,7 +89,7 @@ module FDder
 !!!default(shared) private(i1,i2,i3,j,ii, d)
       !$omp parallel do default(none) &
       !$omp private(i3,i2,i1,d,ii,j) &
-      !$omp shared(du2,perx,m,n01,n02,n03,du,c1D_1,u)
+      !$omp shared(du2,peri,m,n01,n02,n03,du,c1D_1,u)
       do i3=1,n03
          do i2=1,n02
             do i1=1,n01
@@ -98,7 +98,7 @@ module FDder
                du2(i1,i2,i3) = 0.0d0
 
                if (i1.le.m) then
-                  if (perx) then
+                  if (peri(1)) then
                      do j=-m,m
                         ii=modulo(i1 + j + n01 - 1, n01 ) + 1
                         d = d + c1D_1(j,0)*u(ii,i2,i3)
@@ -109,7 +109,7 @@ module FDder
                      end do
                   end if
                else if (i1.gt.n01-m) then
-                  if (perx) then
+                  if (peri(1)) then
                      do j=-m,m
                         ii=modulo(i1 + j - 1, n01 ) + 1
                         d = d + c1D_1(j,0)*u(ii,i2,i3)
@@ -140,7 +140,7 @@ module FDder
                d = 0.0d0
 
                if (i2.le.m) then
-                  if (pery) then
+                  if (peri(2)) then
                      do j=-m,m
                         ii=modulo(i2 + j + n02 - 1, n02 ) + 1
                         d = d + c1D_2(j,0)*u(i1,ii,i3)
@@ -151,7 +151,7 @@ module FDder
                      end do
                   end if
                else if (i2.gt.n02-m) then
-                  if (pery) then
+                  if (peri(2)) then
                      do j=-m,m
                         ii=modulo(i2 + j - 1, n02 ) + 1
                         d = d + c1D_2(j,0)*u(i1,ii,i3)
@@ -180,7 +180,7 @@ module FDder
                d = 0.0d0
 
                if (i3.le.m) then
-                  if (perz) then
+                  if (peri(3)) then
                      do j=-m,m
                         ii=modulo(i3 + j + n03 - 1, n03 ) + 1
                         d = d + c1D_3(j,0)*u(i1,i2,ii)
@@ -191,7 +191,7 @@ module FDder
                      end do
                   end if
                else if (i3.gt.n03-m) then
-                  if (perz) then
+                  if (peri(3)) then
                      do j=-m,m
                         ii=modulo(i3 + j - 1, n03 ) + 1
                         d = d + c1D_3(j,0)*u(i1,i2,ii)
@@ -226,40 +226,41 @@ module FDder
     end subroutine nabla_u_and_square
 
     !>only calculate the square of the gradient (in orthorhombic cells)
-    subroutine nabla_u_square(geocode,n01,n02,n03,u,du2,nord,hgrids)
+    subroutine nabla_u_square(mesh,u,du2,nord)
+      use box
       use dictionaries, only: f_err_throw
       implicit none
 
       !c..declare the pass
-      character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
-      integer, intent(in) :: n01,n02,n03,nord
-      real(kind=8), dimension(3), intent(in) :: hgrids
-      real(kind=8), dimension(n01,n02,n03), intent(in) :: u
-      real(kind=8), dimension(n01,n02,n03), intent(out) :: du2 !<square module of nabla u
+      type(cell), intent(in) :: mesh !< @copydoc poisson_solver::doc::mesh
+      integer, intent(in) :: nord
+      real(kind=8), dimension(mesh%ndims(1),mesh%ndims(2),mesh%ndims(3)), intent(in) :: u
+      real(kind=8), dimension(mesh%ndims(1),mesh%ndims(2),mesh%ndims(3)), intent(out) :: du2 !<square module of nabla u
 
       !c..local variables
-      integer :: n,m,n_cell
+      integer :: n,m,n_cell,n01,n02,n03
       integer :: i,j,i1,i2,i3,ii
       real(kind=8), dimension(-nord/2:nord/2,-nord/2:nord/2) :: c1D, c1D_1, c1D_2, c1D_3
       real(kind=8) :: hx,hy,hz,d
-      logical :: perx,pery,perz
+      logical, dimension(3) :: peri
 
+      n01=mesh%ndims(1)
+      n02=mesh%ndims(2)
+      n03=mesh%ndims(3)
       n = nord+1
       m = nord/2
-      hx = hgrids(1)!acell/real(n01,kind=8)
-      hy = hgrids(2)!acell/real(n02,kind=8)
-      hz = hgrids(3)!acell/real(n03,kind=8)
+      hx = mesh%hgrids(1)
+      hy = mesh%hgrids(2)
+      hz = mesh%hgrids(3)
       n_cell = max(n01,n02,n03)
 
       !buffers associated to the geocode
       !conditions for periodicity in the three directions
-      perx=(geocode /= 'F')
-      pery=(geocode == 'P')
-      perz=(geocode /= 'F')
+      peri=cell_periodic_dims(mesh)
 
       ! Beware that n_cell has to be > than n.
       if (n_cell.lt.n) then
-         call f_err_throw('Ngrid in has to be setted > than n=nord + 1')
+         call f_err_throw('Ngrid in has to be set >  n=nord + 1')
          !stop
       end if
 
@@ -287,7 +288,7 @@ module FDder
 !!!default(shared) private(i1,i2,i3,j,ii, d)
       !$omp parallel do default(none) &
       !$omp private(i3,i2,i1,d,ii,j) &
-      !$omp shared(du2,perx,m,n01,n02,n03,c1D_1,u)
+      !$omp shared(du2,peri,m,n01,n02,n03,c1D_1,u)
       do i3=1,n03
          do i2=1,n02
             do i1=1,n01
@@ -296,7 +297,7 @@ module FDder
                !du2(i1,i2,i3) = 0.0d0
 
                if (i1.le.m) then
-                  if (perx) then
+                  if (peri(1)) then
                      do j=-m,m
                         ii=modulo(i1 + j + n01 - 1, n01 ) + 1
                         d = d + c1D_1(j,0)*u(ii,i2,i3)
@@ -307,7 +308,7 @@ module FDder
                      end do
                   end if
                else if (i1.gt.n01-m) then
-                  if (perx) then
+                  if (peri(1)) then
                      do j=-m,m
                         ii=modulo(i1 + j - 1, n01 ) + 1
                         d = d + c1D_1(j,0)*u(ii,i2,i3)
@@ -338,7 +339,7 @@ module FDder
                d = 0.0d0
 
                if (i2.le.m) then
-                  if (pery) then
+                  if (peri(2)) then
                      do j=-m,m
                         ii=modulo(i2 + j + n02 - 1, n02 ) + 1
                         d = d + c1D_2(j,0)*u(i1,ii,i3)
@@ -349,7 +350,7 @@ module FDder
                      end do
                   end if
                else if (i2.gt.n02-m) then
-                  if (pery) then
+                  if (peri(2)) then
                      do j=-m,m
                         ii=modulo(i2 + j - 1, n02 ) + 1
                         d = d + c1D_2(j,0)*u(i1,ii,i3)
@@ -378,7 +379,7 @@ module FDder
                d = 0.0d0
 
                if (i3.le.m) then
-                  if (perz) then
+                  if (peri(3)) then
                      do j=-m,m
                         ii=modulo(i3 + j + n03 - 1, n03 ) + 1
                         d = d + c1D_3(j,0)*u(i1,i2,ii)
@@ -389,7 +390,7 @@ module FDder
                      end do
                   end if
                else if (i3.gt.n03-m) then
-                  if (perz) then
+                  if (peri(3)) then
                      do j=-m,m
                         ii=modulo(i3 + j - 1, n03 ) + 1
                         d = d + c1D_3(j,0)*u(i1,i2,ii)
@@ -424,36 +425,37 @@ module FDder
     !!du(ngrid)   = first derivative values at the grid points
     !!
     !!declare the pass
-    subroutine div_u_i(geocode,n01,n02,n03,u,du,nord,hgrids,cc)
+    subroutine div_u_i(mesh,u,du,nord,cc)
+      use box
       implicit none
 
-      character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
-      integer, intent(in) :: n01,n02,n03,nord
-      real(kind=8), dimension(3), intent(in) :: hgrids
-      real(kind=8), dimension(n01,n02,n03,3), intent(in) :: u !<vector field u_i
-      real(kind=8), dimension(n01,n02,n03), intent(out) :: du !<divergence d_i u_i
-      real(kind=8), dimension(n01,n02,n03), intent(out), optional :: cc !< u_i u_j d_i u_j , needed for the surface term where u_i=d_i rho
+      type(cell), intent(in) :: mesh !< @copydoc poisson_solver::doc::mesh
+      integer, intent(in) :: nord
+      real(kind=8), dimension(mesh%ndims(1),mesh%ndims(2),mesh%ndims(3),3), intent(in) :: u !<vector field u_i
+      real(kind=8), dimension(mesh%ndims(1),mesh%ndims(2),mesh%ndims(3)), intent(out) :: du !<divergence d_i u_i
+      real(kind=8), dimension(mesh%ndims(1),mesh%ndims(2),mesh%ndims(3)), intent(out), optional :: cc !< u_i u_j d_i u_j , needed for the surface term where u_i=d_i rho
 
       !c..local variables
-      integer :: n,m,n_cell
+      integer :: n,m,n_cell,n01,n02,n03
       integer :: i,j,i1,i2,i3,ii
       real(kind=8), dimension(-nord/2:nord/2,-nord/2:nord/2) :: c1D, c1D_1, c1D_2, c1D_3
       real(kind=8) :: hx,hy,hz,d1,uxy,uyz,uxz
       real(kind=8), parameter :: zero = 0.d0! 1.0d-11
-      logical :: perx,pery,perz
+      logical, dimension(3) :: peri
 
+      n01=mesh%ndims(1)
+      n02=mesh%ndims(2)
+      n03=mesh%ndims(3)
       n = nord+1
       m = nord/2
-      hx = hgrids(1)!acell/real(n01,kind=8)
-      hy = hgrids(2)!acell/real(n02,kind=8)
-      hz = hgrids(3)!acell/real(n03,kind=8)
+      hx = mesh%hgrids(1)
+      hy = mesh%hgrids(2)
+      hz = mesh%hgrids(3)
       n_cell = max(n01,n02,n03)
 
       !buffers associated to the geocode
       !conditions for periodicity in the three directions
-      perx=(geocode /= 'F')
-      pery=(geocode == 'P')
-      perz=(geocode /= 'F')
+      peri=cell_periodic_dims(mesh)
 
       ! Beware that n_cell has to be > than n.
       if (n_cell < n) then
@@ -494,7 +496,7 @@ module FDder
       if (present(cc)) then
          !$omp parallel do default(none) &
          !$omp private(i1,i2,i3,j,ii, d1,uxz,uxy) &
-         !$omp shared(du,c1D_1,u,perx,m,hx,n01,n02,n03,cc)
+         !$omp shared(du,c1D_1,u,peri,m,hx,n01,n02,n03,cc)
          do i3=1,n03
             do i2=1,n02
                do i1=1,n01
@@ -505,7 +507,7 @@ module FDder
                   uxy = 0.d0
                   uxz = 0.d0
                   if (i1.le.m) then
-                     if (perx) then
+                     if (peri(1)) then
                         do j=-m,m
                            ii=modulo(i1 + j + n01 - 1, n01 ) + 1
                            d1 = d1 + c1D_1(j,0)*u(ii,i2,i3,1)
@@ -520,7 +522,7 @@ module FDder
                         end do
                      end if
                   else if (i1.gt.n01-m) then
-                     if (perx) then
+                     if (peri(1)) then
                         do j=-m,m
                            ii=modulo(i1 + j - 1, n01 ) + 1
                            d1 = d1 + c1D_1(j,0)*u(ii,i2,i3,1)
@@ -557,7 +559,7 @@ module FDder
          !shared)
          !$omp parallel do default(none) &
          !$omp private(i1,i2,i3,j,ii,d1,uyz) &
-         !$omp shared(n01,n02,n03,pery,m,c1D_2,u,du,cc)
+         !$omp shared(n01,n02,n03,peri,m,c1D_2,u,du,cc)
          do i3=1,n03
             do i2=1,n02
                do i1=1,n01
@@ -565,7 +567,7 @@ module FDder
                   uyz = 0.d0
 
                   if (i2.le.m) then
-                     if (pery) then
+                     if (peri(2)) then
                         do j=-m,m
                            ii=modulo(i2 + j + n02 - 1, n02 ) + 1
                            d1 = d1 + c1D_2(j,0)*u(i1,ii,i3,2)
@@ -578,7 +580,7 @@ module FDder
                         end do
                      end if
                   else if (i2.gt.n02-m) then
-                     if (pery) then
+                     if (peri(2)) then
                         do j=-m,m
                            ii=modulo(i2 + j - 1, n02 ) + 1
                            d1 = d1 + c1D_2(j,0)*u(i1,ii,i3,2)
@@ -609,13 +611,13 @@ module FDder
          !(shared) private(i1,i2,i3,j,ii, d1)
          !$omp parallel do default(none) &
          !$omp private(i1,i2,i3,j,ii,d1) &
-         !$omp shared(n01,n02,n03,perz,m,c1D_3,u,du,cc)
+         !$omp shared(n01,n02,n03,peri,m,c1D_3,u,du,cc)
          do i3=1,n03
             do i2=1,n02
                do i1=1,n01
                   d1=0.d0
                   if (i3.le.m) then
-                     if (perz) then
+                     if (peri(3)) then
                         do j=-m,m
                            ii=modulo(i3 + j + n03 - 1, n03 ) + 1
                            d1 = d1 + c1D_3(j,0)*u(i1,i2,ii,3)
@@ -626,7 +628,7 @@ module FDder
                         end do
                      end if
                   else if (i3.gt.n03-m) then
-                     if (perz) then
+                     if (peri(3)) then
                         do j=-m,m
                            ii=modulo(i3 + j - 1, n03 ) + 1
                            d1 = d1 + c1D_3(j,0)*u(i1,i2,ii,3)
@@ -651,7 +653,7 @@ module FDder
 
          !$omp parallel do default(none) &
          !$omp private(i1,i2,i3,j,ii, d1) &
-         !$omp shared(du,c1D_1,u,perx,m,hx,n01,n02,n03)
+         !$omp shared(du,c1D_1,u,peri,m,hx,n01,n02,n03)
          do i3=1,n03
             do i2=1,n02
                do i1=1,n01
@@ -660,7 +662,7 @@ module FDder
 
                   d1 = 0.d0
                   if (i1.le.m) then
-                     if (perx) then
+                     if (peri(1)) then
                         do j=-m,m
                            ii=modulo(i1 + j + n01 - 1, n01 ) + 1
                            d1 = d1 + c1D_1(j,0)*u(ii,i2,i3,1)
@@ -671,7 +673,7 @@ module FDder
                         end do
                      end if
                   else if (i1.gt.n01-m) then
-                     if (perx) then
+                     if (peri(1)) then
                         do j=-m,m
                            ii=modulo(i1 + j - 1, n01 ) + 1
                            d1 = d1 + c1D_1(j,0)*u(ii,i2,i3,1)
@@ -695,13 +697,13 @@ module FDder
          !default(shared) private(i1,i2,i3,j,ii,d1,uyz)
          !$omp parallel do default(none) &
          !$omp private(i1,i2,i3,j,ii,d1) &
-         !$omp shared(c1D_2,u,n01,n02,n03,du,m,pery)
+         !$omp shared(c1D_2,u,n01,n02,n03,du,m,peri)
          do i3=1,n03
             do i2=1,n02
                do i1=1,n01
                   d1=0.d0
                   if (i2.le.m) then
-                     if (pery) then
+                     if (peri(2)) then
                         do j=-m,m
                            ii=modulo(i2 + j + n02 - 1, n02 ) + 1
                            d1 = d1 + c1D_2(j,0)*u(i1,ii,i3,2)
@@ -712,7 +714,7 @@ module FDder
                         end do
                      end if
                   else if (i2.gt.n02-m) then
-                     if (pery) then
+                     if (peri(2)) then
                         do j=-m,m
                            ii=modulo(i2 + j - 1, n02 ) + 1
                            d1 = d1 + c1D_2(j,0)*u(i1,ii,i3,2)
@@ -735,13 +737,13 @@ module FDder
 
          !$omp parallel do default(none) &
          !$omp private(i1,i2,i3,j,ii,d1) &
-         !$omp shared(c1D_3,u,n01,n02,n03,du,m,perz)
+         !$omp shared(c1D_3,u,n01,n02,n03,du,m,peri)
          do i3=1,n03
             do i2=1,n02
                do i1=1,n01
                   d1=0.d0
                   if (i3.le.m) then
-                     if (perz) then
+                     if (peri(3)) then
                         do j=-m,m
                            ii=modulo(i3 + j + n03 - 1, n03 ) + 1
                            d1 = d1 + c1D_3(j,0)*u(i1,i2,ii,3)
@@ -752,7 +754,7 @@ module FDder
                         end do
                      end if
                   else if (i3.gt.n03-m) then
-                     if (perz) then
+                     if (peri(3)) then
                         do j=-m,m
                            ii=modulo(i3 + j - 1, n03 ) + 1
                            d1 = d1 + c1D_3(j,0)*u(i1,i2,ii,3)
@@ -776,7 +778,8 @@ module FDder
 
     end subroutine div_u_i
 
-    subroutine nabla_u_epsilon(geocode,n01,n02,n03,u,du,nord,hgrids,eps)
+    subroutine nabla_u_epsilon(mesh,u,du,nord,eps)
+      use box
       implicit none
 
       !c..this routine computes 'nord' order accurate first derivatives
@@ -790,32 +793,36 @@ module FDder
       !c..du(ngrid)   = first derivative values at the grid points
 
       !c..declare the pass
-      character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
-      integer, intent(in) :: n01,n02,n03,nord
-      real(kind=8), dimension(3), intent(in) :: hgrids
-      real(kind=8), dimension(n01,n02,n03), intent(in) :: u !<scalar field
-      real(kind=8), dimension(n01,n02,n03,3), intent(out) :: du !< nabla d_i u
-      real(gp), dimension(n01,n02,n03), intent(in) :: eps !< array of epsilon, multiply the result with that
+      type(cell), intent(in) :: mesh !< @copydoc poisson_solver::doc::mesh
+      integer, intent(in) :: nord
+      real(kind=8), dimension(mesh%ndims(1),mesh%ndims(2),mesh%ndims(3)), intent(in) :: u !<scalar field
+      real(kind=8), dimension(mesh%ndims(1),mesh%ndims(2),mesh%ndims(3),3), intent(out) :: du !< nabla d_i u
+      real(gp), dimension(mesh%ndims(1),mesh%ndims(2),mesh%ndims(3)), intent(in) :: eps !< array of epsilon, multiply the result with that
 
       !c..local variables
-      integer :: n,m,n_cell,ii
+      integer :: n,m,n_cell,ii,n01,n02,n03
       integer :: i,j,i1,i2,i3
       real(kind=8), dimension(-nord/2:nord/2,-nord/2:nord/2) :: c1D, c1D_1, c1D_2, c1D_3
       real(kind=8) :: hx,hy,hz, d,e
       logical :: perx,pery,perz
+      logical, dimension(3) :: peri
 
+      n01=mesh%ndims(1)
+      n02=mesh%ndims(2)
+      n03=mesh%ndims(3)
       n = nord+1
       m = nord/2
-      hx = hgrids(1)!acell/real(n01,kind=8)
-      hy = hgrids(2)!acell/real(n02,kind=8)
-      hz = hgrids(3)!acell/real(n03,kind=8)
+      hx = mesh%hgrids(1)
+      hy = mesh%hgrids(2)
+      hz = mesh%hgrids(3)
       n_cell = max(n01,n02,n03)
 
       !buffers associated to the geocode
       !conditions for periodicity in the three directions
-      perx=(geocode /= 'F')
-      pery=(geocode == 'P')
-      perz=(geocode /= 'F')
+      peri=cell_periodic_dims(mesh)
+      perx=peri(1)
+      pery=peri(2)
+      perz=peri(3)
 
 
       ! Beware that n_cell has to be > than n.
@@ -968,7 +975,8 @@ module FDder
 
     end subroutine nabla_u_epsilon
 
-    subroutine nabla_u(geocode,n01,n02,n03,u,du,nord,hgrids)
+    subroutine nabla_u(mesh,u,du,nord)
+      use box
       implicit none
 
       !c..this routine computes 'nord' order accurate first derivatives
@@ -982,32 +990,34 @@ module FDder
       !c..du(ngrid)   = first derivative values at the grid points
 
       !c..declare the pass
-      character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
-      integer, intent(in) :: n01,n02,n03,nord
-      real(kind=8), dimension(3), intent(in) :: hgrids
-      real(kind=8), dimension(n01,n02,n03), intent(in) :: u !<scalar field
-      real(kind=8), dimension(n01,n02,n03,3), intent(out) :: du !< nabla d_i u
-
+      type(cell), intent(in) :: mesh !< @copydoc poisson_solver::doc::mesh
+      integer, intent(in) :: nord
+      real(kind=8), dimension(mesh%ndims(1),mesh%ndims(2),mesh%ndims(3)), intent(in) :: u !<scalar field
+      real(kind=8), dimension(mesh%ndims(1),mesh%ndims(2),mesh%ndims(3),3), intent(out) :: du !< nabla d_i u
       !c..local variables
-      integer :: n,m,n_cell,ii
+      integer :: n,m,n_cell,ii,n01,n02,n03
       integer :: i,j,i1,i2,i3
       real(kind=8), dimension(-nord/2:nord/2,-nord/2:nord/2) :: c1D, c1D_1, c1D_2, c1D_3
       real(kind=8) :: hx,hy,hz, d
       logical :: perx,pery,perz
+      logical, dimension(3) :: peri
 
+      n01=mesh%ndims(1)
+      n02=mesh%ndims(2)
+      n03=mesh%ndims(3)
       n = nord+1
       m = nord/2
-      hx = hgrids(1)!acell/real(n01,kind=8)
-      hy = hgrids(2)!acell/real(n02,kind=8)
-      hz = hgrids(3)!acell/real(n03,kind=8)
+      hx = mesh%hgrids(1)
+      hy = mesh%hgrids(2)
+      hz = mesh%hgrids(3)
       n_cell = max(n01,n02,n03)
 
       !buffers associated to the geocode
       !conditions for periodicity in the three directions
-      perx=(geocode /= 'F')
-      pery=(geocode == 'P')
-      perz=(geocode /= 'F')
-
+      peri=cell_periodic_dims(mesh)
+      perx=peri(1) 
+      pery=peri(2)
+      perz=peri(3)
 
       ! Beware that n_cell has to be > than n.
       if (n_cell.lt.n) then
@@ -1157,8 +1167,9 @@ module FDder
 
     !> Like fssnord3DmatNabla but corrected such that the index goes at the beginning
     !! Multiplies also times (nabla epsilon)/(4pi*epsilon)= nabla (log(epsilon))/(4*pi)
-    subroutine update_rhopol(geocode,n01,n02,n03,u,nord,hgrids,eta,eps,dlogeps,rhopol,rhores2)
+    subroutine update_rhopol(mesh,u,nord,eta,eps,dlogeps,rhopol,rhores2)
       use numerics, only: oneofourpi
+      use box
       implicit none
 
       !c..this routine computes 'nord' order accurate first derivatives
@@ -1172,43 +1183,47 @@ module FDder
       !c..du(ngrid)   = first derivative values at the grid points
 
       !c..declare the pass
-
-      character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
-      integer, intent(in) :: n01,n02,n03,nord
+      integer, intent(in) :: nord
       real(kind=8), intent(in) :: eta
-      real(kind=8), dimension(3), intent(in) :: hgrids
-      real(kind=8), dimension(n01,n02,n03), intent(in) :: u
-      real(kind=8), dimension(n01,n02,n03), intent(in) :: eps
-      real(kind=8), dimension(3,n01,n02,n03), intent(in) :: dlogeps
-      real(kind=8), dimension(n01,n02,n03), intent(inout) :: rhopol
+      type(cell), intent(in) :: mesh
+      real(kind=8), dimension(mesh%ndims(1),mesh%ndims(2),mesh%ndims(3)), intent(in) :: u
+      real(kind=8), dimension(mesh%ndims(1),mesh%ndims(2),mesh%ndims(3)), intent(in) :: eps
+      real(kind=8), dimension(3,mesh%ndims(1),mesh%ndims(2),mesh%ndims(3)), intent(in) :: dlogeps
+      real(kind=8), dimension(mesh%ndims(1),mesh%ndims(2),mesh%ndims(3)), intent(inout) :: rhopol
       real(kind=8), intent(out) :: rhores2
 
       !c..local variables
-      integer :: n,m,n_cell
+      integer :: n,m,n_cell,n01,n02,n03
       integer :: i,j,i1,i2,i3,ii
       !real(kind=8), parameter :: oneo4pi=0.25d0/pi_param
       real(kind=8), dimension(-nord/2:nord/2,-nord/2:nord/2) :: c1D,c1DF
       real(kind=8) :: hx,hy,hz,dx,dy,dz,res,rho
       real(kind=8) :: rpoints
+      real(dp), dimension(3) :: tmp
+      logical, dimension(3) :: peri
       logical :: perx,pery,perz
 
       n = nord+1
       m = nord/2
-      hx = hgrids(1)!acell/real(n01,kind=8)
-      hy = hgrids(2)!acell/real(n02,kind=8)
-      hz = hgrids(3)!acell/real(n03,kind=8)
+      n01=mesh%ndims(1)
+      n02=mesh%ndims(2)
+      n03=mesh%ndims(3)
+      hx = mesh%hgrids(1)!acell/real(n01,kind=8)
+      hy = mesh%hgrids(2)!acell/real(n02,kind=8)
+      hz = mesh%hgrids(3)!acell/real(n03,kind=8)
       n_cell = max(n01,n02,n03)
       rpoints=product(real([n01,n02,n03],dp))
 
       !buffers associated to the geocode
       !conditions for periodicity in the three directions
-      perx=(geocode /= 'F')
-      pery=(geocode == 'P')
-      perz=(geocode /= 'F')
+      peri=cell_periodic_dims(mesh)
+      perx=peri(1)
+      pery=peri(2)
+      perz=peri(3)
 
       ! Beware that n_cell has to be > than n.
       if (n_cell.lt.n) then
-         write(*,*)'ngrid in has to be setted > than n=nord + 1'
+         write(*,*)'ngrid in has to be set > n=nord + 1'
          stop
       end if
 
@@ -1230,8 +1245,7 @@ module FDder
 
       rhores2=0.d0
       !$omp parallel do default(shared) &
-      !$omp private(i1,i2,i3,j,ii, dx,dy,dz,res,rho)&
-!!!!$omp shared(m,n01,n02,n03,perx,pery,perz,rhopol,u,hx,hy,hz,c1D,eta,oneo4pi,dlogeps) &
+      !$omp private(i1,i2,i3,j,ii, dx,dy,dz,res,rho,tmp)&
       !$omp reduction(+:rhores2)
       do i3=1,n03
          do i2=1,n02
@@ -1264,16 +1278,7 @@ module FDder
                      dx = dx + c1D(j,0)*u(i1 + j,i2,i3)
                   end do
                end if
-               dx=dx/hx
-!!$        end do
-!!$     end do
-!!$  end do
-!!$  !$omp end parallel do
-!!$
-!!$  !$omp parallel do default(shared) private(i1,i2,i3,j,ii, dy)
-!!$  do i3=1,n03
-!!$     do i2=1,n02
-!!$        do i1=1,n01
+               tmp(1)=dx/hx
                dy = 0.0d0
                if (i2.le.m) then
                   if (pery) then
@@ -1302,16 +1307,7 @@ module FDder
                      dy = dy + c1D(j,0)*u(i1,i2 + j,i3)
                   end do
                end if
-               dy=dy/hy
-!!$        end do
-!!$     end do
-!!$  end do
-!!$  !$omp end parallel do
-!!$
-!!$  !$omp parallel do default(shared) private(i1,i2,i3,j,ii, dz)
-!!$  do i3=1,n03
-!!$     do i2=1,n02
-!!$        do i1=1,n01
+               tmp(2)=dy/hy
                dz = 0.0d0
                if (i3.le.m) then
                   if (perz) then
@@ -1340,11 +1336,13 @@ module FDder
                      dz = dz + c1D(j,0)*u(i1,i2,i3 + j)
                   end do
                end if
-               dz=dz/hz
+               tmp(3)=dz/hz
 
                !retrieve the previous treatment
-               res = dlogeps(1,i1,i2,i3)*dx + &
-                    dlogeps(2,i1,i2,i3)*dy + dlogeps(3,i1,i2,i3)*dz
+               ! To be activate (and comment the dotp line) to work properly.
+               res = dlogeps(1,i1,i2,i3)*tmp(1) + &
+                    dlogeps(2,i1,i2,i3)*tmp(2) + dlogeps(3,i1,i2,i3)*tmp(3)
+               !res = dotp(mesh,dlogeps(1,i1,i2,i3),tmp)
                res = res*oneofourpi
                rho=rhopol(i1,i2,i3)
                res=res-rho
@@ -1353,67 +1351,41 @@ module FDder
                rhores2=rhores2+res*res
                rhopol(i1,i2,i3)=res+rho
 
-
             end do
          end do
       end do
       !$omp end parallel do
-
-      !this part should now go inside the open loop
-
-!!$  !$omp parallel do default(shared) private(i1,i2,i3,res,rho) &
-!!$  !$omp reduction(+:rhores2)
-!!$  do i3=1,n03
-!!$     do i2=1,n02
-!!$        do i1=1,n01
-!!$           !retrieve the previous treatment
-!!$           res = dlogeps(1,i1,i2,i3)*dx + &
-!!$                dlogeps(2,i1,i2,i3)*dy + dlogeps(3,i1,i2,i3)*dz
-!!$           res = res*oneo4pi
-!!$           rho=rhopol(i1,i2,i3)
-!!$           res=res-rho
-!!$           res=eta*res
-!!$           rhores2=rhores2+res*res
-!!$           rhopol(i1,i2,i3)=res+rho
-!!$        end do
-!!$     end do
-!!$  end do
-!!$  !$omp end parallel do
-
-      !  rhores2=rhores2/rpoints
-
     end subroutine update_rhopol
 
     !subroutine Apply_GPe_operator(nord,geocode,ndims,hgrids,eps,pot,a_pot,work)
-    subroutine Delta_GPe_operator(nord,geocode,ndims,hgrids,eps,pot,a_pot)
+    subroutine Delta_GPe_operator(nord,mesh,eps,pot,a_pot)
       use wrapper_linalg, only: axpy
       use numerics, only: oneofourpi
+      use box
       implicit none
       integer, intent(in) :: nord
-      character(len=1), intent(in) :: geocode
-      integer, dimension(3), intent(in) :: ndims
-      real(gp), dimension(3), intent(in) :: hgrids
+      type(cell), intent(in) :: mesh
       !>dielectric function
-      real(dp), dimension(ndims(1),ndims(2),ndims(3)), intent(in) :: eps
-      real(dp), dimension(ndims(1),ndims(2),ndims(3)), intent(in) :: pot
-      real(dp), dimension(ndims(1),ndims(2),ndims(3)), intent(inout) :: a_pot
+      real(dp), dimension(mesh%ndims(1),mesh%ndims(2),mesh%ndims(3)), intent(in) :: eps
+      real(dp), dimension(mesh%ndims(1),mesh%ndims(2),mesh%ndims(3)), intent(in) :: pot
+      real(dp), dimension(mesh%ndims(1),mesh%ndims(2),mesh%ndims(3)), intent(inout) :: a_pot
       !>work array containing in output the gradient of the potential
       !!multiplied by the dielectric function
       !real(dp), dimension(ndims(1),ndims(2),ndims(3),3), intent(out) :: work
       !LG @GF: work arrays should not be used that way, there creates stack overflows
-      real(dp), dimension(ndims(1),ndims(2),ndims(3),3) :: work
-      real(dp), dimension(ndims(1),ndims(2),ndims(3)) :: work1
+      real(dp), dimension(mesh%ndims(1),mesh%ndims(2),mesh%ndims(3),3) :: work
+      real(dp), dimension(mesh%ndims(1),mesh%ndims(2),mesh%ndims(3)) :: work1
 !      real(dp) :: pi
       integer :: i1,i2,i3
      !local variables
       !first calculate the derivative of the potential
 
-      call nabla_u_epsilon(geocode,ndims(1),ndims(2),ndims(3),pot,work,nord,hgrids,eps)
-      call div_u_i(geocode,ndims(1),ndims(2),ndims(3),work,work1,nord,hgrids)
+      call nabla_u_epsilon(mesh,pot,work,nord,eps)
+      call div_u_i(mesh,work,work1,nord)
 
-      do i3=1,ndims(3)
-       do i2=1,ndims(2)
-        do i1=1,ndims(1)
+      do i3=1,mesh%ndims(3)
+       do i2=1,mesh%ndims(2)
+        do i1=1,mesh%ndims(1)
          a_pot(i1,i2,i3)=a_pot(i1,i2,i3) + oneofourpi*work1(i1,i2,i3)
         end do
        end do
@@ -1445,34 +1417,33 @@ module FDder
 
     end subroutine nonvacuum_projection
 
-    !>calculate polarization charge and epsilon for plotting purposes.
-    !! no need of gathering the results as the arrays are already given in full form
-    subroutine polarization_charge(geocode,ndims,hgrids,nord,rho,pot,nabla_pot,rho_pol)
-      use numerics, only: oneofourpi
-      implicit none
-      integer, intent(in) :: nord
-      character(len=1), intent(in) :: geocode
-      integer, dimension(3), intent(in) :: ndims
-      real(dp), dimension(3), intent(in) :: hgrids
-      real(dp), dimension(ndims(1),ndims(2),ndims(3)), intent(in) :: rho,pot
-      real(dp), dimension(ndims(1),ndims(2),ndims(3),3), intent(out) :: nabla_pot
-      real(dp), dimension(ndims(1),ndims(2),ndims(3)), intent(out) :: rho_pol
-      !local variables
-      integer :: i1,i2,i3
-
-      call nabla_u(geocode,ndims(1),ndims(2),ndims(3),pot,nabla_pot,nord,hgrids)
-      call div_u_i(geocode,ndims(1),ndims(2),ndims(3),nabla_pot,rho_pol,nord,hgrids)
-
-      do i3=1,ndims(3)
-         do i2=1,ndims(2)
-            do i1=1,ndims(1)
-               !this section has to be inserted into a optimized calculation of the
-               !derivative
-               rho_pol(i1,i2,i3)=-oneofourpi*rho_pol(i1,i2,i3)-rho(i1,i2,i3)
-            end do
-         end do
-      end do
-
-    end subroutine polarization_charge
+! The good one is in createKernel.f90
+!!$    !>calculate polarization charge and epsilon for plotting purposes.
+!!$    !! no need of gathering the results as the arrays are already given in full form
+!!$    subroutine polarization_charge(mesh,nord,rho,pot,nabla_pot,rho_pol)
+!!$      use numerics, only: oneofourpi
+!!$      implicit none
+!!$      integer, intent(in) :: nord
+!!$      type(cell), intent(in) :: mesh
+!!$      real(dp), dimension(mesh%ndims(1),mesh%ndims(2),mesh%ndims(3)), intent(in) :: rho,pot
+!!$      real(dp), dimension(mesh%ndims(1),mesh%ndims(2),mesh%ndims(3),3), intent(out) :: nabla_pot
+!!$      real(dp), dimension(mesh%ndims(1),mesh%ndims(2),mesh%ndims(3)), intent(out) :: rho_pol
+!!$      !local variables
+!!$      integer :: i1,i2,i3
+!!$
+!!$      call nabla_u(mesh,pot,nabla_pot,nord)
+!!$      call div_u_i(mesh,nabla_pot,rho_pol,nord)
+!!$
+!!$      do i3=1,mesh%ndims(3)
+!!$         do i2=1,mesh%ndims(2)
+!!$            do i1=1,mesh%ndims(1)
+!!$               !this section has to be inserted into a optimized calculation of the
+!!$               !derivative
+!!$               rho_pol(i1,i2,i3)=-oneofourpi*rho_pol(i1,i2,i3)-rho(i1,i2,i3)
+!!$            end do
+!!$         end do
+!!$      end do
+!!$
+!!$    end subroutine polarization_charge
 
 end module FDder

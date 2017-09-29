@@ -1359,7 +1359,7 @@ contains
   ! Quintin Hill added functional check on 23/02/2009.
   subroutine vdwcorrection_warnings(atoms,dispersion,ixc)
 
-    use module_atoms
+    use module_atoms, only: atoms_data
     use dictionaries, only: f_err_raise
     use yaml_strings, only: yaml_toa
 

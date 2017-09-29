@@ -1,7 +1,7 @@
 !> @file
 !!    Routines to create the kernel for Poisson solver
 !! @author
-!!    Copyright (C) 2002-2013 BigDFT group  (LG)
+!!    Copyright (C) 2002-2017 BigDFT group  (LG)<br/>
 !!    This file is distributed under the terms of the
 !!    GNU General Public License, see ~/COPYING file
 !!    or http://www.gnu.org/copyleft/gpl.txt .
@@ -9,7 +9,6 @@
 
 
 !> Initialization of the Poisson kernel
-!! @ingroup PSOLVER
 function pkernel_init_old(verb,iproc,nproc,igpu,geocode,ndims,hgrids,itype_scf,&
      alg,cavity,mu0_screening,angrad,mpi_env,taskgroup_size) result(kernel)
   use yaml_output
@@ -44,10 +43,10 @@ function pkernel_init_old(verb,iproc,nproc,igpu,geocode,ndims,hgrids,itype_scf,&
   kernel=pkernel_null()
 
   !geocode and ISF family
-  kernel%geocode=geocode
+!  kernel%geocode=geocode
   !dimensions and grid spacings
-  kernel%ndims=ndims
-  kernel%hgrids=hgrids
+!  kernel%ndims=ndims
+!  kernel%hgrids=hgrids
 
   if (present(angrad)) then
 !     kernel%angrad=angrad
@@ -169,7 +168,6 @@ end function pkernel_init_old
 !> Allocate a pointer which corresponds to the zero-padded FFT slice needed for
 !! calculating the convolution with the kernel expressed in the interpolating scaling
 !! function basis. The kernel pointer is unallocated on input, allocated on output.
-!! @ingroup PSOLVER
 subroutine pkernel_set(kernel,eps,dlogeps,oneoeps,oneosqrteps,corr,verbose) !optional arguments
   use yaml_output
   use dynamic_memory
@@ -177,6 +175,7 @@ subroutine pkernel_set(kernel,eps,dlogeps,oneoeps,oneosqrteps,corr,verbose) !opt
   use dictionaries, only: f_err_throw
   use yaml_strings, only: operator(+)
   use numerics
+  use box
   implicit none
   !Arguments
   type(coulomb_operator), intent(inout) :: kernel
@@ -197,16 +196,18 @@ subroutine pkernel_set(kernel,eps,dlogeps,oneoeps,oneosqrteps,corr,verbose) !opt
   real(dp) :: alpha
   logical, intent(in), optional :: verbose
   !local variables
+  character(len=1) :: geocode
   logical :: dump,wrtmsg
   character(len=*), parameter :: subname='createKernel'
   integer :: m1,m2,m3,n1,n2,n3,md1,md2,md3,nd1,nd2,nd3,i_stat
   integer :: jproc,nlimd,nlimk,jfd,jhd,jzd,jfk,jhk,jzk,npd,npk
-  real(kind=8) :: alphat,betat,gammat,mu0t
+  real(kind=8) :: mu0t
   real(kind=8), dimension(:), allocatable :: pkernel2
   integer :: i1,i2,i3,j1,j2,j3,ind,indt,switch_alg,size2,sizek,kernelnproc,size3
   integer :: n3pr1,n3pr2,istart,jend,i23,i3s,n23,displ,gpuPCGRed
   integer :: myiproc_node, mynproc_node
   integer,dimension(3) :: n
+  real(dp) :: p1,p2,mu3,ker
   !call timing(kernel%mpi_env%iproc+kernel%mpi_env%igroup*kernel%mpi_env%nproc,'PSolvKernel   ','ON')
   call f_timing(TCAT_PSOLV_KERNEL,'ON')
   call f_routine(id='pkernel_set')
@@ -217,9 +218,6 @@ subroutine pkernel_set(kernel,eps,dlogeps,oneoeps,oneosqrteps,corr,verbose) !opt
   dump=wrtmsg .and. kernel%mpi_env%iproc+kernel%mpi_env%igroup==0
 
   mu0t=kernel%mu
-  alphat=kernel%angrad(1)
-  betat=kernel%angrad(2)
-  gammat=kernel%angrad(3)
 
   if (dump) then
      if (mu0t==0.0_gp) then
@@ -234,7 +232,9 @@ subroutine pkernel_set(kernel,eps,dlogeps,oneoeps,oneosqrteps,corr,verbose) !opt
   if (kernel%igpu == 1) kernelnproc=1
   kernel%stay_on_gpu=0
 
-  select case(kernel%geocode)
+  geocode=cell_geocode(kernel%mesh)
+
+  select case(geocode)
      !if (kernel%geocode == 'P') then
   case('P')
 
@@ -243,7 +243,7 @@ subroutine pkernel_set(kernel,eps,dlogeps,oneoeps,oneosqrteps,corr,verbose) !opt
      if (dump) then
         call yaml_map('Boundary Conditions','Periodic')
      end if
-     call P_FFT_dimensions(kernel%ndims(1),kernel%ndims(2),kernel%ndims(3),&
+     call P_FFT_dimensions(kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%mesh%ndims(3),&
           m1,m2,m3,n1,n2,n3,md1,md2,md3,nd1,nd2,nd3,kernel%mpi_env%nproc,.false.)
 
      if (kernel%igpu > 0) then
@@ -285,8 +285,10 @@ subroutine pkernel_set(kernel,eps,dlogeps,oneoeps,oneosqrteps,corr,verbose) !opt
      ! n3pr1, n3pr2 are sent to Free_Kernel subroutine below
      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
      call Periodic_Kernel(n1,n2,n3,nd1,nd2,nd3,&
-          kernel%hgrids(1),kernel%hgrids(2),kernel%hgrids(3),&
-          kernel%itype_scf,kernel%kernel,kernel%mpi_env%iproc,kernelnproc,mu0t,alphat,betat,gammat,n3pr2,n3pr1)
+          kernel%mesh%hgrids(1),kernel%mesh%hgrids(2),kernel%mesh%hgrids(3),&
+          kernel%itype_scf,kernel%kernel,kernel%mpi_env%iproc,kernelnproc,&
+          !mu0t,alphat,betat,gammat,&
+          n3pr2,n3pr1)
 
      nlimd=n2
      nlimk=n3/2+1
@@ -304,9 +306,9 @@ subroutine pkernel_set(kernel,eps,dlogeps,oneoeps,oneosqrteps,corr,verbose) !opt
         call yaml_map('Boundary Conditions','Surface')
      end if
      !Build the Kernel
-     call S_FFT_dimensions(kernel%ndims(1),kernel%ndims(2),kernel%ndims(3),&
+     call S_FFT_dimensions(kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%mesh%ndims(3),&
           m1,m2,m3,n1,n2,n3,md1,md2,md3,nd1,nd2,nd3,kernel%mpi_env%nproc,&
-          kernel%igpu,.false.,non_ortho=kernel%angrad(1)/= onehalf*pi)
+          kernel%igpu,.false.,non_ortho=.not. kernel%mesh%orthorhombic)
 
 
      if (kernel%igpu > 0) then
@@ -358,8 +360,8 @@ subroutine pkernel_set(kernel,eps,dlogeps,oneoeps,oneosqrteps,corr,verbose) !opt
      call Surfaces_Kernel(kernel%mpi_env%iproc,kernelnproc,&
           kernel%mpi_env%mpi_comm,kernel%inplane_mpi%mpi_comm,&
           n1,n2,n3,m3,nd1,nd2,nd3,&
-          kernel%hgrids(1),kernel%hgrids(3),kernel%hgrids(2),&
-          kernel%itype_scf,kernel%kernel,mu0t,alphat)!,betat,gammat)!,n3pr2,n3pr1)
+          kernel%mesh,&
+          kernel%itype_scf,kernel%kernel,mu0t)!,alphat)!,betat,gammat)!,n3pr2,n3pr1)
 
      !last plane calculated for the density and the kernel
      nlimd=n2
@@ -367,7 +369,7 @@ subroutine pkernel_set(kernel,eps,dlogeps,oneoeps,oneosqrteps,corr,verbose) !opt
 
      !only one power of hgrid
      !factor of -4*pi for the definition of the Poisson equation
-     kernel%grid%scal=-16.0_dp*atan(1.0_dp)*real(kernel%hgrids(2),dp)/real(n1*n2,dp)/real(n3,dp)
+     kernel%grid%scal=-16.0_dp*atan(1.0_dp)*real(kernel%mesh%hgrids(2),dp)/real(n1*n2,dp)/real(n3,dp)
 
   !else if (kernel%geocode == 'F') then
   case('F')
@@ -376,9 +378,9 @@ subroutine pkernel_set(kernel,eps,dlogeps,oneoeps,oneosqrteps,corr,verbose) !opt
      if (dump) then
         call yaml_map('Boundary Conditions','Free')
      end if
-!     print *,'debug',kernel%ndims(1),kernel%ndims(2),kernel%ndims(3),kernel%hgrids(1),kernel%hgrids(2),kernel%hgrids(3)
+!     print *,'debug',kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%mesh%ndims(3),kernel%mesh%hgrids(1),kernel%mesh%hgrids(2),kernel%mesh%hgrids(3)
      !Build the Kernel
-     call F_FFT_dimensions(kernel%ndims(1),kernel%ndims(2),kernel%ndims(3),m1,m2,m3,n1,n2,n3,&
+     call F_FFT_dimensions(kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%mesh%ndims(3),m1,m2,m3,n1,n2,n3,&
           md1,md2,md3,nd1,nd2,nd3,kernel%mpi_env%nproc,kernel%igpu,.false.)
 
      if (kernel%igpu > 0) then
@@ -422,8 +424,8 @@ subroutine pkernel_set(kernel,eps,dlogeps,oneoeps,oneosqrteps,corr,verbose) !opt
      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
      !the kernel must be built and scattered to all the processes
-     call Free_Kernel(kernel%ndims(1),kernel%ndims(2),kernel%ndims(3),&
-          n1,n2,n3,nd1,nd2,nd3,kernel%hgrids(1),kernel%hgrids(2),kernel%hgrids(3),&
+     call Free_Kernel(kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%mesh%ndims(3),&
+          n1,n2,n3,nd1,nd2,nd3,kernel%mesh%hgrids(1),kernel%mesh%hgrids(2),kernel%mesh%hgrids(3),&
           kernel%itype_scf,kernel%mpi_env%iproc,kernelnproc,kernel%kernel,mu0t,n3pr2,n3pr1)
 
      !last plane calculated for the density and the kernel
@@ -431,7 +433,8 @@ subroutine pkernel_set(kernel,eps,dlogeps,oneoeps,oneosqrteps,corr,verbose) !opt
      nlimk=n3/2+1
 
      !hgrid=max(hx,hy,hz)
-     kernel%grid%scal=product(kernel%hgrids)/real(n1*n2,dp)/real(n3,dp)
+     !kernel%grid%scal=product(kernel%mesh%hgrids)/real(n1*n2,dp)/real(n3,dp)
+     kernel%grid%scal=kernel%mesh%volume_element/real(n1*n2,dp)/real(n3,dp)
 
   !else if (kernel%geocode == 'W') then
   case('W')
@@ -441,7 +444,7 @@ subroutine pkernel_set(kernel,eps,dlogeps,oneoeps,oneosqrteps,corr,verbose) !opt
      if (dump) then
         call yaml_map('Boundary Conditions','Wire')
      end if
-     call W_FFT_dimensions(kernel%ndims(1),kernel%ndims(2),kernel%ndims(3),&
+     call W_FFT_dimensions(kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%mesh%ndims(3),&
           m1,m2,m3,n1,n2,n3,md1,md2,md3,nd1,nd2,nd3,kernel%mpi_env%nproc,kernel%igpu,.false.)
 
      if (kernel%igpu > 0) then
@@ -485,8 +488,8 @@ subroutine pkernel_set(kernel,eps,dlogeps,oneoeps,oneosqrteps,corr,verbose) !opt
 
 
      call Wires_Kernel(kernel%mpi_env%iproc,kernelnproc,&
-          kernel%ndims(1),kernel%ndims(2),kernel%ndims(3),&
-          n1,n2,n3,nd1,nd2,nd3,kernel%hgrids(1),kernel%hgrids(2),kernel%hgrids(3),&
+          kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%mesh%ndims(3),&
+          n1,n2,n3,nd1,nd2,nd3,kernel%mesh%hgrids(1),kernel%mesh%hgrids(2),kernel%mesh%hgrids(3),&
           kernel%itype_scf,kernel%kernel,mu0t)
 
      nlimd=n2
@@ -494,12 +497,12 @@ subroutine pkernel_set(kernel,eps,dlogeps,oneoeps,oneosqrteps,corr,verbose) !opt
 
      !only one power of hgrid
      !factor of -1/(2pi) already included in the kernel definition
-     kernel%grid%scal=-2.0_dp*kernel%hgrids(1)*kernel%hgrids(2)/real(n1*n2,dp)/real(n3,dp)
+     kernel%grid%scal=-2.0_dp*kernel%mesh%hgrids(1)*kernel%mesh%hgrids(2)/real(n1*n2,dp)/real(n3,dp)
 
   case default
      !if (iproc==0)
      !write(*,'(1x,a,3a)')'createKernel, geocode not admitted',kernel%geocode
-     call f_err_throw('createKernel, geocode '//trim(kernel%geocode)//&
+     call f_err_throw('createKernel, geocode '//trim(geocode)//&
           'not admitted')
   end select
   !print *,'thereAAA',iproc,nproc,kernel%mpi_env%iproc,kernel%nproc,kernel%mpi_env%mpi_comm
@@ -510,7 +513,7 @@ subroutine pkernel_set(kernel,eps,dlogeps,oneoeps,oneosqrteps,corr,verbose) !opt
        call yaml_map('Density (MB)',8.0_gp*real(md1*md3,gp)*real(md2/kernel%mpi_env%nproc,gp)/(1024.0_gp**2),fmt='(f8.2)')
        call yaml_map('Kernel (MB)',8.0_gp*real(nd1*nd3,gp)*real(nd2/kernel%mpi_env%nproc,gp)/(1024.0_gp**2),fmt='(f8.2)')
        call yaml_map('Full Grid Arrays (MB)',&
-            8.0_gp*real(kernel%ndims(1)*kernel%ndims(2),gp)*real(kernel%ndims(3),gp)/(1024.0_gp**2),fmt='(f8.2)')
+            8.0_gp*real(kernel%mesh%ndims(1)*kernel%mesh%ndims(2),gp)*real(kernel%mesh%ndims(3),gp)/(1024.0_gp**2),fmt='(f8.2)')
        !print the load balancing of the different dimensions on screen
      if (kernel%mpi_env%nproc > 1) then
         call yaml_mapping_open('Load Balancing of calculations')
@@ -580,9 +583,9 @@ subroutine pkernel_set(kernel,eps,dlogeps,oneoeps,oneosqrteps,corr,verbose) !opt
   kernel%gpuPCGRed=0
   if (kernel%igpu >0) then
     if(trim(str(kernel%method))=='PCG') kernel%gpuPCGRed=1
-    n(1)=n1!kernel%ndims(1)*(2-kernel%geo(1))
-    n(2)=n3!kernel%ndims(2)*(2-kernel%geo(2))
-    n(3)=n2!kernel%ndims(3)*(2-kernel%geo(3))
+    n(1)=n1!kernel%mesh%ndims(1)*(2-kernel%geo(1))
+    n(2)=n3!kernel%mesh%ndims(2)*(2-kernel%geo(2))
+    n(3)=n2!kernel%mesh%ndims(3)*(2-kernel%geo(3))
     !perform the estimation of the processors
     call mpinoderanks(kernel%mpi_env%iproc,kernel%mpi_env%nproc,kernel%mpi_env%mpi_comm,&
          myiproc_node,mynproc_node)
@@ -649,20 +652,29 @@ subroutine pkernel_set(kernel,eps,dlogeps,oneoeps,oneosqrteps,corr,verbose) !opt
     ! transpose kernel for GPU
     do i3=1,n3
        j3=i3+(i3/(n3/2+2))*(n3+2-2*i3)!injective dimension
+       mu3=real(j3-1,dp)/real(n3,dp)
+       mu3=(mu3/kernel%mesh%hgrids(2))**2 !beware of the exchanged dimension
        do i2=1,n2
           j2=i2+(i2/(n2/2+2))*(n2+2-2*i2)!injective dimension
+          p2=real(j2-1,dp)/real(n2,dp)
           do i1=1,n1
              j1=i1+(i1/(n1/2+2))*(n1+2-2*i1)!injective dimension
              !injective index
              ind=j1+(j2-1)*nd1+(j3-1)*nd1*nd2
              !unfolded index
              indt=i2+(j1-1)*n2+(i3-1)*nd1*n2
-             pkernel2(indt)=kernel%kernel(ind)
+             if (geocode == 'P') then
+                p1=real(j1-1,dp)/real(n1,dp)
+                ker = pi*((p1/kernel%mesh%hgrids(1))**2+(p2/kernel%mesh%hgrids(3))**2+mu3)+kernel%mu**2/16.0_dp/datan(1.0_dp)
+                pkernel2(indt)=kernel%kernel(ind)/ker
+             else
+                pkernel2(indt)=kernel%kernel(ind)
+             end if
           end do
        end do
     end do
     !offset to zero
-    if (kernel%geocode == 'P') pkernel2(1)=0.0_dp
+    if (geocode == 'P') pkernel2(1)=0.0_dp
 
     if (kernel%igpu == 2) kernel%kernel=pkernel2
    endif
@@ -761,27 +773,27 @@ end if
   end if
 
   !allocate cavity if needed
-  n1=kernel%ndims(1)
-  n23=kernel%ndims(2)*kernel%grid%n3p
-  call PS_allocate_cavity_workarrays(n1,n23,kernel%ndims,&
+  n1=kernel%mesh%ndims(1)
+  n23=kernel%mesh%ndims(2)*kernel%grid%n3p
+  call PS_allocate_cavity_workarrays(n1,n23,kernel%mesh%ndims,&
        kernel%method,kernel%w)
 
   !>>>>set the treatment of the cavity
   select case(trim(str(kernel%method)))
   case('PCG')
      if (present(eps)) then
-     if (present(oneosqrteps)) then
-        call pkernel_set_epsilon(kernel,eps=eps,oneosqrteps=oneosqrteps)
-     else if (present(corr)) then
-        call pkernel_set_epsilon(kernel,eps=eps,corr=corr)
-     else
-        call pkernel_set_epsilon(kernel,eps=eps)
+         if (present(oneosqrteps)) then
+            call pkernel_set_epsilon(kernel,eps=eps,oneosqrteps=oneosqrteps)
+         else if (present(corr)) then
+            call pkernel_set_epsilon(kernel,eps=eps,corr=corr)
+         else
+            call pkernel_set_epsilon(kernel,eps=eps)
+         end if
+     else if (present(oneosqrteps) .and. present(corr)) then
+         call pkernel_set_epsilon(kernel,oneosqrteps=oneosqrteps,corr=corr)
+     else if (present(oneosqrteps) .neqv. present(corr)) then
+         call f_err_throw('For PCG method either eps, oneosqrteps and/or corr should be present')
      end if
-  else if (present(oneosqrteps) .and. present(corr)) then
-     call pkernel_set_epsilon(kernel,oneosqrteps=oneosqrteps,corr=corr)
-  else if (present(oneosqrteps) .neqv. present(corr)) then
-     call f_err_throw('For PCG method either eps, oneosqrteps and/or corr should be present')
-  end if
   case('PI')
      if (present(eps)) then
         if (present(oneoeps)) then
@@ -881,33 +893,33 @@ subroutine sccs_extra_potential(kernel,pot,depsdrho,dsurfdrho,eps0)
   implicit none
   type(coulomb_operator), intent(in) :: kernel
   !>complete potential, needed to calculate the derivative
-  real(dp), dimension(kernel%ndims(1),kernel%ndims(2),kernel%ndims(3)), intent(in) :: pot
-  real(dp), dimension(kernel%ndims(1),kernel%ndims(2)*kernel%grid%n3p), intent(inout) :: depsdrho
-  real(dp), dimension(kernel%ndims(1),kernel%ndims(2)*kernel%grid%n3p), intent(in) :: dsurfdrho
+  real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%mesh%ndims(3)), intent(in) :: pot
+  real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2)*kernel%grid%n3p), intent(inout) :: depsdrho
+  real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2)*kernel%grid%n3p), intent(in) :: dsurfdrho
   real(dp), intent(in) :: eps0
   !local variables
   integer :: i3,i3s,i2,i1,i23,i,n01,n02,n03,unt
   real(dp) :: d2,x,pi,gammaSau,alphaSau,betaVau
   real(dp), dimension(:,:,:,:), allocatable :: nabla2_pot
-  !real(dp), dimension(kernel%ndims(1),kernel%ndims(2),kernel%ndims(3)) :: pot2,depsdrho1,depsdrho2
+  !real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%mesh%ndims(3)) :: pot2,depsdrho1,depsdrho2
 
   gammaSau=kernel%cavity%gammaS*5.291772109217d-9/8.238722514d-3 ! in atomic unit
   alphaSau=kernel%cavity%alphaS*5.291772109217d-9/8.238722514d-3 ! in atomic unit
   betaVau=kernel%cavity%betaV/2.942191219d4 ! in atomic unit
   pi = 4.d0*datan(1.d0)
-  n01=kernel%ndims(1)
-  n02=kernel%ndims(2)
-  n03=kernel%ndims(3)
+  n01=kernel%mesh%ndims(1)
+  n02=kernel%mesh%ndims(2)
+  n03=kernel%mesh%ndims(3)
   !starting point in third direction
   i3s=kernel%grid%istart+1
 
   nabla2_pot=f_malloc([n01,n02,n03,3],id='nabla_pot')
   !calculate derivative of the potential
-  !call nabla_u_square(kernel%geocode,n01,n02,n03,pot,nabla2_pot,kernel%nord,kernel%hgrids)
-  call nabla_u(kernel%geocode,n01,n02,n03,pot,nabla2_pot,kernel%nord,kernel%hgrids)
+  !call nabla_u_square(kernel%geocode,n01,n02,n03,pot,nabla2_pot,kernel%nord,kernel%mesh%hgrids)
+  call nabla_u(kernel%mesh,pot,nabla2_pot,kernel%nord)
 
   i23=1
-  do i3=i3s,i3s+kernel%grid%n3p-1!kernel%ndims(3)
+  do i3=i3s,i3s+kernel%grid%n3p-1!kernel%mesh%ndims(3)
      do i2=1,n02
         do i1=1,n01
            !this section has to be inserted into a optimized calculation of the derivative
@@ -940,8 +952,8 @@ subroutine polarization_charge(kernel,pot,rho)
   implicit none
   type(coulomb_operator), intent(inout) :: kernel
   !>complete potential, needed to calculate the derivative
-  real(dp), dimension(kernel%ndims(1),kernel%ndims(2),kernel%ndims(3)), intent(in) :: pot
-  real(dp), dimension(kernel%ndims(1),kernel%ndims(2)*kernel%grid%n3p), intent(in) :: rho
+  real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%mesh%ndims(3)), intent(in) :: pot
+  real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2)*kernel%grid%n3p), intent(in) :: rho
   !local variables
   integer :: i3,i3s,i2,i1,i23,i,n01,n02,n03
   real(dp) :: d2,pi
@@ -949,9 +961,9 @@ subroutine polarization_charge(kernel,pot,rho)
   real(dp), dimension(:,:,:), allocatable :: lapla_pot
 
   pi=4.0_dp*atan(1.0_dp)
-  n01=kernel%ndims(1)
-  n02=kernel%ndims(2)
-  n03=kernel%ndims(3)
+  n01=kernel%mesh%ndims(1)
+  n02=kernel%mesh%ndims(2)
+  n03=kernel%mesh%ndims(3)
   !starting point in third direction
   i3s=kernel%grid%istart+1
 
@@ -959,10 +971,10 @@ subroutine polarization_charge(kernel,pot,rho)
   lapla_pot=f_malloc([n01,n02,n03],id='lapla_pot')
   !calculate derivative of the potential
 
-  call nabla_u(kernel%geocode,n01,n02,n03,pot,nabla_pot,kernel%nord,kernel%hgrids)
-  call div_u_i(kernel%geocode,n01,n02,n03,nabla_pot,lapla_pot,kernel%nord,kernel%hgrids)
+  call nabla_u(kernel%mesh,pot,nabla_pot,kernel%nord)
+  call div_u_i(kernel%mesh,nabla_pot,lapla_pot,kernel%nord)
   i23=1
-  do i3=i3s,i3s+kernel%grid%n3p-1!kernel%ndims(3)
+  do i3=i3s,i3s+kernel%grid%n3p-1!kernel%mesh%ndims(3)
      do i2=1,n02
         do i1=1,n01
            !this section has to be inserted into a optimized calculation of the
@@ -996,13 +1008,13 @@ subroutine pkernel_build_epsilon(kernel,edens,eps0,depsdrho,dsurfdrho)
   type(coulomb_operator), intent(inout) :: kernel
   !> electronic density in the full box. This is needed because of the calculation of the
   !! gradient
-  real(dp), dimension(kernel%ndims(1),kernel%ndims(2),kernel%ndims(3)), intent(inout) :: edens
+  real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%mesh%ndims(3)), intent(inout) :: edens
   !> functional derivative of the sc epsilon with respect to
   !! the electronic density, in distributed memory
-  real(dp), dimension(kernel%ndims(1),kernel%ndims(2)*kernel%grid%n3p), intent(out) :: depsdrho
+  real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2)*kernel%grid%n3p), intent(out) :: depsdrho
   !> functional derivative of the surface integral with respect to
   !! the electronic density, in distributed memory
-  real(dp), dimension(kernel%ndims(1),kernel%ndims(2)*kernel%grid%n3p), intent(out) :: dsurfdrho
+  real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2)*kernel%grid%n3p), intent(out) :: dsurfdrho
   !local variables
   logical, parameter :: dumpeps=.true.  !.true.
   real(kind=8), parameter :: edensmax = 0.005d0 !0.0050d0
@@ -1026,25 +1038,25 @@ subroutine pkernel_build_epsilon(kernel,edens,eps0,depsdrho,dsurfdrho)
   IntSur=0.d0
   IntVol=0.d0
 
-  n01=kernel%ndims(1)
-  n02=kernel%ndims(2)
-  n03=kernel%ndims(3)
+  n01=kernel%mesh%ndims(1)
+  n02=kernel%mesh%ndims(2)
+  n03=kernel%mesh%ndims(3)
   !starting point in third direction
   i3s=kernel%grid%istart+1
 
   !allocate the work arrays
   nabla_edens=f_malloc([n01,n02,n03,3],id='nabla_edens')
-  ddt_edens=f_malloc(kernel%ndims,id='ddt_edens')
-  epsinner=f_malloc(kernel%ndims,id='epsinner')
-  depsdrho1=f_malloc(kernel%ndims,id='depsdrho1')
-  cc=f_malloc(kernel%ndims,id='cc')
-  if (dumpeps) epscurr=f_malloc(kernel%ndims,id='epscurr')
+  ddt_edens=f_malloc(kernel%mesh%ndims,id='ddt_edens')
+  epsinner=f_malloc(kernel%mesh%ndims,id='epsinner')
+  depsdrho1=f_malloc(kernel%mesh%ndims,id='depsdrho1')
+  cc=f_malloc(kernel%mesh%ndims,id='cc')
+  if (dumpeps) epscurr=f_malloc(kernel%mesh%ndims,id='epscurr')
 
   !build the gradients and the laplacian of the density
   !density gradient in du
-  call nabla_u(kernel%geocode,n01,n02,n03,edens,nabla_edens,kernel%nord,kernel%hgrids)
+  call nabla_u(kernel%mesh,edens,nabla_edens,kernel%nord)
   !density laplacian in d2u
-  call div_u_i(kernel%geocode,n01,n02,n03,nabla_edens,ddt_edens,kernel%nord,kernel%hgrids,cc)
+  call div_u_i(kernel%mesh,nabla_edens,ddt_edens,kernel%nord,cc)
 
   pi = 4.d0*datan(1.d0)
   oneoeps0=1.d0/eps0
@@ -1063,7 +1075,7 @@ subroutine pkernel_build_epsilon(kernel,edens,eps0,depsdrho,dsurfdrho)
   case('PCG')
      !in PCG we only need corr, oneosqrtepsilon
      i23=1
-     do i3=i3s,i3s+kernel%grid%n3p-1!kernel%ndims(3)
+     do i3=i3s,i3s+kernel%grid%n3p-1!kernel%mesh%ndims(3)
         !do i3=1,n03
         do i2=1,n02
            do i1=1,n01
@@ -1156,7 +1168,7 @@ subroutine pkernel_build_epsilon(kernel,edens,eps0,depsdrho,dsurfdrho)
      !for PI we need  dlogeps,oneoeps
      !first oneovereps
      i23=1
-     do i3=i3s,i3s+kernel%grid%n3p-1!kernel%ndims(3)
+     do i3=i3s,i3s+kernel%grid%n3p-1!kernel%mesh%ndims(3)
         do i2=1,n02
            do i1=1,n01
              epsinner(i1,i2,i3)=kernel%w%epsinnersccs(i1,i23)
@@ -1267,8 +1279,10 @@ subroutine pkernel_build_epsilon(kernel,edens,eps0,depsdrho,dsurfdrho)
 
   end select
 
-  IntSur=IntSur*kernel%hgrids(1)*kernel%hgrids(2)*kernel%hgrids(3)!/(eps0-1.d0)
-  IntVol=IntVol*kernel%hgrids(1)*kernel%hgrids(2)*kernel%hgrids(3)
+  !IntSur=IntSur*kernel%mesh%hgrids(1)*kernel%mesh%hgrids(2)*kernel%mesh%hgrids(3)!/(eps0-1.d0)
+  !IntVol=IntVol*kernel%mesh%hgrids(1)*kernel%mesh%hgrids(2)*kernel%mesh%hgrids(3)
+  IntSur=IntSur*kernel%mesh%volume_element!/(eps0-1.d0)
+  IntVol=IntVol*kernel%mesh%volume_element
 
   Cavene= gammaSau*IntSur*627.509469d0
   Repene= alphaSau*IntSur*627.509469d0
@@ -1299,7 +1313,7 @@ subroutine pkernel_build_epsilon(kernel,edens,eps0,depsdrho,dsurfdrho)
      unt=f_get_free_unit(22)
      call f_open_file(unt,file='epsilon_line_sccs_x.dat')
      do i1=1,n01
-        x=i1*kernel%hgrids(1)
+        x=i1*kernel%mesh%hgrids(1)
         write(unt,'(1x,I8,4(1x,e22.15))')i1,x,epscurr(i1,n02/2,n03/2),edens(i1,n02/2,n03/2),depsdrho1(i1,n02/2,n03/2)
      end do
      call f_close(unt)
@@ -1307,7 +1321,7 @@ subroutine pkernel_build_epsilon(kernel,edens,eps0,depsdrho,dsurfdrho)
      unt=f_get_free_unit(23)
      call f_open_file(unt,file='epsilon_line_sccs_y.dat')
      do i2=1,n02
-        y=i2*kernel%hgrids(2)
+        y=i2*kernel%mesh%hgrids(2)
         write(unt,'(1x,I8,3(1x,e22.15))')i2,y,epscurr(n01/2,i2,n03/2),edens(n01/2,i2,n03/2)
      end do
      call f_close(unt)
@@ -1315,7 +1329,7 @@ subroutine pkernel_build_epsilon(kernel,edens,eps0,depsdrho,dsurfdrho)
      unt=f_get_free_unit(24)
      call f_open_file(unt,file='epsilon_line_sccs_z.dat')
      do i3=1,n03
-        z=i3*kernel%hgrids(3)
+        z=i3*kernel%mesh%hgrids(3)
         write(unt,'(1x,I8,3(1x,e22.15))')i3,z,epscurr(n01/2,n02/2,i3),edens(n01/2,n02/2,i3)
      end do
      call f_close(unt)
@@ -1332,35 +1346,35 @@ subroutine pkernel_build_epsilon(kernel,edens,eps0,depsdrho,dsurfdrho)
 
 end subroutine pkernel_build_epsilon
 
-!>new version of the pkernel_build epsilon Routine,
-!! with explicit workarrays. This version is supposed not to allocate
-!! any array
+
+!> New version of the pkernel_build epsilon Routine,
+!! with explicit workarrays.
+!! This version is supposed not to allocate any array
 subroutine rebuild_cavity_from_rho(rho_full,nabla_rho,nabla2_rho,delta_rho,cc_rho,depsdrho,dsurfdrho,&
      kernel,IntSur,IntVol)
   use FDder
   implicit none
   type(coulomb_operator), intent(inout) :: kernel
-  real(dp), dimension(kernel%ndims(1),kernel%ndims(2),kernel%ndims(3)), intent(in) :: rho_full
+  real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%mesh%ndims(3)), intent(in) :: rho_full
   real(gp), intent(out) :: IntSur,IntVol
-  real(dp), dimension(kernel%ndims(1),kernel%ndims(2),kernel%ndims(3)), intent(out) :: delta_rho
-  real(dp), dimension(kernel%ndims(1),kernel%ndims(2),kernel%ndims(3)), intent(out) :: cc_rho,nabla2_rho
-  real(dp), dimension(kernel%ndims(1),kernel%ndims(2),kernel%ndims(3),3), intent(out) :: nabla_rho
-  real(dp), dimension(kernel%ndims(1),kernel%ndims(2)*kernel%grid%n3p), intent(out) :: depsdrho,dsurfdrho
+  real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%mesh%ndims(3)), intent(out) :: delta_rho
+  real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%mesh%ndims(3)), intent(out) :: cc_rho,nabla2_rho
+  real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%mesh%ndims(3),3), intent(out) :: nabla_rho
+  real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2)*kernel%grid%n3p), intent(out) :: depsdrho,dsurfdrho
   !local variables
   integer :: n01,n02,n03,i3s
 
-  n01=kernel%ndims(1)
-  n02=kernel%ndims(2)
-  n03=kernel%ndims(3)
+  n01=kernel%mesh%ndims(1)
+  n02=kernel%mesh%ndims(2)
+  n03=kernel%mesh%ndims(3)
 
   !calculate the derivatives of the density
   !build the gradients and the laplacian of the density
   !density gradient in du
-  !call nabla_u(kernel%geocode,n01,n02,n03,rho_full,nabla_rho,kernel%nord,kernel%hgrids)
-  call nabla_u_and_square(kernel%geocode,n01,n02,n03,rho_full,nabla_rho,nabla2_rho,&
-       kernel%nord,kernel%hgrids)
+  !call nabla_u(kernel%geocode,n01,n02,n03,rho_full,nabla_rho,kernel%nord,kernel%mesh%hgrids)
+  call nabla_u_and_square(kernel%mesh,rho_full,nabla_rho,nabla2_rho,kernel%nord)
   !density laplacian in delta_rho
-  call div_u_i(kernel%geocode,n01,n02,n03,nabla_rho,delta_rho,kernel%nord,kernel%hgrids,cc_rho)
+  call div_u_i(kernel%mesh,nabla_rho,delta_rho,kernel%nord,cc_rho)
 
   !aliasing for the starting point
   i3s=kernel%grid%istart+1
@@ -1371,7 +1385,7 @@ subroutine rebuild_cavity_from_rho(rho_full,nabla_rho,nabla2_rho,delta_rho,cc_rh
   if (kernel%method=='PI') then
      !form the inner cavity with a gathering
      call PS_gather(src=kernel%w%epsinnersccs,dest=delta_rho,kernel=kernel)
-     call dlepsdrho_sccs(kernel%ndims,rho_full,nabla_rho,delta_rho,kernel%w%dlogeps,kernel%cavity)
+     call dlepsdrho_sccs(kernel%mesh%ndims,rho_full,nabla_rho,delta_rho,kernel%w%dlogeps,kernel%cavity)
   end if
 
 end subroutine rebuild_cavity_from_rho
@@ -1380,10 +1394,10 @@ subroutine inplane_partitioning(mpi_env,mdz,n2wires,n3planes,part_mpi,inplane_mp
   use wrapper_mpi
   use yaml_output
   implicit none
-  integer, intent(in) :: mdz !< dimension of the density in the z direction
+  integer, intent(in) :: mdz              !< dimension of the density in the z direction
   integer, intent(in) :: n2wires,n3planes !<number of interesting wires in a plane and number of interesting planes
   type(mpi_environment), intent(in) :: mpi_env !< global env of Psolver
-  integer, intent(out) :: n3pr1,n3pr2 !< mpi grid of processors based on mpi_env
+  integer, intent(out) :: n3pr1,n3pr2     !< mpi grid of processors based on mpi_env
   type(mpi_environment), intent(out) :: inplane_mpi,part_mpi !<internal environments for the partitioning
   !local variables
 

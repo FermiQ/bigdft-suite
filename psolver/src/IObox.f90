@@ -16,6 +16,7 @@ module IObox
   integer, parameter :: UNKNOWN=0
   integer, parameter :: CUBE=1
   integer, parameter :: ETSF=2
+  integer, parameter :: POT=3
 
   private
 
@@ -104,27 +105,46 @@ module IObox
       integer, intent(out) :: isuffix
       integer :: fformat
       !local variables
-      integer :: ipos
+      integer :: ipos,iext
+      character(len=8), dimension(4), parameter :: &
+           exts=['.cube   ','.etsf   ','.etsf.nc','.pot    ']
 
       ! Format = 1 -> cube (default)
       ! Format = 2 -> ETSF
       ! ...
       fformat = UNKNOWN
-      isuffix = index(filename, ".cube", back = .true.)
+      identify: do iext=1,size(exts)
+         isuffix = index(filename, trim(exts(iext)), back = .true.)
+         if (isuffix >0) exit identify
+      end do identify
       if (isuffix > 0) then
          isuffix = isuffix - 1
-         fformat = CUBE
+         select case(iext)
+         case(1)
+            fformat=CUBE
+         case(2,3)
+            fformat=ETSF
+         case(4)
+            fformat=POT
+         end select
       else
-         isuffix = index(filename, ".etsf", back = .true.)
-         if (isuffix <= 0) isuffix = index(filename, ".etsf.nc", back = .true.)
-         if (isuffix > 0) then
-            isuffix = isuffix - 1
-            fformat = ETSF
-         else
-            isuffix = len(filename)
-            fformat=UNKNOWN
-         end if
+         isuffix = len(filename)
       end if
+
+!!$      isuffix = index(filename, ".cube", back = .true.)
+!!$      if (isuffix > 0) then
+!!$         fformat = CUBE
+!!$      else
+!!$         isuffix = index(filename, ".etsf", back = .true.)
+!!$         if (isuffix <= 0) isuffix = index(filename, ".etsf.nc", back = .true.)
+!!$         if (isuffix > 0) fformat = ETSF
+!!$      end if
+!!$      if (isuffix > 0) then
+!!$         isuffix = isuffix - 1
+!!$      else
+!!$         isuffix = len(filename)
+!!$      end if
+
       !fallback to CUBE format if there is no other extension for the file
       if (fformat == UNKNOWN) then
          !eliminate slashes
@@ -402,10 +422,9 @@ module IObox
       !local variables
       !n(c) character(len=*), parameter :: subname='read_cube'
       character(len=5) :: suffix
-      character(len=15) :: message
       integer, dimension(3) :: na,nb
       real(gp), dimension(3) :: ha,hb
-      integer :: ia,nat2
+      integer :: nat2
       logical :: exists,drr
       real(gp), dimension(:,:), pointer   :: rxyz2
       integer, dimension(:), pointer   :: iatypes2, znucl2
@@ -675,28 +694,29 @@ module IObox
 
     END SUBROUTINE write_cube_fields
 
-    subroutine dump_field(filename,geocode,ndims,hgrids,nspin,rho,&
-         rxyz,iatype,nzatom,nelpsp,ixyz0)
+    subroutine dump_field(filename,mesh,nspin,rho,rxyz,iatype,nzatom,nelpsp,ixyz0)
       use dynamic_memory
       use dictionaries, only: f_err_throw
       use f_utils
       use IOboxETSF, only: write_etsf_density
       use yaml_strings
+      use box
       implicit none
       !integer,intent(in) :: fileunit0,fileunitx,fileunity,fileunitz
       integer, intent(in) :: nspin
-      character(len=1), intent(in) :: geocode
+      type(cell), intent(in) :: mesh
       character(len=*), intent(in) :: filename
-      integer, dimension(3), intent(in) :: ndims
-      real(gp), dimension(3), intent(in) :: hgrids
       !type(atoms_data), intent(in) :: at
-      real(dp), dimension(ndims(1),ndims(2),ndims(3),nspin), intent(in) :: rho
+      real(dp), dimension(mesh%ndims(1),mesh%ndims(2),mesh%ndims(3),nspin), intent(in) :: rho
       real(gp), dimension(:,:), intent(in), optional, target :: rxyz
       integer, dimension(:), intent(in), optional, target  :: iatype
       integer, dimension(:), intent(in), optional, target  :: nzatom !< of dimension ntypes
       integer, dimension(:), intent(in), optional, target  :: nelpsp !< of dimension ntypes
       integer, dimension(3), intent(in), optional ::  ixyz0 !< points that have to be plot as lines
       !local variables
+      character(len=1) :: geocode
+      integer, dimension(3) :: ndims
+      real(gp), dimension(3) :: hgrids
       character(len=5) :: suffix
       character(len=65) :: message
       integer :: ia,ib,isuffix,fformat,nat!ierr,n1i,n2i,n3i
@@ -716,6 +736,9 @@ module IObox
 
       call f_routine(id='dump_field')
 
+      geocode=cell_geocode(mesh)
+      ndims=mesh%ndims
+      hgrids=mesh%hgrids
       nat=0
       if (present(iatype)) then
          nat=size(iatype) !should also check the arguments

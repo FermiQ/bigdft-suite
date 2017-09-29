@@ -80,7 +80,7 @@ module yaml_strings
   public :: yaml_toa, buffer_string, align_message, shiftstr,yaml_date_toa
   public :: yaml_date_and_time_toa,yaml_time_toa,is_atoi,is_atof,is_atol,is_atoli
   public :: read_fraction_string,f_strcpy
-  public:: yaml_bold,yaml_blink,rstrip
+  public:: yaml_bold,yaml_blink,rstrip,f_char_ptr,convert_f_char_ptr
   public :: operator(.eqv.),operator(.neqv.),operator(+),operator(//),operator(**),assignment(=)
 
 contains
@@ -89,6 +89,9 @@ contains
     implicit none
     integer(f_long), intent(in) :: data
     character(len=len(yaml_int_fmt)) :: fmt_li
+    !local variables
+    integer :: kindt
+    kindt=kind(data) !to remove compilation warning
     fmt_li=yaml_int_fmt
   end function fmt_li
 
@@ -96,6 +99,9 @@ contains
     implicit none
     integer(f_integer), intent(in) :: data
     character(len=len(yaml_int_fmt)) :: fmt_i
+    !local variables
+    integer :: kindt
+    kindt=kind(data) !to remove compilation warning
     fmt_i=yaml_int_fmt
   end function fmt_i
 
@@ -103,6 +109,10 @@ contains
     implicit none
     real(f_simple), intent(in) :: data
     character(len=len(yaml_real_fmt)) :: fmt_r
+    !local variables
+    integer :: kindt
+    kindt=kind(data) !to remove compilation warning
+
     fmt_r=yaml_real_fmt
   end function fmt_r
 
@@ -110,6 +120,10 @@ contains
     implicit none
     real(f_double), intent(in) :: data
     character(len=len(yaml_dble_fmt)) :: fmt_d
+    !local variables
+    integer :: kindt
+    kindt=kind(data) !to remove compilation warning
+
     fmt_d=yaml_dble_fmt
   end function fmt_d
 
@@ -117,6 +131,10 @@ contains
     implicit none
     character(len=*), intent(in) :: data
     character(len=len(yaml_char_fmt)) :: fmt_a
+    !local variables
+    integer :: kindt
+    kindt=kind(data) !to remove compilation warning
+
     fmt_a=yaml_char_fmt
   end function fmt_a
 
@@ -179,7 +197,6 @@ contains
     character(len=max_value_length) :: bstr
     bstr=yaml_escape(str,escape_blink)
   end function yaml_blink
-
 
   !> Add a buffer to a string and increase its length
   pure subroutine buffer_string(string,string_lgt,buffer,string_pos,back,istat)
@@ -958,5 +975,32 @@ contains
     if(n>0) str=repeat(' ',nabs)//str(:lenstr-nabs)  ! shift right
 
   end subroutine shiftstr
+  
+  !> convert a fortran string into a stack-allocated array
+  function f_char_ptr(str)
+    implicit none
+    character(len=*), intent(in) :: str
+    character, dimension(len_trim(str)+1) :: f_char_ptr
+    !local variables
+    integer :: i
+    do i=1,len_trim(str)
+       f_char_ptr(i)=str(i:i)
+    end do
+    !i=len_trim(str)+1 !not needed by fortran norm
+    f_char_ptr(i)=char(0)
+  end function f_char_ptr
+
+  subroutine convert_f_char_ptr(src,dest)
+    implicit none
+    character, dimension(*), intent(in) :: src
+    character(len=*), intent(out) :: dest
+    !local variables
+    integer :: i
+    dest=' '
+    seek_and_copy: do i=1,len(dest)
+       if (src(i)==char(0)) exit seek_and_copy
+       dest(i:i)=src(i)
+    end do seek_and_copy
+  end subroutine convert_f_char_ptr
 
 end module yaml_strings

@@ -108,7 +108,7 @@ subroutine sumrho(dpbox,orbs,Lzd,GPU,symObj,rhodsc,xc,psi,rho_p,mapping)
    integer :: iorb
    integer,dimension(:),allocatable:: localmapping
 
-   writeout=dpbox%mpi_env%iproc + dpbox%mpi_env%igroup==0 .and. verbose >= 1
+   writeout=dpbox%mpi_env%iproc + dpbox%mpi_env%igroup==0 .and. get_verbose_level() >= 1
 
    call timing(dpbox%mpi_env%iproc,'Rho_comput    ','ON')
 
@@ -202,7 +202,7 @@ subroutine communicate_density(dpbox,nspin,rhodsc,rho_p,rho,keep_rhop)
   real(gp),dimension(:,:),allocatable :: dprho_comp
   real(4) ,dimension(:,:),allocatable :: sprho_comp
   
-  dump=dpbox%mpi_env%iproc + dpbox%mpi_env%igroup == 0 .and. verbose >= 1
+  dump=dpbox%mpi_env%iproc + dpbox%mpi_env%igroup == 0 .and. get_verbose_level() >= 1
 
   !write(*,*) 'iproc,TIMING:SR1'!,dpbox%iproc_world,real(ncount1-ncount0)/real(ncount_rate)
   !the density must be communicated to meet the shape of the poisson solver
@@ -231,17 +231,17 @@ subroutine communicate_density(dpbox,nspin,rhodsc,rho_p,rho,keep_rhop)
              rhotot_dbl=rhotot_dbl+rho_p(irho,ispin)*dpbox%mesh%volume_element!hxh*hyh*hzh
            enddo
         enddo
-        call mpiallred(rhotot_dbl,1,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+        call fmpi_allreduce(rhotot_dbl,1,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
 
         !call system_clock(ncount0,ncount_rate,ncount_max)
 
         sprho_comp = f_malloc((/ rhodsc%sp_size, nspin /),id='sprho_comp')
         dprho_comp = f_malloc((/ rhodsc%dp_size, nspin /),id='dprho_comp')
-        call compress_rho(rho_p,dpbox%ndimgrid,nspin,rhodsc,sprho_comp,dprho_comp)
+        call compress_rho(rho_p,int(dpbox%mesh%ndim),nspin,rhodsc,sprho_comp,dprho_comp)
         !call system_clock(ncount1,ncount_rate,ncount_max)
         !write(*,*) 'TIMING:ARED1',real(ncount1-ncount0)/real(ncount_rate)
-        call mpiallred(sprho_comp,MPI_SUM,comm=bigdft_mpi%mpi_comm)
-        call mpiallred(dprho_comp,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+        call fmpi_allreduce(sprho_comp,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
+        call fmpi_allreduce(dprho_comp,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
         !call system_clock(ncount2,ncount_rate,ncount_max)
         !write(*,*) 'TIMING:ARED2',real(ncount2-ncount1)/real(ncount_rate)
 
@@ -259,8 +259,8 @@ subroutine communicate_density(dpbox,nspin,rhodsc,rho_p,rho,keep_rhop)
         !naive communication (unsplitted GGA case) (icomm=0)
      else if (rhodsc%icomm==0) then
         if (dump) call yaml_map('Rho Commun','ALLRED')
-        call mpiallred(rho_p(1,1),dpbox%ndimgrid*nspin,&
-             &   MPI_SUM,comm=bigdft_mpi%mpi_comm)
+        call fmpi_allreduce(rho_p(1,1),int(dpbox%mesh%ndim)*nspin,&
+             &   FMPI_SUM,comm=bigdft_mpi%mpi_comm)
          !call system_clock(ncount1,ncount_rate,ncount_max)
          !write(*,*) 'TIMING:DBL',real(ncount1-ncount0)/real(ncount_rate)
      else
@@ -331,7 +331,7 @@ subroutine communicate_density(dpbox,nspin,rhodsc,rho_p,rho,keep_rhop)
   if (dpbox%mpi_env%nproc > 1) then
      call timing(dpbox%mpi_env%iproc,'Rho_comput    ','OF')
      call timing(dpbox%mpi_env%iproc,'Rho_commun    ','ON')
-     !!     call MPI_REDUCE(tt,charge,1,MPI_DOUBLE_PRECISION,MPI_SUM,0,bigdft_mpi%mpi_comm,ierr)
+     !!     call MPI_REDUCE(tt,charge,1,MPI_DOUBLE_PRECISION,FMPI_SUM,0,bigdft_mpi%mpi_comm,ierr)
      call MPI_REDUCE(tmred(1,2),tmred(1,1),nspin+1,mpidtypd,MPI_SUM,0,dpbox%mpi_env%mpi_comm,ierr)
      call timing(dpbox%mpi_env%iproc,'Rho_commun    ','OF')
      call timing(dpbox%mpi_env%iproc,'Rho_comput    ','ON')
@@ -379,6 +379,7 @@ subroutine local_partial_density(nproc,rsflag,nscatterarr,&
    use module_types
    use module_interfaces, only: partial_density_free
    use locreg_operations
+   use locregs
    implicit none
    logical, intent(in) :: rsflag
    integer, intent(in) :: nproc,nrhotot
@@ -549,7 +550,7 @@ subroutine partial_density(rsflag,nproc,n1i,n2i,n3i,npsir,nspinn,nrhotot,&
                   !density values
                   r1=p1*p1+p2*p2+p3*p3+p4*p4
                   r2=p1*p3+p2*p4
-                  r3=p1*p4-p2*p3
+                  r3=p1*p4-p2*p3 !this seems with the opposite sign
                   r4=p1*p1+p2*p2-p3*p3-p4*p4
 
                   rho_p(i1,i2,i3s,1)=rho_p(i1,i2,i3s,1)+real(hfac,dp)*r1
@@ -841,7 +842,7 @@ subroutine symmetrise_density(iproc,nproc,geocode,n1i,n2i,n3i,nspin,rho,& !n(c) 
            !      End loop over izone
         end do
         !reduction of the rho dimension to be discussed
-        !call mpiallred(rhosu12(1,1),2*izone_max,MPI_SUM,bigdft_mpi%mpi_comm,ierr)
+        !call fmpi_allreduce(rhosu12(1,1),2*izone_max,FMPI_SUM,bigdft_mpi%mpi_comm,ierr)
 
         !    Reduction in case of FFT parallelization
         !!     if(mpi_enreg%mode_para=='b')then
@@ -1024,6 +1025,7 @@ subroutine uncompress_rho_old(sprho_comp,dprho_comp,&
       &   lr,nspin,rhodsc,rho_uncomp,i3s,n3d)
    use module_base
    use module_types
+   use locregs
    implicit none
    integer,intent(in) :: nspin,i3s,n3d
    type(locreg_descriptors), intent(in) :: lr 

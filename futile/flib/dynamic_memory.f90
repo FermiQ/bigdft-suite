@@ -17,7 +17,7 @@ module dynamic_memory_base
   use f_precisions
   use yaml_parse, only: yaml_load
   use yaml_output, only: yaml_map
-  use f_utils, only: f_time,f_zero
+  use f_utils, only: f_time,f_zero,f_sizeof
   use iso_c_binding
   use smpi_shared
   use f_environment
@@ -93,7 +93,7 @@ module dynamic_memory_base
   interface assignment(=)
      module procedure i1_all,i2_all,i3_all,i4_all
      module procedure l1_all,l2_all,l3_all
-     module procedure ll1_all
+     module procedure ll1_all,ll2_all
      module procedure d1_all,d2_all,d3_all,d4_all,d5_all,d6_all,d7_all
      module procedure r1_all,r2_all,r3_all,r4_all
      module procedure z2_all,z3_all
@@ -113,7 +113,7 @@ module dynamic_memory_base
      !     module procedure il1_all_free, il2_all_free
      module procedure i1_all_free_multi
      module procedure l1_all_free,l2_all_free,l3_all_free
-     module procedure ll1_all_free
+     module procedure ll1_all_free,ll2_all_free
      module procedure d1_all_free,d2_all_free,d1_all_free_multi,d3_all_free,d4_all_free,d5_all_free,d6_all_free,d7_all_free
      module procedure r1_all_free,r2_all_free,r3_all_free,r4_all_free
      module procedure z2_all_free,z3_all_free
@@ -130,16 +130,16 @@ module dynamic_memory_base
   end interface f_free_ptr
 
   interface f_memcpy
-     module procedure f_memcpy_i0,f_memcpy_i1,f_memcpy_i2
-     module procedure f_memcpy_i0i1,f_memcpy_i1i2,f_memcpy_i2i1,f_memcpy_i2i0
+     module procedure f_memcpy_i0,f_memcpy_i1,f_memcpy_i2,f_memcpy_i3
+     module procedure f_memcpy_i0i1,f_memcpy_i1i2,f_memcpy_i1i3,f_memcpy_i2i1,f_memcpy_i2i0,f_memcpy_i3i1
      module procedure f_memcpy_li0,f_memcpy_li1
      module procedure f_memcpy_li0li1,f_memcpy_li1li2,f_memcpy_li2li1,f_memcpy_li2li0
      module procedure f_memcpy_l1
-     module procedure f_memcpy_r0
-     module procedure f_memcpy_d0,f_memcpy_d1,f_memcpy_d2,f_memcpy_d0d1
-     module procedure f_memcpy_d1d2,f_memcpy_d2d1,f_memcpy_d2d3,f_memcpy_d3,f_memcpy_d4,f_memcpy_d1d0
+     module procedure f_memcpy_r0,f_memcpy_r0r1
+     module procedure f_memcpy_d0,f_memcpy_d1,f_memcpy_d2,f_memcpy_d3,f_memcpy_d0d1
+     module procedure f_memcpy_d1d2,f_memcpy_d1d3,f_memcpy_d2d1,f_memcpy_d2d3,f_memcpy_d4,f_memcpy_d1d0
      module procedure f_memcpy_d0d3,f_memcpy_d0d2,f_memcpy_d3d0,f_memcpy_d2d0,f_memcpy_d3d2
-     module procedure f_memcpy_l0
+     module procedure f_memcpy_l0,f_memcpy_l0l1
      module procedure f_memcpy_c1i1,f_memcpy_i1c1,f_memcpy_c0i1
      module procedure f_memcpy_c1li1,f_memcpy_li1c1,f_memcpy_c0li1
   end interface f_memcpy
@@ -147,19 +147,29 @@ module dynamic_memory_base
   interface f_maxdiff
      module procedure f_maxdiff_i0,f_maxdiff_i1
      module procedure f_maxdiff_li0,f_maxdiff_li1
-     module procedure f_maxdiff_i0i1,f_maxdiff_i1i2,f_maxdiff_i2i1
+     module procedure f_maxdiff_i0i1,f_maxdiff_i1i2,f_maxdiff_i2i1,f_maxdiff_i3i1
      module procedure f_maxdiff_li0li1,f_maxdiff_li1li2,f_maxdiff_li2li1
      module procedure f_maxdiff_r0
      module procedure f_maxdiff_d0,f_maxdiff_d1,f_maxdiff_d2
-     module procedure f_maxdiff_d0d1,f_maxdiff_d1d2,f_maxdiff_d2d1,f_maxdiff_d2d3
+     module procedure f_maxdiff_d0d1,f_maxdiff_d1d2,f_maxdiff_d2d1,f_maxdiff_d3d1,f_maxdiff_d2d3
      module procedure f_maxdiff_l0
      module procedure f_maxdiff_c1i1,f_maxdiff_c0i1
      module procedure f_maxdiff_c1li1,f_maxdiff_c0li1
   end interface f_maxdiff
 
   interface f_subptr
-     module procedure f_subptr_d0
+     module procedure f_subptr_d1,f_subptr_d0,f_subptr_i0,f_subptr_li0
+     module procedure f_subptr_li1,f_subptr_i1
   end interface f_subptr
+
+  interface malloc_validate
+     module procedure validate_allocation_all,validate_allocation_ptr
+     module procedure validate_allocation_str_ptr,validate_allocation_str_all
+  end interface malloc_validate
+
+  interface get_lbnd
+     module procedure get_lbnd_d0,get_lbnd_i0,get_lbnd_li0
+  end interface get_lbnd
 
   public :: f_free,f_free_ptr,f_free_str,f_free_str_ptr,f_malloc_dump_status
   public :: f_routine,f_release_routine,f_malloc_set_status,f_malloc_initialize,f_malloc_finalize
@@ -167,7 +177,7 @@ module dynamic_memory_base
   public :: assignment(=),operator(.to.),operator(.plus.)
 
   !for internal f_lib usage
-  public :: dynamic_memory_errors
+  public :: dynamic_memory_errors,malloc_validate
 
 contains
 
@@ -293,6 +303,36 @@ contains
          mems(ictrl)%profiling_depth ==-1
   end subroutine set_depth
 
+
+  subroutine validate_allocation_all(ierror,rank,m)
+    implicit none
+    integer, intent(in) :: ierror,rank
+    type(malloc_information_all), intent(in) :: m
+    include 'allocation-validation-inc.f90'
+  end subroutine validate_allocation_all
+
+  subroutine validate_allocation_str_all(ierror,rank,m)
+    implicit none
+    integer, intent(in) :: ierror,rank
+    type(malloc_information_str_all), intent(in) :: m
+    include 'allocation-validation-inc.f90'
+  end subroutine validate_allocation_str_all
+
+  subroutine validate_allocation_ptr(ierror,rank,m)
+    implicit none
+    integer, intent(in) :: ierror,rank
+    type(malloc_information_ptr), intent(in) :: m
+    include 'allocation-validation-inc.f90'
+  end subroutine validate_allocation_ptr
+
+  subroutine validate_allocation_str_ptr(ierror,rank,m)
+    implicit none
+    integer, intent(in) :: ierror,rank
+    type(malloc_information_str_ptr), intent(in) :: m
+    include 'allocation-validation-inc.f90'
+  end subroutine validate_allocation_str_ptr
+
+
   !> This routine adds the corresponding subprogram name to the dictionary
   !! and prepend the dictionary to the global info dictionary
   !! if it is called more than once for the same name it has no effect
@@ -308,9 +348,12 @@ contains
     integer(kind=8) :: itime
 
 
-    if (f_err_raise(ictrl == 0,&
+    if (ictrl == 0) then
+       call f_err_throw(&
          'ERROR (f_routine): the routine f_malloc_initialize has not been called',&
-         ERR_MALLOC_INTERNAL)) return
+         ERR_MALLOC_INTERNAL)
+       return
+    end if
 
     if (.not. present(id)) return !no effect
 
@@ -419,9 +462,12 @@ contains
     implicit none
     integer :: jproc,unit_dbg
 
-    if (f_err_raise(ictrl == 0,&
-         '(f_release_routine): the routine f_malloc_initialize has not been called',&
-         ERR_MALLOC_INTERNAL)) return
+    if (ictrl == 0) then
+       call f_err_throw(&
+            '(f_release_routine): the routine f_malloc_initialize has not been called',&
+            ERR_MALLOC_INTERNAL)
+       return
+    end if
 
     !profile the profiling
     call f_timer_interrupt(TCAT_ROUTINE_PROFILING)
@@ -447,27 +493,18 @@ contains
     end if
     call close_routine(mems(ictrl)%dict_codepoint,.not. mems(ictrl)%routine_opened)!trim(dict_key(dict_codepoint)))
 
-!!$    if (f_err_check()) then
-!!$       call yaml_warning('ERROR found!')
-!!$       call f_dump_last_error()
-!!$       call yaml_comment('End of ERROR')
-!!$       call f_timer_resume()
-!!$       return
-!!$    end if
-
     !last_opened_routine=trim(dict_key(dict_codepoint))!repeat(' ',namelen)
     !the main program is opened until there is a subprograms keyword
-    if (f_err_raise(.not. associated(mems(ictrl)%dict_codepoint%parent),&
-         'parent not associated(A)',&
-         ERR_MALLOC_INTERNAL)) then
+    if (.not. associated(mems(ictrl)%dict_codepoint%parent)) then
+       call f_err_throw('parent not associated(A)',&
+            ERR_MALLOC_INTERNAL)
        call f_timer_resume()
        return
     end if
     if (dict_key(mems(ictrl)%dict_codepoint%parent) == subprograms) then    
        mems(ictrl)%dict_codepoint=>mems(ictrl)%dict_codepoint%parent
-       if (f_err_raise(.not. associated(mems(ictrl)%dict_codepoint%parent),&
-            'parent not associated(B)',&
-            ERR_MALLOC_INTERNAL)) then
+       if (.not. associated(mems(ictrl)%dict_codepoint%parent)) then
+          call f_err_throw('parent not associated(B)',ERR_MALLOC_INTERNAL)
           call f_timer_resume()
           return
        end if
@@ -826,6 +863,8 @@ contains
        !ndebug=f_nan_pad_size
     end if
 
+    call f_set_profiling_depth()
+
     !initialize the memprofiling counters
     call set(mems(ictrl)%dict_global//'Timestamp of Profile initialization',&
          trim(yaml_date_and_time_toa()))
@@ -835,45 +874,30 @@ contains
     call f_routine(id=main)
 
     !set status of library to the initial case
-    call f_malloc_set_status(memory_limit=0.e0)
+    call f_set_memory_limit()
 
   end subroutine f_malloc_initialize
 
   !> Initialize the library
-  subroutine f_malloc_set_status(memory_limit,output_level,logfile_name,iproc,profiling_depth)
+  subroutine f_malloc_set_status(output_level,logfile_name,iproc)!,profiling_depth)
     use yaml_output!, only: yaml_date_and_time_toa
     use f_utils
     use yaml_strings
     implicit none
     !Arguments
     character(len=*), intent(in), optional :: logfile_name   !< Name of the logfile
-    real(kind=4), intent(in), optional :: memory_limit       !< Memory limit
+    !real(kind=4), intent(in), optional :: memory_limit       !< Memory limit
     integer, intent(in), optional :: output_level            !< Level of output for memocc
                                                              !! 0 no file, 1 light, 2 full
     integer, intent(in), optional :: iproc                   !< Process Id (used to dump, by default 0)
     !> innermost profiling level that will be applied to the code
-    integer, intent(in), optional :: profiling_depth
+    !integer, intent(in), optional :: profiling_depth
     !local variables
     integer :: unt,jctrl,jproc
 
     if (f_err_raise(ictrl == 0,&
          'ERROR (f_malloc_set_status): the routine f_malloc_initialize has not been called',&
          ERR_MALLOC_INTERNAL)) return
-
-!!$    if (.not. mems(ictrl)%profile_initialized) then
-!!$       profile_initialized=.true.
-!!$       !call malloc_errors()
-!!$       !initalize the dictionary with the allocation information
-!!$       nullify(dict_routine)
-!!$       call dict_init(dict_global)
-!!$       call set(dict_global//'Timestamp of Profile initialization',trim(yaml_date_and_time_toa()))
-!!$       !Process Id (used to dump)
-!!$       call set(dict_global//processid,0)
-!!$       call dict_init(dict_calling_sequence)
-!!$       !in principle the calling sequence starts from the main
-!!$       dict_codepoint => dict_calling_sequence
-!!$       call f_routine(id='Main program')
-!!$    end if
 
     if (present(output_level)) then
        if (output_level > 0) then
@@ -896,13 +920,9 @@ contains
           !a previous instance of malloc_set_status, and raise and exception if it is so
           do jctrl=ictrl-1,1,-1
              if (trim(logfile_name)==mems(jctrl)%logfile) &
-!!$                  call f_err_throw('Logfile name "'//trim(logfile_name)//&
-!!$                  '" in f_malloc_set_status invalid, aleady in use for instance No.'//&
-!!$                  trim(yaml_toa(jctrl)),err_id=ERR_INVALID_MALLOC)
              call f_err_throw('Logfile name "'//trim(logfile_name)//&
                   '" in f_malloc_set_status invalid, already in use for instance No.'//jctrl&
                   ,err_id=ERR_INVALID_MALLOC)
-
              exit
           end do
           unt=-1 !SM: unt otherwise not defined for jproc/=0
@@ -931,22 +951,30 @@ contains
        mems(ictrl)%output_level=output_level
     end if
 
-    if (present(memory_limit)) call f_set_memory_limit(memory_limit)
+    !if (present(memory_limit)) call f_set_memory_limit(memory_limit)
        
     if (present(iproc)) call set(mems(ictrl)%dict_global//processid,iproc)
 
-    if (present(profiling_depth)) then
-       !set the limit of the profiling to the maximum
-       !it cannot be lower than the present depth
-       if (profiling_depth < mems(ictrl)%profiling_depth) then
-          call f_err_throw('The profiling_depth level cannot be lowered',&
-               err_id=ERR_INVALID_MALLOC)
-       end if
-       mems(ictrl)%profiling_depth=max(profiling_depth,mems(ictrl)%depth)
-       if (profiling_depth == -1) mems(ictrl)%profiling_depth=-1 !to disab
-    end if
+!!$    if (present(profiling_depth)) then
+!!$    end if
 
   end subroutine f_malloc_set_status
+
+  subroutine f_set_profiling_depth()
+    use f_environment, only: f_maximum_profiling_depth
+    implicit none
+    !integer, intent(in) :: profiling_depth
+
+    !set the limit of the profiling to the maximum
+    !it cannot be lower than the present depth
+    if (f_maximum_profiling_depth < mems(ictrl)%profiling_depth) then
+       call f_err_throw('The profiling_depth level cannot be lowered',&
+            err_id=ERR_INVALID_MALLOC)
+    end if
+    mems(ictrl)%profiling_depth=max(f_maximum_profiling_depth,mems(ictrl)%depth)
+    if (f_maximum_profiling_depth == -1) mems(ictrl)%profiling_depth=-1 !to disab
+  end subroutine f_set_profiling_depth
+
 
   !> Finalize f_malloc (Display status)
   subroutine f_malloc_finalize(dump,process_id)
@@ -1143,25 +1171,20 @@ contains
 
   end subroutine f_malloc_dump_status
 
-  !>points toward a region of a given pointer
-  function f_subptr_d0(ptr,region,from,size,lbound) result(win)
+  subroutine subpointer_bounds(is,ie,lb,ub,region,from,size,lbound)
     implicit none
-    real(f_double), dimension(:), target :: ptr
-    real(f_double), dimension(:), pointer :: win
+    integer(f_kind) :: lb,ub,is,ie
     type(array_bounds), intent(in), optional :: region
     integer, intent(in), optional :: from
     integer, intent(in), optional :: size
     integer, intent(in), optional :: lbound !<in the case of different bounds for the pointer
-    !local variables
-    integer(f_kind) :: lb,ub,is,ie
-    
+
     if (present(region) .eqv. present(size)) then
        call f_err_throw('Error in f_subptr, size of the window unknown or redundant',&
             ERR_INVALID_MALLOC)
        return
     end if
 
-    nullify(win)
     if (present(region)) then
        is=region%nlow
        ie=region%nhigh
@@ -1176,6 +1199,151 @@ contains
     lb=1
     if (present(lbound)) lb=lbound
     ub=ie-is+lb
+  end subroutine subpointer_bounds
+
+  function f_subptr_d0(ptr_addr,region,size,from,lbound) result(win)
+    implicit none
+    real(f_double) :: ptr_addr
+    real(f_double), dimension(:), pointer :: win
+    interface
+       subroutine f_map_ptr_addr_d0(lb,ub,is,ie,heap,ptr)
+         use module_f_malloc, only: f_kind
+         use f_precisions, only: f_double
+         implicit none
+         integer(f_kind) :: lb,ub,is,ie
+         real(f_double) :: heap
+         real(f_double), dimension(:), pointer :: ptr
+       end subroutine f_map_ptr_addr_d0
+    end interface
+
+    type(array_bounds), intent(in), optional :: region
+    integer, intent(in), optional :: from
+    integer, intent(in), optional :: size
+    integer, intent(in), optional :: lbound !<in the case of different bounds for the pointer
+    !local variables
+    integer(f_kind) :: lb,ub,is,ie
+    nullify(win)
+    call subpointer_bounds(is,ie,lb,ub,region,from,size,lbound)
+    if (ub < lb) return
+
+    call f_map_ptr_addr_d0(lb,ub,is,ie,ptr_addr,win)
+
+    !then perform the check for the subpointer region
+    if (get_lbnd(win) /= lb) call f_err_throw(&
+         'ERROR (f_subptr): expected lbound does not match, '//&
+         trim(yaml_toa(get_lbnd(win)))//' vs. '//trim(yaml_toa(lb)),&
+         ERR_MALLOC_INTERNAL)
+
+    if (f_loc(win(lb)) /= f_loc(ptr_addr)) &
+         !.or. &
+         !f_loc(win(ub)) /= f_loc(ptr_addr)+int(size,f_address)*kind(ptr_addr)) 
+         call f_err_throw(&
+         'ERROR (f_subptr): addresses do not match, the allocating system has performed a copy',&
+         ERR_MALLOC_INTERNAL)
+
+  end function f_subptr_d0
+
+  function f_subptr_i0(ptr_addr,region,size,from,lbound) result(win)
+    implicit none
+    integer(f_integer) :: ptr_addr
+    integer(f_integer), dimension(:), pointer :: win
+    interface
+       subroutine f_map_ptr_addr_i0(lb,ub,is,ie,heap,ptr)
+         use module_f_malloc, only: f_kind
+         use f_precisions, only: f_integer
+         implicit none
+         integer(f_kind) :: lb,ub,is,ie
+         integer(f_integer) :: heap
+         integer(f_integer), dimension(:), pointer :: ptr
+       end subroutine f_map_ptr_addr_i0
+    end interface
+
+    type(array_bounds), intent(in), optional :: region
+    integer, intent(in), optional :: from
+    integer, intent(in), optional :: size
+    integer, intent(in), optional :: lbound !<in the case of different bounds for the pointer
+    !local variables
+    integer(f_kind) :: lb,ub,is,ie
+    nullify(win)
+    call subpointer_bounds(is,ie,lb,ub,region,from,size,lbound)
+    if (ub < lb) return
+
+    call f_map_ptr_addr_i0(lb,ub,is,ie,ptr_addr,win)
+
+    !then perform the check for the subpointer region
+    if (get_lbnd(win) /= lb) call f_err_throw(&
+         'ERROR (f_subptr): expected lbound does not match, '//&
+         trim(yaml_toa(get_lbnd(win)))//' vs. '//trim(yaml_toa(lb)),&
+         ERR_MALLOC_INTERNAL)
+
+    if (f_loc(win(lb)) /= f_loc(ptr_addr)) &
+         !.or. &
+         !f_loc(win(ub)) /= f_loc(ptr_addr)+int(size,f_address)*kind(ptr_addr)) 
+         call f_err_throw(&
+         'ERROR (f_subptr): addresses do not match, the allocating system has performed a copy',&
+         ERR_MALLOC_INTERNAL)
+
+  end function f_subptr_i0
+
+  function f_subptr_li0(ptr_addr,region,size,from,lbound) result(win)
+    implicit none
+    integer(f_long) :: ptr_addr
+    integer(f_long), dimension(:), pointer :: win
+    interface
+       subroutine f_map_ptr_addr_li0(lb,ub,is,ie,heap,ptr)
+         use module_f_malloc, only: f_kind
+         use f_precisions, only: f_long
+         implicit none
+         integer(f_kind) :: lb,ub,is,ie
+         integer(f_long) :: heap
+         integer(f_long), dimension(:), pointer :: ptr
+       end subroutine f_map_ptr_addr_li0
+    end interface
+
+    type(array_bounds), intent(in), optional :: region
+    integer, intent(in), optional :: from
+    integer, intent(in), optional :: size
+    integer, intent(in), optional :: lbound !<in the case of different bounds for the pointer
+    !local variables
+    integer(f_kind) :: lb,ub,is,ie
+    nullify(win)
+    call subpointer_bounds(is,ie,lb,ub,region,from,size,lbound)
+    if (ub < lb) return
+
+    call f_map_ptr_addr_li0(lb,ub,is,ie,ptr_addr,win)
+
+    !then perform the check for the subpointer region
+    if (get_lbnd(win) /= lb) call f_err_throw(&
+         'ERROR (f_subptr): expected lbound does not match, '//&
+         trim(yaml_toa(get_lbnd(win)))//' vs. '//trim(yaml_toa(lb)),&
+         ERR_MALLOC_INTERNAL)
+
+    if (f_loc(win(lb)) /= f_loc(ptr_addr)) then
+       !.or. &
+       !f_loc(win(ub)) /= f_loc(ptr_addr)+int(size,f_address)*kind(ptr_addr)) 
+       !print *,f_loc(win(lb)),f_loc(ptr_addr),shape(win),from,size
+       call f_err_throw(&
+            'ERROR (f_subptr): addresses do not match, the allocating system has performed a copy',&
+            ERR_MALLOC_INTERNAL)
+    end if
+
+  end function f_subptr_li0
+
+
+  !>points toward a region of a given pointer
+  function f_subptr_d1(ptr,region,from,size,lbound) result(win)
+    implicit none
+    real(f_double), dimension(:), target :: ptr
+    real(f_double), dimension(:), pointer :: win
+    type(array_bounds), intent(in), optional :: region
+    integer, intent(in), optional :: from
+    integer, intent(in), optional :: size
+    integer, intent(in), optional :: lbound !<in the case of different bounds for the pointer
+    !local variables
+    integer(f_kind) :: lb,ub,is,ie
+    
+    nullify(win)
+    call subpointer_bounds(is,ie,lb,ub,region,from,size,lbound)
     if (ub < lb) return
 
     !perform the association on the window
@@ -1196,15 +1364,102 @@ contains
          'ERROR (f_subptr): addresses do not match, the allocating system has performed a copy',&
          ERR_MALLOC_INTERNAL)
 
-  end function f_subptr_d0
+  end function f_subptr_d1
 
-  pure function get_lbnd(win)
+  !>points toward a region of a given pointer
+  function f_subptr_li1(ptr,region,from,size,lbound) result(win)
+    implicit none
+    integer(f_long), dimension(:), target :: ptr
+    integer(f_long), dimension(:), pointer :: win
+    type(array_bounds), intent(in), optional :: region
+    integer, intent(in), optional :: from
+    integer, intent(in), optional :: size
+    integer, intent(in), optional :: lbound !<in the case of different bounds for the pointer
+    !local variables
+    integer(f_kind) :: lb,ub,is,ie
+
+    nullify(win)
+    call subpointer_bounds(is,ie,lb,ub,region,from,size,lbound)
+    if (ub < lb) return
+
+    !perform the association on the window
+    if (lb==1) then
+       win => ptr(is:ie)
+    else
+       call f_map_ptr(lb,ub,ptr(is:ie),win)
+    end if
+
+    !then perform the check for the subpointer region
+    if (get_lbnd(win) /= lb) call f_err_throw(&
+         'ERROR (f_subptr): expected shape does not match, '//&
+         trim(yaml_toa(get_lbnd(win)))//' vs. '//trim(yaml_toa(lb)),&
+         ERR_MALLOC_INTERNAL)
+
+    if (f_loc(win(lb)) /= f_loc(ptr(is)) .or. &
+         f_loc(win(ub)) /= f_loc(ptr(ie))) call f_err_throw(&
+         'ERROR (f_subptr): addresses do not match, the allocating system has performed a copy',&
+         ERR_MALLOC_INTERNAL)
+
+  end function f_subptr_li1
+
+  !>points toward a region of a given pointer
+  function f_subptr_i1(ptr,region,from,size,lbound) result(win)
+    implicit none
+    integer(f_integer), dimension(:), target :: ptr
+    integer(f_integer), dimension(:), pointer :: win
+    type(array_bounds), intent(in), optional :: region
+    integer, intent(in), optional :: from
+    integer, intent(in), optional :: size
+    integer, intent(in), optional :: lbound !<in the case of different bounds for the pointer
+    !local variables
+    integer(f_kind) :: lb,ub,is,ie
+
+    nullify(win)
+    call subpointer_bounds(is,ie,lb,ub,region,from,size,lbound)
+    if (ub < lb) return
+
+    !perform the association on the window
+    if (lb==1) then
+       win => ptr(is:ie)
+    else
+       call f_map_ptr(lb,ub,ptr(is:ie),win)
+    end if
+
+    !then perform the check for the subpointer region
+    if (get_lbnd(win) /= lb) call f_err_throw(&
+         'ERROR (f_subptr): expected shape does not match, '//&
+         trim(yaml_toa(get_lbnd(win)))//' vs. '//trim(yaml_toa(lb)),&
+         ERR_MALLOC_INTERNAL)
+
+    if (f_loc(win(lb)) /= f_loc(ptr(is)) .or. &
+         f_loc(win(ub)) /= f_loc(ptr(ie))) call f_err_throw(&
+         'ERROR (f_subptr): addresses do not match, the allocating system has performed a copy',&
+         ERR_MALLOC_INTERNAL)
+
+  end function f_subptr_i1
+
+
+  pure function get_lbnd_d0(win) result(get_lbnd)
     implicit none
     real(f_double), dimension(:), pointer :: win
     integer :: get_lbnd
-
     get_lbnd=lbound(win,1)
-  end function get_lbnd
+  end function get_lbnd_d0
+
+  pure function get_lbnd_i0(win) result(get_lbnd)
+    implicit none
+    integer(f_integer), dimension(:), pointer :: win
+    integer :: get_lbnd
+    get_lbnd=lbound(win,1)
+  end function get_lbnd_i0
+
+  pure function get_lbnd_li0(win) result(get_lbnd)
+    implicit none
+    integer(f_long), dimension(:), pointer :: win
+    integer :: get_lbnd
+    get_lbnd=lbound(win,1)
+  end function get_lbnd_li0
+
 
   !> This routine identifies for each of the routines the most time consuming parts and print it in the logfile
   recursive subroutine postreatment_of_calling_sequence(base_time,&
@@ -1314,7 +1569,6 @@ contains
   include 'malloc_templates-inc.f90'
 
 end module dynamic_memory_base
-
 
 module dynamic_memory
   use module_f_malloc

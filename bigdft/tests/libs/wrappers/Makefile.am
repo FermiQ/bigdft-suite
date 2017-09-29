@@ -14,12 +14,7 @@ include $(srcdir)/../check.mk
 
 SUBDIRS =
 
-if HAVE_OPENBABEL
-babel_prg = babel
-babel_report = babel.out.report.yaml
-endif
-
-check_PROGRAMS = check_wrappers hooks $(babel_prg)
+check_PROGRAMS = check_wrappers hooks projection libconv $(babel_prg)
 
 AM_LDFLAGS = -L$(top_builddir)/src
 if BUILD_DYNAMIC_LIBS
@@ -29,6 +24,17 @@ else
 bigdft_library = $(top_builddir)/src/libbigdft-1.a @LIB_BIGDFT_DEPS@
 endif
 
+if HAVE_OPENBABEL
+babel_prg = babel
+babel_report = babel.out.report.yaml
+bigdft_library += $(top_builddir)/src/modules/libbabel.so.@BIGDFT_MINOR_VERSION@
+if BUILD_DYNAMIC_LIBS
+else
+AM_LDFLAGS += -Wl,-rpath=$(abs_top_builddir)/src/modules
+endif
+endif
+
+
 check_wrappers_SOURCES = check_wrappers.c
 check_wrappers_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir)/src/bindings -I$(top_builddir)/src/bindings @GLIB_CFLAGS@
 check_wrappers_LDADD = $(bigdft_library) @FCLIBS@
@@ -37,9 +43,18 @@ hooks_SOURCES = hooks.f90
 hooks_FCFLAGS = -I$(top_builddir)/src/orbitals -I$(top_builddir)/src/modules @LIB_FUTILE_CFLAGS@
 hooks_LDADD = $(bigdft_library) @LIB_FUTILE_LIBS@
 
+libconv_SOURCES = libconv.f90 initialization.f90
+libconv_FCFLAGS = -I$(top_builddir)/src/orbitals -I$(top_builddir)/src/modules @LIB_FUTILE_CFLAGS@
+libconv_LDADD = $(bigdft_library) @LIB_FUTILE_LIBS@
+
+projection_SOURCES = projection.f90 initialization.f90
+projection_FCFLAGS = -I$(top_builddir)/src/locregs -I$(top_builddir)/src/orbitals -I$(top_builddir)/src/modules @LIB_FUTILE_CFLAGS@
+projection_LDADD = $(bigdft_library) @LIB_FUTILE_LIBS@
+
+
 babel_SOURCES = babel.f90
 babel_FCFLAGS = @LIB_FUTILE_CFLAGS@
-babel_LDADD = $(bigdft_library) $(top_builddir)/src/modules/libbabel.so.@BIGDFT_MINOR_VERSION@ @LIB_FUTILE_LIBS@
+babel_LDADD = $(bigdft_library) @LIB_FUTILE_LIBS@
 
 
 EXTRA_DIST = wrappers.out.ref.yaml posinp.ref.yaml pywrappers.out.ref.yaml check_wrappers.py.in babel.out.ref.yaml TiO2.cif

@@ -20,6 +20,7 @@
 
 module parallel_linalg
   use sparsematrix_base
+  use sparsematrix_init, only: distribute_on_tasks
   use dictionaries
   use yaml_output
   use wrapper_mpi
@@ -58,15 +59,17 @@ module parallel_linalg
     
       ! Local variables
       integer :: ierr, i, j, istat, iall, ii1, ii2, mbrow, mbcol, nproc_scalapack, nprocrow, nproccol
-      integer :: context, irow, icol, numroc, info
+      integer :: context, irow, icol, numroc, info, is, np, jproc, maxsize_mpibcast, nn
       integer :: lnrow_a, lncol_a, lnrow_b, lncol_b, lnrow_c, lncol_c, ka, kb, kc, lla, llb, llc
       real(kind=mp) :: tt1, tt2
       real(kind=mp),dimension(:,:),allocatable :: la, lb, lc
       real(kind=mp),dimension(:,:),pointer :: aeff, beff
       integer,dimension(9) :: desc_lc, desc_la, desc_lb
+      integer,dimension(:),allocatable :: np_all, is_all
       character(len=*),parameter :: subname='dgemm_parallel'
       logical :: quiet_
-
+      integer,parameter :: maxsize_mpibcast_x = 67108864 !number of elements correspoding to 512MB in double precision
+      type(fmpi_win) :: window
       call f_routine(id='dgemm_parallel')
       !call timing(iproc, 'dgemm_parallel', 'ON')
       call f_timing(TCAT_HL_DGEMM,'ON')
@@ -99,16 +102,16 @@ module parallel_linalg
       llb = size(b,1)
       kb = size(b,2)
       if (llb/=ldb) then
-              call f_err_throw('wrong first dimension of c; expected '//trim(yaml_toa(ldb))//' but got '//trim(yaml_toa(llb)))
+              call f_err_throw('wrong first dimension of b; expected '//trim(yaml_toa(ldb))//' but got '//trim(yaml_toa(llb)))
       end if
       select case (transb)
       case ('N','n')
           if (kb/=n) then
-              call f_err_throw('wrong second dimension of c; expected '//trim(yaml_toa(n))//' but got '//trim(yaml_toa(kb)))
+              call f_err_throw('wrong second dimension of b; expected '//trim(yaml_toa(n))//' but got '//trim(yaml_toa(kb)))
           end if
       case ('T','t')
           if (kb/=k) then
-              call f_err_throw('wrong second dimension of c; expected '//trim(yaml_toa(k))//' but got '//trim(yaml_toa(kb)))
+              call f_err_throw('wrong second dimension of b; expected '//trim(yaml_toa(k))//' but got '//trim(yaml_toa(kb)))
           end if
       case default
           call f_err_throw("wrong argument for 'transb'")
@@ -127,7 +130,61 @@ module parallel_linalg
 
       blocksize_if: if (blocksize<0) then
           if (iproc==0 .and. .not.quiet_) call yaml_map('mode','sequential')
-          call dgemm(transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc)
+          call distribute_on_tasks(n, iproc, nproc, np, is)
+          ! Set to zero those elements which are not handled by task iproc
+          call f_zero(c(:,1:is))
+          call f_zero(c(:,is+np+1:n))
+          if (np>0) then
+              select case(transb)
+              case ('N','n')
+                  call dgemm(transa, transb, m, np, k, alpha, a, lda, b(1,is+1), ldb, beta, c(1,is+1), ldc)
+              case ('T','t')
+                  call dgemm(transa, transb, m, np, k, alpha, a, lda, b(is+1,1), ldb, beta, c(1,is+1), ldc)
+              case default
+                  call f_err_throw("wrong argument for 'transb'")
+              end select
+          end if
+          ! Communicate the result
+          np_all = f_malloc0((/0.to.nproc-1/),id='np_all')
+          is_all = f_malloc0((/0.to.nproc-1/),id='is_all')
+          np_all(iproc) = np
+          is_all(iproc) = is
+          call fmpi_allreduce(np_all, FMPI_SUM, comm)
+          call fmpi_allreduce(is_all, FMPI_SUM, comm)
+          !window = mpiwindow(ldc*n, c(1,1), comm)
+          call fmpi_win_create(window,c(1,1),int(ldc,f_long)*n,comm=comm)
+          call fmpi_win_fence(window,FMPI_WIN_OPEN)
+          if (iproc==0) then
+              do jproc=0,nproc-1
+                  if (jproc/=iproc) then
+                     call fmpi_get(c(1,is_all(jproc)+1),jproc,window,ldc*np_all(jproc),&
+                          int(ldc*is_all(jproc),kind=fmpi_address))
+                     !call mpiget(c(1,is_all(jproc)+1), ldc*np_all(jproc), jproc, &
+                     !int(ldc*is_all(jproc),kind=mpi_address_kind), window)
+                  end if
+              end do
+          end if
+          call fmpi_win_fence(window,FMPI_WIN_CLOSE)
+          call fmpi_win_free(window)
+          !call mpi_fenceandfree(window)
+          maxsize_mpibcast = max(maxsize_mpibcast_x, ldc)
+          is = 0
+          nn = 0
+          do i=1,n
+              if (nn>maxsize_mpibcast) then
+                  !if (iproc==1) call yaml_map('1 i, is, nn',(/i, is, nn/))
+                  call mpibcast(c(1,is+1), count=nn, root=0, comm=comm)
+                  is = is + nn/ldc
+                  nn = 0
+              end if
+              nn = nn + ldc
+          end do
+          if (nn>0) then
+              !if (iproc==1) call yaml_map('2 i, is, nn',(/i, is, nn/))
+              call mpibcast(c(1,is+1), count=nn, root=0, comm=comm)
+          end if
+          call f_free(np_all)
+          call f_free(is_all)
       else if (blocksize==0) then
           call f_err_throw('blocksize must not be zero')
       else blocksize_if
@@ -293,7 +350,7 @@ module parallel_linalg
           
           ! Gather the result on all processes.
           if (nproc > 1) then
-             call mpiallred(c, mpi_sum, comm=comm)
+             call fmpi_allreduce(c, FMPI_SUM, comm=comm)
           end if
     
           !call blacs_exit(0)
@@ -554,12 +611,12 @@ module parallel_linalg
           ! Gather the eigenvectors on all processes.
           ! SM: An allreduce of the total a led to problenms, therefore do each row separately...
           if (nproc > 1) then
-             !call mpiallred(a, mpi_sum, comm=comm)
+             !call fmpi_allreduce(a, FMPI_SUM, comm=comm)
              do i=1,n
-                 call mpiallred(a(1:lda,i), mpi_sum, comm=comm)
+                 call fmpi_allreduce(a(1:lda,i), FMPI_SUM, comm=comm)
              end do
           end if
-          !write(*,*) 'after mpiallred, iproc', iproc
+          !write(*,*) 'after fmpi_allreduce, iproc', iproc
           
           ! Broadcast the eigenvalues if required. If nproc_scalapack==nproc, then all processes
           ! diagonalized the matrix and therefore have the eigenvalues.
@@ -806,7 +863,7 @@ module parallel_linalg
           
           ! Gather the eigenvectors on all processes.
           if (nproc > 1) then
-             call mpiallred(a, mpi_sum, comm=comm)
+             call fmpi_allreduce(a, FMPI_SUM, comm=comm)
           end if
           
           ! Broadcast the eigenvalues if required. If nproc_scalapack==nproc, then all processes
@@ -950,7 +1007,7 @@ module parallel_linalg
       
       ! Gather the result on all processes
       if (nproc > 1) then
-         call mpiallred(b, mpi_sum, comm=comm)
+         call fmpi_allreduce(b, FMPI_SUM, comm=comm)
       end if
       
       !call blacs_exit(0)
@@ -1069,7 +1126,7 @@ module parallel_linalg
       
       ! Gather the result on all processes.
       if (nproc > 1) then
-         call mpiallred(a, mpi_sum, comm=comm)
+         call fmpi_allreduce(a, FMPI_SUM, comm=comm)
       end if
     
       !call blacs_exit(0)
@@ -1185,7 +1242,7 @@ module parallel_linalg
       
       ! Gather the result on all processes.
       if (nproc > 1) then
-         call mpiallred(a, mpi_sum, comm=comm)
+         call fmpi_allreduce(a, FMPI_SUM, comm=comm)
       end if
     
       !call blacs_exit(0)

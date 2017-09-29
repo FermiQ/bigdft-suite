@@ -52,31 +52,6 @@ subroutine print_logo()
   call yaml_scalar('|     |     |     |     |     |   DDDDDD       F         TTTT          ')
   call yaml_scalar('|_____|_____|_____|_____|_____|______                    www.bigdft.org   "')
 
-  !old version
-!!$  call yaml_scalar('      TTTT         F       DDDDD    ')
-!!$  call yaml_scalar('     T    T               D         ')
-!!$  call yaml_scalar('    T     T        F     D          ')
-!!$  call yaml_scalar('    T    T         F     D        D ')
-!!$  call yaml_scalar('    TTTTT          F     D         D')
-!!$  call yaml_scalar('    T    T         F     D         D')
-!!$  call yaml_scalar('    T     T        F     D         D')
-!!$  call yaml_scalar('    T      T       F     D         D')
-!!$  call yaml_scalar('    T     T     FFFF     D         D')
-!!$  call yaml_scalar('    T TTTT         F      D        D')
-!!$  call yaml_scalar('    T             F        D      D ')
-!!$  call yaml_scalar('TTTTTTTTT    FFFFF          DDDDDD  ')
-!!$  call yaml_scalar('  gggggg          iiiii    BBBBBBBBB')
-!!$  call yaml_scalar(' g      g        i             B    ')
-!!$  call yaml_scalar('g        g      i         BBBB B    ')
-!!$  call yaml_scalar('g         g     iiii     B     B    ')
-!!$  call yaml_scalar('g         g     i       B      B    ')
-!!$  call yaml_scalar('g         g     i        B     B    ')
-!!$  call yaml_scalar('g         g     i         B    B    ')
-!!$  call yaml_scalar('g         g     i          BBBBB    ')
-!!$  call yaml_scalar(' g        g     i         B    B    ')
-!!$  call yaml_scalar('          g     i        B     B    ')
-!!$  call yaml_scalar('         g               B    B     ')
-!!$  call yaml_scalar('    ggggg       i         BBBB      ')
   call yaml_mapping_close()
 
   call yaml_map('Reference Paper','The Journal of Chemical Physics 129, 014109 (2008)')
@@ -172,7 +147,7 @@ subroutine write_eigenvalues_data(etol,orbs,mom_vec)
      call yaml_map("Total magnetization",mpol,fmt='(f9.6)')
   end if
 
-  if (verbose > 1) then
+  if (get_verbose_level() > 1) then
      call yaml_comment('Eigenvalues and New Occupation Numbers')
 
      call yaml_sequence_open('Orbitals',flow=.true.)
@@ -184,6 +159,7 @@ subroutine write_eigenvalues_data(etol,orbs,mom_vec)
                 &   "Kpt #", ikpt, " BZ coord. = ", orbs%kpts(:, ikpt)
            !write(*,'(a)')trim(commentline)
            call yaml_comment(trim(commentline))
+           call yaml_newline()
            ikptw=ikpt
         else
            ikptw=UNINITIALIZED(1)
@@ -453,7 +429,7 @@ subroutine write_ig_eigenvectors(etol,orbse,nspin,norb,norbu,norbd)
                !write(*,'(1x,a,i0,a,1x,1pe21.14,a)') &
                !   &   'evale(',iorb,')=',orbse%eval(iorb+iorbst),trim(message)
             else
-               !if ((iorb <= 5 .or. iorb >= orbse%norbu-5) .or. verbose > 0) &
+               !if ((iorb <= 5 .or. iorb >= orbse%norbu-5) .or. get_verbose_level() > 0) &
                !write(*,'(1x,a,i0,a,1x,1pe21.14)') &
                !   &   'evale(',iorb,')=',orbse%eval(iorb+iorbst)
             end if
@@ -488,7 +464,7 @@ subroutine write_ig_eigenvectors(etol,orbse,nspin,norb,norbu,norbd)
             message='    Last-> '
             preval(2)=orbse%eval(iorb+orbse%norbu+iorbst)
          end if
-         if ((iorb <= 5 .or. iorb >= orbse%norbu-5) .or. verbose > 0) then
+         if ((iorb <= 5 .or. iorb >= orbse%norbu-5) .or. get_verbose_level() > 0) then
             call yaml_sequence()
             call write_orbital_data(orbse%eval(iorb+iorbst),&
                  orbse%occup(iorb+iorbst),&
@@ -504,7 +480,7 @@ subroutine write_ig_eigenvectors(etol,orbse,nspin,norb,norbu,norbd)
             !   &   'evale(',iorb,',u)=',orbse%eval(iorb+iorbst),message,&
             !   &   'evale(',iorb,',d)=',orbse%eval(iorb+orbse%norbu+iorbst)
          else
-            !if ((iorb <= 5 .or. iorb >= orbse%norbu-5) .or. verbose > 0) &
+            !if ((iorb <= 5 .or. iorb >= orbse%norbu-5) .or. get_verbose_level() > 0) &
             !write(*,'(1x,a,i4,a,1x,1pe21.14,12x,a,i4,a,1x,1pe21.14)') &
             !   &   'evale(',iorb,',u)=',orbse%eval(iorb+iorbst),&
             !   &   'evale(',iorb,',d)=',orbse%eval(iorb+orbse%norbu+iorbst)
@@ -587,10 +563,10 @@ subroutine write_diis_weights(ncplx,idsx,ngroup,nkpts,itdiis,rds)
   !local variables
   integer :: j,igroup,ikpt
   character(len=2) :: mesupdw
-  if (verbose < 10) then
+  if (get_verbose_level() < 10) then
      !we restrict the printing to the first k point only.
      if (ngroup==1) then
-        if (verbose >0) then
+        if (get_verbose_level() >0) then
 !!$           write(*,'(1x,a,2x,18(1x,1pe9.2))')&
 !!$             'DIIS wgts:',reshape(rds(1:ncplx,1:itdiis+1,1,1),&
 !!$             (/ncplx*(itdiis+1)/))!,&
@@ -610,7 +586,7 @@ subroutine write_diis_weights(ncplx,idsx,ngroup,nkpts,itdiis,rds)
         end do
 !        write(70,'(a)')']'
         !'(',ttr,tti,')'
-     else if (verbose >0) then
+     else if (get_verbose_level() >0) then
         do igroup=1,ngroup
            if (igroup==1) mesupdw='up'
            if (igroup==2) mesupdw='dw'
@@ -618,7 +594,7 @@ subroutine write_diis_weights(ncplx,idsx,ngroup,nkpts,itdiis,rds)
                 (rds(1:ncplx,j,igroup,1),j=1,itdiis+1)
         end do
      end if
-  else if (verbose >0) then
+  else if (get_verbose_level() >0) then
      do ikpt = 1, nkpts
         if (ngroup==1) then
            write(*,'(1x,a,I3.3,a,2x,9(1x,(1pe9.2)))')'DIIS wgts (kpt #', ikpt, &
@@ -743,40 +719,52 @@ subroutine write_atomic_density_matrix(nspin,astruct,nl)
   type(DFT_PSP_projectors), intent(in) :: nl
   type(atomic_structure), intent(in) :: astruct
   !local variables
+  logical :: flowrite
   integer :: ispin,l
   integer, dimension(0:lmax_ao) :: igamma
   character(len=32) :: msg
   type(atoms_iterator) :: atit
 
+  call yaml_stream_attributes(flowrite=flowrite)
+
   if (.not. associated(nl%iagamma)) return
+  call yaml_newline()
   call yaml_sequence_open('Atomic density matrix in the PSP projectors')
   !iterate above atoms
   atit=atoms_iter(astruct)
   do while(atoms_iter_next(atit))
-    igamma=nl%iagamma(:,atit%iat)
-    if (all(igamma == 0)) cycle
-    call yaml_newline()
-    call yaml_sequence(advance='no')
-    call yaml_map('Symbol',trim(atit%name),advance='no')
-    call yaml_comment('Atom '//trim(yaml_toa(atit%iat)))
-    do l=0,lmax_ao
-      !for the moment no imaginary part printed out
-      if (igamma(l) == 0) cycle
-      call yaml_mapping_open('Channel '//ishell_toa(l))
-      do ispin=1,nspin
-         call yaml_newline()
-        if (nspin==1) then
-          call f_strcpy(src='Matrix',dest=msg)
-        else if (ispin==1) then
-          call f_strcpy(src='Spin up',dest=msg)
-        else if (ispin==2) then
-          call f_strcpy(src='Spin down',dest=msg)
+     igamma=nl%iagamma(:,atit%iat)
+     if (all(igamma == 0)) cycle
+     call yaml_newline()
+     call yaml_sequence(advance='no')
+     if (flowrite) call yaml_mapping_open()
+     call yaml_map('Symbol',trim(atit%name),advance='no')
+     call yaml_comment('Atom '//trim(yaml_toa(atit%iat)))
+     do l=0,lmax_ao
+        !for the moment no imaginary part printed out
+        if (igamma(l) == 0) cycle
+        call yaml_mapping_open('Channel '//ishell_toa(l))
+        if (nspin==4) then
+           call yaml_newline()
+           call yaml_map('Matrix',&
+                nl%gamma_mmp(:,1:2*l+1,1:2*l+1,igamma(l),1),fmt='(1pg12.2)')
+        else
+           do ispin=1,nspin
+              call yaml_newline()
+              if (nspin==1) then
+                 call f_strcpy(src='Matrix',dest=msg)
+              else if (ispin==1) then
+                 call f_strcpy(src='Spin up',dest=msg)
+              else if (ispin==2) then
+                 call f_strcpy(src='Spin down',dest=msg)
+              end if
+              call yaml_map(trim(msg),&
+                   nl%gamma_mmp(1,1:2*l+1,1:2*l+1,igamma(l),ispin),fmt='(1pg12.2)')
+           end do
         end if
-        call yaml_map(trim(msg),&
-            nl%gamma_mmp(1,1:2*l+1,1:2*l+1,igamma(l),ispin),fmt='(1pg12.2)')
-      end do
-      call yaml_mapping_close()
-    end do
+        call yaml_mapping_close()
+     end do
+     if (flowrite) call yaml_mapping_close()
   end do
   call yaml_sequence_close()
 end subroutine write_atomic_density_matrix
@@ -1092,6 +1080,7 @@ subroutine print_atoms_and_grid(Glr, atoms, rxyz, hx, hy, hz)
   use module_types
   use yaml_output
   use yaml_strings
+  use locregs
   implicit none
   !Arguments
   type(atoms_data), intent(in) :: atoms
@@ -1318,8 +1307,8 @@ END SUBROUTINE wtyaml
 
 !> Display the waefunctions descriptors (segments and points)
 subroutine print_wfd(wfd)
-  use module_types, only: wavefunctions_descriptors
   use yaml_output
+  use compression
   implicit none
   type(wavefunctions_descriptors), intent(in) :: wfd
 
@@ -1412,7 +1401,8 @@ subroutine print_orbitals(orbs, geocode)
 
   nelec = int(sum(orbs%occup) + 1d-12) / orbs%nkpts
 
-  call yaml_comment('Occupation Numbers',hfill='-')
+  call yaml_comment('Electronic Orbital Initialization',hfill='-')
+  !call yaml_comment('Occupation Numbers',hfill='-')
   call yaml_map('Total Number of Electrons',nelec,fmt='(i8)')
 
   ! Number of orbitals

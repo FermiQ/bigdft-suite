@@ -33,6 +33,7 @@ module module_types
   use module_input_keys, only: SIC_data,orthon_data,input_variables
   use fragment_base, only: fragmentInputParameters
   use locreg_operations,only: confpot_data
+  use module_cfd
   implicit none
 
   private
@@ -184,15 +185,30 @@ module module_types
   !  integer :: evbounds_isatur, evboundsshrink_isatur, evbounds_nsatur, evboundsshrink_nsatur !< variables to check whether the eigenvalue bounds might be too big
   !end type foe_data
 
-  type,public :: linmat_auxiliary
-      integer,dimension(:,:),pointer :: matrixindex_in_compressed_fortransposed !< lookup arrays for transposed operations
-      integer :: offset_matrixindex_in_compressed_fortransposed
-  end type linmat_auxiliary
+  type, public :: matrixindex_lookup
+      integer,dimension(:),pointer :: ind_compr
+  end type matrixindex_lookup
+
+  type,public :: matrixindex_in_compressed_fortransposed2
+      type(matrixindex_lookup),dimension(-1:1) :: section !< One section for the "negative" and one for the "positive" part (the 0 in the middle is unavoidable)
+      integer :: offset_compr
+  end type matrixindex_in_compressed_fortransposed2
+
+  !!type,public :: matrixindex_in_compressed_fortransposed
+  !!    integer,dimension(:),pointer :: ind_compr !< lookup arrays for transposed operations
+  !!    integer :: offset_compr
+  !!end type matrixindex_in_compressed_fortransposed
   
+  type,public :: linmat_auxiliary
+      !!type(matrixindex_in_compressed_fortransposed),dimension(:),pointer :: mat_ind_compr
+      type(matrixindex_in_compressed_fortransposed2),dimension(:),pointer :: mat_ind_compr2
+  end type linmat_auxiliary
+
   type,public :: linear_matrices
-      type(sparse_matrix) :: s !< small: sparsity pattern given by support function cutoff
-      type(sparse_matrix) :: m !< medium: sparsity pattern given by SHAMOP cutoff
-      type(sparse_matrix) :: l !< medium: sparsity pattern given by kernel cutoff
+      type(sparse_matrix),dimension(3) :: smat !< small: sparsity pattern given by support function cutoff
+                                               !! medium: sparsity pattern given by SHAMOP cutoff
+                                               !! medium: sparsity pattern given by kernel cutoff
+
       type(sparse_matrix),dimension(:),pointer :: ks !< sparsity pattern for the KS orbitals (i.e. dense); spin up and down
       type(sparse_matrix),dimension(:),pointer :: ks_e !< sparsity pattern for the KS orbitals including extra stated (i.e. dense); spin up and down
       type(sparse_matrix_metadata) :: smmd !< metadata of the sparse matrices
@@ -207,7 +223,7 @@ module module_types
     integer :: ncount
     real(wp),dimension(:),pointer :: receivebuf
     real(wp),dimension(:),pointer :: sendbuf
-    integer :: window
+    type(fmpi_win) :: window
   end type work_mpiaccumulate
 
 
@@ -296,7 +312,8 @@ module module_types
      !real(gp), dimension(3) :: hgrids    !< Grid spacings of denspot grid (half of the wvl grid)
      type(coulomb_operator) :: pkernel    !< Kernel of the Poisson Solver used for V_H[rho]
      type(coulomb_operator) :: pkernelseq !< For monoproc PS (useful for exactX, SIC,...)
-
+     !>constrained field dynamics local data
+     type(cfd_data) :: cfd
      integer(kind = 8) :: c_obj = 0       !< Storage of the C wrapper object.
   end type DFT_local_fields
 
@@ -583,14 +600,15 @@ module module_types
 
 
  public :: gaussian_basis
- public :: nullify_local_zone_descriptors,locreg_descriptors
- public :: wavefunctions_descriptors,atoms_data,DFT_PSP_projectors
+ public :: nullify_local_zone_descriptors!,locreg_descriptors
+ !public :: wavefunctions_descriptors,atoms_data,DFT_PSP_projectors
+ public :: atoms_data,DFT_PSP_projectors
  public :: grid_dimensions,p2pComms,comms_linear,sparse_matrix,matrices
  public :: coulomb_operator,symmetry_data,atomic_structure,comms_cubic
  public :: nonlocal_psp_descriptors
  public :: default_lzd,find_category,old_wavefunction_null,old_wavefunction_free
  public :: bigdft_init_errors,bigdft_init_timing_categories
- public :: deallocate_orbs,deallocate_locreg_descriptors,nullify_wfd
+ public :: deallocate_orbs,deallocate_locreg_descriptors
  public :: deallocate_paw_objects!,deallocate_wfd,
  public :: old_wavefunction_set
  public :: nullify_locreg_descriptors
@@ -604,6 +622,8 @@ module module_types
  public :: SIC_data,orthon_data,input_variables,evaltoocc
  public :: linear_matrices_null, linmat_auxiliary_null, deallocate_linmat_auxiliary
  public :: deallocate_linear_matrices
+ !public :: matrixindex_in_compressed_fortransposed_null
+ public :: matrixindex_in_compressed_fortransposed2_null
 
 
 
@@ -1055,7 +1075,7 @@ contains
     implicit none
     type(work_mpiaccumulate),intent(out) :: w
     w%ncount = 0
-    w%window = 0
+    !w%window = 0
     nullify(w%receivebuf)
     nullify(w%sendbuf)
   end subroutine nullify_work_mpiaccumulate
@@ -1583,11 +1603,28 @@ contains
 
   END SUBROUTINE evaltoocc
 
+  function matrixindex_in_compressed_fortransposed2_null() result (mat_ind_compr)
+    implicit none
+    type(matrixindex_in_compressed_fortransposed2) :: mat_ind_compr
+    nullify(mat_ind_compr%section(-1)%ind_compr)
+    nullify(mat_ind_compr%section(0)%ind_compr)
+    nullify(mat_ind_compr%section(1)%ind_compr)
+    mat_ind_compr%offset_compr = 0
+  end function matrixindex_in_compressed_fortransposed2_null
+
+  !function matrixindex_in_compressed_fortransposed_null() result (mat_ind_compr)
+  !  implicit none
+  !  type(matrixindex_in_compressed_fortransposed) :: mat_ind_compr
+  !  nullify(mat_ind_compr%ind_compr)
+  !  mat_ind_compr%offset_compr = 0
+  !end function matrixindex_in_compressed_fortransposed_null
+
   pure function linmat_auxiliary_null() result (aux)
     implicit none
     type(linmat_auxiliary) :: aux
-    nullify(aux%matrixindex_in_compressed_fortransposed)
-    aux%offset_matrixindex_in_compressed_fortransposed = 0
+    !nullify(aux%mat_ind_compr)
+    !aux%mat_ind_compr2 = matrixindex_in_compressed_fortransposed2_null()
+    nullify(aux%mat_ind_compr2)
   end function linmat_auxiliary_null
 
   pure function linear_matrices_null() result(linmat)
@@ -1596,9 +1633,9 @@ contains
     type(linear_matrices) :: linmat
     integer :: i
     linmat%smmd = sparse_matrix_metadata_null()
-    linmat%s = sparse_matrix_null()
-    linmat%m = sparse_matrix_null()
-    linmat%l = sparse_matrix_null()
+    linmat%smat(1) = sparse_matrix_null()
+    linmat%smat(2) = sparse_matrix_null()
+    linmat%smat(3) = sparse_matrix_null()
     nullify(linmat%ks)
     nullify(linmat%ks_e)
     linmat%ovrlp_ = matrices_null()
@@ -1612,10 +1649,33 @@ contains
     linmat%auxl = linmat_auxiliary_null()
   end function linear_matrices_null
 
+  !subroutine deallocate_matrixindex_in_compressed_fortransposed(mat_ind_compr)
+  !  implicit none
+  !  type(matrixindex_in_compressed_fortransposed),intent(inout) :: mat_ind_compr
+  !  call f_free_ptr(mat_ind_compr%ind_compr)
+  !end subroutine deallocate_matrixindex_in_compressed_fortransposed
+
+  subroutine deallocate_matrixindex_in_compressed_fortransposed2(mat_ind_compr)
+    implicit none
+    type(matrixindex_in_compressed_fortransposed2),intent(inout) :: mat_ind_compr
+    call f_free_ptr(mat_ind_compr%section(-1)%ind_compr)
+    call f_free_ptr(mat_ind_compr%section(0)%ind_compr)
+    call f_free_ptr(mat_ind_compr%section(1)%ind_compr)
+  end subroutine deallocate_matrixindex_in_compressed_fortransposed2
+
   subroutine deallocate_linmat_auxiliary(aux)
     implicit none
     type(linmat_auxiliary),intent(inout) :: aux
-    call f_free_ptr(aux%matrixindex_in_compressed_fortransposed)
+    integer :: i
+    !!do i=lbound(aux%mat_ind_compr,1),ubound(aux%mat_ind_compr,1)
+    !!    call deallocate_matrixindex_in_compressed_fortransposed(aux%mat_ind_compr(i))
+    !!end do
+    !!deallocate(aux%mat_ind_compr)
+
+    do i=lbound(aux%mat_ind_compr2,1),ubound(aux%mat_ind_compr2,1)
+        call deallocate_matrixindex_in_compressed_fortransposed2(aux%mat_ind_compr2(i))
+    end do
+    deallocate(aux%mat_ind_compr2)
   end subroutine deallocate_linmat_auxiliary
 
   subroutine deallocate_linear_matrices(linmat)
@@ -1626,9 +1686,9 @@ contains
     type(linear_matrices),intent(inout) :: linmat
     integer :: i, ispin
     call deallocate_sparse_matrix_metadata(linmat%smmd)
-    call deallocate_sparse_matrix(linmat%s)
-    call deallocate_sparse_matrix(linmat%m)
-    call deallocate_sparse_matrix(linmat%l)
+    call deallocate_sparse_matrix(linmat%smat(1))
+    call deallocate_sparse_matrix(linmat%smat(2))
+    call deallocate_sparse_matrix(linmat%smat(3))
     call deallocate_matrices(linmat%ovrlp_)
     call deallocate_matrices(linmat%ham_)
     call deallocate_matrices(linmat%kernel_)

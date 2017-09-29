@@ -29,9 +29,11 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
   use public_enums
   use f_enums
   use locreg_operations
-  use locregs_init, only: initLocregs
+  use locregs_init, only: initLocregs,lr_set
   use orbitalbasis
   use chess_base, only: chess_init
+  use module_dpbox, only: dpbox_set
+  use rhopotential, only: set_cfd_data
   implicit none
   integer, intent(in) :: iproc,nproc 
   logical, intent(in) :: dry_run, dump
@@ -77,30 +79,23 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
 
   !grid spacings of the zone descriptors (not correct, the set is done by system size)
   Lzd=default_lzd()
-  h_input=(/ in%hx, in%hy, in%hz /)
-  call lzd_set_hgrids(Lzd,h_input) 
+  !h_input=(/ in%hx, in%hy, in%hz /)
+  !call lzd_set_hgrids(Lzd,h_input) 
+  Lzd%hgrids=(/ in%hx, in%hy, in%hz /) !to be adjusted with the constraints of the box
+  ! Create wavefunctions descriptors and allocate them inside the global locreg desc.
+  calculate_bounds = .not. (inputpsi .hasattr. 'LINEAR')
+  call lr_set(lzd%Glr,iproc,OCLconv,dump,in%crmult,in%frmult,lzd%hgrids,rxyz,atoms,&
+       calculate_bounds,output_grid_)
 
-  ! Determine size alat of overall simulation cell and shift atom positions
-  ! then calculate the size in units of the grid space
-  call system_size(atoms,rxyz,in%crmult,in%frmult,&
-       Lzd%hgrids(1),Lzd%hgrids(2),Lzd%hgrids(3),OCLconv,Lzd%Glr)
-  if (iproc == 0 .and. dump) &
-       & call print_atoms_and_grid(Lzd%Glr, atoms, rxyz, &
-       & Lzd%hgrids(1),Lzd%hgrids(2),Lzd%hgrids(3))
   if (present(locregcenters)) then
       do iat=1,atoms%astruct%nat
           locregcenters(1:3,iat)=locregcenters(1:3,iat)-atoms%astruct%shift(1:3)
           if (locregcenters(1,iat)<dble(0)*lzd%hgrids(1) .or. locregcenters(1,iat)>dble(lzd%glr%d%n1+1)*lzd%hgrids(1) .or. &
               locregcenters(2,iat)<dble(0)*lzd%hgrids(2) .or. locregcenters(2,iat)>dble(lzd%glr%d%n2+1)*lzd%hgrids(2) .or. &
               locregcenters(3,iat)<dble(0)*lzd%hgrids(3) .or. locregcenters(3,iat)>dble(lzd%glr%d%n3+1)*lzd%hgrids(3)) then
-              !write(*,'(a,2es16.6)') 'locregcenters(1,iat), dble(lzd%glr%d%n1+1)*lzd%hgrids(1)', locregcenters(1,iat), dble(lzd%glr%d%n1+1)*lzd%hgrids(1)
-              !write(*,'(a,2es16.6)') 'locregcenters(2,iat), dble(lzd%glr%d%n2+1)*lzd%hgrids(2)', locregcenters(2,iat), dble(lzd%glr%d%n2+1)*lzd%hgrids(2)
-              !write(*,'(a,2es16.6)') 'locregcenters(3,iat), dble(lzd%glr%d%n3+1)*lzd%hgrids(3)', locregcenters(3,iat), dble(lzd%glr%d%n3+1)*lzd%hgrids(3)
-              !write(*,'(a,3es16.6)') 'atoms%astruct%rxyz(1:3,iat)', atoms%astruct%rxyz(1:3,iat)
-              !stop 'locregcenter outside of global box!'
               call f_err_throw('locregcenter outside of global box!', err_name='BIGDFT_RUNTIME_ERROR')
           end if
-      end do
+       end do
   end if
 
   ! Initialize the object holding the CheSS parameters
@@ -110,14 +105,12 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
      call initialize_DFT_local_fields(denspot, in%ixc, in%nspin, in%alpha_hartree_fock)
 
      !here the initialization of dpbox can be set up
-     call dpbox_set(denspot%dpbox,Lzd,denspot%xc,iproc,nproc,bigdft_mpi%mpi_comm, &
-          !& in%PSolver_groupsize,&
-          in%SIC%approach, atoms%astruct%geocode, in%nspin)!,&
-!          in%matacc%PSolver_igpu)
+     call dpbox_set(denspot%dpbox,Lzd%Glr%mesh,denspot%xc,iproc,nproc,bigdft_mpi%mpi_comm, &
+          in%SIC%approach, in%nspin)
 
      ! Create the Poisson solver kernels.
      call system_initKernels(.true.,iproc,nproc,atoms%astruct%geocode,in,denspot)
-     call system_createKernels(denspot, (verbose > 1))
+     call system_createKernels(denspot, (get_verbose_level() > 1))
      if (denspot%pkernel%method .hasattr. 'rigid') then
         call epsilon_cavity(atoms,rxyz,denspot%pkernel)
         !allocate cavity, in the case of nonvacuum treatment
@@ -127,19 +120,8 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
 
           call epsinnersccs_cavity(atoms,rxyz,denspot%pkernel)
 
-        !if (denspot%pkernel%method .hasattr. 'sccs') &
-        !     call pkernel_allocate_cavity(denspot%pkernel)
      end if
   end if
-
-  ! Create wavefunctions descriptors and allocate them inside the global locreg desc.
-  calculate_bounds = .not. (inputpsi .hasattr. 'LINEAR')
-!!$  (inputpsi /= INPUT_PSI_LINEAR_AO .and. &
-!!$                      inputpsi /= INPUT_PSI_DISK_LINEAR .and. &
-!!$                      inputpsi /= INPUT_PSI_MEMORY_LINEAR)
-  call createWavefunctionsDescriptors(iproc,Lzd%hgrids(1),Lzd%hgrids(2),Lzd%hgrids(3),atoms,&
-       rxyz,in%crmult,in%frmult,calculate_bounds,Lzd%Glr, output_grid_)
-  if (iproc == 0 .and. dump) call print_wfd(Lzd%Glr%wfd)
 
   ! Create global orbs data structure.
   if(in%nspin==4) then
@@ -240,9 +222,9 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
          time_average(2) = time_max(2)/real(nproc,kind=8)
          totaltimes(iproc+1) = time_max(2)
          if (nproc>1) then
-             call mpiallred(time_max, mpi_max, comm=bigdft_mpi%mpi_comm)
-             call mpiallred(time_average, mpi_sum, comm=bigdft_mpi%mpi_comm)
-             call mpiallred(totaltimes, mpi_sum, comm=bigdft_mpi%mpi_comm)
+             call fmpi_allreduce(time_max, FMPI_MAX, comm=bigdft_mpi%mpi_comm)
+             call fmpi_allreduce(time_average, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+             call fmpi_allreduce(totaltimes, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
          end if
          !ratio_before = real(time_max(1),kind=8)/real(max(1.d0,time_min(1)),kind=8) !max to prevent divide by zero
          !ratio_after = real(time_max(2),kind=8)/real(max(1.d0,time_min(2)),kind=8) !max to prevent divide by zero
@@ -294,29 +276,17 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
      ! Check the maximum number of orbitals
      if (in%nspin==1 .or. in%nspin==4) then
         if (orbs%norb>norbe) then
-           !write(*,'(1x,a,i0,a,i0,a)') 'The number of orbitals (',orbs%norb,&
-           !     &   ') must not be greater than the number of orbitals (',norbe,&
-           !     &   ') generated from the input guess.'
-           !stop
            call f_err_throw('The number of orbitals ('+yaml_toa(orbs%norb)// &
                 &   ') must not be greater than the number of orbitals ('+yaml_toa(norbe)// &
                 &   ') generated from the input guess.',err_id=BIGDFT_INPUT_VARIABLES_ERROR)
         end if
      else if (in%nspin == 2) then
         if (orbs%norbu > norbe) then
-           !write(*,'(1x,a,i0,a,i0,a)') 'The number of orbitals up (',orbs%norbu,&
-           !     &   ') must not be greater than the number of orbitals (',norbe,&
-           !     &   ') generated from the input guess.'
-           !stop
            call f_err_throw('The number of orbitals up ('+yaml_toa(orbs%norbu)// &
                 &   ') must not be greater than the number of orbitals ('+yaml_toa(norbe)// &
                 &   ') generated from the input guess.',err_id=BIGDFT_INPUT_VARIABLES_ERROR)
         end if
         if (orbs%norbd > norbe) then
-           !write(*,'(1x,a,i0,a,i0,a)') 'The number of orbitals down (',orbs%norbd,&
-           !     &   ') must not be greater than the number of orbitals (',norbe,&
-           !     &   ') generated from the input guess.'
-           !stop
            call f_err_throw('The number of orbitals down ('+yaml_toa(orbs%norbd) //&
                 &   ') must not be greater than the number of orbitals ('+yaml_toa(norbe) //&
                 &   ') generated from the input guess.',err_id=BIGDFT_INPUT_VARIABLES_ERROR)
@@ -379,7 +349,6 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
   !!   deallocate(ref_frags)
   !!end if
 
-
   ! Calculate all projectors, or allocate array for on-the-fly calculation
   ! SM: For a linear scaling calculation, some parts can be done later.
   ! SM: The following flag is false for linear scaling and true otherwise.
@@ -388,7 +357,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
   !                              inputpsi /= INPUT_PSI_DISK_LINEAR .and. &
   !                              inputpsi /= INPUT_PSI_MEMORY_LINEAR)
   call orbital_basis_associate(ob,orbs=orbs,Lzd=Lzd,id='system_initialization')
-  call createProjectorsArrays(Lzd%Glr,rxyz,atoms,ob,&
+  call createProjectorsArrays(iproc,nproc,Lzd%Glr,rxyz,atoms,ob,&
        in%frmult,in%frmult,Lzd%hgrids(1),Lzd%hgrids(2),&
        Lzd%hgrids(3),dry_run,nlpsp,init_projectors_completely)
   call orbital_basis_release(ob)
@@ -412,6 +381,8 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
           denspot%dpbox,in%rho_commun,rxyz,denspot%rhod)
      !allocate the arrays.
      call allocateRhoPot(Lzd%Glr,in%nspin,atoms,rxyz,denspot)
+     !here insert the conditional for the constrained field dynamics
+     if (in%calculate_magnetic_torque) call set_cfd_data(denspot%cfd,Lzd%Glr%mesh,atoms%astruct,rxyz)
   end if
 
   !calculate the irreductible zone for this region, if necessary.
@@ -509,7 +480,8 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
        use sparsematrix_wrappers, only: check_kernel_cutoff
        implicit none
        call copy_locreg_descriptors(Lzd%Glr, lzd_lin%glr)
-       call lzd_set_hgrids(lzd_lin, Lzd%hgrids)
+       !call lzd_set_hgrids(lzd_lin, Lzd%hgrids)
+       lzd_lin%hgrids=Lzd%hgrids
        if (inputpsi == 'INPUT_PSI_LINEAR_AO' .or. inputpsi == 'INPUT_PSI_MEMORY_LINEAR') then
            !!write(*,*) 'rxyz',rxyz
            !!write(*,*) 'locregcenters',locregcenters
@@ -544,7 +516,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
 
        if (.not. dry_run) then
           call initLocregs(iproc, nproc, lzd_lin, Lzd_lin%hgrids(1), Lzd_lin%hgrids(2),Lzd_lin%hgrids(3), &
-               atoms%astruct, lorbs, Lzd_lin%Glr, 's')
+               atoms%astruct%rxyz,lzd_lin%llr(:)%locrad, lorbs, Lzd_lin%Glr, 's')
           call update_wavefunctions_size(lzd_lin,lnpsidim_orbs,lnpsidim_comp,lorbs,iproc,nproc)
        else
           call yaml_warning("Locregs not initialized for linear.")
@@ -577,7 +549,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
           times_convol(iiorb) = real(ii+jj,kind=8)
       end do
       if (nproc>1) then
-          call mpiallred(times_convol, mpi_sum, comm=bigdft_mpi%mpi_comm)
+          call fmpi_allreduce(times_convol, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
       end if
 
       return !###############################################3
@@ -675,7 +647,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
        call f_free(phi)
 
        if (nproc>1) then
-           call mpiallred(times_convol, mpi_sum, comm=bigdft_mpi%mpi_comm)
+           call fmpi_allreduce(times_convol, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
        end if
 
      end subroutine test_preconditioning
@@ -689,7 +661,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
      !!  ! Sum up the total size of all support functions
      !!  isize = int(lnpsidim_orbs,kind=8)
      !!  if (nproc>1) then
-     !!      call mpiallred(isize, 1, mpi_sum, bigdft_mpi%mpi_comm)
+     !!      call fmpi_allreduce(isize, 1, FMPI_SUM, bigdft_mpi%mpi_comm)
      !!  end if
 
      !!  ! Ideal size per task (integer division)
@@ -984,19 +956,20 @@ subroutine epsilon_cavity(atoms,rxyz,pkernel)
 
   radii=f_malloc(atoms%astruct%nat,id='radii')
   !radii_nofact=f_malloc(atoms%astruct%nat,id='radii_nofact')
-  eps=f_malloc(pkernel%ndims,id='eps')
-  dlogeps=f_malloc([3,pkernel%ndims(1),pkernel%ndims(2),pkernel%ndims(3)],id='dlogeps')
-  oneoeps=f_malloc(pkernel%ndims,id='oneoeps')
-  oneosqrteps=f_malloc(pkernel%ndims,id='oneosqrteps')
-  corr=f_malloc(pkernel%ndims,id='corr')
-!!$  epst=f_malloc(pkernel%ndims,id='epst')
-!!$  dlogepst=f_malloc([3,pkernel%ndims(1),pkernel%ndims(2),pkernel%ndims(3)],id='dlogepst')
-!!$  oneoepst=f_malloc(pkernel%ndims,id='oneoepst')
-!!$  oneosqrtepst=f_malloc(pkernel%ndims,id='oneosqrtepst')
-!!$  corrt=f_malloc(pkernel%ndims,id='corrt')
+  eps=f_malloc(pkernel%mesh%ndims,id='eps')
+  dlogeps=f_malloc([3,pkernel%mesh%ndims(1),pkernel%mesh%ndims(2),pkernel%mesh%ndims(3)],id='dlogeps')
+  oneoeps=f_malloc(pkernel%mesh%ndims,id='oneoeps')
+  oneosqrteps=f_malloc(pkernel%mesh%ndims,id='oneosqrteps')
+  corr=f_malloc(pkernel%mesh%ndims,id='corr')
+!!$  epst=f_malloc(pkernel%mesh%ndims,id='epst')
+!!$  dlogepst=f_malloc([3,pkernel%mesh%ndims(1),pkernel%mesh%ndims(2),pkernel%mesh%ndims(3)],id='dlogepst')
+!!$  oneoepst=f_malloc(pkernel%mesh%ndims,id='oneoepst')
+!!$  oneosqrtepst=f_malloc(pkernel%mesh%ndims,id='oneosqrtepst')
+!!$  corrt=f_malloc(pkernel%mesh%ndims,id='corrt')
 
   it=atoms_iter(atoms%astruct)
   !python metod
+  if (bigdft_mpi%iproc==0) call yaml_mapping_open('Covalent radii',flow=.true.)
   do while(atoms_iter_next(it))
      !only amu is extracted here
      call atomic_info(atoms%nzatom(it%ityp),atoms%nelpsp(it%ityp),&
@@ -1007,9 +980,11 @@ subroutine epsilon_cavity(atoms,rxyz,pkernel)
      else
         radii(it%iat)=rcav
      end if
+     if (bigdft_mpi%iproc==0) call yaml_map(it%name,radii(it%iat))
   end do
+  if (bigdft_mpi%iproc==0) call yaml_mapping_close()
 
-  if (bigdft_mpi%iproc==0) call yaml_map('Covalent radii',radii)
+!  if (bigdft_mpi%iproc==0) call yaml_map('Covalent radii',radii)
 
   fact=pkernel%cavity%fact_rigid
   it=atoms_iter(atoms%astruct)
@@ -1110,7 +1085,7 @@ subroutine epsilon_cavity(atoms,rxyz,pkernel)
   !here the pkernel_set_epsilon routine should been modified to accept
   !already the radii and the atoms
 
-  mesh=cell_new(atoms%astruct%geocode,pkernel%ndims,pkernel%hgrids)
+  mesh=cell_new(atoms%astruct%geocode,pkernel%mesh%ndims,pkernel%mesh%hgrids)
   origin=locreg_mesh_origin(mesh)
   rxyz_shifted=f_malloc([3,atoms%astruct%nat],id='rxyz_shifted')
   do iat=1,atoms%astruct%nat
@@ -1354,6 +1329,9 @@ subroutine epsinnersccs_cavity(atoms,rxyz,pkernel)
   use f_enums, f_str => str
   use yaml_output
   use dictionaries, only: f_err_throw
+  use PStypes, only: epsilon_inner_cavity
+  use box
+  use bounds, only: locreg_mesh_origin
   implicit none
   type(atoms_data), intent(in) :: atoms
   real(gp), dimension(3,atoms%astruct%nat), intent(in) :: rxyz
@@ -1362,44 +1340,45 @@ subroutine epsinnersccs_cavity(atoms,rxyz,pkernel)
   !local variables
   integer :: i,n1,n23,i3s
   real(gp) :: delta
-  type(atoms_iterator) :: it
+  !type(atoms_iterator) :: it
   real(gp), dimension(:), allocatable :: radii
   real(gp), dimension(:,:,:), allocatable :: eps
 
   radii=f_malloc(atoms%astruct%nat,id='radii')
-  eps=f_malloc(pkernel%ndims,id='eps')
+!!$  eps=f_malloc(pkernel%mesh%ndims,id='eps')
 
-  it=atoms_iter(atoms%astruct)
-  !python metod
-  do while(atoms_iter_next(it))
-     !only amu is extracted here
-     call atomic_info(atoms%nzatom(it%ityp),atoms%nelpsp(it%ityp),&
-          rcov=radii(it%iat))
-  end do
+!!$  it=atoms_iter(atoms%astruct)
+!!$  !python metod
+!!$  do while(atoms_iter_next(it))
+!!$     !only amu is extracted here
+!!$     call atomic_info(atoms%nzatom(it%ityp),atoms%nelpsp(it%ityp),&
+!!$          rcov=radii(it%iat))
+!!$  end do
 
 !  if(bigdft_mpi%iproc==0) call yaml_map('Bohr_Ang',Bohr_Ang)
 
-  delta=2.0*maxval(pkernel%hgrids)
+  delta=2.0*maxval(pkernel%mesh%hgrids)
 !  if(bigdft_mpi%iproc==0) call yaml_map('Delta cavity',delta)
-
   do i=1,atoms%astruct%nat
    radii(i) = 0.5d0/Bohr_Ang
   end do
 !  if (bigdft_mpi%iproc==0) call yaml_map('Covalent radii',radii)
 
-  call epsinnersccs_rigid_cavity_error_multiatoms_bc(atoms%astruct%geocode,&
-       pkernel%ndims,pkernel%hgrids,atoms%astruct%nat,rxyz,radii,delta,eps)
+  call epsilon_inner_cavity(pkernel,atoms%astruct%nat,rxyz,radii,delta,locreg_mesh_origin(pkernel%mesh))
 
-  n1=pkernel%ndims(1)
-  n23=pkernel%ndims(2)*pkernel%grid%n3p
-  !starting point in third direction
-  i3s=pkernel%grid%istart+1
-  if (pkernel%grid%n3p==0) i3s=1
-
-  call f_memcpy(n=n1*n23,src=eps(1,1,i3s),dest=pkernel%w%epsinnersccs)
+!!$  call epsinnersccs_rigid_cavity_error_multiatoms_bc(atoms%astruct%geocode,&
+!!$       pkernel%mesh%ndims,pkernel%hgrids,atoms%astruct%nat,rxyz,radii,delta,eps)
+!!$
+!!$  n1=pkernel%mesh%ndims(1)
+!!$  n23=pkernel%mesh%ndims(2)*pkernel%grid%n3p
+!!$  !starting point in third direction
+!!$  i3s=pkernel%grid%istart+1
+!!$  if (pkernel%grid%n3p==0) i3s=1
+!!$
+!!$  call f_memcpy(n=n1*n23,src=eps(1,1,i3s),dest=pkernel%w%epsinnersccs)
 
   call f_free(radii)
-  call f_free(eps)
+!!$  call f_free(eps)
 end subroutine epsinnersccs_cavity
 
 !> Calculate the important objects related to the physical properties of the system
@@ -1578,7 +1557,7 @@ subroutine calculate_rhocore(at,rxyz,dpbox,rhocore)
      enddo
   enddo
 
-  if (bigdft_mpi%nproc > 1) call mpiallred(tt,1,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+  if (bigdft_mpi%nproc > 1) call fmpi_allreduce(tt,1,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
   tt=tt*dpbox%mesh%volume_element
   if (bigdft_mpi%iproc == 0) then
      call yaml_mapping_open('Analytic core charges for atom species')
@@ -1960,7 +1939,7 @@ END SUBROUTINE nlcc_start_position
 !!!      end if
 !!!  end do
 !!!  call MPI_Initialized(mpiflag,ierr)
-!!!  if(mpiflag /= 0 .and. nproc > 1) call mpiallred(orbs%isorb_par(0), nproc, mpi_sum, bigdft_mpi%mpi_comm, ierr)
+!!!  if(mpiflag /= 0 .and. nproc > 1) call fmpi_allreduce(orbs%isorb_par(0), nproc, FMPI_SUM, bigdft_mpi%mpi_comm, ierr)
 !!!
 !!!END SUBROUTINE orbitals_descriptors_forLinear
 
@@ -1978,6 +1957,8 @@ subroutine kpts_to_procs_via_obj(nproc,nkpts,nobj,nobj_par)
   integer :: jproc,ikpt,iobj,nobjp_max_kpt,nprocs_with_floor,jobj,nobjp
   integer :: jkpt,nproc_per_kpt,nproc_left,kproc,nkpt_per_proc,nkpts_left
   real(gp) :: robjp,rounding_ratio
+
+  call f_routine(id='kpts_to_procs_via_obj')
 
   !decide the naive number of objects which should go to each processor.
   robjp=real(nobj,gp)*real(nkpts,gp)/real(nproc,gp)
@@ -2093,6 +2074,9 @@ subroutine kpts_to_procs_via_obj(nproc,nkpts,nobj,nobj_par)
         nobj_par(nproc-1,ikpt)=nobj_par(nproc-1,ikpt)+1
      end do
   end if
+
+  call f_release_routine()
+
 END SUBROUTINE kpts_to_procs_via_obj
 
 

@@ -24,6 +24,7 @@ program BigDFT2Wannier
    use bounds, only: ext_buffers
    use locreg_operations
    use io, only: writemywaves
+   use locregs_init, only: lr_set
    implicit none
    character :: filetype*4
    !etsf
@@ -173,20 +174,22 @@ program BigDFT2Wannier
 
    ! use the new lzd type for compatibility reasons, i.e. replace Glr by glr%lzd
    lzd=default_lzd()
+   lzd%hgrids=[input%hx,input%hy,input%hz]
 
-
-   ! Determine size alat of overall simulation cell and shift atom positions
-   ! then calculate the size in units of the grid space
-   call system_size(atoms,atoms%astruct%rxyz,input%crmult,input%frmult,input%hx,input%hy,input%hz,&
-      &   .false.,lzd%Glr)
-   if (iproc == 0) &
-        & call print_atoms_and_grid(lzd%Glr, atoms, atoms%astruct%rxyz, input%hx,input%hy,input%hz)
-
-   ! Create wavefunctions descriptors and allocate them inside the global locreg desc.
-   call createWavefunctionsDescriptors(iproc,input%hx,input%hy,input%hz,&
-      & atoms,atoms%astruct%rxyz,input%crmult,input%frmult,.true.,lzd%Glr)
-   if (iproc == 0) call print_wfd(lzd%Glr%wfd)
-
+   call lr_set(lzd%Glr,iproc,.false.,.true.,input%crmult,input%frmult,&
+        lzd%hgrids,atoms%astruct%rxyz,atoms,&
+        .true.,.false.)
+!!$   ! Determine size alat of overall simulation cell and shift atom positions
+!!$   ! then calculate the size in units of the grid space
+!!$   call system_size(atoms,atoms%astruct%rxyz,input%crmult,input%frmult,input%hx,input%hy,input%hz,&
+!!$      &   .false.,lzd%Glr)
+!!$   if (iproc == 0) &
+!!$        & call print_atoms_and_grid(lzd%Glr, atoms, atoms%astruct%rxyz, input%hx,input%hy,input%hz)
+!!$
+!!$   ! Create wavefunctions descriptors and allocate them inside the global locreg desc.
+!!$   call createWavefunctionsDescriptors(iproc,input%hx,input%hy,input%hz,&
+!!$      & atoms,atoms%astruct%rxyz,input%crmult,input%frmult,.true.,lzd%Glr)
+!!$   if (iproc == 0) call print_wfd(lzd%Glr%wfd)
 
    ! Allocate communications arrays (allocate it before Projectors because of the definition of iskpts and nkptsp)
    call orbitals_communicators(iproc,nproc,lzd%Glr,orbs,comms)
@@ -293,7 +296,7 @@ program BigDFT2Wannier
          
          if(nproc > 1) then
             pwork = f_malloc_ptr(npsidim,id='pwork')
-            call transpose_v(iproc,nproc,orbsv,lzd%glr%wfd,commsv,psi_etsfv(1),pwork(1))
+            call transpose_v(iproc,nproc,orbsv,lzd%glr%wfd,commsv,psi_etsfv,pwork)
             call f_free_ptr(pwork)
          end if
 
@@ -368,7 +371,7 @@ program BigDFT2Wannier
 
          ! Tranposition of the distribution of the spherical harmonics: orbitals -> components.
          pwork = f_malloc_ptr(npsidim2,id='pwork')
-         call transpose_v(iproc,nproc,orbsp,lzd%glr%wfd,commsp,sph_daub(1),pwork(1))
+         call transpose_v(iproc,nproc,orbsp,lzd%glr%wfd,commsp,sph_daub,pwork)
          call f_free_ptr(pwork)
          call timing(iproc,'ApplyProj     ','ON')
 
@@ -635,7 +638,7 @@ program BigDFT2Wannier
          ! Tranposition of distribution : orbitals -> components.
          if(nproc>1) then
             pwork = f_malloc_ptr(npsidim2,id='pwork')
-            call transpose_v(iproc,nproc,orbsp,lzd%glr%wfd,commsp,sph_daub(1),pwork(1))
+            call transpose_v(iproc,nproc,orbsp,lzd%glr%wfd,commsp,sph_daub,pwork)
             call f_free_ptr(pwork)
          end if
          call deallocate_projectors()
@@ -671,7 +674,7 @@ program BigDFT2Wannier
          !call f_zero(npsidim,psi_etsf2)
          if(nproc > 1) then
             pwork = f_malloc_ptr(npsidim,id='pwork')
-            call transpose_v(iproc,nproc,orbsb,lzd%glr%wfd,commsb,psi_etsf(1,1),pwork(1),out_add=psi_etsf2(1))
+            call transpose_v(iproc,nproc,orbsb,lzd%glr%wfd,commsb,psi_etsf,pwork,out_add=psi_etsf2)
             call f_free_ptr(pwork)
          else
             call vcopy(orbsb%norb*orbsb%nspinor*(lzd%Glr%wfd%nvctr_c+7*lzd%Glr%wfd%nvctr_f),psi_etsf(1,1),1,psi_etsf2(1),1)
@@ -683,7 +686,7 @@ program BigDFT2Wannier
          !call f_zero(npsidim,psi_etsf2)
          if(nproc > 1) then
             pwork = f_malloc_ptr(npsidim,id='pwork')
-            call transpose_v(iproc,nproc,orbsb,lzd%glr%wfd,commsb,psi_etsf(1,1),pwork(1),out_add=psi_etsf2(1))
+            call transpose_v(iproc,nproc,orbsb,lzd%glr%wfd,commsb,psi_etsf,pwork,out_add=psi_etsf2)
             call f_free_ptr(pwork)
          else
             call vcopy(orbsb%norb*orbs%nspinor*(lzd%Glr%wfd%nvctr_c+7*lzd%Glr%wfd%nvctr_f),psi_etsf(1,1),1,psi_etsf2(1),1)
@@ -720,7 +723,7 @@ program BigDFT2Wannier
          ! Now untranspose to make the psi
          if(nproc > 1) then
             pwork = f_malloc_ptr(npsidim,id='pwork')
-            call untranspose_v(iproc,nproc,orbsb,lzd%Glr%wfd,commsb,psi_etsf2(1),pwork(1),out_add=psi_etsf(1,1))
+            call untranspose_v(iproc,nproc,orbsb,lzd%Glr%wfd,commsb,psi_etsf2,pwork,out_add=psi_etsf)
             call f_free_ptr(pwork)
          else
             call vcopy(orbsb%norb*orbsb%nspinor*(lzd%Glr%wfd%nvctr_c+7*lzd%Glr%wfd%nvctr_f),psi_etsf2(1),1,psi_etsf(1,1),1)
@@ -868,8 +871,8 @@ program BigDFT2Wannier
          if(nproc>0 .or. orbsb%nspinor /=1) then
             call timing(iproc,'Input_comput  ','OF')
             pwork = f_malloc_ptr(npsidim,id='pwork')
-            call transpose_v(iproc,nproc,orbsb,lzd%glr%wfd,commsb,psi_daub_re(1),pwork(1))
-            call transpose_v(iproc,nproc,orbsb,lzd%glr%wfd,commsb,psi_daub_im(1),pwork(1))
+            call transpose_v(iproc,nproc,orbsb,lzd%glr%wfd,commsb,psi_daub_re,pwork)
+            call transpose_v(iproc,nproc,orbsb,lzd%glr%wfd,commsb,psi_daub_im,pwork)
             call f_free_ptr(pwork)
             call timing(iproc,'Input_comput  ','ON')
          end if
@@ -1780,7 +1783,8 @@ END SUBROUTINE radialpart
 subroutine write_functions(w_sph, w_ang, w_rad, fn1, fn2, fn3, np, Glr, &
       &   hxh, hyh, hzh, atoms, rxyz, sph_har, func_r, ylm)
   use module_defs, only: gp
-   use module_types
+  use module_types
+  use locregs
    implicit none
 
    ! I/O variables
@@ -2110,6 +2114,7 @@ subroutine write_unk_bin(Glr,orbs,orbsv,orbsb,input,atoms,rxyz,n_occ,n_virt,virt
    use bounds, only: ext_buffers
    use locreg_operations
    use module_interfaces, only: readmywaves
+   use locregs
    implicit none
    ! I/O variables
    type(locreg_descriptors), intent(in) :: Glr

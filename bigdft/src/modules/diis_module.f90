@@ -210,7 +210,7 @@ contains
        ispsidst=ispsidst+ncomp*diis%idsx
     end do
     if (nproc > 1) then
-       call mpiallred(rds,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+       call fmpi_allreduce(rds,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
        if (f_err_raise(f_err_check(err_name='ERR_MPI_WRAPPERS'),&
             'Error in allreduce operation, '//subname,BIGDFT_MPI_ERROR)) then
           call free_and_exit()
@@ -299,9 +299,9 @@ contains
     end do
 
     ! Output to screen, depending on policy.
-    if (verbose >= 10) then
-       call broadcast_kpt_objects(nproc, ngrp, (diis%idsx+1), rds, igrpproc)
-    end if
+!!$    if (verbose >= 10) then
+!!$       call broadcast_kpt_objects(nproc, ngrp, (diis%idsx+1), rds, igrpproc)
+!!$    end if
     if (iproc == 0) then 
        call write_diis_weights(1,diis%idsx,1,ngrp,min(diis%idsx,diis%ids),rds)
     endif

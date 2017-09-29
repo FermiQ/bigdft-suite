@@ -1,14 +1,14 @@
 !> @file
 !!  Define main module for using BigDFT as a blackbox
 !! @author
-!!    Copyright (C) 2007-2015 BigDFT group (LG, DC)
+!!    Copyright (C) 2007-2017 BigDFT group (LG, DC)<br/>
 !!    This file is distributed under the terms of the
 !!    GNU General Public License, see ~/COPYING file
 !!    or http://www.gnu.org/copyleft/gpl.txt .
 !!    For the list of contributors, see ~/AUTHORS
 
 
-!> Module handling the object for the runs of bigDFT (restart, output, ...)
+!> Module handling the object for the runs of BigDFT (restart, output, ...)
 module bigdft_run
   use module_defs, only: gp
   use dictionaries
@@ -19,24 +19,25 @@ module bigdft_run
   use f_utils
   use f_enums, f_str => str
   use module_input_dicts, only: bigdft_set_run_properties => dict_set_run_properties,&
-       bigdft_get_run_properties => dict_get_run_properties
+       bigdft_get_run_properties => dict_get_run_properties,&
+       final_positions_filename
   use public_enums
 
   private
 
-  !>  Used to restart a new DFT calculation or to save information
-  !!  for post-treatment
+  !> Used to restart a new DFT calculation or to save information
+  !! for post-treatment
   type, public :: QM_restart_objects
      type(f_reference_counter) :: refcnt
      integer :: version !< 0=cubic, 100=linear
      integer :: n1,n2,n3,nat
      real(gp), dimension(:,:), pointer :: rxyz_old,rxyz_new
      type(DFT_wavefunction) :: KSwfn !< Kohn-Sham wavefunctions
-     type(DFT_wavefunction) :: tmb !<support functions for linear scaling
+     type(DFT_wavefunction) :: tmb !< Support functions for linear scaling
      type(GPU_pointers) :: GPU
   end type QM_restart_objects
 
-  !>supplementary type in run_objects
+  !> Supplementary type in run_objects
   type, public :: MM_restart_objects
      type(f_reference_counter) :: refcnt
      !> array for temporary copy of atomic positions and forces
@@ -1220,14 +1221,15 @@ contains
 
   !> Read all input files and create the objects to run BigDFT
   recursive subroutine run_objects_init(runObj,run_dict,source)
-    use module_base, only: bigdft_mpi,dict_init
+    use module_base, only: bigdft_mpi
     use module_types
     use module_input_dicts, only: create_log_file
     use module_input_keys, only: user_dict_from_files
     use yaml_output
     use dynamic_memory
+    use dictionaries
     use module_f_objects
-    use public_keys, only: PY_HOOKS, PLUGINS
+    use public_keys, only: PY_HOOKS, PLUGINS, SKIP_RUN
     implicit none
     !> Object for BigDFT run. Has to be initialized by this routine in order to
     !! call bigdft main routine.
@@ -1247,12 +1249,12 @@ contains
     !! which are provided by the informations given by run_dict
     type(run_objects), intent(in), optional :: source
     !local variables
-    logical :: dict_from_files
+    logical :: dict_from_files,skip,exists
     integer :: i, ierr
     character(len=max_field_length) :: radical, posinp_id
     type(signal_ctx) :: sig
     type(dictionary), pointer :: iter
-    character(len = 256) :: mess
+    character(len = 256) :: mess,filename
 
     call f_routine(id='run_objects_init')
 
@@ -1268,7 +1270,12 @@ contains
        !stop
        !here the control of the logfile can be inserted, driven by run_dict and
        ! not anymore by user_inputs
-       call create_log_file(run_dict,dict_from_files)
+       call create_log_file(run_dict,dict_from_files,skip)
+       if (skip) then
+             call set(run_dict//SKIP_RUN,.true.)
+             return
+       end if
+
        if (dict_from_files) then
           ! Generate input dictionary.
           call dict_copy(runObj%user_inputs, run_dict)
@@ -1376,36 +1383,12 @@ contains
     ! Create sections if any.
     call set_section_objects(runObj)
 
-!!$    !init and update the restart objects
-!!$    if (associated(runObj%rst)) then
-!!$       call f_unref(runObj%rst%refcnt,count=count)
-!!$       if (count==0) then
-!!$          call free_QM_restart_objects(runObj%rst)
-!!$       else
-!!$          nullify(runObj%rst)
-!!$       end if
-!!$    else
-!!$       allocate(runObj%rst)
-!!$    end if
-!!$    call nullify_QM_restart_objects(runObj%rst)
     if(.not. associated(runObj%rst)) then
        allocate(runObj%rst)
        call nullify_QM_restart_objects(runObj%rst)
     end if
     call init_QM_restart_objects(bigdft_mpi%iproc,runObj%inputs,runObj%atoms,&
          runObj%rst)
-!!$    if (associated(runObj%mm_rst)) then
-!!$       call f_unref(runObj%mm_rst%refcnt,count=count)
-!!$       if (count==0) then
-!!$          call free_MM_restart_objects(runObj%mm_rst)
-!!$       else
-!!$          nullify(runObj%mm_rst)
-!!$       end if
-!!$    else
-!!$       allocate(runObj%mm_rst)
-!!$    end if
-!!$    !call free_MM_restart_objects(runObj%mm_rst)
-!!$    call nullify_MM_restart_objects(runObj%mm_rst)
     if (.not. associated(runObj%mm_rst)) then
        allocate(runObj%mm_rst)
        call nullify_MM_restart_objects(runObj%mm_rst)
@@ -1478,7 +1461,7 @@ contains
     !! on exit, it contains in the key "BigDFT", a list of the
     !! dictionaries of each of the run that the local instance of BigDFT
     !! code has to execute.
-    !! if this argument is not present, the code is only initialized
+    !! if this argument is not present, the code environment is only initialized
     !! in its normal mode: no taskgroups and default values of radical and posinp
     type(dictionary), pointer, optional :: options
     logical, intent(in), optional :: with_taskgroups
@@ -1860,8 +1843,8 @@ contains
 !!$    write_mapping= runObj%run_mode /= 'QM_RUN_MODE' .and. bigdft_mpi%iproc==0 .and. verbose > 0
     !open the document if the run_mode has not it inside
     write_mapping = (bigdft_mpi%iproc==0 .and. &
-        & .not. (runObj%run_mode .hasattr. RUN_MODE_CREATE_DOCUMENT) .and. &
-        & verbose > 0)
+         .not. (runObj%run_mode .hasattr. RUN_MODE_CREATE_DOCUMENT) .and. &
+         get_verbose_level() > 0)
     if (write_mapping) then
        call yaml_sequence(advance='no')
        call yaml_mapping_open(trim(f_str(runObj%run_mode)),flow=.true.)
@@ -2080,12 +2063,14 @@ contains
     end if
 
     if (runObj%inputs%ncount_cluster_x > 1) then
-       call f_strcpy(src='final_'+id,dest=filename)
+       !call f_strcpy(src='final_'+id,dest=filename)
+       call final_positions_filename(.false.,id,filename)
        call bigdft_write_atomic_file(runObj,outs,filename,&
             'FINAL CONFIGURATION',cwd_path=.true.)
 
     else
-       call f_strcpy(src='forces_'+id,dest=filename)
+       !call f_strcpy(src='forces_'+id,dest=filename)
+       call final_positions_filename(.true.,id,filename)
        call bigdft_write_atomic_file(runObj,outs,filename,&
             'Geometry + metaData forces',cwd_path=.true.)
 
@@ -2127,7 +2112,7 @@ contains
     call rxyz_inside_box(runObj%atoms%astruct,rxyz=runObj%rst%rxyz_new)
     !assign the verbosity of the output
     !the verbose variables is defined in module_defs
-    verbose=runObj%inputs%verbosity
+    call set_verbose_level(runObj%inputs%verbosity)
 
     ! Use the restart for the linear scaling version... probably to be modified.
 !!$    if(runObj%inputs%inputPsiId == INPUT_PSI_MEMORY_WVL) then

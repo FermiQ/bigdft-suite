@@ -47,7 +47,9 @@ subroutine init_foe_wrapper(iproc, nproc, input, orbs_KS, tmprtr, foe_obj)
        fscale_lowerbound=input%cp%foe%fscale_lowerbound, &
        fscale_upperbound=input%cp%foe%fscale_upperbound,  &
        eval_multiplicator=1.d0, &
-       accuracy_function=input%cp%foe%accuracy_foe, accuracy_penalty=input%cp%foe%accuracy_penalty)
+       accuracy_function=input%cp%foe%accuracy_foe, accuracy_penalty=input%cp%foe%accuracy_penalty, &
+       betax=input%cp%foe%betax_foe, occupation_function=input%cp%foe%occupation_function, &
+       adjust_fscale=input%cp%foe%adjust_fscale)
 
   call f_release_routine()
 
@@ -63,7 +65,7 @@ subroutine check_linear_and_create_Lzd(iproc,nproc,linType,Lzd,atoms,orbs,nspin,
   use ao_inguess, only: atomic_info
   use locregs, only: locreg_null,copy_locreg_descriptors
   use public_enums
-  use locregs_init, only: determine_locreg_parallel, check_linear_inputguess
+  use locregs_init, only: check_linear_inputguess,initlocregs
   implicit none
 
   integer, intent(in) :: iproc,nproc,nspin
@@ -136,13 +138,16 @@ subroutine check_linear_and_create_Lzd(iproc,nproc,linType,Lzd,atoms,orbs,nspin,
         ! calculateBounds indicate whether the arrays with the bounds (for convolutions...) shall also
         ! be allocated and calculated. In principle this is only necessary if the current process has orbitals
         ! in this localization region.
-        calculateBounds = f_malloc(lzd%nlr,id='calculateBounds')
-        calculateBounds=.true.
-!        call determine_locreg_periodic(iproc,Lzd%nlr,rxyz,locrad,hx,hy,hz,Lzd%Glr,Lzd%Llr,calculateBounds)
-        call determine_locreg_parallel(iproc,nproc,Lzd%nlr,rxyz,locrad,&
-             Lzd%hgrids(1),Lzd%hgrids(2),Lzd%hgrids(3),Lzd%Glr,Lzd%Llr,&
-             orbs,calculateBounds)
-        call f_free(calculateBounds)
+        call initLocregs(iproc, nproc, lzd,&
+             Lzd%hgrids(1),Lzd%hgrids(2),Lzd%hgrids(3),&
+             rxyz,locrad, orbs,Lzd%Glr,'c')
+!!$        calculateBounds = f_malloc(lzd%nlr,id='calculateBounds')
+!!$        calculateBounds=.true.
+!!$!        call determine_locreg_periodic(iproc,Lzd%nlr,rxyz,locrad,hx,hy,hz,Lzd%Glr,Lzd%Llr,calculateBounds)
+!!$        call determine_locreg_parallel(iproc,nproc,Lzd%nlr,rxyz,locrad,&
+!!$             Lzd%hgrids(1),Lzd%hgrids(2),Lzd%hgrids(3),Lzd%Glr,Lzd%Llr,&
+!!$             orbs,calculateBounds)
+!!$        call f_free(calculateBounds)
         call f_free(locrad)
 
         ! determine the wavefunction dimension
@@ -151,6 +156,7 @@ subroutine check_linear_and_create_Lzd(iproc,nproc,linType,Lzd,atoms,orbs,nspin,
   else
      Lzd%lintyp = 2
   end if
+
 
 !DEBUG
 !!if(iproc==0)then
@@ -196,10 +202,10 @@ subroutine create_LzdLIG(iproc,nproc,nspin,linearmode,hx,hy,hz,Glr,atoms,orbs,rx
   use module_types
   use module_xc
   use ao_inguess, only: atomic_info
-  use locregs, only: locreg_null,copy_locreg_descriptors
+  use locregs, only: locreg_null,copy_locreg_descriptors,locreg_descriptors
   use public_enums
-  use locregs_init, only: determine_locreg_parallel, check_linear_inputguess
-  use psp_projectors, only: update_nlpsp
+  use locregs_init, only: check_linear_inputguess,initLocregs
+  use psp_projectors, only: update_nlpsp  
   implicit none
 
   integer, intent(in) :: iproc,nproc,nspin
@@ -285,13 +291,17 @@ subroutine create_LzdLIG(iproc,nproc,nspin,linearmode,hx,hy,hz,Glr,atoms,orbs,rx
         ! calculateBounds indicate whether the arrays with the bounds (for convolutions...) shall also
         ! be allocated and calculated. In principle this is only necessary if the current process has orbitals
         ! in this localization region.
-        calculateBounds=f_malloc(lzd%nlr,id='calculateBounds')
-        calculateBounds=.true.
-        !        call determine_locreg_periodic(iproc,Lzd%nlr,rxyz,locrad,hx,hy,hz,Glr,Lzd%Llr,calculateBounds)
-        call determine_locreg_parallel(iproc,nproc,Lzd%nlr,rxyz,locrad,&
-             hx,hy,hz,Glr,Lzd%Llr,&
-             orbs,calculateBounds)
-        call f_free(calculateBounds)
+!!$        calculateBounds=f_malloc(lzd%nlr,id='calculateBounds')
+!!$        calculateBounds=.true.
+!!$        !        call determine_locreg_periodic(iproc,Lzd%nlr,rxyz,locrad,hx,hy,hz,Glr,Lzd%Llr,calculateBounds)
+!!$        call determine_locreg_parallel(iproc,nproc,Lzd%nlr,rxyz,locrad,&
+!!$             hx,hy,hz,Glr,Lzd%Llr,&
+!!$             orbs,calculateBounds)
+!!$        call f_free(calculateBounds)
+
+        call initLocregs(iproc, nproc, lzd, hx, hy, hz, &
+             rxyz,locrad, orbs, Glr,'c') 
+
         call f_free(locrad)
 
         ! determine the wavefunction dimension
@@ -577,8 +587,9 @@ subroutine update_locreg(iproc, nproc, nlr, locrad, locrad_kernel, locrad_mult, 
                                  initialize_communication_potential
   use foe_base, only: foe_data, foe_data_null
   use foe_common, only: init_foe
-  use locregs, only: locreg_null,copy_locreg_descriptors
+  use locregs, only: locreg_null,copy_locreg_descriptors,locreg_descriptors
   use locregs_init, only: initLocregs
+  use yaml_output
   implicit none
 
   ! Calling arguments
@@ -636,7 +647,7 @@ subroutine update_locreg(iproc, nproc, nlr, locrad, locrad_kernel, locrad_mult, 
       lzd%llr(ilr)%locregCenter=locregCenter(:,ilr)
   end do
   call timing(iproc,'updatelocreg1','OF')
-  call initLocregs(iproc, nproc, lzd, hx, hy, hz, astruct, orbs, glr_tmp, 's')!, llborbs)
+  call initLocregs(iproc, nproc, lzd, hx, hy, hz, astruct%rxyz,lzd%llr(:)%locrad, orbs, glr_tmp, 's')!, llborbs)
   call timing(iproc,'updatelocreg1','ON')
   call nullify_locreg_descriptors(lzd%glr)
   call copy_locreg_descriptors(glr_tmp, lzd%glr)
@@ -677,14 +688,23 @@ subroutine update_locreg(iproc, nproc, nlr, locrad, locrad_kernel, locrad_mult, 
            fscale_lowerbound=input%cp%foe%fscale_lowerbound, &
            fscale_upperbound=input%cp%foe%fscale_upperbound, &
            eval_multiplicator=1.d0, &
-           accuracy_function=input%cp%foe%accuracy_ice, accuracy_penalty=input%cp%foe%accuracy_penalty)
+           accuracy_function=input%cp%foe%accuracy_ice, accuracy_penalty=input%cp%foe%accuracy_penalty, &
+           betax=input%cp%foe%betax_ice, occupation_function=input%cp%foe%occupation_function, &
+           adjust_fscale=input%cp%foe%adjust_fscale)
       call f_free(charge_fake)
 
   end if
 
   call init_comms_linear(iproc, nproc, input%imethod_overlap, npsidim_orbs, orbs, lzd, input%nspin, lbcollcom)
+  if (iproc==0) then
+      call yaml_map('Large locregs communication initialized',.true.)
+  end if
+
   if (present(lbcollcom_sr)) then
       call init_comms_linear_sumrho(iproc, nproc, lzd, orbs, input%nspin, nscatterarr, lbcollcom_sr)
+      if (iproc==0) then
+          call yaml_map('Large locregs sumrho communication initialized',.true.)
+      end if
   end if
 
   call initialize_communication_potential(iproc, nproc, nscatterarr, orbs, lzd, input%nspin, lbcomgp)
@@ -812,21 +832,21 @@ subroutine destroy_DFT_wavefunction(wfn)
   call deallocate_p2pComms(wfn%comgp)
   call deallocate_p2pComms(wfn%ham_descr%comgp)
   !!if (associated(wfn%linmat%ks)) then
-  !!    do ispin=1,wfn%linmat%l%nspin
+  !!    do ispin=1,wfn%linmat%smat(3)%nspin
   !!        call deallocate_sparse_matrix(wfn%linmat%ks(ispin))
   !!    end do
   !!    deallocate(wfn%linmat%ks)
   !!end if
   !!if (associated(wfn%linmat%ks_e)) then
-  !!    do ispin=1,wfn%linmat%l%nspin
+  !!    do ispin=1,wfn%linmat%smat(3)%nspin
   !!        call deallocate_sparse_matrix(wfn%linmat%ks_e(ispin))
   !!    end do
   !!    deallocate(wfn%linmat%ks_e)
   !!end if
   !!call deallocate_sparse_matrix_metadata(wfn%linmat%smmd)
-  !!call deallocate_sparse_matrix(wfn%linmat%s)
-  !!call deallocate_sparse_matrix(wfn%linmat%m)
-  !!call deallocate_sparse_matrix(wfn%linmat%l)
+  !!call deallocate_sparse_matrix(wfn%linmat%smat(1))
+  !!call deallocate_sparse_matrix(wfn%linmat%smat(2))
+  !!call deallocate_sparse_matrix(wfn%linmat%smat(3))
   !!call deallocate_matrices(wfn%linmat%ovrlp_)
   !!call deallocate_matrices(wfn%linmat%ham_)
   !!call deallocate_matrices(wfn%linmat%kernel_)
@@ -883,7 +903,7 @@ subroutine update_wavefunctions_size(lzd,npsidim_orbs,npsidim_comp,orbs,iproc,np
      nvctr_tot = max(nvctr_tot,lzd%llr(ilr)%wfd%nvctr_c+7*lzd%llr(ilr)%wfd%nvctr_f)
   end do
   if (nproc > 1) then
-     call mpiallred(nvctr_tot, 1, mpi_max, comm=bigdft_mpi%mpi_comm)
+     call fmpi_allreduce(nvctr_tot, 1, FMPI_MAX, comm=bigdft_mpi%mpi_comm)
   end if
 
   nvctr_par = f_malloc((/ 0.to.nproc-1, 1.to.1 /),id='nvctr_par')
@@ -1180,7 +1200,7 @@ subroutine adjust_locregs_and_confinement(iproc, nproc, hx, hy, hz, at, input, &
   use sparsematrix_base, only: sparse_matrix_null, deallocate_sparse_matrix, allocate_matrices, deallocate_matrices, &
                                SPARSE_TASKGROUP, assignment(=), sparsematrix_malloc_ptr
   use sparsematrix_wrappers, only: init_sparse_matrix_wrapper, init_sparse_matrix_for_KSorbs, check_kernel_cutoff
-  use sparsematrix_init, only: init_matrix_taskgroups, sparse_matrix_metadata_init
+  use sparsematrix_init, only: init_matrix_taskgroups_wrapper, sparse_matrix_metadata_init
   use bigdft_matrices, only: check_local_matrix_extents, init_matrixindex_in_compressed_fortransposed
   use foe_base, only: foe_data_deallocate
   use public_enums
@@ -1260,20 +1280,20 @@ subroutine adjust_locregs_and_confinement(iproc, nproc, hx, hy, hz, at, input, &
      !!call deallocate_sparse_matrix(tmb%linmat%ham)
 
      !!if (associated(tmb%linmat%ks)) then
-     !!    do ispin=1,tmb%linmat%l%nspin
+     !!    do ispin=1,tmb%linmat%smat(3)%nspin
      !!        call deallocate_sparse_matrix(tmb%linmat%ks(ispin))
      !!    end do
      !!    deallocate(tmb%linmat%ks)
      !!end if
      !!if (associated(tmb%linmat%ks_e)) then
-     !!    do ispin=1,tmb%linmat%l%nspin
+     !!    do ispin=1,tmb%linmat%smat(3)%nspin
      !!        call deallocate_sparse_matrix(tmb%linmat%ks_e(ispin))
      !!    end do
      !!    deallocate(tmb%linmat%ks_e)
      !!end if
-     !!call deallocate_sparse_matrix(tmb%linmat%s)
-     !!call deallocate_sparse_matrix(tmb%linmat%m)
-     !!call deallocate_sparse_matrix(tmb%linmat%l)
+     !!call deallocate_sparse_matrix(tmb%linmat%smat(1))
+     !!call deallocate_sparse_matrix(tmb%linmat%smat(2))
+     !!call deallocate_sparse_matrix(tmb%linmat%smat(3))
      !!call deallocate_matrices(tmb%linmat%ovrlp_)
      !!call deallocate_matrices(tmb%linmat%ham_)
      !!call deallocate_matrices(tmb%linmat%kernel_)
@@ -1366,96 +1386,107 @@ subroutine adjust_locregs_and_confinement(iproc, nproc, hx, hy, hz, at, input, &
 
      ! Update sparse matrices
      ! Do not initialize the matrix multiplication to save memory. The multiplications
-     ! are always done with the tmb%linmat%l type.
+     ! are always done with the tmb%linmat%smat(3) type.
      call init_sparse_matrix_wrapper(iproc, nproc, input%nspin, tmb%orbs, tmb%ham_descr%lzd, at%astruct, &
-          input%store_index, init_matmul=.false., imode=1, smat=tmb%linmat%m)
+          input%store_index, init_matmul=.false., imode=1, smat=tmb%linmat%smat(2))
      !!call init_matrixindex_in_compressed_fortransposed(iproc, nproc, tmb%orbs, &
      !!     tmb%collcom, tmb%ham_descr%collcom, tmb%collcom_sr, tmb%linmat%ham)
      call init_matrixindex_in_compressed_fortransposed(iproc, nproc, &
-          tmb%collcom, tmb%ham_descr%collcom, tmb%collcom_sr, tmb%linmat%m, &
+          tmb%collcom, tmb%ham_descr%collcom, tmb%collcom_sr, tmb%linmat%smat(2), &
           tmb%linmat%auxm)
 
      ! Do not initialize the matrix multiplication to save memory. The multiplications
-     ! are always done with the tmb%linmat%l type.
+     ! are always done with the tmb%linmat%smat(3) type.
      call init_sparse_matrix_wrapper(iproc, nproc, input%nspin, tmb%orbs, tmb%lzd, at%astruct, &
-          input%store_index, init_matmul=.false., imode=1, smat=tmb%linmat%s)
+          input%store_index, init_matmul=.false., imode=1, smat=tmb%linmat%smat(1))
      !call init_matrixindex_in_compressed_fortransposed(iproc, nproc, tmb%orbs, &
      !     tmb%collcom, tmb%ham_descr%collcom, tmb%collcom_sr, tmb%linmat%ovrlp)
      call init_matrixindex_in_compressed_fortransposed(iproc, nproc, &
-          tmb%collcom, tmb%ham_descr%collcom, tmb%collcom_sr, tmb%linmat%s, &
+          tmb%collcom, tmb%ham_descr%collcom, tmb%collcom_sr, tmb%linmat%smat(1), &
           tmb%linmat%auxs)
 
      call check_kernel_cutoff(iproc, tmb%orbs, at, input%hamapp_radius_incr, tmb%lzd)
      call init_sparse_matrix_wrapper(iproc, nproc, input%nspin, tmb%orbs, tmb%lzd, at%astruct, &
-          input%store_index, init_matmul=.true., imode=2, smat=tmb%linmat%l, smat_ref=tmb%linmat%m)
+          input%store_index, init_matmul=.true., imode=2, smat=tmb%linmat%smat(3), smat_ref=tmb%linmat%smat(2))
      !!call init_matrixindex_in_compressed_fortransposed(iproc, nproc, tmb%orbs, &
      !!     tmb%collcom, tmb%ham_descr%collcom, tmb%collcom_sr, tmb%linmat%denskern_large)
      call init_matrixindex_in_compressed_fortransposed(iproc, nproc, &
-          tmb%collcom, tmb%ham_descr%collcom, tmb%collcom_sr, tmb%linmat%l, &
+          tmb%collcom, tmb%ham_descr%collcom, tmb%collcom_sr, tmb%linmat%smat(3), &
           tmb%linmat%auxl)
 
      !tmb%linmat%inv_ovrlp_large=sparse_matrix_null()
-     !call sparse_copy_pattern(tmb%linmat%l, tmb%linmat%inv_ovrlp_large, iproc, subname)
+     !call sparse_copy_pattern(tmb%linmat%smat(3), tmb%linmat%inv_ovrlp_large, iproc, subname)
 
-     iirow(1) = tmb%linmat%s%nfvctr
-     iirow(2) = 1
-     iicol(1) = tmb%linmat%s%nfvctr
-     iicol(2) = 1
+     !!iirow(1) = tmb%linmat%smat(1)%nfvctr
+     !!iirow(2) = 1
+     !!iicol(1) = tmb%linmat%smat(1)%nfvctr
+     !!iicol(2) = 1
+
+     !!call get_sparsematrix_local_extent(iproc, nproc, tmb%linmat%smmd, tmb%linmat%smat(1), ind_min_s, ind_mas_s)
      call check_local_matrix_extents(iproc, nproc, tmb%collcom, &
-          tmb%collcom_sr, tmb%linmat%smmd, tmb%linmat%s, tmb%linmat%auxs, &
-          ind_min_s, ind_mas_s, &
-          irow, icol)
-     iirow(1) = min(irow(1),iirow(1))
-     iirow(2) = max(irow(2),iirow(2))
-     iicol(1) = min(icol(1),iicol(1))
-     iicol(2) = max(icol(2),iicol(2))
-     call check_local_matrix_extents(iproc, nproc, tmb%ham_descr%collcom, &
-          tmb%collcom_sr, tmb%linmat%smmd, tmb%linmat%m, tmb%linmat%auxm, &
-          ind_min_m, ind_mas_m, &
-          irow, icol)
-     iirow(1) = min(irow(1),iirow(1))
-     iirow(2) = max(irow(2),iirow(2))
-     iicol(1) = min(icol(1),iicol(1))
-     iicol(2) = max(icol(2),iicol(2))
-     call check_local_matrix_extents(iproc, nproc, tmb%ham_descr%collcom, &
-          tmb%collcom_sr, tmb%linmat%smmd, tmb%linmat%l, tmb%linmat%auxl, &
-          ind_min_l, ind_mas_l, &
-          irow, icol)
-     iirow(1) = min(irow(1),iirow(1))
-     iirow(2) = max(irow(2),iirow(2))
-     iicol(1) = min(icol(1),iicol(1))
-     iicol(2) = max(icol(2),iicol(2))
+          tmb%collcom_sr, tmb%linmat%smmd, tmb%linmat%smat(1), tmb%linmat%auxs, &
+          ind_min_s, ind_mas_s)
+     !!call get_sparsematrix_local_rows_columns(tmb%linmat%smat(1), ind_min_s, ind_mas_s, irow, icol)
+     !!iirow(1) = min(irow(1),iirow(1))
+     !!iirow(2) = max(irow(2),iirow(2))
+     !!iicol(1) = min(icol(1),iicol(1))
+     !!iicol(2) = max(icol(2),iicol(2))
 
-     call init_matrix_taskgroups(iproc, nproc, bigdft_mpi%mpi_comm, &
-          input%enable_matrix_taskgroups, tmb%linmat%s, &
-          ind_min_s, ind_mas_s, &
-          iirow, iicol)
-     call init_matrix_taskgroups(iproc, nproc, bigdft_mpi%mpi_comm, &
-          input%enable_matrix_taskgroups, tmb%linmat%m, &
-          ind_min_m, ind_mas_m, &
-          iirow, iicol)
-     call init_matrix_taskgroups(iproc, nproc, bigdft_mpi%mpi_comm, &
-          input%enable_matrix_taskgroups, tmb%linmat%l, &
-          ind_min_l, ind_mas_l, &
-          iirow, iicol)
+     !!call get_sparsematrix_local_extent(iproc, nproc, tmb%linmat%smmd, tmb%linmat%smat(2), ind_min_m, ind_mas_m)
+     call check_local_matrix_extents(iproc, nproc, tmb%ham_descr%collcom, &
+          tmb%collcom_sr, tmb%linmat%smmd, tmb%linmat%smat(2), tmb%linmat%auxm, &
+          ind_min_m, ind_mas_m)
+     !!call get_sparsematrix_local_rows_columns(tmb%linmat%smat(2), ind_min_m, ind_mas_m, irow, icol)
+     !!iirow(1) = min(irow(1),iirow(1))
+     !!iirow(2) = max(irow(2),iirow(2))
+     !!iicol(1) = min(icol(1),iicol(1))
+     !!iicol(2) = max(icol(2),iicol(2))
 
-     !call allocate_matrices(tmb%linmat%m, allocate_full=.false., &
+     !!call get_sparsematrix_local_extent(iproc, nproc, tmb%linmat%smmd, tmb%linmat%smat(3), ind_min_l, ind_mas_l)
+     call check_local_matrix_extents(iproc, nproc, tmb%ham_descr%collcom, &
+          tmb%collcom_sr, tmb%linmat%smmd, tmb%linmat%smat(3), tmb%linmat%auxl, &
+          ind_min_l, ind_mas_l)
+     !!call get_sparsematrix_local_rows_columns(tmb%linmat%smat(3), ind_min_l, ind_mas_l, irow, icol)
+     !!iirow(1) = min(irow(1),iirow(1))
+     !!iirow(2) = max(irow(2),iirow(2))
+     !!iicol(1) = min(icol(1),iicol(1))
+     !!iicol(2) = max(icol(2),iicol(2))
+
+
+     !!call init_matrix_taskgroups(iproc, nproc, bigdft_mpi%mpi_comm, &
+     !!     input%enable_matrix_taskgroups, tmb%linmat%smat(1), &
+     !!     ind_min_s, ind_mas_s, &
+     !!     iirow, iicol)
+     !!call init_matrix_taskgroups(iproc, nproc, bigdft_mpi%mpi_comm, &
+     !!     input%enable_matrix_taskgroups, tmb%linmat%smat(2), &
+     !!     ind_min_m, ind_mas_m, &
+     !!     iirow, iicol)
+     !!call init_matrix_taskgroups(iproc, nproc, bigdft_mpi%mpi_comm, &
+     !!     input%enable_matrix_taskgroups, tmb%linmat%smat(3), &
+     !!     ind_min_l, ind_mas_l, &
+     !!     iirow, iicol)
+     call init_matrix_taskgroups_wrapper(iproc, nproc, bigdft_mpi%mpi_comm, input%enable_matrix_taskgroups, &
+          3, tmb%linmat%smat, &
+          (/(/ind_min_s,ind_mas_s/),(/ind_min_m,ind_mas_m/),(/ind_min_l,ind_mas_l/)/))
+
+
+     !call allocate_matrices(tmb%linmat%smat(2), allocate_full=.false., &
      !     matname='tmb%linmat%ham_', mat=tmb%linmat%ham_)
-     tmb%linmat%ham_%matrix_compr = sparsematrix_malloc_ptr(tmb%linmat%m, &
+     tmb%linmat%ham_%matrix_compr = sparsematrix_malloc_ptr(tmb%linmat%smat(2), &
                   iaction=SPARSE_TASKGROUP,id='tmb%linmat%ham_%matrix_compr')
-     !call allocate_matrices(tmb%linmat%s, allocate_full=.false., &
+     !call allocate_matrices(tmb%linmat%smat(1), allocate_full=.false., &
      !     matname='tmb%linmat%ovrlp_', mat=tmb%linmat%ovrlp_)
-     tmb%linmat%ovrlp_%matrix_compr = sparsematrix_malloc_ptr(tmb%linmat%s, &
+     tmb%linmat%ovrlp_%matrix_compr = sparsematrix_malloc_ptr(tmb%linmat%smat(1), &
           iaction=SPARSE_TASKGROUP,id='tmb%linmat%ovrlp_%matrix_compr')
-     !call allocate_matrices(tmb%linmat%l, allocate_full=.false., &
+     !call allocate_matrices(tmb%linmat%smat(3), allocate_full=.false., &
      !     matname='tmb%linmat%kernel_', mat=tmb%linmat%kernel_)
-     tmb%linmat%kernel_%matrix_compr = sparsematrix_malloc_ptr(tmb%linmat%l, &
+     tmb%linmat%kernel_%matrix_compr = sparsematrix_malloc_ptr(tmb%linmat%smat(3), &
                     iaction=SPARSE_TASKGROUP,id='tmb%linmat%kernel_%matrix_compr')
      do i=1,size(tmb%linmat%ovrlppowers_)
-         !call allocate_matrices(tmb%linmat%l, allocate_full=.false., &
+         !call allocate_matrices(tmb%linmat%smat(3), allocate_full=.false., &
          !     matname='tmb%linmat%ovrlppowers_(i)', mat=tmb%linmat%ovrlppowers_(i))
          tmb%linmat%ovrlppowers_(i)%matrix_compr = &
-              sparsematrix_malloc_ptr(tmb%linmat%l, iaction=SPARSE_TASKGROUP, id='tmb%linmat%ovrlppowers_(i)%matrix_comp')
+              sparsematrix_malloc_ptr(tmb%linmat%smat(3), iaction=SPARSE_TASKGROUP, id='tmb%linmat%ovrlppowers_(i)%matrix_comp')
 
      end do
 

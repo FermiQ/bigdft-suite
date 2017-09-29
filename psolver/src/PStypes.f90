@@ -2,12 +2,14 @@
 !!    Modulefile for the definition of the basic structures
 !!
 !! @author
-!!    G. Fisicaro, L. Genovese (September 2015)
-!!    Copyright (C) 2002-2015 BigDFT group 
+!!    G. Fisicaro, L. Genovese (September 2015)<br/>
+!!    Copyright (C) 2002-2017 BigDFT group<br/>
 !!    This file is distributed under the terms of the
 !!    GNU General Public License, see ~/COPYING file
 !!    or http://www.gnu.org/copyleft/gpl.txt .
 !!    For the list of contributors, see ~/AUTHORS 
+
+!> Define the fortran types and the related routines to handle it.
 module PStypes
   use f_enums
   use wrapper_MPI
@@ -17,6 +19,7 @@ module PStypes
   use f_input_file, only: ATTRS
   use box
   use dictionaries
+
   implicit none
 
   private
@@ -62,8 +65,8 @@ module PStypes
   integer, parameter :: RADII_BONDI_ID = 2
   integer, parameter :: RADII_UFF_ID = 3
   
-  !>Defines the internal information for application of the FFT between the kernel and the 
-  !!density
+
+  !> Defines the internal information for application of the FFT between the kernel and the density
   type, public :: FFT_metadata
      integer :: m1,m2,m3 !<original real dimension, with m2 in z direction and and m3 in y direction
      integer :: n1,n2,n3 !<dimension of the FFT operation, taking into account the zero padding if needed
@@ -76,9 +79,10 @@ module PStypes
      real(dp) :: scal !<factor to rescale the solver such that the FFT is unitary, divided by 4pi
   end type FFT_metadata
 
-  !> define the work arrays needed for the treatment of the 
-  !!Poisson Equation. Not all of them are allocated, the actual memory usage 
-  !!depends on the treatment
+
+  !> Define the work arrays needed for the treatment of the 
+  !! Poisson Equation. Not all of them are allocated, the actual memory usage 
+  !! depends on the treatment.
   type, public :: PS_workarrays
      integer :: nat !< dimensions of the atomic based cavity. Zero if unused
      !>positions of the atoms of the cavity in the simulation box
@@ -124,7 +128,8 @@ module PStypes
      integer(f_address) :: alpha_GPU, beta_GPU, kappa_GPU, beta0_GPU, eexctX_GPU, reduc_GPU, ehart_GPU
   end type PS_workarrays
 
-  !>Datatype defining the mode for the running of the Poisson solver
+
+  !> Datatype defining the mode for the running of the Poisson solver
   type, public :: PSolver_options
      !> @copydoc poisson_solver::doc::datacode
      character(len=1) :: datacode
@@ -177,7 +182,7 @@ module PStypes
      !!                The density is supposed to be periodic in z direction, 
      !!                which has to be compatible with the FFT.
      !!          - 'H' Helmholtz Equation Solver
-     character(len=1) :: geocode
+!     character(len=1) :: geocode
      !> method of embedding in the environment
      !!          - 'VAC' Poisson Equation in vacuum. Default case.
      !!          - 'PCG' Generalized Poisson Equation, Preconditioned Conjugate Gradient
@@ -188,9 +193,9 @@ module PStypes
      !! type of cavity to be used
      type(f_enumerator) :: method
      type(cell) :: mesh !< structure which includes all cell informations 
-     integer, dimension(3) :: ndims   !< dimension of the box of the density
-     real(gp), dimension(3) :: hgrids !<grid spacings in each direction
-     real(gp), dimension(3) :: angrad !< angles in radiants between each of the axis
+!     integer, dimension(3) :: ndims   !< dimension of the box of the density
+!     real(gp), dimension(3) :: hgrids !<grid spacings in each direction
+     !real(gp), dimension(3) :: angrad !< angles in radiants between each of the axis
      type(cavity_data) :: cavity !< description of the cavity for the dielectric medium
      type(PSolver_options) :: opt !<Datatype controlling the operations of the solver
      real(dp), dimension(:), pointer :: kernel !< kernel of the Poisson Solver
@@ -211,28 +216,30 @@ module PStypes
      integer :: stay_on_gpu
      integer :: keepzf
      !parameters for the iterative methods
-     !> Order of accuracy for derivatives into ApplyLaplace subroutine = Total number of points at left and right of the x0 where we want to calculate the derivative.
+     !> Order of accuracy for derivatives into ApplyLaplace subroutine = Total number 
+     !! of points at left and right of the x0 where we want to calculate the derivative.
      integer :: nord
      !> default set of radii for the rigid cavity
      integer :: radii_set
      !> dictionary of the atom species radii defined by the user
      type(dictionary), pointer :: radii_dict
-     integer :: max_iter !< maximum number of convergence iterations
-     real(dp) :: minres !< convergence criterion for the iteration
-     real(dp) :: PI_eta !<parameter for the update of PI iteration
-     integer :: max_iter_PB !< max conv iterations for PB treatment
-     real(dp) :: minres_PB !<convergence criterion for PB residue
-     real(dp) :: PB_eta !< mixing scheme for PB
-     real(dp) :: IntVol !< Volume integral needed for the non-electrostatic energy contributions
-     real(dp) :: IntSur !< Surface integral needed for the non-electrostatic energy contributions
+     integer :: max_iter    !< maximum number of convergence iterations
+     real(dp) :: minres     !< Convergence criterion for the iteration
+     real(dp) :: PI_eta     !< Parameter for the update of PI iteration
+     integer :: max_iter_PB !< Max conv iterations for PB treatment
+     real(dp) :: minres_PB  !< Convergence criterion for PB residue
+     real(dp) :: PB_eta     !< Mixing scheme for PB
+     real(dp) :: IntVol     !< Volume integral needed for the non-electrostatic energy contributions
+     real(dp) :: IntSur     !< Surface integral needed for the non-electrostatic energy contributions
      
-     integer, dimension(:), pointer :: counts !<array needed to gather the information of the poisson solver
-     integer, dimension(:), pointer :: displs !<array needed to gather the information of the poisson solver
-     integer, dimension(:), pointer :: rhocounts !<array needed to gather the information of the poisson solver on multiple gpus
-     integer, dimension(:), pointer :: rhodispls !<array needed to gather the information of the poisson solver on multiple gpus
+     integer, dimension(:), pointer :: counts    !< Array needed to gather the information of the Poisson solver
+     integer, dimension(:), pointer :: displs    !< Array needed to gather the information of the Poisson solver
+     integer, dimension(:), pointer :: rhocounts !< Array needed to gather the information of the Poisson solver on multiple gpus
+     integer, dimension(:), pointer :: rhodispls !< Array needed to gather the information of the Poisson solver on multiple gpus
   end type coulomb_operator
 
-  !> define the energy terms for the Poisson Operator and Generalized applications
+
+  !> Define the energy terms for the Poisson Operator and Generalized applications
   type, public :: PSolver_energies
      !> hartree energy, defined as the @f$\int \rho(\mathbf{r}) V(\mathbf{r}) \mathrm d r @f$, with @f$\rho@f$ being the 
      !! input density and @f$V@f$ the potential defined by this density
@@ -250,13 +257,19 @@ module PStypes
      real(gp), dimension(6) :: strten
   end type PSolver_energies
 
+
   public :: pkernel_null,PSolver_energies_null,pkernel_free,pkernel_allocate_cavity
   public :: pkernel_set_epsilon,PS_allocate_cavity_workarrays,build_cavity_from_rho
   public :: ps_allocate_lowlevel_workarrays,PSolver_options_null,PS_input_dict
   public :: release_PS_potential,PS_release_lowlevel_workarrays,PS_set_options,pkernel_init
-  public :: ps_soft_PCM_forces,pkernel_get_radius
+  public :: ps_soft_PCM_forces,pkernel_get_radius,epsilon_inner_cavity
+
+  !To specify properly to doxygen (test)
+  private :: free_PS_workarrays, PS_fill_variables, PS_input_fill
+
 
 contains
+
 
   pure function PSolver_energies_null() result(e)
     implicit none
@@ -354,15 +367,14 @@ contains
     implicit none
     type(coulomb_operator) :: k
     k%itype_scf=0
-    k%geocode='F'
+!    k%geocode='F'
     call nullify_f_enum(k%method)
     k%cavity=cavity_default()
     k%opt=PSolver_options_null()
     k%mu=0.0_gp
     k%mesh=cell_null()
-    k%ndims=(/0,0,0/)
-    k%hgrids=(/0.0_gp,0.0_gp,0.0_gp/)
-    k%angrad=(/0.0_gp,0.0_gp,0.0_gp/)
+!    k%ndims=(/0,0,0/)
+!    k%hgrids=(/0.0_gp,0.0_gp,0.0_gp/)
     nullify(k%kernel)
     k%plan=(/0,0,0,0,0/)
     k%geo=(/0,0,0/)
@@ -392,7 +404,7 @@ contains
   subroutine free_PS_workarrays(iproc,igpu,keepzf,gpuPCGred,keepGPUmemory,w)
     use dictionaries, only: f_err_throw
     use f_utils, only: f_zero
-  implicit none
+    implicit none
     integer, intent(in) :: keepzf,gpuPCGred,keepGPUmemory,igpu,iproc
     integer :: i_stat
     type(PS_workarrays), intent(inout) :: w
@@ -459,7 +471,6 @@ contains
   end subroutine release_PS_potential
 
   !> Free memory used by the kernel operation
-  !! @ingroup PSOLVER
   subroutine pkernel_free(kernel)
     use dictionaries, only: dict_free
     implicit none
@@ -490,14 +501,14 @@ contains
   end subroutine pkernel_free
 
   !> Initialization of the Poisson kernel
-  !! @ingroup PSOLVER
-  function pkernel_init(iproc,nproc,dict,geocode,ndims,hgrids,angrad,mpi_env) result(kernel)
+  function pkernel_init(iproc,nproc,dict,geocode,ndims,hgrids,alpha_bc,beta_ac,gamma_ab,mpi_env) result(kernel)
     use yaml_output
     use dictionaries
     use numerics
     use wrapper_MPI
     use f_enums
     use psolver_environment
+    use box, only: cell_new
     use f_input_file, only: input_file_dump
     implicit none
     integer, intent(in) :: iproc      !< Proc Id
@@ -506,34 +517,27 @@ contains
     character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
     integer, dimension(3), intent(in) :: ndims
     real(gp), dimension(3), intent(in) :: hgrids
-    real(gp), dimension(3), intent(in), optional :: angrad
+    !real(gp), dimension(3), intent(in), optional :: angrad
+    real(gp), intent(in), optional :: alpha_bc,beta_ac,gamma_ab
     type(mpi_environment), intent(in), optional :: mpi_env
     type(coulomb_operator) :: kernel
     !local variables
     integer :: nthreads,group_size,taskgroup_size
-!    real(gp), dimension(3) :: angrad_new
+    real(gp), dimension(3) :: angrad
     !$ integer :: omp_get_max_threads
 
     !nullification
     kernel=pkernel_null()
 
-    !geocode and ISF family
-    kernel%geocode=geocode
-    !dimensions and grid spacings
-    kernel%ndims=ndims
-    kernel%hgrids=hgrids
+    !mesh initialization
+    kernel%mesh=cell_new(geocode,ndims,hgrids,alpha_bc,beta_ac,gamma_ab)
 
-    if (present(angrad)) then
-!       ! TO BE CLARIFIED WHY ARE INVERTED!!!
-!       angrad_new(1)=angrad(2)
-!       angrad_new(2)=angrad(1)
-!       angrad_new(3)=angrad(3)
-!       kernel%mesh=cell_new(geocode,ndims,hgrids,angrad)
-       kernel%angrad=angrad
-    else
-!       kernel%mesh=cell_new(geocode,ndims,hgrids)
-       kernel%angrad=onehalf* [ pi, pi, pi ]
-    end if
+    !these parts should be removed
+    !geocode and ISF family
+!    kernel%geocode=geocode
+    !dimensions and grid spacings
+!    kernel%ndims=ndims
+!    kernel%hgrids=hgrids
 
     !new treatment for the kernel input variables
     kernel%method=PS_VAC_ENUM
@@ -941,10 +945,10 @@ contains
 !!$       end if
 
        if (.not. associated(kernel%w%pot))&
-            kernel%w%pot=f_malloc0_ptr([kernel%ndims(1),kernel%ndims(2)*kernel%ndims(3)],id='pot')
+            kernel%w%pot=f_malloc0_ptr([kernel%mesh%ndims(1),kernel%mesh%ndims(2)*kernel%mesh%ndims(3)],id='pot')
 
-       !kernel%w%pot=f_malloc_ptr([kernel%ndims(1),kernel%ndims(2)*kernel%ndims(3)],id='pot')
-       kernel%w%rho=f_malloc0_ptr([kernel%ndims(1),kernel%ndims(2)*kernel%ndims(3)],id='rho')
+       !kernel%w%pot=f_malloc_ptr([kernel%mesh%ndims(1),kernel%mesh%ndims(2)*kernel%mesh%ndims(3)],id='pot')
+       kernel%w%rho=f_malloc0_ptr([kernel%mesh%ndims(1),kernel%mesh%ndims(2)*kernel%mesh%ndims(3)],id='rho')
        kernel%w%rho_pol=f_malloc_ptr([n1,n23],id='rho_pol')
     end select
 
@@ -1023,8 +1027,8 @@ contains
     !local variables
     integer :: n1,n23,i1,i23
 
-    n1=kernel%ndims(1)
-    n23=kernel%ndims(2)*kernel%grid%n3p
+    n1=kernel%mesh%ndims(1)
+    n23=kernel%mesh%ndims(2)*kernel%grid%n3p
 !!$    call PS_allocate_cavity_workarrays(n1,n23,kernel%ndims,&
 !!$         kernel%method,kernel%w)
     if (present(vacuum)) then
@@ -1131,32 +1135,32 @@ contains
 
     if (present(corr)) then
        !check the dimensions (for the moment no parallelism)
-       if (any(shape(corr) /= kernel%ndims)) &
+       if (any(shape(corr) /= kernel%mesh%ndims)) &
             call f_err_throw('Error in the dimensions of the array corr,'//&
             trim(yaml_toa(shape(corr))))
     end if
     if (present(eps)) then
        !check the dimensions (for the moment no parallelism)
-       if (any(shape(eps) /= kernel%ndims)) &
+       if (any(shape(eps) /= kernel%mesh%ndims)) &
             call f_err_throw('Error in the dimensions of the array epsilon,'//&
             trim(yaml_toa(shape(eps))))
     end if
     if (present(oneoeps)) then
        !check the dimensions (for the moment no parallelism)
-       if (any(shape(oneoeps) /= kernel%ndims)) &
+       if (any(shape(oneoeps) /= kernel%mesh%ndims)) &
             call f_err_throw('Error in the dimensions of the array oneoeps,'//&
             trim(yaml_toa(shape(oneoeps))))
     end if
     if (present(oneosqrteps)) then
        !check the dimensions (for the moment no parallelism)
-       if (any(shape(oneosqrteps) /= kernel%ndims)) &
+       if (any(shape(oneosqrteps) /= kernel%mesh%ndims)) &
             call f_err_throw('Error in the dimensions of the array oneosqrteps,'//&
             trim(yaml_toa(shape(oneosqrteps))))
     end if
     if (present(dlogeps)) then
        !check the dimensions (for the moment no parallelism)
        if (any(shape(dlogeps) /= &
-            [3,kernel%ndims(1),kernel%ndims(2),kernel%ndims(3)])) &
+            [3,kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%mesh%ndims(3)])) &
             call f_err_throw('Error in the dimensions of the array dlogeps,'//&
             trim(yaml_toa(shape(dlogeps))))
     end if
@@ -1180,8 +1184,8 @@ contains
     !store the arrays needed for the method
     !the stored arrays are of rank two to collapse indices for
     !omp parallelism
-    n1=kernel%ndims(1)
-    n23=kernel%ndims(2)*kernel%grid%n3p
+    n1=kernel%mesh%ndims(1)
+    n23=kernel%mesh%ndims(2)*kernel%grid%n3p
     !starting point in third direction
     i3s=kernel%grid%istart+1
     if (kernel%grid%n3p==0) i3s=1
@@ -1199,19 +1203,17 @@ contains
              call f_memcpy(n=n1*n23,src=corr(1,1,i3s),dest=kernel%w%corr)
           else if (present(eps)) then
         !allocate work arrays
-             deps=f_malloc([kernel%ndims(1),kernel%ndims(2),kernel%ndims(3),3],id='deps')
-             de2 =f_malloc(kernel%ndims,id='de2')
-             ddeps=f_malloc(kernel%ndims,id='ddeps')
+             deps=f_malloc([kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%mesh%ndims(3),3],id='deps')
+             de2 =f_malloc(kernel%mesh%ndims,id='de2')
+             ddeps=f_malloc(kernel%mesh%ndims,id='ddeps')
 
-             call nabla_u_and_square(kernel%geocode,kernel%ndims(1),kernel%ndims(2),kernel%ndims(3),&
-                  eps,deps,de2,kernel%nord,kernel%hgrids)
+             call nabla_u_and_square(kernel%mesh,eps,deps,de2,kernel%nord)
 
-             call div_u_i(kernel%geocode,kernel%ndims(1),kernel%ndims(2),kernel%ndims(3),&
-                  deps,ddeps,kernel%nord,kernel%hgrids)
+             call div_u_i(kernel%mesh,deps,ddeps,kernel%nord)
              i23=1
              do i3=i3s,i3s+kernel%grid%n3p-1!kernel%ndims(3)
-                do i2=1,kernel%ndims(2)
-                   do i1=1,kernel%ndims(1)
+                do i2=1,kernel%mesh%ndims(2)
+                   do i1=1,kernel%mesh%ndims(1)
                       kernel%w%corr(i1,i23)=(-0.125d0/pi)*&
                            (0.5d0*de2(i1,i2,i3)/eps(i1,i2,i3)-ddeps(i1,i2,i3))
                    end do
@@ -1222,7 +1224,7 @@ contains
              call f_free(ddeps)
              call f_free(de2)
           else if (all(prst)) then
-             mesh=cell_new(kernel%geocode,kernel%ndims,kernel%hgrids)
+             mesh=kernel%mesh !cell_new(kernel%geocode,kernel%mesh%ndims,kernel%mesh%hgrids)
              epsm1=(kernel%cavity%epsilon0-vacuum_eps)
              call f_zero(kernel%IntSur)
              call f_zero(kernel%IntVol)
@@ -1254,8 +1256,8 @@ contains
           else if (present(eps)) then
              i23=1
              do i3=i3s,i3s+kernel%grid%n3p-1!kernel%ndims(3)
-                do i2=1,kernel%ndims(2)
-                   do i1=1,kernel%ndims(1)
+                do i2=1,kernel%mesh%ndims(2)
+                   do i1=1,kernel%mesh%ndims(1)
                       kernel%w%oneoeps(i1,i23)=1.0_dp/sqrt(eps(i1,i2,i3))
                    end do
                    i23=i23+1
@@ -1286,18 +1288,17 @@ contains
           !then check the shapes
           if (any(shape(kernel%w%oneoeps) /= [n1,n23])) &
                call f_err_throw('Incorrect shape of oneoeps')
-          if (any(shape(kernel%w%dlogeps) /= [3,kernel%ndims(1),kernel%ndims(2),kernel%ndims(3)])) &
+          if (any(shape(kernel%w%dlogeps) /= [3,kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%mesh%ndims(3)])) &
                call f_err_throw('Incorrect shape of dlogeps')
           if (present(dlogeps)) then
              call f_memcpy(src=dlogeps,dest=kernel%w%dlogeps)
           else if (present(eps)) then
              !allocate arrays
-             deps=f_malloc([kernel%ndims(1),kernel%ndims(2),kernel%ndims(3),3],id='deps')
-             call nabla_u(kernel%geocode,kernel%ndims(1),kernel%ndims(2),kernel%ndims(3),&
-                  eps,deps,kernel%nord,kernel%hgrids)
-             do i3=1,kernel%ndims(3)
-                do i2=1,kernel%ndims(2)
-                   do i1=1,kernel%ndims(1)
+             deps=f_malloc([kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%mesh%ndims(3),3],id='deps')
+             call nabla_u(kernel%mesh,eps,deps,kernel%nord)
+             do i3=1,kernel%mesh%ndims(3)
+                do i2=1,kernel%mesh%ndims(2)
+                   do i1=1,kernel%mesh%ndims(1)
                       !switch and create the logarithmic derivative of epsilon
                       kernel%w%dlogeps(1,i1,i2,i3)=deps(i1,i2,i3,1)/eps(i1,i2,i3)
                       kernel%w%dlogeps(2,i1,i2,i3)=deps(i1,i2,i3,2)/eps(i1,i2,i3)
@@ -1307,13 +1308,13 @@ contains
              end do
              call f_free(deps)
           else if (all(prst)) then
-             mesh=cell_new(kernel%geocode,kernel%ndims,kernel%hgrids)
+             mesh=kernel%mesh !cell_new(kernel%geocode,kernel%mesh%ndims,kernel%mesh%hgrids)
              epsm1=(kernel%cavity%epsilon0-vacuum_eps)
              call f_zero(kernel%IntSur)
              call f_zero(kernel%IntVol)
              hh=mesh%volume_element
 
-             do i3=1,kernel%ndims(3)
+             do i3=1,kernel%mesh%ndims(3)
                 v(3)=cell_r(mesh,i3,dim=3)
                 do i2=1,mesh%ndims(2)
                    v(2)=cell_r(mesh,i2,dim=2)
@@ -1342,8 +1343,8 @@ contains
           else if (present(eps)) then
              i23=1
              do i3=i3s,i3s+kernel%grid%n3p-1!kernel%ndims(3)
-                do i2=1,kernel%ndims(2)
-                   do i1=1,kernel%ndims(1)
+                do i2=1,kernel%mesh%ndims(2)
+                   do i1=1,kernel%mesh%ndims(1)
                       kernel%w%oneoeps(i1,i23)=1.0_dp/eps(i1,i2,i3)
                    end do
                    i23=i23+1
@@ -1387,14 +1388,14 @@ contains
     real(dp) :: cc,epr,depsr,hh,tt,kk
     type(cell) :: mesh
     real(dp), dimension(3) :: v,dleps,deps
-    mesh=cell_new(kernel%geocode,kernel%ndims,kernel%hgrids)
+    mesh=kernel%mesh !cell_new(kernel%geocode,kernel%mesh%ndims,kernel%mesh%hgrids)
 
     do i3=1,kernel%grid%n3p
        v(3)=cell_r(mesh,i3+kernel%grid%istart,dim=3)
-       do i2=1,kernel%ndims(2)
+       do i2=1,kernel%mesh%ndims(2)
           v(2)=cell_r(mesh,i2,dim=2)
-          i23=i2+(i3-1)*kernel%ndims(2)
-          do i1=1,kernel%ndims(1)
+          i23=i2+(i3-1)*kernel%mesh%ndims(2)
+          do i1=1,kernel%mesh%ndims(1)
              tt=kernel%w%oneoeps(i1,i23) !nablapot2(r)
              v(1)=cell_r(mesh,i1,dim=1)
              !this is done to obtain the depsilon
@@ -1416,13 +1417,13 @@ contains
     use psolver_environment
     implicit none
     type(coulomb_operator), intent(inout) :: kernel
-    real(dp), dimension(kernel%ndims(1),kernel%ndims(2)*kernel%grid%n3p), intent(in) :: rho,nabla2_rho,delta_rho,cc_rho
+    real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2)*kernel%grid%n3p), intent(in) :: rho,nabla2_rho,delta_rho,cc_rho
     !> functional derivative of the sc epsilon with respect to 
     !! the electronic density, in distributed memory
-    real(dp), dimension(kernel%ndims(1),kernel%ndims(2)*kernel%grid%n3p), intent(out) :: depsdrho
+    real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2)*kernel%grid%n3p), intent(out) :: depsdrho
     !> functional derivative of the surface integral with respect to 
     !! the electronic density, in distributed memory
-    real(dp), dimension(kernel%ndims(1),kernel%ndims(2)*kernel%grid%n3p), intent(out) :: dsurfdrho
+    real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2)*kernel%grid%n3p), intent(out) :: dsurfdrho
     real(dp), intent(out) :: IntSur,IntVol
     !local variables
     real(dp), parameter :: innervalue = 0.9d0 !to be defined differently
@@ -1432,9 +1433,9 @@ contains
     IntSur=0.d0
     IntVol=0.d0
 
-    n01=kernel%ndims(1)
-    n02=kernel%ndims(2)
-    n03=kernel%ndims(3)
+    n01=kernel%mesh%ndims(1)
+    n02=kernel%mesh%ndims(2)
+    n03=kernel%mesh%ndims(3)
     !starting point in third direction
     i3s=kernel%grid%istart+1
     epsm1=(kernel%cavity%epsilon0-vacuum_eps)
@@ -1505,11 +1506,261 @@ contains
        end do
     end select
 
-    IntSur=IntSur*product(kernel%hgrids)/epsm1
-    IntVol=IntVol*product(kernel%hgrids)/epsm1
+    !IntSur=IntSur*product(kernel%mesh%hgrids)/epsm1
+    !IntVol=IntVol*product(kernel%mesh%hgrids)/epsm1
+    IntSur=IntSur*kernel%mesh%volume_element/epsm1
+    IntVol=IntVol*kernel%mesh%volume_element/epsm1
+     
 
   end subroutine build_cavity_from_rho
 
+
+!!!  !> calculates the inner cavity vector epsinnersccs for sccs run 
+!!!  !! given a set of centres. Based on error function.
+!!!  !! Need the radius of the cavit and its smoothness
+!!!  subroutine epsinnersccs_rigid_cavity_error_multiatoms_bc(geocode,ndims,hgrids,natreal,rxyzreal,radiireal,delta,eps)
+!!!    use f_utils
+!!!    use numerics, only : Bohr_Ang
+!!!    use module_base, only: bigdft_mpi
+!!!    use f_enums
+!!!    use yaml_output
+!!!    use dynamic_memory
+!!!    use bounds, only: ext_buffers
+!!!    use psolver_environment, only: epsl,d1eps,epsle0
+!!!    implicit none
+!!!!    character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+!!!    integer, intent(in) :: natreal !< number of centres defining the cavity
+!!!    real(kind=8), intent(in) :: delta !< smoothness factor of the cavity
+!!!!    integer, dimension(3), intent(in) :: ndims   !< dimensions of the simulation box
+!!!!    real(kind=8), dimension(3), intent(in) :: hgrids !< grid spacings
+!!!    real(kind=8), dimension(natreal), intent(in) :: radiireal !< radii of each of the atoms
+!!!    !> position of all the atoms in the grid coordinates
+!!!    real(kind=8), dimension(3,natreal), intent(in) :: rxyzreal
+!!!    real(kind=8), dimension(bit%mesh%ndim), intent(out) :: eps !< dielectric inner cavity for sccs run
+!!!
+!!!    !local variables
+!!!    logical :: perx,pery,perz
+!!!    integer :: i,i1,i2,i3,iat,jat,ii,j,k,l,px,py,pz,unt
+!!!    integer :: nbl1,nbl2,nbl3,nbr1,nbr2,nbr3,imin
+!!!    real(kind=8) :: r2,x,y2,z2,d,d2,d12,y,z,eps_min,eps1,pi,de2,dde,d1,oneod,h,coeff,dmin,dmax
+!!!    real(kind=8) :: value,valuemin
+!!!    real(kind=8), dimension(3) :: v,rv,shift,sh
+!!!
+!!!    real(kind=8), parameter :: valuebc=1.d0
+!!!    real(kind=8), dimension(6) :: plandist
+!!!    integer, dimension(6) :: ba
+!!!    real(kind=8), dimension(:), allocatable :: ep
+!!!    real(kind=8), dimension(3,27*natreal) :: rxyztot
+!!!    real(kind=8), dimension(27*natreal) :: radiitot
+!!!    real(kind=8), dimension(:), allocatable :: radii
+!!!    real(kind=8), dimension(:,:), allocatable :: rxyz
+!!!    logical, parameter :: dumpeps=.false.
+!!!
+!!!    !buffers associated to the geocode
+!!!    !conditions for periodicity in the three directions
+!!!    perx=(geocode /= 'F')
+!!!    pery=(geocode == 'P')
+!!!    perz=(geocode /= 'F')
+!!!
+!!!    call ext_buffers(perx,nbl1,nbr1)
+!!!    call ext_buffers(pery,nbl2,nbr2)
+!!!    call ext_buffers(perz,nbl3,nbr3)
+!!!
+!!!    pi = 4.d0*datan(1.d0)
+!!!
+!!!    shift(1)=hgrids(1)*ndims(1)
+!!!    shift(2)=hgrids(2)*ndims(2)
+!!!    shift(3)=hgrids(3)*ndims(3)
+!!!
+!!!    !------------------------------------------------------------------------------------------------------
+!!!    ! Depending of Free, Periodic or Surface bc, image atoms are or not included.
+!!!
+!!!    !  if (bigdft_mpi%iproc==0) then
+!!!    !   do iat=1,natreal
+!!!    !    call yaml_map('real input atoms',iat)
+!!!    !    call yaml_map('radii',radiireal(iat))
+!!!    !    call yaml_map('rxyz',rxyzreal(:,iat))
+!!!    !   end do
+!!!    !  end if
+!!!
+!!!    px=0
+!!!    py=0
+!!!    pz=0
+!!!    if (perx) px=1
+!!!    if (pery) py=1
+!!!    if (perz) pz=1
+!!!
+!!!    rxyztot(:,:)=0.d0
+!!!
+!!!    i=0
+!!!    do iat=1,natreal
+!!!       ba(1:6)=0
+!!!       ! checking what are the image atoms to include in the calculation of the
+!!!       ! cavity.
+!!!       rv(1:3)=rxyzreal(1:3,iat)
+!!!       plandist(1)=dabs(rv(1))
+!!!       plandist(2)=dabs(shift(1)-rv(1))
+!!!       plandist(3)=dabs(rv(2))
+!!!       plandist(4)=dabs(shift(2)-rv(2))
+!!!       plandist(5)=dabs(rv(3))
+!!!       plandist(6)=dabs(shift(3)-rv(3))
+!!!       do ii=1,6
+!!!          valuemin=1.d0
+!!!          d=plandist(ii)
+!!!          value=epsl(d,radiireal(iat),delta)
+!!!          if (value.lt.valuebc) then ! valuebc is the value to check on the box border to accept or refuse an image atom.
+!!!             if (abs(value).lt.valuemin) then
+!!!                valuemin=abs(value)
+!!!                imin=ii
+!!!             end if
+!!!             select case(ii)
+!!!             case (1)
+!!!                ba(1)=1*px
+!!!             case (2)
+!!!                ba(2)=-1*px
+!!!             case (3)
+!!!                ba(3)=1*py
+!!!             case (4)
+!!!                ba(4)=-1*py
+!!!             case (5)
+!!!                ba(5)=1*pz
+!!!             case (6)
+!!!                ba(6)=-1*pz
+!!!             end select
+!!!          end if
+!!!       end do
+!!!
+!!!       do j=ba(6),ba(5)
+!!!          sh(3)=real(j,kind=8)*shift(3)
+!!!          do k=ba(4),ba(3)
+!!!             sh(2)=real(k,kind=8)*shift(2)
+!!!             do l=ba(2),ba(1)
+!!!                sh(1)=real(l,kind=8)*shift(1)
+!!!                rv(1:3)=rxyzreal(1:3,iat) + sh(1:3)
+!!!                i=i+1
+!!!                rxyztot(1:3,i)=rv(1:3)
+!!!                radiitot(i)=radiireal(iat)
+!!!             end do
+!!!          end do
+!!!       end do
+!!!
+!!!    end do
+!!!
+!!!    nat=i
+!!!
+!!!    ep=f_malloc(nat,id='ep')
+!!!    rxyz=f_malloc([3,nat],id='rxyz')
+!!!    radii=f_malloc(nat,id='radii')
+!!!
+!!!    rxyz(1:3,1:nat)=rxyztot(1:3,1:nat)
+!!!    radii(1:nat)=radiitot(1:nat)
+!!!
+!!!    !   if (bigdft_mpi%iproc==0) then
+!!!    !    write(*,*)plandist
+!!!    !    write(*,'(1x,a,1x,e14.7,1x,a,1x,i4)')'Value min =',valuemin,'at bc side',imin
+!!!    !    call yaml_map('nat',nat)
+!!!    !    do iat=1,nat
+!!!    !     call yaml_map('atom',iat)
+!!!    !     call yaml_map('radii',radii(iat))
+!!!    !     call yaml_map('rxyz',rxyz(:,iat))
+!!!    !    end do
+!!!    !   end if
+!!!
+!!!    !------------------------------------------------------------------------------------------------------
+!!!    ! Starting the cavity building for rxyztot atoms=real+image atoms (total natcurr) for periodic
+!!!    ! and surface boundary conditions or atoms=real for free bc.
+!!!
+!!!    do i3=1,ndims(3)
+!!!       z=hgrids(3)*(i3-1-nbl3)
+!!!       v(3)=z
+!!!       do i2=1,ndims(2)
+!!!          y=hgrids(2)*(i2-1-nbl2)
+!!!          v(2)=y
+!!!          do i1=1,ndims(1)
+!!!             x=hgrids(1)*(i1-1-nbl1)
+!!!             v(1)=x
+!!!
+!!!             do iat=1,nat
+!!!                d2=(x-rxyz(1,iat))**2+(y-rxyz(2,iat))**2+(z-rxyz(3,iat))**2
+!!!                d=dsqrt(d2)
+!!!
+!!!                if (d2.eq.0.d0) then
+!!!                   d2=1.0d-30
+!!!                   ep(iat)=epsl(d,radii(iat),delta)
+!!!                else
+!!!                   ep(iat)=epsl(d,radii(iat),delta)
+!!!                end if
+!!!             end do
+!!!
+!!!             eps(i1,i2,i3)= 1.d0 - product(ep)
+!!!
+!!!          end do
+!!!       end do
+!!!    end do
+!!!
+!!!
+!!!!!$    if (dumpeps) then
+!!!!!$
+!!!!!$       unt=f_get_free_unit(20)
+!!!!!$       call f_open_file(unt,file='epsinnersccs.dat')
+!!!!!$       i1=1!n03/2
+!!!!!$       do i2=1,ndims(2)
+!!!!!$          do i3=1,ndims(3)
+!!!!!$             write(unt,'(2(1x,I4),2(1x,e14.7))')i2,i3,eps(i1,i2,i3),eps(ndims(1)/2,i2,i3)
+!!!!!$          end do
+!!!!!$       end do
+!!!!!$       call f_close(unt)
+!!!!!$
+!!!!!$       unt=f_get_free_unit(22)
+!!!!!$       call f_open_file(unt,file='epsinnersccs_line_y.dat')
+!!!!!$       do i2=1,ndims(2)
+!!!!!$          write(unt,'(1x,I8,1(1x,e22.15))')i2,eps(ndims(1)/2,i2,ndims(3)/2)
+!!!!!$       end do
+!!!!!$       call f_close(unt)
+!!!!!$
+!!!!!$       unt=f_get_free_unit(23)
+!!!!!$       call f_open_file(unt,file='epsinnersccs_line_z.dat')
+!!!!!$       do i3=1,ndims(3)
+!!!!!$          write(unt,'(1x,I8,1(1x,e22.15))')i3,eps(ndims(1)/2,ndims(2)/2,i3)
+!!!!!$       end do
+!!!!!$       call f_close(unt)
+!!!!!$
+!!!!!$    end if
+!!!
+!!!    call f_free(ep)
+!!!    call f_free(rxyz)
+!!!    call f_free(radii)
+!!!
+!!!  end subroutine epsinnersccs_rigid_cavity_error_multiatoms_bc
+!!!!!!
+
+
+  subroutine epsilon_inner_cavity(pkernel,nat,rxyz,radii,delta,oxyz)
+    use box
+    use psolver_environment
+    implicit none
+    integer, intent(in) :: nat
+    real(dp), intent(in) :: delta
+    type(coulomb_operator), intent(inout) :: pkernel
+    real(dp), dimension(nat), intent(in) :: radii
+    real(dp), dimension(3,nat), intent(in) :: rxyz,oxyz
+    !local variables
+    integer :: iat
+    real(dp) :: tt,d
+    type(box_iterator) :: bit
+
+    bit=box_iter(pkernel%mesh,i3s=pkernel%grid%istart+1,n3p=pkernel%grid%n3p,origin=oxyz)
+    do while(box_next_point(bit))
+       !loop on atoms
+       tt=1.0_dp
+       do iat=1,nat
+          d=distance(bit%mesh,rxyz(1,iat),bit%rxyz)
+          tt=tt*epsl(d,radii(iat),delta)
+       end do
+       pkernel%w%epsinnersccs(bit%i,bit%i23+1)=1.0_dp-tt
+    end do
+
+  end subroutine epsilon_inner_cavity
 
 
 end module PStypes

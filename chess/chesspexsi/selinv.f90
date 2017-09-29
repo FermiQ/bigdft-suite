@@ -152,13 +152,13 @@ module selinv
             call f_timing(TCAT_PEXSI_COMMUNICATE,'ON')
             nfvctr_local_min = nfvctr_local
             nfvctr_local_max = nfvctr_local
-            call mpiallred(nfvctr_local_min,count=1,op=mpi_min,comm=readComm)
-            call mpiallred(nfvctr_local_max,count=1,op=mpi_max,comm=readComm)
+            call fmpi_allreduce(nfvctr_local_min,count=1,op=FMPI_MIN,comm=readComm)
+            call fmpi_allreduce(nfvctr_local_max,count=1,op=FMPI_MAX,comm=readComm)
             nfvctr_local_avg = real(nfvctr,kind=8)/real(maxproc,kind=8)
             nvctr_local_min = nvctr_local
             nvctr_local_max = nvctr_local
-            call mpiallred(nvctr_local_min,count=1,op=mpi_min,comm=readComm)
-            call mpiallred(nvctr_local_max,count=1,op=mpi_max,comm=readComm)
+            call fmpi_allreduce(nvctr_local_min,count=1,op=FMPI_MIN,comm=readComm)
+            call fmpi_allreduce(nvctr_local_max,count=1,op=FMPI_MAX,comm=readComm)
             nvctr_local_avg = real(nvctr,kind=8)/real(maxproc,kind=8)
             call f_timing(TCAT_PEXSI_COMMUNICATE,'OF')
           
@@ -301,7 +301,7 @@ module selinv
               inv_ovrlp(isvctr_local+i-1) = invSnzvalLocal(i)
           end do
           call f_timing(TCAT_PEXSI_COMMUNICATE,'ON')
-          call mpiallred(inv_ovrlp,mpi_sum,comm=readComm)
+          call fmpi_allreduce(inv_ovrlp,FMPI_SUM,comm=readComm)
           call f_timing(TCAT_PEXSI_COMMUNICATE,'OF')
 
           
@@ -444,7 +444,7 @@ module selinv
     subroutine selinv_wrapper(iproc, nproc, comm, smats, smatl, ovrlp, np_sym_fact, inv_ovrlp)
       use futile
       use sparsematrix_base
-      use sparsematrix, only: transform_sparse_matrix
+      use sparsematrix, only: transform_sparse_matrix, gather_matrix_from_taskgroups, extract_taskgroup
       use sparsematrix_init, only: sparsebigdft_to_ccs
       implicit none
     
@@ -456,7 +456,7 @@ module selinv
     
       ! Local variables
       integer,dimension(:),allocatable :: row_ind, col_ptr
-      real(mp),dimension(:),allocatable :: ovrlp_large
+      real(mp),dimension(:),allocatable :: ovrlp_large, mat_global
     
       call f_routine(id='selinv_wrapper')
     
@@ -467,14 +467,21 @@ module selinv
       call sparsebigdft_to_ccs(smatl%nfvctr, smatl%nvctr, smatl%nseg, smatl%keyg, row_ind, col_ptr)
       ! At the moment not working for nspin>1
       ovrlp_large = sparsematrix_malloc(smatl, iaction=SPARSE_FULL, id='ovrlp_large')
-      if (smats%ntaskgroup/=1 .or. smatl%ntaskgroup/=1) then
-          call f_err_throw('PEXSI is not yet tested with matrix taskgroups', err_name='SPARSEMATRIX_RUNTIME_ERROR')
-      end if
+      !!if (smats%ntaskgroup/=1 .or. smatl%ntaskgroup/=1) then
+      !!    call f_err_throw('PEXSI is not yet tested with matrix taskgroups', err_name='SPARSEMATRIX_RUNTIME_ERROR')
+      !!end if
+
+      mat_global = sparsematrix_malloc(smats, iaction=SPARSE_FULL, id='mat_global')
+      call gather_matrix_from_taskgroups(iproc, nproc, comm, smats, ovrlp%matrix_compr, mat_global)
       call transform_sparse_matrix(iproc, smats, smatl, SPARSE_FULL, 'small_to_large', &
-           smat_in=ovrlp%matrix_compr, lmat_out=ovrlp_large)
+           smat_in=mat_global, lmat_out=ovrlp_large)
+      call f_free(mat_global)
+
       call f_timing(TCAT_SMAT_TRANSFORMATION,'OF')
+      mat_global = sparsematrix_malloc(smatl, iaction=SPARSE_FULL, id='mat_global')
       call selinv_driver(iproc, nproc, comm, smatl%nfvctr, smatl%nvctr, row_ind, col_ptr, &
-           ovrlp_large, np_sym_fact, inv_ovrlp%matrix_compr)
+           ovrlp_large, np_sym_fact, mat_global)
+      call extract_taskgroup(smatl, mat_global, inv_ovrlp%matrix_compr)
     
       call f_free(ovrlp_large)
       call f_free(row_ind)
