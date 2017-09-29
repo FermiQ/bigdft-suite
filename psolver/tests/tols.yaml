@@ -12,7 +12,7 @@ Default tolerances:
   beta: 7.4e-10
   ratio: 1.3e-6
   res: 1.94e-8
-  alpha: 5.e-1 #normal for CG
+#  alpha: 5.e-1 #normal for CG
   Total Charge: 6.5e-15
   Potential monopole: 2.31e-13
   Computed Hartree energy: &en1 2.81e-10 
@@ -27,6 +27,7 @@ Default tolerances:
   Integral of the density in the nonvacuum region: 3.97e-12
   dipole: 1.00e-10
 Keys to ignore:
+  - alpha
   - Total No. of Taskgroups created
   - taskgroup_size
   - Timings for root process
@@ -59,32 +60,37 @@ PS_Basics:
     potential integral: 8.00e-11
     Max diff: 6.65e-14
     dipole: 7.76e-09
-    Max diff at: 50.0
+    Keys to ignore:
+      - Max diff at
 GPS_PCG: &PCGref
-  Computed Hartree energy: 6.5e-6
-  Diff of expected-computed Hartree energy: 6.5e-6
+  Computed Hartree energy: 2.5e-06
+  Diff of expected-computed Hartree energy: 2.5e-6
   Integral of the density in the nonvacuum region: 8.0e-11
-  res: 6.0e-6
-  Value: 2.07e-6
-  dipole: 5.35e-09
+  res: 7.5e-07
+  Value: 7.07e-07
+  dipole: 5.35e-10
   normr: 3.52e-09
   offset: 2.18e-10
   Contravariant Metric: 1.4e-15
   Expected hartree energy: 2.0e-08
+  IntSur sccs cavity: 2.7e-10
+  IntSur soft-sphere cavity: 2.1044854747742647e-10
+  IntVol sccs cavity: 2.50e-08
+  IntVol soft-sphere cavity: 2.1957191620458616e-10
 GPS_PI:
   offset: 2.6e-10
   dipole: 4.35e-09
   Contravariant Metric: 1.4e-15
   Expected hartree energy: 2.0e-08
 GPS_mPB:
-  offset: 2.81e-10
+  offset: 2.81e-06
   Some values: 2.57e-06
   beta: 0.001
   dipole: 3.93e-09
   normr: 6.99e-07
   Value: 2.59e-06
-  Computed Hartree energy: 6.5e-6
-  Diff of expected-computed Hartree energy: 6.5e-6
+  Computed Hartree energy: 6.5e-09
+  Diff of expected-computed Hartree energy: 2.5e-08
   Integral of the density in the nonvacuum region: 7.7e-11
   Contravariant Metric: 1.4e-15
   Expected hartree energy: 2.0e-08
@@ -106,18 +112,23 @@ Generalized_PSolver: #old values for reference
 PS_Check:
   itermax: 150.0
 PS_StressCheck:
-  Ehartree: 9.1e-13
+  Ehartree: 4.1e-12
   Max diff: 3.6e-15
   offset: 1.3e-11
   potential integral: 8.0e-12
-  stress analytical x: 1.2e-14
-  stress analytical y: 3.04e-14
-  stress analytical z: 3.25e-14
-  stress analytical: 1.61e-14
+  stress analytical x: 2.5e-13
+  stress analytical y: 2.5e-13
+  stress analytical z: 2.25e-13
+  stress analytical: 7.61e-14
   stress psolver trace: 1.47e-15
   stress psolver x: 1.0e-14
   stress psolver y: 7.0e-16
   stress psolver z: 1.0e-14
+  Angles: 7.3e-15
+  Contravariant Metric: 1.3e-15
+  Controvariant Metric: 1.3e-15
+  sum_i mesh%gu(i,ii)*stress_3_3(i,ii): 1.5e-15
   Keys to ignore:
     - Max diff at
     - processes
+

@@ -18,7 +18,7 @@ subroutine CalculateTailCorrection(iproc,nproc,at,rbuf,orbs,&
   use yaml_output
   use module_interfaces, only: applyprojectorsonthefly, orbitals_descriptors
   use gaussians, only: gaussian_basis
-  use psp_projectors_base, only: deallocate_workarrays_projectors, allocate_workarrays_projectors
+  use locreg_operations, only: deallocate_workarrays_projectors, allocate_workarrays_projectors
   use public_enums
   use bounds, only: make_bounds, make_all_ib
   use locregs

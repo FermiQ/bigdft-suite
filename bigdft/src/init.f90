@@ -217,17 +217,18 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
      cpmult,fpmult,hx,hy,hz,dry_run,nl,&
      init_projectors_completely)
   use module_base
-  use psp_projectors_base, only: DFT_PSP_projectors_null, nonlocal_psp_descriptors_null, allocate_workarrays_projectors
+  use psp_projectors_base, only: DFT_PSP_projectors_null, nonlocal_psp_descriptors_null
   use psp_projectors, only: bounds_to_plr_limits
   use module_types
   use gaussians, only: gaussian_basis, gaussian_basis_from_psp, gaussian_basis_from_paw
   use public_enums, only: PSPCODE_PAW
   use orbitalbasis
   use ao_inguess, only: lmax_ao
-  use locreg_operations, only: set_wfd_to_wfd
+  use locreg_operations, only: set_wfd_to_wfd, allocate_workarrays_projectors
   use sparsematrix_init,only: distribute_on_tasks
   use locregs
   use f_ternary
+  use bounds, only: locreg_bounds
   implicit none
   integer,intent(in) :: iproc,nproc
   real(gp), intent(in) :: cpmult,fpmult,hx,hy,hz
@@ -402,7 +403,7 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
   enddo
 
   ! Distribute the data to all process, using an allreduce
-  call mpiallred(reducearr, mpi_sum, comm=bigdft_mpi%mpi_comm)
+  call fmpi_allreduce(reducearr, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
   do iat=1,at%astruct%nat
       if (nl%pspd(iat)%mproj > 0) then
           nseg = nl%pspd(iat)%plr%wfd%nseg_c + nl%pspd(iat)%plr%wfd%nseg_f
@@ -431,6 +432,14 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
           if (init_projectors_completely) then
              call set_wfd_to_wfd(lr,nl%pspd(iat)%plr,&
                   keyg_lin,nbsegs_cf,nl%pspd(iat)%noverlap,nl%pspd(iat)%lut_tolr,nl%pspd(iat)%tolr)
+
+!!$             !let us try what happens with the new method
+!!$             !consideration, we should conceive differently the
+!!$             !initialization of the localisation regions
+!!$             call locreg_bounds(nl%pspd(iat)%plr%d%n1,nl%pspd(iat)%plr%d%n2,nl%pspd(iat)%plr%d%n3,&
+!!$                  nl%pspd(iat)%plr%d%nfl1,nl%pspd(iat)%plr%d%nfu1,nl%pspd(iat)%plr%d%nfl2,nl%pspd(iat)%plr%d%nfu2,&
+!!$                  nl%pspd(iat)%plr%d%nfl3,nl%pspd(iat)%plr%d%nfu3,nl%pspd(iat)%plr%wfd,nl%pspd(iat)%plr%bounds)
+
           end if
 
           ! This is done for wavefunctions but not for projectors ?
@@ -1762,7 +1771,7 @@ subroutine input_wf_disk(iproc, nproc, input_wf_format, d, hx, hy, hz, &
        & orbs,d%n1,d%n2,d%n3,hx,hy,hz,atoms,rxyz_old,rxyz,wfd,psi)
 
   !reduce the value for all the eigenvectors
-  if (nproc > 1) call mpiallred(orbs%eval,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+  if (nproc > 1) call fmpi_allreduce(orbs%eval,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
 
   if (in%scf .hasattr. 'MIXING') then
      !recalculate orbitals occupation numbers
@@ -3792,7 +3801,7 @@ subroutine input_wf_memory_new(nproc, iproc, atoms, &
   end do
 
   if (nproc > 1) then
-      call mpiallred(shift, MPI_SUM,comm=bigdft_mpi%mpi_comm)
+      call fmpi_allreduce(shift, FMPI_SUM,comm=bigdft_mpi%mpi_comm)
   end if
 
 !Interpolation

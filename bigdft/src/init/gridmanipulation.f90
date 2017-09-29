@@ -649,7 +649,7 @@ subroutine fill_logrid(geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,nbuf,nat,  &
    enddo
 
    if (parallel) then
-       call mpiallred(logrid, mpi_lor, comm=bigdft_mpi%mpi_comm)
+       call fmpi_allreduce(logrid,FMPI_LOR, comm=bigdft_mpi%mpi_comm)
    end if
 
    call f_release_routine()

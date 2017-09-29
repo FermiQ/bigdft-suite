@@ -133,7 +133,7 @@ module coeffs
 
 
     subroutine calculate_kernel_and_energy(iproc,nproc,comm,denskern,ham,denskern_mat,ham_mat, &
-               energy,coeff,norbp,isorb,norbu,norb,occup,calculate_kernel)
+               energy,coeff,norbp,isorb,norbu,norb,occup,calculate_kernel,keep_uncompressed)
       use sparsematrix_highlevel, only: trace_AB
       implicit none
       integer, intent(in) :: iproc, nproc, comm, norbp, isorb, norbu, norb
@@ -145,15 +145,25 @@ module coeffs
       logical, intent(in) :: calculate_kernel
       real(kind=mp), intent(out) :: energy
       real(kind=mp), dimension(denskern%nfvctr,norb), intent(in) :: coeff
+      logical,intent(in),optional :: keep_uncompressed
     
       integer :: iorb, jorb, ind_ham, ind_denskern, ierr, iorbp, is, ie, ispin
+      logical :: keep_uncompressed_
 
       call f_routine(id='calculate_kernel_and_energy')
+
+      keep_uncompressed_ = .false.
+      if (present(keep_uncompressed)) keep_uncompressed_ = keep_uncompressed
+      if (keep_uncompressed_) then
+          if (.not.associated(denskern_mat%matrix)) then
+              call f_err_throw('ERROR: denskern_mat%matrix must be associated if keep_uncompressed is true')
+          end if
+      end if
     
       if (calculate_kernel) then 
          !!call extract_taskgroup_inplace(denskern, denskern_mat)
          call calculate_density_kernel(iproc, nproc, comm, .true., norbp, isorb, norbu, norb, occup, &
-              coeff, denskern, denskern_mat)
+              coeff, denskern, denskern_mat, keep_uncompressed_)
          !call gather_matrix_from_taskgroups_inplace(iproc, nproc, denskern, denskern_mat)
          !denskern%matrix_compr = denskern_mat%matrix_compr
       end if
@@ -164,6 +174,9 @@ module coeffs
       do ispin=1,denskern%nspin
           energy = energy + trace_AB(iproc, nproc, comm, ham, denskern, ham_mat, denskern_mat, ispin)
       end do
+      if (iproc==0) then
+          call yaml_map('trace(KH)',energy)
+      end if
     
       !!do iorbp=1,tmb_orbs%norbp
       !!   iorb=iorbp+tmb_orbs%isorb
@@ -194,7 +207,7 @@ module coeffs
       !!   !$omp end parallel
       !!end do
       !!if (nproc>1) then
-      !!   call mpiallred(energy, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
+      !!   call fmpi_allreduce(energy, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
       !!end if
       !call timing(iproc,'calc_energy','OF')
       call f_timing(TCAT_SMAT_MULTIPLICATION,'OF')
@@ -237,7 +250,9 @@ module coeffs
       end if
     
       if (keep_uncompressed) then
-          if (.not.associated(denskern_%matrix)) stop 'ERROR: denskern_%matrix must be associated if keep_uncompressed is true'
+          if (.not.associated(denskern_%matrix)) then
+              call f_err_throw('ERROR: denskern_%matrix must be associated if keep_uncompressed is true')
+          end if
       end if
     
       !!write(*,*) 'iproc, orbs_tmb%norbp, orbs_tmb%isorb, orbs_tmb%norb', &
@@ -388,8 +403,8 @@ module coeffs
               if (nproc > 1) then
                   !call timing(iproc,'commun_kernel','ON')
                   call f_timing(TCAT_HL_MATRIX_COMMUNICATIONS,'ON')
-                  call mpiallred(denskern_%matrix(1,1,1), denskern%nspin*denskern%nfvctr**2, &
-                       mpi_sum, comm=comm)
+                  call fmpi_allreduce(denskern_%matrix(1,1,1), denskern%nspin*denskern%nfvctr**2, &
+                       FMPI_SUM, comm=comm)
                   !call timing(iproc,'commun_kernel','OF')
                   call f_timing(TCAT_HL_MATRIX_COMMUNICATIONS,'OF')
               end if
@@ -400,7 +415,7 @@ module coeffs
           if (nproc > 1) then
               !call timing(iproc,'commun_kernel','ON')
               call f_timing(TCAT_HL_MATRIX_COMMUNICATIONS,'ON')
-              call mpiallred(tmparr(1), denskern%nspin*denskern%nvctr, mpi_sum, comm=comm)
+              call fmpi_allreduce(tmparr(1), denskern%nspin*denskern%nvctr, FMPI_SUM, comm=comm)
               !call timing(iproc,'commun_kernel','OF')
               call f_timing(TCAT_HL_MATRIX_COMMUNICATIONS,'OF')
           end if

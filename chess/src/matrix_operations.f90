@@ -1529,8 +1529,8 @@ module matrix_operations
         if (nproc>1) then
             reducearr(1)=mean_deviation
             reducearr(2)=num
-            call mpiallred(max_deviation, 1, mpi_max, comm=comm)
-            call mpiallred(reducearr(1), 2, mpi_sum, comm=comm)
+            call fmpi_allreduce(max_deviation, 1, FMPI_MAX, comm=comm)
+            call fmpi_allreduce(reducearr(1), 2, FMPI_SUM, comm=comm)
             mean_deviation=reducearr(1)
             num=reducearr(2)
         end if
@@ -2120,8 +2120,8 @@ module matrix_operations
         if (nproc>1) then
             reducearr(1)=mean_deviation
             reducearr(2)=num
-            call mpiallred(max_deviation, 1, mpi_max, comm=comm)
-            call mpiallred(reducearr(1), 2, mpi_sum, comm=comm)
+            call fmpi_allreduce(max_deviation, 1, FMPI_MAX, comm=comm)
+            call fmpi_allreduce(reducearr(1), 2, FMPI_SUM, comm=comm)
             mean_deviation=reducearr(1)
             num=reducearr(2)
         end if
@@ -2221,8 +2221,8 @@ module matrix_operations
         if (nproc>1) then
             reducearr(1)=mean_deviation
             reducearr(2)=num
-            call mpiallred(max_deviation, 1, mpi_max, comm=comm)
-            call mpiallred(reducearr, mpi_sum, comm=comm)
+            call fmpi_allreduce(max_deviation, 1, FMPI_MAX, comm=comm)
+            call fmpi_allreduce(reducearr, FMPI_SUM, comm=comm)
             mean_deviation=reducearr(1)
             num=reducearr(2)
         end if
@@ -2302,8 +2302,8 @@ module matrix_operations
         if (nproc>1) then
             reducearr(1)=mean_deviation
             reducearr(2)=num
-            call mpiallred(max_deviation, 1, mpi_max, comm=comm)
-            call mpiallred(reducearr, mpi_sum, comm=comm)
+            call fmpi_allreduce(max_deviation, 1, FMPI_MAX, comm=comm)
+            call fmpi_allreduce(reducearr, FMPI_SUM, comm=comm)
             mean_deviation=reducearr(1)
             num=reducearr(2)
         end if
@@ -2514,7 +2514,7 @@ module matrix_operations
             end do
       
             !!if (nproc>1)then
-            !!    call mpiallred(inv_ovrlp_half_%matrix_compr(1), inv_ovrlp_half%nvctr*inv_ovrlp_half%nspin, mpi_sum, bigdft_mpi%mpi_comm)
+            !!    call fmpi_allreduce(inv_ovrlp_half_%matrix_compr(1), inv_ovrlp_half%nvctr*inv_ovrlp_half%nspin, FMPI_SUM, bigdft_mpi%mpi_comm)
             !!end if
             call synchronize_matrix_taskgroups(iproc, nproc, inv_ovrlp_half, inv_ovrlp_half_)
       
@@ -2703,8 +2703,8 @@ module matrix_operations
 
       !!end do
 
-      !!!call mpiallred(inv_ovrlp_%matrix_compr, mpi_sum, comm=comm)
-      !!call mpiallred(matrix_compr_notaskgroup, mpi_sum, comm=comm)
+      !!!call fmpi_allreduce(inv_ovrlp_%matrix_compr, FMPI_SUM, comm=comm)
+      !!call fmpi_allreduce(matrix_compr_notaskgroup, FMPI_SUM, comm=comm)
       !!call extract_taskgroup(smatl, matrix_compr_notaskgroup, inv_ovrlp_%matrix_compr)
 
       !!!call f_free(matrix_compr_notaskgroup)

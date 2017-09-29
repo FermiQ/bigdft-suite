@@ -157,7 +157,7 @@
 !!
 !!
 !!  if (nproc>1) then
-!!      call mpiallred(homo_ham(1,1), input_frag%nfrag**2, mpi_sum, bigdft_mpi%mpi_comm, ierr)
+!!      call fmpi_allreduce(homo_ham(1,1), input_frag%nfrag**2, FMPI_SUM, bigdft_mpi%mpi_comm, ierr)
 !!  end if
 !!
 !!  !!i_all=-product(shape(ham%matrix))*kind(ham%matrix)
@@ -179,7 +179,7 @@
 !!  end if
 !!
 !!  if (nproc>1) then
-!!      call mpiallred(homo_ovrlp(1,1), input_frag%nfrag**2, mpi_sum, bigdft_mpi%mpi_comm, ierr)
+!!      call fmpi_allreduce(homo_ovrlp(1,1), input_frag%nfrag**2, FMPI_SUM, bigdft_mpi%mpi_comm, ierr)
 !!  end if
 !!
 !!  !!i_all=-product(shape(ovrlp%matrix))*kind(ovrlp%matrix)
@@ -307,7 +307,7 @@ subroutine calc_transfer_integral(iproc,nproc,nstates,orbs,ham,ham_mat,ovrlp,ovr
   end if
 
   if (nproc>1) then
-      call mpiallred(homo_ham, mpi_sum, comm=bigdft_mpi%mpi_comm)
+      call fmpi_allreduce(homo_ham, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
   end if
 
   !call f_free_ptr(ham%matrix)
@@ -327,7 +327,7 @@ subroutine calc_transfer_integral(iproc,nproc,nstates,orbs,ham,ham_mat,ovrlp,ovr
   end if
 
   if (nproc>1) then
-      call mpiallred(homo_ovrlp, mpi_sum, comm=bigdft_mpi%mpi_comm)
+      call fmpi_allreduce(homo_ovrlp, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
   end if
 
   !call f_free_ptr(ovrlp%matrix)

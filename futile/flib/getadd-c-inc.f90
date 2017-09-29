@@ -7,11 +7,11 @@
 !!    GNU General Public License, see ~/COPYING file
 !!    or http://www.gnu.org/copyleft/gpl.txt .
 !!    For the list of contributors, see ~/AUTHORS
-  integer(kind=8) :: la
+  integer(f_address) :: la
   !local variables
-  integer(kind=8), external :: f_loc
+  integer(f_address), external :: f_loc
 
   if (size(array)==0) then
-     la=int(0,kind=8)
+     la=int(0,f_address)
      return
   end if

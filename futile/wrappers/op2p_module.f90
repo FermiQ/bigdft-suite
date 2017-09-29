@@ -366,9 +366,9 @@ module overlap_point_to_point
 
     ! gpudirect is an integer, and some implementations of MPI don't provide MPI_LAND for integers
     ltmp=OP2P%gpudirect==1
-    call mpiallred(ltmp,1,MPI_LAND)
+    call fmpi_allreduce(ltmp,1,FMPI_LAND)
     OP2P%gpudirect= merge(1,0,ltmp)
-    call mpiallred(symmetric,1,MPI_LAND)
+    call fmpi_allreduce(symmetric,1,FMPI_LAND)
 
     if (OP2P%gpudirect==0 .and. iproc==0) then
          call yaml_warning("insufficient GPU memory : using non gpudirect version ")
@@ -627,7 +627,7 @@ module overlap_point_to_point
 
        !check the total amount of communication and calculations
        if (mpisize(OP2P%mpi_comm) > 1) &
-            call mpiallred(OP2P%ndatas,MPI_SUM,comm=OP2P%mpi_comm)
+            call fmpi_allreduce(OP2P%ndatas,FMPI_SUM,comm=OP2P%mpi_comm)
        if (any(OP2P%ndatas(:,iproc,OP2P%group_id) /=0)) then
           call f_err_throw('ERROR: OP2P communication simulation failed: processor '+yaml_toa(iproc)+&
                ' has not a zero balance of send-receive calls'+&
@@ -1298,7 +1298,7 @@ module overlap_point_to_point
        !then check that the result coincide with the calculation
        call check_result(iproc,OP2P,norbp,res,maxdiff)
 
-       if (nproc > 1) call mpiallred(maxdiff,1,op=MPI_MAX,comm=OP2P%mpi_comm)
+       if (nproc > 1) call fmpi_allreduce(maxdiff,1,op=FMPI_MAX,comm=OP2P%mpi_comm)
 
 !!$       passed=maxdiff < abs(data_val(1,1,1) - data_val(2,1,1)) + tol_maxdiff
        passed=maxdiff < tol_maxdiff

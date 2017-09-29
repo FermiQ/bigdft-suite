@@ -1,0 +1,5 @@
+ chess:
+   foe:
+     fscale: 5.0E-003
+     occupation_function: error_function
+     adjust_fscale: no

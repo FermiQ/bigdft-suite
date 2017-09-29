@@ -676,8 +676,8 @@ module orthonormalization
          ii=matrixindex_in_compressed(lagmat,iiorb,iiorb)
          trH = trH + lagmat_%matrix_compr(ii-lagmat%isvctrp_tg)
       end do
-      call mpiallred(trH, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
-      !if (iproc==0) call yaml_map('Omega new',trH)
+      call fmpi_allreduce(trH, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+      if (iproc==0) call yaml_map('Omega new',trH)
       !############################################################################
     
 
@@ -962,7 +962,7 @@ module orthonormalization
              end if
     
              if (nproc>1) then
-                call mpiallred(coeff_tmp, mpi_sum, comm=bigdft_mpi%mpi_comm)
+                call fmpi_allreduce(coeff_tmp, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
              end if
     
              call cpu_time(tr1)
@@ -979,7 +979,7 @@ module orthonormalization
              end if
     
              if (nproc>1) then
-                call mpiallred(ovrlp_coeff, mpi_sum, comm=bigdft_mpi%mpi_comm)
+                call fmpi_allreduce(ovrlp_coeff, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
              end if
              call f_free(coeff_tmp)
     
@@ -1336,7 +1336,7 @@ module orthonormalization
     !!     end if
     !!
     !!     if (nproc>1) then
-    !!        call mpiallred(ovrlp_coeff, mpi_sum, comm=bigdft_mpi%mpi_comm)
+    !!        call fmpi_allreduce(ovrlp_coeff, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
     !!     end if
     !!
     !!     call cpu_time(tr1)

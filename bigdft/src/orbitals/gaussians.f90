@@ -21,6 +21,7 @@ module gaussians
   integer, parameter :: NTERM_MAX_OVERLAP=62       !< Maximum number of terms for the considered shells
   integer, parameter :: NTERM_MAX_KINETIC=190      !< Maximum number of terms for the considered shells in the case of laplacian
   integer, parameter :: L_MAX=3                    !< Maximum number of angular momentum considered
+  integer, parameter :: NTERM_MAX_RS=NTERM_MAX_KINETIC !< Max terms for the real space expression of the Gaussians
 
   !> Structures of basis of gaussian functions
   type, public :: gaussian_basis
@@ -50,6 +51,18 @@ module gaussians
      real(gp), dimension(:,:), pointer :: rxyz !< Positions of the centers
   end type gaussian_basis_new
 
+  !>single-center gaussians for conversion in real space
+  type, public :: gaussian_real_space
+     integer :: discretization_method=0 !<should 
+     integer :: nterms=0
+     real(gp), dimension(NTERM_MAX_RS) :: factors=0.0_gp
+     real(gp), dimension(NTERM_MAX_RS,3) :: lxyz=0.0_gp
+     integer, dimension(NTERM_MAX_RS) :: pows=0 !<powers of r
+     real(gp), dimension(3) :: rxyz=0.0_gp
+     real(gp) :: exponent=0.0_gp
+     real(dp), dimension(:), pointer :: mpx=>null(),mpy=>null(),mpz=>null()
+  end type gaussian_real_space
+
   public :: gaudim_check,normalize_shell,gaussian_overlap,kinetic_overlap,gauint0,overlap,kinetic
 
   public :: nullify_gaussian_basis, deallocate_gwf, gaussian_basis_null, gaussian_basis_free
@@ -70,6 +83,138 @@ module gaussians
 
 contains
 
+  pure subroutine nullify_gaussian_real_space(g)
+    implicit none
+    type(gaussian_real_space), intent(out) :: g
+    g%discretization_method=0
+    g%nterms=0
+    g%factors=0.0_gp
+    g%lxyz=0.0_gp
+    g%pows=0
+    g%rxyz=0.0_gp
+    g%exponent=0.0_gp
+    nullify(g%mpx,g%mpy,g%mpz)
+  end subroutine nullify_gaussian_real_space
+
+  pure function gaussian_radial_value(g,r) result(f)
+    use numerics
+    implicit none
+    type(gaussian_real_space), intent(in) :: g
+    real(gp), intent(in) :: r
+    real(gp) :: f
+    !local variables
+    integer :: i
+    real(gp) :: tt,r2
+
+    r2=g%exponent*r**2
+    f=safe_exp(-r2)
+    tt=1.d0
+    do i=1,g%nterms
+       tt=tt+g%factors(i)*r**g%pows(i)
+    end do
+    f=f*tt
+  end function gaussian_radial_value
+
+  subroutine three_dimensional_density(boxit,gaussian,prefactor,oxyz,density)
+    use numerics
+    use box
+    implicit none
+    type(box_iterator) :: boxit
+    type(gaussian_real_space) :: gaussian
+    real(gp), intent(in) :: prefactor
+    real(gp), dimension(3), intent(in) :: oxyz
+    real(gp), dimension(*), intent(out) :: density
+    !local variables
+    integer :: ithread,nthread
+    real(gp) :: cutoff,rloc,r
+    !$ integer, external :: omp_get_thread_num,omp_get_num_threads
+
+    !calculate nbox
+    !cutoff of the range
+    rloc=sqrt(onehalf*gaussian%exponent)
+    cutoff=10.0_gp*rloc
+    ithread=0
+    nthread=1
+
+    call box_iter_set_nbox(boxit,oxyz,cutoff)
+    !select case(gaussian%discretization_method)
+    !case(RADIAL_COLLOCATION)
+       !radial case
+       !$omp parallel default(shared)&
+       !$omp private(ithread) &
+       !$omp firstprivate(boxit) 
+       !$ ithread=omp_get_thread_num()
+       !$ nthread=omp_get_num_threads()
+       call box_iter_split(boxit,nthread,ithread)
+       do while(box_next_point(boxit))
+          r = distance(boxit%mesh,boxit%rxyz,oxyz)
+          !f(bit%i,bit%j,bit%k) =factor*eval(func,r)
+          density(boxit%ind) =prefactor*gaussian_radial_value(gaussian,r)
+       end do
+       call box_iter_merge(boxit)
+       !$omp end parallel
+!!$      case(MULTIPOLE_PRESERVING_COLLOCATION) !to be rewritten
+!!$         !multipole preserving case
+!!$         isx=boxit%nbox(1,1)
+!!$         isy=boxit%nbox(1,2)
+!!$         isz=boxit%nbox(1,3)
+!!$         iex=boxit%nbox(2,1)
+!!$         iey=boxit%nbox(2,2)
+!!$         iez=boxit%nbox(2,3)
+!!$         ! Check whether the temporary arrays are large enough
+!!$         if (iex-isx>nmpx) then
+!!$            call f_err_throw('Temporary array in x direction too small')
+!!$         end if
+!!$         if (iey-isy>nmpy) then
+!!$            call f_err_throw('Temporary array in y direction too small')
+!!$         end if
+!!$         if (iez-isz>nmpz) then
+!!$            call f_err_throw('Temporary array in z direction too small')
+!!$         end if
+!!$
+!!$         !$omp parallel
+!!$         !$omp do
+!!$         do i1=isx,iex
+!!$            mpx(i1-isx) = mp_exp(hxh,rx,expo,i1,0,.true.)
+!!$         end do
+!!$         !$omp end do nowait
+!!$         !$omp do
+!!$         do i2=isy,iey
+!!$            mpy(i2-isy) = mp_exp(hyh,ry,expo,i2,0,.true.)
+!!$         end do
+!!$         !$omp end do nowait
+!!$         !$omp do
+!!$         do i3=isz,iez
+!!$            mpz(i3-isz) = mp_exp(hzh,rz,expo,i3,0,.true.)
+!!$         end do
+!!$         !$omp end do
+!!$         !$omp end parallel
+!!$
+!!$         !$omp parallel default(shared)&
+!!$         !$omp private(ithread,fz,fy,fx,xp) &
+!!$         !$omp firstprivate(boxit) 
+!!$
+!!$         !$ ithread=omp_get_thread_num()
+!!$         !$ nthread=omp_get_num_threads()
+!!$         call box_iter_split(boxit,nthread,ithread)  !check the +1 in the array indices
+!!$         do while(box_next_z(boxit))
+!!$            fz=mpz(boxit%k-boxit%nbox(1,3)+1)
+!!$            do while(box_next_y(boxit))
+!!$               fy=mpy(boxit%j-boxit%nbox(1,2)+1)
+!!$               do while(box_next_x(boxit))
+!!$                  fx=mpx(boxit%i-boxit%nbox(1,1)+1)
+!!$                  xp=fx*fy*fz
+!!$                  density(boxit%ind) = density(boxit%ind) - xp*charge
+!!$               end do
+!!$            end do
+!!$         end do
+!!$         call box_iter_merge(boxit)
+!!$         !$omp end parallel
+    !end select
+
+    call box_iter_expand_nbox(boxit)
+
+  end subroutine three_dimensional_density
 
   !> Nullify the pointers of the structure gaussian_basis
   pure subroutine nullify_gaussian_basis(G)

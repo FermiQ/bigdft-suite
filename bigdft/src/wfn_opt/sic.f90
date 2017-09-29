@@ -472,7 +472,7 @@ subroutine NK_SIC_potential(lr,orbs,xc,fref,hgrids,pkernel,psi,poti,eSIC_DC,pota
 
   if (.not. virtual) then
      !sum up the results of the off diagonal term
-     if (nproc >1) call mpiallred(wxd,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+     if (nproc >1) call fmpi_allreduce(wxd,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
 
      if (.not. savewxd) then
         !add to the potential orbital per orbital

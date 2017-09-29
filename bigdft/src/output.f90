@@ -159,6 +159,7 @@ subroutine write_eigenvalues_data(etol,orbs,mom_vec)
                 &   "Kpt #", ikpt, " BZ coord. = ", orbs%kpts(:, ikpt)
            !write(*,'(a)')trim(commentline)
            call yaml_comment(trim(commentline))
+           call yaml_newline()
            ikptw=ikpt
         else
            ikptw=UNINITIALIZED(1)

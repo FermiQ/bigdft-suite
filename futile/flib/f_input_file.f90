@@ -112,7 +112,7 @@ contains
     logical :: localcheck,verb
     type(dictionary), pointer :: dict_tmp,iter,dict_tmp2
 
-    !call f_routine(id='input_file_complete')
+    call f_routine(id='input_file_complete')
 
     !if present imports, the user dictionary has to be saved for overriding
     if (present(imports) .and. (IMPORT_KEY .in. dict)) then
@@ -151,7 +151,7 @@ contains
        dict_tmp => dict_next(dict_tmp)
     end do
 
-    !call f_release_routine()
+    call f_release_routine()
 
   end subroutine input_file_complete
   
@@ -640,7 +640,7 @@ contains
     character(len=max_field_length) :: category,category0
     logical :: cat_found
 
-    !call f_routine(id='input_file_minimal')
+    call f_routine(id='input_file_minimal')
 
     nullify(minimal)
 
@@ -704,7 +704,7 @@ contains
        dict_tmp => dict_next(dict_tmp)
     end do
 
-    !call f_release_routine()
+    call f_release_routine()
 
   contains
 

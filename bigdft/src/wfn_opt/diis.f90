@@ -209,8 +209,8 @@
 !!  !!$  end do
 !!  !!$  if (nproc > 1) then
 !!  !!$     !reduce the overlap matrix between all the processors
-!!  !!$     call mpiallred(hamovr(1,1,1),2*nspin*ndim_hamovr*orbsu%nkpts,&
-!!  !!$          MPI_SUM,bigdft_mpi%mpi_comm,ierr)
+!!  !!$     call fmpi_allreduce(hamovr(1,1,1),2*nspin*ndim_hamovr*orbsu%nkpts,&
+!!  !!$          FMPI_SUM,bigdft_mpi%mpi_comm,ierr)
 !!  !!$  end if
 !!  !!$
 !!  !!$  !diagonalize hamovr
@@ -298,8 +298,8 @@
 !!  
 !!    !sum over all the partial residues
 !!    if (nproc > 1) then
-!!       call mpiallred(gnrm,1,MPI_SUM,bigdft_mpi%mpi_comm,ierr)
-!!       call mpiallred(gnrm_zero,1,MPI_SUM,bigdft_mpi%mpi_comm,ierr)
+!!       call fmpi_allreduce(gnrm,1,FMPI_SUM,bigdft_mpi%mpi_comm,ierr)
+!!       call fmpi_allreduce(gnrm_zero,1,FMPI_SUM,bigdft_mpi%mpi_comm,ierr)
 !!    endif
 !!  
 !!    !count the number of orbitals which have zero occupation number
@@ -799,7 +799,7 @@ subroutine diisstp(iproc,nproc,orbs,comms,diis)
                 int(nvctrp,kind=f_long)*int(orbs%norb,kind=f_long)*int(orbs%nspinor,kind=f_long)*int(diis%idsx,kind=f_long)
   end do
   if (nproc > 1) then
-     call mpiallred(rds,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+     call fmpi_allreduce(rds,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
   endif
 
   ispsi=1
@@ -1208,12 +1208,12 @@ END SUBROUTINE diisstp
 !!      end do
 !!
 !!      if (nproc > 1) then
-!!         call mpiallred(rds(1,1),(diisArr(iorb)%idsx+1)*orbs%nkpts,MPI_SUM,bigdft_mpi%mpi_comm,ierr)
+!!         call fmpi_allreduce(rds(1,1),(diisArr(iorb)%idsx+1)*orbs%nkpts,FMPI_SUM,bigdft_mpi%mpi_comm,ierr)
 !!!         call MPI_ALLREDUCE(MPI_IN_PLACE,rds,(diis%idsx+1)*orbs%nkpts,  & 
-!!!                     mpidtypw,MPI_SUM,bigdft_mpi%mpi_comm,ierr)
+!!!                     mpidtypw,FMPI_SUM,bigdft_mpi%mpi_comm,ierr)
 !!!
 !!!!         call MPI_ALLREDUCE(rds,ads(1,min(diis%idsx,ids),1),min(ids,diis%idsx),  & 
-!!!!                     MPI_DOUBLE_PRECISION,MPI_SUM,bigdft_mpi%mpi_comm,ierr)
+!!!!                     MPI_DOUBLE_PRECISION,FMPI_SUM,bigdft_mpi%mpi_comm,ierr)
 !!      endif
 !!      
 !!      ispsi=1

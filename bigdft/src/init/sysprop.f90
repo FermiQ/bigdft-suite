@@ -223,9 +223,9 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
          time_average(2) = time_max(2)/real(nproc,kind=8)
          totaltimes(iproc+1) = time_max(2)
          if (nproc>1) then
-             call mpiallred(time_max, mpi_max, comm=bigdft_mpi%mpi_comm)
-             call mpiallred(time_average, mpi_sum, comm=bigdft_mpi%mpi_comm)
-             call mpiallred(totaltimes, mpi_sum, comm=bigdft_mpi%mpi_comm)
+             call fmpi_allreduce(time_max, FMPI_MAX, comm=bigdft_mpi%mpi_comm)
+             call fmpi_allreduce(time_average, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+             call fmpi_allreduce(totaltimes, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
          end if
          !ratio_before = real(time_max(1),kind=8)/real(max(1.d0,time_min(1)),kind=8) !max to prevent divide by zero
          !ratio_after = real(time_max(2),kind=8)/real(max(1.d0,time_min(2)),kind=8) !max to prevent divide by zero
@@ -535,7 +535,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
           times_convol(iiorb) = real(ii+jj,kind=8)
       end do
       if (nproc>1) then
-          call mpiallred(times_convol, mpi_sum, comm=bigdft_mpi%mpi_comm)
+          call fmpi_allreduce(times_convol, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
       end if
 
       return !###############################################3
@@ -633,7 +633,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
        call f_free(phi)
 
        if (nproc>1) then
-           call mpiallred(times_convol, mpi_sum, comm=bigdft_mpi%mpi_comm)
+           call fmpi_allreduce(times_convol, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
        end if
 
      end subroutine test_preconditioning
@@ -647,7 +647,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
      !!  ! Sum up the total size of all support functions
      !!  isize = int(lnpsidim_orbs,kind=8)
      !!  if (nproc>1) then
-     !!      call mpiallred(isize, 1, mpi_sum, bigdft_mpi%mpi_comm)
+     !!      call fmpi_allreduce(isize, 1, FMPI_SUM, bigdft_mpi%mpi_comm)
      !!  end if
 
      !!  ! Ideal size per task (integer division)
@@ -942,16 +942,16 @@ subroutine epsilon_cavity(atoms,rxyz,pkernel)
 
   radii=f_malloc(atoms%astruct%nat,id='radii')
   !radii_nofact=f_malloc(atoms%astruct%nat,id='radii_nofact')
-  eps=f_malloc(pkernel%ndims,id='eps')
-  dlogeps=f_malloc([3,pkernel%ndims(1),pkernel%ndims(2),pkernel%ndims(3)],id='dlogeps')
-  oneoeps=f_malloc(pkernel%ndims,id='oneoeps')
-  oneosqrteps=f_malloc(pkernel%ndims,id='oneosqrteps')
-  corr=f_malloc(pkernel%ndims,id='corr')
-!!$  epst=f_malloc(pkernel%ndims,id='epst')
-!!$  dlogepst=f_malloc([3,pkernel%ndims(1),pkernel%ndims(2),pkernel%ndims(3)],id='dlogepst')
-!!$  oneoepst=f_malloc(pkernel%ndims,id='oneoepst')
-!!$  oneosqrtepst=f_malloc(pkernel%ndims,id='oneosqrtepst')
-!!$  corrt=f_malloc(pkernel%ndims,id='corrt')
+  eps=f_malloc(pkernel%mesh%ndims,id='eps')
+  dlogeps=f_malloc([3,pkernel%mesh%ndims(1),pkernel%mesh%ndims(2),pkernel%mesh%ndims(3)],id='dlogeps')
+  oneoeps=f_malloc(pkernel%mesh%ndims,id='oneoeps')
+  oneosqrteps=f_malloc(pkernel%mesh%ndims,id='oneosqrteps')
+  corr=f_malloc(pkernel%mesh%ndims,id='corr')
+!!$  epst=f_malloc(pkernel%mesh%ndims,id='epst')
+!!$  dlogepst=f_malloc([3,pkernel%mesh%ndims(1),pkernel%mesh%ndims(2),pkernel%mesh%ndims(3)],id='dlogepst')
+!!$  oneoepst=f_malloc(pkernel%mesh%ndims,id='oneoepst')
+!!$  oneosqrtepst=f_malloc(pkernel%mesh%ndims,id='oneosqrtepst')
+!!$  corrt=f_malloc(pkernel%mesh%ndims,id='corrt')
 
   it=atoms_iter(atoms%astruct)
   !python metod
@@ -1071,7 +1071,7 @@ subroutine epsilon_cavity(atoms,rxyz,pkernel)
   !here the pkernel_set_epsilon routine should been modified to accept
   !already the radii and the atoms
 
-  mesh=cell_new(atoms%astruct%geocode,pkernel%ndims,pkernel%hgrids)
+  mesh=cell_new(atoms%astruct%geocode,pkernel%mesh%ndims,pkernel%mesh%hgrids)
   origin=locreg_mesh_origin(mesh)
   rxyz_shifted=f_malloc([3,atoms%astruct%nat],id='rxyz_shifted')
   do iat=1,atoms%astruct%nat
@@ -1315,6 +1315,9 @@ subroutine epsinnersccs_cavity(atoms,rxyz,pkernel)
   use f_enums, f_str => str
   use yaml_output
   use dictionaries, only: f_err_throw
+  use PStypes, only: epsilon_inner_cavity
+  use box
+  use bounds, only: locreg_mesh_origin
   implicit none
   type(atoms_data), intent(in) :: atoms
   real(gp), dimension(3,atoms%astruct%nat), intent(in) :: rxyz
@@ -1323,44 +1326,45 @@ subroutine epsinnersccs_cavity(atoms,rxyz,pkernel)
   !local variables
   integer :: i,n1,n23,i3s
   real(gp) :: delta
-  type(atoms_iterator) :: it
+  !type(atoms_iterator) :: it
   real(gp), dimension(:), allocatable :: radii
   real(gp), dimension(:,:,:), allocatable :: eps
 
   radii=f_malloc(atoms%astruct%nat,id='radii')
-  eps=f_malloc(pkernel%ndims,id='eps')
+!!$  eps=f_malloc(pkernel%mesh%ndims,id='eps')
 
-  it=atoms_iter(atoms%astruct)
-  !python metod
-  do while(atoms_iter_next(it))
-     !only amu is extracted here
-     call atomic_info(atoms%nzatom(it%ityp),atoms%nelpsp(it%ityp),&
-          rcov=radii(it%iat))
-  end do
+!!$  it=atoms_iter(atoms%astruct)
+!!$  !python metod
+!!$  do while(atoms_iter_next(it))
+!!$     !only amu is extracted here
+!!$     call atomic_info(atoms%nzatom(it%ityp),atoms%nelpsp(it%ityp),&
+!!$          rcov=radii(it%iat))
+!!$  end do
 
 !  if(bigdft_mpi%iproc==0) call yaml_map('Bohr_Ang',Bohr_Ang)
 
-  delta=2.0*maxval(pkernel%hgrids)
+  delta=2.0*maxval(pkernel%mesh%hgrids)
 !  if(bigdft_mpi%iproc==0) call yaml_map('Delta cavity',delta)
-
   do i=1,atoms%astruct%nat
    radii(i) = 0.5d0/Bohr_Ang
   end do
 !  if (bigdft_mpi%iproc==0) call yaml_map('Covalent radii',radii)
 
-  call epsinnersccs_rigid_cavity_error_multiatoms_bc(atoms%astruct%geocode,&
-       pkernel%ndims,pkernel%hgrids,atoms%astruct%nat,rxyz,radii,delta,eps)
+  call epsilon_inner_cavity(pkernel,atoms%astruct%nat,rxyz,radii,delta,locreg_mesh_origin(pkernel%mesh))
 
-  n1=pkernel%ndims(1)
-  n23=pkernel%ndims(2)*pkernel%grid%n3p
-  !starting point in third direction
-  i3s=pkernel%grid%istart+1
-  if (pkernel%grid%n3p==0) i3s=1
-
-  call f_memcpy(n=n1*n23,src=eps(1,1,i3s),dest=pkernel%w%epsinnersccs)
+!!$  call epsinnersccs_rigid_cavity_error_multiatoms_bc(atoms%astruct%geocode,&
+!!$       pkernel%mesh%ndims,pkernel%hgrids,atoms%astruct%nat,rxyz,radii,delta,eps)
+!!$
+!!$  n1=pkernel%mesh%ndims(1)
+!!$  n23=pkernel%mesh%ndims(2)*pkernel%grid%n3p
+!!$  !starting point in third direction
+!!$  i3s=pkernel%grid%istart+1
+!!$  if (pkernel%grid%n3p==0) i3s=1
+!!$
+!!$  call f_memcpy(n=n1*n23,src=eps(1,1,i3s),dest=pkernel%w%epsinnersccs)
 
   call f_free(radii)
-  call f_free(eps)
+!!$  call f_free(eps)
 end subroutine epsinnersccs_cavity
 
 !> Calculate the important objects related to the physical properties of the system
@@ -1539,7 +1543,7 @@ subroutine calculate_rhocore(at,rxyz,dpbox,rhocore)
      enddo
   enddo
 
-  if (bigdft_mpi%nproc > 1) call mpiallred(tt,1,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+  if (bigdft_mpi%nproc > 1) call fmpi_allreduce(tt,1,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
   tt=tt*dpbox%mesh%volume_element
   if (bigdft_mpi%iproc == 0) then
      call yaml_mapping_open('Analytic core charges for atom species')
@@ -1921,7 +1925,7 @@ END SUBROUTINE nlcc_start_position
 !!!      end if
 !!!  end do
 !!!  call MPI_Initialized(mpiflag,ierr)
-!!!  if(mpiflag /= 0 .and. nproc > 1) call mpiallred(orbs%isorb_par(0), nproc, mpi_sum, bigdft_mpi%mpi_comm, ierr)
+!!!  if(mpiflag /= 0 .and. nproc > 1) call fmpi_allreduce(orbs%isorb_par(0), nproc, FMPI_SUM, bigdft_mpi%mpi_comm, ierr)
 !!!
 !!!END SUBROUTINE orbitals_descriptors_forLinear
 
@@ -1939,6 +1943,8 @@ subroutine kpts_to_procs_via_obj(nproc,nkpts,nobj,nobj_par)
   integer :: jproc,ikpt,iobj,nobjp_max_kpt,nprocs_with_floor,jobj,nobjp
   integer :: jkpt,nproc_per_kpt,nproc_left,kproc,nkpt_per_proc,nkpts_left
   real(gp) :: robjp,rounding_ratio
+
+  call f_routine(id='kpts_to_procs_via_obj')
 
   !decide the naive number of objects which should go to each processor.
   robjp=real(nobj,gp)*real(nkpts,gp)/real(nproc,gp)
@@ -2054,6 +2060,9 @@ subroutine kpts_to_procs_via_obj(nproc,nkpts,nobj,nobj_par)
         nobj_par(nproc-1,ikpt)=nobj_par(nproc-1,ikpt)+1
      end do
   end if
+
+  call f_release_routine()
+
 END SUBROUTINE kpts_to_procs_via_obj
 
 
