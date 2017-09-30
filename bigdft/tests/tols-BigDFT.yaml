@@ -3000,7 +3000,7 @@ metals_fermifunction:
   energy: 5.3-10
   q2: 1.1e-10
   relative difference: 7.1e-11
-  trace: 5.0e-11
+  trace: 5.1e-11
   Average noise forces: 2.1e-10
   Raw forces norm (Ha/Bohr): 9.0e-11
 
@@ -3055,8 +3055,8 @@ metals_variable:
   Atomic Forces (Ha/Bohr): 1.5e-6
 
 metals_diag:
-   EBS: 2.0e-08
-   EBS higher temperature: 2.1e-08
+   EBS: 2.1e-08
+   EBS higher temperature: 2.2e-08
    EH: 4.9e-08
    EXC: 1.8e-08
    Ekin: 1.1e-09
@@ -3085,7 +3085,7 @@ metals_diag:
    q2: 1.1e-08
    relative difference: 1.6e-09
    trace: 3.9e-11
-   trace(KH): 2.0e-08
+   trace(KH): 2.1e-08
    Average noise forces: 1.1e-8
    Clean forces norm (Ha/Bohr): 8.0e-9
    Atomic Forces (Ha/Bohr): 9.7e-10
