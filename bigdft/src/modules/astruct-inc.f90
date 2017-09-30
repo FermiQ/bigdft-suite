@@ -506,9 +506,12 @@ subroutine read_ascii_positions(ifile,filename,astruct,comment,energy,fxyz,getli
         end if
 
         if (reduced) then !add treatment for reduced coordinates
-           astruct%rxyz(1,iat)=modulo(astruct%rxyz(1,iat),1.0_gp)*astruct%cell_dim(1)
-           astruct%rxyz(2,iat)=modulo(astruct%rxyz(2,iat),1.0_gp)*astruct%cell_dim(2)
-           astruct%rxyz(3,iat)=modulo(astruct%rxyz(3,iat),1.0_gp)*astruct%cell_dim(3)
+           if (astruct%geocode == 'P' .or. astruct%geocode == 'S') &
+                & astruct%rxyz(1,iat)=modulo(astruct%rxyz(1,iat),1.0_gp)*astruct%cell_dim(1)
+           if (astruct%geocode == 'P') &
+                & astruct%rxyz(2,iat)=modulo(astruct%rxyz(2,iat),1.0_gp)*astruct%cell_dim(2)
+           if (astruct%geocode == 'P' .or. astruct%geocode == 'S') &
+                & astruct%rxyz(3,iat)=modulo(astruct%rxyz(3,iat),1.0_gp)*astruct%cell_dim(3)
         else if (astruct%geocode == 'P' .and. (.not. disableTrans)) then
            astruct%rxyz(1,iat)=modulo(astruct%rxyz(1,iat),astruct%cell_dim(1))
            astruct%rxyz(2,iat)=modulo(astruct%rxyz(2,iat),astruct%cell_dim(2))

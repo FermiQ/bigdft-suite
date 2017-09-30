@@ -55,7 +55,7 @@ subroutine apply_kernel(gpu,kernel,rho,offset,strten,zf,updaterho)
      call f_timing(TCAT_PSOLV_COMPUT,'OF')
      call G_PoissonSolver(kernel%mpi_env%iproc,kernel%mpi_env%nproc,&
           kernel%part_mpi%mpi_comm,kernel%inplane_mpi%iproc,&
-          kernel%inplane_mpi%mpi_comm,kernel%geocode,1,&
+          kernel%inplane_mpi%mpi_comm,1,&
           kernel%grid%n1,kernel%grid%n2,kernel%grid%n3,&
           kernel%grid%nd1,kernel%grid%nd2,kernel%grid%nd3,&
           kernel%grid%md1,kernel%grid%md2,kernel%grid%md3,&
@@ -334,7 +334,7 @@ end subroutine finalize_hartree_results
 
 !> Parallel version of Poisson Solver
 !! General version, for each boundary condition
-subroutine G_PoissonSolver(iproc,nproc,planes_comm,iproc_inplane,inplane_comm,geocode,ncplx,&
+subroutine G_PoissonSolver(iproc,nproc,planes_comm,iproc_inplane,inplane_comm,ncplx,&
      n1,n2,n3,nd1,nd2,nd3,md1,md2,md3,pot,zf,scal,mu0_square,mesh,offset,strten)
   use Poisson_Solver, only: dp, gp, TCAT_PSOLV_COMMUN,TCAT_PSOLV_COMPUT
   use wrapper_mpi
@@ -347,7 +347,6 @@ subroutine G_PoissonSolver(iproc,nproc,planes_comm,iproc_inplane,inplane_comm,ge
   !to be preprocessed
   include 'perfdata.inc'
   !Arguments
-  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
   integer, intent(inout) :: n1,n2,n3,nd1,nd2,nd3,md1,md2,md3,nproc,iproc
   integer, intent(in) :: ncplx
   integer, intent(in) :: planes_comm,inplane_comm,iproc_inplane
@@ -359,6 +358,7 @@ subroutine G_PoissonSolver(iproc,nproc,planes_comm,iproc_inplane,inplane_comm,ge
   !Local variables
   character(len=*), parameter :: subname='G_Poisson_Solver'
   logical :: perx,pery,perz,halffty,cplx
+  character(len=1) :: geocode
   !Maximum number of points for FFT (should be same number in fft3d routine)
   integer :: ncache,lzt,lot,nfft,ic1,ic2,ic3,Jp2stb,J2stb,Jp2stf,J2stf
   integer :: j2,j3,i1,i3,i,j,inzee,ierr,n1dim,n2dim,n3dim,ntrig, i_stat
@@ -395,6 +395,7 @@ subroutine G_PoissonSolver(iproc,nproc,planes_comm,iproc_inplane,inplane_comm,ge
 
   !conditions for periodicity in the three directions
   !perx=(geocode /= 'F' .and. geocode /= 'W' .and. geocode /= 'H')
+  geocode=cell_geocode(mesh)
   perx=(geocode == 'P' .or. geocode == 'S')
   pery=(geocode == 'P')
   perz=(geocode /= 'F' .and. geocode /= 'H')
@@ -2565,23 +2566,30 @@ subroutine P_multkernel_NO(nd1,nd2,n1,n2,n3,lot,nfft,jS,pot,zw,j3,mesh,offset,sc
     
     subroutine internal_loop()
       implicit none
+      integer :: i,j
       j1=i1+jS-1
       !running recip space coordinate
       pxyz(1)=p(j1,n1)/L1
       !square of modulus of recip space coordinate
-      g2=square(mesh,pxyz)
+      g2=square_gu(mesh,pxyz)
+!      g2=0.0_gp
+!      do i=1,3
+!       do j=1,3
+!        g2=g2+mesh%gd(i,j)*pxyz(i)*pxyz(j)
+!       end do
+!      end do
 
       !density squared over modulus
       rhog2=(zw(1,i1,i2)**2+zw(2,i1,i2)**2)/g2
       rhog2=rhog2/pi*scal**2
       if (j3 /= n3/2+1 .and. j3 /= 1) rhog2=2.0_dp*rhog2 !to consider the fact that we only treat half of the box  (to be reviewed for NO)
       !stress tensor components (to be reviewed for NO)
-      strten(1)=strten(1)+(pxyz(1)**2/g2-0.5_dp)*rhog2
-      strten(3)=strten(3)+(pxyz(3)**2/g2-0.5_dp)*rhog2
-      strten(2)=strten(2)+(pxyz(2)**2/g2-0.5_dp)*rhog2
-      strten(5)=strten(5)+(pxyz(1)*pxyz(3)/g2)*rhog2
-      strten(6)=strten(6)+(pxyz(1)*pxyz(2)/g2)*rhog2
-      strten(4)=strten(4)+(pxyz(3)*pxyz(2)/g2)*rhog2
+      strten(1)=strten(1)+(pxyz(1)**2/g2-mesh%gd(1,1)*0.5_dp)*rhog2
+      strten(3)=strten(3)+(pxyz(3)**2/g2-mesh%gd(3,3)*0.5_dp)*rhog2
+      strten(2)=strten(2)+(pxyz(2)**2/g2-mesh%gd(2,2)*0.5_dp)*rhog2
+      strten(5)=strten(5)+(pxyz(1)*pxyz(3)/g2-mesh%gd(1,3)*0.5_dp)*rhog2
+      strten(6)=strten(6)+(pxyz(1)*pxyz(2)/g2-mesh%gd(1,2)*0.5_dp)*rhog2
+      strten(4)=strten(4)+(pxyz(3)*pxyz(2)/g2-mesh%gd(3,2)*0.5_dp)*rhog2
 
       !then multiply the density for the kernel in Fourier space
       ker=pi*g2+mu0_square*oneofourpi

@@ -90,8 +90,8 @@ module forces_linear
       nout_par = f_malloc0(0.to.nproc-1,id='nout_par')
       nout_par(iproc) = noutp
       if (nproc>1) then
-         !call mpiallred(nout_par(0), nproc, mpi_sum, comm=bigdft_mpi%mpi_comm)
-         call mpiallred(nout_par,op=mpi_sum, comm=bigdft_mpi%mpi_comm)
+         !call fmpi_allreduce(nout_par(0), nproc, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+         call fmpi_allreduce(nout_par,op=FMPI_SUM, comm=bigdft_mpi%mpi_comm)
       end if
       if (sum(nout_par)/=nout) then
          call f_err_throw('wrong partition of the outer loop',err_name='BIGDT_RUNTIME_ERROR')
@@ -177,7 +177,7 @@ module forces_linear
 
 !!$  !not needed as the stress tensor is reduced afterwards
 !!$  if (nproc>1) then
-!!$      call mpiallred(tens(1), 6, mpi_sum, comm=bigdft_mpi%mpi_comm)
+!!$      call fmpi_allreduce(tens(1), 6, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
 !!$  end if
 
 
@@ -423,7 +423,7 @@ module forces_linear
       call f_free_ptr(scalprod_lookup)
     
     
-      !!call mpiallred(Enl,1,mpi_sum, bigdft_mpi%mpi_comm)
+      !!call fmpi_allreduce(Enl,1,FMPI_SUM, bigdft_mpi%mpi_comm)
       !!if (bigdft_mpi%iproc==0) call yaml_map('Enl',Enl)
     
       call f_free_ptr(scalprod_new)
@@ -553,7 +553,7 @@ module forces_linear
       end if norbp_if
     
       !if (nproc>1) then
-      !   call mpiallred(iat_startend, mpi_sum, bigdft_mpi%mpi_comm)
+      !   call fmpi_allreduce(iat_startend, FMPI_SUM, bigdft_mpi%mpi_comm)
       !end if
     
       call f_release_routine()
@@ -812,9 +812,10 @@ module forces_linear
          nrecvcounts_tmp(jproc) = 1
          nrecvdspls_tmp(jproc) = jproc
       end do
-      if (nproc>1) then
-         call mpialltoallv(nsendcounts, nsendcounts_tmp, nsenddspls_tmp, &
-              nrecvcounts, nrecvcounts_tmp, nrecvdspls_tmp, bigdft_mpi%mpi_comm)
+      if (nproc>1) then       
+!!$         call mpialltoallv(nsendcounts, nsendcounts_tmp, nsenddspls_tmp, &
+!!$              nrecvcounts, nrecvcounts_tmp, nrecvdspls_tmp, bigdft_mpi%mpi_comm)
+         call fmpi_alltoall(sendbuf=nsendcounts,recvbuf=nrecvcounts,comm=bigdft_mpi%mpi_comm)
       else
          call f_memcpy(n=nsendcounts_tmp(0), src=nsendcounts(0), dest=nrecvcounts(0))
       end if
@@ -832,8 +833,13 @@ module forces_linear
          nrecvdspls_tmp(jproc) = jproc*nat_par(iproc)
       end do
       if (nproc>1) then
-         call mpialltoallv(supfun_per_atom, nsendcounts_tmp, nsenddspls_tmp, &
-              supfun_per_atom_recv, nrecvcounts_tmp, nrecvdspls_tmp, bigdft_mpi%mpi_comm)
+!!$         call mpialltoallv(supfun_per_atom, nsendcounts_tmp, nsenddspls_tmp, &
+!!$              supfun_per_atom_recv, nrecvcounts_tmp, nrecvdspls_tmp, bigdft_mpi%mpi_comm)
+         call fmpi_alltoall(sendbuf=supfun_per_atom,&
+              sendcounts=nsendcounts_tmp,sdispls=nsenddspls_tmp, &
+              recvbuf=supfun_per_atom_recv,&
+              recvcounts=nrecvcounts_tmp,rdispls=nrecvdspls_tmp,&
+              comm=bigdft_mpi%mpi_comm)
       else
          call f_memcpy(n=nsendcounts_tmp(0), src=supfun_per_atom(1), dest=supfun_per_atom_recv(1))
       end if
@@ -848,8 +854,14 @@ module forces_linear
     
       ! Communicate the lookup array
       if (nproc>1) then
-         call mpialltoallv(scalprod_send_lookup, nsendcounts, nsenddspls, &
-              scalprod_lookup_recvbuf, nrecvcounts, nrecvdspls, bigdft_mpi%mpi_comm)
+         !call mpialltoallv(scalprod_send_lookup, nsendcounts, nsenddspls, &
+         !scalprod_lookup_recvbuf, nrecvcounts, nrecvdspls, bigdft_mpi%mpi_comm)
+         call fmpi_alltoall(sendbuf=scalprod_send_lookup,&
+              sendcounts=nsendcounts,sdispls=nsenddspls, &
+              recvbuf=scalprod_lookup_recvbuf,&
+              recvcounts=nrecvcounts,rdispls=nrecvdspls,&
+              comm=bigdft_mpi%mpi_comm)
+
       else
          call f_memcpy(n=nsendcounts(0), src=scalprod_send_lookup(1), dest=scalprod_lookup_recvbuf(1))
       end if
@@ -861,8 +873,14 @@ module forces_linear
       nrecvcounts(:) = nrecvcounts(:)*ncount
       nrecvdspls(:) = nrecvdspls(:)*ncount
       if (nproc>1) then
-         call mpialltoallv(scalprod_sendbuf_new, nsendcounts, nsenddspls, &
-              scalprod_recvbuf, nrecvcounts, nrecvdspls, bigdft_mpi%mpi_comm)
+         call fmpi_alltoall(sendbuf=scalprod_sendbuf_new,&
+              sendcounts=nsendcounts,sdispls=nsenddspls, &
+              recvbuf=scalprod_recvbuf,&
+              recvcounts=nrecvcounts,rdispls=nrecvdspls,&
+              comm=bigdft_mpi%mpi_comm)
+!!$         call mpialltoallv(scalprod_sendbuf_new, nsendcounts, nsenddspls, &
+!!$              scalprod_recvbuf, nrecvcounts, nrecvdspls, bigdft_mpi%mpi_comm)
+
       else
          !call f_memcpy(n=nsendcounts(0), src=scalprod_sendbuf_new(1,0,1,1,1,1), dest=scalprod_recvbuf(1))
          call f_memcpy(n=nsendcounts(0), src=scalprod_sendbuf_new(1), dest=scalprod_recvbuf(1))
@@ -873,7 +891,7 @@ module forces_linear
       ! Now the value of supfun_per_atom can be summed up, since each task has all scalprods for a given atom.
       ! In principle this is only necessary for the atoms handled by a given task, but do it for the moment for all...
       if (nproc>1) then
-         call mpiallred(supfun_per_atom, mpi_sum, comm=bigdft_mpi%mpi_comm)
+         call fmpi_allreduce(supfun_per_atom, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
       end if
       ! The starting points have to be recalculated.
       is_supfun_per_atom(1) = 0

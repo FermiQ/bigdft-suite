@@ -105,6 +105,7 @@ AC_DEFUN([AX_MPI],
       if test x"$ac_with_mpi2" = x"yes" ; then
         AC_DEFINE([HAVE_MPI2], [1], [use MPI2 capabilities.])
       fi
+      #AM_CONDITIONAL(HAVE_MPI2, test "$ac_with_mpi2" = "yes")
       dnl Test for MPI3.
       AC_ARG_WITH(mpi3, AS_HELP_STRING([--with-mpi3],
                 [Use MPI3 capabilities like MPI_IALLREDUCE.]),
@@ -142,9 +143,10 @@ end
       AC_MSG_RESULT([$ac_with_mpi3])
      fi
 
-     if test x"$ac_with_mpi3" = x"yes" ; then
-      AC_DEFINE([HAVE_MPI3], [1], [use MPI3 capabilities (like MPI_IALLREDUCE and MPI_IALLTOALLV).])
-     fi
+     #if test x"$ac_with_mpi3" = x"yes" ; then
+     # AC_DEFINE([HAVE_MPI3], [1], [use MPI3 capabilities (like MPI_IALLREDUCE and MPI_IALLTOALLV).])
+     #fi
+     AM_CONDITIONAL(HAVE_MPI3, test "$ac_with_mpi3" = "yes")
   
     else
       AC_MSG_WARN([MPI is not working and has been disabled.])

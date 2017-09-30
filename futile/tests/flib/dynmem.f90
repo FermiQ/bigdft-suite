@@ -34,6 +34,8 @@ subroutine test_dynamic_memory()
    real(kind=8), dimension(:), pointer :: extra_ref
    real(kind=8), dimension(:,:), save, allocatable :: ab
    real(kind=8), dimension(:,:), allocatable :: b
+   real(f_double), dimension(:), pointer :: test_association,tmp1
+   integer(f_long), dimension(:), pointer :: test_long,tmp_long
    integer, dimension(:), pointer :: arrayA,arrayB,arrayC,arrayD,arrayE,arrayF,arrayG,arrayH
    integer, dimension(:), allocatable :: i_arrA,i_arrB,i_arrC,i_arrD,i_arrE,i_arrF,i_arrG,i_arrH
    integer, dimension(:), allocatable :: i1_all,i1_src
@@ -488,12 +490,91 @@ call f_free(weight)
    call f_routine(id='Routine A')
    call f_release_routine()
 
+   !test of the subptr region
+   test_association=f_malloc_ptr(25,id='test_association')
+   test_association=42.0_f_double
+   test_association(20:25)=40.0_f_double
+
+   call inspect_pointer(test_association,'test_association')
+
+   tmp1=>f_subptr(test_association,from=3,size=2,lbound=5)
+   call inspect_pointer(tmp1,'normal subpointer')
+   call yaml_map('subpointer, normal case',tmp1)
+   nullify(tmp1)
+
+   !then play with adresses in a "illegal" way
+   tmp1=>f_subptr(test_association(18),from=1,size=5)
+   call inspect_pointer(tmp1,'derived subpointer')
+   call yaml_map('subpointer, derived case',tmp1)
+   tmp1=5.0_f_double
+   nullify(tmp1)
+
+   call yaml_map('Original pointer',test_association)
+   call f_free_ptr(test_association)
+
+   !test of the subptr region
+   test_long=f_malloc_ptr(25,id='test_long')
+   test_long=int(42,f_long)
+   test_long(20:25)=int(40,f_long)
+
+   call inspect_pointer_long(test_long,'test_long')
+
+   tmp_long=>f_subptr(test_long,from=3,size=2,lbound=5)
+   call inspect_pointer_long(tmp_long,'normal subpointer')
+   call yaml_map('subpointer, normal case',tmp_long)
+   nullify(tmp_long)
+
+   !then play with adresses in a "illegal" way
+   tmp_long=>f_subptr(test_long(18),from=1,size=5)
+   call inspect_pointer_long(tmp_long,'derived subpointer')
+   call yaml_map('subpointer, derived case',tmp_long)
+   tmp_long=int(5,f_long)
+   nullify(tmp_long)
+
+   call yaml_map('Original pointer',test_long)
+   call f_free_ptr(test_long)
+
+
 
    call f_release_routine()
 
    call f_malloc_dump_status()
 
    contains
+
+     subroutine inspect_pointer(ptr,label)
+       implicit none
+       real(f_double), dimension(:), pointer :: ptr
+       character(len=*), intent(in) :: label
+       !then work1 should be used normally
+       call yaml_map(label//' associated',associated(ptr))
+       if (.not. associated(ptr)) return
+       call yaml_mapping_open(label//' bounds and sizes')
+         call yaml_map('lbounds',lbound(ptr))
+         call yaml_map('ubounds',ubound(ptr))
+         call yaml_map('size',size(ptr))
+         call yaml_map('address',f_loc(ptr))
+         call yaml_map('address first element',f_loc(ptr(lbound(ptr,1))))
+         call yaml_map('address last element',f_loc(ptr(ubound(ptr,1))))
+       call yaml_mapping_close()
+     end subroutine inspect_pointer
+
+     subroutine inspect_pointer_long(ptr,label)
+       implicit none
+       integer(f_long), dimension(:), pointer :: ptr
+       character(len=*), intent(in) :: label
+       !then work1 should be used normally
+       call yaml_map(label//' associated',associated(ptr))
+       if (.not. associated(ptr)) return
+       call yaml_mapping_open(label//' bounds and sizes')
+       call yaml_map('lbounds',lbound(ptr))
+       call yaml_map('ubounds',ubound(ptr))
+       call yaml_map('size',size(ptr))
+       call yaml_map('address',f_loc(ptr))
+       call yaml_map('address first element',f_loc(ptr(lbound(ptr,1))))
+       call yaml_map('address last element',f_loc(ptr(ubound(ptr,1))))
+       call yaml_mapping_close()
+     end subroutine inspect_pointer_long
 
      function get_add_str(array)
        implicit none

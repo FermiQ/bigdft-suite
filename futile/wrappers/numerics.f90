@@ -20,6 +20,9 @@ module numerics
   real(db), parameter, public :: oneofourpi=0.07957747154594766788444188168625718101722982287022822437383367203_db
   real(db), parameter, public :: oneoeightpi=0.03978873577297383394222094084312859050861491143511411218691683601_db
   !rationals
+  !real(db), parameter, public :: =0.0_db
+  real(db), parameter, public :: one=1.0_db
+  real(db), parameter, public :: two=2.0_db
   real(db), parameter, public :: onehalf=0.5_db
   real(db), parameter, public :: onethird=0.33333333333333333333333333333333333333333333333333333333333333333333_db
   real(db), parameter, public :: onequarter=0.25_db

@@ -542,7 +542,7 @@ module transposed_operations
 
       if (data_strategy==GLOBAL_MATRIX) then
           if(nproc > 1) then
-              call mpiallred(ovrlp%matrix_compr(1), smat%nvctr*smat%nspin, mpi_sum,comm=bigdft_mpi%mpi_comm)
+              call fmpi_allreduce(ovrlp%matrix_compr(1), smat%nvctr*smat%nspin, FMPI_SUM,comm=bigdft_mpi%mpi_comm)
           end if
     
       else if (data_strategy==SUBMATRIX) then
@@ -567,10 +567,10 @@ module transposed_operations
           !!            ist_recv = ncount + 1
           !!            ncount = smat%taskgroup_startend(2,1,iitg)-smat%taskgroup_startend(1,1,iitg)+1
           !!            !!call mpi_iallreduce(ovrlp%matrix_compr(ist_send), recvbuf(ist_recv), ncount, &
-          !!            !!     mpi_double_precision, mpi_sum, smat%mpi_groups(iitg)%mpi_comm, request(itg), ierr)
+          !!            !!     mpi_double_precision, FMPI_SUM, smat%mpi_groups(iitg)%mpi_comm, request(itg), ierr)
           !!            if (nproc>1) then
           !!                call mpiiallred(ovrlp%matrix_compr(ishift+ist_send), recvbuf(ist_recv), ncount, &
-          !!                     mpi_sum, smat%mpi_groups(iitg)%mpi_comm, request(itg))
+          !!                     FMPI_SUM, smat%mpi_groups(iitg)%mpi_comm, request(itg))
           !!            else
           !!                call vcopy(ncount, ovrlp%matrix_compr(ishift+ist_send), 1, recvbuf(ist_recv), 1)
           !!            end if
@@ -720,7 +720,7 @@ module transposed_operations
       call f_free(norm_thread)
       
       if(nproc>1) then
-          call mpiallred(norm, mpi_sum, comm=bigdft_mpi%mpi_comm)
+          call fmpi_allreduce(norm, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
       end if
     
       do iorb=1,orbs%norb

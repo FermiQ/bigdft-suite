@@ -27,6 +27,7 @@
 !!    Wire boundary condition is missing
 subroutine Electrostatic_Solver(kernel,rhov,energies,pot_ion,rho_ion,ehartree)
   use FDder
+  use box
   implicit none
   !> kernel of the coulomb operator, it also contains metadata about the parallelisation scheme
   !! and the data distributions in the grid.
@@ -36,18 +37,18 @@ subroutine Electrostatic_Solver(kernel,rhov,energies,pot_ion,rho_ion,ehartree)
   !! the case of rho-dependent cavity when the suitable variable of the options datatype is set. 
   !!The latter correction term is useful to define a KS DFT potential for the definition of the Hamiltonian out of 
   !!the Electrostatic environment defined from rho
-  !! the last dimension is either kernel%ndims(3) or kernel%grid%n3p, depending if kernel%opt%datacode is 'G' or 'D' respectively
-  real(dp), dimension(kernel%ndims(1),kernel%ndims(2),*), intent(inout) :: rhov
+  !! the last dimension is either kernel%mesh%ndims(3) or kernel%grid%n3p, depending if kernel%opt%datacode is 'G' or 'D' respectively
+  real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2),*), intent(inout) :: rhov
   !> Datatype containing the energies and th stress tensor.
   !! the components are filled accordin to the coulomb operator set ans the options given to the solver.
   type(PSolver_energies), intent(out), optional :: energies
   !> Additional external potential that is added to the output, if present.
   !! Usually represents the potential of the ions that is needed to define the full electrostatic potential of a Vacuum Poisson Equation
-  real(dp), dimension(kernel%ndims(1),kernel%ndims(2),kernel%grid%n3p), intent(inout), optional, target :: pot_ion
+  real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%grid%n3p), intent(inout), optional, target :: pot_ion
   !> Additional external density that is added to the output input, if present.
   !! The treatment of the Poisson Equation is done with the sum of the two densities whereas the rho-dependent cavity and some components
   !! of the energies are calculated only with the input rho.
-  real(dp), dimension(kernel%ndims(1), kernel%ndims(2), kernel%grid%n3p), intent(inout), optional, target :: rho_ion
+  real(dp), dimension(kernel%mesh%ndims(1), kernel%mesh%ndims(2), kernel%grid%n3p), intent(inout), optional, target :: rho_ion
   !> Electrostatic Energy of the system given as @f$\int \rho \cdot V @f$, where @f$\rho@f$ and @f$V@f$ correspond to the 
   !! values of rhov array in input and output, respectively. This value is already reduced such that each of the 
   !! MPI tasks have the same value
@@ -63,6 +64,8 @@ subroutine Electrostatic_Solver(kernel,rhov,energies,pot_ion,rho_ion,ehartree)
   real(dp), dimension(:,:,:), allocatable :: rhopot_full,nabla2_rhopot,delta_rho,cc_rho
   real(dp), dimension(:,:,:,:), allocatable :: nabla_rho
   real(dp), dimension(:,:,:), pointer :: pot_ion_eff,vextra_eff
+  integer, parameter :: ECAV_=1,EREP_=2,EDIS_=3
+  real(dp), dimension(3) :: ecavs
   !character(len=3) :: quiet
 
   call f_routine(id='Electrostatic_Solver')
@@ -72,8 +75,8 @@ subroutine Electrostatic_Solver(kernel,rhov,energies,pot_ion,rho_ion,ehartree)
    select case(kernel%opt%datacode)
    case('G')
       !starting address of rhopot in the case of global i/o
-      i3start=kernel%grid%istart*kernel%ndims(1)*kernel%ndims(2)+1
-      i23s=kernel%grid%istart*kernel%ndims(2)+1
+      i3start=kernel%grid%istart*kernel%mesh%ndims(1)*kernel%mesh%ndims(2)+1
+      i23s=kernel%grid%istart*kernel%mesh%ndims(2)+1
       i3s=kernel%grid%istart+1
       if (kernel%grid%n3p == 0) then
          i3start=1
@@ -97,7 +100,7 @@ subroutine Electrostatic_Solver(kernel,rhov,energies,pot_ion,rho_ion,ehartree)
    n1=kernel%grid%m1
 
    i3sd2=kernel%grid%istart+1
-   i23sd2=kernel%grid%istart*kernel%ndims(2)+1
+   i23sd2=kernel%grid%istart*kernel%mesh%ndims(2)+1
    if (kernel%grid%n3p==0) then
       i3sd2=1
       i23sd2=1
@@ -143,7 +146,7 @@ subroutine Electrostatic_Solver(kernel,rhov,energies,pot_ion,rho_ion,ehartree)
 
   if (wrtmsg) then
      call yaml_mapping_open('Poisson Solver')
-     select case(kernel%geocode)
+     select case(cell_geocode(kernel%mesh))
      case('F')
         call yaml_map('BC','Free')
      case('P')
@@ -153,7 +156,7 @@ subroutine Electrostatic_Solver(kernel,rhov,energies,pot_ion,rho_ion,ehartree)
      case('W')
         call yaml_map('BC','Wires')
      end select
-     call yaml_map('Box',kernel%ndims,fmt='(i5)')
+     call yaml_map('Box',kernel%mesh%ndims,fmt='(i5)')
      call yaml_map('MPI tasks',kernel%mpi_env%nproc,fmt='(i5)')
      if (cudasolver) call yaml_map('GPU acceleration',.true.)
   end if
@@ -162,21 +165,21 @@ subroutine Electrostatic_Solver(kernel,rhov,energies,pot_ion,rho_ion,ehartree)
   !here the if statement for the SC cavity should be put
   !print *,'method',trim(char(kernel%method)),associated(kernel%method%family),trim(char(kernel%method%family))
   if (calc_nabla2pot) then
-     rhopot_full=f_malloc(kernel%ndims,id='rhopot_full')
-     nabla2_rhopot=f_malloc(kernel%ndims,id='nabla2_rhopot')
+     rhopot_full=f_malloc(kernel%mesh%ndims,id='rhopot_full')
+     nabla2_rhopot=f_malloc(kernel%mesh%ndims,id='nabla2_rhopot')
   end if
 
   if (build_c) then
-     delta_rho=f_malloc(kernel%ndims,id='delta_rho')
-     cc_rho=f_malloc(kernel%ndims,id='cc_rho')
-     nabla_rho=f_malloc([kernel%ndims(1),kernel%ndims(2),kernel%ndims(3),3],id='nabla_rho')
+     delta_rho=f_malloc(kernel%mesh%ndims,id='delta_rho')
+     cc_rho=f_malloc(kernel%mesh%ndims,id='cc_rho')
+     nabla_rho=f_malloc([kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%mesh%ndims(3),3],id='nabla_rho')
      depsdrho=f_malloc([n1,n23],id='depsdrho')
      dsurfdrho=f_malloc([n1,n23],id='dsurfdrho')
      !useless for datacode= G 
      if (kernel%opt%datacode == 'D') then
         call PS_gather(rhov(1,1,i3s),kernel,dest=rhopot_full)
      else
-        call f_memcpy(n=product(kernel%ndims),src=rhov(1,1,1),dest=rhopot_full(1,1,1))
+        call f_memcpy(n=product(kernel%mesh%ndims),src=rhov(1,1,1),dest=rhopot_full(1,1,1))
      end if
      !call pkernel_build_epsilon(kernel,work_full,eps0,depsdrho,dsurfdrho)
      call rebuild_cavity_from_rho(rhopot_full,nabla_rho,nabla2_rhopot,delta_rho,cc_rho,depsdrho,dsurfdrho,&
@@ -207,7 +210,7 @@ subroutine Electrostatic_Solver(kernel,rhov,energies,pot_ion,rho_ion,ehartree)
   if (kernel%method /= PS_VAC_ENUM) then
      call f_zero(norm_nonvac)
      if (n23 >0) call nonvacuum_projection(n1,n23,rhov(1,1,i3s),kernel%w%oneoeps,norm_nonvac)
-     norm_nonvac=norm_nonvac*product(kernel%hgrids)
+     norm_nonvac=norm_nonvac*product(kernel%mesh%hgrids)
      call PS_reduce(norm_nonvac,kernel)
      if (wrtmsg) call yaml_map('Integral of the density in the nonvacuum region',norm_nonvac)
   end if
@@ -242,7 +245,7 @@ subroutine Electrostatic_Solver(kernel,rhov,energies,pot_ion,rho_ion,ehartree)
              kernel%w%rho_ions,kernel%w%rho_pb,res_PB)
         if (kernel%method == PS_PCG_ENUM) call f_memcpy(src=kernel%w%rho_pb,dest=kernel%w%res)
         call PS_reduce(res_PB,kernel)
-        res_PB=sqrt(res_PB/product(kernel%ndims))
+        res_PB=sqrt(res_PB/product(kernel%mesh%ndims))
         if (wrtmsg) then
            call yaml_newline()
            call EPS_iter_output(i_PB,0.0_dp,res_PB,0.0_dp,0.0_dp,0.0_dp)
@@ -262,7 +265,7 @@ subroutine Electrostatic_Solver(kernel,rhov,energies,pot_ion,rho_ion,ehartree)
   if (plot_cavity) then
      if (kernel%method == PS_PCG_ENUM) then
         needmem=.not. allocated(rhopot_full)
-        if (needmem) rhopot_full=f_malloc(kernel%ndims,id='rhopot_full')
+        if (needmem) rhopot_full=f_malloc(kernel%mesh%ndims,id='rhopot_full')
         call PS_gather(src=kernel%w%pot,dest=rhopot_full,kernel=kernel)
         call polarization_charge(kernel,rhopot_full,rhov(1,1,i3s))
         if (needmem) call f_free(rhopot_full)
@@ -309,8 +312,7 @@ subroutine Electrostatic_Solver(kernel,rhov,energies,pot_ion,rho_ion,ehartree)
      !if statement for SC cavity
      if (calc_nabla2pot) then
         !in the PI method the potential is allocated as a full array
-        call nabla_u_square(kernel%geocode,kernel%ndims(1),kernel%ndims(2),kernel%ndims(3),&
-             kernel%w%pot,nabla2_rhopot,kernel%nord,kernel%hgrids)
+        call nabla_u_square(kernel%mesh,kernel%w%pot,nabla2_rhopot,kernel%nord)
 !!$        call add_Vextra(n1,n23,nabla2_rhopot(1,1,i3sd2),&
 !!$             depsdrho,dsurfdrho,kernel%cavity,kernel%opt%only_electrostatic,&
 !!$             sum_pi,pot_ion_eff,vextra_eff)
@@ -330,8 +332,7 @@ subroutine Electrostatic_Solver(kernel,rhov,energies,pot_ion,rho_ion,ehartree)
 
      if (calc_nabla2pot) then
         call PS_gather(src=kernel%w%pot,dest=rhopot_full,kernel=kernel)
-        call nabla_u_square(kernel%geocode,kernel%ndims(1),kernel%ndims(2),kernel%ndims(3),&
-             rhopot_full,nabla2_rhopot,kernel%nord,kernel%hgrids)
+        call nabla_u_square(kernel%mesh,rhopot_full,nabla2_rhopot,kernel%nord)
         call f_free(rhopot_full)
 !!$        call add_Vextra(n1,n23,nabla2_rhopot(1,1,i3sd2),&
 !!$             depsdrho,dsurfdrho,kernel%cavity,kernel%opt%only_electrostatic,&
@@ -395,8 +396,8 @@ subroutine Electrostatic_Solver(kernel,rhov,energies,pot_ion,rho_ion,ehartree)
   end if
   !evaluating the total ehartree + e_static if needed
   !also cavitation energy can be given
-  energs%hartree=ehartreeLOC*0.5_dp*kernel%mesh%volume_element!product(kernel%hgrids)
-  energs%eVextra=e_static*kernel%mesh%volume_element!product(kernel%hgrids)
+  energs%hartree=ehartreeLOC*0.5_dp*kernel%mesh%volume_element!product(kernel%mesh%hgrids)
+  energs%eVextra=e_static*kernel%mesh%volume_element!product(kernel%mesh%hgrids)
   energs%cavitation=(kernel%cavity%gammaS+kernel%cavity%alphaS)*kernel%IntSur+&
        kernel%cavity%betaV*kernel%IntVol
 
@@ -410,15 +411,33 @@ subroutine Electrostatic_Solver(kernel,rhov,energies,pot_ion,rho_ion,ehartree)
      ehartree=energs%hartree
   end if
 
+!!! Old lines -------------------------------------------------------------------
+!!  if (wrtmsg) then
+!!     if (kernel%cavity%gammaS*kernel%IntSur /= 0.0_gp) &
+!!          call yaml_map('Cavitation energy',kernel%cavity%gammaS*kernel%IntSur)
+!!     if (kernel%cavity%alphaS*kernel%IntSur /= 0.0_gp) &
+!!          call yaml_map('Repulsion energy',kernel%cavity%alphaS*kernel%IntSur)
+!!     if (kernel%cavity%betaV*kernel%IntVol /= 0.0_gp) &
+!!          call yaml_map('Dispersion energy',kernel%cavity%betaV*kernel%IntVol)
+!!     if (energs%cavitation /= 0.0_gp) &
+!!          call yaml_map('Non-eletrostatic energy',energs%cavitation)
+!!  end if
+
+  ecavs=0.0_dp
+  if ((.not.(kernel%method == PS_VAC_ENUM)) .or. (.not.kernel%opt%only_electrostatic)) then
+   ecavs(ECAV_)=kernel%cavity%gammaS*kernel%IntSur
+   ecavs(EREP_)=kernel%cavity%alphaS*kernel%IntSur
+   ecavs(EDIS_)=kernel%cavity%betaV*kernel%IntVol
+   call PS_reduce(ecavs,kernel)
+  end if 
   if (wrtmsg) then
-     if (kernel%cavity%gammaS*kernel%IntSur /= 0.0_gp) &
-          call yaml_map('Cavitation energy',kernel%cavity%gammaS*kernel%IntSur)
-     if (kernel%cavity%alphaS*kernel%IntSur /= 0.0_gp) &
-          call yaml_map('Repulsion energy',kernel%cavity%alphaS*kernel%IntSur)
-     if (kernel%cavity%betaV*kernel%IntVol /= 0.0_gp) &
-          call yaml_map('Dispersion energy',kernel%cavity%betaV*kernel%IntVol)
+   if (any(ecavs /= 0.0_gp)) then
+    call yaml_map('Cavitation energy',ecavs(ECAV_))
+    call yaml_map('Repulsion energy',ecavs(EREP_))
+    call yaml_map('Dispersion energy',ecavs(EDIS_))
      if (energs%cavitation /= 0.0_gp) &
-          call yaml_map('Non-eletrostatic energy',energs%cavitation)
+           call yaml_map('Non-eletrostatic energy',energs%cavitation)
+   end if
   end if
 
   if (wrtmsg) call yaml_mapping_close()
@@ -449,7 +468,7 @@ subroutine Parallel_GPS(kernel,cudasolver,offset,strten,wrtmsg,rho_dist,use_inpu
   real(dp) :: rpoints,rhores2,beta,ratio,normr,normb,alpha,q
   !aliasings
   call f_timing(TCAT_PSOLV_COMPUT,'ON')
-  rpoints=product(real(kernel%ndims,dp))
+  rpoints=product(real(kernel%mesh%ndims,dp))
 
   n23=kernel%grid%m3*kernel%grid%n3p
   n1=kernel%grid%m1
@@ -750,10 +769,10 @@ END SUBROUTINE H_potential
 subroutine extra_sccs_potential(kernel,work_full,depsdrho,dsurfdrho,pot,eps0)
   implicit none
   type(coulomb_operator), intent(in) :: kernel
-  real(dp), dimension(kernel%ndims(1),kernel%ndims(2),kernel%ndims(3)), intent(out) :: work_full
-  real(dp), dimension(kernel%ndims(1),kernel%ndims(2)*kernel%grid%n3p), intent(inout) :: depsdrho
-  real(dp), dimension(kernel%ndims(1),kernel%ndims(2)*kernel%grid%n3p), intent(in) :: dsurfdrho
-  real(dp), dimension(kernel%ndims(1),kernel%ndims(2)*kernel%grid%n3p) :: pot !intent in
+  real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%mesh%ndims(3)), intent(out) :: work_full
+  real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2)*kernel%grid%n3p), intent(inout) :: depsdrho
+  real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2)*kernel%grid%n3p), intent(in) :: dsurfdrho
+  real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2)*kernel%grid%n3p) :: pot !intent in
   real(dp), intent(in) :: eps0
 
   !first gather the potential to calculate the derivative
@@ -772,9 +791,9 @@ end subroutine extra_sccs_potential
 subroutine pol_charge(kernel,pot_full,rho,pot)
   implicit none
   type(coulomb_operator), intent(inout) :: kernel
-  real(dp), dimension(kernel%ndims(1),kernel%ndims(2),kernel%ndims(3)), intent(out) :: pot_full
-  real(dp), dimension(kernel%ndims(1),kernel%ndims(2)*kernel%grid%n3p), intent(inout) :: rho
-  real(dp), dimension(kernel%ndims(1),kernel%ndims(2)*kernel%grid%n3p) :: pot !intent in
+  real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%mesh%ndims(3)), intent(out) :: pot_full
+  real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2)*kernel%grid%n3p), intent(inout) :: rho
+  real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2)*kernel%grid%n3p) :: pot !intent in
 
   !first gather the potential to calculate the derivative
   if (kernel%mpi_env%nproc > 1) then
@@ -1013,29 +1032,26 @@ subroutine PS_dump_coulomb_operator(kernel,prefix)
   !if available plot the dielectric function
   if (kernel%method /= 'VAC') then
      if (master) call yaml_map('Writing dielectric cavity in file','dielectric_cavity')
-     global_arr = f_malloc(kernel%ndims,id='global_arr')
+     global_arr = f_malloc(kernel%mesh%ndims,id='global_arr')
      call PS_gather(src=kernel%w%eps,dest=global_arr,kernel=kernel)
      if (kernel%method .hasattr. PS_RIGID_ENUM) then
         !we might add the atoms in the case of a rigid cavity, they are in
         call dump_field(trim(prefix)//'dielectric_cavity',&
-             kernel%geocode,kernel%ndims,kernel%hgrids,1,&
-             global_arr,rxyz=kernel%w%rxyz)
+             kernel%mesh,1,global_arr,rxyz=kernel%w%rxyz)
      else
         !charge dependent case
         call dump_field(trim(prefix)//'dielectric_cavity',&
-             kernel%geocode,kernel%ndims,kernel%hgrids,1,global_arr)
+             kernel%mesh,1,global_arr)
      end if
      !now check if the polarization charge is available
      if (associated(kernel%w%rho_pol)) then
         call PS_gather(src=kernel%w%rho_pol,dest=global_arr,kernel=kernel)
-        call dump_field(trim(prefix)//'polarization_charge',&
-             kernel%geocode,kernel%ndims,kernel%hgrids,1,global_arr)
+        call dump_field(trim(prefix)//'polarization_charge',kernel%mesh,1,global_arr)
      end if
      !now check if the ionic charge of the Poisson boltzmann charge is available
      if (associated(kernel%w%rho_ions)) then
         call PS_gather(src=kernel%w%rho_ions,dest=global_arr,kernel=kernel)
-        call dump_field(trim(prefix)//'solvent_density',&
-             kernel%geocode,kernel%ndims,kernel%hgrids,1,global_arr)
+        call dump_field(trim(prefix)//'solvent_density',kernel%mesh,1,global_arr)
      end if
      call f_free(global_arr)
   end if

@@ -357,8 +357,8 @@ module get_kernel
       !!        end if
       !!        call f_free(tempmat)
       !!        if (nproc>1) then
-      !!            call mpiallred(tmb%linmat%ham_%matrix(1,1,ispin), tmb%linmat%smat(2)%nfvctr**2, &
-      !!                 mpi_sum, comm=bigdft_mpi%mpi_comm)
+      !!            call fmpi_allreduce(tmb%linmat%ham_%matrix(1,1,ispin), tmb%linmat%smat(2)%nfvctr**2, &
+      !!                 FMPI_SUM, comm=bigdft_mpi%mpi_comm)
       !!        end if
     
       !!        call f_zero(tmb%linmat%smat(1)%nfvctr**2, tmb%linmat%ovrlp_%matrix(1,1,ispin))
@@ -371,8 +371,8 @@ module get_kernel
       !!        end if
       !!        call f_free(tempmat)
       !!        if (nproc>1) then
-      !!            call mpiallred(tmb%linmat%ovrlp_%matrix(1,1,ispin), tmb%linmat%smat(1)%nfvctr**2, &
-      !!                 mpi_sum, comm=bigdft_mpi%mpi_comm)
+      !!            call fmpi_allreduce(tmb%linmat%ovrlp_%matrix(1,1,ispin), tmb%linmat%smat(1)%nfvctr**2, &
+      !!                 FMPI_SUM, comm=bigdft_mpi%mpi_comm)
       !!        end if
       !!    end do
       !!end if
@@ -543,7 +543,8 @@ module get_kernel
       if (calculate_ham) then
           if (nproc>1) then
               ! Wait for the communication of energs_work on root
-              call mpi_fenceandfree(energs_work%window)
+             !call mpi_fenceandfree(energs_work%window)
+             call fmpi_win_shut(energs_work%window)
           end if
     
           ! Copy the value, only necessary on root
@@ -830,7 +831,7 @@ module get_kernel
           if (nproc > 1) then
               call timing(iproc,'renormCoefCom1','OF')
               call timing(iproc,'renormCoefComm','ON')
-              call mpiallred(ovrlp_coeff, mpi_sum, comm=bigdft_mpi%mpi_comm)
+              call fmpi_allreduce(ovrlp_coeff, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
               call timing(iproc,'renormCoefComm','OF')
               call timing(iproc,'renormCoefCom1','ON')
           end if
@@ -857,7 +858,7 @@ module get_kernel
                  !!     ovrlp_coeff, &
                  !!     basis_overlap, max_error, mean_error)
               else
-                 ! It is necessary to call the routine since it has a built-in mpiallred.
+                 ! It is necessary to call the routine since it has a built-in fmpi_allreduce.
                  ! Use the first element of ovrlp_coeff; thanks to orbs%norbp==0 this should be safe
                  call deviation_from_unity_parallel(iproc, nproc, bigdft_mpi%mpi_comm, &
                       orbs%norb, orbs%norbp, orbs%isorb, &
@@ -968,7 +969,7 @@ module get_kernel
                 end if
     
                 if (nproc > 1) then
-                   call mpiallred(coeff_tmp, mpi_sum, comm=bigdft_mpi%mpi_comm)
+                   call fmpi_allreduce(coeff_tmp, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
                 end if
                 call vcopy(basis_overlap%nfvctr*norbx,coeff_tmp(1,1),1,coeff(1,1),1)
              else
@@ -1059,7 +1060,7 @@ module get_kernel
              call f_free(coeff_tmp)
     
              if (nproc>1) then
-                call mpiallred(ovrlp_coeff, MPI_SUM, comm=bigdft_mpi%mpi_comm)
+                call fmpi_allreduce(ovrlp_coeff, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
              end if
     
              if (norb==orbs%norb .and. basis_overlap%nspin==1) then
@@ -1070,7 +1071,7 @@ module get_kernel
                         ovrlp_coeff(1:orbs%norb,orbs%isorb+1:orbs%isorb+orbs%norbp), &
                         basis_overlap, max_error, mean_error)
                 else
-                   ! It is necessary to call the routine since it has a built-in mpiallred.
+                   ! It is necessary to call the routine since it has a built-in fmpi_allreduce.
                    ! Use the first element of ovrlp_coeff; thanks to orbs%norbp==0 this should be safe
                    call deviation_from_unity_parallel(iproc, nproc, bigdft_mpi%mpi_comm, &
                         orbs%norb, orbs%norbp, &
@@ -1136,7 +1137,7 @@ module get_kernel
       real(kind=8),dimension(:),allocatable :: inv_ovrlp_compr_seq, kernel_compr_seq
       integer,dimension(3) :: power
       integer :: ispin, ilshift, ilshiftpp, isl
-      integer,dimension(:,:),allocatable :: windowsx1
+      type(fmpi_win),dimension(:,:),allocatable :: windowsx1
       real(kind=8),dimension(:),allocatable :: kernelpp_work1, kernelpp_work2
       real(kind=8),dimension(:),pointer :: matrix_local1
     
@@ -1191,7 +1192,7 @@ module get_kernel
                windowsx=windowsx1(:,ispin))
       end do
     
-      call f_free(windowsx1)
+      call free_fmpi_win_arr(windowsx1)
       !call f_free(windowsx2)
       call f_free(kernelpp_work1)
       !call f_free(kernelpp_work2)
@@ -1523,7 +1524,7 @@ module get_kernel
       !!     tmb%orbs%norb, tmb%linmat%ham%matrix, tmb%orbs%norb, 0.d0, KH, tmb%orbs%norb)
       !!call dgemm('n', 't', tmb%orbs%norbp, tmb%orbs%norbp, tmb%orbs%norb, scale_factor, KH, &
       !!     tmb%orbs%norb, KH, tmb%orbs%norb, 0.d0, KHKH, tmb%orbs%norb)
-      !!call mpiallred(KHKH(1,1), tmb%orbs%norb, mpi_sum, bigdft_mpi%mpi_comm, ierr)
+      !!call fmpi_allreduce(KHKH(1,1), tmb%orbs%norb, FMPI_SUM, bigdft_mpi%mpi_comm, ierr)
       !!call dgemm('n', 'n', tmb%orbs%norb, tmb%orbs%norb, tmb%orbs%norb, 1.0d0, tmb%linmat%denskern%matrix, &
       !!     tmb%orbs%norb, gradmat%matrix, tmb%orbs%norb, 0.d0, Kgrad, tmb%orbs%norb)
     
@@ -1549,7 +1550,7 @@ module get_kernel
       end if
     
       if (nproc > 1) then
-          call mpiallred(KH, mpi_sum, comm=bigdft_mpi%mpi_comm)
+          call fmpi_allreduce(KH, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
       end if
     
       if (tmb%orbs%norbp>0) then
@@ -1571,7 +1572,7 @@ module get_kernel
       end if
     
       if (nproc > 1) then
-          call mpiallred(KHKH, mpi_sum, comm=bigdft_mpi%mpi_comm)
+          call fmpi_allreduce(KHKH, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
       end if
       call f_free(KH)
       Kgrad=f_malloc0((/tmb%linmat%smat(3)%nfvctr,tmb%linmat%smat(3)%nfvctr,tmb%linmat%smat(3)%nspin/),id='Kgrad')
@@ -1595,7 +1596,7 @@ module get_kernel
       end if
     
       if (nproc > 1) then
-          call mpiallred(Kgrad, mpi_sum, comm=bigdft_mpi%mpi_comm)
+          call fmpi_allreduce(Kgrad, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
       end if
     
       !!if (iproc==0) then
@@ -1804,7 +1805,7 @@ module get_kernel
          end do
     
          if (nproc > 1) then
-            call mpiallred(tt, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
+            call fmpi_allreduce(tt, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
          end if
          fnrm=2.0_gp*tt
     
@@ -2325,7 +2326,7 @@ module get_kernel
       call f_free(coeff_tmp)
     
       if (nproc>1) then
-          call mpiallred(mat_coeff, mpi_sum, comm=bigdft_mpi%mpi_comm)
+          call fmpi_allreduce(mat_coeff, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
       end if
     
     end subroutine calculate_coeffMatcoeff
@@ -2377,7 +2378,7 @@ module get_kernel
             call mpi_allgatherv(mat_coeff_diagp, ksorbs%norbp, mpi_double_precision, mat_coeff_diag, &
                  ksorbs%norb_par(:,0), ksorbs%isorb_par, mpi_double_precision, bigdft_mpi%mpi_comm, ierr)
          else
-            call mpiallred(mat_coeff_diag, mpi_sum, comm=bigdft_mpi%mpi_comm)
+            call fmpi_allreduce(mat_coeff_diag, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
          end if
       else
          if (allgather) then
@@ -2484,7 +2485,7 @@ module get_kernel
     !!  call memocc(istat,iall,'coeff_tmp',subname)
     !!
     !!  if (nproc>1) then
-    !!      call mpiallred(ham_coeff(1,1), basis_orbs%norb**2, mpi_sum, bigdft_mpi%mpi_comm, ierr)
+    !!      call fmpi_allreduce(ham_coeff(1,1), basis_orbs%norb**2, FMPI_SUM, bigdft_mpi%mpi_comm, ierr)
     !!  end if
     !!
     !!  allocate(ovrlp_coeff(basis_orbs%norb,basis_orbs%norb), stat=istat)
@@ -2507,7 +2508,7 @@ module get_kernel
     !!  call memocc(istat,iall,'coeff_tmp',subname)
     !!
     !!  if (nproc>1) then
-    !!      call mpiallred(ovrlp_coeff(1,1), basis_orbs%norb**2, mpi_sum, bigdft_mpi%mpi_comm, ierr)
+    !!      call fmpi_allreduce(ovrlp_coeff(1,1), basis_orbs%norb**2, FMPI_SUM, bigdft_mpi%mpi_comm, ierr)
     !!  end if
     !!
     !!  ! above is overkill, actually just want diagonal elements but print off as a test out of curiosity
@@ -3278,7 +3279,7 @@ module get_kernel
     !!      else
     !!         call vcopy(tmb%linmat%smat(3)%nfvctr*tmb%orbs%norb,grad_cov(1,1),1,grad_full(1,1),1)
     !!      end if
-    !!      !call mpiallred(grad(1,1), tmb%orbs%norb*tmb%orbs%norb, mpi_sum, bigdft_mpi%mpi_comm, ierr)
+    !!      !call fmpi_allreduce(grad(1,1), tmb%orbs%norb*tmb%orbs%norb, FMPI_SUM, bigdft_mpi%mpi_comm, ierr)
     !!
     !!      call dgesv_parallel(iproc, tmb%orthpar%nproc_pdsyev, tmb%orthpar%blocksize_pdsyev, bigdft_mpi%mpi_comm, &
     !!           tmb%orbs%norb, tmb%orbs%norb, tmb%linmat%ovrlp_%matrix, tmb%orbs%norb, grad_full, tmb%orbs%norb, info)

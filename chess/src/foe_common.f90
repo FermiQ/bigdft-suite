@@ -286,7 +286,7 @@ module foe_common
     !!      cc(jj)=fac*tt
     !!  end do
 
-    !!  call mpiallred(cc, mpi_sum, comm=bigdft_mpi%mpi_comm)
+    !!  call fmpi_allreduce(cc, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
 
     !!  call func_set(FUNCTION_ERRORFUNCTION, efx=ef, fscalex=fscale)
     !!  call accuracy_of_chebyshev_expansion(n, cc, (/A,B/), 1.d-3, func, x_max_error, max_error, mean_error)
@@ -736,7 +736,7 @@ module foe_common
       penalty = penalty/real(smat_l%nfvctr,kind=mp)
 
       !!if (nproc > 1) then
-      !!    call mpiallred(penalty, mpi_sum, comm=comm)
+      !!    call fmpi_allreduce(penalty, FMPI_SUM, comm=comm)
       !!end if
       call penalty_communicate(nproc, comm, penalty)
 
@@ -965,12 +965,12 @@ module foe_common
         real(kind=mp),dimension(smat%nvctrp_tg),intent(inout) :: inv_ovrlp
         real(kind=mp),dimension(smat%nvctrp_tg),intent(inout) :: kernel
         real(kind=mp),dimension(:),intent(inout),target,optional :: matrix_localx
-        integer,dimension(:),target,intent(inout),optional :: windowsx
+        type(fmpi_win),dimension(:),target,intent(inout),optional :: windowsx
 
         ! Local variables
         real(kind=mp),dimension(:),pointer :: tempp_new, matrix_local
         real(kind=mp),dimension(:),allocatable :: mat_compr_seq
-        integer,dimension(:),pointer :: windows
+        type(fmpi_win),dimension(:),pointer :: windows
 
         call f_routine(id='retransform_ext')
 
@@ -1042,7 +1042,7 @@ module foe_common
         !!end if
 
         if (onesided_action==ONESIDED_FULL) then
-            call f_free_ptr(windows)
+            call free_fmpi_win_ptr(windows)
             call f_free_ptr(matrix_local)
         end if
 
@@ -1316,18 +1316,18 @@ module foe_common
       is = is + isx - 1 !shift of the starting index
       !check
       ii = np
-      call mpiallred(ii, 1, mpi_sum, comm=comm)
+      call fmpi_allreduce(ii, 1, FMPI_SUM, comm=comm)
       if (ii/=n) then
           call f_err_throw('wrong partition: n='//trim(yaml_toa(n))//' /= '//trim(yaml_toa(ii))//'=ii &
                &(n='//trim(yaml_toa(n))//', np='//trim(yaml_toa(np))//')')
       end if
       iimin = 1 + is
-      call mpiallred(iimin, 1, mpi_min, comm=comm)
+      call fmpi_allreduce(iimin, 1, FMPI_MIN, comm=comm)
       if (iimin/=isx) then
           call f_err_throw('wrong starting index')
       end if
       iimax = np + is
-      call mpiallred(iimax, 1, mpi_max, comm=comm)
+      call fmpi_allreduce(iimax, 1, FMPI_MAX, comm=comm)
       if (iimax/=iex) then
           call f_err_throw('wrong ending index')
       end if
@@ -1392,11 +1392,11 @@ module foe_common
       call f_free(x_max_error_arr)
 
       ! Communicate the results... for the maximum in an array since also the position is required
-      call mpiallred(mean_error, 1, mpi_sum, comm=comm)
+      call fmpi_allreduce(mean_error, 1, FMPI_SUM, comm=comm)
       max_errors = f_malloc0((/1.to.2,0.to.nproc-1/),id='max_errors')
       max_errors(1,iproc) = max_error
       max_errors(2,iproc) = x_max_error
-      call mpiallred(max_errors, mpi_sum, comm=comm)
+      call fmpi_allreduce(max_errors, FMPI_SUM, comm=comm)
       max_error = 0.d0
       do jproc=0,nproc-1
           if (max_errors(1,jproc)>max_error) then
@@ -1482,7 +1482,7 @@ module foe_common
       real(kind=mp),dimension(:),allocatable :: penalty_ev_new, ham_eff, mat_seq, matmul_tmp, matrix_local
       real(kind=mp),dimension(:),allocatable :: fermi_new, fermi_check_new, fermi_small_new
       integer :: iline, icolumn, icalc
-      integer,dimension(:),allocatable :: windows
+      type(fmpi_win), dimension(:),allocatable :: windows
 
 
       call f_routine(id='get_chebyshev_polynomials')
@@ -1668,7 +1668,7 @@ module foe_common
       call f_free(penalty_ev_new)
       call f_free(fermi_new)
       call f_free(matrix_local)
-      call f_free(windows)
+      call free_fmpi_win_arr(windows)
 
 
       !call timing(iproc, 'FOE_auxiliary ', 'OF')
@@ -1750,7 +1750,7 @@ module foe_common
       real(kind=mp),dimension(:,:),allocatable :: penalty_ev_new
       real(kind=mp),dimension(:,:),allocatable :: fermi_new, fermi_check_new, fermi_small_new
       integer :: iline, icolumn, icalc, jspin
-      integer,dimension(:),pointer :: windowsx
+      type(fmpi_win) ,dimension(:), allocatable :: windowsx
 
 
 
@@ -1770,7 +1770,7 @@ module foe_common
 
       evbounds_shrinked=.false.
 
-      windowsx = f_malloc_ptr(smatl%ntaskgroup,id='windowsx')
+      windowsx = f_malloc(smatl%ntaskgroup,id='windowsx')
 
       fermi_small_new = f_malloc((/smatl%smmm%nvctrp_mm,smatl%nspin/),id='fermi_small_new')
 
@@ -2027,7 +2027,7 @@ module foe_common
                           diff=0.d0
 
                           if (nproc > 1) then
-                              call mpiallred(diff, 1, mpi_sum, comm=comm)
+                              call fmpi_allreduce(diff, 1, FMPI_SUM, comm=comm)
                           end if
 
                           diff=sqrt(diff)
@@ -2082,7 +2082,7 @@ module foe_common
 
       call f_free(occupations)
       call f_free(fermi_small_new)
-      call f_free_ptr(windowsx)
+      call free_fmpi_win_arr(windowsx)
 
       !call timing(iproc, 'FOE_auxiliary ', 'OF')
       call f_timing(TCAT_CME_AUXILIARY,'OF')
@@ -2128,7 +2128,7 @@ module foe_common
       !$omp end parallel
 
       if (nproc > 1) then
-          call mpiallred(trace, 1, mpi_sum, comm=comm)
+          call fmpi_allreduce(trace, 1, FMPI_SUM, comm=comm)
       end if
 
       call f_release_routine()
@@ -2331,7 +2331,7 @@ module foe_common
       is = is + min(iproc,ii)
       !check
       ii = np
-      call mpiallred(ii, 1, mpi_sum, comm=comm)
+      call fmpi_allreduce(ii, 1, FMPI_SUM, comm=comm)
       if (ii/=n) then
           call f_err_throw('wrong partition of n')
       end if
@@ -2405,7 +2405,7 @@ module foe_common
 
       call f_routine(id='chebyshev_coefficients_communicate')
 
-      call mpiallred(cc, mpi_sum, comm=comm)
+      call fmpi_allreduce(cc, FMPI_SUM, comm=comm)
 
       call f_release_routine()
 
@@ -2424,7 +2424,7 @@ module foe_common
       call f_routine(id='penalty_communicate')
 
       if (nproc > 1) then
-          call mpiallred(penalty, 1, mpi_sum, comm=comm)
+          call fmpi_allreduce(penalty, 1, FMPI_SUM, comm=comm)
       end if
 
       call f_release_routine()

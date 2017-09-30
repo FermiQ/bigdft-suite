@@ -1751,7 +1751,7 @@ end if
                    pnrm,denspot%dpbox%nscatterarr)
                !!rho_tmp=rho_tmp-denspot%rhov
                !!tt=ddot(size(rho_tmp),rho_tmp,1,rho_tmp,1)
-               !!call mpiallred(tt,1,mpi_sum,bigdft_mpi%mpi_comm)
+               !!call fmpi_allreduce(tt,1,FMPI_SUM,bigdft_mpi%mpi_comm)
                !!tt=tt/dble(denspot%dpbox%ndims(1)*denspot%dpbox%ndims(2)*denspot%dpbox%ndims(3))
                !!if (iproc==0) write(*,*) 'delta rho',tt
                    !!write(*,*) 'after mix_rhopot 1.1: pnrm', pnrm
@@ -1796,7 +1796,7 @@ end if
                  end if
 
                  if (nproc > 1) then
-                    call mpiallred(pnrm_out, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
+                    call fmpi_allreduce(pnrm_out, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
                  end if
                  !pnrm_out = pnrm_out/dble(input%nspin)
 
@@ -1894,7 +1894,7 @@ end if
                  end if
 
                  if (nproc > 1) then
-                    call mpiallred(pnrm_out, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
+                    call fmpi_allreduce(pnrm_out, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
                  end if
 
                  pnrm_out=sqrt(pnrm_out)/(KSwfn%Lzd%Glr%d%n1i*KSwfn%Lzd%Glr%d%n2i*KSwfn%Lzd%Glr%d%n3i)!)*input%nspin)
@@ -2159,7 +2159,7 @@ end if
       end do
 
       if (nproc > 1) then
-         call mpiallred(mean_conf, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
+         call fmpi_allreduce(mean_conf, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
       end if
       mean_conf=mean_conf/dble(tmb%orbs%norb)
 
@@ -2282,7 +2282,7 @@ end if
                 nit_energyoscillation = nit_energyoscillation + 1
                 if (iproc==0) then
                     call yaml_warning('oscillation of the energy, increase counter')
-                    call yaml_map('energy_scillation_counter',nit_energyoscillation)
+                    call yaml_map('energy_oscillation_counter',nit_energyoscillation)
                 end if
             end if
         end if
@@ -2700,13 +2700,13 @@ subroutine get_boundary_weight(iproc, nproc, orbs, lzd, atoms, crmult, nsize_psi
 
   ! Sum up among all tasks... could use workarrays
   if (nproc>1) then
-     call mpiallred(nwarnings, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
-     call mpiallred(meanweight, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
-     call mpiallred(maxweight, 1, mpi_max, comm=bigdft_mpi%mpi_comm)
-     call mpiallred(nwarnings_types, mpi_sum, comm=bigdft_mpi%mpi_comm)
-     call mpiallred(meanweight_types, mpi_sum, comm=bigdft_mpi%mpi_comm)
-     call mpiallred(maxweight_types, mpi_max, comm=bigdft_mpi%mpi_comm)
-     call mpiallred(nsf_per_type, mpi_sum, comm=bigdft_mpi%mpi_comm)
+     call fmpi_allreduce(nwarnings, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+     call fmpi_allreduce(meanweight, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+     call fmpi_allreduce(nwarnings_types, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+     call fmpi_allreduce(meanweight_types, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+     call fmpi_allreduce(maxweight, 1, FMPI_MAX, comm=bigdft_mpi%mpi_comm)
+     call fmpi_allreduce(maxweight_types, FMPI_MAX, comm=bigdft_mpi%mpi_comm)
+     call fmpi_allreduce(nsf_per_type, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
   end if
   meanweight = meanweight/real(orbs%norb,kind=8)
   do iatype=1,atoms%astruct%ntypes

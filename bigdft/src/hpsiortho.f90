@@ -50,7 +50,7 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
   !integer :: ii,jj
   !$ integer :: omp_get_max_threads,omp_get_thread_num,omp_get_num_threads
   real(gp) :: compch_sph
-  real(wp), dimension(:), allocatable :: temp,m_norm,temp2 !to be removed
+  !$ real(wp), dimension(:), allocatable :: temp,m_norm,temp2 !to be removed
 
 
   call f_routine(id=subname)
@@ -225,8 +225,8 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
              denspot%rhov(1+denspot%dpbox%mesh%ndims(1)*denspot%dpbox%mesh%ndims(2)*denspot%dpbox%i3xcsh),&
              denspot%cfd%rho_at,denspot%cfd%m_at)
         if (nproc > 1) then
-           call mpiallred(denspot%cfd%rho_at,op=MPI_SUM,comm=bigdft_mpi%mpi_comm)
-           call mpiallred(denspot%cfd%m_at,op=MPI_SUM,comm=bigdft_mpi%mpi_comm)
+           call fmpi_allreduce(denspot%cfd%rho_at,op=FMPI_SUM,comm=bigdft_mpi%mpi_comm)
+           call fmpi_allreduce(denspot%cfd%m_at,op=FMPI_SUM,comm=bigdft_mpi%mpi_comm)
         end if
         if(iproc==0) call cfd_dump_info(denspot%cfd)
 !!!>
@@ -452,7 +452,7 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
 
   !here we can reduce and output the density matrix if required
   if (associated(nlpsp%gamma_mmp) .and. nproc > 1) &
-       call mpiallred(nlpsp%gamma_mmp,op=MPI_SUM,comm=bigdft_mpi%mpi_comm)
+       call fmpi_allreduce(nlpsp%gamma_mmp,op=FMPI_SUM,comm=bigdft_mpi%mpi_comm)
 
   if (iproc==0 .and. get_verbose_level() > 1) call write_atomic_density_matrix(wfn%orbs%nspin,atoms%astruct,nlpsp)
 
@@ -661,6 +661,7 @@ subroutine LocalHamiltonianApplication(iproc,nproc,at,npsidim_orbs,orbs,&
   ipotmethod=0
   if (exctX) ipotmethod=1
 
+
   !the PZ-SIC correction does not makes sense for virtual orbitals procedure
   !if alphaSIC is zero no SIC correction
   if (SIC%approach == 'PZ' .and. .not. present(orbsocc) .and. SIC%alpha /= 0.0_gp ) ipotmethod=2
@@ -803,7 +804,7 @@ subroutine LocalHamiltonianApplication(iproc,nproc,at,npsidim_orbs,orbs,&
               pkernel%stay_on_gpu=0
            end if
            call free_OP2P_data(OP2P)
-           if (nproc>1) call mpiallred(energs%eexctX,1,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+           if (nproc>1) call fmpi_allreduce(energs%eexctX,1,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
            !the exact exchange energy is half the Hartree energy (which already has another half)
            energs%eexctX=-xc_exctXfac(xc)*energs%eexctX
            if (iproc == 0) call yaml_map('Exact Exchange Energy',energs%eexctX,fmt='(1pe18.11)')
@@ -983,6 +984,7 @@ subroutine LocalHamiltonianApplication(iproc,nproc,at,npsidim_orbs,orbs,&
   call f_release_routine()
 
 END SUBROUTINE LocalHamiltonianApplication
+
 
 subroutine NonLocalHamiltonianApplication(iproc,at,npsidim_orbs,orbs,&
      Lzd,nl,psi,hpsi,eproj_sum,paw)
@@ -1181,6 +1183,7 @@ contains
 
   end subroutine nl_psp_application
 
+
   subroutine allocate_prj_ptr(iat,ityp,ispin,at,nl,prj)
     integer, intent(in) :: iat,ispin,ityp
     type(atoms_data), intent(in) :: at
@@ -1189,7 +1192,7 @@ contains
     !local variables
     integer, parameter :: LMAX=3,IMAX=3
     logical :: occ_ctrl
-    integer :: i,l,j,igamma,m,mp
+    integer :: i,l,j,igamma,m
     real(gp), dimension(3,3,4) :: hij
 
     igamma=0
@@ -1798,7 +1801,7 @@ subroutine SynchronizeHamiltonianApplication(nproc,npsidim_orbs,orbs,Lzd,GPU,xc,
    !local variables
    character(len=*), parameter :: subname='SynchronizeHamiltonianApplication'
    logical :: exctX
-   integer :: iorb,ispsi,ilr,nvctr
+   integer :: iorb,ispsi,ilr
    real(gp), dimension(4) :: wrkallred
 
    call f_routine(id='SynchronizeHamiltonianApplication')
@@ -1837,16 +1840,22 @@ subroutine SynchronizeHamiltonianApplication(nproc,npsidim_orbs,orbs,Lzd,GPU,xc,
          energs_work%sendbuf(3) = energs%eproj
          energs_work%sendbuf(4) = energs%evsic
          energs_work%receivebuf(:) = 0.d0
-         energs_work%window = mpiwindow(1, energs_work%receivebuf(1), bigdft_mpi%mpi_comm)
-         call mpiaccumulate(energs_work%sendbuf(1), 4, 0, &
-              int(0,kind=mpi_address_kind), mpi_sum, energs_work%window)
+         !LG: why the window is opened with only one element whereas we communicate 4?
+         !! I correct this point as it seems a bug to me
+         !energs_work%window = mpiwindow(1, energs_work%receivebuf(1), bigdft_mpi%mpi_comm)
+         call fmpi_win_create(energs_work%window,energs_work%receivebuf(1),4,comm=bigdft_mpi%mpi_comm)
+         call fmpi_win_fence(energs_work%window,FMPI_WIN_OPEN)
+         call fmpi_accumulate(energs_work%sendbuf(1),target_rank=0,count=4,op=FMPI_SUM,&
+              target_disp=int(0,fmpi_address),win=energs_work%window)
+         !call mpiaccumulate(energs_work%sendbuf(1), 4, 0, &
+         !     int(0,kind=mpi_address_kind), FMPI_SUM, energs_work%window)
       else
          wrkallred(1)=energs%ekin
          wrkallred(2)=energs%epot
          wrkallred(3)=energs%eproj
          wrkallred(4)=energs%evsic
 
-         call mpiallred(wrkallred,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+         call fmpi_allreduce(wrkallred,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
 
          energs%ekin=wrkallred(1)
          energs%epot=wrkallred(2)
@@ -2059,7 +2068,7 @@ subroutine calculate_energy_and_gradient(iter,iproc,nproc,GPU,ncong,scf_mode,&
   if (nproc > 1) then
       garray(1)=gnrm
       garray(2)=gnrm_zero
-     call mpiallred(garray,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+     call fmpi_allreduce(garray,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
       gnrm     =garray(1)
       gnrm_zero=garray(2)
   endif
@@ -3150,7 +3159,7 @@ END SUBROUTINE broadcast_kpt_objects
 !!  if (nproc > 1) then
 !!     call timing(iproc,'LagrM_comput  ','OF')
 !!     call timing(iproc,'LagrM_commun  ','ON')
-!!     call mpiallred(alag(1),ndimovrlp(nspin,orbs%nkpts),MPI_SUM,bigdft_mpi%mpi_comm,ierr)
+!!     call fmpi_allreduce(alag(1),ndimovrlp(nspin,orbs%nkpts),FMPI_SUM,bigdft_mpi%mpi_comm,ierr)
 !!     call timing(iproc,'LagrM_commun  ','OF')
 !!     call timing(iproc,'LagrM_comput  ','ON')
 !!  end if

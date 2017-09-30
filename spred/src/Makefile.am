@@ -111,9 +111,9 @@ coulomb_global_FCFLAGS = -I. -Ispred_baselib -Iglobal_files @LIB_BIGDFT_CFLAGS@
 ###global_LDADD = spred_baselib/libspredbasef.a $(spred_library) @LINALG_LIBS@
 coulomb_global_LDADD = $(spred_library) @LIB_BIGDFT_LIBS@ @LIB_FUTILE_LIBS@ @LINALG_LIBS@
 
-frequencies_SOURCES = frequencies.f90
-frequencies_FCFLAGS = -I. -Ispred_baselib -Ifrequencies_files @LIB_BIGDFT_CFLAGS@
-frequencies_LDADD = $(spred_library) @LIB_BIGDFT_LIBS@ @LIB_FUTILE_LIBS@ @LINALG_LIBS@
+#frequencies_SOURCES = frequencies.f90
+#frequencies_FCFLAGS = -I. -Ispred_baselib -Ifrequencies_files @LIB_BIGDFT_CFLAGS@
+#frequencies_LDADD = $(spred_library) @LIB_BIGDFT_LIBS@ @LIB_FUTILE_LIBS@ @LINALG_LIBS@
 
 globaltool_SOURCES = globaltool.f90
 globaltool_FCFLAGS = -I. -Ispred_baselib -Iglobal_files @LIB_BIGDFT_CFLAGS@

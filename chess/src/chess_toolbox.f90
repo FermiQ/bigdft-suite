@@ -692,7 +692,7 @@ program chess_toolbox
                    !$omp end parallel
                    energy_arr(iorb) = energy
                end do
-               !call mpiallred(energy, 1, mpi_sum, comm=mpiworld())
+               !call fmpi_allreduce(energy, 1, FMPI_SUM, comm=mpiworld())
                do ispin=1,nspin
                    !$omp parallel default(none) &
                    !$omp shared(ispin,smat,ntmb,denskernel,ovrlp_mat,calc_array,npdos,occups) &
@@ -745,8 +745,8 @@ program chess_toolbox
            !!end do
            !!call f_close(iunit01)
        !end do
-       call mpiallred(occup_arr, mpi_sum, comm=mpiworld())
-       call mpiallred(energy_arr, mpi_sum, comm=mpiworld())
+       call fmpi_allreduce(occup_arr, FMPI_SUM, comm=mpiworld())
+       call fmpi_allreduce(energy_arr, FMPI_SUM, comm=mpiworld())
        if (iproc==0) call yaml_mapping_close()
 
        if (iproc==0) then

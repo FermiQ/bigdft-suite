@@ -55,7 +55,7 @@ libpong_a_SOURCES = pong.f90
 test_plugin_SOURCES = test_plugin.f90
 test_plugin_LDADD = $(flib_libraries) @FC_EXPORTS@
 
-CLEANFILES = *.out.yaml *.report.yaml *.@MODULE_EXT@ memstatus.yaml report_remarks *.err libpong.so
+CLEANFILES = *.out.yaml *.report.yaml *.@MODULE_EXT@ memstatus.yaml report_remarks *.err libpong.so citations.bib
 
 include $(srcdir)/import_database.mk
 
@@ -86,7 +86,7 @@ hooks.report.yaml: tols.yaml hooks.ref.yaml
 	python $(pythondir)/fldiff_yaml.py --label hooks -t $(srcdir)/tols.yaml 	\
 		-r $(srcdir)/hooks.ref.yaml -d hooks.out.yaml --output $@
 
-check: yaml_test.report.yaml hooks.report.yaml regtest report
+check: yaml_test.report.yaml regtest report
 
 report:
 	@if test $(MAKELEVEL) = 0 ; then python $(pythondir)/report.py ; fi

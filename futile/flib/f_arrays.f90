@@ -218,30 +218,21 @@ module f_arrays
       implicit none
       type(f_vector), dimension(:), pointer, intent(inout) :: array
       type(malloc_information_ptr), intent(in) :: m
+      !this section might be provided as an include file in the 
+      !directory of installation to profile the allocation
+      !of other data structures
       !local variables
       integer :: ierror
 
+      call f_timer_interrupt(TCAT_ARRAY_ALLOCATIONS)
+
       allocate(array(m%lbounds(1):m%ubounds(1)),stat=ierror)
 
-      if (ierror/=0) then
-         call f_err_throw('array ' // trim(m%array_id) // &
-              '(' // trim(yaml_toa(product(m%shape))) // &
-              '), error code '//trim(yaml_toa(ierror)),&
-              err_name='ERR_ALLOCATE')
-         return
-      end if
-      if (size(shape(array)) /= m%rank) then
-         call f_err_throw('Rank specified by f_malloc ('+&
-              yaml_toa(m%rank)// ',routine_id=' // trim(m%routine_id) // &
-              ',id=' // trim(m%array_id) //&
-              ') is not coherent with the one of the array ('+&
-              yaml_toa(size(shape(array)))//')',&
-              err_name='ERR_INVALID_MALLOC')
-              return
-      end if
+      call malloc_validate(ierror,size(shape(array)),m)
 
       !here the database for the allocation might be updated
 
+      call f_timer_resume()!TCAT_ARRAY_ALLOCATIONS
     end subroutine f_vector_allocate_1
 
     subroutine f_matrix_allocate_3(array,m)
@@ -253,28 +244,15 @@ module f_arrays
       !local variables
       integer :: ierror
 
+      call f_timer_interrupt(TCAT_ARRAY_ALLOCATIONS)
+      
       allocate(array(m%lbounds(1):m%ubounds(1),m%lbounds(2):m%ubounds(2),&
            m%lbounds(3):m%ubounds(3)),stat=ierror)
 
-      if (ierror/=0) then
-         call f_err_throw('array ' // trim(m%array_id) // &
-              '(' // trim(yaml_toa(product(m%shape))) // &
-              '), error code '//trim(yaml_toa(ierror)),&
-              err_name='ERR_ALLOCATE')
-         return
-      end if
-      if (size(shape(array)) /= m%rank) then
-         call f_err_throw('Rank specified by f_malloc ('+&
-              yaml_toa(m%rank)// ',routine_id=' // trim(m%routine_id) // &
-              ',id=' // trim(m%array_id) //&
-              ') is not coherent with the one of the array ('+&
-              yaml_toa(size(shape(array)))//')',&
-              err_name='ERR_INVALID_MALLOC')
-              return
-      end if
+      call malloc_validate(ierror,size(shape(array)),m)
 
       !here the database for the allocation might be updated
-
+      call f_timer_resume()!TCAT_ARRAY_ALLOCATIONS
     end subroutine f_matrix_allocate_3
 
     subroutine dump_f_matrix_ptr(key,arr)

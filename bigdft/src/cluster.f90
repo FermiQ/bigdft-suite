@@ -1906,14 +1906,14 @@ subroutine kswfn_optimization_loop(iproc, nproc, opt, &
            call yaml_mapping_close()
            call yaml_flush_document()
            if (opt%itrpmax >1) then
-              if ( KSwfn%diis%energy > KSwfn%diis%energy_min) &
+              if ( KSwfn%diis%energy - KSwfn%diis%energy_min > 1.e-10_gp) &
                    call yaml_warning('Found an energy value lower than the ' // final_out // ' energy (delta=' // &
                    trim(yaml_toa(KSwfn%diis%energy-KSwfn%diis%energy_min,fmt='(1pe9.2)')) // ')')
            else
               !write this warning only if the system is closed shell
               call check_closed_shell(KSwfn%orbs,lcs)
               if (lcs) then
-                 if ( energs%eKS > KSwfn%diis%energy_min) &
+                 if ( energs%eKS - KSwfn%diis%energy_min > 1.e-10_gp) &
                       call yaml_warning('Found an energy value lower than the FINAL energy (delta=' // &
                       trim(yaml_toa(energs%eKS-KSwfn%diis%energy_min,fmt='(1pe9.2)')) // ')')
               end if
@@ -2127,6 +2127,7 @@ subroutine kswfn_post_treatments(iproc, nproc, KSwfn, tmb, linear, &
   use io, only: plot_density
   use module_xc, only: XC_NO_HARTREE
   use PSbox
+  use box
   implicit none
   !Arguments
   type(DFT_wavefunction), intent(in) :: KSwfn
@@ -2256,7 +2257,7 @@ subroutine kswfn_post_treatments(iproc, nproc, KSwfn, tmb, linear, &
 
   !In principle symmetrization of the stress tensor is not needed since the density has been 
   !already symmetrized
-  if (atoms%astruct%sym%symObj >= 0 .and. denspot%pkernel%geocode=='P') &
+  if (atoms%astruct%sym%symObj >= 0 .and. cell_geocode(denspot%pkernel%mesh)=='P') &
        call symm_stress(hstrten,atoms%astruct%sym%symObj)
 
   !SM: for a spin polarized calculation, rho_work already contains the full
@@ -2303,7 +2304,7 @@ subroutine kswfn_post_treatments(iproc, nproc, KSwfn, tmb, linear, &
      if (iproc == 0) call yaml_map('Writing Hartree potential in file','hartree_potential'//gridformat)
      if (all(plot_pot_axes>=0)) then
         call plot_density(iproc,nproc,trim(dir_output)//'hartree_potential' // gridformat, &
-             atoms,rxyz,denspot%pkernel,denspot%dpbox%nrhodim,denspot%pot_work, &
+             atoms,rxyz,denspot%pkernel,1,denspot%pot_work, &
              ixyz0=plot_pot_axes)
      else if (any(plot_pot_axes>=0)) then
         call f_err_throw('The coordinates of the point through which '//&
@@ -2311,7 +2312,7 @@ subroutine kswfn_post_treatments(iproc, nproc, KSwfn, tmb, linear, &
              err_name='BIGDFT_RUNTIME_ERROR')
      else 
         call plot_density(iproc,nproc,trim(dir_output)//'hartree_potential' // gridformat, &
-             atoms,rxyz,denspot%pkernel,denspot%dpbox%nrhodim,denspot%pot_work)
+             atoms,rxyz,denspot%pkernel,1,denspot%pot_work)
      end if
   end if
 

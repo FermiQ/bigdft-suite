@@ -1,4 +1,3 @@
-!> @file
 !> Solver for the Generalized Poisson Equation.
 !! @author
 !!    Copyright (C) 2002-2017 BigDFT group  (Giuseppe Fisicaro)<br/>
@@ -22,7 +21,7 @@ program GPS_3D
    use PSbase
    use PStypes, only: build_cavity_from_rho
    use numerics
-   use psolver_environment, only: rigid_cavity_arrays,rigid_cavity_forces,vacuum_eps
+   use psolver_environment, only: rigid_cavity_arrays,rigid_cavity_forces,vacuum_eps,epsprime
    use FDder
    use f_blas, only: f_dot
    implicit none
@@ -70,10 +69,12 @@ program GPS_3D
    real(kind=8), parameter :: a_gauss = 1.0d0,a2 = a_gauss**2
    real(kind=8), parameter :: thr = 1.0d-10
    !integer :: m1,m2,m3,md1,md2,md3,nd1,nd2,nd3,n1,n2,n3,
-   integer :: itype_scf,n_cell,iproc,nproc,ixc,n01,n02,n03
+   integer :: itype_scf,n_cell,iproc,nproc,ixc,n01,n02,n03,ifx,ify,ifz
+   integer, parameter :: FUNC_GAUSSIAN = 2
    real(kind=8) :: hx,hy,hz,hgrid,sume,delta
-   real(kind=8) :: einit
+   real(kind=8) :: einit,IntSur,IntVol
    real(kind=8) :: ehartree,offset,epr,depsr,cc,kk,y,d
+   real(kind=8) :: x1,x2,x3,fx,fy,fz,fx1,fy1,fz1,fx2,fy2,fz2,factor,ax,ay,az,bx,by,bz,length,r2,dd
    real(kind=8), dimension(:,:,:,:), allocatable :: density,rhopot,rvApp,rhoele,rhoion,potsol,rhopotf,densityf
 
    logical :: logyes
@@ -88,6 +89,7 @@ program GPS_3D
    type(coulomb_operator) :: pkernel
 !   type(mpi_environment), intent(in), optional :: mpi_env
    real(kind=8), dimension(:,:,:), allocatable :: eps,potential,pot_ion,epsf,potentialf,dsurfdrho
+   real(kind=8), dimension(:,:,:), allocatable :: rho,nabla2rho,deltarho,depsdrho
    real(kind=8), dimension(:,:,:,:), allocatable :: nabla_eps
    integer :: i1,i2,i3
 !   type(mpi_environment) :: bigdft_mpi
@@ -414,7 +416,7 @@ program GPS_3D
 
    einit=0.5_dp*f_dot(rhopot,potential)*pkernel%mesh%volume_element
 
-  call dict_free(dict_input)
+  if (.not.dsurfcheck) call dict_free(dict_input)
   call pkernel_set(pkernel,verbose=.true.)
 
   !pkernel%minres=1.0d-12
@@ -540,16 +542,44 @@ program GPS_3D
 
  end if
 
+ call pkernel_free(pkernel)
 
 !----------------------------------------------------------------
 ! Inportant check of subroutines for additional terms to the forces: check dsurfeps
 ! For the rigid cavity the additional term to the force is provided by
-! rigid_cavity_arrays.
+! rigid_cavity_arrays (last term kk in the subroutine rigid_cavity_arrays).
 ! For sccs by build_cavity_from_rho. Here we do not use this last because
 ! it multiply by depsdrho. So we compute it in a similar way as done within
 ! build_cavity_from_rho with nabla_u_and_square and div_u_i.
 ! is a way to test also these last finite difference filters from psolver.
 ! It needs n=200 to get an accuracy=1e-8.
+
+ IntSur=0.d0
+ IntVol=0.d0
+ length=0.d0
+ ifx=0
+ ify=0
+ ifz=0
+ ax=0.d0
+ ay=0.d0
+ az=0.d0
+ bx=0.d0
+ by=0.d0
+ bz=0.d0
+ fx=0.d0
+ fy=0.d0
+ fz=0.d0
+ fx1=0.d0
+ fy1=0.d0
+ fz1=0.d0
+ fx2=0.d0
+ fy2=0.d0
+ fz2=0.d0
+ factor=0.d0
+ rho=f_malloc([n01,n02,n03],id='rho')
+ nabla2rho=f_malloc([n01,n02,n03],id='nabla2rho')
+ deltarho=f_malloc([n01,n02,n03],id='deltarho')
+ depsdrho=f_malloc([n01,n02,n03],id='depsdrho')
 
  if (dsurfcheck) then
 
@@ -561,6 +591,11 @@ program GPS_3D
   call f_free(potential)
   call f_free(nabla_eps)
   call f_free(dsurfdrho)
+  call f_free(pot_ion)
+  call f_free(rho)
+  call f_free(nabla2rho)
+  call f_free(deltarho)
+  call f_free(depsdrho)
 
   ndims(1)=200
   ndims(2)=200
@@ -572,6 +607,11 @@ program GPS_3D
   hy=acell/real(n02,kind=8)
   hz=acell/real(n03,kind=8)
   hgrids=(/hx,hy,hz/)
+
+  pkernel=pkernel_init(iproc,nproc,dict_input,geocode,ndims,hgrids,&
+           alpha_bc=alpha,beta_ac=beta,gamma_ab=gamma)
+  call dict_free(dict_input)
+  call pkernel_set(pkernel,verbose=.true.)
   mesh=cell_new(geocode,ndims,hgrids,alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3))
 
   eps=f_malloc([n01,n02,n03],id='eps')
@@ -582,6 +622,11 @@ program GPS_3D
   potential=f_malloc([n01,n02,n03],id='potential')
   nabla_eps=f_malloc([n01,n02,n03,3],id='nabla_eps')
   dsurfdrho=f_malloc([n01,n02,n03],id='dsurfdrho')
+  rho=f_malloc([n01,n02,n03],id='rho')
+  nabla2rho=f_malloc([n01,n02,n03],id='nabla2rho')
+  deltarho=f_malloc([n01,n02,n03],id='deltarho')
+  depsdrho=f_malloc([n01,n02,n03],id='depsdrho')
+  pot_ion=f_malloc([n01,n02,n03],id='pot_ion')
 
   pkernel%cavity%delta = 0.5d0
   do i3=1,n03
@@ -599,9 +644,8 @@ program GPS_3D
      end do
   end do
   
-  call nabla_u_and_square(geocode,n01,n02,n03,eps,nabla_eps,oneoeps,&
-       nord,hgrids)
-  call div_u_i(geocode,n01,n02,n03,nabla_eps,oneosqrteps,nord,hgrids,corr)
+  call nabla_u_and_square(pkernel%mesh,eps,nabla_eps,oneoeps,nord)
+  call div_u_i(pkernel%mesh,nabla_eps,oneosqrteps,nord,corr)
 
 
   do i3=1,n03
@@ -655,11 +699,161 @@ program GPS_3D
    close(unit=22)
   end if
 
+! Check dsurfdrho
+! just some dummy name, just eps and dsurfdrho are important for our purpose:
+!name          here,      within psolver
+!rho_full   -> rho,       eps
+!nabla_rho  -> nabla_eps
+!nabla2_rho -> nabla2rho, oneosqrteps
+!delta_rho  -> deltarho,  potential
+!cc_rho     -> oneoeps
+!depsdrho   -> depsdrho,  corr       !dimension(kernel%ndims(1),kernel%ndims(2)*kernel%grid%n3p)
+!dsurfdrho  -> dsurfdrho, pot_ion  !dimension(kernel%ndims(1),kernel%ndims(2)*kernel%grid%n3p)
 
+! Let's take a gaussian rho
+     !parameters for the test functions
+     length=acell
+     !test functions in the three directions
+     ifx=FUNC_GAUSSIAN
+     ifz=FUNC_GAUSSIAN
+     !non-periodic dimension
+     ify=FUNC_GAUSSIAN
+     !parameters of the test functions
+     ax=length*0.05d0
+     ay=length*0.05d0
+     az=length*0.05d0
+     ax=1.d0 
+     ay=1.d0
+     az=1.d0 
+     !b's are not used, actually
+     bx=2.d0!real(nu,kind=8)
+     by=2.d0!real(nu,kind=8)
+     bz=2.d0!real(nu,kind=8)
+     factor = 1.d0 !/((ax**3)*pi*sqrt(pi))
+
+     do i3=1,n03
+        x3 = hz*real(i3-n03/2-1,kind=8)
+        call functions(x3,az,bz,fz,fz1,fz2,ifz)
+        do i2=1,n02
+           x2 = hy*real(i2-n02/2-1,kind=8)
+           call functions(x2,ay,by,fy,fy1,fy2,ify)
+           do i1=1,n01
+              x1 = hx*real(i1-n01/2-1,kind=8)
+              call functions(x1,ax,bx,fx,fx1,fx2,ifx)
+              r2=x1**2+x2**2+x3**2
+              rho(i1,i2,i3) = fx*fy*fz
+              nabla2rho(i1,i2,i3) = r2*rho(i1,i2,i3)**2
+              deltarho(i1,i2,i3) = rho(i1,i2,i3)*(r2-3.d0)
+              cc=x1**4+x2**4+x3**4+2.d0*(x1**2*x2**2+x1**2*x3**2+x2**2*x3**2)
+              cc=cc-(x1**2+x2**2+x3**2)
+              cc=cc*rho(i1,i2,i3)**3
+              dd=sqrt(nabla2rho(i1,i2,i3))
+              if (dd.lt.1.0d-12) then
+               cc=0.d0
+              else
+               cc=(cc/nabla2rho(i1,i2,i3)-deltarho(i1,i2,i3))/dd
+              end if
+              !cc=cc-(x1**2+x2**2+x3**2)
+              !cc=cc*rho(i1,i2,i3)**3 
+              !dd=sqrt(r2)*abs(rho(i1,i2,i3))
+              !cc=cc*sqrt(r2)-(r2-3.d0) 
+              !cc=(cc/r2-(r2-3.d0))/sqrt(r2) 
+              depsdrho(i1,i2,i3) = epsprime(rho(i1,i2,i3),pkernel%cavity)
+              oneosqrteps(i1,i2,i3)=0.d0
+              nabla_eps(i1,i2,i3,1:3)=0.d0
+              potential(i1,i2,i3)=0.d0
+              oneoeps(i1,i2,i3)=0.d0
+              corr(i1,i2,i3)=0.d0
+              pot_ion(i1,i2,i3)=0.d0
+              dsurfdrho(i1,i2,i3)=-depsdrho(i1,i2,i3)*cc/(pkernel%cavity%epsilon0-1.d0)
+           end do
+        end do
+     end do
+
+     
+!  agauss=acell*0.05d0
+!  call test_functions_new2(mesh,acell,agauss,0.d0,eps,potential)
+
+ !all process calculate the correct slice of dsurftho
+ call rebuild_cavity_from_rho(rho,nabla_eps,oneosqrteps,potential,oneoeps,&
+      corr(1,1,pkernel%grid%istart+1),pot_ion(1,1,pkernel%grid%istart+1),pkernel,IntSur,IntVol)
+
+  call PS_reduce(IntSur,pkernel)
+  call PS_reduce(IntVol,pkernel)
+  if (iproc ==0) then
+   call yaml_map('IntSur sccs cavity',IntSur)
+   call yaml_map('IntVol sccs cavity',IntVol)
+  end if
+
+  if (iproc==0) then
+   call yaml_mapping_open('Comparison nabla2rho analytical and from rebuild_cavity_from_rho')
+   call writeroutinePot(n01,n02,n03,1,nabla2rho,0,oneosqrteps)
+   call yaml_mapping_close()
+  end if
+
+  if (iproc==0) then
+   call yaml_mapping_open('Comparison deltarho analytical and from rebuild_cavity_from_rho')
+   call writeroutinePot(n01,n02,n03,1,deltarho,0,potential)
+   call yaml_mapping_close()
+  end if
+
+  call PS_gather(corr,pkernel)
+  if (iproc==0) then
+   call yaml_mapping_open('Comparison depsdrho analytical and from rebuild_cavity_from_rho')
+   call writeroutinePot(n01,n02,n03,1,depsdrho,0,corr)
+   call yaml_mapping_close()
+  end if
+  !the array pot_ion is communicated and filled with all the slices of the
+  !processors
+  call PS_gather(pot_ion,pkernel)
+  if (iproc==0) then
+   call yaml_mapping_open('Comparison dsurfdrho analytical and from rebuild_cavity_from_rho')
+   call writeroutinePot(n01,n02,n03,1,dsurfdrho,0,pot_ion)
+   call yaml_mapping_close()
+  end if
+
+    !if (wrtfiles) then
+    if (.true.) then
+      unt=f_get_free_unit(21)
+      call f_open_file(unt,file='rho_dsurfdrho.dat')
+      i1=n01/2+1
+      do i2=1,n02
+         do i3=1,n03
+            write(unt,'(2(1x,I4),9(1x,e14.7))')i2,i3,rho(i1,i2,i3),nabla2rho(i1,i2,i3),oneosqrteps(i1,i2,i3),&
+                 deltarho(i1,i2,i3),potential(i1,i2,i3),depsdrho(i1,i2,i3),corr(i1,i2,i3),&
+                 dsurfdrho(i1,i2,i3),pot_ion(i1,i2,i3)
+         end do
+      end do
+      call f_close(unt)
+
+      unt=f_get_free_unit(22)
+      call f_open_file(unt,file='rho_dsurfdrho_line.dat')
+      i1=n01/2+1
+      i3=n03/2+1
+      do i2=1,n02
+       write(unt,'(1x,I8,9(1x,e22.15))')i2,rho(i1,i2,i3),nabla2rho(i1,i2,i3),oneosqrteps(i1,i2,i3),&
+                 deltarho(i1,i2,i3),potential(i1,i2,i3),depsdrho(i1,i2,i3),corr(i1,i2,i3),&
+                 dsurfdrho(i1,i2,i3),pot_ion(i1,i2,i3)
+      end do
+      call f_close(unt)
+    end if
+
+  IntSur=0.d0 
+  IntVol=0.d0
+  call f_zero(pkernel%IntSur)
+  call f_zero(pkernel%IntVol) 
+  call pkernel_set_epsilon(pkernel,nat=nat,rxyz=rxyz,radii=radii)
+  call PS_reduce(pkernel%IntSur,pkernel)
+  call PS_reduce(pkernel%IntVol,pkernel)
+  if (iproc ==0) then
+   call yaml_map('IntSur soft-sphere cavity',pkernel%IntSur)
+   call yaml_map('IntVol soft-sphere cavity',pkernel%IntVol)
+  end if
+
+  call pkernel_free(pkernel)
  end if
 
 !----------------------------------------------------------------
-  call pkernel_free(pkernel)
 
   call f_free(density)
   call f_free(densityf)
@@ -684,6 +878,10 @@ program GPS_3D
   call f_free(pot_ion)
   call f_free(nabla_eps)
   call f_free(dsurfdrho)
+  call f_free(rho)
+  call f_free(nabla2rho)
+  call f_free(deltarho)
+  call f_free(depsdrho)
 
   call mpifinalize()
   call f_lib_finalize()
@@ -6634,12 +6832,12 @@ subroutine SetInitDensPot(mesh,n01,n02,n03,nspden,iproc,natreal,eps,dlogeps,SetE
         sumd=0.d0
         bit=box_iter(mesh,origin=rxyz(:,iat))
         do while(box_next_point(bit))
-           r2=square(mesh,bit%rxyz)
+           r2=square_gd(mesh,bit%rxyz)
            potential1(bit%i,bit%j,bit%k) = factor*safe_exp(-0.5d0*r2/(sigma**2))
            potential(bit%i,bit%j,bit%k) = potential(bit%i,bit%j,bit%k) + potential1(bit%i,bit%j,bit%k)
            sump=sump+potential(bit%i,bit%j,bit%k)
            offset=offset+potential(bit%i,bit%j,bit%k)
-           k1=dotp(mesh,dlogeps(1,bit%i,bit%j,bit%k),bit%rxyz)
+           k1=dotp_gu(mesh,dlogeps(1,bit%i,bit%j,bit%k),bit%rxyz)
            k1=-potential1(bit%i,bit%j,bit%k)*k1/(sigma**2)
            k2 = potential1(bit%i,bit%j,bit%k)*(r2/(sigma**2)-3.d0)/(sigma**2)
            dens = (-oneofourpi)*eps(bit%i,bit%j,bit%k)*(k1+k2)&
@@ -7857,7 +8055,7 @@ subroutine Eps_rigid_cavity_multiatoms(mesh,ndims,hgrids,natreal,rxyzreal,&
        !choose the closest atom
        do iat=1,nat
           bit%tmp=bit%rxyz-rxyz(:,iat)
-          d2=square(mesh,bit%tmp)
+          d2=square_gd(mesh,bit%tmp)
 !print *,'i,j,k',bit%i,bit%j,bit%k,d2,iat,bit%rxyz
           d=dsqrt(d2)
           !------------------------------------------------------------------
@@ -7919,7 +8117,7 @@ subroutine Eps_rigid_cavity_multiatoms(mesh,ndims,hgrids,natreal,rxyzreal,&
 !          d12 = d12 + deps(i)**2
        end do
 
-       d12=square(mesh,deps)
+       d12=square_gu(mesh,deps)
 
        dd=0.d0
        do jat=1,nat

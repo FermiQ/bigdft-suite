@@ -31,5 +31,5 @@
      call mpibcast(maxdiff,1,root=iroot,comm=mpi_comm,check=.false.)
      call mpibarrier(mpi_comm) !redundant?
   else if(srce >=0) then
-     call mpiallred(maxdiff,1,MPI_MAX,comm=mpi_comm)
+     call fmpi_allreduce(maxdiff,1,FMPI_MAX,comm=mpi_comm)
   end if

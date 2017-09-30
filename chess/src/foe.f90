@@ -113,7 +113,7 @@ module foe
       real(mp) :: ebs_check_allspins
       real(mp),dimension(:),allocatable :: sumn_allspins, ebs_spins
       integer :: npl_max, npl_stride
-      integer,dimension(:,:),allocatable :: windowsx_kernel, windowsx_kernel_check
+      type(fmpi_win), dimension(:,:),allocatable :: windowsx_kernel, windowsx_kernel_check
 
 
 
@@ -380,7 +380,7 @@ module foe
               temparr(1) = ebs_spins(ispin) !ebsp
               temparr(2) = ebs_check
               if (nproc>1) then
-                  call mpiallred(temparr, mpi_sum, comm=comm)
+                  call fmpi_allreduce(temparr, FMPI_SUM, comm=comm)
               end if
               ebsp = temparr(1)
               ebs_check = temparr(2)
@@ -461,7 +461,7 @@ module foe
 !!$          end do
 !!$
 !!$          if (nproc > 1) then
-!!$              call mpiallred(diff, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
+!!$              call fmpi_allreduce(diff, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
 !!$          end if
 !!$
 !!$          diff=sqrt(diff)
@@ -499,7 +499,7 @@ module foe
           ncount = smatl%smmm%istartend_mm_dj(2) - smatl%smmm%istartend_mm_dj(1) + 1
           istl = smatl%smmm%istartend_mm_dj(1)-smatl%isvctrp_tg
           ebsp = ddot(ncount, kernel_%matrix_compr(ilshift+istl), 1, hamscal_compr(ilshift+istl), 1)
-          call mpiallred(ebsp, 1, mpi_sum, comm=comm)
+          call fmpi_allreduce(ebsp, 1, FMPI_SUM, comm=comm)
           ebsp = ebsp/scale_factor+shift_value*sumn
           ebs = ebs + ebsp
       end do
@@ -617,8 +617,8 @@ module foe
 
       call f_free(kernelpp_work)
       call f_free(kernelpp_check_work)
-      call f_free(windowsx_kernel)
-      call f_free(windowsx_kernel_check)
+      call free_fmpi_win_arr(windowsx_kernel)
+      call free_fmpi_win_arr(windowsx_kernel_check)
       call f_free(matrix_local)
       !call f_free(matrix_local_check)
       call f_free(sumn_allspins)

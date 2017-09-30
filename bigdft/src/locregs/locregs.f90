@@ -43,6 +43,7 @@ module locregs
      type(convolutions_bounds) :: bounds
      type(cell) :: mesh !<defines the cell of the system 
                         !! (should replace the other geometrical informations)
+     type(cell) :: mesh_coarse !<discreatization of the coarse egrees of freedom
      !>iterator over the mesh degrees of freedom
      type(box_iterator) :: bit
   end type locreg_descriptors
@@ -98,6 +99,7 @@ contains
     lr%locregCenter=(/0.0_gp,0.0_gp,0.0_gp/) 
     lr%locrad=0
     lr%mesh=cell_null()
+    lr%mesh_coarse=cell_null()
     call nullify_box_iterator(lr%bit)
   end subroutine nullify_locreg_descriptors
 
@@ -143,6 +145,7 @@ contains
     call copy_convolutions_bounds(glrin%bounds, glrout%bounds)
 
     glrout%mesh=glrin%mesh
+    glrout%mesh_coarse=glrin%mesh_coarse
     glrout%bit=glrin%bit
   end subroutine copy_locreg_descriptors
   pure subroutine copy_grid_dimensions(din, dout)
@@ -417,6 +420,7 @@ contains
          lr%ns1,lr%ns2,lr%ns3)
 
       lr%mesh=cell_new(geocode,[lr%d%n1i,lr%d%n2i,lr%d%n3i],hgridsh)
+      lr%mesh_coarse=cell_new(geocode,[lr%d%n1,lr%d%n2,lr%d%n3],2.0_gp*hgridsh)
 
       Gnbl1=0
       Gnbl2=0
@@ -467,7 +471,7 @@ contains
       character(len=1) :: geocode
       logical :: Gperx,Gpery,Gperz,xperiodic,yperiodic,zperiodic
       integer :: isx,iex,isy,iey,isz,iez
-      integer :: Gnbl1,Gnbl2,Gnbl3,Gnbr1,Gnbr2,Gnbr3
+      !!$ integer :: Gnbl1,Gnbl2,Gnbl3,Gnbr1,Gnbr2,Gnbr3
       integer :: Lnbl1,Lnbl2,Lnbl3,Lnbr1,Lnbr2,Lnbr3
       integer :: ln1,ln2,ln3
       logical, dimension(3) :: peri
@@ -683,7 +687,7 @@ contains
               &//&!trim(yaml_toa(ilr,fmt='(i0)'))//&
               '('//trim(yaml_toa(lr%d%n1i,fmt='(i0)'))//')&
               & is larger than that of the global region('//trim(yaml_toa(Glr%d%n1i,fmt='(i0)'))//').&
-              & Reduce the localization radii or use the cubic version',&
+              & Reduce the localization radii or use the cubic scaling version',&
               & err_name='BIGDFT_RUNTIME_ERROR')
       end if
       if (lr%d%n2i>Glr%d%n2i) then
@@ -691,7 +695,7 @@ contains
               !&//trim(yaml_toa(ilr,fmt='(i0)'))&
               //'('//trim(yaml_toa(lr%d%n2i,fmt='(i0)'))//')&
               & is larger than that of the global region('//trim(yaml_toa(Glr%d%n2i,fmt='(i0)'))//').&
-              & Reduce the localization radii or use the cubic version',&
+              & Reduce the localization radii or use the cubic scaling version',&
               & err_name='BIGDFT_RUNTIME_ERROR')
       end if
       if (lr%d%n3i>Glr%d%n3i) then
@@ -699,7 +703,7 @@ contains
               !&//trim(yaml_toa(ilr,fmt='(i0)'))&
               //'('//trim(yaml_toa(lr%d%n3i,fmt='(i0)'))//')&
               & is larger than that of the global region('//trim(yaml_toa(Glr%d%n3i,fmt='(i0)'))//').&
-              & Reduce the localization radii or use the cubic version',&
+              & Reduce the localization radii or use the cubic scaling version',&
               & err_name='BIGDFT_RUNTIME_ERROR')
       end if
 
