@@ -861,6 +861,7 @@ program chess_toolbox
                 smat_arr1(1), mat, init_matmul=.false.)
        end select
        call init_matrix_taskgroups_wrapper(iproc, nproc, mpiworld(), .false., 1, smat_arr1)
+       call resize_matrix_to_taskgroup(smat_arr1(1), mat)
        if (iproc==0) then
            call yaml_mapping_open('Matrix properties')
            call write_sparsematrix_info(smat_arr1(1), 'Input matrix')
@@ -990,7 +991,13 @@ program chess_toolbox
        call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, trim(kernel_file), &
             iproc, nproc, mpiworld(), smat(2), kernel_mat, &
             init_matmul=.true., filename_mult=trim(kernel_matmul_file))
+       !!if (iproc==0) then
+       !!    write(*,*) 'FIRST: sum(abs(ovrlp_mat%matrix_compr))',sum(abs(ovrlp_mat%matrix_compr))
+       !!    write(*,*) 'FIRST: sum(abs(ovrlp_large%matrix_compr))',sum(abs(ovrlp_large%matrix_compr))
+       !!end if
        call init_matrix_taskgroups_wrapper(iproc, nproc, mpiworld(), .false., 2, smat)
+       call resize_matrix_to_taskgroup(smat(1), ovrlp_mat)
+       call resize_matrix_to_taskgroup(smat(2), kernel_mat)
 
        if (iproc==0) then
            call yaml_mapping_open('Matrix properties')
@@ -1083,23 +1090,40 @@ program chess_toolbox
 
            call transform_sparse_matrix(iproc, smat(1), smat(2), SPARSE_FULL, 'small_to_large', &
                                         smat_in=ovrlp_mat%matrix_compr, lmat_out=ovrlp_large%matrix_compr)
+           !!if (iproc==0) then
+           !!    write(*,*) 'sum(abs(ovrlp_mat%matrix_compr))',sum(abs(ovrlp_mat%matrix_compr))
+           !!    write(*,*) 'sum(abs(ovrlp_large%matrix_compr))',sum(abs(ovrlp_large%matrix_compr))
+           !!end if
 
            if (iproc==0) then
                call yaml_comment('Fragment number'//trim(yaml_toa(ifrag)),hfill='-')
                call yaml_sequence(advance='no')
-               call yaml_map('Atoms ID',fragment_atom_id)
+               call yaml_map('Atom IDs',fragment_atom_id)
+               !call yaml_map('Sup Fun IDs',fragment_supfun_id)
                call yaml_map('Submatrix size',nfvctr_frag)
            end if
 
            ! Calculate KSK-K for the submatrices
+           !!if (iproc==0) write(*,*) 'extracting ovrlp_large'
            call extract_fragment_submatrix(smmd, smat(2), ovrlp_large, nat_frag, nfvctr_frag, &
                 fragment_atom_id, fragment_supfun_id, overlap_fragment)
+           !!if (iproc==0) write(*,*) 'extracting kernel_mat'
            call extract_fragment_submatrix(smmd, smat(2), kernel_mat, nat_frag, nfvctr_frag, &
                 fragment_atom_id, fragment_supfun_id, kernel_fragment)
+           !!if (iproc==0) then
+           !!    write(*,*) 'overlap_fragment',overlap_fragment
+           !!    write(*,*) 'kernel_fragment',kernel_fragment
+           !!end if
            call gemm('n', 'n', nfvctr_frag, nfvctr_frag, nfvctr_frag, factor, kernel_fragment(1,1), nfvctr_frag, &
                 overlap_fragment(1,1), nfvctr_frag, 0.d0, tmpmat(1,1), nfvctr_frag)
+           !!if (iproc==0) then
+           !!    write(*,*) 'tmpmat',tmpmat
+           !!end if
            call gemm('n', 'n', nfvctr_frag, nfvctr_frag, nfvctr_frag, 1.d0, tmpmat(1,1), nfvctr_frag, &
                 kernel_fragment(1,1), nfvctr_frag, 0.d0, ksk_fragment(1,1), nfvctr_frag)
+           !!if (iproc==0) then
+           !!    write(*,*) 'ksk_fragment',ksk_fragment
+           !!end if
            maxdiff = 0.0_mp
            meandiff = 0.0_mp
            tracediff = 0.0_mp
@@ -1648,6 +1672,7 @@ end program chess_toolbox
 subroutine extract_fragment_submatrix(smmd, smat, mat, nat_frag, nfvctr_frag, &
            fragment_atom_id, fragment_supfun_id, mat_frag)
   use sparsematrix_base
+  !!use wrapper_mpi
   implicit none
 
   ! Calling arguments
@@ -1702,6 +1727,7 @@ subroutine extract_fragment_submatrix(smmd, smat, mat, nat_frag, nfvctr_frag, &
               !mat_frag(iirow,iicol) = mat%matrix_compr(ii)
               iirow = fragment_supfun_id(irow)
               iicol = fragment_supfun_id(icol)
+              !!if (mpirank()==0) write(*,'(a,5i8,es16.6)') 'irow, icol, iirow, iicol, ii, val', irow, icol, iirow, iicol, ii, mat%matrix_compr(ii)
               mat_frag(iirow,iicol) = mat%matrix_compr(ii)
           end if
           !write(*,*) 'iirow, iicol, ii, mat_frag, mat_compr', iirow, iicol, ii, mat_frag(iirow,iicol), mat%matrix_compr(ii)
