@@ -435,6 +435,7 @@ class BigDFTInstaller():
         #Clearly such actions only _assume_ that the build is fully functional and almost nothing
         #can be done with this file if a problem might arise.
         #Otherwise stated: this is an automatic message, please do not reply.
+all: build
         """)
         for a in ACTIONS:
             sflist.append(a+':  ')

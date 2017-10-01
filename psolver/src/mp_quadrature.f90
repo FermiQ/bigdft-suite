@@ -20,6 +20,7 @@ module multipole_preserving
   !> log of the minimum value of the scf data
   !! to avoid floating point exceptions while multiplying with it
   real(gp) :: mn_scf = 0.0_gp
+  real(gp), parameter :: mp_tiny = 1.e-30_gp !<put zero when the value is lower than this
 
   public :: initialize_real_space_conversion,finalize_real_space_conversion,scfdotf,mp_exp
 
@@ -125,7 +126,7 @@ module multipole_preserving
          mp_exp=scfdotf(j,hgrid,expo,x0,pow)
       else
          x=hgrid*j-x0
-         mp_exp=safe_exp(-expo*x**2)
+         mp_exp=safe_exp(-expo*x**2,underflow=mp_tiny)
          if (pow /= 0) mp_exp=mp_exp*(x**pow)
       end if
     end function mp_exp
@@ -165,7 +166,7 @@ module multipole_preserving
             !here evaluate the function
             fabsci = absci**pow
             absci = -pgauss*absci*absci
-            fabsci = fabsci*safe_exp(absci,underflow=mn_scf)
+            fabsci = fabsci*safe_exp(absci)!,underflow=mn_scf)
             !calculate the integral
             gint = gint + scf_data(i)*fabsci
             !       print *,'test',i,scf_data(i),fabsci,pgauss,pow,absci
@@ -176,7 +177,7 @@ module multipole_preserving
             absci = x*hgrid - x0
             !          !here evaluate the function
             absci = -pgauss*absci*absci
-            fabsci = safe_exp(absci,underflow=mn_scf)
+            fabsci = safe_exp(absci)!,underflow=mn_scf)
             !calculate the integral
             !          fabsci= safe_gaussian(x0,x*hgrid,pgauss)
             !print *,'test',i,scf_data(i),fabsci,pgauss,absci,log(tiny(1.d0)),tiny(1.d0)
@@ -185,7 +186,7 @@ module multipole_preserving
          end do
       end if
       gint = gint*dx
-
+      if (abs(gint) < mp_tiny) gint=0.0_gp
     end function scfdotf
     
 end module multipole_preserving
