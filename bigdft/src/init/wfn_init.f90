@@ -351,7 +351,7 @@ subroutine LDiagHam(iproc,nproc,natsc,nspin,orbs,Lzd,Lzde,comms,&
 
   if (nproc > 1) then
      !reduce the overlap matrix between all the processors
-     call mpiallred(hamovr,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+     call fmpi_allreduce(hamovr,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
   end if
 
 ! DEBUG
@@ -473,7 +473,7 @@ end if
               hamovr(:,:,ikpt) = 0._gp
            end if
         end do
-        call mpiallred(hamovr,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+        call fmpi_allreduce(hamovr,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
      end if
      do ikptp=1,orbse%nkptsp
         ikpt=orbse%iskpts+ikptp!orbse%ikptsp(ikptp)
@@ -518,7 +518,7 @@ end if
   end if
 
   !this untranspose also the wavefunctions 
-  call untranspose_v(iproc,nproc,orbs,Lzd%Glr%wfd,comms, psit(1),hpsi(1),out_add=psi(1))
+  call untranspose_v(iproc,nproc,orbs,Lzd%Glr%wfd,comms, psit,hpsi,out_add=psi)
 
 !!$!here the checksum of the wavefunction can be extracted
 !!$do jproc=0,bigdft_mpi%nproc-1
@@ -1184,9 +1184,9 @@ subroutine inputguessParallel(iproc, nproc, orbs, norbscArr, hamovr, psi,&
          norbpArrSimulLoc=0
          if(iproc<nprocSubu+nprocSubd) norbpArrSimulLoc(iproc)=norbpArr(iproc)
          !call mpi_allreduce(norbpArrSimulLoc(0), norbpArrSimul(0), nprocSubu+nprocSubd,&
-         !     mpi_integer, mpi_sum, bigdft_mpi%mpi_comm, ierr)
-         call mpiallred(sendbuf=norbpArrSimulLoc(0), recvbuf=norbpArrSimul(0), count=nprocSubu+nprocSubd,&
-              op=mpi_sum, comm=bigdft_mpi%mpi_comm)
+         !     mpi_integer, FMPI_SUM, bigdft_mpi%mpi_comm, ierr)
+         call fmpi_allreduce(sendbuf=norbpArrSimulLoc(0), recvbuf=norbpArrSimul(0), count=nprocSubu+nprocSubd,&
+              op=FMPI_SUM, comm=bigdft_mpi%mpi_comm)
 
          call f_free(norbpArrSimulLoc)
       end if
@@ -1664,7 +1664,9 @@ subroutine inputguessParallel(iproc, nproc, orbs, norbscArr, hamovr, psi,&
             if(nprocSub>1) then
                call timing(iproc, 'Input_comput', 'OF')
                call timing(iproc, 'Input_commun', 'ON')
-               call mpi_allreduce(gradientMax(2), gradientMax(1), 1, mpi_double_precision, mpi_max, newComm, ierr)
+               !call mpi_allreduce(gradientMax(2), gradientMax(1), 1, mpi_double_precision, mpi_max, newComm, ierr)
+               call fmpi_allreduce(sendbuf=gradientMax(2),recvbuf=gradientMax(1),count=1,op=FMPI_MAX,&
+                    comm=newComm)
                call timing(iproc, 'Input_commun', 'OF')
                call timing(iproc, 'Input_comput', 'ON')
             else
@@ -2130,7 +2132,9 @@ subroutine inputguessParallel(iproc, nproc, orbs, norbscArr, hamovr, psi,&
       end do
       call timing(iproc, 'Input_comput', 'OF')
       call timing(iproc, 'Input_commun', 'ON')
-      call mpi_allreduce(kpArr(1,0,2), kparr(1,0,1), orbs%nkpts*nproc, mpi_integer, mpi_sum, bigdft_mpi%mpi_comm, ierr)
+      !call mpi_allreduce(kpArr(1,0,2), kparr(1,0,1), orbs%nkpts*nproc, mpi_integer, mpi_sum, bigdft_mpi%mpi_comm, ierr)
+      call fmpi_allreduce(sendbuf=kpArr(1,0,2),recvbuf=kparr(1,0,1),count=orbs%nkpts*nproc,&
+           op=FMPI_SUM,comm=bigdft_mpi%mpi_comm)
       call timing(iproc, 'Input_commun', 'OF')
       call timing(iproc, 'Input_comput', 'ON')
 
@@ -2511,10 +2515,18 @@ subroutine orthonormalizePsi(iproc, nproc, norbtot, norb, norbp, norbpArr,&
 
       call timing(iproc, 'Input_comput', 'OF')
       call timing(iproc, 'Input_commun', 'ON')
-      call mpi_alltoallv(psiW(1), sendcounts, sdispls, mpi_double_precision, psiWTrans(1), &
-         &   recvcounts, rdispls, mpi_double_precision, newComm, ierr)
-      call mpi_alltoallv(overlapPsiW(1), sendcounts, sdispls, mpi_double_precision, overlapPsiWTrans(1),&
-         &   recvcounts, rdispls, mpi_double_precision, newComm, ierr)
+      !!call mpi_alltoallv(psiW(1), sendcounts, sdispls, mpi_double_precision, psiWTrans(1), &
+      !!   &   recvcounts, rdispls, mpi_double_precision, newComm, ierr)
+      call fmpi_alltoall(sendbuf=psiW,&
+           sendcounts=sendcounts,sdispls=sdispls,&
+           recvbuf=psiWTrans,&
+           recvcounts=recvcounts,rdispls=rdispls,comm=newComm)
+      !!call mpi_alltoallv(overlapPsiW(1), sendcounts, sdispls, mpi_double_precision, overlapPsiWTrans(1),&
+      !!   &   recvcounts, rdispls, mpi_double_precision, newComm, ierr)
+      call fmpi_alltoall(sendbuf=overlapPsiW,&
+           sendcounts=sendcounts,sdispls=sdispls,&
+           recvbuf=overlapPsiWTrans,&
+           recvcounts=recvcounts,rdispls=rdispls,comm=newComm)
       call timing(iproc, 'Input_commun', 'OF')
       call timing(iproc, 'Input_comput', 'ON')
    else
@@ -2590,8 +2602,11 @@ subroutine orthonormalizePsi(iproc, nproc, norbtot, norb, norbp, norbpArr,&
       ! Now untranspose the vectors.
       call timing(iproc, 'Input_comput', 'OF')
       call timing(iproc, 'Input_commun', 'ON')
-      call mpi_alltoallv(psiWTrans(1), sendcounts, sdispls, mpi_double_precision, psiW(1),&
-         &   recvcounts, rdispls, mpi_double_precision, newComm, ierr)
+      !!call mpi_alltoallv(psiWTrans(1), sendcounts, sdispls, mpi_double_precision, psiW(1),&
+      !!   &   recvcounts, rdispls, mpi_double_precision, newComm, ierr)
+      call fmpi_alltoall(sendbuf=psiWTrans,&
+           sendcounts=sendcounts,sdispls=sdispls,&
+           recvbuf=psiW,recvcounts=recvcounts,rdispls=rdispls,comm=newComm)
       call timing(iproc, 'Input_commun', 'OF')
       call timing(iproc, 'Input_comput', 'ON')
 
@@ -2683,8 +2698,11 @@ subroutine gramschmidtOverlap(iproc, nproc, norbtot, blocksize, psi, overlapPsi,
    if(nproc>1) then
       call timing(iproc, 'Input_comput', 'OF')
       call timing(iproc, 'Input_commun', 'ON')
-      call mpi_allreduce (ovrlp(1,1,2), ovrlp(1,1,1), blocksize*blocksize*nspinor*nkpts,&
-         &   mpi_double_precision, mpi_sum, newComm, ierr)
+      !call mpi_allreduce (ovrlp(1,1,2), ovrlp(1,1,1), blocksize*blocksize*nspinor*nkpts,&
+      !     mpi_double_precision, mpi_sum, newComm, ierr)
+      call fmpi_allreduce(sendbuf=ovrlp(1,1,2),recvbuf=ovrlp(1,1,1),count=blocksize*blocksize*nspinor*nkpts,&
+           op=FMPI_SUM,comm=newComm)
+
       call timing(iproc, 'Input_commun', 'OF')
       call timing(iproc, 'Input_comput', 'ON')
    end if
@@ -2773,8 +2791,8 @@ subroutine choleskyOverlap(iproc, nproc, norbtot, blocksize, psi, overlapPsi, &
    if(nproc>1) then
       call timing(iproc, 'Input_comput', 'OF')
       call timing(iproc, 'Input_commun', 'ON')
-      call mpi_allreduce (ovrlp(1,1,2), ovrlp(1,1,1), blocksize*blocksize*nkpts*nspinor,&
-         &   mpi_double_precision, mpi_sum, newComm, ierr)
+      call fmpi_allreduce(sendbuf=ovrlp(1,1,2),recvbuf=ovrlp(1,1,1),count=blocksize*blocksize*nkpts*nspinor,&
+           op=FMPI_SUM,comm=newComm)
       call timing(iproc, 'Input_commun', 'OF')
       call timing(iproc, 'Input_comput', 'ON')
    end if

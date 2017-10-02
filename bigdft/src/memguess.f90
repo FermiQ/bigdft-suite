@@ -64,7 +64,7 @@ program memguess
    integer :: export_wf_iband, export_wf_ispin, export_wf_ikpt, export_wf_ispinor,irad
    real(gp) :: hx,hy,hz,energy,occup,interval,tt,cutoff,power,d,occup_pdos, total_occup, total_fe
    type(memory_estimation) :: mem
-   type(run_objects), pointer :: runObj
+   type(run_objects) :: runObj
    type(orbitals_data) :: orbstst
    type(orbitals_data), pointer :: orbs
    type(DFT_PSP_projectors) :: nlpsp
@@ -112,7 +112,7 @@ program memguess
    real(kind=8),parameter :: degree=1.d0
    character(len=6) :: direction
    character(len=2) :: backslash
-   logical :: file_exists, found_bin
+   logical :: file_exists, found_bin, orbs_associated_occ
    logical,dimension(:,:),allocatable :: calc_array
    real(kind=8),parameter :: eps_roundoff=1.d-5
    type(sparse_matrix) :: smat_s, smat_m, smat_l
@@ -1544,29 +1544,25 @@ program memguess
               & basedist=runObj%rst%KSwfn%orbs%norb_par(0:,1:), &
               & basedistu=runObj%rst%KSwfn%orbs%norbu_par(0:,1:), &
               & basedistd=runObj%rst%KSwfn%orbs%norbd_par(0:,1:))
+         orbs_associated_occ=.false.
       else
          orbs => runObj%rst%KSwfn%orbs
+         orbs_associated_occ=.true.
       end if
 
       ! Optionally compute iorbp from arguments in case of ETSF.
-      !if (f_err_raise(export_wf_ikpt < 1 .or. export_wf_ikpt > orbs%nkpts, &
-      !     'The value ikpt is not compatible with the kpt dimension',&
-      !       err_name='BIGDFT_RUNTIME_ERROR')) return
-      !    !then !exit !return
-      ! !end if
-      !if (f_err_raise(export_wf_ispin < 1 .or. export_wf_ispin > orbs%nspin, &
-      !     'The value ispin is not compatible with the spin dimension',&
-      !       err_name='BIGDFT_RUNTIME_ERROR')) return 
-      !    !then !exit !return
-      ! !end if
-      !if (f_err_raise((export_wf_ispin == 1 .and. &
-      !     & (export_wf_iband < 1 .or. export_wf_iband > orbs%norbu)) .or. &
-      !     & (export_wf_ispin == 0 .and. &
-      !     & (export_wf_iband < 1 .or. export_wf_iband > orbs%norbd)), &
-      !     'The value iband is not compatible with the orbital dimension',&
-      !       err_name='BIGDFT_RUNTIME_ERROR')) return 
-      !    !then !exit !return
-       !end if
+      if (f_err_raise(export_wf_ikpt < 1 .or. export_wf_ikpt > orbs%nkpts, &
+           'The value ikpt is not compatible with the kpt dimension',&
+             err_name='BIGDFT_RUNTIME_ERROR')) stop
+      if (f_err_raise(export_wf_ispin < 1 .or. export_wf_ispin > orbs%nspin, &
+           'The value ispin is not compatible with the spin dimension',&
+             err_name='BIGDFT_RUNTIME_ERROR')) stop
+      if (f_err_raise((export_wf_ispin == 1 .and. &
+           & (export_wf_iband < 1 .or. export_wf_iband > orbs%norbu)) .or. &
+           & (export_wf_ispin == 0 .and. &
+           & (export_wf_iband < 1 .or. export_wf_iband > orbs%norbd)), &
+           'The value iband is not compatible with the orbital dimension',&
+             err_name='BIGDFT_RUNTIME_ERROR')) stop
       iorbp = (export_wf_ikpt - 1) * orbs%norb + &
            & (export_wf_ispin - 1) * orbs%norbu + export_wf_iband
 
@@ -1586,7 +1582,7 @@ program memguess
            & runObj%rst%KSwfn%Lzd%hgrids,runObj%rst%KSwfn%Lzd%Glr, &
            & runObj%atoms,runObj%atoms%astruct%rxyz,orbs,runObj%rst%KSwfn%psi,&
            & iorbp,export_wf_ispinor,ref_frags)
-      if (associated(orbs, runObj%rst%KSwfn%orbs)) then
+      if (orbs_associated_occ) then !associated(orbs, runObj%rst%KSwfn%orbs)) then
          call filename_of_iorb(.false.,"wavefunction",orbs,iorbp, &
               & export_wf_ispinor,filename_wfn,iorb_out)
       else
@@ -1601,7 +1597,7 @@ program memguess
       deallocate(ref_frags)
       nullify(ref_frags)
 
-      if (.not. associated(orbs, runObj%rst%KSwfn%orbs)) then
+      if (.not. orbs_associated_occ) then !(.not. associated(orbs, runObj%rst%KSwfn%orbs)) then
          call deallocate_orbitals_data(orbs)
          deallocate(orbs)
       end if
@@ -2568,16 +2564,16 @@ subroutine take_psi_from_file(filename,in_frag,hgrids,lr,at,rxyz,orbs,psi,iorbp,
 
       if (f_err_raise(iorbp > orbs%norbu, &
            'The value iorb read from the filename is not compatible with the orbital dimension',&
-             err_name='BIGDFT_RUNTIME_ERROR')) return
+             err_name='BIGDFT_RUNTIME_ERROR')) stop
       if (f_err_raise(ikpt > orbs%nkpts, &
            'The value ikpt read from the filename is not compatible with the kpt dimension',&
-             err_name='BIGDFT_RUNTIME_ERROR')) return
+             err_name='BIGDFT_RUNTIME_ERROR')) stop
       if (f_err_raise(ispin > orbs%nspin, &
            'The value ispin read from the filename is not compatible with the spin dimension',&
-             err_name='BIGDFT_RUNTIME_ERROR')) return
+             err_name='BIGDFT_RUNTIME_ERROR')) stop
       if (f_err_raise(ispinor > orbs%nspinor, &
            'The value ispinor read from the filename is not compatible with the spinor dimension',&
-             err_name='BIGDFT_RUNTIME_ERROR')) return
+             err_name='BIGDFT_RUNTIME_ERROR')) stop
 
 
       i = index(filename, "/",back=.true.)+1

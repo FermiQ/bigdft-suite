@@ -58,7 +58,7 @@ module f_utils
   !> Interface for difference between two intrinsic types
   interface f_diff
      module procedure f_diff_i,f_diff_r,f_diff_d,f_diff_li,f_diff_l
-     module procedure f_diff_d2d3,f_diff_d2d1,f_diff_d1d2,f_diff_d2,f_diff_d1
+     module procedure f_diff_d2d3,f_diff_d2d1,f_diff_d3d1,f_diff_d1d2,f_diff_d2,f_diff_d1
      module procedure f_diff_d3
      module procedure f_diff_i2i1,f_diff_i3i1,f_diff_i1,f_diff_i2,f_diff_i1i2
      module procedure f_diff_li2li1,f_diff_li1,f_diff_li2,f_diff_li1li2
@@ -79,12 +79,12 @@ module f_utils
   end interface f_sizeof
 
   interface f_size
-     module procedure f_size_i1,f_size_i2,f_size_i3,f_size_i4,f_size_i5
+     module procedure f_size_i0,f_size_i1,f_size_i2,f_size_i3,f_size_i4,f_size_i5
      module procedure f_size_li1,f_size_li2,f_size_li3,f_size_li4,f_size_li5
      module procedure f_size_b1,f_size_b2
      module procedure f_size_l1,f_size_l2,f_size_l3,f_size_l4,f_size_l5
      module procedure f_size_r1,f_size_r2,f_size_r3,f_size_r4,f_size_r5
-     module procedure f_size_d1,f_size_d2,f_size_d3,f_size_d4,f_size_d5,f_size_d6,f_size_d7
+     module procedure f_size_d0,f_size_d1,f_size_d2,f_size_d3,f_size_d4,f_size_d5,f_size_d6,f_size_d7
      module procedure f_size_z1,f_size_z2,f_size_z3,f_size_z4,f_size_z5
      module procedure f_size_c0,f_size_c1
   end interface f_size
@@ -134,6 +134,7 @@ module f_utils
      module procedure f_null_i0,f_null_d0,f_null_r0
      module procedure f_null_d1_ptr
      module procedure f_null_i1_ptr,f_null_i2_ptr
+     module procedure f_null_l0
   end interface assignment(=)
 
   public :: f_diff,f_file_unit,f_mkdir,f_savetxt
@@ -849,6 +850,14 @@ contains
     if (nl%none==NULL_) nullify(val)
   end subroutine f_null_i2_ptr
 
+  !>nullification information
+  pure subroutine f_null_l0(val,nl)
+    implicit none
+    type(f_none_object), intent(in) :: nl
+    logical, intent(out) :: val
+    if (nl%none==NULL_) val=.false.
+  end subroutine f_null_l0
+
   
   !>increment a integer, to be used in low-performance routines
   !to improve readability
@@ -931,7 +940,6 @@ contains
     external ::  diff_i
     call diff_i(n,a(1),b(1,1),diff,idiff)
   end subroutine f_diff_i1i2
-
 
   subroutine f_diff_li(n,a_add,b_add,diff)
     implicit none
@@ -1048,6 +1056,17 @@ contains
     external ::  diff_d
     call diff_d(n,a(1,1),b(1),diff,idiff)
   end subroutine f_diff_d2d1
+  subroutine f_diff_d3d1(n,a,b,diff)
+    implicit none
+    integer(f_long), intent(in) :: n
+    double precision, dimension(:,:,:),   intent(in) :: a
+    double precision, dimension(:), intent(in) :: b
+    double precision, intent(out) :: diff
+    !local variables
+    integer(f_long) :: idiff
+    external ::  diff_d
+    call diff_d(n,a(1,1,1),b(1),diff,idiff)
+  end subroutine f_diff_d3d1
   subroutine f_diff_d0d1(n,a,b,diff)
     implicit none
     integer(f_long), intent(in) :: n
@@ -1570,6 +1589,13 @@ contains
     integer(f_long) :: s; s=product(int(shape(datatype,f_long)))*int(2*kind(datatype),f_long)
   end function f_sizeof_z5
 
+  pure function f_size_i0(datatype) result(s)
+    integer(f_integer), intent(in) :: datatype
+    integer(f_long) :: s
+    !local variable
+    integer :: mt; mt=kind(datatype)
+    s=int(1,f_long)
+  end function f_size_i0
   pure function f_size_i1(datatype) result(s)
     integer(f_integer), dimension(:), intent(in) :: datatype
     integer(f_long) :: s; s=product(int(shape(datatype,f_long)))!*int(kind(datatype),f_long)
@@ -1645,6 +1671,13 @@ contains
   end function f_size_b2
 
 
+  pure function f_size_d0(datatype) result(s)
+    real(f_double), intent(in) :: datatype
+    integer(f_long) :: s
+    !local variable
+    integer :: mt; mt=kind(datatype)
+    s=int(1,f_long)
+  end function f_size_d0
   pure function f_size_d1(datatype) result(s)
     real(f_double), dimension(:), intent(in) :: datatype
     integer(f_long) :: s; s=product(int(shape(datatype,f_long)))!*int(kind(datatype),f_long)

@@ -402,7 +402,7 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
   enddo
 
   ! Distribute the data to all process, using an allreduce
-  call mpiallred(reducearr, mpi_sum, comm=bigdft_mpi%mpi_comm)
+  call fmpi_allreduce(reducearr, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
   do iat=1,at%astruct%nat
       if (nl%pspd(iat)%mproj > 0) then
           nseg = nl%pspd(iat)%plr%wfd%nseg_c + nl%pspd(iat)%plr%wfd%nseg_f
@@ -1762,7 +1762,7 @@ subroutine input_wf_disk(iproc, nproc, input_wf_format, d, hx, hy, hz, &
        & orbs,d%n1,d%n2,d%n3,hx,hy,hz,atoms,rxyz_old,rxyz,wfd,psi)
 
   !reduce the value for all the eigenvectors
-  if (nproc > 1) call mpiallred(orbs%eval,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+  if (nproc > 1) call fmpi_allreduce(orbs%eval,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
 
   if (in%scf .hasattr. 'MIXING') then
      !recalculate orbitals occupation numbers
@@ -3792,7 +3792,7 @@ subroutine input_wf_memory_new(nproc, iproc, atoms, &
   end do
 
   if (nproc > 1) then
-      call mpiallred(shift, MPI_SUM,comm=bigdft_mpi%mpi_comm)
+      call fmpi_allreduce(shift, FMPI_SUM,comm=bigdft_mpi%mpi_comm)
   end if
 
 !Interpolation

@@ -777,18 +777,18 @@ end if
   select case(trim(str(kernel%method)))
   case('PCG')
      if (present(eps)) then
-     if (present(oneosqrteps)) then
-        call pkernel_set_epsilon(kernel,eps=eps,oneosqrteps=oneosqrteps)
-     else if (present(corr)) then
-        call pkernel_set_epsilon(kernel,eps=eps,corr=corr)
-     else
-        call pkernel_set_epsilon(kernel,eps=eps)
+         if (present(oneosqrteps)) then
+            call pkernel_set_epsilon(kernel,eps=eps,oneosqrteps=oneosqrteps)
+         else if (present(corr)) then
+            call pkernel_set_epsilon(kernel,eps=eps,corr=corr)
+         else
+            call pkernel_set_epsilon(kernel,eps=eps)
+         end if
+     else if (present(oneosqrteps) .and. present(corr)) then
+         call pkernel_set_epsilon(kernel,oneosqrteps=oneosqrteps,corr=corr)
+     else if (present(oneosqrteps) .neqv. present(corr)) then
+         call f_err_throw('For PCG method either eps, oneosqrteps and/or corr should be present')
      end if
-  else if (present(oneosqrteps) .and. present(corr)) then
-     call pkernel_set_epsilon(kernel,oneosqrteps=oneosqrteps,corr=corr)
-  else if (present(oneosqrteps) .neqv. present(corr)) then
-     call f_err_throw('For PCG method either eps, oneosqrteps and/or corr should be present')
-  end if
   case('PI')
      if (present(eps)) then
         if (present(oneoeps)) then

@@ -72,7 +72,7 @@ program GPS_3D
    integer :: itype_scf,n_cell,iproc,nproc,ixc,n01,n02,n03,ifx,ify,ifz
    integer, parameter :: FUNC_GAUSSIAN = 2
    real(kind=8) :: hx,hy,hz,hgrid,sume,delta
-   real(kind=8) :: einit,IntSur,IntVol,agauss
+   real(kind=8) :: einit,IntSur,IntVol
    real(kind=8) :: ehartree,offset,epr,depsr,cc,kk,y,d
    real(kind=8) :: x1,x2,x3,fx,fy,fz,fx1,fy1,fz1,fx2,fy2,fz2,factor,ax,ay,az,bx,by,bz,length,r2,dd
    real(kind=8), dimension(:,:,:,:), allocatable :: density,rhopot,rvApp,rhoele,rhoion,potsol,rhopotf,densityf
@@ -749,7 +749,16 @@ program GPS_3D
               cc=cc-(x1**2+x2**2+x3**2)
               cc=cc*rho(i1,i2,i3)**3
               dd=sqrt(nabla2rho(i1,i2,i3))
-              cc=(cc/nabla2rho(i1,i2,i3)-deltarho(i1,i2,i3))/dd
+              if (dd.lt.1.0d-12) then
+               cc=0.d0
+              else
+               cc=(cc/nabla2rho(i1,i2,i3)-deltarho(i1,i2,i3))/dd
+              end if
+              !cc=cc-(x1**2+x2**2+x3**2)
+              !cc=cc*rho(i1,i2,i3)**3 
+              !dd=sqrt(r2)*abs(rho(i1,i2,i3))
+              !cc=cc*sqrt(r2)-(r2-3.d0) 
+              !cc=(cc/r2-(r2-3.d0))/sqrt(r2) 
               depsdrho(i1,i2,i3) = epsprime(rho(i1,i2,i3),pkernel%cavity)
               oneosqrteps(i1,i2,i3)=0.d0
               nabla_eps(i1,i2,i3,1:3)=0.d0
@@ -6824,12 +6833,12 @@ subroutine SetInitDensPot(mesh,n01,n02,n03,nspden,iproc,natreal,eps,dlogeps,SetE
         sumd=0.d0
         bit=box_iter(mesh,origin=rxyz(:,iat))
         do while(box_next_point(bit))
-           r2=square(mesh,bit%rxyz)
+           r2=square_gd(mesh,bit%rxyz)
            potential1(bit%i,bit%j,bit%k) = factor*safe_exp(-0.5d0*r2/(sigma**2))
            potential(bit%i,bit%j,bit%k) = potential(bit%i,bit%j,bit%k) + potential1(bit%i,bit%j,bit%k)
            sump=sump+potential(bit%i,bit%j,bit%k)
            offset=offset+potential(bit%i,bit%j,bit%k)
-           k1=dotp(mesh,dlogeps(1,bit%i,bit%j,bit%k),bit%rxyz)
+           k1=dotp_gu(mesh,dlogeps(1,bit%i,bit%j,bit%k),bit%rxyz)
            k1=-potential1(bit%i,bit%j,bit%k)*k1/(sigma**2)
            k2 = potential1(bit%i,bit%j,bit%k)*(r2/(sigma**2)-3.d0)/(sigma**2)
            dens = (-oneofourpi)*eps(bit%i,bit%j,bit%k)*(k1+k2)&
@@ -8047,7 +8056,7 @@ subroutine Eps_rigid_cavity_multiatoms(mesh,ndims,hgrids,natreal,rxyzreal,&
        !choose the closest atom
        do iat=1,nat
           bit%tmp=bit%rxyz-rxyz(:,iat)
-          d2=square(mesh,bit%tmp)
+          d2=square_gd(mesh,bit%tmp)
 !print *,'i,j,k',bit%i,bit%j,bit%k,d2,iat,bit%rxyz
           d=dsqrt(d2)
           !------------------------------------------------------------------
@@ -8109,7 +8118,7 @@ subroutine Eps_rigid_cavity_multiatoms(mesh,ndims,hgrids,natreal,rxyzreal,&
 !          d12 = d12 + deps(i)**2
        end do
 
-       d12=square(mesh,deps)
+       d12=square_gu(mesh,deps)
 
        dd=0.d0
        do jat=1,nat

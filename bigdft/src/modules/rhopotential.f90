@@ -403,7 +403,6 @@ module rhopotential
       use module_base, only: bigdft_mpi
       use yaml_output
       use sparsematrix_base, only: sparse_matrix, matrices
-      use bigdft_matrices, only: get_modulo_array
       use module_types, only: linmat_auxiliary, comms_linear
       implicit none
     
@@ -419,7 +418,7 @@ module rhopotential
       logical,intent(in),optional :: print_results
     
       ! Local variables
-      integer :: ipt, ii, i0, iiorb, jjorb, iorb, jorb, i, j, ierr, ind, ispin, ishift, ishift_mat, iorb_shift
+      integer :: ipt, ii, i0, iiorb, jjorb, iorb, jorb, i, j, ierr, ind, ispin, ishift, ishift_mat, iorb_shift, ia, ib
       real(8) :: tt, total_charge, hxh, hyh, hzh, factor, tt1, tt2, rho_neg
       integer,dimension(:),allocatable :: isend_total
       integer,dimension(:),pointer :: moduloarray
@@ -431,7 +430,7 @@ module rhopotential
     
       call f_routine('sumrho_for_TMBs')
 
-      call get_modulo_array(denskern%nfvctr, aux%offset_matrixindex_in_compressed_fortransposed, moduloarray)
+      !!call get_modulo_array(denskern%nfvctr, aux%mat_ind_compr, moduloarray)
     
       ! check whether all entries of the charge density are positive
       rho_negative=.false.
@@ -494,16 +493,23 @@ module rhopotential
               tt=1.e-20_dp
               do i=1,ii
                   iiorb=collcom_sr%indexrecvorbital_c(i0+i) - iorb_shift
-                  iorb=moduloarray(iiorb)
+                  ia = iiorb-aux%mat_ind_compr2(iiorb)%offset_compr
+                  ib = sign(1,ia)
                   tt1=collcom_sr%psit_c(i0+i)
-                  ind=aux%matrixindex_in_compressed_fortransposed(iorb,iorb)
+                  ind = aux%mat_ind_compr2(iiorb)%section(ib)%ind_compr(iiorb)
                   ind=ind+ishift_mat-denskern%isvctrp_tg
                   tt=tt+denskern_%matrix_compr(ind)*tt1*tt1
                   tt2=2.0_dp*tt1
                   do j=i+1,ii
                       jjorb=collcom_sr%indexrecvorbital_c(i0+j) - iorb_shift
-                      jorb=moduloarray(jjorb)
-                      ind=aux%matrixindex_in_compressed_fortransposed(jorb,iorb)
+                      ia = jjorb-aux%mat_ind_compr2(iiorb)%offset_compr
+                      ib = sign(1,ia)
+                      !!if (jjorb>ubound(aux%mat_ind_compr2(iiorb)%section(ib)%ind_compr,1)) then
+                      !!    write(1000+iproc,*) 'ipt, i, iiorb, offset, jjorb, ia, ib, ubound', &
+                      !!         ipt, i, iiorb, aux%mat_ind_compr2(iiorb)%offset_compr, jjorb, ia, ib, &
+                      !!         ubound(aux%mat_ind_compr2(iiorb)%section(ib)%ind_compr,1)
+                      !!end if
+                      ind = aux%mat_ind_compr2(iiorb)%section(ib)%ind_compr(jjorb)
                       if (ind==0) cycle
                       ind=ind+ishift_mat-denskern%isvctrp_tg
                       tt=tt+denskern_%matrix_compr(ind)*tt2*collcom_sr%psit_c(i0+j)
@@ -518,7 +524,7 @@ module rhopotential
           !$omp end parallel
       end do
     
-      call f_free_ptr(moduloarray)
+      !call f_free_ptr(moduloarray)
     
       !if (print_local .and. iproc==0) write(*,'(a)') 'done.'
     
@@ -529,7 +535,7 @@ module rhopotential
     
     
       !!if (nproc > 1) then
-      !!   call mpiallred(irho, 1, mpi_sum, bigdft_mpi%mpi_comm)
+      !!   call fmpi_allreduce(irho, 1, FMPI_SUM, bigdft_mpi%mpi_comm)
       !!end if
     
       if (rho_neg>0.d0) then
@@ -572,15 +578,18 @@ module rhopotential
               !!     size_of_double, info, bigdft_mpi%mpi_comm, collcom_sr%window, ierr)
               !!call mpi_info_free(info, ierr)
               !!call mpi_win_fence(mpi_mode_noprecede, collcom_sr%window, ierr)
-              call mpi_type_size(mpi_double_precision, size_of_double, ierr)
-              collcom_sr%window = mpiwindow(collcom_sr%nptsp_c*denskern%nspin, rho_local(1), bigdft_mpi%mpi_comm)
-        
+!              call mpi_type_size(mpi_double_precision, size_of_double, ierr)
+
               ! This is a bit quick and dirty. Could be done in a better way, but
               ! would probably required to pass additional arguments to the subroutine
               isend_total = f_malloc0(0.to.nproc-1,id='isend_total')
               isend_total(iproc)=collcom_sr%nptsp_c
-              call mpiallred(isend_total, mpi_sum, comm=bigdft_mpi%mpi_comm)
+              call fmpi_allreduce(isend_total, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
         
+
+              !collcom_sr%window = mpiwindow(collcom_sr%nptsp_c*denskern%nspin, rho_local(1), bigdft_mpi%mpi_comm)
+              call fmpi_win_create(collcom_sr%window, rho_local(1), collcom_sr%nptsp_c*denskern%nspin, bigdft_mpi%mpi_comm)
+              call fmpi_win_fence(collcom_sr%window,FMPI_WIN_OPEN)
         
               do ispin=1,denskern%nspin
                   !ishift_dest=(ispin-1)*sum(collcom_sr%commarr_repartitionrho(4,:)) !spin shift for the receive buffer
@@ -603,7 +612,8 @@ module rhopotential
               end do
               !!call mpi_win_fence(0, collcom_sr%window, ierr)
               !!call mpi_win_free(collcom_sr%window, ierr)
-              call mpi_fenceandfree(collcom_sr%window)
+              !call mpi_fenceandfree(collcom_sr%window)
+              call fmpi_win_shut(collcom_sr%window)
         
               call f_free(isend_total)
           else
@@ -619,10 +629,10 @@ module rhopotential
           if (nproc > 1) then
               reducearr(1) = total_charge
               reducearr(2) = rho_neg
-              call mpiallred(reducearr, mpi_sum, comm=bigdft_mpi%mpi_comm)
+              call fmpi_allreduce(reducearr, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
               total_charge = reducearr(1)
               rho_neg = reducearr(2)
-             !call mpiallred(total_charge, 1, mpi_sum, bigdft_mpi%mpi_comm)
+             !call fmpi_allreduce(total_charge, 1, FMPI_SUM, bigdft_mpi%mpi_comm)
           end if
         
           !!if(print_local .and. iproc==0) write(*,'(3x,a,es20.12)') 'Calculation finished. TOTAL CHARGE = ', total_charge*hxh*hyh*hzh
@@ -729,8 +739,8 @@ module rhopotential
       end do
     
       if (nproc > 1) then
-          call mpiallred(ncorrection, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
-          call mpiallred(charge_correction, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
+          call fmpi_allreduce(ncorrection, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+          call fmpi_allreduce(charge_correction, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
       end if
     
       if (iproc==0) then
@@ -1051,7 +1061,7 @@ module rhopotential
 
           energies_mpi(1)=eexcuLOC
           energies_mpi(2)=vexcuLOC
-          call mpiallred(energies_mpi(1), 2,MPI_SUM,comm=bigdft_mpi%mpi_comm,recvbuf=energies_mpi(3))
+          call fmpi_allreduce(energies_mpi(1), 2,FMPI_SUM,comm=bigdft_mpi%mpi_comm,recvbuf=energies_mpi(3))
           exc=energies_mpi(3)
           vxc=energies_mpi(4)
 
@@ -1067,12 +1077,12 @@ module rhopotential
           if (associated(rhocore)) then
              call calc_rhocstr(rhocstr,nxc,nxt,dpbox%mesh%ndims(1), dpbox%mesh%ndims(2),&
                   dpbox%i3xcsh,nspin,potxc,rhocore)
-             if (bigdft_mpi%nproc > 1) call mpiallred(rhocstr,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+             if (bigdft_mpi%nproc > 1) call fmpi_allreduce(rhocstr,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
              rhocstr=rhocstr/real(dpbox%mesh%ndim,dp)
           end if
 
           xcstr(1:3)=(exc-vxc)/real(dpbox%mesh%ndim,dp)/dpbox%mesh%volume_element
-          if (bigdft_mpi%nproc > 1) call mpiallred(wbstr,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+          if (bigdft_mpi%nproc > 1) call fmpi_allreduce(wbstr,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
           wbstr=wbstr/real(dpbox%mesh%ndim,dp)
           xcstr=xcstr+wbstr+rhocstr
        end if

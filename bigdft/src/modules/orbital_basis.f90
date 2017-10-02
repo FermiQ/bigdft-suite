@@ -1063,7 +1063,7 @@ contains
 
     call transpose_v(bigdft_mpi%iproc,bigdft_mpi%nproc,&
          ob%orbs,ob%td%Glr%wfd,ob%td%comms,&
-         psi_data(1),work(1),psit_data(1)) !optional
+         psi_data,work,psit_data) !optional
     
     call f_free(work)
 
@@ -1092,7 +1092,7 @@ contains
 
     call untranspose_v(bigdft_mpi%iproc,bigdft_mpi%nproc,&
          ob%orbs,ob%td%Glr%wfd,ob%td%comms,&
-         ob%phis_wvl_t(1),work(1),ob%phis_wvl(1)) !optional
+         ob%phis_wvl_t,work,ob%phis_wvl) !optional
 
     call f_free(work)
 

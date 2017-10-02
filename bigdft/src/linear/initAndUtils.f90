@@ -48,7 +48,8 @@ subroutine init_foe_wrapper(iproc, nproc, input, orbs_KS, tmprtr, foe_obj)
        fscale_upperbound=input%cp%foe%fscale_upperbound,  &
        eval_multiplicator=1.d0, &
        accuracy_function=input%cp%foe%accuracy_foe, accuracy_penalty=input%cp%foe%accuracy_penalty, &
-       betax=input%cp%foe%betax_foe)
+       betax=input%cp%foe%betax_foe, occupation_function=input%cp%foe%occupation_function, &
+       adjust_fscale=input%cp%foe%adjust_fscale)
 
   call f_release_routine()
 
@@ -588,6 +589,7 @@ subroutine update_locreg(iproc, nproc, nlr, locrad, locrad_kernel, locrad_mult, 
   use foe_common, only: init_foe
   use locregs, only: locreg_null,copy_locreg_descriptors,locreg_descriptors
   use locregs_init, only: initLocregs
+  use yaml_output
   implicit none
 
   ! Calling arguments
@@ -687,14 +689,22 @@ subroutine update_locreg(iproc, nproc, nlr, locrad, locrad_kernel, locrad_mult, 
            fscale_upperbound=input%cp%foe%fscale_upperbound, &
            eval_multiplicator=1.d0, &
            accuracy_function=input%cp%foe%accuracy_ice, accuracy_penalty=input%cp%foe%accuracy_penalty, &
-           betax=input%cp%foe%betax_ice)
+           betax=input%cp%foe%betax_ice, occupation_function=input%cp%foe%occupation_function, &
+           adjust_fscale=input%cp%foe%adjust_fscale)
       call f_free(charge_fake)
 
   end if
 
   call init_comms_linear(iproc, nproc, input%imethod_overlap, npsidim_orbs, orbs, lzd, input%nspin, lbcollcom)
+  if (iproc==0) then
+      call yaml_map('Large locregs communication initialized',.true.)
+  end if
+
   if (present(lbcollcom_sr)) then
       call init_comms_linear_sumrho(iproc, nproc, lzd, orbs, input%nspin, nscatterarr, lbcollcom_sr)
+      if (iproc==0) then
+          call yaml_map('Large locregs sumrho communication initialized',.true.)
+      end if
   end if
 
   call initialize_communication_potential(iproc, nproc, nscatterarr, orbs, lzd, input%nspin, lbcomgp)
@@ -893,7 +903,7 @@ subroutine update_wavefunctions_size(lzd,npsidim_orbs,npsidim_comp,orbs,iproc,np
      nvctr_tot = max(nvctr_tot,lzd%llr(ilr)%wfd%nvctr_c+7*lzd%llr(ilr)%wfd%nvctr_f)
   end do
   if (nproc > 1) then
-     call mpiallred(nvctr_tot, 1, mpi_max, comm=bigdft_mpi%mpi_comm)
+     call fmpi_allreduce(nvctr_tot, 1, FMPI_MAX, comm=bigdft_mpi%mpi_comm)
   end if
 
   nvctr_par = f_malloc((/ 0.to.nproc-1, 1.to.1 /),id='nvctr_par')

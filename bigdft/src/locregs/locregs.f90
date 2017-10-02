@@ -473,6 +473,8 @@ contains
       logical, dimension(3) :: peri
       integer, dimension(3) :: outofzone
 
+      call f_routine(id='lr_box')
+
       !initialize out of zone
       outofzone (:) = 0
 
@@ -700,6 +702,8 @@ contains
               & Reduce the localization radii or use the cubic version',&
               & err_name='BIGDFT_RUNTIME_ERROR')
       end if
+
+      call f_release_routine()
       
     end subroutine lr_box
 

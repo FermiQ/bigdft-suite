@@ -191,12 +191,12 @@ subroutine calculate_forces(iproc,nproc,psolver_groupsize,Glr,atoms,ob,nlpsp,rxy
 
   ! Add up all the force contributions and the density matrix if needed
   if (nproc > 1) then
-     call mpiallred(sendbuf=fxyz,op=MPI_SUM,comm=bigdft_mpi%mpi_comm)
+     call fmpi_allreduce(sendbuf=fxyz,op=FMPI_SUM,comm=bigdft_mpi%mpi_comm)
      if (atoms%astruct%geocode == 'P' .and. calculate_strten) &
-          call mpiallred(strtens,MPI_SUM,comm=bigdft_mpi%mpi_comm)
-     call mpiallred(charge,1,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+          call fmpi_allreduce(strtens,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
+     call fmpi_allreduce(charge,1,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
      if (associated(nlpsp%gamma_mmp)) &
-      call mpiallred(nlpsp%gamma_mmp,op=MPI_SUM,comm=bigdft_mpi%mpi_comm)
+      call fmpi_allreduce(nlpsp%gamma_mmp,op=FMPI_SUM,comm=bigdft_mpi%mpi_comm)
   end if
 
 !!$  do iat=1,atoms%astruct%nat

@@ -487,7 +487,7 @@ module locregs_init
       ! This communication is uneffective. Instead of using bcast we should be using mpialltoallv.
       call timing(iproc,'comm_llr      ','ON')
       if (nproc > 1) then
-         call mpiallred(rootarr(1), nlr, mpi_min, comm=bigdft_mpi%mpi_comm)
+         call fmpi_allreduce(rootarr(1), nlr, FMPI_MIN, comm=bigdft_mpi%mpi_comm)
          
          ! Communicate those parts of the locregs that all processes need.
          call communicate_locreg_descriptors_basics(iproc, nproc, nlr, rootarr, orbs, llr)
@@ -1896,7 +1896,7 @@ module locregs_init
     
     !  call make_LLr_MpiType(Llr,nlr,mpiLlr)
     
-    !  call MPI_ALLREDUCE(Llr(1),Llr(1),nlr,mpidtypg,MPI_SUM,bigdft_mpi%mpi_comm,ierr)
+    !  call MPI_ALLREDUCE(Llr(1),Llr(1),nlr,mpidtypg,FMPI_SUM,bigdft_mpi%mpi_comm,ierr)
       !after all localisation regions are determined draw them
       !call draw_locregs(nlr,hx,hy,hz,Llr)
     
@@ -2671,11 +2671,11 @@ module locregs_init
               end do
           end do   
       end do
-      call mpiallred(norb_check, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
+      call fmpi_allreduce(norb_check, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
       if (norb_check/=norb) call f_err_throw('norb_check/=norb',err_name='BIGDFT_RUNTIME_ERROR')
 
-      call mpiallred(on_which_atom, mpi_sum, comm=bigdft_mpi%mpi_comm)
-      call mpiallred(in_which_locreg, mpi_sum, comm=bigdft_mpi%mpi_comm)
+      call fmpi_allreduce(on_which_atom, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+      call fmpi_allreduce(in_which_locreg, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
 
       call f_free(nat_par)
       call f_free(irxyz_ordered)
