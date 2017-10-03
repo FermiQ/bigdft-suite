@@ -29,6 +29,8 @@ module gaussians
 
   type(f_enumerator), public :: PROJECTION_1D_SEPARABLE=f_enumerator('SEPARABLE_1D',SEPARABLE_1D,null())
   type(f_enumerator), public :: PROJECTION_RS_COLLOCATION=f_enumerator('REAL_SPACE_COLLOCATION',SEPARABLE_COLLOCATION,null())
+  type(f_enumerator), public :: PROJECTION_MP_COLLOCATION=&
+       f_enumerator('MULTIPOLE_PRESERVING_COLLOCATION',MULTIPOLE_PRESERVING_COLLOCATION,null())
 
 
   !> Structures of basis of gaussian functions
@@ -91,7 +93,7 @@ module gaussians
      integer :: iexpo      !< Internal, may change.
   end type gaussian_basis_iter
   public :: gaussian_iter_start, gaussian_iter_next_shell, gaussian_iter_next_gaussian,three_dimensional_density
-  public :: gaussian_real_space_set,gaussian_radial_value,gaussian_to_wavelets_locreg,gaussian_nbox
+  public :: gaussian_real_space_set,gaussian_radial_value,gaussian_to_wavelets_locreg,gaussian_nbox,set_box_around_gaussian
 
 contains
 
@@ -113,14 +115,15 @@ contains
   
 
   !here the different treatment of the gaussian for multipole preserving can be triggered
-  pure function gaussian_radial_value(g,rxyz,bit) result(f)
+  !pure 
+  function gaussian_radial_value(g,rxyz,bit) result(f)
     use numerics
     use box
     use multipole_preserving
     implicit none
     real(gp), dimension(3), intent(in) :: rxyz
     type(gaussian_real_space), intent(in) :: g
-    type(box_iterator), intent(in) :: bit
+    type(box_iterator) :: bit
     real(gp) :: f
     !local variables
     logical :: domp
@@ -130,21 +133,24 @@ contains
 
     select case(g%discretization_method)
     case(RADIAL_COLLOCATION)
-       r = distance(bit%mesh,bit%rxyz,rxyz)
-       r2=g%exponent*r**2
+       !r = distance(bit%mesh,bit%rxyz,rxyz)
+       !r2=g%exponent*r**2
+       r2=square_gd(bit%mesh,bit%mesh%hgrids*(bit%inext-2)-rxyz-bit%oxyz)*g%exponent
+       !bit%tmp=closest_r(bit%mesh,bit%rxyz,rxyz)
+       !r2=square_gd(bit%mesh,bit%tmp)*g%exponent
        f=safe_exp(-r2,underflow=1.e-120_f_double)
        tt=0.0_gp
        do i=1,g%nterms
           !this should be in absolute coordinates
-          xval=product(closest_r(bit%mesh,bit%rxyz,rxyz)**g%lxyz(:,i))
-          tt=tt+g%factors(i)*r**g%pows(i)*xval
+          !xval=product(closest_r(bit%mesh,bit%rxyz,rxyz)**g%lxyz(:,i))
+          tt=tt+g%factors(i)!*r**g%pows(i)!*xval
        end do
        f=f*tt
     case(MULTIPOLE_PRESERVING_COLLOCATION)
-       f=0.0_gp
-       domp=g%mp_isf>0
-       !this should be in absolute cooordinates
-       itmp=nint((closest_r(bit%mesh,bit%rxyz,rxyz)+rxyz)/bit%mesh%hgrids)
+!!$       f=0.0_gp
+!!$       domp=g%mp_isf>0
+!!$       !this should be in absolute cooordinates
+!!$       itmp=nint((closest_r(bit%mesh,bit%rxyz,rxyz)+rxyz)/bit%mesh%hgrids)
 !!$       !x=hgrid*j-x0
 !!$       r = distance(bit%mesh,bit%rxyz,rxyz)
 !!$       r2= sum((bit%mesh%hgrids*itmp-rxyz)**2)
@@ -156,13 +162,15 @@ contains
 !!$          stop
 !!$       end if
 
-       do i=1,g%nterms
-          !here the distance is calculated in a way that might be better handled
-          zval=mp_exp(bit%mesh%hgrids(3),rxyz(3),g%exponent,itmp(3),g%lxyz(3,i),domp)
-          yval=mp_exp(bit%mesh%hgrids(2),rxyz(2),g%exponent,itmp(2),g%lxyz(2,i),domp)
-          xval=mp_exp(bit%mesh%hgrids(1),rxyz(1),g%exponent,itmp(1),g%lxyz(1,i),domp)
-          f=f+xval*yval*zval*g%factors(i)
-       end do
+       f=get_mp_exps_product(g%nterms,bit%inext-1,g%factors)
+!!$       do i=1,g%nterms
+          !here the distance is calculated in a way that might be better handled       
+!!$          bit%tmp(3)=mp_exp(bit%mesh%hgrids(3),rxyz(3),g%exponent,itmp(3),g%lxyz(3,i),domp)
+!!$          bit%tmp(2)=mp_exp(bit%mesh%hgrids(2),rxyz(2),g%exponent,itmp(2),g%lxyz(2,i),domp)
+!!$          bit%tmp(1)=mp_exp(bit%mesh%hgrids(1),rxyz(1),g%exponent,itmp(1),g%lxyz(1,i),domp)
+!!$          
+!!$          f=f+product(bit%tmp)*g%factors(i)
+!!$       end do
     end select
 
   end function gaussian_radial_value
@@ -264,10 +272,29 @@ contains
     
   end subroutine gaussian_real_space_set
 
+  !>prepare for the discretization of the gaussian in real space
+  subroutine set_box_around_gaussian(bit,g,rxyz)
+    use box
+    use multipole_preserving
+    implicit none
+    type(box_iterator) :: bit
+    type(gaussian_real_space), intent(in) :: g
+    real(gp), dimension(3), intent(in) :: rxyz
+    !local variables
+    integer, dimension(2,3) :: nbox
+
+    nbox=gaussian_nbox(rxyz+bit%oxyz,bit%mesh,g)
+    !we might increase the box in each direction for multipole preserving and pass such box to the set_nbox routine
+    call box_iter_set_nbox(bit,nbox=nbox)
+    if (g%discretization_method==MULTIPOLE_PRESERVING_COLLOCATION)&
+         call mp_gaussian_workarrays(g%nterms,nbox,g%exponent,g%lxyz,rxyz,bit%mesh%hgrids)
+  end subroutine set_box_around_gaussian
+
   !> set the nbox necessary for the Gaussian.
   !! based on the cutoff and on the possible discretization treatment
   pure function gaussian_nbox(oxyz,mesh,gaussian) result(nbox)
     use box
+    use multipole_preserving
     implicit none
     real(gp), dimension(3), intent(in) :: oxyz
     type(gaussian_real_space), intent(in) :: gaussian
@@ -277,8 +304,10 @@ contains
     nbox=box_nbox_from_cutoff(mesh,oxyz,gaussian%cutoff)
 
     !then further enlarge such box in each dimension in the case of separable MP treatment
-    nbox(1,:)=nbox(1,:)-gaussian%mp_isf
-    nbox(2,:)=nbox(2,:)+gaussian%mp_isf
+    if (mp_initialized()) then
+       nbox(1,:)=nbox(1,:)-gaussian%mp_isf
+       nbox(2,:)=nbox(2,:)+gaussian%mp_isf
+    end if
   end function gaussian_nbox
   
   !> accumulate the density array
@@ -300,8 +329,9 @@ contains
     !calculate nbox
     ithread=0
     nthread=1
+    call set_box_around_gaussian(boxit,gaussian,oxyz)
     !we might increase the box in each direction for multipole preserving and pass such box to the set_nbox routine
-    call box_iter_set_nbox(boxit,nbox=gaussian_nbox(oxyz,boxit%mesh,gaussian))
+    !call box_iter_set_nbox(boxit,nbox=gaussian_nbox(oxyz,boxit%mesh,gaussian))
     !select case(gaussian%discretization_method)
     !case(RADIAL_COLLOCATION)
        !radial case
@@ -459,9 +489,33 @@ contains
           call three_dimensional_density(bit,g,sqrt(lr%mesh%volume_element),rxyz,projector_real)
           call isf_to_daub(lr,w,projector_real,psi)
        end do
+       !print *,'testRS:',sum(projector_real**2)
        call deallocate_work_arrays_sumrho(w)
        call f_free(projector_real)
+    case(MULTIPOLE_PRESERVING_COLLOCATION)
+       call get_projector_coeffs(ncplx_g,l,n,ider,nterm_max,coeff,expo,&
+            nterms,lxyz,sigma_and_expo,factors)
 
+       projector_real=f_malloc(lr%mesh%ndim,id='psir')
+       call f_zero(psi)
+       call initialize_work_arrays_sumrho(lr,.true.,w)
+       do m=1,2*l-1
+          call f_zero(projector_real)
+          !call gaussian_real_space_set(g,sqrt(onehalf/expo(1)),nterms(m),factors(1,1,m),lxyz(1,1,m))
+          do iterm=1,nterms(m)
+             do i=1,3
+                lxyz_gau(i,iterm)=lxyz(iterm,i,m)
+             end do
+          end do
+          call gaussian_real_space_set(g,sigma_and_expo(1),nterms(m),factors(1,1,m),lxyz_gau,[0],16) !to be customized
+          oxyz=lr%mesh%hgrids*[lr%nsi1,lr%nsi2,lr%nsi3]
+          bit=box_iter(lr%mesh,origin=oxyz) !use here the real space mesh of the projector locreg
+          call three_dimensional_density(bit,g,sqrt(lr%mesh%volume_element),rxyz,projector_real)
+          !print *,'test:',sum(projector_real**2)
+          call isf_to_daub(lr,w,projector_real,psi)
+       end do
+       call deallocate_work_arrays_sumrho(w)
+       call f_free(projector_real)
 
        !new method, still separable
 

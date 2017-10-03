@@ -11,6 +11,7 @@ program projection
   use BigDFT_API, only: bigdft_init_errors,bigdft_init_timing_categories
   use numerics
   use compression, only: wnrm2
+  use multipole_preserving
   implicit none
   real(f_double) :: crmult,frmult,maxdiff,sigma
   type(locreg_descriptors) :: lr
@@ -34,7 +35,6 @@ program projection
  
   call bigdft_init_errors()
   call bigdft_init_timing_categories()
-
 
   call yaml_argparse(options,&
        '- {name: hgrid, shortname: g, default: 0.333, help_string: hgrid}'//f_cr//&
@@ -69,11 +69,22 @@ program projection
   call yaml_map('Norm of the calculated projector',wnrm2(1,lr%wfd,psi))
   call yaml_mapping_close()
 
+  call initialize_real_space_conversion(isf_m=16)
+
   call project(tpsi,PROJECTION_RS_COLLOCATION)
 
   call yaml_mapping_open('Collocation-based separable Projection')
   call yaml_map('Norm of the calculated projector',wnrm2(1,lr%wfd,tpsi))
   call yaml_mapping_close()
+
+  call f_zero(tpsi) !reset
+  call project(tpsi,PROJECTION_MP_COLLOCATION)
+
+  call yaml_mapping_open('Multipole-preserving-based separable Projection')
+  call yaml_map('Norm of the calculated projector',wnrm2(1,lr%wfd,tpsi))
+  call yaml_mapping_close()
+
+
 
   !calculate the difference of the two arrays
   call f_diff(f_size(psi),psi,tpsi,maxdiff)
@@ -94,6 +105,7 @@ program projection
 
   call yaml_map('Maximum difference of the in/out gaussian',maxdiff)
 
+  call finalize_real_space_conversion()
   call deallocate_workarrays_projectors(wp)
   call deallocate_work_arrays_sumrho(w)
   call deallocate_locreg_descriptors(lr)
@@ -101,6 +113,7 @@ program projection
   call f_free(gaussian)
 
   call f_free(psi,tpsi)
+
   call f_lib_finalize()
 
   contains
@@ -150,7 +163,7 @@ end program projection
            nterms,lxyz,sigma_and_expo,factors)
 
       !call gaussian_real_space_set(g,sqrt(onehalf/expo(1)),1,factors,lxyz)
-      call gaussian_real_space_set(g,sigma_and_expo(1),1,factors,lxyz(1,:,1),0,0.0_f_double)
+      call gaussian_real_space_set(g,sigma_and_expo(1),1,factors,lxyz(1,:,1),[0],16)
       call f_zero(gaussian)
       bit=box_iter(lr%mesh)
       call three_dimensional_density(bit,g,sqrt(lr%mesh%volume_element),rxyz,gaussian)

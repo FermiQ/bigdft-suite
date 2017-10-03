@@ -9,6 +9,7 @@
 module multipole_preserving
   use dynamic_memory
   use f_precisions, only: gp => f_double
+  use f_arrays
   implicit none
 
   private
@@ -16,13 +17,19 @@ module multipole_preserving
   integer :: itype_scf=0                          !< Type of the interpolating SCF, 0= data unallocated
   integer :: n_scf=-1                             !< Number of points of the allocated data
   integer :: nrange_scf=0                         !< range of the integration
-  real(gp), dimension(:), allocatable :: scf_data !< Values for the interpolating scaling functions points
+  !> Values for the interpolating scaling functions points
+  real(gp), dimension(:), allocatable :: scf_data
+  !>refcounted arrays to precalulate the coefficients 
+  type(f_matrix), dimension(3), save :: mp_exps
   !> log of the minimum value of the scf data
   !! to avoid floating point exceptions while multiplying with it
   real(gp) :: mn_scf = 0.0_gp
   real(gp), parameter :: mp_tiny = 1.e-30_gp !<put zero when the value is lower than this
 
+
+
   public :: initialize_real_space_conversion,finalize_real_space_conversion,scfdotf,mp_exp
+  public :: mp_gaussian_workarrays,get_mp_exps_product,mp_initialized
 
   contains
 
@@ -83,7 +90,51 @@ module multipole_preserving
 
     end subroutine initialize_real_space_conversion
 
+    pure function mp_initialized()
+      implicit none
+      logical mp_initialized
+      mp_initialized=allocated(scf_data)
+    end function mp_initialized
 
+    !> 
+    subroutine mp_gaussian_workarrays(nterms,nbox,expo,lxyz,rxyz,hgrids)
+      implicit none
+      integer, intent(in) :: nterms
+      real(gp), intent(in) :: expo
+      real(gp), dimension(3), intent(in) :: rxyz,hgrids
+      integer, dimension(2,3), intent(in) :: nbox
+      integer, dimension(nterms,3), intent(in) :: lxyz
+      !local variables
+      integer :: i,iterm,it
+      !matrix to be added to allocate the arrays
+      do i=1,3
+         mp_exps(i)=f_malloc_ptr([1.to.nterms,nbox(1,i).to.nbox(2,i)],id='mp_Exp_i')
+         do it=nbox(1,i),nbox(2,i)
+            do iterm=1,nterms
+               mp_exps(i)%ptr(iterm,it)=&
+                    mp_exp(hgrids(i),rxyz(i),expo,it-1,lxyz(iterm,i),.true.)
+            end do
+         end do
+      end do
+
+    end subroutine mp_gaussian_workarrays
+
+    pure function get_mp_exps_product(nterms,ival,factors) result(f)
+      implicit none
+      integer, intent(in) :: nterms
+      real(gp), dimension(nterms), intent(in) :: factors
+      integer, dimension(3), intent(in) :: ival
+      real(gp) :: f
+      !local variables
+      integer :: iterm
+      f=0.0_gp
+      do iterm=1,nterms
+         f=f+mp_exps(1)%ptr(iterm,ival(1))*&
+              mp_exps(2)%ptr(iterm,ival(2))*&
+              mp_exps(3)%ptr(iterm,ival(3))*factors(iterm)
+      end do
+    end function get_mp_exps_product
+    
     !> Deallocate scf_data
     subroutine finalize_real_space_conversion()
       implicit none
@@ -93,6 +144,7 @@ module multipole_preserving
       mn_scf=0.0_gp
       nrange_scf=0
       call f_free(scf_data)
+      call f_array_free(mp_exps)
 
     end subroutine finalize_real_space_conversion
 

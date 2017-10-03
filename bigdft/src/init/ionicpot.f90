@@ -558,7 +558,8 @@ subroutine IonicEnergyandForces(iproc,nproc,dpbox,at,elecfield,&
            fzerf=0.0_gp
 
            call atomic_charge_density(g,at,atit)
-           call box_iter_set_nbox(dpbox%bitp,nbox=gaussian_nbox(rxyz(1,atit%iat),dpbox%bitp%mesh,g))
+           call set_box_around_gaussian(dpbox%bitp,g,rxyz(1,atit%iat))
+           !call box_iter_set_nbox(dpbox%bitp,nbox=gaussian_nbox(rxyz(1,atit%iat),dpbox%bitp%mesh,g))
            do while(box_next_point(dpbox%bitp))
               !r = distance(dpbox%bitp%mesh,dpbox%bitp%rxyz,rxyz(1,atit%iat))
               xp=gaussian_radial_value(g,rxyz(1,atit%iat),dpbox%bitp)/g%sigma**2
@@ -989,7 +990,8 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
         else
 
            call atomic_charge_density(g,at,atit)
-           call box_iter_set_nbox(dpbox%bitp,nbox=gaussian_nbox(rxyz(1,atit%iat),dpbox%bitp%mesh,g))
+           call set_box_around_gaussian(dpbox%bitp,g,rxyz(1,atit%iat))
+           !call box_iter_set_nbox(dpbox%bitp,nbox=gaussian_nbox(rxyz(1,atit%iat),dpbox%bitp%mesh,g))
            do while(box_next_point(dpbox%bitp))
               if(.not. pawErfCorrection) then
                  !This converges very slowly                

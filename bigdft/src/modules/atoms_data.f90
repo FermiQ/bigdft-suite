@@ -529,6 +529,7 @@ contains
       type(atoms_iterator), intent(in) :: atit
       type(gaussian_real_space), intent(out) :: g
       !local variables
+      integer :: mp_isf
       real(gp) :: rloc
       real(gp), dimension(1) :: charge
       integer, dimension(3) :: zeros
@@ -536,7 +537,9 @@ contains
       rloc=at%psppar(0,0,atit%ityp)
       charge(1)=real(at%nelpsp(atit%ityp),gp)/(twopi*sqrt(twopi)*rloc**3)
       zeros=0
-      call gaussian_real_space_set(g,rloc,1,charge,zeros,[0],0)
+      mp_isf=at%mp_isf
+      if (.not. at%multipole_preserving) mp_isf=0
+      call gaussian_real_space_set(g,rloc,1,charge,zeros,[0],mp_isf)
 
     end subroutine atomic_charge_density
 

@@ -223,7 +223,10 @@ class BigDFTInstaller():
                 if hidden:
                     self.get_output(action)
                 else:
-                    os.system(action)
+                    ierr=os.system(action)
+                    if ierr != 0: raise Exception('Error in action: "'+action+'" for package: "'+mod+'"')
+                    #print 'Error in action: "'+action+'" for package: "'+mod+'"'
+                    #sys.exit(1)
                 os.chdir(here)
                 #self.__dump('done.')
                 sys.stdout.write(' (done)\n')
