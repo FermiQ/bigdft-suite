@@ -85,7 +85,7 @@ module box
 
   public :: cell_r,cell_periodic_dims,distance,closest_r,square_gu,square_gd,cell_new,box_iter,box_next_point
   public :: cell_geocode,box_next_x,box_next_y,box_next_z,dotp_gu,dotp_gd,cell_null,nullify_box_iterator
-  public :: box_iter_rewind,box_iter_split,box_iter_merge,box_iter_set_nbox,box_iter_expand_nbox
+  public :: box_iter_rewind,box_iter_split,box_iter_merge,box_iter_set_nbox,box_iter_expand_nbox,box_nbox_from_cutoff
 
 
 contains
@@ -190,41 +190,60 @@ contains
        boxit%i3e=boxit%i3s+mesh%ndims(Z_)-1
     end if
 
-    if(present(nbox)) then
-       boxit%nbox=nbox
-       boxit%whole=.false.
-    else if (present(cutoff)) then
-       call box_iter_set_nbox(boxit,boxit%oxyz,cutoff)
-    else
-       call box_iter_expand_nbox(boxit)
-    end if
-
-    call set_subbox(mesh%bc,mesh%ndims,boxit%nbox,boxit%subbox)
-
-    call box_iter_rewind(boxit)
+    call box_iter_set_nbox(boxit,nbox,boxit%oxyz,cutoff)
 
     call probe_iterator(boxit)
 
   end function box_iter
 
-  pure subroutine box_iter_set_nbox(bit,oxyz,cutoff)
+  pure subroutine box_iter_set_nbox(bit,nbox,oxyz,cutoff)
     implicit none
     type(box_iterator), intent(inout) :: bit
-    real(gp), intent(in) :: cutoff
-    real(gp), dimension(3), intent(in) :: oxyz
-    !for non-orthorhombic cells the concept of distance has to be inserted here (the box should contain the sphere)
-    bit%nbox(START_,:)=floor((oxyz-cutoff)/bit%mesh%hgrids)
-    bit%nbox(END_,:)=ceiling((oxyz+cutoff)/bit%mesh%hgrids)
-    bit%whole=.false.
+    real(gp), dimension(3), optional, intent(in) :: oxyz
+    real(gp), intent(in), optional :: cutoff
+    integer, dimension(2,3), intent(in), optional :: nbox
+
+    if(present(nbox)) then
+       bit%nbox=nbox
+       bit%whole=.false.
+       call set_subbox(bit%mesh%bc,bit%mesh%ndims,bit%nbox,bit%subbox)
+       call box_iter_rewind(bit)
+    else if (present(cutoff)) then
+!!$       
+!!$       bit%nbox(START_,:)=floor((oxyz-cutoff)/bit%mesh%hgrids)
+!!$       bit%nbox(END_,:)=ceiling((oxyz+cutoff)/bit%mesh%hgrids)
+       bit%nbox=box_nbox_from_cutoff(bit%mesh,oxyz,cutoff)
+       bit%whole=.false.
+       call set_subbox(bit%mesh%bc,bit%mesh%ndims,bit%nbox,bit%subbox)
+       call box_iter_rewind(bit)
+    else
+       call box_iter_expand_nbox(bit)
+    end if
+
     call box_iter_rewind(bit)
+
   end subroutine box_iter_set_nbox
 
-  subroutine box_iter_expand_nbox(bit)
+  !> this function has to be genralized for non-orthorhombic grids
+  pure function box_nbox_from_cutoff(mesh,oxyz,cutoff) result(nbox)
+    implicit none
+    type(cell), intent(in) :: mesh
+    real(gp), dimension(3), intent(in) :: oxyz
+    real(gp), intent(in) :: cutoff
+    integer, dimension(2,3) :: nbox
+    !for non-orthorhombic cells the concept of distance has to be inserted here (the box should contain the sphere)
+    nbox(START_,:)=floor((oxyz-cutoff)/mesh%hgrids)
+    nbox(END_,:)=ceiling((oxyz+cutoff)/mesh%hgrids)
+
+  end function box_nbox_from_cutoff
+
+  pure subroutine box_iter_expand_nbox(bit)
     implicit none
     type(box_iterator), intent(inout) :: bit
     bit%whole=.true.
     bit%nbox(START_,:)=1
     bit%nbox(END_,:)=bit%mesh%ndims
+    call set_subbox(bit%mesh%bc,bit%mesh%ndims,bit%nbox,bit%subbox)
     call box_iter_rewind(bit)
   end subroutine box_iter_expand_nbox
 
@@ -405,14 +424,14 @@ contains
     ok= bit%inext(Z_) <= bit%subbox(END_,Z_)
     do while(ok)
        if (bit%whole) then
-          bit%k=bit%inext(3)
+          bit%k=bit%inext(Z_)
        else 
-          call internal_point(bit%mesh%bc(3),bit%inext(3),bit%mesh%ndims(3),&
+          call internal_point(bit%mesh%bc(Z_),bit%inext(Z_),bit%mesh%ndims(Z_),&
                bit%k,bit%i3s,bit%i3e,ok)
-          if (.not. ok) bit%inext(3)=bit%inext(3)+1
+          if (.not. ok) bit%inext(Z_)=bit%inext(Z_)+1
        end if
        if (ok) then
-          bit%inext(3)=bit%inext(3)+1
+          bit%inext(Z_)=bit%inext(Z_)+1
           exit
        end if
        ok = bit%inext(Z_) <= bit%subbox(END_,Z_)
@@ -568,7 +587,6 @@ contains
 
     box_next_point=associated(boxit%mesh)
     if (.not. box_next_point) return
-
     !this put the starting point
     if (boxit%k==boxit%subbox(START_,Z_)-1) then
        go=box_next_z(boxit)
@@ -888,7 +906,7 @@ contains
     t=mesh%hgrids(dim)*(i-1)
   end function cell_r
 
-  function distance(mesh,v1,v2) result(d)
+  pure function distance(mesh,v1,v2) result(d)
     use dictionaries, only: f_err_throw
     implicit none
     real(gp), dimension(3), intent(in) :: v1,v2
@@ -898,6 +916,7 @@ contains
     integer :: i
     real(gp) :: d2
 
+    d=0.0_gp
     if (mesh%orthorhombic) then
        d2=0.0_gp
        do i=1,3
@@ -905,8 +924,8 @@ contains
                v1(i),v2(i))**2
        end do
        d=sqrt(d2)
-    else
-       call f_err_throw('Distance not yet implemented for nonorthorhombic cells')
+    !else
+    !   call f_err_throw('Distance not yet implemented for nonorthorhombic cells')
     end if
 
   end function distance
@@ -932,6 +951,7 @@ contains
 !!$  end function min_dist
 
   !> Calculates the minimum difference between two coordinates
+  !!@warning: this is only valid if the coordinated wraps once.
   pure function r_wrap(bc,alat,r,c)
     implicit none
     integer, intent(in) :: bc

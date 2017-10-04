@@ -93,6 +93,7 @@ subroutine denspot_set_history(denspot, scf_enum, &
   use module_types
   use module_mixing
   use public_enums
+  use f_enums, only: toi
   implicit none
   type(DFT_local_fields), intent(inout) :: denspot
 
@@ -103,7 +104,7 @@ subroutine denspot_set_history(denspot, scf_enum, &
   character(len=500) :: errmess
 
   if (scf_enum .hasattr. 'MIXING') then
-     potden = f_int(scf_enum .getattr. 'MIXING_ON')
+     potden = toi(scf_enum .getattr. 'MIXING_ON')
      select case(potden)
      case(AB7_MIXING_POTENTIAL)
         npoints = denspot%dpbox%mesh%ndims(1)*denspot%dpbox%mesh%ndims(2)*&

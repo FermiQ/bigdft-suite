@@ -41,7 +41,7 @@ mpif.h:
 	echo "integer, parameter :: MPI_REQUEST_NULL=1, MPI_STATUS_IGNORE=1" >> mpif.h &&\
 	echo "integer, parameter :: MPI_TAG_UB=1, MPI_OFFSET_KIND=8, MPI_ADDRESS_KIND=8, MPI_INFO_NULL=0" >> mpif.h &&\
 	echo "integer, parameter :: MPI_MODE_NOPRECEDE=0, MPI_MODE_NOSUCCEED=0" >> mpif.h &&\
-	echo "integer, parameter :: MPI_LOCK_EXCLUSIVE=0, MPI_LOCK_SHARED=0" >> mpif.h &&\
+	echo "integer, parameter :: MPI_LOCK_EXCLUSIVE=0, MPI_LOCK_SHARED=0, MPI_LONG=8" >> mpif.h &&\
 	echo "integer, parameter :: MPI_ANY_SOURCE=0, MPI_MODE_CREATE=0, MPI_MODE_WRONLY=0, MPI_ANY_TAG=0" >> mpif.h &&\
 	echo "integer, parameter :: MPI_MODE_NOPUT=0, MPI_MODE_RDONLY=0, MPI_MODE_NOSTORE=0, MPI_MODE_NOCHECK=0" >> mpif.h &&\
 	echo "integer, parameter :: MPI_GROUP_NULL=0, MPI_PROC_NULL=0, MPI_WIN_NULL=0" >> mpif.h &&\

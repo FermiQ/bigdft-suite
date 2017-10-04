@@ -581,12 +581,10 @@ subroutine atom_projector(nl, ityp, iat, atomname, &
   & istart_c, iproj, nwarnings)
 use module_base
 use locregs
-use gaussians, only: gaussian_basis_new, gaussian_basis_iter, &
-    & gaussian_iter_start, gaussian_iter_next_shell, gaussian_iter_next_gaussian
+use gaussians
 use psp_projectors_base, only: DFT_PSP_projectors
 use yaml_output, only: yaml_warning
 use yaml_strings, only: yaml_toa
-use locreg_operations, only: gaussian_to_wavelets_locreg,PROJECTION_RS_COLLOCATION
 implicit none
 type(DFT_PSP_projectors), intent(inout) :: nl
 integer, intent(in) :: ityp, iat

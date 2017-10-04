@@ -2568,21 +2568,15 @@ module communications
          call f_free_ptr(workarr)
       end if
     
-      if (nproc > 1 .and. .not. associated(work)) then
-         call f_err_throw('The working pointer must be associated',&
+      if (nproc > 1 .and. present(work)) then
+         if (.not. associated(work)) call f_err_throw('The working pointer must be associated',&
               err_name='BIGDFT_RUNTIME_ERROR')
       end if
     
       if (present(outadd)) then
           call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,psi,work,outadd)
       else
-         if (nproc > 1 .and. .not. associated(work)) then
-         !!   call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,psi,workdum)
-             call f_err_throw('The working pointer must be associated',&
-                  err_name='BIGDFT_RUNTIME_ERROR')
-         else
-            call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,psi,work)
-         end if
+         call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,psi,work)
       end if
     
       !!if (nproc > 1) then

@@ -5,11 +5,13 @@ program projection
   use box
   use f_functions
   use locregs
+  use gaussians
   use locreg_operations
   use f_trees
   use BigDFT_API, only: bigdft_init_errors,bigdft_init_timing_categories
   use numerics
   use compression, only: wnrm2
+  use multipole_preserving
   implicit none
   real(f_double) :: crmult,frmult,maxdiff,sigma
   type(locreg_descriptors) :: lr
@@ -33,7 +35,6 @@ program projection
  
   call bigdft_init_errors()
   call bigdft_init_timing_categories()
-
 
   call yaml_argparse(options,&
        '- {name: hgrid, shortname: g, default: 0.333, help_string: hgrid}'//f_cr//&
@@ -68,11 +69,22 @@ program projection
   call yaml_map('Norm of the calculated projector',wnrm2(1,lr%wfd,psi))
   call yaml_mapping_close()
 
+  call initialize_real_space_conversion(isf_m=16)
+
   call project(tpsi,PROJECTION_RS_COLLOCATION)
 
   call yaml_mapping_open('Collocation-based separable Projection')
   call yaml_map('Norm of the calculated projector',wnrm2(1,lr%wfd,tpsi))
   call yaml_mapping_close()
+
+  call f_zero(tpsi) !reset
+  call project(tpsi,PROJECTION_MP_COLLOCATION)
+
+  call yaml_mapping_open('Multipole-preserving-based separable Projection')
+  call yaml_map('Norm of the calculated projector',wnrm2(1,lr%wfd,tpsi))
+  call yaml_mapping_close()
+
+
 
   !calculate the difference of the two arrays
   call f_diff(f_size(psi),psi,tpsi,maxdiff)
@@ -90,8 +102,10 @@ program projection
 
   !calculate the difference of the two arrays
   call f_diff(f_size(gaussian),gaussian,projector_real,maxdiff)
+
   call yaml_map('Maximum difference of the in/out gaussian',maxdiff)
 
+  call finalize_real_space_conversion()
   call deallocate_workarrays_projectors(wp)
   call deallocate_work_arrays_sumrho(w)
   call deallocate_locreg_descriptors(lr)
@@ -99,6 +113,7 @@ program projection
   call f_free(gaussian)
 
   call f_free(psi,tpsi)
+
   call f_lib_finalize()
 
   contains
@@ -112,9 +127,16 @@ program projection
            1,coeff,expo,UNINITIALIZED(1.0_f_double),&
            1,1,rxyz,kpoint,&
            1,lr,wp,psi,method=method)
-    end subroutine project
+    end subroutine project    
+
+end program projection
 
     subroutine real_space_gaussian(ncplx_g,n,l,ider,nterm_max,coeff,expo,rxyz,oxyz,lr,gaussian)
+      use gaussians
+      use futile
+      use locregs
+      use box
+      use f_functions
       implicit none
       integer, intent(in) :: ncplx_g !< 1 or 2 if the gaussian factor is real or complex respectively
       integer, intent(in) :: n !<principal quantum number
@@ -134,26 +156,35 @@ program projection
       integer :: m,i
       type(box_iterator) :: bit
       type(f_function), dimension(3) :: funcs
+      type(gaussian_real_space) :: g
       real(f_double), dimension(3) :: noxyz 
 
       call get_projector_coeffs(ncplx_g,l,n,ider,nterm_max,coeff,expo,&
            nterms,lxyz,sigma_and_expo,factors)
-      !for the moment only with s projectors (l=0,n=1)
-      noxyz=rxyz-oxyz
-      bit=box_iter(lr%mesh,origin=noxyz) !use here the real space mesh of the projector locreg
-      do m=1,2*l-1
-         do i=1,3
-            funcs(i)=f_function_new(f_gaussian,exponent=expo(1))
-         end do
 
-         !here we do not consider the lxyz terms yet
-         !take the reference functions
-         !print *,size(gaussian),'real',lr%mesh%ndims,&
-         !     lr%mesh%hgrids*[lr%nsi1,lr%nsi2,lr%nsi3],&
-         !     lr%mesh_coarse%hgrids*[lr%ns1,lr%ns2,lr%ns3],rxyz,noxyz
-         call separable_3d_function(bit,funcs,factors(1,1,m)*sqrt(lr%mesh%volume_element),gaussian)
-      end do !not correctly written, it should be used to define the functions
+      !call gaussian_real_space_set(g,sqrt(onehalf/expo(1)),1,factors,lxyz)
+      call gaussian_real_space_set(g,sigma_and_expo(1),1,factors,lxyz(1,:,1),[0],16)
+      call f_zero(gaussian)
+      bit=box_iter(lr%mesh)
+      call three_dimensional_density(bit,g,sqrt(lr%mesh%volume_element),rxyz,gaussian)
+
+!!$      !for the moment only with s projectors (l=0,n=1)
+!!$      noxyz=rxyz-oxyz
+!!$
+!!$      bit=box_iter(lr%mesh,origin=noxyz) !use here the real space mesh of the projector locreg
+!!$
+!!$      
+!!$
+!!$      do m=1,2*l-1
+!!$         do i=1,3
+!!$            funcs(i)=f_function_new(f_gaussian,exponent=expo(1))
+!!$         end do
+!!$
+!!$         !here we do not consider the lxyz terms yet
+!!$         !take the reference functions
+!!$         !print *,size(gaussian),'real',lr%mesh%ndims,&
+!!$         !     lr%mesh%hgrids*[lr%nsi1,lr%nsi2,lr%nsi3],&
+!!$         !     lr%mesh_coarse%hgrids*[lr%ns1,lr%ns2,lr%ns3],rxyz,noxyz
+!!$         call separable_3d_function(bit,funcs,factors(1,1,m)*sqrt(lr%mesh%volume_element),gaussian)
+!!$      end do !not correctly written, it should be used to define the functions
     end subroutine real_space_gaussian
-    
-
-end program projection
