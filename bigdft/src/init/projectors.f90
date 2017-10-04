@@ -440,7 +440,7 @@ subroutine fill_projectors(lr,hgrids,astruct,ob,rxyz,nlpsp,idir)
   type(locreg_descriptors),intent(in) :: lr !< Global localisation region
   real(gp), dimension(3,astruct%nat), intent(in) :: rxyz
   !Local variables
-  logical :: overlap
+  logical :: overlap,thereissome
   integer :: istart_c,iat,iproj,nwarnings,ikpt,iskpt,iekpt
   type(ket) :: psi_it
   type(atoms_iterator) :: atit
@@ -453,7 +453,7 @@ subroutine fill_projectors(lr,hgrids,astruct,ob,rxyz,nlpsp,idir)
   nwarnings=0
   !allocate these vectors up to the maximum size we can get
   istart_c=1
-
+  thereissome=.false.
   !initialize the orbital basis object, for psi and hpsi
   !call orbital_basis_associate(ob,orbs=orbs)
   !iterate over the orbital_basis
@@ -466,6 +466,7 @@ subroutine fill_projectors(lr,hgrids,astruct,ob,rxyz,nlpsp,idir)
            overlap = projector_has_overlap(atit%iat,psi_it%ilr,psi_it%lr, lr, nlpsp)
            if(.not. overlap) cycle loop_atoms
            !this routine is defined to uniformise the call for on-the-fly application
+           thereissome=.true.
            call atom_projector(nlpsp,atit%ityp, atit%iat, &
                 atit%name, astruct%geocode, idir, lr,&
                 hgrids(1),hgrids(2),hgrids(3), &
@@ -483,9 +484,8 @@ subroutine fill_projectors(lr,hgrids,astruct,ob,rxyz,nlpsp,idir)
 
 !call orbital_basis_release(ob)
 
-if (istart_c-1 /= nlpsp%nprojel) then
-  call yaml_warning('Incorrect once-and-for-all psp generation')
-  stop
+if (istart_c-1 /= nlpsp%nprojel .and. thereissome) then
+  call f_err_throw('Incorrect once-and-for-all psp generation',err_name='BIGDFT_RUNTIME_ERROR')
 end if
 
 if (nwarnings /= 0 .and. bigdft_mpi%iproc == 0 .and. nlpsp%nproj /=0 .and. idir == 0) then
@@ -600,6 +600,7 @@ character(len = 1), intent(in) :: geocode
   real(gp) :: scpr
   real(gp), dimension(nl%proj_G%ncplx) :: coeff, expo
   logical :: use_tmp
+  real(gp), dimension(3) :: kpoint
   real(wp),allocatable::proj_tmp(:)
 
   call f_routine(id='atom_projector')
@@ -611,6 +612,8 @@ character(len = 1), intent(in) :: geocode
   else
      ncplx_k=2
   end if
+
+  kpoint=[kx,ky,kz]
 
   ! Start a gaussian iterator.
   call gaussian_iter_start(nl%proj_G, iat, iter)
@@ -648,7 +651,7 @@ character(len = 1), intent(in) :: geocode
      if (gaussian_iter_next_gaussian(nl%proj_G, iter, coeff, expo)) &
           call gaussian_to_wavelets_locreg(lr%mesh_coarse,idir,&
           nl%proj_G%ncplx,coeff,expo,nl%pspd(iat)%gau_cut,iter%n,iter%l,&
-          nl%proj_G%rxyz(:, iat),[kx,ky,kz],&
+          nl%proj_G%rxyz(:, iat),kpoint,&
           ncplx_k,nl%pspd(iat)%plr,nl%wpr,nl%proj(istart_c:))!,method=PROJECTION_RS_COLLOCATION)
      do
         if (.not. gaussian_iter_next_gaussian(nl%proj_G, iter, coeff, expo)) exit

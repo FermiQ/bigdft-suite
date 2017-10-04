@@ -135,7 +135,8 @@ contains
     case(RADIAL_COLLOCATION)
        !r = distance(bit%mesh,bit%rxyz,rxyz)
        !r2=g%exponent*r**2
-       r2=square_gd(bit%mesh,bit%mesh%hgrids*(bit%inext-2)-rxyz-bit%oxyz)*g%exponent
+       bit%tmp=bit%mesh%hgrids*(bit%inext-2)-rxyz-bit%oxyz
+       r2=square_gd(bit%mesh,bit%tmp)*g%exponent
        !bit%tmp=closest_r(bit%mesh,bit%rxyz,rxyz)
        !r2=square_gd(bit%mesh,bit%tmp)*g%exponent
        f=safe_exp(-r2,underflow=1.e-120_f_double)

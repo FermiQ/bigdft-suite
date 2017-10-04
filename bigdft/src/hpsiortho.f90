@@ -1807,7 +1807,6 @@ subroutine SynchronizeHamiltonianApplication(nproc,npsidim_orbs,orbs,Lzd,GPU,xc,
 
    call f_routine(id='SynchronizeHamiltonianApplication')
 
-
    if(GPU%OCLconv) then! needed also in the non_ASYNC since now NlPSP is before .and. ASYNCconv)) then
       call finish_hamiltonian_OCL(orbs,energs%ekin,energs%epot,GPU)
       ispsi=1
@@ -1832,7 +1831,6 @@ subroutine SynchronizeHamiltonianApplication(nproc,npsidim_orbs,orbs,Lzd,GPU,xc,
    !this operation should be done only here since the exctX energy is already reduced
    !SM: Divide by nproc due to the reduction later on
    if (exctX) energs%epot=energs%epot+2.0_gp*energs%eexctX/real(nproc,kind=8)
-
    !energies reduction
    if (nproc > 1) then
       if (present(energs_work)) then
@@ -1875,7 +1873,6 @@ subroutine SynchronizeHamiltonianApplication(nproc,npsidim_orbs,orbs,Lzd,GPU,xc,
    if (energs%eelec /= 0.0_gp) then
       energs%eh=energs%epot-energs%eelec-energs%evxc
    end if
-
    call f_release_routine()
 
 END SUBROUTINE SynchronizeHamiltonianApplication
