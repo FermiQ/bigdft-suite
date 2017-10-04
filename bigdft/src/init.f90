@@ -2473,6 +2473,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
   use public_enums
   use orbitalbasis
   use box
+  use f_enums
   use coeffs, only: calculate_density_kernel
   implicit none
 
@@ -3419,7 +3420,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
 
   case default
      !call input_psi_help()
-     call f_err_throw('Illegal value of inputPsiId (' // trim(f_char(in%inputPsiId)) // ')', &
+     call f_err_throw('Illegal value of inputPsiId (' // trim(str(in%inputPsiId)) // ')', &
           err_name='BIGDFT_RUNTIME_ERROR')
 
   end select
