@@ -183,6 +183,7 @@ subroutine abscalc(nproc,iproc,atoms,rxyz,&
    use orbitalbasis
    use io, only: plot_density
    use locregs_init, only: lr_set
+   use f_enums, only: toi
    implicit none
    integer, intent(in) :: nproc,iproc
    real(gp), intent(inout) :: hx_old,hy_old,hz_old
@@ -374,7 +375,7 @@ subroutine abscalc(nproc,iproc,atoms,rxyz,&
    if (iproc == 0) then
       write( *,'(1x,a,1x,i0)') &
          &   '===================== BigDFT XANE calculation =============== inputPsiId=',&
-         &   f_int(in%inputPsiId)
+         &   toi(in%inputPsiId)
       call print_dft_parameters(in,atoms)
    end if
    !time initialization
@@ -466,7 +467,7 @@ subroutine abscalc(nproc,iproc,atoms,rxyz,&
    !memory estimation
    call MemoryEstimator(nproc,idsx,KSwfn%Lzd%Glr,&
         orbs%norb,orbs%nspinor,orbs%nkpts,nlpsp%nprojel,&
-        in%nspin,in%itrpmax,f_int(in%scf),mem)
+        in%nspin,in%itrpmax,toi(in%scf),mem)
    if (iproc==0 .and. get_verbose_level() > 0) call print_memory_estimation(mem)
 
    !complete dpbox initialization

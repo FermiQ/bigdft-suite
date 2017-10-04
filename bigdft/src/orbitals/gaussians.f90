@@ -287,7 +287,7 @@ contains
     !we might increase the box in each direction for multipole preserving and pass such box to the set_nbox routine
     call box_iter_set_nbox(bit,nbox=nbox)
     if (g%discretization_method==MULTIPOLE_PRESERVING_COLLOCATION)&
-         call mp_gaussian_workarrays(g%nterms,nbox,g%exponent,g%lxyz,rxyz,bit%mesh%hgrids)
+         call mp_gaussian_workarrays(g%nterms,nbox,g%exponent,g%lxyz,rxyz+bit%oxyz,bit%mesh%hgrids)
   end subroutine set_box_around_gaussian
 
   !> set the nbox necessary for the Gaussian.
@@ -422,6 +422,7 @@ contains
     use locregs
     use locreg_operations
     use f_utils, only: f_zero
+    use f_enums, only: toi
     implicit none  
     integer, intent(in) :: ider !<direction in which to perform the derivative (0 if any)
     integer, intent(in) :: n !<principal quantum number
@@ -455,7 +456,7 @@ contains
     real(f_double), dimension(:), allocatable :: projector_real
 
     meth=SEPARABLE_1D
-    if (present(method)) meth=f_int(method)
+    if (present(method)) meth=toi(method)
 
     select case(meth)
     case(SEPARABLE_1D)

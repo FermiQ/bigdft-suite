@@ -25,6 +25,7 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
   use public_enums
   use rhopotential, only: updatePotential,exchange_and_correlation
   use module_cfd, only: cfd_dump_info
+  use f_enums, only: toi
   implicit none
   !Arguments
   logical, intent(in) :: scf  !< If .false. do not calculate the self-consistent potential
@@ -58,7 +59,7 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
   whilepot=.true.
   !if (wfn%paw%usepaw) whilepot = .false.
   !flag for saving the local fields (rho,vxc,vh)
-  savefields= (f_int(scf_mode)==SCF_KIND_GENERALIZED_DIRMIN)
+  savefields= (toi(scf_mode)==SCF_KIND_GENERALIZED_DIRMIN)
   correcth=1
   !do not do that if rho_work is already associated
   if (savefields .and. associated(denspot%rho_work)) then
