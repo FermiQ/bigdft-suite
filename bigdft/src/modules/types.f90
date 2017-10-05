@@ -1083,7 +1083,7 @@ contains
 
   subroutine allocate_work_mpiaccumulate(w)
     implicit none
-    type(work_mpiaccumulate),intent(out) :: w
+    type(work_mpiaccumulate),intent(inout) :: w
     w%receivebuf = f_malloc_ptr(w%ncount,id='w%receivebuf')
     w%sendbuf = f_malloc_ptr(w%ncount,id='w%sendbuf')
   end subroutine allocate_work_mpiaccumulate
@@ -1091,7 +1091,7 @@ contains
 
   subroutine deallocate_work_mpiaccumulate(w)
     implicit none
-    type(work_mpiaccumulate),intent(out) :: w
+    type(work_mpiaccumulate),intent(inout) :: w
     call f_free_ptr(w%receivebuf)
     call f_free_ptr(w%sendbuf)
   end subroutine deallocate_work_mpiaccumulate
