@@ -1894,7 +1894,7 @@
         iterations to converge support functions:  1, kernel optimization: FOE,  #WARNING: density optimization not converged
  iter low:  4, delta out:  2.263E-08, energy: -7.32247710267214700E+01, D:  3.096E-04}
     #WARNING: oscillation of the energy, increase counter
-   energy_scillation_counter           :  1
+   energy_oscillation_counter           :  1
    Total charge                        :  4.199998753589E+01
    Poisson Solver:
      BC                                : Free

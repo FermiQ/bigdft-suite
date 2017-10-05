@@ -1617,7 +1617,7 @@
  kernel optimization: DIRMIN,  #WARNING: density optimization not converged
  iter high:  3, delta out:  1.256E-06, energy: -1.71504613591516950E+01, D:  3.804E-04}
     #WARNING: oscillation of the energy, increase counter
-   energy_scillation_counter           :  1
+   energy_oscillation_counter           :  1
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Set the confinement prefactors
  - Confinement prefactor for high accuracy:
    -  {max diff damping:  0.00E+00, damping value:  1.00E+00}
@@ -1905,7 +1905,7 @@
  kernel optimization: DIRMIN,  #WARNING: density optimization not converged
  iter high:  4, delta out:  7.854E-07, energy: -1.71745599885956253E+01, D: -2.410E-02}
     #WARNING: oscillation of the energy, increase counter
-   energy_scillation_counter           :  2
+   energy_oscillation_counter           :  2
    new nit_scc                         :  9
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Set the confinement prefactors
  - Confinement prefactor for high accuracy:
