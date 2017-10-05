@@ -455,6 +455,8 @@ contains
     real(gp), dimension(ncplx_g,nterm_max,2*l-1) :: factors
     type(f_function), dimension(3) :: funcs
     real(f_double), dimension(:), allocatable :: projector_real
+    !local variables
+    integer, dimension(1), parameter :: zero_v1=[0]
 
     meth=SEPARABLE_1D
     if (present(method)) meth=toi(method)
@@ -485,7 +487,7 @@ contains
                 lxyz_gau(i,iterm)=lxyz(iterm,i,m)
              end do
           end do
-          call gaussian_real_space_set(g,sigma_and_expo(1),nterms(m),factors(1,1,m),lxyz_gau,[0],0)
+          call gaussian_real_space_set(g,sigma_and_expo(1),nterms(m),factors(1,1,m),lxyz_gau,zero_v1,0)
           oxyz=lr%mesh%hgrids*[lr%nsi1,lr%nsi2,lr%nsi3]
           bit=box_iter(lr%mesh,origin=oxyz) !use here the real space mesh of the projector locreg
           call three_dimensional_density(bit,g,sqrt(lr%mesh%volume_element),rxyz,projector_real)
@@ -509,7 +511,7 @@ contains
                 lxyz_gau(i,iterm)=lxyz(iterm,i,m)
              end do
           end do
-          call gaussian_real_space_set(g,sigma_and_expo(1),nterms(m),factors(1,1,m),lxyz_gau,[0],16) !to be customized
+          call gaussian_real_space_set(g,sigma_and_expo(1),nterms(m),factors(1,1,m),lxyz_gau,zero_v1,16) !to be customized
           oxyz=lr%mesh%hgrids*[lr%nsi1,lr%nsi2,lr%nsi3]
           bit=box_iter(lr%mesh,origin=oxyz) !use here the real space mesh of the projector locreg
           call three_dimensional_density(bit,g,sqrt(lr%mesh%volume_element),rxyz,projector_real)

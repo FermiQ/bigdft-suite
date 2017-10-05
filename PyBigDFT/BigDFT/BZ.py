@@ -52,10 +52,10 @@ class BandArray(numpy.ndarray):
             evs=[[],[]]
             logdata=kwargs.get("logdata", args[0])
             ikpt=kwargs.get("ikpt", 1 if len(args) < 2 else args[1])
-        # Ugly patch to detect proper k point in Davidson...
-        prev_vrt = True
-        cur_ikpt = 0
-        # End of ugly patch
+            # Ugly patch to detect proper k point in Davidson...
+            prev_vrt = True
+            cur_ikpt = 0
+            # End of ugly patch
             for ev in logdata:
                 occ=get_ev(ev,['e_occ','e_occupied'],ikpt=ikpt)
                 vrt=get_ev(ev,['e_vrt','e_virt'],ikpt=ikpt)

@@ -532,14 +532,16 @@ contains
       integer :: mp_isf
       real(gp) :: rloc
       real(gp), dimension(1) :: charge
+      integer, dimension(1) :: zero1
       integer, dimension(3) :: zeros
 
       rloc=at%psppar(0,0,atit%ityp)
       charge(1)=real(at%nelpsp(atit%ityp),gp)/(twopi*sqrt(twopi)*rloc**3)
       zeros=0
+      zero1=0
       mp_isf=at%mp_isf
       if (.not. at%multipole_preserving) mp_isf=0
-      call gaussian_real_space_set(g,rloc,1,charge,zeros,[0],mp_isf)
+      call gaussian_real_space_set(g,rloc,1,charge,zeros,zero1,mp_isf)
 
     end subroutine atomic_charge_density
 
