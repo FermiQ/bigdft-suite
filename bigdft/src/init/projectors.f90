@@ -662,7 +662,7 @@ character(len = 1), intent(in) :: geocode
 !!$             & nl%wpr, proj_tmp)
         call gaussian_to_wavelets_locreg(lr%mesh_coarse,idir,&
              nl%proj_G%ncplx,coeff,expo,nl%pspd(iat)%gau_cut,iter%n,iter%l,&
-             nl%proj_G%rxyz(:, iat),[kx,ky,kz],&
+             nl%proj_G%rxyz(:, iat),kpoint,&
              ncplx_k,nl%pspd(iat)%plr,nl%wpr, proj_tmp)!,method=PROJECTION_RS_COLLOCATION)
         call axpy(nc, 1._wp, proj_tmp(1), 1, nl%proj(istart_c), 1)
      end do
