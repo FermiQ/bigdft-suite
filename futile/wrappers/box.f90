@@ -951,7 +951,7 @@ contains
 !!$  end function min_dist
 
   !> Calculates the minimum difference between two coordinates
-  !!@warning: this is only valid if the coordinated wraps once.
+  !!@warning: this is only valid if the coordinates wrap once.
   pure function r_wrap(bc,alat,r,c)
     implicit none
     integer, intent(in) :: bc

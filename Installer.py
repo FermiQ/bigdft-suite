@@ -69,7 +69,7 @@ class BigDFTInstaller():
         self.package=package  #Package
         self.yes=yes      #Ask a question
         #look where we are
-        self.srcdir = os.path.dirname(__file__)
+        self.srcdir = os.path.abspath(os.path.dirname(__file__))
         if self.srcdir == '': self.srcdir='.'
 	#look the builddir
         self.builddir=os.getcwd()
@@ -443,9 +443,7 @@ all: build
         for a in ACTIONS:
             sflist.append(a+':  ')
             sflist.append('\t'+
-                          os.path.abspath(
-                              os.path.join(self.srcdir,__file__))+
-                          ' '+a+' '+self.package+' -y')
+                          os.path.abspath(__file__)+' '+a+' '+self.package+' -y')
         mkfile=open(MKFILE,'w')
         for item in sflist:
             mkfile.write("%s\n" % item)

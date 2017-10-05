@@ -8,7 +8,7 @@ void FC_FUNC_(mpi_ialltoallv,MPI_IALLTOALLV)(void *sendbuf,void *sendcounts,void
 {
   FC_FUNC_(mpi_alltoallv,MPI_ALLTOALLV)(sendbuf,sendcounts,senddspls,sendtype,
 					recvbuf,recvcounts,recvdspls,recvtype,
-					comm,request,ierr);
+					comm,ierr);
 }
 
 
