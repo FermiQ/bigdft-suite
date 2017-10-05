@@ -60,12 +60,12 @@ class BandArray(numpy.ndarray):
                 occ=get_ev(ev,['e_occ','e_occupied'],ikpt=ikpt)
                 vrt=get_ev(ev,['e_vrt','e_virt'],ikpt=ikpt)
                 eigen=occ or vrt
-            # Ugly patch to detect proper k point in Davidson...
-            if occ and prev_vrt:
-              cur_ikpt += 1
-            prev_vrt = vrt
-            if eigen and cur_ikpt != ikpt: continue
-            # End of ugly patch
+                # Ugly patch to detect proper k point in Davidson...
+                if occ and prev_vrt:
+                    cur_ikpt += 1
+                prev_vrt = vrt
+                if eigen and cur_ikpt != ikpt: continue
+                # End of ugly patch
                 if not eigen: eigen=get_ev(ev,ikpt=ikpt)
                 if not eigen: continue
                 for i,e in enumerate(eigen):

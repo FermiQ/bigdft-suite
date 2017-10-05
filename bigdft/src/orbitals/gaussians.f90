@@ -93,7 +93,7 @@ module gaussians
      integer :: iexpo      !< Internal, may change.
   end type gaussian_basis_iter
   public :: gaussian_iter_start, gaussian_iter_next_shell, gaussian_iter_next_gaussian,three_dimensional_density
-  public :: gaussian_real_space_set,gaussian_radial_value,gaussian_to_wavelets_locreg,gaussian_nbox,set_box_around_gaussian
+  public :: gaussian_real_space_set,gaussian_radial_value,gaussian_to_wavelets_locreg,set_box_around_gaussian
 
 contains
 
@@ -284,7 +284,8 @@ contains
     !local variables
     integer, dimension(2,3) :: nbox
 
-    nbox=gaussian_nbox(rxyz+bit%oxyz,bit%mesh,g)
+    bit%tmp=rxyz+bit%oxyz
+    nbox=gaussian_nbox(bit%tmp,bit%mesh,g)
     !we might increase the box in each direction for multipole preserving and pass such box to the set_nbox routine
     call box_iter_set_nbox(bit,nbox=nbox)
     if (g%discretization_method==MULTIPOLE_PRESERVING_COLLOCATION)&

@@ -3175,11 +3175,13 @@ module communications_init
       !$omp end do
       !$omp end parallel
       weight_check=tt
-    
+      print *,'weights',weight_check,weight_tot,mpirank(bigdft_mpi%mpi_comm)
       ! Some check
       if (nproc > 1) then
         call fmpi_allreduce(weight_check, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
       end if
+
+
       if (abs(weight_check-weight_tot) > 1.d-3) then
           write(*,*) 'ERROR: weight_check/=weight_tot', weight_check, weight_tot
           stop '2: weight_check/=weight_tot'
