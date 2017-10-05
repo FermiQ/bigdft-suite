@@ -425,6 +425,10 @@ contains
       ndims(3)=lr%d%n3i
 
       lr%mesh=cell_new(geocode,ndims,hgridsh)
+
+      ndims(1)=lr%d%n1
+      ndims(2)=lr%d%n2
+      ndims(3)=lr%d%n3
       lr%mesh_coarse=cell_new(geocode,ndims,2.0_gp*hgridsh)
 
       Gnbl1=0
@@ -457,7 +461,7 @@ contains
       if (present(wfd)) lr%wfd=wfd !it just associates the pointers
       if (geocode == 'F' .and. present(bnds)) lr%bounds=bnds
 
-      oxyz=locreg_mesh_origin(lr%mesh))
+      oxyz=locreg_mesh_origin(lr%mesh)
       lr%bit=box_iter(lr%mesh,origin=oxyz)
 
     END SUBROUTINE init_lr
