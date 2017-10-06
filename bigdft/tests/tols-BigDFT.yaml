@@ -2741,7 +2741,7 @@ H2Omultipoles_1:
   Average noise forces: 1.0e-10
   Raw forces norm (Ha/Bohr): 1.4e-11
   e: 1.2e-11
-  trace(KH): 1.2e-11  
+  trace(KH): 1.8e-11  
 
 H2Omultipoles_11:
   EBS: 9.3e-10
@@ -2758,7 +2758,7 @@ H2Omultipoles_11:
   Tr(K): 1.3e-05
   D Tr(K): 1.0e-08
   trace(Ktilde): 3.1e-10
-  trace(KH): 1.8e-11
+  trace(KH): 2.8e-11
   eF: 6.0e-07
   energy: 6.1e-11
   multiplicator for the confinement: 4.4e-11
