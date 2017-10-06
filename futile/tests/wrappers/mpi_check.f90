@@ -14,6 +14,7 @@ program mpi_check
   use yaml_output
   use yaml_strings
   use f_utils
+  use f_enums
   implicit none
   logical :: failed
   integer :: ntot,ierr,i,iproc,nproc,nspin,nother
@@ -25,7 +26,7 @@ program mpi_check
   iproc=mpirank()
   nproc=mpisize()
 
-  ntot=10000
+  ntot=107
   nspin=2
   nother=10
 
@@ -41,7 +42,9 @@ program mpi_check
   call MPI_ALLREDUCE(buffer,copybuffer,ntot,&
        MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
 
-  call mpiallred(buffer(1),isizes(nspin,nother),MPI_SUM)
+!!$  call MPI_ALLREDUCE(MPI_IN_PLACE,buffer,ntot,&
+!!$       MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
+  call fmpi_allreduce(buffer(1),isizes(nspin,nother),FMPI_SUM)
   failed=.false.
   do i=1,ntot
      if (abs(copybuffer(i)-buffer(i))>1.d-12 .or. abs(copybuffer(i)-real(nproc,kind=8))> 1.d-12) then
@@ -51,12 +54,12 @@ program mpi_check
   end do
   call f_assert(.not. failed,'At least one proc ('+iproc+') did not reduce correctly')
 
-  call f_open_file_mpi(unit,'buffer_file.dat',comm=mpicomm())
-  call MPI_FILE_SEEK(unit, offset+jd*kd*ld*nq*4, MPI_SEEK_CUR, ierr)
-  CALL MPI_FILE_SET_VIEW
-
-  call MPI_FILE_CLOSE(unit,ierr)
-
+!!$  call f_open_file_mpi(unit,'buffer_file.dat',comm=mpicomm())
+!!$  call MPI_FILE_SEEK(unit, offset+jd*kd*ld*nq*4, MPI_SEEK_CUR, ierr)
+!!$  CALL MPI_FILE_SET_VIEW
+!!$
+!!$  call MPI_FILE_CLOSE(unit,ierr)
+!!$
   
   deallocate(buffer,copybuffer,isizes)
 
