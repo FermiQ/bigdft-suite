@@ -404,7 +404,7 @@ contains
       integer :: Lnbl1,Lnbl2,Lnbl3,Lnbr1,Lnbr2,Lnbr3
       logical, dimension(3) :: peri,peri_glob
       integer, dimension(3) :: ndims
-      real(gp), dimension(3) :: oxyz
+      real(gp), dimension(3) :: oxyz,hgrids
 
       lr%geocode=geocode
       lr%ns1=0
@@ -429,7 +429,8 @@ contains
       ndims(1)=lr%d%n1
       ndims(2)=lr%d%n2
       ndims(3)=lr%d%n3
-      lr%mesh_coarse=cell_new(geocode,ndims,2.0_gp*hgridsh)
+      hgrids=2.0_gp*hgridsh
+      lr%mesh_coarse=cell_new(geocode,ndims,hgrids)
 
       Gnbl1=0
       Gnbl2=0
@@ -486,6 +487,7 @@ contains
       integer :: ln1,ln2,ln3
       logical, dimension(3) :: peri
       integer, dimension(3) :: outofzone
+      real(gp), dimension(3) :: hgridsh
 
       call f_routine(id='lr_box')
 
@@ -620,7 +622,8 @@ contains
               & err_name='BIGDFT_RUNTIME_ERROR')
       end if
 
-      call init_lr(lr,geocode,0.5_gp*hgrids,iex,iey,iez,&
+      hgridsh=0.5_gp*hgrids
+      call init_lr(lr,geocode,hgridsh,iex,iey,iez,&
            Glr%d%nfl1,Glr%d%nfl2,Glr%d%nfl3,&
            Glr%d%nfu1,Glr%d%nfu2,Glr%d%nfu3,&
            .false.,isx,isy,isz,Glr%geocode)

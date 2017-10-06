@@ -1051,6 +1051,7 @@ module sparsematrix
                             !windows(iitg) = mpiwindow(1, window_fake, smat%mpi_groups(iitg)%mpi_comm)
                             call fmpi_win_create(windows(iitg),window_fake,&
                                  int(1,f_long),comm=smat%mpi_groups(iitg)%mpi_comm)
+                            call fmpi_win_fence(windows(iitg),FMPI_WIN_OPEN)
                             !no fence here
                          end if
                      end do

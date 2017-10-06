@@ -2913,11 +2913,10 @@ module communications_init
          call fmpi_allreduce(weights_per_slice(0), nproc, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
          call fmpi_allreduce(tt,1,FMPI_SUM, comm=bigdft_mpi%mpi_comm,recvbuf=weight_tot)
          !call mpi_allreduce(tt, weight_tot, 1, mpi_double_precision, FMPI_SUM, bigdft_mpi%mpi_comm, ierr)
-         call fmpi_allreduce(weights_per_zpoint(1), lzd%glr%d%n3i, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+         call fmpi_allreduce(weights_per_zpoint, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
       else
          weight_tot=tt
       end if
-
       call f_free(weight_xy)
     
       ! Ideal weight per process
@@ -3130,6 +3129,7 @@ module communications_init
               is3=modulo(1+lzd%Llr(ilr)%nsi3-1,lzd%glr%d%n3i)+1
               ie3=modulo(lzd%Llr(ilr)%nsi3+lzd%llr(ilr)%d%n3i-1,lzd%glr%d%n3i)+1
               !if (is3>i3 .or. i3>ie3) cycle
+
               if (.not.check_whether_bounds_overlap(is3,ie3,i3,i3)) cycle
               !is2=1+lzd%Llr(ilr)%nsi2
               !ie2=lzd%Llr(ilr)%nsi2+lzd%llr(ilr)%d%n2i
@@ -3165,7 +3165,7 @@ module communications_init
       end do
       !call mpi_finalize(i)
       !stop
-    
+
       tt=0.d0
       !$omp parallel default(none) shared(tt, nptsp, norb_per_gridpoint) private(i)
       !$omp do reduction(+:tt)
@@ -3175,7 +3175,6 @@ module communications_init
       !$omp end do
       !$omp end parallel
       weight_check=tt
-      print *,'weights',weight_check,weight_tot,mpirank(bigdft_mpi%mpi_comm)
       ! Some check
       if (nproc > 1) then
         call fmpi_allreduce(weight_check, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)

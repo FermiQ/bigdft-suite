@@ -209,7 +209,6 @@ def plot_wfn_convergence(wfn_it,gnrm_cv):
         plt.axvline(it,color='k',linestyle='--')
 
 
-
 class Logfile():
     """Import a Logfile from a filename in yaml format, a list of filenames,
         an archive (compressed tar file), aidctionaory or a list od dictionaries:
@@ -219,6 +218,7 @@ class Logfile():
         l = Logfile(dictionary=dict)
         l = Logfile(dictionary=[dict1, dict2])"""
     def __init__(self,*args,**kwargs):
+        import os
         dicts = []
         #Read the dictionary kwargs
         arch = kwargs.get("archive")
