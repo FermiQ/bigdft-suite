@@ -74,9 +74,12 @@ program projection
   call yaml_map('Norm of the calculated projector',wnrm2(1,lr%wfd,tpsi))
   call yaml_mapping_close()
 
+  call deallocate_workarrays_projectors(wp)
+
   !calculate the difference of the two arrays
   call f_diff(f_size(psi),psi,tpsi,maxdiff)
   call yaml_map('Maximum difference of the two arrays',maxdiff)
+  call f_free(psi)
 
   ! compare input analytical gaussian and the roundtrip one to the daubechies
   projector_real=f_malloc(lr%mesh%ndim,id='projector_real') 
@@ -92,13 +95,12 @@ program projection
   call f_diff(f_size(gaussian),gaussian,projector_real,maxdiff)
   call yaml_map('Maximum difference of the in/out gaussian',maxdiff)
 
-  call deallocate_workarrays_projectors(wp)
   call deallocate_work_arrays_sumrho(w)
   call deallocate_locreg_descriptors(lr)
   call f_free(projector_real)
   call f_free(gaussian)
 
-  call f_free(psi,tpsi)
+  call f_free(tpsi)
   call f_lib_finalize()
 
   contains
@@ -147,9 +149,9 @@ program projection
          end do
          !here we do not consider the lxyz terms yet
          !take the reference functions
-         print *,size(gaussian),'real',lr%mesh%ndims,&
-              lr%mesh%hgrids*[lr%nsi1,lr%nsi2,lr%nsi3],&
-              lr%mesh_coarse%hgrids*[lr%ns1,lr%ns2,lr%ns3],rxyz,noxyz
+!         print *,size(gaussian),'real',lr%mesh%ndims,&
+!              lr%mesh%hgrids*[lr%nsi1,lr%nsi2,lr%nsi3],&
+!              lr%mesh_coarse%hgrids*[lr%ns1,lr%ns2,lr%ns3],rxyz,noxyz
          call separable_3d_function(bit,funcs,factors(1,1,m)*sqrt(lr%mesh%volume_element),gaussian)
       end do !not correctly written, it should be used to define the functions
     end subroutine real_space_gaussian

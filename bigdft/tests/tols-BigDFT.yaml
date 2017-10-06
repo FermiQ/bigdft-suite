@@ -87,6 +87,7 @@ Patterns to ignore:
  - memory
  - FLAGS
  - input_guess
+ - delta
 
 
 

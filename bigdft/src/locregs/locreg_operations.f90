@@ -222,9 +222,9 @@ module locreg_operations
             end do
             !here we do not consider the lxyz terms yet
             !take the reference functions
-            print *,size(projector_real),'real',lr%mesh%ndims,&
-                 lr%mesh%hgrids*[lr%nsi1,lr%nsi2,lr%nsi3],&
-                 lr%mesh_coarse%hgrids*[lr%ns1,lr%ns2,lr%ns3],rxyz,oxyz
+            !print *,size(projector_real),'real',lr%mesh%ndims,&
+            !     lr%mesh%hgrids*[lr%nsi1,lr%nsi2,lr%nsi3],&
+            !     lr%mesh_coarse%hgrids*[lr%ns1,lr%ns2,lr%ns3],rxyz,oxyz
             call separable_3d_function(bit,funcs,factors(1,1,m)*sqrt(lr%mesh%volume_element),projector_real)
          end do !not correctly written, it should be used to define the functions
          

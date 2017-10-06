@@ -398,7 +398,7 @@ program GPS_3D
    if (usegpu) call dict_set(dict_input//'setup'//'accel','CUDA')
    call dict_set(dict_input//'environment'//'delta',delta)
    if (trim(PSol) /= 'VAC') then
-      call dict_set(dict_input//'environment'//'cavity','rigid')
+      call dict_set(dict_input//'environment'//'cavity','soft-sphere')
       call dict_set(dict_input//'environment'//'gps_algorithm',PSol)
       if (mPB) call dict_set(dict_input//'environment'//'pb_method','modified')
    end if
@@ -429,7 +429,7 @@ program GPS_3D
         call pkernel_set_epsilon(pkernel,eps=eps)
       end if
 
-  else if (trim(PSol)=='PI') then
+  else if (trim(PSol)=='SC') then
 
       if (any(SetEps == [2,3,4,17]) .and. .not.initvectcheck) then
         call pkernel_set_epsilon(pkernel,eps=eps,oneoeps=oneoeps,dlogeps=dlogeps)
@@ -943,7 +943,7 @@ subroutine PS_Check_options(parser)
        dict_new('Usage' .is. &
        'Set the embedding method used. A non present value implies vacuum treatment.',&
        'Allowed values' .is. &
-       dict_new("PI" .is. 'Polarization iteration Method',&
+       dict_new("SC" .is. 'Self-consistent polarization iteration Method',&
                 "PCG" .is. 'Preconditioned Conjugate Gradient')))
 
   call yaml_cl_parse_option(parser,'seteps','4',&
@@ -953,7 +953,7 @@ subroutine PS_Check_options(parser)
        'Allowed values' .is. &
        dict_new('4' .is. 'Solves GPe with psolver from bigdft',&
                 '5' .is. 'Solves GPe with PCG customized (should be identical to 4 + PCG)',&
-                '6' .is. 'Solves GPe with PI customized (should be identical to 4 + PI)',&
+                '6' .is. 'Solves GPe with SC customized (should be identical to 4 + PI)',&
                 '7' .is. 'Solves GPe with PSD customized',&
                 '8' .is. 'Solves the modified Poisson Botzmann Equation with customized solver')))
                 !'7' .is. 'Solves GPe with PCG customized and a restart is implemented',&
@@ -7248,7 +7248,7 @@ subroutine SetEpsilon(mesh,n01,n02,n03,nspden,nord,nat,iproc,acell,a_gauss,hx,hy
     end do
    end do
 
-   else if ( trim(PSol)=='PI') then
+   else if ( trim(PSol)=='SC') then
 
    isp=1
    do i3=1,n03
