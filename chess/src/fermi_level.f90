@@ -532,7 +532,7 @@ module fermi_level
       integer :: ikpt,iorb,ii,newnorbu,newnorbd !,info_fermi
       real(mp) :: charge, chargef,wf,deltac
       real(mp) :: ef,electrons,dlectrons,factor,arg,argu,argd,corr,cutoffu,cutoffd,diff,full,res,resu,resd
-      real(mp) :: a, x, xu, xd, f, df, tt
+      real(mp) :: a, x, xu, xd, f, df, tt, log_term
       !integer :: ierr
       !type(fermi_aux) :: ft
 
@@ -764,8 +764,16 @@ module fermi_level
                        safe_exp(-((eval((ikpt-1)*norb+iorb)-ef)/wf0)**2)
                else if (occopt == SMEARING_DIST_FERMI) then
                   !Fermi function
-                  tt=occup((ikpt-1)*norb+iorb)
-                  eTS=eTS-full*wf0*(tt*log(tt) + (1._mp-tt)*log(1._mp-tt))
+                  !tt=occup((ikpt-1)*norb+iorb)
+                  tt=occup((ikpt-1)*norb+iorb)/full
+                  if (abs(tt)<1.e-30_mp .or. abs(1._mp-tt)<1.e-30_mp) then
+                      log_term = 0._mp
+                  else
+                      log_term = tt*log(tt) + (1._mp-tt)*log(1._mp-tt)
+                  end if
+                  !eTS=eTS-full*wf0*(tt*log(tt) + (1._mp-tt)*log(1._mp-tt))
+                  eTS=eTS-full*wf0*log_term
+                  !write(*,*) 'tt, full, wf0, log_term', tt, full, wf0, log_term
                else if (occopt == SMEARING_DIST_COLD1 .or. occopt == SMEARING_DIST_COLD2 .or. &
                     &  occopt == SMEARING_DIST_METPX ) then
                   !cold
