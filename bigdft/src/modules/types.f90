@@ -618,7 +618,7 @@ module module_types
  public :: local_zone_descriptors_null
  public :: energy_terms_null, work_mpiaccumulate_null
  public :: allocate_work_mpiaccumulate, deallocate_work_mpiaccumulate
- public :: nullify_orbitals_data
+ public :: nullify_orbitals_data, nullify_DFT_wavefunctions
  public :: SIC_data,orthon_data,input_variables,evaltoocc
  public :: linear_matrices_null, linmat_auxiliary_null, deallocate_linmat_auxiliary
  public :: deallocate_linear_matrices
@@ -1241,7 +1241,46 @@ contains
     end if
   end subroutine find_category
 
-  subroutine nullify_orbitals_data(orbs)
+  pure subroutine nullify_DFT_wavefunctions(wfn)
+    use communications_base, only: nullify_comms_linear, nullify_p2pComms
+    use foe_base, only: nullify_foe_data
+    use gaussians, only: nullify_gaussian_basis
+    implicit none
+    type(DFT_wavefunction), intent(out) :: wfn
+
+    wfn%c_obj = 0
+
+    nullify(wfn%psi)
+    nullify(wfn%hpsi)
+    nullify(wfn%psit)
+    nullify(wfn%psit_c)
+    nullify(wfn%psit_f)
+    nullify(wfn%ham_descr%psi)
+    nullify(wfn%ham_descr%psit_c)
+    nullify(wfn%ham_descr%psit_f)
+
+    nullify(wfn%gaucoeffs)
+    nullify(wfn%oldpsis)
+
+    call nullify_paw_objects(wfn%paw)
+    call nullify_gaussian_basis(wfn%gbd)
+
+    call nullify_p2pComms(wfn%comgp)
+    call nullify_p2pComms(wfn%ham_descr%comgp)
+    call nullify_linear_matrices(wfn%linmat)
+    call nullify_orbitals_data(wfn%orbs)
+    call nullify_comms_linear(wfn%collcom)
+    call nullify_comms_linear(wfn%ham_descr%collcom)
+    call nullify_comms_linear(wfn%collcom_sr)
+    call nullify_local_zone_descriptors(wfn%lzd)
+    call nullify_local_zone_descriptors(wfn%ham_descr%lzd)
+    call nullify_foe_data(wfn%foe_obj)
+    call nullify_foe_data(wfn%ice_obj)
+
+    nullify(wfn%coeff)
+  END SUBROUTINE nullify_DFT_wavefunctions
+
+  pure subroutine nullify_orbitals_data(orbs)
     implicit none
 
     ! Calling arguments
@@ -1580,34 +1619,47 @@ contains
   !  mat_ind_compr%offset_compr = 0
   !end function matrixindex_in_compressed_fortransposed_null
 
-  function linmat_auxiliary_null() result (aux)
+  pure subroutine nullify_linmat_auxiliary(aux)
     implicit none
-    type(linmat_auxiliary) :: aux
+    type(linmat_auxiliary), intent(out) :: aux
     !nullify(aux%mat_ind_compr)
     !aux%mat_ind_compr2 = matrixindex_in_compressed_fortransposed2_null()
     nullify(aux%mat_ind_compr2)
+  end subroutine nullify_linmat_auxiliary
+
+  pure function linmat_auxiliary_null() result (aux)
+    implicit none
+    type(linmat_auxiliary) :: aux
+    call nullify_linmat_auxiliary(aux)
   end function linmat_auxiliary_null
 
-  function linear_matrices_null() result(linmat)
-    use sparsematrix_memory, only: sparse_matrix_metadata_null, sparse_matrix_null, matrices_null
+  pure subroutine nullify_linear_matrices(linmat)
+    use sparsematrix_memory, only: nullify_sparse_matrix_metadata, &
+         & nullify_sparse_matrix, nullify_matrices
     implicit none
-    type(linear_matrices) :: linmat
+    type(linear_matrices), intent(out) :: linmat
     integer :: i
-    linmat%smmd = sparse_matrix_metadata_null()
-    linmat%smat(1) = sparse_matrix_null()
-    linmat%smat(2) = sparse_matrix_null()
-    linmat%smat(3) = sparse_matrix_null()
+    call nullify_sparse_matrix_metadata(linmat%smmd)
+    call nullify_sparse_matrix(linmat%smat(1))
+    call nullify_sparse_matrix(linmat%smat(2))
+    call nullify_sparse_matrix(linmat%smat(3))
     nullify(linmat%ks)
     nullify(linmat%ks_e)
-    linmat%ovrlp_ = matrices_null()
-    linmat%ham_ = matrices_null()
-    linmat%kernel_ = matrices_null()
+    call nullify_matrices(linmat%ovrlp_)
+    call nullify_matrices(linmat%ham_)
+    call nullify_matrices(linmat%kernel_)
     do i=1,size(linmat%ovrlppowers_)
-        linmat%ovrlppowers_(i) = matrices_null()
+       call nullify_matrices(linmat%ovrlppowers_(i))
     end do
-    linmat%auxs = linmat_auxiliary_null()
-    linmat%auxs = linmat_auxiliary_null()
-    linmat%auxs = linmat_auxiliary_null()
+    call nullify_linmat_auxiliary(linmat%auxs)
+    call nullify_linmat_auxiliary(linmat%auxm)
+    call nullify_linmat_auxiliary(linmat%auxl)
+  end subroutine nullify_linear_matrices
+
+  pure function linear_matrices_null() result(linmat)
+    implicit none
+    type(linear_matrices) :: linmat
+    call nullify_linear_matrices(linmat)
   end function linear_matrices_null
 
   !subroutine deallocate_matrixindex_in_compressed_fortransposed(mat_ind_compr)

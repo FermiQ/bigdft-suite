@@ -99,8 +99,8 @@ subroutine test_f_functions()
   grid=f_grid_1d_new(UNIFORM_GRID,[-1.0_gp,1.0_gp],npts=1000)
   
   !func1=f_function_new(F_GAUSSIAN,exponent=onehalf/0.01_gp)
-  func1=f_function_new(F_POLYNOMIAL,coefficients=[zero,one])
-  func2=f_function_new(F_POLYNOMIAL,coefficients=[zero,one])
+  func1=f_function_new(F_POLYNOMIAL,coefficients=[0.0_gp,one])
+  func2=f_function_new(F_POLYNOMIAL,coefficients=[0.0_gp,one])
 !!$
 !!$  call f_function_product(func1,func2,func3)
 !!$

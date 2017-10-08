@@ -11,7 +11,7 @@ MPI_INCLUDES = gather-inc.f90 \
 	bcast-inc.f90 bcast-decl-inc.f90 bcast-decl-arr-inc.f90 \
 	maxdiff-decl-inc.f90 maxdiff-end-inc.f90 \
 	allgather-inc.f90 scatter-inc.f90 scatterv-inc.f90 scatterv-decl-inc.f90 \
-	$(ALLREDUCE_INCLUDES) $(ALLTOALL_INCLUDES) $(WIN_INCLUDES)
+	$(ALLREDUCE_INCLUDES) $(ALLTOALL_INCLUDES) $(WIN_INCLUDES) $(GET_INCLUDES)
 
 WIN_INCLUDES = win-create-inc.f90
 GET_INCLUDES = get-inc.f90
@@ -77,7 +77,7 @@ modules = wrapper_mpi.@MODULE_EXT@ \
 	f_onesided.@MODULE_EXT@ \
 	f_alltoall.@MODULE_EXT@
 endif
-CLEANFILES = $(modules) mpif.h
+CLEANFILES = *.@MODULE_EXT@ mpif.h
 
 
 

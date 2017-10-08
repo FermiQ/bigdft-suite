@@ -250,7 +250,8 @@ module f_arrays
 
       allocate(array(m%lbounds(1):m%ubounds(1)),stat=ierror)
 
-      call malloc_validate(ierror,size(shape(array)),m)
+      !here the times is already resumed
+      if (.not. malloc_validate(ierror,size(shape(array)),m)) return
 
       !here the database for the allocation might be updated
 
@@ -271,7 +272,7 @@ module f_arrays
       allocate(array(m%lbounds(1):m%ubounds(1),m%lbounds(2):m%ubounds(2),&
            m%lbounds(3):m%ubounds(3)),stat=ierror)
 
-      call malloc_validate(ierror,size(shape(array)),m)
+      if (.not. malloc_validate(ierror,size(shape(array)),m)) return
 
       !here the database for the allocation might be updated
       call f_timer_resume()!TCAT_ARRAY_ALLOCATIONS

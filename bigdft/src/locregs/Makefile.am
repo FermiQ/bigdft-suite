@@ -32,7 +32,7 @@ modules = module_base.@MODULE_EXT@ \
 	compression.@MODULE_EXT@ 
 endif
 
-CLEANFILES = $(modules)
+CLEANFILES = *.@MODULE_EXT@
 
 AM_FCFLAGS = -I. -I$(srcdir) -I$(top_builddir)/includes @LIB_FUTILE_CFLAGS@
 

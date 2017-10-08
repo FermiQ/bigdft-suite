@@ -21,6 +21,8 @@ module numerics
   real(db), parameter, public :: oneoeightpi=0.03978873577297383394222094084312859050861491143511411218691683601_db
   !rationals
   !real(db), parameter, public :: =0.0_db
+  real(db), parameter, public :: oneosqrtpi=0.564189583547756286948079451560772585844050629328998856844086_db
+
   real(db), parameter, public :: one=1.0_db
   real(db), parameter, public :: two=2.0_db
   real(db), parameter, public :: onehalf=0.5_db
