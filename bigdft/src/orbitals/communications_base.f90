@@ -91,9 +91,9 @@ module communications_base
        
 
   !> Public routines
-  public :: comms_linear_null
+  public :: comms_linear_null, nullify_comms_linear
   public :: comms_cubic_null
-  public :: p2pComms_null
+  public :: p2pComms_null, nullify_p2pComms
   public :: allocate_MPI_communication_arrays
   public :: allocate_local_comms_cubic
   !!public :: allocate_MPI_comms_cubic_repartition

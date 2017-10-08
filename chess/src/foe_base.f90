@@ -52,7 +52,7 @@ module foe_base
   end type foe_data
 
 
-  public :: foe_data_null
+  public :: foe_data_null, nullify_foe_data
   public :: foe_data_deallocate
   public :: foe_data_set_int
   public :: foe_data_get_int
@@ -64,12 +64,11 @@ module foe_base
 
 
   contains
- 
 
-    function foe_data_null() result(foe_obj)
+    pure subroutine nullify_foe_data(foe_obj)
       use f_utils, only: f_none,assignment(=)
       implicit none
-      type(foe_data) :: foe_obj
+      type(foe_data), intent(out) :: foe_obj
       nullify(foe_obj%evlow)
       nullify(foe_obj%evhigh)
       nullify(foe_obj%bisection_shift)
@@ -97,6 +96,12 @@ module foe_base
       foe_obj%accuracy_penalty       =f_none()
       foe_obj%occupation_function    =f_none()
       foe_obj%adjust_fscale          =f_none()
+    end subroutine nullify_foe_data
+
+    pure function foe_data_null() result(foe_obj)
+      implicit none
+      type(foe_data) :: foe_obj
+      call nullify_foe_data(foe_obj)
     end function foe_data_null
 
 

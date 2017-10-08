@@ -42,7 +42,7 @@ module sparsematrix_memory
 !!$
   !> Public routines
   public :: deallocate_sparse_matrix
-  public :: sparse_matrix_null
+  public :: sparse_matrix_null, nullify_sparse_matrix
   public :: allocate_sparse_matrix_keys
   public :: allocate_sparse_matrix_basic
   public :: allocate_sparse_matrix_matrix_multiplication
@@ -53,9 +53,9 @@ module sparsematrix_memory
   public :: assignment(=)
   public :: allocate_matrices
   public :: deallocate_matrices
-  public :: matrices_null
+  public :: matrices_null, nullify_matrices
   public :: copy_sparse_matrix,copy_matrices
-  public :: sparse_matrix_metadata_null
+  public :: sparse_matrix_metadata_null, nullify_sparse_matrix_metadata
   public :: deallocate_sparse_matrix_metadata
   public :: copy_sparse_matrix_metadata
 !!$

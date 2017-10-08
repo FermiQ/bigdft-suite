@@ -80,4 +80,4 @@ modules = module_fft_sg.@MODULE_EXT@ \
 	numerics.@MODULE_EXT@ \
 	box.@MODULE_EXT@
 endif
-CLEANFILES = $(modules)
+CLEANFILES = *.@MODULE_EXT@
