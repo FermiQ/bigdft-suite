@@ -89,6 +89,7 @@ program projection
   !calculate the difference of the two arrays
   call f_diff(f_size(psi),psi,tpsi,maxdiff)
   call yaml_map('Maximum difference of the two arrays',maxdiff)
+  call f_free(psi)
 
   ! compare input analytical gaussian and the roundtrip one to the daubechies
   projector_real=f_malloc(lr%mesh%ndim,id='projector_real') 
@@ -112,7 +113,7 @@ program projection
   call f_free(projector_real)
   call f_free(gaussian)
 
-  call f_free(psi,tpsi)
+  call f_free(tpsi)
 
   call f_lib_finalize()
 

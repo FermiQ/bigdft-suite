@@ -9,7 +9,7 @@
 
 !> Wrapper
 subroutine wnrm_wrap(ncplx,mvctr_c,mvctr_f,psi,scpr)
-  use module_base
+  use module_defs, only: wp,dp
   implicit none
   integer, intent(in) :: mvctr_c,mvctr_f,ncplx
   real(wp), dimension((mvctr_c+7*mvctr_f)*ncplx), intent(in) :: psi
@@ -34,7 +34,7 @@ END SUBROUTINE wnrm_wrap
 !> Calculates the norm SQUARED (scpr) of a wavefunction (in vector form)
 !! given the distribution of the data also dnrm2 or ddot can be called
 subroutine wnrm(mvctr_c,mvctr_f,psi_c,psi_f,scpr)
-  use module_base
+  use module_defs, only: wp,dp
   implicit none
   !Arguments
   integer, intent(in) :: mvctr_c,mvctr_f
