@@ -3090,6 +3090,7 @@ module communications_init
       use module_types
       use bounds, only: check_whether_bounds_overlap
       use yaml_output
+      use dictionaries
       implicit none
     
       ! Calling arguments
@@ -3182,8 +3183,7 @@ module communications_init
 
 
       if (abs(weight_check-weight_tot) > 1.d-3) then
-          write(*,*) 'ERROR: weight_check/=weight_tot', weight_check, weight_tot
-          stop '2: weight_check/=weight_tot'
+          call f_err_throw(trim(yaml_toa(weight_check))//'=weight_check /= weight_tot='//trim(yaml_toa(weight_tot)))
       else if (abs(weight_check-weight_tot) > 0.d0) then
 !!$         call yaml_warning('The total weight for density seems inconsistent! Ref:'//&
 !!$               trim(yaml_toa(weight_tot,fmt='(1pe25.17)'))//', Check:'//&
