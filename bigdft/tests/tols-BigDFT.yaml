@@ -308,8 +308,9 @@ H2-spin:
 
 H-Rydberg_H:
  Gradient Norm: 5.8e-9
- Eigenvalues and eigenstate residue: 1.1e-8
  norm(P): 1.1e-10
+ Keys to ignore:
+   - Eigenvalues and eigenstate residue #: 1.1e-8
 
 TiSmear:
  Epsilon: 5.e-11
@@ -470,14 +471,18 @@ PAW:
  Epot: 1.91e-10
  EvXC: 4.01e-11
  norm(P): 1.e-7
+ Keys to ignore: 
+   - Epaw
+   - NonLocal PSP Parameters
 
 
 PAW-GGA:
  Keys to ignore:
- - Atomic Forces (Ha/Bohr)
- - Average noise forces
- - Clean forces norm (Ha/Bohr)
- - Stress Tensor
+   #- Atomic Forces (Ha/Bohr)
+   #- Average noise forces
+   #- Clean forces norm (Ha/Bohr)
+   #- Stress Tensor
+   - Epaw
  Compensation charge on libPAW mesh: 5e-10
  Compensation charge on wavelet grid: 5e-10
  Total electronic charge: 5e-10
@@ -492,6 +497,8 @@ taskgroups:
   EKS: 1.1e-10
   P vector: 1.1e-10
   Total electronic charge: 1.5e-11
+  Keys to ignore:
+    - NonLocal PSP Parameters
 
 base:
   norm(P): 1.1e-9
@@ -563,7 +570,7 @@ cleanup:
  Maxdiff for transpose (checksum): 1.5e-11
  e: 6.3e-10
  trace(Ktilde): 1.2e-11
- ENERGY: 5.1e-11
+ ENERGY: 5.3e-11
 
 directmin:
  Patterns to ignore:
@@ -1605,8 +1612,8 @@ O2spin_diag:
  Clean forces norm (Ha/Bohr): 3.09e-6
  Raw forces norm (Ha/Bohr): 2.51e-6
  Orbitals: 2.9e-7
- EBS: 2.5e-9
- EBS higher temperature: 2.5e-9
+ EBS: 3.2e-9
+ EBS higher temperature: 3.2e-9
  EH: 1.9e-6
  EXC: 3.5e-7
  Ekin: 2.3e-6
@@ -1633,7 +1640,7 @@ O2spin_diag:
  relative difference: 5.9e-11
  Tr(K): 1.1e-7
  spin occupations: 1.1e-7
- trace(KH): 2.5e-9
+ trace(KH): 3.2e-9
 
 O2spin_foe:
  Atomic Forces (Ha/Bohr): 3.0e-7
@@ -2738,7 +2745,7 @@ H2Omultipoles_1:
   Average noise forces: 1.0e-10
   Raw forces norm (Ha/Bohr): 1.4e-11
   e: 1.2e-11
-  trace(KH): 1.2e-11  
+  trace(KH): 1.7e-11  
 
 H2Omultipoles_11:
   EBS: 9.3e-10
