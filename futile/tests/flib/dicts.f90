@@ -507,8 +507,8 @@ subroutine test_dictionaries1()
    nullify(dict_tmp)
    do while(iterating(dict_tmp,on=dictA))
       call yaml_map('Iterating in dictA, compact form',.true.)
-      call yaml_map('Key of dictA, again',dict_key(dict_tmp))
-      call yaml_map('Value of dictA, again',dict_value(dict_tmp))
+      call yaml_map('Key of dictA, again (CF)',dict_key(dict_tmp))
+      call yaml_map('Value of dictA, again (CF)',dict_value(dict_tmp))
    end do
    call dict_free(dictA)
 

@@ -1,3 +1,4 @@
+
 !> @file
 !! Manage dynamic memory allocation
 !! @author
@@ -304,33 +305,33 @@ contains
   end subroutine set_depth
 
 
-  subroutine validate_allocation_all(ierror,rank,m)
+  function validate_allocation_all(ierror,rank,m) result(ok)
     implicit none
     integer, intent(in) :: ierror,rank
     type(malloc_information_all), intent(in) :: m
     include 'allocation-validation-inc.f90'
-  end subroutine validate_allocation_all
+  end function validate_allocation_all
 
-  subroutine validate_allocation_str_all(ierror,rank,m)
+  function validate_allocation_str_all(ierror,rank,m) result(ok)
     implicit none
     integer, intent(in) :: ierror,rank
     type(malloc_information_str_all), intent(in) :: m
     include 'allocation-validation-inc.f90'
-  end subroutine validate_allocation_str_all
+  end function validate_allocation_str_all
 
-  subroutine validate_allocation_ptr(ierror,rank,m)
+  function validate_allocation_ptr(ierror,rank,m) result(ok)
     implicit none
     integer, intent(in) :: ierror,rank
     type(malloc_information_ptr), intent(in) :: m
     include 'allocation-validation-inc.f90'
-  end subroutine validate_allocation_ptr
+  end function validate_allocation_ptr
 
-  subroutine validate_allocation_str_ptr(ierror,rank,m)
+  function validate_allocation_str_ptr(ierror,rank,m) result(ok)
     implicit none
     integer, intent(in) :: ierror,rank
     type(malloc_information_str_ptr), intent(in) :: m
     include 'allocation-validation-inc.f90'
-  end subroutine validate_allocation_str_ptr
+  end function validate_allocation_str_ptr
 
 
   !> This routine adds the corresponding subprogram name to the dictionary
