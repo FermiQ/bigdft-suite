@@ -211,7 +211,7 @@ subroutine sqnm(runObj,outsIO,nproc,iproc,verbosity,ncount_bigdft,fail)
 
    call fnrmandforcemax(fxyzraw(1,1,idx(0)),fnrm,fmax,nat)
    fnrm=sqrt(fnrm)
-   if (fmax < 3.e-1_gp) call updatefluctsum(outs%fnoise,fluct)
+!!   if (fmax < 3.e-1_gp) call updatefluctsum(outs%fnoise,fluct)
 
    etotold=etot
    etotp=etot
