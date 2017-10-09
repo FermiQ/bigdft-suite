@@ -139,7 +139,7 @@ module module_atoms
   public :: astruct_set_from_dict
   public :: astruct_file_merge_to_dict,atoms_file_merge_to_dict
   public :: psp_dict_analyse, nlcc_set_from_dict,atoms_gamma_from_dict
-  public :: astruct_constraints,astruct_set
+  public :: astruct_constraints,astruct_set,atomic_charge_density
 
 
 contains
@@ -215,7 +215,6 @@ contains
     end if
   end subroutine increment_atoms_iter
 
-
   !> Logical function, returns .true. if the iterator is still valid
   pure function atoms_iter_is_valid(it)
     implicit none
@@ -224,7 +223,6 @@ contains
 
     atoms_iter_is_valid=associated(it%astruct_ptr)
   end function atoms_iter_is_valid
-
 
   !> Logical function for iterating above atoms
   function atoms_iter_next(it)
@@ -253,7 +251,6 @@ contains
     type(symmetry_data) :: sym
     call nullify_symmetry_data(sym)
   end function symmetry_data_null
-
 
   pure subroutine nullify_symmetry_data(sym)
     use f_utils, only: f_zero
@@ -522,6 +519,60 @@ contains
       inei = neighb%nei(neighb%keynei(2, neighb%iat) + neighb%ind - 1)
       astruct_neighbours_next = .true.
     END FUNCTION astruct_neighbours_next
+
+    !determine the gaussian structure related to the given atom
+    subroutine atomic_charge_density(g,at,atit)
+      use gaussians
+      use numerics, only: twopi
+      implicit none
+      type(atoms_data), intent(in) :: at
+      type(atoms_iterator), intent(in) :: atit
+      type(gaussian_real_space), intent(out) :: g
+      !local variables
+      integer :: mp_isf
+      real(gp) :: rloc
+      real(gp), dimension(1) :: charge
+      integer, dimension(3) :: zeros
+
+      rloc=at%psppar(0,0,atit%ityp)
+      charge(1)=real(at%nelpsp(atit%ityp),gp)/(twopi*sqrt(twopi)*rloc**3)
+      zeros=0
+      mp_isf=at%mp_isf
+      if (.not. at%multipole_preserving) mp_isf=0
+      call gaussian_real_space_set(g,rloc,1,charge,zeros,[0],mp_isf)
+
+    end subroutine atomic_charge_density
+
+!!!    subroutine local_psp_terms(g,at,atit)
+!!!      implicit none
+!!!      type(gaussian_real_space), intent(out) :: g
+!!!      !local variables
+!!!      integer :: nloc,iloc
+!!!      integer, dimension(4) :: pow
+!!!      real(gp), dimension(4) :: factors
+!!!
+!!!      ! Determine the number of local terms
+!!!      nloc=0
+!!!      do iloc=1,4
+!!!         if (at%psppar(0,iloc,atit%ityp) /= 0.d0) nloc=iloc
+!!!      enddo
+!!!
+!!!      pow=0
+!!!      factors=0.0_gp
+!!!      sigma=at%psppar(0,0,atit%ityp)
+!!!      rlocinvsq=onehalf/sigma**2
+!!!      do iloc=1,nloc
+!!!         pow(iloc)=2*(iloc-1)
+!!!         factor(iloc)=at%psppar(0,iloc,atit%ityp)*rlocinvsq**(2*(iloc-1))
+!!!      end do
+!!!!!$      arg=r2*rlocinvsq
+!!!!!$      tt=at%psppar(0,nloc,atit%ityp)
+!!!!!$      do iloc=nloc-1,1,-1
+!!!!!$         tt=arg*tt+at%psppar(0,iloc,atit%ityp)
+!!!!!$      enddo
+!!!      call gaussian_real_space_set(g,sigma,nloc,factor,pow,0,0.0_gp)
+!!!
+!!!    end subroutine local_psp_terms
 
     !> determine the atomic dictionary from the key
     subroutine get_atomic_dict(dict_tmp,dict,iat,name,fromname)

@@ -25,6 +25,7 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
   use public_enums
   use rhopotential, only: updatePotential,exchange_and_correlation
   use module_cfd, only: cfd_dump_info
+  use f_enums, only: toi
   implicit none
   !Arguments
   logical, intent(in) :: scf  !< If .false. do not calculate the self-consistent potential
@@ -58,7 +59,7 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
   whilepot=.true.
   !if (wfn%paw%usepaw) whilepot = .false.
   !flag for saving the local fields (rho,vxc,vh)
-  savefields= (f_int(scf_mode)==SCF_KIND_GENERALIZED_DIRMIN)
+  savefields= (toi(scf_mode)==SCF_KIND_GENERALIZED_DIRMIN)
   correcth=1
   !do not do that if rho_work is already associated
   if (savefields .and. associated(denspot%rho_work)) then
@@ -1806,7 +1807,6 @@ subroutine SynchronizeHamiltonianApplication(nproc,npsidim_orbs,orbs,Lzd,GPU,xc,
 
    call f_routine(id='SynchronizeHamiltonianApplication')
 
-
    if(GPU%OCLconv) then! needed also in the non_ASYNC since now NlPSP is before .and. ASYNCconv)) then
       call finish_hamiltonian_OCL(orbs,energs%ekin,energs%epot,GPU)
       ispsi=1
@@ -1831,7 +1831,6 @@ subroutine SynchronizeHamiltonianApplication(nproc,npsidim_orbs,orbs,Lzd,GPU,xc,
    !this operation should be done only here since the exctX energy is already reduced
    !SM: Divide by nproc due to the reduction later on
    if (exctX) energs%epot=energs%epot+2.0_gp*energs%eexctX/real(nproc,kind=8)
-
    !energies reduction
    if (nproc > 1) then
       if (present(energs_work)) then
@@ -1874,7 +1873,6 @@ subroutine SynchronizeHamiltonianApplication(nproc,npsidim_orbs,orbs,Lzd,GPU,xc,
    if (energs%eelec /= 0.0_gp) then
       energs%eh=energs%epot-energs%eelec-energs%evxc
    end if
-
    call f_release_routine()
 
 END SUBROUTINE SynchronizeHamiltonianApplication

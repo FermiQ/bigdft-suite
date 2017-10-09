@@ -403,6 +403,8 @@ contains
       integer :: Gnbl1,Gnbl2,Gnbl3,Gnbr1,Gnbr2,Gnbr3
       integer :: Lnbl1,Lnbl2,Lnbl3,Lnbr1,Lnbr2,Lnbr3
       logical, dimension(3) :: peri,peri_glob
+      integer, dimension(3) :: ndims
+      real(gp), dimension(3) :: oxyz
 
       lr%geocode=geocode
       lr%ns1=0
@@ -418,9 +420,16 @@ contains
 
       lr%d=grid_init(peri,n1,n2,n3,nfl1,nfl2,nfl3,nfu1,nfu2,nfu3,&
          lr%ns1,lr%ns2,lr%ns3)
+      ndims(1)=lr%d%n1i
+      ndims(2)=lr%d%n2i
+      ndims(3)=lr%d%n3i
 
-      lr%mesh=cell_new(geocode,[lr%d%n1i,lr%d%n2i,lr%d%n3i],hgridsh)
-      lr%mesh_coarse=cell_new(geocode,[lr%d%n1,lr%d%n2,lr%d%n3],2.0_gp*hgridsh)
+      lr%mesh=cell_new(geocode,ndims,hgridsh)
+
+      ndims(1)=lr%d%n1
+      ndims(2)=lr%d%n2
+      ndims(3)=lr%d%n3
+      lr%mesh_coarse=cell_new(geocode,ndims,2.0_gp*hgridsh)
 
       Gnbl1=0
       Gnbl2=0
@@ -452,7 +461,8 @@ contains
       if (present(wfd)) lr%wfd=wfd !it just associates the pointers
       if (geocode == 'F' .and. present(bnds)) lr%bounds=bnds
 
-      lr%bit=box_iter(lr%mesh,origin=locreg_mesh_origin(lr%mesh))
+      oxyz=locreg_mesh_origin(lr%mesh)
+      lr%bit=box_iter(lr%mesh,origin=oxyz)
 
     END SUBROUTINE init_lr
 

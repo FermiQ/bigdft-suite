@@ -549,6 +549,7 @@ module postprocessing_linear
       use locregs_init, only: small_to_large_locreg
       use module_fragments
       use io, only: writemywaves
+      use f_enums, only: toi
       implicit none
       
       ! Calling arguments
@@ -732,7 +733,7 @@ module postprocessing_linear
       !!write(*,*) 'iproc, input%output_wf_format',iproc, WF_FORMAT_PLAIN
       call writemywaves(iproc,&
            trim(input%dir_output)//trim(input%outputpsiid),&
-           f_int(input%output_wf), &
+           toi(input%output_wf), &
            orbs, KSwfn%Lzd%Glr%d%n1, KSwfn%Lzd%Glr%d%n2, KSwfn%Lzd%Glr%d%n3, &
            KSwfn%Lzd%hgrids(1), KSwfn%Lzd%hgrids(2), KSwfn%Lzd%hgrids(3), &
            at, rxyz, KSwfn%Lzd%Glr%wfd, phiwork_global)

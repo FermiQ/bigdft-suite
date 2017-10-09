@@ -76,6 +76,8 @@ program numeric_check
 !!$  call finalize_real_space_conversion()
 
 
+  call test_f_functions()
+
   !here some tests about the box usage
   call test_box_functions()
 
@@ -83,6 +85,39 @@ program numeric_check
 
 end program numeric_check
 
+subroutine test_f_functions()
+  use futile, gp => f_double
+  use f_functions
+  use numerics
+  implicit none
+  !local variables
+  type(f_function) :: func1,func2,func3
+  type(f_grid_1d) :: grid
+  integer :: unit
+
+  !start with the simple evaluation
+  grid=f_grid_1d_new(UNIFORM_GRID,[-1.0_gp,1.0_gp],npts=1000)
+  
+  !func1=f_function_new(F_GAUSSIAN,exponent=onehalf/0.01_gp)
+  func1=f_function_new(F_POLYNOMIAL,coefficients=[zero,one])
+  func2=f_function_new(F_POLYNOMIAL,coefficients=[zero,one])
+!!$
+!!$  call f_function_product(func1,func2,func3)
+!!$
+!!$  func3=func1*func2
+!!$
+  unit=12
+  call f_open_file(unit=unit,file='testfunction.txt')
+  call f_function_dump(unit,func1,grid)
+  call f_close(unit=unit)
+
+!!$  call f_open_file(unit=unit,file='testproduct.txt')
+!!$  call f_function_dump(unit,func3,grid)
+!!$  call f_close(unit=unit)
+!!$
+!!$  call f_free
+
+end subroutine test_f_functions
 
 subroutine test_box_functions()
   use futile, gp=>f_double
