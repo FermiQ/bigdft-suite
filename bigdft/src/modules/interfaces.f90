@@ -97,7 +97,7 @@ module module_interfaces
        use module_dpbox
        use module_types
        implicit none
-       type(denspot_distribution), intent(in) :: dpbox
+       type(denspot_distribution), intent(inout) :: dpbox
        type(atoms_data), intent(in) :: at
        integer, intent(in) :: iproc,nproc,dispersion
        real(gp), dimension(3), intent(in) :: elecfield

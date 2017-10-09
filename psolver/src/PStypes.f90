@@ -757,7 +757,7 @@ contains
           select case(trim(strn))
           case('vacuum')
              call f_enum_attr(k%method,PS_NONE_ENUM)
-          case('rigid')
+          case('soft-sphere')
              call f_enum_attr(k%method,PS_RIGID_ENUM)
           case('sccs')   
              call f_enum_attr(k%method,PS_SCCS_ENUM)
@@ -771,7 +771,7 @@ contains
        case (DELTA_KEY)
           dummy_d=val
           ! Divided by 4 because both rigid cavities are 4*delta spread 
-          k%cavity%delta=0.25_gp*dummy_d
+          k%cavity%delta=dummy_d  !0.25_gp*dummy_d
        case (FACT_RIGID)
           k%cavity%fact_rigid=val
        case (CAVITATION)
@@ -789,7 +789,7 @@ contains
        case (GPS_ALGORITHM)
           strn=val
           select case(trim(strn))
-          case('PI')
+          case('SC')
              call f_enum_update(dest=k%method,src=PS_PI_ENUM)
           case('PCG')
              call f_enum_update(dest=k%method,src=PS_PCG_ENUM)

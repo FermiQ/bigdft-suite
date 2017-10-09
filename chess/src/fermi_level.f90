@@ -367,7 +367,6 @@ module fermi_level
               call yaml_mapping_close()
           end if
 
-
         end subroutine determine_new_fermi_level
 
 
@@ -459,7 +458,7 @@ module fermi_level
     
     end subroutine get_roots_of_cubic_polynomial
 
-
+    !> such function should be moved in the linalg wrappers
     real(kind=mp) function determinant(iproc, n, mat)
         implicit none
     
@@ -498,6 +497,97 @@ module fermi_level
     
     end function determinant
 
+    pure subroutine get_entropy(occopt,e,ef,kT,s)
+      use numerics
+      implicit none
+      integer, intent(in) :: occopt !< it should become an enumerator
+      real(mp), intent(in) :: e !< energy of the state
+      real(mp), intent(in) :: ef !< fermi level
+      real(mp), intent(in) :: kT !< width of the fermi function
+      real(mp), intent(out) :: s
+      !local variables
+      real(mp) :: arg,x,a,f,df
+
+      select case(occopt)
+      case(SMEARING_DIST_ERF)
+         s=0.5_mp*kT*oneosqrtpi*safe_exp(-((e-ef)/kt)**2)
+      case(SMEARING_DIST_FERMI)
+         call get_occupation(occopt,e,ef,kT,f,df)
+         s=-kT*(f*log(f) + (1.0_mp-f)*log(1._mp-f))
+      case(SMEARING_DIST_COLD1)
+         a=-.5634d0
+         x= -arg
+         s=0.5_mp*kT*(a*x**3-x**2+0.5_mp)*safe_exp(-x**2)*oneosqrtpi
+      case(SMEARING_DIST_COLD2)
+         a=-.8165d0
+         x= -arg
+         s=0.5_mp*kT*(1.0_mp-sqrt(2.0_mp)*x)*&
+              safe_exp(-(x-1.0_mp/sqrt(2.0_mp))**2)*oneosqrtpi
+      case(SMEARING_DIST_METPX)
+         x= -arg
+         s=-0.5_mp*kT*(x**2-0.5_mp)*safe_exp(-x**2)*oneosqrtpi
+      case default
+         f  = 0.d0
+         df = 0.d0
+      end select
+
+    end subroutine get_entropy
+
+    pure subroutine get_occupation(occopt,e,ef,kT,f,df)
+      use numerics
+      implicit none
+      integer, intent(in) :: occopt !< it should become an enumerator
+      real(mp), intent(in) :: e !< energy of the state
+      real(mp), intent(in) :: ef !< fermi level
+      real(mp), intent(in) :: kT !< width of the fermi function
+      real(mp), intent(out) :: f !< occupation # for band i 
+      real(mp), intent(out) :: df  !< df/darg
+      !local variables
+      real(mp) :: arg,a,res,x
+
+      arg=(e-ef)/kT
+      select case(occopt)
+      case(SMEARING_DIST_ERF)
+         !call abi_derf_ab(res,arg)
+         res=safe_erf(arg)
+         f =.5d0*(1.d0-res)
+         df=-safe_exp(-arg**2)*oneosqrtpi
+      case(SMEARING_DIST_FERMI)
+         f =1.d0/(1.d0+safe_exp(arg))
+         df=-1.d0/(2.d0+safe_exp(arg)+safe_exp(-arg))
+      case(SMEARING_DIST_COLD1)
+         a=-.5634d0
+         x= -arg
+         !call abi_derf_ab(res,x)
+         res=safe_erf(x)
+         f =.5d0*(1.d0+res +safe_exp(-x**2)*(-a*x**2 + .5d0*a+x)*oneosqrtpi)
+         df=-safe_exp(-x**2) * (a*x**3 -x**2 -1.5d0*a*x +1.5d0)*oneosqrtpi   ! df:=df/darg=-df/dx
+         !POSHM=(2.D0-qe_erfc(X))+(-2.d0*a*x*x+2*x+a)*EXP(-X*X)/SQRT(PI)/2.d0
+      case(SMEARING_DIST_COLD2)
+         !a=-.8165d0
+         x= -arg-1.0_mp/sqrt(2.0_mp)
+         !call abi_derf_ab(res,x)
+         !res=safe_derf(x-1.0_mp/sqrt(2.0_mp))
+         res=safe_erf(x)!x-1.0_mp/sqrt(2.0_mp))
+
+         !POSHM2=(2.D0-qe_erfc(X-1.d0/sqrt(2.d0)))+ &
+         !&  sqrt(2.d0)*exp(-x*x+sqrt(2.d0)*x-0.5d0)/sqrt(pi)
+         !f =.5d0*(1.d0+res +safe_exp(-x**2)*(-a*x**2 + .5d0*a+x)*oneosqrtpi)
+         !f=0.5_mp*(1.0_mp+res+sqrt(2.0_mp)*safe_exp(-x**2+sqrt(2.0_mp)*x-0.5_mp)*&
+         f=0.5_mp*(1.0_mp+res+sqrt(2.0_mp)*safe_exp(-x**2)*oneosqrtpi)
+         !@todo calculate this derivative (a is meaningless here)
+         df=-safe_exp(-x**2) * (a*x**3 -x**2 -1.5d0*a*x +1.5d0)*oneosqrtpi 
+      case(SMEARING_DIST_METPX)
+         x= -arg
+         !call abi_derf_ab(res,x)
+         res=safe_erf(x)
+         f =.5d0*(1.d0+res +safe_exp(-x**2)*x*oneosqrtpi)
+         df=-safe_exp(-x**2) * ( -x**2 +1.5d0)*oneosqrtpi 
+      case default
+         f  = 0.d0
+         df = 0.d0
+      end select
+    end subroutine get_occupation
 
 
     !> Finds the fermi level ef for an error function distribution with a width wf
@@ -527,12 +617,11 @@ module fermi_level
       !local variables
       logical :: exitfermi
       !   real(gp), parameter :: pi=3.1415926535897932d0
-      real(mp), parameter :: sqrtpi=sqrt(pi)
       real(mp), dimension(1,1,1) :: fakepsi
       integer :: ikpt,iorb,ii,newnorbu,newnorbd !,info_fermi
       real(mp) :: charge, chargef,wf,deltac
       real(mp) :: ef,electrons,dlectrons,factor,arg,argu,argd,corr,cutoffu,cutoffd,diff,full,res,resu,resd
-      real(mp) :: a, x, xu, xd, f, df, tt
+      real(mp) :: a, x, xu, xd, f, df, tt, s
       !integer :: ierr
       !type(fermi_aux) :: ft
 
@@ -618,7 +707,7 @@ module fermi_level
          end if
          ef=efermi
 
-         ! electrons is N_electons = sum f_i * Wieght_i
+         ! electrons is N_electons = sum f_i * Weight_i
          ! dlectrons is dN_electrons/dEf =dN_electrons/darg * darg/dEf= sum df_i/darg /(-wf) , darg/dEf=-1/wf
          !  f:= occupation # for band i ,  df:=df/darg
          wf=wf0
@@ -630,24 +719,25 @@ module fermi_level
             dlectrons=0.d0
             do ikpt=1,nkpts
                do iorb=1,norbd+norbu
-                  arg=(eval((ikpt-1)*norb+iorb)-ef)/wf
-                  if (occopt == SMEARING_DIST_ERF) then
-                     call abi_derf_ab(res,arg)
-                     f =.5d0*(1.d0-res)
-                     df=-safe_exp(-arg**2)/sqrtpi
-                  else if (occopt == SMEARING_DIST_FERMI) then
-                     f =1.d0/(1.d0+safe_exp(arg))
-                     df=-1.d0/(2.d0+safe_exp(arg)+safe_exp(-arg))
-                  else if (occopt == SMEARING_DIST_COLD1 .or. occopt == SMEARING_DIST_COLD2 .or. &
-                       &  occopt == SMEARING_DIST_METPX ) then
-                     x= -arg
-                     call abi_derf_ab(res,x)
-                     f =.5d0*(1.d0+res +safe_exp(-x**2)*(-a*x**2 + .5d0*a+x)/sqrtpi)
-                     df=-safe_exp(-x**2) * (a*x**3 -x**2 -1.5d0*a*x +1.5d0) /sqrtpi   ! df:=df/darg=-df/dx
-                  else
-                     f  = 0.d0
-                     df = 0.d0
-                  end if 
+                  call get_occupation(occopt,eval((ikpt-1)*norb+iorb),ef,wf,f,df)
+!!$                  arg=(eval((ikpt-1)*norb+iorb)-ef)/wf
+!!$                  if (occopt == SMEARING_DIST_ERF) then
+!!$                     call abi_derf_ab(res,arg)
+!!$                     f =.5d0*(1.d0-res)
+!!$                     df=-safe_exp(-arg**2)/sqrtpi
+!!$                  else if (occopt == SMEARING_DIST_FERMI) then
+!!$                     f =1.d0/(1.d0+safe_exp(arg))
+!!$                     df=-1.d0/(2.d0+safe_exp(arg)+safe_exp(-arg))
+!!$                  else if (occopt == SMEARING_DIST_COLD1 .or. occopt == SMEARING_DIST_COLD2 .or. &
+!!$                       &  occopt == SMEARING_DIST_METPX ) then
+!!$                     x= -arg
+!!$                     call abi_derf_ab(res,x)
+!!$                     f =.5d0*(1.d0+res +safe_exp(-x**2)*(-a*x**2 + .5d0*a+x)/sqrtpi)
+!!$                     df=-safe_exp(-x**2) * (a*x**3 -x**2 -1.5d0*a*x +1.5d0) /sqrtpi   ! df:=df/darg=-df/dx
+!!$                  else
+!!$                     f  = 0.d0
+!!$                     df = 0.d0
+!!$                  end if 
                   if (iorb > norbu+newnorbd .or. (iorb <= norbu .and. iorb > newnorbu)) then
                      f  = 0.d0
                      df = 0.d0
@@ -701,28 +791,32 @@ module fermi_level
          end do loop_fermi
 
          do ikpt=1,nkpts
-            argu=(eval((ikpt-1)*norb+norbu)-ef)/wf0
-            argd=(eval((ikpt-1)*norb+norbu+norbd)-ef)/wf0
-            if (occopt == SMEARING_DIST_ERF) then
-               !error function
-               call abi_derf_ab(resu,argu)
-               call abi_derf_ab(resd,argd)
-               cutoffu=.5d0*(1.d0-resu)
-               cutoffd=.5d0*(1.d0-resd)
-            else if (occopt == SMEARING_DIST_FERMI) then
-               !Fermi function
-               cutoffu=1.d0/(1.d0+safe_exp(argu))
-               cutoffd=1.d0/(1.d0+safe_exp(argd))
-            else if (occopt == SMEARING_DIST_COLD1 .or. occopt == SMEARING_DIST_COLD2 .or. &
-                 &  occopt == SMEARING_DIST_METPX ) then
-               !Marzari's relation with different a
-               xu=-argu
-               xd=-argd
-               call abi_derf_ab(resu,xu)
-               call abi_derf_ab(resd,xd)
-               cutoffu=.5d0*(1.d0+resu +safe_exp(-xu**2)*(-a*xu**2 + .5d0*a+xu)/sqrtpi)
-               cutoffd=.5d0*(1.d0+resd +safe_exp(-xd**2)*(-a*xd**2 + .5d0*a+xd)/sqrtpi)
-            end if
+            call get_occupation(occopt,eval((ikpt-1)*norb+norbu),ef,wf0,&
+                 cutoffu,df)
+            call get_occupation(occopt,eval((ikpt-1)*norb+norbu+norbd),ef,wf0,&
+                 cutoffd,df)
+!!$            argu=(eval((ikpt-1)*norb+norbu)-ef)/wf0
+!!$            argd=(eval((ikpt-1)*norb+norbu+norbd)-ef)/wf0
+!!$            if (occopt == SMEARING_DIST_ERF) then
+!!$               !error function
+!!$               call abi_derf_ab(resu,argu)
+!!$               call abi_derf_ab(resd,argd)
+!!$               cutoffu=.5d0*(1.d0-resu)
+!!$               cutoffd=.5d0*(1.d0-resd)
+!!$            else if (occopt == SMEARING_DIST_FERMI) then
+!!$               !Fermi function
+!!$               cutoffu=1.d0/(1.d0+safe_exp(argu))
+!!$               cutoffd=1.d0/(1.d0+safe_exp(argd))
+!!$            else if (occopt == SMEARING_DIST_COLD1 .or. occopt == SMEARING_DIST_COLD2 .or. &
+!!$                 &  occopt == SMEARING_DIST_METPX ) then
+!!$               !Marzari's relation with different a
+!!$               xu=-argu
+!!$               xd=-argd
+!!$               call abi_derf_ab(resu,xu)
+!!$               call abi_derf_ab(resd,xd)
+!!$               cutoffu=.5d0*(1.d0+resu +safe_exp(-xu**2)*(-a*xu**2 + .5d0*a+xu)/sqrtpi)
+!!$               cutoffd=.5d0*(1.d0+resd +safe_exp(-xd**2)*(-a*xd**2 + .5d0*a+xd)/sqrtpi)
+!!$            end if
          enddo
 
          if ((cutoffu > 1.d-12 .or. cutoffd > 1.d-12) .and. iproc == 0) then
@@ -737,18 +831,20 @@ module fermi_level
          !update the occupation number
          do ikpt=1,nkpts
             do iorb=1,norbu + norbd
-               arg=(eval((ikpt-1)*norb+iorb)-ef)/wf0
-               if (occopt == SMEARING_DIST_ERF) then
-                  call abi_derf_ab(res,arg)
-                  f=.5d0*(1.d0-res)
-               else if (occopt == SMEARING_DIST_FERMI) then
-                  f=1.d0/(1.d0+exp(arg))
-               else if (occopt == SMEARING_DIST_COLD1 .or. occopt == SMEARING_DIST_COLD2 .or. &
-                    &  occopt == SMEARING_DIST_METPX ) then
-                  x=-arg
-                  call abi_derf_ab(res,x)
-                  f =.5d0*(1.d0+res +exp(-x**2)*(-a*x**2 + .5d0*a+x)/sqrtpi)
-               end if
+               call get_occupation(occopt,eval((ikpt-1)*norb+iorb),ef,wf0,&
+                    f,df)
+!!$               arg=(eval((ikpt-1)*norb+iorb)-ef)/wf0
+!!$               if (occopt == SMEARING_DIST_ERF) then
+!!$                  call abi_derf_ab(res,arg)
+!!$                  f=.5d0*(1.d0-res)
+!!$               else if (occopt == SMEARING_DIST_FERMI) then
+!!$                  f=1.d0/(1.d0+exp(arg))
+!!$               else if (occopt == SMEARING_DIST_COLD1 .or. occopt == SMEARING_DIST_COLD2 .or. &
+!!$                    &  occopt == SMEARING_DIST_METPX ) then
+!!$                  x=-arg
+!!$                  call abi_derf_ab(res,x)
+!!$                  f =.5d0*(1.d0+res +exp(-x**2)*(-a*x**2 + .5d0*a+x)/sqrtpi)
+!!$               end if
                occup((ikpt-1)*norb+iorb)=full* f
                !if(iproc==0) print*,  eval((ikpt-1)*norb+iorb), occup((ikpt-1)*norb+iorb)
             end do
@@ -758,19 +854,21 @@ module fermi_level
          eTS=0.0_mp
          do ikpt=1,nkpts
             do iorb=1,norbu + norbd
-               if (occopt == SMEARING_DIST_ERF) then
-                  !error function
-                  eTS=eTS+full*wf0/(2._mp*sqrt(pi))*&
-                       safe_exp(-((eval((ikpt-1)*norb+iorb)-ef)/wf0)**2)
-               else if (occopt == SMEARING_DIST_FERMI) then
-                  !Fermi function
-                  tt=occup((ikpt-1)*norb+iorb)
-                  eTS=eTS-full*wf0*(tt*log(tt) + (1._mp-tt)*log(1._mp-tt))
-               else if (occopt == SMEARING_DIST_COLD1 .or. occopt == SMEARING_DIST_COLD2 .or. &
-                    &  occopt == SMEARING_DIST_METPX ) then
-                  !cold
-                  eTS=eTS+0._mp  ! to be completed if needed
-               end if
+               call get_entropy(occopt,eval((ikpt-1)*norb+iorb),ef,wf0,s)
+               eTS=eTS+full*s*kwgts(ikpt)
+!!$               if (occopt == SMEARING_DIST_ERF) then
+!!$                  !error function
+!!$                  eTS=eTS+full*wf0/(2._mp*sqrt(pi))*&
+!!$                       safe_exp(-((eval((ikpt-1)*norb+iorb)-ef)/wf0)**2)
+!!$               else if (occopt == SMEARING_DIST_FERMI) then
+!!$                  !Fermi function
+!!$                  tt=occup((ikpt-1)*norb+iorb)
+!!$                  eTS=eTS-full*wf0*(tt*log(tt) + (1._mp-tt)*log(1._mp-tt))
+!!$               else if (occopt == SMEARING_DIST_COLD1 .or. occopt == SMEARING_DIST_COLD2 .or. &
+!!$                    &  occopt == SMEARING_DIST_METPX ) then
+!!$                  !cold
+!!$                  eTS=eTS+0._mp  ! to be completed if needed
+!!$               end if
             end do
          end do
          !!! Sanity check on sum of occup.
@@ -798,6 +896,7 @@ module fermi_level
       end if
 
       !write on file the results if needed
+      !this part has no sense here
       if (filewrite) then
          open(unit=11,file='input.occ',status='unknown')
          write(11,*)norbu,norbd
@@ -890,133 +989,133 @@ module fermi_level
     END SUBROUTINE eFermi_nosmearing
 
 
-    !!****f* BigDFT/abi_derf_ab
-    !! FUNCTION
-    !!   Error function in double precision, taken from libABINIT
-    !!
-    !! SOURCE
-    !!
-    subroutine abi_derf_ab(derf_yy,yy)
-    
-     !use abi_defs_basis
-     implicit none
-     real(mp),intent(in) :: yy
-     real(mp),intent(out) :: derf_yy
-     integer          ::  done,ii,isw
-     real(mp), parameter :: &
-           ! coefficients for 0.0 <= yy < .477
-           &  pp(5)=(/ 113.8641541510502e0_mp, 377.4852376853020e0_mp,  &
-           &           3209.377589138469e0_mp, .1857777061846032e0_mp,  &
-           &           3.161123743870566e0_mp /)
-      real(mp), parameter :: &
-           &  qq(4)=(/ 244.0246379344442e0_mp, 1282.616526077372e0_mp,  &
-           &           2844.236833439171e0_mp, 23.60129095234412e0_mp/)
-      ! coefficients for .477 <= yy <= 4.0
-      real(mp), parameter :: &
-           &  p1(9)=(/ 8.883149794388376e0_mp, 66.11919063714163e0_mp,  &
-           &           298.6351381974001e0_mp, 881.9522212417691e0_mp,  &
-           &           1712.047612634071e0_mp, 2051.078377826071e0_mp,  &
-           &           1230.339354797997e0_mp, 2.153115354744038e-8_mp, &
-           &           .5641884969886701e0_mp /)
-      real(mp), parameter :: &
-           &  q1(8)=(/ 117.6939508913125e0_mp, 537.1811018620099e0_mp,  &
-           &           1621.389574566690e0_mp, 3290.799235733460e0_mp,  &
-           &           4362.619090143247e0_mp, 3439.367674143722e0_mp,  &
-           &           1230.339354803749e0_mp, 15.74492611070983e0_mp/)
-      ! coefficients for 4.0 < y,
-      real(mp), parameter :: &
-           &  p2(6)=(/ -3.603448999498044e-01_mp, -1.257817261112292e-01_mp,   &
-           &           -1.608378514874228e-02_mp, -6.587491615298378e-04_mp,   &
-           &           -1.631538713730210e-02_mp, -3.053266349612323e-01_mp/)
-      real(mp), parameter :: &
-           &  q2(5)=(/ 1.872952849923460e0_mp   , 5.279051029514284e-01_mp,    &
-           &           6.051834131244132e-02_mp , 2.335204976268692e-03_mp,    &
-           &           2.568520192289822e0_mp /)
-      real(mp), parameter :: &
-           &  sqrpi=.5641895835477563e0_mp, xbig=13.3e0_mp, xlarge=6.375e0_mp, xmin=1.0e-10_mp
-      real(mp) ::  res,xden,xi,xnum,xsq,xx
-    
-     xx = yy
-     isw = 1
-    !Here change the sign of xx, and keep track of it thanks to isw
-     if (xx<0.0e0_mp) then
-      isw = -1
-      xx = -xx
-     end if
-    
-     done=0
-    
-    !Residual value, if yy < -6.375e0_mp
-     res=-1.0e0_mp
-    
-    !abs(yy) < .477, evaluate approximation for erfc
-     if (xx<0.477e0_mp) then
-    ! xmin is a very small number
-      if (xx<xmin) then
-       res = xx*pp(3)/qq(3)
-      else
-       xsq = xx*xx
-       xnum = pp(4)*xsq+pp(5)
-       xden = xsq+qq(4)
-       do ii = 1,3
-        xnum = xnum*xsq+pp(ii)
-        xden = xden*xsq+qq(ii)
-       end do
-       res = xx*xnum/xden
-      end if
-      if (isw==-1) res = -res
-      done=1
-     end if
-    
-    !.477 < abs(yy) < 4.0 , evaluate approximation for erfc
-     if (xx<=4.0e0_mp .and. done==0 ) then
-      xsq = xx*xx
-      xnum = p1(8)*xx+p1(9)
-      xden = xx+q1(8)
-      do ii=1,7
-       xnum = xnum*xx+p1(ii)
-       xden = xden*xx+q1(ii)
-      end do
-      res = xnum/xden
-      res = res* exp(-xsq)
-      if (isw.eq.-1) then
-         res = res-1.0e0_mp
-      else
-         res=1.0e0_mp-res
-      end if
-      done=1
-     end if
-    
-    !y > 13.3e0_mp
-     if (isw > 0 .and. xx > xbig .and. done==0 ) then
-      res = 1.0e0_mp
-      done=1
-     end if
-    
-    !4.0 < yy < 13.3e0_mp  .or. -6.375e0_mp < yy < -4.0
-    !evaluate minimax approximation for erfc
-     if ( ( isw > 0 .or. xx < xlarge ) .and. done==0 ) then
-      xsq = xx*xx
-      xi = 1.0e0_mp/xsq
-      xnum= p2(5)*xi+p2(6)
-      xden = xi+q2(5)
-      do ii = 1,4
-       xnum = xnum*xi+p2(ii)
-       xden = xden*xi+q2(ii)
-      end do
-      res = (sqrpi+xi*xnum/xden)/xx
-      res = res* exp(-xsq)
-      if (isw.eq.-1) then
-         res = res-1.0e0_mp
-      else
-         res=1.0e0_mp-res
-      end if
-     end if
-    
-    !All cases have been investigated
-     derf_yy = res
-    
-    end subroutine abi_derf_ab
-    !!***
+!!$    !!****f* BigDFT/abi_derf_ab
+!!$    !! FUNCTION
+!!$    !!   Error function in double precision, taken from libABINIT
+!!$    !!
+!!$    !! SOURCE
+!!$    !!
+!!$    subroutine abi_derf_ab(derf_yy,yy)
+!!$    
+!!$     !use abi_defs_basis
+!!$     implicit none
+!!$     real(mp),intent(in) :: yy
+!!$     real(mp),intent(out) :: derf_yy
+!!$     integer          ::  done,ii,isw
+!!$     real(mp), parameter :: &
+!!$           ! coefficients for 0.0 <= yy < .477
+!!$           &  pp(5)=(/ 113.8641541510502e0_mp, 377.4852376853020e0_mp,  &
+!!$           &           3209.377589138469e0_mp, .1857777061846032e0_mp,  &
+!!$           &           3.161123743870566e0_mp /)
+!!$      real(mp), parameter :: &
+!!$           &  qq(4)=(/ 244.0246379344442e0_mp, 1282.616526077372e0_mp,  &
+!!$           &           2844.236833439171e0_mp, 23.60129095234412e0_mp/)
+!!$      ! coefficients for .477 <= yy <= 4.0
+!!$      real(mp), parameter :: &
+!!$           &  p1(9)=(/ 8.883149794388376e0_mp, 66.11919063714163e0_mp,  &
+!!$           &           298.6351381974001e0_mp, 881.9522212417691e0_mp,  &
+!!$           &           1712.047612634071e0_mp, 2051.078377826071e0_mp,  &
+!!$           &           1230.339354797997e0_mp, 2.153115354744038e-8_mp, &
+!!$           &           .5641884969886701e0_mp /)
+!!$      real(mp), parameter :: &
+!!$           &  q1(8)=(/ 117.6939508913125e0_mp, 537.1811018620099e0_mp,  &
+!!$           &           1621.389574566690e0_mp, 3290.799235733460e0_mp,  &
+!!$           &           4362.619090143247e0_mp, 3439.367674143722e0_mp,  &
+!!$           &           1230.339354803749e0_mp, 15.74492611070983e0_mp/)
+!!$      ! coefficients for 4.0 < y,
+!!$      real(mp), parameter :: &
+!!$           &  p2(6)=(/ -3.603448999498044e-01_mp, -1.257817261112292e-01_mp,   &
+!!$           &           -1.608378514874228e-02_mp, -6.587491615298378e-04_mp,   &
+!!$           &           -1.631538713730210e-02_mp, -3.053266349612323e-01_mp/)
+!!$      real(mp), parameter :: &
+!!$           &  q2(5)=(/ 1.872952849923460e0_mp   , 5.279051029514284e-01_mp,    &
+!!$           &           6.051834131244132e-02_mp , 2.335204976268692e-03_mp,    &
+!!$           &           2.568520192289822e0_mp /)
+!!$      real(mp), parameter :: &
+!!$           &  sqrpi=.5641895835477563e0_mp, xbig=13.3e0_mp, xlarge=6.375e0_mp, xmin=1.0e-10_mp
+!!$      real(mp) ::  res,xden,xi,xnum,xsq,xx
+!!$    
+!!$     xx = yy
+!!$     isw = 1
+!!$    !Here change the sign of xx, and keep track of it thanks to isw
+!!$     if (xx<0.0e0_mp) then
+!!$      isw = -1
+!!$      xx = -xx
+!!$     end if
+!!$    
+!!$     done=0
+!!$    
+!!$    !Residual value, if yy < -6.375e0_mp
+!!$     res=-1.0e0_mp
+!!$    
+!!$    !abs(yy) < .477, evaluate approximation for erfc
+!!$     if (xx<0.477e0_mp) then
+!!$    ! xmin is a very small number
+!!$      if (xx<xmin) then
+!!$       res = xx*pp(3)/qq(3)
+!!$      else
+!!$       xsq = xx*xx
+!!$       xnum = pp(4)*xsq+pp(5)
+!!$       xden = xsq+qq(4)
+!!$       do ii = 1,3
+!!$        xnum = xnum*xsq+pp(ii)
+!!$        xden = xden*xsq+qq(ii)
+!!$       end do
+!!$       res = xx*xnum/xden
+!!$      end if
+!!$      if (isw==-1) res = -res
+!!$      done=1
+!!$     end if
+!!$    
+!!$    !.477 < abs(yy) < 4.0 , evaluate approximation for erfc
+!!$     if (xx<=4.0e0_mp .and. done==0 ) then
+!!$      xsq = xx*xx
+!!$      xnum = p1(8)*xx+p1(9)
+!!$      xden = xx+q1(8)
+!!$      do ii=1,7
+!!$       xnum = xnum*xx+p1(ii)
+!!$       xden = xden*xx+q1(ii)
+!!$      end do
+!!$      res = xnum/xden
+!!$      res = res* exp(-xsq)
+!!$      if (isw.eq.-1) then
+!!$         res = res-1.0e0_mp
+!!$      else
+!!$         res=1.0e0_mp-res
+!!$      end if
+!!$      done=1
+!!$     end if
+!!$    
+!!$    !y > 13.3e0_mp
+!!$     if (isw > 0 .and. xx > xbig .and. done==0 ) then
+!!$      res = 1.0e0_mp
+!!$      done=1
+!!$     end if
+!!$    
+!!$    !4.0 < yy < 13.3e0_mp  .or. -6.375e0_mp < yy < -4.0
+!!$    !evaluate minimax approximation for erfc
+!!$     if ( ( isw > 0 .or. xx < xlarge ) .and. done==0 ) then
+!!$      xsq = xx*xx
+!!$      xi = 1.0e0_mp/xsq
+!!$      xnum= p2(5)*xi+p2(6)
+!!$      xden = xi+q2(5)
+!!$      do ii = 1,4
+!!$       xnum = xnum*xi+p2(ii)
+!!$       xden = xden*xi+q2(ii)
+!!$      end do
+!!$      res = (sqrpi+xi*xnum/xden)/xx
+!!$      res = res* exp(-xsq)
+!!$      if (isw.eq.-1) then
+!!$         res = res-1.0e0_mp
+!!$      else
+!!$         res=1.0e0_mp-res
+!!$      end if
+!!$     end if
+!!$    
+!!$    !All cases have been investigated
+!!$     derf_yy = res
+!!$    
+!!$    end subroutine abi_derf_ab
+!!$    !!***
 
 end module fermi_level

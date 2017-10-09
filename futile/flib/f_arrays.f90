@@ -39,7 +39,10 @@ module f_arrays
 
   interface f_array_free
      module procedure f_vector_free,f_matrix_free
+     module procedure f_vector_v1_free,f_matrix_v1_free
   end interface f_array_free
+
+  
 
   interface f_array_ptr_free
      module procedure f_free_vector_1,f_free_matrix_ptr
@@ -47,7 +50,7 @@ module f_arrays
   
 
   public :: assignment(=)
-  public :: dump_f_matrix_ptr,f_array_ptr_free
+  public :: dump_f_matrix_ptr,f_array_ptr_free,f_array_free
 
   contains
 
@@ -94,6 +97,16 @@ module f_arrays
       if (count == 0) call f_array_deallocate(arr)
     end subroutine f_release_vector
 
+    subroutine f_vector_v1_free(arr)
+      implicit none
+      type(f_vector), dimension(:), intent(inout) :: arr
+      !local variables
+      integer :: i
+      do i=1,size(arr)
+         call f_array_free(arr(i))
+      end do
+    end subroutine f_vector_v1_free
+
     subroutine f_vector_free(mat)
       implicit none
       type(f_vector), intent(inout) :: mat
@@ -106,6 +119,15 @@ module f_arrays
       if (f_ref_count(mat%rc) > 0) call f_release_matrix(mat)
       call nullify_f_matrix(mat)
     end subroutine f_matrix_free
+    subroutine f_matrix_v1_free(arr)
+      implicit none
+      type(f_matrix), dimension(:), intent(inout) :: arr
+      !local variables
+      integer :: i
+      do i=1,size(arr)
+         call f_array_free(arr(i))
+      end do
+    end subroutine f_matrix_v1_free
 
 
     subroutine f_vector_shallow_copy(dest,src)
@@ -228,7 +250,8 @@ module f_arrays
 
       allocate(array(m%lbounds(1):m%ubounds(1)),stat=ierror)
 
-      call malloc_validate(ierror,size(shape(array)),m)
+      !here the times is already resumed
+      if (.not. malloc_validate(ierror,size(shape(array)),m)) return
 
       !here the database for the allocation might be updated
 
@@ -249,7 +272,7 @@ module f_arrays
       allocate(array(m%lbounds(1):m%ubounds(1),m%lbounds(2):m%ubounds(2),&
            m%lbounds(3):m%ubounds(3)),stat=ierror)
 
-      call malloc_validate(ierror,size(shape(array)),m)
+      if (.not. malloc_validate(ierror,size(shape(array)),m)) return
 
       !here the database for the allocation might be updated
       call f_timer_resume()!TCAT_ARRAY_ALLOCATIONS

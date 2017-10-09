@@ -11,7 +11,7 @@ MPI_INCLUDES = gather-inc.f90 \
 	bcast-inc.f90 bcast-decl-inc.f90 bcast-decl-arr-inc.f90 \
 	maxdiff-decl-inc.f90 maxdiff-end-inc.f90 \
 	allgather-inc.f90 scatter-inc.f90 scatterv-inc.f90 scatterv-decl-inc.f90 \
-	$(ALLREDUCE_INCLUDES) $(ALLTOALL_INCLUDES) $(WIN_INCLUDES)
+	$(ALLREDUCE_INCLUDES) $(ALLTOALL_INCLUDES) $(WIN_INCLUDES) $(GET_INCLUDES)
 
 WIN_INCLUDES = win-create-inc.f90
 GET_INCLUDES = get-inc.f90
@@ -41,10 +41,11 @@ mpif.h:
 	echo "integer, parameter :: MPI_REQUEST_NULL=1, MPI_STATUS_IGNORE=1" >> mpif.h &&\
 	echo "integer, parameter :: MPI_TAG_UB=1, MPI_OFFSET_KIND=8, MPI_ADDRESS_KIND=8, MPI_INFO_NULL=0" >> mpif.h &&\
 	echo "integer, parameter :: MPI_MODE_NOPRECEDE=0, MPI_MODE_NOSUCCEED=0" >> mpif.h &&\
-	echo "integer, parameter :: MPI_LOCK_EXCLUSIVE=0, MPI_LOCK_SHARED=0" >> mpif.h &&\
+	echo "integer, parameter :: MPI_LOCK_EXCLUSIVE=0, MPI_LOCK_SHARED=0, MPI_LONG=8" >> mpif.h &&\
 	echo "integer, parameter :: MPI_ANY_SOURCE=0, MPI_MODE_CREATE=0, MPI_MODE_WRONLY=0, MPI_ANY_TAG=0" >> mpif.h &&\
 	echo "integer, parameter :: MPI_MODE_NOPUT=0, MPI_MODE_RDONLY=0, MPI_MODE_NOSTORE=0, MPI_MODE_NOCHECK=0" >> mpif.h &&\
 	echo "integer, parameter :: MPI_GROUP_NULL=0, MPI_PROC_NULL=0, MPI_WIN_NULL=0" >> mpif.h &&\
+	echo "integer, parameter :: MPI_IN_PLACE=0" >> mpif.h &&\
 	echo "real(kind=8), external :: mpi_wtime" >> mpif.h
 
 libfmpi_a_SOURCES = scalars.f90 allreduce.f90 alltoall.f90 onesided.f90 \
@@ -77,7 +78,7 @@ modules = wrapper_mpi.@MODULE_EXT@ \
 	f_onesided.@MODULE_EXT@ \
 	f_alltoall.@MODULE_EXT@
 endif
-CLEANFILES = $(modules) mpif.h
+CLEANFILES = *.@MODULE_EXT@ mpif.h
 
 
 

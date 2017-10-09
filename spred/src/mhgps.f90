@@ -327,6 +327,30 @@ program mhgps
               if(premature_exit)then
                  exit outer
               endif
+           case('pushoffandminimize')
+              mhgpsst%isad=mhgpsst%isad+1
+              write(mhgpsst%isadc,'(i3.3)')mhgpsst%isad
+              if(uinp%random_minmode_guess)then
+                call f_err_throw('(MHGPS) pushoffandminimize mode does not work with random minmode guess.')
+              else
+                 call read_mode(mhgpsst,bigdft_nat(runObj),trim(adjustl(mhgpsst%joblist(1,ijob)))&
+                      //'_mode',minmode)
+              endif
+              !normalize
+              minmode = minmode/dnrm2(3*bigdft_nat(runObj),minmode(1,1),1)
+              ec=0.0_gp
+              displ=0.0_gp
+              call bigdft_set_input_policy(INPUT_POLICY_SCRATCH, runObj)
+              call mhgpsenergyandforces(mhgpsst,runObj,outs,rxyz,&
+                                        fat,energy,infocode)
+              call fingerprint(spredinputs,mhgpsst%nid,bigdft_nat(runObj),runObj%atoms%astruct%cell_dim,rcov,rxyz(1,1),fp(1))
+              call pushoff_and_relax_bothSides(spredinputs,uinp,mhgpsst,runObj,outs,rcov,& 
+                   rxyz(1,1),energy,fp(1),minmode(1,1),rxyz_minL,fxyz_minL,&      
+                   ener_minL,fp_minL,rxyz_minR,fxyz_minR,ener_minR,fp_minR,istat)
+                if(istat/=0)then
+                    if(mhgpsst%iproc==0)&
+                    call yaml_warning('(MHGPS) Pushoff not successful.')
+                endif
            case('simple','simpleandminimize')
               mhgpsst%isad=mhgpsst%isad+1
               write(mhgpsst%isadc,'(i3.3)')mhgpsst%isad

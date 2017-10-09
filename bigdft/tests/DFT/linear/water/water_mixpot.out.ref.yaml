@@ -1387,7 +1387,7 @@
  kernel optimization: DIAG,  #WARNING: density optimization not converged
  iter low:  2, delta out:  4.392E-07, energy: -2.01346525270057214E+02, D:  9.298E-01}
     #WARNING: oscillation of the energy, increase counter
-   energy_scillation_counter           :  1
+   energy_oscillation_counter           :  1
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Set the confinement prefactors
  - Confinement prefactor for high accuracy:
    -  {max diff damping:  0.00E+00, damping value:  1.00E+00}
@@ -1826,7 +1826,7 @@
  kernel optimization: DIAG,  #WARNING: density optimization not converged
  iter high:  3, delta out:  3.561E-06, energy: -2.02216746282207509E+02, D: -8.702E-01}
     #WARNING: oscillation of the energy, increase counter
-   energy_scillation_counter           :  2
+   energy_oscillation_counter           :  2
    new nit_scc                         :  6
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Set the confinement prefactors
  - Confinement prefactor for high accuracy:
@@ -2803,7 +2803,7 @@
  kernel optimization: DIAG,  #WARNING: density optimization not converged
  iter high:  5, delta out:  1.832E-07, energy: -2.02806154549708253E+02, D:  4.025E-02}
     #WARNING: oscillation of the energy, increase counter
-   energy_scillation_counter           :  1
+   energy_oscillation_counter           :  1
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Set the confinement prefactors
  - Confinement prefactor for high accuracy:
    -  {max diff damping:  0.00E+00, damping value:  1.00E+00}
@@ -3292,7 +3292,7 @@
  kernel optimization: DIAG,  #WARNING: density optimization not converged
  iter high:  6, delta out:  1.248E-07, energy: -2.02816082644765061E+02, D: -9.928E-03}
     #WARNING: oscillation of the energy, increase counter
-   energy_scillation_counter           :  2
+   energy_oscillation_counter           :  2
    new nit_scc                         :  7
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Set the confinement prefactors
  - Confinement prefactor for high accuracy:
@@ -8198,7 +8198,7 @@
  kernel optimization: DIAG,  #WARNING: density optimization not converged
  iter high:  3, delta out:  7.454E-07, energy: -2.02891495640874609E+02, D:  2.093E-02}
     #WARNING: oscillation of the energy, increase counter
-   energy_scillation_counter           :  1
+   energy_oscillation_counter           :  1
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Set the confinement prefactors
  - Confinement prefactor for high accuracy:
    -  {max diff damping:  0.00E+00, damping value:  1.00E+00}
@@ -9028,7 +9028,7 @@
  kernel optimization: DIAG,  #WARNING: density optimization not converged
  iter high:  5, delta out:  6.878E-08, energy: -2.02882355808906937E+02, D: -8.197E-04}
     #WARNING: oscillation of the energy, increase counter
-   energy_scillation_counter           :  2
+   energy_oscillation_counter           :  2
    new nit_scc                         :  6
     #Eigenvalues and New Occupation Numbers
    Orbitals: [

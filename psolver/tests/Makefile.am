@@ -131,9 +131,9 @@ define F_REGTEST_INSTRUCTIONS
    binary: Generalized_PSolver
    runs:
     # PI from psolver, ortho
-    - $(run_parallel) ./Generalized_PSolver -n [57,49,63] -m PI -l no
+    - $(run_parallel) ./Generalized_PSolver -n [57,49,63] -m SC -l no
     # PI from psolver, ortho with internal cavity vector built from eps in pkernel_set_epsilon.
-    - $(run_parallel) ./Generalized_PSolver -n [57,49,63] -m PI -b yes -l no
+    - $(run_parallel) ./Generalized_PSolver -n [57,49,63] -m SC -b yes -l no
     # PI from Generalized_PSolver, non-ortho
     - $(run_parallel) ./Generalized_PSolver -n [60,78,70] -m VAC -e 6 -g S -f [90,41,90] -l no
 - GPS_mPB:

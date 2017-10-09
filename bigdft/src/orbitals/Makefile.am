@@ -66,7 +66,7 @@ modules = public_keys.@MODULE_EXT@ \
 	communications_base.@MODULE_EXT@
 endif
 
-CLEANFILES = $(modules)
+CLEANFILES = *.@MODULE_EXT@
 
 AM_FCFLAGS = -I. -I$(srcdir) -I$(top_builddir)/includes @LIBABINIT_INCLUDE@ @LIB_XC_CFLAGS@ @LIB_FUTILE_CFLAGS@
 

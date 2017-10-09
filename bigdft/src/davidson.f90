@@ -2216,7 +2216,8 @@ subroutine evaluate_completeness_relation(ob_occ,ob_virt,ob_prime,hpsiprime,h2ps
      call subspace_matrix(.false.,ssp%phi_wvl,sso%phi_wvl,&
           ssp%ncplx,ssp%nvctr,ssp%norb,mat_ptr)
   end do
-  if (bigdft_mpi%nproc >1) call fmpi_allreduce(mat,op=FMPI_SUM,comm=bigdft_mpi%mpi_comm)
+  if (bigdft_mpi%nproc >1) &
+       call fmpi_allreduce(mat,op=FMPI_SUM,comm=bigdft_mpi%mpi_comm)
   !substract the projector |psi'_j> -= sum_i |psi_i><psi_i|psi'_j>  
   call subspace_iterator_zip(ob_prime,ob_occ,ssp,sso)
   do while(subspace_next(ssp))

@@ -31,7 +31,8 @@ module wrapper_MPI
 #ifdef HAVE_MPI2
   logical, parameter :: have_mpi2 = .true.  !< Flag to use in the code to switch between MPI1 and MPI2
 #else
-  integer :: MPI_IN_PLACE               !< Fake MPI_IN_PLACE variable to allow compilation in sumrho.
+  ! Provided now by mpif_module
+  !integer :: MPI_IN_PLACE               !< Fake MPI_IN_PLACE variable to allow compilation in sumrho.
   logical, parameter :: have_mpi2 = .false. !< Flag to use in the code to switch between MPI1 and MPI2
 #endif
 
@@ -681,7 +682,7 @@ contains
     implicit none
     character(len=MPI_MAX_PROCESSOR_NAME) :: mpihostname
     !local variables
-    integer :: ierr,namelen,ipos,i
+    integer :: ierr,namelen,ipos
 
     call MPI_GET_PROCESSOR_NAME(mpihostname,namelen,ierr)
     if (ierr /= MPI_SUCCESS) then
@@ -1260,7 +1261,7 @@ contains
     integer, intent(in), optional :: comm,root
     real(f_double), dimension(:), pointer :: ptr
     !local variables
-    integer :: count,root_,jproc,iproc,nproc,comm_,ierr
+    integer :: root_,jproc,iproc,nproc,comm_,ierr
     integer, dimension(1) :: ncount_
     integer, dimension(:), allocatable :: ncounts,ndispls
     real(f_double), dimension(:,:), pointer :: recvbuf
