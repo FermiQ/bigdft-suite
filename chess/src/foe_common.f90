@@ -45,6 +45,7 @@ module module_func
   integer,parameter,public :: FUNCTION_EXPONENTIAL           = 104
   integer,parameter,public :: FUNCTION_ERRORFUNCTION_ENTROPY = 105
   integer,parameter,public :: FUNCTION_FERMIFUNCTION         = 106
+  integer,parameter,public :: FUNCTION_FERMIFUNCTION_ENTROPY = 107
 
   contains
 
@@ -92,6 +93,8 @@ module module_func
           if (.not.present(fscalex)) call f_err_throw("'fscalex' not present")
           ef = efx
           fscale = fscalex
+      case(FUNCTION_FERMIFUNCTION_ENTROPY)
+          ifunc = FUNCTION_FERMIFUNCTION_ENTROPY
       case default
           call f_err_throw("wrong value of 'ifuncx'")
       end select
@@ -122,6 +125,8 @@ module module_func
           func = fscale/(2._mp*sqrt_pi)*safe_exp(-((x-ef)/fscale)**2)
       case(FUNCTION_FERMIFUNCTION)
           func = 1._mp/(1._mp+safe_exp((x-ef)/fscale))
+      case(FUNCTION_FERMIFUNCTION_ENTROPY)
+          func = x*log(x) + (1.0_mp-x)*log(1._mp-x)
       case default
           call f_err_throw("wrong value of 'ifunc'")
       end select
