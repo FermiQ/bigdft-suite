@@ -503,7 +503,7 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
       call f_release_routine()
 
     end subroutine init_structure
-    
+
     subroutine allocate_arrays()
       use locregs, only: allocate_wfd
       implicit none
@@ -581,7 +581,7 @@ subroutine input_wf_empty(iproc, nproc, psi, hpsi, psit, orbs, &
   if (trim(band_structure_filename) /= '') then
      !only the first processor should read this
      if (iproc == 0) then
-        call yaml_map('Reading local potential from file:',trim(band_structure_filename))
+        call yaml_map('Reading local potential from file',trim(band_structure_filename))
         !write(*,'(1x,a)')'Reading local potential from file:'//trim(band_structure_filename)
         call read_field_dimensions(trim(band_structure_filename),&
              atoms%astruct%geocode,ndims,nspin)
@@ -1802,14 +1802,14 @@ subroutine input_wf_disk_pw(filename, iproc, nproc, at, rxyz, GPU, Lzd, orbs, ps
   use rhopotential, only: updatePotential
   use f_utils, only: f_zero
   use io, only: write_energies
-  
+
   implicit none
 
   character(len = *), intent(in) :: filename
   integer, intent(in) :: iproc, nproc
   type(atoms_data), intent(in) :: at
   real(gp), dimension(3,at%astruct%nat), intent(in) :: rxyz
-  type(GPU_pointers), intent(inout) :: GPU  
+  type(GPU_pointers), intent(inout) :: GPU
   type(local_zone_descriptors), intent(in) :: Lzd
   type(orbitals_data), intent(in) :: orbs
   real(wp), dimension(orbs%npsidim_orbs / orbs%norbp, orbs%norbp), intent(out) :: psig

@@ -32,6 +32,7 @@ module box
      integer(f_long) :: ndim !< product of the dimension, long integer to avoid overflow
      real(gp) :: volume_element
      real(gp), dimension(3,3) :: habc !<primitive volume elements in the translation vectors direction
+     real(gp), dimension(3,3) :: uabc !<matrix of the normalized translation vectors direction
      real(gp), dimension(3,3) :: gd !<covariant metric needed for non-orthorhombic operations
      real(gp), dimension(3,3) :: gu !<controvariant metric needed for non-orthorhombic operations
      real(gp) :: detgd !<determinant of the covariant matrix
@@ -83,7 +84,7 @@ module box
      module procedure square_gd,square_gd_add
   end interface square_gd
 
-  public :: cell_r,cell_periodic_dims,distance,closest_r,square_gu,square_gd,cell_new,box_iter,box_next_point
+  public :: cell_r,cell_periodic_dims,rxyz_ortho,distance,closest_r,square_gu,square_gd,cell_new,box_iter,box_next_point
   public :: cell_geocode,box_next_x,box_next_y,box_next_z,dotp_gu,dotp_gd,cell_null,nullify_box_iterator
   public :: box_iter_rewind,box_iter_split,box_iter_merge,box_iter_set_nbox,box_iter_expand_nbox,box_nbox_from_cutoff
 
@@ -103,6 +104,7 @@ contains
    me%ndim=0
    me%volume_element=0.0_gp
    me%habc=0.0_gp
+   me%uabc=0.0_gp
    me%gd=0.0_gp
    me%gu=0.0_gp
    me%detgd=0.0_gp
@@ -811,6 +813,11 @@ contains
           mesh%gu(2,2) = 1.0_gp!/mesh%detgd
           mesh%gu(3,3) = 1.0_gp/mesh%detgd
        end if
+       mesh%uabc=0.0_gp
+       mesh%uabc(:,1)=mesh%habc(:,1)
+       mesh%uabc(:,2)=mesh%habc(:,2)
+       mesh%uabc(:,3)=mesh%habc(:,3)
+
        !Rescale habc using hgrid
        mesh%habc(:,1)=hgrids*mesh%habc(:,1)
        mesh%habc(:,2)=hgrids*mesh%habc(:,2)
@@ -820,8 +827,10 @@ contains
        mesh%volume_element=det_3x3(mesh%habc)
     else
        mesh%habc=0.0_gp
+       mesh%uabc=0.0_gp
        do i=1,3
           mesh%habc(i,i)=hgrids(i)
+          mesh%uabc(i,i)=1.0_gp
        end do
        mesh%angrad=onehalf*pi
        mesh%volume_element=product(mesh%hgrids)
@@ -906,6 +915,27 @@ contains
     t=mesh%hgrids(dim)*(i-1)
   end function cell_r
 
+  !>gives the value of the coordinates for an orthorhombic reference system
+  pure function rxyz_ortho(mesh,rxyz)
+    implicit none
+    type(cell), intent(in) :: mesh
+    real(gp), dimension(3), intent(in) :: rxyz
+    real(gp), dimension(3) :: rxyz_ortho
+    ! local variables
+    integer :: i,j
+
+    if (mesh%orthorhombic) then
+     rxyz_ortho(1:3)=rxyz(1:3)
+    else
+     do i=1,3
+      do j=1,3
+       rxyz_ortho(i)=mesh%uabc(i,j)*rxyz(j)
+      end do
+     end do
+    end if
+
+  end function rxyz_ortho
+
   pure function distance(mesh,v1,v2) result(d)
     use dictionaries, only: f_err_throw
     implicit none
@@ -916,17 +946,18 @@ contains
     integer :: i
     real(gp) :: d2
 
+
     d=0.0_gp
-    if (mesh%orthorhombic) then
+!    if (mesh%orthorhombic) then
        d2=0.0_gp
        do i=1,3
           d2=d2+r_wrap(mesh%bc(i),mesh%hgrids(i)*mesh%ndims(i),&
                v1(i),v2(i))**2
        end do
        d=sqrt(d2)
-    !else
-    !   call f_err_throw('Distance not yet implemented for nonorthorhombic cells')
-    end if
+!    else
+!    !   call f_err_throw('Distance not yet implemented for nonorthorhombic cells')
+!    end if
 
   end function distance
 
@@ -952,15 +983,22 @@ contains
 
   !> Calculates the minimum difference between two coordinates
   !!@warning: this is only valid if the coordinates wrap once.
-  pure function r_wrap(bc,alat,r,c)
+  pure function r_wrap(bc,alat,ri,ci)
     implicit none
     integer, intent(in) :: bc
-    real(gp), intent(in) :: r,c,alat
+    real(gp), intent(in) :: ri,ci,alat
     real(gp) :: r_wrap
+    ! local variables
+    real(gp) :: r,c
 
     !for periodic BC calculate mindist only if the center of mass can be defined without the modulo
+    r=ri
+    c=ci
     r_wrap=r-c
     if (bc==PERIODIC) then
+      r=mod(ri,alat)
+      c=mod(ci,alat)
+      r_wrap=r-c
        if (abs(r_wrap) > 0.5_gp*alat) then
           if (r < 0.5_gp*alat) then
              r_wrap=r+alat-c

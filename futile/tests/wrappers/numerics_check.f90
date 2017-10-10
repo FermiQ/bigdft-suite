@@ -38,7 +38,7 @@ program numeric_check
   call yaml_new_document()
   call yaml_argparse(options,inputs)
   n=options//'ndim'
-
+  if (.false.) then
   density=f_malloc(n,id='density')
   call f_random_number(density)
 
@@ -65,7 +65,7 @@ program numeric_check
   call f_multipoles_free(mp)
 
   call f_free(density)
-  call dict_free(options)
+!  call dict_free(options)
 
 !!$  !test of the multipole preserving routine
 !!$  !initialize the work arrays needed to integrate with isf
@@ -77,7 +77,8 @@ program numeric_check
 
 
   call test_f_functions()
-
+  end if
+  call dict_free(options)
   !here some tests about the box usage
   call test_box_functions()
 
@@ -91,7 +92,7 @@ subroutine test_f_functions()
   use numerics
   implicit none
   !local variables
-  type(f_function) :: func1,func2,func3
+  type(f_function) :: func1,func2!,func3
   type(f_grid_1d) :: grid
   integer :: unit
 
@@ -99,8 +100,8 @@ subroutine test_f_functions()
   grid=f_grid_1d_new(UNIFORM_GRID,[-1.0_gp,1.0_gp],npts=1000)
   
   !func1=f_function_new(F_GAUSSIAN,exponent=onehalf/0.01_gp)
-  func1=f_function_new(F_POLYNOMIAL,coefficients=[zero,one])
-  func2=f_function_new(F_POLYNOMIAL,coefficients=[zero,one])
+  func1=f_function_new(F_POLYNOMIAL,coefficients=[0.0_gp,one])
+  func2=f_function_new(F_POLYNOMIAL,coefficients=[0.0_gp,one])
 !!$
 !!$  call f_function_product(func1,func2,func3)
 !!$
@@ -122,12 +123,14 @@ end subroutine test_f_functions
 subroutine test_box_functions()
   use futile, gp=>f_double
   use box
+  use numerics, only: pi
   implicit none
   !local variables
   integer(f_long) :: tomp,tseq
-  type(cell) :: mesh_ortho
+  type(cell) :: mesh_ortho,mesh_noortho
   integer, dimension(3) :: ndims
   real(gp), dimension(:,:,:,:), allocatable :: v1,v2
+  real(gp), dimension(3) :: angrad
 
   ndims=[300,300,300]
 
@@ -135,7 +138,7 @@ subroutine test_box_functions()
 
   v1=f_malloc([3,ndims(1),ndims(2),ndims(3)],id='v1')
   v2=f_malloc([3,ndims(1),ndims(2),ndims(3)],id='v2')
-
+  if (.false.) then
   call loop_dotp('SEQ',mesh_ortho,v1,v2,tseq)
   call yaml_map('Normal loop, seq (ns)',tseq)
   
@@ -150,11 +153,95 @@ subroutine test_box_functions()
 
   call loop_dotp('ITM',mesh_ortho,v1,v2,tseq)
   call yaml_map('Normal loop, mpi (ns)',tseq)
+  end if
+  ndims=300
+  mesh_ortho=cell_null()
+  mesh_ortho=cell_new('P',ndims,[1.0_gp,1.0_gp,1.0_gp])
+  call loop_box_function('distance',mesh_ortho)
+
+  angrad(1) = 60.0_gp/180.0_gp*pi
+  angrad(2) = 30.0_gp/180.0_gp*pi
+  angrad(3) = 45.0_gp/180.0_gp*pi
+  
+  mesh_noortho=cell_new('P',ndims,[1.0_gp,1.0_gp,1.0_gp],alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3)) 
+  call loop_box_function('distance',mesh_noortho)
 
   call f_free(v1)
   call f_free(v2)
 
 end subroutine test_box_functions
+
+subroutine loop_box_function(fcheck,mesh)
+  use futile
+  use f_precisions
+  use box
+  use f_utils
+  use yaml_strings
+  use wrapper_MPI
+  use numerics, only:pi
+  implicit none
+  character(len=*), intent(in) :: fcheck
+  type(cell), intent(in) :: mesh
+  !local variables
+  integer :: i 
+  real(f_double) :: totvol1,totvol2,r,IntaS,IntaC,cen,errorS,errorC
+  real(f_double), dimension(3) :: rxyz0,rd
+  type(box_iterator) :: bit
+
+  select case(trim(fcheck))
+  case('distance')
+     bit=box_iter(mesh)
+     r=100.0_f_double
+     ! Full list of functions in box.f90 to be checked:
+     ! rxyz_ortho, distance, r_wrap, closest_r, 
+     ! square_gu, square_gd, dotp_gu, dotp_gd.
+     call yaml_mapping_open('Check of functions distance, closest_r, rxyz_ortho')
+     call yaml_map('Cell orthorhombic',bit%mesh%orthorhombic)
+     call yaml_map('Cell ndims',bit%mesh%ndims)
+     call yaml_map('Cell hgrids',bit%mesh%hgrids)
+     call yaml_map('Cell angles',bit%mesh%angrad)
+     call yaml_map('Cell periodity (FREE=0,PERIODIC=1)',bit%mesh%bc)
+     call yaml_map('Volume element',bit%mesh%volume_element)
+     call yaml_map('Sphere radius or cube side',r)
+     do i=1,3
+        totvol1=0.0_f_double
+        totvol2=0.0_f_double
+        if (i==1) cen=0.0_f_double
+        if (i==2) cen=bit%mesh%ndims(1)*0.5_f_double
+        if (i==3) cen=bit%mesh%ndims(1)*1.5_f_double
+        rxyz0=[cen,cen,cen]
+        do while(box_next_point(bit))
+           bit%tmp=rxyz_ortho(bit%mesh,bit%rxyz)
+           rd=closest_r(bit%mesh,bit%tmp,rxyz0)
+           rd=abs(rd)
+           if (distance(bit%mesh,bit%tmp,rxyz0) .le. r) then
+              totvol1=totvol1+1.0_f_double
+           end if
+           if (rd(1).le.r .and. rd(2).le.r .and. rd(3).le.r) then
+              totvol2=totvol2+1.0_f_double
+           end if
+        end do
+        totvol1=totvol1*mesh%volume_element
+        totvol2=totvol2*mesh%volume_element
+        IntaS=4.0_f_double/3.0_f_double*pi*r**3
+        IntaC=(2.0_f_double*r+1.0_f_double)**3
+        errorS=abs((totvol1-IntaS)/IntaS)
+        errorC=abs((totvol2-IntaC)/IntaC)
+        call yaml_mapping_open('center')
+        call yaml_map('Sphere or cube center',rxyz0)
+        call yaml_map('Numerical sphere integral',totvol1)
+        call yaml_map('Analytical sphere integral',IntaS)
+        call yaml_map('Sphere integral error',errorS)
+        call yaml_map('Numerical cube integral',totvol2)
+        call yaml_map('Analytical cube integral',IntaC)
+        call yaml_map('Cube integral error',errorC)
+        call yaml_mapping_close()
+     end do
+     call yaml_mapping_close()
+  case('other')
+  end select
+
+end subroutine loop_box_function
 
 subroutine loop_dotp(strategy,mesh,v1,v2,time)
   use f_precisions

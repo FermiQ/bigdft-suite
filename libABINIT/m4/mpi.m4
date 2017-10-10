@@ -146,7 +146,6 @@ end
      #if test x"$ac_with_mpi3" = x"yes" ; then
      # AC_DEFINE([HAVE_MPI3], [1], [use MPI3 capabilities (like MPI_IALLREDUCE and MPI_IALLTOALLV).])
      #fi
-     AM_CONDITIONAL(HAVE_MPI3, test "$ac_with_mpi3" = "yes")
   
     else
       AC_MSG_WARN([MPI is not working and has been disabled.])
@@ -168,6 +167,7 @@ end
   fi
   
   AM_CONDITIONAL(USE_MPI, test "$ac_use_mpi" = "yes")
+  AM_CONDITIONAL(HAVE_MPI3, test "$ac_with_mpi3" = "yes")
   AC_SUBST(MPI_LIBS)
   AC_SUBST(MPI_INCLUDE)
   AC_SUBST(MPI_LDFLAGS)

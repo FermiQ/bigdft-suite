@@ -164,14 +164,14 @@ module utilities
 
         subroutine communicate_errors()
           implicit none
-          call mpiallred(mean_error, 1, mpi_sum, comm=comm)
-          call mpiallred(max_error, 1, mpi_max, comm=comm)
-          call mpiallred(mean_error_rel, 1, mpi_sum, comm=comm)
-          call mpiallred(max_error_rel, 1, mpi_max, comm=comm)
+          call fmpi_allreduce(mean_error, 1, FMPI_SUM, comm=comm)
+          call fmpi_allreduce(max_error, 1, FMPI_MAX, comm=comm)
+          call fmpi_allreduce(mean_error_rel, 1, FMPI_SUM, comm=comm)
+          call fmpi_allreduce(max_error_rel, 1, FMPI_MAX, comm=comm)
           do ithreshold=1,nthreshold
-              call mpiallred(nrel_threshold(ithreshold), 1, mpi_sum, comm=comm)
-              call mpiallred(mean_error_rel_threshold(ithreshold), 1, mpi_sum, comm=comm)
-              call mpiallred(max_error_rel_threshold(ithreshold), 1, mpi_max, comm=comm)
+              call fmpi_allreduce(nrel_threshold(ithreshold), 1, FMPI_SUM, comm=comm)
+              call fmpi_allreduce(mean_error_rel_threshold(ithreshold), 1, FMPI_SUM, comm=comm)
+              call fmpi_allreduce(max_error_rel_threshold(ithreshold), 1, FMPI_MAX, comm=comm)
           end do
         end subroutine communicate_errors
     

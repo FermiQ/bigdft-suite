@@ -1,0 +1,76 @@
+---
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ CHESS TOOLBOX
+ Timestamp of the run                  : 2017-09-29 13:29:38.356
+ Parallel environment:
+   MPI tasks                           :  2
+   OpenMP threads                      :  2
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data-periodic/overlap_sparse.txt
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data-periodic/overlap_sparse.txt
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data-periodic/density_kernel_sparse.txt
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data-periodic/density_kernel_sparse.txt
+  #~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data-periodic/density_kernel_sparse_matmul.txt
+ Matrix properties:
+   Overlap matrix:
+     total elements                    :  36
+     segments                          :  6
+     non-zero elements                 :  36
+     sparsity in %                     :  0.00
+     sparse matrix multiplication initialized:  No
+     taskgroup summary:
+       number of taskgroups            :  1
+       taskgroups overview:
+       -  {number of tasks:  2, start / end:  [  1,  36 ], 
+      start / end disjoint:  [  1,  36 ]}
+   Density kernel:
+     total elements                    :  36
+     segments                          :  6
+     non-zero elements                 :  36
+     sparsity in %                     :  0.00
+     sparse matrix multiplication initialized:  Yes
+     sparse matrix multiplication setup:
+       segments                        :  6
+       non-zero elements               :  36
+       sparsity in %                   :  0.00
+     taskgroup summary:
+       number of taskgroups            :  1
+       taskgroups overview:
+       -  {number of tasks:  2, start / end:  [  1,  36 ], 
+      start / end disjoint:  [  1,  36 ]}
+ summary: {npl:  110, npl determined by: penalty, scale:  1.00E+00, 
+ bounds:  [  0.500,  1.500 ], exp accur:  [  3.15E-14 ]}
+ Fragment composition                  :  [ H, O, H ]
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Starting fragment purity analysis
+ Purity analysis of fragment:
+    #--------------------------------------------------------------------- Fragment number 1
+ - Atoms ID                            :  [  1,  2,  3 ]
+   Submatrix size                      :  6
+   analyzing KSK-K:
+     maximal deviation                 :  1.776E-15
+     total deviation                   :  1.292E-14
+     average deviation                 :  3.588E-16
+     trace difference                  :  1.110E-16
+   analyzing (KS)^2-(KS):
+     maximal deviation                 :  1.776E-15
+     total deviation                   :  1.356E-14
+     average deviation                 :  3.766E-16
+     trace difference                  :  2.220E-16
+   analyzing (S^1/2KS^1/2)^2 - S^1/2KS^1/2:
+     maximal deviation                 :  2.331E-14
+     total deviation                   :  1.598E-13
+     average deviation                 :  4.440E-15
+     trace difference                  : -1.188E-14
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Fragment purity analysis completed
+ Memory Consumption Report:
+   Tot. No. of Allocations             :  425
+   Tot. No. of Deallocations           :  425
+   Remaining Memory (B)                :  0
+   Memory occupation:
+     Peak Value (MB)                   :  0.121
+     for the array                     : cc
+     in the routine                    : get_polynomial_degree
+     Memory Peak of process            : 19.000 MB
+ Walltime since initialization         :  00:00:00.395870668
+ Max No. of dictionaries used          :  1288 #( 306 still in use)
+ Number of dictionary folders allocated:  1
+/home/stephan/Software/openmpi-1.8.4_gnu/bin/mpirun -np 2 /home/stephan/Documents/BigDFT/stablebranch/Build-gnu-openmpi_debug/install/bin/chess_toolbox kernel-purity serial_text data-periodic/sparsematrix_metadata.dat data-periodic/overlap_sparse.txt data-periodic/density_kernel_sparse.txt data-periodic/density_kernel_sparse_matmul.txt frag.dat

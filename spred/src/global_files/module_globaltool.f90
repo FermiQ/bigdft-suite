@@ -146,7 +146,7 @@ subroutine count_poslocm(gdat)
     call yaml_comment('Counting poslocms ....',hfill='-')
     gdat%nminmax=0
     do idict=1,gdat%uinp%ndir
-        ifile=0
+        ifile=-1
         call check_filename(gdat,idict)
         do
             call construct_filename(gdat,idict,ifile+1,filename)
@@ -155,9 +155,9 @@ subroutine count_poslocm(gdat)
             ifile=ifile+1
         enddo
         call yaml_map('Number of poslocms in '//trim(adjustl(&
-             gdat%uinp%directories(idict))),ifile)
-        gdat%nminpd(idict)=ifile
-        gdat%nminmax=gdat%nminmax+ifile
+             gdat%uinp%directories(idict))),ifile+1)
+        gdat%nminpd(idict)=ifile+1
+        gdat%nminmax=gdat%nminmax+ifile+1
     enddo
     call yaml_map('Total poslocms found',gdat%nminmax)
 end subroutine count_poslocm
@@ -449,7 +449,7 @@ subroutine read_poslocs(gdat,idict)
     character(len=1024) :: comment
     real(gp) :: energy
 
-    ifile=0
+    ifile=-1
     iposloc=0
     do
         call construct_filename(gdat,idict,ifile+1,filename)
