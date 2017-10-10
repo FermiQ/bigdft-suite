@@ -229,6 +229,9 @@
        100:   Linear AO
        101:   Linear restart
        102:   Linear on disk
+     #Useful shortcuts
+     LCAO: 0
+     RANDOM: -2
      #Here follow two shortcuts for linear
      linear: 100
      linear_restart: 102

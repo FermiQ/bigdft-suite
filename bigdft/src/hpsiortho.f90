@@ -388,9 +388,10 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
   !end debug
 
   !non self-consistent case: rhov should be the total potential
-  if (denspot%rhov_is /= KS_POTENTIAL) then
-     stop 'psitohpsi: KS_potential not available'
-  end if
+  if (denspot%rhov_is /= KS_POTENTIAL) &
+  & call f_err_throw('psitohpsi: KS_potential not available', err_name='BIGDFT_RUNTIME_ERROR')
+     !stop 'psitohpsi: KS_potential not available'
+  !end if
 
   !temporary, to be corrected with comms structure
   if (wfn%exctxpar == 'OP2P') energs%eexctX = UNINITIALIZED(1.0_gp)
@@ -3490,14 +3491,15 @@ subroutine integral_equation(iproc,nproc,atoms,wfn,ngatherarr,local_potential,GP
 
 end subroutine integral_equation
 
+
 !> Compute the Dij coefficients from the current KS potential.
 subroutine paw_compute_dij(paw, at, denspot, vxc, e_paw, e_pawdc, compch_sph)
+  use module_base, only: bigdft_mpi, f_err_throw
   use module_types, only: paw_objects, atoms_data, DFT_local_fields, &
        & TCAT_PAW_DIJ, TCAT_LIBPAW
   use public_enums, only: KS_POTENTIAL
   use module_defs, only: gp
   use numerics, only: Ha_eV
-  use module_base, only: bigdft_mpi
   use m_paw_an, only: paw_an_reset_flags
   use m_paw_ij, only: paw_ij_reset_flags
   use m_pawdij, only: pawdij
@@ -3568,7 +3570,9 @@ subroutine paw_compute_dij(paw, at, denspot, vxc, e_paw, e_pawdc, compch_sph)
   end if
 
   call f_timing(TCAT_LIBPAW, "ON")
-  if (denspot%rhov_is /= KS_POTENTIAL) stop "rhov must be KS pot here."
+  if (denspot%rhov_is /= KS_POTENTIAL) &
+     & call f_err_throw("rhov must be KS potential here",err_name="BIGDFT_RUNTIME_ERROR")
+     !stop "rhov must be KS pot here."
   call pawdij(cplex, enunit, gprimd, ipert, size(paw%pawrhoij), at%astruct%nat, nfft, nfftot, &
        & denspot%dpbox%nrhodim, at%astruct%ntypes, paw%paw_an, paw%paw_ij, at%pawang, &
        & paw%fgrtab, pawprtvol, at%pawrad, paw%pawrhoij, pawspnorb, at%pawtab, pawxcdev, &
@@ -3582,6 +3586,7 @@ subroutine paw_compute_dij(paw, at, denspot, vxc, e_paw, e_pawdc, compch_sph)
 
   call f_timing(TCAT_PAW_DIJ, "OF")
 end subroutine paw_compute_dij
+
 
 !> Compute the PAW quantities rhoij (augmentation occupancies)
 !  Remember:for each atom, rho_ij=Sum_{n,k} {occ(n,k)*<Cnk|p_i><p_j|Cnk>}
