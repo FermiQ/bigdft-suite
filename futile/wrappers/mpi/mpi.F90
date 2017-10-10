@@ -2,7 +2,7 @@
 !! Wrapper for the MPI call (this file is preprocessed.)
 !! Use error handling
 !! @author
-!!    Copyright (C) 2012-2016 BigDFT group
+!!    Copyright (C) 2012-2017 BigDFT group
 !!    This file is distributed under the terms of the
 !!    GNU General Public License, see ~/COPYING file
 !!    or http://www.gnu.org/copyleft/gpl.txt .
