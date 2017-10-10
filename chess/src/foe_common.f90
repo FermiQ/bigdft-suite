@@ -126,7 +126,13 @@ module module_func
       case(FUNCTION_FERMIFUNCTION)
           func = 1._mp/(1._mp+safe_exp((x-ef)/fscale))
       case(FUNCTION_FERMIFUNCTION_ENTROPY)
-          func = x*log(x) + (1.0_mp-x)*log(1._mp-x)
+          ! We must be careful: This function is only properly defined in the interval (0:1),
+          ! therefore set it manually to zero outside (including a small safety interval)
+          if (x<1.e-30_mp .or. (x-1._mp)>-1.e-30_mp) then
+              func = 0._mp
+          else
+              func = -(x*log(x) + (1.0_mp-x)*log(1._mp-x))
+          end if
       case default
           call f_err_throw("wrong value of 'ifunc'")
       end select
@@ -2180,6 +2186,7 @@ module foe_common
           if (.not. present(fscale)) call f_err_throw("arguments 'fscale' is not present")
           !write(*,*) 'iproc, ef, fscale, evlow, evhigh', &
           !    iproc, ef, fscale, foe_data_get_real(foe_obj,"evlow",ispin), foe_data_get_real(foe_obj,"evhigh",ispin)
+      case (FUNCTION_FERMIFUNCTION_ENTROPY)
       case default
           call f_err_throw("wrong value of argument 'fun'")
       end select
@@ -2222,6 +2229,8 @@ module foe_common
                   call func_set(FUNCTION_ERRORFUNCTION, efx=ef(icalc), fscalex=fscale(icalc))
               case (FUNCTION_FERMIFUNCTION)
                   call func_set(FUNCTION_FERMIFUNCTION, efx=ef(icalc), fscalex=fscale(icalc))
+              case (FUNCTION_FERMIFUNCTION_ENTROPY)
+                  call func_set(FUNCTION_FERMIFUNCTION_ENTROPY)
               case default
                   call f_err_throw('wrong value for fun')
               end select
@@ -2501,6 +2510,7 @@ module foe_common
           if (.not.present(fscale_arr)) call f_err_throw('fscale_arr not present')
       case (FUNCTION_POLYNOMIAL) !generalized eigenvalue problem, i.e. the overlap matrix must be provided
           if (.not.present(ex)) call f_err_throw('ex not present')
+      case (FUNCTION_FERMIFUNCTION_ENTROPY) 
       case default
           call f_err_throw('wrong value for func_name')
       end select
@@ -2559,6 +2569,11 @@ module foe_common
                            npl_min, npl_max, npl_stride, accuracy_function, accuracy_penalty, 0, npl, cc_, &
                            max_error, x_max_error, mean_error, anoise, increase_degree_for_penaltyfunction, &
                            ex=ex)
+                  else if (func_name==FUNCTION_FERMIFUNCTION_ENTROPY) then
+                      write(*,*) 'npl_min, npl_max, npl_stride', npl_min, npl_max, npl_stride
+                      call get_polynomial_degree(iproc, nproc, comm, 1, ncalc, func_name, foe_obj, &
+                           npl_min, npl_max, npl_stride, accuracy_function, accuracy_penalty, 2, npl, cc_, &
+                           max_error, x_max_error, mean_error, anoise, increase_degree_for_penaltyfunction)
                   end if
                   npl_min = npl !to be used to speed up the search for npl in a following iteration
                   if (iproc==0 .and. foe_verbosity>0) then

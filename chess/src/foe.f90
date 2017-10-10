@@ -46,7 +46,7 @@ module foe
       use sparsematrix, only: compress_matrix, uncompress_matrix, &
                               transform_sparsity_pattern, compress_matrix_distributed_wrapper, &
                               trace_sparse_matrix_product, symmetrize_matrix, max_asymmetry_of_matrix, &
-                              trace_sparse_matrix
+                              trace_sparse_matrix, transform_sparse_matrix
       use foe_base, only: foe_data, foe_data_set_int, foe_data_get_int, foe_data_set_real, foe_data_get_real, &
                           foe_data_get_logical
       use fermi_level, only: fermi_aux, init_fermi_level, determine_fermi_level, &
@@ -58,6 +58,8 @@ module foe
                             calculate_trace_distributed_new, get_bounds_and_polynomials
       use module_func
       use dynamic_memory
+      use ice, only: calculate_fermi_function_entropy
+      use wrapper_linalg, only: vscal, axpy
       implicit none
 
       ! Calling arguments
@@ -88,7 +90,7 @@ module foe
       real(kind=mp) :: anoise, scale_factor, shift_value, sumn, sumn_check, charge_diff, ef_interpol, ddot
       real(kind=mp) :: evlow_old, evhigh_old, det, determinant, sumn_old, ef_old, tt
       real(kind=mp) :: x_max_error_fake, max_error_fake, mean_error_fake
-      real(kind=mp) :: fscale, tt_ovrlp, tt_ham, diff, fscale_check, fscale_new, fscale_newx, asymm_K, eTS
+      real(kind=mp) :: fscale, tt_ovrlp, tt_ham, diff, fscale_check, fscale_new, fscale_newx, asymm_K, eTS, eTS_check
       logical :: restart, adjust_lower_bound, adjust_upper_bound, calculate_SHS, interpolation_possible
       logical,dimension(2) :: emergency_stop
       real(kind=mp),dimension(2) :: efarr, sumnarr, allredarr
@@ -114,6 +116,7 @@ module foe
       real(mp),dimension(:),allocatable :: sumn_allspins, ebs_spins
       integer :: npl_max, npl_stride
       type(fmpi_win), dimension(:,:),allocatable :: windowsx_kernel, windowsx_kernel_check
+      type(matrices) :: kernel_modified, entropykernel_
 
 
 
@@ -629,6 +632,28 @@ module foe
       call f_free(kernel_tmp)
       call f_free(fermi_check_new)
       call f_timing(TCAT_CME_AUXILIARY,'OF')
+
+      !# NEW TEST ENTROPY ####################################
+      entropykernel_ = matrices_null()
+      entropykernel_%matrix_compr = sparsematrix_malloc_ptr(smatl,iaction=SPARSE_TASKGROUP,id='entropykernel_%matrix_compr')
+      kernel_modified = matrices_null()
+      kernel_modified%matrix_compr = sparsematrix_malloc_ptr(smatl,iaction=SPARSE_TASKGROUP,id='kernel_modified%matrix_compr')
+      hamscal_compr = sparsematrix_malloc(smatl, iaction=SPARSE_TASKGROUP, id='hamscal_compr')
+      call transform_sparse_matrix(iproc, smats, smatl, SPARSE_TASKGROUP, 'small_to_large', &
+                   smat_in=ovrlp_%matrix_compr, lmat_out=hamscal_compr)
+      call f_memcpy(src=kernel_%matrix_compr, dest=kernel_modified%matrix_compr)
+      call vscal(size(kernel_modified%matrix_compr), 0.5d0, kernel_modified%matrix_compr(1), 1)
+      !call axpy(size(kernel_modified%matrix_compr), 0.4d0, hamscal_compr(1), 1, kernel_modified%matrix_compr(1), 1)
+      call calculate_fermi_function_entropy(iproc, nproc, comm, &
+           smats, smatl, smatl, ovrlp_, kernel_modified, ovrlp_minus_one_half_(1), entropykernel_, eTS, eTS_check, verbosity=0)
+      !eTS = trace_sparse_matrix(iproc, nproc, comm, smatl, entropykernel_%matrix_compr)
+      eTS = eTS*fscale_new
+      eTS_check = eTS_check*fscale_new
+      write(*,*) 'eTS', eTS
+      write(*,*) 'eTS_check', eTS_check
+      call deallocate_matrices(entropykernel_)
+      !# END NEW TEST ENTROPY ################################
+
 
       call f_release_routine()
 
