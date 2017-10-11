@@ -158,6 +158,7 @@ subroutine denspot_set_history(denspot, scf_enum, &
 !!$  end if
 end subroutine denspot_set_history
 
+
 subroutine denspot_free_history(denspot)
   use module_types
   use module_mixing
@@ -171,6 +172,8 @@ subroutine denspot_free_history(denspot)
   end if
 end subroutine denspot_free_history
 
+
+!> Set the status of denspot (should be KS_POTENTIAL, HARTREE_POTENTIAL, CHARGE_DENSITY)
 subroutine denspot_set_rhov_status(denspot, status, istep, iproc, nproc)
   use module_base
   use module_types

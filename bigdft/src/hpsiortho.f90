@@ -241,7 +241,7 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
           denspot%rhohat,denspot%V_XC,xcstr)
 
      if (denspot%cfd%nat >0) then
-!!$        !here the constraingin magnetic field is added on top of the local xc potential
+!!$        !here the constraining magnetic field is added on top of the local xc potential
 !!$        call f_zero(denspot%cfd%B_at)
 !!$        denspot%cfd%B_at(1,1)=0.5_gp
 !!$        denspot%cfd%B_at(1,2)=0.5_gp
@@ -366,7 +366,7 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
         call paw_compute_dij(wfn%paw, atoms, denspot, denspot%V_XC, &
              & energs%epaw, energs%epawdc, compch_sph)
      end if
-  end if
+  end if !if (scf)
 
   !debug
   !call MPI_BARRIER(MPI_COMM_WORLD,i_stat)
@@ -387,11 +387,9 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
   !call MPI_BARRIER(MPI_COMM_WORLD,i_stat)
   !end debug
 
-  !non self-consistent case: rhov should be the total potential
+  ! self-consistent case or not: rhov should be the total potential
   if (denspot%rhov_is /= KS_POTENTIAL) &
-  & call f_err_throw('psitohpsi: KS_potential not available', err_name='BIGDFT_RUNTIME_ERROR')
-     !stop 'psitohpsi: KS_potential not available'
-  !end if
+  & call f_err_throw('psitohpsi: KS_potential not available with scf', err_name='BIGDFT_RUNTIME_ERROR')
 
   !temporary, to be corrected with comms structure
   if (wfn%exctxpar == 'OP2P') energs%eexctX = UNINITIALIZED(1.0_gp)
@@ -512,6 +510,7 @@ subroutine FullHamiltonianApplication(iproc,nproc,at,orbs,&
   use yaml_output
   use locreg_operations, only: confpot_data
   implicit none
+  !Arguments
   integer, intent(in) :: iproc,nproc
   type(atoms_data), intent(in) :: at
   type(orbitals_data), intent(in) :: orbs
@@ -522,6 +521,7 @@ subroutine FullHamiltonianApplication(iproc,nproc,at,orbs,&
   integer, dimension(0:nproc-1,2), intent(in) :: ngatherarr
   real(wp), dimension(orbs%npsidim_orbs), intent(in) :: psi
   type(confpot_data), dimension(orbs%norbp), intent(in) :: confdatarr
+  !Local variables
   !real(wp), dimension(lzd%ndimpotisf) :: pot
   real(wp), dimension(:),pointer :: pot
   type(energy_terms), intent(inout) :: energs
@@ -557,7 +557,7 @@ subroutine FullHamiltonianApplication(iproc,nproc,at,orbs,&
           Lzd,confdatarr,ngatherarr,pot,psi,hpsi,&
           energs,SIC,GPU,1,xc,pkernel,orbsocc,psirocc)
   else
-     stop 'HamiltonianApplication, argument error'
+     call f_err_throw('HamiltonianApplication, argument error')
   end if
 
   !these two sections have to be inverted to profit of overlapping in GPU accelerated case
@@ -1168,7 +1168,7 @@ contains
             nl%wpack,nl%scpr,nl%cproj,nl%hcproj,&
             psi_it%phi_wvl,hpsi_ptr,eproj)
 
-       !here the cproj can be extracted to update the density matrix for the atom iat 
+       !here the cproj can be extracted to update the density matrix for the atom iat
        if (associated(nl%iagamma)) then
           call cproj_to_gamma(atit%iat,nl%proj_G,psi_it%n_ket,mproj,lmax_ao,&
                max(psi_it%ncplx,ncplx_p),nl%cproj,psi_it%kwgt*psi_it%occup,&
@@ -1232,7 +1232,7 @@ contains
              !allocate upper triangular and associate lower triangular
              prj(i,j,l)%hij=hij(i,j,l)
 
-             prj(j,i,l)%mat => prj(i,j,l)%mat 
+             prj(j,i,l)%mat => prj(i,j,l)%mat
              prj(j,i,l)%hij=hij(j,i,l)
           end do
        end do
@@ -1997,7 +1997,7 @@ subroutine calculate_energy_and_gradient(iter,iproc,nproc,GPU,ncong,scf_mode,&
   tr_min=(scf_mode .hasattr. 'MIXING') .or. energs%eexctX /=0.0_gp
   if(wfn%paw%usepaw) then
     !PAW: spsi is used.
-    call orthoconstraint(iproc,nproc,wfn%orbs,wfn%comms,wfn%SIC%alpha/=0.0_gp,tr_min,& 
+    call orthoconstraint(iproc,nproc,wfn%orbs,wfn%comms,wfn%SIC%alpha/=0.0_gp,tr_min,&
          wfn%psit,wfn%hpsi,energs%trH,wfn%paw%spsi)
   else
     !NC:
