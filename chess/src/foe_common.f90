@@ -1322,12 +1322,12 @@ module foe_common
                &(n='//trim(yaml_toa(n))//', np='//trim(yaml_toa(np))//')')
       end if
       iimin = 1 + is
-      call fmpi_allreduce(iimin, 1, mpi_min, comm=comm)
+      call fmpi_allreduce(iimin, 1, FMPI_MIN, comm=comm)
       if (iimin/=isx) then
           call f_err_throw('wrong starting index')
       end if
       iimax = np + is
-      call fmpi_allreduce(iimax, 1, mpi_max, comm=comm)
+      call fmpi_allreduce(iimax, 1, FMPI_MAX, comm=comm)
       if (iimax/=iex) then
           call f_err_throw('wrong ending index')
       end if
