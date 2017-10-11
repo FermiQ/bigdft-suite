@@ -3031,19 +3031,6 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
 
      call f_free(norm)
 
-     !!allocate(tmb%linmat%denskern%matrix(tmb%orbs%norb,tmb%orbs%norb), stat=i_stat)
-     !!call memocc(i_stat, tmb%linmat%denskern%matrix, 'tmb%linmat%denskern%matrix', subname)
-     !!call calculate_density_kernel(iproc, nproc, .true., KSwfn%orbs, tmb%orbs, tmb%coeff, tmb%linmat%denskern%matrix)
-     !!call compress_matrix(iproc,tmb%linmat%denskern)
-     !!do itmb=1,tmb%orbs%norb
-     !!   do jtmb=1,tmb%orbs%norb
-     !!      write(20,*) itmb,jtmb,tmb%linmat%denskern%matrix(itmb,jtmb)
-     !!   end do
-     !!end do
-     !!i_all=-product(shape(tmb%linmat%denskern%matrix))*kind(tmb%linmat%denskern%matrix)
-     !!deallocate(tmb%linmat%denskern%matrix,stat=i_stat)
-     !!call memocc(i_stat,i_all,'tmb%linmat%denskern%matrix',subname)
-
      ! CDFT: need to do this here to correct fragment charges in case of constrained transfer integral calculation
      call nullify_cdft_data(cdft)
      nullify(in_frag_charge)
