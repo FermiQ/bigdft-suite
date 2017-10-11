@@ -25,7 +25,7 @@ subroutine soft_PCM_forces(mesh,n1,n2,n3p,i3s,nat,radii,cavity,rxyz,eps,np2,fpcm
   real(dp), dimension(3,n1,n2,n3p), intent(in) :: depsilon !<dielectric funtion
   !local variables
   real(dp), parameter :: thr=1.e-10
-  integer :: i,i1,i2,i3
+  integer :: i1,i2,i3
   real(dp) :: tt,epr,kk
   real(dp), dimension(3) :: v,origin,deps
 
@@ -524,7 +524,7 @@ subroutine local_forces(iproc,at,rxyz,hxh,hyh,hzh,&
   logical :: perx,pery,perz,gox,goy,goz
   integer :: j1,j2,j3,ind,nbl1,nbr1,nbl2,nbr2,nbl3,nbr3,isx,isy,isz,iex,iey,iez
   real(gp) :: forceleaked
-  real(gp) :: yp,zp,zsq,yzsq,ysq
+  real(gp) :: yp,zp,zsq,yzsq
   real(gp) :: arg,r2,xp,tt,Txx,Tyy,Tzz,Txy,Txz,Tyz
   integer :: i1,i2,i3,iat,ityp,nloc,iloc
   real(dp), dimension(:), allocatable  :: mpx,mpy,mpz
@@ -533,7 +533,13 @@ subroutine local_forces(iproc,at,rxyz,hxh,hyh,hzh,&
 
   call f_routine(id='local_forces')
 
-  if (at%multipole_preserving) call initialize_real_space_conversion(isf_m=at%mp_isf)
+  !initialize the work arrays needed to integrate with isf
+  !if (at%multipole_preserving) call initialize_real_space_conversion(isf_m=at%mp_isf)
+  if (at%multipole_preserving) then
+    !Determine the number of points depending on the min rloc
+    rloc = minval(at%psppar(0,0,:))
+    call initialize_real_space_conversion(isf_m=at%mp_isf,rloc=rloc)
+  end if
 
   !Initialization
   locstrten=0.0_gp
@@ -1136,7 +1142,7 @@ subroutine nonlocal_forces(lr,hx,hy,hz,at,rxyz,&
               loop_l: do l=1,4
                  do i=1,3
                     if (at%psppar(l,i,ityp) /= 0.0_gp) then
-                       !if needed extract the density matrix of the given atom 
+                       !if needed extract the density matrix of the given atom
                        !for the non collinear case the order of the scalprod array is not compatible
                        !this routine should be restructured in any case
                        if (associated(nlpsp%iagamma) .and. nspinor /= 4) then
@@ -1299,7 +1305,7 @@ subroutine atomic_density_matrix_delta(dump,nspin,astruct,nl,gamma_target)
   use ao_inguess, only: lmax_ao,ishell_toa
   use yaml_strings
   use yaml_output
-  use module_base, only: bigdft_mpi,wp
+  use module_base, only: wp
   use f_arrays, only: f_matrix
   implicit none
   logical, intent(in) :: dump
@@ -1313,7 +1319,6 @@ subroutine atomic_density_matrix_delta(dump,nspin,astruct,nl,gamma_target)
   real(wp) :: diff,gt,gg
   real(wp), dimension(2) :: maxdiff
   integer, dimension(0:lmax_ao) :: igamma
-  character(len=32) :: msg
   type(atoms_iterator) :: atit
 
   if (.not. associated(nl%iagamma)) return
@@ -1351,7 +1356,7 @@ subroutine atomic_density_matrix_delta(dump,nspin,astruct,nl,gamma_target)
               do m=1,2*l+1
                  gt=gamma_target(l,ispin,atit%iat)%ptr(m,mp)
                  gg=nl%gamma_mmp(1,m,mp,igamma(l),ispin)
-                 diff=gt-gg 
+                 diff=gt-gg
 !!$                 nl%gamma_mmp(1,m,mp,igamma(l),ispin)=gt
 !!$                 if (gt == 0.0_wp) then
 !!$                    nl%gamma_mmp(1,m,mp,igamma(l),ispin)=0.0_wp
@@ -1359,7 +1364,7 @@ subroutine atomic_density_matrix_delta(dump,nspin,astruct,nl,gamma_target)
 !!$                    nl%gamma_mmp(1,m,mp,igamma(l),ispin)=gt/gg
 !!$                 else
 !!$                    nl%gamma_mmp(1,m,mp,igamma(l),ispin)=gt
-!!$                 end if 
+!!$                 end if
                  maxdiff(ispin)=max(maxdiff(ispin),abs(diff))
               end do
            end do

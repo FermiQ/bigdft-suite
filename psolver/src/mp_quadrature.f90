@@ -19,13 +19,12 @@ module multipole_preserving
   integer :: nrange_scf=0                         !< range of the integration
   !> Values for the interpolating scaling functions points
   real(gp), dimension(:), allocatable :: scf_data
-  !>refcounted arrays to precalulate the coefficients 
+  !>refcounted arrays to precalculate the coefficients
   type(f_matrix), dimension(3), save :: mp_exps
   !> log of the minimum value of the scf data
   !! to avoid floating point exceptions while multiplying with it
   real(gp) :: mn_scf = 0.0_gp
   real(gp), parameter :: mp_tiny = 1.e-30_gp !<put zero when the value is lower than this
-
 
 
   public :: initialize_real_space_conversion,finalize_real_space_conversion,scfdotf,mp_exp
@@ -34,14 +33,19 @@ module multipole_preserving
   contains
 
     !> Prepare the array for the evaluation with the interpolating Scaling Functions
-    !! one might add also the function to be converted and the 
+    !! one might add also the function to be converted and the
     !! prescription for integrating knowing the scaling relation of the function
-    subroutine initialize_real_space_conversion(npoints,isf_m,nmoms)
+    subroutine initialize_real_space_conversion(npoints,isf_m,rloc,nmoms)
       implicit none
-      integer, intent(in), optional :: npoints,isf_m,nmoms
+      integer, intent(in), optional :: npoints !< Number of points (only 2**x)
+      real(kind=8), intent(in), optional :: rloc !< rloc of a given gaussian
+                                                 !! in order to determine nppoints
+      integer, intent(in), optional :: isf_m !< Type of interpolatig scaling function
+      integer, intent(in), optional :: nmoms !< Number of preserved moments if /= 0
+                                             !! (see ISF_family in scaling_function.f90)
       !local variables
       character(len=*), parameter :: subname='initialize_real_space_conversion'
-      integer :: n_range,i,nmm
+      integer :: n_range,i,nmm,np
       real(gp) :: tt
       real(gp), dimension(:), allocatable :: x_scf !< to be removed in a future implementation
 
@@ -58,10 +62,18 @@ module multipole_preserving
       end if
 
       if (present(npoints)) then
-         n_scf=2*(itype_scf+nmm)*npoints
-      else
-         n_scf=2*(itype_scf+nmm)*(2**6)
+         np=ceiling(log(dble(npoints))/log(2.d0))
+      else if (present(rloc)) then
+         if (rloc /= 0.d0) then
+           np=ceiling(log(10.d0/rloc)/log(2.0))
+         else
+           np=0
+         end if
       end if
+      np=max(6,np)
+      !2**6 is a min to have 2**12=2048 points
+      !otherwise trouble in scaling_function.f90
+      n_scf=2*(itype_scf+nmm)*(2**np)
 
       !allocations for scaling function data array
       x_scf = f_malloc(0.to.n_scf,id='x_scf')
@@ -72,13 +84,13 @@ module multipole_preserving
       !call scaling_function(itype_scf,n_scf,n_range,x_scf,scf_data)
       !call wavelet_function(itype_scf,n_scf,x_scf,scf_data)
       call ISF_family(itype_scf,nmm,n_scf,n_range,x_scf,scf_data)
-      !stop 
+      !stop
       call f_free(x_scf)
 
       nrange_scf=n_range
-      !define the log of the smallest nonzero value as the 
+      !define the log of the smallest nonzero value as the
       !cutoff for multiplying with it
-      !this means that the values which are 
+      !this means that the values which are
       !lower than scf_data squared will be considered as zero
       mn_scf=epsilon(1.d0)**2 !just to put a "big" value
       do i=0,n_scf
@@ -90,13 +102,14 @@ module multipole_preserving
 
     end subroutine initialize_real_space_conversion
 
+
     pure function mp_initialized()
       implicit none
       logical mp_initialized
       mp_initialized=allocated(scf_data)
     end function mp_initialized
 
-    !> 
+    !>
     subroutine mp_gaussian_workarrays(nterms,nbox,expo,lxyz,rxyz,hgrids)
       implicit none
       integer, intent(in) :: nterms
@@ -134,7 +147,7 @@ module multipole_preserving
               mp_exps(3)%ptr(iterm,ival(3))*factors(iterm)
       end do
     end function get_mp_exps_product
-    
+
     !> Deallocate scf_data
     subroutine finalize_real_space_conversion()
       implicit none
@@ -150,20 +163,20 @@ module multipole_preserving
 
 
     !> multipole-preserving gaussian function
-    !! chooses between traditional exponential and scfdotf 
+    !! chooses between traditional exponential and scfdotf
     !! according to the value of the exponent in units of the grid spacing
     !! the function is supposed to be x**pow*exp(-expo*x**2)
     !! where x=hgrid*j-x0
     !! @warning
-    !! this function is also elemental to ease its evaluation, though 
-    !! the usage for vector argument is discouraged: dedicated routines has to be 
+    !! this function is also elemental to ease its evaluation, though
+    !! the usage for vector argument is discouraged: dedicated routines has to be
     !! written to meet performance
-    !! @todo 
+    !! @todo
     !!  Optimize it!
     elemental pure function mp_exp(hgrid,x0,expo,j,pow,modified)
       use numerics, only: safe_exp
       implicit none
-      real(gp), intent(in) :: hgrid   !< Hgrid 
+      real(gp), intent(in) :: hgrid   !< Hgrid
       real(gp), intent(in) :: x0      !< X value
       real(gp), intent(in) :: expo    !< Exponent of the gaussian
       logical, intent(in) :: modified !< Switch to scfdotf if true
@@ -184,11 +197,11 @@ module multipole_preserving
     end function mp_exp
 
 
-    !> This function calculates the scalar product between a ISF and a 
+    !> This function calculates the scalar product between a ISF and a
     !! input function, which is a gaussian times a power centered
     !! @f$g(x) = (x-x_0)^{pow} e^{-pgauss (x-x_0)}@f$
     !! here pure specifier is redundant
-    !! we should add here the threshold from which the 
+    !! we should add here the threshold from which the
     !! normal function can be evaluated
     elemental pure function scfdotf(j,hgrid,pgauss,x0,pow) result(gint)
       use numerics, only: safe_exp
@@ -240,7 +253,7 @@ module multipole_preserving
       gint = gint*dx
       if (abs(gint) < mp_tiny) gint=0.0_gp
     end function scfdotf
-    
+
 end module multipole_preserving
 
 !> Creates the charge density of a Gaussian function, to be used for the local part
@@ -365,7 +378,7 @@ subroutine gaussian_density(rxyz,rloc, zion, multipole_preservingl, use_iterator
      do i3=isz,iez
         zp = mpz(i3-isz)
         if (abs(zp) < mp_tiny) cycle
-        call ind_positions_new(perz,i3,n3i,j3,goz) 
+        call ind_positions_new(perz,i3,n3i,j3,goz)
         do i2=isy,iey
            yp = zp*mpy(i2-isy)
            if (abs(yp) < mp_tiny) cycle
