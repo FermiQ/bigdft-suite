@@ -17,13 +17,14 @@ recursive subroutine f_utils_test()
   use time_profiling
   use f_jmp
   use yaml_strings
+  use f_random
   implicit none
   !local variables
   type(f_enumerator) :: greetings=f_enumerator('Greetings',10,null())
   type(f_enumerator) :: f1=f_enumerator('Ciao',1,null())
   type(f_enumerator) :: f2=f_enumerator('Hello',2,null())
   type(f_enumerator) :: f3=f_enumerator('Pizza',3,null())
-  integer :: unt,unt2,u
+  integer :: unt,unt2,u,i
   !  double precision :: t0
   integer(kind=8) :: i0
   integer, parameter :: nstep=10,n_inc=10**7
@@ -39,6 +40,9 @@ recursive subroutine f_utils_test()
   integer(f_integer), dimension(3) :: i4
   integer(f_long), dimension(3) :: il
   logical(f_byte), dimension(3) :: lb
+  real(f_simple), dimension(50) :: rand_r
+  real(f_double), dimension(50) :: rand_d
+  integer(f_integer), dimension(50) :: rand_i
   type(f_progress_bar) :: bar
   type(f_jmpbuf), save :: jb
   !character(len=256) :: path
@@ -112,6 +116,20 @@ recursive subroutine f_utils_test()
   call yaml_map('Ternary operator test char (true)',.if. .true. .then. 'T' .else. 'F')
   call yaml_map('Ternary operator test char (false)',.if. .false. .then. 'T' .else. 'F')
 
+  !random numbers
+  call yaml_mapping_open('Random number generator test')
+  call f_random_number(rand_d)
+  call yaml_newline()
+  call yaml_map('Random numbers, double',rand_d)
+  do i=1,size(rand_r)
+     call f_random_number(rand_r(i))
+  end do
+  call yaml_newline()
+  call yaml_map('Random numbers, simple',rand_r)
+  call f_random_number(rand_i,range=100)
+  call yaml_newline()
+  call yaml_map('Random numbers, integers, bw 0 and 100',rand_i)
+  call yaml_mapping_close()
 
   !wait one second
   !t0=dble(f_time())*1.d-9

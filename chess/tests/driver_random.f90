@@ -262,21 +262,25 @@ program driver_random
 
 
     
-      ! Fill the matrix with random entries
-      idum = 0
-      !tt_real = builtin_rand(idum, reset=.true.)
-      call f_random_number(tt_real, reset=.true.)
-      do i=1,smat(1)%nvctr
-          !tt_real = builtin_rand(idum)
-          call f_random_number(tt_real)
-          mat1%matrix_compr(i) = real(tt_real,kind=8)
-      end do
+!!$      ! Fill the matrix with random entries
+!!$      idum = 0
+!!$      !tt_real = builtin_rand(idum, reset=.true.)
+!!$      call f_random_number(tt_real, reset=.true.)
+!!$      do i=1,smat(1)%nvctr
+!!$          !tt_real = builtin_rand(idum)
+!!$          call f_random_number(tt_real)
+!!$          mat1%matrix_compr(i) = real(tt_real,kind=8)
+!!$      end do
+      call f_random_number(mat1%matrix_compr)
 
     
       ! By construction, all elements lie between 0 and 1. If we thus scale the
       ! matrix by the inverse of nfvctr (i.e. its dimension), then the sum of each line
       ! is between 0 and 1.
-      call dscal(smat(1)%nvctr, 1.0_mp/real(smat(1)%nfvctr,kind=8), mat1%matrix_compr(1), 1)
+      call vscal(smat(1)%nvctr, 1.0_mp/real(smat(1)%nfvctr,kind=8), mat1%matrix_compr(1), 1)
+
+!!$      call dscal(smat(1)%nvctr, 1.0_mp/real(smat(1)%nfvctr,kind=8), mat1%matrix_compr(1), 1)
+
     
       ! By construction, the sum of each line is between 0 and 1. If we thus set the diagonal
       ! to 1, we get a diagonally dominant matrix, which is positive definite.
@@ -288,6 +292,7 @@ program driver_random
           tt = real(tt_real,kind=8)*condition_number
           mat1%matrix_compr(ii) = 1.0_mp + tt
       end do
+
 
     
       ! Scale the matrix by the condition number, which should move down the largest
