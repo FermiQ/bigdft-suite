@@ -43,6 +43,7 @@ program driver_random
   use wrapper_MPI
   use selinv, only: selinv_wrapper
   use utilities, only: calculate_error, median
+  use wrapper_linalg
 
   implicit none
 
@@ -297,7 +298,7 @@ program driver_random
     
       ! Scale the matrix by the condition number, which should move down the largest
       ! eigenvalue of the order of 1.
-      call dscal(smat(1)%nvctr, 1.0_mp/condition_number, mat1%matrix_compr(1), 1)
+      call vscal(smat(1)%nvctr, 1.0_mp/condition_number, mat1%matrix_compr(1), 1)
 
 
       ! Resize the matrix to the task group
