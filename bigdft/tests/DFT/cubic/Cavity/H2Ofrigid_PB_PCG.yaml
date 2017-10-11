@@ -9,7 +9,7 @@
    itermax: 2
  psolver:
    environment: 
-     cavity: rigid
+     cavity: soft-sphere
      pb_method: modified
      itermax: 5
      pb_itermax: 2

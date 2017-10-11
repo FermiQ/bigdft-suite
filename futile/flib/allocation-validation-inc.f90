@@ -7,6 +7,8 @@
 !!    GNU General Public License, see ~/COPYING file
 !!    or http://www.gnu.org/copyleft/gpl.txt .
 !!    For the list of contributors, see ~/AUTHORS
+  logical :: ok
+  ok=.false.
   if (ierror/=0) then
      call f_timer_resume()!TCAT_ARRAY_ALLOCATIONS
      call f_err_throw('array ' // trim(m%array_id) // &
@@ -26,3 +28,4 @@
           & ERR_INVALID_MALLOC)
      return
   end if
+  ok=.true.

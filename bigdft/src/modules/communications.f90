@@ -2364,7 +2364,7 @@ module communications
              nsize_work,work_add,out_add) !optional
       else
           call untranspose_v_core(iproc,nproc,orbs,wfd,comms,nsize_psi,psi_add,&
-             nsize_work,work_add,out_add) !optional
+             nsize_work,work_add) !optional
       end if
 
     END SUBROUTINE untranspose_v111
@@ -2396,7 +2396,7 @@ module communications
              nsize_work,work_add,out_add) !optional
       else
           call untranspose_v_core(iproc,nproc,orbs,wfd,comms,nsize_psi,psi_add,&
-             nsize_work,work_add,out_add) !optional
+             nsize_work,work_add) !optional
       end if
 
     END SUBROUTINE untranspose_v222
@@ -2460,7 +2460,7 @@ module communications
              nsize_work,work_add,out_add) !optional
       else
           call untranspose_v_core(iproc,nproc,orbs,wfd,comms,nsize_psi,psi_add,&
-             nsize_work,work_add,out_add) !optional
+             nsize_work,work_add) !optional
       end if
 
     END SUBROUTINE untranspose_v211

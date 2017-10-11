@@ -74,6 +74,7 @@ module locregs_init
       integer :: jorb, jjorb, jlr
       character(len=*), parameter :: subname='initLocregs'
       logical,dimension(:), allocatable :: calculateBounds
+      real(gp), dimension(3) :: hgrids
 
       call f_routine(id=subname)
 
@@ -95,6 +96,7 @@ module locregs_init
          end do
       end if
 
+      hgrids=[hx,hy,hz]
       if(locregShape=='c') then
          calculateBounds=.true.
          call determine_locreg_parallel(iproc,nproc,lzd%nlr,rxyz,locrad,&

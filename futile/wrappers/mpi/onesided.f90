@@ -355,7 +355,7 @@ module f_onesided
 
       allocate(array(m%lbounds(1):m%ubounds(1)),stat=ierror)
 
-      call malloc_validate(ierror,size(shape(array)),m)
+      if (.not. malloc_validate(ierror,size(shape(array)),m)) return
 
       !here the database for the allocation might be updated
 
@@ -374,7 +374,7 @@ module f_onesided
 
       allocate(array(m%lbounds(1):m%ubounds(1),m%lbounds(2):m%ubounds(2)),stat=ierror)
 
-      call malloc_validate(ierror,size(shape(array)),m)
+      if (.not. malloc_validate(ierror,size(shape(array)),m)) return
 
       !here the database for the allocation might be updated
 
@@ -394,7 +394,7 @@ module f_onesided
 
       allocate(array(m%lbounds(1):m%ubounds(1)),stat=ierror)
 
-      call malloc_validate(ierror,size(shape(array)),m)
+      if (.not. malloc_validate(ierror,size(shape(array)),m)) return
 
       !here the database for the allocation might be updated
 

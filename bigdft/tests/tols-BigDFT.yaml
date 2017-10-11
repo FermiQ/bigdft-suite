@@ -87,6 +87,7 @@ Patterns to ignore:
  - memory
  - FLAGS
  - input_guess
+ - delta
 
 
 
@@ -308,8 +309,9 @@ H2-spin:
 
 H-Rydberg_H:
  Gradient Norm: 5.8e-9
- Eigenvalues and eigenstate residue: 1.1e-8
  norm(P): 1.1e-10
+ Keys to ignore:
+   - Eigenvalues and eigenstate residue #: 1.1e-8
 
 TiSmear:
  Epsilon: 5.e-11
@@ -470,14 +472,18 @@ PAW:
  Epot: 1.91e-10
  EvXC: 4.01e-11
  norm(P): 1.e-7
+ Keys to ignore: 
+   - Epaw
+   - NonLocal PSP Parameters
 
 
 PAW-GGA:
  Keys to ignore:
- - Atomic Forces (Ha/Bohr)
- - Average noise forces
- - Clean forces norm (Ha/Bohr)
- - Stress Tensor
+   #- Atomic Forces (Ha/Bohr)
+   #- Average noise forces
+   #- Clean forces norm (Ha/Bohr)
+   #- Stress Tensor
+   - Epaw
  Compensation charge on libPAW mesh: 5e-10
  Compensation charge on wavelet grid: 5e-10
  Total electronic charge: 5e-10
@@ -492,6 +498,8 @@ taskgroups:
   EKS: 1.1e-10
   P vector: 1.1e-10
   Total electronic charge: 1.5e-11
+  Keys to ignore:
+    - NonLocal PSP Parameters
 
 base:
   norm(P): 1.1e-9
@@ -563,7 +571,7 @@ cleanup:
  Maxdiff for transpose (checksum): 1.5e-11
  e: 6.3e-10
  trace(Ktilde): 1.2e-11
- ENERGY: 5.1e-11
+ ENERGY: 5.3e-11
 
 directmin:
  Patterns to ignore:
@@ -1605,8 +1613,8 @@ O2spin_diag:
  Clean forces norm (Ha/Bohr): 3.09e-6
  Raw forces norm (Ha/Bohr): 2.51e-6
  Orbitals: 2.9e-7
- EBS: 2.5e-9
- EBS higher temperature: 2.5e-9
+ EBS: 3.2e-9
+ EBS higher temperature: 3.2e-9
  EH: 1.9e-6
  EXC: 3.5e-7
  Ekin: 2.3e-6
@@ -1633,7 +1641,7 @@ O2spin_diag:
  relative difference: 5.9e-11
  Tr(K): 1.1e-7
  spin occupations: 1.1e-7
- trace(KH): 2.5e-9
+ trace(KH): 3.2e-9
 
 O2spin_foe:
  Atomic Forces (Ha/Bohr): 3.0e-7
@@ -2058,19 +2066,21 @@ multipoles_OH-:
  Unitary check of the multipole calculations: 6.1e-2
  Force Norm (Hartree/Bohr): 1.1e-10
  Maxdiff for transpose (checksum): 1.5e-11
+ trace(KH): 1.2e-11
 
 multipoles_waterQM:
  Epot: 1.1e-10
  Ekin: 1.1e-10
  EH: 1.1e-10
- EBS: 1.4e-11
- EBS higher temperature: 1.4e-11
+ EBS: 1.7e-11
+ EBS higher temperature: 1.6e-11
  Maxdiff for transpose (checksum): 3.0e-11
  multiplicator for the confinement: 4.0e-11
  trace: 3.8e-11
  difference: 1.7e-11
  eF: 1.1e-8
  decay length of error function: 1.1e-05
+ trace(KH): 1.7e-11
 
 multipoles_waterQMQM:
  Epot: 1.1e-10
@@ -2085,6 +2095,7 @@ multipoles_waterQMQM:
  decay length of error function: 1.1e-05
  difference: 7.3e-11
  relative difference: 2.2e-11
+ trace(KH): 1.3e-11
 
 #multipoles_water:
 # Ekin: 1.1e-10
@@ -2738,7 +2749,7 @@ H2Omultipoles_1:
   Average noise forces: 1.0e-10
   Raw forces norm (Ha/Bohr): 1.4e-11
   e: 1.2e-11
-  trace(KH): 1.2e-11  
+  trace(KH): 1.8e-11  
 
 H2Omultipoles_11:
   EBS: 9.3e-10
@@ -2755,7 +2766,7 @@ H2Omultipoles_11:
   Tr(K): 1.3e-05
   D Tr(K): 1.0e-08
   trace(Ktilde): 3.1e-10
-  trace(KH): 1.8e-11
+  trace(KH): 2.8e-11
   eF: 6.0e-07
   energy: 6.1e-11
   multiplicator for the confinement: 4.4e-11
@@ -2997,7 +3008,7 @@ metals_fermifunction:
   energy: 5.3-10
   q2: 1.1e-10
   relative difference: 7.1e-11
-  trace: 5.0e-11
+  trace: 5.1e-11
   Average noise forces: 2.1e-10
   Raw forces norm (Ha/Bohr): 9.0e-11
 
@@ -3052,8 +3063,8 @@ metals_variable:
   Atomic Forces (Ha/Bohr): 1.5e-6
 
 metals_diag:
-   EBS: 2.0e-08
-   EBS higher temperature: 2.1e-08
+   EBS: 2.1e-08
+   EBS higher temperature: 2.2e-08
    EH: 4.9e-08
    EXC: 1.8e-08
    Ekin: 1.1e-09
@@ -3082,7 +3093,7 @@ metals_diag:
    q2: 1.1e-08
    relative difference: 1.6e-09
    trace: 3.9e-11
-   trace(KH): 2.0e-08
+   trace(KH): 2.1e-08
    Average noise forces: 1.1e-8
    Clean forces norm (Ha/Bohr): 8.0e-9
    Atomic Forces (Ha/Bohr): 9.7e-10

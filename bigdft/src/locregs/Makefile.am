@@ -50,15 +50,12 @@ defs.o: configure.inc
 endif
 
 #dependencies
-base.o: defs.o
-compression.o: defs.o
 locregs.o: base.o compression.o bounds.o
 bounds.o: compression.o
 locreg_operations.o: locregs.o
 locregs_basics.o: locreg_operations.o
-scalar_product.o: defs.o
 locreg_test.o: liblocregs.a
-
+base.o compression.o scalar_product.o: defs.o
 $(modules): $(liblocregs_a_OBJECTS)
 
 #liblocregs.a: $(liblocregs_a_OBJECTS) insmod

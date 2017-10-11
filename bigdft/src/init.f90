@@ -503,7 +503,7 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
       call f_release_routine()
 
     end subroutine init_structure
-    
+
     subroutine allocate_arrays()
       use locregs, only: allocate_wfd
       implicit none
@@ -1802,14 +1802,14 @@ subroutine input_wf_disk_pw(filename, iproc, nproc, at, rxyz, GPU, Lzd, orbs, ps
   use rhopotential, only: updatePotential
   use f_utils, only: f_zero
   use io, only: write_energies
-  
+
   implicit none
 
   character(len = *), intent(in) :: filename
   integer, intent(in) :: iproc, nproc
   type(atoms_data), intent(in) :: at
   real(gp), dimension(3,at%astruct%nat), intent(in) :: rxyz
-  type(GPU_pointers), intent(inout) :: GPU  
+  type(GPU_pointers), intent(inout) :: GPU
   type(local_zone_descriptors), intent(in) :: Lzd
   type(orbitals_data), intent(in) :: orbs
   real(wp), dimension(orbs%npsidim_orbs / orbs%norbp, orbs%norbp), intent(out) :: psig

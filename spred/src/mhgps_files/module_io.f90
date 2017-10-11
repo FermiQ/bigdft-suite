@@ -276,6 +276,7 @@ subroutine read_jobs(uinp,mhgpsst)
             endif
         else if(trim(adjustl(uinp%operation_mode))=='simple'.or.&
                 trim(adjustl(uinp%operation_mode))=='simpleandminimize'.or.&
+                trim(adjustl(uinp%operation_mode))=='pushoffandminimize'.or.&
                 trim(adjustl(uinp%operation_mode))=='hessian'.or.&
                 trim(adjustl(uinp%operation_mode))=='minimize')then
             do iline=1,999
@@ -312,6 +313,7 @@ subroutine read_jobs(uinp,mhgpsst)
             enddo
         else if(trim(adjustl(uinp%operation_mode))=='simple'.or.&
                 trim(adjustl(uinp%operation_mode))=='simpleandminimize'.or.&
+                trim(adjustl(uinp%operation_mode))=='pushoffandminimize'.or.&
                 trim(adjustl(uinp%operation_mode))=='hessian'.or.&
                 trim(adjustl(uinp%operation_mode))=='minimize')then
             do ifile=1,999
