@@ -18,7 +18,8 @@ def env_configuration():
            '--with-ext-linalg=-lfjscalapack -fjlapackex' \
            'LIBS=-SSL2BLAMP -SCALAPACK -O3 -Kfast,openmp' \
            '--build=x86_64-redhat-linux' '--host=sparc-fujitsu-linux' \
-           '--disable-binaries' """
+           """
+#'--disable-binaries' 
 #here follow the configuration instructions for the modules built
 module_autogenargs.update({
    
