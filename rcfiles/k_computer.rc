@@ -1,0 +1,44 @@
+#This is the configuration file for the BigDFT installer
+#This is a python script which is executed by the build suite 
+ 
+makeargs='-j1'
+def getcwd():
+  import os
+  return os.getcwd()
+
+#Add the condition testing to run tests and includes PyYaml
+conditions.add("testing")
+#List the module the this rcfile will build
+modules = ['spred',]
+#example of the potentialities of the python syntax in this file
+def env_configuration():
+    return """ 'FCFLAGS=-SSL2BLAMP -SCALAPACK -O3 -Kfast,openmp' \
+           'CC=fccpx' 'CXX=FCCpx' 'FC=mpifrtpx' \
+           'CFLAGS=-g -O3 -I""" + getcwd() + """/install/include' \
+           '--with-ext-linalg=-lfjscalapack -fjlapackex' \
+           'LIBS=-SSL2BLAMP -SCALAPACK -O3 -Kfast,openmp' \
+           '--build=x86_64-redhat-linux' '--host=sparc-fujitsu-linux' \
+           """
+#'--disable-binaries' 
+#here follow the configuration instructions for the modules built
+module_autogenargs.update({
+   
+'libyaml': env_configuration(),
+   
+'futile': env_configuration(),
+
+'chess': env_configuration(),
+   
+'psolver': env_configuration(),
+   
+'libxc': env_configuration(),
+   
+'libABINIT': env_configuration(),
+   
+'GaIn': env_configuration(),
+   
+'bigdft': env_configuration(),
+   
+'spred': env_configuration(),
+   
+})
