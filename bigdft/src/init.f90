@@ -2777,6 +2777,11 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
      end if
 
      call input_wf_random(KSwfn%psi, KSwfn%orbs)
+     !now the meaning is KS potential
+     call f_memcpy(n=denspot%dpbox%ndimrhopot,&
+          src=denspot%V_ext(1,1,1,1),dest=denspot%rhov(1))
+     call denspot_set_rhov_status(denspot, KS_POTENTIAL, 0, iproc, nproc)
+
 
   case(INPUT_PSI_CP2K)
      if (iproc == 0) then

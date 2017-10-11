@@ -388,9 +388,10 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
   !end debug
 
   !non self-consistent case: rhov should be the total potential
-  if (denspot%rhov_is /= KS_POTENTIAL) then
-     stop 'psitohpsi: KS_potential not available'
-  end if
+  if (denspot%rhov_is /= KS_POTENTIAL) &
+       call f_err_throw('psitohpsi: KS_potential not available, control the operations on rhov',&
+       err_name='BIGDFT_RUNTIME_ERROR')
+  
 
   !temporary, to be corrected with comms structure
   if (wfn%exctxpar == 'OP2P') energs%eexctX = UNINITIALIZED(1.0_gp)
