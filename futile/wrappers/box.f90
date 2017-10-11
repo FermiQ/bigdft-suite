@@ -814,9 +814,7 @@ contains
           mesh%gu(3,3) = 1.0_gp/mesh%detgd
        end if
        mesh%uabc=0.0_gp
-       mesh%uabc(:,1)=mesh%habc(:,1)
-       mesh%uabc(:,2)=mesh%habc(:,2)
-       mesh%uabc(:,3)=mesh%habc(:,3)
+       mesh%uabc(1:3,1:3)=mesh%habc(1:3,1:3)
 
        !Rescale habc using hgrid
        mesh%habc(:,1)=hgrids*mesh%habc(:,1)
@@ -927,37 +925,62 @@ contains
     if (mesh%orthorhombic) then
      rxyz_ortho(1:3)=rxyz(1:3)
     else
-     do i=1,3
-      do j=1,3
-       rxyz_ortho(i)=mesh%uabc(i,j)*rxyz(j)
+     do j=1,3
+      rxyz_ortho(j)=0.0_gp
+      do i=1,3
+       rxyz_ortho(j)=rxyz_ortho(j)+mesh%uabc(i,j)*rxyz(i)
       end do
      end do
     end if
 
   end function rxyz_ortho
 
-  pure function distance(mesh,v1,v2) result(d)
+  pure function distance(mesh,r,c) result(d)
     use dictionaries, only: f_err_throw
     implicit none
-    real(gp), dimension(3), intent(in) :: v1,v2
+    real(gp), dimension(3), intent(in) :: r,c
     type(cell), intent(in) :: mesh
     real(gp) :: d
     !local variables
-    integer :: i
-    real(gp) :: d2
-
+    integer :: i,j,k,ii
+    real(gp) :: d2,dold
+    real(gp), dimension(3) :: rt,ri,ci
 
     d=0.0_gp
-!    if (mesh%orthorhombic) then
+    if (mesh%orthorhombic) then
        d2=0.0_gp
        do i=1,3
           d2=d2+r_wrap(mesh%bc(i),mesh%hgrids(i)*mesh%ndims(i),&
-               v1(i),v2(i))**2
+               r(i),c(i))**2
        end do
        d=sqrt(d2)
-!    else
-!    !   call f_err_throw('Distance not yet implemented for nonorthorhombic cells')
-!    end if
+    else
+       dold=1.0d100 !huge_number
+       do ii=1,3
+        if (mesh%bc(ii)==PERIODIC) then
+          ri(ii)=mod(r(ii),mesh%ndims(ii)*mesh%hgrids(ii))
+          ci(ii)=mod(c(ii),mesh%ndims(ii)*mesh%hgrids(ii))
+        else
+          ri(ii)=r(ii)
+          ci(ii)=c(ii)
+        end if
+       end do
+       do i=-mesh%bc(1),mesh%bc(1)
+        do j=-mesh%bc(2),mesh%bc(2)
+         do k=-mesh%bc(3),mesh%bc(3)
+            rt(1)=ri(1)+real(i,kind=8)*mesh%ndims(1)*mesh%hgrids(1)
+            rt(2)=ri(2)+real(j,kind=8)*mesh%ndims(2)*mesh%hgrids(2)
+            rt(3)=ri(3)+real(k,kind=8)*mesh%ndims(3)*mesh%hgrids(3)
+            d2=square_gd(mesh,rt-ci)
+            d=sqrt(d2)
+            if (d.lt.dold) then
+               dold=d
+            end if
+         end do
+        end do
+       end do
+       d=dold
+    end if
 
   end function distance
 
@@ -1018,13 +1041,56 @@ contains
     type(cell), intent(in) :: mesh
     real(gp), dimension(3) :: r
     !local variables
-    integer :: i
+    integer :: i,j,k,ii,icurr,jcurr,kcurr
+    real(gp) :: d,d2,dold
+    real(gp), dimension(3) :: rt,ri,ci!,c_ortho,r_ortho
 
     if (mesh%orthorhombic) then
        do i=1,3
           r(i)=r_wrap(mesh%bc(i),mesh%hgrids(i)*mesh%ndims(i),&
                v(i),center(i))
        end do
+    else
+       dold=1.0d100 !huge_number
+       icurr=0
+       jcurr=0
+       kcurr=0
+       do ii=1,3
+        if (mesh%bc(ii)==PERIODIC) then
+          ri(ii)=mod(v(ii),mesh%ndims(ii)*mesh%hgrids(ii))
+          ci(ii)=mod(center(ii),mesh%ndims(ii)*mesh%hgrids(ii))
+        else
+          ri(ii)=v(ii)
+          ci(ii)=center(ii)
+        end if
+       end do
+!       c_ortho=rxyz_ortho(mesh,ci)
+       do i=-mesh%bc(1),mesh%bc(1)
+        do j=-mesh%bc(2),mesh%bc(2)
+         do k=-mesh%bc(3),mesh%bc(3)
+            rt(1)=ri(1)+real(i,kind=8)*mesh%ndims(1)*mesh%hgrids(1)
+            rt(2)=ri(2)+real(j,kind=8)*mesh%ndims(2)*mesh%hgrids(2)
+            rt(3)=ri(3)+real(k,kind=8)*mesh%ndims(3)*mesh%hgrids(3)
+!            r_ortho=rxyz_ortho(mesh,rt)
+!            d2=0.0_gp
+!            do ii=1,3
+!               d2=d2+(r_ortho(ii)-c_ortho(ii))**2
+!            end do
+            d2=square_gd(mesh,rt-ci)
+            d=sqrt(d2)
+            if (d.lt.dold) then
+               dold=d
+               icurr=i
+               jcurr=j
+               kcurr=k
+            end if
+         end do
+        end do
+       end do
+       d=dold
+       r(1)=ri(1)+real(icurr,kind=8)*mesh%ndims(1)*mesh%hgrids(1) - ci(1)
+       r(2)=ri(2)+real(jcurr,kind=8)*mesh%ndims(2)*mesh%hgrids(2) - ci(2)
+       r(3)=ri(3)+real(kcurr,kind=8)*mesh%ndims(3)*mesh%hgrids(3) - ci(3)
     end if
 
   end function closest_r
