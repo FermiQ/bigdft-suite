@@ -1337,6 +1337,7 @@ contains
     use module_types
     use gaussians
     use compression
+    use locregs
     implicit none
     character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
     integer, intent(in) :: iproc,nproc
