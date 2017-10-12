@@ -70,6 +70,8 @@ subroutine calculate_coupling_matrix(iproc,nproc,boxit,tddft_approach,nspin,ndim
   real(wp), dimension(:,:), pointer :: Kbig,K
   real(wp), dimension(:), allocatable :: v_ias
   real(wp), dimension(:), allocatable :: rho_ias
+  !$ integer, external :: omp_get_max_threads
+  !$ integer :: nthreads
 
   call f_routine('calculate_coupling_matrix')
 
@@ -93,6 +95,8 @@ subroutine calculate_coupling_matrix(iproc,nproc,boxit,tddft_approach,nspin,ndim
 
   !if (iproc==0) bar=f_progress_bar_new(nstep=((nalphap+1)*nalphap)/2)
   if (iproc==0) bar=f_progress_bar_new(nstep=nalphap)
+
+  !$ nthreads=omp_get_max_threads()
 
   call PS_set_options(pkernel,verbose=.false.)
   istep=0
@@ -119,6 +123,11 @@ subroutine calculate_coupling_matrix(iproc,nproc,boxit,tddft_approach,nspin,ndim
        call Electrostatic_Solver(pkernel,v_ias)
 
        !now we have to calculate the corresponding element of the RPA part of the coupling matrix
+       !$omp parallel do if (iap>=6*nthreads) default(none) &
+       !$omp shared(transitions,orbsvirt,orbsocc,ispin,iap,psirocc,psivirtr)&
+       !$omp shared(v_ias,rho_ias,dvxcdrho,K,Kaux,nspin,tddft_approach,eap)&
+       !$omp private(ibq,ibeta,iq,jspin,ebq,spinindex,krpa,kfxc,kfxc_od,rho_bq)&
+       !$omp firstprivate(boxit)
        do ibq=1,iap
          ibeta=transitions(ALPHA_,ibq)
          iq=transitions(P_,ibq)
@@ -141,15 +150,17 @@ subroutine calculate_coupling_matrix(iproc,nproc,boxit,tddft_approach,nspin,ndim
          end do
 !!$         krpa=dot(ndimp,rho_ias(1,ibq),1,v_ias(1),1)*boxit%mesh%volume_element
 
-         K(iap,ibq)=krpa
-         if (nspin==1) Kaux(iap,ibq)=krpa
+         K(iap,ibq)=krpa+kfxc
+         if (nspin==1) Kaux(iap,ibq)=krpa+kfxc_od
+
+!!$         K(iap,ibq)=krpa
+!!$         if (nspin==1) Kaux(iap,ibq)=krpa
 !!$         !calculate the fxc term
 !!$         kfxc=0.0_wp
 !!$         do while(box_next_point(boxit))
 !!$           kfxc=kfxc+rho_ias(boxit%ind,iap)*rho_ias(boxit%ind,ibq)*dvxcdrho(boxit%ind,spinindex)*boxit%mesh%volume_element
 !!$         end do
-         K(iap,ibq)=K(iap,ibq)+kfxc
-         if (nspin==1) Kaux(iap,ibq)=Kaux(iap,ibq)+kfxc
+!!$         K(iap,ibq)=K(iap,ibq)+kfxc
 !!$         !in the nspin=1 case we also have to calculate the off-diagonal term
 !!$         if (nspin==1) then
 !!$           kfxc=0.0_wp
@@ -162,12 +173,11 @@ subroutine calculate_coupling_matrix(iproc,nproc,boxit,tddft_approach,nspin,ndim
          !If full TDDFT, then multiply the coupling matrix element by the "2*sqrt(\omega_q*\omega_{q'})" coefficient of eq. 2.
          if (tddft_approach=='full') then
            K(iap,ibq)=K(iap,ibq)*2.0_wp*sqrt(eap)*sqrt(ebq)
-           if (nspin ==1) then
-             Kaux(iap,ibq)=Kaux(iap,ibq)*2.0_wp*sqrt(eap)*sqrt(ebq)
-           end if
+           if (nspin ==1) Kaux(iap,ibq)=Kaux(iap,ibq)*2.0_wp*sqrt(eap)*sqrt(ebq)
          end if
-         istep=istep+1
-       end do
+         !istep=istep+1
+      end do
+      !$omp end parallel do
        !if (iproc==0) call dump_progress_bar(bar,step=istep)
        if (iproc==0) call dump_progress_bar(bar,step=iap)
     end do
