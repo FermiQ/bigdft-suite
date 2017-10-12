@@ -739,20 +739,9 @@ subroutine LocalHamiltonianApplication(iproc,nproc,at,npsidim_orbs,orbs,&
            !construct the OP2P scheme and test it
            !use temporaryly tyhe nvrct_par array
            nobj_par = f_malloc0((/ 0.to.nproc-1, 1.to.ngroup /),id='nobj_par')
-           isorb=0
-           do jproc=0,nproc-1
-              norbp=orbs%norb_par(jproc,0)
-              !transition region
-              if (isorb+norbp > orbs%norbu .and. isorb < orbs%norbu) then
-                 nobj_par(jproc,1)=orbs%norbu-isorb
-                 if (ngroup==2) nobj_par(jproc,2)=isorb+norbp-orbs%norbu
-              else if (isorb >= orbs%norbu .and. ngroup==2) then
-                 nobj_par(jproc,2)=norbp
-              else
-                 nobj_par(jproc,1)=norbp
-              end if
-              isorb=isorb+norbp
-           end do
+
+           call fill_nobj_par_for_OP2P(nproc,ngroup,orbs,nobj_par)
+
            ndim=Lzd%Glr%d%n1i*Lzd%Glr%d%n2i*Lzd%Glr%d%n3i
 
            symmetric=.true.
@@ -773,7 +762,7 @@ subroutine LocalHamiltonianApplication(iproc,nproc,at,npsidim_orbs,orbs,&
 
            call initialize_OP2P_data(OP2P,bigdft_mpi%mpi_comm,iproc,nproc,ngroup,ndim,nobj_par,gpudirect,symmetric)
 
-           !initialization deactivates gpudirect if not enough memory
+           !initialization deactivates gpudirect if not enough memory (these parts should go via accessors in the PS_set_options somehow)
            if(gpudirect==1 .and. OP2P%gpudirect==1) pkernel%stay_on_gpu=1
 
            !allocate work array for the internal exctx calculation
@@ -987,6 +976,30 @@ subroutine LocalHamiltonianApplication(iproc,nproc,at,npsidim_orbs,orbs,&
 
 END SUBROUTINE LocalHamiltonianApplication
 
+subroutine fill_nobj_par_for_OP2P(nproc,ngroup,orbs,nobj_par)
+  use module_types, only: orbitals_data
+  implicit none
+  integer, intent(in) :: nproc,ngroup
+  type(orbitals_data), intent(in) :: orbs
+  integer, dimension(0:nproc-1,ngroup), intent(out) :: nobj_par
+  !local variables
+  integer :: isorb,jproc,norbp
+
+  isorb=0
+  do jproc=0,nproc-1
+     norbp=orbs%norb_par(jproc,0)
+     !transition region
+     if (isorb+norbp > orbs%norbu .and. isorb < orbs%norbu) then
+        nobj_par(jproc,1)=orbs%norbu-isorb
+        if (ngroup==2) nobj_par(jproc,2)=isorb+norbp-orbs%norbu
+     else if (isorb >= orbs%norbu .and. ngroup==2) then
+        nobj_par(jproc,2)=norbp
+     else
+        nobj_par(jproc,1)=norbp
+     end if
+     isorb=isorb+norbp
+  end do
+end subroutine fill_nobj_par_for_OP2P
 
 subroutine NonLocalHamiltonianApplication(iproc,at,npsidim_orbs,orbs,&
      Lzd,nl,psi,hpsi,eproj_sum,paw)

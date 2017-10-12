@@ -44,7 +44,7 @@ module fmpi_types
   end interface mpitypesize
 
   !might be included in a config.inc file
-  integer, parameter, public :: fmpi_integer=f_integer
+  integer, parameter, public :: fmpi_integer=MPI_INTEGER_KIND
   integer, parameter, public :: fmpi_address=MPI_ADDRESS_KIND
 
   !> Error codes
@@ -217,7 +217,8 @@ contains
     integer :: kindt
     kindt=kind(foo) !to remove compilation warning
 
-    call mpi_type_size(MPI_LONG, sizeof, ierr)
+    !call mpi_type_size(MPI_LONG, sizeof, ierr)
+    call mpi_type_size(MPI_INTEGER8, sizeof, ierr)
     if (ierr/=0) then
        call f_err_throw('Error in mpi_type_size',&
             err_id=ERR_MPI_WRAPPERS)
