@@ -92,7 +92,7 @@ subroutine calculate_coupling_matrix(iproc,nproc,boxit,tddft_approach,nspin,ndim
   if (nspin==1) Kaux = f_malloc0([nmulti, nmulti],id='Kaux')
 
   !if (iproc==0) bar=f_progress_bar_new(nstep=((nalphap+1)*nalphap)/2)
-  if (iproc==0) bar=f_progress_bar_new(nstep=nalpha)
+  if (iproc==0) bar=f_progress_bar_new(nstep=nalphap)
 
   call PS_set_options(pkernel,verbose=.false.)
   istep=0
