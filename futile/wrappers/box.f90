@@ -856,6 +856,8 @@ contains
     mesh%gu(3,2) = mesh%gu(2,3)
     do i=1,3
        do j=1,3
+          if (abs(mesh%habc(i,j)).lt.1.0d-15) mesh%habc(i,j)=0.0_gp
+          if (abs(mesh%uabc(i,j)).lt.1.0d-15) mesh%uabc(i,j)=0.0_gp
           if (abs(mesh%gd(i,j)).lt.1.0d-15) mesh%gd(i,j)=0.0_gp
           if (abs(mesh%gu(i,j)).lt.1.0d-15) mesh%gu(i,j)=0.0_gp
        end do
@@ -925,10 +927,10 @@ contains
     if (mesh%orthorhombic) then
      rxyz_ortho(1:3)=rxyz(1:3)
     else
-     do j=1,3
-      rxyz_ortho(j)=0.0_gp
-      do i=1,3
-       rxyz_ortho(j)=rxyz_ortho(j)+mesh%uabc(i,j)*rxyz(i)
+     do i=1,3
+      rxyz_ortho(i)=0.0_gp
+      do j=1,3
+       rxyz_ortho(i)=rxyz_ortho(i)+mesh%uabc(i,j)*rxyz(j)
       end do
      end do
     end if
@@ -942,9 +944,13 @@ contains
     type(cell), intent(in) :: mesh
     real(gp) :: d
     !local variables
-    integer :: i,j,k,ii
-    real(gp) :: d2,dold
-    real(gp), dimension(3) :: rt,ri,ci
+    integer :: i !,j,k,ii
+    real(gp) :: d2!,dold
+    real(gp), dimension(3) :: rt!,ri,ci
+
+    rt=closest_r(mesh,r,c)
+    d2=square_gd(mesh,rt)
+    d=sqrt(d2)
 
     d=0.0_gp
     if (mesh%orthorhombic) then
@@ -955,31 +961,34 @@ contains
        end do
        d=sqrt(d2)
     else
-       dold=1.0d100 !huge_number
-       do ii=1,3
-        if (mesh%bc(ii)==PERIODIC) then
-          ri(ii)=mod(r(ii),mesh%ndims(ii)*mesh%hgrids(ii))
-          ci(ii)=mod(c(ii),mesh%ndims(ii)*mesh%hgrids(ii))
-        else
-          ri(ii)=r(ii)
-          ci(ii)=c(ii)
-        end if
-       end do
-       do i=-mesh%bc(1),mesh%bc(1)
-        do j=-mesh%bc(2),mesh%bc(2)
-         do k=-mesh%bc(3),mesh%bc(3)
-            rt(1)=ri(1)+real(i,kind=8)*mesh%ndims(1)*mesh%hgrids(1)
-            rt(2)=ri(2)+real(j,kind=8)*mesh%ndims(2)*mesh%hgrids(2)
-            rt(3)=ri(3)+real(k,kind=8)*mesh%ndims(3)*mesh%hgrids(3)
-            d2=square_gd(mesh,rt-ci)
-            d=sqrt(d2)
-            if (d.lt.dold) then
-               dold=d
-            end if
-         end do
-        end do
-       end do
-       d=dold
+       rt=closest_r(mesh,r,c)
+       d2=square_gd(mesh,rt)
+       d=sqrt(d2)
+!       dold=1.0d100 !huge_number
+!       do ii=1,3
+!        if (mesh%bc(ii)==PERIODIC) then
+!          ri(ii)=mod(r(ii),mesh%ndims(ii)*mesh%hgrids(ii))
+!          ci(ii)=mod(c(ii),mesh%ndims(ii)*mesh%hgrids(ii))
+!        else
+!          ri(ii)=r(ii)
+!          ci(ii)=c(ii)
+!        end if
+!       end do
+!       do i=-mesh%bc(1),mesh%bc(1)
+!        do j=-mesh%bc(2),mesh%bc(2)
+!         do k=-mesh%bc(3),mesh%bc(3)
+!            rt(1)=ri(1)+real(i,kind=8)*mesh%ndims(1)*mesh%hgrids(1)
+!            rt(2)=ri(2)+real(j,kind=8)*mesh%ndims(2)*mesh%hgrids(2)
+!            rt(3)=ri(3)+real(k,kind=8)*mesh%ndims(3)*mesh%hgrids(3)
+!            d2=square_gd(mesh,rt-ci)
+!            d=sqrt(d2)
+!            if (d.lt.dold) then
+!               dold=d
+!            end if
+!         end do
+!        end do
+!       end do
+!       d=dold
     end if
 
   end function distance
@@ -1064,18 +1073,12 @@ contains
           ci(ii)=center(ii)
         end if
        end do
-!       c_ortho=rxyz_ortho(mesh,ci)
        do i=-mesh%bc(1),mesh%bc(1)
         do j=-mesh%bc(2),mesh%bc(2)
          do k=-mesh%bc(3),mesh%bc(3)
             rt(1)=ri(1)+real(i,kind=8)*mesh%ndims(1)*mesh%hgrids(1)
             rt(2)=ri(2)+real(j,kind=8)*mesh%ndims(2)*mesh%hgrids(2)
             rt(3)=ri(3)+real(k,kind=8)*mesh%ndims(3)*mesh%hgrids(3)
-!            r_ortho=rxyz_ortho(mesh,rt)
-!            d2=0.0_gp
-!            do ii=1,3
-!               d2=d2+(r_ortho(ii)-c_ortho(ii))**2
-!            end do
             d2=square_gd(mesh,rt-ci)
             d=sqrt(d2)
             if (d.lt.dold) then

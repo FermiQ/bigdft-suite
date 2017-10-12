@@ -38,7 +38,7 @@ program numeric_check
   call yaml_new_document()
   call yaml_argparse(options,inputs)
   n=options//'ndim'
-  if (.false.) then
+
   density=f_malloc(n,id='density')
   call f_random_number(density)
 
@@ -75,9 +75,8 @@ program numeric_check
 !!$  boxit = box_iter(mesh,origin=rxyz,cutoff=cutoff)
 !!$  call finalize_real_space_conversion()
 
-
   call test_f_functions()
-  end if
+
   call dict_free(options)
   !here some tests about the box usage
   call test_box_functions()
@@ -138,7 +137,7 @@ subroutine test_box_functions()
 
   v1=f_malloc([3,ndims(1),ndims(2),ndims(3)],id='v1')
   v2=f_malloc([3,ndims(1),ndims(2),ndims(3)],id='v2')
-  if (.false.) then
+
   call loop_dotp('SEQ',mesh_ortho,v1,v2,tseq)
   call yaml_map('Normal loop, seq (ns)',tseq)
   
@@ -153,16 +152,41 @@ subroutine test_box_functions()
 
   call loop_dotp('ITM',mesh_ortho,v1,v2,tseq)
   call yaml_map('Normal loop, mpi (ns)',tseq)
-  end if
-  ndims=300
+
+  ndims=100
+
+  mesh_ortho=cell_null()
+  mesh_ortho=cell_new('F',ndims,[1.0_gp,1.0_gp,1.0_gp])
+  call loop_box_function('distance',mesh_ortho)
+
+  mesh_ortho=cell_null()
+  mesh_ortho=cell_new('S',ndims,[1.0_gp,1.0_gp,1.0_gp])
+  call loop_box_function('distance',mesh_ortho)
+
   mesh_ortho=cell_null()
   mesh_ortho=cell_new('P',ndims,[1.0_gp,1.0_gp,1.0_gp])
   call loop_box_function('distance',mesh_ortho)
 
-  angrad(1) = 80.0_gp/180.0_gp*pi
-  angrad(2) = 90.0_gp/180.0_gp*pi
+  angrad(1) = 90.0_gp/180.0_gp*pi
+  angrad(2) = 70.0_gp/180.0_gp*pi
   angrad(3) = 90.0_gp/180.0_gp*pi
   
+  mesh_noortho=cell_new('S',ndims,[1.0_gp,1.0_gp,1.0_gp],alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3)) 
+  call loop_box_function('distance',mesh_noortho)
+
+  angrad(1) = 80.0_gp/180.0_gp*pi
+  angrad(2) = 76.0_gp/180.0_gp*pi
+  angrad(3) = 101.0_gp/180.0_gp*pi
+  
+  mesh_noortho=cell_null()
+  mesh_noortho=cell_new('P',ndims,[1.0_gp,1.0_gp,1.0_gp],alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3)) 
+  call loop_box_function('distance',mesh_noortho)
+
+  angrad(1) = 80.0_gp/180.0_gp*pi
+  angrad(2) = 80.0_gp/180.0_gp*pi
+  angrad(3) = 80.0_gp/180.0_gp*pi
+  
+  mesh_noortho=cell_null()
   mesh_noortho=cell_new('P',ndims,[1.0_gp,1.0_gp,1.0_gp],alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3)) 
   call loop_box_function('distance',mesh_noortho)
 
@@ -184,7 +208,7 @@ subroutine loop_box_function(fcheck,mesh)
   type(cell), intent(in) :: mesh
   !local variables
   integer :: i,ii 
-  real(f_double) :: totvolS,totvolS2,totvolC,r,IntaS,IntaC,cen,errorS,errorC,d2
+  real(f_double) :: totvolS,totvolS1,totvolS2,totvolC,r,IntaS,IntaC,cen,errorS,errorC,d2
   real(f_double) :: diff,diff_old,dist1,dist2
   real(f_double), dimension(3) :: rxyz0,rd,rv
   type(box_iterator) :: bit
@@ -205,17 +229,22 @@ subroutine loop_box_function(fcheck,mesh)
      call yaml_map('Volume element',mesh%volume_element)
      call yaml_map('Contravariant matrix',mesh%gu)
      call yaml_map('Covariant matrix',mesh%gd)
+     call yaml_map('Product of the two',matmul(mesh%gu,mesh%gd))
      call yaml_map('uabc matrix',mesh%uabc)
      call yaml_map('Sphere radius or cube side',r)
      do i=1,3
         totvolS=0.0_f_double
+        totvolS1=0.0_f_double
         totvolS2=0.0_f_double
         totvolC=0.0_f_double
         diff=0.0_f_double
         if (i==1) cen=0.0_f_double
-        if (i==2) cen=bit%mesh%ndims(1)*0.5_f_double
-        if (i==3) cen=bit%mesh%ndims(1)*1.5_f_double
+        if (i==2) cen=mesh%ndims(1)*0.5_f_double
+        if (i==3) cen=mesh%ndims(1)*1.5_f_double
         rxyz0=[cen,cen,cen]
+        if (mesh%bc(1)==0) rxyz0(1)=mesh%ndims(1)*0.5_f_double
+        if (mesh%bc(2)==0) rxyz0(2)=mesh%ndims(1)*0.5_f_double
+        if (mesh%bc(3)==0) rxyz0(3)=mesh%ndims(1)*0.5_f_double
         do while(box_next_point(bit))
            ! Sphere volume integral with distance
            if (distance(bit%mesh,bit%rxyz,rxyz0) .le. r) then
@@ -229,18 +258,28 @@ subroutine loop_box_function(fcheck,mesh)
               d2=d2+rv(ii)**2
            end do
            dist1=sqrt(d2)
+           if (dist1 .le. r) then
+              totvolS1=totvolS1+1.0_f_double
+           end if
            d2=square_gd(mesh,rd)
            dist2=sqrt(d2)
+           ! Sphere volume integral with rxyz_ortho
+           if (dist2 .le. r) then
+              totvolS2=totvolS2+1.0_f_double
+           end if
            diff_old=abs(dist2-dist1)
            if (diff_old.gt.diff) then
               diff=diff_old
-!              call yaml_map('diff',diff)
 !              call yaml_map('position x',bit%i)
 !              call yaml_map('position y',bit%j)
 !              call yaml_map('position z',bit%k)
-           end if
-           if (dist1 .le. r) then
-              totvolS2=totvolS2+1.0_f_double
+!              call yaml_map('bit%rxyz',bit%rxyz)
+!              call yaml_map('rxyz0',rxyz0)
+!              call yaml_map('closest_r -> rd',rd)
+!              call yaml_map('rxyz_ortho -> rv',rv)
+!              call yaml_map('square_gd(mesh,rd) -> dist2',dist2)
+!              call yaml_map('ortho square of rv -> dist1',dist1)
+!              call yaml_map('diff',diff)
            end if
            ! Cube volume integral
            if ((rv(1).ge.-r .and. rv(1).lt.r) .and.&
@@ -250,17 +289,21 @@ subroutine loop_box_function(fcheck,mesh)
            end if
         end do
         totvolS=totvolS*mesh%volume_element
+        totvolS1=totvolS1*mesh%volume_element
         totvolS2=totvolS2*mesh%volume_element
         totvolC=totvolC*mesh%volume_element
         IntaS=4.0_f_double/3.0_f_double*pi*r**3
+!        if(mesh%bc(2)==0 .and. i==1) IntaS=IntaS*0.5_f_double
         !IntaC=(2.0_f_double*r+1.0_f_double)**3
         IntaC=(2.0_f_double*r)**3
+!        if(mesh%bc(2)==0 .and. i==1) IntaC=IntaC*0.5_f_double
         errorS=abs((totvolS-IntaS)/IntaS)
         errorC=abs((totvolC-IntaC)/IntaC)
         call yaml_mapping_open('center')
         call yaml_map('Sphere or cube center',rxyz0)
         call yaml_map('Numerical sphere integral with distance',totvolS)
-        call yaml_map('Numerical sphere integral with closest_r',totvolS2)
+        call yaml_map('Numerical sphere integral with closest_r and rxyz_ortho',totvolS1)
+        call yaml_map('Numerical sphere integral with closest_r and square_gd',totvolS2)
         call yaml_map('Analytical sphere integral',IntaS)
         call yaml_map('Sphere integral error',errorS)
         call yaml_map('Numerical cube integral',totvolC)
