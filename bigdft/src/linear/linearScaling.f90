@@ -791,7 +791,25 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
     end if
 
     call check_for_exit()
-    if(exit_outer_loop) exit outerLoop
+    if(exit_outer_loop) then
+        ! Calculate the entropy contribution to the energy
+        if (iproc==0) then
+            call yaml_comment('Calculate entropy contribution',hfill='-')
+            call yaml_mapping_open('Calculate entropy contribution')
+        end if
+        call calculate_entropy_term(iproc, nproc, bigdft_mpi%mpi_comm, &
+             foe_data_get_real(tmb%foe_obj,"fscale"), &
+             tmb%linmat%smat(1), tmb%linmat%smat(3), &
+             tmb%linmat%ovrlp_, tmb%linmat%kernel_, tmb%linmat%ovrlppowers_(2), &
+             input%cp%foe%accuracy_entropy, energs%eTS)
+         energy = energy - energs%eTS
+         if (iproc==0) then
+             call write_energies(0,energs,0.d0,0.d0,'FINAL',only_energies=.true.)
+             call yaml_map('energy',energy)
+             call yaml_mapping_close()
+         end if
+         exit outerLoop
+     end if
 
     if(pnrm_out<input%lin%support_functions_converged.and.lowaccur_converged) then
         !if(iproc==0) write(*,*) 'fix the support functions from now on'
@@ -1666,11 +1684,11 @@ end if
            end if
 
 
-           call calculate_entropy_term(iproc, nproc, bigdft_mpi%mpi_comm, &
-                foe_data_get_real(tmb%foe_obj,"fscale"), &
-                tmb%linmat%smat(1), tmb%linmat%smat(3), &
-                tmb%linmat%ovrlp_, tmb%linmat%kernel_, tmb%linmat%ovrlppowers_(2), &
-                energs%eTS)
+           !!call calculate_entropy_term(iproc, nproc, bigdft_mpi%mpi_comm, &
+           !!     foe_data_get_real(tmb%foe_obj,"fscale"), &
+           !!     tmb%linmat%smat(1), tmb%linmat%smat(3), &
+           !!     tmb%linmat%ovrlp_, tmb%linmat%kernel_, tmb%linmat%ovrlppowers_(2), &
+           !!     energs%eTS)
 
 
            !do i=1,tmb%linmat%smat(3)%nvctr

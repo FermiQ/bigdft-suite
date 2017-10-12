@@ -69,6 +69,7 @@ program chess_toolbox
    character(len=128) :: kernel_file, coeff_file, pdos_file, metadata_file
    character(len=128) :: line, cc, output_pdos, conversion, infile, outfile, iev_min_, iev_max_, fscale_, matrix_basis
    character(len=128) :: ihomo_state_, homo_value_, lumo_value_, smallest_value_, largest_value_, scalapack_blocksize_, kT_
+   character(len=128) :: accuracy_entropy_
    !!character(len=128),dimension(-lmax:lmax,0:lmax) :: multipoles_files
    character(len=128) :: kernel_matmul_file, fragment_file, manipulation_mode, diag_algorithm
    logical :: multipole_analysis = .false.
@@ -118,7 +119,7 @@ program chess_toolbox
    real(kind=8) :: energy, occup, occup_pdos, total_occup, fscale, factor, scale_value, shift_value
    real(kind=8) :: maxdiff, meandiff, tt, tracediff, totdiff
    real(kind=8) :: homo_value, lumo_value, smallest_value, largest_value, gap, gap_target, actual_eval
-   real(kind=8) :: mult_factor, add_shift, kT, eTS
+   real(kind=8) :: mult_factor, add_shift, kT, eTS, accuracy_entropy
    real(mp),dimension(:),allocatable :: eval_min, eval_max
    type(f_progress_bar) :: bar
    integer,parameter :: ncolors = 12
@@ -352,6 +353,10 @@ program chess_toolbox
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = kT_)
             read(kT_,fmt=*,iostat=ierr) kT
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = accuracy_entropy_)
+            read(accuracy_entropy_,fmt=*,iostat=ierr) accuracy_entropy
+            i_arg = i_arg + 1
             calculate_entropy = .true.
          end if
          i_arg = i_arg + 1
@@ -1679,7 +1684,7 @@ program chess_toolbox
        call calculate_entropy_term(iproc, nproc, mpiworld(), &
             kT, smat(1), smat(2), &
             ovrlp_mat, kernel_mat, ovrlp_minus_one_half(1), &
-            eTS)
+            accuracy_entropy, eTS)
        if (iproc==0) then
            call yaml_map('eTS',eTS)
            call yaml_mapping_close()

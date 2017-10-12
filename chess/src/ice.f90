@@ -852,7 +852,8 @@ module ice
 
     subroutine calculate_fermi_function_entropy(iproc, nproc, comm, &
                ovrlp_smat, kernel_smat, entropykernel_smat, &
-               ovrlp_mat, kernel_mat, ovrlp_minus_one_half_mat, entropykernel_mat, eTS, eTS_check, &
+               ovrlp_mat, kernel_mat, ovrlp_minus_one_half_mat, &
+               accuracy_entropy, entropykernel_mat, eTS, eTS_check, &
                verbosity, ice_objx)
       use sparsematrix_init, only: matrixindex_in_compressed
       use sparsematrix, only: compress_matrix, uncompress_matrix, compress_matrix_distributed_wrapper, &
@@ -874,6 +875,7 @@ module ice
       integer,intent(in) :: iproc, nproc, comm
       type(sparse_matrix), intent(in) :: kernel_smat, entropykernel_smat, ovrlp_smat
       type(matrices), intent(in) :: kernel_mat, ovrlp_mat, ovrlp_minus_one_half_mat
+      real(mp),intent(in) :: accuracy_entropy
       type(matrices),intent(out) :: entropykernel_mat
       real(mp),intent(out) :: eTS, eTS_check
       integer, intent(in),optional :: verbosity
@@ -950,7 +952,7 @@ module ice
           charge_fake = f_malloc0(kernel_smat%nspin,id='charge_fake')
           call init_foe(iproc, nproc, kernel_smat%nspin, charge=charge_fake, &
                evlow=-0.1_mp, evhigh=1.1_mp, foe_obj=ice_obj_, &
-               accuracy_function=1.e-8_mp, accuracy_penalty=1.e-5_mp)
+               accuracy_function=accuracy_entropy, accuracy_penalty=1.e-5_mp)
           call f_free(charge_fake)
           ice_obj => ice_obj_
       end if
@@ -1017,7 +1019,8 @@ module ice
       eval_multiplicator_total = 1.d0
 
       npl_min_fake = NPL_MIN !since intent(inout)
-      accuracy_function = 1.d-4 !foe_data_get_real(ice_obj,"accuracy_function")
+      !accuracy_function = 1.d-4 !foe_data_get_real(ice_obj,"accuracy_function")
+      accuracy_function = foe_data_get_real(ice_obj,"accuracy_function")
       accuracy_penalty = foe_data_get_real(ice_obj,"accuracy_penalty")
       !!write(*,*) 'verbosity_', verbosity_
       call get_bounds_and_polynomials(iproc, nproc, comm, 2, 1, NPL_MAX, NPL_STRIDE, &

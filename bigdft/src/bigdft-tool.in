@@ -325,7 +325,8 @@ def parse():
     group.add_option("--scalapack_blocksize", type="int", default=-1, metavar="NUM",)
     group.add_option("--diag_algorithm", type="string", default="pdsyevx", metavar="NAME",)
     group.add_option("--manipulation_mode", type="string", default='full', metavar="NUM",)
-    group.add_option("--kT", type="float", default='0.0', metavar="NUM",)
+    group.add_option("--kT", type="float", default=0.0, metavar="NUM",)
+    group.add_option("--accuracy_entropy", type="float", default=1.e-4, metavar="NUM",)
 
     return parser
 
@@ -1183,7 +1184,7 @@ options:
         command = "%s %s manipulate-eigenvalue-spectrum %s %s %s %s %s %s %s %s %i %f %f %f %f %s %i" % (options.mpirun, chess_toolbox, options.manipulation_mode, options.matrix_format, options.metadata_file, options.overlap_file, options.hamiltonian_file, options.kernel_file, options.kernel_matmul_file, options.hamiltonian_manipulated_file, options.homo_state, options.homo_value, options.lumo_value, options.smallest_value, options.largest_value, options.diag_algorithm, options.scalapack_blocksize)
         print command
     if options.action == "calculate-entropy":
-        command = "%s %s calculate-entropy %s %s %s %s %s" % (options.mpirun, chess_toolbox, options.matrix_format, options.overlap_file, options.kernel_file, options.kernel_matmul_file, options.kT)
+        command = "%s %s calculate-entropy %s %s %s %s %f %f" % (options.mpirun, chess_toolbox, options.matrix_format, options.overlap_file, options.kernel_file, options.kernel_matmul_file, options.kT, options.accuracy_entropy)
         print command
     if command is not None:
         os.system(command)

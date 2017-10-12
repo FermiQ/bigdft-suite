@@ -560,50 +560,51 @@ module foe
 
 
 
-      !# calculate the term TS #########################################################
-      !if (calculate_energy_density_kernel) then
-          !!if (.not.present(energy_kernel_)) then
-          !!    call f_err_throw('energy_kernel_ not present',err_name='SPARSEMATRIX_RUNTIME_ERROR')
-          !!end if
-          cc_check = f_malloc0((/npl,1,3/),id='cc_check')
-          call func_set(FUNCTION_ERRORFUNCTION_ENTROPY, efx=foe_data_get_real(foe_obj,"ef"), fscalex=fscale)
-          call get_chebyshev_expansion_coefficients(iproc, nproc, comm, &
-               foe_data_get_real(foe_obj,"evlow",1), &
-               foe_data_get_real(foe_obj,"evhigh",1), npl, func, cc_check(1,1,1), &
-               x_max_error_check(1), max_error_check(1), mean_error_check(1))
-          if (smatl%nspin==1) then
-              do ipl=1,npl
-                  cc_check(ipl,1,1)=2.d0*cc_check(ipl,1,1)
-                  cc_check(ipl,1,2)=2.d0*cc_check(ipl,1,2)
-                  cc_check(ipl,1,3)=2.d0*cc_check(ipl,1,3)
-              end do
-          end if
-          eTS = 0.0d0
-          do ispin=1,smatl%nspin
+      ! This must be tested in more detail...
+      !!!!# calculate the term TS #########################################################
+      !!!!if (calculate_energy_density_kernel) then
+      !!!    !!if (.not.present(energy_kernel_)) then
+      !!!    !!    call f_err_throw('energy_kernel_ not present',err_name='SPARSEMATRIX_RUNTIME_ERROR')
+      !!!    !!end if
+      !!!    cc_check = f_malloc0((/npl,1,3/),id='cc_check')
+      !!!    call func_set(FUNCTION_ERRORFUNCTION_ENTROPY, efx=foe_data_get_real(foe_obj,"ef"), fscalex=fscale)
+      !!!    call get_chebyshev_expansion_coefficients(iproc, nproc, comm, &
+      !!!         foe_data_get_real(foe_obj,"evlow",1), &
+      !!!         foe_data_get_real(foe_obj,"evhigh",1), npl, func, cc_check(1,1,1), &
+      !!!         x_max_error_check(1), max_error_check(1), mean_error_check(1))
+      !!!    if (smatl%nspin==1) then
+      !!!        do ipl=1,npl
+      !!!            cc_check(ipl,1,1)=2.d0*cc_check(ipl,1,1)
+      !!!            cc_check(ipl,1,2)=2.d0*cc_check(ipl,1,2)
+      !!!            cc_check(ipl,1,3)=2.d0*cc_check(ipl,1,3)
+      !!!        end do
+      !!!    end if
+      !!!    eTS = 0.0d0
+      !!!    do ispin=1,smatl%nspin
 
-              if (.not.(calculate_spin_channels(ispin))) cycle
+      !!!        if (.not.(calculate_spin_channels(ispin))) cycle
 
-              is=(ispin-1)*smatl%smmm%nvctrp
-              isshift=(ispin-1)*smats%nvctrp_tg
-              imshift=(ispin-1)*smatm%nvctrp_tg
-              ilshift=(ispin-1)*smatl%nvctrp_tg
-              call chebyshev_fast(iproc, nproc, nsize_polynomial, npl, &
-                   smatl%nfvctr, smatl%smmm%nfvctrp, &
-                   smatl, chebyshev_polynomials(:,:,ispin), 1, cc_check, fermi_check_new)
-              call calculate_trace_distributed_new(iproc, nproc, comm, smatl, fermi_check_new, sumn_check)
-              eTS = eTS + sumn_check
-              !!call compress_matrix_distributed_wrapper(iproc, nproc, smatl, SPARSE_MATMUL_SMALL, &
-              !!     fermi_check_new, ONESIDED_FULL, fermi_check_compr(ilshift+1:))
-              !!! Calculate S^-1/2 * K * S^-1/2^T
-              !!call retransform_ext(iproc, nproc, smatl, ONESIDED_FULL, kernelpp_work(is+1:),  &
-              !!     ovrlp_minus_one_half_(1)%matrix_compr(ilshift+1:), fermi_check_compr(ilshift+1:))
-          end do
-          if (iproc==0) then
-              call yaml_map('eTS',sumn_check)
-          end if
-          call f_free(cc_check)
-      !end if
-      !# end calculate the term TS #####################################################
+      !!!        is=(ispin-1)*smatl%smmm%nvctrp
+      !!!        isshift=(ispin-1)*smats%nvctrp_tg
+      !!!        imshift=(ispin-1)*smatm%nvctrp_tg
+      !!!        ilshift=(ispin-1)*smatl%nvctrp_tg
+      !!!        call chebyshev_fast(iproc, nproc, nsize_polynomial, npl, &
+      !!!             smatl%nfvctr, smatl%smmm%nfvctrp, &
+      !!!             smatl, chebyshev_polynomials(:,:,ispin), 1, cc_check, fermi_check_new)
+      !!!        call calculate_trace_distributed_new(iproc, nproc, comm, smatl, fermi_check_new, sumn_check)
+      !!!        eTS = eTS + sumn_check
+      !!!        !!call compress_matrix_distributed_wrapper(iproc, nproc, smatl, SPARSE_MATMUL_SMALL, &
+      !!!        !!     fermi_check_new, ONESIDED_FULL, fermi_check_compr(ilshift+1:))
+      !!!        !!! Calculate S^-1/2 * K * S^-1/2^T
+      !!!        !!call retransform_ext(iproc, nproc, smatl, ONESIDED_FULL, kernelpp_work(is+1:),  &
+      !!!        !!     ovrlp_minus_one_half_(1)%matrix_compr(ilshift+1:), fermi_check_compr(ilshift+1:))
+      !!!    end do
+      !!!    if (iproc==0) then
+      !!!        call yaml_map('eTS',sumn_check)
+      !!!    end if
+      !!!    call f_free(cc_check)
+      !!!!end if
+      !!!!# end calculate the term TS #####################################################
 
 
 
@@ -923,8 +924,8 @@ module foe
 
 
 
-    subroutine calculate_entropy_term(iproc, nproc, comm, fscale_new, &
-               smats, smatl, ovrlp_, kernel_, ovrlp_minus_one_half_, eTS)
+    subroutine calculate_entropy_term(iproc, nproc, comm, kT, &
+               smats, smatl, ovrlp_, kernel_, ovrlp_minus_one_half_, accuracy_entropy, eTS)
       use dynamic_memory
       use ice, only: calculate_fermi_function_entropy
       use wrapper_linalg, only: vscal
@@ -932,9 +933,10 @@ module foe
 
       ! Calling arguments
       integer,intent(in) :: iproc, nproc, comm
-      real(mp),intent(in) :: fscale_new
+      real(mp),intent(in) :: kT
       type(sparse_matrix),intent(in) :: smats, smatl
       type(matrices),intent(in) :: ovrlp_, kernel_
+      real(mp),intent(in) :: accuracy_entropy
       type(matrices),intent(inout) :: ovrlp_minus_one_half_
       real(mp),intent(out) :: eTS
 
@@ -956,15 +958,18 @@ module foe
       end if
       !call axpy(size(kernel_modified%matrix_compr), 0.4d0, hamscal_compr(1), 1, kernel_modified%matrix_compr(1), 1)
       call calculate_fermi_function_entropy(iproc, nproc, comm, &
-           smats, smatl, smatl, ovrlp_, kernel_modified, ovrlp_minus_one_half_, entropykernel_, eTS, eTS_check, verbosity=0)
+           smats, smatl, smatl, ovrlp_, kernel_modified, ovrlp_minus_one_half_, &
+           accuracy_entropy, entropykernel_, eTS, eTS_check, verbosity=0)
       !eTS = trace_sparse_matrix(iproc, nproc, comm, smatl, entropykernel_%matrix_compr)
-      eTS = eTS*fscale_new
-      eTS_check = eTS_check*fscale_new
+      eTS = eTS*kT
+      eTS_check = eTS_check*kT
       if (smatl%nspin==1) then
           eTS = eTS*2._mp
           eTS_check = eTS_check*2._mp
       end if
       if (iproc==0) then
+          call yaml_map('kT',kT)
+          call yaml_map('accuracy_entropy',accuracy_entropy)
           call yaml_map('eTS',eTS)
           !call yaml_map('eTS_check',eTS_check)
       end if
