@@ -58,6 +58,7 @@ program chess_toolbox
    use parallel_linalg, only: dgemm_parallel
    use f_random, only: f_random_number
    use highlevel_wrappers, only: calculate_eigenvalues, solve_eigensystem_lapack
+   use foe, only: overlap_minus_onehalf, calculate_entropy_term
    implicit none
    external :: gather_timings
    character(len=*), parameter :: subname='utilities'
@@ -67,7 +68,7 @@ program chess_toolbox
    character(len=128) :: method_name, overlap_file, hamiltonian_file, hamiltonian_manipulated_file, overlap_manipulated_file
    character(len=128) :: kernel_file, coeff_file, pdos_file, metadata_file
    character(len=128) :: line, cc, output_pdos, conversion, infile, outfile, iev_min_, iev_max_, fscale_, matrix_basis
-   character(len=128) :: ihomo_state_, homo_value_, lumo_value_, smallest_value_, largest_value_, scalapack_blocksize_
+   character(len=128) :: ihomo_state_, homo_value_, lumo_value_, smallest_value_, largest_value_, scalapack_blocksize_, kT_
    !!character(len=128),dimension(-lmax:lmax,0:lmax) :: multipoles_files
    character(len=128) :: kernel_matmul_file, fragment_file, manipulation_mode, diag_algorithm
    logical :: multipole_analysis = .false.
@@ -77,6 +78,7 @@ program chess_toolbox
    logical :: calculate_selected_eigenvalues = .false.
    logical :: kernel_purity = .false.
    logical :: manipulate_eigenvalue_spectrum = .false.
+   logical :: calculate_entropy
    !!type(atoms_data) :: at
    type(sparse_matrix_metadata) :: smmd
    integer :: iproc, nproc
@@ -116,7 +118,7 @@ program chess_toolbox
    real(kind=8) :: energy, occup, occup_pdos, total_occup, fscale, factor, scale_value, shift_value
    real(kind=8) :: maxdiff, meandiff, tt, tracediff, totdiff
    real(kind=8) :: homo_value, lumo_value, smallest_value, largest_value, gap, gap_target, actual_eval
-   real(kind=8) :: mult_factor, add_shift
+   real(kind=8) :: mult_factor, add_shift, kT, eTS
    real(mp),dimension(:),allocatable :: eval_min, eval_max
    type(f_progress_bar) :: bar
    integer,parameter :: ncolors = 12
@@ -338,6 +340,19 @@ program chess_toolbox
             call get_command_argument(i_arg, value = scalapack_blocksize_)
             read(scalapack_blocksize_,fmt=*,iostat=ierr) scalapack_blocksize
             manipulate_eigenvalue_spectrum = .true.
+        else if (trim(tatonam)=='calculate-entropy') then
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = matrix_format)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = overlap_file)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = kernel_file)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = kernel_matmul_file)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = kT_)
+            read(kT_,fmt=*,iostat=ierr) kT
+            calculate_entropy = .true.
          end if
          i_arg = i_arg + 1
       end do loop_getargs
@@ -1625,6 +1640,62 @@ program chess_toolbox
 
 
    end if
+
+
+
+   if (calculate_entropy) then
+       call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, trim(overlap_file), &
+            iproc, nproc, mpiworld(), smat(1), ovrlp_mat, &
+            init_matmul=.false.)
+       call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, trim(kernel_file), &
+            iproc, nproc, mpiworld(), smat(2), kernel_mat, &
+            init_matmul=.true., filename_mult=trim(kernel_matmul_file))
+       call init_matrix_taskgroups_wrapper(iproc, nproc, mpiworld(), .false., 2, smat)
+       call resize_matrix_to_taskgroup(smat(1), ovrlp_mat)
+       call resize_matrix_to_taskgroup(smat(2), kernel_mat)
+
+       if (iproc==0) then
+           call yaml_mapping_open('Matrix properties')
+           call write_sparsematrix_info(smat(1), 'Overlap matrix')
+           call write_sparsematrix_info(smat(2), 'Density kernel')
+           call yaml_mapping_close()
+       end if
+
+       ovrlp_minus_one_half(1) = matrices_null()
+       ovrlp_minus_one_half(1)%matrix_compr = &
+           sparsematrix_malloc_ptr(smat(2),iaction=SPARSE_TASKGROUP,id='ovrlp_minus_one_half(1)%matrix_compr')
+
+       if (iproc==0) then
+           call yaml_mapping_open('Calculate S^-1/2')
+       end if
+       call overlap_minus_onehalf('ICE', iproc, nproc, mpiworld(), smat(1), smat(2), ovrlp_mat, ovrlp_minus_one_half(1))
+       if (iproc==0) then
+           call yaml_mapping_close()
+       end if
+
+       if (iproc==0) then
+           call yaml_mapping_open('Calculate entropy')
+       end if
+       call calculate_entropy_term(iproc, nproc, mpiworld(), &
+            kT, smat(1), smat(2), &
+            ovrlp_mat, kernel_mat, ovrlp_minus_one_half(1), &
+            eTS)
+       if (iproc==0) then
+           call yaml_map('eTS',eTS)
+           call yaml_mapping_close()
+       end if
+
+       call f_timing_checkpoint(ctr_name='LAST',mpi_comm=mpiworld(),nproc=mpisize(),&
+                    gather_routine=gather_timings)
+
+       call deallocate_sparse_matrix(smat(1))
+       call deallocate_sparse_matrix(smat(2))
+       call deallocate_matrices(ovrlp_mat)
+       call deallocate_matrices(kernel_mat)
+       call deallocate_matrices(ovrlp_minus_one_half(1))
+
+   end if
+
 
 
    call build_dict_info(iproc, nproc, dict_timing_info)

@@ -961,23 +961,27 @@ module ice
       betax = foe_data_get_real(ice_obj,"betax")
 
       !!@ TEMPORARY: eigenvalues of  the overlap matrix ###################
-      evals = f_malloc(kernel_smat%nfvctr,id='evals')
-      call get_minmax_eigenvalues(iproc, nproc, comm, 'generalized', -8, &
-           kernel_smat, kernel_mat, eval_min, eval_max, &
-           smat2=ovrlp_smat, mat2=ovrlp_mat, &
-           evals=evals)
-      eTS_check = 0.d0
-      do i=1,kernel_smat%nfvctr
-          val = evals(i)
-          if (val<1.e-30_mp .or. (val-1._mp)>-1.e-30_mp) then
-              tt = 0._mp
-          else
-              tt = -(val*log(val) + (1-val)*log(1-val))
-          end if
-          write(*,*) 'i, val, tt', i, val, tt
-          eTS_check = eTS_check + tt
-      end do
-      call f_free(evals)
+      !!evals = f_malloc(kernel_smat%nfvctr,id='evals')
+      !!call get_minmax_eigenvalues(iproc, nproc, comm, 'generalized', -8, &
+      !!     kernel_smat, kernel_mat, eval_min, eval_max, &
+      !!     smat2=ovrlp_smat, mat2=ovrlp_mat, &
+      !!     evals=evals)
+      !!eTS_check = 0.d0
+      !!sumn = 0.d0
+      !!do i=1,kernel_smat%nfvctr
+      !!    val = evals(i)
+      !!    sumn = sumn + val
+      !!    if (val<1.e-30_mp .or. (val-1._mp)>-1.e-30_mp) then
+      !!        tt = 0._mp
+      !!    else
+      !!        tt = -(val*log(val) + (1-val)*log(1-val))
+      !!    end if
+      !!    write(*,*) 'i, val, tt', i, val, tt
+      !!    eTS_check = eTS_check + tt
+      !!end do
+      !!write(*,*) 'sumn',sumn
+      !!call f_free(evals)
+      !! ##################################################################
 
 
       ! Size of one Chebyshev polynomial matrix in compressed form (distributed)
@@ -1013,8 +1017,9 @@ module ice
       eval_multiplicator_total = 1.d0
 
       npl_min_fake = NPL_MIN !since intent(inout)
-      accuracy_function = 1.d-3 !foe_data_get_real(ice_obj,"accuracy_function")
+      accuracy_function = 1.d-4 !foe_data_get_real(ice_obj,"accuracy_function")
       accuracy_penalty = foe_data_get_real(ice_obj,"accuracy_penalty")
+      !!write(*,*) 'verbosity_', verbosity_
       call get_bounds_and_polynomials(iproc, nproc, comm, 2, 1, NPL_MAX, NPL_STRIDE, &
            ncalc, FUNCTION_FERMIFUNCTION_ENTROPY, accuracy_function, accuracy_penalty, .false., 1.2_mp, 1.2_mp, verbosity_, &
            kernel_smat, entropykernel_smat, kernel_mat, ice_obj, npl_min_fake, &
@@ -1057,7 +1062,6 @@ module ice
       call f_free(mean_error)
 
       sumn = trace_sparse_matrix(iproc, nproc, comm, kernel_smat, kernel_mat%matrix_compr)
-      write(*,*) 'sumn, scale_factor, shift_value', sumn, scale_factor, shift_value
       eTS = trace_sparse_matrix(iproc, nproc, comm, kernel_smat, entropykernel_mat%matrix_compr)
       !eTS = eTS/scale_factor+shift_value*sumn
 

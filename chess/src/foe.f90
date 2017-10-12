@@ -32,6 +32,8 @@ module foe
   !> Public routines
   public :: fermi_operator_expansion_new
   public :: get_selected_eigenvalues
+  public :: calculate_entropy_term
+  public :: overlap_minus_onehalf
 
   contains
 
@@ -634,24 +636,32 @@ module foe
       call f_timing(TCAT_CME_AUXILIARY,'OF')
 
       !# NEW TEST ENTROPY ####################################
-      entropykernel_ = matrices_null()
-      entropykernel_%matrix_compr = sparsematrix_malloc_ptr(smatl,iaction=SPARSE_TASKGROUP,id='entropykernel_%matrix_compr')
-      kernel_modified = matrices_null()
-      kernel_modified%matrix_compr = sparsematrix_malloc_ptr(smatl,iaction=SPARSE_TASKGROUP,id='kernel_modified%matrix_compr')
-      hamscal_compr = sparsematrix_malloc(smatl, iaction=SPARSE_TASKGROUP, id='hamscal_compr')
-      call transform_sparse_matrix(iproc, smats, smatl, SPARSE_TASKGROUP, 'small_to_large', &
-                   smat_in=ovrlp_%matrix_compr, lmat_out=hamscal_compr)
-      call f_memcpy(src=kernel_%matrix_compr, dest=kernel_modified%matrix_compr)
-      call vscal(size(kernel_modified%matrix_compr), 0.5d0, kernel_modified%matrix_compr(1), 1)
-      !call axpy(size(kernel_modified%matrix_compr), 0.4d0, hamscal_compr(1), 1, kernel_modified%matrix_compr(1), 1)
-      call calculate_fermi_function_entropy(iproc, nproc, comm, &
-           smats, smatl, smatl, ovrlp_, kernel_modified, ovrlp_minus_one_half_(1), entropykernel_, eTS, eTS_check, verbosity=0)
-      !eTS = trace_sparse_matrix(iproc, nproc, comm, smatl, entropykernel_%matrix_compr)
-      eTS = eTS*fscale_new
-      eTS_check = eTS_check*fscale_new
-      write(*,*) 'eTS', eTS
-      write(*,*) 'eTS_check', eTS_check
-      call deallocate_matrices(entropykernel_)
+      !!##call calculate_entropy_term(iproc, nproc, comm, fscale_new, &
+      !!##         smats, smatl, ovrlp_, kernel_, ovrlp_minus_one_half_(1), eTS)
+      !!!entropykernel_ = matrices_null()
+      !!!entropykernel_%matrix_compr = sparsematrix_malloc_ptr(smatl,iaction=SPARSE_TASKGROUP,id='entropykernel_%matrix_compr')
+      !!!kernel_modified = matrices_null()
+      !!!kernel_modified%matrix_compr = sparsematrix_malloc_ptr(smatl,iaction=SPARSE_TASKGROUP,id='kernel_modified%matrix_compr')
+      !!!hamscal_compr = sparsematrix_malloc(smatl, iaction=SPARSE_TASKGROUP, id='hamscal_compr')
+      !!!call transform_sparse_matrix(iproc, smats, smatl, SPARSE_TASKGROUP, 'small_to_large', &
+      !!!             smat_in=ovrlp_%matrix_compr, lmat_out=hamscal_compr)
+      !!!call f_memcpy(src=kernel_%matrix_compr, dest=kernel_modified%matrix_compr)
+      !!!if (smatl%nspin==1) then
+      !!!    call vscal(size(kernel_modified%matrix_compr), 0.5d0, kernel_modified%matrix_compr(1), 1)
+      !!!end if
+      !!!!call axpy(size(kernel_modified%matrix_compr), 0.4d0, hamscal_compr(1), 1, kernel_modified%matrix_compr(1), 1)
+      !!!call calculate_fermi_function_entropy(iproc, nproc, comm, &
+      !!!     smats, smatl, smatl, ovrlp_, kernel_modified, ovrlp_minus_one_half_(1), entropykernel_, eTS, eTS_check, verbosity=0)
+      !!!!eTS = trace_sparse_matrix(iproc, nproc, comm, smatl, entropykernel_%matrix_compr)
+      !!!eTS = eTS*fscale_new
+      !!!eTS_check = eTS_check*fscale_new
+      !!!if (smatl%nspin==1) then
+      !!!    eTS = eTS*2._mp
+      !!!    eTS_check = eTS_check*2._mp
+      !!!end if
+      !!!write(*,*) 'eTS', eTS
+      !!!write(*,*) 'eTS_check', eTS_check
+      !!!call deallocate_matrices(entropykernel_)
       !# END NEW TEST ENTROPY ################################
 
 
@@ -909,6 +919,60 @@ module foe
     
       call f_release_routine()
     end subroutine overlap_minus_onehalf
+
+
+
+
+    subroutine calculate_entropy_term(iproc, nproc, comm, fscale_new, &
+               smats, smatl, ovrlp_, kernel_, ovrlp_minus_one_half_, eTS)
+      use dynamic_memory
+      use ice, only: calculate_fermi_function_entropy
+      use wrapper_linalg, only: vscal
+      implicit none
+
+      ! Calling arguments
+      integer,intent(in) :: iproc, nproc, comm
+      real(mp),intent(in) :: fscale_new
+      type(sparse_matrix),intent(in) :: smats, smatl
+      type(matrices),intent(in) :: ovrlp_, kernel_
+      type(matrices),intent(inout) :: ovrlp_minus_one_half_
+      real(mp),intent(out) :: eTS
+
+      ! Local variables
+      type(matrices) :: kernel_modified, entropykernel_
+      real(mp) :: eTS_check
+
+
+      entropykernel_ = matrices_null()
+      entropykernel_%matrix_compr = sparsematrix_malloc_ptr(smatl,iaction=SPARSE_TASKGROUP,id='entropykernel_%matrix_compr')
+      kernel_modified = matrices_null()
+      kernel_modified%matrix_compr = sparsematrix_malloc_ptr(smatl,iaction=SPARSE_TASKGROUP,id='kernel_modified%matrix_compr')
+      !hamscal_compr = sparsematrix_malloc(smatl, iaction=SPARSE_TASKGROUP, id='hamscal_compr')
+      !call transform_sparse_matrix(iproc, smats, smatl, SPARSE_TASKGROUP, 'small_to_large', &
+      !             smat_in=ovrlp_%matrix_compr, lmat_out=hamscal_compr)
+      call f_memcpy(src=kernel_%matrix_compr, dest=kernel_modified%matrix_compr)
+      if (smatl%nspin==1) then
+          call vscal(size(kernel_modified%matrix_compr), 0.5d0, kernel_modified%matrix_compr(1), 1)
+      end if
+      !call axpy(size(kernel_modified%matrix_compr), 0.4d0, hamscal_compr(1), 1, kernel_modified%matrix_compr(1), 1)
+      call calculate_fermi_function_entropy(iproc, nproc, comm, &
+           smats, smatl, smatl, ovrlp_, kernel_modified, ovrlp_minus_one_half_, entropykernel_, eTS, eTS_check, verbosity=0)
+      !eTS = trace_sparse_matrix(iproc, nproc, comm, smatl, entropykernel_%matrix_compr)
+      eTS = eTS*fscale_new
+      eTS_check = eTS_check*fscale_new
+      if (smatl%nspin==1) then
+          eTS = eTS*2._mp
+          eTS_check = eTS_check*2._mp
+      end if
+      if (iproc==0) then
+          call yaml_map('eTS',eTS)
+          !call yaml_map('eTS_check',eTS_check)
+      end if
+      call deallocate_matrices(entropykernel_)
+      call deallocate_matrices(kernel_modified)
+
+    end subroutine calculate_entropy_term
+
 
 
 end module foe

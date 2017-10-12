@@ -484,11 +484,14 @@ module get_kernel
           else if (scf_mode==LINEAR_FOE) then
               if (iproc==0) call yaml_map('method','FOE')
     
+              !!write(*,*) 'before FOE: sum(tmb%linmat%ovrlppowers_(2)%matrix_compr)', sum(tmb%linmat%ovrlppowers_(2)%matrix_compr)
               call matrix_fermi_operator_expansion(iproc, nproc, bigdft_mpi%mpi_comm, &
                    tmb%foe_obj, tmb%ice_obj, tmb%linmat%smat(1), tmb%linmat%smat(2), tmb%linmat%smat(3), &
                    tmb%linmat%ovrlp_, tmb%linmat%ham_, tmb%linmat%ovrlppowers_(2), tmb%linmat%kernel_, &
                    energs%ebs, &
                    calculate_minusonehalf=invert_overlap_matrix, foe_verbosity=1, symmetrize_kernel=.true.)
+              !!write(*,*) 'after FOE: sum(tmb%linmat%ovrlppowers_(2)%matrix_compr)', sum(tmb%linmat%ovrlppowers_(2)%matrix_compr)
+              !!write(*,*) 'after FOE: sum(tmb%linmat%kernel_%matrix_compr)', sum(tmb%linmat%kernel_%matrix_compr)
           end if
     
           ! Eigenvalues not available, therefore take -.5d0

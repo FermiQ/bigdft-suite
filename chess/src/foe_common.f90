@@ -2570,9 +2570,9 @@ module foe_common
                            max_error, x_max_error, mean_error, anoise, increase_degree_for_penaltyfunction, &
                            ex=ex)
                   else if (func_name==FUNCTION_FERMIFUNCTION_ENTROPY) then
-                      write(*,*) 'npl_min, npl_max, npl_stride', npl_min, npl_max, npl_stride
+                      !!write(*,*) 'npl_min, npl_max, npl_stride', npl_min, npl_max, npl_stride
                       call get_polynomial_degree(iproc, nproc, comm, 1, ncalc, func_name, foe_obj, &
-                           npl_min, npl_max, npl_stride, accuracy_function, accuracy_penalty, 2, npl, cc_, &
+                           npl_min, npl_max, npl_stride, accuracy_function, accuracy_penalty, 0, npl, cc_, &
                            max_error, x_max_error, mean_error, anoise, increase_degree_for_penaltyfunction)
                   end if
                   npl_min = npl !to be used to speed up the search for npl in a following iteration

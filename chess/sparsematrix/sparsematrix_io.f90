@@ -809,7 +809,7 @@ module sparsematrix_io
 
       if (iproc==0) call yaml_comment('Reading from file '//trim(filename),hfill='~')
       inquire(file=trim(filename),exist=file_present)
-      write(*,*) 'file_present',file_present
+      !write(*,*) 'file_present',file_present
       if (.not.file_present) then
           call f_err_throw("File '"//trim(filename)//"' is not present", &
                err_name='SPARSEMATRIX_IO_ERROR')
