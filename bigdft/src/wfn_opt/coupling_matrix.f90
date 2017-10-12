@@ -91,7 +91,8 @@ subroutine calculate_coupling_matrix(iproc,nproc,boxit,tddft_approach,nspin,ndim
   !For nspin=1, define an auxiliary matrix for spin-off-diagonal terms.
   if (nspin==1) Kaux = f_malloc0([nmulti, nmulti],id='Kaux')
 
-  if (iproc==0) bar=f_progress_bar_new(nstep=((nalphap+1)*nalphap)/2)
+  !if (iproc==0) bar=f_progress_bar_new(nstep=((nalphap+1)*nalphap)/2)
+  if (iproc==0) bar=f_progress_bar_new(nstep=nalpha)
 
   call PS_set_options(pkernel,verbose=.false.)
   istep=0
@@ -167,8 +168,9 @@ subroutine calculate_coupling_matrix(iproc,nproc,boxit,tddft_approach,nspin,ndim
          end if
          istep=istep+1
        end do
-       if (iproc==0) call dump_progress_bar(bar,step=istep)
-     end do
+       !if (iproc==0) call dump_progress_bar(bar,step=istep)
+       if (iproc==0) call dump_progress_bar(bar,step=iap)
+    end do
   !If more than one processor, then perform the MPI_all_reduce of K (and of Kaux if nspin=1) and of dipoles.
   if (nproc > 1) then
      call fmpi_allreduce(K,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
