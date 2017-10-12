@@ -44,7 +44,7 @@ module fmpi_types
   end interface mpitypesize
 
   !might be included in a config.inc file
-  integer, parameter, public :: fmpi_integer=MPI_INTEGER_KIND
+  integer, parameter, public :: fmpi_integer=4!MPI_INTEGER_KIND
   integer, parameter, public :: fmpi_address=MPI_ADDRESS_KIND
 
   !> Error codes
