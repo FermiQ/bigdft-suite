@@ -758,6 +758,10 @@ subroutine tmb_overlap_onsite(iproc, nproc, imethod_overlap, at, tmb, rxyz)
   ilr_tmp=tmb%orbs%inwhichlocreg(norb_tmp)
   iiat_tmp=tmb%orbs%onwhichatom(norb_tmp)
 
+  !if (iproc==0) print*,''
+  !if (iproc==0) print*,'NORB TMP',norb_tmp,ilr_tmp,iiat_tmp
+  !if (iproc==0) print*,''
+
   ! Find out which process handles TMB norb_tmp and get the keys from that process
   do jproc=0,nproc-1
       if (tmb%orbs%isorb_par(jproc)<norb_tmp .and. norb_tmp<=tmb%orbs%isorb_par(jproc)+tmb%orbs%norb_par(jproc,0)) then
@@ -855,7 +859,7 @@ subroutine tmb_overlap_onsite(iproc, nproc, imethod_overlap, at, tmb, rxyz)
            frag_trans,centre_old_box,centre_new_box,da,wrap_around)
 
       if ((.not. reformat) .and. (.not. wrap_around)) then ! copy psi into psi_tmp
-
+          !print*,'no reformat',iproc,iiorb,ilr,iiat
           do j=1,tmb%lzd%llr(ilr_tmp)%wfd%nvctr_c
               psi_tmp(jstart_tmp)=tmb%psi(jstart)
               jstart=jstart+1
