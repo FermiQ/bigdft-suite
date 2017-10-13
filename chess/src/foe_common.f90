@@ -39,10 +39,12 @@ module module_func
   public :: func
 
   ! Public parameters
-  integer,parameter,public :: FUNCTION_POLYNOMIAL = 101
-  integer,parameter,public :: FUNCTION_ERRORFUNCTION = 102
-  integer,parameter,public :: FUNCTION_XTIMESERRORFUNCTION = 103
-  integer,parameter,public :: FUNCTION_EXPONENTIAL = 104
+  integer,parameter,public :: FUNCTION_POLYNOMIAL            = 101
+  integer,parameter,public :: FUNCTION_ERRORFUNCTION         = 102
+  integer,parameter,public :: FUNCTION_XTIMESERRORFUNCTION   = 103
+  integer,parameter,public :: FUNCTION_EXPONENTIAL           = 104
+  integer,parameter,public :: FUNCTION_ERRORFUNCTION_ENTROPY = 105
+  integer,parameter,public :: FUNCTION_FERMIFUNCTION         = 106
 
   contains
 
@@ -78,6 +80,18 @@ module module_func
           beta = betax
           mua = muax
           mub = mubx
+      case(FUNCTION_ERRORFUNCTION_ENTROPY)
+          ifunc = FUNCTION_ERRORFUNCTION_ENTROPY
+          if (.not.present(efx)) call f_err_throw("'efx' not present")
+          if (.not.present(fscalex)) call f_err_throw("'fscalex' not present")
+          ef = efx
+          fscale = fscalex
+      case(FUNCTION_FERMIFUNCTION)
+          ifunc = FUNCTION_FERMIFUNCTION
+          if (.not.present(efx)) call f_err_throw("'efx' not present")
+          if (.not.present(fscalex)) call f_err_throw("'fscalex' not present")
+          ef = efx
+          fscale = fscalex
       case default
           call f_err_throw("wrong value of 'ifuncx'")
       end select
@@ -87,19 +101,27 @@ module module_func
     end subroutine func_set
 
     function func(x)
+      use numerics, only: pi
       implicit none
+      ! Calling arguments
       real(kind=mp),intent(in) :: x
       real(kind=mp) :: func
+      ! Local parameters
+      real(kind=mp) :: sqrt_pi = sqrt(pi)
       select case (ifunc)
       case(FUNCTION_POLYNOMIAL)
           func = x**power
       case(FUNCTION_ERRORFUNCTION)
-          func = 0.5d0*erfcc((x-ef)*(1.d0/fscale))
+          func = 0.5_mp*erfcc((x-ef)*(1._mp/fscale))
       case(FUNCTION_XTIMESERRORFUNCTION)
-          func = x*0.5d0*erfcc((x-ef)*(1.d0/fscale))
+          func = x*0.5_mp*erfcc((x-ef)*(1._mp/fscale))
       case(FUNCTION_EXPONENTIAL)
           !func = safe_exp(beta*(x-mu))
           func = safe_exp(beta*(x-mua)) - safe_exp(-beta*(x-mub))
+      case(FUNCTION_ERRORFUNCTION_ENTROPY)
+          func = fscale/(2._mp*sqrt_pi)*safe_exp(-((x-ef)/fscale)**2)
+      case(FUNCTION_FERMIFUNCTION)
+          func = 1._mp/(1._mp+safe_exp((x-ef)/fscale))
       case default
           call f_err_throw("wrong value of 'ifunc'")
       end select
@@ -177,6 +199,10 @@ module foe_common
       integer :: is, np
 
       call f_routine(id='get_chebyshev_expansion_coefficients')
+
+      call f_routine(id='synchronize_mpi_tasks')
+      call mpibarrier(comm)
+      call f_release_routine()
 
       ! MPI parallelization... maybe only worth for large n?
       !call chebyshev_coefficients_init_parallelization(iproc, nproc, comm, n, np, is)
@@ -260,7 +286,7 @@ module foe_common
     !!      cc(jj)=fac*tt
     !!  end do
 
-    !!  call mpiallred(cc, mpi_sum, comm=bigdft_mpi%mpi_comm)
+    !!  call fmpi_allreduce(cc, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
 
     !!  call func_set(FUNCTION_ERRORFUNCTION, efx=ef, fscalex=fscale)
     !!  call accuracy_of_chebyshev_expansion(n, cc, (/A,B/), 1.d-3, func, x_max_error, max_error, mean_error)
@@ -710,7 +736,7 @@ module foe_common
       penalty = penalty/real(smat_l%nfvctr,kind=mp)
 
       !!if (nproc > 1) then
-      !!    call mpiallred(penalty, mpi_sum, comm=comm)
+      !!    call fmpi_allreduce(penalty, FMPI_SUM, comm=comm)
       !!end if
       call penalty_communicate(nproc, comm, penalty)
 
@@ -823,11 +849,15 @@ module foe_common
           ! Transform all matrices to the large sparsity pattern.
           ! Takes some memory, but probably faster than the old way...
           mat1_large = sparsematrix_malloc(smatl, iaction=sparse_taskgroup, id='mat1_large')
-          call transform_sparse_matrix(iproc, smat1, smatl, sparse_taskgroup, 'small_to_large', &
+          !!call transform_sparse_matrix(iproc, smat1, smatl, sparse_taskgroup, 'small_to_large', &
+          !!     smat_in=mat1%matrix_compr, lmat_out=mat1_large)
+          call transform_sparse_matrix(iproc, smat1, smatl, sparse_matmul_small, 'small_to_large', &
                smat_in=mat1%matrix_compr, lmat_out=mat1_large)
           if (with_overlap) then
               mat2_large = sparsematrix_malloc(smatl, iaction=sparse_taskgroup, id='mat2_large')
-              call transform_sparse_matrix(iproc, smat2, smatl, sparse_taskgroup, 'small_to_large', &
+              !!call transform_sparse_matrix(iproc, smat2, smatl, sparse_taskgroup, 'small_to_large', &
+              !!     smat_in=mat2%matrix_compr, lmat_out=mat2_large)
+              call transform_sparse_matrix(iproc, smat2, smatl, sparse_matmul_small, 'small_to_large', &
                    smat_in=mat2%matrix_compr, lmat_out=mat2_large)
               !write(*,*) 'IN scale_and_shift_matrix: ispin, sum(H), sum(S)', &
               !    ispin, sum(mat1_large(ishift+1:ishift+smatl%nvctrp_tg)), &
@@ -935,12 +965,12 @@ module foe_common
         real(kind=mp),dimension(smat%nvctrp_tg),intent(inout) :: inv_ovrlp
         real(kind=mp),dimension(smat%nvctrp_tg),intent(inout) :: kernel
         real(kind=mp),dimension(:),intent(inout),target,optional :: matrix_localx
-        integer,dimension(:),target,intent(inout),optional :: windowsx
+        type(fmpi_win),dimension(:),target,intent(inout),optional :: windowsx
 
         ! Local variables
         real(kind=mp),dimension(:),pointer :: tempp_new, matrix_local
         real(kind=mp),dimension(:),allocatable :: mat_compr_seq
-        integer,dimension(:),pointer :: windows
+        type(fmpi_win),dimension(:),pointer :: windows
 
         call f_routine(id='retransform_ext')
 
@@ -1012,7 +1042,7 @@ module foe_common
         !!end if
 
         if (onesided_action==ONESIDED_FULL) then
-            call f_free_ptr(windows)
+            call free_fmpi_win_ptr(windows)
             call f_free_ptr(matrix_local)
         end if
 
@@ -1083,7 +1113,8 @@ module foe_common
     subroutine init_foe(iproc, nproc, nspin, charge, foe_obj, ef, tmprtr, evbounds_nsatur, evboundsshrink_nsatur, &
                evlow, evhigh, fscale, ef_interpol_det, ef_interpol_chargediff, &
                fscale_lowerbound, fscale_upperbound, eval_multiplicator, &
-               npl_min, npl_max, npl_stride, betax, ntemp, accuracy_function, accuracy_penalty)
+               npl_min, npl_max, npl_stride, betax, ntemp, accuracy_function, accuracy_penalty, occupation_function, &
+               adjust_fscale)
       use foe_base, only: foe_data, foe_data_set_int, foe_data_set_real, foe_data_set_logical, foe_data_get_real, foe_data_null
       use dynamic_memory
       use chess_base, only: chess_params, chess_input_dict, chess_init
@@ -1113,6 +1144,8 @@ module foe_common
       integer,intent(in),optional :: ntemp
       real(kind=mp),intent(in),optional :: accuracy_function
       real(kind=mp),intent(in),optional :: accuracy_penalty
+      integer,intent(in),optional :: occupation_function
+      logical,intent(in),optional :: adjust_fscale
 
       ! Local variables
       character(len=*), parameter :: subname='init_foe'
@@ -1136,6 +1169,8 @@ module foe_common
       integer :: ntemp_
       real(kind=mp) :: accuracy_function_
       real(kind=mp) :: accuracy_penalty_
+      integer :: occupation_function_
+      logical :: adjust_fscale_
       type(chess_params) :: cp
       type(dictionary),pointer :: dict
 
@@ -1160,6 +1195,8 @@ module foe_common
       ef_interpol_chargediff_ = cp%foe%ef_interpol_chargediff !1.0_mp
       fscale_lowerbound_ = cp%foe%fscale_lowerbound !5.d-3
       fscale_upperbound_ = cp%foe%fscale_upperbound !5.d-2
+      occupation_function_ = cp%foe%occupation_function
+      adjust_fscale_ = cp%foe%adjust_fscale
       tmprtr_ = 0.0_mp
       eval_multiplicator_ = 1.0_mp
       npl_min_ = 10
@@ -1189,6 +1226,8 @@ module foe_common
       if (present(ntemp)) ntemp_ = ntemp
       if (present(accuracy_function)) accuracy_function_ = accuracy_function
       if (present(accuracy_penalty)) accuracy_penalty_ = accuracy_penalty
+      if (present(occupation_function)) occupation_function_ = occupation_function
+      if (present(adjust_fscale)) adjust_fscale_ = adjust_fscale
     
       foe_obj = foe_data_null()
 
@@ -1210,6 +1249,8 @@ module foe_common
       call foe_data_set_int(foe_obj,"ntemp",ntemp_)
       call foe_data_set_real(foe_obj,"accuracy_function",accuracy_function_)
       call foe_data_set_real(foe_obj,"accuracy_penalty",accuracy_penalty_)
+      call foe_data_set_int(foe_obj,"occupation_function",occupation_function_)
+      call foe_data_set_logical(foe_obj,"adjust_fscale",adjust_fscale_)
 
       foe_obj%charge = f_malloc0_ptr(nspin,id='foe_obj%charge')
       foe_obj%evlow = f_malloc0_ptr(nspin,id='foe_obj%evlow')
@@ -1275,18 +1316,18 @@ module foe_common
       is = is + isx - 1 !shift of the starting index
       !check
       ii = np
-      call mpiallred(ii, 1, mpi_sum, comm=comm)
+      call fmpi_allreduce(ii, 1, FMPI_SUM, comm=comm)
       if (ii/=n) then
           call f_err_throw('wrong partition: n='//trim(yaml_toa(n))//' /= '//trim(yaml_toa(ii))//'=ii &
                &(n='//trim(yaml_toa(n))//', np='//trim(yaml_toa(np))//')')
       end if
       iimin = 1 + is
-      call mpiallred(iimin, 1, mpi_min, comm=comm)
+      call fmpi_allreduce(iimin, 1, FMPI_MIN, comm=comm)
       if (iimin/=isx) then
           call f_err_throw('wrong starting index')
       end if
       iimax = np + is
-      call mpiallred(iimax, 1, mpi_max, comm=comm)
+      call fmpi_allreduce(iimax, 1, FMPI_MAX, comm=comm)
       if (iimax/=iex) then
           call f_err_throw('wrong ending index')
       end if
@@ -1351,11 +1392,11 @@ module foe_common
       call f_free(x_max_error_arr)
 
       ! Communicate the results... for the maximum in an array since also the position is required
-      call mpiallred(mean_error, 1, mpi_sum, comm=comm)
+      call fmpi_allreduce(mean_error, 1, FMPI_SUM, comm=comm)
       max_errors = f_malloc0((/1.to.2,0.to.nproc-1/),id='max_errors')
       max_errors(1,iproc) = max_error
       max_errors(2,iproc) = x_max_error
-      call mpiallred(max_errors, mpi_sum, comm=comm)
+      call fmpi_allreduce(max_errors, FMPI_SUM, comm=comm)
       max_error = 0.d0
       do jproc=0,nproc-1
           if (max_errors(1,jproc)>max_error) then
@@ -1441,7 +1482,7 @@ module foe_common
       real(kind=mp),dimension(:),allocatable :: penalty_ev_new, ham_eff, mat_seq, matmul_tmp, matrix_local
       real(kind=mp),dimension(:),allocatable :: fermi_new, fermi_check_new, fermi_small_new
       integer :: iline, icolumn, icalc
-      integer,dimension(:),allocatable :: windows
+      type(fmpi_win), dimension(:),allocatable :: windows
 
 
       call f_routine(id='get_chebyshev_polynomials')
@@ -1627,7 +1668,7 @@ module foe_common
       call f_free(penalty_ev_new)
       call f_free(fermi_new)
       call f_free(matrix_local)
-      call f_free(windows)
+      call free_fmpi_win_arr(windows)
 
 
       !call timing(iproc, 'FOE_auxiliary ', 'OF')
@@ -1709,7 +1750,7 @@ module foe_common
       real(kind=mp),dimension(:,:),allocatable :: penalty_ev_new
       real(kind=mp),dimension(:,:),allocatable :: fermi_new, fermi_check_new, fermi_small_new
       integer :: iline, icolumn, icalc, jspin
-      integer,dimension(:),pointer :: windowsx
+      type(fmpi_win) ,dimension(:), allocatable :: windowsx
 
 
 
@@ -1729,7 +1770,7 @@ module foe_common
 
       evbounds_shrinked=.false.
 
-      windowsx = f_malloc_ptr(smatl%ntaskgroup,id='windowsx')
+      windowsx = f_malloc(smatl%ntaskgroup,id='windowsx')
 
       fermi_small_new = f_malloc((/smatl%smmm%nvctrp_mm,smatl%nspin/),id='fermi_small_new')
 
@@ -1843,7 +1884,8 @@ module foe_common
                       !call timing(iproc, 'chebyshev_coef', 'ON')
                       call f_timing(TCAT_CME_COEFFICIENTS,'ON')
 
-                      call func_set(FUNCTION_ERRORFUNCTION, efx=foe_data_get_real(foe_obj,"ef"), fscalex=fscale)
+                      call func_set(foe_data_get_int(foe_obj,"occupation_function"), &
+                           efx=foe_data_get_real(foe_obj,"ef"), fscalex=fscale)
                       call get_chebyshev_expansion_coefficients(iproc, nproc, comm, foe_data_get_real(foe_obj,"evlow",1), &
                            foe_data_get_real(foe_obj,"evhigh",1), npl, func, cc(1,1,1), &
                            x_max_error, max_error, mean_error)
@@ -1985,7 +2027,7 @@ module foe_common
                           diff=0.d0
 
                           if (nproc > 1) then
-                              call mpiallred(diff, 1, mpi_sum, comm=comm)
+                              call fmpi_allreduce(diff, 1, FMPI_SUM, comm=comm)
                           end if
 
                           diff=sqrt(diff)
@@ -2040,7 +2082,7 @@ module foe_common
 
       call f_free(occupations)
       call f_free(fermi_small_new)
-      call f_free_ptr(windowsx)
+      call free_fmpi_win_arr(windowsx)
 
       !call timing(iproc, 'FOE_auxiliary ', 'OF')
       call f_timing(TCAT_CME_AUXILIARY,'OF')
@@ -2086,7 +2128,7 @@ module foe_common
       !$omp end parallel
 
       if (nproc > 1) then
-          call mpiallred(trace, 1, mpi_sum, comm=comm)
+          call fmpi_allreduce(trace, 1, FMPI_SUM, comm=comm)
       end if
 
       call f_release_routine()
@@ -2128,7 +2170,7 @@ module foe_common
       select case (fun)
       case (FUNCTION_POLYNOMIAL)
           if (.not. present(ex)) call f_err_throw("arguments 'ex' is not present")
-      case (FUNCTION_ERRORFUNCTION)
+      case (FUNCTION_ERRORFUNCTION, FUNCTION_FERMIFUNCTION)
           if (.not. present(ef)) call f_err_throw("arguments 'ef' is not present")
           if (.not. present(fscale)) call f_err_throw("arguments 'fscale' is not present")
           !write(*,*) 'iproc, ef, fscale, evlow, evhigh', &
@@ -2173,6 +2215,10 @@ module foe_common
                   call func_set(FUNCTION_POLYNOMIAL, powerx=ex(icalc))
               case (FUNCTION_ERRORFUNCTION)
                   call func_set(FUNCTION_ERRORFUNCTION, efx=ef(icalc), fscalex=fscale(icalc))
+              case (FUNCTION_FERMIFUNCTION)
+                  call func_set(FUNCTION_FERMIFUNCTION, efx=ef(icalc), fscalex=fscale(icalc))
+              case default
+                  call f_err_throw('wrong value for fun')
               end select
               call get_chebyshev_expansion_coefficients(iproc, nproc, comm, foe_data_get_real(foe_obj,"evlow",ispin), &
                    foe_data_get_real(foe_obj,"evhigh",ispin), ipl, func, cc_trial(1:ipl,icalc,1), &
@@ -2285,7 +2331,7 @@ module foe_common
       is = is + min(iproc,ii)
       !check
       ii = np
-      call mpiallred(ii, 1, mpi_sum, comm=comm)
+      call fmpi_allreduce(ii, 1, FMPI_SUM, comm=comm)
       if (ii/=n) then
           call f_err_throw('wrong partition of n')
       end if
@@ -2359,7 +2405,7 @@ module foe_common
 
       call f_routine(id='chebyshev_coefficients_communicate')
 
-      call mpiallred(cc, mpi_sum, comm=comm)
+      call fmpi_allreduce(cc, FMPI_SUM, comm=comm)
 
       call f_release_routine()
 
@@ -2378,7 +2424,7 @@ module foe_common
       call f_routine(id='penalty_communicate')
 
       if (nproc > 1) then
-          call mpiallred(penalty, 1, mpi_sum, comm=comm)
+          call fmpi_allreduce(penalty, 1, FMPI_SUM, comm=comm)
       end if
 
       call f_release_routine()
@@ -2445,7 +2491,7 @@ module foe_common
       end select
 
       select case (func_name)
-      case (FUNCTION_ERRORFUNCTION) 
+      case (FUNCTION_ERRORFUNCTION, FUNCTION_FERMIFUNCTION) 
           if (.not.present(efarr)) call f_err_throw('efarr not present')
           if (.not.present(fscale_arr)) call f_err_throw('fscale_arr not present')
       case (FUNCTION_POLYNOMIAL) !generalized eigenvalue problem, i.e. the overlap matrix must be provided
@@ -2497,8 +2543,9 @@ module foe_common
 
               if (jspin==1) then
     
-                  if (func_name==FUNCTION_ERRORFUNCTION) then
-                      call get_polynomial_degree(iproc, nproc, comm, 1, ncalc, FUNCTION_ERRORFUNCTION, foe_obj, &
+                  if (func_name==FUNCTION_ERRORFUNCTION .or. func_name==FUNCTION_FERMIFUNCTION) then
+                      call get_polynomial_degree(iproc, nproc, comm, 1, ncalc, &
+                           foe_data_get_int(foe_obj,"occupation_function"), foe_obj, &
                            npl_min, npl_max, npl_stride, accuracy_function, accuracy_penalty, 0, npl, cc_, &
                            max_error, x_max_error, mean_error, anoise, increase_degree_for_penaltyfunction, &
                            ef=efarr, fscale=fscale_arr)

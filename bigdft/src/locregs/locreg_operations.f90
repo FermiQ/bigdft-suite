@@ -11,9 +11,12 @@
 module locreg_operations
   use module_base
   use locregs
+  use f_enums
   implicit none
 
   private
+
+  integer,parameter,public :: NCPLX_MAX = 2
 
   !> Information for the confining potential to be used in TMB scheme
   !! The potential is supposed to be defined as prefac*(r-rC)**potorder
@@ -73,6 +76,12 @@ module locreg_operations
      real(wp), dimension(:,:,:,:), pointer :: yza_f, yzb_f, yzc_f, yze_f
   end type workarrays_quartic_convolutions
 
+  type,public :: workarrays_projectors
+     real(wp),pointer,dimension(:,:,:,:) :: wprojx,wprojy,wprojz
+     real(wp),pointer,dimension(:) :: wproj
+     real(wp),pointer,dimension(:,:,:) :: work
+  end type workarrays_projectors
+
 
   public :: psir_to_vpsi,isf_to_daub_kinetic
   public :: nullify_confpot_data 
@@ -86,7 +95,7 @@ module locreg_operations
   public :: memspace_work_arrays_sumrho,memspace_work_arrays_locham
   public :: allocate_work_arrays,init_local_work_arrays,deallocate_work_arrays
   public :: deallocate_workarrays_quartic_convolutions,zero_local_work_arrays
-
+  public :: nullify_workarrays_projectors, allocate_workarrays_projectors, deallocate_workarrays_projectors
   public :: set_wfd_to_wfd
 
   ! to avoid creating array temporaries
@@ -100,8 +109,46 @@ module locreg_operations
       module procedure initialize_work_arrays_locham_llr
   end interface initialize_work_arrays_locham
 
-
   contains
+
+    pure function workarrays_projectors_null() result(wp)
+      implicit none
+      type(workarrays_projectors) :: wp
+      call nullify_workarrays_projectors(wp)
+    end function workarrays_projectors_null
+
+    pure subroutine nullify_workarrays_projectors(wp)
+      implicit none
+      type(workarrays_projectors),intent(out) :: wp
+      nullify(wp%wprojx)
+      nullify(wp%wprojy)
+      nullify(wp%wprojz)
+      nullify(wp%wproj)
+      nullify(wp%work)
+    end subroutine nullify_workarrays_projectors
+
+    subroutine allocate_workarrays_projectors(n1, n2, n3, wp)
+      implicit none
+      integer,intent(in) :: n1, n2, n3
+      type(workarrays_projectors),intent(inout) :: wp
+      integer,parameter :: nterm_max=20
+      integer,parameter :: nw=65536
+      wp%wprojx = f_malloc_ptr((/ 1.to.NCPLX_MAX, 0.to.n1, 1.to.2, 1.to.nterm_max /),id='wprojx')
+      wp%wprojy = f_malloc_ptr((/ 1.to.NCPLX_MAX, 0.to.n2, 1.to.2, 1.to.nterm_max /),id='wprojy')
+      wp%wprojz = f_malloc_ptr((/ 1.to.NCPLX_MAX, 0.to.n3, 1.to.2, 1.to.nterm_max /),id='wprojz')
+      wp%wproj = f_malloc_ptr(NCPLX_MAX*(max(n1,n2,n3)+1)*2,id='wprojz')
+      wp%work = f_malloc_ptr((/ 0.to.nw, 1.to.2, 1.to.2 /),id='work')
+    end subroutine allocate_workarrays_projectors
+
+    subroutine deallocate_workarrays_projectors(wp)
+      implicit none
+      type(workarrays_projectors),intent(inout) :: wp
+      call f_free_ptr(wp%wprojx)
+      call f_free_ptr(wp%wprojy)
+      call f_free_ptr(wp%wprojz)
+      call f_free_ptr(wp%wproj)
+      call f_free_ptr(wp%work)
+    end subroutine deallocate_workarrays_projectors
 
     !> initialize the information for matching the localisation region
     !! of each projector to all the localisation regions of the system

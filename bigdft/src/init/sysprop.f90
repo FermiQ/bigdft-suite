@@ -150,31 +150,30 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
   !if (inputpsi == INPUT_PSI_LINEAR_AO .or. inputpsi == INPUT_PSI_DISK_LINEAR &
   !    .or. inputpsi == INPUT_PSI_MEMORY_LINEAR) then
   if (inputpsi .hasattr. 'LINEAR') then
-     !if (inputpsi == INPUT_PSI_LINEAR_AO .or. inputpsi == INPUT_PSI_DISK_LINEAR) then
      if (.not. (inputpsi .hasattr. 'MEMORY')) then ! == INPUT_PSI_LINEAR_AO .or. inputpsi == INPUT_PSI_DISK_LINEAR) then
-         ! First do a simple redistribution
-         call init_linear_orbs(LINEAR_PARTITION_SIMPLE)
+        ! First do a simple redistribution
+        call init_linear_orbs(LINEAR_PARTITION_SIMPLE)
      else
-         ! Directly used the reference distribution
-         norb_par = f_malloc(0.to.nproc-1,id='norb_par')
-         norbu_par = f_malloc(0.to.nproc-1,id='norbu_par')
-         norbd_par = f_malloc(0.to.nproc-1,id='norbd_par')
-         if (.not.present(norb_par_ref)) then
-             call f_err_throw('norb_par_ref not present', err_name='BIGDFT_RUNTIME_ERROR')
-         end if
-         call vcopy(nproc, norb_par_ref(0), 1, norb_par(0), 1)
-         if (.not.present(norbu_par_ref)) then
-             call f_err_throw('norbu_par_ref not present', err_name='BIGDFT_RUNTIME_ERROR')
-         end if
-         call vcopy(nproc, norbu_par_ref(0), 1, norbu_par(0), 1)
-         if (.not.present(norbd_par_ref)) then
-             call f_err_throw('norbd_par_ref not present', err_name='BIGDFT_RUNTIME_ERROR')
-         end if
-         call vcopy(nproc, norbd_par_ref(0), 1, norbd_par(0), 1)
-         call init_linear_orbs(LINEAR_PARTITION_OPTIMAL)
-         call f_free(norb_par)
-         call f_free(norbu_par)
-         call f_free(norbd_par)
+        ! Directly used the reference distribution
+        norb_par = f_malloc(0.to.nproc-1,id='norb_par')
+        norbu_par = f_malloc(0.to.nproc-1,id='norbu_par')
+        norbd_par = f_malloc(0.to.nproc-1,id='norbd_par')
+        if (.not.present(norb_par_ref)) then
+           call f_err_throw('norb_par_ref not present', err_name='BIGDFT_RUNTIME_ERROR')
+        end if
+        call vcopy(nproc, norb_par_ref(0), 1, norb_par(0), 1)
+        if (.not.present(norbu_par_ref)) then
+           call f_err_throw('norbu_par_ref not present', err_name='BIGDFT_RUNTIME_ERROR')
+        end if
+        call vcopy(nproc, norbu_par_ref(0), 1, norbu_par(0), 1)
+        if (.not.present(norbd_par_ref)) then
+           call f_err_throw('norbd_par_ref not present', err_name='BIGDFT_RUNTIME_ERROR')
+        end if
+        call vcopy(nproc, norbd_par_ref(0), 1, norbd_par(0), 1)
+        call init_linear_orbs(LINEAR_PARTITION_OPTIMAL)
+        call f_free(norb_par)
+        call f_free(norbu_par)
+        call f_free(norbd_par)
      end if
      call fragment_stuff()
      call init_lzd_linear()
@@ -223,9 +222,9 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
          time_average(2) = time_max(2)/real(nproc,kind=8)
          totaltimes(iproc+1) = time_max(2)
          if (nproc>1) then
-             call mpiallred(time_max, mpi_max, comm=bigdft_mpi%mpi_comm)
-             call mpiallred(time_average, mpi_sum, comm=bigdft_mpi%mpi_comm)
-             call mpiallred(totaltimes, mpi_sum, comm=bigdft_mpi%mpi_comm)
+             call fmpi_allreduce(time_max, FMPI_MAX, comm=bigdft_mpi%mpi_comm)
+             call fmpi_allreduce(time_average, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+             call fmpi_allreduce(totaltimes, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
          end if
          !ratio_before = real(time_max(1),kind=8)/real(max(1.d0,time_min(1)),kind=8) !max to prevent divide by zero
          !ratio_after = real(time_max(2),kind=8)/real(max(1.d0,time_min(2)),kind=8) !max to prevent divide by zero
@@ -241,7 +240,6 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
          call f_free(totaltimes)
      end if
   end if
-
 
   !In the case in which the number of orbitals is not "trivial" check whether they are too many
   if (inputpsi /= 'INPUT_PSI_RANDOM') then
@@ -301,7 +299,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
   call orbitals_communicators(iproc,nproc,Lzd%Glr,orbs,comms)  
   !if (inputpsi == INPUT_PSI_LINEAR_AO .or. inputpsi == INPUT_PSI_DISK_LINEAR &
   !.or. inputpsi == INPUT_PSI_MEMORY_LINEAR) then
-  if (inputpsi .hasattr. 'LINEAR') then
+  if ((inputpsi .hasattr. 'LINEAR') .and. .not. dry_run) then
      if(iproc==0 .and. dump) call print_orbital_distribution(iproc, nproc, lorbs)
   end if
 
@@ -479,6 +477,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
        use module_interfaces, only: initialize_linear_from_file
        use locregs_init, only: initLocregs
        use locregs, only: copy_locreg_descriptors
+       use sparsematrix_wrappers, only: check_kernel_cutoff
        implicit none
        call copy_locreg_descriptors(Lzd%Glr, lzd_lin%glr)
        !call lzd_set_hgrids(lzd_lin, Lzd%hgrids)
@@ -504,9 +503,24 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
           end do
        end if
 
-       call initLocregs(iproc, nproc, lzd_lin, Lzd_lin%hgrids(1), Lzd_lin%hgrids(2),Lzd_lin%hgrids(3), &
-            atoms%astruct%rxyz,lzd_lin%llr(:)%locrad, lorbs, Lzd_lin%Glr, 's')
-       call update_wavefunctions_size(lzd_lin,lnpsidim_orbs,lnpsidim_comp,lorbs,iproc,nproc)
+       ! Make sure that the cutoff for the multiplications
+       ! is larger than the kernel cutoff
+       call check_kernel_cutoff(iproc, lorbs, atoms, in%hamapp_radius_incr, lzd_lin)
+       do ilr=1,lzd_lin%nlr
+          if (lzd_lin%llr(ilr)%locrad_mult < lzd_lin%llr(ilr)%locrad_kernel) then
+             call f_err_throw('rloc_kernel_foe ('//trim(yaml_toa(lzd_lin%llr(ilr)%locrad_mult,fmt='(f5.2)'))//&
+                  &') too small, must be at least as big as rloc_kernel('&
+                  &//trim(yaml_toa(lzd_lin%llr(ilr)%locrad_kernel,fmt='(f5.2)'))//')', err_id=BIGDFT_RUNTIME_ERROR)
+          end if
+       end do
+
+       if (.not. dry_run) then
+          call initLocregs(iproc, nproc, lzd_lin, Lzd_lin%hgrids(1), Lzd_lin%hgrids(2),Lzd_lin%hgrids(3), &
+               atoms%astruct%rxyz,lzd_lin%llr(:)%locrad, lorbs, Lzd_lin%Glr, 's')
+          call update_wavefunctions_size(lzd_lin,lnpsidim_orbs,lnpsidim_comp,lorbs,iproc,nproc)
+       else
+          call yaml_warning("Locregs not initialized for linear.")
+       end if
      end subroutine init_lzd_linear
 
 
@@ -535,7 +549,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
           times_convol(iiorb) = real(ii+jj,kind=8)
       end do
       if (nproc>1) then
-          call mpiallred(times_convol, mpi_sum, comm=bigdft_mpi%mpi_comm)
+          call fmpi_allreduce(times_convol, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
       end if
 
       return !###############################################3
@@ -633,7 +647,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
        call f_free(phi)
 
        if (nproc>1) then
-           call mpiallred(times_convol, mpi_sum, comm=bigdft_mpi%mpi_comm)
+           call fmpi_allreduce(times_convol, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
        end if
 
      end subroutine test_preconditioning
@@ -647,7 +661,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
      !!  ! Sum up the total size of all support functions
      !!  isize = int(lnpsidim_orbs,kind=8)
      !!  if (nproc>1) then
-     !!      call mpiallred(isize, 1, mpi_sum, bigdft_mpi%mpi_comm)
+     !!      call fmpi_allreduce(isize, 1, FMPI_SUM, bigdft_mpi%mpi_comm)
      !!  end if
 
      !!  ! Ideal size per task (integer division)
@@ -942,16 +956,16 @@ subroutine epsilon_cavity(atoms,rxyz,pkernel)
 
   radii=f_malloc(atoms%astruct%nat,id='radii')
   !radii_nofact=f_malloc(atoms%astruct%nat,id='radii_nofact')
-  eps=f_malloc(pkernel%ndims,id='eps')
-  dlogeps=f_malloc([3,pkernel%ndims(1),pkernel%ndims(2),pkernel%ndims(3)],id='dlogeps')
-  oneoeps=f_malloc(pkernel%ndims,id='oneoeps')
-  oneosqrteps=f_malloc(pkernel%ndims,id='oneosqrteps')
-  corr=f_malloc(pkernel%ndims,id='corr')
-!!$  epst=f_malloc(pkernel%ndims,id='epst')
-!!$  dlogepst=f_malloc([3,pkernel%ndims(1),pkernel%ndims(2),pkernel%ndims(3)],id='dlogepst')
-!!$  oneoepst=f_malloc(pkernel%ndims,id='oneoepst')
-!!$  oneosqrtepst=f_malloc(pkernel%ndims,id='oneosqrtepst')
-!!$  corrt=f_malloc(pkernel%ndims,id='corrt')
+  eps=f_malloc(pkernel%mesh%ndims,id='eps')
+  dlogeps=f_malloc([3,pkernel%mesh%ndims(1),pkernel%mesh%ndims(2),pkernel%mesh%ndims(3)],id='dlogeps')
+  oneoeps=f_malloc(pkernel%mesh%ndims,id='oneoeps')
+  oneosqrteps=f_malloc(pkernel%mesh%ndims,id='oneosqrteps')
+  corr=f_malloc(pkernel%mesh%ndims,id='corr')
+!!$  epst=f_malloc(pkernel%mesh%ndims,id='epst')
+!!$  dlogepst=f_malloc([3,pkernel%mesh%ndims(1),pkernel%mesh%ndims(2),pkernel%mesh%ndims(3)],id='dlogepst')
+!!$  oneoepst=f_malloc(pkernel%mesh%ndims,id='oneoepst')
+!!$  oneosqrtepst=f_malloc(pkernel%mesh%ndims,id='oneosqrtepst')
+!!$  corrt=f_malloc(pkernel%mesh%ndims,id='corrt')
 
   it=atoms_iter(atoms%astruct)
   !python metod
@@ -1071,7 +1085,7 @@ subroutine epsilon_cavity(atoms,rxyz,pkernel)
   !here the pkernel_set_epsilon routine should been modified to accept
   !already the radii and the atoms
 
-  mesh=cell_new(atoms%astruct%geocode,pkernel%ndims,pkernel%hgrids)
+  mesh=cell_new(atoms%astruct%geocode,pkernel%mesh%ndims,pkernel%mesh%hgrids)
   origin=locreg_mesh_origin(mesh)
   rxyz_shifted=f_malloc([3,atoms%astruct%nat],id='rxyz_shifted')
   do iat=1,atoms%astruct%nat
@@ -1315,6 +1329,9 @@ subroutine epsinnersccs_cavity(atoms,rxyz,pkernel)
   use f_enums, f_str => str
   use yaml_output
   use dictionaries, only: f_err_throw
+  use PStypes, only: epsilon_inner_cavity
+  use box
+  use bounds, only: locreg_mesh_origin
   implicit none
   type(atoms_data), intent(in) :: atoms
   real(gp), dimension(3,atoms%astruct%nat), intent(in) :: rxyz
@@ -1323,44 +1340,45 @@ subroutine epsinnersccs_cavity(atoms,rxyz,pkernel)
   !local variables
   integer :: i,n1,n23,i3s
   real(gp) :: delta
-  type(atoms_iterator) :: it
+  !type(atoms_iterator) :: it
   real(gp), dimension(:), allocatable :: radii
   real(gp), dimension(:,:,:), allocatable :: eps
 
   radii=f_malloc(atoms%astruct%nat,id='radii')
-  eps=f_malloc(pkernel%ndims,id='eps')
+!!$  eps=f_malloc(pkernel%mesh%ndims,id='eps')
 
-  it=atoms_iter(atoms%astruct)
-  !python metod
-  do while(atoms_iter_next(it))
-     !only amu is extracted here
-     call atomic_info(atoms%nzatom(it%ityp),atoms%nelpsp(it%ityp),&
-          rcov=radii(it%iat))
-  end do
+!!$  it=atoms_iter(atoms%astruct)
+!!$  !python metod
+!!$  do while(atoms_iter_next(it))
+!!$     !only amu is extracted here
+!!$     call atomic_info(atoms%nzatom(it%ityp),atoms%nelpsp(it%ityp),&
+!!$          rcov=radii(it%iat))
+!!$  end do
 
 !  if(bigdft_mpi%iproc==0) call yaml_map('Bohr_Ang',Bohr_Ang)
 
-  delta=2.0*maxval(pkernel%hgrids)
+  delta=2.0*maxval(pkernel%mesh%hgrids)
 !  if(bigdft_mpi%iproc==0) call yaml_map('Delta cavity',delta)
-
   do i=1,atoms%astruct%nat
    radii(i) = 0.5d0/Bohr_Ang
   end do
 !  if (bigdft_mpi%iproc==0) call yaml_map('Covalent radii',radii)
 
-  call epsinnersccs_rigid_cavity_error_multiatoms_bc(atoms%astruct%geocode,&
-       pkernel%ndims,pkernel%hgrids,atoms%astruct%nat,rxyz,radii,delta,eps)
+  call epsilon_inner_cavity(pkernel,atoms%astruct%nat,rxyz,radii,delta,locreg_mesh_origin(pkernel%mesh))
 
-  n1=pkernel%ndims(1)
-  n23=pkernel%ndims(2)*pkernel%grid%n3p
-  !starting point in third direction
-  i3s=pkernel%grid%istart+1
-  if (pkernel%grid%n3p==0) i3s=1
-
-  call f_memcpy(n=n1*n23,src=eps(1,1,i3s),dest=pkernel%w%epsinnersccs)
+!!$  call epsinnersccs_rigid_cavity_error_multiatoms_bc(atoms%astruct%geocode,&
+!!$       pkernel%mesh%ndims,pkernel%hgrids,atoms%astruct%nat,rxyz,radii,delta,eps)
+!!$
+!!$  n1=pkernel%mesh%ndims(1)
+!!$  n23=pkernel%mesh%ndims(2)*pkernel%grid%n3p
+!!$  !starting point in third direction
+!!$  i3s=pkernel%grid%istart+1
+!!$  if (pkernel%grid%n3p==0) i3s=1
+!!$
+!!$  call f_memcpy(n=n1*n23,src=eps(1,1,i3s),dest=pkernel%w%epsinnersccs)
 
   call f_free(radii)
-  call f_free(eps)
+!!$  call f_free(eps)
 end subroutine epsinnersccs_cavity
 
 !> Calculate the important objects related to the physical properties of the system
@@ -1539,7 +1557,7 @@ subroutine calculate_rhocore(at,rxyz,dpbox,rhocore)
      enddo
   enddo
 
-  if (bigdft_mpi%nproc > 1) call mpiallred(tt,1,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+  if (bigdft_mpi%nproc > 1) call fmpi_allreduce(tt,1,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
   tt=tt*dpbox%mesh%volume_element
   if (bigdft_mpi%iproc == 0) then
      call yaml_mapping_open('Analytic core charges for atom species')
@@ -1921,7 +1939,7 @@ END SUBROUTINE nlcc_start_position
 !!!      end if
 !!!  end do
 !!!  call MPI_Initialized(mpiflag,ierr)
-!!!  if(mpiflag /= 0 .and. nproc > 1) call mpiallred(orbs%isorb_par(0), nproc, mpi_sum, bigdft_mpi%mpi_comm, ierr)
+!!!  if(mpiflag /= 0 .and. nproc > 1) call fmpi_allreduce(orbs%isorb_par(0), nproc, FMPI_SUM, bigdft_mpi%mpi_comm, ierr)
 !!!
 !!!END SUBROUTINE orbitals_descriptors_forLinear
 

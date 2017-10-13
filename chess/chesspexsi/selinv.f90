@@ -152,13 +152,13 @@ module selinv
             call f_timing(TCAT_PEXSI_COMMUNICATE,'ON')
             nfvctr_local_min = nfvctr_local
             nfvctr_local_max = nfvctr_local
-            call mpiallred(nfvctr_local_min,count=1,op=mpi_min,comm=readComm)
-            call mpiallred(nfvctr_local_max,count=1,op=mpi_max,comm=readComm)
+            call fmpi_allreduce(nfvctr_local_min,count=1,op=FMPI_MIN,comm=readComm)
+            call fmpi_allreduce(nfvctr_local_max,count=1,op=FMPI_MAX,comm=readComm)
             nfvctr_local_avg = real(nfvctr,kind=8)/real(maxproc,kind=8)
             nvctr_local_min = nvctr_local
             nvctr_local_max = nvctr_local
-            call mpiallred(nvctr_local_min,count=1,op=mpi_min,comm=readComm)
-            call mpiallred(nvctr_local_max,count=1,op=mpi_max,comm=readComm)
+            call fmpi_allreduce(nvctr_local_min,count=1,op=FMPI_MIN,comm=readComm)
+            call fmpi_allreduce(nvctr_local_max,count=1,op=FMPI_MAX,comm=readComm)
             nvctr_local_avg = real(nvctr,kind=8)/real(maxproc,kind=8)
             call f_timing(TCAT_PEXSI_COMMUNICATE,'OF')
           
@@ -301,7 +301,7 @@ module selinv
               inv_ovrlp(isvctr_local+i-1) = invSnzvalLocal(i)
           end do
           call f_timing(TCAT_PEXSI_COMMUNICATE,'ON')
-          call mpiallred(inv_ovrlp,mpi_sum,comm=readComm)
+          call fmpi_allreduce(inv_ovrlp,FMPI_SUM,comm=readComm)
           call f_timing(TCAT_PEXSI_COMMUNICATE,'OF')
 
           

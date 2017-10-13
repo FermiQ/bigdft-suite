@@ -127,7 +127,7 @@ subroutine direct_minimization(iproc,nproc,in,at,nvirt,rxyz,rhopot,nlpsp, &
       endif
 
       !transpose the wavefunction psi
-      call transpose_v(iproc,nproc,KSwfn%orbs,KSwfn%lzd%glr%wfd,KSwfn%comms,KSwfn%psi(1),psiw(1))
+      call transpose_v(iproc,nproc,KSwfn%orbs,KSwfn%lzd%glr%wfd,KSwfn%comms,KSwfn%psi,psiw)
 
       call f_free_ptr(psiw)
    end if
@@ -141,7 +141,7 @@ subroutine direct_minimization(iproc,nproc,in,at,nvirt,rxyz,rhopot,nlpsp, &
         at,VTwfn%orbs,VTwfn%Lzd,VTwfn%comms,rxyz,in%nspin,&
         VTwfn%psi, max(VTwfn%orbs%npsidim_orbs, VTwfn%orbs%npsidim_comp))
 
-   if (bigdft_mpi%nproc > 1) call mpiallred(Vtwfn%orbs%eval,op=MPI_SUM,comm=bigdft_mpi%mpi_comm)
+   if (bigdft_mpi%nproc > 1) call fmpi_allreduce(Vtwfn%orbs%eval,op=FMPI_SUM,comm=bigdft_mpi%mpi_comm)
 
    !if(iproc==0) call yaml_map('Orthogonality to occupied psi',.true.)
    !if(iproc==0) write(*,'(1x,a)',advance="no") "Orthogonality to occupied psi..."
@@ -169,7 +169,7 @@ subroutine direct_minimization(iproc,nproc,in,at,nvirt,rxyz,rhopot,nlpsp, &
       psiw = f_malloc_ptr(1,id='psiw')
    end if
 
-   call untranspose_v(iproc,nproc,VTwfn%orbs,VTwfn%Lzd%Glr%wfd,VTwfn%comms,VTwfn%psi(1),psiw(1))
+   call untranspose_v(iproc,nproc,VTwfn%orbs,VTwfn%Lzd%Glr%wfd,VTwfn%comms,VTwfn%psi,psiw)
 
    ! 1st Hamilton application on psivirt
    !if(iproc==0)write(*,'(1x,a)')"done."
@@ -178,7 +178,7 @@ subroutine direct_minimization(iproc,nproc,in,at,nvirt,rxyz,rhopot,nlpsp, &
    if (nproc > 1) then
       VTwfn%psit = f_malloc_ptr(max(VTwfn%orbs%npsidim_orbs, VTwfn%orbs%npsidim_comp),id='VTwfn%psit')
       !transpose the psivirt
-      call transpose_v(iproc,nproc,VTwfn%orbs,VTwfn%lzd%glr%wfd,VTwfn%comms,VTwfn%psi(1),psiw(1),out_add=VTwfn%psit(1))
+      call transpose_v(iproc,nproc,VTwfn%orbs,VTwfn%lzd%glr%wfd,VTwfn%comms,VTwfn%psi,psiw,out_add=VTwfn%psit)
    else
       nullify(VTwfn%psit)
    end if
@@ -296,8 +296,8 @@ subroutine direct_minimization(iproc,nproc,in,at,nvirt,rxyz,rhopot,nlpsp, &
          call orthon_virt_occup(iproc,nproc,KSwfn%orbs,VTwfn%orbs,KSwfn%comms,VTwfn%comms,KSwfn%psi,VTwfn%psit,msg)
          call orthogonalize(iproc,nproc,VTwfn%orbs,VTwfn%comms,VTwfn%psit,in%orthpar)
          !retranspose the psivirt
-         call untranspose_v(iproc,nproc,VTwfn%orbs,VTwfn%Lzd%Glr%wfd,VTwfn%comms,VTwfn%psit(1),&
-            &   psiw(1),out_add=VTwfn%psi(1))
+         call untranspose_v(iproc,nproc,VTwfn%orbs,VTwfn%Lzd%Glr%wfd,VTwfn%comms,VTwfn%psit,&
+            &   psiw,out_add=VTwfn%psi)
       end if
 
       if (iproc == 0) then
@@ -332,7 +332,7 @@ subroutine direct_minimization(iproc,nproc,in,at,nvirt,rxyz,rhopot,nlpsp, &
       psiw = f_malloc_ptr(max(KSwfn%orbs%npsidim_orbs, KSwfn%orbs%npsidim_comp),id='psiw')
    end if
 
-   call untranspose_v(iproc,nproc,KSwfn%orbs,KSwfn%Lzd%Glr%wfd,KSwfn%comms,KSwfn%psi(1),psiw(1))
+   call untranspose_v(iproc,nproc,KSwfn%orbs,KSwfn%Lzd%Glr%wfd,KSwfn%comms,KSwfn%psi,psiw)
 
    !!if(nproc > 1) then
       call f_free_ptr(psiw)
@@ -530,7 +530,7 @@ subroutine davidson(iproc,nproc,in,at,&
       endif
 
       !transpose the wavefunction psi
-      call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,psi(1),psiw(1))
+      call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,psi,psiw)
 
       call f_free_ptr(psiw)
    end if
@@ -583,10 +583,10 @@ subroutine davidson(iproc,nproc,in,at,&
       psiw = f_malloc_ptr(1,id='psiw')
    end if
 
-   call untranspose_v(iproc,nproc,orbsv,Lzd%Glr%wfd,commsv,v(1),psiw(1))
+   call untranspose_v(iproc,nproc,orbsv,Lzd%Glr%wfd,commsv,v,psiw)
 
    if (in%itermax_virt <=0) then
-      if (bigdft_mpi%nproc > 1) call mpiallred(orbsv%eval,op=MPI_SUM,comm=bigdft_mpi%mpi_comm)
+      if (bigdft_mpi%nproc > 1) call fmpi_allreduce(orbsv%eval,op=FMPI_SUM,comm=bigdft_mpi%mpi_comm)
       call plot_and_finalize()
       return
    end if
@@ -641,8 +641,8 @@ subroutine davidson(iproc,nproc,in,at,&
    e = f_malloc0((/ orbsv%norb, orbsv%nkpts, 2 /),id='e')
 
    !transpose  v and hv
-   call transpose_v(iproc,nproc,orbsv,lzd%glr%wfd,commsv,v(1),psiw(1))
-   call transpose_v(iproc,nproc,orbsv,lzd%glr%wfd,commsv,hv(1),psiw(1))
+   call transpose_v(iproc,nproc,orbsv,lzd%glr%wfd,commsv,v,psiw)
+   call transpose_v(iproc,nproc,orbsv,lzd%glr%wfd,commsv,hv,psiw)
 
    call timing(iproc,'Davidson      ','ON')
    !Timing excludes transposition, hamilton application and preconditioning
@@ -669,7 +669,7 @@ subroutine davidson(iproc,nproc,in,at,&
    if(nproc > 1)then
       !sum up the contributions of nproc sets with
       !commsv%nvctr_par(iproc,1) wavelet coefficients each
-      call mpiallred(e,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+      call fmpi_allreduce(e,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
    end if
 
    !if(iproc==0)write(*,'(1x,a)')"done."
@@ -766,7 +766,7 @@ subroutine davidson(iproc,nproc,in,at,&
 
       if(nproc > 1)then
          !sum up the contributions of nproc sets with nvctrp wavelet coefficients each
-         call mpiallred(e(1,1,2),orbsv%norb*orbsv%nkpts,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+         call fmpi_allreduce(e(1,1,2),orbsv%norb*orbsv%nkpts,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
       end if
 
       gnrm=0._dp
@@ -843,7 +843,7 @@ subroutine davidson(iproc,nproc,in,at,&
       end if
       if(nproc > 1)then
          !sum up the contributions of nproc sets with nvctrp wavelet coefficients each
-         call mpiallred(e(1,1,2),orbsv%norb*orbsv%nkpts,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+         call fmpi_allreduce(e(1,1,2),orbsv%norb*orbsv%nkpts,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
       end if
       if (msg) then
          gnrm=0._dp
@@ -880,7 +880,7 @@ subroutine davidson(iproc,nproc,in,at,&
       call timing(iproc,'Davidson      ','OF')
 
       !retranspose the gradient g
-      call untranspose_v(iproc,nproc,orbsv,Lzd%Glr%wfd,commsv,g(1),psiw(1))
+      call untranspose_v(iproc,nproc,orbsv,Lzd%Glr%wfd,commsv,g,psiw)
 
       ! Here the gradients norm could be calculated in the direct form instead,
       ! as it is done in hpsiortho before preconditioning.
@@ -916,11 +916,11 @@ subroutine davidson(iproc,nproc,in,at,&
 
       if (occorbs) then
          !transpose  g
-         call transpose_v(iproc,nproc,orbsv,lzd%glr%wfd,commsv,g(1),psiw(1))
+         call transpose_v(iproc,nproc,orbsv,lzd%glr%wfd,commsv,g,psiw)
          !project g such that they are orthogonal to all occupied psi
          call orthon_virt_occup(iproc,nproc,orbs,orbsv,comms,commsv,psi,g,msg)
          !retranspose the gradient g
-         call untranspose_v(iproc,nproc,orbsv,Lzd%Glr%wfd,commsv,g(1),psiw(1))
+         call untranspose_v(iproc,nproc,orbsv,Lzd%Glr%wfd,commsv,g,psiw)
       end if
 
       !if(iproc==0)write(*,'(1x,a)')"done."
@@ -933,8 +933,8 @@ subroutine davidson(iproc,nproc,in,at,&
            pkernel,orbs,psirocc)
 
       !transpose  g and hg
-      call transpose_v(iproc,nproc,orbsv,lzd%glr%wfd,commsv,g(1),psiw(1))
-      call transpose_v(iproc,nproc,orbsv,lzd%glr%wfd,commsv,hg(1),psiw(1))
+      call transpose_v(iproc,nproc,orbsv,lzd%glr%wfd,commsv,g,psiw)
+      call transpose_v(iproc,nproc,orbsv,lzd%glr%wfd,commsv,hg,psiw)
 
       call timing(iproc,'Davidson      ','ON')
       !if(iproc==0)write(*,'(1x,a)',advance="no")"done."
@@ -958,7 +958,7 @@ subroutine davidson(iproc,nproc,in,at,&
       
       if(nproc > 1)then
          !sum up the contributions of nproc sets with nvctrp wavelet coefficients each
-         call mpiallred(e(1,1,2),orbsv%norb*orbsv%nkpts,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+         call fmpi_allreduce(e(1,1,2),orbsv%norb*orbsv%nkpts,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
       end if
       if (msg) then
          gnrm=0.0_dp
@@ -1007,7 +1007,7 @@ subroutine davidson(iproc,nproc,in,at,&
 
       if(nproc > 1)then
          !sum up the contributions of nproc sets with nvctrp wavelet coefficients each
-         call mpiallred(hamovr,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+         call fmpi_allreduce(hamovr,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
       end if
 
       !if(iproc==0)write(*,'(1x,a)')"done."
@@ -1187,7 +1187,7 @@ subroutine davidson(iproc,nproc,in,at,&
       end if
 
       !retranspose v
-      call untranspose_v(iproc,nproc,orbsv,Lzd%Glr%wfd,commsv,v(1),psiw(1))
+      call untranspose_v(iproc,nproc,orbsv,Lzd%Glr%wfd,commsv,v,psiw)
 
       ! Hamilton application on v
       !if(iproc==0)write(*,'(1x,a)',advance="no")"done."
@@ -1198,8 +1198,8 @@ subroutine davidson(iproc,nproc,in,at,&
            pkernel,orbs,psirocc)
 
       !transpose  v and hv
-      call transpose_v(iproc,nproc,orbsv,lzd%glr%wfd,commsv,v(1),psiw(1))
-      call transpose_v(iproc,nproc,orbsv,lzd%glr%wfd,commsv,hv(1),psiw(1))
+      call transpose_v(iproc,nproc,orbsv,lzd%glr%wfd,commsv,v,psiw)
+      call transpose_v(iproc,nproc,orbsv,lzd%glr%wfd,commsv,hv,psiw)
 
       !if(iproc==0 .and. get_verbose_level() > 1) write(*,'(1x,a)')"done. "
       call timing(iproc,'Davidson      ','ON')
@@ -1242,7 +1242,7 @@ subroutine davidson(iproc,nproc,in,at,&
    call timing(iproc,'Davidson      ','OF')
 
    !retranspose v and psi
-   call untranspose_v(iproc,nproc,orbsv,Lzd%Glr%wfd,commsv,v(1),psiw(1))
+   call untranspose_v(iproc,nproc,orbsv,Lzd%Glr%wfd,commsv,v,psiw)
 
    call plot_and_finalize()
 
@@ -1262,7 +1262,7 @@ subroutine davidson(iproc,nproc,in,at,&
         psiw = f_malloc_ptr(max(orbs%npsidim_orbs, orbs%npsidim_comp),id='psiw')
      end if
 
-     call untranspose_v(iproc,nproc,orbs,Lzd%Glr%wfd,comms,psi(1),psiw(1))
+     call untranspose_v(iproc,nproc,orbs,Lzd%Glr%wfd,comms,psi,psiw)
 
      call f_free_ptr(psiw)
      if (GPU%OCLconv) then
@@ -1766,7 +1766,7 @@ subroutine psivirt_from_gaussians(iproc,nproc,filerad,at,orbs,Lzd,comms,rxyz,nsp
    end if
 
    !transpose the wavefunction in wavelet basis
-   call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,psivirt(1),psiw(1))
+   call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,psivirt,psiw)
 
    !here one has to decide whether leave things like that or
    !multiply the transposed wavefunctions by the matrix of the coefficients
@@ -2216,7 +2216,8 @@ subroutine evaluate_completeness_relation(ob_occ,ob_virt,ob_prime,hpsiprime,h2ps
      call subspace_matrix(.false.,ssp%phi_wvl,sso%phi_wvl,&
           ssp%ncplx,ssp%nvctr,ssp%norb,mat_ptr)
   end do
-  if (bigdft_mpi%nproc >1) call mpiallred(mat,op=MPI_SUM,comm=bigdft_mpi%mpi_comm)
+  if (bigdft_mpi%nproc >1) &
+       call fmpi_allreduce(mat,op=FMPI_SUM,comm=bigdft_mpi%mpi_comm)
   !substract the projector |psi'_j> -= sum_i |psi_i><psi_i|psi'_j>  
   call subspace_iterator_zip(ob_prime,ob_occ,ssp,sso)
   do while(subspace_next(ssp))
@@ -2240,7 +2241,7 @@ subroutine evaluate_completeness_relation(ob_occ,ob_virt,ob_prime,hpsiprime,h2ps
 !!$     call subspace_matrix(.false.,ssp%phi_wvl,ssp%phi_wvl,&
 !!$          ssp%ncplx,ssp%nvctr,ssp%norb,mat_ptr)
 !!$  end do
-  if (bigdft_mpi%nproc >1) call mpiallred(mat,op=MPI_SUM,comm=bigdft_mpi%mpi_comm)
+  if (bigdft_mpi%nproc >1) call fmpi_allreduce(mat,op=FMPI_SUM,comm=bigdft_mpi%mpi_comm)
 
   !now verify if the orbital differences can be expressed in the 
   !basis of the virtual states of the unperturbed hamiltonian
@@ -2268,7 +2269,7 @@ subroutine evaluate_completeness_relation(ob_occ,ob_virt,ob_prime,hpsiprime,h2ps
 !!$     end if
 !!$  end do
 
-  if (bigdft_mpi%nproc >1) call mpiallred(svp,op=MPI_SUM,comm=bigdft_mpi%mpi_comm)
+  if (bigdft_mpi%nproc >1) call fmpi_allreduce(svp,op=FMPI_SUM,comm=bigdft_mpi%mpi_comm)
 
   !now calculate the same quantities for the hppsiprime objects
   call subspace_iterator_zip(ob_prime,ob_occ,ssp,sso)
@@ -2278,7 +2279,7 @@ subroutine evaluate_completeness_relation(ob_occ,ob_virt,ob_prime,hpsiprime,h2ps
      call subspace_matrix(.false.,hpsi_ptr,sso%phi_wvl,&
           ssp%ncplx,ssp%nvctr,ssp%norb,mat_ptr)
   end do
-  if (bigdft_mpi%nproc >1) call mpiallred(mat,op=MPI_SUM,comm=bigdft_mpi%mpi_comm)
+  if (bigdft_mpi%nproc >1) call fmpi_allreduce(mat,op=FMPI_SUM,comm=bigdft_mpi%mpi_comm)
 
 !!$  ssp=subspace_iterator(ob_prime)
 !!$  ssv=subspace_iterator(ob_virt)
@@ -2297,7 +2298,7 @@ subroutine evaluate_completeness_relation(ob_occ,ob_virt,ob_prime,hpsiprime,h2ps
              ssp%ncplx,ssp%nvctr,ssv%norb,ssp%norb,svp_ptr)
      !end if
   end do
-  if (bigdft_mpi%nproc >1) call mpiallred(svp,op=MPI_SUM,comm=bigdft_mpi%mpi_comm)
+  if (bigdft_mpi%nproc >1) call fmpi_allreduce(svp,op=FMPI_SUM,comm=bigdft_mpi%mpi_comm)
 
   !now calculate the same quantities for the hppsiprime objects
   call subspace_iterator_zip(ob_prime,ob_occ,ssp,sso)
@@ -2307,7 +2308,7 @@ subroutine evaluate_completeness_relation(ob_occ,ob_virt,ob_prime,hpsiprime,h2ps
      call subspace_matrix(.false.,hpsi_ptr,sso%phi_wvl,&
           ssp%ncplx,ssp%nvctr,ssp%norb,mat_ptr)
   end do
-  if (bigdft_mpi%nproc >1) call mpiallred(mat,op=MPI_SUM,comm=bigdft_mpi%mpi_comm)
+  if (bigdft_mpi%nproc >1) call fmpi_allreduce(mat,op=FMPI_SUM,comm=bigdft_mpi%mpi_comm)
 
 !!$  ssp=subspace_iterator(ob_prime)
 !!$  ssv=subspace_iterator(ob_virt)
@@ -2326,7 +2327,7 @@ subroutine evaluate_completeness_relation(ob_occ,ob_virt,ob_prime,hpsiprime,h2ps
              ssp%ncplx,ssp%nvctr,ssv%norb,ssp%norb,svp_ptr)
      !end if
   end do
-  if (bigdft_mpi%nproc >1) call mpiallred(svp,op=MPI_SUM,comm=bigdft_mpi%mpi_comm)
+  if (bigdft_mpi%nproc >1) call fmpi_allreduce(svp,op=FMPI_SUM,comm=bigdft_mpi%mpi_comm)
 
   !to be printed out as it is the last one
   call subspace_iterator_zip(ob_prime,ob_virt,ssp,ssv)

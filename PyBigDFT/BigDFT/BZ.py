@@ -24,6 +24,19 @@ def get_ev(ev,keys=None,ikpt=1):
                 break
     return res
 
+def astruct_to_cell(astruct):
+    """ 
+    Convert the astruct information as parsed from the module Logfiles into 
+    the cell structure as needed from spglib    
+    """
+    import spglib,numpy
+    celltmp=[ a if a!=float('inf') else 1.0 for a in astruct['Cell']]
+    lattice=numpy.diag(celltmp)
+    pos=[ [ a/b if b!=float('inf') else 0.0 for a,b in zip(at.values()[0], celltmp)]for at in astruct['Positions']]
+    atoms=[ at.keys()[0] for at in astruct['Positions']]
+    ianames,iatype=numpy.unique(atoms,return_inverse=True)
+    return (lattice,pos,iatype)
+
 
 class BandArray(numpy.ndarray):
     """Defines the array of data for one band. It is a dictionary which contains a numpy array for both spin channels."""
@@ -39,10 +52,20 @@ class BandArray(numpy.ndarray):
             evs=[[],[]]
             logdata=kwargs.get("logdata", args[0])
             ikpt=kwargs.get("ikpt", 1 if len(args) < 2 else args[1])
+            # Ugly patch to detect proper k point in Davidson...
+            prev_vrt = True
+            cur_ikpt = 0
+            # End of ugly patch
             for ev in logdata:
                 occ=get_ev(ev,['e_occ','e_occupied'],ikpt=ikpt)
                 vrt=get_ev(ev,['e_vrt','e_virt'],ikpt=ikpt)
                 eigen=occ or vrt
+                # Ugly patch to detect proper k point in Davidson...
+                if occ and prev_vrt:
+                    cur_ikpt += 1
+                prev_vrt = vrt
+                if eigen and cur_ikpt != ikpt: continue
+                # End of ugly patch
                 if not eigen: eigen=get_ev(ev,ikpt=ikpt)
                 if not eigen: continue
                 for i,e in enumerate(eigen):
@@ -98,14 +121,16 @@ class BZPath():
 class BrillouinZone():
     def __init__(self,astruct,mesh,evals,fermi_energy):
         import spglib,numpy
-        celltmp=[ a if a!=float('inf') else 1.0 for a in astruct['Cell']]
-        self.lattice=numpy.diag(celltmp)
-        print 'lattice',self.lattice
-        pos=[ [ a/b if b!=float('inf') else 0.0 for a,b in zip(at.values()[0], celltmp)]for at in astruct['Positions']]
-        atoms=[ at.keys()[0] for at in astruct['Positions']]
-        ianames,iatype=numpy.unique(atoms,return_inverse=True) #[1,]*4+[2,]*4 #we should write a function for the iatype
+        cell=astruct_to_cell(astruct)
+        self.lattice=cell[0]
+        #celltmp=[ a if a!=float('inf') else 1.0 for a in astruct['Cell']]
+        #self.lattice=numpy.diag(celltmp)
+        #print 'lattice',self.lattice
+        #pos=[ [ a/b if b!=float('inf') else 0.0 for a,b in zip(at.values()[0], celltmp)]for at in astruct['Positions']]
+        #atoms=[ at.keys()[0] for at in astruct['Positions']]
+        #ianames,iatype=numpy.unique(atoms,return_inverse=True) #[1,]*4+[2,]*4 #we should write a function for the iatype
         #print 'iatype', iatype
-        cell=(self.lattice,pos,iatype)
+        #cell=(self.lattice,pos,iatype)
         print 'spacegroup',spglib.get_spacegroup(cell, symprec=1e-5)
         #then define the pathes and special points
         import ase.dft.kpoints as ase

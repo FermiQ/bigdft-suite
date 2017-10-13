@@ -1626,7 +1626,7 @@
  kernel optimization: DIAG,  #WARNING: density optimization not converged
  iter high:  2, delta out:  2.670E-06, energy: -1.76766945885693531E+02, D:  4.192E+00}
     #WARNING: oscillation of the energy, increase counter
-   energy_scillation_counter           :  1
+   energy_oscillation_counter           :  1
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Set the confinement prefactors
  - Confinement prefactor for high accuracy:
    -  {max diff damping:  0.00E+00, damping value:  1.00E+00}

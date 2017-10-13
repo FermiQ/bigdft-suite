@@ -48,7 +48,7 @@ module module_defs
   logical, public :: DistProjApply=.true. !<then copied as a element of the nlpsp structure
 
   !> experimental variables to test the add of new functionalities
-  logical :: experimental_modulebase_var_onlyfion=.false.
+  ! logical :: experimental_modulebase_var_onlyfion=.false.
 
   !> Evergreen
   real(dp), parameter, public :: pi_param=3.141592653589793238462643383279502884197_dp

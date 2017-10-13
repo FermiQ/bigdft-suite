@@ -33,6 +33,7 @@ module rhopotential
     use module_interfaces, only: XC_potential
     use Poisson_Solver, except_dp => dp, except_gp => gp
     use yaml_output
+    use box
     implicit none
     
     ! Calling arguments
@@ -53,7 +54,7 @@ module rhopotential
     
     if(nspin==4) then
        !this wrapper can be inserted inside the poisson solver 
-       call PSolverNC(denspot%pkernel%geocode,'D',denspot%pkernel%mpi_env%iproc,denspot%pkernel%mpi_env%nproc,&
+       call PSolverNC(cell_geocode(denspot%dpbox%mesh),'D',denspot%pkernel%mpi_env%iproc,denspot%pkernel%mpi_env%nproc,&
             denspot%dpbox%mesh%ndims(1),denspot%dpbox%mesh%ndims(2),&
             denspot%dpbox%mesh%ndims(3),&
             denspot%dpbox%n3d,denspot%xc,&
@@ -74,7 +75,7 @@ module rhopotential
           nullifyVXC=.true.
        end if
     
-       call XC_potential(denspot%pkernel%geocode,'D',denspot%pkernel%mpi_env%iproc,denspot%pkernel%mpi_env%nproc,&
+       call XC_potential(cell_geocode(denspot%dpbox%mesh),'D',denspot%pkernel%mpi_env%iproc,denspot%pkernel%mpi_env%nproc,&
             denspot%pkernel%mpi_env%mpi_comm,&
             denspot%dpbox%mesh%ndims(1),denspot%dpbox%mesh%ndims(2),denspot%dpbox%mesh%ndims(3),denspot%xc,&
             denspot%dpbox%mesh%hgrids,&
@@ -535,7 +536,7 @@ module rhopotential
     
     
       !!if (nproc > 1) then
-      !!   call mpiallred(irho, 1, mpi_sum, bigdft_mpi%mpi_comm)
+      !!   call fmpi_allreduce(irho, 1, FMPI_SUM, bigdft_mpi%mpi_comm)
       !!end if
     
       if (rho_neg>0.d0) then
@@ -578,15 +579,18 @@ module rhopotential
               !!     size_of_double, info, bigdft_mpi%mpi_comm, collcom_sr%window, ierr)
               !!call mpi_info_free(info, ierr)
               !!call mpi_win_fence(mpi_mode_noprecede, collcom_sr%window, ierr)
-              call mpi_type_size(mpi_double_precision, size_of_double, ierr)
-              collcom_sr%window = mpiwindow(collcom_sr%nptsp_c*denskern%nspin, rho_local(1), bigdft_mpi%mpi_comm)
-        
+!              call mpi_type_size(mpi_double_precision, size_of_double, ierr)
+
               ! This is a bit quick and dirty. Could be done in a better way, but
               ! would probably required to pass additional arguments to the subroutine
               isend_total = f_malloc0(0.to.nproc-1,id='isend_total')
               isend_total(iproc)=collcom_sr%nptsp_c
-              call mpiallred(isend_total, mpi_sum, comm=bigdft_mpi%mpi_comm)
+              call fmpi_allreduce(isend_total, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
         
+
+              !collcom_sr%window = mpiwindow(collcom_sr%nptsp_c*denskern%nspin, rho_local(1), bigdft_mpi%mpi_comm)
+              call fmpi_win_create(collcom_sr%window, rho_local(1), collcom_sr%nptsp_c*denskern%nspin, bigdft_mpi%mpi_comm)
+              call fmpi_win_fence(collcom_sr%window,FMPI_WIN_OPEN)
         
               do ispin=1,denskern%nspin
                   !ishift_dest=(ispin-1)*sum(collcom_sr%commarr_repartitionrho(4,:)) !spin shift for the receive buffer
@@ -609,7 +613,8 @@ module rhopotential
               end do
               !!call mpi_win_fence(0, collcom_sr%window, ierr)
               !!call mpi_win_free(collcom_sr%window, ierr)
-              call mpi_fenceandfree(collcom_sr%window)
+              !call mpi_fenceandfree(collcom_sr%window)
+              call fmpi_win_shut(collcom_sr%window)
         
               call f_free(isend_total)
           else
@@ -625,10 +630,10 @@ module rhopotential
           if (nproc > 1) then
               reducearr(1) = total_charge
               reducearr(2) = rho_neg
-              call mpiallred(reducearr, mpi_sum, comm=bigdft_mpi%mpi_comm)
+              call fmpi_allreduce(reducearr, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
               total_charge = reducearr(1)
               rho_neg = reducearr(2)
-             !call mpiallred(total_charge, 1, mpi_sum, bigdft_mpi%mpi_comm)
+             !call fmpi_allreduce(total_charge, 1, FMPI_SUM, bigdft_mpi%mpi_comm)
           end if
         
           !!if(print_local .and. iproc==0) write(*,'(3x,a,es20.12)') 'Calculation finished. TOTAL CHARGE = ', total_charge*hxh*hyh*hzh
@@ -735,8 +740,8 @@ module rhopotential
       end do
     
       if (nproc > 1) then
-          call mpiallred(ncorrection, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
-          call mpiallred(charge_correction, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
+          call fmpi_allreduce(ncorrection, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+          call fmpi_allreduce(charge_correction, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
       end if
     
       if (iproc==0) then
@@ -1057,7 +1062,7 @@ module rhopotential
 
           energies_mpi(1)=eexcuLOC
           energies_mpi(2)=vexcuLOC
-          call mpiallred(energies_mpi(1), 2,MPI_SUM,comm=bigdft_mpi%mpi_comm,recvbuf=energies_mpi(3))
+          call fmpi_allreduce(energies_mpi(1), 2,FMPI_SUM,comm=bigdft_mpi%mpi_comm,recvbuf=energies_mpi(3))
           exc=energies_mpi(3)
           vxc=energies_mpi(4)
 
@@ -1073,12 +1078,12 @@ module rhopotential
           if (associated(rhocore)) then
              call calc_rhocstr(rhocstr,nxc,nxt,dpbox%mesh%ndims(1), dpbox%mesh%ndims(2),&
                   dpbox%i3xcsh,nspin,potxc,rhocore)
-             if (bigdft_mpi%nproc > 1) call mpiallred(rhocstr,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+             if (bigdft_mpi%nproc > 1) call fmpi_allreduce(rhocstr,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
              rhocstr=rhocstr/real(dpbox%mesh%ndim,dp)
           end if
 
           xcstr(1:3)=(exc-vxc)/real(dpbox%mesh%ndim,dp)/dpbox%mesh%volume_element
-          if (bigdft_mpi%nproc > 1) call mpiallred(wbstr,MPI_SUM,comm=bigdft_mpi%mpi_comm)
+          if (bigdft_mpi%nproc > 1) call fmpi_allreduce(wbstr,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
           wbstr=wbstr/real(dpbox%mesh%ndim,dp)
           xcstr=xcstr+wbstr+rhocstr
        end if
@@ -1120,7 +1125,11 @@ module rhopotential
 !!$    vexcuRC=0.5*vexcuRC
 !!$ end if
          vexcuRC=dot(dpbox%ndimpot,rhoin(1,1,1+dpbox%i3xcsh,1),1,potxc(1,1),1)
-         if (nspin==2) vexcuRC=vexcuRC+dot(dpbox%ndimpot,rhoin(1,1,1+dpbox%i3xcsh,1),1,potxc(1,2),1)
+         if (nspin==2) then
+            vexcuRC=vexcuRC+dot(dpbox%ndimpot,rhoin(1,1,1+dpbox%i3xcsh,1),1,potxc(1,2),1)
+            !divide the results per two because of the spin multiplicity
+            vexcuRC=0.5_wp*vexcuRC
+         end if
          vexcuRC=vexcuRC*dpbox%mesh%volume_element
          !subtract this value from the vexcu
          vexcuLOC=vexcuLOC-vexcuRC

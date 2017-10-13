@@ -53,7 +53,7 @@
     DESCRIPTION: When not none, a cavity around the density is fixed
     EXCLUSIVE: 
       none: No cavity, traditional vacuum treatment
-      rigid: PCM-like cavity, fixed by some distance from the external atoms
+      soft-sphere: PCM-like cavity, fixed by some distance from the external atoms
       sccs: Self-Consistent determination of the cavity from the charge density
     default: none
   epsilon: 
@@ -81,19 +81,19 @@
       Pauling: Pauling collection
     CONDITION:
       MASTER_KEY: cavity
-      WHEN: [rigid]
+      WHEN: [soft-sphere]
   atomic_radii:
     COMMENT: Mapping of the radii that have to be used for each atomic species
     default: 0
     CONDITION:
       MASTER_KEY: cavity
-      WHEN: [rigid]
+      WHEN: [soft-sphere]
   delta: 
-    COMMENT: Amplitude of the transition region in the rigid cavity (AU)
-    default: 2.0
+    COMMENT: Amplitude of the transition region in the soft-sphere cavity (AU)
+    default: 0.5
     CONDITION:
       MASTER_KEY: cavity
-      WHEN: [rigid]
+      WHEN: [soft-sphere]
     PROFILE_FROM: cavity
   cavitation: 
     COMMENT: Triggers the evaluation of the extra cavitation terms
@@ -102,11 +102,11 @@
       MASTER_KEY: cavity
       WHEN_NOT: [none]
   fact_rigid: 
-    COMMENT: Multiplying factor for the whole rigid cavity
+    COMMENT: Multiplying factor for the whole soft-sphere cavity
     default: 1.12
     CONDITION:
       MASTER_KEY: cavity
-      WHEN: [rigid]
+      WHEN: [soft-sphere]
     PROFILE_FROM: cavity
   gammaS: 
     COMMENT: Cavitation term, surface tension of the solvent [dyn/cm]
@@ -139,19 +139,19 @@
     COMMENT: Algorithm for the Generalised Poisson Equation
     default: PCG
     EXCLUSIVE:
-      PI: Polarization Iteration method
+      SC: Self-Consistent method
       PCG: Preconditioned Conjugate Gradient
     CONDITION: 
       MASTER_KEY: cavity
       WHEN_NOT: [none]
     PROFILE_FROM: cavity
   pi_eta: 
-    COMMENT: Mixing parameter of the PI algorithm
+    COMMENT: Mixing parameter of the SC algorithm
     RANGE: [0.0, 1.0]
     default: 0.6
     CONDITION: 
       MASTER_KEY: gps_algorithm
-      WHEN: [PI]
+      WHEN: [SC]
     PROFILE_FROM: gps_algorithm
   input_guess: 
     COMMENT: Triggers the input guess procedure of gps_algorithm

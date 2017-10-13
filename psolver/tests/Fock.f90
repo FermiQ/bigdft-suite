@@ -209,7 +209,7 @@ program Fock_Operator_Program
      pkernel%stay_on_gpu=0
   end if
   call free_OP2P_data(OP2P)
-  if (nproc > 1) call mpiallred(eexctX,1,op=MPI_SUM)
+  if (nproc > 1) call fmpi_allreduce(eexctX,1,op=FMPI_SUM)
   if (iproc == 0) then
      call yaml_map('Exact Exchange Energy',eexctX,fmt='(1pe18.11)')
      call yaml_map('Expected Exchange Energy',ehartree_exp,fmt='(1pe18.11)')

@@ -231,7 +231,7 @@ openbabel_static_sources = openbabel_fake.cpp
 endif
 
 EXTRA_DIST = $(ATOMS_INCLUDES) $(COMMS_INCLUDES) openbabel.cpp
-CLEANFILES = *.mod libbabel.so*
+CLEANFILES = *.@MODULE_EXT@ libbabel.so*
 
 AM_FCFLAGS = -I. -I$(srcdir) -I$(top_builddir)/includes @MPI_INCLUDE@ @LIBABINIT_INCLUDE@ @LIB_XC_CFLAGS@ @LIB_FUTILE_CFLAGS@
 AM_CXXFLAGS = @LIB_FUTILE_CFLAGS@ @LIB_OPENBABEL_CFLAGS@
@@ -250,7 +250,7 @@ input_dicts.o: fragment_base.o input.o
 atoms_data.o: $(ATOMS_INCLUDES) internal_coordinates.o input_dicts.o
 input_keys.o: multipole_base.o atoms_data.o input.o fragment_base.o vdwcorrection.o
 types.o: psp_projectors_base.o atoms_data.o input_keys.o \
-	ab7_mixing.o multipole_base.o dpbox.o
+	ab7_mixing.o multipole_base.o dpbox.o constrained_magnetic_field.o
 interfaces.o: types.o fragments.o diis_module.o constrained_dft.o input_keys.o
 
 BigDFT_API.o: types.o interfaces.o atoms_data.o input_dicts.o psp_projectors.o communications_init.o bigdft_run.o

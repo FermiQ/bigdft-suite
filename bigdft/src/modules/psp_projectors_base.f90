@@ -8,8 +8,6 @@ module psp_projectors_base
 
   private
 
-  integer,parameter,public :: NCPLX_MAX = 2
-
   !> Non local pseudopotential descriptors
   type, public :: nonlocal_psp_descriptors
      integer :: mproj !< number of projectors for this descriptor
@@ -20,12 +18,6 @@ module psp_projectors_base
      integer,dimension(:),pointer :: lut_tolr !< lookup table for tolr, dimension noverlap
      integer :: noverlap !< number of locregs which overlap with the projectors of the given atom
   end type nonlocal_psp_descriptors
-
-  type,public :: workarrays_projectors
-    real(wp),pointer,dimension(:,:,:,:) :: wprojx,wprojy,wprojz
-    real(wp),pointer,dimension(:) :: wproj
-    real(wp),pointer,dimension(:,:,:) :: work
-  end type workarrays_projectors
   
   !> describe the information associated to the non-local part of Pseudopotentials
   type, public :: DFT_PSP_projectors
@@ -56,7 +48,7 @@ module psp_projectors_base
   public :: free_DFT_PSP_projectors
   public :: DFT_PSP_projectors_null
   public :: nonlocal_psp_descriptors_null!,free_pspd_ptr
-  public :: workarrays_projectors_null, allocate_workarrays_projectors, deallocate_workarrays_projectors
+
 contains
 
   pure function nonlocal_psp_descriptors_null() result(pspd)
@@ -105,8 +97,6 @@ contains
     nullify(nl%cproj)
     nullify(nl%hcproj)
   end subroutine nullify_DFT_PSP_projectors
-
-  !allocators
 
 
   !destructors
@@ -158,45 +148,5 @@ contains
     call deallocate_DFT_PSP_projectors(nl)
     call nullify_DFT_PSP_projectors(nl)
   end subroutine free_DFT_PSP_projectors
-
-
-  pure function workarrays_projectors_null() result(wp)
-    implicit none
-    type(workarrays_projectors) :: wp
-    call nullify_workarrays_projectors(wp)
-  end function workarrays_projectors_null
-
-  pure subroutine nullify_workarrays_projectors(wp)
-    implicit none
-    type(workarrays_projectors),intent(out) :: wp
-    nullify(wp%wprojx)
-    nullify(wp%wprojy)
-    nullify(wp%wprojz)
-    nullify(wp%wproj)
-    nullify(wp%work)
-  end subroutine nullify_workarrays_projectors
-
-  subroutine allocate_workarrays_projectors(n1, n2, n3, wp)
-    implicit none
-    integer,intent(in) :: n1, n2, n3
-    type(workarrays_projectors),intent(inout) :: wp
-    integer,parameter :: nterm_max=20
-    integer,parameter :: nw=65536
-    wp%wprojx = f_malloc_ptr((/ 1.to.NCPLX_MAX, 0.to.n1, 1.to.2, 1.to.nterm_max /),id='wprojx')
-    wp%wprojy = f_malloc_ptr((/ 1.to.NCPLX_MAX, 0.to.n2, 1.to.2, 1.to.nterm_max /),id='wprojy')
-    wp%wprojz = f_malloc_ptr((/ 1.to.NCPLX_MAX, 0.to.n3, 1.to.2, 1.to.nterm_max /),id='wprojz')
-    wp%wproj = f_malloc_ptr(NCPLX_MAX*(max(n1,n2,n3)+1)*2,id='wprojz')
-    wp%work = f_malloc_ptr((/ 0.to.nw, 1.to.2, 1.to.2 /),id='work')
-  end subroutine allocate_workarrays_projectors
-
-  subroutine deallocate_workarrays_projectors(wp)
-    implicit none
-    type(workarrays_projectors),intent(inout) :: wp
-    call f_free_ptr(wp%wprojx)
-    call f_free_ptr(wp%wprojy)
-    call f_free_ptr(wp%wprojz)
-    call f_free_ptr(wp%wproj)
-    call f_free_ptr(wp%work)
-  end subroutine deallocate_workarrays_projectors
 
 end module psp_projectors_base

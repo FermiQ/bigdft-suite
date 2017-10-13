@@ -60,7 +60,7 @@ module parallel_linalg
       ! Local variables
       integer :: ierr, i, j, istat, iall, ii1, ii2, mbrow, mbcol, nproc_scalapack, nprocrow, nproccol
       integer :: context, irow, icol, numroc, info, is, np, jproc, maxsize_mpibcast, nn
-      integer :: lnrow_a, lncol_a, lnrow_b, lncol_b, lnrow_c, lncol_c, ka, kb, kc, lla, llb, llc, window
+      integer :: lnrow_a, lncol_a, lnrow_b, lncol_b, lnrow_c, lncol_c, ka, kb, kc, lla, llb, llc
       real(kind=mp) :: tt1, tt2
       real(kind=mp),dimension(:,:),allocatable :: la, lb, lc
       real(kind=mp),dimension(:,:),pointer :: aeff, beff
@@ -69,7 +69,7 @@ module parallel_linalg
       character(len=*),parameter :: subname='dgemm_parallel'
       logical :: quiet_
       integer,parameter :: maxsize_mpibcast_x = 67108864 !number of elements correspoding to 512MB in double precision
-
+      type(fmpi_win) :: window
       call f_routine(id='dgemm_parallel')
       !call timing(iproc, 'dgemm_parallel', 'ON')
       call f_timing(TCAT_HL_DGEMM,'ON')
@@ -149,18 +149,24 @@ module parallel_linalg
           is_all = f_malloc0((/0.to.nproc-1/),id='is_all')
           np_all(iproc) = np
           is_all(iproc) = is
-          call mpiallred(np_all, mpi_sum, comm)
-          call mpiallred(is_all, mpi_sum, comm)
-          window = mpiwindow(ldc*n, c(1,1), comm)
+          call fmpi_allreduce(np_all, FMPI_SUM, comm)
+          call fmpi_allreduce(is_all, FMPI_SUM, comm)
+          !window = mpiwindow(ldc*n, c(1,1), comm)
+          call fmpi_win_create(window,c(1,1),int(ldc,f_long)*n,comm=comm)
+          call fmpi_win_fence(window,FMPI_WIN_OPEN)
           if (iproc==0) then
               do jproc=0,nproc-1
                   if (jproc/=iproc) then
-                      call mpiget(c(1,is_all(jproc)+1), ldc*np_all(jproc), jproc, &
-                           int(ldc*is_all(jproc),kind=mpi_address_kind), window)
+                     call fmpi_get(c(1,is_all(jproc)+1),jproc,window,ldc*np_all(jproc),&
+                          int(ldc*is_all(jproc),kind=fmpi_address))
+                     !call mpiget(c(1,is_all(jproc)+1), ldc*np_all(jproc), jproc, &
+                     !int(ldc*is_all(jproc),kind=mpi_address_kind), window)
                   end if
               end do
           end if
-          call mpi_fenceandfree(window)
+          call fmpi_win_fence(window,FMPI_WIN_CLOSE)
+          call fmpi_win_free(window)
+          !call mpi_fenceandfree(window)
           maxsize_mpibcast = max(maxsize_mpibcast_x, ldc)
           is = 0
           nn = 0
@@ -344,7 +350,7 @@ module parallel_linalg
           
           ! Gather the result on all processes.
           if (nproc > 1) then
-             call mpiallred(c, mpi_sum, comm=comm)
+             call fmpi_allreduce(c, FMPI_SUM, comm=comm)
           end if
     
           !call blacs_exit(0)
@@ -404,7 +410,7 @@ module parallel_linalg
       
       blocksize_if: if (blocksize<0) then
           if (iproc==0 .and. .not.quiet_) call yaml_map('mode','sequential')
-          ! Worksize query
+          ! Worksize query (this should be inserted)
           lwork = -1
           work = f_malloc(1,id='work')
           call dsyev(jobz, uplo, n, a, lda, w, work, lwork, info)
@@ -605,12 +611,12 @@ module parallel_linalg
           ! Gather the eigenvectors on all processes.
           ! SM: An allreduce of the total a led to problenms, therefore do each row separately...
           if (nproc > 1) then
-             !call mpiallred(a, mpi_sum, comm=comm)
+             !call fmpi_allreduce(a, FMPI_SUM, comm=comm)
              do i=1,n
-                 call mpiallred(a(1:lda,i), mpi_sum, comm=comm)
+                 call fmpi_allreduce(a(1:lda,i), FMPI_SUM, comm=comm)
              end do
           end if
-          !write(*,*) 'after mpiallred, iproc', iproc
+          !write(*,*) 'after fmpi_allreduce, iproc', iproc
           
           ! Broadcast the eigenvalues if required. If nproc_scalapack==nproc, then all processes
           ! diagonalized the matrix and therefore have the eigenvalues.
@@ -857,7 +863,7 @@ module parallel_linalg
           
           ! Gather the eigenvectors on all processes.
           if (nproc > 1) then
-             call mpiallred(a, mpi_sum, comm=comm)
+             call fmpi_allreduce(a, FMPI_SUM, comm=comm)
           end if
           
           ! Broadcast the eigenvalues if required. If nproc_scalapack==nproc, then all processes
@@ -1001,7 +1007,7 @@ module parallel_linalg
       
       ! Gather the result on all processes
       if (nproc > 1) then
-         call mpiallred(b, mpi_sum, comm=comm)
+         call fmpi_allreduce(b, FMPI_SUM, comm=comm)
       end if
       
       !call blacs_exit(0)
@@ -1120,7 +1126,7 @@ module parallel_linalg
       
       ! Gather the result on all processes.
       if (nproc > 1) then
-         call mpiallred(a, mpi_sum, comm=comm)
+         call fmpi_allreduce(a, FMPI_SUM, comm=comm)
       end if
     
       !call blacs_exit(0)
@@ -1236,7 +1242,7 @@ module parallel_linalg
       
       ! Gather the result on all processes.
       if (nproc > 1) then
-         call mpiallred(a, mpi_sum, comm=comm)
+         call fmpi_allreduce(a, FMPI_SUM, comm=comm)
       end if
     
       !call blacs_exit(0)

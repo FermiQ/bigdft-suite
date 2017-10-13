@@ -53,7 +53,8 @@ module communications_base
     real(kind=8),dimension(:),pointer :: psit_c, psit_f
     integer,dimension(:),pointer :: nsendcounts_repartitionrho, nrecvcounts_repartitionrho
     integer,dimension(:),pointer :: nsenddspls_repartitionrho, nrecvdspls_repartitionrho
-    integer :: ncomms_repartitionrho, window
+    integer :: ncomms_repartitionrho
+    type(fmpi_win) :: window
     integer,dimension(:,:),pointer :: commarr_repartitionrho
     integer :: imethod_overlap !< method to calculate the overlap
   end type comms_linear
@@ -65,12 +66,13 @@ module communications_base
     real(kind=8), dimension(:), pointer :: recvBuf
     integer, dimension(:,:), pointer :: comarr
     integer :: nrecvBuf
-    integer :: window, onedtypeovrlp
+    integer :: onedtypeovrlp
     integer, dimension(6) :: ise !< Starting / ending index of recvBuf in x,y,z dimension after communication (glocal coordinates)
     integer, dimension(:), pointer :: mpi_datatypes
     integer,dimension(:,:),pointer :: onedtypearr
     logical :: communication_complete
     integer :: nspin !< spin polarization (this information is redundant, just for handyness)
+    type(fmpi_win) :: window
   end type p2pComms
 
   type, public :: work_transpose
@@ -89,9 +91,9 @@ module communications_base
        
 
   !> Public routines
-  public :: comms_linear_null
+  public :: comms_linear_null, nullify_comms_linear
   public :: comms_cubic_null
-  public :: p2pComms_null
+  public :: p2pComms_null, nullify_p2pComms
   public :: allocate_MPI_communication_arrays
   public :: allocate_local_comms_cubic
   !!public :: allocate_MPI_comms_cubic_repartition
@@ -182,7 +184,7 @@ contains
     comms%nptsp_f = 0
     comms%ndimpsi_f = 0
     comms%ncomms_repartitionrho = 0
-    comms%window = 0
+    !comms%window = 0
     comms%imethod_overlap = 0
   end subroutine nullify_comms_linear
 

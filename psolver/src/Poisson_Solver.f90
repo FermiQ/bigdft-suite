@@ -94,6 +94,7 @@ module Poisson_Solver
    public :: PS_dim4allocation,PSolver_logo,ps_soft_PCM_forces
    ! Routine that creates the kernel
    public :: pkernel_init, pkernel_set, pkernel_free, pkernel_set_epsilon, pkernel_allocate_cavity,pkernel_get_radius
+   public :: rebuild_cavity_from_rho
    ! Calculate the poisson solver
    public :: H_potential,Electrostatic_Solver,PS_set_options
    ! Calculate the allocation dimensions

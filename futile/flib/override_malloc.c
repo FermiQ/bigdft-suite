@@ -19,7 +19,7 @@
 #define FC_QUOTE(str) FC_STR(str)
 #define FC_SYMBOL(sym,SYM) FC_QUOTE(FC_FUNC(sym,SYM))
 
-#define RTLD_NEXT RTLD_DEFAULT
+/* #define RTLD_NEXT RTLD_DEFAULT (this has been put for windows) */
 
 static void* (*real_malloc)(size_t)=NULL;
 

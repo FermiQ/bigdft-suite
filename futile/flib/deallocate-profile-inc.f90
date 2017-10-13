@@ -11,8 +11,6 @@
  !local variables
   integer :: ierror
   ! logical :: use_global
-  !$ logical :: not_omp
-  !$ logical, external :: omp_in_parallel,omp_get_nested
   integer(kind=8) :: ilsize
   ! integer(kind=8) :: jlsize
   integer(kind=8) :: iadd
@@ -27,8 +25,6 @@
        'ERROR (f_free): the routine f_malloc_initialize has not been called',&
        ERR_MALLOC_INTERNAL)) return
   nullify(info)
-
-  !$ not_omp=.not. (omp_in_parallel() .or. omp_get_nested())
 
   !here we should add a control of the OMP behaviour of allocation
   !in particular for what concerns the OMP nesting procedure

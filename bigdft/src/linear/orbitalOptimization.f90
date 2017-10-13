@@ -153,7 +153,7 @@ subroutine optimizeDIIS(iproc, nproc, npsidim, orbs, nspin, lzd, hphi, phi, ldii
   end do
 
   if (nproc > 1) then
-    call mpiallred(totmat, mpi_sum, comm=bigdft_mpi%mpi_comm)
+    call fmpi_allreduce(totmat, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
   end if
 
 

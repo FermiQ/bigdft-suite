@@ -16,5 +16,6 @@ module_autogenargs['bigdft'] = "FC=mpif90 FCFLAGS='-O2 -g -traceback' --with-pyy
 module_autogenargs['libABINIT'] = "FC=mpif90 FCFLAGS='-fPIC'"
 
 module_autogenargs['GaIn'] = "FC=mpif90 FCFLAGS='-fPIC'"
+module_autogenargs['chess'] = "FC=mpif90 FCFLAGS='-fPIC'"
 
 module_autogenargs['etsf_io'] += "FCFLAGS='-fPIC'"

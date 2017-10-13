@@ -263,7 +263,7 @@ subroutine inputguessConfinement(iproc, nproc, at, input, hx, hy, hz, &
           end do
       end do
   end do
-  call mpiallred(mapping, mpi_sum, comm=bigdft_mpi%mpi_comm)
+  call fmpi_allreduce(mapping, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
   call f_free(nat_par)
 
 
@@ -278,7 +278,7 @@ subroutine inputguessConfinement(iproc, nproc, at, input, hx, hy, hz, &
           end if
       end do
   end do
-  call mpiallred(inversemapping, mpi_sum, comm=bigdft_mpi%mpi_comm)
+  call fmpi_allreduce(inversemapping, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
 
   nvirt=0
 

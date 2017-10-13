@@ -13,7 +13,7 @@ module f_functions
   implicit none
   private
 
-  integer, parameter :: MAX_FUNC_PARAMETERS=2
+  integer, parameter :: MAX_FUNC_PARAMETERS=8 !<determined by the degree of the polynomial assumed
 
   integer, parameter :: FUNCTION_NULL=0
 
@@ -32,9 +32,13 @@ module f_functions
   integer, parameter :: FUNC_SINE = 7
   integer, parameter :: FUNC_ATAN = 8
   integer, parameter :: FUNC_ERF = 9
+  integer, parameter :: FUNC_POLYNOMIAL = 10
+
+  integer, parameter :: UNIFORM_GRID_ID=-1
 
   type(f_enumerator), public :: f_constant=f_enumerator('CONSTANT',FUNC_CONSTANT,null())
   type(f_enumerator), public :: f_gaussian=f_enumerator('GAUSSIAN',FUNC_GAUSSIAN,null())
+  type(f_enumerator), public :: f_polynomial=f_enumerator('POLYNIOMIAL',FUNC_POLYNOMIAL,null())
   type(f_enumerator), public :: f_gaussian_shrinked=f_enumerator('GAUSSIAN_SHRINKED',FUNC_GAUSSIAN_SHRINKED,null())
   type(f_enumerator), public :: f_cosine=f_enumerator('COSINE',FUNC_COSINE,null())
   type(f_enumerator), public :: f_exp_cosine=f_enumerator('EXP_COSINE',FUNC_EXP_COSINE,null())
@@ -42,35 +46,63 @@ module f_functions
   type(f_enumerator), public :: f_sine=f_enumerator('SINE',FUNC_SINE,null())
   type(f_enumerator), public :: f_atan=f_enumerator('ATAN',FUNC_ATAN,null())
   type(f_enumerator), public :: f_erf=f_enumerator('ERF',FUNC_ERF,null())
-  type(f_enumerator) :: ENUM_1D_GRID=f_enumerator('1D_GRID',-1,null())
+
+  type(f_enumerator), public :: UNIFORM_GRID=f_enumerator('UNIFORM_GRID',UNIFORM_GRID_ID,null())
 
 
   type, public :: f_function
      integer :: function_type
      !>parameter of the function that has to be defined
-     real(f_double), dimension(MAX_FUNC_PARAMETERS) :: params
+     real(f_double), dimension(MAX_FUNC_PARAMETERS) :: params=0.0_f_double
      !type(kernel_ctx) :: func !<for more elaborate evaluations
-     real(f_double), pointer :: argument
-     type(f_function), pointer :: compose
-     type(f_function), pointer :: multiply
-     type(f_function), pointer :: add
+     real(f_double), pointer :: argument=>null()
+     type(f_function), pointer :: compose=>null()
+     type(f_function), pointer :: multiply=>null()
+     type(f_function), pointer :: add=>null()
   end type f_function
 
-  type, public :: f_grid
+  !> one dimensional grid to evaluate the function
+  type, public :: f_grid_1d
      type(f_enumerator) :: fmt
      integer :: npts=0
+     real(f_double) :: a=0.0_f_double
      real(f_double) :: h=0.0_f_double
      real(f_double) :: c=0.0_f_double
-  end type f_grid
+  end type f_grid_1d
 
-  public :: f_function_new,eval,diff
+!!$  interface operator(*)
+!!$     module procedure functions_product
+!!$  end interface operator(*)
+
+  public :: f_function_new,eval,diff,f_grid_1d_new,f_function_dump
   public :: separable_3d_function,separable_3d_laplacian,radial_3d_function
+!  public :: operator(*)
 
   contains
 
 !!$    !composition
 !!$    func=f_function('gaussian',compose=f_function('tan'))
 !!$    func2=func*f_function('gaussian',exponent=12.0)
+
+    function f_grid_1d_new(style,interval,npts,h) result(g)
+      implicit none
+      type(f_enumerator), intent(in) :: style
+      real(f_double), dimension(2), intent(in) :: interval
+      integer, intent(in), optional :: npts !<number of points
+      real(f_double), intent(in), optional :: h !<mesh spacing
+      type(f_grid_1d) :: g
+
+      g%fmt=style
+      g%a=interval(1) !<starting point
+      g%c=0.5_f_double*(interval(2)+interval(1)) !<center, unless otherwise specified
+      if (present(npts)) then
+         g%npts=npts
+         g%h=(interval(2)-interval(1))/real(npts-1,f_double)
+      else if (present(h)) then
+         g%h=h
+         g%npts=nint((interval(2)-interval(1))/h)+1
+      end if
+    end function f_grid_1d_new
 
     pure function f_function_null() result(f)
       use f_utils, only: f_zero
@@ -84,14 +116,16 @@ module f_functions
       nullify(f%add)
     end function f_function_null
 
-    function f_function_new(function_type,exponent,length,frequency,scale,prefactor)
+    function f_function_new(function_type,exponent,length,frequency,scale,prefactor,coefficients)
       use f_enums
       use dictionaries, only: f_err_raise
       implicit none
       type(f_enumerator), intent(in) :: function_type
       real(f_double), intent(in), optional :: exponent,length,frequency,scale,prefactor
+      real(f_double), dimension(:), intent(in), optional :: coefficients
       type(f_function) :: f_function_new
       !local variables
+      integer :: i
 
       f_function_new=f_function_null()
       !check on arguments
@@ -100,6 +134,15 @@ module f_functions
       case(FUNC_CONSTANT)
          if (f_err_raise(.not. present(prefactor),'f_function: prefactor')) return
          f_function_new%params(PREFACTOR_)=prefactor
+      case(FUNC_POLYNOMIAL)
+         if (f_err_raise(.not. present(coefficients),'f_function: coefficients')) return
+         if (f_err_raise(size(coefficients) > MAX_FUNC_PARAMETERS-1,'f_function: too many coeffs')) return
+         f_function_new%params(2:size(coefficients)+1)=coefficients
+         !determine how many effective coefficients we have
+         do i=MAX_FUNC_PARAMETERS,2,-1
+            if (f_function_new%params(i) /= 0.0_f_double) exit
+         end do
+         f_function_new%params(1)=real(i-1,f_double)
       case(FUNC_GAUSSIAN)
          if (f_err_raise(.not. present(exponent),'f_function: exponent')) return
          f_function_new%params(EXPONENT_)=exponent
@@ -117,7 +160,70 @@ module f_functions
       end select
     end function f_function_new
 
-    pure function eval(func,x) result(y)
+!!$    !>defines a new function that is the multipoication of func1 and func2
+!!$    !!@warning: such function has the same scope of func1 and func2. 
+!!$    !!Should the stack frame of func1,2 change, the function is invalidated
+!!$    function functions_product(func1,func2) result(func)
+!!$      implicit none
+!!$      type(f_function), intent(in), target :: func1
+!!$      type(f_function), intent(in), target :: func2
+!!$      type(f_function) :: func
+!!$      !local variables
+!!$      type(f_function), pointer :: ftmp
+!!$      
+!!$      func=func1 !depcopy of the params
+!!$      if (.not. associated(func%multiply)) then
+!!$         allocate(func%multiply)
+!!$         func%multiply=func2
+!!$      else
+!!$         
+!!$
+!!$      ftmp=>func1
+!!$      do while(associated(ftmp%multiply))
+!!$         ftmp=>ftmp%multiply
+!!$      end do
+!!$      allocate(ftmp%multiply)
+!!$      ftmp%multiply=func2
+!!$         
+!!$    end function functions_product
+
+    recursive pure function eval(func,x) result(y)
+      implicit none
+      type(f_function), intent(in) :: func
+      real(f_double), intent(in) :: x
+      real(f_double) :: y
+      y=eval_(func,x)
+      if(associated(func%multiply)) y=y*eval(func%multiply,x)
+    end function eval
+
+    recursive pure function diff(func,x,order) result(y)
+      implicit none
+      type(f_function), intent(in) :: func
+      real(f_double), intent(in) :: x
+      integer, intent(in), optional :: order
+      real(f_double) :: y
+      !local variables
+      integer :: ord
+      y=diff_(func,x,order)
+      ord=1
+      if (present(order)) ord=order
+
+      select case(ord)
+      case(1)
+         !leibnitz rule
+         if(associated(func%multiply)) then
+            y=y*eval(func%multiply,x)+eval_(func,x)*diff(func%multiply,x)
+         end if
+      case(2)
+         if(associated(func%multiply)) then
+            y=y*eval(func%multiply,x)+2*diff_(func,x,1)*diff(func%multiply,x,1)+&
+                 eval_(func,x)*diff(func%multiply,x,order)
+         end if
+      end select
+      
+    end function diff
+
+    pure function eval_(func,x) result(y)
       implicit none
       type(f_function), intent(in) :: func
       real(f_double), intent(in) :: x
@@ -130,6 +236,8 @@ module f_functions
          y=func%params(PREFACTOR_)
       case(FUNC_GAUSSIAN)
          y=gaussian(func%params(EXPONENT_),x,idiff)
+      case(FUNC_POLYNOMIAL)
+         y=polynomial(func%params,x,idiff)
       case(FUNC_GAUSSIAN_SHRINKED)
          y=gaussian_shrinked(func%params(LENGTH_),x,idiff)
       case(FUNC_COSINE)
@@ -147,9 +255,9 @@ module f_functions
       case default
          y=0.0_f_double
       end select
-    end function eval
+    end function eval_
 
-    pure function diff(func,x,order) result(y)
+    pure function diff_(func,x,order) result(y)
       implicit none
       type(f_function), intent(in) :: func
       real(f_double), intent(in) :: x
@@ -166,6 +274,8 @@ module f_functions
          y=0.0_f_double
       case(FUNC_GAUSSIAN)
          y=gaussian(func%params(EXPONENT_),x,idiff)
+      case(FUNC_POLYNOMIAL)
+         y=polynomial(func%params,x,idiff)
       case(FUNC_GAUSSIAN_SHRINKED)
          y=gaussian_shrinked(func%params(LENGTH_),x,idiff)
       case(FUNC_COSINE)
@@ -181,43 +291,43 @@ module f_functions
       case(FUNC_ERF)
          y=error_function(func%params(SCALE_),x,idiff)
       end select
-    end function diff
+    end function diff_
 
-    pure function grid_1d_new(npts,h,x0,centered) result(g)
-      implicit none
-      integer, intent(in) :: npts
-      real(f_double), intent(in) :: h
-      logical, intent(in), optional :: centered
-      real(f_double), intent(in), optional :: x0
-      type(f_grid) :: g
-      !local variables
-      !g%fmt=enum_1d_grid
-      g%npts=npts
-      g%h=h
-      g%c=0.0_f_double
-      if (present(centered)) then
-         if (centered) g%c=real(npts/2-1,f_double)
-      else if (present(x0)) then
-         g%c=x0
-      end if
-    end function grid_1d_new
+!!$    pure function grid_1d_new(npts,h,x0,centered) result(g)
+!!$      implicit none
+!!$      integer, intent(in) :: npts
+!!$      real(f_double), intent(in) :: h
+!!$      logical, intent(in), optional :: centered
+!!$      real(f_double), intent(in), optional :: x0
+!!$      type(f_grid) :: g
+!!$      !local variables
+!!$      !g%fmt=enum_1d_grid
+!!$      g%npts=npts
+!!$      g%h=h
+!!$      g%c=0.0_f_double
+!!$      if (present(centered)) then
+!!$         if (centered) g%c=real(npts/2-1,f_double)
+!!$      else if (present(x0)) then
+!!$         g%c=x0
+!!$      end if
+!!$    end function grid_1d_new
 
     pure function grid_x(g,i) result(x)
       implicit none
-      type(f_grid), intent(in) :: g
+      type(f_grid_1d), intent(in) :: g
       integer, intent(in) :: i
       real(f_double) :: x
       
       !for the moment only 1d grid, but also radial grid might be generalized
-      x=g%h*(real(i,f_double)-g%c)
+      x=g%h*real(i-1,f_double)+g%a
     end function grid_x
 
-    !>dump the function and its first derivative in the unit specified
+    !>dump the function and its first two derivatives in the unit specified
     subroutine f_function_dump(unit,func,grid)
       implicit none
       integer, intent(in) :: unit
       type(f_function), intent(in) :: func
-      type(f_grid), intent(in) :: grid
+      type(f_grid_1d), intent(in) :: grid
       !local variables
       integer :: i
       real(f_double) :: fx,fx1,fx2,x      
@@ -246,6 +356,41 @@ module f_functions
          f=(-2.0_f_double*a+4.0_f_double*a*r2)*f !<checked
       end select
     end function gaussian
+
+    pure function polynomial(coeffs,x,idiff) result(f)
+      implicit none
+      integer, intent(in) :: idiff 
+      real(f_double), intent(in) :: x
+      real(f_double), dimension(0:MAX_FUNC_PARAMETERS-1), intent(in) :: coeffs
+      real(f_double) :: f
+      !local variables
+      integer :: ncoeff,i,istart
+      real(f_double) :: pow
+
+      ncoeff=nint(coeffs(0))
+      pow=1.0_f_double
+      f=0.0_f_double
+      select case(idiff)
+      case(0)
+         f=coeffs(1)
+         do i=2,ncoeff
+            pow=pow*x
+            f=f+coeffs(i)*pow
+         end do
+      case(1)
+         f=coeffs(2)
+         do i=3,ncoeff
+            pow=pow*x
+            f=f+(i-1)*coeffs(i)*pow
+         end do
+      case(2)
+         f=coeffs(3)
+         do i=4,ncoeff
+            pow=pow*x
+            f=f+(i-1)*(i-2)*coeffs(i)*pow
+         end do
+      end select
+    end function polynomial
 
     pure function gaussian_shrinked(length,x,idiff) result(f)
       implicit none
@@ -427,14 +572,16 @@ module f_functions
       real(f_double), intent(in) :: factor
       type(box_iterator), intent(inout) :: bit
       type(f_function), intent(in) :: func
-      real(f_double), dimension(bit%mesh%ndims(1),bit%mesh%ndims(2),bit%mesh%ndims(3)), intent(out) :: f
+      !real(f_double), dimension(bit%mesh%ndims(1),bit%mesh%ndims(2),bit%mesh%ndims(3)), intent(out) :: f
+      real(f_double), dimension(*), intent(out) :: f
       !local variables
       real(f_double) :: r2,r
 
       do while(box_next_point(bit))
-         r2=square(bit%mesh,bit%rxyz)
+         r2=square_gd(bit%mesh,bit%rxyz)
          r = sqrt(r2)
-         f(bit%i,bit%j,bit%k) =factor*eval(func,r)
+         !f(bit%i,bit%j,bit%k) =factor*eval(func,r)
+         f(bit%ind) =factor*eval(func,r)
       end do
 
     end subroutine radial_3d_function
@@ -446,7 +593,8 @@ module f_functions
       real(f_double), intent(in) :: factor
       type(box_iterator), intent(inout) :: bit
       type(f_function), dimension(3), intent(in) :: funcs
-      real(f_double), dimension(bit%mesh%ndims(1),bit%mesh%ndims(2),bit%mesh%ndims(3)), intent(out) :: f
+      !real(f_double), dimension(bit%mesh%ndims(1),bit%mesh%ndims(2),bit%mesh%ndims(3)), intent(out) :: f
+      real(f_double), dimension(*), intent(out) :: f
       !local variables
       real(f_double) :: fx,fy,fz
 
@@ -456,7 +604,8 @@ module f_functions
             fy=eval(funcs(2),bit%rxyz(2))
             do while(box_next_x(bit))
                fx=eval(funcs(1),bit%rxyz(1))
-               f(bit%i,bit%j,bit%k) = factor*fx*fy*fz
+               !f(bit%i,bit%j,bit%k) = factor*fx*fy*fz
+               f(bit%ind) = factor*fx*fy*fz
             end do
          end do
       end do
@@ -469,7 +618,8 @@ module f_functions
       real(f_double), intent(in) :: factor
       type(box_iterator), intent(inout) :: bit
       type(f_function), dimension(3), intent(in) :: funcs
-      real(f_double), dimension(bit%mesh%ndims(1),bit%mesh%ndims(2),bit%mesh%ndims(3)), intent(out) :: f
+      !real(f_double), dimension(bit%mesh%ndims(1),bit%mesh%ndims(2),bit%mesh%ndims(3)), intent(out) :: f
+      real(f_double), dimension(*), intent(out) :: f
       !local variables
       real(f_double) :: fx,fy,fz,fx1,fx2,fy1,fy2,fz1,fz2
 
@@ -486,7 +636,7 @@ module f_functions
                   fx=eval(funcs(1),bit%rxyz(1))
                   fx1=diff(funcs(1),bit%rxyz(1))
                   fx2=diff(funcs(1),bit%rxyz(1),order=2)
-                  f(bit%i,bit%j,bit%k) = factor*((bit%mesh%gu(1,1)*fx2*fy*fz+bit%mesh%gu(2,2)*fx*fy2*fz+&
+                  f(bit%ind) = factor*((bit%mesh%gu(1,1)*fx2*fy*fz+bit%mesh%gu(2,2)*fx*fy2*fz+&
                        bit%mesh%gu(3,3)*fx*fy*fz2)+&
                        2.0_f_double*(bit%mesh%gu(1,2)*fx1*fy1*fz+bit%mesh%gu(1,3)*fx1*fy*fz1+bit%mesh%gu(2,3)*fx*fy1*fz1))
                end do
@@ -505,7 +655,7 @@ module f_functions
                   fx=eval(funcs(1),bit%rxyz(1))
                   fx2=diff(funcs(1),bit%rxyz(1),order=2)
                   !print *,'x',bit%i,fx,fx2
-                  f(bit%i,bit%j,bit%k) = factor*(fx2*fy*fz+fx*fy2*fz+fx*fy*fz2)
+                  f(bit%ind) = factor*(fx2*fy*fz+fx*fy2*fz+fx*fy*fz2)
                end do
             end do
          end do

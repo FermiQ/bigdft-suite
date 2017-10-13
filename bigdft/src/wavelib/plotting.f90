@@ -347,7 +347,7 @@ subroutine plot_wf(units_provided,orbname,nexpo,at,factor,lr,hgrids,rxyz,psi, &
 !!$       at,factor,rxyz,n1i,n2i,n3i,n1s,n2s,n3s,0.5_gp*hx,0.5_gp*hy,0.5_gp*hz,&
 !!$       1.0_gp,psir,nexpo,0.0_gp,psir)
 
-  call dump_field(trim(orbname)//'.cube',lr%geocode,ndims,hhgrids,1,psir,&
+  call dump_field(trim(orbname)//'.cube',lr%mesh,1,psir,&
        rxyz,at%astruct%iatype,at%nzatom,at%nelpsp)
 
 

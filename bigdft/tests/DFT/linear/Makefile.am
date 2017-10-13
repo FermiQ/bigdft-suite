@@ -11,25 +11,26 @@ SHORT_TESTDIRS= base \
 
 LONG_TESTDIRS = $(SHORT_TESTDIRS) \
 	Locreg \
-	   mixpotential \
-	   cleanup \
-       onlyhigh \
-	   restartdisk \
-	   foe \
-	   geopt \
-	   testforces \
-	   fructose \
-       hybrid-directmin \
-	   linearcubic \
-	   experimentalfoe \
-	   sparsity \
-	   explicit_locregcenters \
-	   geoptconstrained \
-	   O2spin \
-	   expfoegeopt \
-	   igortho \
-       extendedfrags \
-	   matrixtaskgroups
+	mixpotential \
+	cleanup \
+    onlyhigh \
+	restartdisk \
+	foe \
+	geopt \
+	testforces \
+	fructose \
+    hybrid-directmin \
+	linearcubic \
+	experimentalfoe \
+	sparsity \
+	explicit_locregcenters \
+	geoptconstrained \
+	O2spin \
+	expfoegeopt \
+	igortho \
+    extendedfrags \
+	matrixtaskgroups \
+	metals
 
 if HAVE_PEXSI
   LONG_TESTDIRS += pexsi
@@ -172,21 +173,31 @@ multipoles_periodic.out.post-out:
 	  --action=multipole-analysis \
 	  --method=mulliken \
 	  --matrix_basis=realspace \
-	  --mpirun='/home/stephan/Software/openmpi-1.8.4_gnu/bin/mpirun -np 2' \
+	  --mpirun='$(run_parallel)' \
 	  --metadata_file=data-periodic/sparsematrix_metadata.dat \
-	  --kernel_file=data-periodic/density_kernel_sparse.bin \
-	  --hamiltonian_file=data-periodic/hamiltonian_sparse.bin \
-	  --overlap_file=data-periodic/overlap_sparse.bin \
-	  --multipole_matrix_0_0=data-periodic/mpmat_0_0.bin \
-	  --multipole_matrix_1_0=data-periodic/mpmat_1_-1.bin \
-	  --multipole_matrix_1_1=data-periodic/mpmat_1_0.bin \
-	  --multipole_matrix_1_2=data-periodic/mpmat_1_1.bin \
-	  --multipole_matrix_2_0=data-periodic/mpmat_2_-2.bin \
-	  --multipole_matrix_2_1=data-periodic/mpmat_2_-1.bin \
-	  --multipole_matrix_2_2=data-periodic/mpmat_2_0.bin \
-	  --multipole_matrix_2_3=data-periodic/mpmat_2_1.bin \
-	  --multipole_matrix_2_4=data-periodic/mpmat_2_2.bin \
-	  > test-multipoles_periodic.out.yaml
+	  --kernel_file=data-periodic/density_kernel_sparse.txt \
+	  --hamiltonian_file=data-periodic/hamiltonian_sparse.txt \
+	  --overlap_file=data-periodic/overlap_sparse.txt \
+	  --multipole_matrix_0_0=data-periodic/mpmat_0_0.txt \
+	  --multipole_matrix_1_0=data-periodic/mpmat_1_-1.txt \
+	  --multipole_matrix_1_1=data-periodic/mpmat_1_0.txt \
+	  --multipole_matrix_1_2=data-periodic/mpmat_1_1.txt \
+	  --multipole_matrix_2_0=data-periodic/mpmat_2_-2.txt \
+	  --multipole_matrix_2_1=data-periodic/mpmat_2_-1.txt \
+	  --multipole_matrix_2_2=data-periodic/mpmat_2_0.txt \
+	  --multipole_matrix_2_3=data-periodic/mpmat_2_1.txt \
+	  --multipole_matrix_2_4=data-periodic/mpmat_2_2.txt \
+	  > test-multipoles_periodic-MP.out.yaml
+	$(abs_top_builddir)/src/bigdft-tool \
+      --action='kernel-purity' \
+      --mpirun='$(run_parallel)' \
+      --matrix_format='serial_text' \
+      --metadata_file='data-periodic/sparsematrix_metadata.dat' \
+      --overlap_file='data-periodic/overlap_sparse.txt' \
+      --kernel_file='data-periodic/density_kernel_sparse.txt' \
+      --kernel_matmul_file='data-periodic/density_kernel_sparse_matmul.txt' \
+      --fragment_file='frag.dat' \
+      > test-multipoles_periodic-PI.out.yaml
 
 #matrixtaskgroups_yes.out.post-out: 
 #	$(abs_top_builddir)/src/bigdft-tool --action=calculate-selected-eigenvalues \

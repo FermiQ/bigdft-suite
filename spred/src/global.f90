@@ -173,9 +173,9 @@ program MINHOP
   close(11)
   idum=nrandoff
   do i=1,nrandoff
-     call random_number(ts)
+     call random_number(rtmp)
      !rtmp = builtin_rand(idum)
-     call f_random_number(rtmp)
+     !call f_random_number(rtmp)
   enddo
   if(bigdft_mpi%iproc == 0)call yaml_map('(MH) First random number',rtmp)
 
@@ -339,11 +339,12 @@ call fingerprint(spredinputs,nid,bigdft_nat(run_opt),bigdft_get_cell(run_opt),rc
   if (bigdft_mpi%iproc == 0) then
      tt=dnrm2(3*outs%fdim,outs%fxyz,1)
      write(fn6,'(i6.6)')nposacc
-     if(disable_hatrans)then
-         write(comment,'(a,1pe10.3)')'ha_trans disabled, fnrm= ',tt
-     else
-         write(comment,'(a,1pe10.3)')'ha_trans enabled, fnrm= ',tt
-     endif
+     write(comment,'(a,1pe10.3)')'fnrm= ',tt
+!!     if(disable_hatrans)then
+!!         write(comment,'(a,1pe10.3)')'ha_trans disabled, fnrm= ',tt
+!!     else
+!!         write(comment,'(a,1pe10.3)')'ha_trans enabled, fnrm= ',tt
+!!     endif
      call bigdft_write_atomic_file(run_opt,outs,&
           'posacc_'//fn6//trim(naming_id),&
           !'posacc_'//fn4//'_'//trim(bigdft_run_id_toa()),&

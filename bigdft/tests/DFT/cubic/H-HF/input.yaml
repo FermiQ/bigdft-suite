@@ -1,0 +1,26 @@
+ dft:
+   hgrids: 0.40
+   gnrm_cv: 1.e-7
+   rmult: [3.000000000000, 7.0]
+   nspin: 2
+   mpol: 1
+   ixc: HF
+   itermax: 100
+ perf:
+   exctxpar: BC
+ posinp:
+   positions:
+   - H: [0.0, 0.0, 0.0]
+     IGSpin: 1
+ psppar.H:
+   Pseudopotential type                : HGH-K
+   Atomic number                       : 1
+   No. of Electrons                    : 1
+   Pseudopotential XC                  : 1
+   Local Pseudo Potential (HGH convention):
+     Rloc                              : 0.2
+     Coefficients (c1 .. c4): [-4.1802368, 0.72507482, 0.0, 0.0]
+   Radii of active regions (AU):
+     Coarse                            : 1.463418464633951
+     Fine                              : 0.2
+     Coarse PSP                        : 0.

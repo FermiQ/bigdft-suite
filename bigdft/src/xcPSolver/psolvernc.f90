@@ -289,7 +289,7 @@ subroutine PSolver(geocode,datacode,iproc,nproc,n01,n02,n03,xc,hgrids,&
      scal=-2.0_dp*hgrids(1)*hgrids(2)/real(n1*n2*n3,dp)
   end if
   !here the case ncplx/= 1 should be added
-  call G_PoissonSolver(iproc,nproc,bigdft_mpi%mpi_comm,0,MPI_COMM_NULL,geocode,1,n1,n2,n3,nd1,nd2,nd3,md1,md2,md3,karray,zf(1,1,1),&
+  call G_PoissonSolver(iproc,nproc,bigdft_mpi%mpi_comm,0,MPI_COMM_NULL,1,n1,n2,n3,nd1,nd2,nd3,md1,md2,md3,karray,zf(1,1,1),&
        scal,0.0_dp,mesh,offset,strten)
     
   !the value of the shift depends on the distributed i/o or not

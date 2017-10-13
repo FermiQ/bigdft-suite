@@ -184,7 +184,7 @@ ntimes=1
    pkernel2=pkernel_init(.false.,0,1,2,'F',ndim,hgriddim,16)
    call pkernel_set(pkernel2,verbose=verbose >1)
 
-   scal=product(pkernel2%hgrids)/real(n1*n2*n3,dp)
+   scal=product(pkernel2%mesh%hgrids)/real(n1*n2*n3,dp)
 
    ndim(1)=n1
    ndim(2)=n2
@@ -239,7 +239,7 @@ ntimes=1
    pkernel2=pkernel_init(.false.,0,1,2,'S',ndim,hgriddim,16)
    call pkernel_set(pkernel2,verbose=verbose >1)
  
-   scal=-16.0_dp*atan(1.0_dp)*real(pkernel2%hgrids(2),dp)/real(n1*n2*n3,dp)
+   scal=-16.0_dp*atan(1.0_dp)*real(pkernel2%mesh%hgrids(2),dp)/real(n1*n2*n3,dp)
 
    ndim(1)=n1
    ndim(2)=n2
@@ -293,7 +293,7 @@ ntimes=1
    pkernel2=pkernel_init(.false.,0,1,2,'W',ndim,hgriddim,16)
    call pkernel_set(pkernel2,verbose=verbose >1)
    
-   scal=-2.0_dp*pkernel2%hgrids(1)*pkernel2%hgrids(2)/real(n1*n2*n3,dp)
+   scal=-2.0_dp*pkernel2%mesh%hgrids(1)*pkernel2%mesh%hgrids(2)/real(n1*n2*n3,dp)
 
    ndim(1)=n1
    ndim(2)=n2

@@ -312,7 +312,7 @@ module get_basis
                    hpsi_noconf=hpsi_tmp,econf=econf)
     
               !!if (nproc>1) then
-              !!    call mpiallred(econf, 1, mpi_sum, bigdft_mpi%mpi_comm)
+              !!    call fmpi_allreduce(econf, 1, FMPI_SUM, bigdft_mpi%mpi_comm)
               !!end if
     
           else
@@ -357,7 +357,8 @@ module get_basis
     
           if (nproc>1) then
               ! Wait for the communication of energs_work on root
-              call mpi_fenceandfree(energs_work%window)
+             !call mpi_fenceandfree(energs_work%window)
+             call fmpi_win_shut(energs_work%window) !LG: this windos seems never created, why closing?
           end if
     
           ! Copy the value, only necessary on root
@@ -553,16 +554,19 @@ module get_basis
     
           ! Wait for the communication of fnrm on root
           if (nproc>1) then
-              call mpi_fenceandfree(fnrm%window)
+             !call mpi_fenceandfree(fnrm%window)
+             call fmpi_win_shut(fnrm%window)
           end if
           fnrm%receivebuf(1)=sqrt(fnrm%receivebuf(1)/dble(tmb%orbs%norb))
     
           ! The other processes need to get fnrm as well. The fence will be later as only iproc=0 has to write.
           if (nproc>1) then
               if (iproc==0) fnrm%sendbuf(1) = fnrm%receivebuf(1)
-              fnrm%window = mpiwindow(1, fnrm%sendbuf(1), bigdft_mpi%mpi_comm)
+              !fnrm%window = mpiwindow(1, fnrm%sendbuf(1), bigdft_mpi%mpi_comm)
+              call fmpi_win_create(fnrm%window,fnrm%sendbuf(1),1,bigdft_mpi%mpi_comm)
+              call fmpi_win_fence(fnrm%window,FMPI_WIN_OPEN)
               if (iproc/=0) then
-                  call mpiget(fnrm%receivebuf(1), 1, 0, int(0,kind=mpi_address_kind), fnrm%window)
+                 call fmpi_get(fnrm%receivebuf(1), count=1, target_rank=0,target_disp=int(0,fmpi_address),win=fnrm%window)
               end if
           end if
     
@@ -571,7 +575,8 @@ module get_basis
               !if (iproc==0) call yaml_warning('The target function increased, D='&
               !              //trim(adjustl(yaml_toa(trH-ldiis%trmin,fmt='(es10.3)'))))
               if (nproc>1) then
-                  call mpi_fenceandfree(fnrm%window)
+                 !call mpi_fenceandfree(fnrm%window)
+                  call fmpi_win_shut(fnrm%window)
               end if
               fnrm_old=fnrm%receivebuf(1)
               if (iproc==0) then
@@ -679,7 +684,8 @@ module get_basis
           ! Normal case
           if (.not.energy_increased .or. ldiis%isx/=0 .or. allow_increase) then
               if (nproc>1) then
-                  call mpi_fenceandfree(fnrm%window)
+                 !call mpi_fenceandfree(fnrm%window)
+                 call fmpi_win_shut(fnrm%window)
               end if
               fnrm_old=fnrm%receivebuf(1)
           end if
@@ -876,7 +882,7 @@ module get_basis
       end do
     
       if (nproc > 1) then
-          call mpiallred(reducearr, mpi_sum, comm=bigdft_mpi%mpi_comm)
+          call fmpi_allreduce(reducearr, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
       end if
     
       reducearr(1)=reducearr(1)/dble(tmb%orbs%norb)
@@ -1263,7 +1269,7 @@ module get_basis
       end if
     
       if (bigdft_mpi%nproc > 1) then
-          call mpiallred(delta_energy, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
+          call fmpi_allreduce(delta_energy, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
       end if
     
       call f_release_routine()
@@ -1851,7 +1857,7 @@ module get_basis
           reducearr(1) = fnrmOvrlp_tot
           reducearr(2) = fnrm%sendbuf(1)
           if (nproc>1) then
-              call mpiallred(reducearr, mpi_sum, comm=bigdft_mpi%mpi_comm)
+              call fmpi_allreduce(reducearr, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
           end if
           !tt2=fnrmOvrlp_tot/sqrt(fnrm*fnrmOld_tot)
           tt2=reducearr(1)/sqrt(reducearr(2)*fnrm_old)
@@ -1876,8 +1882,8 @@ module get_basis
       tt=sum(alpha)
       alpha_max=maxval(alpha)
       if (nproc > 1) then
-         call mpiallred(tt, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
-         call mpiallred(alpha_max, 1, mpi_max, comm=bigdft_mpi%mpi_comm)
+         call fmpi_allreduce(tt, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+         call fmpi_allreduce(alpha_max, 1, FMPI_MAX, comm=bigdft_mpi%mpi_comm)
       end if
       alpha_mean=tt/dble(tmb%orbs%norb)
     
@@ -1979,7 +1985,9 @@ module get_basis
           call timing(iproc,'calctrace_comm','ON')
           if (nproc>1) then
               trH_sendbuf = trH
-              call mpiiallred(trH_sendbuf, trH, 1, mpi_sum, bigdft_mpi%mpi_comm, request)
+              !call mpiiallred(trH_sendbuf, trH, 1, FMPI_SUM, bigdft_mpi%mpi_comm, request)
+              call fmpi_allreduce(sendbuf=trH_sendbuf,recvbuf=trH,&
+                   count=1,op=FMPI_SUM,comm=bigdft_mpi%mpi_comm, request=request)
           end if
           call timing(iproc,'calctrace_comm','OF')
     
@@ -2012,14 +2020,16 @@ module get_basis
         integer :: jproc
         call f_routine(id='communicate_fnrm')
         !!if (nproc > 1) then
-        !!   call mpiallred(fnrm, 1, mpi_sum, bigdft_mpi%mpi_comm)
+        !!   call fmpi_allreduce(fnrm, 1, FMPI_SUM, bigdft_mpi%mpi_comm)
         !!end if
     
         if (nproc>1) then
             fnrm%receivebuf = 0.d0
-            fnrm%window = mpiwindow(1, fnrm%receivebuf(1), bigdft_mpi%mpi_comm)
-            call mpiaccumulate(origin=fnrm%sendbuf(1), count=1, target_rank=0, &
-                 target_disp=int(0,kind=mpi_address_kind),op=mpi_sum, window=fnrm%window)
+            !fnrm%window = mpiwindow(1, fnrm%receivebuf(1), bigdft_mpi%mpi_comm)
+            call fmpi_win_create(fnrm%window,fnrm%receivebuf(1),1,bigdft_mpi%mpi_comm)
+            call fmpi_win_fence(fnrm%window,FMPI_WIN_OPEN)
+            call fmpi_accumulate(origin=fnrm%sendbuf(1), count=1, target_rank=0, &
+                 target_disp=int(0,fmpi_address),op=FMPI_SUM, win=fnrm%window)
         else
             fnrm%receivebuf(1) = fnrm%sendbuf(1)
         end if
@@ -2033,8 +2043,8 @@ module get_basis
         tt=sum(alpha)
         alpha_max=maxval(alpha)
         if (nproc > 1) then
-           call mpiallred(tt, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
-           call mpiallred(alpha_max, 1, mpi_max, comm=bigdft_mpi%mpi_comm)
+           call fmpi_allreduce(tt, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+           call fmpi_allreduce(alpha_max, 1, FMPI_MAX, comm=bigdft_mpi%mpi_comm)
         end if
         call f_release_routine()
       end subroutine communicate_alpha

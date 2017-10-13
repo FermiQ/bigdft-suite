@@ -24,7 +24,7 @@ EXERCISE = Exercise/plot.gnuplot \
 
 EXTRA_DIST =  tols.yaml $(OTHERS)
 
-check_PROGRAMS = PS_Check PS_Program PS_Exercise Generalized_PSolver Fock PS_StressCheck
+check_PROGRAMS = PS_Check PS_Program PS_Exercise Generalized_PSolver Fock PS_StressCheck PSolver_examples
 
 AM_FCFLAGS = -I. -I$(top_srcdir)/src -I$(top_builddir)/src @LIB_FUTILE_CFLAGS@ @LIBETSFIO_INCLUDE@ @MPI_INCLUDE@
 AM_LDFLAGS = -L$(top_builddir)/src
@@ -50,6 +50,9 @@ PS_Exercise_LDADD = $(psolver_library) @LINALG_LIBS@
 Generalized_PSolver_SOURCES = Generalized_PSolver.f90
 Generalized_PSolver_LDADD = $(psolver_library) @LINALG_LIBS@
 
+PSolver_examples_SOURCES = PSolver_examples.f90 functions.f90
+PSolver_examples_LDADD = $(psolver_library) @LINALG_LIBS@
+
 Fock_SOURCES = Fock.f90 functions.f90
 Fock_LDADD = $(psolver_library) @LINALG_LIBS@
 
@@ -59,6 +62,7 @@ PS_Program_LDADD += @LIB_FUTILE_LIBS@
 PS_StressCheck_LDADD += @LIB_FUTILE_LIBS@
 PS_Exercise_LDADD += @LIB_FUTILE_LIBS@
 Generalized_PSolver_LDADD += @LIB_FUTILE_LIBS@
+PSolver_examples_LDADD += @LIB_FUTILE_LIBS@
 Fock_LDADD += @LIB_FUTILE_LIBS@
 endif
 
@@ -127,9 +131,9 @@ define F_REGTEST_INSTRUCTIONS
    binary: Generalized_PSolver
    runs:
     # PI from psolver, ortho
-    - $(run_parallel) ./Generalized_PSolver -n [57,49,63] -m PI -l no
+    - $(run_parallel) ./Generalized_PSolver -n [57,49,63] -m SC -l no
     # PI from psolver, ortho with internal cavity vector built from eps in pkernel_set_epsilon.
-    - $(run_parallel) ./Generalized_PSolver -n [57,49,63] -m PI -b yes -l no
+    - $(run_parallel) ./Generalized_PSolver -n [57,49,63] -m SC -b yes -l no
     # PI from Generalized_PSolver, non-ortho
     - $(run_parallel) ./Generalized_PSolver -n [60,78,70] -m VAC -e 6 -g S -f [90,41,90] -l no
 - GPS_mPB:
@@ -145,5 +149,7 @@ define F_REGTEST_INSTRUCTIONS
     - $(run_parallel) ./PS_StressCheck -n 50 -g P -s 50
     # Check stress on x,y,z direction concurrently
     - $(run_parallel) ./PS_StressCheck -n 50 -g P -s 50 -v yes
+    # Check stress on x,y,z direction individually for a non-orthorhombic cell
+    - $(run_parallel) ./PS_StressCheck -n 50 -g P -s 50 -d [47,60,80]
 endef
 export F_REGTEST_INSTRUCTIONS

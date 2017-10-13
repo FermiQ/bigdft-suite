@@ -74,6 +74,7 @@ module locregs_init
       integer :: jorb, jjorb, jlr
       character(len=*), parameter :: subname='initLocregs'
       logical,dimension(:), allocatable :: calculateBounds
+      real(gp), dimension(3) :: hgrids
 
       call f_routine(id=subname)
 
@@ -95,6 +96,7 @@ module locregs_init
          end do
       end if
 
+      hgrids=[hx,hy,hz]
       if(locregShape=='c') then
          calculateBounds=.true.
          call determine_locreg_parallel(iproc,nproc,lzd%nlr,rxyz,locrad,&
@@ -487,7 +489,7 @@ module locregs_init
       ! This communication is uneffective. Instead of using bcast we should be using mpialltoallv.
       call timing(iproc,'comm_llr      ','ON')
       if (nproc > 1) then
-         call mpiallred(rootarr(1), nlr, mpi_min, comm=bigdft_mpi%mpi_comm)
+         call fmpi_allreduce(rootarr(1), nlr, FMPI_MIN, comm=bigdft_mpi%mpi_comm)
          
          ! Communicate those parts of the locregs that all processes need.
          call communicate_locreg_descriptors_basics(iproc, nproc, nlr, rootarr, orbs, llr)
@@ -1896,7 +1898,7 @@ module locregs_init
     
     !  call make_LLr_MpiType(Llr,nlr,mpiLlr)
     
-    !  call MPI_ALLREDUCE(Llr(1),Llr(1),nlr,mpidtypg,MPI_SUM,bigdft_mpi%mpi_comm,ierr)
+    !  call MPI_ALLREDUCE(Llr(1),Llr(1),nlr,mpidtypg,FMPI_SUM,bigdft_mpi%mpi_comm,ierr)
       !after all localisation regions are determined draw them
       !call draw_locregs(nlr,hx,hy,hz,Llr)
     
@@ -2654,28 +2656,30 @@ module locregs_init
       ! Calculate on_which_atom and in_which_locreg...
       norb_check = 0
       do ispin=1,nspin
-          iiorb = iisorb + (ispin-1)*norb_nospin
-          do iat=1,nat_par(iproc)
-              iiat = isat + iat
-              jjat = irxyz_ordered(iiat)
-              jjorb = (ispin-1)*norb_nospin
-              do jat=1,jjat-1
-                  jjorb = jjorb + norb_per_atom(jat)
-              end do
-              do iorb=1,norb_per_atom(jjat)
-                  iiorb = iiorb + 1
-                  jjorb = jjorb + 1
-                  on_which_atom(iiorb) = jjat
-                  in_which_locreg(iiorb) = jjorb
-                  norb_check = norb_check + 1
-              end do
-          end do   
+         iiorb = iisorb + (ispin-1)*norb_nospin
+         do iat=1,nat_par(iproc)
+            iiat = isat + iat
+            jjat = irxyz_ordered(iiat)
+            jjorb = (ispin-1)*norb_nospin
+            do jat=1,jjat-1
+               jjorb = jjorb + norb_per_atom(jat)
+            end do
+            do iorb=1,norb_per_atom(jjat)
+               iiorb = iiorb + 1
+               jjorb = jjorb + 1
+               on_which_atom(iiorb) = jjat
+               in_which_locreg(iiorb) = jjorb
+               norb_check = norb_check + 1
+            end do
+         end do
       end do
-      call mpiallred(norb_check, 1, mpi_sum, comm=bigdft_mpi%mpi_comm)
-      if (norb_check/=norb) call f_err_throw('norb_check/=norb',err_name='BIGDFT_RUNTIME_ERROR')
+      call fmpi_allreduce(norb_check, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+      if (norb_check/=norb) call f_err_throw('norb_check (' // &
+           & trim(yaml_toa(norb_check)) // ') /= norb (' // &
+           & trim(yaml_toa(norb)) // ')',err_name='BIGDFT_RUNTIME_ERROR')
 
-      call mpiallred(on_which_atom, mpi_sum, comm=bigdft_mpi%mpi_comm)
-      call mpiallred(in_which_locreg, mpi_sum, comm=bigdft_mpi%mpi_comm)
+      call fmpi_allreduce(on_which_atom, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+      call fmpi_allreduce(in_which_locreg, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
 
       call f_free(nat_par)
       call f_free(irxyz_ordered)

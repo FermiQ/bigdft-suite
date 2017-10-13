@@ -69,7 +69,7 @@ class BigDFTInstaller():
         self.package=package  #Package
         self.yes=yes      #Ask a question
         #look where we are
-        self.srcdir = os.path.dirname(__file__)
+        self.srcdir = os.path.abspath(os.path.dirname(__file__))
         if self.srcdir == '': self.srcdir='.'
 	#look the builddir
         self.builddir=os.getcwd()
@@ -223,7 +223,10 @@ class BigDFTInstaller():
                 if hidden:
                     self.get_output(action)
                 else:
-                    os.system(action)
+                    ierr=os.system(action)
+                    if ierr != 0: raise Exception('Error in action: "'+action+'" for package: "'+mod+'"')
+                    #print 'Error in action: "'+action+'" for package: "'+mod+'"'
+                    #sys.exit(1)
                 os.chdir(here)
                 #self.__dump('done.')
                 sys.stdout.write(' (done)\n')
@@ -435,13 +438,12 @@ class BigDFTInstaller():
         #Clearly such actions only _assume_ that the build is fully functional and almost nothing
         #can be done with this file if a problem might arise.
         #Otherwise stated: this is an automatic message, please do not reply.
+all: build
         """)
         for a in ACTIONS:
             sflist.append(a+':  ')
             sflist.append('\t'+
-                          os.path.abspath(
-                              os.path.join(self.srcdir,__file__))+
-                          ' '+a+' '+self.package+' -y')
+                          os.path.abspath(__file__)+' '+a+' '+self.package+' -y')
         mkfile=open(MKFILE,'w')
         for item in sflist:
             mkfile.write("%s\n" % item)

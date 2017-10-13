@@ -1,0 +1,7 @@
+ dft:
+   nspin: 4
+   gnrm_cv: 5.0E-04
+   itermax: 20
+   nrepmax: accurate
+   ncong: 9
+   disablesym: Yes
