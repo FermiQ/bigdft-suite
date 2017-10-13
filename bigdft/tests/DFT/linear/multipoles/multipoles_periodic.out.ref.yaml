@@ -2042,7 +2042,6 @@
      need to repeat with sharper decay (new):  No
      trace(KS)                         :  7.000000170740E+00
      trace(KH)                         : -3.593028002146E+00
-     eTS                               :  5.6403313749855011E-003
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ FOE calculation of kernel finished
  calculate LUMO kernel:
    target charge                       :  9.0
@@ -2112,7 +2111,6 @@
      need to repeat with sharper decay (new):  No
      trace(KS)                         :  9.000000000025E+00
      trace(KH)                         : -3.472614939800E+00
-     eTS                               :  5.6418965817347736E-003
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ FOE calculation of kernel finished
  HOMO-LUMO analysis:
    HOMO energy                         : -0.236453524041716
