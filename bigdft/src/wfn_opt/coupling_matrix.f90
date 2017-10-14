@@ -123,7 +123,7 @@ subroutine calculate_coupling_matrix(iproc,nproc,boxit,tddft_approach,nspin,ndim
        call Electrostatic_Solver(pkernel,v_ias)
 
        !now we have to calculate the corresponding element of the RPA part of the coupling matrix
-       !$omp parallel do if (iap>=6*nthreads) default(none) &
+       !$omp parallel do if (iap>=6*nthreads .and. nthreads>1) default(none) &
        !$omp shared(transitions,orbsvirt,orbsocc,ispin,iap,psirocc,psivirtr)&
        !$omp shared(v_ias,rho_ias,dvxcdrho,K,Kaux,nspin,tddft_approach,eap)&
        !$omp private(ibq,ibeta,iq,jspin,ebq,spinindex,krpa,kfxc,kfxc_od,rho_bq)&

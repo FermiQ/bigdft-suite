@@ -227,7 +227,7 @@ openbabel_soname_library = libbabel.so.@BIGDFT_MINOR_VERSION@
 openbabel_library = $(openbabel_soname_library)
 AM_LDFLAGS = -Wl,-rpath=$(DESTDIR)$(dynlibdir)
 else
-openbabel_static_sources = openbabel_fake.cpp
+openbabel_static_sources = openbabel_fake.c
 endif
 
 EXTRA_DIST = $(ATOMS_INCLUDES) $(COMMS_INCLUDES) openbabel.cpp
