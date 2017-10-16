@@ -142,10 +142,11 @@ def load(file=None,stream=None,doc_lists=False,safe_mode=False):
         if doc_lists: ld=[ld]
     except Exception,e:
         if safe_mode:
-            documents=strm.split('---\n')
+            ld = []
+            documents = [v for v in strm.split('---\n') if len(v) > 0]
             for i,raw_doc in enumerate(documents):
                 try:
-                    logs.append(yaml.load(raw_doc,Loader=ldr))
+                    ld.append(yaml.load(raw_doc,Loader=ldr))
                 except Exception,f:
                     print 'Document',i,'of stream NOT loaded'
         else:
