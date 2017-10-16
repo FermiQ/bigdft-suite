@@ -1,7 +1,7 @@
 !> @file
 !!  Use integral form for Poisson solver
 !! @author
-!!    Copyright (c) 2013-2016 BigDFT group
+!!    Copyright (c) 2013-2017 BigDFT group
 !!    This file is distributed under the terms of the
 !!    GNU General Public License, see ~/COPYING file
 !!    or http://www.gnu.org/copyleft/gpl.txt .
@@ -9,7 +9,148 @@
 
 
 !> Program testing new ideas like momentum-preserving gaussian integrals 3D
-program MP_gaussian
+program gaussian3D
+  use module_base, only: gp
+  implicit none
+  real(gp), parameter :: hgrid = 0.4_gp
+  real(gp) :: rloc
+
+  !call MP_gaussian()
+  !call test_gain()
+  rloc = 1.d0
+  do
+    call MP_rloc(0.4_gp,rloc,nmoms=7)
+    rloc = rloc * 0.1_gp
+    if (rloc < 1.0e-5_gp) exit
+  end do
+
+contains
+
+!> Check multipole preserving for small rloc up to rloc==zero
+subroutine MP_rloc(hgrid,rloc,nmoms)
+  use module_base
+  use gaussians, only: gauint0
+  use multipole_preserving
+  use yaml_output, only: yaml_map,yaml_mapping_open,yaml_mapping_close,yaml_comment
+  implicit none
+  !Arguments
+  real(gp), intent(in) :: hgrid !< step size of the 3D mesh
+  real(gp), intent(in) :: rloc !< rloc of erf function
+  integer, intent(in) :: nmoms !< Number of calculated moments
+  !Local variables
+  logical, parameter :: multipole_preserving = .true.
+  integer, parameter :: mp_isf=16
+  !integer, parameter :: nmoms = 7
+  real(gp), parameter :: gammaonehalf=1.772453850905516027298_gp ! i.e. sqrt(pi)
+  real(gp), parameter :: e_diff = 1.0e-13_gp
+  real(gp), dimension(:,:,:), allocatable :: moments
+  real(gp), dimension(:), allocatable :: mp,rx
+  real(gp), dimension(:,:,:), allocatable :: array
+  real(gp) :: x,y,z,reference,diff,factor,rlocinv2sq,cutoff
+  integer :: is,ie,n,i,ix,iy,iz,mx,my,mz
+
+  call f_lib_initialize()
+
+  rlocinv2sq=0.5_gp/rloc**2
+  cutoff=10.0_gp*rloc+hgrid*real(mp_isf,kind=gp)
+
+  !Normalization factor
+  !factor = 1.0_gp/gauint0(rlocinv2sq,0)
+  !factor = sqrt(rlocinv2sq)/gammaonehalf
+  factor = sqrt(0.5_gp)/(rloc*gammaonehalf)
+  call yaml_map('Normalized factor',factor*factor*factor)
+  call yaml_map('rloc',rloc)
+  call yaml_map('hgrid',hgrid)
+  call yaml_map('range',cutoff)
+
+  moments = f_malloc( (/ 0.to.nmoms, 0.to.nmoms, 0.to.nmoms /),id="moments")
+
+  !Separable function: do 1-D integrals before and store it.
+  is=floor((-cutoff)/hgrid)
+  ie=ceiling((cutoff)/hgrid)
+  n = (ie - is + 1)
+
+  call yaml_map('is',is)
+  call yaml_map('ie',ie)
+
+  !Separable function: do 1-D integrals before and store it.
+  rx = f_malloc( is .to. ie,id='mpx')
+  mp = f_malloc( is .to. ie,id='mpx')
+
+  call yaml_map('mp size',size(mp))
+
+  !Initialize the work arrays needed to integrate with is
+  call initialize_real_space_conversion(isf_m=mp_isf,rloc=(/rloc/),verbose=.true.)
+
+  do i=is,ie
+     rx(i) =  real(i,gp)*hgrid
+     mp(i) = factor*mp_exp(hgrid,0.0_gp,rlocinv2sq,i,0,multipole_preserving)
+  end do
+
+  !Calculate the corresponding 3D array
+  array = f_malloc( (/ is.to.ie, is.to.ie, is.to.ie /),id='array')
+
+  do iz=is,ie
+    do iy=is,ie
+      do ix=is,ie
+        array(ix,iy,iz) = mp(ix)*mp(iy)*mp(iz)
+      end do
+    end do
+  end do
+
+  !Calculate the moments
+  do mz=0,nmoms
+    do my=0,nmoms
+      do mx=0,nmoms
+        moments(mx,my,mz)=0.0_gp
+        do iz=is,ie
+          z=rx(iz)
+          do iy=is,ie
+            y=rx(iy)
+            do ix=is,ie
+              x=rx(ix)
+              moments(mx,my,mz)=moments(mx,my,mz)+(x**mx*y**my*z**mz)*array(ix,iy,iz)
+            end do
+          end do
+        end do
+        moments(mx,my,mz)=moments(mx,my,mz)*hgrid*hgrid*hgrid
+      end do
+    end do
+  end do
+
+  !print moments value
+  call yaml_comment("Null integral with diff <"//trim(yaml_toa(e_diff))//" is not displayed.")
+  call yaml_comment("Diff, moment, reference")
+  call yaml_mapping_open('Moments')
+  do mx=0,nmoms
+    do my=0,nmoms
+      do mz=0,nmoms
+        reference=factor**3*gauint0(rlocinv2sq,mx)*gauint0(rlocinv2sq,my)*gauint0(rlocinv2sq,mz)
+        diff = abs(reference-moments(mx,my,mz))
+        if (reference == 0.0_gp .and. diff < e_diff) then
+        else
+          call yaml_map(trim(yaml_toa( (/ mx, my, mz /),fmt="(i0)")),&
+              (/ diff, moments(mx,my,mz), reference /) )
+        end if
+      end do
+    end do
+  end do
+  call yaml_mapping_close()
+
+  !De-allocate
+  call f_free(rx,mp)
+  call f_free(array)
+  call f_free(moments)
+
+  call finalize_real_space_conversion()
+
+  call f_lib_finalize()
+
+end subroutine MP_rloc
+
+
+!> Program testing new ideas like momentum-preserving gaussian integrals 3D
+subroutine test_gain()
   use module_base
   use gaussians
   use multipole_preserving
@@ -17,19 +158,12 @@ program MP_gaussian
   use yaml_parse
   use pseudopotentials
   implicit none
-  integer, parameter :: iunit=16        !< File unit for the plot
   integer, parameter :: nmoms=1         !< Number of calculated moments
   integer, parameter :: nstep=3         !< Number of resolution to calculate the moments
   integer, parameter :: nsigma=1        !< Number of different gaussian functions
   integer, parameter :: npts=50         !< Arrays from -npts to npts
   real(gp), parameter :: hgrid = 0.8_gp !< Step grid
   real(gp), parameter :: sigma = 0.2_gp !< Sigma gaussian
-  !integer :: j
-  !integer :: imoms,pow,istep,isigma
-  !real(gp) :: pgauss,x0,y0,z0,reference,max_fj
-  !real(gp), dimension(0:nmoms,2) :: moments
-  !real(gp), dimension(3,2,0:nmoms) :: avgmaxmin
-  !real(gp), dimension(:,:,:), allocatable :: fj_phi,fj_coll
   integer :: nat,ntyp,iat,i
   integer(f_long) :: t0,t1
   real(gp) :: diff
@@ -38,7 +172,6 @@ program MP_gaussian
   integer, dimension(:), allocatable :: iatype
   real(gp), dimension(:,:), allocatable :: rxyz,Sab,S2ab,Tab,T2ab
   real(gp), dimension(:,:,:), allocatable :: psppar
-
 
   call f_lib_initialize()
 
@@ -126,7 +259,6 @@ program MP_gaussian
 
   call yaml_mapping_close()
 
-
   call f_free(Sab)
   call f_free(S2ab)
   call f_free(Tab)
@@ -137,92 +269,119 @@ program MP_gaussian
 
   !as the basis set is now generated we can use it to play with the Gaussian operations
 
-
   call f_free(rxyz)
   call gaussian_basis_free(G)
+
   call f_lib_finalize()
 
-!!!>  pow=0
-!!!>
-!!!>  !pgauss=0.5_gp/((0.1_gp*hgrid)**2)!8.0e-3_dp*1.25_dp**(6*(8-1))
-!!!>  !array where we have to write the value of the discretization
-!!!>  fj_phi=f_malloc( (/ -npts .to. npts, -npts .to. npts, -npts .to. npts/), id='fj_phi')
-!!!>  fj_coll=f_malloc((/ -npts .to. npts, -npts .to. npts, -npts .to. npts/), id='fj_coll')
-!!!>  call initialize_real_space_conversion() !initialize the work arrays needed to integrate with isf
-!!!>
-!!!>  ! Calculate for different nsigma sigma
-!!!>  do isigma=1,nsigma
-!!!>     pgauss=0.5_gp/((sigma+0.01_gp*(isigma-1)*hgrid)**2)
-!!!>     call yaml_map('sigma/h',sqrt(0.5_gp/pgauss)/hgrid)
-!!!>     !plot raw function (fort.iunit)
-!!!>     do j=-npts,npts
-!!!>        if (pow /= 0) then
-!!!>           write(iunit,*) j,exp(-pgauss*(j*hgrid)**2)*((j*hgrid)**pow)
-!!!>        else
-!!!>           write(iunit,*) j,exp(-pgauss*(j*hgrid)**2)
-!!!>        end if
-!!!>     end do
-!!!>
-!!!>     avgmaxmin=0.0_gp
-!!!>     avgmaxmin(3,:,:)=1.d100
-!!!>     max_fj=0.0_gp
-!!!>     do istep=1,nstep
-!!!>        x0=(-0.5_gp+real(istep-1,gp)/real(nstep,gp))*hgrid
-!!!>        y0=(-0.5_gp+real(istep-1,gp)/real(nstep,gp))*hgrid
-!!!>        z0=(-0.5_gp+real(istep-1,gp)/real(nstep,gp))*hgrid
-!!!>        call yaml_map('x0',x0,advance='no')
-!!!>        call yaml_comment('Step No.'//trim(yaml_toa(istep)),tabbing=70)
-!!!>        call evaluate_moments3D(nmoms,npts,hgrid,pgauss,pow,x0,y0,z0,fj_phi,fj_coll,moments)
-!!!>        max_fj=max(max_fj,maxval(abs(fj_coll-fj_phi)))
-!!!>!!$  !print moments value
-!!!>!!$  do imoms=0,nmoms
-!!!>!!$     reference=gauint0(pgauss,imoms+pow)
-!!!>!!$     if (reference /=0.0_gp) then
-!!!>!!$        call yaml_map('Mom No.'//trim(yaml_toa(imoms)),&
-!!!>!!$             (moments(imoms,:)-reference)/reference,fmt='(1pe22.14)',advance='no')
-!!!>!!$     else
-!!!>!!$        call yaml_map('Mom No.'//trim(yaml_toa(imoms)),&
-!!!>!!$             moments(imoms,:),fmt='(1pe22.14)',advance='no')
-!!!>!!$     end if
-!!!>!!$     call yaml_comment('Ref: '//trim(yaml_toa(reference,fmt='(1pe22.14)')))
-!!!>!!$  end do
-!!!>
-!!!>        !calculate the average, maximum and minimum of each moment in function of the reference
-!!!>        !j=1 use the elemental property of the mp_exp function with fj_phi
-!!!>        !j=2 collocation array with fj_coll
-!!!>        do j=1,2
-!!!>           do imoms=0,nmoms
-!!!>              reference=gauint0(pgauss,imoms+pow)**3
-!!!>              print *,j,imoms,reference,moments(imoms,j)
-!!!>              if (reference /= 0.0_gp) then
-!!!>                 !x^even
-!!!>                 moments(imoms,j) = abs((moments(imoms,j)-reference))!/reference)
-!!!>              else
-!!!>                 !x^odd
-!!!>                 moments(imoms,j) = abs(moments(imoms,j))
-!!!>              end if
-!!!>              avgmaxmin(1,j,imoms) = avgmaxmin(1,j,imoms)+moments(imoms,j)/real(nstep,gp)
-!!!>              avgmaxmin(2,j,imoms) = max(moments(imoms,j),avgmaxmin(2,j,imoms))
-!!!>              avgmaxmin(3,j,imoms) = min(moments(imoms,j),avgmaxmin(3,j,imoms))
-!!!>           end do
-!!!>        end do
-!!!>     end do
-!!!>
-!!!>     !Plot fort.(iunit+1)
-!!!>     write(iunit+1,'(104(1pe14.5))') sqrt(0.5_gp/pgauss)/hgrid,avgmaxmin
-!!!>     call yaml_map('maxdiff' // trim(yaml_toa(isigma)), (/ sqrt(0.5_gp/pgauss)/hgrid, max_fj /) )
-!!!>     !print *,'maxdiff',sqrt(0.5_gp/pgauss)/hgrid,max_fj
-!!!>  end do
-!!!>
-!!!>  call yaml_map('Results',reshape(avgmaxmin,(/6,nmoms+1/)),fmt='(1pe14.5)')
-!!!>
-!!!>  call finalize_real_space_conversion()
-!!!>
-!!!>  call f_free(fj_phi)
-!!!>  call f_free(fj_coll)
-!!!>  call f_lib_finalize()
-!!!>
-end program MP_gaussian
+end subroutine test_gain
+
+
+subroutine MP_gaussian()
+  use module_base
+  use gaussians
+  use multipole_preserving
+  use yaml_output
+  use yaml_parse
+  implicit none
+  integer, parameter :: iunit=16        !< File unit for the plot
+  integer, parameter :: nmoms=1         !< Number of calculated moments
+  integer, parameter :: nstep=3         !< Number of resolution to calculate the moments
+  integer, parameter :: nsigma=1        !< Number of different gaussian functions
+  integer, parameter :: npts=50         !< Arrays from -npts to npts
+  real(gp), parameter :: hgrid = 0.8_gp !< Step grid
+  real(gp), parameter :: sigma = 0.2_gp !< Sigma gaussian
+  integer :: j
+  integer :: imoms,pow,istep,isigma
+  real(gp) :: pgauss,x0,y0,z0,reference,max_fj
+  real(gp), dimension(0:nmoms,2) :: moments
+  real(gp), dimension(3,2,0:nmoms) :: avgmaxmin
+  real(gp), dimension(:,:,:), allocatable :: fj_phi,fj_coll
+
+  call f_lib_initialize()
+
+  pow=0
+
+  !pgauss=0.5_gp/((0.1_gp*hgrid)**2)!8.0e-3_dp*1.25_dp**(6*(8-1))
+  !array where we have to write the value of the discretization
+  fj_phi=f_malloc( (/ -npts .to. npts, -npts .to. npts, -npts .to. npts/), id='fj_phi')
+  fj_coll=f_malloc((/ -npts .to. npts, -npts .to. npts, -npts .to. npts/), id='fj_coll')
+  call initialize_real_space_conversion() !initialize the work arrays needed to integrate with isf
+
+  ! Calculate for different nsigma sigma
+  do isigma=1,nsigma
+     pgauss=0.5_gp/((sigma+0.01_gp*(isigma-1)*hgrid)**2)
+     call yaml_map('sigma/h',sqrt(0.5_gp/pgauss)/hgrid)
+     !plot raw function (fort.iunit)
+     do j=-npts,npts
+        if (pow /= 0) then
+           write(iunit,*) j,exp(-pgauss*(j*hgrid)**2)*((j*hgrid)**pow)
+        else
+           write(iunit,*) j,exp(-pgauss*(j*hgrid)**2)
+        end if
+     end do
+
+     avgmaxmin=0.0_gp
+     avgmaxmin(3,:,:)=1.d100
+     max_fj=0.0_gp
+     do istep=1,nstep
+        x0=(-0.5_gp+real(istep-1,gp)/real(nstep,gp))*hgrid
+        y0=(-0.5_gp+real(istep-1,gp)/real(nstep,gp))*hgrid
+        z0=(-0.5_gp+real(istep-1,gp)/real(nstep,gp))*hgrid
+        call yaml_map('x0',x0,advance='no')
+        call yaml_comment('Step No.'//trim(yaml_toa(istep)),tabbing=70)
+        call evaluate_moments3D(nmoms,npts,hgrid,pgauss,pow,x0,y0,z0,fj_phi,fj_coll,moments)
+        max_fj=max(max_fj,maxval(abs(fj_coll-fj_phi)))
+!!$  !print moments value
+!!$  do imoms=0,nmoms
+!!$     reference=gauint0(pgauss,imoms+pow)
+!!$     if (reference /=0.0_gp) then
+!!$        call yaml_map('Mom No.'//trim(yaml_toa(imoms)),&
+!!$             (moments(imoms,:)-reference)/reference,fmt='(1pe22.14)',advance='no')
+!!$     else
+!!$        call yaml_map('Mom No.'//trim(yaml_toa(imoms)),&
+!!$             moments(imoms,:),fmt='(1pe22.14)',advance='no')
+!!$     end if
+!!$     call yaml_comment('Ref: '//trim(yaml_toa(reference,fmt='(1pe22.14)')))
+!!$  end do
+
+        !calculate the average, maximum and minimum of each moment in function of the reference
+        !j=1 use the elemental property of the mp_exp function with fj_phi
+        !j=2 collocation array with fj_coll
+        do j=1,2
+           do imoms=0,nmoms
+              reference=gauint0(pgauss,imoms+pow)**3
+              print *,j,imoms,reference,moments(imoms,j)
+              if (reference /= 0.0_gp) then
+                 !x^even
+                 moments(imoms,j) = abs((moments(imoms,j)-reference))!/reference)
+              else
+                 !x^odd
+                 moments(imoms,j) = abs(moments(imoms,j))
+              end if
+              avgmaxmin(1,j,imoms) = avgmaxmin(1,j,imoms)+moments(imoms,j)/real(nstep,gp)
+              avgmaxmin(2,j,imoms) = max(moments(imoms,j),avgmaxmin(2,j,imoms))
+              avgmaxmin(3,j,imoms) = min(moments(imoms,j),avgmaxmin(3,j,imoms))
+           end do
+        end do
+     end do
+
+     !Plot fort.(iunit+1)
+     write(iunit+1,'(104(1pe14.5))') sqrt(0.5_gp/pgauss)/hgrid,avgmaxmin
+     call yaml_map('maxdiff' // trim(yaml_toa(isigma)), (/ sqrt(0.5_gp/pgauss)/hgrid, max_fj /) )
+     !print *,'maxdiff',sqrt(0.5_gp/pgauss)/hgrid,max_fj
+  end do
+
+  call yaml_map('Results',reshape(avgmaxmin,(/6,nmoms+1/)),fmt='(1pe14.5)')
+
+  call finalize_real_space_conversion()
+
+  call f_free(fj_phi)
+  call f_free(fj_coll)
+
+  call f_lib_finalize()
+
+end subroutine MP_gaussian
 
 
 !> Classify the quality of a multipole extraction in both cases
@@ -296,3 +455,5 @@ subroutine moments_3d(nx,ny,nz,array,x0,y0,z0,h,nmoms,moments)
   end do
 
 end subroutine moments_3d
+
+end program gaussian3D

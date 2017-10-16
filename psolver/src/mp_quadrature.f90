@@ -12,7 +12,7 @@ module multipole_preserving
   use f_precisions, only: gp => f_double
   use f_arrays
   use dictionaries, only: f_err_throw
-  !use yaml_output, only: yaml_mapping_open,yaml_mapping_close,yaml_map
+  use yaml_output, only: yaml_mapping_open,yaml_mapping_close,yaml_map
   implicit none
 
   private
@@ -37,15 +37,17 @@ module multipole_preserving
     !> Prepare the array for the evaluation with the interpolating Scaling Functions
     !! one might add also the function to be converted and the
     !! prescription for integrating knowing the scaling relation of the function
-    subroutine initialize_real_space_conversion(npoints,isf_m,rloc,nmoms)
+    subroutine initialize_real_space_conversion(npoints,isf_m,rloc,nmoms,verbose)
       implicit none
+      !Arguments
       integer, intent(in), optional :: npoints !< Number of points (only 2**x)
       !> rloc of a given set of gaussian functions in order to determine npoints
       real(kind=8), dimension(:), intent(in), optional :: rloc
       integer, intent(in), optional :: isf_m !< Type of interpolatig scaling function
       integer, intent(in), optional :: nmoms !< Number of preserved moments if /= 0
                                              !! (see ISF_family in scaling_function.f90)
-      !local variables
+      logical, intent(in), optional :: verbose !< If .true., display some information
+      !Local variables
       character(len=*), parameter :: subname='initialize_real_space_conversion'
       integer :: n_range,i,nmm,np
       real(gp) :: tt,r
@@ -95,11 +97,15 @@ module multipole_preserving
       call ISF_family(itype_scf,nmm,n_scf,n_range,x_scf,scf_data)
       call f_free(x_scf)
 
-      !call yaml_mapping_open('Multipole preserving (ionic potential)',flow=.true.)
-      !if (present(rloc)) call yaml_map('rloc',r)
-      !call yaml_map('itype_scf',itype_scf)
-      !call yaml_map('npoints',n_scf)
-      !call yaml_mapping_close()
+      if (present(verbose)) then
+        if (verbose) then
+          call yaml_mapping_open('Multipole preserving (ionic potential)',flow=.true.)
+          if (present(rloc)) call yaml_map('rloc',r)
+          call yaml_map('itype_scf',itype_scf)
+          call yaml_map('npoints',n_scf)
+          call yaml_mapping_close()
+        end if
+      end if
 
       nrange_scf=n_range
       !Define the log of the smallest non zero value as the  cutoff for multiplying with it.
