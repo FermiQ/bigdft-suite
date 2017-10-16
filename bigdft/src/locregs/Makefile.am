@@ -34,7 +34,7 @@ endif
 
 CLEANFILES = *.@MODULE_EXT@
 
-AM_FCFLAGS = -I. -I$(srcdir) -I$(top_builddir)/includes @LIB_FUTILE_CFLAGS@
+AM_FCFLAGS = -I. -I$(srcdir) @LIB_FUTILE_CFLAGS@
 
 check_PROGRAMS = locreg_test
 
