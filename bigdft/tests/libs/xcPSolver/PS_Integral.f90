@@ -49,7 +49,7 @@ program PS_Integral
 
   call f_lib_initialize()
 
-  call f_malloc_set_status(memory_limit=0.e0)
+  call f_malloc_set_status()
 
   call f_routine(id=subname)
 !!$  include 'lazy_ISF_8_2048.inc'

@@ -1,7 +1,7 @@
 !> @file
 !!  Define a module to extend numerical functions
 !! @author
-!!    Copyright (C) 2015-2015 BigDFT group
+!!    Copyright (C) 2015-2017 BigDFT group
 !!    This file is distributed under the terms of the
 !!    GNU General Public License, see ~/COPYING file
 !!    or http://www.gnu.org/copyleft/gpl.txt .
@@ -28,13 +28,13 @@ module numerics
   real(db), parameter, public :: onehalf=0.5_db
   real(db), parameter, public :: onethird=0.33333333333333333333333333333333333333333333333333333333333333333333_db
   real(db), parameter, public :: onequarter=0.25_db
-  
+
 
   !>> Physical constants.
   !> 1 AU in angstroem
   real(db), parameter, public :: Bohr_Ang = 0.52917721092_db
   !> 1 Hartree, in cm^-1 (from abinit 5.7.x)
-  real(db), parameter, public :: Ha_cmm1=219474.6313705_db 
+  real(db), parameter, public :: Ha_cmm1=219474.6313705_db
   !> 1 Hartree, in eV
   real(db), parameter, public :: Ha_eV=27.21138505_db                           !< 1 Hartree in eV
   real(db), parameter, public :: eV_Ha=3.674932379e-2_db                        !< 1 ev, in Hartree
@@ -54,8 +54,8 @@ module numerics
   !!(thermochemical calorie used in amber: 1cal_th=4.184J)
   !!also see: http://archive.ambermd.org/201009/0039.html
   !!convert forces from kcal_th/mol/angstrom to hartree/bohr
-  real(db), parameter, public :: kcalMolAng_HaBohr =0.0008432975639921999_db 
-  
+  real(db), parameter, public :: kcalMolAng_HaBohr =0.0008432975639921999_db
+
   interface safe_exp
      module procedure safe_dexp
   end interface safe_exp
@@ -127,7 +127,7 @@ module numerics
       else
          ex=nint(x/y)*mx
       end if
-            
+
     end function safe_identity
 
     !> give a function which takes into account overflows and underflows even in the gaussian arguments

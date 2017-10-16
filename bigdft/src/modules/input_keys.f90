@@ -797,11 +797,11 @@ contains
     call kpt_input_analyse(bigdft_mpi%iproc, in, dict//KPT_VARIABLES, &
          & atoms%astruct%sym, atoms%astruct%geocode, atoms%astruct%cell_dim)
 
-    call atoms_fill(atoms,dict,in%frmult,in%nspin,&
+    call atoms_fill(atoms,dict,in%nspin,&
          in%multipole_preserving,in%mp_isf,in%ixc,in%alpha_hartree_fock)
 
 !!$    ! Update atoms with pseudo information.
-!!$    call psp_dict_analyse(dict, atoms, in%frmult)
+!!$    call psp_dict_analyse(dict, atoms)
 !!$    call atomic_data_set_from_dict(dict,IG_OCCUPATION, atoms, in%nspin)
 !!$
 !!$    !fill the requests for the atomic density matrix

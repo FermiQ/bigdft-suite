@@ -121,7 +121,7 @@ program MP_gaussian
   call yaml_map('Laplacian matrix with GaIn library',T2ab,fmt='(1pg12.3)')
   call yaml_map('Elapsed time',real(t1-t0,f_double)*1.e-9)
 
-  call f_diff(G%ncoeff**2,Tab,-0.5d0*T2ab,diff)
+  call f_diff(int(G%ncoeff**2,f_long),Tab,-0.5d0*T2ab,diff)
   call yaml_map('Maxdiff of both objects',diff)
 
   call yaml_mapping_close()

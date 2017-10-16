@@ -108,7 +108,7 @@ subroutine calculate_forces(iproc,nproc,psolver_groupsize,Glr,atoms,ob,nlpsp,rxy
 
   call local_forces(iproc,atoms,rxyz,0.5_gp*hx,0.5_gp*hy,0.5_gp*hz,&
        dpbox, &
-       Glr%d%n1,Glr%d%n2,Glr%d%n3,n3p,i3s,Glr%d%n1i,Glr%d%n2i,Glr%d%n3i,rho,pot,fxyz,strtens(1,1),charge)
+       n3p,i3s,Glr%d%n1i,Glr%d%n2i,Glr%d%n3i,rho,pot,fxyz,strtens(1,1),charge)
   if (extra_timing) call cpu_time(tr1)
   if (extra_timing) time0=real(tr1-tr0,kind=8)
 
@@ -494,7 +494,7 @@ end subroutine rhocore_forces
 !> Calculates the local forces acting on the atoms belonging to iproc
 subroutine local_forces(iproc,at,rxyz,hxh,hyh,hzh,&
      dpbox, &
-     n1,n2,n3,n3p,i3s,n1i,n2i,n3i,rho,pot,floc,locstrten,charge)
+     n3p,i3s,n1i,n2i,n3i,rho,pot,floc,locstrten,charge)
   use dynamic_memory
   use module_types
   use yaml_output
@@ -507,7 +507,7 @@ subroutine local_forces(iproc,at,rxyz,hxh,hyh,hzh,&
   implicit none
   !Arguments
   type(atoms_data), intent(in) :: at
-  integer, intent(in) :: iproc,n1,n2,n3,n3p,i3s,n1i,n2i,n3i
+  integer, intent(in) :: iproc,n3p,i3s,n1i,n2i,n3i
   real(gp), intent(in) :: hxh,hyh,hzh
   type(denspot_distribution), intent(in) :: dpbox
   real(gp),intent(out) :: charge
@@ -533,13 +533,10 @@ subroutine local_forces(iproc,at,rxyz,hxh,hyh,hzh,&
 
   call f_routine(id='local_forces')
 
-  !initialize the work arrays needed to integrate with isf
-  !if (at%multipole_preserving) call initialize_real_space_conversion(isf_m=at%mp_isf)
-  if (at%multipole_preserving) then
-    !Determine the number of points depending on the min rloc
-    rloc = minval(at%psppar(0,0,:))
-    call initialize_real_space_conversion(isf_m=at%mp_isf,rloc=rloc)
-  end if
+  !Initialize the work arrays needed to integrate with isf
+  !Determine the number of points depending on the min rloc
+  if (at%multipole_preserving) &
+     call initialize_real_space_conversion(isf_m=at%mp_isf,rloc=at%psppar(0,0,:))
 
   !Initialization
   locstrten=0.0_gp

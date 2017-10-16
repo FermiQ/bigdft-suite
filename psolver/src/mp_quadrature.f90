@@ -7,20 +7,22 @@
 !!    or http://www.gnu.org/copyleft/gpl.txt .
 !!    For the list of contributors, see ~/AUTHORS
 module multipole_preserving
+
   use dynamic_memory
   use f_precisions, only: gp => f_double
   use f_arrays
+  use dictionaries, only: f_err_throw
+  !use yaml_output, only: yaml_mapping_open,yaml_mapping_close,yaml_map
   implicit none
 
   private
 
-  integer :: itype_scf=0                          !< Type of the interpolating SCF, 0= data unallocated
-  integer :: n_scf=-1                             !< Number of points of the allocated data
-  integer :: nrange_scf=0                         !< range of the integration
-  !> Values for the interpolating scaling functions points
-  real(gp), dimension(:), allocatable :: scf_data
-  !>refcounted arrays to precalculate the coefficients
-  type(f_matrix), dimension(3), save :: mp_exps
+  integer :: itype_scf=0   !< Type of the interpolating SCF, 0= data unallocated
+  integer :: n_scf=-1      !< Number of points of the allocated data
+  integer :: nrange_scf=0  !< Range of the integration
+  real(gp), dimension(:), allocatable :: scf_data !< Values for the interpolating scaling functions points
+  type(f_matrix), dimension(3), save :: mp_exps !< Refcounted arrays to precalculate the coefficients
+
   !> log of the minimum value of the scf data
   !! to avoid floating point exceptions while multiplying with it
   real(gp) :: mn_scf = 0.0_gp
@@ -38,16 +40,20 @@ module multipole_preserving
     subroutine initialize_real_space_conversion(npoints,isf_m,rloc,nmoms)
       implicit none
       integer, intent(in), optional :: npoints !< Number of points (only 2**x)
-      real(kind=8), intent(in), optional :: rloc !< rloc of a given gaussian
-                                                 !! in order to determine nppoints
+      !> rloc of a given set of gaussian functions in order to determine npoints
+      real(kind=8), dimension(:), intent(in), optional :: rloc
       integer, intent(in), optional :: isf_m !< Type of interpolatig scaling function
       integer, intent(in), optional :: nmoms !< Number of preserved moments if /= 0
                                              !! (see ISF_family in scaling_function.f90)
       !local variables
       character(len=*), parameter :: subname='initialize_real_space_conversion'
       integer :: n_range,i,nmm,np
-      real(gp) :: tt
+      real(gp) :: tt,r
       real(gp), dimension(:), allocatable :: x_scf !< to be removed in a future implementation
+
+      !Check if already allocated
+      if (itype_scf /= 0) &
+         call f_err_throw('initialize_real_space_conversion already called.')
 
       if (present(isf_m)) then
          itype_scf=isf_m
@@ -61,13 +67,16 @@ module multipole_preserving
          nmm=0
       end if
 
+      np = 6
+      !Determine the length of the array
       if (present(npoints)) then
          np=ceiling(log(dble(npoints))/log(2.d0))
       else if (present(rloc)) then
-         if (rloc /= 0.d0) then
-           np=ceiling(log(10.d0/rloc)/log(2.0))
+         r = minval(rloc)
+         if (r /= 0.d0) then
+           np=ceiling(log(10.d0/r)/log(2.0))
          else
-           np=0
+           np=10
          end if
       end if
       np=max(6,np)
@@ -84,14 +93,18 @@ module multipole_preserving
       !call scaling_function(itype_scf,n_scf,n_range,x_scf,scf_data)
       !call wavelet_function(itype_scf,n_scf,x_scf,scf_data)
       call ISF_family(itype_scf,nmm,n_scf,n_range,x_scf,scf_data)
-      !stop
       call f_free(x_scf)
 
+      !call yaml_mapping_open('Multipole preserving (ionic potential)',flow=.true.)
+      !if (present(rloc)) call yaml_map('rloc',r)
+      !call yaml_map('itype_scf',itype_scf)
+      !call yaml_map('npoints',n_scf)
+      !call yaml_mapping_close()
+
       nrange_scf=n_range
-      !define the log of the smallest nonzero value as the
-      !cutoff for multiplying with it
-      !this means that the values which are
-      !lower than scf_data squared will be considered as zero
+      !Define the log of the smallest non zero value as the  cutoff for multiplying with it.
+      !This means that the values which are
+      !lower than scf_data squared will be considered as zero.
       mn_scf=epsilon(1.d0)**2 !just to put a "big" value
       do i=0,n_scf
          tt=scf_data(i)
@@ -103,21 +116,24 @@ module multipole_preserving
     end subroutine initialize_real_space_conversion
 
 
+    !> Check if scf_data is initialized
     pure function mp_initialized()
       implicit none
-      logical mp_initialized
+      logical :: mp_initialized
       mp_initialized=allocated(scf_data)
     end function mp_initialized
 
-    !>
+
+    !> Build the work arrays
     subroutine mp_gaussian_workarrays(nterms,nbox,expo,lxyz,rxyz,hgrids)
       implicit none
+      !Arguments
       integer, intent(in) :: nterms
       real(gp), intent(in) :: expo
       real(gp), dimension(3), intent(in) :: rxyz,hgrids
       integer, dimension(2,3), intent(in) :: nbox
       integer, dimension(nterms,3), intent(in) :: lxyz
-      !local variables
+      !Local variables
       integer :: i,iterm,it
       !matrix to be added to allocate the arrays
       do i=1,3
@@ -131,6 +147,7 @@ module multipole_preserving
       end do
 
     end subroutine mp_gaussian_workarrays
+
 
     pure function get_mp_exps_product(nterms,ival,factors) result(f)
       implicit none
@@ -148,11 +165,12 @@ module multipole_preserving
       end do
     end function get_mp_exps_product
 
+
     !> Deallocate scf_data
     subroutine finalize_real_space_conversion()
       implicit none
 
-      itype_scf=0
+      itype_scf=0 !< To indicate need initialization
       n_scf=-1
       mn_scf=0.0_gp
       nrange_scf=0
@@ -171,8 +189,7 @@ module multipole_preserving
     !! this function is also elemental to ease its evaluation, though
     !! the usage for vector argument is discouraged: dedicated routines has to be
     !! written to meet performance
-    !! @todo
-    !!  Optimize it!
+    !! @todo  Optimize it!
     elemental pure function mp_exp(hgrid,x0,expo,j,pow,modified)
       use numerics, only: safe_exp
       implicit none
@@ -256,9 +273,10 @@ module multipole_preserving
 
 end module multipole_preserving
 
+
 !> Creates the charge density of a Gaussian function, to be used for the local part
 !! of the pseudopotentials (gives the error function term when later processed by the Poisson solver).
-subroutine gaussian_density(rxyz,rloc, zion, multipole_preservingl, use_iterator,boxit,&
+subroutine mp_gaussian_density(rloc, zion, multipole_preservingl, use_iterator,boxit,&
      mp_isf,nmpx, nmpy, nmpz, mpx, mpy, mpz, nrho, density)
   !use gaussians, only: mp_exp
   use box
@@ -276,7 +294,6 @@ subroutine gaussian_density(rxyz,rloc, zion, multipole_preservingl, use_iterator
   integer,intent(in) :: mp_isf !< interpolating scaling function order for the multipole preserving
   integer,intent(in) :: nmpx, nmpy, nmpz !< sizes of the temporary arrays; if too small the code stops
   type(box_iterator), intent(inout) :: boxit
-  real(dp), dimension(3) :: rxyz
   real(kind=8),dimension(0:nmpx),intent(inout) :: mpx !< temporary array for the exponetials in x direction
   real(kind=8),dimension(0:nmpy),intent(inout) :: mpy !< temporary array for the exponetials in y direction
   real(kind=8),dimension(0:nmpz),intent(inout) :: mpz !< temporary array for the exponetials in z direction
@@ -289,7 +306,7 @@ subroutine gaussian_density(rxyz,rloc, zion, multipole_preservingl, use_iterator
   real(dp) :: rlocinv2sq, charge, cutoff, xp, yp, zp, rx, ry, rz, hxh, hyh, hzh,fx,fy,fz
   integer :: i1, i2, i3, isx, iex, isy, iey, isz, iez, j1, j2, j3, ind
 
-  call f_routine(id='gaussian_density')
+  call f_routine(id='mp_gaussian_density')
 
   rx=boxit%oxyz(1)
   ry=boxit%oxyz(2)
@@ -423,4 +440,4 @@ contains
 
   END SUBROUTINE ind_positions_new
 
-end subroutine gaussian_density
+end subroutine mp_gaussian_density

@@ -66,7 +66,7 @@ program PS_Check
         TCAT_EXCHANGECORR)
 
 
-   call f_malloc_set_status(memory_limit=0.e0,iproc=iproc)
+   call f_malloc_set_status(iproc=iproc)
    call f_routine(id='PS_Check')
 
    bigdft_mpi%mpi_comm=MPI_COMM_WORLD !workaround to be removed

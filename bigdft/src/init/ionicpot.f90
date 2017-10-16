@@ -77,13 +77,10 @@ subroutine IonicEnergyandForces(iproc,nproc,dpbox,at,elecfield,&
   fion = f_malloc_ptr((/ 3, at%astruct%nat /),id='fion')
   fdisp = f_malloc_ptr((/ 3, at%astruct%nat /),id='fdisp')
 
-  !initialize the work arrays needed to integrate with isf
-  !if (at%multipole_preserving) call initialize_real_space_conversion(isf_m=at%mp_isf)
-  if (at%multipole_preserving) then
-    !Determine the number of points depending on the min rloc
-    rloc = minval(at%psppar(0,0,:))
-    call initialize_real_space_conversion(isf_m=at%mp_isf,rloc=rloc)
-  end if
+  !Initialize the work arrays needed to integrate with isf
+  !Determine the number of points depending on the min rloc
+  if (at%multipole_preserving) &
+     call initialize_real_space_conversion(isf_m=at%mp_isf,rloc=at%psppar(0,0,:))
 
   ! Aliasing
   hxh = dpbox%mesh%hgrids(1)
@@ -310,7 +307,7 @@ subroutine IonicEnergyandForces(iproc,nproc,dpbox,at,elecfield,&
            !hyy=hyy+3.0_gp*chgprod/(dist**5)*(ry-rxyz(2,jat))**2-chgprod/(dist**3)
            !hyz=hyz+3.0_gp*chgprod/(dist**5)*(ry-rxyz(2,jat))*(rz-rxyz(3,jat))
            !hzz=hzz+3.0_gp*chgprod/(dist**5)*(rz-rxyz(3,jat))**2-chgprod/(dist**3)
-        enddo
+        end do
         !$omp end do
         !$omp end parallel
         !$omp parallel if (at%astruct%nat-iiat>1000) &
@@ -726,6 +723,7 @@ subroutine IonicEnergyandForces(iproc,nproc,dpbox,at,elecfield,&
 
 END SUBROUTINE IonicEnergyandForces
 
+
 !> Create the effective ionic potential (main ionic + counter ions)
 subroutine createEffectiveIonicPotential(iproc, verb, input, atoms, rxyz, shift, &
      & dpbox, pkernel, pot_ion, rho_ion, elecfield, psoffset)
@@ -787,6 +785,7 @@ subroutine createEffectiveIonicPotential(iproc, verb, input, atoms, rxyz, shift,
   call f_release_routine()
 
 END SUBROUTINE createEffectiveIonicPotential
+
 
 !> Create the ionic potential
 subroutine createIonicPotential(iproc,verb,at,rxyz,&
@@ -859,13 +858,11 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
   call f_routine(id='createIonicPotential')
   call timing(iproc,'CrtLocPot     ','ON')
 
-  !initialize the work arrays needed to integrate with isf
-  !if (at%multipole_preserving) call initialize_real_space_conversion(isf_m=at%mp_isf)
-  if (at%multipole_preserving) then
-    !Determine the number of points depending on the min rloc
-    rloc = minval(at%psppar(0,0,:))
-    call initialize_real_space_conversion(isf_m=at%mp_isf,rloc=rloc)
-  end if
+  !Initialize the work arrays needed to integrate with isf
+  !Determine the number of points depending on the min rloc
+  if (at%multipole_preserving) &
+     call initialize_real_space_conversion(isf_m=at%mp_isf,rloc=at%psppar(0,0,:))
+
   ! Aliasing
   hxh = dpbox%mesh%hgrids(1)
   hyh = dpbox%mesh%hgrids(2)
@@ -1077,7 +1074,6 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
      enddo
 
      !De-allocate for multipole preserving
-
      call f_free(mpx,mpy,mpz)
 
   end if
@@ -1607,6 +1603,7 @@ contains
 
 END SUBROUTINE createIonicPotential
 
+
 !> Create the ionic potential plus the terms describing the environmental information
 subroutine external_potential(iproc,verb,at,rxyz,&
      elecfield,dpbox,pkernel,pot_ion,rho_ion,psoffset)
@@ -1671,13 +1668,10 @@ subroutine external_potential(iproc,verb,at,rxyz,&
   call f_routine(id='createIonicPotential')
   call timing(iproc,'CrtLocPot     ','ON')
 
-  !initialize the work arrays needed to integrate with isf
-  !if (at%multipole_preserving) call initialize_real_space_conversion(isf_m=at%mp_isf)
-  if (at%multipole_preserving) then
-    !Determine the number of points depending on the min rloc
-    rloc = minval(at%psppar(0,0,:))
-    call initialize_real_space_conversion(isf_m=at%mp_isf,rloc=rloc)
-  end if
+  !Initialize the work arrays needed to integrate with isf
+  !Determine the number of points depending on the min rloc
+  if (at%multipole_preserving) &
+     call initialize_real_space_conversion(isf_m=at%mp_isf,rloc=at%psppar(0,0,:))
 
   ! Aliasing
   hxh = dpbox%mesh%hgrids(1)
@@ -2412,7 +2406,7 @@ subroutine CounterIonPotential(iproc,in,shift,dpbox,pkernel,npot_ion,pot_ion)
   integer :: j3,nmpx,nmpy,nmpz
   integer :: i1,i2,i3,ityp,nspin,indj3,indj23,n1i,n2i,n3i
   integer :: ind,nbl1,nbr1,nbl2,nbr2,n3pi,nbl3,nbr3,i3s
-  real(kind=8) :: cutoff,tt,rx,ry,rz,rloc
+  real(kind=8) :: cutoff,tt,rx,ry,rz
   real(kind=8) :: x,y,z,rholeaked,rholeaked_tot
   real(kind=8) :: hxh,hyh,hzh,tt_tot,potxyz
   real(wp) :: maxdiff
@@ -2456,7 +2450,7 @@ subroutine CounterIonPotential(iproc,in,shift,dpbox,pkernel,npot_ion,pot_ion)
   do ityp = 1, at%astruct%ntypes, 1
      call psp_dict_fill_all(dict, at%astruct%atomnames(ityp), in%ixc, in%projrad, in%crmult, in%frmult)
   end do
-  call psp_dict_analyse(dict, at, in%frmult)
+  call psp_dict_analyse(dict, at)
   ! Read associated pseudo files.
   call atomic_data_set_from_dict(dict,IG_OCCUPATION, at, in%nspin)
   call dict_free(dict)
@@ -2467,13 +2461,10 @@ subroutine CounterIonPotential(iproc,in,shift,dpbox,pkernel,npot_ion,pot_ion)
   if (iproc == 0) call print_atomic_variables(at, max(in%hx,in%hy,in%hz), in%ixc)
 
 
-  !initialize the work arrays needed to integrate with isf
-  !if (at%multipole_preserving) call initialize_real_space_conversion(isf_m=at%mp_isf)
-  if (at%multipole_preserving) then
-    !Determine the number of points depending on the min rloc
-    rloc = minval(at%psppar(0,0,:))
-    call initialize_real_space_conversion(isf_m=at%mp_isf,rloc=rloc)
-  end if
+  !Initialize the work arrays needed to integrate with isf
+  !Determine the number of points depending on the min rloc
+  if (at%multipole_preserving) &
+     call initialize_real_space_conversion(isf_m=at%mp_isf,rloc=at%psppar(0,0,:))
 
   ! Ionic charge (must be calculated for the PS active processes)
   rholeaked=0.d0
