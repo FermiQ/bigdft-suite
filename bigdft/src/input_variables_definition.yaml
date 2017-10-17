@@ -2284,7 +2284,7 @@ linear:
    charge_multipoles: 11
  lin_basis:
    nit: 8
-   idsx: 8
+   idsx: 8 #LG: would'n be better to put, say, 4?
    gnrm_cv: 2.0e-3
    deltae_cv: 1.0e-4
    min_gnrm_for_dynamic: 4.0e-3
