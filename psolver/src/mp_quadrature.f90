@@ -19,7 +19,7 @@ module multipole_preserving
 
   integer :: itype_scf=0   !< Type of the interpolating SCF, 0= data unallocated
   integer :: n_scf=-1      !< Number of points of the allocated data
-  integer :: nrange_scf=0  !< Range of the integration
+  integer :: nrange_scf=0  !< Range of the integration [-nrange_scf/2+1,nrange_scf+1]
   real(gp), dimension(:), allocatable :: scf_data !< Values for the interpolating scaling functions points
   type(f_matrix), dimension(3), save :: mp_exps !< Refcounted arrays to precalculate the coefficients
 

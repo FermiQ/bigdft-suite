@@ -22,7 +22,7 @@ subroutine ISF_family(itype,nmoms,nd,nrange,a,x)
   !! 0, then the dual scaling function is given as output
   integer, intent(in) :: nmoms
   integer, intent(in) :: nd      !< Number of points: must be a power of 2!!
-  integer, intent(out) :: nrange !< Range of the ISF [-nrange,nrange]
+  integer, intent(out) :: nrange !< Range of the ISF [-nrange/2+1,nrange/2+1]
   real(kind=8), dimension(0:nd), intent(out) :: a !< Abscissae
   real(kind=8), dimension(0:nd), intent(out) :: x !< Values of the ISF
   !Local variables
