@@ -55,10 +55,10 @@ subroutine IonicEnergyandForces(iproc,nproc,dpbox,at,elecfield,&
   logical :: perx,pery,perz
   integer :: nbl1,nbr1,nbl2,nbr2,nbl3,nbr3,n3i,n3pi,i3s
   integer :: n1i,n2i,i,iat,ii,ityp,jat,jtyp,natp,isat,iiat
-  integer :: ierr
+  integer :: mpnx,mpny,mpnz,ierr
   real(gp) :: ucvol,rloc
   real(gp) :: twopitothreehalf,atint,shortlength,charge,eself,rx,ry,rz
-  real(gp) :: fxion,fyion,fzion,dist,fxerf,fyerf,fzerf,cutoff
+  real(gp) :: fxion,fyion,fzion,dist,fxerf,fyerf,fzerf
   real(gp) :: hxh,hyh,hzh
   real(gp) :: chgprod
   real(gp) :: xp,Vel,prefactor,ehart,de,dv
@@ -80,7 +80,7 @@ subroutine IonicEnergyandForces(iproc,nproc,dpbox,at,elecfield,&
   !Initialize the work arrays needed to integrate with isf
   !Determine the number of points depending on the min rloc
   if (at%multipole_preserving) &
-     call initialize_real_space_conversion(isf_m=at%mp_isf,rloc=at%psppar(0,0,:))
+     call initialize_real_space_conversion(isf_m=at%mp_isf,rlocs=at%psppar(0,0,:))
 
   ! Aliasing
   hxh = dpbox%mesh%hgrids(1)
@@ -390,7 +390,8 @@ subroutine IonicEnergyandForces(iproc,nproc,dpbox,at,elecfield,&
 
         !calculate the self energy of the isolated bc
         eself=eself+real(at%nelpsp(ityp),gp)**2/rloc
-     enddo
+
+     end do
 
      eself=0.5_gp/sqrt(pi)*eself
 
@@ -406,16 +407,12 @@ subroutine IonicEnergyandForces(iproc,nproc,dpbox,at,elecfield,&
         !(and save the values for the ionic potential)
 
         !Determine the maximal bounds for mpx, mpy, mpz (1D-integral)
-        cutoff=10.0_gp*maxval(at%psppar(0,0,:))
-        if (at%multipole_preserving) then
-           !We want to have a good accuracy of the last point rloc*10
-           cutoff=cutoff+max(hxh,hyh,hzh)*real(at%mp_isf,kind=gp)
-        end if
+        call mp_range(at%multipole_preserving,at%mp_isf,1,&
+             hxh,hyh,hzh,maxval(at%psppar(0,0,:)),mpnx,mpny,mpnz)
         !Separable function: do 1-D integrals before and store it.
-        mpx = f_malloc( (/ 0 .to. (ceiling(cutoff/hxh) - floor(-cutoff/hxh)) + 1 /),id='mpx')
-        mpy = f_malloc( (/ 0 .to. (ceiling(cutoff/hyh) - floor(-cutoff/hyh)) + 1 /),id='mpy')
-        mpz = f_malloc( (/ 0 .to. (ceiling(cutoff/hzh) - floor(-cutoff/hzh)) + 1 /),id='mpz')
-
+        mpx = f_malloc( (/ 0 .to. mpnx /),id='mpx')
+        mpy = f_malloc( (/ 0 .to. mpny /),id='mpy')
+        mpz = f_malloc( (/ 0 .to. mpnz /),id='mpz')
 
         atit = atoms_iter(at%astruct)
         do while(atoms_iter_next(atit))
@@ -528,16 +525,14 @@ subroutine IonicEnergyandForces(iproc,nproc,dpbox,at,elecfield,&
      !calculate the forces near the atom due to the error function part of the potential
      !calculate forces for all atoms only in the distributed part of the simulation box
      if (dpbox%n3pi >0 ) then
+
         !Determine the maximal bounds for mpx, mpy, mpz (1D-integral)
-        cutoff=10.0_gp*maxval(at%psppar(0,0,:))
-        if (at%multipole_preserving) then
-           !We want to have a good accuracy of the last point rloc*10
-           cutoff=cutoff+max(hxh,hyh,hzh)*real(at%mp_isf,kind=gp)
-        end if
+        call mp_range(at%multipole_preserving,at%mp_isf,1,&
+            hxh,hyh,hzh,maxval(at%psppar(0,0,:)),mpnx,mpny,mpnz)
         !Separable function: do 1-D integrals before and store it.
-        mpx = f_malloc( (/ 0 .to. (ceiling(cutoff/hxh) - floor(-cutoff/hxh)) + 1 /),id='mpx')
-        mpy = f_malloc( (/ 0 .to. (ceiling(cutoff/hyh) - floor(-cutoff/hyh)) + 1 /),id='mpy')
-        mpz = f_malloc( (/ 0 .to. (ceiling(cutoff/hzh) - floor(-cutoff/hzh)) + 1 /),id='mpz')
+        mpx = f_malloc( (/ 0 .to. mpnx /),id='mpx')
+        mpy = f_malloc( (/ 0 .to. mpny /),id='mpy')
+        mpz = f_malloc( (/ 0 .to. mpnz /),id='mpz')
 
         atit = atoms_iter(at%astruct)
         do while(atoms_iter_next(atit))
@@ -834,7 +829,7 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
   integer  :: i3s,n3pi,nbl1,nbr1,nbl2,nbl3,nbr2,nbr3
   real(kind=8) :: raux1(1),rr1(1)
   integer :: iex,iey,iez,ind,indj3,indj23,isx,isy,isz,j1,j2,j3
-  integer :: n1i,n2i,n3i
+  integer :: n1i,n2i,n3i,mpnx,mpny,mpnz
   real(gp) :: hxh,hyh,hzh
   real(gp) :: rloc,charge,cutoff,r2,arg,xp,tt,rx,ry,rz
   real(gp) :: tt_tot,potxyz,aval
@@ -861,7 +856,7 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
   !Initialize the work arrays needed to integrate with isf
   !Determine the number of points depending on the min rloc
   if (at%multipole_preserving) &
-     call initialize_real_space_conversion(isf_m=at%mp_isf,rloc=at%psppar(0,0,:))
+     call initialize_real_space_conversion(isf_m=at%mp_isf,rlocs=at%psppar(0,0,:))
 
   ! Aliasing
   hxh = dpbox%mesh%hgrids(1)
@@ -893,19 +888,13 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
   if (dpbox%n3pi >0 .and. .not. htoobig) then
 
      !Determine the maximal bounds for mpx, mpy, mpz (1D-integral)
-     if (at%astruct%nat >0) then
-        cutoff=10.0_gp*maxval(at%psppar(0,0,:))
-     else
-        cutoff=0.0
-     end if
-     if (at%multipole_preserving) then
-        !We want to have a good accuracy of the last point rloc*10
-        cutoff=cutoff+max(hxh,hyh,hzh)*real(at%mp_isf,kind=gp)
-     end if
+     call mp_range(at%multipole_preserving,at%mp_isf,at%astruct%nat,&
+         hxh,hyh,hzh,maxval(at%psppar(0,0,:)),mpnx,mpny,mpnz)
      !Separable function: do 1-D integrals before and store it.
-     mpx = f_malloc( (/ 0 .to. (ceiling(cutoff/hxh) - floor(-cutoff/hxh)) + 1 /),id='mpx')
-     mpy = f_malloc( (/ 0 .to. (ceiling(cutoff/hyh) - floor(-cutoff/hyh)) + 1 /),id='mpy')
-     mpz = f_malloc( (/ 0 .to. (ceiling(cutoff/hzh) - floor(-cutoff/hzh)) + 1 /),id='mpz')
+     mpx = f_malloc( (/ 0 .to. mpnx /),id='mpx')
+     mpy = f_malloc( (/ 0 .to. mpny /),id='mpy')
+     mpz = f_malloc( (/ 0 .to. mpnz /),id='mpz')
+
      atit = atoms_iter(at%astruct)
      do while(atoms_iter_next(atit))
 
@@ -1231,19 +1220,12 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
   if (dpbox%n3pi > 0) then
 
      !Determine the maximal bounds for mpx, mpy, mpz (1D-integral)
-     if (at%astruct%nat >0) then
-        cutoff=10.0_gp*maxval(at%psppar(0,0,:))
-     else
-        cutoff=0.0_gp
-     end if
-     if (at%multipole_preserving) then
-        !We want to have a good accuracy of the last point rloc*10
-        cutoff=cutoff+max(hxh,hyh,hzh)*real(at%mp_isf,kind=gp)
-     end if
+     call mp_range(at%multipole_preserving,at%mp_isf,at%astruct%nat,&
+         hxh,hyh,hzh,maxval(at%psppar(0,0,:)),mpnx,mpny,mpnz)
      !Separable function: do 1-D integrals before and store it.
-     mpx = f_malloc( (/ 0 .to. (ceiling(cutoff/hxh) - floor(-cutoff/hxh)) + 1 /),id='mpx')
-     mpy = f_malloc( (/ 0 .to. (ceiling(cutoff/hyh) - floor(-cutoff/hyh)) + 1 /),id='mpy')
-     mpz = f_malloc( (/ 0 .to. (ceiling(cutoff/hzh) - floor(-cutoff/hzh)) + 1 /),id='mpz')
+     mpx = f_malloc( (/ 0 .to. mpnx /),id='mpx')
+     mpy = f_malloc( (/ 0 .to. mpny /),id='mpy')
+     mpz = f_malloc( (/ 0 .to. mpnz /),id='mpz')
 
      ! Only for HGH pseudos
      atit = atoms_iter(at%astruct)
@@ -1259,11 +1241,11 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
         ry=rxyz(2,atit%iat)
         rz=rxyz(3,atit%iat)
 
-        !!-        rloc=at%psppar(0,0,ityp)
         rloc=at%psppar(0,0,atit%ityp)
         rlocinvsq=1.0_gp/rloc**2
         rlocinv2sq=0.5_gp/rloc**2
         cutoff=10.0_gp*rloc
+
         if (at%multipole_preserving) then
            !We want to have a good accuracy of the last point rloc*10
            !cutoff=cutoff+max(hxh,hyh,hzh)*real(16,kind=gp)
@@ -1279,13 +1261,13 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
         iez=ceiling((rz+cutoff)/hzh)
 
         do i1=isx,iex
-           mpx(i1-isx) = mp_exp(hxh,rx,rlocinv2sq,i1,0,at%multipole_preserving)
+          mpx(i1-isx) = mp_exp(hxh,rx,rlocinv2sq,i1,0,at%multipole_preserving)
         end do
         do i2=isy,iey
-           mpy(i2-isy) = mp_exp(hyh,ry,rlocinv2sq,i2,0,at%multipole_preserving)
+          mpy(i2-isy) = mp_exp(hyh,ry,rlocinv2sq,i2,0,at%multipole_preserving)
         end do
         do i3=isz,iez
-           mpz(i3-isz) = mp_exp(hzh,rz,rlocinv2sq,i3,0,at%multipole_preserving)
+          mpz(i3-isz) = mp_exp(hzh,rz,rlocinv2sq,i3,0,at%multipole_preserving)
         end do
 
         if( at%npspcode(atit%ityp) /= PSPCODE_PAW) then
@@ -1646,7 +1628,7 @@ subroutine external_potential(iproc,verb,at,rxyz,&
   integer  :: i3s,n3pi,nbl1,nbr1,nbl2,nbl3,nbr2,nbr3
   real(kind=8) :: raux1(1),rr1(1)
   integer :: iex,iey,iez,ind,indj3,indj23,isx,isy,isz,j1,j2,j3
-  integer :: n1i,n2i,n3i
+  integer :: n1i,n2i,n3i,mpnx,mpny,mpnz
   real(gp) :: hxh,hyh,hzh
   real(gp) :: rloc,charge,cutoff,r2,arg,xp,tt,rx,ry,rz
   real(gp) :: tt_tot,potxyz
@@ -1671,7 +1653,7 @@ subroutine external_potential(iproc,verb,at,rxyz,&
   !Initialize the work arrays needed to integrate with isf
   !Determine the number of points depending on the min rloc
   if (at%multipole_preserving) &
-     call initialize_real_space_conversion(isf_m=at%mp_isf,rloc=at%psppar(0,0,:))
+     call initialize_real_space_conversion(isf_m=at%mp_isf,rlocs=at%psppar(0,0,:))
 
   ! Aliasing
   hxh = dpbox%mesh%hgrids(1)
@@ -1702,26 +1684,21 @@ subroutine external_potential(iproc,verb,at,rxyz,&
 
   if (dpbox%n3pi >0 .and. .not. htoobig) then
 
-     !Determine the maximal bounds for mpx, mpy, mpz (1D-integral)
-     if (at%astruct%nat >0) then
-        cutoff=10.0_gp*maxval(at%psppar(0,0,:))
-     else
-        cutoff=0.0
-     end if
-     if (at%multipole_preserving) then
-        !We want to have a good accuracy of the last point rloc*10
-        cutoff=cutoff+max(hxh,hyh,hzh)*real(at%mp_isf,kind=gp)
-     end if
+    !Determine the maximal bounds for mpx, mpy, mpz (1D-integral)
+    call mp_range(at%multipole_preserving,at%mp_isf,at%astruct%nat,&
+         hxh,hyh,hzh,maxval(at%psppar(0,0,:)),mpnx,mpny,mpnz)
      !Separable function: do 1-D integrals before and store it.
-     mpx = f_malloc( (/ 0 .to. (ceiling(cutoff/hxh) - floor(-cutoff/hxh)) + 1 /),id='mpx')
-     mpy = f_malloc( (/ 0 .to. (ceiling(cutoff/hyh) - floor(-cutoff/hyh)) + 1 /),id='mpy')
-     mpz = f_malloc( (/ 0 .to. (ceiling(cutoff/hzh) - floor(-cutoff/hzh)) + 1 /),id='mpz')
+     mpx = f_malloc( (/ 0 .to. mpnx /),id='mpx')
+     mpy = f_malloc( (/ 0 .to. mpny /),id='mpy')
+     mpz = f_malloc( (/ 0 .to. mpnz /),id='mpz')
+
      atit = atoms_iter(at%astruct)
      do while(atoms_iter_next(atit))
 
         rx=rxyz(1,atit%iat)
         ry=rxyz(2,atit%iat)
         rz=rxyz(3,atit%iat)
+
         rloc=at%psppar(0,0,atit%ityp)
         rlocinv2sq=0.5_gp/rloc**2
         charge=real(at%nelpsp(atit%ityp),gp)/(2.0_gp*pi*sqrt(2.0_gp*pi)*rloc**3)
@@ -1928,20 +1905,14 @@ subroutine external_potential(iproc,verb,at,rxyz,&
   end if
 
   if (dpbox%n3pi > 0) then
+
      !Determine the maximal bounds for mpx, mpy, mpz (1D-integral)
-     if (at%astruct%nat >0) then
-        cutoff=10.0_gp*maxval(at%psppar(0,0,:))
-     else
-        cutoff=0.0_gp
-     end if
-     if (at%multipole_preserving) then
-        !We want to have a good accuracy of the last point rloc*10
-        cutoff=cutoff+max(hxh,hyh,hzh)*real(at%mp_isf,kind=gp)
-     end if
+     call mp_range(at%multipole_preserving,at%mp_isf,at%astruct%nat,&
+          hxh,hyh,hzh,maxval(at%psppar(0,0,:)),mpnx,mpny,mpnz)
      !Separable function: do 1-D integrals before and store it.
-     mpx = f_malloc( (/ 0 .to. (ceiling(cutoff/hxh) - floor(-cutoff/hxh)) + 1 /),id='mpx')
-     mpy = f_malloc( (/ 0 .to. (ceiling(cutoff/hyh) - floor(-cutoff/hyh)) + 1 /),id='mpy')
-     mpz = f_malloc( (/ 0 .to. (ceiling(cutoff/hzh) - floor(-cutoff/hzh)) + 1 /),id='mpz')
+     mpx = f_malloc( (/ 0 .to. mpnx /),id='mpx')
+     mpy = f_malloc( (/ 0 .to. mpny /),id='mpy')
+     mpz = f_malloc( (/ 0 .to. mpnz /),id='mpz')
 
      ! Only for HGH pseudos
      atit = atoms_iter(at%astruct)
@@ -1954,6 +1925,7 @@ subroutine external_potential(iproc,verb,at,rxyz,&
         rlocinvsq=1.0_gp/rloc**2
         rlocinv2sq=0.5_gp/rloc**2
         cutoff=10.0_gp*rloc
+
         if (at%multipole_preserving) then
            !We want to have a good accuracy of the last point rloc*10
            !cutoff=cutoff+max(hxh,hyh,hzh)*real(16,kind=gp)
@@ -2464,7 +2436,7 @@ subroutine CounterIonPotential(iproc,in,shift,dpbox,pkernel,npot_ion,pot_ion)
   !Initialize the work arrays needed to integrate with isf
   !Determine the number of points depending on the min rloc
   if (at%multipole_preserving) &
-     call initialize_real_space_conversion(isf_m=at%mp_isf,rloc=at%psppar(0,0,:))
+     call initialize_real_space_conversion(isf_m=at%mp_isf,rlocs=at%psppar(0,0,:))
 
   ! Ionic charge (must be calculated for the PS active processes)
   rholeaked=0.d0

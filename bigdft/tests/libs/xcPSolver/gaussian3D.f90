@@ -27,12 +27,13 @@ program gaussian3D
     call MP_rloc(hgrid,shift,rloc,nmoms=3)
     rloc = rloc * 0.1_gp
     shift = shift + 0.05_gp
-    if (rloc < 1.0e-3_gp) exit
+    if (rloc < 1.0e-10_gp) exit
   end do
 
+shift = 0.0_gp
   do i=0,3
-    shift = real(i*0.1,gp)
-    call MP_rloc_zero(hgrid,shift,2)
+    !shift = real(i,gp)*0.1_gp
+    call MP_rloc_zero(hgrid,shift,5 )
   end do
 
   call f_lib_finalize()
@@ -60,7 +61,7 @@ contains
     real(gp), dimension(:,:,:), allocatable :: moments
     real(gp), dimension(:), allocatable :: mp,rx
     real(gp), dimension(:,:,:), allocatable :: array
-    real(gp) :: x,y,z,reference,diff,factor,rlocinv2sq,cutoff
+    real(gp) :: x,y,z,reference,diff,factor,rlocinv2sq,cutoff,vol
     integer :: is,ie,n,i,ix,iy,iz,mx,my,mz
 
     call f_routine(id='MP_rloc')
@@ -72,6 +73,7 @@ contains
     !factor = 1.0_gp/gauint0(rlocinv2sq,0)
     !factor = sqrt(rlocinv2sq)/gammaonehalf
     factor = sqrt(0.5_gp)/(rloc*gammaonehalf)
+    call yaml_mapping_open('MP_rloc',flow=.true.)
     call yaml_map('Normalized factor',factor*factor*factor)
     call yaml_map('rloc',rloc)
     call yaml_map('hgrid',hgrid)
@@ -95,11 +97,13 @@ contains
     call yaml_map('mp size',size(mp))
 
     !Initialize the work arrays needed to integrate with is
-    call initialize_real_space_conversion(isf_m=mp_isf,rloc=(/rloc/),verbose=.true.)
+    call initialize_real_space_conversion(isf_m=mp_isf,rlocs=(/rloc/),verbose=.true.)
+    call yaml_mapping_close()
 
     do i=is,ie
        rx(i) =  real(i,gp)*hgrid
        mp(i) = factor*mp_exp(hgrid,shift,rlocinv2sq,i,0,multipole_preserving)
+       print *,i,mp(i)
     end do
 
     !Calculate the corresponding 3D array
@@ -114,6 +118,7 @@ contains
     end do
 
     !Calculate the moments
+    vol=hgrid*hgrid*hgrid
     do mz=0,nmoms
       do my=0,nmoms
         do mx=0,nmoms
@@ -130,7 +135,7 @@ contains
               end do
             end do
           end do
-          moments(mx,my,mz)=moments(mx,my,mz)*hgrid*hgrid*hgrid
+          moments(mx,my,mz)=moments(mx,my,mz)*vol
         end do
       end do
     end do
@@ -144,9 +149,10 @@ contains
         do mz=0,nmoms
           reference=factor**3*gauint0(rlocinv2sq,mx)*gauint0(rlocinv2sq,my)*gauint0(rlocinv2sq,mz)
           diff = abs(reference-moments(mx,my,mz))
-          if (reference == 0.0_gp .and. diff < e_diff) then
+          if (diff < e_diff) then
           else
-            call yaml_map(trim(yaml_toa( (/ mx, my, mz /),fmt="(i0)")),&
+            call yaml_map(&
+                trim(yaml_toa(mx))+"-"+trim(yaml_toa(my))+"+"+trim(yaml_toa(mz)),&
                 (/ diff, moments(mx,my,mz), reference /),fmt="(1pe10.3)" )
           end if
         end do
@@ -182,12 +188,12 @@ contains
     integer, parameter :: mp_isf=16
     !integer, parameter :: nmoms = 7
     real(gp), parameter :: gammaonehalf=1.772453850905516027298_gp ! i.e. sqrt(pi)
-    real(gp), parameter :: e_diff = 1.0e-13_gp
+    real(gp), parameter :: e_diff = 1.0e-12_gp
     real(gp), dimension(:,:,:), allocatable :: moments
     real(gp), dimension(:), allocatable :: mp,rx,x_scf,scf_data
     real(gp), dimension(:,:,:), allocatable :: array
     real(gp) :: x,y,z,reference,diff,cutoff
-    real(gp) :: a1,a2,aa,v,r0,rr,vol
+    real(gp) :: a1,a2,aa,dx,v,r0,rr,vol,x1,x2
     integer :: i,is,ie,n,ix,iy,iz,mx,my,mz
     integer :: np,n_scf,n_range,i1,ir
 
@@ -196,6 +202,7 @@ contains
     cutoff=hgrid*real(mp_isf,kind=gp)
     vol = hgrid*hgrid*hgrid
 
+    call yaml_mapping_open("MP_rloc_zero",flow=.true.)
     call yaml_map('rloc',0.0)
     call yaml_map('hgrid',hgrid)
     call yaml_map('shift',shift)
@@ -222,7 +229,7 @@ contains
 
     call yaml_map('mp size',size(mp))
 
-    np = 6
+    np = 11
     !2**6 is a min to have 2**12=2048 points
     !otherwise trouble in scaling_function.f90
     n_scf=2*mp_isf*(2**np)
@@ -234,19 +241,18 @@ contains
     !call scaling_function(itype_scf,n_scf,n_range,x_scf,scf_data)
     !call wavelet_function(itype_scf,n_scf,x_scf,scf_data)
     call ISF_family(mp_isf,0,n_scf,n_range,x_scf,scf_data)
-    !do i=0,n_scf
-    !   x_scf(i) = real(i*n_range,gp)/real(n_scf,gp)-(0.5_gp*real(n_range,gp)-1.0_gp)
-    !end do
 
     call yaml_map('n_scf',n_scf)
     call yaml_map('n_range',n_range)
+    call yaml_mapping_close()
 
     !Build mp
     ir = n_scf/n_range  !Step for index
-    aa = 1.0_gp/(x_scf(2)-x_scf(1)) ! Inverse of the step
+    aa = real(ir,gp) ! Inverse of the step
+    dx = 1.0_gp/aa ! grid step
     r0 = real(-n_range/2 + 1,gp) !Starting point
 
-    !The first index is is out.
+    !The first index is 'is' out.
     do i=is,ie
       !We have a ISF centered on rx(i) with a step of hgrid and a delta on 0
       !so need value for x_scf(i)*hgrid == -rx(i) (symmetric so rx(i))
@@ -257,10 +263,14 @@ contains
         mp(i) = 0.0_gp
         cycle
       end if
-      a1 = aa*(rr-x_scf(i1))
-      a2 = aa*(x_scf(i1+1)-rr)
+      x1 = real(i1,gp)*dx+r0
+      x2 = x1+dx
+      !x1 = x_scf(i1)
+      !x2 = x_scf(i1+1)
+      a1 = aa*(rr-x1)
+      a2 = aa*(x2-rr)
       v = a2*scf_data(i1)+a1*scf_data(i1+1)
-      print *,i,i1,rr,x_scf(i1),x_scf(i1+1),v
+      print *,i,i1,rr,x1,x2,v
       mp(i) = v
     end do
 
@@ -286,9 +296,8 @@ contains
               y=rx(iy)
               do ix=is,ie
                 x=rx(ix)
-                !Center to the shift to avoid complicated reference
                 moments(mx,my,mz)=moments(mx,my,mz)&
-                   +( (x-shift)**mx*(y-shift)**my*(z-shift)**mz)*array(ix,iy,iz)
+                 +(x**mx*y**my*z**mz)*array(ix,iy,iz)
               end do
             end do
           end do
@@ -304,16 +313,18 @@ contains
     do mx=0,nmoms
       do my=0,nmoms
         do mz=0,nmoms
-          if (mx==0.and.my==0.and.mz==0) then
-            reference = 1.0_gp
-          else
-            reference = 0.0_gp
-          end if
+          !if (mx==0.and.my==0.and.mz==0) then
+          !  reference = 1.0_gp
+          !else
+          !  reference = 0.0_gp
+          !end if
+          reference = shift**(mx+my+mz)
           diff = abs(reference-moments(mx,my,mz))
-          if (reference == 0.0_gp .and. diff < e_diff) then
+          if (diff < e_diff) then
           else
-            call yaml_map(trim(yaml_toa( (/ mx, my, mz /),fmt="(i0)")),&
-                (/ diff, moments(mx,my,mz), reference /) )
+            call yaml_map(&
+                trim(yaml_toa(mx))+"-"+trim(yaml_toa(my))+"-"+trim(yaml_toa(mz)),&
+                (/ diff, moments(mx,my,mz), reference /),fmt="(1pe10.3)" )
           end if
         end do
       end do
@@ -344,7 +355,7 @@ subroutine test_gain()
   integer, parameter :: nstep=3         !< Number of resolution to calculate the moments
   integer, parameter :: nsigma=1        !< Number of different gaussian functions
   integer, parameter :: npts=50         !< Arrays from -npts to npts
-  real(gp), parameter :: hgrid = 0.8_gp !< Step grid
+  real(gp), parameter :: hgrid = 0.8_gp !< Grid step
   real(gp), parameter :: sigma = 0.2_gp !< Sigma gaussian
   integer :: nat,ntyp,iat,i
   integer(f_long) :: t0,t1
@@ -468,7 +479,7 @@ subroutine MP_gaussian()
   integer, parameter :: nstep=3         !< Number of resolution to calculate the moments
   integer, parameter :: nsigma=1        !< Number of different gaussian functions
   integer, parameter :: npts=50         !< Arrays from -npts to npts
-  real(gp), parameter :: hgrid = 0.8_gp !< Step grid
+  real(gp), parameter :: hgrid = 0.8_gp !< Grid step
   real(gp), parameter :: sigma = 0.2_gp !< Sigma gaussian
   integer :: j
   integer :: imoms,pow,istep,isigma

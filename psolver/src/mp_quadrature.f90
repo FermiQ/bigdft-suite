@@ -12,14 +12,16 @@ module multipole_preserving
   use f_precisions, only: gp => f_double
   use f_arrays
   use dictionaries, only: f_err_throw
-  use yaml_output, only: yaml_mapping_open,yaml_mapping_close,yaml_map
+  use yaml_output, only: yaml_mapping_open,yaml_mapping_close,yaml_map,yaml_comment
   implicit none
 
   private
 
+  real(gp), parameter :: rlocmin = 1.e-6_gp !< if rloc < rlocmin then switch to evaluate ISF directly (gaussian=dirac)
+          !! The error over the moment 2 is rloc**2
   integer :: itype_scf=0   !< Type of the interpolating SCF, 0= data unallocated
   integer :: n_scf=-1      !< Number of points of the allocated data
-  integer :: nrange_scf=0  !< Range of the integration [-nrange_scf/2+1,nrange_scf+1]
+  integer :: nrange_scf=0  !< Range of the integration [-nrange_scf/2+1,nrange_scf/2+1]
   real(gp), dimension(:), allocatable :: scf_data !< Values for the interpolating scaling functions points
   type(f_matrix), dimension(3), save :: mp_exps !< Refcounted arrays to precalculate the coefficients
 
@@ -28,8 +30,8 @@ module multipole_preserving
   real(gp) :: mn_scf = 0.0_gp
   real(gp), parameter :: mp_tiny = 1.e-30_gp !<put zero when the value is lower than this
 
-
-  public :: initialize_real_space_conversion,finalize_real_space_conversion,scfdotf,mp_exp
+  public :: initialize_real_space_conversion,finalize_real_space_conversion
+  public :: mp_range,scfdotf,mp_exp
   public :: mp_gaussian_workarrays,get_mp_exps_product,mp_initialized
 
   contains
@@ -37,20 +39,21 @@ module multipole_preserving
     !> Prepare the array for the evaluation with the interpolating Scaling Functions
     !! one might add also the function to be converted and the
     !! prescription for integrating knowing the scaling relation of the function
-    subroutine initialize_real_space_conversion(npoints,isf_m,rloc,nmoms,verbose)
+    subroutine initialize_real_space_conversion(npoints,isf_m,rlocs,nmoms,verbose)
       implicit none
       !Arguments
       integer, intent(in), optional :: npoints !< Number of points (only 2**x)
       !> rloc of a given set of gaussian functions in order to determine npoints
-      real(kind=8), dimension(:), intent(in), optional :: rloc
+      real(kind=8), dimension(:), intent(in), optional :: rlocs !< arrays of rloc
       integer, intent(in), optional :: isf_m !< Type of interpolatig scaling function
       integer, intent(in), optional :: nmoms !< Number of preserved moments if /= 0
                                              !! (see ISF_family in scaling_function.f90)
       logical, intent(in), optional :: verbose !< If .true., display some information
       !Local variables
       character(len=*), parameter :: subname='initialize_real_space_conversion'
+      integer, parameter :: npmin = 6 !< minimal value for 2**np number of points
       integer :: n_range,i,nmm,np
-      real(gp) :: tt,r
+      real(gp) :: tt,rloc
       real(gp), dimension(:), allocatable :: x_scf !< to be removed in a future implementation
 
       !Check if already allocated
@@ -69,19 +72,20 @@ module multipole_preserving
          nmm=0
       end if
 
-      np = 6
+      np = npmin
       !Determine the length of the array
       if (present(npoints)) then
-         np=ceiling(log(dble(npoints))/log(2.d0))
-      else if (present(rloc)) then
-         r = minval(rloc)
-         if (r /= 0.d0) then
-           np=ceiling(log(10.d0/r)/log(2.0))
+         np=ceiling(log(dble(npoints))/log(2.0_gp))
+      else if (present(rlocs)) then
+         rloc = minval(rlocs)
+         !if (rloc /= 0.0_gp) then
+         if (rloc > rlocmin) then
+           np=ceiling(log(0.5_gp/rloc)/log(2.0_gp))
          else
-           np=10
+           np=12
          end if
       end if
-      np=max(6,np)
+      np=max(npmin,np)
       !2**6 is a min to have 2**12=2048 points
       !otherwise trouble in scaling_function.f90
       n_scf=2*(itype_scf+nmm)*(2**np)
@@ -100,7 +104,10 @@ module multipole_preserving
       if (present(verbose)) then
         if (verbose) then
           call yaml_mapping_open('Multipole preserving (ionic potential)',flow=.true.)
-          if (present(rloc)) call yaml_map('rloc',r)
+          if (present(rlocs)) then
+            call yaml_map('rloc',rloc)
+            if (rloc <= rlocmin) call yaml_comment('Switch to integral with dirac function')
+          end if
           call yaml_map('itype_scf',itype_scf)
           call yaml_map('npoints',n_scf)
           call yaml_mapping_close()
@@ -111,10 +118,10 @@ module multipole_preserving
       !Define the log of the smallest non zero value as the  cutoff for multiplying with it.
       !This means that the values which are
       !lower than scf_data squared will be considered as zero.
-      mn_scf=epsilon(1.d0)**2 !just to put a "big" value
+      mn_scf=epsilon(1.0_gp)**2 !just to put a "big" value
       do i=0,n_scf
          tt=scf_data(i)
-         if (tt /= 0.0_gp .and. abs(tt) > sqrt(tiny(1.0))) then
+         if (tt /= 0.0_gp .and. abs(tt) > sqrt(tiny(1.0_gp))) then
             mn_scf=min(mn_scf,tt**2)
          end if
       end do
@@ -172,6 +179,37 @@ module multipole_preserving
     end function get_mp_exps_product
 
 
+    !> Calculate the range for the allocations of 1D array (x,y, and z dimension)
+    !! gaussian values or integral between gaussian and ISF
+    subroutine mp_range(mp,isf_m,nat,hxh,hyh,hzh,rlocmax,nx,ny,nz)
+        implicit none
+        !Arguments
+        logical, intent(in) :: mp  !< multipole_preserving or not
+        integer, intent(in) :: isf_m !< Type of interpolatig scaling function
+        integer, intent(in) :: nat   !< Number of atoms
+        real(gp), intent(in) :: hxh,hyh,hzh !< Grid step
+        real(kind=8), intent(in) :: rlocmax !< Max of rloc
+        integer, intent(out) :: nx,ny,nz !< Range of the 1D arrays
+        !Local variables
+        real(gp) :: cutoff
+
+        if (nat > 0) then
+           cutoff=10.0_gp*rlocmax
+        else
+           cutoff=0.0_gp
+        end if
+        if (mp) then
+           !We want to have a good accuracy of the last point rloc*10
+           cutoff=cutoff+max(hxh,hyh,hzh)*real(isf_m,kind=gp)
+        end if
+
+        nx = (ceiling(cutoff/hxh) - floor(-cutoff/hxh)) + 1
+        ny = (ceiling(cutoff/hyh) - floor(-cutoff/hyh)) + 1
+        nz = (ceiling(cutoff/hzh) - floor(-cutoff/hzh)) + 1
+
+    end subroutine mp_range
+
+
     !> Deallocate scf_data
     subroutine finalize_real_space_conversion()
       implicit none
@@ -201,7 +239,7 @@ module multipole_preserving
       implicit none
       real(gp), intent(in) :: hgrid   !< Hgrid
       real(gp), intent(in) :: x0      !< X value
-      real(gp), intent(in) :: expo    !< Exponent of the gaussian
+      real(gp), intent(in) :: expo    !< Exponent of the gaussian 0.5_gp/rloc**2
       logical, intent(in) :: modified !< Switch to scfdotf if true
       integer, intent(in) :: j        !< Location of the scf from x0
       integer, intent(in) :: pow      !< Exp(-expo*x**2)*(x**pow)
@@ -211,7 +249,12 @@ module multipole_preserving
 
       !added failsafe to avoid segfaults
       if (modified .and. allocated(scf_data)) then
-         mp_exp=scfdotf(j,hgrid,expo,x0,pow)
+        if (expo > 0.5_gp/rlocmin**2) then
+          !We have almost a dirac function
+          mp_exp=scf_dirac(j,hgrid,expo,x0,pow)
+        else
+          mp_exp=scfdotf(j,hgrid,expo,x0,pow)
+        end if
       else
          x=hgrid*j-x0
          mp_exp=safe_exp(-expo*x**2,underflow=mp_tiny)
@@ -224,22 +267,21 @@ module multipole_preserving
     !! input function, which is a gaussian times a power centered
     !! @f$g(x) = (x-x_0)^{pow} e^{-pgauss (x-x_0)}@f$
     !! here pure specifier is redundant
-    !! we should add here the threshold from which the
-    !! normal function can be evaluated
     elemental pure function scfdotf(j,hgrid,pgauss,x0,pow) result(gint)
       use numerics, only: safe_exp
       implicit none
       !Arguments
       integer, intent(in) :: j !<value of the input result in the hgrid reference
-      integer, intent(in) :: pow
-      real(gp), intent(in) :: hgrid,pgauss,x0
+      integer, intent(in) :: pow !< power x**pow
+      real(gp), intent(in) :: hgrid !< Grid step
+      real(gp), intent(in) :: pgauss,x0 !< @f$g(x) = (x-x_0)^{pow} e^{-pgauss (x-x_0)}@f$
       real(gp) :: gint
       !local variables
       integer :: i
       real(gp) :: x,absci,fabsci,dx
       gint=0.0_gp
 
-      !Step grid for the integration
+      !Grid step for the integration
       !dx = real(2*itype_scf,gp)/real(n_scf,gp)
       dx = real(nrange_scf,gp)/real(n_scf,gp)
       !starting point for the x coordinate for integration
@@ -268,7 +310,7 @@ module multipole_preserving
             fabsci = safe_exp(absci)!,underflow=mn_scf)
             !calculate the integral
             !          fabsci= safe_gaussian(x0,x*hgrid,pgauss)
-            !print *,'test',i,scf_data(i),fabsci,pgauss,absci,log(tiny(1.d0)),tiny(1.d0)
+            !print *,'test',i,scf_data(i),fabsci,pgauss,absci,log(tiny(1.0_gp)),tiny(1.0_gp)
             gint = gint + scf_data(i)*fabsci
 
          end do
@@ -276,6 +318,51 @@ module multipole_preserving
       gint = gint*dx
       if (abs(gint) < mp_tiny) gint=0.0_gp
     end function scfdotf
+
+
+    !> This function calculates the scalar product between a ISF and a
+    !! input function, which is a very sharp gaussian times a power centered
+    !! we assume then that it is a dirac with a correct normalization
+    !! @f$g(x) = (x-x_0)^{pow} delta (x-x_0)}@f$
+    !! @f$\sqrt(\pi/pgauss)@f$
+    !! here pure specifier is redundant
+    elemental pure function scf_dirac(j,hgrid,pgauss,x0,pow) result(dint)
+      use numerics, only: safe_exp,pi
+      implicit none
+      !Arguments
+      integer, intent(in) :: j  !< Value of the input result in the hgrid reference
+      real(gp), intent(in) :: hgrid !< Grid step
+      real(gp), intent(in) :: pgauss
+      real(gp), intent(in) :: x0 !<  @f$g(x) = (x-x_0)^{pow} delta (x-x_0)}@f$
+      integer, intent(in) :: pow
+      real(gp) :: dint
+      !Local variables
+      integer :: ir,i1
+      real(gp) :: aa,dx,r0,rr,a1,a2,x1,x2
+
+      dint=0.0_gp
+
+      !a(i) = real(i*nrange_scf,gp)/real(n_scf,gp)+r0
+      if (pow == 0) then
+        ir = n_scf/nrange_scf  !Step for index
+        aa = real(ir,gp) ! Inverse of the grid step
+        dx = 1.0_gp/aa ! Grid step
+        r0 = real(-nrange_scf/2 + 1,gp) !Starting point
+
+        !rr = (real(j,gp)*hgrid-x0)/hgrid
+        rr = real(j,gp)-x0/hgrid
+        i1 = int((rr-r0)*ir)
+        if (i1 >= 0 .and. i1+1 <= n_scf) then
+          x1 = real(i1,gp)*dx+r0
+          x2 = x1+dx
+          a1 = aa*(rr-x1)
+          a2 = aa*(x2-rr)
+          dint = sqrt(pi/pgauss)*(a2*scf_data(i1)+a1*scf_data(i1+1))/hgrid
+        end if
+
+      end if
+
+    end function scf_dirac
 
 end module multipole_preserving
 

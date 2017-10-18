@@ -522,7 +522,8 @@ subroutine local_forces(iproc,at,rxyz,hxh,hyh,hzh,&
   real(gp) :: prefactor,cutoff,rloc,rlocinvsq,rlocinv2sq,Vel,rhoel
   real(gp) :: x,y,z,rx,ry,rz,fxerf,fyerf,fzerf,fxgau,fygau,fzgau,forceloc
   logical :: perx,pery,perz,gox,goy,goz
-  integer :: j1,j2,j3,ind,nbl1,nbr1,nbl2,nbr2,nbl3,nbr3,isx,isy,isz,iex,iey,iez
+  integer :: j1,j2,j3,ind,nbl1,nbr1,nbl2,nbr2,nbl3,nbr3,mpnx,mpny,mpnz
+  integer :: isx,isy,isz,iex,iey,iez
   real(gp) :: forceleaked
   real(gp) :: yp,zp,zsq,yzsq
   real(gp) :: arg,r2,xp,tt,Txx,Tyy,Tzz,Txy,Txz,Tyz
@@ -536,7 +537,7 @@ subroutine local_forces(iproc,at,rxyz,hxh,hyh,hzh,&
   !Initialize the work arrays needed to integrate with isf
   !Determine the number of points depending on the min rloc
   if (at%multipole_preserving) &
-     call initialize_real_space_conversion(isf_m=at%mp_isf,rloc=at%psppar(0,0,:))
+     call initialize_real_space_conversion(isf_m=at%mp_isf,rlocs=at%psppar(0,0,:))
 
   !Initialization
   locstrten=0.0_gp
@@ -565,19 +566,12 @@ subroutine local_forces(iproc,at,rxyz,hxh,hyh,hzh,&
 !!!  if (iproc == 0 .and. get_verbose_level() > 1) call yaml_mapping_open('Calculate local forces',flow=.true.)
 
   !Determine the maximal bounds for mpx, mpy, mpz (1D-integral)
-  if (at%astruct%nat >0) then
-     cutoff=10.0_gp*maxval(at%psppar(0,0,:))
-  else
-     cutoff=0.0
-  end if
-  if (at%multipole_preserving) then
-     !We want to have a good accuracy of the last point rloc*10
-     cutoff=cutoff+max(hxh,hyh,hzh)*real(at%mp_isf,kind=gp)
-  end if
+  call mp_range(at%multipole_preserving,at%mp_isf,1,&
+       hxh,hyh,hzh,maxval(at%psppar(0,0,:)),mpnx,mpny,mpnz)
   !Separable function: do 1-D integrals before and store it.
-  mpx = f_malloc( (/ 0 .to. (ceiling(cutoff/hxh) - floor(-cutoff/hxh)) + 1 /),id='mpx')
-  mpy = f_malloc( (/ 0 .to. (ceiling(cutoff/hyh) - floor(-cutoff/hyh)) + 1 /),id='mpy')
-  mpz = f_malloc( (/ 0 .to. (ceiling(cutoff/hzh) - floor(-cutoff/hzh)) + 1 /),id='mpz')
+  mpx = f_malloc( (/ 0 .to. mpnx /),id='mpx')
+  mpy = f_malloc( (/ 0 .to. mpny /),id='mpy')
+  mpz = f_malloc( (/ 0 .to. mpnz /),id='mpz')
 
   do iat=1,at%astruct%nat
      ityp=at%astruct%iatype(iat)

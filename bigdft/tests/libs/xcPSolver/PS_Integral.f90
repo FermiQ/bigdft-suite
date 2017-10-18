@@ -515,7 +515,7 @@ stop
      !Build the scaling function
      call scaling_function(itype_scf,n_scf,n_range,x_scf,y_scf)
 
-     !Step grid for the integration
+     !Grid step for the integration
      dx = real(n_range,dp)/real(n_scf,dp)
 
      do j = 7,7!1,7
@@ -870,7 +870,7 @@ subroutine discretize_gaussian(nrange,fac,pgauss,x0,hgrid,filename)
   !Build the scaling function
   call scaling_function(itype_scf,n_scf,n_range,x_scf,y_scf)
 
-  !Step grid for the integration
+  !Grid step for the integration
   dx = real(nrange,gp)/real(n_scf,gp)
 
   !first, collocate the gaussian
@@ -950,7 +950,7 @@ subroutine my_gauss_conv_scf(itype_scf,pgauss,x0,hgrid,dx,n_range,n_scf,x_scf,y_
   integer :: n_iter,i_kern,i
   real(dp) :: p0_cell,p0gauss,absci,kern
 
-  !Step grid for the integration
+  !Grid step for the integration
   !dx = real(n_range,dp)/real(n_scf,dp)
 
   !To have a correct integration
