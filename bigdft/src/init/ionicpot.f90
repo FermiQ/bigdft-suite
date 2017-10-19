@@ -856,7 +856,7 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
   !Initialize the work arrays needed to integrate with isf
   !Determine the number of points depending on the min rloc
   if (at%multipole_preserving) &
-     call initialize_real_space_conversion(isf_m=at%mp_isf,rlocs=at%psppar(0,0,:))
+     call initialize_real_space_conversion(isf_m=at%mp_isf,rlocs=at%psppar(0,0,:),verbose=.true.)
 
   ! Aliasing
   hxh = dpbox%mesh%hgrids(1)

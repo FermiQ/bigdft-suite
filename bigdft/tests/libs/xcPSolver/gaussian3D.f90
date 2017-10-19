@@ -27,13 +27,13 @@ program gaussian3D
     call MP_rloc(hgrid,shift,rloc,nmoms=3)
     rloc = rloc * 0.1_gp
     shift = shift + 0.05_gp
-    if (rloc < 1.0e-10_gp) exit
+    if (rloc <= 1.e-5_gp) exit
   end do
 
-shift = 0.0_gp
+  shift = 0.0_gp
   do i=0,3
     !shift = real(i,gp)*0.1_gp
-    call MP_rloc_zero(hgrid,shift,5 )
+    call MP_rloc_zero(hgrid,shift,0)
   end do
 
   call f_lib_finalize()
@@ -103,7 +103,7 @@ contains
     do i=is,ie
        rx(i) =  real(i,gp)*hgrid
        mp(i) = factor*mp_exp(hgrid,shift,rlocinv2sq,i,0,multipole_preserving)
-       print *,i,mp(i)
+       !print *,i,mp(i)
     end do
 
     !Calculate the corresponding 3D array
@@ -179,7 +179,7 @@ contains
     use multipole_preserving
     use yaml_output, only: yaml_map,yaml_mapping_open,yaml_mapping_close,yaml_comment
     implicit none
-    !Arguments
+    !Arguments 
     real(gp), intent(in) :: hgrid !< step size of the 3D mesh
     real(gp), intent(in) :: shift !< shift of the grid to delta or delat to grid
     integer, intent(in) :: nmoms !< Number of calculated moments
@@ -193,9 +193,11 @@ contains
     real(gp), dimension(:), allocatable :: mp,rx,x_scf,scf_data
     real(gp), dimension(:,:,:), allocatable :: array
     real(gp) :: x,y,z,reference,diff,cutoff
-    real(gp) :: a1,a2,aa,dx,v,r0,rr,vol,x1,x2
+    real(gp) :: a1,a2,aa,dx,v,r0,rr,vol,x1,x2,x0,gm
     integer :: i,is,ie,n,ix,iy,iz,mx,my,mz
     integer :: np,n_scf,n_range,i1,ir
+    !integer :: i2
+    !real(gp) :: r1,r2
 
     call f_routine(id='MP_rloc')
 
@@ -244,22 +246,36 @@ contains
 
     call yaml_map('n_scf',n_scf)
     call yaml_map('n_range',n_range)
-    call yaml_mapping_close()
 
     !Build mp
     ir = n_scf/n_range  !Step for index
     aa = real(ir,gp) ! Inverse of the step
-    dx = 1.0_gp/aa ! grid step
-    r0 = real(-n_range/2 + 1,gp) !Starting point
+    dx = 1.0_gp/aa ! Grid step
+    r0 = real(-n_range/2 + 1,gp) !Starting point i == 0
+
+    x0 = 0.0_gp
+    gm = g_rmax*sqrt(0.5_gp/1.0_gp) !Extension maximal
+
+    call yaml_map('gm',gm)
+    call yaml_mapping_close()
 
     !The first index is 'is' out.
     do i=is,ie
+!      r1 = (x0-gm)-(real(i,gp)+r0)*hgrid
+!      r2 = (x0+gm)-(real(i,gp)+r0)*hgrid
+!      i1 = floor(r1/(hgrid*dx))
+!      i2 = ceiling(r2/(hgrid*dx))
+!      write(*,'("i=",i0,2i6,2(f18.10))',advance="no") i,i1,i2,r1,r2
+!      i1 = min(max(0,i1),n_scf)
+!      i2 = max(0,min(i2,n_scf))
+!      print '(2i6,2(f18.10))',i1,i2,x_scf(i1)*hgrid,x_scf(i2)*hgrid
+
       !We have a ISF centered on rx(i) with a step of hgrid and a delta on 0
       !so need value for x_scf(i)*hgrid == -rx(i) (symmetric so rx(i))
       rr = (rx(i)-shift)/hgrid
       i1 = int((rr-r0)*ir)
       if (i1 < 0) then
-        print *,i,i1,rr
+        !print *,i,i1,rr
         mp(i) = 0.0_gp
         cycle
       end if
@@ -270,7 +286,7 @@ contains
       a1 = aa*(rr-x1)
       a2 = aa*(x2-rr)
       v = a2*scf_data(i1)+a1*scf_data(i1+1)
-      print *,i,i1,rr,x1,x2,v
+      !print *,i,i1,rr,x1,x2,v
       mp(i) = v
     end do
 

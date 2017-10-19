@@ -19,6 +19,7 @@ module multipole_preserving
 
   real(gp), parameter :: rlocmin = 1.e-6_gp !< if rloc < rlocmin then switch to evaluate ISF directly (gaussian=dirac)
           !! The error over the moment 2 is rloc**2
+  real(gp), parameter :: g_rmax = 10.0_gp !< Maximum factor (g_rmax*rloc) to consider the values from a gaussian
   integer :: itype_scf=0   !< Type of the interpolating SCF, 0= data unallocated
   integer :: n_scf=-1      !< Number of points of the allocated data
   integer :: nrange_scf=0  !< Range of the integration [-nrange_scf/2+1,nrange_scf/2+1]
@@ -30,6 +31,7 @@ module multipole_preserving
   real(gp) :: mn_scf = 0.0_gp
   real(gp), parameter :: mp_tiny = 1.e-30_gp !<put zero when the value is lower than this
 
+  public :: g_rmax
   public :: initialize_real_space_conversion,finalize_real_space_conversion
   public :: mp_range,scfdotf,mp_exp
   public :: mp_gaussian_workarrays,get_mp_exps_product,mp_initialized
@@ -194,7 +196,7 @@ module multipole_preserving
         real(gp) :: cutoff
 
         if (nat > 0) then
-           cutoff=10.0_gp*rlocmax
+           cutoff=g_rmax*rlocmax
         else
            cutoff=0.0_gp
         end if
@@ -279,18 +281,34 @@ module multipole_preserving
       !local variables
       integer :: i
       real(gp) :: x,absci,fabsci,dx
-      gint=0.0_gp
+      integer :: i1,i2,ir
+      real(gp) :: r0,r1,r2,gm
 
+      gint=0.0_gp
       !Grid step for the integration
-      !dx = real(2*itype_scf,gp)/real(n_scf,gp)
       dx = real(nrange_scf,gp)/real(n_scf,gp)
       !starting point for the x coordinate for integration
-      !x  = real(j-itype_scf+1,gp)-dx
-      x  = real(j-nrange_scf/2+1,gp)-dx
+      r0 = real(-nrange_scf/2 + 1,gp) !Starting point: i == 0
+      x  = real(j,gp)+r0-dx
 
+      ir = n_scf/nrange_scf  !Step for index
+
+      gm = g_rmax*sqrt(0.5_gp/pgauss) !Extension maximal
+
+      r1 = (x0-gm)-(real(j,gp)+r0)*hgrid
+      r2 = (x0+gm)-(real(j,gp)+r0)*hgrid
+      i1 = floor(r1/(hgrid*dx))
+      i2 = ceiling(r2/(hgrid*dx))
+      i1 = min(max(0,i1),n_scf)
+      i2 = max(0,min(i2,n_scf))
+
+      !print *,j,real(j,gp)*hgrid,r1,r2,x0,i1,i2,pgauss,rm
+      !stop
+      x=x+i1*dx
       !the loop can be unrolled to maximize performances
       if (pow /= 0) then
-         do i=0,n_scf
+         !do i=0,n_scf
+         do i=i1,i2
             x=x+dx
             absci = x*hgrid - x0
             !here evaluate the function
@@ -302,7 +320,8 @@ module multipole_preserving
             !       print *,'test',i,scf_data(i),fabsci,pgauss,pow,absci
          end do
       else
-         do i=0,n_scf
+         !do i=0,n_scf
+         do i=i1,i2
             x=x+dx
             absci = x*hgrid - x0
             !          !here evaluate the function
@@ -357,6 +376,7 @@ module multipole_preserving
           x2 = x1+dx
           a1 = aa*(rr-x1)
           a2 = aa*(x2-rr)
+          !Do not forget the normalization factor
           dint = sqrt(pi/pgauss)*(a2*scf_data(i1)+a1*scf_data(i1+1))/hgrid
         end if
 
@@ -425,7 +445,7 @@ subroutine mp_gaussian_density(rloc, zion, multipole_preservingl, use_iterator,b
   charge=real(zion,dp)/(2.0_dp*pi*sqrt(2.0_dp*pi)*rloc**3)
 
   !cutoff of the range
-  cutoff=10.0_dp*rloc
+  cutoff=g_rmax*rloc
   if (multipole_preservingl) then
      !We want to have a good accuracy of the last point rloc*10
      !cutoff=cutoff+max(hxh,hyh,hzh)*real(16,kind=dp)
