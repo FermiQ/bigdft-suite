@@ -327,6 +327,9 @@ def parse():
     group.add_option("--manipulation_mode", type="string", default='full', metavar="NUM",)
     group.add_option("--kT", type="float", default=0.0, metavar="NUM",)
     group.add_option("--accuracy_entropy", type="float", default=1.e-4, metavar="NUM",)
+    group.add_option("--output_file", type="string", default='kernel_analysis.dat', metavar="KERNEL_ANALYSIS",)
+    group.add_option("--output_bins_file", type="string", default='kernel_analysis_bins.dat', metavar="KERNEL_ANALYSIS",)
+    group.add_option("--nbin", type="int", default='200', metavar="NUM",)
 
     return parser
 
@@ -1185,6 +1188,9 @@ options:
         print command
     if options.action == "calculate-entropy":
         command = "%s %s calculate-entropy %s %s %s %s %f %f" % (options.mpirun, chess_toolbox, options.matrix_format, options.overlap_file, options.kernel_file, options.kernel_matmul_file, options.kT, options.accuracy_entropy)
+        print command
+    if options.action == "analyze-density-matrix-dense":
+        command = "%s %s analyze-density-matrix-dense %s %s %s %i %s %s" % (options.mpirun, chess_toolbox, options.matrix_format, options.metadata_file, options.kernel_file, options.nbin, options.output_file, options.output_bins_file)
         print command
     if command is not None:
         os.system(command)

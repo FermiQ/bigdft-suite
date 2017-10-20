@@ -39,6 +39,7 @@ module sparsematrix_io
   public :: write_linear_coefficients
   public :: read_linear_coefficients
   public :: write_dense_matrix
+  public :: read_dense_matrix
 
   contains
 
@@ -1077,7 +1078,7 @@ module sparsematrix_io
       ! Local variables
       integer :: iunit, ispin, jorb, iorb, idum, jdum
 
-      call f_routine(id='write_dense_matrix')
+      call f_routine(id='read_dense_matrix')
 
 
       if (binary) then
