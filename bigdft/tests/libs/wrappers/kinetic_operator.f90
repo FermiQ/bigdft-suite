@@ -36,10 +36,10 @@ program kinetic_operator
   real(f_double), dimension(ncplx_g) :: coeff !<prefactor of the gaussian
   real(f_double) :: ekin,alpha,beta,gamma
   real(f_double), dimension(6) :: k_strten
-  integer :: nlr,nspinor,nstress,is,ii,ii_fin,i,iproc,unit3,nn,ni
-  real(f_double) :: hx,hy,hz,kx,ky,kz,da,tr,hgrid,scal,enea,enea2
+  integer :: nlr,nspinor,nstress,is,ii,ii_fin,i,iproc,unit3,ni
+  real(f_double) :: hx,hy,hz,kx,ky,kz,da,tr,hgrid,scal,enea2,enea
   real(f_double), dimension(3,3) :: stress_3_3
-  logical :: volstress=.false.
+  logical :: volstress
   real(f_double), dimension(:), allocatable :: ene_acell,dene,volele,detgd,acell_var
   real(f_double), dimension(:,:), allocatable :: stress_ana,val
   real(f_double), dimension(:,:,:), allocatable :: stress_kin
@@ -50,6 +50,10 @@ program kinetic_operator
   logical :: wrtfiles=.true.
   logical :: wrtfunc=.false.
 
+  ! To run the test:
+  ! ./kinetic_operator -n 50          -> directions varied one by one
+  ! ./kinetic_operator -n 50 -v yes   -> all directions varied concurrently
+
   iproc=0
   call f_lib_initialize()
  
@@ -57,16 +61,15 @@ program kinetic_operator
   call bigdft_init_timing_categories()
 
   call yaml_argparse(options,&
-       '- {name: hgrid, shortname: g, default: 0.4, help_string: hgrid}'//f_cr//&
+       '- {name: hgrid, shortname: g, default: 0.8, help_string: hgrid}'//f_cr//&
        '- {name: nstress, shortname: n, default: 1, help_string: nstress}'//f_cr//&
+       '- {name: volstress, shortname: v, default: none, help_string: volstress}'//f_cr//&
        '- {name: sigma, shortname: s, default: 1.4  , help_string: sigma}')
 
-  !hgrids=0.5_f_double
   hgrids=options//'hgrid'
   sigma=options//'sigma'
   nstress=options//'nstress'
-
-!  hgrids=[0.2_f_double,0.2_f_double,0.2_f_double]
+  volstress=options//'volstress'
 
   hgrids_init=hgrids
   angdeg(1)=90.0_f_double
@@ -101,8 +104,7 @@ program kinetic_operator
    ii_fin=3
   end if
 
-  !do ii=1,ii_fin ! loop on the three x, y, z components.
-  do ii=1,1
+  do ii=1,ii_fin ! loop on the three x, y, z components.
 
    do is=1,nstress
 
@@ -110,17 +112,14 @@ program kinetic_operator
         call yaml_comment('Stress itetation',hfill='-')
         call yaml_mapping_open('Kinetic stress input')
         call yaml_map('Kinetic stress iteration', is)
-        call yaml_map('direction', ii)
+        call yaml_map('Check all directions concurrently', volstress)
+        if (.not. volstress) call yaml_map('direction', ii)
+        if (volstress) call yaml_map('direction', 'all')
       end if
       hx=hgrids_init(1)
       hy=hgrids_init(2)
       hz=hgrids_init(3)
       k=1.0_f_double
-   
-   !    da=acell/real(nstress-1,kind=8)
-   !    acell_var=acell+real((is-1),kind=8)*da
-   !    acell_var=acell*(1.0_f_double+real((is-1),kind=8)/real(nstress-1,kind=8))
-   !    acell_var=acell*(1.0_f_double+real((is-1),kind=8)/real(nstress-1,kind=8))
    
       acell_cur=acell
       acell_var(is)=acelli
@@ -128,9 +127,11 @@ program kinetic_operator
        scal=1.0_f_double+real((is-1),kind=8)/real(nstress-1,kind=8)
        acell_var(is)=acelli*scal
        if (volstress) then
-   !     hx=acell_var/real(n01,kind=8)
-   !     hy=acell_var/real(n02,kind=8)
-   !     hz=acell_var/real(n03,kind=8)
+        k(1:3)=1.0_f_double/scal
+        acell_cur(1:3)=acell_var(is)
+          hx=hgrids_init(1)*scal
+          hy=hgrids_init(2)*scal
+          hz=hgrids_init(3)*scal
        else
         k(ii)=1.0_f_double/scal
         acell_cur(ii)=acell_var(is)
@@ -154,18 +155,14 @@ program kinetic_operator
       hgrids=(/hx,hy,hz/)
       call yaml_map('hgrids',hgrids)
       call yaml_map('k',k)
-      call yaml_map('acell_var',acell_var(is))
       call yaml_map('acell',acell_cur)
       call yaml_map('da',da)
       !grid for the free BC case
       hgrid=max(hx,hy,hz)
-      !mesh=cell_new(geocode,ndims,hgrids,angrad) 
    
       !dict_posinp=f_tree_load('{positions: [{ C: [0.0, 0.0, 0.0]}], cell: [10,10,10]}')
       dict_posinp=f_tree_load('{positions: [{ C: [0.0, 0.0, 0.0]}], cell:'//trim(yaml_toa(acell_cur))//' }')
-    ! dict_posinp=f_tree_load('{positions: [{ C: [0.0, 0.0, 0.0]}], cell:'+yaml_toa(acell)+'}')
     
-    !  sigma=acelli*0.07d0
       crmult=1000.0_f_double
       frmult=1000.0_f_double
       angrad=onehalf*pi
@@ -176,12 +173,9 @@ program kinetic_operator
       coeff=[1.0_f_double]
       expo=[0.5_f_double/sigma**2]
       rxyz=acelli/2.0_f_double
-      call yaml_map('rxyz',rxyz)
       rxyz=rxyz*(1.0_f_double/k)
-      call yaml_map('rxyz',rxyz)
+      call yaml_map('Gaussian center',rxyz)
       call dict_free(options)
-    !---------------------------------------------------------------------------------
-    ! Check the projectors in Daubechies 
       
       call define_lr(lr,dict_posinp,crmult,frmult,hgrids)
     
@@ -190,57 +184,15 @@ program kinetic_operator
       psi=f_malloc0(lr%wfd%nvctr_c+7*lr%wfd%nvctr_f,id='psi')
       tpsi=f_malloc0(lr%wfd%nvctr_c+7*lr%wfd%nvctr_f,id='tpsi')
     
-    !!$  call project(psi,PROJECTION_1D_SEPARABLE)
-    !!$
-    !!$  call yaml_mapping_open('Traditional separable Projection')
-    !!$  call yaml_map('Norm of the calculated projector',wnrm2(1,lr%wfd,psi))
-    !!$  call yaml_mapping_close()
-    !!$
       call initialize_real_space_conversion(isf_m=16)
-    !!$
-    !!$  call project(tpsi,PROJECTION_RS_COLLOCATION)
-    !!$
-    !!$  call yaml_mapping_open('Collocation-based separable Projection')
-    !!$  call yaml_map('Norm of the calculated projector',wnrm2(1,lr%wfd,tpsi))
-    !!$  call yaml_mapping_close()
-    !!$
-    !!$  call f_zero(tpsi) !reset
-    !!$  call project(tpsi,PROJECTION_MP_COLLOCATION)
-    !!$
-    !!$  call yaml_mapping_open('Multipole-preserving-based separable Projection')
-    !!$  call yaml_map('Norm of the calculated projector',wnrm2(1,lr%wfd,tpsi))
-    !!$  call yaml_mapping_close()
-    !!$
-    !!$  !calculate the difference of the two arrays
-    !!$  call f_diff(f_size(psi),psi,tpsi,maxdiff)
-    !!$  call yaml_map('Maximum difference of the two arrays',maxdiff)
     
-    !---------------------------------------------------------------------------------
-    ! Check input/output gaussian in ISF real space
-    
-      ! compare input analytical gaussian and the roundtrip one to the daubechies
       projector_real=f_malloc(lr%mesh%ndim,id='projector_real') 
       call initialize_work_arrays_sumrho(lr,.true.,w)
-    !  call daub_to_isf(lr,w,tpsi,projector_real)
     
       !build up the input gaussian as done in gaussian_to_wavelets_locreg
       gaussian=f_malloc(lr%mesh%ndim,id='gaussian')
       oxyz=lr%mesh%hgrids*[lr%nsi1,lr%nsi2,lr%nsi3]
-      call yaml_map('oxyz',oxyz)
-      call real_space_gaussian(ncplx_g,n,l,ider,nterm_max,coeff,expo,acelli,k,rxyz,oxyz,lr,gaussian)
-    
-      !calculate the difference of the two arrays
-    !  call f_diff(f_size(gaussian),gaussian,projector_real,maxdiff)
-    
-    !  call yaml_map('Maximum difference of the in/out gaussian',maxdiff)
-    
-    
-    !---------------------------------------------------------------------------------
-    ! Check of the kinetic operator Daubechies
-    
-    ! Input analytical phi
-    ! hpsi -> phi in Daubechies in isf_to_daub_kinetic -> real(wp), dimension(lr%wfd%nvctr_c+7*lr%wfd%nvctr_f,nspinor), intent(inout) :: hpsi
-    ! psir -> isf potential     in isf_to_daub_kinetic -> real(wp), dimension(lr%d%n1i*lr%d%n2i*lr%d%n3i,nspinor), intent(in) :: psir
+      call real_space_gaussian(ncplx_g,n,l,ider,nterm_max,coeff,expo,acelli,acell_cur,k,rxyz,oxyz,lr,gaussian,1)
     
       nlr=1
       nspinor=1
@@ -249,144 +201,82 @@ program kinetic_operator
       hx=lr%mesh%hgrids(1)
       hy=lr%mesh%hgrids(2)
       hz=lr%mesh%hgrids(3)
-      call yaml_map('lr%mesh%hgrids',lr%mesh%hgrids)
       kx=0.0_f_double
       ky=0.0_f_double
       kz=0.0_f_double
     
       call initialize_work_arrays_locham(lr,nspinor,.true.,wl)
       call f_zero(hpsi)
-    !  call yaml_mapping_open('Checking of input func in isf')
-    !  call yaml_map('size func',lr%mesh%ndim)
-    !  call yaml_map('func maxval',maxval(gaussian))
-    !  call yaml_map('func at 1',gaussian(1))
-    !  call yaml_map('func at /4',gaussian(lr%mesh%ndim/4))
-    !  call yaml_map('func at /3',gaussian(lr%mesh%ndim/3))
-    !  call yaml_map('func at /2',gaussian(lr%mesh%ndim/2))
-    !  call yaml_map('func at end',gaussian(lr%mesh%ndim))
-    !  call yaml_mapping_close()
-    if (wrtfunc) then 
-      call yaml_map('total n',lr%mesh%ndim)
-      ni=lr%mesh%ndim**(1.0_f_double/3.0_f_double)
-      call yaml_map('ni',ni)
-      call print_vect(ni,ni,ni,13,gaussian)
-    end if 
+
+      if (wrtfunc) then 
+        call yaml_map('total n',lr%mesh%ndim)
+        ni=lr%mesh%ndim**(1.0_f_double/3.0_f_double)
+        call yaml_map('ni',ni)
+        call print_vect(ni,ni,ni,13,gaussian)
+      end if 
+
+      ! move the input gaussian in Daubechies space
       call isf_to_daub(lr,w,gaussian,hpsi)
-      !hpsi=tpsi
-    !!  nn=lr%wfd%nvctr_c+7*lr%wfd%nvctr_f
-    !  call yaml_mapping_open('Checking of input func in Daubechies')
-    !  call yaml_map('size func',nn)
-    !  call yaml_map('func maxval',maxval(hpsi))
-    !  call yaml_map('func at 1',hpsi(1))
-    !  call yaml_map('func at /4',hpsi(nn/4))
-    !  call yaml_map('func at /3',hpsi(nn/3))
-    !  call yaml_map('func at /2',hpsi(nn/2))
-    !  call yaml_map('func at end',hpsi(nn))
-    !  call yaml_mapping_close()
-      
+      call f_zero(tpsi)      
+      tpsi=hpsi
+
+      ! to be done for the proper use of isf_to_daub_kinetic
       call daub_to_isf_locham(nspinor,lr,wl,hpsi,psir)
-    
+
+      ! import to avoid spurius cumulations
       call f_zero(psir)
       call f_zero(hpsi)
-    
+
+      ! calculate the kinetic operator on the input gaussian in Daubechies    
       call isf_to_daub_kinetic(hx,hy,hz,kx,ky,kz,nspinor,lr,wl,psir,hpsi,ekin,k_strten)
+
+      ! calculate the kinetic energy in Daubechies (to be compared to the bigdft ekin)
+      enea=f_dot(hpsi,tpsi)
+      enea=0.25_f_double*enea*lr%mesh%volume_element
     
-    !  call yaml_mapping_open('Checking of output of isf_to_daub_kinetic in Daubechies')
-    !  call yaml_map('size func',nn)
-    !  call yaml_map('func maxval',maxval(hpsi))
-    !  call yaml_map('func at 1',hpsi(1))
-    !  call yaml_map('func at /4',hpsi(nn/4))
-    !  call yaml_map('func at /3',hpsi(nn/3))
-    !  call yaml_map('func at /2',hpsi(nn/2))
-    !  call yaml_map('func at end',hpsi(nn))
-    !  call yaml_mapping_close()
-    
+      ! move the laplacian in isf space (important -> nullify projector_real)
       call f_zero(projector_real)
       call daub_to_isf(lr,w,hpsi,projector_real)
-    !  call yaml_mapping_open('Checking of isf_to_daub_kinetic in isf')
-    !  call yaml_map('size func',lr%mesh%ndim)
-    !  call yaml_map('func maxval',maxval(projector_real))
-    !  call yaml_map('func at 1',projector_real(1))
-    !  call yaml_map('func at /4',projector_real(lr%mesh%ndim/4))
-    !  call yaml_map('func at /3',projector_real(lr%mesh%ndim/3))
-    !  call yaml_map('func at /2',projector_real(lr%mesh%ndim/2))
-    !  call yaml_map('func at end',projector_real(lr%mesh%ndim))
-    !  call yaml_mapping_close()
-    
-    !  call yaml_map('max diff of pr',projector_real(2084897))
     
       !build up the analytical kinetic operator applyed to a gaussian
       call f_zero(gaussian)
       oxyz=lr%mesh%hgrids*[lr%nsi1,lr%nsi2,lr%nsi3]
       call real_space_laplacian(ncplx_g,n,l,ider,nterm_max,coeff,expo,acelli,k,rxyz,oxyz,lr,gaussian)
-    !  call yaml_mapping_open('Checking of analytical laplacian in isf')
-    !  call yaml_map('size func',lr%mesh%ndim)
-    !  call yaml_map('laplacian maxval',maxval(gaussian))
-    !  call yaml_map('laplacian func at 1',gaussian(1))
-    !  call yaml_map('laplacian func at /4',gaussian(lr%mesh%ndim/4))
-    !  call yaml_map('laplacian func at /3',gaussian(lr%mesh%ndim/3))
-    !  call yaml_map('laplacian func at /2',gaussian(lr%mesh%ndim/2))
-    !  call yaml_map('laplacian func at end',gaussian(lr%mesh%ndim))
-    !  call yaml_mapping_close()
-    !  call yaml_map('max diff of ga',gaussian(2084897))
     
       call f_diff(f_size(gaussian),gaussian,projector_real,maxdiff1)
     
-    !!  diffc=0.0d0
-    !!  icur=1
-    !!  do i=1,lr%mesh%ndim
-    !!   diffcur=abs(gaussian(i)-projector_real(i))
-    !!   if (diffcur.gt.diffc) then
-    !!    diffc=diffcur
-    !!    icur=i
-    !!   end if
-    !!  end do
-    !!  call yaml_map('projector_real',projector_real(icur))
-    !!  call yaml_map('gaussian',gaussian(icur))
-    !!  ni=lr%mesh%ndim**(1.0_f_double/3.0_f_double)
-    !!  call yaml_map('total n',lr%mesh%ndim)
-    !!  call yaml_map('ni',ni)
-    if (wrtfunc) then 
-      call print_vect(ni,ni,ni,11,projector_real)
-      call print_vect(ni,ni,ni,12,gaussian)
-      call print_vect(ni,ni,ni,14,gaussian-projector_real)
-    end if 
+      if (wrtfunc) then 
+       call print_vect(ni,ni,ni,11,projector_real)
+       call print_vect(ni,ni,ni,12,gaussian)
+       call print_vect(ni,ni,ni,14,gaussian-projector_real)
+      end if 
       call f_zero(psi)
+      ! move the analytical laplacian in the Dauchies space for comparison with
+      ! the bigdft output
       call isf_to_daub(lr,w,gaussian,psi)
-    !  nn=lr%wfd%nvctr_c+7*lr%wfd%nvctr_f
-    !  call yaml_mapping_open('Checking of analytical laplacian from isf_to_daub in Daubechies')
-    !  call yaml_map('size func',nn)
-    !  call yaml_map('laplacian maxval',maxval(psi))
-    !  call yaml_map('laplacian func at 1',psi(1))
-    !  call yaml_map('laplacian func at /4',psi(nn/4))
-    !  call yaml_map('laplacian func at /3',psi(nn/3))
-    !  call yaml_map('laplacian func at /2',psi(nn/2))
-    !  call yaml_map('laplacian func at end',psi(nn))
-    !  call yaml_mapping_close()
     
       !calculate the difference of the two arrays
+      call yaml_mapping_open('Parallel calculation')
     
       call f_diff(f_size(hpsi),hpsi,psi,maxdiff)
-      call yaml_map('Maximum difference of the kinetic operator in Daubechies',maxdiff)
-      call yaml_map('Maximum difference of the kinetic operator in isf',maxdiff1)
-    !  call yaml_map('Maximum difference of the kinetic operator in isf',diffc)
-    !  call yaml_map('Maximum difference of the kinetic operator in isf',icur)
-    
+
+      ! compute the kinetic energy in isf space    
       call f_zero(gaussian)
       oxyz=lr%mesh%hgrids*[lr%nsi1,lr%nsi2,lr%nsi3]
-      call real_space_gaussian(ncplx_g,n,l,ider,nterm_max,coeff,expo,acelli,k,rxyz,oxyz,lr,gaussian)
+      call real_space_gaussian(ncplx_g,n,l,ider,nterm_max,coeff,expo,acelli,acell_cur,k,rxyz,oxyz,lr,gaussian,2)
       call f_zero(projector_real)
       call real_space_laplacian(ncplx_g,n,l,ider,nterm_max,coeff,expo,acelli,k,rxyz,oxyz,lr,projector_real)
-      enea=0.0_f_double
-      do i=1,lr%mesh%ndim
-       enea=enea+gaussian(i)*projector_real(i)
-      end do
-      enea=enea*lr%mesh%volume_element
       enea2=f_dot(gaussian,projector_real)
-      enea2=enea2*lr%mesh%volume_element
-      call yaml_map('Analytical kinetic energy',enea)
-      call yaml_map('Analytical kinetic energy f_dot',enea2)
+      enea2=0.25_f_double*enea2*lr%mesh%volume_element
+      call yaml_map('Numerical kinetic energy f_dot in Daubechies',enea)
+      call yaml_map('Numerical kinetic energy f_dot in isf',enea2)
 
+      ekin=ekin*0.25_f_double*lr%mesh%volume_element 
+      call yaml_map('Bigdft Ekinetic',ekin)
+      call yaml_map('Stress tensor',k_strten)
+      call yaml_map('Maximum difference of the kinetic operator in Daubechies',maxdiff)
+      call yaml_map('Maximum difference of the kinetic operator in isf',maxdiff1)
+      call yaml_mapping_close()
 
       mesh=lr%mesh
     
@@ -403,7 +293,6 @@ program kinetic_operator
       call deallocate_locreg_descriptors(lr)
       call f_free(projector_real)
       call f_free(gaussian)
-   
       do i=1,6
        stress_kin(is,i,ii)=k_strten(i)
       end do
@@ -429,15 +318,9 @@ program kinetic_operator
        call yaml_map('Stress 3x3',stress_3_3)
        call yaml_map('sum_i mesh%gu(i,ii)*stress_3_3(i,ii)',val(is,ii))
        call yaml_map('mesh%detgd',mesh%detgd)
-       call yaml_map('mesh%volume_element',mesh%volume_element)
-      end if
-   
-      if (iproc == 0) then
-         call yaml_mapping_open('Parallel calculation')
-         call yaml_map('Ekinetic',ekin)
-         call yaml_map('Stress tensor',k_strten)
-         call yaml_map('Max diff',maxdiff)
-         call yaml_mapping_close()
+       call yaml_map('lr%mesh%ndim',lr%mesh%ndim)
+       call yaml_map('lr%mesh%volume_element',lr%mesh%volume_element)
+       call yaml_map('lr%mesh_coarse%volume_element',lr%mesh%volume_element)
       end if
    
       ene_acell(is)=ekin
@@ -453,16 +336,14 @@ program kinetic_operator
 
    do is=1,nstress
     if (volstress) then
-     stress_ana(is,ii)=-dene(is)/(acell_var(is)*acell_var(is))
+     stress_ana(is,ii)=-2.d0*real(lr%mesh%ndim,kind=8)*dene(is)/(acell_var(is)*acell_var(is))
     else
      !stress_ana(is,ii)=-dene(is)/(acell*acell)/mesh%detgd
-     stress_ana(is,ii)=-dene(is)/(acelli*acelli)/sqrt(mesh%detgd)
+     stress_ana(is,ii)=-2.d0*real(lr%mesh%ndim,kind=8)*dene(is)/(acelli*acelli)/sqrt(mesh%detgd)
     end if
     if (wrtfiles) write(unit3,'(1(1x,i8),8(1x,1pe26.14e3))')is,acell_var(is),&
                   ene_acell(is),dene(is),stress_ana(is,ii),val(is,ii),stress_kin(is,1,1),&
-                  stress_kin(is,2,1),stress_kin(is,3,1) !,detgd(is),volele(is),&
-!                  stress_ps(is,1,ii),stress_ps(is,2,ii),stress_ps(is,3,ii),&
-!                  stress_ps(is,4,ii),stress_ps(is,5,ii),stress_ps(is,6,ii)
+                  stress_kin(is,2,1),stress_kin(is,3,1)
    end do
 
 
@@ -534,7 +415,7 @@ program kinetic_operator
 
 end program kinetic_operator
 
-    subroutine real_space_gaussian(ncplx_g,n,l,ider,nterm_max,coeff,expo,acelli,k,rxyz,oxyz,lr,gaussian)
+    subroutine real_space_gaussian(ncplx_g,n,l,ider,nterm_max,coeff,expo,acelli,acell,k,rxyz,oxyz,lr,gaussian,pt)
       use gaussians
       use futile
       use locregs
@@ -550,9 +431,11 @@ end program kinetic_operator
       real(f_double), dimension(ncplx_g), intent(in) :: coeff !<prefactor of the gaussian
       real(f_double), dimension(ncplx_g), intent(in) :: expo 
       real(f_double), intent(in) :: acelli
+      real(f_double), dimension(3), intent(in) :: acell
       real(f_double), dimension(3), intent(in) :: k,rxyz,oxyz
       type(locreg_descriptors), intent(in) :: lr
       real(f_double), dimension(lr%mesh%ndim), intent(out) :: gaussian
+      integer, intent(in) :: pt
       ! Local variables
       integer, dimension(2*l-1) :: nterms
       integer, dimension(nterm_max,3,2*l-1) :: lxyz
@@ -562,9 +445,9 @@ end program kinetic_operator
       type(gaussian_real_space) :: g
       type(f_function), dimension(3) :: funcs
       real(f_double), dimension(3) :: noxyz,ex
-      real(f_double) :: fact,sumv
-      integer :: m,i
-      real(f_double), dimension(3) :: coeffs
+      real(f_double) :: fact,sumv,length,Itot
+      integer :: m,i,ii,j,kk
+      real(f_double), dimension(3) :: coeffs,Inte,acell_cur
 
       call get_projector_coeffs(ncplx_g,l,n,ider,nterm_max,coeff,expo,&
            nterms,lxyz,sigma_and_expo,factors)
@@ -580,26 +463,18 @@ end program kinetic_operator
 
       bit=box_iter(lr%mesh,origin=noxyz) !use here the real space mesh of the projector locreg
 
-     coeffs=[1.0_f_double,0.0_f_double,0.0_f_double] 
-!     call yaml_mapping_open('Data analytical gaussian')
-!     call yaml_map('rxyz',rxyz)
-!     call yaml_map('oxyz',oxyz)
-!     call yaml_map('expo',expo)
-!     call yaml_map('factor',factors)
-!     call yaml_map('coeffs',coeffs)
-
+      coeffs=[1.0_f_double,0.0_f_double,0.0_f_double] 
+      length=acelli
       do m=1,2*l-1
          do i=1,3
             ex(i)=expo(1)*k(i)*k(i)
-!            call yaml_map('expo',i)
-!            call yaml_map('expo',ex)
             !funcs(i)=f_function_new(f_cosine,length=acelli,frequency=2.0_f_double*k(i))
             funcs(i)=f_function_new(f_gaussian,exponent=ex(i))
             !funcs(i)=f_function_new(f_polynomial,coefficients=coeffs)
          end do
-!     call yaml_mapping_close()
-!      fact=1.0_f_double
-      fact=(sqrt(ex(1)*ex(2)*ex(3)))/(pi**(3.0_f_double/2.0_f_double))
+      !fact=sqrt(ex(1)*ex(2)*ex(3)/(pi**3.0_f_double))
+      fact=(8.0_f_double*ex(1)*ex(2)*ex(3)/(pi**3.0_f_double))**0.25_f_double
+
          !here we do not consider the lxyz terms yet
          !take the reference functions
          !print *,size(gaussian),'real',lr%mesh%ndims,&
@@ -612,13 +487,50 @@ end program kinetic_operator
 
       sumv=0.0_f_double
       do i=1,lr%mesh%ndim
-       sumv=sumv+gaussian(i)
+       sumv=sumv+gaussian(i)*gaussian(i)
       end do
      sumv=sumv*lr%mesh%volume_element
-     call yaml_map('lr%mesh%ndim',lr%mesh%ndim)
-     call yaml_map('lr%mesh%volume_element',lr%mesh%volume_element)
-     call yaml_map('gaussian fact',fact)
-     call yaml_map('Integral of gaussian',sumv)
+     if (pt==1) then
+      call yaml_mapping_open('Input gaussian data')
+      call yaml_map('gaussian fact',fact)
+      call yaml_map('Integral of gaussian**2',sumv)
+     end if
+     ! Compute analytical total energy as Int g \Delta d dxdydz
+     acell_cur=0.5_f_double*acell
+
+     Itot=0.0_f_double
+     do ii=1,3
+        i=mod(ii-1,3)+1
+        j=mod(ii,3)+1
+        kk=mod(ii+1,3)+1
+       
+        Inte(i)=-2.0_f_double*acell_cur(i)*ex(i)*(fact**2.0_f_double)*exp(-2.0_f_double*(acell_cur(i)**2.0_f_double)*ex(i))&
+             - sqrt(pi/2.0_f_double)*sqrt(ex(i))*(fact**2.0_f_double)*erf(sqrt(2.0_f_double)*acell_cur(i)*sqrt(ex(i)))
+        Inte(j)=sqrt(pi/2.0_f_double)*erf(sqrt(2.0_f_double)*acell_cur(j)*sqrt(ex(j)))/sqrt(ex(j))
+        Inte(kk)=sqrt(pi/2.0_f_double)*erf(sqrt(2.0_f_double)*acell_cur(kk)*sqrt(ex(kk)))/sqrt(ex(kk))
+ 
+        Itot = Itot + Inte(i) * Inte(j) * Inte(kk)
+     end do
+     Itot=-0.5_f_double*Itot
+     if (pt==1) call yaml_map('Analytical kinetic energy [finite box] ',Itot)
+
+     Itot=0.0_f_double
+     do ii=1,3
+        i=mod(ii-1,3)+1
+        j=mod(ii,3)+1
+        kk=mod(ii+1,3)+1
+       
+        Inte(i)= - sqrt(pi/2.0_f_double)*sqrt(ex(i))*(fact**2.0_f_double)
+        Inte(j)=sqrt(pi/2.0_f_double)/sqrt(ex(j))
+        Inte(kk)=sqrt(pi/2.0_f_double)/sqrt(ex(kk))
+
+        Itot = Itot + Inte(i) * Inte(j) * Inte(kk)
+     end do
+     Itot=-0.5_f_double*Itot
+     if (pt==1) then
+      call yaml_map('Analytical kinetic energy [all R^3,Infinity box]',Itot)
+      call yaml_mapping_close()
+     end if
 
     end subroutine real_space_gaussian
 
@@ -651,25 +563,15 @@ end program kinetic_operator
       type(box_iterator) :: bit
       type(f_function), dimension(3) :: funcs
       real(f_double), dimension(3) :: noxyz,ex
-      real(f_double) :: fact
+      real(f_double) :: fact,length
       real(f_double), dimension(3) :: coeffs
 
       call get_projector_coeffs(ncplx_g,l,n,ider,nterm_max,coeff,expo,&
            nterms,lxyz,sigma_and_expo,factors)
 
      coeffs=[1.0_f_double,0.0_f_double,0.0_f_double] 
-      !call gaussian_real_space_set(g,sqrt(onehalf/expo(1)),1,factors,lxyz)
-!      call gaussian_real_space_set(g,sigma_and_expo(1),1,factors,lxyz(1,:,1),[0],16)
-!      call f_zero(gaussian)
-!      bit=box_iter(lr%mesh)
-!      call three_dimensional_density(bit,g,sqrt(lr%mesh%volume_element),rxyz,gaussian)
-!     call yaml_mapping_open('Data analytical laplacian')
-!     call yaml_map('rxyz',rxyz)
-!     call yaml_map('oxyz',oxyz)
-!     call yaml_map('expo',expo)
-!     call yaml_map('factor',factors)
-!     call yaml_map('coeffs',coeffs)
 
+      length=acelli
       !for the moment only with s projectors (l=0,n=1)
       noxyz=rxyz-oxyz
 
@@ -677,15 +579,12 @@ end program kinetic_operator
       do m=1,2*l-1
          do i=1,3
             ex(i)=expo(1)*k(i)*k(i)
-!            call yaml_map('expo',i)
-!            call yaml_map('expo',ex)
             !funcs(i)=f_function_new(f_cosine,length=acelli,frequency=2.0_f_double*k(i))
             funcs(i)=f_function_new(f_gaussian,exponent=ex(i))
             !funcs(i)=f_function_new(f_polynomial,coefficients=coeffs)
          end do
-      !fact=1.0_f_double
-      fact=(sqrt(ex(1)*ex(2)*ex(3)))/(pi**(3.0_f_double/2.0_f_double))
-!     call yaml_mapping_close()
+      !fact=sqrt(ex(1)*ex(2)*ex(3)/(pi**3.0_f_double))
+      fact=(8.0_f_double*ex(1)*ex(2)*ex(3)/(pi**3.0_f_double))**0.25_f_double
 
          !here we do not consider the lxyz terms yet
          !take the reference functions
@@ -697,21 +596,6 @@ end program kinetic_operator
          call separable_3d_laplacian(bit,funcs,-2.0_f_double*fact,gaussian)
       end do !not correctly written, it should be used to define the functions
     end subroutine real_space_laplacian
-
-!subroutine print_vect(nn,psi)
-!  implicit none
-!  integer, intent(in) :: nn
-!  real(f_double), dimension(nn), intent(in) :: psi
-!
-!  call yaml_map('size func',nn)
-!  call yaml_map('laplacian maxval',maxval(psi))
-!  call yaml_map('laplacian func at 1',psi(1))
-!  call yaml_map('laplacian func at /4',psi(nn/4))
-!  call yaml_map('laplacian func at /3',psi(nn/3))
-!  call yaml_map('laplacian func at /2',psi(nn/2))
-!  call yaml_map('laplacian func at end',psi(nn))
-!
-!end subroutine get_diff
 
 subroutine print_vect(n01,n02,n03,uni,psi)
   use futile
@@ -727,99 +611,3 @@ subroutine print_vect(n01,n02,n03,uni,psi)
   end do
 
 end subroutine print_vect
-
-subroutine fssnord1DmatNabla(geocode,n01,hx,u,du,nord)
-      implicit none
-!c..this routine computes 'nord' order accurate first derivatives 
-!c..on a equally spaced grid with coefficients from 'Matematica' program.
-
-!c..input:
-!c..ngrid       = number of points in the grid, 
-!c..u(ngrid)    = function values at the grid points
-
-!c..output:
-!c..du(ngrid)   = first derivative values at the grid points
-
-!c..declare the pass
-      character(len=1), intent(in) :: geocode
-      integer, intent(in) :: n01,nord
-      real(kind=8), intent(in) :: hx
-      real(kind=8), dimension(n01) :: u
-      real(kind=8), dimension(n01) :: du
-
-!c..local variables
-      integer :: n,m,n_cell
-      integer :: i,j,i1,ii
-      real(kind=8), dimension(-nord/2:nord/2,-nord/2:nord/2) :: c1D,c1DF
-      logical :: perx
-
-      n = nord+1
-      m = nord/2
-      n_cell = n01
-
-      !buffers associated to the geocode
-      !conditions for periodicity
-      perx=(geocode /= 'F')
-
-      ! Beware that n_cell has to be > than n.
-      if (n_cell.lt.n) then
-       write(*,*)'ngrid in has to be setted > than n=nord + 1'
-       stop
-      end if
-
-      ! Setting of 'nord' order accurate first derivative coefficient from 'Matematica'.
-      !Only nord=2,4,6,8,16
-
-      select case(nord)
-      case(2,4,6,8,16)
-       !O.K.
-      case default
-       write(*,*)'Only nord-order 2,4,6,8,16 accurate first derivative'
-       stop
-      end select
-
-      do i=-m,m
-       do j=-m,m
-        c1D(i,j)=0.d0
-        c1DF(i,j)=0.d0
-       end do
-      end do
-
-      include 'FiniteDiffCorff.inc'
-      
-      do i1=1,n01
-   
-       du(i1) = 0.0d0
-   
-       if (i1.le.m) then
-        if (perx) then
-         do j=-m,m
-          ii=modulo(i1 + j + n01 - 1, n01 ) + 1
-          du(i1) = du(i1) + c1D(j,0)*u(ii)
-         end do
-        else
-         do j=-m,m
-          du(i1) = du(i1) + c1D(j,i1-m-1)*u(j+m+1)
-         end do
-        end if
-       else if (i1.gt.n01-m) then
-        if (perx) then
-         do j=-m,m
-          ii=modulo(i1 + j - 1, n01 ) + 1
-          du(i1) = du(i1) + c1D(j,0)*u(ii)
-         end do
-        else
-         do j=-m,m
-          du(i1) = du(i1) + c1D(j,i1-n01+m)*u(n01 + j - m)
-         end do
-        end if
-       else
-        do j=-m,m
-         du(i1) = du(i1) + c1D(j,0)*u(i1 + j)
-        end do
-       end if
-       du(i1)=du(i1)/hx
-   
-      end do
-
-end subroutine fssnord1DmatNabla
