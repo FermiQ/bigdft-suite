@@ -50,6 +50,7 @@ program kinetic_operator
   logical :: wrtfunc=.false.
 
   ! To run the test:
+  ! ./kinetic_operator                -> test only the kinetic operator without its stress
   ! ./kinetic_operator -n 50          -> directions varied one by one
   ! ./kinetic_operator -n 50 -v yes   -> all directions varied concurrently
 
