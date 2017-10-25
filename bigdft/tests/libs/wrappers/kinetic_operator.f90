@@ -44,7 +44,6 @@ program kinetic_operator
   real(f_double), dimension(:,:), allocatable :: stress_ana,val
   real(f_double), dimension(:,:,:), allocatable :: stress_kin
   integer, parameter :: nord = 16
-  type(cell) :: mesh
   real(f_double), parameter :: acell=20.0_f_double
   real(f_double), parameter :: acelli=20.0_f_double
   logical :: wrtfiles=.true.
@@ -153,10 +152,6 @@ program kinetic_operator
       end if
    
       hgrids=(/hx,hy,hz/)
-      call yaml_map('hgrids',hgrids)
-      call yaml_map('k',k)
-      call yaml_map('acell',acell_cur)
-      call yaml_map('da',da)
       !grid for the free BC case
       hgrid=max(hx,hy,hz)
    
@@ -168,13 +163,13 @@ program kinetic_operator
       angrad=onehalf*pi
       oxyz=5.0_f_double
       kpoint=0.0_f_double
-       call yaml_map('sigma',sigma)
+      if (iproc==0) call yaml_map('sigma',sigma)
     
       coeff=[1.0_f_double]
       expo=[0.5_f_double/sigma**2]
       rxyz=acelli/2.0_f_double
       rxyz=rxyz*(1.0_f_double/k)
-      call yaml_map('Gaussian center',rxyz)
+      if (iproc==0) call yaml_map('Gaussian center',rxyz)
       call dict_free(options)
       
       call define_lr(lr,dict_posinp,crmult,frmult,hgrids)
@@ -188,11 +183,25 @@ program kinetic_operator
     
       projector_real=f_malloc(lr%mesh%ndim,id='projector_real') 
       call initialize_work_arrays_sumrho(lr,.true.,w)
+
+      if (iproc==0) then
+         call yaml_mapping_open('Some checks')
+         call yaml_map('hgrids',hgrids)
+         call yaml_map('k',k)
+         call yaml_map('acell',acell_cur)
+         call yaml_map('da',da)
+         call yaml_map('Controvariant Metric',lr%mesh%gu)
+         call yaml_map('mesh%detgd',lr%mesh%detgd)
+         call yaml_map('lr%mesh%ndim',lr%mesh%ndim)
+         call yaml_map('lr%mesh%volume_element',lr%mesh%volume_element)
+         call yaml_map('lr%mesh_coarse%volume_element',lr%mesh%volume_element)
+         call yaml_mapping_close()
+      end if
     
       !build up the input gaussian as done in gaussian_to_wavelets_locreg
       gaussian=f_malloc(lr%mesh%ndim,id='gaussian')
       oxyz=lr%mesh%hgrids*[lr%nsi1,lr%nsi2,lr%nsi3]
-      call real_space_gaussian(ncplx_g,n,l,ider,nterm_max,coeff,expo,acelli,acell_cur,k,rxyz,oxyz,lr,gaussian,1)
+      call real_space_gaussian(ncplx_g,n,l,ider,nterm_max,coeff,expo,acelli,acell_cur,k,rxyz,oxyz,lr,gaussian,1,iproc)
     
       nlr=1
       nspinor=1
@@ -209,9 +218,9 @@ program kinetic_operator
       call f_zero(hpsi)
 
       if (wrtfunc) then 
-        call yaml_map('total n',lr%mesh%ndim)
+        if (iproc==0) call yaml_map('total n',lr%mesh%ndim)
         ni=lr%mesh%ndim**(1.0_f_double/3.0_f_double)
-        call yaml_map('ni',ni)
+        if (iproc==0) call yaml_map('ni',ni)
         call print_vect(ni,ni,ni,13,gaussian)
       end if 
 
@@ -229,6 +238,30 @@ program kinetic_operator
 
       ! calculate the kinetic operator on the input gaussian in Daubechies    
       call isf_to_daub_kinetic(hx,hy,hz,kx,ky,kz,nspinor,lr,wl,psir,hpsi,ekin,k_strten)
+
+      ekin=ekin*0.25_f_double*lr%mesh%volume_element 
+      ene_acell(is)=ekin
+
+      do i=1,6
+       stress_kin(is,i,ii)=k_strten(i)
+      end do
+   
+      stress_3_3(1,1)=k_strten(1)
+      stress_3_3(2,2)=k_strten(2)
+      stress_3_3(3,3)=k_strten(3)
+      stress_3_3(2,3)=k_strten(4)
+      stress_3_3(1,3)=k_strten(5)
+      stress_3_3(1,2)=k_strten(6)
+      stress_3_3(3,2)=stress_3_3(2,3)
+      stress_3_3(3,1)=stress_3_3(1,3)
+      stress_3_3(2,1)=stress_3_3(1,2)
+     
+      val(is,ii)=0.d0
+      do i=1,3
+       val(is,ii)=val(is,ii)+lr%mesh%gu(i,ii)*stress_3_3(i,ii)
+      end do
+      detgd(is)=lr%mesh%detgd
+      volele(is)=lr%mesh%volume_element
 
       ! calculate the kinetic energy in Daubechies (to be compared to the bigdft ekin)
       enea=f_dot(hpsi,tpsi)
@@ -256,29 +289,29 @@ program kinetic_operator
       call isf_to_daub(lr,w,gaussian,psi)
     
       !calculate the difference of the two arrays
-      call yaml_mapping_open('Parallel calculation')
     
       call f_diff(f_size(hpsi),hpsi,psi,maxdiff)
 
       ! compute the kinetic energy in isf space    
       call f_zero(gaussian)
       oxyz=lr%mesh%hgrids*[lr%nsi1,lr%nsi2,lr%nsi3]
-      call real_space_gaussian(ncplx_g,n,l,ider,nterm_max,coeff,expo,acelli,acell_cur,k,rxyz,oxyz,lr,gaussian,2)
+      call real_space_gaussian(ncplx_g,n,l,ider,nterm_max,coeff,expo,acelli,acell_cur,k,rxyz,oxyz,lr,gaussian,2,iproc)
       call f_zero(projector_real)
       call real_space_laplacian(ncplx_g,n,l,ider,nterm_max,coeff,expo,acelli,k,rxyz,oxyz,lr,projector_real)
       enea2=f_dot(gaussian,projector_real)
       enea2=0.25_f_double*enea2*lr%mesh%volume_element
-      call yaml_map('Numerical kinetic energy f_dot in Daubechies',enea)
-      call yaml_map('Numerical kinetic energy f_dot in isf',enea2)
-
-      ekin=ekin*0.25_f_double*lr%mesh%volume_element 
-      call yaml_map('Bigdft Ekinetic',ekin)
-      call yaml_map('Stress tensor',k_strten)
-      call yaml_map('Maximum difference of the kinetic operator in Daubechies',maxdiff)
-      call yaml_map('Maximum difference of the kinetic operator in isf',maxdiff1)
-      call yaml_mapping_close()
-
-      mesh=lr%mesh
+      if (iproc==0) then
+         call yaml_mapping_open('Parallel calculation')
+         call yaml_map('Numerical kinetic energy f_dot in Daubechies',enea)
+         call yaml_map('Numerical kinetic energy f_dot in isf',enea2)
+         call yaml_map('Bigdft Ekinetic',ekin)
+         call yaml_map('Stress tensor',k_strten)
+         call yaml_map('Stress 3x3',stress_3_3)
+         call yaml_map('sum_i mesh%gu(i,ii)*stress_3_3(i,ii)',val(is,ii))
+         call yaml_map('Maximum difference of the kinetic operator in Daubechies',maxdiff)
+         call yaml_map('Maximum difference of the kinetic operator in isf',maxdiff1)
+         call yaml_mapping_close()
+      end if
     
       call f_free(psi)
       call f_free(tpsi)
@@ -293,37 +326,7 @@ program kinetic_operator
       call deallocate_locreg_descriptors(lr)
       call f_free(projector_real)
       call f_free(gaussian)
-      do i=1,6
-       stress_kin(is,i,ii)=k_strten(i)
-      end do
    
-      stress_3_3(1,1)=k_strten(1)
-      stress_3_3(2,2)=k_strten(2)
-      stress_3_3(3,3)=k_strten(3)
-      stress_3_3(2,3)=k_strten(4)
-      stress_3_3(1,3)=k_strten(5)
-      stress_3_3(1,2)=k_strten(6)
-      stress_3_3(3,2)=stress_3_3(2,3)
-      stress_3_3(3,1)=stress_3_3(1,3)
-      stress_3_3(2,1)=stress_3_3(1,2)
-     
-      val(is,ii)=0.d0
-      do i=1,3
-       val(is,ii)=val(is,ii)+mesh%gu(i,ii)*stress_3_3(i,ii)
-      end do
-      detgd(is)=mesh%detgd
-      volele(is)=mesh%volume_element
-      if (iproc==0) then
-       call yaml_map('Controvariant Metric',mesh%gu)
-       call yaml_map('Stress 3x3',stress_3_3)
-       call yaml_map('sum_i mesh%gu(i,ii)*stress_3_3(i,ii)',val(is,ii))
-       call yaml_map('mesh%detgd',mesh%detgd)
-       call yaml_map('lr%mesh%ndim',lr%mesh%ndim)
-       call yaml_map('lr%mesh%volume_element',lr%mesh%volume_element)
-       call yaml_map('lr%mesh_coarse%volume_element',lr%mesh%volume_element)
-      end if
-   
-      ene_acell(is)=ekin
    
       if (iproc==0) call yaml_mapping_close()
    
@@ -339,7 +342,7 @@ program kinetic_operator
      stress_ana(is,ii)=-2.d0*real(lr%mesh%ndim,kind=8)*dene(is)/(acell_var(is)*acell_var(is))
     else
      !stress_ana(is,ii)=-dene(is)/(acell*acell)/mesh%detgd
-     stress_ana(is,ii)=-2.d0*real(lr%mesh%ndim,kind=8)*dene(is)/(acelli*acelli)/sqrt(mesh%detgd)
+     stress_ana(is,ii)=-2.d0*real(lr%mesh%ndim,kind=8)*dene(is)/(acelli*acelli)/sqrt(lr%mesh%detgd)
     end if
     if (wrtfiles) write(unit3,'(1(1x,i8),8(1x,1pe26.14e3))')is,acell_var(is),&
                   ene_acell(is),dene(is),stress_ana(is,ii),val(is,ii),stress_kin(is,1,1),&
@@ -366,10 +369,10 @@ program kinetic_operator
    else  
     if (iproc==0) then
      call yaml_map('Angles',[alpha,beta,gamma]*180.0_f_double*oneopi)
-     call yaml_map('Contravariant Metric',mesh%gu)
-     call yaml_map('Covariant Metric',mesh%gd)
-     call yaml_map('Product of the two',matmul(mesh%gu,mesh%gd))
-     call yaml_map('Covariant determinant',mesh%detgd)
+     call yaml_map('Contravariant Metric',lr%mesh%gu)
+     call yaml_map('Covariant Metric',lr%mesh%gd)
+     call yaml_map('Product of the two',matmul(lr%mesh%gu,lr%mesh%gd))
+     call yaml_map('Covariant determinant',lr%mesh%detgd)
     end if
  
     if (iproc == 0) then
@@ -415,7 +418,7 @@ program kinetic_operator
 
 end program kinetic_operator
 
-    subroutine real_space_gaussian(ncplx_g,n,l,ider,nterm_max,coeff,expo,acelli,acell,k,rxyz,oxyz,lr,gaussian,pt)
+    subroutine real_space_gaussian(ncplx_g,n,l,ider,nterm_max,coeff,expo,acelli,acell,k,rxyz,oxyz,lr,gaussian,pt,iproc)
       use gaussians
       use futile
       use locregs
@@ -435,7 +438,7 @@ end program kinetic_operator
       real(f_double), dimension(3), intent(in) :: k,rxyz,oxyz
       type(locreg_descriptors), intent(in) :: lr
       real(f_double), dimension(lr%mesh%ndim), intent(out) :: gaussian
-      integer, intent(in) :: pt
+      integer, intent(in) :: pt,iproc
       ! Local variables
       integer, dimension(2*l-1) :: nterms
       integer, dimension(nterm_max,3,2*l-1) :: lxyz
@@ -490,10 +493,10 @@ end program kinetic_operator
        sumv=sumv+gaussian(i)*gaussian(i)
       end do
      sumv=sumv*lr%mesh%volume_element
-     if (pt==1) then
-      call yaml_mapping_open('Input gaussian data')
-      call yaml_map('gaussian fact',fact)
-      call yaml_map('Integral of gaussian**2',sumv)
+     if (pt==1 .and. iproc==0) then
+        call yaml_mapping_open('Input gaussian data')
+        call yaml_map('gaussian fact',fact)
+        call yaml_map('Integral of gaussian**2',sumv)
      end if
      ! Compute analytical total energy as Int g \Delta d dxdydz
      acell_cur=0.5_f_double*acell
@@ -512,7 +515,7 @@ end program kinetic_operator
         Itot = Itot + Inte(i) * Inte(j) * Inte(kk)
      end do
      Itot=-0.5_f_double*Itot
-     if (pt==1) call yaml_map('Analytical kinetic energy [finite box] ',Itot)
+     if (pt==1 .and. iproc==0) call yaml_map('Analytical kinetic energy [finite box] ',Itot)
 
      Itot=0.0_f_double
      do ii=1,3
@@ -527,7 +530,7 @@ end program kinetic_operator
         Itot = Itot + Inte(i) * Inte(j) * Inte(kk)
      end do
      Itot=-0.5_f_double*Itot
-     if (pt==1) then
+     if (pt==1 .and. iproc==0) then
       call yaml_map('Analytical kinetic energy [all R^3,Infinity box]',Itot)
       call yaml_mapping_close()
      end if
