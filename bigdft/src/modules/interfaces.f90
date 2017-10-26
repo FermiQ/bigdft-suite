@@ -1266,29 +1266,6 @@ module module_interfaces
   end interface
 
   interface
-     subroutine reformat_one_supportfunction(llr,llr_old,geocode,hgrids_old,n_old,psigold,&
-          hgrids,n,centre_old,centre_new,da,frag_trans,psi,psirold,tag)
-       use module_defs, only: gp,dp,wp
-       use module_types
-       use module_fragments
-       use locregs
-       implicit none
-       integer, dimension(3), intent(in) :: n,n_old
-       real(gp), dimension(3), intent(in) :: hgrids,hgrids_old
-       !type(wavefunctions_descriptors), intent(in) :: wfd
-       type(locreg_descriptors), intent(in) :: llr, llr_old
-       character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
-       real(gp), dimension(3), intent(inout) :: centre_old,centre_new,da
-       type(fragment_transformation), intent(in) :: frag_trans
-       real(wp), dimension(0:n_old(1),2,0:n_old(2),2,0:n_old(3),2), intent(in) :: psigold
-       real(wp), dimension(llr%wfd%nvctr_c+7*llr%wfd%nvctr_f), intent(out) :: psi
-       real(wp), dimension(llr_old%d%n1i,llr_old%d%n2i,llr_old%d%n3i), optional, intent(in) :: psirold
-       integer,optional,intent(in) :: tag
-     END SUBROUTINE reformat_one_supportfunction
-  end interface
-
-
-  interface
      subroutine integral_equation(iproc,nproc,atoms,wfn,ngatherarr,local_potential,GPU,xc,nlpsp,rxyz,paw)
        use module_defs, only: gp,dp,wp
        use module_types

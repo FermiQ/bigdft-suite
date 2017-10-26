@@ -694,7 +694,6 @@ subroutine tmb_overlap_onsite(iproc, nproc, imethod_overlap, at, tmb, rxyz)
   use module_base
   use module_types
   use locregs, only: copy_locreg_descriptors,allocate_wfd,deallocate_wfd
-  use module_interfaces, only: reformat_one_supportfunction
   use module_fragments
   use communications_base, only: comms_linear_null, deallocate_comms_linear, TRANSPOSE_FULL
   use communications_init, only: init_comms_linear
@@ -1083,7 +1082,6 @@ subroutine tmb_overlap_onsite_rotate(iproc, nproc, input, at, tmb, rxyz, ref_fra
   use module_fragments
   use io, only: find_neighbours
   use locregs, only: allocate_wfd, deallocate_wfd
-  use module_interfaces, only: reformat_one_supportfunction
 
   implicit none
 
@@ -3428,16 +3426,9 @@ subroutine copy_old_inwhichlocreg(norb_tmb, inwhichlocreg, inwhichlocreg_old, on
 
   inwhichlocreg_old = f_malloc_ptr(norb_tmb,id='inwhichlocreg_old')
   call vcopy(norb_tmb, inwhichlocreg(1), 1, inwhichlocreg_old(1), 1)
-  !!iall=-product(shape(inwhichlocreg))*kind(inwhichlocreg)
-  !!deallocate(inwhichlocreg,stat=istat)
-  !!call memocc(istat,iall,'inwhichlocreg',subname)
-
 
   onwhichatom_old = f_malloc_ptr(norb_tmb,id='onwhichatom_old')
   call vcopy(norb_tmb, onwhichatom(1), 1, onwhichatom_old(1), 1)
-  !!iall=-product(shape(onwhichatom))*kind(onwhichatom)
-  !!deallocate(onwhichatom,stat=istat)
-  !!call memocc(istat,iall,'onwhichatom',subname)
 
 END SUBROUTINE copy_old_inwhichlocreg
 
@@ -3449,7 +3440,6 @@ subroutine reformat_supportfunctions(iproc,nproc,at,rxyz_old,rxyz,add_derivative
   use module_base
   use module_types
   use module_fragments
-  use module_interfaces, only: reformat_one_supportfunction
   use yaml_output
   use bounds, only: ext_buffers
   implicit none
@@ -3862,6 +3852,11 @@ subroutine reformat_check(reformat_needed,reformat_reason,tol,at,hgrids_old,hgri
   call ext_buffers_coarse(per(2),nb(2))
   call ext_buffers_coarse(per(3),nb(3))
 
+  centre_old_box=closest_r(mesh,frag_trans%rot_center,&
+       hgrids_old*ns_old-0.5_dp*locreg_mesh_coarse_origin(mesh_old))
+  centre_new_box=closest_r(mesh,frag_trans%rot_center_new,&
+       hgrids*ns-0.5_dp*locreg_mesh_coarse_origin(mesh))
+  
   !use new (internal) version of mindist, mindist doesn't do the right thing in this case
   ! centre of rotation with respect to start of box
   centre_old_box(1)=mindist_new(per(1),at%astruct%cell_dim(1),frag_trans%rot_center(1),hgrids_old(1)*(ns_old(1)-0.5_dp*nb(1)))

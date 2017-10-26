@@ -9,7 +9,9 @@ sources = defs.f90 \
 	locreg_operations.f90 \
 	locregs_basics.f90 \
 	bounds.f90 \
-	scalar_product.f90
+	scalar_product.f90 \
+	rototranslations.f90 \
+	reformatting.f90
 
 liblocregs_a_SOURCES = $(sources)
 
@@ -22,6 +24,8 @@ modules = MODULE_BASE.@MODULE_EXT@ \
 	BOUNDS.@MODULE_EXT@ \
 	LOCREG_OPERATIONS.@MODULE_EXT@ \
 	LOCREGS.@MODULE_EXT@ \
+	REFORMATTING.@MODULE_EXT@ \
+	ROTOTRANSLATIONS.@MODULE_EXT@ \
 	COMPRESSION.@MODULE_EXT@ 
 else
 modules = module_base.@MODULE_EXT@ \
@@ -29,6 +33,8 @@ modules = module_base.@MODULE_EXT@ \
 	bounds.@MODULE_EXT@ \
 	locreg_operations.@MODULE_EXT@ \
 	locregs.@MODULE_EXT@ \
+	reformatting.@MODULE_EXT@ \
+	rototranslations.@MODULE_EXT@ \
 	compression.@MODULE_EXT@ 
 endif
 
@@ -51,11 +57,12 @@ endif
 
 #dependencies
 locregs.o: base.o compression.o bounds.o
+reformatting.o: base.o locreg_operations.o
 bounds.o: compression.o
 locreg_operations.o: locregs.o
 locregs_basics.o: locreg_operations.o
 locreg_test.o: liblocregs.a
-base.o compression.o scalar_product.o: defs.o
+base.o compression.o scalar_product.o rototranslations.o: defs.o
 $(modules): $(liblocregs_a_OBJECTS)
 
 #liblocregs.a: $(liblocregs_a_OBJECTS) insmod
