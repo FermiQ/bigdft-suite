@@ -128,7 +128,8 @@ contains
     !local variables
     logical :: domp
     integer :: i
-    real(gp) :: tt,r2,r,xval,yval,zval
+    real(gp) :: tt,r2,r,val
+    real(gp), dimension(3) :: vect
     integer, dimension(3) :: itmp
 
     select case(g%discretization_method)
@@ -143,8 +144,9 @@ contains
        tt=0.0_gp
        do i=1,g%nterms
           !this should be in absolute coordinates
-          !xval=product(closest_r(bit%mesh,bit%rxyz,rxyz)**g%lxyz(:,i))
-          tt=tt+g%factors(i)!*r**g%pows(i)!*xval
+          vect=rxyz_ortho(bit%mesh,closest_r(bit%mesh,bit%rxyz,rxyz))
+          val=product(vect**g%lxyz(:,i))
+          tt=tt+g%factors(i)*val
        end do
        f=f*tt
     case(MULTIPOLE_PRESERVING_COLLOCATION)
@@ -431,7 +433,7 @@ contains
     integer, intent(in) :: l !<angular momentum of the shell
     integer, intent(in) :: ncplx_g !< 1 or 2 if the gaussian factor is real or complex respectively
     integer, intent(in) :: ncplx_p !< 2 if the projector is supposed to be complex, 1 otherwise
-    real(gp), intent(in) :: distance_cutoff !< 1d-distance starting frm which the gaussian is assumed to be zero
+    real(gp), intent(in) :: distance_cutoff !< 1d-distance starting from which the gaussian is assumed to be zero
     type(cell), intent(in) :: mesh !<cell structure *of the wavelet box* (coarse grid)
     type(locreg_descriptors), intent(in) :: lr !<projector descriptors for wavelets representation
     real(gp), dimension(ncplx_g), intent(in) :: coeff !<prefactor of the gaussian
@@ -477,7 +479,7 @@ contains
        call get_projector_coeffs(ncplx_g,l,n,ider,nterm_max,coeff,expo,&
             nterms,lxyz,sigma_and_expo,factors)
 
-       projector_real=f_malloc(lr%mesh%ndim,id='psir')
+       projector_real=f_malloc(lr%mesh%ndim,id='projector_real')
        call f_zero(psi)
        call initialize_work_arrays_sumrho(lr,.true.,w)
        do m=1,2*l-1
@@ -492,7 +494,7 @@ contains
           oxyz=lr%mesh%hgrids*[lr%nsi1,lr%nsi2,lr%nsi3]
           bit=box_iter(lr%mesh,origin=oxyz) !use here the real space mesh of the projector locreg
           call three_dimensional_density(bit,g,sqrt(lr%mesh%volume_element),rxyz,projector_real)
-          call isf_to_daub(lr,w,projector_real,psi)
+          call isf_to_daub(lr,w,projector_real,psi(:,:,m))
        end do
        !print *,'testRS:',sum(projector_real**2)
        call deallocate_work_arrays_sumrho(w)
@@ -501,7 +503,7 @@ contains
        call get_projector_coeffs(ncplx_g,l,n,ider,nterm_max,coeff,expo,&
             nterms,lxyz,sigma_and_expo,factors)
 
-       projector_real=f_malloc(lr%mesh%ndim,id='psir')
+       projector_real=f_malloc(lr%mesh%ndim,id='projector_real')
        call f_zero(psi)
        call initialize_work_arrays_sumrho(lr,.true.,w)
        do m=1,2*l-1
@@ -517,7 +519,7 @@ contains
           bit=box_iter(lr%mesh,origin=oxyz) !use here the real space mesh of the projector locreg
           call three_dimensional_density(bit,g,sqrt(lr%mesh%volume_element),rxyz,projector_real)
           !print *,'test:',sum(projector_real**2)
-          call isf_to_daub(lr,w,projector_real,psi)
+          call isf_to_daub(lr,w,projector_real,psi(:,:,m))
        end do
        call deallocate_work_arrays_sumrho(w)
        call f_free(projector_real)
