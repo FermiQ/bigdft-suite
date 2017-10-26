@@ -28,7 +28,8 @@ module rototranslations
           0.0_gp,0.0_gp,1.0_gp],[3,3])
   end type rototranslation
 
-  public :: set_rototranslation
+  public :: set_translation,set_rototranslation,frag_center,rototranslation_identity
+  public :: find_and_set_rotation
   
 contains
 

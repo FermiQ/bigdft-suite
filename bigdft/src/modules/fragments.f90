@@ -69,7 +69,7 @@ module module_fragments
   !public operator(*)
 
   public :: fragment_null, fragment_free, init_fragments, minimal_orbitals_data_null, fragmentInputParameters
-  public :: frag_center, calculate_fragment_density, init_minimal_orbitals_data
+  public :: calculate_fragment_density, init_minimal_orbitals_data
 
 
 contains

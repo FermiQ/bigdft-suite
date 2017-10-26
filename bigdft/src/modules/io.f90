@@ -694,6 +694,7 @@ module io
       use module_atoms, only: deallocate_atomic_structure, nullify_atomic_structure, set_astruct_from_file
       use module_base
       use yaml_strings, only: f_strcpy
+      use rototranslations, only: frag_center
       implicit none
       integer, intent(in) :: num_neighbours
       type(atoms_data), intent(in) :: at

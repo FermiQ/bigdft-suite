@@ -1247,6 +1247,7 @@ module module_interfaces
        use module_defs, only: gp,dp,wp
        use module_types
        use module_fragments
+       use rototranslations, only: rototranslation
        implicit none
        integer, intent(in) :: iproc,nproc
        integer, intent(in) :: ndim_old
@@ -1254,7 +1255,7 @@ module module_interfaces
        real(gp), dimension(3,at%astruct%nat), intent(in) :: rxyz,rxyz_old
        type(DFT_wavefunction), intent(inout) :: tmb
        type(local_zone_descriptors), intent(inout) :: lzd_old
-       type(fragment_transformation), dimension(tmb%orbs%norbp), intent(in) :: frag_trans
+       type(rototranslation), dimension(tmb%orbs%norbp), intent(in) :: frag_trans
        real(wp), dimension(:), pointer :: psi_old
        type(phi_array), dimension(tmb%orbs%norbp), optional, intent(in) :: phi_array_old
        logical, intent(in) :: add_derivatives

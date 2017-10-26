@@ -17,7 +17,7 @@ program locreg_test
   real(f_double), dimension(3) :: hgrids
 
   call f_lib_initialize()
-
+ 
   call lr_box(lr,Glr,hgrids,nbox,correct)
 
   call f_lib_finalize()

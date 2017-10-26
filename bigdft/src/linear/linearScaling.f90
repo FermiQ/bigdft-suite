@@ -2518,6 +2518,7 @@ subroutine output_fragment_rotations(iproc,nat,rxyz,iformat,filename,input_frag,
   use module_fragments
   !use internal_io
   use public_enums
+  use rototranslations
   implicit none
 
   integer, intent(in) :: iproc, iformat, nat
@@ -2530,7 +2531,7 @@ subroutine output_fragment_rotations(iproc,nat,rxyz,iformat,filename,input_frag,
   integer :: ifrag, jfrag, ifrag_ref, jfrag_ref, iat, isfat, jsfat,itoo_big
   real(kind=gp), dimension(:,:), allocatable :: rxyz_ref, rxyz_new
   real(kind=gp) :: null_axe, error
-  type(fragment_transformation) :: frag_trans
+  type(rototranslation) :: frag_trans
   character(len=*), parameter :: subname='output_fragment_rotations'
 
   if (iproc==0) then
@@ -2588,17 +2589,20 @@ subroutine output_fragment_rotations(iproc,nat,rxyz,iformat,filename,input_frag,
               rxyz_ref(:,iat)=rxyz(:,jsfat+iat)
            end do
 
-           ! use center of fragment for now, could later change to center of symmetry
-           frag_trans%rot_center=frag_center(ref_frags(jfrag_ref)%astruct_frg%nat,rxyz_ref)
-           frag_trans%rot_center_new=frag_center(ref_frags(ifrag_ref)%astruct_frg%nat,rxyz_new)
-
-           ! shift rxyz wrt center of rotation
-           do iat=1,ref_frags(ifrag_ref)%astruct_frg%nat
-              rxyz_ref(:,iat)=rxyz_ref(:,iat)-frag_trans%rot_center
-              rxyz_new(:,iat)=rxyz_new(:,iat)-frag_trans%rot_center_new
-           end do
-
-           call find_frag_trans(ref_frags(ifrag_ref)%astruct_frg%nat,rxyz_ref,rxyz_new,frag_trans)
+           call set_rototranslation(frag_trans,ref_frags(jfrag_ref)%astruct_frg%nat,&
+                src=rxyz_ref,dest=rxyz_new)
+!!$           ! use center of fragment for now, could later change to center of symmetry
+!!$           frag_trans%rot_center=frag_center(ref_frags(jfrag_ref)%astruct_frg%nat,rxyz_ref)
+!!$           frag_trans%rot_center_new=frag_center(ref_frags(ifrag_ref)%astruct_frg%nat,rxyz_new)
+!!$
+!!$           ! shift rxyz wrt center of rotation
+!!$           do iat=1,ref_frags(ifrag_ref)%astruct_frg%nat
+!!$              rxyz_ref(:,iat)=rxyz_ref(:,iat)-frag_trans%rot_center
+!!$              rxyz_new(:,iat)=rxyz_new(:,iat)-frag_trans%rot_center_new
+!!$           end do
+!!$
+!!$           call find_frag_trans(ref_frags(ifrag_ref)%astruct_frg%nat,rxyz_ref,rxyz_new,frag_trans)
+           
            if (frag_trans%Werror > W_tol) call f_increment(itoo_big)
            call f_free(rxyz_ref)
            call f_free(rxyz_new)
@@ -2606,11 +2610,11 @@ subroutine output_fragment_rotations(iproc,nat,rxyz,iformat,filename,input_frag,
            if (iformat==WF_FORMAT_PLAIN) then
               write(99,'(2(a,1x,I5,1x),F12.6,2x,3(F12.6,1x),6(1x,F18.6))') trim(input_frag%label(ifrag_ref)),ifrag,&
                    trim(input_frag%label(jfrag_ref)),jfrag,frag_trans%theta/(4.0_gp*atan(1.d0)/180.0_gp),frag_trans%rot_axis,&
-                   frag_trans%rot_center,frag_trans%rot_center_new
+                   frag_trans%rot_center_src,frag_trans%rot_center_dest
            else
               write(99) trim(input_frag%label(ifrag_ref)),ifrag,&
                    trim(input_frag%label(jfrag_ref)),jfrag,frag_trans%theta/(4.0_gp*atan(1.d0)/180.0_gp),frag_trans%rot_axis,&
-                   frag_trans%rot_center,frag_trans%rot_center_new
+                   frag_trans%rot_center_src,frag_trans%rot_center_dest
            end if
            isfat=isfat+ref_frags(ifrag_ref)%astruct_frg%nat
         end do
