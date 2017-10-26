@@ -2179,26 +2179,26 @@ module io
                     end do
                  end do
 
-                 !!DEBUG atom ordering
-                 !do ispin=1,tmb%linmat%smat(3)%nspin
-                 !   do iato=1,at%astruct%nat
-                 !      do iorb=1,tmb%linmat%smat(3)%nfvctr
-                 !         iat=tmb%orbs%onwhichatom(iorb)
-                 !         if (iat/=iato) cycle
-                 !
-                 !         do jato=1,at%astruct%nat
-                 !            do jorb=1,tmb%linmat%smat(3)%nfvctr
-                 !               jat=tmb%orbs%onwhichatom(jorb)
-                 !               if (jat/=jato) cycle
-                 !
-                 !               write(27,'(2(i6,1x),e19.12,2(1x,i6),3(1x,f12.6))') iorb,jorb,tmb%linmat%ovrlp_%matrix(iorb,jorb,ispin),&
-                 !                    iat,jat,rxyz(1:3,jat)
-                 !            end do
-                 !         end do
-                 !      end do
-                 !   end do
-                 !end do
-                 !!DEBUG atom ordering
+                 !DEBUG atom ordering
+                 do ispin=1,tmb%linmat%smat(3)%nspin
+                    do iato=1,at%astruct%nat
+                       do iorb=1,tmb%linmat%smat(3)%nfvctr
+                          iat=tmb%orbs%onwhichatom(iorb)
+                          if (iat/=iato) cycle
+                 
+                          do jato=1,at%astruct%nat
+                             do jorb=1,tmb%linmat%smat(3)%nfvctr
+                                jat=tmb%orbs%onwhichatom(jorb)
+                                if (jat/=jato) cycle
+                 
+                                write(27,'(2(i6,1x),e19.12,2(1x,i6),3(1x,f12.6))') iorb,jorb,tmb%linmat%ovrlp_%matrix(iorb,jorb,ispin),&
+                                     iat,jat,rxyz(1:3,jat)
+                             end do
+                          end do
+                       end do
+                    end do
+                 end do
+                 !DEBUG atom ordering
     
                  call f_close(unitm)
     
