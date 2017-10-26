@@ -97,31 +97,32 @@ program projection
 
         do m=1,2*l-1
       
-           call yaml_mapping_open('Shell projectors')
-           call yaml_map('magnetic numer m', m)
-           call yaml_mapping_open('Checks')
-
-           call yaml_mapping_open('Traditional separable Projection')
-           call yaml_map('Norm of the calculated projector',wnrm2(1,lr%wfd,psi(1:nn,ncplx_p,m)))
-           call yaml_mapping_close()
-      
            !calculate norm and difference of the two arrays
-           call yaml_mapping_open('Collocation-based separable Projection')
-           call yaml_map('Norm of the calculated projector',wnrm2(1,lr%wfd,RSpsi(1:nn,ncplx_p,m)))
            call f_diff(f_size(psi(1:nn,ncplx_p,m)),psi(1:nn,ncplx_p,m),RSpsi(1:nn,ncplx_p,m),maxdiff_RS)
-           call yaml_map('Maximum difference with Traditional',maxdiff_RS)
-           call yaml_mapping_close()
-      
-      
-           !calculate norm and difference of the two arrays
-           call yaml_mapping_open('Multipole-preserving-based separable Projection')
-           call yaml_map('Norm of the calculated projector',wnrm2(1,lr%wfd,MPpsi(1:nn,ncplx_p,m)))
            call f_diff(f_size(psi(1:nn,ncplx_p,m)),psi(1:nn,ncplx_p,m),MPpsi(1:nn,ncplx_p,m),maxdiff_MP)
-           call yaml_map('Maximum difference with Traditional',maxdiff_MP)
-           call yaml_mapping_close()
 
-           call yaml_mapping_close()
-           call yaml_mapping_close()
+           if (iproc==0) then
+              call yaml_mapping_open('Shell projectors')
+              call yaml_map('magnetic numer m', m)
+              call yaml_mapping_open('Checks')
+
+              call yaml_mapping_open('Traditional separable Projection')
+              call yaml_map('Norm of the calculated projector',wnrm2(1,lr%wfd,psi(1:nn,ncplx_p,m)))
+              call yaml_mapping_close()
+      
+              call yaml_mapping_open('Collocation-based separable Projection')
+              call yaml_map('Norm of the calculated projector',wnrm2(1,lr%wfd,RSpsi(1:nn,ncplx_p,m)))
+              call yaml_map('Maximum difference with Traditional',maxdiff_RS)
+              call yaml_mapping_close()
+      
+              call yaml_mapping_open('Multipole-preserving-based separable Projection')
+              call yaml_map('Norm of the calculated projector',wnrm2(1,lr%wfd,MPpsi(1:nn,ncplx_p,m)))
+              call yaml_map('Maximum difference with Traditional',maxdiff_MP)
+              call yaml_mapping_close()
+
+              call yaml_mapping_close()
+              call yaml_mapping_close()
+           end if
 
         end do ! loop on m quantum number
 
