@@ -23,21 +23,25 @@ contains
 
 
   !> Make frag_trans the argument so can eliminate need for interface
-  subroutine reformat_one_supportfunction(llr,llr_old,geocode,hgrids_old,n_old,psigold,&
-       hgrids,n,centre_old,centre_new,da,frag_trans,psi,psirold,tag)
+  subroutine reformat_one_supportfunction(llr,llr_old,&!geocode,hgrids_old,&
+       n_old,psigold,&
+       !hgrids,&
+       n,&
+       !centre_old,centre_new,da,&
+       frag_trans,psi,psirold,tag)
     use module_base
     use locregs
     use rototranslations
     !use yaml_output
     use locreg_operations
-    use bounds, only: ext_buffers_coarse
+    use bounds, only: ext_buffers_coarse,locreg_mesh_coarse_origin
+    use box
     implicit none
     integer, dimension(3), intent(in) :: n,n_old
-    real(gp), dimension(3), intent(in) :: hgrids,hgrids_old
+!    real(gp), dimension(3), intent(in) :: hgrids,hgrids_old
     !type(wavefunctions_descriptors), intent(in) :: wfd
     type(locreg_descriptors), intent(in) :: llr, llr_old
-    character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
-    real(gp), dimension(3), intent(in) :: centre_old,centre_new,da
+!    real(gp), dimension(3), intent(in) :: centre_old,centre_new,da
     type(rototranslation), intent(in) :: frag_trans
     real(wp), dimension(0:n_old(1),2,0:n_old(2),2,0:n_old(3),2), intent(in) :: psigold
     real(wp), dimension(llr%wfd%nvctr_c+7*llr%wfd%nvctr_f), intent(out) :: psi
@@ -46,30 +50,25 @@ contains
 
     !local variables
     character(len=*), parameter :: subname='reformatonesupportfunction'
+    character(len=1) :: geocode !< @copydoc poisson_solver::doc::geocode
     logical, dimension(3) :: per
-    integer, dimension(3) :: nb
+    integer, dimension(3) :: nb,ns,ns_old
 !!$  integer, dimension(3) :: ndims_tmp
-    real(gp), dimension(3) :: hgridsh,hgridsh_old
     real(wp), external :: dnrm2
+    real(gp), dimension(3) :: oxyz_src,oxyz_dest
     real(wp), dimension(:), allocatable :: ww,wwold
-    real(wp), dimension(:), allocatable :: x_phi
-    real(wp), dimension(:,:), allocatable :: y_phi
     real(wp), dimension(:,:,:,:,:,:), allocatable :: psig
-    real(wp), dimension(:,:,:), pointer :: psifscfold, psifscf
-    integer :: itype, nd, nrange
-!!$  real(gp), dimension(3) :: rrow
-    !  real(gp), dimension(3,3) :: rmat !< rotation matrix
-    !  real(gp) :: sint,cost,onemc,ux,uy,uz
-    integer, dimension(3) :: irp
+    real(wp), dimension(:,:,:), allocatable :: psir
+    real(wp), dimension(:,:,:), pointer :: psifscfold, psifscf !no reason for pointers
     integer :: i,j,k
-
     ! isf version
     type(workarr_sumrho) :: w
-    real(wp), dimension(:,:,:), pointer :: psir
 
     call f_routine(id=subname)
 
-    ! old reformatting, otherwise in ISF
+    geocode=cell_geocode(llr%mesh)
+    
+    ! old reformatting, otherwise in ISF (routines below should be incapsulated in a s1s0 method (libconv)
     if (.not. present(psirold)) then
        !conditions for periodicity in the three directions
        per(1)=(geocode /= 'F')
@@ -112,119 +111,49 @@ contains
     !   close(tag+10000)
     !end if
 
-    ! transform to new structure
-    hgridsh=.5_gp*hgrids
-    hgridsh_old=.5_gp*hgrids_old
-
-    !create the scaling function array
-    !use lots of points (to optimize one can determine how many points are needed at max)
-    itype=16
-    nd=2**20
-
-    x_phi = f_malloc(0.to.nd,id='x_phi')
-    y_phi = f_malloc((/0.to.nd,1.to.2/),id='y_phi')
-
-    call my_scaling_function4b2B(itype,nd,nrange,x_phi,y_phi)
-    if( abs(y_phi(nd/2,1)-1)>1.0e-10 ) then
-       stop " wrong scaling function 4b2B: not a centered one "
-    endif
-
-    call f_free(x_phi)
-
-    !call field_rototranslation(nd,nrange,y_phi,da,frag_trans%rot_axis,centre_old,centre_new,frag_trans%theta,&
-    !     hgridsh_old,ndims_tmp,psifscf_tmp,hgridsh,(2*n+2+2*nb),psifscf)
-
-!!$  sint=sin(frag_trans%theta)
-!!$  cost=cos(frag_trans%theta)
-!!$  onemc=1.0_gp-cost
-!!$  ux=frag_trans%rot_axis(1)
-!!$  uy=frag_trans%rot_axis(2)
-!!$  uz=frag_trans%rot_axis(3)
-
-!!$  call yaml_sequence_open('Rotation matrix elements')
-!!$  call yaml_sequence(trim(yaml_toa((/&
-!!$       cost + onemc*ux**2   , ux*uy*onemc - uz*sint, ux*uz*onemc + uy*sint /),fmt='(1pg20.12)')))
-!!$  call yaml_sequence(trim(yaml_toa((/&
-!!$       ux*uy*onemc +uz*sint , cost + onemc*uy**2   , uy*uz*onemc - ux*sint /),fmt='(1pg20.12)')))
-!!$  call yaml_sequence(trim(yaml_toa((/&
-!!$       ux*uz*onemc -uy*sint , uy*uz*onemc + ux*sint, cost + onemc*uz**2    /),fmt='(1pg20.12)')))
-!!$  call yaml_sequence_close()
-
-
-!!$  !identify the rotation matrix elements
-!!$  rmat=reshape([&
-!!$       cost+onemc*ux**2    , ux*uy*onemc-uz*sint , ux*uz*onemc+uy*sint, &    !first row (xp)
-!!$       ux*uy*onemc+uz*sint , cost+onemc*uy**2    , uy*uz*onemc-ux*sint, &   !second row (yp)
-!!$       ux*uz*onemc-uy*sint , uy*uz*onemc+ux*sint , cost+onemc*uz**2], [3,3]) !third row (zp)
-
-!!$  rmat(:,1)=(/cost+onemc*ux**2  ,ux*uy*onemc-uz*sint ,ux*uz*onemc+uy*sint/)
-!!$  !second row (yp)
-!!$  rmat(:,2)=(/ux*uy*onemc+uz*sint,cost+onemc*uy**2   ,uy*uz*onemc-ux*sint/)
-!!$  !third row (zp)
-!!$  rmat(:,3)=(/ux*uz*onemc-uy*sint,uy*uz*onemc+ux*sint,cost+onemc*uz**2   /)
-
-!!$  !!write some output on the screen
-!!$  !!print matrix elements, to be moved at the moment of identification of the transformation
-!!$  call yaml_map('Rotation axis',frag_trans%rot_axis,fmt='(1pg20.12)')
-!!$  call yaml_map('Rotation angle (deg)',frag_trans%theta*180.0_gp/pi_param,fmt='(1pg20.12)')
-!!$  call yaml_map('Translation vector',da,fmt='(1pg20.12)')
-!!$  call yaml_map('Rotation matrix ',frag_trans%Rmat,fmt='(1pg20.12)')
-!!$  call yaml_map('Rotation matrix',rmat,fmt='(1pg20.12)')
-!!$  call yaml_map('Determinants',[det_33(frag_trans%Rmat),det_33(rmat)])
-
-    !try different solutions, one of these should always work
-    irp=selection(frag_trans%Rmat)
-    !otherwise we have a problem
-    if (f_err_raise(repeated(abs(irp)),'Determination of the best array failed, irp='//&
-         trim(yaml_toa(irp,fmt='(i5)')),err_name='BIGDFT_RUNTIME_ERROR')) return
-
-!!$  !pay attention to what happens if two values are identical
-!!$  !from where xp should be determined
-!!$  rrow=abs(rmat(:,1))
-!!$  irp(1)=maxloc(rrow,1)
-!!$  !form where zp should be determined (note that the third line has been used)
-!!$  rrow=abs(rmat(:,3))
-!!$  !exclude of course the previously found direction
-!!$  rrow(irp(1))=0.0_gp
-!!$  irp(3)=maxloc(rrow,1)
-!!$  !then the last dimension, which is determined by exclusion
-!!$  rrow=1.0_gp
-!!$  rrow(irp(1))=0.d0
-!!$  rrow(irp(3))=0.d0
-!!$  irp(2)=maxloc(rrow,1)
-
-
-!!$  !traditional case, for testing
-    !irp(1)=-2
-    !irp(2)=-3
-    !irp(3)=1
-    if (present(psirold)) irp(:)=abs(irp)
-!!$  irp(1)=2
-!!$  irp(2)=1
-!!$  irp(3)=3
 
 !!$  !print the suggested order
 !!$  call yaml_map('Suggested order for the transformation',irp)
 
+!!$    if (.not. present(psirold)) then
+!!$       ndims_old=(2*n_old+2+2*nb)
+!!$       ndims_new=(2*n+2+2*nb)
+!!$    else
+!!$       ndims_old=[llr_old%d%n1i,llr_old%d%n2i,llr_old%d%n3i]
+!!$       ndims_new=[llr%d%n1i,llr%d%n2i,llr%d%n3i]
+!!$    end if
+
+    ns_old(1)=llr_old%ns1
+    ns_old(2)=llr_old%ns2
+    ns_old(3)=llr_old%ns3
+    ns(1)=llr%ns1
+    ns(2)=llr%ns2
+    ns(3)=llr%ns3
+
+    
+    oxyz_src=llr_old%mesh_coarse%hgrids*ns_old-0.5_dp*locreg_mesh_coarse_origin(llr_old%mesh_coarse)
+    oxyz_dest=llr%mesh_coarse%hgrids*ns-0.5_dp*locreg_mesh_coarse_origin(llr%mesh_coarse)
+    
     if (.not. present(psirold)) then
-       call field_rototranslation3D(nd+1,nrange,y_phi,frag_trans%Rmat,da,&
-            centre_old,centre_new,irp,&
-            hgridsh_old,(2*n_old+2+2*nb),psifscfold,&
-            hgridsh,(2*n+2+2*nb),psifscf)
+       call apply_rototranslation(frag_trans,.true.,&
+            llr_old%mesh_coarse,llr%mesh_coarse,oxyz_src,oxyz_dest,&
+            psifscfold,psifscf)
+!!$       call field_rototranslation3D(nd+1,nrange,y_phi,frag_trans%Rmat,da,&
+!!$            centre_old,centre_new,irp,&
+!!$            hgridsh_old,ndims_old,psifscfold,&
+!!$            hgridsh,ndims_new,psifscf)
     else
-       psir=f_malloc_ptr((/llr%d%n1i,llr%d%n2i,llr%d%n3i/),id='psir')
-       call field_rototranslation3D(nd+1,nrange,y_phi,frag_trans%Rmat,da,&
-            centre_old,centre_new,irp,&
-            hgridsh_old,(/llr_old%d%n1i,llr_old%d%n2i,llr_old%d%n3i/),psirold,&
-            hgridsh,(/llr%d%n1i,llr%d%n2i,llr%d%n3i/),psir)
+       psir=f_malloc((/llr%d%n1i,llr%d%n2i,llr%d%n3i/),id='psir')
+       call apply_rototranslation(frag_trans,.false.,&
+            llr_old%mesh_coarse,llr%mesh_coarse,oxyz_src,oxyz_dest,&
+            psirold,psir)
+!!$       call field_rototranslation3D(nd+1,nrange,y_phi,frag_trans%Rmat,da,&
+!!$            centre_old,centre_new,irp,&
+!!$            hgridsh_old,ndims_old,psirold,&
+!!$            hgridsh,ndims_new,psir)
     end if
-    !call yaml_map('Centre old',centre_old,fmt='(1pg18.10)')
-    !call yaml_map('Centre new',centre_new,fmt='(1pg18.10)')
-    !call field_rototranslation3D_interpolation(da,frag_trans%rot_axis,centre_old,centre_new,&
-    !     sint,cost,onemc,hgridsh_old,ndims_tmp,psifscf_tmp,hgridsh,(2*n+2+2*nb),psifscf)
 
-    call f_free(y_phi)
-
+    
     if (present(tag)) then
        open(tag+20000)
        do i=-nb(1),2*n(1)+1+nb(1)
@@ -286,7 +215,7 @@ contains
 !!$     write(*,*) 'iproc,norm psirnew ',dnrm2(llr%d%n1i*llr%d%n2i*llr%d%n3i,psir,1),llr%d%n1i,llr%d%n2i,llr%d%n3i
        call isf_to_daub(llr,w,psir,psi)
        call deallocate_work_arrays_sumrho(w)
-       call f_free_ptr(psir)
+       call f_free(psir)
     end if
 
 !!$  print*, 'norm of reformatted psi ',dnrm2(llr%wfd%nvctr_c+7*llr%wfd%nvctr_f,psi,1),llr%wfd%nvctr_c,llr%wfd%nvctr_f
@@ -308,77 +237,216 @@ contains
            + a(1,3)*(a(2,1)*a(3,2) - a(3,1)*a(2,2))
     end function det_33
 
+  END SUBROUTINE reformat_one_supportfunction
+ 
+  subroutine apply_rototranslation(rt,hr,mesh_src,mesh_dest,oxyz_src,oxyz_dest,&
+       psi_src,psi_dest)
+    use module_defs
+    use bounds, only: locreg_mesh_shape
+    use box
+    use rototranslations
+    use dynamic_memory
+    use dictionaries, only: f_err_throw
+    use yaml_strings
+    implicit none
+    logical, intent(in) :: hr !< boolean for high resolution approach (or the opposite?)
+    type(rototranslation), intent(in) :: rt
+    type(cell), intent(in) :: mesh_src,mesh_dest
+    !> origin of the coordinate system in the two reference frames
+    real(gp), dimension(3), intent(in) :: oxyz_src,oxyz_dest
+    real(wp), dimension(*), intent(in) :: psi_src !< dimension of the array given by locreg_mesh_shape(mesh_src,hr)
+    real(wp), dimension(*), intent(out) :: psi_dest !< dimension of the array given by locreg_mesh_shape(mesh_dest,hr)
+    !local variables
+    integer, dimension(3) :: ndims_old,ndims_new
+    real(gp), dimension(3) :: hgridsh,hgridsh_old,centre_src,centre_dest,da
+    real(wp), dimension(:), allocatable :: x_phi
+    real(wp), dimension(:,:), allocatable :: y_phi
+    integer :: itype, nd, nrange
+!!$  real(gp), dimension(3) :: rrow
+    !  real(gp), dimension(3,3) :: rmat !< rotation matrix
+    !  real(gp) :: sint,cost,onemc,ux,uy,uz
+    integer, dimension(3) :: irp
 
-    !> Select the best possible rotation sequence by
-    !! considering the values of the coefficients of the
-    !! rotation matrix
-    pure function selection(rmat) result(irp)
 
-      implicit none
-      real(gp), dimension(3,3), intent(in) :: rmat !< rotation matrix
-      integer, dimension(3) :: irp
-      !local variables
-      integer :: i
-      integer, dimension(3) :: ib1,ib3
+    ndims_old=locreg_mesh_shape(mesh_src,hr)
+    ndims_new=locreg_mesh_shape(mesh_dest,hr)
+
+    !here for periodic BC we should check the correctness of the centre definition
+    !in particular it appears weird that mesh_dest is always used for closest r
+    !as well as the shift of hgrid/2 that have to be imposed for the detection of da array
+    centre_src=closest_r(mesh_dest,rt%rot_center_src,oxyz_src)
+    centre_dest=closest_r(mesh_dest,rt%rot_center_dest,oxyz_dest)
+
+    da = centre_dest-centre_src-(mesh_src%hgrids-mesh_dest%hgrids)*0.5_gp
+
+    ! transform to new structure
+    hgridsh=.5_gp*mesh_dest%hgrids
+    hgridsh_old=.5_gp*mesh_src%hgrids
+
+    !create the scaling function array
+    !use lots of points (to optimize one can determine how many points are needed at max)
+    itype=16
+    nd=2**20
+
+    x_phi = f_malloc(0.to.nd,id='x_phi')
+    y_phi = f_malloc((/0.to.nd,1.to.2/),id='y_phi')
+
+    call my_scaling_function4b2B(itype,nd,nrange,x_phi,y_phi)
+    !such check is rather a debug check, it might be removed
+    if( abs(y_phi(nd/2,1)-1)>1.0e-10 ) then
+       stop " wrong scaling function 4b2B: not a centered one "
+    endif
+
+    call f_free(x_phi)
+
+    !call field_rototranslation(nd,nrange,y_phi,da,rt%rot_axis,centre_old,centre_new,rt%theta,&
+    !     hgridsh_old,ndims_tmp,psifscf_tmp,hgridsh,(2*n+2+2*nb),psifscf)
+
+!!$  sint=sin(rt%theta)
+!!$  cost=cos(rt%theta)
+!!$  onemc=1.0_gp-cost
+!!$  ux=rt%rot_axis(1)
+!!$  uy=rt%rot_axis(2)
+!!$  uz=rt%rot_axis(3)
+
+!!$  call yaml_sequence_open('Rotation matrix elements')
+!!$  call yaml_sequence(trim(yaml_toa((/&
+!!$       cost + onemc*ux**2   , ux*uy*onemc - uz*sint, ux*uz*onemc + uy*sint /),fmt='(1pg20.12)')))
+!!$  call yaml_sequence(trim(yaml_toa((/&
+!!$       ux*uy*onemc +uz*sint , cost + onemc*uy**2   , uy*uz*onemc - ux*sint /),fmt='(1pg20.12)')))
+!!$  call yaml_sequence(trim(yaml_toa((/&
+!!$       ux*uz*onemc -uy*sint , uy*uz*onemc + ux*sint, cost + onemc*uz**2    /),fmt='(1pg20.12)')))
+!!$  call yaml_sequence_close()
+
+
+!!$  !identify the rotation matrix elements
+!!$  rmat=reshape([&
+!!$       cost+onemc*ux**2    , ux*uy*onemc-uz*sint , ux*uz*onemc+uy*sint, &    !first row (xp)
+!!$       ux*uy*onemc+uz*sint , cost+onemc*uy**2    , uy*uz*onemc-ux*sint, &   !second row (yp)
+!!$       ux*uz*onemc-uy*sint , uy*uz*onemc+ux*sint , cost+onemc*uz**2], [3,3]) !third row (zp)
+
+!!$  rmat(:,1)=(/cost+onemc*ux**2  ,ux*uy*onemc-uz*sint ,ux*uz*onemc+uy*sint/)
+!!$  !second row (yp)
+!!$  rmat(:,2)=(/ux*uy*onemc+uz*sint,cost+onemc*uy**2   ,uy*uz*onemc-ux*sint/)
+!!$  !third row (zp)
+!!$  rmat(:,3)=(/ux*uz*onemc-uy*sint,uy*uz*onemc+ux*sint,cost+onemc*uz**2   /)
+
+!!$  !!write some output on the screen
+!!$  !!print matrix elements, to be moved at the moment of identification of the transformation
+!!$  call yaml_map('Rotation axis',rt%rot_axis,fmt='(1pg20.12)')
+!!$  call yaml_map('Rotation angle (deg)',rt%theta*180.0_gp/pi_param,fmt='(1pg20.12)')
+!!$  call yaml_map('Translation vector',da,fmt='(1pg20.12)')
+!!$  call yaml_map('Rotation matrix ',rt%Rmat,fmt='(1pg20.12)')
+!!$  call yaml_map('Rotation matrix',rmat,fmt='(1pg20.12)')
+!!$  call yaml_map('Determinants',[det_33(rt%Rmat),det_33(rmat)])
+
+
+!!$  !pay attention to what happens if two values are identical
+!!$  !from where xp should be determined
+!!$  rrow=abs(rmat(:,1))
+!!$  irp(1)=maxloc(rrow,1)
+!!$  !form where zp should be determined (note that the third line has been used)
+!!$  rrow=abs(rmat(:,3))
+!!$  !exclude of course the previously found direction
+!!$  rrow(irp(1))=0.0_gp
+!!$  irp(3)=maxloc(rrow,1)
+!!$  !then the last dimension, which is determined by exclusion
+!!$  rrow=1.0_gp
+!!$  rrow(irp(1))=0.d0
+!!$  rrow(irp(3))=0.d0
+!!$  irp(2)=maxloc(rrow,1)
+
+    !try different solutions, one of these should always work
+    irp=selection(rt%Rmat)
+    !otherwise we have a problem
+    if (repeated(abs(irp))) then
+       call f_err_throw('Determination of the best array failed, irp='//&
+            trim(yaml_toa(irp,fmt='(i5)')),err_name='BIGDFT_RUNTIME_ERROR')
+       return
+    end if
+
+    if (.not. hr) irp(:)=abs(irp)
+
+    call field_rototranslation3D(nd+1,nrange,y_phi,rt%Rmat,da,&
+         centre_src,centre_dest,irp,&
+         hgridsh_old,ndims_old,psi_src,&
+         hgridsh,ndims_new,psi_dest)
+
+    call f_free(y_phi)
+
+  end subroutine apply_rototranslation
+
+  
+  !> Select the best possible rotation sequence by
+  !! considering the values of the coefficients of the
+  !! rotation matrix
+  pure function selection(rmat) result(irp)
+
+    implicit none
+    real(gp), dimension(3,3), intent(in) :: rmat !< rotation matrix
+    integer, dimension(3) :: irp
+    !local variables
+    integer :: i
+    integer, dimension(3) :: ib1,ib3
 !!$      integer :: isgn
 !!$      real(gp), dimension(3) :: rrow
 
-      !determine ideal sequence for rotation, for important rows
-      ib1=reorder(rmat(:,1),1)
-      ib3=reorder(rmat(:,3),3)
+    !determine ideal sequence for rotation, for important rows
+    ib1=reorder(rmat(:,1),1)
+    ib3=reorder(rmat(:,3),3)
 
-      !verify if either one or three have multiple choices
-      if (equabs(rmat(ib1(1),1),rmat(ib1(2),1)) .and. .not. equabs(rmat(ib3(1),3),rmat(ib3(2),3))) then
-         !only ib1 has multiple choices, pick the one which is closest to cyclic permutation (if present)
-         if (modulo(ib3(1),3) + 1 == ib1(2) .or. ib1(1)==ib3(1)) then
-            !swap
-            i=ib1(1)
-            ib1(1)=ib1(2)
-            ib1(2)=i
-         end if
-      else if (.not. equabs(rmat(ib1(1),1),rmat(ib1(2),1)) .and. equabs(rmat(ib3(1),3),rmat(ib3(2),3))) then
-         !only ib3 has multiple choices
-         if (modulo(ib3(2),3) + 1 == ib1(1) .or. ib3(1)==ib1(1)) then
-            !swap
-            i=ib3(1)
-            ib3(1)=ib3(2)
-            ib3(2)=i
-         end if
-      else if (equabs(rmat(ib1(1),1),rmat(ib1(2),1)) .and. equabs(rmat(ib3(1),3),rmat(ib3(2),3))) then
-         !both of the row has multiple choices, therefore at least cyclic permutation must be present.
-         !both of them are cyclic, choose the last one
-         if (modulo(ib3(2),3) + 1 == ib1(1)) then
-            !swap
-            i=ib3(1)
-            ib3(1)=ib3(2)
-            ib3(2)=i
-         else if (modulo(ib3(1),3) + 1 == ib1(2)) then
-            !swap
-            i=ib1(1)
-            ib1(1)=ib1(2)
-            ib1(2)=i
-         else if (ib3(1) == ib1(1)) then
-            !otherwise just ensure that the two are not equal
-            !swap
-            i=ib3(1)
-            ib3(1)=ib3(2)
-            ib3(2)=i
-         end if
-      else if (ib3(1) == ib1(1)) then
-         !swap ib1,instead of ib3
-         i=ib1(1)
-         ib1(1)=ib1(2)
-         ib1(2)=i
-      end if
-      !then assign the rotations
-      irp(1)=ib1(1)
-      irp(3)=ib3(1)
+    !verify if either one or three have multiple choices
+    if (equabs(rmat(ib1(1),1),rmat(ib1(2),1)) .and. .not. equabs(rmat(ib3(1),3),rmat(ib3(2),3))) then
+       !only ib1 has multiple choices, pick the one which is closest to cyclic permutation (if present)
+       if (modulo(ib3(1),3) + 1 == ib1(2) .or. ib1(1)==ib3(1)) then
+          !swap
+          i=ib1(1)
+          ib1(1)=ib1(2)
+          ib1(2)=i
+       end if
+    else if (.not. equabs(rmat(ib1(1),1),rmat(ib1(2),1)) .and. equabs(rmat(ib3(1),3),rmat(ib3(2),3))) then
+       !only ib3 has multiple choices
+       if (modulo(ib3(2),3) + 1 == ib1(1) .or. ib3(1)==ib1(1)) then
+          !swap
+          i=ib3(1)
+          ib3(1)=ib3(2)
+          ib3(2)=i
+       end if
+    else if (equabs(rmat(ib1(1),1),rmat(ib1(2),1)) .and. equabs(rmat(ib3(1),3),rmat(ib3(2),3))) then
+       !both of the row has multiple choices, therefore at least cyclic permutation must be present.
+       !both of them are cyclic, choose the last one
+       if (modulo(ib3(2),3) + 1 == ib1(1)) then
+          !swap
+          i=ib3(1)
+          ib3(1)=ib3(2)
+          ib3(2)=i
+       else if (modulo(ib3(1),3) + 1 == ib1(2)) then
+          !swap
+          i=ib1(1)
+          ib1(1)=ib1(2)
+          ib1(2)=i
+       else if (ib3(1) == ib1(1)) then
+          !otherwise just ensure that the two are not equal
+          !swap
+          i=ib3(1)
+          ib3(1)=ib3(2)
+          ib3(2)=i
+       end if
+    else if (ib3(1) == ib1(1)) then
+       !swap ib1,instead of ib3
+       i=ib1(1)
+       ib1(1)=ib1(2)
+       ib1(2)=i
+    end if
+    !then assign the rotations
+    irp(1)=ib1(1)
+    irp(3)=ib3(1)
 
-      !define the best for the second
-      ib1=1
-      ib1(irp(1))=0
-      ib1(irp(3))=0
-      irp(2)=maxloc(ib1,1)
+    !define the best for the second
+    ib1=1
+    ib1(irp(1))=0
+    ib1(irp(3))=0
+    irp(2)=maxloc(ib1,1)
 
 !!$      irp(1)=ibest(1,1)
 !!$      irp(3)=ibest(1,3)
@@ -425,111 +493,110 @@ contains
 !!$      isgn=int(sign(1.0e0,real(rmat(irp(3),3))))
 !!$      irp(3)=isgn*irp(3)
 
-    end function selection
+  end function selection
 
-    pure function repeated(ivec)
-      implicit none
-      integer, dimension(3), intent(in) :: ivec
-      logical :: repeated
-      repeated = ivec(1)==ivec(2) .or. ivec(2)==ivec(3) .or. ivec(1)==ivec(3)
-    end function repeated
+  pure function repeated(ivec)
+    implicit none
+    integer, dimension(3), intent(in) :: ivec
+    logical :: repeated
+    repeated = ivec(1)==ivec(2) .or. ivec(2)==ivec(3) .or. ivec(1)==ivec(3)
+  end function repeated
 
-    !check if two objects are equal in absolute value modulo a given tolerance
-    pure function equabs(a,b)
-      implicit none
-      real(gp), intent(in) :: a,b
-      logical :: equabs
-      real(gp), parameter :: tol=1.e-12_gp
-      equabs=abs(abs(a)-abs(b)) < tol
-    end function equabs
+  !check if two objects are equal in absolute value modulo a given tolerance
+  pure function equabs(a,b)
+    implicit none
+    real(gp), intent(in) :: a,b
+    logical :: equabs
+    real(gp), parameter :: tol=1.e-12_gp
+    equabs=abs(abs(a)-abs(b)) < tol
+  end function equabs
 
-    !> defines the criterion for which one is better than two
-    pure function better(idim,vec,one,two)
-      implicit none
-      integer, intent(in) :: idim,one,two
-      real(gp), dimension(3), intent(in) :: vec
-      logical :: better
-      !local variables
-      real(gp) :: vec1,vec2
+  !> defines the criterion for which one is better than two
+  pure function better(idim,vec,one,two)
+    implicit none
+    integer, intent(in) :: idim,one,two
+    real(gp), dimension(3), intent(in) :: vec
+    logical :: better
+    !local variables
+    real(gp) :: vec1,vec2
 
-      vec1=vec(one)
-      vec2=vec(two)
+    vec1=vec(one)
+    vec2=vec(two)
 
-      better=.false.
+    better=.false.
 
-      !first criterion, most important: absolute value (clear separation)
-      if (.not. equabs(vec1,vec2)) then
-         better = abs(vec1)>abs(vec2)
-      else
-         !the two values are even. First choose the one which is positive
-         if (sign(vec1,vec2) == vec1) then
-            !the two objects have same sign and same absolute value
-            if (one==idim .or. two==idim) then
-               !better the one of the dimension
-               better = one==idim
-            else
-               better = one<two .eqv. idim<=2
-            end if
-         else
-            better = sign(1.0_gp,vec1)==1.0_gp
-         end if
-      end if
+    !first criterion, most important: absolute value (clear separation)
+    if (.not. equabs(vec1,vec2)) then
+       better = abs(vec1)>abs(vec2)
+    else
+       !the two values are even. First choose the one which is positive
+       if (sign(vec1,vec2) == vec1) then
+          !the two objects have same sign and same absolute value
+          if (one==idim .or. two==idim) then
+             !better the one of the dimension
+             better = one==idim
+          else
+             better = one<two .eqv. idim<=2
+          end if
+       else
+          better = sign(1.0_gp,vec1)==1.0_gp
+       end if
+    end if
 
-    end function better
+  end function better
 
-    !> order the dimensions in terms of the maximum
-    pure function reorder(vec,idim) result(imax)
-      implicit none
-      integer, intent(in) :: idim
-      real(gp), dimension(3), intent(in) :: vec
-      integer, dimension(3) :: imax
-      !local variables
+  !> order the dimensions in terms of the maximum
+  pure function reorder(vec,idim) result(imax)
+    implicit none
+    integer, intent(in) :: idim
+    real(gp), dimension(3), intent(in) :: vec
+    integer, dimension(3) :: imax
+    !local variables
 !!$      integer, dimension(3,3) :: ibest
 
-      !initialization
-      imax(1)=1
-      imax(2)=2
-      imax(3)=3
-      if (better(idim,vec,2,1)) then
-         if (better(idim,vec,3,1)) then
-            if (better(idim,vec,2,3)) then
-               !other worst case 2<3<1
-               imax(1)=2
-               imax(2)=3
-               imax(3)=1
-            else
-               !  1>3<2, but 2<1 => 3<2<1
-               imax(1)=3
-               imax(3)=1
-            end if
-         else
-            !2<1 and 3>1 => 2<1<3
-            imax(1)=2
-            imax(2)=1
-         end if
-      else
-         if (better(idim,vec,3,2)) then
-            if (better(idim,vec,3,1)) then
-               !worst case, 3<1<2
-               imax(1)=3
-               imax(2)=1
-               imax(3)=2
-            else
-               ! 1<3<2
-               imax(2)=3
-               imax(3)=2
-            end if
-         end if
-      end if
+    !initialization
+    imax(1)=1
+    imax(2)=2
+    imax(3)=3
+    if (better(idim,vec,2,1)) then
+       if (better(idim,vec,3,1)) then
+          if (better(idim,vec,2,3)) then
+             !other worst case 2<3<1
+             imax(1)=2
+             imax(2)=3
+             imax(3)=1
+          else
+             !  1>3<2, but 2<1 => 3<2<1
+             imax(1)=3
+             imax(3)=1
+          end if
+       else
+          !2<1 and 3>1 => 2<1<3
+          imax(1)=2
+          imax(2)=1
+       end if
+    else
+       if (better(idim,vec,3,2)) then
+          if (better(idim,vec,3,1)) then
+             !worst case, 3<1<2
+             imax(1)=3
+             imax(2)=1
+             imax(3)=2
+          else
+             ! 1<3<2
+             imax(2)=3
+             imax(3)=2
+          end if
+       end if
+    end if
 
-      !once ordered preserve only the choices which are equal
+    !once ordered preserve only the choices which are equal
 !!$      if (abs(abs(vec(imax(2)))-abs(vec(imax(3)))) > 1.d-12 ) imax(3)=imax(2)
 !!$      if (abs(abs(vec(imax(1)))-abs(vec(imax(2)))) > 1.d-12 ) imax(2:3)=imax(1)
 
-    end function reorder
+  end function reorder
 
-  END SUBROUTINE reformat_one_supportfunction
-
+  
   !> Routine which directly applies the 3D transformation of the rototranslation
   !this routine has to be cleaned and the allocations of the work arrays have to be deplaced
   subroutine field_rototranslation3D(n_phi,nrange_phi,phi_ISF,Rmat,da,&

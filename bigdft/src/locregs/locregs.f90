@@ -426,11 +426,11 @@ contains
 
       lr%mesh=cell_new(geocode,ndims,hgridsh)
 
-      ndims(1)=lr%d%n1
-      ndims(2)=lr%d%n2
-      ndims(3)=lr%d%n3
+      ndims(1)=lr%d%n1+1
+      ndims(2)=lr%d%n2+1
+      ndims(3)=lr%d%n3+1  !check the validity of the +1 here - should tests fail after October 2017
       hgrids=2.0_gp*hgridsh
-      lr%mesh_coarse=cell_new(geocode,ndims,hgrids)
+      lr%mesh_coarse=cell_new(geocode,ndims,hgrids) !we should write the number of points here
 
       Gnbl1=0
       Gnbl2=0

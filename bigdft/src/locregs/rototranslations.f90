@@ -17,8 +17,8 @@ module rototranslations
   !> Contains the rotation and translation (possibly deformation) which have to be applied to a given fragment
   type, public :: rototranslation
      !real(gp), dimension(3) ::  !< translation of fragment center
-     real(gp), dimension(3) :: rot_center_new=0.0_gp !< positions of the centers
-     real(gp), dimension(3) :: rot_center=0.0_gp !< center of rotation in original coordinates (might be fragment center or not)
+     real(gp), dimension(3) :: rot_center_dest=0.0_gp !< positions of the centers
+     real(gp), dimension(3) :: rot_center_src=0.0_gp !< center of rotation in original coordinates (might be fragment center or not)
      real(gp), dimension(3) :: rot_axis=[1.0_gp,0.0_gp,0.0_gp] !< unit rotation axis (should have modulus one)
      real(gp) :: theta=0.0_gp !< angle of rotation
      real(gp) :: Werror=0.0_gp !< Wahba error associated with transformation
@@ -36,7 +36,7 @@ contains
   pure function rototranslation_identity() result(ft)
     implicit none
     type(rototranslation) :: ft
-    ft%rot_center    = 0.0_gp 
+    ft%rot_center_src    = 0.0_gp 
     ft%Werror        = 0.0_gp
     call set_no_translation(ft)
     call set_no_rotation(ft)
@@ -47,8 +47,8 @@ contains
     real(gp), dimension(3), intent(in) :: src,dest
     type(rototranslation), intent(inout) :: ft
 
-    ft%rot_center=src
-    ft%rot_center_new=dest
+    ft%rot_center_src=src
+    ft%rot_center_dest=dest
   end subroutine set_translation
 
   pure subroutine set_no_translation(ft)
@@ -56,7 +56,7 @@ contains
     real(gp), dimension(3) :: src,dest
     type(rototranslation), intent(inout) :: ft
 
-    ft%rot_center_new=ft%rot_center
+    ft%rot_center_dest=ft%rot_center_src
   end subroutine set_no_translation
 
   pure subroutine set_rotation(ft,R)

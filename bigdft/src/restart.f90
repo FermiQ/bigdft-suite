@@ -3851,11 +3851,7 @@ subroutine reformat_check(reformat_needed,reformat_reason,tol,at,hgrids_old,hgri
   call ext_buffers_coarse(per(1),nb(1))
   call ext_buffers_coarse(per(2),nb(2))
   call ext_buffers_coarse(per(3),nb(3))
-
-  centre_old_box=closest_r(mesh,frag_trans%rot_center,&
-       hgrids_old*ns_old-0.5_dp*locreg_mesh_coarse_origin(mesh_old))
-  centre_new_box=closest_r(mesh,frag_trans%rot_center_new,&
-       hgrids*ns-0.5_dp*locreg_mesh_coarse_origin(mesh))
+ 
   
   !use new (internal) version of mindist, mindist doesn't do the right thing in this case
   ! centre of rotation with respect to start of box
