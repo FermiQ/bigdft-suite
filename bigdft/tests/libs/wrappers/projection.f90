@@ -13,7 +13,7 @@ program projection
   use compression, only: wnrm2
   use multipole_preserving
   implicit none
-  real(f_double) :: crmult,frmult,maxdiff_RS,maxdiff_MP,sigma
+  real(f_double) :: crmult,frmult,maxdiff_RS,maxdiff_MP,maxdiff_RS_MP,sigma
   type(locreg_descriptors) :: lr
   real(f_double), dimension(3) :: kpoint,oxyz,angrad,hgrids
   type(f_tree) :: dict_posinp
@@ -100,6 +100,7 @@ program projection
            !calculate norm and difference of the two arrays
            call f_diff(f_size(psi(1:nn,ncplx_p,m)),psi(1:nn,ncplx_p,m),RSpsi(1:nn,ncplx_p,m),maxdiff_RS)
            call f_diff(f_size(psi(1:nn,ncplx_p,m)),psi(1:nn,ncplx_p,m),MPpsi(1:nn,ncplx_p,m),maxdiff_MP)
+           call f_diff(f_size(RSpsi(1:nn,ncplx_p,m)),RSpsi(1:nn,ncplx_p,m),MPpsi(1:nn,ncplx_p,m),maxdiff_RS_MP)
 
            if (iproc==0) then
               call yaml_mapping_open('Shell projectors')
@@ -120,12 +121,13 @@ program projection
               call yaml_map('Maximum difference with Traditional',maxdiff_MP)
               call yaml_mapping_close()
 
+              call yaml_map('Maximum difference between C-b and M-p',maxdiff_RS_MP)
+
               call yaml_mapping_close()
               call yaml_mapping_close()
            end if
 
         end do ! loop on m quantum number
-
 
       !---------------------------------------------------------------------------------------
       !  ! printing of the projectors for debug

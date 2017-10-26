@@ -116,6 +116,7 @@ define F_REGTEST_INSTRUCTIONS
     - $(run_parallel) ./PS_Check -n [57,48,63] -g F
     - $(run_parallel) ./PS_Check -n [64,64,64] -g P
     - $(run_parallel) ./PS_Check -n [32,64,48] -g S
+    - $(run_parallel) ./PS_Check -n [51,55,64] -g W
 - GPS_PCG:
    binary: Generalized_PSolver
    runs:
