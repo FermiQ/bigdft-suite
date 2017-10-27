@@ -32,7 +32,7 @@ program projection
   integer, parameter :: ncplx_p=1 !< 2 if the projector is supposed to be complex, 1 otherwise
   real(f_double), dimension(ncplx_g) :: expo !<exponents (1/2sigma^2 for the first element) of the gaussian (real and imaginary part)
   real(f_double), dimension(ncplx_g) :: coeff !<prefactor of the gaussian
-  integer :: iproc,nn
+  integer :: iproc,nn,qn,ql,nstart,nend,lstart,lend
   !type(workarr_sumrho) :: w
   !real(f_double), dimension(:), allocatable :: projector_real,gaussian
   !real(f_double), dimension(:), allocatable :: ps,RSps,MPps 
@@ -41,6 +41,8 @@ program projection
   ! To run the test:
   ! ./projection -> test all projectors
 
+  qn=0
+  ql=0
   iproc=0
   call f_lib_initialize()
  
@@ -49,11 +51,16 @@ program projection
 
   call yaml_argparse(options,&
        '- {name: hgrid, shortname: g, default: 0.333, help_string: hgrid}'//f_cr//&
+       '- {name: qn, shortname: n, default: 0, help_string: n}'//f_cr//&
+       '- {name: ql, shortname: l, default: 0, help_string: l}'//f_cr//&
        '- {name: sigma, shortname: s, default: 0.3  , help_string: sigma}')
 
   !hgrids=0.5_f_double
   hgrids=options//'hgrid'
   sigma=options//'sigma'
+  qn=options//'qn'
+  ql=options//'ql'
+
   dict_posinp=f_tree_load('{positions: [{ C: [0.0, 0.0, 0.0]}], cell: [10,15,11]}')
   crmult=10.0_f_double
   frmult=10.0_f_double
@@ -72,9 +79,20 @@ program projection
 
   call f_tree_free(dict_posinp)
 
+  if (qn == 0 .or. ql == 0) then
+     nstart=1
+     nend=nmax
+     lstart=1
+     lend=lmax
+  else
+     nstart=qn
+     nend=qn
+     lstart=ql
+     lend=ql
+  end if
 
-  do n=1,nmax
-     do l=1,lmax
+  do n=nstart,nend
+     do l=lstart,lend
    
         if (iproc==0) then
           call yaml_comment('Projectors check',hfill='-')
