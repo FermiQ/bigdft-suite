@@ -38,6 +38,9 @@ program projection
   !real(f_double), dimension(:), allocatable :: ps,RSps,MPps 
   !integer :: ni,nr
 
+  ! To run the test:
+  ! ./projection -> test all projectors
+
   iproc=0
   call f_lib_initialize()
  

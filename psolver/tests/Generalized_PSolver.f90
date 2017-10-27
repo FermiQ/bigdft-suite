@@ -5424,16 +5424,16 @@ subroutine test_functions(mesh,geocode,ixc,n01,n02,n03,acell,a_gauss,hx,hy,hz,&
 
   !local variables
   integer :: i1,i2,i3,ifx,ify,ifz,unit,unit2,unit3,unit4,i,j
-  real(kind=8) :: x,x1,x2,x3,y,z,length,denval,a2,derf,factor,r,r2,r0,erfc_yy,erf_yy
+  real(kind=8) :: x,x1,x2,x3,y,z,length,denval,a2,derf,factor,r,r2,erfc_yy,erf_yy
   real(kind=8) :: fx,fx1,fx2,fy,fy1,fy2,fz,fz1,fz2,a,ax,ay,az,bx,by,bz,tt,potion_fac
   real(kind=8) :: monopole
   real(kind=8), dimension(3) :: dipole,deps
-  character(len=30) :: mode
+  !character(len=30) :: mode
   real(kind=8), parameter :: EulerGamma = 0.5772156649015328d0
   real(kind=8), dimension(3,n01,n02,n03) :: nablapot
   logical :: wrtfiles = .false.
   logical :: cavity
-  real(kind=8) :: e1,k,e,dd,d12,eps0m1,PB_charge
+  real(kind=8) :: k,e,dd,d12,eps0m1,PB_charge
   !Type of function
   integer, parameter :: FUNC_CONSTANT = 1
   integer, parameter :: FUNC_GAUSSIAN = 2
@@ -5450,7 +5450,7 @@ subroutine test_functions(mesh,geocode,ixc,n01,n02,n03,acell,a_gauss,hx,hy,hz,&
   !mode = "charged_thin_wire"
   !mode="cylindrical_capacitor"
   !mode="monopolar"
-  mode="zigzag_model_wire"
+  !mode="zigzag_model_wire"
   eps0m1=eps0 - 1.d0
   cavity = (trim(PSol)/='VAC') .or. (SetEps .gt. 4)
 !!  !triclinic cell
@@ -5652,7 +5652,7 @@ subroutine test_functions(mesh,geocode,ixc,n01,n02,n03,acell,a_gauss,hx,hy,hz,&
      !non-periodic dimension
      ify=FUNC_GAUSSIAN !FUNC_SHRINK_GAUSSIAN
      !parameters of the test functions
-     ax=length!*0.05d0
+     ax=length
      ay=length*0.05d0
      az=length!*0.05d0
      !b are used for FUNC_GAUSSIAN_SHRINKED
@@ -5918,215 +5918,315 @@ subroutine test_functions(mesh,geocode,ixc,n01,n02,n03,acell,a_gauss,hx,hy,hz,&
 
 
   else if (trim(geocode) == 'W') then
+
      !parameters for the test functions
      length=acell
-     !a=0.5d0/a_gauss**2
+     a=0.5d0/a_gauss**2
      !test functions in the three directions
-     !isolated directions
-     ifx=FUNC_SHRINK_GAUSSIAN
-     ify=FUNC_SHRINK_GAUSSIAN
-     !periodic direction
-     ifz=5
+     ifx=FUNC_GAUSSIAN !  FUNC_EXP_COSINE!FUNC_GAUSSIAN!_SHRINKED !FUNC_SHRINK_GAUSSIAN
+     ifz=FUNC_EXP_COSINE!FUNC_CONSTANT
+     !non-periodic dimension
+     ify=FUNC_GAUSSIAN !FUNC_SHRINK_GAUSSIAN
      !parameters of the test functions
+     ax=length*0.05d0
+     ay=length*0.05d0
+     az=length!*0.05d0
+     !b are used for FUNC_GAUSSIAN_SHRINKED
+     bx=2.d0!real(nu,kind=8)
+     by=2.d0!real(nu,kind=8)
+     bz=2.d0!real(nu,kind=8)
+
+     call f_assert(alpha-onehalf*pi,id='Alpha angle invalid')
+     call f_assert(gamma-onehalf*pi,id='Gamma angle invalid for S BC')
      
-     ax = length
-     ay = length
-     az = length
-     
-     bx = 2.d0
-     by = 2.d0
-     bz = 2.d0
-  
+     !non-periodic dimension
+     !ay=length!4.d0*a
 
      density(:,:,:) = 0.d0!1d-20 !added
-     factor = 2.0d0
 
-
-    if (wrtfiles) then 
+    if (wrtfiles) then
      !plot of the functions used
-     do i1=1,min(n01,n03)
-        x = hx*real(i1-n01/2-1,kind=8)!isolated
-        z = hz*real(i1-n03/2-1,kind=8)!periodic
+     do i1=1,n02
+        x = hx*real(i1-n02/2-1,kind=8)!valid if hy=hz
+        y = hy*real(i1-n02/2-1,kind=8) 
+        z = hz*real(i1-n02/2-1,kind=8)
         call functions(x,ax,bx,fx,fx1,fx2,ifx)
+        call functions(y,ay,by,fy,fy1,fy2,ify)
         call functions(z,az,bz,fz,fz1,fz2,ifz)
-        write(20,*) i1,fx,fx2,fz,fz2
+        write(20,'(1x,I8,6(1x,1pe26.14e3))') i1,fx,fx2,fy,fy2,fz,fz2
      end do
     end if
 
-     !Initialization of density and potential
-   
-
-     select case(mode)
-     case ("monopolar")
-        ! Gaussian Density Distribution in (x,y)
-        ! this is the configuration yielding non-zero monopole
-        do i3=1,n03
-           x3 = hz*real(i3-n03/2-1,kind=8)
-           call functions(x3,az,bz,fz,fz1,fz2,1)
-           do i2=1,n02
-              x2 = hy*real(i2-n02/2-1,kind=8)
-              !call functions(x2,ay,by,fy,fy1,fy2,ify)
-              do i1=1,n01
-                 x1 = hx*real(i1-n01/2-1,kind=8)
-                 r2 = x1*x1+x2*x2
-                 r = sqrt(r2)
-                 !call functions(x1,ax,bx,fx,fx1,fx2,ifx)
-                 if  (r == 0.d0) then
-                    !EulerGamma = 0.5772156649015328d
-                    density(i1,i2,i3) = dexp(-factor*r2)
-                    potential(i1,i2,i3) = (-EulerGamma - dlog(factor))/(4.0d0*factor)
-                 else
-                    call e1xb(factor*r2,e1)
-                    density(i1,i2,i3) = dexp(-factor*r2)
-                    potential(i1,i2,i3) = (e1+dlog(r2))/(4.0d0*factor)
-                 end if
-                 !note that in this case we cannot account for the screening in the following way,
-                 !density(i1,i2,i3) = density(i1,i2,i3) + mu0**2*potential(i1,i2,i3)
-                 !because the extra-term, proportional to the potential, is not localized
-                 !in the non-periodic directions
-                 potential(i1,i2,i3) = -16.0d0*datan(1.0d0)*potential(i1,i2,i3)
-              end do
+     !Initialisation of density and potential
+     !Normalisation
+     do i3=1,n03
+        x3 = hz*real(i3-n03/2-1,kind=8)
+        call functions(x3,az,bz,fz,fz1,fz2,ifz)
+        do i2=1,n02
+           x2 = hy*real(i2-n02/2-1,kind=8)
+           call functions(x2,ay,by,fy,fy1,fy2,ify)
+           do i1=1,n01
+              x1 = hx*real(i1-n01/2-1,kind=8)
+              call functions(x1,ax,bx,fx,fx1,fx2,ifx)
+              potential(i1,i2,i3) =  -fourpi*fx*fy*fz
+              nablapot(1,i1,i2,i3) = fx1*fy*fz
+              nablapot(2,i1,i2,i3) = fx*fy1*fz
+              nablapot(3,i1,i2,i3) = fx*fy*fz1
+              density(i1,i2,i3) = -mu0**2*fx*fy*fz
+              density(i1,i2,i3) = density(i1,i2,i3) + mesh%gu(1,1)*fx2*fy*fz+mesh%gu(2,2)*fx*fy2*fz+&
+                                  mesh%gu(3,3)*fx*fy*fz2
+              density(i1,i2,i3) = density(i1,i2,i3) + 2.0_dp*(mesh%gu(1,2)*fx1*fy1*fz+&
+                                  mesh%gu(1,3)*fx1*fy*fz1+mesh%gu(2,3)*fx*fy1*fz1)
+              !old:
+              !density(i1,i2,i3) = fx2*fy*fz+fx*fy2*fz+fx*fy*fz2 - mu0**2*fx*fy*fz
+              denval=max(denval,-density(i1,i2,i3))
            end do
         end do
-
-     case("zigzag_model_wire")
-
-        density = 0.d0
-        potential = 0.d0
-
-!!$        density(n01/4,n02/2,n03/4) = -1.0d0
-!!$        density(3*n01/4,n02/2,3*n03/4) = 1.0d0
-        density(n01/2,n02/2,n03/2) = 1.0d0
-
-        !factor=(16.d0/acell)**2
-        !r0 = acell/4.d0
-        !the following is evaluated analytically by imposing that
-        !\int_0^\infty r*(-exp(-factor(r-r0)^2)+denval*exp(-factor*r^2)) = 0
-        !denval=sqrt(4.d0*datan(1.d0)*factor)*r0*(1.d0+derf(sqrt(factor)*r0))
-        !do i3=1,n03
-        ! x3 = hz*real(i3-n03/2-1,kind=8)
-        ! do i2=1,n02
-        ! x2 = hy*real(i2-n02/2-1,kind=8)
-        ! do i1=1,n01
-        ! x1 = hx*real(i1-n01/2-1,kind=8)
-        ! !r2 = x1*x1+x2*x2+x3*x3
-        ! !r = sqrt(r2)
-        ! !in this configuration denval is used so as to achieve zero monopole
-        ! density(i1,i2,i3) = -1.d0*dexp(-factor*(x1-r0)**2)*dexp(-factor*x2**2)*dexp(-factor*(x3-r0)**2) &
-        ! + 1.0d0*dexp(-factor*(x1+r0)**2)*dexp(-factor*x2**2)*dexp(-factor*(x3+r0)**2)
-        ! density(i1,i2,i3) = density(i1,i2,i3)*(factor/4.d0/datan(1.d0))**(3.d0/2.d0)
-        ! end do
-        ! end do
-        !end do
-
-     case ("charged_thin_wire")
-        do i3=1,n03
-           do i2=1,n02
-              do i1=1,n01
-                 if (i1 == n01/2+1 .and. i2 == n02/2+1) density(i1,i2,i3) = 1.0d0
-              end do
-           end do
-        end do
-     case("cylindrical_capacitor")
-        !mimicked by two Gaussian charge distributions,
-        !one localized around r = 0,
-        !the other around r0 =acell/4
-        factor=3.d0*acell
-        r0 = acell/4.d0
-        !the following is evaluated analytically by imposing that
-        !\int_0^\infty r*(-exp(-factor(r-r0)^2)+denval*exp(-factor*r^2)) = 0
-        denval=sqrt(4.d0*datan(1.d0)*factor)*r0*(1.d0+derf(sqrt(factor)*r0))
-        do i3=1,n03
-           x3 = hz*real(i3-n03/2-1,kind=8)
-           do i2=1,n02
-              x2 = hy*real(i2-n02/2-1,kind=8)
-              do i1=1,n01
-                 x1 = hx*real(i1-n01/2-1,kind=8)
-                 r2 = x1*x1+x2*x2
-                 r = sqrt(r2)
-                 !in this configuration denval is used so as to achieve zero monopole
-                 density(i1,i2,i3) = density(i1,i2,i3) + denval*dexp(-factor*r2) - dexp(-factor*(r-r0)**2)
-              end do
-           end do
-        end do
-     case default
-        denval=0.d0 !value for keeping the density positive
-        do i3=1,n03
-           x3 = hz*real(i3-n03/2-1,kind=8)
-           call functions(x3,az,bz,fz,fz1,fz2,ifz)
-           do i2=1,n02
-              x2 = hy*real(i2-n02/2-1,kind=8)
-              call functions(x2,ay,by,fy,fy1,fy2,ify)
-              do i1=1,n01
-                 x1 = hx*real(i1-n01/2-1,kind=8)
-                 call functions(x1,ax,bx,fx,fx1,fx2,ifx)
-                 potential(i1,i2,i3) = -fx*fy*fz              
-                 density(i1,i2,i3) = (fx2*fy*fz+fx*fy2*fz+fx*fy*fz2+mu0**2*potential(i1,i2,i3))/(16.d0*datan(1.d0))
-                 denval=max(denval,-density(i1,i2,i3))
-              end do
-           end do
-        end do
-     end select
-
-  
-     ! !acerioni: r = sqrt(x**2+y**2); V(x,y,z) = ArcTan(a*r)*f(z)/(a*r)
-     ! do i3=1,n03
-     !    x3 = hz*real(i3-n03/2-1,kind=8)
-     !    call functions(x3,az,bz,fz,fz,1fz2,ifz)
-     !    do i2=1,n02
-     !       x2 = hy*real(i2-n02/2-1,kind=8)
-     !       !call functions(x2,ay,by,fy,fy1,fy2,ify)
-     !       do i1=1,n01
-     !          x1 = hx*real(i1-n01/2-1,kind=8)
-     !          r2 = x1*x1+x2*x2
-     !          r = sqrt(r2)
-     !          fxy = datan(factor*r)/(factor*r)
-     !          !call functions(x1,ax,bx,fx,fx1,fx2,ifx)
-     !          if (r == 0.d0) then
-     !             potential(i1,i2,i3) = potential(i1,i2,i3) + 1.d0*fz
-     !             density(i1,i2,i3) = density(i1,i2,i3) - fz*4.d0/3.d0*factor**2
-     !             density(i1,i2,i3) = density(i1,i2,i3) + 1.d0*fz2
-     !          else
-     !             density(i1,i2,i3) = density(i1,i2,i3) + & 
-     !                  fz*(-3.d0*factor**2/(1+factor**2*r2)**2 - 1.d0/r2/(1+factor**2*r2)**2 + fxy/r2)
-     !             density(i1,i2,i3) = density(i1,i2,i3) + fxy*fz2
-     !             !denval=max(denval,-density(i1,i2,i3))
-     !             potential(i1,i2,i3) = potential(i1,i2,i3) + fxy*fz
-     !          end if
-     !          density(i1,i2,i3) = density(i1,i2,i3) / (-16.d0*datan(1.d0))
-     !          !density(i1,i2,i3) = -density(i1,i2,i3)
+     end do
+     
+    if (wrtfiles) then
+     i1=n01/2
+     i3=n03/2
+     do i2=1,n02
+        write(25,'(1x,I8,2(1x,1pe26.14e3))')i2,potential(i1,i2,i3),density(i1,i2,i3)
+     end do
+    end if
+     
+     ! !plane capacitor oriented along the y direction
+     ! do i2=1,n02
+     !    if (i2==n02/4) then
+     !       do i3=1,n03
+     !          do i1=1,n01
+     !             density(i1,i2,i3)=1.d0!real(i2,kind=8)
+     !          end do
      !       end do
-     !    end do
-     ! end do
-     ! !acerioni
-
-     ! !acerioni: density = delta(x,y)*"constant = 1 along z"
-     ! do i3=1,n03
-     !    x3 = hz*real(i3-n03/2-1,kind=8)
-     !    call functions(x3,az,bz,fz,fz1,fz2,ifz)
-     !    do i2=1,n02
-     !       x2 = hy*real(i2-n02/2-1,kind=8)
-     !       !call functions(x2,ay,by,fy,fy1,fy2,ify)
-     !       do i1=1,n01
-     !          x1 = hx*real(i1-n01/2-1,kind=8)
-     !          r2 = x1*x1+x2*x2
-     !          r = sqrt(r2)
-     !          fxy = datan(factor*r)/(factor*r)
-     !          !call functions(x1,ax,bx,fx,fx1,fx2,ifx)
-     !          if (r == 0.d0) then
-     !             potential(i1,i2,i3) = 0.d0*fz
-     !             density(i1,i2,i3) = 1.d0/(hx*hy)
-     !          else
-     !             potential(i1,i2,i3) = - 2.d0*log(r)
-     !          end if
-     !          !density(i1,i2,i3) = density(i1,i2,i3) / (-16.d0*datan(1.d0))
+     !    else if (i2==3*n02/4) then
+     !       do i3=1,n03
+     !          do i1=1,n01
+     !             density(i1,i2,i3)=-1.d0!real(i2,kind=8)
+     !          end do
      !       end do
-     !    end do
+     !    else
+     !       do i3=1,n03
+     !          do i1=1,n01
+     !             density(i1,i2,i3)=0.d0
+     !          end do
+     !       end do
+     !    end if
      ! end do
-     ! !acerioni
 
      if (ixc==0) denval=0.d0
 
+  
+
+!!$     !parameters for the test functions
+!!$     length=acell
+!!$     !a=0.5d0/a_gauss**2
+!!$     !test functions in the three directions
+!!$     !isolated directions
+!!$     ifx=FUNC_GAUSSIAN
+!!$     ify=FUNC_GAUSSIAN
+!!$     !periodic direction
+!!$     ifz=FUNC_EXP_COSINE
+!!$     !parameters of the test functions
+!!$     
+!!$     ax = length*0.05d0
+!!$     ay = length*0.05d0
+!!$     az = length
+!!$     
+!!$     bx = 2.d0
+!!$     by = 2.d0
+!!$     bz = 2.d0
+!!$
+!!$     density(:,:,:) = 0.d0!1d-20 !added
+!!$     factor = 2.0d0
+!!$
+!!$
+!!$    if (wrtfiles) then 
+!!$     !plot of the functions used
+!!$     do i1=1,min(n01,n03)
+!!$        x = hx*real(i1-n01/2-1,kind=8)!isolated
+!!$        z = hz*real(i1-n03/2-1,kind=8)!periodic
+!!$        call functions(x,ax,bx,fx,fx1,fx2,ifx)
+!!$        call functions(z,az,bz,fz,fz1,fz2,ifz)
+!!$        write(20,*) i1,fx,fx2,fz,fz2
+!!$     end do
+!!$    end if
+!!$
+!!$     !Initialization of density and potential
+!!$   
+!!$
+!!$     select case(mode)
+!!$     case ("monopolar")
+!!$        ! Gaussian Density Distribution in (x,y)
+!!$        ! this is the configuration yielding non-zero monopole
+!!$        do i3=1,n03
+!!$           x3 = hz*real(i3-n03/2-1,kind=8)
+!!$           call functions(x3,az,bz,fz,fz1,fz2,1)
+!!$           do i2=1,n02
+!!$              x2 = hy*real(i2-n02/2-1,kind=8)
+!!$              !call functions(x2,ay,by,fy,fy1,fy2,ify)
+!!$              do i1=1,n01
+!!$                 x1 = hx*real(i1-n01/2-1,kind=8)
+!!$                 r2 = x1*x1+x2*x2
+!!$                 r = sqrt(r2)
+!!$                 !call functions(x1,ax,bx,fx,fx1,fx2,ifx)
+!!$                 if  (r == 0.d0) then
+!!$                    !EulerGamma = 0.5772156649015328d
+!!$                    density(i1,i2,i3) = dexp(-factor*r2)
+!!$                    potential(i1,i2,i3) = (-EulerGamma - dlog(factor))/(4.0d0*factor)
+!!$                 else
+!!$                    call e1xb(factor*r2,e1)
+!!$                    density(i1,i2,i3) = dexp(-factor*r2)
+!!$                    potential(i1,i2,i3) = (e1+dlog(r2))/(4.0d0*factor)
+!!$                 end if
+!!$                 !note that in this case we cannot account for the screening in the following way,
+!!$                 !density(i1,i2,i3) = density(i1,i2,i3) + mu0**2*potential(i1,i2,i3)
+!!$                 !because the extra-term, proportional to the potential, is not localized
+!!$                 !in the non-periodic directions
+!!$                 potential(i1,i2,i3) = -16.0d0*datan(1.0d0)*potential(i1,i2,i3)
+!!$              end do
+!!$           end do
+!!$        end do
+!!$
+!!$     case("zigzag_model_wire")
+!!$
+!!$        density = 0.d0
+!!$        potential = 0.d0
+!!$
+!!$!!$        density(n01/4,n02/2,n03/4) = -1.0d0
+!!$!!$        density(3*n01/4,n02/2,3*n03/4) = 1.0d0
+!!$        density(n01/2,n02/2,n03/2) = 1.0d0
+!!$
+!!$        !factor=(16.d0/acell)**2
+!!$        !r0 = acell/4.d0
+!!$        !the following is evaluated analytically by imposing that
+!!$        !\int_0^\infty r*(-exp(-factor(r-r0)^2)+denval*exp(-factor*r^2)) = 0
+!!$        !denval=sqrt(4.d0*datan(1.d0)*factor)*r0*(1.d0+derf(sqrt(factor)*r0))
+!!$        !do i3=1,n03
+!!$        ! x3 = hz*real(i3-n03/2-1,kind=8)
+!!$        ! do i2=1,n02
+!!$        ! x2 = hy*real(i2-n02/2-1,kind=8)
+!!$        ! do i1=1,n01
+!!$        ! x1 = hx*real(i1-n01/2-1,kind=8)
+!!$        ! !r2 = x1*x1+x2*x2+x3*x3
+!!$        ! !r = sqrt(r2)
+!!$        ! !in this configuration denval is used so as to achieve zero monopole
+!!$        ! density(i1,i2,i3) = -1.d0*dexp(-factor*(x1-r0)**2)*dexp(-factor*x2**2)*dexp(-factor*(x3-r0)**2) &
+!!$        ! + 1.0d0*dexp(-factor*(x1+r0)**2)*dexp(-factor*x2**2)*dexp(-factor*(x3+r0)**2)
+!!$        ! density(i1,i2,i3) = density(i1,i2,i3)*(factor/4.d0/datan(1.d0))**(3.d0/2.d0)
+!!$        ! end do
+!!$        ! end do
+!!$        !end do
+!!$
+!!$     case ("charged_thin_wire")
+!!$        do i3=1,n03
+!!$           do i2=1,n02
+!!$              do i1=1,n01
+!!$                 if (i1 == n01/2+1 .and. i2 == n02/2+1) density(i1,i2,i3) = 1.0d0
+!!$              end do
+!!$           end do
+!!$        end do
+!!$     case("cylindrical_capacitor")
+!!$        !mimicked by two Gaussian charge distributions,
+!!$        !one localized around r = 0,
+!!$        !the other around r0 =acell/4
+!!$        factor=3.d0*acell
+!!$        r0 = acell/4.d0
+!!$        !the following is evaluated analytically by imposing that
+!!$        !\int_0^\infty r*(-exp(-factor(r-r0)^2)+denval*exp(-factor*r^2)) = 0
+!!$        denval=sqrt(4.d0*datan(1.d0)*factor)*r0*(1.d0+derf(sqrt(factor)*r0))
+!!$        do i3=1,n03
+!!$           x3 = hz*real(i3-n03/2-1,kind=8)
+!!$           do i2=1,n02
+!!$              x2 = hy*real(i2-n02/2-1,kind=8)
+!!$              do i1=1,n01
+!!$                 x1 = hx*real(i1-n01/2-1,kind=8)
+!!$                 r2 = x1*x1+x2*x2
+!!$                 r = sqrt(r2)
+!!$                 !in this configuration denval is used so as to achieve zero monopole
+!!$                 density(i1,i2,i3) = density(i1,i2,i3) + denval*dexp(-factor*r2) - dexp(-factor*(r-r0)**2)
+!!$              end do
+!!$           end do
+!!$        end do
+!!$     case default
+!!$        denval=0.d0 !value for keeping the density positive
+!!$        do i3=1,n03
+!!$           x3 = hz*real(i3-n03/2-1,kind=8)
+!!$           call functions(x3,az,bz,fz,fz1,fz2,ifz)
+!!$           do i2=1,n02
+!!$              x2 = hy*real(i2-n02/2-1,kind=8)
+!!$              call functions(x2,ay,by,fy,fy1,fy2,ify)
+!!$              do i1=1,n01
+!!$                 x1 = hx*real(i1-n01/2-1,kind=8)
+!!$                 call functions(x1,ax,bx,fx,fx1,fx2,ifx)
+!!$                 potential(i1,i2,i3) = -fx*fy*fz              
+!!$                 density(i1,i2,i3) = (fx2*fy*fz+fx*fy2*fz+fx*fy*fz2+mu0**2*potential(i1,i2,i3))/(16.d0*datan(1.d0))
+!!$                 denval=max(denval,-density(i1,i2,i3))
+!!$              end do
+!!$           end do
+!!$        end do
+!!$     end select
+!!$
+!!$  
+!!$     ! !acerioni: r = sqrt(x**2+y**2); V(x,y,z) = ArcTan(a*r)*f(z)/(a*r)
+!!$     ! do i3=1,n03
+!!$     !    x3 = hz*real(i3-n03/2-1,kind=8)
+!!$     !    call functions(x3,az,bz,fz,fz,1fz2,ifz)
+!!$     !    do i2=1,n02
+!!$     !       x2 = hy*real(i2-n02/2-1,kind=8)
+!!$     !       !call functions(x2,ay,by,fy,fy1,fy2,ify)
+!!$     !       do i1=1,n01
+!!$     !          x1 = hx*real(i1-n01/2-1,kind=8)
+!!$     !          r2 = x1*x1+x2*x2
+!!$     !          r = sqrt(r2)
+!!$     !          fxy = datan(factor*r)/(factor*r)
+!!$     !          !call functions(x1,ax,bx,fx,fx1,fx2,ifx)
+!!$     !          if (r == 0.d0) then
+!!$     !             potential(i1,i2,i3) = potential(i1,i2,i3) + 1.d0*fz
+!!$     !             density(i1,i2,i3) = density(i1,i2,i3) - fz*4.d0/3.d0*factor**2
+!!$     !             density(i1,i2,i3) = density(i1,i2,i3) + 1.d0*fz2
+!!$     !          else
+!!$     !             density(i1,i2,i3) = density(i1,i2,i3) + & 
+!!$     !                  fz*(-3.d0*factor**2/(1+factor**2*r2)**2 - 1.d0/r2/(1+factor**2*r2)**2 + fxy/r2)
+!!$     !             density(i1,i2,i3) = density(i1,i2,i3) + fxy*fz2
+!!$     !             !denval=max(denval,-density(i1,i2,i3))
+!!$     !             potential(i1,i2,i3) = potential(i1,i2,i3) + fxy*fz
+!!$     !          end if
+!!$     !          density(i1,i2,i3) = density(i1,i2,i3) / (-16.d0*datan(1.d0))
+!!$     !          !density(i1,i2,i3) = -density(i1,i2,i3)
+!!$     !       end do
+!!$     !    end do
+!!$     ! end do
+!!$     ! !acerioni
+!!$
+!!$     ! !acerioni: density = delta(x,y)*"constant = 1 along z"
+!!$     ! do i3=1,n03
+!!$     !    x3 = hz*real(i3-n03/2-1,kind=8)
+!!$     !    call functions(x3,az,bz,fz,fz1,fz2,ifz)
+!!$     !    do i2=1,n02
+!!$     !       x2 = hy*real(i2-n02/2-1,kind=8)
+!!$     !       !call functions(x2,ay,by,fy,fy1,fy2,ify)
+!!$     !       do i1=1,n01
+!!$     !          x1 = hx*real(i1-n01/2-1,kind=8)
+!!$     !          r2 = x1*x1+x2*x2
+!!$     !          r = sqrt(r2)
+!!$     !          fxy = datan(factor*r)/(factor*r)
+!!$     !          !call functions(x1,ax,bx,fx,fx1,fx2,ifx)
+!!$     !          if (r == 0.d0) then
+!!$     !             potential(i1,i2,i3) = 0.d0*fz
+!!$     !             density(i1,i2,i3) = 1.d0/(hx*hy)
+!!$     !          else
+!!$     !             potential(i1,i2,i3) = - 2.d0*log(r)
+!!$     !          end if
+!!$     !          !density(i1,i2,i3) = density(i1,i2,i3) / (-16.d0*datan(1.d0))
+!!$     !       end do
+!!$     !    end do
+!!$     ! end do
+!!$     ! !acerioni
+!!$
+!!$     if (ixc==0) denval=0.d0
+!!$
   else
 
      !print *,'geometry code not admitted',geocode

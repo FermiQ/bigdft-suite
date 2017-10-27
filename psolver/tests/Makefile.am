@@ -126,6 +126,8 @@ define F_REGTEST_INSTRUCTIONS
     - $(run_parallel) ./Generalized_PSolver -n [57,49,63] -m PCG -b yes -l no
     # PCG from psolver, non-ortho
     - $(run_parallel) ./Generalized_PSolver -n [60,78,70] -m PCG -f [90,41,90] -g S -l no
+    # PCG from Generalized_PSolver, wire bc
+    - $(run_parallel) ./Generalized_PSolver -n [60,78,70] -m PCG -g W -l no
     # PCG from Generalized_PSolver, non-ortho
     - $(run_parallel) ./Generalized_PSolver -n [60,78,70] -m VAC -e 5 -g S -f [90,41,90] -l no
 - GPS_PI:
