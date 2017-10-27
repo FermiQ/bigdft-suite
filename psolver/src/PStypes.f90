@@ -475,7 +475,6 @@ contains
     use dictionaries, only: dict_free
     implicit none
     type(coulomb_operator), intent(inout) :: kernel
-    integer :: i_stat
     call dict_free(kernel%radii_dict)
     call f_free_ptr(kernel%kernel)
     call f_free_ptr(kernel%counts)
@@ -523,7 +522,6 @@ contains
     type(coulomb_operator) :: kernel
     !local variables
     integer :: nthreads,group_size,taskgroup_size
-    real(gp), dimension(3) :: angrad
     !$ integer :: omp_get_max_threads
 
     !nullification
@@ -639,9 +637,9 @@ contains
     type(dictionary), pointer :: dict
     type(dictionary), pointer, optional :: dict_minimal
     !local variables
-    integer(f_integer) :: params_size
+    !integer(f_integer) :: params_size
     !integer(kind = 8) :: cbuf_add !< address of c buffer
-    character, dimension(:), allocatable :: params
+    !character, dimension(:), allocatable :: params
     type(dictionary), pointer :: parameters
     type(dictionary), pointer :: parsed_parameters
     type(dictionary), pointer :: profiles
@@ -727,12 +725,11 @@ contains
     !local variables
     logical :: dummy_l
     real(gp) :: dummy_d
-    integer, dimension(2) :: dummy_int !<to use as filling for input variables
+    !integer, dimension(2) :: dummy_int !<to use as filling for input variables
     real(gp), dimension(2) :: dummy_gp !< to fill the input variables
-    logical, dimension(2) :: dummy_log !< to fill the input variables
-    character(len=256) :: dummy_char
+    !logical, dimension(2) :: dummy_log !< to fill the input variables
+    !character(len=256) :: dummy_char
     character(len = max_field_length) :: strn
-    integer :: i, ipos
 
     if (index(dict_key(val), "_attributes") > 0) return
 
@@ -987,7 +984,7 @@ contains
   !! their allocation depends on the treatment which we are going to
   !! apply
   subroutine PS_allocate_cavity_workarrays(n1,n23,ndims,method,w)
-    use psolver_environment, only: PS_SCCS_ENUM,PS_PB_NONE_ENUM
+    use psolver_environment, only: PS_PB_NONE_ENUM
     use dynamic_memory
     implicit none
     integer, intent(in) :: n1,n23
@@ -1070,9 +1067,6 @@ contains
     character(len=*), intent(in) :: atname
     !> radii of each of the atom types, calculated on the basis of the input values
     real(dp)  :: radius
-    !local variables
-    integer :: i
-    real(dp) :: fact
 
     if (atname .in. kernel%radii_dict) then
        radius=kernel%radii_dict//atname
@@ -1384,8 +1378,8 @@ contains
     real(dp), dimension(3,kernel%w%nat), intent(inout) :: fpcm
     !local variables
     real(dp), parameter :: thr=1.e-12
-    integer :: i1,i2,i3,i23,i3s
-    real(dp) :: cc,epr,depsr,hh,tt,kk
+    integer :: i1,i2,i3,i23
+    real(dp) :: cc,epr,depsr,tt,kk
     type(cell) :: mesh
     real(dp), dimension(3) :: v,dleps,deps
     mesh=kernel%mesh !cell_new(kernel%geocode,kernel%mesh%ndims,kernel%mesh%hgrids)

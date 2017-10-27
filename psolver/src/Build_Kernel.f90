@@ -34,18 +34,17 @@ subroutine Periodic_Kernel(n1,n2,n3,nker1,nker2,nker3,h1,h2,h3,itype_scf,karray,
   character(len=*), parameter :: subname='Periodic_Kernel'
   real(dp), parameter :: pi=3.14159265358979323846_dp
   integer :: i1,i2,i3,j3,iproc1
-  real(dp) :: p1,p2,mu3,ker
+  real(dp) :: p1,p2,mu3,h
   real(dp), dimension(:), allocatable :: fourISFx,fourISFy,fourISFz
   !metric for triclinic lattices
-  real(dp) :: detg
   !! ABINIT stuff /// to be fixed
   !scalars
   integer :: iout,id1,id2,id3
   !arrays
-  real(kind=8) :: rprimd(3,3)
 !!$   integer(kind=8) :: id(3),ii,ing,ig
 !  real(kind=8),allocatable :: gq(:,:)
   !! end of ABINIT stuff
+  h=h1*h2*h3
 
   !!! PSolver n1-n2 plane mpi partitioning !!!
 
@@ -2278,7 +2277,7 @@ subroutine Wires_Kernel(iproc,nproc,n01,n02,n03,n1,n2,n3,nker1,nker2,nker3,h1,h2
   character(len=*), parameter :: subname='Wires_Kernel'
   real(dp), parameter :: pi=3.14159265358979323846_dp
   integer, parameter :: n_gauss = 144
-  integer :: i1, i2, i3, n_range, n_cell, k,i3s,i3e
+  integer :: i1, i2, i3, n_range, n_cell, k,i3s,i3e,nn
   real(dp) :: mu, t0, t1
   !real(dp), dimension(:), allocatable :: fourISFx,fourISFy,fourISFz
   real(dp), dimension(:), allocatable :: fwork
@@ -2290,6 +2289,8 @@ subroutine Wires_Kernel(iproc,nproc,n01,n02,n03,n1,n2,n3,nker1,nker2,nker3,h1,h2
 
   !write(*,*) "Entering the Wires_Kernel subroutine..."
   call cpu_time(t0)
+
+  nn=n03
 
   w2 = -w2 !because we actually need -K0(mu*r)
 
