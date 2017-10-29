@@ -458,7 +458,7 @@ module get_kernel
               !SM: need to fix the spin here
               call vcopy(tmb%orbs%norb**2, tmb%linmat%ham_%matrix(1,1,1), 1, matrixElements(1,1,1), 1)
               call vcopy(tmb%orbs%norb**2, tmb%linmat%ovrlp_%matrix(1,1,1), 1, matrixElements(1,1,2), 1)
-              call diagonalizeHamiltonian2(iproc, nproc, bigdft_mpi%mpi_comm, &
+              call diagonalizeHamiltonian2(iproc, nproc, bigdft_mpi%mpi_comm, 1, &
                    tmb%orthpar%blocksize_pdsyev, tmb%orbs%norb, &
                    matrixElements(1,1,1), matrixElements(1,1,2), tmb%orbs%eval)
               if (iproc==0) call yaml_map('gap',tmb%orbs%eval(orbs%norb+1)-tmb%orbs%eval(orbs%norb))

@@ -74,7 +74,7 @@ module coeffs
     
       do ispin=1,smats%nspin
           if (iproc==0) call yaml_map('method','diagonalization')
-          call diagonalizeHamiltonian2(iproc, nproc, comm, &
+          call diagonalizeHamiltonian2(iproc, nproc, comm, 1, &
                blocksize_pdsyev, nfvctr, &
                ham_full(1,1,ispin), ovrlp_full(1,1,ispin), eval)
 

@@ -69,7 +69,7 @@ program chess_toolbox
    character(len=128) :: kernel_file, coeff_file, pdos_file, metadata_file, output_file, output_bins_file
    character(len=128) :: line, cc, output_pdos, conversion, infile, outfile, iev_min_, iev_max_, fscale_, matrix_basis
    character(len=128) :: ihomo_state_, homo_value_, lumo_value_, smallest_value_, largest_value_, scalapack_blocksize_, kT_
-   character(len=128) :: accuracy_entropy_, nbin_
+   character(len=128) :: accuracy_entropy_, nbin_, itype_
    !!character(len=128),dimension(-lmax:lmax,0:lmax) :: multipoles_files
    character(len=128) :: kernel_matmul_file, fragment_file, manipulation_mode, diag_algorithm
    logical :: multipole_analysis = .false.
@@ -232,6 +232,9 @@ program chess_toolbox
          !!   multipole_analysis = .true.
          !!   exit loop_getargs
          else if (trim(tatonam)=='solve-eigensystem') then
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = itype_)
+            read(itype_,fmt=*,iostat=ierr) itype
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = matrix_format)
             i_arg = i_arg + 1
@@ -509,7 +512,7 @@ program chess_toolbox
 
 
    if (solve_eigensystem) then
-       call solve_eigensystem_lapack(iproc, nproc, matrix_format, metadata_file, &
+       call solve_eigensystem_lapack(iproc, nproc, mpi_comm_world, itype, matrix_format, metadata_file, &
             overlap_file, hamiltonian_file, scalapack_blocksize, write_output=.true., &
             coeff_file=trim(coeff_file))
 
@@ -1419,7 +1422,7 @@ program chess_toolbox
            !!ovrlp_tmp = f_malloc((/smat_s%nfvctr,smat_s%nfvctr/),id='ovrlp_tmp')
            call f_memcpy(src=hamiltonian_mat%matrix,dest=hamiltonian_tmp)
            call f_memcpy(src=ovrlp_mat%matrix,dest=ovrlp_tmp)
-           call diagonalizeHamiltonian2(iproc, nproc, mpiworld(), scalapack_blocksize, &
+           call diagonalizeHamiltonian2(iproc, nproc, mpiworld(), 1, scalapack_blocksize, &
                 smat_s%nfvctr, hamiltonian_tmp, ovrlp_tmp, eval)
            if (iproc==0) then
                call yaml_comment('Matrix succesfully diagonalized',hfill='~')

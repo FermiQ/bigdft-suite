@@ -398,7 +398,7 @@ program driver_eigenvalues
       !!     smat_h%nfvctr, norbu, norbd, norb, scalapack_blocksize, &
       !!     smat_s, smat_h, mat_s, mat_h, coeff, &
       !!     eval_all, eval_occup, info)
-      call solve_eigensystem_lapack(iproc, nproc, matrix_format, metadata_file, &
+      call solve_eigensystem_lapack(iproc, nproc, mpiworld(), 1, matrix_format, metadata_file, &
            overlap_file, hamiltonian_file, scalapack_blocksize, write_output=.false., &
            evals_out=evals_check)
       !!call yaml_map('evals',evals_check)
