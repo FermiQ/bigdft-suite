@@ -58,7 +58,7 @@ program chess_toolbox
    use parallel_linalg, only: dgemm_parallel
    use f_random, only: f_random_number
    use highlevel_wrappers, only: calculate_eigenvalues, solve_eigensystem_lapack
-   use foe, only: overlap_minus_onehalf, calculate_entropy_term
+   use foe, only: overlap_plusminus_onehalf, calculate_entropy_term
    implicit none
    external :: gather_timings
    character(len=*), parameter :: subname='utilities'
@@ -292,6 +292,9 @@ program chess_toolbox
             call get_command_argument(i_arg, value = kernel_file)
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = kernel_matmul_file)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = itype_)
+            read(itype_,fmt=*,iostat=ierr) itype
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = iev_min_)
             read(iev_min_,fmt=*,iostat=ierr) iev_min
@@ -962,7 +965,7 @@ program chess_toolbox
    if (calculate_selected_eigenvalues) then
        call calculate_eigenvalues(iproc, nproc, matrix_format, metadata_file, &
             overlap_file, hamiltonian_file, kernel_file, kernel_matmul_file, &
-            iev_min, iev_max, fscale)
+            itype, iev_min, iev_max, fscale)
        !!!call sparse_matrix_metadata_init_from_file(trim(metadata_file), smmd)
        !!!call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, trim(overlap_file), &
        !!!     iproc, nproc, mpiworld(), smat_s, ovrlp_mat, &
@@ -1701,7 +1704,8 @@ program chess_toolbox
        if (iproc==0) then
            call yaml_mapping_open('Calculate S^-1/2')
        end if
-       call overlap_minus_onehalf('ICE', iproc, nproc, mpiworld(), smat(1), smat(2), ovrlp_mat, ovrlp_minus_one_half(1))
+       call overlap_plusminus_onehalf('minus', 'ICE', iproc, nproc, mpiworld(), &
+            smat(1), smat(2), ovrlp_mat, ovrlp_minus_one_half(1))
        if (iproc==0) then
            call yaml_mapping_close()
        end if

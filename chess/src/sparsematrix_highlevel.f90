@@ -755,8 +755,9 @@ module sparsematrix_highlevel
       ! Calling arguments
       integer,intent(in) :: iproc, nproc
       type(sparse_matrix),intent(in) :: smat
-      type(matrices),intent(inout) :: a
-      type(matrices),intent(inout) :: b, c !b actually also in...
+      type(matrices),intent(in) :: a
+      type(matrices),intent(in) :: b
+      type(matrices),intent(inout) :: c !b actually also in...
 
       call f_routine(id='matrix_matrix_multiplication')
 
@@ -956,7 +957,7 @@ module sparsematrix_highlevel
 
 
 
-    subroutine get_selected_eigenvalues_from_FOE(iproc, nproc, comm, iev_min, iev_max, &
+    subroutine get_selected_eigenvalues_from_FOE(iproc, nproc, comm, itype, iev_min, iev_max, &
                smat_s, smat_h, smat_k, overlap, ham, overlap_minus_one_half, evals, &
                fscale, calculate_minusonehalf, foe_verbosity)
       use foe_base, only: foe_data
@@ -965,7 +966,7 @@ module sparsematrix_highlevel
       implicit none
 
       ! Calling arguments
-      integer,intent(in) :: iproc, nproc, comm, iev_min, iev_max
+      integer,intent(in) :: iproc, nproc, comm, itype, iev_min, iev_max
       type(sparse_matrix),intent(in) ::smat_s, smat_h, smat_k
       type(matrices),intent(in) :: overlap, ham
       type(matrices),dimension(1),intent(inout) :: overlap_minus_one_half
@@ -1029,7 +1030,7 @@ module sparsematrix_highlevel
       end if
 
 
-      call get_selected_eigenvalues(iproc, nproc, comm, calculate_minusonehalf_, foe_verbosity_, &
+      call get_selected_eigenvalues(iproc, nproc, comm, itype, calculate_minusonehalf_, foe_verbosity_, &
            iev_min, iev_max, fscale, &
            smat_s, smat_h, smat_k, ham, overlap, overlap_minus_one_half, evals)
 

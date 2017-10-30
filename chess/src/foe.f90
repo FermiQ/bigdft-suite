@@ -33,7 +33,7 @@ module foe
   public :: fermi_operator_expansion_new
   public :: get_selected_eigenvalues
   public :: calculate_entropy_term
-  public :: overlap_minus_onehalf
+  public :: overlap_plusminus_onehalf
 
   contains
 
@@ -165,7 +165,8 @@ module foe
       if (iproc==0) call yaml_mapping_open('S^-1/2')
       if (calculate_minusonehalf) then
           if (iproc==0) call yaml_map('Can take from memory',.false.)
-          call overlap_minus_onehalf(inversion_method, iproc, nproc, comm, smats, smatl, ovrlp_, ovrlp_minus_one_half_, &
+          call overlap_plusminus_onehalf('minus', inversion_method, iproc, nproc, comm, &
+               smats, smatl, ovrlp_, ovrlp_minus_one_half_, &
                ice_obj=ice_obj, pexsi_np_sym_fact=pexsi_np_sym_fact)
       else
           if (iproc==0) call yaml_map('Can take from memory',.true.)
@@ -744,11 +745,11 @@ module foe
 
 
 
-    subroutine get_selected_eigenvalues(iproc, nproc, comm, calculate_minusonehalf, foe_verbosity, &
+    subroutine get_selected_eigenvalues(iproc, nproc, comm, itype, calculate_minusonehalf, foe_verbosity, &
                iev_min, iev_max, fscale, &
                smats, smatm, smatl, ham_, ovrlp_, ovrlp_minus_one_half_, eval)
       use sparsematrix_init, only: matrixindex_in_compressed
-      use sparsematrix, only: symmetrize_matrix
+      use sparsematrix, only: symmetrize_matrix, matrix_matrix_mult_wrapper
       use foe_base, only: foe_data, foe_data_set_int, foe_data_get_int, foe_data_set_real, foe_data_get_real, &
                           foe_data_get_logical, foe_data_null, foe_data_deallocate
       use fermi_level, only: fermi_aux, init_fermi_level, determine_fermi_level
@@ -756,10 +757,11 @@ module foe
       use module_func
       use f_utils
       use dynamic_memory
+      use sparsematrix_highlevel, only: matrix_matrix_multiplication
       implicit none
 
       ! Calling arguments
-      integer,intent(in) :: iproc, nproc, comm, iev_min, iev_max
+      integer,intent(in) :: iproc, nproc, comm, itype, iev_min, iev_max
       real(mp),intent(in) :: fscale
       logical,intent(in) :: calculate_minusonehalf
       integer,intent(in) :: foe_verbosity
@@ -769,10 +771,10 @@ module foe
       real(mp),dimension(iev_min:iev_max),intent(out) :: eval
 
       ! Local variables
-      integer :: iev, i, ispin, ilshift, npl, npl_min, ind, npl_max, npl_stride
+      integer :: iev, i, ispin, ilshift, npl, npl_min, ind, npl_max, npl_stride, idiag
       real(mp) :: dq, q, scale_factor, shift_value, factor, accuracy_function, accuracy_penalty
       real(mp),dimension(:),allocatable :: charges
-      type(matrices) :: kernel
+      type(matrices) :: kernel, ham_eff
       real(mp),dimension(1),parameter :: EF = 0.0_mp
       !real(mp),dimension(1),parameter :: FSCALE = 2.e-2_mp
       type(foe_data) :: foe_obj
@@ -790,6 +792,7 @@ module foe
 
       kernel = matrices_null()
       kernel%matrix_compr = sparsematrix_malloc_ptr(smatl, iaction=SPARSE_TASKGROUP, id='kernel%matrix_compr')
+      ham_eff = matrices_null()
 
       ! the occupation numbers...
       if (smatl%nspin==1) then
@@ -814,17 +817,26 @@ module foe
       hamscal_compr = sparsematrix_malloc(smatl, iaction=SPARSE_TASKGROUP, id='hamscal_compr')
 
       !if (iproc==0) call yaml_map('S^-1/2','recalculate')
-      call overlap_minus_onehalf('ICE', iproc, nproc, comm, smats, smatl, ovrlp_, ovrlp_minus_one_half_, &
-          verbosity=0) !has internal timer
+      if (itype==1) then
+          call overlap_plusminus_onehalf('plus', 'ICE', iproc, nproc, comm, smats, smatl, ovrlp_, ovrlp_minus_one_half_, &
+              verbosity=0) !has internal timer
+          ham_eff%matrix_compr => ham_%matrix_compr
+          idiag = 2
+      else if (itype==2) then
+          ham_eff%matrix_compr = sparsematrix_malloc_ptr(smatl, iaction=SPARSE_TASKGROUP, id='ham_eff%matrix_compr')
+          call matrix_matrix_mult_wrapper(iproc, nproc, smatl, ham_%matrix_compr, ovrlp_%matrix_compr, ham_eff%matrix_compr)
+          idiag = 1
+      end if
+
 
       ! Use kernel_%matrix_compr as workarray to save memory
       npl_min = 10
       ispin = 1 !hack
       accuracy_function = foe_data_get_real(foe_obj,"accuracy_function")
       accuracy_penalty = foe_data_get_real(foe_obj,"accuracy_penalty")
-      call get_bounds_and_polynomials(iproc, nproc, comm, 2, ispin, npl_max, npl_stride, &
+      call get_bounds_and_polynomials(iproc, nproc, comm, idiag, ispin, npl_max, npl_stride, &
            1, FUNCTION_ERRORFUNCTION, accuracy_function, accuracy_penalty, .false., 2.2_mp, 2.2_mp, 0, &
-           smatm, smatl, ham_, foe_obj, npl_min, kernel%matrix_compr, &
+           smatm, smatl, ham_eff, foe_obj, npl_min, kernel%matrix_compr, &
            chebyshev_polynomials, npl, scale_factor, shift_value, hamscal_compr, &
            smats=smats, ovrlp_=ovrlp_, ovrlp_minus_one_half_=ovrlp_minus_one_half_(1), &
            efarr=EF, fscale_arr=(/fscale/))
@@ -870,7 +882,7 @@ module foe
     end subroutine get_selected_eigenvalues
 
 
-    subroutine overlap_minus_onehalf(method, iproc, nproc, comm, smats, smatl, ovrlp_, ovrlp_minus_one_half_, &
+    subroutine overlap_plusminus_onehalf(plusminus, method, iproc, nproc, comm, smats, smatl, ovrlp_, ovrlp_minus_one_half_, &
                verbosity, ice_obj, pexsi_np_sym_fact)
       use foe_base, only: foe_data
       use ice, only: inverse_chebyshev_expansion_new
@@ -878,7 +890,7 @@ module foe
       use dynamic_memory
       implicit none
       ! Calling arguments
-      character(len=*),intent(in) :: method
+      character(len=*),intent(in) :: plusminus, method
       integer,intent(in) :: iproc, nproc, comm
       type(sparse_matrix),intent(in) :: smats, smatl
       type(matrices),intent(in) :: ovrlp_
@@ -890,14 +902,21 @@ module foe
       integer :: verbosity_
       real(mp),dimension(1) :: ex
     
-      call f_routine(id='overlap_minus_onehalf')
+      call f_routine(id='overlap_plusminus_onehalf')
 
       verbosity_ = 1
       if (present(verbosity)) verbosity_ = verbosity
     
       if (trim(method)=='ICE') then
           ! Can't use the wrapper, since it is at a higher level in the hierarchy (to be improved)
-          ex=-0.5d0
+          select case (trim(plusminus))
+          case ('minus','MINUS')
+              ex=-0.5d0
+          case ('plus','PLUS')
+              ex=0.5d0
+          case default
+              call f_err_throw('wrong value for plusminus')
+          end select
           if (present(ice_obj)) then
               call inverse_chebyshev_expansion_new(iproc, nproc, comm, &
                    ovrlp_smat=smats, inv_ovrlp_smat=smatl, ncalc=1, ex=ex, &
@@ -919,7 +938,7 @@ module foe
       end if
     
       call f_release_routine()
-    end subroutine overlap_minus_onehalf
+    end subroutine overlap_plusminus_onehalf
 
 
 

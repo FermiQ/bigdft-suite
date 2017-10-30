@@ -1048,7 +1048,7 @@ end if
       !!     ieval_min, ieval_max, &
       !!     tmb%linmat%smat(1), tmb%linmat%smat(2), tmb%linmat%smat(3), &
       !!     tmb%linmat%ham_, tmb%linmat%ovrlp_, tmb%linmat%ovrlppowers_(2), evals)
-      call get_selected_eigenvalues_from_FOE(iproc, nproc, bigdft_mpi%mpi_comm, &
+      call get_selected_eigenvalues_from_FOE(iproc, nproc, bigdft_mpi%mpi_comm, 1, &
            ieval_min, ieval_max, tmb%linmat%smat(1), tmb%linmat%smat(2), tmb%linmat%smat(3), &
            tmb%linmat%ovrlp_, tmb%linmat%ham_, tmb%linmat%ovrlppowers_(2), evals, &
            fscale=input%lin%precision_FOE_eigenvalues, calculate_minusonehalf=.true., foe_verbosity=2)

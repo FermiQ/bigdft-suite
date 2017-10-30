@@ -379,7 +379,7 @@ program driver_eigenvalues
   ! Calculate the eigenvalues
   call calculate_eigenvalues(iproc, nproc, matrix_format, metadata_file, &
        overlap_file, hamiltonian_file, kernel_file, kernel_matmul_file, &
-       iev_min, iev_max, fscale, evals_out=evals)
+       1, iev_min, iev_max, fscale, evals_out=evals)
 
   call mpibarrier()
   call f_timing_checkpoint(ctr_name='CALC',mpi_comm=mpiworld(),nproc=mpisize(), &

@@ -2017,8 +2017,8 @@ module sparsematrix
       ! Calling arguments
       integer,intent(in) :: iproc, nproc
       type(sparse_matrix),intent(in) :: smat
-      real(kind=mp),dimension(smat%nvctrp_tg),intent(in) :: a
-      real(kind=mp),dimension(smat%nvctrp_tg),intent(inout) :: b, c
+      real(kind=mp),dimension(smat%nvctrp_tg),intent(in) :: a, b
+      real(kind=mp),dimension(smat%nvctrp_tg),intent(inout) :: c
 
       ! Local variables
       real(kind=mp),dimension(:),allocatable :: b_exp, c_exp, a_seq

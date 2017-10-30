@@ -36,7 +36,7 @@ module highlevel_wrappers
 
     subroutine calculate_eigenvalues(iproc, nproc, matrix_format, metadata_file, &
                overlap_file, hamiltonian_file, kernel_file, kernel_matmul_file, &
-               iev_minx, iev_maxx, fscale, &
+               itype, iev_minx, iev_maxx, fscale, &
                evals_out)
       use sparsematrix_highlevel, only: sparse_matrix_metadata_init_from_file, &
                                         sparse_matrix_and_matrices_init_from_file_bigdft, &
@@ -49,7 +49,7 @@ module highlevel_wrappers
       implicit none
 
       ! Calling arguments
-      integer,intent(in) :: iproc, nproc
+      integer,intent(in) :: iproc, nproc, itype
       character(len=*),intent(in) :: matrix_format, metadata_file
       character(len=*),intent(in) :: overlap_file, hamiltonian_file, kernel_file, kernel_matmul_file
       integer,intent(in) :: iev_minx, iev_maxx
@@ -111,7 +111,7 @@ module highlevel_wrappers
       if (iproc==0) then
           call yaml_mapping_open('Calculating eigenvalues using FOE')
       end if
-      call get_selected_eigenvalues_from_FOE(iproc, nproc, mpiworld(), &
+      call get_selected_eigenvalues_from_FOE(iproc, nproc, mpiworld(), itype, &
            iev_min, iev_max, smat(1), smat(2), smat(3), ovrlp_mat, hamiltonian_mat, &
            ovrlp_minus_one_half, eval, fscale)
 
