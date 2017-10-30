@@ -394,7 +394,6 @@ contains
     implicit none
     type(box_iterator), intent(inout) :: bit
     !local variables
-    logical :: test
 
     bit%inext=bit%subbox(START_,:)
 !!$    if (bit%whole) then
@@ -1107,7 +1106,6 @@ contains
     real(gp), dimension(3), intent(in) :: v
     type(cell), intent(in) :: mesh !<definition of the cell
     real(gp) :: square
-    integer :: i,j
 
     if (mesh%orthorhombic) then
        square=v(1)**2+v(2)**2+v(3)**2
@@ -1141,7 +1139,6 @@ contains
     real(gp), dimension(3), intent(in) :: v
     type(cell), intent(in) :: mesh !<definition of the cell
     real(gp) :: square_gd
-    integer :: i,j
 
     if (mesh%orthorhombic) then
        square_gd=v(1)**2+v(2)**2+v(3)**2

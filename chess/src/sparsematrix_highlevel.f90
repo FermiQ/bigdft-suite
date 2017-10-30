@@ -286,9 +286,9 @@ module sparsematrix_highlevel
       logical :: init_matmul_
 !      integer,dimension(:),pointer :: on_which_atom_
 !      real(kind=8),dimension(3) :: cell_dim
-      real(kind=mp),dimension(:,:),pointer :: rxyz_
-      real(kind=mp),dimension(3) :: cell_dim
-      type(sparse_matrix) :: smat_mult
+      !real(kind=mp),dimension(:,:),pointer :: rxyz_
+      !real(kind=mp),dimension(3) :: cell_dim
+      !type(sparse_matrix) :: smat_mult
 
       call f_routine(id='sparse_matrix_and_matrices_init_from_file_bigdft')
 
@@ -356,12 +356,12 @@ module sparsematrix_highlevel
 
       ! Local variables
       integer :: nspin, nfvctr, nseg, nvctr
-      character(len=1) :: geocode
+      !character(len=1) :: geocode
       integer,dimension(:),pointer :: keyv
       integer,dimension(:,:,:),pointer :: keyg
       real(kind=mp),dimension(:),pointer :: val
-      real(kind=mp),dimension(3) :: cell_dim
-      integer,dimension(:),pointer :: on_which_atom
+      !real(kind=mp),dimension(3) :: cell_dim
+      !integer,dimension(:),pointer :: on_which_atom
       logical :: init_matmul_
       type(sparse_matrix) :: smat_mult
 

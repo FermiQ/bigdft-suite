@@ -731,13 +731,13 @@ module sparsematrix
      type(fmpi_win),dimension(:),intent(inout),optional :: windowsx
 
      ! Local variables
-     integer :: isegstart, isegend, iseg, ii, jorb, iiorb, jjorb, nfvctrp, isfvctr, nvctrp, ierr, isvctr
-     integer :: ncount, itg, iitg, ist_send, ist_recv, i, iline, icolumn, ind
-     integer :: window, sizeof, jproc_send, iorb, jproc, info
-     integer,dimension(:),pointer :: isvctr_par, nvctr_par
+     !integer :: nvctrp
+     !integer :: ncount
+     !integer :: window, sizeof
+     !integer,dimension(:),pointer :: nvctr_par
      !integer,dimension(:),allocatable :: request, windows
      real(kind=mp),dimension(:),pointer :: matrix_local
-     real(kind=mp),dimension(:),allocatable :: recvbuf
+     !real(kind=mp),dimension(:),allocatable :: recvbuf
 
      call f_routine(id='compress_matrix_distributed_wrapper_1')
 
@@ -835,13 +835,13 @@ module sparsematrix
      type(fmpi_win),dimension(:),intent(inout),optional :: windowsx
 
      ! Local variables
-     integer :: isegstart, isegend, iseg, ii, jorb, iiorb, jjorb, nfvctrp, isfvctr, nvctrp, ierr, isvctr
-     integer :: ncount, itg, iitg, ist_send, ist_recv
-     integer :: jproc_send, iorb, jproc
+     integer :: isegstart, isegend, iseg, ii, jorb, nfvctrp, isfvctr, nvctrp, isvctr
+     !integer :: ncount
+     integer :: iorb
      !integer :: window
      integer,dimension(:),pointer :: isvctr_par, nvctr_par
      real(kind=mp),dimension(:),pointer :: matrix_local
-     real(kind=mp),dimension(:),allocatable :: recvbuf
+     !real(kind=mp),dimension(:),allocatable :: recvbuf
 
      call f_routine(id='compress_matrix_distributed_wrapper_2')
 
@@ -962,14 +962,14 @@ module sparsematrix
      type(fmpi_win),dimension(:),intent(inout),target,optional :: windowsx
 
      ! Local variables
-     integer :: isegstart, isegend, iseg, ii, jorb, iiorb, jjorb, nfvctrp, isfvctr, nvctrp, ierr, isvctr
-     integer :: ncount, itg, iitg, ist_send, ist_recv, i, iline, icolumn, ind
-     integer :: window, sizeof, jproc_send, iorb, jproc, info, nccomm
+     integer :: ii, nvctrp
+     integer :: ncount, itg, iitg, ist_send, ist_recv
+     integer :: jproc_send, jproc, nccomm
      real(kind=mp) :: window_fake
-     integer,dimension(:),pointer :: isvctr_par, nvctr_par
+     !integer,dimension(:),pointer :: nvctr_par
      type(fmpi_win),dimension(:),pointer :: windows
-     real(kind=mp),dimension(:),pointer :: matrix_local
-     real(kind=mp),dimension(:),allocatable :: recvbuf
+     !real(kind=mp),dimension(:),pointer :: matrix_local
+     !real(kind=mp),dimension(:),allocatable :: recvbuf
      integer,parameter :: ALLGATHERV=51, GET=52, GLOBAL_MATRIX=101, SUBMATRIX=102
      integer,parameter :: comm_strategy=GET
      integer,parameter :: data_strategy=SUBMATRIX!GLOBAL_MATRIX
@@ -1321,9 +1321,9 @@ module sparsematrix
    
      !Local variables
      !character(len=*), parameter :: subname='sparsemm'
-     integer :: i,jorb,jjorb,m,mp1,ist,iend, icontiguous, j, iline, icolumn, nblock, iblock, ncount
-     integer :: iorb, ii, ilen, iout, iiblock, isblock, is,ie
-     real(kind=mp) :: tt0, tt1, tt2, tt3, tt4, tt5, tt6, tt7, ddot
+     integer :: i,jorb,jjorb,iend,nblock, iblock, ncount
+     integer :: ii, ilen, iout, iiblock, isblock, is,ie
+     real(kind=mp) :: tt0
      integer :: n_dense
      real(kind=mp),dimension(:,:),allocatable :: a_dense, b_dense, c_dense
      !real(kind=mp),dimension(:),allocatable :: b_dense, c_dense
@@ -2112,8 +2112,8 @@ module sparsematrix
       real(kind=mp),dimension(bsmat%nvctrp_tg),intent(in) :: bmat
     
       ! Local variables
-      integer :: isegstart, isegend, iseg, ii, jorb, iiorb, jjorb, iilarge
-      integer :: ierr, iashift, ibshift, iel
+      integer :: iseg, ii, jorb, iiorb, jjorb, iilarge
+      integer :: iashift, ibshift, iel
       real(kind=mp) :: sumn
     
     
@@ -2283,8 +2283,8 @@ module sparsematrix
       !integer,intent(in),optional :: ispinx
 
       ! Local variables
-      real(kind=mp),dimension(:),allocatable :: mat_full
-      integer :: ispin, ishift, iseg, ii, i, ind, ind_trans, iel
+      !real(kind=mp),dimension(:),allocatable :: mat_full
+      integer :: iseg, i, ind, ind_trans, iel
       real(kind=mp) :: val, val_trans, error
 
       call f_routine(id='max_asymmetry_of_matrix')
@@ -2484,7 +2484,7 @@ module sparsematrix
       integer,intent(in),optional :: ispinx
 
       ! Local variables
-      integer :: ispin, ishift, ishift_tg, iseg, ii, i, ii_trans
+      integer :: ispin, ishift, ishift_tg, ii, i, ii_trans
       logical :: minus
       real(mp) :: half
     
@@ -3072,9 +3072,9 @@ module sparsematrix
       real(mp),dimension(smat%nfvctr*smat%nspin),intent(out),optional :: evals
 
       ! Local variables
-      integer :: iseg, ii, i, lwork, info, ispin, ishift, imode
+      integer :: info, ispin, ishift, imode
       real(kind=mp),dimension(:,:,:),allocatable :: tempmat, tempmat2
-      real(kind=mp),dimension(:),allocatable :: eval, work
+      real(kind=mp),dimension(:),allocatable :: eval
       logical :: quiet_
 
       call f_routine(id='get_minmax_eigenvalues')

@@ -271,7 +271,7 @@ module sparsematrix_memory
       ! Calling arguments
       type(sparse_matrix),intent(inout):: sparsemat
       ! Local variables
-      integer :: i, is, ie
+      !integer :: i, is, ie
       call f_free_ptr(sparseMat%keyg)
       call f_free_ptr(sparseMat%keyv)
       call f_free_ptr(sparseMat%nsegline)
