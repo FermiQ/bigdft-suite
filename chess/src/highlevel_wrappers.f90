@@ -156,12 +156,12 @@ module highlevel_wrappers
 
 
     subroutine solve_eigensystem_lapack(iproc, nproc, comm, itype, matrix_format, metadata_file, &
-               overlap_file, hamiltonian_file, scalapack_blocksize, write_output, &
-               coeff_file, evals_out, coeffs_out)
+               overlap_file, hamiltonian_file, scalapack_blocksize, write_coeff, write_eval, &
+               coeff_file, eval_file, evals_out, coeffs_out)
       use sparsematrix_init, only: init_matrix_taskgroups_wrapper
       use sparsematrix, only: uncompress_matrix, &
                               diagonalizehamiltonian2
-      use sparsematrix_io, only: write_linear_coefficients
+      use sparsematrix_io, only: write_linear_coefficients, write_linear_eigenvalues
       use sparsematrix_highlevel, only: sparse_matrix_metadata_init_from_file, &
                                         sparse_matrix_and_matrices_init_from_file_bigdft
       use dynamic_memory
@@ -172,8 +172,8 @@ module highlevel_wrappers
       integer,intent(in) :: iproc, nproc, comm, itype, scalapack_blocksize
       character(len=*),intent(in) :: matrix_format, metadata_file
       character(len=*),intent(in) :: overlap_file, hamiltonian_file
-      logical :: write_output
-      character(len=*),intent(in),optional :: coeff_file
+      logical :: write_coeff, write_eval
+      character(len=*),intent(in),optional :: coeff_file, eval_file
       real(mp),dimension(:),pointer,intent(inout),optional :: evals_out
       real(mp),dimension(:,:,:),pointer,intent(inout),optional :: coeffs_out
 
@@ -217,13 +217,19 @@ module highlevel_wrappers
           call yaml_comment('Matrix successfully diagonalized',hfill='~')
       end if
 
-      if (write_output) then
+      if (write_coeff) then
           if (.not.present(coeff_file)) then
               call f_err_throw("'coeff_file' is not present")
           end if
           call write_linear_coefficients(matrix_format, iproc, nproc, comm, 0, &
                trim(coeff_file), 2, smat(1)%nfvctr, &
                smat(1)%nfvctr, smat(1)%nspin, hamiltonian_mat%matrix, eval)
+      end if
+      if (write_eval) then
+          if (.not.present(eval_file)) then
+              call f_err_throw("'eval_file' is not present")
+          end if
+          call write_linear_eigenvalues(iproc, 0, trim(eval_file), smat(1)%nfvctr, smat(1)%nfvctr, smat(1)%nspin, eval)
       end if
 
       if (present(evals_out)) then

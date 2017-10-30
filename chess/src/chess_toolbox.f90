@@ -66,10 +66,10 @@ program chess_toolbox
    character(len=3) :: do_ortho
    character(len=30) :: tatonam, radical, colorname, linestart, lineend, cname, methodc
    character(len=128) :: method_name, overlap_file, hamiltonian_file, hamiltonian_manipulated_file, overlap_manipulated_file
-   character(len=128) :: kernel_file, coeff_file, pdos_file, metadata_file, output_file, output_bins_file
+   character(len=128) :: kernel_file, coeff_file, eval_file, pdos_file, metadata_file, output_file, output_bins_file
    character(len=128) :: line, cc, output_pdos, conversion, infile, outfile, iev_min_, iev_max_, fscale_, matrix_basis
    character(len=128) :: ihomo_state_, homo_value_, lumo_value_, smallest_value_, largest_value_, scalapack_blocksize_, kT_
-   character(len=128) :: accuracy_entropy_, nbin_, itype_
+   character(len=128) :: accuracy_entropy_, nbin_, itype_, only_evals_
    !!character(len=128),dimension(-lmax:lmax,0:lmax) :: multipoles_files
    character(len=128) :: kernel_matmul_file, fragment_file, manipulation_mode, diag_algorithm
    logical :: multipole_analysis = .false.
@@ -102,7 +102,7 @@ program chess_toolbox
    real(kind=8),dimension(:,:),allocatable :: denskernel, pdos, occup_arr, hamiltonian_tmp, ovrlp_tmp, matrix_tmp
    real(kind=8),dimension(:,:),allocatable :: kernel_fragment, overlap_fragment, ksk_fragment, tmpmat
    logical,dimension(:,:),allocatable :: calc_array
-   logical :: file_exists, found, found_a_fragment, found_icol, found_irow
+   logical :: file_exists, found, found_a_fragment, found_icol, found_irow, only_evals
    logical,dimension(3) :: periodic
    type(matrices) :: ovrlp_mat, hamiltonian_mat, kernel_mat, mat, ovrlp_large, KS_large, kernel_ortho
    type(matrices),dimension(1) :: ovrlp_minus_one_half
@@ -245,6 +245,11 @@ program chess_toolbox
             call get_command_argument(i_arg, value = overlap_file)
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = coeff_file)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = eval_file)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = only_evals_)
+            read(only_evals_,fmt=*,iostat=ierr) only_evals
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = scalapack_blocksize_)
             read(scalapack_blocksize_,fmt=*,iostat=ierr) scalapack_blocksize
@@ -513,8 +518,8 @@ program chess_toolbox
 
    if (solve_eigensystem) then
        call solve_eigensystem_lapack(iproc, nproc, mpi_comm_world, itype, matrix_format, metadata_file, &
-            overlap_file, hamiltonian_file, scalapack_blocksize, write_output=.true., &
-            coeff_file=trim(coeff_file))
+            overlap_file, hamiltonian_file, scalapack_blocksize, write_coeff=.not.only_evals, write_eval=only_evals, &
+            coeff_file=trim(coeff_file), eval_file=trim(eval_file))
 
        !!!if (iproc==0) call yaml_comment('Reading from file '//trim(overlap_file),hfill='~')
        !!call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, trim(overlap_file), &
