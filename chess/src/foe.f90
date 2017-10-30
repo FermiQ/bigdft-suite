@@ -757,7 +757,6 @@ module foe
       use module_func
       use f_utils
       use dynamic_memory
-      use sparsematrix_highlevel, only: matrix_matrix_multiplication
       implicit none
 
       ! Calling arguments
