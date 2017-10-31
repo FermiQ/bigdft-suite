@@ -25,7 +25,7 @@ REFERENCES= driver_random.ref.yaml driver_foe.ref.yaml smatmul.ref.yaml
 
 EXTRA_DIST =  tols.yaml $(OTHERS)
 
-check_PROGRAMS = driver_ccs driver_foe driver_single driver_random driver_eigenvalues smatmul
+check_PROGRAMS = driver_ccs driver_foe driver_single driver_random driver_eigenvalues smatmul small_programs
 
 AM_FCFLAGS = -I. -I$(top_srcdir)/src -I$(top_builddir)/src @LIB_FUTILE_CFLAGS@ @LIBETSFIO_INCLUDE@ @MPI_INCLUDE@
 AM_LDFLAGS = -L$(top_builddir)/src
@@ -39,7 +39,7 @@ endif
 driver_ccs_SOURCES = utilities.f90 driver_ccs.f90
 driver_ccs_LDADD = $(chess_library) @LINALG_LIBS@
 
-driver_SOURCES = driver.f90
+#driver_SOURCES = driver.f90
 
 driver_foe_SOURCES = utilities.f90 driver_foe.f90
 driver_foe_LDADD = $(chess_library) @LINALG_LIBS@
@@ -52,6 +52,9 @@ driver_random_LDADD = $(chess_library) @LINALG_LIBS@
 
 driver_eigenvalues_SOURCES = utilities.f90 driver_eigenvalues.f90
 driver_eigenvalues_LDADD = $(chess_library) @LINALG_LIBS@
+
+small_programs_SOURCES = small_programs.f90
+small_programs_LDADD = $(chess_library) @LINALG_LIBS@
 
 smatmul_SOURCES = smatmul.f90
 smatmul_LDADD = $(chess_library) @LINALG_LIBS@
@@ -83,6 +86,14 @@ report: driver_random.report.yaml driver_foe.report.yaml
 
 
 define F_REGTEST_INSTRUCTIONS
+- fermi_level:
+   binary: small_programs
+   runs:
+    - ./small_programs -n [100,70] -t 1.e-2 -o 1 
+    - ./small_programs -n [100,70] -t 1.e-2 -o 2 
+    - ./small_programs -n [100,70] -t 1.e-2 -o 3 
+    - ./small_programs -n [100,70] -t 1.e-2 -o 4 
+    - ./small_programs -n [100,70] -t 1.e-2 -o 5 
 - driver_random:
    binary: driver_random
    runs:
