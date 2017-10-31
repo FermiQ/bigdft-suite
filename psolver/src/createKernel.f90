@@ -181,16 +181,17 @@ subroutine pkernel_set(kernel,eps,dlogeps,oneoeps,oneosqrteps,corr,verbose) !opt
   type(coulomb_operator), intent(inout) :: kernel
   !> dielectric function. Needed for non VAC methods, given in full dimensions
   real(dp), dimension(:,:,:), intent(in), optional :: eps
-  !> logarithmic derivative of epsilon. Needed for PCG method.
+  !> logarithmic derivative of epsilon. Needed for SC method.
   !! if absent, it will be calculated from the array of epsilon
   real(dp), dimension(:,:,:,:), intent(in), optional :: dlogeps
-  !> inverse of epsilon. Needed for PI method.
+  !> inverse of epsilon. Needed for the SC method.
   !! if absent, it will be calculated from the array of epsilon
   real(dp), dimension(:,:,:), intent(in), optional :: oneoeps
   !> inverse square root of epsilon. Needed for PCG method.
   !! if absent, it will be calculated from the array of epsilon
   real(dp), dimension(:,:,:), intent(in), optional :: oneosqrteps
-  !> correction term of the Generalized Laplacian
+  !> correction term for the PCG method (represents q(r) of equation (16)
+  !! in Fisicaro J. Chem. Phys. 144, 014103 (2016)).
   !! if absent, it will be calculated from the array of epsilon
   real(dp), dimension(:,:,:), intent(in), optional :: corr
   real(dp) :: alpha

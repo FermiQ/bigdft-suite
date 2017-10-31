@@ -10,10 +10,13 @@
 !!    For the list of contributors, see ~/AUTHORS
 
 
-!> Calculate the Hartree potential by solving the Poisson equation 
+!> Calculate the electrostatic (Hartree) potential by solving the Poisson equation 
 !! @f$\nabla^2 V(x,y,z)=-4 \pi \rho(x,y,z)@f$
 !! from a given @f$\rho@f$, 
-!! for different boundary conditions an for different data distributions.
+!! for different boundary conditions (free, surface, wire and periodic) 
+!! an for different data distributions.
+!! For a nonvacuum calculation it solves the generalized Poisson equation
+!! @f$\nabla \cdot \epsilon( \textbf{r}) \nabla \phi(\textbf{r}) = -4 \pi \rho(\textbf{r})@f$.
 !! Following the boundary conditions, it applies the Poisson Kernel previously calculated.
 !!    
 !! @warning
@@ -34,10 +37,10 @@ subroutine Electrostatic_Solver(kernel,rhov,energies,pot_ion,rho_ion,ehartree)
   !! can be also used to gather the distributed arrays for data processing or poltting purposes
   type(coulomb_operator), intent(inout) :: kernel
   !> on input, density of the (G)Pe. On output, electrostatic potential, possibly corrected with extra term in
-  !! the case of rho-dependent cavity when the suitable variable of the options datatype is set. 
-  !!The latter correction term is useful to define a KS DFT potential for the definition of the Hamiltonian out of 
-  !!the Electrostatic environment defined from rho
-  !! the last dimension is either kernel%mesh%ndims(3) or kernel%grid%n3p, depending if kernel%opt%datacode is 'G' or 'D' respectively
+  !! the case of rho-dependent sccs cavity when the suitable variable of the options datatype is set. 
+  !! The latter correction term is useful to define a KS DFT potential for the definition of the Hamiltonian out of 
+  !! the Electrostatic environment defined from rho.
+  !! The last dimension is either kernel%mesh%ndims(3) or kernel%grid%n3p, depending if kernel%opt%datacode is 'G' or 'D' respectively
   real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2),*), intent(inout) :: rhov
   !> Datatype containing the energies and th stress tensor.
   !! the components are filled accordin to the coulomb operator set ans the options given to the solver.
