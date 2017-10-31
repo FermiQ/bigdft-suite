@@ -2537,7 +2537,8 @@ module communications
       integer :: psishift1,totshift,iorb,ilr,ldim,Gdim
       real(wp) :: workdum
       real(wp), dimension(:), pointer :: workarr
-    
+
+      call f_routine(id='toglobal_and_transpose')
       call timing(iproc,'Un-TransSwitch','ON')
     
       !for linear scaling must project the wavefunctions to whole simulation box
@@ -2613,7 +2614,9 @@ module communications
       !!end if
     
       !!call timing(iproc,'Un-TransSwitch','OF')
-    
+
+      call f_release_routine()
+      
     END SUBROUTINE toglobal_and_transpose
 
 

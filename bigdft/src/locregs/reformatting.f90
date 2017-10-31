@@ -67,7 +67,7 @@ contains
     type(dictionary), pointer :: iter
     integer, dimension(:), allocatable :: reformat_reason ! array giving reasons for reformatting
 
-    reformat_reason=f_malloc(dict_size(info),id='reformat_reason')
+    reformat_reason=f_malloc(0.to.dict_size(info)-1,id='reformat_reason')
     
     nullify(iter)
     i=0

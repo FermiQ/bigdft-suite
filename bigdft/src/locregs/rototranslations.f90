@@ -182,6 +182,7 @@ contains
   subroutine find_rotation(nat,rxyz_ref,rxyz_new,R,J)
     use module_base
     use yaml_output
+    use numerics
     implicit none
     integer, intent(in) :: nat !< fragment size
     real(gp), dimension(3,nat), intent(in) :: rxyz_ref,rxyz_new !<coordinates measured wrt rot_center
