@@ -69,7 +69,7 @@ program chess_toolbox
    character(len=128) :: kernel_file, coeff_file, eval_file, pdos_file, metadata_file, output_file, output_bins_file
    character(len=128) :: line, cc, output_pdos, conversion, infile, outfile, iev_min_, iev_max_, fscale_, matrix_basis
    character(len=128) :: ihomo_state_, homo_value_, lumo_value_, smallest_value_, largest_value_, scalapack_blocksize_, kT_
-   character(len=128) :: accuracy_entropy_, nbin_, itype_, only_evals_
+   character(len=128) :: accuracy_entropy_, nbin_, itype_, only_evals_, only_binned_values_
    !!character(len=128),dimension(-lmax:lmax,0:lmax) :: multipoles_files
    character(len=128) :: kernel_matmul_file, fragment_file, manipulation_mode, diag_algorithm
    logical :: multipole_analysis = .false.
@@ -102,7 +102,7 @@ program chess_toolbox
    real(kind=8),dimension(:,:),allocatable :: denskernel, pdos, occup_arr, hamiltonian_tmp, ovrlp_tmp, matrix_tmp
    real(kind=8),dimension(:,:),allocatable :: kernel_fragment, overlap_fragment, ksk_fragment, tmpmat
    logical,dimension(:,:),allocatable :: calc_array
-   logical :: file_exists, found, found_a_fragment, found_icol, found_irow, only_evals
+   logical :: file_exists, found, found_a_fragment, found_icol, found_irow, only_evals, only_binned_values
    logical,dimension(3) :: periodic
    type(matrices) :: ovrlp_mat, hamiltonian_mat, kernel_mat, mat, ovrlp_large, KS_large, kernel_ortho
    type(matrices),dimension(1) :: ovrlp_minus_one_half
@@ -388,6 +388,9 @@ program chess_toolbox
             call get_command_argument(i_arg, value = output_file)
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = output_bins_file)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = only_binned_values_)
+            read(only_binned_values_,fmt=*,iostat=ierr) only_binned_values
             analyze_density_matrix_dense = .true.
          end if
          i_arg = i_arg + 1
@@ -1795,7 +1798,7 @@ program chess_toolbox
            call f_err_throw('iil/=nnl')
        end if
 
-       if (iproc==0) then
+       if (.not.only_binned_values .and. iproc==0) then
            call yaml_comment('Writing values',hfill='-')
            call yaml_map('Output file for raw values',trim(output_file))
            iunit = 99

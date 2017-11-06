@@ -319,6 +319,7 @@ def parse():
     group.add_option("--itype", type="int", default=1, metavar="NUM",)
     group.add_option("--eval_file", type="string", default="evals.txt", metavar="EVALS",)
     group.add_option("--only_evals", type="string", default="F", metavar="ONLY_EVALS",)
+    group.add_option("--only_binned_values", type="string", default="F", metavar="ONLY_BINNED_VALUES",)
 
     group.add_option("--homo_state", type="int", default=1, metavar="NUM",)
     group.add_option("--homo_value", type="float", default=0.0, metavar="NUM",)
@@ -1193,7 +1194,7 @@ options:
         command = "%s %s calculate-entropy %s %s %s %s %f %f" % (options.mpirun, chess_toolbox, options.matrix_format, options.overlap_file, options.kernel_file, options.kernel_matmul_file, options.kT, options.accuracy_entropy)
         print command
     if options.action == "analyze-density-matrix-dense":
-        command = "%s %s analyze-density-matrix-dense %s %s %s %i %s %s" % (options.mpirun, chess_toolbox, options.matrix_format, options.metadata_file, options.kernel_file, options.nbin, options.output_file, options.output_bins_file)
+        command = "%s %s analyze-density-matrix-dense %s %s %s %i %s %s %s" % (options.mpirun, chess_toolbox, options.matrix_format, options.metadata_file, options.kernel_file, options.nbin, options.output_file, options.output_bins_file, options.only_binned_values)
         print command
     if command is not None:
         os.system(command)
