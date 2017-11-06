@@ -3231,7 +3231,7 @@ contains
 
     !Geometry imput Parameters
     if (in%ncount_cluster_x > 0) then
-       call yaml_comment('Geometry optimization Input Parameters (file: '//trim(input_id)//'.geopt)',hfill='-')
+       call yaml_comment('Geometry optimization Input Parameters',hfill='-')
        call yaml_mapping_open('Geometry Optimization Parameters')
        call yaml_map('Maximum steps',in%ncount_cluster_x)
        call yaml_map('Algorithm', in%geopt_approach)

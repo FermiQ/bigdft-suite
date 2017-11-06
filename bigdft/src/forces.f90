@@ -566,7 +566,7 @@ subroutine local_forces(iproc,at,rxyz,hxh,hyh,hzh,&
 !!!  if (iproc == 0 .and. get_verbose_level() > 1) call yaml_mapping_open('Calculate local forces',flow=.true.)
 
   !Determine the maximal bounds for mpx, mpy, mpz (1D-integral)
-  call mp_range(at%multipole_preserving,at%mp_isf,1,&
+  call mp_range(at%multipole_preserving,at%mp_isf,at%astruct%nat,&
        hxh,hyh,hzh,maxval(at%psppar(0,0,:)),mpnx,mpny,mpnz)
   !Separable function: do 1-D integrals before and store it.
   mpx = f_malloc( (/ 0 .to. mpnx /),id='mpx')
