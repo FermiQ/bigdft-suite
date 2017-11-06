@@ -1814,13 +1814,13 @@ program chess_toolbox
        ! Make the maximal value slightly larger to take into account values which have the maximal values
        if (iproc==0) then
            call yaml_map('Output file for binned values',trim(output_bins_file))
+           iunit = 99
            call f_open_file(iunit, file=trim(output_bins_file)//'', binary=.false.)
            write(iunit,'(a)') '# distance      value'
 
            dmax = dmax + 1.e-10
            nbin = 100
            binwidth = (dmax-dmin)/real(nbin,f_double)
-           iunit = 99
            do i=0,nbin-1
                dstart = dmin + real(i,f_double)*binwidth
                dend = dmin + real(i+1,f_double)*binwidth
