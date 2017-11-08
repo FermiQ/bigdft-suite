@@ -46,7 +46,6 @@ program chess_toolbox
                                      ccs_data_from_sparse_matrix, &
                                      ccs_matrix_write, &
                                      matrices_init, &
-                                     get_selected_eigenvalues_from_FOE, &
                                      matrix_matrix_multiplication, &
                                      matrix_chebyshev_expansion
    !!use postprocessing_linear, only: CHARGE_ANALYSIS_LOEWDIN, CHARGE_ANALYSIS_MULLIKEN
