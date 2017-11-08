@@ -990,6 +990,7 @@ module sparsematrix_highlevel
       fscale_ = 5.e-3_mp
       if (present(fscale)) fscale_ = fscale
 
+
       ! Check the dimensions of the internal arrays
       if (size(overlap%matrix_compr)/=smat_s%nvctrp_tg*smat_s%nspin) then
           call f_err_throw('The size of the array overlap%matrix_compr is wrong: '&

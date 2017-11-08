@@ -70,14 +70,17 @@ module highlevel_wrappers
       call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, trim(overlap_file), &
            iproc, nproc, mpiworld(), smat(1), ovrlp_mat, &
            init_matmul=.false.)
+      !call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, trim(hamiltonian_file), &
+      !     iproc, nproc, mpiworld(), smat(2), hamiltonian_mat, &
+      !     init_matmul=.false.)
       call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, trim(hamiltonian_file), &
            iproc, nproc, mpiworld(), smat(2), hamiltonian_mat, &
-           init_matmul=.false.)
+           init_matmul=.true., filename_mult=trim(kernel_matmul_file))
       call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, trim(kernel_file), &
            iproc, nproc, mpiworld(), smat(3), kernel_mat, &
            init_matmul=.true., filename_mult=trim(kernel_matmul_file))
 
-      call init_matrix_taskgroups_wrapper(iproc, nproc, mpi_comm_world, .true., 3, smat) 
+      call init_matrix_taskgroups_wrapper(iproc, nproc, mpi_comm_world, .false., 3, smat) 
       call resize_matrix_to_taskgroup(smat(1), ovrlp_mat)
       call resize_matrix_to_taskgroup(smat(2), hamiltonian_mat)
       call resize_matrix_to_taskgroup(smat(3), kernel_mat)

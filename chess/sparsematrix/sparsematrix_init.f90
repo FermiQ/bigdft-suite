@@ -109,7 +109,7 @@ module sparsematrix_init
               ! there seems to be a mix of the spin matrices
               write(*,*) 'iorb, jorb, nfvctr', iorb, jorb, sparsemat%nfvctr
               call f_err_throw('matrixindex_in_compressed: problem in determining spin',&
-                   err_name='BIGDFT_RUNTIME_ERROR')
+                   err_name='SPARSEMATRIX_RUNTIME_ERROR')
           end if
       else
           ! both indices belong to the first spin matrix

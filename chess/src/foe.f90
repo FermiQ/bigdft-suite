@@ -749,7 +749,7 @@ module foe
                iev_min, iev_max, fscale, &
                smats, smatm, smatl, ham_, ovrlp_, ovrlp_minus_one_half_, eval)
       use sparsematrix_init, only: matrixindex_in_compressed
-      use sparsematrix, only: symmetrize_matrix, matrix_matrix_mult_wrapper
+      use sparsematrix, only: symmetrize_matrix, matrix_matrix_mult_wrapper, transform_sparse_matrix
       use foe_base, only: foe_data, foe_data_set_int, foe_data_get_int, foe_data_set_real, foe_data_get_real, &
                           foe_data_get_logical, foe_data_null, foe_data_deallocate
       use fermi_level, only: fermi_aux, init_fermi_level, determine_fermi_level
@@ -773,6 +773,7 @@ module foe
       integer :: iev, i, ispin, ilshift, npl, npl_min, ind, npl_max, npl_stride, idiag
       real(mp) :: dq, q, scale_factor, shift_value, factor, accuracy_function, accuracy_penalty
       real(mp),dimension(:),allocatable :: charges
+      real(mp),dimension(:),pointer :: ovrlp_large
       type(matrices) :: kernel, ham_eff
       real(mp),dimension(1),parameter :: EF = 0.0_mp
       !real(mp),dimension(1),parameter :: FSCALE = 2.e-2_mp
@@ -813,7 +814,7 @@ module foe
       npl_max = foe_data_get_int(foe_obj,"npl_max")
       npl_stride = foe_data_get_int(foe_obj,"npl_stride")
 
-      hamscal_compr = sparsematrix_malloc(smatl, iaction=SPARSE_TASKGROUP, id='hamscal_compr')
+      hamscal_compr = sparsematrix_malloc(smatm, iaction=SPARSE_TASKGROUP, id='hamscal_compr')
 
       !if (iproc==0) call yaml_map('S^-1/2','recalculate')
       if (itype==1) then
@@ -822,8 +823,12 @@ module foe
           ham_eff%matrix_compr => ham_%matrix_compr
           idiag = 2
       else if (itype==2) then
-          ham_eff%matrix_compr = sparsematrix_malloc_ptr(smatl, iaction=SPARSE_TASKGROUP, id='ham_eff%matrix_compr')
-          call matrix_matrix_mult_wrapper(iproc, nproc, smatl, ham_%matrix_compr, ovrlp_%matrix_compr, ham_eff%matrix_compr)
+          ham_eff%matrix_compr = sparsematrix_malloc_ptr(smatm, iaction=SPARSE_TASKGROUP, id='ham_eff%matrix_compr')
+          ovrlp_large = sparsematrix_malloc_ptr(smatm, iaction=SPARSE_TASKGROUP, id='ovrlp_large')
+          call transform_sparse_matrix(iproc, smats, smatm, SPARSE_TASKGROUP, 'small_to_large', &
+                         smat_in=ovrlp_%matrix_compr, lmat_out=ovrlp_large)
+          call matrix_matrix_mult_wrapper(iproc, nproc, smatm, ham_%matrix_compr, ovrlp_large, ham_eff%matrix_compr)
+          call f_free_ptr(ovrlp_large)
           idiag = 1
       end if
 
@@ -872,6 +877,7 @@ module foe
 
        call f_free_ptr(chebyshev_polynomials)
        call deallocate_matrices(kernel)
+       call deallocate_matrices(ham_eff)
        call f_free(hamscal_compr)
        call foe_data_deallocate(foe_obj)
        
