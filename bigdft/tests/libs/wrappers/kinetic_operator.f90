@@ -46,7 +46,7 @@ program kinetic_operator
   integer, parameter :: nord = 16
   real(f_double), parameter :: acell=20.0_f_double
   real(f_double), parameter :: acelli=20.0_f_double
-  logical :: wrtfiles=.true.
+  logical :: wrtfiles=.false.
   logical :: wrtfunc=.false.
 
   ! To run the test:
@@ -109,7 +109,7 @@ program kinetic_operator
    do is=1,nstress
 
       if (iproc==0) then
-        call yaml_comment('Stress itetation',hfill='-')
+        call yaml_comment('Stress iteration',hfill='-')
         call yaml_mapping_open('Kinetic stress input')
         call yaml_map('Kinetic stress iteration', is)
         call yaml_map('Check all directions concurrently', volstress)

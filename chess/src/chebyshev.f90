@@ -60,14 +60,14 @@ module chebyshev
       real(kind=mp),dimension(kernel%nvctrp_tg),intent(in),optional :: invovrlp_compr
       ! Local variables
       character(len=*),parameter :: subname='chebyshev_clean'
-      integer :: iorb,iiorb, jorb, ipl, i, iline, icolumn, jj, j
-      integer :: isegstart, isegend, iseg, ii, jjorb, icalc
+      integer :: ipl, i, iline, icolumn
+      integer :: ii, icalc
       real(kind=mp),dimension(:,:),allocatable :: vectors_new
       real(kind=mp),dimension(:),allocatable :: mat_seq
       !!real(kind=mp),dimension(:,:),allocatable :: matrix!, fermi_new, penalty_ev_new
-      real(kind=mp),dimension(:),allocatable :: matrix_new
-      real(kind=mp) :: tt, ddot
-      integer :: jproc
+      !real(kind=mp),dimension(:),allocatable :: matrix_new
+      !real(kind=mp) :: tt
+      !integer :: jproc
     
       !call timing(iproc, 'chebyshev_comp', 'ON')
       call f_timing(TCAT_CME_POLYNOMIALS,'ON')
@@ -254,7 +254,7 @@ module chebyshev
       real(kind=mp),dimension(smat%smmm%nvctrp),intent(out) :: z_compr
     
       ! Local variables
-      integer :: i, jorb, iorb, ii, iline, icolumn
+      integer :: i
 
       call f_routine(id='axbyz_kernel_vectors_new')
 
@@ -332,8 +332,7 @@ module chebyshev
       real(kind=mp),dimension(nsize_polynomial),intent(out) :: vector_compressed
     
       ! Local variables
-      integer :: isegstart, isegend, iseg, ii, jorb, iiorb, jjorb, iel, i, iline, icolumn
-      real(kind=mp),dimension(:,:),allocatable :: vector
+      !real(kind=mp),dimension(:,:),allocatable :: vector
     
       call f_routine(id='compress_polynomial_vector_new')
 
@@ -363,7 +362,7 @@ module chebyshev
 
       ! Local variables
       integer :: i
-      real(kind=mp) :: tt
+      !real(kind=mp) :: tt
 
       call f_routine(id='check_emergency_stop')
 

@@ -58,7 +58,7 @@ module parallel_linalg
       logical,intent(in),optional :: quiet
     
       ! Local variables
-      integer :: ierr, i, j, istat, iall, ii1, ii2, mbrow, mbcol, nproc_scalapack, nprocrow, nproccol
+      integer :: i, j, ii1, ii2, mbrow, mbcol, nproc_scalapack, nprocrow, nproccol
       integer :: context, irow, icol, numroc, info, is, np, jproc, maxsize_mpibcast, nn
       integer :: lnrow_a, lncol_a, lnrow_b, lncol_b, lnrow_c, lncol_c, ka, kb, kc, lla, llb, llc
       real(kind=mp) :: tt1, tt2
@@ -379,7 +379,7 @@ module parallel_linalg
       character(len=*),intent(in),optional :: algorithm
       
       ! Local variables
-      integer :: ierr, mbrow, mbcol, i, j, istat, lwork, ii1, ii2, nproc_scalapack, iall, max_cluster_size
+      integer :: ierr, mbrow, mbcol, i, j, lwork, ii1, ii2, nproc_scalapack, max_cluster_size
       integer :: nprocrow, nproccol, context, irow, icol, lnrow, lncol, numroc, liwork, neval_found, neval_computed, ii
       integer :: icl, ialg
       real(kind=mp) :: tt1, tt2
@@ -652,7 +652,7 @@ module parallel_linalg
       logical,intent(in),optional :: quiet
       
       ! Local variables
-      integer :: ierr, mbrow, mbcol, i, j, istat, lwork, ii1, ii2, nproc_scalapack, max_cluster_size
+      integer :: ierr, mbrow, mbcol, i, j, lwork, ii1, ii2, nproc_scalapack, max_cluster_size
       integer :: nprocrow, nproccol, context, irow, icol, lnrow, lncol, numroc, liwork, nw_found, nw_computed, icl, ii
       real(kind=mp) :: tt1, tt2
       real(kind=mp),dimension(:,:),allocatable :: la, la_tmp, lb_tmp, lb, lz
@@ -897,7 +897,7 @@ module parallel_linalg
       real(8),dimension(ldb,nrhs),intent(inout):: b
       
       ! Local variables
-      integer:: ierr, mbrow, mbcol, i, j, istat, ii1, ii2, nproc_scalapack
+      integer:: mbrow, mbcol, i, j, ii1, ii2, nproc_scalapack
       integer:: nprocrow, nproccol, context, irow, icol, lnrow_a, lncol_a, lnrow_b, lncol_b, numroc
       real(8):: tt1, tt2
       real(8),dimension(:,:),allocatable:: la, lb
@@ -1031,7 +1031,7 @@ module parallel_linalg
       real(kind=mp),dimension(lda,n),intent(inout) :: a
     
       ! Local variables
-      integer :: ierr, i, j, istat, iall, ii1, ii2, mbrow, mbcol, nproc_scalapack, nprocrow, nproccol
+      integer :: i, j, ii1, ii2, mbrow, mbcol, nproc_scalapack, nprocrow, nproccol
       integer :: context, irow, icol, numroc, info
       integer :: lnrow_a, lncol_a
       real(kind=mp) :: tt1, tt2
@@ -1148,7 +1148,7 @@ module parallel_linalg
       real(kind=mp),dimension(lda,n),intent(inout) :: a
     
       ! Local variables
-      integer :: ierr, i, j, istat, iall, ii1, ii2, mbrow, mbcol, nproc_scalapack, nprocrow, nproccol
+      integer :: i, j, ii1, ii2, mbrow, mbcol, nproc_scalapack, nprocrow, nproccol
       integer :: context, irow, icol, numroc, info
       integer :: lnrow_a, lncol_a
       real(kind=mp) :: tt1, tt2

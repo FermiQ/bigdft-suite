@@ -22,15 +22,17 @@ module box
   integer, parameter :: START_=1,END_=2
   integer, parameter :: X_=1,Y_=2,Z_=3
 
+  !> data type which stores all informations of the simulation box. 
+  !! It contains also the metric for nonorthorhombic cells.
   type, public :: cell
      logical :: orthorhombic !<true if the cell is orthorhombic
-     integer, dimension(3) :: bc
-     integer, dimension(3) :: ndims
-     real(gp), dimension(3) :: hgrids
+     integer, dimension(3) :: bc !< boundary conditions on each direction (FREE=0, PERIODIC=1)
+     integer, dimension(3) :: ndims !< number of grid points on each direction
+     real(gp), dimension(3) :: hgrids !< real space grid on each direction
      real(gp), dimension(3) :: angrad !<angles between the dimensions in radiant (alpha_bc,beta_ac,gamma_bc)
      !derived data
      integer(f_long) :: ndim !< product of the dimension, long integer to avoid overflow
-     real(gp) :: volume_element
+     real(gp) :: volume_element !< volume element of the primitive cell
      real(gp), dimension(3,3) :: habc !<primitive volume elements in the translation vectors direction
      real(gp), dimension(3,3) :: uabc !<matrix of the normalized translation vectors direction
      real(gp), dimension(3,3) :: gd !<covariant metric needed for non-orthorhombic operations
@@ -394,7 +396,6 @@ contains
     implicit none
     type(box_iterator), intent(inout) :: bit
     !local variables
-    logical :: test
 
     bit%inext=bit%subbox(START_,:)
 !!$    if (bit%whole) then
@@ -1107,7 +1108,6 @@ contains
     real(gp), dimension(3), intent(in) :: v
     type(cell), intent(in) :: mesh !<definition of the cell
     real(gp) :: square
-    integer :: i,j
 
     if (mesh%orthorhombic) then
        square=v(1)**2+v(2)**2+v(3)**2
@@ -1141,7 +1141,6 @@ contains
     real(gp), dimension(3), intent(in) :: v
     type(cell), intent(in) :: mesh !<definition of the cell
     real(gp) :: square_gd
-    integer :: i,j
 
     if (mesh%orthorhombic) then
        square_gd=v(1)**2+v(2)**2+v(3)**2

@@ -364,7 +364,7 @@ module f_functions
       real(f_double), dimension(0:MAX_FUNC_PARAMETERS-1), intent(in) :: coeffs
       real(f_double) :: f
       !local variables
-      integer :: ncoeff,i,istart
+      integer :: ncoeff,i
       real(f_double) :: pow
 
       ncoeff=nint(coeffs(0))

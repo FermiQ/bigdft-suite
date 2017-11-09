@@ -422,7 +422,7 @@ module fermi_level
       ! Local variables
       complex(kind=mp) :: a_c, b_c, c_c, d_c, Q_c, S_c, ttp_c, ttm_c
       complex(kind=mp),dimension(3) :: sol_c
-      double complex :: test
+      !double complex :: test
       real(kind=mp) :: ttmin, tt
       integer :: i
     
@@ -619,11 +619,11 @@ module fermi_level
       !local variables
       logical :: exitfermi
       !   real(gp), parameter :: pi=3.1415926535897932d0
-      real(mp), dimension(1,1,1) :: fakepsi
+      !real(mp), dimension(1,1,1) :: fakepsi
       integer :: ikpt,iorb,ii,newnorbu,newnorbd !,info_fermi
-      real(mp) :: charge, chargef,wf,deltac
-      real(mp) :: ef,electrons,dlectrons,factor,arg,argu,argd,corr,cutoffu,cutoffd,diff,full,res,resu,resd
-      real(mp) :: a, x, xu, xd, f, df, tt, s
+      real(mp) :: charge,wf
+      real(mp) :: ef,electrons,dlectrons,factor,corr,cutoffu,cutoffd,diff,full
+      real(mp) :: a, f, df, s
       !integer :: ierr
       !type(fermi_aux) :: ft
 
