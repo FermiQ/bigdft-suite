@@ -892,7 +892,7 @@ module foe
 
        call f_free_ptr(chebyshev_polynomials)
        call deallocate_matrices(kernel)
-       call deallocate_matrices(ham_eff)
+       !call deallocate_matrices(ham_eff)
        call f_free(hamscal_compr)
        call foe_data_deallocate(foe_obj)
        
