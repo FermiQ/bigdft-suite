@@ -179,7 +179,7 @@ contains
   !>expand a power of the r2 into separable components of x^lx y^ly z^lz
   !!only works for even powers (pow%2 =0)
   subroutine expand_r2_power(pow,factors,lxyz,nterms)
-    implicit none  
+    implicit none
     integer, intent(in) :: pow
     integer, intent(out) :: nterms
     real(gp), dimension(NTERM_MAX_RS), intent(out) :: factors

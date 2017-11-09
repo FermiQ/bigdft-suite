@@ -3778,6 +3778,7 @@ subroutine reformat_supportfunctions(iproc,nproc,at,rxyz_old,rxyz,add_derivative
                   frag_trans(iorb),tmb%psi(jstart:))
           end if
           call timing(iproc,'Reformatting ','OF')
+
           jstart=jstart+tmb%lzd%llr(ilr)%wfd%nvctr_c+7*tmb%lzd%llr(ilr)%wfd%nvctr_f
 
           if (present(phi_array_old)) then

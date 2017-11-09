@@ -106,7 +106,7 @@ module locregs_init
          call determine_locregSphere_parallel(iproc, nproc, lzd%nlr, hx, hy, hz, &
               orbs, Glr, lzd%Llr, calculateBounds)
       end if
-
+      print *,'here3',lzd%llr(1)%mesh_coarse%ndims 
       call f_free(calculateBounds)
 
       !DEBUG
@@ -273,7 +273,7 @@ module locregs_init
              !write(*,'(a,3i7)') 'ilr, isx, iex', ilr, isx, iex
 
              call lr_box(llr(ilr),Glr,[hx,hy,hz],nbox,.false.)
-        
+        print *,'here',ilr,llr(ilr)%mesh_coarse%ndims 
 !!!>             ln1 = iex-isx
 !!!>             ln2 = iey-isy
 !!!>             ln3 = iez-isz
@@ -536,7 +536,7 @@ module locregs_init
     
       call f_free(onwhichmpi)
       call f_release_routine()
-
+        print *,'here2',ilr,llr(1)%mesh_coarse%ndims 
     END SUBROUTINE determine_locregSphere_parallel
 
 

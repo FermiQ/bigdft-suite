@@ -534,6 +534,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
      end subroutine init_lzd_linear
 
 
+     !this routine should go in the locreg_operation module
      subroutine test_preconditioning()
        implicit none
 
