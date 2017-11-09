@@ -60,7 +60,7 @@ module numerics
      module procedure safe_dexp
   end interface safe_exp
 
-  public :: safe_exp,safe_erf,safe_identity
+  public :: safe_exp,safe_erf,safe_identity,safe_log
 
   contains
 
@@ -105,6 +105,23 @@ module numerics
       end if
 
     end function safe_dexp
+
+    !> fpe-free way of calling log
+    !! Crop the results to zero in the case of underflow
+    pure function safe_log(x) result(ex)
+      implicit none
+      !> argument of the exponential function
+      real(db), intent(in) :: x
+      real(db) :: ex
+      !local variables
+      
+      if (x==0.0_db) then
+         ex=log(tiny(x))
+         return
+      end if
+      ex=log(x)
+    end function safe_log
+
 
     !>restrict range of the value to avoid fpe in case of squares
     pure function safe_identity(x) result(ex)

@@ -24,7 +24,7 @@ subroutine internal_calculation_exctx(istep,factor,pkernel,norb,occup,spinsgn,re
   type(coulomb_operator), intent(inout) :: pkernel
   type(local_data), intent(inout) :: phi_i,phi_j
   real(gp), intent(inout) :: eexctX
-  real(wp), dimension(product(pkernel%mesh%ndims)), intent(out) :: rp_ij
+  real(wp), dimension(pkernel%mesh%ndim), intent(out) :: rp_ij
   !local variables
   integer :: iorb,jorb,ndim,iorb_glb,jorb_glb,ishift,jshift,ishift_res,jshift_res,i
   real(gp) :: hfaci,hfacj,hfac2,ehart
@@ -99,7 +99,7 @@ subroutine exctx_pre_computation(iorb, jorb, rp_ij, phi1, phi2, pkernel)
   use Poisson_Solver
   implicit none
   type(coulomb_operator), intent(inout) :: pkernel
-  real(wp), dimension(product(pkernel%mesh%ndims)), intent(inout) :: rp_ij
+  real(wp), dimension(pkernel%mesh%ndim), intent(inout) :: rp_ij
   type(local_data), intent(inout) :: phi1,phi2
   real(gp) :: hfac
   integer(f_address) :: myrho_GPU
@@ -139,7 +139,7 @@ subroutine exctx_post_computation(orb1, orb2, rp_ij, phi1, phi2, pkernel, norb, 
   use Poisson_Solver
   implicit none
   type(coulomb_operator), intent(inout) :: pkernel
-  real(wp), dimension(product(pkernel%mesh%ndims)), intent(inout) :: rp_ij
+  real(wp), dimension(pkernel%mesh%ndim), intent(inout) :: rp_ij
   type(local_data), intent(inout) :: phi1,phi2
   integer, intent(in) :: norb
   real(gp), dimension(norb), intent(in) :: occup

@@ -72,8 +72,8 @@ module f_precisions
       real(f_double), intent(in) :: d
       real(f_simple) :: r
       !local variables
-      real(f_double), parameter :: hg=real(huge(1.0_f_simple),f_double)
-      real(f_double), parameter :: tn=real(tiny(1.0_f_simple),f_double)
+      real(f_double), parameter :: hg=3.4028234663852886E+38_f_double!real(huge(1.0_f_simple),f_double)
+      real(f_double), parameter :: tn=1.17549435082228751E-38_f_double!real(tiny(1.0_f_simple),f_double)
 
       if (d > hg) then
          r=huge(1.0_f_simple)

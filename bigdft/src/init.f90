@@ -2521,7 +2521,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
   !real(gp), dimension(:,:), allocatable :: ks, ksk
   !real(gp) :: nonidem
   !integer :: itmb, jtmb, ispin, ifrag
-  integer :: ifrag_ref, max_nbasis_env
+  integer :: ifrag_ref, max_nbasis_env,ispin
   real(gp) :: e_paw, e_pawdc, compch_sph, e_nl
   type(cell) :: mesh
 
@@ -2782,8 +2782,11 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
 
      call input_wf_random(KSwfn%psi, KSwfn%orbs)
      !now the meaning is KS potential
-     call f_memcpy(n=denspot%dpbox%ndimrhopot,&
-          src=denspot%V_ext(1,1,1,1),dest=denspot%rhov(1))
+     do ispin=1,denspot%dpbox%nrhodim
+        call f_memcpy(n=denspot%dpbox%ndimpot,&
+             src=denspot%V_ext(1,1,1,ispin),&
+             dest=denspot%rhov(1+(ispin-1)*denspot%dpbox%ndimpot))
+     end do
      call denspot_set_rhov_status(denspot, KS_POTENTIAL, 0, iproc, nproc)
 
 

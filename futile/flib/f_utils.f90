@@ -1423,138 +1423,138 @@ contains
 
   pure function f_sizeof_i1(datatype) result(s)
     integer(f_integer), dimension(:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))*int(kind(datatype),f_long)
   end function f_sizeof_i1
   pure function f_sizeof_i2(datatype) result(s)
     integer(f_integer), dimension(:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))*int(kind(datatype),f_long)
   end function f_sizeof_i2
   pure function f_sizeof_i3(datatype) result(s)
     integer(f_integer), dimension(:,:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))*int(kind(datatype),f_long)
   end function f_sizeof_i3
   pure function f_sizeof_i4(datatype) result(s)
     integer(f_integer), dimension(:,:,:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))*int(kind(datatype),f_long)
   end function f_sizeof_i4
   pure function f_sizeof_i5(datatype) result(s)
     integer(f_integer), dimension(:,:,:,:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))*int(kind(datatype),f_long)
   end function f_sizeof_i5
 
 
   pure function f_sizeof_li1(datatype) result(s)
     integer(f_long), dimension(:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))*int(kind(datatype),f_long)
   end function f_sizeof_li1
   pure function f_sizeof_li2(datatype) result(s)
     integer(f_long), dimension(:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))*int(kind(datatype),f_long)
   end function f_sizeof_li2
   pure function f_sizeof_li3(datatype) result(s)
     integer(f_long), dimension(:,:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))*int(kind(datatype),f_long)
   end function f_sizeof_li3
   pure function f_sizeof_li4(datatype) result(s)
     integer(f_long), dimension(:,:,:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))*int(kind(datatype),f_long)
   end function f_sizeof_li4
   pure function f_sizeof_li5(datatype) result(s)
     integer(f_long), dimension(:,:,:,:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))*int(kind(datatype),f_long)
   end function f_sizeof_li5
 
 
   pure function f_sizeof_l1(datatype) result(s)
     logical, dimension(:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))*int(kind(datatype),f_long)
   end function f_sizeof_l1
   pure function f_sizeof_l2(datatype) result(s)
     logical, dimension(:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))*int(kind(datatype),f_long)
   end function f_sizeof_l2
   pure function f_sizeof_l3(datatype) result(s)
     logical, dimension(:,:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))*int(kind(datatype),f_long)
   end function f_sizeof_l3
   pure function f_sizeof_l4(datatype) result(s)
     logical, dimension(:,:,:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))*int(kind(datatype),f_long)
   end function f_sizeof_l4
   pure function f_sizeof_l5(datatype) result(s)
     logical, dimension(:,:,:,:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))*int(kind(datatype),f_long)
   end function f_sizeof_l5
 
   pure function f_sizeof_b1(datatype) result(s)
     logical(f_byte), dimension(:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))*int(kind(datatype),f_long)
   end function f_sizeof_b1
   pure function f_sizeof_b2(datatype) result(s)
     logical(f_byte), dimension(:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))*int(kind(datatype),f_long)
   end function f_sizeof_b2
 
 
   pure function f_sizeof_d1(datatype) result(s)
     real(f_double), dimension(:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))*int(kind(datatype),f_long)
   end function f_sizeof_d1
 
   pure function f_sizeof_d2(datatype) result(s)
     real(f_double), dimension(:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))*int(kind(datatype),f_long)
   end function f_sizeof_d2
 
   pure function f_sizeof_d3(datatype) result(s)
     real(f_double), dimension(:,:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))*int(kind(datatype),f_long)
   end function f_sizeof_d3
 
   pure function f_sizeof_d4(datatype) result(s)
     real(f_double), dimension(:,:,:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))*int(kind(datatype),f_long)
   end function f_sizeof_d4
 
   pure function f_sizeof_d5(datatype) result(s)
     real(f_double), dimension(:,:,:,:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))*int(kind(datatype),f_long)
   end function f_sizeof_d5
 
   pure function f_sizeof_d6(datatype) result(s)
     real(f_double), dimension(:,:,:,:,:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))*int(kind(datatype),f_long)
   end function f_sizeof_d6
 
   pure function f_sizeof_d7(datatype) result(s)
     real(f_double), dimension(:,:,:,:,:,:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))*int(kind(datatype),f_long)
   end function f_sizeof_d7
 
 
   pure function f_sizeof_r1(datatype) result(s)
     real(f_simple), dimension(:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))*int(kind(datatype),f_long)
   end function f_sizeof_r1
 
   pure function f_sizeof_r2(datatype) result(s)
     real(f_simple), dimension(:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))*int(kind(datatype),f_long)
   end function f_sizeof_r2
 
   pure function f_sizeof_r3(datatype) result(s)
     real(f_simple), dimension(:,:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))*int(kind(datatype),f_long)
   end function f_sizeof_r3
 
   pure function f_sizeof_r4(datatype) result(s)
     real(f_simple), dimension(:,:,:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))*int(kind(datatype),f_long)
   end function f_sizeof_r4
 
   pure function f_sizeof_r5(datatype) result(s)
     real(f_simple), dimension(:,:,:,:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))*int(kind(datatype),f_long)
   end function f_sizeof_r5
 
   pure function f_sizeof_c0(datatype) result(s)
@@ -1564,28 +1564,28 @@ contains
   pure function f_sizeof_c1(ln,datatype) result(s)
     integer, intent(in) :: ln
     character(len=ln), dimension(:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(shape(datatype,f_long))*int(ln,f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))*int(ln,f_long)
   end function f_sizeof_c1
 
   pure function f_sizeof_z1(datatype) result(s)
     complex(f_double), dimension(:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))*int(2*kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))*int(2*kind(datatype),f_long)
   end function f_sizeof_z1
   pure function f_sizeof_z2(datatype) result(s)
     complex(f_double), dimension(:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))*int(2*kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))*int(2*kind(datatype),f_long)
   end function f_sizeof_z2
   pure function f_sizeof_z3(datatype) result(s)
     complex(f_double), dimension(:,:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))*int(2*kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))*int(2*kind(datatype),f_long)
   end function f_sizeof_z3
   pure function f_sizeof_z4(datatype) result(s)
     complex(f_double), dimension(:,:,:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))*int(2*kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))*int(2*kind(datatype),f_long)
   end function f_sizeof_z4
   pure function f_sizeof_z5(datatype) result(s)
     complex(f_double), dimension(:,:,:,:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))*int(2*kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))*int(2*kind(datatype),f_long)
   end function f_sizeof_z5
 
   pure function f_size_i0(datatype) result(s)
@@ -1597,76 +1597,76 @@ contains
   end function f_size_i0
   pure function f_size_i1(datatype) result(s)
     integer(f_integer), dimension(:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))!*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))!*int(kind(datatype),f_long)
   end function f_size_i1
   pure function f_size_i2(datatype) result(s)
     integer(f_integer), dimension(:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))!*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))!*int(kind(datatype),f_long)
   end function f_size_i2
   pure function f_size_i3(datatype) result(s)
     integer(f_integer), dimension(:,:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))!*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))!*int(kind(datatype),f_long)
   end function f_size_i3
   pure function f_size_i4(datatype) result(s)
     integer(f_integer), dimension(:,:,:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))!*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))!*int(kind(datatype),f_long)
   end function f_size_i4
   pure function f_size_i5(datatype) result(s)
     integer(f_integer), dimension(:,:,:,:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))!*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))!*int(kind(datatype),f_long)
   end function f_size_i5
 
 
   pure function f_size_li1(datatype) result(s)
     integer(f_long), dimension(:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))!*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))!*int(kind(datatype),f_long)
   end function f_size_li1
   pure function f_size_li2(datatype) result(s)
     integer(f_long), dimension(:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))!*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))!*int(kind(datatype),f_long)
   end function f_size_li2
   pure function f_size_li3(datatype) result(s)
     integer(f_long), dimension(:,:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))!*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))!*int(kind(datatype),f_long)
   end function f_size_li3
   pure function f_size_li4(datatype) result(s)
     integer(f_long), dimension(:,:,:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))!*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))!*int(kind(datatype),f_long)
   end function f_size_li4
   pure function f_size_li5(datatype) result(s)
     integer(f_long), dimension(:,:,:,:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))!*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))!*int(kind(datatype),f_long)
   end function f_size_li5
 
 
   pure function f_size_l1(datatype) result(s)
     logical, dimension(:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))!*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))!*int(kind(datatype),f_long)
   end function f_size_l1
   pure function f_size_l2(datatype) result(s)
     logical, dimension(:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))!*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))!*int(kind(datatype),f_long)
   end function f_size_l2
   pure function f_size_l3(datatype) result(s)
     logical, dimension(:,:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))!*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))!*int(kind(datatype),f_long)
   end function f_size_l3
   pure function f_size_l4(datatype) result(s)
     logical, dimension(:,:,:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))!*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))!*int(kind(datatype),f_long)
   end function f_size_l4
   pure function f_size_l5(datatype) result(s)
     logical, dimension(:,:,:,:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))!*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))!*int(kind(datatype),f_long)
   end function f_size_l5
 
   pure function f_size_b1(datatype) result(s)
     logical(f_byte), dimension(:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))!*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))!*int(kind(datatype),f_long)
   end function f_size_b1
   pure function f_size_b2(datatype) result(s)
     logical(f_byte), dimension(:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))!*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))!*int(kind(datatype),f_long)
   end function f_size_b2
 
 
@@ -1679,63 +1679,63 @@ contains
   end function f_size_d0
   pure function f_size_d1(datatype) result(s)
     real(f_double), dimension(:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))!*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))!*int(kind(datatype),f_long)
   end function f_size_d1
 
   pure function f_size_d2(datatype) result(s)
     real(f_double), dimension(:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))!*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))!*int(kind(datatype),f_long)
   end function f_size_d2
 
   pure function f_size_d3(datatype) result(s)
     real(f_double), dimension(:,:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))!*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))!*int(kind(datatype),f_long)
   end function f_size_d3
 
   pure function f_size_d4(datatype) result(s)
     real(f_double), dimension(:,:,:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))!*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))!*int(kind(datatype),f_long)
   end function f_size_d4
 
   pure function f_size_d5(datatype) result(s)
     real(f_double), dimension(:,:,:,:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))!*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))!*int(kind(datatype),f_long)
   end function f_size_d5
 
   pure function f_size_d6(datatype) result(s)
     real(f_double), dimension(:,:,:,:,:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))!*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))!*int(kind(datatype),f_long)
   end function f_size_d6
 
   pure function f_size_d7(datatype) result(s)
     real(f_double), dimension(:,:,:,:,:,:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))!*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))!*int(kind(datatype),f_long)
   end function f_size_d7
 
 
   pure function f_size_r1(datatype) result(s)
     real(f_simple), dimension(:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))!*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))!*int(kind(datatype),f_long)
   end function f_size_r1
 
   pure function f_size_r2(datatype) result(s)
     real(f_simple), dimension(:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))!*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))!*int(kind(datatype),f_long)
   end function f_size_r2
 
   pure function f_size_r3(datatype) result(s)
     real(f_simple), dimension(:,:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))!*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))!*int(kind(datatype),f_long)
   end function f_size_r3
 
   pure function f_size_r4(datatype) result(s)
     real(f_simple), dimension(:,:,:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))!*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))!*int(kind(datatype),f_long)
   end function f_size_r4
 
   pure function f_size_r5(datatype) result(s)
     real(f_simple), dimension(:,:,:,:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))!*int(kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))!*int(kind(datatype),f_long)
   end function f_size_r5
 
   pure function f_size_c0(datatype) result(s)
@@ -1745,28 +1745,28 @@ contains
   pure function f_size_c1(ln,datatype) result(s)
     integer, intent(in) :: ln
     character(len=ln), dimension(:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(shape(datatype,f_long))!*int(ln,f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))!*int(ln,f_long)
   end function f_size_c1
 
   pure function f_size_z1(datatype) result(s)
     complex(f_double), dimension(:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))!*int(2*kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))!*int(2*kind(datatype),f_long)
   end function f_size_z1
   pure function f_size_z2(datatype) result(s)
     complex(f_double), dimension(:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))!*int(2*kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))!*int(2*kind(datatype),f_long)
   end function f_size_z2
   pure function f_size_z3(datatype) result(s)
     complex(f_double), dimension(:,:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))!*int(2*kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))!*int(2*kind(datatype),f_long)
   end function f_size_z3
   pure function f_size_z4(datatype) result(s)
     complex(f_double), dimension(:,:,:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))!*int(2*kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))!*int(2*kind(datatype),f_long)
   end function f_size_z4
   pure function f_size_z5(datatype) result(s)
     complex(f_double), dimension(:,:,:,:,:), intent(in) :: datatype
-    integer(f_long) :: s; s=product(int(shape(datatype,f_long)))!*int(2*kind(datatype),f_long)
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))!*int(2*kind(datatype),f_long)
   end function f_size_z5
 
 

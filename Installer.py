@@ -426,7 +426,7 @@ class BigDFTInstaller():
         linalg=self.get_output('pkg-config --variable linalglibs '+self.package)
         plugin=self.get_output('pkg-config --variable plugin '+self.package)
         print '--------- Linking line to build with package "'+self.package+'":'
-        print "  "+includes+libs
+        print "  "+includes+" "+libs
 
     def makefile_dump(self):
         "Build the Makefile that the installation of BigDFT creates for performing the same actions on this build"
