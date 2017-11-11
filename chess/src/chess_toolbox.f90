@@ -695,10 +695,10 @@ program chess_toolbox
                end do
                !call fmpi_allreduce(energy, 1, FMPI_SUM, comm=mpiworld())
                do ispin=1,nspin
-                   !$omp parallel default(none) &
-                   !$omp shared(ispin,smat,ntmb,denskernel,ovrlp_mat,calc_array,npdos,occups) &
-                   !$omp private(itmb,jtmb,jjtmb,occup,ipdos)
-                   !$omp do reduction(+:occups)
+!                   !$omp parallel default(none) &
+!                   !$omp shared(ispin,smat,ntmb,denskernel,ovrlp_mat,calc_array,npdos,occups) &
+!                   !$omp private(itmb,jtmb,jjtmb,occup,ipdos)
+!                   !$omp do reduction(+:occups)
                    do jtmb=1,smat(1)%nfvctrp
                        jjtmb = smat(1)%isfvctr + jtmb
                        !if (calc_array(jjtmb,ipdos)) then
@@ -715,8 +715,8 @@ program chess_toolbox
                            end do
                        !end if
                    end do
-                   !$omp end do
-                   !$omp end parallel
+!                   !$omp end do
+!                   !$omp end parallel
                    do ipdos=1,npdos
                        occup_arr(ipdos,iorb) = occups(ipdos)
                    end do

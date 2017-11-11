@@ -1343,9 +1343,9 @@ module foe_common
 
       ithread = 0
       !$omp parallel if (np>1 .and. np*npl>1000) &
-      !$omp default(none) &
+      !$omp default(private) & ! (none) & !solve the problem of func function
       !$omp shared(np, is, h, sigma, tau, val_chebyshev1, coeff, npl, mean_error, max_error_arr, x_max_error_arr) &
-      !$omp private(i, ii, x, xx, val_chebyshev, xxm2, xxm1, ipl, xxx, val_function, error) &
+      !!$omp private(i, ii, x, xx, val_chebyshev, xxm2, xxm1, ipl, xxx, val_function, error) &
       !$omp firstprivate(ithread)
       !$ ithread = omp_get_thread_num()
       !$omp do reduction(+: mean_error)
@@ -2366,8 +2366,9 @@ module foe_common
       bpa=0.5d0*(b+a)
       fac=2.d0/real(n,kind=mp)
       one_over_n = 1.d0/real(n,kind=mp)
-      !$omp parallel default(none) shared(bma,bpa,fac,n,cf,cc,is,np,tt,one_over_n) &
-      !$omp private(k,y,arg,j,jj)
+      !$omp parallel default(private) & !none) 
+      !$omp shared(bma,bpa,fac,n,cf,cc,is,np,tt,one_over_n) !&
+      !!$omp private(k,y,arg,j,jj)
       !$omp do
       do k=1,n
           y=cos(pi*(real(k,kind=mp)-0.5d0)*(one_over_n))

@@ -1139,7 +1139,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
            call orbitals_communicators(iproc,nproc,KSwfn%Lzd%Glr,VTwfn%orbs,VTwfn%comms,&
                 basedist=KSwfn%comms%nvctr_par(0:,1:))
 
-           nvirt = .if. in%nvirt > 0 .then. in%nvirt .else. norbv
+           nvirt = .if. (in%nvirt > 0) .then. in%nvirt .else. norbv
         end if
 
         !allocate psivirt pointer (note the orbs dimension)
