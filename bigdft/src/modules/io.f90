@@ -21,7 +21,7 @@ module io
   public :: io_read_descr, read_psi_compress
   public :: io_gcoordToLocreg
   public :: read_psig
-  public :: read_dense_matrix
+  public :: read_dense_matrix_local
   public :: dist_and_shift
   public :: find_neighbours
   public :: plot_density
@@ -1930,12 +1930,12 @@ module io
 
 
 
-    !subroutine read_dense_matrix(nat, ntypes, iatype, rxyz, nzatom, nelpsp, atomnames, smat, mat, filename, binary, orbs)
+    !subroutine read_dense_matrix_local(nat, ntypes, iatype, rxyz, nzatom, nelpsp, atomnames, smat, mat, filename, binary, orbs)
     !eventually have the same header information as write_sparse?
     !differs in behaviour though as assumes all matrices are alrady allocated to correct size - think more about whether this is the best approach...
     !SM: metadata like nat, onwhichatom are not stored together with the matrices any more, but they
     ! are now in a metadate file.
-    subroutine read_dense_matrix(filename, binary, nspin, ntmb, mat)!, nat, rxyz, on_which_atom) 
+    subroutine read_dense_matrix_local(filename, binary, nspin, ntmb, mat)!, nat, rxyz, on_which_atom) 
                !ntypes, nzatom, nelpsp, atomnames, iatype)
       use module_base
       use module_types
@@ -1959,7 +1959,7 @@ module io
       character(len=3) :: dummy_char
       logical :: read_rxyz, read_on_which_atom
 
-      call f_routine(id='read_dense_matrix')
+      call f_routine(id='read_dense_matrix_local')
 
       !!if (present(rxyz)) then
       !!    read_rxyz = .true.
@@ -1984,11 +1984,11 @@ module io
           !!read(iunit) dummy_char, ntmb_old, nat_old, nspin_old
           read(iunit) nspin_old, ntmb_old
       end if
-      if (ntmb_old/=ntmb) call f_err_throw("Number of tmbs incorrect in read_dense_matrix", &
+      if (ntmb_old/=ntmb) call f_err_throw("Number of tmbs incorrect in read_dense_matrix_local", &
            err_name='BIGDFT_RUNTIME_ERROR')
-      !!if (nat_old/=nat) call f_err_throw("Number of atoms incorrect in read_dense_matrix", &
+      !!if (nat_old/=nat) call f_err_throw("Number of atoms incorrect in read_dense_matrix_local", &
       !!     err_name='BIGDFT_RUNTIME_ERROR')
-      if (nspin_old/=nspin) call f_err_throw("Number of spins incorrect in read_dense_matrix", &
+      if (nspin_old/=nspin) call f_err_throw("Number of spins incorrect in read_dense_matrix_local", &
            err_name='BIGDFT_RUNTIME_ERROR')
 
       !!if (read_rxyz) then
@@ -2043,7 +2043,7 @@ module io
 
       call f_release_routine()
 
-    end subroutine read_dense_matrix
+    end subroutine read_dense_matrix_local
 
 
     !> Write Hamiltonian, overlap and kernel matrices in tmb basis

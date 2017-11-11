@@ -39,6 +39,8 @@ module sparsematrix_io
   public :: write_linear_coefficients
   public :: read_linear_coefficients
   public :: write_dense_matrix
+  public :: read_dense_matrix
+  public :: write_linear_eigenvalues
 
   contains
 
@@ -767,6 +769,37 @@ module sparsematrix_io
     end subroutine write_linear_coefficients_parallel
 
 
+    subroutine write_linear_eigenvalues(iproc, iroot, filename, nfvctr, ntmb, nspin, eval)
+      use yaml_output
+      implicit none
+      ! Calling arguments
+      character(len=*),intent(in) :: filename
+      integer,intent(in) :: iproc, iroot, nfvctr, ntmb, nspin
+      real(mp), dimension(ntmb), intent(in) :: eval
+      ! Local variables
+      integer :: iunit, i
+
+      call f_routine(id='write_linear_coefficients')
+
+      if (iproc==iroot) then
+
+          iunit = 99
+          call f_open_file(iunit, file=trim(filename), binary=.false.)
+    
+          write(iunit,'(3i12,a)') nspin, ntmb, nfvctr, '   # nspin, ntmb, nfvctr'
+          do i=1,ntmb
+              write(iunit,'(es24.16,a,i0)') eval(i), '   # eval no. ', i
+          end do
+
+          call f_close(iunit)
+
+      end if
+    
+      call f_release_routine()
+    
+    end subroutine write_linear_eigenvalues
+
+
     subroutine read_linear_coefficients(mode, iproc, nproc, comm, filename, nspin, nfvctr, ntmb, coeff, eval)
       use yaml_output
       implicit none
@@ -809,7 +842,7 @@ module sparsematrix_io
 
       if (iproc==0) call yaml_comment('Reading from file '//trim(filename),hfill='~')
       inquire(file=trim(filename),exist=file_present)
-      write(*,*) 'file_present',file_present
+      !write(*,*) 'file_present',file_present
       if (.not.file_present) then
           call f_err_throw("File '"//trim(filename)//"' is not present", &
                err_name='SPARSEMATRIX_IO_ERROR')
@@ -1077,7 +1110,7 @@ module sparsematrix_io
       ! Local variables
       integer :: iunit, ispin, jorb, iorb, idum, jdum
 
-      call f_routine(id='write_dense_matrix')
+      call f_routine(id='read_dense_matrix')
 
 
       if (binary) then

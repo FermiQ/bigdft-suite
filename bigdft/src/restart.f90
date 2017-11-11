@@ -2146,7 +2146,7 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
   use module_fragments
   !use internal_io
   use module_interfaces, only: open_filename_of_iorb, reformat_supportfunctions, plot_wf
-  use io, only: read_coeff_minbasis, io_read_descr_linear, read_psig, io_error, read_dense_matrix
+  use io, only: read_coeff_minbasis, io_read_descr_linear, read_psig, io_error, read_dense_matrix_local
   use locreg_operations, only: lpsi_to_global2
   use public_enums
   implicit none
@@ -2617,9 +2617,9 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
         !should fragments have some knowledge of spin?
         !assume kernel is in binary if tmbs are...
         binary=(iformat == WF_FORMAT_BINARY)
-        !!call read_dense_matrix(full_filename, binary, tmb%orbs%nspinor, ref_frags(ifrag_ref)%fbasis%forbs%norb, &
+        !!call read_dense_matrix_local(full_filename, binary, tmb%orbs%nspinor, ref_frags(ifrag_ref)%fbasis%forbs%norb, &
         !!     ref_frags(ifrag_ref)%kernel, ref_frags(ifrag_ref)%astruct_frg%nat)
-        call read_dense_matrix(full_filename, binary, tmb%orbs%nspinor, ref_frags(ifrag_ref)%fbasis%forbs%norb, &
+        call read_dense_matrix_local(full_filename, binary, tmb%orbs%nspinor, ref_frags(ifrag_ref)%fbasis%forbs%norb, &
              ref_frags(ifrag_ref)%kernel)
 
 
@@ -2628,9 +2628,9 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
            !should fragments have some knowledge of spin?
            !assume kernel is in binary if tmbs are...
            binary=(iformat == WF_FORMAT_BINARY)
-           !!call read_dense_matrix(full_filename, binary, tmb%orbs%nspinor, ref_frags(ifrag_ref)%nbasis_env, &
+           !!call read_dense_matrix_local(full_filename, binary, tmb%orbs%nspinor, ref_frags(ifrag_ref)%nbasis_env, &
            !!     ref_frags(ifrag_ref)%kernel_env, ref_frags(ifrag_ref)%astruct_env%nat)
-           call read_dense_matrix(full_filename, binary, tmb%orbs%nspinor, ref_frags(ifrag_ref)%nbasis_env, &
+           call read_dense_matrix_local(full_filename, binary, tmb%orbs%nspinor, ref_frags(ifrag_ref)%nbasis_env, &
                 ref_frags(ifrag_ref)%kernel_env)
         end if
 

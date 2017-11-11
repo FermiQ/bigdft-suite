@@ -513,8 +513,6 @@
    Maximum size of masking arrays for a projector:  7680
    Cumulative size of masking arrays   :  15360
   #------------------------------------------------------------ Sparse matrix initialization
- Check of kernel cutoff radius:
- -  {atom type: O, adjustment required:  Yes, new value:  8.38}
  Matrices:
    Overlap matrix:
      total elements                    :  64
@@ -1822,10 +1820,6 @@
      Size of workspaces                :  21296
      Maximum size of masking arrays for a projector:  7680
      Cumulative size of masking arrays :  15360
-   Check of kernel cutoff radius:
-   -  {atom type: O, adjustment required:  Yes, new value:  8.88}
-   Check of kernel cutoff radius:
-   -  {atom type: O, adjustment required:  No}
    Kernel update:
      Hamiltonian application required  :  Yes
      PSP and kinetic Hamiltonian application: recalculated

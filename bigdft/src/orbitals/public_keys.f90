@@ -233,6 +233,7 @@ module public_keys
   character(len = *), parameter :: PLOT_LOCREG_GRIDS = "plot_locreg_grids"
   character(len = *), parameter :: CALCULATE_FOE_EIGENVALUES = "calculate_FOE_eigenvalues"
   character(len = *), parameter :: PRECISION_FOE_EIGENVALUES = "precision_FOE_eigenvalues"
+  character(len = *), parameter :: CONSIDER_ENTROPY = "consider_entropy"
 
   !keys for linear input variables
   !level keys

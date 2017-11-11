@@ -1742,6 +1742,9 @@
        COMMENT: Determines whether the multipole centers shall be determined automatically (i.e. taking the atoms) or whether they are provided manually
        #default: yes
        default: 0.0
+     consider_entropy:
+       COMMENT: Indicate whether the entropy contribution to the total energy shall be considered
+       default: False
 #Parameters for the localised basis set (or support function) for the linear scaling version
  lin_basis:
      nit:

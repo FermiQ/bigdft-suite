@@ -61,6 +61,8 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
   use sparsematrix_highlevel, only: get_selected_eigenvalues_from_FOE
   use sparsematrix_io, only: write_linear_coefficients
   use coeffs, only: calculate_kernel_and_energy
+  use foe, only: calculate_entropy_term
+  use foe_base, only: foe_data_get_real
   implicit none
 
   ! Calling arguments
@@ -141,7 +143,7 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
 !!$  real(kind=8), dimension(:,:,:), allocatable :: multipoles_out
 !!$  real(kind=8), dimension(:,:,:,:), allocatable :: test_pot
   type(orbital_basis) :: ob
-  real(kind=8) :: tt, ddot, max_error, ef, ef_low, ef_up, fac
+  real(kind=8) :: tt, ddot, max_error, ef, ef_low, ef_up, fac, eTS
   type(matrices), dimension(24) :: rpower_matrix
   character(len=20) :: method, do_ortho, projectormode
 
@@ -742,6 +744,16 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
 
     call scf_kernel(nit_scc, .false., update_phi)
 
+    !# NEW: calculate the entropy contribution
+    !!write(*,*) 'before entropy: sum(tmb%linmat%ovrlppowers_(2)%matrix_compr)', sum(tmb%linmat%ovrlppowers_(2)%matrix_compr)
+    !!write(*,*) 'before entropy: sum(tmb%linmat%kernel_%matrix_compr)', sum(tmb%linmat%kernel_%matrix_compr)
+    !!call calculate_entropy_term(iproc, nproc, bigdft_mpi%mpi_comm, &
+    !!     foe_data_get_real(tmb%foe_obj,"fscale"), &
+    !!     tmb%linmat%smat(1), tmb%linmat%smat(3), &
+    !!     tmb%linmat%ovrlp_, tmb%linmat%kernel_, tmb%linmat%ovrlppowers_(2), &
+    !!     energs%eTS)
+    !# #######################################
+
 
     ! Write the final results
     if (iproc==0) then
@@ -779,7 +791,27 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
     end if
 
     call check_for_exit()
-    if(exit_outer_loop) exit outerLoop
+    if(exit_outer_loop) then
+        if (input%lin%consider_entropy) then
+            ! Calculate the entropy contribution to the energy
+            if (iproc==0) then
+                call yaml_comment('Calculate entropy contribution',hfill='-')
+                call yaml_mapping_open('Calculate entropy contribution')
+            end if
+            call calculate_entropy_term(iproc, nproc, bigdft_mpi%mpi_comm, &
+                 foe_data_get_real(tmb%foe_obj,"fscale"), &
+                 tmb%linmat%smat(1), tmb%linmat%smat(3), &
+                 tmb%linmat%ovrlp_, tmb%linmat%kernel_, tmb%linmat%ovrlppowers_(2), &
+                 input%cp%foe%accuracy_entropy, energs%eTS)
+             energy = energy - energs%eTS
+             if (iproc==0) then
+                 call write_energies(0,energs,0.d0,0.d0,'FINAL',only_energies=.true.)
+                 call yaml_map('energy',energy)
+                 call yaml_mapping_close()
+             end if
+         end if
+         exit outerLoop
+     end if
 
     if(pnrm_out<input%lin%support_functions_converged.and.lowaccur_converged) then
         !if(iproc==0) write(*,*) 'fix the support functions from now on'
@@ -1016,7 +1048,7 @@ end if
       !!     ieval_min, ieval_max, &
       !!     tmb%linmat%smat(1), tmb%linmat%smat(2), tmb%linmat%smat(3), &
       !!     tmb%linmat%ham_, tmb%linmat%ovrlp_, tmb%linmat%ovrlppowers_(2), evals)
-      call get_selected_eigenvalues_from_FOE(iproc, nproc, bigdft_mpi%mpi_comm, &
+      call get_selected_eigenvalues_from_FOE(iproc, nproc, bigdft_mpi%mpi_comm, 1, &
            ieval_min, ieval_max, tmb%linmat%smat(1), tmb%linmat%smat(2), tmb%linmat%smat(3), &
            tmb%linmat%ovrlp_, tmb%linmat%ham_, tmb%linmat%ovrlppowers_(2), evals, &
            fscale=input%lin%precision_FOE_eigenvalues, calculate_minusonehalf=.true., foe_verbosity=2)
@@ -1654,6 +1686,11 @@ end if
            end if
 
 
+           !!call calculate_entropy_term(iproc, nproc, bigdft_mpi%mpi_comm, &
+           !!     foe_data_get_real(tmb%foe_obj,"fscale"), &
+           !!     tmb%linmat%smat(1), tmb%linmat%smat(3), &
+           !!     tmb%linmat%ovrlp_, tmb%linmat%kernel_, tmb%linmat%ovrlppowers_(2), &
+           !!     energs%eTS)
 
 
            !do i=1,tmb%linmat%smat(3)%nvctr
@@ -1693,9 +1730,10 @@ end if
            ! Calculate the total energy.
            !if(iproc==0) write(*,'(a,9es14.6)') 'energs', &
            !    energs%ebs,energs%ekin, energs%epot, energs%eh,energs%exc,energs%evxc,energs%eexctX,energs%eion,energs%edisp
-           energy=energs%ebs-energs%eh+energs%exc-energs%evxc-energs%eexctX+energs%eion+energs%edisp
+           energy=energs%ebs-energs%eh+energs%exc-energs%evxc-energs%eexctX+energs%eion+energs%edisp-energs%eTS
            energyDiff=energy-energyold
            energyold=energy
+           !energy=energs%ebs-energs%eh+energs%exc-energs%evxc-energs%evsic+energs%eion+energs%edisp-energs%eTS+energs%ePV
 
            ! update alpha_coeff for direct minimization steepest descents
            if(input%lin%scf_mode==LINEAR_DIRECT_MINIMIZATION .and. it_scc>1 .and.&
