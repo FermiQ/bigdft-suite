@@ -85,8 +85,8 @@ program chess_toolbox
    type(sparse_matrix_metadata) :: smmd
    integer :: iproc, nproc
    integer :: istat, i_arg, ierr, nspin, nthread
-   !integer :: nfvctr_m, nseg_m, nvctr_m
-   !integer :: nfvctr_l, nseg_l, nvctr_l
+   integer :: nfvctr_m, nseg_m, nvctr_m
+   integer :: nfvctr_l, nseg_l, nvctr_l
    !integer :: nfvctrp_l, isfvctr_l, nfvctrp_m, isfvctr_m, nfvctrp_s, isfvctr_s
    integer :: iconv, iev_min, iev_max, jat, jat_start, jtype
    !integer,dimension(:),pointer :: on_which_atom
