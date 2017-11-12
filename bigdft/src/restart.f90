@@ -767,6 +767,8 @@ subroutine tmb_overlap_onsite(iproc, nproc, imethod_overlap, at, tmb, rxyz)
   !if (iproc==0) print*,'NORB TMP',norb_tmp,ilr_tmp,iiat_tmp
   !if (iproc==0) print*,''
 
+  !LG: this part must now use methods from the localization regions
+  
   ! Find out which process handles TMB norb_tmp and get the keys from that process
   do jproc=0,nproc-1
       if (tmb%orbs%isorb_par(jproc)<norb_tmp .and. norb_tmp<=tmb%orbs%isorb_par(jproc)+tmb%orbs%norb_par(jproc,0)) then
@@ -943,7 +945,6 @@ subroutine tmb_overlap_onsite(iproc, nproc, imethod_overlap, at, tmb, rxyz)
 
              !!call f_free(psirold)
              !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
              call reformat_one_supportfunction(tmb%lzd%llr(ilr_tmp),tmb%lzd%llr(ilr),&
                   !at%astruct%geocode,& !,tmb%lzd%llr(ilr_tmp)%geocode,&
                   !& tmb%lzd%hgrids,
@@ -2197,6 +2198,7 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
   use public_enums
   use rototranslations
   use reformatting
+  use locregs, only: lr_box
   implicit none
   integer, intent(in) :: iproc, nproc
   integer, intent(in) :: iformat
@@ -2238,6 +2240,7 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
 
   logical :: skip, binary
   integer :: itmb, jtmb, jat
+  integer, dimension(2,3) :: nbox
   !!$ integer :: ierr
 
   ! DEBUG
@@ -2337,6 +2340,15 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
 
               call timing(iproc,'tmbrestart','ON')
 
+              !as psig is already printed in the entire box initialize the lr with the complete box here
+              nbox(1,1)=Lzd_old%Llr(ilr)%ns1
+              nbox(2,1)=Lzd_old%Llr(ilr)%d%n1+Lzd_old%Llr(ilr)%ns1
+              nbox(1,2)=Lzd_old%Llr(ilr)%ns2
+              nbox(2,2)=Lzd_old%Llr(ilr)%d%n2+Lzd_old%Llr(ilr)%ns2
+              nbox(1,3)=Lzd_old%Llr(ilr)%ns3
+              nbox(2,3)=Lzd_old%Llr(ilr)%d%n3+Lzd_old%Llr(ilr)%ns3
+              call lr_box(Lzd_old%Llr(ilr),tmb%lzd%glr,lzd_old%hgrids,nbox,.false.)
+
               ! DEBUG: print*,iproc,iorb,iorb+orbs%isorb,iorb_old,iorb_out
 
               !! define fragment transformation - should eventually be done automatically...
@@ -2376,6 +2388,10 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
               close(unitwf)
 
            end do
+
+           !complete the initialization of the localization region
+           
+
         end do loop_iorb
      end do loop_iforb
      isforb=isforb+ref_frags(ifrag_ref)%fbasis%forbs%norb
@@ -3509,13 +3525,14 @@ subroutine reformat_supportfunctions(iproc,nproc,at,rxyz_old,rxyz,add_derivative
   use bounds, only: ext_buffers
   use rototranslations
   use reformatting
+  use locregs, only: lr_box
   implicit none
   integer, intent(in) :: iproc,nproc
   integer, intent(in) :: ndim_old
   type(atoms_data), intent(in) :: at
   real(gp), dimension(3,at%astruct%nat), intent(in) :: rxyz,rxyz_old
   type(DFT_wavefunction), intent(inout) :: tmb
-  type(local_zone_descriptors), intent(inout) :: lzd_old
+  type(local_zone_descriptors), intent(in) :: lzd_old
   type(rototranslation), dimension(tmb%orbs%norbp), intent(in) :: frag_trans
   real(wp), dimension(:), pointer :: psi_old
   type(phi_array), dimension(tmb%orbs%norbp), optional, intent(in) :: phi_array_old
@@ -3546,7 +3563,7 @@ subroutine reformat_supportfunctions(iproc,nproc,at,rxyz_old,rxyz,add_derivative
   real(kind=gp), dimension(:,:,:), allocatable :: workarraytmp
   logical :: gperx, gpery, gperz, lperx, lpery, lperz, wrap_around
   integer :: gnbl1, gnbr1, gnbl2, gnbr2, gnbl3, gnbr3, lnbl1, lnbr1, lnbl2, lnbr2, lnbl3, lnbr3
-
+  integer, dimension(2,3) :: nbox
   real(gp), external :: dnrm2
   type(f_enumerator) :: strategy
   type(dictionary), pointer :: dict_info
@@ -3612,7 +3629,7 @@ subroutine reformat_supportfunctions(iproc,nproc,at,rxyz_old,rxyz,add_derivative
       reformat= strategy==REFORMAT_FULL
       wrap_around=strategy==REFORMAT_WRAP
       
-      max_shift = max(max_shift,sqrt(da(1)**2+da(2)**2+da(3)**2))
+!tmp      max_shift = max(max_shift,sqrt(da(1)**2+da(2)**2+da(3)**2))
 
       ! just copy psi from old to new as reformat not necessary
       if (.not. reformat) then
@@ -3761,46 +3778,55 @@ subroutine reformat_supportfunctions(iproc,nproc,at,rxyz_old,rxyz,add_derivative
           !end if
 
 
-          ! Periodicity in the three directions
-          gperx=(tmb%lzd%glr%geocode /= 'F')
-          gpery=(tmb%lzd%glr%geocode == 'P')
-          gperz=(tmb%lzd%glr%geocode /= 'F')
-
-          ! Set the conditions for ext_buffers (conditions for buffer size)
-          lperx=(lzd_old%llr(ilr)%geocode /= 'F')
-          lpery=(lzd_old%llr(ilr)%geocode == 'P')
-          lperz=(lzd_old%llr(ilr)%geocode /= 'F')
-
-          !calculate the size of the buffers of interpolating function grid
-          call ext_buffers(gperx,gnbl1,gnbr1)
-          call ext_buffers(gpery,gnbl2,gnbr2)
-          call ext_buffers(gperz,gnbl3,gnbr3)
-          call ext_buffers(lperx,lnbl1,lnbr1)
-          call ext_buffers(lpery,lnbl2,lnbr2)
-          call ext_buffers(lperz,lnbl3,lnbr3)
-
-
-          lzd_old%llr(ilr_old)%nsi1=2*lzd_old%llr(ilr_old)%ns1 - (Lnbl1 - Gnbl1)
-          lzd_old%llr(ilr_old)%nsi2=2*lzd_old%llr(ilr_old)%ns2 - (Lnbl2 - Gnbl2)
-          lzd_old%llr(ilr_old)%nsi3=2*lzd_old%llr(ilr_old)%ns3 - (Lnbl3 - Gnbl3)
-
-          !lzd_old%llr(ilr_old)%d%n1i=2*n_old(1)+31
-          !lzd_old%llr(ilr_old)%d%n2i=2*n_old(2)+31
-          !lzd_old%llr(ilr_old)%d%n3i=2*n_old(3)+31
-          !dimensions of the interpolating scaling functions grid (reduce to +2 for periodic)
-          if(lzd_old%llr(ilr)%geocode == 'F') then
-             lzd_old%llr(ilr)%d%n1i=2*n_old(1)+31
-             lzd_old%llr(ilr)%d%n2i=2*n_old(2)+31
-             lzd_old%llr(ilr)%d%n3i=2*n_old(3)+31
-          else if(lzd_old%llr(ilr)%geocode == 'S') then
-             lzd_old%llr(ilr)%d%n1i=2*n_old(1)+2
-             lzd_old%llr(ilr)%d%n2i=2*n_old(2)+31
-             lzd_old%llr(ilr)%d%n3i=2*n_old(3)+2
-          else
-             lzd_old%llr(ilr)%d%n1i=2*n_old(1)+2
-             lzd_old%llr(ilr)%d%n2i=2*n_old(2)+2
-             lzd_old%llr(ilr)%d%n3i=2*n_old(3)+2
-          end if
+!!$          ! Periodicity in the three directions
+!!$          gperx=(tmb%lzd%glr%geocode /= 'F')
+!!$          gpery=(tmb%lzd%glr%geocode == 'P')
+!!$          gperz=(tmb%lzd%glr%geocode /= 'F')
+!!$
+!!$          ! Set the conditions for ext_buffers (conditions for buffer size)
+!!$          lperx=(lzd_old%llr(ilr)%geocode /= 'F')
+!!$          lpery=(lzd_old%llr(ilr)%geocode == 'P')
+!!$          lperz=(lzd_old%llr(ilr)%geocode /= 'F')
+!!$
+!!$          !calculate the size of the buffers of interpolating function grid
+!!$          call ext_buffers(gperx,gnbl1,gnbr1)
+!!$          call ext_buffers(gpery,gnbl2,gnbr2)
+!!$          call ext_buffers(gperz,gnbl3,gnbr3)
+!!$          call ext_buffers(lperx,lnbl1,lnbr1)
+!!$          call ext_buffers(lpery,lnbl2,lnbr2)
+!!$          call ext_buffers(lperz,lnbl3,lnbr3)
+!!$
+!!$
+!!$          lzd_old%llr(ilr_old)%nsi1=2*lzd_old%llr(ilr_old)%ns1 - (Lnbl1 - Gnbl1)
+!!$          lzd_old%llr(ilr_old)%nsi2=2*lzd_old%llr(ilr_old)%ns2 - (Lnbl2 - Gnbl2)
+!!$          lzd_old%llr(ilr_old)%nsi3=2*lzd_old%llr(ilr_old)%ns3 - (Lnbl3 - Gnbl3)
+!!$
+!!$          !lzd_old%llr(ilr_old)%d%n1i=2*n_old(1)+31
+!!$          !lzd_old%llr(ilr_old)%d%n2i=2*n_old(2)+31
+!!$          !lzd_old%llr(ilr_old)%d%n3i=2*n_old(3)+31
+!!$          !dimensions of the interpolating scaling functions grid (reduce to +2 for periodic)
+!!$          if(lzd_old%llr(ilr)%geocode == 'F') then
+!!$             lzd_old%llr(ilr)%d%n1i=2*n_old(1)+31
+!!$             lzd_old%llr(ilr)%d%n2i=2*n_old(2)+31
+!!$             lzd_old%llr(ilr)%d%n3i=2*n_old(3)+31
+!!$          else if(lzd_old%llr(ilr)%geocode == 'S') then
+!!$             lzd_old%llr(ilr)%d%n1i=2*n_old(1)+2
+!!$             lzd_old%llr(ilr)%d%n2i=2*n_old(2)+31
+!!$             lzd_old%llr(ilr)%d%n3i=2*n_old(3)+2
+!!$          else
+!!$             lzd_old%llr(ilr)%d%n1i=2*n_old(1)+2
+!!$             lzd_old%llr(ilr)%d%n2i=2*n_old(2)+2
+!!$             lzd_old%llr(ilr)%d%n3i=2*n_old(3)+2
+!!$          end if
+!!$
+!!$          !as psig is already printed in the entire box initialize the lr with the complete box here
+!!$          nbox(1,1)=Lzd_old%Llr(ilr)%ns1
+!!$          nbox(2,1)=Lzd_old%Llr(ilr)%d%n1+Lzd_old%Llr(ilr)%ns1
+!!$          nbox(1,2)=Lzd_old%Llr(ilr)%ns2
+!!$          nbox(2,2)=Lzd_old%Llr(ilr)%d%n2+Lzd_old%Llr(ilr)%ns2
+!!$          nbox(1,3)=Lzd_old%Llr(ilr)%ns3
+!!$          nbox(2,3)=Lzd_old%Llr(ilr)%d%n3+Lzd_old%Llr(ilr)%ns3
+!!$          call lr_box(Lzd_old%Llr(ilr),tmb%lzd%glr,lzd_old%hgrids,nbox,.false.)
 
 
           psirold_ok=.true.
@@ -3839,7 +3865,6 @@ subroutine reformat_supportfunctions(iproc,nproc,at,rxyz_old,rxyz,add_derivative
 !!$             centre_new_box(3)=frag_trans(iorb)%rot_center_new(3)-0.5d0*tmb%lzd%hgrids(3)*(tmb%lzd%llr(ilr)%nsi3-nl(3))
 !!$
 !!$             da=centre_new_box-centre_old_box-(lzd_old%hgrids-tmb%lzd%hgrids)*0.5d0
-
              !verify that the at%astruct%geocode here is the good value (seems not good for periodic systems)
              call reformat_one_supportfunction(tmb%lzd%llr(ilr),lzd_old%llr(ilr_old),&
                   !at%astruct%geocode,& !,tmb%lzd%llr(ilr)%geocode,&
@@ -3869,9 +3894,9 @@ subroutine reformat_supportfunctions(iproc,nproc,at,rxyz_old,rxyz,add_derivative
              call f_free_ptr(phigold)
           end if
 
-      end if
+       end if
 
-   end do
+    end do
 
   ! Get the maximal shift among all tasks
   if (nproc>1) then

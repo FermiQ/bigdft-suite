@@ -103,6 +103,23 @@ contains
     call dict_free(info)
   end subroutine print_reformat_summary
 
+  subroutine rototranslations_shifts(rt,llr_src,llr_dest,&
+       centre_src,centre_dest,da)
+    use rototranslations
+    use locregs
+    implicit none
+    type(rototranslation), intent(in) :: rt
+    type(locreg_descriptors), intent(in) :: llr_src,llr_dest
+    real(gp), dimension(3), intent(out) :: centre_src,centre_dest,da
+    !local variables
+    real(gp), dimension(3) :: oxyz_src,oxyz_dest
+
+    call calculate_origins(llr_dest,llr_src,oxyz_src,oxyz_dest)
+    call calculate_shifts(rt,llr_src%mesh_coarse,&
+         llr_dest%mesh_coarse,oxyz_src,oxyz_dest,&
+         centre_src,centre_dest,da)
+
+  end subroutine rototranslations_shifts
   
   !> Checks whether reformatting is needed based on various criteria and returns final shift and centres needed for reformat
   function inspect_rototranslation(frag_trans,tol,dest_llr,src_llr,dest_glr,src_glr,info) result(en)
@@ -123,11 +140,13 @@ contains
 
     real(gp) :: displ !, mindist
     integer :: i
-    real(gp), dimension(3) :: oxyz_src,oxyz_dest,centre_src,centre_dest,da
+    real(gp), dimension(3) :: centre_src,centre_dest,da
 
-    call calculate_origins(dest_llr,src_llr,oxyz_src,oxyz_dest)
-    call calculate_shifts(frag_trans,src_llr%mesh_coarse,dest_llr%mesh_coarse,oxyz_src,oxyz_dest,&
+    call rototranslations_shifts(frag_trans,src_llr,dest_llr,&
          centre_src,centre_dest,da)
+!!$    call calculate_origins(dest_llr,src_llr,oxyz_src,oxyz_dest)
+!!$    call calculate_shifts(frag_trans,src_llr%mesh_coarse,dest_llr%mesh_coarse,oxyz_src,oxyz_dest,&
+!!$         centre_src,centre_dest,da)
     displ=square_gd(dest_llr%mesh_coarse,da)
 
     reformat_needed=.false.
@@ -249,7 +268,7 @@ contains
   
   subroutine calculate_origins(llr,llr_old,oxyz_src,oxyz_dest)
     use locregs
-    use bounds, only: locreg_mesh_coarse_origin
+    use bounds, only: locreg_mesh_coarse_origin,locreg_mesh_origin
     implicit none
     type(locreg_descriptors), intent(in) :: llr, llr_old
     real(gp), dimension(3), intent(out) :: oxyz_dest,oxyz_src
@@ -263,9 +282,28 @@ contains
     ns(2)=llr%ns2
     ns(3)=llr%ns3
 
-    oxyz_src=llr_old%mesh_coarse%hgrids*ns_old-0.5_gp*locreg_mesh_coarse_origin(llr_old%mesh_coarse)
-    oxyz_dest=llr%mesh_coarse%hgrids*ns-0.5_gp*locreg_mesh_coarse_origin(llr%mesh_coarse)
+    oxyz_src=true_origin(llr_old)
+    oxyz_dest=true_origin(llr)
+!!$    oxyz_src=llr_old%mesh_coarse%hgrids*ns_old-0.5_gp*locreg_mesh_coarse_origin(llr_old%mesh_coarse)
+!!$    oxyz_dest=*llr%mesh_coarse%hgrids*ns-0.5_gp*locreg_mesh_coarse_origin(llr%mesh_coarse)
+
   end subroutine calculate_origins
+
+  !> this might be moved in locregs methods
+  function true_origin(lr) result(oxyz)
+    use locregs, only: locreg_descriptors
+    use bounds, only: locreg_mesh_origin
+    use box, only: cell_r
+    implicit none
+    type(locreg_descriptors), intent(in) :: lr
+    real(gp), dimension(3) :: oxyz
+
+    oxyz=-locreg_mesh_origin(lr%mesh)
+    oxyz(1)=oxyz(1)+cell_r(lr%mesh,lr%nsi1+1,dim=1)
+    oxyz(2)=oxyz(2)+cell_r(lr%mesh,lr%nsi2+1,dim=2)
+    oxyz(3)=oxyz(3)+cell_r(lr%mesh,lr%nsi3+1,dim=3)
+
+  end function true_origin
 
   !> Make frag_trans the argument so can eliminate need for interface
   subroutine reformat_one_supportfunction(llr,llr_old,&!geocode,hgrids_old,&
@@ -300,6 +338,7 @@ contains
     integer, dimension(3) :: nb
 !!$  integer, dimension(3) :: ndims_tmp
     real(wp), external :: dnrm2
+    real(gp), dimension(3) :: centre_src,centre_dest,da
     real(gp), dimension(3) :: oxyz_src,oxyz_dest
     real(wp), dimension(:), allocatable :: ww,wwold
     real(wp), dimension(:,:,:,:,:,:), allocatable :: psig
@@ -342,7 +381,6 @@ contains
        call f_free(wwold)
     end if
 
-
     !if (present(tag)) then
     !   open(tag+10000)
     !   do i=-nb(1),2*n_old(1)+1+nb(1)
@@ -368,11 +406,13 @@ contains
 !!$       ndims_new=[llr%d%n1i,llr%d%n2i,llr%d%n3i]
 !!$    end if
 
-    call calculate_origins(llr,llr_old,oxyz_src,oxyz_dest)
-    
+    !call calculate_origins(llr,llr_old,oxyz_src,oxyz_dest)
+    call rototranslations_shifts(frag_trans,llr_old,llr,&
+         centre_src,centre_dest,da)
     if (.not. present(psirold)) then
        call apply_rototranslation(frag_trans,.true.,&
-            llr_old%mesh_coarse,llr%mesh_coarse,oxyz_src,oxyz_dest,&
+            llr_old%mesh_fine,llr%mesh_fine,& 
+            centre_src,centre_dest,da,&
             psifscfold,psifscf)
 !!$       call field_rototranslation3D(nd+1,nrange,y_phi,frag_trans%Rmat,da,&
 !!$            centre_old,centre_new,irp,&
@@ -381,7 +421,8 @@ contains
     else
        psir=f_malloc((/llr%d%n1i,llr%d%n2i,llr%d%n3i/),id='psir')
        call apply_rototranslation(frag_trans,.false.,&
-            llr_old%mesh_coarse,llr%mesh_coarse,oxyz_src,oxyz_dest,&
+            llr_old%mesh,llr%mesh,&
+            centre_src,centre_dest,da,&
             psirold,psir)
 !!$       call field_rototranslation3D(nd+1,nrange,y_phi,frag_trans%Rmat,da,&
 !!$            centre_old,centre_new,irp,&
@@ -495,8 +536,8 @@ contains
     
   end subroutine calculate_shifts
   
-  subroutine apply_rototranslation(rt,hr,mesh_src,mesh_dest,oxyz_src,oxyz_dest,&
-       psi_src,psi_dest)
+  subroutine apply_rototranslation(rt,hr,mesh_src,mesh_dest,&
+       centre_src,centre_dest,da,psi_src,psi_dest)
     use module_defs
     use bounds, only: locreg_mesh_shape
     use box
@@ -509,12 +550,12 @@ contains
     type(rototranslation), intent(in) :: rt
     type(cell), intent(in) :: mesh_src,mesh_dest
     !> origin of the coordinate system in the two reference frames
-    real(gp), dimension(3), intent(in) :: oxyz_src,oxyz_dest
-    real(wp), dimension(*), intent(in) :: psi_src !< dimension of the array given by locreg_mesh_shape(mesh_src,hr)
-    real(wp), dimension(*), intent(out) :: psi_dest !< dimension of the array given by locreg_mesh_shape(mesh_dest,hr)
+    real(gp), dimension(3), intent(in) :: centre_src,centre_dest,da
+    real(wp), dimension(mesh_src%ndim), intent(in) :: psi_src
+    real(wp), dimension(mesh_dest%ndim), intent(out) :: psi_dest
     !local variables
-    integer, dimension(3) :: ndims_old,ndims_new
-    real(gp), dimension(3) :: hgridsh,hgridsh_old,centre_src,centre_dest,da
+!!$    integer, dimension(3) :: ndims_old,ndims_new
+!!$    real(gp), dimension(3) :: hgridsh,hgridsh_old,centre_src,centre_dest,da
     real(wp), dimension(:), allocatable :: x_phi
     real(wp), dimension(:,:), allocatable :: y_phi
     integer :: itype, nd, nrange
@@ -523,14 +564,14 @@ contains
     !  real(gp) :: sint,cost,onemc,ux,uy,uz
     integer, dimension(3) :: irp
 
+!!$    ndims_old=locreg_mesh_shape(mesh_src,hr)
+!!$    ndims_new=locreg_mesh_shape(mesh_dest,hr)
+!!$    call calculate_shifts(rt,mesh_src,mesh_dest,oxyz_src,oxyz_dest,&
+!!$         centre_src,centre_dest,da)
 
-    ndims_old=locreg_mesh_shape(mesh_src,hr)
-    ndims_new=locreg_mesh_shape(mesh_dest,hr)
-    call calculate_shifts(rt,mesh_src,mesh_dest,oxyz_src,oxyz_dest,&
-         centre_src,centre_dest,da)
-    ! transform to new structure
-    hgridsh=.5_gp*mesh_dest%hgrids
-    hgridsh_old=.5_gp*mesh_src%hgrids
+!!$    ! transform to new structure
+!!$    hgridsh=mesh_dest%hgrids
+!!$    hgridsh_old=mesh_src%hgrids
 
     !create the scaling function array
     !use lots of points (to optimize one can determine how many points are needed at max)
@@ -615,11 +656,10 @@ contains
     end if
 
     if (.not. hr) irp(:)=abs(irp)
-
     call field_rototranslation3D(nd+1,nrange,y_phi,rt%Rmat,da,&
          centre_src,centre_dest,irp,&
-         hgridsh_old,ndims_old,psi_src,&
-         hgridsh,ndims_new,psi_dest)
+         mesh_src%hgrids,mesh_src%ndims,psi_src,&
+         mesh_dest%hgrids,mesh_dest%ndims,psi_dest)
 
     call f_free(y_phi)
 

@@ -11,6 +11,7 @@ sources = defs.f90 \
 	bounds.f90 \
 	scalar_product.f90 \
 	rototranslations.f90 \
+	initlocregs.f90 \
 	reformatting.f90
 
 liblocregs_a_SOURCES = $(sources)
@@ -62,7 +63,9 @@ bounds.o: compression.o
 locreg_operations.o: locregs.o
 locregs_basics.o: locreg_operations.o
 locreg_test.o: liblocregs.a
-base.o compression.o scalar_product.o rototranslations.o: defs.o
+rototranslations.o: base.o
+initlocregs.o: locregs.o
+base.o compression.o scalar_product.o: defs.o
 $(modules): $(liblocregs_a_OBJECTS)
 
 #liblocregs.a: $(liblocregs_a_OBJECTS) insmod

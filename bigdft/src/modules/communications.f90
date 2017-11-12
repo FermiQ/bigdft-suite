@@ -1360,6 +1360,9 @@ module communications
 
 
     !> Locreg communication
+    !! LG: which is the sense of this routine?
+    !! if all processors should have these data we should make all procs 
+    !! calculate them, the calculation should not be too heavy.
     subroutine communicate_locreg_descriptors_basics(iproc, nproc, nlr, rootarr, orbs, llr)
       use module_base
       use module_types, only: orbitals_data
@@ -1496,7 +1499,6 @@ module communications
           llr(iilr)%locrad_kernel=workrecv_dbl(5,ilr)
           llr(iilr)%locrad_mult=workrecv_dbl(6,ilr)
       end do
-    
     
       call f_free(worksend_int)
       call f_free(workrecv_int)
