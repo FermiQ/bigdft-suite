@@ -1196,5 +1196,8 @@ options:
     if options.action == "analyze-density-matrix-dense":
         command = "%s %s analyze-density-matrix-dense %s %s %s %i %s %s %s" % (options.mpirun, chess_toolbox, options.matrix_format, options.metadata_file, options.kernel_file, options.nbin, options.output_file, options.output_bins_file, options.only_binned_values)
         print command
+    if options.action == "find-fragments":
+        command = "%s %s find-fragments %s %s %s %s %s" % (options.mpirun, chess_toolbox, options.matrix_format, options.metadata_file, options.overlap_file, options.kernel_file, options.kernel_matmul_file)
+        print command
     if command is not None:
         os.system(command)
