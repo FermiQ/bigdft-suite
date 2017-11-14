@@ -2566,7 +2566,6 @@ subroutine P_multkernel_NO(nd1,nd2,n1,n2,n3,lot,nfft,jS,pot,zw,j3,mesh,offset,sc
     
     subroutine internal_loop()
       implicit none
-      integer :: i,j
       j1=i1+jS-1
       !running recip space coordinate
       pxyz(1)=p(j1,n1)/L1

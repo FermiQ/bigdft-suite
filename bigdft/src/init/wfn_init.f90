@@ -977,7 +977,7 @@ subroutine psitospi(iproc,nproc,norbe,norbep, &
    fac=0.5d0
    do iorb=norbep*nproc,1,-1
       jorb=iorb-iproc*norbep
-      !     print *,'Kolla', shape(psi),4*iorb,shape(spinsgne),iorb
+       !   print *,'Kolla', shape(psi),4*iorb,shape(spinsgne),iorb
       if (myorbital(iorb,nspin*norbe,iproc,nproc)) then
          mx=mom(1,otoa(iorb))
          my=mom(2,otoa(iorb))
@@ -998,7 +998,7 @@ subroutine psitospi(iproc,nproc,norbe,norbep, &
             end do
          end if
       end if
-      !     print *,'OtoA',(otoa(iorb),iorb=1,norbe)
+          !print *,'OtoA',(otoa(iorb),iorb=1,norbe)
 
    end do
    call f_free(mom)

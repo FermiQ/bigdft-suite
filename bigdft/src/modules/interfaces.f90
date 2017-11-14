@@ -1254,7 +1254,7 @@ module module_interfaces
        type(atoms_data), intent(in) :: at
        real(gp), dimension(3,at%astruct%nat), intent(in) :: rxyz,rxyz_old
        type(DFT_wavefunction), intent(inout) :: tmb
-       type(local_zone_descriptors), intent(inout) :: lzd_old
+       type(local_zone_descriptors), intent(in) :: lzd_old
        type(rototranslation), dimension(tmb%orbs%norbp), intent(in) :: frag_trans
        real(wp), dimension(:), pointer :: psi_old
        type(phi_array), dimension(tmb%orbs%norbp), optional, intent(in) :: phi_array_old

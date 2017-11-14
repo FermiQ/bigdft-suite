@@ -563,6 +563,7 @@ subroutine PSolverNC(geocode,datacode,iproc,nproc,n01,n02,n03,n3d,xc,hgrids,&
         m_norm = f_malloc((/ n01, n02, n3d /),id='m_norm')
         !           print *,'Rho Dims',shape(rhopot),shape(rho_diag)
 !rho to rho_diag
+!stop
         call get_local_magnetization(n01*n02*n3d,rhopot,m_norm,rho_diag)
 !!$        idx=1
 !!$        offs=n01*n02*n3d 
@@ -668,16 +669,18 @@ subroutine get_spinorial_potential(ndim,pot_diag,m_norm,rhopot)
   real(dp), dimension(ndim,4), intent(inout) :: rhopot !<density spinorial components
   !local variables
   integer :: idx
-  real(dp) :: rhon,rhos,factor
+  real(dp) :: rhon,rhos,factor,fx,fy,fz
 
   do idx=1,ndim
      rhon=(pot_diag(idx,1)+pot_diag(idx,2))*0.5_dp
      rhos=(pot_diag(idx,1)-pot_diag(idx,2))*0.5_dp
+
      if(m_norm(idx)>rhopot(idx,1)*4.0e-20_dp)then
         factor=rhos/m_norm(idx)
      else
         factor=0.0_dp
      end if
+
      rhopot(idx,1)=rhon+rhopot(idx,4)*factor
      rhopot(idx,2)=rhopot(idx,2)*factor
      rhopot(idx,3)=-rhopot(idx,3)*factor
@@ -755,10 +758,14 @@ subroutine atomic_magnetic_field(bitp,npotdim,nat,rxyz,radii,B_at,pot)
         r=distance(bitp%mesh,bitp%rxyz,rxyz(:,iat))
         !smearing=1.0_dp-eval(func,r)
         smearing=.if. (r<radii(iat)) .then. 1.0_gp .else. 0.0_gp
-        pot(bitp%ind,1)=pot(bitp%ind,1)+B_at(3,iat)*smearing
-        pot(bitp%ind,2)=pot(bitp%ind,2)+B_at(1,iat)*smearing
-        pot(bitp%ind,3)=pot(bitp%ind,3)-B_at(2,iat)*smearing
-        pot(bitp%ind,4)=pot(bitp%ind,4)-B_at(3,iat)*smearing
+        !!!$ pot(bitp%ind,1)=pot(bitp%ind,1)+B_at(3,iat)*smearing
+        !!!$ pot(bitp%ind,2)=pot(bitp%ind,2)+B_at(1,iat)*smearing
+        !!!$ pot(bitp%ind,3)=pot(bitp%ind,3)-B_at(2,iat)*smearing
+        !!!$ pot(bitp%ind,4)=pot(bitp%ind,4)-B_at(3,iat)*smearing
+        pot(bitp%ind,1)=pot(bitp%ind,1)-B_at(3,iat)*smearing
+        pot(bitp%ind,2)=pot(bitp%ind,2)-B_at(1,iat)*smearing
+        pot(bitp%ind,3)=pot(bitp%ind,3)+B_at(2,iat)*smearing
+        pot(bitp%ind,4)=pot(bitp%ind,4)+B_at(3,iat)*smearing
      end do
   end do
   call f_release_routine()

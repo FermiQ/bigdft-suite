@@ -34,7 +34,7 @@ module chess_base
   public :: chess_init
 
   !> Private types
-  type :: foe_params
+  type, public :: foe_params
     real(mp) :: ef_interpol_det
     real(mp) :: ef_interpol_chargediff
     integer :: evbounds_nsatur
@@ -44,19 +44,19 @@ module chess_base
     real(mp) :: fscale_lowerbound
     real(mp) :: fscale_upperbound
     real(mp),dimension(2) :: eval_range_foe
-    real(mp) :: accuracy_foe, accuracy_ice, accuracy_penalty
+    real(mp) :: accuracy_foe, accuracy_ice, accuracy_penalty, accuracy_entropy
     real(mp) :: betax_foe, betax_ice
     logical :: adjust_fscale
   end type foe_params
 
-  type :: lapack_params
+  type, public :: lapack_params
     integer :: blocksize_pdsyev
     integer :: blocksize_pdgemm
     integer :: maxproc_pdsyev
     integer :: maxproc_pdgemm
   end type lapack_params
 
-  type :: pexsi_params
+  type, public :: pexsi_params
     integer :: pexsi_npoles
     integer :: pexsi_nproc_per_pole
     real(mp) :: pexsi_mumin
@@ -111,6 +111,7 @@ module chess_base
   character(len=*),parameter :: ACCURACY_FOE           = "accuracy_foe"
   character(len=*),parameter :: ACCURACY_ICE           = "accuracy_ice"
   character(len=*),parameter :: ACCURACY_PENALTY       = "accuracy_penalty"
+  character(len=*),parameter :: ACCURACY_ENTROPY       = "accuracy_entropy"
   character(len=*),parameter :: BETAX_FOE              = "betax_foe"
   character(len=*),parameter :: BETAX_ICE              = "betax_ice"
   character(len=*),parameter :: OCCUPATION_FUNCTION    = "occupation_function"
@@ -142,6 +143,7 @@ module chess_base
       fp%accuracy_foe = 0.0_mp
       fp%accuracy_ice = 0.0_mp
       fp%accuracy_penalty = 0.0_mp
+      fp%accuracy_entropy = 0.0_mp
       fp%betax_foe = 0.0_mp
       fp%betax_ice = 0.0_mp
       fp%occupation_function = 0
@@ -313,6 +315,8 @@ module chess_base
               cp%foe%accuracy_ice = val
           case(ACCURACY_PENALTY)
               cp%foe%accuracy_penalty = val
+          case(ACCURACY_ENTROPY)
+              cp%foe%accuracy_entropy = val
           case(BETAX_FOE)
               cp%foe%betax_foe = val
           case(BETAX_ICE)

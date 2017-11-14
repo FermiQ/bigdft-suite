@@ -24,8 +24,10 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
   use rhopotential, only: full_local_potential
   use public_enums
   use rhopotential, only: updatePotential,exchange_and_correlation
-  use module_cfd, only: cfd_dump_info
+  use module_cfd, only: cfd_dump_info, cfd_field, cfd_is_converged
   use f_enums, only: toi
+  use module_asd, only: asd_data, asd_wrapper, asd
+  !
   implicit none
   !Arguments
   logical, intent(in) :: scf  !< If .false. do not calculate the self-consistent potential
@@ -52,6 +54,8 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
   !$ integer :: omp_get_max_threads,omp_get_thread_num,omp_get_num_threads
   real(gp) :: compch_sph
   !$ real(wp), dimension(:), allocatable :: temp,m_norm,temp2 !to be removed
+  !!! Temporary asd data type. To be moved..
+  !!type(asd_data) :: asd
 
 
   call f_routine(id=subname)
@@ -233,6 +237,7 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
 !!!>
 !!!>     !here there should be a call to the CFD routines
 !!!>     call cfd_magnetic_field(cfd)
+!!!         call constrain(denspot%cfd%m_at,denspot%cfd%m_at,denspot%cfd%B_at,denspot%cfd%nat)
 !!!>
      end if
 
@@ -242,11 +247,34 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
 
      if (denspot%cfd%nat >0) then
 !!$        !here the constraingin magnetic field is added on top of the local xc potential
+           ! First calculate the new constraining field
+           if(iproc==0) call cfd_field(denspot%cfd,iproc)
+           call mpibcast(denspot%cfd%B_at,root=0,comm=bigdft_mpi%mpi_comm)!,check=.true.)
+           call mpibcast(denspot%cfd%constrained_mom_err,root=0,comm=bigdft_mpi%mpi_comm)!,check=.true.)
 !!$        call f_zero(denspot%cfd%B_at)
 !!$        denspot%cfd%B_at(1,1)=0.5_gp
 !!$        denspot%cfd%B_at(1,2)=0.5_gp
-!!$        call atomic_magnetic_field(denspot%dpbox%bitp,denspot%dpbox%ndimpot,atoms%astruct%nat,&
-!!$             denspot%cfd%rxyz,denspot%cfd%radii,denspot%cfd%B_at,denspot%V_XC)
+           ! Then apply the field
+        call atomic_magnetic_field(denspot%dpbox%bitp,denspot%dpbox%ndimpot,atoms%astruct%nat,&
+             denspot%cfd%rxyz,denspot%cfd%radii,denspot%cfd%B_at,denspot%V_XC)
+!          call mpiallred(denspot%cfd%B_at,op=MPI_SUM,comm=bigdft_mpi%mpi_comm)
+          if (cfd_is_converged(denspot%cfd)) then
+             if (iproc==0) then
+                call yaml_mapping_open('Calling ASD routines')
+                call yaml_map('Moments in',denspot%cfd%m_at_ref,fmt='(f12.6)')
+!!$             if(iproc==0) print *, 'Calling ASD! moments_in:'
+!!$             if(iproc==0) print '(3f12.6)', denspot%cfd%m_at_ref
+                !if(iproc==0) 
+                call asd_wrapper(asd,denspot%cfd%m_at_ref,denspot%cfd%B_at,denspot%cfd%nat)
+             end if
+             call mpibcast(denspot%cfd%m_at_ref,root=0,comm=bigdft_mpi%mpi_comm)!,check=.true.)
+             if (iproc==0) then
+                call yaml_map('Moments out',denspot%cfd%m_at_ref,fmt='(f12.6)')
+                call yaml_mapping_close()
+             end if
+!!$             if(iproc==0) print *, 'ASD called... moments_out' 
+!!$             if(iproc==0) print '(3f12.6)', denspot%cfd%m_at_ref
+          end if
      end if
 
 !!$        call XC_potential(atoms%astruct%geocode,'D',denspot%pkernel%mpi_env%iproc,denspot%pkernel%mpi_env%nproc,&
@@ -291,9 +319,10 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
 !!$                denspot%rhov(1+denspot%dpbox%ndimpot),1)
 !!$        end if
 
+        !AB ALERT
         !spin up and down together with the XC part
         call axpy(denspot%dpbox%ndimpot*wfn%orbs%nspin,&
-             1.0_dp,denspot%V_XC(1,1,1,1),1,&
+              1.0_dp,denspot%V_XC(1,1,1,1),1,&
              denspot%rhov(1),1)
 
 
@@ -2115,25 +2144,26 @@ subroutine calculate_energy_and_gradient(iter,iproc,nproc,GPU,ncong,scf_mode,&
 
   if (wfn%orbs%nspinor == 4) then
      !only the root process has the correct array
-     if(iproc==0 .and. get_verbose_level() > 0) then
-        call yaml_sequence_open('Magnetic polarization per orbital')
-        call yaml_newline()
-        !write(*,'(1x,a)')&
-        !     &   'Magnetic polarization per orbital'
-!!$        write(*,'(1x,a)')&
-!!$             &   '  iorb    m_x       m_y       m_z'
-        do iorb=1,wfn%orbs%norb
-           call yaml_sequence(advance='no')
-           call yaml_mapping_open(flow=.true.)
-           call yaml_map('iorb',iorb,fmt='(i5)')
-           call yaml_map('M',(/(mom_vec(k,iorb,1)/mom_vec(1,iorb,1),k=2,4)/),fmt='(3f10.5)')
-           call yaml_mapping_close()
-           if (iorb < wfn%orbs%norb)call yaml_newline()
-           !write(*,'(1x,i5,3f10.5)') &
-           !     &   iorb,(mom_vec(k,iorb,1)/mom_vec(1,iorb,1),k=2,4)
-        end do
-        call yaml_sequence_close()
-     end if
+     ! AB supress this printout
+!!!      if(iproc==0 .and. get_verbose_level() > 0) then
+!!!         call yaml_sequence_open('Magnetic polarization per orbital')
+!!!         call yaml_newline()
+!!!         !write(*,'(1x,a)')&
+!!!         !     &   'Magnetic polarization per orbital'
+!!! !!$        write(*,'(1x,a)')&
+!!! !!$             &   '  iorb    m_x       m_y       m_z'
+!!!         do iorb=1,wfn%orbs%norb
+!!!            call yaml_sequence(advance='no')
+!!!            call yaml_mapping_open(flow=.true.)
+!!!            call yaml_map('iorb',iorb,fmt='(i5)')
+!!!            call yaml_map('M',(/(mom_vec(k,iorb,1)/mom_vec(1,iorb,1),k=2,4)/),fmt='(3f10.5)')
+!!!            call yaml_mapping_close()
+!!!            if (iorb < wfn%orbs%norb)call yaml_newline()
+!!!            !write(*,'(1x,i5,3f10.5)') &
+!!!            !     &   iorb,(mom_vec(k,iorb,1)/mom_vec(1,iorb,1),k=2,4)
+!!!         end do
+!!!         call yaml_sequence_close()
+!!!      end if
      call f_free_ptr(mom_vec)
   end if
 

@@ -10,10 +10,13 @@
 !!    For the list of contributors, see ~/AUTHORS
 
 
-!> Calculate the Hartree potential by solving the Poisson equation 
+!> Calculate the electrostatic (Hartree) potential by solving the Poisson equation 
 !! @f$\nabla^2 V(x,y,z)=-4 \pi \rho(x,y,z)@f$
 !! from a given @f$\rho@f$, 
-!! for different boundary conditions an for different data distributions.
+!! for different boundary conditions (free, surface, wire and periodic) 
+!! an for different data distributions.
+!! For a nonvacuum calculation it solves the generalized Poisson equation
+!! @f$\nabla \cdot \epsilon( \textbf{r}) \nabla \phi(\textbf{r}) = -4 \pi \rho(\textbf{r})@f$.
 !! Following the boundary conditions, it applies the Poisson Kernel previously calculated.
 !!    
 !! @warning
@@ -34,10 +37,10 @@ subroutine Electrostatic_Solver(kernel,rhov,energies,pot_ion,rho_ion,ehartree)
   !! can be also used to gather the distributed arrays for data processing or poltting purposes
   type(coulomb_operator), intent(inout) :: kernel
   !> on input, density of the (G)Pe. On output, electrostatic potential, possibly corrected with extra term in
-  !! the case of rho-dependent cavity when the suitable variable of the options datatype is set. 
-  !!The latter correction term is useful to define a KS DFT potential for the definition of the Hamiltonian out of 
-  !!the Electrostatic environment defined from rho
-  !! the last dimension is either kernel%mesh%ndims(3) or kernel%grid%n3p, depending if kernel%opt%datacode is 'G' or 'D' respectively
+  !! the case of rho-dependent sccs cavity when the suitable variable of the options datatype is set. 
+  !! The latter correction term is useful to define a KS DFT potential for the definition of the Hamiltonian out of 
+  !! the Electrostatic environment defined from rho.
+  !! The last dimension is either kernel%mesh%ndims(3) or kernel%grid%n3p, depending if kernel%opt%datacode is 'G' or 'D' respectively
   real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2),*), intent(inout) :: rhov
   !> Datatype containing the energies and th stress tensor.
   !! the components are filled accordin to the coulomb operator set ans the options given to the solver.
@@ -368,7 +371,8 @@ subroutine Electrostatic_Solver(kernel,rhov,energies,pot_ion,rho_ion,ehartree)
 
   if (calc_nabla2pot) then
      !destroy oneoverepsilon array in the case of the forces for the rigid case
-     if (kernel%opt%final_call) call nabla2pot_epsm1(n1,n23,kernel%w%eps,nabla2_rhopot(1,1,i3sd2),kernel%w%oneoeps)
+     !if (kernel%opt%final_call) call nabla2pot_epsm1(n1,n23,kernel%w%eps,nabla2_rhopot(1,1,i3sd2),kernel%w%oneoeps)
+     if (kernel%opt%final_call) call nabla2pot_epsm1(n1,n23,nabla2_rhopot(1,1,i3sd2),kernel%w%oneoeps)
      call f_free(nabla2_rhopot)
   end if
 
@@ -718,19 +722,7 @@ subroutine H_potential(datacode,kernel,rhopot,pot_ion,eh,offset,sumpion,&
    !local variables
    character(len=*), parameter :: subname='H_potential'
    real(dp), parameter :: max_ratioex = 1.0e10_dp,eps0=78.36d0 !to be inserted in pkernel
-   logical :: wrtmsg,cudasolver,global,verb
-   integer :: m1,m2,m3,md1,md2,md3,n1,n2,n3,nd1,nd2,nd3
-   integer :: ierr,ind,ind2,ind3,indp,ind2p,ind3p,i
-   integer :: i1,i2,i3,j2,istart,iend,i3start,jend,jproc,i3xcsh
-   integer :: nxc,istden,istglo,ip,irho,i3s,i23,i23s,n23
-   integer(f_integer) :: ierr_4
-   real(dp) :: ehartreeLOC,pot,rhores2,beta
-   real(dp) :: alpha,ratio,normb,normr,norm_nonvac,e_static,rpoints
-   !real(dp) :: scal
-   real(dp), dimension(6) :: strten
-   real(dp), dimension(:,:), allocatable :: rho,rhopol,q,p,z,depsdrho,dsurfdrho
-   real(dp), dimension(:,:,:), allocatable :: work_full,pot_full
-   !integer, dimension(:,:), allocatable :: gather_arr
+   logical :: global,verb
    type(PSolver_energies) :: energies
 
    !kernel%opt=PSolver_options_null()
@@ -766,12 +758,12 @@ subroutine H_potential(datacode,kernel,rhopot,pot_ion,eh,offset,sumpion,&
 
 END SUBROUTINE H_potential
 
-subroutine extra_sccs_potential(kernel,work_full,depsdrho,dsurfdrho,pot,eps0)
+subroutine extra_sccs_potential(kernel,work_full,depsdrho,pot,eps0)
   implicit none
   type(coulomb_operator), intent(in) :: kernel
   real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%mesh%ndims(3)), intent(out) :: work_full
   real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2)*kernel%grid%n3p), intent(inout) :: depsdrho
-  real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2)*kernel%grid%n3p), intent(in) :: dsurfdrho
+  !real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2)*kernel%grid%n3p), intent(in) :: dsurfdrho
   real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2)*kernel%grid%n3p) :: pot !intent in
   real(dp), intent(in) :: eps0
 
@@ -784,7 +776,8 @@ subroutine extra_sccs_potential(kernel,work_full,depsdrho,dsurfdrho,pot,eps0)
   end if
 
   !then calculate the extra potential and add it to pot
-  call sccs_extra_potential(kernel,work_full,depsdrho,dsurfdrho,eps0)
+  !call sccs_extra_potential(kernel,work_full,depsdrho,dsurfdrho,eps0)
+  call sccs_extra_potential(kernel,work_full,depsdrho,eps0)
   
 end subroutine extra_sccs_potential
 
@@ -819,7 +812,7 @@ subroutine apply_reductions(ip, gpu, kernel, r, x, p, q, z, alpha, beta, normr)
   real(dp), intent(inout) :: beta
   real(dp), intent(out) :: alpha,normr
   !local variables
-  integer :: n1,n23,i_stat,ierr,i23,i1,size1, ip
+  integer :: n1,n23,i_stat,i23,i1,size1, ip
   real(dp) :: zeta, rval, beta0, epsc, kappa, pval, qval
 
   n23=kernel%grid%m3*kernel%grid%n3p

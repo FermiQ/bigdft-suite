@@ -152,6 +152,8 @@ class Fragment():
             dat=at.copy()
             dat['r']=list(at[self.__torxyz(at)])
             dat['sym']=self.element(at)
+            #assume that the provided charge is alway the net charge
+            if 'nzion' in dat: dat.pop('nzion') #for the modification of the conventions
             for k in self.protected_keys:
                 if k in at: dat[k]=list(at[k]) #.tolist()
             lat.append(dat)
@@ -211,6 +213,7 @@ class Fragment():
             k=self.__torxyz(at)
             at[k]=np.ravel(r).tolist()
         #further treatments have to be added for the atomic multipoles
+        #they should be transfomed accordingly, up the the dipoles at least
     def line_up(self):
         "Align the principal axis of inertia of the fragments along the coordinate axis. Also shift the fragment such as its centroid is zero."
         import numpy

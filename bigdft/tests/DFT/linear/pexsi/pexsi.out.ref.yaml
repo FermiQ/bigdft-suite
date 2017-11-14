@@ -872,11 +872,6 @@
        Maximal                         :  0
        Average                         :  0
   #------------------------------------------------------------ Sparse matrix initialization
- Check of kernel cutoff radius:
- -  {atom type: O, adjustment required:  Yes, new value:  5.60}
- -  {atom type: H, adjustment required:  No}
- -  {atom type: C, adjustment required:  Yes, new value:  5.60}
- -  {atom type: N, adjustment required:  Yes, new value:  5.60}
  Matrices:
    Overlap matrix:
      total elements                    :  13225

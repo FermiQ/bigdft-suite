@@ -96,8 +96,10 @@ libmodules_a_SOURCES = ab7_mixing.f90 \
 	$(openbabel_static_sources) \
 	module_dftbp.f90 \
 	constrained_magnetic_field.f90 \
+	module_asd.f90 \
 	sw_potential.f90 \
 	get_basis.f90 \
+	asd_fake.f90 \
 	get_kernel.f90
 
 # Modules
@@ -121,6 +123,7 @@ modules = MODULE_TYPES.@MODULE_EXT@ \
 	MODULE_DPBOX.@MODULE_EXT@ \
 	MODULE_ATOMS.@MODULE_EXT@ \
 	MODULE_CFD.@MODULE_EXT@ \
+	MODULE_ASD.@MODULE_EXT@ \
 	COMMUNICATIONS_INIT.@MODULE_EXT@ \
 	COMMUNICATIONS.@MODULE_EXT@ \
 	SPARSEMATRIX_WRAPPERS.@MODULE_EXT@ \
@@ -176,6 +179,7 @@ modules = module_types.@MODULE_EXT@ \
 	module_dpbox.@MODULE_EXT@ \
 	module_atoms.@MODULE_EXT@ \
 	module_cfd.@MODULE_EXT@ \
+	module_asd.@MODULE_EXT@ \
 	communications_init.@MODULE_EXT@ \
 	communications.@MODULE_EXT@ \
 	sparsematrix_wrappers.@MODULE_EXT@ \
@@ -224,7 +228,7 @@ openbabel_soname_library = libbabel.so.@BIGDFT_MINOR_VERSION@
 openbabel_library = $(openbabel_soname_library)
 AM_LDFLAGS = -Wl,-rpath=$(DESTDIR)$(dynlibdir)
 else
-openbabel_static_sources = openbabel_fake.cpp
+openbabel_static_sources = openbabel_fake.c
 endif
 
 EXTRA_DIST = $(ATOMS_INCLUDES) $(COMMS_INCLUDES) openbabel.cpp
@@ -293,7 +297,7 @@ locregs_init.o: types.o communications.o sort.o interfaces.o
 forces_linear.o: types.o psp_projectors.o transposed_operations.o
 sw_potential.o: atoms_data.o
 bigdft_matrices.o: types.o sparsematrix_wrappers.o
-get_basis.o: types.o interfaces.o communications.o rhopotential.o constrained_dft.o fragment_base.o fragments.o transposed_operations.o locregs_init.o get_kernel.o
+get_basis.o: types.o interfaces.o communications.o rhopotential.o constrained_dft.o fragment_base.o fragments.o transposed_operations.o locregs_init.o get_kernel.o io.o
 get_kernel.o: types.o interfaces.o diis_module.o communications.o constrained_dft.o rhopotential.o transposed_operations.o locregs_init.o orthonormalization.o
 ##pexsi.o also depends on pexsi_interfaces, but it is not known which one...
 #if HAVE_PEXSI
