@@ -57,6 +57,7 @@ module bounds
   public :: nullify_convolutions_bounds
   public :: deallocate_convolutions_bounds
   public :: copy_convolutions_bounds
+  public :: locreg_mesh_coarse_origin
 
   interface check_whether_bounds_overlap
     module procedure check_whether_bounds_overlap_int
@@ -1398,6 +1399,27 @@ module bounds
     
     end subroutine geocode_buffers
 
+    pure function locreg_mesh_coarse_origin(mesh) result(or)
+      use box, only: cell,cell_r,cell_periodic_dims
+      use module_defs, only: gp
+      implicit none
+      type(cell), intent(in) :: mesh
+      real(gp), dimension(3) :: or
+      !local variables
+      logical, dimension(3) :: peri
+      integer :: nbli,i
+
+      !buffers associated to the geocode
+      !conditions for periodicity in the three directions
+      peri=cell_periodic_dims(mesh)
+      do i=1,3
+         call ext_buffers_coarse(peri(i),nbli)
+         or(i)=cell_r(mesh,nbli+1,dim=i)
+      end do
+
+    end function locreg_mesh_coarse_origin
+
+    
     pure function locreg_mesh_origin(mesh) result(or)
       use box, only: cell,cell_r,cell_periodic_dims
       use module_defs, only: gp
@@ -1420,7 +1442,7 @@ module bounds
 
     !> return the shapes of the localisation region
     !!useful to allocate the array psifscf
-    function locreg_mesh_shape(mesh,highres) result(ndims)
+    pure function locreg_mesh_shape(mesh,highres) result(ndims)
       use box, only: cell,cell_periodic_dims
       implicit none
       type(cell), intent(in) :: mesh
@@ -1436,9 +1458,9 @@ module bounds
       do i=1,3
          call ext_buffers_coarse(peri(i),nb)
          if (hr) then
-            ndims(i)=2*(mesh%ndims(i)+1+nb)
+            ndims(i)=2*(mesh%ndims(i)+nb) ! +1 WARNING +1 eliminated as it should be in the definition of the grid
          else
-            ndims(i)=mesh%ndims(i)+1
+            ndims(i)=mesh%ndims(i)! +1 WARNING +1 eliminated as it should be in the definition of the grid
          end if
       end do
     end function locreg_mesh_shape

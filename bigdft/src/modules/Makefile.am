@@ -67,7 +67,6 @@ libmodules_a_SOURCES = ab7_mixing.f90 \
 	fragment_base.f90 \
 	constrained_dft.f90 \
 	diis_module.f90 \
-	reformatting.f90 \
 	atoms_data.f90 \
 	communications_init.f90 \
 	communications.f90 \
@@ -122,7 +121,6 @@ modules = MODULE_TYPES.@MODULE_EXT@ \
 	PSP_PROJECTORS.@MODULE_EXT@ \
 	PSP_PROJECTORS_BASE.@MODULE_EXT@ \
 	MODULE_DPBOX.@MODULE_EXT@ \
-	REFORMATTING.@MODULE_EXT@ \
 	MODULE_ATOMS.@MODULE_EXT@ \
 	MODULE_CFD.@MODULE_EXT@ \
 	MODULE_ASD.@MODULE_EXT@ \
@@ -179,7 +177,6 @@ modules = module_types.@MODULE_EXT@ \
 	psp_projectors.@MODULE_EXT@ \
 	psp_projectors_base.@MODULE_EXT@ \
 	module_dpbox.@MODULE_EXT@ \
-	reformatting.@MODULE_EXT@ \
 	module_atoms.@MODULE_EXT@ \
 	module_cfd.@MODULE_EXT@ \
 	module_asd.@MODULE_EXT@ \
@@ -265,7 +262,6 @@ fragments.o: input_keys.o types.o fragment_base.o
 constrained_dft.o: input_keys.o
 #psp_projectors_base.o:  gaussians.o
 psp_projectors.o: locregs_init.o psp_projectors_base.o
-#reformatting.o: base.o
 #communications_base.o: base.o
 #dpbox.o: base.o bounds.o
 communications_init.o: types.o
@@ -301,7 +297,7 @@ locregs_init.o: types.o communications.o sort.o interfaces.o
 forces_linear.o: types.o psp_projectors.o transposed_operations.o
 sw_potential.o: atoms_data.o
 bigdft_matrices.o: types.o sparsematrix_wrappers.o
-get_basis.o: types.o interfaces.o communications.o rhopotential.o constrained_dft.o fragment_base.o fragments.o transposed_operations.o locregs_init.o get_kernel.o
+get_basis.o: types.o interfaces.o communications.o rhopotential.o constrained_dft.o fragment_base.o fragments.o transposed_operations.o locregs_init.o get_kernel.o io.o
 get_kernel.o: types.o interfaces.o diis_module.o communications.o constrained_dft.o rhopotential.o transposed_operations.o locregs_init.o orthonormalization.o
 ##pexsi.o also depends on pexsi_interfaces, but it is not known which one...
 #if HAVE_PEXSI

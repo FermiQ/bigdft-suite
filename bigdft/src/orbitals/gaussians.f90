@@ -469,7 +469,7 @@ contains
        !here iat is useless
        call projector(cell_geocode(mesh), -1, ider,l,n, coeff, expo, &
             distance_cutoff, rxyz,&
-            0,0,0,mesh%ndims(1),mesh%ndims(2),mesh%ndims(3), &
+            0,0,0,mesh%ndims(1)-1,mesh%ndims(2)-1,mesh%ndims(3)-1, &
             mesh%hgrids(1),mesh%hgrids(2),mesh%hgrids(3),&
             kpoint(1),kpoint(2),kpoint(3), ncplx_p,ncplx_g, &
             lr%wfd%nvctr_c,lr%wfd%nvctr_f,lr%wfd%nseg_c,lr%wfd%nseg_f,&
