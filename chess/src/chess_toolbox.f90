@@ -367,7 +367,7 @@ program chess_toolbox
    real(kind=8) :: epsfcn, gtol, xtol, ftol, charge, purity_indicator
    logical,dimension(:),allocatable :: in_frag, nat_in_frag, at_assigned
    integer :: maxfev, nfev, info, iflag, maxfrag, iel, ifound, nfrag, nfragmax, nfragfound
-   integer :: frag_elements_start, frag_elements_end
+   integer :: frag_elements_start, frag_elements_end, l
    logical :: weights_integer, atom_complete
    !external :: fcn_fragments
    ! Presumably well suited colorschemes from colorbrewer2.org
