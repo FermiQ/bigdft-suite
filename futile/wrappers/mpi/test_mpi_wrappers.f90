@@ -215,8 +215,6 @@ module test_mpi_wrappers
       real(f_double) :: median
 
       ! Local variables
-      integer :: i, j
-      real(f_double) :: temp
       real(f_double),dimension(:),allocatable :: arr
 
       arr = f_malloc(n,id='arr')

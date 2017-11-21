@@ -396,6 +396,9 @@ subroutine AtomicOrbitals(iproc,at,rxyz,norbe,orbse,norbsc,&
    do iat=1,at%astruct%nat
       ity=at%astruct%iatype(iat)
       ityx=iatypex(iat)
+
+      !beginning of atomic routine
+
       ishltmp=0
       !call count_atomic_shells(nspin_print,at%aoig(iat)%aocc,occup,nl)
       if (ityx > ntypesx) then
@@ -450,6 +453,9 @@ subroutine AtomicOrbitals(iproc,at,rxyz,norbe,orbse,norbsc,&
          !write(*,*)'ERROR: ishelltmp <> nshell',ishell,G%nshell(iat)
          !stop 
       end if
+
+      !end of atomic routine
+
    end do
    if (iproc == 0 .and. get_verbose_level() > 1) then
       call yaml_sequence_close()
@@ -1209,7 +1215,7 @@ END SUBROUTINE calc_coeff_inguess
 subroutine gatom(rcov,rprb,lmax,lpx,noccmax,occup,&
       &   zion,alpz,gpot,alpl,hsep,alps,ngv,ngc,nlccpar,vh,xp,rmt,fact,nintp,&
       &   aeval,ng,psi,res,chrg,iorder)
-   use module_base, only: gp,f_err_throw,BIGDFT_RUNTIME_ERROR,safe_exp
+   use module_base, only: gp,f_err_throw,BIGDFT_RUNTIME_ERROR,safe_exp,safe_erf
    use yaml_strings, only: yaml_toa
    use abi_interfaces_numeric, only: abi_derf_ab
    implicit none
@@ -1548,8 +1554,9 @@ subroutine gatom(rcov,rprb,lmax,lpx,noccmax,occup,&
          do i=0,ng
             d=xp(i)+xp(j)
             sd=sqrt(d)
-            call abi_derf_ab(terf, sd*rcov) 
-            texp=exp(-d*rcov**2)
+            !call abi_derf_ab(terf, sd*rcov) 
+            terf=safe_erf(sd*rcov)
+            texp=safe_exp(-d*rcov**2)
 
             tt=0.4431134627263791_gp*terf/sd**3 - 0.5_gp*rcov*texp/d
             chrg(iocc,1)=chrg(iocc,1) + psi(i,iocc,1)*psi(j,iocc,1)*tt

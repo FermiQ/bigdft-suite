@@ -178,16 +178,16 @@ module highlevel_wrappers
       real(mp),dimension(:,:,:),pointer,intent(inout),optional :: coeffs_out
 
       ! Local variables
-      integer :: iunit
+      !integer :: iunit
       type(sparse_matrix_metadata) :: smmd
       type(sparse_matrix),dimension(2) :: smat
       type(matrices) :: ovrlp_mat, hamiltonian_mat
       real(kind=8),dimension(:),allocatable :: eval
       external :: gather_timings
 
-      integer :: nspin_test, nfvctr_test, ntmb_test
-      real(mp),dimension(:),pointer :: eval_tmp
-      real(mp),dimension(:,:),pointer :: coeff_tmp
+      !integer :: nspin_test 
+      !real(mp),dimension(:),pointer :: eval_tmp
+      !real(mp),dimension(:,:),pointer :: coeff_tmp
 
       call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, trim(overlap_file), &
            iproc, nproc, comm, smat(1), ovrlp_mat, &

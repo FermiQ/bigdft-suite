@@ -93,11 +93,11 @@ module sparsematrix_io
       real(kind=mp),dimension(:),pointer,intent(out) :: mat_compr
 
       ! Local variables
-      integer :: iunit, dummy_int, iseg, icol, irow, jorb, ind, ispin, iat, ntypes_, nat_, itype, index_dot
-      real(kind=mp) :: dummy_double
-      character(len=20) :: dummy_char
+      integer :: iunit, iseg, icol, irow, jorb, ind, ispin, index_dot
+      !real(kind=mp) :: dummy_double
+      !character(len=20) :: dummy_char
       character(len=128) :: filename_extension
-      logical :: read_rxyz, read_on_which_atom, file_present
+      logical :: file_present
 
       call f_routine(id='read_sparse_matrix')
       call f_timing(TCAT_SMAT_READ,'ON')
@@ -196,7 +196,7 @@ module sparsematrix_io
 
       ! Local variables
       integer :: i, ii, np, is, size_of_integer, size_of_double, ierr, thefile
-      character(len=1024) :: filename_base, filename_extension, filename_matmul
+      !character(len=1024) :: filename_base, filename_extension, filename_matmul
       integer(kind=mpi_offset_kind) :: disp
       integer,dimension(4) :: workarr_header
       integer,dimension(:,:),allocatable :: workarr_keys
@@ -283,10 +283,10 @@ module sparsematrix_io
       integer,dimension(:),pointer,intent(inout) :: on_which_atom
 
       ! Local variables
-      integer :: iunit, dummy_int, iseg, icol, irow, jorb, ind, ispin, iat, ntypes_, nat_, itype, i
-      real(kind=mp) :: dummy_double
-      character(len=20) :: dummy_char
-      logical :: read_rxyz, read_on_which_atom
+      integer :: iunit, iat, itype, i
+      !real(kind=mp) :: dummy_double
+      !character(len=20) :: dummy_char
+      !logical :: read_rxyz, read_on_which_atom
 
       call f_routine(id='read_sparse_matrix_metadata')
 
@@ -338,10 +338,10 @@ module sparsematrix_io
       character(len=*),intent(in) :: filename
 
       ! Local variables
-      integer :: iunit, iseg, icol, irow, jorb, iat, jat, ind, ispin, itype, index_dot
-      integer :: size_of_integer, size_of_double
+      integer :: iunit, iseg, icol, irow, jorb, ind, ispin
+      !integer :: size_of_integer, size_of_double
       real(kind=mp),dimension(:),allocatable :: matrix_compr
-      character(len=1024) :: filename_base, filename_extension, filename_matmul
+      character(len=1024) :: filename_matmul
 
       call f_routine(id='write_sparse_matrix')
       
@@ -476,7 +476,7 @@ module sparsematrix_io
 
       ! Local variables
       integer :: i, ii, np, is, size_of_integer, size_of_double, ierr, thefile
-      character(len=1024) :: filename_base, filename_extension, filename_matmul
+      !character(len=1024) :: filename_base, filename_extension, filename_matmul
       integer(kind=mpi_offset_kind) :: disp
       integer,dimension(4) :: workarr_header
       integer,dimension(:,:),allocatable :: workarr_keys
@@ -561,8 +561,8 @@ module sparsematrix_io
       character(len=*),intent(in) :: filename
 
       ! Local variables
-      integer :: iunit, iseg, icol, irow, jorb, iat, jat, ind, ispin, itype, i
-      real(kind=mp),dimension(:),allocatable :: matrix_compr
+      integer :: iunit, iat, itype, i
+      !real(kind=mp),dimension(:),allocatable :: matrix_compr
 
       call f_routine(id='write_sparse_matrix_metadata')
 
@@ -610,7 +610,7 @@ module sparsematrix_io
       real(mp), dimension(nfvctr,ntmb), intent(in) :: coeff
       real(mp), dimension(ntmb), intent(in) :: eval
       ! Local variables
-      integer :: iunit, itype, iat, i, j
+      integer :: iunit, i, j
       logical :: scaled
 
       call f_routine(id='write_linear_coefficients')
@@ -816,8 +816,8 @@ module sparsematrix_io
       real(kind=8),dimension(:),pointer,intent(inout),optional :: eval
       ! Local variables
       real(kind=8) :: dummy_double
-      character(len=20) :: dummy_char
-      integer :: iunit, itype, iat, i, j, dummy_int, ntypes_, nat_, index_dot
+      !character(len=20) :: dummy_char
+      integer :: iunit, i, j, index_dot
       logical :: scaled, read_rxyz, read_eval, file_present
       character(len=1024) :: filename_extension
 
@@ -964,10 +964,10 @@ module sparsematrix_io
       real(mp),dimension(:),pointer,intent(out),optional :: eval
 
       ! Local variables
-      integer :: thefile, size_of_integer, size_of_double, i, ii, j, is, np, ierr
+      integer :: thefile, size_of_integer, size_of_double, i, ii, is, np, ierr
       integer(kind=f_long) :: size_of_integer_long, size_of_double_long, disp, is_long
       integer(kind=f_long) :: one_long, three_long, five_long, nfvctr_long, ntmb_long
-      logical :: scaled
+      !logical :: scaled
       integer,dimension(3) :: workarr_header
       real(mp),dimension(:),allocatable :: workarr_eval
       real(mp),dimension(:,:),allocatable :: workarr_coeff
@@ -1045,8 +1045,8 @@ module sparsematrix_io
       logical, intent(in) :: binary
 
       ! Local variables
-      integer :: iunit, iseg, icol, irow, jorb, iat, jat, ind, ispin, itype, iorb
-      real(kind=8),dimension(:),allocatable :: matrix_compr
+      integer :: iunit, jorb, ispin, iorb
+      !real(kind=8),dimension(:),allocatable :: matrix_compr
 
       call f_routine(id='write_dense_matrix')
 

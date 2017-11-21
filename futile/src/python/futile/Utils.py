@@ -288,7 +288,12 @@ def _find_files_from_archive(re, archive):
         return [f for f in arch.getnames() 
                 if all(pattern in f for pattern in re.split('*'))]
 
-
+def ensure_dir(file_path):
+    """ Guarantees the existance on the directory given by the (relative) file_path """
+    import os
+    directory = file_path
+    if not os.path.exists(directory):
+        os.makedirs(directory)
 
 if __name__ == '__main__':
     import os

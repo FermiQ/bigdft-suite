@@ -684,7 +684,7 @@ module foe_common
       type(matrices),intent(in),optional :: mat
 
       ! Local variables
-      integer :: isegstart, isegend, iseg, ii, jorb, irow, icol, iismall, iel, i, iline, icolumn, ibound, verbosity_
+      integer :: ii, iismall, i, iline, icolumn, verbosity_
       integer :: ishift
       real(mp),dimension(:),allocatable :: mat_large
       real(kind=mp) :: tt, noise, penalty
@@ -815,12 +815,12 @@ module foe_common
       real(kind=mp),intent(out) :: scale_factor, shift_value
 
       ! Local variables
-      integer :: iseg, ii, i, ii1, ii2, isegstart, isegend, ierr, jj
-      integer :: itaskgroup, iitaskgroup, j, ishift
-      integer,dimension(2) :: irowcol
+      integer :: iseg, ii, i, jj
+      integer :: j, ishift
+      !integer,dimension(2) :: irowcol
       real(kind=mp) :: tt1, tt2
       logical :: with_overlap
-      real(kind=mp),dimension(:),pointer :: matscal_compr_local
+      !real(kind=mp),dimension(:),pointer :: matscal_compr_local
       real(kind=mp),dimension(:),allocatable :: mat1_large, mat2_large
       integer,parameter :: ALLGATHERV=51, GET=52, GLOBAL_MATRIX=101, SUBMATRIX=102
       integer,parameter :: comm_strategy=GET
@@ -1354,8 +1354,8 @@ module foe_common
 
       ithread = 0
       !$omp parallel if (np>1 .and. np*npl>1000) &
-      !$omp default(none) &
-      !$omp shared(np, is, h, sigma, tau, val_chebyshev1, coeff, npl, mean_error, max_error_arr, x_max_error_arr) &
+      !$omp default(shared) & ! (none) & !solve the problem of func function
+      !!$omp shared(np, is, h, sigma, tau, val_chebyshev1, coeff, npl, mean_error, max_error_arr, x_max_error_arr) &
       !$omp private(i, ii, x, xx, val_chebyshev, xxm2, xxm1, ipl, xxx, val_function, error) &
       !$omp firstprivate(ithread)
       !$ ithread = omp_get_thread_num()
@@ -1464,35 +1464,35 @@ module foe_common
       real(kind=mp),dimension(smatl%nvctrp_tg),intent(in),optional :: ovrlp_minus_one_half
 
       ! Local variables
-      integer :: jorb, ipl, it, ii, iiorb, jjorb, iseg, iorb
-      integer :: isegstart, isegend, iismall, iilarge, nsize_polynomial
-      integer :: iismall_ovrlp, iismall_ham, it_shift, npl_check, npl_boundaries
+      integer :: ipl, it
+      integer :: nsize_polynomial
+      !integer :: it_shift
       integer,parameter :: nplx=50000
-      real(kind=mp),dimension(:,:,:),allocatable :: cc, cc_check
-      real(kind=mp),dimension(:,:),allocatable ::  fermip_check
-      real(kind=mp),dimension(:,:,:),allocatable :: penalty_ev
-      real(kind=mp) :: anoise, sumn, sumn_check, charge_diff, ef_interpol, ddot
-      real(kind=mp) :: evlow_old, evhigh_old, det, determinant, sumn_old, ef_old, tt
+      real(kind=mp),dimension(:,:,:),allocatable :: cc
+      !real(kind=mp),dimension(:,:),allocatable ::  fermip_check
+      !real(kind=mp),dimension(:,:,:),allocatable :: penalty_ev
+      real(kind=mp) :: anoise
+      real(kind=mp) :: evlow_old, evhigh_old
       real(kind=mp) :: x_max_error_fake, max_error_fake, mean_error_fake
-      real(kind=mp) :: fscale, tt_ovrlp, tt_ham, diff, fscale_check, fscale_new
-      logical :: restart, adjust_lower_bound, adjust_upper_bound, calculate_SHS, interpolation_possible, with_overlap
+      !real(kind=mp) :: fscale, fscale_check, fscale_new
+      logical :: restart, adjust_lower_bound, adjust_upper_bound, calculate_SHS, with_overlap
       logical,dimension(2) :: emergency_stop
-      real(kind=mp),dimension(2) :: efarr, sumnarr, allredarr
-      real(kind=mp) :: ebs_check, ef, ebsp
-      integer :: irow, icol, itemp, iflag,info, i, j, itg, ncount, istl, ists, isshift, imshift
-      logical :: overlap_calculated, evbounds_shrinked, reached_limit
+      real(kind=mp),dimension(2) :: efarr
+      !real(kind=mp) :: ebs_check, ef, ebsp
+      integer :: isshift, imshift
+      logical :: evbounds_shrinked
       integer,parameter :: NTEMP_ACCURATE=4
       integer,parameter :: NTEMP_FAST=1
-      real(kind=mp) :: x_max_error, max_error, x_max_error_check, max_error_check
-      real(kind=mp) :: mean_error, mean_error_check
+      !real(kind=mp) :: x_max_error, x_max_error_check
+      !real(kind=mp) :: mean_error, mean_error_check
       integer,parameter :: SPARSE=1
       integer,parameter :: DENSE=2
       integer,parameter :: imode=SPARSE
       type(fermi_aux) :: f
-      real(kind=mp),dimension(2) :: temparr
+      !real(kind=mp),dimension(2) :: temparr
       real(kind=mp),dimension(:),allocatable :: penalty_ev_new, ham_eff, mat_seq, matmul_tmp, matrix_local
-      real(kind=mp),dimension(:),allocatable :: fermi_new, fermi_check_new, fermi_small_new
-      integer :: iline, icolumn, icalc
+      real(kind=mp),dimension(:),allocatable :: fermi_new
+      !integer :: icalc
       type(fmpi_win), dimension(:),allocatable :: windows
 
 
@@ -1717,28 +1717,28 @@ module foe_common
       logical,dimension(smatl%nspin),intent(in) :: calculate_spin_channels
 
       ! Local variables
-      integer :: jorb, ipl, it, ii, iiorb, jjorb, iseg, iorb
-      integer :: isegstart, isegend, iismall, iilarge, nsize_polynomial
-      integer :: iismall_ovrlp, iismall_ham, it_shift, npl_check, npl_boundaries, ilshift
+      integer :: ipl, it
+      integer :: nsize_polynomial
+      integer :: ilshift
       !integer,parameter :: nplx=50000
-      real(kind=mp),dimension(:,:,:),allocatable :: cc, cc_check
-      real(kind=mp),dimension(:,:),allocatable :: fermip_check
-      real(kind=mp),dimension(:,:,:),allocatable :: penalty_ev
-      real(kind=mp) :: anoise, scale_factor, shift_value, sumn, sumn_check, charge_diff, ef_interpol, ddot
-      real(kind=mp) :: evlow_old, evhigh_old, det, determinant, sumn_old, ef_old, tt
+      real(kind=mp),dimension(:,:,:),allocatable :: cc
+      !real(kind=mp),dimension(:,:),allocatable :: fermip_check
+      !real(kind=mp),dimension(:,:,:),allocatable :: penalty_ev
+      real(kind=mp) :: anoise, sumn, charge_diff
+      real(kind=mp) :: evlow_old, evhigh_old, sumn_old, ef_old, tt
       real(kind=mp) :: x_max_error_fake, max_error_fake, mean_error_fake
-      real(kind=mp) :: fscale, tt_ovrlp, tt_ham, diff, fscale_check, fscale_new
-      logical :: restart, adjust_lower_bound, adjust_upper_bound, calculate_SHS, interpolation_possible
-      logical,dimension(2) :: emergency_stop
-      real(kind=mp),dimension(2) :: efarr, sumnarr, allredarr
-      real(kind=mp),dimension(:),allocatable :: hamscal_compr, fermi_check_compr
-      real(kind=mp),dimension(4,4) :: interpol_matrix
-      real(kind=mp),dimension(4) :: interpol_vector
+      real(kind=mp) :: fscale, diff, fscale_new
+      !logical :: calculate_SHS
+      !logical,dimension(2) :: emergency_stop
+      real(kind=mp),dimension(2) :: efarr, sumnarr
+      !real(kind=mp),dimension(:),allocatable :: hamscal_compr
+      !real(kind=mp),dimension(4,4) :: interpol_matrix
+      !real(kind=mp),dimension(4) :: interpol_vector
       real(kind=mp),parameter :: charge_tolerance=1.d-6 ! exit criterion
       logical,dimension(2) :: eval_bounds_ok, bisection_bounds_ok
-      real(kind=mp) :: temp_multiplicator, ebs_check, ef, ebsp
-      integer :: irow, icol, itemp, iflag,info, isshift, imshift, ilshift2, i, j, itg, ncount, istl, ists
-      logical :: overlap_calculated, evbounds_shrinked, reached_limit
+      real(kind=mp) :: temp_multiplicator, ef
+      integer :: info
+      logical :: evbounds_shrinked
       !real(kind=mp),parameter :: FSCALE_LOWER_LIMIT=5.d-3
       !real(kind=mp),parameter :: FSCALE_UPPER_LIMIT=5.d-2
       real(kind=mp),parameter :: DEGREE_MULTIPLICATOR_ACCURATE=3.d0
@@ -1750,17 +1750,17 @@ module foe_common
       !!type(matrices) :: inv_ovrlp
       integer,parameter :: NTEMP_ACCURATE=4
       integer,parameter :: NTEMP_FAST=1
-      real(kind=mp) :: degree_multiplicator, x_max_error, max_error, x_max_error_check, max_error_check
-      real(kind=mp) :: mean_error, mean_error_check
+      real(kind=mp) :: degree_multiplicator, x_max_error, max_error
+      real(kind=mp) :: mean_error
       integer,parameter :: SPARSE=1
       integer,parameter :: DENSE=2
       integer,parameter :: imode=SPARSE
       type(fermi_aux) :: f
-      real(kind=mp),dimension(2) :: temparr
+      !real(kind=mp),dimension(2) :: temparr
       real(kind=mp),dimension(:),allocatable :: occupations
-      real(kind=mp),dimension(:,:),allocatable :: penalty_ev_new
-      real(kind=mp),dimension(:,:),allocatable :: fermi_new, fermi_check_new, fermi_small_new
-      integer :: iline, icolumn, icalc, jspin
+      !real(kind=mp),dimension(:,:),allocatable :: penalty_ev_new
+      real(kind=mp),dimension(:,:),allocatable :: fermi_small_new
+      integer :: jspin
       type(fmpi_win) ,dimension(:), allocatable :: windowsx
 
 
@@ -2114,7 +2114,7 @@ module foe_common
       type(sparse_matrix),intent(in) :: smatl
       real(kind=mp),dimension(smatl%smmm%nvctrp_mm),intent(in) :: matrixp
       real(kind=mp),intent(out) :: trace
-      integer :: i, ii, iline, icolumn
+      integer :: i, iline, icolumn
 
       call f_routine(id='calculate_trace_distributed_new')
 
@@ -2171,7 +2171,7 @@ module foe_common
 
       ! Local variables
       integer :: ipl, icalc, j, jpl
-      logical :: error_ok, found, found_degree
+      logical :: error_ok, found_degree
       real(kind=mp),dimension(:,:,:),allocatable :: cc_trial
       real(kind=mp) :: x_max_error_penaltyfunction, max_error_penaltyfunction, mean_error_penaltyfunction
 
@@ -2366,7 +2366,7 @@ module foe_common
       real(kind=mp),dimension(n),intent(out) :: cc
 
       ! Local variables
-      integer :: k, j, ii, jj
+      integer :: k, j, jj
       real(kind=mp) :: bma, bpa, y, arg, fac, tt, one_over_n
       real(kind=mp),dimension(:),allocatable :: cf
 
@@ -2380,7 +2380,8 @@ module foe_common
       bpa=0.5d0*(b+a)
       fac=2.d0/real(n,kind=mp)
       one_over_n = 1.d0/real(n,kind=mp)
-      !$omp parallel default(none) shared(bma,bpa,fac,n,cf,cc,is,np,tt,one_over_n) &
+      !$omp parallel default(shared) & !none) 
+      !!$omp shared(bma,bpa,fac,n,cf,cc,is,np,tt,one_over_n) !&
       !$omp private(k,y,arg,j,jj)
       !$omp do
       do k=1,n

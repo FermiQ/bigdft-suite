@@ -291,18 +291,18 @@ program chess_toolbox
    implicit none
    external :: gather_timings
    character(len=*), parameter :: subname='utilities'
-   character(len=1) :: geocode
-   character(len=3) :: do_ortho
-   character(len=30) :: tatonam, radical, colorname, linestart, lineend, cname, methodc
-   character(len=128) :: method_name, overlap_file, hamiltonian_file, hamiltonian_manipulated_file, overlap_manipulated_file
+   !character(len=1) :: geocode
+   !character(len=3) :: do_ortho
+   character(len=30) :: tatonam, radical, colorname, linestart, lineend, cname
+   character(len=128) :: overlap_file, hamiltonian_file, hamiltonian_manipulated_file
    character(len=128) :: kernel_file, coeff_file, eval_file, pdos_file, metadata_file, output_file, output_bins_file
-   character(len=128) :: line, cc, output_pdos, conversion, infile, outfile, iev_min_, iev_max_, fscale_, matrix_basis
+   character(len=128) :: line, cc, output_pdos, conversion, infile, outfile, iev_min_, iev_max_, fscale_
    character(len=128) :: ihomo_state_, homo_value_, lumo_value_, smallest_value_, largest_value_, scalapack_blocksize_, kT_
    character(len=128) :: accuracy_entropy_, nbin_, itype_, only_evals_, only_binned_values_
    character(len=128) :: frag_elements_start_, frag_elements_end_
    !!character(len=128),dimension(-lmax:lmax,0:lmax) :: multipoles_files
    character(len=128) :: kernel_matmul_file, fragment_file, manipulation_mode, diag_algorithm
-   logical :: multipole_analysis = .false.
+   !logical :: multipole_analysis = .false.
    logical :: solve_eigensystem = .false.
    logical :: calculate_pdos = .false.
    logical :: convert_matrix_format = .false.
@@ -315,20 +315,21 @@ program chess_toolbox
    !!type(atoms_data) :: at
    type(sparse_matrix_metadata) :: smmd
    integer :: iproc, nproc
-   integer :: istat, i_arg, ierr, nspin, icount, nthread, method, ntypes
+   integer :: istat, i_arg, ierr, nspin, nthread
    integer :: nfvctr_m, nseg_m, nvctr_m
    integer :: nfvctr_l, nseg_l, nvctr_l
    !integer :: nfvctrp_l, isfvctr_l, nfvctrp_m, isfvctr_m, nfvctrp_s, isfvctr_s
-   integer :: iconv, iev, iev_min, iev_max, l, ll, m, jat, jat_start, jtype
-   integer,dimension(:),pointer :: on_which_atom
-   integer,dimension(:),pointer :: keyv_s, keyv_m, keyv_l, on_which_atom_s, on_which_atom_m, on_which_atom_l
-   integer,dimension(:),pointer :: iatype, nzatom, nelpsp
+   integer :: iconv, iev_min, iev_max, jat, jat_start, jtype
+   !integer,dimension(:),pointer :: on_which_atom
+   !integer,dimension(:),pointer :: keyv_s, keyv_m, keyv_l
+   !integer,dimension(:),pointer :: on_which_atom_s, on_which_atom_m, on_which_atom_l
+   !integer,dimension(:),pointer :: nzatom
    integer,dimension(:),pointer :: col_ptr, row_ind
-   integer,dimension(:,:,:),pointer :: keyg_s, keyg_m, keyg_l
+   !integer,dimension(:,:,:),pointer :: keyg_s, keyg_m, keyg_l
    integer,dimension(:),allocatable :: fragment_atom_id, fragment_supfun_id
    !!logical,dimension(-lmax:lmax) :: file_present
-   real(kind=8),dimension(:),pointer :: matrix_compr, eval_ptr
-   real(kind=8),dimension(:,:),pointer :: rxyz, coeff_ptr
+   real(kind=8),dimension(:),pointer :: eval_ptr
+   real(kind=8),dimension(:,:),pointer :: coeff_ptr
    real(kind=8),dimension(:),allocatable :: eval, energy_arr, occups, darr, valarr
    real(kind=8),dimension(:,:),allocatable :: denskernel, pdos, occup_arr, hamiltonian_tmp, ovrlp_tmp, matrix_tmp
    real(kind=8),dimension(:,:),allocatable :: kernel_fragment, overlap_fragment, ksk_fragment, tmpmat
@@ -337,19 +338,18 @@ program chess_toolbox
    logical,dimension(3) :: periodic
    type(matrices) :: ovrlp_mat, hamiltonian_mat, kernel_mat, mat, ovrlp_large, KS_large, kernel_ortho
    type(matrices),dimension(1) :: ovrlp_minus_one_half
-   type(matrices),dimension(:,:),allocatable :: multipoles_matrices
+   !type(matrices),dimension(:,:),allocatable :: multipoles_matrices
    type(sparse_matrix) :: smat_s, smat_m, smat_l
    type(sparse_matrix),dimension(1) :: smat_arr1
    type(sparse_matrix),dimension(2) :: smat
    type(dictionary), pointer :: dict_timing_info
-   integer :: iunit, nat, iat, iat_prev, ii, iitype, iorb, itmb, itype, ival, ios, ipdos, ispin
+   integer :: iunit, iat, iat_prev, ii, iitype, iorb, itmb, itype, ival, ios, ipdos, ispin
    integer :: jtmb, norbks, npdos, npt, ntmb, jjtmb, nat_frag, nfvctr_frag, i, iiat
    integer :: icol, irow, icol_atom, irow_atom, iseg, iirow, iicol, j, ifrag, index_dot, ihomo_state, ieval
    integer :: scalapack_blocksize, nbin
    integer(f_long) :: iil, jjl, nnl
-   character(len=20),dimension(:),pointer :: atomnames
    character(len=128),dimension(:),allocatable :: pdos_name, fragment_atomnames
-   real(kind=8),dimension(3) :: cell_dim, ri, rj
+   real(kind=8),dimension(3) ::  ri, rj
    character(len=2) :: backslash, num
    real(kind=8) :: energy, occup, occup_pdos, total_occup, fscale, factor, scale_value, shift_value
    real(kind=8) :: maxdiff, meandiff, tt, tracediff, totdiff
@@ -1152,10 +1152,10 @@ program chess_toolbox
                end do
                !call fmpi_allreduce(energy, 1, FMPI_SUM, comm=mpiworld())
                do ispin=1,nspin
-                   !$omp parallel default(none) &
-                   !$omp shared(ispin,smat,ntmb,denskernel,ovrlp_mat,calc_array,npdos,occups) &
-                   !$omp private(itmb,jtmb,jjtmb,occup,ipdos)
-                   !$omp do reduction(+:occups)
+!                   !$omp parallel default(none) &
+!                   !$omp shared(ispin,smat,ntmb,denskernel,ovrlp_mat,calc_array,npdos,occups) &
+!                   !$omp private(itmb,jtmb,jjtmb,occup,ipdos)
+!                   !$omp do reduction(+:occups)
                    do jtmb=1,smat(1)%nfvctrp
                        jjtmb = smat(1)%isfvctr + jtmb
                        !if (calc_array(jjtmb,ipdos)) then
@@ -1172,8 +1172,8 @@ program chess_toolbox
                            end do
                        !end if
                    end do
-                   !$omp end do
-                   !$omp end parallel
+!                   !$omp end do
+!                   !$omp end parallel
                    do ipdos=1,npdos
                        occup_arr(ipdos,iorb) = occups(ipdos)
                    end do

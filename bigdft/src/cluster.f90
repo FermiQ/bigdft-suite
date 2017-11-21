@@ -27,6 +27,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
   use gaussians, only: deallocate_gwf
   use module_fragments
   use constrained_dft
+  use f_ternary
   use Poisson_Solver, except_dp => dp, except_gp => gp
   use module_xc
   use m_libpaw_libxc, only: libxc_functionals_init, libxc_functionals_end
@@ -1138,7 +1139,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
            call orbitals_communicators(iproc,nproc,KSwfn%Lzd%Glr,VTwfn%orbs,VTwfn%comms,&
                 basedist=KSwfn%comms%nvctr_par(0:,1:))
 
-           nvirt = in%nvirt
+           nvirt = .if. (in%nvirt > 0) .then. in%nvirt .else. norbv
         end if
 
         !allocate psivirt pointer (note the orbs dimension)

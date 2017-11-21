@@ -77,6 +77,8 @@ Keys to ignore:
  - output_wf
  - write_orbitals
  - profiling_depth
+ #- adjustment required
+ #- new value
  #- avg pot difference (actual/min)
  #- number of tasks
  #- IDs

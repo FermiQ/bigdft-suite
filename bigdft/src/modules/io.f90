@@ -694,6 +694,7 @@ module io
       use module_atoms, only: deallocate_atomic_structure, nullify_atomic_structure, set_astruct_from_file
       use module_base
       use yaml_strings, only: f_strcpy
+      use rototranslations, only: frag_center
       implicit none
       integer, intent(in) :: num_neighbours
       type(atoms_data), intent(in) :: at
@@ -1455,6 +1456,7 @@ module io
     
         lstat = .false.
         write(error, "(A)") "cannot read psi description."
+        !if (bigdft_mpi%iproc==0) print*,'formatted: ',formatted
         if (formatted) then
            read(unitwf,*,iostat=i_stat) iorb_old,eval
            if (i_stat /= 0) return
@@ -2078,6 +2080,7 @@ module io
       real(kind=8) :: max_error, mean_error
       integer, dimension(1) :: power
       character(len=128) :: sparse_format
+      integer :: iato, jato
     
       call f_routine(id='write_linear_matrices')
 
@@ -2176,9 +2179,29 @@ module io
                        end do
                     end do
                  end do
-    
+
+                 !DEBUG atom ordering
+                 do ispin=1,tmb%linmat%smat(3)%nspin
+                    do iato=1,at%astruct%nat
+                       do iorb=1,tmb%linmat%smat(3)%nfvctr
+                          iat=tmb%orbs%onwhichatom(iorb)
+                          if (iat/=iato) cycle
+
+                          do jato=1,at%astruct%nat
+                             do jorb=1,tmb%linmat%smat(3)%nfvctr
+                                jat=tmb%orbs%onwhichatom(jorb)
+                                if (jat/=jato) cycle
+
+                                write(27,'(2(i6,1x),e19.12,2(1x,i6),3(1x,f12.6))') &
+                                     iorb,jorb,tmb%linmat%ovrlp_%matrix(iorb,jorb,ispin),&
+                                     iat,jat,rxyz(1:3,jat)
+                             end do
+                          end do
+                       end do
+                    end do
+                 end do
+                 !DEBUG atom ordering
                  call f_close(unitm)
-    
               end if
 
               call f_free_ptr(tmb%linmat%ovrlp_%matrix)

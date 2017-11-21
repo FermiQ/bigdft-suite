@@ -48,8 +48,9 @@ def dump_xyz_positions(f,array,basename='',names=None):
         if names is not None: nm=basename+names[i]
         f.write(str(nm)+' '+str(r[0])+' '+str(r[1])+' '+str(r[2])+'\n')
 
-def dump_xyz(array,basename='',units='atomic',names=None,filename=None,position='a'):
-    f=open_xyz(filename,len(array),units,'# xyz dump with basename "'+basename+'"',position)
+def dump_xyz(array,basename='',units='atomic',names=None,filename=None,position='a',comment=None):
+    cmt=comment if comment is not None else '# xyz dump with basename "'+basename+'"'
+    f=open_xyz(filename,len(array),units,cmt,position)
     dump_xyz_positions(f,array,basename=basename,names=names)
     close_xyz(f,filename)
 
@@ -120,7 +121,7 @@ class Fragment():
     protected_keys=['q0','q1','q2','sigma']
     def __init__(self,atomlist=None,id='Unknown',units='AU'):
         self.atoms=[]
-        self.id=id
+        self.id=self.set_id(id)
         self.to_AU=1.0
         if units == 'A': self.to_AU=1.0/AU_to_A
         self.allset=False
@@ -134,6 +135,8 @@ class Fragment():
     #def __str__(self):
     #    import yaml
     #    return yaml.dump({'Positions': self.atoms,'Properties': {'name': self.id}})
+    def set_id(self,id):
+	self.id=id
     def xyz(self,filename=None,units='atomic'):
         "Write the fragment positions in a xyz file"
         import numpy as np
@@ -435,18 +438,68 @@ class System():
             RT=self.decomposition
         self.fragments=[]
         self.CMs=[]
+	self.templates=[]
         for item in RT:
             if reference_fragments:
                 idf=item['id']
-                frag=copy.deepcopy(reference_fragments[idf])
+		template=reference_fragments[idf]
             else:
-                frag=copy.deepcopy(item['ref'])
+		template=item['ref']
+	    frag=copy.deepcopy(template)
+	    self.templates.append(template)
             #frag.transform(item['R'],item['t'])
             frag.transform(item['RT'])
             self.append(frag)
     def Q(self):
             "Provides the global monopole of the system given as a sum of the monopoles of the atoms"
             return sum([ f.Q() for f in self.fragments])
+    def fragdict(self):
+	""" Provides the value of the dictionary fragment to be used for the inputfile in a fragment calculation """
+	refs=[]
+	for t in self.templates:
+	    if t not in refs: refs.append(t)
+	#generate the fragments id that have to be put into the input posinp
+	allfrags=find_reference_fragment(refs,self.templates)
+	fragdict={}
+	for t,r in zip(refs,allfrags):
+	     fragdict[t.id]=r
+	return fragdict
+
+# create the directory of the template file
+def prepare_fragment_inputs(name,directory='.',flavour='Isolated',system=None,template=None,template_dir=None,template_name=None):
+    import shutil,os,yaml
+    from futile.Utils import ensure_dir
+    dirct=directory
+    ensure_dir(dirct)
+    posinp=name+'.xyz'
+    if template is not None: template.xyz(filename=posinp)
+    input_dict={'posinp': posinp,'import': 'linear_laura'}
+    if system is not None:
+	input_dict['import']=['linear_laura','linear_fragments'] if flavour!='Embedded' else 'linear_laura'
+	input_dict['frag']=system.fragdict()
+	system.xyz(filename=posinp)
+	datadir=os.path.join(dirct,'data-'+name)
+	tempdatadir='data-'+template_name
+	ensure_dir(datadir)
+	datatemplate=os.path.join(datadir,tempdatadir)
+	if flavour=='Embedded':          		
+	   ensure_dir(datatemplate)
+	elif not os.path.exists(datatemplate):
+	   os.symlink(os.path.abspath(os.path.join(template_dir,tempdatadir)),datatemplate)
+	for ext in ['.xyz','.yaml']:
+	   f=os.path.join(template_dir,template_name+ext)
+	   if os.path.exists(f): shutil.copyfile(src=f,dst=os.path.join(datadir,template_name+ext))
+    if dirct != '.': shutil.copyfile(src=posinp,dst=os.path.join(dirct,posinp))
+    f=open(os.path.join(dirct,name+'.yaml'),'w')
+    f.write(yaml.dump(input_dict))
+    f.close()
+def find_reference_fragment(refs,transformed):
+    """generate the list of fragments that are associates to a given list of templates"""
+    import numpy as np
+    where_for_frags=[]
+    for r in refs:
+        where_for_frags.append([ i+1 for i,t in enumerate(transformed) if t == r])
+    return where_for_frags
 
 def frag_average(ref,flist,clean_monopole=True):
     "Perform the average in attributes of the fragments provided by the list, with the position of the first fragment"
@@ -478,6 +531,10 @@ def distance(i,j):
     import numpy
     vec=i.centroid()-j.centroid()
     return numpy.sqrt(numpy.dot(vec,vec.T))
+
+def build_transformations(RTlist,ref):
+    "Build the transformation list to be passed to the systems' creation via the transformation keyword"
+    return [ {'RT': RT,'ref':ref} for RT in RTlist]
 
 def wahba_fragment(frag1,frag2):
     "Solve the wahba's problem among fragments, deprecated routine"

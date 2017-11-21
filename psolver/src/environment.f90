@@ -289,7 +289,7 @@ contains
     type(cavity_data), intent(in) :: cavity
     real(gp) :: corr_term
     !local variables
-    real(gp) :: epspr,ep,ct
+    real(gp) :: epspr,ct
     !real(gp) :: fact1,fact2,fact3,r,t,coeff,coeff1,dtx,w
 
     !we are in a inner region
@@ -465,9 +465,9 @@ contains
     real(gp), dimension(3), intent(in) :: deps !<gradient of epsilon(r)
     real(gp), intent(in) :: kk !<factor for the surface term
     !local variables
-    integer :: iat,i,j
-    real(gp) :: d,dlogh,rad,tt,ttV,ttS,hh,epsrm1,eps0m1,sqdeps,sqrtdeps,ep,mm
-    real(gp), dimension(3) :: f_Vterm,f_Sterm,depsdRi,vr,ddloghdRi,vect
+    integer :: iat
+    real(gp) :: d,dlogh,rad,tt,ttV,ttS,hh,epsrm1,eps0m1,ep
+    real(gp), dimension(3) :: f_Vterm,f_Sterm,depsdRi,vr
 
     eps0m1=cavity%epsilon0-vacuum_eps
     hh=mesh%volume_element
@@ -631,10 +631,10 @@ contains
     end if
   end subroutine add_Vextra
 
-  subroutine nabla2pot_epsm1(n1,n23,eps,nabla2_pot,np2em1)
+  subroutine nabla2pot_epsm1(n1,n23,nabla2_pot,np2em1)
     implicit none
     integer, intent(in) :: n1,n23
-    real(dp), dimension(n1*n23), intent(in) :: eps,nabla2_pot
+    real(dp), dimension(n1*n23), intent(in) :: nabla2_pot
     real(dp), dimension(n1*n23), intent(out) :: np2em1
     !local variables
     integer :: i123

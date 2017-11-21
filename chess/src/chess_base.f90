@@ -34,7 +34,7 @@ module chess_base
   public :: chess_init
 
   !> Private types
-  type :: foe_params
+  type, public :: foe_params
     real(mp) :: ef_interpol_det
     real(mp) :: ef_interpol_chargediff
     integer :: evbounds_nsatur
@@ -49,14 +49,14 @@ module chess_base
     logical :: adjust_fscale
   end type foe_params
 
-  type :: lapack_params
+  type, public :: lapack_params
     integer :: blocksize_pdsyev
     integer :: blocksize_pdgemm
     integer :: maxproc_pdsyev
     integer :: maxproc_pdgemm
   end type lapack_params
 
-  type :: pexsi_params
+  type, public :: pexsi_params
     integer :: pexsi_npoles
     integer :: pexsi_nproc_per_pole
     real(mp) :: pexsi_mumin

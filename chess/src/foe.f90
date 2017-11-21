@@ -80,38 +80,38 @@ module foe
       type(matrices),intent(inout),optional :: energy_kernel_
 
       ! Local variables
-      integer :: npl, jorb, ipl, it, ii, iiorb, jjorb, iseg, iorb
-      integer :: isegstart, isegend, iismall, iilarge, nsize_polynomial
-      integer :: iismall_ovrlp, iismall_ham, ntemp, it_shift, npl_check, npl_boundaries
+      integer :: npl, ipl
+      integer :: nsize_polynomial
+      integer :: ntemp, npl_check
       integer,parameter :: nplx=50000
-      real(kind=mp),dimension(:,:,:),pointer :: cc
+      !real(kind=mp),dimension(:,:,:),pointer :: cc
       real(kind=mp),dimension(:,:,:),allocatable :: cc_check
       real(kind=mp),dimension(:,:,:),pointer :: chebyshev_polynomials
-      real(kind=mp),dimension(:,:),allocatable :: fermip_check
-      real(kind=mp),dimension(:,:,:),allocatable :: penalty_ev
-      real(kind=mp) :: anoise, scale_factor, shift_value, sumn, sumn_check, charge_diff, ef_interpol, ddot
-      real(kind=mp) :: evlow_old, evhigh_old, det, determinant, sumn_old, ef_old, tt
-      real(kind=mp) :: x_max_error_fake, max_error_fake, mean_error_fake
+      !real(kind=mp),dimension(:,:),allocatable :: fermip_check
+      !real(kind=mp),dimension(:,:,:),allocatable :: penalty_ev
+      real(kind=mp) :: scale_factor, shift_value, sumn, sumn_check, ddot
+      real(kind=mp) :: evlow_old, evhigh_old 
+      !real(kind=mp) :: max_error_fake, mean_error_fake
       real(kind=mp) :: fscale, tt_ovrlp, tt_ham, diff, fscale_check, fscale_new, fscale_newx, asymm_K, eTS, eTS_check
-      logical :: restart, adjust_lower_bound, adjust_upper_bound, calculate_SHS, interpolation_possible
-      logical,dimension(2) :: emergency_stop
-      real(kind=mp),dimension(2) :: efarr, sumnarr, allredarr
+      !logical :: restart
+      !logical,dimension(2) :: emergency_stop
+      real(kind=mp),dimension(2) :: efarr, sumnarr
       real(kind=mp),dimension(:),allocatable :: hamscal_compr, fermi_check_compr, kernel_tmp, ham_eff
-      real(kind=mp),dimension(4,4) :: interpol_matrix
-      real(kind=mp),dimension(4) :: interpol_vector
+      !real(kind=mp),dimension(4,4) :: interpol_matrix
+      !real(kind=mp),dimension(4) :: interpol_vector
       real(kind=mp),parameter :: charge_tolerance=1.d-6 ! exit criterion
-      logical,dimension(2) :: eval_bounds_ok, bisection_bounds_ok
-      real(kind=mp) :: temp_multiplicator, ebs_check, ef, ebsp, tt1, tt2, tt3, tt4
-      integer :: irow, icol, itemp, iflag,info, ispin, isshift, imshift, ilshift, i, j, itg, ncount, istl, ists
-      logical :: overlap_calculated, evbounds_shrinked, degree_sufficient, reached_limit
+      !logical,dimension(2) :: eval_bounds_ok
+      real(kind=mp) :: temp_multiplicator, ebs_check, ebsp
+      integer :: itemp, ispin, isshift, imshift, ilshift, ncount, istl
+      logical :: evbounds_shrinked, degree_sufficient, reached_limit
       real(kind=mp),parameter :: CHECK_RATIO=1.25d0
-      real(kind=mp) :: degree_multiplicator, ebsp_allspins, accuracy_function, accuracy_penalty
+      real(kind=mp) :: ebsp_allspins, accuracy_function, accuracy_penalty
       real(kind=mp),dimension(1) :: max_error, x_max_error_check, max_error_check, mean_error_check
       type(fermi_aux) :: f
       real(kind=mp),dimension(2) :: temparr
-      real(kind=mp),dimension(:),allocatable :: fermi_new, fermi_check_new
+      real(kind=mp),dimension(:),allocatable :: fermi_check_new
       real(kind=mp),dimension(:),allocatable :: kernelpp_work, kernelpp_check_work
-      real(kind=mp),dimension(:),allocatable :: matrix_local, matrix_local_check
+      real(kind=mp),dimension(:),allocatable :: matrix_local
       integer :: npl_min, is, isl
       real(kind=mp),dimension(1) :: fscale_arr
       real(mp) :: ebs_check_allspins
@@ -777,7 +777,7 @@ module foe
       real(mp),dimension(1),parameter :: EF = 0.0_mp
       !real(mp),dimension(1),parameter :: FSCALE = 2.e-2_mp
       type(foe_data) :: foe_obj
-      type(fermi_aux) :: f
+      !type(fermi_aux) :: f
       !integer,parameter :: NPL_MAX = 10000
       !integer,parameter :: NPL_STRIDE = 100
       real(mp),dimension(:,:,:),pointer :: chebyshev_polynomials

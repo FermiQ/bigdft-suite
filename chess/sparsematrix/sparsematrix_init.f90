@@ -281,9 +281,9 @@ module sparsematrix_init
       integer,dimension(2,2,nseg),intent(in) :: keyg
       type(sparse_matrix),intent(inout) :: sparsemat
 
-      integer :: ierr, jproc, iorb, jjproc, iiorb, iseq, ind, ii, iseg, ncount
-      integer :: iiseg, i, iel, ilen_seg, ist_seg, iend_seg, ispt, iline, icolumn, iseg_start
-      integer,dimension(:),allocatable :: nseq_per_line, norb_par_ideal, isorb_par_ideal, nout_par, nseq_per_pt
+      integer :: jproc, iorb, iseq, ind, ii, iseg, ncount
+      integer :: iiseg, i, iel, ilen_seg, ist_seg, iend_seg, ispt
+      integer,dimension(:),allocatable :: nseq_per_line, norb_par_ideal, isorb_par_ideal
       integer,dimension(:,:),allocatable :: istartend_dj, istartend_mm
       integer,dimension(:,:),allocatable :: temparr
       integer,dimension(:,:),pointer :: line_and_column, compressed_indices
@@ -292,7 +292,7 @@ module sparsematrix_init
       !logical :: printable
       real(kind=mp),dimension(2) :: rseq_max, rseq_average
       real(kind=mp),dimension(:),allocatable :: rseq_per_line
-      real(mp) :: t1, t2
+      !real(mp) :: t1, t2
 
       call f_routine(id='init_sparse_matrix_matrix_multiplication_new')
 
@@ -892,11 +892,11 @@ module sparsematrix_init
       logical :: init_matmul_
       logical,dimension(:),allocatable :: lut
       integer :: nseg_mult, nvctr_mult, ivctr_mult
-      integer,dimension(:),allocatable :: nsegline_mult, istsegline_mult, is_line, temparr
+      integer,dimension(:),allocatable :: nsegline_mult, istsegline_mult, is_line
       integer,dimension(:,:,:),allocatable :: keyg_mult
       integer,dimension(:),allocatable :: keyv_mult
       logical :: allocate_full_, print_info_, store_index_ !LG: internal variables have the underscore, not the opposite
-      integer(kind=mp) :: ntot
+      !integer(kind=mp) :: ntot
 
       real(kind=4) :: tr0, tr1, trt0, trt1
       real(kind=mp) :: time0, time1, time2, time3, time4, time5, ttime
@@ -1263,7 +1263,6 @@ module sparsematrix_init
       logical,dimension(norbu),intent(inout) :: lut
 
       ! Local variables
-      integer(kind=mp) :: ist, iend, ind
       integer :: i, jjorb, is, ie, itarget, norbmin, norbmax
 
       call f_routine(id='create_lookup_table')
@@ -1407,8 +1406,8 @@ module sparsematrix_init
       integer,dimension(nline),intent(out) :: nseq_per_line
 
       ! Local variables
-      integer :: ipt, iipt, iline, icolumn, nseq_pt, jseg, jorb, ii, iseg_start
-      integer :: ithread, nthread, jj, i, j
+      integer :: ipt, iipt, iline, icolumn, jseg, jorb, ii, iseg_start
+      integer :: ithread, nthread, jj
       integer,dimension(:,:),allocatable :: nseq_per_line_thread!, compressed_index
       !$ integer :: omp_get_thread_num, omp_get_max_threads
 
@@ -1554,7 +1553,7 @@ module sparsematrix_init
       integer,dimension(:,:),pointer :: line_and_column
 
       ! Local variables
-      integer :: i, jj, ii, iseg, iorb, iout, ithread, nn
+      integer :: i, jj, ii, iseg, iorb, ithread, nn
       integer :: isegoffset, istart, iend, nthread
       integer,dimension(:,:),pointer :: ise
       integer,dimension(:,:),allocatable :: line_and_column_all
@@ -1821,8 +1820,8 @@ module sparsematrix_init
       integer,dimension(nseq),intent(out) :: ivectorindex
 
       ! Local variables
-      integer :: ii, ipt, iipt, iline, icolumn, jseg, jorb, itest, ind, iseg_start
-      integer :: ithread, jthread, nthread, i, j
+      integer :: ii, ipt, iipt, iline, icolumn, jseg, jorb, ind, iseg_start
+      integer :: ithread, jthread, nthread
       integer,dimension(:),allocatable :: iiarr
       integer,dimension(:,:),pointer :: ise
       integer,dimension(:,:),allocatable :: ivectorindex_work!, compressed_index
@@ -2119,7 +2118,7 @@ module sparsematrix_init
 
       ! Local variables
       integer :: ii, ipt, iipt, iline, icolumn, jseg, jj, jorb, ind, iseg_start
-      integer :: ithread, jthread, nthread, i, j
+      integer :: ithread, jthread, nthread
       integer,dimension(:),allocatable :: iiarr
       integer,dimension(:,:),pointer :: ise
       integer,dimension(:,:),allocatable :: indices_extract_sequential_work!, compressed_index
@@ -2364,9 +2363,8 @@ module sparsematrix_init
       type(sparse_matrix),intent(out) :: smat
 
       ! Local variables
-      integer :: icol, irow, i, ii
-      integer,dimension(:,:),allocatable :: nonzero
-      logical,dimension(:,:),allocatable :: mat
+      !integer,dimension(:,:),allocatable :: nonzero
+      !logical,dimension(:,:),allocatable :: mat
 
       stop 'must be reworked'
 
@@ -2433,10 +2431,10 @@ module sparsematrix_init
       integer,dimension(:,:,:),intent(in),optional :: keyg_mult
 
       ! Local variables
-      integer :: icol, irow, i, ii, iseg, nspin_,i_none
+      integer :: nspin_,i_none
       !integer :: ncolpx
       integer,dimension(:,:),allocatable :: nonzero, nonzero_mult
-      logical,dimension(:,:),allocatable :: mat
+      !logical,dimension(:,:),allocatable :: mat
       logical :: init_matmul_
       character(len=1) :: geocode_
       real(kind=mp),dimension(3) :: cell_dim_
@@ -2864,7 +2862,7 @@ module sparsematrix_init
       type(sparse_matrix),intent(inout) :: smat
       !local variables    
       logical :: found
-      integer :: iiseg1, iiseg2, iorb, jorb,iseg
+      integer :: iiseg1, iiseg2, iseg
 
       ! Store these values
       smat%istartend_t(1) = ind_min
@@ -3220,22 +3218,22 @@ module sparsematrix_init
       integer,dimension(2),intent(in),optional :: iirow, iicol
 
       ! Local variables
-      integer :: ipt, ii, i0, i0i, iiorb, j, i0j, jjorb, ind, ind_min, ind_max, iseq
+      integer :: ii, ind_min, ind_max
       integer :: ntaskgroups, jproc, itaskgroups
-      integer :: nfvctrp, isfvctr, isegstart, isegend, jorb, istart, iend, iistg, iietg, itg
+      integer :: istart, iend, iistg, iietg, itg
       integer, dimension(:,:), allocatable :: iuse_startend, itaskgroups_startend
       integer, dimension(:), allocatable :: tasks_per_taskgroup
-      integer :: ntaskgrp_calc, ntaskgrp_use, i, ncount, iitaskgroup, group, ierr, iitaskgroups, newgroup, iseg
+      integer :: ntaskgrp_calc, ntaskgrp_use, i, ncount, iitaskgroup, group, ierr, iitaskgroups, iseg
       !logical :: go_on
       integer,dimension(:,:),allocatable :: in_taskgroup
       integer :: iproc_start, iproc_end, imin, imax, niter
       logical :: found, found_start, found_end
       !integer :: jstart, kkproc, kproc, jend, lproc, llproc
       !integer :: iprocstart_current, iprocend_current, iprocend_prev, iprocstart_next
-      integer :: irow, icol, inc, ist, ind_min1, ind_max1, nloop
+      integer :: irow, icol, inc, ist, ind_min1, ind_max1
       integer,dimension(:),pointer :: isvctr_par, nvctr_par
       logical, parameter :: print_full=.false.
-      integer,dimension(:),pointer :: moduloarray
+      !integer,dimension(:),pointer :: moduloarray
 
 
       call f_routine(id='init_matrix_taskgroups')
@@ -4439,7 +4437,7 @@ module sparsematrix_init
     
       ! Local variables
       integer,dimension(:),allocatable :: nvctr_per_segment, nsegline, istsegline, keyv
-      integer,dimension(:,:),pointer :: nonzero
+      !integer,dimension(:,:),pointer :: nonzero
       integer,dimension(:,:,:),allocatable :: keyg
       logical :: symmetric
 
@@ -4793,11 +4791,11 @@ module sparsematrix_init
       logical,dimension(:),intent(in),optional :: init_matmul_extra
       type(sparse_matrix),dimension(:),intent(out),optional :: smat_extra
       ! Local variables
-      integer :: itotal, idum, ivctr, ii, jj, it
+      integer :: idum, ii, jj, it
       real(kind=mp) :: tt
       real(kind=4) :: tt_rand
-      integer :: nnonzero, inonzero, nnonzero_buf_mult, i, j, imod, jmod, iextra, nextra_
-      integer,dimension(:,:),allocatable :: nonzero, nonzero_check, nonzero_buf_mult
+      integer :: nnonzero, inonzero, nnonzero_buf_mult, iextra, nextra_
+      integer,dimension(:,:),allocatable :: nonzero, nonzero_buf_mult
       integer,dimension(:),allocatable :: nnonzero_extra
       integer,dimension(:,:,:),allocatable :: nonzero_extra
       logical :: calc_nextra
@@ -5016,7 +5014,7 @@ module sparsematrix_init
       integer,intent(inout) :: nnonzero_buf
       integer,dimension(2,(nvctr+1)*(2*nbuf+1)**2),intent(inout) :: nonzero_buf
       ! Local variables
-      integer :: i, imod, j, jmod, inonzero, iflag, nnonzero_new, icheck, ij, iji, ijj
+      integer :: i, imod, j, jmod, inonzero, nnonzero_new, icheck, ij
       integer :: ithread, nthread, is_thread, nit_thread, is_task, nit_task
       integer,dimension(:),allocatable :: imodarr, jmodarr
       integer,dimension(:,:),allocatable :: nonzero_new, ijarr
@@ -5285,7 +5283,7 @@ module sparsematrix_init
      type(sparse_matrix),intent(in) :: smat
      character(len=*),intent(in) :: matrixname
      ! Local variables
-     integer :: itaskgroups, itg
+     integer :: itaskgroups
      integer(kind=8) :: ntot
 
      call yaml_mapping_open(trim(matrixname))
@@ -5332,8 +5330,8 @@ module sparsematrix_init
      integer,dimension(2,nvctr),intent(out) :: nonzero
 
      ! Local variables
-     integer :: iseg, i, ii, irow, icol
-     logical,dimension(:,:),allocatable :: mat
+     integer :: iseg, i, ii
+     !logical,dimension(:,:),allocatable :: mat
 
      !!mat = f_malloc((/ncol,ncol/),id='mat')
      !!mat = .false.
@@ -5583,7 +5581,7 @@ module sparsematrix_init
       type(sparse_matrix),intent(in) :: smat
       integer,intent(inout) :: ind_min, ind_max
 
-      integer :: ii, natp, jj, isat, kat, iatold, kkat, i, iat, j, ind
+      integer :: ii, natp, jj, isat, kat, iatold, kkat, i, j, ind
       integer,dimension(:),allocatable :: orbs_atom_id
       integer,dimension(:),allocatable :: neighbor_id
       integer,parameter :: ntmb_max = 16 !maximal number of TMBs per atom
@@ -5798,7 +5796,7 @@ module sparsematrix_init
       type(sparse_matrix),dimension(nmat),intent(inout) :: smat
       integer,dimension(2,nmat),intent(in),optional :: ind_minmax
       ! Local variables
-      integer :: imat, imin_smat, imax_smat
+      integer :: imat
       integer,dimension(2) :: irow_minmax, icol_minmax
       integer,dimension(2) :: irow_smat, icol_smat
       integer,dimension(:,:),allocatable :: ind_minmax_smat
