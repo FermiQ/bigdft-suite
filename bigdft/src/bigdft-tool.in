@@ -334,6 +334,8 @@ def parse():
     group.add_option("--output_file", type="string", default='kernel_analysis.dat', metavar="KERNEL_ANALYSIS",)
     group.add_option("--output_bins_file", type="string", default='kernel_analysis_bins.dat', metavar="KERNEL_ANALYSIS",)
     group.add_option("--nbin", type="int", default='200', metavar="NUM",)
+    group.add_option("--frag_elements_start", type="int", default=1, metavar="NUM",)
+    group.add_option("--frag_elements_end", type="int", default=1000, metavar="NUM",)
 
     return parser
 
@@ -1197,7 +1199,7 @@ options:
         command = "%s %s analyze-density-matrix-dense %s %s %s %i %s %s %s" % (options.mpirun, chess_toolbox, options.matrix_format, options.metadata_file, options.kernel_file, options.nbin, options.output_file, options.output_bins_file, options.only_binned_values)
         print command
     if options.action == "find-fragments":
-        command = "%s %s find-fragments %s %s %s %s %s" % (options.mpirun, chess_toolbox, options.matrix_format, options.metadata_file, options.overlap_file, options.kernel_file, options.kernel_matmul_file)
+        command = "%s %s find-fragments %s %s %s %s %s %i %i" % (options.mpirun, chess_toolbox, options.matrix_format, options.metadata_file, options.overlap_file, options.kernel_file, options.kernel_matmul_file, options.frag_elements_start, options.frag_elements_end)
         print command
     if command is not None:
         os.system(command)

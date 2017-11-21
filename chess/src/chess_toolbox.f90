@@ -299,6 +299,7 @@ program chess_toolbox
    character(len=128) :: line, cc, output_pdos, conversion, infile, outfile, iev_min_, iev_max_, fscale_, matrix_basis
    character(len=128) :: ihomo_state_, homo_value_, lumo_value_, smallest_value_, largest_value_, scalapack_blocksize_, kT_
    character(len=128) :: accuracy_entropy_, nbin_, itype_, only_evals_, only_binned_values_
+   character(len=128) :: frag_elements_start_, frag_elements_end_
    !!character(len=128),dimension(-lmax:lmax,0:lmax) :: multipoles_files
    character(len=128) :: kernel_matmul_file, fragment_file, manipulation_mode, diag_algorithm
    logical :: multipole_analysis = .false.
@@ -366,6 +367,7 @@ program chess_toolbox
    real(kind=8) :: epsfcn, gtol, xtol, ftol, charge, purity_indicator
    logical,dimension(:),allocatable :: in_frag, nat_in_frag, at_assigned
    integer :: maxfev, nfev, info, iflag, maxfrag, iel, ifound, nfrag, nfragmax, nfragfound
+   integer :: frag_elements_start, frag_elements_end
    logical :: weights_integer, atom_complete
    !external :: fcn_fragments
    ! Presumably well suited colorschemes from colorbrewer2.org
@@ -787,6 +789,12 @@ program chess_toolbox
             call get_command_argument(i_arg, value = kernel_file)
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = kernel_matmul_file)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = frag_elements_start_)
+            read(frag_elements_start_,fmt=*,iostat=ierr) frag_elements_start
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = frag_elements_end_)
+            read(frag_elements_end_,fmt=*,iostat=ierr) frag_elements_end
             find_fragments = .true.
          end if
          i_arg = i_arg + 1
@@ -2286,7 +2294,7 @@ program chess_toolbox
 
        ! Solve the overdetermined system in a least-square sense
 
-       maxfrag = 12
+       maxfrag = 4 !12
 
        call set_N(smat(1)%nfvctr)
        call set_maxfrag(maxfrag)
@@ -2297,10 +2305,10 @@ program chess_toolbox
        in_frag = f_malloc(smat(1)%nfvctr,id='in_frag')
        nat_in_frag = f_malloc(smmd%nat,id='nat_in_frag')
 
-       ftol = 1.e-6_mp
-       xtol = 1.e-6_mp
-       gtol = 1.e-6_mp
-       maxfev = 100000
+       ftol = 1.e-5_mp
+       xtol = 1.e-5_mp
+       gtol = 1.e-5_mp
+       maxfev = 10000
        epsfcn = 1.e-10_mp
        diag = f_malloc(smat(1)%nfvctr, id='diag')
        ipvt = f_malloc(smat(1)%nfvctr, id='ipvt')
@@ -2325,10 +2333,24 @@ program chess_toolbox
 
        nfragfound = 0
 
-       do iel=1,smat(1)%nfvctr
+       if (frag_elements_start<1) then
+           frag_elements_start = 1
+           if (iproc==0) then
+               call yaml_warning('frag_elements_start is to small, adjusting to: '//trim(yaml_toa(frag_elements_start)))
+           end if
+       end if
+       if (frag_elements_end>smat(1)%nfvctr) then
+           frag_elements_end = smat(1)%nfvctr
+           if (iproc==0) then
+               call yaml_warning('frag_elements_end is to large, adjusting to: '//trim(yaml_toa(frag_elements_end)))
+           end if
+       end if
+
+       do iel=frag_elements_start,frag_elements_end
            call set_nel(iel)
            ifound = 0
            call set_ifound(ifound)
+           call yaml_comment('Searching fragment with '//trim(yaml_toa(iel))//' elements')
            do i=1,maxfrag
                !ii = i + 1
                ii = ifound + 2
