@@ -817,7 +817,7 @@ module foe
 
       !if (iproc==0) call yaml_map('S^-1/2','recalculate')
       if (itype==1) then
-          call overlap_plusminus_onehalf('plus', 'ICE', iproc, nproc, comm, smats, smatl, ovrlp_, ovrlp_minus_one_half_, &
+          call overlap_plusminus_onehalf('minus', 'ICE', iproc, nproc, comm, smats, smatl, ovrlp_, ovrlp_minus_one_half_, &
               verbosity=0) !has internal timer
           ham_eff%matrix_compr => ham_%matrix_compr
           idiag = 2
