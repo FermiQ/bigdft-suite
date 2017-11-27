@@ -1420,7 +1420,8 @@ module get_basis
       ! Local variables
       integer :: iorb, iiorb, ilr, ncount, ierr, ist, ncnt, istat, iall, ii, jjorb, i
       integer :: lwork, info, ishift,ispin, iseg, request
-      real(kind=8) :: ddot, tt, fnrmOvrlp_tot, fnrm_tot, fnrmold_tot, tt2, trkw, trH_sendbuf
+      real(kind=8),dimension(2) :: trH_sendbuf, trH_recvbuf
+      real(kind=8) :: ddot, tt, fnrmOvrlp_tot, fnrm_tot, fnrmold_tot, tt2, trkw, trH_direct
       real(kind=8), dimension(:), pointer :: hpsittmp_c, hpsittmp_f
       real(kind=8), dimension(:), allocatable :: hpsi_conf, hpsit_c_orig, hpsit_f_orig
       real(kind=8), dimension(:), pointer :: kernel_compr_tmp
@@ -1577,7 +1578,7 @@ module get_basis
            hpsit_c, hpsit_f, hpsit_c_orig, hpsit_f_orig, &
            tmb%ham_descr%can_use_transposed, &
            overlap_calculated, calculate_inverse, norder_taylor, max_inversion_error, &
-           tmb%npsidim_orbs, tmb%lzd, hpsi_noprecond, wt_philarge, wt_hphi)
+           tmb%npsidim_orbs, tmb%lzd, hpsi_noprecond, wt_philarge, wt_hphi, trH_direct)
 
       call f_free(hpsit_c_orig)
       call f_free(hpsit_f_orig)
@@ -1783,7 +1784,13 @@ module get_basis
       ! trH is now the total energy (name is misleading, correct this)
       ! Multiply by 2 because when minimizing trace we don't have kernel
       if(tmb%orbs%nspin==1 .and. target_function==TARGET_FUNCTION_IS_TRACE) trH=2.d0*trH
-      if (iproc==0) call yaml_map('Omega old',trH)
+      if (iproc==0) then
+          call yaml_mapping_open('Tr(H)')
+          call yaml_map('Tr(<phi_alpha|g^beta>)',trH_direct)
+          call yaml_map('Tr(S^-1<phi_alpha|S|phi^beta>)',trH)
+          call yaml_map('relative difference',abs((trH_direct-trH)/trH),fmt='(es9.2)')
+          call yaml_mapping_close()
+      end if
       !!if (iproc==0) write(*,'(a,6es17.8)') 'eh, exc, evxc, eexctX, eion, edisp', &
       !!    energs%eh,energs%exc,energs%evxc,energs%eexctX,energs%eion,energs%edisp
       trH=trH-energs%eh+energs%exc-energs%evxc-energs%eexctX+energs%eion+energs%edisp
@@ -1984,10 +1991,11 @@ module get_basis
           call timing(iproc,'calctrace_comp','OF')
           call timing(iproc,'calctrace_comm','ON')
           if (nproc>1) then
-              trH_sendbuf = trH
               !call mpiiallred(trH_sendbuf, trH, 1, FMPI_SUM, bigdft_mpi%mpi_comm, request)
-              call fmpi_allreduce(sendbuf=trH_sendbuf,recvbuf=trH,&
-                   count=1,op=FMPI_SUM,comm=bigdft_mpi%mpi_comm, request=request)
+              trH_sendbuf(1) = trH
+              trH_sendbuf(2) = trH_direct
+              call fmpi_allreduce(sendbuf=trH_sendbuf,recvbuf=trH_recvbuf,&
+                   op=FMPI_SUM,comm=bigdft_mpi%mpi_comm, request=request)
           end if
           call timing(iproc,'calctrace_comm','OF')
     
@@ -2006,6 +2014,8 @@ module get_basis
           call timing(iproc,'calctrace_comm','ON')
           if (nproc>1) then
               call mpiwait(request)
+              trH = trH_recvbuf(1)
+              trH_direct = trH_recvbuf(2)
           end if
           call timing(iproc,'calctrace_comm','OF')
     

@@ -565,7 +565,7 @@ module orthonormalization
                correction_orthoconstraint, linmat, lphi, lhphi, lagmat, lagmat_aux, lagmat_, psit_c, psit_f, &
                hpsit_c, hpsit_f, hpsit_c_orig, hpsit_f_orig, &
                can_use_transposed, overlap_calculated, calculate_inverse, norder_taylor, max_inversion_error, &
-               npsidim_orbs_small, lzd_small, hpsi_noprecond, wt_philarge, wt_hphi)
+               npsidim_orbs_small, lzd_small, hpsi_noprecond, wt_philarge, wt_hphi, trH_direct)
       use module_base
       use module_types
       use yaml_output
@@ -613,9 +613,10 @@ module orthonormalization
       real(kind=8),dimension(npsidim_orbs_small),intent(out) :: hpsi_noprecond
       type(work_transpose),intent(inout) :: wt_philarge
       type(work_transpose),intent(out) :: wt_hphi
+      real(kind=8),intent(out) :: trH_direct
     
       ! Local variables
-      real(kind=8) :: max_error, mean_error, trH
+      real(kind=8) :: max_error, mean_error
       real(kind=8),dimension(:),allocatable :: tmp_mat_compr, hpsit_tmp_c, hpsit_tmp_f, hphi_nococontra
       integer,dimension(:),allocatable :: ipiv
       type(matrices),dimension(1) :: inv_ovrlp_
@@ -670,14 +671,14 @@ module orthonormalization
       ! Calculate <phi_alpha|g^beta>
       call calculate_overlap_transposed(iproc, nproc, orbs, collcom, &
            psit_c, hpsit_c_orig, psit_f, hpsit_f_orig, lagmat, lagmat_aux, lagmat_)
-      trH=0.d0
+      trH_direct=0.d0
       do iorb=1,lagmat%nfvctrp
          iiorb=lagmat%isfvctr+iorb
          ii=matrixindex_in_compressed(lagmat,iiorb,iiorb)
-         trH = trH + lagmat_%matrix_compr(ii-lagmat%isvctrp_tg)
+         trH_direct = trH_direct + lagmat_%matrix_compr(ii-lagmat%isvctrp_tg)
       end do
-      call fmpi_allreduce(trH, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
-      if (iproc==0) call yaml_map('Omega new',trH)
+      !call fmpi_allreduce(trH_direct, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+      !if (iproc==0) call yaml_map('Tr(<phi_alpha|g^beta>)',trH_direct)
       !############################################################################
     
 
