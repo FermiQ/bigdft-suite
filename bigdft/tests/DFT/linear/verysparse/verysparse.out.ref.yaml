@@ -1717,6 +1717,7 @@
   #-------------------------------- Warnings obtained during the run, check their relevance!
  WARNINGS:
  - Projectors too rough: Consider modifying hgrid and/or the localisation radii.
+ - Inconsistency in Tr(H), check your cutoff radii
  - target function larger than its minimal value reached so far, D= 2.479E+00
  - use a fake value for kappa
  - The support function localization radii might be too small, got 392 warnings
