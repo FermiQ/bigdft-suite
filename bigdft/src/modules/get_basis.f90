@@ -1795,7 +1795,7 @@ module get_basis
           tt = abs((trH_direct-trH)/trH)
           call yaml_map('rel diff',tt,fmt='(es9.2)')
           call yaml_mapping_close()
-          if (tt>1.d-6) then
+          if (tt>1.d-5) then
               call yaml_warning('Inconsistency in Tr(H), check your cutoff radii')
           end if
       end if
