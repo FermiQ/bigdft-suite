@@ -1783,13 +1783,21 @@ module get_basis
     
       ! trH is now the total energy (name is misleading, correct this)
       ! Multiply by 2 because when minimizing trace we don't have kernel
-      if(tmb%orbs%nspin==1 .and. target_function==TARGET_FUNCTION_IS_TRACE) trH=2.d0*trH
+      if(tmb%orbs%nspin==1 .and. target_function==TARGET_FUNCTION_IS_TRACE) then
+          trH=2.d0*trH
+          trH_direct=2.d0*trH_direct
+      end if
       if (iproc==0) then
+          call yaml_newline()
           call yaml_mapping_open('Tr(H)')
-          call yaml_map('Tr(<phi_alpha|g^beta>)',trH_direct)
-          call yaml_map('Tr(S^-1<phi_alpha|S|phi^beta>)',trH)
-          call yaml_map('relative difference',abs((trH_direct-trH)/trH),fmt='(es9.2)')
+          call yaml_map('Tr(<phi|H|phi>)',trH_direct,fmt='(es18.11)')
+          call yaml_map('Tr(S^-1<phi|SH|phi>)',trH,fmt='(es18.11)')
+          tt = abs((trH_direct-trH)/trH)
+          call yaml_map('rel diff',tt,fmt='(es9.2)')
           call yaml_mapping_close()
+          if (tt>1.d-6) then
+              call yaml_warning('Inconsistency in Tr(H), check your cutoff radii')
+          end if
       end if
       !!if (iproc==0) write(*,'(a,6es17.8)') 'eh, exc, evxc, eexctX, eion, edisp', &
       !!    energs%eh,energs%exc,energs%evxc,energs%eexctX,energs%eion,energs%edisp
