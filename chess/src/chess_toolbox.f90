@@ -288,6 +288,7 @@ program chess_toolbox
    use highlevel_wrappers, only: calculate_eigenvalues, solve_eigensystem_lapack
    use foe, only: overlap_plusminus_onehalf, calculate_entropy_term
    use fragment_functions
+   use minpack
    implicit none
    external :: gather_timings
    character(len=*), parameter :: subname='utilities'
@@ -2366,7 +2367,7 @@ program chess_toolbox
                call fcn_fragments(smat(1)%nfvctr+ii, smat(1)%nfvctr, weights, fvec, iflag)
                !write(*,*) 'weights', weights
                !write(*,*) 'fvec', fvec
-               call lmdif(fcn_fragments, smat(1)%nfvctr+ii, smat(1)%nfvctr, weights, fvec, ftol, xtol, gtol, &
+               call lmdif_wrapper(fcn_fragments, smat(1)%nfvctr+ii, smat(1)%nfvctr, weights, fvec, ftol, xtol, gtol, &
                     maxfev, epsfcn, diag, 1, 100._mp, 1, info, nfev, &
                     fjac, smat(1)%nfvctr+maxfrag+1, ipvt, qtf, &
                     wa1, wa2, wa3, wa4)
