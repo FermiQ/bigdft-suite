@@ -22,7 +22,7 @@ module minpack
       real(kind=8),dimension(m),intent(inout) :: wa4
       external :: fcn
 
-      call lmdif_wrapper(fcn,m,n,x,fvec,ftol,xtol,gtol,maxfev,epsfcn, &
+      call lmdif(fcn,m,n,x,fvec,ftol,xtol,gtol,maxfev,epsfcn, &
            diag,mode,factor,nprint,info,nfev,fjac,ldfjac, &
            ipvt,qtf,wa1,wa2,wa3,wa4)
 
