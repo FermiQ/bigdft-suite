@@ -1779,6 +1779,7 @@ module get_basis
           (target_function==TARGET_FUNCTION_IS_ENERGY .or. target_function==TARGET_FUNCTION_IS_HYBRID)) then
           if (iproc==0) call yaml_warning('divide the band stucture energy by 2.0, check this!')
           trH=0.5d0*trH
+          trH_direct=0.5d0*trH_direct
       end if
     
       ! trH is now the total energy (name is misleading, correct this)
