@@ -672,8 +672,8 @@ module orthonormalization
       call calculate_overlap_transposed(iproc, nproc, orbs, collcom, &
            psit_c, hpsit_c_orig, psit_f, hpsit_f_orig, lagmat, lagmat_aux, lagmat_)
       trH_direct=0.d0
-      do iorb=1,lagmat%nfvctrp
-         iiorb=lagmat%isfvctr+iorb
+      do iorb=1,orbs%norbp
+         iiorb=orbs%isorb+iorb
          ii=matrixindex_in_compressed(lagmat,iiorb,iiorb)
          trH_direct = trH_direct + lagmat_%matrix_compr(ii-lagmat%isvctrp_tg)
       end do

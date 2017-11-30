@@ -1494,6 +1494,8 @@ module get_basis
           !hpsit_f=2.d0*hpsit_f
           call vscal(tmb%ham_descr%collcom%ndimind_c, 2.d0, hpsit_c(1), 1)
           call vscal(7*tmb%ham_descr%collcom%ndimind_f, 2.d0, hpsit_f(1), 1)
+          call vscal(tmb%ham_descr%collcom%ndimind_c, 2.d0, hpsit_c_orig(1), 1)
+          call vscal(7*tmb%ham_descr%collcom%ndimind_f, 2.d0, hpsit_f_orig(1), 1)
       end if
     
     
