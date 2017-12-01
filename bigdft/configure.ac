@@ -202,6 +202,11 @@ AX_LIBGAIN()
 AX_ARCHIVE()
 AX_AMBERTOOLS()
 AX_ALBORZ()
+dnl we might think of inserting this option in the suitepkg.m4 file
+ax_have_OPENBABEL_search="yes"
+AC_ARG_ENABLE(openbabel, AS_HELP_STRING([--enable-openbabel], [Enable detection of openbabel compilation (enabled by default).]),
+			 ax_have_OPENBABEL_search=$enableval, ax_have_OPENBABEL_search="yes")
+if test x"$ax_have_OPENBABEL_search" = "xyes" ; then
 AX_PACKAGE([OPENBABEL],[2.0],[-lopenbabel],[],[],
            [
 #include <openbabel/obmolecformat.h>
@@ -220,6 +225,9 @@ int main(int argc, char **argv)
 ],
            [OpenBabel::OBConversion conv],
            [C++], [openbabel-2.0])
+else
+  ax_have_OPENBABEL="no"
+fi
 AM_CONDITIONAL(HAVE_OPENBABEL, test $ax_have_OPENBABEL = "yes")
 dnl PEXSI
 AC_ARG_WITH(pexsi, AS_HELP_STRING([--with-pexsi],

@@ -1440,6 +1440,27 @@ module bounds
  
     end function locreg_mesh_origin
 
+!!$    pure function locreg_mesh_origin(mesh) result(or)
+!!$      use box, only: cell,cell_r,cell_periodic_dims
+!!$      use module_defs, only: gp
+!!$      implicit none
+!!$      type(cell), intent(in) :: mesh
+!!$      real(gp), dimension(3) :: or
+!!$      !local variables
+!!$      logical, dimension(3) :: peri
+!!$      integer :: nbli,nbri,i
+!!$
+!!$      !buffers associated to the geocode
+!!$      !conditions for periodicity in the three directions
+!!$      peri=cell_periodic_dims(mesh)
+!!$      do i=1,3
+!!$         call ext_buffers(peri(i),nbli,nbri)
+!!$         or(i)=cell_r(mesh,nbli+1,dim=i)
+!!$      end do
+!!$
+!!$    end function locreg_mesh_origin
+
+
     !> return the shapes of the localisation region
     !!useful to allocate the array psifscf
     pure function locreg_mesh_shape(mesh,highres) result(ndims)

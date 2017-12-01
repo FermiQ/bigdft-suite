@@ -720,41 +720,10 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
      end if
 
      select case (in%lin%scf_mode)
-!!$     case (LINEAR_DIRECT_MINIMIZATION)
-!!$         ! still do a density mixing, maybe  to be modified later
-!!$         if (in%lin%mixHist_lowaccuracy==0) then
-!!$             ! simple mixing
-!!$             linear_iscf = 12
-!!$         else
-!!$             ! Pulay mixing
-!!$             linear_iscf = 17
-!!$         end if
-!!$     case (LINEAR_MIXDENS_SIMPLE)
-!!$         if (in%lin%mixHist_lowaccuracy==0) then
-!!$             ! simple mixing
-!!$             linear_iscf = 12
-!!$         else
-!!$             ! Pulay mixing
-!!$             linear_iscf = 17
-!!$         end if
      case (LINEAR_MIXPOT_SIMPLE)
-!!$         if (in%lin%mixHist_lowaccuracy==0) then
-!!$             ! simple mixing
-!!$             linear_iscf = 2
-!!$         else
-!!$             ! Pulay mixing
-!!$             linear_iscf = 7
-!!$         end if
         call f_enum_attr(linear_iscf,POT_MIX_ENUM)
      case (LINEAR_FOE,LINEAR_PEXSI,LINEAR_DIRECT_MINIMIZATION,&
           LINEAR_MIXDENS_SIMPLE)
-!!$         if (in%lin%mixHist_lowaccuracy==0) then
-!!$             ! simple mixing
-!!$             linear_iscf = 12
-!!$         else
-!!$             ! Pulay mixing
-!!$             linear_iscf = 17
-!!$         end if
         call f_enum_attr(linear_iscf,DEN_MIX_ENUM)
      case default
          stop 'ERROR: wrong in%lin%scf_mode'

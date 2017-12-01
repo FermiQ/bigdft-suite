@@ -396,6 +396,7 @@ class TimeData:
     self.static = kwargs.get('static',False)
     self.fontsize=kwargs.get('fontsize',15)
     self.nokey=kwargs.get('nokey',False)
+    self.strong_scaling=kwargs.get('strong_scaling',True)
     counter=kwargs.get('counter','WFN_OPT') #the default value, to be customized
     if counter in self.counters(): 
       self.inspect_counter(counter)
@@ -417,32 +418,30 @@ class TimeData:
     for doc in self.log:
         if doc is None: continue
         scf=doc.get(main)
-        if scf is not None:
-            self.scf.append(scf)
-            self.routines.append(doc.get("Routines timing and number of calls"))
-            self.hostnames.append(doc.get("Hostnames"))
-            self.unbalancings.append(True)
-            loclass=scf["Classes"].keys()
-            if 'Total' in loclass: 
-              self.totals.append(scf["Classes"]["Total"][1])
-            for cs in loclass:
-              if cs not in self.classes and cs != "Total": self.classes.append(cs)
-              if len(scf["Classes"][cs]) == 2: self.unbalancings[-1]=False
-            if "Run name" in doc:
-                self.ids.append(doc["Run name"])
-            else:
-                mpit=doc.get("CPU parallelism")
-                if mpit is not None:
-                  mpi=mpit.get('MPI tasks')
-                  omp=mpit.get('OMP threads')
-                  title=str(mpi) if omp is None else str(mpi)+'-'+str(omp)
-                  self.ids.append(title)
-                  ncores=mpi
-                  if omp is not None: ncores*=omp
-                else:
-                  self.ids.append("Unknown")
-                  ncores=0.0
-                self.ncores.append(ncores)
+        if scf is None: continue
+        self.scf.append(scf)
+        self.routines.append(doc.get("Routines timing and number of calls"))
+        self.hostnames.append(doc.get("Hostnames"))
+        self.unbalancings.append(True)
+        loclass=scf["Classes"].keys()
+        if 'Total' in loclass: 
+          self.totals.append(scf["Classes"]["Total"][1])
+        for cs in loclass:
+          if cs not in self.classes and cs != "Total": self.classes.append(cs)
+          if len(scf["Classes"][cs]) == 2: self.unbalancings[-1]=False
+        mpit=doc.get("CPU parallelism")
+        title=doc.get("Run name","Unknown")
+        if mpit is not None:
+            mpi=mpit.get('MPI tasks')
+            omp=mpit.get('OMP threads')
+            if title is None: 
+              title=str(mpi) if omp is None else str(mpi)+'-'+str(omp)
+            ncores=mpi
+            if omp is not None: ncores*=omp
+        else:
+            ncores=0.0
+        self.ids.append(title)
+        self.ncores.append(ncores)
     self.classes.sort()
     self.classes.append("Unknown") #an evergreen
     #self.classes=["Communications","Convolutions","BLAS-LAPACK","Linear Algebra",
@@ -478,12 +477,7 @@ class TimeData:
   def show(self):
     self.figures.show()
 
-  def draw_barfigure(self,fig,axis,data,title):
-    import numpy as np
-    from matplotlib.widgets import RadioButtons,Button
-    import matplotlib.pyplot as plt
-    if self.static: fig.patch.set_facecolor("white")
-    self._draw_barplot(axis,data[0],self.vals,title=title,nokey=self.nokey)
+  def _strong_scaling_lines(self,data,axis):
     totals=data[1]
     ref=totals[0] # the reference value is assumed to be the first
     coreref=float(self.ncores[0])
@@ -495,7 +489,19 @@ class TimeData:
       label='Parallel Efficiency'
       dataline=[ (ref/b)/(c/coreref)  for b,c in zip(totals,self.ncores)]
     self.draw_lineplot(axis.twin,dataline,label)
+      
+
+  def draw_barfigure(self,fig,axis,data,title):
+    import numpy as np
+    from matplotlib.widgets import RadioButtons,Button
+    import matplotlib.pyplot as plt
+    if self.static: fig.patch.set_facecolor("white")
+    #write the plot in the axis
+    self._draw_barplot(axis,data[0],self.vals,title=title,nokey=self.nokey)
+    #add the lines useful for a strong scaling test
+    if self.strong_scaling: self._strong_scaling_lines(data,axis)
     #if self.vals == 'Percent': axis.set_yticks(np.arange(0,100,10))
+    #then add buttons to the plot
     if self.radio is None and not self.static:
       self.radio = RadioButtons(plt.axes([0.0, 0.75, 0.08, 0.11], axisbg='lightgoldenrodyellow'), ('Seconds', 'Percent'),
                                 active=1 if self.vals=='Percent' else 0)
@@ -622,7 +628,76 @@ class TimeData:
         break
     #print 'category',category
     if category is not None and category != "Unknown": self.inspect_category(category)  
-    
+  def _barplot_gnuplot(self,data,ids,lookup=None):
+      import Gnuplot
+      import numpy as np
+      gpdata=[]
+      for cat,dat in data:
+        #gpdata.append(Gnuplot.Data(np.arange(len(dat)),dat,title=cat))
+        lup=np.arange(len(dat)) if lookup is None else lookup
+        toplt=[dat[0]]+dat[lup].tolist()
+        gpdata.append(Gnuplot.Data(toplt,title=cat))
+      names=[ids[i] for i in lup]
+      return gpdata,names
+
+  def _aggregate_names(self,data,list_agg):
+    """ 
+    Aggregate the names of the plot in some different categories
+    the structure of dict_agg should ba a list of tuples 
+    (newkey ,[list of oldkeys])
+    between the original keys and the desired keys
+    """
+    newdata={newkey: 0.0 for newkey,oldkeys in list_agg}
+    for cat,dat in data:
+      found=False
+      for newkey,oldkeys in list_agg:
+        if cat in oldkeys:
+          newdata[newkey]+=dat
+          found=True
+          break
+      if not found: newdata[cat]=dat
+    result=[]
+    for newkeys,oldkeys in list_agg:
+      result.append((newkeys,newdata.pop(newkeys)))
+    for newkeys in newdata:
+      result.append((newkeys,newdata[newkeys]))
+    return result
+
+  def gnuplot_figure(self,lookup=None,epsfile=None,aggregate=None):
+      import Gnuplot,numpy as np
+      data=self.collect_categories(self.scf,self.vals)
+      dataplot=data[0] if aggregate is None else self._aggregate_names(data[0],aggregate)
+      gpdata,names=self._barplot_gnuplot(dataplot,self.ids,lookup)
+      gp=Gnuplot.Gnuplot()
+      gp("""
+set style fill  pattern 1 border -1
+set style rectangle back fc  lt -3 fillstyle  solid 1.00 border -1
+set key title ""
+set key outside right bottom vertical Left reverse enhanced autotitles columnhead nobox
+set key invert samplen 4 spacing 1 width 0 height 0
+set style increment default
+unset style line
+unset style arrow
+set style histogram rowstacked title  offset character 0, 0, 0
+set pointsize 1
+set style data histograms
+set style function lines
+set ytics border in scale 1,0.5 nomirror norotate  offset character 0, 0, 0
+set ytics autofreq
+set y2tics border in scale 1,0.5 nomirror norotate  offset character 0, 0, 0
+set y2tics autofreq
+""")
+      gp('set xrange [-1:'+str(len(names))+']')
+      if self.vals=='Percent': gp('set yrange [0:100]')
+      gp('set xtics add (" " -1)')
+      for i,xtic in enumerate(names):
+        gp('set xtics add ("'+str(xtic)+'" '+str(i)+') rotate by 45 right')
+      gp('set xtics add (" " '+str(len(names))+')')
+      gp.ylabel(self.vals)
+      gp.plot(*gpdata)
+      if epsfile is not None: gp.hardcopy(filename=epsfile,eps=True,enhanced=True,color=True)
+      return gp
+
   def _draw_barplot(self,axbars,data,vals,title='Time bar chart',static=False,nokey=False):
     import numpy as np
     from pylab import cm as cm
@@ -645,7 +720,8 @@ class TimeData:
     axbars.set_xticks(ind+width/2.)
     axbars.set_xticklabels(np.array(self.ids),size=self.fontsize)
     if not nokey:
-      self.leg = axbars.legend(loc='upper right',fontsize=self.fontsize)
+      #self.leg = axbars.legend(loc='upper right',fontsize=self.fontsize)
+      self.leg = axbars.legend(loc='best',fontsize=self.fontsize)
       self.leg.get_frame().set_alpha(0.4)  
     #treat the totals differently
     return bot
