@@ -32,6 +32,8 @@ module foe
   !> Public routines
   public :: fermi_operator_expansion_new
   public :: get_selected_eigenvalues
+  public :: calculate_entropy_term
+  public :: overlap_plusminus_onehalf
 
   contains
 
@@ -46,7 +48,7 @@ module foe
       use sparsematrix, only: compress_matrix, uncompress_matrix, &
                               transform_sparsity_pattern, compress_matrix_distributed_wrapper, &
                               trace_sparse_matrix_product, symmetrize_matrix, max_asymmetry_of_matrix, &
-                              trace_sparse_matrix
+                              trace_sparse_matrix, transform_sparse_matrix
       use foe_base, only: foe_data, foe_data_set_int, foe_data_get_int, foe_data_set_real, foe_data_get_real, &
                           foe_data_get_logical
       use fermi_level, only: fermi_aux, init_fermi_level, determine_fermi_level, &
@@ -58,6 +60,8 @@ module foe
                             calculate_trace_distributed_new, get_bounds_and_polynomials
       use module_func
       use dynamic_memory
+      use ice, only: calculate_fermi_function_entropy
+      use wrapper_linalg, only: vscal, axpy
       implicit none
 
       ! Calling arguments
@@ -76,44 +80,45 @@ module foe
       type(matrices),intent(inout),optional :: energy_kernel_
 
       ! Local variables
-      integer :: npl, jorb, ipl, it, ii, iiorb, jjorb, iseg, iorb
-      integer :: isegstart, isegend, iismall, iilarge, nsize_polynomial
-      integer :: iismall_ovrlp, iismall_ham, ntemp, it_shift, npl_check, npl_boundaries
+      integer :: npl, ipl
+      integer :: nsize_polynomial
+      integer :: ntemp, npl_check
       integer,parameter :: nplx=50000
-      real(kind=mp),dimension(:,:,:),pointer :: cc
+      !real(kind=mp),dimension(:,:,:),pointer :: cc
       real(kind=mp),dimension(:,:,:),allocatable :: cc_check
       real(kind=mp),dimension(:,:,:),pointer :: chebyshev_polynomials
-      real(kind=mp),dimension(:,:),allocatable :: fermip_check
-      real(kind=mp),dimension(:,:,:),allocatable :: penalty_ev
-      real(kind=mp) :: anoise, scale_factor, shift_value, sumn, sumn_check, charge_diff, ef_interpol, ddot
-      real(kind=mp) :: evlow_old, evhigh_old, det, determinant, sumn_old, ef_old, tt
-      real(kind=mp) :: x_max_error_fake, max_error_fake, mean_error_fake
-      real(kind=mp) :: fscale, tt_ovrlp, tt_ham, diff, fscale_check, fscale_new, fscale_newx, asymm_K, eTS
-      logical :: restart, adjust_lower_bound, adjust_upper_bound, calculate_SHS, interpolation_possible
-      logical,dimension(2) :: emergency_stop
-      real(kind=mp),dimension(2) :: efarr, sumnarr, allredarr
+      !real(kind=mp),dimension(:,:),allocatable :: fermip_check
+      !real(kind=mp),dimension(:,:,:),allocatable :: penalty_ev
+      real(kind=mp) :: scale_factor, shift_value, sumn, sumn_check, ddot
+      real(kind=mp) :: evlow_old, evhigh_old 
+      !real(kind=mp) :: max_error_fake, mean_error_fake
+      real(kind=mp) :: fscale, tt_ovrlp, tt_ham, diff, fscale_check, fscale_new, fscale_newx, asymm_K, eTS, eTS_check
+      !logical :: restart
+      !logical,dimension(2) :: emergency_stop
+      real(kind=mp),dimension(2) :: efarr, sumnarr
       real(kind=mp),dimension(:),allocatable :: hamscal_compr, fermi_check_compr, kernel_tmp, ham_eff
-      real(kind=mp),dimension(4,4) :: interpol_matrix
-      real(kind=mp),dimension(4) :: interpol_vector
+      !real(kind=mp),dimension(4,4) :: interpol_matrix
+      !real(kind=mp),dimension(4) :: interpol_vector
       real(kind=mp),parameter :: charge_tolerance=1.d-6 ! exit criterion
-      logical,dimension(2) :: eval_bounds_ok, bisection_bounds_ok
-      real(kind=mp) :: temp_multiplicator, ebs_check, ef, ebsp, tt1, tt2, tt3, tt4
-      integer :: irow, icol, itemp, iflag,info, ispin, isshift, imshift, ilshift, i, j, itg, ncount, istl, ists
-      logical :: overlap_calculated, evbounds_shrinked, degree_sufficient, reached_limit
+      !logical,dimension(2) :: eval_bounds_ok
+      real(kind=mp) :: temp_multiplicator, ebs_check, ebsp
+      integer :: itemp, ispin, isshift, imshift, ilshift, ncount, istl
+      logical :: evbounds_shrinked, degree_sufficient, reached_limit
       real(kind=mp),parameter :: CHECK_RATIO=1.25d0
-      real(kind=mp) :: degree_multiplicator, ebsp_allspins, accuracy_function, accuracy_penalty
+      real(kind=mp) :: ebsp_allspins, accuracy_function, accuracy_penalty
       real(kind=mp),dimension(1) :: max_error, x_max_error_check, max_error_check, mean_error_check
       type(fermi_aux) :: f
       real(kind=mp),dimension(2) :: temparr
-      real(kind=mp),dimension(:),allocatable :: fermi_new, fermi_check_new
+      real(kind=mp),dimension(:),allocatable :: fermi_check_new
       real(kind=mp),dimension(:),allocatable :: kernelpp_work, kernelpp_check_work
-      real(kind=mp),dimension(:),allocatable :: matrix_local, matrix_local_check
+      real(kind=mp),dimension(:),allocatable :: matrix_local
       integer :: npl_min, is, isl
       real(kind=mp),dimension(1) :: fscale_arr
       real(mp) :: ebs_check_allspins
       real(mp),dimension(:),allocatable :: sumn_allspins, ebs_spins
       integer :: npl_max, npl_stride
       type(fmpi_win), dimension(:,:),allocatable :: windowsx_kernel, windowsx_kernel_check
+      type(matrices) :: kernel_modified, entropykernel_
 
 
 
@@ -160,7 +165,8 @@ module foe
       if (iproc==0) call yaml_mapping_open('S^-1/2')
       if (calculate_minusonehalf) then
           if (iproc==0) call yaml_map('Can take from memory',.false.)
-          call overlap_minus_onehalf(inversion_method, iproc, nproc, comm, smats, smatl, ovrlp_, ovrlp_minus_one_half_, &
+          call overlap_plusminus_onehalf('minus', inversion_method, iproc, nproc, comm, &
+               smats, smatl, ovrlp_, ovrlp_minus_one_half_, &
                ice_obj=ice_obj, pexsi_np_sym_fact=pexsi_np_sym_fact)
       else
           if (iproc==0) call yaml_map('Can take from memory',.true.)
@@ -555,50 +561,51 @@ module foe
 
 
 
-      !# calculate the term TS #########################################################
-      !if (calculate_energy_density_kernel) then
-          !!if (.not.present(energy_kernel_)) then
-          !!    call f_err_throw('energy_kernel_ not present',err_name='SPARSEMATRIX_RUNTIME_ERROR')
-          !!end if
-          cc_check = f_malloc0((/npl,1,3/),id='cc_check')
-          call func_set(FUNCTION_ERRORFUNCTION_ENTROPY, efx=foe_data_get_real(foe_obj,"ef"), fscalex=fscale)
-          call get_chebyshev_expansion_coefficients(iproc, nproc, comm, &
-               foe_data_get_real(foe_obj,"evlow",1), &
-               foe_data_get_real(foe_obj,"evhigh",1), npl, func, cc_check(1,1,1), &
-               x_max_error_check(1), max_error_check(1), mean_error_check(1))
-          if (smatl%nspin==1) then
-              do ipl=1,npl
-                  cc_check(ipl,1,1)=2.d0*cc_check(ipl,1,1)
-                  cc_check(ipl,1,2)=2.d0*cc_check(ipl,1,2)
-                  cc_check(ipl,1,3)=2.d0*cc_check(ipl,1,3)
-              end do
-          end if
-          eTS = 0.0d0
-          do ispin=1,smatl%nspin
+      ! This must be tested in more detail...
+      !!!!# calculate the term TS #########################################################
+      !!!!if (calculate_energy_density_kernel) then
+      !!!    !!if (.not.present(energy_kernel_)) then
+      !!!    !!    call f_err_throw('energy_kernel_ not present',err_name='SPARSEMATRIX_RUNTIME_ERROR')
+      !!!    !!end if
+      !!!    cc_check = f_malloc0((/npl,1,3/),id='cc_check')
+      !!!    call func_set(FUNCTION_ERRORFUNCTION_ENTROPY, efx=foe_data_get_real(foe_obj,"ef"), fscalex=fscale)
+      !!!    call get_chebyshev_expansion_coefficients(iproc, nproc, comm, &
+      !!!         foe_data_get_real(foe_obj,"evlow",1), &
+      !!!         foe_data_get_real(foe_obj,"evhigh",1), npl, func, cc_check(1,1,1), &
+      !!!         x_max_error_check(1), max_error_check(1), mean_error_check(1))
+      !!!    if (smatl%nspin==1) then
+      !!!        do ipl=1,npl
+      !!!            cc_check(ipl,1,1)=2.d0*cc_check(ipl,1,1)
+      !!!            cc_check(ipl,1,2)=2.d0*cc_check(ipl,1,2)
+      !!!            cc_check(ipl,1,3)=2.d0*cc_check(ipl,1,3)
+      !!!        end do
+      !!!    end if
+      !!!    eTS = 0.0d0
+      !!!    do ispin=1,smatl%nspin
 
-              if (.not.(calculate_spin_channels(ispin))) cycle
+      !!!        if (.not.(calculate_spin_channels(ispin))) cycle
 
-              is=(ispin-1)*smatl%smmm%nvctrp
-              isshift=(ispin-1)*smats%nvctrp_tg
-              imshift=(ispin-1)*smatm%nvctrp_tg
-              ilshift=(ispin-1)*smatl%nvctrp_tg
-              call chebyshev_fast(iproc, nproc, nsize_polynomial, npl, &
-                   smatl%nfvctr, smatl%smmm%nfvctrp, &
-                   smatl, chebyshev_polynomials(:,:,ispin), 1, cc_check, fermi_check_new)
-              call calculate_trace_distributed_new(iproc, nproc, comm, smatl, fermi_check_new, sumn_check)
-              eTS = eTS + sumn_check
-              !!call compress_matrix_distributed_wrapper(iproc, nproc, smatl, SPARSE_MATMUL_SMALL, &
-              !!     fermi_check_new, ONESIDED_FULL, fermi_check_compr(ilshift+1:))
-              !!! Calculate S^-1/2 * K * S^-1/2^T
-              !!call retransform_ext(iproc, nproc, smatl, ONESIDED_FULL, kernelpp_work(is+1:),  &
-              !!     ovrlp_minus_one_half_(1)%matrix_compr(ilshift+1:), fermi_check_compr(ilshift+1:))
-          end do
-          if (iproc==0) then
-              call yaml_map('eTS',sumn_check)
-          end if
-          call f_free(cc_check)
-      !end if
-      !# end calculate the term TS #####################################################
+      !!!        is=(ispin-1)*smatl%smmm%nvctrp
+      !!!        isshift=(ispin-1)*smats%nvctrp_tg
+      !!!        imshift=(ispin-1)*smatm%nvctrp_tg
+      !!!        ilshift=(ispin-1)*smatl%nvctrp_tg
+      !!!        call chebyshev_fast(iproc, nproc, nsize_polynomial, npl, &
+      !!!             smatl%nfvctr, smatl%smmm%nfvctrp, &
+      !!!             smatl, chebyshev_polynomials(:,:,ispin), 1, cc_check, fermi_check_new)
+      !!!        call calculate_trace_distributed_new(iproc, nproc, comm, smatl, fermi_check_new, sumn_check)
+      !!!        eTS = eTS + sumn_check
+      !!!        !!call compress_matrix_distributed_wrapper(iproc, nproc, smatl, SPARSE_MATMUL_SMALL, &
+      !!!        !!     fermi_check_new, ONESIDED_FULL, fermi_check_compr(ilshift+1:))
+      !!!        !!! Calculate S^-1/2 * K * S^-1/2^T
+      !!!        !!call retransform_ext(iproc, nproc, smatl, ONESIDED_FULL, kernelpp_work(is+1:),  &
+      !!!        !!     ovrlp_minus_one_half_(1)%matrix_compr(ilshift+1:), fermi_check_compr(ilshift+1:))
+      !!!    end do
+      !!!    if (iproc==0) then
+      !!!        call yaml_map('eTS',sumn_check)
+      !!!    end if
+      !!!    call f_free(cc_check)
+      !!!!end if
+      !!!!# end calculate the term TS #####################################################
 
 
 
@@ -629,6 +636,36 @@ module foe
       call f_free(kernel_tmp)
       call f_free(fermi_check_new)
       call f_timing(TCAT_CME_AUXILIARY,'OF')
+
+      !# NEW TEST ENTROPY ####################################
+      !!##call calculate_entropy_term(iproc, nproc, comm, fscale_new, &
+      !!##         smats, smatl, ovrlp_, kernel_, ovrlp_minus_one_half_(1), eTS)
+      !!!entropykernel_ = matrices_null()
+      !!!entropykernel_%matrix_compr = sparsematrix_malloc_ptr(smatl,iaction=SPARSE_TASKGROUP,id='entropykernel_%matrix_compr')
+      !!!kernel_modified = matrices_null()
+      !!!kernel_modified%matrix_compr = sparsematrix_malloc_ptr(smatl,iaction=SPARSE_TASKGROUP,id='kernel_modified%matrix_compr')
+      !!!hamscal_compr = sparsematrix_malloc(smatl, iaction=SPARSE_TASKGROUP, id='hamscal_compr')
+      !!!call transform_sparse_matrix(iproc, smats, smatl, SPARSE_TASKGROUP, 'small_to_large', &
+      !!!             smat_in=ovrlp_%matrix_compr, lmat_out=hamscal_compr)
+      !!!call f_memcpy(src=kernel_%matrix_compr, dest=kernel_modified%matrix_compr)
+      !!!if (smatl%nspin==1) then
+      !!!    call vscal(size(kernel_modified%matrix_compr), 0.5d0, kernel_modified%matrix_compr(1), 1)
+      !!!end if
+      !!!!call axpy(size(kernel_modified%matrix_compr), 0.4d0, hamscal_compr(1), 1, kernel_modified%matrix_compr(1), 1)
+      !!!call calculate_fermi_function_entropy(iproc, nproc, comm, &
+      !!!     smats, smatl, smatl, ovrlp_, kernel_modified, ovrlp_minus_one_half_(1), entropykernel_, eTS, eTS_check, verbosity=0)
+      !!!!eTS = trace_sparse_matrix(iproc, nproc, comm, smatl, entropykernel_%matrix_compr)
+      !!!eTS = eTS*fscale_new
+      !!!eTS_check = eTS_check*fscale_new
+      !!!if (smatl%nspin==1) then
+      !!!    eTS = eTS*2._mp
+      !!!    eTS_check = eTS_check*2._mp
+      !!!end if
+      !!!write(*,*) 'eTS', eTS
+      !!!write(*,*) 'eTS_check', eTS_check
+      !!!call deallocate_matrices(entropykernel_)
+      !# END NEW TEST ENTROPY ################################
+
 
       call f_release_routine()
 
@@ -708,11 +745,11 @@ module foe
 
 
 
-    subroutine get_selected_eigenvalues(iproc, nproc, comm, calculate_minusonehalf, foe_verbosity, &
+    subroutine get_selected_eigenvalues(iproc, nproc, comm, itype, calculate_minusonehalf, foe_verbosity, &
                iev_min, iev_max, fscale, &
                smats, smatm, smatl, ham_, ovrlp_, ovrlp_minus_one_half_, eval)
       use sparsematrix_init, only: matrixindex_in_compressed
-      use sparsematrix, only: symmetrize_matrix
+      use sparsematrix, only: symmetrize_matrix, matrix_matrix_mult_wrapper
       use foe_base, only: foe_data, foe_data_set_int, foe_data_get_int, foe_data_set_real, foe_data_get_real, &
                           foe_data_get_logical, foe_data_null, foe_data_deallocate
       use fermi_level, only: fermi_aux, init_fermi_level, determine_fermi_level
@@ -723,7 +760,7 @@ module foe
       implicit none
 
       ! Calling arguments
-      integer,intent(in) :: iproc, nproc, comm, iev_min, iev_max
+      integer,intent(in) :: iproc, nproc, comm, itype, iev_min, iev_max
       real(mp),intent(in) :: fscale
       logical,intent(in) :: calculate_minusonehalf
       integer,intent(in) :: foe_verbosity
@@ -733,14 +770,14 @@ module foe
       real(mp),dimension(iev_min:iev_max),intent(out) :: eval
 
       ! Local variables
-      integer :: iev, i, ispin, ilshift, npl, npl_min, ind, npl_max, npl_stride
+      integer :: iev, i, ispin, ilshift, npl, npl_min, ind, npl_max, npl_stride, idiag
       real(mp) :: dq, q, scale_factor, shift_value, factor, accuracy_function, accuracy_penalty
       real(mp),dimension(:),allocatable :: charges
-      type(matrices) :: kernel
+      type(matrices) :: kernel, ham_eff
       real(mp),dimension(1),parameter :: EF = 0.0_mp
       !real(mp),dimension(1),parameter :: FSCALE = 2.e-2_mp
       type(foe_data) :: foe_obj
-      type(fermi_aux) :: f
+      !type(fermi_aux) :: f
       !integer,parameter :: NPL_MAX = 10000
       !integer,parameter :: NPL_STRIDE = 100
       real(mp),dimension(:,:,:),pointer :: chebyshev_polynomials
@@ -754,6 +791,7 @@ module foe
 
       kernel = matrices_null()
       kernel%matrix_compr = sparsematrix_malloc_ptr(smatl, iaction=SPARSE_TASKGROUP, id='kernel%matrix_compr')
+      ham_eff = matrices_null()
 
       ! the occupation numbers...
       if (smatl%nspin==1) then
@@ -778,17 +816,26 @@ module foe
       hamscal_compr = sparsematrix_malloc(smatl, iaction=SPARSE_TASKGROUP, id='hamscal_compr')
 
       !if (iproc==0) call yaml_map('S^-1/2','recalculate')
-      call overlap_minus_onehalf('ICE', iproc, nproc, comm, smats, smatl, ovrlp_, ovrlp_minus_one_half_, &
-          verbosity=0) !has internal timer
+      if (itype==1) then
+          call overlap_plusminus_onehalf('plus', 'ICE', iproc, nproc, comm, smats, smatl, ovrlp_, ovrlp_minus_one_half_, &
+              verbosity=0) !has internal timer
+          ham_eff%matrix_compr => ham_%matrix_compr
+          idiag = 2
+      else if (itype==2) then
+          ham_eff%matrix_compr = sparsematrix_malloc_ptr(smatl, iaction=SPARSE_TASKGROUP, id='ham_eff%matrix_compr')
+          call matrix_matrix_mult_wrapper(iproc, nproc, smatl, ham_%matrix_compr, ovrlp_%matrix_compr, ham_eff%matrix_compr)
+          idiag = 1
+      end if
+
 
       ! Use kernel_%matrix_compr as workarray to save memory
       npl_min = 10
       ispin = 1 !hack
       accuracy_function = foe_data_get_real(foe_obj,"accuracy_function")
       accuracy_penalty = foe_data_get_real(foe_obj,"accuracy_penalty")
-      call get_bounds_and_polynomials(iproc, nproc, comm, 2, ispin, npl_max, npl_stride, &
+      call get_bounds_and_polynomials(iproc, nproc, comm, idiag, ispin, npl_max, npl_stride, &
            1, FUNCTION_ERRORFUNCTION, accuracy_function, accuracy_penalty, .false., 2.2_mp, 2.2_mp, 0, &
-           smatm, smatl, ham_, foe_obj, npl_min, kernel%matrix_compr, &
+           smatm, smatl, ham_eff, foe_obj, npl_min, kernel%matrix_compr, &
            chebyshev_polynomials, npl, scale_factor, shift_value, hamscal_compr, &
            smats=smats, ovrlp_=ovrlp_, ovrlp_minus_one_half_=ovrlp_minus_one_half_(1), &
            efarr=EF, fscale_arr=(/fscale/))
@@ -834,7 +881,7 @@ module foe
     end subroutine get_selected_eigenvalues
 
 
-    subroutine overlap_minus_onehalf(method, iproc, nproc, comm, smats, smatl, ovrlp_, ovrlp_minus_one_half_, &
+    subroutine overlap_plusminus_onehalf(plusminus, method, iproc, nproc, comm, smats, smatl, ovrlp_, ovrlp_minus_one_half_, &
                verbosity, ice_obj, pexsi_np_sym_fact)
       use foe_base, only: foe_data
       use ice, only: inverse_chebyshev_expansion_new
@@ -842,7 +889,7 @@ module foe
       use dynamic_memory
       implicit none
       ! Calling arguments
-      character(len=*),intent(in) :: method
+      character(len=*),intent(in) :: plusminus, method
       integer,intent(in) :: iproc, nproc, comm
       type(sparse_matrix),intent(in) :: smats, smatl
       type(matrices),intent(in) :: ovrlp_
@@ -854,14 +901,21 @@ module foe
       integer :: verbosity_
       real(mp),dimension(1) :: ex
     
-      call f_routine(id='overlap_minus_onehalf')
+      call f_routine(id='overlap_plusminus_onehalf')
 
       verbosity_ = 1
       if (present(verbosity)) verbosity_ = verbosity
     
       if (trim(method)=='ICE') then
           ! Can't use the wrapper, since it is at a higher level in the hierarchy (to be improved)
-          ex=-0.5d0
+          select case (trim(plusminus))
+          case ('minus','MINUS')
+              ex=-0.5d0
+          case ('plus','PLUS')
+              ex=0.5d0
+          case default
+              call f_err_throw('wrong value for plusminus')
+          end select
           if (present(ice_obj)) then
               call inverse_chebyshev_expansion_new(iproc, nproc, comm, &
                    ovrlp_smat=smats, inv_ovrlp_smat=smatl, ncalc=1, ex=ex, &
@@ -883,7 +937,65 @@ module foe
       end if
     
       call f_release_routine()
-    end subroutine overlap_minus_onehalf
+    end subroutine overlap_plusminus_onehalf
+
+
+
+
+    subroutine calculate_entropy_term(iproc, nproc, comm, kT, &
+               smats, smatl, ovrlp_, kernel_, ovrlp_minus_one_half_, accuracy_entropy, eTS)
+      use dynamic_memory
+      use ice, only: calculate_fermi_function_entropy
+      use wrapper_linalg, only: vscal
+      implicit none
+
+      ! Calling arguments
+      integer,intent(in) :: iproc, nproc, comm
+      real(mp),intent(in) :: kT
+      type(sparse_matrix),intent(in) :: smats, smatl
+      type(matrices),intent(in) :: ovrlp_, kernel_
+      real(mp),intent(in) :: accuracy_entropy
+      type(matrices),intent(inout) :: ovrlp_minus_one_half_
+      real(mp),intent(out) :: eTS
+
+      ! Local variables
+      type(matrices) :: kernel_modified, entropykernel_
+      real(mp) :: eTS_check
+
+
+      entropykernel_ = matrices_null()
+      entropykernel_%matrix_compr = sparsematrix_malloc_ptr(smatl,iaction=SPARSE_TASKGROUP,id='entropykernel_%matrix_compr')
+      kernel_modified = matrices_null()
+      kernel_modified%matrix_compr = sparsematrix_malloc_ptr(smatl,iaction=SPARSE_TASKGROUP,id='kernel_modified%matrix_compr')
+      !hamscal_compr = sparsematrix_malloc(smatl, iaction=SPARSE_TASKGROUP, id='hamscal_compr')
+      !call transform_sparse_matrix(iproc, smats, smatl, SPARSE_TASKGROUP, 'small_to_large', &
+      !             smat_in=ovrlp_%matrix_compr, lmat_out=hamscal_compr)
+      call f_memcpy(src=kernel_%matrix_compr, dest=kernel_modified%matrix_compr)
+      if (smatl%nspin==1) then
+          call vscal(size(kernel_modified%matrix_compr), 0.5d0, kernel_modified%matrix_compr(1), 1)
+      end if
+      !call axpy(size(kernel_modified%matrix_compr), 0.4d0, hamscal_compr(1), 1, kernel_modified%matrix_compr(1), 1)
+      call calculate_fermi_function_entropy(iproc, nproc, comm, &
+           smats, smatl, smatl, ovrlp_, kernel_modified, ovrlp_minus_one_half_, &
+           accuracy_entropy, entropykernel_, eTS, eTS_check, verbosity=0)
+      !eTS = trace_sparse_matrix(iproc, nproc, comm, smatl, entropykernel_%matrix_compr)
+      eTS = eTS*kT
+      eTS_check = eTS_check*kT
+      if (smatl%nspin==1) then
+          eTS = eTS*2._mp
+          eTS_check = eTS_check*2._mp
+      end if
+      if (iproc==0) then
+          call yaml_map('kT',kT)
+          call yaml_map('accuracy_entropy',accuracy_entropy)
+          call yaml_map('eTS',eTS)
+          !call yaml_map('eTS_check',eTS_check)
+      end if
+      call deallocate_matrices(entropykernel_)
+      call deallocate_matrices(kernel_modified)
+
+    end subroutine calculate_entropy_term
+
 
 
 end module foe

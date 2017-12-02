@@ -74,7 +74,7 @@ module coeffs
     
       do ispin=1,smats%nspin
           if (iproc==0) call yaml_map('method','diagonalization')
-          call diagonalizeHamiltonian2(iproc, nproc, comm, &
+          call diagonalizeHamiltonian2(iproc, nproc, comm, 1, &
                blocksize_pdsyev, nfvctr, &
                ham_full(1,1,ispin), ovrlp_full(1,1,ispin), eval)
 
@@ -147,7 +147,7 @@ module coeffs
       real(kind=mp), dimension(denskern%nfvctr,norb), intent(in) :: coeff
       logical,intent(in),optional :: keep_uncompressed
     
-      integer :: iorb, jorb, ind_ham, ind_denskern, ierr, iorbp, is, ie, ispin
+      integer :: ispin
       logical :: keep_uncompressed_
 
       call f_routine(id='calculate_kernel_and_energy')
@@ -231,12 +231,12 @@ module coeffs
       logical,intent(in),optional :: keep_uncompressed_ !< keep the uncompressed kernel in denskern_%matrix (requires that this array is already allocated outside of the routine)
     
       ! Local variables
-      integer :: ierr, sendcount, jproc, iorb, itmb, iiorb, ispin, jorb
-      real(kind=8),dimension(:,:),allocatable :: density_kernel_partial, fcoeff
+      integer :: iorb, itmb, iiorb, ispin
+      real(kind=8),dimension(:,:),allocatable :: fcoeff
       real(kind=8),dimension(:),allocatable :: tmparr
     ! real(kind=8), dimension(:,:,), allocatable :: ks,ksk,ksksk
       character(len=*),parameter :: subname='calculate_density_kernel'
-      integer,dimension(:),allocatable :: recvcounts, dspls
+      !integer,dimension(:),allocatable :: recvcounts
       integer,parameter :: ALLGATHERV=1, ALLREDUCE=2
       integer,parameter :: communication_strategy=ALLREDUCE
       logical :: keep_uncompressed

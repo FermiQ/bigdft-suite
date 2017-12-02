@@ -171,7 +171,7 @@ def parse():
     # (partial) density of states for the linear scaling version
     group = OptionGroup(parser, "bigdft-tool -a %s <input> <output>" % actions[11],
                         "(partial) density of states for the linear scaling version")
-    group.add_option("--coeff_file", type="str", default="coeff.bin", metavar="COEFFNAME",
+    group.add_option("--coeff_file", type="str", default="coeff.txt", metavar="COEFFNAME",
              		 help="input file with the coefficients [default: %default]")
     group.add_option("--nbasis", type="int", default=1, metavar="NUM",
                      help="number of support functions [default: %default]")
@@ -316,6 +316,10 @@ def parse():
     group.add_option("--fscale", type="float", default=1.e-2, metavar="NUM",)
     group.add_option("--is_ks", type="float", default=1, metavar="NUM",)
     group.add_option("--ie_ks", type="float", default=2, metavar="NUM",)
+    group.add_option("--itype", type="int", default=1, metavar="NUM",)
+    group.add_option("--eval_file", type="string", default="evals.txt", metavar="EVALS",)
+    group.add_option("--only_evals", type="string", default="F", metavar="ONLY_EVALS",)
+    group.add_option("--only_binned_values", type="string", default="F", metavar="ONLY_BINNED_VALUES",)
 
     group.add_option("--homo_state", type="int", default=1, metavar="NUM",)
     group.add_option("--homo_value", type="float", default=0.0, metavar="NUM",)
@@ -325,6 +329,11 @@ def parse():
     group.add_option("--scalapack_blocksize", type="int", default=-1, metavar="NUM",)
     group.add_option("--diag_algorithm", type="string", default="pdsyevx", metavar="NAME",)
     group.add_option("--manipulation_mode", type="string", default='full', metavar="NUM",)
+    group.add_option("--kT", type="float", default=0.0, metavar="NUM",)
+    group.add_option("--accuracy_entropy", type="float", default=1.e-4, metavar="NUM",)
+    group.add_option("--output_file", type="string", default='kernel_analysis.dat', metavar="KERNEL_ANALYSIS",)
+    group.add_option("--output_bins_file", type="string", default='kernel_analysis_bins.dat', metavar="KERNEL_ANALYSIS",)
+    group.add_option("--nbin", type="int", default='200', metavar="NUM",)
 
     return parser
 
@@ -1125,7 +1134,7 @@ options:
     if options.action == "solve-eigensystem":
         print 'calling memguess to solve the eigensystem'
         #command = "%s 1 %s dd solve-eigensystem %s %s %d %d %s" % (memguess, options.name, options.hamiltonian_file, options.overlap_file, options.nbasis, options.nat, options.coeff_file)
-        command = "%s %s solve-eigensystem %s %s %s %s %s %i" % (options.mpirun, chess_toolbox, options.matrix_format, options.metadata_file, options.hamiltonian_file, options.overlap_file, options.coeff_file, options.scalapack_blocksize)
+        command = "%s %s solve-eigensystem %i %s %s %s %s %s %s %s %i" % (options.mpirun, chess_toolbox, options.itype, options.matrix_format, options.metadata_file, options.hamiltonian_file, options.overlap_file, options.coeff_file, options.eval_file, options.only_evals, options.scalapack_blocksize)
         print command
     if options.action == "analyse-coeffs":
         print 'calling memguess to analyse the coeffs'
@@ -1160,7 +1169,7 @@ options:
         command = "%s %s convert-matrix-format %s %s %s" % (options.mpirun, chess_toolbox, options.conversion, options.infile, options.outfile)
         print command
     if options.action == "calculate-selected-eigenvalues":
-        command = "%s %s calculate-selected-eigenvalues %s %s %s %s %s %s %i %i %f" % (options.mpirun, chess_toolbox, options.matrix_format, options.metadata_file, options.overlap_file, options.hamiltonian_file, options.kernel_file, options.kernel_matmul_file, options.iev_min, options.iev_max, options.fscale)
+        command = "%s %s calculate-selected-eigenvalues %s %s %s %s %s %s %i %i %i %f" % (options.mpirun, chess_toolbox, options.matrix_format, options.metadata_file, options.overlap_file, options.hamiltonian_file, options.kernel_file, options.kernel_matmul_file, options.itype, options.iev_min, options.iev_max, options.fscale)
         print command
     if options.action == "kernel-purity":
         command = "%s %s kernel-purity %s %s %s %s %s %s" % (options.mpirun, chess_toolbox, options.matrix_format, options.metadata_file, options.overlap_file, options.kernel_file, options.kernel_matmul_file, options.fragment_file)
@@ -1180,6 +1189,12 @@ options:
         print command
     if options.action == "manipulate-eigenvalue-spectrum":
         command = "%s %s manipulate-eigenvalue-spectrum %s %s %s %s %s %s %s %s %i %f %f %f %f %s %i" % (options.mpirun, chess_toolbox, options.manipulation_mode, options.matrix_format, options.metadata_file, options.overlap_file, options.hamiltonian_file, options.kernel_file, options.kernel_matmul_file, options.hamiltonian_manipulated_file, options.homo_state, options.homo_value, options.lumo_value, options.smallest_value, options.largest_value, options.diag_algorithm, options.scalapack_blocksize)
+        print command
+    if options.action == "calculate-entropy":
+        command = "%s %s calculate-entropy %s %s %s %s %f %f" % (options.mpirun, chess_toolbox, options.matrix_format, options.overlap_file, options.kernel_file, options.kernel_matmul_file, options.kT, options.accuracy_entropy)
+        print command
+    if options.action == "analyze-density-matrix-dense":
+        command = "%s %s analyze-density-matrix-dense %s %s %s %i %s %s %s" % (options.mpirun, chess_toolbox, options.matrix_format, options.metadata_file, options.kernel_file, options.nbin, options.output_file, options.output_bins_file, options.only_binned_values)
         print command
     if command is not None:
         os.system(command)

@@ -98,9 +98,9 @@ module pexsi
       integer(c_int) :: numTotalInertiaIter, numTotalPEXSIIter
       real(c_double) :: totalEnergyH, totalEnergyS, totalFreeEnergy
       
-      integer(c_int):: nprow, npcol, npSymbFact, outputFileIndex, ic
+      integer(c_int):: nprow, npcol, outputFileIndex, ic
       integer :: ierr, ii, jj
-      double precision:: timeSta, timeEnd
+      !double precision:: timeSta, timeEnd
       integer(c_int):: info
       integer(c_intptr_t) :: plan
       type(f_ppexsi_options) :: options
@@ -111,11 +111,11 @@ module pexsi
       integer :: nvctr_local_min, nvctr_local_max
       real(kind=8) :: nvctr_local_avg
       
-      integer:: i, j , nfvctr_local, nvctr_local, isvctr_local, nproc_per_pole
-      integer:: numColLocalFirst, firstCol
-      integer:: irow, jcol
+      integer:: i, nfvctr_local, nvctr_local, isvctr_local, nproc_per_pole
+      !integer:: numColLocalFirst
+      !integer:: jcol
       
-      integer:: readComm, global_group, pexsi_group
+      integer:: global_group, pexsi_group
       integer:: isProcRead, npoleparallelization, nproc_used, pexsi_comm
       
       call f_routine(id='pexsi_driver')

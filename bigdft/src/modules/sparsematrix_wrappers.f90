@@ -90,7 +90,7 @@ module sparsematrix_wrappers
     end subroutine init_sparse_matrix_wrapper
 
 
-    subroutine check_kernel_cutoff(iproc, orbs, atoms, hamapp_radius_incr, lzd)
+    subroutine check_kernel_cutoff(iproc, orbs, atoms, hamapp_radius_incr, lzd, only_check)
       use module_types
       use yaml_output
       implicit none
@@ -100,21 +100,24 @@ module sparsematrix_wrappers
       type(orbitals_data),intent(in) :: orbs
       type(atoms_data),intent(in) :: atoms
       type(local_zone_descriptors),intent(inout) :: lzd
+      logical,intent(in),optional :: only_check
 
       ! Local variables
       integer :: iorb, ilr, iat, iatype
       real(kind=8) :: cutoff_sf, cutoff_kernel
       character(len=20) :: atomname
-      logical :: write_data
+      logical :: write_data, only_check_
       logical,dimension(atoms%astruct%ntypes) :: write_atomtype
 
       write_atomtype=.true.
+      only_check_ = .false.
+      if (present(only_check)) only_check_ = only_check
 
-      if (iproc==0) then
+      if (.not. only_check_ .and. iproc==0) then
           call yaml_sequence_open('Check of kernel cutoff radius')
       end if
 
-      do iorb=1,orbs%norb
+      orbloop: do iorb=1,orbs%norb
           ilr=orbs%inwhichlocreg(iorb)
 
           ! cutoff radius of the support function, including shamop region
@@ -123,7 +126,14 @@ module sparsematrix_wrappers
           ! cutoff of the density kernel
           cutoff_kernel=lzd%llr(ilr)%locrad_kernel
 
-          ! check whether the date for this atomtype has already shoudl been written
+          if (only_check_) then
+              if (cutoff_sf>cutoff_kernel) then
+                  call f_err_throw(trim(yaml_toa(cutoff_sf))//'=cutoff_sf > cutoff_kernel='//trim(yaml_toa(cutoff_kernel)))
+              end if
+              cycle orbloop
+          end if
+
+          ! check whether the date for this atomtype has already been written
           iat=orbs%onwhichatom(iorb)
           iatype=atoms%astruct%iatype(iat)
           if (write_atomtype(iatype)) then
@@ -158,9 +168,9 @@ module sparsematrix_wrappers
           if (write_data) then
               call yaml_mapping_close()
           end if
-      end do
+      end do orbloop
 
-      if (iproc==0) then
+      if (.not. only_check_ .and. iproc==0) then
           call yaml_sequence_close
       end if
 

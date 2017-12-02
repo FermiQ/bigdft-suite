@@ -123,7 +123,7 @@ module f_harmonics
 
       ! Local variables
       integer,parameter :: l_max=2
-      real(dp) :: r, r2, r2min
+      real(dp) :: r, r2
 
 !!$      if (l<0) call f_err_throw('l must be non-negative',err_name='BIGDFT_RUNTIME_ERROR')
 !!$      if (l>l_max) call f_err_throw('solid harmonics only implemented up to l='//trim(yaml_toa(l_max)),&

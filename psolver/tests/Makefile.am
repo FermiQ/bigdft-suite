@@ -116,6 +116,7 @@ define F_REGTEST_INSTRUCTIONS
     - $(run_parallel) ./PS_Check -n [57,48,63] -g F
     - $(run_parallel) ./PS_Check -n [64,64,64] -g P
     - $(run_parallel) ./PS_Check -n [32,64,48] -g S
+    - $(run_parallel) ./PS_Check -n [51,55,64] -g W
 - GPS_PCG:
    binary: Generalized_PSolver
    runs:
@@ -125,6 +126,8 @@ define F_REGTEST_INSTRUCTIONS
     - $(run_parallel) ./Generalized_PSolver -n [57,49,63] -m PCG -b yes -l no
     # PCG from psolver, non-ortho
     - $(run_parallel) ./Generalized_PSolver -n [60,78,70] -m PCG -f [90,41,90] -g S -l no
+    # PCG from Generalized_PSolver, wire bc
+    - $(run_parallel) ./Generalized_PSolver -n [60,78,70] -m PCG -g W -l no
     # PCG from Generalized_PSolver, non-ortho
     - $(run_parallel) ./Generalized_PSolver -n [60,78,70] -m VAC -e 5 -g S -f [90,41,90] -l no
 - GPS_PI:

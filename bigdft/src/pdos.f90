@@ -562,6 +562,7 @@ subroutine gaussian_pdos(iproc,nproc,orbs,G,coeff,duals) !n(c) Gocc (arg:4)
          norb_displ(jproc)=norb_displ(jproc-1)+orbs%norb_par(jproc-1,0)
       end do
 
+      !define the result with a call to a wrapper
       call MPI_GATHERV(work(1),(G%ncoeff+1)*orbs%norb_par(iproc,0),mpidtypw,&
          &   pdos(1,1),(G%ncoeff+1)*orbs%norb_par(:,0),(G%ncoeff+1)*norb_displ,mpidtypw,&
          &   0,bigdft_mpi%mpi_comm,ierr)
