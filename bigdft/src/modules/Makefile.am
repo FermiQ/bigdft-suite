@@ -252,7 +252,7 @@ input_dicts.o: fragment_base.o input.o
 atoms_data.o: $(ATOMS_INCLUDES) internal_coordinates.o input_dicts.o
 input_keys.o: multipole_base.o atoms_data.o input.o fragment_base.o vdwcorrection.o
 types.o: psp_projectors_base.o atoms_data.o input_keys.o \
-	ab7_mixing.o multipole_base.o dpbox.o constrained_magnetic_field.o
+	ab7_mixing.o multipole_base.o dpbox.o constrained_magnetic_field.o module_asd.o
 interfaces.o: types.o fragments.o diis_module.o constrained_dft.o input_keys.o
 
 BigDFT_API.o: types.o interfaces.o atoms_data.o input_dicts.o psp_projectors.o communications_init.o bigdft_run.o
