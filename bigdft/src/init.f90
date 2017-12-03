@@ -1082,6 +1082,7 @@ subroutine input_memory_linear(iproc, nproc, at, KSwfn, tmb, tmb_old, denspot, i
   use module_interfaces, only: inputguessConfinement, reformat_supportfunctions
   use get_kernel, only: reconstruct_kernel, renormalize_kernel
   use module_fragments
+  use rototranslations
   use yaml_output
   use communications_base, only: deallocate_comms_linear, TRANSPOSE_FULL
   use communications, only: transpose_localized, untranspose_localized, communicate_basis_for_density_collective
@@ -1119,7 +1120,7 @@ subroutine input_memory_linear(iproc, nproc, at, KSwfn, tmb, tmb_old, denspot, i
       integer, dimension(1) :: power
   logical:: overlap_calculated
   real(wp), allocatable, dimension(:) :: norm
-  type(fragment_transformation), dimension(:), pointer :: frag_trans
+  type(rototranslation), dimension(:), pointer :: frag_trans
   character(len=*),parameter:: subname='input_memory_linear'
   real(kind=8) :: pnrm, max_deviation, mean_deviation, max_deviation_p, mean_deviation_p
   logical :: rho_negative
@@ -1175,11 +1176,10 @@ subroutine input_memory_linear(iproc, nproc, at, KSwfn, tmb, tmb_old, denspot, i
 
      do iorb=1,tmb%orbs%norbp
          iiat=tmb%orbs%onwhichatom(iorb+tmb%orbs%isorb)
-         frag_trans(iorb)=fragment_transformation_identity()
-!!$         frag_trans(iorb)%theta=0.0d0*(4.0_gp*atan(1.d0)/180.0_gp)
-!!$         frag_trans(iorb)%rot_axis=(/1.0_gp,0.0_gp,0.0_gp/)
-         frag_trans(iorb)%rot_center(:)=rxyz_old(:,iiat)
-         frag_trans(iorb)%rot_center_new(:)=rxyz(:,iiat)
+         frag_trans(iorb)=rototranslation_identity()
+         call set_translation(frag_trans(iorb),src=rxyz_old(:,iiat),dest=rxyz(:,iiat))
+!!$         frag_trans(iorb)%rot_center(:)=rxyz_old(:,iiat)
+!!$         frag_trans(iorb)%rot_center_new(:)=rxyz(:,iiat)
      end do
      ! This routine might overwrite tmb_old%psi, so save the values
      psi_old = f_malloc(src=tmb_old%psi,lbounds=lbound(tmb_old%psi),id='psi_old')
@@ -1205,7 +1205,6 @@ subroutine input_memory_linear(iproc, nproc, at, KSwfn, tmb, tmb_old, denspot, i
          ! x^4, being 1.0 at 0.5
          tmb%confdatarr(:)%damping = (1.d0/0.5d0*max_shift)**4
      end if
-
      deallocate(frag_trans)
   end if
           !!write(*,*) 'after reformat_supportfunctions, iproc',iproc

@@ -248,16 +248,20 @@ subroutine LDiagHam(iproc,nproc,natsc,nspin,orbs,Lzd,Lzde,comms,&
   npsidim=max(orbse%npsidim_orbs,orbse%npsidim_comp)
   nspinor=orbse%nspinor
 
+  !LG:the transposition routines are not fortran compliant in the handlinf of pointers/optionals
+  ! they should be changed
   if (nproc > 1 .or. Lzde%linear) then
      Gdim = (Lzde%Glr%wfd%nvctr_c+7*Lzde%Glr%wfd%nvctr_f)*orbse%norb_par(iproc,0)*orbse%nspinor
      psiw = f_malloc_ptr(max(npsidim, Gdim),id='psiw')
+     !transpose all the wavefunctions for having a piece of all the orbitals
+     call toglobal_and_transpose(iproc,nproc,orbse,Lzde,commse,psi,psiw)
+     call toglobal_and_transpose(iproc,nproc,orbse,Lzde,commse,hpsi,psiw)
   else
      nullify(psiw)
+     call toglobal_and_transpose(iproc,nproc,orbse,Lzde,commse,psi)
+     call toglobal_and_transpose(iproc,nproc,orbse,Lzde,commse,hpsi)
   end if
 
-  !transpose all the wavefunctions for having a piece of all the orbitals
-  call toglobal_and_transpose(iproc,nproc,orbse,Lzde,commse,psi,psiw)
-  call toglobal_and_transpose(iproc,nproc,orbse,Lzde,commse,hpsi,psiw)
 
   if(nproc > 1.or. Lzde%linear) then
      call f_free_ptr(psiw)

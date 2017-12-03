@@ -698,11 +698,6 @@
    Maximum size of masking arrays for a projector:  14271
    Cumulative size of masking arrays   :  71826
   #------------------------------------------------------------ Sparse matrix initialization
- Check of kernel cutoff radius:
- -  {atom type: H, adjustment required:  No}
- -  {atom type: N, adjustment required:  Yes, new value:  8.30}
- -  {atom type: C, adjustment required:  Yes, new value:  8.30}
- -  {atom type: O, adjustment required:  Yes, new value:  8.30}
  Matrices:
    Overlap matrix:
      total elements                    :  961
@@ -1753,11 +1748,6 @@
    Maximum size of masking arrays for a projector:  14277
    Cumulative size of masking arrays   :  71832
   #--------------------------------------------------------------- Sparse matrix initialization
- Check of kernel cutoff radius:
- -  {atom type: H, adjustment required:  No}
- -  {atom type: N, adjustment required:  Yes, new value:  8.30}
- -  {atom type: C, adjustment required:  Yes, new value:  8.30}
- -  {atom type: O, adjustment required:  Yes, new value:  8.30}
  Matrices:
    Overlap matrix:
      total elements                    :  961

@@ -1257,7 +1257,6 @@ module overlap_point_to_point
        type(OP2P_data), intent(inout) :: OP2P
        logical :: passed
        !local variables
-       logical :: shared=.true.
        real(wp), parameter :: tol_maxdiff=1.e-10_wp
        integer :: norbp,prc
        real(wp) :: etot,tel,trm

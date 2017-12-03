@@ -1360,6 +1360,9 @@ module communications
 
 
     !> Locreg communication
+    !! LG: which is the sense of this routine?
+    !! if all processors should have these data we should make all procs 
+    !! calculate them, the calculation should not be too heavy.
     subroutine communicate_locreg_descriptors_basics(iproc, nproc, nlr, rootarr, orbs, llr)
       use module_base
       use module_types, only: orbitals_data
@@ -1496,7 +1499,6 @@ module communications
           llr(iilr)%locrad_kernel=workrecv_dbl(5,ilr)
           llr(iilr)%locrad_mult=workrecv_dbl(6,ilr)
       end do
-    
     
       call f_free(worksend_int)
       call f_free(workrecv_int)
@@ -2537,7 +2539,8 @@ module communications
       integer :: psishift1,totshift,iorb,ilr,ldim,Gdim
       real(wp) :: workdum
       real(wp), dimension(:), pointer :: workarr
-    
+
+      call f_routine(id='toglobal_and_transpose')
       call timing(iproc,'Un-TransSwitch','ON')
     
       !for linear scaling must project the wavefunctions to whole simulation box
@@ -2613,7 +2616,9 @@ module communications
       !!end if
     
       !!call timing(iproc,'Un-TransSwitch','OF')
-    
+
+      call f_release_routine()
+      
     END SUBROUTINE toglobal_and_transpose
 
 

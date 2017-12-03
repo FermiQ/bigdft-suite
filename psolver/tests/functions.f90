@@ -484,6 +484,9 @@ subroutine test_functions_new(mesh,nspden,a_gauss,&
      
      !test call
      call radial_3d_function_mp(mesh,0.5_dp*a2,density)
+  case('W')
+     factor=oneofourpi
+     !the different modes for the wires-like bc are not used here
   end select
 
   !laplacian potential = -4pi density

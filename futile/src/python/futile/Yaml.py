@@ -144,10 +144,8 @@ def load(file=None,stream=None,doc_lists=False,safe_mode=False):
         if doc_lists: ld=[ld]
     except Exception,e:
         if safe_mode:
-            documents=strm.split('---\n')
-            if len(documents[0]) == 0 and len(documents):
-                print 'Document NOT loaded, error:',e
-                return []
+            ld = []
+            documents = [v for v in strm.split('---\n') if len(v) > 0]
             for i,raw_doc in enumerate(documents):
                 try:
                     ld.append(yaml.load(raw_doc,Loader=ldr))

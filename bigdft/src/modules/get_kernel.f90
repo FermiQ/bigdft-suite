@@ -458,7 +458,7 @@ module get_kernel
               !SM: need to fix the spin here
               call vcopy(tmb%orbs%norb**2, tmb%linmat%ham_%matrix(1,1,1), 1, matrixElements(1,1,1), 1)
               call vcopy(tmb%orbs%norb**2, tmb%linmat%ovrlp_%matrix(1,1,1), 1, matrixElements(1,1,2), 1)
-              call diagonalizeHamiltonian2(iproc, nproc, bigdft_mpi%mpi_comm, &
+              call diagonalizeHamiltonian2(iproc, nproc, bigdft_mpi%mpi_comm, 1, &
                    tmb%orthpar%blocksize_pdsyev, tmb%orbs%norb, &
                    matrixElements(1,1,1), matrixElements(1,1,2), tmb%orbs%eval)
               if (iproc==0) call yaml_map('gap',tmb%orbs%eval(orbs%norb+1)-tmb%orbs%eval(orbs%norb))
@@ -484,11 +484,14 @@ module get_kernel
           else if (scf_mode==LINEAR_FOE) then
               if (iproc==0) call yaml_map('method','FOE')
     
+              !!write(*,*) 'before FOE: sum(tmb%linmat%ovrlppowers_(2)%matrix_compr)', sum(tmb%linmat%ovrlppowers_(2)%matrix_compr)
               call matrix_fermi_operator_expansion(iproc, nproc, bigdft_mpi%mpi_comm, &
                    tmb%foe_obj, tmb%ice_obj, tmb%linmat%smat(1), tmb%linmat%smat(2), tmb%linmat%smat(3), &
                    tmb%linmat%ovrlp_, tmb%linmat%ham_, tmb%linmat%ovrlppowers_(2), tmb%linmat%kernel_, &
                    energs%ebs, &
                    calculate_minusonehalf=invert_overlap_matrix, foe_verbosity=1, symmetrize_kernel=.true.)
+              !!write(*,*) 'after FOE: sum(tmb%linmat%ovrlppowers_(2)%matrix_compr)', sum(tmb%linmat%ovrlppowers_(2)%matrix_compr)
+              !!write(*,*) 'after FOE: sum(tmb%linmat%kernel_%matrix_compr)', sum(tmb%linmat%kernel_%matrix_compr)
           end if
     
           ! Eigenvalues not available, therefore take -.5d0
