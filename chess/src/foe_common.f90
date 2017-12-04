@@ -1494,6 +1494,8 @@ module foe_common
       real(kind=mp),dimension(:),allocatable :: fermi_new
       !integer :: icalc
       type(fmpi_win), dimension(:),allocatable :: windows
+      logical :: measure_unbalance = .true.
+      real(kind=mp) :: t1, t2, time
 
 
       call f_routine(id='get_chebyshev_polynomials')
@@ -1643,11 +1645,35 @@ module foe_common
               call compress_matrix_distributed_wrapper(iproc, nproc, smatl, SPARSE_MATMUL_LARGE, &
                    ham_eff, ONESIDED_GATHER, workarr_compr, matrix_localx=matrix_local, windowsx=windows)
           end if
+          if (measure_unbalance) then
+              call mpibarrier(comm=comm)
+              t1 = mpi_wtime()
+          end if
           call chebyshev_clean(iproc, nproc, npl, cc, &
                smatl, workarr_compr, &
                .false., &
                nsize_polynomial, 1, fermi_new, penalty_ev_new, chebyshev_polynomials, &
                emergency_stop)
+          if (measure_unbalance) then
+              t2 = mpi_wtime()
+              time = t2-t1
+              call analyze_unbalance(iproc, nproc, comm, time)
+              !!time_min = time
+              !!time_max = time
+              !!time_ideal = time/real(nproc,kind=8)
+              !!call fmpi_allreduce(time_min, 1, FMPI_MIN, comm)
+              !!call fmpi_allreduce(time_max, 1, FMPI_MAX, comm)
+              !!call fmpi_allreduce(time_ideal, 1, FMPI_SUM, comm)
+              !!if (iproc==0) then
+              !!    call yaml_newline()
+              !!    call yaml_mapping_open('Load unbalancing')
+              !!    call yaml_map('Minimal time',time_min,fmt='(es9.2)')
+              !!    call yaml_map('Maximal time',time_max,fmt='(es9.2)')
+              !!    call yaml_map('Ideal time',time_ideal,fmt='(es9.2)')
+              !!    call yaml_map('Unbalancing in %',(time_max-time_ideal)/time_ideal*100._mp,fmt='(f7.2)')
+              !!    call yaml_mapping_close()
+              !!end if
+          end if
       !call timing(iproc, 'FOE_auxiliary ', 'ON')
       call f_timing(TCAT_CME_AUXILIARY,'ON')
 
@@ -2765,5 +2791,40 @@ module foe_common
       call f_release_routine()
 
     end subroutine prepare_matrix
+
+
+    subroutine analyze_unbalance(iproc, nproc, comm, time)
+      use dynamic_memory
+      implicit none
+
+      ! Calling arguments
+      integer,intent(in) :: iproc, nproc, comm
+      real(mp),intent(in) :: time
+
+      ! Local variables
+      real(kind=mp) :: time_min, time_max, time_ideal
+
+      call f_routine(id='analyze_unbalance')
+
+      time_min = time
+      time_max = time
+      time_ideal = time/real(nproc,kind=8)
+      call fmpi_allreduce(time_min, 1, FMPI_MIN, comm)
+      call fmpi_allreduce(time_max, 1, FMPI_MAX, comm)
+      call fmpi_allreduce(time_ideal, 1, FMPI_SUM, comm)
+      if (iproc==0) then
+          call yaml_newline()
+          call yaml_mapping_open('Load unbalancing')
+          call yaml_map('Minimal time',time_min,fmt='(es9.2)')
+          call yaml_map('Maximal time',time_max,fmt='(es9.2)')
+          call yaml_map('Ideal time',time_ideal,fmt='(es9.2)')
+          call yaml_map('Unbalancing in %',(time_max-time_ideal)/time_ideal*100._mp,fmt='(f7.2)')
+          call yaml_mapping_close()
+          call yaml_newline()
+      end if
+
+      call f_release_routine()
+
+  end subroutine analyze_unbalance
 
 end module foe_common

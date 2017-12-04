@@ -286,10 +286,11 @@ module locregs_init
          ! Communicate those parts of the locregs that all processes need.
          call communicate_locreg_descriptors_basics(iproc, nproc, nlr, rootarr, orbs, llr)
     
-         do ilr=1,nlr
-            if(.not. calculateBounds(ilr)) call lr_box(llr(ilr),Glr,[hx,hy,hz])
-            !    write(*,*) 'iproc, nseg_c', iproc, llr(ilr)%wfd%nseg_c
-         end do
+         ! SM: Seems not to be necessary to be called again
+         !!do ilr=1,nlr
+         !!   if(.not. calculateBounds(ilr)) call lr_box(llr(ilr),Glr,[hx,hy,hz])
+         !!   !    write(*,*) 'iproc, nseg_c', iproc, llr(ilr)%wfd%nseg_c
+         !!end do
     
          ! Now communicate those parts of the locreg that only some processes need (the keys).
          ! For this we first need to create orbsder that describes the derivatives.

@@ -410,6 +410,8 @@ contains
       integer, dimension(3) :: ndims
       real(gp), dimension(3) :: oxyz,hgrids
 
+      call f_routine(id='init_lr')
+
       lr%geocode=geocode
       lr%ns1=0
       lr%ns2=0
@@ -479,6 +481,8 @@ contains
 
       oxyz=locreg_mesh_origin(lr%mesh)
       lr%bit=box_iter(lr%mesh,origin=oxyz)
+
+      call f_release_routine()
 
     END SUBROUTINE init_lr
 
