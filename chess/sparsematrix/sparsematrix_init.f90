@@ -362,7 +362,7 @@ module sparsematrix_init
       rseq_average(1) = rseq_max(1)/real(nproc,kind=mp)
 
 
-      ! Realculate the values of sparsemat%smmm%nout and sparsemat%smmm%nseq with
+      ! Recalculate the values of sparsemat%smmm%nout and sparsemat%smmm%nseq with
       ! the optimized partitioning of the matrix columns.
       !t1 = mpi_wtime()
       call get_nout(norb, norb_par_ideal(iproc), isorb_par_ideal(iproc), &
@@ -388,9 +388,9 @@ module sparsematrix_init
       if (nproc>1) call fmpi_allreduce(rseq_average, FMPI_SUM, comm=comm)
       ratio_before = rseq_max(1)/rseq_average(1)
       ratio_after = rseq_max(2)/rseq_average(2)
-      !!if (iproc==0) then
-      !!    call yaml_map('sparse matmul load balancing naive / optimized',(/ratio_before,ratio_after/),fmt='(f4.2)')
-      !!end if
+      if (iproc==0) then
+          call yaml_map('sparse matmul load balancing naive / optimized',(/ratio_before,ratio_after/),fmt='(f4.2)')
+      end if
 
 
       call f_free(nseq_per_line)

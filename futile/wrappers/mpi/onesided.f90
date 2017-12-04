@@ -23,6 +23,7 @@ module f_onesided
     module procedure mpiwindowl_d1,mpiwindowi_d1
     module procedure mpiwindowl_i1,mpiwindowi_i1
     module procedure mpiwindowl_li1,mpiwindowi_li1
+    module procedure mpiwindowl_l0, mpiwindowi_l0
  end interface fmpi_win_create
 
   interface fmpi_get
@@ -243,6 +244,23 @@ module f_onesided
 
     end subroutine mpiwindowl_li1
 
+    subroutine mpiwindowi_l0(win,base,size,comm,dict_info,info)
+      implicit none
+      logical :: base
+      integer(f_integer),intent(in) :: size
+
+      include 'win-create-inc.f90'
+
+    end subroutine mpiwindowi_l0
+
+    subroutine mpiwindowl_l0(win,base,size,comm,dict_info,info)
+      implicit none
+      logical :: base
+      integer(f_long),intent(in) :: size
+
+      include 'win-create-inc.f90'
+
+    end subroutine mpiwindowl_l0
 
 
     

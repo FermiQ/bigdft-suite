@@ -1649,7 +1649,7 @@ module foe_common
               call mpibarrier(comm=comm)
               t1 = mpi_wtime()
           end if
-          call chebyshev_clean(iproc, nproc, npl, cc, &
+          call chebyshev_clean(iproc, nproc, comm, npl, cc, &
                smatl, workarr_compr, &
                .false., &
                nsize_polynomial, 1, fermi_new, penalty_ev_new, chebyshev_polynomials, &

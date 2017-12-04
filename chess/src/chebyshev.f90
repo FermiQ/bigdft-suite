@@ -37,17 +37,18 @@ module chebyshev
   contains
  
     !> Again assuming all matrices have same sparsity, still some tidying to be done
-    subroutine chebyshev_clean(iproc, nproc, npl, cc, kernel, ham_compr, &
+    subroutine chebyshev_clean(iproc, nproc, comm, npl, cc, kernel, ham_compr, &
                calculate_SHS, nsize_polynomial, ncalc, &
                fermi_new, penalty_ev_new, chebyshev_polynomials, emergency_stop, &
                invovrlp_compr)
+      use wrapper_mpi
       use sparsematrix_init, only: matrixindex_in_compressed
       use sparsematrix, only: sequential_acces_matrix_fast, sequential_acces_matrix_fast2, &
                               compress_matrix_distributed_wrapper, sparsemm_new
       implicit none
     
       ! Calling arguments
-      integer,intent(in) :: iproc, nproc, npl, nsize_polynomial, ncalc
+      integer,intent(in) :: iproc, nproc, comm, npl, nsize_polynomial, ncalc
       real(8),dimension(npl,2,ncalc),intent(in) :: cc
       type(sparse_matrix), intent(in) :: kernel
       real(kind=mp),dimension(kernel%nvctrp_tg),intent(in) :: ham_compr
@@ -68,6 +69,10 @@ module chebyshev
       !real(kind=mp),dimension(:),allocatable :: matrix_new
       !real(kind=mp) :: tt
       !integer :: jproc
+      integer :: jproc, ierr
+      type(fmpi_win) :: window
+      integer :: global_stop
+      integer,dimension(:),allocatable :: global_stop_remote
     
       !call timing(iproc, 'chebyshev_comp', 'ON')
       call f_timing(TCAT_CME_POLYNOMIALS,'ON')
@@ -171,6 +176,14 @@ module chebyshev
               !write(*,*) ' before loop: sum(penalty_ev_new)', sum(penalty_ev_new(:,1)), sum(penalty_ev_new(:,2))
             
               emergency_stop=.false.
+              global_stop = 0
+              global_stop_remote = f_malloc(0.to.nproc-1,id='global_stop_remote')
+              global_stop_remote = 0
+              call fmpi_win_create(window, global_stop_remote(0), nproc, comm=comm)
+              call fmpi_win_fence(window, FMPI_WIN_OPEN)
+              !!write(*,*) 'FIRST TEST'
+              !!call fmpi_get(global_stop, 0, window, 1, int(0,fmpi_address))
+              !!write(*,*) 'AFTER TEST'
               main_loop: do ipl=3,npl
                   call sparsemm_new(iproc, kernel, mat_seq, vectors_new(1,1), vectors_new(1,2))
                   call axbyz_kernel_vectors_new(kernel, 2.d0, vectors_new(1,2), -1.d0, vectors_new(1,4), vectors_new(1,3))
@@ -206,6 +219,24 @@ module chebyshev
                   ! New: Do this check on the Chebyshev polynomials
                   emergency_stop(1) = check_emergency_stop(kernel%smmm%nvctrp, ncalc, vectors_new(1,3))
                   if (any(emergency_stop)) then
+                      global_stop = 1 !.true.
+                      do jproc=0,nproc-1
+                          !write(*,*)'BEFORE: iproc, jproc', iproc, jproc
+                          !!call mpi_put(global_stop, int(1,fmpi_integer), mpi_logical, &
+                          !!     int(jproc,fmpi_integer), int(jproc,fmpi_address), &
+                          !!     int(1,fmpi_integer), mpi_logical, window, ierr)
+                          call mpi_put(global_stop, 1, mpi_logical, &
+                               jproc, int(jproc,fmpi_address), &
+                               1, mpi_logical, window, ierr)
+                          !call mpi_get(global_stop, 1, mpi_logical, &
+                          !     jproc, int(jproc,fmpi_address), &
+                          !     1, mpi_logical, window, ierr)
+                          !call fmpi_get(global_stop, jproc, window, 1, int(jproc,fmpi_address))
+                          !call fmpi_get(global_stop, 0, window, 1, int(0,fmpi_address))
+                          !write(*,*)'AFTER: iproc, jproc', iproc, jproc
+                      end do
+                      !write(*,*) 'SEND STOP, iproc, ipl', iproc, ipl
+                      call mpi_win_fence(MPI_MODE_NOSTORE, window, ierr)
                       exit main_loop
                   end if
                   !!do iorb=1,kernel%smmm%nfvctrp
@@ -216,9 +247,21 @@ module chebyshev
                   !!        exit main_loop
                   !!    end if
                   !!end do
+                  ! SM: To be checked
+                  !call fmpi_win_fence(window, FMPI_WIN_CLOSE)
+                  !write(*,*) 'CHECK BEFORE, iproc, ipl', iproc, ipl
+                  call mpi_win_fence(MPI_MODE_NOSTORE, window, ierr)
+                  !write(*,*) 'CHECK AFTER, iproc, ipl', iproc, ipl
+                  !if (any(global_stop_remote)) then
+                  if (sum(global_stop_remote)>0) then
+                      !write(*,*) 'STOP REMOTE'
+                      exit main_loop
+                  end if
               end do main_loop
               !write(*,*) 'emergency_stop',emergency_stop
               !write(*,*) 'sum(penalty_ev_new)', sum(penalty_ev_new(:,1)), sum(penalty_ev_new(:,2))
+
+              call fmpi_win_free(window)
         
           end if
     
