@@ -43,8 +43,8 @@ module fmpi_types
     module procedure mpitypesize_i1, mpitypesize_li1
   end interface mpitypesize
 
-  !might be included in a config.inc file
-  integer, parameter, public :: fmpi_integer=MPI_INTEGER_KIND
+  !might be included in a config.inc fine
+  integer, parameter, public :: fmpi_integer=kind(MPI_INTEGER) !as MPI_INTEGER_KIND is a spec of C MPI
   integer, parameter, public :: fmpi_address=MPI_ADDRESS_KIND
 
   !> Error codes

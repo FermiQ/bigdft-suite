@@ -861,7 +861,7 @@ subroutine tmb_overlap_onsite(iproc, nproc, imethod_overlap, at, tmb, rxyz)
 !!$      frag_trans%rot_center_new(:)=rxyz(:,iiat_tmp)
 
       strategy=inspect_rototranslation(frag_trans,tol,tmb%lzd%llr(ilr_tmp),tmb%lzd%llr(ilr),&
-           tmb%lzd%glr,tmb%lzd%glr,dict_info)
+           tmb%lzd%glr%mesh_coarse,tmb%lzd%glr%mesh_coarse,dict_info)
       
 !!$      call reformat_check(reformat,reformat_reason,tol,at,tmb%lzd%hgrids,tmb%lzd%hgrids,&
 !!$           tmb%lzd%llr(ilr)%wfd%nvctr_c,tmb%lzd%llr(ilr)%wfd%nvctr_f,&
@@ -945,7 +945,7 @@ subroutine tmb_overlap_onsite(iproc, nproc, imethod_overlap, at, tmb, rxyz)
 
              !!call f_free(psirold)
              !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-             call reformat_one_supportfunction(tmb%lzd%llr(ilr_tmp),tmb%lzd%llr(ilr),&
+             call reformat_one_supportfunction(tmb%lzd%llr(ilr_tmp),tmb%lzd%llr(ilr),tmb%lzd%glr%mesh_coarse,&
                   !at%astruct%geocode,& !,tmb%lzd%llr(ilr_tmp)%geocode,&
                   !& tmb%lzd%hgrids,
                   n,phigold,&
@@ -1382,7 +1382,7 @@ subroutine tmb_overlap_onsite_rotate(iproc, nproc, input, at, tmb, rxyz, ref_fra
 !!$      frag_trans(iiat,iiat)%rot_center_new(:)=rxyz(:,iiat_tmp)
 
       strategy=inspect_rototranslation(frag_trans(iiat,iiat),tol,tmb%lzd%llr(ilr_tmp),tmb%lzd%llr(ilr),&
-           tmb%lzd%glr,tmb%lzd%glr,dict_info)
+           tmb%lzd%glr%mesh_coarse,tmb%lzd%glr%mesh_coarse,dict_info)
      
 !!$      call reformat_check(reformat,reformat_reason,tol,at,tmb%lzd%hgrids,tmb%lzd%hgrids,&
 !!$           tmb%lzd%llr(ilr)%wfd%nvctr_c,tmb%lzd%llr(ilr)%wfd%nvctr_f,&
@@ -1421,7 +1421,7 @@ subroutine tmb_overlap_onsite_rotate(iproc, nproc, input, at, tmb, rxyz, ref_fra
 
           if (strategy == REFORMAT_FULL) then
 
-             call reformat_one_supportfunction(tmb%lzd%llr(ilr_tmp),tmb%lzd%llr(ilr),&
+             call reformat_one_supportfunction(tmb%lzd%llr(ilr_tmp),tmb%lzd%llr(ilr),tmb%lzd%glr%mesh_coarse,&
                   !at%astruct%geocode,& !,tmb%lzd%llr(ilr_tmp)%geocode,&
                   !& tmb%lzd%hgrids,
                   n,phigold,&
@@ -1531,7 +1531,7 @@ subroutine tmb_overlap_onsite_rotate(iproc, nproc, input, at, tmb, rxyz, ref_fra
 
          strategy=inspect_rototranslation(frag_trans(iiat,jjat),tol,&
               tmb%lzd%llr(ilr_tmp),tmb%lzd%llr(jlr),&
-              tmb%lzd%glr,tmb%lzd%glr,dict_info)
+              tmb%lzd%glr%mesh_coarse,tmb%lzd%glr%mesh_coarse,dict_info)
 
          reformat=strategy==REFORMAT_FULL
          wrap_around=strategy==REFORMAT_WRAP
@@ -1586,7 +1586,7 @@ subroutine tmb_overlap_onsite_rotate(iproc, nproc, input, at, tmb, rxyz, ref_fra
 
              if (reformat) then
 
-                call reformat_one_supportfunction(tmb%lzd%llr(ilr_tmp),tmb%lzd%llr(jlr),&
+                call reformat_one_supportfunction(tmb%lzd%llr(ilr_tmp),tmb%lzd%llr(jlr),tmb%lzd%glr%mesh_coarse,&
                      !at%astruct%geocode,&  !tmb%lzd%llr(ilr_tmp)%geocode,&
                      !& tmb%lzd%hgrids,
                      n,phigold,&
@@ -2240,7 +2240,7 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
 
   logical :: skip, binary
   integer :: itmb, jtmb, jat
-  integer, dimension(2,3) :: nbox
+  !integer, dimension(2,3) :: nbox
   !!$ integer :: ierr
 
   ! DEBUG
@@ -2341,13 +2341,13 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
               call timing(iproc,'tmbrestart','ON')
 
               !as psig is already printed in the entire box initialize the lr with the complete box here
-              nbox(1,1)=Lzd_old%Llr(ilr)%ns1
-              nbox(2,1)=Lzd_old%Llr(ilr)%d%n1+Lzd_old%Llr(ilr)%ns1
-              nbox(1,2)=Lzd_old%Llr(ilr)%ns2
-              nbox(2,2)=Lzd_old%Llr(ilr)%d%n2+Lzd_old%Llr(ilr)%ns2
-              nbox(1,3)=Lzd_old%Llr(ilr)%ns3
-              nbox(2,3)=Lzd_old%Llr(ilr)%d%n3+Lzd_old%Llr(ilr)%ns3
-              call lr_box(Lzd_old%Llr(ilr),tmb%lzd%glr,lzd_old%hgrids,nbox,.false.)
+!!$              nbox(1,1)=Lzd_old%Llr(ilr)%ns1
+!!$              nbox(2,1)=Lzd_old%Llr(ilr)%d%n1+Lzd_old%Llr(ilr)%ns1
+!!$              nbox(1,2)=Lzd_old%Llr(ilr)%ns2
+!!$              nbox(2,2)=Lzd_old%Llr(ilr)%d%n2+Lzd_old%Llr(ilr)%ns2
+!!$              nbox(1,3)=Lzd_old%Llr(ilr)%ns3
+!!$              nbox(2,3)=Lzd_old%Llr(ilr)%d%n3+Lzd_old%Llr(ilr)%ns3
+              call lr_box(Lzd_old%Llr(ilr),tmb%lzd%glr,lzd_old%hgrids)!,nbox,.false.)
 
               ! DEBUG: print*,iproc,iorb,iorb+orbs%isorb,iorb_old,iorb_out
 
@@ -3545,7 +3545,7 @@ subroutine reformat_supportfunctions(iproc,nproc,at,rxyz_old,rxyz,add_derivative
   !!integer :: i
   integer, dimension(3) :: ns_old,ns,n_old,n,nglr_old,nglr
   real(gp), dimension(3) :: centre_old_box,centre_new_box,da
-  real(gp) :: tt,tol
+  real(gp) :: tt,tol,displ
   real(wp), dimension(:,:,:,:,:,:), pointer :: phigold
   real(wp), dimension(:), allocatable :: phi_old_der
   integer, dimension(0:7) :: reformat_reason
@@ -3613,8 +3613,8 @@ subroutine reformat_supportfunctions(iproc,nproc,at,rxyz_old,rxyz,add_derivative
       !centre_old(:)=frag_trans(iorb)%rot_center(:)!rxyz_old(:,iiat)
       !shift(:)=frag_trans(iorb)%dr(:)!rxyz(:,iiat)
       strategy=inspect_rototranslation(frag_trans(iorb),tol,&
-           tmb%lzd%llr(ilr),tmb%lzd%llr(ilr_old),&
-           tmb%lzd%glr,lzd_old%glr,dict_info)
+           tmb%lzd%llr(ilr),lzd_old%llr(ilr_old),&
+           tmb%lzd%glr%mesh_coarse,lzd_old%glr%mesh_coarse,dict_info)
       
 !!$      call reformat_check(reformat,reformat_reason,tol,at,lzd_old%hgrids,tmb%lzd%hgrids,&
 !!$           lzd_old%llr(ilr_old)%wfd%nvctr_c,lzd_old%llr(ilr_old)%wfd%nvctr_f,&
@@ -3625,7 +3625,8 @@ subroutine reformat_supportfunctions(iproc,nproc,at,rxyz_old,rxyz,add_derivative
       reformat= strategy==REFORMAT_FULL
       wrap_around=strategy==REFORMAT_WRAP
       
-!tmp      max_shift = max(max_shift,sqrt(da(1)**2+da(2)**2+da(3)**2))
+      displ = get_displ(dict_info)
+      max_shift = max(max_shift,displ)
 
       ! just copy psi from old to new as reformat not necessary
       if (.not. reformat) then
@@ -3862,7 +3863,7 @@ subroutine reformat_supportfunctions(iproc,nproc,at,rxyz_old,rxyz,add_derivative
 !!$
 !!$             da=centre_new_box-centre_old_box-(lzd_old%hgrids-tmb%lzd%hgrids)*0.5d0
              !verify that the at%astruct%geocode here is the good value (seems not good for periodic systems)
-             call reformat_one_supportfunction(tmb%lzd%llr(ilr),lzd_old%llr(ilr_old),&
+             call reformat_one_supportfunction(tmb%lzd%llr(ilr),lzd_old%llr(ilr_old),tmb%lzd%glr%mesh_coarse,&
                   !at%astruct%geocode,& !,tmb%lzd%llr(ilr)%geocode,&
                   !lzd_old%hgrids,
                   n_old,phigold,&
@@ -3872,7 +3873,7 @@ subroutine reformat_supportfunctions(iproc,nproc,at,rxyz_old,rxyz,add_derivative
                   frag_trans(iorb),tmb%psi(jstart:),psirold)
              call f_free(psirold)
           else ! don't have psirold from file, so reformat using old way
-             call reformat_one_supportfunction(tmb%lzd%llr(ilr),lzd_old%llr(ilr_old),&!
+             call reformat_one_supportfunction(tmb%lzd%llr(ilr),lzd_old%llr(ilr_old),tmb%lzd%glr%mesh_coarse,&!
                   !at%astruct%geocode,& !,tmb%lzd%llr(ilr)%geocode,&
                   !lzd_old%hgrids,
                   n_old,phigold,&

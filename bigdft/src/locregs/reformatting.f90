@@ -19,6 +19,7 @@ module reformatting
   private
 
   integer, parameter :: reformatting_reasons=7
+  character(len=*), parameter :: REASONS_KEY=      'Reformat reasons'
   character(len=*), parameter :: HGRIDS=           'Grid spacing has changed'
   character(len=*), parameter :: UNIFORM=          'Box size has changed'
   character(len=*), parameter :: COMPRESSED_COARSE='Number of coarse grid points has changed'
@@ -27,6 +28,7 @@ module reformatting
   character(len=*), parameter :: ROTATE=           'Molecule was rotated'
   character(len=*), parameter :: NO_REFORMAT=      'No reformatting required'
   character(len=*), parameter :: WRAP=             'Wrapping/unwrapping'
+  character(len=*), parameter :: DISPL_KEY=         'Displacement'
 
   type(f_enumerator), public :: REFORMAT_COPY=f_enumerator('REFORMAT_COPY',-123,null())
   type(f_enumerator), public :: REFORMAT_FULL=f_enumerator('REFORMAT_FULL',-122,null())
@@ -34,26 +36,28 @@ module reformatting
 
   
   public :: inspect_rototranslation,reformat_one_supportfunction,print_reformat_summary
-  public :: reformatting_init_info
+  public :: reformatting_init_info,get_displ
 
 contains
-
 
   subroutine reformatting_init_info(info)
     use dictionaries, dict_set => set
     implicit none
     type(dictionary), pointer :: info
+    !local variables
+    type(dictionary), pointer :: info_reformat
     call dict_init(info)
-
-    call dict_set(info//NO_REFORMAT,0)
-    call dict_set(info//HGRIDS,0)
-    call dict_set(info//UNIFORM,0)
-    call dict_set(info//COMPRESSED_COARSE,0)
-    call dict_set(info//COMPRESSED_FINE,0)
-    call dict_set(info//SHIFT,0)
-    call dict_set(info//ROTATE,0)
-    call dict_set(info//WRAP,0)
+    call dict_init(info_reformat)
+    call dict_set(info_reformat//NO_REFORMAT,0)
+    call dict_set(info_reformat//HGRIDS,0)
+    call dict_set(info_reformat//UNIFORM,0)
+    call dict_set(info_reformat//COMPRESSED_COARSE,0)
+    call dict_set(info_reformat//COMPRESSED_FINE,0)
+    call dict_set(info_reformat//SHIFT,0)
+    call dict_set(info_reformat//ROTATE,0)
+    call dict_set(info_reformat//WRAP,0)
     
+    call dict_set(info//REASONS_KEY,info_reformat)
   end subroutine reformatting_init_info
   
   !> Print information about the reformatting due to restart
@@ -64,14 +68,14 @@ contains
     type(dictionary), pointer :: info
     !local variables
     integer :: i
-    type(dictionary), pointer :: iter
+    type(dictionary), pointer :: iter,info_reformat
     integer, dimension(:), allocatable :: reformat_reason ! array giving reasons for reformatting
-
-    reformat_reason=f_malloc(0.to.dict_size(info)-1,id='reformat_reason')
     
+    info_reformat => info // REASONS_KEY
+    reformat_reason=f_malloc(0.to.dict_size(info_reformat)-1,id='reformat_reason')
     nullify(iter)
     i=0
-    do while(iterating(iter,on=info))
+    do while(iterating(iter,on=info_reformat))
        reformat_reason(i)=iter
        i=i+1
     end do
@@ -83,19 +87,10 @@ contains
        call yaml_mapping_open('Overview of the reformatting (several categories may apply)')
        nullify(iter)
        i=0
-       do while(iterating(iter,on=info))
+       do while(iterating(iter,on=info_reformat))
           call yaml_map(trim(dict_key(iter)),reformat_reason(i))
           i=i+1
        end do
-!!$
-!!$       call yaml_map('No reformatting required', reformat_reason(0))
-!!$       call yaml_map('Grid spacing has changed', reformat_reason(1))
-!!$       call yaml_map('Number of coarse grid points has changed', reformat_reason(2))
-!!$       call yaml_map('Number of fine grid points has changed', reformat_reason(3))
-!!$       call yaml_map('Box size has changed', reformat_reason(4))
-!!$       call yaml_map('Molecule was shifted', reformat_reason(5))
-!!$       call yaml_map('Molecule was rotated', reformat_reason(6))
-!!$       call yaml_map('Wrapping/unwrapping', reformat_reason(7))
        call yaml_mapping_close()
     end if
 
@@ -103,33 +98,61 @@ contains
     call dict_free(info)
   end subroutine print_reformat_summary
 
-  subroutine rototranslations_shifts(rt,llr_src,llr_dest,&
+  subroutine rototranslations_shifts(rt,mesh_glr,llr_src,llr_dest,&
        centre_src,centre_dest,da)
     use rototranslations
     use locregs
+    use box
     implicit none
     type(rototranslation), intent(in) :: rt
+    type(cell), intent(in) :: mesh_glr
     type(locreg_descriptors), intent(in) :: llr_src,llr_dest
     real(gp), dimension(3), intent(out) :: centre_src,centre_dest,da
     !local variables
     real(gp), dimension(3) :: oxyz_src,oxyz_dest
 
-    call calculate_origins(llr_dest,llr_src,oxyz_src,oxyz_dest)
-    call calculate_shifts(rt,llr_src%mesh_coarse,&
-         llr_dest%mesh_coarse,oxyz_src,oxyz_dest,&
-         centre_src,centre_dest,da)
+!!$    oxyz_src=true_origin(llr_src%mesh,llr_src)
+!!$    oxyz_dest=true_origin(llr_dest%mesh,llr_dest)
+    !mesh coarse vs mesh fine for free BC
+    oxyz_src=true_origin(mesh_glr,llr_src)
+    oxyz_dest=true_origin(mesh_glr,llr_dest)
+
+    centre_src=closest_r(mesh_glr,rt%rot_center_src,oxyz_src)
+    centre_dest=closest_r(mesh_glr,rt%rot_center_dest,oxyz_dest)
+
+    da = centre_dest-centre_src-&
+         (llr_src%mesh_coarse%hgrids-llr_dest%mesh_coarse%hgrids)*0.5_gp
 
   end subroutine rototranslations_shifts
+
+!!$  subroutine rototranslations_shifts(rt,llr_src,llr_dest,&
+!!$       centre_src,centre_dest,da)
+!!$    use rototranslations
+!!$    use locregs
+!!$    implicit none
+!!$    type(rototranslation), intent(in) :: rt
+!!$    type(locreg_descriptors), intent(in) :: llr_src,llr_dest
+!!$    real(gp), dimension(3), intent(out) :: centre_src,centre_dest,da
+!!$    !local variables
+!!$    real(gp), dimension(3) :: oxyz_src,oxyz_dest
+!!$
+!!$    call calculate_origins(llr_dest,llr_src,oxyz_src,oxyz_dest)
+!!$    call calculate_shifts(rt,llr_src%mesh_coarse,&
+!!$         llr_dest%mesh_coarse,oxyz_src,oxyz_dest,&
+!!$         centre_src,centre_dest,da)
+!!$
+!!$  end subroutine rototranslations_shifts
   
   !> Checks whether reformatting is needed based on various criteria and returns final shift and centres needed for reformat
-  function inspect_rototranslation(frag_trans,tol,dest_llr,src_llr,dest_glr,src_glr,info) result(en)
+  function inspect_rototranslation(frag_trans,tol,dest_llr,src_llr,dest_glr_mesh,src_glr_mesh,info) result(en)
     use rototranslations
     use locregs
     use dictionaries, dict_set=>set
     use box
     implicit none
     real(gp), intent(in) :: tol ! tolerance for rotations and shifts
-    type(locreg_descriptors), intent(in) :: dest_llr, src_llr,dest_glr,src_glr
+    type(locreg_descriptors), intent(in) :: dest_llr, src_llr
+    type(cell), intent(in) :: dest_glr_mesh,src_glr_mesh
     type(dictionary), pointer :: info
     type(rototranslation), intent(in) :: frag_trans ! includes centres of rotation in global coordinates, shift and angle
     type(f_enumerator) :: en
@@ -141,52 +164,57 @@ contains
     real(gp) :: displ !, mindist
     integer :: i
     real(gp), dimension(3) :: centre_src,centre_dest,da
+    type(dictionary), pointer :: info_reformat
 
-    call rototranslations_shifts(frag_trans,src_llr,dest_llr,&
+    call rototranslations_shifts(frag_trans,dest_glr_mesh,&
+         src_llr,dest_llr,&
          centre_src,centre_dest,da)
 !!$    call calculate_origins(dest_llr,src_llr,oxyz_src,oxyz_dest)
 !!$    call calculate_shifts(frag_trans,src_llr%mesh_coarse,dest_llr%mesh_coarse,oxyz_src,oxyz_dest,&
 !!$         centre_src,centre_dest,da)
     displ=square_gd(dest_llr%mesh_coarse,da)
 
+    call dict_set(info // DISPL_KEY ,sqrt(displ))
+    info_reformat => info // REASONS_KEY
+
     reformat_needed=.false.
     if (any(dest_llr%mesh_coarse%hgrids /= src_llr%mesh_coarse%hgrids)) then
        reformat_needed=.true.
-       call increment(info//HGRIDS)
+       call increment(info_reformat//HGRIDS)
     end if
     if (any(dest_llr%mesh_coarse%ndims /= src_llr%mesh_coarse%ndims)) then
        reformat_needed=.true.
-       call increment(info//UNIFORM)
+       call increment(info_reformat//UNIFORM)
     end if
     if (dest_llr%wfd%nvctr_c /= src_llr%wfd%nvctr_c) then
        reformat_needed=.true.
-       call increment(info//COMPRESSED_COARSE)
+       call increment(info_reformat//COMPRESSED_COARSE)
     end if
     if (dest_llr%wfd%nvctr_f /= src_llr%wfd%nvctr_f) then
        reformat_needed=.true.
-       call increment(info//COMPRESSED_FINE)
+       call increment(info_reformat//COMPRESSED_FINE)
     end if
     if (abs(displ) > tol) then
        reformat_needed=.true.
-       call increment(info//SHIFT)
+       call increment(info_reformat//SHIFT)     
     end if
     if (abs(frag_trans%theta) > tol) then
        reformat_needed=.true.
-       call increment(info//ROTATE)
+       call increment(info_reformat//ROTATE)
     end if
     if (.not. reformat_needed) then
-       call increment(info//NO_REFORMAT)
+       call increment(info_reformat//NO_REFORMAT)
     end if
     ! check to make sure we don't need to 'unwrap' (or wrap) tmb in periodic case
     wrap_around=.false.
 
     do i=1,3
-       if (dimension_outside(i,dest_llr,dest_glr) .or. dimension_outside(i,src_llr,src_glr)) then
+       if (dimension_outside(i,dest_llr,dest_glr_mesh) .or. dimension_outside(i,src_llr,src_glr_mesh)) then
           if (different_starts(i,dest_llr,src_llr)) wrap_around = .true.
        end if
     end do
     if (wrap_around) then
-       call increment(info//WRAP)
+       call increment(info_reformat//WRAP)
     end if
 
     !result
@@ -227,22 +255,23 @@ contains
     end function different_starts
 
     
-    pure function dimension_outside(idim,llr,glr) result(yes)
+    pure function dimension_outside(idim,llr,glr_mesh) result(yes)
       implicit none
       integer, intent(in) :: idim
-      type(locreg_descriptors), intent(in) :: llr,glr
+      type(cell), intent(in) :: glr_mesh
+      type(locreg_descriptors), intent(in) :: llr
       logical :: yes
       !local variables
       logical, dimension(3) :: per
-      per=cell_periodic_dims(glr%mesh_coarse)
+      per=cell_periodic_dims(glr_mesh)
       yes=.false.
       select case(idim)
       case(1)
-         yes=tmb_wrap(per(1),llr%ns1,llr%mesh_coarse%ndims(1),glr%mesh_coarse%ndims(1))
+         yes=tmb_wrap(per(1),llr%ns1,llr%mesh_coarse%ndims(1),glr_mesh%ndims(1))
       case(2)
-         yes=tmb_wrap(per(2),llr%ns2,llr%mesh_coarse%ndims(2),glr%mesh_coarse%ndims(2))
+         yes=tmb_wrap(per(2),llr%ns2,llr%mesh_coarse%ndims(2),glr_mesh%ndims(2))
       case(3)
-         yes=tmb_wrap(per(3),llr%ns3,llr%mesh_coarse%ndims(3),glr%mesh_coarse%ndims(3))
+         yes=tmb_wrap(per(3),llr%ns3,llr%mesh_coarse%ndims(3),glr_mesh%ndims(3))
       end select
     end function dimension_outside
     
@@ -265,48 +294,71 @@ contains
 
     end function tmb_wrap
   end function inspect_rototranslation
-  
-  subroutine calculate_origins(llr,llr_old,oxyz_src,oxyz_dest)
-    use locregs
-    use bounds, only: locreg_mesh_coarse_origin,locreg_mesh_origin
+
+  function get_displ(info) result(displ)
+    use dictionaries
     implicit none
-    type(locreg_descriptors), intent(in) :: llr, llr_old
-    real(gp), dimension(3), intent(out) :: oxyz_dest,oxyz_src
-    !local variables
-    integer, dimension(3) :: ns,ns_old
-        
-    ns_old(1)=llr_old%ns1
-    ns_old(2)=llr_old%ns2
-    ns_old(3)=llr_old%ns3
-    ns(1)=llr%ns1
-    ns(2)=llr%ns2
-    ns(3)=llr%ns3
+    type(dictionary), pointer :: info
+    real(gp) :: displ
 
-    oxyz_src=true_origin(llr_old)
-    oxyz_dest=true_origin(llr)
-!!$    oxyz_src=llr_old%mesh_coarse%hgrids*ns_old-0.5_gp*locreg_mesh_coarse_origin(llr_old%mesh_coarse)
-!!$    oxyz_dest=*llr%mesh_coarse%hgrids*ns-0.5_gp*locreg_mesh_coarse_origin(llr%mesh_coarse)
-
-  end subroutine calculate_origins
-
+    displ = info // DISPL_KEY
+  end function get_displ
+    
+  
+!!!  subroutine calculate_origins(llr,llr_old,oxyz_src,oxyz_dest)
+!!!    use locregs
+!!!    use bounds, only: locreg_mesh_coarse_origin,locreg_mesh_origin
+!!!    implicit none
+!!!    type(locreg_descriptors), intent(in) :: llr, llr_old
+!!!    real(gp), dimension(3), intent(out) :: oxyz_dest,oxyz_src
+!!!    !local variables
+!!!    integer, dimension(3) :: ns,ns_old
+!!!        
+!!!    ns_old(1)=llr_old%ns1
+!!!    ns_old(2)=llr_old%ns2
+!!!    ns_old(3)=llr_old%ns3
+!!!    ns(1)=llr%ns1
+!!!    ns(2)=llr%ns2
+!!!    ns(3)=llr%ns3
+!!!
+!!!    oxyz_src=true_origin(llr_old)
+!!!    oxyz_dest=true_origin(llr)
+!!!!!$    oxyz_src=llr_old%mesh_coarse%hgrids*ns_old-0.5_gp*locreg_mesh_coarse_origin(llr_old%mesh_coarse)
+!!!!!$    oxyz_dest=*llr%mesh_coarse%hgrids*ns-0.5_gp*locreg_mesh_coarse_origin(llr%mesh_coarse)
+!!!
+!!!  end subroutine calculate_origins
+!!!
   !> this might be moved in locregs methods
-  function true_origin(lr) result(oxyz)
+  !! it might be interesting to avoid the +1 value
+  function true_origin(mesh_glr,lr) result(oxyz)
     use locregs, only: locreg_descriptors
     use bounds, only: locreg_mesh_origin
-    use box, only: cell_r
+    use box, only: cell_r,cell
     implicit none
+    type(cell), intent(in) :: mesh_glr
     type(locreg_descriptors), intent(in) :: lr
     real(gp), dimension(3) :: oxyz
 
-    oxyz=-locreg_mesh_origin(lr%mesh)
+    !that is a workaround as we should have to pass the isf_mesh of glr in here
+    oxyz=-0.5_gp*locreg_mesh_origin(mesh_glr)
     oxyz(1)=oxyz(1)+cell_r(lr%mesh,lr%nsi1+1,dim=1)
     oxyz(2)=oxyz(2)+cell_r(lr%mesh,lr%nsi2+1,dim=2)
     oxyz(3)=oxyz(3)+cell_r(lr%mesh,lr%nsi3+1,dim=3)
+!!$    oxyz(1)=oxyz(1)+cell_r(lr%mesh_coarse,lr%ns1+1,dim=1)
+!!$    oxyz(2)=oxyz(2)+cell_r(lr%mesh_coarse,lr%ns2+1,dim=2)
+!!$    oxyz(3)=oxyz(3)+cell_r(lr%mesh_coarse,lr%ns3+1,dim=3)
+
+!!$    !this will work with Free BC
+!!$    oxyz=-locreg_mesh_origin(lr%mesh)!mesh_glr)
+!!$    oxyz(1)=oxyz(1)+cell_r(lr%mesh,lr%nsi1+1,dim=1)
+!!$    oxyz(2)=oxyz(2)+cell_r(lr%mesh,lr%nsi2+1,dim=2)
+!!$    oxyz(3)=oxyz(3)+cell_r(lr%mesh,lr%nsi3+1,dim=3)
+
 
   end function true_origin
 
   !> Make frag_trans the argument so can eliminate need for interface
-  subroutine reformat_one_supportfunction(llr,llr_old,&!geocode,hgrids_old,&
+  subroutine reformat_one_supportfunction(llr,llr_old,dest_glr_mesh,&!geocode,hgrids_old,&
        n_old,psigold,&
        !hgrids,&
        n,&
@@ -324,6 +376,7 @@ contains
 !    real(gp), dimension(3), intent(in) :: hgrids,hgrids_old
     !type(wavefunctions_descriptors), intent(in) :: wfd
     type(locreg_descriptors), intent(in) :: llr, llr_old
+    type(cell), intent(in) :: dest_glr_mesh
 !    real(gp), dimension(3), intent(in) :: centre_old,centre_new,da
     type(rototranslation), intent(in) :: frag_trans
     real(wp), dimension(0:n_old(1),2,0:n_old(2),2,0:n_old(3),2), intent(in) :: psigold
@@ -407,7 +460,7 @@ contains
 !!$    end if
 
     !call calculate_origins(llr,llr_old,oxyz_src,oxyz_dest)
-    call rototranslations_shifts(frag_trans,llr_old,llr,&
+    call rototranslations_shifts(frag_trans,dest_glr_mesh,llr_old,llr,&
          centre_src,centre_dest,da)
     if (.not. present(psirold)) then
        call apply_rototranslation(frag_trans,.true.,&

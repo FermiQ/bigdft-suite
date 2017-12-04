@@ -1205,7 +1205,6 @@ subroutine input_memory_linear(iproc, nproc, at, KSwfn, tmb, tmb_old, denspot, i
          ! x^4, being 1.0 at 0.5
          tmb%confdatarr(:)%damping = (1.d0/0.5d0*max_shift)**4
      end if
-
      deallocate(frag_trans)
   end if
           !!write(*,*) 'after reformat_supportfunctions, iproc',iproc
