@@ -112,6 +112,7 @@ module chebyshev
               call vcopy(kernel%smmm%nvctrp, vectors_new(1,3), 1, vectors_new(1,1), 1)
               !!write(*,*) 'after vcopy'
           end do
+          call f_release_routine()
           return
       end if
 

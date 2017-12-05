@@ -1434,6 +1434,7 @@ module foe_common
     subroutine get_chebyshev_polynomials(iproc, nproc, comm, itype, foe_verbosity, npl, npl_penalty, smatm, smatl, &
                ham_, workarr_compr, foe_obj, chebyshev_polynomials, ispin, eval_bounds_ok, &
                hamscal_compr, scale_factor, shift_value, smats, ovrlp_, ovrlp_minus_one_half)
+      use sparsematrix_init, only: analyze_unbalancing
       use sparsematrix, only: compress_matrix, uncompress_matrix, &
                               transform_sparsity_pattern, sequential_acces_matrix_fast2, sparsemm_new, &
                               compress_matrix_distributed_wrapper
@@ -1668,7 +1669,7 @@ module foe_common
               t2 = mpi_wtime()
               time = t2-t1
               write(1000+iproc,*) time
-              call analyze_unbalance(iproc, nproc, comm, time)
+              call analyze_unbalancing(iproc, nproc, comm, time)
               !!time_min = time
               !!time_max = time
               !!time_ideal = time/real(nproc,kind=8)
@@ -2842,38 +2843,5 @@ module foe_common
     end subroutine prepare_matrix
 
 
-    subroutine analyze_unbalance(iproc, nproc, comm, time)
-      use dynamic_memory
-      implicit none
-
-      ! Calling arguments
-      integer,intent(in) :: iproc, nproc, comm
-      real(mp),intent(in) :: time
-
-      ! Local variables
-      real(kind=mp) :: time_min, time_max, time_ideal
-
-      call f_routine(id='analyze_unbalance')
-
-      time_min = time
-      time_max = time
-      time_ideal = time/real(nproc,kind=8)
-      call fmpi_allreduce(time_min, 1, FMPI_MIN, comm)
-      call fmpi_allreduce(time_max, 1, FMPI_MAX, comm)
-      call fmpi_allreduce(time_ideal, 1, FMPI_SUM, comm)
-      if (iproc==0) then
-          call yaml_newline()
-          call yaml_mapping_open('Load unbalancing')
-          call yaml_map('Minimal time',time_min,fmt='(es9.2)')
-          call yaml_map('Maximal time',time_max,fmt='(es9.2)')
-          call yaml_map('Ideal time',time_ideal,fmt='(es9.2)')
-          call yaml_map('Unbalancing in %',(time_max-time_ideal)/time_ideal*100._mp,fmt='(f7.2)')
-          call yaml_mapping_close()
-          call yaml_newline()
-      end if
-
-      call f_release_routine()
-
-  end subroutine analyze_unbalance
 
 end module foe_common

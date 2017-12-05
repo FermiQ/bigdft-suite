@@ -58,6 +58,7 @@ module sparsematrix_memory
   public :: sparse_matrix_metadata_null, nullify_sparse_matrix_metadata
   public :: deallocate_sparse_matrix_metadata
   public :: copy_sparse_matrix_metadata
+  public :: deallocate_sparse_matrix_matrix_multiplication
 !!$
 !!$
   type, public :: sparse_matrix_info_ptr
