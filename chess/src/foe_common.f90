@@ -1667,6 +1667,7 @@ module foe_common
           if (measure_unbalance) then
               t2 = mpi_wtime()
               time = t2-t1
+              write(1000+iproc,*) time
               call analyze_unbalance(iproc, nproc, comm, time)
               !!time_min = time
               !!time_max = time
