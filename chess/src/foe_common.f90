@@ -1431,7 +1431,7 @@ module foe_common
     !!end function x_power
 
 
-    subroutine get_chebyshev_polynomials(iproc, nproc, comm, itype, foe_verbosity, npl, smatm, smatl, &
+    subroutine get_chebyshev_polynomials(iproc, nproc, comm, itype, foe_verbosity, npl, npl_penalty, smatm, smatl, &
                ham_, workarr_compr, foe_obj, chebyshev_polynomials, ispin, eval_bounds_ok, &
                hamscal_compr, scale_factor, shift_value, smats, ovrlp_, ovrlp_minus_one_half)
       use sparsematrix, only: compress_matrix, uncompress_matrix, &
@@ -1449,7 +1449,7 @@ module foe_common
       ! Calling arguments
       integer,intent(in) :: iproc, nproc, comm, itype, ispin
       integer,intent(in) :: foe_verbosity
-      integer,intent(in) :: npl
+      integer,intent(in) :: npl, npl_penalty
       type(sparse_matrix),intent(in) :: smatm, smatl
       type(matrices),intent(in) :: ham_
       real(kind=mp),dimension(smatl%nvctrp_tg),intent(inout) :: workarr_compr
@@ -1496,6 +1496,8 @@ module foe_common
       type(fmpi_win), dimension(:),allocatable :: windows
       logical :: measure_unbalance = .true.
       real(kind=mp) :: t1, t2, time
+      real(kind=mp),dimension(:,:),allocatable :: vectors_new
+
 
 
       call f_routine(id='get_chebyshev_polynomials')
@@ -1649,11 +1651,19 @@ module foe_common
               call mpibarrier(comm=comm)
               t1 = mpi_wtime()
           end if
-          call chebyshev_clean(iproc, nproc, comm, npl, cc, &
+          mat_seq = sparsematrix_malloc(smatl, iaction=SPARSEMM_SEQ, id='mat_seq')
+          if (smatl%smmm%nvctrp>0) then
+              call sequential_acces_matrix_fast2(smatl, workarr_compr, mat_seq)
+          end if
+          vectors_new = f_malloc0((/smatl%smmm%nvctrp,4/),id='vectors_new')
+          !!write(*,*) 'npl, npl_penalty', npl, npl_penalty
+          call chebyshev_clean(iproc, nproc, comm, npl_penalty, cc(1:npl_penalty,1:2,1:1), &
                smatl, workarr_compr, &
                .false., &
-               nsize_polynomial, 1, fermi_new, penalty_ev_new, chebyshev_polynomials, &
+               nsize_polynomial, 1, .false., mat_seq, vectors_new, fermi_new, penalty_ev_new, chebyshev_polynomials, &
                emergency_stop)
+          !write(*,*) 'sum(penalty_ev_new)',sum(penalty_ev_new)
+          !write(*,*) 'cc(:,2,1)', cc(:,2,1)
           if (measure_unbalance) then
               t2 = mpi_wtime()
               time = t2-t1
@@ -1686,7 +1696,8 @@ module foe_common
             0, 1.0d0, 1.0d0, penalty_ev_new, anoise, .false., emergency_stop, &
             foe_obj, restart, eval_bounds_ok, foe_verbosity)
 
-      call f_free(cc)
+
+      !!write(*,*) 'restart',restart
 
       if (restart) then
           if(evbounds_shrinked) then
@@ -1695,12 +1706,29 @@ module foe_common
                    foe_data_get_int(foe_obj,"evboundsshrink_isatur")+1)
           end if
           call foe_data_set_int(foe_obj,"evbounds_isatur",0)
+          if (iproc==0) then
+              call yaml_map('npl calculated',npl_penalty)
+          end if
+      else
+          call chebyshev_clean(iproc, nproc, comm, npl, cc, &
+               smatl, workarr_compr, &
+               .false., &
+               nsize_polynomial, 1, .true., mat_seq, vectors_new, fermi_new, penalty_ev_new, chebyshev_polynomials, &
+               emergency_stop, npl_resume=npl_penalty+1)
+          if (iproc==0) then
+              call yaml_map('npl calculated',npl)
+          end if
       end if
+
+      call f_free(cc)
 
       ! eigenvalue bounds ok
       if (calculate_SHS) then
           call foe_data_set_int(foe_obj,"evbounds_isatur",foe_data_get_int(foe_obj,"evbounds_isatur")+1)
       end if
+
+      call f_free(mat_seq)
+      call f_free(vectors_new)
 
       call f_free(penalty_ev_new)
       call f_free(fermi_new)
@@ -2174,7 +2202,7 @@ module foe_common
 
     !> Determine the polynomial degree which yields the desired precision
     subroutine get_polynomial_degree(iproc, nproc, comm, ispin, ncalc, fun, foe_obj, &
-               npl_min, npl_max, npl_stride, accuracy_function, accuracy_penalty, verbosity, npl, cc, &
+               npl_min, npl_max, npl_stride, accuracy_function, accuracy_penalty, verbosity, npl, npl_penalty, cc, &
                max_error, x_max_error, mean_error, anoise, increase_degree_for_penaltyfunction, &
                ex, ef, fscale)
       use foe_base, only: foe_data, foe_data_get_real
@@ -2188,7 +2216,7 @@ module foe_common
       integer,intent(in) :: npl_min, npl_max, npl_stride
       type(foe_data),intent(in) :: foe_obj
       real(kind=mp),intent(in) :: accuracy_function, accuracy_penalty
-      integer,intent(out) :: npl
+      integer,intent(out) :: npl, npl_penalty
       real(kind=mp),dimension(:,:,:),pointer,intent(inout) :: cc
       real(kind=mp),dimension(ncalc),intent(out) :: max_error, x_max_error, mean_error
       real(kind=mp),intent(out) :: anoise
@@ -2197,7 +2225,7 @@ module foe_common
 
       ! Local variables
       integer :: ipl, icalc, j, jpl
-      logical :: error_ok, found_degree
+      logical :: error_ok, found_degree, found_penalty_degree
       real(kind=mp),dimension(:,:,:),allocatable :: cc_trial
       real(kind=mp) :: x_max_error_penaltyfunction, max_error_penaltyfunction, mean_error_penaltyfunction
 
@@ -2236,6 +2264,8 @@ module foe_common
 
       found_degree = .false.
       increase_degree_for_penaltyfunction = .false.
+      found_penalty_degree = .false.
+      npl_penalty = huge(1)
       degree_loop: do ipl=npl_min,npl_max,npl_stride
 
           if (foe_data_get_real(foe_obj,"evhigh",ispin)<=0.d0) then
@@ -2282,6 +2312,18 @@ module foe_common
                       (/x_max_error(icalc),max_error(icalc),mean_error(icalc)/),fmt='(es9.2)')
               end do
               call yaml_mapping_close()
+          end if
+
+          ! See whether for the penalty function we have already reached the required precision
+          call func_set(FUNCTION_EXPONENTIAL, betax=foe_data_get_real(foe_obj,"betax"), &
+               muax=foe_data_get_real(foe_obj,"evlow",ispin), mubx=foe_data_get_real(foe_obj,"evhigh",ispin))
+          call get_chebyshev_expansion_coefficients(iproc, nproc, comm, foe_data_get_real(foe_obj,"evlow",ispin), &
+               foe_data_get_real(foe_obj,"evhigh",ispin), ipl, func, cc_trial(1:ipl,icalc,2), &
+               x_max_error_penaltyfunction, max_error_penaltyfunction, mean_error_penaltyfunction)
+          if (.not. found_penalty_degree .and. max_error_penaltyfunction<=accuracy_penalty) then
+              npl_penalty = ipl
+              !!write(*,*) 'set npl_penalty to ', npl_penalty
+              found_penalty_degree = .true.
           end if
 
           error_ok = .true.
@@ -2339,6 +2381,10 @@ module foe_common
               end do
           end do
       end do
+
+      ! npl_penalty must be at most npl
+      npl_penalty = min(npl_penalty,npl)
+
       call f_free(cc_trial)
       !call f_free(mean_error)
       !call f_free(max_error)
@@ -2510,7 +2556,7 @@ module foe_common
       real(mp),dimension(ncalc),intent(out),optional :: max_errorx
 
       ! Local variables
-      integer :: ilshift, i, jspin, imshift
+      integer :: ilshift, i, jspin, imshift, npl_penalty
       real(mp),dimension(:),allocatable :: max_error, x_max_error, mean_error
       real(mp) :: anoise, tt
       real(kind=mp),dimension(:,:,:),pointer :: cc_
@@ -2588,26 +2634,28 @@ module foe_common
                   if (func_name==FUNCTION_ERRORFUNCTION .or. func_name==FUNCTION_FERMIFUNCTION) then
                       call get_polynomial_degree(iproc, nproc, comm, 1, ncalc, &
                            foe_data_get_int(foe_obj,"occupation_function"), foe_obj, &
-                           npl_min, npl_max, npl_stride, accuracy_function, accuracy_penalty, 0, npl, cc_, &
+                           npl_min, npl_max, npl_stride, accuracy_function, accuracy_penalty, 0, npl, npl_penalty, cc_, &
                            max_error, x_max_error, mean_error, anoise, increase_degree_for_penaltyfunction, &
                            ef=efarr, fscale=fscale_arr)
                   else if (func_name==FUNCTION_POLYNOMIAL) then
                       call get_polynomial_degree(iproc, nproc, comm, 1, ncalc, FUNCTION_POLYNOMIAL, foe_obj, &
-                           npl_min, npl_max, npl_stride, accuracy_function, accuracy_penalty, 0, npl, cc_, &
+                           npl_min, npl_max, npl_stride, accuracy_function, accuracy_penalty, 0, npl, npl_penalty, cc_, &
                            max_error, x_max_error, mean_error, anoise, increase_degree_for_penaltyfunction, &
                            ex=ex)
                   else if (func_name==FUNCTION_FERMIFUNCTION_ENTROPY) then
                       !!write(*,*) 'npl_min, npl_max, npl_stride', npl_min, npl_max, npl_stride
                       call get_polynomial_degree(iproc, nproc, comm, 1, ncalc, func_name, foe_obj, &
-                           npl_min, npl_max, npl_stride, accuracy_function, accuracy_penalty, 0, npl, cc_, &
+                           npl_min, npl_max, npl_stride, accuracy_function, accuracy_penalty, 0, npl, npl_penalty, cc_, &
                            max_error, x_max_error, mean_error, anoise, increase_degree_for_penaltyfunction)
                   end if
-                  npl_min = npl !to be used to speed up the search for npl in a following iteration
+                  !!npl_min = npl !to be used to speed up the search for npl in a following iteration
+                  npl_min = min(npl_penalty,npl) !to be used to speed up the search for npl in a following iteration
                   if (iproc==0 .and. foe_verbosity>0) then
                       call yaml_newline()
                       call yaml_sequence(advance='no')
                       call yaml_mapping_open(flow=.true.)
                       call yaml_map('npl',npl)
+                      call yaml_map('npl penalty',npl_penalty)
                       if (increase_degree_for_penaltyfunction) then
                           call yaml_map('npl determined by','penalty')
                       else
@@ -2632,7 +2680,7 @@ module foe_common
     
               if (itype==2) then
                   call get_chebyshev_polynomials(iproc, nproc, comm, &
-                       itype, foe_verbosity, npl, smatm, smatl, &
+                       itype, foe_verbosity, npl, npl_penalty, smatm, smatl, &
                        ham_scaled, workarr_compr(ilshift+1:), foe_obj, &
                        chebyshev_polynomials(:,:,jspin), jspin, eval_bounds_ok, hamscal_compr(ilshift+1:), &
                        scale_factor, shift_value, &
@@ -2640,7 +2688,7 @@ module foe_common
                        ovrlp_minus_one_half=ovrlp_minus_one_half_%matrix_compr(ilshift+1:))
               else if (itype==1) then
                   call get_chebyshev_polynomials(iproc, nproc, comm, &
-                       itype, foe_verbosity, npl, smatm, smatl, &
+                       itype, foe_verbosity, npl, npl_penalty, smatm, smatl, &
                        ham_scaled, workarr_compr(ilshift+1:), foe_obj, &
                        chebyshev_polynomials(:,:,jspin), jspin, eval_bounds_ok, hamscal_compr(ilshift+1:), &
                        scale_factor, shift_value)
