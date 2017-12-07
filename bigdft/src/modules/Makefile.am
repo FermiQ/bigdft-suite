@@ -229,6 +229,7 @@ openbabel_library = $(openbabel_soname_library)
 AM_LDFLAGS = -Wl,-rpath=$(DESTDIR)$(dynlibdir)
 else
 openbabel_static_sources = openbabel_fake.c
+AM_CFLAGS = -I. -I$(srcdir) -I$(top_builddir)/includes @MPI_INCLUDE@ @LIBABINIT_INCLUDE@ @LIB_XC_CFLAGS@ @LIB_FUTILE_CFLAGS@
 endif
 
 EXTRA_DIST = $(ATOMS_INCLUDES) $(COMMS_INCLUDES) openbabel.cpp
