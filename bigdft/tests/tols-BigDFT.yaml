@@ -1616,8 +1616,8 @@ O2spin_diag:
  Clean forces norm (Ha/Bohr): 3.09e-6
  Raw forces norm (Ha/Bohr): 2.51e-6
  Orbitals: 2.9e-7
- EBS: 3.2e-9
- EBS higher temperature: 3.2e-9
+ EBS: 3.5e-9
+ EBS higher temperature: 3.5e-9
  EH: 1.9e-6
  EXC: 3.5e-7
  Ekin: 2.3e-6
@@ -1633,8 +1633,8 @@ O2spin_diag:
  Force Norm (Hartree/Bohr): 1.7e-6
  Maxdiff for transpose (checksum): 5.9e-11
  delta: 1.1e-10
- Fermi Energy: 1.8e-09
- Suggested Fermi Level: 1.8e-09
+ Fermi Energy: 2.2e-09
+ Suggested Fermi Level: 2.2e-09
  HOMO energy: 3.5e-10
  LUMO energy: 6.3e-10
  HOMO-LUMO gap (Ha): 3.8e-10
@@ -1642,9 +1642,9 @@ O2spin_diag:
  Asymmetry of kernel: 0.00025
  difference: 1.7e-11
  relative difference: 5.9e-11
- Tr(K): 1.1e-7
+ Tr(K): 1.1e-6
  spin occupations: 1.1e-7
- trace(KH): 3.2e-9
+ trace(KH): 3.5e-9
 
 O2spin_foe:
  Atomic Forces (Ha/Bohr): 3.0e-7
