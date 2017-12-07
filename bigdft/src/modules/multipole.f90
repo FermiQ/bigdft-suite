@@ -2598,6 +2598,11 @@ module multipole
               if ((ie1-is1+1)*(ie2-is2+1)*(ie3-is3+1)>0) then
                   call f_memcpy(n=(ie1-is1+1)*(ie2-is2+1)*(ie3-is3+1), &
                        src=denspot%rhov(ioffset+1), dest=rho_exact(is1,is2,is3))
+                  if (smats%nspin>1) then
+                      call axpy((ie1-is1+1)*(ie2-is2+1)*(ie3-is3+1), 1.d0, &
+                          denspot%rhov(lzd%glr%d%n1i*lzd%glr%d%n2i*denspot%dpbox%n3d+ioffset+1), 1, &
+                          rho_exact(is1,is2,is3), 1)
+                  end if
               end if
               call f_memcpy(src=rho_exact, dest=pot_exact)
               call Electrostatic_Solver(denspot%pkernel,pot_exact,pot_ion=denspot%V_ext)
