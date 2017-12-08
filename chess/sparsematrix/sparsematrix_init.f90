@@ -6097,11 +6097,13 @@ module sparsematrix_init
              ts = mpi_wtime()
          end if
 
+         !$omp parallel default(private) shared(ncol_proc, col_proc, smat, a_seq, b, c, times_col)
          do icol=1,ncol_proc
              is = col_proc(1,icol)
              ie = col_proc(2,icol)
+             !$omp master
              t1 = mpi_wtime()
-             !$omp parallel default(private) shared(is, ie, smat, a_seq, b, c, times_col)
+             !$omp end master
              !$omp do schedule(guided)
              do iout=is,ie
                  i=smat%smmm%onedimindices_new(1,iout)
@@ -6127,15 +6129,17 @@ module sparsematrix_init
                  !write(*,*) 'i, t1, t2, time', i, t1, t2, t2-t1
              end do 
              !$omp end do
-             !$omp end parallel
              !!if (iproc==0) then
              !!    do iii=1,100000
              !!        write(999,*) exp(0.1d0*iii)
              !!    end do
              !!end if
+             !$omp master
              t2 = mpi_wtime()
              times_col(icol) = t2-t1
+             !$omp end master
          end do
+         !$omp end parallel
 
          if (count_flops) then
              ! End time
