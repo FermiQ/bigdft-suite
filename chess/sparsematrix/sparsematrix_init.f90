@@ -1238,15 +1238,14 @@ module sparsematrix_init
           column_startend = f_malloc([2,sparsemat%nfvctr],id='column_startend')
           ! Determine the start and end of each column
           do icol=1,sparsemat%nfvctr
-              iseg = sparsemat%istsegline(icol)
-              ii = sparsemat%keyv(iseg)
+              iseg = sparsemat%smmm%istsegline(icol)
+              ii = sparsemat%smmm%keyv(iseg)
               column_startend(1,icol) = ii
               if (icol>1) then
                   column_startend(2,icol-1) = ii - 1
               end if
           end do
-          column_startend(2,sparsemat%nfvctr) = sparsemat%nvctr
-          !!write(*,*) 'column_startend', column_startend
+          column_startend(2,sparsemat%nfvctr) = sum(sparsemat%smmm%nvctr_par)
 
           ! Determine the start and end of the columns of iproc
           call determine_columns_per_proc()
