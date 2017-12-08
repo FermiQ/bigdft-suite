@@ -1289,13 +1289,12 @@ module sparsematrix_init
           !!    end do
           !!end do
 
-          nit = 5
+          nit = 20
           !!times = f_malloc0([sparsemat%smmm%nvctrp,nit],id='times')
           times_col = f_malloc0([1.to.sparsemat%nfvctr,0.to.nit],id='times_col')
           do it=1,nit
               call sparsemm_new_timing(iproc, ncol_proc, col_proc, sparsemat, a_seq, b, c, times_col(iscol_proc,it))
           end do
-          !!write(*,*) 'iproc, times_col(:,1)', iproc, times_col(:,1)
           call f_free(col_proc)
           time_proc = sum(times_col)/real(nit,kind=mp)
           if (iproc==0) then

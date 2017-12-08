@@ -23,9 +23,9 @@ program utilities
                                 sparsematrix_malloc_ptr, deallocate_sparse_matrix, deallocate_matrices, &
                                 sparse_matrix_metadata, deallocate_sparse_matrix_metadata
    use sparsematrix_init, only: bigdft_to_sparsebigdft, distribute_columns_on_processes_simple, &
-                                write_sparsematrix_info
+                                write_sparsematrix_info, init_matrix_taskgroups_wrapper
    use sparsematrix_io, only: read_sparse_matrix, write_sparse_matrix, read_linear_coefficients
-   use sparsematrix, only: uncompress_matrix, uncompress_matrix_distributed2
+   use sparsematrix, only: uncompress_matrix, uncompress_matrix_distributed2, resize_matrix_to_taskgroup
    use sparsematrix_highlevel, only: sparse_matrix_and_matrices_init_from_file_bigdft, &
                                      sparse_matrix_and_matrices_init_from_file_ccs, &
                                      sparse_matrix_metadata_init_from_file, &
@@ -35,7 +35,7 @@ program utilities
                                      matrices_init, &
                                      get_selected_eigenvalues_from_FOE
    use postprocessing_linear, only: CHARGE_ANALYSIS_LOEWDIN, CHARGE_ANALYSIS_MULLIKEN, build_ks_orbitals_postprocessing
-   use multipole, only: multipole_analysis_driver_new
+   use multipole, only: multipole_analysis_driver_new, init_extract_matrix_lookup, extract_matrix
    use multipole_base, only: lmax
    use io, only: io_read_descr_linear, read_psi_compress
    use bigdft_run, only: bigdft_init
@@ -43,6 +43,7 @@ program utilities
    ! It's very bad practice to oblige the use of module_interfaces.
    ! If it is not done, it crashes with segfault due to the optional arguments
    use module_interfaces, only: orbitals_descriptors, open_filename_of_iorb
+   use module_input_dicts, only: merge_input_file_to_dict
    implicit none
    external :: gather_timings
    character(len=*), parameter :: subname='utilities'
@@ -51,7 +52,7 @@ program utilities
    character(len=30) :: tatonam, radical, colorname, linestart, lineend, cname, methodc
    character(len=128) :: method_name, overlap_file, hamiltonian_file, kernel_file, coeff_file, pdos_file, metadata_file
    character(len=128) :: line, cc, output_pdos, conversion, infile, outfile, iev_min_, iev_max_, fscale_, matrix_basis
-   character(len=128) :: kernel_file_matmul, istart_ks_, iend_ks_, matrix_format
+   character(len=128) :: kernel_matmul_file, istart_ks_, iend_ks_, matrix_format, fragment_file
    character(len=128),dimension(-lmax:lmax,0:lmax) :: multipoles_files
    logical :: multipole_analysis = .false.
    logical :: solve_eigensystem = .false.
@@ -59,6 +60,7 @@ program utilities
    logical :: convert_matrix_format = .false.
    logical :: calculate_selected_eigenvalues = .false.
    logical :: build_KS_orbitals = .false.
+   logical :: calculate_fragment_multipoles = .false.
    type(atoms_data) :: at
    type(sparse_matrix_metadata) :: smmd
    integer :: istat, i_arg, ierr, nspin, icount, nthread, method, ntypes
@@ -71,23 +73,26 @@ program utilities
    integer,dimension(:),pointer :: iatype, nzatom, nelpsp
    integer,dimension(:),pointer :: col_ptr, row_ind
    integer,dimension(:,:,:),pointer :: keyg_s, keyg_m, keyg_l
-   integer,dimension(:),allocatable :: in_which_locreg
+   integer,dimension(:),allocatable :: in_which_locreg, fragment_atom_id
    logical,dimension(-lmax:lmax) :: file_present
    real(kind=8),dimension(:),pointer :: matrix_compr, eval_ptr
    real(kind=8),dimension(:,:),pointer :: rxyz, coeff_ptr
    real(kind=8),dimension(:),allocatable :: eval, energy_arr, occups, phi, phi_tmp
    real(kind=8),dimension(:,:),allocatable :: denskernel, pdos, occup_arr
    logical,dimension(:,:),allocatable :: calc_array
+   integer,dimension(:,:),allocatable :: lookup_ovrlp, lookup_kernel
    logical :: file_exists, found
    type(matrices) :: ovrlp_mat, hamiltonian_mat, kernel_mat, mat
    type(matrices),dimension(1) :: ovrlp_minus_one_half
    type(matrices),dimension(:,:),allocatable :: multipoles_matrices
-   type(sparse_matrix) :: smat_s, smat_m, smat_l, smat
+   type(sparse_matrix) :: smat_s, smat_m, smat_l
+   type(sparse_matrix),dimension(2) :: smat
    type(dictionary), pointer :: dict_timing_info
    integer :: iunit, nat, iat, iat_prev, ii, iitype, iorb, itmb, itype, ival, ios, ipdos, ispin
-   integer :: jtmb, norbks, npdos, npt, ntmb, jjtmb, istart_ks, iend_ks
+   integer :: jtmb, norbks, npdos, npt, ntmb, jjtmb, istart_ks, iend_ks, nat_frag, iat_frag, isf, iiat, nsf_frag, mm, nmpmat
    character(len=20),dimension(:),pointer :: atomnames
    character(len=30),dimension(:),allocatable :: pdos_name
+   character(len=32),dimension(:),allocatable :: fragment_atom_name
    real(kind=8),dimension(3) :: cell_dim
    character(len=2) :: backslash, num
    real(kind=8) :: energy, occup, occup_pdos, total_occup, fscale
@@ -98,10 +103,16 @@ program utilities
    real(kind=8),dimension(nkpt),parameter :: wkpt = (/1.d0/)
    type(local_zone_descriptors) :: lzd
    integer :: confpotorder, ilr, iiorb, iiorb_out, ispinor, nspinor, onwhichatom_tmp, npsidim_orbs, nsize
-   real(kind=8) :: confpotprefac, eval_tmp
+   real(kind=8) :: confpotprefac, eval_tmp, tr, fragment_charge
    character(len=256) :: error, filename, KSgrid_file
    logical :: lstat
+   logical,dimension(:),allocatable :: supfun_in_fragment
    integer,parameter :: ncolors = 12
+   type(dictionary),pointer :: fragment_dict, fragment_item, fragment_atom
+   type(mpi_environment) :: mpi_env
+   real(kind=8),dimension(:,:,:),allocatable :: mpmat, kqmat
+   real(kind=8),dimension(:,:),allocatable :: kmat
+   real(kind=8),dimension(:),allocatable :: fragment_multipoles
    ! Presumably well suited colorschemes from colorbrewer2.org
    character(len=20),dimension(ncolors),parameter :: colors=(/'#a6cee3', &
                                                               '#1f78b4', &
@@ -181,7 +192,7 @@ program utilities
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = kernel_file)
             i_arg = i_arg + 1
-            call get_command_argument(i_arg, value = kernel_file_matmul)
+            call get_command_argument(i_arg, value = kernel_matmul_file)
             do l=0,lmax
                 do m=-l,l
                     i_arg = i_arg + 1
@@ -258,6 +269,29 @@ program utilities
              call get_command_argument(i_arg, value = iend_ks_)
              read(iend_ks_,fmt=*,iostat=ierr) iend_ks
              build_KS_orbitals = .true.
+         else if (trim(tatonam)=='fragment-multipoles') then
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = matrix_format)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = metadata_file)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = fragment_file)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = overlap_file)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = kernel_file)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = kernel_matmul_file)
+            do l=0,lmax
+                do m=-l,l
+                    i_arg = i_arg + 1
+                    call get_command_argument(i_arg, value = multipoles_files(m,l))
+                end do
+            end do
+            !write(*,'(1x,2a)')&
+            !   &   'perform a Loewdin charge analysis'
+            calculate_fragment_multipoles = .true.
+            exit loop_getargs
          end if
          i_arg = i_arg + 1
       end do loop_getargs
@@ -298,7 +332,7 @@ program utilities
 
        call sparse_matrix_and_matrices_init_from_file_bigdft('serial_text', trim(kernel_file), &
             bigdft_mpi%iproc, bigdft_mpi%nproc, bigdft_mpi%mpi_comm, smat_l, kernel_mat, &
-            init_matmul=.true., filename_mult=trim(kernel_file_matmul))
+            init_matmul=.true., filename_mult=trim(kernel_matmul_file))
 
        if (bigdft_mpi%iproc==0) then
            call yaml_mapping_open('Matrix properties')
@@ -597,6 +631,208 @@ program utilities
        call f_free_ptr(at%nzatom)
        call f_free_ptr(at%nelpsp)
 
+
+   end if
+
+
+   if (calculate_fragment_multipoles) then
+
+       call sparse_matrix_metadata_init_from_file(trim(metadata_file), smmd)
+       if (bigdft_mpi%iproc==0) then
+           call yaml_mapping_open('Atomic System Properties')
+           call yaml_map('Types of atoms',smmd%atomnames)
+           call yaml_mapping_close()
+       end if
+
+       call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, trim(overlap_file), &
+            bigdft_mpi%iproc, bigdft_mpi%nproc, mpiworld(), smat(1), ovrlp_mat, &
+            init_matmul=.false.)
+
+       call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, trim(kernel_file), &
+            bigdft_mpi%iproc, bigdft_mpi%nproc, mpiworld(), smat(2), kernel_mat, &
+            init_matmul=.true., filename_mult=trim(kernel_matmul_file))
+
+       call init_matrix_taskgroups_wrapper(bigdft_mpi%iproc, bigdft_mpi%nproc, mpiworld(), .true., 2, smat)
+
+       call resize_matrix_to_taskgroup(smat(1), ovrlp_mat)
+       call resize_matrix_to_taskgroup(smat(2), kernel_mat)
+
+
+       if (bigdft_mpi%iproc==0) then
+           call yaml_mapping_open('Matrix properties')
+           call write_sparsematrix_info(smat(1), 'Overlap matrix')
+           call write_sparsematrix_info(smat(2), 'Density kernel')
+           call yaml_mapping_close()
+       end if
+
+       ! Check which multipole matrices are present
+       ll = -1
+       do l=0,lmax
+           file_present(:) = .false.
+           do m=-l,l
+               inquire(file=trim(multipoles_files(m,l)), exist=file_exists)
+               if (file_exists) then
+                   file_present(m) = .true.
+               end if
+           end do
+           if (any(file_present(-l:l))) then
+               if (.not.all(file_present(-l:l))) then
+                   call f_err_throw('for a given shell all matrices must be present', &
+                        err_name='BIGDFT_RUNTIME_ERROR')
+               end if
+               ll = l
+           end if
+       end do
+
+       allocate(multipoles_matrices(-ll:ll,0:ll))
+       do l=0,ll
+           do m=-l,l
+               call matrices_init_from_file_bigdft(matrix_format, trim(multipoles_files(m,l)), &
+                    bigdft_mpi%iproc, bigdft_mpi%nproc, bigdft_mpi%mpi_comm, smat(1), multipoles_matrices(m,l))
+           end do
+       end do
+
+       call timing(bigdft_mpi%mpi_comm,'INIT','PR')
+
+       mpi_env = mpi_environment_null()
+       call mpi_environment_set(mpi_env, bigdft_mpi%iproc, bigdft_mpi%nproc, bigdft_mpi%mpi_comm, bigdft_mpi%nproc)
+       call merge_input_file_to_dict(fragment_dict, fragment_file, mpi_env)
+
+       supfun_in_fragment = f_malloc(smat(1)%nfvctr,id='supfun_in_fragment')
+
+       nmpmat = 0
+       do l=0,ll
+           nmpmat = nmpmat + 2*l + 1
+       end do
+       fragment_multipoles = f_malloc(0.to.nmpmat,id='fragment_multipoles')
+
+       if (bigdft_mpi%iproc==0) then
+           call yaml_sequence_open('Fragment multipoles')
+       end if
+
+       fragment_loop: do while (iterating(fragment_item,fragment_dict))
+
+           nat_frag = dict_len(fragment_item)
+           fragment_atom_id = f_malloc(nat_frag,id='fragment_atom_id')
+           fragment_atom_name = f_malloc_str(len(fragment_atom_name),nat_frag,id='fragment_atom_name')
+           fragment_atom => dict_iter(fragment_item)
+           iat_frag = 0
+           fragment_charge = 0.d0
+           do while (associated(fragment_atom))
+               iat_frag = iat_frag + 1
+               iiat = fragment_atom
+               iitype = smmd%iatype(iiat)
+               fragment_atom_id(iat_frag) = iiat
+               fragment_atom_name(iat_frag) = trim(smmd%atomnames(iitype))
+               fragment_charge = fragment_charge + smmd%nelpsp(iitype)
+               fragment_atom => dict_next(fragment_atom)
+           end do
+
+           ! Count how many support functions belong to the fragment
+           supfun_in_fragment(:) = .false.
+           nsf_frag = 0
+           outerloop: do isf=1,smat(1)%nfvctr
+               iiat = smmd%on_which_atom(isf)
+               do iat=1,nat_frag
+                   if (iiat==fragment_atom_id(iat)) then
+                       supfun_in_fragment(isf) = .true.
+                       nsf_frag = nsf_frag + 1
+                       cycle outerloop
+                   end if
+               end do
+           end do outerloop
+
+           lookup_ovrlp = f_malloc([nsf_frag,nsf_frag],id='lookup_ovrlp')
+           lookup_kernel = f_malloc([nsf_frag,nsf_frag],id='lookup_kernel')
+           call init_extract_matrix_lookup(smat(2), supfun_in_fragment, nsf_frag, lookup_kernel)
+           call init_extract_matrix_lookup(smat(1), supfun_in_fragment, nsf_frag, lookup_ovrlp)
+           kqmat = f_malloc([nsf_frag,nsf_frag,2],id='kqmat')
+           kmat = f_malloc([nsf_frag,nsf_frag],id='kmat')
+           mpmat = f_malloc([nsf_frag,nsf_frag,nmpmat],id='mpmat')
+           call extract_matrix(smat(1), kernel_mat%matrix_compr, nsf_frag, lookup_kernel, kmat(1,1))
+           !call yaml_map('kmat(:,:)',kmat(:,:))
+           mm = 0
+           do l=0,ll
+               do m=-l,l
+                   mm = mm + 1
+                   call extract_matrix(smat(1), multipoles_matrices(m,l)%matrix_compr, nsf_frag, lookup_ovrlp, mpmat(1,1,mm))
+                   !call yaml_map('mpmat(:,:,mm)',mpmat(:,:,mm))
+               end do
+           end do
+
+           ! Now calculate KQ, where K is the kernel and Q the multipole matrix.
+           ! Take the trace of KQ, which is the multipole moment of the fragment.
+           ! Then calculate (KQ)^2 - KQ and take the trace, which gives the purity indicator.
+           mm = 0
+           do l=0,ll
+               do m=-l,l
+                   mm = mm + 1
+                   call gemm('n', 'n', nsf_frag, nsf_frag, nsf_frag, 1.d0, kmat(1,1), nsf_frag, &
+                        mpmat(1,1,mm), nsf_frag, 0.d0, kqmat(1,1,1), nsf_frag)
+                   tr = 0.d0
+                   do isf=1,nsf_frag
+                       tr = tr + kqmat(isf,isf,1)
+                   end do
+                   fragment_multipoles(mm) = tr
+                   if (l==0) then
+                       if (smat(1)%nspin==1) then
+                           call dscal(nsf_frag**2, 0.5d0, kqmat(1,1,1), 1)
+                       end if
+                       call gemm('n', 'n', nsf_frag, nsf_frag, nsf_frag, 1.d0, kqmat(1,1,1), nsf_frag, &
+                            kqmat(1,1,1), nsf_frag, 0.d0, kqmat(1,1,2), nsf_frag)
+                       call axpy(nsf_frag**2, -1.d0, kqmat(1,1,1), 1, kqmat(1,1,2), 1)
+                       tr = 0.d0
+                       do isf=1,nsf_frag
+                           tr = tr + kqmat(isf,isf,2)
+                       end do
+                       fragment_multipoles(0) = tr/fragment_charge
+                   end if
+               end do
+           end do
+           if (bigdft_mpi%iproc==0) then
+               call yaml_sequence(advance='no')
+               call yaml_map('Atom IDs',fragment_atom_id)
+               call yaml_map('Atom names',fragment_atom_name)
+               call yaml_map('Neutral fragment charge',fragment_charge,fmt='(1es13.6)')
+               call yaml_map('Purity indicator',fragment_multipoles(0),fmt='(1es13.6)')
+               mm = 0
+               do l=0,ll
+                   call yaml_map('q'//adjustl(trim(yaml_toa(l))),fragment_multipoles(mm+1:mm+2*l+1),fmt='(1es13.6)')
+                   mm = mm + 2*l+1
+               end do
+           end if
+
+           call f_free(mpmat)
+           call f_free(kmat)
+           call f_free(kqmat)
+           call f_free(lookup_ovrlp)
+           call f_free(lookup_kernel)
+           call f_free(fragment_atom_id)
+           call f_free_str(len(fragment_atom_name),fragment_atom_name)
+
+       end do fragment_loop
+
+       if (bigdft_mpi%iproc==0) then
+           call yaml_sequence_close()
+       end if
+       call f_free(supfun_in_fragment)
+
+
+       call f_free(fragment_multipoles)
+       call deallocate_sparse_matrix_metadata(smmd)
+       call deallocate_sparse_matrix(smat(1))
+       call deallocate_sparse_matrix(smat(2))
+       call deallocate_matrices(ovrlp_mat)
+       call deallocate_matrices(kernel_mat)
+       call dict_free(fragment_dict)
+       do l=0,ll
+           do m=-l,l
+               call deallocate_matrices(multipoles_matrices(m,l))
+           end do
+       end do
+
+       call f_timing_checkpoint(ctr_name='LAST',mpi_comm=mpiworld(),nproc=mpisize(),&
+            gather_routine=gather_timings)
 
    end if
 

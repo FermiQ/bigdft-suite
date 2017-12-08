@@ -16,6 +16,8 @@ module multipole
   public :: calculate_dipole_moment
   public :: calculate_rpowerx_matrices
   public :: multipole_analysis_driver_new
+  public :: init_extract_matrix_lookup
+  public :: extract_matrix
 
   contains
 
@@ -2381,10 +2383,10 @@ module multipole
                       ists=(ispin-1)*smats%nvctrp_tg+1
                       istl=(ispin-1)*smatl%nvctrp_tg+1
                       call extract_matrix(smats, multipole_matrix%matrix_compr(ists:), &
-                           neighborx(1,kat), n, mat_lookup_s(1,kat), multipole_extracted(1,1,ispin))
+                           n, mat_lookup_s(1,kat), multipole_extracted(1,1,ispin))
                       ! The minus sign is required since the phi*S_lm*phi represent the electronic charge which is a negative quantity
                       call dscal(n**2, -1.d0, multipole_extracted(1,1,ispin), 1)
-                      call extract_matrix(smatl, kernel_ortho(istl), neighborx(1,kat), n, &
+                      call extract_matrix(smatl, kernel_ortho(istl), n, &
                            mat_lookup_l(1,kat), kernel_extracted(1,1,ispin))
                   end do
                   if (l>0) then
@@ -2401,7 +2403,7 @@ module multipole
                       do ispin=1,smatl%nspin
                           istl=(ispin-1)*smatl%nvctrp_tg+1
                           is=(ispin-1)*nmax**2+1
-                          call extract_matrix(smatl, inv_ovrlp(1)%matrix_compr(istl:), neighborx(1,kat), &
+                          call extract_matrix(smatl, inv_ovrlp(1)%matrix_compr(istl:), &
                                n, mat_lookup_l(1,kat), projx(is,kat))
                           call prepare_loewdin_projector(smats, smmd, n, kkat, neighborx(1,kat), projx(is,kat))
                           !!iiorb = 0
@@ -2724,7 +2726,7 @@ module multipole
 
 
 
-  subroutine extract_matrix(smat, matrix_compr, neighbor, n, mat_lookup, matrix)
+  subroutine extract_matrix(smat, matrix_compr, n, mat_lookup, matrix)
     use module_defs
     use dynamic_memory
     use f_utils
@@ -2735,7 +2737,6 @@ module multipole
     ! Calling arguments
     type(sparse_matrix),intent(in) :: smat
     real(kind=8),dimension(smat%nvctrp_tg),intent(in) :: matrix_compr
-    logical,dimension(smat%nfvctr),intent(in) :: neighbor
     integer,intent(in) :: n
     integer,dimension(n,n),intent(in) :: mat_lookup
     real(kind=8),dimension(n,n),intent(out) :: matrix
@@ -5054,7 +5055,7 @@ end subroutine calculate_rpowerx_matrices
             do ispin=1,smats%nspin
                 ist=(ispin-1)*smats%nvctrp_tg+1
                 call extract_matrix(smats, lower_multipole_matrices(0,0)%matrix_compr(ist:), &
-                     neighborx(1,kat), n, mat_lookup, lmp_extracted(1,1,0,0))
+                     n, mat_lookup, lmp_extracted(1,1,0,0))
                 select case (m)
                 case (-1)
                     ii = 0
@@ -5106,10 +5107,10 @@ end subroutine calculate_rpowerx_matrices
             do ispin=1,smats%nspin
                 ist=(ispin-1)*smats%nvctrp_tg+1
                 call extract_matrix(smats, lower_multipole_matrices(0,0)%matrix_compr(ist:), &
-                     neighborx(1,kat), n, mat_lookup, lmp_extracted(1,1,0,0))
+                     n, mat_lookup, lmp_extracted(1,1,0,0))
                 do i=-1,1
                     call extract_matrix(smats, lower_multipole_matrices(i,1)%matrix_compr(ist:), &
-                         neighborx(1,kat), n, mat_lookup, lmp_extracted(1,1,i,1))
+                         n, mat_lookup, lmp_extracted(1,1,i,1))
                 end do
                 select case (m)
                 case (-2)
