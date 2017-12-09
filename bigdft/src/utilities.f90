@@ -89,7 +89,8 @@ program utilities
    type(sparse_matrix),dimension(2) :: smat
    type(dictionary), pointer :: dict_timing_info
    integer :: iunit, nat, iat, iat_prev, ii, iitype, iorb, itmb, itype, ival, ios, ipdos, ispin
-   integer :: jtmb, norbks, npdos, npt, ntmb, jjtmb, istart_ks, iend_ks, nat_frag, iat_frag, isf, iiat, nsf_frag, mm, nmpmat
+   integer :: jtmb, norbks, npdos, npt, ntmb, jjtmb, istart_ks, iend_ks, nat_frag, iat_frag
+   integer :: isf, iiat, nsf_frag, mm, nmpmat, ist1, ist2
    character(len=20),dimension(:),pointer :: atomnames
    character(len=30),dimension(:),allocatable :: pdos_name
    character(len=32),dimension(:),allocatable :: fragment_atom_name
@@ -749,46 +750,55 @@ program utilities
            kqmat = f_malloc([nsf_frag,nsf_frag,2],id='kqmat')
            kmat = f_malloc([nsf_frag,nsf_frag],id='kmat')
            mpmat = f_malloc([nsf_frag,nsf_frag,nmpmat],id='mpmat')
-           call extract_matrix(smat(1), kernel_mat%matrix_compr, nsf_frag, lookup_kernel, kmat(1,1))
-           !call yaml_map('kmat(:,:)',kmat(:,:))
-           mm = 0
-           do l=0,ll
-               do m=-l,l
-                   mm = mm + 1
-                   call extract_matrix(smat(1), multipoles_matrices(m,l)%matrix_compr, nsf_frag, lookup_ovrlp, mpmat(1,1,mm))
-                   !call yaml_map('mpmat(:,:,mm)',mpmat(:,:,mm))
-               end do
-           end do
 
-           ! Now calculate KQ, where K is the kernel and Q the multipole matrix.
-           ! Take the trace of KQ, which is the multipole moment of the fragment.
-           ! Then calculate (KQ)^2 - KQ and take the trace, which gives the purity indicator.
-           mm = 0
-           do l=0,ll
-               do m=-l,l
-                   mm = mm + 1
-                   call gemm('n', 'n', nsf_frag, nsf_frag, nsf_frag, 1.d0, kmat(1,1), nsf_frag, &
-                        mpmat(1,1,mm), nsf_frag, 0.d0, kqmat(1,1,1), nsf_frag)
-                   tr = 0.d0
-                   do isf=1,nsf_frag
-                       tr = tr + kqmat(isf,isf,1)
+           call f_zero(fragment_multipoles)
+           do ispin=1,smat(1)%nspin
+               ist1 = (ispin-1)*smat(1)%nvctrp_tg+1
+               ist2 = (ispin-1)*smat(2)%nvctrp_tg+1
+
+               call extract_matrix(smat(2), kernel_mat%matrix_compr(ist2:), nsf_frag, lookup_kernel, kmat(1,1))
+
+               mm = 0
+               do l=0,ll
+                   do m=-l,l
+                       mm = mm + 1
+                       call extract_matrix(smat(1), multipoles_matrices(m,l)%matrix_compr(ist1:), &
+                            nsf_frag, lookup_ovrlp, mpmat(1,1,mm))
                    end do
-                   fragment_multipoles(mm) = tr
-                   if (l==0) then
-                       if (smat(1)%nspin==1) then
-                           call dscal(nsf_frag**2, 0.5d0, kqmat(1,1,1), 1)
-                       end if
-                       call gemm('n', 'n', nsf_frag, nsf_frag, nsf_frag, 1.d0, kqmat(1,1,1), nsf_frag, &
-                            kqmat(1,1,1), nsf_frag, 0.d0, kqmat(1,1,2), nsf_frag)
-                       call axpy(nsf_frag**2, -1.d0, kqmat(1,1,1), 1, kqmat(1,1,2), 1)
+               end do
+
+               ! Now calculate KQ, where K is the kernel and Q the multipole matrix.
+               ! Take the trace of KQ, which is the multipole moment of the fragment.
+               ! Then calculate (KQ)^2 - KQ and take the trace, which gives the purity indicator.
+               mm = 0
+               do l=0,ll
+                   do m=-l,l
+                       mm = mm + 1
+                       call gemm('n', 'n', nsf_frag, nsf_frag, nsf_frag, 1.d0, kmat(1,1), nsf_frag, &
+                            mpmat(1,1,mm), nsf_frag, 0.d0, kqmat(1,1,1), nsf_frag)
                        tr = 0.d0
                        do isf=1,nsf_frag
-                           tr = tr + kqmat(isf,isf,2)
+                           tr = tr + kqmat(isf,isf,1)
                        end do
-                       fragment_multipoles(0) = tr/fragment_charge
-                   end if
+                       fragment_multipoles(mm) = fragment_multipoles(mm) + tr
+                       if (l==0) then
+                           if (smat(1)%nspin==1) then
+                               call dscal(nsf_frag**2, 0.5d0, kqmat(1,1,1), 1)
+                           end if
+                           call gemm('n', 'n', nsf_frag, nsf_frag, nsf_frag, 1.d0, kqmat(1,1,1), nsf_frag, &
+                                kqmat(1,1,1), nsf_frag, 0.d0, kqmat(1,1,2), nsf_frag)
+                           call axpy(nsf_frag**2, -1.d0, kqmat(1,1,1), 1, kqmat(1,1,2), 1)
+                           tr = 0.d0
+                           do isf=1,nsf_frag
+                               tr = tr + kqmat(isf,isf,2)
+                           end do
+                           fragment_multipoles(0) = fragment_multipoles(0) + tr/fragment_charge
+                       end if
+                   end do
                end do
+            
            end do
+
            if (bigdft_mpi%iproc==0) then
                call yaml_sequence(advance='no')
                call yaml_map('Atom IDs',fragment_atom_id)
