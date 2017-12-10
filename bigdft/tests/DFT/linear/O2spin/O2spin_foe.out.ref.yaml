@@ -1528,14 +1528,9 @@
    order                               :  1020
    beta for penaltyfunction            : -1000.0
    determine eigenvalue bounds:
-   -  {npl:  110, npl penalty:  110, npl determined by: penalty, scale:  1.00E+00, 
- bounds:  [  0.500,  1.500 ], exp accur:  [  7.24E-14 ], up: {
- Load unbalancing: {Minimal time:  2.55E-02, Maximal time:  3.32E-02, 
-                      Ideal time:  2.94E-02, Unbalancing in %:  13.08}, 
- penalty:  2.1E-15, npl calculated:  110, ok:  [  Yes,  Yes ]}, down: {
- Load unbalancing: {Minimal time:  2.57E-02, Maximal time:  3.26E-02, 
-                      Ideal time:  2.91E-02, Unbalancing in %:  11.88}, 
- penalty:  2.1E-15, npl calculated:  110, ok:  [  Yes,  Yes ]}}
+   -  {npl:  110, npl determined by: penalty, scale:  1.00E+00, 
+ bounds:  [  0.500,  1.500 ], exp accur:  [  7.24E-14 ], up: {penalty:  2.1E-15, ok: [ Yes, 
+  Yes]}, down: {penalty:  2.1E-15, ok:  [  Yes,  Yes ]}}
    summary: {npl:  110, npl determined by: penalty, scale:  1.00E+00, 
  bounds:  [  0.500,  1.500 ], exp accur:  [  7.24E-14 ]}
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Final result of the multipole analysis
