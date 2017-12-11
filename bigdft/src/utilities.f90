@@ -19,13 +19,15 @@ program utilities
    use public_enums, only: LINEAR_PARTITION_NONE
    use module_atoms, only: atoms_data, atoms_data_null, deallocate_atoms_data
    use sparsematrix_base, only: sparse_matrix, matrices, matrices_null, assignment(=), &
-                                SPARSE_FULL, DENSE_FULL, DENSE_PARALLEL, &
-                                sparsematrix_malloc_ptr, deallocate_sparse_matrix, deallocate_matrices, &
+                                SPARSE_FULL, DENSE_FULL, DENSE_PARALLEL, SPARSE_TASKGROUP, &
+                                sparsematrix_malloc_ptr, sparsematrix_malloc0_ptr,&
+                                deallocate_sparse_matrix, deallocate_matrices, &
                                 sparse_matrix_metadata, deallocate_sparse_matrix_metadata
    use sparsematrix_init, only: bigdft_to_sparsebigdft, distribute_columns_on_processes_simple, &
                                 write_sparsematrix_info, init_matrix_taskgroups_wrapper
    use sparsematrix_io, only: read_sparse_matrix, write_sparse_matrix, read_linear_coefficients
-   use sparsematrix, only: uncompress_matrix, uncompress_matrix_distributed2, resize_matrix_to_taskgroup
+   use sparsematrix, only: uncompress_matrix, uncompress_matrix_distributed2, resize_matrix_to_taskgroup, &
+                           transform_sparse_matrix, matrix_matrix_mult_wrapper
    use sparsematrix_highlevel, only: sparse_matrix_and_matrices_init_from_file_bigdft, &
                                      sparse_matrix_and_matrices_init_from_file_ccs, &
                                      sparse_matrix_metadata_init_from_file, &
@@ -33,9 +35,10 @@ program utilities
                                      ccs_data_from_sparse_matrix, &
                                      ccs_matrix_write, &
                                      matrices_init, &
-                                     get_selected_eigenvalues_from_FOE
+                                     get_selected_eigenvalues_from_FOE, &
+                                     matrix_chebyshev_expansion
    use postprocessing_linear, only: CHARGE_ANALYSIS_LOEWDIN, CHARGE_ANALYSIS_MULLIKEN, build_ks_orbitals_postprocessing
-   use multipole, only: multipole_analysis_driver_new, init_extract_matrix_lookup, extract_matrix
+   use multipole, only: multipole_analysis_driver_new, init_extract_matrix_lookup, extract_matrix, correct_multipole_origin
    use multipole_base, only: lmax
    use io, only: io_read_descr_linear, read_psi_compress
    use bigdft_run, only: bigdft_init
@@ -82,8 +85,8 @@ program utilities
    logical,dimension(:,:),allocatable :: calc_array
    integer,dimension(:,:),allocatable :: lookup_ovrlp, lookup_kernel
    logical :: file_exists, found
-   type(matrices) :: ovrlp_mat, hamiltonian_mat, kernel_mat, mat
-   type(matrices),dimension(1) :: ovrlp_minus_one_half
+   type(matrices) :: ovrlp_mat, hamiltonian_mat, kernel_mat, mat, ovrlp_large, kernel_eff
+   type(matrices),dimension(1) :: ovrlp_minus_one_half, inv_ovrlp
    type(matrices),dimension(:,:),allocatable :: multipoles_matrices
    type(sparse_matrix) :: smat_s, smat_m, smat_l
    type(sparse_matrix),dimension(2) :: smat
@@ -103,7 +106,7 @@ program utilities
    real(kind=8),dimension(3,nkpt),parameter :: kpt = reshape((/0.d0,0.d0,0.d0/),(/3,nkpt/))
    real(kind=8),dimension(nkpt),parameter :: wkpt = (/1.d0/)
    type(local_zone_descriptors) :: lzd
-   integer :: confpotorder, ilr, iiorb, iiorb_out, ispinor, nspinor, onwhichatom_tmp, npsidim_orbs, nsize
+   integer :: confpotorder, ilr, iiorb, iiorb_out, ispinor, nspinor, onwhichatom_tmp, npsidim_orbs, nsize, ist
    real(kind=8) :: confpotprefac, eval_tmp, tr, fragment_charge
    character(len=256) :: error, filename, KSgrid_file
    logical :: lstat
@@ -114,6 +117,8 @@ program utilities
    real(kind=8),dimension(:,:,:),allocatable :: mpmat, kqmat
    real(kind=8),dimension(:,:),allocatable :: kmat
    real(kind=8),dimension(:),allocatable :: fragment_multipoles
+   real(kind=8),dimension(3) :: fragment_center
+   logical :: perx, pery, perz
    ! Presumably well suited colorschemes from colorbrewer2.org
    character(len=20),dimension(ncolors),parameter :: colors=(/'#a6cee3', &
                                                               '#1f78b4', &
@@ -690,6 +695,7 @@ program utilities
            do m=-l,l
                call matrices_init_from_file_bigdft(matrix_format, trim(multipoles_files(m,l)), &
                     bigdft_mpi%iproc, bigdft_mpi%nproc, bigdft_mpi%mpi_comm, smat(1), multipoles_matrices(m,l))
+               call resize_matrix_to_taskgroup(smat(1), multipoles_matrices(m,l))
            end do
        end do
 
@@ -697,15 +703,68 @@ program utilities
 
        mpi_env = mpi_environment_null()
        call mpi_environment_set(mpi_env, bigdft_mpi%iproc, bigdft_mpi%nproc, bigdft_mpi%mpi_comm, bigdft_mpi%nproc)
-       call merge_input_file_to_dict(fragment_dict, fragment_file, mpi_env)
+       inquire(file=trim(fragment_file), exist=file_exists)
+       if (file_exists) then
+           call merge_input_file_to_dict(fragment_dict, fragment_file, mpi_env)
+       else
+           call f_err_throw('file'//trim(fragment_file)//'not present')
+       end if
 
        supfun_in_fragment = f_malloc(smat(1)%nfvctr,id='supfun_in_fragment')
+
+       ! Calculate the matrix KS
+       kernel_eff = matrices_null()
+       kernel_eff%matrix_compr = sparsematrix_malloc0_ptr(smat(2),iaction=SPARSE_TASKGROUP,id='kernel_eff%matrix_compr')
+       ovrlp_large = matrices_null()
+       ovrlp_large%matrix_compr = sparsematrix_malloc_ptr(smat(2), SPARSE_TASKGROUP, id='ovrlp_large%matrix_compr')
+       call transform_sparse_matrix(bigdft_mpi%iproc, smat(1), smat(2), SPARSE_TASKGROUP, 'small_to_large', &
+            smat_in=ovrlp_mat%matrix_compr, lmat_out=ovrlp_large%matrix_compr)
+       ! Should use the highlevel wrapper...
+       do ispin=1,smat(2)%nspin
+           ist=(ispin-1)*smat(2)%nvctrp_tg+1
+           call matrix_matrix_mult_wrapper(bigdft_mpi%iproc, bigdft_mpi%nproc, smat(2), &
+                kernel_mat%matrix_compr(ist:), ovrlp_large%matrix_compr(ist:), kernel_eff%matrix_compr(ist:))
+       end do
+
+       ! Calculate the matrix S^-1
+       inv_ovrlp(1) = matrices_null()
+       inv_ovrlp(1)%matrix_compr = sparsematrix_malloc_ptr(smat(2), SPARSE_TASKGROUP, id='inv_ovrlp%matrix_compr')
+       call matrix_chebyshev_expansion(bigdft_mpi%iproc, bigdft_mpi%nproc, mpiworld(), 1, [-1.d0], &
+            smat(1), smat(2), ovrlp_mat, inv_ovrlp)
+
+       ! Calculate the matrix S^-1*P, where P are the multipole matrices
+       do l=0,ll
+           do m=-l,l
+               call transform_sparse_matrix(bigdft_mpi%iproc, smat(1), smat(2), SPARSE_TASKGROUP, 'small_to_large', &
+                    smat_in=multipoles_matrices(m,l)%matrix_compr, lmat_out=ovrlp_large%matrix_compr)
+               call f_free_ptr(multipoles_matrices(m,l)%matrix_compr)
+               multipoles_matrices(m,l)%matrix_compr = sparsematrix_malloc_ptr(smat(2),iaction=SPARSE_TASKGROUP,&
+                                                               id='matrix_compr')
+               ! Should use the highlevel wrapper...
+               do ispin=1,smat(2)%nspin
+                   ist=(ispin-1)*smat(2)%nvctrp_tg+1
+                   call matrix_matrix_mult_wrapper(bigdft_mpi%iproc, bigdft_mpi%nproc, smat(2), &
+                        inv_ovrlp(1)%matrix_compr(ist:), ovrlp_large%matrix_compr(ist:), &
+                        multipoles_matrices(m,l)%matrix_compr(ist:))
+               end do
+           end do
+       end do
+
+       call deallocate_matrices(ovrlp_large)
+       call deallocate_matrices(inv_ovrlp(1))
+
 
        nmpmat = 0
        do l=0,ll
            nmpmat = nmpmat + 2*l + 1
        end do
        fragment_multipoles = f_malloc(0.to.nmpmat,id='fragment_multipoles')
+
+       ! Periodicity in the three direction
+       perx=(smmd%geocode /= 'F')
+       pery=(smmd%geocode == 'P')
+       perz=(smmd%geocode /= 'F')
+
 
        if (bigdft_mpi%iproc==0) then
            call yaml_sequence_open('Fragment multipoles')
@@ -719,6 +778,7 @@ program utilities
            fragment_atom => dict_iter(fragment_item)
            iat_frag = 0
            fragment_charge = 0.d0
+           fragment_center(1:3) = 0.d0
            do while (associated(fragment_atom))
                iat_frag = iat_frag + 1
                iiat = fragment_atom
@@ -726,8 +786,10 @@ program utilities
                fragment_atom_id(iat_frag) = iiat
                fragment_atom_name(iat_frag) = trim(smmd%atomnames(iitype))
                fragment_charge = fragment_charge + smmd%nelpsp(iitype)
+               fragment_center(1:3) = fragment_center(1:3) + smmd%rxyz(1:3,iiat)*smmd%nelpsp(iitype)
                fragment_atom => dict_next(fragment_atom)
            end do
+           fragment_center(1:3) = fragment_center(1:3)/fragment_charge
 
            ! Count how many support functions belong to the fragment
            supfun_in_fragment(:) = .false.
@@ -743,6 +805,7 @@ program utilities
                end do
            end do outerloop
 
+
            lookup_ovrlp = f_malloc([nsf_frag,nsf_frag],id='lookup_ovrlp')
            lookup_kernel = f_malloc([nsf_frag,nsf_frag],id='lookup_kernel')
            call init_extract_matrix_lookup(smat(2), supfun_in_fragment, nsf_frag, lookup_kernel)
@@ -756,14 +819,19 @@ program utilities
                ist1 = (ispin-1)*smat(1)%nvctrp_tg+1
                ist2 = (ispin-1)*smat(2)%nvctrp_tg+1
 
-               call extract_matrix(smat(2), kernel_mat%matrix_compr(ist2:), nsf_frag, lookup_kernel, kmat(1,1))
+               !call extract_matrix(smat(2), kernel_mat%matrix_compr(ist2:), nsf_frag, lookup_kernel, kmat(1,1))
+               call extract_matrix(smat(2), kernel_eff%matrix_compr(ist2:), nsf_frag, lookup_kernel, kmat(1,1))
 
                mm = 0
                do l=0,ll
                    do m=-l,l
                        mm = mm + 1
-                       call extract_matrix(smat(1), multipoles_matrices(m,l)%matrix_compr(ist1:), &
+                       call extract_matrix(smat(2), multipoles_matrices(m,l)%matrix_compr(ist2:), &
                             nsf_frag, lookup_ovrlp, mpmat(1,1,mm))
+                       call correct_multipole_origin(ispin, smmd%nat, l, m, nsf_frag, &
+                            smmd, smat(2), fragment_center, smmd%rxyz, supfun_in_fragment, &
+                            perx, pery, perz, smmd%cell_dim, &
+                            multipoles_matrices(-1:1,0:1), lookup_kernel, mpmat(1,1,mm))
                    end do
                end do
 
@@ -834,12 +902,14 @@ program utilities
        call deallocate_sparse_matrix(smat(2))
        call deallocate_matrices(ovrlp_mat)
        call deallocate_matrices(kernel_mat)
+       call deallocate_matrices(kernel_eff)
        call dict_free(fragment_dict)
        do l=0,ll
            do m=-l,l
                call deallocate_matrices(multipoles_matrices(m,l))
            end do
        end do
+       deallocate(multipoles_matrices)
 
        call f_timing_checkpoint(ctr_name='LAST',mpi_comm=mpiworld(),nproc=mpisize(),&
             gather_routine=gather_timings)

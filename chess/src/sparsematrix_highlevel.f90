@@ -802,14 +802,16 @@ module sparsematrix_highlevel
       call f_routine(id='matrix_chebyshev_expansion')
 
       ! Check the dimensions of the internal arrays
-      if (size(mat_in%matrix_compr)/=smat_in%nvctrp_tg) then
+      if (size(mat_in%matrix_compr)/=smat_in%nvctrp_tg*smat_in%nspin) then
           call f_err_throw('The size of the array mat_in%matrix_compr is wrong: '&
-               &//trim(yaml_toa(size(mat_in%matrix_compr)))//' instead of '//trim(yaml_toa(smat_in%nvctrp_tg)))
+               &//trim(yaml_toa(size(mat_in%matrix_compr)))//' instead of '&
+               &//trim(yaml_toa(smat_in%nvctrp_tg*smat_in%nspin)))
       end if
       do i=1,ncalc
-          if (size(mat_out(i)%matrix_compr)/=smat_out%nvctrp_tg) then
+          if (size(mat_out(i)%matrix_compr)/=smat_out%nvctrp_tg*smat_out%nspin) then
               call f_err_throw('The size of the array mat_out%matrix_compr is wrong: '&
-                   &//trim(yaml_toa(size(mat_out(i)%matrix_compr)))//' instead of '//trim(yaml_toa(smat_out%nvctrp_tg)))
+                   &//trim(yaml_toa(size(mat_out(i)%matrix_compr)))//' instead of '&
+                   &//trim(yaml_toa(smat_out%nvctrp_tg*smat_out%nspin)))
           end if
       end do
 

@@ -18,6 +18,7 @@ module multipole
   public :: multipole_analysis_driver_new
   public :: init_extract_matrix_lookup
   public :: extract_matrix
+  public :: correct_multipole_origin
 
   contains
 
@@ -2388,12 +2389,12 @@ module multipole
                       call dscal(n**2, -1.d0, multipole_extracted(1,1,ispin), 1)
                       call extract_matrix(smatl, kernel_ortho(istl), n, &
                            mat_lookup_l(1,kat), kernel_extracted(1,1,ispin))
+                      if (l>0) then
+                          call correct_multipole_origin(ispin, smmd%nat, l, m, n, &
+                               smmd, smats, mp_centers(1:3,kkat), mp_centers, neighborx, perx, pery, perz, acell, &
+                               lower_multipole_matrices, mat_lookup_s(1,kat), multipole_extracted(1,1,ispin))
+                      end if
                   end do
-                  if (l>0) then
-                      call correct_multipole_origin(smmd%nat, l, m, n, smmd%nfvctr, natpx, kat, kkat, &
-                           smmd, smats, mp_centers, neighborx, perx, pery, perz, acell, &
-                           lower_multipole_matrices, mat_lookup_s(1,kat), multipole_extracted)
-                  end if
                   !do i=1,n
                   !    do j=1,n
                   !        write(*,*) 'i, j, multipole_extracted(j,i)', i, j, multipole_extracted(j,i)
@@ -5022,27 +5023,28 @@ end subroutine calculate_rpowerx_matrices
     end subroutine get_minmax_eigenvalues
 
 
-    subroutine correct_multipole_origin(nat, l, m, n, nlr, natpx, kat, kkat, &
-               smmd, smats, rxyz, neighborx, perx, pery, perz, acell, &
+    subroutine correct_multipole_origin(ispin, nat, l, m, n, &
+               smmd, smats, center, rxyz, neighborx, perx, pery, perz, acell, &
                lower_multipole_matrices, mat_lookup, multipole_extracted)
       use sparsematrix_base, only: sparse_matrix_metadata, sparse_matrix, matrices
       use module_types, only: orbitals_data
       implicit none
 
       ! Calling arguments
-      integer,intent(in) :: nat, l, m, n, nlr, natpx, kat, kkat
+      integer,intent(in) :: ispin, nat, l, m, n
+      real(kind=8),dimension(3),intent(in) :: center
       real(kind=8),dimension(3,nat),intent(in) :: rxyz
       type(sparse_matrix),intent(in) :: smats
       type(sparse_matrix_metadata),intent(in) :: smmd
-      logical,dimension(smats%nfvctr,natpx),intent(in) :: neighborx
+      logical,dimension(smats%nfvctr),intent(in) :: neighborx
       logical,intent(in) :: perx, pery, perz
       real(kind=8),dimension(3),intent(in) :: acell
       type(matrices),dimension(-1:1,0:1),intent(in):: lower_multipole_matrices
       integer,dimension(n,n),intent(in) :: mat_lookup
-      real(kind=8),dimension(n,n,smats%nspin),intent(inout) :: multipole_extracted
+      real(kind=8),dimension(n,n),intent(inout) :: multipole_extracted
 
       ! Local variables
-      integer :: ii, ilr, i, j, iat, ispin, ist
+      integer :: ii, ilr, i, j, iat, ist
       real(kind=8) :: rr1, rr2, rr3
       real(kind=8),dimension(:,:,:,:),allocatable :: lmp_extracted
       real(kind=8),dimension(:,:),allocatable :: tmpmat
@@ -5052,7 +5054,7 @@ end subroutine calculate_rpowerx_matrices
         if (l==1) then
             lmp_extracted = f_malloc((/1.to.n,1.to.n,0.to.0,0.to.0/),id='lmp_extracted')
             tmpmat = f_malloc((/n,n/),id='tmpmat')
-            do ispin=1,smats%nspin
+            !do ispin=1,smats%nspin
                 ist=(ispin-1)*smats%nvctrp_tg+1
                 call extract_matrix(smats, lower_multipole_matrices(0,0)%matrix_compr(ist:), &
                      n, mat_lookup, lmp_extracted(1,1,0,0))
@@ -5060,11 +5062,11 @@ end subroutine calculate_rpowerx_matrices
                 case (-1)
                     ii = 0
                     do i=1,smats%nfvctr
-                        if (neighborx(i,kat)) then
+                        if (neighborx(i)) then
                             ii = ii + 1
                             iat = smmd%on_which_atom(i)
                             !rr2 = closest_image(rxyz(2,kkat)-smmd%rxyz(2,iat),acell(2),pery)
-                            rr2 = closest_image(rxyz(2,kkat)-rxyz(2,iat),acell(2),pery)
+                            rr2 = closest_image(center(2)-rxyz(2,iat),acell(2),pery)
                             do j=1,n
                                 tmpmat(j,ii) = rr2*lmp_extracted(j,ii,0,0)
                             end do
@@ -5073,11 +5075,11 @@ end subroutine calculate_rpowerx_matrices
                 case (0)
                     ii = 0
                     do i=1,smats%nfvctr
-                        if (neighborx(i,kat)) then
+                        if (neighborx(i)) then
                             ii = ii + 1
                             iat = smmd%on_which_atom(i)
-                            !rr3 = closest_image(rxyz(3,kkat)-smmd%rxyz(3,iat),acell(3),perz)
-                            rr3 = closest_image(rxyz(3,kkat)-rxyz(3,iat),acell(3),perz)
+                            !rr3 = closest_image(center(3)-smmd%rxyz(3,iat),acell(3),perz)
+                            rr3 = closest_image(center(3)-rxyz(3,iat),acell(3),perz)
                             do j=1,n
                                 tmpmat(j,ii) = rr3*lmp_extracted(j,ii,0,0)
                             end do
@@ -5086,25 +5088,25 @@ end subroutine calculate_rpowerx_matrices
                 case (1)
                     ii = 0
                     do i=1,smats%nfvctr
-                        if (neighborx(i,kat)) then
+                        if (neighborx(i)) then
                             ii = ii + 1
                             iat = smmd%on_which_atom(i)
-                            !rr1 = closest_image(rxyz(1,kkat)-smmd%rxyz(1,iat),acell(1),perx)
-                            rr1 = closest_image(rxyz(1,kkat)-rxyz(1,iat),acell(1),perx)
+                            !rr1 = closest_image(center(1)-smmd%rxyz(1,iat),acell(1),perx)
+                            rr1 = closest_image(center(1)-rxyz(1,iat),acell(1),perx)
                             do j=1,n
                                 tmpmat(j,ii) = rr1*lmp_extracted(j,ii,0,0)
                             end do
                         end if
                     end do
                 end select
-                call axpy(n**2, 1.d0, tmpmat(1,1), 1, multipole_extracted(1,1,ispin), 1)
-            end do
+                call axpy(n**2, 1.d0, tmpmat(1,1), 1, multipole_extracted(1,1), 1)
+            !end do
             call f_free(lmp_extracted)
             call f_free(tmpmat)
         else if (l==2) then
             lmp_extracted = f_malloc((/1.to.n,1.to.n,-1.to.1,0.to.1/),id='lmp_extracted')
             tmpmat = f_malloc((/n,n/),id='tmpmat')
-            do ispin=1,smats%nspin
+            !do ispin=1,smats%nspin
                 ist=(ispin-1)*smats%nvctrp_tg+1
                 call extract_matrix(smats, lower_multipole_matrices(0,0)%matrix_compr(ist:), &
                      n, mat_lookup, lmp_extracted(1,1,0,0))
@@ -5116,15 +5118,15 @@ end subroutine calculate_rpowerx_matrices
                 case (-2)
                     ii = 0
                     do i=1,smats%nfvctr
-                        if (neighborx(i,kat)) then
+                        if (neighborx(i)) then
                             ii = ii + 1
                             iat = smmd%on_which_atom(i)
-                            !rr1 = closest_image(rxyz(1,kkat)-smmd%rxyz(1,iat),acell(1),perx)
-                            !rr2 = closest_image(rxyz(2,kkat)-smmd%rxyz(2,iat),acell(2),pery)
-                            !rr3 = closest_image(rxyz(3,kkat)-smmd%rxyz(3,iat),acell(3),perz)
-                            rr1 = closest_image(rxyz(1,kkat)-rxyz(1,iat),acell(1),perx)
-                            rr2 = closest_image(rxyz(2,kkat)-rxyz(2,iat),acell(2),pery)
-                            rr3 = closest_image(rxyz(3,kkat)-rxyz(3,iat),acell(3),perz)
+                            !rr1 = closest_image(center(1)-smmd%rxyz(1,iat),acell(1),perx)
+                            !rr2 = closest_image(center(2)-smmd%rxyz(2,iat),acell(2),pery)
+                            !rr3 = closest_image(center(3)-smmd%rxyz(3,iat),acell(3),perz)
+                            rr1 = closest_image(center(1)-rxyz(1,iat),acell(1),perx)
+                            rr2 = closest_image(center(2)-rxyz(2,iat),acell(2),pery)
+                            rr3 = closest_image(center(3)-rxyz(3,iat),acell(3),perz)
                             do j=1,n
                                 tmpmat(j,ii) = -sqrt(3.d0)*rr1*lmp_extracted(j,ii,-1,1) &
                                                -sqrt(3.d0)*rr2*lmp_extracted(j,ii,1,1) &
@@ -5135,15 +5137,15 @@ end subroutine calculate_rpowerx_matrices
                 case (-1)
                     ii = 0
                     do i=1,smats%nfvctr
-                        if (neighborx(i,kat)) then
+                        if (neighborx(i)) then
                             ii = ii + 1
                             iat = smmd%on_which_atom(i)
-                            !rr1 = closest_image(rxyz(1,kkat)-smmd%rxyz(1,iat),acell(1),perx)
-                            !rr2 = closest_image(rxyz(2,kkat)-smmd%rxyz(2,iat),acell(2),pery)
-                            !rr3 = closest_image(rxyz(3,kkat)-smmd%rxyz(3,iat),acell(3),perz)
-                            rr1 = closest_image(rxyz(1,kkat)-rxyz(1,iat),acell(1),perx)
-                            rr2 = closest_image(rxyz(2,kkat)-rxyz(2,iat),acell(2),pery)
-                            rr3 = closest_image(rxyz(3,kkat)-rxyz(3,iat),acell(3),perz)
+                            !rr1 = closest_image(center(1)-smmd%rxyz(1,iat),acell(1),perx)
+                            !rr2 = closest_image(center(2)-smmd%rxyz(2,iat),acell(2),pery)
+                            !rr3 = closest_image(center(3)-smmd%rxyz(3,iat),acell(3),perz)
+                            rr1 = closest_image(center(1)-rxyz(1,iat),acell(1),perx)
+                            rr2 = closest_image(center(2)-rxyz(2,iat),acell(2),pery)
+                            rr3 = closest_image(center(3)-rxyz(3,iat),acell(3),perz)
                             do j=1,n
                                 tmpmat(j,ii) = -sqrt(3.d0)*rr2*lmp_extracted(j,ii,0,1) &
                                                -sqrt(3.d0)*rr3*lmp_extracted(j,ii,-1,1) &
@@ -5154,15 +5156,15 @@ end subroutine calculate_rpowerx_matrices
                 case (0)
                     ii = 0
                     do i=1,smats%nfvctr
-                        if (neighborx(i,kat)) then
+                        if (neighborx(i)) then
                             ii = ii + 1
                             iat = smmd%on_which_atom(i)
-                            !rr1 = closest_image(rxyz(1,kkat)-smmd%rxyz(1,iat),acell(1),perx)
-                            !rr2 = closest_image(rxyz(2,kkat)-smmd%rxyz(2,iat),acell(2),pery)
-                            !rr3 = closest_image(rxyz(3,kkat)-smmd%rxyz(3,iat),acell(3),perz)
-                            rr1 = closest_image(rxyz(1,kkat)-rxyz(1,iat),acell(1),perx)
-                            rr2 = closest_image(rxyz(2,kkat)-rxyz(2,iat),acell(2),pery)
-                            rr3 = closest_image(rxyz(3,kkat)-rxyz(3,iat),acell(3),perz)
+                            !rr1 = closest_image(center(1)-smmd%rxyz(1,iat),acell(1),perx)
+                            !rr2 = closest_image(center(2)-smmd%rxyz(2,iat),acell(2),pery)
+                            !rr3 = closest_image(center(3)-smmd%rxyz(3,iat),acell(3),perz)
+                            rr1 = closest_image(center(1)-rxyz(1,iat),acell(1),perx)
+                            rr2 = closest_image(center(2)-rxyz(2,iat),acell(2),pery)
+                            rr3 = closest_image(center(3)-rxyz(3,iat),acell(3),perz)
                             do j=1,n
                                 tmpmat(j,ii) =  rr1*lmp_extracted(j,ii,1,1) &
                                                +rr2*lmp_extracted(j,ii,-1,1) &
@@ -5176,15 +5178,15 @@ end subroutine calculate_rpowerx_matrices
                 case (1)
                     ii = 0
                     do i=1,smats%nfvctr
-                        if (neighborx(i,kat)) then
+                        if (neighborx(i)) then
                             ii = ii + 1
                             iat = smmd%on_which_atom(i)
-                            !rr1 = closest_image(rxyz(1,kkat)-smmd%rxyz(1,iat),acell(1),perx)
-                            !rr2 = closest_image(rxyz(2,kkat)-smmd%rxyz(2,iat),acell(2),pery)
-                            !rr3 = closest_image(rxyz(3,kkat)-smmd%rxyz(3,iat),acell(3),perz)
-                            rr1 = closest_image(rxyz(1,kkat)-rxyz(1,iat),acell(1),perx)
-                            rr2 = closest_image(rxyz(2,kkat)-rxyz(2,iat),acell(2),pery)
-                            rr3 = closest_image(rxyz(3,kkat)-rxyz(3,iat),acell(3),perz)
+                            !rr1 = closest_image(center(1)-smmd%rxyz(1,iat),acell(1),perx)
+                            !rr2 = closest_image(center(2)-smmd%rxyz(2,iat),acell(2),pery)
+                            !rr3 = closest_image(center(3)-smmd%rxyz(3,iat),acell(3),perz)
+                            rr1 = closest_image(center(1)-rxyz(1,iat),acell(1),perx)
+                            rr2 = closest_image(center(2)-rxyz(2,iat),acell(2),pery)
+                            rr3 = closest_image(center(3)-rxyz(3,iat),acell(3),perz)
                             do j=1,n
                                 tmpmat(j,ii) = -sqrt(3.d0)*rr1*lmp_extracted(j,ii,0,1) &
                                                -sqrt(3.d0)*rr3*lmp_extracted(j,ii,1,1) &
@@ -5196,15 +5198,15 @@ end subroutine calculate_rpowerx_matrices
                 case (2)
                     ii = 0
                     do i=1,smats%nfvctr
-                        if (neighborx(i,kat)) then
+                        if (neighborx(i)) then
                             ii = ii + 1
                             iat = smmd%on_which_atom(i)
-                            !rr1 = closest_image(rxyz(1,kkat)-smmd%rxyz(1,iat),acell(1),perx)
-                            !rr2 = closest_image(rxyz(2,kkat)-smmd%rxyz(2,iat),acell(2),pery)
-                            !rr3 = closest_image(rxyz(3,kkat)-smmd%rxyz(3,iat),acell(3),perz)
-                            rr1 = closest_image(rxyz(1,kkat)-rxyz(1,iat),acell(1),perx)
-                            rr2 = closest_image(rxyz(2,kkat)-rxyz(2,iat),acell(2),pery)
-                            rr3 = closest_image(rxyz(3,kkat)-rxyz(3,iat),acell(3),perz)
+                            !rr1 = closest_image(center(1)-smmd%rxyz(1,iat),acell(1),perx)
+                            !rr2 = closest_image(center(2)-smmd%rxyz(2,iat),acell(2),pery)
+                            !rr3 = closest_image(center(3)-smmd%rxyz(3,iat),acell(3),perz)
+                            rr1 = closest_image(center(1)-rxyz(1,iat),acell(1),perx)
+                            rr2 = closest_image(center(2)-rxyz(2,iat),acell(2),pery)
+                            rr3 = closest_image(center(3)-rxyz(3,iat),acell(3),perz)
                             do j=1,n
                                 tmpmat(j,ii) = -sqrt(3.d0)*(rr1)*lmp_extracted(j,ii,1,1) &
                                                +sqrt(3.d0)*(rr2)*lmp_extracted(j,ii,-1,1) &
@@ -5214,8 +5216,8 @@ end subroutine calculate_rpowerx_matrices
                         end if
                     end do
                 end select
-                call axpy(n**2, -1.d0, tmpmat(1,1), 1, multipole_extracted(1,1,ispin), 1)
-            end do
+                call axpy(n**2, -1.d0, tmpmat(1,1), 1, multipole_extracted(1,1), 1)
+            !end do
             call f_free(lmp_extracted)
             call f_free(tmpmat)
         end if
