@@ -658,7 +658,7 @@ program utilities
             bigdft_mpi%iproc, bigdft_mpi%nproc, mpiworld(), smat(2), kernel_mat, &
             init_matmul=.true., filename_mult=trim(kernel_matmul_file))
 
-       call init_matrix_taskgroups_wrapper(bigdft_mpi%iproc, bigdft_mpi%nproc, mpiworld(), .true., 2, smat)
+       call init_matrix_taskgroups_wrapper(bigdft_mpi%iproc, bigdft_mpi%nproc, mpiworld(), .false., 2, smat)
 
        call resize_matrix_to_taskgroup(smat(1), ovrlp_mat)
        call resize_matrix_to_taskgroup(smat(2), kernel_mat)
