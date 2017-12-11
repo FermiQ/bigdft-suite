@@ -83,7 +83,7 @@ program utilities
    real(kind=8),dimension(:),allocatable :: eval, energy_arr, occups, phi, phi_tmp
    real(kind=8),dimension(:,:),allocatable :: denskernel, pdos, occup_arr
    logical,dimension(:,:),allocatable :: calc_array
-   integer,dimension(:,:),allocatable :: lookup_ovrlp, lookup_kernel
+   integer,dimension(:,:),allocatable :: lookup_kernel
    logical :: file_exists, found
    type(matrices) :: ovrlp_mat, hamiltonian_mat, kernel_mat, mat, ovrlp_large, kernel_eff
    type(matrices),dimension(1) :: ovrlp_minus_one_half, inv_ovrlp
@@ -806,17 +806,15 @@ program utilities
            end do outerloop
 
 
-           lookup_ovrlp = f_malloc([nsf_frag,nsf_frag],id='lookup_ovrlp')
            lookup_kernel = f_malloc([nsf_frag,nsf_frag],id='lookup_kernel')
            call init_extract_matrix_lookup(smat(2), supfun_in_fragment, nsf_frag, lookup_kernel)
-           call init_extract_matrix_lookup(smat(1), supfun_in_fragment, nsf_frag, lookup_ovrlp)
            kqmat = f_malloc([nsf_frag,nsf_frag,2],id='kqmat')
            kmat = f_malloc([nsf_frag,nsf_frag],id='kmat')
            mpmat = f_malloc([nsf_frag,nsf_frag,nmpmat],id='mpmat')
 
            call f_zero(fragment_multipoles)
            do ispin=1,smat(1)%nspin
-               ist1 = (ispin-1)*smat(1)%nvctrp_tg+1
+               !!ist1 = (ispin-1)*smat(1)%nvctrp_tg+1
                ist2 = (ispin-1)*smat(2)%nvctrp_tg+1
 
                !call extract_matrix(smat(2), kernel_mat%matrix_compr(ist2:), nsf_frag, lookup_kernel, kmat(1,1))
@@ -827,7 +825,7 @@ program utilities
                    do m=-l,l
                        mm = mm + 1
                        call extract_matrix(smat(2), multipoles_matrices(m,l)%matrix_compr(ist2:), &
-                            nsf_frag, lookup_ovrlp, mpmat(1,1,mm))
+                            nsf_frag, lookup_kernel, mpmat(1,1,mm))
                        call correct_multipole_origin(ispin, smmd%nat, l, m, nsf_frag, &
                             smmd, smat(2), fragment_center, smmd%rxyz, supfun_in_fragment, &
                             perx, pery, perz, smmd%cell_dim, &
@@ -883,7 +881,6 @@ program utilities
            call f_free(mpmat)
            call f_free(kmat)
            call f_free(kqmat)
-           call f_free(lookup_ovrlp)
            call f_free(lookup_kernel)
            call f_free(fragment_atom_id)
            call f_free_str(len(fragment_atom_name),fragment_atom_name)
