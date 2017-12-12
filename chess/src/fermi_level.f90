@@ -379,6 +379,8 @@ module fermi_level
         character(len=*),intent(in) :: fieldname
         real(kind=mp) :: val
 
+        !LG: wouldn't be better to use explicit meaning of the 
+        !variables instead of their name in the structure?
         select case (trim(fieldname))
         case ("efarr(1)")
             val = f%efarr(1)
@@ -513,7 +515,7 @@ module fermi_level
          s=0.5_mp*kT*oneosqrtpi*safe_exp(-((e-ef)/kt)**2)
       case(SMEARING_DIST_FERMI)
          call get_occupation(occopt,e,ef,kT,f,df)
-         s=-kT*(f*log(f) + (1.0_mp-f)*log(1._mp-f))
+         s=-kT*(f*safe_log(f) + (1.0_mp-f)*safe_log(1._mp-f))
       case(SMEARING_DIST_COLD1)
          a=-.5634d0
          x= -arg

@@ -97,8 +97,10 @@ libmodules_a_SOURCES = ab7_mixing.f90 \
 	$(openbabel_static_sources) \
 	module_dftbp.f90 \
 	constrained_magnetic_field.f90 \
+	module_asd.f90 \
 	sw_potential.f90 \
 	get_basis.f90 \
+	asd_fake.f90 \
 	get_kernel.f90
 
 # Modules
@@ -123,6 +125,7 @@ modules = MODULE_TYPES.@MODULE_EXT@ \
 	REFORMATTING.@MODULE_EXT@ \
 	MODULE_ATOMS.@MODULE_EXT@ \
 	MODULE_CFD.@MODULE_EXT@ \
+	MODULE_ASD.@MODULE_EXT@ \
 	COMMUNICATIONS_INIT.@MODULE_EXT@ \
 	COMMUNICATIONS.@MODULE_EXT@ \
 	SPARSEMATRIX_WRAPPERS.@MODULE_EXT@ \
@@ -179,6 +182,7 @@ modules = module_types.@MODULE_EXT@ \
 	reformatting.@MODULE_EXT@ \
 	module_atoms.@MODULE_EXT@ \
 	module_cfd.@MODULE_EXT@ \
+	module_asd.@MODULE_EXT@ \
 	communications_init.@MODULE_EXT@ \
 	communications.@MODULE_EXT@ \
 	sparsematrix_wrappers.@MODULE_EXT@ \
@@ -227,7 +231,7 @@ openbabel_soname_library = libbabel.so.@BIGDFT_MINOR_VERSION@
 openbabel_library = $(openbabel_soname_library)
 AM_LDFLAGS = -Wl,-rpath=$(DESTDIR)$(dynlibdir)
 else
-openbabel_static_sources = openbabel_fake.cpp
+openbabel_static_sources = openbabel_fake.c
 endif
 
 EXTRA_DIST = $(ATOMS_INCLUDES) $(COMMS_INCLUDES) openbabel.cpp

@@ -410,7 +410,7 @@ module parallel_linalg
       
       blocksize_if: if (blocksize<0) then
           if (iproc==0 .and. .not.quiet_) call yaml_map('mode','sequential')
-          ! Worksize query
+          ! Worksize query (this should be inserted)
           lwork = -1
           work = f_malloc(1,id='work')
           call dsyev(jobz, uplo, n, a, lda, w, work, lwork, info)

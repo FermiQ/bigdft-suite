@@ -1155,11 +1155,16 @@ module rhopotential
        real(gp) :: r
        type(atoms_iterator) :: atit
        type(atomic_neighbours) :: nnit
+       character*30 :: external_fname
 
        !fill the positions
        call cfd_allocate(cfd,astruct%nat)
 
        call cfd_set_centers(cfd,rxyz)
+
+       !read in reference moments (to be changed later) AB
+       external_fname='moments'
+       call cfd_read_external(cfd,external_fname)
 
        !adjust the radii with the nn iterator
        !iterate above atoms

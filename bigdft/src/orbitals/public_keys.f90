@@ -63,6 +63,7 @@ module public_keys
   character(len = *), parameter :: RESET_DIIS_HISTORY = "reset_DIIS_history"
   character(len = *), parameter :: MULTIPOLE_CENTERS = "multipole_centers"
   character(len = *), parameter :: MAGNETIC_TORQUE = "magnetic_torque"
+  character(len = *), parameter :: SPIN_DYNAMICS = "spin_dynamics"
   character(len = *), parameter :: CENTERS_AUTO = "centers_auto"
 
   character(len = *), parameter :: PSOLVER = "psolver"
@@ -308,6 +309,10 @@ module public_keys
   character(len=*), parameter :: ASTRUCT_ATT_FROZEN = 'Frozen'
   character(len=*), parameter :: ASTRUCT_ATT_IGSPIN = 'IGSpin'
   character(len=*), parameter :: ASTRUCT_ATT_IGCHRG = 'IGChg'
+  character(len=*), parameter :: ASTRUCT_ATT_IGMOM  = 'IGMom'
+  character(len=*), parameter :: ASTRUCT_ATT_IGMOM_1  = 'IGMom_1'
+  character(len=*), parameter :: ASTRUCT_ATT_IGMOM_2  = 'IGMom_2'
+  character(len=*), parameter :: ASTRUCT_ATT_IGMOM_3  = 'IGMom_3'
   character(len=*), parameter :: ASTRUCT_ATT_CAVRAD = 'rcav' !< custom radius of the cavity
   character(len=*), parameter :: ASTRUCT_ATT_IXYZ_1 = 'int_ref_atoms_1'
   character(len=*), parameter :: ASTRUCT_ATT_IXYZ_2 = 'int_ref_atoms_2'

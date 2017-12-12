@@ -2517,7 +2517,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
   !real(gp), dimension(:,:), allocatable :: ks, ksk
   !real(gp) :: nonidem
   !integer :: itmb, jtmb, ispin, ifrag
-  integer :: ifrag_ref, max_nbasis_env
+  integer :: ifrag_ref, max_nbasis_env,ispin
   real(gp) :: e_paw, e_pawdc, compch_sph, e_nl
   type(cell) :: mesh
   interface
@@ -2777,6 +2777,14 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
      end if
 
      call input_wf_random(KSwfn%psi, KSwfn%orbs)
+     !now the meaning is KS potential
+     do ispin=1,denspot%dpbox%nrhodim
+        call f_memcpy(n=denspot%dpbox%ndimpot,&
+             src=denspot%V_ext(1,1,1,ispin),&
+             dest=denspot%rhov(1+(ispin-1)*denspot%dpbox%ndimpot))
+     end do
+     call denspot_set_rhov_status(denspot, KS_POTENTIAL, 0, iproc, nproc)
+
 
   case(INPUT_PSI_CP2K)
      if (iproc == 0) then
@@ -3030,19 +3038,6 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
           TRANSPOSE_FULL, tmb%psit_c, tmb%psit_f, tmb%psi, tmb%lzd)
 
      call f_free(norm)
-
-     !!allocate(tmb%linmat%denskern%matrix(tmb%orbs%norb,tmb%orbs%norb), stat=i_stat)
-     !!call memocc(i_stat, tmb%linmat%denskern%matrix, 'tmb%linmat%denskern%matrix', subname)
-     !!call calculate_density_kernel(iproc, nproc, .true., KSwfn%orbs, tmb%orbs, tmb%coeff, tmb%linmat%denskern%matrix)
-     !!call compress_matrix(iproc,tmb%linmat%denskern)
-     !!do itmb=1,tmb%orbs%norb
-     !!   do jtmb=1,tmb%orbs%norb
-     !!      write(20,*) itmb,jtmb,tmb%linmat%denskern%matrix(itmb,jtmb)
-     !!   end do
-     !!end do
-     !!i_all=-product(shape(tmb%linmat%denskern%matrix))*kind(tmb%linmat%denskern%matrix)
-     !!deallocate(tmb%linmat%denskern%matrix,stat=i_stat)
-     !!call memocc(i_stat,i_all,'tmb%linmat%denskern%matrix',subname)
 
      ! CDFT: need to do this here to correct fragment charges in case of constrained transfer integral calculation
      call nullify_cdft_data(cdft)
