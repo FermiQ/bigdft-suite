@@ -1682,6 +1682,7 @@ O2spin_foe:
  number of corrected points: 953
  total charge correction: 5.5e-09
  trace(KH): 7.7e-9
+ norm(P): 1.1e-8
 
 O2spin_dirmin:
  Atomic Forces (Ha/Bohr): 2.44e-5
@@ -3013,7 +3014,7 @@ metals_fermifunction:
   energy: 5.3-10
   q2: 1.1e-10
   relative difference: 7.1e-11
-  trace: 6.1e-11
+  trace: 6.3e-11
   Average noise forces: 2.1e-10
   Raw forces norm (Ha/Bohr): 9.0e-11
 
@@ -3067,7 +3068,7 @@ metals_variable:
   Atomic Forces (Ha/Bohr): 2.3e-6
 
 metals_diag:
-   EBS: 2.5e-08
+   EBS: 2.6e-08
    EBS higher temperature: 2.7e-08
    EH: 4.9e-08
    EXC: 1.8e-08
@@ -3097,7 +3098,7 @@ metals_diag:
    q1: 1.1e-08
    q2: 1.1e-08
    relative difference: 1.6e-09
-   trace: 3.9e-11
+   trace: 6.3e-11
    trace(KH): 2.5e-08
    Average noise forces: 1.1e-8
    Clean forces norm (Ha/Bohr): 8.0e-9
