@@ -908,7 +908,8 @@ module sparsematrix_init
       logical, parameter :: extra_timing=.false.
       integer :: icol, is, ie, ii, it, nit, icol_proc, ncol_proc, iscol_proc
       real(mp),dimension(:),allocatable :: a_seq, b, c
-      real(mp),dimension(:,:),allocatable :: times, times_col
+      real(mp),dimension(:,:),allocatable :: times_col
+      real(mp),dimension(:),allocatable :: times
       integer,dimension(:,:),allocatable :: column_startend, col_proc
 
 
@@ -1321,10 +1322,13 @@ module sparsematrix_init
           !!    end do
           !!end do
           !!!write(*,*) 'iproc, times', iproc, times
+          times = f_malloc(nit,id='times')
           call fmpi_allreduce(times_col ,FMPI_SUM, comm=comm)
           do icol=1,sparsemat%nfvctr
-              times_col(icol,0) = median(nit, times_col(icol,1:nit))
+              times(1:nit) = times_col(icol,1:nit)
+              times_col(icol,0) = median(nit, times)
           end do
+          call f_free(times)
           !!write(*,*) 'iproc, times_col(:,0)', iproc, times_col(:,0)
 
           time_ideal = sum(times_col(:,0))/real(nproc,kind=mp)
