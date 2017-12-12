@@ -1116,7 +1116,7 @@ options:
         else:
             direction = 'not supported'
         command = "%s 1 %s dd transform-coordinates %s  %s %s" % (memguess, options.name, direction, options.infile, options.outfile)
-        print command
+        print '# '+command
     if options.action == "pdos":
         print 'calling memguess for PDOS'
         #infile_names = options.infile.split(".")
@@ -1124,62 +1124,62 @@ options:
         #command = "%s 1 %s dd pdos %s %s %s %d %d %d %e %s %s" % (memguess, options.name, options.coeff_file, options.hamiltonian_file, options.overlap_file, options.nbasis, options.norb, options.nat, options.interval, options.pdos_file, options.posinp_file)
         #command = "%s 1 %s dd pdos %s %s %s %s" % (memguess, options.name, options.coeff_file, options.hamiltonian_file, options.overlap_file, options.pdos_file)
         command = "%s %s pdos %s %s %s %s %s %s" % (options.mpirun, chess_toolbox, options.matrix_format, options.metadata_file, options.coeff_file, options.hamiltonian_file, options.overlap_file, options.pdos_file)
-        print command
+        print '# '+command
     if options.action == "kernel-analysis":
         print 'calling memguess for kernel analysis'
         command = "%s 1 %s dd kernel-analysis %s %s %d %d %d" % (memguess, options.name, options.coeff_file, options.kernel_file, options.nbasis, options.norb, options.nat)
-        print command
+        print '# '+command
     if options.action == "extract-submatrix":
         print 'calling memguess for submatrix extraction'
         command = "%s 1 %s dd extract-submatrix %s %d %d %d" % (memguess, options.name, options.matrix_file, options.nbasis, options.nat, options.nsubmatrices)
-        print command
+        print '# '+command
     if options.action == "solve-eigensystem":
         print 'calling memguess to solve the eigensystem'
         #command = "%s 1 %s dd solve-eigensystem %s %s %d %d %s" % (memguess, options.name, options.hamiltonian_file, options.overlap_file, options.nbasis, options.nat, options.coeff_file)
         command = "%s %s solve-eigensystem %i %s %s %s %s %s %s %s %i" % (options.mpirun, chess_toolbox, options.itype, options.matrix_format, options.metadata_file, options.hamiltonian_file, options.overlap_file, options.coeff_file, options.eval_file, options.only_evals, options.scalapack_blocksize)
-        print command
+        print '# '+command
     if options.action == "analyse-coeffs":
         print 'calling memguess to analyse the coeffs'
         command = "%s 1 %s dd analyze-coeffs %s %d %d %d %d" % (memguess, options.name, options.coeff_file, options.nbasis, options.norb, options.nat, options.ncategories)
-        print command
+        print '# '+command
     if options.action == "peel-matrix":
         print 'calling memguess to peel a matrix'
         command = "%s 1 %s dd peel-matrix %s %d %d %e" % (memguess, options.name, options.matrix_file, options.nbasis, options.nat, options.cutoff)
-        print command
+        print '# '+command
     if options.action == "multiply-matrices":
         print 'calling memguess to multiply two matrices'
         command = "%s 1 %s dd multiply-matrices %s %s %s %d %d" % (memguess, options.name, options.amatrix_file, options.bmatrix_file, options.cmatrix_file, options.nbasis, options.nat)
     if options.action == "matrixpower":
         print 'calling memguess to calculate matrix**power'
         command = "%s 1 %s dd matrixpower %s %s %d %d %e" % (memguess, options.name, options.inmatrix_file, options.outmatrix_file, options.nbasis, options.nat, options.power)
-        print command
+        print '# '+command
     if options.action == "plot-wavefunction":
         print 'not implemented yet'
     if options.action == "suggest-cutoff":
         print 'calling memguess to suggest cutoff radii'
         command = "%s 1 %s dd suggest-cutoff %s" % (memguess, options.name, options.posinp_file)
-        print command
+        print '# '+command
     if options.action == "multipole-analysis":
         #print 'calling utilities to perform a Loewdin multipole analysis'
         command = "%s %s multipole-analysis %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s" % (options.mpirun, utilities, options.method, options.matrix_basis, options.metadata_file, options.overlap_file, options.hamiltonian_file, options.kernel_file, options.kernel_matmul_file, options.multipole_matrix_0_0, options.multipole_matrix_1_0, options.multipole_matrix_1_1, options.multipole_matrix_1_2, options.multipole_matrix_2_0, options.multipole_matrix_2_1, options.multipole_matrix_2_2, options.multipole_matrix_2_3, options.multipole_matrix_2_4)
-        print command
+        print '# '+command
     if options.action == "fragment-multipoles":
         #print 'calling utilities to perform a Loewdin multipole analysis'
         command = "%s %s fragment-multipoles %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s" % (options.mpirun, utilities, options.matrix_format, options.metadata_file, options.fragment_file, options.overlap_file, options.kernel_file, options.kernel_matmul_file, options.multipole_matrix_0_0, options.multipole_matrix_1_0, options.multipole_matrix_1_1, options.multipole_matrix_1_2, options.multipole_matrix_2_0, options.multipole_matrix_2_1, options.multipole_matrix_2_2, options.multipole_matrix_2_3, options.multipole_matrix_2_4)
-        #print command
+        print '# '+command
     if options.action == 'dos':
         print 'calling memguess for DOS'
         command = "%s 1 %s dd dos %s %s %s %s %s" % (memguess, options.name, options.coeff_file, options.hamiltonian_file, options.overlap_file, options.sigma, options.npts)
-        #print command
+        print '# '+command
     if options.action == "convert-matrix-format":
         command = "%s %s convert-matrix-format %s %s %s" % (options.mpirun, chess_toolbox, options.conversion, options.infile, options.outfile)
-        print command
+        print '# '+command
     if options.action == "calculate-selected-eigenvalues":
         command = "%s %s calculate-selected-eigenvalues %s %s %s %s %s %s %i %i %i %f" % (options.mpirun, chess_toolbox, options.matrix_format, options.metadata_file, options.overlap_file, options.hamiltonian_file, options.kernel_file, options.kernel_matmul_file, options.itype, options.iev_min, options.iev_max, options.fscale)
-        print command
+        print '# '+command
     if options.action == "kernel-purity":
         command = "%s %s kernel-purity %s %s %s %s %s %s" % (options.mpirun, chess_toolbox, options.matrix_format, options.metadata_file, options.overlap_file, options.kernel_file, options.kernel_matmul_file, options.fragment_file)
-        print command
+        print '# '+command
     if options.action == "fit-proj":
         if len(args) < 1:
             parser.print_help()
@@ -1192,18 +1192,18 @@ options:
           fitPAW(args[0], options.n_funcs)
     if options.action == "build-KS-orbitals":
         command = "%s %s build-KS-orbitals %s %s %s %i %i" % (options.mpirun, utilities, options.matrix_format, options.metadata_file, options.coeff_file, options.is_ks, options.ie_ks)
-        print command
+        print '# '+command
     if options.action == "manipulate-eigenvalue-spectrum":
         command = "%s %s manipulate-eigenvalue-spectrum %s %s %s %s %s %s %s %s %i %f %f %f %f %s %i" % (options.mpirun, chess_toolbox, options.manipulation_mode, options.matrix_format, options.metadata_file, options.overlap_file, options.hamiltonian_file, options.kernel_file, options.kernel_matmul_file, options.hamiltonian_manipulated_file, options.homo_state, options.homo_value, options.lumo_value, options.smallest_value, options.largest_value, options.diag_algorithm, options.scalapack_blocksize)
-        print command
+        print '# '+command
     if options.action == "calculate-entropy":
         command = "%s %s calculate-entropy %s %s %s %s %f %f" % (options.mpirun, chess_toolbox, options.matrix_format, options.overlap_file, options.kernel_file, options.kernel_matmul_file, options.kT, options.accuracy_entropy)
-        print command
+        print '# '+command
     if options.action == "analyze-density-matrix-dense":
         command = "%s %s analyze-density-matrix-dense %s %s %s %i %s %s %s" % (options.mpirun, chess_toolbox, options.matrix_format, options.metadata_file, options.kernel_file, options.nbin, options.output_file, options.output_bins_file, options.only_binned_values)
-        print command
+        print '# '+command
     if options.action == "find-fragments":
         command = "%s %s find-fragments %s %s %s %s %s %i %i" % (options.mpirun, chess_toolbox, options.matrix_format, options.metadata_file, options.overlap_file, options.kernel_file, options.kernel_matmul_file, options.frag_elements_start, options.frag_elements_end)
-        print command
+        print '# '+command
     if command is not None:
         os.system(command)
