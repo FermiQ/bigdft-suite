@@ -5923,6 +5923,10 @@ module sparsematrix_init
      ind_min = smat%nvctr
      ind_max = 0
 
+     ! The matrix as object of a matrix multiplication
+     ind_min = min(ind_min,smat%smmm%isvctr_mm+1)
+     ind_max = max(ind_max,smat%smmm%isvctr_mm+smat%smmm%nvctrp_mm)
+
      call check_compress_distributed_layout(smat,ind_min,ind_max)
      if (smat%smatmul_initialized) then
          call check_matmul_layout(smat%smmm%nseq,smat%smmm%indices_extract_sequential,ind_min,ind_max)
