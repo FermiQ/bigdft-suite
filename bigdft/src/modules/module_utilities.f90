@@ -65,6 +65,8 @@ module module_utilities
            real(kind=8),dimension(:,:),allocatable :: kmat, fragment_multipoles
            real(kind=8),dimension(:),allocatable :: fragment_charge
            real(kind=8),dimension(3) :: fragment_center
+
+           integer :: i
     
            mpi_env = mpi_environment_null()
            call mpi_environment_set(mpi_env, iproc, nproc, comm, nproc)
@@ -230,8 +232,6 @@ module module_utilities
                    cycle fragment_loop
                end if
 
-               write(*,*) 'iproc, ifrag', iproc, ifrag
-
                nat_frag = dict_len(fragment_item)
                fragment_nat(ifrag) = nat_frag
 
@@ -250,7 +250,7 @@ module module_utilities
                    fragment_center(1:3) = fragment_center(1:3) + smmd%rxyz(1:3,iiat)*smmd%nelpsp(iitype)
                    fragment_atom => dict_next(fragment_atom)
                end do
-               fragment_center(1:3) = fragment_center(1:3)/fragment_charge
+               fragment_center(1:3) = fragment_center(1:3)/fragment_charge(ifrag)
     
                ! Count how many support functions belong to the fragment
                supfun_in_fragment(:) = .false.
@@ -284,11 +284,8 @@ module module_utilities
                    do l=0,ll
                        do m=-l,l
                            mm = mm + 1
-                           write(*,*) 'sum(multipoles_matrices(m,l)%matrix_compr)', &
-                               mm, nsf_frag, sum(multipoles_matrices(m,l)%matrix_compr)
                            call extract_matrix(smat(2), multipoles_matrices(m,l)%matrix_compr(ist2:), &
                                 nsf_frag, lookup_kernel, mpmat(1,1,mm))
-                           write(*,*) 'sum(mpmat)', mm, sum(mpmat)
                            call correct_multipole_origin(ispin, smmd%nat, l, m, nsf_frag, &
                                 smmd, smat(2), fragment_center, smmd%rxyz, supfun_in_fragment, &
                                 perx, pery, perz, smmd%cell_dim, &
@@ -305,9 +302,6 @@ module module_utilities
                            mm = mm + 1
                            call gemm('n', 'n', nsf_frag, nsf_frag, nsf_frag, 1.d0, kmat(1,1), nsf_frag, &
                                 mpmat(1,1,mm), nsf_frag, 0.d0, kqmat(1,1,1), nsf_frag)
-                            write(*,*) 'sum(kmat)',sum(kmat)
-                            write(*,*) 'sum(mpmat)',sum(mpmat)
-                            write(*,*) 'sum(kqmat)',sum(kqmat)
                            tr = 0.d0
                            do isf=1,nsf_frag
                                tr = tr + kqmat(isf,isf,1)
@@ -351,13 +345,13 @@ module module_utilities
     
            end do fragment_loop
 
+
            ! Gather together the results
            call fmpi_allreduce(fragment_atom_type, FMPI_SUM, comm=comm)
            call fmpi_allreduce(fragment_atom_id, FMPI_SUM, comm=comm)
            call fmpi_allreduce(fragment_charge, FMPI_SUM, comm=comm)
-           write(*,*) 'fragment_multipoles',fragment_multipoles
            call fmpi_allreduce(fragment_multipoles, FMPI_SUM, comm=comm)
-           write(*,*) 'fragment_multipoles',fragment_multipoles
+           call fmpi_allreduce(fragment_nat, FMPI_SUM, comm=comm)
 
 
            if (iproc==0) then
