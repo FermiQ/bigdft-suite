@@ -284,12 +284,14 @@ module get_basis
     
           call NonLocalHamiltonianApplication(iproc,at,tmb%ham_descr%npsidim_orbs,tmb%orbs,&
                tmb%ham_descr%lzd,nlpsp,tmb%ham_descr%psi,tmb%hpsi,energs%eproj,tmb%paw)
+          !!write(*,*) 'nonlocal: sum(tmb%hpsi)', sum(tmb%hpsi)
           ! only kinetic because waiting for communications
           call LocalHamiltonianApplication(iproc,nproc,at,tmb%ham_descr%npsidim_orbs,tmb%orbs,&
                tmb%ham_descr%lzd,tmb%confdatarr,denspot%dpbox%ngatherarr,denspot%pot_work,&
                & tmb%ham_descr%psi,tmb%hpsi,energs,SIC,GPU,3,denspot%xc,&
                & pkernel=denspot%pkernelseq,dpbox=denspot%dpbox,&
                & potential=denspot%rhov,comgp=tmb%ham_descr%comgp)
+          !!write(*,*) 'kinetic: sum(tmb%hpsi)', sum(tmb%hpsi)
           !!if (auxiliary_arguments_present .and. &
           !!    (target_function==TARGET_FUNCTION_IS_ENERGY .or. target_function==TARGET_FUNCTION_IS_HYBRID)) then
           if (auxiliary_arguments_present) then
@@ -310,6 +312,8 @@ module get_basis
                    & pkernel=denspot%pkernelseq,dpbox=denspot%dpbox,&
                    & potential=denspot%rhov,comgp=tmb%ham_descr%comgp,&
                    hpsi_noconf=hpsi_tmp,econf=econf)
+          !!write(*,*) 'local: sum(tmb%hpsi)', sum(tmb%hpsi)
+          !!write(*,*) 'local: sum(hpsi_tmp)', sum(hpsi_tmp)
     
               !!if (nproc>1) then
               !!    call fmpi_allreduce(econf, 1, FMPI_SUM, bigdft_mpi%mpi_comm)
@@ -344,8 +348,12 @@ module get_basis
     
           ! Start the communication
           if (target_function==TARGET_FUNCTION_IS_HYBRID) then
+              !!write(*,*) 'local: sum(hpsi_tmp)', sum(hpsi_tmp)
+              !call transpose_localized(iproc, nproc, tmb%ham_descr%npsidim_orbs, tmb%orbs, tmb%ham_descr%collcom, &
+              !     TRANSPOSE_POST, hpsi_tmp, hpsit_c, hpsit_f, tmb%ham_descr%lzd, wt_hphi)
               call transpose_localized(iproc, nproc, tmb%ham_descr%npsidim_orbs, tmb%orbs, tmb%ham_descr%collcom, &
-                   TRANSPOSE_POST, hpsi_tmp, hpsit_c, hpsit_f, tmb%ham_descr%lzd, wt_hphi)
+                   TRANSPOSE_FULL, hpsi_tmp, hpsit_c, hpsit_f, tmb%ham_descr%lzd, wt_hphi)
+              !!write(*,*) 'local: sum(hpsit_c)', sum(hpsit_c)
           else
               call transpose_localized(iproc, nproc, tmb%ham_descr%npsidim_orbs, tmb%orbs, tmb%ham_descr%collcom, &
                    TRANSPOSE_POST, tmb%hpsi, hpsit_c, hpsit_f, tmb%ham_descr%lzd, wt_hphi)
@@ -1478,8 +1486,13 @@ module get_basis
       !@NEW Calculate Omega in a different way ####################################
       hpsit_c_orig = f_malloc(tmb%ham_descr%collcom%ndimind_c,id='hpsit_c_orig')
       hpsit_f_orig = f_malloc(7*tmb%ham_descr%collcom%ndimind_f,id='hpsit_f_orig')
-      call f_memcpy(src=hpsit_c, dest=hpsit_c_orig)
-      call f_memcpy(src=hpsit_f, dest=hpsit_f_orig)
+      if (target_function==TARGET_FUNCTION_IS_TRACE) then
+          call f_memcpy(src=hpsit_c, dest=hpsit_c_orig)
+          call f_memcpy(src=hpsit_f, dest=hpsit_f_orig)
+      else
+          call f_memcpy(src=hpsittmp_c, dest=hpsit_c_orig)
+          call f_memcpy(src=hpsittmp_f, dest=hpsit_f_orig)
+      end if
       !############################################################################
     
      

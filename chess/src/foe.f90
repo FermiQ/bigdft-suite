@@ -48,7 +48,7 @@ module foe
       use sparsematrix, only: compress_matrix, uncompress_matrix, &
                               transform_sparsity_pattern, compress_matrix_distributed_wrapper, &
                               trace_sparse_matrix_product, symmetrize_matrix, max_asymmetry_of_matrix, &
-                              trace_sparse_matrix, transform_sparse_matrix
+                              trace_sparse_matrix, transform_sparse_matrix, get_minmax_eigenvalues
       use foe_base, only: foe_data, foe_data_set_int, foe_data_get_int, foe_data_set_real, foe_data_get_real, &
                           foe_data_get_logical
       use fermi_level, only: fermi_aux, init_fermi_level, determine_fermi_level, &
@@ -119,10 +119,19 @@ module foe
       integer :: npl_max, npl_stride
       type(fmpi_win), dimension(:,:),allocatable :: windowsx_kernel, windowsx_kernel_check
       type(matrices) :: kernel_modified, entropykernel_
+      real(kind=8),dimension(smats%nspin) :: eval_min, eval_max
 
 
 
       call f_routine(id='fermi_operator_expansion_new')
+
+
+      !write(*,*) 'ham_%matrix_compr',ham_%matrix_compr
+      !write(*,*) 'ovrlp_%matrix_compr',ovrlp_%matrix_compr
+      call get_minmax_eigenvalues(iproc, nproc, comm, 'generalized', 256, &
+           smatm, ham_, eval_min, eval_max, &
+           smat2=smats, mat2=ovrlp_)
+
 
       windowsx_kernel = f_malloc((/smatl%ntaskgroup,smatl%nspin/),id='windowsx_kernel')
       windowsx_kernel_check = f_malloc((/smatl%ntaskgroup,smatl%nspin/),id='windowsx_kernel_check')

@@ -580,7 +580,7 @@ module orthonormalization
                               sequential_acces_matrix_fast2, transform_sparse_matrix, &
                               gather_matrix_from_taskgroups_inplace, extract_taskgroup_inplace, &
                               uncompress_matrix_distributed2, &
-                              matrix_matrix_mult_wrapper, symmetrize_matrix
+                              matrix_matrix_mult_wrapper, symmetrize_matrix, get_minmax_eigenvalues
       use transposed_operations, only: calculate_overlap_transposed, build_linear_combination_transposed
       use matrix_operations, only: overlapPowerGeneral, check_taylor_order
       use foe_base, only: foe_data
@@ -630,6 +630,7 @@ module orthonormalization
       integer,parameter :: data_strategy_main=SUBMATRIX!GLOBAL_MATRIX
       integer,parameter :: verbosity = 0
       !type(work_transpose) :: wt_
+      real(kind=8),dimension(linmat%smat(1)%nspin) :: eval_min, eval_max
     
       call f_routine(id='orthoconstraintNonorthogonal')
     
@@ -671,6 +672,12 @@ module orthonormalization
       ! Calculate <phi_alpha|g^beta>
       call calculate_overlap_transposed(iproc, nproc, orbs, collcom, &
            psit_c, hpsit_c_orig, psit_f, hpsit_f_orig, lagmat, lagmat_aux, lagmat_)
+      !!write(*,*) 'sum(hpsit_c_orig)',sum(hpsit_c_orig)
+      !!write(*,*) 'lagmat_%matrix_compr', lagmat_%matrix_compr
+      !!write(*,*) 'linmat%ovrlp_%matrix_compr', linmat%ovrlp_%matrix_compr
+      call get_minmax_eigenvalues(iproc, nproc, bigdft_mpi%mpi_comm, 'generalized', 256, &
+           lagmat, lagmat_, eval_min, eval_max, &
+           smat2=linmat%smat(1), mat2=linmat%ovrlp_)
       trH_direct=0.d0
       do iorb=1,orbs%norbp
          iiorb=orbs%isorb+iorb

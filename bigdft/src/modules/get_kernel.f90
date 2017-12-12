@@ -105,7 +105,8 @@ module get_kernel
     
       call f_routine(id='get_coeff')
     
-      if(calculate_ham) then
+      !if(calculate_ham) then
+      if(.true.) then
           !!energs_work = work_mpiaccumulate_null()
           !!energs_work%ncount = 4
           !!call allocate_work_mpiaccumulate(energs_work)
@@ -138,7 +139,8 @@ module get_kernel
     
     
       ! Calculate the Hamiltonian matrix if it is not already present.
-      if(calculate_ham) then
+      !if(calculate_ham) then
+      if(.true.) then
     
           !!call local_potential_dimensions(iproc,tmb%ham_descr%lzd,tmb%orbs,denspot%xc,denspot%dpbox%ngatherarr(0,1))
           !!call start_onesided_communication(iproc, nproc, max(denspot%dpbox%ndimpot,1), denspot%rhov, &
@@ -181,12 +183,14 @@ module get_kernel
     
               call NonLocalHamiltonianApplication(iproc,at,tmb%ham_descr%npsidim_orbs,tmb%orbs,&
                    tmb%ham_descr%lzd,nlpsp,tmb%ham_descr%psi,tmb%hpsi,energs%eproj,tmb%paw)
+              !!write(*,*) 'nonlocal: sum(tmb%hpsi)', sum(tmb%hpsi)
               ! only kinetic as waiting for communications
               call LocalHamiltonianApplication(iproc,nproc,at,tmb%ham_descr%npsidim_orbs,tmb%orbs,&
                    tmb%ham_descr%lzd,confdatarrtmp,denspot%dpbox%ngatherarr,denspot%pot_work,&
                    & tmb%ham_descr%psi,tmb%hpsi,energs,SIC,GPU,3,denspot%xc,&
                    & pkernel=denspot%pkernelseq,dpbox=denspot%dpbox,&
                    & potential=denspot%rhov,comgp=tmb%ham_descr%comgp)
+              !!write(*,*) 'kinetic: sum(tmb%hpsi)', sum(tmb%hpsi)
               if (auxiliary_arguments_present) then
                   if (tmb%ham_descr%npsidim_orbs > 0) then
                       call f_memcpy(src=tmb%hpsi, dest=hphi_pspandkin)
@@ -217,6 +221,7 @@ module get_kernel
                & tmb%ham_descr%psi,tmb%hpsi,energs,SIC,GPU,2,denspot%xc,&
                & pkernel=denspot%pkernelseq,dpbox=denspot%dpbox,&
                & potential=denspot%rhov,comgp=tmb%ham_descr%comgp)
+              !!write(*,*) 'local: sum(tmb%hpsi)', sum(tmb%hpsi)
           call timing(iproc,'glsynchham1','ON')
           call SynchronizeHamiltonianApplication(nproc,tmb%ham_descr%npsidim_orbs,&
                & tmb%orbs,tmb%ham_descr%lzd,GPU,denspot%xc,tmb%hpsi,&
@@ -246,10 +251,13 @@ module get_kernel
     
           hpsit_c = f_malloc(tmb%ham_descr%collcom%ndimind_c,id='hpsit_c')
           hpsit_f = f_malloc(7*tmb%ham_descr%collcom%ndimind_f,id='hpsit_f')
+          !write(*,*) 'local: sum(tmb%hpsi)', sum(tmb%hpsi)
+          hpsit_c = 0.d0
           call transpose_localized(iproc, nproc, tmb%ham_descr%npsidim_orbs, tmb%orbs, tmb%ham_descr%collcom, &
                TRANSPOSE_FULL, tmb%hpsi, hpsit_c, hpsit_f, tmb%ham_descr%lzd)
     
     
+          !write(*,*) 'sum(hpsit_c)',sum(hpsit_c)
           call calculate_overlap_transposed(iproc, nproc, tmb%orbs, tmb%ham_descr%collcom, &
                tmb%ham_descr%psit_c, hpsit_c, tmb%ham_descr%psit_f, hpsit_f, tmb%linmat%smat(2), tmb%linmat%auxm, tmb%linmat%ham_)
           !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%smat(2), tmb%linmat%ham_)
@@ -531,7 +539,8 @@ module get_kernel
           call yaml_mapping_close()
       end if
     
-      if (calculate_ham) then
+      !if (calculate_ham) then
+      if (.true.) then
           if (calculate_KS_residue) then
               call get_KS_residue(iproc, nproc, tmb, orbs, hpsit_c, hpsit_f, KSres)
               if (iproc==0) call yaml_map('Kohn-Sham residue',KSres,fmt='(es10.3)')
