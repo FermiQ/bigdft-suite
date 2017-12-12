@@ -2391,7 +2391,8 @@ module multipole
                            mat_lookup_l(1,kat), kernel_extracted(1,1,ispin))
                       if (l>0) then
                           call correct_multipole_origin(ispin, smmd%nat, l, m, n, &
-                               smmd, smats, mp_centers(1:3,kkat), mp_centers, neighborx, perx, pery, perz, acell, &
+                               smmd, smats, mp_centers(1:3,kkat), mp_centers, neighborx(1:smats%nfvctr,kat), &
+                               perx, pery, perz, acell, &
                                lower_multipole_matrices, mat_lookup_s(1,kat), multipole_extracted(1,1,ispin))
                       end if
                   end do

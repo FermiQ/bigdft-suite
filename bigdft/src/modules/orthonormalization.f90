@@ -697,7 +697,6 @@ module orthonormalization
       !!write(*,*) 'WARNING HERE: symmetrize commented!!!'
       call symmetrize_matrix(linmat%smat(3), 'minus', tmp_mat_compr, lagmat_large)
       !lagmat_large=-tmp_mat_compr
-      call f_free(tmp_mat_compr)
     
     
       ! Apply S^-1
@@ -715,12 +714,14 @@ module orthonormalization
           !!write(*,*) 'iproc, sum(inv_lagmatp)', iproc, sum(inv_lagmatp)
           !!call compress_matrix_distributed(iproc, nproc, linmat%smat(3), DENSE_MATMUL, &
           !!     inv_lagmatp, lagmat_large)
+          call f_memcpy(src=lagmat_large, dest=tmp_mat_compr)
           do ispin=1,linmat%smat(3)%nspin
               ist=(ispin-1)*linmat%smat(3)%nvctrp_tg+1
               call matrix_matrix_mult_wrapper(iproc, nproc, linmat%smat(3), &
-                   linmat%ovrlppowers_(3)%matrix_compr(ist:), lagmat_large(ist:), lagmat_large(ist:))
+                   linmat%ovrlppowers_(3)%matrix_compr(ist:), tmp_mat_compr(ist:), lagmat_large(ist:))
           end do
       end if
+      call f_free(tmp_mat_compr)
       if (data_strategy_main==SUBMATRIX) then
           call transform_sparse_matrix(iproc, linmat%smat(2), linmat%smat(3), SPARSE_TASKGROUP, 'large_to_small', &
                lmat_in=lagmat_large, smat_out=lagmat_%matrix_compr)
