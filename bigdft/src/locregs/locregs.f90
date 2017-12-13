@@ -43,7 +43,9 @@ module locregs
      type(convolutions_bounds) :: bounds
      type(cell) :: mesh !<defines the cell of the system 
                         !! (should replace the other geometrical informations)
-     type(cell) :: mesh_coarse !<discreatization of the coarse egrees of freedom
+     !> grid in the fine scaling functions box
+     type(cell) :: mesh_fine 
+     type(cell) :: mesh_coarse !<discretization of the coarse egrees of freedom
      !>iterator over the mesh degrees of freedom
      type(box_iterator) :: bit
   end type locreg_descriptors
@@ -99,6 +101,7 @@ contains
     lr%locregCenter=(/0.0_gp,0.0_gp,0.0_gp/) 
     lr%locrad=0
     lr%mesh=cell_null()
+    lr%mesh_fine=cell_null()
     lr%mesh_coarse=cell_null()
     call nullify_box_iterator(lr%bit)
   end subroutine nullify_locreg_descriptors
@@ -145,6 +148,7 @@ contains
     call copy_convolutions_bounds(glrin%bounds, glrout%bounds)
 
     glrout%mesh=glrin%mesh
+    glrout%mesh_fine=glrin%mesh_fine
     glrout%mesh_coarse=glrin%mesh_coarse
     glrout%bit=glrin%bit
   end subroutine copy_locreg_descriptors
@@ -424,13 +428,24 @@ contains
       ndims(2)=lr%d%n2i
       ndims(3)=lr%d%n3i
 
+      !this is the mesh in real space (ISF basis)
       lr%mesh=cell_new(geocode,ndims,hgridsh)
 
-      ndims(1)=lr%d%n1
-      ndims(2)=lr%d%n2
-      ndims(3)=lr%d%n3
+      call ext_buffers_coarse(peri(1),Lnbl1)
+      call ext_buffers_coarse(peri(2),Lnbl2)
+      call ext_buffers_coarse(peri(3),Lnbl3)
+
+      ndims(1)=2*lr%d%n1+2+2*Lnbl1
+      ndims(2)=2*lr%d%n2+2+2*Lnbl2
+      ndims(3)=2*lr%d%n3+2+2*Lnbl3
+      !this is the mesh in the fine scaling function
+      lr%mesh_fine=cell_new(geocode,ndims,hgridsh)
+
+      ndims(1)=lr%d%n1+1
+      ndims(2)=lr%d%n2+1
+      ndims(3)=lr%d%n3+1
       hgrids=2.0_gp*hgridsh
-      lr%mesh_coarse=cell_new(geocode,ndims,hgrids)
+      lr%mesh_coarse=cell_new(geocode,ndims,hgrids) !we should write the number of points here
 
       Gnbl1=0
       Gnbl2=0
@@ -468,19 +483,19 @@ contains
     END SUBROUTINE init_lr
 
     !> initalize the box-related components of the localization regions
-    subroutine lr_box(lr,Glr,hgrids,nbox,correct)
+    subroutine lr_box(lr,Glr,hgrids,nbox,correction)
       use bounds, only: ext_buffers
       implicit none
-      logical, intent(in) :: correct
       !> Sub-box to iterate over the points (ex. around atoms)
       !! start and end points for each direction
-      integer, dimension(2,3), intent(in) :: nbox
       real(gp), dimension(3), intent(in) :: hgrids
       type(locreg_descriptors), intent(in) :: Glr
       type(locreg_descriptors), intent(inout) :: lr
+      integer, dimension(2,3), intent(in), optional :: nbox
+      logical, intent(in), optional :: correction
       !local variables
       character(len=1) :: geocode
-      logical :: Gperx,Gpery,Gperz,xperiodic,yperiodic,zperiodic
+      logical :: Gperx,Gpery,Gperz,xperiodic,yperiodic,zperiodic,correct
       integer :: isx,iex,isy,iey,isz,iez
       !!$ integer :: Gnbl1,Gnbl2,Gnbl3,Gnbr1,Gnbr2,Gnbr3
       integer :: Lnbl1,Lnbl2,Lnbl3,Lnbr1,Lnbr2,Lnbr3
@@ -494,14 +509,25 @@ contains
       !initialize out of zone
       outofzone (:) = 0
 
-      ! Localization regions should have free boundary conditions by default
-      isx=nbox(1,1)
-      iex=nbox(2,1)
-      isy=nbox(1,2)
-      iey=nbox(2,2)
-      isz=nbox(1,3)
-      iez=nbox(2,3)
+      correct=.false.
+      if (present(correction)) correct=correction
 
+      if (present(nbox)) then
+         ! Localization regions should have free boundary conditions by default
+         isx=nbox(1,1)
+         iex=nbox(2,1)
+         isy=nbox(1,2)
+         iey=nbox(2,2)
+         isz=nbox(1,3)
+         iez=nbox(2,3)
+      else !otherwise get box from previously initialized locreg
+         isx=lr%ns1
+         iex=lr%ns1+lr%d%n1
+         isy=lr%ns2
+         iey=lr%ns2+lr%d%n2
+         isz=lr%ns3
+         iez=lr%ns3+lr%d%n3
+      end if
       ln1 = iex-isx
       ln2 = iey-isy
       ln3 = iez-isz
@@ -630,69 +656,6 @@ contains
 
       !assign outofzone
       lr%outofzone(:) = outofzone(:)
-
-!!$      !values for the starting point of the cube for wavelet grid
-!!$      lr%ns1=isx
-!!$      lr%ns2=isy
-!!$      lr%ns3=isz
-!!$
-!!$      ! Set the conditions for ext_buffers (conditions for buffer size)
-!!$      Gperx=(Glr%geocode /= 'F')
-!!$      Gpery=(Glr%geocode == 'P')
-!!$      Gperz=(Glr%geocode /= 'F')
-!!$      peri(1)=(lr%geocode /= 'F')
-!!$      peri(2)=(lr%geocode == 'P')
-!!$      peri(3)=(lr%geocode /= 'F')
-!!$
-!!$      !calculate the size of the buffers of interpolating function grid
-!!$      call ext_buffers(Gperx,Gnbl1,Gnbr1)
-!!$      call ext_buffers(Gpery,Gnbl2,Gnbr2)
-!!$      call ext_buffers(Gperz,Gnbl3,Gnbr3)
-!!$      call ext_buffers(peri(1),Lnbl1,Lnbr1)
-!!$      call ext_buffers(peri(2),Lnbl2,Lnbr2)
-!!$      call ext_buffers(peri(3),Lnbl3,Lnbr3)
-!!$
-!!$      !starting point of the region for interpolating functions grid
-!!$      lr%nsi1= 2 * lr%ns1 - (Lnbl1 - Gnbl1)
-!!$      lr%nsi2= 2 * lr%ns2 - (Lnbl2 - Gnbl2)
-!!$      lr%nsi3= 2 * lr%ns3 - (Lnbl3 - Gnbl3)
-!!$      !write(*,*) 'ilr, lr%nsi3',ilr, lr%nsi3
-!!$
-!!$      lr%d=grid_init(peri,iex,iey,iez,&
-!!$           Glr%d%nfl1,Glr%d%nfl2,Glr%d%nfl3,&
-!!$           Glr%d%nfu1,Glr%d%nfu2,Glr%d%nfu3,&
-!!$           isx,isy,isz)
-
-!!$      !dimensions of the localisation region
-!!$      lr%d%n1=iex-isx
-!!$      lr%d%n2=iey-isy
-!!$      lr%d%n3=iez-isz
-!!$
-!!$      !dimensions of the fine grid inside the localisation region
-!!$      lr%d%nfl1=max(isx,Glr%d%nfl1)-isx ! should we really substract isx (probably because the routines are coded with 0 as origin)?
-!!$      lr%d%nfl2=max(isy,Glr%d%nfl2)-isy
-!!$      lr%d%nfl3=max(isz,Glr%d%nfl3)-isz
-!!$
-!!$      !NOTE: This will not work with symmetries (must change it)
-!!$      lr%d%nfu1=min(iex,Glr%d%nfu1)-isx
-!!$      lr%d%nfu2=min(iey,Glr%d%nfu2)-isy
-!!$      lr%d%nfu3=min(iez,Glr%d%nfu3)-isz
-!!$
-!!$      !dimensions of the interpolating scaling functions grid (reduce to +2 for periodic)
-!!$      if(lr%geocode == 'F') then
-!!$         lr%d%n1i=2*lr%d%n1+31
-!!$         lr%d%n2i=2*lr%d%n2+31
-!!$         lr%d%n3i=2*lr%d%n3+31
-!!$      else if(lr%geocode == 'S') then
-!!$         lr%d%n1i=2*lr%d%n1+2
-!!$         lr%d%n2i=2*lr%d%n2+31
-!!$         lr%d%n3i=2*lr%d%n3+2
-!!$      else
-!!$         lr%d%n1i=2*lr%d%n1+2
-!!$         lr%d%n2i=2*lr%d%n2+2
-!!$         lr%d%n3i=2*lr%d%n3+2
-!!$      end if
-
       ! Make sure that the extent of the interpolating functions grid for the
       ! locreg is not larger than the that of the global box.
       if (lr%d%n1i>Glr%d%n1i) then

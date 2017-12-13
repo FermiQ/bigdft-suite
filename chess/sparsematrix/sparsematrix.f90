@@ -2017,8 +2017,8 @@ module sparsematrix
       ! Calling arguments
       integer,intent(in) :: iproc, nproc
       type(sparse_matrix),intent(in) :: smat
-      real(kind=mp),dimension(smat%nvctrp_tg),intent(in) :: a
-      real(kind=mp),dimension(smat%nvctrp_tg),intent(inout) :: b, c
+      real(kind=mp),dimension(smat%nvctrp_tg),intent(in) :: a, b
+      real(kind=mp),dimension(smat%nvctrp_tg),intent(inout) :: c
 
       ! Local variables
       real(kind=mp),dimension(:),allocatable :: b_exp, c_exp, a_seq
@@ -2879,7 +2879,7 @@ module sparsematrix
     end subroutine check_deviation_from_unity_dense
 
 
-    subroutine diagonalizeHamiltonian2(iproc, nproc, comm, blocksize, norb, HamSmall, ovrlp, eval)
+    subroutine diagonalizeHamiltonian2(iproc, nproc, comm, itype, blocksize, norb, HamSmall, ovrlp, eval)
       use dynamic_memory
       !
       ! Purpose:
@@ -2895,6 +2895,10 @@ module sparsematrix
       !     iproc     process ID
       !     nproc     number of MPI processes
       !     comm      MPI communicator
+      !     itype     type of eigenvalue problem to solve:
+      !                 1: A*x = (lambda)*B*x
+      !                 2: A*B*x = (lambda)*x
+      !                 3: B*A*x = (lambda)*x
       !     blocksize ScaLAPACK block size (negative for sequential LAPACK)
       !     norb      size of the matrices
       !   Input / Putput arguments
@@ -2910,7 +2914,7 @@ module sparsematrix
       implicit none
     
       ! Calling arguments
-      integer, intent(in) :: iproc, nproc, comm, blocksize, norb
+      integer, intent(in) :: iproc, nproc, comm, itype, blocksize, norb
       real(mp),dimension(norb, norb),intent(inout) :: HamSmall
       real(mp),dimension(norb, norb),intent(inout) :: ovrlp
       real(mp),dimension(norb),intent(out) :: eval
@@ -2922,7 +2926,7 @@ module sparsematrix
 
 
       call dsygv_parallel(iproc, nproc, comm, blocksize, nproc, &
-           1, 'v', 'l', norb, HamSmall, norb, ovrlp, norb, eval, info)
+           itype, 'v', 'l', norb, HamSmall, norb, ovrlp, norb, eval, info)
       if (info/=0) then
           call yaml_warning('dsygv_parallel returned non-zero error code, value = '//trim(yaml_toa(info)))
       end if

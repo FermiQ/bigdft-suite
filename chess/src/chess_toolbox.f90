@@ -35,7 +35,7 @@ program chess_toolbox
    use sparsematrix_base
    use sparsematrix_init, only: bigdft_to_sparsebigdft, distribute_columns_on_processes_simple, &
                                 write_sparsematrix_info, init_matrix_taskgroups_wrapper
-   use sparsematrix_io, only: read_sparse_matrix, write_sparse_matrix, write_dense_matrix
+   use sparsematrix_io, only: read_sparse_matrix, write_sparse_matrix, write_dense_matrix, read_dense_matrix
    use sparsematrix, only: uncompress_matrix, uncompress_matrix_distributed2, diagonalizeHamiltonian2, &
                            transform_sparse_matrix, compress_matrix, get_minmax_eigenvalues, &
                            resize_matrix_to_taskgroup
@@ -58,6 +58,7 @@ program chess_toolbox
    use parallel_linalg, only: dgemm_parallel
    use f_random, only: f_random_number
    use highlevel_wrappers, only: calculate_eigenvalues, solve_eigensystem_lapack
+   use foe, only: overlap_plusminus_onehalf, calculate_entropy_term
    implicit none
    external :: gather_timings
    character(len=*), parameter :: subname='utilities'
@@ -65,9 +66,10 @@ program chess_toolbox
    !character(len=3) :: do_ortho
    character(len=30) :: tatonam, radical, colorname, linestart, lineend, cname
    character(len=128) :: overlap_file, hamiltonian_file, hamiltonian_manipulated_file
-   character(len=128) :: kernel_file, coeff_file, pdos_file, metadata_file
+   character(len=128) :: kernel_file, coeff_file, eval_file, pdos_file, metadata_file, output_file, output_bins_file
    character(len=128) :: line, cc, output_pdos, conversion, infile, outfile, iev_min_, iev_max_, fscale_
-   character(len=128) :: ihomo_state_, homo_value_, lumo_value_, smallest_value_, largest_value_, scalapack_blocksize_
+   character(len=128) :: ihomo_state_, homo_value_, lumo_value_, smallest_value_, largest_value_, scalapack_blocksize_, kT_
+   character(len=128) :: accuracy_entropy_, nbin_, itype_, only_evals_, only_binned_values_
    !!character(len=128),dimension(-lmax:lmax,0:lmax) :: multipoles_files
    character(len=128) :: kernel_matmul_file, fragment_file, manipulation_mode, diag_algorithm
    !logical :: multipole_analysis = .false.
@@ -77,12 +79,14 @@ program chess_toolbox
    logical :: calculate_selected_eigenvalues = .false.
    logical :: kernel_purity = .false.
    logical :: manipulate_eigenvalue_spectrum = .false.
+   logical :: calculate_entropy = .false.
+   logical :: analyze_density_matrix_dense = .false.
    !!type(atoms_data) :: at
    type(sparse_matrix_metadata) :: smmd
    integer :: iproc, nproc
    integer :: istat, i_arg, ierr, nspin, nthread
-   !integer :: nfvctr_m, nseg_m, nvctr_m
-   !integer :: nfvctr_l, nseg_l, nvctr_l
+   integer :: nfvctr_m, nseg_m, nvctr_m
+   integer :: nfvctr_l, nseg_l, nvctr_l
    !integer :: nfvctrp_l, isfvctr_l, nfvctrp_m, isfvctr_m, nfvctrp_s, isfvctr_s
    integer :: iconv, iev_min, iev_max, jat, jat_start, jtype
    !integer,dimension(:),pointer :: on_which_atom
@@ -95,11 +99,12 @@ program chess_toolbox
    !!logical,dimension(-lmax:lmax) :: file_present
    real(kind=8),dimension(:),pointer :: eval_ptr
    real(kind=8),dimension(:,:),pointer :: coeff_ptr
-   real(kind=8),dimension(:),allocatable :: eval, energy_arr, occups
+   real(kind=8),dimension(:),allocatable :: eval, energy_arr, occups, darr, valarr
    real(kind=8),dimension(:,:),allocatable :: denskernel, pdos, occup_arr, hamiltonian_tmp, ovrlp_tmp, matrix_tmp
    real(kind=8),dimension(:,:),allocatable :: kernel_fragment, overlap_fragment, ksk_fragment, tmpmat
    logical,dimension(:,:),allocatable :: calc_array
-   logical :: found, found_a_fragment
+   logical :: file_exists, found, found_a_fragment, found_icol, found_irow, only_evals, only_binned_values
+   logical,dimension(3) :: periodic
    type(matrices) :: ovrlp_mat, hamiltonian_mat, kernel_mat, mat, ovrlp_large, KS_large, kernel_ortho
    type(matrices),dimension(1) :: ovrlp_minus_one_half
    !type(matrices),dimension(:,:),allocatable :: multipoles_matrices
@@ -109,15 +114,17 @@ program chess_toolbox
    type(dictionary), pointer :: dict_timing_info
    integer :: iunit, iat, iat_prev, ii, iitype, iorb, itmb, itype, ival, ios, ipdos, ispin
    integer :: jtmb, norbks, npdos, npt, ntmb, jjtmb, nat_frag, nfvctr_frag, i, iiat
-   integer :: j, ifrag, index_dot, ihomo_state, ieval, scalapack_blocksize
-   !character(len=20),dimension(:),pointer :: atomnames
+   integer :: icol, irow, icol_atom, irow_atom, iseg, iirow, iicol, j, ifrag, index_dot, ihomo_state, ieval
+   integer :: scalapack_blocksize, nbin
+   integer(f_long) :: iil, jjl, nnl
    character(len=128),dimension(:),allocatable :: pdos_name, fragment_atomnames
-   !real(kind=8),dimension(3) :: cell_dim
+   real(kind=8),dimension(3) ::  ri, rj
    character(len=2) :: backslash, num
    real(kind=8) :: energy, occup, occup_pdos, total_occup, fscale, factor, scale_value, shift_value
    real(kind=8) :: maxdiff, meandiff, tt, tracediff, totdiff
    real(kind=8) :: homo_value, lumo_value, smallest_value, largest_value, gap, gap_target, actual_eval
-   real(kind=8) :: mult_factor, add_shift
+   real(kind=8) :: mult_factor, add_shift, kT, eTS, accuracy_entropy, d, get_minimal_distance, val, val_mean, binwidth
+   real(kind=8) :: dmin, dmax, dstart, dend
    real(mp),dimension(:),allocatable :: eval_min, eval_max
    type(f_progress_bar) :: bar
    integer,parameter :: ncolors = 12
@@ -226,6 +233,9 @@ program chess_toolbox
          !!   exit loop_getargs
          else if (trim(tatonam)=='solve-eigensystem') then
             i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = itype_)
+            read(itype_,fmt=*,iostat=ierr) itype
+            i_arg = i_arg + 1
             call get_command_argument(i_arg, value = matrix_format)
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = metadata_file)
@@ -235,6 +245,11 @@ program chess_toolbox
             call get_command_argument(i_arg, value = overlap_file)
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = coeff_file)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = eval_file)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = only_evals_)
+            read(only_evals_,fmt=*,iostat=ierr) only_evals
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = scalapack_blocksize_)
             read(scalapack_blocksize_,fmt=*,iostat=ierr) scalapack_blocksize
@@ -277,6 +292,9 @@ program chess_toolbox
             call get_command_argument(i_arg, value = kernel_file)
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = kernel_matmul_file)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = itype_)
+            read(itype_,fmt=*,iostat=ierr) itype
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = iev_min_)
             read(iev_min_,fmt=*,iostat=ierr) iev_min
@@ -339,6 +357,41 @@ program chess_toolbox
             call get_command_argument(i_arg, value = scalapack_blocksize_)
             read(scalapack_blocksize_,fmt=*,iostat=ierr) scalapack_blocksize
             manipulate_eigenvalue_spectrum = .true.
+        else if (trim(tatonam)=='calculate-entropy') then
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = matrix_format)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = overlap_file)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = kernel_file)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = kernel_matmul_file)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = kT_)
+            read(kT_,fmt=*,iostat=ierr) kT
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = accuracy_entropy_)
+            read(accuracy_entropy_,fmt=*,iostat=ierr) accuracy_entropy
+            i_arg = i_arg + 1
+            calculate_entropy = .true.
+        else if (trim(tatonam)=='analyze-density-matrix-dense') then
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = matrix_format)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = metadata_file)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = kernel_file)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = nbin_)
+            read(nbin_,fmt=*,iostat=ierr) nbin
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = output_file)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = output_bins_file)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = only_binned_values_)
+            read(only_binned_values_,fmt=*,iostat=ierr) only_binned_values
+            analyze_density_matrix_dense = .true.
          end if
          i_arg = i_arg + 1
       end do loop_getargs
@@ -470,9 +523,9 @@ program chess_toolbox
 
 
    if (solve_eigensystem) then
-       call solve_eigensystem_lapack(iproc, nproc, matrix_format, metadata_file, &
-            overlap_file, hamiltonian_file, scalapack_blocksize, write_output=.true., &
-            coeff_file=trim(coeff_file))
+       call solve_eigensystem_lapack(iproc, nproc, mpi_comm_world, itype, matrix_format, metadata_file, &
+            overlap_file, hamiltonian_file, scalapack_blocksize, write_coeff=.not.only_evals, write_eval=only_evals, &
+            coeff_file=trim(coeff_file), eval_file=trim(eval_file))
 
        !!!if (iproc==0) call yaml_comment('Reading from file '//trim(overlap_file),hfill='~')
        !!call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, trim(overlap_file), &
@@ -695,10 +748,10 @@ program chess_toolbox
                end do
                !call fmpi_allreduce(energy, 1, FMPI_SUM, comm=mpiworld())
                do ispin=1,nspin
-                   !$omp parallel default(none) &
-                   !$omp shared(ispin,smat,ntmb,denskernel,ovrlp_mat,calc_array,npdos,occups) &
-                   !$omp private(itmb,jtmb,jjtmb,occup,ipdos)
-                   !$omp do reduction(+:occups)
+!                   !$omp parallel default(none) &
+!                   !$omp shared(ispin,smat,ntmb,denskernel,ovrlp_mat,calc_array,npdos,occups) &
+!                   !$omp private(itmb,jtmb,jjtmb,occup,ipdos)
+!                   !$omp do reduction(+:occups)
                    do jtmb=1,smat(1)%nfvctrp
                        jjtmb = smat(1)%isfvctr + jtmb
                        !if (calc_array(jjtmb,ipdos)) then
@@ -715,8 +768,8 @@ program chess_toolbox
                            end do
                        !end if
                    end do
-                   !$omp end do
-                   !$omp end parallel
+!                   !$omp end do
+!                   !$omp end parallel
                    do ipdos=1,npdos
                        occup_arr(ipdos,iorb) = occups(ipdos)
                    end do
@@ -915,7 +968,7 @@ program chess_toolbox
    if (calculate_selected_eigenvalues) then
        call calculate_eigenvalues(iproc, nproc, matrix_format, metadata_file, &
             overlap_file, hamiltonian_file, kernel_file, kernel_matmul_file, &
-            iev_min, iev_max, fscale)
+            itype, iev_min, iev_max, fscale)
        !!!call sparse_matrix_metadata_init_from_file(trim(metadata_file), smmd)
        !!!call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, trim(overlap_file), &
        !!!     iproc, nproc, mpiworld(), smat_s, ovrlp_mat, &
@@ -1380,7 +1433,7 @@ program chess_toolbox
            !!ovrlp_tmp = f_malloc((/smat_s%nfvctr,smat_s%nfvctr/),id='ovrlp_tmp')
            call f_memcpy(src=hamiltonian_mat%matrix,dest=hamiltonian_tmp)
            call f_memcpy(src=ovrlp_mat%matrix,dest=ovrlp_tmp)
-           call diagonalizeHamiltonian2(iproc, nproc, mpiworld(), scalapack_blocksize, &
+           call diagonalizeHamiltonian2(iproc, nproc, mpiworld(), 1, scalapack_blocksize, &
                 smat_s%nfvctr, hamiltonian_tmp, ovrlp_tmp, eval)
            if (iproc==0) then
                call yaml_comment('Matrix succesfully diagonalized',hfill='~')
@@ -1628,6 +1681,176 @@ program chess_toolbox
    end if
 
 
+
+   if (calculate_entropy) then
+       call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, trim(overlap_file), &
+            iproc, nproc, mpiworld(), smat(1), ovrlp_mat, &
+            init_matmul=.false.)
+       call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, trim(kernel_file), &
+            iproc, nproc, mpiworld(), smat(2), kernel_mat, &
+            init_matmul=.true., filename_mult=trim(kernel_matmul_file))
+       call init_matrix_taskgroups_wrapper(iproc, nproc, mpiworld(), .false., 2, smat)
+       call resize_matrix_to_taskgroup(smat(1), ovrlp_mat)
+       call resize_matrix_to_taskgroup(smat(2), kernel_mat)
+
+       if (iproc==0) then
+           call yaml_mapping_open('Matrix properties')
+           call write_sparsematrix_info(smat(1), 'Overlap matrix')
+           call write_sparsematrix_info(smat(2), 'Density kernel')
+           call yaml_mapping_close()
+       end if
+
+       ovrlp_minus_one_half(1) = matrices_null()
+       ovrlp_minus_one_half(1)%matrix_compr = &
+           sparsematrix_malloc_ptr(smat(2),iaction=SPARSE_TASKGROUP,id='ovrlp_minus_one_half(1)%matrix_compr')
+
+       if (iproc==0) then
+           call yaml_mapping_open('Calculate S^-1/2')
+       end if
+       call overlap_plusminus_onehalf('minus', 'ICE', iproc, nproc, mpiworld(), &
+            smat(1), smat(2), ovrlp_mat, ovrlp_minus_one_half(1))
+       if (iproc==0) then
+           call yaml_mapping_close()
+       end if
+
+       if (iproc==0) then
+           call yaml_mapping_open('Calculate entropy')
+       end if
+       call calculate_entropy_term(iproc, nproc, mpiworld(), &
+            kT, smat(1), smat(2), &
+            ovrlp_mat, kernel_mat, ovrlp_minus_one_half(1), &
+            accuracy_entropy, eTS)
+       if (iproc==0) then
+           call yaml_map('eTS',eTS)
+           call yaml_mapping_close()
+       end if
+
+       call f_timing_checkpoint(ctr_name='LAST',mpi_comm=mpiworld(),nproc=mpisize(),&
+                    gather_routine=gather_timings)
+
+       call deallocate_sparse_matrix(smat(1))
+       call deallocate_sparse_matrix(smat(2))
+       call deallocate_matrices(ovrlp_mat)
+       call deallocate_matrices(kernel_mat)
+       call deallocate_matrices(ovrlp_minus_one_half(1))
+
+   end if
+
+
+
+
+   if (analyze_density_matrix_dense) then
+
+       call sparse_matrix_metadata_init_from_file(trim(metadata_file), smmd)
+       kernel_mat = matrices_null()
+       call read_dense_matrix(.not.matrix_format=='serial_text', trim(kernel_file), &
+            iproc, nproc, mpiworld(), nfvctr_l, nspin, kernel_mat%matrix)
+
+       if (nspin/=1) then
+           call f_err_throw('dense density kernel analysis at the moment only possible for nspin=1')
+       end if
+
+       select case (smmd%geocode)
+       case ('F')
+           periodic = [.false.,.false.,.false.]
+       case ('P')
+           periodic = [.true.,.true.,.true.]
+       case default
+           call f_err_throw('Unknown boundary conditions')
+       end select
+
+       nnl = int(int(nfvctr_l,f_long)*int(nfvctr_l,f_long),f_long)
+       darr = f_malloc(nnl,id='darr')
+       valarr = f_malloc(nnl,id='valarr')
+
+       ! Calculate the distances between the atoms to which the support functions belong
+       dmin = huge(0._mp)
+       dmax = 0._mp
+       iil = int(0,f_long)
+       if (iproc==0) then
+           call yaml_comment('Calculating values',hfill='-')
+           bar=f_progress_bar_new(nstep=nfvctr_l)
+       end if
+       do i=1,nfvctr_l
+           iat = smmd%on_which_atom(i)
+           ri = smmd%rxyz(1:3,iat)
+           do j=1,nfvctr_l
+               jat = smmd%on_which_atom(j)
+               rj = smmd%rxyz(1:3,jat)
+               iil = iil + int(1,f_long)
+               d = get_minimal_distance(ri, rj, smmd%cell_dim, periodic)
+               val = kernel_mat%matrix(j,i,1)
+               if (d < dmin) then
+                   dmin = d
+               end if
+               if (d > dmax) then
+                   dmax = d
+               end if
+               darr(iil) = d
+               valarr(iil) = val
+           end do
+           if ((mod(i,2)==0 .or. i==nfvctr_l) .and. iproc==0) call dump_progress_bar(bar,step=i)
+       end do
+       if (iproc==0) then
+           call yaml_comment('Done',hfill='-')
+       end if
+       if (iil/=nnl) then
+           call f_err_throw('iil/=nnl')
+       end if
+
+       if (.not.only_binned_values .and. iproc==0) then
+           call yaml_comment('Writing values',hfill='-')
+           call yaml_map('Output file for raw values',trim(output_file))
+           iunit = 99
+           call f_open_file(iunit, file=trim(output_file), binary=.false.)
+           write(iunit,'(a)') '# distance      value'
+           do iil=1,nnl
+               write(iunit,'(2es20.12)') darr(iil), valarr(iil)
+           end do
+           call f_close(iunit)
+       end if
+
+       ! Calculate the mean value within bins.
+       ! Make the maximal value slightly larger to take into account values which have the maximal values
+       if (iproc==0) then
+           call yaml_map('Output file for binned values',trim(output_bins_file))
+           iunit = 99
+           call f_open_file(iunit, file=trim(output_bins_file)//'', binary=.false.)
+           write(iunit,'(a)') '# distance      value'
+
+           dmax = dmax + 1.e-10
+           nbin = 100
+           binwidth = (dmax-dmin)/real(nbin,f_double)
+           do i=0,nbin-1
+               dstart = dmin + real(i,f_double)*binwidth
+               dend = dmin + real(i+1,f_double)*binwidth
+               val_mean = 0._mp
+               jjl = int(0,f_long)
+               !write(*,*) 'i, dstart, dend, dmin, dmax', i, dstart, dend, dmin, dmax
+               do iil=1,nnl
+                   if (darr(iil)>=dstart .and. darr(iil)<=dend) then
+                       val_mean = val_mean + valarr(iil)
+                       jjl = jjl + int(1,f_long)
+                   end if 
+               end do
+               if (jjl>0) then
+                   write(iunit,'(2es20.12)') 0.5_mp*(dstart+dend), val_mean/real(jjl,f_double)
+               end if
+           end do
+           call yaml_comment('Done',hfill='-')
+           call f_close(iunit)
+       end if
+
+       call f_free(darr)
+       call f_free(valarr)
+
+       call deallocate_matrices(kernel_mat)
+       call deallocate_sparse_matrix_metadata(smmd)
+
+   end if
+
+
+
    call build_dict_info(iproc, nproc, dict_timing_info)
    call f_timing_stop(mpi_comm=mpiworld(),nproc=nproc,&
         gather_routine=gather_timings,dict_info=dict_timing_info)
@@ -1737,3 +1960,39 @@ subroutine extract_fragment_submatrix(smmd, smat, mat, nat_frag, nfvctr_frag, &
   end do seg_loop
 
 end subroutine extract_fragment_submatrix
+
+
+
+
+function get_minimal_distance(ra, rb, cell, periodic) result(d)
+  use sparsematrix_base
+  implicit none
+
+  ! Calling arguments
+  real(mp),dimension(3),intent(in) :: ra, rb, cell
+  logical,dimension(3),intent(in) :: periodic
+  real(mp) :: d
+
+  ! Local variables
+  integer :: i
+  real(mp) :: di, shift
+
+  d = 0._mp
+  do i=1,3
+      ! Distance in reduced coordinates
+      di = abs(ra(i)-rb(i))/cell(i)
+      !write(*,*) 'i, di', i, di
+      if (periodic(i)) then
+          !If the distance is larger than half the box size 
+          !(which is 1 due to the reduced coordinates), 
+          !we have to make a periodic wrap around
+          shift=real(floor(di+0.5_mp),kind=mp)
+      else
+          shift = 0._mp
+      end if
+      ! Convert back to the corect cell size and add it up
+      d = d + (cell(i)*(di-shift))**2
+  end do
+  d = sqrt(d)
+
+end function get_minimal_distance

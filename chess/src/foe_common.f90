@@ -45,6 +45,7 @@ module module_func
   integer,parameter,public :: FUNCTION_EXPONENTIAL           = 104
   integer,parameter,public :: FUNCTION_ERRORFUNCTION_ENTROPY = 105
   integer,parameter,public :: FUNCTION_FERMIFUNCTION         = 106
+  integer,parameter,public :: FUNCTION_FERMIFUNCTION_ENTROPY = 107
 
   contains
 
@@ -92,6 +93,8 @@ module module_func
           if (.not.present(fscalex)) call f_err_throw("'fscalex' not present")
           ef = efx
           fscale = fscalex
+      case(FUNCTION_FERMIFUNCTION_ENTROPY)
+          ifunc = FUNCTION_FERMIFUNCTION_ENTROPY
       case default
           call f_err_throw("wrong value of 'ifuncx'")
       end select
@@ -122,6 +125,14 @@ module module_func
           func = fscale/(2._mp*sqrt_pi)*safe_exp(-((x-ef)/fscale)**2)
       case(FUNCTION_FERMIFUNCTION)
           func = 1._mp/(1._mp+safe_exp((x-ef)/fscale))
+      case(FUNCTION_FERMIFUNCTION_ENTROPY)
+          ! We must be careful: This function is only properly defined in the interval (0:1),
+          ! therefore set it manually to zero outside (including a small safety interval)
+          if (x<1.e-30_mp .or. (x-1._mp)>-1.e-30_mp) then
+              func = 0._mp
+          else
+              func = -(x*log(x) + (1.0_mp-x)*log(1._mp-x))
+          end if
       case default
           call f_err_throw("wrong value of 'ifunc'")
       end select
@@ -1343,8 +1354,8 @@ module foe_common
 
       ithread = 0
       !$omp parallel if (np>1 .and. np*npl>1000) &
-      !$omp default(none) &
-      !$omp shared(np, is, h, sigma, tau, val_chebyshev1, coeff, npl, mean_error, max_error_arr, x_max_error_arr) &
+      !$omp default(shared) & ! (none) & !solve the problem of func function
+      !!$omp shared(np, is, h, sigma, tau, val_chebyshev1, coeff, npl, mean_error, max_error_arr, x_max_error_arr) &
       !$omp private(i, ii, x, xx, val_chebyshev, xxm2, xxm1, ipl, xxx, val_function, error) &
       !$omp firstprivate(ithread)
       !$ ithread = omp_get_thread_num()
@@ -2175,6 +2186,7 @@ module foe_common
           if (.not. present(fscale)) call f_err_throw("arguments 'fscale' is not present")
           !write(*,*) 'iproc, ef, fscale, evlow, evhigh', &
           !    iproc, ef, fscale, foe_data_get_real(foe_obj,"evlow",ispin), foe_data_get_real(foe_obj,"evhigh",ispin)
+      case (FUNCTION_FERMIFUNCTION_ENTROPY)
       case default
           call f_err_throw("wrong value of argument 'fun'")
       end select
@@ -2217,6 +2229,8 @@ module foe_common
                   call func_set(FUNCTION_ERRORFUNCTION, efx=ef(icalc), fscalex=fscale(icalc))
               case (FUNCTION_FERMIFUNCTION)
                   call func_set(FUNCTION_FERMIFUNCTION, efx=ef(icalc), fscalex=fscale(icalc))
+              case (FUNCTION_FERMIFUNCTION_ENTROPY)
+                  call func_set(FUNCTION_FERMIFUNCTION_ENTROPY)
               case default
                   call f_err_throw('wrong value for fun')
               end select
@@ -2366,7 +2380,8 @@ module foe_common
       bpa=0.5d0*(b+a)
       fac=2.d0/real(n,kind=mp)
       one_over_n = 1.d0/real(n,kind=mp)
-      !$omp parallel default(none) shared(bma,bpa,fac,n,cf,cc,is,np,tt,one_over_n) &
+      !$omp parallel default(shared) & !none) 
+      !!$omp shared(bma,bpa,fac,n,cf,cc,is,np,tt,one_over_n) !&
       !$omp private(k,y,arg,j,jj)
       !$omp do
       do k=1,n
@@ -2496,6 +2511,7 @@ module foe_common
           if (.not.present(fscale_arr)) call f_err_throw('fscale_arr not present')
       case (FUNCTION_POLYNOMIAL) !generalized eigenvalue problem, i.e. the overlap matrix must be provided
           if (.not.present(ex)) call f_err_throw('ex not present')
+      case (FUNCTION_FERMIFUNCTION_ENTROPY) 
       case default
           call f_err_throw('wrong value for func_name')
       end select
@@ -2554,6 +2570,11 @@ module foe_common
                            npl_min, npl_max, npl_stride, accuracy_function, accuracy_penalty, 0, npl, cc_, &
                            max_error, x_max_error, mean_error, anoise, increase_degree_for_penaltyfunction, &
                            ex=ex)
+                  else if (func_name==FUNCTION_FERMIFUNCTION_ENTROPY) then
+                      !!write(*,*) 'npl_min, npl_max, npl_stride', npl_min, npl_max, npl_stride
+                      call get_polynomial_degree(iproc, nproc, comm, 1, ncalc, func_name, foe_obj, &
+                           npl_min, npl_max, npl_stride, accuracy_function, accuracy_penalty, 0, npl, cc_, &
+                           max_error, x_max_error, mean_error, anoise, increase_degree_for_penaltyfunction)
                   end if
                   npl_min = npl !to be used to speed up the search for npl in a following iteration
                   if (iproc==0 .and. foe_verbosity>0) then

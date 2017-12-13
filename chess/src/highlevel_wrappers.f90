@@ -36,7 +36,7 @@ module highlevel_wrappers
 
     subroutine calculate_eigenvalues(iproc, nproc, matrix_format, metadata_file, &
                overlap_file, hamiltonian_file, kernel_file, kernel_matmul_file, &
-               iev_minx, iev_maxx, fscale, &
+               itype, iev_minx, iev_maxx, fscale, &
                evals_out)
       use sparsematrix_highlevel, only: sparse_matrix_metadata_init_from_file, &
                                         sparse_matrix_and_matrices_init_from_file_bigdft, &
@@ -49,7 +49,7 @@ module highlevel_wrappers
       implicit none
 
       ! Calling arguments
-      integer,intent(in) :: iproc, nproc
+      integer,intent(in) :: iproc, nproc, itype
       character(len=*),intent(in) :: matrix_format, metadata_file
       character(len=*),intent(in) :: overlap_file, hamiltonian_file, kernel_file, kernel_matmul_file
       integer,intent(in) :: iev_minx, iev_maxx
@@ -111,7 +111,7 @@ module highlevel_wrappers
       if (iproc==0) then
           call yaml_mapping_open('Calculating eigenvalues using FOE')
       end if
-      call get_selected_eigenvalues_from_FOE(iproc, nproc, mpiworld(), &
+      call get_selected_eigenvalues_from_FOE(iproc, nproc, mpiworld(), itype, &
            iev_min, iev_max, smat(1), smat(2), smat(3), ovrlp_mat, hamiltonian_mat, &
            ovrlp_minus_one_half, eval, fscale)
 
@@ -155,12 +155,13 @@ module highlevel_wrappers
     end subroutine calculate_eigenvalues
 
 
-    subroutine solve_eigensystem_lapack(iproc, nproc, matrix_format, metadata_file, &
-               overlap_file, hamiltonian_file, scalapack_blocksize, write_output, &
-               coeff_file, evals_out, coeffs_out)
+    subroutine solve_eigensystem_lapack(iproc, nproc, comm, itype, matrix_format, metadata_file, &
+               overlap_file, hamiltonian_file, scalapack_blocksize, write_coeff, write_eval, &
+               coeff_file, eval_file, evals_out, coeffs_out)
+      use sparsematrix_init, only: init_matrix_taskgroups_wrapper
       use sparsematrix, only: uncompress_matrix, &
                               diagonalizehamiltonian2
-      use sparsematrix_io, only: write_linear_coefficients
+      use sparsematrix_io, only: write_linear_coefficients, write_linear_eigenvalues
       use sparsematrix_highlevel, only: sparse_matrix_metadata_init_from_file, &
                                         sparse_matrix_and_matrices_init_from_file_bigdft
       use dynamic_memory
@@ -168,18 +169,18 @@ module highlevel_wrappers
       implicit none
 
       ! Calling arguments
-      integer,intent(in) :: iproc, nproc, scalapack_blocksize
+      integer,intent(in) :: iproc, nproc, comm, itype, scalapack_blocksize
       character(len=*),intent(in) :: matrix_format, metadata_file
       character(len=*),intent(in) :: overlap_file, hamiltonian_file
-      logical :: write_output
-      character(len=*),intent(in),optional :: coeff_file
+      logical :: write_coeff, write_eval
+      character(len=*),intent(in),optional :: coeff_file, eval_file
       real(mp),dimension(:),pointer,intent(inout),optional :: evals_out
       real(mp),dimension(:,:,:),pointer,intent(inout),optional :: coeffs_out
 
       ! Local variables
       !integer :: iunit
       type(sparse_matrix_metadata) :: smmd
-      type(sparse_matrix) :: smat_s, smat_m
+      type(sparse_matrix),dimension(2) :: smat
       type(matrices) :: ovrlp_mat, hamiltonian_mat
       real(kind=8),dimension(:),allocatable :: eval
       external :: gather_timings
@@ -189,53 +190,62 @@ module highlevel_wrappers
       !real(mp),dimension(:,:),pointer :: coeff_tmp
 
       call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, trim(overlap_file), &
-           iproc, nproc, mpiworld(), smat_s, ovrlp_mat, &
+           iproc, nproc, comm, smat(1), ovrlp_mat, &
            init_matmul=.false.)
       call sparse_matrix_metadata_init_from_file(trim(metadata_file), smmd)
       call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, trim(hamiltonian_file), &
-           iproc, nproc, mpiworld(), smat_m, hamiltonian_mat, &
+           iproc, nproc, comm, smat(2), hamiltonian_mat, &
            init_matmul=.false.)
 
-      ovrlp_mat%matrix = sparsematrix_malloc_ptr(smat_s, iaction=DENSE_FULL, id='ovrlp_mat%matrix')
+      call init_matrix_taskgroups_wrapper(iproc, nproc, comm, .true., 2, smat)
+
+
+      ovrlp_mat%matrix = sparsematrix_malloc_ptr(smat(1), iaction=DENSE_FULL, id='ovrlp_mat%matrix')
       call uncompress_matrix(iproc, nproc, &
-           smat_s, inmat=ovrlp_mat%matrix_compr, outmat=ovrlp_mat%matrix)
-      hamiltonian_mat%matrix = sparsematrix_malloc_ptr(smat_s, iaction=DENSE_FULL, id='hamiltonian_mat%matrix')
+           smat(1), inmat=ovrlp_mat%matrix_compr, outmat=ovrlp_mat%matrix)
+      hamiltonian_mat%matrix = sparsematrix_malloc_ptr(smat(1), iaction=DENSE_FULL, id='hamiltonian_mat%matrix')
       call uncompress_matrix(iproc, nproc, &
-           smat_m, inmat=hamiltonian_mat%matrix_compr, outmat=hamiltonian_mat%matrix)
-      eval = f_malloc(smat_s%nfvctr,id='eval')
+           smat(2), inmat=hamiltonian_mat%matrix_compr, outmat=hamiltonian_mat%matrix)
+      eval = f_malloc(smat(1)%nfvctr,id='eval')
 
       if (iproc==0) then
           call yaml_comment('Diagonalizing the matrix',hfill='~')
       end if
-      call diagonalizeHamiltonian2(iproc, nproc, mpiworld(), scalapack_blocksize, &
-           smat_s%nfvctr, hamiltonian_mat%matrix, ovrlp_mat%matrix, eval)
+      call diagonalizeHamiltonian2(iproc, nproc, comm, itype, scalapack_blocksize, &
+           smat(1)%nfvctr, hamiltonian_mat%matrix, ovrlp_mat%matrix, eval)
       if (iproc==0) then
           call yaml_comment('Matrix successfully diagonalized',hfill='~')
       end if
 
-      if (write_output) then
+      if (write_coeff) then
           if (.not.present(coeff_file)) then
               call f_err_throw("'coeff_file' is not present")
           end if
-          call write_linear_coefficients(matrix_format, iproc, nproc, mpiworld(), 0, &
-               trim(coeff_file), 2, smat_s%nfvctr, &
-               smat_s%nfvctr, smat_s%nspin, hamiltonian_mat%matrix, eval)
+          call write_linear_coefficients(matrix_format, iproc, nproc, comm, 0, &
+               trim(coeff_file), 2, smat(1)%nfvctr, &
+               smat(1)%nfvctr, smat(1)%nspin, hamiltonian_mat%matrix, eval)
+      end if
+      if (write_eval) then
+          if (.not.present(eval_file)) then
+              call f_err_throw("'eval_file' is not present")
+          end if
+          call write_linear_eigenvalues(iproc, 0, trim(eval_file), smat(1)%nfvctr, smat(1)%nfvctr, smat(1)%nspin, eval)
       end if
 
       if (present(evals_out)) then
-          evals_out = f_malloc_ptr(smat_m%nfvctr,id='evals_out')
+          evals_out = f_malloc_ptr(smat(2)%nfvctr,id='evals_out')
           call f_memcpy(src=eval, dest=evals_out)
       end if
       if (present(coeffs_out)) then
-          coeffs_out = f_malloc_ptr((/smat_m%nfvctr,smat_m%nfvctr,smat_m%nspin/),id='coeffs_out')
+          coeffs_out = f_malloc_ptr((/smat(2)%nfvctr,smat(2)%nfvctr,smat(2)%nspin/),id='coeffs_out')
           call f_memcpy(src=hamiltonian_mat%matrix, dest=coeffs_out)
       end if
 
       call f_free(eval)
       call deallocate_matrices(ovrlp_mat)
       call deallocate_matrices(hamiltonian_mat)
-      call deallocate_sparse_matrix(smat_s)
-      call deallocate_sparse_matrix(smat_m)
+      call deallocate_sparse_matrix(smat(1))
+      call deallocate_sparse_matrix(smat(2))
       call deallocate_sparse_matrix_metadata(smmd)
       !call f_free_ptr(rxyz)
       !call f_free_ptr(iatype)

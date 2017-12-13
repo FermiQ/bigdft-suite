@@ -51,7 +51,7 @@ module module_atoms
 
   !> Structure of the system. This derived type contains the information about the physical properties
   type, public :: atomic_structure
-     character(len=1) :: geocode           !< @copydoc poisson_solver::doc::geocode
+     character(len=1) :: geocode         !shoud become integer, dimension(3) :: bc
      character(len=5) :: inputfile_format  !< Can be xyz, ascii, int or yaml
      character(len=256) :: source          !< Name of the file or origin
      character(len=20) :: units            !< Can be angstroem or bohr
@@ -1289,6 +1289,7 @@ contains
       use numerics, only: Bohr_Ang
       use dictionaries
       use yaml_strings
+      use box, only: geocode_to_bc,bc_periodic_dims
       use ao_inguess, only: charge_and_spol
       implicit none
       type(dictionary), pointer :: dict
@@ -1297,8 +1298,9 @@ contains
       character(len=*), intent(in), optional :: comment
       !local variables
       type(dictionary), pointer :: pos, at, last
-      integer :: iat,ichg,ispol
+      integer :: iat,ichg,ispol,i
       real(gp) :: factor(3)
+      logical, dimension(3) :: peri
       logical :: reduced
       character(len = 4) :: frzstr
 
@@ -1317,38 +1319,53 @@ contains
          ! Default, store nothing
       end select Units
 
-      !cell information
-      BC :select case(astruct%geocode)
-      case('S')
-         call set(dict // ASTRUCT_CELL // 0, yaml_toa(astruct%cell_dim(1)*factor(1)))
-         call set(dict // ASTRUCT_CELL // 1, '.inf')
-         call set(dict // ASTRUCT_CELL // 2, yaml_toa(astruct%cell_dim(3)*factor(3)))
-         !angdeg to be added
-         if (reduced) then
-            factor(1) = 1._gp / astruct%cell_dim(1)
-            factor(3) = 1._gp / astruct%cell_dim(3)
+      peri=bc_periodic_dims(geocode_to_bc(astruct%geocode))
+      do i=1,3
+         if (peri(i)) then         
+            call set(dict // ASTRUCT_CELL // (i-1), yaml_toa(astruct%cell_dim(i)*factor(i)))
+            if (reduced) factor(i) = 1._gp / astruct%cell_dim(i)
+         else
+            call set(dict // ASTRUCT_CELL // (i-1), '.inf')
          end if
-      case('W')
-         call set(dict // ASTRUCT_CELL // 0, '.inf')
-         call set(dict // ASTRUCT_CELL // 1, '.inf')
-         call set(dict // ASTRUCT_CELL // 2, yaml_toa(astruct%cell_dim(3)*factor(3)))
-         if (reduced) then
-            factor(3) = 1._gp / astruct%cell_dim(3)
-         end if
-      case('P')
-         call set(dict // ASTRUCT_CELL // 0, yaml_toa(astruct%cell_dim(1)*factor(1)))
-         call set(dict // ASTRUCT_CELL // 1, yaml_toa(astruct%cell_dim(2)*factor(2)))
-         call set(dict // ASTRUCT_CELL // 2, yaml_toa(astruct%cell_dim(3)*factor(3)))
-         !angdeg to be added
-         if (reduced) then
-            factor(1) = 1._gp / astruct%cell_dim(1)
-            factor(2) = 1._gp / astruct%cell_dim(2)
-            factor(3) = 1._gp / astruct%cell_dim(3)
-         end if
-      case('F')
+      end do
+      if (.not. any(peri)) then
          ! Default, store nothing and erase key if already exist.
          if (has_key(dict, ASTRUCT_CELL)) call dict_remove(dict, ASTRUCT_CELL)
-      end select BC
+      end if
+
+      !cell information
+!!$      BC :select case(astruct%geocode)
+!!$      case('S')
+!!$         call set(dict // ASTRUCT_CELL // 0, yaml_toa(astruct%cell_dim(1)*factor(1)))
+!!$         call set(dict // ASTRUCT_CELL // 1, '.inf')
+!!$         call set(dict // ASTRUCT_CELL // 2, yaml_toa(astruct%cell_dim(3)*factor(3)))
+!!$         !angdeg to be added
+!!$         if (reduced) then
+!!$            factor(1) = 1._gp / astruct%cell_dim(1)
+!!$            factor(3) = 1._gp / astruct%cell_dim(3)
+!!$         end if
+!!$      case('W')
+!!$         call set(dict // ASTRUCT_CELL // 0, '.inf')
+!!$         call set(dict // ASTRUCT_CELL // 1, '.inf')
+!!$         call set(dict // ASTRUCT_CELL // 2, yaml_toa(astruct%cell_dim(3)*factor(3)))
+!!$         if (reduced) then
+!!$            factor(3) = 1._gp / astruct%cell_dim(3)
+!!$         end if
+!!$      case('P')
+!!$         call set(dict // ASTRUCT_CELL // 0, yaml_toa(astruct%cell_dim(1)*factor(1)))
+!!$         call set(dict // ASTRUCT_CELL // 1, yaml_toa(astruct%cell_dim(2)*factor(2)))
+!!$         call set(dict // ASTRUCT_CELL // 2, yaml_toa(astruct%cell_dim(3)*factor(3)))
+!!$         !angdeg to be added
+!!$         if (reduced) then
+!!$            factor(1) = 1._gp / astruct%cell_dim(1)
+!!$            factor(2) = 1._gp / astruct%cell_dim(2)
+!!$            factor(3) = 1._gp / astruct%cell_dim(3)
+!!$         end if
+!!$      case('F')
+!!$         ! Default, store nothing and erase key if already exist.
+!!$         if (has_key(dict, ASTRUCT_CELL)) call dict_remove(dict, ASTRUCT_CELL)
+!!$      end select BC
+
       if (has_key(dict, ASTRUCT_POSITIONS)) call dict_remove(dict, ASTRUCT_POSITIONS)
       if (astruct%nat > 0) pos => dict // ASTRUCT_POSITIONS
       nullify(last)

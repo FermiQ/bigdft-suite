@@ -33,6 +33,7 @@ module ice
   !> Public routines
   !public :: inverse_chebyshev_expansion
   public :: inverse_chebyshev_expansion_new
+  public :: calculate_fermi_function_entropy
 
   contains
 
@@ -739,39 +740,6 @@ module ice
                accuracy_function=1.e-8_mp, accuracy_penalty=1.e-5_mp)
           call f_free(charge_fake)
           ice_obj => ice_obj_
-          !!!@ JUST FOR THE MOMENT.... ########################
-          !!     ice_obj_%ef = f_malloc0_ptr(ovrlp_smat%nspin,id='(ice_obj_%ef)')
-          !!     ice_obj_%evlow = f_malloc0_ptr(ovrlp_smat%nspin,id='ice_obj_%evlow')
-          !!     ice_obj_%evhigh = f_malloc0_ptr(ovrlp_smat%nspin,id='ice_obj_%evhigh')
-          !!     ice_obj_%bisection_shift = f_malloc0_ptr(ovrlp_smat%nspin,id='ice_obj_%bisection_shift')
-          !!     ice_obj_%charge = f_malloc0_ptr(ovrlp_smat%nspin,id='ice_obj_%charge')
-          !!     ice_obj_%eval_multiplicator = f_malloc0_ptr(ovrlp_smat%nspin,id='ice_obj_%eval_multiplicator')
-          !!     do ispin=1,ovrlp_smat%nspin
-          !!         call foe_data_set_real(ice_obj_,"ef",0.d0,ispin)
-          !!         call foe_data_set_real(ice_obj_,"evlow",0.5d0,ispin)
-          !!         call foe_data_set_real(ice_obj_,"evhigh",1.5d0,ispin)
-          !!         call foe_data_set_real(ice_obj_,"bisection_shift",1.d-1,ispin)
-          !!         call foe_data_set_real(ice_obj_,"charge",0.d0,ispin)
-          !!         call foe_data_set_real(ice_obj_,"eval_multiplicator",1.d0,ispin)
-          !!     end do
-          !!
-          !!     call foe_data_set_real(ice_obj_,"fscale",1.d-1)
-          !!     call foe_data_set_real(ice_obj_,"ef_interpol_det",0.d0)
-          !!     call foe_data_set_real(ice_obj_,"ef_interpol_chargediff",0.d0)
-          !!     call foe_data_set_int(ice_obj_,"evbounds_isatur",0)
-          !!     call foe_data_set_int(ice_obj_,"evboundsshrink_isatur",0)
-          !!     call foe_data_set_int(ice_obj_,"evbounds_nsatur",10)
-          !!     call foe_data_set_int(ice_obj_,"evboundsshrink_nsatur",10)
-          !!     call foe_data_set_real(ice_obj_,"fscale_lowerbound",1.d-2)
-          !!     call foe_data_set_real(ice_obj_,"fscale_upperbound",0.d0)
-          !!     call foe_data_set_real(ice_obj_,"evlow_min",0.d0)
-          !!     call foe_data_set_real(ice_obj_,"evhigh_max",200.d0)
-          !!     call foe_data_set_int(ice_obj_,"npl_min",10)
-          !!     call foe_data_set_int(ice_obj_,"npl_max",5000)
-          !!     call foe_data_set_int(ice_obj_,"npl_stride",10)
-          !!     call foe_data_set_real(ice_obj_,"betax",-500.d0)
-          !!!@ ################################################
-          !!ice_obj => ice_obj_
       end if
 
       npl_min = foe_data_get_int(ice_obj,"npl_min")
@@ -809,19 +777,12 @@ module ice
       end if
 
 
-      !!spin_loop: do ispin=1,ovrlp_smat%nspin
 
-
-      !eval_multiplicator = 1.d0
       eval_multiplicator = foe_data_get_real(ice_obj,"eval_multiplicator",1)
       eval_multiplicator_total = 1.d0
 
 
-      ! use inv_ovrlp(1)%matrix_compr as workarray to save memory
       npl_min_fake = NPL_MIN !since intent(inout)
-      !!write(*,*) 'IN MAIN, sum(ovrlp_mat_matrix_compr(1:ovrlp_smat)), sum(ovrlp_mat_matrix_compr(ovrlp_smat+1:2*ovrlp_smat))',&
-      !!            sum(ovrlp_mat%matrix_compr(1:ovrlp_smat%nvctr)), &
-      !!            sum(ovrlp_mat%matrix_compr(ovrlp_smat%nvctr+1:2*ovrlp_smat%nvctr))
       accuracy_function = foe_data_get_real(ice_obj,"accuracy_function")
       accuracy_penalty = foe_data_get_real(ice_obj,"accuracy_penalty")
       call get_bounds_and_polynomials(iproc, nproc, comm, 1, 1, NPL_MAX, NPL_STRIDE, &
@@ -835,15 +796,6 @@ module ice
 
 
 
-      !!if (iproc==0) then
-      !!    call yaml_mapping_open('summary',flow=.true.)
-      !!    call yaml_map('npl',npl)
-      !!    call yaml_map('bounds', &
-      !!         (/foe_data_get_real(ice_obj,"evlow",1),foe_data_get_real(ice_obj,"evhigh",1)/),fmt='(f7.3)')
-      !!    call yaml_map('exp accur',max_error,fmt='(es8.2)')
-      !!    call yaml_mapping_close()
-      !!end if
-
       spin_loop: do ispin=1,ovrlp_smat%nspin
           isshift=(ispin-1)*ovrlp_smat%nvctr
           ilshift=(ispin-1)*inv_ovrlp_smat%nvctr
@@ -851,24 +803,12 @@ module ice
           call chebyshev_fast(iproc, nproc, nsize_polynomial, npl, &
                inv_ovrlp_smat%nfvctr, inv_ovrlp_smat%smmm%nfvctrp, &
                inv_ovrlp_smat, chebyshev_polynomials(:,:,ispin), ncalc, cc, inv_ovrlp_matrixp_small_new)
-          !!write(*,*) 'ispin, sum(chebyshev_polynomials(:,:,ispin))', ispin, sum(chebyshev_polynomials(:,:,ispin))
-          !!do icalc=1,ncalc
-          !!    write(*,*) 'ispin, icalc, sum(cc(:,icalc,1))', ispin, icalc, sum(cc(:,icalc,1))
-          !!end do
           do icalc=1,ncalc
               call compress_matrix_distributed_wrapper(iproc, nproc, inv_ovrlp_smat, &
                    SPARSE_MATMUL_SMALL, inv_ovrlp_matrixp_small_new(:,icalc), &
                    ONESIDED_FULL, inv_ovrlp(icalc)%matrix_compr(ilshift2+1:))
-              !!write(*,*) 'BEFORE ispin, sum(inv_ovrlp_matrixp_small_new(:,icalc))', &
-              !!    ispin, sum(inv_ovrlp_matrixp_small_new(:,icalc))
-              !!write(*,*) 'BEFORE ispin, sum(inv_ovrlp(icalc)%matrix_compr(ilshift2+1:ilshift2+inv_ovrlp_smat%nvctr))', &
-              !!            ispin, sum(inv_ovrlp(icalc)%matrix_compr(ilshift2+1:ilshift2+inv_ovrlp_smat%nvctr))
               call dscal(inv_ovrlp_smat%nvctrp_tg, 1.d0/eval_multiplicator_total**ex(icalc), &
                    inv_ovrlp(icalc)%matrix_compr(ilshift2+1), 1)
-              !!write(*,*) 'AFTER ispin, sum(inv_ovrlp(icalc)%matrix_compr(ilshift2+1:ilshift2+inv_ovrlp_smat%nvctr))', &
-              !!            ispin, sum(inv_ovrlp(icalc)%matrix_compr(ilshift2+1:ilshift2+inv_ovrlp_smat%nvctr))
-              !!write(*,*) 'eval_multiplicator_total, 1.d0/eval_multiplicator_total**ex(icalc)', &
-              !!           eval_multiplicator_total, 1.d0/eval_multiplicator_total**ex(icalc)
           end do
       end do spin_loop
 
@@ -886,12 +826,6 @@ module ice
       call f_free(mean_error)
 
       if (.not.present(ice_objx)) then
-          !!call f_free_ptr(ice_obj_%ef)
-          !!call f_free_ptr(ice_obj_%evlow)
-          !!call f_free_ptr(ice_obj_%evhigh)
-          !!call f_free_ptr(ice_obj_%bisection_shift)
-          !!call f_free_ptr(ice_obj_%charge)
-          !!call f_free_ptr(ice_obj_%eval_multiplicator)
           call foe_data_deallocate(ice_obj_)
       end if
 
@@ -912,6 +846,236 @@ module ice
     !!      ! Lower bounds too large
 
     !!end subroutine adjust_eval_bounds
+
+
+
+
+    subroutine calculate_fermi_function_entropy(iproc, nproc, comm, &
+               ovrlp_smat, kernel_smat, entropykernel_smat, &
+               ovrlp_mat, kernel_mat, ovrlp_minus_one_half_mat, &
+               accuracy_entropy, entropykernel_mat, eTS, eTS_check, &
+               verbosity, ice_objx)
+      use sparsematrix_init, only: matrixindex_in_compressed
+      use sparsematrix, only: compress_matrix, uncompress_matrix, compress_matrix_distributed_wrapper, &
+                              transform_sparsity_pattern, get_minmax_eigenvalues, &
+                              trace_sparse_matrix
+      use foe_base, only: foe_data, foe_data_set_int, foe_data_get_int, foe_data_set_real, foe_data_get_real, &
+                          foe_data_set_logical, foe_data_get_logical, &
+                          foe_data_deallocate
+      use fermi_level, only: fermi_aux, init_fermi_level, determine_fermi_level, &
+                             fermilevel_get_real, fermilevel_get_logical
+      use chebyshev, only: chebyshev_clean, chebyshev_fast
+      use foe_common, only: evnoise, get_chebyshev_expansion_coefficients, &
+                            get_bounds_and_polynomials, &
+                            init_foe
+      use module_func
+      implicit none
+
+      ! Calling arguments
+      integer,intent(in) :: iproc, nproc, comm
+      type(sparse_matrix), intent(in) :: kernel_smat, entropykernel_smat, ovrlp_smat
+      type(matrices), intent(in) :: kernel_mat, ovrlp_mat, ovrlp_minus_one_half_mat
+      real(mp),intent(in) :: accuracy_entropy
+      type(matrices),intent(out) :: entropykernel_mat
+      real(mp),intent(out) :: eTS, eTS_check
+      integer, intent(in),optional :: verbosity
+      type(foe_data),intent(inout),target,optional :: ice_objx
+
+      ! Local variables
+      integer :: npl, jorb, it, ii, iseg
+      integer :: isegstart, isegend, iismall, nsize_polynomial
+      integer :: iismall_ovrlp, iismall_ham, npl_boundaries, i, ipl
+      integer, parameter :: nplx=50000
+      real(kind=mp),dimension(:,:,:),pointer :: chebyshev_polynomials
+      real(kind=mp),dimension(:,:,:),pointer :: inv_ovrlp_matrixp
+      real(kind=mp),dimension(:,:,:),allocatable :: penalty_ev
+      real(kind=mp),dimension(:,:,:),pointer :: cc
+      real(kind=mp) :: anoise, scale_factor, shift_value, betax
+      real(kind=mp) :: evlow_old, evhigh_old, tt
+      real(kind=mp),dimension(kernel_smat%nspin) :: eval_min, eval_max
+      real(kind=mp) :: x_max_error_fake, max_error_fake, mean_error_fake
+      real(kind=mp) :: tt_ovrlp, tt_ham, eval_multiplicator, eval_multiplicator_total, bounds_limit
+      logical :: restart, calculate_SHS
+      logical, dimension(2) :: emergency_stop
+      real(kind=mp),dimension(2) :: allredarr
+      real(kind=mp),dimension(:),allocatable :: hamscal_compr
+      logical, dimension(2) :: eval_bounds_ok
+      integer, dimension(2) :: irowcol
+      integer :: irow, icol, iflag, ispin, isshift, ilshift, ilshift2, verbosity_, npl_min_fake
+      logical :: overlap_calculated, evbounds_shrinked, degree_sufficient, reached_limit, npl_auto_
+      real(kind=mp),parameter :: DEGREE_MULTIPLICATOR_MAX=20.d0
+      real(kind=mp) :: degree_multiplicator, accuracy_function, accuracy_penalty, sumn, val
+      integer, parameter :: SPARSE=1
+      integer, parameter :: DENSE=2
+      integer, parameter :: imode=SPARSE
+      type(foe_data),pointer :: ice_obj
+      type(foe_data),target :: ice_obj_
+      real(kind=mp),dimension(:),allocatable :: eval, work, x_max_error, max_error, mean_error, charge_fake
+      real(kind=mp),dimension(:,:),allocatable :: tempmat
+      integer :: lwork, info, j, icalc, iline, icolumn
+      real(kind=mp),dimension(:),allocatable :: inv_ovrlp_matrixp_new
+      real(kind=mp),dimension(:,:),allocatable :: penalty_ev_new
+      real(kind=mp),dimension(:),allocatable :: inv_ovrlp_matrixp_small_new
+      type(matrices) :: ovrlp_scaled
+      character(len=3), parameter :: old='old'
+      character(len=3), parameter :: new='new'
+      character(len=3) :: mode=old
+      !!integer,parameter :: NPL_MIN = 5
+      !!integer,parameter :: NPL_MAX = 5000
+      !!integer,parameter :: NPL_STRIDE = 5
+      integer :: npl_min, npl_max, npl_stride
+      integer,parameter :: ncalc = 1
+      real(mp),dimension(:),allocatable :: evals
+
+      call f_routine(id='inverse_chebyshev_expansion_new')
+      call f_timing(TCAT_CME_AUXILIARY,'ON')
+
+
+      if (.not.entropykernel_smat%smatmul_initialized) then
+          call f_err_throw('sparse matrix multiplication not initialized', &
+               err_name='SPARSEMATRIX_RUNTIME_ERROR')
+      end if
+
+      if (present(verbosity)) then
+          verbosity_ = verbosity
+      else
+          verbosity_ = 100
+      end if
+
+      inv_ovrlp_matrixp_new = f_malloc((/entropykernel_smat%smmm%nvctrp/),id='inv_ovrlp_matrixp_new')
+      inv_ovrlp_matrixp_small_new = f_malloc((/entropykernel_smat%smmm%nvctrp_mm/),id='inv_ovrlp_matrixp_small_new')
+      hamscal_compr = sparsematrix_malloc(entropykernel_smat, iaction=SPARSE_TASKGROUP, id='hamscal_compr')
+
+      if (present(ice_objx)) then
+          ice_obj => ice_objx
+      else
+          charge_fake = f_malloc0(kernel_smat%nspin,id='charge_fake')
+          call init_foe(iproc, nproc, kernel_smat%nspin, charge=charge_fake, &
+               evlow=-0.1_mp, evhigh=1.1_mp, foe_obj=ice_obj_, &
+               accuracy_function=accuracy_entropy, accuracy_penalty=1.e-5_mp)
+          call f_free(charge_fake)
+          ice_obj => ice_obj_
+      end if
+
+      npl_min = foe_data_get_int(ice_obj,"npl_min")
+      npl_max = foe_data_get_int(ice_obj,"npl_max")
+      npl_stride = foe_data_get_int(ice_obj,"npl_stride")
+      betax = foe_data_get_real(ice_obj,"betax")
+
+      !!@ TEMPORARY: eigenvalues of  the overlap matrix ###################
+      !!evals = f_malloc(kernel_smat%nfvctr,id='evals')
+      !!call get_minmax_eigenvalues(iproc, nproc, comm, 'generalized', -8, &
+      !!     kernel_smat, kernel_mat, eval_min, eval_max, &
+      !!     smat2=ovrlp_smat, mat2=ovrlp_mat, &
+      !!     evals=evals)
+      !!eTS_check = 0.d0
+      !!sumn = 0.d0
+      !!do i=1,kernel_smat%nfvctr
+      !!    val = evals(i)
+      !!    sumn = sumn + val
+      !!    if (val<1.e-30_mp .or. (val-1._mp)>-1.e-30_mp) then
+      !!        tt = 0._mp
+      !!    else
+      !!        tt = -(val*log(val) + (1-val)*log(1-val))
+      !!    end if
+      !!    write(*,*) 'i, val, tt', i, val, tt
+      !!    eTS_check = eTS_check + tt
+      !!end do
+      !!write(*,*) 'sumn',sumn
+      !!call f_free(evals)
+      !! ##################################################################
+
+
+      ! Size of one Chebyshev polynomial matrix in compressed form (distributed)
+      nsize_polynomial = entropykernel_smat%smmm%nvctrp_mm
+
+      max_error = f_malloc(ncalc,id='max_error')
+      x_max_error = f_malloc(ncalc,id='x_max_error')
+      mean_error = f_malloc(ncalc,id='mean_error')
+
+      evbounds_shrinked=.false.
+      ! try to decrease the eigenvalue spectrum a bit
+      if (foe_data_get_int(ice_obj,"evbounds_isatur")>foe_data_get_int(ice_obj,"evbounds_nsatur") .and. &
+          foe_data_get_int(ice_obj,"evboundsshrink_isatur")<=foe_data_get_int(ice_obj,"evboundsshrink_nsatur")) then
+          do ispin=1,entropykernel_smat%nspin
+              ! Make sure that the lower bound is not larger than the upper bound
+              bounds_limit = 0.5_mp*(foe_data_get_real(ice_obj,"evlow",ispin)+foe_data_get_real(ice_obj,"evhigh",ispin))
+              tt = min(1.d0/0.9d0*foe_data_get_real(ice_obj,"evlow",ispin),bounds_limit-1.e-2_mp)
+              call foe_data_set_real(ice_obj,"evlow",tt,ispin)
+              tt = max(0.9d0*foe_data_get_real(ice_obj,"evhigh",ispin),bounds_limit+1.e-2_mp)
+              call foe_data_set_real(ice_obj,"evhigh",tt,ispin)
+          end do
+          evbounds_shrinked=.true.
+      else
+          evbounds_shrinked=.false.
+      end if
+
+
+
+      !!eval_multiplicator = foe_data_get_real(ice_obj,"eval_multiplicator",1)
+      !!eval_multiplicator_total = 1.d0
+
+      eval_multiplicator = 1.00_mp
+      eval_multiplicator_total = 1.d0
+
+      npl_min_fake = NPL_MIN !since intent(inout)
+      !accuracy_function = 1.d-4 !foe_data_get_real(ice_obj,"accuracy_function")
+      accuracy_function = foe_data_get_real(ice_obj,"accuracy_function")
+      accuracy_penalty = foe_data_get_real(ice_obj,"accuracy_penalty")
+      !!write(*,*) 'verbosity_', verbosity_
+      call get_bounds_and_polynomials(iproc, nproc, comm, 2, 1, NPL_MAX, NPL_STRIDE, &
+           ncalc, FUNCTION_FERMIFUNCTION_ENTROPY, accuracy_function, accuracy_penalty, .false., 1.2_mp, 1.2_mp, verbosity_, &
+           kernel_smat, entropykernel_smat, kernel_mat, ice_obj, npl_min_fake, &
+           entropykernel_mat%matrix_compr, chebyshev_polynomials, &
+           npl, scale_factor, shift_value, hamscal_compr, &
+           scaling_factor_low=1.2_mp, scaling_factor_up=1.0_mp/1.2_mp, &
+           eval_multiplicator=eval_multiplicator, eval_multiplicator_total=eval_multiplicator_total, &
+           cc=cc, max_errorx=max_error, &
+           smats=ovrlp_smat, ovrlp_=ovrlp_mat, ovrlp_minus_one_half_=ovrlp_minus_one_half_mat)
+
+
+
+      spin_loop: do ispin=1,kernel_smat%nspin
+          isshift=(ispin-1)*kernel_smat%nvctr
+          ilshift=(ispin-1)*entropykernel_smat%nvctr
+          ilshift2=(ispin-1)*entropykernel_smat%nvctrp_tg
+          call chebyshev_fast(iproc, nproc, nsize_polynomial, npl, &
+               entropykernel_smat%nfvctr, entropykernel_smat%smmm%nfvctrp, &
+               entropykernel_smat, chebyshev_polynomials(:,:,ispin), ncalc, cc, inv_ovrlp_matrixp_small_new)
+          !do icalc=1,ncalc
+              call compress_matrix_distributed_wrapper(iproc, nproc, entropykernel_smat, &
+                   SPARSE_MATMUL_SMALL, inv_ovrlp_matrixp_small_new, &
+                   ONESIDED_FULL, entropykernel_mat%matrix_compr(ilshift2+1:))
+              !!call dscal(entropykernel_smat%nvctrp_tg, 1.d0/eval_multiplicator_total**ex(icalc), &
+              !!     entropykernel_mat%matrix_compr(ilshift2+1), 1)
+          !end do
+      end do spin_loop
+
+      call f_free_ptr(cc)
+      call f_free_ptr(chebyshev_polynomials)
+
+      !!call foe_data_set_real(ice_obj,"eval_multiplicator",eval_multiplicator_total,1)
+
+
+      call f_free(inv_ovrlp_matrixp_small_new)
+      call f_free(inv_ovrlp_matrixp_new)
+      call f_free(hamscal_compr)
+      call f_free(max_error)
+      call f_free(x_max_error)
+      call f_free(mean_error)
+
+      sumn = trace_sparse_matrix(iproc, nproc, comm, kernel_smat, kernel_mat%matrix_compr)
+      eTS = trace_sparse_matrix(iproc, nproc, comm, kernel_smat, entropykernel_mat%matrix_compr)
+      !eTS = eTS/scale_factor+shift_value*sumn
+
+      if (.not.present(ice_objx)) then
+          call foe_data_deallocate(ice_obj_)
+      end if
+
+      call f_timing(TCAT_CME_AUXILIARY,'OF')
+      call f_release_routine()
+
+    end subroutine calculate_fermi_function_entropy
 
 
 end module ice

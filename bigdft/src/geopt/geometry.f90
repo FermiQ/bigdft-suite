@@ -722,7 +722,7 @@ subroutine fire(runObj,outs,nproc,iproc,ncount_bigdft,fail)
   character(len = *), parameter :: ATT_DT = "dt (FIRE)"
   type(atoms_iterator) :: itAt
 
-  call yaml_cite("Bitzek2006")
+  if (iproc==0) call yaml_cite("Bitzek2006")
 
   fluct=0.0_gp
   check=0

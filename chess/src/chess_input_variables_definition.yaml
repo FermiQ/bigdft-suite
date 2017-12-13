@@ -79,6 +79,10 @@
      COMMENT: Required accuracy for the Chebyshev fit for the penalty function
      default: 1.e-5
      RANGE: [1.e-10,1.e-3]
+   accuracy_entropy:
+     COMMENT: Required accuracy for the Chebyshev fit for the function to calculate the entropy term
+     default: 1.e-4
+     RANGE: [1.e-9,1.e-2]
    betax_foe:
      COMMENT: the exponent in the exponential penalty function which is used to determine the eigenvalue bounds for FOE
      default: -1000.0

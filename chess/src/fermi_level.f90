@@ -871,6 +871,7 @@ module fermi_level
 !!$                  !cold
 !!$                  eTS=eTS+0._mp  ! to be completed if needed
 !!$               end if
+                  !write(*,*) 'tt, full, wf0, log_term', tt, full, wf0, log_term
             end do
          end do
          !!! Sanity check on sum of occup.
