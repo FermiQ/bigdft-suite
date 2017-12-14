@@ -1020,7 +1020,7 @@ contains
        !     istep,e_rxyz,nummax,nummin
        if (iproc == 0) then
 !          write(*,'(a,i5,1x,1pe17.10,2(1x,i2))') '# (MH) MD ',istep,e_rxyz,nummax,nummin
-           write(555,'(i4,3(2x,e12.5))') istep,outs%energy,rkin,rkin+outs%energy
+           !write(555,'(i4,3(2x,e12.5))') istep,outs%energy,rkin,rkin+outs%energy
           call yaml_mapping_open('(MH) MD',flow=.true.)
             call yaml_map('Step',istep)
             call yaml_map('E (Ha)',outs%energy)
