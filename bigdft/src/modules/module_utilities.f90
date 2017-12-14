@@ -57,7 +57,7 @@ module module_utilities
            type(sparse_matrix),dimension(2) :: smat
            type(dictionary), pointer :: dict_timing_info
            character(len=32),dimension(:),allocatable :: fragment_atom_name
-           real(kind=8) :: tr
+           real(kind=8) :: tr, spin_factor
            logical,dimension(:),allocatable :: supfun_in_fragment
            type(dictionary),pointer :: fragment_dict, fragment_item, fragment_atom
            type(mpi_environment) :: mpi_env
@@ -142,7 +142,7 @@ module module_utilities
            if (file_exists) then
                call merge_input_file_to_dict(fragment_dict, trim(fragment_file), mpi_env)
            else
-               call f_err_throw('file'//trim(fragment_file)//'not present')
+               call f_err_throw('file '//trim(fragment_file)//' not present')
            end if
     
            supfun_in_fragment = f_malloc(smat(1)%nfvctr,id='supfun_in_fragment')
@@ -309,8 +309,11 @@ module module_utilities
                            fragment_multipoles(mm,ifrag) = fragment_multipoles(mm,ifrag) + tr
                            if (l==0) then
                                if (smat(1)%nspin==1) then
-                                   call dscal(nsf_frag**2, 0.5d0, kqmat(1,1,1), 1)
+                                   spin_factor = 2.0d0
+                               else
+                                   spin_factor = 1.0d0
                                end if
+                               call dscal(nsf_frag**2, 1.d0/spin_factor, kqmat(1,1,1), 1)
                                call gemm('n', 'n', nsf_frag, nsf_frag, nsf_frag, 1.d0, kqmat(1,1,1), nsf_frag, &
                                     kqmat(1,1,1), nsf_frag, 0.d0, kqmat(1,1,2), nsf_frag)
                                call axpy(nsf_frag**2, -1.d0, kqmat(1,1,1), 1, kqmat(1,1,2), 1)
@@ -318,12 +321,13 @@ module module_utilities
                                do isf=1,nsf_frag
                                    tr = tr + kqmat(isf,isf,2)
                                end do
-                               fragment_multipoles(0,ifrag) = fragment_multipoles(0,ifrag) + tr/fragment_charge(ifrag)
+                               fragment_multipoles(0,ifrag) = fragment_multipoles(0,ifrag) + tr*spin_factor
                            end if
                        end do
                    end do
                 
                end do
+               fragment_multipoles(0,ifrag) = fragment_multipoles(0,ifrag)/fragment_charge(ifrag)
     
                !!if (iproc==0) then
                !!    call yaml_sequence(advance='no')

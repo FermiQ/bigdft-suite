@@ -54,10 +54,10 @@ program utilities
    character(len=1) :: geocode
    character(len=3) :: do_ortho
    character(len=30) :: tatonam, radical, colorname, linestart, lineend, cname, methodc
-   character(len=128) :: method_name, overlap_file, hamiltonian_file, kernel_file, coeff_file, pdos_file, metadata_file
-   character(len=128) :: line, cc, output_pdos, conversion, infile, outfile, iev_min_, iev_max_, fscale_, matrix_basis
-   character(len=128) :: kernel_matmul_file, istart_ks_, iend_ks_, matrix_format, fragment_file
-   character(len=128),dimension(-lmax:lmax,0:lmax) :: multipoles_files
+   character(len=1024) :: method_name, overlap_file, hamiltonian_file, kernel_file, coeff_file, pdos_file, metadata_file
+   character(len=1024) :: line, cc, output_pdos, conversion, infile, outfile, iev_min_, iev_max_, fscale_, matrix_basis
+   character(len=1024) :: kernel_matmul_file, istart_ks_, iend_ks_, matrix_format, fragment_file
+   character(len=1024),dimension(-lmax:lmax,0:lmax) :: multipoles_files
    logical :: multipole_analysis = .false.
    logical :: solve_eigensystem = .false.
    logical :: calculate_pdos = .false.
