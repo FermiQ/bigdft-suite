@@ -3,7 +3,7 @@ jhbuild.py
 bigdft.modules
 gnome.modules
 rcfiles/
-m3/
+m4/
 glib.patch
 glib2.patch
 libffi-toolexeclibdir.patch

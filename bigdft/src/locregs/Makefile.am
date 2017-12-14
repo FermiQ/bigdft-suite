@@ -36,10 +36,10 @@ CLEANFILES = $(modules)
 
 AM_FCFLAGS = -I. -I$(srcdir) -I$(top_builddir)/includes @LIB_FUTILE_CFLAGS@
 
-check_PROGRAMS = locreg_test
+#check_PROGRAMS = locreg_test
 
-locreg_test_SOURCES = locreg_test.f90
-locreg_test_LDADD = -L$(builddir) -llocregs @LIB_FUTILE_LIBS@ @LINALG_LIBS@
+#locreg_test_SOURCES = locreg_test.f90
+#locreg_test_LDADD = -L$(builddir) -llocregs @LIB_FUTILE_LIBS@ @LINALG_LIBS@
 
 # Hack for MIC compilation.
 if USE_MIC

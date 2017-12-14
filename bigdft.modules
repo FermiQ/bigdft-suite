@@ -246,7 +246,7 @@
     <dependencies>
       <dep package="spred"/>
       <dep package="PyYAML"/>
-      <dep package="openbabel"/>
+      <!-- <dep package="openbabel"/> -->
     </dependencies>
   </metamodule>
 
