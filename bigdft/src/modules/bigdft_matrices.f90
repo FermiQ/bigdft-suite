@@ -728,20 +728,22 @@ module bigdft_matrices
               ispin=2
           end if
           iiorb = mod(iorb-1,smat%nfvctr)+1 ! spin-independent index
-          ishift=(ispin-1)*smat%nvctr!-smat%isvctrp_tg
+          !ishift=(ispin-1)*smat%nvctr!-smat%isvctrp_tg
           isegstart = smat%istsegline(iiorb)
           isegend = smat%istsegline(iiorb) + smat%nsegline(iiorb) - 1
           do iseg=isegstart,isegend
               ii=smat%keyv(iseg)
               do i=smat%keyg(1,1,iseg),smat%keyg(2,1,iseg)
-                  ind_min = min(ii+ishift,ind_min)
-                  ind_max = max(ii+ishift,ind_max)
+                  !ind_min = min(ii+ishift,ind_min)
+                  !ind_max = max(ii+ishift,ind_max)
+                  ind_min = min(ii,ind_min)
+                  ind_max = max(ii,ind_max)
                   ii=ii+1
               end do
           end do
       end do
 
-      write(*,*) 'end sub: ind_min, ind_max', ind_min, ind_max
+      !write(*,*) 'end sub: ind_min, ind_max', ind_min, ind_max
 
     end subroutine check_orbital_matrix_distribution
 
