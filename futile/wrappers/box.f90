@@ -236,11 +236,28 @@ contains
     real(gp), dimension(3), intent(in) :: oxyz
     real(gp), intent(in) :: cutoff
     integer, dimension(2,3) :: nbox
+    real(gp), dimension(2,3) :: rbox
     !for non-orthorhombic cells the concept of distance has to be inserted here (the box should contain the sphere)
-    nbox(START_,:)=floor((oxyz-cutoff)/mesh%hgrids)
-    nbox(END_,:)=ceiling((oxyz+cutoff)/mesh%hgrids)
+!!$    nbox(START_,:)=floor((oxyz-cutoff)/mesh%hgrids)
+!!$    nbox(END_,:)=ceiling((oxyz+cutoff)/mesh%hgrids)
+
+    rbox=cell_cutoff_extrema(oxyz,cutoff)
+    nbox(START_,:)=floor(rbox(START_,:)/mesh%hgrids)
+    nbox(END_,:)=ceiling(rbox(END_,:)/mesh%hgrids)
 
   end function box_nbox_from_cutoff
+
+
+  pure function cell_cutoff_extrema(oxyz,cutoff) result(rbox)
+    implicit none
+    real(gp), dimension(3), intent(in) :: oxyz
+    real(gp), intent(in) :: cutoff
+    real(gp), dimension(2,3) :: rbox
+    !for non-orthorhombic cells the concept of distance has to be inserted here (the box should contain the sphere)
+    rbox(START_,:)=oxyz-cutoff
+    rbox(END_,:)=oxyz+cutoff
+  end function cell_cutoff_extrema
+
 
   pure subroutine box_iter_expand_nbox(bit)
     implicit none
