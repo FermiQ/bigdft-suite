@@ -9,3 +9,8 @@ Keys to ignore:
  - Walltime since initialization
  - Max No. of dictionaries used
  - Number of omp threads
+ - Normal loop, iom (ns)  
+ - Normal loop, itr (ns) 
+ - Normal loop, mpi (ns) 
+ - Normal loop, omp (ns) 
+ - Normal loop, seq (ns) 
