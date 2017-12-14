@@ -1035,7 +1035,7 @@ subroutine tmb_overlap_onsite(iproc, nproc, imethod_overlap, at, tmb, rxyz)
   !!iicol(2) = 1
   !!call get_sparsematrix_local_extent(iproc, nproc, tmb%linmat%smmd, smat_tmp, ind_min, ind_mas)
   call check_local_matrix_extents(iproc, nproc, &
-       collcom_tmp, collcom_tmp, tmb%linmat%smmd, smat_tmp(1), aux, &
+       collcom_tmp, collcom_tmp, tmb%orbs, tmb%linmat%smmd, smat_tmp(1), aux, &
        ind_min, ind_mas)
   !!call get_sparsematrix_local_rows_columns(smat_tmp, ind_min, ind_mas, irow, icol)
   !!iirow(1) = min(irow(1),iirow(1))

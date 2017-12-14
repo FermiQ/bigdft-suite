@@ -1381,7 +1381,7 @@ module communications
       character(len=1),dimension(:),allocatable :: worksend_char, workrecv_char
       logical,dimension(:),allocatable :: worksend_log, workrecv_log
       integer,dimension(:,:),allocatable :: worksend_int, workrecv_int
-      integer,dimension(:),allocatable :: norb_par
+      integer,dimension(:),allocatable :: norb_par, isorb_par
       real(8),dimension(:,:),allocatable :: worksend_dbl, workrecv_dbl
       character(len=*),parameter :: subname='communicate_locreg_descriptors_basics'
 
@@ -1461,8 +1461,11 @@ module communications
       do jproc=0,nproc-1
           norb_par(jproc) = 6*orbs%norb_par(jproc,0)
       end do
+      isorb_par = f_malloc(0.to.nproc-1,id='isorb_par')
+      isorb_par(:) = 6*orbs%isorb_par(:)
       call mpi_allgatherv(worksend_dbl, 6*orbs%norbp, mpi_double_precision, workrecv_dbl, norb_par, &
-           6*orbs%isorb_par, mpi_double_precision, bigdft_mpi%mpi_comm, ierr)
+           isorb_par, mpi_double_precision, bigdft_mpi%mpi_comm, ierr)
+      call f_free(isorb_par)
 
        call f_free(norb_par)
     

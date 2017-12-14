@@ -1424,7 +1424,7 @@ subroutine adjust_locregs_and_confinement(iproc, nproc, hx, hy, hz, at, input, &
 
      !!call get_sparsematrix_local_extent(iproc, nproc, tmb%linmat%smmd, tmb%linmat%smat(1), ind_min_s, ind_mas_s)
      call check_local_matrix_extents(iproc, nproc, tmb%collcom, &
-          tmb%collcom_sr, tmb%linmat%smmd, tmb%linmat%smat(1), tmb%linmat%auxs, &
+          tmb%collcom_sr, tmb%orbs, tmb%linmat%smmd, tmb%linmat%smat(1), tmb%linmat%auxs, &
           ind_min_s, ind_mas_s)
      !!call get_sparsematrix_local_rows_columns(tmb%linmat%smat(1), ind_min_s, ind_mas_s, irow, icol)
      !!iirow(1) = min(irow(1),iirow(1))
@@ -1434,7 +1434,7 @@ subroutine adjust_locregs_and_confinement(iproc, nproc, hx, hy, hz, at, input, &
 
      !!call get_sparsematrix_local_extent(iproc, nproc, tmb%linmat%smmd, tmb%linmat%smat(2), ind_min_m, ind_mas_m)
      call check_local_matrix_extents(iproc, nproc, tmb%ham_descr%collcom, &
-          tmb%collcom_sr, tmb%linmat%smmd, tmb%linmat%smat(2), tmb%linmat%auxm, &
+          tmb%collcom_sr, tmb%orbs, tmb%linmat%smmd, tmb%linmat%smat(2), tmb%linmat%auxm, &
           ind_min_m, ind_mas_m)
      !!call get_sparsematrix_local_rows_columns(tmb%linmat%smat(2), ind_min_m, ind_mas_m, irow, icol)
      !!iirow(1) = min(irow(1),iirow(1))
@@ -1444,7 +1444,7 @@ subroutine adjust_locregs_and_confinement(iproc, nproc, hx, hy, hz, at, input, &
 
      !!call get_sparsematrix_local_extent(iproc, nproc, tmb%linmat%smmd, tmb%linmat%smat(3), ind_min_l, ind_mas_l)
      call check_local_matrix_extents(iproc, nproc, tmb%ham_descr%collcom, &
-          tmb%collcom_sr, tmb%linmat%smmd, tmb%linmat%smat(3), tmb%linmat%auxl, &
+          tmb%collcom_sr, tmb%orbs, tmb%linmat%smmd, tmb%linmat%smat(3), tmb%linmat%auxl, &
           ind_min_l, ind_mas_l)
      !!call get_sparsematrix_local_rows_columns(tmb%linmat%smat(3), ind_min_l, ind_mas_l, irow, icol)
      !!iirow(1) = min(irow(1),iirow(1))

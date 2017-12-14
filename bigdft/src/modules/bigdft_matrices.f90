@@ -577,7 +577,7 @@ module bigdft_matrices
       integer :: ind_min_m, ind_max_m
       integer :: ind_min_l, ind_max_l
       type(sparse_matrix) :: smat_test
-      type(sparse_matrix),dimension(3) :: smat_ptr
+      integer,dimension(:,:),allocatable :: ind_minmax
 
       call sparse_matrix_metadata_init(atoms%astruct%geocode, atoms%astruct%cell_dim, orbs%norb, &
            atoms%astruct%nat, atoms%astruct%ntypes, atoms%astruct%units, &           
@@ -625,9 +625,13 @@ module bigdft_matrices
            collcom_s_sr, orbs, linmat%smmd, linmat%smat(3), linmat%auxl, &
            ind_min_l, ind_max_l)
 
+      ind_minmax = f_malloc([2,3],id='ind_minmax')
+      ind_minmax(1:2,1) = [ind_min_s,ind_max_s]
+      ind_minmax(1:2,2) = [ind_min_m,ind_max_m]
+      ind_minmax(1:2,3) = [ind_min_l,ind_max_l]
       call init_matrix_taskgroups_wrapper(iproc, nproc, bigdft_mpi%mpi_comm, in%enable_matrix_taskgroups, &
-           3, linmat%smat, &
-           (/(/ind_min_s,ind_max_s/),(/ind_min_m,ind_max_m/),(/ind_min_l,ind_max_l/)/))
+           3, linmat%smat, ind_minmax)
+      call f_free(ind_minmax)
 
     end subroutine init_bigdft_matrices
 
