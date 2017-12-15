@@ -280,7 +280,7 @@ contains
     implicit none
     type(box_iterator), intent(inout) :: bit
     !local variables
-    integer :: iz,iy,ix,i
+    integer :: iz,iy,ix,i,jx,jy,jz
     integer(f_long) :: icnt,itgt
     logical(f_byte), dimension(:), allocatable :: lxyz
     integer, dimension(:), allocatable :: lx,ly,lz
@@ -291,7 +291,7 @@ contains
     end do
     subdims(3)=min(subdims(3),bit%i3e-bit%i3s+1)
 
-    !first, count if the iterator covers all the points
+    !first, count if the iterator covers all the required points
     itgt=product(int(subdims,f_long))
     !!!itgt=int(bit%mesh%ndims(1),f_long)*int(bit%mesh%ndims(2),f_long)*&
     !!!     int(bit%i3e-bit%i3s+1,f_long)
@@ -327,45 +327,51 @@ contains
     end do
 
     !separable mode
-    iz=0
+    iz=bit%subbox(START_,Z_)-1 !0
     icnt=0
     do while(box_next_z(bit))
        iz=iz+1
+       jz=iz-bit%subbox(START_,Z_)+1
        !print *,'bit',bit%k,bit%inext(Z_)
        call f_assert(iz+bit%i3s-1==bit%inext(Z_)-1,'A')!,&
        !'Error iz='+iz+', inext(Z)='+bit%inext(Z_))
-       iy=0
+       iy=bit%subbox(START_,Y_)-1!0
        do while(box_next_y(bit))
           iy=iy+1
+          jy=iy-bit%subbox(START_,Y_)+1
           call f_assert(iy==bit%inext(Y_)-1,'B')!,&
           !'Error iy='+iy+', inext(Y)='+bit%inext(Y_))
-          ix=0
+          ix=bit%subbox(START_,X_)-1!0
           do while(box_next_x(bit))
              ix=ix+1
+             jx=ix-bit%subbox(START_,X_)+1
              call f_assert(ix==bit%inext(X_)-1,'C')!,&
              !'Error ix='+ix+', inext(X)='+bit%inext(X_))
 
              icnt=icnt+1
-             call f_assert(lx(ix) == bit%i,'D')!,&
+             call f_assert(lx(jx) == bit%i,'D')!,&
              !'Error value, ix='+bit%i+', expected='+lx(ix))
              !convert the value of the logical array
-             if (lxyz(bit%ind)) call f_err_throw('Error point ind='+bit%ind+&
+             !if (lxyz(bit%ind)) &
+             if (lxyz(icnt)) &
+                  call f_err_throw('Error point ind='+bit%ind+&
                ', i,j,k='+yaml_toa([bit%i,bit%j,bit%k]))
-             lxyz(bit%ind)=f_T
+             !lxyz(bit%ind)=f_T
+             lxyz(icnt)=f_T
           end do
-          call f_assert(ix == subdims(X_),'E')!,&
+          call f_assert(jx == subdims(X_),'E')!,&
           !'Error boxit, ix='+ix+', itgtx='+subdims(X_))
           
-          call f_assert(ly(iy) == bit%j,'F')!,&
+          call f_assert(ly(jy) == bit%j,'F')!,&
           !'Error value, iy='+bit%j+', expected='+ly(iy))
        end do
-       call f_assert(iy == subdims(Y_),'G')!,&
+       call f_assert(jy == subdims(Y_),'G')!,&
        !'Error boxit, iy='+iy+', itgty='+subdims(Y_))
 
-       call f_assert(lz(iz)+bit%i3s-1 == bit%k,&
-            yaml_toa([lz(iz),bit%k,bit%i3s]))!,&
+       call f_assert(lz(jz)+bit%i3s-1 == bit%k,&
+            yaml_toa([lz(jz),bit%k,bit%i3s]))!,&
     end do
-    call f_assert(iz == subdims(Z_),'I')!,&
+    call f_assert(jz == subdims(Z_),'I')!,&
     !'Error boxit, iz='+iz+', itgtz='+subdims(Z_))
     call f_assert(icnt == itgt,'J')!,&
     !'Error sep boxit, icnt='+icnt+', itgt='+itgt)
@@ -377,10 +383,12 @@ contains
        !here we might see if there are points from which 
        !we passed twice
        !print *,bit%i,bit%j,bit%k
-       if (.not. lxyz(bit%ind)) &
+       !if (.not. lxyz(bit%ind)) &
+       if (.not. lxyz(icnt)) &
             call f_err_throw('Error point (2) ind='+bit%ind+&
             ', i,j,k='+yaml_toa([bit%i,bit%j,bit%k]))
-       lxyz(bit%ind)=f_F
+       !lxyz(bit%ind)=f_F
+       lxyz(icnt)=f_F
     end do
     call f_assert(icnt == itgt,'Error boxit, icnt='+icnt+&
          ', itgt='+itgt)
@@ -1077,9 +1085,9 @@ contains
        do i=-mesh%bc(1),mesh%bc(1)
         do j=-mesh%bc(2),mesh%bc(2)
          do k=-mesh%bc(3),mesh%bc(3)
-            rt(1)=ri(1)+real(i,kind=8)*mesh%ndims(1)*mesh%hgrids(1)
-            rt(2)=ri(2)+real(j,kind=8)*mesh%ndims(2)*mesh%hgrids(2)
-            rt(3)=ri(3)+real(k,kind=8)*mesh%ndims(3)*mesh%hgrids(3)
+            rt(1)=ri(1)+real(i,gp)*mesh%ndims(1)*mesh%hgrids(1)
+            rt(2)=ri(2)+real(j,gp)*mesh%ndims(2)*mesh%hgrids(2)
+            rt(3)=ri(3)+real(k,gp)*mesh%ndims(3)*mesh%hgrids(3)
             d2=square_gd(mesh,rt-ci)
             d=sqrt(d2)
             if (d.lt.dold) then
@@ -1092,9 +1100,9 @@ contains
         end do
        end do
        d=dold
-       r(1)=ri(1)+real(icurr,kind=8)*mesh%ndims(1)*mesh%hgrids(1) - ci(1)
-       r(2)=ri(2)+real(jcurr,kind=8)*mesh%ndims(2)*mesh%hgrids(2) - ci(2)
-       r(3)=ri(3)+real(kcurr,kind=8)*mesh%ndims(3)*mesh%hgrids(3) - ci(3)
+       r(1)=ri(1)+real(icurr,gp)*mesh%ndims(1)*mesh%hgrids(1) - ci(1)
+       r(2)=ri(2)+real(jcurr,gp)*mesh%ndims(2)*mesh%hgrids(2) - ci(2)
+       r(3)=ri(3)+real(kcurr,gp)*mesh%ndims(3)*mesh%hgrids(3) - ci(3)
     end if
 
   end function closest_r
