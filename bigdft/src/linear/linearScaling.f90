@@ -984,34 +984,36 @@ end if
 
   ! Diagonalize the matrix for the FOE/direct min case to get the coefficients. Only necessary if
   ! the Pulay forces are to be calculated, or if we are printing eigenvalues for restart
-  if ((input%lin%scf_mode==LINEAR_FOE.or.input%lin%scf_mode==LINEAR_DIRECT_MINIMIZATION)&
-       .and. (mod(input%lin%plotBasisFunctions,10) /= WF_FORMAT_NONE&
-       .or. input%lin%diag_end .or. mod(input%lin%output_coeff_format,10) /= WF_FORMAT_NONE)) then
+  if ((input%lin%scf_mode==LINEAR_FOE.or.input%lin%scf_mode==LINEAR_DIRECT_MINIMIZATION)) then
+      if(mod(input%lin%plotBasisFunctions,10) /= WF_FORMAT_NONE) then
+          !Assigne an obvisouly wrong value to the eigenvalues
+          tmb%orbs%eval(:) = -123456789.0d0
+      else if(input%lin%diag_end .or. mod(input%lin%output_coeff_format,10) /= WF_FORMAT_NONE) then
 
-       !!if (input%lin%scf_mode==LINEAR_FOE) then
-       !!    tmb%coeff=f_malloc_ptr((/tmb%orbs%norb,tmb%orbs%norb/),id='tmb%coeff')
-       !!end if
+          !!if (input%lin%scf_mode==LINEAR_FOE) then
+          !!    tmb%coeff=f_malloc_ptr((/tmb%orbs%norb,tmb%orbs%norb/),id='tmb%coeff')
+          !!end if
 
-       !!call extract_taskgroup_inplace(tmb%linmat%smat(3), tmb%linmat%kernel_)
-       call get_coeff(iproc,nproc,LINEAR_MIXDENS_SIMPLE,KSwfn%orbs,at,rxyz,denspot,GPU,&
-           infoCoeff,energs,nlpsp,input%SIC,tmb,pnrm,update_phi,.true.,.true.,.false.,&
-           .true.,input%lin%extra_states,itout,0,0,norder_taylor,input%lin%max_inversion_error,&
-           input%calculate_KS_residue,input%calculate_gap,energs_work,update_kernel,input%lin%coeff_factor, &
-           input%tel, input%occopt, &
-           input%cp%pexsi%pexsi_npoles,input%cp%pexsi%pexsi_nproc_per_pole,input%cp%pexsi%pexsi_mumin,&
-           input%cp%pexsi%pexsi_mumax,input%cp%pexsi%pexsi_mu,input%cp%pexsi%pexsi_DeltaE, &
-           input%cp%pexsi%pexsi_temperature,input%cp%pexsi%pexsi_tol_charge,input%cp%pexsi%pexsi_np_sym_fact, &
-           input%cp%pexsi%pexsi_do_inertia_count, input%cp%pexsi%pexsi_max_iter, &
-           input%cp%pexsi%pexsi_verbosity)
-       !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%smat(3), tmb%linmat%kernel_)
+          !!call extract_taskgroup_inplace(tmb%linmat%smat(3), tmb%linmat%kernel_)
+          call get_coeff(iproc,nproc,LINEAR_MIXDENS_SIMPLE,KSwfn%orbs,at,rxyz,denspot,GPU,&
+              infoCoeff,energs,nlpsp,input%SIC,tmb,pnrm,update_phi,.true.,.true.,.false.,&
+              .true.,input%lin%extra_states,itout,0,0,norder_taylor,input%lin%max_inversion_error,&
+              input%calculate_KS_residue,input%calculate_gap,energs_work,update_kernel,input%lin%coeff_factor, &
+              input%tel, input%occopt, &
+              input%cp%pexsi%pexsi_npoles,input%cp%pexsi%pexsi_nproc_per_pole,input%cp%pexsi%pexsi_mumin,&
+              input%cp%pexsi%pexsi_mumax,input%cp%pexsi%pexsi_mu,input%cp%pexsi%pexsi_DeltaE, &
+              input%cp%pexsi%pexsi_temperature,input%cp%pexsi%pexsi_tol_charge,input%cp%pexsi%pexsi_np_sym_fact, &
+              input%cp%pexsi%pexsi_do_inertia_count, input%cp%pexsi%pexsi_max_iter, &
+              input%cp%pexsi%pexsi_verbosity)
+          !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%smat(3), tmb%linmat%kernel_)
 
-       !!if (input%lin%scf_mode==LINEAR_FOE) then
-       !!    call f_free_ptr(tmb%coeff)
-       !!end if
-
-       if (bigdft_mpi%iproc ==0) then
-          call write_eigenvalues_data(0.1d0,tmb%orbs,mom_vec_fake)
-       end if
+          !!if (input%lin%scf_mode==LINEAR_FOE) then
+          !!    call f_free_ptr(tmb%coeff)
+          !!end if
+          if (bigdft_mpi%iproc ==0) then
+             call write_eigenvalues_data(0.1d0,tmb%orbs,mom_vec_fake)
+          end if
+      end if
   end if
 
   !!if (input%kernel_analysis) then
