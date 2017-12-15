@@ -985,10 +985,12 @@ end if
   ! Diagonalize the matrix for the FOE/direct min case to get the coefficients. Only necessary if
   ! the Pulay forces are to be calculated, or if we are printing eigenvalues for restart
   if ((input%lin%scf_mode==LINEAR_FOE.or.input%lin%scf_mode==LINEAR_DIRECT_MINIMIZATION)) then
-      if(mod(input%lin%plotBasisFunctions,10) /= WF_FORMAT_NONE) then
-          !Assigne an obvisouly wrong value to the eigenvalues
-          tmb%orbs%eval(:) = -123456789.0d0
-      else if(input%lin%diag_end .or. mod(input%lin%output_coeff_format,10) /= WF_FORMAT_NONE) then
+      !!if(mod(input%lin%plotBasisFunctions,10) /= WF_FORMAT_NONE) then
+      !!    !Assigne an obvisouly wrong value to the eigenvalues
+      !!    tmb%orbs%eval(:) = -123456789.0d0
+      !!else if(input%lin%diag_end .or. mod(input%lin%output_coeff_format,10) /= WF_FORMAT_NONE) then
+      if(mod(input%lin%plotBasisFunctions,10) /= WF_FORMAT_NONE .or. &
+      input%lin%diag_end .or. mod(input%lin%output_coeff_format,10) /= WF_FORMAT_NONE) then
 
           !!if (input%lin%scf_mode==LINEAR_FOE) then
           !!    tmb%coeff=f_malloc_ptr((/tmb%orbs%norb,tmb%orbs%norb/),id='tmb%coeff')
