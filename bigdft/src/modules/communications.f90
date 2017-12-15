@@ -33,7 +33,8 @@ module communications
 
 
   interface transpose_v
-      module procedure transpose_v111, transpose_v222, transpose_v212!, transpose_v211
+      !module procedure transpose_v111, transpose_v222, transpose_v212!, transpose_v211
+      module procedure transpose_v_d1, transpose_v_d2, transpose_v_d212!, transpose_v211
   end interface transpose_v
 
   interface untranspose_v
@@ -529,8 +530,6 @@ module communications
       call f_release_routine()
     
     end subroutine transpose_communicate_psit
-
-
 
     subroutine transpose_unswitch_psi(npsidim_orbs, orbs, collcom, psiwork_c, psiwork_f, psi, lzd)
       use module_types, only: orbitals_data, local_zone_descriptors
@@ -2135,6 +2134,56 @@ module communications
 
     end function get_offset
     
+
+    subroutine transpose_v_d1(iproc,nproc,orbs,wfd,comms,sendbuf,workbuf,&
+         recvbuf) !optional
+      use module_base
+      use module_types
+      use compression
+      implicit none
+      !>address of the wavefunction elements (choice)
+      !if out_add is absent, it is used for transpose
+      real(wp), dimension(:), intent(inout) :: sendbuf
+      real(wp), dimension(:), intent(inout) :: workbuf
+      real(wp), dimension(:), intent(inout), optional :: recvbuf
+
+      include 'transpose-inc.f90'
+
+    END SUBROUTINE transpose_v_d1
+
+    subroutine transpose_v_d2(iproc,nproc,orbs,wfd,comms,sendbuf,workbuf,&
+         recvbuf) !optional
+      use module_base
+      use module_types
+      use compression
+      implicit none
+      !>address of the wavefunction elements (choice)
+      !if out_add is absent, it is used for transpose
+      real(wp), dimension(:,:), intent(inout) :: sendbuf
+      real(wp), dimension(:,:), intent(inout) :: workbuf
+      real(wp), dimension(:,:), intent(inout), optional :: recvbuf
+
+      include 'transpose-inc.f90'
+
+    END SUBROUTINE transpose_v_d2
+    
+    subroutine transpose_v_d212(iproc,nproc,orbs,wfd,comms,sendbuf,workbuf,&
+         recvbuf) !optional
+      use module_base
+      use module_types
+      use compression
+      implicit none
+      !>address of the wavefunction elements (choice)
+      !if out_add is absent, it is used for transpose
+      real(wp), dimension(:,:), intent(inout) :: sendbuf
+      real(wp), dimension(:), intent(inout) :: workbuf
+      real(wp), dimension(:,:), intent(inout), optional :: recvbuf
+
+      include 'transpose-inc.f90'
+
+    END SUBROUTINE transpose_v_d212
+
+
     
     !> Transposition of the arrays, variable version (non homogeneous)
     subroutine transpose_v111(iproc,nproc,orbs,wfd,comms,psi_add,work_add,&
@@ -2279,8 +2328,6 @@ module communications
     
     END SUBROUTINE transpose_v211
 
-
-
     !> Transposition of the arrays, variable version (non homogeneous)
     subroutine transpose_v_core(iproc,nproc,orbs,wfd,comms,nsize_psi,psi_add,nsize_work,work_add,&
                out_add) !optional
@@ -2313,13 +2360,9 @@ module communications
          call timing(iproc,'Un-TransSwitch','OF')
          call timing(iproc,'Un-TransComm  ','ON')
          if (present(out_add)) then
-            !!call MPI_ALLTOALLV(work_add,comms%ncntd,comms%ndspld,mpidtypw, &
-            !!     out_add,comms%ncntt,comms%ndsplt,mpidtypw,bigdft_mpi%mpi_comm,ierr)
             call fmpi_alltoall(sendbuf=work_add,sendcounts=comms%ncntd,sdispls=comms%ndspld, &
                  recvbuf=out_add,recvcounts=comms%ncntt,rdispls=comms%ndsplt,comm=bigdft_mpi%mpi_comm)
          else
-            !!call MPI_ALLTOALLV(work_add,comms%ncntd,comms%ndspld,mpidtypw, &
-            !!     psi_add,comms%ncntt,comms%ndsplt,mpidtypw,bigdft_mpi%mpi_comm,ierr)
             call fmpi_alltoall(sendbuf=work_add,sendcounts=comms%ncntd,sdispls=comms%ndspld, &
                  recvbuf=psi_add,recvcounts=comms%ncntt,rdispls=comms%ndsplt,comm=bigdft_mpi%mpi_comm)
          end if
@@ -2578,8 +2621,10 @@ module communications
     
       if (present(outadd)) then
           call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,psi,work,outadd)
+      else if(present(work)) then
+         call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,psi,workbuf=work)
       else
-         call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,psi,work)
+         call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,psi,workbuf=psi) !here psi should not be used
       end if
     
       !!if (nproc > 1) then

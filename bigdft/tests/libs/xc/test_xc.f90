@@ -94,7 +94,6 @@ program test_xc
      !write(*,"(1x,A,A,A)") repeat("-", 41), "+", repeat("-", 44)
   end if
 
-  !call MPI_FINALIZE(ierr)
   call mpifinalize()
   call f_lib_finalize()
 

@@ -219,7 +219,7 @@ modules = module_types.@MODULE_EXT@ \
 endif
 
 ATOMS_INCLUDES = astruct-inc.f90
-COMMS_INCLUDES = check_array-inc.f90
+COMMS_INCLUDES = transpose-inc.f90
 
 if HAVE_OPENBABEL
 openbabel_dynamic_sources = openbabel.cpp
@@ -266,7 +266,7 @@ psp_projectors.o: locregs_init.o psp_projectors_base.o
 #communications_base.o: base.o
 #dpbox.o: base.o bounds.o
 communications_init.o: types.o
-communications.o: types.o
+communications.o: $(COMMS_INCLUDES) types.o
 sparsematrix_wrappers.o: types.o interfaces.o
 gaussdaub.o: psp_projectors_base.o
 #module_sqn.o: base.o
