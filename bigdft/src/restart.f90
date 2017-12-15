@@ -521,7 +521,7 @@ subroutine filename_of_iorb(lbin,filename,orbs,iorb,ispinor,filename_out,iorb_ou
   if (spins==-1.0_gp) iorb_out=iorb_out-orbs%norbu
 
   !value of the orbital
-  write(f4,'(a1,i4.4)') "b", iorb_out
+  write(f4,'(a1,i6.6)') "b", iorb_out
 
   !complete the information in the name of the orbital
   completename='-'//f3//'-'//spintype//realimag
