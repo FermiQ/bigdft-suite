@@ -466,7 +466,7 @@ subroutine filename_of_iorb(lbin,filename,orbs,iorb,ispinor,filename_out,iorb_ou
   !local variables
   character(len=1) :: spintype,realimag
   character(len=4) :: f3
-  character(len=5) :: f4
+  character(len=7) :: f6
   character(len=8) :: completename
   integer :: ikpt
   real(gp) :: spins
@@ -521,15 +521,15 @@ subroutine filename_of_iorb(lbin,filename,orbs,iorb,ispinor,filename_out,iorb_ou
   if (spins==-1.0_gp) iorb_out=iorb_out-orbs%norbu
 
   !value of the orbital
-  write(f4,'(a1,i6.6)') "b", iorb_out
+  write(f6,'(a1,i6.6)') "b", iorb_out
 
   !complete the information in the name of the orbital
   completename='-'//f3//'-'//spintype//realimag
   if (lbin) then
-     filename_out = trim(filename)//completename//".bin."//f4
+     filename_out = trim(filename)//completename//".bin."//f6
      !print *,'complete name <',trim(filename_out),'> end'
  else
-     filename_out = trim(filename)//completename//"."//f4
+     filename_out = trim(filename)//completename//"."//f6
      !print *,'complete name <',trim(filename_out),'> end'
  end if
 
