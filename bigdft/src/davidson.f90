@@ -178,7 +178,7 @@ subroutine direct_minimization(iproc,nproc,in,at,nvirt,rxyz,rhopot,nlpsp, &
    if (nproc > 1) then
       VTwfn%psit = f_malloc_ptr(max(VTwfn%orbs%npsidim_orbs, VTwfn%orbs%npsidim_comp),id='VTwfn%psit')
       !transpose the psivirt
-      call transpose_v(iproc,nproc,VTwfn%orbs,VTwfn%lzd%glr%wfd,VTwfn%comms,VTwfn%psi,psiw,out_add=VTwfn%psit)
+      call transpose_v(iproc,nproc,VTwfn%orbs,VTwfn%lzd%glr%wfd,VTwfn%comms,VTwfn%psi,psiw,recvbuf=VTwfn%psit)
    else
       nullify(VTwfn%psit)
    end if
