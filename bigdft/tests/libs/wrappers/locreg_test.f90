@@ -64,7 +64,41 @@ program locreg_test
   !by accessing to a ultimate component e.g. lr%wfd%nvctr
   psi=f_malloc0(lr_nvctr(lr),id='psidummy')
 
-  !then we might create a file with the information
+  !!!! HERE FOLLOWS API EXAMPLES
+!!$
+!!$  !>>>> example of the writing API for a locreg (support function)
+!!$
+!!$  !then we might create a file with the information
+!!$  !the idea might be to create a lr_file structure that
+!!$  !will contain the information about the header
+!!$  lr_file=f_locreg_file(filename='lrfile',lr=lr)
+!!$  !then the user will define the type of the file he is going to
+!!$  !dump with this structure (by using a public enumerator of the module)
+!!$  !example of a binary file
+!!$  call lr_file_set_type(lr_file,type=SUPPORT_FUNCTION_TYPE,binary=.true.)
+!!$  !then there might be an accessor of this structure that 
+!!$  !would add further information in the header of the file
+!!$  !the dict_info file is free of format for the sake of 
+!!$  !the locreg module but it will be normalized for the orbitals viewpoint
+!!$  call lr_file_set_info(lr_file,dict_info)
+!!$
+!!$  !then the file can be be written
+!!$  call lr_file_dump(lr_file,psi)
+!!$  !and closed
+!!$  call lr_file_close(lr_file)
+!!$
+!!$  !>>>> example of the loading of a locreg
+!!$  lr_file=lr_file_load(filename='lrfile')
+!!$
+!!$  !with this approach the loaded wavefunction is allocated internally
+!!$  !the accessors would be
+!!$  call lr_set_from_file(lr,lr_file)
+!!$  psi_ptr=>lr_file_get_data_ptr(lr_file) !this will give us the pointer to the data, for storage or reallocation
+!!$  dict_info=>lr_file_get_info(lr_file) !gives back the dictionary, in a separate copy
+!!$
+!!$  call lr_file_close(lr_file) !do what one thinks it does.
+  
+
   
 
   call deallocate_locreg_descriptors(lr)
@@ -87,5 +121,7 @@ program locreg_test
       integer(f_long) :: lr_nvctr !number of components (long integer for Glr)
       lr_nvctr=int(lr%wfd%nvctr_c,f_long)+7*int(lr%wfd%nvctr_f,f_long)
     end function lr_nvctr
+
+    
   
 end program locreg_test
