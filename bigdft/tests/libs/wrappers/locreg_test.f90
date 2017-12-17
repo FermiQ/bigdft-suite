@@ -21,7 +21,7 @@ program locreg_test
   character(len=max_field_length) :: cellstr
   !integer, dimension(2,3) :: nbox
   real(f_double), dimension(3) :: hgrids,oxyz
-  real(f_double), dimension(:) :: psi
+  real(f_double), dimension(:), allocatable :: psi
   type(dictionary), pointer :: options
   
 
@@ -70,6 +70,7 @@ program locreg_test
   call deallocate_locreg_descriptors(lr)
   call deallocate_locreg_descriptors(Glr)
 
+  call f_free(psi)
   call f_lib_finalize()
 
   contains
