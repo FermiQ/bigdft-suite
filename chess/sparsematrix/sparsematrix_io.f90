@@ -691,6 +691,7 @@ module sparsematrix_io
                nspin, ntmb, nfvctr, eval, coeff)
       use sparsematrix_init, only: distribute_on_tasks
       use wrapper_linalg, only: vcopy
+      use wrapper_mpi, only: mpibcast
       use yaml_output
       implicit none
 
@@ -710,6 +711,9 @@ module sparsematrix_io
       real(mp),dimension(:,:),allocatable :: workarr_coeff
 
       call f_routine(id='write_linear_coefficients_parallel')
+
+      ! Make sure that all processes have the same filename
+      call mpibcast(filename, root=0, comm=comm)
 
       call mpi_file_open(comm, trim(filename), & 
            mpi_mode_wronly + mpi_mode_create, & 
@@ -766,11 +770,11 @@ module sparsematrix_io
           !call f_memcpy(n=nfvctr, src=coeff(1:nfvctr,ii:ii), dest=workarr_coeff(1:nfvctr,i:i))
           call vcopy(nfvctr, coeff(1,ii), 1, workarr_coeff(1,i), 1)
       end do
-      write(*,*) 'workarr_coeff',workarr_coeff
       disp = int(three_long*size_of_integer_long+(ntmb_long+is_long*nfvctr_long)*size_of_double_long,kind=mpi_offset_kind)
       call mpi_file_set_view(thefile, disp, mpi_double_precision, mpi_double_precision, 'native', mpi_info_null, ierr) 
       call mpi_file_write(thefile, workarr_coeff, nfvctr*np, mpi_double_precision, mpi_status_ignore, ierr)
       call f_free(workarr_coeff)
+
 
       call f_release_routine()
     

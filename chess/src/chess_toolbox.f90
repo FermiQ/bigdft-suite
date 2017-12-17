@@ -928,6 +928,19 @@ program chess_toolbox
 
 
    if (solve_eigensystem) then
+       if (iproc==0) then
+           if (only_evals) then
+               i = 1
+           else
+               i = 0
+           end if
+       end if
+       call mpibcast(i, root=0, comm=mpi_comm_world)
+       if (i==1) then
+           only_evals = .true.
+       else
+           only_evals = .false.
+       end if
        call solve_eigensystem_lapack(iproc, nproc, mpi_comm_world, itype, matrix_format, metadata_file, &
             overlap_file, hamiltonian_file, scalapack_blocksize, write_coeff=.not.only_evals, write_eval=only_evals, &
             coeff_file=trim(coeff_file), eval_file=trim(eval_file))
