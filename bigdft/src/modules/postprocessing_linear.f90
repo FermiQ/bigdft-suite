@@ -852,13 +852,13 @@ module postprocessing_linear
       real(gp), dimension(3,at%astruct%nat), intent(in) :: rxyz
       type(local_zone_descriptors),intent(inout) :: lzd !just be in, is inout due to call to write_orbital_density...
       real(kind=8),dimension(npsidim_orbs),intent(in) :: psi
-      real(kind=8),dimension(ntmb,iend_ks-istart_ks+1),intent(in) :: coeff
+      real(kind=8),dimension(ntmb,istart_ks:iend_ks),intent(in) :: coeff
     
       ! Local variables
       type(orbitals_data) :: orbs, orbs_ks
       type(comms_cubic) :: comms, comms_ks
-      integer :: infoCoeff, nvctrp, npsidim_global, iorb, istat, ist, nsize, norb_ks
-      real(kind=8),dimension(:),pointer :: phi_global, phiwork_global
+      integer :: infoCoeff, nvctrp, npsidim_global, iorb, istat, ist, nsize, norb_ks, ilr, jst, iiorb, jorb, npsidim_local
+      real(kind=8),dimension(:),pointer :: phi_global, phiwork_global, psi_global
       character(len=*),parameter :: subname='build_ks_orbitals_postprocessing'
       integer,dimension(:,:),allocatable :: ioffset_isf
       character(len=256) :: filename
@@ -882,40 +882,69 @@ module postprocessing_linear
            nkpt, kpt, wkpt, orbs_ks, LINEAR_PARTITION_NONE)
       comms_ks = comms_cubic_null()
       call orbitals_communicators(iproc, nproc, lzd%glr, orbs_ks, comms_ks)
-    
-    
-      ! Transform the support functions to the global box
-      ! WARNING: WILL NOT WORK WITH K-POINTS, CHECK THIS
-      npsidim_global=max(orbs%norbp*(lzd%glr%wfd%nvctr_c+7*lzd%glr%wfd%nvctr_f), &
-                         orbs%norb*comms%nvctr_par(iproc,0)*nspinor)
-      phi_global = f_malloc_ptr(npsidim_global,id='phi_global')
-      phiwork_global = f_malloc_ptr(npsidim_global,id='phiwork_global')
-      call small_to_large_locreg(iproc, orbs%norb, orbs%norbp, orbs%isorb, in_which_locreg, &
-           npsidim_orbs, &
-           orbs%norbp*(lzd%glr%wfd%nvctr_c+7*lzd%glr%wfd%nvctr_f), lzd, &
-           lzd, psi, phi_global, to_global=.true.)
-      call transpose_v(iproc, nproc, orbs, lzd%glr%wfd, comms, phi_global, phiwork_global)
-    
-    
-      ! WARNING: WILL NOT WORK WITH K-POINTS, CHECK THIS
-      nvctrp=comms%nvctr_par(iproc,0)*nspinor
-      call dgemm('n', 'n', nvctrp, orbs_ks%norb, orbs%norb, 1.d0, phi_global, nvctrp, coeff(1,1), &
-                 ntmb, 0.d0, phiwork_global, nvctrp)
 
-      
-      call untranspose_v(iproc, nproc, orbs_ks, lzd%glr%wfd, comms_ks, phiwork_global, phi_global)  
+
+      ! # NEW ##########################################################
+      npsidim_global = lzd%glr%wfd%nvctr_c+7*lzd%glr%wfd%nvctr_f
+      phiwork_global = f_malloc_ptr(npsidim_global,id='phiwork_global')
+      psi_global = f_malloc0_ptr(orbs_ks%norb*npsidim_global,id='psi_global')
+      ist = 1
+      do iorb=1,orbs%norbp
+          iiorb = orbs%isorb + iorb
+          !ilr = orbs%inwhichlocreg(iiorb)
+          ilr = in_which_locreg(iiorb)
+          npsidim_local = lzd%llr(ilr)%wfd%nvctr_c + 7*lzd%llr(ilr)%wfd%nvctr_f
+          call f_zero(phiwork_global)
+          call small_to_large_locreg(iproc, 1, 1, 0, [ilr], &
+               npsidim_local, npsidim_global, lzd, lzd, psi(ist:), phiwork_global, to_global=.true.)
+          ist = ist + npsidim_local
+          jst = 1
+          do jorb=istart_ks,iend_ks
+              call axpy(npsidim_global, coeff(iiorb,jorb), phiwork_global(1), 1, psi_global(jst), 1)
+              jst = jst + npsidim_global
+          end do
+      end do
+      call f_free_ptr(phiwork_global)
+
+      ! # END NEW ######################################################
     
-      call f_free_ptr(phi_global)
+    
+!!      ! Transform the support functions to the global box
+!!      ! WARNING: WILL NOT WORK WITH K-POINTS, CHECK THIS
+!!      npsidim_global=max(orbs%norbp*(lzd%glr%wfd%nvctr_c+7*lzd%glr%wfd%nvctr_f), &
+!!                         orbs%norb*comms%nvctr_par(iproc,0)*nspinor)
+!!      phi_global = f_malloc_ptr(npsidim_global,id='phi_global')
+!!      phiwork_global = f_malloc_ptr(npsidim_global,id='phiwork_global')
+!!      call small_to_large_locreg(iproc, orbs%norb, orbs%norbp, orbs%isorb, in_which_locreg, &
+!!           npsidim_orbs, &
+!!           orbs%norbp*(lzd%glr%wfd%nvctr_c+7*lzd%glr%wfd%nvctr_f), lzd, &
+!!           lzd, psi, phi_global, to_global=.true.)
+!!      call transpose_v(iproc, nproc, orbs, lzd%glr%wfd, comms, phi_global, phiwork_global)
+!!    
+!!    
+!!      ! WARNING: WILL NOT WORK WITH K-POINTS, CHECK THIS
+!!      nvctrp=comms%nvctr_par(iproc,0)*nspinor
+!!      call dgemm('n', 'n', nvctrp, orbs_ks%norb, orbs%norb, 1.d0, phi_global, nvctrp, coeff(1,1), &
+!!                 ntmb, 0.d0, phiwork_global, nvctrp)
+!!
+!!      
+!!      call untranspose_v(iproc, nproc, orbs_ks, lzd%glr%wfd, comms_ks, phiwork_global, phi_global)  
+!!    
+!!      call f_free_ptr(phi_global)
     
     
       !!write(*,*) 'iproc, input%output_wf_format',iproc, WF_FORMAT_PLAIN
       orbs_ks%eval = f_malloc0_ptr(orbs_ks%norb,id='orbs%eval')
       filename = 'KS_post'
       if (iproc==0) call yaml_comment('Writing to file '//trim(filename)//'*',hfill='~')
+!!      call writemywaves(iproc,trim(filename), WF_FORMAT_PLAIN, &
+!!           orbs_ks, lzd%glr%d%n1, lzd%glr%d%n2, lzd%glr%d%n3, &
+!!           lzd%hgrids(1), lzd%hgrids(2), lzd%hgrids(3), &
+!!           at, rxyz, lzd%glr%wfd, phiwork_global, iorb_shift=istart_ks-1)
       call writemywaves(iproc,trim(filename), WF_FORMAT_PLAIN, &
            orbs_ks, lzd%glr%d%n1, lzd%glr%d%n2, lzd%glr%d%n3, &
            lzd%hgrids(1), lzd%hgrids(2), lzd%hgrids(3), &
-           at, rxyz, lzd%glr%wfd, phiwork_global, iorb_shift=istart_ks-1)
+           at, rxyz, lzd%glr%wfd, psi_global, iorb_shift=istart_ks-1)
 
       !!lzd_global = local_zone_descriptors_null()
       !!allocate(lzd_global%llr(orbs%norb),stat=istat)
@@ -925,9 +954,13 @@ module postprocessing_linear
       !!end do
       filename = 'KS_post-Dens'
       if (iproc==0) call yaml_comment('Writing to file '//trim(filename)//'*',hfill='~')
+!!      call write_orbital_density(iproc, .false., 1, &
+!!           trim(filename), &
+!!           npsidim_global, phiwork_global,  orbs_ks, lzd, at, rxyz, .true., &
+!!           iorb_shift=istart_ks-1, in_which_locreg=in_which_locreg)
       call write_orbital_density(iproc, .false., 1, &
            trim(filename), &
-           npsidim_global, phiwork_global,  orbs_ks, lzd, at, rxyz, .true., &
+           orbs_ks%norb*npsidim_global, psi_global,  orbs_ks, lzd, at, rxyz, .true., &
            iorb_shift=istart_ks-1, in_which_locreg=in_which_locreg)
     
 !!!      if (input%write_orbitals==2) then
@@ -957,7 +990,8 @@ module postprocessing_linear
     
     
     
-       call f_free_ptr(phiwork_global)
+!!       call f_free_ptr(phiwork_global)
+       call f_free_ptr(psi_global)
        call deallocate_orbitals_data(orbs)
        call deallocate_comms_cubic(comms)
        call deallocate_orbitals_data(orbs_ks)

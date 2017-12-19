@@ -110,7 +110,7 @@ program utilities
    type(local_zone_descriptors) :: lzd
    integer :: confpotorder, ilr, iiorb, iiorb_out, ispinor, nspinor, onwhichatom_tmp, npsidim_orbs, nsize, ist
    real(kind=8) :: confpotprefac, eval_tmp, tr, fragment_charge
-   character(len=256) :: error, filename, KSgrid_file
+   character(len=1024) :: error, filename, KSgrid_file, basis_file
    logical :: lstat
    logical,dimension(:),allocatable :: supfun_in_fragment
    integer,parameter :: ncolors = 12
@@ -270,6 +270,10 @@ program utilities
              call get_command_argument(i_arg, value = metadata_file)
              i_arg = i_arg + 1
              call get_command_argument(i_arg, value = coeff_file)
+             i_arg = i_arg + 1
+             call get_command_argument(i_arg, value = KSgrid_file)
+             i_arg = i_arg + 1
+             call get_command_argument(i_arg, value = basis_file)
              i_arg = i_arg + 1
              call get_command_argument(i_arg, value = istart_ks_)
              read(istart_ks_,fmt=*,iostat=ierr) istart_ks
@@ -481,7 +485,7 @@ program utilities
        end do
 
        ! Read the global grid
-       KSgrid_file = 'KSgrid.dat'
+       !KSgrid_file = 'KSgrid.dat'
        if (bigdft_mpi%iproc==0) call yaml_comment('Reading from file '//trim(KSgrid_file),hfill='~')
        call f_open_file(iunit, file=trim(KSgrid_file), binary=.false.)
        call io_read_descr_linear(iunit, .true., iiorb, eval_tmp, &
@@ -523,8 +527,8 @@ program utilities
        lzd%glr%mesh = cell_new('F', [lzd%glr%d%n1i,lzd%glr%d%n2i,lzd%glr%d%n3i], 0.5d0*[lzd%hgrids])
 
 
-       filename='minBasis'
-       if (bigdft_mpi%iproc==0) call yaml_comment('Reading from file '//trim(filename)//'*',hfill='~')
+       !filename='minBasis'
+       if (bigdft_mpi%iproc==0) call yaml_comment('Reading from file '//trim(basis_file)//'*',hfill='~')
 
        npsidim_orbs = 0
        phi = f_malloc(npsidim_orbs,id='phi')
@@ -538,7 +542,7 @@ program utilities
                 !end do
                 ilr = in_which_locreg(iorb+orbs%isorb)
                 do ispinor=1,nspinor
-                   call open_filename_of_iorb(iunit, .false., trim(filename), &
+                   call open_filename_of_iorb(iunit, .false., trim(basis_file), &
                         orbs, iorb, ispinor, iiorb_out)
 
                    call io_read_descr_linear(iunit, .true., iiorb, eval_tmp, &

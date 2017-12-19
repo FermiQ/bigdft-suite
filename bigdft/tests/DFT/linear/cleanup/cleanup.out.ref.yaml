@@ -179,8 +179,8 @@
    taylor_order                        : 0 #      Order of the Taylor approximation; 0 -> exact
    max_inversion_error                 : 1.d0 #   Linear scaling maximal error of the Taylor approximations to calculate the inverse of 
     #                                              the overlap matrix
-   output_wf                           : 0 #      Output basis functions; 0 no output, 1 formatted output, 2 Fortran bin, 3 ETSF
-   output_mat                          : 0 #      Output sparse matrices; 0 no output, 1 formatted sparse, 11 formatted dense, 21 
+   output_wf                           : 1 #      Output basis functions; 0 no output, 1 formatted output, 2 Fortran bin, 3 ETSF
+   output_mat                          : 4 #      Output sparse matrices; 0 no output, 1 formatted sparse, 11 formatted dense, 21 
     #                                              formatted both
    output_coeff                        : 0 #      Output KS coefficients; 0 no output, 1 formatted output
    output_fragments                    : 0 #      Output support functions, kernel and coeffs; 0 fragments and full system, 1 
@@ -1481,3 +1481,94 @@
  Walltime since initialization         :  00:00:02.405446249
  Max No. of dictionaries used          :  8061 #( 1025 still in use)
  Number of dictionary folders allocated:  1
+---
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ CHESS TOOLBOX
+ Timestamp of the run                  : 2017-12-19 21:17:06.224
+ Parallel environment:
+   MPI tasks                           :  2
+   OpenMP threads                      :  2
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/overlap_sparse.mpi
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/overlap_sparse.mpi
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/hamiltonian_sparse.mpi
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/hamiltonian_sparse.mpi
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Diagonalizing the matrix
+ mode                                  : sequential
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Matrix successfully diagonalized
+ Memory Consumption Report:
+   Tot. No. of Allocations             :  137
+   Tot. No. of Deallocations           :  137
+   Remaining Memory (B)                :  0
+   Memory occupation:
+     Peak Value (MB)                   :  0.002
+     for the array                     : work
+     in the routine                    : dsygv_parallel
+     Memory Peak of process            : 20.276 MB
+ Walltime since initialization         :  00:00:00.375561177
+ Max No. of dictionaries used          :  563 #( 306 still in use)
+ Number of dictionary folders allocated:  1
+# /home/stephan/Software/openmpi-1.8.4_gnu/bin/mpirun -np 2 /home/stephan/Documents/BigDFT/stablebranch/Build-gnu-openmpi_debug_test/install/bin/chess_toolbox solve-eigensystem 1 parallel_mpi-native data/sparsematrix_metadata.dat data/hamiltonian_sparse.mpi data/overlap_sparse.mpi data/coeffs.mpi data/evals.mpi F -1
+---
+ Code logo:
+   "__________________________________ A fast and precise DFT wavelet code
+   |     |     |     |     |     |
+   |     |     |     |     |     |      BBBB         i       gggggg
+   |_____|_____|_____|_____|_____|     B    B               g
+   |     |  :  |  :  |     |     |    B     B        i     g
+   |     |-0+--|-0+--|     |     |    B    B         i     g        g
+   |_____|__:__|__:__|_____|_____|___ BBBBB          i     g         g
+   |  :  |     |     |  :  |     |    B    B         i     g         g
+   |--+0-|     |     |-0+--|     |    B     B     iiii     g         g
+   |__:__|_____|_____|__:__|_____|    B     B        i      g        g
+   |     |  :  |  :  |     |     |    B BBBB        i        g      g
+   |     |-0+--|-0+--|     |     |    B        iiiii          gggggg
+   |_____|__:__|__:__|_____|_____|__BBBBB
+   |     |     |     |  :  |     |                           TTTTTTTTT
+   |     |     |     |--+0-|     |  DDDDDD          FFFFF        T
+   |_____|_____|_____|__:__|_____| D      D        F        TTTT T
+   |     |     |     |  :  |     |D        D      F        T     T
+   |     |     |     |--+0-|     |D         D     FFFF     T     T
+   |_____|_____|_____|__:__|_____|D___      D     F         T    T
+   |     |     |  :  |     |     |D         D     F          TTTTT
+   |     |     |--+0-|     |     | D        D     F         T    T
+   |_____|_____|__:__|_____|_____|          D     F        T     T
+   |     |     |     |     |     |         D               T    T
+   |     |     |     |     |     |   DDDDDD       F         TTTT
+   |_____|_____|_____|_____|_____|______                    www.bigdft.org   "
+
+ Reference Paper                       : The Journal of Chemical Physics 129, 014109 (2008)
+ Version Number                        : 1.8.1
+ Timestamp of this run                 : 2017-12-19 21:17:06.657
+ Root process Hostname                 : stephan-Latitude-E7450
+ Number of MPI tasks                   :  2
+ OpenMP parallelization                :  Yes
+ Maximal OpenMP threads per MPI task   :  2
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ BIGDFT PRE-/POST-PROCESSING
+ Parallel environment:
+   MPI tasks                           :  2
+   OpenMP threads                      :  2
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/sparsematrix_metadata.dat
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/coeffs.mpi
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/coeffs.mpi
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/KSgrid.dat
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/minBasis*
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Writing to file KS_post*
+ Write wavefunctions to file           : KS_post.*
+  # 4th wavefunction written
+ Write Waves Time:
+ -  {Process:  0, Timing:  [  1.6E-02,  1.500E-02 ]}
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Writing to file KS_post-Dens*
+ Memory Consumption Report:
+   Tot. No. of Allocations             :  161
+   Tot. No. of Deallocations           :  161
+   Remaining Memory (B)                :  0
+   Memory occupation:
+     Peak Value (MB)                   :  11.312
+     for the array                     : psir
+     in the routine                    : write_orbital_density
+     Memory Peak of process            : 32.132 MB
+ Walltime since initialization         :  00:00:00.514529226
+ Max No. of dictionaries used          :  1275 #( 1058 still in use)
+ Number of dictionary folders allocated:  1
+# /home/stephan/Software/openmpi-1.8.4_gnu/bin/mpirun -np 2 /home/stephan/Documents/BigDFT/stablebranch/Build-gnu-openmpi_debug_test/bigdft/src/utilities build-KS-orbitals parallel_mpi-native data/sparsematrix_metadata.dat data/coeffs.mpi data/KSgrid.dat data/minBasis 4 5
