@@ -44,7 +44,7 @@ AC_DEFUN([AX_PACKAGE],
       for path in ${C_INCLUDE_PATH//:/ }; do
         ax_add="yes"
         for inc in "$$1_CFLAGS" ; do
-          if test "-I$path" = $inc; then
+          if test "-I$path" = "$inc"; then
             ax_add="no"
           fi
         done
@@ -53,7 +53,7 @@ AC_DEFUN([AX_PACKAGE],
         fi
       done
     fi
-    LIB_$1_CFLAGS=$$1_CFLAGS $ax_$1_incdir
+    LIB_$1_CFLAGS="$$1_CFLAGS $ax_$1_incdir"
     LIB_$1_LIBS=$$1_LIBS
     AC_MSG_CHECKING([for $1 LIBS]) 
     AC_MSG_RESULT("LIB_$1_LIBS= $LIB_$1_LIBS")
