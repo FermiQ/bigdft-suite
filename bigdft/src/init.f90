@@ -1082,6 +1082,7 @@ subroutine input_memory_linear(iproc, nproc, at, KSwfn, tmb, tmb_old, denspot, i
   use module_interfaces, only: inputguessConfinement, reformat_supportfunctions
   use get_kernel, only: reconstruct_kernel, renormalize_kernel
   use module_fragments
+  use rototranslations
   use yaml_output
   use communications_base, only: deallocate_comms_linear, TRANSPOSE_FULL
   use communications, only: transpose_localized, untranspose_localized, communicate_basis_for_density_collective
@@ -1119,7 +1120,7 @@ subroutine input_memory_linear(iproc, nproc, at, KSwfn, tmb, tmb_old, denspot, i
       integer, dimension(1) :: power
   logical:: overlap_calculated
   real(wp), allocatable, dimension(:) :: norm
-  type(fragment_transformation), dimension(:), pointer :: frag_trans
+  type(rototranslation), dimension(:), pointer :: frag_trans
   character(len=*),parameter:: subname='input_memory_linear'
   real(kind=8) :: pnrm, max_deviation, mean_deviation, max_deviation_p, mean_deviation_p
   logical :: rho_negative
@@ -1175,11 +1176,10 @@ subroutine input_memory_linear(iproc, nproc, at, KSwfn, tmb, tmb_old, denspot, i
 
      do iorb=1,tmb%orbs%norbp
          iiat=tmb%orbs%onwhichatom(iorb+tmb%orbs%isorb)
-         frag_trans(iorb)=fragment_transformation_identity()
-!!$         frag_trans(iorb)%theta=0.0d0*(4.0_gp*atan(1.d0)/180.0_gp)
-!!$         frag_trans(iorb)%rot_axis=(/1.0_gp,0.0_gp,0.0_gp/)
-         frag_trans(iorb)%rot_center(:)=rxyz_old(:,iiat)
-         frag_trans(iorb)%rot_center_new(:)=rxyz(:,iiat)
+         frag_trans(iorb)=rototranslation_identity()
+         call set_translation(frag_trans(iorb),src=rxyz_old(:,iiat),dest=rxyz(:,iiat))
+!!$         frag_trans(iorb)%rot_center(:)=rxyz_old(:,iiat)
+!!$         frag_trans(iorb)%rot_center_new(:)=rxyz(:,iiat)
      end do
      ! This routine might overwrite tmb_old%psi, so save the values
      psi_old = f_malloc(src=tmb_old%psi,lbounds=lbound(tmb_old%psi),id='psi_old')
@@ -1205,7 +1205,6 @@ subroutine input_memory_linear(iproc, nproc, at, KSwfn, tmb, tmb_old, denspot, i
          ! x^4, being 1.0 at 0.5
          tmb%confdatarr(:)%damping = (1.d0/0.5d0*max_shift)**4
      end if
-
      deallocate(frag_trans)
   end if
           !!write(*,*) 'after reformat_supportfunctions, iproc',iproc
@@ -2517,7 +2516,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
   !real(gp), dimension(:,:), allocatable :: ks, ksk
   !real(gp) :: nonidem
   !integer :: itmb, jtmb, ispin, ifrag
-  integer :: ifrag_ref, max_nbasis_env
+  integer :: ifrag_ref, max_nbasis_env,ispin
   real(gp) :: e_paw, e_pawdc, compch_sph, e_nl
   type(cell) :: mesh
   interface
@@ -2777,6 +2776,14 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
      end if
 
      call input_wf_random(KSwfn%psi, KSwfn%orbs)
+     !now the meaning is KS potential
+     do ispin=1,denspot%dpbox%nrhodim
+        call f_memcpy(n=denspot%dpbox%ndimpot,&
+             src=denspot%V_ext(1,1,1,ispin),&
+             dest=denspot%rhov(1+(ispin-1)*denspot%dpbox%ndimpot))
+     end do
+     call denspot_set_rhov_status(denspot, KS_POTENTIAL, 0, iproc, nproc)
+
 
   case(INPUT_PSI_CP2K)
      if (iproc == 0) then
@@ -3030,19 +3037,6 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
           TRANSPOSE_FULL, tmb%psit_c, tmb%psit_f, tmb%psi, tmb%lzd)
 
      call f_free(norm)
-
-     !!allocate(tmb%linmat%denskern%matrix(tmb%orbs%norb,tmb%orbs%norb), stat=i_stat)
-     !!call memocc(i_stat, tmb%linmat%denskern%matrix, 'tmb%linmat%denskern%matrix', subname)
-     !!call calculate_density_kernel(iproc, nproc, .true., KSwfn%orbs, tmb%orbs, tmb%coeff, tmb%linmat%denskern%matrix)
-     !!call compress_matrix(iproc,tmb%linmat%denskern)
-     !!do itmb=1,tmb%orbs%norb
-     !!   do jtmb=1,tmb%orbs%norb
-     !!      write(20,*) itmb,jtmb,tmb%linmat%denskern%matrix(itmb,jtmb)
-     !!   end do
-     !!end do
-     !!i_all=-product(shape(tmb%linmat%denskern%matrix))*kind(tmb%linmat%denskern%matrix)
-     !!deallocate(tmb%linmat%denskern%matrix,stat=i_stat)
-     !!call memocc(i_stat,i_all,'tmb%linmat%denskern%matrix',subname)
 
      ! CDFT: need to do this here to correct fragment charges in case of constrained transfer integral calculation
      call nullify_cdft_data(cdft)

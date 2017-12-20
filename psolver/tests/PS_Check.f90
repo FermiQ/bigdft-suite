@@ -157,10 +157,15 @@ program PS_Check
 
 !!$  call test_functions_box(mesh,ispden,a_gauss,&
 !!$       density,potential,rhopot,pot_ion,offset)
-
+   
   call test_functions_new(mesh,ispden,a_gauss,&
        density(n01*n02*n03*(ispden-1)+1),potential,&
        rhopot(n01*n02*n03*(ispden-1)+1),pot_ion,offset)
+
+!  call test_functions_new2(mesh,acell,a_gauss,0.d0,density,potential)
+!  pot_ion=0.d0   
+!  call f_memcpy(src=density,dest=rhopot)
+!  offset=sum(potential)*mesh%volume_element
 
   !calculate the Poisson potential in parallel
   !with the global data distribution (also for xc potential)

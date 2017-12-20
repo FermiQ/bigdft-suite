@@ -55,3 +55,72 @@ subroutine tddft_casida(iproc,nproc,atoms,rxyz,hxh,hyh,hzh,n3p,n3parr,Glr,tddft_
   call f_free(psirvirt)
 
 end subroutine tddft_casida
+
+
+
+!!$
+!!$!test the calculation of the coupling matrix with the OP2P embedded scheme
+!!$if (orbs%nspin==2) then
+!!$   sfac=1.0_gp
+!!$   ngroup=2
+!!$else
+!!$   sfac=0.5_gp
+!!$   ngroup=1
+!!$end if
+!!$!construct the OP2P scheme and test it
+!!$!use temporaryly tyhe nvrct_par array
+!!$nobj_occ = f_malloc((/ 0.to.nproc-1, 1.to.ngroup /),id='nobj_par')
+!!$nobj_virt = f_malloc((/ 0.to.nproc-1, 1.to.ngroup /),id='nobj_par')
+!!$
+!!$call fill_nobj_par_for_OP2P(nproc,ngroup,orbs,nobj_occ)
+!!$call fill_nobj_par_for_OP2P(nproc,ngroup,orbsv,nobj_virt)
+!!$
+!!$ndim=(wfd%nvctr_c+7*wfd_nvctr_f)*orbs%nspinor
+!!$
+!!$call initialize_OP2P_data(OP2P_occ,bigdft_mpi%mpi_comm,iproc,nproc,ngroup,ndim,nobj_occ,gpudirect,.false.)
+!!$
+!!$!start iterating on the occupied wavefunctions
+!!$call set_OP2P_iterator(iproc,OP2P,iter_occ,orbs%norbp,psi_occ,res_fake) !res_fake should have the same size of psi_occ
+!!$
+!!$OP2P_occ: do
+!!$   call OP2P_communication_step(iproc,OP2P_occ,iter_occ)
+!!$   if(igpu==1) call synchronize() !to be removed in future version
+!!$   if (iter_occ%event == OP2P_EXIT) exit OP2P_occ
+!!$
+!!$   !now we have available a set of the occupied orbitals
+!!$   !let us now exchange all the virtual orbitals between the processors
+!!$   call initialize_OP2P_data(OP2P_virt,bigdft_mpi%mpi_comm,iproc,nproc,ngroup,ndim,nobj_virt,gpudirect,.false.)
+!!$   !iterating on the virtual wavefunctions
+!!$   call set_OP2P_iterator(iproc,OP2P_virt,iter_virt,orbsv%norbp,psi_virt,res_virt) !res_virt should have the same size of psi_virt
+!!$
+!!$   OP2P_virt: do
+!!$      call OP2P_communication_step(iproc,OP2P_virt,iter_virt)
+!!$      if(igpu==1) call synchronize() !to be removed in future version
+!!$      if (iter_occ%event == OP2P_EXIT) exit OP2P_virt
+!!$      
+!!$      !here the coupling matrix can be calculated
+!!$      !we can calculate rho_{p,alpha}
+!!$      !we can apply the poisson solver -> V_{p,alpha}
+!!$
+!!$      !calculate all the lines of the coupling matrix V_{palpha} rho_alphap in a distributed way
+!!$      !by performing on-the-fly-construction of the density
+!!$
+!!$
+!!$   end do OP2P_virt
+!!$
+!!$   call free_OP2P_data(OP2P_occ)
+!!$
+!!$
+!!$   !inform
+!!$   if (iproc == 0) then
+!!$      call OP2P_info(iter_occ,OP2P_occ,prc,tel,trm)
+!!$      call yaml_comment('Exact exchange calculation: '+prc**'(i3)'+&
+!!$           '%; Time (s): Elapsed='+tel**'(1pg12.2)'&
+!!$           +', Remaining='+trm**'(1pg12.2)')
+!!$   end if
+!!$end do OP2P_occ
+!!$
+!!$call free_OP2P_data(OP2P_occ)
+!!$
+!!$call f_free(nobj_occ)
+!!$call f_free(nobj_virt)

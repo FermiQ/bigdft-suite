@@ -27,7 +27,6 @@
   <repository type="tarball" name="netlib"
               href="http://www.netlib.org/lapack/"/> 
 
-
   <repository type="tarball" name="local" href="./"/>
 
   <include href="gnome.modules"/>

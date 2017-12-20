@@ -603,7 +603,7 @@ module bigdft_matrices
       if (iproc==0) then
           call yaml_comment('Sparse matrix initialization',hfill='-')
       end if
-      call check_kernel_cutoff(iproc, orbs, atoms, in%hamapp_radius_incr, lzd_s)
+      call check_kernel_cutoff(iproc, orbs, atoms, in%hamapp_radius_incr, lzd_s, only_check=.true.)
       call init_sparse_matrix_wrapper(iproc, nproc, &
            in%nspin, orbs, lzd_s, atoms%astruct, &
            in%store_index, init_matmul=.true., imode=2, smat=linmat%smat(3), smat_ref=linmat%smat(2))

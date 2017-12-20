@@ -63,13 +63,15 @@ subroutine calculate_coupling_matrix(iproc,nproc,boxit,tddft_approach,nspin,ndim
   integer, parameter :: ALPHA_=2,P_=1,SPIN_=3
   integer :: imulti,jmulti,spinindex,ialpha,ip,ibeta,iq,ispin,jspin,ntda
   integer :: nmulti,ndipoles,iap,ibq,nalphap,istep
-  real(wp) :: eap,ebq,krpa,kfxc,q
+  real(wp) :: eap,ebq,krpa,kfxc,q,rho_bq,kfxc_od
   type(f_progress_bar) :: bar
   integer, dimension(:,:), allocatable :: transitions
   real(wp), dimension(:,:), allocatable :: Kaux,dipoles
   real(wp), dimension(:,:), pointer :: Kbig,K
   real(wp), dimension(:), allocatable :: v_ias
-  real(wp), dimension(:,:), allocatable :: rho_ias
+  real(wp), dimension(:), allocatable :: rho_ias
+  !$ integer, external :: omp_get_max_threads
+  !$ integer :: nthreads
 
   call f_routine('calculate_coupling_matrix')
 
@@ -81,7 +83,8 @@ subroutine calculate_coupling_matrix(iproc,nproc,boxit,tddft_approach,nspin,ndim
   if (nspin == 1) ndipoles=2*nmulti
 
   !Allocate partial densities and potentials
-  rho_ias = f_malloc([ndimp,nmulti],id='rho_ias')
+  !rho_ias = f_malloc([ndimp,nmulti],id='rho_ias')
+  rho_ias = f_malloc(ndimp,id='rho_ias')
   v_ias = f_malloc(ndimp,id='v_ias')
 
   !Allocation of dipoles (computed in order to get the oscillator strength)
@@ -90,7 +93,10 @@ subroutine calculate_coupling_matrix(iproc,nproc,boxit,tddft_approach,nspin,ndim
   !For nspin=1, define an auxiliary matrix for spin-off-diagonal terms.
   if (nspin==1) Kaux = f_malloc0([nmulti, nmulti],id='Kaux')
 
-  if (iproc==0) bar=f_progress_bar_new(nstep=((nalphap+1)*nalphap)/2)
+  !if (iproc==0) bar=f_progress_bar_new(nstep=((nalphap+1)*nalphap)/2)
+  if (iproc==0) bar=f_progress_bar_new(nstep=nalphap)
+
+  !$ nthreads=omp_get_max_threads()
 
   call PS_set_options(pkernel,verbose=.false.)
   istep=0
@@ -100,11 +106,11 @@ subroutine calculate_coupling_matrix(iproc,nproc,boxit,tddft_approach,nspin,ndim
        ispin=transitions(SPIN_,iap)
        eap=orbsvirt%eval(ialpha)-orbsocc%eval(ip)
 
-       !extraction fo the coefficients d_i
+       !extraction of the coefficients d_i
        do while(box_next_point(boxit))
          !fill the rho_ias array
-         rho_ias(boxit%ind,iap)=psirocc(boxit%ind,ip)*psivirtr(boxit%ind,ialpha)/boxit%mesh%volume_element
-         q=rho_ias(boxit%ind,iap)
+         rho_ias(boxit%ind)=psirocc(boxit%ind,ip)*psivirtr(boxit%ind,ialpha)/boxit%mesh%volume_element
+         q=rho_ias(boxit%ind)
          boxit%tmp=boxit%rxyz-center_of_charge
          dipoles(:,iap)=dipoles(:,iap)+boxit%tmp*q
        end do
@@ -112,47 +118,69 @@ subroutine calculate_coupling_matrix(iproc,nproc,boxit,tddft_approach,nspin,ndim
 
        !for every rho iap  calculate the corresponding potential
        !copy the transition  density in the inout structure
-       call f_memcpy(n=ndimp,src=rho_ias(1,iap),dest=v_ias(1))
+       !call f_memcpy(n=ndimp,src=rho_ias(1,iap),dest=v_ias(1))
+       call f_memcpy(src=rho_ias,dest=v_ias)
        call Electrostatic_Solver(pkernel,v_ias)
 
        !now we have to calculate the corresponding element of the RPA part of the coupling matrix
+       !$omp parallel do if (iap>=6*nthreads .and. nthreads>1) default(none) &
+       !$omp shared(transitions,orbsvirt,orbsocc,ispin,iap,psirocc,psivirtr)&
+       !$omp shared(v_ias,rho_ias,dvxcdrho,K,Kaux,nspin,tddft_approach,eap)&
+       !$omp private(ibq,ibeta,iq,jspin,ebq,spinindex,krpa,kfxc,kfxc_od,rho_bq)&
+       !$omp firstprivate(boxit)
        do ibq=1,iap
          ibeta=transitions(ALPHA_,ibq)
          iq=transitions(P_,ibq)
          jspin=transitions(SPIN_,ibq)
          ebq=orbsvirt%eval(ibeta)-orbsocc%eval(iq)
 
-         !and of the rpa part
-         krpa=dot(ndimp,rho_ias(1,ibq),1,v_ias(1),1)*boxit%mesh%volume_element
-         K(iap,ibq)=krpa
-         if (nspin==1) Kaux(iap,ibq)=krpa
-         !calculate the fxc term
          spinindex=ispin+jspin-1
+
+         !and of the rpa part
+         !reconstruct the density on the fly
+         krpa=0.0_dp
          kfxc=0.0_wp
+         kfxc_od=0.0_wp
          do while(box_next_point(boxit))
-           kfxc=kfxc+rho_ias(boxit%ind,iap)*rho_ias(boxit%ind,ibq)*dvxcdrho(boxit%ind,spinindex)*boxit%mesh%volume_element
+            rho_bq=psirocc(boxit%ind,iq)*psivirtr(boxit%ind,ibeta) !volume element for the integration is considered inside
+            krpa=krpa+v_ias(boxit%ind)*rho_bq
+            kfxc=kfxc+rho_ias(boxit%ind)*rho_bq*dvxcdrho(boxit%ind,spinindex)
+            !in the nspin=1 case we also have to calculate the off-diagonal term
+            if (nspin==1) kfxc_od=kfxc_od+rho_ias(boxit%ind)*rho_bq*dvxcdrho(boxit%ind,2)
          end do
-         K(iap,ibq)=K(iap,ibq)+kfxc
-         !in the nspin=1 case we also have to calculate the off-diagonal term
-         if (nspin==1) then
-           kfxc=0.0_wp
-           do while(box_next_point(boxit))
-             kfxc=kfxc+rho_ias(boxit%ind,iap)*rho_ias(boxit%ind,ibq)*dvxcdrho(boxit%ind,2)*boxit%mesh%volume_element
-           end do
-           Kaux(iap,ibq)=Kaux(iap,ibq)+kfxc
-         end if
+!!$         krpa=dot(ndimp,rho_ias(1,ibq),1,v_ias(1),1)*boxit%mesh%volume_element
+
+         K(iap,ibq)=krpa+kfxc
+         if (nspin==1) Kaux(iap,ibq)=krpa+kfxc_od
+
+!!$         K(iap,ibq)=krpa
+!!$         if (nspin==1) Kaux(iap,ibq)=krpa
+!!$         !calculate the fxc term
+!!$         kfxc=0.0_wp
+!!$         do while(box_next_point(boxit))
+!!$           kfxc=kfxc+rho_ias(boxit%ind,iap)*rho_ias(boxit%ind,ibq)*dvxcdrho(boxit%ind,spinindex)*boxit%mesh%volume_element
+!!$         end do
+!!$         K(iap,ibq)=K(iap,ibq)+kfxc
+!!$         !in the nspin=1 case we also have to calculate the off-diagonal term
+!!$         if (nspin==1) then
+!!$           kfxc=0.0_wp
+!!$           do while(box_next_point(boxit))
+!!$             kfxc=kfxc+rho_ias(boxit%ind,iap)*rho_ias(boxit%ind,ibq)*dvxcdrho(boxit%ind,2)*boxit%mesh%volume_element
+!!$           end do
+!!$           Kaux(iap,ibq)=Kaux(iap,ibq)+kfxc
+!!$         end if
          !add factors from energy occupation numbers (for non-tda case)
          !If full TDDFT, then multiply the coupling matrix element by the "2*sqrt(\omega_q*\omega_{q'})" coefficient of eq. 2.
          if (tddft_approach=='full') then
            K(iap,ibq)=K(iap,ibq)*2.0_wp*sqrt(eap)*sqrt(ebq)
-           if (nspin ==1) then
-             Kaux(iap,ibq)=Kaux(iap,ibq)*2.0_wp*sqrt(eap)*sqrt(ebq)
-           end if
+           if (nspin ==1) Kaux(iap,ibq)=Kaux(iap,ibq)*2.0_wp*sqrt(eap)*sqrt(ebq)
          end if
-         istep=istep+1
-       end do
-       if (iproc==0) call dump_progress_bar(bar,step=istep)
-     end do
+         !istep=istep+1
+      end do
+      !$omp end parallel do
+       !if (iproc==0) call dump_progress_bar(bar,step=istep)
+       if (iproc==0) call dump_progress_bar(bar,step=iap)
+    end do
   !If more than one processor, then perform the MPI_all_reduce of K (and of Kaux if nspin=1) and of dipoles.
   if (nproc > 1) then
      call fmpi_allreduce(K,FMPI_SUM,comm=bigdft_mpi%mpi_comm)

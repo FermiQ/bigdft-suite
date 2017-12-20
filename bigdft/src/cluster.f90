@@ -27,6 +27,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
   use gaussians, only: deallocate_gwf
   use module_fragments
   use constrained_dft
+  use f_ternary
   use Poisson_Solver, except_dp => dp, except_gp => gp
   use module_xc
   use m_libpaw_libxc, only: libxc_functionals_init, libxc_functionals_end
@@ -719,41 +720,10 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
      end if
 
      select case (in%lin%scf_mode)
-!!$     case (LINEAR_DIRECT_MINIMIZATION)
-!!$         ! still do a density mixing, maybe  to be modified later
-!!$         if (in%lin%mixHist_lowaccuracy==0) then
-!!$             ! simple mixing
-!!$             linear_iscf = 12
-!!$         else
-!!$             ! Pulay mixing
-!!$             linear_iscf = 17
-!!$         end if
-!!$     case (LINEAR_MIXDENS_SIMPLE)
-!!$         if (in%lin%mixHist_lowaccuracy==0) then
-!!$             ! simple mixing
-!!$             linear_iscf = 12
-!!$         else
-!!$             ! Pulay mixing
-!!$             linear_iscf = 17
-!!$         end if
      case (LINEAR_MIXPOT_SIMPLE)
-!!$         if (in%lin%mixHist_lowaccuracy==0) then
-!!$             ! simple mixing
-!!$             linear_iscf = 2
-!!$         else
-!!$             ! Pulay mixing
-!!$             linear_iscf = 7
-!!$         end if
         call f_enum_attr(linear_iscf,POT_MIX_ENUM)
      case (LINEAR_FOE,LINEAR_PEXSI,LINEAR_DIRECT_MINIMIZATION,&
           LINEAR_MIXDENS_SIMPLE)
-!!$         if (in%lin%mixHist_lowaccuracy==0) then
-!!$             ! simple mixing
-!!$             linear_iscf = 12
-!!$         else
-!!$             ! Pulay mixing
-!!$             linear_iscf = 17
-!!$         end if
         call f_enum_attr(linear_iscf,DEN_MIX_ENUM)
      case default
          stop 'ERROR: wrong in%lin%scf_mode'
@@ -1138,7 +1108,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
            call orbitals_communicators(iproc,nproc,KSwfn%Lzd%Glr,VTwfn%orbs,VTwfn%comms,&
                 basedist=KSwfn%comms%nvctr_par(0:,1:))
 
-           nvirt = in%nvirt
+           nvirt = .if. (in%nvirt > 0) .then. in%nvirt .else. norbv
         end if
 
         !allocate psivirt pointer (note the orbs dimension)

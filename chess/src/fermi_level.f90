@@ -379,6 +379,8 @@ module fermi_level
         character(len=*),intent(in) :: fieldname
         real(kind=mp) :: val
 
+        !LG: wouldn't be better to use explicit meaning of the 
+        !variables instead of their name in the structure?
         select case (trim(fieldname))
         case ("efarr(1)")
             val = f%efarr(1)
@@ -420,7 +422,7 @@ module fermi_level
       ! Local variables
       complex(kind=mp) :: a_c, b_c, c_c, d_c, Q_c, S_c, ttp_c, ttm_c
       complex(kind=mp),dimension(3) :: sol_c
-      double complex :: test
+      !double complex :: test
       real(kind=mp) :: ttmin, tt
       integer :: i
     
@@ -513,7 +515,7 @@ module fermi_level
          s=0.5_mp*kT*oneosqrtpi*safe_exp(-((e-ef)/kt)**2)
       case(SMEARING_DIST_FERMI)
          call get_occupation(occopt,e,ef,kT,f,df)
-         s=-kT*(f*log(f) + (1.0_mp-f)*log(1._mp-f))
+         s=-kT*(f*safe_log(f) + (1.0_mp-f)*safe_log(1._mp-f))
       case(SMEARING_DIST_COLD1)
          a=-.5634d0
          x= -arg
@@ -617,11 +619,11 @@ module fermi_level
       !local variables
       logical :: exitfermi
       !   real(gp), parameter :: pi=3.1415926535897932d0
-      real(mp), dimension(1,1,1) :: fakepsi
+      !real(mp), dimension(1,1,1) :: fakepsi
       integer :: ikpt,iorb,ii,newnorbu,newnorbd !,info_fermi
-      real(mp) :: charge, chargef,wf,deltac
-      real(mp) :: ef,electrons,dlectrons,factor,arg,argu,argd,corr,cutoffu,cutoffd,diff,full,res,resu,resd
-      real(mp) :: a, x, xu, xd, f, df, tt, s
+      real(mp) :: charge,wf
+      real(mp) :: ef,electrons,dlectrons,factor,corr,cutoffu,cutoffd,diff,full
+      real(mp) :: a, f, df, s
       !integer :: ierr
       !type(fermi_aux) :: ft
 
@@ -869,6 +871,7 @@ module fermi_level
 !!$                  !cold
 !!$                  eTS=eTS+0._mp  ! to be completed if needed
 !!$               end if
+                  !write(*,*) 'tt, full, wf0, log_term', tt, full, wf0, log_term
             end do
          end do
          !!! Sanity check on sum of occup.

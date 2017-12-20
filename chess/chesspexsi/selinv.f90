@@ -80,9 +80,9 @@ module selinv
       integer(c_int), allocatable, dimension(:) ::  colptrLocal, rowindLocal
       real(c_double), allocatable, dimension(:) ::  HnzvalLocal, SnzvalLocal, invSnzvalLocal
       
-      integer(c_int):: nprow, npcol, npSymbFact, outputFileIndex, ic
+      integer(c_int):: nprow, npcol, outputFileIndex, ic
       integer :: ierr, ii
-      double precision:: timeSta, timeEnd
+      !double precision:: timeSta, timeEnd
       integer(c_int):: info
       integer(c_intptr_t) :: plan
       type(f_ppexsi_options) :: options
@@ -93,9 +93,8 @@ module selinv
       integer :: nvctr_local_min, nvctr_local_max
       real(kind=8) :: nvctr_local_avg
       
-      integer:: i, j , nfvctr_local, nvctr_local, isvctr_local, maxproc
-      integer:: numColLocalFirst, firstCol
-      integer:: irow, jcol
+      integer:: i, nfvctr_local, nvctr_local, isvctr_local, maxproc
+      !integer:: numColLocalFirst
       
       integer:: readComm
       integer:: isProcRead

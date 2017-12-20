@@ -815,7 +815,7 @@ subroutine ys(lp,mp,ll,mm,ys_val)
        case (0) ! case for S_l0
          ys_val = dmpmm
        case (:-1) ! case for S_lm with m < 0
-         ys_val = -(zero,one)*m1mm*sqrthalf*(dmpmmm-m1mm*dmpmm)
+         ys_val = -cmplx(zero,one,kind=dpc)*m1mm*sqrthalf*(dmpmmm-m1mm*dmpmm)
        case (1:) ! case for S_lm with m > 0
          ys_val = m1mm*sqrthalf*(dmpmm+m1mm*dmpmmm)
    end select
@@ -886,7 +886,7 @@ subroutine lxyz(lp,mp,idir,ll,mm,lidir)
      case (1) ! Lx
        lidir = cone*half*(jpme+jmme)
      case (2) ! Ly
-       lidir = -(zero,one)*half*(jpme-jmme)
+       lidir = -cmplx(zero,one,kind=dpc)*half*(jpme-jmme)
      case (3) ! Lz
        if (mp == mm) lidir = mm*cone
    end select
