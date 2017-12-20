@@ -2115,9 +2115,6 @@ contains
     call set_verbose_level(runObj%inputs%verbosity)
 
     ! Use the restart for the linear scaling version... probably to be modified.
-!!$    if(runObj%inputs%inputPsiId == INPUT_PSI_MEMORY_WVL) then
-!!$       if (runObj%rst%version == LINEAR_VERSION) then
-!!$          runObj%inputs%inputPsiId = INPUT_PSI_MEMORY_LINEAR
     if ((runObj%inputs%inputPsiId .hasattr. 'LINEAR') .and. &
          (runObj%inputs%inputPsiId .hasattr. 'MEMORY')) then
        if (any(runObj%inputs%lin%locrad_lowaccuracy /= &

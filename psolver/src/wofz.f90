@@ -230,7 +230,9 @@ subroutine wofz_mod(alpha,m,q,jm,u,v,flag)
    integer :: j,n,i,kapn,nu,np1
    real(dp) :: xabs,yabs,x,y,qrho,xquad,yquad,xsum,ysum,xaux,u1,v1,u2,v2,daux,h,qlambda,h2
    real(dp) :: rx,ry,sx,sy,tx,ty,c,w1,xabsq,xi,yi,fac,yquadmod
-   
+
+   h2=1.d0
+   qlambda=1.d0   
    flag = .false.
    
    fac=pi/real(2*m,dp)/alpha

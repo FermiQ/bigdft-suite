@@ -185,7 +185,7 @@
  Expected Eh                           :  4688.865255938038
  monopole                              : -1.3530339E-09
 
- dipole                                :  [ -6.3352973E-09, -6.5523767E-09, -6.7615338E-09 ]
+ dipole                                :  [  2.2754282E-15,  7.8433387E-02, -7.8433387E-02 ]
  Offset (potential monopole)           : -4540.582655244469
  Poisson Solver:
    BC                                  : Surface
@@ -256,7 +256,7 @@
  Expected Eh                           :  4478.391124059735
  monopole                              : -1.1715100E-09
 
- dipole                                :  [ -5.4909732E-09, -5.6709974E-09, -5.8543704E-09 ]
+ dipole                                :  [ -1.1338272E-14, -1.9624149E-01, -2.3523930E+00 ]
  Offset (potential monopole)           : -3932.858920887571
  Poisson Solver:
    BC                                  : Surface

@@ -37,7 +37,7 @@ y[ig] = x[ig] * x[ig];\n\
 
 //cl_program initializeProgram;
 
-void inline p_initialize_generic(cl_kernel kernel, cl_command_queue command_queue, cl_uint *ndat, cl_mem *in, cl_mem *out) {
+void p_initialize_generic(cl_kernel kernel, cl_command_queue command_queue, cl_uint *ndat, cl_mem *in, cl_mem *out) {
   cl_int ciErrNum;
   size_t block_size_i=64;
   assert(*ndat>=block_size_i);
@@ -51,7 +51,7 @@ void inline p_initialize_generic(cl_kernel kernel, cl_command_queue command_queu
   oclErrorCheck(ciErrNum,"Failed to enqueue p_initialize kernel!");
 }
 
-void inline c_initialize_generic(cl_kernel kernel, cl_command_queue command_queue, cl_uint *ndat, cl_mem *in, cl_mem *inout, double *c) {
+void c_initialize_generic(cl_kernel kernel, cl_command_queue command_queue, cl_uint *ndat, cl_mem *in, cl_mem *inout, double *c) {
   cl_int ciErrNum;
   size_t block_size_i=64;
   assert(*ndat>=block_size_i);
@@ -66,7 +66,7 @@ void inline c_initialize_generic(cl_kernel kernel, cl_command_queue command_queu
   oclErrorCheck(ciErrNum,"Failed to enqueue c_initialize kernel!");
 }
 
-void inline v_initialize_generic(cl_kernel kernel, cl_command_queue command_queue, cl_uint *ndat, cl_mem *out, double *c) {
+void v_initialize_generic(cl_kernel kernel, cl_command_queue command_queue, cl_uint *ndat, cl_mem *out, double *c) {
   cl_int ciErrNum;
   size_t block_size_i=64;
   assert(*ndat>=block_size_i);

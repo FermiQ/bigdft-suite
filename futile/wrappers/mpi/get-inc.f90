@@ -25,7 +25,4 @@
   if (present(target_disp)) tdispl=target_disp
   call MPI_GET(origin_ptr,int(count,fmpi_integer),mpitype(origin_ptr),target_rank, &
        tdispl,int(count,fmpi_integer),mpitype(origin_ptr), win%handle, ierr)
-  if (ierr/=FMPI_SUCCESS) then
-     call f_err_throw('Error in mpi_get',&
-          err_id=ERR_MPI_WRAPPERS)
-  end if
+  if (ierr/=FMPI_SUCCESS) call f_err_throw('Error in mpi_get',err_id=ERR_MPI_WRAPPERS)

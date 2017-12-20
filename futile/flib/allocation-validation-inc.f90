@@ -12,7 +12,7 @@
   if (ierror/=0) then
      call f_timer_resume()!TCAT_ARRAY_ALLOCATIONS
      call f_err_throw('array ' // trim(m%array_id) // &
-          & '(' // trim(yaml_toa(product(m%shape))) // &
+          & '(' // trim(yaml_toa(product(m%shape(1:m%rank)))) // &
           & '), error code '//trim(yaml_toa(ierror)),ERR_ALLOCATE)
      return
   end if

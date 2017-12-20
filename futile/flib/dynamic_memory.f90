@@ -103,7 +103,7 @@ module dynamic_memory_base
      module procedure i1_ptr,i2_ptr,i3_ptr,i4_ptr
      module procedure l1_ptr, l2_ptr, l3_ptr
      module procedure li1_ptr
-     module procedure z1_ptr
+     module procedure z1_ptr,z2_ptr
      !strings and pointers for characters
      module procedure c1_all
      module procedure c1_ptr
@@ -127,7 +127,7 @@ module dynamic_memory_base
      module procedure d1_ptr_free,d2_ptr_free,d3_ptr_free,d4_ptr_free,d5_ptr_free,d6_ptr_free
      module procedure l1_ptr_free, l2_ptr_free, l3_ptr_free
      module procedure li1_ptr_free
-     module procedure z1_ptr_free
+     module procedure z1_ptr_free,z2_ptr_free
   end interface f_free_ptr
 
   interface f_memcpy
@@ -142,7 +142,7 @@ module dynamic_memory_base
      module procedure f_memcpy_d0d3,f_memcpy_d0d2,f_memcpy_d3d0,f_memcpy_d2d0,f_memcpy_d3d2
      module procedure f_memcpy_l0,f_memcpy_l0l1
      module procedure f_memcpy_c1i1,f_memcpy_i1c1,f_memcpy_c0i1
-     module procedure f_memcpy_c1li1,f_memcpy_li1c1,f_memcpy_c0li1
+     module procedure f_memcpy_c1li1,f_memcpy_li1c1,f_memcpy_c0li1,f_memcpy_z2
   end interface f_memcpy
 
   interface f_maxdiff

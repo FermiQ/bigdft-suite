@@ -137,6 +137,8 @@ def load(file=None,stream=None,doc_lists=False,safe_mode=False):
         ldr=yaml.MinLoader #seems only to work with the strings
     except:
         ldr=yaml.CLoader
+    #load the documents
+    ld=[]
     try:
         ld=yaml.load(strm,Loader=ldr)
         if doc_lists: ld=[ld]
@@ -148,7 +150,7 @@ def load(file=None,stream=None,doc_lists=False,safe_mode=False):
                 try:
                     ld.append(yaml.load(raw_doc,Loader=ldr))
                 except Exception,f:
-                    print 'Document',i,'of stream NOT loaded'
+                    print 'Document',i,'of stream NOT loaded, error:',f
         else:
             ld=yaml.load_all(strm,Loader=ldr)
     return ld

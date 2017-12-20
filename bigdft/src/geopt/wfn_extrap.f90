@@ -58,7 +58,7 @@ psit_out=f_malloc((/Lzd%Glr%wfd%nvctr_c+7*Lzd%Glr%wfd%nvctr_f,orbs%nspinor*orbs%
 psi_out2=f_malloc((/Lzd%Glr%wfd%nvctr_c+7*Lzd%Glr%wfd%nvctr_f,orbs%nspinor*orbs%norbp/),id='psi_out2')
 
 call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,psi_in,&
-                 work,out_add=psit)
+                 work,recvbuf=psit)
 !call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,psi_out(1),&
 !                 work(1),out_add=psit_out(1))
 
@@ -282,9 +282,9 @@ work_array =f_malloc_ptr(max(orbs%npsidim_orbs,orbs%npsidim_comp),id='work_array
 psit = f_malloc_ptr(max(orbs%npsidim_orbs,orbs%npsidim_comp),id='psit')
 phit = f_malloc_ptr(max(orbs%npsidim_orbs,orbs%npsidim_comp),id='phit')
 call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,psi,&
-          &   work_array,out_add=psit)
+          &   work_array,recvbuf=psit)
 call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,phi,&
-          &   work_array,out_add=phit)
+          &   work_array,recvbuf=phit)
 
 ! Allocate overlap matrix
 ovrlp = f_malloc(ndim_ovrlp(nspin, orbs%nkpts),id='ovrlp')
@@ -527,9 +527,9 @@ work_array =f_malloc_ptr(max(orbs%npsidim_orbs,orbs%npsidim_comp),id='work_array
 psit = f_malloc0_ptr(max(orbs%npsidim_orbs,orbs%npsidim_comp),id='psit')
 phit = f_malloc0_ptr(max(orbs%npsidim_orbs,orbs%npsidim_comp),id='phit')
 call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,psi,&
-          &   work_array,out_add=psit)
+          &   work_array,recvbuf=psit)
 call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,phi,&
-          &   work_array,out_add=phit)
+          &   work_array,recvbuf=phit)
 !
 
 !if(iproc.eq.0)print *, "!!!!NNdbg: calling my getoverlap2!!!!",iproc

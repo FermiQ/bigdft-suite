@@ -1263,9 +1263,6 @@
    Maximum size of masking arrays for a projector:  4050
    Cumulative size of masking arrays   :  57882
   #------------------------------------------------------------ Sparse matrix initialization
- Check of kernel cutoff radius:
- -  {atom type: H, adjustment required:  No}
- -  {atom type: C, adjustment required:  Yes, new value:  3.30}
  Matrices:
    Overlap matrix:
      total elements                    :  521284
@@ -2559,7 +2556,6 @@
      need to repeat with sharper decay (new):  No
      trace(KS)                         :  7.210000000250E+02
      trace(KH)                         :  5.129131674976E+02
-     eTS                               :  6.4641979772706842E-003
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ FOE calculation of kernel finished
  calculate LUMO kernel:
    target charge                       :  723.0
@@ -2654,7 +2650,6 @@
      need to repeat with sharper decay (new):  No
      trace(KS)                         :  7.229999999910E+02
      trace(KH)                         :  5.155743546585E+02
-     eTS                               :  8.9394145206605276E-004
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ FOE calculation of kernel finished
  HOMO-LUMO analysis:
    HOMO energy                         :  1.325061419274934
