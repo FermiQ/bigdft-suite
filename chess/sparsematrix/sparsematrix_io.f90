@@ -1016,24 +1016,26 @@ module sparsematrix_io
           disp = int(three_long*size_of_integer_long+is_long*size_of_double_long,kind=mpi_offset_kind)
           call mpi_file_set_view(thefile, disp, mpi_double_precision, mpi_double_precision, 'native', mpi_info_null, ierr) 
           call mpi_file_read(thefile, workarr_eval, np, mpi_double_precision, mpi_status_ignore, ierr)
-          eval = f_malloc_ptr(ntmb,id='eval')
+          eval = f_malloc0_ptr(ntmb,id='eval')
           do i=1,np
               ii = is + i
               eval(ii) = workarr_eval(i) 
           end do
           call f_free(workarr_eval)
+          call fmpi_allreduce(eval, FMPI_SUM, comm=comm)
       end if
 
       workarr_coeff = f_malloc((/nfvctr,np/),id='workarr_coeff')
       disp = int(three_long*size_of_integer_long+(ntmb_long+is_long*nfvctr_long)*size_of_double_long,kind=mpi_offset_kind)
       call mpi_file_set_view(thefile, disp, mpi_double_precision, mpi_double_precision, 'native', mpi_info_null, ierr) 
       call mpi_file_read(thefile, workarr_coeff, nfvctr*np, mpi_double_precision, mpi_status_ignore, ierr)
-      coeff = f_malloc_ptr((/nfvctr,ntmb/),id='coeff')
+      coeff = f_malloc0_ptr((/nfvctr,ntmb/),id='coeff')
       do i=1,np
           ii = is + i
           call vcopy(nfvctr, workarr_coeff(1,i), 1, coeff(1,ii), 1)
       end do
       call f_free(workarr_coeff)
+      call fmpi_allreduce(coeff, FMPI_SUM, comm=comm)
 
       call f_release_routine()
     

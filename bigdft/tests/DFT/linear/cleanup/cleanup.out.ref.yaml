@@ -1553,6 +1553,9 @@
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/coeffs.mpi
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/KSgrid.dat
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/minBasis*
+ Check normalization of KS orbitals:
+ - KS orbital nr. 4                    :  0.9999999999995562
+ - KS orbital nr. 5                    :  1.000000000000041
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Writing to file KS_post*
  Write wavefunctions to file           : KS_post.*
   # 4th wavefunction written

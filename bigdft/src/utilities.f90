@@ -627,7 +627,7 @@ program utilities
        if (iend_ks>orbs%norb) then
            call f_err_throw('iend_ks>orbs%norb')
        end if
-       call build_ks_orbitals_postprocessing(bigdft_mpi%iproc, bigdft_mpi%nproc, &
+       call build_ks_orbitals_postprocessing(bigdft_mpi%iproc, bigdft_mpi%nproc, bigdft_mpi%mpi_comm, &
             orbs%norb, istart_ks, iend_ks, &
             nspin, nspinor, nkpt, kpt, wkpt, in_which_locreg, at, lzd, rxyz, &
             npsidim_orbs, phi, coeff_ptr(:,istart_ks:iend_ks))

@@ -827,7 +827,7 @@ module postprocessing_linear
 
 
 
-    subroutine build_ks_orbitals_postprocessing(iproc, nproc, ntmb, istart_ks, iend_ks, nspin, nspinor, &
+    subroutine build_ks_orbitals_postprocessing(iproc, nproc, comm, ntmb, istart_ks, iend_ks, nspin, nspinor, &
                nkpt, kpt, wkpt, in_which_locreg, at, lzd, rxyz, npsidim_orbs, psi, coeff)
       use module_base
       use module_types
@@ -844,7 +844,7 @@ module postprocessing_linear
       implicit none
       
       ! Calling arguments
-      integer,intent(in):: iproc, nproc, ntmb, istart_ks, iend_ks, nspin, nspinor, nkpt, npsidim_orbs
+      integer,intent(in):: iproc, nproc, comm, ntmb, istart_ks, iend_ks, nspin, nspinor, nkpt, npsidim_orbs
       real(gp), dimension(3,nkpt), intent(in) :: kpt
       real(gp), dimension(nkpt), intent(in) :: wkpt
       type(atoms_data), intent(in) :: at
@@ -862,6 +862,7 @@ module postprocessing_linear
       character(len=*),parameter :: subname='build_ks_orbitals_postprocessing'
       integer,dimension(:,:),allocatable :: ioffset_isf
       character(len=256) :: filename
+      real(kind=8) :: tt
       !type(local_zone_descriptors) :: lzd_global
     
       if (nspin/=1) then
@@ -900,11 +901,26 @@ module postprocessing_linear
           ist = ist + npsidim_local
           jst = 1
           do jorb=istart_ks,iend_ks
+              !write(*,*) 'iproc, iorb, iiorb, ilr, jorb, coeff(iiorb,jorb)', iproc, iorb, iiorb, ilr, jorb, coeff(iiorb,jorb)
               call axpy(npsidim_global, coeff(iiorb,jorb), phiwork_global(1), 1, psi_global(jst), 1)
               jst = jst + npsidim_global
           end do
       end do
       call f_free_ptr(phiwork_global)
+      call fmpi_allreduce(psi_global, FMPI_SUM, comm=comm)
+
+      if (iproc==0) then
+          call yaml_sequence_open('Check normalization of KS orbitals')
+          ist = 1
+          do jorb=istart_ks,iend_ks
+              tt =  dot(npsidim_global, psi_global(ist), 1, psi_global(ist), 1)
+              call yaml_sequence(advance='no')
+              !call yaml_map('For proc '//adjustl(trim(yaml_toa(iproc))),tt)
+              call yaml_map('KS orbital nr. '//adjustl(trim(yaml_toa(jorb))),tt)
+              ist = ist + npsidim_global
+          end do
+          call yaml_sequence_close()
+      end if 
 
       ! # END NEW ######################################################
     
