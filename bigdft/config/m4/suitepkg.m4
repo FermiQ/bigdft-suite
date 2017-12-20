@@ -43,7 +43,7 @@ AC_DEFUN([AX_PACKAGE],
     if test -n "$C_INCLUDE_PATH" ; then
       for path in ${C_INCLUDE_PATH//:/ }; do
         ax_add="yes"
-        for inc in $$1_CFLAGS ; do
+        for inc in "$$1_CFLAGS" ; do
           if test "-I$path" = $inc; then
             ax_add="no"
           fi
