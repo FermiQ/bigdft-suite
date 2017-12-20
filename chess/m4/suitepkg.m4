@@ -40,14 +40,20 @@ AC_DEFUN([AX_PACKAGE],
                     [ax_have_$1=yes],
                     [ax_have_$1=no])
   if test "$ax_have_$1" = "yes" ; then
-    if test -z "${$1_CFLAGS// }" -a -n "$C_INCLUDE_PATH" ; then
+    if test -n "$C_INCLUDE_PATH" ; then
       for path in ${C_INCLUDE_PATH//:/ }; do
-        ax_$1_incdir="$ax_$1_incdir -I$path"
+        ax_add="yes"
+        for inc in $$1_CFLAGS ; do
+          if test "-I$path" = $inc; then
+            ax_add="no"
+          fi
+        done
+        if test $ax_add = "yes"; then
+          ax_$1_incdir="$ax_$1_incdir -I$path"
+        fi
       done
-      LIB_$1_CFLAGS=$ax_$1_incdir
-    else
-      LIB_$1_CFLAGS=$$1_CFLAGS
     fi
+    LIB_$1_CFLAGS=$$1_CFLAGS $ax_$1_incdir
     LIB_$1_LIBS=$$1_LIBS
     AC_MSG_CHECKING([for $1 LIBS]) 
     AC_MSG_RESULT("LIB_$1_LIBS= $LIB_$1_LIBS")
