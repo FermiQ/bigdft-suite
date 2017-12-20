@@ -841,7 +841,7 @@ __kernel __attribute__((reqd_work_group_size(16, 16, 1))) __attribute__((vec_typ
 
 
 
-void inline zgemm_generic(cl_kernel kernel, cl_command_queue command_queue, cl_uint *m, cl_uint *n, cl_uint *k, cl_double2 *alpha, cl_mem *a, cl_uint *lda, cl_mem *b, cl_uint *ldb, cl_double2 *beta, cl_mem *c, cl_uint *ldc) {
+void zgemm_generic(cl_kernel kernel, cl_command_queue command_queue, cl_uint *m, cl_uint *n, cl_uint *k, cl_double2 *alpha, cl_mem *a, cl_uint *lda, cl_mem *b, cl_uint *ldb, cl_double2 *beta, cl_mem *c, cl_uint *ldc) {
   cl_int ciErrNum;
   size_t block_size_i=16;
   size_t block_size_j=16;
@@ -864,7 +864,7 @@ void inline zgemm_generic(cl_kernel kernel, cl_command_queue command_queue, cl_u
   ciErrNum = clEnqueueNDRangeKernel(command_queue, kernel, 2, NULL, globalWorkSize, localWorkSize, 0, NULL, NULL);
   oclErrorCheck(ciErrNum,"Failed to enqueue zgemm kernel!");
 }
-void inline gemm_block_generic(cl_kernel kernel, cl_command_queue command_queue, cl_uint *m, cl_uint *n, cl_uint *k, cl_double *alpha, cl_mem *a, cl_uint *lda, cl_mem *b, cl_uint *ldb, cl_double *beta, cl_mem *c, cl_uint *ldc) {
+void gemm_block_generic(cl_kernel kernel, cl_command_queue command_queue, cl_uint *m, cl_uint *n, cl_uint *k, cl_double *alpha, cl_mem *a, cl_uint *lda, cl_mem *b, cl_uint *ldb, cl_double *beta, cl_mem *c, cl_uint *ldc) {
   cl_int ciErrNum;
   int ELEM_PER_THREAD=2;
   size_t block_size_i=16;
@@ -888,7 +888,7 @@ void inline gemm_block_generic(cl_kernel kernel, cl_command_queue command_queue,
   ciErrNum = clEnqueueNDRangeKernel(command_queue, kernel, 2, NULL, globalWorkSize, localWorkSize, 0, NULL, NULL);
   oclErrorCheck(ciErrNum,"Failed to enqueue gemm_block kernel!");
 }
-void inline gemm_volkov_generic(cl_kernel kernel, cl_command_queue command_queue, cl_uint *m, cl_uint *n, cl_uint *k, cl_double *alpha, cl_mem *a, cl_uint *lda, cl_mem *b, cl_uint *ldb, cl_double *beta, cl_mem *c, cl_uint *ldc) {
+void gemm_volkov_generic(cl_kernel kernel, cl_command_queue command_queue, cl_uint *m, cl_uint *n, cl_uint *k, cl_double *alpha, cl_mem *a, cl_uint *lda, cl_mem *b, cl_uint *ldb, cl_double *beta, cl_mem *c, cl_uint *ldc) {
   cl_int ciErrNum;
   int ELEM_PER_THREAD=16;
   size_t block_size_i=64;
@@ -911,7 +911,7 @@ void inline gemm_volkov_generic(cl_kernel kernel, cl_command_queue command_queue
   ciErrNum = clEnqueueNDRangeKernel(command_queue, kernel, 2, NULL, globalWorkSize, localWorkSize, 0, NULL, NULL);
   oclErrorCheck(ciErrNum,"Failed to enqueue gemm_volkov kernel!");
 }
-void inline gemm_generic(cl_kernel kernel, cl_command_queue command_queue, cl_uint *m, cl_uint *n, cl_uint *k, cl_double *alpha, cl_mem *a, cl_uint *lda, cl_mem *b, cl_uint *ldb, cl_double *beta, cl_mem *c, cl_uint *ldc) {
+void gemm_generic(cl_kernel kernel, cl_command_queue command_queue, cl_uint *m, cl_uint *n, cl_uint *k, cl_double *alpha, cl_mem *a, cl_uint *lda, cl_mem *b, cl_uint *ldb, cl_double *beta, cl_mem *c, cl_uint *ldc) {
   cl_int ciErrNum;
   size_t block_size_i=16;
   size_t block_size_j=16;
@@ -934,7 +934,7 @@ void inline gemm_generic(cl_kernel kernel, cl_command_queue command_queue, cl_ui
   ciErrNum = clEnqueueNDRangeKernel(command_queue, kernel, 2, NULL, globalWorkSize, localWorkSize, 0, NULL, NULL);
   oclErrorCheck(ciErrNum,"Failed to enqueue gemm kernel!");
 }
-void inline gemmsy_generic(cl_kernel kernel, cl_command_queue command_queue, cl_uint *m, cl_uint *k, cl_double *alpha, cl_mem *a, cl_uint *lda, cl_mem *b, cl_uint *ldb, cl_double *beta, cl_mem *c, cl_uint *ldc) {
+void gemmsy_generic(cl_kernel kernel, cl_command_queue command_queue, cl_uint *m, cl_uint *k, cl_double *alpha, cl_mem *a, cl_uint *lda, cl_mem *b, cl_uint *ldb, cl_double *beta, cl_mem *c, cl_uint *ldc) {
   cl_int ciErrNum;
   size_t block_size_i=16;
   size_t block_size_j=16;
@@ -971,7 +971,7 @@ void inline set_generic(cl_kernel kernel, cl_command_queue command_queue, cl_uin
   oclErrorCheck(ciErrNum,"Failed to enqueue set kernel!");
 }
 
-void inline dot_generic(cl_kernel kernel, bigdft_command_queue command_queue, cl_uint *n, cl_mem *x, cl_mem *y, cl_mem *out) {
+void dot_generic(cl_kernel kernel, bigdft_command_queue command_queue, cl_uint *n, cl_mem *x, cl_mem *y, cl_mem *out) {
   cl_int ciErrNum;
   size_t block_size_i=command_queue->device_infos.MAX_WORK_GROUP_SIZE;
   cl_uint i=0;
@@ -1049,7 +1049,7 @@ void inline axpy_offset_generic(cl_kernel kernel, cl_command_queue command_queue
   oclErrorCheck(ciErrNum,"Failed to enqueue axpy kernel!");
 }
 
-void inline reduction_generic(cl_kernel kernel, bigdft_command_queue command_queue, cl_uint *ndat, cl_mem *in, cl_mem *out) {
+void reduction_generic(cl_kernel kernel, bigdft_command_queue command_queue, cl_uint *ndat, cl_mem *in, cl_mem *out) {
   cl_int ciErrNum;
   size_t block_size_i=command_queue->device_infos.MAX_WORK_GROUP_SIZE;
   cl_uint i=0;
