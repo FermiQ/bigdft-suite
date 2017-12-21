@@ -8,13 +8,15 @@ module module_utilities
 
     subroutine calculate_fragment_multipoles_fn(iproc, nproc, comm, &
                matrix_format, metadata_file, fragment_file, &
-               overlap_file, kernel_file, kernel_matmul_file, lmax, multipoles_files)
+               overlap_file, kernel_file, kernel_matmul_file, lmax, multipoles_files, &
+               orbital_kernel, coeff_file)
            use futile
            use wrapper_mpi
            use wrapper_linalg
            use module_input_dicts, only: merge_input_file_to_dict
            use sparsematrix_base, only: sparse_matrix, matrices, matrices_null, assignment(=), &
                                         SPARSE_FULL, DENSE_FULL, DENSE_PARALLEL, SPARSE_TASKGROUP, &
+                                        sparsematrix_malloc0, &
                                         sparsematrix_malloc_ptr, sparsematrix_malloc0_ptr,&
                                         deallocate_sparse_matrix, deallocate_matrices, &
                                         sparse_matrix_metadata, deallocate_sparse_matrix_metadata
@@ -22,7 +24,7 @@ module module_utilities
                                         write_sparsematrix_info, init_matrix_taskgroups_wrapper
            use sparsematrix_io, only: read_sparse_matrix, write_sparse_matrix, read_linear_coefficients
            use sparsematrix, only: uncompress_matrix, uncompress_matrix_distributed2, resize_matrix_to_taskgroup, &
-                                   transform_sparse_matrix, matrix_matrix_mult_wrapper
+                                   transform_sparse_matrix, matrix_matrix_mult_wrapper, compress_matrix
            use sparsematrix_highlevel, only: sparse_matrix_and_matrices_init_from_file_bigdft, &
                                              sparse_matrix_and_matrices_init_from_file_ccs, &
                                              sparse_matrix_metadata_init_from_file, &
@@ -36,10 +38,11 @@ module module_utilities
            implicit none
     
            ! Calling arguments
-           integer,intent(in) :: iproc, nproc, comm, lmax
+           integer,intent(in) :: iproc, nproc, comm, lmax, orbital_kernel
            character(len=*),intent(in) :: matrix_format, metadata_file, fragment_file
            character(len=*),intent(in) :: overlap_file, kernel_file, kernel_matmul_file
            character(len=*),dimension(-lmax:lmax,0:lmax),intent(in) :: multipoles_files
+           character(len=*),intent(in),optional :: coeff_file
     
            ! Local variables
            external :: gather_timings
@@ -49,8 +52,8 @@ module module_utilities
            logical,dimension(-lmax:lmax) :: file_present
            integer,dimension(:,:),allocatable :: lookup_kernel
            logical :: file_exists, perx, pery, perz
-           integer :: ispin, iat, iiat, nat_frag, iat_frag, isf, mm, iitype, ifrag
-           integer :: ist1, ist2, nmpmat, nsf_frag, ist, l, ll, m, nfrag, nat_frag_max
+           integer :: ispin, iat, iiat, nat_frag, iat_frag, isf, mm, iitype, ifrag, nspin, nfvctr, ntmb
+           integer :: ist1, ist2, nmpmat, nsf_frag, ist, l, ll, m, nfrag, nat_frag_max, iunit
            type(matrices) :: ovrlp_mat, kernel_mat,  ovrlp_large, kernel_eff
            type(matrices),dimension(1) :: inv_ovrlp
            type(matrices),dimension(:,:),allocatable :: multipoles_matrices
@@ -61,8 +64,9 @@ module module_utilities
            logical,dimension(:),allocatable :: supfun_in_fragment
            type(dictionary),pointer :: fragment_dict, fragment_item, fragment_atom
            type(mpi_environment) :: mpi_env
-           real(kind=8),dimension(:,:,:),allocatable :: mpmat, kqmat
+           real(kind=8),dimension(:,:,:),allocatable :: mpmat, kqmat, denskernel
            real(kind=8),dimension(:,:),allocatable :: kmat, fragment_multipoles
+           real(kind=8),dimension(:,:),pointer :: coeff_ptr
            real(kind=8),dimension(:),allocatable :: fragment_charge
            real(kind=8),dimension(3) :: fragment_center
 
@@ -75,7 +79,7 @@ module module_utilities
                fragment_dict => null()
                call merge_input_file_to_dict(fragment_dict, trim(fragment_file), mpi_env)
            else
-               call f_err_throw('file'//trim(fragment_file)//'not present')
+               call f_err_throw('file '//trim(fragment_file)//' not present')
            end if
     
            call sparse_matrix_metadata_init_from_file(trim(metadata_file), smmd)
@@ -88,10 +92,53 @@ module module_utilities
            call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, trim(overlap_file), &
                 iproc, nproc, comm, smat(1), ovrlp_mat, &
                 init_matmul=.false.)
+           if (smat(1)%nspin/=1) then
+               call f_err_throw('calculate_fragment_multipoles_fn not yet implemented for nspin/=1')
+           end if
     
+           ! If orbital_kernel<0, then we take the entire kernel, i.e. we can simply read from the file.
+           ! If orbital_kernel=n(>0), then we only consider the kernel associated to orbital n.
+           ! In this case we have to calculate this partial kernel from the coefficients.
            call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, trim(kernel_file), &
                 iproc, nproc, comm, smat(2), kernel_mat, &
                 init_matmul=.true., filename_mult=trim(kernel_matmul_file))
+           if (orbital_kernel<0) then
+           else
+               if (.not.present(coeff_file)) then
+                   call f_err_throw('coeff_file not present')
+               end if
+               iunit = 99
+               if (iproc==0) then
+                   call yaml_comment('Reading from file '//trim(coeff_file),hfill='~')
+               end if
+               call f_open_file(iunit, file=trim(coeff_file), binary=.false.)
+               call read_linear_coefficients(matrix_format, iproc, nproc, comm, &
+                    trim(coeff_file), nspin, nfvctr, ntmb, coeff_ptr)
+               call f_close(iunit)
+               if (nspin/=smat(2)%nspin) then
+                   call f_err_throw('nspin/=smat(2)%nspin')
+               end if
+               if (nfvctr/=smat(2)%nfvctr) then
+                   call f_err_throw('nfvctr/=smat(2)%nfvctr')
+               end if
+               if (ntmb/=smat(2)%nfvctr) then
+                   call f_err_throw('ntmb/=smat(2)%nfvctr')
+               end if
+
+               denskernel = sparsematrix_malloc0(smat(2),iaction=DENSE_FULL,id='denskernel')
+               call gemm('n', 't', smat(2)%nfvctr, smat(2)%nfvctrp, 1, &
+                    1.d0, coeff_ptr(1,orbital_kernel), smat(2)%nfvctr, &
+                    coeff_ptr(smat(2)%isfvctr+1,orbital_kernel), smat(2)%nfvctr, &
+                    0.d0, denskernel(1,smat(2)%isfvctr+1,1), smat(2)%nfvctr)
+               call fmpi_allreduce(denskernel, FMPI_SUM, comm=comm)
+               call compress_matrix(iproc, nproc, smat(2), denskernel, kernel_mat%matrix_compr)
+               !write(*,*) 'smat(2)%nfvctrp, smat(2)%isfvctr', smat(2)%nfvctrp, smat(2)%isfvctr
+               !write(*,*) 'denskernel',denskernel
+               !write(*,*) 'kernel_mat%matrix_compr',kernel_mat%matrix_compr
+               !write(*,*) 'coeff_ptr(:,orbital_kernel)', coeff_ptr(:,orbital_kernel)
+               call f_free(denskernel)
+               call f_free_ptr(coeff_ptr)
+           end if
     
            call init_matrix_taskgroups_wrapper(iproc, nproc, comm, .false., 2, smat)
     
