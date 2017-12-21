@@ -984,7 +984,7 @@ module sparsematrix_io
       real(mp),dimension(:),allocatable :: workarr_eval
       real(mp),dimension(:,:),allocatable :: workarr_coeff
 
-      call f_routine(id='write_linear_coefficients_parallel')
+      call f_routine(id='read_linear_coefficients_parallel')
 
       call mpi_file_open(comm, trim(filename), & 
            mpi_mode_rdonly, & 

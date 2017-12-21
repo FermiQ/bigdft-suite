@@ -239,6 +239,26 @@ cleanup.out.post-out:
       --multipole_matrix_2_2=data/mpmat_2_0.mpi \
       --multipole_matrix_2_3=data/mpmat_2_1.mpi \
       --multipole_matrix_2_4=data/mpmat_2_2.mpi \
+	  --orbital_kernel=-1 \
+	  >> log.yaml
+	$(abs_top_builddir)/src/bigdft-tool \
+      --action=fragment-multipoles \
+      --mpirun='$(run_parallel)' \
+      --matrix_format=parallel_mpi-native \
+      --fragment_file=fragments.yaml \
+      --metadata_file=data/sparsematrix_metadata.dat \
+      --overlap_file=data/overlap_sparse.mpi \
+      --kernel_file=data/density_kernel_sparse.mpi \
+      --kernel_matmul_file=data/density_kernel_sparse_matmul.mpi \
+      --multipole_matrix_0_0=data/mpmat_0_0.mpi \
+      --multipole_matrix_1_0=data/mpmat_1_-1.mpi \
+      --multipole_matrix_1_1=data/mpmat_1_0.mpi \
+      --multipole_matrix_1_2=data/mpmat_1_1.mpi \
+      --multipole_matrix_2_0=data/mpmat_2_-2.mpi \
+      --multipole_matrix_2_1=data/mpmat_2_-1.mpi \
+      --multipole_matrix_2_2=data/mpmat_2_0.mpi \
+      --multipole_matrix_2_3=data/mpmat_2_1.mpi \
+      --multipole_matrix_2_4=data/mpmat_2_2.mpi \
 	  --orbital_kernel=4 \
 	  --coeff_file=data/coeffs.mpi \
 	  >> log.yaml

@@ -139,6 +139,7 @@ module module_utilities
                call f_free(denskernel)
                call f_free_ptr(coeff_ptr)
            end if
+
     
            call init_matrix_taskgroups_wrapper(iproc, nproc, comm, .false., 2, smat)
     
@@ -351,7 +352,8 @@ module module_utilities
                                 mpmat(1,1,mm), nsf_frag, 0.d0, kqmat(1,1,1), nsf_frag)
                            tr = 0.d0
                            do isf=1,nsf_frag
-                               tr = tr + kqmat(isf,isf,1)
+                               ! The minus sign is necessary since the charge density is a negative quantity
+                               tr = tr - kqmat(isf,isf,1)
                            end do
                            fragment_multipoles(mm,ifrag) = fragment_multipoles(mm,ifrag) + tr
                            if (l==0) then
