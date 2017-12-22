@@ -150,6 +150,35 @@ module module_utilities
            end do
         
            call timing(comm,'INIT','PR')
+
+
+           ! Calculate the matrix S^-1
+           inv_ovrlp(1) = matrices_null()
+           inv_ovrlp(1)%matrix_compr = sparsematrix_malloc_ptr(smat(2), SPARSE_TASKGROUP, id='inv_ovrlp%matrix_compr')
+           call matrix_chebyshev_expansion(iproc, nproc, comm, 1, [-1.d0], &
+                smat(1), smat(2), ovrlp_mat, inv_ovrlp)
+
+           ovrlp_large = matrices_null()
+           ovrlp_large%matrix_compr = sparsematrix_malloc_ptr(smat(2), SPARSE_TASKGROUP, id='ovrlp_large%matrix_compr')
+        
+           ! Calculate the matrix S^-1*P, where P are the multipole matrices
+           do l=0,ll
+               do m=-l,l
+                   call transform_sparse_matrix(iproc, smat(1), smat(2), SPARSE_TASKGROUP, 'small_to_large', &
+                        smat_in=multipoles_matrices(m,l)%matrix_compr, lmat_out=ovrlp_large%matrix_compr)
+                   call f_free_ptr(multipoles_matrices(m,l)%matrix_compr)
+                   multipoles_matrices(m,l)%matrix_compr = sparsematrix_malloc_ptr(smat(2),iaction=SPARSE_TASKGROUP,&
+                                                                   id='matrix_compr')
+                   ! Should use the highlevel wrapper...
+                   do ispin=1,smat(2)%nspin
+                       ist=(ispin-1)*smat(2)%nvctrp_tg+1
+                       call matrix_matrix_mult_wrapper(iproc, nproc, smat(2), &
+                            inv_ovrlp(1)%matrix_compr(ist:), ovrlp_large%matrix_compr(ist:), &
+                            multipoles_matrices(m,l)%matrix_compr(ist:))
+                   end do
+               end do
+           end do
+           call deallocate_matrices(inv_ovrlp(1))
         
 
            norb = dict_len(orbital_dict)
@@ -238,8 +267,6 @@ module module_utilities
                ! Calculate the matrix KS
                kernel_eff = matrices_null()
                kernel_eff%matrix_compr = sparsematrix_malloc0_ptr(smat(2),iaction=SPARSE_TASKGROUP,id='kernel_eff%matrix_compr')
-               ovrlp_large = matrices_null()
-               ovrlp_large%matrix_compr = sparsematrix_malloc_ptr(smat(2), SPARSE_TASKGROUP, id='ovrlp_large%matrix_compr')
                call transform_sparse_matrix(iproc, smat(1), smat(2), SPARSE_TASKGROUP, 'small_to_large', &
                     smat_in=ovrlp_mat%matrix_compr, lmat_out=ovrlp_large%matrix_compr)
                ! Should use the highlevel wrapper...
@@ -249,32 +276,7 @@ module module_utilities
                         kernel_mat%matrix_compr(ist:), ovrlp_large%matrix_compr(ist:), kernel_eff%matrix_compr(ist:))
                end do
         
-               ! Calculate the matrix S^-1
-               inv_ovrlp(1) = matrices_null()
-               inv_ovrlp(1)%matrix_compr = sparsematrix_malloc_ptr(smat(2), SPARSE_TASKGROUP, id='inv_ovrlp%matrix_compr')
-               call matrix_chebyshev_expansion(iproc, nproc, comm, 1, [-1.d0], &
-                    smat(1), smat(2), ovrlp_mat, inv_ovrlp)
         
-               ! Calculate the matrix S^-1*P, where P are the multipole matrices
-               do l=0,ll
-                   do m=-l,l
-                       call transform_sparse_matrix(iproc, smat(1), smat(2), SPARSE_TASKGROUP, 'small_to_large', &
-                            smat_in=multipoles_matrices(m,l)%matrix_compr, lmat_out=ovrlp_large%matrix_compr)
-                       call f_free_ptr(multipoles_matrices(m,l)%matrix_compr)
-                       multipoles_matrices(m,l)%matrix_compr = sparsematrix_malloc_ptr(smat(2),iaction=SPARSE_TASKGROUP,&
-                                                                       id='matrix_compr')
-                       ! Should use the highlevel wrapper...
-                       do ispin=1,smat(2)%nspin
-                           ist=(ispin-1)*smat(2)%nvctrp_tg+1
-                           call matrix_matrix_mult_wrapper(iproc, nproc, smat(2), &
-                                inv_ovrlp(1)%matrix_compr(ist:), ovrlp_large%matrix_compr(ist:), &
-                                multipoles_matrices(m,l)%matrix_compr(ist:))
-                       end do
-                   end do
-               end do
-        
-               call deallocate_matrices(ovrlp_large)
-               call deallocate_matrices(inv_ovrlp(1))
         
         
         
@@ -487,6 +489,7 @@ module module_utilities
                call yaml_sequence_close()
            end if
     
+           call deallocate_matrices(ovrlp_large)
            call deallocate_matrices(kernel_mat)
            call f_free(supfun_in_fragment)
            call deallocate_sparse_matrix_metadata(smmd)

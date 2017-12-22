@@ -1676,17 +1676,17 @@
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/mpmat_2_0.mpi
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/mpmat_2_1.mpi
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/mpmat_2_2.mpi
- Orbital occupation:
- - Orbital ID                          : -1
-   beta for penaltyfunction            : -1000.0
-   determine eigenvalue bounds:
-   -  {npl:  110, npl penalty:  110, npl determined by: penalty, scale:  1.00E+00, 
+ beta for penaltyfunction              : -1000.0
+ determine eigenvalue bounds:
+ -  {npl:  110, npl penalty:  110, npl determined by: penalty, scale:  1.00E+00, 
  bounds:  [  0.500,  1.500 ], exp accur:  [  7.24E-14 ], 
  Load unbalancing: {Minimal time:  2.06E-02, Maximal time:  3.01E-02, 
                       Ideal time:  2.53E-02, Unbalancing in %:  18.79}, 
  penalty:  4.2E-15, npl calculated:  110, ok:  [  Yes,  Yes ]}
-   summary: {npl:  110, npl determined by: penalty, scale:  1.00E+00, 
+ summary: {npl:  110, npl determined by: penalty, scale:  1.00E+00, 
  bounds:  [  0.500,  1.500 ], exp accur:  [  7.24E-14 ]}
+ Orbital occupation:
+ - Orbital ID                          : -1
    Fragment multipoles:
    - 
      Atom IDs                          :  [  1 ]
@@ -1834,19 +1834,19 @@
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/mpmat_2_0.mpi
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/mpmat_2_1.mpi
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/mpmat_2_2.mpi
- Orbital occupation:
- - Orbital ID                          :  4
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/coeffs.mpi
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/coeffs.mpi
-   beta for penaltyfunction            : -1000.0
-   determine eigenvalue bounds:
-   -  {npl:  110, npl penalty:  110, npl determined by: penalty, scale:  1.00E+00, 
+ beta for penaltyfunction              : -1000.0
+ determine eigenvalue bounds:
+ -  {npl:  110, npl penalty:  110, npl determined by: penalty, scale:  1.00E+00, 
  bounds:  [  0.500,  1.500 ], exp accur:  [  7.24E-14 ], 
  Load unbalancing: {Minimal time:  2.24E-02, Maximal time:  2.83E-02, 
                       Ideal time:  2.53E-02, Unbalancing in %:  11.68}, 
  penalty:  4.2E-15, npl calculated:  110, ok:  [  Yes,  Yes ]}
-   summary: {npl:  110, npl determined by: penalty, scale:  1.00E+00, 
+ summary: {npl:  110, npl determined by: penalty, scale:  1.00E+00, 
  bounds:  [  0.500,  1.500 ], exp accur:  [  7.24E-14 ]}
+ Orbital occupation:
+ - Orbital ID                          :  4
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/coeffs.mpi
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/coeffs.mpi
    Fragment multipoles:
    - Atom IDs                          :  [  1 ]
      Atom names                        :  [ O ]
@@ -1879,15 +1879,6 @@
  - Orbital ID                          :  5
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/coeffs.mpi
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/coeffs.mpi
-   beta for penaltyfunction            : -1000.0
-   determine eigenvalue bounds:
-   -  {npl:  110, npl penalty:  110, npl determined by: penalty, scale:  1.00E+00, 
- bounds:  [  0.500,  1.500 ], exp accur:  [  7.24E-14 ], 
- Load unbalancing: {Minimal time:  2.04E-02, Maximal time:  2.20E-02, 
-                      Ideal time:  2.12E-02, Unbalancing in %:  3.64}, 
- penalty:  4.2E-15, npl calculated:  110, ok:  [  Yes,  Yes ]}
-   summary: {npl:  110, npl determined by: penalty, scale:  1.00E+00, 
- bounds:  [  0.500,  1.500 ], exp accur:  [  7.24E-14 ]}
    Fragment multipoles:
    - Atom IDs                          :  [  1 ]
      Atom names                        :  [ O ]
@@ -1895,28 +1886,28 @@
      Purity indicator                  : -4.391440E-02
      q0                                :  [ -3.122303E-01 ]
      q1                                :  [ -7.792573E-02, -8.187381E-02,  1.284669E-01 ]
-     q2: [ 2.708140E-02, -7.625071E-02,  2.787467E-02,  3.499412E-02, -4.728574E-02]
+     q2: [ 2.708155E-02, -7.625077E-02,  2.787470E-02,  3.499428E-02, -4.728582E-02]
    - Atom IDs                          :  [  2 ]
      Atom names                        :  [ H ]
      Neutral fragment charge           :  1.000000E+00
      Purity indicator                  : -2.986435E-01
      q0                                :  [ -3.654033E-01 ]
-     q1                                :  [  2.756559E-02,  1.917469E-02,  1.709174E-01 ]
-     q2: [-1.105460E-02,  1.375357E-02,  2.687735E-02, -5.750631E-03, -4.860575E-02]
+     q1                                :  [  2.756563E-02,  1.917472E-02,  1.709175E-01 ]
+     q2: [-1.105315E-02,  1.375470E-02,  2.687737E-02, -5.749247E-03, -4.860600E-02]
    - Atom IDs                          :  [  3 ]
      Atom names                        :  [ H ]
      Neutral fragment charge           :  1.000000E+00
      Purity indicator                  : -2.704055E-01
      q0                                :  [ -3.223651E-01 ]
-     q1                                :  [ -1.126597E-01, -1.080953E-01, -1.474472E-02 ]
-     q2: [-1.156804E-03, -3.738812E-02, -1.791636E-02, -1.274019E-03,  3.283813E-02]
+     q1                                :  [ -1.126598E-01, -1.080954E-01, -1.474477E-02 ]
+     q2: [-1.155499E-03, -3.738763E-02, -1.791671E-02, -1.272813E-03,  3.283857E-02]
    - Atom IDs                          :  [  1,  2,  3 ]
      Atom names                        :  [ O, H, H ]
      Neutral fragment charge           :  8.000000E+00
      Purity indicator                  : -6.250000E-02
-     q0                                :  [ -9.999836E-01 ]
-     q1                                :  [  3.699695E-02,  4.368673E-02, -1.448911E-01 ]
-     q2: [ 1.303671E+00,  1.264963E+00, -4.045886E-01,  1.165992E+00,  4.966730E-01]
+     q0                                :  [ -9.999983E-01 ]
+     q1                                :  [  3.699973E-02,  4.368964E-02, -1.448958E-01 ]
+     q2: [ 1.303694E+00,  1.264990E+00, -4.045961E-01,  1.166013E+00,  4.966820E-01]
  Memory Consumption Report:
    Tot. No. of Allocations             :  674
    Tot. No. of Deallocations           :  673
