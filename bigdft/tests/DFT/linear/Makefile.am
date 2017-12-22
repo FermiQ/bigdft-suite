@@ -239,7 +239,7 @@ cleanup.out.post-out:
       --multipole_matrix_2_2=data/mpmat_2_0.mpi \
       --multipole_matrix_2_3=data/mpmat_2_1.mpi \
       --multipole_matrix_2_4=data/mpmat_2_2.mpi \
-	  --orbital_kernel=-1 \
+	  --orbital_file=orbitals_all.yaml \
 	  >> log.yaml
 	$(abs_top_builddir)/src/bigdft-tool \
       --action=fragment-multipoles \
@@ -259,7 +259,7 @@ cleanup.out.post-out:
       --multipole_matrix_2_2=data/mpmat_2_0.mpi \
       --multipole_matrix_2_3=data/mpmat_2_1.mpi \
       --multipole_matrix_2_4=data/mpmat_2_2.mpi \
-	  --orbital_kernel=4 \
+	  --orbital_file=orbital45.yaml \
 	  --coeff_file=data/coeffs.mpi \
 	  >> log.yaml
 
