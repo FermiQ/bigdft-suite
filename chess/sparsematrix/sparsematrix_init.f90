@@ -1682,8 +1682,8 @@ module sparsematrix_init
           end do
       end do
 
-      write(1000+iproc,*) 'nseq, nseq8', nseq, nseq8
-      write(1000+iproc,*) 'npt, nseq_per_line_thread', npt, nseq_per_line_thread
+      !!write(1000+iproc,*) 'nseq, nseq8', nseq, nseq8
+      !!write(1000+iproc,*) 'npt, nseq_per_line_thread', npt, nseq_per_line_thread
 
       call f_free(nseq_per_line_thread)
 
@@ -2041,7 +2041,7 @@ module sparsematrix_init
 
       call f_routine(id='get_arrays_for_sequential_acces_new')
 
-      write(1000+iproc,*) 'nseq, size(ivectorindex)', nseq, size(ivectorindex)
+      !!write(1000+iproc,*) 'nseq, size(ivectorindex)', nseq, size(ivectorindex)
 
       if (.not.smat%smatmul_initialized) then
           call f_err_throw('sparse matrix multiplication not initialized', &
@@ -2127,7 +2127,7 @@ module sparsematrix_init
           ii8 = ii8 + iiarr(i)
       end do
       if (ii8/=nseq) then
-          write(*,*) 'nseq, iiarr', nseq, iiarr
+          !!write(*,*) 'nseq, iiarr', nseq, iiarr
           call f_err_throw(trim(yaml_toa(ii8))//'=ii8 /= nseq='//trim(yaml_toa(nseq)))
       end if
       ivectorindex_work = f_malloc((/1.to.maxval(iiarr),0.to.nthread-1/),id='ivectorindex_work')
@@ -2171,7 +2171,7 @@ module sparsematrix_init
           ii8 = ii8 + iiarr(i)
       end do
       if (ii8/=nseq) then
-          write(*,*) 'nseq, iiarr', nseq, iiarr
+          !!write(*,*) 'nseq, iiarr', nseq, iiarr
           call f_err_throw(trim(yaml_toa(ii8))//'=ii8 /= nseq='//trim(yaml_toa(nseq)))
       end if
 
@@ -2182,9 +2182,9 @@ module sparsematrix_init
           if (ithread==jthread) then
               !$omp critical
               if (iiarr(jthread)>0) then
-                  write(1000+iproc,'(a,2x,5(i0,2x))') &
-                      'jthread, iiarr(jthread), size(ivectorindex_work,1), size(ivectorindex), ii', &
-                       jthread, iiarr(jthread), size(ivectorindex_work,1), size(ivectorindex), ii
+                  !!write(1000+iproc,'(a,2x,5(i0,2x))') &
+                  !!    'jthread, iiarr(jthread), size(ivectorindex_work,1), size(ivectorindex), ii', &
+                  !!     jthread, iiarr(jthread), size(ivectorindex_work,1), size(ivectorindex), ii
                   call f_memcpy(n=iiarr(jthread), src=ivectorindex_work(1,ithread), dest=ivectorindex(ii))
               end if
               !$omp end critical
@@ -2443,7 +2443,7 @@ module sparsematrix_init
           ii8 = ii8 + iiarr(i)
       end do
       if (ii8/=nseq) then
-          write(*,*) 'nseq, iiarr', nseq, iiarr
+          !!write(*,*) 'nseq, iiarr', nseq, iiarr
           call f_err_throw(trim(yaml_toa(ii8))//'=ii8 /= nseq='//trim(yaml_toa(nseq)))
       end if
 
