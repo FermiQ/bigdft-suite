@@ -2123,7 +2123,7 @@ module sparsematrix_init
       !$omp barrier
       !$omp end parallel
       ii8 = 0
-      do i=1,size(iiarr)
+      do i=0,nthread-1
           ii8 = ii8 + iiarr(i)
       end do
       if (ii8/=nseq) then
@@ -2167,7 +2167,7 @@ module sparsematrix_init
       iiarr(ithread) = ii
       !$omp barrier
       ii8 = 0
-      do i=1,size(iiarr)
+      do i=0,nthread-1
           ii8 = ii8 + iiarr(i)
       end do
       if (ii8/=nseq) then
@@ -2439,7 +2439,7 @@ module sparsematrix_init
       !$omp barrier
       !$omp end parallel
       ii8 = 0
-      do i=1,size(iiarr)
+      do i=0,nthread-1
           ii8 = ii8 + iiarr(i)
       end do
       if (ii8/=nseq) then
