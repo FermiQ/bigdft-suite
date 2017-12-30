@@ -1141,7 +1141,8 @@ module matrix_operations
         use sparsematrix, only: sparsemm_new
         use dynamic_memory
         implicit none
-        integer,intent(in) :: iproc, nproc, comm, norb, norbp, isorb, nseq, nout, power
+        integer,intent(in) :: iproc, nproc, comm, norb, norbp, isorb, nout, power
+        integer(kind=8),intent(in) :: nseq
         type(sparse_matrix) :: smat
         real(kind=mp),dimension(nseq),intent(in) :: amat_seq
         real(kind=mp),dimension(smat%smmm%nvctrp),intent(in) :: bmatp
