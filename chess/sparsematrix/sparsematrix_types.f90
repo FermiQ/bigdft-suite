@@ -40,7 +40,8 @@ module sparsematrix_types
   type,public :: sparse_matrix_matrix_multiplication
       integer,dimension(:),pointer :: keyv
       integer,dimension(:,:,:),pointer :: keyg
-      integer :: nout, nseq, nseg
+      integer(kind=8) :: nseq
+      integer :: nout, nseg
       integer :: nfvctrp !< modified number of matrix columns per MPI task for an optimized load balancing during matmul
       integer :: isfvctr !< modified starting column of the matrix for an optimized load balancing during matmul
       integer :: nvctrp_mm !< modified number of compressed matrix elements per MPI task

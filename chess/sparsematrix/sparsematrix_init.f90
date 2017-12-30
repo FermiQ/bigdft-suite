@@ -378,7 +378,7 @@ module sparsematrix_init
       ! Determine ispt
       ispt = get_offset(iproc, nproc, comm, sparsemat%smmm%nout)
       !t1 = mpi_wtime()
-      call determine_sequential_length_new2(sparsemat%smmm%nout, ispt, nseg, norb, &
+      call determine_sequential_length_new2(iproc, sparsemat%smmm%nout, ispt, nseg, norb, &
            sparsemat%smmm%nfvctrp, sparsemat%smmm%isfvctr, keyv, keyg, &
            sparsemat, istsegline, line_and_column, compressed_indices, sparsemat%smmm%nseq, nseq_per_line)
       !t2 = mpi_wtime()
@@ -506,7 +506,7 @@ module sparsematrix_init
       !     sparsemat%smmm%nseq, sparsemat%smmm%ivectorindex)
 
       !t1 = mpi_wtime()
-      call get_arrays_for_sequential_acces_new(sparsemat%smmm%nout, ispt, nseg, sparsemat%smmm%nseq, &
+      call get_arrays_for_sequential_acces_new(iproc, comm, sparsemat%smmm%nout, ispt, nseg, sparsemat%smmm%nseq, &
            norb, sparsemat%smmm%nfvctrp, sparsemat%smmm%isfvctr, &
            keyv, keyg, sparsemat, istsegline, line_and_column, compressed_indices, sparsemat%smmm%ivectorindex_new)
       !t2 = mpi_wtime()
@@ -1548,70 +1548,71 @@ module sparsematrix_init
 
     end subroutine create_lookup_table
 
-    subroutine determine_sequential_length(norb, norbp, isorb, nseg, nsegline, istsegline, keyg, &
-               sparsemat, nseq, nseq_per_line)
-      implicit none
+    !!!subroutine determine_sequential_length(norb, norbp, isorb, nseg, nsegline, istsegline, keyg, &
+    !!!           sparsemat, nseq, nseq_per_line)
+    !!!  implicit none
 
-      ! Calling arguments
-      integer,intent(in) :: norb, norbp, isorb, nseg
-      integer,dimension(norb),intent(in) :: nsegline, istsegline
-      integer,dimension(2,2,nseg),intent(in) :: keyg
-      type(sparse_matrix),intent(in) :: sparsemat
-      integer,intent(out) :: nseq
-      integer,dimension(norb),intent(out) :: nseq_per_line
+    !!!  ! Calling arguments
+    !!!  integer,intent(in) :: norb, norbp, isorb, nseg
+    !!!  integer,dimension(norb),intent(in) :: nsegline, istsegline
+    !!!  integer,dimension(2,2,nseg),intent(in) :: keyg
+    !!!  type(sparse_matrix),intent(in) :: sparsemat
+    !!!  integer,intent(out) :: nseq
+    !!!  integer,dimension(norb),intent(out) :: nseq_per_line
 
-      ! Local variables
-      integer :: i,iseg,jorb,iorb,jseg,ii,nseqline
-      integer :: isegoffset, istart, iend
+    !!!  ! Local variables
+    !!!  integer :: i,iseg,jorb,iorb,jseg,ii,nseqline
+    !!!  integer :: isegoffset, istart, iend
 
-      nseq=0
-      do i = 1,norbp
-         ii=isorb+i
-         isegoffset=istsegline(ii)-1
-         nseqline=0
-         do iseg=1,nsegline(ii)
-              ! A segment is always on one line, therefore no double loop
-              istart=keyg(1,1,isegoffset+iseg)
-              iend=keyg(2,1,isegoffset+iseg)
-              do iorb=istart,iend
-                  do jseg=sparsemat%istsegline(iorb),sparsemat%istsegline(iorb)+sparsemat%nsegline(iorb)-1
-                      ! A segment is always on one line, therefore no double loop
-                      do jorb = sparsemat%keyg(1,1,jseg),sparsemat%keyg(2,1,jseg)
-                          nseq=nseq+1
-                          nseqline=nseqline+1
-                      end do
-                  end do
-              end do
-         end do
-         nseq_per_line(ii)=nseqline
-      end do
+    !!!  nseq=0
+    !!!  do i = 1,norbp
+    !!!     ii=isorb+i
+    !!!     isegoffset=istsegline(ii)-1
+    !!!     nseqline=0
+    !!!     do iseg=1,nsegline(ii)
+    !!!          ! A segment is always on one line, therefore no double loop
+    !!!          istart=keyg(1,1,isegoffset+iseg)
+    !!!          iend=keyg(2,1,isegoffset+iseg)
+    !!!          do iorb=istart,iend
+    !!!              do jseg=sparsemat%istsegline(iorb),sparsemat%istsegline(iorb)+sparsemat%nsegline(iorb)-1
+    !!!                  ! A segment is always on one line, therefore no double loop
+    !!!                  do jorb = sparsemat%keyg(1,1,jseg),sparsemat%keyg(2,1,jseg)
+    !!!                      nseq=nseq+1
+    !!!                      nseqline=nseqline+1
+    !!!                  end do
+    !!!              end do
+    !!!          end do
+    !!!     end do
+    !!!     nseq_per_line(ii)=nseqline
+    !!!  end do
 
-    end subroutine determine_sequential_length
-
-
+    !!!end subroutine determine_sequential_length
 
 
 
-    subroutine determine_sequential_length_new2(npt, ispt, nseg, nline, nlinep, isline, keyv, keyg, smat, &
+
+
+    subroutine determine_sequential_length_new2(iproc, npt, ispt, nseg, nline, nlinep, isline, keyv, keyg, smat, &
                istsegline, line_and_column, compressed_index, nseq, nseq_per_line)
       use dynamic_memory
       implicit none
 
       ! Calling arguments
-      integer,intent(in) :: npt, ispt, nseg, nline, nlinep, isline
+      integer,intent(in) :: iproc, npt, ispt, nseg, nline, nlinep, isline
       integer,dimension(nseg),intent(in) :: keyv
       integer,dimension(2,2,nseg),intent(in) :: keyg
       type(sparse_matrix),intent(in) :: smat
       integer,dimension(smat%nfvctr),intent(in) :: istsegline
       integer,dimension(2,npt),intent(in) :: line_and_column
       integer,dimension(1:nline,isline+1:isline+nlinep),intent(in) :: compressed_index
-      integer,intent(out) :: nseq
+      integer(kind=8),intent(out) :: nseq
       integer,dimension(nline),intent(out) :: nseq_per_line
 
       ! Local variables
       integer :: ipt, iipt, iline, icolumn, jseg, jorb, ii, iseg_start
       integer :: ithread, nthread, jj
       integer,dimension(:,:),allocatable :: nseq_per_line_thread!, compressed_index
+      integer(kind=8) :: nseq8
       !$ integer :: omp_get_thread_num, omp_get_max_threads
 
       call f_routine(id='determine_sequential_length_new2')
@@ -1632,16 +1633,18 @@ module sparsematrix_init
       ! In the following OMP loop, do a reduction of nseq_per_line to avoid the
       ! need of putting a critical statement around its update.
 
+
       nseq = 0
+      nseq8 = 0
       iseg_start = 1
       ithread = 0
       !$omp parallel default(none) &
       !$omp shared(npt, ispt, nseg, keyv, keyg, smat, nline, istsegline) &
-      !$omp shared(line_and_column, nseq, nseq_per_line_thread, compressed_index) &
+      !$omp shared(line_and_column, nseq, nseq8, nseq_per_line_thread, compressed_index) &
       !$omp private(ipt, iipt, iline, icolumn, jseg, jorb, ii, jj) &
       !$omp firstprivate(iseg_start, ithread)
       !$ ithread = omp_get_thread_num()
-      !$omp do reduction(+:nseq)
+      !$omp do reduction(+:nseq, nseq8)
       do ipt=1,npt
           iipt = ispt + ipt
           !call get_line_and_column(iipt, nseg, keyv, keyg, iseg_start, iline, icolumn)
@@ -1660,6 +1663,7 @@ module sparsematrix_init
                   ii = compressed_index(jorb, iline)
                   if (ii>0) then
                       nseq = nseq + 1
+                      nseq8 = nseq8 + 1
                       !nseq_per_line(iline) = nseq_per_line(iline) + 1
                       nseq_per_line_thread(iline,ithread) = nseq_per_line_thread(iline,ithread) + 1
                   end if
@@ -1677,6 +1681,9 @@ module sparsematrix_init
               nseq_per_line(iline) = nseq_per_line(iline) + nseq_per_line_thread(iline,ithread)
           end do
       end do
+
+      write(1000+iproc,*) 'nseq, nseq8', nseq, nseq8
+      write(1000+iproc,*) 'npt, nseq_per_line_thread', npt, nseq_per_line_thread
 
       call f_free(nseq_per_line_thread)
 
@@ -1962,58 +1969,59 @@ module sparsematrix_init
 
 
 
-    subroutine get_arrays_for_sequential_acces(norb, norbp, isorb, nseg, &
-               nsegline, istsegline, keyg, sparsemat, nseq, &
-               ivectorindex)
-      use dynamic_memory
-      implicit none
+    !!subroutine get_arrays_for_sequential_acces(norb, norbp, isorb, nseg, &
+    !!           nsegline, istsegline, keyg, sparsemat, nseq, &
+    !!           ivectorindex)
+    !!  use dynamic_memory
+    !!  implicit none
 
-      ! Calling arguments
-      integer,intent(in) :: norb, norbp, isorb, nseg, nseq
-      integer,dimension(norb),intent(in) :: nsegline, istsegline
-      integer,dimension(2,2,nseg),intent(in) :: keyg
-      type(sparse_matrix),intent(in) :: sparsemat
-      integer,dimension(nseq),intent(out) :: ivectorindex
+    !!  ! Calling arguments
+    !!  integer,intent(in) :: norb, norbp, isorb, nseg, nseq
+    !!  integer,dimension(norb),intent(in) :: nsegline, istsegline
+    !!  integer,dimension(2,2,nseg),intent(in) :: keyg
+    !!  type(sparse_matrix),intent(in) :: sparsemat
+    !!  integer,dimension(nseq),intent(out) :: ivectorindex
 
-      ! Local variables
-      integer :: i,iseg,jorb,jjorb,iorb,jseg,ii,iii
-      integer :: isegoffset, istart, iend
-
-
-      ii=1
-      do i = 1,norbp
-         iii=isorb+i
-         isegoffset=istsegline(iii)-1
-         do iseg=1,nsegline(iii)
-              istart=keyg(1,1,isegoffset+iseg)
-              iend=keyg(2,1,isegoffset+iseg)
-              ! A segment is always on one line, therefore no double loop
-              do iorb=istart,iend
-                  !!istindexarr(iorb-istart+1,iseg,i)=ii
-                  do jseg=sparsemat%istsegline(iorb),sparsemat%istsegline(iorb)+sparsemat%nsegline(iorb)-1
-                      ! A segment is always on one line, therefore no double loop
-                      do jorb = sparsemat%keyg(1,1,jseg),sparsemat%keyg(2,1,jseg)
-                          jjorb = jorb
-                          ivectorindex(ii)=jjorb
-                          ii = ii+1
-                      end do
-                  end do
-              end do
-         end do
-      end do
-      if (ii/=nseq+1) stop 'ii/=nseq+1'
-
-    end subroutine get_arrays_for_sequential_acces
+    !!  ! Local variables
+    !!  integer :: i,iseg,jorb,jjorb,iorb,jseg,ii,iii
+    !!  integer :: isegoffset, istart, iend
 
 
+    !!  ii=1
+    !!  do i = 1,norbp
+    !!     iii=isorb+i
+    !!     isegoffset=istsegline(iii)-1
+    !!     do iseg=1,nsegline(iii)
+    !!          istart=keyg(1,1,isegoffset+iseg)
+    !!          iend=keyg(2,1,isegoffset+iseg)
+    !!          ! A segment is always on one line, therefore no double loop
+    !!          do iorb=istart,iend
+    !!              !!istindexarr(iorb-istart+1,iseg,i)=ii
+    !!              do jseg=sparsemat%istsegline(iorb),sparsemat%istsegline(iorb)+sparsemat%nsegline(iorb)-1
+    !!                  ! A segment is always on one line, therefore no double loop
+    !!                  do jorb = sparsemat%keyg(1,1,jseg),sparsemat%keyg(2,1,jseg)
+    !!                      jjorb = jorb
+    !!                      ivectorindex(ii)=jjorb
+    !!                      ii = ii+1
+    !!                  end do
+    !!              end do
+    !!          end do
+    !!     end do
+    !!  end do
+    !!  if (ii/=nseq+1) stop 'ii/=nseq+1'
 
-    subroutine get_arrays_for_sequential_acces_new(nout, ispt, nseg, nseq, nline, nlinep, isline, keyv, keyg, &
+    !!end subroutine get_arrays_for_sequential_acces
+
+
+
+    subroutine get_arrays_for_sequential_acces_new(iproc, comm, nout, ispt, nseg, nseq, nline, nlinep, isline, keyv, keyg, &
                smat, istsegline, line_and_column, compressed_index, ivectorindex)
       use dynamic_memory
       implicit none
 
       ! Calling arguments
-      integer,intent(in) :: nout, ispt, nseg, nseq, nline, nlinep, isline
+      integer,intent(in) :: nout, ispt, nseg, nline, nlinep, isline, iproc, comm
+      integer(kind=8),intent(in) :: nseq
       integer,dimension(nseg),intent(in) :: keyv
       integer,dimension(2,2,nseg),intent(in) :: keyg
       type(sparse_matrix),intent(in) :: smat
@@ -2023,7 +2031,8 @@ module sparsematrix_init
       integer,dimension(nseq),intent(out) :: ivectorindex
 
       ! Local variables
-      integer :: ii, ipt, iipt, iline, icolumn, jseg, jorb, ind, iseg_start
+      integer :: ii, ipt, iipt, iline, icolumn, jseg, jorb, ind, iseg_start, i
+      integer(kind=8) :: ii8
       integer :: ithread, jthread, nthread
       integer,dimension(:),allocatable :: iiarr
       integer,dimension(:,:),pointer :: ise
@@ -2031,6 +2040,8 @@ module sparsematrix_init
       !$ integer :: omp_get_thread_num
 
       call f_routine(id='get_arrays_for_sequential_acces_new')
+
+      write(1000+iproc,*) 'nseq, size(ivectorindex)', nseq, size(ivectorindex)
 
       if (.not.smat%smatmul_initialized) then
           call f_err_throw('sparse matrix multiplication not initialized', &
@@ -2111,8 +2122,16 @@ module sparsematrix_init
       iiarr(ithread) = ii
       !$omp barrier
       !$omp end parallel
-      if (sum(iiarr)/=nseq) call f_err_throw('sum(iiarr)/=nseq')
+      ii8 = 0
+      do i=1,size(iiarr)
+          ii8 = ii8 + iiarr(i)
+      end do
+      if (ii8/=nseq) then
+          write(*,*) 'nseq, iiarr', nseq, iiarr
+          call f_err_throw(trim(yaml_toa(ii8))//'=ii8 /= nseq='//trim(yaml_toa(nseq)))
+      end if
       ivectorindex_work = f_malloc((/1.to.maxval(iiarr),0.to.nthread-1/),id='ivectorindex_work')
+
 
       ii = 0
       iseg_start = 1
@@ -2120,8 +2139,8 @@ module sparsematrix_init
       !$omp parallel &
       !$omp default (none) &
       !$omp shared(ise, ispt, nseg, keyv, keyg, smat, istsegline, iiarr, nthread) &
-      !$omp shared(ivectorindex_work, ivectorindex, nseq, line_and_column, compressed_index) &
-      !$omp private(ipt, iipt, iline, icolumn, ind, jthread,jseg,jorb) &
+      !$omp shared(ivectorindex_work, ivectorindex, nseq, line_and_column, compressed_index, iproc, comm) &
+      !$omp private(ipt, iipt, iline, icolumn, ind, jthread,jseg,jorb,ii8) &
       !$omp firstprivate(ii, iseg_start, ithread)
       !$ ithread = omp_get_thread_num()
       do ipt=ise(1,ithread),ise(2,ithread)
@@ -2147,8 +2166,13 @@ module sparsematrix_init
       end do
       iiarr(ithread) = ii
       !$omp barrier
-      if (sum(iiarr)/=nseq) then
-          call f_err_throw('sum(iiarr)/=nseq')
+      ii8 = 0
+      do i=1,size(iiarr)
+          ii8 = ii8 + iiarr(i)
+      end do
+      if (ii8/=nseq) then
+          write(*,*) 'nseq, iiarr', nseq, iiarr
+          call f_err_throw(trim(yaml_toa(ii8))//'=ii8 /= nseq='//trim(yaml_toa(nseq)))
       end if
 
       !!call f_free(compressed_index)
@@ -2156,9 +2180,14 @@ module sparsematrix_init
       ii = 1
       do jthread=0,nthread-1
           if (ithread==jthread) then
+              !$omp critical
               if (iiarr(jthread)>0) then
+                  write(1000+iproc,'(a,2x,5(i0,2x))') &
+                      'jthread, iiarr(jthread), size(ivectorindex_work,1), size(ivectorindex), ii', &
+                       jthread, iiarr(jthread), size(ivectorindex_work,1), size(ivectorindex), ii
                   call f_memcpy(n=iiarr(jthread), src=ivectorindex_work(1,ithread), dest=ivectorindex(ii))
               end if
+              !$omp end critical
           end if
           ii = ii + iiarr(jthread)
       end do
@@ -2182,7 +2211,8 @@ module sparsematrix_init
       implicit none
 
       ! Calling arguments
-      integer,intent(in) :: nout, nseq
+      integer,intent(in) :: nout
+      integer(kind=8),intent(in) :: nseq
       integer,dimension(nseq),intent(in) :: ivectorindex
       integer,dimension(5,nout),intent(inout) :: onedimindices_new
       integer,intent(out) :: nconsecutive_max
@@ -2260,46 +2290,46 @@ module sparsematrix_init
     end subroutine determine_consecutive_values
 
 
-    subroutine init_sequential_acces_matrix(norb, norbp, isorb, nseg, &
-               nsegline, istsegline, keyg, sparsemat, nseq, &
-               indices_extract_sequential)
-      implicit none
+    !!subroutine init_sequential_acces_matrix(norb, norbp, isorb, nseg, &
+    !!           nsegline, istsegline, keyg, sparsemat, nseq, &
+    !!           indices_extract_sequential)
+    !!  implicit none
 
-      ! Calling arguments
-      integer,intent(in) :: norb, norbp, isorb, nseg, nseq
-      integer,dimension(norb),intent(in) :: nsegline, istsegline
-      integer,dimension(2,2,nseg),intent(in) :: keyg
-      type(sparse_matrix),intent(in) :: sparsemat
-      integer,dimension(nseq),intent(out) :: indices_extract_sequential
+    !!  ! Calling arguments
+    !!  integer,intent(in) :: norb, norbp, isorb, nseg, nseq
+    !!  integer,dimension(norb),intent(in) :: nsegline, istsegline
+    !!  integer,dimension(2,2,nseg),intent(in) :: keyg
+    !!  type(sparse_matrix),intent(in) :: sparsemat
+    !!  integer,dimension(nseq),intent(out) :: indices_extract_sequential
 
-      ! Local variables
-      integer :: i,iseg,jorb,jj,iorb,jseg,ii,iii
-      integer :: isegoffset, istart, iend
+    !!  ! Local variables
+    !!  integer :: i,iseg,jorb,jj,iorb,jseg,ii,iii
+    !!  integer :: isegoffset, istart, iend
 
 
-      ii=1
-      do i = 1,norbp
-         iii=isorb+i
-         isegoffset=istsegline(iii)-1
-         do iseg=1,nsegline(iii)
-              istart=keyg(1,1,isegoffset+iseg)
-              iend=keyg(2,1,isegoffset+iseg)
-              ! A segment is always on one line, therefore no double loop
-              do iorb=istart,iend
-                  do jseg=sparsemat%istsegline(iorb),sparsemat%istsegline(iorb)+sparsemat%nsegline(iorb)-1
-                      ! A segment is always on one line, therefore no double loop
-                      jj=1
-                      do jorb = sparsemat%keyg(1,1,jseg),sparsemat%keyg(2,1,jseg)
-                          indices_extract_sequential(ii)=sparsemat%keyv(jseg)+jj-1
-                          jj = jj+1
-                          ii = ii+1
-                      end do
-                  end do
-              end do
-         end do
-      end do
+    !!  ii=1
+    !!  do i = 1,norbp
+    !!     iii=isorb+i
+    !!     isegoffset=istsegline(iii)-1
+    !!     do iseg=1,nsegline(iii)
+    !!          istart=keyg(1,1,isegoffset+iseg)
+    !!          iend=keyg(2,1,isegoffset+iseg)
+    !!          ! A segment is always on one line, therefore no double loop
+    !!          do iorb=istart,iend
+    !!              do jseg=sparsemat%istsegline(iorb),sparsemat%istsegline(iorb)+sparsemat%nsegline(iorb)-1
+    !!                  ! A segment is always on one line, therefore no double loop
+    !!                  jj=1
+    !!                  do jorb = sparsemat%keyg(1,1,jseg),sparsemat%keyg(2,1,jseg)
+    !!                      indices_extract_sequential(ii)=sparsemat%keyv(jseg)+jj-1
+    !!                      jj = jj+1
+    !!                      ii = ii+1
+    !!                  end do
+    !!              end do
+    !!          end do
+    !!     end do
+    !!  end do
 
-    end subroutine init_sequential_acces_matrix
+    !!end subroutine init_sequential_acces_matrix
 
 
 
@@ -2310,7 +2340,8 @@ module sparsematrix_init
       implicit none
 
       ! Calling arguments
-      integer,intent(in) :: nout, ispt, nseg, nseq, nline, nlinep, isline
+      integer,intent(in) :: nout, ispt, nseg, nline, nlinep, isline
+      integer(kind=8),intent(in) :: nseq
       integer,dimension(nseg),intent(in) :: keyv
       integer,dimension(2,2,nseg),intent(in) :: keyg
       type(sparse_matrix),intent(in) :: smat
@@ -2320,7 +2351,8 @@ module sparsematrix_init
       integer,dimension(nseq),intent(out) :: indices_extract_sequential
 
       ! Local variables
-      integer :: ii, ipt, iipt, iline, icolumn, jseg, jj, jorb, ind, iseg_start
+      integer :: ii, ipt, iipt, iline, icolumn, jseg, jj, jorb, ind, iseg_start, i
+      integer(kind=8) :: ii8
       integer :: ithread, jthread, nthread
       integer,dimension(:),allocatable :: iiarr
       integer,dimension(:,:),pointer :: ise
@@ -2406,7 +2438,14 @@ module sparsematrix_init
       iiarr(ithread) = ii
       !$omp barrier
       !$omp end parallel
-      if (sum(iiarr)/=nseq) call f_err_throw('sum(iiarr)/=nseq')
+      ii8 = 0
+      do i=1,size(iiarr)
+          ii8 = ii8 + iiarr(i)
+      end do
+      if (ii8/=nseq) then
+          write(*,*) 'nseq, iiarr', nseq, iiarr
+          call f_err_throw(trim(yaml_toa(ii8))//'=ii8 /= nseq='//trim(yaml_toa(nseq)))
+      end if
 
       indices_extract_sequential_work = f_malloc((/1.to.maxval(iiarr),0.to.nthread-1/),id='indices_extract_sequential_work')
     
@@ -2531,11 +2570,12 @@ module sparsematrix_init
 
     subroutine check_matmul_layout(nseq,indices_extract_sequential,ind_min,ind_max)
       implicit none
-      integer, intent(in) :: nseq
+      integer(kind=8), intent(in) :: nseq
       integer, dimension(nseq), intent(in) :: indices_extract_sequential
       integer, intent(inout) :: ind_min,ind_max
       !local variables
-      integer :: iseq,ind
+      integer(kind=8) :: iseq
+      integer :: ind
       call f_routine(id='check_matmul_layout')
 
       !$omp parallel default(none) shared(nseq,indices_extract_sequential, ind_min, ind_max) private(iseq, ind)
