@@ -5849,10 +5849,13 @@ module sparsematrix_init
       type(sparse_matrix),intent(in) :: smat
       integer,intent(inout) :: ind_min, ind_max
 
-      integer :: ii, natp, jj, isat, kat, iatold, kkat, i, j, ind
+      integer :: ii, natp, jj, isat, kat, kkat, i, j, ind, ithread, nthread
       integer,dimension(:),allocatable :: orbs_atom_id
-      integer,dimension(:),allocatable :: neighbor_id
+      integer,dimension(:,:),allocatable :: neighbor_id
       integer,parameter :: ntmb_max = 16 !maximal number of TMBs per atom
+      !$ integer :: omp_get_thread_num, omp_get_max_threads
+
+      call f_routine(id='check_projector_charge_analysis')
 
       ! Parallelization over the number of atoms
       ii = smmd%nat/nproc
@@ -5873,28 +5876,37 @@ module sparsematrix_init
           end if
       end do
 
-      neighbor_id = f_malloc(0.to.smat%nfvctr,id='neighbor_id')
+      nthread = 1
+      !$ nthread = omp_get_max_threads()
+      neighbor_id = f_malloc([0.to.smat%nfvctr,0.to.nthread-1],id='neighbor_id')
+
+      ithread = 0
+      !$omp parallel default (none) &
+      !$omp shared (natp, isat, orbs_atom_id, smat, neighbor_id, ind_min, ind_max) &
+      !$omp private (kat, kkat, i, j, ind, ii, jj) &
+      !$omp firstprivate(ithread)
+      !$ ithread = omp_get_thread_num()
+      !$omp do reduction(max: ind_max)  reduction(min: ind_min)
       do kat=1,natp
           ! Determine the "neighbors"
-          iatold = 0
           kkat = kat + isat
-          neighbor_id(0) = 0
+          neighbor_id(0,ithread) = 0
           !do ii=1,orbs_atom_id(0,kat)
               i = orbs_atom_id(kat)
               do j=1,smat%nfvctr
                   ind =  matrixindex_in_compressed(smat, j, i)
                   if (ind/=0) then
-                     neighbor_id(0) = neighbor_id(0) + 1
-                     neighbor_id(neighbor_id(0)) = j
+                     neighbor_id(0,ithread) = neighbor_id(0,ithread) + 1
+                     neighbor_id(neighbor_id(0,ithread),ithread) = j
                   end if
               end do
           !end do
 
           ! Determine the size of the matrix needed
-          do ii=1,neighbor_id(0)
-              i = neighbor_id(ii)
-              do jj=1,neighbor_id(0)
-                  j = neighbor_id(jj)
+          do ii=1,neighbor_id(0,ithread)
+              i = neighbor_id(ii,ithread)
+              do jj=1,neighbor_id(0,ithread)
+                  j = neighbor_id(jj,ithread)
                   ind =  matrixindex_in_compressed(smat, j, i)
                   if (ind>0) then
                       ind_min = min(ind_min,ind)
@@ -5903,9 +5915,13 @@ module sparsematrix_init
               end do
           end do
       end do
+      !$omp end do
+      !$omp end parallel
 
       call f_free(orbs_atom_id)
       call f_free(neighbor_id)
+
+      call f_release_routine()
 
     end subroutine check_projector_charge_analysis
 

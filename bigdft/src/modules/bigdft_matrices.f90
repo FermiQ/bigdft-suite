@@ -41,6 +41,7 @@ module bigdft_matrices
                         
     
           call timing(iproc,'matrix_extents','ON')
+          call f_routine(id='check_local_matrix_extents')
           if (extra_timing) call cpu_time(trt0)  
 
           ind_min = smat%nvctr
@@ -147,12 +148,14 @@ module bigdft_matrices
           if (extra_timing.and.iproc==0) print*,'matextent',time0,time1,time2,time3,time4,time5,&
                time0+time1+time2+time3+time4+time5,ttime
 
+          call f_release_routine()
           call timing(iproc,'matrix_extents','OF')    
     
     end subroutine check_local_matrix_extents
 
 
     subroutine find_minmax_transposed(mat_ind_compr2,collcom,nfvctr,ind_min,ind_max)
+      use futile
       use communications_base, only: comms_linear
       use module_types, only: matrixindex_in_compressed_fortransposed2
       implicit none
@@ -164,6 +167,8 @@ module bigdft_matrices
       integer, intent(inout) :: ind_min,ind_max
       !local variables
       integer :: ipt, ii, i0, i, i0i, iiorb, j, i0j, jjorb, ind, iorb, jorb, ia, ib
+
+      call f_routine(id='find_minmax_transposed')
 
       !$omp parallel default(none) &
       !$omp private(ipt,ii,i0,i,i0i,iiorb,iorb,j,i0j,jjorb,jorb,ind,ia,ib) &
@@ -229,6 +234,8 @@ module bigdft_matrices
       !$omp end do
       !$omp end parallel
 
+      call f_release_routine()
+
     end subroutine find_minmax_transposed
 
 
@@ -237,6 +244,7 @@ module bigdft_matrices
 
 
     subroutine check_sumrho_layout(collcom_sr,nfvctr,mat_ind_compr2,ind_min,ind_max)
+      use futile
       use communications_base, only: comms_linear
       use sparsematrix_init, only: matrixindex_in_compressed
       use module_types, only: matrixindex_in_compressed_fortransposed2
@@ -249,6 +257,8 @@ module bigdft_matrices
       integer, intent(inout) :: ind_min,ind_max
       !local variables
       integer :: ipt, ii, i0, i, iiorb, ind, iorb, ia, ib
+
+      call f_routine(id='check_sumrho_layout')
 
       !$omp parallel default(none) &
       !$omp private(ipt,ii,i0,iiorb,iorb,ind,i,ia,ib) &
@@ -273,6 +283,9 @@ module bigdft_matrices
       end do
       !$omp end do
       !$omp end parallel
+
+      call f_release_routine()
+
     end subroutine check_sumrho_layout
 
 
@@ -711,6 +724,7 @@ module bigdft_matrices
 
 
     subroutine check_orbital_matrix_distribution(orbs, smat, ind_min, ind_max)
+      use futile
       use module_types, only: orbitals_data
       use sparsematrix_base, only: sparse_matrix
       implicit none
@@ -723,6 +737,7 @@ module bigdft_matrices
       ! Local variables
       integer :: iorb, ispin, iiorb, ishift, isegstart, isegend, iseg, i, ii
 
+      call f_routine(id='check_orbital_matrix_distribution')
 
       do iorb=orbs%isorb+1,orbs%isorb+orbs%norbp
           if (orbs%spinsgn(iorb)>0.d0) then
@@ -747,6 +762,8 @@ module bigdft_matrices
       end do
 
       !write(*,*) 'end sub: ind_min, ind_max', ind_min, ind_max
+
+      call f_release_routine()
 
     end subroutine check_orbital_matrix_distribution
 
