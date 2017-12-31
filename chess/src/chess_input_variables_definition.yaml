@@ -22,7 +22,7 @@
 # chess:
 #   DESCRIPTION: Parameters required for CheSS
  foe:
-   DESCRIPTION: Parameters for Fermi Operatir Expansion
+   DESCRIPTION: Parameters for Fermi Operator Expansion
    ef_interpol_det:
      COMMENT: FOE max determinant of cubic interpolation matrix
      RANGE: [0., 1.]
@@ -110,6 +110,9 @@
    #    This value will be adjusted automatically if not chosen appropriately.
    #  RANGE: [1.e-3,5.e-2]
    #  default: 2.e-2
+   matmul_optimize_load_balancing:
+     COMMENT: optimize the load balancing of the sparse matrix matrix multiplications (at the cost of memory unbalancing)
+     default: yes
  lapack:
    blocksize_pdsyev:
      COMMENT: SCALAPACK linear scaling blocksize for diagonalization

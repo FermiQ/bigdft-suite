@@ -588,7 +588,8 @@ module bigdft_matrices
       ! are always done with the linmat%smat(3) type.
       call init_sparse_matrix_wrapper(iproc, nproc, &
            in%nspin, orbs, lzd_s, atoms%astruct, &
-           in%store_index, init_matmul=.false., imode=1, smat=linmat%smat(1))
+           in%store_index, init_matmul=.false., matmul_optimize_load_balancing=.false., &
+           imode=1, smat=linmat%smat(1))
       call init_matrixindex_in_compressed_fortransposed(iproc, nproc, &
            collcom_s, collcom_m, collcom_s_sr, linmat%smat(1), &
            linmat%auxs)
@@ -597,7 +598,8 @@ module bigdft_matrices
       ! are always done with the linmat%smat(3) type.
       call init_sparse_matrix_wrapper(iproc, nproc, &
            in%nspin, orbs, lzd_m, atoms%astruct, &
-           in%store_index, init_matmul=.false., imode=1, smat=linmat%smat(2))
+           in%store_index, init_matmul=.false., matmul_optimize_load_balancing=.false., &
+           imode=1, smat=linmat%smat(2))
       call init_matrixindex_in_compressed_fortransposed(iproc, nproc, &
            collcom_s, collcom_m, collcom_s_sr, linmat%smat(2), &
            linmat%auxm)
@@ -609,7 +611,8 @@ module bigdft_matrices
       call check_kernel_cutoff(iproc, orbs, atoms, in%hamapp_radius_incr, lzd_s, only_check=.true.)
       call init_sparse_matrix_wrapper(iproc, nproc, &
            in%nspin, orbs, lzd_s, atoms%astruct, &
-           in%store_index, init_matmul=.true., imode=2, smat=linmat%smat(3), smat_ref=linmat%smat(2))
+           in%store_index, init_matmul=.true., matmul_optimize_load_balancing=in%cp%foe%matmul_optimize_load_balancing, &
+           imode=2, smat=linmat%smat(3), smat_ref=linmat%smat(2))
       call init_matrixindex_in_compressed_fortransposed(iproc, nproc, &
            collcom_s, collcom_m, collcom_s_sr, linmat%smat(3), &
            linmat%auxl)

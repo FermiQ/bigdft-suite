@@ -47,6 +47,7 @@ module chess_base
     real(mp) :: accuracy_foe, accuracy_ice, accuracy_penalty, accuracy_entropy
     real(mp) :: betax_foe, betax_ice
     logical :: adjust_fscale
+    logical :: matmul_optimize_load_balancing
   end type foe_params
 
   type, public :: lapack_params
@@ -116,6 +117,7 @@ module chess_base
   character(len=*),parameter :: BETAX_ICE              = "betax_ice"
   character(len=*),parameter :: OCCUPATION_FUNCTION    = "occupation_function"
   character(len=*),parameter :: ADJUST_FSCALE          = "adjust_fscale"
+  character(len=*),parameter :: MATMUL_OPTIMIZE_LOAD_BALANCING = "matmul_optimize_load_balancing"
 
 
 
@@ -148,6 +150,7 @@ module chess_base
       fp%betax_ice = 0.0_mp
       fp%occupation_function = 0
       fp%adjust_fscale = .false.
+      fp%matmul_optimize_load_balancing = .false.
     end function foe_params_null
 
     pure function lapack_params_null() result(lp)
@@ -325,6 +328,8 @@ module chess_base
               cp%foe%occupation_function = val
           case(ADJUST_FSCALE)
               cp%foe%adjust_fscale = val
+          case(MATMUL_OPTIMIZE_LOAD_BALANCING)
+              cp%foe%matmul_optimize_load_balancing = val
           case default
               call yaml_warning("unknown input key '" // trim(level) // "/" // trim(dict_key(val)) // "'")
           end select
