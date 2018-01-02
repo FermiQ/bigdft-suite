@@ -6114,7 +6114,6 @@ end subroutine calculate_rpowerx_matrices
 
       ! Local variables
       integer :: iat_old, iorb, iat, ii, ilr, itype, l, m, mm
-      integer,dimension(:),allocatable :: iatype_tmp
       real(kind=8),dimension(:,:),allocatable :: delta_centers
       character(len=20),dimension(:),allocatable :: names
       type(external_potential_descriptors) :: ep
@@ -6123,7 +6122,6 @@ end subroutine calculate_rpowerx_matrices
 
       call yaml_sequence_open('Gross support functions moments')
       call yaml_map('Orthonormalization',do_ortho)
-      iatype_tmp = f_malloc(tmb%orbs%norb,id='iatype_tmp')
       delta_centers = f_malloc((/3,tmb%orbs%norb/),id='delta_centers')
       iat_old = -1
       names = f_malloc_str(len(names),tmb%orbs%norb,id='names')
@@ -6133,52 +6131,85 @@ end subroutine calculate_rpowerx_matrices
       allocate(ep%mpl(ep%nmpl))
 
       do iorb=1,tmb%orbs%norb
-          iat = tmb%orbs%onwhichatom(iorb)
-          if (iat/=iat_old) then
-              ii = 1
-          else
-              ii = ii + 1
-          end if
-          iat_old = iat
-          ilr = tmb%orbs%inwhichlocreg(iorb)
-          itype = atoms%astruct%iatype(iat)
-          iatype_tmp(iorb) = itype
-          names(iorb) = trim(atoms%astruct%atomnames(itype))//'-'//adjustl(trim(yaml_toa(ii)))
-          ! delta_centers gives the difference between the charge center and the localization center
-          delta_centers(1:3,iorb) = center_locreg(1:3,ilr) - tmb%lzd%llr(ilr)%locregcenter(1:3)
-          !write(*,*) 'iorb, ilr, center_locreg(1:3,ilr) - tmb%lzd%llr(ilr)%locregcenter(1:3)', &
-          !           iorb, ilr, center_locreg(1:3,ilr) - tmb%lzd%llr(ilr)%locregcenter(1:3)
-          !write(*,*) 'iorb, delta_centers(1:3,iorb)', iorb, delta_centers(1:3,iorb)
-          ! Undo the global shift of the centers
-          center_orb(1:3,iorb) = center_orb(1:3,iorb) + shift(1:3)
-
-          ep%mpl(iorb) = multipole_set_null()
-          allocate(ep%mpl(iorb)%qlm(0:lmax))
-          ep%mpl(iorb)%rxyz = center_orb(1:3,iorb)
-          ep%mpl(iorb)%sym = trim(names(iorb))
-          ep%mpl(iorb)%mpchar = 'G'
-          do l=0,lmax
-              ep%mpl(iorb)%qlm(l) = multipole_null()
-              !if (l>=3) cycle
-              ep%mpl(iorb)%qlm(l)%q = f_malloc_ptr(2*l+1,id='q')
-              mm = 0
-              do m=-l,l
-                  mm = mm + 1
-                  ep%mpl(iorb)%qlm(l)%q(mm) = multipoles(m,l,iorb)
-              end do
-          end do
+         call prepare_multipole_object(iorb, tmb, atoms, center_locreg, center_orb, &
+              lmax, shift, multipoles, names, delta_centers, ep)
       end do
       call write_multipoles_new(ep, lmax, atoms%astruct%units, &
            delta_centers, tmb%orbs%onwhichatom, scaled)
       call deallocate_external_potential_descriptors(ep)
       call f_free(delta_centers)
-      call f_free(iatype_tmp)
       call f_free_str(len(names),names)
 
       call yaml_sequence_close()
 
       call f_release_routine()
 
+
+
+
     end subroutine write_support_functions_multipoles
+
+
+
+    ! This subroutine only exists for the timing...
+    subroutine prepare_multipole_object(iorb, tmb, atoms, center_locreg, center_orb, &
+               lmax, shift, multipoles, names, delta_centers, ep)
+      use module_types, only: DFT_wavefunction, atoms_data
+      use multipole_base, only: external_potential_descriptors, multipole_set_null, multipole_null
+      implicit none
+
+      ! Calling arguments
+      type(DFT_wavefunction),intent(in) :: tmb
+      type(atoms_data),intent(in) :: atoms
+      real(kind=8),dimension(3,tmb%lzd%nlr),intent(in) :: center_locreg
+      real(kind=8),dimension(3,tmb%lzd%nlr),intent(inout) :: center_orb
+      integer,intent(in) :: lmax
+      real(kind=8),dimension(3),intent(in) :: shift !< global shift of the atomic positions
+      real(kind=8),dimension(-lmax:lmax,0:lmax,1:tmb%orbs%norb),intent(in) :: multipoles
+      character(len=*),dimension(tmb%orbs%norb),intent(inout) :: names
+      real(kind=8),dimension(3,tmb%orbs%norb),intent(inout) :: delta_centers
+      type(external_potential_descriptors),intent(inout) :: ep
+
+      integer :: iat_old, iorb, iat, ii, ilr, itype, l, m, mm
+
+      call f_routine(id='prepare_multipole_object')
+
+      iat = tmb%orbs%onwhichatom(iorb)
+      if (iat/=iat_old) then
+          ii = 1
+      else
+          ii = ii + 1
+      end if
+      iat_old = iat
+      ilr = tmb%orbs%inwhichlocreg(iorb)
+      itype = atoms%astruct%iatype(iat)
+      names(iorb) = trim(atoms%astruct%atomnames(itype))//'-'//adjustl(trim(yaml_toa(ii)))
+      ! delta_centers gives the difference between the charge center and the localization center
+      delta_centers(1:3,iorb) = center_locreg(1:3,ilr) - tmb%lzd%llr(ilr)%locregcenter(1:3)
+      !write(*,*) 'iorb, ilr, center_locreg(1:3,ilr) - tmb%lzd%llr(ilr)%locregcenter(1:3)', &
+      !           iorb, ilr, center_locreg(1:3,ilr) - tmb%lzd%llr(ilr)%locregcenter(1:3)
+      !write(*,*) 'iorb, delta_centers(1:3,iorb)', iorb, delta_centers(1:3,iorb)
+      ! Undo the global shift of the centers
+      center_orb(1:3,iorb) = center_orb(1:3,iorb) + shift(1:3)
+
+      ep%mpl(iorb) = multipole_set_null()
+      allocate(ep%mpl(iorb)%qlm(0:lmax))
+      ep%mpl(iorb)%rxyz = center_orb(1:3,iorb)
+      ep%mpl(iorb)%sym = trim(names(iorb))
+      ep%mpl(iorb)%mpchar = 'G'
+      do l=0,lmax
+          ep%mpl(iorb)%qlm(l) = multipole_null()
+          !if (l>=3) cycle
+          ep%mpl(iorb)%qlm(l)%q = f_malloc_ptr(2*l+1,id='q')
+          mm = 0
+          do m=-l,l
+              mm = mm + 1
+              ep%mpl(iorb)%qlm(l)%q(mm) = multipoles(m,l,iorb)
+          end do
+      end do
+
+      call f_release_routine()
+
+    end subroutine prepare_multipole_object
 
 end module multipole
