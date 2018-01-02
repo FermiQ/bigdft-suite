@@ -1927,8 +1927,13 @@ module sparsematrix_init
       integer,dimension(:,:),pointer,intent(out) :: consecutive_lookup
 
       ! Local variables
-      integer :: itot, ipt, iipt, iline, icolumn, ilen, jseg, ii, jorb
-      integer :: iseg_start, iconsec, ii_prev, nconsecutive, nconsecutive_tot
+      integer :: itot, ipt, iipt, iline, icolumn, ilen, jseg, ii, jorb, ithread, nthread, i, n
+      integer :: iseg_start, iconsec, ii_prev, nconsecutive, nconsecutive_tot, jthread, ioffset
+      integer,dimension(:),allocatable :: nconsecutive_tot_arr
+      integer,dimension(:,:),allocatable :: onedimindices5_thread
+      integer,dimension(:,:),pointer :: ise
+      !$ integer :: omp_get_max_threads, omp_get_thread_num
+
 
       !!write(*,*) 'iproc, nout, ispt', bigdft_mpi%iproc, nout, ispt
       call f_routine(id='init_onedimindices_newnew')
@@ -1939,17 +1944,30 @@ module sparsematrix_init
                err_name='SPARSEMATRIX_RUNTIME_ERROR')
       end if
 
-      ! Handle index 3 separately to enable OpenMP
 
-      nconsecutive_tot = 0
-      iseg_start = 1
-      !!!$omp parallel default(none) &
-      !!!$omp shared(nout, ispt, nseg, keyv, keyg, onedimindices, smat, istsegline) &
-      !!!$omp shared(line_and_column, compressed_index) &
-      !!!$omp firstprivate(iseg_start, nconsecutive_tot) &
-      !!!$omp private(ipt, iipt, iline, icolumn, ilen, jseg, jorb, ii, ilen)
-      !!!$omp do
-      do ipt=1,nout
+      nthread = 1
+      !$ nthread = omp_get_max_threads()
+      call distribute_on_threads(1, nout, nthread, ise)
+
+      ii = 0
+      do ithread=0,nthread-1
+          ii = max(ii,ise(2,ithread)-ise(1,ithread)+1)
+      end do
+      onedimindices5_thread = f_malloc([1.to.ii,0.to.ithread-1],id='onedimindices5_thread')
+      nconsecutive_tot_arr = f_malloc(0.to.nthread-1,id='nconsecutive_tot_arr')
+
+      ithread = 0
+      nconsecutive_tot_arr(:) = 0
+
+      !$omp parallel &
+      !$omp default(none) &
+      !$omp shared(ise, ispt, onedimindices, smat, nconsecutive_tot_arr, onedimindices5_thread) &
+      !$omp shared(line_and_column, compressed_index) &
+      !$omp private(ipt, iipt, iline, icolumn, ilen, nconsecutive, jseg, jorb, ii, ii_prev) &
+      !$omp firstprivate(ithread)
+      !$ ithread = omp_get_thread_num()
+      do ipt=ise(1,ithread),ise(2,ithread)
+          write(*,*) 'ithread, ise(:,ithread)', ithread, ise(:,ithread)
           iipt = ispt + ipt
           iline = line_and_column(1,ipt)
           icolumn = line_and_column(2,ipt)
@@ -1961,8 +1979,9 @@ module sparsematrix_init
           end if
           ilen = 0
           nconsecutive = 1
-          nconsecutive_tot = nconsecutive_tot + 1
-          onedimindices(5,ipt) = nconsecutive_tot - 1
+          nconsecutive_tot_arr(ithread) = nconsecutive_tot_arr(ithread) + 1
+          !onedimindices(5,ipt) = nconsecutive_tot - 1
+          onedimindices5_thread(ipt-ise(1,ithread)+1,ithread) = nconsecutive_tot_arr(ithread) - 1
           ! Take the column due to the symmetry of the sparsity pattern
           do jseg=smat%istsegline(icolumn),smat%istsegline(icolumn)+smat%nsegline(icolumn)-1
               do jorb = smat%keyg(1,1,jseg),smat%keyg(2,1,jseg)
@@ -1974,7 +1993,7 @@ module sparsematrix_init
                       if (ilen>1) then
                           if (ii /= ii_prev+1) then
                               nconsecutive = nconsecutive + 1
-                              nconsecutive_tot = nconsecutive_tot + 1
+                              nconsecutive_tot_arr(ithread) = nconsecutive_tot_arr(ithread) + 1
                           end if
                       end if
                       ii_prev = ii
@@ -1984,11 +2003,23 @@ module sparsematrix_init
           onedimindices(2,ipt) = ilen
           onedimindices(4,ipt) = nconsecutive
       end do
-      !!!$omp end do
-      !!!$omp end parallel
+      !$omp barrier
+      !$omp end parallel
 
-      !!write(1000,*) 'nconsecutive_tot', nconsecutive_tot
+      ii = 0
+      ioffset = 0
+      do ithread=0,nthread-1
+          n = ise(2,ithread)-ise(1,ithread)+1
+          do i=1,n
+              onedimindices(5,ii+i) = onedimindices5_thread(i,ithread) + ioffset
+          end do
+          ii = ii + n
+          ioffset = ioffset + nconsecutive_tot_arr(ithread)
+      end do
 
+      nconsecutive_tot = sum(nconsecutive_tot_arr)
+
+      call f_free(onedimindices5_thread)
       consecutive_lookup = f_malloc_ptr((/3,nconsecutive_tot/),id='consecutive_lookup')
 
 
@@ -1999,8 +2030,21 @@ module sparsematrix_init
       end do
 
 
+
+      ithread = 0
+      !$omp parallel &
+      !$omp default(none) &
+      !$omp shared(ise, ispt, line_and_column, consecutive_lookup, nconsecutive_tot_arr) &
+      !$omp shared(smat, compressed_index, onedimindices) &
+      !$omp private(ipt, iipt, iline, icolumn, ilen, iconsec, jseg, jorb) &
+      !$omp private(ii, ii_prev, jthread, nconsecutive) &
+      !$omp firstprivate(ithread)
+      !$ ithread = omp_get_thread_num()
       nconsecutive = 0
-      do ipt=1,nout
+      do jthread=0,ithread-1
+          nconsecutive = nconsecutive + nconsecutive_tot_arr(jthread)
+      end do
+      do ipt=ise(1,ithread),ise(2,ithread)
           iipt = ispt + ipt
           iline = line_and_column(1,ipt)
           icolumn = line_and_column(2,ipt)
@@ -2034,6 +2078,10 @@ module sparsematrix_init
           end do
           consecutive_lookup(3,nconsecutive) = iconsec
       end do
+      !$omp end parallel
+
+      call f_free(nconsecutive_tot_arr)
+      call f_free_ptr(ise)
 
       !write(1000+iproc,*) 'nconsecutive_tot',nconsecutive_tot
       !!open(file='new'//adjustl(trim(yaml_toa(iproc)))//'.dat',unit=1000+iproc)
