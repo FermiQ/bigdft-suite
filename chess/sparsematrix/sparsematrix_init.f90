@@ -1383,7 +1383,11 @@ module sparsematrix_init
               !!write(*,*) 'AT END: sparsemat%smmm%nvctrp', sparsemat%smmm%nvctrp
 
               call f_zero(times_col)
-              call sparsemm_new_timing(iproc, ncol_proc, col_proc, sparsemat, a_seq, b, c, times_col)
+              if (ncol_proc>0) then
+                  do it=1,nit
+                      call sparsemm_new_timing(iproc, ncol_proc, col_proc, sparsemat, a_seq, b, c, times_col(iscol_proc,it))
+                  end do
+              end if
               time_proc = sum(times_col)
               !write(*,*) 'iproc, time_proc', iproc, time_proc
               if (iproc==0) then
