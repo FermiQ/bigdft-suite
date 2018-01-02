@@ -401,13 +401,13 @@ module sparsematrix_init
 !!      call f_free(rseq_per_line)
 
 
-      call allocate_sparse_matrix_matrix_multiplication(nproc, norb, nseg, sparsemat%smmm)
+      call allocate_sparse_matrix_matrix_multiplication(nproc, norb, nseg, matmul_version, sparsemat%smmm)
       call vcopy(nseg, keyv(1), 1, sparsemat%smmm%keyv(1), 1)
       call vcopy(4*nseg, keyg(1,1,1), 1, sparsemat%smmm%keyg(1,1,1), 1)
       call vcopy(norb, istsegline(1), 1, sparsemat%smmm%istsegline(1), 1)
 
       ! Calculate some auxiliary variables
-      temparr = f_malloc0((/0.to.nproc-1,1.to.2/),id='isfvctr_par')
+      temparr = f_malloc0((/0.to.nproc-1,1.to.2/),id='temparr')
       temparr(iproc,1) = sparsemat%smmm%isfvctr
       temparr(iproc,2) = sparsemat%smmm%nfvctrp
       if (nproc>1) then
@@ -495,10 +495,11 @@ module sparsematrix_init
       !     nsegline, istsegline, keyg, &
       !     sparsemat, sparsemat%smmm%nout, sparsemat%smmm%onedimindices)
       !t1 = mpi_wtime()
-      call init_onedimindices_newnew(sparsemat%smmm%nout, ispt, nseg, &
+      call init_onedimindices_newnew(iproc, sparsemat%smmm%nout, ispt, nseg, &
            norb, sparsemat%smmm%nfvctrp, sparsemat%smmm%isfvctr, &
            keyv, keyg, sparsemat, istsegline, &
-           line_and_column, compressed_indices, sparsemat%smmm%onedimindices_new)
+           line_and_column, compressed_indices, sparsemat%smmm%onedimindices_new, &
+           sparsemat%smmm%consecutive_lookup)
       !t2 = mpi_wtime()
       !write(*,*) 'iproc, time init_onedimindices_newnew', iproc, t2-t1
       !call get_arrays_for_sequential_acces(norb, norb_par_ideal(iproc), isorb_par_ideal(iproc), nseg, &
@@ -506,20 +507,26 @@ module sparsematrix_init
       !     sparsemat%smmm%nseq, sparsemat%smmm%ivectorindex)
 
       !t1 = mpi_wtime()
-      call get_arrays_for_sequential_acces_new(iproc, comm, sparsemat%smmm%nout, ispt, nseg, sparsemat%smmm%nseq, &
-           norb, sparsemat%smmm%nfvctrp, sparsemat%smmm%isfvctr, &
-           keyv, keyg, sparsemat, istsegline, line_and_column, compressed_indices, sparsemat%smmm%ivectorindex_new)
+      if (matmul_version==MATMUL_OLD) then
+          call get_arrays_for_sequential_acces_new(iproc, comm, sparsemat%smmm%nout, ispt, nseg, sparsemat%smmm%nseq, &
+               norb, sparsemat%smmm%nfvctrp, sparsemat%smmm%isfvctr, &
+               keyv, keyg, sparsemat, istsegline, line_and_column, compressed_indices, sparsemat%smmm%ivectorindex_new)
+      end if
       !t2 = mpi_wtime()
       !write(*,*) 'iproc, time get_arrays_for_sequential_acces_new', iproc, t2-t1
       !t1 = mpi_wtime()
-      call determine_consecutive_values(sparsemat%smmm%nout, sparsemat%smmm%nseq, sparsemat%smmm%ivectorindex_new, &
-           sparsemat%smmm%onedimindices_new, sparsemat%smmm%nconsecutive_max, sparsemat%smmm%consecutive_lookup)
+!!!      call determine_consecutive_values(iproc, sparsemat%smmm%nout, sparsemat%smmm%nseq, sparsemat%smmm%ivectorindex_new, &
+!!!           sparsemat%smmm%onedimindices_new, sparsemat%smmm%nconsecutive_max, sparsemat%smmm%consecutive_lookup)
+      !!do ii=1,size(sparsemat%smmm%consecutive_lookup,2)
+      !!    !write(3000,'(a,3(2x,i0))') 'consecutive_lookup(1:3,ii)', sparsemat%smmm%consecutive_lookup(1:3,ii)
+      !!    write(1100,'(a,3(2x,i0))') 'consecutive_lookup(1:3,ii)', sparsemat%smmm%consecutive_lookup(1:3,ii)
+      !!end do
       !t2 = mpi_wtime()
       !write(*,*) 'iproc, time determine_consecutive_values', iproc, t2-t1
       ! The choice for matmul_version can be made in sparsematrix_base
-      if (matmul_version==MATMUL_NEW) then
-          call f_free_ptr(sparsemat%smmm%ivectorindex_new)
-      end if
+!!      if (matmul_version==MATMUL_NEW) then
+!!          call f_free_ptr(sparsemat%smmm%ivectorindex_new)
+!!      end if
 
       !call init_sequential_acces_matrix(norb, norb_par_ideal(iproc), isorb_par_ideal(iproc), sparsemat%nseg, &
       !     sparsemat%nsegline, sparsemat%istsegline, sparsemat%keyg, sparsemat, sparsemat%smmm%nseq, &
@@ -1903,22 +1910,25 @@ module sparsematrix_init
 
 
 
-    subroutine init_onedimindices_newnew(nout, ispt, nseg, nline, nlinep, isline, keyv, keyg, &
-               smat, istsegline, line_and_column, compressed_index, onedimindices)
+    subroutine init_onedimindices_newnew(iproc, nout, ispt, nseg, nline, nlinep, isline, keyv, keyg, &
+               smat, istsegline, line_and_column, compressed_index, onedimindices, consecutive_lookup)
+      use dynamic_memory
       implicit none
 
       ! Calling arguments
-      integer,intent(in) :: nout, ispt, nseg, nline, nlinep, isline
+      integer,intent(in) :: iproc, nout, ispt, nseg, nline, nlinep, isline
       integer,dimension(nseg),intent(in) :: keyv
       integer,dimension(2,2,nseg),intent(in) :: keyg
       type(sparse_matrix),intent(in) :: smat
       integer,dimension(smat%nfvctr),intent(in) :: istsegline
       integer,dimension(2,nout),intent(in) :: line_and_column
       integer,dimension(1:nline,isline+1:isline+nlinep),intent(in) :: compressed_index
-      integer,dimension(5,nout) :: onedimindices
+      integer,dimension(5,nout),intent(inout) :: onedimindices
+      integer,dimension(:,:),pointer,intent(out) :: consecutive_lookup
 
       ! Local variables
-      integer :: itot, ipt, iipt, iline, icolumn, ilen, jseg, ii, jorb, iseg_start
+      integer :: itot, ipt, iipt, iline, icolumn, ilen, jseg, ii, jorb
+      integer :: iseg_start, iconsec, ii_prev, nconsecutive, nconsecutive_tot
 
       !!write(*,*) 'iproc, nout, ispt', bigdft_mpi%iproc, nout, ispt
       call f_routine(id='init_onedimindices_newnew')
@@ -1931,20 +1941,18 @@ module sparsematrix_init
 
       ! Handle index 3 separately to enable OpenMP
 
-      !itot = 1
+      nconsecutive_tot = 0
       iseg_start = 1
-      !$omp parallel default(none) &
-      !$omp shared(nout, ispt, nseg, keyv, keyg, onedimindices, smat, istsegline) &
-      !$omp shared(line_and_column, compressed_index) &
-      !$omp firstprivate(iseg_start) &
-      !$omp private(ipt, iipt, iline, icolumn, ilen, jseg, jorb, ii)
-      !$omp do
+      !!!$omp parallel default(none) &
+      !!!$omp shared(nout, ispt, nseg, keyv, keyg, onedimindices, smat, istsegline) &
+      !!!$omp shared(line_and_column, compressed_index) &
+      !!!$omp firstprivate(iseg_start, nconsecutive_tot) &
+      !!!$omp private(ipt, iipt, iline, icolumn, ilen, jseg, jorb, ii, ilen)
+      !!!$omp do
       do ipt=1,nout
           iipt = ispt + ipt
-          !call get_line_and_column(iipt, nseg, keyv, keyg, iseg_start, iline, icolumn)
           iline = line_and_column(1,ipt)
           icolumn = line_and_column(2,ipt)
-          !onedimindices(1,ipt) = matrixindex_in_compressed_lowlevel(icolumn, iline, smat%nfvctr, nseg, keyv, keyg, istsegline)
           onedimindices(1,ipt) = compressed_index(icolumn,iline)
           if (onedimindices(1,ipt)>0) then
               onedimindices(1,ipt) = onedimindices(1,ipt) - smat%smmm%isvctr
@@ -1952,24 +1960,36 @@ module sparsematrix_init
               stop 'onedimindices(1,ipt)==0'
           end if
           ilen = 0
+          nconsecutive = 1
+          nconsecutive_tot = nconsecutive_tot + 1
+          onedimindices(5,ipt) = nconsecutive_tot - 1
           ! Take the column due to the symmetry of the sparsity pattern
           do jseg=smat%istsegline(icolumn),smat%istsegline(icolumn)+smat%nsegline(icolumn)-1
-              ! A segment is always on one line, therefore no double loop
               do jorb = smat%keyg(1,1,jseg),smat%keyg(2,1,jseg)
-                  ! Calculate the index in the large compressed format
-                  !ii = matrixindex_in_compressed_lowlevel(jorb, iline, smat%nfvctr, nseg, keyv, keyg, istsegline)
                   ii = compressed_index(jorb,iline)
                   if (ii>0) then
                       ilen = ilen + 1
+                      ii = ii - smat%smmm%isvctr
+                      !!write(1000,*) 'ilen, ii, ii_prev, nconsecutive_tot', ilen, ii, ii_prev, nconsecutive_tot
+                      if (ilen>1) then
+                          if (ii /= ii_prev+1) then
+                              nconsecutive = nconsecutive + 1
+                              nconsecutive_tot = nconsecutive_tot + 1
+                          end if
+                      end if
+                      ii_prev = ii
                   end if
               end do
           end do
           onedimindices(2,ipt) = ilen
-          !!onedimindices(3,ipt) = itot
-          !itot = itot + ilen
+          onedimindices(4,ipt) = nconsecutive
       end do
-      !$omp end do
-      !$omp end parallel
+      !!!$omp end do
+      !!!$omp end parallel
+
+      !!write(1000,*) 'nconsecutive_tot', nconsecutive_tot
+
+      consecutive_lookup = f_malloc_ptr((/3,nconsecutive_tot/),id='consecutive_lookup')
 
 
       itot = 1
@@ -1978,6 +1998,54 @@ module sparsematrix_init
           itot = itot + onedimindices(2,ipt)
       end do
 
+
+      nconsecutive = 0
+      do ipt=1,nout
+          iipt = ispt + ipt
+          iline = line_and_column(1,ipt)
+          icolumn = line_and_column(2,ipt)
+
+          ilen = 0
+          iconsec = 0
+          nconsecutive = nconsecutive + 1
+          consecutive_lookup(1,nconsecutive) = onedimindices(3,ipt)
+          ! Take the column due to the symmetry of the sparsity pattern
+          do jseg=smat%istsegline(icolumn),smat%istsegline(icolumn)+smat%nsegline(icolumn)-1
+              do jorb = smat%keyg(1,1,jseg),smat%keyg(2,1,jseg)
+                  ii = compressed_index(jorb,iline)
+                  if (ii>0) then
+                      ii = ii - smat%smmm%isvctr
+                      if (ilen>0) then
+                          if (ii /= ii_prev+1) then
+                              consecutive_lookup(3,nconsecutive) = iconsec
+                              nconsecutive = nconsecutive + 1
+                              consecutive_lookup(1,nconsecutive) = onedimindices(3,ipt)+ilen
+                              consecutive_lookup(2,nconsecutive) = ii
+                              iconsec = 0
+                          end if
+                      else
+                          consecutive_lookup(2,nconsecutive) = ii
+                      end if
+                      iconsec = iconsec + 1
+                      ii_prev = ii
+                      ilen = ilen + 1
+                  end if
+              end do
+          end do
+          consecutive_lookup(3,nconsecutive) = iconsec
+      end do
+
+      !write(1000+iproc,*) 'nconsecutive_tot',nconsecutive_tot
+      !!open(file='new'//adjustl(trim(yaml_toa(iproc)))//'.dat',unit=1000+iproc)
+      !!do ii=1,nconsecutive_tot
+      !!    !write(*,*) 'new',consecutive_lookup(1:3,ii)
+      !!    write(1000+iproc,*) consecutive_lookup(1:3,ii)
+      !!end do
+      !!do ii=1,nout
+      !!    write(1000+iproc,*) onedimindices(1:5,ii)
+      !!end do
+      !!close(unit=1000+iproc)
+      !!call f_free(consecutive_lookup)
 
 
       call f_release_routine()
@@ -2176,7 +2244,7 @@ module sparsematrix_init
                       ii = ii+1
                       ivectorindex_work(ii,ithread) = ind - smat%smmm%isvctr
                       if (ivectorindex_work(ii,ithread)<=0) then
-                          stop 'ivectorindex_work(ii,ithread)<=0'
+                          call f_err_throw('ivectorindex_work(ii,ithread)<=0')
                       end if
                   end if
               end do
@@ -2223,13 +2291,13 @@ module sparsematrix_init
 
 
 
-    subroutine determine_consecutive_values(nout, nseq, ivectorindex, onedimindices_new, &
+    subroutine determine_consecutive_values(iproc, nout, nseq, ivectorindex, onedimindices_new, &
          nconsecutive_max, consecutive_lookup)
       use dynamic_memory
       implicit none
 
       ! Calling arguments
-      integer,intent(in) :: nout
+      integer,intent(in) :: iproc, nout
       integer(kind=8),intent(in) :: nseq
       integer,dimension(nseq),intent(in) :: ivectorindex
       integer,dimension(5,nout),intent(inout) :: onedimindices_new
@@ -2252,6 +2320,32 @@ module sparsematrix_init
           nconsecutive = 1
           nconsecutive_tot = nconsecutive_tot + 1
           onedimindices_new(5,iout) = nconsecutive_tot - 1
+          !!!!# NEW ###############
+          !!!iline = line_and_column(1,ipt)
+          !!!icolumn = line_and_column(2,ipt)
+          !!!! Take the column due to the symmetry of the sparsity pattern
+          !!!do jseg=smat%istsegline(icolumn),smat%istsegline(icolumn)+smat%nsegline(icolumn)-1
+          !!!    ! A segment is always on one line, therefore no double loop
+          !!!    do jorb = smat%keyg(1,1,jseg),smat%keyg(2,1,jseg)
+          !!!        !ind = matrixindex_in_compressed_lowlevel(jorb, iline, smat%nfvctr, nseg, keyv, keyg, istsegline)
+          !!!        ind = compressed_index(jorb, iline)
+          !!!        if (ind>0) then
+          !!!            ind = ind - smat%smmm%isvctr
+          !!!            if (ind>ii) then
+          !!!                if (ind /= ind_prev+1) then
+          !!!                    nconsecutive = nconsecutive + 1
+          !!!                    nconsecutive_tot = nconsecutive_tot + 1
+          !!!                end if
+          !!!            end if
+          !!!            ii = ii+1
+          !!!            ivectorindex_work(ii,ithread) = ind - smat%smmm%isvctr
+          !!!            if (ivectorindex_work(ii,ithread)<=0) then
+          !!!                call f_err_throw('ivectorindex_work(ii,ithread)<=0')
+          !!!            end if
+          !!!        end if
+          !!!    end do
+          !!!end do
+          !!!!# END NEW ###########
           do jorb=ii,iend
              jjorb=ivectorindex(jorb)
              if (jorb>ii) then
@@ -2266,6 +2360,7 @@ module sparsematrix_init
           onedimindices_new(4,iout) = nconsecutive
       end do
 
+      !write(3000,*) '1: nout, nconsecutive_tot', nout, nconsecutive_tot
       consecutive_lookup = f_malloc_ptr((/3,nconsecutive_tot/),id='consecutive_lookup')
 
 
@@ -2302,6 +2397,17 @@ module sparsematrix_init
           write(*,*) 'nconsecutive, nconsecutive_tot', nconsecutive, nconsecutive_tot
           call f_err_throw('consecutive/=nconsecutive_tot')
       end if
+
+      !write(3000,*) '2: nconsecutive_tot',nconsecutive_tot
+      !!open(file='old'//adjustl(trim(yaml_toa(iproc)))//'.dat',unit=2000+iproc)
+      !!do ii=1,nconsecutive_tot
+      !!    !write(*,*) 'old',consecutive_lookup(1:3,ii)
+      !!    write(2000+iproc,*) consecutive_lookup(1:3,ii)
+      !!end do
+      !!do ii=1,nout
+      !!    write(2000+iproc,*) onedimindices_new(1:5,ii)
+      !!end do
+      !!close(unit=2000+iproc)
 
       call f_release_routine()
 
