@@ -1967,7 +1967,6 @@ module sparsematrix_init
       !$omp firstprivate(ithread)
       !$ ithread = omp_get_thread_num()
       do ipt=ise(1,ithread),ise(2,ithread)
-          write(*,*) 'ithread, ise(:,ithread)', ithread, ise(:,ithread)
           iipt = ispt + ipt
           iline = line_and_column(1,ipt)
           icolumn = line_and_column(2,ipt)
