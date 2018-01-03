@@ -1058,6 +1058,7 @@ module multipole
       use yaml_output
       use numerics, only: Bohr_Ang
       use f_precisions, only: db => f_double
+      use module_types, only: TCAT_IO_MULTIPOLES
       implicit none
       
       ! Calling arguments
@@ -1083,6 +1084,7 @@ module multipole
       logical :: present_delta_rxyz, present_on_which_atom, present_scaled, present_monopoles_analytic, do_guess_type_
 
       call f_routine(id='write_multipoles_new')
+      call f_timing(TCAT_IO_MULTIPOLES,'ON')
 
       present_delta_rxyz = present(delta_rxyz)
       present_on_which_atom = present(on_which_atom)
@@ -1169,6 +1171,7 @@ module multipole
           call yaml_flush_document()
 
       call f_release_routine()
+      call f_timing(TCAT_IO_MULTIPOLES,'OF')
 
 
           contains
@@ -6132,7 +6135,7 @@ end subroutine calculate_rpowerx_matrices
 
       do iorb=1,tmb%orbs%norb
          call prepare_multipole_object(iorb, tmb, atoms, center_locreg, center_orb, &
-              lmax, shift, multipoles, names, delta_centers, ep)
+              lmax, shift, multipoles, names, delta_centers, iat_old, ep)
       end do
       call write_multipoles_new(ep, lmax, atoms%astruct%units, &
            delta_centers, tmb%orbs%onwhichatom, scaled)
@@ -6153,7 +6156,7 @@ end subroutine calculate_rpowerx_matrices
 
     ! This subroutine only exists for the timing...
     subroutine prepare_multipole_object(iorb, tmb, atoms, center_locreg, center_orb, &
-               lmax, shift, multipoles, names, delta_centers, ep)
+               lmax, shift, multipoles, names, delta_centers, iat_old, ep)
       use module_types, only: DFT_wavefunction, atoms_data
       use multipole_base, only: external_potential_descriptors, multipole_set_null, multipole_null
       implicit none
@@ -6168,9 +6171,10 @@ end subroutine calculate_rpowerx_matrices
       real(kind=8),dimension(-lmax:lmax,0:lmax,1:tmb%orbs%norb),intent(in) :: multipoles
       character(len=*),dimension(tmb%orbs%norb),intent(inout) :: names
       real(kind=8),dimension(3,tmb%orbs%norb),intent(inout) :: delta_centers
+      integer,intent(inout) :: iat_old
       type(external_potential_descriptors),intent(inout) :: ep
 
-      integer :: iat_old, iorb, iat, ii, ilr, itype, l, m, mm
+      integer :: iorb, iat, ii, ilr, itype, l, m, mm
 
       call f_routine(id='prepare_multipole_object')
 
