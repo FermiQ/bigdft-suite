@@ -348,7 +348,7 @@ module module_utilities
                    outerloop: do isf=1,smat(1)%nfvctr
                        iiat = smmd%on_which_atom(isf)
                        do iat=1,nat_frag
-                       if (iiat==fragment_atom_id(iat,ifrag)) then
+                           if (iiat==fragment_atom_id(iat,ifrag)) then
                                supfun_in_fragment(isf) = .true.
                                nsf_frag = nsf_frag + 1
                                cycle outerloop

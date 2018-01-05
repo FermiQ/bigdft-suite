@@ -791,17 +791,28 @@ module sparsematrix_io
       ! Local variables
       integer :: iunit, i
 
-      call f_routine(id='write_linear_coefficients')
+      call f_routine(id='write_linear_eigenvalues')
 
       if (iproc==iroot) then
 
           iunit = 99
           call f_open_file(iunit, file=trim(filename), binary=.false.)
     
-          write(iunit,'(3i12,a)') nspin, ntmb, nfvctr, '   # nspin, ntmb, nfvctr'
+          call yaml_map('nspin',nspin,unit=iunit)
+          call yaml_map('ntmb',ntmb,unit=iunit)
+          call yaml_map('nfvctr',nfvctr,unit=iunit)
+          call yaml_sequence_open('Eigenvalues',unit=iunit)
           do i=1,ntmb
-              write(iunit,'(es24.16,a,i0)') eval(i), '   # eval no. ', i
+              call yaml_sequence(yaml_toa(eval(i)),advance='no',unit=iunit)
+              !call yaml_sequence(advance='no',unit=iunit)
+              !call yaml_map('e',eval(i),unit=iunit,advance='no')
+              call yaml_comment(adjustl(trim(yaml_toa(i))),unit=iunit)
           end do
+          call yaml_sequence_close()
+          !!write(iunit,'(3i12,a)') nspin, ntmb, nfvctr, '   # nspin, ntmb, nfvctr'
+          !!do i=1,ntmb
+          !!    write(iunit,'(es24.16,a,i0)') eval(i), '   # eval no. ', i
+          !!end do
 
           call f_close(iunit)
 

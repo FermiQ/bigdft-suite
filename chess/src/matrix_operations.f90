@@ -2797,7 +2797,6 @@ module matrix_operations
           end if
       end do
 
-      write(*,*) 'iproc, norb_max', iproc, norb_max
 
       call f_zero(inv_ovrlp_%matrix_compr)
       if (smats%nfvctrp /= smatl%nfvctrp) then
