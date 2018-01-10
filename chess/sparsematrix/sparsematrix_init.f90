@@ -381,6 +381,7 @@ module sparsematrix_init
       call determine_sequential_length_new2(iproc, sparsemat%smmm%nout, ispt, nseg, norb, &
            sparsemat%smmm%nfvctrp, sparsemat%smmm%isfvctr, keyv, keyg, &
            sparsemat, istsegline, line_and_column, compressed_indices, sparsemat%smmm%nseq, nseq_per_line)
+      !write(*,*) 'iproc, nseq', iproc, sparsemat%smmm%nseq
       !t2 = mpi_wtime()
       !write(*,*) 'iproc, time determine_sequential_length_new2', iproc, t2-t1
 
@@ -401,7 +402,7 @@ module sparsematrix_init
 !!      call f_free(rseq_per_line)
 
 
-      call allocate_sparse_matrix_matrix_multiplication(nproc, norb, nseg, matmul_version, sparsemat%smmm)
+      call allocate_sparse_matrix_matrix_multiplication(nproc, norb, nseg, matmul_version==MATMUL_OLD, sparsemat%smmm)
       call vcopy(nseg, keyv(1), 1, sparsemat%smmm%keyv(1), 1)
       call vcopy(4*nseg, keyg(1,1,1), 1, sparsemat%smmm%keyg(1,1,1), 1)
       call vcopy(norb, istsegline(1), 1, sparsemat%smmm%istsegline(1), 1)
