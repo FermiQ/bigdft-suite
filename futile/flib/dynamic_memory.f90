@@ -1107,20 +1107,24 @@ contains
     implicit none
     character(len=*), intent(in), optional :: filename  !< file to which the memory should be dumped
     !> If present, this dictionary is filled with the summary of the 
-    !! dumped dictionary. Its presence disables the normal dumping
-    type(dictionary), pointer, optional, intent(out) :: dict_summary 
+    !! dumped dictionary. Its presence disables the normal dumping. Should be initialized
+    type(dictionary), pointer, optional, intent(inout) :: dict_summary 
     !local variables
     integer, parameter :: iunit=97 !<if used switch to default
     integer :: iunt,iunit_def,istat
-    type(dictionary), pointer :: dict_compact
+    type(dictionary), pointer :: dict_compact,dict_tmp
 
     if (f_err_raise(ictrl == 0,&
          'ERROR (f_malloc_dump_status): the routine f_malloc_initialize has not been called',&
          ERR_MALLOC_INTERNAL)) return
     if (present(dict_summary)) then
-       call dict_init(dict_summary)
+       call dict_init(dict_tmp)
        call postreatment_of_calling_sequence(-1.d0,&
-            mems(ictrl)%dict_calling_sequence,dict_summary)
+            mems(ictrl)%dict_calling_sequence,dict_tmp)
+       call set(dict_summary//'Routines timing and number of calls',dict_tmp)      
+!!$       call dict_init(dict_summary)
+!!$       call postreatment_of_calling_sequence(-1.d0,&
+!!$            mems(ictrl)%dict_calling_sequence,dict_summary)
        !call yaml_map('Codepoint',trim(dict_key(mems(ictrl)%dict_codepoint)))
        return
     end if

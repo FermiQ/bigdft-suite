@@ -32,7 +32,7 @@ program Fock_Operator_Program
   type(OP2P_iterator) :: iter
   type(cell) :: mesh
   type(coulomb_operator) :: pkernel
-  type(dictionary), pointer :: dict_input,options
+  type(dictionary), pointer :: dict_input,options,dict_timing_info
   integer, dimension(:,:), allocatable :: nobj_par
   real(f_double), dimension(:), allocatable :: occup,spinsgn,rp_ij
   real(f_double), dimension(:,:,:), allocatable :: density,rhopot
@@ -220,7 +220,11 @@ program Fock_Operator_Program
   call f_free(psir)
   call f_free(occup,spinsgn)
 
-  call f_timing_stop(mpi_comm=mpiworld(),nproc=nproc,gather_routine=gather_timings)
+  call dict_init(dict_timing_info)
+  call f_malloc_dump_status(dict_summary=dict_timing_info)
+  call mpi_environment_dict(mpi_environment_comm(),dict_timing_info)
+  call f_timing_stop(mpi_comm=mpiworld(),nproc=nproc,gather_routine=gather_timings,dict_info=dict_timing_info)
+  call dict_free(dict_timing_info)
 
   call pkernel_free(pkernel)
   call f_release_routine()
