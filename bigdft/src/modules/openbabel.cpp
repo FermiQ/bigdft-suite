@@ -109,7 +109,7 @@ extern "C" void FC_FUNC_(openbabel_load, OPENBABEL_LOAD)(f90_dictionary_pointer 
           f90_dictionary_pointer frag;
           dict_init(&frag);
           dict_add_string(&frag, residue->GetName().c_str());
-          dict_add_int(&frag, residue->GetIdx());
+          dict_add_int(&frag, residue->GetNum());
           dict_set_dict(&atom, "frag", &frag);
         }
       dict_add_dict(&dict_positions, &atom);
