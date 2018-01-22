@@ -48,6 +48,7 @@ module dynamic_memory_base
   character(len=*), parameter :: no_of_calls='No. of calls'
   character(len=*), parameter :: t0_time='Time of last opening'
   character(len=*), parameter :: tot_time='Total time (s)'
+  character(len=*), parameter :: performance_info_key='Performance Information'
   character(len=*), parameter :: prof_enabled='Profiling Enabled'
   character(len=*), parameter :: main='Main_program'
 
@@ -393,6 +394,9 @@ contains
 
           nullify(mems(ictrl)%dict_routine)
        end if
+
+       !this section should go in a open_routine part
+
        !this means that the previous routine has not been closed yet
        if (mems(ictrl)%routine_opened) then
           !call open_routine(dict_codepoint)
@@ -401,20 +405,8 @@ contains
        mems(ictrl)%routine_opened=.true.
        !call add(dict_codepoint,trim(id))
        !see if the key existed in the codepoint
-       if (has_key(mems(ictrl)%dict_codepoint,trim(id))) then
-          !retrieve number of calls and increase it
-          ncalls=mems(ictrl)%dict_codepoint//trim(id)//no_of_calls
-          call set(mems(ictrl)%dict_codepoint//trim(id)//no_of_calls,ncalls+1)
-          !write the starting point for the time
-          call set(mems(ictrl)%dict_codepoint//trim(id)//t0_time,itime)
-          call set(mems(ictrl)%dict_codepoint//trim(id)//prof_enabled,mems(ictrl)%profile_routine)
-       else
-          !create a new dictionary
-          call set(mems(ictrl)%dict_codepoint//trim(id),&
-               dict_new((/no_of_calls .is. yaml_toa(1), t0_time .is. yaml_toa(itime),&
-               tot_time .is. yaml_toa(0.d0,fmt='(f4.1)'), &
-               prof_enabled .is. yaml_toa(mems(ictrl)%profile_routine)/)))
-       end if
+       call open_routine_dict(mems(ictrl)%dict_codepoint,trim(id),itime,mems(ictrl)%profile_routine)
+
        !then fix the new codepoint from this one
        mems(ictrl)%dict_codepoint=>mems(ictrl)%dict_codepoint//trim(id)
 
@@ -455,12 +447,15 @@ contains
   end function bigdebug_stream
 
   !> Close a previously opened routine
-  subroutine f_release_routine()
+  subroutine f_release_routine(performance_info)
+    use f_perfs
     use yaml_output, only: yaml_dict_dump,yaml_map,yaml_flush_document,yaml_mapping_close,&
          yaml_comment
     use f_utils, only: f_rewind
     use yaml_strings, only: yaml_time_toa
     implicit none
+    type(f_perf), intent(in), optional :: performance_info
+    !local variables
     integer :: jproc,unit_dbg
 
     if (ictrl == 0) then
@@ -492,27 +487,29 @@ contains
        call f_timer_resume()
        return
     end if
-    call close_routine(mems(ictrl)%dict_codepoint,.not. mems(ictrl)%routine_opened)!trim(dict_key(dict_codepoint)))
+!!$    call close_routine(mems(ictrl)%dict_codepoint,.not. mems(ictrl)%routine_opened)!trim(dict_key(dict_codepoint)))
 
-    !last_opened_routine=trim(dict_key(dict_codepoint))!repeat(' ',namelen)
-    !the main program is opened until there is a subprograms keyword
-    if (.not. associated(mems(ictrl)%dict_codepoint%parent)) then
-       call f_err_throw('parent not associated(A)',&
-            ERR_MALLOC_INTERNAL)
-       call f_timer_resume()
-       return
-    end if
-    if (dict_key(mems(ictrl)%dict_codepoint%parent) == subprograms) then    
-       mems(ictrl)%dict_codepoint=>mems(ictrl)%dict_codepoint%parent
-       if (.not. associated(mems(ictrl)%dict_codepoint%parent)) then
-          call f_err_throw('parent not associated(B)',ERR_MALLOC_INTERNAL)
-          call f_timer_resume()
-          return
-       end if
-       mems(ictrl)%dict_codepoint=>mems(ictrl)%dict_codepoint%parent
-    else !back in the main program
-       mems(ictrl)%routine_opened=.false.
-    end if
+    call close_routine(mems(ictrl)%dict_codepoint,mems(ictrl)%routine_opened,performance_info)!trim(dict_key(dict_codepoint)))
+
+!!$    !last_opened_routine=trim(dict_key(dict_codepoint))!repeat(' ',namelen)
+!!$    !the main program is opened until there is a subprograms keyword
+!!$    if (.not. associated(mems(ictrl)%dict_codepoint%parent)) then
+!!$       call f_err_throw('parent not associated(A)',&
+!!$            ERR_MALLOC_INTERNAL)
+!!$       call f_timer_resume()
+!!$       return
+!!$    end if
+!!$    if (dict_key(mems(ictrl)%dict_codepoint%parent) == subprograms) then    
+!!$       mems(ictrl)%dict_codepoint=>mems(ictrl)%dict_codepoint%parent
+!!$       if (.not. associated(mems(ictrl)%dict_codepoint%parent)) then
+!!$          call f_err_throw('parent not associated(B)',ERR_MALLOC_INTERNAL)
+!!$          call f_timer_resume()
+!!$          return
+!!$       end if
+!!$       mems(ictrl)%dict_codepoint=>mems(ictrl)%dict_codepoint%parent
+!!$    else !back in the main program
+!!$       mems(ictrl)%routine_opened=.false.
+!!$    end if
 
     mems(ictrl)%present_routine(1:len(mems(ictrl)%present_routine))=&
          trim(dict_key(mems(ictrl)%dict_codepoint))
@@ -747,12 +744,125 @@ contains
 !!$
 !!$ end subroutine open_routine
 
-
-  subroutine close_routine(dict,jump_up)
-    !use yaml_output !debug
+  subroutine aggregate_routine_dict(dict,id,time,percent,dict_pt)
     implicit none
     type(dictionary), pointer :: dict
-    logical, intent(in) :: jump_up
+    character(len=*), intent(in) :: id
+    real(f_double), intent(in) :: time
+    character(len=*), intent(in) :: percent
+    type(dictionary), pointer :: dict_pt
+    !local variables
+    integer :: icalls
+    type(dictionary), pointer :: dict_tmp,iter,dict_tmp2
+
+    dict_tmp=>dict_new()
+    call add(dict_tmp//id,yaml_toa(time,fmt='(1pg12.3)'))
+    icalls=dict//no_of_calls
+    call add(dict_tmp//id,icalls)
+    call add(dict_tmp//id,percent)
+    
+    !try to steal the data
+    iter=dict .get. performance_info_key
+    if (associated(iter)) then
+       nullify(dict_tmp2)
+       call dict_copy(src=iter,dest=dict_tmp2)
+!!$    nullify(iter)
+!!$    do while (iterating(iter,on=dict))
+!!$       if (dict_key(iter) == subprograms) cycle
+!!$       call dict_copy(src=iter,dest=dict_tmp2//trim(dict_key(iter)))
+!!$    end do
+       call add(dict_tmp//id,dict_tmp2)
+    end if
+
+    call add(dict_pt,dict_tmp)
+
+  end subroutine aggregate_routine_dict
+
+
+  subroutine open_routine_dict(dict,id,itime,do_profile)
+    implicit none
+    character(len=*), intent(in) :: id
+    type(dictionary), pointer :: dict
+    integer(f_long), intent(in) :: itime
+    logical, intent(in) :: do_profile
+    !local variables
+    logical already_there
+    integer :: ncalls
+    type(dictionary), pointer :: dict_tmp
+
+    already_there=id .in. dict
+
+    if (already_there) then
+       dict_tmp=>dict//id
+       !retrieve number of calls and increase it
+       ncalls=dict_tmp//no_of_calls
+    else
+       dict_tmp=>dict_new()
+       ncalls=0
+    end if
+    !here the specification for the runtime dictionary for a routine
+    call set(dict_tmp//no_of_calls,ncalls+1)
+    !write the starting point for the time
+    call set(dict_tmp//t0_time,itime)
+    call set(dict_tmp//prof_enabled,do_profile)
+
+    if (.not. already_there) then
+       call set(dict_tmp//tot_time,0.0_f_double,fmt='(f4.1)')
+       call set(dict//id,dict_tmp)
+!!$    else
+!!$       !create a new dictionary
+!!$       call set(dict//id,&
+!!$            dict_new((/no_of_calls .is. yaml_toa(1), &
+!!$            t0_time .is. yaml_toa(itime),&
+!!$            tot_time .is. yaml_toa(0.d0,fmt='(f4.1)'), &
+!!$            prof_enabled .is. yaml_toa(do_profile)/)))
+    end if
+  end subroutine open_routine_dict
+
+  subroutine close_routine_dict(dict,itime,perf_info)
+    use f_perfs
+    implicit none
+    type(dictionary), pointer :: dict
+    integer(f_long), intent(in) :: itime
+    type(f_perf), intent(in), optional :: perf_info !further information about performances
+    
+    !local variables
+    integer(f_long) :: jtime
+    real(f_double) :: rtime
+
+    !update the total time, if the starting point is present
+    if (t0_time .in. dict) then
+       jtime=dict//t0_time
+       jtime=itime-jtime
+       rtime=dict//tot_time
+       call set(dict//tot_time,rtime+real(jtime,f_double)*1.d-9,fmt='(1pe15.7)')
+       call dict_remove(dict,t0_time)
+    else
+       call f_err_throw('Key '//t0_time//&
+            ' not found, most likely f_release_routine has been called too many times',&
+            err_id=ERR_INVALID_MALLOC)
+    end if
+
+    if (present(perf_info)) then
+       call f_perf_aggregate(src=perf_info,dest=dict//performance_info_key)
+!!$       call dict_update(dest=dict,src=dict_info,reduce_op
+!!$       nullify(iter)
+!!$       do while(iterating(iter,on=dict_info))
+!!$          key=dict_key(iter)
+!!$          call set(dict//key,dict//key+iter)
+!!$       end do
+    end if
+
+  end subroutine close_routine_dict
+
+
+  subroutine close_routine(dict,dont_jump_up,perf_info)
+    use f_perfs
+    !use yaml_output !debug
+    implicit none
+    type(dictionary), pointer :: dict !inout dictionary, should be positioned to the parent routine
+    logical, intent(inout) :: dont_jump_up
+    type(f_perf), intent(in), optional :: perf_info !further information about performances
     !character(len=*), intent(in) :: name
     !local variables
     integer(kind=8) :: itime,jtime
@@ -769,35 +879,53 @@ contains
 !!$    call yaml_comment('We should jump up '//trim(yaml_toa(jump_up)),hfill='}')
     !end debug
 
-    !update the total time, if the starting point is present
-    if (has_key(dict,t0_time)) then
-       jtime=dict//t0_time
-       jtime=itime-jtime
-       rtime=dict//tot_time
-       call set(dict//tot_time,rtime+real(jtime,kind=8)*1.d-9,fmt='(1pe15.7)')
-       call dict_remove(dict,t0_time)
-    else
-       call f_err_throw('Key '//t0_time//&
-            ' not found, most likely f_release_routine has been called too many times',&
-            err_id=ERR_INVALID_MALLOC)
-    end if
+    call close_routine_dict(dict,itime,perf_info)
+!!$    !update the total time, if the starting point is present
+!!$    if (has_key(dict,t0_time)) then
+!!$       jtime=dict//t0_time
+!!$       jtime=itime-jtime
+!!$       rtime=dict//tot_time
+!!$       call set(dict//tot_time,rtime+real(jtime,kind=8)*1.d-9,fmt='(1pe15.7)')
+!!$       call dict_remove(dict,t0_time)
+!!$    else
+!!$       call f_err_throw('Key '//t0_time//&
+!!$            ' not found, most likely f_release_routine has been called too many times',&
+!!$            err_id=ERR_INVALID_MALLOC)
+!!$    end if
 
     !we should go up of three levels
-    if (jump_up) then
+    if (.not. dont_jump_up) then
        dict_tmp=>dict%parent
        if (f_err_raise(.not. associated(dict_tmp),'parent not associated(1)',&
          ERR_MALLOC_INTERNAL)) return
-!       call yaml_map('Present Key 1',dict_key(dict_tmp))
        dict_tmp=>dict_tmp%parent
        if (f_err_raise(.not. associated(dict_tmp),'parent not associated(2)',&
             ERR_MALLOC_INTERNAL)) return
-!       call yaml_map('Present Key 2',dict_key(dict_tmp))
        if (f_err_raise(.not. associated(dict_tmp%parent),'parent not associated(3)',&
             ERR_MALLOC_INTERNAL)) return
        dict_tmp=>dict_tmp%parent
        if (f_err_raise(.not. associated(dict_tmp%parent),'parent not associated(4)',&
             ERR_MALLOC_INTERNAL)) return
        dict=>dict_tmp%parent
+    end if
+
+    !we put here the ugly thing about the jump up for the codepoint
+    !last_opened_routine=trim(dict_key(dict_codepoint))!repeat(' ',namelen)
+    !the main program is opened until there is a subprograms keyword
+    if (.not. associated(dict%parent)) then
+       call f_err_throw('parent not associated(A)',ERR_MALLOC_INTERNAL)
+       return
+    end if
+    if (dict_key(dict%parent) == subprograms) then    
+       dict=>dict%parent
+       if (.not. associated(dict%parent)) then
+          call f_err_throw('parent not associated(B)',ERR_MALLOC_INTERNAL)
+          call f_timer_resume()
+          return
+       end if
+       dict=>dict%parent
+    else !back in the main program
+       dont_jump_up=.false.
     end if
 
   end subroutine close_routine
@@ -1472,8 +1600,8 @@ contains
     implicit none
     !> Time on which percentages has to be given
     double precision, intent(in) :: base_time !< needs to be explained
-    type(dictionary), pointer :: dict_pt      !< needs to be explained
-    type(dictionary), pointer :: dict_cs      !< needs to be explained
+    type(dictionary), pointer :: dict_pt      !< postreated dictionary
+    type(dictionary), pointer :: dict_cs      !< calling sequence dictionary
     !local variables
     logical :: found
     integer :: ikey,jkey,nkey,icalls,ikeystar
@@ -1525,27 +1653,26 @@ contains
     call sort_positions(nkey,time,ipiv)
     do ikey=1,nkey
        jkey=ipiv(ikey)
-       icalls=dict_cs//trim(keys(jkey))//no_of_calls
        !add to the dictionary the information associated to this routine
        if (jkey == ikeystar) then
           extra='*'
        else
           extra=' '
        end if
-
        if (base_time > 0.d0) then
-!!$          call f_strcpy(src=trim(yaml_toa(time(jkey)/base_time*100.d0,fmt='(f6.2)'))//'%'//extra,&
-!!$               dest=percent)
           percent(1:len(percent))=&
                trim(yaml_toa(time(jkey)/base_time*100.d0,fmt='(f6.2)'))//'%'//extra
        else
-!!$          call f_strcpy(src='~'//extra,dest=percent)
           percent(1:len(percent))='~'//extra
        end if
-       call add(dict_pt,dict_new(trim(keys(jkey)) .is. &
-            list_new(.item. yaml_toa(time(jkey),fmt='(1pg12.3)'),&
-            .item. yaml_toa(icalls), .item. percent)&
-            ))
+
+       call aggregate_routine_dict(dict_cs//trim(keys(jkey)),trim(keys(jkey)),time(jkey),percent,&
+            dict_pt)
+
+!!$       call add(dict_pt,dict_new(trim(keys(jkey)) .is. &
+!!$            list_new(.item. yaml_toa(time(jkey),fmt='(1pg12.3)'),&
+!!$            .item. yaml_toa(icalls), .item. percent)&
+!!$            ))
     end do
     if (f_err_check()) then
        deallocate(ipiv,keys,time)

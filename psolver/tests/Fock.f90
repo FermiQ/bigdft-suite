@@ -220,14 +220,15 @@ program Fock_Operator_Program
   call f_free(psir)
   call f_free(occup,spinsgn)
 
+  call pkernel_free(pkernel)
+  call f_release_routine()
+
   call dict_init(dict_timing_info)
   call f_malloc_dump_status(dict_summary=dict_timing_info)
   call mpi_environment_dict(mpi_environment_comm(),dict_timing_info)
   call f_timing_stop(mpi_comm=mpiworld(),nproc=nproc,gather_routine=gather_timings,dict_info=dict_timing_info)
   call dict_free(dict_timing_info)
 
-  call pkernel_free(pkernel)
-  call f_release_routine()
   if (iproc==0) then
      call yaml_release_document()
      call yaml_close_all_streams()
