@@ -2486,7 +2486,6 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
         end if
 
         max_wahba = max(max_wahba,frag_trans_frag(ifrag)%Werror)
-        av_wahba = av_wahba + frag_trans_frag(ifrag)%Werror/input_frag%nfrag
 
         ! useful for identifying which fragments are problematic
         if (iproc==0 .and. frag_trans_frag(ifrag)%Werror>W_tol) then
@@ -2535,6 +2534,8 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
            !call yaml_mapping_open('Information about the rototranslations')
            call yaml_sequence_open('Fragment transformations')
            do ifrag=1,input_frag%nfrag
+              av_wahba = av_wahba + frag_trans_frag(ifrag)%Werror
+              ifrag_ref=input_frag%frag_index(ifrag)
               call yaml_sequence(advance='no')
               call yaml_map('Fragment name',trim(input_frag%label(ifrag_ref))) ! change this to actual name
               call yaml_map('Angle (degrees)',frag_trans_frag(ifrag)%theta/(4.0_gp*atan(1.d0)/180.0_gp),fmt='(f12.6)')
@@ -2544,6 +2545,7 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
            call yaml_sequence_close()
            !call yaml_mapping_close()
            call yaml_flush_document()
+           av_wahba = av_wahba / input_frag%nfrag
         end if
      end if
      call f_free(mpi_has_frag)
@@ -2660,7 +2662,9 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
               if (frag_trans_orb(iorbp)%Werror > W_tol) call f_increment(itoo_big)
 
               max_wahba = max(max_wahba,frag_trans_orb(iorbp)%Werror)
-              av_wahba = av_wahba + frag_trans_orb(iorbp)%Werror/tmb%orbs%norb
+              ! can't easily calculate the average as some orbitals are on more
+              ! than one proc
+              !av_wahba = av_wahba + frag_trans_orb(iorbp)%Werror/tmb%orbs%norb
 
 !!$              print *,'transformation of the fragment, iforb',iforb
 !!$              write(*,'(A,I3,1x,I3,1x,3(F12.6,1x),F12.6)') 'ifrag,iorb,rot_axis,theta',&
@@ -2687,13 +2691,11 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
 
   !reduce the number of warnings
   if (nproc >1) call fmpi_allreduce(itoo_big,1,op=FMPI_SUM,comm=bigdft_mpi%mpi_comm)
-  if (nproc >1) call fmpi_allreduce(av_wahba,1,op=FMPI_SUM,comm=bigdft_mpi%mpi_comm)
   if (nproc >1) call fmpi_allreduce(max_wahba,1,op=FMPI_MAX,comm=bigdft_mpi%mpi_comm)
-  
 
 
   if (itoo_big > 0 .and. iproc==0) call yaml_warning('Found '//itoo_big//' warning of high Wahba cost functions')
-  if (iproc==0) call yaml_map('Average Wahba cost function value',av_wahba,fmt='(es9.2)')
+  if (iproc==0 .and. output_wahba) call yaml_map('Average Wahba cost function value',av_wahba,fmt='(es9.2)')
   if (iproc==0) call yaml_map('Maximum Wahba cost function value',max_wahba,fmt='(es9.2)')
 
 
