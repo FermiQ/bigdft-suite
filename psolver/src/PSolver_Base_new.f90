@@ -624,7 +624,7 @@ subroutine G_PoissonSolver(iproc,nproc,planes_comm,iproc_inplane,inplane_comm,nc
   !$omp end do
   ! DO NOT USE NOWAIT, removes the implicit barrier
 
-  gflops_fft=2*real(n1dim*maxIter,f_double)*n3dim*log(real(n3dim,f_double))
+  gflops_fft=5*2*real(n1dim*maxIter,f_double)*n3dim*log(real(n3dim,f_double))
 
   !$omp master
     nd3=nd3/n3pr1
@@ -658,7 +658,7 @@ subroutine G_PoissonSolver(iproc,nproc,planes_comm,iproc_inplane,inplane_comm,nc
     endif
   endif
 
-  gflops_fft=gflops_fft+2*maxIter*(real(n2dimp/n3pr1*n1,f_double)*log(real(n1,f_double))+&
+  gflops_fft=gflops_fft+5*2*maxIter*(real(n2dimp/n3pr1*n1,f_double)*log(real(n1,f_double))+&
        real(n1p/n3pr1*n2,f_double)*log(real(n2,f_double)))
   gflops_fft=gflops_fft+f_size(pot)
   
