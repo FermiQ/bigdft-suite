@@ -225,7 +225,7 @@ class DoS():
             #        xytext=(self.ef, 10),
             #    arrowprops=dict(facecolor='white', shrink=0.05),
             #)
-        if len(self.labels) > 1 or legend: plt.legend()
+        if len(self.labels) > 1 or legend: plt.legend(loc='best')
         axcolor = 'lightgoldenrodyellow'
         axsigma = plt.axes([0.2, 0.93, 0.65, 0.03], axisbg=axcolor)
         self.ssig = Slider(axsigma, 'Smearing', 0.0, 0.4, valinit=sigma)

@@ -13,7 +13,7 @@ module f_perfs
 
   private
 
-  character(len=*), parameter, public :: F_PERF_GFLOPS='Flops'
+  character(len=*), parameter, public :: F_PERF_GFLOPS='Flops '
   character(len=*), parameter, public :: F_PERF_READB ='ReadB '
   character(len=*), parameter, public :: F_PERF_WRITEB='WriteB'
 
@@ -60,13 +60,15 @@ module f_perfs
     end subroutine f_perf_set_model_i
 
     subroutine f_perf_set_model(perf,quantity,val)
+      !use yaml_output
       implicit none
       type(f_perf), intent(inout) :: perf
       character(len=*), intent(in) :: quantity
       integer(f_long), intent(in) :: val
 
       call ensure_initialized(perf)
-
+      !call yaml_map('test1',trim(quantity))
+      !call yaml_map('test',perf%model)
       if (quantity .notin. perf%model) then
          call f_err_throw('Quantity '//trim(quantity)//' not allowed in the performance model')
          return

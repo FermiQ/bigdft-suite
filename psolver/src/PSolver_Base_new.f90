@@ -344,7 +344,7 @@ subroutine G_PoissonSolver(iproc,nproc,planes_comm,iproc_inplane,inplane_comm,nc
   use dictionaries ! for f_err_throw
   use box
   use f_perfs
-  use f_utils, only: f_size
+  use f_utils, only: f_size,f_sizeof
   implicit none
   !to be preprocessed
   include 'perfdata.inc'
@@ -660,7 +660,7 @@ subroutine G_PoissonSolver(iproc,nproc,planes_comm,iproc_inplane,inplane_comm,nc
 
   gflops_fft=gflops_fft+5*2*maxIter*(real(n2dimp/n3pr1*n1,f_double)*log(real(n1,f_double))+&
        real(n1p/n3pr1*n2,f_double)*log(real(n2,f_double)))
-  gflops_fft=gflops_fft+f_size(pot)
+  gflops_fft=gflops_fft+2*f_size(pot)
   
   strten_omp=0
 
@@ -954,8 +954,8 @@ subroutine G_PoissonSolver(iproc,nproc,planes_comm,iproc_inplane,inplane_comm,nc
   call f_timing(TCAT_PSOLV_COMPUT,'OF')
 
   call f_perf_set_model(performance_info,F_PERF_GFLOPS,nint(gflops_fft,f_long))
-  call f_perf_set_model(performance_info,F_PERF_READB,f_size(zf)+f_size(pot))
-  call f_perf_set_model(performance_info,F_PERF_WRITEB,f_size(zf))
+  call f_perf_set_model(performance_info,F_PERF_READB,f_sizeof(zf)+f_sizeof(pot))
+  call f_perf_set_model(performance_info,F_PERF_WRITEB,f_sizeof(zf))
   call f_release_routine(performance_info=performance_info)
   call f_perf_free(performance_info)
   !call system_clock(ncount1,ncount_rate,ncount_max)
