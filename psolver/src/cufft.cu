@@ -84,6 +84,7 @@ static const char *_cufftGetErrorString(cufftResult error)
 
 extern cudaStream_t stream1;
 extern cublasHandle_t handle1;
+cudaDeviceProp* prop=NULL;
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
 {
@@ -1389,23 +1390,24 @@ void apply_reduction(int n,
     int threads=0;
 
     //get device capability, to avoid block/grid size excceed the upbound
-    cudaDeviceProp prop;
-    int device;
-    cudaGetDevice(&device);
-    cudaGetDeviceProperties(&prop, device);
-
+    if(prop == NULL){
+      prop=(cudaDeviceProp*)malloc(sizeof(cudaDeviceProp));
+      int device;
+      cudaGetDevice(&device);
+      cudaGetDeviceProperties(prop, device);
+    }
     threads = (n < maxThreads*2) ? nextPow2((n + 1)/ 2) : maxThreads;
     blocks = (n + (threads * 2 - 1)) / (threads * 2);
 
-    if ((Real)threads*blocks > (Real)prop.maxGridSize[0] * prop.maxThreadsPerBlock)
+    if ((Real)threads*blocks > (Real)prop->maxGridSize[0] * prop->maxThreadsPerBlock)
     {
         printf("n is too large, please choose a smaller number!\n");
     }
 
-    if (blocks > prop.maxGridSize[0])
+    if (blocks > prop->maxGridSize[0])
     {
         printf("Grid size <%d> excceeds the device capability <%d>, set block size as %d (original %d)\n",
-               blocks, prop.maxGridSize[0], threads*2, threads);
+               blocks, prop->maxGridSize[0], threads*2, threads);
 
         blocks /= 2;
         threads *= 2;
@@ -1430,10 +1432,10 @@ void apply_reduction(int n,
     {
         threads = (s < maxThreads*2) ? nextPow2((s + 1)/ 2) : maxThreads;
         blocks = (s + (threads * 2 - 1)) / (threads * 2);
-        if (blocks > prop.maxGridSize[0])
+        if (blocks > prop->maxGridSize[0])
         {
             printf("Grid size <%d> excceeds the device capability <%d>, set block size as %d (original %d)\n",
-            blocks, prop.maxGridSize[0], threads*2, threads);
+            blocks, prop->maxGridSize[0], threads*2, threads);
 
             blocks /= 2;
             threads *= 2;
