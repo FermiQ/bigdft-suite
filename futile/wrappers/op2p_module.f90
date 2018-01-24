@@ -319,6 +319,7 @@ module overlap_point_to_point
        use iso_c_binding
        use yaml_output
        use wrapper_MPI
+       use f_ternary
        implicit none
        integer(kind=C_SIZE_T) :: freeGPUSize, totalGPUSize, gpudirectresSize,gpudirectdataSize,phimemSize
        logical, intent(inout) :: symmetric
@@ -352,11 +353,10 @@ module overlap_point_to_point
        end do
 
        phimemSize=OP2P%ndim*sum(OP2P%nobj_par(iproc,:))*2*sizeof(alpha)
-
+       
        if((nproc_node * (phimemSize+gpudirectdataSize+gpudirectresSize) )< freeGPUSize) then
          OP2P%gpudirect=1
        else if ((nproc_node * (phimemSize+gpudirectdataSize))<freeGPUSize) then
-
          symmetric = .false.
          OP2P%gpudirect=1
        else
@@ -367,7 +367,7 @@ module overlap_point_to_point
     ! gpudirect is an integer, and some implementations of MPI don't provide MPI_LAND for integers
     ltmp=OP2P%gpudirect==1
     call fmpi_allreduce(ltmp,1,FMPI_LAND)
-    OP2P%gpudirect= merge(1,0,ltmp)
+    OP2P%gpudirect= .if. ltmp .then. 1 .else. 0 !merge(1,0,ltmp)
     call fmpi_allreduce(symmetric,1,FMPI_LAND)
 
     if (OP2P%gpudirect==0 .and. iproc==0) then
