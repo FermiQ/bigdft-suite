@@ -192,6 +192,7 @@ contains
     !local variables
     integer, parameter :: lwork=7*3
     integer :: info,iat!,i_stat,i
+    real(gp), parameter :: tol=1.0e-4_gp
     real(gp) :: dets, J0
     real(gp), dimension(3) :: SM_arr !< array of SVD and M array
     real(gp), dimension(lwork) :: work !< array of SVD and M array
@@ -209,7 +210,7 @@ contains
             (rxyz_new(3,iat)-rxyz_ref(3,iat))**2
     end do
     !if this is already little, go ahead
-    if (J0 < 1.e-6_gp) then
+    if (J0 < tol) then
        J=J0
        R=0.0_gp
        R(1,1)=1.0_gp
@@ -277,6 +278,17 @@ contains
        !frag_trans%Werror=frag_trans%Werror+J_arr(1,iat)**2+J_arr(2,iat)**2+J_arr(3,iat)**2
        J=J+J_arr(1,iat)**2+J_arr(2,iat)**2+J_arr(3,iat)**2
     end do
+
+    ! if both zero and non-zero rotation are more or less the same (even if both
+    ! large), choose no rotation 
+    if (J0 < J+tol) then
+       J=J0
+       R=0.0_gp
+       R(1,1)=1.0_gp
+       R(2,2)=1.0_gp
+       R(3,3)=1.0_gp
+    end if
+
 
 !!$    !here yaml output
 !!$    !make it optional whether to print the warning from here or leave it to external function
