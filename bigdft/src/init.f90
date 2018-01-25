@@ -720,6 +720,7 @@ subroutine input_wf_cp2k(iproc, nproc, nspin, atoms, rxyz, Lzd, &
 
 END SUBROUTINE input_wf_cp2k
 
+
 subroutine input_wf_memory_history_2(iproc,nproc,orbs,atoms,comms,wfn_history,istep_history, &
                                      oldpsis,rxyz,Lzd,psi)
 use module_base
@@ -1131,10 +1132,7 @@ subroutine input_memory_linear(iproc, nproc, at, KSwfn, tmb, tmb_old, denspot, i
   !type(localizedDIISParameters) :: ldiis
   !logical :: reduce_conf, can_use_ham, ortho_on
   real(kind=8) :: max_error, mean_error !, fnrm_tmb, ratio_deltas, trace, trace_old
-  integer :: order_taylor, iortho, iat, jj, itype, inl, FOE_restart, i !, info_basis_functions
-  integer,dimension(:),allocatable :: maxorbs_type, minorbs_type
-  integer,dimension(:,:),allocatable :: nl_copy
-  logical :: finished
+  integer :: order_taylor, FOE_restart !, info_basis_functions
   real(wp), dimension(:,:,:), pointer :: mom_vec_fake
   real(gp) :: max_shift !, fnrm
   real(gp), dimension(:), pointer :: in_frag_charge
@@ -1737,6 +1735,7 @@ subroutine input_memory_linear(iproc, nproc, at, KSwfn, tmb, tmb_old, denspot, i
 END SUBROUTINE input_memory_linear
 
 
+!> Input wavefunctions from disk
 subroutine input_wf_disk(iproc, nproc, input_wf_format, d, hx, hy, hz, &
      in, atoms, rxyz, wfd, orbs, psi)
   use module_base
@@ -1788,6 +1787,8 @@ subroutine input_wf_disk(iproc, nproc, input_wf_format, d, hx, hy, hz, &
 
 END SUBROUTINE input_wf_disk
 
+
+!> Input wavefunctions from disk (paw version)
 subroutine input_wf_disk_pw(filename, iproc, nproc, at, rxyz, GPU, Lzd, orbs, psig, denspot, nlpsp, paw)
   use module_defs, only: gp, wp
   use module_types, only: orbitals_data, paw_objects, DFT_local_fields, &
@@ -1869,6 +1870,7 @@ subroutine input_wf_disk_pw(filename, iproc, nproc, at, rxyz, GPU, Lzd, orbs, ps
   if (associated(rhoij)) call f_free_ptr(rhoij)
 
 END SUBROUTINE input_wf_disk_pw
+
 
 !> Input guess wavefunction diagonalization
 subroutine input_wf_diag(iproc,nproc,at,denspot,&
@@ -2476,6 +2478,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
   use coeffs, only: calculate_density_kernel
   implicit none
 
+  !Arguments
   integer, intent(in) :: iproc, nproc, input_wf_format
   type(f_enumerator), intent(in) :: inputpsi
   type(input_variables), intent(in) :: in
@@ -2497,7 +2500,8 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
   type(system_fragment), dimension(:), pointer :: ref_frags
   type(cdft_data), intent(out) :: cdft
   real(kind=8),dimension(3,atoms%astruct%nat),intent(in),optional :: locregcenters
-  !local variables
+
+  !Local variables
   real(kind=8),dimension(:),allocatable :: tmparr
   character(len = *), parameter :: subname = "input_wf"
   integer :: nspin, iat
@@ -2519,6 +2523,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
   integer :: ifrag_ref, max_nbasis_env,ispin
   real(gp) :: e_paw, e_pawdc, compch_sph, e_nl
   type(cell) :: mesh
+
   interface
      subroutine input_memory_linear(iproc, nproc, at, KSwfn, tmb, tmb_old, denspot, input, &
           rxyz_old, rxyz, denspot0, energs, nlpsp, GPU, ref_frags, cdft)
@@ -2688,7 +2693,6 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
        real(wp), dimension(:), pointer :: psi, psi_old
      END SUBROUTINE input_wf_memory_new
   end interface
-
 
 
   call f_routine(id='input_wf')
@@ -2922,6 +2926,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
           & KSwfn%Lzd, KSwfn%orbs, KSwfn%psi, denspot, nlpsp, KSwfn%paw)
      KSwfn%hpsi = f_malloc_ptr(max(KSwfn%orbs%npsidim_comp, &
           & KSwfn%orbs%npsidim_orbs),id='KSwfn%hpsi')
+
   case(INPUT_PSI_MEMORY_GAUSS)
      !restart from previously calculated gaussian coefficients
      if (iproc == 0) then
@@ -3419,7 +3424,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
 
   end select
 
-  !save the previous potential if the rho_work is associated
+  !Save the previous potential if the rho_work is associated
   if (denspot%rhov_is==KS_POTENTIAL .and. f_int(in%scf)==SCF_KIND_GENERALIZED_DIRMIN) then
      if (associated(denspot%rho_work)) then
         call f_err_throw('The reference potential should be empty to correct the hamiltonian!',&

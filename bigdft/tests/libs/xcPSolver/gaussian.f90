@@ -6,7 +6,7 @@
 !!    This file is distributed under the terms of the
 !!    GNU General Public License, see ~/COPYING file
 !!    or http://www.gnu.org/copyleft/gpl.txt .
-!!    For the list of contributors, see ~/AUTHORS 
+!!    For the list of contributors, see ~/AUTHORS
 
 
 !> Program testing new ideas like momentum-preserving gaussian integrals
@@ -22,7 +22,7 @@ program MP_gaussian
   integer, parameter :: nstep=10           !< Number of resolution to calculate the moments
   integer, parameter :: nsigma=30         !< Number of different gaussian functions
   integer, parameter :: npts=16           !< Arrays from -npts to npts
-  real(gp), parameter :: hgrid = 1.0_gp   !< Step grid
+  real(gp), parameter :: hgrid = 1.0_gp   !< Grid step
   integer :: nw,nwork
   real(gp), dimension(:,:), allocatable :: work
   integer :: i,j,imoms,pow,istep,isigma,unit
@@ -60,7 +60,7 @@ program MP_gaussian
   call f_lib_initialize()
 
 !  call bacasable_valence()
-! 
+!
 !  call f_lib_finalize()
 !  stop
 
@@ -117,11 +117,11 @@ program MP_gaussian
   call yaml_map('step',x_scf(1)-x_scf(0))
   call yaml_map('dx',real(2*itype_scf,gp)/real(n_scf,gp))
 
-  !Step grid for the integration
+  !Grid step for the integration
   !dx = real(2*itype_scf,gp)/real(n_scf,gp)
   !starting point for the x coordinate for integration
   !x  = real(-itype_scf,gp)-dx
-!  write(iplot,'(a)') '#Abscissae   Interpolating_scaling_function   Lagrange_polynomial' 
+!  write(iplot,'(a)') '#Abscissae   Interpolating_scaling_function   Lagrange_polynomial'
 !  do i=0,n_scf
 !     !x=x+dx
 !     lag_dat(i) = lag_sym(x_scf(i),itype_scf,0)
@@ -179,10 +179,10 @@ program MP_gaussian
   call evaluate_moments(nmoms,npf,hh,pgauss,pow,x0,psi_phi,psi_coll,fj_lag,moments)
   !Daubechies | gaussian
 !!$  call gauss_to_daub_k(hgrid,0.d0,1,1,1,1.d0,x0,sqrt(0.5_gp/pgauss),0,-npts,2*npts,ml1,mu1,&
-!!$      psi_mu,work,nw,.False.,1.d0) 
+!!$      psi_mu,work,nw,.False.,1.d0)
   call gau_daub_1d(.false.,1, x0, [ 0 ], 0.d0, 1, [ sqrt(0.5_gp/pgauss) ], &
        1, [ 1.d0 ], hgrid,nres,-npts,2*npts,1,psi_mu,nw,work)
- 
+
   p0gauss=pgauss
   x00=x0
 
@@ -209,7 +209,7 @@ program MP_gaussian
 
         !Daubechies | gaussian
         call gauss_to_daub_k(hgrid,0.d0,1,1,1,1.d0,x0,sqrt(0.5_gp/pgauss),0,-npts,2*npts,ml1,mu1,&
-            f_mu,work,nw,.false.,1.d0) 
+            f_mu,work,nw,.false.,1.d0)
 !!$        call gau_daub_1d(.false.,1, x0, [ 0 ], 0.d0, 1, [ sqrt(0.5_gp/pgauss) ], &
 !!$             1, [ 1.d0 ], hgrid,nres,-npts,2*npts,1,f_mus,nw,work)
         !now calculate the diff with respect to the original
@@ -397,7 +397,7 @@ contains
 
   end subroutine filename_test
 
-  !> Calculate the moments of an array with respect to a reference point 
+  !> Calculate the moments of an array with respect to a reference point
   subroutine moments_1d(n,array,x0,h,nmoms,moments)
     use module_base, only:gp
     implicit none
@@ -428,7 +428,7 @@ contains
           kl=kl+1
           kh=kh-1
        end do loop_j
-       
+
 !!$       do k=1,n
 !!$          x=real(k,gp)*h-x0
 !!$          !if (j==0) then
@@ -443,11 +443,11 @@ contains
   end subroutine moments_1d
 
 
-  !> This function calculates the scalar product between a Lagrange polynomial and a 
+  !> This function calculates the scalar product between a Lagrange polynomial and a
   !! input function, which is a gaussian times a power centered
   !! @f$g(x) = (x-x_0)^{pow} e^{-pgauss (x-x_0)}@f$
   !! here pure specifier is redundant
-  !! we should add here the threshold from which the 
+  !! we should add here the threshold from which the
   !! normal function can be evaluated
   elemental pure function lagdotf(j,hgrid,pgauss,x0,pow) result(gint)
     implicit none
@@ -461,7 +461,7 @@ contains
     real(gp) :: x,absci,fabsci,dx
     gint=0.0_gp
 
-    !Step grid for the integration
+    !Grid step for the integration
     dx = real(2*itype_scf,gp)/real(n_scf,gp)
     !starting point for the x coordinate for integration
     x  = real(j-itype_scf+1,gp)-dx
@@ -528,7 +528,7 @@ contains
     !Arguments
     real(gp), intent(in) :: x
     integer, intent(in) :: itypescf !< order of scf (should be even)
-    integer, intent(in) :: i0     !< Center 
+    integer, intent(in) :: i0     !< Center
     real(gp) :: y
     !Local variables
     integer :: i,ii
@@ -635,7 +635,7 @@ subroutine polynomial_exactness(npts,itype_scf,nmoms,p,itype_scf_dual,nmoms_dual
      end do
   else
      n_ext=n_range/2
-     write(iplot,'(a)') '#Abscissae   Interpolating_scaling_function   Lagrange_polynomial' 
+     write(iplot,'(a)') '#Abscissae   Interpolating_scaling_function   Lagrange_polynomial'
      do q=0,p
         !evaluate the maxima
         do j=-n_range,n_range
@@ -704,7 +704,7 @@ subroutine polynomial_exactness(npts,itype_scf,nmoms,p,itype_scf_dual,nmoms_dual
      end do
      call f_free(x_scft,scft_dat)
   end if
- 
+
   call f_free(x_scf,scf_dat)!,f_l)
   call f_free(pol_dat)
   call f_free(pol_sp)
@@ -777,7 +777,7 @@ subroutine polynomial_exactness(npts,itype_scf,nmoms,p,itype_scf_dual,nmoms_dual
       end do
 
     end subroutine lagrange_family
- 
+
 end subroutine polynomial_exactness
 
 !>calculate the inverse of the vandermonde matrix and compare it to the lagrange polynomial
@@ -891,7 +891,7 @@ end subroutine invert_vandermonde
 !!$  !Build the scaling function
 !!$  call scaling_function(itype_scf,n_scf,n_range,x_scf,y_scf)
 !!$
-!!$  !Step grid for the integration
+!!$  !Grid step for the integration
 !!$  dx = real(nrange,gp)/real(n_scf,gp)
 !!$
 !!$  !first, collocate the gaussian
@@ -969,13 +969,13 @@ end subroutine invert_vandermonde
 !!$  integer :: n_iter,i_kern,i
 !!$  real(dp) :: p0_cell,p0gauss,absci,kern
 !!$
-!!$  !Step grid for the integration
+!!$  !Grid step for the integration
 !!$  !dx = real(n_range,dp)/real(n_scf,dp)
 !!$
 !!$  !To have a correct integration
 !!$  p0_cell = p0_ref/(hgrid*hgrid)
 !!$
-!!$  !write(*,*) 'p0_cell = ', p0_cell 
+!!$  !write(*,*) 'p0_cell = ', p0_cell
 !!$
 !!$  !We calculate the number of iterations to go from pgauss to p0_ref
 !!$  n_iter = nint((log(pgauss) - log(p0_cell))/log(4.0_dp))
@@ -1030,7 +1030,7 @@ end subroutine invert_vandermonde
 !!$  real(dp), intent(in) :: alpha,x0 !<x0 is the deviation wrt the grid spacing
 !!$  real(dp), dimension(-ntot:ntot), intent(inout) :: fwork
 !!$  real(dp), dimension(0:2048), intent(in) :: fISF
-!!$  integer, intent(in) :: argument_nf 
+!!$  integer, intent(in) :: argument_nf
 !!$
 !!$  !local variables
 !!$  integer :: nf
@@ -1041,7 +1041,7 @@ end subroutine invert_vandermonde
 !!$
 !!$  !write(*,*) fISF(1000), fISF16(1000)
 !!$
-!!$  !  if(present(argument_nf)) then 
+!!$  !  if(present(argument_nf)) then
 !!$  nf=argument_nf
 !!$  !  else
 !!$  !     nf = 64 ! "default value"
@@ -1079,7 +1079,7 @@ end subroutine invert_vandermonde
 !!$        flag=flag1 .or. flag2 .or. flag
 !!$        !if (flag) then
 !!$        !   print *,'here',r1,if,q,j,x0
-!!$        !   stop 
+!!$        !   stop
 !!$        !end if
        ! call wofz_mod(alpha,m,q-1,-j-m,r1,if,flag1)
        ! call wofz_mod(alpha,m,q-1,-j+m,r2,if,flag2)
@@ -1089,14 +1089,14 @@ end subroutine invert_vandermonde
 !!$        flag=flag1 .or. flag2 .or. flag
 !!$        !if (flag) then
 !!$        !   print *,'there',xo,y
-!!$        !   stop 
+!!$        !   stop
 !!$        !end if
 !!$        !write(16,'(2(i4),6(1pe15.7))')j,q,re,ro,erfcmm-erfcpm
 !!$        re=re*fISF(q)
 !!$        ro=ro*fISF(q-1)
 !!$        res=res+re-ro
 !!$     end do
-!!$     !q=0 
+!!$     !q=0
 !!$     !fwork(j)=derf(y)+rese-reso
 !!$     fwork(j)=erfcmm-erfcpm+2.0_dp*res!e-reso
 !!$     fwork(j)=factorend*fwork(j)
@@ -1137,7 +1137,7 @@ subroutine bacasable_valence()
 
   stderr=f_get_free_unit(17)
   !open error queue, leave it as default queue
-  call yaml_set_stream(unit=stderr,filename='errors') 
+  call yaml_set_stream(unit=stderr,filename='errors')
   stdout=6
   call yaml_set_stream(unit=stdout,setdefault=.false.,tabbing=0)
   ixc=-101130
@@ -1174,5 +1174,5 @@ subroutine bacasable_valence()
   call yaml_close_stream(unit=stderr)
 
   call dict_free(semicores)
-  
+
 end subroutine bacasable_valence

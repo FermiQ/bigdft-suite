@@ -2,7 +2,7 @@
 !! Wrapper for the MPI call (this file is preprocessed.)
 !! Use error handling
 !! @author
-!!    Copyright (C) 2012-2016 BigDFT group
+!!    Copyright (C) 2012-2017 BigDFT group
 !!    This file is distributed under the terms of the
 !!    GNU General Public License, see ~/COPYING file
 !!    or http://www.gnu.org/copyleft/gpl.txt .
@@ -31,7 +31,8 @@ module wrapper_MPI
 #ifdef HAVE_MPI2
   logical, parameter :: have_mpi2 = .true.  !< Flag to use in the code to switch between MPI1 and MPI2
 #else
-  integer :: MPI_IN_PLACE               !< Fake MPI_IN_PLACE variable to allow compilation in sumrho.
+  ! Provided now by mpif_module
+  !integer :: MPI_IN_PLACE               !< Fake MPI_IN_PLACE variable to allow compilation in sumrho.
   logical, parameter :: have_mpi2 = .false. !< Flag to use in the code to switch between MPI1 and MPI2
 #endif
 
