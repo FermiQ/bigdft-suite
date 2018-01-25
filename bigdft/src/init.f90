@@ -553,6 +553,7 @@ subroutine input_wf_empty(iproc, nproc, psi, hpsi, psit, orbs, &
   use yaml_output
   use public_enums
   use IObox
+  use locregs  
   implicit none
   integer, intent(in) :: iproc, nproc
   type(orbitals_data), intent(in) :: orbs
@@ -1050,6 +1051,7 @@ subroutine input_wf_memory(iproc, atoms, &
   use module_base, only: gp,wp,f_free_ptr
   use module_types
   use compression
+  use locregs
   implicit none
 
   integer, intent(in) :: iproc
@@ -1743,6 +1745,7 @@ subroutine input_wf_disk(iproc, nproc, input_wf_format, d, hx, hy, hz, &
   use module_interfaces, only: readmywaves
   use public_enums
   use compression
+  use locregs
   implicit none
 
   integer, intent(in) :: iproc, nproc, input_wf_format
@@ -2553,6 +2556,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
           & band_structure_filename, input_spin, atoms, d, denspot)
        use module_defs, only: wp
        use module_types
+       use locregs
        implicit none
        integer, intent(in) :: iproc, nproc
        type(orbitals_data), intent(in) :: orbs
@@ -2596,6 +2600,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
        use module_defs, only: gp,wp
        use module_types
        use compression
+       use locregs
        implicit none
        integer, intent(in) :: iproc
        type(atoms_data), intent(in) :: atoms
@@ -2614,6 +2619,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
        use module_defs
        use module_types
        use compression
+       use locregs
        implicit none
        integer, intent(in) :: iproc, nproc, input_wf_format
        type(grid_dimensions), intent(in) :: d

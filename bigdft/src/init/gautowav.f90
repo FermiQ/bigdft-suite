@@ -401,6 +401,7 @@ subroutine gaussians_to_wavelets(iproc,nproc,geocode,orbs,grid,hx,hy,hz,wfd,G,wf
   use yaml_output
   use gaussians
   use compression
+  use locregs
   implicit none
   character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
   integer, intent(in) :: iproc,nproc
@@ -1599,6 +1600,7 @@ END SUBROUTINE wfn_from_tensprod_cossin
 subroutine segments_to_grid(keyv,keyg,grid,i0,i1,i2,i3,jj)
   use module_base
   use module_types
+  use locregs
   implicit none
   integer, intent(in) :: keyv
   integer, dimension(2), intent(in) :: keyg
