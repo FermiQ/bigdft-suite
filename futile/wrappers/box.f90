@@ -89,6 +89,7 @@ module box
   public :: cell_r,cell_periodic_dims,rxyz_ortho,distance,closest_r,square_gu,square_gd,cell_new,box_iter,box_next_point
   public :: cell_geocode,box_next_x,box_next_y,box_next_z,dotp_gu,dotp_gd,cell_null,nullify_box_iterator
   public :: box_iter_rewind,box_iter_split,box_iter_merge,box_iter_set_nbox,box_iter_expand_nbox,box_nbox_from_cutoff
+  public :: bc_periodic_dims,geocode_to_bc
 
 
 contains
@@ -235,11 +236,28 @@ contains
     real(gp), dimension(3), intent(in) :: oxyz
     real(gp), intent(in) :: cutoff
     integer, dimension(2,3) :: nbox
+    real(gp), dimension(2,3) :: rbox
     !for non-orthorhombic cells the concept of distance has to be inserted here (the box should contain the sphere)
-    nbox(START_,:)=floor((oxyz-cutoff)/mesh%hgrids)
-    nbox(END_,:)=ceiling((oxyz+cutoff)/mesh%hgrids)
+!!$    nbox(START_,:)=floor((oxyz-cutoff)/mesh%hgrids)
+!!$    nbox(END_,:)=ceiling((oxyz+cutoff)/mesh%hgrids)
+
+    rbox=cell_cutoff_extrema(oxyz,cutoff)
+    nbox(START_,:)=floor(rbox(START_,:)/mesh%hgrids)
+    nbox(END_,:)=ceiling(rbox(END_,:)/mesh%hgrids)
 
   end function box_nbox_from_cutoff
+
+
+  pure function cell_cutoff_extrema(oxyz,cutoff) result(rbox)
+    implicit none
+    real(gp), dimension(3), intent(in) :: oxyz
+    real(gp), intent(in) :: cutoff
+    real(gp), dimension(2,3) :: rbox
+    !for non-orthorhombic cells the concept of distance has to be inserted here (the box should contain the sphere)
+    rbox(START_,:)=oxyz-cutoff
+    rbox(END_,:)=oxyz+cutoff
+  end function cell_cutoff_extrema
+
 
   pure subroutine box_iter_expand_nbox(bit)
     implicit none
@@ -690,6 +708,27 @@ contains
 
   end subroutine internal_point
 
+  function geocode_to_bc(geocode) result(bc)
+    use dictionaries, only: f_err_throw
+    implicit none
+    character(len=1), intent(in) :: geocode
+    integer, dimension(3) :: bc
+    select case(geocode)
+    case('P')
+       bc=PERIODIC
+    case('S')
+       bc=PERIODIC
+       bc(2)=FREE
+    case('F')
+       bc=FREE
+    case('W')
+       bc=FREE
+       bc(3)=PERIODIC
+    case default
+       call f_err_throw('Invalid specification of the variable "geocode"')
+    end select
+  end function geocode_to_bc
+    
   function cell_new(geocode,ndims,hgrids,alpha_bc,beta_ac,gamma_ab,abc) result(mesh)
     use numerics, only: onehalf,pi
     use wrapper_linalg, only: det_3x3
@@ -708,21 +747,8 @@ contains
     real(gp) :: aa,cc,a2,cosang
     integer :: i,j
 
+    mesh%bc=geocode_to_bc(geocode)
 
-    select case(geocode)
-    case('P')
-       mesh%bc=PERIODIC
-    case('S')
-       mesh%bc=PERIODIC
-       mesh%bc(2)=FREE
-    case('F')
-       mesh%bc=FREE
-    case('W')
-       mesh%bc=FREE
-       mesh%bc(3)=PERIODIC
-    case default
-       call f_err_throw('Invalid specification of the variable "geocode"')
-    end select
     mesh%ndims=ndims
     mesh%hgrids=hgrids
     mesh%ndim=product(int(ndims,f_long))
@@ -879,13 +905,21 @@ contains
   end function cell_new
 
   !> returns a logical array of size 3 which is .true. for all the periodic dimensions
+  pure function bc_periodic_dims(bc) result(peri)
+    implicit none
+    integer, dimension(3), intent(in) :: bc
+    logical, dimension(3) :: peri
+    peri= bc == PERIODIC
+  end function bc_periodic_dims
+
+  !> returns a logical array of size 3 which is .true. for all the periodic dimensions
   pure function cell_periodic_dims(mesh) result(peri)
     implicit none
     type(cell), intent(in) :: mesh
     logical, dimension(3) :: peri
     !local variables
 
-    peri= mesh%bc == PERIODIC
+    peri=bc_periodic_dims(mesh%bc)
 
   end function cell_periodic_dims
 
