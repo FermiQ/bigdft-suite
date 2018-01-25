@@ -749,7 +749,7 @@ module foe
                iev_min, iev_max, fscale, &
                smats, smatm, smatl, ham_, ovrlp_, ovrlp_minus_one_half_, eval)
       use sparsematrix_init, only: matrixindex_in_compressed
-      use sparsematrix, only: symmetrize_matrix, matrix_matrix_mult_wrapper
+      use sparsematrix, only: symmetrize_matrix, matrix_matrix_mult_wrapper, transform_sparse_matrix
       use foe_base, only: foe_data, foe_data_set_int, foe_data_get_int, foe_data_set_real, foe_data_get_real, &
                           foe_data_get_logical, foe_data_null, foe_data_deallocate
       use fermi_level, only: fermi_aux, init_fermi_level, determine_fermi_level
@@ -772,7 +772,7 @@ module foe
       ! Local variables
       integer :: iev, i, ispin, ilshift, npl, npl_min, ind, npl_max, npl_stride, idiag
       real(mp) :: dq, q, scale_factor, shift_value, factor, accuracy_function, accuracy_penalty
-      real(mp),dimension(:),allocatable :: charges
+      real(mp),dimension(:),allocatable :: charges, ovrlp_large, ham_large
       type(matrices) :: kernel, ham_eff
       real(mp),dimension(1),parameter :: EF = 0.0_mp
       !real(mp),dimension(1),parameter :: FSCALE = 2.e-2_mp
@@ -817,13 +817,29 @@ module foe
 
       !if (iproc==0) call yaml_map('S^-1/2','recalculate')
       if (itype==1) then
-          call overlap_plusminus_onehalf('plus', 'ICE', iproc, nproc, comm, smats, smatl, ovrlp_, ovrlp_minus_one_half_, &
+          call overlap_plusminus_onehalf('minus', 'ICE', iproc, nproc, comm, smats, smatl, ovrlp_, ovrlp_minus_one_half_, &
               verbosity=0) !has internal timer
           ham_eff%matrix_compr => ham_%matrix_compr
           idiag = 2
       else if (itype==2) then
           ham_eff%matrix_compr = sparsematrix_malloc_ptr(smatl, iaction=SPARSE_TASKGROUP, id='ham_eff%matrix_compr')
-          call matrix_matrix_mult_wrapper(iproc, nproc, smatl, ham_%matrix_compr, ovrlp_%matrix_compr, ham_eff%matrix_compr)
+          ovrlp_large = sparsematrix_malloc(smatl, iaction=SPARSE_TASKGROUP, id='ovrlp_large')
+          ham_large = sparsematrix_malloc(smatl, iaction=SPARSE_TASKGROUP, id='ham_large')
+          call transform_sparse_matrix(iproc, smats, smatl, SPARSE_TASKGROUP, 'small_to_large', &
+                       smat_in=ovrlp_%matrix_compr, lmat_out=ovrlp_large)
+          call transform_sparse_matrix(iproc, smatm, smatl, SPARSE_TASKGROUP, 'small_to_large', &
+                       smat_in=ham_%matrix_compr, lmat_out=ham_large)
+          !call matrix_matrix_mult_wrapper(iproc, nproc, smatl, ham_%matrix_compr, ovrlp_%matrix_compr, ham_eff%matrix_compr)
+          call matrix_matrix_mult_wrapper(iproc, nproc, smatl, ham_large, ovrlp_large, ham_eff%matrix_compr)
+          call f_free(ham_large)
+          ham_large = sparsematrix_malloc(smatm, iaction=SPARSE_TASKGROUP, id='ham_large')
+          call transform_sparse_matrix(iproc, smatm, smatl, SPARSE_TASKGROUP, 'large_to_small', &
+                       lmat_in=ham_eff%matrix_compr, smat_out=ham_large)
+          call deallocate_matrices(ham_eff)
+          ham_eff%matrix_compr = sparsematrix_malloc_ptr(smatm, iaction=SPARSE_TASKGROUP, id='ham_eff%matrix_compr')
+          call f_memcpy(src=ham_large, dest=ham_eff%matrix_compr)
+          call f_free(ovrlp_large)
+          call f_free(ham_large)
           idiag = 1
       end if
 
@@ -839,6 +855,10 @@ module foe
            chebyshev_polynomials, npl, scale_factor, shift_value, hamscal_compr, &
            smats=smats, ovrlp_=ovrlp_, ovrlp_minus_one_half_=ovrlp_minus_one_half_(1), &
            efarr=EF, fscale_arr=(/fscale/))
+
+      if (itype==2) then
+          call deallocate_matrices(ham_eff)
+      end if
 
       ! To determine the HOMO/LUMO, subtract/add one electrom for closed shell
       ! systems of one half electron for open shell systems.
@@ -872,6 +892,7 @@ module foe
 
        call f_free_ptr(chebyshev_polynomials)
        call deallocate_matrices(kernel)
+       !call deallocate_matrices(ham_eff)
        call f_free(hamscal_compr)
        call foe_data_deallocate(foe_obj)
        

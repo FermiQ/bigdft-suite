@@ -60,6 +60,7 @@ module sparsematrix_init
   public :: get_sparsematrix_local_rows_columns
   public :: init_matrix_taskgroups_wrapper
   public :: check_projector_charge_analysis
+  public :: analyze_unbalancing
 
 
   contains
@@ -109,7 +110,7 @@ module sparsematrix_init
               ! there seems to be a mix of the spin matrices
               write(*,*) 'iorb, jorb, nfvctr', iorb, jorb, sparsemat%nfvctr
               call f_err_throw('matrixindex_in_compressed: problem in determining spin',&
-                   err_name='BIGDFT_RUNTIME_ERROR')
+                   err_name='SPARSEMATRIX_RUNTIME_ERROR')
           end if
       else
           ! both indices belong to the first spin matrix
@@ -297,77 +298,79 @@ module sparsematrix_init
       call f_routine(id='init_sparse_matrix_matrix_multiplication_new')
 
 
-      ! Calculate the values of sparsemat%smmm%nout and sparsemat%smmm%nseq with
-      ! the default partitioning of the matrix columns.
-      !t1 = mpi_wtime()
-      call get_nout(norb, norbp, isorb, nseg, nsegline, istsegline, keyg, sparsemat%smmm%nout, line_and_column)
-      call calculate_compressed_indices(norb, norbp, isorb, nseg, keyv, keyg, &
-           istsegline, compressed_indices)
-      !t2 = mpi_wtime()
-      !write(*,*) 'iproc, norbp, norb, nout', norbp, norb, sparsemat%smmm%nout
-      !write(*,*) 'iproc, time get_nout', iproc, t2-t1
-
-
-      ! Determine ispt
-      ispt = get_offset(iproc, nproc, comm, sparsemat%smmm%nout)
-
+!!      ! Calculate the values of sparsemat%smmm%nout and sparsemat%smmm%nseq with
+!!      ! the default partitioning of the matrix columns.
+!!      !t1 = mpi_wtime()
+!!      call get_nout(norb, norbp, isorb, nseg, nsegline, istsegline, keyg, sparsemat%smmm%nout, line_and_column)
+!!      call calculate_compressed_indices(norb, norbp, isorb, nseg, keyv, keyg, &
+!!           istsegline, compressed_indices)
+!!      !t2 = mpi_wtime()
+!!      !write(*,*) 'iproc, norbp, norb, nout', norbp, norb, sparsemat%smmm%nout
+!!      !write(*,*) 'iproc, time get_nout', iproc, t2-t1
+!!
+!!
+!!      ! Determine ispt
+!!      ispt = get_offset(iproc, nproc, comm, sparsemat%smmm%nout)
+!!
       nseq_per_line = f_malloc(norb,id='nseq_per_line')
-      !!call determine_sequential_length(norb, norbp, isorb, nseg, &
-      !!     nsegline, istsegline, keyg, sparsemat, &
-      !!     sparsemat%smmm%nseq, nseq_per_line)
-      !t1 = mpi_wtime()
-      call determine_sequential_length_new2(sparsemat%smmm%nout, ispt, nseg, norb, norbp, isorb, &
-           keyv, keyg, &
-           sparsemat, istsegline, line_and_column, compressed_indices, sparsemat%smmm%nseq, nseq_per_line)
-      call f_free_ptr(line_and_column)
-      call f_free_ptr(compressed_indices)
-      !t2 = mpi_wtime()
-      !write(*,*) 'iproc, time determine_sequential_length_new2', iproc, t2-t1
-      !write(*,'(a,i3,3x,200i10)') 'iproc, nseq_per_line', iproc, nseq_per_line
-      if (nproc>1) call fmpi_allreduce(nseq_per_line(1), norb, FMPI_SUM, comm=comm)
-      rseq=real(sparsemat%smmm%nseq,kind=mp) !real to prevent integer overflow
-      if (nproc>1) call fmpi_allreduce(rseq, 1, FMPI_SUM, comm=comm)
-
-
-      rseq_per_line = f_malloc(norb,id='rseq_per_line')
-      do iorb=1,norb
-          rseq_per_line(iorb) = real(nseq_per_line(iorb),kind=mp)
-      end do
-
-
-      norb_par_ideal = f_malloc(0.to.nproc-1,id='norb_par_ideal')
-      isorb_par_ideal = f_malloc(0.to.nproc-1,id='norb_par_ideal')
-      ! Assign the columns of the matrix to the processes such that the load
-      ! balancing is optimal
-      rseq_ideal = rseq/real(nproc,kind=mp)
-      call redistribute(nproc, norb, rseq_per_line, rseq_ideal, norb_par_ideal)
-      isorb_par_ideal(0) = 0
-      do jproc=1,nproc-1
-          isorb_par_ideal(jproc) = isorb_par_ideal(jproc-1) + norb_par_ideal(jproc-1)
-      end do
-
-
-      ! some checks
-      if (sum(norb_par_ideal)/=norb) stop 'sum(norb_par_ideal)/=norb'
-      if (isorb_par_ideal(nproc-1)+norb_par_ideal(nproc-1)/=norb) stop 'isorb_par_ideal(nproc-1)+norb_par_ideal(nproc-1)/=norb'
+!!      !!call determine_sequential_length(norb, norbp, isorb, nseg, &
+!!      !!     nsegline, istsegline, keyg, sparsemat, &
+!!      !!     sparsemat%smmm%nseq, nseq_per_line)
+!!      !t1 = mpi_wtime()
+!!      call determine_sequential_length_new2(sparsemat%smmm%nout, ispt, nseg, norb, norbp, isorb, &
+!!           keyv, keyg, &
+!!           sparsemat, istsegline, line_and_column, compressed_indices, sparsemat%smmm%nseq, nseq_per_line)
+!!      call f_free_ptr(line_and_column)
+!!      call f_free_ptr(compressed_indices)
+!!      !t2 = mpi_wtime()
+!!      !write(*,*) 'iproc, time determine_sequential_length_new2', iproc, t2-t1
+!!      !write(*,'(a,i3,3x,200i10)') 'iproc, nseq_per_line', iproc, nseq_per_line
+!!      if (nproc>1) call fmpi_allreduce(nseq_per_line(1), norb, FMPI_SUM, comm=comm)
+!!      rseq=real(sparsemat%smmm%nseq,kind=mp) !real to prevent integer overflow
+!!      if (nproc>1) call fmpi_allreduce(rseq, 1, FMPI_SUM, comm=comm)
+!!
+!!
+!!      rseq_per_line = f_malloc(norb,id='rseq_per_line')
+!!      do iorb=1,norb
+!!          rseq_per_line(iorb) = real(nseq_per_line(iorb),kind=mp)
+!!      end do
+!!
+!!
+!!      norb_par_ideal = f_malloc(0.to.nproc-1,id='norb_par_ideal')
+!!      isorb_par_ideal = f_malloc(0.to.nproc-1,id='norb_par_ideal')
+!!      ! Assign the columns of the matrix to the processes such that the load
+!!      ! balancing is optimal
+!!      rseq_ideal = rseq/real(nproc,kind=mp)
+!!      call redistribute(nproc, norb, rseq_per_line, rseq_ideal, norb_par_ideal)
+!!      isorb_par_ideal(0) = 0
+!!      do jproc=1,nproc-1
+!!          isorb_par_ideal(jproc) = isorb_par_ideal(jproc-1) + norb_par_ideal(jproc-1)
+!!      end do
+!!
+!!
+!!      ! some checks
+!!      if (sum(norb_par_ideal)/=norb) stop 'sum(norb_par_ideal)/=norb'
+!!      if (isorb_par_ideal(nproc-1)+norb_par_ideal(nproc-1)/=norb) stop 'isorb_par_ideal(nproc-1)+norb_par_ideal(nproc-1)/=norb'
 
       ! Copy the values
-      sparsemat%smmm%nfvctrp=norb_par_ideal(iproc)
-      sparsemat%smmm%isfvctr=isorb_par_ideal(iproc)
+      !sparsemat%smmm%nfvctrp = norb_par_ideal(iproc)
+      !sparsemat%smmm%isfvctr = isorb_par_ideal(iproc)
+      sparsemat%smmm%nfvctrp = norbp
+      sparsemat%smmm%isfvctr = isorb
 
 
 
-      ! Get the load balancing
-      rseq_max(1) = real(sparsemat%smmm%nseq,kind=mp)
-      rseq_average(1) = rseq_max(1)/real(nproc,kind=mp)
+!!      ! Get the load balancing
+!!      rseq_max(1) = real(sparsemat%smmm%nseq,kind=mp)
+!!      rseq_average(1) = rseq_max(1)/real(nproc,kind=mp)
 
 
-      ! Realculate the values of sparsemat%smmm%nout and sparsemat%smmm%nseq with
+      ! Recalculate the values of sparsemat%smmm%nout and sparsemat%smmm%nseq with
       ! the optimized partitioning of the matrix columns.
       !t1 = mpi_wtime()
-      call get_nout(norb, norb_par_ideal(iproc), isorb_par_ideal(iproc), &
+      call get_nout(norb, sparsemat%smmm%nfvctrp, sparsemat%smmm%isfvctr, &
            nseg, nsegline, istsegline, keyg, sparsemat%smmm%nout, line_and_column)
-      call calculate_compressed_indices(norb, norb_par_ideal(iproc), isorb_par_ideal(iproc), &
+      call calculate_compressed_indices(norb, sparsemat%smmm%nfvctrp, sparsemat%smmm%isfvctr, &
             nseg, keyv, keyg, istsegline, compressed_indices)
       !t2 = mpi_wtime()
       !write(*,*) 'iproc, time get_nout', iproc, t2-t1
@@ -376,26 +379,26 @@ module sparsematrix_init
       ispt = get_offset(iproc, nproc, comm, sparsemat%smmm%nout)
       !t1 = mpi_wtime()
       call determine_sequential_length_new2(sparsemat%smmm%nout, ispt, nseg, norb, &
-           norb_par_ideal(iproc), isorb_par_ideal(iproc), keyv, keyg, &
+           sparsemat%smmm%nfvctrp, sparsemat%smmm%isfvctr, keyv, keyg, &
            sparsemat, istsegline, line_and_column, compressed_indices, sparsemat%smmm%nseq, nseq_per_line)
       !t2 = mpi_wtime()
       !write(*,*) 'iproc, time determine_sequential_length_new2', iproc, t2-t1
 
-      ! Get the load balancing
-      rseq_max(2) = real(sparsemat%smmm%nseq,kind=mp)
-      rseq_average(2) = rseq_max(2)/real(nproc,kind=mp)
-      if (nproc>1) call fmpi_allreduce(rseq_max, FMPI_MAX, comm=comm)
-      if (nproc>1) call fmpi_allreduce(rseq_average, FMPI_SUM, comm=comm)
-      ratio_before = rseq_max(1)/rseq_average(1)
-      ratio_after = rseq_max(2)/rseq_average(2)
-      !!if (iproc==0) then
-      !!    call yaml_map('sparse matmul load balancing naive / optimized',(/ratio_before,ratio_after/),fmt='(f4.2)')
-      !!end if
+!!      ! Get the load balancing
+!!      rseq_max(2) = real(sparsemat%smmm%nseq,kind=mp)
+!!      rseq_average(2) = rseq_max(2)/real(nproc,kind=mp)
+!!      if (nproc>1) call fmpi_allreduce(rseq_max, FMPI_MAX, comm=comm)
+!!      if (nproc>1) call fmpi_allreduce(rseq_average, FMPI_SUM, comm=comm)
+!!      ratio_before = rseq_max(1)/rseq_average(1)
+!!      ratio_after = rseq_max(2)/rseq_average(2)
+!!      if (iproc==0) then
+!!          call yaml_map('sparse matmul load balancing naive / optimized',(/ratio_before,ratio_after/),fmt='(f4.2)')
+!!      end if
 
 
       call f_free(nseq_per_line)
       !!call f_free(nseq_per_pt)
-      call f_free(rseq_per_line)
+!!      call f_free(rseq_per_line)
 
 
       call allocate_sparse_matrix_matrix_multiplication(nproc, norb, nseg, sparsemat%smmm)
@@ -493,7 +496,7 @@ module sparsematrix_init
       !     sparsemat, sparsemat%smmm%nout, sparsemat%smmm%onedimindices)
       !t1 = mpi_wtime()
       call init_onedimindices_newnew(sparsemat%smmm%nout, ispt, nseg, &
-           norb, norb_par_ideal(iproc), isorb_par_ideal(iproc), &
+           norb, sparsemat%smmm%nfvctrp, sparsemat%smmm%isfvctr, &
            keyv, keyg, sparsemat, istsegline, &
            line_and_column, compressed_indices, sparsemat%smmm%onedimindices_new)
       !t2 = mpi_wtime()
@@ -504,7 +507,7 @@ module sparsematrix_init
 
       !t1 = mpi_wtime()
       call get_arrays_for_sequential_acces_new(sparsemat%smmm%nout, ispt, nseg, sparsemat%smmm%nseq, &
-           norb, norb_par_ideal(iproc), isorb_par_ideal(iproc), &
+           norb, sparsemat%smmm%nfvctrp, sparsemat%smmm%isfvctr, &
            keyv, keyg, sparsemat, istsegline, line_and_column, compressed_indices, sparsemat%smmm%ivectorindex_new)
       !t2 = mpi_wtime()
       !write(*,*) 'iproc, time get_arrays_for_sequential_acces_new', iproc, t2-t1
@@ -523,7 +526,7 @@ module sparsematrix_init
       !     sparsemat%smmm%indices_extract_sequential)
       !t1 = mpi_wtime()
       call init_sequential_acces_matrix_new(sparsemat%smmm%nout, ispt, nseg, sparsemat%smmm%nseq, &
-           norb, norb_par_ideal(iproc), isorb_par_ideal(iproc), keyv, keyg, sparsemat, &
+           norb, sparsemat%smmm%nfvctrp, sparsemat%smmm%isfvctr, keyv, keyg, sparsemat, &
            istsegline, line_and_column, compressed_indices, sparsemat%smmm%indices_extract_sequential)
       call f_free_ptr(line_and_column)
       call f_free_ptr(compressed_indices)
@@ -626,8 +629,8 @@ module sparsematrix_init
       if (ii>sparsemat%smmm%istartendseg_mm(2)) sparsemat%smmm%istartendseg_mm(2)=ii
 
 
-      call f_free(norb_par_ideal)
-      call f_free(isorb_par_ideal)
+      !!call f_free(norb_par_ideal)
+      !!call f_free(isorb_par_ideal)
       call f_free(istartend_mm)
       call f_free(istartend_dj)
 
@@ -871,6 +874,7 @@ module sparsematrix_init
     subroutine init_sparse_matrix(iproc, nproc, comm, norbu, nnonzero, nonzero, nnonzero_mult, nonzero_mult, sparsemat, &
          init_matmul, nspin, geocode, cell_dim, norbup, isorbu, store_index, on_which_atom, allocate_full, print_info)
       use dynamic_memory
+      use sparsematrix_memory, only: deallocate_sparse_matrix_matrix_multiplication
       implicit none
 
       ! Calling arguments
@@ -889,18 +893,24 @@ module sparsematrix_init
       integer :: jproc, iorb, jorb, iiorb, iseg
       !integer :: jst_line, jst_seg, segn, ind
       integer :: ist, ivctr, i, iel, iend_seg, ilen_seg, iiseg, ist_seg
-      logical :: init_matmul_
+      logical :: init_matmul_, found
       logical,dimension(:),allocatable :: lut
       integer :: nseg_mult, nvctr_mult, ivctr_mult
       integer,dimension(:),allocatable :: nsegline_mult, istsegline_mult, is_line
+      integer,dimension(:),allocatable :: norb_par_ideal, isorb_par_ideal
       integer,dimension(:,:,:),allocatable :: keyg_mult
       integer,dimension(:),allocatable :: keyv_mult
       logical :: allocate_full_, print_info_, store_index_ !LG: internal variables have the underscore, not the opposite
       !integer(kind=mp) :: ntot
 
       real(kind=4) :: tr0, tr1, trt0, trt1
-      real(kind=mp) :: time0, time1, time2, time3, time4, time5, ttime
+      real(kind=mp) :: time0, time1, time2, time3, time4, time5, ttime, time_ideal, time_proc
       logical, parameter :: extra_timing=.false.
+      integer :: icol, is, ie, ii, it, nit, icol_proc, ncol_proc, iscol_proc
+      real(mp),dimension(:),allocatable :: a_seq, b, c
+      real(mp),dimension(:,:),allocatable :: times_col
+      real(mp),dimension(:),allocatable :: times
+      integer,dimension(:,:),allocatable :: column_startend, col_proc
 
 
       !call timing(iproc,'init_matrCompr','ON')
@@ -1215,9 +1225,164 @@ module sparsematrix_init
 
           if (extra_timing) call cpu_time(tr0) 
 
+          ! # NEW #########################################################################################
+          ! Initialize the sparse matrix matrix multiplications
           call init_sparse_matrix_matrix_multiplication_new(iproc, nproc, comm, &
                norbu, sparsemat%nfvctrp, sparsemat%isfvctr, nseg_mult, &
                nsegline_mult, istsegline_mult, keyv_mult, keyg_mult, sparsemat)
+
+          ! Perform a sparse multiplication and get the timings
+          a_seq = sparsematrix_malloc(sparsemat, iaction=SPARSEMM_SEQ, id='a_seq')
+          b = f_malloc0(sparsemat%smmm%nvctrp,id='b')
+          c = f_malloc0(sparsemat%smmm%nvctrp,id='c')
+
+          column_startend = f_malloc([2,sparsemat%nfvctr],id='column_startend')
+          ! Determine the start and end of each column
+          do icol=1,sparsemat%nfvctr
+              iseg = sparsemat%smmm%istsegline(icol)
+              ii = sparsemat%smmm%keyv(iseg)
+              column_startend(1,icol) = ii
+              if (icol>1) then
+                  column_startend(2,icol-1) = ii - 1
+              end if
+          end do
+          column_startend(2,sparsemat%nfvctr) = sum(sparsemat%smmm%nvctr_par)
+
+          ! Determine the start and end of the columns of iproc
+          call determine_columns_per_proc()
+          !!is = sparsemat%smmm%isvctr + 1
+          !!ie = sparsemat%smmm%isvctr + sparsemat%smmm%nvctrp
+          !!ncol_proc = 0
+          !!found = .false.
+          !!do icol=1,sparsemat%nfvctr
+          !!    if ((column_startend(1,icol)>=is .and. column_startend(1,icol)<=ie) .or. &
+          !!        (column_startend(2,icol)>=is .and. column_startend(2,icol)<=ie)) then
+          !!        ncol_proc = ncol_proc + 1
+          !!        if (.not.found) then
+          !!            iscol_proc = icol
+          !!            found = .true.
+          !!        end if
+          !!    end if
+          !!end do
+          !!write(*,*) 'iproc, ncol_proc', iproc, ncol_proc
+          !!col_proc = f_malloc([2,ncol_proc],id='col_proc')
+          !!icol_proc = 0
+          !!do icol=1,sparsemat%nfvctr
+          !!    write(*,*) 'iproc, icol, is, ie, column_startend(1,icol), column_startend(2,icol)', &
+          !!                iproc, icol, is, ie, column_startend(1,icol), column_startend(2,icol)
+          !!    if ((column_startend(1,icol)>=is .and. column_startend(1,icol)<=ie) .or. &
+          !!        (column_startend(2,icol)>=is .and. column_startend(2,icol)<=ie)) then
+          !!        icol_proc = icol_proc + 1
+          !!        col_proc(1,icol_proc) = max(is,column_startend(1,icol)) - sparsemat%smmm%isvctr
+          !!        col_proc(2,icol_proc) = min(ie,column_startend(2,icol)) - sparsemat%smmm%isvctr
+          !!    end if
+          !!end do
+          !!write(*,*) 'iproc, col_proc', iproc, col_proc
+
+          !!do iseg=1,sparsemat%nseg
+          !!    ii=sparsemat%keyv(iseg)
+          !!    icol = sparsemat%keyg(1,2,iseg)
+          !!    do i=sparsemat%keyg(1,1,iseg),sparsemat%keyg(2,1,iseg)
+          !!        if (ii>=is .and. ii<=ie) then
+          !!            times_col(icol,it) = times_col(icol,it) + times(ii-sparsemat%smmm%isvctr,it)
+          !!        end if
+          !!        ii=ii+1
+          !!    end do
+          !!end do
+
+          nit = 20
+          !!times = f_malloc0([sparsemat%smmm%nvctrp,nit],id='times')
+          times_col = f_malloc0([1.to.sparsemat%nfvctr,0.to.nit],id='times_col')
+          do it=1,nit
+              call sparsemm_new_timing(iproc, ncol_proc, col_proc, sparsemat, a_seq, b, c, times_col(iscol_proc,it))
+          end do
+          call f_free(col_proc)
+          time_proc = sum(times_col)/real(nit,kind=mp)
+          if (iproc==0) then
+              call yaml_mapping_open('Sparse matrix multiplications before optimization')
+          end if
+          call analyze_unbalancing(iproc, nproc, comm, time_proc, ncol_proc)
+          if (iproc==0) then
+              call yaml_mapping_close()
+          end if
+
+          !!! Assign the individual timings to the columns
+          !!is = sparsemat%smmm%isvctr + 1
+          !!ie = sparsemat%smmm%isvctr + sparsemat%smmm%nvctrp
+          !!do it=1,nit
+          !!    do iseg=1,sparsemat%nseg
+          !!        ii=sparsemat%keyv(iseg)
+          !!        icol = sparsemat%keyg(1,2,iseg)
+          !!        do i=sparsemat%keyg(1,1,iseg),sparsemat%keyg(2,1,iseg)
+          !!            if (ii>=is .and. ii<=ie) then
+          !!                times_col(icol,it) = times_col(icol,it) + times(ii-sparsemat%smmm%isvctr,it)
+          !!            end if
+          !!            ii=ii+1
+          !!        end do
+          !!    end do
+          !!end do
+          !!!write(*,*) 'iproc, times', iproc, times
+          times = f_malloc(nit,id='times')
+          call fmpi_allreduce(times_col ,FMPI_SUM, comm=comm)
+          do icol=1,sparsemat%nfvctr
+              times(1:nit) = times_col(icol,1:nit)
+              times_col(icol,0) = median(nit, times)
+          end do
+          call f_free(times)
+          !!write(*,*) 'iproc, times_col(:,0)', iproc, times_col(:,0)
+
+          time_ideal = sum(times_col(:,0))/real(nproc,kind=mp)
+          norb_par_ideal = f_malloc(0.to.nproc-1,id='norb_par_ideal')
+          call redistribute(nproc, norbu, times_col(:,0), time_ideal, norb_par_ideal)
+          !!write(*,*) 'AFTER: norb_par_ideal', norb_par_ideal
+
+          isorb_par_ideal = f_malloc(0.to.nproc-1,id='isorb_par_ideal')
+          isorb_par_ideal(0) = 0
+          do jproc=1,nproc-1
+              isorb_par_ideal(jproc) = isorb_par_ideal(jproc-1) + norb_par_ideal(jproc-1)
+          end do
+          !write(*,*) 'iproc, isorb_par_ideal, norb_par_ideal', iproc, isorb_par_ideal, norb_par_ideal
+
+          call deallocate_sparse_matrix_matrix_multiplication(sparsemat%smmm)
+          call init_sparse_matrix_matrix_multiplication_new(iproc, nproc, comm, &
+               norbu, norb_par_ideal(iproc), isorb_par_ideal(iproc), nseg_mult, &
+               nsegline_mult, istsegline_mult, keyv_mult, keyg_mult, sparsemat)
+
+          call f_free(a_seq)
+          call f_free(b)
+          call f_free(c)
+          !!call f_free(times)
+          a_seq = sparsematrix_malloc(sparsemat, iaction=SPARSEMM_SEQ, id='a_seq')
+          b = f_malloc0(sparsemat%smmm%nvctrp,id='b')
+          c = f_malloc0(sparsemat%smmm%nvctrp,id='c')
+          !!times = f_malloc0([sparsemat%smmm%nvctrp,1],id='times')
+
+          call determine_columns_per_proc()
+          !!write(*,*) 'AT END: sparsemat%smmm%nvctrp', sparsemat%smmm%nvctrp
+
+          call f_zero(times_col)
+          call sparsemm_new_timing(iproc, ncol_proc, col_proc, sparsemat, a_seq, b, c, times_col)
+          time_proc = sum(times_col)
+          !write(*,*) 'iproc, time_proc', iproc, time_proc
+          if (iproc==0) then
+              call yaml_mapping_open('Sparse matrix multiplications after optimization')
+          end if
+          call analyze_unbalancing(iproc, nproc, comm, time_proc, ncol_proc)
+          if (iproc==0) then
+              call yaml_mapping_close()
+          end if
+
+          call f_free(col_proc)
+          call f_free(column_startend)
+          call f_free(norb_par_ideal)
+          call f_free(isorb_par_ideal)
+          call f_free(a_seq)
+          call f_free(b)
+          call f_free(c)
+          !!call f_free(times)
+          call f_free(times_col)
+          ! # NEW #########################################################################################
+
           call f_free(nsegline_mult)
           call f_free(istsegline_mult)
           call f_free(keyg_mult)
@@ -1250,6 +1415,44 @@ module sparsematrix_init
 
       if (extra_timing.and.iproc==0) print*,'imctime',time0,time1,time2,time3,time4,time5,&
            time0+time1+time2+time3+time4+time5,ttime
+
+
+
+
+      contains
+
+
+        subroutine determine_columns_per_proc() 
+          ! Determine the start and end of the columns of iproc
+          is = sparsemat%smmm%isvctr + 1
+          ie = sparsemat%smmm%isvctr + sparsemat%smmm%nvctrp
+          ncol_proc = 0
+          found = .false.
+          do icol=1,sparsemat%nfvctr
+              if ((column_startend(1,icol)>=is .and. column_startend(1,icol)<=ie) .or. &
+                  (column_startend(2,icol)>=is .and. column_startend(2,icol)<=ie)) then
+                  ncol_proc = ncol_proc + 1
+                  if (.not.found) then
+                      iscol_proc = icol
+                      found = .true.
+                  end if
+              end if
+          end do
+          !!write(*,*) 'iproc, ncol_proc', iproc, ncol_proc
+          col_proc = f_malloc([2,ncol_proc],id='col_proc')
+          icol_proc = 0
+          do icol=1,sparsemat%nfvctr
+              !!write(*,*) 'iproc, icol, is, ie, column_startend(1,icol), column_startend(2,icol)', &
+              !!            iproc, icol, is, ie, column_startend(1,icol), column_startend(2,icol)
+              if ((column_startend(1,icol)>=is .and. column_startend(1,icol)<=ie) .or. &
+                  (column_startend(2,icol)>=is .and. column_startend(2,icol)<=ie)) then
+                  icol_proc = icol_proc + 1
+                  col_proc(1,icol_proc) = max(is,column_startend(1,icol)) - sparsemat%smmm%isvctr
+                  col_proc(2,icol_proc) = min(ie,column_startend(2,icol)) - sparsemat%smmm%isvctr
+              end if
+          end do
+          !!write(*,*) 'iproc, col_proc', iproc, col_proc
+        end subroutine determine_columns_per_proc
 
     end subroutine init_sparse_matrix
 
@@ -2749,6 +2952,7 @@ module sparsematrix_init
           !end do
           !if (bigdft_mpi%iproc==0) write(*,'(a,2i6,2es14.6)') 'jproc, jjorb, tcount/(jproc+1), workload_ideal', &
           !        jproc, jjorb+(norb-jjorbtot), sum(workload)-tcount, workload_ideal
+
     
           ! Now take away one element from the maximum and add it to the minimum.
           ! Repeat this as long as the ratio max/average decreases 
@@ -2760,6 +2964,10 @@ module sparsematrix_init
               call vcopy(nproc, norb_par(0), 1, norb_par_trial(0), 1)
               norb_par_trial(imin) = norb_par(imin) + 1
               norb_par_trial(imax) = norb_par(imax) - 1
+
+              !!if (mpirank()==0) write(*,*) 'norb_par_trial', norb_par_trial
+              !!if (mpirank()==0) write(*,*) 'sum(workload(1:norb_par_trial(0))), sum(workload(norb_par_trial(0)+1:norb))', &
+              !!                              sum(workload(1:norb_par_trial(0))), sum(workload(norb_par_trial(0)+1:norb))
     
               call f_zero(workload_par)
               ii = 0
@@ -2771,7 +2979,7 @@ module sparsematrix_init
               end do
               average = sum(workload_par)/real(nproc,kind=mp)
               ratio = maxval(workload_par)/average
-              !if (bigdft_mpi%iproc==0) write(*,*) 'ratio, ratio_old', ratio, ratio_old
+              !!if (mpirank()==0) write(*,*) 'norb_par, norb_par_trial, ratio, ratio_old', norb_par, norb_par_trial, ratio, ratio_old
               if (ratio<ratio_old) then
                   call vcopy(nproc, norb_par_trial(0), 1, norb_par(0), 1)
                   ratio_old = ratio
@@ -5719,9 +5927,13 @@ module sparsematrix_init
      ind_min = smat%nvctr
      ind_max = 0
 
+
      call check_compress_distributed_layout(smat,ind_min,ind_max)
      if (smat%smatmul_initialized) then
          call check_matmul_layout(smat%smmm%nseq,smat%smmm%indices_extract_sequential,ind_min,ind_max)
+         ! The matrix as object of a matrix multiplication
+         ind_min = min(ind_min,smat%smmm%isvctr_mm+1)
+         ind_max = max(ind_max,smat%smmm%isvctr_mm+smat%smmm%nvctrp_mm)
      end if
      call check_ortho_inguess(smat,ind_min,ind_max)
      !!call check_projector_charge_analysis(iproc, nproc, smmd, smat, ind_min, ind_max)
@@ -5836,6 +6048,271 @@ module sparsematrix_init
       call f_free(ind_minmax_smat)
 
     end subroutine init_matrix_taskgroups_wrapper
+
+
+   subroutine sparsemm_new_timing(iproc, ncol_proc, col_proc, smat, a_seq, b, c, times_col)
+     use yaml_output
+     use dynamic_memory
+     implicit none
+   
+     !Calling Arguments
+     integer,intent(in) :: iproc, ncol_proc
+     integer,dimension(2,ncol_proc),intent(in) :: col_proc
+     type(sparse_matrix),intent(in) :: smat
+     real(kind=mp), dimension(smat%smmm%nvctrp),intent(in) :: b
+     real(kind=mp), dimension(smat%smmm%nseq),intent(in) :: a_seq
+     real(kind=mp), dimension(smat%smmm%nvctrp), intent(out) :: c
+     real(kind=mp), dimension(ncol_proc), intent(out) :: times_col
+   
+     !Local variables
+     !character(len=*), parameter :: subname='sparsemm'
+     integer :: i,jorb,jjorb,iend,nblock, iblock, ncount, icol
+     integer :: ii, ilen, iout, iiblock, isblock, is,ie, iii
+     real(kind=mp) :: tt0
+     integer :: n_dense
+     real(kind=mp),dimension(:,:),allocatable :: a_dense, b_dense, c_dense
+     !real(kind=mp),dimension(:),allocatable :: b_dense, c_dense
+     !!integer,parameter :: MATMUL_NEW = 101
+     !!integer,parameter :: MATMUL_OLD = 102
+     !!integer,parameter :: matmul_version = MATMUL_NEW 
+     logical,parameter :: count_flops = .false.
+     real(kind=mp) :: ts, te, op, gflops, t1, t2
+     real(kind=mp),parameter :: flop_per_op = 2.d0 !<number of FLOPS per operations
+   
+     call f_routine(id='sparsemm_timing')
+
+     if (.not.smat%smatmul_initialized) then
+         call f_err_throw('sparse matrix multiplication not initialized', &
+              err_name='SPARSEMATRIX_RUNTIME_ERROR')
+     end if
+
+     if (count_flops) then
+         n_dense = nint(sqrt(real(smat%smmm%nseq,kind=mp)))
+         !n_dense = smat%nfvctr
+         a_dense = f_malloc((/n_dense,n_dense/),id='a_dense')
+         b_dense = f_malloc((/n_dense,1/),id='b_dense')
+         c_dense = f_malloc((/n_dense,1/),id='c_dense')
+     end if
+     !call timing(iproc, 'sparse_matmul ', 'IR')
+     call f_timing(TCAT_SMAT_MULTIPLICATION,'IR')
+
+
+
+         if (count_flops) then
+             ! Start time
+             ts = mpi_wtime()
+         end if
+
+         !$omp parallel default(private) shared(ncol_proc, col_proc, smat, a_seq, b, c, times_col)
+         do icol=1,ncol_proc
+             is = col_proc(1,icol)
+             ie = col_proc(2,icol)
+             !$omp master
+             t1 = mpi_wtime()
+             !$omp end master
+             !$omp do schedule(guided)
+             do iout=is,ie
+                 i=smat%smmm%onedimindices_new(1,iout)
+                 nblock=smat%smmm%onedimindices_new(4,iout)
+                 isblock=smat%smmm%onedimindices_new(5,iout)
+                 tt0=0.d0
+
+                 is = isblock + 1
+                 ie = isblock + nblock
+                 !do iblock=1,nblock
+                 do iblock=is,ie
+                     !iiblock = isblock + iblock
+                     jorb = smat%smmm%consecutive_lookup(1,iblock)
+                     jjorb = smat%smmm%consecutive_lookup(2,iblock)
+                     ncount = smat%smmm%consecutive_lookup(3,iblock)
+                     !tt0 = tt0 + ddot(ncount, b(jjorb), 1, a_seq(jorb), 1)
+                     !avoid calling ddot from OpenMP region on BG/Q as too expensive
+                     !tt0=tt0+my_dot(ncount,b(jjorb:jjorb+ncount-1),a_seq(jorb:jorb+ncount-1))
+                     tt0=tt0+my_dot(ncount,b(jjorb),a_seq(jorb))
+                 end do
+
+                 c(i) = tt0
+                 !write(*,*) 'i, t1, t2, time', i, t1, t2, t2-t1
+             end do 
+             !$omp end do
+             !!if (iproc==0) then
+             !!    do iii=1,100000
+             !!        write(999,*) exp(0.1d0*iii)
+             !!    end do
+             !!end if
+             !$omp master
+             t2 = mpi_wtime()
+             times_col(icol) = t2-t1
+             !$omp end master
+         end do
+         !$omp end parallel
+
+         if (count_flops) then
+             ! End time
+             te = mpi_wtime()
+             ! Count the operations
+             op = 0.d0
+             do iout=1,smat%smmm%nout
+                 nblock=smat%smmm%onedimindices_new(4,iout)
+                 isblock=smat%smmm%onedimindices_new(5,iout)
+                 do iblock=1,nblock
+                     iiblock = isblock + iblock
+                     ncount = smat%smmm%consecutive_lookup(3,iiblock)
+                     op = op + real(ncount,kind=mp)
+                 end do
+             end do
+             gflops = 1.d-9*op/(te-ts)*flop_per_op
+             call yaml_map('SPARSE: operations',op,fmt='(es9.3)')
+             call yaml_map('SPARSE: time',te-ts,fmt='(es9.3)')
+             call yaml_map('SPARSE: GFLOPS',gflops)
+
+             !!! Compare with dgemm of comparable size
+             !!ts = mpi_wtime()
+             !!call dgemv('n', n_dense, n_dense, 1.d0, a_dense, n_dense, b_dense, 1, 0.d0, c_dense, 1)
+             !!!call dgemm('n', 'n', n_dense, n_dense, n_dense, 1.d0, a_dense, n_dense, &
+             !!!     b_dense, n_dense, 0.d0, c_dense, n_dense)
+             !!te = mpi_wtime()
+             !!op = real(n_dense,kind=mp)*real(n_dense,kind=mp)
+             !!gflops = 1.d-9*op/(te-ts)*flop_per_op
+             !!call yaml_map('DGEMV: operations',op,fmt='(es9.3)')
+             !!call yaml_map('DGEMV: time',te-ts,fmt='(es9.3)')
+             !!call yaml_map('DGEMV: GFLOPS',gflops)
+         end if
+
+
+   
+     !call timing(iproc, 'sparse_matmul ', 'RS')
+     call f_timing(TCAT_SMAT_MULTIPLICATION,'RS')
+     call f_release_routine()
+
+        contains
+
+     pure function my_dot(n,x,y) result(tt)
+       implicit none
+       integer , intent(in) :: n
+       double precision :: tt
+       double precision, dimension(n), intent(in) :: x,y
+       !local variables
+       integer :: i
+
+       tt=0.d0
+       do i=1,n
+          tt=tt+x(i)*y(i)
+       end do
+     end function
+       
+   end subroutine sparsemm_new_timing
+
+
+    subroutine analyze_unbalancing(iproc, nproc, comm, time, ncol)
+      use dynamic_memory
+      implicit none
+
+      ! Calling arguments
+      integer,intent(in) :: iproc, nproc, comm
+      real(mp),intent(in) :: time
+      integer,intent(in),optional :: ncol
+
+      ! Local variables
+      real(kind=mp) :: time_min, time_max, time_ideal
+      integer :: ncol_min, ncol_max, ncol_tot
+
+      call f_routine(id='analyze_unbalancing')
+
+      time_min = time
+      time_max = time
+      time_ideal = time/real(nproc,kind=8)
+      call fmpi_allreduce(time_min, 1, FMPI_MIN, comm)
+      call fmpi_allreduce(time_max, 1, FMPI_MAX, comm)
+      call fmpi_allreduce(time_ideal, 1, FMPI_SUM, comm)
+      if (present(ncol)) then
+          ncol_min = ncol
+          ncol_max = ncol
+          ncol_tot = ncol
+          call fmpi_allreduce(ncol_min, 1, FMPI_MIN, comm)
+          call fmpi_allreduce(ncol_max, 1, FMPI_MAX, comm)
+          call fmpi_allreduce(ncol_tot, 1, FMPI_SUM, comm)
+      end if
+      if (iproc==0) then
+          call yaml_newline()
+          call yaml_mapping_open('Load unbalancing')
+          if (present(ncol)) then
+              call yaml_map('Minimal number of columns',ncol_min,fmt='(i0)')
+              call yaml_map('Maximal number of columns',ncol_max,fmt='(i0)')
+              call yaml_map('Average number of columns',real(ncol_tot,kind=8)/real(nproc,kind=8),fmt='(f7.1)')
+          end if
+          call yaml_map('Minimal time',time_min,fmt='(es9.2)')
+          call yaml_map('Maximal time',time_max,fmt='(es9.2)')
+          call yaml_map('Ideal time',time_ideal,fmt='(es9.2)')
+          call yaml_map('Unbalancing in %',(time_max-time_ideal)/time_ideal*100._mp,fmt='(f7.2)')
+          call yaml_mapping_close()
+          call yaml_newline()
+      end if
+
+      call f_release_routine()
+
+  end subroutine analyze_unbalancing
+
+
+    subroutine insertion_sort(n, arr)
+      use sparsematrix_base
+      implicit none
+
+      ! Calling variables
+      integer,intent(in) :: n
+      real(kind=mp),dimension(n),intent(inout) :: arr
+
+      ! Local variables
+      integer :: i, j
+      real(kind=mp) :: temp
+
+      do i=2,n
+          j = i-1
+          temp = arr(i)
+          !do while (j>=1 .and. arr(j)>temp)
+          do
+             if (j<1) exit
+             if (arr(j)<=temp) exit
+             arr(j+1) = arr(j)
+             j = j-1
+          end do
+          arr(j+1) = temp
+       end do
+
+    end subroutine insertion_sort
+
+
+
+    function median(n, a)
+      use futile
+      use sparsematrix_base
+      implicit none
+      integer,intent(in) :: n
+      real(kind=mp),dimension(n),intent(in) :: a
+      real(kind=mp) :: median
+
+      ! Local variables
+      integer :: i, j
+      real(kind=mp) :: temp
+      real(kind=mp),dimension(:),allocatable :: arr
+
+      arr = f_malloc(n,id='arr')
+      call f_memcpy(src=a, dest=arr)
+      ! Sort the data (insertion sort)
+      call insertion_sort(n, arr)
+
+       ! Take the median
+       if (mod(n,2)==1) then
+           ! Odd n
+           median = arr(n-n/2)
+       else
+           ! Even n
+           median = 0.5_mp*(arr(n/2)+arr(n/2+1))
+       end if
+
+      call f_free(arr)
+
+    end function median
 
 
 end module sparsematrix_init

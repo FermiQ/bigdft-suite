@@ -565,7 +565,7 @@ module orthonormalization
                correction_orthoconstraint, linmat, lphi, lhphi, lagmat, lagmat_aux, lagmat_, psit_c, psit_f, &
                hpsit_c, hpsit_f, hpsit_c_orig, hpsit_f_orig, &
                can_use_transposed, overlap_calculated, calculate_inverse, norder_taylor, max_inversion_error, &
-               npsidim_orbs_small, lzd_small, hpsi_noprecond, wt_philarge, wt_hphi)
+               npsidim_orbs_small, lzd_small, hpsi_noprecond, wt_philarge, wt_hphi, trH_direct)
       use module_base
       use module_types
       use yaml_output
@@ -613,9 +613,10 @@ module orthonormalization
       real(kind=8),dimension(npsidim_orbs_small),intent(out) :: hpsi_noprecond
       type(work_transpose),intent(inout) :: wt_philarge
       type(work_transpose),intent(out) :: wt_hphi
+      real(kind=8),intent(out) :: trH_direct
     
       ! Local variables
-      real(kind=8) :: max_error, mean_error, trH
+      real(kind=8) :: max_error, mean_error
       real(kind=8),dimension(:),allocatable :: tmp_mat_compr, hpsit_tmp_c, hpsit_tmp_f, hphi_nococontra
       integer,dimension(:),allocatable :: ipiv
       type(matrices),dimension(1) :: inv_ovrlp_
@@ -670,14 +671,14 @@ module orthonormalization
       ! Calculate <phi_alpha|g^beta>
       call calculate_overlap_transposed(iproc, nproc, orbs, collcom, &
            psit_c, hpsit_c_orig, psit_f, hpsit_f_orig, lagmat, lagmat_aux, lagmat_)
-      trH=0.d0
-      do iorb=1,lagmat%nfvctrp
-         iiorb=lagmat%isfvctr+iorb
+      trH_direct=0.d0
+      do iorb=1,orbs%norbp
+         iiorb=orbs%isorb+iorb
          ii=matrixindex_in_compressed(lagmat,iiorb,iiorb)
-         trH = trH + lagmat_%matrix_compr(ii-lagmat%isvctrp_tg)
+         trH_direct = trH_direct + lagmat_%matrix_compr(ii-lagmat%isvctrp_tg)
       end do
-      call fmpi_allreduce(trH, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
-      if (iproc==0) call yaml_map('Omega new',trH)
+      !call fmpi_allreduce(trH_direct, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+      !if (iproc==0) call yaml_map('Tr(<phi_alpha|g^beta>)',trH_direct)
       !############################################################################
     
 
@@ -696,7 +697,6 @@ module orthonormalization
       !!write(*,*) 'WARNING HERE: symmetrize commented!!!'
       call symmetrize_matrix(linmat%smat(3), 'minus', tmp_mat_compr, lagmat_large)
       !lagmat_large=-tmp_mat_compr
-      call f_free(tmp_mat_compr)
     
     
       ! Apply S^-1
@@ -714,12 +714,14 @@ module orthonormalization
           !!write(*,*) 'iproc, sum(inv_lagmatp)', iproc, sum(inv_lagmatp)
           !!call compress_matrix_distributed(iproc, nproc, linmat%smat(3), DENSE_MATMUL, &
           !!     inv_lagmatp, lagmat_large)
+          call f_memcpy(src=lagmat_large, dest=tmp_mat_compr)
           do ispin=1,linmat%smat(3)%nspin
               ist=(ispin-1)*linmat%smat(3)%nvctrp_tg+1
               call matrix_matrix_mult_wrapper(iproc, nproc, linmat%smat(3), &
-                   linmat%ovrlppowers_(3)%matrix_compr(ist:), lagmat_large(ist:), lagmat_large(ist:))
+                   linmat%ovrlppowers_(3)%matrix_compr(ist:), tmp_mat_compr(ist:), lagmat_large(ist:))
           end do
       end if
+      call f_free(tmp_mat_compr)
       if (data_strategy_main==SUBMATRIX) then
           call transform_sparse_matrix(iproc, linmat%smat(2), linmat%smat(3), SPARSE_TASKGROUP, 'large_to_small', &
                lmat_in=lagmat_large, smat_out=lagmat_%matrix_compr)

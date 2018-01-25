@@ -2805,7 +2805,7 @@ module matrix_operations
       type(matrices),dimension(1),target :: inv_ovrlp_
       real(kind=8),dimension(:),allocatable :: proj_ovrlp_half_compr
       !real(kind=8) :: max_error, mean_error
-      integer :: ioperation
+      integer :: ioperation, ispin, ist
       integer, dimension(1) :: power
       logical :: inv_ovrlp_ext_present
 
@@ -2847,13 +2847,19 @@ module matrix_operations
 
       proj_ovrlp_half_compr = sparsematrix_malloc0(smatl,iaction=SPARSE_TASKGROUP,id='proj_mat_compr')
       !if (norbp>0) then
-         call matrix_matrix_mult_wrapper(iproc, nproc, smatl, &
-              matrix%matrix_compr, inv_ovrlp(1)%matrix_compr, proj_ovrlp_half_compr)
+      do ispin=1,smatl%nspin
+          ist=(ispin-1)*smatl%nvctrp_tg+1
+          call matrix_matrix_mult_wrapper(iproc, nproc, smatl, &
+               matrix%matrix_compr(ist:), inv_ovrlp(1)%matrix_compr(ist:), proj_ovrlp_half_compr(ist:))
+      end do
       !end if
       !weight_matrix_compr_tg = sparsematrix_malloc0(smatl,iaction=SPARSE_TASKGROUP,id='weight_matrix_compr_tg')
       !if (norbp>0) then
-         call matrix_matrix_mult_wrapper(iproc, nproc, smatl, &
-              inv_ovrlp(1)%matrix_compr, proj_ovrlp_half_compr, weight_matrix_compr)
+      do ispin=1,smatl%nspin
+          ist=(ispin-1)*smatl%nvctrp_tg+1
+          call matrix_matrix_mult_wrapper(iproc, nproc, smatl, &
+               inv_ovrlp(1)%matrix_compr(ist:), proj_ovrlp_half_compr(ist:), weight_matrix_compr(ist:))
+      end do
       !end if
       call f_free(proj_ovrlp_half_compr)
 

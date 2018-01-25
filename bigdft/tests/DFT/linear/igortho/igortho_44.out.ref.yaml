@@ -3318,6 +3318,7 @@
  WARNINGS:
  - Projectors too rough: Consider modifying hgrid and/or the localisation radii.
  - No orthogonalizing of the support functions
+ - Inconsistency in Tr(H), check your cutoff radii
  - The support function localization radii might be too small, got 54 warnings
  - density optimization not converged
  - The support function localization radii might be too small, got 72 warnings

@@ -11,19 +11,20 @@ module bigdft_matrices
 
   contains
 
-    subroutine check_local_matrix_extents(iproc, nproc, collcom, collcom_sr, smmd, smat, aux, &
-               ind_min, ind_max)
+    subroutine check_local_matrix_extents(iproc, nproc, collcom, collcom_sr, orbs, &
+               smmd, smat, aux, ind_min, ind_max)
           use module_base
           use sparsematrix_base, only: sparse_matrix, sparse_matrix_metadata
           use sparsematrix_init, only: get_sparsematrix_local_rows_columns, &
                                        check_projector_charge_analysis
           use communications_base, only: comms_linear
-          use module_types, only: linmat_auxiliary
+          use module_types, only: linmat_auxiliary, orbitals_data
           implicit none
     
           ! Caling arguments
           integer,intent(in) :: iproc, nproc
           type(comms_linear),intent(in) :: collcom, collcom_sr
+          type(orbitals_data),intent(in) :: orbs
           type(sparse_matrix_metadata),intent(in) :: smmd
           type(sparse_matrix),intent(in) :: smat
           type(linmat_auxiliary),intent(in) :: aux
@@ -140,6 +141,8 @@ module bigdft_matrices
           if (extra_timing) time5=real(tr0-tr1,kind=8)    
           if (extra_timing) call cpu_time(trt1)  
           if (extra_timing) ttime=real(trt1-trt0,kind=8)  
+
+          call check_orbital_matrix_distribution(orbs, smat, ind_min, ind_max)
 
           if (extra_timing.and.iproc==0) print*,'matextent',time0,time1,time2,time3,time4,time5,&
                time0+time1+time2+time3+time4+time5,ttime
@@ -574,7 +577,7 @@ module bigdft_matrices
       integer :: ind_min_m, ind_max_m
       integer :: ind_min_l, ind_max_l
       type(sparse_matrix) :: smat_test
-      type(sparse_matrix),dimension(3) :: smat_ptr
+      integer,dimension(:,:),allocatable :: ind_minmax
 
       call sparse_matrix_metadata_init(atoms%astruct%geocode, atoms%astruct%cell_dim, orbs%norb, &
            atoms%astruct%nat, atoms%astruct%ntypes, atoms%astruct%units, &           
@@ -613,18 +616,22 @@ module bigdft_matrices
 
 
       call check_local_matrix_extents(iproc, nproc, collcom_s, &
-           collcom_s_sr, linmat%smmd, linmat%smat(1), linmat%auxs, &
+           collcom_s_sr, orbs, linmat%smmd, linmat%smat(1), linmat%auxs, &
            ind_min_s, ind_max_s)
       call check_local_matrix_extents(iproc, nproc, collcom_m, &
-           collcom_s_sr, linmat%smmd, linmat%smat(2), linmat%auxm, &
+           collcom_s_sr, orbs, linmat%smmd, linmat%smat(2), linmat%auxm, &
            ind_min_m, ind_max_m)
       call check_local_matrix_extents(iproc, nproc, collcom_m, &
-           collcom_s_sr, linmat%smmd, linmat%smat(3), linmat%auxl, &
+           collcom_s_sr, orbs, linmat%smmd, linmat%smat(3), linmat%auxl, &
            ind_min_l, ind_max_l)
 
+      ind_minmax = f_malloc([2,3],id='ind_minmax')
+      ind_minmax(1:2,1) = [ind_min_s,ind_max_s]
+      ind_minmax(1:2,2) = [ind_min_m,ind_max_m]
+      ind_minmax(1:2,3) = [ind_min_l,ind_max_l]
       call init_matrix_taskgroups_wrapper(iproc, nproc, bigdft_mpi%mpi_comm, in%enable_matrix_taskgroups, &
-           3, linmat%smat, &
-           (/(/ind_min_s,ind_max_s/),(/ind_min_m,ind_max_m/),(/ind_min_l,ind_max_l/)/))
+           3, linmat%smat, ind_minmax)
+      call f_free(ind_minmax)
 
     end subroutine init_bigdft_matrices
 
@@ -699,5 +706,45 @@ module bigdft_matrices
     end subroutine get_minmax_lines
 
 
+
+    subroutine check_orbital_matrix_distribution(orbs, smat, ind_min, ind_max)
+      use module_types, only: orbitals_data
+      use sparsematrix_base, only: sparse_matrix
+      implicit none
+
+      ! Calling arguments:
+      type(orbitals_data),intent(in) :: orbs
+      type(sparse_matrix),intent(in) :: smat
+      integer,intent(inout) :: ind_min, ind_max
+
+      ! Local variables
+      integer :: iorb, ispin, iiorb, ishift, isegstart, isegend, iseg, i, ii
+
+
+      do iorb=orbs%isorb+1,orbs%isorb+orbs%norbp
+          if (orbs%spinsgn(iorb)>0.d0) then
+              ispin=1
+          else
+              ispin=2
+          end if
+          iiorb = mod(iorb-1,smat%nfvctr)+1 ! spin-independent index
+          !ishift=(ispin-1)*smat%nvctr!-smat%isvctrp_tg
+          isegstart = smat%istsegline(iiorb)
+          isegend = smat%istsegline(iiorb) + smat%nsegline(iiorb) - 1
+          do iseg=isegstart,isegend
+              ii=smat%keyv(iseg)
+              do i=smat%keyg(1,1,iseg),smat%keyg(2,1,iseg)
+                  !ind_min = min(ii+ishift,ind_min)
+                  !ind_max = max(ii+ishift,ind_max)
+                  ind_min = min(ii,ind_min)
+                  ind_max = max(ii,ind_max)
+                  ii=ii+1
+              end do
+          end do
+      end do
+
+      !write(*,*) 'end sub: ind_min, ind_max', ind_min, ind_max
+
+    end subroutine check_orbital_matrix_distribution
 
 end module bigdft_matrices

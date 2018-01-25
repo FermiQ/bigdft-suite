@@ -129,7 +129,7 @@ contains
     logical :: domp
     integer :: i
     real(gp) :: tt,r2,r,val
-    real(gp), dimension(3) :: vect
+    real(gp), dimension(3) :: vect, rclosest
     integer, dimension(3) :: itmp
 
     select case(g%discretization_method)
@@ -144,7 +144,8 @@ contains
        tt=0.0_gp
        do i=1,g%nterms
           !this should be in absolute coordinates
-          vect=rxyz_ortho(bit%mesh,closest_r(bit%mesh,bit%rxyz,rxyz))
+          rclosest = closest_r(bit%mesh,bit%rxyz,rxyz)
+          vect=rxyz_ortho(bit%mesh,rclosest)
           val=product(vect**g%lxyz(:,i))
           tt=tt+g%factors(i)*val
        end do

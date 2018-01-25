@@ -63,7 +63,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
   integer, dimension(:), allocatable :: norb_par, norbu_par, norbd_par
   real(kind=8), dimension(:), allocatable :: locrad, times_convol
   integer :: ilr, iilr
-  real(kind=8),dimension(:),allocatable :: totaltimes
+  real(kind=8),dimension(:),allocatable :: totaltimes, locrads
   real(kind=8),dimension(2) :: time_max, time_average
   !real(kind=8) :: ratio_before, ratio_after
   logical :: init_projectors_completely
@@ -525,9 +525,12 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
        end do
 
        if (.not. dry_run) then
+          locrads = f_malloc(lzd_lin%nlr)
+          locrads = lzd_lin%llr(:)%locrad
           call initLocregs(iproc, nproc, lzd_lin, Lzd_lin%hgrids(1), Lzd_lin%hgrids(2),Lzd_lin%hgrids(3), &
-               atoms%astruct%rxyz,lzd_lin%llr(:)%locrad, lorbs, Lzd_lin%Glr, 's')
+               atoms%astruct%rxyz,locrads, lorbs, Lzd_lin%Glr, 's')
           call update_wavefunctions_size(lzd_lin,lnpsidim_orbs,lnpsidim_comp,lorbs,iproc,nproc)
+          call f_free(locrads)
        else
           call yaml_warning("Locregs not initialized for linear.")
        end if
