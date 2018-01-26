@@ -1105,10 +1105,7 @@ subroutine NonLocalHamiltonianApplication(iproc,at,npsidim_orbs,orbs,&
               if(.not. overlap) cycle loop_atoms
               istart_c=1
               mproj=nl%pspd(atit%iat)%mproj
-              call atom_projector(nl,atit%ityp,atit%iat, atit%name, &
-                   at%astruct%geocode, 0, Lzd%Glr,&
-                   Lzd%hgrids(1),Lzd%hgrids(2),Lzd%hgrids(3), &
-                   psi_it%kpoint(1),psi_it%kpoint(2),psi_it%kpoint(3),&
+              call atom_projector(nl,atit%iat, 0, Lzd%Glr, psi_it%kpoint,&
                    istart_c, iproj, nwarnings)
 
               iilr=get_proj_locreg(nl,atit%iat,psi_it%ilr)
@@ -1571,9 +1568,7 @@ subroutine NonLocalHamiltonianApplication_old(iproc,at,npsidim_orbs,orbs,&
                   end if
               end do
               mproj=nl%pspd(iat)%mproj
-              call atom_projector(nl, iatype, iat, at%astruct%atomnames(iatype), &
-                   & at%astruct%geocode, 0, Lzd%Glr, Lzd%hgrids(1),Lzd%hgrids(2),Lzd%hgrids(3), &
-                   & orbs%kpts(1,ikpt), orbs%kpts(2,ikpt), orbs%kpts(3,ikpt), &
+              call atom_projector(nl, iat, 0, Lzd%Glr, orbs%kpts(:,ikpt), &
                    & istart_c, iproj, nwarnings)
               !call cpu_time(tr0)
               !time2=time2+real(tr0-tr1,kind=8)

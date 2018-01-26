@@ -986,9 +986,7 @@ subroutine nonlocal_forces(lr,hx,hy,hz,at,rxyz,&
               ityp=at%astruct%iatype(iat)
               !calculate projectors
               istart_c=1
-              call atom_projector(nlpsp, ityp, iat, at%astruct%atomnames(ityp), &
-                   & at%astruct%geocode, idir, lr, hx, hy, hz, &
-                   & ob%orbs%kpts(1,ikpt), ob%orbs%kpts(2,ikpt), ob%orbs%kpts(3,ikpt), &
+              call atom_projector(nlpsp, iat, idir, lr, ob%orbs%kpts(:,ikpt), &
                    & istart_c, iproj, nwarnings)
               !!do i_all=1,nlpspd%nprojel
               !!    write(850+iat,*) i_all, proj(i_all)

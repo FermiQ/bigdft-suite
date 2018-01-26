@@ -659,9 +659,7 @@ module forces_linear
     
     
                      if (extra_timing) call cpu_time(tr0)
-                     call atom_projector(nlpsp, ityp, iiat, at%astruct%atomnames(ityp), &
-                          & at%astruct%geocode, idir, lr, hx, hy, hz, &
-                          & orbs%kpts(1,ikpt), orbs%kpts(2,ikpt), orbs%kpts(3,ikpt), &
+                     call atom_projector(nlpsp, iiat, idir, lr, orbs%kpts(:,ikpt), &
                           & istart_c, iproj, nwarnings)
                      if (extra_timing) call cpu_time(tr1)
                      if (extra_timing) time0=time0+real(tr1-tr0,kind=8)

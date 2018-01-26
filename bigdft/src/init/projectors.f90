@@ -467,10 +467,7 @@ subroutine fill_projectors(lr,hgrids,astruct,ob,rxyz,nlpsp,idir)
            if(.not. overlap) cycle loop_atoms
            !this routine is defined to uniformise the call for on-the-fly application
            thereissome=.true.
-           call atom_projector(nlpsp,atit%ityp, atit%iat, &
-                atit%name, astruct%geocode, idir, lr,&
-                hgrids(1),hgrids(2),hgrids(3), &
-                psi_it%kpoint(1),psi_it%kpoint(2),psi_it%kpoint(3),&
+           call atom_projector(nlpsp, atit%iat, idir, lr, psi_it%kpoint,&
                 istart_c, iproj, nwarnings)
         end do loop_atoms
      end do loop_lr
@@ -542,10 +539,7 @@ do ikpt=iskpt,iekpt
   iproj=0
   do iat=1,at%astruct%nat
      !this routine is defined to uniformise the call for on-the-fly application
-     call atom_projector(nlpsp, at%astruct%iatype(iat), iat, &
-          & at%astruct%atomnames(at%astruct%iatype(iat)), &
-          & at%astruct%geocode, idir, lr, hx, hy, hz, &
-          & orbs%kpts(1,ikpt), orbs%kpts(2,ikpt), orbs%kpts(3,ikpt), &
+     call atom_projector(nlpsp, iat, idir, lr, orbs%kpts(:,ikpt), &
           & istart_c, iproj, nwarnings)
   enddo
   if (iproj /= nlpsp%nproj) then
@@ -576,124 +570,44 @@ END SUBROUTINE fill_projectors_old
 
 
 !> Create projectors from gaussian decomposition.
-subroutine atom_projector(nl, ityp, iat, atomname, &
-  & geocode, idir, lr, hx, hy, hz, kx, ky, kz, &
-  & istart_c, iproj, nwarnings)
-use module_base
-use locregs
-use gaussians
-use psp_projectors_base, only: DFT_PSP_projectors
-use yaml_output, only: yaml_warning
-use yaml_strings, only: yaml_toa
-implicit none
-type(DFT_PSP_projectors), intent(inout) :: nl
-integer, intent(in) :: ityp, iat
-character(len = 1), intent(in) :: geocode
+subroutine atom_projector(nl, iat, idir, lr, kpoint, istart_c, iproj, nwarnings)
+  use module_base, only: gp, f_routine, f_release_routine
+  use locregs, only: locreg_descriptors
+  use gaussians, only: PROJECTION_1D_SEPARABLE
+  use psp_projectors_base, only: DFT_PSP_projectors, atomic_projector_iter, &
+       & atomic_projector_iter_new_gaussian, atomic_projector_iter_start, &
+       & atomic_projector_iter_to_wavelets, atomic_projector_iter_next, &
+       & atomic_projector_iter_free
+  implicit none
+  type(DFT_PSP_projectors), intent(inout) :: nl
+  integer, intent(in) :: iat
   type(locreg_descriptors), intent(in) :: lr
   integer, intent(in) :: idir
-  character(len = *), intent(in) :: atomname
-  real(gp), intent(in) :: hx, hy, hz, kx, ky, kz
+  real(gp), dimension(3), intent(in) :: kpoint
   integer, intent(inout) :: istart_c, iproj, nwarnings
 
-  type(gaussian_basis_iter) :: iter, iterM
-  integer :: nc, ncplx_k, lmax, np, mbvctr_c, mbvctr_f, mbseg_c, mbseg_f
-  real(gp) :: scpr
-  real(gp), dimension(nl%proj_G%ncplx) :: coeff, expo
-  logical :: use_tmp
-  real(gp), dimension(3) :: kpoint
-  real(wp),allocatable::proj_tmp(:)
+  type(atomic_projector_iter) :: iter
 
   call f_routine(id='atom_projector')
 
-  call plr_segs_and_vctrs(nl%pspd(iat)%plr,mbseg_c,mbseg_f,mbvctr_c,mbvctr_f)
+  ! Start an atomic iterator.
+  call atomic_projector_iter_new_gaussian(iter, nl%pspd(iat)%plr, &
+       & kpoint, nl%proj_G%rxyz(:, iat), iat, &
+       & nl%proj, nl%nprojel, istart_c, nl%normalized, &
+       & nl%proj_G, nl%pspd(iat)%gau_cut, &
+       & PROJECTION_1D_SEPARABLE, lr, nl%wpr)
 
-  if (kx**2 + ky**2 + kz**2 == 0.0_gp) then
-     ncplx_k=1
-  else
-     ncplx_k=2
-  end if
-
-  kpoint=[kx,ky,kz]
-
-  ! Start a gaussian iterator.
-  call gaussian_iter_start(nl%proj_G, iat, iter)
-
-  ! Maximum number of terms for every projector.
-  lmax = 0
-  use_tmp = .false.
-  iterM = iter
-  do
-     if (.not. gaussian_iter_next_shell(nl%proj_G, iterM)) exit
-     lmax = max(lmax, iterM%l)
-     if (iterM%ndoc > 1) use_tmp = .true.
-  end do
-
-  if (use_tmp) then
-     nc = (mbvctr_c+7*mbvctr_f)*(2*lmax-1)*ncplx_k
-     proj_tmp = f_malloc(nc, id = 'proj_tmp')
-  end if
-
+  call atomic_projector_iter_start(iter)
   ! Loop on shell.
-  do
-     if (.not. gaussian_iter_next_shell(nl%proj_G, iter)) exit
-     nc = (mbvctr_c+7*mbvctr_f) * (2*iter%l-1) * ncplx_k
-     if (istart_c + nc > nl%nprojel+1) stop 'istart_c > nprojel+1'
-     ! Loop on contraction, treat the first gaussian separately for performance reasons.
-!!$     if (gaussian_iter_next_gaussian(nl%proj_G, iter, coeff, expo)) &
-!!$          & call projector(geocode, iat, idir, iter%l, iter%n, coeff, expo, &
-!!$          & nl%pspd(iat)%gau_cut, nl%proj_G%rxyz(:, iat), lr%ns1, lr%ns2, lr%ns3, lr%d%n1, lr%d%n2, lr%d%n3, &
-!!$          & hx, hy, hz, kx, ky, kz, ncplx_k, nl%proj_G%ncplx, &
-!!$          & mbvctr_c, mbvctr_f, mbseg_c, mbseg_f, nl%pspd(iat)%plr%wfd%keyvglob, nl%pspd(iat)%plr%wfd%keyglob, &
-!!$          & nl%wpr,nl%proj(istart_c:))
-     !print *,lr%ns1, lr%ns2, lr%ns3, lr%d%n1, lr%d%n2, lr%d%n3
-     !print *,lr%mesh_coarse%ndims
-     !call mpibarrier()
-     if (gaussian_iter_next_gaussian(nl%proj_G, iter, coeff, expo)) &
-          call gaussian_to_wavelets_locreg(lr%mesh_coarse,idir,&
-          nl%proj_G%ncplx,coeff,expo,nl%pspd(iat)%gau_cut,iter%n,iter%l,&
-          nl%proj_G%rxyz(:, iat),kpoint,&
-          ncplx_k,nl%pspd(iat)%plr,nl%wpr,nl%proj(istart_c:))!,method=PROJECTION_RS_COLLOCATION)
-     do
-        if (.not. gaussian_iter_next_gaussian(nl%proj_G, iter, coeff, expo)) exit
-!!$        call projector(geocode, iat, idir, iter%l, iter%n, coeff, expo, &
-!!$             & nl%pspd(iat)%gau_cut, nl%proj_G%rxyz(:, iat), lr%ns1, lr%ns2, lr%ns3, lr%d%n1, lr%d%n2, lr%d%n3, &
-!!$             & hx, hy, hz, kx, ky, kz, ncplx_k, nl%proj_G%ncplx, &
-!!$             & mbvctr_c, mbvctr_f, mbseg_c, mbseg_f, nl%pspd(iat)%plr%wfd%keyvglob, nl%pspd(iat)%plr%wfd%keyglob, &
-!!$             & nl%wpr, proj_tmp)
-        call gaussian_to_wavelets_locreg(lr%mesh_coarse,idir,&
-             nl%proj_G%ncplx,coeff,expo,nl%pspd(iat)%gau_cut,iter%n,iter%l,&
-             nl%proj_G%rxyz(:, iat),kpoint,&
-             ncplx_k,nl%pspd(iat)%plr,nl%wpr, proj_tmp)!,method=PROJECTION_RS_COLLOCATION)
-        call axpy(nc, 1._wp, proj_tmp(1), 1, nl%proj(istart_c), 1)
-     end do
-     ! Check norm for each proj.
-     if (idir == 0 .and. nl%normalized) then
-        do np = 1, 2 * iter%l - 1
-           !here the norm should be done with the complex components
-           call wnrm_wrap(ncplx_k,mbvctr_c,mbvctr_f, &
-                & nl%proj(istart_c + (np - 1) * (mbvctr_c+7*mbvctr_f) * ncplx_k),scpr)
-           !print '(a,3(i6),1pe14.7,2(i6))','iat,l,m,scpr',iat,l,m,scpr,idir,istart_c
-           if (abs(1.d0-scpr) > 1.d-2) then
-              if (abs(1.d0-scpr) > 1.d-1) then
-                 if (bigdft_mpi%iproc == 0) call yaml_warning( &
-                      'Norm of the nonlocal PSP [atom ' // trim(yaml_toa(iat)) // &
-                      ' (' // trim(atomname) // ') l=' // trim(yaml_toa(iter%l)) // &
-                      ' m=' // trim(yaml_toa(iter%n)) // ' is ' // trim(yaml_toa(scpr)) // &
-                      ' while it is supposed to be about 1.0.')
-                 !stop commented for the moment
-                 !restore the norm of the projector
-                 !call wscal_wrap(mbvctr_c,mbvctr_f,1.0_gp/sqrt(scpr),proj(istart_c))
-              else
-                 nwarnings=nwarnings+1
-              end if
-           end if
-        end do
-     end if
-     iproj    = iproj + 2*iter%l-1
-     istart_c = istart_c + nc
+  do while (atomic_projector_iter_next(iter))
+     call atomic_projector_iter_to_wavelets(iter, idir, nwarnings)
+
+     iproj = iproj + iter%mproj
   end do
 
-  if (use_tmp) call f_free(proj_tmp)
+  istart_c = iter%istart_c
+
+  call atomic_projector_iter_free(iter)
 
   call f_release_routine()
 

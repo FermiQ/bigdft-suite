@@ -754,9 +754,7 @@ subroutine applyprojectorsonthefly(iproc,orbs,at,lr,&
         iatype=at%astruct%iatype(iat)
         istart_c=1
 
-        call atom_projector(nlpsp, iatype, iat, at%astruct%atomnames(iatype), &
-             & at%astruct%geocode, idir, lr, hx, hy, hz, &
-             & orbs%kpts(1,ikpt), orbs%kpts(2,ikpt), orbs%kpts(3,ikpt), &
+        call atom_projector(nlpsp, iat, idir, lr, orbs%kpts(:,ikpt), &
              & istart_c, iproj, nwarnings)
 
         !apply the projector to all the orbitals belonging to the processor
