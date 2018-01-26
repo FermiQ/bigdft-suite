@@ -9,15 +9,15 @@
 
 
 !> Calculate the coupling matrix for the TD-DFT a la Casida
-subroutine tddft_casida(iproc,nproc,atoms,rxyz,hxh,hyh,hzh,n3p,n3parr,Glr,tddft_approach,orbs,&
-     orbsv,i3s,fxc,pkernelseq,psi,psiv,exc_fac,bitp)
+subroutine tddft_casida(iproc,nproc,atoms,rxyz,n3p,n3parr,Glr,tddft_approach,orbs,&
+     orbsv,fxc,pkernelseq,psi,psiv,exc_fac,bitp)
   use module_base
   use module_types
   use locregs
   use box
   implicit none
-  integer, intent(in) :: iproc,nproc,n3p,i3s
-  real(gp), intent(in) :: hxh,hyh,hzh
+  integer, intent(in) :: iproc,nproc,n3p!,i3s
+!  real(gp), intent(in) :: hxh,hyh,hzh
   type(atoms_data), intent(in) :: atoms
   type(orbitals_data), intent(in) :: orbs,orbsv
   type(locreg_descriptors), intent(in) :: Glr

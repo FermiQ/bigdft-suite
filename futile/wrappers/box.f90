@@ -347,6 +347,7 @@ contains
     !separable mode
     iz=bit%subbox(START_,Z_)-1 !0
     icnt=0
+    jz=0
     do while(box_next_z(bit))
        iz=iz+1
        jz=iz-bit%subbox(START_,Z_)+1
@@ -354,12 +355,14 @@ contains
        call f_assert(iz+bit%i3s-1==bit%inext(Z_)-1,'A')!,&
        !'Error iz='+iz+', inext(Z)='+bit%inext(Z_))
        iy=bit%subbox(START_,Y_)-1!0
+       jy=0
        do while(box_next_y(bit))
           iy=iy+1
           jy=iy-bit%subbox(START_,Y_)+1
           call f_assert(iy==bit%inext(Y_)-1,'B')!,&
           !'Error iy='+iy+', inext(Y)='+bit%inext(Y_))
           ix=bit%subbox(START_,X_)-1!0
+          jx=0
           do while(box_next_x(bit))
              ix=ix+1
              jx=ix-bit%subbox(START_,X_)+1
@@ -386,8 +389,8 @@ contains
        call f_assert(jy == subdims(Y_),'G')!,&
        !'Error boxit, iy='+iy+', itgty='+subdims(Y_))
 
-       call f_assert(lz(jz)+bit%i3s-1 == bit%k,&
-            yaml_toa([lz(jz),bit%k,bit%i3s]))!,&
+       call f_assert(lz(jz)+bit%i3s-1 == bit%k,'H') !&
+       !yaml_toa([lz(jz),bit%k,bit%i3s]))!,&
     end do
     call f_assert(jz == subdims(Z_),'I')!,&
     !'Error boxit, iz='+iz+', itgtz='+subdims(Z_))

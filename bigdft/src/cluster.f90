@@ -1607,30 +1607,6 @@ contains
 
   END SUBROUTINE deallocate_before_exiting
 
-!!$  !> construct the dictionary needed for the timing information
-!!$  subroutine build_dict_info(dict_info)
-!!$    use wrapper_MPI
-!!$    use dynamic_memory
-!!$    use dictionaries
-!!$    implicit none
-!!$    type(dictionary), pointer :: dict_info
-!!$    !local variables
-!!$    integer :: ierr,namelen,nthreads
-!!$    character(len=MPI_MAX_PROCESSOR_NAME) :: nodename_local
-!!$    character(len=MPI_MAX_PROCESSOR_NAME), dimension(:), allocatable :: nodename
-!!$    type(dictionary), pointer :: dict_tmp
-!!$    !$ integer :: omp_get_max_threads
-!!$
-!!$    call dict_init(dict_info)
-!!$    if (DoLastRunThings) then
-!!$       !call f_malloc_dump_status(dict_summary=dict_tmp)
-!!$       call f_malloc_dump_status(dict_summary=dict_info)
-!!$       !call set(dict_info//'Routines timing and number of calls',dict_tmp)
-!!$    end if
-!!$    call mpi_environment_dict(bigdft_mpi,dict_info)
-!!$
-!!$  end subroutine build_dict_info
-
 END SUBROUTINE cluster
 
 
