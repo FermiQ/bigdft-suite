@@ -49,7 +49,7 @@ libconv_LDADD = $(bigdft_library) @LIB_FUTILE_LIBS@
 
 projection_SOURCES = projection.f90 initialization.f90
 projection_FCFLAGS = -I$(top_builddir)/src/locregs -I$(top_builddir)/src/orbitals -I$(top_builddir)/src/modules @LIB_FUTILE_CFLAGS@
-projection_LDADD = $(bigdft_library) @LIB_FUTILE_LIBS@
+projection_LDADD = $(bigdft_library) @LIB_FUTILE_LIBS@ @LIB_PSOLVER_LIBS@
 
 kinetic_operator_SOURCES = kinetic_operator.f90 initialization.f90
 kinetic_operator_FCFLAGS = -I$(top_builddir)/src/locregs -I$(top_builddir)/src/orbitals -I$(top_builddir)/src/modules @LIB_FUTILE_CFLAGS@
