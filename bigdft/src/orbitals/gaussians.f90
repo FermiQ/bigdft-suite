@@ -81,6 +81,7 @@ module gaussians
   public :: nullify_gaussian_basis, deallocate_gwf, gaussian_basis_null, gaussian_basis_free
 
   public :: gaussian_basis_from_psp, gaussian_basis_from_paw,nullify_gaussian_basis_new,overlap_gain,kinetic_gain
+  public :: gaussian_basis_add_one, init_gaussian_basis
 
   type, public :: gaussian_basis_iter
      integer :: nshell = 0 !< Number of shells to iter on, read only.
@@ -93,7 +94,8 @@ module gaussians
      integer :: iexpo      !< Internal, may change.
   end type gaussian_basis_iter
   public :: gaussian_iter_start, gaussian_iter_next_shell, gaussian_iter_next_gaussian,three_dimensional_density
-  public :: gaussian_real_space_set,gaussian_radial_value,gaussian_to_wavelets_locreg,set_box_around_gaussian
+  public :: gaussian_iter_to_wavelets_separable, gaussian_iter_to_wavelets_collocation
+  public :: gaussian_real_space_set,gaussian_radial_value,set_box_around_gaussian
 
 contains
 
@@ -415,145 +417,119 @@ contains
 
   end subroutine three_dimensional_density
 
-  !>accumulate the coefficients of the expression of a given gaussian in wavelets on the array of
-  !!compressed data
-  subroutine gaussian_to_wavelets_locreg(mesh,ider,&
-       ncplx_g,coeff,expo,distance_cutoff,n,l,rxyz,kpoint,&
-       ncplx_p,lr,wpr,psi,method)
+  subroutine gaussian_iter_to_wavelets_separable(G, iter, ider, mesh, lr, &
+       & distance_cutoff, rxyz, kpoint, ncplx_p, wpr, psi, proj_tmp)
     use box
-    use compression
-    use f_functions
     use locregs
     use locreg_operations
-    use f_utils, only: f_zero
-    use f_enums, only: toi
-    implicit none  
+    implicit none
+    type(gaussian_basis_new), intent(in) :: G
+    type(gaussian_basis_iter), intent(inout) :: iter
     integer, intent(in) :: ider !<direction in which to perform the derivative (0 if any)
-    integer, intent(in) :: n !<principal quantum number
-    integer, intent(in) :: l !<angular momentum of the shell
-    integer, intent(in) :: ncplx_g !< 1 or 2 if the gaussian factor is real or complex respectively
-    integer, intent(in) :: ncplx_p !< 2 if the projector is supposed to be complex, 1 otherwise
-    real(gp), intent(in) :: distance_cutoff !< 1d-distance starting from which the gaussian is assumed to be zero
     type(cell), intent(in) :: mesh !<cell structure *of the wavelet box* (coarse grid)
     type(locreg_descriptors), intent(in) :: lr !<projector descriptors for wavelets representation
-    real(gp), dimension(ncplx_g), intent(in) :: coeff !<prefactor of the gaussian
-    real(gp), dimension(ncplx_g), intent(in) :: expo !<exponents (1/2sigma^2 for the first element) of the gaussian (real and imaginary part)
+    real(gp), intent(in) :: distance_cutoff !< 1d-distance starting from which the gaussian is assumed to be zero
     real(gp), dimension(3), intent(in) :: rxyz !<center of the Gaussian
     real(gp), dimension(3), intent(in) :: kpoint !<coordinate of the kpoint in reciprocal space
     type(workarrays_projectors),intent(inout) :: wpr
     !> wavelet expression, @todo: create a routine that accumulates instead of overwriting
-    real(wp), dimension(lr%wfd%nvctr_c+7*lr%wfd%nvctr_f,ncplx_p,2*l-1), intent(out) :: psi
-    type(f_enumerator), intent(in), optional :: method
+    integer, intent(in) :: ncplx_p !< 2 if the projector is supposed to be complex, 1 otherwise
+    real(wp), dimension(lr%wfd%nvctr_c+7*lr%wfd%nvctr_f,ncplx_p,2*iter%l-1), intent(out) :: psi
+    real(wp), dimension(lr%wfd%nvctr_c+7*lr%wfd%nvctr_f,ncplx_p,2*iter%l-1), intent(out) :: proj_tmp
+
+    real(gp), dimension(G%ncplx) :: coeff, expo
+
+    ! Loop on contraction, treat the first gaussian separately for performance reasons.
+    if (gaussian_iter_next_gaussian(G, iter, coeff, expo)) &
+         call projector(cell_geocode(mesh), -1, ider, iter%l, iter%n, coeff, expo, &
+         distance_cutoff, rxyz,&
+         0,0,0,mesh%ndims(1)-1,mesh%ndims(2)-1,mesh%ndims(3)-1, &
+         mesh%hgrids(1),mesh%hgrids(2),mesh%hgrids(3),&
+         kpoint(1),kpoint(2),kpoint(3), ncplx_p,G%ncplx, &
+         lr%wfd%nvctr_c,lr%wfd%nvctr_f,lr%wfd%nseg_c,lr%wfd%nseg_f,&
+         lr%wfd%keyvglob,lr%wfd%keyglob, &
+         wpr,psi) 
+    do
+       if (.not. gaussian_iter_next_gaussian(G, iter, coeff, expo)) exit
+         call projector(cell_geocode(mesh), -1, ider, iter%l, iter%n, coeff, expo, &
+         distance_cutoff, rxyz,&
+         0,0,0,mesh%ndims(1)-1,mesh%ndims(2)-1,mesh%ndims(3)-1, &
+         mesh%hgrids(1),mesh%hgrids(2),mesh%hgrids(3),&
+         kpoint(1),kpoint(2),kpoint(3), ncplx_p,G%ncplx, &
+         lr%wfd%nvctr_c,lr%wfd%nvctr_f,lr%wfd%nseg_c,lr%wfd%nseg_f,&
+         lr%wfd%keyvglob,lr%wfd%keyglob, &
+         wpr,proj_tmp) 
+         call axpy((lr%wfd%nvctr_c+7*lr%wfd%nvctr_f)*ncplx_p*(2*iter%l-1), &
+              & 1._wp, proj_tmp(1,1,1), 1, psi(1,1,1), 1)
+    end do
+  end subroutine gaussian_iter_to_wavelets_separable
+
+  subroutine gaussian_iter_to_wavelets_collocation(G, iter, ider, lr, rxyz, ncplx_p, psi, &
+       & projector_real, w, mp_order)
+    use box
+    use locregs
+    use locreg_operations
+    use f_utils, only: f_zero
+    implicit none
+    type(gaussian_basis_new), intent(in) :: G
+    type(gaussian_basis_iter), intent(inout) :: iter
+    integer, intent(in) :: ider !<direction in which to perform the derivative (0 if any)
+    type(locreg_descriptors), intent(in) :: lr !<projector descriptors for wavelets representation
+    real(gp), dimension(3), intent(in) :: rxyz !<center of the Gaussian
+    integer, intent(in) :: ncplx_p !< 2 if the projector is supposed to be complex, 1 otherwise
+    real(wp), dimension(lr%wfd%nvctr_c+7*lr%wfd%nvctr_f,ncplx_p,2*iter%l-1), intent(out) :: psi
+    real(f_double), dimension(lr%mesh%ndim), intent(inout) :: projector_real
+    type(workarr_sumrho), intent(inout) :: w
+    integer, intent(in), optional :: mp_order
+
     !local variables
     integer, parameter :: nterm_max=20 !if GTH nterm_max=4 (this value should go in a module)
-    integer :: i,m,meth,iterm
-    type(box_iterator) :: bit
-    type(workarr_sumrho) :: w
-    type(gaussian_real_space) :: g
-    real(gp), dimension(3) :: oxyz
-    real(gp), dimension(ncplx_g) :: sigma_and_expo
-    integer, dimension(2*l-1) :: nterms
-    integer, dimension(nterm_max,3,2*l-1) :: lxyz
+    real(gp), dimension(G%ncplx) :: coeff, expo
+    real(gp), dimension(G%ncplx) :: sigma_and_expo
+    integer, dimension(2*iter%l-1) :: nterms
+    integer, dimension(nterm_max,3,2*iter%l-1) :: lxyz
+    real(gp), dimension(G%ncplx,nterm_max,2*iter%l-1) :: factors
+    integer, dimension(nterm_max) :: zero_v1
     integer, dimension(3,nterm_max) :: lxyz_gau
-    real(gp), dimension(ncplx_g,nterm_max,2*l-1) :: factors
-    type(f_function), dimension(3) :: funcs
-    real(f_double), dimension(:), allocatable :: projector_real
-    !local variables
-    integer, dimension(1), parameter :: zero_v1=[0]
+    integer :: m, iterm, i
+    type(gaussian_real_space) :: grs
+    real(gp), dimension(3) :: oxyz
+    type(box_iterator) :: bit
+    type(gaussian_basis_iter) :: iterG
 
-    meth=SEPARABLE_1D
-    if (present(method)) meth=toi(method)
+    call f_zero(psi)
+    call f_zero(zero_v1)
+    
+    do m = 1, 2 * iter%l - 1
+       call f_zero(projector_real)
 
-    select case(meth)
-    case(SEPARABLE_1D)
-       !here iat is useless
-       call projector(cell_geocode(mesh), -1, ider,l,n, coeff, expo, &
-            distance_cutoff, rxyz,&
-            0,0,0,mesh%ndims(1)-1,mesh%ndims(2)-1,mesh%ndims(3)-1, &
-            mesh%hgrids(1),mesh%hgrids(2),mesh%hgrids(3),&
-            kpoint(1),kpoint(2),kpoint(3), ncplx_p,ncplx_g, &
-            lr%wfd%nvctr_c,lr%wfd%nvctr_f,lr%wfd%nseg_c,lr%wfd%nseg_f,&
-            lr%wfd%keyvglob,lr%wfd%keyglob, &
-            wpr,psi) 
-    case(SEPARABLE_COLLOCATION)
-       call get_projector_coeffs(ncplx_g,l,n,ider,nterm_max,coeff,expo,&
-            nterms,lxyz,sigma_and_expo,factors)
-
-       projector_real=f_malloc(lr%mesh%ndim,id='projector_real')
-       call f_zero(psi)
-       call initialize_work_arrays_sumrho(lr,.true.,w)
-       do m=1,2*l-1
-          call f_zero(projector_real)
-          !call gaussian_real_space_set(g,sqrt(onehalf/expo(1)),nterms(m),factors(1,1,m),lxyz(1,1,m))
-          do iterm=1,nterms(m)
-             do i=1,3
-                lxyz_gau(i,iterm)=lxyz(iterm,i,m)
+       iterG = iter
+       do while (gaussian_iter_next_gaussian(G, iterG, coeff, expo))
+       !call gaussian_real_space_set(g,sqrt(onehalf/expo(1)),nterms(m),factors(1,1,m),lxyz(1,1,m))
+          call get_projector_coeffs(G%ncplx, iter%l, iter%n, ider, nterm_max, &
+               & coeff, expo, nterms, lxyz, sigma_and_expo, factors)
+          do iterm = 1, nterms(m)
+             do i = 1, 3
+                lxyz_gau(i, iterm) = lxyz(iterm, i, m)
              end do
           end do
-          call gaussian_real_space_set(g,sigma_and_expo(1),nterms(m),factors(1,1,m),lxyz_gau,zero_v1,0)
-          oxyz=lr%mesh%hgrids*[lr%nsi1,lr%nsi2,lr%nsi3]
-          bit=box_iter(lr%mesh,origin=oxyz) !use here the real space mesh of the projector locreg
-          call three_dimensional_density(bit,g,sqrt(lr%mesh%volume_element),rxyz,projector_real)
-          call isf_to_daub(lr,w,projector_real,psi(:,:,m))
+          if (present(mp_order)) then
+             call gaussian_real_space_set(grs, sigma_and_expo(1), nterms(m), &
+                  & factors(1,1,m), lxyz_gau, zero_v1, mp_order)
+          else
+             call gaussian_real_space_set(grs, sigma_and_expo(1), nterms(m), &
+                  & factors(1,1,m), lxyz_gau, zero_v1, 0)
+          end if
+          oxyz = lr%mesh%hgrids*[lr%nsi1,lr%nsi2,lr%nsi3]
+          bit = box_iter(lr%mesh, origin = oxyz) !use here the real space mesh of the projector locreg
+          call three_dimensional_density(bit, grs, sqrt(lr%mesh%volume_element), &
+               & rxyz, projector_real)
        end do
-       !print *,'testRS:',sum(projector_real**2)
-       call deallocate_work_arrays_sumrho(w)
-       call f_free(projector_real)
-    case(MULTIPOLE_PRESERVING_COLLOCATION)
-       call get_projector_coeffs(ncplx_g,l,n,ider,nterm_max,coeff,expo,&
-            nterms,lxyz,sigma_and_expo,factors)
-
-       projector_real=f_malloc(lr%mesh%ndim,id='projector_real')
-       call f_zero(psi)
-       call initialize_work_arrays_sumrho(lr,.true.,w)
-       do m=1,2*l-1
-          call f_zero(projector_real)
-          !call gaussian_real_space_set(g,sqrt(onehalf/expo(1)),nterms(m),factors(1,1,m),lxyz(1,1,m))
-          do iterm=1,nterms(m)
-             do i=1,3
-                lxyz_gau(i,iterm)=lxyz(iterm,i,m)
-             end do
-          end do
-          call gaussian_real_space_set(g,sigma_and_expo(1),nterms(m),factors(1,1,m),lxyz_gau,zero_v1,16) !to be customized
-          oxyz=lr%mesh%hgrids*[lr%nsi1,lr%nsi2,lr%nsi3]
-          bit=box_iter(lr%mesh,origin=oxyz) !use here the real space mesh of the projector locreg
-          call three_dimensional_density(bit,g,sqrt(lr%mesh%volume_element),rxyz,projector_real)
-          !print *,'test:',sum(projector_real**2)
-          call isf_to_daub(lr,w,projector_real,psi(:,:,m))
-       end do
-       call deallocate_work_arrays_sumrho(w)
-       call f_free(projector_real)
-
-       !new method, still separable
-
-!!$         !for the moment only with s projectors (l=0,n=1)
-!!$         oxyz=lr%mesh%hgrids*[lr%nsi1,lr%nsi2,lr%nsi3]
-!!$         oxyz=rxyz-oxyz
-!!$         bit=box_iter(lr%mesh,origin=oxyz) !use here the real space mesh of the projector locreg
-!!$         do m=1,2*l-1
-!!$            do i=1,3
-!!$               funcs(i)=f_function_new(f_gaussian,exponent=expo(1))
-!!$            end do
-!!$            !here we do not consider the lxyz terms yet
-!!$            !take the reference functions
-!!$            !print *,size(projector_real),'real',lr%mesh%ndims,&
-!!$            !     lr%mesh%hgrids*[lr%nsi1,lr%nsi2,lr%nsi3],&
-!!$            !     lr%mesh_coarse%hgrids*[lr%ns1,lr%ns2,lr%ns3],rxyz,oxyz
-!!$            call separable_3d_function(bit,funcs,factors(1,1,m)*sqrt(lr%mesh%volume_element),projector_real)
-!!$         end do !not correctly written, it should be used to define the functions
-!!$         
-!!$         call f_zero(psi)
-!!$         call initialize_work_arrays_sumrho(lr,.true.,w)
-!!$         !from real space to wavelet
-!!$         call isf_to_daub(lr,w,projector_real,psi)
-!!$         !free work arrays
-!!$         call deallocate_work_arrays_sumrho(w)
-!!$         call f_free(projector_real)
-    end select
-
-  end subroutine gaussian_to_wavelets_locreg
-
-
+       call isf_to_daub(lr, w, projector_real, psi(:,:,m))
+    end do
+    !print *,'testRS:',sum(projector_real**2)
+  end subroutine gaussian_iter_to_wavelets_collocation
+  
   !> Nullify the pointers of the structure gaussian_basis
   pure subroutine nullify_gaussian_basis(G)
 
@@ -635,8 +611,59 @@ contains
        G%nshltot=G%nshltot+nshell(iat)
     end do
 
-    G%shid = f_malloc_ptr((/ NSHID_, G%nshltot /),id='G%shid')
+    G%shid = f_malloc0_ptr((/ NSHID_, G%nshltot /),id='G%shid')
   end subroutine init_gaussian_basis
+
+  !> For debugging purpose, set a single gaussian for l channel of atom iat.
+  subroutine gaussian_basis_add_one(G, iat, n, l, cplx, coeff, expo)
+    implicit none
+    type(gaussian_basis_new), intent(inout) :: G
+    integer, intent(in) :: iat, n, l, cplx
+    real(gp), dimension(cplx), intent(in) :: coeff, expo
+
+    integer :: jat, i, j, ishell, iexpo
+    real(gp), dimension(:,:), pointer :: sd
+    
+    if (f_err_raise(iat <= 0 .or. iat > G%nat, 'Atom index out of bounds', &
+         & err_name='BIGDFT_RUNTIME_ERROR')) return
+    if (f_err_raise(cplx /= G%ncplx, 'Complex mismatch', &
+         & err_name='BIGDFT_RUNTIME_ERROR')) return
+
+    ishell = 0
+    iexpo = 0
+    do jat = 1, iat - 1
+       ishell = ishell + G%nshell(jat)
+       do j = 1, G%nshell(jat)
+          iexpo = iexpo + G%shid(DOC_, ishell + j)
+       end do
+    end do
+    do i = 1, G%nshell(iat)
+       if (G%shid(DOC_, ishell + i) == 0) then
+          G%shid(DOC_, ishell + i) = 1
+          G%shid(L_, ishell + i) = l - 1
+          G%shid(N_, ishell + i) = n
+          exit
+       else
+          iexpo = iexpo + G%shid(DOC_, ishell + i)
+       end if
+    end do
+    if (f_err_raise(i > G%nshell(iat), 'Shell already full', &
+         & err_name='BIGDFT_RUNTIME_ERROR')) return
+
+    sd = f_malloc_ptr((/ G%ncplx*NSD_, G%nexpo + 1 /), id = 'sd')
+    if (associated(G%sd) .and. iexpo > 0) &
+         & sd(:, 1:iexpo) = G%sd(:, 1:iexpo)
+    sd(G%ncplx * (COEFF_ - 1) + 1, iexpo + 1) = coeff(1)
+    sd(G%ncplx * (EXPO_ - 1) + 1, iexpo + 1)  = expo(1)
+    sd(G%ncplx * (COEFF_ - 1) + G%ncplx, iexpo + 1) = coeff(G%ncplx)
+    sd(G%ncplx * (EXPO_ - 1) + G%ncplx, iexpo + 1)  = expo(G%ncplx)
+    if (associated(G%sd) .and. iexpo + 1 <= G%nexpo) &
+         & sd(:, iexpo + 2:G%nexpo + 1) = G%sd(:, iexpo + 1:G%nexpo)
+    G%nexpo = G%nexpo + 1
+    G%ncoeff = G%ncoeff + 2 * l - 1
+    if (associated(G%sd)) call f_free_ptr(G%sd)
+    G%sd => sd
+  end subroutine gaussian_basis_add_one
 
   subroutine gaussian_basis_from_psp(nat,iatyp,rxyz,psppar,ntyp,G)
     implicit none
