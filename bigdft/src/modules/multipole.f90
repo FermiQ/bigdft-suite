@@ -19,6 +19,7 @@ module multipole
   public :: init_extract_matrix_lookup
   public :: extract_matrix
   public :: correct_multipole_origin
+  public :: calculate_and_write_multipole_matrices
 
   contains
 
@@ -6215,5 +6216,102 @@ end subroutine calculate_rpowerx_matrices
       call f_release_routine()
 
     end subroutine prepare_multipole_object
+
+
+    subroutine calculate_and_write_multipole_matrices(iproc, nproc, nphi, nphir, lphi, hgrids, &
+               orbs, collcom, lzd, smmd, smats, auxs, rxyz, shift, centers_auto, filename, &
+               write_multipole_matrices_mode, multipole_centers)
+      use module_types, only: orbitals_data, comms_linear, local_zone_descriptors, linmat_auxiliary
+      use sparsematrix_base, only: sparse_matrix, matrices, assignment(=), matrices_null, &
+                                   sparsematrix_malloc_ptr, SPARSE_TASKGROUP, sparse_matrix_metadata, &
+                                   deallocate_matrices
+      use sparsematrix_io, only: write_sparse_matrix
+      use io, only: get_sparse_matrix_format
+      implicit none
+
+      ! Calling arguments
+      integer,intent(in) :: iproc, nproc
+      integer,intent(in),optional :: nphi, nphir
+      real(kind=8),dimension(:),intent(in),optional :: lphi
+      real(kind=8),dimension(3),intent(in),optional :: hgrids
+      type(orbitals_data),intent(in),optional :: orbs
+      type(comms_linear),intent(in),optional :: collcom
+      type(local_zone_descriptors),intent(in),optional :: lzd
+      type(sparse_matrix_metadata),intent(in) :: smmd
+      type(sparse_matrix),intent(in) :: smats
+      type(linmat_auxiliary),intent(in),optional :: auxs
+      real(kind=8),dimension(3,smmd%nat),intent(in) :: rxyz
+      real(kind=8),dimension(3),intent(in),optional :: shift
+      logical,intent(in) :: centers_auto
+      character(len=*),intent(in) :: filename
+      integer,intent(in) :: write_multipole_matrices_mode
+      real(kind=8),dimension(:,:),target,intent(in),optional :: multipole_centers
+
+      ! Local variables
+      integer :: iat, ilr, iilr, l, m
+      type(matrices) :: multipole_matrix
+      real(kind=8),dimension(:,:),pointer :: mp_centers
+      integer,dimension(:),allocatable :: inwhichlocreg_reverse
+      real(kind=8),dimension(:,:),allocatable :: locregcenter
+      character(len=14) :: matname
+      character(len=128) :: sparse_format
+      character(len=2) :: lname, mname
+
+      if (.not.centers_auto) then
+          if (.not.present(multipole_centers)) then
+              call f_err_throw("'multipole_centers' must be present if 'centers_auto' is true")
+          end if
+          if (size(multipole_centers,1)/=3) then
+              call f_err_throw('wrong 1st dimension of array multipole_centers')
+          end if
+          if (size(multipole_centers,2)/=smmd%nat) then
+              call f_err_throw('wrong 2nd dimension of array multipole_centers')
+          end if
+      end if
+
+      locregcenter = f_malloc((/3,lzd%nlr/),id='locregcenter')
+
+      if (centers_auto) then
+          mp_centers => smmd%rxyz
+      else
+          mp_centers => multipole_centers
+      end if
+
+      inwhichlocreg_reverse = f_malloc(lzd%nlr,id='inwhichlocreg_reverse')
+      do ilr=1,lzd%nlr
+          iilr = orbs%inwhichlocreg(ilr)
+          inwhichlocreg_reverse(iilr) = ilr
+      end do
+      do ilr=1,lzd%nlr
+          iilr = inwhichlocreg_reverse(ilr)
+          iat = smmd%on_which_atom(iilr)
+          locregcenter(1:3,ilr) = mp_centers(1:3,iat) -shift(1:3)
+      end do
+      call f_free(inwhichlocreg_reverse)
+
+      multipole_matrix = matrices_null()
+      multipole_matrix%matrix_compr = sparsematrix_malloc_ptr(smats, SPARSE_TASKGROUP, id='multipole_matrix%matrix_compr')
+
+      do l=0,lmax
+          do m=-l,l
+              call f_zero(multipole_matrix%matrix_compr)
+              ! Calculate the multipole matrix
+              call calculate_multipole_matrix(iproc, nproc, l, m, nphi, lphi, lphi, nphir, hgrids, &
+                   orbs, collcom, lzd, smmd, smats, auxs, locregcenter, 'box', multipole_matrix) 
+              ! Write the multipole matrix
+              call get_sparse_matrix_format(write_multipole_matrices_mode, sparse_format)
+              write(lname,'(i0)') l
+              write(mname,'(i0)') m
+              matname = 'mpmat_'//trim(lname)//'_'//trim(mname)
+              call write_sparse_matrix(sparse_format, iproc, nproc, bigdft_mpi%mpi_comm, &
+                   smats, multipole_matrix, &
+                   filename=trim(filename//matname))
+           end do
+       end do
+
+      call f_free(locregcenter)
+      call deallocate_matrices(multipole_matrix)
+
+   end subroutine calculate_and_write_multipole_matrices
 
 end module multipole

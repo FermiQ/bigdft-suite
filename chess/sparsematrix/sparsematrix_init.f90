@@ -598,8 +598,14 @@ module sparsematrix_init
       !if (iproc==0) write(*,'(a,100(2i7,3x))') 'istartend_dj',istartend_dj
 
       ! Some checks
-      if (istartend_dj(1,0)/=1) stop 'istartend_dj(1,0)/=1'
-      if (istartend_dj(2,nproc-1)/=sparsemat%nvctr) stop 'istartend_dj(2,nproc-1)/=sparsemat%nvctr'
+      if (istartend_dj(1,0)/=1) then
+          call f_err_throw(trim(yaml_toa(istartend_dj(1,0)))//'=istartend_dj(1,0) /= 1')
+      end if
+      if (istartend_dj(2,nproc-1)/=sparsemat%nvctr) then
+          call f_err_throw(trim(yaml_toa(istartend_dj(2,nproc-1)))//&
+              &'=istartend_dj(2,nproc-1) /= sparsemat%nvctr='//&
+              &trim(yaml_toa(sparsemat%nvctr)))
+      end if
       ii = 0
       do jproc=0,nproc-1
           ncount = istartend_dj(2,jproc)-istartend_dj(1,jproc) + 1

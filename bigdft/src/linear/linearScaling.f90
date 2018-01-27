@@ -49,7 +49,7 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
   use public_enums
   use multipole, only: multipole_analysis_driver_new, &
                        support_function_gross_multipoles, potential_from_charge_multipoles, &
-                       calculate_rpowerx_matrices
+                       calculate_rpowerx_matrices, calculate_and_write_multipole_matrices
   use transposed_operations, only: calculate_overlap_transposed
   use foe_base, only: foe_data_set_real
   use rhopotential, only: full_local_potential
@@ -1389,6 +1389,17 @@ end if
       call write_linear_matrices(iproc,nproc,bigdft_mpi%mpi_comm,input%imethod_overlap,trim(input%dir_output),&
            input%lin%output_mat_format,tmb,at,rxyz,norder_taylor, &
            input%lin%calculate_onsite_overlap, write_SminusonehalfH=.false.)
+
+      nullify(mp_centers)
+      if (.not.input%mp_centers_auto) then
+          mp_centers => input%mp_centers
+      end if
+      call calculate_and_write_multipole_matrices(iproc, nproc, tmb%npsidim_orbs, &
+           max(tmb%collcom_sr%ndimpsi_c,1), tmb%psi, tmb%lzd%hgrids, tmb%orbs, &
+           tmb%collcom, tmb%lzd, tmb%linmat%smmd, tmb%linmat%smat(1), tmb%linmat%auxs, &
+           rxyz, at%astruct%shift, centers_auto=input%mp_centers_auto, &
+           filename=trim(input%dir_output), write_multipole_matrices_mode=input%lin%output_mat_format, &
+           multipole_centers=mp_centers)
 
       !temporary at the moment - to eventually be moved to more appropriate location
       !tmb%linmat%ovrlp_%matrix = sparsematrix_malloc_ptr(tmb%linmat%smat(1), iaction=DENSE_FULL, id='tmb%linmat%ovrlp_%matrix')
