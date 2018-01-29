@@ -42,7 +42,6 @@ module psp_projectors_base
      real(wp), dimension(:), pointer :: cproj
      !> same quantity after application of the hamiltonian
      real(wp), dimension(:), pointer :: hcproj
-     type(workarrays_projectors) :: wpr !< contains the workarrays for the projector creation
   end type DFT_PSP_projectors
 
   type, public :: atomic_projector_iter
@@ -71,7 +70,7 @@ module psp_projectors_base
 
      ! Method specific attributes and work arrays.
      type(locreg_descriptors), pointer :: glr
-     type(workarrays_projectors), pointer :: wpr
+     type(workarrays_projectors) :: wpr
      type(locreg_descriptors), pointer :: lr
      type(workarr_sumrho) :: wcol
   end type atomic_projector_iter
@@ -122,7 +121,6 @@ contains
     nl%natoms=0
     nl%zerovol=100.0_gp
     call nullify_gaussian_basis_new(nl%proj_G)
-    call nullify_workarrays_projectors(nl%wpr)
     nullify(nl%iagamma)
     nullify(nl%gamma_mmp)
     nullify(nl%proj)
@@ -166,7 +164,6 @@ contains
     call free_pspd_ptr(nl%pspd)
     nullify(nl%proj_G%rxyz)
     call gaussian_basis_free(nl%proj_G)
-    call deallocate_workarrays_projectors(nl%wpr)
     call f_free_ptr(nl%iagamma)
     call f_free_ptr(nl%gamma_mmp)
     call f_free_ptr(nl%proj)
@@ -215,26 +212,26 @@ contains
     nullify(iter%gbasis)
   end subroutine atomic_projector_iter_new
 
-  subroutine atomic_projector_iter_set_method(iter, method, glr, wpr)
+  subroutine atomic_projector_iter_set_method(iter, method, glr)
     implicit none
     type(atomic_projector_iter), intent(inout) :: iter
     type(f_enumerator), intent(in) :: method
     type(locreg_descriptors), intent(in), target, optional :: glr
-    type(workarrays_projectors), intent(in), target, optional :: wpr
 
     iter%method = method
     nullify(iter%proj_tmp)
     nullify(iter%glr)
-    nullify(iter%wpr)
+    call nullify_workarrays_projectors(iter%wpr)
     if (iter%method == PROJECTION_1D_SEPARABLE) then
        if (iter%lmax > 0) then
           iter%proj_tmp = f_malloc_ptr(iter%nc * (2*iter%lmax-1), id = 'proj_tmp')
        end if
        if (present(glr)) iter%glr => glr
-       if (present(wpr)) iter%wpr => wpr
-       if (.not. associated(iter%glr) .or. .not. associated(iter%wpr)) &
-            & call f_err_throw("Missing arguments for 1D seprable method.", &
+       if (.not. associated(iter%glr)) &
+            & call f_err_throw("Missing global region for 1D seprable method.", &
             & err_name = 'BIGDFT_RUNTIME_ERROR')
+       ! Workarrays for the projector creation
+       call allocate_workarrays_projectors(glr%d%n1, glr%d%n2, glr%d%n3, iter%wpr)
     else if (iter%method == PROJECTION_RS_COLLOCATION .or. &
          & iter%method == PROJECTION_MP_COLLOCATION) then
        iter%proj_tmp = f_malloc_ptr(iter%lr%mesh%ndim, id = 'proj_tmp')
@@ -243,7 +240,7 @@ contains
   end subroutine atomic_projector_iter_set_method
 
   subroutine atomic_projector_iter_new_gaussian(iter, lr, kpoint, rxyz, iat, &
-       & proj, nprojel, istart_c, normalized, proj_G, gau_cut, method, glr, wpr)
+       & proj, nprojel, istart_c, normalized, proj_G, gau_cut, method, glr)
     implicit none
     type(atomic_projector_iter), intent(out) :: iter
     type(locreg_descriptors), intent(in), target :: lr
@@ -255,7 +252,6 @@ contains
     real(gp), intent(in) :: gau_cut
     type(f_enumerator), intent(in) :: method
     type(locreg_descriptors), intent(in), target, optional :: glr
-    type(workarrays_projectors), intent(in), target, optional :: wpr
 
     type(gaussian_basis_iter) :: iterM
 
@@ -276,7 +272,7 @@ contains
        if (iterM%ndoc > 1) iter%lmax = max(iter%lmax, iterM%l)
     end do
 
-    call atomic_projector_iter_set_method(iter, method, glr, wpr)
+    call atomic_projector_iter_set_method(iter, method, glr)
   end subroutine atomic_projector_iter_new_gaussian
 
   subroutine atomic_projector_iter_free(iter)
@@ -285,6 +281,7 @@ contains
 
     if (iter%method == PROJECTION_1D_SEPARABLE) then
        if (associated(iter%proj_tmp)) call f_free_ptr(iter%proj_tmp)
+       call deallocate_workarrays_projectors(iter%wpr)
     else if (iter%method == PROJECTION_RS_COLLOCATION .or. &
          & iter%method == PROJECTION_MP_COLLOCATION) then
        call deallocate_work_arrays_sumrho(iter%wcol)

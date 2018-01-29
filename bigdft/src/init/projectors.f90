@@ -595,7 +595,7 @@ subroutine atom_projector(nl, iat, idir, lr, kpoint, istart_c, iproj, nwarnings)
        & kpoint, nl%proj_G%rxyz(:, iat), iat, &
        & nl%proj, nl%nprojel, istart_c, nl%normalized, &
        & nl%proj_G, nl%pspd(iat)%gau_cut, &
-       & PROJECTION_1D_SEPARABLE, lr, nl%wpr)
+       & PROJECTION_1D_SEPARABLE, lr)
 
   call atomic_projector_iter_start(iter)
   ! Loop on shell.

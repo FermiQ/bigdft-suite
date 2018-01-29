@@ -18,7 +18,6 @@ subroutine CalculateTailCorrection(iproc,nproc,at,rbuf,orbs,&
   use yaml_output
   use module_interfaces, only: applyprojectorsonthefly, orbitals_descriptors
   use gaussians, only: gaussian_basis
-  use locreg_operations, only: deallocate_workarrays_projectors, allocate_workarrays_projectors
   use public_enums
   use bounds, only: make_bounds, make_all_ib
   use locregs
@@ -358,10 +357,6 @@ subroutine CalculateTailCorrection(iproc,nproc,at,rbuf,orbs,&
 
   !change positions in gaussian projectors
   nlpsp%proj_G%rxyz => txyz
-
-  ! Workarrays for the projector creation
-  call deallocate_workarrays_projectors(nlpsp%wpr)
-  call allocate_workarrays_projectors(nb1, nb2, nb3, nlpsp%wpr)
 
   do iorb=1,orbs%norbp
 
