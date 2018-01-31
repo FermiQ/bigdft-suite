@@ -21,7 +21,7 @@
 #include "OpenCL_wrappers.h"
 #include "MagicFilter_Generator.h"
 
-inline void magicfilter_block_generic(cl_kernel kernel, cl_command_queue command_queue, cl_uint *n,cl_uint *ndat,cl_mem *psi,cl_mem *out){
+static inline void magicfilter_block_generic(cl_kernel kernel, cl_command_queue command_queue, cl_uint *n,cl_uint *ndat,cl_mem *psi,cl_mem *out){
     cl_int ciErrNum;
     int FILTER_WIDTH=16;
     int ELEM_PER_THREAD=2;
@@ -38,7 +38,7 @@ inline void magicfilter_block_generic(cl_kernel kernel, cl_command_queue command
     oclErrorCheck(ciErrNum,"Failed to enqueue magic filter kernel!");
 }
 
-inline void magicfilter_generic(cl_kernel kernel, cl_command_queue command_queue, cl_uint *n,cl_uint *ndat,cl_mem *psi,cl_mem *out){
+void magicfilter_generic(cl_kernel kernel, cl_command_queue command_queue, cl_uint *n,cl_uint *ndat,cl_mem *psi,cl_mem *out){
     cl_int ciErrNum;
     int FILTER_WIDTH=16;
     assert(*n>=FILTER_WIDTH);
@@ -54,7 +54,7 @@ inline void magicfilter_generic(cl_kernel kernel, cl_command_queue command_queue
     oclErrorCheck(ciErrNum,"Failed to enqueue magic filter kernel!");
 }
 
-inline void magicfilter_pot_generic(cl_kernel kernel, cl_command_queue command_queue, cl_uint *n, cl_uint *ndat, cl_mem *psi, cl_mem *pot, cl_mem *out) {
+static inline void magicfilter_pot_generic(cl_kernel kernel, cl_command_queue command_queue, cl_uint *n, cl_uint *ndat, cl_mem *psi, cl_mem *pot, cl_mem *out) {
     cl_int ciErrNum;
     int FILTER_WIDTH = 16;
     assert(*n>=FILTER_WIDTH);

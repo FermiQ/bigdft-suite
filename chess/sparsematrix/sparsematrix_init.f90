@@ -1255,7 +1255,7 @@ module sparsematrix_init
 
 
           ! Perform a sparse multiplication and get the timings
-          a_seq = sparsematrix_malloc(sparsemat, iaction=SPARSEMM_SEQ, id='a_seq')
+          a_seq = sparsematrix_malloc0(sparsemat, iaction=SPARSEMM_SEQ, id='a_seq')
           b = f_malloc0(sparsemat%smmm%nvctrp,id='b')
           c = f_malloc0(sparsemat%smmm%nvctrp,id='c')
 
@@ -1382,7 +1382,7 @@ module sparsematrix_init
               call write_matmul_memory(iproc, nproc, comm, sparsemat%smmm)
 
               !!call f_free(times)
-              a_seq = sparsematrix_malloc(sparsemat, iaction=SPARSEMM_SEQ, id='a_seq')
+              a_seq = sparsematrix_malloc0(sparsemat, iaction=SPARSEMM_SEQ, id='a_seq')
               b = f_malloc0(sparsemat%smmm%nvctrp,id='b')
               c = f_malloc0(sparsemat%smmm%nvctrp,id='c')
               !!times = f_malloc0([sparsemat%smmm%nvctrp,1],id='times')

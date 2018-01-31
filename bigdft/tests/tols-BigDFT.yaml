@@ -2659,7 +2659,7 @@ pexsi:
 counterions:
   EH: 1.1e-10
   EKS: 2.5e-11
-  Energy (Hartree): 1.6e-11
+  Energy (Hartree): 1.7e-11
   Epot: 1.1e-10
   EvXC: 1.1e-10
   Ekin: 1.1e-10

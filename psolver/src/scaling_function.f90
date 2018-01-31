@@ -1,13 +1,13 @@
 !> @file
 !!  Routines which define and use scaling functions
 !! @author
-!! Copyright (C) 2002-2015 BigDFT group
+!! Copyright (C) 2002-2017 BigDFT group
 !! This file is distributed under the terms of the
 !! GNU General Public License, see ~/COPYING file
 !! or http://www.gnu.org/copyleft/gpl.txt .
 !! For the list of contributors, see ~/AUTHORS
 
-!> Calculate the values of a scaling function in real uniform grid
+!> Calculate the values of a scaling function in a real uniform grid
 subroutine ISF_family(itype,nmoms,nd,nrange,a,x)
   use f_utils, only: f_open_file,f_close,f_zero
   use yaml_strings, only: yaml_toa
@@ -16,23 +16,22 @@ subroutine ISF_family(itype,nmoms,nd,nrange,a,x)
 
   implicit none
   !Arguments
-  !>Type of interpolating functions
-  integer, intent(in) :: itype
-  !>number of moments of the lifted dual function
+  integer, intent(in) :: itype  !< Type of interpolating functions
+  !> Number of moments of the lifted dual function
   !! to be preserved. If this value is different from
   !! 0, then the dual scaling function is given as output
   integer, intent(in) :: nmoms
-  !>Number of points: must be 2**nex
-  integer, intent(in) :: nd
-  integer, intent(out) :: nrange
-  real(kind=8), dimension(0:nd), intent(out) :: a,x
+  integer, intent(in) :: nd      !< Number of points: must be a power of 2!!
+  integer, intent(out) :: nrange !< Range of the ISF [-nrange/2+1,nrange/2+1]
+  real(kind=8), dimension(0:nd), intent(out) :: a !< Abscissae
+  real(kind=8), dimension(0:nd), intent(out) :: x !< Values of the ISF
   !Local variables
   character(len=*), parameter :: subname='scaling_function'
-  integer, parameter :: m_max=200
+  integer, parameter :: m_max=200 !< Maximum length of the filters
   integer :: i,nt,ni,m !, m, j
   !real(kind=8) :: mom
   real(kind=8), dimension(:), allocatable :: y
-  double precision, dimension(-m_max:m_max) :: ch,cg
+  double precision, dimension(-m_max:m_max) :: ch,cg !< Filters
 
   !Give the range of the scaling function
   !from -itype to itype for the direct case, more general for the dual
@@ -46,16 +45,15 @@ subroutine ISF_family(itype,nmoms,nd,nrange,a,x)
   call f_zero(y)
   nt=ni
   x(nt/2-1)=1.d0
-  !x(nt+nt/2-1)=1.d0 !to obtain the wavelet
+  !x(nt+nt/2-1)=1.d0 !delta function: to obtain the wavelet
+  !Then we iterate up to the corresponding number of points
   loop1: do
      nt=2*nt
      call back_trans(m,ch(-m),cg(-m),nd,nt,x,y)
      do i=0,nt-1
         x(i)=y(i)
      end do
-     if (nt.eq.nd) then
-        exit loop1
-     end if
+     if (nt == nd) exit loop1
   end do loop1
 
   !Plot the interpolating scaling function if needed
@@ -85,6 +83,7 @@ subroutine ISF_family(itype,nmoms,nd,nrange,a,x)
 
 end subroutine ISF_family
 
+
 !> Calculate the values of a scaling function in real uniform grid
 subroutine scaling_function(itype,nd,nrange,a,x)
   use f_utils, only: f_open_file,f_close
@@ -97,9 +96,9 @@ subroutine scaling_function(itype,nd,nrange,a,x)
   implicit none
 
   !Arguments
-  !>Type of interpolating functions
+  !> Type of interpolating functions
   integer, intent(in) :: itype
-  !>Number of points: must be 2**nex
+  !> Number of points: must be 2**nex
   integer, intent(in) :: nd
   integer, intent(out) :: nrange
   real(kind=8), dimension(0:nd), intent(out) :: a,x

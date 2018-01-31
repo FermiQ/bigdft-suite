@@ -703,6 +703,11 @@ contains
           call set_elem(iter%next,key)
           dict_ptr => iter%next
        end if
+!!$       !might be refactored into
+!!$       if (.not. associated(dict_ptr)) then
+!!$          call init_next(iter)
+!!$          call set_elem(iter,key)
+!!$       end if
     end if
   end function get_dict_from_key
 !!$
@@ -778,9 +783,7 @@ contains
           item_ptr=>item_ptr%next
           cycle find_item
        end if
-       if (.not. no_key(item_ptr)) then
-          call init_next(item_ptr)
-       end if
+       if (.not. no_key(item_ptr)) call init_next(item_ptr)
        call set_item(item_ptr,item)
        exit find_item
     end do find_item

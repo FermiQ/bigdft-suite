@@ -159,6 +159,16 @@ subroutine  MPI_ALLREDUCE(i1,i2,i3,i4,op,mpi_comm,ierr)
   !stop 'MPIFAKE: ALLREDUCE' eliminated due to ABINIT module
 END SUBROUTINE MPI_ALLREDUCE
 
+subroutine  MPI_IALLREDUCE(i1,i2,i3,i4,op,mpi_comm,ierr)
+  implicit none
+  integer :: i1,i2,i3,i4
+  integer, intent(in) :: op, mpi_comm
+  integer, intent(out) :: ierr
+  !Initialize ierr in case when MPI_ALLREDUCE is called
+  ierr = 0
+  stop 'MPIFAKE: IALLREDUCE' 
+END SUBROUTINE MPI_IALLREDUCE
+
 subroutine  MPI_ALLGatherV()
   implicit none
   stop 'MPIFAKE: ALLGATHERV'
@@ -189,6 +199,11 @@ subroutine  MPI_ALLTOALLV()
   implicit none
   stop 'MPIFAKE: ALLTOALLV'
 END SUBROUTINE  MPI_ALLTOALLV
+
+subroutine  MPI_IALLTOALLV()
+  implicit none
+  stop 'MPIFAKE: IALLTOALLV'
+END SUBROUTINE  MPI_IALLTOALLV
 
 subroutine  MPI_REDUCE_SCATTER()
   implicit none

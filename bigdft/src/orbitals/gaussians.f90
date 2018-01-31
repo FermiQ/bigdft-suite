@@ -5,9 +5,9 @@
 !!    This file is distributed under the terms of the
 !!    GNU General Public License, see ~/COPYING file
 !!    or http://www.gnu.org/copyleft/gpl.txt .
-!!    For the list of contributors, see ~/AUTHORS 
+!!    For the list of contributors, see ~/AUTHORS
 
- 
+
 !> Modules which contains the handling of operations in Gaussian basis
 !! Spherical harmonics are used in the cartesian form
 module gaussians
@@ -37,7 +37,7 @@ module gaussians
   type, public :: gaussian_basis
      integer :: nat     !< Number of centers
      integer :: ncoeff  !< Number of total basis elements
-     integer :: nshltot !< Total number of shells (m quantum number ignored) 
+     integer :: nshltot !< Total number of shells (m quantum number ignored)
      integer :: nexpo   !< Number of exponents (sum of the contractions)
      integer :: ncplx   !< Number of complex comp. (real or complex gaussians)
      !storage units
@@ -51,7 +51,7 @@ module gaussians
   type, public :: gaussian_basis_new
      integer :: nat     !< Number of centers
      integer :: ncoeff  !< Number of total basis elements
-     integer :: nshltot !< Total number of shells (m quantum number ignored) 
+     integer :: nshltot !< Total number of shells (m quantum number ignored)
      integer :: nexpo   !< Number of exponents (sum of the contractions)
      integer :: ncplx   !< =1 if traditional, =2 if complex gaussians
      !storage units
@@ -112,10 +112,10 @@ contains
     g%cutoff=0.0_gp
     nullify(g%mpx,g%mpy,g%mpz)
   end subroutine nullify_gaussian_real_space
-  
+
 
   !here the different treatment of the gaussian for multipole preserving can be triggered
-  !pure 
+  !pure
   function gaussian_radial_value(g,rxyz,bit) result(f)
     use numerics
     use box
@@ -168,11 +168,11 @@ contains
 
        f=get_mp_exps_product(g%nterms,bit%inext-1,g%factors)
 !!$       do i=1,g%nterms
-          !here the distance is calculated in a way that might be better handled       
+          !here the distance is calculated in a way that might be better handled
 !!$          bit%tmp(3)=mp_exp(bit%mesh%hgrids(3),rxyz(3),g%exponent,itmp(3),g%lxyz(3,i),domp)
 !!$          bit%tmp(2)=mp_exp(bit%mesh%hgrids(2),rxyz(2),g%exponent,itmp(2),g%lxyz(2,i),domp)
 !!$          bit%tmp(1)=mp_exp(bit%mesh%hgrids(1),rxyz(1),g%exponent,itmp(1),g%lxyz(1,i),domp)
-!!$          
+!!$
 !!$          f=f+product(bit%tmp)*g%factors(i)
 !!$       end do
     end select
@@ -199,7 +199,7 @@ contains
           facq=rfac(1,q)
           facpq=rfac(1,p-q)
           nterms=nterms+1
-          factors(nterms)=facn/(facpq*facq)          
+          factors(nterms)=facn/(facpq*facq)
           lxyz(1,nterms)=2*(n-p)
           lxyz(2,nterms)=2*q
           lxyz(3,nterms)=2*(p-q)
@@ -207,7 +207,7 @@ contains
     end do
   end subroutine expand_r2_power
 
-  !>multiply together separable terms and obtain a ploynomial which is the sum of the two
+  !>multiply together separable terms and obtain a polynomial which is the sum of the two
   subroutine multiply_separable_terms(nA,facA,lxyzA,nB,facB,lxyzB,nC,facC,lxyzC)
     implicit none
     integer, intent(in) :: nA,nB
@@ -231,20 +231,21 @@ contains
     end do
   end subroutine multiply_separable_terms
 
+
   subroutine gaussian_real_space_set(g,sigma,nterms,factors,lxyz,pows,mp_isf_order)
     implicit none
     integer, intent(in) :: nterms
     integer, intent(in) :: mp_isf_order
     real(gp), intent(in) :: sigma
     real(gp), dimension(nterms), intent(in) :: factors
-    type(gaussian_real_space), intent(out) :: g    
+    type(gaussian_real_space), intent(out) :: g
     integer, dimension(nterms), intent(in) :: pows
     integer, dimension(3,nterms), intent(in) :: lxyz
     !local variables
     integer :: nterms_tmp,nC,iterm
     real(gp), dimension(NTERM_MAX_RS) :: factors_tmp,facC
     integer, dimension(3,NTERM_MAX_RS) :: lxyz_tmp,lxyzC
-    
+
     call nullify_gaussian_real_space(g)
     g%sigma=sigma!sqrt(onehalf/expo)
     g%exponent=onehalf/sigma**2
@@ -261,7 +262,7 @@ contains
        g%lxyz(:,1:nterms)=lxyz
        g%pows(1:nterms)=pows
     case(MULTIPOLE_PRESERVING_COLLOCATION)
-       !here the pow is not allowed (yet) therefore combine the powers 
+       !here the pow is not allowed (yet) therefore combine the powers
        !into separable terms. Assume that the powers here are all even
        g%nterms=0
        do iterm=1,nterms
@@ -273,8 +274,9 @@ contains
           g%nterms=g%nterms+nC
        end do
     end select
-    
+
   end subroutine gaussian_real_space_set
+
 
   !>prepare for the discretization of the gaussian in real space
   subroutine set_box_around_gaussian(bit,g,rxyz)
@@ -314,7 +316,7 @@ contains
        nbox(2,:)=nbox(2,:)+gaussian%mp_isf
     end if
   end function gaussian_nbox
-  
+
   !> accumulate the density array
   !!warning@ array should be initialized to zero at the first call
   subroutine three_dimensional_density(boxit,gaussian,prefactor,oxyz,density)
@@ -342,7 +344,7 @@ contains
        !radial case
        !$omp parallel default(shared)&
        !$omp private(ithread,r) &
-       !$omp firstprivate(boxit) 
+       !$omp firstprivate(boxit)
        !$ ithread=omp_get_thread_num()
        !$ nthread=omp_get_num_threads()
        call box_iter_split(boxit,nthread,ithread)
@@ -392,7 +394,7 @@ contains
 !!$
 !!$         !$omp parallel default(shared)&
 !!$         !$omp private(ithread,fz,fy,fx,xp) &
-!!$         !$omp firstprivate(boxit) 
+!!$         !$omp firstprivate(boxit)
 !!$
 !!$         !$ ithread=omp_get_thread_num()
 !!$         !$ nthread=omp_get_num_threads()
@@ -428,7 +430,7 @@ contains
     use locreg_operations
     use f_utils, only: f_zero
     use f_enums, only: toi
-    implicit none  
+    implicit none
     integer, intent(in) :: ider !<direction in which to perform the derivative (0 if any)
     integer, intent(in) :: n !<principal quantum number
     integer, intent(in) :: l !<angular momentum of the shell
@@ -475,7 +477,7 @@ contains
             kpoint(1),kpoint(2),kpoint(3), ncplx_p,ncplx_g, &
             lr%wfd%nvctr_c,lr%wfd%nvctr_f,lr%wfd%nseg_c,lr%wfd%nseg_f,&
             lr%wfd%keyvglob,lr%wfd%keyglob, &
-            wpr,psi) 
+            wpr,psi)
     case(SEPARABLE_COLLOCATION)
        call get_projector_coeffs(ncplx_g,l,n,ider,nterm_max,coeff,expo,&
             nterms,lxyz,sigma_and_expo,factors)
@@ -542,7 +544,7 @@ contains
 !!$            !     lr%mesh_coarse%hgrids*[lr%ns1,lr%ns2,lr%ns3],rxyz,oxyz
 !!$            call separable_3d_function(bit,funcs,factors(1,1,m)*sqrt(lr%mesh%volume_element),projector_real)
 !!$         end do !not correctly written, it should be used to define the functions
-!!$         
+!!$
 !!$         call f_zero(psi)
 !!$         call initialize_work_arrays_sumrho(lr,.true.,w)
 !!$         !from real space to wavelet
@@ -560,12 +562,12 @@ contains
 
     implicit none
     !Arguments
-    type(gaussian_basis),intent(inout) :: G 
+    type(gaussian_basis),intent(inout) :: G
 
-    G%nat=0     
-    G%ncoeff=0  
-    G%nshltot=0 
-    G%nexpo=0   
+    G%nat=0
+    G%ncoeff=0
+    G%nshltot=0
+    G%nexpo=0
     G%ncplx=1
     nullify(G%nshell)
     nullify(G%ndoc)
@@ -707,7 +709,7 @@ contains
   !> Initialise the gaussian basis from PAW datas.
   subroutine gaussian_basis_from_paw(nat, iatyp, rxyz, pawtab, ntyp, G)
     use m_pawtab, only : pawtab_type
-    
+
     implicit none
 
     !Arguments ------------------------------------
@@ -970,7 +972,7 @@ contains
   subroutine kinetic_overlap(A,B,ovrlp)
     implicit none
     type(gaussian_basis), intent(in) :: A,B
-    real(gp), dimension(A%ncoeff,B%ncoeff) :: ovrlp 
+    real(gp), dimension(A%ncoeff,B%ncoeff) :: ovrlp
     !only lower triangular part for A%ncoeff=B%ncoeff
     !local variables
     integer, parameter :: niw=18,nrw=6
@@ -1124,10 +1126,10 @@ contains
   !! to be rearranged when only some of them is zero
   subroutine gprod(a1,a2,dx,dy,dz,l1,m1,l2,m2,niw,nrw,iw,rw,ovrlp)
     implicit none
-    integer, intent(in) :: l1,l2,m1,m2,niw,nrw 
+    integer, intent(in) :: l1,l2,m1,m2,niw,nrw
     real(gp), intent(in) :: a1,a2,dx,dy,dz
     integer, dimension(niw) :: iw !work array of the exponents of the two polynomials
-    real(gp), dimension(nrw) :: rw !work array of the polynomials coefficients 
+    real(gp), dimension(nrw) :: rw !work array of the polynomials coefficients
     real(gp), intent(out) :: ovrlp
     !local variables
     integer, parameter :: nx=3
@@ -1234,7 +1236,7 @@ contains
   subroutine overlap(A,B,ovrlp)
     implicit none
     type(gaussian_basis_new), intent(in) :: A,B
-    real(gp), dimension(A%ncoeff,B%ncoeff), intent(out) :: ovrlp 
+    real(gp), dimension(A%ncoeff,B%ncoeff), intent(out) :: ovrlp
     !local variables
     integer :: ishell,iexpo,icoeff,iat,jat,isat,jsat,jshell
     integer :: iovrlp,jovrlp,jcoeff,jexpo,itpdA,itpdB,ig1,ig2
@@ -1334,7 +1336,7 @@ contains
   subroutine overlap_gain(A,B,ovrlp)
     implicit none
     type(gaussian_basis_new), intent(in) :: A,B
-    real(gp), dimension(A%ncoeff,B%ncoeff), intent(out) :: ovrlp 
+    real(gp), dimension(A%ncoeff,B%ncoeff), intent(out) :: ovrlp
     !local variables
     integer :: ishell,iexpo,icoeff,iat,jat,isat,jsat,jshell
     integer :: iovrlp,jovrlp,jcoeff,jexpo,itpdA,itpdB,ig1,ig2
@@ -1435,7 +1437,7 @@ contains
   subroutine kinetic_gain(A,B,ovrlp)
     implicit none
     type(gaussian_basis_new), intent(in) :: A,B
-    real(gp), dimension(A%ncoeff,B%ncoeff), intent(out) :: ovrlp 
+    real(gp), dimension(A%ncoeff,B%ncoeff), intent(out) :: ovrlp
     !local variables
     integer :: ishell,iexpo,icoeff,iat,jat,isat,jsat,jshell
     integer :: iovrlp,jovrlp,jcoeff,jexpo,itpdA,itpdB,ig1,ig2
@@ -1829,7 +1831,7 @@ contains
 !!$    call gaudim_check(jexpo+1,jcoeff,jshell,B%nexpo,B%ncoeff,B%nshltot)
 !!$
 !!$  END SUBROUTINE kinetic
-  
+
 
 
   !> Calculates @f$\int e^{-a1*x^2} x^l1 \exp^{-a2*(x-d)^2} (x-d)^l2 dx@f$
@@ -1890,7 +1892,7 @@ contains
     !final result
     govrlp=prefac*stot
   END FUNCTION govrlp
-  
+
 
   !> Kinetic overlap between gaussians, based on cartesian coordinates
   !! calculates a dot product between two differents gaussians times spherical harmonics
@@ -1898,10 +1900,10 @@ contains
   !! to be rearranged when only some of them is zero
   subroutine kinprod(a1,a2,dx,dy,dz,l1,m1,l2,m2,niw,nrw,iw,rw,ovrlp)
     implicit none
-    integer, intent(in) :: l1,l2,m1,m2,niw,nrw 
+    integer, intent(in) :: l1,l2,m1,m2,niw,nrw
     real(gp), intent(in) :: a1,a2,dx,dy,dz
     integer, dimension(niw) :: iw !work array of the exponents of the two polynomials
-    real(gp), dimension(nrw) :: rw !work array of the polynomials coefficients 
+    real(gp), dimension(nrw) :: rw !work array of the polynomials coefficients
     real(gp), intent(out) :: ovrlp
     !local variables
     integer, parameter :: nx=3

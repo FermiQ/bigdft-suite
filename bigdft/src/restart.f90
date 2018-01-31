@@ -2237,10 +2237,12 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
   real(gp), dimension(:,:), allocatable :: rxyz_new, rxyz4_ref, rxyz4_new, rxyz_ref
   real(gp), dimension(:,:), allocatable :: rxyz_old !<this is read from the disk and not needed
   real(kind=gp), dimension(:), allocatable :: dist
-  real(gp) :: max_shift, dtol
-
+  real(gp) :: max_shift, dtol, max_wahba, av_wahba
+  logical :: output_wahba !< output all information relating to rototranslations, only relevant if nfrag>1
+  logical, dimension(:,:), allocatable :: mpi_has_frag
   logical :: skip, binary
-  integer :: itmb, jtmb, jat
+  integer :: itmb, jtmb, jat, ierr
+  integer :: stat(mpi_status_size)
   !integer, dimension(2,3) :: nbox
   !!$ integer :: ierr
 
@@ -2250,6 +2252,9 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
 
   call cpu_time(tr0)
   call system_clock(ncount1,ncount_rate,ncount_max)
+
+  ! this should probably be an input variable.,,
+  output_wahba = .true.
 
   ! check file format
   if (iformat == WF_FORMAT_ETSF) then
@@ -2404,10 +2409,14 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
 
   !if several fragments do this, otherwise find 3 nearest neighbours (use sort in time.f90) and send rxyz arrays with 4 atoms
   itoo_big=0
+  av_wahba = 0.0d0
+  max_wahba = 0.0d0
   fragment_if: if (input_frag%nfrag>1) then
      ! Find fragment transformations for each fragment, then put in frag_trans array for each orb
      allocate(frag_trans_frag(input_frag%nfrag))
 
+     ! needed for sharing frag_trans info
+     mpi_has_frag=f_malloc0((/ 0.to.bigdft_mpi%nproc-1,1.to.input_frag%nfrag /),id='mpi_has_frag')
      isfat=0
      isforb=0
      do ifrag=1,input_frag%nfrag
@@ -2426,6 +2435,7 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
                  ! check if this ref frag orbital corresponds to the orbital we want
                  if (iiorb==iforb+isforb) then
                     skip=.false.
+                    mpi_has_frag(iproc,ifrag)=.true.
                     exit
                  end if
               end do
@@ -2476,6 +2486,8 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
            call f_increment(itoo_big)
         end if
 
+        max_wahba = max(max_wahba,frag_trans_frag(ifrag)%Werror)
+
         ! useful for identifying which fragments are problematic
         if (iproc==0 .and. frag_trans_frag(ifrag)%Werror>W_tol) then
            write(*,'(A,1x,I3,1x,I3,1x,3(F12.6,1x),2(F12.6,1x),2(I8,1x))') 'ifrag,ifrag_ref,rot_axis,theta,error',&
@@ -2487,6 +2499,57 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
         isfat=isfat+ref_frags(ifrag_ref)%astruct_frg%nat
         isforb=isforb+ref_frags(ifrag_ref)%fbasis%forbs%norb
      end do
+
+
+     if (output_wahba) then
+        ! need to fetch quantities from other procs
+        if (bigdft_mpi%nproc > 1) then
+           call fmpi_allreduce(mpi_has_frag(0,1),bigdft_mpi%nproc*input_frag%nfrag,op=FMPI_LOR,comm=bigdft_mpi%mpi_comm)
+
+           do ifrag=1,input_frag%nfrag
+              ! if iproc=0 already has frag, no need to do anything, otherwise need to look for it
+              if (mpi_has_frag(0,ifrag)) cycle
+              do i=0,bigdft_mpi%nproc-1
+                 if (mpi_has_frag(i,ifrag)) then
+                    ! send from proc i to proc 0
+                    !if (iproc==0) print*,'need to send from ',i
+                    if(iproc==i) call mpi_send(frag_trans_frag(ifrag)%theta, 1, mpi_double_precision, 0, 10*ifrag, &
+                         bigdft_mpi%mpi_comm, ierr)
+                    if(iproc==0) call mpi_recv(frag_trans_frag(ifrag)%theta, 1, mpi_double_precision, i, 10*ifrag, &
+                         bigdft_mpi%mpi_comm, stat, ierr)
+                    if(iproc==i) call mpi_send(frag_trans_frag(ifrag)%rot_axis(1), 3, mpi_double_precision, 0, 10*ifrag+1, &
+                         bigdft_mpi%mpi_comm, ierr)
+                    if(iproc==0) call mpi_recv(frag_trans_frag(ifrag)%rot_axis(1), 3, mpi_double_precision, i, 10*ifrag+1, &
+                         bigdft_mpi%mpi_comm, stat, ierr)
+                    if(iproc==i) call mpi_send(frag_trans_frag(ifrag)%Werror, 1, mpi_double_precision, 0, 10*ifrag+2, &
+                         bigdft_mpi%mpi_comm, ierr)
+                    if(iproc==0) call mpi_recv(frag_trans_frag(ifrag)%Werror, 1, mpi_double_precision, i, 10*ifrag+2, &
+                         bigdft_mpi%mpi_comm, stat, ierr)
+                    exit
+                 end if
+              end do
+           end do
+        end if
+
+        if (iproc==0) then
+           !call yaml_mapping_open('Information about the rototranslations')
+           call yaml_sequence_open('Fragment transformations')
+           do ifrag=1,input_frag%nfrag
+              av_wahba = av_wahba + frag_trans_frag(ifrag)%Werror
+              ifrag_ref=input_frag%frag_index(ifrag)
+              call yaml_sequence(advance='no')
+              call yaml_map('Fragment name',trim(input_frag%label(ifrag_ref))) ! change this to actual name
+              call yaml_map('Angle (degrees)',frag_trans_frag(ifrag)%theta/(4.0_gp*atan(1.d0)/180.0_gp),fmt='(f12.6)')
+              call yaml_map('Axis',frag_trans_frag(ifrag)%rot_axis,fmt='(3f10.6)')
+              call yaml_map('Wahba cost function',frag_trans_frag(ifrag)%Werror,fmt='(1es13.6)')
+           end do
+           call yaml_sequence_close()
+           !call yaml_mapping_close()
+           call yaml_flush_document()
+           av_wahba = av_wahba / input_frag%nfrag
+        end if
+     end if
+     call f_free(mpi_has_frag)
 
      !if (bigdft_mpi%nproc > 1) then
      !   call fmpi_allreduce(frag_env_mapping, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
@@ -2599,6 +2662,11 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
 !!$                   frag_trans_orb(iorbp))
               if (frag_trans_orb(iorbp)%Werror > W_tol) call f_increment(itoo_big)
 
+              max_wahba = max(max_wahba,frag_trans_orb(iorbp)%Werror)
+              ! can't easily calculate the average as some orbitals are on more
+              ! than one proc
+              !av_wahba = av_wahba + frag_trans_orb(iorbp)%Werror/tmb%orbs%norb
+
 !!$              print *,'transformation of the fragment, iforb',iforb
 !!$              write(*,'(A,I3,1x,I3,1x,3(F12.6,1x),F12.6)') 'ifrag,iorb,rot_axis,theta',&
 !!$                   ifrag,iiorb,frag_trans_orb(iorbp)%rot_axis,frag_trans_orb(iorbp)%theta/(4.0_gp*atan(1.d0)/180.0_gp)
@@ -2620,10 +2688,16 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
 
   end if fragment_if
 
+
+
   !reduce the number of warnings
   if (nproc >1) call fmpi_allreduce(itoo_big,1,op=FMPI_SUM,comm=bigdft_mpi%mpi_comm)
+  if (nproc >1) call fmpi_allreduce(max_wahba,1,op=FMPI_MAX,comm=bigdft_mpi%mpi_comm)
+
 
   if (itoo_big > 0 .and. iproc==0) call yaml_warning('Found '//itoo_big//' warning of high Wahba cost functions')
+  if (iproc==0 .and. output_wahba) call yaml_map('Average Wahba cost function value',av_wahba,fmt='(es9.2)')
+  if (iproc==0) call yaml_map('Maximum Wahba cost function value',max_wahba,fmt='(es9.2)')
 
 
   !!!debug - check calculated transformations
@@ -3901,7 +3975,7 @@ subroutine reformat_supportfunctions(iproc,nproc,at,rxyz_old,rxyz,add_derivative
   if (nproc>1) then
       call fmpi_allreduce(max_shift, 1, FMPI_MAX, comm=bigdft_mpi%mpi_comm)
   end if
-  if (iproc==0) call yaml_map('max shift of a locreg center',max_shift,fmt='(es9.2)')
+  if (iproc==0) call yaml_map('Max shift of a locreg center',max_shift,fmt='(es9.2)')
 
   ! Determine the dumping factor for the confinement. In the limit wbohere the atoms
   ! have not moved, it goes to zero; in the limit where they have moved a lot, it goes to one.

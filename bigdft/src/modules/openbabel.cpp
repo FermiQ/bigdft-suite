@@ -15,6 +15,7 @@
 
 #include <config.h>
 #include <stdlib.h>
+#include <iostream>
 extern "C" {
 #include <futile.h>
 }
@@ -102,6 +103,15 @@ extern "C" void FC_FUNC_(openbabel_load, OPENBABEL_LOAD)(f90_dictionary_pointer 
       f90_dictionary_pointer atom;
       dict_init(&atom);
       dict_set_double_array(&atom, OpenBabel::etab.GetSymbol(a->GetAtomicNum()), xyz, 3);
+      OpenBabel::OBResidue *residue = a->GetResidue();
+      if (residue)
+        {
+          f90_dictionary_pointer frag;
+          dict_init(&frag);
+          dict_add_string(&frag, residue->GetName().c_str());
+          dict_add_int(&frag, residue->GetNum());
+          dict_set_dict(&atom, "frag", &frag);
+        }
       dict_add_dict(&dict_positions, &atom);
     }
 
