@@ -11,22 +11,34 @@ module psp_projectors_base
   !> Non local pseudopotential descriptors
   type, public :: nonlocal_psp_descriptors
      integer :: mproj !< number of projectors for this descriptor
-     real(gp) :: gau_cut !< cutting radius for the gaussian description of projectors.
      integer :: nlr !< total no. localization regions potentially interacting with the psp
      type(locreg_descriptors) :: plr !< localization region descriptor of a given projector (null if nlp=0)
      type(wfd_to_wfd), dimension(:), pointer :: tolr !<maskings for the locregs, dimension noverlap
      integer,dimension(:),pointer :: lut_tolr !< lookup table for tolr, dimension noverlap
      integer :: noverlap !< number of locregs which overlap with the projectors of the given atom
   end type nonlocal_psp_descriptors
+
+  integer, parameter :: PROJ_DESCRIPTION_GAUSSIAN = 1
+  
+  !> Description of the atomic functions
+  type, public :: atomic_projectors
+     integer :: iat !< Index of the atom this structure refers to.
+     real(gp), dimension(3) :: rxyz !< Position of the center.
+     logical :: normalized !< .true. if projectors are normalized to one.
+     integer :: kind
+
+     ! Gaussian specifics
+     real(gp) :: gau_cut !< cutting radius for the gaussian description of projectors.
+     type(gaussian_basis_new) :: gbasis !< Gaussian description of the projectors.
+  end type atomic_projectors
   
   !> describe the information associated to the non-local part of Pseudopotentials
   type, public :: DFT_PSP_projectors
      logical :: on_the_fly             !< strategy for projector creation
-     logical :: normalized             !< .true. if projectors are normalized to one.
      logical :: apply_gamma_target     !< apply the target identified by the gamma_mmp value
      integer :: nproj,nprojel,natoms   !< Number of projectors and number of elements
      real(gp) :: zerovol               !< Proportion of zero components.
-     type(gaussian_basis_new) :: proj_G !< Store the projector representations in gaussians.
+     type(atomic_projectors), dimension(:), pointer :: pbasis !< Projectors in their own basis.
      real(wp), dimension(:), pointer :: proj !<storage space of the projectors in wavelet basis
      type(nonlocal_psp_descriptors), dimension(:), pointer :: pspd !<descriptor per projector, of size natom
      !> array to identify the order of the which are the atoms for which the density matrix is needed
@@ -45,27 +57,25 @@ module psp_projectors_base
   end type DFT_PSP_projectors
 
   type, public :: atomic_projector_iter
+     type(atomic_projectors), pointer :: parent     
      real(gp), dimension(3) :: kpoint
-     real(gp), dimension(3) :: rxyz
-     integer :: iat !< Atom id which this iterator is made for.
+     
+     integer :: cplx !< 1 for real coeff. 2 for complex ones.
      integer :: nc !< Number of components in one projector.
-     logical :: normalized
+     integer :: nproj !< Total number of projectors.
      
      integer :: n, l !< Quantum number and orbital moment of current shell.
      integer :: istart_c !< Starting index in proj array of current shell.
      integer :: mproj !< Number of projectors for this shell.
 
      type(f_enumerator) :: method
-     integer :: cplx
      integer :: nprojel !< Total size of proj array.
      integer :: istart !< Start shift in proj for this atom.
      real(wp), dimension(:), pointer :: proj
      real(wp), dimension(:), pointer :: proj_tmp
 
      ! Gaussian specific attributes.
-     real(gp) :: gau_cut
      integer :: lmax
-     type(gaussian_basis_new), pointer :: gbasis
      type(gaussian_basis_iter) :: giter
 
      ! Method specific attributes and work arrays.
@@ -78,8 +88,13 @@ module psp_projectors_base
   public :: free_DFT_PSP_projectors
   public :: DFT_PSP_projectors_null
   public :: nonlocal_psp_descriptors_null!,free_pspd_ptr
+  public :: atomic_projectors_null
+  public :: psp_update_positions
 
-  public :: atomic_projector_iter_new_gaussian, atomic_projector_iter_free
+  public :: PROJ_DESCRIPTION_GAUSSIAN
+
+  public :: atomic_projector_iter_new, atomic_projector_iter_set_method
+  public :: atomic_projector_iter_free, atomic_projector_iter_set_destination
   public :: atomic_projector_iter_start, atomic_projector_iter_next
   public :: atomic_projector_iter_to_wavelets, atomic_projector_iter_wnrm2
 
@@ -96,13 +111,27 @@ contains
     implicit none
     type(nonlocal_psp_descriptors), intent(out) :: pspd
     pspd%mproj=0
-    pspd%gau_cut = UNINITIALIZED(pspd%gau_cut)
     pspd%nlr=0
     call nullify_locreg_descriptors(pspd%plr)
     nullify(pspd%tolr)
     nullify(pspd%lut_tolr)
     pspd%noverlap=0
   end subroutine nullify_nonlocal_psp_descriptors
+
+  pure function atomic_projectors_null() result(ap)
+    implicit none
+    type(atomic_projectors) :: ap
+    call nullify_atomic_projectors(ap)
+  end function atomic_projectors_null
+
+  pure subroutine nullify_atomic_projectors(ap)
+    use module_defs, only: UNINITIALIZED
+    implicit none
+    type(atomic_projectors), intent(out) :: ap
+    ap%iat=0
+    ap%gau_cut = UNINITIALIZED(ap%gau_cut)
+    call nullify_gaussian_basis_new(ap%gbasis)
+  end subroutine nullify_atomic_projectors
 
   pure function DFT_PSP_projectors_null() result(nl)
     implicit none
@@ -114,13 +143,12 @@ contains
     implicit none
     type(DFT_PSP_projectors), intent(out) :: nl
     nl%on_the_fly=.true.
-    nl%normalized=.false.
     nl%apply_gamma_target=.false.
     nl%nproj=0
     nl%nprojel=0
     nl%natoms=0
     nl%zerovol=100.0_gp
-    call nullify_gaussian_basis_new(nl%proj_G)
+    nullify(nl%pbasis)
     nullify(nl%iagamma)
     nullify(nl%gamma_mmp)
     nullify(nl%proj)
@@ -157,13 +185,32 @@ contains
 
   end subroutine free_pspd_ptr
 
+  subroutine deallocate_atomic_projectors(ap)
+    implicit none
+    type(atomic_projectors), intent(inout) :: ap
+    call gaussian_basis_free(ap%gbasis)
+  end subroutine deallocate_atomic_projectors
+
+  subroutine free_atomic_projectors_ptr(aps)
+    implicit none
+    type(atomic_projectors), dimension(:), pointer :: aps
+    !local variables
+    integer :: iat
+
+    if (.not. associated(aps)) return
+    do iat = lbound(aps, 1), ubound(aps, 1)
+       call deallocate_atomic_projectors(aps(iat))
+    end do
+    deallocate(aps)
+    nullify(aps)
+  end subroutine free_atomic_projectors_ptr
+
   subroutine deallocate_DFT_PSP_projectors(nl)
     implicit none
     type(DFT_PSP_projectors), intent(inout) :: nl
 
     call free_pspd_ptr(nl%pspd)
-    nullify(nl%proj_G%rxyz)
-    call gaussian_basis_free(nl%proj_G)
+    call free_atomic_projectors_ptr(nl%pbasis)
     call f_free_ptr(nl%iagamma)
     call f_free_ptr(nl%gamma_mmp)
     call f_free_ptr(nl%proj)
@@ -173,7 +220,6 @@ contains
     call f_free_ptr(nl%hcproj)
   END SUBROUTINE deallocate_DFT_PSP_projectors
 
-
   subroutine free_DFT_PSP_projectors(nl)
     implicit none
     type(DFT_PSP_projectors), intent(inout) :: nl
@@ -181,36 +227,65 @@ contains
     call nullify_DFT_PSP_projectors(nl)
   end subroutine free_DFT_PSP_projectors
 
-  subroutine atomic_projector_iter_new(iter, lr, kpoint, rxyz, iat, &
-       & proj, nprojel, istart_c, normalized)
+  subroutine atomic_projector_iter_new(iter, aproj, lr, kpoint)
     implicit none
     type(atomic_projector_iter), intent(out) :: iter
-    type(locreg_descriptors), intent(in), target :: lr
-    real(gp), dimension(3), intent(in) :: kpoint, rxyz
-    integer, intent(in) :: iat, istart_c, nprojel
-    real(wp), dimension(nprojel), intent(in), target :: proj
-    logical, intent(in) :: normalized
+    type(atomic_projectors), intent(in), target :: aproj
+    type(locreg_descriptors), intent(in), target, optional :: lr
+    real(gp), dimension(3), intent(in), optional :: kpoint
 
+    type(gaussian_basis_iter) :: iterM
     integer :: mbseg_c, mbseg_f, mbvctr_c, mbvctr_f
 
-    iter%iat = iat
-    iter%kpoint = kpoint
-    iter%rxyz = rxyz
-    iter%normalized = normalized
-    iter%istart = istart_c
-    if (kpoint(1)**2 + kpoint(2)**2 + kpoint(3)**2 == 0.0_gp) then
-       iter%cplx = 1
-    else
-       iter%cplx = 2
-    end if
-    iter%lr => lr
-    call plr_segs_and_vctrs(iter%lr, mbseg_c, mbseg_f, mbvctr_c, mbvctr_f)
-    iter%nc = (mbvctr_c + 7 * mbvctr_f) * iter%cplx
-    iter%nprojel = nprojel
-    iter%proj => proj
+    iter%parent => aproj
 
-    nullify(iter%gbasis)
+    iter%kpoint = 0._gp
+    iter%cplx = 1
+    if (present(kpoint)) then
+       iter%kpoint = kpoint
+       if (kpoint(1)**2 + kpoint(2)**2 + kpoint(3)**2 /= 0.0_gp) iter%cplx = 2
+    end if
+    iter%nc = 0
+    nullify(iter%lr)
+    if (present(lr)) then
+       iter%lr => lr
+       call plr_segs_and_vctrs(iter%lr, mbseg_c, mbseg_f, mbvctr_c, mbvctr_f)
+       iter%nc = (mbvctr_c + 7 * mbvctr_f) * iter%cplx
+    end if
+
+    nullify(iter%proj)
+    iter%istart = 1
+    iter%method = PROJECTION_1D_SEPARABLE
+
+    iter%nproj = 0
+    if (iter%parent%kind == PROJ_DESCRIPTION_GAUSSIAN) then
+       ! Specific treatment for gaussian basis set.
+       call atomic_projector_iter_start(iter)
+
+       ! Maximum number of terms for every projector.
+       iter%lmax = 0
+       iterM = iter%giter
+       do
+          if (.not. gaussian_iter_next_shell(iter%parent%gbasis, iterM)) exit
+          if (iterM%ndoc > 1) iter%lmax = max(iter%lmax, iterM%l)
+          iter%nproj = iter%nproj + 2 * iterM%l - 1
+       end do
+    else
+       call f_err_throw("Unknown atomic projector kind.", &
+            & err_name = 'BIGDFT_RUNTIME_ERROR')
+    end if
   end subroutine atomic_projector_iter_new
+
+  subroutine atomic_projector_iter_set_destination(iter, proj, nprojel, istart_c)
+    implicit none
+    type(atomic_projector_iter), intent(inout) :: iter
+    integer, intent(in) :: istart_c, nprojel
+    real(wp), dimension(nprojel), intent(in), target :: proj
+
+    iter%istart  =  istart_c
+    iter%nprojel =  nprojel
+    iter%proj    => proj
+  end subroutine atomic_projector_iter_set_destination
 
   subroutine atomic_projector_iter_set_method(iter, method, glr)
     implicit none
@@ -223,7 +298,7 @@ contains
     nullify(iter%glr)
     call nullify_workarrays_projectors(iter%wpr)
     if (iter%method == PROJECTION_1D_SEPARABLE) then
-       if (iter%lmax > 0) then
+       if (iter%lmax > 0 .and. iter%nc > 0) then
           iter%proj_tmp = f_malloc_ptr(iter%nc * (2*iter%lmax-1), id = 'proj_tmp')
        end if
        if (present(glr)) iter%glr => glr
@@ -238,42 +313,6 @@ contains
        call initialize_work_arrays_sumrho(iter%lr, .true., iter%wcol)
     end if
   end subroutine atomic_projector_iter_set_method
-
-  subroutine atomic_projector_iter_new_gaussian(iter, lr, kpoint, rxyz, iat, &
-       & proj, nprojel, istart_c, normalized, proj_G, gau_cut, method, glr)
-    implicit none
-    type(atomic_projector_iter), intent(out) :: iter
-    type(locreg_descriptors), intent(in), target :: lr
-    real(gp), dimension(3), intent(in) :: kpoint, rxyz
-    integer, intent(in) :: iat, istart_c, nprojel
-    real(wp), dimension(nprojel), intent(in), target :: proj
-    logical, intent(in) :: normalized
-    type(gaussian_basis_new), intent(in), target :: proj_G
-    real(gp), intent(in) :: gau_cut
-    type(f_enumerator), intent(in) :: method
-    type(locreg_descriptors), intent(in), target, optional :: glr
-
-    type(gaussian_basis_iter) :: iterM
-
-    call atomic_projector_iter_new(iter, lr, kpoint, rxyz, iat, &
-         & proj, nprojel, istart_c, normalized)
-
-    ! Specific treatment for gaussian basis set.
-    iter%gbasis => proj_G
-    iter%gau_cut = gau_cut
-
-    call atomic_projector_iter_start(iter)
-    
-    ! Maximum number of terms for every projector.
-    iter%lmax = 0
-    iterM = iter%giter
-    do
-       if (.not. gaussian_iter_next_shell(iter%gbasis, iterM)) exit
-       if (iterM%ndoc > 1) iter%lmax = max(iter%lmax, iterM%l)
-    end do
-
-    call atomic_projector_iter_set_method(iter, method, glr)
-  end subroutine atomic_projector_iter_new_gaussian
 
   subroutine atomic_projector_iter_free(iter)
     implicit none
@@ -297,8 +336,12 @@ contains
     iter%l = -1
     iter%mproj = 0
     iter%istart_c = iter%istart
-    if (associated(iter%gbasis)) &
-         & call gaussian_iter_start(iter%gbasis, iter%iat, iter%giter)
+    if (iter%parent%kind == PROJ_DESCRIPTION_GAUSSIAN) then
+       call gaussian_iter_start(iter%parent%gbasis, 1, iter%giter)
+    else
+       call f_err_throw("Unknown atomic projector kind.", &
+            & err_name = 'BIGDFT_RUNTIME_ERROR')
+    end if
   end subroutine atomic_projector_iter_start
 
   function atomic_projector_iter_next(iter) result(next)
@@ -306,9 +349,11 @@ contains
     type(atomic_projector_iter), intent(inout) :: iter
     logical :: next
 
-    iter%istart_c = iter%istart_c + iter%nc * iter%mproj
+    iter%istart_c = iter%istart_c + iter%nc * iter%mproj ! add the previous shift.
+    iter%n = -1
+    iter%l = -1
     iter%mproj = 0
-    next = gaussian_iter_next_shell(iter%gbasis, iter%giter)
+    next = gaussian_iter_next_shell(iter%parent%gbasis, iter%giter)
     if (.not. next) return
     
     iter%n = iter%giter%n
@@ -343,26 +388,26 @@ contains
 
     integer :: np
     real(gp) :: scpr
-    real(gp), dimension(iter%gbasis%ncplx) :: coeff, expo
 
-    if (associated(iter%gbasis)) then
+    if (iter%parent%kind == PROJ_DESCRIPTION_GAUSSIAN) then
        if (iter%method == PROJECTION_1D_SEPARABLE) then
-          call gaussian_iter_to_wavelets_separable(iter%gbasis, iter%giter, ider,&
-               & iter%glr%mesh_coarse, iter%lr, iter%gau_cut, iter%rxyz,iter%kpoint, &
-               & iter%cplx, iter%wpr, iter%proj(iter%istart_c:), iter%proj_tmp)
+          call gaussian_iter_to_wavelets_separable(iter%parent%gbasis, iter%giter, &
+               & ider, iter%glr%mesh_coarse, iter%lr, iter%parent%gau_cut, &
+               & iter%parent%rxyz, iter%kpoint, iter%cplx, iter%wpr, &
+               & iter%proj(iter%istart_c:), iter%proj_tmp)
        else if (iter%method == PROJECTION_RS_COLLOCATION) then
-          call gaussian_iter_to_wavelets_collocation(iter%gbasis, iter%giter, ider, &
-               & iter%lr, iter%rxyz, iter%cplx, iter%proj(iter%istart_c:), &
+          call gaussian_iter_to_wavelets_collocation(iter%parent%gbasis, iter%giter, &
+               & ider, iter%lr, iter%parent%rxyz, iter%cplx, iter%proj(iter%istart_c:), &
                & iter%proj_tmp, iter%wcol)
        else if (iter%method == PROJECTION_MP_COLLOCATION) then
-          call gaussian_iter_to_wavelets_collocation(iter%gbasis, iter%giter, ider, &
-               & iter%lr, iter%rxyz, iter%cplx, iter%proj(iter%istart_c:), &
+          call gaussian_iter_to_wavelets_collocation(iter%parent%gbasis, iter%giter, &
+               & ider, iter%lr, iter%parent%rxyz, iter%cplx, iter%proj(iter%istart_c:), &
                & iter%proj_tmp, iter%wcol, 16)
        end if
     end if
     
     ! Check norm for each proj.
-    if (ider == 0 .and. iter%normalized) then
+    if (ider == 0 .and. iter%parent%normalized) then
        do np = 1, iter%mproj
           !here the norm should be done with the complex components
           scpr = atomic_projector_iter_wnrm2(iter, np)
@@ -370,7 +415,7 @@ contains
           if (abs(1.d0-scpr) > 1.d-2) then
              if (abs(1.d0-scpr) > 1.d-1) then
                 if (bigdft_mpi%iproc == 0) call yaml_warning( &
-                     'Norm of the nonlocal PSP atom ' // trim(yaml_toa(iter%iat)) // &
+                     'Norm of the nonlocal PSP atom ' // trim(yaml_toa(iter%parent%iat)) // &
                      ' l=' // trim(yaml_toa(iter%l)) // &
                      ' m=' // trim(yaml_toa(iter%n)) // ' is ' // trim(yaml_toa(scpr)) // &
                      ' while it is supposed to be about 1.0.')
@@ -385,4 +430,28 @@ contains
     end if
   end subroutine atomic_projector_iter_to_wavelets
 
+  subroutine atomic_projectors_set_position(aproj, rxyz)
+    implicit none
+    type(atomic_projectors), intent(inout) :: aproj
+    real(gp), dimension(3, 1), intent(in), target :: rxyz
+
+    if (aproj%kind == PROJ_DESCRIPTION_GAUSSIAN) then
+       aproj%gbasis%rxyz => rxyz
+    else
+       call f_err_throw("Unknown atomic projector kind.", &
+            & err_name = 'BIGDFT_RUNTIME_ERROR')
+    end if
+  end subroutine atomic_projectors_set_position
+  
+  subroutine psp_update_positions(nlpsp, rxyz)
+    implicit none
+    type(DFT_PSP_projectors), intent(inout) :: nlpsp
+    real(gp), dimension(3, nlpsp%natoms), intent(in) :: rxyz
+
+    integer :: iat
+    
+    do iat = 1, nlpsp%natoms
+       call atomic_projectors_set_position(nlpsp%pbasis(iat), rxyz(:, iat))
+    end do
+  end subroutine psp_update_positions
 end module psp_projectors_base

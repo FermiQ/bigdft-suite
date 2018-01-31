@@ -4215,7 +4215,7 @@ subroutine writemyproj(filename,iformat,orbs,hx,hy,hz,at,rxyz,nl)
   use module_types
   use module_base
   use yaml_output
-  use gaussians
+  use psp_projectors_base
   use public_enums, only: WF_FORMAT_ETSF, WF_FORMAT_BINARY
   use io, only: writeonewave
   implicit none
@@ -4227,9 +4227,9 @@ subroutine writemyproj(filename,iformat,orbs,hx,hy,hz,at,rxyz,nl)
   real(gp), dimension(3,at%astruct%nat), intent(in) :: rxyz
   character(len=*), intent(in) :: filename
   !Local variables
-  type(gaussian_basis_iter) :: iter
+  type(atomic_projector_iter) :: iter
   integer :: ncount1,ncount2,ncount_rate,ncount_max
-  integer :: iat,ikpt,iproj,iskpt,iekpt,istart,ncplx_k,icplx,l
+  integer :: iat,ikpt,iproj,iskpt,iekpt,istart,icplx,l
   integer :: mbseg_c,mbseg_f,mbvctr_c,mbvctr_f
   real(kind=4) :: tr0,tr1
   real(kind=8) :: tel
@@ -4256,22 +4256,23 @@ subroutine writemyproj(filename,iformat,orbs,hx,hy,hz,at,rxyz,nl)
      end if
      lbin = (iformat == WF_FORMAT_BINARY)
 
+     istart = 1
      do ikpt=iskpt,iekpt
-        ncplx_k = 2
-        if (orbs%kpts(1,ikpt) == 0 .and. orbs%kpts(2,ikpt) == 0 .and. &
-             & orbs%kpts(3,ikpt) == 0) ncplx_k = 1
         do iat=1,at%astruct%nat
 
+           call atomic_projector_iter_new(iter, nl%pbasis(iat), nl%pspd(iat)%plr, &
+                & orbs%kpts(:, ikpt))
+           call atomic_projector_iter_set_destination(iter, nl%proj, &
+                & nl%nprojel, istart)
+           
            call plr_segs_and_vctrs(nl%pspd(iat)%plr,mbseg_c,mbseg_f,mbvctr_c,mbvctr_f)
            ! Start a gaussian iterator.
-           call gaussian_iter_start(nl%proj_G, iat, iter)
+           call atomic_projector_iter_start(iter)
            iproj = 0
-           istart = 1
-           do
-              if (.not. gaussian_iter_next_shell(nl%proj_G, iter)) exit
-              do l = 1, 2*iter%l-1
+           do while (atomic_projector_iter_next(iter))
+              do l = 1, iter%mproj
                  iproj = iproj + 1
-                 do icplx = 1, ncplx_k
+                 do icplx = 1, iter%cplx
                     call filename_of_proj(lbin,filename,&
                          & ikpt,iat,iproj,icplx,filename_out)
                     if (lbin) then
@@ -4281,17 +4282,14 @@ subroutine writemyproj(filename,iformat,orbs,hx,hy,hz,at,rxyz,nl)
                        open(unit=99,file=trim(filename_out),status='unknown')
                     end if
                     call writeonewave(99,.not.lbin,iproj,&
-                         & nl%pspd(iat)%plr%d%n1, &
-                         & nl%pspd(iat)%plr%d%n2, &
-                         & nl%pspd(iat)%plr%d%n3, &
+                         & iter%lr%d%n1, iter%lr%d%n2, iter%lr%d%n3, &
                          & hx,hy,hz, at%astruct%nat,rxyz, &
                          & mbseg_c, mbvctr_c, &
-                         & nl%pspd(iat)%plr%wfd%keyglob, &
-                         & nl%pspd(iat)%plr%wfd%keyvglob, &
+                         & iter%lr%wfd%keyglob, iter%lr%wfd%keyvglob, &
                          & mbseg_f, mbvctr_f, &
-                         & nl%pspd(iat)%plr%wfd%keyglob(1:,mbseg_c+1:), &
-                         & nl%pspd(iat)%plr%wfd%keyvglob(mbseg_c+1:), &
-                         & nl%proj(istart:), nl%proj(istart + mbvctr_c:), &
+                         & iter%lr%wfd%keyglob(1:,mbseg_c+1:), &
+                         & iter%lr%wfd%keyvglob(mbseg_c+1:), &
+                         & iter%proj(istart:), iter%proj(istart + mbvctr_c:), &
                          & UNINITIALIZED(1._wp))
 
                     close(99)

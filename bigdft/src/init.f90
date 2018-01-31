@@ -217,11 +217,12 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
      cpmult,fpmult,hx,hy,hz,dry_run,nl,&
      init_projectors_completely)
   use module_base
-  use psp_projectors_base, only: DFT_PSP_projectors_null, nonlocal_psp_descriptors_null
+  use psp_projectors_base, only: DFT_PSP_projectors_null, nonlocal_psp_descriptors_null, &
+       & PROJ_DESCRIPTION_GAUSSIAN
   use psp_projectors, only: bounds_to_plr_limits
   use module_types
   use gaussians, only: gaussian_basis, gaussian_basis_from_psp, gaussian_basis_from_paw
-  use public_enums, only: PSPCODE_PAW
+  use public_enums, only: PSPCODE_PAW, PSPCODE_GTH, PSPCODE_HGH, PSPCODE_HGH_K, PSPCODE_HGH_K_NLCC
   use orbitalbasis
   use ao_inguess, only: lmax_ao
   use locreg_operations, only: set_wfd_to_wfd, allocate_workarrays_projectors
@@ -244,7 +245,7 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
   !local variables
   character(len=*), parameter :: subname='createProjectorsArrays'
   integer :: n1,n2,n3,nl1,nl2,nl3,nu1,nu2,nu3,mseg,nbseg_dim,npack_dim,mproj_max
-  integer :: iat,iseg,nseg,isat,natp,ist
+  integer :: iat,iseg,nseg,isat,natp,ist,ityp
   !type(orbital_basis) :: ob
   integer, dimension(:), allocatable :: nbsegs_cf,keyg_lin
   logical, dimension(:,:,:), allocatable :: logrid
@@ -253,20 +254,35 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
 
   call init_structure()
 
-  ! Convert the pseudo coefficients into gaussian projectors.
-  if (all(at%npspcode == PSPCODE_PAW) .and. at%astruct%ntypes > 0) then
-     call gaussian_basis_from_paw(at%astruct%nat, at%astruct%iatype, rxyz, &
-          & at%pawtab, at%astruct%ntypes, nl%proj_G)
-     do iat=1,at%astruct%nat
-        nl%pspd(iat)%gau_cut = at%pawtab(at%astruct%iatype(iat))%rpaw
-     end do
-     nl%normalized = .false.
-  else
-     call gaussian_basis_from_psp(at%astruct%nat, at%astruct%iatype, rxyz, &
-          & at%psppar, at%astruct%ntypes, nl%proj_G)
-     nl%normalized = .true.
-  end if
-
+  ! Store the atomic projector in their own basis.
+  if (f_err_raise(associated(nl%pbasis), &
+       & "Atomic projector basis already associated.", &
+       & err_name = 'BIGDFT_RUNTIME_ERROR')) return
+  allocate(nl%pbasis(at%astruct%nat))
+  do iat = 1, at%astruct%nat
+     ityp = at%astruct%iatype(iat)
+     nl%pbasis(iat)%iat = iat
+     nl%pbasis(iat)%rxyz = rxyz(:, iat)
+     if (at%npspcode(at%astruct%iatype(iat)) == PSPCODE_PAW) then
+        nl%pbasis(iat)%kind = PROJ_DESCRIPTION_GAUSSIAN
+        call gaussian_basis_from_paw(1, [1], rxyz(:, iat), &
+             & at%pawtab(ityp:ityp), 1, nl%pbasis(iat)%gbasis)
+        nl%pbasis(iat)%gau_cut = at%pawtab(at%astruct%iatype(iat))%rpaw
+        nl%pbasis(iat)%normalized = .false.
+     else if (at%npspcode(at%astruct%iatype(iat)) == PSPCODE_GTH .or. &
+          & at%npspcode(at%astruct%iatype(iat)) == PSPCODE_HGH .or. &
+          & at%npspcode(at%astruct%iatype(iat)) == PSPCODE_HGH_K .or. &
+          & at%npspcode(at%astruct%iatype(iat)) == PSPCODE_HGH_K_NLCC) then
+        nl%pbasis(iat)%kind = PROJ_DESCRIPTION_GAUSSIAN
+        call gaussian_basis_from_psp(1, [1], rxyz(:, iat), &
+             & at%psppar(:,:,ityp:ityp), 1, nl%pbasis(iat)%gbasis)
+        nl%pbasis(iat)%normalized = .true.
+     else
+        call f_err_throw("Unknown PSP code for atom " // trim(yaml_toa(iat)), &
+             & err_name = 'BIGDFT_RUNTIME_ERROR')
+     end if
+  end do
+  
   ! define the region dimensions
   n1 = lr%d%n1
   n2 = lr%d%n2

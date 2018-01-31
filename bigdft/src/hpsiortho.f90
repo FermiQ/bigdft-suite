@@ -1209,7 +1209,7 @@ contains
 
        !here the cproj can be extracted to update the density matrix for the atom iat 
        if (associated(nl%iagamma)) then
-          call cproj_to_gamma(atit%iat,nl%proj_G,psi_it%n_ket,mproj,lmax_ao,&
+          call cproj_to_gamma(nl%pbasis(atit%iat),psi_it%n_ket,mproj,lmax_ao,&
                max(psi_it%ncplx,ncplx_p),nl%cproj,psi_it%kwgt*psi_it%occup,&
                nl%iagamma(0,atit%iat),&
                nl%gamma_mmp(1,1,1,1,psi_it%ispin))

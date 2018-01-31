@@ -1,6 +1,6 @@
 !> test program for the function projection in wavelets
 program projection
-  use module_defs, only: UNINITIALIZED
+  use module_defs, only: UNINITIALIZED, gp
   use futile
   use box
   use f_functions
@@ -18,9 +18,8 @@ program projection
   type(locreg_descriptors) :: lr
   real(f_double), dimension(3) :: kpoint,oxyz,angrad,hgrids
   type(f_tree) :: dict_posinp
-  type(gaussian_basis_new) :: G
+  type(atomic_projectors) :: aproj
   type(atomic_projector_iter) :: iter, iterRS, iterMP
-  type(workarrays_projectors) :: wp
   real(f_double), dimension(:), allocatable :: proj, projRS, projMP
   type(dictionary), pointer :: options
   real(f_double), dimension(3) :: rxyz
@@ -33,10 +32,9 @@ program projection
   integer, parameter :: nterm_max=20
   integer, parameter :: nat = 1, iat = 1
   integer, parameter :: ncplx_g=1 !< 1 or 2 if the gaussian factor is real or complex respectively
-  integer, parameter :: ncplx_p=1 !< 2 if the projector is supposed to be complex, 1 otherwise
   real(f_double), dimension(ncplx_g) :: expo !<exponents (1/2sigma^2 for the first element) of the gaussian (real and imaginary part)
   real(f_double), dimension(ncplx_g) :: coeff !<prefactor of the gaussian
-  integer :: iproc,nn,qn,ql,nstart,nend,lstart,lend
+  integer :: iproc,qn,ql,nstart,nend,lstart,lend
   !type(workarr_sumrho) :: w
   !real(f_double), dimension(:), allocatable :: projector_real,gaussian
   !real(f_double), dimension(:), allocatable :: ps,RSps,MPps 
@@ -94,37 +92,42 @@ program projection
      lend=ql
   end if
 
-  call allocate_workarrays_projectors(lr%d%n1, lr%d%n2, lr%d%n3, wp)
-
   ! Create the gaussians for various (n, l) tuples.
-  call init_gaussian_basis(nat, [(lend - lstart + 1) * (nend - nstart + 1)], rxyz, G)
+  aproj%iat = 1
+  aproj%rxyz = rxyz
+  aproj%normalized = .true.
+  aproj%kind = PROJ_DESCRIPTION_GAUSSIAN
+  aproj%gau_cut = UNINITIALIZED(1.0_gp)
+  call init_gaussian_basis(nat, [(lend - lstart + 1) * (nend - nstart + 1)], rxyz, aproj%gbasis)
   do n=nstart,nend
      do l=lstart,lend
-        call gaussian_basis_add_one(G, iat, n, l, ncplx_g, coeff, expo)
+        call gaussian_basis_add_one(aproj%gbasis, iat, n, l, ncplx_g, coeff, expo)
      end do
   end do
+
+  call initialize_real_space_conversion(isf_m=16)
   
-  nn=lr%wfd%nvctr_c+7*lr%wfd%nvctr_f
-  proj = f_malloc0([nn * ncplx_p * G%ncoeff], id = 'proj')
-  call atomic_projector_iter_new_gaussian(iter, lr, kpoint, rxyz, iat, &
-       & proj, size(proj), 1, .true., &
-       & G, UNINITIALIZED(1.0_f_double), &
-       & PROJECTION_1D_SEPARABLE, lr, wp)
-  projRS = f_malloc0([nn * ncplx_p * G%ncoeff], id = 'projRS')
-  call atomic_projector_iter_new_gaussian(iterRS, lr, kpoint, rxyz, iat, &
-       & projRS, size(projRS), 1, .true., &
-       & G, UNINITIALIZED(1.0_f_double), &
-       & PROJECTION_RS_COLLOCATION)
-  projMP = f_malloc0([nn * ncplx_p * G%ncoeff], id = 'projMP')
-  call atomic_projector_iter_new_gaussian(iterMP, lr, kpoint, rxyz, iat, &
-       & projMP, size(projMP), 1, .true., &
-       & G, UNINITIALIZED(1.0_f_double), &
-       & PROJECTION_MP_COLLOCATION)
+  call atomic_projector_iter_new(iter, aproj, lr, kpoint)
+  proj = f_malloc0([iter%nc * iter%nproj], id = 'proj')  
+  call atomic_projector_iter_set_destination(iter, proj, size(proj), 1)
+  call atomic_projector_iter_set_method(iter, PROJECTION_1D_SEPARABLE, lr)
   
+  call atomic_projector_iter_new(iterRS, aproj, lr, kpoint)
+  projRS = f_malloc0([iter%nc * iter%nproj], id = 'projRS')
+  call atomic_projector_iter_set_destination(iterRS, projRS, size(projRS), 1)
+  call atomic_projector_iter_set_method(iterRS, PROJECTION_RS_COLLOCATION)
+
+  call atomic_projector_iter_new(iterMP, aproj, lr, kpoint)
+  projMP = f_malloc0([iter%nc * iter%nproj], id = 'projMP')
+  call atomic_projector_iter_set_destination(iterMP, projMP, size(projMP), 1)
+  call atomic_projector_iter_set_method(iterMP, PROJECTION_MP_COLLOCATION)
+
+  call atomic_projector_iter_start(iter)
+  call atomic_projector_iter_start(iterRS)
+  call atomic_projector_iter_start(iterMP)
   do while(atomic_projector_iter_next(iter) .and. &
        & atomic_projector_iter_next(iterRS) .and. &
        & atomic_projector_iter_next(iterMP))
-     call initialize_real_space_conversion(isf_m=16)
      if (iproc==0) then
         call yaml_comment('Projectors check',hfill='-')
         call yaml_mapping_open('Projector type')
@@ -227,8 +230,6 @@ program projection
       !  call f_free(gaussian)
       !---------------------------------------------------------------------------------------
       
-     call finalize_real_space_conversion()
-      
      if (iproc==0) call yaml_mapping_close()
    
   end do
@@ -237,15 +238,16 @@ program projection
   call atomic_projector_iter_free(iterRS)
   call atomic_projector_iter_free(iterMP)
 
-  call deallocate_workarrays_projectors(wp)
   call deallocate_locreg_descriptors(lr)
 
   call f_free(projMP)
   call f_free(projRS)
   call f_free(proj)
 
-  call gaussian_basis_free(G)
+  call gaussian_basis_free(aproj%gbasis)
 
+  call finalize_real_space_conversion()
+     
   call f_lib_finalize()
 
 end program projection

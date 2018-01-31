@@ -17,6 +17,7 @@ subroutine CalculateTailCorrection(iproc,nproc,at,rbuf,orbs,&
   use module_types
   use yaml_output
   use module_interfaces, only: applyprojectorsonthefly, orbitals_descriptors
+  use psp_projectors_base, only: psp_update_positions
   use gaussians, only: gaussian_basis
   use public_enums
   use bounds, only: make_bounds, make_all_ib
@@ -356,7 +357,7 @@ subroutine CalculateTailCorrection(iproc,nproc,at,rbuf,orbs,&
        reshape((/0._gp,0._gp,0._gp/),(/3,1/)),(/1._gp /),orbsb,LINEAR_PARTITION_NONE)
 
   !change positions in gaussian projectors
-  nlpsp%proj_G%rxyz => txyz
+  call psp_update_positions(nlpsp, txyz)
 
   do iorb=1,orbs%norbp
 

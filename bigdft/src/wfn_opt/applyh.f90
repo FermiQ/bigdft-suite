@@ -1104,7 +1104,7 @@ subroutine applyprojector_paw(ncplx,istart_c,iat,&
   !  deallocate(cprj_i)
   !else !use standart subroutine for projector application
 
-  call gaussian_iter_start(proj_G, iat, iter0)
+  call gaussian_iter_start(proj_G, 1, iter0)
 
 ! Get cprj:
   jlmn=0
@@ -1587,7 +1587,7 @@ subroutine apply_atproj_iorb_paw(iat,iorbp,istart_c,at,orbs,wfd,&
         nlpsp%pspd(iat)%plr%wfd%keyvglob,& !nlpspd%keyv_p(jseg_c),
         nlpsp%pspd(iat)%plr%wfd%keyglob,& !nlpspd%keyg_p(1,jseg_c),&
         nlpsp%proj,&
-        psi,hpsi,spsi,eproj_i,nlpsp%proj_G,paw%paw_ij(iat),&
+        psi,hpsi,spsi,eproj_i,nlpsp%pbasis(iat)%gbasis,paw%paw_ij(iat),&
         at%pawtab(ityp)%lmn2_size,paw%cprj(iat,iorbp + orbs%isorb),&
         sij_opt,at%pawtab(ityp)%sij)  
 

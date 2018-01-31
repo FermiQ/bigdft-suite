@@ -493,13 +493,15 @@ subroutine apply_oneproj_operator(wfd_p,proj,hp,n_w,wfd_w,psi,hpsi,scpr)
 end subroutine apply_oneproj_operator
 
 !> calculate the density matrix of the system from the scalar product with the projectors
-subroutine cproj_to_gamma(iat,proj_G,n_w,mproj,lmax,ncplx,cproj,factor,iagamma,gamma_mmp)
+subroutine cproj_to_gamma(aproj,n_w,mproj,lmax,ncplx,cproj,factor,iagamma,gamma_mmp)
   use module_defs, only: wp
+  use module_base, only: f_err_raise
   use gaussians
+  use psp_projectors_base, only: atomic_projectors, PROJ_DESCRIPTION_GAUSSIAN
   implicit none
-  integer, intent(in) :: mproj,iat,ncplx,lmax,n_w
+  integer, intent(in) :: mproj,ncplx,lmax,n_w
   real(wp), intent(in) :: factor
-  type(gaussian_basis_new), intent(in) :: proj_G
+  type(atomic_projectors), intent(in) :: aproj
   integer, dimension(2*lmax+1), intent(in) :: iagamma
   real(wp), dimension(ncplx,n_w,mproj), intent(in) :: cproj
   real(wp), dimension(2*n_w,2*lmax+1,2*lmax+1,*), intent(inout) :: gamma_mmp 
@@ -507,11 +509,14 @@ subroutine cproj_to_gamma(iat,proj_G,n_w,mproj,lmax,ncplx,cproj,factor,iagamma,g
   integer :: iproj
   type(gaussian_basis_iter) :: iter
 
-  call gaussian_iter_start(proj_G, iat, iter)
+  if (f_err_raise(aproj%kind /= PROJ_DESCRIPTION_GAUSSIAN, "Not implemented.", &
+       & err_name = 'BIGDFT_RUNTIME_ERROR')) return
+  
+  call gaussian_iter_start(aproj%gbasis, 1, iter)
 
   ! Loop on shell.
   iproj=1
-  do while (gaussian_iter_next_shell(proj_G, iter))
+  do while (gaussian_iter_next_shell(aproj%gbasis, iter))
      if (iter%n ==1 .and. iagamma(iter%l)/=0) then
         call atomic_PSP_density_matrix_update('C',lmax,iter%l-1,ncplx,n_w,cproj(1,1,iproj),&
              factor,gamma_mmp(1,1,1,iagamma(iter%l)))

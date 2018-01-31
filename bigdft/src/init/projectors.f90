@@ -13,9 +13,9 @@ subroutine localize_projectors(iproc,nproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,
      logrid,at,orbs,nl)
   use module_base
   use module_types, only: atoms_data,orbitals_data
-  use gaussians, only: gaussian_basis_iter, gaussian_iter_start, gaussian_iter_next_shell
   use yaml_output
-  use psp_projectors_base, only: DFT_PSP_projectors
+  use psp_projectors_base, only: DFT_PSP_projectors, atomic_projector_iter, &
+       & atomic_projector_iter_new, atomic_projector_iter_next
   use psp_projectors, only: bounds_to_plr_limits, pregion_size
   use public_enums, only: PSPCODE_PAW
   use sparsematrix_init, only: distribute_on_tasks
@@ -31,7 +31,7 @@ subroutine localize_projectors(iproc,nproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,
   logical, dimension(0:n1,0:n2,0:n3), intent(inout) :: logrid
   !Local variables
   !n(c) logical :: cmplxprojs
-  type(gaussian_basis_iter) :: iter
+  type(atomic_projector_iter) :: iter
   integer :: istart,ityp,iat,mproj,nl1,nu1,nl2,nu2,nl3,nu3,mvctr,mseg,nprojelat,i,l
   integer :: ikpt,nkptsproj,ikptp,izero,natp,isat
   integer :: ns1t,ns2t,ns3t,n1t,n2t,n3t
@@ -52,12 +52,8 @@ subroutine localize_projectors(iproc,nproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,
   !do iat=1,at%astruct%nat
   do iat=isat+1,isat+natp
 
-     mproj = 0
-     call gaussian_iter_start(nl%proj_G, iat, iter)
-     do
-        if (.not. gaussian_iter_next_shell(nl%proj_G, iter)) exit
-        mproj = mproj + 2 * iter%l - 1
-     end do
+     call atomic_projector_iter_new(iter, nl%pbasis(iat))
+     mproj = iter%nproj
      
      !assign the number of projector to the localization region
      nl%pspd(iat)%mproj=mproj
@@ -308,7 +304,8 @@ subroutine localize_projectors_new(n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,&
      logrid,at,nl)
   use module_base
   use module_types, only: atoms_data,orbitals_data
-  use gaussians, only: gaussian_basis_iter, gaussian_iter_start, gaussian_iter_next_shell
+  use psp_projectors_base, only: DFT_PSP_projectors, atomic_projector_iter, &
+       & atomic_projector_iter_new, atomic_projector_iter_next
   use psp_projectors_base, only: DFT_PSP_projectors
   use psp_projectors, only: bounds_to_plr_limits, pregion_size
   implicit none
@@ -321,9 +318,9 @@ subroutine localize_projectors_new(n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,&
   logical, dimension(0:n1,0:n2,0:n3), intent(inout) :: logrid
   !Local variables
   !n(c) logical :: cmplxprojs
-  type(gaussian_basis_iter) :: iter
   integer :: istart,ityp,iat,mproj,nl1,nu1,nl2,nu2,nl3,nu3,mvctr,mseg,i,l
   integer :: izero
+  type(atomic_projector_iter) :: iter
 
   call f_routine(id='localize_projectors')
 
@@ -331,12 +328,8 @@ subroutine localize_projectors_new(n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,&
 
   do iat=1,at%astruct%nat
 
-     mproj = 0
-     call gaussian_iter_start(nl%proj_G, iat, iter)
-     do
-        if (.not. gaussian_iter_next_shell(nl%proj_G, iter)) exit
-        mproj = mproj + 2 * iter%l - 1
-     end do
+     call atomic_projector_iter_new(iter, nl%pbasis(iat))
+     mproj = iter%nproj
 
      !assign the number of projector to the localization region
      nl%pspd(iat)%mproj=mproj
@@ -575,9 +568,10 @@ subroutine atom_projector(nl, iat, idir, lr, kpoint, istart_c, iproj, nwarnings)
   use locregs, only: locreg_descriptors
   use gaussians, only: PROJECTION_1D_SEPARABLE
   use psp_projectors_base, only: DFT_PSP_projectors, atomic_projector_iter, &
-       & atomic_projector_iter_new_gaussian, atomic_projector_iter_start, &
+       & atomic_projector_iter_start, atomic_projector_iter_free, &
        & atomic_projector_iter_to_wavelets, atomic_projector_iter_next, &
-       & atomic_projector_iter_free
+       & atomic_projector_iter_new, atomic_projector_iter_set_method, &
+       & atomic_projector_iter_set_destination
   implicit none
   type(DFT_PSP_projectors), intent(inout) :: nl
   integer, intent(in) :: iat
@@ -591,11 +585,9 @@ subroutine atom_projector(nl, iat, idir, lr, kpoint, istart_c, iproj, nwarnings)
   call f_routine(id='atom_projector')
 
   ! Start an atomic iterator.
-  call atomic_projector_iter_new_gaussian(iter, nl%pspd(iat)%plr, &
-       & kpoint, nl%proj_G%rxyz(:, iat), iat, &
-       & nl%proj, nl%nprojel, istart_c, nl%normalized, &
-       & nl%proj_G, nl%pspd(iat)%gau_cut, &
-       & PROJECTION_1D_SEPARABLE, lr)
+  call atomic_projector_iter_new(iter, nl%pbasis(iat), nl%pspd(iat)%plr, kpoint)
+  call atomic_projector_iter_set_destination(iter, nl%proj, nl%nprojel, istart_c)
+  call atomic_projector_iter_set_method(iter, PROJECTION_1D_SEPARABLE, lr)
 
   call atomic_projector_iter_start(iter)
   ! Loop on shell.
