@@ -596,6 +596,8 @@ module bigdft_matrices
       type(sparse_matrix) :: smat_test
       integer,dimension(:,:),allocatable :: ind_minmax
 
+      call f_routine(id='init_bigdft_matrices')
+
       call sparse_matrix_metadata_init(atoms%astruct%geocode, atoms%astruct%cell_dim, orbs%norb, &
            atoms%astruct%nat, atoms%astruct%ntypes, atoms%astruct%units, &           
            atoms%nzatom, atoms%nelpsp, atoms%astruct%atomnames, atoms%astruct%iatype, &
@@ -658,6 +660,8 @@ module bigdft_matrices
            3, linmat%smat, ind_minmax)
       !write(1000+iproc,*) 'after init_matrix_taskgroups_wrapper'
       call f_free(ind_minmax)
+
+      call f_release_routine()
 
     end subroutine init_bigdft_matrices
 

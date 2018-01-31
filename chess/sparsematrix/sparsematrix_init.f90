@@ -68,6 +68,7 @@ module sparsematrix_init
 
 
   integer function matrixindex_in_compressed(sparsemat, iorb, jorb, init_, n_)
+      use dynamic_memory
       implicit none
 
       ! Calling arguments
@@ -6194,6 +6195,8 @@ module sparsematrix_init
      integer :: i, ii_ref, iseg, iorb, jorb, ii
      logical :: found
 
+     call f_routine(id='get_sparsematrix_local_rows_columns')
+
      ! Get the global indices of ind_min and ind_max
      do i=1,2
          if (i==1) then
@@ -6214,8 +6217,9 @@ module sparsematrix_init
                 iorb = smat%keyg(1,2,iseg)
                 do jorb=smat%keyg(1,1,iseg),smat%keyg(2,1,iseg)
                     ii = matrixindex_in_compressed(smat, jorb, iorb)
-                    !if (iproc==0) write(*,'(a,5i9)') 'i, ii_ref, ii, iorb, jorb', i, ii_ref, ii, iorb, jorb
+                    !write(*,'(a,5i9)') 'i, ii_ref, ii, iorb, jorb', i, ii_ref, ii, iorb, jorb
                     if (ii==ii_ref) then
+                        !write(*,'(a,5i9)') 'i, ii_ref, ii, iorb, jorb', i, ii_ref, ii, iorb, jorb
                         irow(i) = jorb
                         icol(i) = iorb
                         !exit outloop
@@ -6229,10 +6233,14 @@ module sparsematrix_init
          end do outloop
          !$omp end do
          !$omp end parallel
-
+         if (.not.found) then
+             call f_err_throw('Element not found', err_id=SPARSEMATRIX_RUNTIME_ERROR)
+         end if
      end do
 
+
      !write(*,'(a,i5,3x,3(2i6,3x))') 'iproc, ind_min, ind_max, irow, icol', mpirank(mpi_comm_world), ind_min, ind_max, irow, icol
+     call f_release_routine()
 
     end subroutine get_sparsematrix_local_rows_columns
 
@@ -6252,6 +6260,8 @@ module sparsematrix_init
       integer,dimension(2) :: irow_minmax, icol_minmax
       integer,dimension(2) :: irow_smat, icol_smat
       integer,dimension(:,:),allocatable :: ind_minmax_smat
+
+      call f_routine(id='init_matrix_taskgroups_wrapper')
 
       ! Some sanity checks
       do imat=2,nmat
@@ -6286,6 +6296,8 @@ module sparsematrix_init
       end do
 
       call f_free(ind_minmax_smat)
+
+      call f_release_routine()
 
     end subroutine init_matrix_taskgroups_wrapper
 
