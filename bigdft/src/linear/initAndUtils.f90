@@ -49,7 +49,9 @@ subroutine init_foe_wrapper(iproc, nproc, input, orbs_KS, tmprtr, foe_obj)
        eval_multiplicator=1.d0, &
        accuracy_function=input%cp%foe%accuracy_foe, accuracy_penalty=input%cp%foe%accuracy_penalty, &
        betax=input%cp%foe%betax_foe, occupation_function=input%cp%foe%occupation_function, &
-       adjust_fscale=input%cp%foe%adjust_fscale)
+       adjust_fscale=input%cp%foe%adjust_fscale, &
+       fscale_ediff_low=input%cp%foe%fscale_ediff_low, &
+       fscale_ediff_up=input%cp%foe%fscale_ediff_up)
 
   call f_release_routine()
 

@@ -423,12 +423,14 @@ module foe
 
           if (foe_data_get_logical(foe_obj,"adjust_fscale")) then
               ! Adjust fscale
-              if (diff<5.d-5) then
+              !if (diff<5.d-5) then
+              if (diff < foe_obj%fscale_ediff_low) then
                   ! can decrease polynomial degree
                   if (iproc==0) call yaml_map('modify error function decay length','increase')
                   fscale_new=1.25d0*fscale_new
                   degree_sufficient=.true.
-              else if (diff>=5.d-5 .and. diff < 1.d-4) then
+              !else if (diff>=5.d-5 .and. diff < 1.d-4) then
+              else if (diff >= foe_obj%fscale_ediff_low .and. diff < foe_obj%fscale_ediff_up) then
                   ! polynomial degree seems to be appropriate
                   degree_sufficient=.true.
                   if (iproc==0) call yaml_map('modify error function decay length','No')

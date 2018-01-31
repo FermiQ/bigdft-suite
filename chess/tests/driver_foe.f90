@@ -65,6 +65,7 @@ program driver_foe
   real(mp) :: energy, tr_KS, tr_KS_check, ef, energy_fake, efermi, eTS, evlow, evhigh, t1, t2
   type(foe_data),dimension(:),allocatable :: foe_obj, ice_obj
   real(mp) :: tr, fscale, fscale_lowerbound, fscale_upperbound, accuracy_foe, accuracy_ice, accuracy_penalty
+  real(mp) :: fscale_ediff_low, fscale_ediff_up
   type(dictionary),pointer :: dict_timing_info, options
   type(yaml_cl_parse) :: parser !< command line parser
   character(len=1024) :: metadata_file, overlap_file, hamiltonian_file, kernel_file, kernel_matmul_file
@@ -671,6 +672,8 @@ program driver_foe
           keep_dense_kernel = options//'keep_dense_kernel'
           write_kernel = options//'write_kernel'
           write_symmetrized_kernel = options//'write_symmetrized_kernel'
+          fscale_ediff_low = options//'fscale_ediff_low'
+          fscale_ediff_up = options//'fscale_ediff_up'
          
           call dict_free(options)
       end if
@@ -711,6 +714,8 @@ program driver_foe
       call mpibcast(nit, root=0, comm=mpi_comm_world)
       call mpibcast(betax, root=0, comm=mpi_comm_world)
       call mpibcast(inversion_method, root=0, comm=mpi_comm_world)
+      call mpibcast(fscale_ediff_low, root=0, comm=mpi_comm_world)
+      call mpibcast(fscale_ediff_up, root=0, comm=mpi_comm_world)
       ! Since there is no wrapper for logicals...
       if (iproc==0) then
           if (check_spectrum) then
@@ -1099,6 +1104,20 @@ subroutine commandline_options(parser)
        &(requires write_kernel=yes and keep_dense_kernel=yes)',&
        'Allowed values' .is. &
        'Logical'))
+
+  call yaml_cl_parse_option(parser,'fscale_ediff_low','5.e-5',&
+       'lower bound for the optimal relative energy difference between the kernel and the control kernel',&
+       help_dict=dict_new('Usage' .is. &
+       'Indicate the lower bound for the optimal relative energy difference between the kernel and the control kernel',&
+       'Allowed values' .is. &
+       'Double'))
+
+  call yaml_cl_parse_option(parser,'fscale_ediff_low','1.e-4',&
+       'lower bound for the optimal relative energy difference between the kernel and the control kernel',&
+       help_dict=dict_new('Usage' .is. &
+       'Indicate the lower bound for the optimal relative energy difference between the kernel and the control kernel',&
+       'Allowed values' .is. &
+       'Double'))
 
 
 end subroutine commandline_options
