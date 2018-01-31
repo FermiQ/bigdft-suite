@@ -18,6 +18,7 @@
   <repository type="git" name="simgrid-dev" href="https://scm.gforge.inria.fr/anonscm/git/"/>
   <repository type="git" name="pyyaml" href="https://github.com/dcaliste/"/>
   <repository type="git" name="ipython" href="https://github.com/ipython/"/>
+  <repository type="git" name="esl" href="https://gitlab.e-cam2020.eu/esl/"/>
 
 
   <repository type="tarball" name="metis"
@@ -51,7 +52,9 @@
     <branch repo="netlib" module="lapack-3.7.0.tgz" version="3.7.0" checkoutdir="lapack"/>
   </cmake>
 
-
+  <autotools id="pspio" autogen-sh="autogen.sh+configure" autogenargs="--enable-fortran">
+    <branch repo="esl" module="pspio" version="0.2.0"/>
+  </autotools>
 
   <distutils id="PyYAML">
     <!--<branch repo="libyaml" module="PyYAML-3.10.tar.gz" version="3.10"/>-->
