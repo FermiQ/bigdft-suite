@@ -382,7 +382,6 @@ $(gir_DATA): $(G_IR_SCANNER) $(bigdft_soname_library)
 		--output=$(gir_DATA) \
 		--library=bigdft-1 \
 		--no-libtool \
-		--library-path=$(builddir)/modules \
 		-DGLIB_MAJOR_VERSION=2 -L$(builddir) \
 		-I$(srcdir)/bindings -I$(builddir)/bindings \
 		$(srcdir)/bindings/bigdft.h \
