@@ -575,6 +575,7 @@ module public_enums
   integer, parameter, public :: PSPCODE_PAW = 7
   integer, parameter, public :: PSPCODE_HGH_K = 10
   integer, parameter, public :: PSPCODE_HGH_K_NLCC = 12
+  integer, parameter, public :: PSPCODE_PSPIO = 50
 
   !> Output for run modes
   type(f_enumerator), public :: RUN_MODE_CREATE_DOCUMENT = &

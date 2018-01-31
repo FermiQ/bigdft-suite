@@ -300,6 +300,8 @@ module pseudopotentials
                  ("Core charge" .in. dict // NLCC_KEY)
          case("PAW")
             npspcode = PSPCODE_PAW
+         case("PSPIO")
+            npspcode = PSPCODE_PSPIO
          case default
             if (present(valid)) valid = .false.
          end select
@@ -376,11 +378,13 @@ module pseudopotentials
 
 
     subroutine get_psp(dict,ityp,ntypes,nzatom,nelpsp,npspcode,ixcpsp,iradii_source,psppar,radii_cf,pawpatch,&
-         pawrad,pawtab,epsatm)
+         pawrad,pawtab,epsatm, pspio)
       use dynamic_memory
       use m_libpaw_libxc, only: libxc_functionals_init, libxc_functionals_end
       !use libxc_functionals, only: libxc_functionals_init, libxc_functionals_end
       use m_pawtab, only: pawtab_nullify
+      use pspiof_m, only: pspiof_pspdata_t, pspiof_pspdata_alloc, pspiof_pspdata_read, &
+           & PSPIO_SUCCESS, PSPIO_FMT_UNKNOWN
       implicit none
       type(dictionary), pointer :: dict
       integer, intent(in) :: ntypes,ityp
@@ -395,6 +399,7 @@ module pseudopotentials
       real(gp), dimension(0:4,0:6), intent(out) :: psppar !< Pseudopotential parameters (HGH NL section)
       type(pawrad_type), dimension(:), pointer :: pawrad  !< PAW radial objects.
       type(pawtab_type), dimension(:), pointer :: pawtab  !< PAW objects for something.
+      type(pspiof_pspdata_t), dimension(:), pointer :: pspio
       !local variables
       logical :: l
       integer :: ityp2
@@ -437,6 +442,19 @@ module pseudopotentials
               & nzatom, nelpsp, ixcpsp)
          radii_cf(3)= pawtab(ityp)%rpaw !/ frmult + 0.01
          call libxc_functionals_end()
+      else if (npspcode == PSPCODE_PSPIO) then
+         fpaw = dict // SOURCE_KEY
+         ! Allocate the PSPIO array on the fly.
+         !TO be removed in the new PSP structure
+         if (.not. associated(pspio)) then
+            allocate(pspio(ntypes))
+         end if
+         if (f_err_raise(pspiof_pspdata_alloc(pspio(ityp)) /= PSPIO_SUCCESS, &
+              & "Cannot initialise PSPIO data.", err_name='BIGDFT_RUNTIME_ERROR')) &
+              & return
+         if (f_err_raise(pspiof_pspdata_read(pspio(ityp), PSPIO_FMT_UNKNOWN, trim(fpaw)) /= PSPIO_SUCCESS, &
+              & "Cannot read PSPIO data from " // trim(fpaw), &
+              & err_name='BIGDFT_RUNTIME_ERROR')) return
       end if
 
     end subroutine get_psp

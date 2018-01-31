@@ -26,6 +26,7 @@ module module_atoms
   use dictionaries, only: dictionary
   use f_trees, only: f_tree
   use f_arrays
+  use pspiof_m, only: pspiof_pspdata_t
   implicit none
 
   private
@@ -101,6 +102,7 @@ module module_atoms
      type(pawtab_type), dimension(:), pointer :: pawtab  !< PAW objects for something.
      type(pawang_type) :: pawang                         !< PAW angular mesh definition.
      real(gp), dimension(:), pointer :: epsatm !< PAW pseudoatom energy for each type of atom
+     type(pspiof_pspdata_t), dimension(:), pointer :: pspio !< PSPIO data objects.
 
      !> for abscalc with pawpatch
      integer, dimension(:), pointer ::  paw_NofL, paw_l, paw_nofchannels
@@ -353,6 +355,7 @@ contains
     nullify(at%pawrad)
     nullify(at%pawtab)
     nullify(at%epsatm)
+    nullify(at%pspio)
     !call pawang_nullify(at%pawang) !not needed in fact
   end subroutine nullify_atoms_data
 
@@ -425,6 +428,8 @@ contains
     use m_pawtab, only: pawtab_free
     use m_pawrad, only: pawrad_free
     use m_pawang, only: pawang_free
+    use pspiof_m, only: pspiof_pspdata_free
+    use public_enums, only: PSPCODE_PSPIO
     implicit none
     type(atoms_data), intent(inout) :: atoms
     !local variables
@@ -436,6 +441,15 @@ contains
 
     ! Deallocate atomic structure
     call deallocate_atomic_structure(atoms%astruct)
+
+    ! Free PSPIO data.
+    if (associated(atoms%pspio)) then
+       do ityp = 1, size(atoms%pspio)
+          if (atoms%npspcode(ityp) == PSPCODE_PSPIO) &
+               & call pspiof_pspdata_free(atoms%pspio(ityp))
+       end do
+       deallocate(atoms%pspio)
+    end if
 
     ! Deallocations related to pseudos.
     call f_free_ptr(atoms%nzatom)
@@ -487,7 +501,7 @@ contains
     if (associated(atoms%epsatm)) then
        call f_free_ptr(atoms%epsatm)
     end if
-    END SUBROUTINE deallocate_atoms_data
+  END SUBROUTINE deallocate_atoms_data
 
     !> Start the iterator of an astruct_neighbours structure.
     !  Only one iterator is possible at a time.
@@ -1955,7 +1969,7 @@ contains
               atoms%nzatom(ityp), atoms%nelpsp(ityp), atoms%npspcode(ityp), &
               atoms%ixcpsp(ityp), atoms%iradii_source(ityp),psppar,&
               radii_cf,pawpatch,&
-              atoms%pawrad,atoms%pawtab,atoms%epsatm)
+              atoms%pawrad,atoms%pawtab,atoms%epsatm,atoms%pspio)
          atoms%radii_cf(ityp,1:3) = radii_cf(1:3)
          atoms%psppar(0:4,0:6,ityp) = psppar(0:4,0:6)
       end do
