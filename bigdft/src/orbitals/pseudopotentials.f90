@@ -121,32 +121,31 @@ module pseudopotentials
       filename = 'psppar.' // atomname
       dict_psp => dict // filename !inquire for the key?
 
-      exists = has_key(dict_psp, LPSP_KEY)
+      exists = has_key(dict_psp, ATOMIC_NUMBER) .and. &
+           & has_key(dict_psp, ELECTRON_NUMBER)
       if (.not. exists) then
          if (dict_len(dict_psp) > 0) then
             ! Long string case, we parse it.
             call psp_file_merge_to_dict(dict, filename, lstring = dict_psp)
             ! Since it has been overrided.
             dict_psp => dict // filename
-            exists = has_key(dict_psp, LPSP_KEY)
-            nzatom = dict_psp .get. ATOMIC_NUMBER
-            nelpsp = dict_psp .get. ELECTRON_NUMBER
          else
             ixc = run_ixc
             ixc = dict_psp .get. PSPXC_KEY
             call psp_from_data(atomname, nzatom, &
                  & nelpsp, npspcode, ixc, psppar(:,:), exists)
             radii_cf(:) = UNINITIALIZED(1._gp)
-            call psp_data_merge_to_dict(dict_psp, nzatom, nelpsp, npspcode, ixc, &
-                 & psppar(0:4,0:6), radii_cf, UNINITIALIZED(1._gp), UNINITIALIZED(1._gp))
-            call set(dict_psp // SOURCE_KEY, "Hard-Coded")
+            if (exists) then
+               call psp_data_merge_to_dict(dict_psp, nzatom, nelpsp, npspcode, ixc, &
+                    & psppar(0:4,0:6), radii_cf, UNINITIALIZED(1._gp), UNINITIALIZED(1._gp))
+               call set(dict_psp // SOURCE_KEY, "Hard-Coded")
+            end if
          end if
-      else
+      end if
+      if (has_key(dict_psp, ATOMIC_NUMBER) .and. has_key(dict_psp, ELECTRON_NUMBER)) then
          nzatom = dict_psp // ATOMIC_NUMBER
          nelpsp = dict_psp // ELECTRON_NUMBER
-      end if
-
-      if (.not. exists) then
+      else
          call f_err_throw('The pseudopotential parameter file "'//&
               trim(filename)//&
               '" is lacking, and no registered pseudo found for "'//&
@@ -176,7 +175,11 @@ module pseudopotentials
          write(source_val, "(A)") RADII_SOURCE(RADII_SOURCE_HARD_CODED)
       end if
       if (radii_cf(2) == UNINITIALIZED(1.0_gp)) then
-         radfine = dict_psp // LPSP_KEY // "Rloc"
+         if (has_key(dict_psp, LPSP_KEY)) then
+            radfine = dict_psp // LPSP_KEY // "Rloc"
+         else
+            radfine = radii_cf(1) / 4._gp
+         end if
          if (has_key(dict_psp, NLPSP_KEY)) then
             nlen=dict_len(dict_psp // NLPSP_KEY)
             do i=1, nlen
@@ -255,7 +258,7 @@ module pseudopotentials
       if (present(lcoeff)) lcoeff(:) = 0._gp
       if (has_key(dict, LPSP_KEY)) then
          loc => dict // LPSP_KEY
-         if (has_key(loc, "Rloc") .and. present(rloc)) rloc = loc // 'Rloc'
+         if (has_key(loc, "Rloc") .and. present(rloc)) rloc = loc // "Rloc"
          if (has_key(loc, COEFF_KEY) .and. present(lcoeff)) lcoeff = loc // COEFF_KEY
          ! Validate
          if (present(valid)) valid = valid .and. has_key(loc, "Rloc") .and. &
@@ -270,7 +273,7 @@ module pseudopotentials
             if (has_key(loc, "Channel (l)")) then
                l = loc // "Channel (l)"
                l = l + 1
-               if (has_key(loc, "Rloc"))       psppar(l,0)   = loc // 'Rloc'
+               if (has_key(loc, "Rloc"))       psppar(l,0)   = loc // "Rloc"
                if (has_key(loc, "h_ij terms")) psppar(l,1:6) = loc // 'h_ij terms'
                if (present(valid)) valid = valid .and. has_key(loc, "Rloc") .and. &
                     & has_key(loc, "h_ij terms")
@@ -350,7 +353,7 @@ module pseudopotentials
       exists=key .in. dict
 
       if (exists) then
-         tmp => dict // key 
+         tmp => dict // key
          if (SOURCE_KEY .in. tmp) then
             str = dict_value(dict // key // SOURCE_KEY)
          else
@@ -455,6 +458,8 @@ module pseudopotentials
          if (f_err_raise(pspiof_pspdata_read(pspio(ityp), PSPIO_FMT_UNKNOWN, trim(fpaw)) /= PSPIO_SUCCESS, &
               & "Cannot read PSPIO data from " // trim(fpaw), &
               & err_name='BIGDFT_RUNTIME_ERROR')) return
+         ! Patch radii_cf for pseudo
+         radii_cf(3)= 2.0_gp
       end if
 
     end subroutine get_psp
@@ -523,8 +528,9 @@ module pseudopotentials
       !Local variables
       integer :: nzatom, nelpsp, npspcode, ixcpsp
       real(gp) :: psppar(0:4,0:6), radii_cf(3), rcore, qcore
-      logical :: exists, donlcc, pawpatch
+      logical :: exists, donlcc, pawpatch, frompspio
       type(io_stream) :: ios
+      character(len = max_field_length) :: str
 
       if (present(filename)) then
          inquire(file=trim(filename),exist=exists)
@@ -537,9 +543,25 @@ module pseudopotentials
               & err_name='BIGDFT_RUNTIME_ERROR')
       end if
 
-      !ALEX: if npspcode==PSPCODE_HGH_K_NLCC, nlccpar are read from psppar.Xy via rcore and qcore 
-      call psp_from_stream(ios, nzatom, nelpsp, npspcode, ixcpsp, &
-           & psppar, donlcc, rcore, qcore, radii_cf, pawpatch)
+      frompspio = present(filename)
+      if (has_key(dict, key) .and. (PSP_TYPE .in. dict // key)) then
+         ! Merge file only for supported formats.
+         str = dict_value(dict // key // PSP_TYPE)
+         frompspio = frompspio .and. (trim(str) == "PSPIO")
+      end if
+      !ALEX: if npspcode==PSPCODE_HGH_K_NLCC, nlccpar are read from psppar.Xy via rcore and qcore
+      if (frompspio) then
+         call psp_from_pspio(filename, nzatom, nelpsp, ixcpsp)
+         npspcode = PSPCODE_PSPIO
+         pawpatch = .false.
+         psppar = 0._gp
+         radii_cf = UNINITIALIZED(1._gp)
+         rcore = UNINITIALIZED(rcore)
+         qcore = UNINITIALIZED(qcore)
+      else
+         call psp_from_stream(ios, nzatom, nelpsp, npspcode, ixcpsp, &
+              & psppar, donlcc, rcore, qcore, radii_cf, pawpatch)
+      end if
 
       call f_iostream_release(ios)
 
@@ -590,6 +612,8 @@ module pseudopotentials
          call set(dict // PSP_TYPE, 'HGH-K + NLCC')
       case(PSPCODE_PAW)
          call set(dict // PSP_TYPE, 'PAW')
+      case(PSPCODE_PSPIO)
+         call set(dict // PSP_TYPE, 'PSPIO')
       end select
 
       call set(dict // ATOMIC_NUMBER, nzatom)
@@ -599,7 +623,7 @@ module pseudopotentials
       ! Local terms
       if (psppar(0,0)/=0) then
          call dict_init(channel)
-         call set(channel // 'Rloc', psppar(0,0))
+         call set(channel // "Rloc", psppar(0,0))
          do i = 1, 4, 1
             call add(channel // COEFF_KEY, psppar(0,i))
          end do
@@ -618,7 +642,7 @@ module pseudopotentials
          if (psppar(l,0) /= 0._gp) then
             call dict_init(channel)
             call set(channel // 'Channel (l)', l - 1)
-            call set(channel // 'Rloc', psppar(l,0))
+            call set(channel // "Rloc", psppar(l,0))
             do i = 1, 6, 1
                call add(channel // 'h_ij terms', psppar(l,i))
             end do
@@ -842,6 +866,36 @@ module pseudopotentials
          end if
       end if
     END SUBROUTINE psp_from_stream
+
+    subroutine psp_from_pspio(filename, nzatom, nelpsp, ixcpsp)
+      use pspiof_m
+      use yaml_strings, only: yaml_toa
+      implicit none
+      character(len = *), intent(in) :: filename
+      integer, intent(out) :: nzatom, nelpsp, ixcpsp
+
+      type(pspiof_pspdata_t) :: pspio
+      type(pspiof_xc_t) :: xc
+      integer :: ierr
+
+      if (f_err_raise(pspiof_pspdata_alloc(pspio) /= PSPIO_SUCCESS, &
+           & "Cannot initialise PSPIO data.", err_name='BIGDFT_RUNTIME_ERROR')) &
+           & return
+
+      ierr = pspiof_pspdata_read(pspio, PSPIO_FMT_UNKNOWN, filename)
+      if (f_err_raise(ierr /= PSPIO_SUCCESS, &
+           & "Cannot read PSPIO data from " // trim(filename) // &
+           & " (" // trim(yaml_toa(ierr)) // ")", err_name='BIGDFT_RUNTIME_ERROR')) &
+           & return
+
+      nzatom = int(pspiof_pspdata_get_z(pspio))
+      nelpsp = max(int(pspiof_pspdata_get_nelvalence(pspio)), &
+           & int(pspiof_pspdata_get_zvalence(pspio)))
+      xc = pspiof_pspdata_get_xc(pspio)
+      ixcpsp = -(pspiof_xc_get_exchange(xc) + 1000 * pspiof_xc_get_correlation(xc))
+
+      call pspiof_pspdata_free(pspio)
+    END SUBROUTINE psp_from_pspio
 
     subroutine paw_from_file(pawrad, pawtab, epsatm, filename, nzatom, nelpsp, ixc)
       use module_defs, only: dp, gp, pi_param

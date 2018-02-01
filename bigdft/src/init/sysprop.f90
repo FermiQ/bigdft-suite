@@ -2467,12 +2467,9 @@ subroutine pawpatch_from_file( filename, atoms,ityp, paw_tot_l, &
      ! if (iproc.eq.0) write(*,*) 'opening PSP file ',filename
      open(unit=11,file=trim(filename),status='old',iostat=ierror)
      !Check the open statement
-     if (ierror /= 0) then
-        write(*,*) ': Failed to open the PAWpatch file "',&
-             trim(filename),'"'
-        stop
-     end if
-     
+     if (f_err_raise(ierror /= 0, 'Failed to open the PAWpatch file "' // &
+          & trim(filename) // '".', err_name='BIGDFT_RUNTIME_ERROR')) &
+          & return
      !! search for paw_patch informations
      
      atoms%paw_NofL(ityp)=0
