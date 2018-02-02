@@ -6166,7 +6166,7 @@ module sparsematrix_init
      integer,intent(out) :: ind_min, ind_max
 
      ind_min = smat%nvctr
-     ind_max = 0
+     ind_max = 1
 
 
      call check_compress_distributed_layout(smat,ind_min,ind_max)
