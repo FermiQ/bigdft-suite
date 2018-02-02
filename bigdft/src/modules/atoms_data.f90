@@ -1347,7 +1347,7 @@ contains
          end if
       case('F')
          ! Default, store nothing and erase key if already exist.
-         if (has_key(dict, ASTRUCT_CELL)) call dict_remove(dict, ASTRUCT_CELL)
+         if (has_key(dict, ASTRUCT_CELL)) call dict_remove(dict, ASTRUCT_CELL, destroy=.false.)
       end select BC
       if (has_key(dict, ASTRUCT_POSITIONS)) call dict_remove(dict, ASTRUCT_POSITIONS)
       if (astruct%nat > 0) pos => dict // ASTRUCT_POSITIONS
