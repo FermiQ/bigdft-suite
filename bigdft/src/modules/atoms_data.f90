@@ -1338,7 +1338,7 @@ contains
       end do
       if (.not. any(peri)) then
          ! Default, store nothing and erase key if already exist.
-         if (has_key(dict, ASTRUCT_CELL)) call dict_remove(dict, ASTRUCT_CELL)
+         if (has_key(dict, ASTRUCT_CELL)) call dict_remove(dict, ASTRUCT_CELL, destroy=.false.)
       end if
 
       !cell information
