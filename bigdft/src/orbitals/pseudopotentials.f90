@@ -117,7 +117,6 @@ module pseudopotentials
 
       call f_routine(id='psp_dict_fill_all')
 
-
       filename = 'psppar.' // atomname
       dict_psp => dict // filename !inquire for the key?
 
@@ -142,7 +141,8 @@ module pseudopotentials
             end if
          end if
       end if
-      if (has_key(dict_psp, ATOMIC_NUMBER) .and. has_key(dict_psp, ELECTRON_NUMBER)) then
+      if (has_key(dict_psp, ATOMIC_NUMBER) .and. &
+           & has_key(dict_psp, ELECTRON_NUMBER)) then
          nzatom = dict_psp // ATOMIC_NUMBER
          nelpsp = dict_psp // ELECTRON_NUMBER
       else
@@ -195,7 +195,7 @@ module pseudopotentials
       if (radii_cf(3) == UNINITIALIZED(1.0_gp)) radii_cf(3)=crmult*radii_cf(1)/frmult
       ! Correct radii_cf(3) for the projectors.
       maxrad=0.e0_gp ! This line added by Alexey, 03.10.08, to be able to compile with -g -C
-      if (has_key( dict_psp, NLPSP_KEY)) then
+      if (has_key(dict_psp, NLPSP_KEY)) then
          nlen=dict_len(dict_psp // NLPSP_KEY)
          do i=1, nlen
             rad =  dict_psp  // NLPSP_KEY // (i - 1) // "Rloc"
@@ -203,6 +203,10 @@ module pseudopotentials
                maxrad=max(maxrad, rad)
             end if
          end do
+      else if (has_key(dict_psp, PSP_TYPE)) then
+         if (trim(dict_value(dict_psp // PSP_TYPE)) == "PSPIO") then
+            maxrad = radii_cf(1)
+         end if
       end if
       if (maxrad == 0.0_gp) then
          radii_cf(3)=0.0_gp
@@ -458,8 +462,6 @@ module pseudopotentials
          if (f_err_raise(pspiof_pspdata_read(pspio(ityp), PSPIO_FMT_UNKNOWN, trim(fpaw)) /= PSPIO_SUCCESS, &
               & "Cannot read PSPIO data from " // trim(fpaw), &
               & err_name='BIGDFT_RUNTIME_ERROR')) return
-         ! Patch radii_cf for pseudo
-         radii_cf(3)= 2.0_gp
       end if
 
     end subroutine get_psp
@@ -876,7 +878,7 @@ module pseudopotentials
 
       type(pspiof_pspdata_t) :: pspio
       type(pspiof_xc_t) :: xc
-      integer :: ierr
+      integer :: ierr, i
 
       if (f_err_raise(pspiof_pspdata_alloc(pspio) /= PSPIO_SUCCESS, &
            & "Cannot initialise PSPIO data.", err_name='BIGDFT_RUNTIME_ERROR')) &

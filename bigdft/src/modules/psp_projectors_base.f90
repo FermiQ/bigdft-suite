@@ -4,6 +4,7 @@ module psp_projectors_base
   use locregs
   use compression
   use locreg_operations
+  use pspiof_m, only: pspiof_projector_t
   implicit none
 
   private
@@ -19,6 +20,7 @@ module psp_projectors_base
   end type nonlocal_psp_descriptors
 
   integer, parameter :: PROJ_DESCRIPTION_GAUSSIAN = 1
+  integer, parameter :: PROJ_DESCRIPTION_PSPIO = 2
   
   !> Description of the atomic functions
   type, public :: atomic_projectors
@@ -30,6 +32,9 @@ module psp_projectors_base
      ! Gaussian specifics
      real(gp) :: gau_cut !< cutting radius for the gaussian description of projectors.
      type(gaussian_basis_new) :: gbasis !< Gaussian description of the projectors.
+
+     ! PSPIO specifics
+     type(pspiof_projector_t), dimension(:), pointer :: rfuncs !< Radial projectors.
   end type atomic_projectors
   
   !> describe the information associated to the non-local part of Pseudopotentials
@@ -78,6 +83,9 @@ module psp_projectors_base
      integer :: lmax
      type(gaussian_basis_iter) :: giter
 
+     ! Radial functions specific attributes.
+     integer :: riter
+
      ! Method specific attributes and work arrays.
      type(locreg_descriptors), pointer :: glr
      type(workarrays_projectors) :: wpr
@@ -91,7 +99,9 @@ module psp_projectors_base
   public :: atomic_projectors_null
   public :: psp_update_positions
 
-  public :: PROJ_DESCRIPTION_GAUSSIAN
+  public :: PROJ_DESCRIPTION_GAUSSIAN, PROJ_DESCRIPTION_PSPIO
+  public :: allocate_atomic_projectors_ptr
+  public :: rfunc_basis_from_pspio
 
   public :: atomic_projector_iter_new, atomic_projector_iter_set_method
   public :: atomic_projector_iter_free, atomic_projector_iter_set_destination
@@ -131,7 +141,21 @@ contains
     ap%iat=0
     ap%gau_cut = UNINITIALIZED(ap%gau_cut)
     call nullify_gaussian_basis_new(ap%gbasis)
+    nullify(ap%rfuncs)
   end subroutine nullify_atomic_projectors
+
+  subroutine allocate_atomic_projectors_ptr(aps, nat)
+    implicit none
+    type(atomic_projectors), dimension(:), pointer :: aps
+    integer, intent(in) :: nat
+    !local variables
+    integer :: iat
+
+    allocate(aps(nat))
+    do iat = 1, nat
+       call nullify_atomic_projectors(aps(iat))
+    end do
+  end subroutine allocate_atomic_projectors_ptr
 
   pure function DFT_PSP_projectors_null() result(nl)
     implicit none
@@ -186,9 +210,17 @@ contains
   end subroutine free_pspd_ptr
 
   subroutine deallocate_atomic_projectors(ap)
+    use pspiof_m, only: pspiof_projector_free
     implicit none
     type(atomic_projectors), intent(inout) :: ap
+    integer :: i
     call gaussian_basis_free(ap%gbasis)
+    if (associated(ap%rfuncs)) then
+       do i = lbound(ap%rfuncs, 1), ubound(ap%rfuncs, 1)
+          call pspiof_projector_free(ap%rfuncs(i))
+       end do
+       deallocate(ap%rfuncs)
+    end if
   end subroutine deallocate_atomic_projectors
 
   subroutine free_atomic_projectors_ptr(aps)
@@ -270,6 +302,8 @@ contains
           if (iterM%ndoc > 1) iter%lmax = max(iter%lmax, iterM%l)
           iter%nproj = iter%nproj + 2 * iterM%l - 1
        end do
+    else if (iter%parent%kind == PROJ_DESCRIPTION_PSPIO) then
+       iter%nproj = size(aproj%rfuncs)
     else
        call f_err_throw("Unknown atomic projector kind.", &
             & err_name = 'BIGDFT_RUNTIME_ERROR')
@@ -338,6 +372,8 @@ contains
     iter%istart_c = iter%istart
     if (iter%parent%kind == PROJ_DESCRIPTION_GAUSSIAN) then
        call gaussian_iter_start(iter%parent%gbasis, 1, iter%giter)
+    else if (iter%parent%kind == PROJ_DESCRIPTION_PSPIO) then
+       iter%riter = 0
     else
        call f_err_throw("Unknown atomic projector kind.", &
             & err_name = 'BIGDFT_RUNTIME_ERROR')
@@ -345,20 +381,36 @@ contains
   end subroutine atomic_projector_iter_start
 
   function atomic_projector_iter_next(iter) result(next)
+    use pspiof_m, only: pspiof_qn_t, pspiof_qn_get_l, pspiof_qn_get_n, &
+         & pspiof_projector_get_qn
     implicit none
     type(atomic_projector_iter), intent(inout) :: iter
+    type(pspiof_qn_t) :: qn
     logical :: next
 
     iter%istart_c = iter%istart_c + iter%nc * iter%mproj ! add the previous shift.
     iter%n = -1
     iter%l = -1
     iter%mproj = 0
-    next = gaussian_iter_next_shell(iter%parent%gbasis, iter%giter)
-    if (.not. next) return
+    if (iter%parent%kind == PROJ_DESCRIPTION_GAUSSIAN) then
+       next = gaussian_iter_next_shell(iter%parent%gbasis, iter%giter)
+       if (.not. next) return
+       iter%n = iter%giter%n
+       iter%l = iter%giter%l
+       iter%mproj = 2 * iter%l - 1
+    else if (iter%parent%kind == PROJ_DESCRIPTION_PSPIO) then
+       next = (iter%riter < size(iter%parent%rfuncs))
+       if (.not. next) return
+       iter%riter = iter%riter + 1
+       qn = pspiof_projector_get_qn(iter%parent%rfuncs(iter%riter))
+       iter%l = pspiof_qn_get_l(qn)
+       iter%n = pspiof_qn_get_n(qn)
+       iter%mproj = 1
+    else
+       call f_err_throw("Unknown atomic projector kind.", &
+            & err_name = 'BIGDFT_RUNTIME_ERROR')
+    end if
     
-    iter%n = iter%giter%n
-    iter%l = iter%giter%l
-    iter%mproj = 2 * iter%l - 1
     next = .true.
     if (iter%istart_c + iter%nc * iter%mproj > iter%nprojel+1) &
          & call f_err_throw('istart_c > nprojel+1', err_name = 'BIGDFT_RUNTIME_ERROR')
@@ -454,4 +506,23 @@ contains
        call atomic_projectors_set_position(nlpsp%pbasis(iat), rxyz(:, iat))
     end do
   end subroutine psp_update_positions
+
+  subroutine rfunc_basis_from_pspio(pspio, rfuncs)
+    use pspiof_m, only: pspiof_pspdata_t, pspiof_pspdata_get_n_projectors, &
+         & pspiof_pspdata_get_projector, pspiof_projector_copy, PSPIO_SUCCESS, &
+         & pspiof_projector_alloc
+    implicit none
+    type(pspiof_pspdata_t), intent(in) :: pspio
+    type(pspiof_projector_t), dimension(:), pointer :: rfuncs
+
+    integer :: i, n
+
+    n = pspiof_pspdata_get_n_projectors(pspio)
+    allocate(rfuncs(n))
+    do i = 1, n
+       if (f_err_raise(pspiof_projector_copy(pspiof_pspdata_get_projector(pspio, i), &
+            & rfuncs(i)) /= PSPIO_SUCCESS, "Cannot copy projector " // &
+            & trim(yaml_toa(i)), err_name = 'BIGDFT_RUNTIME_ERROR')) return
+    end do
+  end subroutine rfunc_basis_from_pspio
 end module psp_projectors_base

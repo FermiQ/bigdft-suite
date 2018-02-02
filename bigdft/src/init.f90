@@ -218,11 +218,13 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
      init_projectors_completely)
   use module_base
   use psp_projectors_base, only: DFT_PSP_projectors_null, nonlocal_psp_descriptors_null, &
-       & PROJ_DESCRIPTION_GAUSSIAN
+       & PROJ_DESCRIPTION_GAUSSIAN, PROJ_DESCRIPTION_PSPIO, allocate_atomic_projectors_ptr, &
+       & rfunc_basis_from_pspio
   use psp_projectors, only: bounds_to_plr_limits
   use module_types
   use gaussians, only: gaussian_basis, gaussian_basis_from_psp, gaussian_basis_from_paw
-  use public_enums, only: PSPCODE_PAW, PSPCODE_GTH, PSPCODE_HGH, PSPCODE_HGH_K, PSPCODE_HGH_K_NLCC
+  use public_enums, only: PSPCODE_PAW, PSPCODE_GTH, PSPCODE_HGH, PSPCODE_HGH_K, &
+       & PSPCODE_HGH_K_NLCC, PSPCODE_PSPIO
   use orbitalbasis
   use ao_inguess, only: lmax_ao
   use locreg_operations, only: set_wfd_to_wfd, allocate_workarrays_projectors
@@ -258,7 +260,7 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
   if (f_err_raise(associated(nl%pbasis), &
        & "Atomic projector basis already associated.", &
        & err_name = 'BIGDFT_RUNTIME_ERROR')) return
-  allocate(nl%pbasis(at%astruct%nat))
+  call allocate_atomic_projectors_ptr(nl%pbasis, at%astruct%nat)
   do iat = 1, at%astruct%nat
      ityp = at%astruct%iatype(iat)
      nl%pbasis(iat)%iat = iat
@@ -277,6 +279,10 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
         call gaussian_basis_from_psp(1, [1], rxyz(:, iat), &
              & at%psppar(:,:,ityp:ityp), 1, nl%pbasis(iat)%gbasis)
         nl%pbasis(iat)%normalized = .true.
+     else if (at%npspcode(at%astruct%iatype(iat)) == PSPCODE_PSPIO) then
+        nl%pbasis(iat)%kind = PROJ_DESCRIPTION_PSPIO
+        call rfunc_basis_from_pspio(at%pspio(ityp), nl%pbasis(iat)%rfuncs)
+        nl%pbasis(iat)%normalized = .false.
      else
         call f_err_throw("Unknown PSP code for atom " // trim(yaml_toa(iat)), &
              & err_name = 'BIGDFT_RUNTIME_ERROR')
