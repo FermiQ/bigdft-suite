@@ -427,7 +427,10 @@ module foe
               if (diff < foe_obj%fscale_ediff_low) then
                   ! can decrease polynomial degree
                   if (iproc==0) call yaml_map('modify error function decay length','increase')
-                  fscale_new=1.25d0*fscale_new
+                  !fscale_new=1.25d0*fscale_new
+                  fscale_new=foe_obj%fscale_inc_factor*fscale_new
+                  foe_obj%fscale_inc_factor = 1.25_mp*foe_obj%fscale_inc_factor
+                  foe_obj%fscale_dec_factor = 1.35_mp*foe_obj%fscale_dec_factor
                   degree_sufficient=.true.
               !else if (diff>=5.d-5 .and. diff < 1.d-4) then
               else if (diff >= foe_obj%fscale_ediff_low .and. diff < foe_obj%fscale_ediff_up) then
@@ -435,11 +438,15 @@ module foe
                   degree_sufficient=.true.
                   if (iproc==0) call yaml_map('modify error function decay length','No')
                   fscale_new=fscale_new
+                  foe_obj%fscale_inc_factor = 0.5_mp*foe_obj%fscale_inc_factor
+                  foe_obj%fscale_dec_factor = 0.5_mp*foe_obj%fscale_dec_factor
               else
                   ! polynomial degree too small, increase and recalculate the kernel
                   degree_sufficient=.false.
                   if (iproc==0) call yaml_map('modify error function decay length','decrease')
                   fscale_new=0.5d0*fscale_new
+                  foe_obj%fscale_inc_factor = 1._mp/1.35_mp*foe_obj%fscale_inc_factor
+                  foe_obj%fscale_dec_factor = 1._mp/1.25_mp*foe_obj%fscale_dec_factor
               end if
               if (fscale_new<foe_data_get_real(foe_obj,"fscale_lowerbound")) then
                   fscale_new=foe_data_get_real(foe_obj,"fscale_lowerbound")
@@ -454,9 +461,18 @@ module foe
               else
                   reached_limit=.false.
               end if
+              foe_obj%fscale_inc_factor = max(foe_obj%fscale_inc_factor,foe_obj%fscale_inc_factor_min)
+              foe_obj%fscale_inc_factor = min(foe_obj%fscale_inc_factor,foe_obj%fscale_inc_factor_max)
+              foe_obj%fscale_dec_factor = max(foe_obj%fscale_dec_factor,foe_obj%fscale_dec_factor_min)
+              foe_obj%fscale_dec_factor = min(foe_obj%fscale_dec_factor,foe_obj%fscale_dec_factor_max)
           else
               ! else exit
               exit temp_loop
+          end if
+
+          if (iproc==0) then
+              call yaml_map('foe_obj%fscale_inc_factor',foe_obj%fscale_inc_factor)
+              call yaml_map('foe_obj%fscale_dec_factor',foe_obj%fscale_dec_factor)
           end if
 
           call foe_data_set_real(foe_obj,"fscale",fscale_new)

@@ -51,6 +51,12 @@ module foe_base
     logical :: adjust_fscale !< dynamically adjust fscale or not
     real(kind=mp) :: fscale_ediff_low !< lower bound for the optimal relative energy difference between the kernel and the control kernel
     real(kind=mp) :: fscale_ediff_up  !< upper bound for the optimal relative energy difference between the kernel and the control kernel
+    real(kind=mp) :: fscale_inc_factor !< factor to increase fscale in case it is too small
+    real(kind=mp) :: fscale_dec_factor !< factor to decrease fscale in case it is too small
+    real(kind=mp) :: fscale_inc_factor_min !< minimal factor to increase fscale in case it is too small
+    real(kind=mp) :: fscale_inc_factor_max !< maximal factor to increase fscale in case it is too small
+    real(kind=mp) :: fscale_dec_factor_min !< minimal factor to decrease fscale in case it is too small
+    real(kind=mp) :: fscale_dec_factor_max !< maximal factor to decrease fscale in case it is too small
   end type foe_data
 
 
@@ -100,6 +106,12 @@ module foe_base
       foe_obj%adjust_fscale          =f_none()
       foe_obj%fscale_ediff_low       =f_none()
       foe_obj%fscale_ediff_up        =f_none()
+      foe_obj%fscale_inc_factor      =f_none()
+      foe_obj%fscale_dec_factor      =f_none()
+      foe_obj%fscale_inc_factor_min  =f_none()
+      foe_obj%fscale_inc_factor_max  =f_none()
+      foe_obj%fscale_dec_factor_min  =f_none()
+      foe_obj%fscale_dec_factor_max  =f_none()
     end subroutine nullify_foe_data
 
     pure function foe_data_null() result(foe_obj)
@@ -153,6 +165,12 @@ module foe_base
       foe_obj_out%adjust_fscale          = foe_obj_in%adjust_fscale
       foe_obj_out%fscale_ediff_low       = foe_obj_in%fscale_ediff_low
       foe_obj_out%fscale_ediff_up        = foe_obj_in%fscale_ediff_up
+      foe_obj_out%fscale_inc_factor      = foe_obj_in%fscale_inc_factor
+      foe_obj_out%fscale_dec_factor      = foe_obj_in%fscale_dec_factor
+      foe_obj_out%fscale_inc_factor_min  = foe_obj_in%fscale_inc_factor_min
+      foe_obj_out%fscale_inc_factor_max  = foe_obj_in%fscale_inc_factor_max
+      foe_obj_out%fscale_dec_factor_min  = foe_obj_in%fscale_dec_factor_min
+      foe_obj_out%fscale_dec_factor_max  = foe_obj_in%fscale_dec_factor_max
     end subroutine copy_foe_data
 
 
@@ -309,6 +327,18 @@ module foe_base
           foe_obj%fscale_ediff_low = val
       case ("fscale_ediff_up")
           foe_obj%fscale_ediff_up = val
+      case ("fscale_inc_factor")
+          foe_obj%fscale_inc_factor = val
+      case ("fscale_dec_factor")
+          foe_obj%fscale_dec_factor = val
+      case ("fscale_inc_factor_min")
+          foe_obj%fscale_inc_factor_min = val
+      case ("fscale_inc_factor_max")
+          foe_obj%fscale_inc_factor_max = val
+      case ("fscale_dec_factor_min")
+          foe_obj%fscale_dec_factor_min = val
+      case ("fscale_dec_factor_max")
+          foe_obj%fscale_dec_factor_max = val
       case default
           call f_err_throw("wrong argument for "//trim(fieldname))
       end select
@@ -390,6 +420,18 @@ module foe_base
           val = foe_obj%fscale_ediff_low
       case ("fscale_ediff_up")
           val = foe_obj%fscale_ediff_up
+      case ("fscale_inc_factor")
+          val = foe_obj%fscale_inc_factor
+      case ("fscale_dec_factor")
+          val = foe_obj%fscale_dec_factor
+      case ("fscale_inc_factor_min")
+          val = foe_obj%fscale_inc_factor_min
+      case ("fscale_inc_factor_max")
+          val = foe_obj%fscale_inc_factor_max
+      case ("fscale_dec_factor_min")
+          val = foe_obj%fscale_dec_factor_min
+      case ("fscale_dec_factor_max")
+          val = foe_obj%fscale_dec_factor_max
       case default
           call f_err_throw("wrong argument for "//trim(fieldname))
       end select
