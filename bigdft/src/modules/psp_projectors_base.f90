@@ -456,6 +456,21 @@ contains
                & ider, iter%lr, iter%parent%rxyz, iter%cplx, iter%proj(iter%istart_c:), &
                & iter%proj_tmp, iter%wcol, 16)
        end if
+    else if (iter%parent%kind == PROJ_DESCRIPTION_PSPIO) then
+       if (iter%method == PROJECTION_1D_SEPARABLE) then
+          call f_err_throw("1D separable projection is not possible for PSPIO.", &
+               & err_name = 'BIGDFT_RUNTIME_ERROR')
+       else if (iter%method == PROJECTION_RS_COLLOCATION) then
+          call rfuncs_to_wavelets_collocation(iter%parent%rfuncs(iter%riter), &
+               & ider, iter%lr, iter%parent%rxyz, iter%cplx, iter%proj(iter%istart_c:), &
+               & iter%proj_tmp, iter%wcol)
+       else if (iter%method == PROJECTION_MP_COLLOCATION) then
+          call f_err_throw("Multipole preserving projection is not implemented for PSPIO.", &
+               & err_name = 'BIGDFT_RUNTIME_ERROR')
+       end if
+    else
+       call f_err_throw("Unknown atomic projector kind.", &
+            & err_name = 'BIGDFT_RUNTIME_ERROR')
     end if
     
     ! Check norm for each proj.
@@ -525,4 +540,49 @@ contains
             & trim(yaml_toa(i)), err_name = 'BIGDFT_RUNTIME_ERROR')) return
     end do
   end subroutine rfunc_basis_from_pspio
+
+  subroutine rfuncs_to_wavelets_collocation(rfunc, ider, lr, rxyz, ncplx_p, psi, &
+       & projector_real, w, mp_order)
+    use box
+    use pspiof_m, only: pspiof_projector_eval
+    use f_utils, only: f_zero
+    implicit none
+    type(pspiof_projector_t), intent(in) :: rfunc
+    integer, intent(in) :: ider !<direction in which to perform the derivative (0 if any)
+    type(locreg_descriptors), intent(in) :: lr !<projector descriptors for wavelets representation
+    real(gp), dimension(3), intent(in) :: rxyz !<center of the Gaussian
+    integer, intent(in) :: ncplx_p !< 2 if the projector is supposed to be complex, 1 otherwise
+    real(wp), dimension(lr%wfd%nvctr_c+7*lr%wfd%nvctr_f,ncplx_p), intent(out) :: psi
+    real(f_double), dimension(lr%mesh%ndim), intent(inout) :: projector_real
+    type(workarr_sumrho), intent(inout) :: w
+    integer, intent(in), optional :: mp_order
+
+    !local variables
+    real(gp) :: r
+    real(gp), dimension(3) :: oxyz
+    type(box_iterator) :: boxit
+    integer :: ithread,nthread
+
+    call f_zero(psi)
+    call f_zero(projector_real)
+
+    oxyz = lr%mesh%hgrids*[lr%nsi1,lr%nsi2,lr%nsi3]
+    boxit = box_iter(lr%mesh, origin = oxyz) !use here the real space mesh of the projector locreg
+    ithread=0
+    nthread=1
+    !$omp parallel default(shared)&
+    !$omp private(ithread, r) &
+    !$omp firstprivate(boxit) 
+    !$ ithread=omp_get_thread_num()
+    !$ nthread=omp_get_num_threads()
+    call box_iter_split(boxit,nthread,ithread)
+    do while(box_next_point(boxit))
+       r = distance(boxit%mesh, boxit%rxyz, oxyz)
+       projector_real(boxit%ind) = projector_real(boxit%ind) + pspiof_projector_eval(rfunc, r)
+    end do
+    call box_iter_merge(boxit)
+    !$omp end parallel
+    call isf_to_daub(lr, w, projector_real, psi(:,:))
+  end subroutine rfuncs_to_wavelets_collocation
+  
 end module psp_projectors_base
