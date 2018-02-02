@@ -434,7 +434,7 @@ class TimeData:
         if mpit is not None:
             mpi=mpit.get('MPI tasks')
             omp=mpit.get('OMP threads')
-            if title is None: 
+            if title is "Unknown": 
               title=str(mpi) if omp is None else str(mpi)+'-'+str(omp)
             ncores=mpi
             if omp is not None: ncores*=omp
@@ -444,9 +444,6 @@ class TimeData:
         self.ncores.append(ncores)
     self.classes.sort()
     self.classes.append("Unknown") #an evergreen
-    #self.classes=["Communications","Convolutions","BLAS-LAPACK","Linear Algebra",
-    #        "Other","PS Computation","Potential",
-    #        "Flib LowLevel","Initialization","Unknown"]
       
   def inspect_counter(self,counter,unit=None):
     self.routines=[]

@@ -13,13 +13,8 @@
 
   !first check if the dictionary contains a scalar or a list
   if (dict%data%nitems > 0) then
-!!$     if (f_err_raise(dict%data%nitems/=size(arr),&
-!!$          'Array and dictionary differs in shape ( '//&
-!!$          trim(yaml_toa(size(arr)))//' and '//&
-!!$          trim(yaml_toa(dict%data%nitems))//')',&
-!!$          err_id=DICT_CONVERSION_ERROR)) return
      if (dict%data%nitems/=size(arr)) then
-        call f_err_throw('Array and dictionary differs in shape ( '//&
+        call f_err_throw('Array and dictionary differ in shape ( '//&
           trim(yaml_toa(size(arr)))//' and '//&
           trim(yaml_toa(dict%data%nitems))//')',&
           err_id=DICT_CONVERSION_ERROR)
@@ -33,12 +28,8 @@
         i=i+1
         dict_tmp=>dict_next(dict_tmp)
      end do
-!!$  else if (f_err_raise(dict%data%nelems > 0,&
-!!$       'Cannot convert mapping value in to arrays',&
-!!$       err_id=DICT_CONVERSION_ERROR)) then
-!!$     return
   else if (dict%data%nelems > 0) then
-     call f_err_throw('Cannot convert mapping value in to arrays',&
+     call f_err_throw('Cannot convert mapping value into arrays',&
           err_id=DICT_CONVERSION_ERROR)
      return
   else

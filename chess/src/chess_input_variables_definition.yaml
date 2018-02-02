@@ -113,6 +113,14 @@
    matmul_optimize_load_balancing:
      COMMENT: optimize the load balancing of the sparse matrix matrix multiplications (at the cost of memory unbalancing)
      default: yes
+   fscale_ediff_low:
+     COMMENT: lower bound for the optimal relative energy difference between the kernel and the control kernel
+     default: 5.e-5
+     RANGE: [1.e-7,1.e-3]
+   fscale_ediff_up:
+     COMMENT: upper bound for the optimal relative energy difference between the kernel and the control kernel
+     default: 1.e-4
+     RANGE: [5.e-6,5.e-2]
  lapack:
    blocksize_pdsyev:
      COMMENT: SCALAPACK linear scaling blocksize for diagonalization

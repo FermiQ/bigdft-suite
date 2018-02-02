@@ -1,7 +1,7 @@
 !> @file
 !!  Definition of the Spherical Harmonics, Multipoles and related operations
 !! @author
-!!    Copyright (C) 2016-2016 BigDFT group
+!!    Copyright (C) 2016-2017 BigDFT group
 !!    This file is distributed under the terms of the
 !!    GNU General Public License, see ~/COPYING file
 !!    or http://www.gnu.org/copyleft/gpl.txt .
@@ -22,13 +22,13 @@ module f_harmonics
      real(dp), dimension(3) :: rxyz !< center of the multipole
      type(f_vector), dimension(:), pointer :: Q !,data of the multipole
   end type f_multipoles
-  
+
   private
 
   public :: solid_harmonic,f_multipoles_create,f_multipoles_free
   public :: f_multipoles_accumulate,get_monopole,get_dipole
 
-  contains 
+  contains
 
     pure subroutine nullify_f_multipoles(mp)
       use f_utils
@@ -68,7 +68,7 @@ module f_harmonics
       call f_array_ptr_free(mp%Q)
       call nullify_f_multipoles(mp)
     end subroutine f_multipoles_free
-      
+
     pure subroutine f_multipoles_accumulate(Q,lmax,rxyz,density)
       implicit none
       integer, intent(in) :: lmax
@@ -102,8 +102,8 @@ module f_harmonics
       d=mp%Q(1)%ptr
     end function get_dipole
 
-    
-      
+
+
 
     !> Calculates the solid harmonic S_lm (possibly multplied by a power or r) for given values of l, m, x, y, z.
     !! They are normalized such that the integral over the angle gives r^2, i.e.

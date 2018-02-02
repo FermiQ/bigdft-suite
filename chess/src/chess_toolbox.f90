@@ -2269,6 +2269,7 @@ program chess_toolbox
 
 
 
+
    if (find_fragments) then
 
        call sparse_matrix_metadata_init_from_file(trim(metadata_file), smmd)
@@ -2512,7 +2513,7 @@ program chess_toolbox
            call yaml_sequence_close()
        end if
 
-
+   call build_dict_info(dict_timing_info)
        if (iproc==0) then
            call yaml_sequence_open('List of calculated fragments')
            do ifrag=1,nfragfound
@@ -2555,7 +2556,6 @@ program chess_toolbox
    end if
 
 
-   call build_dict_info(iproc, nproc, dict_timing_info)
    call f_timing_stop(mpi_comm=mpiworld(),nproc=nproc,&
         gather_routine=gather_timings,dict_info=dict_timing_info)
    call dict_free(dict_timing_info)

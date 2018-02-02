@@ -261,6 +261,12 @@ void FC_FUNC_(bind_dict_add_dict, BIND_DICT_ADD_DICT)(f90_dictionary_pointer *di
 void FC_FUNC_(bind_dict_add_double, BIND_DICT_ADD_DOUBLE)(f90_dictionary_pointer *dict, 
 							  const double *val);
 
+void FC_FUNC_(bind_dict_add_int, BIND_DICT_ADD_INT)(f90_dictionary_pointer *dict, 
+                                                    const int *val);
+
+void FC_FUNC_(bind_dict_add_char, BIND_DICT_ADD_CHAR)(f90_dictionary_pointer *dict, 
+                                                      const char *val);
+
  /*subroutine bind_dict_add_dict(dict,val)
   use dictionaries
   type(dictionary), pointer :: dict,val*/

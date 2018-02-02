@@ -457,7 +457,9 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
           eval_multiplicator=1.d0, &
           accuracy_function=in%cp%foe%accuracy_ice, accuracy_penalty=in%cp%foe%accuracy_penalty, &
           betax=in%cp%foe%betax_ice, occupation_function=in%cp%foe%occupation_function, &
-          adjust_fscale=in%cp%foe%adjust_fscale)
+          adjust_fscale=in%cp%foe%adjust_fscale, &
+          fscale_ediff_low=in%cp%foe%fscale_ediff_low, &
+          fscale_ediff_up=in%cp%foe%fscale_ediff_up)
      call f_free(charge_fake)
 
      !!call f_free(locreg_centers)
@@ -1586,7 +1588,10 @@ contains
 
     !end of wavefunction minimisation
     call timing(bigdft_mpi%mpi_comm,'LAST','PR')
-    call build_dict_info(dict_timing_info)
+    call dict_init(dict_timing_info)
+    if (DoLastRunThings) call f_malloc_dump_status(dict_summary=dict_timing_info)
+    call mpi_environment_dict(bigdft_mpi,dict_timing_info)
+    !call build_dict_info(dict_timing_info)
     call f_timing_stop(mpi_comm=bigdft_mpi%mpi_comm,nproc=bigdft_mpi%nproc,&
          gather_routine=gather_timings,dict_info=dict_timing_info)
     call dict_free(dict_timing_info)
@@ -1603,48 +1608,6 @@ contains
     end if
 
   END SUBROUTINE deallocate_before_exiting
-
-  !> construct the dictionary needed for the timing information
-  subroutine build_dict_info(dict_info)
-    use wrapper_MPI
-    use dynamic_memory
-    use dictionaries
-    implicit none
-    type(dictionary), pointer :: dict_info
-    !local variables
-    integer :: ierr,namelen,nthreads
-    character(len=MPI_MAX_PROCESSOR_NAME) :: nodename_local
-    character(len=MPI_MAX_PROCESSOR_NAME), dimension(:), allocatable :: nodename
-    type(dictionary), pointer :: dict_tmp
-    !$ integer :: omp_get_max_threads
-
-    call dict_init(dict_info)
-    if (DoLastRunThings) then
-       call f_malloc_dump_status(dict_summary=dict_tmp)
-       call set(dict_info//'Routines timing and number of calls',dict_tmp)
-    end if
-    nthreads = 0
-    !$  nthreads=omp_get_max_threads()
-    call set(dict_info//'CPU parallelism'//'MPI tasks',bigdft_mpi%nproc)
-    if (nthreads /= 0) call set(dict_info//'CPU parallelism'//'OMP threads',&
-         nthreads)
-
-    nodename=f_malloc0_str(MPI_MAX_PROCESSOR_NAME,0.to.bigdft_mpi%nproc-1,id='nodename')
-    if (bigdft_mpi%nproc>1) then
-       nodename_local=mpihostname()
-
-       call mpigather(MPI_MAX_PROCESSOR_NAME,nodename_local,nodename,&
-            comm=bigdft_mpi%mpi_comm)
-!!$       !gather the result between all the process
-!!$       call MPI_GATHER(nodename_local,MPI_MAX_PROCESSOR_NAME,MPI_CHARACTER,&
-!!$            nodename(0),MPI_MAX_PROCESSOR_NAME,MPI_CHARACTER,0,&
-!!$            bigdft_mpi%mpi_comm,ierr)
-       if (bigdft_mpi%iproc==0) call set(dict_info//'Hostnames',&
-               list_new(.item. nodename))
-    end if
-    call f_free_str(MPI_MAX_PROCESSOR_NAME,nodename)
-
-  end subroutine build_dict_info
 
 END SUBROUTINE cluster
 

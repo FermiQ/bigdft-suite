@@ -30,8 +30,8 @@ module test_mpi_wrappers
       integer,intent(in) :: iproc, nproc, comm, maxsize_local, ntest
 
       ! Local variables
-      integer :: itest, jproc, iel, i, irep
-      integer(f_long) :: nstride, nsize_local, nGB, nMB, nkB, nB
+      integer :: itest, jproc, iel, irep
+      integer(f_long) :: nstride, nsize_local, nGB, nMB, nkB, nB, i
       real(f_double) :: fac, t1, t2
       integer,dimension(:),allocatable :: sendcounts, recvcounts, senddispls, recvdispls
       real(f_double),dimension(:),allocatable :: sendbuf, recvbuf
@@ -161,7 +161,8 @@ module test_mpi_wrappers
       real(f_double),dimension(nsize_local),intent(in) :: recvbuf
 
       ! Local variables
-      integer :: iel, jproc, i
+      integer :: iel, jproc
+      integer(f_long) :: i
       real(f_double) :: val
       
       check_result = .true.

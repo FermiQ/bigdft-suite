@@ -237,10 +237,12 @@ module module_utilities
                    end if
     
                    denskernel = sparsematrix_malloc0(smat(2),iaction=DENSE_FULL,id='denskernel')
-                   call gemm('n', 't', smat(2)%nfvctr, smat(2)%nfvctrp, 1, &
-                        1.d0, coeff_ptr(1,iiorb), smat(2)%nfvctr, &
-                        coeff_ptr(smat(2)%isfvctr+1,iiorb), smat(2)%nfvctr, &
-                        0.d0, denskernel(1,smat(2)%isfvctr+1,1), smat(2)%nfvctr)
+                   if (smat(2)%nfvctrp>0) then
+                       call gemm('n', 't', smat(2)%nfvctr, smat(2)%nfvctrp, 1, &
+                            1.d0, coeff_ptr(1,iiorb), smat(2)%nfvctr, &
+                            coeff_ptr(smat(2)%isfvctr+1,iiorb), smat(2)%nfvctr, &
+                            0.d0, denskernel(1,smat(2)%isfvctr+1,1), smat(2)%nfvctr)
+                   end if
                    call fmpi_allreduce(denskernel, FMPI_SUM, comm=comm)
                    call compress_matrix(iproc, nproc, smat(2), denskernel, kernel_mat%matrix_compr)
                    !write(*,*) 'smat(2)%nfvctrp, smat(2)%isfvctr', smat(2)%nfvctrp, smat(2)%isfvctr
