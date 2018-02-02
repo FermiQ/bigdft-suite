@@ -1238,12 +1238,12 @@ module foe_common
       accuracy_penalty_ = 1.e-5_mp
       fscale_ediff_low_ = 5.e-5_mp
       fscale_ediff_up_ = 1.e-4_mp
-      fscale_inc_factor_ = 1.25_mp
-      fscale_dec_factor_ = 0.6_mp
-      fscale_inc_factor_min_ = 1.05_mp
-      fscale_inc_factor_max_ = 2.00_mp
-      fscale_dec_factor_min_ = 0.50_mp
-      fscale_dec_factor_max_ = 0.95_mp
+      fscale_inc_factor_ = 1.10_mp
+      fscale_dec_factor_ = 0.8_mp
+      fscale_inc_factor_min_ = 1.01_mp
+      fscale_inc_factor_max_ = 1.10_mp
+      fscale_dec_factor_min_ = 0.80_mp
+      fscale_dec_factor_max_ = 0.99_mp
 
       if (present(ef)) ef_ = ef
       if (present(evbounds_nsatur)) evbounds_nsatur_ = evbounds_nsatur

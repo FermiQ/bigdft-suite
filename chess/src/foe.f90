@@ -114,7 +114,7 @@ module foe
       real(kind=mp),dimension(:),allocatable :: matrix_local
       integer :: npl_min, is, isl
       real(kind=mp),dimension(1) :: fscale_arr
-      real(mp) :: ebs_check_allspins
+      real(mp) :: ebs_check_allspins, factor, diff_target
       real(mp),dimension(:),allocatable :: sumn_allspins, ebs_spins
       integer :: npl_max, npl_stride
       type(fmpi_win), dimension(:,:),allocatable :: windowsx_kernel, windowsx_kernel_check
@@ -421,32 +421,55 @@ module foe
               end if
           end if
 
+          if (iproc==0) then
+              call yaml_map('BEFORE: foe_obj%fscale_inc_factor',foe_obj%fscale_inc_factor)
+              call yaml_map('BEFORE: foe_obj%fscale_dec_factor',foe_obj%fscale_dec_factor)
+          end if
+
           if (foe_data_get_logical(foe_obj,"adjust_fscale")) then
               ! Adjust fscale
               !if (diff<5.d-5) then
-              if (diff < foe_obj%fscale_ediff_low) then
-                  ! can decrease polynomial degree
-                  if (iproc==0) call yaml_map('modify error function decay length','increase')
-                  !fscale_new=1.25d0*fscale_new
-                  fscale_new=foe_obj%fscale_inc_factor*fscale_new
-                  foe_obj%fscale_inc_factor = 1.25_mp*foe_obj%fscale_inc_factor
-                  foe_obj%fscale_dec_factor = 1.35_mp*foe_obj%fscale_dec_factor
-                  degree_sufficient=.true.
-              !else if (diff>=5.d-5 .and. diff < 1.d-4) then
-              else if (diff >= foe_obj%fscale_ediff_low .and. diff < foe_obj%fscale_ediff_up) then
-                  ! polynomial degree seems to be appropriate
-                  degree_sufficient=.true.
-                  if (iproc==0) call yaml_map('modify error function decay length','No')
-                  fscale_new=fscale_new
-                  foe_obj%fscale_inc_factor = 0.5_mp*foe_obj%fscale_inc_factor
-                  foe_obj%fscale_dec_factor = 0.5_mp*foe_obj%fscale_dec_factor
+              !!if (diff < foe_obj%fscale_ediff_low) then
+              !!    ! can decrease polynomial degree
+              !!    if (iproc==0) call yaml_map('modify error function decay length','increase')
+              !!    !fscale_new=1.25d0*fscale_new
+              !!    fscale_new=foe_obj%fscale_inc_factor*fscale_new
+              !!    foe_obj%fscale_inc_factor = 1.25_mp*foe_obj%fscale_inc_factor
+              !!    foe_obj%fscale_dec_factor = 1.35_mp*foe_obj%fscale_dec_factor
+              !!    degree_sufficient=.true.
+              !!!else if (diff>=5.d-5 .and. diff < 1.d-4) then
+              !!else if (diff >= foe_obj%fscale_ediff_low .and. diff < foe_obj%fscale_ediff_up) then
+              !!    ! polynomial degree seems to be appropriate
+              !!    degree_sufficient=.true.
+              !!    if (iproc==0) call yaml_map('modify error function decay length','No')
+              !!    fscale_new=fscale_new
+              !!    foe_obj%fscale_inc_factor = 0.5_mp*foe_obj%fscale_inc_factor
+              !!    foe_obj%fscale_dec_factor = 0.5_mp*foe_obj%fscale_dec_factor
+              !!else
+              !!    ! polynomial degree too small, increase and recalculate the kernel
+              !!    degree_sufficient=.false.
+              !!    if (iproc==0) call yaml_map('modify error function decay length','decrease')
+              !!    fscale_new=0.5d0*fscale_new
+              !!    foe_obj%fscale_inc_factor = 1._mp/1.35_mp*foe_obj%fscale_inc_factor
+              !!    foe_obj%fscale_dec_factor = 1._mp/1.25_mp*foe_obj%fscale_dec_factor
+              !!end if
+              diff_target = 1.e-4_mp !0.5_mp*(foe_obj%fscale_ediff_low+foe_obj%fscale_ediff_up)
+              !if (diff>foe_obj%fscale_ediff_up) then
+              if (diff>3.0_mp*diff_target) then
+                  degree_sufficient = .false.
               else
-                  ! polynomial degree too small, increase and recalculate the kernel
-                  degree_sufficient=.false.
-                  if (iproc==0) call yaml_map('modify error function decay length','decrease')
-                  fscale_new=0.5d0*fscale_new
-                  foe_obj%fscale_inc_factor = 1._mp/1.35_mp*foe_obj%fscale_inc_factor
-                  foe_obj%fscale_dec_factor = 1._mp/1.25_mp*foe_obj%fscale_dec_factor
+                  degree_sufficient = .true.
+              end if
+              factor = 1._mp - 0.1_mp*log(diff/diff_target)**2*sign(1.0_mp,diff-diff_target)
+              if (iproc==0) then
+                  call yaml_map('diff', diff)
+                  call yaml_map('diff_target', diff_target)
+                  call yaml_map('factor',factor)
+                  call yaml_map('fscale',fscale_new)
+              end if
+              fscale_new = factor*fscale_new
+              if (iproc==0) then
+                  call yaml_map('fscale_new',fscale_new)
               end if
               if (fscale_new<foe_data_get_real(foe_obj,"fscale_lowerbound")) then
                   fscale_new=foe_data_get_real(foe_obj,"fscale_lowerbound")
@@ -471,8 +494,8 @@ module foe
           end if
 
           if (iproc==0) then
-              call yaml_map('foe_obj%fscale_inc_factor',foe_obj%fscale_inc_factor)
-              call yaml_map('foe_obj%fscale_dec_factor',foe_obj%fscale_dec_factor)
+              call yaml_map('AFTER: foe_obj%fscale_inc_factor',foe_obj%fscale_inc_factor)
+              call yaml_map('AFTER: foe_obj%fscale_dec_factor',foe_obj%fscale_dec_factor)
           end if
 
           call foe_data_set_real(foe_obj,"fscale",fscale_new)
