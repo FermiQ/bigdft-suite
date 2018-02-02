@@ -156,7 +156,7 @@ module multipole
                center_cores, rxyz, ixyz0, write_directory, dipole_total, quadrupole_total, all_norms_ok, &
                rho_mp, pot_mp)
       use module_types, only: DFT_local_fields, local_zone_descriptors
-      use Poisson_Solver, except_dp => dp, except_gp => gp
+      use Poisson_Solver, except_dp => dp
       use module_atoms, only: atoms_data
       use bounds, only: ext_buffers
       use yaml_output
@@ -1947,7 +1947,7 @@ module multipole
                auxs, nphi, lphi, nphir, hgrids, orbs, collcom, collcom_sr, &
                lzd, at, denspot, orthpar, shift, multipole_matrix_in, ice_obj, filename, &
                multipole_centers)
-      use module_base
+      !use module_base, except_gp => gp
       use module_types, only: orbitals_data, comms_linear, local_zone_descriptors, orthon_data, DFT_local_fields, comms_linear, &
                               linmat_auxiliary
       use sparsematrix_base, only: sparse_matrix, matrices, sparsematrix_malloc0, assignment(=), &
@@ -1965,7 +1965,7 @@ module multipole
       use orbitalbasis
       use matrix_operations, only: overlapPowerGeneral, matrix_for_orthonormal_basis
       !use Poisson_Solver, only: H_potential
-      use Poisson_Solver, except_dp => dp, except_gp => gp
+      use Poisson_Solver, except_dp => dp
       use foe_base, only: foe_data
       use box
       use io, only: get_sparse_matrix_format
@@ -2640,18 +2640,6 @@ module multipole
                       call yaml_map('int(V)',potential_total(icheck),fmt='(es10.3)')
                       call yaml_map('Err %',potential_error(icheck)/potential_total(icheck),fmt='(2pf5.1)')
                       call yaml_map('int(rho)',charge_error(icheck),fmt='(es10.3)')
-!!$                      !call yaml_mapping_open('density threshold for check is'//&
-!!$                      !     &trim(yaml_toa(check_threshold(icheck),fmt='(es9.2)')))
-!!$                      call yaml_mapping_open('rho',flow=.true.)
-!!$                      call yaml_map('int(q-q_exact))',charge_error(icheck),fmt='(es10.3)')
-!!$                      call yaml_map('int(q_exact)',charge_total(icheck),fmt='(es10.3)')
-!!$                      call yaml_map('ratio',charge_error(icheck)/charge_total(icheck),fmt='(es10.3)')
-!!$                      call yaml_mapping_close()
-!!$                      call yaml_mapping_open('pot',flow=.true.)
-!!$                      call yaml_map('int(V-V_exact))',potential_error(icheck),fmt='(es10.3)')
-!!$                      call yaml_map('int(V_exact)',potential_total(icheck),fmt='(es10.3)')
-!!$                      call yaml_map('ratio',potential_error(icheck)/potential_total(icheck),fmt='(es10.3)')
-!!$                      call yaml_mapping_close()
                       call yaml_mapping_close()
                   end do
                   call yaml_sequence_close()

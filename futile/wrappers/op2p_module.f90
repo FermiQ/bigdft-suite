@@ -1150,7 +1150,6 @@ module overlap_point_to_point
              if (OP2P%igroup > OP2P%ngroupp) exit group_loop
           end do group_loop
 
-
           !verify that the messages have been passed
           call mpiwaitall(OP2P%ndata_comms,OP2P%requests_data,&
                simulate=OP2P%simulate)

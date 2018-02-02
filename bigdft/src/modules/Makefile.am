@@ -46,7 +46,6 @@ libmodules_a_SOURCES = ab7_mixing.f90 \
 	psp_projectors.f90 \
 	psp_projectors_base.f90 \
 	input_keys.f90 \
-	gaussdaub.f90 \
 	input_dicts.f90 \
 	types.f90 \
 	input.f90 \
@@ -110,7 +109,6 @@ modules = MODULE_TYPES.@MODULE_EXT@ \
 	MODULE_INTERFACES.@MODULE_EXT@ \
 	MODULE_PRIVATE_API.@MODULE_EXT@ \
 	MODULE_INPUT.@MODULE_EXT@ \
-	GAUSSDAUB.@MODULE_EXT@ \
 	BIGDFT_API.@MODULE_EXT@ \
 	VDWCORRECTION.@MODULE_EXT@ \
 	MODULE_FRAGMENTS.@MODULE_EXT@ \
@@ -167,7 +165,6 @@ modules = module_types.@MODULE_EXT@ \
 	module_interfaces.@MODULE_EXT@ \
 	module_private_api.@MODULE_EXT@ \
 	module_input.@MODULE_EXT@ \
-	gaussdaub.@MODULE_EXT@ \
 	bigdft_api.@MODULE_EXT@ \
 	vdwcorrection.@MODULE_EXT@ \
 	module_fragments.@MODULE_EXT@ \

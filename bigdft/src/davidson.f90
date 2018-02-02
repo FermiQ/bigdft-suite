@@ -1997,7 +1997,9 @@ subroutine dump_eigenfunctions(dir_output,nplot,at,hgrids,lr,orbs,orbsv,rxyz,psi
   character(len=*), intent(in) :: dir_output !<directory where the data have to be put in
   real(gp), dimension(3), intent(in) :: hgrids !<grid spacings of the simulation domain
   real(gp), dimension(3,at%astruct%nat), intent(in) :: rxyz !<atomic positions
+  !real(wp), dimension(lr%wfd%nvctr_c+7*lr%wfd%nvctr_f), intent(in) :: psi,psivirt !<occupied and virtual eigenfunctions
   real(wp), dimension(lr%wfd%nvctr_c+7*lr%wfd%nvctr_f), intent(in) :: psi,psivirt !<occupied and virtual eigenfunctions
+  !real(wp), dimension(*), intent(in) :: psi,psivirt !<occupied and virtual eigenfunctions
   !local variables
   integer :: ind,iorb
   character(len=300) :: orbname,denname
