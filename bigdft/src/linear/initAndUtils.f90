@@ -50,8 +50,8 @@ subroutine init_foe_wrapper(iproc, nproc, input, orbs_KS, tmprtr, foe_obj)
        accuracy_function=input%cp%foe%accuracy_foe, accuracy_penalty=input%cp%foe%accuracy_penalty, &
        betax=input%cp%foe%betax_foe, occupation_function=input%cp%foe%occupation_function, &
        adjust_fscale=input%cp%foe%adjust_fscale, &
-       fscale_ediff_low=input%cp%foe%fscale_ediff_low, &
-       fscale_ediff_up=input%cp%foe%fscale_ediff_up)
+       diff_tolerance=input%cp%foe%diff_tolerance, &
+       diff_target=input%cp%foe%diff_target)
 
   call f_release_routine()
 

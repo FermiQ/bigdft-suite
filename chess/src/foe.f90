@@ -114,7 +114,7 @@ module foe
       real(kind=mp),dimension(:),allocatable :: matrix_local
       integer :: npl_min, is, isl
       real(kind=mp),dimension(1) :: fscale_arr
-      real(mp) :: ebs_check_allspins, factor, diff_target
+      real(mp) :: ebs_check_allspins, factor, diff_target, diff_tolerance
       real(mp),dimension(:),allocatable :: sumn_allspins, ebs_spins
       integer :: npl_max, npl_stride
       type(fmpi_win), dimension(:,:),allocatable :: windowsx_kernel, windowsx_kernel_check
@@ -410,21 +410,21 @@ module foe
           if (iproc==0) then
               call yaml_map('Asymmetry of kernel',asymm_K,fmt='(es8.2)')
               call yaml_map('symmetrize_kernel',symmetrize_kernel)
-              call yaml_map('EBS',ebsp_allspins,fmt='(es19.12)')
-              call yaml_map('EBS higher temperature',ebs_check_allspins,fmt='(es19.12)')
-              call yaml_map('difference',ebs_check_allspins-ebsp_allspins,fmt='(es19.12)')
-              call yaml_map('relative difference',diff,fmt='(es19.12)')
               if (smatl%nspin==1) then
                   call yaml_map('trace(Ktilde)',sumn_allspins(1))
               else
                   call yaml_map('trace(Ktilde)',sumn_allspins)
               end if
+              call yaml_map('EBS',ebsp_allspins,fmt='(es19.12)')
+              call yaml_map('EBS higher temperature',ebs_check_allspins,fmt='(es19.12)')
+              call yaml_map('difference',ebs_check_allspins-ebsp_allspins,fmt='(es12.5)')
+              call yaml_map('relative difference',diff,fmt='(es12.5)')
           end if
 
-          if (iproc==0) then
-              call yaml_map('BEFORE: foe_obj%fscale_inc_factor',foe_obj%fscale_inc_factor)
-              call yaml_map('BEFORE: foe_obj%fscale_dec_factor',foe_obj%fscale_dec_factor)
-          end if
+          !if (iproc==0) then
+          !    call yaml_map('BEFORE: foe_obj%fscale_inc_factor',foe_obj%fscale_inc_factor)
+          !    call yaml_map('BEFORE: foe_obj%fscale_dec_factor',foe_obj%fscale_dec_factor)
+          !end if
 
           if (foe_data_get_logical(foe_obj,"adjust_fscale")) then
               ! Adjust fscale
@@ -453,23 +453,24 @@ module foe
               !!    foe_obj%fscale_inc_factor = 1._mp/1.35_mp*foe_obj%fscale_inc_factor
               !!    foe_obj%fscale_dec_factor = 1._mp/1.25_mp*foe_obj%fscale_dec_factor
               !!end if
-              diff_target = 1.e-4_mp !0.5_mp*(foe_obj%fscale_ediff_low+foe_obj%fscale_ediff_up)
+              diff_target = foe_data_get_real(foe_obj,"diff_target")!0.5_mp*(foe_obj%fscale_ediff_low+foe_obj%fscale_ediff_up)
+              diff_tolerance = foe_data_get_real(foe_obj,"diff_tolerance")*diff_target
               !if (diff>foe_obj%fscale_ediff_up) then
-              if (diff>3.0_mp*diff_target) then
+              if (diff>diff_tolerance) then
                   degree_sufficient = .false.
               else
                   degree_sufficient = .true.
               end if
               factor = 1._mp - 0.1_mp*log(diff/diff_target)**2*sign(1.0_mp,diff-diff_target)
               if (iproc==0) then
-                  call yaml_map('diff', diff)
-                  call yaml_map('diff_target', diff_target)
-                  call yaml_map('factor',factor)
-                  call yaml_map('fscale',fscale_new)
+                  call yaml_map('Relative difference target', diff_target,fmt='(es12.5)')
+                  call yaml_map('Relative difference tolerance', diff_tolerance,fmt='(es12.5)')
+                  call yaml_map('fscale factor',factor,fmt='(es10.3)')
+                  call yaml_map('old fscale',fscale_new,fmt='(es10.3)')
               end if
               fscale_new = factor*fscale_new
               if (iproc==0) then
-                  call yaml_map('fscale_new',fscale_new)
+                  call yaml_map('new fscale',fscale_new,fmt='(es10.3)')
               end if
               if (fscale_new<foe_data_get_real(foe_obj,"fscale_lowerbound")) then
                   fscale_new=foe_data_get_real(foe_obj,"fscale_lowerbound")
@@ -484,19 +485,19 @@ module foe
               else
                   reached_limit=.false.
               end if
-              foe_obj%fscale_inc_factor = max(foe_obj%fscale_inc_factor,foe_obj%fscale_inc_factor_min)
-              foe_obj%fscale_inc_factor = min(foe_obj%fscale_inc_factor,foe_obj%fscale_inc_factor_max)
-              foe_obj%fscale_dec_factor = max(foe_obj%fscale_dec_factor,foe_obj%fscale_dec_factor_min)
-              foe_obj%fscale_dec_factor = min(foe_obj%fscale_dec_factor,foe_obj%fscale_dec_factor_max)
+              !foe_obj%fscale_inc_factor = max(foe_obj%fscale_inc_factor,foe_obj%fscale_inc_factor_min)
+              !foe_obj%fscale_inc_factor = min(foe_obj%fscale_inc_factor,foe_obj%fscale_inc_factor_max)
+              !foe_obj%fscale_dec_factor = max(foe_obj%fscale_dec_factor,foe_obj%fscale_dec_factor_min)
+              !foe_obj%fscale_dec_factor = min(foe_obj%fscale_dec_factor,foe_obj%fscale_dec_factor_max)
           else
               ! else exit
               exit temp_loop
           end if
 
-          if (iproc==0) then
-              call yaml_map('AFTER: foe_obj%fscale_inc_factor',foe_obj%fscale_inc_factor)
-              call yaml_map('AFTER: foe_obj%fscale_dec_factor',foe_obj%fscale_dec_factor)
-          end if
+          !if (iproc==0) then
+          !    call yaml_map('AFTER: foe_obj%fscale_inc_factor',foe_obj%fscale_inc_factor)
+          !    call yaml_map('AFTER: foe_obj%fscale_dec_factor',foe_obj%fscale_dec_factor)
+          !end if
 
           call foe_data_set_real(foe_obj,"fscale",fscale_new)
 

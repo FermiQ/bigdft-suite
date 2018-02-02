@@ -1125,10 +1125,7 @@ module foe_common
                evlow, evhigh, fscale, ef_interpol_det, ef_interpol_chargediff, &
                fscale_lowerbound, fscale_upperbound, eval_multiplicator, &
                npl_min, npl_max, npl_stride, betax, ntemp, accuracy_function, accuracy_penalty, occupation_function, &
-               adjust_fscale, fscale_ediff_low, fscale_ediff_up, &
-               fscale_inc_factor, fscale_dec_factor, &
-               fscale_inc_factor_min, fscale_inc_factor_max, &
-               fscale_dec_factor_min, fscale_dec_factor_max)
+               adjust_fscale, diff_tolerance, diff_target)
       use foe_base, only: foe_data, foe_data_set_int, foe_data_set_real, foe_data_set_logical, foe_data_get_real, foe_data_null
       use dynamic_memory
       use chess_base, only: chess_params, chess_input_dict, chess_init
@@ -1160,14 +1157,14 @@ module foe_common
       real(kind=mp),intent(in),optional :: accuracy_penalty
       integer,intent(in),optional :: occupation_function
       logical,intent(in),optional :: adjust_fscale
-      real(kind=mp),intent(in),optional :: fscale_ediff_low
-      real(kind=mp),intent(in),optional :: fscale_ediff_up
-      real(kind=mp),intent(in),optional :: fscale_inc_factor
-      real(kind=mp),intent(in),optional :: fscale_dec_factor
-      real(kind=mp),intent(in),optional :: fscale_inc_factor_min
-      real(kind=mp),intent(in),optional :: fscale_inc_factor_max
-      real(kind=mp),intent(in),optional :: fscale_dec_factor_min
-      real(kind=mp),intent(in),optional :: fscale_dec_factor_max
+      real(kind=mp),intent(in),optional :: diff_tolerance
+      real(kind=mp),intent(in),optional :: diff_target
+      !real(kind=mp),intent(in),optional :: fscale_inc_factor
+      !real(kind=mp),intent(in),optional :: fscale_dec_factor
+      !real(kind=mp),intent(in),optional :: fscale_inc_factor_min
+      !real(kind=mp),intent(in),optional :: fscale_inc_factor_max
+      !real(kind=mp),intent(in),optional :: fscale_dec_factor_min
+      !real(kind=mp),intent(in),optional :: fscale_dec_factor_max
 
       ! Local variables
       character(len=*), parameter :: subname='init_foe'
@@ -1193,8 +1190,8 @@ module foe_common
       real(kind=mp) :: accuracy_penalty_
       integer :: occupation_function_
       logical :: adjust_fscale_
-      real(kind=mp) :: fscale_ediff_low_
-      real(kind=mp) :: fscale_ediff_up_
+      real(kind=mp) :: diff_tolerance_
+      real(kind=mp) :: diff_target_
       real(kind=mp) :: fscale_inc_factor_
       real(kind=mp) :: fscale_dec_factor_
       real(kind=mp) :: fscale_inc_factor_min_
@@ -1236,14 +1233,14 @@ module foe_common
       ntemp_ = 4
       accuracy_function_ = 1.e-5_mp
       accuracy_penalty_ = 1.e-5_mp
-      fscale_ediff_low_ = 5.e-5_mp
-      fscale_ediff_up_ = 1.e-4_mp
-      fscale_inc_factor_ = 1.10_mp
-      fscale_dec_factor_ = 0.8_mp
-      fscale_inc_factor_min_ = 1.01_mp
-      fscale_inc_factor_max_ = 1.10_mp
-      fscale_dec_factor_min_ = 0.80_mp
-      fscale_dec_factor_max_ = 0.99_mp
+      diff_tolerance_ = 5.e-5_mp
+      diff_target_ = 2.0_mp
+      !fscale_inc_factor_ = 1.10_mp
+      !fscale_dec_factor_ = 0.8_mp
+      !fscale_inc_factor_min_ = 1.01_mp
+      !fscale_inc_factor_max_ = 1.10_mp
+      !fscale_dec_factor_min_ = 0.80_mp
+      !fscale_dec_factor_max_ = 0.99_mp
 
       if (present(ef)) ef_ = ef
       if (present(evbounds_nsatur)) evbounds_nsatur_ = evbounds_nsatur
@@ -1266,14 +1263,14 @@ module foe_common
       if (present(accuracy_penalty)) accuracy_penalty_ = accuracy_penalty
       if (present(occupation_function)) occupation_function_ = occupation_function
       if (present(adjust_fscale)) adjust_fscale_ = adjust_fscale
-      if (present(fscale_ediff_low)) fscale_ediff_low_ = fscale_ediff_low
-      if (present(fscale_ediff_low)) fscale_ediff_up_ = fscale_ediff_up
-      if (present(fscale_inc_factor)) fscale_inc_factor_ = fscale_inc_factor
-      if (present(fscale_dec_factor)) fscale_dec_factor_ = fscale_dec_factor
-      if (present(fscale_inc_factor_min)) fscale_inc_factor_min_ = fscale_inc_factor_min
-      if (present(fscale_inc_factor_max)) fscale_inc_factor_max_ = fscale_inc_factor_max
-      if (present(fscale_dec_factor_min)) fscale_dec_factor_min_ = fscale_dec_factor_min
-      if (present(fscale_dec_factor_max)) fscale_dec_factor_max_ = fscale_dec_factor_max
+      if (present(diff_tolerance)) diff_tolerance_ = diff_tolerance
+      if (present(diff_tolerance)) diff_target_ = diff_target
+      !if (present(fscale_inc_factor)) fscale_inc_factor_ = fscale_inc_factor
+      !if (present(fscale_dec_factor)) fscale_dec_factor_ = fscale_dec_factor
+      !if (present(fscale_inc_factor_min)) fscale_inc_factor_min_ = fscale_inc_factor_min
+      !if (present(fscale_inc_factor_max)) fscale_inc_factor_max_ = fscale_inc_factor_max
+      !if (present(fscale_dec_factor_min)) fscale_dec_factor_min_ = fscale_dec_factor_min
+      !if (present(fscale_dec_factor_max)) fscale_dec_factor_max_ = fscale_dec_factor_max
     
       foe_obj = foe_data_null()
 
@@ -1297,14 +1294,14 @@ module foe_common
       call foe_data_set_real(foe_obj,"accuracy_penalty",accuracy_penalty_)
       call foe_data_set_int(foe_obj,"occupation_function",occupation_function_)
       call foe_data_set_logical(foe_obj,"adjust_fscale",adjust_fscale_)
-      call foe_data_set_real(foe_obj,"fscale_ediff_low",fscale_ediff_low_)
-      call foe_data_set_real(foe_obj,"fscale_ediff_up",fscale_ediff_up_)
-      call foe_data_set_real(foe_obj,"fscale_inc_factor",fscale_inc_factor_)
-      call foe_data_set_real(foe_obj,"fscale_dec_factor",fscale_dec_factor_)
-      call foe_data_set_real(foe_obj,"fscale_inc_factor_min",fscale_inc_factor_min_)
-      call foe_data_set_real(foe_obj,"fscale_inc_factor_max",fscale_inc_factor_max_)
-      call foe_data_set_real(foe_obj,"fscale_dec_factor_min",fscale_dec_factor_min_)
-      call foe_data_set_real(foe_obj,"fscale_dec_factor_max",fscale_dec_factor_max_)
+      call foe_data_set_real(foe_obj,"diff_tolerance",diff_tolerance_)
+      call foe_data_set_real(foe_obj,"diff_target",diff_target_)
+      !call foe_data_set_real(foe_obj,"fscale_inc_factor",fscale_inc_factor_)
+      !call foe_data_set_real(foe_obj,"fscale_dec_factor",fscale_dec_factor_)
+      !call foe_data_set_real(foe_obj,"fscale_inc_factor_min",fscale_inc_factor_min_)
+      !call foe_data_set_real(foe_obj,"fscale_inc_factor_max",fscale_inc_factor_max_)
+      !call foe_data_set_real(foe_obj,"fscale_dec_factor_min",fscale_dec_factor_min_)
+      !call foe_data_set_real(foe_obj,"fscale_dec_factor_max",fscale_dec_factor_max_)
 
       foe_obj%charge = f_malloc0_ptr(nspin,id='foe_obj%charge')
       foe_obj%evlow = f_malloc0_ptr(nspin,id='foe_obj%evlow')
