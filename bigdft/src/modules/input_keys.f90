@@ -800,7 +800,7 @@ contains
     call kpt_input_analyse(bigdft_mpi%iproc, in, dict//KPT_VARIABLES, &
          & atoms%astruct%sym, atoms%astruct%geocode, atoms%astruct%cell_dim)
 
-    call atoms_fill(atoms,dict,in%frmult,in%nspin,&
+    call atoms_fill(atoms,dict,in%nspin,&
          in%multipole_preserving,in%mp_isf,in%ixc,in%alpha_hartree_fock)
 
 !!$    ! Update atoms with pseudo information.

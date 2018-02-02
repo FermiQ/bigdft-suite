@@ -1554,7 +1554,7 @@ contains
 
     !> complete the atoms structure with the remaining information.
     !! must be called after the call to astruct_set
-    subroutine atoms_fill(atoms,dict,frmult,nspin,multipole_preserving,mp_isf,ixc,alpha_hartree_fock)
+    subroutine atoms_fill(atoms,dict,nspin,multipole_preserving,mp_isf,ixc,alpha_hartree_fock)
       use ao_inguess, only: lmax_ao
       use public_keys, only: IG_OCCUPATION,OUTPUT_VARIABLES,ATOMIC_DENSITY_MATRIX,&
            DFT_VARIABLES,OCCUPANCY_CONTROL
@@ -1567,11 +1567,10 @@ contains
       use dictionaries
       implicit none
       integer, intent(in) :: nspin
-      integer, intent(in) :: mp_isf               !< Interpolating scaling function order for multipole preserving
+      integer, intent(in) :: mp_isf      !< Interpolating scaling function order for multipole preserving
       integer, intent(in) :: ixc         !< XC functional Id
       logical, intent(in) :: multipole_preserving !< Preserve multipole for ionic charge (integrated isf)
       real(gp), intent(in) :: alpha_hartree_fock !< exact exchange contribution
-      real(gp), intent(in) :: frmult           !< Used to scale the PAW radius projector
       type(atoms_data), intent(inout) :: atoms
       type(dictionary), pointer :: dict
       !local variables
@@ -1585,7 +1584,7 @@ contains
       call f_routine(id='atoms_fill')
 
       !fill the rest of the atoms structure
-      call psp_dict_analyse(dict, atoms,frmult)
+      call psp_dict_analyse(dict, atoms)
       call atomic_data_set_from_dict(dict,IG_OCCUPATION, atoms,nspin)
       !use get as the keys might not be there
       dict_gamma= dict .get. OUTPUT_VARIABLES
@@ -1929,7 +1928,7 @@ contains
 
 
     !> Fill up the atoms structure from dict
-    subroutine psp_dict_analyse(dict, atoms, frmult)
+    subroutine psp_dict_analyse(dict, atoms)
       use module_defs, only: gp
       !use m_pawrad, only: pawrad_type !, pawrad_nullify
       !use m_pawtab, only: pawtab_type, pawtab_nullify
@@ -1943,7 +1942,6 @@ contains
       !Arguments
       type(dictionary), pointer :: dict        !< Input dictionary
       type(atoms_data), intent(inout) :: atoms !< Atoms structure to fill up
-      real(gp), intent(in), optional :: frmult           !< Used to scale the PAW radius projector
       !Local variables
       integer :: ityp, ityp2
       character(len = 27) :: filename
