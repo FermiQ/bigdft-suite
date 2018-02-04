@@ -121,6 +121,9 @@
      COMMENT: tolerance factor (with respect to diff_target) beyond which the calculation will be repeated
      default: 2.0
      RANGE: [1.0,100.0]
+   adjust_fscale_smooth:
+     COMMENT: new smooth way to adjust fscale
+     default: no
  lapack:
    blocksize_pdsyev:
      COMMENT: SCALAPACK linear scaling blocksize for diagonalization

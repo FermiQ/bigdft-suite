@@ -51,7 +51,8 @@ subroutine init_foe_wrapper(iproc, nproc, input, orbs_KS, tmprtr, foe_obj)
        betax=input%cp%foe%betax_foe, occupation_function=input%cp%foe%occupation_function, &
        adjust_fscale=input%cp%foe%adjust_fscale, &
        diff_tolerance=input%cp%foe%diff_tolerance, &
-       diff_target=input%cp%foe%diff_target)
+       diff_target=input%cp%foe%diff_target, &
+       adjust_fscale_smooth=input%cp%foe%adjust_fscale_smooth)
 
   call f_release_routine()
 

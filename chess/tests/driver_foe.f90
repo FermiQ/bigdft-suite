@@ -71,7 +71,7 @@ program driver_foe
   character(len=1024) :: metadata_file, overlap_file, hamiltonian_file, kernel_file, kernel_matmul_file
   character(len=1024) :: sparsity_format, matrix_format, kernel_method, inversion_method
   logical :: check_spectrum, do_cubic_check, pexsi_do_inertia_count, init_matmul, keep_dense_kernel, write_kernel
-  logical :: write_symmetrized_kernel
+  logical :: write_symmetrized_kernel, adjust_fscale_smooth
   integer,parameter :: nthreshold = 10 !< number of checks with threshold
   real(mp),dimension(nthreshold),parameter :: threshold = (/ 1.e-1_mp, &
                                                              1.e-2_mp, &
@@ -177,6 +177,7 @@ program driver_foe
       call yaml_map('Routine timing profiling depth',profiling_depth)
       call yaml_map('Keep the dense kernel',keep_dense_kernel)
       call yaml_map('Write the density kernel to disk',write_kernel)
+      call yaml_map('USe the new smooth way to adjust fscale',adjust_fscale_smooth)
       call yaml_mapping_close()
   end if
 
@@ -674,6 +675,7 @@ program driver_foe
           write_symmetrized_kernel = options//'write_symmetrized_kernel'
           diff_tolerance = options//'diff_tolerance'
           diff_target = options//'diff_target'
+          ,adjust_fscale_smooth = options//',adjust_fscale_smooth'
          
           call dict_free(options)
       end if
@@ -794,6 +796,19 @@ program driver_foe
           write_symmetrized_kernel = .true.
       else
           write_symmetrized_kernel = .false.
+      end if
+      if (iproc==0) then
+          if (adjust_fscale_smooth) then
+              icheck = 1
+          else
+              icheck = 0
+          end if
+      end if
+      call mpibcast(icheck, root=0, comm=mpi_comm_world)
+      if (icheck==1) then
+          adjust_fscale_smooth = .true.
+      else
+          adjust_fscale_smooth = .false.
       end if
 
     end subroutine read_and_communicate_input_variables
@@ -1105,7 +1120,7 @@ subroutine commandline_options(parser)
        'Allowed values' .is. &
        'Logical'))
 
-  call yaml_cl_parse_option(parser,'diff_tolerance','5.e-5',&
+  call yaml_cl_parse_option(parser,'diff_target','5.e-5',&
        'target energy difference between the normal kernel and the control kernel',&
        help_dict=dict_new('Usage' .is. &
        'Indicate the target energy difference between the normal kernel and the control kernel',&
@@ -1116,6 +1131,13 @@ subroutine commandline_options(parser)
        'tolerance factor (with respect to diff_target) beyond which the calculation will be repeated'&
        help_dict=dict_new('Usage' .is. &
        'Indicate the tolerance factor (with respect to diff_target) beyond which the calculation will be repeated',&
+       'Allowed values' .is. &
+       'Double'))
+
+  call yaml_cl_parse_option(parser,'adjust_fscale_smooth','.false.',&
+       'new smooth way to adjust fscale',&
+       help_dict=dict_new('Usage' .is. &
+       'Indicate whether to use the new smooth way to adjust fscale',&
        'Allowed values' .is. &
        'Double'))
 

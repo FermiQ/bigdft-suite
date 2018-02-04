@@ -57,6 +57,7 @@ module foe_base
     !!real(kind=mp) :: fscale_inc_factor_max !< maximal factor to increase fscale in case it is too small
     !!real(kind=mp) :: fscale_dec_factor_min !< minimal factor to decrease fscale in case it is too small
     !!real(kind=mp) :: fscale_dec_factor_max !< maximal factor to decrease fscale in case it is too small
+    logical :: adjust_fscale_smooth !< new smooth way to adjust fscale
   end type foe_data
 
 
@@ -112,6 +113,7 @@ module foe_base
       !foe_obj%fscale_inc_factor_max  =f_none()
       !foe_obj%fscale_dec_factor_min  =f_none()
       !foe_obj%fscale_dec_factor_max  =f_none()
+      foe_obj%adjust_fscale_smooth   =f_none()
     end subroutine nullify_foe_data
 
     pure function foe_data_null() result(foe_obj)
@@ -171,6 +173,7 @@ module foe_base
       !foe_obj_out%fscale_inc_factor_max  = foe_obj_in%fscale_inc_factor_max
       !foe_obj_out%fscale_dec_factor_min  = foe_obj_in%fscale_dec_factor_min
       !foe_obj_out%fscale_dec_factor_max  = foe_obj_in%fscale_dec_factor_max
+      foe_obj_out%adjust_fscale_smooth   = foe_obj_in%adjust_fscale_smooth
     end subroutine copy_foe_data
 
 
@@ -447,6 +450,8 @@ module foe_base
       select case (fieldname)
       case ("adjust_fscale")
           foe_obj%adjust_fscale = val
+      case ("adjust_fscale_smooth")
+          foe_obj%adjust_fscale_smooth = val
       case default
           call f_err_throw("wrong argument for "//trim(fieldname))
       end select
@@ -461,6 +466,8 @@ module foe_base
       select case (fieldname)
       case ("adjust_fscale")
           val = foe_obj%adjust_fscale
+      case ("adjust_fscale_smooth")
+          val = foe_obj%adjust_fscale_smooth
       case default
           call f_err_throw("wrong argument for "//trim(fieldname))
       end select

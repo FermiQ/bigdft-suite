@@ -1125,7 +1125,7 @@ module foe_common
                evlow, evhigh, fscale, ef_interpol_det, ef_interpol_chargediff, &
                fscale_lowerbound, fscale_upperbound, eval_multiplicator, &
                npl_min, npl_max, npl_stride, betax, ntemp, accuracy_function, accuracy_penalty, occupation_function, &
-               adjust_fscale, diff_tolerance, diff_target)
+               adjust_fscale, diff_tolerance, diff_target, adjust_fscale_smooth)
       use foe_base, only: foe_data, foe_data_set_int, foe_data_set_real, foe_data_set_logical, foe_data_get_real, foe_data_null
       use dynamic_memory
       use chess_base, only: chess_params, chess_input_dict, chess_init
@@ -1159,6 +1159,7 @@ module foe_common
       logical,intent(in),optional :: adjust_fscale
       real(kind=mp),intent(in),optional :: diff_tolerance
       real(kind=mp),intent(in),optional :: diff_target
+      logical,intent(in),optional :: adjust_fscale_smooth
       !real(kind=mp),intent(in),optional :: fscale_inc_factor
       !real(kind=mp),intent(in),optional :: fscale_dec_factor
       !real(kind=mp),intent(in),optional :: fscale_inc_factor_min
@@ -1198,6 +1199,7 @@ module foe_common
       real(kind=mp) :: fscale_inc_factor_max_
       real(kind=mp) :: fscale_dec_factor_min_
       real(kind=mp) :: fscale_dec_factor_max_
+      logical :: adjust_fscale_smooth_
       type(chess_params) :: cp
       type(dictionary),pointer :: dict
 
@@ -1264,7 +1266,8 @@ module foe_common
       if (present(occupation_function)) occupation_function_ = occupation_function
       if (present(adjust_fscale)) adjust_fscale_ = adjust_fscale
       if (present(diff_tolerance)) diff_tolerance_ = diff_tolerance
-      if (present(diff_tolerance)) diff_target_ = diff_target
+      if (present(diff_target)) diff_target_ = diff_target
+      if (present(adjust_fscale_smooth)) adjust_fscale_smooth_ = adjust_fscale_smooth
       !if (present(fscale_inc_factor)) fscale_inc_factor_ = fscale_inc_factor
       !if (present(fscale_dec_factor)) fscale_dec_factor_ = fscale_dec_factor
       !if (present(fscale_inc_factor_min)) fscale_inc_factor_min_ = fscale_inc_factor_min
@@ -1296,6 +1299,7 @@ module foe_common
       call foe_data_set_logical(foe_obj,"adjust_fscale",adjust_fscale_)
       call foe_data_set_real(foe_obj,"diff_tolerance",diff_tolerance_)
       call foe_data_set_real(foe_obj,"diff_target",diff_target_)
+      call foe_data_set_logical(foe_obj,"adjust_fscale_smooth",adjust_fscale_smooth_)
       !call foe_data_set_real(foe_obj,"fscale_inc_factor",fscale_inc_factor_)
       !call foe_data_set_real(foe_obj,"fscale_dec_factor",fscale_dec_factor_)
       !call foe_data_set_real(foe_obj,"fscale_inc_factor_min",fscale_inc_factor_min_)

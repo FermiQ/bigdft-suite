@@ -50,6 +50,7 @@ module chess_base
     logical :: matmul_optimize_load_balancing
     real(mp) :: diff_tolerance
     real(mp) :: diff_target
+    logical :: adjust_fscale_smooth
   end type foe_params
 
   type, public :: lapack_params
@@ -122,6 +123,7 @@ module chess_base
   character(len=*),parameter :: MATMUL_OPTIMIZE_LOAD_BALANCING = "matmul_optimize_load_balancing"
   character(len=*),parameter :: DIFF_TOLERANCE         = "diff_tolerance"
   character(len=*),parameter :: DIFF_TARGET            = "diff_target"
+  character(len=*),parameter :: ADJUST_FSCALE_SMOOTH   = "adjust_fscale_smooth"
 
 
 
@@ -157,6 +159,7 @@ module chess_base
       fp%matmul_optimize_load_balancing = .false.
       fp%diff_tolerance = 0.0_mp
       fp%diff_target = 0.0_mp
+      fp%adjust_fscale_smooth = .false.
     end function foe_params_null
 
     pure function lapack_params_null() result(lp)
@@ -340,6 +343,8 @@ module chess_base
               cp%foe%diff_tolerance = val
           case(DIFF_TARGET)
               cp%foe%diff_target = val
+          case(ADJUST_FSCALE_SMOOTH)
+              cp%foe%adjust_fscale_smooth = val
           case default
               call yaml_warning("unknown input key '" // trim(level) // "/" // trim(dict_key(val)) // "'")
           end select
