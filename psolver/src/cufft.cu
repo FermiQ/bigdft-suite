@@ -139,7 +139,6 @@ extern "C" void FC_FUNC(cudadestroycublashandle, CUDADESTROYCUBLASHANDLE) () {
   cublasErrchk(cublasDestroy(handle1));
 }
 
-
 extern "C" void FC_FUNC(cufftdestroy, CUFFTDESTROY) (cufftHandle *plan) {
   cufftDestroy(*plan);
 }

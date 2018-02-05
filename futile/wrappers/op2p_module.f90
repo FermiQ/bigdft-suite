@@ -324,7 +324,7 @@ module overlap_point_to_point
        integer(kind=C_SIZE_T) :: freeGPUSize, totalGPUSize, gpudirectresSize,gpudirectdataSize,phimemSize
        logical, intent(inout) :: symmetric
        integer, intent(in) :: iproc, nproc
-       integer :: i, igroup, iproc_node, nproc_node
+       integer :: i, igroup, iproc_node, nproc_node, ndevices
        type(OP2P_data), intent(inout) :: OP2P
        real(wp) alpha
        logical ltmp
@@ -333,11 +333,16 @@ module overlap_point_to_point
        gpudirectdataSize=0
        gpudirectresSize=0
        phimemSize=0
+       ndevices=1
 
-       call cuda_get_mem_info(freeGPUSize,totalGPUSize)
+
        call mpinoderanks(iproc,nproc,OP2P%mpi_comm,iproc_node,nproc_node)
        !call processor_id_per_node(iproc,nproc,iproc_node,nproc_node)
        
+       !get number of GPus on the node
+       call cudagetdevicecount(ndevices)
+       
+       call cuda_get_mem_info(freeGPUSize,totalGPUSize)
        do i=1,2
          do igroup=1,OP2P%ngroupp
            gpudirectdataSize=gpudirectdataSize+OP2P%ndim*maxval(OP2P%nobj_par(:,OP2P%group_id(igroup)))*f_sizeof(alpha)
@@ -354,9 +359,9 @@ module overlap_point_to_point
 
        phimemSize=OP2P%ndim*sum(OP2P%nobj_par(iproc,:))*2*sizeof(alpha)
        
-       if((nproc_node * (phimemSize+gpudirectdataSize+gpudirectresSize) )< freeGPUSize) then
+       if((nproc_node/ndevices * (phimemSize+gpudirectdataSize+gpudirectresSize)/ )< freeGPUSize) then
          OP2P%gpudirect=1
-       else if ((nproc_node * (phimemSize+gpudirectdataSize))<freeGPUSize) then
+       else if ((nproc_node/ndevices * (phimemSize+gpudirectdataSize))<freeGPUSize) then
          symmetric = .false.
          OP2P%gpudirect=1
        else
