@@ -823,7 +823,6 @@ END SUBROUTINE pkernel_set
 
 subroutine cuda_estimate_memory_needs(kernel, n,iproc_node, nproc_node)
   use iso_c_binding
-  use module_base, only: bigdft_mpi
   implicit none
   !Arguments
   type(coulomb_operator), intent(inout) :: kernel
@@ -844,7 +843,7 @@ subroutine cuda_estimate_memory_needs(kernel, n,iproc_node, nproc_node)
   totalGPUSize=0
   
   !perform the estimation of the processors in the world
-  call mpinoderanks(bigdft_mpi%mpi_comm,mpisize(bigdft_mpi%mpi_comm),bigdft_mpi%mpi_comm,&
+  call mpinoderanks(mpirank(mpiworld()),mpisize(mpiworld()),mpiworld(),&
        myiproc_node,mynproc_node)
   !assign the process to one GPU, round robin style
   call cudagetdevicecount(ndevices)
