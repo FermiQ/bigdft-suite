@@ -843,7 +843,7 @@ subroutine cuda_estimate_memory_needs(kernel, n,iproc_node, nproc_node)
   totalGPUSize=0
   
   !perform the estimation of the processors in the world
-  call mpinoderanks(bigdft_mpi%mpi_comm,mpisize(bigdft_mpi%mpi_comm),bigdft_mpi%mpi_comm,&
+  call mpinoderanks(mpirank(mpiworld()),mpisize(mpiworld()),mpiworld(),&
        myiproc_node,mynproc_node)
   !assign the process to one GPU, round robin style
   call cudagetdevicecount(ndevices)
