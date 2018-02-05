@@ -359,7 +359,7 @@ module overlap_point_to_point
 
        phimemSize=OP2P%ndim*sum(OP2P%nobj_par(iproc,:))*2*sizeof(alpha)
        
-       if((nproc_node/ndevices * (phimemSize+gpudirectdataSize+gpudirectresSize)/ )< freeGPUSize) then
+       if((nproc_node/ndevices * (phimemSize+gpudirectdataSize+gpudirectresSize) )< freeGPUSize) then
          OP2P%gpudirect=1
        else if ((nproc_node/ndevices * (phimemSize+gpudirectdataSize))<freeGPUSize) then
          symmetric = .false.
