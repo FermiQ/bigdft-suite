@@ -822,7 +822,6 @@ END SUBROUTINE pkernel_set
 
 subroutine cuda_estimate_memory_needs(kernel, n,iproc_node, nproc_node)
   use iso_c_binding
-  use module_base, only: bigdft_mpi
   implicit none
   !Arguments
   type(coulomb_operator), intent(inout) :: kernel
