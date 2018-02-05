@@ -848,7 +848,7 @@ subroutine cuda_estimate_memory_needs(kernel, n,iproc_node, nproc_node)
   !assign the process to one GPU, round robin style
   call cudagetdevicecount(ndevices)
   if(ndevices>1) then
-    call cudasetdevice(myiproc_node%ndevices)
+    call cudasetdevice(modulo(myiproc_node,ndevices))
   end if
 
  !estimate with CUDA the free memory size, and the size of the plans
