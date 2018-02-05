@@ -329,6 +329,7 @@ contains
     !separable mode
     iz=bit%subbox(START_,Z_)-1 !0
     icnt=0
+    jz=0
     do while(box_next_z(bit))
        iz=iz+1
        jz=iz-bit%subbox(START_,Z_)+1
