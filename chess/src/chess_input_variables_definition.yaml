@@ -112,7 +112,7 @@
    #  default: 2.e-2
    matmul_optimize_load_balancing:
      COMMENT: optimize the load balancing of the sparse matrix matrix multiplications (at the cost of memory unbalancing)
-     default: yes
+     default: no
    fscale_ediff_low:
      COMMENT: lower bound for the optimal relative energy difference between the kernel and the control kernel
      default: 5.e-5
