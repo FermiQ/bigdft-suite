@@ -655,11 +655,18 @@ subroutine XC_potential(geocode,datacode,iproc,nproc,mpi_comm,n01,n02,n03,xcObj,
      !call memocc(i_stat,energies_mpi,'energies_mpi',subname)
      energies_mpi = f_malloc(4,id='energies_mpi')
 
+     !energies_mpi(1)=eexcuLOC
+     !energies_mpi(2)=vexcuLOC
+     !call fmpi_allreduce(energies_mpi(1), 2,FMPI_SUM,comm=mpi_comm,recvbuf=energies_mpi(3))
+     !exc=energies_mpi(3)
+     !vxc=energies_mpi(4)
+     
      energies_mpi(1)=eexcuLOC
      energies_mpi(2)=vexcuLOC
-     call fmpi_allreduce(energies_mpi(1), 2,FMPI_SUM,comm=mpi_comm,recvbuf=energies_mpi(3))
-     exc=energies_mpi(3)
-     vxc=energies_mpi(4)
+     call fmpi_allreduce(energies_mpi,FMPI_SUM,comm=mpi_comm)!,recvbuf=energies_mpi(3))
+     exc=energies_mpi(1)
+     vxc=energies_mpi(2)
+
 
 !XC-stress term
   if (geocode == 'P') then

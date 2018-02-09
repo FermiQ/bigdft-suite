@@ -587,9 +587,12 @@ subroutine pkernel_set(kernel,eps,dlogeps,oneoeps,oneosqrteps,corr,verbose) !opt
     n(1)=n1!kernel%mesh%ndims(1)*(2-kernel%geo(1))
     n(2)=n3!kernel%mesh%ndims(2)*(2-kernel%geo(2))
     n(3)=n2!kernel%mesh%ndims(3)*(2-kernel%geo(3))
+    
+    
     !perform the estimation of the processors
     call mpinoderanks(kernel%mpi_env%iproc,kernel%mpi_env%nproc,kernel%mpi_env%mpi_comm,&
          myiproc_node,mynproc_node)
+
 
     call cuda_estimate_memory_needs(kernel, n, &
          int(myiproc_node,kind=8), int(mynproc_node,kind=8)) !LG: why longs?
@@ -819,7 +822,6 @@ END SUBROUTINE pkernel_set
 
 subroutine cuda_estimate_memory_needs(kernel, n,iproc_node, nproc_node)
   use iso_c_binding
-!  use module_base
   implicit none
   !Arguments
   type(coulomb_operator), intent(inout) :: kernel
@@ -829,6 +831,7 @@ subroutine cuda_estimate_memory_needs(kernel, n,iproc_node, nproc_node)
   integer(kind=C_SIZE_T) :: maxPlanSize, freeGPUSize, totalGPUSize
   integer(kind=8) :: size2,sizek,size3
   integer(kind=8) :: kernelSize, PCGRedSize, plansSize
+  integer :: myiproc_node, mynproc_node, ndevices
   real(dp) alpha
 
   kernelSize=0
@@ -837,6 +840,15 @@ subroutine cuda_estimate_memory_needs(kernel, n,iproc_node, nproc_node)
   maxPlanSize=0
   freeGPUSize=0
   totalGPUSize=0
+  
+  !perform the estimation of the processors in the world
+  call mpinoderanks(mpirank(mpiworld()),mpisize(mpiworld()),mpiworld(),&
+       myiproc_node,mynproc_node)
+  !assign the process to one GPU, round robin style
+  call cudagetdevicecount(ndevices)
+  if(ndevices>1) then
+    call cudasetdevice(modulo(myiproc_node,ndevices))
+  end if
 
  !estimate with CUDA the free memory size, and the size of the plans
  call cuda_estimate_memory_needs_cu(kernel%mpi_env%iproc,n,&
