@@ -104,20 +104,25 @@ module f_harmonics
 
     end subroutine field_multipoles   
 
-    subroutine vector_multipoles(nat,rxyz,mp,origin)
+    subroutine vector_multipoles(nat,rxyz,mp,origin,charges,lookup)
       implicit none
       integer, intent(in) :: nat
       real(dp), dimension(3,nat), intent(in) :: rxyz
       type(f_multipoles), intent(inout) :: mp
       real(dp), dimension(3), intent(in), optional :: origin
+      real(dp), dimension(*), intent(in), optional :: charges
+      integer, dimension(nat), intent(in), optional :: lookup
       !local variables
-      integer :: iat
+      integer :: iat,jat
       real(dp), dimension(3) :: oxyz,tmp
       oxyz=0.0_dp
       if (present(origin)) oxyz=origin
       do iat=1,nat
          tmp=rxyz(:,iat)-oxyz
-         call accumulate_multipoles(tmp,1.0_dp,mp%nmonomials,mp%monomials)
+         jat=iat
+         if (present(lookup)) jat=lookup(iat)
+         call accumulate_multipoles(tmp,charges(jat),&
+              mp%nmonomials,mp%monomials)
       end do
     end subroutine vector_multipoles
 

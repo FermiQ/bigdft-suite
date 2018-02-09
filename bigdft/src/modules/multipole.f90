@@ -4390,7 +4390,6 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
   real(gp), dimension(3,3) :: quadropole_el,quadropole_cores,tmpquadrop
   real(dp), dimension(:,:,:,:), pointer :: ele_rho
   logical :: quiet
-!!$  real(dp), dimension(:,:,:,:), pointer :: rho_buf
 
   call f_routine(id='calculate_dipole_moment')
 
@@ -4399,47 +4398,6 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
   else
       quiet = .false.
   end if
-
-!!$  n1i=dpbox%mesh%ndims(1)
-!!$  n2i=dpbox%mesh%ndims(2)
-!!$  n3i=dpbox%mesh%ndims(3)
-!!$  n3p=dpbox%n3p
-!!$
-!!$
-!!$  if (at%astruct%geocode /= 'F') then
-!!$     nl1=1
-!!$     !nl3=1
-!!$     nc1=n1i
-!!$     !nc3=n3i
-!!$     nc3=n3p
-!!$     nnc3=n3i
-!!$     !is = 1
-!!$     is = dpbox%nscatterarr(dpbox%mpi_env%iproc,3)+1
-!!$     ie = dpbox%nscatterarr(dpbox%mpi_env%iproc,3)+dpbox%nscatterarr(dpbox%mpi_env%iproc,2)
-!!$     i3shift = 1
-!!$  else
-!!$     nl1=15
-!!$     !nl3=15
-!!$     !nl3=max(1,15-dpbox%nscatterarr(dpbox%mpi_env%iproc,3))
-!!$     nc1=n1i-31
-!!$     !nc3=n3i-31
-!!$     !nc3=n3p-31
-!!$     is = max(dpbox%nscatterarr(dpbox%mpi_env%iproc,3)+1,15)
-!!$     ie = min(dpbox%nscatterarr(dpbox%mpi_env%iproc,3)+dpbox%nscatterarr(dpbox%mpi_env%iproc,2),n3i-17)
-!!$     nnc3=n3i-31
-!!$     i3shift = 15
-!!$     !write(*,*) 'iproc, is, ie, nl3, nc3, n3p', bigdft_mpi%iproc, is, ie, nl3, nc3, n3p
-!!$  end if
-!!$  nc3 = ie - is + 1 !number of z planes to be treated
-!!$  nl3=max(1,i3shift-dpbox%nscatterarr(dpbox%mpi_env%iproc,3)) !offset within rho array
-!!$  !value of the buffer in the y direction
-!!$  if (at%astruct%geocode == 'P') then
-!!$     nl2=1
-!!$     nc2=n2i
-!!$  else
-!!$     nl2=15
-!!$     nc2=n2i-31
-!!$  end if
 
   qtot=0.d0
   call f_zero(dipole_cores)!(1:3)=0._gp
@@ -4462,41 +4420,13 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
      !the iterator here is on the potential distribution
      do while(box_next_point(dpbox%bitp))
         q= - rho(dpbox%bitp%i,dpbox%bitp%j,dpbox%bitp%k-dpbox%bitp%i3s+1,ispin) *dpbox%mesh%volume_element
-        !q= - rho(dpbox%bitp%ibox(1),dpbox%bitp%ibox(2),dpbox%bitp%ibox(3),ispin) *dpbox%mesh%volume_element
-        !write(*,*) 'i1, i2, i3, nl1, nl2, nl3, q', i1, i2, i3, nl1, nl2, nl3, q
         qtot=qtot+q
         dipole_el=dipole_el+q*(dpbox%bitp%rxyz-charge_center_cores)
      end do
-!!$     do i3=0,nc3 - 1
-!!$        !ii3 = i3 + dpbox%nscatterarr(dpbox%mpi_env%iproc,3)
-!!$        ii3 = i3+nl3+dpbox%nscatterarr(dpbox%mpi_env%iproc,3) - i3shift !real coordinate, without buffer
-!!$        !write(*,*) 'iproc, i3+nl3+dpbox%nscatterarr(dpbox%mpi_env%iproc,3), ii3', &
-!!$        !            bigdft_mpi%iproc, i3+nl3+dpbox%nscatterarr(dpbox%mpienv%iproc,3), ii3
-!!$        do i2=0,nc2 - 1
-!!$           do i1=0,nc1 - 1
-!!$              !ind=i1+nl1+(i2+nl2-1)*n1i+(i3+nl3-1)*n1i*n2i
-!!$              !q= ( ele_rho(ind,ispin) ) * hxh*hyh*hzh
-!!$              !q= - ele_rho(i1+nl1,i2+nl2,i3+nl3,ispin) * product(dpbox%hgrids)
-!!$              q= - rho(i1+nl1,i2+nl2,i3+nl3,ispin) *dpbox%mesh%volume_element
-!!$              !write(*,*) 'i1, i2, i3, nl1, nl2, nl3, q', i1, i2, i3, nl1, nl2, nl3, q
-!!$              qtot=qtot+q
-!!$              dipole_el(1)=dipole_el(1)+ q* at%astruct%cell_dim(1)/real(nc1,dp)*i1
-!!$              dipole_el(2)=dipole_el(2)+ q* at%astruct%cell_dim(2)/real(nc2,dp)*i2
-!!$              dipole_el(3)=dipole_el(3)+ q* at%astruct%cell_dim(3)/real(nnc3,dp)*ii3
-!!$           end do
-!!$        end do
-!!$     end do
-  !!write(*,*) 'iproc, dipole_el,sum(rho), qtot',bigdft_mpi%iproc,dipole_el,sum(rho), qtot
   end do
 
-  !!call mpi_barrier(mpi_comm_world,ispin)
   call fmpi_allreduce(qtot, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
   call fmpi_allreduce(dipole_el, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
-  !!call mpi_barrier(mpi_comm_world,ispin)
-  !!write(*,*) 'after allred: iproc, dipole_el,sum(rho), qtot',bigdft_mpi%iproc,dipole_el,sum(rho), qtot
-
-  !!write(*,*) 'dipole_cores first', dipole_cores
-  !!call mpi_barrier(mpi_comm_world,ispin)
 
   !quadrupole should be calculated with the shifted positions!
   quadrupole_if: if (calculate_quadrupole) then
@@ -4520,41 +4450,6 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
           end do
        end do
 
-      ! charge center
-!!$      charge_center_elec(1:3,1:nspin)=0.d0
-!!$      do ispin=1,nspin
-!!$         !LG: this is exactly the same calculation as before
-!!$         qtot=0.d0
-!!$         do while(box_next_point(dpbox%bitp))
-!!$            q= - rho(dpbox%bitp%i,dpbox%bitp%j,dpbox%bitp%k-dpbox%bitp%i3s+1,ispin) *dpbox%mesh%volume_element
-!!$            !write(*,*) 'i1, i2, i3, nl1, nl2, nl3, q', i1, i2, i3, nl1, nl2, nl3, q
-!!$            qtot=qtot+q
-!!$            charge_center_elec=charge_center_elec+q*dpbox%bitp%rxyz
-!!$         end do
-
-!!$          do i3=0,nc3 - 1
-!!$             ii3 = i3+nl3+dpbox%nscatterarr(dpbox%mpi_env%iproc,3) - i3shift !real coordinate, without buffer
-!!$              do i2=0,nc2 - 1
-!!$                  do i1=0,nc1 - 1
-!!$                      !q= - ele_rho(i1+nl1,i2+nl2,i3+nl3,ispin) * product(dpbox%hgrids)
-!!$                      q= - rho(i1+nl1,i2+nl2,i3+nl3,ispin) * dpbox%mesh%volume_element
-!!$                      x=at%astruct%cell_dim(1)/real(nc1,dp)*i1
-!!$                      y=at%astruct%cell_dim(2)/real(nc2,dp)*i2
-!!$                      z=at%astruct%cell_dim(3)/real(nnc3,dp)*ii3
-!!$                      charge_center_elec(1,ispin) = charge_center_elec(1,ispin) + q*x
-!!$                      charge_center_elec(2,ispin) = charge_center_elec(2,ispin) + q*y
-!!$                      charge_center_elec(3,ispin) = charge_center_elec(3,ispin) + q*z
-!!$                      qtot=qtot+q
-!!$                  end do
-!!$              end do
-!!$      end do
-!!$          !!write(*,*) 'qtot',qtot
-!!$         call fmpi_allreduce(qtot, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm) !LG: why two spins parallelized that way?
-!!$         charge_center_elec(1:3,ispin)=charge_center_elec(1:3,ispin)/qtot
-!!$      end do
-!!$
-!!$      call fmpi_allreduce(charge_center_elec, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
-
        call f_zero(quadropole_el)
       do ispin=1,nspin
          do while(box_next_point(dpbox%bitp))
@@ -4574,90 +4469,18 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
                end do
             end do
          end do
-
-!!$          do i3=0,nc3 - 1
-!!$             ii3 = i3+nl3+dpbox%nscatterarr(dpbox%mpi_env%iproc,3) - i3shift !real coordinate, without buffer
-!!$              do i2=0,nc2 - 1
-!!$                  do i1=0,nc1 - 1
-!!$                      !q= - ele_rho(i1+nl1,i2+nl2,i3+nl3,ispin) * product(dpbox%hgrids)
-!!$                      q= - rho(i1+nl1,i2+nl2,i3+nl3,ispin) * dpbox%mesh%volume_element
-!!$                      x=at%astruct%cell_dim(1)/real(nc1,dp)*i1
-!!$                      y=at%astruct%cell_dim(2)/real(nc2,dp)*i2
-!!$                      z=at%astruct%cell_dim(3)/real(nnc3,dp)*ii3
-!!$                      do i=1,3
-!!$                          select case (i)
-!!$                          case (1)
-!!$                              !ri=x-charge_center_cores(1)
-!!$                              ri=x+(charge_center_cores(1)-charge_center_elec(1,ispin))
-!!$                          case (2)
-!!$                              !ri=y-charge_center_cores(2)
-!!$                              ri=y+(charge_center_cores(2)-charge_center_elec(2,ispin))
-!!$                          case (3)
-!!$                              !ri=z-charge_center_cores(3)
-!!$                              ri=z+(charge_center_cores(3)-charge_center_elec(3,ispin))
-!!$                          case default
-!!$                              stop 'wrong value of i'
-!!$                          end select
-!!$                          do j=1,3
-!!$                              select case (j)
-!!$                              case (1)
-!!$                                  !rj=x-charge_center_cores(1)
-!!$                                  rj=x+(charge_center_cores(1)-charge_center_elec(1,ispin))
-!!$                              case (2)
-!!$                                  !rj=y-charge_center_cores(2)
-!!$                                  rj=y+(charge_center_cores(2)-charge_center_elec(2,ispin))
-!!$                              case (3)
-!!$                                  !rj=z-charge_center_cores(3)
-!!$                                  rj=z+(charge_center_cores(3)-charge_center_elec(3,ispin))
-!!$                              case default
-!!$                                  stop 'wrong value of j'
-!!$                              end select
-!!$                              if (i==j) then
-!!$                                  !delta_term = (x-charge_center_cores(1))**2 + &
-!!$                                  !             (y-charge_center_cores(2))**2 + &
-!!$                                  !             (z-charge_center_cores(3))**2
-!!$                                  delta_term = (x+(charge_center_cores(1)-charge_center_elec(1,ispin)))**2 + &
-!!$                                               (y+(charge_center_cores(2)-charge_center_elec(2,ispin)))**2 + &
-!!$                                               (z+(charge_center_cores(3)-charge_center_elec(3,ispin)))**2
-!!$                              else
-!!$                                  delta_term=0.d0
-!!$                              end if
-!!$                              quadropole_el(j,i) = quadropole_el(j,i) + q*(3.d0*rj*ri-delta_term)
-!!$                          end do
-!!$                      end do
-!!$                  end do
-!!$              end do
-!!$          end do
       end do
 
-      !!if (.not. is_net_charge) then
-          call fmpi_allreduce(quadropole_el, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
-          tmpquadrop=quadropole_cores+quadropole_el
-      !!else
-      !!    tmpquadrop=quadropole_el
-      !!end if
+      call fmpi_allreduce(quadropole_el, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+      tmpquadrop=quadropole_cores+quadropole_el
 
       if (present(quadrupole)) then
           quadrupole = tmpquadrop
       end if
 
-      !!if (dpbox%mpi_env%nproc > 1) then
-      !!   call f_free_ptr(ele_rho)
-      !!else
-      !!   nullify(ele_rho)
-      !!end if
-
   end if quadrupole_if
 
-  !!if (.not.is_net_charge) then
-      tmpdip=dipole_el !dipole_cores+ !should not be needed as it is now included in the center of charge
-  !!else
-  !!    tmpdip=dipole_el
-  !!end if
-  !!write(*,*) 'tmpdip before',tmpdip
-  !!call mpi_barrier(mpi_comm_world,ispin)
-  !!write(*,*) 'tmpdip',tmpdip
-  if (present(dipole)) dipole(1:3) = tmpdip(1:3)
+  tmpdip=dipole_el !dipole_cores+ !should not be needed as it is now in  if (present(dipole)) dipole(1:3) = tmpdip(1:3)
   if(bigdft_mpi%iproc==0 .and. .not.quiet) then
      call yaml_map('Multipole analysis origin',charge_center_cores,fmt='(1pe14.6)')
      call yaml_mapping_open('Electric Dipole Moment (AU)')
