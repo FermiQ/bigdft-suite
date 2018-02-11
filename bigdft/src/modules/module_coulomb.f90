@@ -85,6 +85,7 @@ module module_coulomb
   end function get_coulomb_force_count
   
   subroutine coulomb_energyandforces(nat, rxyz, fxyz, energy)
+    use numerics, only: safe_erf
     implicit none
     integer :: i, j, nat
     real(8) :: rij, rij_x, rij_y, rij_z, ggamma, coulomb_force, energy
@@ -108,19 +109,19 @@ module module_coulomb
         rij_z = rxyz(3, i) - rxyz(3, j)
         rij = dsqrt(rij_x**2 + rij_y**2 + rij_z**2)
 
-        energy = energy + cfp%charges(i) * cfp%charges(j) * derf(ggamma * rij) / rij
+        energy = energy + cfp%charges(i) * cfp%charges(j) * safe_erf(ggamma * rij) / rij
 
-        coulomb_force = cfp%charges(i) * cfp%charges(j) * (derf(ggamma * rij) * rij_x / (rij**3) - &
+        coulomb_force = cfp%charges(i) * cfp%charges(j) * (safe_erf(ggamma * rij) * rij_x / (rij**3) - &
                 (2.d0 / dsqrt (pi)) * (dexp(-(ggamma * rij)**2) * ggamma * rij_x) / (rij**2))
         fxyz(1, i) = fxyz(1, i) + coulomb_force
         fxyz(1, j) = fxyz(1, j) - coulomb_force
 
-        coulomb_force = cfp%charges(i) * cfp%charges(j) * (derf(ggamma * rij) * rij_y / (rij**3) - &
+        coulomb_force = cfp%charges(i) * cfp%charges(j) * (safe_erf(ggamma * rij) * rij_y / (rij**3) - &
                 (2.d0 / dsqrt (pi)) * (dexp(-(ggamma * rij)**2) * ggamma * rij_y) / (rij**2))
         fxyz(2, i) = fxyz(2, i) + coulomb_force
         fxyz(2, j) = fxyz(2, j) - coulomb_force
 
-        coulomb_force = cfp%charges(i) * cfp%charges(j) * (derf(ggamma * rij) * rij_z / (rij**3) - &
+        coulomb_force = cfp%charges(i) * cfp%charges(j) * (safe_erf(ggamma * rij) * rij_z / (rij**3) - &
                 (2.d0 / dsqrt (pi)) * (dexp(-(ggamma * rij)**2) * ggamma * rij_z) / (rij**2))
         fxyz(3, i) = fxyz(3, i) + coulomb_force
         fxyz(3, j) = fxyz(3, j) - coulomb_force

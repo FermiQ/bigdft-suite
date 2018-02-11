@@ -42,7 +42,7 @@ END SUBROUTINE center_of_charge
 
 
 !> Calculate the coupling matrix needed for Casida's TDDFT approach
-subroutine calculate_coupling_matrix(iproc,nproc,boxit,tddft_approach,nspin,ndimp,orbsocc,orbsvirt,&
+subroutine calculate_coupling_matrix(iproc,nproc,dir_output,boxit,tddft_approach,nspin,ndimp,orbsocc,orbsvirt,&
      center_of_charge,pkernel,dvxcdrho,psirocc,psivirtr)
   use module_base
   use module_types
@@ -51,6 +51,7 @@ subroutine calculate_coupling_matrix(iproc,nproc,boxit,tddft_approach,nspin,ndim
   use box
   implicit none
   character(len=4), intent(in) :: tddft_approach
+  character(len=*), intent(in) :: dir_output
   integer, intent(in) :: iproc,nproc,nspin,ndimp
   real(gp), dimension(3) :: center_of_charge
   type(orbitals_data), intent(in) :: orbsocc,orbsvirt
@@ -237,8 +238,8 @@ subroutine calculate_coupling_matrix(iproc,nproc,boxit,tddft_approach,nspin,ndim
 
   !here the matrix can be written on disk, together with the transition dipoles
   if (iproc==0) then
-     call f_savetxt('coupling_matrix.txt',Kbig)
-     call f_savetxt('transition_dipoles.txt',dipoles)
+     call f_savetxt(dir_output//'coupling_matrix.txt',Kbig)
+     call f_savetxt(dir_output//'transition_dipoles.txt',dipoles)
   end if
 
   !Deallocations

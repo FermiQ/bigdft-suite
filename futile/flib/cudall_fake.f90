@@ -38,3 +38,11 @@ subroutine cuda_get_mem_info()
    implicit none
    stop 'cuda_get_mem_info'
  END SUBROUTINE cuda_get_mem_info
+subroutine cudagetdevicecount()
+   implicit none
+   stop 'cudagetdevicecount'
+ END SUBROUTINE cudagetdevicecount
+subroutine cudasetdevice()
+   implicit none
+   stop 'cudasetdevice'
+ END SUBROUTINE cudasetdevice

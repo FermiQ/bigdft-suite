@@ -21,35 +21,9 @@ module IObox
   private
 
 
-  public :: read_field,read_field_dimensions,dump_field,field_multipoles
+  public :: read_field,read_field_dimensions,dump_field
 
   contains
-
-    !>Calculate a set of multipoles from a given box iterator.
-    !! Defined up to quadrupoles
-    subroutine field_multipoles(bit,field,nfield,mp)
-      use box
-      use f_harmonics
-      implicit none
-      integer, intent(in) :: nfield !<number of components of the field to reduce on (useful for spin)
-      type(box_iterator), intent(inout) :: bit
-      real(dp), dimension(bit%mesh%ndims(1)*bit%mesh%ndims(2)*(bit%i3e-bit%i3s+1),nfield), intent(in) :: field
-      type(f_multipoles), intent(inout) :: mp !<multipole structure
-
-      !local variables
-      integer :: ispin
-      real(dp) :: q
-
-      !the multipoles have to be created and initialized before.
-      do ispin=1,nfield
-         do while(box_next_point(bit))
-            q= field(bit%ind,ispin)*bit%mesh%volume_element
-            bit%tmp=closest_r(bit%mesh,bit%rxyz,mp%rxyz)
-            call f_multipoles_accumulate(mp%Q,mp%lmax,bit%tmp,q)
-         end do
-      end do
-
-    end subroutine field_multipoles
     
     pure subroutine cube_dimensions(geocode,ndims,nc1,nc2,nc3)
       implicit none

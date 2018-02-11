@@ -1329,11 +1329,11 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
               exc_fac=1.0 !if HF, exc_fac=1.0 
            end if
 
-           call tddft_casida(iproc,nproc,atoms,rxyz,&
-                denspot%dpbox%mesh%hgrids(1),denspot%dpbox%mesh%hgrids(2),denspot%dpbox%mesh%hgrids(3),&
+           call tddft_casida(iproc,nproc,trim(in%dir_output),atoms,rxyz,&
                 denspot%dpbox%n3p,denspot%dpbox%ngatherarr(0,1),&
-                KSwfn%Lzd%Glr,in%tddft_approach,KSwfn%orbs,VTwfn%orbs,denspot%dpbox%i3s+denspot%dpbox%i3xcsh,&
-                denspot%f_XC,denspot%pkernelseq,KSwfn%psi,VTwfn%psi,exc_fac,denspot%dpbox%bitp)
+                KSwfn%Lzd%Glr,in%tddft_approach,KSwfn%orbs,VTwfn%orbs,&
+                denspot%f_XC,denspot%pkernelseq,KSwfn%psi,VTwfn%psi,&
+                exc_fac,denspot%dpbox%bitp)
 
            call f_free_ptr(denspot%f_XC)
 
