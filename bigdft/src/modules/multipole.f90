@@ -19,6 +19,7 @@ module multipole
   public :: init_extract_matrix_lookup
   public :: extract_matrix
   public :: correct_multipole_origin
+  public :: calculate_and_write_multipole_matrices
 
   contains
 
@@ -1058,6 +1059,7 @@ module multipole
       use yaml_output
       use numerics, only: Bohr_Ang
       use f_precisions, only: db => f_double
+      use module_types, only: TCAT_IO_MULTIPOLES
       implicit none
 
       ! Calling arguments
@@ -1083,6 +1085,7 @@ module multipole
       logical :: present_delta_rxyz, present_on_which_atom, present_scaled, present_monopoles_analytic, do_guess_type_
 
       call f_routine(id='write_multipoles_new')
+      call f_timing(TCAT_IO_MULTIPOLES,'ON')
 
       present_delta_rxyz = present(delta_rxyz)
       present_on_which_atom = present(on_which_atom)
@@ -1169,6 +1172,7 @@ module multipole
           call yaml_flush_document()
 
       call f_release_routine()
+      call f_timing(TCAT_IO_MULTIPOLES,'OF')
 
 
           contains
@@ -4369,6 +4373,7 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
   use yaml_output
   use box
   use numerics
+  use f_harmonics
   implicit none
   integer, intent(in) :: nspin
   type(denspot_distribution), intent(inout) :: dpbox
@@ -4390,6 +4395,7 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
   real(gp), dimension(3,3) :: quadropole_el,quadropole_cores,tmpquadrop
   real(dp), dimension(:,:,:,:), pointer :: ele_rho
   logical :: quiet
+  type(f_multipoles) :: mp_cores,mp_electrons
 
   call f_routine(id='calculate_dipole_moment')
 
@@ -4399,77 +4405,105 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
       quiet = .false.
   end if
 
-  qtot=0.d0
-  call f_zero(dipole_cores)!(1:3)=0._gp
   call f_zero(charge_center_cores)
-  do iat=1,at%astruct%nat
-     !write(*,*) 'iat, rxyz(1:3,iat)',iat, rxyz(1:3,iat)
-     q=at%nelpsp(at%astruct%iatype(iat))
-     dipole_cores(1:3)=dipole_cores(1:3)+q * rxyz(1:3,iat)
-     qtot=qtot+q
-  end do
+  call f_multipoles_create(mp_cores,1)
+  call vector_multipoles(mp_cores,at%astruct%nat,rxyz,dpbox%mesh,&
+       charges=real(at%nelpsp,dp),lookup=at%astruct%iatype)
+  qtot=get_monopole(mp_cores)
+  dipole_cores=get_dipole(mp_cores)
   !this defines the origin of the coordinate system
   if (qtot /=0.0_gp) charge_center_cores=dipole_cores/qtot
+  call f_multipoles_release(mp_cores)
+
+!!$  qtot=0.d0
+!!$  call f_zero(dipole_cores)!(1:3)=0._gp
+!!$  call f_zero(charge_center_cores)
+!!$  do iat=1,at%astruct%nat
+!!$     !write(*,*) 'iat, rxyz(1:3,iat)',iat, rxyz(1:3,iat)
+!!$     q=at%nelpsp(at%astruct%iatype(iat))
+!!$     dipole_cores(1:3)=dipole_cores(1:3)+q * rxyz(1:3,iat)
+!!$     qtot=qtot+q
+!!$  end do
+!!$  !this defines the origin of the coordinate system
+!!$  if (qtot /=0.0_gp) charge_center_cores=dipole_cores/qtot
 
   !!write(*,*) 'dipole_cores',dipole_cores
   !!write(*,*) 'nc3',nc3
 
-  !calculate electronic dipole and thus total dipole of the system
-  call f_zero(dipole_el)!   (1:3)=0._gp
-  do ispin=1,nspin
-     !the iterator here is on the potential distribution
-     do while(box_next_point(dpbox%bitp))
-        q= - rho(dpbox%bitp%i,dpbox%bitp%j,dpbox%bitp%k-dpbox%bitp%i3s+1,ispin) *dpbox%mesh%volume_element
-        qtot=qtot+q
-        dipole_el=dipole_el+q*(dpbox%bitp%rxyz-charge_center_cores)
-     end do
-  end do
+  !now reset the multipole quantities 
+  call f_multipoles_create(mp_electrons,2,center=charge_center_cores)
+  call field_multipoles(dpbox%bitp,rho,nspin,mp_electrons)
+  qtot=-get_monopole(mp_electrons)
+  dipole_el=-get_dipole(mp_electrons)
+
+!!$  !calculate electronic dipole and thus total dipole of the system
+!!$  call f_zero(dipole_el)!   (1:3)=0._gp
+!!$  do ispin=1,nspin
+!!$     !the iterator here is on the potential distribution
+!!$     do while(box_next_point(dpbox%bitp))
+!!$        q= - rho(dpbox%bitp%i,dpbox%bitp%j,dpbox%bitp%k-dpbox%bitp%i3s+1,ispin) *dpbox%mesh%volume_element
+!!$        qtot=qtot+q
+!!$        dipole_el=dipole_el+q*(dpbox%bitp%rxyz-charge_center_cores)
+!!$     end do
+!!$  end do
 
   call fmpi_allreduce(qtot, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
   call fmpi_allreduce(dipole_el, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
 
+  if (present(dipole)) then
+      dipole = dipole_el
+  end if
+
   !quadrupole should be calculated with the shifted positions!
   quadrupole_if: if (calculate_quadrupole) then
 
-      call f_zero(quadropole_cores)!(1:3,1:3)=0._gp
-      do iat=1,at%astruct%nat
-         q=at%nelpsp(at%astruct%iatype(iat))
-         tmpdip=rxyz(:,iat)-charge_center_cores
-         tt=square_gd(dpbox%mesh,tmpdip)
-          do i=1,3
-             ri=rxyz(i,iat)-charge_center_cores(i)
-             do j=1,3
-                rj=rxyz(j,iat)-charge_center_cores(j)
-                if (i==j) then
-                   delta_term = tt
-                else
-                   delta_term=0.d0
-                end if
-                quadropole_cores(j,i) = quadropole_cores(j,i) + q*(3.d0*rj*ri-delta_term)
-             end do
-          end do
-       end do
+     !now reset the multipole quantities 
+     call f_multipoles_create(mp_cores,2,center=charge_center_cores)
+     call vector_multipoles(mp_cores,at%astruct%nat,rxyz,dpbox%mesh,&
+          charges=real(at%nelpsp,dp),lookup=at%astruct%iatype)
+     quadropole_cores=get_quadrupole(mp_cores)
 
-       call f_zero(quadropole_el)
-      do ispin=1,nspin
-         do while(box_next_point(dpbox%bitp))
-            q= - rho(dpbox%bitp%i,dpbox%bitp%j,dpbox%bitp%k-dpbox%bitp%i3s+1,ispin) *dpbox%mesh%volume_element
-            tmpdip=dpbox%bitp%rxyz-charge_center_cores
-            tt=square_gd(dpbox%mesh,tmpdip)
-            do i=1,3
-               ri=dpbox%bitp%rxyz(i)-charge_center_cores(i)
-               do j=1,3
-                  rj=dpbox%bitp%rxyz(j)-charge_center_cores(j)
-                  if (i==j) then
-                     delta_term = tt
-                  else
-                     delta_term=0.d0
-                  end if
-                  quadropole_el(j,i) = quadropole_el(j,i) + q*(3.d0*rj*ri-delta_term)
-               end do
-            end do
-         end do
-      end do
+!!$      call f_zero(quadropole_cores)!(1:3,1:3)=0._gp
+!!$      do iat=1,at%astruct%nat
+!!$         q=at%nelpsp(at%astruct%iatype(iat))
+!!$         tmpdip=rxyz(:,iat)-charge_center_cores
+!!$         tt=square_gd(dpbox%mesh,tmpdip)
+!!$          do i=1,3
+!!$             ri=rxyz(i,iat)-charge_center_cores(i)
+!!$             do j=1,3
+!!$                rj=rxyz(j,iat)-charge_center_cores(j)
+!!$                if (i==j) then
+!!$                   delta_term = tt
+!!$                else
+!!$                   delta_term=0.d0
+!!$                end if
+!!$                quadropole_cores(j,i) = quadropole_cores(j,i) + q*(3.d0*rj*ri-delta_term)
+!!$             end do
+!!$          end do
+!!$       end do
+
+!!$     call f_zero(quadropole_el)
+!!$      do ispin=1,nspin
+!!$         do while(box_next_point(dpbox%bitp))
+!!$            q= - rho(dpbox%bitp%i,dpbox%bitp%j,dpbox%bitp%k-dpbox%bitp%i3s+1,ispin) *dpbox%mesh%volume_element
+!!$            tmpdip=dpbox%bitp%rxyz-charge_center_cores
+!!$            tt=square_gd(dpbox%mesh,tmpdip)
+!!$            do i=1,3
+!!$               ri=dpbox%bitp%rxyz(i)-charge_center_cores(i)
+!!$               do j=1,3
+!!$                  rj=dpbox%bitp%rxyz(j)-charge_center_cores(j)
+!!$                  if (i==j) then
+!!$                     delta_term = tt
+!!$                  else
+!!$                     delta_term=0.d0
+!!$                  end if
+!!$                  quadropole_el(j,i) = quadropole_el(j,i) + q*(3.d0*rj*ri-delta_term)
+!!$               end do
+!!$            end do
+!!$         end do
+!!$      end do
+
+      quadropole_el=-get_quadrupole(mp_electrons)
 
       call fmpi_allreduce(quadropole_el, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
       tmpquadrop=quadropole_cores+quadropole_el
@@ -4479,6 +4513,9 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
       end if
 
   end if quadrupole_if
+
+  call f_multipoles_release(mp_cores)
+  call f_multipoles_release(mp_electrons)
 
   tmpdip=dipole_el !dipole_cores+ !should not be needed as it is now in  if (present(dipole)) dipole(1:3) = tmpdip(1:3)
   if(bigdft_mpi%iproc==0 .and. .not.quiet) then
@@ -5925,7 +5962,6 @@ end subroutine calculate_rpowerx_matrices
 
       ! Local variables
       integer :: iat_old, iorb, iat, ii, ilr, itype, l, m, mm
-      integer,dimension(:),allocatable :: iatype_tmp
       real(kind=8),dimension(:,:),allocatable :: delta_centers
       character(len=20),dimension(:),allocatable :: names
       type(external_potential_descriptors) :: ep
@@ -5934,7 +5970,6 @@ end subroutine calculate_rpowerx_matrices
 
       call yaml_sequence_open('Gross support functions moments')
       call yaml_map('Orthonormalization',do_ortho)
-      iatype_tmp = f_malloc(tmb%orbs%norb,id='iatype_tmp')
       delta_centers = f_malloc((/3,tmb%orbs%norb/),id='delta_centers')
       iat_old = -1
       names = f_malloc_str(len(names),tmb%orbs%norb,id='names')
@@ -5944,52 +5979,183 @@ end subroutine calculate_rpowerx_matrices
       allocate(ep%mpl(ep%nmpl))
 
       do iorb=1,tmb%orbs%norb
-          iat = tmb%orbs%onwhichatom(iorb)
-          if (iat/=iat_old) then
-              ii = 1
-          else
-              ii = ii + 1
-          end if
-          iat_old = iat
-          ilr = tmb%orbs%inwhichlocreg(iorb)
-          itype = atoms%astruct%iatype(iat)
-          iatype_tmp(iorb) = itype
-          names(iorb) = trim(atoms%astruct%atomnames(itype))//'-'//adjustl(trim(yaml_toa(ii)))
-          ! delta_centers gives the difference between the charge center and the localization center
-          delta_centers(1:3,iorb) = center_locreg(1:3,ilr) - tmb%lzd%llr(ilr)%locregcenter(1:3)
-          !write(*,*) 'iorb, ilr, center_locreg(1:3,ilr) - tmb%lzd%llr(ilr)%locregcenter(1:3)', &
-          !           iorb, ilr, center_locreg(1:3,ilr) - tmb%lzd%llr(ilr)%locregcenter(1:3)
-          !write(*,*) 'iorb, delta_centers(1:3,iorb)', iorb, delta_centers(1:3,iorb)
-          ! Undo the global shift of the centers
-          center_orb(1:3,iorb) = center_orb(1:3,iorb) + shift(1:3)
-
-          ep%mpl(iorb) = multipole_set_null()
-          allocate(ep%mpl(iorb)%qlm(0:lmax))
-          ep%mpl(iorb)%rxyz = center_orb(1:3,iorb)
-          ep%mpl(iorb)%sym = trim(names(iorb))
-          ep%mpl(iorb)%mpchar = 'G'
-          do l=0,lmax
-              ep%mpl(iorb)%qlm(l) = multipole_null()
-              !if (l>=3) cycle
-              ep%mpl(iorb)%qlm(l)%q = f_malloc_ptr(2*l+1,id='q')
-              mm = 0
-              do m=-l,l
-                  mm = mm + 1
-                  ep%mpl(iorb)%qlm(l)%q(mm) = multipoles(m,l,iorb)
-              end do
-          end do
+         call prepare_multipole_object(iorb, tmb, atoms, center_locreg, center_orb, &
+              lmax, shift, multipoles, names, delta_centers, iat_old, ep)
       end do
       call write_multipoles_new(ep, lmax, atoms%astruct%units, &
            delta_centers, tmb%orbs%onwhichatom, scaled)
       call deallocate_external_potential_descriptors(ep)
       call f_free(delta_centers)
-      call f_free(iatype_tmp)
       call f_free_str(len(names),names)
 
       call yaml_sequence_close()
 
       call f_release_routine()
 
+
+
+
     end subroutine write_support_functions_multipoles
+
+
+
+    ! This subroutine only exists for the timing...
+    subroutine prepare_multipole_object(iorb, tmb, atoms, center_locreg, center_orb, &
+               lmax, shift, multipoles, names, delta_centers, iat_old, ep)
+      use module_types, only: DFT_wavefunction, atoms_data
+      use multipole_base, only: external_potential_descriptors, multipole_set_null, multipole_null
+      implicit none
+
+      ! Calling arguments
+      type(DFT_wavefunction),intent(in) :: tmb
+      type(atoms_data),intent(in) :: atoms
+      real(kind=8),dimension(3,tmb%lzd%nlr),intent(in) :: center_locreg
+      real(kind=8),dimension(3,tmb%lzd%nlr),intent(inout) :: center_orb
+      integer,intent(in) :: lmax
+      real(kind=8),dimension(3),intent(in) :: shift !< global shift of the atomic positions
+      real(kind=8),dimension(-lmax:lmax,0:lmax,1:tmb%orbs%norb),intent(in) :: multipoles
+      character(len=*),dimension(tmb%orbs%norb),intent(inout) :: names
+      real(kind=8),dimension(3,tmb%orbs%norb),intent(inout) :: delta_centers
+      integer,intent(inout) :: iat_old
+      type(external_potential_descriptors),intent(inout) :: ep
+
+      integer :: iorb, iat, ii, ilr, itype, l, m, mm
+
+      call f_routine(id='prepare_multipole_object')
+
+      iat = tmb%orbs%onwhichatom(iorb)
+      if (iat/=iat_old) then
+          ii = 1
+      else
+          ii = ii + 1
+      end if
+      iat_old = iat
+      ilr = tmb%orbs%inwhichlocreg(iorb)
+      itype = atoms%astruct%iatype(iat)
+      names(iorb) = trim(atoms%astruct%atomnames(itype))//'-'//adjustl(trim(yaml_toa(ii)))
+      ! delta_centers gives the difference between the charge center and the localization center
+      delta_centers(1:3,iorb) = center_locreg(1:3,ilr) - tmb%lzd%llr(ilr)%locregcenter(1:3)
+      !write(*,*) 'iorb, ilr, center_locreg(1:3,ilr) - tmb%lzd%llr(ilr)%locregcenter(1:3)', &
+      !           iorb, ilr, center_locreg(1:3,ilr) - tmb%lzd%llr(ilr)%locregcenter(1:3)
+      !write(*,*) 'iorb, delta_centers(1:3,iorb)', iorb, delta_centers(1:3,iorb)
+      ! Undo the global shift of the centers
+      center_orb(1:3,iorb) = center_orb(1:3,iorb) + shift(1:3)
+
+      ep%mpl(iorb) = multipole_set_null()
+      allocate(ep%mpl(iorb)%qlm(0:lmax))
+      ep%mpl(iorb)%rxyz = center_orb(1:3,iorb)
+      ep%mpl(iorb)%sym = trim(names(iorb))
+      ep%mpl(iorb)%mpchar = 'G'
+      do l=0,lmax
+          ep%mpl(iorb)%qlm(l) = multipole_null()
+          !if (l>=3) cycle
+          ep%mpl(iorb)%qlm(l)%q = f_malloc_ptr(2*l+1,id='q')
+          mm = 0
+          do m=-l,l
+              mm = mm + 1
+              ep%mpl(iorb)%qlm(l)%q(mm) = multipoles(m,l,iorb)
+          end do
+      end do
+
+      call f_release_routine()
+
+    end subroutine prepare_multipole_object
+
+
+    subroutine calculate_and_write_multipole_matrices(iproc, nproc, nphi, nphir, lphi, hgrids, &
+               orbs, collcom, lzd, smmd, smats, auxs, rxyz, shift, centers_auto, filename, &
+               write_multipole_matrices_mode, multipole_centers)
+      use module_types, only: orbitals_data, comms_linear, local_zone_descriptors, linmat_auxiliary
+      use sparsematrix_base, only: sparse_matrix, matrices, assignment(=), matrices_null, &
+                                   sparsematrix_malloc_ptr, SPARSE_TASKGROUP, sparse_matrix_metadata, &
+                                   deallocate_matrices
+      use sparsematrix_io, only: write_sparse_matrix
+      use io, only: get_sparse_matrix_format
+      implicit none
+
+      ! Calling arguments
+      integer,intent(in) :: iproc, nproc
+      integer,intent(in),optional :: nphi, nphir
+      real(kind=8),dimension(:),intent(in),optional :: lphi
+      real(kind=8),dimension(3),intent(in),optional :: hgrids
+      type(orbitals_data),intent(in),optional :: orbs
+      type(comms_linear),intent(in),optional :: collcom
+      type(local_zone_descriptors),intent(in),optional :: lzd
+      type(sparse_matrix_metadata),intent(in) :: smmd
+      type(sparse_matrix),intent(in) :: smats
+      type(linmat_auxiliary),intent(in),optional :: auxs
+      real(kind=8),dimension(3,smmd%nat),intent(in) :: rxyz
+      real(kind=8),dimension(3),intent(in),optional :: shift
+      logical,intent(in) :: centers_auto
+      character(len=*),intent(in) :: filename
+      integer,intent(in) :: write_multipole_matrices_mode
+      real(kind=8),dimension(:,:),target,intent(in),optional :: multipole_centers
+
+      ! Local variables
+      integer :: iat, ilr, iilr, l, m
+      type(matrices) :: multipole_matrix
+      real(kind=8),dimension(:,:),pointer :: mp_centers
+      integer,dimension(:),allocatable :: inwhichlocreg_reverse
+      real(kind=8),dimension(:,:),allocatable :: locregcenter
+      character(len=14) :: matname
+      character(len=128) :: sparse_format
+      character(len=2) :: lname, mname
+
+      if (.not.centers_auto) then
+          if (.not.present(multipole_centers)) then
+              call f_err_throw("'multipole_centers' must be present if 'centers_auto' is true")
+          end if
+          if (size(multipole_centers,1)/=3) then
+              call f_err_throw('wrong 1st dimension of array multipole_centers')
+          end if
+          if (size(multipole_centers,2)/=smmd%nat) then
+              call f_err_throw('wrong 2nd dimension of array multipole_centers')
+          end if
+      end if
+
+      locregcenter = f_malloc((/3,lzd%nlr/),id='locregcenter')
+
+      if (centers_auto) then
+          mp_centers => smmd%rxyz
+      else
+          mp_centers => multipole_centers
+      end if
+
+      inwhichlocreg_reverse = f_malloc(lzd%nlr,id='inwhichlocreg_reverse')
+      do ilr=1,lzd%nlr
+          iilr = orbs%inwhichlocreg(ilr)
+          inwhichlocreg_reverse(iilr) = ilr
+      end do
+      do ilr=1,lzd%nlr
+          iilr = inwhichlocreg_reverse(ilr)
+          iat = smmd%on_which_atom(iilr)
+          locregcenter(1:3,ilr) = mp_centers(1:3,iat) -shift(1:3)
+      end do
+      call f_free(inwhichlocreg_reverse)
+
+      multipole_matrix = matrices_null()
+      multipole_matrix%matrix_compr = sparsematrix_malloc_ptr(smats, SPARSE_TASKGROUP, id='multipole_matrix%matrix_compr')
+
+      do l=0,lmax
+          do m=-l,l
+              call f_zero(multipole_matrix%matrix_compr)
+              ! Calculate the multipole matrix
+              call calculate_multipole_matrix(iproc, nproc, l, m, nphi, lphi, lphi, nphir, hgrids, &
+                   orbs, collcom, lzd, smmd, smats, auxs, locregcenter, 'box', multipole_matrix) 
+              ! Write the multipole matrix
+              call get_sparse_matrix_format(write_multipole_matrices_mode, sparse_format)
+              write(lname,'(i0)') l
+              write(mname,'(i0)') m
+              matname = 'mpmat_'//trim(lname)//'_'//trim(mname)
+              call write_sparse_matrix(sparse_format, iproc, nproc, bigdft_mpi%mpi_comm, &
+                   smats, multipole_matrix, &
+                   filename=trim(filename//matname))
+           end do
+       end do
+
+      call f_free(locregcenter)
+      call deallocate_matrices(multipole_matrix)
+
+   end subroutine calculate_and_write_multipole_matrices
 
 end module multipole

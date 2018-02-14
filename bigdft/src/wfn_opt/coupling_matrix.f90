@@ -49,6 +49,7 @@ subroutine calculate_coupling_matrix(iproc,nproc,dir_output,boxit,tddft_approach
   use Poisson_Solver, except_dp => dp, except_gp => gp
   use yaml_output
   use box
+  use f_harmonics
   implicit none
   character(len=4), intent(in) :: tddft_approach
   character(len=*), intent(in) :: dir_output
@@ -66,8 +67,10 @@ subroutine calculate_coupling_matrix(iproc,nproc,dir_output,boxit,tddft_approach
   integer :: nmulti,ndipoles,iap,ibq,nalphap,istep
   real(wp) :: eap,ebq,krpa,kfxc,q,rho_bq,kfxc_od
   type(f_progress_bar) :: bar
+  type(f_multipoles) :: mp
   integer, dimension(:,:), allocatable :: transitions
-  real(wp), dimension(:,:), allocatable :: Kaux,dipoles
+  real(wp), dimension(:,:), allocatable :: Kaux!,dipoles
+  real(wp), dimension(:,:), allocatable :: transition_quantities
   real(wp), dimension(:,:), pointer :: Kbig,K
   real(wp), dimension(:), allocatable :: v_ias
   real(wp), dimension(:), allocatable :: rho_ias
@@ -89,7 +92,8 @@ subroutine calculate_coupling_matrix(iproc,nproc,dir_output,boxit,tddft_approach
   v_ias = f_malloc(ndimp,id='v_ias')
 
   !Allocation of dipoles (computed in order to get the oscillator strength)
-  dipoles = f_malloc0([3, ndipoles],id='dipoles')
+  !dipoles = f_malloc0([3, ndipoles],id='dipoles')
+  transition_quantities = f_malloc0([10, ndipoles],id='transition_quantities')
   K = f_malloc0_ptr([nmulti, nmulti],id='K')
   !For nspin=1, define an auxiliary matrix for spin-off-diagonal terms.
   if (nspin==1) Kaux = f_malloc0([nmulti, nmulti],id='Kaux')
@@ -107,19 +111,23 @@ subroutine calculate_coupling_matrix(iproc,nproc,dir_output,boxit,tddft_approach
        ispin=transitions(SPIN_,iap)
        eap=orbsvirt%eval(ialpha)-orbsocc%eval(ip)
 
+       call f_multipoles_create(mp,2,center=center_of_charge)
        !extraction of the coefficients d_i
        do while(box_next_point(boxit))
          !fill the rho_ias array
          rho_ias(boxit%ind)=psirocc(boxit%ind,ip)*psivirtr(boxit%ind,ialpha)/boxit%mesh%volume_element
          q=rho_ias(boxit%ind)
          boxit%tmp=boxit%rxyz-center_of_charge
-         dipoles(:,iap)=dipoles(:,iap)+boxit%tmp*q
+         !dipoles(:,iap)=dipoles(:,iap)+boxit%tmp*q
+         call f_multipoles_accumulate(mp,boxit%rxyz,q*boxit%mesh%volume_element)
        end do
-       dipoles(:,iap)=sqrt(eap)*dipoles(:,iap)*boxit%mesh%volume_element
+       transition_quantities(:,iap)=mp%monomials
+       transition_quantities(1,iap)=sqrt(eap)
+       call f_multipoles_release(mp)
+       !dipoles(:,iap)=sqrt(eap)*dipoles(:,iap)*boxit%mesh%volume_element
 
        !for every rho iap  calculate the corresponding potential
        !copy the transition  density in the inout structure
-       !call f_memcpy(n=ndimp,src=rho_ias(1,iap),dest=v_ias(1))
        call f_memcpy(src=rho_ias,dest=v_ias)
        call Electrostatic_Solver(pkernel,v_ias)
 
@@ -186,7 +194,9 @@ subroutine calculate_coupling_matrix(iproc,nproc,dir_output,boxit,tddft_approach
   if (nproc > 1) then
      call fmpi_allreduce(K,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
      if (nspin ==1) call fmpi_allreduce(Kaux,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
-     call fmpi_allreduce(dipoles(1,1),3*nmulti,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
+     !call fmpi_allreduce(dipoles(1,1),3*nmulti,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
+     call fmpi_allreduce(transition_quantities(1,1),10*nmulti,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
+
   end if
 
 
@@ -231,7 +241,9 @@ subroutine calculate_coupling_matrix(iproc,nproc,dir_output,boxit,tddft_approach
         end do
      end do
      !Copy the values of the dipoles in the second part of the array
-     call f_memcpy(n=3*nmulti,src=dipoles(1,1),dest=dipoles(1,nmulti+1))
+     !call f_memcpy(n=3*nmulti,src=dipoles(1,1),dest=dipoles(1,nmulti+1))
+     call f_memcpy(n=10*nmulti,src=transition_quantities(1,1),&
+          dest=transition_quantities(1,nmulti+1))
   else
     Kbig=>K
   end if
@@ -239,12 +251,14 @@ subroutine calculate_coupling_matrix(iproc,nproc,dir_output,boxit,tddft_approach
   !here the matrix can be written on disk, together with the transition dipoles
   if (iproc==0) then
      call f_savetxt(dir_output//'coupling_matrix.txt',Kbig)
-     call f_savetxt(dir_output//'transition_dipoles.txt',dipoles)
+     !call f_savetxt(dir_output//'transition_dipoles.txt',dipoles)
+     call f_savetxt(dir_output//'transition_quantities.txt',transition_quantities)
   end if
 
   !Deallocations
   call f_free_ptr(K)
-  call f_free(dipoles)
+  !call f_free(dipoles)
+  call f_free(transition_quantities)
   call f_free(transitions)
   if (nspin ==1 ) then
      call f_free(Kaux)

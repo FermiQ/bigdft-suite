@@ -1251,7 +1251,8 @@ module sparsematrix
      real(kind=mp),dimension(smat%smmm%nseq),intent(out) :: a_seq
    
      ! Local variables
-     integer :: iseq, ii
+     integer :: ii
+     integer(kind=8) :: iseq
 
      call f_routine(id='sequential_acces_matrix_fast')
 
@@ -1282,7 +1283,8 @@ module sparsematrix
      real(kind=mp),dimension(smat%smmm%nseq),intent(out) :: a_seq
    
      ! Local variables
-     integer :: iseq, ii
+     integer :: ii
+     integer(kind=8) :: iseq
 
      call f_routine(id='sequential_acces_matrix_fast2')
 

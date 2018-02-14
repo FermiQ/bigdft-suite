@@ -3027,26 +3027,26 @@ metals_variable:
   EH: 3.6e-5
   EXC: 5.2e-6
   Ekin: 2.5e-6
-  Energy (Hartree): 5.9e-5
+  Energy (Hartree): 6.0e-5
   Enl: 1.7e-6
-  Epot: 1.7e-5
-  EvXC: 6.7e-6
+  Epot: 1.8e-5
+  EvXC: 6.8e-6
   Force Norm (Hartree/Bohr): 2.9e-6
-  HOMO energy: 9.8e-07
-  HOMO-LUMO gap (Ha): 1.2e-8
-  HOMO-LUMO gap (eV): 3.2e-7
-  LUMO energy: 9.9e-07
+  HOMO energy: 9.9e-07
+  HOMO-LUMO gap (Ha): 9.9e-7
+  HOMO-LUMO gap (eV): 1.0e-6
+  LUMO energy: 1.0e-06
   Total charge: 3.8e-10
   Tr(K): 1.7e-3
   difference: 1.3e-6
   eF: 1.4e-6
   eTS: 2.4e-8
   TS: 2.4e-8
-  energy: 5.9e-5
+  energy: 6.0e-5
   exp accur: 4.1e-8
   q0: 4.1e-6
   q1: 3.6e-6
-  q2: 7.1e-6
+  q2: 8.1e-6
   relative difference: 1.5e-7
   total charge correction: 1.8e-8
   trace: 6.6e-11
@@ -3054,7 +3054,7 @@ metals_variable:
   trace(KS): 3.8e-10
   trace(Ktilde): 3.8e-10
   Clean forces norm (Ha/Bohr): 1.7e-6
-  Raw forces norm (Ha/Bohr): 7.8e-6
+  Raw forces norm (Ha/Bohr): 8.3e-6
   Average noise forces: 2.1e-6
   Atomic Forces (Ha/Bohr): 2.2e-6
   Omega: 1.9e-6
@@ -3065,7 +3065,6 @@ metals_variable:
   number of corrected points: 29.0
   Average noise forces: 2.2e-6
   Clean forces norm (Ha/Bohr): 3.3e-6
-  Raw forces norm (Ha/Bohr): 8.2e-6
   Force Norm (Hartree/Bohr): 2.9e-6
   Atomic Forces (Ha/Bohr): 2.3e-6
 

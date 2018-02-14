@@ -1,6 +1,6 @@
 !> @file
 !!  Routines to do diagonalisation with Davidson algorithm
-!! @author
+! @author
 !!    Copyright (C) 2007-2015 BigDFT group
 !!    This file is distributed under the terms of the
 !!    GNU General Public License, see ~/COPYING file
@@ -2352,7 +2352,7 @@ subroutine evaluate_completeness_relation(ob_occ,ob_virt,ob_prime,hpsiprime,h2ps
       character(len=3) :: spinstr
 
       if (nspin==1) then
-         spinstr=' '
+         spinstr='   '
       else if (ispin==1) then
          spinstr='-up'
       else if (ispin==2) then

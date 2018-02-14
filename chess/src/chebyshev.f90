@@ -90,28 +90,30 @@ module chebyshev
       end if
 
       if (resume) then
-          do ipl=npl_resume,npl
-              !!write(*,*) 'ipl', ipl
-              call sparsemm_new(iproc, kernel, mat_seq, vectors_new(1,1), vectors_new(1,2))
-              !!write(*,*) 'after sparsemm_new'
-              call axbyz_kernel_vectors_new(kernel, 2.d0, vectors_new(1,2), -1.d0, vectors_new(1,4), vectors_new(1,3))
-              !!write(*,*) 'after axbyz_kernel_vectors_new'
-              call compress_polynomial_vector_new(iproc, nproc, nsize_polynomial, &
-                   kernel%nfvctr, kernel%smmm%nfvctrp, kernel, &
-                   vectors_new(1,3), chebyshev_polynomials(1,ipl))
-              !!write(*,*) 'after compress_polynomial_vector_new'
-              do icalc=1,ncalc
-                  !write(*,*) 'ipl, sum(vectors_new(:,3))', ipl, sum(vectors_new(:,3))
-                  call axpy(kernel%smmm%nvctrp, cc(ipl,1,icalc), vectors_new(1,3), 1, fermi_new(1,icalc), 1)
-                  !write(*,*) 'after axpy'
+          if (kernel%smmm%nvctrp>0) then
+              do ipl=npl_resume,npl
+                  !!write(*,*) 'ipl', ipl
+                  call sparsemm_new(iproc, kernel, mat_seq, vectors_new(1,1), vectors_new(1,2))
+                  !!write(*,*) 'after sparsemm_new'
+                  call axbyz_kernel_vectors_new(kernel, 2.d0, vectors_new(1,2), -1.d0, vectors_new(1,4), vectors_new(1,3))
+                  !!write(*,*) 'after axbyz_kernel_vectors_new'
+                  call compress_polynomial_vector_new(iproc, nproc, nsize_polynomial, &
+                       kernel%nfvctr, kernel%smmm%nfvctrp, kernel, &
+                       vectors_new(1,3), chebyshev_polynomials(1,ipl))
+                  !!write(*,*) 'after compress_polynomial_vector_new'
+                  do icalc=1,ncalc
+                      !write(*,*) 'ipl, sum(vectors_new(:,3))', ipl, sum(vectors_new(:,3))
+                      call axpy(kernel%smmm%nvctrp, cc(ipl,1,icalc), vectors_new(1,3), 1, fermi_new(1,icalc), 1)
+                      !write(*,*) 'after axpy'
+                  end do
+                  call axpy(kernel%smmm%nvctrp, cc(ipl,2,1), vectors_new(1,3), 1, penalty_ev_new(1), 1)
+                  !!write(*,*) 'after axpy'
+                  call vcopy(kernel%smmm%nvctrp, vectors_new(1,1), 1, vectors_new(1,4), 1)
+                  !!write(*,*) 'after vcopy'
+                  call vcopy(kernel%smmm%nvctrp, vectors_new(1,3), 1, vectors_new(1,1), 1)
+                  !!write(*,*) 'after vcopy'
               end do
-              call axpy(kernel%smmm%nvctrp, cc(ipl,2,1), vectors_new(1,3), 1, penalty_ev_new(1), 1)
-              !!write(*,*) 'after axpy'
-              call vcopy(kernel%smmm%nvctrp, vectors_new(1,1), 1, vectors_new(1,4), 1)
-              !!write(*,*) 'after vcopy'
-              call vcopy(kernel%smmm%nvctrp, vectors_new(1,3), 1, vectors_new(1,1), 1)
-              !!write(*,*) 'after vcopy'
-          end do
+          end if
           call f_release_routine()
           return
       end if

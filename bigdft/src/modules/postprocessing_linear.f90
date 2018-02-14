@@ -858,7 +858,8 @@ module postprocessing_linear
       type(orbitals_data) :: orbs, orbs_ks
       type(comms_cubic) :: comms, comms_ks
       integer :: infoCoeff, nvctrp, npsidim_global, iorb, istat, ist, nsize, norb_ks, ilr, jst, iiorb, jorb, npsidim_local
-      real(kind=8),dimension(:),pointer :: phi_global, phiwork_global, psi_global
+      integer :: is, ie
+      real(kind=8),dimension(:),pointer :: phi_global, phiwork_global, psi_global, psi_global_local
       character(len=*),parameter :: subname='build_ks_orbitals_postprocessing'
       integer,dimension(:,:),allocatable :: ioffset_isf
       character(len=256) :: filename
@@ -948,6 +949,12 @@ module postprocessing_linear
 !!    
 !!      call f_free_ptr(phi_global)
     
+
+      psi_global_local = f_malloc_ptr(orbs_ks%norbp*npsidim_global,id='psi_global_local')
+      is = orbs_ks%isorb*npsidim_global+1
+      ie = (orbs_ks%isorb+orbs_ks%norbp)*npsidim_global
+      call f_memcpy(src=psi_global(is:ie), dest=psi_global_local)
+      call f_free_ptr(psi_global)
     
       !!write(*,*) 'iproc, input%output_wf_format',iproc, WF_FORMAT_PLAIN
       orbs_ks%eval = f_malloc0_ptr(orbs_ks%norb,id='orbs%eval')
@@ -960,7 +967,7 @@ module postprocessing_linear
       call writemywaves(iproc,trim(filename), WF_FORMAT_PLAIN, &
            orbs_ks, lzd%glr%d%n1, lzd%glr%d%n2, lzd%glr%d%n3, &
            lzd%hgrids(1), lzd%hgrids(2), lzd%hgrids(3), &
-           at, rxyz, lzd%glr%wfd, psi_global, iorb_shift=istart_ks-1)
+           at, rxyz, lzd%glr%wfd, psi_global_local, iorb_shift=istart_ks-1)
 
       !!lzd_global = local_zone_descriptors_null()
       !!allocate(lzd_global%llr(orbs%norb),stat=istat)
@@ -976,7 +983,7 @@ module postprocessing_linear
 !!           iorb_shift=istart_ks-1, in_which_locreg=in_which_locreg)
       call write_orbital_density(iproc, .false., 1, &
            trim(filename), &
-           orbs_ks%norb*npsidim_global, psi_global,  orbs_ks, lzd, at, rxyz, .true., &
+           orbs_ks%norbp*npsidim_global, psi_global_local,  orbs_ks, lzd, at, rxyz, .true., &
            iorb_shift=istart_ks-1, in_which_locreg=in_which_locreg)
     
 !!!      if (input%write_orbitals==2) then
@@ -1007,7 +1014,8 @@ module postprocessing_linear
     
     
 !!       call f_free_ptr(phiwork_global)
-       call f_free_ptr(psi_global)
+       !call f_free_ptr(psi_global)
+       call f_free_ptr(psi_global_local)
        call deallocate_orbitals_data(orbs)
        call deallocate_comms_cubic(comms)
        call deallocate_orbitals_data(orbs_ks)

@@ -1219,6 +1219,8 @@ contains
       real(gp), dimension(:,:), pointer :: rxyz_
       character(len=len(astruct%inputfile_format)) :: formt
 
+      call f_routine(id='astruct_dump_to_file')
+
       energy_=0.0_gp
       if (present(energy)) energy_ = energy
       rxyz_ => astruct%rxyz
@@ -1280,11 +1282,15 @@ contains
             call addToCompress(trim(arFile), len(trim(arFile)), trim(fname), len(trim(fname)))
          end if
       end if
+
+      call f_release_routine()
+
     END SUBROUTINE astruct_dump_to_file
 
 
     !> Convert astruct to dictionary for later dump.
     subroutine astruct_merge_to_dict(dict, astruct, rxyz, comment)
+      use dynamic_memory
       use module_defs, only: gp, UNINITIALIZED
       use numerics, only: Bohr_Ang
       use dictionaries
@@ -1305,6 +1311,8 @@ contains
       logical, dimension(3) :: peri
       logical :: reduced
       character(len = 4) :: frzstr
+
+      call f_routine(id='astruct_merge_to_dict')
 
       !call dict_init(dict)
 
@@ -1409,12 +1417,15 @@ contains
       end if
 
       if (present(comment)) then
-         if (len_trim(comment) > 0) &
-              & call add(dict // ASTRUCT_PROPERTIES // "info", comment)
+         if (len_trim(comment) > 0) then
+             call add(dict // ASTRUCT_PROPERTIES // "info", comment)
+         end if
       end if
 
       if (len_trim(astruct%inputfile_format) > 0) &
            & call set(dict // ASTRUCT_PROPERTIES // "format", astruct%inputfile_format)
+
+      call f_release_routine()
 
     end subroutine astruct_merge_to_dict
 

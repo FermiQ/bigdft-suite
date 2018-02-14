@@ -41,6 +41,7 @@ module bigdft_matrices
                         
     
           call timing(iproc,'matrix_extents','ON')
+          call f_routine(id='check_local_matrix_extents')
           if (extra_timing) call cpu_time(trt0)  
 
           ind_min = smat%nvctr
@@ -53,6 +54,7 @@ module bigdft_matrices
           !call check_transposed_layout()
           !call get_modulo_array(smat%nfvctr, aux%mat_ind_compr2, moduloarray)
           !write(*,*) 'moduloarray',moduloarray
+          !write(1000+iproc,*) 'calling find_minmax_transposed'
           call find_minmax_transposed(aux%mat_ind_compr2,collcom,smat%nfvctr,ind_min,ind_max)
 
           !write(*,'(a,2i8)') 'after check_transposed_layout: ind_min, ind_max', ind_min, ind_max
@@ -78,6 +80,7 @@ module bigdft_matrices
     
           ! Now check the sumrho operations
           !call check_sumrho_layout()
+          !write(1000+iproc,*) 'calling check_sumrho_layout'
           call check_sumrho_layout(collcom_sr,smat%nfvctr,aux%mat_ind_compr2,ind_min,ind_max)
 
           !call f_free_ptr(moduloarray)
@@ -89,6 +92,7 @@ module bigdft_matrices
           !call check_ortho_inguess()
           !!call check_ortho_inguess(smat,ind_min,ind_max)
           !write(*,'(a,2i8)') 'after check_ortho_inguess: ind_min, ind_max', ind_min, ind_max
+          !write(1000+iproc,*) 'calling check_projector_charge_analysis'
           call check_projector_charge_analysis(iproc, nproc, smmd, smat, ind_min, ind_max)
           if (extra_timing) call cpu_time(tr1)
           if (extra_timing) time4=real(tr1-tr0,kind=8)        
@@ -142,17 +146,20 @@ module bigdft_matrices
           if (extra_timing) call cpu_time(trt1)  
           if (extra_timing) ttime=real(trt1-trt0,kind=8)  
 
+          !write(1000+iproc,*) 'calling check_orbital_matrix_distribution'
           call check_orbital_matrix_distribution(orbs, smat, ind_min, ind_max)
 
           if (extra_timing.and.iproc==0) print*,'matextent',time0,time1,time2,time3,time4,time5,&
                time0+time1+time2+time3+time4+time5,ttime
 
+          call f_release_routine()
           call timing(iproc,'matrix_extents','OF')    
     
     end subroutine check_local_matrix_extents
 
 
     subroutine find_minmax_transposed(mat_ind_compr2,collcom,nfvctr,ind_min,ind_max)
+      use futile
       use communications_base, only: comms_linear
       use module_types, only: matrixindex_in_compressed_fortransposed2
       implicit none
@@ -164,6 +171,8 @@ module bigdft_matrices
       integer, intent(inout) :: ind_min,ind_max
       !local variables
       integer :: ipt, ii, i0, i, i0i, iiorb, j, i0j, jjorb, ind, iorb, jorb, ia, ib
+
+      call f_routine(id='find_minmax_transposed')
 
       !$omp parallel default(none) &
       !$omp private(ipt,ii,i0,i,i0i,iiorb,iorb,j,i0j,jjorb,jorb,ind,ia,ib) &
@@ -229,6 +238,8 @@ module bigdft_matrices
       !$omp end do
       !$omp end parallel
 
+      call f_release_routine()
+
     end subroutine find_minmax_transposed
 
 
@@ -237,6 +248,7 @@ module bigdft_matrices
 
 
     subroutine check_sumrho_layout(collcom_sr,nfvctr,mat_ind_compr2,ind_min,ind_max)
+      use futile
       use communications_base, only: comms_linear
       use sparsematrix_init, only: matrixindex_in_compressed
       use module_types, only: matrixindex_in_compressed_fortransposed2
@@ -249,6 +261,8 @@ module bigdft_matrices
       integer, intent(inout) :: ind_min,ind_max
       !local variables
       integer :: ipt, ii, i0, i, iiorb, ind, iorb, ia, ib
+
+      call f_routine(id='check_sumrho_layout')
 
       !$omp parallel default(none) &
       !$omp private(ipt,ii,i0,iiorb,iorb,ind,i,ia,ib) &
@@ -273,6 +287,9 @@ module bigdft_matrices
       end do
       !$omp end do
       !$omp end parallel
+
+      call f_release_routine()
+
     end subroutine check_sumrho_layout
 
 
@@ -579,6 +596,8 @@ module bigdft_matrices
       type(sparse_matrix) :: smat_test
       integer,dimension(:,:),allocatable :: ind_minmax
 
+      call f_routine(id='init_bigdft_matrices')
+
       call sparse_matrix_metadata_init(atoms%astruct%geocode, atoms%astruct%cell_dim, orbs%norb, &
            atoms%astruct%nat, atoms%astruct%ntypes, atoms%astruct%units, &           
            atoms%nzatom, atoms%nelpsp, atoms%astruct%atomnames, atoms%astruct%iatype, &
@@ -588,7 +607,8 @@ module bigdft_matrices
       ! are always done with the linmat%smat(3) type.
       call init_sparse_matrix_wrapper(iproc, nproc, &
            in%nspin, orbs, lzd_s, atoms%astruct, &
-           in%store_index, init_matmul=.false., imode=1, smat=linmat%smat(1))
+           in%store_index, init_matmul=.false., matmul_optimize_load_balancing=.false., &
+           imode=1, smat=linmat%smat(1))
       call init_matrixindex_in_compressed_fortransposed(iproc, nproc, &
            collcom_s, collcom_m, collcom_s_sr, linmat%smat(1), &
            linmat%auxs)
@@ -597,7 +617,8 @@ module bigdft_matrices
       ! are always done with the linmat%smat(3) type.
       call init_sparse_matrix_wrapper(iproc, nproc, &
            in%nspin, orbs, lzd_m, atoms%astruct, &
-           in%store_index, init_matmul=.false., imode=1, smat=linmat%smat(2))
+           in%store_index, init_matmul=.false., matmul_optimize_load_balancing=.false., &
+           imode=1, smat=linmat%smat(2))
       call init_matrixindex_in_compressed_fortransposed(iproc, nproc, &
            collcom_s, collcom_m, collcom_s_sr, linmat%smat(2), &
            linmat%auxm)
@@ -609,18 +630,23 @@ module bigdft_matrices
       call check_kernel_cutoff(iproc, orbs, atoms, in%hamapp_radius_incr, lzd_s, only_check=.true.)
       call init_sparse_matrix_wrapper(iproc, nproc, &
            in%nspin, orbs, lzd_s, atoms%astruct, &
-           in%store_index, init_matmul=.true., imode=2, smat=linmat%smat(3), smat_ref=linmat%smat(2))
+           in%store_index, init_matmul=.true., matmul_optimize_load_balancing=in%cp%foe%matmul_optimize_load_balancing, &
+           imode=2, smat=linmat%smat(3), smat_ref=linmat%smat(2))
+      !write(1000+iproc,*) 'calling init_matrixindex_in_compressed_fortransposed'
       call init_matrixindex_in_compressed_fortransposed(iproc, nproc, &
            collcom_s, collcom_m, collcom_s_sr, linmat%smat(3), &
            linmat%auxl)
 
 
+      !write(1000+iproc,*) 'calling check_local_matrix_extents s'
       call check_local_matrix_extents(iproc, nproc, collcom_s, &
            collcom_s_sr, orbs, linmat%smmd, linmat%smat(1), linmat%auxs, &
            ind_min_s, ind_max_s)
+      !write(1000+iproc,*) 'calling check_local_matrix_extents m'
       call check_local_matrix_extents(iproc, nproc, collcom_m, &
            collcom_s_sr, orbs, linmat%smmd, linmat%smat(2), linmat%auxm, &
            ind_min_m, ind_max_m)
+      !write(1000+iproc,*) 'calling check_local_matrix_extents l'
       call check_local_matrix_extents(iproc, nproc, collcom_m, &
            collcom_s_sr, orbs, linmat%smmd, linmat%smat(3), linmat%auxl, &
            ind_min_l, ind_max_l)
@@ -629,9 +655,13 @@ module bigdft_matrices
       ind_minmax(1:2,1) = [ind_min_s,ind_max_s]
       ind_minmax(1:2,2) = [ind_min_m,ind_max_m]
       ind_minmax(1:2,3) = [ind_min_l,ind_max_l]
+      !write(1000+iproc,*) 'calling init_matrix_taskgroups_wrapper'
       call init_matrix_taskgroups_wrapper(iproc, nproc, bigdft_mpi%mpi_comm, in%enable_matrix_taskgroups, &
            3, linmat%smat, ind_minmax)
+      !write(1000+iproc,*) 'after init_matrix_taskgroups_wrapper'
       call f_free(ind_minmax)
+
+      call f_release_routine()
 
     end subroutine init_bigdft_matrices
 
@@ -708,6 +738,7 @@ module bigdft_matrices
 
 
     subroutine check_orbital_matrix_distribution(orbs, smat, ind_min, ind_max)
+      use futile
       use module_types, only: orbitals_data
       use sparsematrix_base, only: sparse_matrix
       implicit none
@@ -720,6 +751,7 @@ module bigdft_matrices
       ! Local variables
       integer :: iorb, ispin, iiorb, ishift, isegstart, isegend, iseg, i, ii
 
+      call f_routine(id='check_orbital_matrix_distribution')
 
       do iorb=orbs%isorb+1,orbs%isorb+orbs%norbp
           if (orbs%spinsgn(iorb)>0.d0) then
@@ -744,6 +776,8 @@ module bigdft_matrices
       end do
 
       !write(*,*) 'end sub: ind_min, ind_max', ind_min, ind_max
+
+      call f_release_routine()
 
     end subroutine check_orbital_matrix_distribution
 

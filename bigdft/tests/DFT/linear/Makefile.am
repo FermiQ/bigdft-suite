@@ -189,15 +189,37 @@ multipoles_periodic.out.post-out:
 	  --multipole_matrix_2_4=data-periodic/mpmat_2_2.txt \
 	  > test-multipoles_periodic-MP.out.yaml
 	$(abs_top_builddir)/src/bigdft-tool \
-      --action='kernel-purity' \
+      --action='solve-eigensystem' \
       --mpirun='$(run_parallel)' \
       --matrix_format='serial_text' \
       --metadata_file='data-periodic/sparsematrix_metadata.dat' \
+      --hamiltonian_file='data-periodic/hamiltonian_sparse.txt' \
       --overlap_file='data-periodic/overlap_sparse.txt' \
-      --kernel_file='data-periodic/density_kernel_sparse.txt' \
-      --kernel_matmul_file='data-periodic/density_kernel_sparse_matmul.txt' \
-      --fragment_file='frag.dat' \
-      > test-multipoles_periodic-PI.out.yaml
+      --eval_file='data-periodic/evals.txt' \
+      --coeff_file='data-periodic/coeffs.txt' \
+	  >> log-periodic.yaml
+	$(abs_top_builddir)/src/bigdft-tool \
+	  --action='fragment-multipoles' \
+	  --mpirun='$(run_parallel)' \
+	  --matrix_format='serial_text' \
+      --metadata_file=data-periodic/sparsematrix_metadata.dat \
+      --kernel_file=data-periodic/density_kernel_sparse.txt \
+      --kernel_matmul_file=data-periodic/density_kernel_sparse_matmul.txt \
+      --hamiltonian_file=data-periodic/hamiltonian_sparse.txt \
+      --overlap_file=data-periodic/overlap_sparse.txt \
+      --multipole_matrix_0_0=data-periodic/mpmat_0_0.txt \
+      --multipole_matrix_1_0=data-periodic/mpmat_1_-1.txt \
+      --multipole_matrix_1_1=data-periodic/mpmat_1_0.txt \
+      --multipole_matrix_1_2=data-periodic/mpmat_1_1.txt \
+      --multipole_matrix_2_0=data-periodic/mpmat_2_-2.txt \
+      --multipole_matrix_2_1=data-periodic/mpmat_2_-1.txt \
+      --multipole_matrix_2_2=data-periodic/mpmat_2_0.txt \
+      --multipole_matrix_2_3=data-periodic/mpmat_2_1.txt \
+      --multipole_matrix_2_4=data-periodic/mpmat_2_2.txt \
+	  --coeff_file=data-periodic/coeffs.txt \
+	  --fragment_file=frag.yaml \
+	  --orbital_file=orbital.yaml \
+	  >> log-periodic.yaml
 
 cleanup.out.post-out:
 	$(abs_top_builddir)/src/bigdft-tool \
@@ -239,7 +261,7 @@ cleanup.out.post-out:
       --multipole_matrix_2_2=data/mpmat_2_0.mpi \
       --multipole_matrix_2_3=data/mpmat_2_1.mpi \
       --multipole_matrix_2_4=data/mpmat_2_2.mpi \
-	  --orbital_kernel=-1 \
+	  --orbital_file=orbitals_all.yaml \
 	  >> log.yaml
 	$(abs_top_builddir)/src/bigdft-tool \
       --action=fragment-multipoles \
@@ -259,7 +281,7 @@ cleanup.out.post-out:
       --multipole_matrix_2_2=data/mpmat_2_0.mpi \
       --multipole_matrix_2_3=data/mpmat_2_1.mpi \
       --multipole_matrix_2_4=data/mpmat_2_2.mpi \
-	  --orbital_kernel=4 \
+	  --orbital_file=orbital45.yaml \
 	  --coeff_file=data/coeffs.mpi \
 	  >> log.yaml
 

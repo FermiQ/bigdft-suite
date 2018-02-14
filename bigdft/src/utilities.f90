@@ -57,7 +57,7 @@ program utilities
    character(len=30) :: tatonam, radical, colorname, linestart, lineend, cname, methodc
    character(len=1024) :: method_name, overlap_file, hamiltonian_file, kernel_file, coeff_file, pdos_file, metadata_file
    character(len=1024) :: line, cc, output_pdos, conversion, infile, outfile, iev_min_, iev_max_, fscale_, matrix_basis
-   character(len=1024) :: kernel_matmul_file, istart_ks_, iend_ks_, matrix_format, fragment_file, orbital_kernel_
+   character(len=1024) :: kernel_matmul_file, istart_ks_, iend_ks_, matrix_format, fragment_file, orbital_file
    character(len=1024),dimension(-lmax:lmax,0:lmax) :: multipoles_files
    logical :: multipole_analysis = .false.
    logical :: solve_eigensystem = .false.
@@ -72,7 +72,7 @@ program utilities
    integer :: nfvctr_m, nseg_m, nvctr_m
    integer :: nfvctr_l, nseg_l, nvctr_l
    !integer :: nfvctrp_l, isfvctr_l, nfvctrp_m, isfvctr_m, nfvctrp_s, isfvctr_s
-   integer :: iconv, iev, iev_min, iev_max, l, ll, m, orbital_kernel
+   integer :: iconv, iev, iev_min, iev_max, l, ll, m
    integer,dimension(:),pointer :: on_which_atom
    integer,dimension(:),pointer :: keyv_s, keyv_m, keyv_l, on_which_atom_s, on_which_atom_m, on_which_atom_l
    integer,dimension(:),pointer :: iatype, nzatom, nelpsp
@@ -301,8 +301,7 @@ program utilities
                 end do
             end do
             i_arg = i_arg + 1
-            call get_command_argument(i_arg, value = orbital_kernel_)
-            read(orbital_kernel_,fmt=*,iostat=ierr) orbital_kernel
+            call get_command_argument(i_arg, value = orbital_file)
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = coeff_file)
             calculate_fragment_multipoles = .true.
@@ -654,7 +653,7 @@ program utilities
    if (calculate_fragment_multipoles) then
        call calculate_fragment_multipoles_fn(bigdft_mpi%iproc, bigdft_mpi%nproc, bigdft_mpi%mpi_comm, &
             matrix_format, metadata_file, fragment_file, &
-            overlap_file, kernel_file, kernel_matmul_file, lmax, multipoles_files, orbital_kernel, coeff_file)
+            overlap_file, kernel_file, kernel_matmul_file, lmax, multipoles_files, orbital_file, coeff_file)
    end if
 
 

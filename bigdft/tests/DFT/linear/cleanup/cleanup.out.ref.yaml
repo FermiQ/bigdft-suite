@@ -1685,35 +1685,41 @@
  penalty:  4.2E-15, npl calculated:  110, ok:  [  Yes,  Yes ]}
  summary: {npl:  110, npl determined by: penalty, scale:  1.00E+00, 
  bounds:  [  0.500,  1.500 ], exp accur:  [  7.24E-14 ]}
- Fragment multipoles:
- - Atom IDs                            :  [  1 ]
-   Atom names                          :  [ O ]
-   Neutral fragment charge             :  6.000000E+00
-   Purity indicator                    : -1.424192E-01
-   q0                                  :  [ -6.762561E+00 ]
-   q1                                  :  [  1.45941E-01,  1.525267E-01, -2.478839E-01 ]
-   q2: [ 2.473529E-01,  3.217454E-01, -1.111588E-01,  2.122932E-01,  1.501183E-01]
- - Atom IDs                            :  [  2 ]
-   Atom names                          :  [ H ]
-   Neutral fragment charge             :  1.000000E+00
-   Purity indicator                    : -4.238760E-01
-   q0                                  :  [ -6.098104E-01 ]
-   q1                                  :  [  4.600343E-02,  3.200010E-02,  2.852390E-01 ]
-   q2: [-1.844626E-02,  2.295479E-02,  4.485482E-02, -9.594741E-03, -8.111706E-02]
- - Atom IDs                            :  [  3 ]
-   Atom names                          :  [ H ]
-   Neutral fragment charge             :  1.000000E+00
-   Purity indicator                    : -4.306609E-01
-   q0                                  :  [ -6.276048E-01 ]
-   q1                                  :  [ -2.193346E-01, -2.104483E-01, -2.870624E-02 ]
-   q2: [-2.249613E-03, -7.278905E-02, -3.488160E-02, -2.478008E-03,  6.393262E-02]
- - Atom IDs                            :  [  1,  2,  3 ]
-   Atom names                          :  [ O, H, H ]
-   Neutral fragment charge             :  8.000000E+00
-   Purity indicator                    : -2.555653E-06
-   q0                                  :  [ -7.99998E+00 ]
-   q1                                  :  [ -4.00088E-01, -4.212859E-01,  6.899258E-01 ]
-   q2: [ 1.714313E+00,  3.909242E+00, -1.151487E+00,  1.344809E+00,  1.587097E+00]
+ Orbital occupation:
+ - Orbital ID                          : -1
+   Fragment multipoles:
+   - 
+     Atom IDs                          :  [  1 ]
+     Atom names                        :  [ O ]
+     Neutral fragment charge           :  6.000000E+00
+     Purity indicator                  : -1.424192E-01
+     q0                                :  [ -6.762561E+00 ]
+     q1                                :  [  1.45941E-01,  1.525267E-01, -2.478839E-01 ]
+     q2: [ 2.473529E-01,  3.217454E-01, -1.111588E-01,  2.122932E-01,  1.501183E-01]
+   - 
+     Atom IDs                          :  [  2 ]
+     Atom names                        :  [ H ]
+     Neutral fragment charge           :  1.000000E+00
+     Purity indicator                  : -4.238760E-01
+     q0                                :  [ -6.098104E-01 ]
+     q1                                :  [  4.600343E-02,  3.200010E-02,  2.852390E-01 ]
+     q2: [-1.844626E-02,  2.295479E-02,  4.485482E-02, -9.594741E-03, -8.111706E-02]
+   - 
+     Atom IDs                          :  [  3 ]
+     Atom names                        :  [ H ]
+     Neutral fragment charge           :  1.000000E+00
+     Purity indicator                  : -4.306609E-01
+     q0                                :  [ -6.276048E-01 ]
+     q1                                :  [ -2.193346E-01, -2.104483E-01, -2.870624E-02 ]
+     q2: [-2.249613E-03, -7.278905E-02, -3.488160E-02, -2.478008E-03,  6.393262E-02]
+   - 
+     Atom IDs                          :  [  1,  2,  3 ]
+     Atom names                        :  [ O, H, H ]
+     Neutral fragment charge           :  8.000000E+00
+     Purity indicator                  : -2.555653E-06
+     q0                                :  [ -7.99998E+00 ]
+     q1                                :  [ -4.00088E-01, -4.212859E-01,  6.899258E-01 ]
+     q2: [ 1.714313E+00,  3.909242E+00, -1.151487E+00,  1.344809E+00,  1.587097E+00]
  Memory Consumption Report:
    Tot. No. of Allocations             :  668
    Tot. No. of Deallocations           :  668
@@ -1792,8 +1798,6 @@
      Maximal time                      :  9.54E-07
      Ideal time                        :  4.77E-07
      Unbalancing in %                  :  100.00
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/coeffs.mpi
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/coeffs.mpi
  Matrix properties:
    Overlap matrix:
      total elements                    :  36
@@ -1834,40 +1838,76 @@
  determine eigenvalue bounds:
  -  {npl:  110, npl penalty:  110, npl determined by: penalty, scale:  1.00E+00, 
  bounds:  [  0.500,  1.500 ], exp accur:  [  7.24E-14 ], 
- Load unbalancing: {Minimal time:  2.11E-02, Maximal time:  7.25E-02, 
-                      Ideal time:  4.68E-02, Unbalancing in %:  54.95}, 
+ Load unbalancing: {Minimal time:  2.24E-02, Maximal time:  2.83E-02, 
+                      Ideal time:  2.53E-02, Unbalancing in %:  11.68}, 
  penalty:  4.2E-15, npl calculated:  110, ok:  [  Yes,  Yes ]}
  summary: {npl:  110, npl determined by: penalty, scale:  1.00E+00, 
  bounds:  [  0.500,  1.500 ], exp accur:  [  7.24E-14 ]}
- Fragment multipoles:
- - Atom IDs                            :  [  1 ]
-   Atom names                          :  [ O ]
-   Neutral fragment charge             :  6.000000E+00
-   Purity indicator                    : -8.333333E-02
-   q0                                  :  [ -9.999782E-01 ]
-   q1                                  :  [ -3.132872E-02, -2.987713E-02,  4.829939E-02 ]
-   q2: [ 2.380401E-02,  7.968646E-01, -2.594269E-01, -3.852293E-02, 3.872968E-01]
- - Atom IDs                            :  [  2 ]
-   Atom names                          :  [ H ]
-   Neutral fragment charge             :  1.000000E+00
-   Purity indicator                    : -1.141008E-05
-   q0                                  :  [ -1.141015E-05 ]
-   q1                                  :  [  8.607692E-07,  5.987531E-07,  5.337102E-06 ]
-   q2: [-3.451476E-07,  4.295066E-07,  8.392776E-07, -1.795270E-07, -1.517780E-06]
- - Atom IDs                            :  [  3 ]
-   Atom names                          :  [ H ]
-   Neutral fragment charge             :  1.000000E+00
-   Purity indicator                    : -6.279697E-06
-   q0                                  :  [ -6.279716E-06 ]
-   q1                                  :  [ -2.194628E-06, -2.105713E-06, -2.872302E-07 ]
-   q2: [-2.250928E-08, -7.283161E-07, -3.490199E-07, -2.479456E-08,  6.396999E-07]
- - Atom IDs                            :  [  1,  2,  3 ]
-   Atom names                          :  [ O, H, H ]
-   Neutral fragment charge             :  8.000000E+00
-   Purity indicator                    : -6.250000E-02
-   q0                                  :  [ -9.999959E-01 ]
-   q1                                  :  [ -1.586733E-01, -1.667070E-01,  2.547906E-01 ]
-   q2: [ 2.823366E-04,  8.130610E-01, -2.648500E-01, -6.546319E-02,  3.995788E-01]
+ Orbital occupation:
+ - Orbital ID                          :  4
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/coeffs.mpi
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/coeffs.mpi
+   Fragment multipoles:
+   - Atom IDs                          :  [  1 ]
+     Atom names                        :  [ O ]
+     Neutral fragment charge           :  6.000000E+00
+     Purity indicator                  : -8.333333E-02
+     q0                                :  [ -9.999782E-01 ]
+     q1                                :  [ -3.132872E-02, -2.987713E-02,  4.829939E-02 ]
+     q2: [ 2.380401E-02,  7.968646E-01, -2.594269E-01, -3.852293E-02,  3.872968E-01]
+   - Atom IDs                          :  [  2 ]
+     Atom names                        :  [ H ]
+     Neutral fragment charge           :  1.000000E+00
+     Purity indicator                  : -1.141008E-05
+     q0                                :  [ -1.141015E-05 ]
+     q1                                :  [  8.607692E-07,  5.987531E-07,  5.337102E-06 ]
+     q2: [-3.451476E-07,  4.295066E-07,  8.392776E-07, -1.795270E-07, -1.517780E-06]
+   - Atom IDs                          :  [  3 ]
+     Atom names                        :  [ H ]
+     Neutral fragment charge           :  1.000000E+00
+     Purity indicator                  : -6.279697E-06
+     q0                                :  [ -6.279716E-06 ]
+     q1                                :  [ -2.194628E-06, -2.105713E-06, -2.872302E-07 ]
+     q2: [-2.250928E-08, -7.283161E-07, -3.490199E-07, -2.479456E-08,  6.396999E-07]
+   - Atom IDs                          :  [  1,  2,  3 ]
+     Atom names                        :  [ O, H, H ]
+     Neutral fragment charge           :  8.000000E+00
+     Purity indicator                  : -6.250000E-02
+     q0                                :  [ -9.999959E-01 ]
+     q1                                :  [ -1.586733E-01, -1.667070E-01,  2.547906E-01 ]
+     q2: [ 2.823366E-04,  8.130610E-01, -2.648500E-01, -6.546319E-02,  3.995788E-01]
+ - Orbital ID                          :  5
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/coeffs.mpi
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/coeffs.mpi
+   Fragment multipoles:
+   - Atom IDs                          :  [  1 ]
+     Atom names                        :  [ O ]
+     Neutral fragment charge           :  6.000000E+00
+     Purity indicator                  : -4.391440E-02
+     q0                                :  [ -3.122303E-01 ]
+     q1                                :  [ -7.792573E-02, -8.187381E-02,  1.284669E-01 ]
+     q2: [ 2.708155E-02, -7.625077E-02,  2.787470E-02,  3.499428E-02, -4.728582E-02]
+   - Atom IDs                          :  [  2 ]
+     Atom names                        :  [ H ]
+     Neutral fragment charge           :  1.000000E+00
+     Purity indicator                  : -2.986435E-01
+     q0                                :  [ -3.654033E-01 ]
+     q1                                :  [  2.756563E-02,  1.917472E-02,  1.709175E-01 ]
+     q2: [-1.105315E-02,  1.375470E-02,  2.687737E-02, -5.749247E-03, -4.860600E-02]
+   - Atom IDs                          :  [  3 ]
+     Atom names                        :  [ H ]
+     Neutral fragment charge           :  1.000000E+00
+     Purity indicator                  : -2.704055E-01
+     q0                                :  [ -3.223651E-01 ]
+     q1                                :  [ -1.126598E-01, -1.080954E-01, -1.474477E-02 ]
+     q2: [-1.155499E-03, -3.738763E-02, -1.791671E-02, -1.272813E-03,  3.283857E-02]
+   - Atom IDs                          :  [  1,  2,  3 ]
+     Atom names                        :  [ O, H, H ]
+     Neutral fragment charge           :  8.000000E+00
+     Purity indicator                  : -6.250000E-02
+     q0                                :  [ -9.999983E-01 ]
+     q1                                :  [  3.699973E-02,  4.368964E-02, -1.448958E-01 ]
+     q2: [ 1.303694E+00,  1.264990E+00, -4.045961E-01,  1.166013E+00,  4.966820E-01]
  Memory Consumption Report:
    Tot. No. of Allocations             :  674
    Tot. No. of Deallocations           :  673
