@@ -542,14 +542,14 @@ contains
       ! geometries
       select case(Glr%geocode)
       case('F')
-         isx=max(isx,Glr%ns1)
-         isy=max(isy,Glr%ns2)
-         isz=max(isz,Glr%ns3)
+         ! temporarily commented since it breaks the reformatting in some cases
+         !isx=max(isx,Glr%ns1)
+         !isy=max(isy,Glr%ns2)
+         !isz=max(isz,Glr%ns3)
 
-         iex=min(iex,Glr%ns1+Glr%d%n1)
-         iey=min(iey,Glr%ns2+Glr%d%n2)
-         iez=min(iez,Glr%ns3+Glr%d%n3)
-
+         !iex=min(iex,Glr%ns1+Glr%d%n1)
+         !iey=min(iey,Glr%ns2+Glr%d%n2)
+         !iez=min(iez,Glr%ns3+Glr%d%n3)
       case('S')
          ! Get starting and ending for x direction     
          if (iex - isx >= Glr%d%n1) then       
@@ -656,6 +656,9 @@ contains
 
       !assign outofzone
       lr%outofzone(:) = outofzone(:)
+
+! temporarily commented since it breaks the reformatting in some cases
+if (.false.) then
       ! Make sure that the extent of the interpolating functions grid for the
       ! locreg is not larger than the that of the global box.
       if (lr%d%n1i>Glr%d%n1i) then
@@ -682,7 +685,7 @@ contains
               & Reduce the localization radii or use the cubic scaling version',&
               & err_name='BIGDFT_RUNTIME_ERROR')
       end if
-
+end if
       call f_release_routine()
       
     end subroutine lr_box

@@ -945,7 +945,8 @@ subroutine tmb_overlap_onsite(iproc, nproc, imethod_overlap, at, tmb, rxyz)
 
              !!call f_free(psirold)
              !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-             call reformat_one_supportfunction(tmb%lzd%llr(ilr_tmp),tmb%lzd%llr(ilr),tmb%lzd%glr%mesh_coarse,&
+             call reformat_one_supportfunction(tmb%lzd%llr(ilr_tmp),tmb%lzd%llr(ilr),&
+                  tmb%lzd%glr%mesh_coarse,tmb%lzd%glr%mesh_coarse,&
                   !at%astruct%geocode,& !,tmb%lzd%llr(ilr_tmp)%geocode,&
                   !& tmb%lzd%hgrids,
                   n,phigold,&
@@ -1421,7 +1422,8 @@ subroutine tmb_overlap_onsite_rotate(iproc, nproc, input, at, tmb, rxyz, ref_fra
 
           if (strategy == REFORMAT_FULL) then
 
-             call reformat_one_supportfunction(tmb%lzd%llr(ilr_tmp),tmb%lzd%llr(ilr),tmb%lzd%glr%mesh_coarse,&
+             call reformat_one_supportfunction(tmb%lzd%llr(ilr_tmp),tmb%lzd%llr(ilr),&
+                  tmb%lzd%glr%mesh_coarse,tmb%lzd%glr%mesh_coarse,&
                   !at%astruct%geocode,& !,tmb%lzd%llr(ilr_tmp)%geocode,&
                   !& tmb%lzd%hgrids,
                   n,phigold,&
@@ -1586,7 +1588,8 @@ subroutine tmb_overlap_onsite_rotate(iproc, nproc, input, at, tmb, rxyz, ref_fra
 
              if (reformat) then
 
-                call reformat_one_supportfunction(tmb%lzd%llr(ilr_tmp),tmb%lzd%llr(jlr),tmb%lzd%glr%mesh_coarse,&
+                call reformat_one_supportfunction(tmb%lzd%llr(ilr_tmp),tmb%lzd%llr(jlr),&
+                     tmb%lzd%glr%mesh_coarse,tmb%lzd%glr%mesh_coarse,&
                      !at%astruct%geocode,&  !tmb%lzd%llr(ilr_tmp)%geocode,&
                      !& tmb%lzd%hgrids,
                      n,phigold,&
@@ -2715,6 +2718,11 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
   !!   close(109)
   !!end if
 
+
+  ! hack to make reformatting work for case when hgrid changes, ideally we should fill this in properly
+  Lzd_old%glr%mesh_coarse%hgrids=lzd_old%hgrids
+  Lzd_old%glr%mesh_coarse%bc=tmb%lzd%glr%mesh%bc
+
   call timing(iproc,'tmbrestart','OF')
   call reformat_supportfunctions(iproc,nproc,&
        at,rxyz_old,rxyz,.false.,tmb,ndim_old,lzd_old,frag_trans_orb,&
@@ -3653,12 +3661,12 @@ subroutine reformat_supportfunctions(iproc,nproc,at,rxyz_old,rxyz,add_derivative
      jstart_old_der=1
   end if
 
-  nglr_old(1)=lzd_old%glr%d%n1
-  nglr_old(2)=lzd_old%glr%d%n1
-  nglr_old(3)=lzd_old%glr%d%n1
-  nglr(1)=tmb%lzd%glr%d%n1
-  nglr(2)=tmb%lzd%glr%d%n1
-  nglr(3)=tmb%lzd%glr%d%n1
+  !nglr_old(1)=lzd_old%glr%d%n1
+  !nglr_old(2)=lzd_old%glr%d%n1
+  !nglr_old(3)=lzd_old%glr%d%n1
+  !nglr(1)=tmb%lzd%glr%d%n1
+  !nglr(2)=tmb%lzd%glr%d%n1
+  !nglr(3)=tmb%lzd%glr%d%n1
 
   jstart_old=1
   jstart=1
@@ -3937,7 +3945,8 @@ subroutine reformat_supportfunctions(iproc,nproc,at,rxyz_old,rxyz,add_derivative
 !!$
 !!$             da=centre_new_box-centre_old_box-(lzd_old%hgrids-tmb%lzd%hgrids)*0.5d0
              !verify that the at%astruct%geocode here is the good value (seems not good for periodic systems)
-             call reformat_one_supportfunction(tmb%lzd%llr(ilr),lzd_old%llr(ilr_old),tmb%lzd%glr%mesh_coarse,&
+             call reformat_one_supportfunction(tmb%lzd%llr(ilr),lzd_old%llr(ilr_old),&
+                  tmb%lzd%glr%mesh_coarse,lzd_old%glr%mesh_coarse,&
                   !at%astruct%geocode,& !,tmb%lzd%llr(ilr)%geocode,&
                   !lzd_old%hgrids,
                   n_old,phigold,&
@@ -3947,7 +3956,8 @@ subroutine reformat_supportfunctions(iproc,nproc,at,rxyz_old,rxyz,add_derivative
                   frag_trans(iorb),tmb%psi(jstart:),psirold)
              call f_free(psirold)
           else ! don't have psirold from file, so reformat using old way
-             call reformat_one_supportfunction(tmb%lzd%llr(ilr),lzd_old%llr(ilr_old),tmb%lzd%glr%mesh_coarse,&!
+             call reformat_one_supportfunction(tmb%lzd%llr(ilr),lzd_old%llr(ilr_old),&
+                  tmb%lzd%glr%mesh_coarse,lzd_old%glr%mesh_coarse,&!
                   !at%astruct%geocode,& !,tmb%lzd%llr(ilr)%geocode,&
                   !lzd_old%hgrids,
                   n_old,phigold,&
