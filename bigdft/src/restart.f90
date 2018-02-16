@@ -2722,6 +2722,8 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
   ! hack to make reformatting work for case when hgrid changes, ideally we should fill this in properly
   Lzd_old%glr%mesh_coarse%hgrids=lzd_old%hgrids
   Lzd_old%glr%mesh_coarse%bc=tmb%lzd%glr%mesh%bc
+  Lzd_old%glr%mesh_coarse%orthorhombic=tmb%lzd%glr%mesh%orthorhombic
+  Lzd_old%glr%mesh_coarse%ndims=tmb%lzd%glr%mesh%ndims
 
   call timing(iproc,'tmbrestart','OF')
   call reformat_supportfunctions(iproc,nproc,&
@@ -3984,7 +3986,7 @@ subroutine reformat_supportfunctions(iproc,nproc,at,rxyz_old,rxyz,add_derivative
   if (nproc>1) then
       call fmpi_allreduce(max_shift, 1, FMPI_MAX, comm=bigdft_mpi%mpi_comm)
   end if
-  if (iproc==0) call yaml_map('Max shift of a locreg center',max_shift,fmt='(es9.2)')
+  if (iproc==0) call yaml_map('max shift of a locreg center',max_shift,fmt='(es9.2)')
 
   ! Determine the dumping factor for the confinement. In the limit wbohere the atoms
   ! have not moved, it goes to zero; in the limit where they have moved a lot, it goes to one.

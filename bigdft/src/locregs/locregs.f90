@@ -540,16 +540,18 @@ contains
 
       !assign the starting/ending points and outofzone for the different
       ! geometries
+! temporarily commented since it breaks the reformatting in some cases
+if (.false.) then
       select case(Glr%geocode)
       case('F')
          ! temporarily commented since it breaks the reformatting in some cases
-         !isx=max(isx,Glr%ns1)
-         !isy=max(isy,Glr%ns2)
-         !isz=max(isz,Glr%ns3)
+         isx=max(isx,Glr%ns1)
+         isy=max(isy,Glr%ns2)
+         isz=max(isz,Glr%ns3)
 
-         !iex=min(iex,Glr%ns1+Glr%d%n1)
-         !iey=min(iey,Glr%ns2+Glr%d%n2)
-         !iez=min(iez,Glr%ns3+Glr%d%n3)
+         iex=min(iex,Glr%ns1+Glr%d%n1)
+         iey=min(iey,Glr%ns2+Glr%d%n2)
+         iez=min(iez,Glr%ns3+Glr%d%n3)
       case('S')
          ! Get starting and ending for x direction     
          if (iex - isx >= Glr%d%n1) then       
@@ -638,7 +640,7 @@ contains
             geocode = 'P'
          end if
       end select
-
+end if
       ! Make sure that the localization regions are not periodic
       if (xperiodic .or. yperiodic .or. zperiodic) then
          call f_err_throw('The size of the localization region '&
