@@ -20,9 +20,15 @@ module f_random
      !module procedure f_random_number_d4
   end interface f_random_number
 
-  public :: f_random_number
+  public :: f_random_number,f_random_seed
 
   contains
+
+    subroutine f_random_seed(seed)
+      implicit none
+      integer, intent(in) :: seed
+      idum=seed
+    end subroutine f_random_seed
 
     subroutine f_random_number_d0(harvest,seed,reset)
       implicit none

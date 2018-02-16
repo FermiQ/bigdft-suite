@@ -529,11 +529,11 @@
  Rho Commun                            : RED_SCT
  Total electronic charge               :  2.000000000000
  Electric Dipole Moment (AU):
-   P vector                            :  [ -1.4516E+01, -1.4522E+01, -1.4551E+01 ]
-   norm(P)                             :  2.516626E+01
+   P vector                            :  [  0.0E+00,  0.0000E+00,  0.0000E+00 ]
+   norm(P)                             :  0.000000E+00
  Electric Dipole Moment (Debye):
-   P vector                            :  [ -3.6895E+01, -3.6912E+01, -3.6985E+01 ]
-   norm(P)                             :  6.396624E+01
+   P vector                            :  [  0.0E+00,  0.0000E+00,  0.0000E+00 ]
+   norm(P)                             :  0.000000E+00
  Calculate local forces                :  Yes
  Calculate Non Local forces            :  No
  Stress Tensor calculated              :  Yes
