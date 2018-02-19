@@ -2202,7 +2202,7 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
   use public_enums
   use rototranslations
   use reformatting
-  use locregs, only: lr_box
+  use locregs, only: lr_box,reset_lr
   implicit none
   integer, intent(in) :: iproc, nproc
   integer, intent(in) :: iformat
