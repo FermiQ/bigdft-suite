@@ -457,7 +457,9 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
           eval_multiplicator=1.d0, &
           accuracy_function=in%cp%foe%accuracy_ice, accuracy_penalty=in%cp%foe%accuracy_penalty, &
           betax=in%cp%foe%betax_ice, occupation_function=in%cp%foe%occupation_function, &
-          adjust_fscale=in%cp%foe%adjust_fscale)
+          adjust_fscale=in%cp%foe%adjust_fscale, &
+          fscale_ediff_low=in%cp%foe%fscale_ediff_low, &
+          fscale_ediff_up=in%cp%foe%fscale_ediff_up)
      call f_free(charge_fake)
 
      !!call f_free(locreg_centers)
@@ -1327,11 +1329,11 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
               exc_fac=1.0 !if HF, exc_fac=1.0 
            end if
 
-           call tddft_casida(iproc,nproc,atoms,rxyz,&
-                denspot%dpbox%mesh%hgrids(1),denspot%dpbox%mesh%hgrids(2),denspot%dpbox%mesh%hgrids(3),&
+           call tddft_casida(iproc,nproc,trim(in%dir_output),atoms,rxyz,&
                 denspot%dpbox%n3p,denspot%dpbox%ngatherarr(0,1),&
-                KSwfn%Lzd%Glr,in%tddft_approach,KSwfn%orbs,VTwfn%orbs,denspot%dpbox%i3s+denspot%dpbox%i3xcsh,&
-                denspot%f_XC,denspot%pkernelseq,KSwfn%psi,VTwfn%psi,exc_fac,denspot%dpbox%bitp)
+                KSwfn%Lzd%Glr,in%tddft_approach,KSwfn%orbs,VTwfn%orbs,&
+                denspot%f_XC,denspot%pkernelseq,KSwfn%psi,VTwfn%psi,&
+                exc_fac,denspot%dpbox%bitp)
 
            call f_free_ptr(denspot%f_XC)
 
@@ -1606,30 +1608,6 @@ contains
     end if
 
   END SUBROUTINE deallocate_before_exiting
-
-!!$  !> construct the dictionary needed for the timing information
-!!$  subroutine build_dict_info(dict_info)
-!!$    use wrapper_MPI
-!!$    use dynamic_memory
-!!$    use dictionaries
-!!$    implicit none
-!!$    type(dictionary), pointer :: dict_info
-!!$    !local variables
-!!$    integer :: ierr,namelen,nthreads
-!!$    character(len=MPI_MAX_PROCESSOR_NAME) :: nodename_local
-!!$    character(len=MPI_MAX_PROCESSOR_NAME), dimension(:), allocatable :: nodename
-!!$    type(dictionary), pointer :: dict_tmp
-!!$    !$ integer :: omp_get_max_threads
-!!$
-!!$    call dict_init(dict_info)
-!!$    if (DoLastRunThings) then
-!!$       !call f_malloc_dump_status(dict_summary=dict_tmp)
-!!$       call f_malloc_dump_status(dict_summary=dict_info)
-!!$       !call set(dict_info//'Routines timing and number of calls',dict_tmp)
-!!$    end if
-!!$    call mpi_environment_dict(bigdft_mpi,dict_info)
-!!$
-!!$  end subroutine build_dict_info
 
 END SUBROUTINE cluster
 

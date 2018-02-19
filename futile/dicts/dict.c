@@ -45,6 +45,16 @@ void dict_add_double(f90_dictionary_pointer* dict, double value)
   FC_FUNC_(bind_dict_add_double,BIND_DICT_ADD_DOUBLE)(dict,&value);
 }
 
+void dict_add_int(f90_dictionary_pointer* dict, int value)
+{
+  FC_FUNC_(bind_dict_add_int,BIND_DICT_ADD_INT)(dict,&value);
+}
+
+void dict_add_string(f90_dictionary_pointer* dict, const char *value)
+{
+  FC_FUNC_(bind_dict_add_char,BIND_DICT_ADD_CHAR)(dict,value);
+}
+
 
 bool dict_get_double_array(f90_dictionary_pointer* dict, const char* key , double * array, size_t len)
 {

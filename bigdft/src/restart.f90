@@ -466,7 +466,7 @@ subroutine filename_of_iorb(lbin,filename,orbs,iorb,ispinor,filename_out,iorb_ou
   !local variables
   character(len=1) :: spintype,realimag
   character(len=4) :: f3
-  character(len=5) :: f4
+  character(len=7) :: f6
   character(len=8) :: completename
   integer :: ikpt
   real(gp) :: spins
@@ -521,15 +521,15 @@ subroutine filename_of_iorb(lbin,filename,orbs,iorb,ispinor,filename_out,iorb_ou
   if (spins==-1.0_gp) iorb_out=iorb_out-orbs%norbu
 
   !value of the orbital
-  write(f4,'(a1,i4.4)') "b", iorb_out
+  write(f6,'(a1,i6.6)') "b", iorb_out
 
   !complete the information in the name of the orbital
   completename='-'//f3//'-'//spintype//realimag
   if (lbin) then
-     filename_out = trim(filename)//completename//".bin."//f4
+     filename_out = trim(filename)//completename//".bin."//f6
      !print *,'complete name <',trim(filename_out),'> end'
  else
-     filename_out = trim(filename)//completename//"."//f4
+     filename_out = trim(filename)//completename//"."//f6
      !print *,'complete name <',trim(filename_out),'> end'
  end if
 
@@ -945,7 +945,8 @@ subroutine tmb_overlap_onsite(iproc, nproc, imethod_overlap, at, tmb, rxyz)
 
              !!call f_free(psirold)
              !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-             call reformat_one_supportfunction(tmb%lzd%llr(ilr_tmp),tmb%lzd%llr(ilr),tmb%lzd%glr%mesh_coarse,&
+             call reformat_one_supportfunction(tmb%lzd%llr(ilr_tmp),tmb%lzd%llr(ilr),&
+                  tmb%lzd%glr%mesh_coarse,tmb%lzd%glr%mesh_coarse,&
                   !at%astruct%geocode,& !,tmb%lzd%llr(ilr_tmp)%geocode,&
                   !& tmb%lzd%hgrids,
                   n,phigold,&
@@ -1024,7 +1025,8 @@ subroutine tmb_overlap_onsite(iproc, nproc, imethod_overlap, at, tmb, rxyz)
   aux = linmat_auxiliary_null()
   ! Do not initialize the matrix multiplication to save memory. 
   call init_sparse_matrix_wrapper(iproc, nproc, tmb%linmat%smat(1)%nspin, tmb%orbs, &
-       lzd_tmp, at%astruct, .false., init_matmul=.false., imode=2, smat=smat_tmp(1))
+       lzd_tmp, at%astruct, .false., init_matmul=.false., matmul_optimize_load_balancing=.false., &
+       imode=2, smat=smat_tmp(1))
   call init_matrixindex_in_compressed_fortransposed(iproc, nproc, &
        collcom_tmp, collcom_tmp, collcom_tmp, smat_tmp(1), &
        aux)
@@ -1035,7 +1037,7 @@ subroutine tmb_overlap_onsite(iproc, nproc, imethod_overlap, at, tmb, rxyz)
   !!iicol(2) = 1
   !!call get_sparsematrix_local_extent(iproc, nproc, tmb%linmat%smmd, smat_tmp, ind_min, ind_mas)
   call check_local_matrix_extents(iproc, nproc, &
-       collcom_tmp, collcom_tmp, tmb%linmat%smmd, smat_tmp(1), aux, &
+       collcom_tmp, collcom_tmp, tmb%orbs, tmb%linmat%smmd, smat_tmp(1), aux, &
        ind_min, ind_mas)
   !!call get_sparsematrix_local_rows_columns(smat_tmp, ind_min, ind_mas, irow, icol)
   !!iirow(1) = min(irow(1),iirow(1))
@@ -1421,7 +1423,8 @@ subroutine tmb_overlap_onsite_rotate(iproc, nproc, input, at, tmb, rxyz, ref_fra
 
           if (strategy == REFORMAT_FULL) then
 
-             call reformat_one_supportfunction(tmb%lzd%llr(ilr_tmp),tmb%lzd%llr(ilr),tmb%lzd%glr%mesh_coarse,&
+             call reformat_one_supportfunction(tmb%lzd%llr(ilr_tmp),tmb%lzd%llr(ilr),&
+                  tmb%lzd%glr%mesh_coarse,tmb%lzd%glr%mesh_coarse,&
                   !at%astruct%geocode,& !,tmb%lzd%llr(ilr_tmp)%geocode,&
                   !& tmb%lzd%hgrids,
                   n,phigold,&
@@ -1586,7 +1589,8 @@ subroutine tmb_overlap_onsite_rotate(iproc, nproc, input, at, tmb, rxyz, ref_fra
 
              if (reformat) then
 
-                call reformat_one_supportfunction(tmb%lzd%llr(ilr_tmp),tmb%lzd%llr(jlr),tmb%lzd%glr%mesh_coarse,&
+                call reformat_one_supportfunction(tmb%lzd%llr(ilr_tmp),tmb%lzd%llr(jlr),&
+                     tmb%lzd%glr%mesh_coarse,tmb%lzd%glr%mesh_coarse,&
                      !at%astruct%geocode,&  !tmb%lzd%llr(ilr_tmp)%geocode,&
                      !& tmb%lzd%hgrids,
                      n,phigold,&
@@ -2198,7 +2202,7 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
   use public_enums
   use rototranslations
   use reformatting
-  use locregs, only: lr_box
+  use locregs, only: lr_box,reset_lr
   implicit none
   integer, intent(in) :: iproc, nproc
   integer, intent(in) :: iformat
@@ -2236,11 +2240,13 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
   real(gp), dimension(:,:), allocatable :: rxyz_new, rxyz4_ref, rxyz4_new, rxyz_ref
   real(gp), dimension(:,:), allocatable :: rxyz_old !<this is read from the disk and not needed
   real(kind=gp), dimension(:), allocatable :: dist
-  real(gp) :: max_shift, dtol
-
+  real(gp) :: max_shift, dtol, max_wahba, av_wahba
+  logical :: output_wahba !< output all information relating to rototranslations, only relevant if nfrag>1
+  logical, dimension(:,:), allocatable :: mpi_has_frag
   logical :: skip, binary
-  integer :: itmb, jtmb, jat
-  !integer, dimension(2,3) :: nbox
+  integer :: itmb, jtmb, jat, ierr
+  integer :: stat(mpi_status_size)
+  integer, dimension(2,3) :: nbox
   !!$ integer :: ierr
 
   ! DEBUG
@@ -2249,6 +2255,9 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
 
   call cpu_time(tr0)
   call system_clock(ncount1,ncount_rate,ncount_max)
+
+  ! this should probably be an input variable.,,
+  output_wahba = .true.
 
   ! check file format
   if (iformat == WF_FORMAT_ETSF) then
@@ -2347,7 +2356,17 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
 !!$              nbox(2,2)=Lzd_old%Llr(ilr)%d%n2+Lzd_old%Llr(ilr)%ns2
 !!$              nbox(1,3)=Lzd_old%Llr(ilr)%ns3
 !!$              nbox(2,3)=Lzd_old%Llr(ilr)%d%n3+Lzd_old%Llr(ilr)%ns3
-              call lr_box(Lzd_old%Llr(ilr),tmb%lzd%glr,lzd_old%hgrids)!,nbox,.false.)
+              nbox(1,1)=tmb%lzd%glr%d%nfl1
+              nbox(1,2)=tmb%lzd%glr%d%nfl2
+              nbox(1,3)=tmb%lzd%glr%d%nfl3
+              
+              nbox(2,1)=tmb%lzd%glr%d%nfu1
+              nbox(2,2)=tmb%lzd%glr%d%nfu2
+              nbox(2,3)=tmb%lzd%glr%d%nfu3
+                   
+              !call lr_box(Lzd_old%Llr(ilr),tmb%lzd%glr,lzd_old%hgrids)!,nbox,.false.)
+              
+              call reset_lr(Lzd_old%Llr(ilr),'F',lzd_old%hgrids,nbox,tmb%lzd%glr%geocode)
 
               ! DEBUG: print*,iproc,iorb,iorb+orbs%isorb,iorb_old,iorb_out
 
@@ -2403,10 +2422,14 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
 
   !if several fragments do this, otherwise find 3 nearest neighbours (use sort in time.f90) and send rxyz arrays with 4 atoms
   itoo_big=0
+  av_wahba = 0.0d0
+  max_wahba = 0.0d0
   fragment_if: if (input_frag%nfrag>1) then
      ! Find fragment transformations for each fragment, then put in frag_trans array for each orb
      allocate(frag_trans_frag(input_frag%nfrag))
 
+     ! needed for sharing frag_trans info
+     mpi_has_frag=f_malloc0((/ 0.to.bigdft_mpi%nproc-1,1.to.input_frag%nfrag /),id='mpi_has_frag')
      isfat=0
      isforb=0
      do ifrag=1,input_frag%nfrag
@@ -2425,6 +2448,7 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
                  ! check if this ref frag orbital corresponds to the orbital we want
                  if (iiorb==iforb+isforb) then
                     skip=.false.
+                    mpi_has_frag(iproc,ifrag)=.true.
                     exit
                  end if
               end do
@@ -2475,6 +2499,8 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
            call f_increment(itoo_big)
         end if
 
+        max_wahba = max(max_wahba,frag_trans_frag(ifrag)%Werror)
+
         ! useful for identifying which fragments are problematic
         if (iproc==0 .and. frag_trans_frag(ifrag)%Werror>W_tol) then
            write(*,'(A,1x,I3,1x,I3,1x,3(F12.6,1x),2(F12.6,1x),2(I8,1x))') 'ifrag,ifrag_ref,rot_axis,theta,error',&
@@ -2486,6 +2512,57 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
         isfat=isfat+ref_frags(ifrag_ref)%astruct_frg%nat
         isforb=isforb+ref_frags(ifrag_ref)%fbasis%forbs%norb
      end do
+
+
+     if (output_wahba) then
+        ! need to fetch quantities from other procs
+        if (bigdft_mpi%nproc > 1) then
+           call fmpi_allreduce(mpi_has_frag(0,1),bigdft_mpi%nproc*input_frag%nfrag,op=FMPI_LOR,comm=bigdft_mpi%mpi_comm)
+
+           do ifrag=1,input_frag%nfrag
+              ! if iproc=0 already has frag, no need to do anything, otherwise need to look for it
+              if (mpi_has_frag(0,ifrag)) cycle
+              do i=0,bigdft_mpi%nproc-1
+                 if (mpi_has_frag(i,ifrag)) then
+                    ! send from proc i to proc 0
+                    !if (iproc==0) print*,'need to send from ',i
+                    if(iproc==i) call mpi_send(frag_trans_frag(ifrag)%theta, 1, mpi_double_precision, 0, 10*ifrag, &
+                         bigdft_mpi%mpi_comm, ierr)
+                    if(iproc==0) call mpi_recv(frag_trans_frag(ifrag)%theta, 1, mpi_double_precision, i, 10*ifrag, &
+                         bigdft_mpi%mpi_comm, stat, ierr)
+                    if(iproc==i) call mpi_send(frag_trans_frag(ifrag)%rot_axis(1), 3, mpi_double_precision, 0, 10*ifrag+1, &
+                         bigdft_mpi%mpi_comm, ierr)
+                    if(iproc==0) call mpi_recv(frag_trans_frag(ifrag)%rot_axis(1), 3, mpi_double_precision, i, 10*ifrag+1, &
+                         bigdft_mpi%mpi_comm, stat, ierr)
+                    if(iproc==i) call mpi_send(frag_trans_frag(ifrag)%Werror, 1, mpi_double_precision, 0, 10*ifrag+2, &
+                         bigdft_mpi%mpi_comm, ierr)
+                    if(iproc==0) call mpi_recv(frag_trans_frag(ifrag)%Werror, 1, mpi_double_precision, i, 10*ifrag+2, &
+                         bigdft_mpi%mpi_comm, stat, ierr)
+                    exit
+                 end if
+              end do
+           end do
+        end if
+
+        if (iproc==0) then
+           !call yaml_mapping_open('Information about the rototranslations')
+           call yaml_sequence_open('Fragment transformations')
+           do ifrag=1,input_frag%nfrag
+              av_wahba = av_wahba + frag_trans_frag(ifrag)%Werror
+              ifrag_ref=input_frag%frag_index(ifrag)
+              call yaml_sequence(advance='no')
+              call yaml_map('Fragment name',trim(input_frag%label(ifrag_ref))) ! change this to actual name
+              call yaml_map('Angle (degrees)',frag_trans_frag(ifrag)%theta/(4.0_gp*atan(1.d0)/180.0_gp),fmt='(f12.6)')
+              call yaml_map('Axis',frag_trans_frag(ifrag)%rot_axis,fmt='(3f10.6)')
+              call yaml_map('Wahba cost function',frag_trans_frag(ifrag)%Werror,fmt='(1es13.6)')
+           end do
+           call yaml_sequence_close()
+           !call yaml_mapping_close()
+           call yaml_flush_document()
+           av_wahba = av_wahba / input_frag%nfrag
+        end if
+     end if
+     call f_free(mpi_has_frag)
 
      !if (bigdft_mpi%nproc > 1) then
      !   call fmpi_allreduce(frag_env_mapping, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
@@ -2598,6 +2675,11 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
 !!$                   frag_trans_orb(iorbp))
               if (frag_trans_orb(iorbp)%Werror > W_tol) call f_increment(itoo_big)
 
+              max_wahba = max(max_wahba,frag_trans_orb(iorbp)%Werror)
+              ! can't easily calculate the average as some orbitals are on more
+              ! than one proc
+              !av_wahba = av_wahba + frag_trans_orb(iorbp)%Werror/tmb%orbs%norb
+
 !!$              print *,'transformation of the fragment, iforb',iforb
 !!$              write(*,'(A,I3,1x,I3,1x,3(F12.6,1x),F12.6)') 'ifrag,iorb,rot_axis,theta',&
 !!$                   ifrag,iiorb,frag_trans_orb(iorbp)%rot_axis,frag_trans_orb(iorbp)%theta/(4.0_gp*atan(1.d0)/180.0_gp)
@@ -2621,8 +2703,12 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
 
   !reduce the number of warnings
   if (nproc >1) call fmpi_allreduce(itoo_big,1,op=FMPI_SUM,comm=bigdft_mpi%mpi_comm)
+  if (nproc >1) call fmpi_allreduce(max_wahba,1,op=FMPI_MAX,comm=bigdft_mpi%mpi_comm)
+
 
   if (itoo_big > 0 .and. iproc==0) call yaml_warning('Found '//itoo_big//' warning of high Wahba cost functions')
+  if (iproc==0 .and. output_wahba) call yaml_map('Average Wahba cost function value',av_wahba,fmt='(es9.2)')
+  if (iproc==0) call yaml_map('Maximum Wahba cost function value',max_wahba,fmt='(es9.2)')
 
 
   !!!debug - check calculated transformations
@@ -2640,6 +2726,11 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
   !!   end do
   !!   close(109)
   !!end if
+
+
+  ! hack to make reformatting work for case when hgrid changes, ideally we should fill this in properly
+  Lzd_old%glr%mesh_coarse%hgrids=lzd_old%hgrids
+  Lzd_old%glr%mesh_coarse%bc=tmb%lzd%glr%mesh%bc
 
   call timing(iproc,'tmbrestart','OF')
   call reformat_supportfunctions(iproc,nproc,&
@@ -3579,12 +3670,12 @@ subroutine reformat_supportfunctions(iproc,nproc,at,rxyz_old,rxyz,add_derivative
      jstart_old_der=1
   end if
 
-  nglr_old(1)=lzd_old%glr%d%n1
-  nglr_old(2)=lzd_old%glr%d%n1
-  nglr_old(3)=lzd_old%glr%d%n1
-  nglr(1)=tmb%lzd%glr%d%n1
-  nglr(2)=tmb%lzd%glr%d%n1
-  nglr(3)=tmb%lzd%glr%d%n1
+  !nglr_old(1)=lzd_old%glr%d%n1
+  !nglr_old(2)=lzd_old%glr%d%n1
+  !nglr_old(3)=lzd_old%glr%d%n1
+  !nglr(1)=tmb%lzd%glr%d%n1
+  !nglr(2)=tmb%lzd%glr%d%n1
+  !nglr(3)=tmb%lzd%glr%d%n1
 
   jstart_old=1
   jstart=1
@@ -3863,7 +3954,8 @@ subroutine reformat_supportfunctions(iproc,nproc,at,rxyz_old,rxyz,add_derivative
 !!$
 !!$             da=centre_new_box-centre_old_box-(lzd_old%hgrids-tmb%lzd%hgrids)*0.5d0
              !verify that the at%astruct%geocode here is the good value (seems not good for periodic systems)
-             call reformat_one_supportfunction(tmb%lzd%llr(ilr),lzd_old%llr(ilr_old),tmb%lzd%glr%mesh_coarse,&
+             call reformat_one_supportfunction(tmb%lzd%llr(ilr),lzd_old%llr(ilr_old),&
+                  tmb%lzd%glr%mesh_coarse,lzd_old%glr%mesh_coarse,&
                   !at%astruct%geocode,& !,tmb%lzd%llr(ilr)%geocode,&
                   !lzd_old%hgrids,
                   n_old,phigold,&
@@ -3873,7 +3965,8 @@ subroutine reformat_supportfunctions(iproc,nproc,at,rxyz_old,rxyz,add_derivative
                   frag_trans(iorb),tmb%psi(jstart:),psirold)
              call f_free(psirold)
           else ! don't have psirold from file, so reformat using old way
-             call reformat_one_supportfunction(tmb%lzd%llr(ilr),lzd_old%llr(ilr_old),tmb%lzd%glr%mesh_coarse,&!
+             call reformat_one_supportfunction(tmb%lzd%llr(ilr),lzd_old%llr(ilr_old),&
+                  tmb%lzd%glr%mesh_coarse,lzd_old%glr%mesh_coarse,&!
                   !at%astruct%geocode,& !,tmb%lzd%llr(ilr)%geocode,&
                   !lzd_old%hgrids,
                   n_old,phigold,&
@@ -3900,7 +3993,7 @@ subroutine reformat_supportfunctions(iproc,nproc,at,rxyz_old,rxyz,add_derivative
   if (nproc>1) then
       call fmpi_allreduce(max_shift, 1, FMPI_MAX, comm=bigdft_mpi%mpi_comm)
   end if
-  if (iproc==0) call yaml_map('max shift of a locreg center',max_shift,fmt='(es9.2)')
+  if (iproc==0) call yaml_map('Max shift of a locreg center',max_shift,fmt='(es9.2)')
 
   ! Determine the dumping factor for the confinement. In the limit wbohere the atoms
   ! have not moved, it goes to zero; in the limit where they have moved a lot, it goes to one.

@@ -1,7 +1,7 @@
 !> @file
 !!  Provide the test functions for the different examples of Poisson Solver
 !! @author
-!!    Copyright (C) 2002-2013 BigDFT group 
+!!    Copyright (C) 2002-2013 BigDFT group
 !!    This file is distributed under the terms of the
 !!    GNU General Public License, see ~/COPYING file
 !!    or http://www.gnu.org/copyleft/gpl.txt .
@@ -92,7 +92,7 @@ subroutine PS_Check_options(parser)
 end subroutine PS_Check_options
 
 
-!!!!> This subroutine builds some analytic functions that can be used for 
+!!!!> This subroutine builds some analytic functions that can be used for
 !!!!! testing the poisson solver.
 !!!!! The default choice is already well-tuned for comparison.
 !!!!! WARNING: not all the test functions can be used for all the boundary conditions of
@@ -121,7 +121,7 @@ end subroutine PS_Check_options
 !!!  integer, parameter :: nrep=10
 !!!  logical ::  separable=.true.,old=.false. !save attribute for the profiling
 !!!  integer :: i1,i2,i3,ifx,ify,ifz,i,n01,n02,n03
-!!!  
+!!!
 !!!  real(kind=8) :: x1,x2,x3,length,denval,a2,derf_tt,factor,r,r2,hx,hy,hz
 !!!  real(kind=8) :: fx,fx2,fy,fy2,fz,fz2,a,ax,ay,az,bx,by,bz,tt,acell
 !!!  integer(f_long) :: t1,t0
@@ -186,7 +186,7 @@ end subroutine PS_Check_options
 !!!
 !!!
 !!!  t0=f_time()
-!!!  !     do irep=1,nrep 
+!!!  !     do irep=1,nrep
 !!!  entry test_new()
 !!!  if (separable .and. .not. old) then
 !!!     denval=0.d0 !value for keeping the density positive
@@ -214,7 +214,7 @@ end subroutine PS_Check_options
 !!!!!$  print *,f_humantime(t1-t0)
 !!!!!$  print *,'there2',denval
 !!!  t0=f_time()
-!!!  !     do irep=1,nrep 
+!!!  !     do irep=1,nrep
 !!!  entry test_old()
 !!!
 !!!!print *,'here',separable,old,nrep,associated(jmpbuf%jmp_buf)
@@ -297,7 +297,7 @@ end subroutine PS_Check_options
 !!!
 !!!
 !!!  denval=0.d0
-!!!     
+!!!
 !!!  ! For ixc/=0 the XC potential is added to the solution, and an analytic comparison is no more
 !!!  ! possible. In that case the only possible comparison is between the serial and the parallel case
 !!!  ! To ease the comparison between the serial and the parallel case we add a random pot_ion
@@ -311,7 +311,7 @@ end subroutine PS_Check_options
 !!!           tt=abs(dsin(real(i1+i2+i3,kind=8)+.7d0))
 !!!           pot_ion(i1,i2,i3)=tt
 !!!           offset=offset+potential(i1,i2,i3)
-!!!           !add the case for offset in the surfaces case 
+!!!           !add the case for offset in the surfaces case
 !!!           !(for periodic case it is absorbed in offset)
 !!!           if (cell_geocode(mesh) == 'S' .and. denval /= 0.d0) then
 !!!              x2 = hy*real(i2-1,kind=8)-0.5d0*acell+0.5d0*hy
@@ -432,7 +432,7 @@ subroutine fill_functions_arrays(separable,mesh,funcs,factor,density,potential)
      call radial_3d_function(bit,funcs(POTENTIAL_),1.0_dp,potential)
   end if
 end subroutine fill_functions_arrays
-  
+
 subroutine test_functions_new(mesh,nspden,a_gauss,&
      density,potential,rhopot,pot_ion,offset)
   use box
@@ -481,7 +481,7 @@ subroutine test_functions_new(mesh,nspden,a_gauss,&
      factor = 1.d0/(a_gauss*a2*pi*sqrt(pi))
      funcs(DENSITY_)=f_function_new(f_gaussian,exponent=1.0_dp/a2)
      funcs(POTENTIAL_)=f_function_new(f_erf,scale=a_gauss/sqrt(2.0_dp))
-     
+
      !test call
      call radial_3d_function_mp(mesh,0.5_dp*a2,density)
   case('W')
@@ -492,7 +492,7 @@ subroutine test_functions_new(mesh,nspden,a_gauss,&
   !laplacian potential = -4pi density
   call fill_functions_arrays(cell_geocode(mesh) /= 'F',mesh,funcs,factor,&
        density,potential)
-  
+
   !treatment for rhopot and pot_ion
   call f_memcpy(src=density,dest=rhopot)
 
@@ -500,7 +500,7 @@ subroutine test_functions_new(mesh,nspden,a_gauss,&
 
 END SUBROUTINE test_functions_new
 
-!> This subroutine builds some analytic functions that can be used for 
+!> This subroutine builds some analytic functions that can be used for
 !! testing the poisson solver.
 !! The default choice is already well-tuned for comparison.
 !! WARNING: not all the test functions can be used for all the boundary conditions of
@@ -525,7 +525,7 @@ subroutine test_functions_new2(mesh,acell,a_gauss,mu0,density,potential)
   logical :: separable
   integer :: i
   real(dp) :: a2,factor
-  type(f_function), dimension(3) :: funcs 
+  type(f_function), dimension(3) :: funcs
 
   !non-orthorhombic lattice compatibility, it will replace the test_functioncs_new routine
 
@@ -577,7 +577,7 @@ subroutine test_functions_new2(mesh,acell,a_gauss,mu0,density,potential)
 
   !add the screened term to the density if present
   call f_axpy(a=-mu0**2/fourpi*factor,x=potential,y=density)
-  
+
 end subroutine test_functions_new2
 
 subroutine radial_3d_function_mp(mesh,rloc,f)
@@ -605,7 +605,7 @@ subroutine radial_3d_function_mp(mesh,rloc,f)
   call initialize_real_space_conversion(isf_m=mp_isf)
 
   bit=box_iter(mesh,centered=.true.)
-  call gaussian_density(bit%oxyz,rloc,1,.true.,.false.,bit,&
+  call mp_gaussian_density(rloc,1,.true.,.false.,bit,&
        mp_isf,mesh%ndims(1)-1,mesh%ndims(2)-1,mesh%ndims(3)-1,&
        mpx, mpy, mpz,int(mesh%ndim),f)
 

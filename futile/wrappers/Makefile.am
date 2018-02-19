@@ -50,7 +50,7 @@ interface_dgemmsy_fake.o: linalg.o
 f_blas.o: linalg.o
 f_functions.o: numerics.o box.o
 op2p_module.o: linalg.o
-harmonics.o: numerics.o
+harmonics.o: numerics.o box.o
 box.o: linalg.o
 #fft2d.o: fft3d.o
 

@@ -189,6 +189,7 @@ module highlevel_wrappers
       !real(mp),dimension(:),pointer :: eval_tmp
       !real(mp),dimension(:,:),pointer :: coeff_tmp
 
+
       call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, trim(overlap_file), &
            iproc, nproc, comm, smat(1), ovrlp_mat, &
            init_matmul=.false.)

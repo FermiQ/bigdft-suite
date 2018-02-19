@@ -293,15 +293,16 @@ contains
 
      !first, identify whether the subdictionary exists
      if (dict_size(dict) > 0) then !popping from a hash key
-        subd=>find_key(dict,key)
+        subd = dict .get. key !find_key(dict,trim(key))
      else if (dict_len(dict) > 0) then !popping from a list value
-        indx=find_index(dict,key)
+        indx=find_index(dict,trim(key))
      end if
 
      !if something has been found, pop
      !!@warning here the usage of dict_remove is abused,
      !!as this routine frees dict if it is the last object
      !!therefore it changes the pointer association status of dict
+     !! with the destroy=.false. the problem should be resolved
      if (associated(subd)) then
         call dict_remove(dict,key,destroy=.false.)
      else if (indx > -1) then
@@ -313,6 +314,7 @@ contains
      end if
 
    end function pop_key
+
 
    !> Pop a subdictionary from a mother one. Returns the subdictionary.
    !! raise an error if the subdictionary does not exist.
@@ -1011,9 +1013,9 @@ contains
    !> Retrieve the pointer to the dictionary which has this key.
    !! If the key does not exist, search for it in the next chain
    !! Key Must be already present, otherwise result is nullified
-   recursive function find_key(dict,key) result(dict_ptr1)
+   function find_key(dict,key) result(dict_ptr1)
      implicit none
-     type(dictionary), intent(in), pointer :: dict !< Hidden inout
+     type(dictionary), intent(in), pointer :: dict
      character(len=*), intent(in) :: key
      type(dictionary), pointer :: dict_ptr1
      if (.not. associated(dict)) then
@@ -1021,24 +1023,25 @@ contains
         return
      end if
 
-!!$     !eliminate recursion
-!!$     if (.not. associated(dict%parent)) then
-!!$        if (.not. associated(dict%child)) then
-!!$           nullify(dict_ptr1)
-!!$        else
-!!$           dict_ptr1 => get_dict_from_key(dict%child,key)
-!!$        end if
-!!$     else
-!!$        dict_ptr1 => get_dict_from_key(dict,key)
-!!$     end if
-
+     !eliminate recursion
      if (.not. associated(dict%parent)) then
-        dict_ptr1 => find_key(dict%child,key)
-        return
+        if (.not. associated(dict%child)) then
+           nullify(dict_ptr1)
+        else
+           dict_ptr1 => get_dict_from_key(dict%child,key)
+        end if
+     else
+        dict_ptr1 => get_dict_from_key(dict,key)
      end if
-
-     dict_ptr1 => get_dict_from_key(dict,key)
-
+!!$print *,'here',associated(dict%parent),key,len(key)
+!!$     if (.not. associated(dict%parent)) then
+!!$        dict_ptr1 => find_key(dict%child,key)
+!!$        return
+!!$     end if
+!!$print *,'ciao',associated(dict)
+!!$print *,'dict',dict%data%key,'key',key
+!!$     dict_ptr1 => get_dict_from_key(dict,key)
+!!$print *,'there',associated(dict_ptr1)
    end function find_key
 
    function dict_keys(dict)

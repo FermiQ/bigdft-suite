@@ -123,7 +123,7 @@
 
   <autotools id="bigdft" autogen-sh="autoreconf">
     <!--<branch repo="bigdft" module="bigdft" version="1.7.5"/>-->
-    <branch repo="local" module="bigdft-1.8.1.tar.gz" version="1.8.1" checkoutdir="bigdft"/>
+    <branch repo="local" module="bigdft-1.8.2.tar.gz" version="1.8.2" checkoutdir="bigdft"/>
     <dependencies>
       <dep package="futile"/>
       <dep package="chess"/>
@@ -245,7 +245,7 @@
     <dependencies>
       <dep package="spred"/>
       <dep package="PyYAML"/>
-      <dep package="openbabel"/>
+      <!--  dep package="openbabel" -->
     </dependencies>
   </metamodule>
 

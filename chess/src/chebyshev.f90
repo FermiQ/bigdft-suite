@@ -37,45 +37,85 @@ module chebyshev
   contains
  
     !> Again assuming all matrices have same sparsity, still some tidying to be done
-    subroutine chebyshev_clean(iproc, nproc, npl, cc, kernel, ham_compr, &
-               calculate_SHS, nsize_polynomial, ncalc, &
+    subroutine chebyshev_clean(iproc, nproc, comm, npl, cc, kernel, ham_compr, &
+               calculate_SHS, nsize_polynomial, ncalc, resume, mat_seq, vectors_new, &
                fermi_new, penalty_ev_new, chebyshev_polynomials, emergency_stop, &
-               invovrlp_compr)
+               invovrlp_compr, npl_resume)
+      use wrapper_mpi
       use sparsematrix_init, only: matrixindex_in_compressed
       use sparsematrix, only: sequential_acces_matrix_fast, sequential_acces_matrix_fast2, &
                               compress_matrix_distributed_wrapper, sparsemm_new
       implicit none
     
       ! Calling arguments
-      integer,intent(in) :: iproc, nproc, npl, nsize_polynomial, ncalc
+      integer,intent(in) :: iproc, nproc, comm, npl, nsize_polynomial, ncalc
       real(8),dimension(npl,2,ncalc),intent(in) :: cc
       type(sparse_matrix), intent(in) :: kernel
       real(kind=mp),dimension(kernel%nvctrp_tg),intent(in) :: ham_compr
       logical,intent(in) :: calculate_SHS
+      logical,intent(in) :: resume
+      real(kind=mp),dimension(kernel%smmm%nseq),intent(in) :: mat_seq
+      real(kind=mp),dimension(kernel%smmm%nvctrp,4),intent(inout) :: vectors_new
       !real(kind=mp),dimension(kernel%nvctrp_tg),intent(inout) :: workarr_compr
       real(kind=mp),dimension(kernel%smmm%nvctrp,ncalc),intent(out) :: fermi_new
       real(kind=mp),dimension(kernel%smmm%nvctrp),intent(out) :: penalty_ev_new
       real(kind=mp),dimension(nsize_polynomial,npl),intent(out) :: chebyshev_polynomials
       logical,dimension(2),intent(out) :: emergency_stop
       real(kind=mp),dimension(kernel%nvctrp_tg),intent(in),optional :: invovrlp_compr
+      integer,intent(in),optional :: npl_resume
       ! Local variables
       character(len=*),parameter :: subname='chebyshev_clean'
       integer :: ipl, i, iline, icolumn
       integer :: ii, icalc
-      real(kind=mp),dimension(:,:),allocatable :: vectors_new
-      real(kind=mp),dimension(:),allocatable :: mat_seq
+      !real(kind=mp),dimension(:,:),allocatable :: vectors_new
+      !real(kind=mp),dimension(:),allocatable :: mat_seq
       !!real(kind=mp),dimension(:,:),allocatable :: matrix!, fermi_new, penalty_ev_new
       !real(kind=mp),dimension(:),allocatable :: matrix_new
       !real(kind=mp) :: tt
       !integer :: jproc
+      integer :: jproc, ierr
+      type(fmpi_win) :: window
+      integer :: global_stop
+      integer,dimension(:),allocatable :: global_stop_remote
     
       !call timing(iproc, 'chebyshev_comp', 'ON')
       call f_timing(TCAT_CME_POLYNOMIALS,'ON')
       call f_routine(id='chebyshev_clean')
 
+      !!write(*,*) 'iproc, npl, resume', iproc, npl, resume
+
       if (.not.kernel%smatmul_initialized) then
           call f_err_throw('sparse matrix multiplication not initialized', &
                err_name='SPARSEMATRIX_RUNTIME_ERROR')
+      end if
+
+      if (resume) then
+          if (kernel%smmm%nvctrp>0) then
+              do ipl=npl_resume,npl
+                  !!write(*,*) 'ipl', ipl
+                  call sparsemm_new(iproc, kernel, mat_seq, vectors_new(1,1), vectors_new(1,2))
+                  !!write(*,*) 'after sparsemm_new'
+                  call axbyz_kernel_vectors_new(kernel, 2.d0, vectors_new(1,2), -1.d0, vectors_new(1,4), vectors_new(1,3))
+                  !!write(*,*) 'after axbyz_kernel_vectors_new'
+                  call compress_polynomial_vector_new(iproc, nproc, nsize_polynomial, &
+                       kernel%nfvctr, kernel%smmm%nfvctrp, kernel, &
+                       vectors_new(1,3), chebyshev_polynomials(1,ipl))
+                  !!write(*,*) 'after compress_polynomial_vector_new'
+                  do icalc=1,ncalc
+                      !write(*,*) 'ipl, sum(vectors_new(:,3))', ipl, sum(vectors_new(:,3))
+                      call axpy(kernel%smmm%nvctrp, cc(ipl,1,icalc), vectors_new(1,3), 1, fermi_new(1,icalc), 1)
+                      !write(*,*) 'after axpy'
+                  end do
+                  call axpy(kernel%smmm%nvctrp, cc(ipl,2,1), vectors_new(1,3), 1, penalty_ev_new(1), 1)
+                  !!write(*,*) 'after axpy'
+                  call vcopy(kernel%smmm%nvctrp, vectors_new(1,1), 1, vectors_new(1,4), 1)
+                  !!write(*,*) 'after vcopy'
+                  call vcopy(kernel%smmm%nvctrp, vectors_new(1,3), 1, vectors_new(1,1), 1)
+                  !!write(*,*) 'after vcopy'
+              end do
+          end if
+          call f_release_routine()
+          return
       end if
 
 
@@ -88,8 +128,8 @@ module chebyshev
     
 
       if (kernel%nfvctrp>0) then
-          mat_seq = sparsematrix_malloc(kernel, iaction=SPARSEMM_SEQ, id='mat_seq')
-          vectors_new = f_malloc0((/kernel%smmm%nvctrp,4/),id='vectors_new')
+          !mat_seq = sparsematrix_malloc(kernel, iaction=SPARSEMM_SEQ, id='mat_seq')
+          !vectors_new = f_malloc0((/kernel%smmm%nvctrp,4/),id='vectors_new')
       end if
         
       
@@ -112,9 +152,9 @@ module chebyshev
       !!    call vcopy(kernel%nvctrp_tg, ham_compr(1), 1, workarr_compr(1), 1)
       !!end if
       
-      if (kernel%smmm%nvctrp>0) then
-          call sequential_acces_matrix_fast2(kernel, ham_compr, mat_seq)
-      end if
+      !!if (kernel%smmm%nvctrp>0) then
+      !!    call sequential_acces_matrix_fast2(kernel, ham_compr, mat_seq)
+      !!end if
 
       !call f_free(mat_compr)
       
@@ -171,6 +211,14 @@ module chebyshev
               !write(*,*) ' before loop: sum(penalty_ev_new)', sum(penalty_ev_new(:,1)), sum(penalty_ev_new(:,2))
             
               emergency_stop=.false.
+              !!global_stop = 0
+              !!global_stop_remote = f_malloc(0.to.nproc-1,id='global_stop_remote')
+              !!global_stop_remote = 0
+              !!call fmpi_win_create(window, global_stop_remote(0), nproc, comm=comm)
+              !!call fmpi_win_fence(window, FMPI_WIN_OPEN)
+              !!write(*,*) 'FIRST TEST'
+              !!call fmpi_get(global_stop, 0, window, 1, int(0,fmpi_address))
+              !!write(*,*) 'AFTER TEST'
               main_loop: do ipl=3,npl
                   call sparsemm_new(iproc, kernel, mat_seq, vectors_new(1,1), vectors_new(1,2))
                   call axbyz_kernel_vectors_new(kernel, 2.d0, vectors_new(1,2), -1.d0, vectors_new(1,4), vectors_new(1,3))
@@ -178,9 +226,11 @@ module chebyshev
                        kernel%nfvctr, kernel%smmm%nfvctrp, kernel, &
                        vectors_new(1,3), chebyshev_polynomials(1,ipl))
                   do icalc=1,ncalc
+                      !write(*,*) 'ipl, sum(vectors_new(:,3))', ipl, sum(vectors_new(:,3))
                       call axpy(kernel%smmm%nvctrp, cc(ipl,1,icalc), vectors_new(1,3), 1, fermi_new(1,icalc), 1)
                   end do
                   call axpy(kernel%smmm%nvctrp, cc(ipl,2,1), vectors_new(1,3), 1, penalty_ev_new(1), 1)
+                  !write(*,*) 'ipl, cc(ipl,2,1), sum(penalty_ev_new)', ipl, cc(ipl,2,1), sum(penalty_ev_new)
                   !call axpy(kernel%smmm%nvctrp, cc(ipl,3,1), vectors_new(1,3), 1, penalty_ev_new(1,2), 1)
 
                   !write(*,*) 'in loop: sum(penalty_ev_new)', &
@@ -206,6 +256,24 @@ module chebyshev
                   ! New: Do this check on the Chebyshev polynomials
                   emergency_stop(1) = check_emergency_stop(kernel%smmm%nvctrp, ncalc, vectors_new(1,3))
                   if (any(emergency_stop)) then
+                      !!global_stop = 1 !.true.
+                      !!do jproc=0,nproc-1
+                      !!    !write(*,*)'BEFORE: iproc, jproc', iproc, jproc
+                      !!    !!call mpi_put(global_stop, int(1,fmpi_integer), mpi_logical, &
+                      !!    !!     int(jproc,fmpi_integer), int(jproc,fmpi_address), &
+                      !!    !!     int(1,fmpi_integer), mpi_logical, window, ierr)
+                      !!    call mpi_put(global_stop, 1, mpi_logical, &
+                      !!         jproc, int(jproc,fmpi_address), &
+                      !!         1, mpi_logical, window, ierr)
+                      !!    !call mpi_get(global_stop, 1, mpi_logical, &
+                      !!    !     jproc, int(jproc,fmpi_address), &
+                      !!    !     1, mpi_logical, window, ierr)
+                      !!    !call fmpi_get(global_stop, jproc, window, 1, int(jproc,fmpi_address))
+                      !!    !call fmpi_get(global_stop, 0, window, 1, int(0,fmpi_address))
+                      !!    !write(*,*)'AFTER: iproc, jproc', iproc, jproc
+                      !!end do
+                      !!!write(*,*) 'SEND STOP, iproc, ipl', iproc, ipl
+                      !!call mpi_win_fence(MPI_MODE_NOSTORE, window, ierr)
                       exit main_loop
                   end if
                   !!do iorb=1,kernel%smmm%nfvctrp
@@ -216,9 +284,21 @@ module chebyshev
                   !!        exit main_loop
                   !!    end if
                   !!end do
+                  ! SM: To be checked
+                  !call fmpi_win_fence(window, FMPI_WIN_CLOSE)
+                  !write(*,*) 'CHECK BEFORE, iproc, ipl', iproc, ipl
+                  !!call mpi_win_fence(MPI_MODE_NOSTORE, window, ierr)
+                  !write(*,*) 'CHECK AFTER, iproc, ipl', iproc, ipl
+                  !if (any(global_stop_remote)) then
+                  !!if (sum(global_stop_remote)>0) then
+                  !!    !write(*,*) 'STOP REMOTE'
+                  !!    exit main_loop
+                  !!end if
               end do main_loop
               !write(*,*) 'emergency_stop',emergency_stop
               !write(*,*) 'sum(penalty_ev_new)', sum(penalty_ev_new(:,1)), sum(penalty_ev_new(:,2))
+
+              !!call fmpi_win_free(window)
         
           end if
     
@@ -228,8 +308,8 @@ module chebyshev
           !!    call f_free(matrix_new)
           !!end if
           if (kernel%smmm%nfvctrp>0) then
-              call f_free(mat_seq)
-              call f_free(vectors_new)
+              !call f_free(mat_seq)
+              !call f_free(vectors_new)
           end if
     
       end if
