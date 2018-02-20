@@ -289,10 +289,12 @@ contains
     nullify(iter%proj)
     iter%method = PROJECTION_1D_SEPARABLE
 
+    iter%lmax = 0
     iter%nproj = 0
     call atomic_projector_iter_start(iter)
     do while (atomic_projector_iter_next(iter))
        iter%nproj = iter%nproj + iter%mproj
+       iter%lmax = max(iter%lmax, iter%l)
     end do
     ! Restart the iterator after use.
     call atomic_projector_iter_start(iter)
@@ -392,6 +394,9 @@ contains
        qn = pspiof_projector_get_qn(iter%parent%rfuncs(iter%riter))
        iter%l = pspiof_qn_get_l(qn) + 1
        iter%n = pspiof_qn_get_n(qn)
+       if (iter%n == 0) then
+          iter%n = 1
+       end if
     else
        call f_err_throw("Unknown atomic projector kind.", &
             & err_name = 'BIGDFT_RUNTIME_ERROR')
@@ -564,7 +569,7 @@ contains
     call get_projector_coeffs(1, l, n, ider, nterm_max, &
          & 1._gp, 1._gp, nterms, lxyz, sigma_and_expo, factors)
 
-    oxyz = lr%mesh%hgrids*[lr%nsi1,lr%nsi2,lr%nsi3]
+    oxyz = lr%mesh%hgrids * [lr%nsi1, lr%nsi2, lr%nsi3]
     do m = 1, 2 * l - 1
        call f_zero(projector_real)
        boxit = box_iter(lr%mesh, origin = oxyz) !use here the real space mesh of the projector locreg
@@ -577,7 +582,7 @@ contains
        !$ nthread=omp_get_num_threads()
        call box_iter_split(boxit,nthread,ithread)
        do while(box_next_point(boxit))
-          r = distance(boxit%mesh, boxit%rxyz, oxyz)
+          r = distance(boxit%mesh, boxit%rxyz, rxyz)
           tt = 0.0_gp
           do i = 1, nterms(m)
              !this should be in absolute coordinates
@@ -589,7 +594,7 @@ contains
        end do
        call box_iter_merge(boxit)
        !$omp end parallel
-       call isf_to_daub(lr, w, projector_real, psi(:,:, m))
+       call isf_to_daub(lr, w, projector_real, psi(:,1, m))
     end do
   end subroutine rfuncs_to_wavelets_collocation
   

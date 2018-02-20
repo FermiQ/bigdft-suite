@@ -329,17 +329,17 @@ contains
 
   !> find the locreg that is associated to the given projector of atom iat
   !! for a locreg of label ilr. Shoudl the locreg not be found, the result is zero.
-  function get_proj_locreg(nl,iat,ilr) result(iilr)
+  function get_proj_locreg(pspd,ilr) result(iilr)
     implicit none
-    integer, intent(in) :: iat,ilr
-    type(DFT_PSP_projectors), intent(in) :: nl
+    integer, intent(in) :: ilr
+    type(nonlocal_psp_descriptors),intent(in) :: pspd
     integer :: iilr
     !local variables
     integer :: jlr
 
     iilr=0
-    do jlr=1,nl%pspd(iat)%noverlap
-       if (nl%pspd(iat)%lut_tolr(jlr)==ilr) then
+    do jlr=1, pspd%noverlap
+       if (pspd%lut_tolr(jlr) == ilr) then
           iilr=jlr
           exit
        end if
@@ -347,32 +347,28 @@ contains
 
   end function get_proj_locreg
 
-  function projector_has_overlap(iat, ilr, llr, glr, nl) result(overlap)
+  function projector_has_overlap(ilr, llr, glr, pspd) result(overlap)
     use compression, only: wfd_to_wfd_skip
     implicit none
     ! Calling arguments
-    integer,intent(in) :: iat, ilr
+    integer,intent(in) :: ilr
     type(locreg_descriptors),intent(in) :: llr, glr
-    type(DFT_PSP_projectors),intent(in) :: nl
+    type(nonlocal_psp_descriptors),intent(in) :: pspd
     logical :: overlap
     ! Local variables
-    logical :: goon
-    integer :: mproj, iilr
-!!$ integer :: jlr
+    integer :: iilr
 
     overlap = .false.
 
-    ! Check whether the projectors of this atom have an overlap with locreg ilr
-    iilr=get_proj_locreg(nl,iat,ilr)
-    goon=iilr/=0
-    if (.not.goon) return
-
-    mproj=nl%pspd(iat)%mproj
     !no projector on this atom
-    if(mproj == 0) return
-    if(wfd_to_wfd_skip(nl%pspd(iat)%tolr(iilr))) return
+    if(pspd%mproj == 0) return
 
-    call check_overlap(llr, nl%pspd(iat)%plr, glr, overlap)
+    ! Check whether the projectors of this atom have an overlap with locreg ilr
+    iilr = get_proj_locreg(pspd, ilr)
+    if (iilr == 0) return
+    if (wfd_to_wfd_skip(pspd%tolr(iilr))) return
+
+    call check_overlap(llr, pspd%plr, glr, overlap)
 
   end function projector_has_overlap
 

@@ -801,7 +801,9 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
   !  use module_interfaces, except_this_one => createIonicPotential
   use Poisson_Solver, except_dp => dp, except_gp => gp
   use abi_interfaces_numeric, only: abi_derf_ab
-  use public_enums, only: PSPCODE_PAW
+  use public_enums, only: PSPCODE_PAW, PSPCODE_PSPIO, PSPCODE_GTH, PSPCODE_HGH, &
+       & PSPCODE_HGH_K, PSPCODE_HGH_K_NLCC
+  use pspiof_m, only: pspiof_pspdata_get_rho_valence, pspiof_meshfunc_eval
   use bounds, only: ext_buffers
   use box
   use gaussians
@@ -828,7 +830,7 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
   logical :: perx,pery,perz,gox,goy,goz,yespar
   logical :: htoobig=.false.,check_potion=.false.!use_iterator=.false.
   integer :: i1,i2,i3,ierr !n(c) nspin
-  integer :: nloc,iloc
+  integer :: nloc,iloc, ithread, nthread
   integer  :: i3s,n3pi,nbl1,nbr1,nbl2,nbl3,nbr2,nbr3
   real(kind=8) :: raux1(1),rr1(1)
   integer :: iat,iex,iey,iez,ind,indj3,indj23,isx,isy,isz,j1,j2,j3
@@ -951,7 +953,7 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
 !!$           mpz(i3-isz) = mp_exp(hzh,rz,rlocinv2sq,i3,0,at%multipole_preserving)
 !!$        end do
 
-        if ( .not. any(at%npspcode == PSPCODE_PAW) ) then
+        if (at%npspcode(atit%iat) == PSPCODE_PAW) then
 
            call atomic_charge_density(g,at,atit)
            call three_dimensional_density(dpbox%bitp,g,-1.0_dp,rxyz(1,atit%iat),pot_ion)
@@ -987,6 +989,23 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
 !!$              enddo
 !!$           enddo
 
+        else if (at%npspcode(atit%iat) == PSPCODE_PSPIO) then
+           ithread=0
+           nthread=1
+           !$omp parallel default(shared)&
+           !$omp private(ithread, r) &
+           !$omp firstprivate(dpbox%bitp) 
+           !$ ithread=omp_get_thread_num()
+           !$ nthread=omp_get_num_threads()
+           call box_iter_split(dpbox%bitp,nthread,ithread)
+           do while(box_next_point(dpbox%bitp))
+              r = distance(dpbox%bitp%mesh, dpbox%bitp%rxyz, rxyz(:, atit%iat))
+              pot_ion(dpbox%bitp%ind) = pot_ion(dpbox%bitp%ind) - &
+                   & pspiof_meshfunc_eval(pspiof_pspdata_get_rho_valence(at%pspio(atit%ityp)), r)
+           end do
+           call box_iter_merge(dpbox%bitp)
+           !$omp end parallel
+           rholeaked=0.0_dp
         else
 
            call atomic_charge_density(g,at,atit)
@@ -1286,7 +1305,10 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
            mpz(i3-isz) = mp_exp(hzh,rz,rlocinv2sq,i3,0,at%multipole_preserving)
         end do
 
-        if( at%npspcode(atit%ityp) /= PSPCODE_PAW) then
+        if (at%npspcode(atit%ityp) == PSPCODE_GTH .or. &
+             & at%npspcode(atit%ityp) == PSPCODE_HGH .or. &
+             & at%npspcode(atit%ityp) == PSPCODE_HGH_K .or. &
+             & at%npspcode(atit%ityp) == PSPCODE_HGH_K_NLCC) then
 
            ! Add the remaining local terms of Eq. (9) in JCP 129, 014109(2008)
 
@@ -1341,7 +1363,7 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
                  end if
               end do
            end if !nloc
-        else if (pawErfCorrection) then
+        else if (at%npspcode(atit%ityp) == PSPCODE_PAW) then
            !De-allocate the 1D temporary arrays for separability
            !call f_free(mpx,mpy,mpz)
 

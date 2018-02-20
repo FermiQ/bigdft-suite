@@ -204,7 +204,6 @@ module forces_linear
       use module_types
       use sparsematrix_base, only: sparse_matrix, matrices, sparsematrix_malloc, assignment(=), SPARSE_FULL
       use sparsematrix, only: gather_matrix_from_taskgroups
-      use psp_projectors, only: projector_has_overlap
       use public_enums, only: PSPCODE_HGH,PSPCODE_HGH_K,PSPCODE_HGH_K_NLCC,&
            PSPCODE_PAW
     
@@ -496,7 +495,7 @@ module forces_linear
                      iiorb=orbs%isorb+iorb
                      ilr=orbs%inwhichlocreg(iiorb)
                      ! Check whether there is an overlap between projector and support functions
-                     if (.not.projector_has_overlap(iat, ilr, lzd%llr(ilr), lzd%glr, nlpsp)) then
+                     if (.not.projector_has_overlap(ilr, lzd%llr(ilr), lzd%glr, nlpsp%pspd(iat))) then
                         cycle 
                      else
                         ii = ii +1
@@ -634,7 +633,7 @@ module forces_linear
                      iiorb=orbs%isorb+iorb
                      ilr=orbs%inwhichlocreg(iiorb)
                      ! Check whether there is an overlap between projector and support functions
-                     if (projector_has_overlap(iat, ilr, lzd%llr(ilr), lzd%glr, nlpsp)) then
+                     if (projector_has_overlap(ilr, lzd%llr(ilr), lzd%glr, nlpsp%pspd(iat))) then
                         need_proj=.true.
                         exit
                      end if
@@ -673,7 +672,7 @@ module forces_linear
                         iiorb=orbs%isorb+iorb
                         ilr=orbs%inwhichlocreg(iiorb)
                         ! Check whether there is an overlap between projector and support functions
-                        if (.not.projector_has_overlap(iat, ilr, lzd%llr(ilr), lzd%glr, nlpsp)) then
+                        if (.not.projector_has_overlap(ilr, lzd%llr(ilr), lzd%glr, nlpsp%pspd(iat))) then
                            jorb=jorb+1
                            ispsi=ispsi+(lzd%llr(ilr)%wfd%nvctr_c+7*lzd%llr(ilr)%wfd%nvctr_f)*ncplx
                            cycle 

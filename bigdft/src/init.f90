@@ -256,11 +256,6 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
 
   call init_structure()
 
-  ! Store the atomic projector in their own basis.
-  if (f_err_raise(associated(nl%pbasis), &
-       & "Atomic projector basis already associated.", &
-       & err_name = 'BIGDFT_RUNTIME_ERROR')) return
-  call allocate_atomic_projectors_ptr(nl%pbasis, at%astruct%nat)
   do iat = 1, at%astruct%nat
      ityp = at%astruct%iatype(iat)
      nl%pbasis(iat)%iat = iat
@@ -363,19 +358,8 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
              fpmult,hx,hy,hz,logrid)
 
         ! Assign grid dimensions.
-        !!nl%pspd(iat)%plr%geocode = lr%geocode
-        nl%pspd(iat)%plr%d%n1 = n1
-        nl%pspd(iat)%plr%d%n2 = n2
-        nl%pspd(iat)%plr%d%n3 = n3
-        !!nl%pspd(iat)%plr%d%n1i = lr%d%n1i
-        !!nl%pspd(iat)%plr%d%n2i = lr%d%n2i
-        !!nl%pspd(iat)%plr%d%n3i = lr%d%n3i
-        nl%pspd(iat)%plr%d%nfl1 = nl1
-        nl%pspd(iat)%plr%d%nfu1 = nu1
-        nl%pspd(iat)%plr%d%nfl2 = nl2
-        nl%pspd(iat)%plr%d%nfu2 = nu2
-        nl%pspd(iat)%plr%d%nfl3 = nl3
-        nl%pspd(iat)%plr%d%nfu3 = nu3
+        call init_lr(nl%pspd(iat)%plr, 'F', 0.5_gp * [hx, hy, hz], &
+             & n1, n2, n3, nl1, nl2, nl3, nu1, nu2, nu3, .false.)
 
         mseg=nl%pspd(iat)%plr%wfd%nseg_f
         iseg=nl%pspd(iat)%plr%wfd%nseg_c+1
@@ -417,7 +401,7 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
         reducearr(ist+6,iat) = nl%pspd(iat)%plr%d%nfu1
         reducearr(ist+7,iat) = nl%pspd(iat)%plr%d%nfu2
         reducearr(ist+8,iat) = nl%pspd(iat)%plr%d%nfu3
-
+        !@todo: broadcast the meshes also, please.
      endif
   enddo
 
@@ -452,12 +436,12 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
              call set_wfd_to_wfd(lr,nl%pspd(iat)%plr,&
                   keyg_lin,nbsegs_cf,nl%pspd(iat)%noverlap,nl%pspd(iat)%lut_tolr,nl%pspd(iat)%tolr)
 
-!!$             !let us try what happens with the new method
-!!$             !consideration, we should conceive differently the
-!!$             !initialization of the localisation regions
-!!$             call locreg_bounds(nl%pspd(iat)%plr%d%n1,nl%pspd(iat)%plr%d%n2,nl%pspd(iat)%plr%d%n3,&
-!!$                  nl%pspd(iat)%plr%d%nfl1,nl%pspd(iat)%plr%d%nfu1,nl%pspd(iat)%plr%d%nfl2,nl%pspd(iat)%plr%d%nfu2,&
-!!$                  nl%pspd(iat)%plr%d%nfl3,nl%pspd(iat)%plr%d%nfu3,nl%pspd(iat)%plr%wfd,nl%pspd(iat)%plr%bounds)
+             !let us try what happens with the new method
+             !consideration, we should conceive differently the
+             !initialization of the localisation regions
+             call locreg_bounds(nl%pspd(iat)%plr%d%n1,nl%pspd(iat)%plr%d%n2,nl%pspd(iat)%plr%d%n3,&
+                  nl%pspd(iat)%plr%d%nfl1,nl%pspd(iat)%plr%d%nfu1,nl%pspd(iat)%plr%d%nfl2,nl%pspd(iat)%plr%d%nfu2,&
+                  nl%pspd(iat)%plr%d%nfl3,nl%pspd(iat)%plr%d%nfu3,nl%pspd(iat)%plr%wfd,nl%pspd(iat)%plr%bounds)
 
           end if
 
@@ -495,10 +479,11 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
       !allocate the different localization regions of the projectors
       nl%natoms=at%astruct%nat
       !for a structure let the allocator crash when allocating
-      allocate(nl%pspd(at%astruct%nat))
-      do iat=1,at%astruct%nat
+      allocate(nl%pspd(nl%natoms))
+      do iat=1,nl%natoms
          nl%pspd(iat)=nonlocal_psp_descriptors_null()
       end do
+      call allocate_atomic_projectors_ptr(nl%pbasis, nl%natoms)
 
       !allocate the iagamma array in the case of needed density matrix
       if (any(at%dogamma)) then
@@ -2519,7 +2504,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
   !local variables
   real(kind=8),dimension(:),allocatable :: tmparr
   character(len = *), parameter :: subname = "input_wf"
-  integer :: nspin, iat
+  integer :: nspin, iat, ityp
   type(gaussian_basis) :: Gvirt
   real(wp), allocatable, dimension(:) :: norm
   !wvl+PAW objects
@@ -2527,7 +2512,12 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
   logical :: overlap_calculated, perx,pery,perz, rho_negative
   real(gp) :: displ!,tx,ty,tz,mindist
   real(gp), dimension(:), pointer :: in_frag_charge
-  integer :: infoCoeff, iorb, nstates_max, order_taylor, npspcode, scf_mode
+  integer :: infoCoeff, iorb, nstates_max, order_taylor, scf_mode
+  integer, dimension(:), allocatable :: npspcode
+  real(gp), dimension(:,:,:), allocatable :: psppar
+  real(gp), dimension(0:4,0:6) :: psppar_
+  integer :: nzatom_, nelpsp_, ixc_, npspcode_
+  logical :: exists
   real(kind=8) :: pnrm
   integer, dimension(:,:,:), pointer :: frag_env_mapping
   type(work_mpiaccumulate) :: energs_work
@@ -2818,10 +2808,26 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
   case(INPUT_PSI_LCAO,INPUT_PSI_LCAO_GAUSS)
      ! PAW case, generate nlpsp on the fly with psppar data instead of paw data.
 
-     npspcode = atoms%npspcode(1)
-     if (any(atoms%npspcode == PSPCODE_PAW)) then
-        ! Cheating line here.
-        atoms%npspcode(1) = PSPCODE_HGH
+     if (any(atoms%npspcode == PSPCODE_PAW) .or. &
+          & any(atoms%npspcode == PSPCODE_PSPIO)) then
+        npspcode = f_malloc(src = atoms%npspcode)
+        psppar   = f_malloc(src = atoms%psppar)
+        ! Cheating lines here.
+        do ityp = 1, atoms%astruct%ntypes
+           if (atoms%npspcode(ityp) /= PSPCODE_PAW .and. &
+                & atoms%npspcode(ityp) /= PSPCODE_PSPIO) continue
+           
+           atoms%npspcode(ityp) = PSPCODE_HGH
+           ixc_ = in%ixc
+           call psp_from_data(trim(atoms%astruct%atomnames(ityp)), nzatom_, nelpsp_, &
+                & npspcode_, ixc_, psppar_, exists)
+           if (f_err_raise(.not.exists .or. nzatom_ /= atoms%nzatom(ityp) .or. &
+                & nelpsp_ /= atoms%nelpsp(ityp), &
+                & 'No HGH pseudo for PAW/PSPIO input guess.', &
+                & err_name='BIGDFT_RUNTIME_ERROR')) return
+           atoms%psppar(:,:,ityp) = psppar_(:,:)
+        end do
+
         call orbital_basis_associate(ob,orbs=KSwfn%orbs,Lzd=KSwfn%Lzd,id='input_wf')
         call createProjectorsArrays(iproc,nproc,KSwfn%Lzd%Glr,rxyz,atoms,ob,&
              in%frmult,in%frmult,KSwfn%Lzd%hgrids(1),KSwfn%Lzd%hgrids(2),&
@@ -2845,9 +2851,12 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
           KSwfn%orbs,norbv,KSwfn%comms,KSwfn%Lzd,energs,rxyz,&
           nl,in%ixc,KSwfn%psi,KSwfn%hpsi,KSwfn%psit,&
           Gvirt,nspin,GPU,in,.false.)
-     if (npspcode == PSPCODE_PAW) then
+     if (allocated(npspcode) .and. allocated(psppar)) then
         call free_DFT_PSP_projectors(nl)
-        atoms%npspcode(1) = npspcode
+        atoms%npspcode = npspcode
+        call f_free(npspcode)
+        atoms%psppar = psppar
+        call f_free(psppar)
      end if
 
   case(INPUT_PSI_MEMORY_WVL)

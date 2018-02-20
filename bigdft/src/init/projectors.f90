@@ -17,7 +17,7 @@ subroutine localize_projectors(iproc,nproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,
   use psp_projectors_base, only: DFT_PSP_projectors, atomic_projector_iter, &
        & atomic_projector_iter_new, atomic_projector_iter_next
   use psp_projectors, only: bounds_to_plr_limits, pregion_size
-  use public_enums, only: PSPCODE_PAW
+  use public_enums, only: PSPCODE_GTH, PSPCODE_HGH, PSPCODE_HGH_K, PSPCODE_HGH_K_NLCC
   use sparsematrix_init, only: distribute_on_tasks
   use locregs, only: init_lr
   implicit none
@@ -217,16 +217,17 @@ subroutine localize_projectors(iproc,nproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,
   !assign the distprojapply value to the structure
   nl%on_the_fly=DistProjApply
 
-! Skip this zerovol test for PAW, since the HGH/GTH parameters 
-! are not used.
-  if (all(at%npspcode(:) /= PSPCODE_PAW)) then
-     !calculate the fraction of the projector array used for allocate zero values
-     !control the hardest and the softest gaussian
-     totzerovol=0.0_gp
-     maxfullvol=0.0_gp
-     totfullvol=0.0_gp
-     do iat=1,at%astruct%nat
-        ityp=at%astruct%iatype(iat)
+  !calculate the fraction of the projector array used for allocate zero values
+  !control the hardest and the softest gaussian
+  totzerovol=0.0_gp
+  maxfullvol=0.0_gp
+  totfullvol=0.0_gp
+  do iat=1,at%astruct%nat
+     ityp=at%astruct%iatype(iat)
+     if (at%npspcode(iat) == PSPCODE_GTH .or. &
+          & at%npspcode(iat) == PSPCODE_HGH .or. &
+          & at%npspcode(iat) == PSPCODE_HGH_K .or. &
+          & at%npspcode(iat) == PSPCODE_HGH_K_NLCC) then
         maxrad=min(maxval(at%psppar(1:4,0,ityp)),cpmult/15.0_gp*at%radii_cf(ityp,3))
         nl%zerovol=0.0_gp
         fullvol=0.0_gp
@@ -245,18 +246,18 @@ subroutine localize_projectors(iproc,nproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,
         end if
         totzerovol=totzerovol+nl%zerovol
         totfullvol=totfullvol+fullvol
-     end do
-
-     !assign the total quantity per atom
-     nl%zerovol=0.d0
-     if (totfullvol /= 0.0_gp) then
-        if (nl%on_the_fly) then
-           nl%zerovol=maxzerovol
-        else
-           nl%zerovol=totzerovol/totfullvol
-        end if
      end if
-  end if !npspcode == PSPCODE_PAW
+  end do
+
+  !assign the total quantity per atom
+  nl%zerovol=0.d0
+  if (totfullvol /= 0.0_gp) then
+     if (nl%on_the_fly) then
+        nl%zerovol=maxzerovol
+     else
+        nl%zerovol=totzerovol/totfullvol
+     end if
+  end if
 
   !here is the point in which the projector strategy should be decided
   !DistProjApply shoud never change after this point
@@ -456,7 +457,7 @@ subroutine fill_projectors(lr,hgrids,astruct,ob,rxyz,nlpsp,idir)
         iproj=0
         atit = atoms_iter(astruct)
         loop_atoms: do while(atoms_iter_next(atit))
-           overlap = projector_has_overlap(atit%iat,psi_it%ilr,psi_it%lr, lr, nlpsp)
+           overlap = projector_has_overlap(psi_it%ilr,psi_it%lr, lr, nlpsp%pspd(atit%iat))
            if(.not. overlap) cycle loop_atoms
            !this routine is defined to uniformise the call for on-the-fly application
            thereissome=.true.
@@ -566,12 +567,8 @@ END SUBROUTINE fill_projectors_old
 subroutine atom_projector(nl, iat, idir, lr, kpoint, istart_c, iproj, nwarnings)
   use module_base, only: gp, f_routine, f_release_routine
   use locregs, only: locreg_descriptors
-  use gaussians, only: PROJECTION_1D_SEPARABLE
-  use psp_projectors_base, only: DFT_PSP_projectors, atomic_projector_iter, &
-       & atomic_projector_iter_start, atomic_projector_iter_free, &
-       & atomic_projector_iter_to_wavelets, atomic_projector_iter_next, &
-       & atomic_projector_iter_new, atomic_projector_iter_set_method, &
-       & atomic_projector_iter_set_destination
+  use gaussians, only: PROJECTION_1D_SEPARABLE, PROJECTION_RS_COLLOCATION
+  use psp_projectors_base
   implicit none
   type(DFT_PSP_projectors), intent(inout) :: nl
   integer, intent(in) :: iat
@@ -587,7 +584,11 @@ subroutine atom_projector(nl, iat, idir, lr, kpoint, istart_c, iproj, nwarnings)
   ! Start an atomic iterator.
   call atomic_projector_iter_new(iter, nl%pbasis(iat), nl%pspd(iat)%plr, kpoint)
   call atomic_projector_iter_set_destination(iter, nl%proj, nl%nprojel, istart_c)
-  call atomic_projector_iter_set_method(iter, PROJECTION_1D_SEPARABLE, lr)
+  if (nl%pbasis(iat)%kind == PROJ_DESCRIPTION_GAUSSIAN) then
+     call atomic_projector_iter_set_method(iter, PROJECTION_1D_SEPARABLE, lr)
+  else
+     call atomic_projector_iter_set_method(iter, PROJECTION_RS_COLLOCATION)
+  end if
 
   call atomic_projector_iter_start(iter)
   ! Loop on shell.

@@ -1042,7 +1042,7 @@ subroutine NonLocalHamiltonianApplication(iproc,at,npsidim_orbs,orbs,&
   use module_atoms
   use orbitalbasis
   use ao_inguess, only: lmax_ao
-  use pseudopotentials, only: atomic_proj_coeff,nullify_atomic_proj_coeff,f_free_prj_ptr
+  use pseudopotentials, only: atomic_proj_coeff,allocate_prj_ptr,f_free_prj_ptr
   implicit none
   integer, intent(in) :: iproc, npsidim_orbs
   type(atoms_data), intent(in) :: at
@@ -1101,14 +1101,14 @@ subroutine NonLocalHamiltonianApplication(iproc,at,npsidim_orbs,orbs,&
            atit = atoms_iter(at%astruct)
            loop_atoms: do while(atoms_iter_next(atit))
               ! Check whether the projectors of this atom have an overlap with locreg ilr
-              overlap = projector_has_overlap(atit%iat, psi_it%ilr,psi_it%lr,lzd%glr, nl)
+              overlap = projector_has_overlap(psi_it%ilr,psi_it%lr,lzd%glr, nl%pspd(atit%iat))
               if(.not. overlap) cycle loop_atoms
               istart_c=1
               mproj=nl%pspd(atit%iat)%mproj
               call atom_projector(nl,atit%iat, 0, Lzd%Glr, psi_it%kpoint,&
                    istart_c, iproj, nwarnings)
 
-              iilr=get_proj_locreg(nl,atit%iat,psi_it%ilr)
+              iilr=get_proj_locreg(nl%pspd(atit%iat),psi_it%ilr)
               loop_psi_kpt: do while(ket_next(psi_it,ikpt=psi_it%ikpt,ilr=psi_it%ilr))
                  istart_c=1
                  call nl_psp_application()
@@ -1119,11 +1119,11 @@ subroutine NonLocalHamiltonianApplication(iproc,at,npsidim_orbs,orbs,&
               atit = atoms_iter(at%astruct)
               istart_c=istart_ck !TO BE CHANGED IN ONCE-AND-FOR-ALL
               loop_atoms2: do while(atoms_iter_next(atit))
-                 overlap = projector_has_overlap(atit%iat,psi_it%ilr,psi_it%lr, lzd%glr, nl)
+                 overlap = projector_has_overlap(psi_it%ilr,psi_it%lr, lzd%glr, nl%pspd(atit%iat))
                  if(.not. overlap) cycle loop_atoms2
                  mproj=nl%pspd(atit%iat)%mproj
 
-                 iilr=get_proj_locreg(nl,atit%iat,psi_it%ilr)
+                 iilr=get_proj_locreg(nl%pspd(atit%iat),psi_it%ilr)
                  call nl_psp_application()
               end do loop_atoms2
            end do loop_psi_kpt2
@@ -1159,7 +1159,7 @@ contains
     implicit none
     !local variables
     integer :: ncplx_p,nvctr_p
-    !real(gp), dimension(3,3,4) :: hij
+    real(gp), dimension(3,3,4) :: hij
     type(atomic_proj_coeff), dimension(:,:,:), pointer :: prj
     real(gp) :: eproj
     real(wp), dimension(:), pointer :: proj_ptr
@@ -1187,9 +1187,12 @@ contains
 !!$       end if
 
        !extract hij parameters
-!!$       call hgh_hij_matrix(at%npspcode(atit%ityp),at%psppar(0,0,atit%ityp),hij)
-
-       call allocate_prj_ptr(atit%iat,atit%ityp,psi_it%ispin,at,nl,prj)
+       call hgh_hij_matrix(at%npspcode(atit%ityp),at%psppar(0,0,atit%ityp),hij)
+       if (associated(at%gamma_targets) .and. nl%apply_gamma_target) then
+          call allocate_prj_ptr(hij, atit%iat,psi_it%ispin, prj, at%gamma_targets)
+       else
+          call allocate_prj_ptr(hij, atit%iat,psi_it%ispin, prj)
+       end if
 
        nvctr_p=nl%pspd(atit%iat)%plr%wfd%nvctr_c+7*nl%pspd(atit%iat)%plr%wfd%nvctr_f
 
@@ -1223,62 +1226,6 @@ contains
     end if
 
   end subroutine nl_psp_application
-
-
-  subroutine allocate_prj_ptr(iat,ityp,ispin,at,nl,prj)
-    integer, intent(in) :: iat,ispin,ityp
-    type(atoms_data), intent(in) :: at
-    type(DFT_PSP_projectors), intent(inout) :: nl
-    type(atomic_proj_coeff), dimension(:,:,:), pointer :: prj
-    !local variables
-    integer, parameter :: LMAX=3,IMAX=3
-    logical :: occ_ctrl
-    integer :: i,l,j,igamma,m
-    real(gp), dimension(3,3,4) :: hij
-
-    igamma=0
-    occ_ctrl=.false.
-
-    allocate(prj(3,3,4))
-
-    !first extract the hij matrix as usual
-    call hgh_hij_matrix(at%npspcode(ityp),at%psppar(0,0,ityp),hij)
-
-    !then allocate the structure as needed
-    do l=1,LMAX+1
-       !the matrix is used only for i=1 at present
-       if (associated(nl%iagamma)) igamma=nl%iagamma(l-1,iat)
-       !if the matrix is available search for the target
-       if (associated(at%gamma_targets)) &
-            !if the given point need a target then associate the actual potential
-            occ_ctrl= associated(at%gamma_targets(l-1,ispin,iat)%ptr) .and. nl%apply_gamma_target
-       do i=1,IMAX
-          call nullify_atomic_proj_coeff(prj(i,i,l))
-          prj(i,i,l)%hij=hij(i,i,l)
-          if (i==1 .and. occ_ctrl) then
-             !it has to be discussed if the coefficient should change in to one
-             !and we have to add the h11 term in the diagonal
-             prj(i,i,l)%mat=&
-                  f_malloc_ptr(src_ptr=at%gamma_targets(l-1,ispin,iat)%ptr,id='prjmat')
-             do m=1,2*l-1
-                prj(i,i,l)%mat(m,m)=prj(i,i,l)%mat(m,m)+prj(i,i,l)%hij
-             end do
-             prj(i,i,l)%hij=1.0_gp
-          end if
-          do j=i+1,IMAX
-             call nullify_atomic_proj_coeff(prj(i,j,l))
-             call nullify_atomic_proj_coeff(prj(j,i,l))
-             !allocate upper triangular and associate lower triangular
-             prj(i,j,l)%hij=hij(i,j,l)
-
-             prj(j,i,l)%mat => prj(i,j,l)%mat 
-             prj(j,i,l)%hij=hij(j,i,l)
-          end do
-       end do
-    end do
-
-  end subroutine allocate_prj_ptr
-
 
 end subroutine NonLocalHamiltonianApplication
 
@@ -1554,7 +1501,7 @@ subroutine NonLocalHamiltonianApplication_old(iproc,at,npsidim_orbs,orbs,&
               !!!call check_overlap(Lzd%Llr(ilr), nl%pspd(iat)%plr, Lzd%Glr, overlap)
 
               ! Check whether the projectors of this atom have an overlap with locreg ilr
-              overlap = projector_has_overlap(iat, ilr, lzd%llr(ilr), lzd%glr, nl)
+              overlap = projector_has_overlap(ilr, lzd%llr(ilr), lzd%glr, nl%pspd(iat))
               if(.not. overlap) cycle
               !call cpu_time(tr1)
               !time1=time1+real(tr1-tr0,kind=8)
@@ -1658,7 +1605,7 @@ subroutine NonLocalHamiltonianApplication_old(iproc,at,npsidim_orbs,orbs,&
 
                  !!!check if the atom intersect with the given localisation region
                  !!call check_overlap(Lzd%Llr(ilr), nl%pspd(iat)%plr, Lzd%Glr, overlap)
-                 overlap = projector_has_overlap(iat, ilr, lzd%llr(ilr), lzd%glr, nl)
+                 overlap = projector_has_overlap(ilr, lzd%llr(ilr), lzd%glr, nl%pspd(iat))
                  if(.not. overlap) cycle loop_atoms_2 !stop 'ERROR all atoms should be in global'
 
                  iatype=at%astruct%iatype(iat)

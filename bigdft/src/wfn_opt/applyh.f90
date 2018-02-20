@@ -854,59 +854,6 @@ END SUBROUTINE applyprojectorsonthefly
 !!$END SUBROUTINE apply_atproj_iorb
 
 
-!> Build the Hifj matrix for PSP
-subroutine build_hgh_hij_matrix(npspcode,psppar,hij)
-  use module_base, only: gp
-  use public_enums, only: PSPCODE_GTH, PSPCODE_HGH, PSPCODE_HGH_K, PSPCODE_HGH_K_NLCC, PSPCODE_PAW
-  implicit none
-  !Arguments
-  integer, intent(in) :: npspcode
-  real(gp), dimension(0:4,0:6), intent(in) :: psppar
-  real(gp), dimension(3,3,4), intent(out) :: hij
-  !Local variables
-  integer :: l,i,j
-  real(gp), dimension(2,2,3) :: offdiagarr
-
-  !enter the coefficients for the off-diagonal terms (HGH case, npspcode=PSPCODE_HGH)
-  offdiagarr(1,1,1)=-0.5_gp*sqrt(3._gp/5._gp)
-  offdiagarr(2,1,1)=-0.5_gp*sqrt(100._gp/63._gp)
-  offdiagarr(1,2,1)=0.5_gp*sqrt(5._gp/21._gp)
-  offdiagarr(2,2,1)=0.0_gp !never used
-  offdiagarr(1,1,2)=-0.5_gp*sqrt(5._gp/7._gp)  
-  offdiagarr(2,1,2)=-7._gp/3._gp*sqrt(1._gp/11._gp)
-  offdiagarr(1,2,2)=1._gp/6._gp*sqrt(35._gp/11._gp)
-  offdiagarr(2,2,2)=0.0_gp !never used
-  offdiagarr(1,1,3)=-0.5_gp*sqrt(7._gp/9._gp)
-  offdiagarr(2,1,3)=-9._gp*sqrt(1._gp/143._gp)
-  offdiagarr(1,2,3)=0.5_gp*sqrt(63._gp/143._gp)
-  offdiagarr(2,2,3)=0.0_gp !never used
-
-!  call to_zero(3*3*4,hij(1,1,1))
-  hij=0.0_gp
-
-  do l=1,4
-     !term for all npspcodes
-     loop_diag: do i=1,3
-        hij(i,i,l)=psppar(l,i) !diagonal term
-        if ((npspcode == PSPCODE_HGH .and. l/=4 .and. i/=3) .or. &
-             ((npspcode == PSPCODE_HGH_K .or. npspcode == PSPCODE_HGH_K_NLCC) .and. i/=3)) then !HGH(-K) case, offdiagonal terms
-           loop_offdiag: do j=i+1,3
-              if (psppar(l,j) == 0.0_gp) exit loop_offdiag
-              !offdiagonal HGH term
-              if (npspcode == PSPCODE_HGH) then !traditional HGH convention
-                 hij(i,j,l)=offdiagarr(i,j-i,l)*psppar(l,j)
-              else !HGH-K convention
-                 hij(i,j,l)=psppar(l,i+j+1)
-              end if
-              hij(j,i,l)=hij(i,j,l) !symmetrization
-           end do loop_offdiag
-        end if
-     end do loop_diag
-  end do
-  
-end subroutine build_hgh_hij_matrix
-
-
 !> Apply the PSP projectors
 subroutine applyprojector(ncplx,l,i,psppar,npspcode,&
      nvctr_c,nvctr_f,nseg_c,nseg_f,keyv,keyg,&
@@ -1353,7 +1300,7 @@ subroutine apply_atproj_iorb_new(iat,iorb,istart_c,nprojel,at,orbs,wfd,&
   call ncplx_kpt(orbs%iokpt(iorb),orbs,ncplx)
 
   !build the matrix of the pseudopotential
-  call build_hgh_hij_matrix(at%npspcode(ityp),at%psppar(:,:,ityp),hij_hgh)
+  call hgh_hij_matrix(at%npspcode(ityp),at%psppar(0,0,ityp),hij_hgh)
 
 !!$  allocate(wproj(mbvctr_c+7*mbvctr_f,ncplx+ndebug),stat=i_stat)
 !!$  call memocc(i_stat,wproj,'wproj',subname)
