@@ -1112,10 +1112,10 @@ subroutine commandline_options(parser)
        'Allowed values' .is. &
        'Double'))
 
-  call yaml_cl_parse_option(parser,'fscale_ediff_low','1.e-4',&
-       'lower bound for the optimal relative energy difference between the kernel and the control kernel',&
+  call yaml_cl_parse_option(parser,'fscale_ediff_up','1.e-4',&
+       'upper bound for the optimal relative energy difference between the kernel and the control kernel',&
        help_dict=dict_new('Usage' .is. &
-       'Indicate the lower bound for the optimal relative energy difference between the kernel and the control kernel',&
+       'Indicate the upper bound for the optimal relative energy difference between the kernel and the control kernel',&
        'Allowed values' .is. &
        'Double'))
 
