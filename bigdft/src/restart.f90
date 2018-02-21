@@ -945,7 +945,8 @@ subroutine tmb_overlap_onsite(iproc, nproc, imethod_overlap, at, tmb, rxyz)
 
              !!call f_free(psirold)
              !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-             call reformat_one_supportfunction(tmb%lzd%llr(ilr_tmp),tmb%lzd%llr(ilr),tmb%lzd%glr%mesh_coarse,&
+             call reformat_one_supportfunction(tmb%lzd%llr(ilr_tmp),tmb%lzd%llr(ilr),&
+                  tmb%lzd%glr%mesh_coarse,tmb%lzd%glr%mesh_coarse,&
                   !at%astruct%geocode,& !,tmb%lzd%llr(ilr_tmp)%geocode,&
                   !& tmb%lzd%hgrids,
                   n,phigold,&
@@ -1422,7 +1423,8 @@ subroutine tmb_overlap_onsite_rotate(iproc, nproc, input, at, tmb, rxyz, ref_fra
 
           if (strategy == REFORMAT_FULL) then
 
-             call reformat_one_supportfunction(tmb%lzd%llr(ilr_tmp),tmb%lzd%llr(ilr),tmb%lzd%glr%mesh_coarse,&
+             call reformat_one_supportfunction(tmb%lzd%llr(ilr_tmp),tmb%lzd%llr(ilr),&
+                  tmb%lzd%glr%mesh_coarse,tmb%lzd%glr%mesh_coarse,&
                   !at%astruct%geocode,& !,tmb%lzd%llr(ilr_tmp)%geocode,&
                   !& tmb%lzd%hgrids,
                   n,phigold,&
@@ -1587,7 +1589,8 @@ subroutine tmb_overlap_onsite_rotate(iproc, nproc, input, at, tmb, rxyz, ref_fra
 
              if (reformat) then
 
-                call reformat_one_supportfunction(tmb%lzd%llr(ilr_tmp),tmb%lzd%llr(jlr),tmb%lzd%glr%mesh_coarse,&
+                call reformat_one_supportfunction(tmb%lzd%llr(ilr_tmp),tmb%lzd%llr(jlr),&
+                     tmb%lzd%glr%mesh_coarse,tmb%lzd%glr%mesh_coarse,&
                      !at%astruct%geocode,&  !tmb%lzd%llr(ilr_tmp)%geocode,&
                      !& tmb%lzd%hgrids,
                      n,phigold,&
@@ -2199,7 +2202,7 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
   use public_enums
   use rototranslations
   use reformatting
-  use locregs, only: lr_box
+  use locregs, only: lr_box,reset_lr
   implicit none
   integer, intent(in) :: iproc, nproc
   integer, intent(in) :: iformat
@@ -2243,7 +2246,7 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
   logical :: skip, binary
   integer :: itmb, jtmb, jat, ierr
   integer :: stat(mpi_status_size)
-  !integer, dimension(2,3) :: nbox
+  integer, dimension(2,3) :: nbox
   !!$ integer :: ierr
 
   ! DEBUG
@@ -2353,7 +2356,17 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
 !!$              nbox(2,2)=Lzd_old%Llr(ilr)%d%n2+Lzd_old%Llr(ilr)%ns2
 !!$              nbox(1,3)=Lzd_old%Llr(ilr)%ns3
 !!$              nbox(2,3)=Lzd_old%Llr(ilr)%d%n3+Lzd_old%Llr(ilr)%ns3
-              call lr_box(Lzd_old%Llr(ilr),tmb%lzd%glr,lzd_old%hgrids)!,nbox,.false.)
+              nbox(1,1)=tmb%lzd%glr%d%nfl1
+              nbox(1,2)=tmb%lzd%glr%d%nfl2
+              nbox(1,3)=tmb%lzd%glr%d%nfl3
+              
+              nbox(2,1)=tmb%lzd%glr%d%nfu1
+              nbox(2,2)=tmb%lzd%glr%d%nfu2
+              nbox(2,3)=tmb%lzd%glr%d%nfu3
+                   
+              !call lr_box(Lzd_old%Llr(ilr),tmb%lzd%glr,lzd_old%hgrids)!,nbox,.false.)
+              
+              call reset_lr(Lzd_old%Llr(ilr),'F',lzd_old%hgrids,nbox,tmb%lzd%glr%geocode)
 
               ! DEBUG: print*,iproc,iorb,iorb+orbs%isorb,iorb_old,iorb_out
 
@@ -2688,8 +2701,6 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
 
   end if fragment_if
 
-
-
   !reduce the number of warnings
   if (nproc >1) call fmpi_allreduce(itoo_big,1,op=FMPI_SUM,comm=bigdft_mpi%mpi_comm)
   if (nproc >1) call fmpi_allreduce(max_wahba,1,op=FMPI_MAX,comm=bigdft_mpi%mpi_comm)
@@ -2715,6 +2726,11 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
   !!   end do
   !!   close(109)
   !!end if
+
+
+  ! hack to make reformatting work for case when hgrid changes, ideally we should fill this in properly
+  Lzd_old%glr%mesh_coarse%hgrids=lzd_old%hgrids
+  Lzd_old%glr%mesh_coarse%bc=tmb%lzd%glr%mesh%bc
 
   call timing(iproc,'tmbrestart','OF')
   call reformat_supportfunctions(iproc,nproc,&
@@ -3654,12 +3670,12 @@ subroutine reformat_supportfunctions(iproc,nproc,at,rxyz_old,rxyz,add_derivative
      jstart_old_der=1
   end if
 
-  nglr_old(1)=lzd_old%glr%d%n1
-  nglr_old(2)=lzd_old%glr%d%n1
-  nglr_old(3)=lzd_old%glr%d%n1
-  nglr(1)=tmb%lzd%glr%d%n1
-  nglr(2)=tmb%lzd%glr%d%n1
-  nglr(3)=tmb%lzd%glr%d%n1
+  !nglr_old(1)=lzd_old%glr%d%n1
+  !nglr_old(2)=lzd_old%glr%d%n1
+  !nglr_old(3)=lzd_old%glr%d%n1
+  !nglr(1)=tmb%lzd%glr%d%n1
+  !nglr(2)=tmb%lzd%glr%d%n1
+  !nglr(3)=tmb%lzd%glr%d%n1
 
   jstart_old=1
   jstart=1
@@ -3938,7 +3954,8 @@ subroutine reformat_supportfunctions(iproc,nproc,at,rxyz_old,rxyz,add_derivative
 !!$
 !!$             da=centre_new_box-centre_old_box-(lzd_old%hgrids-tmb%lzd%hgrids)*0.5d0
              !verify that the at%astruct%geocode here is the good value (seems not good for periodic systems)
-             call reformat_one_supportfunction(tmb%lzd%llr(ilr),lzd_old%llr(ilr_old),tmb%lzd%glr%mesh_coarse,&
+             call reformat_one_supportfunction(tmb%lzd%llr(ilr),lzd_old%llr(ilr_old),&
+                  tmb%lzd%glr%mesh_coarse,lzd_old%glr%mesh_coarse,&
                   !at%astruct%geocode,& !,tmb%lzd%llr(ilr)%geocode,&
                   !lzd_old%hgrids,
                   n_old,phigold,&
@@ -3948,7 +3965,8 @@ subroutine reformat_supportfunctions(iproc,nproc,at,rxyz_old,rxyz,add_derivative
                   frag_trans(iorb),tmb%psi(jstart:),psirold)
              call f_free(psirold)
           else ! don't have psirold from file, so reformat using old way
-             call reformat_one_supportfunction(tmb%lzd%llr(ilr),lzd_old%llr(ilr_old),tmb%lzd%glr%mesh_coarse,&!
+             call reformat_one_supportfunction(tmb%lzd%llr(ilr),lzd_old%llr(ilr_old),&
+                  tmb%lzd%glr%mesh_coarse,lzd_old%glr%mesh_coarse,&!
                   !at%astruct%geocode,& !,tmb%lzd%llr(ilr)%geocode,&
                   !lzd_old%hgrids,
                   n_old,phigold,&

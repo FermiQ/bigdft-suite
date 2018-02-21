@@ -4390,7 +4390,7 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
   real(gp) :: q,qtot, delta_term,x,y,z,ri,rj,tt
   !integer  :: i1,i2,i3, nl1,nl2,nl3, n1i,n2i,n3i,  is, ie
   integer :: iat,ispin,i, j
-  real(gp), dimension(3) :: dipole_el,dipole_cores,tmpdip,charge_center_cores
+  real(gp), dimension(3) :: dipole_el,dipole_cores,tmpdip,charge_center_cores,el_spread
   real(gp),dimension(3,nspin) :: charge_center_elec
   real(gp), dimension(3,3) :: quadropole_el,quadropole_cores,tmpquadrop
   real(dp), dimension(:,:,:,:), pointer :: ele_rho
@@ -4405,8 +4405,9 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
       quiet = .false.
   end if
 
+  !call center_of_charge(at,at%astruct%rxyz,charge_center_cores)
   call f_zero(charge_center_cores)
-  call f_multipoles_create(mp_cores,1)
+  call f_multipoles_create(mp_cores,1)!,center=charge_center_cores)
   call vector_multipoles(mp_cores,at%astruct%nat,rxyz,dpbox%mesh,&
        charges=real(at%nelpsp,dp),lookup=at%astruct%iatype)
   qtot=get_monopole(mp_cores)
@@ -4414,6 +4415,8 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
   !this defines the origin of the coordinate system
   if (qtot /=0.0_gp) charge_center_cores=dipole_cores/qtot
   call f_multipoles_release(mp_cores)
+
+  !now the cores dipole should become zero
 
 !!$  qtot=0.d0
 !!$  call f_zero(dipole_cores)!(1:3)=0._gp
@@ -4433,8 +4436,17 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
   !now reset the multipole quantities 
   call f_multipoles_create(mp_electrons,2,center=charge_center_cores)
   call field_multipoles(dpbox%bitp,rho,nspin,mp_electrons)
+  call f_multipoles_reduce(mp_electrons,comm=bigdft_mpi%mpi_comm)
+  !in case there is no ionic charge the dipole of the 
+  !electronic density is set to zero by default
+  if (qtot==0.0_dp) then
+     call f_zero(dipole_el)
+     el_spread=get_quadrupole_intensities(mp_electrons)
+  else
+     dipole_el=-get_dipole(mp_electrons)
+     el_spread=get_spreads(mp_electrons)
+  end if
   qtot=-get_monopole(mp_electrons)
-  dipole_el=-get_dipole(mp_electrons)
 
 !!$  !calculate electronic dipole and thus total dipole of the system
 !!$  call f_zero(dipole_el)!   (1:3)=0._gp
@@ -4447,12 +4459,10 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
 !!$     end do
 !!$  end do
 
-  call fmpi_allreduce(qtot, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
-  call fmpi_allreduce(dipole_el, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+!!$  call fmpi_allreduce(qtot, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+!!$  call fmpi_allreduce(dipole_el, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
 
-  if (present(dipole)) then
-      dipole = dipole_el
-  end if
+  if (present(dipole)) dipole = dipole_el
 
   !quadrupole should be calculated with the shifted positions!
   quadrupole_if: if (calculate_quadrupole) then
@@ -4505,17 +4515,12 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
 
       quadropole_el=-get_quadrupole(mp_electrons)
 
-      call fmpi_allreduce(quadropole_el, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+!!$      call fmpi_allreduce(quadropole_el, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
       tmpquadrop=quadropole_cores+quadropole_el
 
-      if (present(quadrupole)) then
-          quadrupole = tmpquadrop
-      end if
+      if (present(quadrupole)) quadrupole = tmpquadrop
 
   end if quadrupole_if
-
-  call f_multipoles_release(mp_cores)
-  call f_multipoles_release(mp_electrons)
 
   tmpdip=dipole_el !dipole_cores+ !should not be needed as it is now in  if (present(dipole)) dipole(1:3) = tmpdip(1:3)
   if(bigdft_mpi%iproc==0 .and. .not.quiet) then
@@ -4537,8 +4542,12 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
            call yaml_map('trace',tmpquadrop(1,1)+tmpquadrop(2,2)+tmpquadrop(3,3),fmt='(es12.2)')
           call yaml_mapping_close()
       end if
+      call yaml_map('Spreads of the electronic density (AU)',el_spread,fmt='(1pe14.6)')
 
   end if
+
+  call f_multipoles_release(mp_cores)
+  call f_multipoles_release(mp_electrons)
 
   call f_release_routine()
 

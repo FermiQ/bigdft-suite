@@ -502,6 +502,7 @@ taskgroups:
   EKS: 1.1e-10
   P vector: 1.1e-10
   Total electronic charge: 1.5e-11
+  trace: 3.6e-11
   Keys to ignore:
     - NonLocal PSP Parameters
 

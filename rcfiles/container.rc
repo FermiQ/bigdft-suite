@@ -31,8 +31,10 @@ module_autogenargs.update({
    
 'GaIn': env_configuration(),
    
-'bigdft': env_configuration(),
+'bigdft': env_configuration()+" --with-gobject=yes ",
    
-'spred': env_configuration(),
+'spred': env_configuration()+" --with-gobject=yes ",
+
+'PyYAML': "build_ext -I%(prefix)s/include -L%(prefix)s/lib --rpath=%(prefix)s/lib " % {"prefix": prefix}
    
 })

@@ -98,14 +98,14 @@ contains
     call dict_free(info)
   end subroutine print_reformat_summary
 
-  subroutine rototranslations_shifts(rt,mesh_glr,llr_src,llr_dest,&
+  subroutine rototranslations_shifts(rt,mesh_glr_src,mesh_glr_dest,llr_src,llr_dest,&
        centre_src,centre_dest,da)
     use rototranslations
     use locregs
     use box
     implicit none
     type(rototranslation), intent(in) :: rt
-    type(cell), intent(in) :: mesh_glr
+    type(cell), intent(in) :: mesh_glr_src,mesh_glr_dest
     type(locreg_descriptors), intent(in) :: llr_src,llr_dest
     real(gp), dimension(3), intent(out) :: centre_src,centre_dest,da
     !local variables
@@ -114,11 +114,11 @@ contains
 !!$    oxyz_src=true_origin(llr_src%mesh,llr_src)
 !!$    oxyz_dest=true_origin(llr_dest%mesh,llr_dest)
     !mesh coarse vs mesh fine for free BC
-    oxyz_src=true_origin(mesh_glr,llr_src)
-    oxyz_dest=true_origin(mesh_glr,llr_dest)
+    oxyz_src=true_origin(mesh_glr_src,llr_src)
+    oxyz_dest=true_origin(mesh_glr_dest,llr_dest)
 
-    centre_src=closest_r(mesh_glr,rt%rot_center_src,oxyz_src)
-    centre_dest=closest_r(mesh_glr,rt%rot_center_dest,oxyz_dest)
+    centre_src=closest_r(mesh_glr_src,rt%rot_center_src,oxyz_src)
+    centre_dest=closest_r(mesh_glr_dest,rt%rot_center_dest,oxyz_dest)
 
     da = centre_dest-centre_src-&
          (llr_src%mesh_coarse%hgrids-llr_dest%mesh_coarse%hgrids)*0.5_gp
@@ -166,7 +166,7 @@ contains
     real(gp), dimension(3) :: centre_src,centre_dest,da
     type(dictionary), pointer :: info_reformat
 
-    call rototranslations_shifts(frag_trans,dest_glr_mesh,&
+    call rototranslations_shifts(frag_trans,src_glr_mesh,dest_glr_mesh,&
          src_llr,dest_llr,&
          centre_src,centre_dest,da)
 
@@ -356,7 +356,7 @@ contains
   end function true_origin
 
   !> Make frag_trans the argument so can eliminate need for interface
-  subroutine reformat_one_supportfunction(llr,llr_old,dest_glr_mesh,&!geocode,hgrids_old,&
+  subroutine reformat_one_supportfunction(llr,llr_old,dest_glr_mesh,src_glr_mesh,&!geocode,hgrids_old,&
        n_old,psigold,&
        !hgrids,&
        n,&
@@ -374,7 +374,7 @@ contains
 !    real(gp), dimension(3), intent(in) :: hgrids,hgrids_old
     !type(wavefunctions_descriptors), intent(in) :: wfd
     type(locreg_descriptors), intent(in) :: llr, llr_old
-    type(cell), intent(in) :: dest_glr_mesh
+    type(cell), intent(in) :: dest_glr_mesh, src_glr_mesh
 !    real(gp), dimension(3), intent(in) :: centre_old,centre_new,da
     type(rototranslation), intent(in) :: frag_trans
     real(wp), dimension(0:n_old(1),2,0:n_old(2),2,0:n_old(3),2), intent(in) :: psigold
@@ -458,7 +458,7 @@ contains
 !!$    end if
 
     !call calculate_origins(llr,llr_old,oxyz_src,oxyz_dest)
-    call rototranslations_shifts(frag_trans,dest_glr_mesh,llr_old,llr,&
+    call rototranslations_shifts(frag_trans,src_glr_mesh,dest_glr_mesh,llr_old,llr,&
          centre_src,centre_dest,da)
     if (.not. present(psirold)) then
        call apply_rototranslation(frag_trans,.true.,&
@@ -577,7 +577,7 @@ contains
     real(gp), dimension(3), intent(in) :: oxyz_src,oxyz_dest
     real(gp), dimension(3), intent(out) :: centre_src,centre_dest,da
 
-        !here for periodic BC we should check the correctness of the centre definition
+    !here for periodic BC we should check the correctness of the centre definition
     !in particular it appears weird that mesh_dest is always used for closest r
     !as well as the shift of hgrid/2 that have to be imposed for the detection of da array
     centre_src=closest_r(mesh_dest,rt%rot_center_src,oxyz_src)

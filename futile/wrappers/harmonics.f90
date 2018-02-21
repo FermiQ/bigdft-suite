@@ -34,7 +34,7 @@ module f_harmonics
   public :: solid_harmonic,f_multipoles_create,f_multipoles_release
   public :: field_multipoles,vector_multipoles,f_multipoles_accumulate
   public :: get_monopole,get_dipole,get_quadrupole,get_quadrupole_intensities
-  public :: get_monomials
+  public :: get_monomials,f_multipoles_reduce,get_spreads
 
   contains
 
@@ -190,6 +190,19 @@ module f_harmonics
 !!$      !end do
 !!$    end subroutine f_multipoles_accumulate
 
+    subroutine f_multipoles_reduce(mp,comm)
+      use wrapper_MPI
+      implicit none
+      type(f_multipoles), intent(inout) :: mp
+      integer, intent(in), optional :: comm
+      
+      !we might perform here, if needed, some checks that 
+      !would guarantee that the multipoles are correctly iniitalized
+
+      call fmpi_allreduce(mp%monomials,FMPI_SUM,comm=comm)
+
+    end subroutine f_multipoles_reduce
+
     pure function get_monopole(mp) result(q)
       implicit none
       type(f_multipoles), intent(in) :: mp
@@ -244,13 +257,29 @@ module f_harmonics
 
     end function get_quadrupole
 
-    function get_monomials(mp) result(m)
+    pure function get_monomials(mp) result(m)
       implicit none
       type(f_multipoles), intent(in) :: mp
       real(dp), dimension(0:mp%nmonomials) :: m
       m=mp%monomials
     end function get_monomials
 
+    pure function get_spreads(mp) result(s)
+      !calculate the spread defined in terms of the multipoles
+      ! that is $sqrt (\langle r^2 \rangle - \langle r \rangle^2) $ 
+      type(f_multipoles), intent(in) :: mp
+      real(dp), dimension(3) :: s
+      !local variables
+      real(dp) :: q
+      real(dp), dimension(3) :: d
+            
+      s=get_quadrupole_intensities(mp)
+      d=get_dipole(mp)
+      q=get_monopole(mp)
+      s=s+(q-2.0_dp)*d**2
+      where (s/=0.0_dp) s=sqrt(s)
+
+    end function get_spreads
     !> Calculates the solid harmonic S_lm (possibly multplied by a power or r) for given values of l, m, x, y, z.
     !! They are normalized such that the integral over the angle gives r^2, i.e.
     !! \int d\Omega S_{lm}*S_{l'm'}/r^{2l} = r^2 \delta_{ll'}\delta_{mm'}

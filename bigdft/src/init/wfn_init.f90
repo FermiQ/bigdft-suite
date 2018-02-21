@@ -435,6 +435,7 @@ end if
 
         if (iproc==0) call yaml_map('Noise added to input eigenvalues to determine occupation numbers',&
              max(Tel,1.0e-3_gp),fmt='(1pe12.5)')
+        call f_random_seed(0) !for uniformity
 !        !add a small displacement in the eigenvalues
         do iorb=1,orbse%norb*orbse%nkpts
            !tt=builtin_rand(idum)
