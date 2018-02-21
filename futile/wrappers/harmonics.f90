@@ -277,7 +277,9 @@ module f_harmonics
       d=get_dipole(mp)
       q=get_monopole(mp)
       s=s+(q-2.0_dp)*d**2
+      s=s/q
       where (s/=0.0_dp) s=sqrt(s)
+
 
     end function get_spreads
     !> Calculates the solid harmonic S_lm (possibly multplied by a power or r) for given values of l, m, x, y, z.

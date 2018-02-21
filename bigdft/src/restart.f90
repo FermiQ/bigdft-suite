@@ -2203,6 +2203,7 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
   use rototranslations
   use reformatting
   use locregs, only: lr_box,reset_lr
+  use box, only: cell_new
   implicit none
   integer, intent(in) :: iproc, nproc
   integer, intent(in) :: iformat
@@ -2728,10 +2729,10 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
   !!end if
 
 
-  ! hack to make reformatting work for case when hgrid changes, ideally we should fill this in properly
-  Lzd_old%glr%mesh_coarse%hgrids=lzd_old%hgrids
-  Lzd_old%glr%mesh_coarse%bc=tmb%lzd%glr%mesh%bc
-
+  ! hack to make reformatting work for case when hgrid changes, here the ndims is meaningless
+  Lzd_old%glr%mesh_coarse=&
+       cell_new(tmb%lzd%glr%geocode,tmb%lzd%glr%mesh_coarse%ndims,lzd_old%hgrids)
+ 
   call timing(iproc,'tmbrestart','OF')
   call reformat_supportfunctions(iproc,nproc,&
        at,rxyz_old,rxyz,.false.,tmb,ndim_old,lzd_old,frag_trans_orb,&

@@ -60,10 +60,10 @@ program numeric_check
   call yaml_map('monopole',get_monopole(mp))
   call yaml_map('dipole',get_dipole(mp))
   call yaml_map('quadrupole',get_quadrupole(mp))
-  call yaml_map('quadrupole intensity',get_quadrupole_intensity(mp))
+  call yaml_map('quadrupole intensity',get_quadrupole_intensities(mp))
   call yaml_mapping_close()
 
-  call f_multipoles_free(mp)
+  call f_multipoles_release(mp)
 
   call f_free(density)
 !  call dict_free(options)
