@@ -803,7 +803,8 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
   use abi_interfaces_numeric, only: abi_derf_ab
   use public_enums, only: PSPCODE_PAW, PSPCODE_PSPIO, PSPCODE_GTH, PSPCODE_HGH, &
        & PSPCODE_HGH_K, PSPCODE_HGH_K_NLCC
-  use pspiof_m, only: pspiof_pspdata_get_rho_valence, pspiof_meshfunc_eval
+  use pspiof_m, only: pspiof_pspdata_get_vlocal, pspiof_potential_t, &
+       & pspiof_potential_eval_deriv, pspiof_potential_eval_deriv2, pspiof_potential_eval
   use bounds, only: ext_buffers
   use box
   use gaussians
@@ -853,6 +854,7 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
   type(dpbox_iterator) :: boxit
   type(box_iterator) :: bitp
   type(gaussian_real_space) :: g
+  type(pspiof_potential_t) :: pot
   integer, dimension(2,3) :: nbox
   real(gp), dimension(3) :: center_of_charge_ions
 
@@ -992,6 +994,7 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
         else if (at%npspcode(atit%iat) == PSPCODE_PSPIO) then
            ithread=0
            nthread=1
+           pot = pspiof_pspdata_get_vlocal(at%pspio(atit%ityp))
            !$omp parallel default(shared)&
            !$omp private(ithread, r) &
            !$omp firstprivate(dpbox%bitp) 
@@ -999,9 +1002,10 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
            !$ nthread=omp_get_num_threads()
            call box_iter_split(dpbox%bitp,nthread,ithread)
            do while(box_next_point(dpbox%bitp))
-              r = distance(dpbox%bitp%mesh, dpbox%bitp%rxyz, rxyz(:, atit%iat))
+              r = max(1e-3, distance(dpbox%bitp%mesh, dpbox%bitp%rxyz, rxyz(:, atit%iat)))
               pot_ion(dpbox%bitp%ind) = pot_ion(dpbox%bitp%ind) - &
-                   & pspiof_meshfunc_eval(pspiof_pspdata_get_rho_valence(at%pspio(atit%ityp)), r)
+                   & (pspiof_potential_eval_deriv2(pot, r) + &
+                   & 2._gp * pspiof_potential_eval_deriv(pot, r) / r) / 4._gp / pi
            end do
            call box_iter_merge(dpbox%bitp)
            !$omp end parallel
