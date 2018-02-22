@@ -11,3 +11,4 @@
  dnl
  dnl At the end, if we're not within glib, we'll define the public
  dnl definitions in terms of our private definitions.
+
