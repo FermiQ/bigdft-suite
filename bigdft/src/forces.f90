@@ -94,6 +94,7 @@ subroutine calculate_forces(iproc,nproc,psolver_groupsize,Glr,atoms,ob,nlpsp,rxy
 
   real(kind=4) :: tr0, tr1, trt0, trt1
   real(kind=8) :: time0, time1, ttime!, time2, time3, time4, time5, time6, time7
+  real(kind=8),dimension(:,:),allocatable :: fpulay_new
   logical, parameter :: extra_timing=.false.
 
 
@@ -141,6 +142,19 @@ subroutine calculate_forces(iproc,nproc,psolver_groupsize,Glr,atoms,ob,nlpsp,rxy
      !fxyz_tmp = fxyz - fxyz_tmp
      !do iat=1,atoms%astruct%nat
      !    write(1000+iproc,'(a,2i8,3es15.6)') 'iproc, iat, fxyz(:,iat)', iproc, iat, fxyz(:,iat)
+     ! Pulay correction
+     !!!fpulay_new = f_malloc((/3,tmb%linmat%smmd%nat/),id='fpulay_new')
+     !!!call pulay_correction(iproc, nproc, bigdft_mpi%mpi_comm, &
+     !!!     tmb%npsidim_orbs, tmb%psi, tmb%ham_descr%npsidim_orbs, tmb%hpsi, &
+     !!!     tmb%linmat%smmd, tmb%linmat%auxl, (/hx,hy,hz/), &
+     !!!     tmb%linmat%smat(1), tmb%linmat%smat(2), tmb%linmat%smat(3), &
+     !!!     tmb%linmat%ovrlp_, tmb%linmat%ham_, tmb%linmat%kernel_, &
+     !!!     tmb%orbs, tmb%orbs, tmb%collcom, tmb%ham_descr%collcom, tmb%lzd, tmb%ham_descr%lzd, &
+     !!!     fpulay_new)
+     !!!call yaml_map('fpulay',fpulay_new)
+     !write(*,*) 'CHANGE FORCES!!!!'
+     !fxyz = fxyz - fpulay_new
+
   case default
      call f_err_throw('Wrong imode',err_name='BIGDFT_RUNTIME_ERROR')
      !stop 'wrong imode'
