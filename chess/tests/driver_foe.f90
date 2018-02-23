@@ -675,7 +675,7 @@ program driver_foe
           write_symmetrized_kernel = options//'write_symmetrized_kernel'
           diff_tolerance = options//'diff_tolerance'
           diff_target = options//'diff_target'
-          ,adjust_fscale_smooth = options//',adjust_fscale_smooth'
+          adjust_fscale_smooth = options//'adjust_fscale_smooth'
          
           call dict_free(options)
       end if
@@ -1128,7 +1128,7 @@ subroutine commandline_options(parser)
        'Double'))
 
   call yaml_cl_parse_option(parser,'diff_tolerance','2.0',&
-       'tolerance factor (with respect to diff_target) beyond which the calculation will be repeated'&
+       'tolerance factor (with respect to diff_target) beyond which the calculation will be repeated',&
        help_dict=dict_new('Usage' .is. &
        'Indicate the tolerance factor (with respect to diff_target) beyond which the calculation will be repeated',&
        'Allowed values' .is. &
