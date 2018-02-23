@@ -1986,11 +1986,12 @@
    MPI tasks                           :  2
  Multipole analysis origin             :  [  1.058755E+01,  1.144390E+01,  1.230136E+01 ]
  Electric Dipole Moment (AU):
-   P vector                            :  [ -3.2457E+01, -2.8465E+01, -2.1962E+01 ]
-   norm(P)                             :  4.843605E+01
+   P vector                            :  [ -4.7445E+00, -4.6419E+00, -5.1942E+00 ]
+   norm(P)                             :  8.428416E+00
  Electric Dipole Moment (Debye):
-   P vector                            :  [ -8.2498E+01, -7.2351E+01, -5.5822E+01 ]
-   norm(P)                             :  1.231121E+02
+   P vector                            :  [ -1.2059E+01, -1.1799E+01, -1.3202E+01 ]
+   norm(P)                             :  2.142290E+01
+ Spreads of the electronic density (AU):  [  6.271411E+01,  6.034660E+01,  6.824321E+01 ]
  Calculate local forces                :  Yes
  Calculate NLCC forces                 :  Yes
  Calculate Non Local forces            :  Yes

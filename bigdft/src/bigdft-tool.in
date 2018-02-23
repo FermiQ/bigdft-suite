@@ -1209,4 +1209,5 @@ options:
         command = "%s %s find-fragments %s %s %s %s %s %i %i" % (options.mpirun, chess_toolbox, options.matrix_format, options.metadata_file, options.overlap_file, options.kernel_file, options.kernel_matmul_file, options.frag_elements_start, options.frag_elements_end)
         print '# '+command
     if command is not None:
+        #print 'executing:',command
         os.system(command)

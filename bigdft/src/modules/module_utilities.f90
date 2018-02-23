@@ -238,8 +238,13 @@ module module_utilities
     
                    denskernel = sparsematrix_malloc0(smat(2),iaction=DENSE_FULL,id='denskernel')
                    if (smat(2)%nfvctrp>0) then
+                       if (smat(1)%nspin==1) then
+                           spin_factor = 2.0d0
+                       else
+                           spin_factor = 1.0d0
+                       end if
                        call gemm('n', 't', smat(2)%nfvctr, smat(2)%nfvctrp, 1, &
-                            1.d0, coeff_ptr(1,iiorb), smat(2)%nfvctr, &
+                            spin_factor, coeff_ptr(1,iiorb), smat(2)%nfvctr, &
                             coeff_ptr(smat(2)%isfvctr+1,iiorb), smat(2)%nfvctr, &
                             0.d0, denskernel(1,smat(2)%isfvctr+1,1), smat(2)%nfvctr)
                    end if
@@ -378,6 +383,9 @@ module module_utilities
                                mm = mm + 1
                                call extract_matrix(smat(2), multipoles_matrices(m,l)%matrix_compr(ist2:), &
                                     nsf_frag, lookup_kernel, mpmat(1,1,mm))
+                               !!if (l==0) then
+                               !!    call yaml_map('mpmat(:,:,mm)',mpmat(:,:,mm))
+                               !!end if
                                call correct_multipole_origin(ispin, smmd%nat, l, m, nsf_frag, &
                                     smmd, smat(2), fragment_center, smmd%rxyz, supfun_in_fragment, &
                                     perx, pery, perz, smmd%cell_dim, &
@@ -409,6 +417,10 @@ module module_utilities
                                    call dscal(nsf_frag**2, 1.d0/spin_factor, kqmat(1,1,1), 1)
                                    call gemm('n', 'n', nsf_frag, nsf_frag, nsf_frag, 1.d0, kqmat(1,1,1), nsf_frag, &
                                         kqmat(1,1,1), nsf_frag, 0.d0, kqmat(1,1,2), nsf_frag)
+                                   !!if (l==0) then
+                                   !!    call yaml_map('kqmat(1:,:,1)',kqmat(:,:,1))
+                                   !!    call yaml_map('kqmat(1:,:,2)',kqmat(:,:,2))
+                                   !!end if
                                    call axpy(nsf_frag**2, -1.d0, kqmat(1,1,1), 1, kqmat(1,1,2), 1)
                                    tr = 0.d0
                                    do isf=1,nsf_frag

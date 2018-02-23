@@ -112,7 +112,7 @@
    #  default: 2.e-2
    matmul_optimize_load_balancing:
      COMMENT: optimize the load balancing of the sparse matrix matrix multiplications (at the cost of memory unbalancing)
-     default: yes
+     default: no
    diff_target:
      COMMENT: target energy difference between the normal kernel and the control kernel
      default: 5.e-5

@@ -31,6 +31,7 @@ module f_utils
   include 'f_utils.inc'
 
   !> This type can be used to get strings from a file or a dictionary long string.
+  !! it should be amended to also contain the same information from a character buffer
   type, public :: io_stream
      integer :: iunit = 0
      type(dictionary), pointer :: lstring => null()

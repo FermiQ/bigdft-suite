@@ -901,6 +901,20 @@
    -  [ 2.2819E+01, -2.3817E-11,  2.2819E+01]
    -  [ 2.2819E+01,  2.2819E+01, -4.7123E-11]
    trace                               :  1.65E-12
+ Multipole analysis origin             :  [  1.282607E+00,  1.282607E+00,  1.282607E+00 ]
+ Electric Dipole Moment (AU):
+   P vector                            :  [ -3.7893E+00, -3.7893E+00, -3.7893E+00 ]
+   norm(P)                             :  6.563340E+00
+ Electric Dipole Moment (Debye):
+   P vector                            :  [ -9.6316E+00, -9.6316E+00, -9.6316E+00 ]
+   norm(P)                             :  1.668234E+01
+ Quadrupole Moment (AU):
+   Q matrix:
+   -  [ 9.0949E-13,  1.5988E+02,  1.5988E+02]
+   -  [ 1.5988E+02, -3.0695E-12,  1.5988E+02]
+   -  [ 1.5988E+02,  1.5988E+02,  2.2737E-12]
+   trace                               :  1.14E-13
+ Spreads of the electronic density (AU):  [  8.344075E-01,  8.344075E-01,  8.344075E-01 ]
  Calculate local forces                :  Yes
  Calculate Non Local forces            :  Yes
  Stress Tensor calculated              :  Yes

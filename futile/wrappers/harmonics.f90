@@ -13,20 +13,28 @@ module f_harmonics
   use f_arrays
   implicit none
 
+  integer, parameter :: S_=0,X_=1,Y_=2,Z_=3
+  integer, parameter :: XY_=4,YZ_=5,XZ_=6
+  integer, parameter :: X2_=7,Y2_=8,Z2_=9
+
   type(f_enumerator) :: SOLID_HARMONIC_ENUM=f_enumerator('SOLID_HARMONIC',1,null())
 
   !> Multipole of a scalar field, can be given in different formats and units
   type, public :: f_multipoles
      type(f_enumerator) :: fmt !< specifies the format of the multipole
-     integer :: lmax !<maximum value to construct the multipole
-     real(dp), dimension(3) :: rxyz !< center of the multipole
-     type(f_vector), dimension(:), pointer :: Q !,data of the multipole
+     integer :: lmax=-1 !<maximum value to construct the multipole
+     integer :: nmonomials=-1
+     real(dp), dimension(3) :: rxyz=0.0_dp !< center of the multipole
+     !type(f_vector), dimension(:), pointer :: Q=>null() !,data of the multipole
+     real(dp), dimension(0:9) :: monomials=0.0_dp !expression in of reductible monomials for which the multipoles can be expressed
   end type f_multipoles
 
   private
 
-  public :: solid_harmonic,f_multipoles_create,f_multipoles_free
-  public :: f_multipoles_accumulate,get_monopole,get_dipole
+  public :: solid_harmonic,f_multipoles_create,f_multipoles_release
+  public :: field_multipoles,vector_multipoles,f_multipoles_accumulate
+  public :: get_monopole,get_dipole,get_quadrupole,get_quadrupole_intensities
+  public :: get_monomials,f_multipoles_reduce,get_spreads
 
   contains
 
@@ -36,8 +44,10 @@ module f_harmonics
       type(f_multipoles), intent(out) :: mp
       call nullify_f_enum(mp%fmt)
       mp%lmax=-1
+      mp%nmonomials=-1
       mp%rxyz=0.0_dp
-      nullify(mp%Q)
+      !nullify(mp%Q)
+      mp%monomials=0.0_dp
     end subroutine nullify_f_multipoles
 
     subroutine f_multipoles_create(mp,lmax,center)
@@ -48,7 +58,7 @@ module f_harmonics
       type(f_multipoles), intent(out) :: mp
       real(dp), dimension(3), intent(in), optional :: center
       !local variables
-      integer :: l
+      !integer :: l
       mp%fmt=SOLID_HARMONIC_ENUM
       if (present(center)) then
          mp%rxyz=center
@@ -56,55 +66,222 @@ module f_harmonics
          mp%rxyz=0.0_dp
       end if
       mp%lmax=lmax
-      mp%Q=f_malloc_ptr(0.to.lmax,id='multipoles')
-      do l=0,lmax
-         mp%Q(l)=f_malloc0_ptr(-l.to.l,id='ql'+yaml_toa(l))
-      end do
+      mp%nmonomials=9 !(3**(lmax+1)-1)/2-1
+      !mp%Q=f_malloc_ptr(0.to.lmax,id='multipoles')
+      !do l=0,lmax
+      !   mp%Q(l)=f_malloc0_ptr(-l.to.l,id='ql'+yaml_toa(l))
+      !end do
     end subroutine f_multipoles_create
 
-    subroutine f_multipoles_free(mp)
+    subroutine f_multipoles_release(mp)
+      use dynamic_memory
       implicit none
       type(f_multipoles), intent(inout) :: mp
-      call f_array_ptr_free(mp%Q)
+      !call f_array_ptr_free(mp%Q)
       call nullify_f_multipoles(mp)
-    end subroutine f_multipoles_free
+    end subroutine f_multipoles_release
 
-    pure subroutine f_multipoles_accumulate(Q,lmax,rxyz,density)
+    !>Calculate a set of multipoles from a given box iterator.
+    !! Defined up to quadrupoles
+    subroutine field_multipoles(bit,field,nfield,mp)
+      use box
       implicit none
-      integer, intent(in) :: lmax
-      real(dp), intent(in) :: density
-      real(dp), dimension(3), intent(in) :: rxyz
-      type(f_vector), dimension(0:lmax), intent(inout) :: Q
+      integer, intent(in) :: nfield !<number of components of the field to reduce on (useful for spin)
+      type(box_iterator), intent(inout) :: bit
+      real(dp), dimension(bit%mesh%ndims(1)*bit%mesh%ndims(2)*(bit%i3e-bit%i3s+1),nfield), intent(in) :: field
+      type(f_multipoles), intent(inout) :: mp !<multipole structure
+
       !local variables
-      integer :: l,m
-      real(dp) :: tt,factor
-      do l=0,lmax
-         factor=sqrt(fourpi/real(2*l+1,dp))
-         do m=-l,l
-            tt = solid_harmonic(0, l, m,rxyz(1),rxyz(2),rxyz(3))
-            tt = tt*factor
-            Q(l)%ptr(m)=Q(l)%ptr(m)+tt*density
+      integer :: ispin
+      real(dp) :: q
+
+      !the multipoles have to be created and initialized before.
+      do ispin=1,nfield
+         do while(box_next_point(bit))
+            q= field(bit%ind,ispin)*bit%mesh%volume_element
+            bit%tmp=closest_r(bit%mesh,bit%rxyz,mp%rxyz)
+            bit%tmp=rxyz_ortho(bit%mesh,bit%tmp)
+            !here we should put the orthorxyz
+            call accumulate_multipoles(bit%tmp,q,mp%nmonomials,mp%monomials)
          end do
       end do
+
+    end subroutine field_multipoles   
+
+    subroutine vector_multipoles(mp,nat,rxyz,mesh,origin,charges,lookup)
+      use box
+      implicit none
+      type(cell), intent(in) :: mesh
+      integer, intent(in) :: nat
+      real(dp), dimension(3,nat), intent(in) :: rxyz
+      type(f_multipoles), intent(inout) :: mp
+      real(dp), dimension(3), intent(in), optional :: origin
+      real(dp), dimension(*), intent(in), optional :: charges
+      integer, dimension(nat), intent(in), optional :: lookup
+      !local variables
+      integer :: iat,jat
+      real(dp), dimension(3) :: oxyz,tmp
+      oxyz=mp%rxyz
+      if (present(origin)) oxyz=origin
+      do iat=1,nat
+         tmp=closest_r(mesh,rxyz(:,iat),oxyz)
+         tmp=rxyz_ortho(mesh,tmp)
+         jat=iat
+         if (present(lookup)) jat=lookup(iat)
+         call accumulate_multipoles(tmp,charges(jat),&
+              mp%nmonomials,mp%monomials)
+      end do
+    end subroutine vector_multipoles
+
+    pure subroutine f_multipoles_accumulate(mp,rxyz,density)
+      implicit none
+      type(f_multipoles), intent(inout) :: mp
+      real(dp), intent(in) :: density
+      real(dp), dimension(3), intent(in) :: rxyz
+      call accumulate_multipoles(rxyz,density,&
+           mp%nmonomials,mp%monomials)
     end subroutine f_multipoles_accumulate
+
+    pure subroutine accumulate_multipoles(rxyz,density,n,monomials)
+      implicit none
+      integer, intent(in) :: n
+      real(dp), intent(in) :: density
+      real(dp), dimension(3), intent(in) :: rxyz
+      real(dp), dimension(0:n), intent(inout) :: monomials
+
+      monomials(S_)=monomials(S_)+density
+
+      monomials(X_)=monomials(X_)+density*rxyz(X_)
+      monomials(Y_)=monomials(Y_)+density*rxyz(Y_)
+      monomials(Z_)=monomials(Z_)+density*rxyz(Z_)
+
+      monomials(XY_)=monomials(XY_)+density*rxyz(X_)*rxyz(Y_)
+      monomials(XZ_)=monomials(XZ_)+density*rxyz(X_)*rxyz(Z_)
+      monomials(YZ_)=monomials(YZ_)+density*rxyz(Y_)*rxyz(Z_)
+
+      monomials(X2_)=monomials(X2_)+density*rxyz(X_)*rxyz(X_)
+      monomials(Y2_)=monomials(Y2_)+density*rxyz(Y_)*rxyz(Y_)
+      monomials(Z2_)=monomials(Z2_)+density*rxyz(Z_)*rxyz(Z_)
+
+    end subroutine accumulate_multipoles
+
+!!$    pure subroutine f_multipoles_accumulate(Q,lmax,rxyz,density)
+!!$      implicit none
+!!$      integer, intent(in) :: lmax
+!!$      real(dp), intent(in) :: density
+!!$      real(dp), dimension(3), intent(in) :: rxyz
+!!$      type(f_vector), dimension(0:lmax), intent(inout) :: Q
+!!$      !local variables
+!!$      integer :: l,m
+!!$      real(dp) :: tt,factor
+!!$
+!!$      Q%monomials(0)=density !monopole does not need pows
+!!$      do ipow=1,nmonomials
+!!$         tt=rxyz_monomials(rxyz)
+!!$         Q%monomials(ipow)=tt*density
+!!$      end do
+!!$      !do l=0,lmax
+!!$      !   factor=sqrt(fourpi/real(2*l+1,dp))
+!!$      !   do m=-l,l
+!!$      !      tt = solid_harmonic(0, l, m,rxyz(1),rxyz(2),rxyz(3))
+!!$      !      tt = tt*factor
+!!$      !      Q(l)%ptr(m)=Q(l)%ptr(m)+tt*density
+!!$      !   end do
+!!$      !end do
+!!$    end subroutine f_multipoles_accumulate
+
+    subroutine f_multipoles_reduce(mp,comm)
+      use wrapper_MPI
+      implicit none
+      type(f_multipoles), intent(inout) :: mp
+      integer, intent(in), optional :: comm
+      
+      !we might perform here, if needed, some checks that 
+      !would guarantee that the multipoles are correctly iniitalized
+
+      call fmpi_allreduce(mp%monomials,FMPI_SUM,comm=comm)
+
+    end subroutine f_multipoles_reduce
 
     pure function get_monopole(mp) result(q)
       implicit none
       type(f_multipoles), intent(in) :: mp
       real(dp) :: q
-      q=mp%Q(0)%ptr(0)
+      q=mp%monomials(S_)
     end function get_monopole
 
     pure function get_dipole(mp) result(d)
       implicit none
       type(f_multipoles), intent(in) :: mp
       real(dp), dimension(3) :: d
-      d=mp%Q(1)%ptr
+      d=mp%monomials(X_:Z_)
     end function get_dipole
 
+    pure function get_quadrupole_intensities(mp) result(d)
+      implicit none
+      type(f_multipoles), intent(in) :: mp
+      real(dp), dimension(3) :: d
+      d(X_)=mp%monomials(X2_)
+      d(Y_)=mp%monomials(Y2_)
+      d(Z_)=mp%monomials(Z2_)
+    end function get_quadrupole_intensities
+
+    pure function get_quadrupole(mp) result(q)
+      implicit none
+      type(f_multipoles), intent(in) :: mp
+      real(dp), dimension(3,3) :: q
+      !local variables
+      real(dp) :: d2
+      real(dp), dimension(3) :: d
+
+      q(X_,X_)=mp%monomials(X2_)
+      q(Y_,Y_)=mp%monomials(Y2_)
+      q(Z_,Z_)=mp%monomials(Z2_)
+
+      q(X_,Y_)=mp%monomials(XY_)
+      q(Y_,Z_)=mp%monomials(YZ_)
+      q(X_,Z_)=mp%monomials(XZ_)
+
+      q(Y_,X_)=q(X_,Y_)      
+      q(Z_,Y_)=q(Y_,Z_)
+      q(Z_,X_)=q(X_,Z_)
+
+      q=3.0_dp*q
+      
+      d=get_quadrupole_intensities(mp)
+      d2=d(X_)+d(Y_)+d(Z_)
+
+      q(X_,X_)=q(X_,X_)-d2
+      q(Y_,Y_)=q(Y_,Y_)-d2
+      q(Z_,Z_)=q(Z_,Z_)-d2
+
+    end function get_quadrupole
+
+    pure function get_monomials(mp) result(m)
+      implicit none
+      type(f_multipoles), intent(in) :: mp
+      real(dp), dimension(0:mp%nmonomials) :: m
+      m=mp%monomials
+    end function get_monomials
+
+    pure function get_spreads(mp) result(s)
+      !calculate the spread defined in terms of the multipoles
+      ! that is $sqrt (\langle r^2 \rangle - \langle r \rangle^2) $ 
+      type(f_multipoles), intent(in) :: mp
+      real(dp), dimension(3) :: s
+      !local variables
+      real(dp) :: q
+      real(dp), dimension(3) :: d
+            
+      s=get_quadrupole_intensities(mp)
+      d=get_dipole(mp)
+      q=get_monopole(mp)
+      s=s+(q-2.0_dp)*d**2
+      s=s/q
+      where (s/=0.0_dp) s=sqrt(s)
 
 
-
+    end function get_spreads
     !> Calculates the solid harmonic S_lm (possibly multplied by a power or r) for given values of l, m, x, y, z.
     !! They are normalized such that the integral over the angle gives r^2, i.e.
     !! \int d\Omega S_{lm}*S_{l'm'}/r^{2l} = r^2 \delta_{ll'}\delta_{mm'}

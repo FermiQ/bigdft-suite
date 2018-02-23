@@ -157,7 +157,7 @@ module multipole
                center_cores, rxyz, ixyz0, write_directory, dipole_total, quadrupole_total, all_norms_ok, &
                rho_mp, pot_mp)
       use module_types, only: DFT_local_fields, local_zone_descriptors
-      use Poisson_Solver, except_dp => dp, except_gp => gp
+      use Poisson_Solver, except_dp => dp
       use module_atoms, only: atoms_data
       use bounds, only: ext_buffers
       use yaml_output
@@ -1951,7 +1951,7 @@ module multipole
                auxs, nphi, lphi, nphir, hgrids, orbs, collcom, collcom_sr, &
                lzd, at, denspot, orthpar, shift, multipole_matrix_in, ice_obj, filename, &
                multipole_centers)
-      use module_base
+      !use module_base, except_gp => gp
       use module_types, only: orbitals_data, comms_linear, local_zone_descriptors, orthon_data, DFT_local_fields, comms_linear, &
                               linmat_auxiliary
       use sparsematrix_base, only: sparse_matrix, matrices, sparsematrix_malloc0, assignment(=), &
@@ -1969,7 +1969,7 @@ module multipole
       use orbitalbasis
       use matrix_operations, only: overlapPowerGeneral, matrix_for_orthonormal_basis
       !use Poisson_Solver, only: H_potential
-      use Poisson_Solver, except_dp => dp, except_gp => gp
+      use Poisson_Solver, except_dp => dp
       use foe_base, only: foe_data
       use box
       use io, only: get_sparse_matrix_format
@@ -2644,18 +2644,6 @@ module multipole
                       call yaml_map('int(V)',potential_total(icheck),fmt='(es10.3)')
                       call yaml_map('Err %',potential_error(icheck)/potential_total(icheck),fmt='(2pf5.1)')
                       call yaml_map('int(rho)',charge_error(icheck),fmt='(es10.3)')
-!!$                      !call yaml_mapping_open('density threshold for check is'//&
-!!$                      !     &trim(yaml_toa(check_threshold(icheck),fmt='(es9.2)')))
-!!$                      call yaml_mapping_open('rho',flow=.true.)
-!!$                      call yaml_map('int(q-q_exact))',charge_error(icheck),fmt='(es10.3)')
-!!$                      call yaml_map('int(q_exact)',charge_total(icheck),fmt='(es10.3)')
-!!$                      call yaml_map('ratio',charge_error(icheck)/charge_total(icheck),fmt='(es10.3)')
-!!$                      call yaml_mapping_close()
-!!$                      call yaml_mapping_open('pot',flow=.true.)
-!!$                      call yaml_map('int(V-V_exact))',potential_error(icheck),fmt='(es10.3)')
-!!$                      call yaml_map('int(V_exact)',potential_total(icheck),fmt='(es10.3)')
-!!$                      call yaml_map('ratio',potential_error(icheck)/potential_total(icheck),fmt='(es10.3)')
-!!$                      call yaml_mapping_close()
                       call yaml_mapping_close()
                   end do
                   call yaml_sequence_close()
@@ -4385,6 +4373,7 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
   use yaml_output
   use box
   use numerics
+  use f_harmonics
   implicit none
   integer, intent(in) :: nspin
   type(denspot_distribution), intent(inout) :: dpbox
@@ -4401,12 +4390,12 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
   real(gp) :: q,qtot, delta_term,x,y,z,ri,rj,tt
   !integer  :: i1,i2,i3, nl1,nl2,nl3, n1i,n2i,n3i,  is, ie
   integer :: iat,ispin,i, j
-  real(gp), dimension(3) :: dipole_el,dipole_cores,tmpdip,charge_center_cores
+  real(gp), dimension(3) :: dipole_el,dipole_cores,tmpdip,charge_center_cores,el_spread
   real(gp),dimension(3,nspin) :: charge_center_elec
   real(gp), dimension(3,3) :: quadropole_el,quadropole_cores,tmpquadrop
   real(dp), dimension(:,:,:,:), pointer :: ele_rho
   logical :: quiet
-!!$  real(dp), dimension(:,:,:,:), pointer :: rho_buf
+  type(f_multipoles) :: mp_cores,mp_electrons
 
   call f_routine(id='calculate_dipole_moment')
 
@@ -4416,264 +4405,124 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
       quiet = .false.
   end if
 
-!!$  n1i=dpbox%mesh%ndims(1)
-!!$  n2i=dpbox%mesh%ndims(2)
-!!$  n3i=dpbox%mesh%ndims(3)
-!!$  n3p=dpbox%n3p
-!!$
-!!$
-!!$  if (at%astruct%geocode /= 'F') then
-!!$     nl1=1
-!!$     !nl3=1
-!!$     nc1=n1i
-!!$     !nc3=n3i
-!!$     nc3=n3p
-!!$     nnc3=n3i
-!!$     !is = 1
-!!$     is = dpbox%nscatterarr(dpbox%mpi_env%iproc,3)+1
-!!$     ie = dpbox%nscatterarr(dpbox%mpi_env%iproc,3)+dpbox%nscatterarr(dpbox%mpi_env%iproc,2)
-!!$     i3shift = 1
-!!$  else
-!!$     nl1=15
-!!$     !nl3=15
-!!$     !nl3=max(1,15-dpbox%nscatterarr(dpbox%mpi_env%iproc,3))
-!!$     nc1=n1i-31
-!!$     !nc3=n3i-31
-!!$     !nc3=n3p-31
-!!$     is = max(dpbox%nscatterarr(dpbox%mpi_env%iproc,3)+1,15)
-!!$     ie = min(dpbox%nscatterarr(dpbox%mpi_env%iproc,3)+dpbox%nscatterarr(dpbox%mpi_env%iproc,2),n3i-17)
-!!$     nnc3=n3i-31
-!!$     i3shift = 15
-!!$     !write(*,*) 'iproc, is, ie, nl3, nc3, n3p', bigdft_mpi%iproc, is, ie, nl3, nc3, n3p
-!!$  end if
-!!$  nc3 = ie - is + 1 !number of z planes to be treated
-!!$  nl3=max(1,i3shift-dpbox%nscatterarr(dpbox%mpi_env%iproc,3)) !offset within rho array
-!!$  !value of the buffer in the y direction
-!!$  if (at%astruct%geocode == 'P') then
-!!$     nl2=1
-!!$     nc2=n2i
-!!$  else
-!!$     nl2=15
-!!$     nc2=n2i-31
-!!$  end if
-
-  qtot=0.d0
-  call f_zero(dipole_cores)!(1:3)=0._gp
+  !call center_of_charge(at,at%astruct%rxyz,charge_center_cores)
   call f_zero(charge_center_cores)
-  do iat=1,at%astruct%nat
-     !write(*,*) 'iat, rxyz(1:3,iat)',iat, rxyz(1:3,iat)
-     q=at%nelpsp(at%astruct%iatype(iat))
-     dipole_cores(1:3)=dipole_cores(1:3)+q * rxyz(1:3,iat)
-     qtot=qtot+q
-  end do
+  call f_multipoles_create(mp_cores,1)!,center=charge_center_cores)
+  call vector_multipoles(mp_cores,at%astruct%nat,rxyz,dpbox%mesh,&
+       charges=real(at%nelpsp,dp),lookup=at%astruct%iatype)
+  qtot=get_monopole(mp_cores)
+  dipole_cores=get_dipole(mp_cores)
   !this defines the origin of the coordinate system
   if (qtot /=0.0_gp) charge_center_cores=dipole_cores/qtot
+  call f_multipoles_release(mp_cores)
+
+  !now the cores dipole should become zero
+
+!!$  qtot=0.d0
+!!$  call f_zero(dipole_cores)!(1:3)=0._gp
+!!$  call f_zero(charge_center_cores)
+!!$  do iat=1,at%astruct%nat
+!!$     !write(*,*) 'iat, rxyz(1:3,iat)',iat, rxyz(1:3,iat)
+!!$     q=at%nelpsp(at%astruct%iatype(iat))
+!!$     dipole_cores(1:3)=dipole_cores(1:3)+q * rxyz(1:3,iat)
+!!$     qtot=qtot+q
+!!$  end do
+!!$  !this defines the origin of the coordinate system
+!!$  if (qtot /=0.0_gp) charge_center_cores=dipole_cores/qtot
 
   !!write(*,*) 'dipole_cores',dipole_cores
   !!write(*,*) 'nc3',nc3
 
-  !calculate electronic dipole and thus total dipole of the system
-  call f_zero(dipole_el)!   (1:3)=0._gp
-  do ispin=1,nspin
-     !the iterator here is on the potential distribution
-     do while(box_next_point(dpbox%bitp))
-        q= - rho(dpbox%bitp%i,dpbox%bitp%j,dpbox%bitp%k-dpbox%bitp%i3s+1,ispin) *dpbox%mesh%volume_element
-        !q= - rho(dpbox%bitp%ibox(1),dpbox%bitp%ibox(2),dpbox%bitp%ibox(3),ispin) *dpbox%mesh%volume_element
-        !write(*,*) 'i1, i2, i3, nl1, nl2, nl3, q', i1, i2, i3, nl1, nl2, nl3, q
-        qtot=qtot+q
-        dipole_el=dipole_el+q*(dpbox%bitp%rxyz-charge_center_cores)
-     end do
-!!$     do i3=0,nc3 - 1
-!!$        !ii3 = i3 + dpbox%nscatterarr(dpbox%mpi_env%iproc,3)
-!!$        ii3 = i3+nl3+dpbox%nscatterarr(dpbox%mpi_env%iproc,3) - i3shift !real coordinate, without buffer
-!!$        !write(*,*) 'iproc, i3+nl3+dpbox%nscatterarr(dpbox%mpi_env%iproc,3), ii3', &
-!!$        !            bigdft_mpi%iproc, i3+nl3+dpbox%nscatterarr(dpbox%mpienv%iproc,3), ii3
-!!$        do i2=0,nc2 - 1
-!!$           do i1=0,nc1 - 1
-!!$              !ind=i1+nl1+(i2+nl2-1)*n1i+(i3+nl3-1)*n1i*n2i
-!!$              !q= ( ele_rho(ind,ispin) ) * hxh*hyh*hzh
-!!$              !q= - ele_rho(i1+nl1,i2+nl2,i3+nl3,ispin) * product(dpbox%hgrids)
-!!$              q= - rho(i1+nl1,i2+nl2,i3+nl3,ispin) *dpbox%mesh%volume_element
-!!$              !write(*,*) 'i1, i2, i3, nl1, nl2, nl3, q', i1, i2, i3, nl1, nl2, nl3, q
-!!$              qtot=qtot+q
-!!$              dipole_el(1)=dipole_el(1)+ q* at%astruct%cell_dim(1)/real(nc1,dp)*i1
-!!$              dipole_el(2)=dipole_el(2)+ q* at%astruct%cell_dim(2)/real(nc2,dp)*i2
-!!$              dipole_el(3)=dipole_el(3)+ q* at%astruct%cell_dim(3)/real(nnc3,dp)*ii3
-!!$           end do
-!!$        end do
+  !now reset the multipole quantities 
+  call f_multipoles_create(mp_electrons,2,center=charge_center_cores)
+  call field_multipoles(dpbox%bitp,rho,nspin,mp_electrons)
+  call f_multipoles_reduce(mp_electrons,comm=bigdft_mpi%mpi_comm)
+  !in case there is no ionic charge the dipole of the 
+  !electronic density is set to zero by default
+  if (qtot==0.0_dp) then
+     call f_zero(dipole_el)
+     el_spread=get_quadrupole_intensities(mp_electrons)
+  else
+     dipole_el=-get_dipole(mp_electrons)
+     el_spread=get_spreads(mp_electrons)
+  end if
+  qtot=-get_monopole(mp_electrons)
+
+!!$  !calculate electronic dipole and thus total dipole of the system
+!!$  call f_zero(dipole_el)!   (1:3)=0._gp
+!!$  do ispin=1,nspin
+!!$     !the iterator here is on the potential distribution
+!!$     do while(box_next_point(dpbox%bitp))
+!!$        q= - rho(dpbox%bitp%i,dpbox%bitp%j,dpbox%bitp%k-dpbox%bitp%i3s+1,ispin) *dpbox%mesh%volume_element
+!!$        qtot=qtot+q
+!!$        dipole_el=dipole_el+q*(dpbox%bitp%rxyz-charge_center_cores)
 !!$     end do
-  !!write(*,*) 'iproc, dipole_el,sum(rho), qtot',bigdft_mpi%iproc,dipole_el,sum(rho), qtot
-  end do
+!!$  end do
 
-  !!call mpi_barrier(mpi_comm_world,ispin)
-  call fmpi_allreduce(qtot, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
-  call fmpi_allreduce(dipole_el, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
-  !!call mpi_barrier(mpi_comm_world,ispin)
-  !!write(*,*) 'after allred: iproc, dipole_el,sum(rho), qtot',bigdft_mpi%iproc,dipole_el,sum(rho), qtot
+!!$  call fmpi_allreduce(qtot, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+!!$  call fmpi_allreduce(dipole_el, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
 
-  !!write(*,*) 'dipole_cores first', dipole_cores
-  !!call mpi_barrier(mpi_comm_world,ispin)
+  if (present(dipole)) dipole = dipole_el
 
   !quadrupole should be calculated with the shifted positions!
   quadrupole_if: if (calculate_quadrupole) then
 
-      call f_zero(quadropole_cores)!(1:3,1:3)=0._gp
-      do iat=1,at%astruct%nat
-         q=at%nelpsp(at%astruct%iatype(iat))
-         tmpdip=rxyz(:,iat)-charge_center_cores
-         tt=square_gd(dpbox%mesh,tmpdip)
-          do i=1,3
-             ri=rxyz(i,iat)-charge_center_cores(i)
-             do j=1,3
-                rj=rxyz(j,iat)-charge_center_cores(j)
-                if (i==j) then
-                   delta_term = tt
-                else
-                   delta_term=0.d0
-                end if
-                quadropole_cores(j,i) = quadropole_cores(j,i) + q*(3.d0*rj*ri-delta_term)
-             end do
-          end do
-       end do
+     !now reset the multipole quantities 
+     call f_multipoles_create(mp_cores,2,center=charge_center_cores)
+     call vector_multipoles(mp_cores,at%astruct%nat,rxyz,dpbox%mesh,&
+          charges=real(at%nelpsp,dp),lookup=at%astruct%iatype)
+     quadropole_cores=get_quadrupole(mp_cores)
 
-      ! charge center
-!!$      charge_center_elec(1:3,1:nspin)=0.d0
+!!$      call f_zero(quadropole_cores)!(1:3,1:3)=0._gp
+!!$      do iat=1,at%astruct%nat
+!!$         q=at%nelpsp(at%astruct%iatype(iat))
+!!$         tmpdip=rxyz(:,iat)-charge_center_cores
+!!$         tt=square_gd(dpbox%mesh,tmpdip)
+!!$          do i=1,3
+!!$             ri=rxyz(i,iat)-charge_center_cores(i)
+!!$             do j=1,3
+!!$                rj=rxyz(j,iat)-charge_center_cores(j)
+!!$                if (i==j) then
+!!$                   delta_term = tt
+!!$                else
+!!$                   delta_term=0.d0
+!!$                end if
+!!$                quadropole_cores(j,i) = quadropole_cores(j,i) + q*(3.d0*rj*ri-delta_term)
+!!$             end do
+!!$          end do
+!!$       end do
+
+!!$     call f_zero(quadropole_el)
 !!$      do ispin=1,nspin
-!!$         !LG: this is exactly the same calculation as before
-!!$         qtot=0.d0
 !!$         do while(box_next_point(dpbox%bitp))
 !!$            q= - rho(dpbox%bitp%i,dpbox%bitp%j,dpbox%bitp%k-dpbox%bitp%i3s+1,ispin) *dpbox%mesh%volume_element
-!!$            !write(*,*) 'i1, i2, i3, nl1, nl2, nl3, q', i1, i2, i3, nl1, nl2, nl3, q
-!!$            qtot=qtot+q
-!!$            charge_center_elec=charge_center_elec+q*dpbox%bitp%rxyz
+!!$            tmpdip=dpbox%bitp%rxyz-charge_center_cores
+!!$            tt=square_gd(dpbox%mesh,tmpdip)
+!!$            do i=1,3
+!!$               ri=dpbox%bitp%rxyz(i)-charge_center_cores(i)
+!!$               do j=1,3
+!!$                  rj=dpbox%bitp%rxyz(j)-charge_center_cores(j)
+!!$                  if (i==j) then
+!!$                     delta_term = tt
+!!$                  else
+!!$                     delta_term=0.d0
+!!$                  end if
+!!$                  quadropole_el(j,i) = quadropole_el(j,i) + q*(3.d0*rj*ri-delta_term)
+!!$               end do
+!!$            end do
 !!$         end do
-
-!!$          do i3=0,nc3 - 1
-!!$             ii3 = i3+nl3+dpbox%nscatterarr(dpbox%mpi_env%iproc,3) - i3shift !real coordinate, without buffer
-!!$              do i2=0,nc2 - 1
-!!$                  do i1=0,nc1 - 1
-!!$                      !q= - ele_rho(i1+nl1,i2+nl2,i3+nl3,ispin) * product(dpbox%hgrids)
-!!$                      q= - rho(i1+nl1,i2+nl2,i3+nl3,ispin) * dpbox%mesh%volume_element
-!!$                      x=at%astruct%cell_dim(1)/real(nc1,dp)*i1
-!!$                      y=at%astruct%cell_dim(2)/real(nc2,dp)*i2
-!!$                      z=at%astruct%cell_dim(3)/real(nnc3,dp)*ii3
-!!$                      charge_center_elec(1,ispin) = charge_center_elec(1,ispin) + q*x
-!!$                      charge_center_elec(2,ispin) = charge_center_elec(2,ispin) + q*y
-!!$                      charge_center_elec(3,ispin) = charge_center_elec(3,ispin) + q*z
-!!$                      qtot=qtot+q
-!!$                  end do
-!!$              end do
 !!$      end do
-!!$          !!write(*,*) 'qtot',qtot
-!!$         call fmpi_allreduce(qtot, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm) !LG: why two spins parallelized that way?
-!!$         charge_center_elec(1:3,ispin)=charge_center_elec(1:3,ispin)/qtot
-!!$      end do
-!!$
-!!$      call fmpi_allreduce(charge_center_elec, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
 
-       call f_zero(quadropole_el)
-      do ispin=1,nspin
-         do while(box_next_point(dpbox%bitp))
-            q= - rho(dpbox%bitp%i,dpbox%bitp%j,dpbox%bitp%k-dpbox%bitp%i3s+1,ispin) *dpbox%mesh%volume_element
-            tmpdip=dpbox%bitp%rxyz-charge_center_cores
-            tt=square_gd(dpbox%mesh,tmpdip)
-            do i=1,3
-               ri=dpbox%bitp%rxyz(i)-charge_center_cores(i)
-               do j=1,3
-                  rj=dpbox%bitp%rxyz(j)-charge_center_cores(j)
-                  if (i==j) then
-                     delta_term = tt
-                  else
-                     delta_term=0.d0
-                  end if
-                  quadropole_el(j,i) = quadropole_el(j,i) + q*(3.d0*rj*ri-delta_term)
-               end do
-            end do
-         end do
+      quadropole_el=-get_quadrupole(mp_electrons)
 
-!!$          do i3=0,nc3 - 1
-!!$             ii3 = i3+nl3+dpbox%nscatterarr(dpbox%mpi_env%iproc,3) - i3shift !real coordinate, without buffer
-!!$              do i2=0,nc2 - 1
-!!$                  do i1=0,nc1 - 1
-!!$                      !q= - ele_rho(i1+nl1,i2+nl2,i3+nl3,ispin) * product(dpbox%hgrids)
-!!$                      q= - rho(i1+nl1,i2+nl2,i3+nl3,ispin) * dpbox%mesh%volume_element
-!!$                      x=at%astruct%cell_dim(1)/real(nc1,dp)*i1
-!!$                      y=at%astruct%cell_dim(2)/real(nc2,dp)*i2
-!!$                      z=at%astruct%cell_dim(3)/real(nnc3,dp)*ii3
-!!$                      do i=1,3
-!!$                          select case (i)
-!!$                          case (1)
-!!$                              !ri=x-charge_center_cores(1)
-!!$                              ri=x+(charge_center_cores(1)-charge_center_elec(1,ispin))
-!!$                          case (2)
-!!$                              !ri=y-charge_center_cores(2)
-!!$                              ri=y+(charge_center_cores(2)-charge_center_elec(2,ispin))
-!!$                          case (3)
-!!$                              !ri=z-charge_center_cores(3)
-!!$                              ri=z+(charge_center_cores(3)-charge_center_elec(3,ispin))
-!!$                          case default
-!!$                              stop 'wrong value of i'
-!!$                          end select
-!!$                          do j=1,3
-!!$                              select case (j)
-!!$                              case (1)
-!!$                                  !rj=x-charge_center_cores(1)
-!!$                                  rj=x+(charge_center_cores(1)-charge_center_elec(1,ispin))
-!!$                              case (2)
-!!$                                  !rj=y-charge_center_cores(2)
-!!$                                  rj=y+(charge_center_cores(2)-charge_center_elec(2,ispin))
-!!$                              case (3)
-!!$                                  !rj=z-charge_center_cores(3)
-!!$                                  rj=z+(charge_center_cores(3)-charge_center_elec(3,ispin))
-!!$                              case default
-!!$                                  stop 'wrong value of j'
-!!$                              end select
-!!$                              if (i==j) then
-!!$                                  !delta_term = (x-charge_center_cores(1))**2 + &
-!!$                                  !             (y-charge_center_cores(2))**2 + &
-!!$                                  !             (z-charge_center_cores(3))**2
-!!$                                  delta_term = (x+(charge_center_cores(1)-charge_center_elec(1,ispin)))**2 + &
-!!$                                               (y+(charge_center_cores(2)-charge_center_elec(2,ispin)))**2 + &
-!!$                                               (z+(charge_center_cores(3)-charge_center_elec(3,ispin)))**2
-!!$                              else
-!!$                                  delta_term=0.d0
-!!$                              end if
-!!$                              quadropole_el(j,i) = quadropole_el(j,i) + q*(3.d0*rj*ri-delta_term)
-!!$                          end do
-!!$                      end do
-!!$                  end do
-!!$              end do
-!!$          end do
-      end do
+!!$      call fmpi_allreduce(quadropole_el, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+      tmpquadrop=quadropole_cores+quadropole_el
 
-      !!if (.not. is_net_charge) then
-          call fmpi_allreduce(quadropole_el, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
-          tmpquadrop=quadropole_cores+quadropole_el
-      !!else
-      !!    tmpquadrop=quadropole_el
-      !!end if
-
-      if (present(quadrupole)) then
-          quadrupole = tmpquadrop
-      end if
-
-      !!if (dpbox%mpi_env%nproc > 1) then
-      !!   call f_free_ptr(ele_rho)
-      !!else
-      !!   nullify(ele_rho)
-      !!end if
+      if (present(quadrupole)) quadrupole = tmpquadrop
 
   end if quadrupole_if
 
-  !!if (.not.is_net_charge) then
-      tmpdip=dipole_el !dipole_cores+ !should not be needed as it is now included in the center of charge
-  !!else
-  !!    tmpdip=dipole_el
-  !!end if
-  !!write(*,*) 'tmpdip before',tmpdip
-  !!call mpi_barrier(mpi_comm_world,ispin)
-  !!write(*,*) 'tmpdip',tmpdip
-  if (present(dipole)) dipole(1:3) = tmpdip(1:3)
+  tmpdip=dipole_el !dipole_cores+ !should not be needed as it is now in  if (present(dipole)) dipole(1:3) = tmpdip(1:3)
   if(bigdft_mpi%iproc==0 .and. .not.quiet) then
      call yaml_map('Multipole analysis origin',charge_center_cores,fmt='(1pe14.6)')
      call yaml_mapping_open('Electric Dipole Moment (AU)')
@@ -4693,8 +4542,12 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
            call yaml_map('trace',tmpquadrop(1,1)+tmpquadrop(2,2)+tmpquadrop(3,3),fmt='(es12.2)')
           call yaml_mapping_close()
       end if
+      call yaml_map('Spreads of the electronic density (AU)',el_spread,fmt='(1pe14.6)')
 
   end if
+
+  call f_multipoles_release(mp_cores)
+  call f_multipoles_release(mp_electrons)
 
   call f_release_routine()
 
@@ -6117,7 +5970,7 @@ end subroutine calculate_rpowerx_matrices
       real(kind=8),dimension(-lmax:lmax,0:lmax,1:tmb%orbs%norb),intent(in) :: multipoles
 
       ! Local variables
-      integer :: iat_old, iorb, iat, ii, ilr, itype, l, m, mm
+      integer :: iat_old, iorb, iat, iiorb, ilr, itype, l, m, mm
       real(kind=8),dimension(:,:),allocatable :: delta_centers
       character(len=20),dimension(:),allocatable :: names
       type(external_potential_descriptors) :: ep
@@ -6134,9 +5987,10 @@ end subroutine calculate_rpowerx_matrices
       ep%nmpl = tmb%orbs%norb
       allocate(ep%mpl(ep%nmpl))
 
+      iiorb = 0
       do iorb=1,tmb%orbs%norb
          call prepare_multipole_object(iorb, tmb, atoms, center_locreg, center_orb, &
-              lmax, shift, multipoles, names, delta_centers, iat_old, ep)
+              lmax, shift, multipoles, names, delta_centers, iiorb, iat_old, ep)
       end do
       call write_multipoles_new(ep, lmax, atoms%astruct%units, &
            delta_centers, tmb%orbs%onwhichatom, scaled)
@@ -6157,7 +6011,7 @@ end subroutine calculate_rpowerx_matrices
 
     ! This subroutine only exists for the timing...
     subroutine prepare_multipole_object(iorb, tmb, atoms, center_locreg, center_orb, &
-               lmax, shift, multipoles, names, delta_centers, iat_old, ep)
+               lmax, shift, multipoles, names, delta_centers, iiorb, iat_old, ep)
       use module_types, only: DFT_wavefunction, atoms_data
       use multipole_base, only: external_potential_descriptors, multipole_set_null, multipole_null
       implicit none
@@ -6172,23 +6026,23 @@ end subroutine calculate_rpowerx_matrices
       real(kind=8),dimension(-lmax:lmax,0:lmax,1:tmb%orbs%norb),intent(in) :: multipoles
       character(len=*),dimension(tmb%orbs%norb),intent(inout) :: names
       real(kind=8),dimension(3,tmb%orbs%norb),intent(inout) :: delta_centers
-      integer,intent(inout) :: iat_old
+      integer,intent(inout) :: iiorb, iat_old
       type(external_potential_descriptors),intent(inout) :: ep
 
-      integer :: iorb, iat, ii, ilr, itype, l, m, mm
+      integer :: iorb, iat, ilr, itype, l, m, mm
 
       call f_routine(id='prepare_multipole_object')
 
       iat = tmb%orbs%onwhichatom(iorb)
       if (iat/=iat_old) then
-          ii = 1
+          iiorb = 1
       else
-          ii = ii + 1
+          iiorb = iiorb + 1
       end if
       iat_old = iat
       ilr = tmb%orbs%inwhichlocreg(iorb)
       itype = atoms%astruct%iatype(iat)
-      names(iorb) = trim(atoms%astruct%atomnames(itype))//'-'//adjustl(trim(yaml_toa(ii)))
+      names(iorb) = trim(atoms%astruct%atomnames(itype))//'-'//adjustl(trim(yaml_toa(iiorb)))
       ! delta_centers gives the difference between the charge center and the localization center
       delta_centers(1:3,iorb) = center_locreg(1:3,ilr) - tmb%lzd%llr(ilr)%locregcenter(1:3)
       !write(*,*) 'iorb, ilr, center_locreg(1:3,ilr) - tmb%lzd%llr(ilr)%locregcenter(1:3)', &

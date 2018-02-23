@@ -2300,21 +2300,21 @@ linear_laura:
    #gnrm_cv_coeff: 1.0E-003
    rpnrm_cv: 1.0E-010
    #alphamix: 1.0
- lin_basis_params:
-   C:
-     nbasis: 4
-     ao_confinement: -1.0
-     confinement: -1.0
-     rloc: 7.0 #6.9 
-     rloc_kernel: 10.0 #14.0 #10.0
-     rloc_kernel_foe: 10.0 #14.0 #10.0
-   H:
-     nbasis: 1
-     ao_confinement: -1.0
-     confinement: -1.0
-     rloc: 7.0 #6.9 
-     rloc_kernel: 10.0 #14.0 #10.0
-     rloc_kernel_foe: 10.0 #14.0 #10.0
+ #lin_basis_params:
+ #  C:
+ #    nbasis: 4
+ #    ao_confinement: -1.0
+ #    confinement: -1.0
+ #    rloc: 7.0 #6.9 
+ #    rloc_kernel: 10.0 #14.0 #10.0
+ #    rloc_kernel_foe: 10.0 #14.0 #10.0
+ #  H:
+ #    nbasis: 1
+ #    ao_confinement: -1.0
+ #    confinement: -1.0
+ #    rloc: 7.0 #6.9 
+ #    rloc_kernel: 10.0 #14.0 #10.0
+ #    rloc_kernel_foe: 10.0 #14.0 #10.0
 mixing:
   COMMENT: To be used for metallic systems
   DESCRIPTION: |

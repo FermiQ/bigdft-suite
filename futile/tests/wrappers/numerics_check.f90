@@ -48,7 +48,7 @@ program numeric_check
   call f_multipoles_create(mp,2)
 
   do i=1,n
-     call f_multipoles_accumulate(mp%Q,mp%lmax,rxyz,density(i))
+     call f_multipoles_accumulate(mp,rxyz,density(i))
   end do
 
   !here we may print the results of the multipole calculations
@@ -57,12 +57,13 @@ program numeric_check
   call yaml_mapping_close()
 
   call yaml_mapping_open('Calculated multipoles')
-  call yaml_map('q0',mp%Q(0)%ptr)
-  call yaml_map('q1',mp%Q(1)%ptr)
-  call yaml_map('q2',mp%Q(2)%ptr)
+  call yaml_map('monopole',get_monopole(mp))
+  call yaml_map('dipole',get_dipole(mp))
+  call yaml_map('quadrupole',get_quadrupole(mp))
+  call yaml_map('quadrupole intensity',get_quadrupole_intensities(mp))
   call yaml_mapping_close()
 
-  call f_multipoles_free(mp)
+  call f_multipoles_release(mp)
 
   call f_free(density)
 !  call dict_free(options)
