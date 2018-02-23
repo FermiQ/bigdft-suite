@@ -5970,7 +5970,7 @@ end subroutine calculate_rpowerx_matrices
       real(kind=8),dimension(-lmax:lmax,0:lmax,1:tmb%orbs%norb),intent(in) :: multipoles
 
       ! Local variables
-      integer :: iat_old, iorb, iat, ii, ilr, itype, l, m, mm
+      integer :: iat_old, iorb, iat, iiorb, ilr, itype, l, m, mm
       real(kind=8),dimension(:,:),allocatable :: delta_centers
       character(len=20),dimension(:),allocatable :: names
       type(external_potential_descriptors) :: ep
@@ -5987,9 +5987,10 @@ end subroutine calculate_rpowerx_matrices
       ep%nmpl = tmb%orbs%norb
       allocate(ep%mpl(ep%nmpl))
 
+      iiorb = 0
       do iorb=1,tmb%orbs%norb
          call prepare_multipole_object(iorb, tmb, atoms, center_locreg, center_orb, &
-              lmax, shift, multipoles, names, delta_centers, iat_old, ep)
+              lmax, shift, multipoles, names, delta_centers, iiorb, iat_old, ep)
       end do
       call write_multipoles_new(ep, lmax, atoms%astruct%units, &
            delta_centers, tmb%orbs%onwhichatom, scaled)
@@ -6010,7 +6011,7 @@ end subroutine calculate_rpowerx_matrices
 
     ! This subroutine only exists for the timing...
     subroutine prepare_multipole_object(iorb, tmb, atoms, center_locreg, center_orb, &
-               lmax, shift, multipoles, names, delta_centers, iat_old, ep)
+               lmax, shift, multipoles, names, delta_centers, iiorb, iat_old, ep)
       use module_types, only: DFT_wavefunction, atoms_data
       use multipole_base, only: external_potential_descriptors, multipole_set_null, multipole_null
       implicit none
@@ -6025,23 +6026,23 @@ end subroutine calculate_rpowerx_matrices
       real(kind=8),dimension(-lmax:lmax,0:lmax,1:tmb%orbs%norb),intent(in) :: multipoles
       character(len=*),dimension(tmb%orbs%norb),intent(inout) :: names
       real(kind=8),dimension(3,tmb%orbs%norb),intent(inout) :: delta_centers
-      integer,intent(inout) :: iat_old
+      integer,intent(inout) :: iiorb, iat_old
       type(external_potential_descriptors),intent(inout) :: ep
 
-      integer :: iorb, iat, ii, ilr, itype, l, m, mm
+      integer :: iorb, iat, ilr, itype, l, m, mm
 
       call f_routine(id='prepare_multipole_object')
 
       iat = tmb%orbs%onwhichatom(iorb)
       if (iat/=iat_old) then
-          ii = 1
+          iiorb = 1
       else
-          ii = ii + 1
+          iiorb = iiorb + 1
       end if
       iat_old = iat
       ilr = tmb%orbs%inwhichlocreg(iorb)
       itype = atoms%astruct%iatype(iat)
-      names(iorb) = trim(atoms%astruct%atomnames(itype))//'-'//adjustl(trim(yaml_toa(ii)))
+      names(iorb) = trim(atoms%astruct%atomnames(itype))//'-'//adjustl(trim(yaml_toa(iiorb)))
       ! delta_centers gives the difference between the charge center and the localization center
       delta_centers(1:3,iorb) = center_locreg(1:3,ilr) - tmb%lzd%llr(ilr)%locregcenter(1:3)
       !write(*,*) 'iorb, ilr, center_locreg(1:3,ilr) - tmb%lzd%llr(ilr)%locregcenter(1:3)', &
