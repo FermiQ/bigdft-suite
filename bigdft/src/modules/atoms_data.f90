@@ -1338,11 +1338,13 @@ contains
             call set(dict // ASTRUCT_CELL // (i-1), '.inf')
          end if
       end do
+
       if (.not. any(peri)) then
          ! Default, store nothing and erase key if already exist.
          if (ASTRUCT_CELL .in. dict) then
             last=>dict .pop. ASTRUCT_CELL
             call dict_free(last)
+            if (.not. associated(dict)) call dict_init(dict)
          end if
 !!$         if (has_key(dict, ASTRUCT_CELL)) call dict_remove(dict, ASTRUCT_CELL,destroy=.false.)
       end if
@@ -1384,6 +1386,7 @@ contains
       if (ASTRUCT_POSITIONS .in. dict) then
          last=>dict .pop. ASTRUCT_POSITIONS
          call dict_free(last)
+         if (.not. associated(dict)) call dict_init(dict)
       end if
       if (astruct%nat > 0) pos => dict // ASTRUCT_POSITIONS
       nullify(last)

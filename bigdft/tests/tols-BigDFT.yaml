@@ -215,6 +215,7 @@ SiH4:
 Mn2:
  Keys to ignore:
   - proc
+  - Magnetic polarization per orbital
  Epsilon: 2.e-10
  Enl: 3.1e-10
  Ekin: 3.1e-10
