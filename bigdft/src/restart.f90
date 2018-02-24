@@ -3923,7 +3923,8 @@ subroutine reformat_supportfunctions(iproc,nproc,at,rxyz_old,rxyz,add_derivative
           psirold=f_malloc0((2*n_old+31),id='psirold')
 
           !call f_zero((2*n_old(1)+31)*(2*n_old(2)+31)*(2*n_old(3)+31),psirold(1,1,1))
-          call vcopy((2*n_old(1)+2)*(2*n_old(2)+2)*(2*n_old(3)+2),phigold(0,1,0,1,0,1),1,psirold(1,1,1),1)
+          !call vcopy((2*n_old(1)+2)*(2*n_old(2)+2)*(2*n_old(3)+2),phigold(0,1,0,1,0,1),1,psirold(1,1,1),1)
+          call f_memcpy(src=phigold,dest=psirold)
           call psig_to_psir_free(n_old(1),n_old(2),n_old(3),workarraytmp,psirold)
           call f_free(workarraytmp)
 
