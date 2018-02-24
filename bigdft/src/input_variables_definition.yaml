@@ -79,7 +79,7 @@
      B97-D: -170 #to be verified
      B3LYP: -402
      HF: 100 #Hartree-Fock
-     NONE: 1000
+     NONE: 1000 #No Hartree and No XC (useful for H atom)
    qcharge:
      COMMENT: Charge of the system. Can be integer or real.
      DESCRIPTION: |
@@ -229,6 +229,9 @@
        100:   Linear AO
        101:   Linear restart
        102:   Linear on disk
+     #Useful shortcuts
+     LCAO: 0
+     RANDOM: -2
      #Here follow two shortcuts for linear
      linear: 100
      linear_restart: 102

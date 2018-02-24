@@ -2516,7 +2516,7 @@
  Interaction energy multipoles multipoles:  0.0
   #------------------------------------------------------------------ Support functions Restart
  Input Hamiltonian:
-   max shift of a locreg center        :  0.00E+00
+   Max shift of a locreg center        :  0.00E+00
    Overview of the reformatting (several categories may apply):
      No reformatting required          :  72
      Grid spacing has changed          :  0
@@ -3977,7 +3977,7 @@
  Interaction energy multipoles multipoles:  0.0
   #------------------------------------------------------------------ Support functions Restart
  Input Hamiltonian:
-   max shift of a locreg center        :  4.81E-01
+   Max shift of a locreg center        :  4.81E-01
    Overview of the reformatting (several categories may apply):
      No reformatting required          :  0
      Grid spacing has changed          :  0

@@ -175,3 +175,14 @@ extern "C" void FC_FUNC_(poisson_cublas_daxpy, POISSON_CUBLAS_DAXPY)(int *size, 
   cublasErrchk(cublasDaxpy(handle1,*size,alpha,*d_x,*facx,*d_y+*offset_y,*facy));
 //  gpuErrchk( cudaPeekAtLastError() );
 }
+
+
+extern "C" void FC_FUNC_(cudagetdevicecount, CUDAGETDEVICECOUNT)(int* num_devices){
+  gpuErrchk(cudaGetDeviceCount(num_devices));
+}
+
+extern "C" void FC_FUNC_(cudasetdevice, CUDASETDEVICE)(int* device){
+  gpuErrchk(cudaSetDevice(*device));
+}
+
+

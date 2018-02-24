@@ -149,7 +149,7 @@
    max_inversion_error                 : 1.d0 #   Linear scaling maximal error of the Taylor approximations to calculate the inverse of 
     #                                              the overlap matrix
    output_wf                           : 0 #      Output basis functions; 0 no output, 1 formatted output, 2 Fortran bin, 3 ETSF
-   output_mat                          : 0 #      Output sparse matrices; 0 no output, 1 formatted sparse, 11 formatted dense, 21 
+   output_mat                          : 1 #      Output sparse matrices; 0 no output, 1 formatted sparse, 11 formatted dense, 21 
     #                                              formatted both
    output_coeff                        : 0 #      Output KS coefficients; 0 no output, 1 formatted output
    output_fragments                    : 0 #      Output support functions, kernel and coeffs; 0 fragments and full system, 1 
@@ -1717,6 +1717,7 @@
   #-------------------------------- Warnings obtained during the run, check their relevance!
  WARNINGS:
  - Projectors too rough: Consider modifying hgrid and/or the localisation radii.
+ - Inconsistency in Tr(H), check your cutoff radii
  - target function larger than its minimal value reached so far, D= 2.479E+00
  - use a fake value for kappa
  - The support function localization radii might be too small, got 392 warnings

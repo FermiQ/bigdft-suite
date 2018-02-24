@@ -86,6 +86,7 @@ module dictionaries
       module procedure get_rvec,get_dvec,get_ilvec,get_ivec,get_lvec,get_c1vec
       !safe getter from list_container
       module procedure safe_get_dict,safe_get_integer,safe_get_double,safe_get_real,safe_get_char,safe_get_logical
+      module procedure safe_get_long
    end interface
 
    interface dict_remove
@@ -107,6 +108,10 @@ module dictionaries
    interface operator(.get.)
       module procedure list_container_if_key_exists
    end interface
+
+!!$   interface dict_reduce
+!!$      module procedure dict_reduce_d
+!!$   end interface dict_reduce
 
    interface dict_get
       module procedure dict_get_l,dict_get_c
@@ -288,15 +293,16 @@ contains
 
      !first, identify whether the subdictionary exists
      if (dict_size(dict) > 0) then !popping from a hash key
-        subd=>find_key(dict,key)
+        subd = dict .get. key !find_key(dict,trim(key))
      else if (dict_len(dict) > 0) then !popping from a list value
-        indx=find_index(dict,key)
+        indx=find_index(dict,trim(key))
      end if
 
      !if something has been found, pop
      !!@warning here the usage of dict_remove is abused,
      !!as this routine frees dict if it is the last object
      !!therefore it changes the pointer association status of dict
+     !! with the destroy=.false. the problem should be resolved
      if (associated(subd)) then
         call dict_remove(dict,key,destroy=.false.)
      else if (indx > -1) then
@@ -308,6 +314,7 @@ contains
      end if
 
    end function pop_key
+
 
    !> Pop a subdictionary from a mother one. Returns the subdictionary.
    !! raise an error if the subdictionary does not exist.
@@ -1006,9 +1013,9 @@ contains
    !> Retrieve the pointer to the dictionary which has this key.
    !! If the key does not exist, search for it in the next chain
    !! Key Must be already present, otherwise result is nullified
-   recursive function find_key(dict,key) result(dict_ptr1)
+   function find_key(dict,key) result(dict_ptr1)
      implicit none
-     type(dictionary), intent(in), pointer :: dict !< Hidden inout
+     type(dictionary), intent(in), pointer :: dict
      character(len=*), intent(in) :: key
      type(dictionary), pointer :: dict_ptr1
      if (.not. associated(dict)) then
@@ -1016,24 +1023,25 @@ contains
         return
      end if
 
-!!$     !eliminate recursion
-!!$     if (.not. associated(dict%parent)) then
-!!$        if (.not. associated(dict%child)) then
-!!$           nullify(dict_ptr1)
-!!$        else
-!!$           dict_ptr1 => get_dict_from_key(dict%child,key)
-!!$        end if
-!!$     else
-!!$        dict_ptr1 => get_dict_from_key(dict,key)
-!!$     end if
-
+     !eliminate recursion
      if (.not. associated(dict%parent)) then
-        dict_ptr1 => find_key(dict%child,key)
-        return
+        if (.not. associated(dict%child)) then
+           nullify(dict_ptr1)
+        else
+           dict_ptr1 => get_dict_from_key(dict%child,key)
+        end if
+     else
+        dict_ptr1 => get_dict_from_key(dict,key)
      end if
-
-     dict_ptr1 => get_dict_from_key(dict,key)
-
+!!$print *,'here',associated(dict%parent),key,len(key)
+!!$     if (.not. associated(dict%parent)) then
+!!$        dict_ptr1 => find_key(dict%child,key)
+!!$        return
+!!$     end if
+!!$print *,'ciao',associated(dict)
+!!$print *,'dict',dict%data%key,'key',key
+!!$     dict_ptr1 => get_dict_from_key(dict,key)
+!!$print *,'there',associated(dict_ptr1)
    end function find_key
 
    function dict_keys(dict)
@@ -1482,7 +1490,7 @@ contains
    recursive subroutine get_integer(ival,dict)
      use yaml_strings, only: is_atoi
      implicit none
-     integer(kind=4), intent(out) :: ival
+     integer(f_integer), intent(out) :: ival
      type(dictionary), intent(in) :: dict
      !local variables
      integer :: ierror
@@ -1499,7 +1507,9 @@ contains
            return
         end if
      end if
-     if (f_err_raise(ierror/=0 .or. .not. is_atoi(val),'Value '//val,err_id=DICT_CONVERSION_ERROR)) return
+     if (ierror/=0 .or. .not. is_atoi(val)) &
+          call f_err_throw('Value '//val,err_id=DICT_CONVERSION_ERROR)
+     !if (f_err_raise(ierror/=0 .or. .not. is_atoi(val),'Value '//val,err_id=DICT_CONVERSION_ERROR)) return
    end subroutine get_integer
 
    !> Set and get routines for different types
@@ -1516,7 +1526,10 @@ contains
      !look at conversion
      read(val,*,iostat=ierror)ival
 
-     if (f_err_raise(ierror/=0,'Value '//val,err_id=DICT_CONVERSION_ERROR)) return
+     if (ierror/=0) &
+          call f_err_throw('Value '//val,err_id=DICT_CONVERSION_ERROR)
+
+     !if (f_err_raise(ierror/=0,'Value '//val,err_id=DICT_CONVERSION_ERROR)) return
 
    end subroutine get_long
 
@@ -1586,7 +1599,6 @@ contains
      include 'dict_getvec-inc.f90'
    end subroutine get_c1vec
 
-
    !> Set and get routines for different types
    subroutine get_real(rval,dict)
      use yaml_strings
@@ -1613,7 +1625,10 @@ contains
            ierror=0
         end if
      end if
-     if (f_err_raise(ierror/=0,'Value '//val,err_id=DICT_CONVERSION_ERROR)) return
+     if (ierror/=0) &
+          call f_err_throw('Value '//val,err_id=DICT_CONVERSION_ERROR)
+
+     !if (f_err_raise(ierror/=0,'Value '//val,err_id=DICT_CONVERSION_ERROR)) return
 
    end subroutine get_real
 
@@ -1662,7 +1677,10 @@ contains
         ierror=0
      end if
 
-     if (f_err_raise(ierror/=0,'Value '//val,err_id=DICT_CONVERSION_ERROR)) return
+     if (ierror/=0) &
+          call f_err_throw('Value '//val,err_id=DICT_CONVERSION_ERROR)
+
+     !if (f_err_raise(ierror/=0,'Value '//val,err_id=DICT_CONVERSION_ERROR)) return
 
    end subroutine get_double
 
@@ -1687,10 +1705,18 @@ contains
 
    subroutine safe_get_integer(val,el)
      implicit none
-     integer, intent(inout) :: val
+     integer(f_integer), intent(inout) :: val
      type(list_container), intent(in) :: el
      if (associated(el%dict)) val=el%dict
    end subroutine safe_get_integer
+
+   subroutine safe_get_long(val,el)
+     implicit none
+     integer(f_long), intent(inout) :: val
+     type(list_container), intent(in) :: el
+     if (associated(el%dict)) val=el%dict
+   end subroutine safe_get_long
+
 
    subroutine safe_get_double(val,el)
      implicit none
@@ -1722,14 +1748,13 @@ contains
      integer(kind=4), intent(in) :: ival
      character(len=*), optional, intent(in) :: fmt
 
-     if (present(fmt)) then
-        call put_value(dict,trim(adjustl(yaml_toa(ival,fmt=fmt))))
-     else
-        call put_value(dict,trim(adjustl(yaml_toa(ival))))
-     end if
+     !if (present(fmt)) then
+     call put_value(dict,trim(adjustl(yaml_toa(ival,fmt=fmt))))
+     !else
+     !   call put_value(dict,trim(adjustl(yaml_toa(ival))))
+     !end if
 
    end subroutine put_integer
-
 
    !> Assign the value to the dictionary
    subroutine put_double(dict,dval,fmt)
@@ -1738,15 +1763,8 @@ contains
      type(dictionary), pointer :: dict
      real(kind=8), intent(in) :: dval
      character(len=*), optional, intent(in) :: fmt
-
-     if (present(fmt)) then
-        call put_value(dict,adjustl(trim(yaml_toa(dval,fmt=fmt))))
-     else
-        call put_value(dict,adjustl(trim(yaml_toa(dval))))
-     end if
-
+     call put_value(dict,adjustl(trim(yaml_toa(dval,fmt=fmt))))
    end subroutine put_double
-
 
    !> Assign the value to the dictionary
    subroutine put_real(dict,rval,fmt)
@@ -1755,30 +1773,17 @@ contains
      type(dictionary), pointer :: dict
      real(kind=4), intent(in) :: rval
      character(len=*), optional, intent(in) :: fmt
-
-     if (present(fmt)) then
-        call put_value(dict,adjustl(trim(yaml_toa(rval,fmt=fmt))))
-     else
-        call put_value(dict,adjustl(trim(yaml_toa(rval))))
-     end if
-
+     call put_value(dict,adjustl(trim(yaml_toa(rval,fmt=fmt))))
    end subroutine put_real
-
 
    !> Assign the value to the dictionary
    subroutine put_long(dict,ilval,fmt)
      use yaml_strings, only:yaml_toa
      implicit none
      type(dictionary), pointer :: dict
-     integer(kind=8), intent(in) :: ilval
+     integer(f_long), intent(in) :: ilval
      character(len=*), optional, intent(in) :: fmt
-
-     if (present(fmt)) then
-        call put_value(dict,adjustl(trim(yaml_toa(ilval,fmt=fmt))))
-     else
-        call put_value(dict,adjustl(trim(yaml_toa(ilval))))
-     end if
-
+     call put_value(dict,adjustl(trim(yaml_toa(ilval,fmt=fmt))))
    end subroutine put_long
 
    subroutine put_lg(dict,val,fmt)
@@ -1787,14 +1792,21 @@ contains
      type(dictionary), pointer :: dict
      logical, intent(in) :: val
      character(len=*), optional, intent(in) :: fmt
-
-     if (present(fmt)) then
-        call put_value(dict,adjustl(trim(yaml_toa(val,fmt=fmt))))
-     else
-        call put_value(dict,adjustl(trim(yaml_toa(val))))
-     end if
-
+     call put_value(dict,adjustl(trim(yaml_toa(val,fmt=fmt))))
    end subroutine put_lg
+
+!!$   subroutine dict_sum_d(dest,src,op)
+!!$     implicit none
+!!$     type(dictionary), pointer :: dest
+!!$     !character(len=*), intent(in) :: op !should be one of '+','M','m','|','v' etc
+!!$     real(f_double), intent(in) :: src
+!!$     !local variables
+!!$     real(f_double) :: tmp
+!!$     
+!!$     tmp=dest
+!!$     
+!!$   end subroutine dict_sum_d
+     
 
 
    !> Merge subd into dict.

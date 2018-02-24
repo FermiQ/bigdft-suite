@@ -39,7 +39,7 @@ skip = []
 tags = []
 
 # directories
-if os.path.exists('/opt/etsf'):
+if os.path.exists('/opt/etsf') and False:
     # /opt/etsf has been the default for a long time, and we keep on using it
     # if it exists
     prefix = '/opt/etsf'

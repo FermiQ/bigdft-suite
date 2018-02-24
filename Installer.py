@@ -516,6 +516,8 @@ all: build
                        print 'HINT: It appears you are compiling from a branch source tree. Did you perform the action "autogen"?'
                    if not self.verbose and self.action == 'build':
                       print '  HINT: Have a look at the file index.html of the buildlogs/ directory to find the reason'
+                   if self.yes:
+                      exit(1)
         except:
             print 'Goodbye...'
         self.makefile_dump() #temporary

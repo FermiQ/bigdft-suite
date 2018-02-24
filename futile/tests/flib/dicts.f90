@@ -338,9 +338,27 @@ subroutine test_dictionaries1()
    call yaml_map('DictA is now',dictA)
    call yaml_map('DictA key',dict_key(dictA))
    call dict_free(dictA)
-
   !test if a complete pop will disassociate the dictionry
   call yaml_map('Dictionary associated before last pop',associated(dict))
+
+   !now redo the pop experience with only one key in the dictionary
+   call dict_init(dictA2)
+   dict => dictA2 // 'head'
+   call set(dict//'onlyone'//0,1.0)
+   call set(dict//'onlyone'//1,1.0)
+   call set(dict//'onlyone'//2,1.0)
+
+   call yaml_map('Total dict',dictA2)
+
+   if ('onlyone' .in. dict) then
+      dictA => dict .pop. 'onlyone'
+      call yaml_map('Nowdict',dictA)
+      call dict_free(dictA)
+   end if
+
+   call yaml_map('Dict popped',dictA2)
+   call dict_free(dictA2)
+   
 !  call dict_remove(dict,'Number of Groups')
 !  call yaml_map('Last pop done, still associated',associated(dict))
 

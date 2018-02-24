@@ -466,7 +466,7 @@ subroutine filename_of_iorb(lbin,filename,orbs,iorb,ispinor,filename_out,iorb_ou
   !local variables
   character(len=1) :: spintype,realimag
   character(len=4) :: f3
-  character(len=5) :: f4
+  character(len=7) :: f6
   character(len=8) :: completename
   integer :: ikpt
   real(gp) :: spins
@@ -521,15 +521,15 @@ subroutine filename_of_iorb(lbin,filename,orbs,iorb,ispinor,filename_out,iorb_ou
   if (spins==-1.0_gp) iorb_out=iorb_out-orbs%norbu
 
   !value of the orbital
-  write(f4,'(a1,i4.4)') "b", iorb_out
+  write(f6,'(a1,i6.6)') "b", iorb_out
 
   !complete the information in the name of the orbital
   completename='-'//f3//'-'//spintype//realimag
   if (lbin) then
-     filename_out = trim(filename)//completename//".bin."//f4
+     filename_out = trim(filename)//completename//".bin."//f6
      !print *,'complete name <',trim(filename_out),'> end'
  else
-     filename_out = trim(filename)//completename//"."//f4
+     filename_out = trim(filename)//completename//"."//f6
      !print *,'complete name <',trim(filename_out),'> end'
  end if
 
@@ -1025,7 +1025,8 @@ subroutine tmb_overlap_onsite(iproc, nproc, imethod_overlap, at, tmb, rxyz)
   aux = linmat_auxiliary_null()
   ! Do not initialize the matrix multiplication to save memory. 
   call init_sparse_matrix_wrapper(iproc, nproc, tmb%linmat%smat(1)%nspin, tmb%orbs, &
-       lzd_tmp, at%astruct, .false., init_matmul=.false., imode=2, smat=smat_tmp(1))
+       lzd_tmp, at%astruct, .false., init_matmul=.false., matmul_optimize_load_balancing=.false., &
+       imode=2, smat=smat_tmp(1))
   call init_matrixindex_in_compressed_fortransposed(iproc, nproc, &
        collcom_tmp, collcom_tmp, collcom_tmp, smat_tmp(1), &
        aux)
@@ -1036,7 +1037,7 @@ subroutine tmb_overlap_onsite(iproc, nproc, imethod_overlap, at, tmb, rxyz)
   !!iicol(2) = 1
   !!call get_sparsematrix_local_extent(iproc, nproc, tmb%linmat%smmd, smat_tmp, ind_min, ind_mas)
   call check_local_matrix_extents(iproc, nproc, &
-       collcom_tmp, collcom_tmp, tmb%linmat%smmd, smat_tmp(1), aux, &
+       collcom_tmp, collcom_tmp, tmb%orbs, tmb%linmat%smmd, smat_tmp(1), aux, &
        ind_min, ind_mas)
   !!call get_sparsematrix_local_rows_columns(smat_tmp, ind_min, ind_mas, irow, icol)
   !!iirow(1) = min(irow(1),iirow(1))
@@ -2201,7 +2202,8 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
   use public_enums
   use rototranslations
   use reformatting
-  use locregs, only: lr_box
+  use locregs, only: lr_box,reset_lr
+  use box, only: cell_new
   implicit none
   integer, intent(in) :: iproc, nproc
   integer, intent(in) :: iformat
@@ -2245,7 +2247,7 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
   logical :: skip, binary
   integer :: itmb, jtmb, jat, ierr
   integer :: stat(mpi_status_size)
-  !integer, dimension(2,3) :: nbox
+  integer, dimension(2,3) :: nbox
   !!$ integer :: ierr
 
   ! DEBUG
@@ -2355,7 +2357,16 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
 !!$              nbox(2,2)=Lzd_old%Llr(ilr)%d%n2+Lzd_old%Llr(ilr)%ns2
 !!$              nbox(1,3)=Lzd_old%Llr(ilr)%ns3
 !!$              nbox(2,3)=Lzd_old%Llr(ilr)%d%n3+Lzd_old%Llr(ilr)%ns3
-              call lr_box(Lzd_old%Llr(ilr),tmb%lzd%glr,lzd_old%hgrids)!,nbox,.false.)
+              nbox(1,1)=tmb%lzd%glr%d%nfl1
+              nbox(1,2)=tmb%lzd%glr%d%nfl2
+              nbox(1,3)=tmb%lzd%glr%d%nfl3
+              
+              nbox(2,1)=tmb%lzd%glr%d%nfu1
+              nbox(2,2)=tmb%lzd%glr%d%nfu2
+              nbox(2,3)=tmb%lzd%glr%d%nfu3
+                   
+              !call lr_box(Lzd_old%Llr(ilr),tmb%lzd%glr,lzd_old%hgrids)!,nbox,.false.)
+              call reset_lr(Lzd_old%Llr(ilr),'F',lzd_old%hgrids,nbox,tmb%lzd%glr%geocode)
 
               ! DEBUG: print*,iproc,iorb,iorb+orbs%isorb,iorb_old,iorb_out
 
@@ -2690,8 +2701,6 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
 
   end if fragment_if
 
-
-
   !reduce the number of warnings
   if (nproc >1) call fmpi_allreduce(itoo_big,1,op=FMPI_SUM,comm=bigdft_mpi%mpi_comm)
   if (nproc >1) call fmpi_allreduce(max_wahba,1,op=FMPI_MAX,comm=bigdft_mpi%mpi_comm)
@@ -2719,12 +2728,10 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
   !!end if
 
 
-  ! hack to make reformatting work for case when hgrid changes, ideally we should fill this in properly
-  Lzd_old%glr%mesh_coarse%hgrids=lzd_old%hgrids
-  Lzd_old%glr%mesh_coarse%bc=tmb%lzd%glr%mesh%bc
-  Lzd_old%glr%mesh_coarse%orthorhombic=tmb%lzd%glr%mesh%orthorhombic
-  Lzd_old%glr%mesh_coarse%ndims=tmb%lzd%glr%mesh%ndims
-
+  ! hack to make reformatting work for case when hgrid changes, here the ndims is meaningless
+  Lzd_old%glr%mesh_coarse=&
+       cell_new(tmb%lzd%glr%geocode,tmb%lzd%glr%mesh_coarse%ndims,lzd_old%hgrids)
+ 
   call timing(iproc,'tmbrestart','OF')
   call reformat_supportfunctions(iproc,nproc,&
        at,rxyz_old,rxyz,.false.,tmb,ndim_old,lzd_old,frag_trans_orb,&
@@ -3915,7 +3922,8 @@ subroutine reformat_supportfunctions(iproc,nproc,at,rxyz_old,rxyz,add_derivative
           psirold=f_malloc0((2*n_old+31),id='psirold')
 
           !call f_zero((2*n_old(1)+31)*(2*n_old(2)+31)*(2*n_old(3)+31),psirold(1,1,1))
-          call vcopy((2*n_old(1)+2)*(2*n_old(2)+2)*(2*n_old(3)+2),phigold(0,1,0,1,0,1),1,psirold(1,1,1),1)
+          !call vcopy((2*n_old(1)+2)*(2*n_old(2)+2)*(2*n_old(3)+2),phigold(0,1,0,1,0,1),1,psirold(1,1,1),1)
+          call f_memcpy(src=phigold,dest=psirold)
           call psig_to_psir_free(n_old(1),n_old(2),n_old(3),workarraytmp,psirold)
           call f_free(workarraytmp)
 

@@ -396,7 +396,7 @@ module time_profiling
 
     end subroutine f_timing_checkpoint
 
-    subroutine gather_and_dump_results(master,ncat,nnodes,message,clocks,mpi_comm,gather_routine)
+    subroutine gather_and_dump_results(master,ncat,nnodes,message,clocks,mpi_comm,gather_routine,dict_info)
       use dynamic_memory
       implicit none
       logical, intent(in) :: master
@@ -404,6 +404,7 @@ module time_profiling
       character(len=*), intent(in) :: message
       double precision, dimension(ncat+1), intent(in) :: clocks
       integer, intent(in), optional :: mpi_comm
+      type(dictionary), pointer, optional :: dict_info
       external :: gather_routine
       optional :: gather_routine
       real(kind=8), dimension(:,:), allocatable :: timeall
@@ -419,7 +420,7 @@ module time_profiling
          call f_memcpy(src=clocks,dest=timeall)
       end if
       if (master) then
-         call timing_dump_results(ncat,nnodes,trim(message),timeall)
+         call timing_dump_results(ncat,nnodes,trim(message),timeall,dict_info)
       endif
       call f_free(timeall)
     end subroutine gather_and_dump_results
@@ -505,10 +506,10 @@ module time_profiling
 
          if (present(mpi_comm)) then
             call gather_and_dump_results(times(ictrl)%master,&
-                 times(ictrl)%timing_ncat,nnodes,'ALL',times(ictrl)%clocks,mpi_comm,gather_routine)
+                 times(ictrl)%timing_ncat,nnodes,'ALL',times(ictrl)%clocks,mpi_comm,gather_routine,dict_info=dict_info)
          else
             call gather_and_dump_results(times(ictrl)%master,&
-                 times(ictrl)%timing_ncat,nnodes,'ALL',times(ictrl)%clocks)
+                 times(ictrl)%timing_ncat,nnodes,'ALL',times(ictrl)%clocks,dict_info=dict_info)
          end if
 
 !!$         call sum_results(times(ictrl)%timing_ncat,mpi_comm,'ALL',&
@@ -809,17 +810,28 @@ module time_profiling
       call yaml_mapping_close() !summary
 
       !dump extra info dictionary
-      if (associated(dict_info)) call yaml_dict_dump(dict_info)
-      call yaml_map('Report timestamp',trim(yaml_date_and_time_toa()))
+      call dump_extra_info_dict(dict_info)
       !restore the default stream
       call timing_close_stream(iunit_def)
 
     end subroutine timing_dump_counters
 
+    subroutine dump_extra_info_dict(dict_info)
+      use yaml_strings, only: yaml_date_and_time_toa
+      use yaml_output
+      implicit none
+      type(dictionary), pointer, optional :: dict_info
+      
+      if (.not. present(dict_info)) return
+      if (associated(dict_info)) call yaml_dict_dump(dict_info)
+      call yaml_map('Report timestamp',trim(yaml_date_and_time_toa()))
+      
+    end subroutine dump_extra_info_dict
+
     !> dump the results of the nonzero timings of the categories in the file indicated by filename_time
     !! the array timesum should contain the timings for each processor (from 0 to nproc-1)
     !! and will also contain the average value (in position nproc)
-    subroutine timing_dump_results(ncat,nproc,message,timeall)
+    subroutine timing_dump_results(ncat,nproc,message,timeall,dict_info)
       use dynamic_memory
       use yaml_output
       use yaml_strings
@@ -827,6 +839,7 @@ module time_profiling
       integer, intent(in) :: ncat,nproc
       character(len=*), intent(in) :: message
       real(kind=8), dimension(ncat+1,0:nproc), intent(inout) :: timeall
+      type(dictionary), pointer, optional :: dict_info
       !local variables
       integer :: ncls,i,j,icls,icat,jproc,iunit_def,nextra
       real(kind=8) :: total_pc,pc
@@ -937,6 +950,9 @@ module time_profiling
 
       call yaml_mapping_close() !categories
       call yaml_mapping_close() !counter
+
+      !dump extra info dictionary
+      call dump_extra_info_dict(dict_info)
       !restore the default stream
       call timing_close_stream(iunit_def)
 

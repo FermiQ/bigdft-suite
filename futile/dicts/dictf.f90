@@ -207,6 +207,28 @@ subroutine bind_dict_add_double(dict,val)
   call add(dict, val)
 end subroutine bind_dict_add_double
 
+subroutine bind_dict_add_int(dict,val)
+  use dictionaries
+  use f_precisions
+  type(dictionary), pointer :: dict
+  integer(f_integer), intent(in) :: val
+
+  call add(dict, val)
+end subroutine bind_dict_add_int
+
+subroutine bind_dict_add_char(dict,val)
+  use dictionaries
+  use f_precisions
+  use yaml_strings
+  type(dictionary), pointer :: dict
+  character, dimension(*), intent(in) :: val
+
+  character(len = max_field_length) :: buf
+  
+  call convert_f_char_ptr(val, buf)
+  call add(dict, buf)
+end subroutine bind_dict_add_char
+
 
 subroutine bind_dict_get_double_array(dict,key,keylen,array,arraylen,istat)
   use f_precisions

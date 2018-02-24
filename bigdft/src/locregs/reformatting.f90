@@ -169,9 +169,7 @@ contains
     call rototranslations_shifts(frag_trans,src_glr_mesh,dest_glr_mesh,&
          src_llr,dest_llr,&
          centre_src,centre_dest,da)
-!!$    call calculate_origins(dest_llr,src_llr,oxyz_src,oxyz_dest)
-!!$    call calculate_shifts(frag_trans,src_llr%mesh_coarse,dest_llr%mesh_coarse,oxyz_src,oxyz_dest,&
-!!$         centre_src,centre_dest,da)
+
     displ=square_gd(dest_llr%mesh_coarse,da)
 
     call dict_set(info // DISPL_KEY ,sqrt(displ))
@@ -386,7 +384,7 @@ contains
 
     !local variables
     character(len=*), parameter :: subname='reformatonesupportfunction'
-    character(len=1) :: geocode !< @copydoc poisson_solver::doc::geocode
+    character(len=1) :: geocode
     logical, dimension(3) :: per
     integer, dimension(3) :: nb
 !!$  integer, dimension(3) :: ndims_tmp

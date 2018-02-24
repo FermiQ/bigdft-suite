@@ -19,10 +19,16 @@
   ! Consistency checks.
   isize=dict_size(dict)
   length=dict_len(dict)
-  if (f_err_raise(isize > 0,'Add not allowed for this node',&
-       err_id=DICT_INVALID_LIST)) return
-  if (f_err_raise(length == -1,'Add not allowed for this node',&
-       err_id=DICT_INVALID)) return
+  if (isize > 0) then
+     call f_err_throw('Add not allowed for this node (isize='//adjustl(trim(yaml_toa(isize)))//')',&
+       err_id=DICT_INVALID_LIST)
+     return
+  end if
+  if (length == -1) then
+     call f_err_throw('Add not allowed for this node (length='//adjustl(trim(yaml_toa(length)))//')',&
+       err_id=DICT_INVALID)
+     return
+  end if
 
   if (present(last_item_ptr)) then
      ! Use sibling as last item to add to.

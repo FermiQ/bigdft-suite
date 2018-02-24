@@ -26,6 +26,12 @@ else
 binaries_sources =
 endif
 
+if HAVE_MINPACK
+minpack_sources = minpack.f90
+else
+minpack_sources = minpack_fake.f90
+endif
+
 SUBDIRS=python
 
 # C objects
@@ -48,6 +54,7 @@ libCheSS_1_a_SOURCES = chebyshev.f90 \
 	  sparsematrix_highlevel.f90 \
 	  highlevel_wrappers.f90 \
 	  chess_base.f90 \
+	  $(minpack_sources) \
 	  $(c_level)
 
 # Module files.
@@ -63,7 +70,8 @@ modules = CHEBYSHEV.@MODULE_EXT@ \
 	  MATRIX_OPERATIONS.@MODULE_EXT@ \
 	  SPARSEMATRIX_HIGHLEVEL.@MODULE_EXT@ \
 	  HIGHLEVEL_WRAPPERS.@MODULE_EXT@ \
-	  CHESS_BASE.@MODULE_EXT@
+	  CHESS_BASE.@MODULE_EXT@ \
+	  MINPACK.@MODULE_EXT@
 else
 modules =  chebyshev.@MODULE_EXT@ \
 	  foe_base.@MODULE_EXT@ \
@@ -76,7 +84,8 @@ modules =  chebyshev.@MODULE_EXT@ \
 	  matrix_operations.@MODULE_EXT@ \
 	  sparsematrix_highlevel.@MODULE_EXT@ \
 	  highlevel_wrappers.@MODULE_EXT@ \
-	  chess_base.@MODULE_EXT@
+	  chess_base.@MODULE_EXT@ \
+	  minpack.@MODULE_EXT@
 endif
 
 EXTRA_DIST = \
@@ -142,7 +151,7 @@ foe.o: chebyshev.o foe_base.o foe_common.o fermi_level.o matrix_operations.o
 sparsematrix_highlevel.o: ice.o foe.o
 highlevel_wrappers.o: sparsematrix_highlevel.o
 coeffs.o: sparsematrix_highlevel.o
-chess_toolbox.o: $(libCheSS_1_a_OBJECTS)
+chess_toolbox.o: minpack.o $(libCheSS_1_a_OBJECTS)
 
 # Copy modules in a common include directory.
 insmod: $(modules)

@@ -7,9 +7,9 @@ conditions.add("testing")
 modules = ['spred',]
 #example of the potentialities of the python syntax in this file
 def env_configuration():
-    return """"FC=gfortran" "FCFLAGS=-O2 -fopenmp -m64"  "CFLAGS=-ldl" "-with-ext-linalg=-l/usr/lib/liblapack.so" "-with-ext-blas=-l/usr/lib/liblas.so" """
+    return """"FC=gfortran" "FCFLAGS=-O2 -fopenmp -m64"  "CFLAGS=-ldl" "-with-ext-linalg=-l/usr/lib/liblapack.so" "-with-ext-blas=-l/usr/lib/libblas.so" """
 def shrt_configuration():
-    return """"FC=gfortran" "FCFLAGS=-O2 -fopenmp -m64"  "CFLAGS=-ldl" "-with-ext-linalg=-l/usr/lib/liblapack.so" "-with-ext-blas=-l/usr/lib/liblas.so" """
+    return """"FC=gfortran" "FCFLAGS=-O2 -fopenmp -m64"  "CFLAGS=-ldl" "-with-ext-linalg=-l/usr/lib/liblapack.so" "-with-ext-blas=-l/usr/lib/libblas.so" """
 
 
 #here follow the configuration instructions for the modules built

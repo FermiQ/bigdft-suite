@@ -65,6 +65,7 @@ program driver_foe
   real(mp) :: energy, tr_KS, tr_KS_check, ef, energy_fake, efermi, eTS, evlow, evhigh, t1, t2
   type(foe_data),dimension(:),allocatable :: foe_obj, ice_obj
   real(mp) :: tr, fscale, fscale_lowerbound, fscale_upperbound, accuracy_foe, accuracy_ice, accuracy_penalty
+  real(mp) :: fscale_ediff_low, fscale_ediff_up
   type(dictionary),pointer :: dict_timing_info, options
   type(yaml_cl_parse) :: parser !< command line parser
   character(len=1024) :: metadata_file, overlap_file, hamiltonian_file, kernel_file, kernel_matmul_file
@@ -604,7 +605,7 @@ program driver_foe
   call f_timing_checkpoint(ctr_name='LAST',mpi_comm=mpiworld(),nproc=mpisize(), &
        gather_routine=gather_timings)
 
-  call build_dict_info(iproc, nproc, dict_timing_info)
+  call build_dict_info(dict_timing_info)
   call f_timing_stop(mpi_comm=mpi_comm_world,nproc=nproc,&
        gather_routine=gather_timings,dict_info=dict_timing_info)
   call dict_free(dict_timing_info)
@@ -618,52 +619,6 @@ program driver_foe
 
   ! Finalize flib
   call f_lib_finalize()
-
-
-  !!contains
-
-  !!  !> construct the dictionary needed for the timing information
-  !!  !! SM: This routine should go to a module
-  !!  subroutine build_dict_info(dict_info)
-  !!    use wrapper_MPI
-  !!    use dynamic_memory
-  !!    use dictionaries
-  !!    implicit none
-
-  !!    type(dictionary), pointer :: dict_info
-  !!    !local variables
-  !!    integer :: ierr,namelen,nthreads
-  !!    character(len=MPI_MAX_PROCESSOR_NAME) :: nodename_local
-  !!    character(len=MPI_MAX_PROCESSOR_NAME), dimension(:), allocatable :: nodename
-  !!    type(dictionary), pointer :: dict_tmp
-  !!    !$ integer :: omp_get_max_threads
-
-  !!    call dict_init(dict_info)
-! !! bastian: comment out 4 followinf lines for debug purposes (7.12.2014)
-  !!    !if (DoLastRunThings) then
-  !!       call f_malloc_dump_status(dict_summary=dict_tmp)
-  !!       call set(dict_info//'Routines timing and number of calls',dict_tmp)
-  !!    !end if
-  !!    nthreads = 0
-  !!    !$  nthreads=omp_get_max_threads()
-  !!    call set(dict_info//'CPU parallelism'//'MPI tasks',nproc)
-  !!    if (nthreads /= 0) call set(dict_info//'CPU parallelism'//'OMP threads',&
-  !!         nthreads)
-
-  !!    nodename=f_malloc0_str(MPI_MAX_PROCESSOR_NAME,0.to.nproc-1,id='nodename')
-  !!    if (nproc>1) then
-  !!       call MPI_GET_PROCESSOR_NAME(nodename_local,namelen,ierr)
-  !!       !gather the result between all the process
-  !!       call MPI_GATHER(nodename_local,MPI_MAX_PROCESSOR_NAME,MPI_CHARACTER,&
-  !!            nodename(0),MPI_MAX_PROCESSOR_NAME,MPI_CHARACTER,0,&
-  !!            mpi_comm_world,ierr)
-  !!       if (iproc==0) call set(dict_info//'Hostnames',&
-  !!               list_new(.item. nodename))
-  !!    end if
-  !!    call f_free_str(MPI_MAX_PROCESSOR_NAME,nodename)
-
-  !!  end subroutine build_dict_info
-
 
   contains 
 
@@ -717,6 +672,8 @@ program driver_foe
           keep_dense_kernel = options//'keep_dense_kernel'
           write_kernel = options//'write_kernel'
           write_symmetrized_kernel = options//'write_symmetrized_kernel'
+          fscale_ediff_low = options//'fscale_ediff_low'
+          fscale_ediff_up = options//'fscale_ediff_up'
          
           call dict_free(options)
       end if
@@ -757,6 +714,8 @@ program driver_foe
       call mpibcast(nit, root=0, comm=mpi_comm_world)
       call mpibcast(betax, root=0, comm=mpi_comm_world)
       call mpibcast(inversion_method, root=0, comm=mpi_comm_world)
+      call mpibcast(fscale_ediff_low, root=0, comm=mpi_comm_world)
+      call mpibcast(fscale_ediff_up, root=0, comm=mpi_comm_world)
       ! Since there is no wrapper for logicals...
       if (iproc==0) then
           if (check_spectrum) then
@@ -1145,6 +1104,20 @@ subroutine commandline_options(parser)
        &(requires write_kernel=yes and keep_dense_kernel=yes)',&
        'Allowed values' .is. &
        'Logical'))
+
+  call yaml_cl_parse_option(parser,'fscale_ediff_low','5.e-5',&
+       'lower bound for the optimal relative energy difference between the kernel and the control kernel',&
+       help_dict=dict_new('Usage' .is. &
+       'Indicate the lower bound for the optimal relative energy difference between the kernel and the control kernel',&
+       'Allowed values' .is. &
+       'Double'))
+
+  call yaml_cl_parse_option(parser,'fscale_ediff_low','1.e-4',&
+       'lower bound for the optimal relative energy difference between the kernel and the control kernel',&
+       help_dict=dict_new('Usage' .is. &
+       'Indicate the lower bound for the optimal relative energy difference between the kernel and the control kernel',&
+       'Allowed values' .is. &
+       'Double'))
 
 
 end subroutine commandline_options

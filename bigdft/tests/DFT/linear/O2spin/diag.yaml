@@ -26,6 +26,8 @@
    nit: 100
    rpnrm_cv: 4.e-6
    max_inversion_error: 5.0e-8
+   charge_multipoles: 11
+   output_mat: 1
  lin_basis:
    nit: 8
    idsx: 8
