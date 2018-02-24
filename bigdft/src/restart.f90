@@ -2366,7 +2366,6 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
               nbox(2,3)=tmb%lzd%glr%d%nfu3
                    
               !call lr_box(Lzd_old%Llr(ilr),tmb%lzd%glr,lzd_old%hgrids)!,nbox,.false.)
-              
               call reset_lr(Lzd_old%Llr(ilr),'F',lzd_old%hgrids,nbox,tmb%lzd%glr%geocode)
 
               ! DEBUG: print*,iproc,iorb,iorb+orbs%isorb,iorb_old,iorb_out
@@ -3995,7 +3994,7 @@ subroutine reformat_supportfunctions(iproc,nproc,at,rxyz_old,rxyz,add_derivative
   if (nproc>1) then
       call fmpi_allreduce(max_shift, 1, FMPI_MAX, comm=bigdft_mpi%mpi_comm)
   end if
-  if (iproc==0) call yaml_map('Max shift of a locreg center',max_shift,fmt='(es9.2)')
+  if (iproc==0) call yaml_map('max shift of a locreg center',max_shift,fmt='(es9.2)')
 
   ! Determine the dumping factor for the confinement. In the limit wbohere the atoms
   ! have not moved, it goes to zero; in the limit where they have moved a lot, it goes to one.

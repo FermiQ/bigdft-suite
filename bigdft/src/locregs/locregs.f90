@@ -412,12 +412,21 @@ contains
       call f_routine(id='init_lr')
 
       lr%geocode=geocode
-      lr%ns1=0
-      lr%ns2=0
-      lr%ns3=0
-      if (present(isx)) lr%ns1=isx
-      if (present(isy)) lr%ns2=isy
-      if (present(isz)) lr%ns3=isz
+      if (present(isx)) then
+         lr%ns1=isx
+      else
+         lr%ns1=0
+      end if
+      if (present(isy)) then
+         lr%ns2=isy
+      else
+         lr%ns2=0
+      end if
+      if (present(isz)) then
+         lr%ns3=isz
+      else
+         lr%ns3=0
+      end if
 
       peri(1)=geocode /= 'F'
       peri(2)=geocode == 'P'
@@ -627,7 +636,6 @@ contains
             geocode = 'P'
          end if
       end select
-
       ! Make sure that the localization regions are not periodic
       if (xperiodic .or. yperiodic .or. zperiodic) then
          call f_err_throw('The localization region '//&
