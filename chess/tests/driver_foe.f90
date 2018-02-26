@@ -56,7 +56,7 @@ program driver_foe
   type(sparse_matrix_metadata) :: smmd
   integer :: nfvctr, nvctr, ierr, iproc, nproc, nthread, ncharge, nfvctr_mult, nvctr_mult, scalapack_blocksize, icheck, it, nit
   integer :: ispin, ihomo, imax, ntemp, npl_max, pexsi_npoles, norbu, norbd, ii, info, norbp, isorb, norb, iorb, pexsi_np_sym_fact
-  integer :: pexsi_nproc_per_pole, pexsi_max_iter, pexsi_verbosity, output_level, profiling_depth
+  integer :: pexsi_nproc_per_pole, pexsi_max_iter, pexsi_verbosity, output_level, profiling_depth, occupation_function
   real(mp) :: pexsi_mumin, pexsi_mumax, pexsi_mu, pexsi_DeltaE, pexsi_temperature, pexsi_tol_charge, betax
   integer,dimension(:),pointer :: row_ind, col_ptr, row_ind_mult, col_ptr_mult
   real(mp),dimension(:),pointer :: kernel, overlap, overlap_large
@@ -71,7 +71,7 @@ program driver_foe
   character(len=1024) :: metadata_file, overlap_file, hamiltonian_file, kernel_file, kernel_matmul_file
   character(len=1024) :: sparsity_format, matrix_format, kernel_method, inversion_method
   logical :: check_spectrum, do_cubic_check, pexsi_do_inertia_count, init_matmul, keep_dense_kernel, write_kernel
-  logical :: write_symmetrized_kernel, adjust_fscale_smooth
+  logical :: write_symmetrized_kernel, adjust_fscale_smooth, adjust_fscale
   integer,parameter :: nthreshold = 10 !< number of checks with threshold
   real(mp),dimension(nthreshold),parameter :: threshold = (/ 1.e-1_mp, &
                                                              1.e-2_mp, &
@@ -177,7 +177,9 @@ program driver_foe
       call yaml_map('Routine timing profiling depth',profiling_depth)
       call yaml_map('Keep the dense kernel',keep_dense_kernel)
       call yaml_map('Write the density kernel to disk',write_kernel)
-      call yaml_map('USe the new smooth way to adjust fscale',adjust_fscale_smooth)
+      call yaml_map('Use the new smooth way to adjust fscale',adjust_fscale_smooth)
+      call yaml_map('The function to assign the occupation numbers',occupation_function)
+      call yaml_map('Dynamically adjust the value of fscale or not',adjust_fscale)
       call yaml_mapping_close()
   end if
 
@@ -286,7 +288,9 @@ program driver_foe
            fscale=fscale, fscale_lowerbound=fscale_lowerbound, fscale_upperbound=fscale_upperbound, &
            evlow=evlow, evhigh=evhigh, betax=betax, &
            ntemp = ntemp, ef=ef, npl_max=npl_max, &
-           accuracy_function=accuracy_foe, accuracy_penalty=accuracy_penalty)
+           accuracy_function=accuracy_foe, accuracy_penalty=accuracy_penalty, &
+           occupation_function=occupation_function, adjust_fscale=adjust_fscale, &
+           diff_tolerance=diff_tolerance, diff_target=diff_target, adjust_fscale_smooth=adjust_fscale_smooth)
       ! Initialize the same object for the calculation of the inverse. Charge does not really make sense here...
       call init_foe(iproc, nproc, smat(1)%nspin, charge, ice_obj(it), &
            evlow=0.5_mp, evhigh=1.5_mp, betax=betax, &
@@ -676,6 +680,8 @@ program driver_foe
           diff_tolerance = options//'diff_tolerance'
           diff_target = options//'diff_target'
           adjust_fscale_smooth = options//'adjust_fscale_smooth'
+          adjust_fscale = options//'adjust_fscale'
+          occupation_function = options//'occupation_function'
          
           call dict_free(options)
       end if
@@ -718,6 +724,7 @@ program driver_foe
       call mpibcast(inversion_method, root=0, comm=mpi_comm_world)
       call mpibcast(diff_tolerance, root=0, comm=mpi_comm_world)
       call mpibcast(diff_target, root=0, comm=mpi_comm_world)
+      call mpibcast(occupation_function, root=0, comm=mpi_comm_world)
       ! Since there is no wrapper for logicals...
       if (iproc==0) then
           if (check_spectrum) then
@@ -809,6 +816,19 @@ program driver_foe
           adjust_fscale_smooth = .true.
       else
           adjust_fscale_smooth = .false.
+      end if
+      if (iproc==0) then
+          if (adjust_fscale) then
+              icheck = 1
+          else
+              icheck = 0
+          end if
+      end if
+      call mpibcast(icheck, root=0, comm=mpi_comm_world)
+      if (icheck==1) then
+          adjust_fscale = .true.
+      else
+          adjust_fscale = .false.
       end if
 
     end subroutine read_and_communicate_input_variables
@@ -1120,6 +1140,13 @@ subroutine commandline_options(parser)
        'Allowed values' .is. &
        'Logical'))
 
+  call yaml_cl_parse_option(parser,'adjust_fscale','.false.',&
+       'Dynamically adjust the value of fscale or not', &
+       help_dict=dict_new('Usage' .is. &
+       'Indicate whether to dynamically adjust the value of fscale or not',&
+       'Allowed values' .is. &
+       'Logical'))
+
   call yaml_cl_parse_option(parser,'diff_target','5.e-5',&
        'target energy difference between the normal kernel and the control kernel',&
        help_dict=dict_new('Usage' .is. &
@@ -1140,6 +1167,13 @@ subroutine commandline_options(parser)
        'Indicate whether to use the new smooth way to adjust fscale',&
        'Allowed values' .is. &
        'Double'))
+
+  call yaml_cl_parse_option(parser,'occupation_function','102',&
+       'the function to assign the occupation numbers',&
+       help_dict=dict_new('Usage' .is. &
+       'Indicate the function to assign the occupation numbers',&
+       'Allowed values' .is. &
+       'Integer'))
 
 
 end subroutine commandline_options

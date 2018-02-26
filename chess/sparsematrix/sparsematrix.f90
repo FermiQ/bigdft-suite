@@ -41,7 +41,7 @@ module sparsematrix
   public :: compress_matrix_distributed_wrapper
   public :: uncompress_matrix_distributed2
   public :: sequential_acces_matrix_fast, sequential_acces_matrix_fast2
-  public :: sparsemm_new
+  public :: sparsemm_new, sparsemm_newnew
   public :: gather_matrix_from_taskgroups, gather_matrix_from_taskgroups_inplace
   public :: extract_taskgroup_inplace, extract_taskgroup
   public :: write_matrix_compressed
@@ -1471,6 +1471,190 @@ module sparsematrix
      end function
        
    end subroutine sparsemm_new
+
+
+
+   subroutine sparsemm_newnew(iproc, smat, a, a_seq, b, c)
+     use yaml_output
+     use dynamic_memory
+     implicit none
+   
+     !Calling Arguments
+     integer,intent(in) :: iproc
+     type(sparse_matrix),intent(in) :: smat
+     real(kind=mp), dimension(smat%nvctrp_tg),intent(in) :: a
+     real(kind=mp), dimension(smat%smmm%nvctrp),intent(in) :: b
+     real(kind=mp), dimension(smat%smmm%nseq),intent(in) :: a_seq
+     real(kind=mp), dimension(smat%smmm%nvctrp), intent(out) :: c
+   
+     !Local variables
+     !character(len=*), parameter :: subname='sparsemm'
+     integer :: i,jorb,jjorb,iend,nblock, iblock, ncount
+     integer :: ii, ilen, iout, iiblock, isblock, is,ie, ind, idebug
+     real(kind=mp) :: tt0
+     integer :: n_dense
+     real(kind=mp),dimension(:,:),allocatable :: a_dense, b_dense, c_dense
+     !real(kind=mp),dimension(:),allocatable :: b_dense, c_dense
+     !!integer,parameter :: MATMUL_NEW = 101
+     !!integer,parameter :: MATMUL_OLD = 102
+     !!integer,parameter :: matmul_version = MATMUL_NEW 
+     logical,parameter :: count_flops = .false.
+     real(kind=mp) :: ts, te, op, gflops
+     real(kind=mp),parameter :: flop_per_op = 2.d0 !<number of FLOPS per operations
+   
+     call f_routine(id='sparsemm')
+
+     if (.not.smat%smatmul_initialized) then
+         call f_err_throw('sparse matrix multiplication not initialized', &
+              err_name='SPARSEMATRIX_RUNTIME_ERROR')
+     end if
+
+     if (count_flops) then
+         n_dense = nint(sqrt(real(smat%smmm%nseq,kind=mp)))
+         !n_dense = smat%nfvctr
+         a_dense = f_malloc((/n_dense,n_dense/),id='a_dense')
+         b_dense = f_malloc((/n_dense,1/),id='b_dense')
+         c_dense = f_malloc((/n_dense,1/),id='c_dense')
+     end if
+     !call timing(iproc, 'sparse_matmul ', 'IR')
+     call f_timing(TCAT_SMAT_MULTIPLICATION,'IR')
+
+
+     ! The choice for matmul_version can be made in sparsematrix_base
+     if (matmul_version==MATMUL_NEW) then
+
+         if (count_flops) then
+             ! Start time
+             ts = mpi_wtime()
+         end if
+         !$omp parallel default(private) shared(smat, a, a_seq, b, c)
+         !$omp do schedule(guided)
+         do iout=1,smat%smmm%nout
+             i=smat%smmm%onedimindices_new(1,iout)
+             nblock=smat%smmm%onedimindices_new(4,iout)
+             isblock=smat%smmm%onedimindices_new(5,iout)
+             tt0=0.d0
+
+             is = isblock + 1
+             ie = isblock + nblock
+             !do iblock=1,nblock
+             do iblock=is,ie
+                 !iiblock = isblock + iblock
+                 jorb = smat%smmm%consecutive_lookup(1,iblock)
+                 jjorb = smat%smmm%consecutive_lookup(2,iblock)
+                 ncount = smat%smmm%consecutive_lookup(3,iblock)
+                 ind = smat%smmm%consecutive_lookup(4,iblock)
+                 !write(*,*) 'iout, iblock, ncount, ind, indold, vals', &
+                 !            iout, iblock, ncount, ind, smat%smmm%indices_extract_sequential(jorb), &
+                 !            a(ind), a_seq(jorb)
+                 if (ind /= smat%smmm%indices_extract_sequential(jorb)) then
+                     write(*,*) 'ERROR'
+                 end if
+                 !tt0 = tt0 + ddot(ncount, b(jjorb), 1, a_seq(jorb), 1)
+                 !avoid calling ddot from OpenMP region on BG/Q as too expensive
+                 !tt0=tt0+my_dot(ncount,b(jjorb:jjorb+ncount-1),a_seq(jorb:jorb+ncount-1))
+                 !tt0=tt0+my_dot(ncount,b(jjorb),a_seq(jorb))
+                 tt0=tt0+my_dot(ncount,b(jjorb),a(ind))
+                 !write(*,*) 'iout, iblock, jorb, jjorb', iout, iblock, jorb, jjorb
+                 !do idebug=1,ncount
+                 !    write(*,*) 'idebug, val', idebug, a(ind+idebug-1), b(jjorb+idebug-1)
+                 !end do
+                 do idebug=1,ncount
+                     if (abs(a(ind+idebug-1)-a_seq(jorb+idebug-1))>1.d-12) then
+                         write(*,*) 'ERROR', idebug, a(ind+idebug-1), a_seq(jorb+idebug-1)
+                     end if
+                 end do
+             end do
+             !!write(*,*) 'iout, i, tt0', iout, i, tt0
+
+             c(i) = tt0
+         end do 
+         !$omp end do
+         !$omp end parallel
+
+         if (count_flops) then
+             ! End time
+             te = mpi_wtime()
+             ! Count the operations
+             op = 0.d0
+             do iout=1,smat%smmm%nout
+                 nblock=smat%smmm%onedimindices_new(4,iout)
+                 isblock=smat%smmm%onedimindices_new(5,iout)
+                 do iblock=1,nblock
+                     iiblock = isblock + iblock
+                     ncount = smat%smmm%consecutive_lookup(3,iiblock)
+                     op = op + real(ncount,kind=mp)
+                 end do
+             end do
+             gflops = 1.d-9*op/(te-ts)*flop_per_op
+             call yaml_map('SPARSE: operations',op,fmt='(es9.3)')
+             call yaml_map('SPARSE: time',te-ts,fmt='(es9.3)')
+             call yaml_map('SPARSE: GFLOPS',gflops)
+
+             ! Compare with dgemm of comparable size
+             ts = mpi_wtime()
+             call dgemv('n', n_dense, n_dense, 1.d0, a_dense, n_dense, b_dense, 1, 0.d0, c_dense, 1)
+             !call dgemm('n', 'n', n_dense, n_dense, n_dense, 1.d0, a_dense, n_dense, &
+             !     b_dense, n_dense, 0.d0, c_dense, n_dense)
+             te = mpi_wtime()
+             op = real(n_dense,kind=mp)*real(n_dense,kind=mp)
+             gflops = 1.d-9*op/(te-ts)*flop_per_op
+             call yaml_map('DGEMV: operations',op,fmt='(es9.3)')
+             call yaml_map('DGEMV: time',te-ts,fmt='(es9.3)')
+             call yaml_map('DGEMV: GFLOPS',gflops)
+         end if
+
+
+     else if (matmul_version==MATMUL_OLD) then
+
+     !!    !$omp parallel default(private) shared(smat, a_seq, b, c)
+     !!    !$omp do
+     !!    do iout=1,smat%smmm%nout
+     !!        i=smat%smmm%onedimindices_new(1,iout)
+     !!        ilen=smat%smmm%onedimindices_new(2,iout)
+     !!        ii=smat%smmm%onedimindices_new(3,iout)
+     !!        tt0=0.d0
+
+     !!        iend=ii+ilen-1
+
+     !!        do jorb=ii,iend
+     !!           jjorb=smat%smmm%ivectorindex_new(jorb)
+     !!           tt0 = tt0 + b(jjorb)*a_seq(jorb)
+     !!        end do
+     !!        c(i) = tt0
+     !!    end do 
+     !!    !$omp end do
+     !!    !$omp end parallel
+
+
+     else
+
+         stop 'wrong value of matmul_version'
+
+     end if
+
+   
+     !call timing(iproc, 'sparse_matmul ', 'RS')
+     call f_timing(TCAT_SMAT_MULTIPLICATION,'RS')
+     call f_release_routine()
+
+        contains
+
+     pure function my_dot(n,x,y) result(tt)
+       implicit none
+       integer , intent(in) :: n
+       double precision :: tt
+       double precision, dimension(n), intent(in) :: x,y
+       !local variables
+       integer :: i
+
+       tt=0.d0
+       do i=1,n
+          tt=tt+x(i)*y(i)
+       end do
+     end function
+       
+   end subroutine sparsemm_newnew
 
 
    !!function orb_from_index(smat, ival)

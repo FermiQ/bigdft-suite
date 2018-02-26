@@ -34,9 +34,11 @@ program smatmul
   use sparsematrix_init, only: bigdft_to_sparsebigdft, distribute_columns_on_processes_simple, check_symmetry, &
                                init_matrix_taskgroups_wrapper, write_sparsematrix_info
   use sparsematrix, only: write_matrix_compressed, &
-                          sparsemm_new, sequential_acces_matrix_fast2, &
+                          sparsemm_new, sparsemm_newnew, sequential_acces_matrix_fast2, &
                           compress_matrix_distributed_wrapper, &
-                          resize_matrix_to_taskgroup
+                          resize_matrix_to_taskgroup, &
+                          uncompress_matrix, &
+                          compress_matrix
   use sparsematrix_io, only: read_sparse_matrix, write_sparse_matrix
   use sparsematrix_highlevel, only: sparse_matrix_and_matrices_init_from_file_bigdft
   implicit none
@@ -54,7 +56,7 @@ program smatmul
   character(len=20),dimension(:),pointer :: atomnames
   real(kind=8),dimension(:,:),pointer :: rxyz
   type(sparse_matrix),dimension(1) :: smat
-  type(matrices) :: matA
+  type(matrices) :: matA, matB
   real(kind=8) :: max_error, mean_error
   logical :: symmetric
   real(kind=8) :: time_start, time_end
@@ -160,12 +162,28 @@ program smatmul
   vector_in = f_malloc0(smat(1)%smmm%nvctrp,id='vector_in')
   vector_out = f_malloc0(smat(1)%smmm%nvctrp,id='vector_out')
   call sequential_acces_matrix_fast2(smat(1), matA%matrix_compr, mat_seq)
+  !!write(*,*) 'sum(mat_seq)', sum(mat_seq)
+
+  !!! # DEBUG ####################
+  !!matA%matrix = sparsematrix_malloc0_ptr(smat(1), iaction=DENSE_FULL, id='matA%matrix')
+  !!matB%matrix = sparsematrix_malloc0_ptr(smat(1), iaction=DENSE_FULL, id='matB%matrix')
+  !!matB%matrix_compr = sparsematrix_malloc0_ptr(smat(1), iaction=SPARSE_FULL, id='matB%matrix_compr')
+  !!call uncompress_matrix(iproc,nproc,smat(1),matA%matrix_compr,matA%matrix)
+  !!call dgemm('n', 'n', smat(1)%nfvctr, smat(1)%nfvctr, smat(1)%nfvctr, 1.d0, &
+  !!          matA%matrix, smat(1)%nfvctr, matA%matrix, smat(1)%nfvctr, &
+  !!          0.d0, matB%matrix, smat(1)%nfvctr)
+  !!call compress_matrix(iproc,nproc,smat(1),matB%matrix,matB%matrix_compr)
+  !!if (verbosity==2) then
+  !!    call write_matrix_compressed(iproc, nproc, mpiworld(), 'correct result', smat(1), matB)
+  !!end if
+  !!! # DEBUG ####################
 
   !call vcopy(smat(1)%smmm%nvctrp, matA%matrix_compr(smat(1)%smmm%isvctr_mm_par(iproc)+1), 1, vector_in(1), 1)
   call vcopy(smat(1)%smmm%nvctrp, matA%matrix_compr(smat(1)%smmm%isvctr_mm_par(iproc)+1-smat(1)%isvctrp_tg), &
        1, vector_in(1), 1)
   do it=1,nit
-      call sparsemm_new(iproc, smat(1), mat_seq, vector_in, vector_out)
+      !call sparsemm_new(iproc, smat(1), mat_seq, vector_in, vector_out)
+      call sparsemm_newnew(iproc, smat(1), matA%matrix_compr, mat_seq, vector_in, vector_out)
       call vcopy(smat(1)%smmm%nvctrp, vector_out(1), 1, vector_in(1), 1)
   end do
 

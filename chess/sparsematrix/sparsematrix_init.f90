@@ -1950,7 +1950,9 @@ module sparsematrix_init
 
       ! Local variables
       integer :: itot, ipt, iipt, iline, icolumn, ilen, jseg, ii, jorb, ithread, nthread, i, n
-      integer :: iseg_start, iconsec, ii_prev, nconsecutive, nconsecutive_tot, jthread, ioffset
+      integer :: iseg_start, iconsec, ii_prev, nconsecutive, nconsecutive_tot, jthread, ioffset, jj
+      integer :: iii, iii_prev
+      logical :: values, inseg
       integer,dimension(:),allocatable :: nconsecutive_tot_arr
       integer,dimension(:,:),allocatable :: onedimindices5_thread
       integer,dimension(:,:),pointer :: ise
@@ -1986,6 +1988,7 @@ module sparsematrix_init
       !$omp shared(ise, ispt, onedimindices, smat, nconsecutive_tot_arr, onedimindices5_thread) &
       !$omp shared(line_and_column, compressed_index) &
       !$omp private(ipt, iipt, iline, icolumn, ilen, nconsecutive, jseg, jorb, ii, ii_prev) &
+      !$omp private(iii, iii_prev, iconsec, values, inseg) &
       !$omp firstprivate(ithread)
       !$ ithread = omp_get_thread_num()
       do ipt=ise(1,ithread),ise(2,ithread)
@@ -1996,30 +1999,92 @@ module sparsematrix_init
           if (onedimindices(1,ipt)>0) then
               onedimindices(1,ipt) = onedimindices(1,ipt) - smat%smmm%isvctr
           else
-              stop 'onedimindices(1,ipt)==0'
+              call f_err_throw('onedimindices(1,ipt)==0')
           end if
           ilen = 0
-          nconsecutive = 1
-          nconsecutive_tot_arr(ithread) = nconsecutive_tot_arr(ithread) + 1
+          !nconsecutive = 1
+          nconsecutive = 0
+          !nconsecutive_tot_arr(ithread) = nconsecutive_tot_arr(ithread) + 1
           !onedimindices(5,ipt) = nconsecutive_tot - 1
-          onedimindices5_thread(ipt-ise(1,ithread)+1,ithread) = nconsecutive_tot_arr(ithread) - 1
+          !onedimindices5_thread(ipt-ise(1,ithread)+1,ithread) = nconsecutive_tot_arr(ithread) - 1
+          onedimindices5_thread(ipt-ise(1,ithread)+1,ithread) = nconsecutive_tot_arr(ithread)
           ! Take the column due to the symmetry of the sparsity pattern
           do jseg=smat%istsegline(icolumn),smat%istsegline(icolumn)+smat%nsegline(icolumn)-1
+              inseg = .false.
+              iconsec = 0
               do jorb = smat%keyg(1,1,jseg),smat%keyg(2,1,jseg)
                   ii = compressed_index(jorb,iline)
-                  if (ii>0) then
-                      ilen = ilen + 1
-                      ii = ii - smat%smmm%isvctr
-                      !!write(1000,*) 'ilen, ii, ii_prev, nconsecutive_tot', ilen, ii, ii_prev, nconsecutive_tot
-                      if (ilen>1) then
-                          if (ii /= ii_prev+1) then
-                              nconsecutive = nconsecutive + 1
-                              nconsecutive_tot_arr(ithread) = nconsecutive_tot_arr(ithread) + 1
+                  iii = matrixindex_in_compressed(smat, jorb, iline)
+                  !!write(*,*) 'ipt, jseg, jorb, iline, icolumn, ii, iii, ii_prev, iii_prev', &
+                  !!            ipt, jseg, jorb, iline, icolumn, ii, iii, ii_prev, iii_prev
+                  values = (ii > 0)
+                  ii = ii - smat%smmm%isvctr
+                  if (values) then
+                      if (.not.inseg) then
+                          !open a consecutive segment
+                          nconsecutive = nconsecutive + 1
+                          nconsecutive_tot_arr(ithread) = nconsecutive_tot_arr(ithread) + 1
+                          ilen = ilen + 1
+                          inseg = .true.
+                      else
+                          if (ii == ii_prev+1) then
+                              !within a consecutive segment
+                              ilen = ilen + 1
+                              !write(*,*) 'within, iconsec', iconsec
+                          else
+                              !close the segment
+                              inseg = .false.
                           end if
                       end if
-                      ii_prev = ii
+                  else
+                      if (inseg) then
+                          !close the segment
+                          inseg = .false.
+                      end if
                   end if
+                  ii_prev = ii
+                  !!!if (inseg .and. values) then
+                  !!!    !do nothing, within a consecutive segment
+                  !!!    ilen = ilen + 1
+                  !!!else if (.not.values .and. inseg) then
+                  !!!    !close the segment
+                  !!!    !nconsecutive = nconsecutive + 1
+                  !!!    !nconsecutive_tot_arr(ithread) = nconsecutive_tot_arr(ithread) + 1
+                  !!!    inseg = .false.
+                  !!!else if (values .and. .not.inseg) then
+                  !!!    !open a consecutive segment
+                  !!!    nconsecutive = nconsecutive + 1
+                  !!!    nconsecutive_tot_arr(ithread) = nconsecutive_tot_arr(ithread) + 1
+                  !!!    ilen = ilen + 1
+                  !!!    inseg = .true.
+                  !!!end if
+                  !!iii = iii - smat%smmm%isvctr
+                  !!if (ilen>1) then
+                  !!    if (ii>0) then
+                  !!        ii = ii - smat%smmm%isvctr
+                  !!        !!write(1000,*) 'ilen, ii, ii_prev, nconsecutive_tot', ilen, ii, ii_prev, nconsecutive_tot
+                  !!            !if (ii /= ii_prev+1) then
+                  !!            if (iconsec>0 .and. (ii /= ii_prev+1 .or. iii /= iii_prev+1)) then
+                  !!                nconsecutive = nconsecutive + 1
+                  !!                nconsecutive_tot_arr(ithread) = nconsecutive_tot_arr(ithread) + 1
+                  !!                iconsec = 0
+                  !!            end if
+                  !!        iconsec = iconsec + 1
+                  !!        ilen = ilen + 1
+                  !!        ii_prev = ii
+                  !!        iii_prev = iii
+                  !!    else
+                  !!        nconsecutive = nconsecutive + 1
+                  !!        nconsecutive_tot_arr(ithread) = nconsecutive_tot_arr(ithread) + 1
+                  !!    end if
+                  !!end if
               end do
+              if (inseg) then
+                  !close the segment
+                  !nconsecutive = nconsecutive + 1
+                  !nconsecutive_tot_arr(ithread) = nconsecutive_tot_arr(ithread) + 1
+                  inseg = .false.
+              end if
           end do
           onedimindices(2,ipt) = ilen
           onedimindices(4,ipt) = nconsecutive
@@ -2041,7 +2106,7 @@ module sparsematrix_init
       nconsecutive_tot = sum(nconsecutive_tot_arr)
 
       call f_free(onedimindices5_thread)
-      consecutive_lookup = f_malloc_ptr((/3,nconsecutive_tot/),id='consecutive_lookup')
+      consecutive_lookup = f_malloc_ptr((/4,nconsecutive_tot/),id='consecutive_lookup')
 
 
       itot = 1
@@ -2058,7 +2123,7 @@ module sparsematrix_init
       !$omp shared(ise, ispt, line_and_column, consecutive_lookup, nconsecutive_tot_arr) &
       !$omp shared(smat, compressed_index, onedimindices) &
       !$omp private(ipt, iipt, iline, icolumn, ilen, iconsec, jseg, jorb) &
-      !$omp private(ii, ii_prev, jthread, nconsecutive) &
+      !$omp private(ii, ii_prev, iii, iii_prev, jthread, nconsecutive, jj, values, inseg) &
       !$omp firstprivate(ithread)
       !$ ithread = omp_get_thread_num()
       nconsecutive = 0
@@ -2072,34 +2137,158 @@ module sparsematrix_init
 
           ilen = 0
           iconsec = 0
-          nconsecutive = nconsecutive + 1
-          consecutive_lookup(1,nconsecutive) = onedimindices(3,ipt)
+          !nconsecutive = nconsecutive + 1
+          !consecutive_lookup(1,nconsecutive) = onedimindices(3,ipt)
+          !consecutive_lookup(4,nconsecutive) = smat%keyv(smat%istsegline(icolumn))
+          !write(*,*) 'A: ipt, jseg, nconsecutive, keyv', &
+          !               ipt, smat%istsegline(icolumn), nconsecutive, smat%keyv(smat%istsegline(icolumn)) 
           ! Take the column due to the symmetry of the sparsity pattern
           do jseg=smat%istsegline(icolumn),smat%istsegline(icolumn)+smat%nsegline(icolumn)-1
+              inseg = .false.
+              iconsec = 0
+              jj = 0
               do jorb = smat%keyg(1,1,jseg),smat%keyg(2,1,jseg)
                   ii = compressed_index(jorb,iline)
-                  if (ii>0) then
-                      ii = ii - smat%smmm%isvctr
-                      if (ilen>0) then
-                          if (ii /= ii_prev+1) then
-                              consecutive_lookup(3,nconsecutive) = iconsec
-                              nconsecutive = nconsecutive + 1
-                              consecutive_lookup(1,nconsecutive) = onedimindices(3,ipt)+ilen
-                              consecutive_lookup(2,nconsecutive) = ii
-                              iconsec = 0
-                          end if
-                      else
+                  iii = matrixindex_in_compressed(smat, jorb, iline)
+                  if (ii>0 .and. .not.iii>0 .or. iii>0 .and. .not.ii>0) stop 'ERROR: ii, iii'
+                  iii = iii - smat%smmm%isvctr
+                  values = (ii > 0)
+                  ii = ii - smat%smmm%isvctr
+                  !write(*,*) 'jseg, jorb, ii, values, inseg', jseg, jorb, ii, values, inseg
+                  if (values) then
+                      if (.not.inseg) then
+                          !open a consecutive segment
+                          nconsecutive = nconsecutive + 1
+                          !!write(*,*) 'consecutive_lookup(1:4,1)', consecutive_lookup(1:4,1)
+                          consecutive_lookup(1,nconsecutive) = onedimindices(3,ipt)+ilen
                           consecutive_lookup(2,nconsecutive) = ii
+                          consecutive_lookup(4,nconsecutive) = smat%keyv(jseg)+jj
+                          !!write(*,*) 'A1: ipt, jseg, jorb, nconsecutive, keyv', &
+                          !!     ipt, jseg, jorb, nconsecutive, smat%keyv(jseg)+jj
+                          !!write(*,*) 'consecutive_lookup(1:4,1)', consecutive_lookup(1:4,1)
+                          iconsec = iconsec +1
+                          ilen = ilen + 1
+                          inseg = .true.
+                      else
+                          if (ii == ii_prev+1) then
+                              !within a consecutive segment
+                              iconsec = iconsec +1
+                              ilen = ilen + 1
+                              !write(*,*) 'within, iconsec', iconsec
+                          else
+                              !close the segment
+                              consecutive_lookup(3,nconsecutive) = iconsec
+                              !nconsecutive = nconsecutive + 1
+                              !!write(*,*) 'close, nconsecutive, iconsec, consecutive_lookup(1:4,nconsecutive)', &
+                              !!    nconsecutive, iconsec, consecutive_lookup(1:4,nconsecutive)
+                              !!write(*,*) 'consecutive_lookup(1:4,1)', consecutive_lookup(1:4,1)
+                              iconsec = 0
+                              inseg = .false.
+                          end if
                       end if
-                      iconsec = iconsec + 1
-                      ii_prev = ii
-                      ilen = ilen + 1
+                  else
+                      if (inseg) then
+                          !close the segment
+                          consecutive_lookup(3,nconsecutive) = iconsec
+                          !nconsecutive = nconsecutive + 1
+                          !!write(*,*) 'close, nconsecutive, iconsec, consecutive_lookup(1:4,nconsecutive)', &
+                          !!    nconsecutive, iconsec, consecutive_lookup(1:4,nconsecutive)
+                          !!write(*,*) 'consecutive_lookup(1:4,1)', consecutive_lookup(1:4,1)
+                          iconsec = 0
+                          inseg = .false.
+                      end if
                   end if
+                  !!if (inseg .and. values) then
+                  !!    !within a consecutive segment
+                  !!    iconsec = iconsec +1
+                  !!    ilen = ilen + 1
+                  !!    !write(*,*) 'within, iconsec', iconsec
+                  !!else if (.not.values .and. inseg) then
+                  !!    !close the segment
+                  !!    consecutive_lookup(3,nconsecutive) = iconsec
+                  !!    !nconsecutive = nconsecutive + 1
+                  !!    write(*,*) 'close, nconsecutive, iconsec, consecutive_lookup(1:4,nconsecutive)', &
+                  !!        nconsecutive, iconsec, consecutive_lookup(1:4,nconsecutive)
+                  !!    write(*,*) 'consecutive_lookup(1:4,1)', consecutive_lookup(1:4,1)
+                  !!    iconsec = 0
+                  !!    inseg = .false.
+                  !!else if (values .and. .not.inseg) then
+                  !!    !open a consecutive segment
+                  !!    nconsecutive = nconsecutive + 1
+                  !!    write(*,*) 'consecutive_lookup(1:4,1)', consecutive_lookup(1:4,1)
+                  !!    consecutive_lookup(1,nconsecutive) = onedimindices(3,ipt)+ilen
+                  !!    consecutive_lookup(2,nconsecutive) = ii
+                  !!    consecutive_lookup(4,nconsecutive) = smat%keyv(jseg)+jj
+                  !!    write(*,*) 'A1: ipt, jseg, jorb, nconsecutive, keyv', &
+                  !!         ipt, jseg, jorb, nconsecutive, smat%keyv(jseg)+jj
+                  !!    write(*,*) 'consecutive_lookup(1:4,1)', consecutive_lookup(1:4,1)
+                  !!    iconsec = iconsec +1
+                  !!    ilen = ilen + 1
+                  !!    inseg = .true.
+                  !!end if
+                  !!if (ilen>0) then
+                  !!    if (ii>0) then
+                  !!        ii = ii - smat%smmm%isvctr
+                  !!        if (iconsec>0 .and. (ii /= ii_prev+1 .or. iii /= iii_prev+1)) then
+                  !!            consecutive_lookup(3,nconsecutive) = iconsec
+                  !!            nconsecutive = nconsecutive + 1
+                  !!            consecutive_lookup(1,nconsecutive) = onedimindices(3,ipt)+ilen
+                  !!            consecutive_lookup(2,nconsecutive) = ii
+                  !!            consecutive_lookup(4,nconsecutive) = smat%keyv(jseg)+jj
+                  !!            write(*,*) 'B1: ipt, jseg, jorb, nconsecutive, keyv', &
+                  !!                 ipt, jseg, jorb, nconsecutive, smat%keyv(jseg)+jj
+                  !!            iconsec = 0
+                  !!        end if
+                  !!        iconsec = iconsec + 1
+                  !!        ilen = ilen + 1
+                  !!        ii_prev = ii
+                  !!        iii_prev = iii
+                  !!    else
+                  !!        consecutive_lookup(3,nconsecutive) = iconsec
+                  !!        nconsecutive = nconsecutive + 1
+                  !!        consecutive_lookup(1,nconsecutive) = onedimindices(3,ipt)+ilen
+                  !!        consecutive_lookup(2,nconsecutive) = ii
+                  !!        consecutive_lookup(4,nconsecutive) = smat%keyv(jseg)+jj
+                  !!        write(*,*) 'B2: ipt, jseg, jorb, nconsecutive, keyv', &
+                  !!             ipt, jseg, jorb, nconsecutive, smat%keyv(jseg)+jj
+                  !!        iconsec = 0
+                  !!    end if
+                  !!else
+                  !!    if (ii>0) then
+                  !!        ii = ii - smat%smmm%isvctr
+                  !!         consecutive_lookup(2,nconsecutive) = ii
+                  !!         consecutive_lookup(4,nconsecutive) = smat%keyv(jseg)+jj
+                  !!         write(*,*) 'A1: ipt, jseg, jorb, nconsecutive, keyv', &
+                  !!            ipt, smat%istsegline(icolumn), jorb, nconsecutive, smat%keyv(jseg)+jj
+                  !!    end if
+                  !!end if
+                  jj = jj + 1
+                  ii_prev = ii
               end do
+              if (inseg) then
+                  !close the segment
+                  consecutive_lookup(3,nconsecutive) = iconsec
+                  !!nconsecutive = nconsecutive + 1
+                  !!consecutive_lookup(1,nconsecutive) = onedimindices(3,ipt)+ilen
+                  !!consecutive_lookup(2,nconsecutive) = ii
+                  !!consecutive_lookup(4,nconsecutive) = smat%keyv(smat%istsegline(icolumn)+smat%nsegline(icolumn)-1)+jj
+                  !!write(*,*) 'B1: ipt, jseg, jorb, nconsecutive, keyv', &
+                  !!     ipt, jseg, jorb, nconsecutive, consecutive_lookup(4,nconsecutive)
+                  !!write(*,*) 'close, nconsecutive, iconsec, consecutive_lookup(1:4,nconsecutive)', &
+                  !!    nconsecutive, iconsec, consecutive_lookup(1:4,nconsecutive)
+                  !!write(*,*) 'consecutive_lookup(1:4,1)', consecutive_lookup(1:4,1)
+                  iconsec = 0
+                  inseg = .false.
+              end if
           end do
-          consecutive_lookup(3,nconsecutive) = iconsec
+          !consecutive_lookup(3,nconsecutive) = iconsec
       end do
+      !!write(*,*) 'consecutive_lookup(1:4,1)', consecutive_lookup(1:4,1)
+      !!do ii=1,nconsecutive
+      !!    write(*,*) 'ii, consecutive_lookup(1:4,ii)', ii, consecutive_lookup(1:4,ii)
+      !!end do
       !$omp end parallel
+
 
       call f_free(nconsecutive_tot_arr)
       call f_free_ptr(ise)
@@ -2668,6 +2857,7 @@ module sparsematrix_init
                   if (ind>0) then
                       ii = ii + 1
                       indices_extract_sequential_work(ii,ithread)=smat%keyv(jseg)+jj-1
+                      !write(*,*) 'ipt, jseg, jorb, val', ipt, jseg, jorb, smat%keyv(jseg)+jj-1
                   end if
                   jj = jj+1
               end do
@@ -6390,6 +6580,8 @@ module sparsematrix_init
                      !tt0 = tt0 + ddot(ncount, b(jjorb), 1, a_seq(jorb), 1)
                      !avoid calling ddot from OpenMP region on BG/Q as too expensive
                      !tt0=tt0+my_dot(ncount,b(jjorb:jjorb+ncount-1),a_seq(jorb:jorb+ncount-1))
+                     !write(*,*) 'iblock, smat%smmm%consecutive_lookup(1:4,iblock)', &
+                     !            iblock, smat%smmm%consecutive_lookup(1:4,iblock)
                      tt0=tt0+my_dot(ncount,b(jjorb),a_seq(jorb))
                  end do
 
