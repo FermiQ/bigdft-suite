@@ -34,7 +34,7 @@ program smatmul
   use sparsematrix_init, only: bigdft_to_sparsebigdft, distribute_columns_on_processes_simple, check_symmetry, &
                                init_matrix_taskgroups_wrapper, write_sparsematrix_info
   use sparsematrix, only: write_matrix_compressed, &
-                          sparsemm_new, sparsemm_newnew, sequential_acces_matrix_fast2, &
+                          sparsemm_newnew, sequential_acces_matrix_fast2, &
                           compress_matrix_distributed_wrapper, &
                           resize_matrix_to_taskgroup, &
                           uncompress_matrix, &
@@ -161,7 +161,7 @@ program smatmul
   mat_seq = sparsematrix_malloc(smat(1), iaction=SPARSEMM_SEQ, id='mat_seq')
   vector_in = f_malloc0(smat(1)%smmm%nvctrp,id='vector_in')
   vector_out = f_malloc0(smat(1)%smmm%nvctrp,id='vector_out')
-  call sequential_acces_matrix_fast2(smat(1), matA%matrix_compr, mat_seq)
+  !call sequential_acces_matrix_fast2(smat(1), matA%matrix_compr, mat_seq)
   !!write(*,*) 'sum(mat_seq)', sum(mat_seq)
 
   !!! # DEBUG ####################
@@ -183,7 +183,7 @@ program smatmul
        1, vector_in(1), 1)
   do it=1,nit
       !call sparsemm_new(iproc, smat(1), mat_seq, vector_in, vector_out)
-      call sparsemm_newnew(iproc, smat(1), matA%matrix_compr, mat_seq, vector_in, vector_out)
+      call sparsemm_newnew(iproc, smat(1), matA%matrix_compr, vector_in, vector_out)
       call vcopy(smat(1)%smmm%nvctrp, vector_out(1), 1, vector_in(1), 1)
   end do
 

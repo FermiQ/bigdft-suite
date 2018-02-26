@@ -932,7 +932,7 @@ module sparsematrix_init
       real(kind=mp) :: time0, time1, time2, time3, time4, time5, ttime, time_ideal, time_proc
       logical, parameter :: extra_timing=.false.
       integer :: icol, is, ie, ii, it, nit, icol_proc, ncol_proc, iscol_proc
-      real(mp),dimension(:),allocatable :: a_seq, b, c
+      real(mp),dimension(:),allocatable :: a, b, c
       real(mp),dimension(:,:),allocatable :: times_col
       real(mp),dimension(:),allocatable :: times
       integer,dimension(:,:),allocatable :: column_startend, col_proc
@@ -1261,7 +1261,7 @@ module sparsematrix_init
           if (matmul_optimize_load_balancing_) then
     
               ! Perform a sparse multiplication and get the timings
-              a_seq = sparsematrix_malloc0(sparsemat, iaction=SPARSEMM_SEQ, id='a_seq')
+              a = sparsematrix_malloc0(sparsemat, iaction=SPARSE_TASKGROUP, id='a')
               b = f_malloc0(sparsemat%smmm%nvctrp,id='b')
               c = f_malloc0(sparsemat%smmm%nvctrp,id='c')
     
@@ -1324,7 +1324,7 @@ module sparsematrix_init
               times_col = f_malloc0([1.to.sparsemat%nfvctr,0.to.nit],id='times_col')
               if (ncol_proc>0) then
                   do it=1,nit
-                      call sparsemm_new_timing(iproc, ncol_proc, col_proc, sparsemat, a_seq, b, c, times_col(iscol_proc,it))
+                      call sparsemm_new_timing(iproc, ncol_proc, col_proc, sparsemat, a, b, c, times_col(iscol_proc,it))
                   end do
               end if
               call f_free(col_proc)
@@ -1337,7 +1337,7 @@ module sparsematrix_init
                   call yaml_mapping_close()
               end if
     
-              call f_free(a_seq)
+              call f_free(a)
               call f_free(b)
               call f_free(c)
     
@@ -1388,7 +1388,7 @@ module sparsematrix_init
               call write_matmul_memory(iproc, nproc, comm, sparsemat%smmm)
 
               !!call f_free(times)
-              a_seq = sparsematrix_malloc0(sparsemat, iaction=SPARSEMM_SEQ, id='a_seq')
+              a = sparsematrix_malloc0(sparsemat, iaction=SPARSE_TASKGROUP, id='a')
               b = f_malloc0(sparsemat%smmm%nvctrp,id='b')
               c = f_malloc0(sparsemat%smmm%nvctrp,id='c')
               !!times = f_malloc0([sparsemat%smmm%nvctrp,1],id='times')
@@ -1399,7 +1399,7 @@ module sparsematrix_init
               call f_zero(times_col)
               if (ncol_proc>0) then
                   do it=1,nit
-                      call sparsemm_new_timing(iproc, ncol_proc, col_proc, sparsemat, a_seq, b, c, times_col(iscol_proc,it))
+                      call sparsemm_new_timing(iproc, ncol_proc, col_proc, sparsemat, a, b, c, times_col(iscol_proc,it))
                   end do
               end if
               time_proc = sum(times_col)
@@ -1416,7 +1416,7 @@ module sparsematrix_init
               !!call f_free(column_startend)
               call f_free(norb_par_ideal)
               call f_free(isorb_par_ideal)
-              call f_free(a_seq)
+              call f_free(a)
               call f_free(b)
               call f_free(c)
               !!call f_free(times)
@@ -2149,8 +2149,8 @@ module sparsematrix_init
               jj = 0
               do jorb = smat%keyg(1,1,jseg),smat%keyg(2,1,jseg)
                   ii = compressed_index(jorb,iline)
-                  iii = matrixindex_in_compressed(smat, jorb, iline)
-                  if (ii>0 .and. .not.iii>0 .or. iii>0 .and. .not.ii>0) stop 'ERROR: ii, iii'
+                  !iii = matrixindex_in_compressed(smat, jorb, iline)
+                  !if (ii>0 .and. .not.iii>0 .or. iii>0 .and. .not.ii>0) stop 'ERROR: ii, iii'
                   iii = iii - smat%smmm%isvctr
                   values = (ii > 0)
                   ii = ii - smat%smmm%isvctr
@@ -6502,7 +6502,7 @@ module sparsematrix_init
     end subroutine init_matrix_taskgroups_wrapper
 
 
-   subroutine sparsemm_new_timing(iproc, ncol_proc, col_proc, smat, a_seq, b, c, times_col)
+   subroutine sparsemm_new_timing(iproc, ncol_proc, col_proc, smat, a, b, c, times_col)
      use yaml_output
      use dynamic_memory
      implicit none
@@ -6511,8 +6511,8 @@ module sparsematrix_init
      integer,intent(in) :: iproc, ncol_proc
      integer,dimension(2,ncol_proc),intent(in) :: col_proc
      type(sparse_matrix),intent(in) :: smat
+     real(kind=mp), dimension(smat%nvctrp_tg),intent(in) :: a
      real(kind=mp), dimension(smat%smmm%nvctrp),intent(in) :: b
-     real(kind=mp), dimension(smat%smmm%nseq),intent(in) :: a_seq
      real(kind=mp), dimension(smat%smmm%nvctrp), intent(out) :: c
      real(kind=mp), dimension(ncol_proc), intent(out) :: times_col
    
@@ -6521,7 +6521,7 @@ module sparsematrix_init
      integer :: i,jorb,jjorb,iend,nblock, iblock, ncount, icol
      integer :: ii, ilen, iout, iiblock, isblock, is,ie, iii
      real(kind=mp) :: tt0
-     integer :: n_dense
+     integer :: n_dense, ind
      real(kind=mp),dimension(:,:),allocatable :: a_dense, b_dense, c_dense
      !real(kind=mp),dimension(:),allocatable :: b_dense, c_dense
      !!integer,parameter :: MATMUL_NEW = 101
@@ -6555,7 +6555,7 @@ module sparsematrix_init
              ts = mpi_wtime()
          end if
 
-         !$omp parallel default(private) shared(ncol_proc, col_proc, smat, a_seq, b, c, times_col)
+         !$omp parallel default(private) shared(ncol_proc, col_proc, smat, a, b, c, times_col)
          do icol=1,ncol_proc
              is = col_proc(1,icol)
              ie = col_proc(2,icol)
@@ -6571,18 +6571,12 @@ module sparsematrix_init
 
                  is = isblock + 1
                  ie = isblock + nblock
-                 !do iblock=1,nblock
                  do iblock=is,ie
-                     !iiblock = isblock + iblock
                      jorb = smat%smmm%consecutive_lookup(1,iblock)
                      jjorb = smat%smmm%consecutive_lookup(2,iblock)
                      ncount = smat%smmm%consecutive_lookup(3,iblock)
-                     !tt0 = tt0 + ddot(ncount, b(jjorb), 1, a_seq(jorb), 1)
-                     !avoid calling ddot from OpenMP region on BG/Q as too expensive
-                     !tt0=tt0+my_dot(ncount,b(jjorb:jjorb+ncount-1),a_seq(jorb:jorb+ncount-1))
-                     !write(*,*) 'iblock, smat%smmm%consecutive_lookup(1:4,iblock)', &
-                     !            iblock, smat%smmm%consecutive_lookup(1:4,iblock)
-                     tt0=tt0+my_dot(ncount,b(jjorb),a_seq(jorb))
+                     ind = smat%smmm%consecutive_lookup(4,iblock)
+                     tt0=tt0+my_dot(ncount,b(jjorb),a(ind))
                  end do
 
                  c(i) = tt0
