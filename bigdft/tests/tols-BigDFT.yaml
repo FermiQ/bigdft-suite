@@ -2967,7 +2967,7 @@ metals_errorfunction:
    trace(KH): 3.1e-8
    EH: 5.4e-08
    Ekin: 2.0e-9
-   Enl: 1.2e-9
+   Enl: 1.3e-9
    Epot: 7.1e-9
    EvXC: 2.0e-8
    Force Norm (Hartree/Bohr): 7.1e-10
