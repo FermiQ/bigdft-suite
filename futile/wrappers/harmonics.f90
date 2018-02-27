@@ -272,12 +272,13 @@ module f_harmonics
       !local variables
       real(dp) :: q
       real(dp), dimension(3) :: d
-            
+
+      q=get_monopole(mp)            
       s=get_quadrupole_intensities(mp)
-      d=get_dipole(mp)
-      q=get_monopole(mp)
-      s=s+(q-2.0_dp)*d**2
       s=s/q
+      d=get_dipole(mp)
+      d=d/q
+      s=s-d**2
       where (s/=0.0_dp) s=sqrt(s)
 
 
