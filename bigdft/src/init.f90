@@ -232,6 +232,8 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
   use locregs
   use f_ternary
   use bounds, only: locreg_bounds
+  use pspiof_m, only: pspiof_projector_eval, pspiof_pspdata_get_projector, pspiof_pspdata_get_n_projectors
+  use yaml_output, only: yaml_warning
   implicit none
   integer,intent(in) :: iproc,nproc
   real(gp), intent(in) :: cpmult,fpmult,hx,hy,hz
@@ -247,11 +249,13 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
   !local variables
   character(len=*), parameter :: subname='createProjectorsArrays'
   integer :: n1,n2,n3,nl1,nl2,nl3,nu1,nu2,nu3,mseg,nbseg_dim,npack_dim,mproj_max
-  integer :: iat,iseg,nseg,isat,natp,ist,ityp
+  integer :: iat,iseg,nseg,isat,natp,ist,ityp,i, isx, isy, isz
   !type(orbital_basis) :: ob
   integer, dimension(:), allocatable :: nbsegs_cf,keyg_lin
   logical, dimension(:,:,:), allocatable :: logrid
   integer,dimension(:,:),allocatable :: reducearr
+  real(gp) :: r, tt
+  
   call f_routine(id=subname)
 
   call init_structure()
@@ -277,7 +281,7 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
      else if (at%npspcode(at%astruct%iatype(iat)) == PSPCODE_PSPIO) then
         nl%pbasis(iat)%kind = PROJ_DESCRIPTION_PSPIO
         call rfunc_basis_from_pspio(at%pspio(ityp), nl%pbasis(iat)%rfuncs)
-        nl%pbasis(iat)%normalized = .false.
+        nl%pbasis(iat)%normalized = .true.
      else
         call f_err_throw("Unknown PSP code for atom " // trim(yaml_toa(iat)), &
              & err_name = 'BIGDFT_RUNTIME_ERROR')
@@ -294,6 +298,25 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
 
   call localize_projectors(iproc,nproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,&
        rxyz,logrid,at,ob%orbs,nl)
+
+  ! Check radial projector norm for pseudos from PSPIO.
+  do ityp = 1, at%astruct%ntypes
+     if (at%npspcode(ityp) == PSPCODE_PSPIO) then
+        do i = 1, pspiof_pspdata_get_n_projectors(at%pspio(ityp))
+           tt = 0._gp
+           do r = 1d-4, 50, 1d-4
+              tt = tt + (pspiof_projector_eval(pspiof_pspdata_get_projector(at%pspio(ityp), &
+                   & i), r) ** 2)  * r * r * 1d-4
+              write(92, *) r, pspiof_projector_eval(pspiof_pspdata_get_projector(at%pspio(ityp), &
+                   & i), r)
+           end do
+        end do
+        if (abs(1.d0-tt) > 1.d-2 .and. bigdft_mpi%iproc == 0) call yaml_warning( &
+                'Norm of the nonlocal PSP atom type ' // trim(at%astruct%atomnames(ityp)) // &
+                ' l=' // trim(yaml_toa(1)) // ' is ' // trim(yaml_toa(tt)) // &
+                ' while it is supposed to be about 1.0.')
+     end if
+  end do
 
   if (dry_run) then
      call f_free(logrid)
@@ -356,10 +379,6 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
         call fill_logrid(at%astruct%geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,0,1,  &
              & at%astruct%ntypes,at%astruct%iatype(iat),rxyz(1,iat),at%radii_cf(1,2),&
              fpmult,hx,hy,hz,logrid)
-
-        ! Assign grid dimensions.
-        call init_lr(nl%pspd(iat)%plr, 'F', 0.5_gp * [hx, hy, hz], &
-             & n1, n2, n3, nl1, nl2, nl3, nu1, nu2, nu3, .false.)
 
         mseg=nl%pspd(iat)%plr%wfd%nseg_f
         iseg=nl%pspd(iat)%plr%wfd%nseg_c+1

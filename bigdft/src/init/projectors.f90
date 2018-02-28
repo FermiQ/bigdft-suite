@@ -74,9 +74,6 @@ subroutine localize_projectors(iproc,nproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,
         ns1t=nl1; ns2t=nl2; ns3t=nl3
         n1t=nu1; n2t=nu2; n3t=nu3
 
-        call bounds_to_plr_limits(.true.,1,nl%pspd(iat)%plr,&
-             nl1,nl2,nl3,nu1,nu2,nu3)
-
         !these routines are associated to the handling of a locreg
         call fill_logrid(at%astruct%geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,0,1,&
              at%astruct%ntypes,at%astruct%iatype(iat),rxyz(1,iat),at%radii_cf(1,3),&
@@ -96,21 +93,18 @@ subroutine localize_projectors(iproc,nproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,
         call pregion_size(at%astruct%geocode,rxyz(1,iat),at%radii_cf(at%astruct%iatype(iat),2),fpmult,&
              hx,hy,hz,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3)
 
-        call bounds_to_plr_limits(.true.,2,nl%pspd(iat)%plr,&
-             nl1,nl2,nl3,nu1,nu2,nu3)
-
         call fill_logrid(at%astruct%geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,0,1,  &
              at%astruct%ntypes,at%astruct%iatype(iat),rxyz(1,iat),&
              at%radii_cf(1,2),fpmult,hx,hy,hz,logrid)
         call num_segkeys(n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,logrid,mseg,mvctr)
         !if (iproc.eq.0) write(*,'(1x,a,2(1x,i0))') 'mseg,mvctr, fine  projectors ',mseg,mvctr
 
-!!$        !to be tested, particularly with respect to the
-!!$        !shift of the locreg for the origin of the
-!!$        !coordinate system
-!!$        call init_lr(nl%pspd(iat)%plr,'F',0.5_gp*[hx,hy,hz],&
-!!$             n1t,n2t,n3t,nl1,nl2,nl3,nu1,nu2,nu3,&
-!!$             .false.,ns1t,ns2t,ns3t,at%astruct%geocode)
+        !to be tested, particularly with respect to the
+        !shift of the locreg for the origin of the
+        !coordinate system
+        call init_lr(nl%pspd(iat)%plr, 'F', 0.5_gp * [hx, hy, hz], &
+             & n1t, n2t, n3t, nl1, nl2, nl3, nu1, nu2, nu3, &
+             & .false., ns1t, ns2t, ns3t, at%astruct%geocode)
 
         nl%pspd(iat)%plr%wfd%nseg_f=mseg
         nl%pspd(iat)%plr%wfd%nvctr_f=mvctr
@@ -637,7 +631,7 @@ subroutine get_projector_coeffs(ncplx_g,l,i,idir,nterm_max,factor,expo,&
      fgamma=sqrt(2.0_gp)*fpi/(sqrt(sigma_and_expo(1))**(2*(l-1)+4*i-1))
   else
      fgamma=0.0_gp
-     fpi=0.56418958354775628_gp
+     fpi=0.56418958354775628_gp ! pi^-1/2
      select case(l)
      case(1) 
         fgamma= 0.70710678118654757_gp !1.0/sqrt(2.0)
