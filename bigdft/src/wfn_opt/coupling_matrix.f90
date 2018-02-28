@@ -119,7 +119,7 @@ subroutine calculate_coupling_matrix(iproc,nproc,dir_output,boxit,tddft_approach
          q=rho_ias(boxit%ind)
          boxit%tmp=boxit%rxyz-center_of_charge
          !dipoles(:,iap)=dipoles(:,iap)+boxit%tmp*q
-         call f_multipoles_accumulate(mp,boxit%rxyz,q*boxit%mesh%volume_element)
+         call f_multipoles_accumulate(mp,boxit%tmp,q*boxit%mesh%volume_element)
        end do
        transition_quantities(:,iap)=mp%monomials
        transition_quantities(1,iap)=sqrt(eap)
