@@ -38,6 +38,7 @@ program memguess
    !use postprocessing_linear, only: loewdin_charge_analysis_core
    use public_enums
    use module_input_keys, only: print_dft_parameters
+   use orbitalbasis
    use IObox
    use io, only: plot_density
    use f_enums, only: toi
@@ -118,6 +119,7 @@ program memguess
    real(kind=8),parameter :: eps_roundoff=1.d-5
    type(sparse_matrix) :: smat_s, smat_m, smat_l
    type(f_enumerator) :: inputpsi
+   type(orbital_basis) :: ob
 
    call f_lib_initialize()
    !initialize errors and timings as bigdft routines are called
@@ -1608,12 +1610,19 @@ program memguess
    if (exportproj) then
       call free_DFT_PSP_projectors(nlpsp)
       DistProjApply = .true.
+      call orbital_basis_associate(ob,orbs=runObj%rst%KSwfn%orbs,&
+           & Lzd=runObj%rst%KSwfn%Lzd,id='memguess')
       call createProjectorsArrays(iproc,nproc,runObj%rst%KSwfn%Lzd%Glr, &
-           & runObj%atoms%astruct%rxyz,runObj%atoms,runObj%rst%KSwfn%orbs, &
+           & runObj%atoms%astruct%rxyz,runObj%atoms,ob, &
            & runObj%inputs%frmult,runObj%inputs%frmult, &
            & runObj%rst%KSwfn%Lzd%hgrids(1),runObj%rst%KSwfn%Lzd%hgrids(2), &
-           & runObj%rst%KSwfn%Lzd%hgrids(3),.false.,nlpsp)
+           & runObj%rst%KSwfn%Lzd%hgrids(3),.false.,nlpsp,.true.)
+      call orbital_basis_release(ob)
       call f_free_ptr(nlpsp%proj)
+      ikpt = 1
+      iat = 1
+      iproj = 1
+      icplx = 1
       call take_proj_from_file(filename_proj, &
            & runObj%rst%KSwfn%Lzd%hgrids(1),runObj%rst%KSwfn%Lzd%hgrids(2),runObj%rst%KSwfn%Lzd%hgrids(3), &
            & nlpsp, runObj%atoms, runObj%atoms%astruct%rxyz, &
@@ -1623,7 +1632,7 @@ program memguess
 !!$      nlpsp%pspd(iat)%plr%wfd%keyvloc = nlpsp%pspd(iat)%plr%wfd%keyvglob
 !!$      ! Doing this is buggy.
 !!$      runObj%rst%KSwfn%Lzd%Glr%wfd = nlpsp%pspd(iat)%plr%wfd
-      call plot_wf(.false.,filename_wfn,1,runObj%atoms,1.0_wp,runObj%rst%KSwfn%Lzd%Glr, &
+      call plot_wf(.false.,filename_wfn,1,runObj%atoms,1.0_wp,nlpsp%pspd(iat)%plr, &
            & runObj%rst%KSwfn%Lzd%hgrids,runObj%atoms%astruct%rxyz, nlpsp%proj(1:))
    end if
 
@@ -2447,14 +2456,14 @@ subroutine take_proj_from_file(filename, hx, hy, hz, nl, at, rxyz, &
   iformat = wave_format_from_filename(0, filename)
   if (iformat == WF_FORMAT_PLAIN .or. iformat == WF_FORMAT_BINARY) then
      i = index(filename, "-k", back = .true.)+2
-     read(filename(i:i+2),*) ikpt
+     if (i > 2) read(filename(i:i+2),*) ikpt
      i = index(filename, "-a", back = .true.)+2
-     read(filename(i:i+3),*) iat
+     if (i > 2) read(filename(i:i+3),*) iat
      i = index(filename, "-", back = .true.)+1
-     if (filename(i:i) == "R") icplx = 1
-     if (filename(i:i) == "I") icplx = 2
+     if (i > 1 .and. filename(i:i) == "R") icplx = 1
+     if (i > 1 .and. filename(i:i) == "I") icplx = 2
      i = index(filename, ".", back = .true.)+1
-     read(filename(i:i+2),*) iproj
+     if (i > 2) read(filename(i:i+2),*) iproj
 
      nl%proj = f_malloc_ptr(nl%pspd(iat)%plr%wfd%nvctr_c + &
           & 7 * nl%pspd(iat)%plr%wfd%nvctr_f, id = "proj")
@@ -2485,6 +2494,8 @@ subroutine take_proj_from_file(filename, hx, hy, hz, nl, at, rxyz, &
           & hx,hy,hz,at,nl%pspd(iat)%plr%wfd,rxyz_file,rxyz,nl%proj,eproj,psifscf)
 
      close(99)
+
+     call f_free(psifscf)
 
   else if (iformat == WF_FORMAT_ETSF) then
      stop "No ETSF proj implementation"
