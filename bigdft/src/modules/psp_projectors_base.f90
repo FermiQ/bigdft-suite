@@ -266,7 +266,7 @@ contains
     type(locreg_descriptors), intent(in), target, optional :: lr
     real(gp), dimension(3), intent(in), optional :: kpoint
 
-    integer :: mbseg_c, mbseg_f, mbvctr_c, mbvctr_f, riter
+    integer :: riter
 
     iter%parent => aproj
 
@@ -280,8 +280,7 @@ contains
     nullify(iter%lr)
     if (present(lr)) then
        iter%lr => lr
-       call plr_segs_and_vctrs(iter%lr, mbseg_c, mbseg_f, mbvctr_c, mbvctr_f)
-       iter%nc = (mbvctr_c + 7 * mbvctr_f) * iter%cplx
+       iter%nc = (lr%wfd%nvctr_c + 7 * lr%wfd%nvctr_f) * iter%cplx
     end if
 
     iter%istart = 1
@@ -471,7 +470,7 @@ contains
        do np = 1, iter%mproj
           !here the norm should be done with the complex components
           scpr = atomic_projector_iter_wnrm2(iter, np)
-          !print '(a,3(i6),1pe14.7,2(i6))','iat,l,m,scpr',iat,l,m,scpr,idir,istart_c
+          !print '(a,3(i6),1pe14.7,2(i6))','iat,l,m,scpr',iter%parent%iat,iter%l,np,scpr,ider,iter%istart_c
           if (abs(1.d0-scpr) > 1.d-2) then
              if (abs(1.d0-scpr) > 1.d-1) then
                 if (bigdft_mpi%iproc == 0) call yaml_warning( &
@@ -539,6 +538,7 @@ contains
     use box
     use pspiof_m, only: pspiof_projector_eval
     use f_utils, only: f_zero
+    use gaussians, only: ylm_coefficients, ylm_coefficients_new
     implicit none
     type(pspiof_projector_t), intent(in) :: rfunc
     integer, intent(in) :: ider !<direction in which to perform the derivative (0 if any)
@@ -553,26 +553,21 @@ contains
     integer, intent(in), optional :: mp_order
 
     !local variables
-    real(gp) :: r, tt
-    real(gp), dimension(3) :: oxyz
+    real(gp) :: r, v, centre(3)
     type(box_iterator) :: boxit
-    integer :: i, m, ithread, nthread
-
-    integer, parameter :: nterm_max=20 !if GTH nterm_max=4 (this value should go in a module)
-    real(gp), dimension(1) :: sigma_and_expo
-    integer, dimension(2*l-1) :: nterms
-    integer, dimension(nterm_max,3,2*l-1) :: lxyz
-    real(gp), dimension(1,nterm_max,2*l-1) :: factors
-    real(gp), dimension(3) :: vect
+    integer :: m, ithread, nthread
+    type(ylm_coefficients) :: ylm
 
     call f_zero(psi)
-    call get_projector_coeffs(1, l, n, ider, nterm_max, &
-         & 1._gp, 1._gp, nterms, lxyz, sigma_and_expo, factors)
+    call ylm_coefficients_new(ylm, 1, l - 1)
 
-    oxyz = lr%mesh%hgrids * [lr%nsi1, lr%nsi2, lr%nsi3]
+    centre = rxyz - [cell_r(lr%mesh_coarse, lr%ns1 + 1, 1), &
+         & cell_r(lr%mesh_coarse, lr%ns2 + 1, 2), &
+         & cell_r(lr%mesh_coarse, lr%ns3 + 1, 3)]
+    v = sqrt(lr%mesh%volume_element)
     do m = 1, 2 * l - 1
        call f_zero(projector_real)
-       boxit = box_iter(lr%mesh, origin = oxyz) !use here the real space mesh of the projector locreg
+       boxit = lr%bit
        ithread=0
        nthread=1
        !$omp parallel default(shared)&
@@ -582,19 +577,14 @@ contains
        !$ nthread=omp_get_num_threads()
        call box_iter_split(boxit,nthread,ithread)
        do while(box_next_point(boxit))
-          r = distance(boxit%mesh, boxit%rxyz, rxyz)
-          tt = 0.0_gp
-          do i = 1, nterms(m)
-             !this should be in absolute coordinates
-             vect = rxyz_ortho(boxit%mesh, closest_r(boxit%mesh, boxit%rxyz, rxyz))
-             tt = tt + factors(1, i, m) * product(vect**lxyz(i, :, m))
-          end do
-          projector_real(boxit%ind) = projector_real(boxit%ind) + &
-               & tt * pspiof_projector_eval(rfunc, r)
+          r = distance(boxit%mesh, boxit%rxyz, centre)
+          projector_real(boxit%ind) = &
+               & ylm_coefficients_sum_at(ylm, boxit, centre) * &
+               & pspiof_projector_eval(rfunc, r) * v
        end do
        call box_iter_merge(boxit)
        !$omp end parallel
-       call isf_to_daub(lr, w, projector_real, psi(:,1, m))
+       call isf_to_daub(lr, w, projector_real, psi(1,1, m))
     end do
   end subroutine rfuncs_to_wavelets_collocation
   
