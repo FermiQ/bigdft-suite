@@ -57,7 +57,6 @@ module matrix_operations
                                 transform_sparse_matrix, &
                                 compress_matrix_distributed_wrapper, &
                                 uncompress_matrix_distributed2, &
-                                sequential_acces_matrix_fast2, sequential_acces_matrix_fast, &
                                 gather_matrix_from_taskgroups, gather_matrix_from_taskgroups_inplace, &
                                 uncompress_matrix2, transform_sparsity_pattern, &
                                 sparsemm_newnew, matrix_matrix_mult_wrapper

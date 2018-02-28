@@ -43,8 +43,8 @@ module chebyshev
                invovrlp_compr, npl_resume)
       use wrapper_mpi
       use sparsematrix_init, only: matrixindex_in_compressed
-      use sparsematrix, only: sequential_acces_matrix_fast, sequential_acces_matrix_fast2, &
-                              compress_matrix_distributed_wrapper, sparsemm_newnew
+      !!use sparsematrix, only: sequential_acces_matrix_fast, sequential_acces_matrix_fast2, &
+      use sparsematrix, only: compress_matrix_distributed_wrapper, sparsemm_newnew
       implicit none
     
       ! Calling arguments

@@ -964,8 +964,8 @@ module foe_common
 
     subroutine retransform_ext(iproc, nproc, smat, onesided_action, kernelpp_work, inv_ovrlp, kernel, &
                matrix_localx, windowsx)
-        use sparsematrix, only: sequential_acces_matrix_fast, sequential_acces_matrix_fast2, &
-                                compress_matrix_distributed_wrapper, &
+        !!use sparsematrix, only: sequential_acces_matrix_fast, sequential_acces_matrix_fast2, &
+        use sparsematrix, only: compress_matrix_distributed_wrapper, &
                                 sparsemm_newnew, transform_sparsity_pattern
         use dynamic_memory
         implicit none
@@ -1480,7 +1480,7 @@ module foe_common
                hamscal_compr, scale_factor, shift_value, smats, ovrlp_, ovrlp_minus_one_half)
       use sparsematrix_init, only: analyze_unbalancing
       use sparsematrix, only: compress_matrix, uncompress_matrix, &
-                              transform_sparsity_pattern, sequential_acces_matrix_fast2, sparsemm_newnew, &
+                              transform_sparsity_pattern, sparsemm_newnew, &
                               compress_matrix_distributed_wrapper
       use foe_base, only: foe_data, foe_data_set_int, foe_data_get_int, foe_data_set_real, foe_data_get_real, &
                           foe_data_get_logical
