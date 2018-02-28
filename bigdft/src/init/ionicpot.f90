@@ -804,7 +804,8 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
   use public_enums, only: PSPCODE_PAW, PSPCODE_PSPIO, PSPCODE_GTH, PSPCODE_HGH, &
        & PSPCODE_HGH_K, PSPCODE_HGH_K_NLCC
   use pspiof_m, only: pspiof_pspdata_get_vlocal, pspiof_potential_t, &
-       & pspiof_potential_eval_deriv, pspiof_potential_eval_deriv2, pspiof_potential_eval
+       & pspiof_potential_eval_deriv, pspiof_potential_eval_deriv2, &
+       & pspiof_potential_eval, pspiof_pspdata_get_zvalence
   use bounds, only: ext_buffers
   use box
   use gaussians
@@ -991,7 +992,7 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
 !!$              enddo
 !!$           enddo
 
-        else if (at%npspcode(atit%iat) == PSPCODE_PSPIO) then
+        else if (at%npspcode(atit%ityp) == PSPCODE_PSPIO) then
            ithread=0
            nthread=1
            pot = pspiof_pspdata_get_vlocal(at%pspio(atit%ityp))
@@ -1009,7 +1010,13 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
            end do
            call box_iter_merge(dpbox%bitp)
            !$omp end parallel
-           rholeaked=0.0_dp
+           do r = 1d-4, 10., 1d-4
+              tt = r * r * 1d-4 * (pspiof_potential_eval_deriv2(pot, r) + &
+                   & 2._gp * pspiof_potential_eval_deriv(pot, r) / r)
+              rholeaked = rholeaked + tt / dpbox%mesh%volume_element
+           end do
+           rholeaked = rholeaked - &
+                   & pspiof_pspdata_get_zvalence(at%pspio(atit%ityp)) / dpbox%mesh%volume_element
         else
 
            call atomic_charge_density(g,at,atit)

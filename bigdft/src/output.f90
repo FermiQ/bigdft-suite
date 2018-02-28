@@ -777,7 +777,7 @@ subroutine print_atomic_variables(atoms, hmax, ixc)
   use module_base
   use module_types
   use public_enums, only: RADII_SOURCE,PSPCODE_HGH,PSPCODE_HGH_K,PSPCODE_HGH_K_NLCC,&
-       PSPCODE_PAW,PSPCODE_GTH
+       PSPCODE_PAW,PSPCODE_GTH, PSPCODE_PSPIO
   use public_keys, only: COEFF_KEY
   use module_xc
   use yaml_output
@@ -868,10 +868,12 @@ subroutine print_atomic_variables(atoms, hmax, ixc)
            minrad=min(minrad,atoms%psppar(i,0,ityp))
         end if
      end do
-     if (atoms%radii_cf(ityp,2) /=0.0_gp) then
-        call yaml_map('Grid Spacing threshold (AU)',2.5_gp*minrad,fmt='(f5.2)')
-     else
-        call yaml_map('Grid Spacing threshold (AU)',1.25_gp*minrad,fmt='(f5.2)')
+     if (minrad < 1e9_gp) then
+        if (atoms%radii_cf(ityp,2) /=0.0_gp) then
+           call yaml_map('Grid Spacing threshold (AU)',2.5_gp*minrad,fmt='(f5.2)')
+        else
+           call yaml_map('Grid Spacing threshold (AU)',1.25_gp*minrad,fmt='(f5.2)')
+        end if
      end if
      !control whether the grid spacing is too high
      if (hmax > 2.5_gp*minrad) then
@@ -890,6 +892,8 @@ subroutine print_atomic_variables(atoms, hmax, ixc)
         call yaml_map('Pseudopotential type','HGH-K + NLCC')
      case(PSPCODE_PAW)
         call yaml_map('Pseudopotential type','PAW + HGH')
+     case(PSPCODE_PSPIO)
+        call yaml_map('Pseudopotential type','PSPIO')
      end select
      if (atoms%psppar(0,0,ityp)/=0) then
         call yaml_mapping_open('Local Pseudo Potential (HGH convention)')
@@ -919,7 +923,8 @@ subroutine print_atomic_variables(atoms, hmax, ixc)
            if (any(atoms%psppar(l,0:3,ityp) /= 0._gp)) then
               call yaml_sequence(advance='no')
               call yaml_map('Channel (l)',l-1)
-              call yaml_map('Rloc',atoms%psppar(l,0,ityp),fmt='(f9.5)')
+              if (atoms%psppar(l,0,ityp) > 0._gp) &
+                   & call yaml_map('Rloc',atoms%psppar(l,0,ityp),fmt='(f9.5)')
               hij=0._gp
               do i=1,3
                  hij(i,i)=atoms%psppar(l,i,ityp)

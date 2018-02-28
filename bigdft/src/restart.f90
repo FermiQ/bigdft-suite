@@ -4230,7 +4230,6 @@ subroutine writemyproj(filename,iformat,orbs,hx,hy,hz,at,rxyz,nl)
   type(atomic_projector_iter) :: iter
   integer :: ncount1,ncount2,ncount_rate,ncount_max
   integer :: iat,ikpt,iproj,iskpt,iekpt,istart,icplx,l
-  integer :: mbseg_c,mbseg_f,mbvctr_c,mbvctr_f
   real(kind=4) :: tr0,tr1
   real(kind=8) :: tel
   character(len=500) :: filename_out
@@ -4265,7 +4264,6 @@ subroutine writemyproj(filename,iformat,orbs,hx,hy,hz,at,rxyz,nl)
            call atomic_projector_iter_set_destination(iter, nl%proj, &
                 & nl%nprojel, istart)
            
-           call plr_segs_and_vctrs(nl%pspd(iat)%plr,mbseg_c,mbseg_f,mbvctr_c,mbvctr_f)
            ! Start a gaussian iterator.
            call atomic_projector_iter_start(iter)
            iproj = 0
@@ -4284,16 +4282,16 @@ subroutine writemyproj(filename,iformat,orbs,hx,hy,hz,at,rxyz,nl)
                     call writeonewave(99,.not.lbin,iproj,&
                          & iter%lr%d%n1, iter%lr%d%n2, iter%lr%d%n3, &
                          & hx,hy,hz, at%astruct%nat,rxyz, &
-                         & mbseg_c, mbvctr_c, &
+                         & iter%lr%wfd%nseg_c, iter%lr%wfd%nvctr_c, &
                          & iter%lr%wfd%keyglob, iter%lr%wfd%keyvglob, &
-                         & mbseg_f, mbvctr_f, &
-                         & iter%lr%wfd%keyglob(1:,mbseg_c+1:), &
-                         & iter%lr%wfd%keyvglob(mbseg_c+1:), &
-                         & iter%proj(istart:), iter%proj(istart + mbvctr_c:), &
+                         & iter%lr%wfd%nseg_f, iter%lr%wfd%nvctr_f, &
+                         & iter%lr%wfd%keyglob(1:,iter%lr%wfd%nseg_c+1:), &
+                         & iter%lr%wfd%keyvglob(iter%lr%wfd%nseg_c+1:), &
+                         & iter%proj(istart:), iter%proj(istart + iter%lr%wfd%nvctr_c:), &
                          & UNINITIALIZED(1._wp))
 
                     close(99)
-                    istart = istart + (mbvctr_c+7*mbvctr_f)
+                    istart = istart + iter%nc / iter%cplx
                  end do
               end do
            end do

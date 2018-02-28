@@ -256,16 +256,15 @@ contains
          if (trim(dict_value(dict_psp // PSP_TYPE)) == "PSPIO") then
             maxrad = radii_cf(1)
          end if
-      else if (has_key(dict_psp, NLPSP_KEY)) then
+      end if
+      if (has_key(dict_psp, NLPSP_KEY)) then
          nlen=dict_len(dict_psp // NLPSP_KEY)
          do i=1, nlen
             rad = 0._gp
             if (has_key(dict_psp // NLPSP_KEY // (i - 1), kRLOC)) then
                rad = dict_psp // NLPSP_KEY // (i - 1) // kRLOC
             end if
-            if (rad /= 0._gp) then
-               maxrad=max(maxrad, rad)
-            end if
+            maxrad=max(maxrad, rad)
          end do
       end if
       if (maxrad == 0.0_gp) then
@@ -589,8 +588,7 @@ contains
       type(dictionary), pointer, optional :: lstring
       !Local variables
       integer :: nzatom, nelpsp, npspcode, ixcpsp
-      integer :: nzatom_, nelpsp_, npspcode_, ixc_
-      real(gp) :: psppar(0:4,0:6), psppar_(0:4,0:6), radii_cf(3), rcore, qcore
+      real(gp) :: psppar(0:4,0:6), radii_cf(3), rcore, qcore
       logical :: exists, donlcc, pawpatch, frompspio
       type(io_stream) :: ios
       character(len = max_field_length) :: str
@@ -943,14 +941,17 @@ contains
       type(pspiof_projector_t) :: proj
       type(pspiof_xc_t) :: xc
       integer :: ierr, i, n, l, n0
+      character(len = PSPIO_STRLEN_ERROR) :: expl
 
       if (f_err_raise(pspiof_pspdata_alloc(pspio) /= PSPIO_SUCCESS, &
            & "Cannot initialise PSPIO data.", err_name='BIGDFT_RUNTIME_ERROR')) &
            & return
 
       ierr = pspiof_pspdata_read(pspio, PSPIO_FMT_UNKNOWN, filename)
+      if (ierr /= PSPIO_SUCCESS) call pspiof_error_string(ierr, expl)
       if (f_err_raise(ierr /= PSPIO_SUCCESS, &
            & "Cannot read PSPIO data from " // trim(filename) // &
+           & " (" // trim(yaml_toa(pspiof_pspdata_get_format_guessed(pspio))) // "): " // trim(expl) // &
            & " (" // trim(yaml_toa(ierr)) // ")", err_name='BIGDFT_RUNTIME_ERROR')) &
            & return
 
