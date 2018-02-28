@@ -1541,7 +1541,7 @@ module sparsematrix
                  jorb = smat%smmm%consecutive_lookup(1,iblock)
                  jjorb = smat%smmm%consecutive_lookup(2,iblock)
                  ncount = smat%smmm%consecutive_lookup(3,iblock)
-                 ind = smat%smmm%consecutive_lookup(4,iblock)
+                 ind = smat%smmm%consecutive_lookup(4,iblock) - smat%isvctrp_tg
                  tt0=tt0+my_dot(ncount,b(jjorb),a(ind))
              end do
 

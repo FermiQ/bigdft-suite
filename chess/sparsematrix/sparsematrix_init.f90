@@ -62,6 +62,10 @@ module sparsematrix_init
   public :: check_projector_charge_analysis
   public :: analyze_unbalancing
 
+  interface init_matrix_taskgroups_wrapper
+      module procedure init_matrix_taskgroups_wrapper_multi
+      module procedure init_matrix_taskgroups_wrapper_single
+  end interface init_matrix_taskgroups_wrapper
 
   contains
 
@@ -912,7 +916,7 @@ module sparsematrix_init
       integer,intent(in) :: iproc, nproc, comm, norbu, nnonzero, nnonzero_mult
       integer,dimension(2,nnonzero),intent(inout) :: nonzero
       integer,dimension(2,nnonzero_mult),intent(inout) :: nonzero_mult
-      type(sparse_matrix), intent(out) :: sparsemat
+      type(sparse_matrix),intent(out) :: sparsemat
       logical,intent(in),optional :: init_matmul, matmul_optimize_load_balancing
       character(len=1),intent(in),optional :: geocode
       real(kind=mp),dimension(3),intent(in),optional :: cell_dim
@@ -1267,6 +1271,8 @@ module sparsematrix_init
           if (matmul_optimize_load_balancing_) then
     
               ! Perform a sparse multiplication and get the timings
+              !call init_matrix_taskgroups(iproc, nproc, comm, .false., sparsemat)
+              call init_matrix_taskgroups_wrapper(iproc, nproc, comm, .true., 1, sparsemat)
               a = sparsematrix_malloc0(sparsemat, iaction=SPARSE_TASKGROUP, id='a')
               b = f_malloc0(sparsemat%smmm%nvctrp,id='b')
               c = f_malloc0(sparsemat%smmm%nvctrp,id='c')
@@ -6470,7 +6476,7 @@ module sparsematrix_init
 
 
 
-    subroutine init_matrix_taskgroups_wrapper(iproc, nproc, comm, enable_matrix_taskgroups, nmat, smat, ind_minmax)
+    subroutine init_matrix_taskgroups_wrapper_multi(iproc, nproc, comm, enable_matrix_taskgroups, nmat, smat, ind_minmax)
       use dynamic_memory
       implicit none
       ! Calling arguments
@@ -6485,7 +6491,7 @@ module sparsematrix_init
       integer,dimension(2) :: irow_smat, icol_smat
       integer,dimension(:,:),allocatable :: ind_minmax_smat
 
-      call f_routine(id='init_matrix_taskgroups_wrapper')
+      call f_routine(id='init_matrix_taskgroups_wrapper_multi')
 
       ! Some sanity checks
       do imat=2,nmat
@@ -6525,7 +6531,54 @@ module sparsematrix_init
 
       call f_release_routine()
 
-    end subroutine init_matrix_taskgroups_wrapper
+    end subroutine init_matrix_taskgroups_wrapper_multi
+
+
+    subroutine init_matrix_taskgroups_wrapper_single(iproc, nproc, comm, enable_matrix_taskgroups, nmat, smat, ind_minmax)
+      use dynamic_memory
+      implicit none
+      ! Calling arguments
+      integer,intent(in) :: iproc, nproc, comm
+      logical,intent(in) :: enable_matrix_taskgroups
+      integer,intent(in) :: nmat
+      type(sparse_matrix),intent(inout) :: smat
+      integer,dimension(2),intent(in),optional :: ind_minmax
+      ! Local variables
+      integer :: imat
+      integer,dimension(2) :: irow_minmax, icol_minmax
+      integer,dimension(2) :: irow_smat, icol_smat
+      integer,dimension(:),allocatable :: ind_minmax_smat
+
+      call f_routine(id='init_matrix_taskgroups_wrapper_single')
+
+      if (nmat/=1) call f_err_throw('nmat/=1')
+
+      ind_minmax_smat = f_malloc(2,id='ind_minmax_smat')
+
+      irow_minmax(1) = smat%nfvctr
+      irow_minmax(2) = 1
+      icol_minmax(1) = smat%nfvctr
+      icol_minmax(2) = 1
+      call get_sparsematrix_local_extent(iproc, nproc, smat, &
+           ind_minmax_smat(1), ind_minmax_smat(2))
+      if (present(ind_minmax)) then
+          ind_minmax_smat(1) = min(ind_minmax_smat(1),ind_minmax(1))
+          ind_minmax_smat(2) = max(ind_minmax_smat(2),ind_minmax(2))
+      end if
+      call get_sparsematrix_local_rows_columns(smat, ind_minmax_smat(1), ind_minmax_smat(2), &
+           irow_smat, icol_smat)
+      irow_minmax(1) = min(irow_smat(1),irow_minmax(1))
+      irow_minmax(2) = max(irow_smat(2),irow_minmax(2))
+      icol_minmax(1) = min(icol_smat(1),icol_minmax(1))
+      icol_minmax(2) = max(icol_smat(2),icol_minmax(2))
+      call init_matrix_taskgroups(iproc, nproc, comm, enable_matrix_taskgroups, smat, &
+           ind_minmax_smat(1), ind_minmax_smat(2), icol_minmax, irow_minmax)!, icol_minmax)
+
+      call f_free(ind_minmax_smat)
+
+      call f_release_routine()
+
+    end subroutine init_matrix_taskgroups_wrapper_single
 
 
    subroutine sparsemm_new_timing(iproc, ncol_proc, col_proc, smat, a, b, c, times_col)

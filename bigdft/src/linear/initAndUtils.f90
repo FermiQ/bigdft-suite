@@ -1233,6 +1233,7 @@ subroutine adjust_locregs_and_confinement(iproc, nproc, hx, hy, hz, at, input, &
   type(local_zone_descriptors) :: lzd_tmp
   character(len=*), parameter :: subname='adjust_locregs_and_confinement'
   integer,dimension(2) :: irow, icol, iirow, iicol
+  integer,dimension(:,:),allocatable :: ind_minmax
   integer :: ind_min_s, ind_mas_s
   integer :: ind_min_m, ind_mas_m
   integer :: ind_min_l, ind_mas_l
@@ -1472,9 +1473,17 @@ subroutine adjust_locregs_and_confinement(iproc, nproc, hx, hy, hz, at, input, &
      !!     input%enable_matrix_taskgroups, tmb%linmat%smat(3), &
      !!     ind_min_l, ind_mas_l, &
      !!     iirow, iicol)
+     ind_minmax = f_malloc([2,3])
+     ind_minmax(1,1) = ind_min_s
+     ind_minmax(2,1) = ind_mas_s
+     ind_minmax(1,2) = ind_min_m
+     ind_minmax(2,2) = ind_mas_m
+     ind_minmax(1,3) = ind_min_l
+     ind_minmax(2,3) = ind_mas_l
      call init_matrix_taskgroups_wrapper(iproc, nproc, bigdft_mpi%mpi_comm, input%enable_matrix_taskgroups, &
-          3, tmb%linmat%smat, &
-          (/(/ind_min_s,ind_mas_s/),(/ind_min_m,ind_mas_m/),(/ind_min_l,ind_mas_l/)/))
+          3, tmb%linmat%smat, ind_minmax)
+          !!(/(/ind_min_s,ind_mas_s/),(/ind_min_m,ind_mas_m/),(/ind_min_l,ind_mas_l/)/))
+     call f_free(ind_minmax)
 
 
      !call allocate_matrices(tmb%linmat%smat(2), allocate_full=.false., &
