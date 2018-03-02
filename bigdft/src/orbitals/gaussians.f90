@@ -98,14 +98,14 @@ module gaussians
   public :: gaussian_real_space_set,gaussian_radial_value,set_box_around_gaussian
 
   type, public :: ylm_coefficients
-     integer :: l, n
+     integer :: n, l, m
 
      integer, private :: ntot
      integer, private, dimension(2*L_MAX+1) :: ntpd
      integer, private, dimension(3,NTERM_MAX_OVERLAP) :: pow
      real(gp), private, dimension(NTERM_MAX_OVERLAP) :: ftpd
   end type ylm_coefficients
-  public :: ylm_coefficients_new, ylm_coefficients_sum_at
+  public :: ylm_coefficients_new, ylm_coefficients_at, ylm_coefficients_next_m
 
 contains
 
@@ -2214,27 +2214,43 @@ contains
     type(ylm_coefficients), intent(out) :: ylm
     integer, intent(in) :: n,l
 
+    ylm%n = n
+    ylm%l = l
+    ylm%m = 0
     call tensor_product_decomposition(n, l, ylm%ntot, ylm%ntpd, ylm%pow, ylm%ftpd)
   end subroutine ylm_coefficients_new
 
-  function ylm_coefficients_sum_at(ylm, boxit, rxyz) result(tt)
+  function ylm_coefficients_next_m(ylm) result(next)
+    implicit none
+    type(ylm_coefficients), intent(inout) :: ylm
+    logical :: next
+
+    next = (ylm%m < 2 * ylm%l + 1)
+    ylm%m = ylm%m + 1
+  end function ylm_coefficients_next_m
+
+  function ylm_coefficients_at(ylm, boxit, rxyz, r) result(tt)
     use box
     implicit none
     type(ylm_coefficients), intent(in) :: ylm
     type(box_iterator), intent(in) :: boxit
     real(gp), dimension(3) :: rxyz
+    real(gp), intent(out) :: r
     real(gp) :: tt
 
-    integer :: i, j
+    integer :: i, offset
     real(gp), dimension(3) :: vect
 
+    !this should be in absolute coordinates
+    vect = rxyz_ortho(boxit%mesh, closest_r(boxit%mesh, boxit%rxyz, rxyz))
+    r = distance(boxit%mesh, boxit%rxyz, rxyz)
     tt = 0._gp
-    do i = 1, ylm%ntot
-       !this should be in absolute coordinates
-       vect = rxyz_ortho(boxit%mesh, closest_r(boxit%mesh, boxit%rxyz, rxyz))
-       tt = tt + ylm%ftpd(i) * product(vect**ylm%pow(:, i))
+    offset = sum(ylm%ntpd(1:ylm%m - 1))
+    do i = 1, ylm%ntpd(ylm%m)
+       tt = tt + ylm%ftpd(offset + i) * product(vect**ylm%pow(:, offset + i))
     end do
-  end function ylm_coefficients_sum_at
+    if (r > 0._gp .and. ylm%l > 0) tt = tt / (r ** ylm%l)
+  end function ylm_coefficients_at
 
   !> Routine to extract the coefficients from the quantum numbers and the operation
   pure subroutine tensor_product_decomposition(n,l,ntpd_shell,ntpd,pow,ftpd)

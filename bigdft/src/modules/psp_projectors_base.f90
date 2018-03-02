@@ -555,7 +555,7 @@ contains
     !local variables
     real(gp) :: r, v, centre(3)
     type(box_iterator) :: boxit
-    integer :: m, ithread, nthread
+    integer :: ithread, nthread
     type(ylm_coefficients) :: ylm
 
     call f_zero(psi)
@@ -565,7 +565,7 @@ contains
          & cell_r(lr%mesh_coarse, lr%ns2 + 1, 2), &
          & cell_r(lr%mesh_coarse, lr%ns3 + 1, 3)]
     v = sqrt(lr%mesh%volume_element)
-    do m = 1, 2 * l - 1
+    do while(ylm_coefficients_next_m(ylm))
        call f_zero(projector_real)
        boxit = lr%bit
        ithread=0
@@ -577,14 +577,13 @@ contains
        !$ nthread=omp_get_num_threads()
        call box_iter_split(boxit,nthread,ithread)
        do while(box_next_point(boxit))
-          r = distance(boxit%mesh, boxit%rxyz, centre)
           projector_real(boxit%ind) = &
-               & ylm_coefficients_sum_at(ylm, boxit, centre) * &
+               & ylm_coefficients_at(ylm, boxit, centre, r) * &
                & pspiof_projector_eval(rfunc, r) * v
        end do
        call box_iter_merge(boxit)
        !$omp end parallel
-       call isf_to_daub(lr, w, projector_real, psi(1,1, m))
+       call isf_to_daub(lr, w, projector_real, psi(1,1, ylm%m))
     end do
   end subroutine rfuncs_to_wavelets_collocation
   
