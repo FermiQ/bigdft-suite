@@ -934,7 +934,8 @@ subroutine print_atomic_variables(atoms, hmax, ixc)
                  hij(1,3)=offdiagarr(1,2,l)*atoms%psppar(l,3,ityp)
                  hij(2,3)=offdiagarr(2,1,l)*atoms%psppar(l,3,ityp)
               else if (atoms%npspcode(ityp) == PSPCODE_HGH_K &
-                  .or. atoms%npspcode(ityp) == PSPCODE_HGH_K_NLCC) then !HGH-K convention
+                   .or. atoms%npspcode(ityp) == PSPCODE_HGH_K_NLCC &
+                   .or. atoms%npspcode(ityp) == PSPCODE_PSPIO) then !HGH-K convention
                  hij(1,2)=atoms%psppar(l,4,ityp)
                  hij(1,3)=atoms%psppar(l,5,ityp)
                  hij(2,3)=atoms%psppar(l,6,ityp)

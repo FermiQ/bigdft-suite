@@ -940,8 +940,11 @@ contains
       type(pspiof_pspdata_t) :: pspio
       type(pspiof_projector_t) :: proj
       type(pspiof_xc_t) :: xc
-      integer :: ierr, i, n, l, n0
+      integer, dimension(2, 4) :: indices
+      integer :: ierr, i, n, l, j
       character(len = PSPIO_STRLEN_ERROR) :: expl
+      real(gp) :: rloc, r
+      real(gp), parameter :: eps = 1e-4_gp
 
       if (f_err_raise(pspiof_pspdata_alloc(pspio) /= PSPIO_SUCCESS, &
            & "Cannot initialise PSPIO data.", err_name='BIGDFT_RUNTIME_ERROR')) &
@@ -962,17 +965,34 @@ contains
       ixcpsp = -(pspiof_xc_get_exchange(xc) + 1000 * pspiof_xc_get_correlation(xc))
       symbol = pspiof_pspdata_get_symbol(pspio)
 
-      n0 = 1
       psppar = 0._gp
+      indices = 0
       do i = 1, pspiof_pspdata_get_n_projectors(pspio)
          proj = pspiof_pspdata_get_projector(pspio, i)
          l = pspiof_qn_get_l(pspiof_projector_get_qn(proj)) + 1
          n = pspiof_qn_get_n(pspiof_projector_get_qn(proj))
          if (n == 0) then
-            n = n0
-            n0 = n0 + 1
+            do n = 1, 3
+               if (psppar(l, n) == 0._gp) exit
+            end do
          end if
+         indices(:, i) = [l, n]
          psppar(l, n) = pspiof_projector_get_energy(proj)
+         rloc = 0._gp
+         do j = 1, int(10._gp / eps)
+            r = real(j, gp) * eps
+            rloc = rloc + (r ** 2 * pspiof_projector_eval(proj, r)) ** 2 * eps
+         end do
+         psppar(l, 0) = rloc
+      end do
+      ! Add the non diagonal parts, must wait for all diagonal parts to be done.
+      do i = 1, pspiof_pspdata_get_n_projectors(pspio)
+         do j = i + 1, pspiof_pspdata_get_n_projectors(pspio)
+            if (indices(1, i) /= indices(1, j)) cycle
+            l = indices(1, i)
+            n = indices(2, i) + indices(2, j) + 1
+            psppar(l, n) = pspiof_pspdata_get_projector_energy(pspio, i, j)
+         end do
       end do
 
       call pspiof_pspdata_free(pspio)
@@ -1208,7 +1228,7 @@ end function spherical_gaussian_value
 !> External routine as the psppar parameters are often passed by address
 subroutine hgh_hij_matrix(npspcode,psppar,hij)
   use module_defs, only: gp
-  use public_enums, only: PSPCODE_GTH, PSPCODE_HGH, PSPCODE_HGH_K, PSPCODE_HGH_K_NLCC, PSPCODE_PAW
+  use public_enums, only: PSPCODE_GTH, PSPCODE_HGH, PSPCODE_HGH_K, PSPCODE_HGH_K_NLCC, PSPCODE_PSPIO
   implicit none
   !Arguments
   integer, intent(in) :: npspcode
@@ -1239,7 +1259,7 @@ subroutine hgh_hij_matrix(npspcode,psppar,hij)
      !term for all npspcodes
      loop_diag: do i=1,3
         hij(i,i,l)=psppar(l,i) !diagonal term
-        if ((npspcode == PSPCODE_HGH .and. l/=4 .and. i/=3) .or. &
+        if (((npspcode == PSPCODE_HGH .or. npspcode == PSPCODE_PSPIO) .and. l/=4 .and. i/=3) .or. &
              ((npspcode == PSPCODE_HGH_K .or. npspcode == PSPCODE_HGH_K_NLCC) .and. i/=3)) then !HGH(-K) case, offdiagonal terms
            loop_offdiag: do j=i+1,3
               if (psppar(l,j) == 0.0_gp) exit loop_offdiag
