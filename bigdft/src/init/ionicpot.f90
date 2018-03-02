@@ -993,30 +993,32 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
 !!$           enddo
 
         else if (at%npspcode(atit%ityp) == PSPCODE_PSPIO) then
-           ithread=0
-           nthread=1
-           pot = pspiof_pspdata_get_vlocal(at%pspio(atit%ityp))
-           !$omp parallel default(shared)&
-           !$omp private(ithread, r) &
-           !$omp firstprivate(dpbox%bitp) 
-           !$ ithread=omp_get_thread_num()
-           !$ nthread=omp_get_num_threads()
-           call box_iter_split(dpbox%bitp,nthread,ithread)
-           do while(box_next_point(dpbox%bitp))
-              r = max(1e-3, distance(dpbox%bitp%mesh, dpbox%bitp%rxyz, rxyz(:, atit%iat)))
-              pot_ion(dpbox%bitp%ind) = pot_ion(dpbox%bitp%ind) - &
-                   & (pspiof_potential_eval_deriv2(pot, r) + &
-                   & 2._gp * pspiof_potential_eval_deriv(pot, r) / r) / 4._gp / pi
-           end do
-           call box_iter_merge(dpbox%bitp)
-           !$omp end parallel
-           do r = 1d-4, 10., 1d-4
-              tt = r * r * 1d-4 * (pspiof_potential_eval_deriv2(pot, r) + &
-                   & 2._gp * pspiof_potential_eval_deriv(pot, r) / r)
-              rholeaked = rholeaked + tt / dpbox%mesh%volume_element
-           end do
-           rholeaked = rholeaked - &
-                   & pspiof_pspdata_get_zvalence(at%pspio(atit%ityp)) / dpbox%mesh%volume_element
+!!$           ithread=0
+!!$           nthread=1
+!!$           pot = pspiof_pspdata_get_vlocal(at%pspio(atit%ityp))
+!!$           !$omp parallel default(shared)&
+!!$           !$omp private(ithread, r) &
+!!$           !$omp firstprivate(dpbox%bitp) 
+!!$           !$ ithread=omp_get_thread_num()
+!!$           !$ nthread=omp_get_num_threads()
+!!$           call box_iter_split(dpbox%bitp,nthread,ithread)
+!!$           do while(box_next_point(dpbox%bitp))
+!!$              r = max(1e-3, distance(dpbox%bitp%mesh, dpbox%bitp%rxyz, rxyz(:, atit%iat)))
+!!$              pot_ion(dpbox%bitp%ind) = pot_ion(dpbox%bitp%ind) - &
+!!$                   & (pspiof_potential_eval_deriv2(pot, r) + &
+!!$                   & 2._gp * pspiof_potential_eval_deriv(pot, r) / r) / 4._gp / pi
+!!$           end do
+!!$           call box_iter_merge(dpbox%bitp)
+!!$           !$omp end parallel
+!!$           do r = 1d-4, 10., 1d-4
+!!$              tt = r * r * 1d-4 * (pspiof_potential_eval_deriv2(pot, r) + &
+!!$                   & 2._gp * pspiof_potential_eval_deriv(pot, r) / r)
+!!$              rholeaked = rholeaked + tt / dpbox%mesh%volume_element
+!!$              write(89, *) r, pspiof_potential_eval(pot, r), &
+!!$                   & pspiof_potential_eval_deriv(pot, r), pspiof_potential_eval_deriv2(pot, r)
+!!$           end do
+!!$           rholeaked = rholeaked - &
+!!$                   & pspiof_pspdata_get_zvalence(at%pspio(atit%ityp)) / dpbox%mesh%volume_element
         else
 
            call atomic_charge_density(g,at,atit)
@@ -1374,6 +1376,23 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
                  end if
               end do
            end if !nloc
+        else if (at%npspcode(atit%ityp) == PSPCODE_PSPIO) then
+           ithread=0
+           nthread=1
+           pot = pspiof_pspdata_get_vlocal(at%pspio(atit%ityp))
+           !$omp parallel default(shared)&
+           !$omp private(ithread, r) &
+           !$omp firstprivate(dpbox%bitp) 
+           !$ ithread=omp_get_thread_num()
+           !$ nthread=omp_get_num_threads()
+           call box_iter_split(dpbox%bitp,nthread,ithread)
+           do while(box_next_point(dpbox%bitp))
+              r = max(1e-3, distance(dpbox%bitp%mesh, dpbox%bitp%rxyz, rxyz(:, atit%iat)))
+              pot_ion(dpbox%bitp%ind) = pot_ion(dpbox%bitp%ind) + &
+                   & pspiof_potential_eval(pot, r)
+           end do
+           call box_iter_merge(dpbox%bitp)
+           !$omp end parallel
         else if (at%npspcode(atit%ityp) == PSPCODE_PAW) then
            !De-allocate the 1D temporary arrays for separability
            !call f_free(mpx,mpy,mpz)

@@ -304,11 +304,11 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
      if (at%npspcode(ityp) == PSPCODE_PSPIO) then
         do i = 1, pspiof_pspdata_get_n_projectors(at%pspio(ityp))
            tt = 0._gp
-           do r = 1d-4, 50, 1d-4
+           do r = 1d-4, 10, 1d-4
               tt = tt + (pspiof_projector_eval(pspiof_pspdata_get_projector(at%pspio(ityp), &
                    & i), r) ** 2)  * r * r * 1d-4
-              write(92, *) r, pspiof_projector_eval(pspiof_pspdata_get_projector(at%pspio(ityp), &
-                   & i), r)
+              !write(92+i, *) r, pspiof_projector_eval(pspiof_pspdata_get_projector(at%pspio(ityp), &
+              !     & i), r)
            end do
         end do
         if (abs(1.d0-tt) > 1.d-2 .and. bigdft_mpi%iproc == 0) call yaml_warning( &
@@ -2844,6 +2844,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
                 & nelpsp_ /= atoms%nelpsp(ityp), &
                 & 'No HGH pseudo for PAW/PSPIO input guess.', &
                 & err_name='BIGDFT_RUNTIME_ERROR')) return
+           atoms%npspcode(ityp) = npspcode_
            atoms%psppar(:,:,ityp) = psppar_(:,:)
         end do
 
