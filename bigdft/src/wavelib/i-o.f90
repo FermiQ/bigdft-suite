@@ -300,7 +300,7 @@ subroutine readonewave(unitwf,useFormattedInput,iorb,iproc,n1,n2,n3,&
   !local variables
   character(len=*), parameter :: subname='readonewave'
   character(len = 256) :: error
-  logical :: perx,pery,perz,lstat
+  logical :: lstat
   integer :: iorb_old,n1_old,n2_old,n3_old,iat,iel,nvctr_c_old,nvctr_f_old,i1,i2,i3
   real(wp) :: tt,t1,t2,t3,t4,t5,t6,t7
   real(gp) :: tx,ty,tz,displ,hx_old,hy_old,hz_old!,mindist
@@ -317,22 +317,8 @@ subroutine readonewave(unitwf,useFormattedInput,iorb,iproc,n1,n2,n3,&
   if (.not. lstat) call io_error(trim(error))
   if (iorb_old /= iorb) stop 'readonewave'
 
-  !conditions for periodicity in the three directions
-  perx=(at%astruct%geocode /= 'F')
-  pery=(at%astruct%geocode == 'P')
-  perz=(at%astruct%geocode /= 'F')
 
-  ! tx=0.0_gp
-  ! ty=0.0_gp
-  ! tz=0.0_gp
-  ! displ=0.0_gp
-  ! do iat=1,at%astruct%nat
-  !    tx=tx+mindist(perx,at%astruct%cell_dim(1),rxyz(1,iat),rxyz_old(1,iat))**2
-  !    ty=ty+mindist(pery,at%astruct%cell_dim(2),rxyz(2,iat),rxyz_old(2,iat))**2
-  !    tz=tz+mindist(perz,at%astruct%cell_dim(3),rxyz(3,iat),rxyz_old(3,iat))**2
-  ! enddo
-  ! displ=sqrt(tx+ty+tz)
-
+  
   displ=0.0_gp
   do iat=1,at%astruct%nat
     displ=displ+distance(mesh,rxyz(:,iat),rxyz_old(:,iat))**2
@@ -365,7 +351,6 @@ subroutine readonewave(unitwf,useFormattedInput,iorb,iproc,n1,n2,n3,&
 
      psigold = f_malloc0((/ 0.to.n1_old, 1.to.2, 0.to.n2_old, 1.to.2, 0.to.n3_old, 1.to.2 /),id='psigold')
 
-     !call to_zero(8*(n1_old+1)*(n2_old+1)*(n3_old+1),psigold(0,1,0,1,0,1))
      do iel=1,nvctr_c_old
         if (useFormattedInput) then
            read(unitwf,*) i1,i2,i3,tt
