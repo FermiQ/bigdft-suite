@@ -457,7 +457,7 @@ subroutine abscalc(nproc,iproc,atoms,rxyz,&
    call orbitals_communicators(iproc,nproc,KSwfn%Lzd%Glr,orbs,comms)  
    call orbital_basis_associate(ob,orbs=orbs,Glr=KSwfn%Lzd%Glr)
    call createProjectorsArrays(iproc,nproc,KSwfn%Lzd%Glr,rxyz,atoms,ob,&
-        cpmult,fpmult,hx,hy,hz,.false.,nlpsp,.true.)
+        cpmult,fpmult,hx,hy,hz,in%projection,.false.,nlpsp,.true.)
    call orbital_basis_release(ob)
    if (iproc == 0) call print_nlpsp(nlpsp)
 

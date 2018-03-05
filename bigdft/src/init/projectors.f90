@@ -429,9 +429,10 @@ subroutine fill_projectors(lr,hgrids,astruct,ob,rxyz,nlpsp,idir)
   real(gp), dimension(3,astruct%nat), intent(in) :: rxyz
   !Local variables
   logical :: overlap,thereissome
-  integer :: istart_c,iat,iproj,nwarnings,ikpt,iskpt,iekpt
+  integer :: istart_c,iat,nwarnings,ikpt,iskpt,iekpt
   type(ket) :: psi_it
   type(atoms_iterator) :: atit
+  type(atomic_projector_iter) :: iter
 
   call f_routine(id='fill_projectors')
 
@@ -448,22 +449,37 @@ subroutine fill_projectors(lr,hgrids,astruct,ob,rxyz,nlpsp,idir)
   psi_it=orbital_basis_iterator(ob)
   loop_kpt: do while(ket_next_kpt(psi_it))
      loop_lr: do while(ket_next_locreg(psi_it,ikpt=psi_it%ikpt))
-        iproj=0
         atit = atoms_iter(astruct)
         loop_atoms: do while(atoms_iter_next(atit))
            overlap = projector_has_overlap(psi_it%ilr,psi_it%lr, lr, nlpsp%pspd(atit%iat))
            if(.not. overlap) cycle loop_atoms
            !this routine is defined to uniformise the call for on-the-fly application
            thereissome=.true.
-           call atom_projector(nlpsp, atit%iat, idir, lr, psi_it%kpoint,&
-                istart_c, iproj, nwarnings)
+           call atomic_projector_iter_new(iter, nlpsp%pbasis(atit%iat), &
+                & nlpsp%pspd(atit%iat)%plr, psi_it%kpoint)
+           nlpsp%pspd(atit%iat)%proj => f_subptr(nlpsp%proj, from = istart_c, &
+                & size = iter%nproj * iter%nc)
+           call atomic_projector_iter_set_destination(iter, nlpsp%pspd(atit%iat)%proj)
+           if (nlpsp%method == PROJECTION_1D_SEPARABLE) then
+              if (nlpsp%pbasis(atit%iat)%kind == PROJ_DESCRIPTION_GAUSSIAN) then
+                 call atomic_projector_iter_set_method(iter, PROJECTION_1D_SEPARABLE, lr)
+              else
+                 call atomic_projector_iter_set_method(iter, PROJECTION_RS_COLLOCATION)
+              end if
+           else
+              call atomic_projector_iter_set_method(iter, nlpsp%method)
+           end if
+
+           call atomic_projector_iter_start(iter)
+           ! Loop on shell.
+           do while (atomic_projector_iter_next(iter))
+              call atomic_projector_iter_to_wavelets(iter, idir, nwarnings)
+           end do
+
+           istart_c = istart_c + iter%nproj * iter%nc
+           call atomic_projector_iter_free(iter)
         end do loop_atoms
      end do loop_lr
-     !this part should be updated by update_nlpspd according to the overlap
-     if (iproj /= nlpsp%nproj) then
-        call f_err_throw('Incorrect number of projectors created',&
-             err_name='BIGDFT_RUNTIME_ERROR')
-     end if
      ! projector part finished
   end do loop_kpt
 
@@ -485,91 +501,19 @@ call f_release_routine()
 
 END SUBROUTINE fill_projectors!_new
 
-
-!> Fill the proj array with the PSP projectors or their derivatives, following idir value
-subroutine fill_projectors_old(lr,hx,hy,hz,at,orbs,rxyz,nlpsp,idir)
-use module_base
-use module_types
-use yaml_output
-use locregs
-implicit none
-integer, intent(in) :: idir
-real(gp), intent(in) :: hx,hy,hz
-type(atoms_data), intent(in) :: at
-type(orbitals_data), intent(in) :: orbs
-type(DFT_PSP_projectors), intent(inout) :: nlpsp
-type(locreg_descriptors),intent(in) :: lr
-real(gp), dimension(3,at%astruct%nat), intent(in) :: rxyz
-!Local variables
-!n(c) integer, parameter :: nterm_max=20 !if GTH nterm_max=4
-integer :: istart_c,iat,iproj,nwarnings,ikpt,iskpt,iekpt
-
-call f_routine(id='fill_projectors')
-
-!if (iproc.eq.0 .and. nlpspd%nproj /=0 .and. idir==0) &
-!write(*,'(1x,a)',advance='no') 'Calculating wavelets expansion of projectors...'
-!warnings related to the projectors norm
-nwarnings=0
-!allocate these vectors up to the maximum size we can get
-istart_c=1
-
-!create projectors for any of the k-point hosted by the processor
-!starting kpoint
-if (orbs%norbp > 0) then
-  iskpt=orbs%iokpt(1)
-  iekpt=orbs%iokpt(orbs%norbp)
-else
-  iskpt=1
-  iekpt=1
-end if
-
-do ikpt=iskpt,iekpt
-  iproj=0
-  do iat=1,at%astruct%nat
-     !this routine is defined to uniformise the call for on-the-fly application
-     call atom_projector(nlpsp, iat, idir, lr, orbs%kpts(:,ikpt), &
-          & istart_c, iproj, nwarnings)
-  enddo
-  if (iproj /= nlpsp%nproj) then
-     call yaml_warning('Incorrect number of projectors created')
-  end if
-  ! projector part finished
-end do
-
-if (istart_c-1 /= nlpsp%nprojel) then
-  call yaml_warning('Incorrect once-and-for-all psp generation')
-  stop
-end if
-
-if (nwarnings /= 0 .and. bigdft_mpi%iproc == 0 .and. nlpsp%nproj /=0 .and. idir == 0) then
-  call yaml_map('Calculating wavelets expansion of projectors, found warnings',nwarnings,fmt='(i0)')
-  if (nwarnings /= 0) then
-     call yaml_newline()
-     call yaml_warning('Projectors too rough: Consider modifying hgrid and/or the localisation radii.')
-     !write(*,'(1x,a,i0,a)') 'found ',nwarnings,' warnings.'
-     !write(*,'(1x,a)') 'Some projectors may be too rough.'
-     !write(*,'(1x,a,f6.3)') 'Consider the possibility of modifying hgrid and/or the localisation radii.'
-  end if
-end if
-
-call f_release_routine()
-
-END SUBROUTINE fill_projectors_old
-
-
 !> Create projectors from gaussian decomposition.
-subroutine atom_projector(nl, iat, idir, lr, kpoint, istart_c, iproj, nwarnings)
+subroutine atom_projector(nl, iat, idir, lr, kpoint, nwarnings)
   use module_base, only: gp, f_routine, f_release_routine
   use locregs, only: locreg_descriptors
-  use gaussians, only: PROJECTION_1D_SEPARABLE, PROJECTION_RS_COLLOCATION
   use psp_projectors_base
+  use f_enums
   implicit none
   type(DFT_PSP_projectors), intent(inout) :: nl
   integer, intent(in) :: iat
   type(locreg_descriptors), intent(in) :: lr
   integer, intent(in) :: idir
   real(gp), dimension(3), intent(in) :: kpoint
-  integer, intent(inout) :: istart_c, iproj, nwarnings
+  integer, intent(inout) :: nwarnings
 
   type(atomic_projector_iter) :: iter
 
@@ -577,22 +521,22 @@ subroutine atom_projector(nl, iat, idir, lr, kpoint, istart_c, iproj, nwarnings)
 
   ! Start an atomic iterator.
   call atomic_projector_iter_new(iter, nl%pbasis(iat), nl%pspd(iat)%plr, kpoint)
-  call atomic_projector_iter_set_destination(iter, nl%proj, nl%nprojel, istart_c)
-  if (nl%pbasis(iat)%kind == PROJ_DESCRIPTION_GAUSSIAN) then
-     call atomic_projector_iter_set_method(iter, PROJECTION_1D_SEPARABLE, lr)
+  call atomic_projector_iter_set_destination(iter, nl%pspd(iat)%proj)
+  if (PROJECTION_1D_SEPARABLE == nl%method) then
+     if (nl%pbasis(iat)%kind == PROJ_DESCRIPTION_GAUSSIAN) then
+        call atomic_projector_iter_set_method(iter, PROJECTION_1D_SEPARABLE, lr)
+     else
+        call atomic_projector_iter_set_method(iter, PROJECTION_RS_COLLOCATION) 
+     end if
   else
-     call atomic_projector_iter_set_method(iter, PROJECTION_RS_COLLOCATION)
+     call atomic_projector_iter_set_method(iter, nl%method)
   end if
 
   call atomic_projector_iter_start(iter)
   ! Loop on shell.
   do while (atomic_projector_iter_next(iter))
      call atomic_projector_iter_to_wavelets(iter, idir, nwarnings)
-
-     iproj = iproj + iter%mproj
   end do
-
-  istart_c = iter%istart_c
 
   call atomic_projector_iter_free(iter)
 

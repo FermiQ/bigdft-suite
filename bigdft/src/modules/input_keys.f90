@@ -211,6 +211,7 @@ module module_input_keys
      !!   - 1 : read waves from argument psi, using n1, n2, n3, hgrid and rxyz_old
      !!         as definition of the previous system.
      !!   - 2 : read waves from disk
+     type(f_enumerator) :: projection !< Method to compute the projectors from atomic description.
      integer :: nspin       !< Spin components (no spin 1, collinear 2, non collinear 4)
      integer :: mpol        !< Total spin polarisation of the system
      integer :: norbv       !< Number of virtual orbitals to compute after direct minimisation
@@ -1597,6 +1598,8 @@ contains
     use yaml_output, only: yaml_warning
     use yaml_strings, only: operator(.eqv.),is_atoi
     use module_base, only: bigdft_mpi
+    use psp_projectors_base, only: PROJECTION_1D_SEPARABLE, &
+         & PROJECTION_RS_COLLOCATION, PROJECTION_MP_COLLOCATION
     implicit none
     type(input_variables), intent(inout) :: in
     type(dictionary), pointer :: val
@@ -1745,6 +1748,16 @@ contains
        case (INPUTPSIID)
           ipos=val
           call set_inputpsiid(ipos,in%inputPsiId)
+       case (PROJECTION)
+          str=val
+          select case(trim(str))
+          case('gaussian')
+             in%projection=PROJECTION_1D_SEPARABLE
+          case('radial')
+             in%projection=PROJECTION_RS_COLLOCATION
+          case('radial+mp')
+             in%projection=PROJECTION_MP_COLLOCATION
+          end select
        !case (OUTPUT_WF)
        !ipos=val
        !call set_output_wf(ipos,in%output_wf)
@@ -2505,6 +2518,7 @@ contains
     call f_zero(in%dir_perturbation)
     call f_zero(in%outputpsiid)
     call f_zero(in%naming_id)
+    in%projection=f_enumerator_null()
     nullify(in%gen_kpt)
     nullify(in%gen_wkpt)
     nullify(in%kptv)

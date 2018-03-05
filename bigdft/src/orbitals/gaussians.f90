@@ -22,17 +22,6 @@ module gaussians
   integer, parameter :: L_MAX=3                    !< Maximum number of angular momentum considered
   integer, parameter :: NTERM_MAX_RS=NTERM_MAX_KINETIC !< Max terms for the real space expression of the Gaussians
 
-  integer, parameter :: SEPARABLE_1D=0
-  integer, parameter :: SEPARABLE_COLLOCATION=1
-  integer, parameter :: RADIAL_COLLOCATION=2
-  integer, parameter :: MULTIPOLE_PRESERVING_COLLOCATION=3
-
-  type(f_enumerator), public :: PROJECTION_1D_SEPARABLE=f_enumerator('SEPARABLE_1D',SEPARABLE_1D,null())
-  type(f_enumerator), public :: PROJECTION_RS_COLLOCATION=f_enumerator('REAL_SPACE_COLLOCATION',SEPARABLE_COLLOCATION,null())
-  type(f_enumerator), public :: PROJECTION_MP_COLLOCATION=&
-       f_enumerator('MULTIPOLE_PRESERVING_COLLOCATION',MULTIPOLE_PRESERVING_COLLOCATION,null())
-
-
   !> Structures of basis of gaussian functions
   type, public :: gaussian_basis
      integer :: nat     !< Number of centers
@@ -60,6 +49,9 @@ module gaussians
      real(gp), dimension(:,:), pointer :: sd   !< Sigma and contraction coefficients the exponents (complex numbers are allowed)
      real(gp), dimension(:,:), pointer :: rxyz !< Positions of the centers
   end type gaussian_basis_new
+
+  integer, parameter :: RADIAL_COLLOCATION=2
+  integer, parameter :: MULTIPOLE_PRESERVING_COLLOCATION=3
 
   !>single-center gaussians for conversion in real space
   type, public :: gaussian_real_space
@@ -530,10 +522,12 @@ contains
              call gaussian_real_space_set(grs, sigma_and_expo(1), nterms(m), &
                   & factors(1,1,m), lxyz_gau, zero_v1, 0)
           end if
-          oxyz = lr%mesh%hgrids*[lr%nsi1,lr%nsi2,lr%nsi3]
-          bit = box_iter(lr%mesh, origin = oxyz) !use here the real space mesh of the projector locreg
+          oxyz = [cell_r(lr%mesh, lr%nsi1 + 1, 1), &
+               & cell_r(lr%mesh, lr%nsi2 + 1, 2), &
+               & cell_r(lr%mesh, lr%nsi3 + 1, 3)]
+          bit = lr%bit !use here the real space mesh of the projector locreg
           call three_dimensional_density(bit, grs, sqrt(lr%mesh%volume_element), &
-               & rxyz, projector_real)
+               & rxyz - oxyz, projector_real)
        end do
        call isf_to_daub(lr, w, projector_real, psi(:,:,m))
     end do

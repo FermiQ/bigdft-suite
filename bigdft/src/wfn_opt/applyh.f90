@@ -723,7 +723,7 @@ subroutine applyprojectorsonthefly(iproc,orbs,at,lr,&
   real(gp), intent(out) :: eproj_sum
   type(paw_objects),optional,intent(inout)::paw
   !local variables
-  integer :: iat,nwarnings,iproj,iorb
+  integer :: iat,nwarnings,iorb
   integer :: iatype
   integer :: istart_c,idir,isorb,ieorb,ikpt,nspinor,ispsi_k,ispsi
 
@@ -749,13 +749,10 @@ subroutine applyprojectorsonthefly(iproc,orbs,at,lr,&
      call orbs_in_kpt(ikpt,orbs,isorb,ieorb,nspinor)
 
      !this may not work for non-collinear cases
-     iproj=0
      do iat=1,at%astruct%nat
         iatype=at%astruct%iatype(iat)
-        istart_c=1
 
-        call atom_projector(nlpsp, iat, idir, lr, orbs%kpts(:,ikpt), &
-             & istart_c, iproj, nwarnings)
+        call atom_projector(nlpsp, iat, idir, lr, orbs%kpts(:,ikpt), nwarnings)
 
         !apply the projector to all the orbitals belonging to the processor
         ispsi=ispsi_k
@@ -775,10 +772,6 @@ subroutine applyprojectorsonthefly(iproc,orbs,at,lr,&
            ispsi=ispsi+(wfd%nvctr_c+7*wfd%nvctr_f)*nspinor
         end do
      end do
-     if (iproj /= nlpsp%nproj) then
-        call yaml_warning('Incorrect number of projectors created')
-        stop
-     end if
      if (ieorb == orbs%norbp) exit loop_kpt
      ikpt=ikpt+1
      ispsi_k=ispsi

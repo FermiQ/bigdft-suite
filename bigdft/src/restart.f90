@@ -4255,19 +4255,18 @@ subroutine writemyproj(filename,iformat,orbs,hx,hy,hz,at,rxyz,nl)
      end if
      lbin = (iformat == WF_FORMAT_BINARY)
 
-     istart = 1
      do ikpt=iskpt,iekpt
         do iat=1,at%astruct%nat
 
            call atomic_projector_iter_new(iter, nl%pbasis(iat), nl%pspd(iat)%plr, &
                 & orbs%kpts(:, ikpt))
-           call atomic_projector_iter_set_destination(iter, nl%proj, &
-                & nl%nprojel, istart)
+           call atomic_projector_iter_set_destination(iter, nl%pspd(iat)%proj)
            
            ! Start a gaussian iterator.
            call atomic_projector_iter_start(iter)
            iproj = 0
            do while (atomic_projector_iter_next(iter))
+              istart = 1
               do l = 1, iter%mproj
                  iproj = iproj + 1
                  do icplx = 1, iter%cplx

@@ -886,7 +886,7 @@ subroutine nonlocal_forces(lr,hx,hy,hz,at,rxyz,&
   real(gp), dimension(6), intent(out) :: strten
   !local variables--------------
   character(len=*), parameter :: subname='nonlocal_forces'
-  integer :: istart_c,iproj,iat,ityp,i,j,l,m,ndir
+  integer :: istart_c,iat,ityp,i,j,l,m,ndir,iproj
   integer :: mbseg_c,mbseg_f,jseg_c,jseg_f,ispin
   integer :: mbvctr_c,mbvctr_f,iorb,nwarnings,nspinor,ispinor,jorbd
   real(gp) :: offdiagcoeff,hij,sp0,spi,sp0i,sp0j,spj,strc,Enl,vol
@@ -973,7 +973,6 @@ subroutine nonlocal_forces(lr,hx,hy,hz,at,rxyz,&
         call ncplx_kpt(ikpt,ob%orbs,ncplx)
 
         nwarnings=0 !not used, simply initialised
-        iproj=0 !should be equal to four times nproj at the end
         jorbd=jorb
         do iat=1,at%astruct%nat
 
@@ -985,9 +984,8 @@ subroutine nonlocal_forces(lr,hx,hy,hz,at,rxyz,&
            do idir=0,ndir
               ityp=at%astruct%iatype(iat)
               !calculate projectors
-              istart_c=1
               call atom_projector(nlpsp, iat, idir, lr, ob%orbs%kpts(:,ikpt), &
-                   & istart_c, iproj, nwarnings)
+                   & nwarnings)
               !!do i_all=1,nlpspd%nprojel
               !!    write(850+iat,*) i_all, proj(i_all)
               !!end do

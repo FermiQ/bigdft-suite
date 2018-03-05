@@ -17,6 +17,7 @@ module psp_projectors_base
      type(wfd_to_wfd), dimension(:), pointer :: tolr !<maskings for the locregs, dimension noverlap
      integer,dimension(:),pointer :: lut_tolr !< lookup table for tolr, dimension noverlap
      integer :: noverlap !< number of locregs which overlap with the projectors of the given atom
+     real(wp), dimension(:), pointer :: proj !< A subptr of %proj
   end type nonlocal_psp_descriptors
 
   integer, parameter :: PROJ_DESCRIPTION_GAUSSIAN = 1
@@ -37,10 +38,22 @@ module psp_projectors_base
      type(pspiof_projector_t), dimension(:), pointer :: rfuncs !< Radial projectors.
   end type atomic_projectors
   
+  integer, parameter :: SEPARABLE_1D=0
+  integer, parameter :: RS_COLLOCATION=1
+  integer, parameter :: MP_COLLOCATION=2
+
+  type(f_enumerator), public :: PROJECTION_1D_SEPARABLE=&
+       f_enumerator('SEPARABLE_1D',SEPARABLE_1D,null())
+  type(f_enumerator), public :: PROJECTION_RS_COLLOCATION=&
+       f_enumerator('REAL_SPACE_COLLOCATION',RS_COLLOCATION,null())
+  type(f_enumerator), public :: PROJECTION_MP_COLLOCATION=&
+       f_enumerator('MULTIPOLE_PRESERVING_COLLOCATION',MP_COLLOCATION,null())
+
   !> describe the information associated to the non-local part of Pseudopotentials
   type, public :: DFT_PSP_projectors
      logical :: on_the_fly             !< strategy for projector creation
      logical :: apply_gamma_target     !< apply the target identified by the gamma_mmp value
+     type(f_enumerator) :: method                 !< Prefered projection method
      integer :: nproj,nprojel,natoms   !< Number of projectors and number of elements
      real(gp) :: zerovol               !< Proportion of zero components.
      type(atomic_projectors), dimension(:), pointer :: pbasis !< Projectors in their own basis.
@@ -74,9 +87,9 @@ module psp_projectors_base
      integer :: mproj !< Number of projectors for this shell.
 
      type(f_enumerator) :: method
-     integer :: nprojel !< Total size of proj array.
-     integer :: istart !< Start shift in proj for this atom.
-     real(wp), dimension(:), pointer :: proj
+     real(wp), dimension(:), pointer :: proj !< Subptr, pointing on the current
+                                             !! mproj of this shell.
+     real(wp), dimension(:), pointer :: proj_root
      real(wp), dimension(:), pointer :: proj_tmp
 
      ! Gaussian specific attributes.
@@ -126,6 +139,7 @@ contains
     nullify(pspd%tolr)
     nullify(pspd%lut_tolr)
     pspd%noverlap=0
+    nullify(pspd%proj)
   end subroutine nullify_nonlocal_psp_descriptors
 
   pure function atomic_projectors_null() result(ap)
@@ -168,6 +182,7 @@ contains
     type(DFT_PSP_projectors), intent(out) :: nl
     nl%on_the_fly=.true.
     nl%apply_gamma_target=.false.
+    nl%method = f_enumerator_null()
     nl%nproj=0
     nl%nprojel=0
     nl%natoms=0
@@ -192,6 +207,9 @@ contains
     call free_tolr_ptr(pspd%tolr)
     call f_free_ptr(pspd%lut_tolr)
     call deallocate_locreg_descriptors(pspd%plr)
+    !currently not touching pspd%proj, since it is
+    !always a subptr of the main %proj, will later
+    !deallocate it when used in an on-demand strategy.
   end subroutine deallocate_nonlocal_psp_descriptors
 
   subroutine free_pspd_ptr(pspd)
@@ -283,9 +301,9 @@ contains
        iter%nc = (lr%wfd%nvctr_c + 7 * lr%wfd%nvctr_f) * iter%cplx
     end if
 
-    iter%istart = 1
-    iter%nprojel = 0
     nullify(iter%proj)
+    nullify(iter%proj_root)
+    nullify(iter%proj_tmp)
     iter%method = PROJECTION_1D_SEPARABLE
 
     iter%lmax = 0
@@ -297,17 +315,17 @@ contains
     end do
     ! Restart the iterator after use.
     call atomic_projector_iter_start(iter)
+
+    call nullify_workarrays_projectors(iter%wpr)
+    call nullify_work_arrays_sumrho(iter%wcol)
   end subroutine atomic_projector_iter_new
 
-  subroutine atomic_projector_iter_set_destination(iter, proj, nprojel, istart_c)
+  subroutine atomic_projector_iter_set_destination(iter, proj)
     implicit none
     type(atomic_projector_iter), intent(inout) :: iter
-    integer, intent(in) :: istart_c, nprojel
-    real(wp), dimension(nprojel), intent(in), target :: proj
+    real(wp), dimension(:), intent(in), target :: proj
 
-    iter%istart  =  istart_c
-    iter%nprojel =  nprojel
-    iter%proj    => proj
+    iter%proj_root => proj
   end subroutine atomic_projector_iter_set_destination
 
   subroutine atomic_projector_iter_set_method(iter, method, glr)
@@ -334,6 +352,9 @@ contains
          & iter%method == PROJECTION_MP_COLLOCATION) then
        iter%proj_tmp = f_malloc_ptr(iter%lr%mesh%ndim, id = 'proj_tmp')
        call initialize_work_arrays_sumrho(iter%lr, .true., iter%wcol)
+    else
+       call f_err_throw("Unknown projection method.", &
+            & err_name = 'BIGDFT_RUNTIME_ERROR')
     end if
   end subroutine atomic_projector_iter_set_method
 
@@ -341,14 +362,9 @@ contains
     implicit none
     type(atomic_projector_iter), intent(inout) :: iter
 
-    if (iter%method == PROJECTION_1D_SEPARABLE) then
-       if (associated(iter%proj_tmp)) call f_free_ptr(iter%proj_tmp)
-       call deallocate_workarrays_projectors(iter%wpr)
-    else if (iter%method == PROJECTION_RS_COLLOCATION .or. &
-         & iter%method == PROJECTION_MP_COLLOCATION) then
-       call deallocate_work_arrays_sumrho(iter%wcol)
-       call f_free_ptr(iter%proj_tmp)
-    end if
+    if (associated(iter%proj_tmp)) call f_free_ptr(iter%proj_tmp)
+    call deallocate_workarrays_projectors(iter%wpr)
+    call deallocate_work_arrays_sumrho(iter%wcol)
   end subroutine atomic_projector_iter_free
 
   subroutine atomic_projector_iter_start(iter)
@@ -358,7 +374,7 @@ contains
     iter%n = -1
     iter%l = -1
     iter%mproj = 0
-    iter%istart_c = iter%istart
+    iter%istart_c = 1
     if (iter%parent%kind == PROJ_DESCRIPTION_GAUSSIAN) then
        call gaussian_iter_start(iter%parent%gbasis, 1, iter%giter)
     else if (iter%parent%kind == PROJ_DESCRIPTION_PSPIO) then
@@ -400,12 +416,15 @@ contains
        call f_err_throw("Unknown atomic projector kind.", &
             & err_name = 'BIGDFT_RUNTIME_ERROR')
     end if
-    iter%mproj = 2 * iter%l - 1
-    
+    iter%mproj = 2 * iter%l - 1    
     next = .true.
-    if (iter%nprojel > 0 .and. &
-         & iter%istart_c + iter%nc * iter%mproj > iter%nprojel + 1) &
-         & call f_err_throw('istart_c > nprojel+1', err_name = 'BIGDFT_RUNTIME_ERROR')
+    
+    if (associated(iter%proj_root)) then
+       if (iter%istart_c + iter%nc * iter%mproj > size(iter%proj_root) + 1) &
+            & call f_err_throw('istart_c > nprojel+1', err_name = 'BIGDFT_RUNTIME_ERROR')
+       iter%proj => f_subptr(iter%proj_root, &
+            & from = iter%istart_c, size = iter%mproj * iter%nc)
+    end if
   end function atomic_projector_iter_next
 
   function atomic_projector_iter_wnrm2(iter, m) result(nrm2)
@@ -418,7 +437,7 @@ contains
          & 'm > mproj', err_name = 'BIGDFT_RUNTIME_ERROR')) return
 
     call wnrm_wrap(iter%cplx, iter%lr%wfd%nvctr_c, iter%lr%wfd%nvctr_f, &
-         & iter%proj(iter%istart_c + (m - 1) * iter%nc), nrm2)
+         & iter%proj(1 + (m - 1) * iter%nc), nrm2)
   end function atomic_projector_iter_wnrm2
 
   subroutine atomic_projector_iter_to_wavelets(iter, ider, nwarnings)
@@ -438,14 +457,14 @@ contains
           call gaussian_iter_to_wavelets_separable(iter%parent%gbasis, iter%giter, &
                & ider, iter%glr%mesh_coarse, iter%lr, iter%parent%gau_cut, &
                & iter%parent%rxyz, iter%kpoint, iter%cplx, iter%wpr, &
-               & iter%proj(iter%istart_c:), iter%proj_tmp)
+               & iter%proj, iter%proj_tmp)
        else if (iter%method == PROJECTION_RS_COLLOCATION) then
           call gaussian_iter_to_wavelets_collocation(iter%parent%gbasis, iter%giter, &
-               & ider, iter%lr, iter%parent%rxyz, iter%cplx, iter%proj(iter%istart_c:), &
+               & ider, iter%lr, iter%parent%rxyz, iter%cplx, iter%proj, &
                & iter%proj_tmp, iter%wcol)
        else if (iter%method == PROJECTION_MP_COLLOCATION) then
           call gaussian_iter_to_wavelets_collocation(iter%parent%gbasis, iter%giter, &
-               & ider, iter%lr, iter%parent%rxyz, iter%cplx, iter%proj(iter%istart_c:), &
+               & ider, iter%lr, iter%parent%rxyz, iter%cplx, iter%proj, &
                & iter%proj_tmp, iter%wcol, 16)
        end if
     else if (iter%parent%kind == PROJ_DESCRIPTION_PSPIO) then
@@ -455,7 +474,7 @@ contains
        else if (iter%method == PROJECTION_RS_COLLOCATION) then
           call rfuncs_to_wavelets_collocation(iter%parent%rfuncs(iter%riter), &
                & ider, iter%lr, iter%parent%rxyz, iter%l, iter%n, iter%cplx, &
-               & iter%proj(iter%istart_c:), iter%proj_tmp, iter%wcol)
+               & iter%proj, iter%proj_tmp, iter%wcol)
        else if (iter%method == PROJECTION_MP_COLLOCATION) then
           call f_err_throw("Multipole preserving projection is not implemented for PSPIO.", &
                & err_name = 'BIGDFT_RUNTIME_ERROR')

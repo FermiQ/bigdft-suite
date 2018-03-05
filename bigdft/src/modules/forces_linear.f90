@@ -226,7 +226,7 @@ module forces_linear
       real(gp), dimension(3,at%astruct%nat), intent(inout) :: fsep
       real(gp), dimension(6), intent(out) :: strten
       !local variables--------------
-      integer :: istart_c,iproj,iat,ityp,i,j,l,m,iorbout,iiorb,ilr
+      integer :: iat,ityp,i,j,l,m,iorbout,iiorb,ilr
       integer :: mbseg_c,mbseg_f,jseg_c,jseg_f,ind,iseg,jjorb,ispin
       integer :: mbvctr_c,mbvctr_f,iorb,nwarnings,nspinor,ispinor,jorbd,ncount,ist_send
       real(gp) :: offdiagcoeff,hij,sp0,spi,sp0i,sp0j,spj,Enl,vol
@@ -585,7 +585,7 @@ module forces_linear
       real(kind=8),dimension(1:2,0:ndir,1:m_max,1:i_max,1:l_max,1:nscalprod_send),intent(inout) ::  scalprod_sendbuf_new
     
       ! Local variables
-      integer :: ikpt, ispsi, ispsi_k, jorb, jorbd, iii, nwarnings, iproj, nspinor
+      integer :: ikpt, ispsi, ispsi_k, jorb, jorbd, iii, nwarnings, nspinor
       integer :: iat, isorb, ieorb, iorb, iiorb, ilr, ityp, istart_c, i, m, l, ispinor
       integer :: mbseg_c, mbseg_f, mbvctr_c, mbvctr_f, jseg_c, jseg_f, idir, ncplx, iiat
       logical :: increase
@@ -622,7 +622,6 @@ module forces_linear
                call ncplx_kpt(ikpt,orbs,ncplx)
     
                nwarnings=0 !not used, simply initialised 
-               iproj=0 !should be equal to four times nproj at the end
                jorbd=jorb
                do iat=1,natp
                   iiat = iat+isat-1
@@ -654,12 +653,9 @@ module forces_linear
     
                      ityp=at%astruct%iatype(iiat)
                      !calculate projectors
-                     istart_c=1
-    
-    
                      if (extra_timing) call cpu_time(tr0)
                      call atom_projector(nlpsp, iiat, idir, lr, orbs%kpts(:,ikpt), &
-                          & istart_c, iproj, nwarnings)
+                          & nwarnings)
                      if (extra_timing) call cpu_time(tr1)
                      if (extra_timing) time0=time0+real(tr1-tr0,kind=8)
                      if (extra_timing) call cpu_time(tr0)
@@ -719,8 +715,6 @@ module forces_linear
                      end do
                      if (extra_timing) call cpu_time(tr1)
                      if (extra_timing) time1=time1+real(tr1-tr0,kind=8)
-    
-                     if (istart_c-1  > nlpsp%nprojel) stop '2:applyprojectors'
                   end do
                end do
     

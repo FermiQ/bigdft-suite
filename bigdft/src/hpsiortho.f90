@@ -1057,7 +1057,7 @@ subroutine NonLocalHamiltonianApplication(iproc,at,npsidim_orbs,orbs,&
   character(len=*), parameter :: subname='NonLocalHamiltonianApplication'
   logical :: overlap
   integer :: istart_ck,nwarnings
-  integer :: iproj,istart_c,mproj,iilr
+  integer :: istart_c,iilr
   type(ket) :: psi_it
   type(orbital_basis) :: psi_ob
   type(atoms_iterator) :: atit
@@ -1097,16 +1097,12 @@ subroutine NonLocalHamiltonianApplication(iproc,at,npsidim_orbs,orbs,&
   loop_kpt: do while(ket_next_kpt(psi_it))
      loop_lr: do while(ket_next_locreg(psi_it,ikpt=psi_it%ikpt))
         if (nl%on_the_fly) then
-           iproj=0
            atit = atoms_iter(at%astruct)
            loop_atoms: do while(atoms_iter_next(atit))
               ! Check whether the projectors of this atom have an overlap with locreg ilr
               overlap = projector_has_overlap(psi_it%ilr,psi_it%lr,lzd%glr, nl%pspd(atit%iat))
               if(.not. overlap) cycle loop_atoms
-              istart_c=1
-              mproj=nl%pspd(atit%iat)%mproj
-              call atom_projector(nl,atit%iat, 0, Lzd%Glr, psi_it%kpoint,&
-                   istart_c, iproj, nwarnings)
+              call atom_projector(nl,atit%iat, 0, Lzd%Glr, psi_it%kpoint, nwarnings)
 
               iilr=get_proj_locreg(nl%pspd(atit%iat),psi_it%ilr)
               loop_psi_kpt: do while(ket_next(psi_it,ikpt=psi_it%ikpt,ilr=psi_it%ilr))
@@ -1121,7 +1117,6 @@ subroutine NonLocalHamiltonianApplication(iproc,at,npsidim_orbs,orbs,&
               loop_atoms2: do while(atoms_iter_next(atit))
                  overlap = projector_has_overlap(psi_it%ilr,psi_it%lr, lzd%glr, nl%pspd(atit%iat))
                  if(.not. overlap) cycle loop_atoms2
-                 mproj=nl%pspd(atit%iat)%mproj
 
                  iilr=get_proj_locreg(nl%pspd(atit%iat),psi_it%ilr)
                  call nl_psp_application()
@@ -1162,7 +1157,6 @@ contains
     real(gp), dimension(3,3,4) :: hij
     type(atomic_proj_coeff), dimension(:,:,:), pointer :: prj
     real(gp) :: eproj
-    real(wp), dimension(:), pointer :: proj_ptr
 
     hpsi_ptr => ob_ket_map(hpsi,psi_it)
 
@@ -1202,25 +1196,21 @@ contains
 !!$            nl%wpack,nl%scpr,nl%cproj,nl%hcproj,&
 !!$            psi_it%phi_wvl,hpsi_ptr,eproj)
 
-       proj_ptr => nl%proj(istart_c:istart_c-1+nvctr_p*mproj*ncplx_p)
-
-       call hgh_psp_application(prj,ncplx_p,mproj,nl%pspd(atit%iat)%plr%wfd,&
-            proj_ptr,&
+       call hgh_psp_application(prj,ncplx_p,nl%pspd(atit%iat)%mproj,&
+            & nl%pspd(atit%iat)%plr%wfd, nl%pspd(atit%iat)%proj,&
             psi_it%ncplx,psi_it%n_ket,psi_it%lr%wfd,nl%pspd(atit%iat)%tolr(iilr),&
             nl%wpack,nl%scpr,nl%cproj,nl%hcproj,&
             psi_it%phi_wvl,hpsi_ptr,eproj)
 
        !here the cproj can be extracted to update the density matrix for the atom iat 
        if (associated(nl%iagamma)) then
-          call cproj_to_gamma(nl%pbasis(atit%iat),psi_it%n_ket,mproj,lmax_ao,&
-               max(psi_it%ncplx,ncplx_p),nl%cproj,psi_it%kwgt*psi_it%occup,&
+          call cproj_to_gamma(nl%pbasis(atit%iat),psi_it%n_ket,nl%pspd(atit%iat)%mproj, &
+               & lmax_ao, max(psi_it%ncplx,ncplx_p),nl%cproj,psi_it%kwgt*psi_it%occup,&
                nl%iagamma(0,atit%iat),&
                nl%gamma_mmp(1,1,1,1,psi_it%ispin))
        end if
 
        call f_free_prj_ptr(prj)
-
-       istart_c=istart_c+nvctr_p*ncplx_p*mproj
 
        eproj_sum=eproj_sum+psi_it%kwgt*psi_it%occup*eproj
     end if
@@ -1398,7 +1388,7 @@ subroutine NonLocalHamiltonianApplication_old(iproc,at,npsidim_orbs,orbs,&
   logical :: dosome, overlap
   !logical :: goon
   integer :: ikpt,istart_ck,ispsi_k,isorb,ieorb,nspinor,iorb,iat,nwarnings
-  integer :: iproj,ispsi,istart_c,ilr,ilr_skip,mproj,iatype,ispinor,iilr,jlr
+  integer :: ispsi,istart_c,ilr,ilr_skip,mproj,iatype,ispinor,iilr,jlr
   real(wp) :: hp,eproj
   real(wp), dimension(:), allocatable :: scpr
   !integer :: ierr
@@ -1471,7 +1461,6 @@ subroutine NonLocalHamiltonianApplication_old(iproc,at,npsidim_orbs,orbs,&
 
         if (nl%on_the_fly) then
            !first create a projector ,then apply it for everyone
-           iproj=0
            loop_atoms_1: do iat=1,at%astruct%nat
 
               ! Check whether the projectors of this atom have an overlap with locreg ilr
@@ -1516,7 +1505,7 @@ subroutine NonLocalHamiltonianApplication_old(iproc,at,npsidim_orbs,orbs,&
               end do
               mproj=nl%pspd(iat)%mproj
               call atom_projector(nl, iat, 0, Lzd%Glr, orbs%kpts(:,ikpt), &
-                   & istart_c, iproj, nwarnings)
+                   & istart_c, nwarnings)
               !call cpu_time(tr0)
               !time2=time2+real(tr0-tr1,kind=8)
               !apply the projector to all the orbitals belonging to the processor

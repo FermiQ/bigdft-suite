@@ -359,7 +359,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
   call orbital_basis_associate(ob,orbs=orbs,Lzd=Lzd,id='system_initialization')
   call createProjectorsArrays(iproc,nproc,Lzd%Glr,rxyz,atoms,ob,&
        in%frmult,in%frmult,Lzd%hgrids(1),Lzd%hgrids(2),&
-       Lzd%hgrids(3),dry_run,nlpsp,init_projectors_completely)
+       Lzd%hgrids(3),in%projection,dry_run,nlpsp,init_projectors_completely)
   call orbital_basis_release(ob)
   if (iproc == 0 .and. dump) call print_nlpsp(nlpsp)
   if (iproc == 0 .and. .not. nlpsp%on_the_fly .and. .false.) then
