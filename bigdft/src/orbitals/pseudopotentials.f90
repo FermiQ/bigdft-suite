@@ -940,7 +940,7 @@ contains
       type(pspiof_pspdata_t) :: pspio
       type(pspiof_projector_t) :: proj
       type(pspiof_xc_t) :: xc
-      integer, dimension(2, 4) :: indices
+      integer, dimension(2, 12) :: indices
       integer :: ierr, i, n, l, j
       character(len = PSPIO_STRLEN_ERROR) :: expl
       real(gp) :: rloc, r
@@ -978,12 +978,19 @@ contains
          end if
          indices(:, i) = [l, n]
          psppar(l, n) = pspiof_projector_get_energy(proj)
-         rloc = 0._gp
-         do j = 1, int(10._gp / eps)
-            r = real(j, gp) * eps
-            rloc = rloc + (r ** 2 * pspiof_projector_eval(proj, r)) ** 2 * eps
-         end do
-         psppar(l, 0) = rloc
+         if (n == 1) then
+            ! rloc is defined from the standard deviation of the projector n = 1.
+            ! sigma^2 = int_0^inf r^4p^2(r)dr
+            ! with the HGH projector definition, sigma^2 = 3/2r_l^2
+            ! To be backward compatible, we define rloc = sqrt(2/3*sigma^2)
+            rloc = 0._gp
+            do j = 1, int(10._gp / eps)
+               r = real(j, gp) * eps
+               rloc = rloc + r ** 4 * pspiof_projector_eval(proj, r) ** 2 * eps
+               !write(92+i, *) r, pspiof_projector_eval(proj, r)
+            end do
+            psppar(l, 0) = sqrt(rloc / 3._gp * 2._gp)
+         end if
       end do
       ! Add the non diagonal parts, must wait for all diagonal parts to be done.
       do i = 1, pspiof_pspdata_get_n_projectors(pspio)

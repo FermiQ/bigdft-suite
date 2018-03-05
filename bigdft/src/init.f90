@@ -307,8 +307,6 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
            do r = 1d-4, 10, 1d-4
               tt = tt + (pspiof_projector_eval(pspiof_pspdata_get_projector(at%pspio(ityp), &
                    & i), r) ** 2)  * r * r * 1d-4
-              !write(92+i, *) r, pspiof_projector_eval(pspiof_pspdata_get_projector(at%pspio(ityp), &
-              !     & i), r)
            end do
         end do
         if (abs(1.d0-tt) > 1.d-2 .and. bigdft_mpi%iproc == 0) call yaml_warning( &
