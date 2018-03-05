@@ -59,6 +59,7 @@ module f_harmonics
       real(dp), dimension(3), intent(in), optional :: center
       !local variables
       !integer :: l
+      call nullify_f_multipoles(mp)
       mp%fmt=SOLID_HARMONIC_ENUM
       if (present(center)) then
          mp%rxyz=center
@@ -138,6 +139,8 @@ module f_harmonics
       type(f_multipoles), intent(inout) :: mp
       real(dp), intent(in) :: density
       real(dp), dimension(3), intent(in) :: rxyz
+      !here we might add the origin of the multipole
+
       call accumulate_multipoles(rxyz,density,&
            mp%nmonomials,mp%monomials)
     end subroutine f_multipoles_accumulate
