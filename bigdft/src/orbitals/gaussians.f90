@@ -443,28 +443,74 @@ contains
 
     ! Loop on contraction, treat the first gaussian separately for performance reasons.
     if (gaussian_iter_next_gaussian(G, iter, coeff, expo)) &
-         call projector(cell_geocode(mesh), -1, ider, iter%l, iter%n, coeff, expo, &
-         distance_cutoff, rxyz,&
-         0,0,0,mesh%ndims(1)-1,mesh%ndims(2)-1,mesh%ndims(3)-1, &
-         mesh%hgrids(1),mesh%hgrids(2),mesh%hgrids(3),&
-         kpoint(1),kpoint(2),kpoint(3), ncplx_p,G%ncplx, &
-         lr%wfd%nvctr_c,lr%wfd%nvctr_f,lr%wfd%nseg_c,lr%wfd%nseg_f,&
-         lr%wfd%keyvglob,lr%wfd%keyglob, &
-         wpr,psi) 
+         call gaussian_projector(cell_geocode(mesh), ider, iter%l, iter%n, coeff, expo, &
+         distance_cutoff, rxyz,mesh%ndims, mesh%hgrids,kpoint, ncplx_p,G%ncplx, &
+         lr%wfd, wpr,psi) 
     do
        if (.not. gaussian_iter_next_gaussian(G, iter, coeff, expo)) exit
-         call projector(cell_geocode(mesh), -1, ider, iter%l, iter%n, coeff, expo, &
-         distance_cutoff, rxyz,&
-         0,0,0,mesh%ndims(1)-1,mesh%ndims(2)-1,mesh%ndims(3)-1, &
-         mesh%hgrids(1),mesh%hgrids(2),mesh%hgrids(3),&
-         kpoint(1),kpoint(2),kpoint(3), ncplx_p,G%ncplx, &
-         lr%wfd%nvctr_c,lr%wfd%nvctr_f,lr%wfd%nseg_c,lr%wfd%nseg_f,&
-         lr%wfd%keyvglob,lr%wfd%keyglob, &
-         wpr,proj_tmp) 
+         call gaussian_projector(cell_geocode(mesh), ider, iter%l, iter%n, coeff, expo, &
+         distance_cutoff, rxyz,mesh%ndims, mesh%hgrids,kpoint, ncplx_p,G%ncplx, &
+         lr%wfd, wpr,proj_tmp) 
          call axpy((lr%wfd%nvctr_c+7*lr%wfd%nvctr_f)*ncplx_p*(2*iter%l-1), &
               & 1._wp, proj_tmp(1,1,1), 1, psi(1,1,1), 1)
     end do
   end subroutine gaussian_iter_to_wavelets_separable
+
+  subroutine gaussian_projector(geocode,idir,l,i,factor,gau_a,rpaw,rxyz,&
+       ndims,hgrids,kpoint,ncplx_k,ncplx_g,wfd,wpr,proj)
+    use module_base
+    use module_types
+    use compression, only: wavefunctions_descriptors
+    use locreg_operations, only: workarrays_projectors
+    implicit none
+    character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+    type(wavefunctions_descriptors), intent(in) :: wfd !<projector descriptors for wavelets representation
+    integer, intent(in) :: ndims(3)
+    integer, intent(in) :: idir,l,i,ncplx_k,ncplx_g
+    real(gp), intent(in) :: rpaw
+    real(gp),dimension(ncplx_g),intent(in)::gau_a,factor
+    real(gp), dimension(3), intent(in) :: rxyz, hgrids, kpoint
+    type(workarrays_projectors),intent(inout) :: wpr
+    real(wp), dimension(wfd%nvctr_c+7*wfd%nvctr_f, ncplx_k, 2*l-1), intent(out) :: proj
+    !Local variables
+    integer, parameter :: nterm_max = 20
+    integer :: iterm
+    real(gp), dimension(ncplx_g) :: gau_c
+    integer, dimension(2*l-1) :: nterms
+    integer, dimension(nterm_max,3,2*l-1) :: lxyz
+    real(gp), dimension(ncplx_g,nterm_max,2*l-1) :: factors
+
+    type(ylm_coefficients) :: ylm
+    type(gaussian_real_space) :: g
+    
+    call ylm_coefficients_new(ylm, i, l - 1)
+
+    if (idir /=0 .or. ncplx_g > 1) then
+       call get_projector_coeffs(ncplx_g,l,i,idir,nterm_max,factor,gau_a,&
+            nterms,lxyz,gau_c,factors)
+    end if
+
+    !start of the projectors expansion routine
+    do while(ylm_coefficients_next_m(ylm))
+       if (idir ==0 .and. ncplx_g == 1) then
+          g = ylm_coefficients_to_gaussian(ylm, factor(1), gau_a(1), 0)
+          do iterm = 1, g%nterms
+             lxyz(iterm, 1, ylm%m) = g%lxyz(1, iterm)
+             lxyz(iterm, 2, ylm%m) = g%lxyz(2, iterm)
+             lxyz(iterm, 3, ylm%m) = g%lxyz(3, iterm)
+             factors(1, iterm, ylm%m) = g%factors(iterm)
+          end do
+          nterms(ylm%m) = g%nterms
+          gau_c = g%sigma
+       end if
+       call crtproj(geocode,nterms(ylm%m),0,0,0,ndims(1) - 1,ndims(2) - 1,ndims(3) - 1,&
+            hgrids(1),hgrids(2),hgrids(3),kpoint(1),kpoint(2),kpoint(3),&
+            ncplx_g,ncplx_k,gau_c,factors(1,1,ylm%m),rxyz(1),rxyz(2),rxyz(3),&
+            lxyz(1,1,ylm%m),lxyz(1,2,ylm%m),lxyz(1,3,ylm%m),&
+            wfd%nvctr_c,wfd%nvctr_f,wfd%nseg_c,wfd%nseg_f,wfd%keyvglob,wfd%keyglob,&
+            proj(1,1,ylm%m),wpr,rpaw)
+    enddo
+  END SUBROUTINE gaussian_projector
 
   subroutine gaussian_iter_to_wavelets_collocation(G, iter, ider, lr, rxyz, ncplx_p, psi, &
        & projector_real, w, mp_order)
@@ -493,34 +539,45 @@ contains
     real(gp), dimension(G%ncplx,nterm_max,2*iter%l-1) :: factors
     integer, dimension(nterm_max) :: zero_v1
     integer, dimension(3,nterm_max) :: lxyz_gau
-    integer :: m, iterm, i
+    integer :: iterm, i
     type(gaussian_real_space) :: grs
     real(gp), dimension(3) :: oxyz
     type(box_iterator) :: bit
     type(gaussian_basis_iter) :: iterG
+    type(ylm_coefficients) :: ylm
 
     call f_zero(psi)
     call f_zero(zero_v1)
-    
-    do m = 1, 2 * iter%l - 1
+    call ylm_coefficients_new(ylm, iter%n, iter%l - 1)
+
+    do while(ylm_coefficients_next_m(ylm))
        call f_zero(projector_real)
 
        iterG = iter
        do while (gaussian_iter_next_gaussian(G, iterG, coeff, expo))
-       !call gaussian_real_space_set(g,sqrt(onehalf/expo(1)),nterms(m),factors(1,1,m),lxyz(1,1,m))
-          call get_projector_coeffs(G%ncplx, iter%l, iter%n, ider, nterm_max, &
-               & coeff, expo, nterms, lxyz, sigma_and_expo, factors)
-          do iterm = 1, nterms(m)
-             do i = 1, 3
-                lxyz_gau(i, iterm) = lxyz(iterm, i, m)
+          !call gaussian_real_space_set(g,sqrt(onehalf/expo(1)),nterms(m),factors(1,1,m),lxyz(1,1,m))
+          if (ider /= 0 .or. G%ncplx > 1) then
+             ! Need to port the ylm code for derivatives or complex.
+             call get_projector_coeffs(G%ncplx, iter%l, iter%n, ider, nterm_max, &
+                  & coeff, expo, nterms, lxyz, sigma_and_expo, factors)
+             do iterm = 1, nterms(ylm%m)
+                do i = 1, 3
+                   lxyz_gau(i, iterm) = lxyz(iterm, i, ylm%m)
+                end do
              end do
-          end do
-          if (present(mp_order)) then
-             call gaussian_real_space_set(grs, sigma_and_expo(1), nterms(m), &
-                  & factors(1,1,m), lxyz_gau, zero_v1, mp_order)
+             if (present(mp_order)) then
+                call gaussian_real_space_set(grs, sigma_and_expo(1), nterms(ylm%m), &
+                     & factors(1,1,ylm%m), lxyz_gau, zero_v1, mp_order)
+             else
+                call gaussian_real_space_set(grs, sigma_and_expo(1), nterms(ylm%m), &
+                     & factors(1,1,ylm%m), lxyz_gau, zero_v1, 0)
+             end if
           else
-             call gaussian_real_space_set(grs, sigma_and_expo(1), nterms(m), &
-                  & factors(1,1,m), lxyz_gau, zero_v1, 0)
+             if (present(mp_order)) then
+                grs = ylm_coefficients_to_gaussian(ylm, coeff(1), expo(1), mp_order)
+             else
+                grs = ylm_coefficients_to_gaussian(ylm, coeff(1), expo(1), 0)
+             end if
           end if
           oxyz = [cell_r(lr%mesh, lr%nsi1 + 1, 1), &
                & cell_r(lr%mesh, lr%nsi2 + 1, 2), &
@@ -529,7 +586,7 @@ contains
           call three_dimensional_density(bit, grs, sqrt(lr%mesh%volume_element), &
                & rxyz - oxyz, projector_real)
        end do
-       call isf_to_daub(lr, w, projector_real, psi(:,:,m))
+       call isf_to_daub(lr, w, projector_real, psi(1,1,ylm%m))
     end do
     !print *,'testRS:',sum(projector_real**2)
   end subroutine gaussian_iter_to_wavelets_collocation
@@ -2245,6 +2302,74 @@ contains
     end do
     if (r > 0._gp .and. ylm%l > 0) tt = tt / (r ** ylm%l)
   end function ylm_coefficients_at
+
+  function ylm_coefficients_to_gaussian(ylm, coeff, expo, mp_isf_order) result(g)
+    implicit none
+    type(gaussian_real_space) :: g
+    type(ylm_coefficients), intent(in) :: ylm
+    real(gp), intent(in) :: expo, coeff
+    integer, intent(in) :: mp_isf_order
+    
+    !local variables
+    real(gp) :: fgamma, fpi
+    integer :: offset, nC, nterms_tmp, iterm
+    real(gp), dimension(NTERM_MAX_RS) :: factors_tmp,facC
+    integer, dimension(3,NTERM_MAX_RS) :: lxyz_tmp,lxyzC
+    integer, dimension(3), parameter :: np0 = (/ 1, 3*5, 3*5*7*9 /)
+    integer, dimension(3), parameter :: np1 = (/ 1, 5*7, 5*7*9*11 /)
+    integer, dimension(3), parameter :: np2 = (/ 1, 7*9, 7*9*11*13 /)
+    integer, dimension(3), parameter :: np3 = (/ 1, 9*11, 9*11*13*15 /)
+
+    call nullify_gaussian_real_space(g)
+    g%sigma = 1._gp / sqrt(2._gp * expo)
+    g%exponent = expo
+    g%cutoff = 10.0_gp * g%sigma
+    g%mp_isf = mp_isf_order
+    if (mp_isf_order >0) g%discretization_method=MULTIPOLE_PRESERVING_COLLOCATION
+    !g%discretization_method=MULTIPOLE_PRESERVING_COLLOCATION !to do the tests
+
+    fpi=0.7511255444649425_gp ! pi^-1/4
+    fgamma=2.0_gp*fpi/(sqrt(g%sigma)**(2*ylm%l+4*ylm%n-1))*coeff
+    fgamma = fgamma * 2. ** (0.5_gp * ylm%l + ylm%n - 1)
+    select case(ylm%l)
+    case(0) 
+       fgamma = fgamma / 1._gp
+       fgamma = fgamma / sqrt(real(np0(ylm%n), gp))
+    case(1)
+       fgamma = fgamma / sqrt(3._gp)
+       fgamma = fgamma / sqrt(real(np1(ylm%n), gp))
+    case(2)
+       fgamma = fgamma / sqrt(3._gp * 5._gp)
+       fgamma = fgamma / sqrt(real(np2(ylm%n), gp))
+    case(3)
+       fgamma = fgamma / sqrt(3._gp * 5._gp * 7._gp)
+       fgamma = fgamma / sqrt(real(np3(ylm%n), gp))
+    end select
+
+    offset = sum(ylm%ntpd(1:ylm%m - 1))
+    select case(g%discretization_method)
+    case(RADIAL_COLLOCATION)
+       !leave untouched the specified powers
+       g%nterms=ylm%ntpd(ylm%m)
+       g%factors(1:g%nterms)=ylm%ftpd(offset + 1:offset + g%nterms) * fgamma
+       g%lxyz(:,1:g%nterms)=ylm%pow(:, offset + 1:offset + g%nterms)
+       g%pows(1:g%nterms)=0
+    case(MULTIPOLE_PRESERVING_COLLOCATION)
+       !here the pow is not allowed (yet) therefore combine the powers 
+       !into separable terms. Assume that the powers here are all even
+       g%nterms=0
+       do iterm=1,ylm%ntpd(ylm%m)
+          call expand_r2_power(0,factors_tmp,lxyz_tmp,nterms_tmp)
+          call multiply_separable_terms(nterms_tmp,factors_tmp,lxyz_tmp,&
+               ylm%ntpd(ylm%m),ylm%ftpd(offset + 1:offset + g%nterms) * fgamma,&
+               ylm%pow(:, offset + 1:offset + g%nterms),nC,facC,lxyzC)
+          g%factors(g%nterms+1:g%nterms+nC)=facC(1:nC)
+          g%lxyz(:,g%nterms+1:g%nterms+nC)=lxyzC(:,1:nC)
+          g%nterms=g%nterms+nC
+       end do
+    end select
+    
+  end function ylm_coefficients_to_gaussian
 
   !> Routine to extract the coefficients from the quantum numbers and the operation
   pure subroutine tensor_product_decomposition(n,l,ntpd_shell,ntpd,pow,ftpd)

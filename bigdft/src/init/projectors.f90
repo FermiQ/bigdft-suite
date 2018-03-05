@@ -547,6 +547,7 @@ end subroutine atom_projector
 subroutine get_projector_coeffs(ncplx_g,l,i,idir,nterm_max,factor,expo,&
      nterms,lxyz,sigma_and_expo,factors)
   use module_defs, only: gp
+  use dictionaries
   implicit none
   integer, intent(in) :: ncplx_g,nterm_max
   integer, intent(in) :: l,i
@@ -564,6 +565,8 @@ subroutine get_projector_coeffs(ncplx_g,l,i,idir,nterm_max,factor,expo,&
   integer, dimension(3,nterm_max,3) :: lxyz_arr
   real(gp), dimension(nterm_max,3) :: fac_arr
 
+  if (f_err_raise(idir == 0 .and. ncplx_g == 1, 'deprecated call to get_projector_coeffs', &
+       & err_name='BIGDFT_RUNTIME_ERROR')) return
   
   !this value can also be inserted as a parameter
   if (ncplx_g == 1) then
@@ -643,161 +646,6 @@ subroutine get_projector_coeffs(ncplx_g,l,i,idir,nterm_max,factor,expo,&
 
 
 end subroutine get_projector_coeffs
-
-subroutine projector(geocode,iat,idir,l,i,factor,gau_a,rpaw,rxyz,&
-     ns1,ns2,ns3,n1,n2,n3,hx,hy,hz,kx,ky,kz,ncplx_k,ncplx_g,&
-     mbvctr_c,mbvctr_f,mseg_c,mseg_f,keyv_p,keyg_p,wpr,proj)
-  use module_base
-  use module_types
-  use locreg_operations, only: workarrays_projectors
-  implicit none
-  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
-  integer, intent(in) :: ns1,ns2,ns3,n1,n2,n3
-  integer, intent(in) :: iat,idir,l,i,mbvctr_c,mbvctr_f,mseg_c,mseg_f,ncplx_k,ncplx_g
-  real(gp), intent(in) :: hx,hy,hz,kx,ky,kz,rpaw
-  real(gp),dimension(ncplx_g),intent(in)::gau_a,factor
-  !integer, dimension(2,3), intent(in) :: nboxp_c,nboxp_f
-  integer, dimension(mseg_c+mseg_f), intent(in) :: keyv_p
-  integer, dimension(2,mseg_c+mseg_f), intent(in) :: keyg_p
-
-  real(gp), dimension(3), intent(in) :: rxyz
-  type(workarrays_projectors),intent(inout) :: wpr
-  real(wp), dimension((mbvctr_c+7*mbvctr_f)*(2*l-1)*ncplx_k), intent(out) :: proj
-  !Local variables
-  integer, parameter :: nterm_max=20 !if GTH nterm_max=4
-  !integer :: nl1_c,nu1_c,nl2_c,nu2_c,nl3_c,nu3_c,nl1_f,nu1_f,nl2_f,nu2_f,nl3_f,nu3_f
-  integer :: istart_c,m
-  real(gp) :: rx,ry,rz
-!!$  integer :: iterm,nterm,idir2
-!!$  real(gp) :: fpi,fgamma
-!!$  integer, dimension(3) :: nterm_arr
-!!$  integer, dimension(nterm_max) :: lx,ly,lz
-!!$  integer, dimension(3,nterm_max,3) :: lxyz_arr
-!!$  real(gp), dimension(ncplx_g,nterm_max) :: factors
-!!$  real(gp), dimension(nterm_max,3) :: fac_arr
-  real(gp), dimension(ncplx_g) :: gau_c
-  integer, dimension(2*l-1) :: nterms
-  integer, dimension(nterm_max,3,2*l-1) :: lxyz
-  real(gp), dimension(ncplx_g,nterm_max,2*l-1) :: factors
-
-
-  call get_projector_coeffs(ncplx_g,l,i,idir,nterm_max,factor,gau_a,&
-       nterms,lxyz,gau_c,factors)
-  !call f_routine(id='projector')
-
-!!$  !this value can also be inserted as a parameter
-!!$  if (ncplx_g == 1) then
-!!$     !fpi=pi^-1/4 pi^-1/2, pi^-1/4 comes from sqrt(gamma(x)) and pi^-1/2 from Ylm.
-!!$     !fpi=(4.0_gp*atan(1.0_gp))**(-.75_gp)
-!!$     fpi=0.42377720812375763_gp
-!!$     ! gau_a is real and given as alpha, need to convert it back as coefficient.
-!!$     gau_c(1) = 1._gp / sqrt(2._gp * gau_a(1))
-!!$     fgamma=sqrt(2.0_gp)*fpi/(sqrt(gau_c(1))**(2*(l-1)+4*i-1))
-!!$  else
-!!$     fpi=0.56418958354775628_gp
-!!$     if(l==1) then
-!!$        fgamma= 0.70710678118654757_gp !1.0/sqrt(2.0)
-!!$        !1/sqrt(2.0)*fac_arr(1)=1/sqrt(2.0)* [1/sqrt(2.0)]=1/2
-!!$        !1/2*fpi=1/2* [1/sqrt(pi)]=1/2 1/sqrt(pi) Factor for Y_00
-!!$     elseif(l==2) then
-!!$        fgamma= 0.8660254037844386_gp !sqrt(3)/2.0
-!!$     elseif(l==3) then
-!!$        fgamma= 1.3693063937629153_gp  !sqrt(3*5)/(2.0*sqrt(2))
-!!$     elseif(l==4) then
-!!$        fgamma= 2.5617376914898995_gp  !sqrt(7*5*3)/(4.0) 
-!!$     else
-!!$        write(*,'(1x,a)')'error found!'
-!!$        write(*,'(1x,a,i4)')&
-!!$             'gamma_factor: l should be between 1 and 3, but l= ',l
-!!$        stop
-!!$     end if
-!!$     fgamma = fgamma * fpi
-!!$     gau_c(1) = 1._gp / sqrt(2._gp * gau_a(1))
-!!$     gau_c(2) = gau_a(2)
-!!$  end if
-
-  rx=rxyz(1) 
-  ry=rxyz(2) 
-  rz=rxyz(3)
-
-  istart_c=1
-  !start of the projectors expansion routine
-  do m=1,2*l-1
-
-!!$     if (idir==0) then !normal projector calculation case
-!!$        idir2=1
-!!$        call calc_coeff_proj(l,i,m,nterm_max,nterm,lx,ly,lz,fac_arr)
-!!$
-!!$        do iterm=1,nterm
-!!$           factors(:,iterm)=factor(:)*fgamma*fac_arr(iterm,idir2)
-!!$        end do
-!!$     else !calculation of projector derivative
-!!$        idir2=mod(idir-1,3)+1
-!!$        call calc_coeff_derproj(l,i,m,nterm_max,gau_c(1),nterm_arr,lxyz_arr,fac_arr)
-!!$        nterm=nterm_arr(idir2)
-!!$
-!!$        do iterm=1,nterm
-!!$           factors(:,iterm)=factor(:)*fgamma*fac_arr(iterm,idir2)
-!!$           lx(iterm)=lxyz_arr(1,iterm,idir2)
-!!$           ly(iterm)=lxyz_arr(2,iterm,idir2)
-!!$           lz(iterm)=lxyz_arr(3,iterm,idir2)        
-!!$
-!!$!       nterm=nterm_arr(idir)
-!!$!       do iterm=1,nterm
-!!$!          factors(iterm)=fgamma*fac_arr(iterm,idir)
-!!$!          lx(iterm)=lxyz_arr(1,iterm,idir)
-!!$!          ly(iterm)=lxyz_arr(2,iterm,idir)
-!!$!          lz(iterm)=lxyz_arr(3,iterm,idir)
-!!$
-!!$! sequence: 11 21 31 12 22 32 13 23 33 
-!!$
-!!$!if (idir > 3) then
-!!$!        if (idir < 7) then
-!!$!lx(iterm)=lx(iterm)+1
-!!$!        else if (idir < 10) then
-!!$!ly(iterm)=ly(iterm)+1
-!!$!        else 
-!!$!lz(iterm)=lz(iterm)+1
-!!$!        endif
-!!$!endif
-!!$!seq : 11 22 33 12 23 13
-!!$select case(idir)
-!!$case(4,9)
-!!$   lx(iterm)=lx(iterm)+1
-!!$case(5,7)
-!!$   ly(iterm)=ly(iterm)+1
-!!$case(6,8)
-!!$   lz(iterm)=lz(iterm)+1
-!!$end select
-!!$!if (idir == 4 .or. idir == 9) lx(iterm)=lx(iterm)+1
-!!$!if (idir == 5 .or. idir == 7) ly(iterm)=ly(iterm)+1
-!!$!if (idir == 6 .or. idir == 8) lz(iterm)=lz(iterm)+1
-!!$
-!!$        end do
-!!$     end if
-
-!!$     write(*,*) geocode,nterm,ns1,ns2,ns3,n1,n2,n3,lx(1:nterm),ly(1:nterm),lz(1:nterm), rpaw
-!!$     write(*,*) hx,hy,hz,kx,ky,kz,ncplx_g,ncplx_k
-     call crtproj(geocode,nterms(m),ns1,ns2,ns3,n1,n2,n3,&
-          hx,hy,hz,kx,ky,kz,ncplx_g,ncplx_k,&
-          gau_c,factors(1,1,m),rx,ry,rz,lxyz(1,1,m),lxyz(1,2,m),lxyz(1,3,m),&
-          mbvctr_c,mbvctr_f,mseg_c,mseg_f,keyv_p,keyg_p,proj(istart_c),wpr,rpaw)
- 
-     !do iterm=1,nterm
-     !   if (iproc.eq.0) write(*,'(1x,a,i0,1x,a,1pe10.3,3(1x,i0))') &
-     !        'projector: iat,atomname,gau_a,lx,ly,lz ', & 
-     !        iat,trim(at%astruct%atomnames(at%astruct%iatype(iat))),gau_a,lx(iterm),ly(iterm),lz(iterm)
-     !enddo
-     !end testing
-
-  !call f_release_routine()
-
-     istart_c=istart_c+(mbvctr_c+7*mbvctr_f)*ncplx_k
-  enddo
-
-  !call f_release_routine()
-
-END SUBROUTINE projector
 
 !> Returns the compressed form of a Gaussian projector 
 !! @f$ x^lx * y^ly * z^lz * exp (-1/(2*gau_a^2) *((x-rx)^2 + (y-ry)^2 + (z-rz)^2 )) @f$
