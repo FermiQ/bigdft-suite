@@ -1,7 +1,23 @@
 module pspiof_m
   type pspiof_pspdata_t
-    integer :: tutu
+     integer :: tutu
   end type pspiof_pspdata_t
+  
+  type pspiof_projector_t
+     integer :: tutu
+  end type pspiof_projector_t
+  
+  type pspiof_qn_t
+     integer :: tutu
+  end type pspiof_qn_t
+  
+  type pspiof_xc_t
+     integer :: tutu
+  end type pspiof_xc_t
+  
+  type pspiof_potential_t
+     integer :: tutu
+  end type pspiof_potential_t
   
   integer, parameter, public :: PSPIO_STRLEN_ERROR = 1024
   integer, parameter, public :: PSPIO_STRLEN_LINE = 256
@@ -83,13 +99,6 @@ contains
     stop "FAKE PSPIO."
   end function pspiof_pspdata_alloc
 
-  function pspiof_pspdata_free(data)
-    type(pspiof_pspdata_t) :: data
-    integer :: pspiof_pspdata_free
-
-    stop "FAKE PSPIO."
-  end function pspiof_pspdata_free
-
   function pspiof_pspdata_read(data, kind, filename)
     type(pspiof_pspdata_t) :: data
     integer :: kind
@@ -98,4 +107,177 @@ contains
 
     stop "FAKE PSPIO."
   end function pspiof_pspdata_read
+
+  function pspiof_pspdata_get_format_guessed(data)
+    type(pspiof_pspdata_t) :: data
+    integer :: pspiof_pspdata_get_format_guessed
+
+    stop "FAKE PSPIO."
+  end function pspiof_pspdata_get_format_guessed
+
+  function pspiof_pspdata_get_z(data)
+    type(pspiof_pspdata_t) :: data
+    double precision :: pspiof_pspdata_get_z
+
+    stop "FAKE PSPIO."
+  end function pspiof_pspdata_get_z
+
+  function pspiof_pspdata_get_zvalence(data)
+    type(pspiof_pspdata_t) :: data
+    double precision :: pspiof_pspdata_get_zvalence
+
+    stop "FAKE PSPIO."
+  end function pspiof_pspdata_get_zvalence
+
+  function pspiof_pspdata_get_nelvalence(data)
+    type(pspiof_pspdata_t) :: data
+    integer :: pspiof_pspdata_get_nelvalence
+
+    stop "FAKE PSPIO."
+  end function pspiof_pspdata_get_nelvalence
+
+  function pspiof_pspdata_get_xc(data)
+    type(pspiof_pspdata_t) :: data
+    type(pspiof_xc_t) :: pspiof_pspdata_get_xc
+
+    stop "FAKE PSPIO."
+  end function pspiof_pspdata_get_xc
+
+  function pspiof_pspdata_get_projector(data, i)
+    type(pspiof_pspdata_t) :: data
+    type(pspiof_projector_t) :: pspiof_pspdata_get_projector
+    integer :: i
+
+    stop "FAKE PSPIO."
+  end function pspiof_pspdata_get_projector
+
+  function pspiof_pspdata_get_projector_energy(data, i, j)
+    type(pspiof_pspdata_t) :: data
+    double precision :: pspiof_pspdata_get_projector_energy
+    integer :: i, j
+
+    stop "FAKE PSPIO."
+  end function pspiof_pspdata_get_projector_energy
+
+  function pspiof_pspdata_get_n_projectors(data)
+    type(pspiof_pspdata_t) :: data
+    integer :: pspiof_pspdata_get_n_projectors
+
+    stop "FAKE PSPIO."
+  end function pspiof_pspdata_get_n_projectors
+
+  function pspiof_projector_get_qn(data)
+    type(pspiof_projector_t) :: data
+    type(pspiof_qn_t) :: pspiof_projector_get_qn
+
+    stop "FAKE PSPIO."
+  end function pspiof_projector_get_qn
+
+  function pspiof_qn_get_n(data)
+    type(pspiof_qn_t) :: data
+    integer :: pspiof_qn_get_n
+
+    stop "FAKE PSPIO."
+  end function pspiof_qn_get_n
+
+  function pspiof_qn_get_l(data)
+    type(pspiof_qn_t) :: data
+    integer :: pspiof_qn_get_l
+
+    stop "FAKE PSPIO."
+  end function pspiof_qn_get_l
+
+  function pspiof_projector_get_energy(data)
+    type(pspiof_projector_t) :: data
+    double precision :: pspiof_projector_get_energy
+
+    stop "FAKE PSPIO."
+  end function pspiof_projector_get_energy
+
+  function pspiof_projector_eval(data, r)
+    type(pspiof_projector_t) :: data
+    double precision :: pspiof_projector_eval
+    double precision :: r
+
+    stop "FAKE PSPIO."
+  end function pspiof_projector_eval
+
+  function pspiof_potential_eval(data, r)
+    type(pspiof_potential_t) :: data
+    double precision :: pspiof_potential_eval
+    double precision :: r
+
+    stop "FAKE PSPIO."
+  end function pspiof_potential_eval
+
+  function pspiof_potential_eval_deriv(data, r)
+    type(pspiof_potential_t) :: data
+    double precision :: pspiof_potential_eval_deriv
+    double precision :: r
+
+    stop "FAKE PSPIO."
+  end function pspiof_potential_eval_deriv
+
+  function pspiof_potential_eval_deriv2(data, r)
+    type(pspiof_potential_t) :: data
+    double precision :: pspiof_potential_eval_deriv2
+    double precision :: r
+
+    stop "FAKE PSPIO."
+  end function pspiof_potential_eval_deriv2
+
+  function pspiof_pspdata_get_symbol(data)
+    type(pspiof_pspdata_t) :: data
+    character(len = 3) :: pspiof_pspdata_get_symbol
+
+    stop "FAKE PSPIO."
+  end function pspiof_pspdata_get_symbol
+
+  function pspiof_xc_get_exchange(data)
+    type(pspiof_xc_t) :: data
+    integer :: pspiof_xc_get_exchange
+
+    stop "FAKE PSPIO."
+  end function pspiof_xc_get_exchange
+  
+  function pspiof_xc_get_correlation(data)
+    type(pspiof_xc_t) :: data
+    integer :: pspiof_xc_get_correlation
+
+    stop "FAKE PSPIO."
+  end function pspiof_xc_get_correlation
+
+  subroutine pspiof_pspdata_free(data)
+    type(pspiof_pspdata_t) :: data
+
+    stop "FAKE PSPIO."
+  end subroutine pspiof_pspdata_free
+
+  subroutine pspiof_projector_free(data)
+    type(pspiof_projector_t) :: data
+
+    stop "FAKE PSPIO."
+  end subroutine pspiof_projector_free
+
+  function pspiof_projector_copy(data, p)
+    type(pspiof_projector_t) :: data, p
+    integer :: pspiof_projector_copy
+
+    stop "FAKE PSPIO."
+  end function pspiof_projector_copy
+
+  function pspiof_pspdata_get_vlocal(data)
+    type(pspiof_pspdata_t) :: data
+    type(pspiof_potential_t) :: pspiof_pspdata_get_vlocal
+
+    stop "FAKE PSPIO."
+  end function pspiof_pspdata_get_vlocal
+
+  subroutine pspiof_error_string(code, expl)
+    integer :: code
+    character(len = PSPIO_STRLEN_ERROR) :: expl
+    
+    stop "FAKE PSPIO."
+  end subroutine pspiof_error_string
+
 end module pspiof_m

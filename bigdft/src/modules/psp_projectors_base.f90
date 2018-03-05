@@ -535,8 +535,7 @@ contains
 
   subroutine rfunc_basis_from_pspio(pspio, rfuncs)
     use pspiof_m, only: pspiof_pspdata_t, pspiof_pspdata_get_n_projectors, &
-         & pspiof_pspdata_get_projector, pspiof_projector_copy, PSPIO_SUCCESS, &
-         & pspiof_projector_alloc
+         & pspiof_pspdata_get_projector, pspiof_projector_copy, PSPIO_SUCCESS
     implicit none
     type(pspiof_pspdata_t), intent(in) :: pspio
     type(pspiof_projector_t), dimension(:), pointer :: rfuncs
