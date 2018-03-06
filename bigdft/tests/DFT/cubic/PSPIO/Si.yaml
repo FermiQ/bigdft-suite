@@ -1,10 +1,9 @@
-psppar.Li: 
-  Source: Li.UPF
+psppar.Si: 
+  Source: Si.pbe-hgh.UPF
   Pseudopotential type: PSPIO
 posinp:
   positions:
-  - {Li: [0, 0, 0]}
+  - {Si: [0, 0, 0]}
 dft:
   hgrids: 0.4
-  ixc: -20
-
+  ixc: 11
