@@ -513,11 +513,9 @@ contains
     type(atomic_projectors), intent(inout) :: aproj
     real(gp), dimension(3, 1), intent(in), target :: rxyz
 
+    aproj%rxyz = rxyz(:, 1)
     if (aproj%kind == PROJ_DESCRIPTION_GAUSSIAN) then
        aproj%gbasis%rxyz => rxyz
-    else
-       call f_err_throw("Unknown atomic projector kind.", &
-            & err_name = 'BIGDFT_RUNTIME_ERROR')
     end if
   end subroutine atomic_projectors_set_position
   

@@ -143,6 +143,7 @@ subroutine CalculateTailCorrection(iproc,nproc,at,rbuf,orbs,&
         j1=i3*((nb1+1)*(nb2+1)) + i2*(nb1+1) + i1+1
         nlpsp%pspd(iat)%plr%wfd%keyglob(1,iseg)=j0
         nlpsp%pspd(iat)%plr%wfd%keyglob(2,iseg)=j1
+        nlpsp%pspd(iat)%plr%mesh%ndims = [nb1, nb2, nb3]
 !!$        nlpspd%keyg_p(1,iseg)=j0
 !!$        nlpspd%keyg_p(2,iseg)=j1
      end do
@@ -395,7 +396,7 @@ subroutine CalculateTailCorrection(iproc,nproc,at,rbuf,orbs,&
         !write(*,'(a,3i3,2f12.8)') 'applylocpotkinone finished',iproc,iorb,ipt,epot,ekin
 
         if (DistProjApply) then
-           if(any(at%npspcode == 7)) then
+           if(any(at%npspcode == PSPCODE_PAW)) then
              call applyprojectorsonthefly(0,orbsb,at,lr,&
                   txyz,hgrid(1),hgrid(1),hgrid(1),wfdb,nlpsp,psib,hpsib,eproj,paw)
            else
@@ -404,7 +405,7 @@ subroutine CalculateTailCorrection(iproc,nproc,at,rbuf,orbs,&
            end if
            !only the wavefunction descriptors must change
         else
-           if(any(at%npspcode == 7)) then
+           if(any(at%npspcode == PSPCODE_PAW)) then
              write(*,*)'WVL+PAW: applyprojectorsone not yet implemented'
              stop
            end if
