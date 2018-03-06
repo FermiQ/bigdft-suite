@@ -574,8 +574,13 @@ module sparsematrix_init
       !!end if
       !!write(*,*) 'iproc, ind_min, ind_max', iproc, ind_min, ind_max
       !!write(*,*) 'iproc, sparsemat%smmm%istartend_mm', iproc, sparsemat%smmm%istartend_mm
-      sparsemat%smmm%istartend_mm(1) = ind_min
-      sparsemat%smmm%istartend_mm(2) = ind_max
+      if (sparsemat%smmm%nout>0) then
+          sparsemat%smmm%istartend_mm(1) = ind_min
+          sparsemat%smmm%istartend_mm(2) = ind_max
+      else
+          sparsemat%smmm%istartend_mm(1)=sparsemat%nvctr+1
+          sparsemat%smmm%istartend_mm(2)=sparsemat%nvctr
+      end if
 
 
       ! Determine to which segments this corresponds
@@ -616,8 +621,8 @@ module sparsematrix_init
           istartend_dj(2,jproc-1) = istartend_dj(1,jproc)-1
       end do
       istartend_dj(2,nproc-1) = istartend_mm(2,nproc-1)
-      !if (iproc==0) write(*,'(a,100(2i7,3x))') 'istartend_mm',istartend_mm
-      !if (iproc==0) write(*,'(a,100(2i7,3x))') 'istartend_dj',istartend_dj
+      !!if (iproc==0) write(*,'(a,100(2i7,3x))') 'istartend_mm',istartend_mm
+      !!if (iproc==0) write(*,'(a,100(2i7,3x))') 'istartend_dj',istartend_dj
 
       ! Some checks
       if (istartend_dj(1,0)/=1) then
