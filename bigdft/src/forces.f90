@@ -793,11 +793,13 @@ subroutine local_forces(iproc,at,rxyz,hxh,hyh,hzh,&
                        !write(*,'(i0,1x,5(1x,1pe24.17))') ind,pot(ind),rho(ind),fxerf,fyerf,fzerf
                     else if (.not. goz) then
                        !derivative of the polynomial
-                       tt=cprime(nloc)
-                       do iloc=nloc-1,1,-1
-                          tt=arg*tt+cprime(iloc)
-                       enddo
-                       forceleaked=forceleaked+prefactor*xp*tt*rho(1) !(as a sample value)
+                       if (nloc /= 0) then
+                          tt=cprime(nloc)
+                          do iloc=nloc-1,1,-1
+                             tt=arg*tt+cprime(iloc)
+                          enddo
+                          forceleaked=forceleaked+prefactor*xp*tt*rho(1) !(as a sample value)
+                       end if
                     endif
                  end do
               end do
