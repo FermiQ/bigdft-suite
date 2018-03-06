@@ -252,11 +252,6 @@ contains
       if (radii_cf(3) == UNINITIALIZED(1.0_gp)) radii_cf(3)=crmult*radii_cf(1)/frmult
       ! Correct radii_cf(3) for the projectors.
       maxrad=0.e0_gp ! This line added by Alexey, 03.10.08, to be able to compile with -g -C
-      if (has_key(dict_psp, PSP_TYPE)) then
-         if (trim(dict_value(dict_psp // PSP_TYPE)) == "PSPIO") then
-            maxrad = radii_cf(1)
-         end if
-      end if
       if (has_key(dict_psp, NLPSP_KEY)) then
          nlen=dict_len(dict_psp // NLPSP_KEY)
          do i=1, nlen
@@ -943,7 +938,7 @@ contains
       integer, dimension(2, 12) :: indices
       integer :: ierr, i, n, l, j
       character(len = PSPIO_STRLEN_ERROR) :: expl
-      real(gp) :: rloc, r
+      real(gp) :: rloc, r, pot
       real(gp), parameter :: eps = 1e-4_gp
 
       if (f_err_raise(pspiof_pspdata_alloc(pspio) /= PSPIO_SUCCESS, &
@@ -1001,6 +996,15 @@ contains
             psppar(l, n) = pspiof_pspdata_get_projector_energy(pspio, i, j)
          end do
       end do
+      ! Try to guess a rloc for potential.
+      rloc = 0._gp
+      do j = 1, int(10._gp / eps)
+         r = real(j, gp) * eps
+         pot = pspiof_potential_eval(pspiof_pspdata_get_vlocal(pspio), r)
+         !write(92, *) r, pot
+         if (pot + pspiof_pspdata_get_zvalence(pspio) / r > 1e-8) rloc = r
+      end do
+      psppar(0, 0) = max(rloc / 6._gp, 0.2_gp) ! Avoid too sharp gaussians.
 
       call pspiof_pspdata_free(pspio)
     END SUBROUTINE psp_from_pspio

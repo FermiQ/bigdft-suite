@@ -898,7 +898,8 @@ subroutine print_atomic_variables(atoms, hmax, ixc)
      if (atoms%psppar(0,0,ityp)/=0) then
         call yaml_mapping_open('Local Pseudo Potential (HGH convention)')
           call yaml_map('Rloc',atoms%psppar(0,0,ityp),fmt='(f9.5)')
-          call yaml_map(COEFF_KEY,atoms%psppar(0,1:4,ityp),fmt='(f9.5)')
+          if (maxval(abs(atoms%psppar(0,1:4,ityp))) > 0._gp) &
+               & call yaml_map(COEFF_KEY,atoms%psppar(0,1:4,ityp),fmt='(f9.5)')
         call yaml_mapping_close()
      end if
      !nlcc term
