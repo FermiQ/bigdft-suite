@@ -218,10 +218,10 @@ subroutine localize_projectors(iproc,nproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,
   totfullvol=0.0_gp
   do iat=1,at%astruct%nat
      ityp=at%astruct%iatype(iat)
-     if (at%npspcode(iat) == PSPCODE_GTH .or. &
-          & at%npspcode(iat) == PSPCODE_HGH .or. &
-          & at%npspcode(iat) == PSPCODE_HGH_K .or. &
-          & at%npspcode(iat) == PSPCODE_HGH_K_NLCC) then
+     if (at%npspcode(ityp) == PSPCODE_GTH .or. &
+          & at%npspcode(ityp) == PSPCODE_HGH .or. &
+          & at%npspcode(ityp) == PSPCODE_HGH_K .or. &
+          & at%npspcode(ityp) == PSPCODE_HGH_K_NLCC) then
         maxrad=min(maxval(at%psppar(1:4,0,ityp)),cpmult/15.0_gp*at%radii_cf(ityp,3))
         nl%zerovol=0.0_gp
         fullvol=0.0_gp

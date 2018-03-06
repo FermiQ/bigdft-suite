@@ -956,7 +956,7 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
 !!$           mpz(i3-isz) = mp_exp(hzh,rz,rlocinv2sq,i3,0,at%multipole_preserving)
 !!$        end do
 
-        if (at%npspcode(atit%iat) == PSPCODE_PAW) then
+        if (at%npspcode(atit%ityp) == PSPCODE_PAW) then
 
            call atomic_charge_density(g,at,atit)
            call three_dimensional_density(dpbox%bitp,g,-1.0_dp,rxyz(1,atit%iat),pot_ion)
