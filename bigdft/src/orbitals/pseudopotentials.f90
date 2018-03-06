@@ -600,11 +600,13 @@ contains
               & err_name='BIGDFT_RUNTIME_ERROR')
       end if
 
-      frompspio = present(filename)
-      if (has_key(dict, key) .and. (PSP_TYPE .in. dict // key)) then
-         ! Merge file only for supported formats.
-         str = dict_value(dict // key // PSP_TYPE)
-         frompspio = frompspio .and. (trim(str) == "PSPIO")
+      frompspio = .false.
+      if (present(filename) .and. has_key(dict, key)) then
+         if (PSP_TYPE .in. dict // key) then
+            ! Merge file only for supported formats.
+            str = dict_value(dict // key // PSP_TYPE)
+            frompspio = (trim(str) == "PSPIO")
+         end if
       end if
       !ALEX: if npspcode==PSPCODE_HGH_K_NLCC, nlccpar are read from psppar.Xy via rcore and qcore
       if (frompspio) then
@@ -695,7 +697,7 @@ contains
 
       ! Nonlocal terms
       do l=1,4
-         if (psppar(l,1) /= 0._gp) then
+         if (psppar(l,1) /= 0._gp .or. psppar(l,0) /= 0._gp) then
             call dict_init(channel)
             call set(channel // 'Channel (l)', l - 1)
             if (psppar(l,0) /= 0._gp) call set(channel // kRLOC, psppar(l,0))

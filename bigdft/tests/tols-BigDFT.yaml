@@ -12,6 +12,7 @@ Keys to ignore:
  - Maximal OpenMP threads per MPI task
  - OpenMP threads per task
  - OpenMP parallelization
+ - radical
  - logfile
  - Memory*
  - Orbitals Repartition*

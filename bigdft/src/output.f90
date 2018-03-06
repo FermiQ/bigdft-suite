@@ -898,7 +898,11 @@ subroutine print_atomic_variables(atoms, hmax, ixc)
      if (atoms%psppar(0,0,ityp)/=0) then
         call yaml_mapping_open('Local Pseudo Potential (HGH convention)')
           call yaml_map('Rloc',atoms%psppar(0,0,ityp),fmt='(f9.5)')
-          if (maxval(abs(atoms%psppar(0,1:4,ityp))) > 0._gp) &
+          if (atoms%npspcode(ityp) == PSPCODE_GTH .or. &
+               & atoms%npspcode(ityp) == PSPCODE_HGH .or. &
+               & atoms%npspcode(ityp) == PSPCODE_HGH_K .or. &
+               & atoms%npspcode(ityp) == PSPCODE_HGH_K_NLCC .or. &
+               & atoms%npspcode(ityp) == PSPCODE_PAW) & ! to be removed later
                & call yaml_map(COEFF_KEY,atoms%psppar(0,1:4,ityp),fmt='(f9.5)')
         call yaml_mapping_close()
      end if

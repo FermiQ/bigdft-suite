@@ -1129,7 +1129,7 @@ subroutine NonLocalHamiltonianApplication(iproc,at,npsidim_orbs,orbs,&
 
   call orbital_basis_release(psi_ob)
 
-  if (.not. nl%on_the_fly .and. Lzd%nlr==1) then !TO BE REMOVED WITH NEW PROJECTOR APPLICATION
+  if (.not. nl%on_the_fly .and. Lzd%nlr==1 .and. paw%usepaw) then !TO BE REMOVED WITH NEW PROJECTOR APPLICATION
      if (istart_ck-1 /= nl%nprojel .and. orbs%norbp>0) then
         call f_err_throw('Incorrect once-and-for-all psp application, istart_ck, nprojel= '+&
              yaml_toa([istart_ck,nl%nprojel]),err_name='BIGDFT_RUNTIME_ERROR')
