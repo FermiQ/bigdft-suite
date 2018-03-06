@@ -992,7 +992,7 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
 !!$              enddo
 !!$           enddo
 
-        else if (at%npspcode(atit%ityp) == PSPCODE_PSPIO) then
+!!$        else if (at%npspcode(atit%ityp) == PSPCODE_PSPIO) then           
 !!$           ithread=0
 !!$           nthread=1
 !!$           pot = pspiof_pspdata_get_vlocal(at%pspio(atit%ityp))
@@ -1376,27 +1376,29 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
                  end if
               end do
            end if !nloc
-        else if (at%npspcode(atit%ityp) == PSPCODE_PSPIO) then
-           ithread=0
-           nthread=1
-           pot = pspiof_pspdata_get_vlocal(at%pspio(atit%ityp))
-           !$omp parallel default(shared)&
-           !$omp private(ithread, r) &
-           !$omp firstprivate(dpbox%bitp) 
-           !$ ithread=omp_get_thread_num()
-           !$ nthread=omp_get_num_threads()
-           call box_iter_split(dpbox%bitp,nthread,ithread)
-           do while(box_next_point(dpbox%bitp))
-              r = max(1e-3, distance(dpbox%bitp%mesh, dpbox%bitp%rxyz, rxyz(:, atit%iat)))
-              pot_ion(dpbox%bitp%ind) = pot_ion(dpbox%bitp%ind) + &
-                   & pspiof_potential_eval(pot, r)
-           end do
-           call box_iter_merge(dpbox%bitp)
-           !$omp end parallel
-        else if (at%npspcode(atit%ityp) == PSPCODE_PAW) then
+!!$        else if (at%npspcode(atit%ityp) == PSPCODE_PSPIO) then
+!!$           ithread=0
+!!$           nthread=1
+!!$           pot = pspiof_pspdata_get_vlocal(at%pspio(atit%ityp))
+!!$           !$omp parallel default(shared)&
+!!$           !$omp private(ithread, r) &
+!!$           !$omp firstprivate(dpbox%bitp) 
+!!$           !$ ithread=omp_get_thread_num()
+!!$           !$ nthread=omp_get_num_threads()
+!!$           call box_iter_split(dpbox%bitp,nthread,ithread)
+!!$           do while(box_next_point(dpbox%bitp))
+!!$              r = max(1e-3, distance(dpbox%bitp%mesh, dpbox%bitp%rxyz, rxyz(:, atit%iat)))
+!!$              pot_ion(dpbox%bitp%ind) = pot_ion(dpbox%bitp%ind) + &
+!!$                   & pspiof_potential_eval(pot, r)
+!!$           end do
+!!$           call box_iter_merge(dpbox%bitp)
+!!$           !$omp end parallel
+        else if (at%npspcode(atit%ityp) == PSPCODE_PAW .or. &
+             & at%npspcode(atit%ityp) == PSPCODE_PSPIO) then
            !De-allocate the 1D temporary arrays for separability
            !call f_free(mpx,mpy,mpz)
-
+           if (at%npspcode(atit%ityp) == PSPCODE_PSPIO) &
+                & pot = pspiof_pspdata_get_vlocal(at%pspio(atit%ityp))
 
            ! For PAW, add V^PAW-V_L^HGH
            charge=real(at%nelpsp(atit%ityp),gp)
@@ -1434,12 +1436,16 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
                                 !from a quadratic interpolation (due to 1/rr factor)
                                 call interpol_vloc(rr1(1),rloc,charge,raux2)
                              end if
-                             !2) V^PAW from splines
-                             call paw_splint(at%pawtab(atit%ityp)%wvl%rholoc%msz, &
-                                  & at%pawtab(atit%ityp)%wvl%rholoc%rad, &
-                                  & at%pawtab(atit%ityp)%wvl%rholoc%d(:,3), &
-                                  & at%pawtab(atit%ityp)%wvl%rholoc%d(:,4), &
-                                  & 1,rr1,raux1,ierr)
+                             if (at%npspcode(atit%ityp) == PSPCODE_PAW) then
+                                !2) V^PAW from splines
+                                call paw_splint(at%pawtab(atit%ityp)%wvl%rholoc%msz, &
+                                     & at%pawtab(atit%ityp)%wvl%rholoc%rad, &
+                                     & at%pawtab(atit%ityp)%wvl%rholoc%d(:,3), &
+                                     & at%pawtab(atit%ityp)%wvl%rholoc%d(:,4), &
+                                     & 1,rr1,raux1,ierr)
+                             else
+                                raux1(1) = pspiof_potential_eval(pot, rr1(1))
+                             end if
                              ind=j1+indj23
                              pot_ion(ind)=pot_ion(ind)+raux1(1)-raux2
                           end if
