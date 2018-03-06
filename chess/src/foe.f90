@@ -165,6 +165,7 @@ module foe
       if (iproc==0) call yaml_mapping_open('S^-1/2')
       if (calculate_minusonehalf) then
           if (iproc==0) call yaml_map('Can take from memory',.false.)
+          write(*,*) 'iproc, sum(ovrlp_%matrix_compr)', iproc, sum(ovrlp_%matrix_compr)
           call overlap_plusminus_onehalf('minus', inversion_method, iproc, nproc, comm, &
                smats, smatl, ovrlp_, ovrlp_minus_one_half_, &
                ice_obj=ice_obj, pexsi_np_sym_fact=pexsi_np_sym_fact)
@@ -270,6 +271,7 @@ module foe
                chebyshev_polynomials, npl, scale_factor, shift_value, hamscal_compr, &
                smats=smats, ovrlp_=ovrlp_, ovrlp_minus_one_half_=ovrlp_minus_one_half_(1), &
                efarr=efarr, fscale_arr=fscale_arr, max_errorx=max_error)
+          write(*,*) 'iproc, sum(chebyshev_polynomials)', iproc, sum(chebyshev_polynomials)
 
           !!if (iproc==0) then
           !!    call yaml_mapping_open('summary',flow=.true.)
@@ -334,6 +336,7 @@ module foe
 
               call compress_matrix_distributed_wrapper(iproc, nproc, smatl, SPARSE_MATMUL_SMALL, &
                    fermi_check_new, ONESIDED_POST, fermi_check_compr(ilshift+1:), windowsx=windowsx_kernel_check(:,ispin))
+              write(*,*) 'iproc, sums fermi', iproc, sum(fermi_check_new), sum(fermi_check_compr)
 
               !!call retransform_ext(iproc, nproc, smatl, ONESIDED_POST, kernelpp_check_work(is+1:),  &
               !!     ovrlp_minus_one_half_(1)%matrix_compr(ilshift+1:), fermi_check_compr(ilshift+1:), &
@@ -991,6 +994,7 @@ module foe
                    ovrlp_mat=ovrlp_, inv_ovrlp=ovrlp_minus_one_half_, &
                    verbosity=verbosity_)
           end if
+          write(*,*) 'iproc, sums inv', iproc, sum(ovrlp_%matrix_compr), sum(ovrlp_minus_one_half_(1)%matrix_compr)
       else if (trim(method)=='SelInv') then
           if (.not.present(pexsi_np_sym_fact)) then
               call f_err_throw("To use Selected Inversion the argument 'pexsi_np_sym_fact' must be present")

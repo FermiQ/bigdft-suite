@@ -1166,6 +1166,7 @@ module get_kernel
     
       ! Calculate S^1/2 for the overlap matrix
       power=(/2,-2,1/)
+      write(*,*) 'iproc, sums general', iproc, sum(ovrlp%matrix_compr), sum(tmb%linmat%ovrlppowers_(1)%matrix_compr)
       call overlapPowerGeneral(iproc, nproc, bigdft_mpi%mpi_comm, &
            order_taylor, 3, power, -1, &
            imode=1, ovrlp_smat=tmb%linmat%smat(1), inv_ovrlp_smat=tmb%linmat%smat(3), &
