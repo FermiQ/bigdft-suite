@@ -875,12 +875,6 @@ module foe_common
               !    sum(mat2_large(ishift+1:ishift+smatl%nvctrp_tg))
           end if
 
-          if (with_overlap) then
-              write(*,*) 'B: iproc, smatl%smmm%istartendseg_mm, sums', iproc, smatl%smmm%istartendseg_mm, &
-                  sum(mat1_large), sum(mat2_large)
-          else
-              write(*,*) 'B: iproc, smatl%smmm%istartendseg_mm, sum(mat1_large)', iproc, smatl%smmm%istartendseg_mm, sum(mat1_large)
-          end if
           !$omp parallel if (smatl%smmm%istartendseg_mm(2)-smatl%smmm%istartendseg_mm(1)>100) &
           !$omp default(none) &
           !$omp shared(smatl, mat1_large, mat2_large, with_overlap, matscal_compr, scale_factor, shift_value) &
@@ -910,7 +904,6 @@ module foe_common
           end do
           !$omp end do
           !$omp end parallel
-          write(*,*) 'A: iproc, smatl%smmm%istartendseg_mm, sums', iproc, smatl%smmm%istartendseg_mm, sum(matscal_compr)
 
           call f_free(mat1_large)
           if (with_overlap) then
@@ -1643,18 +1636,14 @@ module foe_common
                   call prepare_matrix(smatl, ovrlp_minus_one_half, ham_eff)
                   !call sequential_acces_matrix_fast2(smatl, hamscal_compr, mat_seq)
                   call sparsemm_newnew(iproc, smatl, hamscal_compr, ham_eff, matmul_tmp)
-                  write(*,*) 'iproc, prepare sums', &
-                      iproc, sum(ovrlp_minus_one_half), sum(ham_eff), sum(hamscal_compr), sum(matmul_tmp)
                   call f_zero(ham_eff)
                   !call sequential_acces_matrix_fast2(smatl, ovrlp_minus_one_half, mat_seq)
                   call sparsemm_newnew(iproc, smatl, ovrlp_minus_one_half, matmul_tmp, ham_eff)
-                  write(*,*) 'iproc, smm sums', iproc, sum(matmul_tmp), sum(ham_eff)
                   !call f_free(mat_seq)
                   call f_free(matmul_tmp)
               end if
               call compress_matrix_distributed_wrapper(iproc, nproc, smatl, SPARSE_MATMUL_LARGE, &
                    ham_eff, ONESIDED_POST, workarr_compr, matrix_localx=matrix_local, windowsx=windows)
-              write(*,*) 'iproc, sum(ham_eff)', iproc, sum(ham_eff)
               call f_free(ham_eff)
           else
               call f_memcpy(src=hamscal_compr, dest=workarr_compr)
@@ -1700,10 +1689,8 @@ module foe_common
 
       emergency_stop=.false.
           if (with_overlap) then
-              write(*,*) 'iproc, sum(matrix_local)', iproc, sum(matrix_local)
               call compress_matrix_distributed_wrapper(iproc, nproc, smatl, SPARSE_MATMUL_LARGE, &
                    ham_eff, ONESIDED_GATHER, workarr_compr, matrix_localx=matrix_local, windowsx=windows)
-              write(*,*) 'iproc, smat%smmm%nvctrp_mm, sum', iproc, smatl%smmm%nvctrp_mm, sum(workarr_compr)
           end if
           if (measure_unbalance) then
               call mpibarrier(comm=comm)
@@ -1722,7 +1709,6 @@ module foe_common
                .false., &
                nsize_polynomial, 1, .false., mat, vectors_new, fermi_new, penalty_ev_new, chebyshev_polynomials, &
                emergency_stop)
-          write(*,*) 'iproc, sum workarr cheby', iproc, sum(workarr_compr), sum(chebyshev_polynomials)
           !write(*,*) 'sum(penalty_ev_new)',sum(penalty_ev_new)
           !write(*,*) 'cc(:,2,1)', cc(:,2,1)
           if (measure_unbalance) then
@@ -2085,7 +2071,6 @@ module foe_common
 
 
                           call calculate_trace_distributed_new(iproc, nproc, comm, smatl, fermi_small_new(:,jspin), tt)
-                          write(*,*) 'iproc, sum(fermi_small_new), tt', iproc, sum(fermi_small_new), tt
                           occupations(jspin) = tt
                           !write(*,*) 'jspin, trace', jspin, tt
                           sumn = sumn + tt

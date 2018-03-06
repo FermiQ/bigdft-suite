@@ -1068,8 +1068,8 @@ module sparsematrix
                          ii = jproc_send
                          jproc_send = get_rank_on_taskgroup(ii,iitg)
                          !call mpiget(matrix_compr(ist_recv), ncount, jproc_send, int(ist_send-1,kind=mpi_address_kind), window)
-                         write(*,'(6(a,i0))') 'task ',iproc,' gets ',ncount,' elements at position ',ist_recv, &
-                                              ' from task ',jproc_send,' with offset ',ist_send-1,' on window ',iitg
+                         !!write(*,'(6(a,i0))') 'task ',iproc,' gets ',ncount,' elements at position ',ist_recv, &
+                         !!                     ' from task ',jproc_send,' with offset ',ist_send-1,' on window ',iitg
                          call fmpi_get(matrix_compr(ist_recv),jproc_send,&
                               windows(iitg),ncount,int(ist_send-1,fmpi_address))
 !!$                         call mpiget(matrix_compr(ist_recv), ncount, jproc_send, &

@@ -401,8 +401,6 @@ module get_basis
                        check_accur=order_taylor<1000, max_error=max_error, mean_error=mean_error, &
                        ice_obj=tmb%ice_obj)
                   call check_taylor_order(iproc, mean_error, max_inversion_error, order_taylor)
-                  write(*,*) 'iproc, sums ortho', &
-                      iproc, sum(ovrlp_old%matrix_compr), sum(tmb%linmat%ovrlppowers_(1)%matrix_compr)
               end if
               !if (.not.energy_increased) then
               if (.not.recovered_old_kernel .and. .not.complete_reset) then
@@ -1512,7 +1510,6 @@ module get_basis
               call calculate_overlap_transposed(iproc, nproc, tmb%orbs, tmb%collcom, tmb%psit_c, &
                    tmb%psit_c, tmb%psit_f, tmb%psit_f, tmb%linmat%smat(1), tmb%linmat%auxs, tmb%linmat%ovrlp_)
               !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%smat(1), tmb%linmat%ovrlp_)
-              write(*,*) 'iproc, sum(tmb%linmat%ovrlp_%matrix_compr)', iproc, sum(tmb%linmat%ovrlp_%matrix_compr)
           end if
           call vcopy(tmb%ham_descr%collcom%ndimind_c, hpsit_c(1), 1, hpsittmp_c(1), 1)
           call vcopy(7*tmb%ham_descr%collcom%ndimind_f, hpsit_f(1), 1, hpsittmp_f(1), 1)

@@ -577,7 +577,6 @@ module sparsematrix_init
       sparsemat%smmm%istartend_mm(1) = ind_min
       sparsemat%smmm%istartend_mm(2) = ind_max
 
-      write(*,*) 'iproc, sparsemat%smmm%istartend_mm', iproc, sparsemat%smmm%istartend_mm
 
       ! Determine to which segments this corresponds
       sparsemat%smmm%istartendseg_mm(1)=sparsemat%nseg+1
@@ -3957,7 +3956,7 @@ module sparsematrix_init
           ind_min1 = ind_min
           ind_max1 = ind_max
 
-          write(*,'(a,3i8)') 'after init: iproc, ind_min1, ind_max1', iproc, ind_min1, ind_max1
+          !!write(*,'(a,3i8)') 'after init: iproc, ind_min1, ind_max1', iproc, ind_min1, ind_max1
 
           !@ NEW #####################################################################
           !@ Make sure that the min and max are at least as large as the reference
@@ -3999,8 +3998,8 @@ module sparsematrix_init
               write(*,*) 'iproc, ind_max, ind_max1', iproc, ind_max, ind_max1
               call f_err_throw('ind_max<ind_max1')
           end if
-          write(*,'(a,i3,3x,4(2i6,4x))') 'iproc, ind_min, ind_max, ind_min1, ind_max1, iirow, iicol', &
-              iproc, ind_min, ind_max,  ind_min1, ind_max1, iirow, iicol
+          !!write(*,'(a,i3,3x,4(2i6,4x))') 'iproc, ind_min, ind_max, ind_min1, ind_max1, iirow, iicol', &
+          !!    iproc, ind_min, ind_max,  ind_min1, ind_max1, iirow, iicol
           !@ END NEW #################################################################
 
 
@@ -6399,7 +6398,6 @@ module sparsematrix_init
 
 
      call check_compress_distributed_layout(smat,ind_min,ind_max)
-     write(*,*) 'after compr, iproc, ind_min, ind_max', iproc, ind_min, ind_max
      if (smat%smatmul_initialized) then
          !!call check_matmul_layout(smat%smmm%nseq,smat%smmm%indices_extract_sequential,ind_min,ind_max)
          ! The matrix as object of a matrix multiplication
@@ -6409,10 +6407,8 @@ module sparsematrix_init
          ind_max = max(ind_max,smat%smmm%istartend_mm(2))
          ind_min = min(ind_min,smat%smmm%isvctr_mm+1)
          ind_max = max(ind_max,smat%smmm%isvctr_mm+smat%smmm%nvctrp_mm)
-         write(*,*) 'after matmul, iproc, ind_min, ind_max', iproc, ind_min, ind_max
      end if
      call check_ortho_inguess(smat,ind_min,ind_max)
-     write(*,*) 'after ortho, iproc, ind_min, ind_max', iproc, ind_min, ind_max
      !!call check_projector_charge_analysis(iproc, nproc, smmd, smat, ind_min, ind_max)
 
    end subroutine get_sparsematrix_local_extent
