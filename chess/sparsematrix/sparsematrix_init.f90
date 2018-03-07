@@ -1439,6 +1439,7 @@ module sparsematrix_init
               !!call f_free(times)
               call f_free(column_startend)
               call f_free(times_col)
+              call deallocate_taskgroup_arrays(sparsemat)
 
           end if
           ! # NEW #########################################################################################
@@ -4718,7 +4719,7 @@ module sparsematrix_init
               smat%smmm%luccomm_smmm = f_malloc_ptr((/4,smat%smmm%nccomm_smmm/),id='smat%smmm%luccomm_smmm')
           else if (i==1) then
               smat%nccomm = ii
-              smat%luccomm = f_malloc_ptr((/4,smat%nccomm/),id='smatluccomm')
+              smat%luccomm = f_malloc_ptr((/4,smat%nccomm/),id='smat%smatluccomm')
           end if
 
           !!smat%smmm%luccomm_smmm = f_malloc_ptr((/4,smat%smmm%nccomm_smmm/),id='smat%smmm%luccomm_smmm')
@@ -6913,6 +6914,29 @@ module sparsematrix_init
          end function mb
 
     end subroutine write_matmul_memory
+
+
+    subroutine deallocate_taskgroup_arrays(smat)
+      use dynamic_memory
+      implicit none
+      ! Calling arguments
+      type(sparse_matrix),intent(inout) :: smat
+
+      call f_routine(id='deallocate_taskgroup_arrays')
+
+      call f_free_ptr(smat%transposed_lookup_local)
+      call f_free_ptr(smat%taskgroup_startend)
+      call f_free_ptr(smat%taskgroupid)
+      call f_free_ptr(smat%inwhichtaskgroup)
+      call f_free_ptr(smat%tgranks)
+      call f_free_ptr(smat%nranks)
+      call f_free_ptr(smat%luccomm)
+      call f_free_ptr(smat%smmm%luccomm_smmm)
+      deallocate(smat%mpi_groups)
+
+      call f_release_routine()
+
+    end subroutine deallocate_taskgroup_arrays
 
 
 end module sparsematrix_init
