@@ -902,7 +902,7 @@ subroutine applyprojectorsone(ntypes,nat,iatype,psppar,npspcode,nlpsp,&
                    nlpsp%pspd(iat)%plr%wfd%keyvglob(jseg_c),&
                    nlpsp%pspd(iat)%plr%wfd%keyglob(1,jseg_c),&
 !!$                   keyv_p(jseg_c),keyg_p(1,jseg_c),&
-                   nlpsp%proj(istart_c),psi,hpsi,eproj)
+                   nlpsp%pspd(iat)%proj(1),psi,hpsi,eproj)
               iproj=iproj+2*l-1
               istart_c=istart_c+(mbvctr_c+7*mbvctr_f)*(2*l-1)
            end if

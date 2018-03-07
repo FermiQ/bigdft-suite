@@ -688,7 +688,7 @@ module forces_linear
                                             mbvctr_c,mbvctr_f,mbseg_c,mbseg_f,&
                                             nlpsp%pspd(iiat)%plr%wfd%keyvglob(jseg_c),&
                                             nlpsp%pspd(iiat)%plr%wfd%keyglob(1,jseg_c),&
-                                            nlpsp%proj(istart_c),&
+                                            nlpsp%pspd(iiat)%proj(istart_c),&
                                             scpr)
                                        !if (scpr/=0.d0) then
                                        ! SM: In principle it would be sufficient to update only is_supfun_per_atom_tmp

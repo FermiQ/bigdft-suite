@@ -17,7 +17,8 @@ module psp_projectors_base
      type(wfd_to_wfd), dimension(:), pointer :: tolr !<maskings for the locregs, dimension noverlap
      integer,dimension(:),pointer :: lut_tolr !< lookup table for tolr, dimension noverlap
      integer :: noverlap !< number of locregs which overlap with the projectors of the given atom
-     real(wp), dimension(:), pointer :: proj !< A subptr of %proj
+     logical :: shared !< True when the proj is shared
+     real(wp), dimension(:), pointer :: proj !< A subptr of %proj when shared
   end type nonlocal_psp_descriptors
 
   integer, parameter :: PROJ_DESCRIPTION_GAUSSIAN = 1
@@ -57,7 +58,6 @@ module psp_projectors_base
      integer :: nproj,nprojel,natoms   !< Number of projectors and number of elements
      real(gp) :: zerovol               !< Proportion of zero components.
      type(atomic_projectors), dimension(:), pointer :: pbasis !< Projectors in their own basis.
-     real(wp), dimension(:), pointer :: proj !<storage space of the projectors in wavelet basis
      type(nonlocal_psp_descriptors), dimension(:), pointer :: pspd !<descriptor per projector, of size natom
      !> array to identify the order of the which are the atoms for which the density matrix is needed
      !! array of size natom,lmax
@@ -72,6 +72,7 @@ module psp_projectors_base
      real(wp), dimension(:), pointer :: cproj
      !> same quantity after application of the hamiltonian
      real(wp), dimension(:), pointer :: hcproj
+     real(wp), dimension(:), pointer :: shared_proj
   end type DFT_PSP_projectors
 
   type, public :: atomic_projector_iter
@@ -139,6 +140,7 @@ contains
     nullify(pspd%tolr)
     nullify(pspd%lut_tolr)
     pspd%noverlap=0
+    pspd%shared = .true.
     nullify(pspd%proj)
   end subroutine nullify_nonlocal_psp_descriptors
 
@@ -190,7 +192,7 @@ contains
     nullify(nl%pbasis)
     nullify(nl%iagamma)
     nullify(nl%gamma_mmp)
-    nullify(nl%proj)
+    nullify(nl%shared_proj)
     nullify(nl%pspd)
     nullify(nl%wpack)
     nullify(nl%scpr)
@@ -207,9 +209,7 @@ contains
     call free_tolr_ptr(pspd%tolr)
     call f_free_ptr(pspd%lut_tolr)
     call deallocate_locreg_descriptors(pspd%plr)
-    !currently not touching pspd%proj, since it is
-    !always a subptr of the main %proj, will later
-    !deallocate it when used in an on-demand strategy.
+    if (.not. pspd%shared .and. associated(pspd%proj)) call f_free_ptr(pspd%proj)
   end subroutine deallocate_nonlocal_psp_descriptors
 
   subroutine free_pspd_ptr(pspd)
@@ -263,7 +263,7 @@ contains
     call free_atomic_projectors_ptr(nl%pbasis)
     call f_free_ptr(nl%iagamma)
     call f_free_ptr(nl%gamma_mmp)
-    call f_free_ptr(nl%proj)
+    call f_free_ptr(nl%shared_proj)
     call f_free_ptr(nl%wpack)
     call f_free_ptr(nl%scpr)
     call f_free_ptr(nl%cproj)

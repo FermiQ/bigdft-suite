@@ -70,7 +70,7 @@ subroutine fillPcProjOnTheFly(PPD, Glr, iat, at, hx,hy,hz,startjorb,ecut_pc,   i
         Gocc(jorb)=1.0_wp
         ncplx=1
         call gaussians_to_wavelets_orb(ncplx,Plr,hx,hy,hz,kx,ky,kz,PPD%G,&
-             Gocc(1),PPD%pc_nl%proj(istart_c))
+             Gocc(1),PPD%pc_nl%shared_proj(1))
         Gocc(jorb)=0.0_wp
 
         !! ---------------  use this to plot projectors
@@ -167,7 +167,7 @@ subroutine fillPawProjOnTheFly(PAWD, Glr, iat,  hx,hy,hz,kx,ky,kz,startjorb,   i
      Gocc(jorb)=1.0_wp
 
      call gaussians_c_to_wavelets_orb(ncplx,Plr,hx,hy,hz,kx,ky,kz,PAWD%G,&
-          &   Gocc(1),  PAWD%paw_nl%proj(istart_c), cutoff  )
+          &   Gocc(1),  PAWD%paw_nl%shared_proj(1), cutoff  )
 
      Gocc(jorb)=0.0_wp
 !!$     !! ---------------  use this to plot projectors
@@ -361,7 +361,7 @@ subroutine createPcProjectorsArrays(iproc,nproc,n1,n2,n3,rxyz,at,orbs,&
   enddo
 
 
-  PPD%pc_nl%proj=f_malloc0_ptr(PPD%pc_nl%nprojel,id='pc_proj')
+  PPD%pc_nl%shared_proj=f_malloc0_ptr(PPD%pc_nl%nprojel,id='pc_proj')
 !  allocate(PPD%pc_nl%proj(PPD%pc_nl%nprojel+ndebug),stat=i_stat)
 !  call memocc(i_stat,PPD%pc_proj,'pc_proj',subname)
 
@@ -453,7 +453,7 @@ subroutine createPcProjectorsArrays(iproc,nproc,n1,n2,n3,rxyz,at,orbs,&
 !!$     call deallocate_nonlocal_psp_descriptors(PPD%pc_nl%pspd(iat))
 !!$  end do
 
-  call f_free_ptr(PPD%pc_nl%proj)
+  call f_free_ptr(PPD%pc_nl%shared_proj)
 
   call f_free(logrid)
   call f_free_ptr(Gocc)
@@ -549,7 +549,7 @@ subroutine createPawProjectorsArrays(iproc,n1,n2,n3,rxyz,at,orbs,&
      !for the moments the bounds are not needed for projectors
      call allocate_wfd(PAWD%paw_nl%pspd(iat)%plr%wfd)
   end do
-  PAWD%paw_nl%proj=f_malloc0_ptr(PAWD%paw_nl%nprojel,id='paw_proj')
+  PAWD%paw_nl%shared_proj=f_malloc0_ptr(PAWD%paw_nl%nprojel,id='paw_proj')
 
 !!$  allocate(PAWD%paw_proj(PAWD%paw_nlpspd%nprojel+ndebug),stat=i_stat)
 !!$  call memocc(i_stat,PAWD%paw_proj,'paw_proj',subname)

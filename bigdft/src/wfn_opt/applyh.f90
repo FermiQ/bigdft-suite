@@ -766,7 +766,7 @@ subroutine applyprojectorsonthefly(iproc,orbs,at,lr,&
            else
            !    HGH or GTH case:
               call apply_atproj_iorb_new(iat,iorb,istart_c,nlpsp%nprojel,&
-                   at,orbs,wfd,nlpsp%pspd(iat)%plr,nlpsp%proj,&
+                   at,orbs,wfd,nlpsp%pspd(iat)%plr,nlpsp%pspd(iat)%proj,&
                    psi(ispsi),hpsi(ispsi),eproj_sum)
            end if
            ispsi=ispsi+(wfd%nvctr_c+7*wfd%nvctr_f)*nspinor
@@ -1526,7 +1526,7 @@ subroutine apply_atproj_iorb_paw(iat,iorbp,istart_c,at,orbs,wfd,&
         mbvctr_c,mbvctr_f,mbseg_c,mbseg_f,&
         nlpsp%pspd(iat)%plr%wfd%keyvglob,& !nlpspd%keyv_p(jseg_c),
         nlpsp%pspd(iat)%plr%wfd%keyglob,& !nlpspd%keyg_p(1,jseg_c),&
-        nlpsp%proj,&
+        nlpsp%pspd(iat)%proj,&
         psi,hpsi,spsi,eproj_i,nlpsp%pbasis(iat)%gbasis,paw%paw_ij(iat),&
         at%pawtab(ityp)%lmn2_size,paw%cprj(iat,iorbp + orbs%isorb),&
         sij_opt,at%pawtab(ityp)%sij)  

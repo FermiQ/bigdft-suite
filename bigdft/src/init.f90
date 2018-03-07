@@ -327,7 +327,6 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
   !here the allocation is possible
   call allocate_arrays()
 
-  nl%proj=f_malloc0_ptr(nl%nprojel,id='proj')
   !for the work arrays assume always the maximum components
   nl%wpack=f_malloc_ptr(4*npack_dim,id='wpack')
   nl%scpr=f_malloc_ptr(4*2*mproj_max,id='scpr')
@@ -480,8 +479,10 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
      !calculate the wavelet expansion of projectors
      call fill_projectors(lr,[hx,hy,hz],at%astruct,ob,rxyz,nl,0)
   else
+     nl%shared_proj=f_malloc0_ptr(nl%nprojel,id='proj')
      do iat=1,at%astruct%nat
-        nl%pspd(iat)%proj => f_subptr(nl%proj, from = 1, size = nl%nprojel)
+        nl%pspd(iat)%proj => nl%shared_proj
+        nl%pspd(iat)%shared = .true.
      end do
   end if
 

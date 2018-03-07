@@ -201,20 +201,17 @@ contains
     implicit none
     type(pawproj_data_type), intent(inout) :: pawproj_data
 
-    if(associated(pawproj_data%paw_nl%proj)) then
+    call f_free_ptr(pawproj_data% ilr_to_mproj)
+    call f_free_ptr(pawproj_data%  iproj_to_l)
+    call f_free_ptr(pawproj_data%  iproj_to_paw_nchannels)
+    call f_free_ptr(pawproj_data%  iprojto_imatrixbeg)
+    call f_free_ptr(pawproj_data%  iorbtolr)
 
-       call f_free_ptr(pawproj_data% ilr_to_mproj)
-       call f_free_ptr(pawproj_data%  iproj_to_l)
-       call f_free_ptr(pawproj_data%  iproj_to_paw_nchannels)
-       call f_free_ptr(pawproj_data%  iprojto_imatrixbeg)
-       call f_free_ptr(pawproj_data%  iorbtolr)
+    call free_DFT_PSP_projectors(pawproj_data%paw_nl)
 
-       call free_DFT_PSP_projectors(pawproj_data%paw_nl)
-
-       if(pawproj_data%DistProjApply) then
-          call deallocate_gwf_c(pawproj_data%G)
-       endif
-    end if
+    if(pawproj_data%DistProjApply) then
+       call deallocate_gwf_c(pawproj_data%G)
+    endif
 
   END SUBROUTINE deallocate_pawproj_data
 
@@ -225,22 +222,17 @@ contains
     implicit none
     type(pcproj_data_type), intent(inout) :: pcproj_data
     
-    if(associated(pcproj_data%pc_nl%proj)) then
-       call f_free_ptr( pcproj_data% ilr_to_mproj)
-       call f_free_ptr(  pcproj_data% iproj_to_ene)
-       call f_free_ptr(  pcproj_data% iproj_to_factor)
-       call f_free_ptr(pcproj_data%  iproj_to_l)
-       call f_free_ptr(pcproj_data%  iorbtolr)
-       call f_free_ptr(pcproj_data%  gaenes)
-       call free_DFT_PSP_projectors(pcproj_data%pc_nl)
+    call f_free_ptr( pcproj_data% ilr_to_mproj)
+    call f_free_ptr(  pcproj_data% iproj_to_ene)
+    call f_free_ptr(  pcproj_data% iproj_to_factor)
+    call f_free_ptr(pcproj_data%  iproj_to_l)
+    call f_free_ptr(pcproj_data%  iorbtolr)
+    call f_free_ptr(pcproj_data%  gaenes)
+    call free_DFT_PSP_projectors(pcproj_data%pc_nl)
 
-       if(pcproj_data%DistProjApply) then
-          call deallocate_gwf(pcproj_data%G)
-       endif
-
-
-    end if
-
+    if(pcproj_data%DistProjApply) then
+       call deallocate_gwf(pcproj_data%G)
+    endif
   END SUBROUTINE deallocate_pcproj_data
 
 
@@ -377,7 +369,7 @@ contains
                                        mbvctr_c,mbvctr_f,mbseg_c,mbseg_f,&
                                        PAWD%paw_nl%pspd(iat)%plr%wfd%keyvglob(jseg_c),&
                                        PAWD%paw_nl%pspd(iat)%plr%wfd%keyglob(1,jseg_c),&
-                                       PAWD%paw_nl%proj(istart_c),&
+                                       PAWD%paw_nl%pspd(iat)%proj(1),&
                                        dotbuffer( ibuffer ) )
                                end if
                                ibuffer=ibuffer + (ncplx-1)
@@ -470,7 +462,7 @@ contains
 !!$                                 &   PAWD%paw_nlpspd%keyv_p(jseg_c),PAWD%paw_nlpspd%keyg_p(1,jseg_c),&
                                     PAWD%paw_nl%pspd(iat)%plr%wfd%keyvglob(jseg_c),&
                                     PAWD%paw_nl%pspd(iat)%plr%wfd%keyglob(1,jseg_c),&
-                                    PAWD%paw_nl%proj(istart_c),&
+                                    PAWD%paw_nl%pspd(iat)%proj(1),&
                                     Glr%wfd%nvctr_c,Glr%wfd%nvctr_f,Glr%wfd%nseg_c,Glr%wfd%nseg_f,&
                                     Glr%wfd%keyvglob(1),Glr%wfd%keyglob(1,1),&
                                     hpsi(ispsi+(ispinor-1)*(orbs%npsidim_orbs/orbs%nspinor)  )&
@@ -617,7 +609,7 @@ contains
                         PPD%pc_nl%pspd(iat)%plr%wfd%keyvglob(jseg_c),&
                         PPD%pc_nl%pspd(iat)%plr%wfd%keyglob(1,jseg_c),&
 !!$                       PPD%pc_nlpspd%keyv_p(jseg_c),PPD%pc_nlpspd%keyg_p(1,jseg_c),&
-                        PPD%pc_nl%proj(istart_c),&
+                        PPD%pc_nl%pspd(iat)%proj(1),&
                         psi(ispsi+ (ispinor-1)*(orbs%npsidim_orbs/orbs%nspinor)  ),&
                         hpsi(ispsi+(ispinor-1)*(orbs%npsidim_orbs/orbs%nspinor)  ),&
                         eproj_spinor)

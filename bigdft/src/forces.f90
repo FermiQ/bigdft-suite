@@ -872,6 +872,7 @@ subroutine nonlocal_forces(lr,hx,hy,hz,at,rxyz,&
   use ao_inguess, only: lmax_ao
   use compression
   use locregs
+  use psp_projectors_base
   implicit none
   !Arguments-------------
   type(atoms_data), intent(in) :: at
@@ -899,6 +900,8 @@ subroutine nonlocal_forces(lr,hx,hy,hz,at,rxyz,&
   real(gp), dimension(:,:), allocatable :: fxyz_orb
   real(dp), dimension(:,:,:,:,:,:,:), allocatable :: scalprod
   real(gp), dimension(6) :: sab
+
+  type(atomic_projector_iter) :: iter
 
   call f_routine(id=subname)
   call f_zero(strten)
@@ -1012,7 +1015,7 @@ subroutine nonlocal_forces(lr,hx,hy,hz,at,rxyz,&
                                      mbvctr_c,mbvctr_f,mbseg_c,mbseg_f,&
                                      nlpsp%pspd(iat)%plr%wfd%keyvglob(jseg_c),&
                                      nlpsp%pspd(iat)%plr%wfd%keyglob(1,jseg_c),&
-                                     nlpsp%proj(istart_c),&
+                                     nlpsp%pspd(iat)%proj(istart_c),&
                                      scalprod(1,idir,m,i,l,iat,jorb))
                                 istart_c=istart_c+(mbvctr_c+7*mbvctr_f)*ncplx
                                 !write(*,'(a,6i6,es16.8)') 'idir,m,i,l,iat,jorb,scalprod',&
@@ -1062,13 +1065,13 @@ subroutine nonlocal_forces(lr,hx,hy,hz,at,rxyz,&
                  jorb=jorb+1
                  ! loop over all projectors of this k-point
                  iproj=0
-                 istart_c=istart_ck
                  do iat=1,at%astruct%nat
                     call plr_segs_and_vctrs(nlpsp%pspd(iat)%plr,&
                          mbseg_c,mbseg_f,mbvctr_c,mbvctr_f)
                     jseg_c=1
                     jseg_f=1
                     ityp=at%astruct%iatype(iat)
+                    istart_c=1
                     do l=1,4
                        do i=1,3
                           if (at%psppar(l,i,ityp) /= 0.0_gp) then
@@ -1080,7 +1083,7 @@ subroutine nonlocal_forces(lr,hx,hy,hz,at,rxyz,&
                                      mbvctr_c,mbvctr_f,mbseg_c,mbseg_f,&
                                      nlpsp%pspd(iat)%plr%wfd%keyvglob(jseg_c),&
                                      nlpsp%pspd(iat)%plr%wfd%keyglob(1,jseg_c),&
-                                     nlpsp%proj(istart_c),scalprod(1,idir,m,i,l,iat,jorb))
+                                     nlpsp%pspd(iat)%proj(istart_c),scalprod(1,idir,m,i,l,iat,jorb))
                                 istart_c=istart_c+(mbvctr_c+7*mbvctr_f)*ncplx
                !write(*,'(a,6i6,es16.8)') 'idir,m,i,l,iat,jorb,scalprod',idir,m,i,l,iat,jorb,scalprod(1,idir,m,i,l,iat,jorb)
                              end do
@@ -1092,12 +1095,10 @@ subroutine nonlocal_forces(lr,hx,hy,hz,at,rxyz,&
               end do
               if (iproj /= nlpsp%nproj) stop '1:applyprojectors'
            end do
-           istart_ck=istart_c
            if (ieorb == ob%orbs%norbp) exit loop_kpt
            ikpt=ikpt+1
            ispsi_k=ispsi
         end do loop_kpt
-        if (istart_ck-1  /= nlpsp%nprojel) stop '2:applyprojectors'
 
      end do
 

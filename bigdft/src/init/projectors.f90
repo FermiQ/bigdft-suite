@@ -457,8 +457,12 @@ subroutine fill_projectors(lr,hgrids,astruct,ob,rxyz,nlpsp,idir)
            thereissome=.true.
            call atomic_projector_iter_new(iter, nlpsp%pbasis(atit%iat), &
                 & nlpsp%pspd(atit%iat)%plr, psi_it%kpoint)
-           nlpsp%pspd(atit%iat)%proj => f_subptr(nlpsp%proj, from = istart_c, &
-                & size = iter%nproj * iter%nc)
+           if (.not. associated(nlpsp%pspd(atit%iat)%proj) .or. &
+                & size(nlpsp%pspd(atit%iat)%proj) < iter%nproj * iter%nc) then
+              if (associated(nlpsp%pspd(atit%iat)%proj)) &
+                   & call f_free_ptr(nlpsp%pspd(atit%iat)%proj)
+              nlpsp%pspd(atit%iat)%proj = f_malloc_ptr(iter%nproj * iter%nc)
+           end if
            call atomic_projector_iter_set_destination(iter, nlpsp%pspd(atit%iat)%proj)
            if (nlpsp%method == PROJECTION_1D_SEPARABLE) then
               if (nlpsp%pbasis(atit%iat)%kind == PROJ_DESCRIPTION_GAUSSIAN) then

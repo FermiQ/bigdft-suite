@@ -1516,7 +1516,7 @@ subroutine NonLocalHamiltonianApplication_old(iproc,at,npsidim_orbs,orbs,&
                  ispsi=ispsi_k
                  istart_c=1
 
-                 call apply_oneproj_operator(nl%pspd(iat)%plr%wfd,nl%proj(istart_c),hp,&
+                 call apply_oneproj_operator(nl%pspd(iat)%plr%wfd,nl%pspd(iat)%proj(1),hp,&
                       (ieorb-isorb+1)*nspinor,Lzd%Llr(ilr)%wfd,psi(ispsi),hpsi(ispsi),scpr)
 
               !call cpu_time(tr1)
@@ -1711,7 +1711,7 @@ contains
        call hgh_hij_matrix(at%npspcode(iatype),at%psppar(0,0,iatype),hij)
 
        call NL_HGH_application(hij,&
-            ncplx_p,mproj,nl%pspd(iat)%plr%wfd,nl%proj(istart_c),&
+            ncplx_p,mproj,nl%pspd(iat)%plr%wfd,nl%pspd(iat)%proj(1),&
             ncplx_w,n_w,Lzd%Llr(ilr)%wfd,nl%pspd(iat)%tolr(iilr),nl%wpack,nl%scpr,nl%cproj,nl%hcproj,&
             psi(ispsi),hpsi(ispsi),eproj)
 
@@ -1730,7 +1730,7 @@ contains
           call apply_atproj_iorb_new(iat,iorb,istart_c,&
                nl%nprojel,&
                at,orbs,Lzd%Llr(ilr)%wfd,nl%pspd(iat)%plr,&
-               nl%proj,psi(ispsi),hpsi(ispsi),eproj_sum)
+               nl%pspd(iat)%proj,psi(ispsi),hpsi(ispsi),eproj_sum)
        end if
     end if
   end subroutine nl_psp_application_old

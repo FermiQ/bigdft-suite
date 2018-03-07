@@ -1616,9 +1616,8 @@ program memguess
            & runObj%atoms%astruct%rxyz,runObj%atoms,ob, &
            & runObj%inputs%frmult,runObj%inputs%frmult, &
            & runObj%rst%KSwfn%Lzd%hgrids(1),runObj%rst%KSwfn%Lzd%hgrids(2), &
-           & runObj%rst%KSwfn%Lzd%hgrids(3),.false.,nlpsp,.true.)
+           & runObj%rst%KSwfn%Lzd%hgrids(3),runObj%inputs%projection,.false.,nlpsp,.true.)
       call orbital_basis_release(ob)
-      call f_free_ptr(nlpsp%proj)
       ikpt = 1
       iat = 1
       iproj = 1
@@ -1633,7 +1632,7 @@ program memguess
 !!$      ! Doing this is buggy.
 !!$      runObj%rst%KSwfn%Lzd%Glr%wfd = nlpsp%pspd(iat)%plr%wfd
       call plot_wf(.false.,filename_wfn,1,runObj%atoms,1.0_wp,nlpsp%pspd(iat)%plr, &
-           & runObj%rst%KSwfn%Lzd%hgrids,runObj%atoms%astruct%rxyz, nlpsp%proj(1:))
+           & runObj%rst%KSwfn%Lzd%hgrids,runObj%atoms%astruct%rxyz,nlpsp%pspd(iat)%proj(1:))
    end if
 
    if (GPUtest) then
@@ -2465,9 +2464,6 @@ subroutine take_proj_from_file(filename, hx, hy, hz, nl, at, rxyz, &
      i = index(filename, ".", back = .true.)+1
      if (i > 2) read(filename(i:i+2),*) iproj
 
-     nl%proj = f_malloc_ptr(nl%pspd(iat)%plr%wfd%nvctr_c + &
-          & 7 * nl%pspd(iat)%plr%wfd%nvctr_f, id = "proj")
-
      !conditions for periodicity in the three directions
      perx=(at%astruct%geocode /= 'F')
      pery=(at%astruct%geocode == 'P')
@@ -2491,7 +2487,7 @@ subroutine take_proj_from_file(filename, hx, hy, hz, nl, at, rxyz, &
 
      call readonewave(99, (iformat == WF_FORMAT_PLAIN),iproj,0,&
           & nl%pspd(iat)%plr%d%n1,nl%pspd(iat)%plr%d%n2,nl%pspd(iat)%plr%d%n3, &
-          & hx,hy,hz,at,nl%pspd(iat)%plr%wfd,rxyz_file,rxyz,nl%proj,eproj,psifscf)
+          & hx,hy,hz,at,nl%pspd(iat)%plr%wfd,rxyz_file,rxyz,nl%pspd(iat)%proj,eproj,psifscf)
 
      close(99)
 
