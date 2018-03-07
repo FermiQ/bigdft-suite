@@ -593,6 +593,7 @@
    -  [ 3.7937E-05,  9.6189E-01,  3.0684E-06]
    -  [ 3.7937E-05,  3.0684E-06,  9.6189E-01]
    trace                               : -2.26E-13
+ Spreads of the electronic density (AU):  [  8.671842E-01,  7.692159E-01,  7.692159E-01 ]
  Calculate local forces: Yes
  Calculate NLCC forces                 :  Yes
  Calculate Non Local forces            :  Yes

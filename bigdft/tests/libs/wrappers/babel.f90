@@ -110,14 +110,16 @@ program babel
          call set(frag//trim(yaml_toa(id))//'name',fragname)
          call add(frag//trim(yaml_toa(id))//'atoms',iat)
       end do
+      fileunit=12
+      call f_open_file(fileunit,'frag.yaml')
       call dict_init(frag_list)
+      call yaml_set_stream(unit=fileunit)
       do id=1,ifrag_max
          iter=>frag//trim(yaml_toa(id))//'atoms'
          call dict_copy(dest=frag_list//id-1,src=iter)
       end do
-      fileunit=12
-      call f_open_file(fileunit,'frag.yaml')
-      call yaml_dict_dump(frag_list,unit=fileunit)
+      call yaml_dict_dump(frag_list,flow=.true.)
+      call yaml_close_stream(unit=fileunit)
       call f_close(fileunit)
 
       call dict_free(frag_list,frag)
