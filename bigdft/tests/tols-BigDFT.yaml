@@ -795,7 +795,8 @@ molecule_foe:
  EBS higher temperature: 4.4e-9
  EBS: 4.4e-9
  Energy (Hartree): 1.2e-10
- difference: 1.0e-10
+ difference: 4.7e-08
+ relative difference: 4.9e-10
  Maxdiff for transpose (checksum): 1.9e-09
  trace(Ktilde): 1.0e-9
  ENERGY: 8.2e-10
@@ -2922,7 +2923,8 @@ matrixtaskgroups_yes:
   Ion-Ion interaction energy: 2.9e-10
   Omega: 3.8e-09
   Total charge: 2.1e-10
-  difference: 7.1e-11
+  difference: 2.5e-07
+  relative difference: 4.0e-10
   energy: 3.9e-09
   trace: 1.51e-06
   trace(Ktilde): 4.8e-11
@@ -2990,11 +2992,11 @@ metals_errorfunction:
    Omega old: 2.6e-09
    Total charge: 2.1e-11
    Tr(K): 5.1e-06
-   difference: 4.0e-09
+   difference: 5.0e-08
    eTS: 6.1e-10
    TS: 1.2e-10
    q1: 1.1e-08
-   relative difference: 1.3e-09
+   relative difference: 4.8e-08
    trace: 7.4e-11
    Average noise forces: 9.1e-9
    Clean forces norm (Ha/Bohr): 7.7e-9
@@ -3021,12 +3023,12 @@ metals_fermifunction:
   LUMO energy: 1.7e-10
   Maxdiff for transpose (checksum): 1.2e-10
   Total charge: 2.1e-11
-  difference: 4.3e-10
+  difference: 3.3e-7
   eTS: 3.5e-11
   TS: 3.5e-11
   energy: 5.3-10
   q2: 1.1e-10
-  relative difference: 7.1e-11
+  relative difference: 4.3e-08
   trace: 6.7e-11
   Average noise forces: 2.1e-10
   Raw forces norm (Ha/Bohr): 9.0e-11
@@ -3094,14 +3096,14 @@ metals_diag:
    HOMO energy: 1.1e-08
    HOMO-LUMO gap (Ha): 1.9e-11
    HOMO-LUMO gap (eV): 5.2e-10
-   Omega: 1.2e-10
+   Omega: 1.3e-10
    LUMO energy: 1.1e-08
    Maxdiff for transpose (checksum): 1.2e-10
    Omega new: 2.4e-09
    Omega old: 2.4e-09
    Total charge: 2.1e-11
    Tr(K): 6.1e-06
-   difference: 5.2e-09
+   difference: 7.0e-09
    e: 1.1e-08
    eF: 2.0e-08
    TS: 1.4e-09
