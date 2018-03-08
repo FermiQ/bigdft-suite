@@ -448,7 +448,7 @@ module forces_linear
       use module_base
       use module_types, only: atoms_data, local_zone_descriptors, &
                               DFT_PSP_projectors, orbitals_data
-      use psp_projectors, only: projector_has_overlap
+      use psp_projectors, only: DFT_PSP_projector_iter, DFT_PSP_projectors_iter_new, DFT_PSP_projectors_iter_next
       implicit none
     
       ! Calling arguments
@@ -463,6 +463,7 @@ module forces_linear
       !logical :: projector_has_overlap
 
       ! Local variables
+      type(DFT_PSP_projector_iter) :: iter
       integer :: ikpt, ii, isorb, ieorb, iorb, iiorb, ilr, nspinor, iat, iiat, ityp 
 
       call f_routine(id='determine_dimension_scalprod')
@@ -485,25 +486,14 @@ module forces_linear
     
                call orbs_in_kpt(ikpt,orbs,isorb,ieorb,nspinor)
     
-    
-               do iat=1,natp
-                  iiat = iat+isat-1
-    
-                  ityp=at%astruct%iatype(iiat)
-                  ii = 0
-                  do iorb=isorb,ieorb
-                     iiorb=orbs%isorb+iorb
-                     ilr=orbs%inwhichlocreg(iiorb)
-                     ! Check whether there is an overlap between projector and support functions
-                     if (.not.projector_has_overlap(ilr, lzd%llr(ilr), lzd%glr, nlpsp%pspd(iat))) then
-                        cycle 
-                     else
-                        ii = ii +1
-                     end if
+               do iorb=isorb,ieorb
+                  iiorb=orbs%isorb+iorb
+                  ilr=orbs%inwhichlocreg(iiorb)
+                  call DFT_PSP_projectors_iter_new(iter, nlpsp)
+                  do while (DFT_PSP_projectors_iter_next(iter, ilr, lzd%llr(ilr), lzd%glr))
+                     supfun_per_atom(iter%iat) = supfun_per_atom(iter%iat) + 1
+                     nscalprod_send = nscalprod_send + ii
                   end do
-                  nscalprod_send = nscalprod_send + ii
-                  supfun_per_atom(iat) = supfun_per_atom(iat) + ii
-    
                end do
     
                if (ieorb == orbs%norbp) exit loop_kptD
@@ -632,7 +622,8 @@ module forces_linear
                      iiorb=orbs%isorb+iorb
                      ilr=orbs%inwhichlocreg(iiorb)
                      ! Check whether there is an overlap between projector and support functions
-                     if (projector_has_overlap(ilr, lzd%llr(ilr), lzd%glr, nlpsp%pspd(iat))) then
+                     if (nlpsp%projs(iat)%mproj > 0 .and. &
+                          & projector_has_overlap(ilr, lzd%llr(ilr), lzd%glr, nlpsp%projs(iiat)%region)) then
                         need_proj=.true.
                         exit
                      end if
@@ -641,7 +632,7 @@ module forces_linear
                   if (.not. need_proj) cycle
     
     
-                  call plr_segs_and_vctrs(nlpsp%pspd(iiat)%plr,&
+                  call plr_segs_and_vctrs(nlpsp%projs(iiat)%region%plr,&
                        mbseg_c,mbseg_f,mbvctr_c,mbvctr_f)
                   jseg_c=1
                   jseg_f=1
@@ -668,7 +659,7 @@ module forces_linear
                         iiorb=orbs%isorb+iorb
                         ilr=orbs%inwhichlocreg(iiorb)
                         ! Check whether there is an overlap between projector and support functions
-                        if (.not.projector_has_overlap(ilr, lzd%llr(ilr), lzd%glr, nlpsp%pspd(iat))) then
+                        if (.not.projector_has_overlap(ilr, lzd%llr(ilr), lzd%glr, nlpsp%projs(iat)%region)) then
                            jorb=jorb+1
                            ispsi=ispsi+(lzd%llr(ilr)%wfd%nvctr_c+7*lzd%llr(ilr)%wfd%nvctr_f)*ncplx
                            cycle 
@@ -686,9 +677,9 @@ module forces_linear
                                             lzd%llr(ilr)%wfd%nseg_c,lzd%llr(ilr)%wfd%nseg_f,&
                                             lzd%llr(ilr)%wfd%keyvglob,lzd%llr(ilr)%wfd%keyglob,phi(ispsi),&
                                             mbvctr_c,mbvctr_f,mbseg_c,mbseg_f,&
-                                            nlpsp%pspd(iiat)%plr%wfd%keyvglob(jseg_c),&
-                                            nlpsp%pspd(iiat)%plr%wfd%keyglob(1,jseg_c),&
-                                            nlpsp%pspd(iiat)%proj(istart_c),&
+                                            nlpsp%projs(iiat)%region%plr%wfd%keyvglob(jseg_c),&
+                                            nlpsp%projs(iiat)%region%plr%wfd%keyglob(1,jseg_c),&
+                                            nlpsp%shared_proj(istart_c),&
                                             scpr)
                                        !if (scpr/=0.d0) then
                                        ! SM: In principle it would be sufficient to update only is_supfun_per_atom_tmp

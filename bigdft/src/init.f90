@@ -217,9 +217,7 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
      cpmult,fpmult,hx,hy,hz,method,dry_run,nl,&
      init_projectors_completely)
   use module_base
-  use psp_projectors_base, only: DFT_PSP_projectors_null, nonlocal_psp_descriptors_null, &
-       & PROJ_DESCRIPTION_GAUSSIAN, PROJ_DESCRIPTION_PSPIO, allocate_atomic_projectors_ptr, &
-       & rfunc_basis_from_pspio
+  use psp_projectors_base
   use psp_projectors, only: bounds_to_plr_limits
   use module_types
   use gaussians, only: gaussian_basis, gaussian_basis_from_psp, gaussian_basis_from_paw
@@ -342,16 +340,16 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
 
   nseg = 0
   do iat=1,at%astruct%nat
-      nseg = max(nseg,nl%pspd(iat)%plr%wfd%nseg_c + nl%pspd(iat)%plr%wfd%nseg_f)
+      nseg = max(nseg,nl%projs(iat)%region%plr%wfd%nseg_c + nl%projs(iat)%region%plr%wfd%nseg_f)
   end do
   reducearr = f_malloc0((/5*nseg+9,at%astruct%nat/),id='reducearr')
 
   ! After having determined the size of the projector descriptor arrays fill them
   !do iat=1,at%astruct%nat
   do iat=isat+1,isat+natp
-     if (nl%pspd(iat)%mproj > 0) then
+     if (nl%projs(iat)%mproj > 0) then
 
-        call bounds_to_plr_limits(.false.,1,nl%pspd(iat)%plr,&
+        call bounds_to_plr_limits(.false.,1,nl%projs(iat)%region%plr,&
              nl1,nl2,nl3,nu1,nu2,nu3)
 
 !!$        !most likely the call can here be replaced by
@@ -365,30 +363,30 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
              cpmult,hx,hy,hz,logrid)
 
         call segkeys(n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,logrid,&
-             nl%pspd(iat)%plr%wfd%nseg_c,&
-             nl%pspd(iat)%plr%wfd%keyglob(1,1),nl%pspd(iat)%plr%wfd%keyvglob(1))
+             nl%projs(iat)%region%plr%wfd%nseg_c,&
+             nl%projs(iat)%region%plr%wfd%keyglob(1,1),nl%projs(iat)%region%plr%wfd%keyvglob(1))
 
-        call transform_keyglob_to_keygloc(lr,nl%pspd(iat)%plr,nl%pspd(iat)%plr%wfd%nseg_c,&
-             nl%pspd(iat)%plr%wfd%keyglob,nl%pspd(iat)%plr%wfd%keygloc)
+        call transform_keyglob_to_keygloc(lr,nl%projs(iat)%region%plr,nl%projs(iat)%region%plr%wfd%nseg_c,&
+             nl%projs(iat)%region%plr%wfd%keyglob,nl%projs(iat)%region%plr%wfd%keygloc)
 
         ! fine grid quantities
-        call bounds_to_plr_limits(.false.,2,nl%pspd(iat)%plr,&
+        call bounds_to_plr_limits(.false.,2,nl%projs(iat)%region%plr,&
              nl1,nl2,nl3,nu1,nu2,nu3)
 
         call fill_logrid(at%astruct%geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,0,1,  &
              & at%astruct%ntypes,at%astruct%iatype(iat),rxyz(1,iat),at%radii_cf(1,2),&
              fpmult,hx,hy,hz,logrid)
 
-        mseg=nl%pspd(iat)%plr%wfd%nseg_f
-        iseg=nl%pspd(iat)%plr%wfd%nseg_c+1
+        mseg=nl%projs(iat)%region%plr%wfd%nseg_f
+        iseg=nl%projs(iat)%region%plr%wfd%nseg_c+1
 
         if (mseg > 0) then
            call segkeys(n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,  &
-                logrid,mseg,nl%pspd(iat)%plr%wfd%keyglob(1,iseg),&
-                nl%pspd(iat)%plr%wfd%keyvglob(iseg))
+                logrid,mseg,nl%projs(iat)%region%plr%wfd%keyglob(1,iseg),&
+                nl%projs(iat)%region%plr%wfd%keyvglob(iseg))
 
-           call transform_keyglob_to_keygloc(lr,nl%pspd(iat)%plr,mseg,nl%pspd(iat)%plr%wfd%keyglob(1,iseg),&
-                nl%pspd(iat)%plr%wfd%keygloc(1,iseg))
+           call transform_keyglob_to_keygloc(lr,nl%projs(iat)%region%plr,mseg,nl%projs(iat)%region%plr%wfd%keyglob(1,iseg),&
+                nl%projs(iat)%region%plr%wfd%keygloc(1,iseg))
         end if
         !!!in the case of linear scaling this section has to be built again
         !!if (init_projectors_completely) then
@@ -402,23 +400,23 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
         !!nl%pspd(iat)%plr%wfd%keyvloc => nl%pspd(iat)%plr%wfd%keyvglob
 
         ! Copy the data for the communication
-        nseg = nl%pspd(iat)%plr%wfd%nseg_c + nl%pspd(iat)%plr%wfd%nseg_f
+        nseg = nl%projs(iat)%region%plr%wfd%nseg_c + nl%projs(iat)%region%plr%wfd%nseg_f
         ist = 1
-        call vcopy(2*nseg, nl%pspd(iat)%plr%wfd%keyglob(1,1), 1, reducearr(ist,iat), 1)
+        call vcopy(2*nseg, nl%projs(iat)%region%plr%wfd%keyglob(1,1), 1, reducearr(ist,iat), 1)
         ist = ist + 2*nseg
-        call vcopy(nseg, nl%pspd(iat)%plr%wfd%keyvglob(1), 1, reducearr(ist,iat), 1)
+        call vcopy(nseg, nl%projs(iat)%region%plr%wfd%keyvglob(1), 1, reducearr(ist,iat), 1)
         ist = ist + nseg
-        call vcopy(2*nseg, nl%pspd(iat)%plr%wfd%keygloc(1,1), 1, reducearr(ist,iat), 1)
+        call vcopy(2*nseg, nl%projs(iat)%region%plr%wfd%keygloc(1,1), 1, reducearr(ist,iat), 1)
         ist = ist + 2*nseg
-        reducearr(ist+0,iat) = nl%pspd(iat)%plr%d%n1
-        reducearr(ist+1,iat) = nl%pspd(iat)%plr%d%n2
-        reducearr(ist+2,iat) = nl%pspd(iat)%plr%d%n3
-        reducearr(ist+3,iat) = nl%pspd(iat)%plr%d%nfl1
-        reducearr(ist+4,iat) = nl%pspd(iat)%plr%d%nfl2
-        reducearr(ist+5,iat) = nl%pspd(iat)%plr%d%nfl3
-        reducearr(ist+6,iat) = nl%pspd(iat)%plr%d%nfu1
-        reducearr(ist+7,iat) = nl%pspd(iat)%plr%d%nfu2
-        reducearr(ist+8,iat) = nl%pspd(iat)%plr%d%nfu3
+        reducearr(ist+0,iat) = nl%projs(iat)%region%plr%d%n1
+        reducearr(ist+1,iat) = nl%projs(iat)%region%plr%d%n2
+        reducearr(ist+2,iat) = nl%projs(iat)%region%plr%d%n3
+        reducearr(ist+3,iat) = nl%projs(iat)%region%plr%d%nfl1
+        reducearr(ist+4,iat) = nl%projs(iat)%region%plr%d%nfl2
+        reducearr(ist+5,iat) = nl%projs(iat)%region%plr%d%nfl3
+        reducearr(ist+6,iat) = nl%projs(iat)%region%plr%d%nfu1
+        reducearr(ist+7,iat) = nl%projs(iat)%region%plr%d%nfu2
+        reducearr(ist+8,iat) = nl%projs(iat)%region%plr%d%nfu3
         !@todo: broadcast the meshes also, please.
      endif
   enddo
@@ -426,48 +424,55 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
   ! Distribute the data to all process, using an allreduce
   call fmpi_allreduce(reducearr, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
   do iat=1,at%astruct%nat
-      if (nl%pspd(iat)%mproj == 0) cycle
+      if (nl%projs(iat)%mproj == 0) cycle
 
-      nseg = nl%pspd(iat)%plr%wfd%nseg_c + nl%pspd(iat)%plr%wfd%nseg_f
+      nseg = nl%projs(iat)%region%plr%wfd%nseg_c + nl%projs(iat)%region%plr%wfd%nseg_f
       ist = 1
-      call vcopy(2*nseg, reducearr(ist,iat), 1, nl%pspd(iat)%plr%wfd%keyglob(1,1), 1)
+      call vcopy(2*nseg, reducearr(ist,iat), 1, nl%projs(iat)%region%plr%wfd%keyglob(1,1), 1)
       ist = ist + 2*nseg
-      call vcopy(nseg, reducearr(ist,iat), 1, nl%pspd(iat)%plr%wfd%keyvglob(1), 1)
+      call vcopy(nseg, reducearr(ist,iat), 1, nl%projs(iat)%region%plr%wfd%keyvglob(1), 1)
       ist = ist + nseg
-      call vcopy(2*nseg, reducearr(ist,iat), 1, nl%pspd(iat)%plr%wfd%keygloc(1,1), 1)
+      call vcopy(2*nseg, reducearr(ist,iat), 1, nl%projs(iat)%region%plr%wfd%keygloc(1,1), 1)
       ist = ist + 2*nseg
-      nl%pspd(iat)%plr%d%n1   = nl%pspd(iat)%plr%d%n1
-      nl%pspd(iat)%plr%d%n2   = nl%pspd(iat)%plr%d%n2
-      nl%pspd(iat)%plr%d%n3   = nl%pspd(iat)%plr%d%n3
-      nl%pspd(iat)%plr%d%nfl1 = nl%pspd(iat)%plr%d%nfl1
-      nl%pspd(iat)%plr%d%nfl2 = nl%pspd(iat)%plr%d%nfl2
-      nl%pspd(iat)%plr%d%nfl3 = nl%pspd(iat)%plr%d%nfl3
-      nl%pspd(iat)%plr%d%nfu1 = nl%pspd(iat)%plr%d%nfu1
-      nl%pspd(iat)%plr%d%nfu2 = nl%pspd(iat)%plr%d%nfu2
-      nl%pspd(iat)%plr%d%nfu3 = nl%pspd(iat)%plr%d%nfu3
-      nl%pspd(iat)%plr%geocode = lr%geocode
-      nl%pspd(iat)%plr%d%n1i = lr%d%n1i
-      nl%pspd(iat)%plr%d%n2i = lr%d%n2i
-      nl%pspd(iat)%plr%d%n3i = lr%d%n3i
+      nl%projs(iat)%region%plr%d%n1   = nl%projs(iat)%region%plr%d%n1
+      nl%projs(iat)%region%plr%d%n2   = nl%projs(iat)%region%plr%d%n2
+      nl%projs(iat)%region%plr%d%n3   = nl%projs(iat)%region%plr%d%n3
+      nl%projs(iat)%region%plr%d%nfl1 = nl%projs(iat)%region%plr%d%nfl1
+      nl%projs(iat)%region%plr%d%nfl2 = nl%projs(iat)%region%plr%d%nfl2
+      nl%projs(iat)%region%plr%d%nfl3 = nl%projs(iat)%region%plr%d%nfl3
+      nl%projs(iat)%region%plr%d%nfu1 = nl%projs(iat)%region%plr%d%nfu1
+      nl%projs(iat)%region%plr%d%nfu2 = nl%projs(iat)%region%plr%d%nfu2
+      nl%projs(iat)%region%plr%d%nfu3 = nl%projs(iat)%region%plr%d%nfu3
+      nl%projs(iat)%region%plr%geocode = lr%geocode
+      nl%projs(iat)%region%plr%d%n1i = lr%d%n1i
+      nl%projs(iat)%region%plr%d%n2i = lr%d%n2i
+      nl%projs(iat)%region%plr%d%n3i = lr%d%n3i
 
       !in the case of linear scaling this section has to be built again
       if (init_projectors_completely) then
-         call set_wfd_to_wfd(lr,nl%pspd(iat)%plr,&
-              keyg_lin,nbsegs_cf,nl%pspd(iat)%noverlap,nl%pspd(iat)%lut_tolr,nl%pspd(iat)%tolr)
+         call set_wfd_to_wfd(lr,nl%projs(iat)%region%plr,&
+              keyg_lin,nbsegs_cf,nl%projs(iat)%region%noverlap,nl%projs(iat)%region%lut_tolr,nl%projs(iat)%region%tolr)
 
          !let us try what happens with the new method
          !consideration, we should conceive differently the
          !initialization of the localisation regions
-         call locreg_bounds(nl%pspd(iat)%plr%d%n1,nl%pspd(iat)%plr%d%n2,nl%pspd(iat)%plr%d%n3,&
-              nl%pspd(iat)%plr%d%nfl1,nl%pspd(iat)%plr%d%nfu1,nl%pspd(iat)%plr%d%nfl2,nl%pspd(iat)%plr%d%nfu2,&
-              nl%pspd(iat)%plr%d%nfl3,nl%pspd(iat)%plr%d%nfu3,nl%pspd(iat)%plr%wfd,nl%pspd(iat)%plr%bounds)
+         call locreg_bounds(nl%projs(iat)%region%plr%d%n1, &
+              & nl%projs(iat)%region%plr%d%n2, &
+              & nl%projs(iat)%region%plr%d%n3,&
+              & nl%projs(iat)%region%plr%d%nfl1, &
+              & nl%projs(iat)%region%plr%d%nfu1, &
+              & nl%projs(iat)%region%plr%d%nfl2, &
+              & nl%projs(iat)%region%plr%d%nfu2, &
+              & nl%projs(iat)%region%plr%d%nfl3, &
+              & nl%projs(iat)%region%plr%d%nfu3, &
+              & nl%projs(iat)%region%plr%wfd,nl%projs(iat)%region%plr%bounds)
 
       end if
 
       ! This is done for wavefunctions but not for projectors ?
       ! Otherwise, keyvloc is allocated but not filled.
-      call f_free_ptr(nl%pspd(iat)%plr%wfd%keyvloc)
-      nl%pspd(iat)%plr%wfd%keyvloc => nl%pspd(iat)%plr%wfd%keyvglob
+      call f_free_ptr(nl%projs(iat)%region%plr%wfd%keyvloc)
+      nl%projs(iat)%region%plr%wfd%keyvloc => nl%projs(iat)%region%plr%wfd%keyvglob
   end do
   call f_free(reducearr)
 
@@ -477,13 +482,9 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
   !fill the projectors if the strategy is a distributed calculation
   if (.not. nl%on_the_fly .and. init_projectors_completely) then
      !calculate the wavelet expansion of projectors
-     call fill_projectors(lr,[hx,hy,hz],at%astruct,ob,rxyz,nl,0)
+     call fill_projectors(lr,ob,nl,0)
   else
      nl%shared_proj=f_malloc0_ptr(nl%nprojel,id='proj')
-     do iat=1,at%astruct%nat
-        nl%pspd(iat)%proj => nl%shared_proj
-        nl%pspd(iat)%shared = .true.
-     end do
   end if
 
   call f_release_routine()
@@ -503,10 +504,7 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
       !allocate the different localization regions of the projectors
       nl%natoms=at%astruct%nat
       !for a structure let the allocator crash when allocating
-      allocate(nl%pspd(nl%natoms))
-      do iat=1,nl%natoms
-         nl%pspd(iat)=nonlocal_psp_descriptors_null()
-      end do
+      call allocate_daubechies_projectors_ptr(nl%projs, nl%natoms)
       call allocate_atomic_projectors_ptr(nl%pbasis, nl%natoms)
 
       !allocate the iagamma array in the case of needed density matrix
@@ -544,16 +542,16 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
       do iat=1,nl%natoms
          !also the fact of allocating pointers with size zero has to be discussed
          !for the moments the bounds are not needed for projectors
-         call allocate_wfd(nl%pspd(iat)%plr%wfd)
-         if (nl%pspd(iat)%mproj>0) then
+         call allocate_wfd(nl%projs(iat)%region%plr%wfd)
+         if (nl%projs(iat)%mproj>0) then
             nbseg_dim=max(nbseg_dim,&
-                 nl%pspd(iat)%plr%wfd%nseg_c+nl%pspd(iat)%plr%wfd%nseg_f)
-            mproj_max=max(mproj_max,nl%pspd(iat)%mproj)
+                 nl%projs(iat)%region%plr%wfd%nseg_c+nl%projs(iat)%region%plr%wfd%nseg_f)
+            mproj_max=max(mproj_max,nl%projs(iat)%mproj)
             npack_dim=max(npack_dim,&
-                 nl%pspd(iat)%plr%wfd%nvctr_c+7*nl%pspd(iat)%plr%wfd%nvctr_f)
+                 nl%projs(iat)%region%plr%wfd%nvctr_c+7*nl%projs(iat)%region%plr%wfd%nvctr_f)
             !packing array (for the moment all the projectors contribute)
-            npack_dim=max(npack_dim,nl%pspd(iat)%plr%wfd%nvctr_c+&
-                 7*nl%pspd(iat)%plr%wfd%nvctr_f)
+            npack_dim=max(npack_dim,nl%projs(iat)%region%plr%wfd%nvctr_c+&
+                 7*nl%projs(iat)%region%plr%wfd%nvctr_f)
          end if
       end do
 

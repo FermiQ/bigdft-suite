@@ -11,15 +11,25 @@ module psp_projectors_base
 
   !> Non local pseudopotential descriptors
   type, public :: nonlocal_psp_descriptors
-     integer :: mproj !< number of projectors for this descriptor
      integer :: nlr !< total no. localization regions potentially interacting with the psp
      type(locreg_descriptors) :: plr !< localization region descriptor of a given projector (null if nlp=0)
      type(wfd_to_wfd), dimension(:), pointer :: tolr !<maskings for the locregs, dimension noverlap
      integer,dimension(:),pointer :: lut_tolr !< lookup table for tolr, dimension noverlap
      integer :: noverlap !< number of locregs which overlap with the projectors of the given atom
-     logical :: shared !< True when the proj is shared
-     real(wp), dimension(:), pointer :: proj !< A subptr of %proj when shared
   end type nonlocal_psp_descriptors
+
+  type, public :: projector_coefficients
+     real(gp), dimension(3) :: kpt
+     integer :: idir
+     real(wp), dimension(:), pointer :: coeff
+     type(projector_coefficients), pointer :: next
+  end type projector_coefficients
+  
+  type, public :: daubechies_projectors
+     type(nonlocal_psp_descriptors) :: region
+     integer :: mproj !< number of projectors per k-point
+     type(projector_coefficients), pointer :: projs
+  end type daubechies_projectors
 
   integer, parameter :: PROJ_DESCRIPTION_GAUSSIAN = 1
   integer, parameter :: PROJ_DESCRIPTION_PSPIO = 2
@@ -58,7 +68,7 @@ module psp_projectors_base
      integer :: nproj,nprojel,natoms   !< Number of projectors and number of elements
      real(gp) :: zerovol               !< Proportion of zero components.
      type(atomic_projectors), dimension(:), pointer :: pbasis !< Projectors in their own basis.
-     type(nonlocal_psp_descriptors), dimension(:), pointer :: pspd !<descriptor per projector, of size natom
+     type(daubechies_projectors), dimension(:), pointer :: projs !< Projectors in their region in daubechies.
      !> array to identify the order of the which are the atoms for which the density matrix is needed
      !! array of size natom,lmax
      integer, dimension(:,:), pointer :: iagamma
@@ -76,7 +86,7 @@ module psp_projectors_base
   end type DFT_PSP_projectors
 
   type, public :: atomic_projector_iter
-     type(atomic_projectors), pointer :: parent     
+     type(atomic_projectors), pointer :: parent
      real(gp), dimension(3) :: kpoint
      
      integer :: cplx !< 1 for real coeff. 2 for complex ones.
@@ -107,8 +117,19 @@ module psp_projectors_base
      type(workarr_sumrho) :: wcol
   end type atomic_projector_iter
 
+  type, public :: DFT_PSP_projector_iter
+     type(DFT_PSP_projectors), pointer :: parent
+     type(daubechies_projectors), pointer :: current
+
+     type(nonlocal_psp_descriptors), pointer :: pspd
+     integer :: iat
+     integer :: mproj
+     real(wp), dimension(:), pointer :: coeff
+  end type DFT_PSP_projector_iter
+
   public :: free_DFT_PSP_projectors
   public :: DFT_PSP_projectors_null
+  public :: allocate_daubechies_projectors_ptr
   public :: nonlocal_psp_descriptors_null!,free_pspd_ptr
   public :: atomic_projectors_null
   public :: psp_update_positions
@@ -122,6 +143,8 @@ module psp_projectors_base
   public :: atomic_projector_iter_start, atomic_projector_iter_next
   public :: atomic_projector_iter_to_wavelets, atomic_projector_iter_wnrm2
 
+  public :: DFT_PSP_projectors_iter_new
+
 contains
 
   pure function nonlocal_psp_descriptors_null() result(pspd)
@@ -134,14 +157,11 @@ contains
     use module_defs, only: UNINITIALIZED
     implicit none
     type(nonlocal_psp_descriptors), intent(out) :: pspd
-    pspd%mproj=0
     pspd%nlr=0
     call nullify_locreg_descriptors(pspd%plr)
     nullify(pspd%tolr)
     nullify(pspd%lut_tolr)
     pspd%noverlap=0
-    pspd%shared = .true.
-    nullify(pspd%proj)
   end subroutine nullify_nonlocal_psp_descriptors
 
   pure function atomic_projectors_null() result(ap)
@@ -173,6 +193,28 @@ contains
     end do
   end subroutine allocate_atomic_projectors_ptr
 
+  pure subroutine nullify_daubechies_projectors(proj)
+    implicit none
+    type(daubechies_projectors), intent(out) :: proj
+
+    call nullify_nonlocal_psp_descriptors(proj%region)
+    proj%mproj = 0
+    nullify(proj%projs)
+  end subroutine nullify_daubechies_projectors
+
+  subroutine allocate_daubechies_projectors_ptr(projs, nat)
+    implicit none
+    type(daubechies_projectors), dimension(:), pointer :: projs
+    integer, intent(in) :: nat
+    !local variables
+    integer :: iat
+
+    allocate(projs(nat))
+    do iat = 1, nat
+       call nullify_daubechies_projectors(projs(iat))
+    end do
+  end subroutine allocate_daubechies_projectors_ptr
+
   pure function DFT_PSP_projectors_null() result(nl)
     implicit none
     type(DFT_PSP_projectors) :: nl
@@ -193,13 +235,12 @@ contains
     nullify(nl%iagamma)
     nullify(nl%gamma_mmp)
     nullify(nl%shared_proj)
-    nullify(nl%pspd)
+    nullify(nl%projs)
     nullify(nl%wpack)
     nullify(nl%scpr)
     nullify(nl%cproj)
     nullify(nl%hcproj)
   end subroutine nullify_DFT_PSP_projectors
-
 
   !destructors
   subroutine deallocate_nonlocal_psp_descriptors(pspd)
@@ -209,7 +250,6 @@ contains
     call free_tolr_ptr(pspd%tolr)
     call f_free_ptr(pspd%lut_tolr)
     call deallocate_locreg_descriptors(pspd%plr)
-    if (.not. pspd%shared .and. associated(pspd%proj)) call f_free_ptr(pspd%proj)
   end subroutine deallocate_nonlocal_psp_descriptors
 
   subroutine free_pspd_ptr(pspd)
@@ -255,11 +295,41 @@ contains
     nullify(aps)
   end subroutine free_atomic_projectors_ptr
 
+  subroutine deallocate_daubechies_projectors(projs)
+    implicit none
+    type(daubechies_projectors), intent(inout) :: projs
+
+    type(projector_coefficients), pointer :: proj, doomed
+    
+    call deallocate_nonlocal_psp_descriptors(projs%region)
+    proj => projs%projs
+    do while (associated(proj))
+       call f_free_ptr(proj%coeff)
+       doomed => proj
+       proj => proj%next
+       deallocate(doomed)
+    end do
+  end subroutine deallocate_daubechies_projectors
+
+  subroutine free_daubechies_projectors_ptr(projs)
+    implicit none
+    type(daubechies_projectors), dimension(:), pointer :: projs
+    !local variables
+    integer :: iat
+
+    if (.not. associated(projs)) return
+    do iat = lbound(projs, 1), ubound(projs, 1)
+       call deallocate_daubechies_projectors(projs(iat))
+    end do
+    deallocate(projs)
+    nullify(projs)
+  end subroutine free_daubechies_projectors_ptr
+
   subroutine deallocate_DFT_PSP_projectors(nl)
     implicit none
     type(DFT_PSP_projectors), intent(inout) :: nl
 
-    call free_pspd_ptr(nl%pspd)
+    call free_daubechies_projectors_ptr(nl%projs)
     call free_atomic_projectors_ptr(nl%pbasis)
     call f_free_ptr(nl%iagamma)
     call f_free_ptr(nl%gamma_mmp)
@@ -602,5 +672,18 @@ contains
        call isf_to_daub(lr, w, projector_real, psi(1,1, ylm%m))
     end do
   end subroutine rfuncs_to_wavelets_collocation
-  
+
+  subroutine DFT_PSP_projectors_iter_new(iter, nlpsp)
+    implicit none
+    type(DFT_PSP_projector_iter), intent(out) :: iter
+    type(DFT_PSP_projectors), intent(in), target :: nlpsp
+
+    iter%parent => nlpsp
+    nullify(iter%current)
+    iter%iat = 0
+    nullify(iter%pspd)
+    iter%mproj = 0
+    nullify(iter%coeff)
+  end subroutine DFT_PSP_projectors_iter_new
+
 end module psp_projectors_base

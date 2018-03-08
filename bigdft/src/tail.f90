@@ -123,9 +123,9 @@ subroutine CalculateTailCorrection(iproc,nproc,at,rbuf,orbs,&
   !---reformat keyg_p
 
   do iat=1,at%astruct%nat
-     do iseg=1,nlpsp%pspd(iat)%plr%wfd%nseg_c+nlpsp%pspd(iat)%plr%wfd%nseg_f
-        j0=nlpsp%pspd(iat)%plr%wfd%keyglob(1,iseg)
-        j1=nlpsp%pspd(iat)%plr%wfd%keyglob(2,iseg)
+     do iseg=1,nlpsp%projs(iat)%region%plr%wfd%nseg_c+nlpsp%projs(iat)%region%plr%wfd%nseg_f
+        j0=nlpsp%projs(iat)%region%plr%wfd%keyglob(1,iseg)
+        j1=nlpsp%projs(iat)%region%plr%wfd%keyglob(2,iseg)
         !do iseg=1,nlpspd%nseg_p(2*at%astruct%nat)
         !j0=nlpspd%keyg_p(1,iseg)
         !j1=nlpspd%keyg_p(2,iseg)
@@ -141,9 +141,9 @@ subroutine CalculateTailCorrection(iproc,nproc,at,rbuf,orbs,&
         i0=i0+nbuf
         j0=i3*((nb1+1)*(nb2+1)) + i2*(nb1+1) + i0+1
         j1=i3*((nb1+1)*(nb2+1)) + i2*(nb1+1) + i1+1
-        nlpsp%pspd(iat)%plr%wfd%keyglob(1,iseg)=j0
-        nlpsp%pspd(iat)%plr%wfd%keyglob(2,iseg)=j1
-        nlpsp%pspd(iat)%plr%mesh%ndims = [nb1, nb2, nb3]
+        nlpsp%projs(iat)%region%plr%wfd%keyglob(1,iseg)=j0
+        nlpsp%projs(iat)%region%plr%wfd%keyglob(2,iseg)=j1
+        nlpsp%projs(iat)%region%plr%mesh%ndims = [nb1, nb2, nb3]
 !!$        nlpspd%keyg_p(1,iseg)=j0
 !!$        nlpspd%keyg_p(2,iseg)=j1
      end do
@@ -886,7 +886,7 @@ subroutine applyprojectorsone(ntypes,nat,iatype,psppar,npspcode,nlpsp,&
   eproj=0.0_gp
   istart_c=1
   do iat=1,nat
-     call plr_segs_and_vctrs(nlpsp%pspd(iat)%plr,&
+     call plr_segs_and_vctrs(nlpsp%projs(iat)%region%plr,&
           mbseg_c,mbseg_f,mbvctr_c,mbvctr_f)
      jseg_c=1
 
@@ -899,10 +899,10 @@ subroutine applyprojectorsone(ntypes,nat,iatype,psppar,npspcode,nlpsp,&
               call applyprojector(1,l,i,psppar(0,0,ityp),npspcode(ityp),&
                    nvctr_c,nvctr_f,nseg_c,nseg_f,keyv,keyg,&
                    mbvctr_c,mbvctr_f,mbseg_c,mbseg_f,&
-                   nlpsp%pspd(iat)%plr%wfd%keyvglob(jseg_c),&
-                   nlpsp%pspd(iat)%plr%wfd%keyglob(1,jseg_c),&
+                   nlpsp%projs(iat)%region%plr%wfd%keyvglob(jseg_c),&
+                   nlpsp%projs(iat)%region%plr%wfd%keyglob(1,jseg_c),&
 !!$                   keyv_p(jseg_c),keyg_p(1,jseg_c),&
-                   nlpsp%pspd(iat)%proj(1),psi,hpsi,eproj)
+                   nlpsp%shared_proj(1),psi,hpsi,eproj)
               iproj=iproj+2*l-1
               istart_c=istart_c+(mbvctr_c+7*mbvctr_f)*(2*l-1)
            end if

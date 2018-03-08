@@ -19,6 +19,8 @@ module psp_projectors
   private
 
   public :: projector_has_overlap,get_proj_locreg
+  public :: DFT_PSP_projector_iter, DFT_PSP_projectors_iter_new
+  public :: DFT_PSP_projectors_iter_next, DFT_PSP_projectors_iter_ensure
   public :: bounds_to_plr_limits,pregion_size
   public :: hgh_psp_application
   public :: update_nlpsp
@@ -164,6 +166,7 @@ contains
     type(locreg_descriptors), dimension(nlr), intent(in) :: lrs
     type(DFT_PSP_projectors), intent(inout) :: nl
     !local variables
+    type(DFT_PSP_projector_iter) :: iter
     integer :: nbseg_dim,nkeyg_dim,iat,ilr
     integer, dimension(:), allocatable :: nbsegs_cf,keyg_lin
 
@@ -171,9 +174,10 @@ contains
 
     !find allocating dimensions for work arrays
     nbseg_dim=0
-    do iat=1,nl%natoms
+    call DFT_PSP_projectors_iter_new(iter, nl)
+    do while(DFT_PSP_projectors_iter_next(iter))
        nbseg_dim=max(nbseg_dim,&
-            nl%pspd(iat)%plr%wfd%nseg_c+nl%pspd(iat)%plr%wfd%nseg_f)
+            iter%pspd%plr%wfd%nseg_c+iter%pspd%plr%wfd%nseg_f)
     end do
     nkeyg_dim=0
     do ilr=1,nlr
@@ -184,14 +188,15 @@ contains
     nbsegs_cf=f_malloc(nbseg_dim,id='nbsegs_cf')
     keyg_lin=f_malloc(nkeyg_dim,id='keyg_lin')
     !reconstruct the projectors for any of the atoms
-    do iat=1,nl%natoms
-       call free_tolr_ptr(nl%pspd(iat)%tolr)
-       call f_free_ptr(nl%pspd(iat)%lut_tolr)
-       if (nl%pspd(iat)%mproj > 0) then
+    call DFT_PSP_projectors_iter_new(iter, nl)
+    do while(DFT_PSP_projectors_iter_next(iter))
+       call free_tolr_ptr(iter%pspd%tolr)
+       call f_free_ptr(iter%pspd%lut_tolr)
+       if (iter%mproj > 0) then
           !then fill it again, if the locreg is demanded
-          nl%pspd(iat)%nlr=nlr
-          call set_wfd_to_wfd(Glr,nl%pspd(iat)%plr,&
-               keyg_lin,nbsegs_cf,nl%pspd(iat)%noverlap,nl%pspd(iat)%lut_tolr,nl%pspd(iat)%tolr,lrs,lr_mask)
+          iter%pspd%nlr=nlr
+          call set_wfd_to_wfd(Glr,iter%pspd%plr,&
+               keyg_lin,nbsegs_cf,iter%pspd%noverlap,iter%pspd%lut_tolr,iter%pspd%tolr,lrs,lr_mask)
        end if
     end do
 
@@ -361,7 +366,7 @@ contains
     overlap = .false.
 
     !no projector on this atom
-    if(pspd%mproj == 0) return
+    !if(pspd%mproj == 0) return
 
     ! Check whether the projectors of this atom have an overlap with locreg ilr
     iilr = get_proj_locreg(pspd, ilr)
@@ -371,6 +376,97 @@ contains
     call check_overlap(llr, pspd%plr, glr, overlap)
 
   end function projector_has_overlap
+
+  recursive function DFT_PSP_projectors_iter_next(iter, ilr, lr, glr) result(ok)
+    implicit none
+    type(DFT_PSP_projector_iter), intent(inout) :: iter
+    integer, intent(in), optional :: ilr
+    type(locreg_descriptors), intent(in), optional :: lr, glr
+    logical :: ok
+
+    ok = .false.
+    nullify(iter%coeff)
+    iter%iat = iter%iat + 1
+    if (iter%iat > size(iter%parent%projs)) return
+    
+    ok = .true.
+    iter%current => iter%parent%projs(iter%iat)
+    iter%pspd => iter%current%region
+    iter%mproj = iter%current%mproj
+    if (iter%mproj == 0) ok = DFT_PSP_projectors_iter_next(iter, ilr, lr, glr)
+    if (present(ilr) .and. present(lr) .and. present(glr)) then
+       if (.not. projector_has_overlap(ilr, lr, glr, iter%pspd)) &
+            & ok = DFT_PSP_projectors_iter_next(iter, ilr, lr, glr)
+    end if
+  end function DFT_PSP_projectors_iter_next
+
+  subroutine DFT_PSP_projectors_iter_ensure(iter, kpt, idir, nwarnings, glr)
+    implicit none
+    type(DFT_PSP_projector_iter), intent(inout) :: iter
+    real(gp), dimension(3) :: kpt
+    integer, intent(in) :: idir
+    integer, intent(out) :: nwarnings
+    type(locreg_descriptors), intent(in), optional :: glr
+    
+    type(projector_coefficients), pointer :: proj
+    type(atomic_projector_iter) :: a_it
+
+    ! Ensure that projector exists for this kpoint, or build it if not.
+    if (.not. iter%parent%on_the_fly) then
+       proj => iter%current%projs
+       do while (associated(proj))
+          if (proj%kpt(1) == kpt(1) .and. proj%kpt(2) == kpt(2) .and. proj%kpt(3) == kpt(3)) exit
+          proj => proj%next
+       end do
+       if (.not. associated(proj)) then
+          allocate(proj)
+          proj%kpt = kpt
+          proj%idir = idir
+          nullify(proj%coeff)
+          proj%next => iter%current%projs
+          iter%current%projs => proj
+       end if
+       if (associated(proj%coeff) .and. proj%idir == idir) then
+          iter%coeff => proj%coeff
+          return
+       end if
+    end if
+
+    ! Rebuild fallback.
+    call atomic_projector_iter_new(a_it, iter%parent%pbasis(iter%iat), &
+         & iter%pspd%plr, kpt)
+    if (iter%parent%on_the_fly) then
+       iter%coeff => iter%parent%shared_proj
+    else
+       if (.not. associated(proj%coeff)) proj%coeff = f_malloc_ptr(a_it%nproj * a_it%nc)
+       iter%coeff => proj%coeff
+    end if
+    call atomic_projector_iter_set_destination(a_it, iter%coeff)
+    if (PROJECTION_1D_SEPARABLE == iter%parent%method) then
+       if (iter%parent%pbasis(iter%iat)%kind == PROJ_DESCRIPTION_GAUSSIAN .and. &
+            & present(glr)) then
+          call atomic_projector_iter_set_method(a_it, PROJECTION_1D_SEPARABLE, glr)
+       else
+          call atomic_projector_iter_set_method(a_it, PROJECTION_RS_COLLOCATION) 
+       end if
+    else
+       call atomic_projector_iter_set_method(a_it, iter%parent%method)
+    end if
+
+    call atomic_projector_iter_start(a_it)
+    ! Loop on shell.
+    do while (atomic_projector_iter_next(a_it))
+       call atomic_projector_iter_to_wavelets(a_it, idir, nwarnings)
+    end do
+
+    call atomic_projector_iter_free(a_it)
+  end subroutine DFT_PSP_projectors_iter_ensure
+
+  subroutine DFT_PSP_projectors_iter_apply(iter)
+    implicit none
+    type(DFT_PSP_projector_iter), intent(in) :: iter
+    
+  end subroutine DFT_PSP_projectors_iter_apply
 
 end module psp_projectors
 

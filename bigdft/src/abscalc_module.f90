@@ -320,7 +320,7 @@ contains
                    do ispinor=1,orbs%nspinor,ncplx_global
                       eproj_spinor=0.0_gp
                       if (ispinor >= 2) istart_c=istart_c_i
-                      call plr_segs_and_vctrs(PAWD%paw_nl%pspd(iat)%plr,&
+                      call plr_segs_and_vctrs(PAWD%paw_nl%projs(iat)%region%plr,&
                            mbseg_c,mbseg_f,mbvctr_c,mbvctr_f)
                       jseg_c=1
 
@@ -367,9 +367,9 @@ contains
                                        psi(ispsi+&
                                        (ispinor-1)*(orbs%npsidim_orbs/orbs%nspinor)),&
                                        mbvctr_c,mbvctr_f,mbseg_c,mbseg_f,&
-                                       PAWD%paw_nl%pspd(iat)%plr%wfd%keyvglob(jseg_c),&
-                                       PAWD%paw_nl%pspd(iat)%plr%wfd%keyglob(1,jseg_c),&
-                                       PAWD%paw_nl%pspd(iat)%proj(1),&
+                                       PAWD%paw_nl%projs(iat)%region%plr%wfd%keyvglob(jseg_c),&
+                                       PAWD%paw_nl%projs(iat)%region%plr%wfd%keyglob(1,jseg_c),&
+                                       PAWD%paw_nl%shared_proj(1),&
                                        dotbuffer( ibuffer ) )
                                end if
                                ibuffer=ibuffer + (ncplx-1)
@@ -460,9 +460,9 @@ contains
                                call waxpy_wrap(ncplx,dotbufferbis( ibuffer ) ,&
                                     mbvctr_c,mbvctr_f,mbseg_c,mbseg_f,&
 !!$                                 &   PAWD%paw_nlpspd%keyv_p(jseg_c),PAWD%paw_nlpspd%keyg_p(1,jseg_c),&
-                                    PAWD%paw_nl%pspd(iat)%plr%wfd%keyvglob(jseg_c),&
-                                    PAWD%paw_nl%pspd(iat)%plr%wfd%keyglob(1,jseg_c),&
-                                    PAWD%paw_nl%pspd(iat)%proj(1),&
+                                    PAWD%paw_nl%projs(iat)%region%plr%wfd%keyvglob(jseg_c),&
+                                    PAWD%paw_nl%projs(iat)%region%plr%wfd%keyglob(1,jseg_c),&
+                                    PAWD%paw_nl%shared_proj(1),&
                                     Glr%wfd%nvctr_c,Glr%wfd%nvctr_f,Glr%wfd%nseg_c,Glr%wfd%nseg_f,&
                                     Glr%wfd%keyvglob(1),Glr%wfd%keyglob(1,1),&
                                     hpsi(ispsi+(ispinor-1)*(orbs%npsidim_orbs/orbs%nspinor)  )&
@@ -569,7 +569,7 @@ contains
 
                 if (ispinor >= 2) istart_c=istart_c_i
 
-                call plr_segs_and_vctrs(PPD%pc_nl%pspd(iat)%plr,&
+                call plr_segs_and_vctrs(PPD%pc_nl%projs(iat)%region%plr,&
                      mbseg_c,mbseg_f,mbvctr_c,mbvctr_f)
                 jseg_c=1
 
@@ -606,10 +606,10 @@ contains
                         Glr%wfd%nseg_f,&
                         Glr%wfd%keyvglob(1),Glr%wfd%keyglob(1,1),&
                         mbvctr_c,mbvctr_f,mbseg_c,mbseg_f,&
-                        PPD%pc_nl%pspd(iat)%plr%wfd%keyvglob(jseg_c),&
-                        PPD%pc_nl%pspd(iat)%plr%wfd%keyglob(1,jseg_c),&
+                        PPD%pc_nl%projs(iat)%region%plr%wfd%keyvglob(jseg_c),&
+                        PPD%pc_nl%projs(iat)%region%plr%wfd%keyglob(1,jseg_c),&
 !!$                       PPD%pc_nlpspd%keyv_p(jseg_c),PPD%pc_nlpspd%keyg_p(1,jseg_c),&
-                        PPD%pc_nl%pspd(iat)%proj(1),&
+                        PPD%pc_nl%shared_proj(1),&
                         psi(ispsi+ (ispinor-1)*(orbs%npsidim_orbs/orbs%nspinor)  ),&
                         hpsi(ispsi+(ispinor-1)*(orbs%npsidim_orbs/orbs%nspinor)  ),&
                         eproj_spinor)
@@ -637,7 +637,7 @@ contains
                             Plr%d%n3=Glr%d%n3
                             Plr%geocode=at%astruct%geocode
 
-                            call plr_segs_and_vctrs(PPD%pc_nl%pspd(iat)%plr,&
+                            call plr_segs_and_vctrs(PPD%pc_nl%projs(iat)%region%plr,&
                                  Plr%wfd%nseg_c,Plr%wfd%nseg_f,&
                                  Plr%wfd%nvctr_c,Plr%wfd%nvctr_f)                  
 !!$                           Plr%wfd%nvctr_c  =PPD%pc_nlpspd%nvctr_p(2*iat-1)-PPD%pc_nlpspd%nvctr_p(2*iat-2)

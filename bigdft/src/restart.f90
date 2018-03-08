@@ -4258,9 +4258,9 @@ subroutine writemyproj(filename,iformat,orbs,hx,hy,hz,at,rxyz,nl)
      do ikpt=iskpt,iekpt
         do iat=1,at%astruct%nat
 
-           call atomic_projector_iter_new(iter, nl%pbasis(iat), nl%pspd(iat)%plr, &
+           call atomic_projector_iter_new(iter, nl%pbasis(iat), nl%projs(iat)%region%plr, &
                 & orbs%kpts(:, ikpt))
-           call atomic_projector_iter_set_destination(iter, nl%pspd(iat)%proj)
+           call atomic_projector_iter_set_destination(iter, nl%shared_proj)
            
            ! Start a gaussian iterator.
            call atomic_projector_iter_start(iter)

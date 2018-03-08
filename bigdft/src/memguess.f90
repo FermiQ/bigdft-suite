@@ -1631,8 +1631,8 @@ program memguess
 !!$      nlpsp%pspd(iat)%plr%wfd%keyvloc = nlpsp%pspd(iat)%plr%wfd%keyvglob
 !!$      ! Doing this is buggy.
 !!$      runObj%rst%KSwfn%Lzd%Glr%wfd = nlpsp%pspd(iat)%plr%wfd
-      call plot_wf(.false.,filename_wfn,1,runObj%atoms,1.0_wp,nlpsp%pspd(iat)%plr, &
-           & runObj%rst%KSwfn%Lzd%hgrids,runObj%atoms%astruct%rxyz,nlpsp%pspd(iat)%proj(1:))
+      call plot_wf(.false.,filename_wfn,1,runObj%atoms,1.0_wp,nlpsp%projs(iat)%region%plr, &
+           & runObj%rst%KSwfn%Lzd%hgrids,runObj%atoms%astruct%rxyz,nlpsp%shared_proj(1:))
    end if
 
    if (GPUtest) then
@@ -2475,9 +2475,9 @@ subroutine take_proj_from_file(filename, hx, hy, hz, nl, at, rxyz, &
      call ext_buffers_coarse(pery,nb2)
      call ext_buffers_coarse(perz,nb3)
 
-     psifscf = f_malloc((/ -nb1.to.2*nl%pspd(iat)%plr%d%n1+1+nb1, &
-          & -nb2.to.2*nl%pspd(iat)%plr%d%n2+1+nb2, &
-          & -nb3.to.2*nl%pspd(iat)%plr%d%n3+1+nb3 /),id='psifscf')
+     psifscf = f_malloc((/ -nb1.to.2*nl%projs(iat)%region%plr%d%n1+1+nb1, &
+          & -nb2.to.2*nl%projs(iat)%region%plr%d%n2+1+nb2, &
+          & -nb3.to.2*nl%projs(iat)%region%plr%d%n3+1+nb3 /),id='psifscf')
 
      if (iformat == WF_FORMAT_BINARY) then
         open(unit=99,file=trim(filename),status='unknown',form="unformatted")
@@ -2486,8 +2486,8 @@ subroutine take_proj_from_file(filename, hx, hy, hz, nl, at, rxyz, &
      end if
 
      call readonewave(99, (iformat == WF_FORMAT_PLAIN),iproj,0,&
-          & nl%pspd(iat)%plr%d%n1,nl%pspd(iat)%plr%d%n2,nl%pspd(iat)%plr%d%n3, &
-          & hx,hy,hz,at,nl%pspd(iat)%plr%wfd,rxyz_file,rxyz,nl%pspd(iat)%proj,eproj,psifscf)
+          & nl%projs(iat)%region%plr%d%n1,nl%projs(iat)%region%plr%d%n2,nl%projs(iat)%region%plr%d%n3, &
+          & hx,hy,hz,at,nl%projs(iat)%region%plr%wfd,rxyz_file,rxyz,nl%shared_proj,eproj,psifscf)
 
      close(99)
 

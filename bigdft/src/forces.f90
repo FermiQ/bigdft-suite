@@ -981,7 +981,7 @@ subroutine nonlocal_forces(lr,hx,hy,hz,at,rxyz,&
         jorbd=jorb
         do iat=1,at%astruct%nat
 
-           call plr_segs_and_vctrs(nlpsp%pspd(iat)%plr,&
+           call plr_segs_and_vctrs(nlpsp%projs(iat)%region%plr,&
                 mbseg_c,mbseg_f,mbvctr_c,mbvctr_f)
            jseg_c=1
            jseg_f=1
@@ -1013,9 +1013,9 @@ subroutine nonlocal_forces(lr,hx,hy,hz,at,rxyz,&
                                      wfd%nvctr_c,wfd%nvctr_f,wfd%nseg_c,wfd%nseg_f,&
                                      wfd%keyvglob,wfd%keyglob,psi(ispsi),&
                                      mbvctr_c,mbvctr_f,mbseg_c,mbseg_f,&
-                                     nlpsp%pspd(iat)%plr%wfd%keyvglob(jseg_c),&
-                                     nlpsp%pspd(iat)%plr%wfd%keyglob(1,jseg_c),&
-                                     nlpsp%pspd(iat)%proj(istart_c),&
+                                     nlpsp%projs(iat)%region%plr%wfd%keyvglob(jseg_c),&
+                                     nlpsp%projs(iat)%region%plr%wfd%keyglob(1,jseg_c),&
+                                     nlpsp%shared_proj(istart_c),&
                                      scalprod(1,idir,m,i,l,iat,jorb))
                                 istart_c=istart_c+(mbvctr_c+7*mbvctr_f)*ncplx
                                 !write(*,'(a,6i6,es16.8)') 'idir,m,i,l,iat,jorb,scalprod',&
@@ -1044,7 +1044,7 @@ subroutine nonlocal_forces(lr,hx,hy,hz,at,rxyz,&
      do idir=0,ndir
 
         if (idir /= 0) then !for the first run the projectors are already allocated
-           call fill_projectors(lr,[hx,hy,hz],at%astruct,ob,rxyz,nlpsp,idir)
+           call fill_projectors(lr,ob,nlpsp,idir)
         end if
         !apply the projectors  k-point of the processor
         !starting k-point
@@ -1066,7 +1066,7 @@ subroutine nonlocal_forces(lr,hx,hy,hz,at,rxyz,&
                  ! loop over all projectors of this k-point
                  iproj=0
                  do iat=1,at%astruct%nat
-                    call plr_segs_and_vctrs(nlpsp%pspd(iat)%plr,&
+                    call plr_segs_and_vctrs(nlpsp%projs(iat)%region%plr,&
                          mbseg_c,mbseg_f,mbvctr_c,mbvctr_f)
                     jseg_c=1
                     jseg_f=1
@@ -1081,9 +1081,9 @@ subroutine nonlocal_forces(lr,hx,hy,hz,at,rxyz,&
                                      wfd%nvctr_c,wfd%nvctr_f,wfd%nseg_c,wfd%nseg_f,&
                                      wfd%keyvglob,wfd%keyglob,psi(ispsi),  &
                                      mbvctr_c,mbvctr_f,mbseg_c,mbseg_f,&
-                                     nlpsp%pspd(iat)%plr%wfd%keyvglob(jseg_c),&
-                                     nlpsp%pspd(iat)%plr%wfd%keyglob(1,jseg_c),&
-                                     nlpsp%pspd(iat)%proj(istart_c),scalprod(1,idir,m,i,l,iat,jorb))
+                                     nlpsp%projs(iat)%region%plr%wfd%keyvglob(jseg_c),&
+                                     nlpsp%projs(iat)%region%plr%wfd%keyglob(1,jseg_c),&
+                                     nlpsp%projs(iat)%projs%coeff(istart_c),scalprod(1,idir,m,i,l,iat,jorb))
                                 istart_c=istart_c+(mbvctr_c+7*mbvctr_f)*ncplx
                !write(*,'(a,6i6,es16.8)') 'idir,m,i,l,iat,jorb,scalprod',idir,m,i,l,iat,jorb,scalprod(1,idir,m,i,l,iat,jorb)
                              end do
@@ -1104,7 +1104,7 @@ subroutine nonlocal_forces(lr,hx,hy,hz,at,rxyz,&
 
      !restore the projectors in the proj array (for on the run forces calc., tails or so)
      if (refill) then
-        call fill_projectors(lr,[hx,hy,hz],at%astruct,ob,rxyz,nlpsp,0)
+        call fill_projectors(lr,ob,nlpsp,0)
      end if
 
   end if

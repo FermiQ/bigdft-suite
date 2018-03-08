@@ -1367,16 +1367,17 @@ subroutine print_nlpsp(nlpsp)
   totmask=0
   totpack=0
   do iat=1,nlpsp%natoms
-     if (nlpsp%pspd(iat)%mproj>0) then
-        totpack=max(totpack,nlpsp%pspd(iat)%plr%wfd%nvctr_c+&
-             7*nlpsp%pspd(iat)%plr%wfd%nvctr_f)
+     if (nlpsp%projs(iat)%mproj>0) then
+        totpack=max(totpack,nlpsp%projs(iat)%region%plr%wfd%nvctr_c+&
+             7*nlpsp%projs(iat)%region%plr%wfd%nvctr_f)
      end if
      sizemask=0
-     if (associated(nlpsp%pspd(iat)%tolr)) then
+     if (associated(nlpsp%projs(iat)%region%tolr)) then
         !do ilr=1,nlpsp%pspd(iat)%nlr
-        do ilr=1,size(nlpsp%pspd(iat)%tolr)
+        do ilr=1,size(nlpsp%projs(iat)%region%tolr)
            sizemask=sizemask+&
-                nlpsp%pspd(iat)%tolr(ilr)%nmseg_c+nlpsp%pspd(iat)%tolr(ilr)%nmseg_f
+                nlpsp%projs(iat)%region%tolr(ilr)%nmseg_c+&
+                nlpsp%projs(iat)%region%tolr(ilr)%nmseg_f
         end do
      end if
      maxmask=max(maxmask,sizemask)
