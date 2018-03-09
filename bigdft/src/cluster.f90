@@ -2324,7 +2324,7 @@ subroutine kswfn_post_treatments(iproc, nproc, KSwfn, tmb, linear, &
   end if
   if (.not. KSwfn%paw%usepaw) then
   !to be checked, as the description might change for the linear case
-  call orbital_basis_associate(ob,orbs=KSwfn%orbs,Lzd=KSwfn%Lzd)
+  call orbital_basis_associate(ob,orbs=KSwfn%orbs,phis_wvl=KSwfn%psi,Lzd=KSwfn%Lzd)
   call calculate_forces(iproc,nproc,denspot%pkernel%mpi_env%nproc,KSwfn%Lzd%Glr,atoms,ob,nlpsp,rxyz,&
           KSwfn%Lzd%hgrids(1),KSwfn%Lzd%hgrids(2),KSwfn%Lzd%hgrids(3),&
        denspot%dpbox, &

@@ -33,6 +33,9 @@ module pseudopotentials
      real(gp) :: hij !<coefficient
      real(gp), dimension(:,:), pointer :: mat !<matrix of nonlocal projectors in the mm' space
   end type atomic_proj_coeff
+  type, public :: atomic_proj_matrix
+     type(atomic_proj_coeff), dimension(IMAX, IMAX, LMAX + 1) :: ij_terms
+  end type atomic_proj_matrix
 
   type, public :: PSP_data
      integer :: nelpsp
@@ -51,14 +54,14 @@ module pseudopotentials
 
   public :: psp_set_from_dict,get_psp,psp_dict_fill_all
   public :: apply_hij_coeff,update_psp_dict,psp_from_stream
-  public :: allocate_prj_ptr, nullify_atomic_proj_coeff, f_free_prj_ptr
+  public :: nullify_atomic_proj_matrix, allocate_atomic_proj_matrix, free_atomic_proj_matrix
 
   ! Psp dictionary representation, keys.
   character(len = *), parameter :: kRLOC = "Rloc"
 
 contains
 
-    subroutine nullify_atomic_proj_coeff(prj)
+    pure subroutine nullify_atomic_proj_coeff(prj)
       use f_utils, only: f_zero
       implicit none
       type(atomic_proj_coeff), intent(out) :: prj
@@ -73,37 +76,45 @@ contains
       call nullify_atomic_proj_coeff(prj)
     end subroutine free_atomic_proj_coeff
 
-    subroutine f_free_prj_ptr(prj)
+    pure subroutine nullify_atomic_proj_matrix(mat)
       implicit none
-      type(atomic_proj_coeff), dimension(:,:,:), pointer :: prj
-      !local variables
+      type(atomic_proj_matrix), intent(out) :: mat
+
       integer :: i1,i2,i3
-      if (.not. associated(prj)) return
-      do i3=lbound(prj,3),ubound(prj,3)
-         do i2=lbound(prj,2),ubound(prj,2)
-            do i1=lbound(prj,1),ubound(prj,1)
-               call free_atomic_proj_coeff(prj(i1,i2,i3))
+      do i3=lbound(mat%ij_terms,3),ubound(mat%ij_terms,3)
+         do i2=lbound(mat%ij_terms,2),ubound(mat%ij_terms,2)
+            do i1=lbound(mat%ij_terms,1),ubound(mat%ij_terms,1)
+               call nullify_atomic_proj_coeff(mat%ij_terms(i1,i2,i3))
             end do
          end do
       end do
-      deallocate(prj)
-      nullify(prj)
-    end subroutine f_free_prj_ptr
+    end subroutine nullify_atomic_proj_matrix
+    subroutine free_atomic_proj_matrix(mat)
+      implicit none
+      type(atomic_proj_matrix), intent(inout) :: mat
+      !local variables
+      integer :: i1,i2,i3
+      do i3=lbound(mat%ij_terms,3),ubound(mat%ij_terms,3)
+         do i2=lbound(mat%ij_terms,2),ubound(mat%ij_terms,2)
+            do i1=lbound(mat%ij_terms,1),ubound(mat%ij_terms,1)
+               call free_atomic_proj_coeff(mat%ij_terms(i1,i2,i3))
+            end do
+         end do
+      end do
+    end subroutine free_atomic_proj_matrix
     
-    subroutine allocate_prj_ptr(hij, iat,ispin,prj, gamma_targets)
+    subroutine allocate_atomic_proj_matrix(hij, iat,ispin,prj, gamma_targets)
       use f_arrays
       use dynamic_memory
       integer, intent(in) :: iat,ispin
       real(gp), dimension(3,3,4), intent(in) :: hij
-      type(atomic_proj_coeff), dimension(:,:,:), pointer :: prj
+      type(atomic_proj_matrix), intent(out) :: prj
       type(f_matrix), dimension(:,:,:), intent(in), optional :: gamma_targets
       !local variables
       logical :: occ_ctrl
       integer :: i,l,j,m !, igamma
 
       !igamma=0
-
-      allocate(prj(IMAX, IMAX, LMAX + 1))
 
       !then allocate the structure as needed
       do l=1,LMAX+1
@@ -115,31 +126,32 @@ contains
                                 !if the given point need a target then associate the actual potential
               occ_ctrl= associated(gamma_targets(l-1,ispin,iat)%ptr)
          do i=1,IMAX
-            call nullify_atomic_proj_coeff(prj(i,i,l))
-            prj(i,i,l)%hij=hij(i,i,l)
+            call nullify_atomic_proj_coeff(prj%ij_terms(i,i,l))
+            prj%ij_terms(i,i,l)%hij=hij(i,i,l)
             if (i==1 .and. occ_ctrl) then
                !it has to be discussed if the coefficient should change in to one
                !and we have to add the h11 term in the diagonal
-               prj(i,i,l)%mat=&
+               prj%ij_terms(i,i,l)%mat=&
                     f_malloc_ptr(src_ptr=gamma_targets(l-1,ispin,iat)%ptr,id='prjmat')
                do m=1,2*l-1
-                  prj(i,i,l)%mat(m,m)=prj(i,i,l)%mat(m,m)+prj(i,i,l)%hij
+                  prj%ij_terms(i,i,l)%mat(m,m) = &
+                       & prj%ij_terms(i,i,l)%mat(m,m)+prj%ij_terms(i,i,l)%hij
                end do
-               prj(i,i,l)%hij=1.0_gp
+               prj%ij_terms(i,i,l)%hij=1.0_gp
             end if
             do j=i+1,IMAX
-               call nullify_atomic_proj_coeff(prj(i,j,l))
-               call nullify_atomic_proj_coeff(prj(j,i,l))
+               call nullify_atomic_proj_coeff(prj%ij_terms(i,j,l))
+               call nullify_atomic_proj_coeff(prj%ij_terms(j,i,l))
                !allocate upper triangular and associate lower triangular
-               prj(i,j,l)%hij=hij(i,j,l)
+               prj%ij_terms(i,j,l)%hij=hij(i,j,l)
 
-               prj(j,i,l)%mat => prj(i,j,l)%mat 
-               prj(j,i,l)%hij=hij(j,i,l)
+               prj%ij_terms(j,i,l)%mat => prj%ij_terms(i,j,l)%mat 
+               prj%ij_terms(j,i,l)%hij=hij(j,i,l)
             end do
          end do
       end do
 
-    end subroutine allocate_prj_ptr
+    end subroutine allocate_atomic_proj_matrix
 
     !> Fill up the dict with all pseudopotential information
     subroutine psp_dict_fill_all(dict, atomname, run_ixc, projrad, crmult, frmult)
@@ -1114,7 +1126,7 @@ contains
       implicit none
       integer, intent(in) :: n_p,n_w
 !!$      real(gp), dimension(3,3,4), intent(in) :: hij
-      type(atomic_proj_coeff), dimension(3,3,4), intent(in) :: prj
+      type(atomic_proj_matrix), intent(in) :: prj
       real(gp), dimension(n_w,n_p), intent(in) :: scpr
       real(gp), dimension(n_w,n_p), intent(out) :: hscpr
       !local variables
@@ -1127,7 +1139,7 @@ contains
       !define the logical array to identify the point from which the block is finished
       do l=1,4
          do i=1,3
-            cont(i,l)= prj(i,i,l)%hij /= 0.0_gp
+            cont(i,l)= prj%ij_terms(i,i,l)%hij /= 0.0_gp
 !!$            cont(i,l)=(hij(i,i,l) /= 0.0_gp)
          end do
       end do
@@ -1159,14 +1171,14 @@ contains
                !the projector have always to act symmetrically
                !this will be done by pointing on the same matrices
                do j=1,3
-                  if (prj(i,j,l)%hij == 0.0_gp) cycle
-                  if (associated(prj(i,j,l)%mat)) then
+                  if (prj%ij_terms(i,j,l)%hij == 0.0_gp) cycle
+                  if (associated(prj%ij_terms(i,j,l)%mat)) then
                      !nondiagonal projector approach
-                     call f_gemv(a=prj(i,j,l)%mat,alpha=prj(i,j,l)%hij,beta=1.0_wp,&
+                     call f_gemv(a=prj%ij_terms(i,j,l)%mat,alpha=prj%ij_terms(i,j,l)%hij,beta=1.0_wp,&
                           y=dproj(1,i,l),x=cproj(1,j,l))
                   else
                      !diagonal case
-                     call f_gemv(a=f_eye(2*l-1),alpha=prj(i,j,l)%hij,beta=1.0_wp,&
+                     call f_gemv(a=f_eye(2*l-1),alpha=prj%ij_terms(i,j,l)%hij,beta=1.0_wp,&
                           y=dproj(1,i,l),x=cproj(1,j,l))
                   end if
 !!$                  do m=1,2*l-1 !diagonal in m

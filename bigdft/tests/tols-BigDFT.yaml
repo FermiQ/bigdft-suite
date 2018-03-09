@@ -462,6 +462,7 @@ NLCC: &NLCCsnew
  Atomic Forces (Ha/Bohr): 5.0e-11
  Clean forces norm (Ha/Bohr): 5.0e-11
  Total electronic charge: 1.2e-11
+ Total stress tensor matrix (Ha/Bohr^3): 5e-11
  Value for Exc[rhoc]: 3.8e-9
  PV (Ha): 5.9e-11
  Exc(rhoc): 3.8e-9
@@ -2669,7 +2670,7 @@ pexsi:
 counterions:
   EH: 1.1e-10
   EKS: 2.5e-11
-  Energy (Hartree): 1.6e-11
+  Energy (Hartree): 1.7e-11
   Epot: 1.1e-10
   EvXC: 1.1e-10
   Ekin: 1.1e-10

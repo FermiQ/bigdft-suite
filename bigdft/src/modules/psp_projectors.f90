@@ -21,6 +21,7 @@ module psp_projectors
   public :: projector_has_overlap,get_proj_locreg
   public :: DFT_PSP_projector_iter, DFT_PSP_projectors_iter_new
   public :: DFT_PSP_projectors_iter_next, DFT_PSP_projectors_iter_ensure
+  public :: DFT_PSP_projectors_iter_apply
   public :: bounds_to_plr_limits,pregion_size
   public :: hgh_psp_application
   public :: update_nlpsp
@@ -213,7 +214,7 @@ contains
   ! replace the routine nl_HGH_application as it does not need allocating arrays anymore
   subroutine hgh_psp_application(hij,ncplx_p,n_p,wfd_p,proj,&
        ncplx_w,n_w,wfd_w,tolr,psi_pack,scpr,pdpsi,hpdpsi,psi,hpsi,eproj)
-    use pseudopotentials, only: apply_hij_coeff,atomic_proj_coeff
+    use pseudopotentials, only: apply_hij_coeff,atomic_proj_matrix
     use locreg_operations
     use compression
     implicit none
@@ -227,7 +228,7 @@ contains
     type(wfd_to_wfd), intent(in) :: tolr
     !> matrix of nonlocal HGH psp
     !real(gp), dimension(3,3,4), intent(in) :: hij
-    type(atomic_proj_coeff), dimension(3,3,4) :: hij
+    type(atomic_proj_matrix), intent(in) :: hij
     !> components of the projectors, real and imaginary parts
     real(wp), dimension(wfd_p%nvctr_c+7*wfd_p%nvctr_f,ncplx_p,n_p), intent(in) :: proj
     !> components of wavefunctions, real and imaginary parts
@@ -378,11 +379,15 @@ contains
   end function projector_has_overlap
 
   recursive function DFT_PSP_projectors_iter_next(iter, ilr, lr, glr) result(ok)
+    use compression, only: wfd_to_wfd_skip
     implicit none
     type(DFT_PSP_projector_iter), intent(inout) :: iter
     integer, intent(in), optional :: ilr
     type(locreg_descriptors), intent(in), optional :: lr, glr
     logical :: ok
+
+    logical :: overlap
+    integer :: iilr
 
     ok = .false.
     nullify(iter%coeff)
@@ -395,8 +400,12 @@ contains
     iter%mproj = iter%current%mproj
     if (iter%mproj == 0) ok = DFT_PSP_projectors_iter_next(iter, ilr, lr, glr)
     if (present(ilr) .and. present(lr) .and. present(glr)) then
-       if (.not. projector_has_overlap(ilr, lr, glr, iter%pspd)) &
-            & ok = DFT_PSP_projectors_iter_next(iter, ilr, lr, glr)
+       iilr = get_proj_locreg(iter%pspd, ilr)
+       if (iilr > 0) iter%tolr => iter%pspd%tolr(iilr)
+       overlap = (iilr > 0)
+       if (overlap) overlap = .not. wfd_to_wfd_skip(iter%pspd%tolr(iilr))
+       if (overlap) call check_overlap(lr, iter%pspd%plr, glr, overlap)
+       if (.not. overlap) ok = DFT_PSP_projectors_iter_next(iter, ilr, lr, glr)
     end if
   end function DFT_PSP_projectors_iter_next
 
@@ -411,6 +420,12 @@ contains
     type(projector_coefficients), pointer :: proj
     type(atomic_projector_iter) :: a_it
 
+    if (all(kpt == 0.0_gp)) then
+       iter%ncplx = 1
+    else
+       iter%ncplx = 2
+    end if
+    
     ! Ensure that projector exists for this kpoint, or build it if not.
     if (.not. iter%parent%on_the_fly) then
        proj => iter%current%projs
@@ -438,6 +453,7 @@ contains
     if (iter%parent%on_the_fly) then
        iter%coeff => iter%parent%shared_proj
     else
+       proj%idir = idir
        if (.not. associated(proj%coeff)) proj%coeff = f_malloc_ptr(a_it%nproj * a_it%nc)
        iter%coeff => proj%coeff
     end if
@@ -462,10 +478,43 @@ contains
     call atomic_projector_iter_free(a_it)
   end subroutine DFT_PSP_projectors_iter_ensure
 
-  subroutine DFT_PSP_projectors_iter_apply(iter)
+  subroutine DFT_PSP_projectors_iter_apply(psp_it, psi_it, at, scpr, cproj, hcproj)
+    use module_atoms
+    use orbitalbasis
+    use pseudopotentials
+    use compression
     implicit none
-    type(DFT_PSP_projector_iter), intent(in) :: iter
+    type(DFT_PSP_projector_iter), intent(in) :: psp_it
+    type(ket), intent(in) :: psi_it
+    type(atoms_data), intent(in) :: at
+    real(wp), dimension(psp_it%ncplx, psi_it%n_ket, psp_it%ncplx, psp_it%mproj), intent(out) :: scpr
+    real(wp), dimension(max(psp_it%ncplx, psp_it%ncplx), psi_it%n_ket, psp_it%mproj), intent(out) :: cproj
+    real(wp), dimension(max(psp_it%ncplx, psp_it%ncplx), psi_it%n_ket, psp_it%mproj), intent(out), optional :: hcproj
     
+    integer :: ityp
+    real(gp), dimension(3,3,4) :: hij
+    type(atomic_proj_matrix) :: prj
+
+    call pr_dot_psi(psp_it%ncplx, psp_it%mproj, psp_it%pspd%plr%wfd, &
+         & psp_it%coeff, psi_it%ncplx, psi_it%n_ket, psi_it%lr%wfd, &
+         & psi_it%phi_wvl, psp_it%tolr, psp_it%parent%wpack, &
+         & scpr, cproj)
+
+    if (.not. present(hcproj)) return
+
+    !extract hij parameters
+    ityp = at%astruct%iatype(psp_it%iat)
+    call hgh_hij_matrix(at%npspcode(ityp), at%psppar(0,0,ityp), hij)
+    if (associated(at%gamma_targets) .and. psp_it%parent%apply_gamma_target) then
+       call allocate_atomic_proj_matrix(hij, psp_it%iat, psi_it%ispin, prj, at%gamma_targets)
+    else
+       call allocate_atomic_proj_matrix(hij, psp_it%iat, psi_it%ispin, prj)
+    end if
+
+    call apply_hij_coeff(prj, max(psi_it%ncplx, psp_it%ncplx) * psi_it%n_ket, &
+         & psp_it%mproj, cproj, hcproj)
+
+    call free_atomic_proj_matrix(prj)
   end subroutine DFT_PSP_projectors_iter_apply
 
 end module psp_projectors

@@ -1041,7 +1041,6 @@ subroutine NonLocalHamiltonianApplication(iproc,at,npsidim_orbs,orbs,&
   use module_atoms
   use orbitalbasis
   use ao_inguess, only: lmax_ao
-  use pseudopotentials, only: atomic_proj_coeff,allocate_prj_ptr,f_free_prj_ptr
   implicit none
   integer, intent(in) :: iproc, npsidim_orbs
   type(atoms_data), intent(in) :: at
@@ -1056,7 +1055,7 @@ subroutine NonLocalHamiltonianApplication(iproc,at,npsidim_orbs,orbs,&
   character(len=*), parameter :: subname='NonLocalHamiltonianApplication'
   logical :: overlap
   integer :: istart_ck,nwarnings
-  integer :: istart_c,iilr
+  integer :: istart_c
   type(ket) :: psi_it
   type(orbital_basis) :: psi_ob
   type(DFT_PSP_projector_iter) :: psp_it
@@ -1085,11 +1084,7 @@ subroutine NonLocalHamiltonianApplication(iproc,at,npsidim_orbs,orbs,&
 
   !here the localisation region should be changed, temporary only for cubic approach
 
-  !apply the projectors following the strategy (On-the-fly calculation or not)
-
   !apply the projectors  k-point of the processor
-  !starting k-point
-  istart_ck=1
   !iterate over the orbital_basis
   psi_it=orbital_basis_iterator(psi_ob)
 
@@ -1099,53 +1094,15 @@ subroutine NonLocalHamiltonianApplication(iproc,at,npsidim_orbs,orbs,&
         loop_proj: do while (DFT_PSP_projectors_iter_next(psp_it, ilr = psi_it%ilr, &
              & lr = psi_it%lr, glr = lzd%glr))
            call DFT_PSP_projectors_iter_ensure(psp_it, psi_it%kpoint, 0, nwarnings, Lzd%Glr)
-           iilr=get_proj_locreg(psp_it%pspd,psi_it%ilr)
            loop_psi_kpt: do while(ket_next(psi_it,ikpt=psi_it%ikpt,ilr=psi_it%ilr))
               !call DFT_PSP_projectors_iter_apply(psp_it, psi_it, hij)
               call nl_psp_application()
            end do loop_psi_kpt
         end do loop_proj
-!!$
-!!$        
-!!$        if (nl%on_the_fly) then
-!!$           atit = atoms_iter(at%astruct)
-!!$           loop_atoms: do while(atoms_iter_next(atit))
-!!$              ! Check whether the projectors of this atom have an overlap with locreg ilr
-!!$              overlap = projector_has_overlap(psi_it%ilr,psi_it%lr,lzd%glr, nl%pspd(atit%iat))
-!!$              if(.not. overlap) cycle loop_atoms
-!!$              call atom_projector(nl,atit%iat, 0, Lzd%Glr, psi_it%kpoint, nwarnings)
-!!$
-!!$              iilr=get_proj_locreg(nl%pspd(atit%iat),psi_it%ilr)
-!!$              loop_psi_kpt: do while(ket_next(psi_it,ikpt=psi_it%ikpt,ilr=psi_it%ilr))
-!!$                 istart_c=1
-!!$                 call nl_psp_application()
-!!$              end do loop_psi_kpt
-!!$           end do loop_atoms
-!!$        else
-!!$           loop_psi_kpt2: do while(ket_next(psi_it,ikpt=psi_it%ikpt,ilr=psi_it%ilr))
-!!$              atit = atoms_iter(at%astruct)
-!!$              istart_c=istart_ck !TO BE CHANGED IN ONCE-AND-FOR-ALL
-!!$              loop_atoms2: do while(atoms_iter_next(atit))
-!!$                 overlap = projector_has_overlap(psi_it%ilr,psi_it%lr, lzd%glr, nl%pspd(atit%iat))
-!!$                 if(.not. overlap) cycle loop_atoms2
-!!$
-!!$                 iilr=get_proj_locreg(nl%pspd(atit%iat),psi_it%ilr)
-!!$                 call nl_psp_application()
-!!$              end do loop_atoms2
-!!$           end do loop_psi_kpt2
-!!$        end if
      end do loop_lr
-     istart_ck=istart_c !only needed for the once-and-for-all
   end do loop_kpt
 
   call orbital_basis_release(psi_ob)
-
-  if (.not. nl%on_the_fly .and. Lzd%nlr==1 .and. paw%usepaw) then !TO BE REMOVED WITH NEW PROJECTOR APPLICATION
-     if (istart_ck-1 /= nl%nprojel .and. orbs%norbp>0) then
-        call f_err_throw('Incorrect once-and-for-all psp application, istart_ck, nprojel= '+&
-             yaml_toa([istart_ck,nl%nprojel]),err_name='BIGDFT_RUNTIME_ERROR')
-     end if
-  end if
 
   !used on the on-the-fly projector creation
   if (nwarnings /= 0 .and. iproc == 0) then
@@ -1162,11 +1119,9 @@ contains
 
   !>code factorization useful for routine restructuring
   subroutine nl_psp_application()
+    use compression
     implicit none
     !local variables
-    integer :: ncplx_p,nvctr_p,ityp
-    real(gp), dimension(3,3,4) :: hij
-    type(atomic_proj_coeff), dimension(:,:,:), pointer :: prj
     real(gp) :: eproj
 
     hpsi_ptr => ob_ket_map(hpsi,psi_it)
@@ -1178,51 +1133,29 @@ contains
             psi_it%phi_wvl,hpsi_ptr,spsi_ptr,eproj_sum,&
             paw)
     else
-       if (all(psi_it%kpoint == 0.0_gp)) then
-          ncplx_p=1
-       else
-          ncplx_p=2
-       end if
-!!$       if (psi_it%nspinor > 1) then !which means 2 or 4
-!!$          ncplx_w=2
-!!$          n_w=psi_it%nspinor/2
-!!$       else
-!!$          ncplx_w=1
-!!$          n_w=1
-!!$       end if
+       call DFT_PSP_projectors_iter_apply(psp_it, psi_it, at, &
+            & nl%scpr,nl%cproj,nl%hcproj)
 
-       !extract hij parameters
-       ityp = at%astruct%iatype(psp_it%iat)
-       call hgh_hij_matrix(at%npspcode(ityp),at%psppar(0,0,ityp),hij)
-       if (associated(at%gamma_targets) .and. nl%apply_gamma_target) then
-          call allocate_prj_ptr(hij, psp_it%iat,psi_it%ispin, prj, at%gamma_targets)
-       else
-          call allocate_prj_ptr(hij, psp_it%iat,psi_it%ispin, prj)
-       end if
+       call cproj_dot(psp_it%ncplx, psp_it%mproj, psi_it%ncplx, psi_it%n_ket, &
+            & nl%scpr,nl%cproj,nl%hcproj,eproj)
 
-       nvctr_p=psp_it%pspd%plr%wfd%nvctr_c+7*psp_it%pspd%plr%wfd%nvctr_f
+       call cproj_pr_p_psi(nl%hcproj,psp_it%ncplx, psp_it%mproj,psp_it%pspd%plr%wfd,&
+            & psp_it%coeff,psi_it%ncplx,psi_it%n_ket,psi_it%lr%wfd,hpsi_ptr,psp_it%tolr,&
+            nl%wpack,nl%scpr)
 
-!!$       call NL_HGH_application(hij,&
-!!$            ncplx_p,mproj,nl%pspd(atit%iat)%plr%wfd,nl%proj(istart_c),&
-!!$            psi_it%ncplx,psi_it%n_ket,psi_it%lr%wfd,nl%pspd(atit%iat)%tolr(iilr),&
+!!$       call hgh_psp_application(psp_it%prj,psp_it%ncplx,psp_it%mproj,&
+!!$            & psp_it%pspd%plr%wfd, psp_it%coeff,&
+!!$            psi_it%ncplx,psi_it%n_ket,psi_it%lr%wfd,psp_it%tolr,&
 !!$            nl%wpack,nl%scpr,nl%cproj,nl%hcproj,&
 !!$            psi_it%phi_wvl,hpsi_ptr,eproj)
-
-       call hgh_psp_application(prj,ncplx_p,psp_it%mproj,&
-            & psp_it%pspd%plr%wfd, psp_it%coeff,&
-            psi_it%ncplx,psi_it%n_ket,psi_it%lr%wfd,psp_it%pspd%tolr(iilr),&
-            nl%wpack,nl%scpr,nl%cproj,nl%hcproj,&
-            psi_it%phi_wvl,hpsi_ptr,eproj)
 
        !here the cproj can be extracted to update the density matrix for the atom iat 
        if (associated(nl%iagamma)) then
           call cproj_to_gamma(nl%pbasis(psp_it%iat),psi_it%n_ket,psp_it%mproj, &
-               & lmax_ao, max(psi_it%ncplx,ncplx_p),nl%cproj,psi_it%kwgt*psi_it%occup,&
+               & lmax_ao, max(psi_it%ncplx,psp_it%ncplx),nl%cproj,psi_it%kwgt*psi_it%occup,&
                nl%iagamma(0,psp_it%iat),&
                nl%gamma_mmp(1,1,1,1,psi_it%ispin))
        end if
-
-       call f_free_prj_ptr(prj)
 
        eproj_sum=eproj_sum+psi_it%kwgt*psi_it%occup*eproj
     end if

@@ -122,8 +122,10 @@ module psp_projectors_base
      type(daubechies_projectors), pointer :: current
 
      type(nonlocal_psp_descriptors), pointer :: pspd
+     type(wfd_to_wfd), pointer :: tolr
      integer :: iat
      integer :: mproj
+     integer :: ncplx
      real(wp), dimension(:), pointer :: coeff
   end type DFT_PSP_projector_iter
 
@@ -682,8 +684,10 @@ contains
     nullify(iter%current)
     iter%iat = 0
     nullify(iter%pspd)
+    nullify(iter%tolr)
     iter%mproj = 0
     nullify(iter%coeff)
+    iter%ncplx = 0
   end subroutine DFT_PSP_projectors_iter_new
 
 end module psp_projectors_base
