@@ -98,8 +98,7 @@ subroutine calculate_coupling_matrix(iproc,nproc,dir_output,boxit,tddft_approach
   !For nspin=1, define an auxiliary matrix for spin-off-diagonal terms.
   if (nspin==1) Kaux = f_malloc0([nmulti, nmulti],id='Kaux')
 
-  !if (iproc==0) bar=f_progress_bar_new(nstep=((nalphap+1)*nalphap)/2)
-  if (iproc==0) bar=f_progress_bar_new(nstep=nalphap)
+  if (iproc==0) bar=f_progress_bar_new(nstep=((nalphap+1)*nalphap)/2)
 
   !$ nthreads=omp_get_max_threads()
 
@@ -119,10 +118,9 @@ subroutine calculate_coupling_matrix(iproc,nproc,dir_output,boxit,tddft_approach
          q=rho_ias(boxit%ind)
          boxit%tmp=boxit%rxyz-center_of_charge
          !dipoles(:,iap)=dipoles(:,iap)+boxit%tmp*q
-         call f_multipoles_accumulate(mp,boxit%rxyz,q*boxit%mesh%volume_element)
+         call f_multipoles_accumulate(mp,boxit%tmp,q*boxit%mesh%volume_element)
        end do
        transition_quantities(:,iap)=mp%monomials
-       transition_quantities(1,iap)=sqrt(eap)
        call f_multipoles_release(mp)
        !dipoles(:,iap)=sqrt(eap)*dipoles(:,iap)*boxit%mesh%volume_element
 
@@ -178,6 +176,7 @@ subroutine calculate_coupling_matrix(iproc,nproc,dir_output,boxit,tddft_approach
 !!$           end do
 !!$           Kaux(iap,ibq)=Kaux(iap,ibq)+kfxc
 !!$         end if
+
          !add factors from energy occupation numbers (for non-tda case)
          !If full TDDFT, then multiply the coupling matrix element by the "2*sqrt(\omega_q*\omega_{q'})" coefficient of eq. 2.
          if (tddft_approach=='full') then
@@ -187,8 +186,7 @@ subroutine calculate_coupling_matrix(iproc,nproc,dir_output,boxit,tddft_approach
          !istep=istep+1
       end do
       !$omp end parallel do
-       !if (iproc==0) call dump_progress_bar(bar,step=istep)
-       if (iproc==0) call dump_progress_bar(bar,step=iap)
+       if (iproc==0) call dump_progress_bar(bar,step=((iap+1)*iap)/2)
     end do
   !If more than one processor, then perform the MPI_all_reduce of K (and of Kaux if nspin=1) and of dipoles.
   if (nproc > 1) then
@@ -196,7 +194,6 @@ subroutine calculate_coupling_matrix(iproc,nproc,dir_output,boxit,tddft_approach
      if (nspin ==1) call fmpi_allreduce(Kaux,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
      !call fmpi_allreduce(dipoles(1,1),3*nmulti,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
      call fmpi_allreduce(transition_quantities(1,1),10*nmulti,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
-
   end if
 
 
@@ -223,12 +220,15 @@ subroutine calculate_coupling_matrix(iproc,nproc,dir_output,boxit,tddft_approach
   end if
 
   !Add the diagonal part: {\omega_i}^{1+ntda} \delta_{i,j}
-    do iap=1,nalphap
-      ialpha=transitions(ALPHA_,iap)
-      ip=transitions(P_,iap)
-      eap=orbsvirt%eval(ialpha)-orbsocc%eval(ip)
-      K(iap,iap)=K(iap,iap)+eap**(ntda+1)
-    end do
+  do iap=1,nalphap
+     ialpha=transitions(ALPHA_,iap)
+     ip=transitions(P_,iap)
+     eap=orbsvirt%eval(ialpha)-orbsocc%eval(ip)
+     K(iap,iap)=K(iap,iap)+eap**(ntda+1)
+     !put the sqrt of the transition energies in the first place of the array
+     !as the monopole of a codensity is always 0
+     transition_quantities(1,iap)=sqrt(eap)
+  end do
   !Construction of the whole coupling matrix Kbig for nspin=1
   if (nspin == 1) then
      Kbig = f_malloc0_ptr((/ 2*nmulti, 2*nmulti /),id='Kbig')
