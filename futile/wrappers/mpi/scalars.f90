@@ -39,7 +39,7 @@ module fmpi_types
   end interface mpitype
 
   interface mpitypesize
-    module procedure mpitypesize_d0, mpitypesize_d1, mpitypesize_i0, mpitypesize_long0, mpitypesize_l0
+    module procedure mpitypesize_d0, mpitypesize_d1, mpitypesize_d2, mpitypesize_i0, mpitypesize_long0, mpitypesize_l0
     module procedure mpitypesize_i1, mpitypesize_li1
   end interface mpitypesize
 
@@ -183,6 +183,16 @@ contains
     kindt=kind(foo) !to remove compilation warning
     sizeof=mpitypesize(1.0_f_double)
   end function mpitypesize_d1
+
+  function mpitypesize_d2(foo) result(sizeof)
+    implicit none
+    real(f_double), dimension(:,:), intent(in) :: foo
+    integer :: sizeof
+    integer :: kindt
+    kindt=kind(foo) !to remove compilation warning
+    sizeof=mpitypesize(1.0_f_double)
+  end function mpitypesize_d2
+
 
   function mpitypesize_i0(foo) result(sizeof)
     use dictionaries, only: f_err_throw,f_err_define

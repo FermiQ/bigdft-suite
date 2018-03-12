@@ -32,6 +32,7 @@ module f_alltoall
   interface fmpi_alltoall
      module procedure mpialltoallw_d11,mpialltoallw_i11
      module procedure mpialltoallw_li11
+     module procedure mpialltoallw_d22,mpialltoallw_d12
      !module procedure mpialltoallw_d00,mpialltoallw_i00
   end interface fmpi_alltoall
   
@@ -182,6 +183,30 @@ module f_alltoall
       real(f_double), dimension(:),intent(out) :: recvbuf
       include 'alltoallv-inc.f90'
     end subroutine mpialltoallw_d11
+
+    subroutine mpialltoallw_d22(sendbuf, recvbuf, &
+         count, sendcounts, sdispls, recvcounts, rdispls, comm, request, win, algorithm)
+      use dynamic_memory
+      use f_utils, only: f_size
+      use dictionaries
+      implicit none
+      real(f_double), dimension(:,:),intent(in)  :: sendbuf
+      real(f_double), dimension(:,:),intent(out) :: recvbuf
+      include 'alltoallv-inc.f90'
+    end subroutine mpialltoallw_d22
+
+    subroutine mpialltoallw_d12(sendbuf, recvbuf, &
+         count, sendcounts, sdispls, recvcounts, rdispls, comm, request, win, algorithm)
+      use dynamic_memory
+      use f_utils, only: f_size
+      use dictionaries
+      implicit none
+      real(f_double), dimension(:),intent(in)  :: sendbuf
+      real(f_double), dimension(:,:),intent(out) :: recvbuf
+      include 'alltoallv-inc.f90'
+    end subroutine mpialltoallw_d12
+
+
 
 !!$    subroutine mpialltoallw_d00(sendbuf, recvbuf, &
 !!$         count, sendcounts, sdispls, recvcounts, rdispls, comm, request, win, algorithm)

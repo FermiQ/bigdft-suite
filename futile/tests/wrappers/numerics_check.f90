@@ -235,6 +235,7 @@ subroutine loop_box_function(fcheck,mesh)
      call yaml_map('uabc matrix',mesh%uabc)
      call yaml_map('Sphere radius or cube side',r)
      do i=1,3
+
         totvolS=0.0_f_double
         totvolS1=0.0_f_double
         totvolS2=0.0_f_double

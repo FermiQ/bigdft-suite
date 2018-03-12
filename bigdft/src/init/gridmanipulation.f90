@@ -306,7 +306,7 @@ subroutine correct_grid(a,h,n)
    use Poisson_Solver, except_dp => dp, except_gp => gp
    implicit none
    real(gp), intent(in) :: a
-   integer, intent(inout) :: n
+   integer, intent(out) :: n
    real(gp), intent(inout) :: h
    !local variables
    integer :: m,m2,nt
