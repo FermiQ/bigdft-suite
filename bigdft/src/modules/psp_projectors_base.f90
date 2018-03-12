@@ -634,7 +634,7 @@ contains
        end do
        nlpsp%projs(iat)%region%plr%mesh%ndims = lr%mesh%ndims
        call f_free_ptr(nlpsp%projs(iat)%region%lut_tolr)
-       deallocate(nlpsp%projs(iat)%region%tolr)
+       call free_tolr_ptr(nlpsp%projs(iat)%region%tolr)
        call set_wfd_to_wfd(lr, nlpsp%projs(iat)%region%plr, &
             & keyg_lin, nbsegs_cf, nlpsp%projs(iat)%region%noverlap, &
             & nlpsp%projs(iat)%region%lut_tolr, nlpsp%projs(iat)%region%tolr)
