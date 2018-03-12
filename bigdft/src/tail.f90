@@ -16,13 +16,15 @@ subroutine CalculateTailCorrection(iproc,nproc,at,rbuf,orbs,&
   use module_base
   use module_types
   use yaml_output
-  use module_interfaces, only: applyprojectorsonthefly, orbitals_descriptors
-  use psp_projectors_base, only: psp_update_positions
+  use module_interfaces, only: orbitals_descriptors
+  use psp_projectors_base
   use gaussians, only: gaussian_basis
   use public_enums
   use bounds, only: make_bounds, make_all_ib
   use locregs
   use compression
+  use orbitalbasis
+  use psp_projectors
   implicit none
   type(atoms_data), intent(in) :: at
   type(orbitals_data), intent(in) :: orbs
@@ -39,21 +41,20 @@ subroutine CalculateTailCorrection(iproc,nproc,at,rbuf,orbs,&
   real(kind=8), intent(out) :: ekin_sum,epot_sum,eproj_sum
   type(paw_objects),optional,intent(inout)::paw
   !local variables
-  type(locreg_descriptors) :: lr
+  type(locreg_descriptors), target :: lr
   character(len=*), parameter :: subname='CalculateTailCorrection'
   integer :: iseg,i0,j0,i1,j1,i2,i3,ii,iat,iorb,npt,ipt,i,ierr,nbuf,ispin
   integer :: nb1,nb2,nb3,nbfl1,nbfu1,nbfl2,nbfu2,nbfl3,nbfu3
   integer :: n1,n2,n3,nsegb_c,nsegb_f,nvctrb_c,nvctrb_f
   real(kind=8) :: alatb1,alatb2,alatb3,ekin,epot,eproj,tt,cprecr,sum_tail !n(c) eproj1 epot1,ekin1
   type(orbitals_data) :: orbsb
-  type(wavefunctions_descriptors) :: wfdb
+  type(ket) :: psi_it
+  type(DFT_PSP_projector_iter) :: psp_it
   logical, dimension(:,:,:), allocatable :: logrid_c,logrid_f
   integer, dimension(:,:,:), allocatable :: ibbyz_c,ibbyz_f,ibbxz_c,ibbxz_f,ibbxy_c,ibbxy_f
   real(kind=8), dimension(:,:), allocatable :: wrkallred
-  real(kind=8), dimension(:), allocatable :: psib,hpsib,psir
+  real(kind=8), dimension(:), allocatable, target :: psib,hpsib,psir
   real(kind=8), dimension(:,:), pointer :: txyz
-  integer, dimension(:), pointer :: keyv
-  integer, dimension(:,:), pointer :: keyg
 
   !for shrink:
   integer, allocatable, dimension(:,:,:) :: ibbzzx_c,ibbyyzz_c
@@ -66,7 +67,7 @@ subroutine CalculateTailCorrection(iproc,nproc,at,rbuf,orbs,&
   !real space border:
   integer, allocatable, dimension(:,:,:) :: ibbyyzz_r 
 
-  integer nw1,nw2
+  integer nw1,nw2, nwarnings
 
   real(kind=8), dimension(:,:,:), allocatable::x_c!input 
   real(kind=8), dimension(:,:,:,:), allocatable :: x_f ! input
@@ -94,7 +95,7 @@ subroutine CalculateTailCorrection(iproc,nproc,at,rbuf,orbs,&
   ! Create new structure with modified grid sizes
   call init_lr(lr,Glr%geocode,0.5*hgrid,nb1,nb2,nb3,&
        Glr%d%nfl1,Glr%d%nfl2,Glr%d%nfl3,Glr%d%nfu1,Glr%d%nfu2,Glr%d%nfu3,&
-       .true.,wfd=Glr%wfd,bnds=Glr%bounds)
+       .true.,bnds=Glr%bounds)
  
   alatb1=real(nb1,kind=8)*hgrid(1) 
   alatb2=real(nb2,kind=8)*hgrid(1) 
@@ -119,35 +120,6 @@ subroutine CalculateTailCorrection(iproc,nproc,at,rbuf,orbs,&
      !     '            ',alatb1,alatb2,alatb3,nb1,nb2,nb3
   end if
 
-
-  !---reformat keyg_p
-
-  do iat=1,at%astruct%nat
-     do iseg=1,nlpsp%projs(iat)%region%plr%wfd%nseg_c+nlpsp%projs(iat)%region%plr%wfd%nseg_f
-        j0=nlpsp%projs(iat)%region%plr%wfd%keyglob(1,iseg)
-        j1=nlpsp%projs(iat)%region%plr%wfd%keyglob(2,iseg)
-        !do iseg=1,nlpspd%nseg_p(2*at%astruct%nat)
-        !j0=nlpspd%keyg_p(1,iseg)
-        !j1=nlpspd%keyg_p(2,iseg)
-        ii=j0-1
-        i3=ii/((n1+1)*(n2+1))
-        ii=ii-i3*(n1+1)*(n2+1)
-        i2=ii/(n1+1)
-        i0=ii-i2*(n1+1)
-        i1=i0+j1-j0
-        i3=i3+nbuf
-        i2=i2+nbuf
-        i1=i1+nbuf
-        i0=i0+nbuf
-        j0=i3*((nb1+1)*(nb2+1)) + i2*(nb1+1) + i0+1
-        j1=i3*((nb1+1)*(nb2+1)) + i2*(nb1+1) + i1+1
-        nlpsp%projs(iat)%region%plr%wfd%keyglob(1,iseg)=j0
-        nlpsp%projs(iat)%region%plr%wfd%keyglob(2,iseg)=j1
-        nlpsp%projs(iat)%region%plr%mesh%ndims = [nb1, nb2, nb3]
-!!$        nlpspd%keyg_p(1,iseg)=j0
-!!$        nlpspd%keyg_p(2,iseg)=j1
-     end do
-  end do
 !end do
 
   !---reformat wavefunctions
@@ -203,11 +175,13 @@ subroutine CalculateTailCorrection(iproc,nproc,at,rbuf,orbs,&
   call fill_logrid('F',nb1,nb2,nb3,0,nb1,0,nb2,0,nb3,nbuf,at%astruct%nat,at%astruct%ntypes,at%astruct%iatype,txyz, & 
        at%radii_cf(1,1),crmult,hgrid(1),hgrid(1),hgrid(1),logrid_c)
   call num_segkeys(nb1,nb2,nb3,0,nb1,0,nb2,0,nb3,logrid_c,nsegb_c,nvctrb_c)
+  lr%wfd%nseg_c = nsegb_c
+  lr%wfd%nvctr_c = nvctrb_c
 
   if (iproc == 0) then
      call yaml_mapping_open('Coarse resolution grid',flow=.true.)
      call yaml_map('Segments',nsegb_c)
-     call yaml_map('Points',nsegb_c)
+     call yaml_map('Points',nvctrb_c)
      call yaml_mapping_close()
      !write(*,'(2(1x,a,i10))') &
      !     'Coarse resolution grid: Number of segments= ',nsegb_c,'points=',nvctrb_c
@@ -219,11 +193,13 @@ subroutine CalculateTailCorrection(iproc,nproc,at,rbuf,orbs,&
   call fill_logrid('F',nb1,nb2,nb3,0,nb1,0,nb2,0,nb3,0,at%astruct%nat,at%astruct%ntypes,at%astruct%iatype,txyz, & 
        at%radii_cf(1,2),frmult,hgrid(1),hgrid(1),hgrid(1),logrid_f)
   call num_segkeys(nb1,nb2,nb3,0,nb1,0,nb2,0,nb3,logrid_f,nsegb_f,nvctrb_f)
+  lr%wfd%nseg_f = nsegb_f
+  lr%wfd%nvctr_f = nvctrb_f
   if (iproc == 0) then
      !Bug in yaml_output solved
      call yaml_mapping_open('Fine resolution grid',flow=.true.)
      call yaml_map('Segments',nsegb_f)
-     call yaml_map('Points',nsegb_f)
+     call yaml_map('Points',nvctrb_f)
      call yaml_mapping_close()
      !write(*,'(2(1x,a,i10))') &
      !     '  Fine resolution grid: Number of segments= ',nsegb_f,'points=',nvctrb_f
@@ -269,39 +245,17 @@ subroutine CalculateTailCorrection(iproc,nproc,at,rbuf,orbs,&
        ibbyz_c,ibbzxx_c,ibbxxyy_c,ibbyz_f,ibbyz_ff,ibbzxx_f,ibbxxyy_f,ibbyyzz_r)
 
   ! now fill the wavefunction descriptor arrays
-  keyg = f_malloc_ptr((/ 2, nsegb_c+nsegb_f /),id='keyg')
-  keyv = f_malloc_ptr(nsegb_c+nsegb_f,id='keyv')
+  call allocate_wfd(lr%wfd)
   ! coarse grid quantities
-  call segkeys(nb1,nb2,nb3,0,nb1,0,nb2,0,nb3,logrid_c,nsegb_c,keyg(1,1),keyv(1))
+  call segkeys(nb1,nb2,nb3,0,nb1,0,nb2,0,nb3,logrid_c,nsegb_c,&
+       & lr%wfd%keyglob(1,1),lr%wfd%keyvglob(1))
 
   ! fine grid quantities
-  call segkeys(nb1,nb2,nb3,0,nb1,0,nb2,0,nb3,logrid_f,nsegb_f,keyg(1,nsegb_c+1),keyv(nsegb_c+1))
+  call segkeys(nb1,nb2,nb3,0,nb1,0,nb2,0,nb3,logrid_f,nsegb_f,&
+       & lr%wfd%keyglob(1,lr%wfd%nseg_c+1),lr%wfd%keyvglob(lr%wfd%nseg_c+1))
 
   call f_free(logrid_c)
   call f_free(logrid_f)
-
-
-  !assign the values of the big wavefunction descriptors (used for on-the-fly projectors calc)
-  if (DistProjApply) then
-     wfdb%nvctr_c=nvctrb_c
-     wfdb%nvctr_f=nvctrb_f
-     wfdb%nseg_c=nsegb_c
-     wfdb%nseg_f=nsegb_f
-     wfdb%keyvloc => keyv
-     wfdb%keyvglob => keyv
-     wfdb%keygloc => keyg
-     wfdb%keyglob => keyg
-!!$     allocate(wfdb%keygloc(2,nsegb_c+nsegb_f+ndebug),stat=i_stat)
-!!$     call memocc(i_stat,wfdb%keygloc,'wfdb%keygloc',subname)
-!!$     allocate(wfdb%keyglob(2,nsegb_c+nsegb_f+ndebug),stat=i_stat)
-!!$     call memocc(i_stat,wfdb%keyglob,'wfdb%keyglob',subname)
-!!$     do i = 1, 2
-!!$        do j = 1, nsegb_c+nsegb_f
-!!$           wfdb%keygloc(i,j) = keyg(i,j)
-!!$           wfdb%keyglob(i,j) = keyg(i,j)
-!!$         end do
-!!$     end do
-  end if
 
 
   ! allocations for arrays holding the wavefunction
@@ -358,7 +312,7 @@ subroutine CalculateTailCorrection(iproc,nproc,at,rbuf,orbs,&
        reshape((/0._gp,0._gp,0._gp/),(/3,1/)),(/1._gp /),orbsb,LINEAR_PARTITION_NONE)
 
   !change positions in gaussian projectors
-  call psp_update_positions(nlpsp, txyz)
+  call psp_update_positions(nlpsp, lr, Glr, txyz)
 
   do iorb=1,orbs%norbp
 
@@ -366,57 +320,49 @@ subroutine CalculateTailCorrection(iproc,nproc,at,rbuf,orbs,&
      call transform_fortail(n1,n2,n3,nb1,nb2,nbfl1,nbfu1,nbfl2,nbfu2,nbfl3,nbfu3,&
         & Glr%wfd%nseg_c,Glr%wfd%nvctr_c,Glr%wfd%keygloc,Glr%wfd%keyvloc,&
         & Glr%wfd%nseg_f,Glr%wfd%nvctr_f,Glr%wfd%keygloc(1,Glr%wfd%nseg_c+1),Glr%wfd%keyvloc(Glr%wfd%nseg_c+1),  &
-        & nsegb_c,nvctrb_c,keyg,keyv,nsegb_f,nvctrb_f,&
-        & keyg(1,nsegb_c+1),keyv(nsegb_c+1),&
+        & lr%wfd%nseg_c,lr%wfd%nvctr_c,lr%wfd%keyglob,lr%wfd%keyvglob,&
+        & lr%wfd%nseg_f,lr%wfd%nvctr_f,lr%wfd%keyglob(1,nsegb_c+1),lr%wfd%keyvglob(nsegb_c+1),&
         & nbuf,psi(1,iorb),psi(Glr%wfd%nvctr_c+1,iorb),  & 
         & x_c,x_f,psib(1),psib(nvctrb_c+1))
 
      !write(*,*) 'transform_fortail finished',iproc,iorb
 
+     if(orbs%spinsgn(iorb+orbs%isorb)>0.0d0) then
+        ispin=1
+     else
+        ispin=2
+     end if
+     psi_it%ncplx = 1
+     psi_it%n_ket = 1
+     psi_it%lr => lr
+     psi_it%phi_wvl => psib
+     psi_it%ispin = ispin
+       
      npt=2
      tail_adding: do ipt=1,npt
 
-        if(orbs%spinsgn(iorb+orbs%isorb)>0.0d0) then
-           ispin=1
-        else
-           ispin=2
-        end if
-       
         !for the tail application leave the old-fashioned hamiltonian
         !since it only deals with Free BC and thus no k-points or so
 
         !calculate gradient
         call applylocpotkinone(nb1,nb2,nb3,nbfl1,nbfu1,nbfl2,nbfu2,nbfl3,nbfu3,nbuf, &
-             hgrid,nsegb_c,nsegb_f,nvctrb_c,nvctrb_f,keyg,keyv,  &
-             ibbyz_c,ibbxz_c,ibbxy_c,ibbyz_f,ibbxz_f,ibbxy_f,y_c,y_f,psir,  &
+             hgrid,lr%wfd%nseg_c,lr%wfd%nseg_f,lr%wfd%nvctr_c,lr%wfd%nvctr_f, &
+             lr%wfd%keyglob,lr%wfd%keyvglob, &
+             ibbyz_c,ibbxz_c,ibbxy_c,ibbyz_f,ibbxz_f,ibbxy_f,y_c,y_f,psir, &
              psib,pot(1,1,1,ispin),hpsib,epot,ekin, &
              x_c,x_f1,x_f2,x_f3,x_f,w1,w2,&
              ibbzzx_c,ibbyyzz_c,ibbxy_ff,ibbzzx_f,ibbyyzz_f,&
              ibbzxx_c,ibbxxyy_c,ibbyz_ff,ibbzxx_f,ibbxxyy_f,nw1,nw2,ibbyyzz_r,1,1)
         !write(*,'(a,3i3,2f12.8)') 'applylocpotkinone finished',iproc,iorb,ipt,epot,ekin
 
-        if (DistProjApply) then
-           if(any(at%npspcode == PSPCODE_PAW)) then
-             call applyprojectorsonthefly(0,orbsb,at,lr,&
-                  txyz,hgrid(1),hgrid(1),hgrid(1),wfdb,nlpsp,psib,hpsib,eproj,paw)
-           else
-             call applyprojectorsonthefly(0,orbsb,at,lr,&
-                  txyz,hgrid(1),hgrid(1),hgrid(1),wfdb,nlpsp,psib,hpsib,eproj)
-           end if
-           !only the wavefunction descriptors must change
-        else
-           if(any(at%npspcode == PSPCODE_PAW)) then
-             write(*,*)'WVL+PAW: applyprojectorsone not yet implemented'
-             stop
-           end if
-           call applyprojectorsone(at%astruct%ntypes,at%astruct%nat,at%astruct%iatype,&
-                at%psppar,at%npspcode, &
-                nlpsp,&
-                nsegb_c,nsegb_f,keyg,keyv,nvctrb_c,nvctrb_f,  & 
-                psib,hpsib,eproj)
-           !write(*,'(a,2i3,2f12.8)') 'applyprojectorsone finished',iproc,iorb,eproj,sum_tail
-
-        end if
+        call DFT_PSP_projectors_iter_new(psp_it, nlpsp)
+        loop_proj: do while (DFT_PSP_projectors_iter_next(psp_it, ilr = 1, lr = lr, glr = lr))
+           call DFT_PSP_projectors_iter_ensure(psp_it, [0._gp, 0._gp, 0._gp], 0, nwarnings, lr)
+           call DFT_PSP_projectors_iter_apply(psp_it, psi_it, at, eproj)
+           call cproj_pr_p_psi(nlpsp%hcproj,psp_it%ncplx, psp_it%mproj,psp_it%pspd%plr%wfd,&
+                & psp_it%coeff,psi_it%ncplx,psi_it%n_ket,psi_it%lr%wfd,hpsib,psp_it%tolr,&
+                nlpsp%wpack,nlpsp%scpr)
+        end do loop_proj
 
         !calculate residue for the single orbital
         tt=0.d0
@@ -431,7 +377,8 @@ subroutine CalculateTailCorrection(iproc,nproc,at,rbuf,orbs,&
         !calculate tail using the preconditioner as solver for the green function application
         cprecr=-orbs%eval(iorb+orbs%isorb)
         call precong(nb1,nb2,nb3,nbfl1,nbfu1,nbfl2,nbfu2,nbfl3,nbfu3, &
-             nsegb_c,nvctrb_c,nsegb_f,nvctrb_f,keyg,keyv, &
+             lr%wfd%nseg_c,lr%wfd%nvctr_c,lr%wfd%nseg_f,lr%wfd%nvctr_f,&
+             lr%wfd%keyglob,lr%wfd%keyvglob, &
              ncongt,cprecr,hgrid(1),ibbyz_c,ibbxz_c,ibbxy_c,ibbyz_f,ibbxz_f,ibbxy_f,hpsib)
         !call plot_wf(10,nb1,nb2,nb3,hgrid,nsegb_c,nvctrb_c,keyg,keyv,nsegb_f,nvctrb_f,  & 
         !      txyz(1,1),txyz(2,1),txyz(3,1),psib)
@@ -485,17 +432,7 @@ subroutine CalculateTailCorrection(iproc,nproc,at,rbuf,orbs,&
   call f_free(psib)
   call f_free(hpsib)
 
-  if (DistProjApply) then
-     !call deallocate_wfd(wfdb)
-     nullify(wfdb%keyvloc) 
-     nullify(wfdb%keyvglob)
-     nullify(wfdb%keygloc )
-     nullify(wfdb%keyglob )
-  end if
-  !else
-     call f_free_ptr(keyg)
-     call f_free_ptr(keyv)
-!  end if
+  call deallocate_wfd(lr%wfd)
 
   call f_free(ibbyz_c)
   call f_free(ibbxz_c)
@@ -857,59 +794,3 @@ subroutine applylocpotkinone(n1,n2,n3,nfl1,nfu1,nfl2,nfu2,nfl3,nfu3,nbuf, &
   end do
   
 END SUBROUTINE applylocpotkinone
-
-
-!> Applies all the projectors onto a single wavefunction
-!! Input: psi_c,psi_f
-!! In/Output: hpsi_c,hpsi_f (both are updated, i.e. not initialized to zero at the beginning)
-subroutine applyprojectorsone(ntypes,nat,iatype,psppar,npspcode,nlpsp,&
-     nseg_c,nseg_f,keyg,keyv,nvctr_c,nvctr_f,&
-     psi,hpsi,eproj)
-  use module_base
-  use module_types
-  implicit none
-  integer, intent(in) :: ntypes,nat,nseg_c,nseg_f,nvctr_c,nvctr_f
-  integer, dimension(ntypes), intent(in) :: npspcode
-  integer, dimension(nat), intent(in) :: iatype
-  integer, dimension(nseg_c+nseg_f), intent(in) :: keyv
-  integer, dimension(2,nseg_c+nseg_f), intent(in) :: keyg
-  type(DFT_PSP_projectors), intent(inout) :: nlpsp
-  real(gp), dimension(0:4,0:6,ntypes), intent(in) :: psppar
-  real(wp), dimension(nvctr_c+7*nvctr_f), intent(in) :: psi
-  real(wp), dimension(nvctr_c+7*nvctr_f), intent(inout) :: hpsi
-  real(gp), intent(out) :: eproj
-  !local variables
-  integer :: i,l,iat,iproj,istart_c,mbseg_c,mbseg_f,jseg_c,mbvctr_c,mbvctr_f,ityp !n(c) jseg_f
-
-  ! loop over all projectors
-  iproj=0
-  eproj=0.0_gp
-  istart_c=1
-  do iat=1,nat
-     call plr_segs_and_vctrs(nlpsp%projs(iat)%region%plr,&
-          mbseg_c,mbseg_f,mbvctr_c,mbvctr_f)
-     jseg_c=1
-
-     ityp=iatype(iat)
-     !GTH and HGH pseudopotentials
-     do l=1,4
-        do i=1,3
-           if (psppar(l,i,ityp) /= 0.0_gp) then
-              !in this case the ncplx value is 1 mandatory 
-              call applyprojector(1,l,i,psppar(0,0,ityp),npspcode(ityp),&
-                   nvctr_c,nvctr_f,nseg_c,nseg_f,keyv,keyg,&
-                   mbvctr_c,mbvctr_f,mbseg_c,mbseg_f,&
-                   nlpsp%projs(iat)%region%plr%wfd%keyvglob(jseg_c),&
-                   nlpsp%projs(iat)%region%plr%wfd%keyglob(1,jseg_c),&
-!!$                   keyv_p(jseg_c),keyg_p(1,jseg_c),&
-                   nlpsp%shared_proj(1),psi,hpsi,eproj)
-              iproj=iproj+2*l-1
-              istart_c=istart_c+(mbvctr_c+7*mbvctr_f)*(2*l-1)
-           end if
-        enddo
-     enddo
-  enddo
-  if (iproj /= nlpsp%nproj) stop '1:applyprojectorsone'
-  if (istart_c-1 /= nlpsp%nprojel) stop '2:applyprojectorsone'
-
-END SUBROUTINE applyprojectorsone

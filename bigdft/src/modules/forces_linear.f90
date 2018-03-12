@@ -1361,3 +1361,46 @@ module forces_linear
     END SUBROUTINE local_hamiltonian_stress_linear
 
 end module forces_linear
+
+!> Create projectors from gaussian decomposition.
+subroutine atom_projector(nl, iat, idir, lr, kpoint, nwarnings)
+  use module_base, only: gp, f_routine, f_release_routine
+  use locregs, only: locreg_descriptors
+  use psp_projectors_base
+  use f_enums
+  implicit none
+  type(DFT_PSP_projectors), intent(inout) :: nl
+  integer, intent(in) :: iat
+  type(locreg_descriptors), intent(in) :: lr
+  integer, intent(in) :: idir
+  real(gp), dimension(3), intent(in) :: kpoint
+  integer, intent(inout) :: nwarnings
+
+  type(atomic_projector_iter) :: iter
+
+  call f_routine(id='atom_projector')
+
+  ! Start an atomic iterator.
+  call atomic_projector_iter_new(iter, nl%pbasis(iat), nl%projs(iat)%region%plr, kpoint)
+  call atomic_projector_iter_set_destination(iter, nl%shared_proj)
+  if (PROJECTION_1D_SEPARABLE == nl%method) then
+     if (nl%pbasis(iat)%kind == PROJ_DESCRIPTION_GAUSSIAN) then
+        call atomic_projector_iter_set_method(iter, PROJECTION_1D_SEPARABLE, lr)
+     else
+        call atomic_projector_iter_set_method(iter, PROJECTION_RS_COLLOCATION) 
+     end if
+  else
+     call atomic_projector_iter_set_method(iter, nl%method)
+  end if
+
+  call atomic_projector_iter_start(iter)
+  ! Loop on shell.
+  do while (atomic_projector_iter_next(iter))
+     call atomic_projector_iter_to_wavelets(iter, idir, nwarnings)
+  end do
+
+  call atomic_projector_iter_free(iter)
+
+  call f_release_routine()
+
+end subroutine atom_projector

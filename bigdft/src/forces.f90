@@ -868,7 +868,6 @@ subroutine nonlocal_forces(lr,at,ob,nlpsp,fsep,calculate_strten,strten)
   use module_atoms
   use orbitalbasis
   use locregs
-  use compression
   use psp_projectors_base
   use psp_projectors
   implicit none
@@ -913,11 +912,8 @@ subroutine nonlocal_forces(lr,at,ob,nlpsp,fsep,calculate_strten,strten)
            ! Specific treatment of proj, before derivatives.
            call DFT_PSP_projectors_iter_ensure(psp_it, psi_it%kpoint, 0, nwarnings, lr)
            loop_psi_kpt0: do while(ket_next(psi_it,ikpt=psi_it%ikpt,ilr=psi_it%ilr))
-              call DFT_PSP_projectors_iter_apply(psp_it, psi_it, at, &
-                   & nlpsp%scpr, nlpsp%cproj, hcproj0(1, psi_it%iorbp))
-              call cproj_dot(psp_it%ncplx, psp_it%mproj, &
-                      & psi_it%ncplx, psi_it%n_ket, nlpsp%scpr, &
-                      & nlpsp%cproj, hcproj0(1, psi_it%iorbp), falpha)
+              call DFT_PSP_projectors_iter_apply(psp_it, psi_it, at, falpha, &
+                   & hcproj_out = hcproj0(1, psi_it%iorbp))
               Enl = Enl + falpha * psi_it%kwgt * psi_it%occup
            end do loop_psi_kpt0
            
@@ -925,12 +921,9 @@ subroutine nonlocal_forces(lr,at,ob,nlpsp,fsep,calculate_strten,strten)
            loop_dir: do idir = 1, ndir
               call DFT_PSP_projectors_iter_ensure(psp_it, psi_it%kpoint, idir, nwarnings, lr)
               loop_psi_kpt: do while(ket_next(psi_it,ikpt=psi_it%ikpt,ilr=psi_it%ilr))
-                 call DFT_PSP_projectors_iter_apply(psp_it, psi_it, at, &
-                      & nlpsp%scpr, nlpsp%cproj)
+                 call DFT_PSP_projectors_iter_apply(psp_it, psi_it, at, falpha, &
+                      & hcproj_in = hcproj0(1, psi_it%iorbp))
 
-                 call cproj_dot(psp_it%ncplx, psp_it%mproj, &
-                      & psi_it%ncplx, psi_it%n_ket, nlpsp%scpr, &
-                      & nlpsp%cproj, hcproj0(1, psi_it%iorbp), falpha)
                  !write(*,*) idir, psp_it%iat, falpha
                  if (idir < 4) then
                     fsep(idir, psp_it%iat) = fsep(idir, psp_it%iat) + &

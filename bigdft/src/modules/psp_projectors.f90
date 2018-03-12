@@ -478,18 +478,20 @@ contains
     call atomic_projector_iter_free(a_it)
   end subroutine DFT_PSP_projectors_iter_ensure
 
-  subroutine DFT_PSP_projectors_iter_apply(psp_it, psi_it, at, scpr, cproj, hcproj)
+  subroutine DFT_PSP_projectors_iter_apply(psp_it, psi_it, at, eproj, &
+       & hcproj_in, hcproj_out)
     use module_atoms
     use orbitalbasis
     use pseudopotentials
     use compression
+    use ao_inguess, only: lmax_ao
     implicit none
     type(DFT_PSP_projector_iter), intent(in) :: psp_it
     type(ket), intent(in) :: psi_it
     type(atoms_data), intent(in) :: at
-    real(wp), dimension(psp_it%ncplx, psi_it%n_ket, psp_it%ncplx, psp_it%mproj), intent(out) :: scpr
-    real(wp), dimension(max(psp_it%ncplx, psp_it%ncplx), psi_it%n_ket, psp_it%mproj), intent(out) :: cproj
-    real(wp), dimension(max(psp_it%ncplx, psp_it%ncplx), psi_it%n_ket, psp_it%mproj), intent(out), optional :: hcproj
+    real(wp), intent(out) :: eproj
+    real(wp), dimension(max(psp_it%ncplx, psp_it%ncplx), psi_it%n_ket, psp_it%mproj), intent(in), optional :: hcproj_in
+    real(wp), dimension(max(psp_it%ncplx, psp_it%ncplx), psi_it%n_ket, psp_it%mproj), intent(out), optional :: hcproj_out
     
     integer :: ityp
     real(gp), dimension(3,3,4) :: hij
@@ -498,23 +500,48 @@ contains
     call pr_dot_psi(psp_it%ncplx, psp_it%mproj, psp_it%pspd%plr%wfd, &
          & psp_it%coeff, psi_it%ncplx, psi_it%n_ket, psi_it%lr%wfd, &
          & psi_it%phi_wvl, psp_it%tolr, psp_it%parent%wpack, &
-         & scpr, cproj)
+         & psp_it%parent%scpr, psp_it%parent%cproj)
 
-    if (.not. present(hcproj)) return
-
-    !extract hij parameters
-    ityp = at%astruct%iatype(psp_it%iat)
-    call hgh_hij_matrix(at%npspcode(ityp), at%psppar(0,0,ityp), hij)
-    if (associated(at%gamma_targets) .and. psp_it%parent%apply_gamma_target) then
-       call allocate_atomic_proj_matrix(hij, psp_it%iat, psi_it%ispin, prj, at%gamma_targets)
-    else
-       call allocate_atomic_proj_matrix(hij, psp_it%iat, psi_it%ispin, prj)
+    !here the cproj can be extracted to update the density matrix for the atom iat 
+    if (associated(psp_it%parent%iagamma) .and. .not. present(hcproj_in)) then
+       call cproj_to_gamma(psp_it%parent%pbasis(psp_it%iat), &
+            & psi_it%n_ket, psp_it%mproj, lmax_ao, max(psi_it%ncplx, psp_it%ncplx), &
+            & psp_it%parent%cproj, psi_it%kwgt * psi_it%occup, &
+            & psp_it%parent%iagamma(0, psp_it%iat), psp_it%parent%gamma_mmp(1,1,1,1,psi_it%ispin))
     end if
 
-    call apply_hij_coeff(prj, max(psi_it%ncplx, psp_it%ncplx) * psi_it%n_ket, &
-         & psp_it%mproj, cproj, hcproj)
+    if (.not. present(hcproj_in)) then
+       ! Compute hcproj.
+       ityp = at%astruct%iatype(psp_it%iat)
+       call hgh_hij_matrix(at%npspcode(ityp), at%psppar(0,0,ityp), hij)
+       if (associated(at%gamma_targets) .and. psp_it%parent%apply_gamma_target) then
+          call allocate_atomic_proj_matrix(hij, psp_it%iat, psi_it%ispin, prj, at%gamma_targets)
+       else
+          call allocate_atomic_proj_matrix(hij, psp_it%iat, psi_it%ispin, prj)
+       end if
 
-    call free_atomic_proj_matrix(prj)
+       if (present(hcproj_out)) then
+          call apply_hij_coeff(prj, max(psi_it%ncplx, psp_it%ncplx) * psi_it%n_ket, &
+               & psp_it%mproj, psp_it%parent%cproj, hcproj_out)
+       else
+          call apply_hij_coeff(prj, max(psi_it%ncplx, psp_it%ncplx) * psi_it%n_ket, &
+               & psp_it%mproj, psp_it%parent%cproj, psp_it%parent%hcproj)
+       end if
+
+       call free_atomic_proj_matrix(prj)
+    end if
+
+    if (present(hcproj_in)) then
+       call cproj_dot(psp_it%ncplx, psp_it%mproj, psi_it%ncplx, psi_it%n_ket, &
+            & psp_it%parent%scpr, psp_it%parent%cproj, hcproj_in, eproj)
+    else if (present(hcproj_out)) then
+       call cproj_dot(psp_it%ncplx, psp_it%mproj, psi_it%ncplx, psi_it%n_ket, &
+            & psp_it%parent%scpr, psp_it%parent%cproj, hcproj_out, eproj)
+    else
+       call cproj_dot(psp_it%ncplx, psp_it%mproj, psi_it%ncplx, psi_it%n_ket, &
+            & psp_it%parent%scpr, psp_it%parent%cproj, psp_it%parent%hcproj, eproj)
+    end if
+
   end subroutine DFT_PSP_projectors_iter_apply
 
 end module psp_projectors

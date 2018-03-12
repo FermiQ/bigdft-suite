@@ -591,16 +591,56 @@ contains
     end if
   end subroutine atomic_projectors_set_position
   
-  subroutine psp_update_positions(nlpsp, rxyz)
+  subroutine psp_update_positions(nlpsp, lr, lr0, rxyz)
     implicit none
     type(DFT_PSP_projectors), intent(inout) :: nlpsp
+    type(locreg_descriptors), intent(in) :: lr, lr0
     real(gp), dimension(3, nlpsp%natoms), intent(in) :: rxyz
 
-    integer :: iat
-    
+    integer :: iat, iseg, j0, j1, ii, i0, i1, i2, i3, n1, n2, nb1, nb2, nbuf, nseg
+    integer, dimension(:), allocatable :: nbsegs_cf,keyg_lin
+
+    nb1 = lr%d%n1
+    nb2 = lr%d%n2
+    n1 = lr0%d%n1
+    n2 = lr0%d%n2
+    nbuf = (nb1 - n1) / 2
+    nseg = 0
+    do iat = 1, nlpsp%natoms
+       nseg = max(nseg, nlpsp%projs(iat)%region%plr%wfd%nseg_c+nlpsp%projs(iat)%region%plr%wfd%nseg_f)
+    end do
+    nbsegs_cf = f_malloc(nseg, id = 'nbsegs_cf')
+    keyg_lin = f_malloc(lr%wfd%nseg_c + lr%wfd%nseg_f, id = 'keyg_lin')
     do iat = 1, nlpsp%natoms
        call atomic_projectors_set_position(nlpsp%pbasis(iat), rxyz(:, iat))
+       nseg = nlpsp%projs(iat)%region%plr%wfd%nseg_c+nlpsp%projs(iat)%region%plr%wfd%nseg_f
+       do iseg = 1, nseg
+          j0=nlpsp%projs(iat)%region%plr%wfd%keyglob(1,iseg)
+          j1=nlpsp%projs(iat)%region%plr%wfd%keyglob(2,iseg)
+          ii=j0-1
+          i3=ii/((n1+1)*(n2+1))
+          ii=ii-i3*(n1+1)*(n2+1)
+          i2=ii/(n1+1)
+          i0=ii-i2*(n1+1)
+          i1=i0+j1-j0
+          i3=i3+nbuf
+          i2=i2+nbuf
+          i1=i1+nbuf
+          i0=i0+nbuf
+          j0=i3*((nb1+1)*(nb2+1)) + i2*(nb1+1) + i0+1
+          j1=i3*((nb1+1)*(nb2+1)) + i2*(nb1+1) + i1+1
+          nlpsp%projs(iat)%region%plr%wfd%keyglob(1,iseg)=j0
+          nlpsp%projs(iat)%region%plr%wfd%keyglob(2,iseg)=j1
+       end do
+       nlpsp%projs(iat)%region%plr%mesh%ndims = lr%mesh%ndims
+       call f_free_ptr(nlpsp%projs(iat)%region%lut_tolr)
+       deallocate(nlpsp%projs(iat)%region%tolr)
+       call set_wfd_to_wfd(lr, nlpsp%projs(iat)%region%plr, &
+            & keyg_lin, nbsegs_cf, nlpsp%projs(iat)%region%noverlap, &
+            & nlpsp%projs(iat)%region%lut_tolr, nlpsp%projs(iat)%region%tolr)
     end do
+    call f_free(keyg_lin)
+    call f_free(nbsegs_cf)
   end subroutine psp_update_positions
 
   subroutine rfunc_basis_from_pspio(pspio, rfuncs)

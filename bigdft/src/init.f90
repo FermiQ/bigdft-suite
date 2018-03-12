@@ -479,12 +479,8 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
   call f_free(logrid)
   call f_free(keyg_lin)
   call f_free(nbsegs_cf)
-  !fill the projectors if the strategy is a distributed calculation
-  if (.not. nl%on_the_fly .and. init_projectors_completely) then
-     !calculate the wavelet expansion of projectors
-     call fill_projectors(lr,ob,nl,0)
-  else
-     nl%shared_proj=f_malloc0_ptr(nl%nprojel,id='proj')
+  if (nl%on_the_fly) then
+     nl%shared_proj=f_malloc_ptr(nl%nprojel,id='proj')
   end if
 
   call f_release_routine()
