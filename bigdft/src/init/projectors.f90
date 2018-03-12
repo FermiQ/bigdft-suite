@@ -429,7 +429,7 @@ subroutine get_projector_coeffs(ncplx_g,l,i,idir,nterm_max,factor,expo,&
   integer, dimension(3,nterm_max,3) :: lxyz_arr
   real(gp), dimension(nterm_max,3) :: fac_arr
 
-  if (f_err_raise(idir == 0 .and. ncplx_g == 1, 'deprecated call to get_projector_coeffs', &
+  if (f_err_raise(ncplx_g == 1, 'deprecated call to get_projector_coeffs', &
        & err_name='BIGDFT_RUNTIME_ERROR')) return
   
   !this value can also be inserted as a parameter

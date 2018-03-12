@@ -485,15 +485,15 @@ contains
     
     call ylm_coefficients_new(ylm, i, l - 1)
 
-    if (idir /=0 .or. ncplx_g > 1) then
+    if (ncplx_g > 1) then
        call get_projector_coeffs(ncplx_g,l,i,idir,nterm_max,factor,gau_a,&
             nterms,lxyz,gau_c,factors)
     end if
 
     !start of the projectors expansion routine
     do while(ylm_coefficients_next_m(ylm))
-       if (idir ==0 .and. ncplx_g == 1) then
-          g = ylm_coefficients_to_gaussian(ylm, factor(1), gau_a(1), 0)
+       if (ncplx_g == 1) then
+          g = ylm_coefficients_to_gaussian(ylm, factor(1), gau_a(1), idir, 0)
           do iterm = 1, g%nterms
              lxyz(iterm, 1, ylm%m) = g%lxyz(1, iterm)
              lxyz(iterm, 2, ylm%m) = g%lxyz(2, iterm)
@@ -556,7 +556,7 @@ contains
        iterG = iter
        do while (gaussian_iter_next_gaussian(G, iterG, coeff, expo))
           !call gaussian_real_space_set(g,sqrt(onehalf/expo(1)),nterms(m),factors(1,1,m),lxyz(1,1,m))
-          if (ider /= 0 .or. G%ncplx > 1) then
+          if (G%ncplx > 1) then
              ! Need to port the ylm code for derivatives or complex.
              call get_projector_coeffs(G%ncplx, iter%l, iter%n, ider, nterm_max, &
                   & coeff, expo, nterms, lxyz, sigma_and_expo, factors)
@@ -574,9 +574,9 @@ contains
              end if
           else
              if (present(mp_order)) then
-                grs = ylm_coefficients_to_gaussian(ylm, coeff(1), expo(1), mp_order)
+                grs = ylm_coefficients_to_gaussian(ylm, coeff(1), expo(1), ider, mp_order)
              else
-                grs = ylm_coefficients_to_gaussian(ylm, coeff(1), expo(1), 0)
+                grs = ylm_coefficients_to_gaussian(ylm, coeff(1), expo(1), ider, 0)
              end if
           end if
           oxyz = [cell_r(lr%mesh, lr%nsi1 + 1, 1), &
@@ -2303,16 +2303,16 @@ contains
     if (r > 0._gp .and. ylm%l > 0) tt = tt / (r ** ylm%l)
   end function ylm_coefficients_at
 
-  function ylm_coefficients_to_gaussian(ylm, coeff, expo, mp_isf_order) result(g)
+  function ylm_coefficients_to_gaussian(ylm, coeff, expo, idir, mp_isf_order) result(g)
     implicit none
     type(gaussian_real_space) :: g
     type(ylm_coefficients), intent(in) :: ylm
     real(gp), intent(in) :: expo, coeff
-    integer, intent(in) :: mp_isf_order
+    integer, intent(in) :: idir, mp_isf_order
     
     !local variables
-    real(gp) :: fgamma, fpi
-    integer :: offset, nC, nterms_tmp, iterm
+    real(gp) :: fgamma, fpi, fder
+    integer :: offset, nC, nterms_tmp, iterm, der(3), sder(3), ider
     real(gp), dimension(NTERM_MAX_RS) :: factors_tmp,facC
     integer, dimension(3,NTERM_MAX_RS) :: lxyz_tmp,lxyzC
     integer, dimension(3), parameter :: np0 = (/ 1, 3*5, 3*5*7*9 /)
@@ -2345,11 +2345,27 @@ contains
        fgamma = fgamma / sqrt(3._gp * 5._gp * 7._gp)
        fgamma = fgamma / sqrt(real(np3(ylm%n), gp))
     end select
+    ider = 0
+    fder = 1._gp
+    der = [0,0,0]
+    sder = [0,0,0]
+    if (idir > 0) then
+       ider = mod(idir - 1, 3) + 1
+       fder = 1._gp / (-g%sigma ** 2._gp)
+       der(ider) = 1
+       select case(idir)
+       case(4,9)
+          sder(1) = 1
+       case(5,7)
+          sder(2) = 1
+       case(6,8)
+          sder(3) = 1
+       end select
+    end if
 
     offset = sum(ylm%ntpd(1:ylm%m - 1))
     select case(g%discretization_method)
     case(RADIAL_COLLOCATION)
-       !leave untouched the specified powers
        g%nterms=ylm%ntpd(ylm%m)
        g%factors(1:g%nterms)=ylm%ftpd(offset + 1:offset + g%nterms) * fgamma
        g%lxyz(:,1:g%nterms)=ylm%pow(:, offset + 1:offset + g%nterms)
@@ -2368,7 +2384,23 @@ contains
           g%nterms=g%nterms+nC
        end do
     end select
-    
+    if (idir > 0) then
+       nC = g%nterms
+       ! Add terms coming from the derivative of r^(l+2(n-1)).(spherical harmonics).
+       do iterm = 1, g%nterms
+          if (g%lxyz(ider, iterm) == 0) cycle
+
+          nC = nC + 1
+          g%factors(nC) = g%factors(iterm) * g%lxyz(ider, iterm)
+          g%lxyz(:, nC) = g%lxyz(:, iterm) - der + sder
+       end do
+       ! Modify terms coming from the derivative of the gaussian.
+       do iterm = 1, g%nterms
+          g%factors(iterm) = g%factors(iterm) * fder
+          g%lxyz(:, iterm) = g%lxyz(:, iterm) + der + sder
+       end do
+       g%nterms = nC
+    end if
   end function ylm_coefficients_to_gaussian
 
   !> Routine to extract the coefficients from the quantum numbers and the operation
