@@ -1487,14 +1487,14 @@ subroutine psivirt_from_gaussians(iproc,nproc,filerad,at,orbs,Lzd,comms,rxyz,nsp
    type(ket) :: it
    logical :: ok,binary,chosen,notenough
    character(len=500) :: filename
-   type(cell) :: mesh
+   !type(cell) :: mesh
 
    rxyz_old=f_malloc([3,at%astruct%nat],id='rxyz_old')
 
-   mesh=cell_new(at%astruct%geocode,&
-        [Lzd%Glr%d%n1,Lzd%Glr%d%n2,Lzd%Glr%d%n3],Lzd%hgrids)
+   !mesh=cell_new(at%astruct%geocode,&
+   !     [Lzd%Glr%d%n1,Lzd%Glr%d%n2,Lzd%Glr%d%n3],Lzd%hgrids)
 
-   psifscf=f_malloc(locreg_mesh_shape(mesh,highres=.true.),id='psifscf')
+   psifscf=f_malloc(locreg_mesh_shape(lzd%Glr%mesh_coarse,highres=.true.),id='psifscf')
 
    call orbital_basis_associate(ob,orbs=orbs,Lzd=Lzd,phis_wvl=psivirt)
    mask=f_malloc(ob%orbs%norbp,id='mask')
