@@ -1054,8 +1054,7 @@ subroutine NonLocalHamiltonianApplication(iproc,at,npsidim_orbs,orbs,&
   !local variables
   character(len=*), parameter :: subname='NonLocalHamiltonianApplication'
   logical :: overlap
-  integer :: istart_ck,nwarnings
-  integer :: istart_c
+  integer :: nwarnings
   type(ket) :: psi_it
   type(orbital_basis) :: psi_ob
   type(DFT_PSP_projector_iter) :: psp_it
@@ -1128,7 +1127,7 @@ contains
 
     if (paw%usepaw) then
        spsi_ptr => ob_ket_map(paw%spsi,psi_it)
-       call apply_atproj_iorb_paw(psp_it%iat,psi_it%iorbp,istart_c,&
+       call apply_atproj_iorb_paw(psp_it%iat,psi_it%iorbp,&
             at,psi_it%ob%orbs,psi_it%lr%wfd,nl,&
             psi_it%phi_wvl,hpsi_ptr,spsi_ptr,eproj_sum,&
             paw)
