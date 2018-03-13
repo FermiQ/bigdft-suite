@@ -5,7 +5,7 @@ import setuptools
 #You could be more specific.
 files = ["things/*"]
 
-setup(name = "Py-BigDFT",
+setup(name = "PyBigDFT",
     version = "0.1",
     description = "Python module for BigDFT drivers and analysis",
     author = "Luigi Genovese",
