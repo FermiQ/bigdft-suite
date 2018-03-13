@@ -55,7 +55,7 @@ ACTIONS={'build':
          'Show the linking line that have to be used to connect an external executable to the package (when applicable)' }
 
 #actions which need rcfile to be executed
-NEEDRC=['build','dist','dry_run','startover']
+NEEDRC=['build','dist','dry_run','startover','buildone']
 
 TARGETS={
     'bigdft': ['bin','bigdft'],
