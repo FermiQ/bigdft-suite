@@ -337,6 +337,8 @@ subroutine CalculateTailCorrection(iproc,nproc,at,rbuf,orbs,&
      psi_it%lr => lr
      psi_it%phi_wvl => psib
      psi_it%ispin = ispin
+     psi_it%ispsi = 1
+     psi_it%nphidim = nvctrb_c+7*nvctrb_f
        
      npt=2
      tail_adding: do ipt=1,npt
@@ -358,10 +360,7 @@ subroutine CalculateTailCorrection(iproc,nproc,at,rbuf,orbs,&
         call DFT_PSP_projectors_iter_new(psp_it, nlpsp)
         loop_proj: do while (DFT_PSP_projectors_iter_next(psp_it, ilr = 1, lr = lr, glr = lr))
            call DFT_PSP_projectors_iter_ensure(psp_it, [0._gp, 0._gp, 0._gp], 0, nwarnings, lr)
-           call DFT_PSP_projectors_iter_apply(psp_it, psi_it, at, eproj)
-           call cproj_pr_p_psi(nlpsp%hcproj,psp_it%ncplx, psp_it%mproj,psp_it%pspd%plr%wfd,&
-                & psp_it%coeff,psi_it%ncplx,psi_it%n_ket,psi_it%lr%wfd,hpsib,psp_it%tolr,&
-                nlpsp%wpack,nlpsp%scpr)
+           call DFT_PSP_projectors_iter_apply(psp_it, psi_it, paw, at, eproj, hpsi = hpsib)
         end do loop_proj
 
         !calculate residue for the single orbital

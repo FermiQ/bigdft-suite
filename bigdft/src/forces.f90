@@ -55,7 +55,7 @@ subroutine calculate_forces(iproc,nproc,psolver_groupsize,Glr,atoms,ob,nlpsp,rxy
      dpbox, &
      i3s,n3p,nspin,&
      refill_proj,ngatherarr,rho,pot,potxc,nsize_psi,psi,fion,fdisp,fxyz,&
-     calculate_strten,ewaldstr,hstrten,xcstr,strten,pressure,psoffset,imode,tmb,fpulay)
+     calculate_strten,ewaldstr,hstrten,xcstr,strten,pressure,psoffset,imode,tmb,paw,fpulay)
   use module_base
   use module_dpbox, only: denspot_distribution
   use module_types
@@ -83,6 +83,7 @@ subroutine calculate_forces(iproc,nproc,psolver_groupsize,Glr,atoms,ob,nlpsp,rxy
   real(gp), intent(out) :: pressure
   real(gp), dimension(6), intent(out) :: strten
   real(gp), dimension(3,atoms%astruct%nat), intent(inout) :: fxyz
+  type(paw_objects), intent(inout) :: paw
   type(DFT_wavefunction),intent(inout) :: tmb
   !Local variables
   integer :: iat,i,j
@@ -129,7 +130,7 @@ subroutine calculate_forces(iproc,nproc,psolver_groupsize,Glr,atoms,ob,nlpsp,rxy
   select case(imode)
   case(0)
      !cubic version of nonlocal forces
-     call nonlocal_forces(Glr,atoms,ob,nlpsp,fxyz,&
+     call nonlocal_forces(Glr,atoms,ob,nlpsp,paw,fxyz,&
           calculate_strten .and. (atoms%astruct%geocode == 'P'),strtens(1,2))
   case(1)
      !linear version of nonlocal forces
@@ -863,8 +864,9 @@ END SUBROUTINE local_forces
 !> Calculates the nonlocal forces on all atoms arising from the wavefunctions
 !! belonging to iproc and adds them to the force array
 !! recalculate the projectors at the end if refill flag is .true.
-subroutine nonlocal_forces(lr,at,ob,nlpsp,fsep,calculate_strten,strten)
+subroutine nonlocal_forces(lr,at,ob,nlpsp,paw,fsep,calculate_strten,strten)
   use module_base
+  use module_types
   use module_atoms
   use orbitalbasis
   use locregs
@@ -874,6 +876,7 @@ subroutine nonlocal_forces(lr,at,ob,nlpsp,fsep,calculate_strten,strten)
   !Arguments-------------
   type(atoms_data), intent(in) :: at
   type(DFT_PSP_projectors), intent(inout) :: nlpsp
+  type(paw_objects), intent(inout) :: paw
   logical, intent(in) :: calculate_strten
   type(locreg_descriptors) :: lr
   type(orbital_basis), intent(in) :: ob
@@ -912,7 +915,7 @@ subroutine nonlocal_forces(lr,at,ob,nlpsp,fsep,calculate_strten,strten)
            ! Specific treatment of proj, before derivatives.
            call DFT_PSP_projectors_iter_ensure(psp_it, psi_it%kpoint, 0, nwarnings, lr)
            loop_psi_kpt0: do while(ket_next(psi_it,ikpt=psi_it%ikpt,ilr=psi_it%ilr))
-              call DFT_PSP_projectors_iter_apply(psp_it, psi_it, at, falpha, &
+              call DFT_PSP_projectors_iter_apply(psp_it, psi_it, paw, at, falpha, &
                    & hcproj_out = hcproj0(1, psi_it%iorbp))
               Enl = Enl + falpha * psi_it%kwgt * psi_it%occup
            end do loop_psi_kpt0
@@ -921,7 +924,7 @@ subroutine nonlocal_forces(lr,at,ob,nlpsp,fsep,calculate_strten,strten)
            loop_dir: do idir = 1, ndir
               call DFT_PSP_projectors_iter_ensure(psp_it, psi_it%kpoint, idir, nwarnings, lr)
               loop_psi_kpt: do while(ket_next(psi_it,ikpt=psi_it%ikpt,ilr=psi_it%ilr))
-                 call DFT_PSP_projectors_iter_apply(psp_it, psi_it, at, falpha, &
+                 call DFT_PSP_projectors_iter_apply(psp_it, psi_it, paw, at, falpha, &
                       & hcproj_in = hcproj0(1, psi_it%iorbp))
 
                  !write(*,*) idir, psp_it%iat, falpha
