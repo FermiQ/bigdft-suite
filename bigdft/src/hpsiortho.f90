@@ -1035,9 +1035,7 @@ subroutine NonLocalHamiltonianApplication(iproc,at,npsidim_orbs,orbs,&
   use module_base
   use module_types
   use yaml_output
-  !  use module_interfaces
   use psp_projectors
-  use public_enums, only: PSPCODE_PAW
   use module_atoms
   use orbitalbasis
   use ao_inguess, only: lmax_ao
@@ -1053,11 +1051,11 @@ subroutine NonLocalHamiltonianApplication(iproc,at,npsidim_orbs,orbs,&
   real(gp), intent(out) :: eproj_sum
   !local variables
   character(len=*), parameter :: subname='NonLocalHamiltonianApplication'
-  logical :: overlap
   integer :: nwarnings
   type(ket) :: psi_it
   type(orbital_basis) :: psi_ob
   type(DFT_PSP_projector_iter) :: psp_it
+  real(wp) :: eproj
   real(wp), dimension(:), pointer :: hpsi_ptr,spsi_ptr
 
   !integer :: ierr
@@ -1094,8 +1092,8 @@ subroutine NonLocalHamiltonianApplication(iproc,at,npsidim_orbs,orbs,&
              & lr = psi_it%lr, glr = lzd%glr))
            call DFT_PSP_projectors_iter_ensure(psp_it, psi_it%kpoint, 0, nwarnings, Lzd%Glr)
            loop_psi_kpt: do while(ket_next(psi_it,ikpt=psi_it%ikpt,ilr=psi_it%ilr))
-              !call DFT_PSP_projectors_iter_apply(psp_it, psi_it, hij)
-              call nl_psp_application()
+              call DFT_PSP_projectors_iter_apply(psp_it, psi_it, paw, at, eproj, hpsi = hpsi)
+              eproj_sum = eproj_sum + psi_it%kwgt * psi_it%occup * eproj
            end do loop_psi_kpt
         end do loop_proj
      end do loop_lr
@@ -1113,36 +1111,6 @@ subroutine NonLocalHamiltonianApplication(iproc,at,npsidim_orbs,orbs,&
   call timing(iproc,'ApplyProj     ','OF')
 
   call f_release_routine()
-
-contains
-
-  !>code factorization useful for routine restructuring
-  subroutine nl_psp_application()
-    use compression
-    implicit none
-    !local variables
-    real(gp) :: eproj
-
-    hpsi_ptr => ob_ket_map(hpsi,psi_it)
-
-    if (paw%usepaw) then
-       spsi_ptr => ob_ket_map(paw%spsi,psi_it)
-       call apply_atproj_iorb_paw(psp_it%iat,psi_it%iorbp,&
-            at,psi_it%ob%orbs,psi_it%lr%wfd,nl,&
-            psi_it%phi_wvl,hpsi_ptr,spsi_ptr,eproj_sum,&
-            paw)
-    else
-       call DFT_PSP_projectors_iter_apply(psp_it, psi_it, at, eproj)
-
-       call cproj_pr_p_psi(nl%hcproj,psp_it%ncplx, psp_it%mproj,psp_it%pspd%plr%wfd,&
-            & psp_it%coeff,psi_it%ncplx,psi_it%n_ket,psi_it%lr%wfd,hpsi_ptr,psp_it%tolr,&
-            nl%wpack,nl%scpr)
-
-       eproj_sum=eproj_sum+psi_it%kwgt*psi_it%occup*eproj
-    end if
-
-  end subroutine nl_psp_application
-
 end subroutine NonLocalHamiltonianApplication
 
 

@@ -53,7 +53,7 @@ module pseudopotentials
   end type PSP_data
 
   public :: psp_set_from_dict,get_psp,psp_dict_fill_all
-  public :: apply_hij_coeff,update_psp_dict,psp_from_stream
+  public :: apply_hij_coeff,update_psp_dict,psp_from_stream,apply_paw_coeff
   public :: nullify_atomic_proj_matrix, allocate_atomic_proj_matrix, free_atomic_proj_matrix
 
   ! Psp dictionary representation, keys.
@@ -1205,6 +1205,38 @@ contains
       end do reversed_loop
 
     end subroutine apply_hij_coeff
+
+    subroutine apply_paw_coeff(kij, ncplx, n_w, n_p, scpr, hscpr)
+      use module_defs, only: gp,wp
+      use f_utils
+      implicit none
+      integer, intent(in) :: n_p, n_w, ncplx
+      real(wp), dimension(n_p * (n_p + 1) / 2, ncplx), intent(in) :: kij
+      real(wp), dimension(n_w,n_p), intent(in) :: scpr
+      real(wp), dimension(n_w,n_p), intent(out) :: hscpr
+      
+      integer :: klmn, j_m, i_m
+      real(wp), dimension(n_w) :: k
+
+      call f_zero(hscpr)
+      do j_m = 1, n_p, 1
+         do i_m = 1, j_m - 1
+            klmn = j_m * (j_m - 1) / 2 + i_m
+            k = kij(klmn, 1)
+            if (ncplx == 2) k(2) = kij(klmn, 2)
+!!$           write(*,*) j_m, i_m, klmn
+            hscpr(:, j_m) = hscpr(:, j_m) + k(:) * scpr(:, i_m)
+         end do
+         do i_m = j_m, n_p, 1
+            klmn = i_m * (i_m - 1) / 2 + j_m
+            k = kij(klmn, 1)
+            if (ncplx == 2) k(2) = kij(klmn, 2)
+!!$           write(*,*) j_m, i_m, klmn
+            hscpr(:, j_m) = hscpr(:, j_m) + k(:) * scpr(:, i_m)
+         end do
+      end do
+
+    end subroutine apply_paw_coeff
 
 end module pseudopotentials
 

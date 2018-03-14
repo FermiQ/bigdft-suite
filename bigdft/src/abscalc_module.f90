@@ -711,3 +711,109 @@ contains
   END SUBROUTINE applyPCprojectors
 
 end module module_abscalc
+
+!> Apply the PSP projectors
+subroutine applyprojector(ncplx,l,i,psppar,npspcode,&
+     nvctr_c,nvctr_f,nseg_c,nseg_f,keyv,keyg,&
+     mbvctr_c,mbvctr_f,mbseg_c,mbseg_f,keyv_p,keyg_p,proj,psi,hpsi,eproj)
+  use module_base, only: gp,wp,dp
+  use public_enums, only: PSPCODE_GTH, PSPCODE_HGH, PSPCODE_HGH_K, PSPCODE_HGH_K_NLCC, PSPCODE_PAW
+  implicit none
+  integer, intent(in) :: i,l,npspcode,ncplx
+  integer, intent(in) :: nvctr_c,nvctr_f,nseg_c,nseg_f,mbvctr_c,mbvctr_f,mbseg_c,mbseg_f
+  integer, dimension(nseg_c+nseg_f), intent(in) :: keyv
+  integer, dimension(2,nseg_c+nseg_f), intent(in) :: keyg
+  integer, dimension(mbseg_c+mbseg_f), intent(in) :: keyv_p
+  integer, dimension(2,mbseg_c+mbseg_f), intent(in) :: keyg_p
+  real(wp), dimension(*), intent(in) :: proj
+  real(gp), dimension(0:4,0:6), intent(in) :: psppar
+  real(wp), dimension(nvctr_c+7*nvctr_f,ncplx), intent(in) :: psi
+  real(gp), intent(inout) :: eproj
+  real(wp), dimension(nvctr_c+7*nvctr_f,ncplx), intent(inout) :: hpsi
+  !local variables
+  integer :: j,m,istart_c,istart_c_i,istart_c_j,icplx
+  real(dp), dimension(2) :: scpr,scprp,scpr_i,scprp_i,scpr_j,scprp_j
+  real(gp), dimension(2,2,3) :: offdiagarr
+  real(gp) :: hij
+
+  !enter the coefficients for the off-diagonal terms (HGH case, npspcode=3)
+  offdiagarr(1,1,1)=-0.5_gp*sqrt(3._gp/5._gp)
+  offdiagarr(2,1,1)=-0.5_gp*sqrt(100._gp/63._gp)
+  offdiagarr(1,2,1)=0.5_gp*sqrt(5._gp/21._gp)
+  offdiagarr(2,2,1)=0.0_gp !never used
+  offdiagarr(1,1,2)=-0.5_gp*sqrt(5._gp/7._gp)  
+  offdiagarr(2,1,2)=-7._gp/3._gp*sqrt(1._gp/11._gp)
+  offdiagarr(1,2,2)=1._gp/6._gp*sqrt(35._gp/11._gp)
+  offdiagarr(2,2,2)=0.0_gp !never used
+  offdiagarr(1,1,3)=-0.5_gp*sqrt(7._gp/9._gp)
+  offdiagarr(2,1,3)=-9._gp*sqrt(1._gp/143._gp)
+  offdiagarr(1,2,3)=0.5_gp*sqrt(63._gp/143._gp)
+  offdiagarr(2,2,3)=0.0_gp !never used
+
+  istart_c=1
+  !start of the routine for projectors application
+  do m=1,2*l-1
+
+     call wpdot_wrap(ncplx,  &
+          nvctr_c,nvctr_f,nseg_c,nseg_f,keyv,keyg,psi,  &
+          mbvctr_c,mbvctr_f,mbseg_c,mbseg_f,keyv_p,keyg_p,proj(istart_c),scpr)
+  
+     do icplx=1,ncplx
+        scprp(icplx)=scpr(icplx)*real(psppar(l,i),dp)
+        eproj=eproj+real(scprp(icplx),gp)*real(scpr(icplx),gp)
+     end do
+
+     call waxpy_wrap(ncplx,scprp,&
+          mbvctr_c,mbvctr_f,mbseg_c,mbseg_f,keyv_p,keyg_p,proj(istart_c),&
+          nvctr_c,nvctr_f,nseg_c,nseg_f,keyv,keyg,hpsi)
+
+     !print *,'scprp,m,l,i',scprp,m,l,i
+
+     istart_c=istart_c+(mbvctr_c+7*mbvctr_f)*ncplx
+  enddo
+  if ((npspcode == PSPCODE_HGH .and. l/=4 .and. i/=3) .or. &
+       ((npspcode == PSPCODE_HGH_K .or. npspcode == PSPCODE_HGH_K_NLCC ).and. i/=3)) then !HGH(-K) case, offdiagonal terms
+     loop_j: do j=i+1,3
+        if (psppar(l,j) == 0.0_gp) exit loop_j
+
+        !offdiagonal HGH term
+        if (npspcode == PSPCODE_HGH) then !traditional HGH convention
+           hij=offdiagarr(i,j-i,l)*psppar(l,j)
+        else !HGH-K convention
+           hij=psppar(l,i+j+1)
+        end if
+
+        !starting addresses of the projectors
+        istart_c_i=istart_c-(2*l-1)*(mbvctr_c+7*mbvctr_f)*ncplx
+        istart_c_j=istart_c_i+(j-i)*(2*l-1)*(mbvctr_c+7*mbvctr_f)*ncplx
+        do m=1,2*l-1
+           call wpdot_wrap(ncplx,nvctr_c,nvctr_f,nseg_c,nseg_f,keyv,keyg,psi,  &
+                mbvctr_c,mbvctr_f,mbseg_c,mbseg_f,keyv_p,keyg_p,proj(istart_c_j),scpr_j)
+
+           call wpdot_wrap(ncplx,nvctr_c,nvctr_f,nseg_c,nseg_f,keyv,keyg,psi,  &
+                mbvctr_c,mbvctr_f,mbseg_c,mbseg_f,keyv_p,keyg_p,proj(istart_c_i),scpr_i)
+
+           do icplx=1,ncplx
+              scprp_j(icplx)=scpr_j(icplx)*hij
+              scprp_i(icplx)=scpr_i(icplx)*hij
+              !scpr_i*h_ij*scpr_j+scpr_j*h_ij*scpr_i
+              eproj=eproj+2._gp*hij*real(scpr_j(icplx),gp)*real(scpr_i(icplx),gp)
+           end do
+
+           !|hpsi>=|hpsi>+h_ij (<p_i|psi>|p_j>+<p_j|psi>|p_i>)
+           call waxpy_wrap(ncplx,scprp_j,&
+                mbvctr_c,mbvctr_f,mbseg_c,mbseg_f,keyv_p,keyg_p,&
+                proj(istart_c_i),&
+                nvctr_c,nvctr_f,nseg_c,nseg_f,keyv,keyg,hpsi)
+
+           call waxpy_wrap(ncplx,scprp_i,&
+                mbvctr_c,mbvctr_f,mbseg_c,mbseg_f,&
+                keyv_p,keyg_p,proj(istart_c_j),&
+                nvctr_c,nvctr_f,nseg_c,nseg_f,keyv,keyg,hpsi)
+
+           istart_c_j=istart_c_j+(mbvctr_c+7*mbvctr_f)*ncplx
+           istart_c_i=istart_c_i+(mbvctr_c+7*mbvctr_f)*ncplx
+        enddo
+     end do loop_j
+  end if
+END SUBROUTINE applyprojector
