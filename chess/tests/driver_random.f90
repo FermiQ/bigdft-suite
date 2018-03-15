@@ -272,6 +272,7 @@ program driver_random
 !!$          call f_random_number(tt_real)
 !!$          mat1%matrix_compr(i) = real(tt_real,kind=8)
 !!$      end do
+      call f_random_number(tt_real, reset=.true.)
       call f_random_number(mat1%matrix_compr)
 
     
