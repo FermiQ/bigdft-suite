@@ -54,7 +54,7 @@ module chebyshev
       real(kind=mp),dimension(kernel%nvctrp_tg),intent(in) :: ham_compr
       logical,intent(in) :: calculate_SHS
       logical,intent(in) :: resume
-      real(kind=mp),dimension(kernel%nvctrp_tg),intent(in) :: mat
+      real(kind=mp),dimension(:),intent(in) :: mat
       real(kind=mp),dimension(kernel%smmm%nvctrp,4),intent(inout) :: vectors_new
       !real(kind=mp),dimension(kernel%nvctrp_tg),intent(inout) :: workarr_compr
       real(kind=mp),dimension(kernel%smmm%nvctrp,ncalc),intent(out) :: fermi_new

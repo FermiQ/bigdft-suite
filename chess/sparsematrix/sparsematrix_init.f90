@@ -48,7 +48,7 @@ module sparsematrix_init
   public :: distribute_on_threads
   public :: sparse_matrix_metadata_init
   public :: init_matrix_taskgroups
-  !!public :: check_matmul_layout
+  public :: check_matmul_layout
   public :: check_compress_distributed_layout
   public :: sparse_matrix_init_fake
   public :: check_symmetry 
@@ -549,10 +549,11 @@ module sparsematrix_init
       !     sparsemat%nsegline, sparsemat%istsegline, sparsemat%keyg, sparsemat, sparsemat%smmm%nseq, &
       !     sparsemat%smmm%indices_extract_sequential)
       !t1 = mpi_wtime()
-      !!write(*,*) 'call init_sequential_acces_matrix_new'
-      !call init_sequential_acces_matrix_new(sparsemat%smmm%nout, ispt, nseg, sparsemat%smmm%nseq, &
-      !     norb, sparsemat%smmm%nfvctrp, sparsemat%smmm%isfvctr, keyv, keyg, sparsemat, &
-      !     istsegline, line_and_column, compressed_indices, sparsemat%smmm%indices_extract_sequential)
+      if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+          call init_sequential_acces_matrix_new(sparsemat%smmm%nout, ispt, nseg, sparsemat%smmm%nseq, &
+               norb, sparsemat%smmm%nfvctrp, sparsemat%smmm%isfvctr, keyv, keyg, sparsemat, &
+               istsegline, line_and_column, compressed_indices, sparsemat%smmm%indices_extract_sequential)
+      end if
       call f_free_ptr(line_and_column)
       call f_free_ptr(compressed_indices)
       !t2 = mpi_wtime()
@@ -560,26 +561,29 @@ module sparsematrix_init
 
       ! This array gives the starting and ending indices of the submatrix which
       ! is used by a given MPI task
-      !!if (sparsemat%smmm%nseq>0) then
-      !!    sparsemat%smmm%istartend_mm(1) = sparsemat%nvctr
-      !!    sparsemat%smmm%istartend_mm(2) = 1
-      !!    do iseq=1,sparsemat%smmm%nseq
-      !!        ind=sparsemat%smmm%indices_extract_sequential(iseq)
-      !!        sparsemat%smmm%istartend_mm(1) = min(sparsemat%smmm%istartend_mm(1),ind)
-      !!        sparsemat%smmm%istartend_mm(2) = max(sparsemat%smmm%istartend_mm(2),ind)
-      !!    end do
-      !!else
-      !!    sparsemat%smmm%istartend_mm(1)=sparsemat%nvctr+1
-      !!    sparsemat%smmm%istartend_mm(2)=sparsemat%nvctr
-      !!end if
-      !!write(*,*) 'iproc, ind_min, ind_max', iproc, ind_min, ind_max
-      !!write(*,*) 'iproc, sparsemat%smmm%istartend_mm', iproc, sparsemat%smmm%istartend_mm
-      if (sparsemat%smmm%nout>0) then
-          sparsemat%smmm%istartend_mm(1) = ind_min
-          sparsemat%smmm%istartend_mm(2) = ind_max
-      else
-          sparsemat%smmm%istartend_mm(1)=sparsemat%nvctr+1
-          sparsemat%smmm%istartend_mm(2)=sparsemat%nvctr
+      if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+          if (sparsemat%smmm%nseq>0) then
+              sparsemat%smmm%istartend_mm(1) = sparsemat%nvctr
+              sparsemat%smmm%istartend_mm(2) = 1
+              do iseq=1,sparsemat%smmm%nseq
+                  ind=sparsemat%smmm%indices_extract_sequential(iseq)
+                  sparsemat%smmm%istartend_mm(1) = min(sparsemat%smmm%istartend_mm(1),ind)
+                  sparsemat%smmm%istartend_mm(2) = max(sparsemat%smmm%istartend_mm(2),ind)
+              end do
+          else
+              sparsemat%smmm%istartend_mm(1)=sparsemat%nvctr+1
+              sparsemat%smmm%istartend_mm(2)=sparsemat%nvctr
+          end if
+          !!write(*,*) 'iproc, ind_min, ind_max', iproc, ind_min, ind_max
+          !!write(*,*) 'iproc, sparsemat%smmm%istartend_mm', iproc, sparsemat%smmm%istartend_mm
+      else if (matmul_matrix == MATMUL_ORIGINAL_MATRIX) then
+          if (sparsemat%smmm%nout>0) then
+              sparsemat%smmm%istartend_mm(1) = ind_min
+              sparsemat%smmm%istartend_mm(2) = ind_max
+          else
+              sparsemat%smmm%istartend_mm(1)=sparsemat%nvctr+1
+              sparsemat%smmm%istartend_mm(2)=sparsemat%nvctr
+          end if
       end if
 
 
@@ -621,8 +625,8 @@ module sparsematrix_init
           istartend_dj(2,jproc-1) = istartend_dj(1,jproc)-1
       end do
       istartend_dj(2,nproc-1) = istartend_mm(2,nproc-1)
-      !!if (iproc==0) write(*,'(a,100(2i7,3x))') 'istartend_mm',istartend_mm
-      !!if (iproc==0) write(*,'(a,100(2i7,3x))') 'istartend_dj',istartend_dj
+      !if (iproc==0) write(*,'(a,100(2i7,3x))') 'istartend_mm',istartend_mm
+      !if (iproc==0) write(*,'(a,100(2i7,3x))') 'istartend_dj',istartend_dj
 
       ! Some checks
       if (istartend_dj(1,0)/=1) then
@@ -1278,7 +1282,11 @@ module sparsematrix_init
               ! Perform a sparse multiplication and get the timings
               !call init_matrix_taskgroups(iproc, nproc, comm, .false., sparsemat)
               call init_matrix_taskgroups_wrapper(iproc, nproc, comm, .true., 1, sparsemat)
-              a = sparsematrix_malloc0(sparsemat, iaction=SPARSE_TASKGROUP, id='a')
+              if (matmul_matrix == MATMUL_ORIGINAL_MATRIX) then
+                  a = sparsematrix_malloc0(sparsemat, iaction=SPARSE_TASKGROUP, id='a')
+              else if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                  a = sparsematrix_malloc0(sparsemat, iaction=SPARSEMM_SEQ, id='a')
+              end if
               b = f_malloc0(sparsemat%smmm%nvctrp,id='b')
               c = f_malloc0(sparsemat%smmm%nvctrp,id='c')
     
@@ -1405,7 +1413,11 @@ module sparsematrix_init
               call write_matmul_memory(iproc, nproc, comm, sparsemat%smmm)
 
               !!call f_free(times)
-              a = sparsematrix_malloc0(sparsemat, iaction=SPARSE_TASKGROUP, id='a')
+              if (matmul_matrix == MATMUL_ORIGINAL_MATRIX) then
+                  a = sparsematrix_malloc0(sparsemat, iaction=SPARSE_TASKGROUP, id='a')
+              else if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                  a = sparsematrix_malloc0(sparsemat, iaction=SPARSEMM_SEQ, id='a')
+              end if
               b = f_malloc0(sparsemat%smmm%nvctrp,id='b')
               c = f_malloc0(sparsemat%smmm%nvctrp,id='c')
               !!times = f_malloc0([sparsemat%smmm%nvctrp,1],id='times')
@@ -2003,326 +2015,316 @@ module sparsematrix_init
       ithread = 0
       nconsecutive_tot_arr(:) = 0
 
-      !$omp parallel &
-      !$omp default(none) &
-      !$omp shared(ise, ispt, onedimindices, smat, nconsecutive_tot_arr, onedimindices5_thread) &
-      !$omp shared(line_and_column, compressed_index) &
-      !$omp private(ipt, iipt, iline, icolumn, ilen, nconsecutive, jseg, jorb, ii, ii_prev) &
-      !$omp private(iii, iii_prev, iconsec, values, inseg) &
-      !$omp firstprivate(ithread)
-      !$ ithread = omp_get_thread_num()
-      do ipt=ise(1,ithread),ise(2,ithread)
-          iipt = ispt + ipt
-          iline = line_and_column(1,ipt)
-          icolumn = line_and_column(2,ipt)
-          onedimindices(1,ipt) = compressed_index(icolumn,iline)
-          if (onedimindices(1,ipt)>0) then
-              onedimindices(1,ipt) = onedimindices(1,ipt) - smat%smmm%isvctr
-          else
-              call f_err_throw('onedimindices(1,ipt)==0')
-          end if
-          ilen = 0
-          !nconsecutive = 1
-          nconsecutive = 0
-          !nconsecutive_tot_arr(ithread) = nconsecutive_tot_arr(ithread) + 1
-          !onedimindices(5,ipt) = nconsecutive_tot - 1
-          !onedimindices5_thread(ipt-ise(1,ithread)+1,ithread) = nconsecutive_tot_arr(ithread) - 1
-          onedimindices5_thread(ipt-ise(1,ithread)+1,ithread) = nconsecutive_tot_arr(ithread)
-          ! Take the column due to the symmetry of the sparsity pattern
-          do jseg=smat%istsegline(icolumn),smat%istsegline(icolumn)+smat%nsegline(icolumn)-1
-              inseg = .false.
-              iconsec = 0
-              do jorb = smat%keyg(1,1,jseg),smat%keyg(2,1,jseg)
-                  ii = compressed_index(jorb,iline)
-                  iii = matrixindex_in_compressed(smat, jorb, iline)
-                  !!write(*,*) 'ipt, jseg, jorb, iline, icolumn, ii, iii, ii_prev, iii_prev', &
-                  !!            ipt, jseg, jorb, iline, icolumn, ii, iii, ii_prev, iii_prev
-                  values = (ii > 0)
-                  ii = ii - smat%smmm%isvctr
-                  if (values) then
-                      if (.not.inseg) then
-                          !open a consecutive segment
-                          nconsecutive = nconsecutive + 1
-                          nconsecutive_tot_arr(ithread) = nconsecutive_tot_arr(ithread) + 1
-                          ilen = ilen + 1
-                          inseg = .true.
-                      else
-                          if (ii == ii_prev+1) then
-                              !within a consecutive segment
+      if (matmul_matrix == MATMUL_ORIGINAL_MATRIX) then
+
+          !$omp parallel &
+          !$omp default(none) &
+          !$omp shared(ise, ispt, onedimindices, smat, nconsecutive_tot_arr, onedimindices5_thread) &
+          !$omp shared(line_and_column, compressed_index) &
+          !$omp private(ipt, iipt, iline, icolumn, ilen, nconsecutive, jseg, jorb, ii, ii_prev) &
+          !$omp private(iconsec, values, inseg) &
+          !$omp firstprivate(ithread)
+          !$ ithread = omp_get_thread_num()
+          do ipt=ise(1,ithread),ise(2,ithread)
+              iipt = ispt + ipt
+              iline = line_and_column(1,ipt)
+              icolumn = line_and_column(2,ipt)
+              onedimindices(1,ipt) = compressed_index(icolumn,iline)
+              if (onedimindices(1,ipt)>0) then
+                  onedimindices(1,ipt) = onedimindices(1,ipt) - smat%smmm%isvctr
+              else
+                  call f_err_throw('onedimindices(1,ipt)==0')
+              end if
+              ilen = 0
+              nconsecutive = 0
+              !nconsecutive_tot_arr(ithread) = nconsecutive_tot_arr(ithread) + 1
+              !onedimindices(5,ipt) = nconsecutive_tot - 1
+              onedimindices5_thread(ipt-ise(1,ithread)+1,ithread) = nconsecutive_tot_arr(ithread)
+              ! Take the column due to the symmetry of the sparsity pattern
+              do jseg=smat%istsegline(icolumn),smat%istsegline(icolumn)+smat%nsegline(icolumn)-1
+                  inseg = .false.
+                  iconsec = 0
+                  do jorb = smat%keyg(1,1,jseg),smat%keyg(2,1,jseg)
+                      ii = compressed_index(jorb,iline)
+                      values = (ii > 0)
+                      ii = ii - smat%smmm%isvctr
+                      if (values) then
+                          if (.not.inseg) then
+                              !open a consecutive segment
+                              nconsecutive = nconsecutive + 1
+                              nconsecutive_tot_arr(ithread) = nconsecutive_tot_arr(ithread) + 1
                               ilen = ilen + 1
-                              !write(*,*) 'within, iconsec', iconsec
+                              inseg = .true.
                           else
+                              if (ii == ii_prev+1) then
+                                  !within a consecutive segment
+                                  ilen = ilen + 1
+                                  !write(*,*) 'within, iconsec', iconsec
+                              else
+                                  !close the segment
+                                  inseg = .false.
+                              end if
+                          end if
+                      else
+                          if (inseg) then
                               !close the segment
                               inseg = .false.
                           end if
                       end if
-                  else
-                      if (inseg) then
-                          !close the segment
-                          inseg = .false.
-                      end if
+                      ii_prev = ii
+                  end do
+                  if (inseg) then
+                      !close the segment
+                      !nconsecutive = nconsecutive + 1
+                      !nconsecutive_tot_arr(ithread) = nconsecutive_tot_arr(ithread) + 1
+                      inseg = .false.
                   end if
-                  ii_prev = ii
-                  !!!if (inseg .and. values) then
-                  !!!    !do nothing, within a consecutive segment
-                  !!!    ilen = ilen + 1
-                  !!!else if (.not.values .and. inseg) then
-                  !!!    !close the segment
-                  !!!    !nconsecutive = nconsecutive + 1
-                  !!!    !nconsecutive_tot_arr(ithread) = nconsecutive_tot_arr(ithread) + 1
-                  !!!    inseg = .false.
-                  !!!else if (values .and. .not.inseg) then
-                  !!!    !open a consecutive segment
-                  !!!    nconsecutive = nconsecutive + 1
-                  !!!    nconsecutive_tot_arr(ithread) = nconsecutive_tot_arr(ithread) + 1
-                  !!!    ilen = ilen + 1
-                  !!!    inseg = .true.
-                  !!!end if
-                  !!iii = iii - smat%smmm%isvctr
-                  !!if (ilen>1) then
-                  !!    if (ii>0) then
-                  !!        ii = ii - smat%smmm%isvctr
-                  !!        !!write(1000,*) 'ilen, ii, ii_prev, nconsecutive_tot', ilen, ii, ii_prev, nconsecutive_tot
-                  !!            !if (ii /= ii_prev+1) then
-                  !!            if (iconsec>0 .and. (ii /= ii_prev+1 .or. iii /= iii_prev+1)) then
-                  !!                nconsecutive = nconsecutive + 1
-                  !!                nconsecutive_tot_arr(ithread) = nconsecutive_tot_arr(ithread) + 1
-                  !!                iconsec = 0
-                  !!            end if
-                  !!        iconsec = iconsec + 1
-                  !!        ilen = ilen + 1
-                  !!        ii_prev = ii
-                  !!        iii_prev = iii
-                  !!    else
-                  !!        nconsecutive = nconsecutive + 1
-                  !!        nconsecutive_tot_arr(ithread) = nconsecutive_tot_arr(ithread) + 1
-                  !!    end if
-                  !!end if
               end do
-              if (inseg) then
-                  !close the segment
-                  !nconsecutive = nconsecutive + 1
-                  !nconsecutive_tot_arr(ithread) = nconsecutive_tot_arr(ithread) + 1
-                  inseg = .false.
-              end if
+              onedimindices(2,ipt) = ilen
+              onedimindices(4,ipt) = nconsecutive
           end do
-          onedimindices(2,ipt) = ilen
-          onedimindices(4,ipt) = nconsecutive
-      end do
-      !$omp barrier
-      !$omp end parallel
+          !$omp barrier
+          !$omp end parallel
 
-      ii = 0
-      ioffset = 0
-      do ithread=0,nthread-1
-          n = ise(2,ithread)-ise(1,ithread)+1
-          do i=1,n
-              onedimindices(5,ii+i) = onedimindices5_thread(i,ithread) + ioffset
+          ii = 0
+          ioffset = 0
+          do ithread=0,nthread-1
+              n = ise(2,ithread)-ise(1,ithread)+1
+              do i=1,n
+                  onedimindices(5,ii+i) = onedimindices5_thread(i,ithread) + ioffset
+              end do
+              ii = ii + n
+              ioffset = ioffset + nconsecutive_tot_arr(ithread)
           end do
-          ii = ii + n
-          ioffset = ioffset + nconsecutive_tot_arr(ithread)
-      end do
 
-      nconsecutive_tot = sum(nconsecutive_tot_arr)
+          nconsecutive_tot = sum(nconsecutive_tot_arr)
 
-      call f_free(onedimindices5_thread)
-      consecutive_lookup = f_malloc_ptr((/4,nconsecutive_tot/),id='consecutive_lookup')
+          call f_free(onedimindices5_thread)
+          consecutive_lookup = f_malloc_ptr((/4,nconsecutive_tot/),id='consecutive_lookup')
 
 
-      itot = 1
-      do ipt=1,nout
-          onedimindices(3,ipt) = itot
-          itot = itot + onedimindices(2,ipt)
-      end do
+          itot = 1
+          do ipt=1,nout
+              onedimindices(3,ipt) = itot
+              itot = itot + onedimindices(2,ipt)
+          end do
 
 
-      ind_min_thread = f_malloc(0.to.nthread-1,id='ind_min_thread')
-      ind_max_thread = f_malloc(0.to.nthread-1,id='ind_max_thread')
-      ind_min_thread(:) = smat%nvctr
-      ind_max_thread(:) = 1
+          ind_min_thread = f_malloc(0.to.nthread-1,id='ind_min_thread')
+          ind_max_thread = f_malloc(0.to.nthread-1,id='ind_max_thread')
+          ind_min_thread(:) = smat%nvctr
+          ind_max_thread(:) = 1
 
-      ithread = 0
-      !$omp parallel &
-      !$omp default(none) &
-      !$omp shared(ise, ispt, line_and_column, consecutive_lookup, nconsecutive_tot_arr) &
-      !$omp shared(smat, compressed_index, onedimindices, ind_min_thread, ind_max_thread) &
-      !$omp private(ipt, iipt, iline, icolumn, ilen, iconsec, jseg, jorb) &
-      !$omp private(ii, ii_prev, iii, iii_prev, jthread, nconsecutive, jj, values, inseg, ind) &
-      !$omp firstprivate(ithread)
-      !$ ithread = omp_get_thread_num()
-      nconsecutive = 0
-      do jthread=0,ithread-1
-          nconsecutive = nconsecutive + nconsecutive_tot_arr(jthread)
-      end do
-      do ipt=ise(1,ithread),ise(2,ithread)
-          iipt = ispt + ipt
-          iline = line_and_column(1,ipt)
-          icolumn = line_and_column(2,ipt)
+          ithread = 0
+          !$omp parallel &
+          !$omp default(none) &
+          !$omp shared(ise, ispt, line_and_column, consecutive_lookup, nconsecutive_tot_arr) &
+          !$omp shared(smat, compressed_index, onedimindices, ind_min_thread, ind_max_thread) &
+          !$omp private(ipt, iipt, iline, icolumn, ilen, iconsec, jseg, jorb) &
+          !$omp private(ii, ii_prev, iii, iii_prev, jthread, nconsecutive, jj, values, inseg, ind) &
+          !$omp firstprivate(ithread)
+          !$ ithread = omp_get_thread_num()
+          nconsecutive = 0
+          do jthread=0,ithread-1
+              nconsecutive = nconsecutive + nconsecutive_tot_arr(jthread)
+          end do
+          do ipt=ise(1,ithread),ise(2,ithread)
+              iipt = ispt + ipt
+              iline = line_and_column(1,ipt)
+              icolumn = line_and_column(2,ipt)
 
-          ilen = 0
-          iconsec = 0
-          !nconsecutive = nconsecutive + 1
-          !consecutive_lookup(1,nconsecutive) = onedimindices(3,ipt)
-          !consecutive_lookup(4,nconsecutive) = smat%keyv(smat%istsegline(icolumn))
-          !write(*,*) 'A: ipt, jseg, nconsecutive, keyv', &
-          !               ipt, smat%istsegline(icolumn), nconsecutive, smat%keyv(smat%istsegline(icolumn)) 
-          ! Take the column due to the symmetry of the sparsity pattern
-          do jseg=smat%istsegline(icolumn),smat%istsegline(icolumn)+smat%nsegline(icolumn)-1
-              inseg = .false.
+              ilen = 0
               iconsec = 0
-              jj = 0
-              do jorb = smat%keyg(1,1,jseg),smat%keyg(2,1,jseg)
-                  ii = compressed_index(jorb,iline)
-                  !iii = matrixindex_in_compressed(smat, jorb, iline)
-                  !if (ii>0 .and. .not.iii>0 .or. iii>0 .and. .not.ii>0) stop 'ERROR: ii, iii'
-                  iii = iii - smat%smmm%isvctr
-                  values = (ii > 0)
-                  ii = ii - smat%smmm%isvctr
-                  !write(*,*) 'jseg, jorb, ii, values, inseg', jseg, jorb, ii, values, inseg
-                  if (values) then
-                      ! Minimal and maximal index of the matrix used by this task
-                      ind = smat%keyv(jseg) + jj
-                      ind_min_thread(ithread) = min(ind_min_thread(ithread),ind)
-                      ind_max_thread(ithread) = max(ind_max_thread(ithread),ind)
-                      if (.not.inseg) then
-                          !open a consecutive segment
-                          nconsecutive = nconsecutive + 1
-                          !!write(*,*) 'consecutive_lookup(1:4,1)', consecutive_lookup(1:4,1)
-                          consecutive_lookup(1,nconsecutive) = onedimindices(3,ipt)+ilen
-                          consecutive_lookup(2,nconsecutive) = ii
-                          consecutive_lookup(4,nconsecutive) = smat%keyv(jseg)+jj
-                          !!write(*,*) 'A1: ipt, jseg, jorb, nconsecutive, keyv', &
-                          !!     ipt, jseg, jorb, nconsecutive, smat%keyv(jseg)+jj
-                          !!write(*,*) 'consecutive_lookup(1:4,1)', consecutive_lookup(1:4,1)
-                          iconsec = iconsec +1
-                          ilen = ilen + 1
-                          inseg = .true.
-                      else
-                          if (ii == ii_prev+1) then
-                              !within a consecutive segment
+              ! Take the column due to the symmetry of the sparsity pattern
+              do jseg=smat%istsegline(icolumn),smat%istsegline(icolumn)+smat%nsegline(icolumn)-1
+                  inseg = .false.
+                  iconsec = 0
+                  jj = 0
+                  do jorb = smat%keyg(1,1,jseg),smat%keyg(2,1,jseg)
+                      ii = compressed_index(jorb,iline)
+                      iii = iii - smat%smmm%isvctr
+                      values = (ii > 0)
+                      ii = ii - smat%smmm%isvctr
+                      !write(*,*) 'jseg, jorb, ii, values, inseg', jseg, jorb, ii, values, inseg
+                      if (values) then
+                          ! Minimal and maximal index of the matrix used by this task
+                          ind = smat%keyv(jseg) + jj
+                          ind_min_thread(ithread) = min(ind_min_thread(ithread),ind)
+                          ind_max_thread(ithread) = max(ind_max_thread(ithread),ind)
+                          if (.not.inseg) then
+                              !open a consecutive segment
+                              nconsecutive = nconsecutive + 1
+                              consecutive_lookup(1,nconsecutive) = onedimindices(3,ipt)+ilen
+                              consecutive_lookup(2,nconsecutive) = ii
+                              consecutive_lookup(4,nconsecutive) = smat%keyv(jseg)+jj
                               iconsec = iconsec +1
                               ilen = ilen + 1
-                              !write(*,*) 'within, iconsec', iconsec
+                              inseg = .true.
                           else
+                              if (ii == ii_prev+1) then
+                                  !within a consecutive segment
+                                  iconsec = iconsec +1
+                                  ilen = ilen + 1
+                              else
+                                  !close the segment
+                                  consecutive_lookup(3,nconsecutive) = iconsec
+                                  iconsec = 0
+                                  inseg = .false.
+                              end if
+                          end if
+                      else
+                          if (inseg) then
                               !close the segment
                               consecutive_lookup(3,nconsecutive) = iconsec
-                              !nconsecutive = nconsecutive + 1
-                              !!write(*,*) 'close, nconsecutive, iconsec, consecutive_lookup(1:4,nconsecutive)', &
-                              !!    nconsecutive, iconsec, consecutive_lookup(1:4,nconsecutive)
-                              !!write(*,*) 'consecutive_lookup(1:4,1)', consecutive_lookup(1:4,1)
                               iconsec = 0
                               inseg = .false.
                           end if
                       end if
-                  else
-                      if (inseg) then
-                          !close the segment
-                          consecutive_lookup(3,nconsecutive) = iconsec
-                          !nconsecutive = nconsecutive + 1
-                          !!write(*,*) 'close, nconsecutive, iconsec, consecutive_lookup(1:4,nconsecutive)', &
-                          !!    nconsecutive, iconsec, consecutive_lookup(1:4,nconsecutive)
-                          !!write(*,*) 'consecutive_lookup(1:4,1)', consecutive_lookup(1:4,1)
-                          iconsec = 0
-                          inseg = .false.
-                      end if
+                      jj = jj + 1
+                      ii_prev = ii
+                  end do
+                  if (inseg) then
+                      !close the segment
+                      consecutive_lookup(3,nconsecutive) = iconsec
+                      iconsec = 0
+                      inseg = .false.
                   end if
-                  !!if (inseg .and. values) then
-                  !!    !within a consecutive segment
-                  !!    iconsec = iconsec +1
-                  !!    ilen = ilen + 1
-                  !!    !write(*,*) 'within, iconsec', iconsec
-                  !!else if (.not.values .and. inseg) then
-                  !!    !close the segment
-                  !!    consecutive_lookup(3,nconsecutive) = iconsec
-                  !!    !nconsecutive = nconsecutive + 1
-                  !!    write(*,*) 'close, nconsecutive, iconsec, consecutive_lookup(1:4,nconsecutive)', &
-                  !!        nconsecutive, iconsec, consecutive_lookup(1:4,nconsecutive)
-                  !!    write(*,*) 'consecutive_lookup(1:4,1)', consecutive_lookup(1:4,1)
-                  !!    iconsec = 0
-                  !!    inseg = .false.
-                  !!else if (values .and. .not.inseg) then
-                  !!    !open a consecutive segment
-                  !!    nconsecutive = nconsecutive + 1
-                  !!    write(*,*) 'consecutive_lookup(1:4,1)', consecutive_lookup(1:4,1)
-                  !!    consecutive_lookup(1,nconsecutive) = onedimindices(3,ipt)+ilen
-                  !!    consecutive_lookup(2,nconsecutive) = ii
-                  !!    consecutive_lookup(4,nconsecutive) = smat%keyv(jseg)+jj
-                  !!    write(*,*) 'A1: ipt, jseg, jorb, nconsecutive, keyv', &
-                  !!         ipt, jseg, jorb, nconsecutive, smat%keyv(jseg)+jj
-                  !!    write(*,*) 'consecutive_lookup(1:4,1)', consecutive_lookup(1:4,1)
-                  !!    iconsec = iconsec +1
-                  !!    ilen = ilen + 1
-                  !!    inseg = .true.
-                  !!end if
-                  !!if (ilen>0) then
-                  !!    if (ii>0) then
-                  !!        ii = ii - smat%smmm%isvctr
-                  !!        if (iconsec>0 .and. (ii /= ii_prev+1 .or. iii /= iii_prev+1)) then
-                  !!            consecutive_lookup(3,nconsecutive) = iconsec
-                  !!            nconsecutive = nconsecutive + 1
-                  !!            consecutive_lookup(1,nconsecutive) = onedimindices(3,ipt)+ilen
-                  !!            consecutive_lookup(2,nconsecutive) = ii
-                  !!            consecutive_lookup(4,nconsecutive) = smat%keyv(jseg)+jj
-                  !!            write(*,*) 'B1: ipt, jseg, jorb, nconsecutive, keyv', &
-                  !!                 ipt, jseg, jorb, nconsecutive, smat%keyv(jseg)+jj
-                  !!            iconsec = 0
-                  !!        end if
-                  !!        iconsec = iconsec + 1
-                  !!        ilen = ilen + 1
-                  !!        ii_prev = ii
-                  !!        iii_prev = iii
-                  !!    else
-                  !!        consecutive_lookup(3,nconsecutive) = iconsec
-                  !!        nconsecutive = nconsecutive + 1
-                  !!        consecutive_lookup(1,nconsecutive) = onedimindices(3,ipt)+ilen
-                  !!        consecutive_lookup(2,nconsecutive) = ii
-                  !!        consecutive_lookup(4,nconsecutive) = smat%keyv(jseg)+jj
-                  !!        write(*,*) 'B2: ipt, jseg, jorb, nconsecutive, keyv', &
-                  !!             ipt, jseg, jorb, nconsecutive, smat%keyv(jseg)+jj
-                  !!        iconsec = 0
-                  !!    end if
-                  !!else
-                  !!    if (ii>0) then
-                  !!        ii = ii - smat%smmm%isvctr
-                  !!         consecutive_lookup(2,nconsecutive) = ii
-                  !!         consecutive_lookup(4,nconsecutive) = smat%keyv(jseg)+jj
-                  !!         write(*,*) 'A1: ipt, jseg, jorb, nconsecutive, keyv', &
-                  !!            ipt, smat%istsegline(icolumn), jorb, nconsecutive, smat%keyv(jseg)+jj
-                  !!    end if
-                  !!end if
-                  jj = jj + 1
-                  ii_prev = ii
               end do
-              if (inseg) then
-                  !close the segment
-                  consecutive_lookup(3,nconsecutive) = iconsec
-                  !!nconsecutive = nconsecutive + 1
-                  !!consecutive_lookup(1,nconsecutive) = onedimindices(3,ipt)+ilen
-                  !!consecutive_lookup(2,nconsecutive) = ii
-                  !!consecutive_lookup(4,nconsecutive) = smat%keyv(smat%istsegline(icolumn)+smat%nsegline(icolumn)-1)+jj
-                  !!write(*,*) 'B1: ipt, jseg, jorb, nconsecutive, keyv', &
-                  !!     ipt, jseg, jorb, nconsecutive, consecutive_lookup(4,nconsecutive)
-                  !!write(*,*) 'close, nconsecutive, iconsec, consecutive_lookup(1:4,nconsecutive)', &
-                  !!    nconsecutive, iconsec, consecutive_lookup(1:4,nconsecutive)
-                  !!write(*,*) 'consecutive_lookup(1:4,1)', consecutive_lookup(1:4,1)
-                  iconsec = 0
-                  inseg = .false.
-              end if
+              !consecutive_lookup(3,nconsecutive) = iconsec
           end do
-          !consecutive_lookup(3,nconsecutive) = iconsec
-      end do
-      !!write(*,*) 'consecutive_lookup(1:4,1)', consecutive_lookup(1:4,1)
-      !!do ii=1,nconsecutive
-      !!    write(*,*) 'ii, consecutive_lookup(1:4,ii)', ii, consecutive_lookup(1:4,ii)
-      !!end do
-      !$omp end parallel
+          !$omp end parallel
 
-      ind_min = minval(ind_min_thread)
-      ind_max = maxval(ind_max_thread)
+          ind_min = minval(ind_min_thread)
+          ind_max = maxval(ind_max_thread)
 
-      call f_free(ind_min_thread)
-      call f_free(ind_max_thread)
+          call f_free(ind_min_thread)
+          call f_free(ind_max_thread)
 
+      else if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+
+          !$omp parallel &
+          !$omp default(none) &
+          !$omp shared(ise, ispt, onedimindices, smat, nconsecutive_tot_arr, onedimindices5_thread) &
+          !$omp shared(line_and_column, compressed_index) &
+          !$omp private(ipt, iipt, iline, icolumn, ilen, nconsecutive, jseg, jorb, ii, ii_prev) &
+          !$omp firstprivate(ithread)
+          !$ ithread = omp_get_thread_num()
+          do ipt=ise(1,ithread),ise(2,ithread)
+              iipt = ispt + ipt
+              iline = line_and_column(1,ipt)
+              icolumn = line_and_column(2,ipt)
+              onedimindices(1,ipt) = compressed_index(icolumn,iline)
+              !!write(*,*) 'ipt, iline, icolumn, compressed_index(icolumn,iline)', &
+              !!            ipt, iline, icolumn, compressed_index(icolumn,iline)
+              if (onedimindices(1,ipt)>0) then
+                  onedimindices(1,ipt) = onedimindices(1,ipt) - smat%smmm%isvctr
+              else
+                  stop 'onedimindices(1,ipt)==0'
+              end if
+              ilen = 0
+              nconsecutive = 1
+              nconsecutive_tot_arr(ithread) = nconsecutive_tot_arr(ithread) + 1
+              !onedimindices(5,ipt) = nconsecutive_tot - 1
+              onedimindices5_thread(ipt-ise(1,ithread)+1,ithread) = nconsecutive_tot_arr(ithread) - 1
+              ! Take the column due to the symmetry of the sparsity pattern
+              do jseg=smat%istsegline(icolumn),smat%istsegline(icolumn)+smat%nsegline(icolumn)-1
+                  do jorb = smat%keyg(1,1,jseg),smat%keyg(2,1,jseg)
+                      ii = compressed_index(jorb,iline)
+                      if (ii>0) then
+                          ilen = ilen + 1
+                          ii = ii - smat%smmm%isvctr
+                          !!write(1000,*) 'ilen, ii, ii_prev, nconsecutive_tot', ilen, ii, ii_prev, nconsecutive_tot
+                          if (ilen>1) then
+                              if (ii /= ii_prev+1) then
+                                  nconsecutive = nconsecutive + 1
+                                  nconsecutive_tot_arr(ithread) = nconsecutive_tot_arr(ithread) + 1
+                              end if
+                          end if
+                          ii_prev = ii
+                      end if
+                  end do
+              end do
+              onedimindices(2,ipt) = ilen
+              onedimindices(4,ipt) = nconsecutive
+          end do
+          !$omp barrier
+          !$omp end parallel
+
+          ii = 0
+          ioffset = 0
+          do ithread=0,nthread-1
+              n = ise(2,ithread)-ise(1,ithread)+1
+              do i=1,n
+                  onedimindices(5,ii+i) = onedimindices5_thread(i,ithread) + ioffset
+              end do
+              ii = ii + n
+              ioffset = ioffset + nconsecutive_tot_arr(ithread)
+          end do
+
+          nconsecutive_tot = sum(nconsecutive_tot_arr)
+
+          call f_free(onedimindices5_thread)
+          consecutive_lookup = f_malloc_ptr((/3,nconsecutive_tot/),id='consecutive_lookup')
+
+
+          itot = 1
+          do ipt=1,nout
+              onedimindices(3,ipt) = itot
+              itot = itot + onedimindices(2,ipt)
+          end do
+
+
+
+          ithread = 0
+          !$omp parallel &
+          !$omp default(none) &
+          !$omp shared(ise, ispt, line_and_column, consecutive_lookup, nconsecutive_tot_arr) &
+          !$omp shared(smat, compressed_index, onedimindices) &
+          !$omp private(ipt, iipt, iline, icolumn, ilen, iconsec, jseg, jorb) &
+          !$omp private(ii, ii_prev, jthread, nconsecutive) &
+          !$omp firstprivate(ithread)
+          !$ ithread = omp_get_thread_num()
+          nconsecutive = 0
+          do jthread=0,ithread-1
+              nconsecutive = nconsecutive + nconsecutive_tot_arr(jthread)
+          end do
+          do ipt=ise(1,ithread),ise(2,ithread)
+              iipt = ispt + ipt
+              iline = line_and_column(1,ipt)
+              icolumn = line_and_column(2,ipt)
+
+              ilen = 0
+              iconsec = 0
+              nconsecutive = nconsecutive + 1
+              consecutive_lookup(1,nconsecutive) = onedimindices(3,ipt)
+              ! Take the column due to the symmetry of the sparsity pattern
+              do jseg=smat%istsegline(icolumn),smat%istsegline(icolumn)+smat%nsegline(icolumn)-1
+                  do jorb = smat%keyg(1,1,jseg),smat%keyg(2,1,jseg)
+                      ii = compressed_index(jorb,iline)
+                      if (ii>0) then
+                          ii = ii - smat%smmm%isvctr
+                          if (ilen>0) then
+                              if (ii /= ii_prev+1) then
+                                  consecutive_lookup(3,nconsecutive) = iconsec
+                                  nconsecutive = nconsecutive + 1
+                                  consecutive_lookup(1,nconsecutive) = onedimindices(3,ipt)+ilen
+                                  consecutive_lookup(2,nconsecutive) = ii
+                                  iconsec = 0
+                              end if
+                          else
+                              consecutive_lookup(2,nconsecutive) = ii
+                          end if
+                          iconsec = iconsec + 1
+                          ii_prev = ii
+                          ilen = ilen + 1
+                      end if
+                  end do
+              end do
+              consecutive_lookup(3,nconsecutive) = iconsec
+          end do
+          !$omp end parallel
+
+      end if
 
       call f_free(nconsecutive_tot_arr)
       call f_free_ptr(ise)
@@ -2339,6 +2341,9 @@ module sparsematrix_init
       !!close(unit=1000+iproc)
       !!call f_free(consecutive_lookup)
 
+      !!do ii=1,size(onedimindices,2)
+      !!  write(*,*) 'ii, onedimindices(:,ii)', ii, onedimindices(:,ii)
+      !!end do
 
       call f_release_routine()
 
@@ -2750,180 +2755,180 @@ module sparsematrix_init
 
 
 
-    !!subroutine init_sequential_acces_matrix_new(nout, ispt, nseg, nseq, nline, nlinep, isline, &
-    !!           keyv, keyg, smat, istsegline, line_and_column, compressed_index, indices_extract_sequential)
-    !!  use dynamic_memory
-    !!  implicit none
+    subroutine init_sequential_acces_matrix_new(nout, ispt, nseg, nseq, nline, nlinep, isline, &
+               keyv, keyg, smat, istsegline, line_and_column, compressed_index, indices_extract_sequential)
+      use dynamic_memory
+      implicit none
 
-    !!  ! Calling arguments
-    !!  integer,intent(in) :: nout, ispt, nseg, nline, nlinep, isline
-    !!  integer(kind=8),intent(in) :: nseq
-    !!  integer,dimension(nseg),intent(in) :: keyv
-    !!  integer,dimension(2,2,nseg),intent(in) :: keyg
-    !!  type(sparse_matrix),intent(in) :: smat
-    !!  integer,dimension(smat%nfvctr),intent(in) :: istsegline
-    !!  integer,dimension(2,nout),intent(in) :: line_and_column
-    !!  integer,dimension(1:nline,isline+1:isline+nlinep),intent(in) :: compressed_index
-    !!  integer,dimension(nseq),intent(out) :: indices_extract_sequential
+      ! Calling arguments
+      integer,intent(in) :: nout, ispt, nseg, nline, nlinep, isline
+      integer(kind=8),intent(in) :: nseq
+      integer,dimension(nseg),intent(in) :: keyv
+      integer,dimension(2,2,nseg),intent(in) :: keyg
+      type(sparse_matrix),intent(in) :: smat
+      integer,dimension(smat%nfvctr),intent(in) :: istsegline
+      integer,dimension(2,nout),intent(in) :: line_and_column
+      integer,dimension(1:nline,isline+1:isline+nlinep),intent(in) :: compressed_index
+      integer,dimension(nseq),intent(out) :: indices_extract_sequential
 
-    !!  ! Local variables
-    !!  integer :: ii, ipt, iipt, iline, icolumn, jseg, jj, jorb, ind, iseg_start, i
-    !!  integer(kind=8) :: ii8
-    !!  integer :: ithread, jthread, nthread
-    !!  integer,dimension(:),allocatable :: iiarr
-    !!  integer,dimension(:,:),pointer :: ise
-    !!  integer,dimension(:,:),allocatable :: indices_extract_sequential_work!, compressed_index
-    !!  !$ integer :: omp_get_thread_num
+      ! Local variables
+      integer :: ii, ipt, iipt, iline, icolumn, jseg, jj, jorb, ind, iseg_start, i
+      integer(kind=8) :: ii8
+      integer :: ithread, jthread, nthread
+      integer,dimension(:),allocatable :: iiarr
+      integer,dimension(:,:),pointer :: ise
+      integer,dimension(:,:),allocatable :: indices_extract_sequential_work!, compressed_index
+      !$ integer :: omp_get_thread_num
 
-    !!  call f_routine(id='init_sequential_acces_matrix_new')
-
-
-    !!  !!compressed_index = f_malloc((/1.to.nline,isline+1.to.isline+nlinep/),id='compressed_index')
-    !!  !!do j=isline+1,isline+nlinep
-    !!  !!    do i=1,nline
-    !!  !!        compressed_index(i,j) = matrixindex_in_compressed_lowlevel(i, j, nline, nseg, keyv, keyg, istsegline)
-    !!  !!    end do
-    !!  !!end do
-
-    !!  ! OpenMP parallelization using a large workarray
-    !!  !!nthread = 1
-    !!  !!!$ nthread = omp_get_max_threads()
-
-    !!  !!! Determine the number of iterations to be done by each thread
-    !!  !!n = f_malloc(0.to.nthread-1,id='n')
-    !!  !!ii = nout/nthread
-    !!  !!n(0:nthread-1) = ii
-    !!  !!ii = nout - nthread*ii
-    !!  !!n(0:ii-1) = n(0:ii-1) + 1
-    !!  !!! Check
-    !!  !!if (sum(n)/=nout) call f_err_throw('sum(n)/=nout',err_name='BIGDFT_RUNTIME_ERROR')
-
-    !!  !!! Determine the first and last iteration for each thread
-    !!  !!ise = f_malloc((/1.to.2,0.to.nthread-1/),id='ise')
-    !!  !!ise(1,0) = 1
-    !!  !!do jthread=1,nthread-1
-    !!  !!    ise(1,jthread) = ise(1,jthread-1) + n(jthread-1)
-    !!  !!    ise(2,jthread-1) = ise(1,jthread) -1
-    !!  !!end do
-    !!  !!ise(2,nthread-1) = nout
-    !!  !!! Check
-    !!  !!ii = 0
-    !!  !!do jthread=0,nthread-1
-    !!  !!    ii = ii + ise(2,jthread) - ise(1,jthread) + 1
-    !!  !!    if (jthread>1) then
-    !!  !!        if (ise(1,jthread)/=ise(2,jthread-1)+1) then
-    !!  !!            call f_err_throw('ise(1,jthread)/=ise(2,jthread-1)+1',err_name='BIGDFT_RUNTIME_ERROR')
-    !!  !!        end if
-    !!  !!    end if
-    !!  !!end do
-    !!  !!if (ii/=nout) call f_err_throw('ii/=nout',err_name='BIGDFT_RUNTIME_ERROR')
-    !!  call distribute_on_threads(1, nout, nthread, ise)
-
-    !!  ! First have to determine the length of indices_extract_sequential_work... a bit wasteful, but otherwise 
-    !!  ! the memory becomes too large
-    !!  ii = 0
-    !!  iseg_start = 1
-    !!  ithread = 0
-    !!  iiarr = f_malloc(0.to.nthread-1,id='iiarr')
-    !!  !$omp parallel &
-    !!  !$omp default (none) &
-    !!  !$omp shared(ise, ispt, nseg, keyv, keyg, smat, istsegline, iiarr, nthread, line_and_column, compressed_index) &
-    !!  !$omp private(ipt, iipt, iline, icolumn, ind, jj, jthread,jseg,jorb) &
-    !!  !$omp firstprivate(ii, iseg_start, ithread)
-    !!  !$ ithread = omp_get_thread_num()
-    !!  do ipt=ise(1,ithread),ise(2,ithread)
-    !!      iipt = ispt + ipt
-    !!      !call get_line_and_column(iipt, nseg, keyv, keyg, iseg_start, iline, icolumn)
-    !!      iline = line_and_column(1,ipt)
-    !!      icolumn = line_and_column(2,ipt)
-    !!      ! Take the column due to the symmetry of the sparsity pattern
-    !!      do jseg=smat%istsegline(icolumn),smat%istsegline(icolumn)+smat%nsegline(icolumn)-1
-    !!          ! A segment is always on one line, therefore no double loop
-    !!          jj=1
-    !!          do jorb = smat%keyg(1,1,jseg),smat%keyg(2,1,jseg)
-    !!              ! Calculate the index in the large compressed format
-    !!              !ind = matrixindex_in_compressed_lowlevel(jorb, iline, smat%nfvctr, nseg, keyv, keyg, istsegline)
-    !!              ind = compressed_index(jorb, iline)
-    !!              if (ind>0) then
-    !!                  ii = ii + 1
-    !!              end if
-    !!              jj = jj+1
-    !!          end do
-    !!      end do
-    !!  end do
-    !!  iiarr(ithread) = ii
-    !!  !$omp barrier
-    !!  !$omp end parallel
-    !!  ii8 = 0
-    !!  do i=0,nthread-1
-    !!      ii8 = ii8 + iiarr(i)
-    !!  end do
-    !!  if (ii8/=nseq) then
-    !!      !!write(*,*) 'nseq, iiarr', nseq, iiarr
-    !!      call f_err_throw(trim(yaml_toa(ii8))//'=ii8 /= nseq='//trim(yaml_toa(nseq)))
-    !!  end if
-
-    !!  indices_extract_sequential_work = f_malloc((/1.to.maxval(iiarr),0.to.nthread-1/),id='indices_extract_sequential_work')
-    !!
-    !!  ii = 0
-    !!  iseg_start = 1
-    !!  ithread = 0
-    !!  !$omp parallel &
-    !!  !$omp default (none) &
-    !!  !$omp shared(ise, ispt, nseg, keyv, keyg, smat, istsegline, iiarr, nthread, compressed_index) &
-    !!  !$omp shared(indices_extract_sequential_work, indices_extract_sequential, line_and_column) &
-    !!  !$omp private(ipt, iipt, iline, icolumn, ind, jj, jthread,jseg,jorb) &
-    !!  !$omp firstprivate(ii, iseg_start, ithread)
-    !!  !$ ithread = omp_get_thread_num()
-    !!  do ipt=ise(1,ithread),ise(2,ithread)
-    !!      iipt = ispt + ipt
-    !!      !call get_line_and_column(iipt, nseg, keyv, keyg, iseg_start, iline, icolumn)
-    !!      iline = line_and_column(1,ipt)
-    !!      icolumn = line_and_column(2,ipt)
-    !!      ! Take the column due to the symmetry of the sparsity pattern
-    !!      do jseg=smat%istsegline(icolumn),smat%istsegline(icolumn)+smat%nsegline(icolumn)-1
-    !!          ! A segment is always on one line, therefore no double loop
-    !!          jj=1
-    !!          do jorb = smat%keyg(1,1,jseg),smat%keyg(2,1,jseg)
-    !!              ! Calculate the index in the large compressed format
-    !!              !ind = matrixindex_in_compressed_lowlevel(jorb, iline, smat%nfvctr, nseg, keyv, keyg, istsegline)
-    !!              ind = compressed_index(jorb, iline)
-    !!              if (ind>0) then
-    !!                  ii = ii + 1
-    !!                  indices_extract_sequential_work(ii,ithread)=smat%keyv(jseg)+jj-1
-    !!                  !write(*,*) 'ipt, jseg, jorb, val', ipt, jseg, jorb, smat%keyv(jseg)+jj-1
-    !!              end if
-    !!              jj = jj+1
-    !!          end do
-    !!      end do
-    !!  end do
-    !!  iiarr(ithread) = ii
-    !!  !$omp barrier
-    !!  ii = 1
-    !!  do jthread=0,nthread-1
-    !!      if (ithread==jthread) then
-    !!          if (iiarr(jthread)>0) then
-    !!              call f_memcpy(n=iiarr(jthread), &
-    !!                   src=indices_extract_sequential_work(1,ithread), &
-    !!                   dest=indices_extract_sequential(ii))
-    !!          end if
-    !!      end if
-    !!      ii = ii + iiarr(jthread)
-    !!  end do
-    !!  !$omp end parallel
-    !!  !do ii=1,nseq
-    !!  !    write(100,*) 'ii, indices_extract_sequential(ii)', ii, indices_extract_sequential(ii)
-    !!  !end do
-
-    !!  call f_free(indices_extract_sequential_work)
-    !!  !call f_free(n)
-    !!  call f_free_ptr(ise)
-    !!  call f_free(iiarr)
-
-    !!  call f_release_routine()
+      call f_routine(id='init_sequential_acces_matrix_new')
 
 
-    !!end subroutine init_sequential_acces_matrix_new
+      !!compressed_index = f_malloc((/1.to.nline,isline+1.to.isline+nlinep/),id='compressed_index')
+      !!do j=isline+1,isline+nlinep
+      !!    do i=1,nline
+      !!        compressed_index(i,j) = matrixindex_in_compressed_lowlevel(i, j, nline, nseg, keyv, keyg, istsegline)
+      !!    end do
+      !!end do
+
+      ! OpenMP parallelization using a large workarray
+      !!nthread = 1
+      !!!$ nthread = omp_get_max_threads()
+
+      !!! Determine the number of iterations to be done by each thread
+      !!n = f_malloc(0.to.nthread-1,id='n')
+      !!ii = nout/nthread
+      !!n(0:nthread-1) = ii
+      !!ii = nout - nthread*ii
+      !!n(0:ii-1) = n(0:ii-1) + 1
+      !!! Check
+      !!if (sum(n)/=nout) call f_err_throw('sum(n)/=nout',err_name='BIGDFT_RUNTIME_ERROR')
+
+      !!! Determine the first and last iteration for each thread
+      !!ise = f_malloc((/1.to.2,0.to.nthread-1/),id='ise')
+      !!ise(1,0) = 1
+      !!do jthread=1,nthread-1
+      !!    ise(1,jthread) = ise(1,jthread-1) + n(jthread-1)
+      !!    ise(2,jthread-1) = ise(1,jthread) -1
+      !!end do
+      !!ise(2,nthread-1) = nout
+      !!! Check
+      !!ii = 0
+      !!do jthread=0,nthread-1
+      !!    ii = ii + ise(2,jthread) - ise(1,jthread) + 1
+      !!    if (jthread>1) then
+      !!        if (ise(1,jthread)/=ise(2,jthread-1)+1) then
+      !!            call f_err_throw('ise(1,jthread)/=ise(2,jthread-1)+1',err_name='BIGDFT_RUNTIME_ERROR')
+      !!        end if
+      !!    end if
+      !!end do
+      !!if (ii/=nout) call f_err_throw('ii/=nout',err_name='BIGDFT_RUNTIME_ERROR')
+      call distribute_on_threads(1, nout, nthread, ise)
+
+      ! First have to determine the length of indices_extract_sequential_work... a bit wasteful, but otherwise 
+      ! the memory becomes too large
+      ii = 0
+      iseg_start = 1
+      ithread = 0
+      iiarr = f_malloc(0.to.nthread-1,id='iiarr')
+      !$omp parallel &
+      !$omp default (none) &
+      !$omp shared(ise, ispt, nseg, keyv, keyg, smat, istsegline, iiarr, nthread, line_and_column, compressed_index) &
+      !$omp private(ipt, iipt, iline, icolumn, ind, jj, jthread,jseg,jorb) &
+      !$omp firstprivate(ii, iseg_start, ithread)
+      !$ ithread = omp_get_thread_num()
+      do ipt=ise(1,ithread),ise(2,ithread)
+          iipt = ispt + ipt
+          !call get_line_and_column(iipt, nseg, keyv, keyg, iseg_start, iline, icolumn)
+          iline = line_and_column(1,ipt)
+          icolumn = line_and_column(2,ipt)
+          ! Take the column due to the symmetry of the sparsity pattern
+          do jseg=smat%istsegline(icolumn),smat%istsegline(icolumn)+smat%nsegline(icolumn)-1
+              ! A segment is always on one line, therefore no double loop
+              jj=1
+              do jorb = smat%keyg(1,1,jseg),smat%keyg(2,1,jseg)
+                  ! Calculate the index in the large compressed format
+                  !ind = matrixindex_in_compressed_lowlevel(jorb, iline, smat%nfvctr, nseg, keyv, keyg, istsegline)
+                  ind = compressed_index(jorb, iline)
+                  if (ind>0) then
+                      ii = ii + 1
+                  end if
+                  jj = jj+1
+              end do
+          end do
+      end do
+      iiarr(ithread) = ii
+      !$omp barrier
+      !$omp end parallel
+      ii8 = 0
+      do i=0,nthread-1
+          ii8 = ii8 + iiarr(i)
+      end do
+      if (ii8/=nseq) then
+          !!write(*,*) 'nseq, iiarr', nseq, iiarr
+          call f_err_throw(trim(yaml_toa(ii8))//'=ii8 /= nseq='//trim(yaml_toa(nseq)))
+      end if
+
+      indices_extract_sequential_work = f_malloc((/1.to.maxval(iiarr),0.to.nthread-1/),id='indices_extract_sequential_work')
+    
+      ii = 0
+      iseg_start = 1
+      ithread = 0
+      !$omp parallel &
+      !$omp default (none) &
+      !$omp shared(ise, ispt, nseg, keyv, keyg, smat, istsegline, iiarr, nthread, compressed_index) &
+      !$omp shared(indices_extract_sequential_work, indices_extract_sequential, line_and_column) &
+      !$omp private(ipt, iipt, iline, icolumn, ind, jj, jthread,jseg,jorb) &
+      !$omp firstprivate(ii, iseg_start, ithread)
+      !$ ithread = omp_get_thread_num()
+      do ipt=ise(1,ithread),ise(2,ithread)
+          iipt = ispt + ipt
+          !call get_line_and_column(iipt, nseg, keyv, keyg, iseg_start, iline, icolumn)
+          iline = line_and_column(1,ipt)
+          icolumn = line_and_column(2,ipt)
+          ! Take the column due to the symmetry of the sparsity pattern
+          do jseg=smat%istsegline(icolumn),smat%istsegline(icolumn)+smat%nsegline(icolumn)-1
+              ! A segment is always on one line, therefore no double loop
+              jj=1
+              do jorb = smat%keyg(1,1,jseg),smat%keyg(2,1,jseg)
+                  ! Calculate the index in the large compressed format
+                  !ind = matrixindex_in_compressed_lowlevel(jorb, iline, smat%nfvctr, nseg, keyv, keyg, istsegline)
+                  ind = compressed_index(jorb, iline)
+                  if (ind>0) then
+                      ii = ii + 1
+                      indices_extract_sequential_work(ii,ithread)=smat%keyv(jseg)+jj-1
+                      !write(*,*) 'ipt, jseg, jorb, val', ipt, jseg, jorb, smat%keyv(jseg)+jj-1
+                  end if
+                  jj = jj+1
+              end do
+          end do
+      end do
+      iiarr(ithread) = ii
+      !$omp barrier
+      ii = 1
+      do jthread=0,nthread-1
+          if (ithread==jthread) then
+              if (iiarr(jthread)>0) then
+                  call f_memcpy(n=iiarr(jthread), &
+                       src=indices_extract_sequential_work(1,ithread), &
+                       dest=indices_extract_sequential(ii))
+              end if
+          end if
+          ii = ii + iiarr(jthread)
+      end do
+      !$omp end parallel
+      !do ii=1,nseq
+      !    write(100,*) 'ii, indices_extract_sequential(ii)', ii, indices_extract_sequential(ii)
+      !end do
+
+      call f_free(indices_extract_sequential_work)
+      !call f_free(n)
+      call f_free_ptr(ise)
+      call f_free(iiarr)
+
+      call f_release_routine()
+
+
+    end subroutine init_sequential_acces_matrix_new
 
 
 
@@ -2985,29 +2990,29 @@ module sparsematrix_init
 
 
 
-    !!subroutine check_matmul_layout(nseq,indices_extract_sequential,ind_min,ind_max)
-    !!  implicit none
-    !!  integer(kind=8), intent(in) :: nseq
-    !!  integer, dimension(nseq), intent(in) :: indices_extract_sequential
-    !!  integer, intent(inout) :: ind_min,ind_max
-    !!  !local variables
-    !!  integer(kind=8) :: iseq
-    !!  integer :: ind
-    !!  call f_routine(id='check_matmul_layout')
+    subroutine check_matmul_layout(nseq,indices_extract_sequential,ind_min,ind_max)
+      implicit none
+      integer(kind=8), intent(in) :: nseq
+      integer, dimension(nseq), intent(in) :: indices_extract_sequential
+      integer, intent(inout) :: ind_min,ind_max
+      !local variables
+      integer(kind=8) :: iseq
+      integer :: ind
+      call f_routine(id='check_matmul_layout')
 
-    !!  !$omp parallel default(none) shared(nseq,indices_extract_sequential, ind_min, ind_max) private(iseq, ind)
-    !!  !$omp do reduction(min: ind_min) reduction(max: ind_max)
-    !!  do iseq=1,nseq
-    !!     ind=indices_extract_sequential(iseq)
-    !!     ind_min = min(ind_min,ind)
-    !!     ind_max = max(ind_max,ind)
-    !!  end do
-    !!  !$omp end do
-    !!  !$omp end parallel
+      !$omp parallel default(none) shared(nseq,indices_extract_sequential, ind_min, ind_max) private(iseq, ind)
+      !$omp do reduction(min: ind_min) reduction(max: ind_max)
+      do iseq=1,nseq
+         ind=indices_extract_sequential(iseq)
+         ind_min = min(ind_min,ind)
+         ind_max = max(ind_max,ind)
+      end do
+      !$omp end do
+      !$omp end parallel
 
-    !!  call f_release_routine()
+      call f_release_routine()
 
-    !!end subroutine check_matmul_layout
+    end subroutine check_matmul_layout
 
 
 
@@ -6405,12 +6410,15 @@ module sparsematrix_init
 
      call check_compress_distributed_layout(smat,ind_min,ind_max)
      if (smat%smatmul_initialized) then
-         !!call check_matmul_layout(smat%smmm%nseq,smat%smmm%indices_extract_sequential,ind_min,ind_max)
-         ! The matrix as object of a matrix multiplication
-         !!ind_min = min(ind_min,smat%smmm%isvctr_mm+1)
-         !!ind_max = max(ind_max,smat%smmm%isvctr_mm+smat%smmm%nvctrp_mm)
-         ind_min = min(ind_min,smat%smmm%istartend_mm(1))
-         ind_max = max(ind_max,smat%smmm%istartend_mm(2))
+         if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+             call check_matmul_layout(smat%smmm%nseq,smat%smmm%indices_extract_sequential,ind_min,ind_max)
+         else if (matmul_matrix == MATMUL_ORIGINAL_MATRIX) then
+             ! The matrix as object of a matrix multiplication
+             !!ind_min = min(ind_min,smat%smmm%isvctr_mm+1)
+             !!ind_max = max(ind_max,smat%smmm%isvctr_mm+smat%smmm%nvctrp_mm)
+             ind_min = min(ind_min,smat%smmm%istartend_mm(1))
+             ind_max = max(ind_max,smat%smmm%istartend_mm(2))
+         end if
          ind_min = min(ind_min,smat%smmm%isvctr_mm+1)
          ind_max = max(ind_max,smat%smmm%isvctr_mm+smat%smmm%nvctrp_mm)
      end if
@@ -6598,7 +6606,7 @@ module sparsematrix_init
      integer,intent(in) :: iproc, ncol_proc
      integer,dimension(2,ncol_proc),intent(in) :: col_proc
      type(sparse_matrix),intent(in) :: smat
-     real(kind=mp), dimension(smat%nvctrp_tg),intent(in) :: a
+     real(kind=mp), dimension(:),intent(in) :: a
      real(kind=mp), dimension(smat%smmm%nvctrp),intent(in) :: b
      real(kind=mp), dimension(smat%smmm%nvctrp), intent(out) :: c
      real(kind=mp), dimension(ncol_proc), intent(out) :: times_col
@@ -6606,9 +6614,9 @@ module sparsematrix_init
      !Local variables
      !character(len=*), parameter :: subname='sparsemm'
      integer :: i,jorb,jjorb,iend,nblock, iblock, ncount, icol
-     integer :: ii, ilen, iout, iiblock, isblock, is,ie, iii
+     integer :: ii, ilen, iout, iiblock, isblock, is,ie, iii, lookupindex, ishift
      real(kind=mp) :: tt0
-     integer :: n_dense, ind
+     integer :: n_dense, ind, j
      real(kind=mp),dimension(:,:),allocatable :: a_dense, b_dense, c_dense
      !real(kind=mp),dimension(:),allocatable :: b_dense, c_dense
      !!integer,parameter :: MATMUL_NEW = 101
@@ -6635,6 +6643,19 @@ module sparsematrix_init
      !call timing(iproc, 'sparse_matmul ', 'IR')
      call f_timing(TCAT_SMAT_MULTIPLICATION,'IR')
 
+         if (matmul_matrix == MATMUL_ORIGINAL_MATRIX) then
+             if (size(a) /= smat%nvctrp_tg) then
+                 call f_err_throw('size(a) /= smat%nvctrp_tg')
+             end if
+             lookupindex = 4
+             ishift = smat%isvctrp_tg
+         else if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+             if (size(a) /= smat%smmm%nseq) then
+                 call f_err_throw(trim(yaml_toa(size(a)))//'=size(a) /= smat%smmm%nseq='//trim(yaml_toa(smat%smmm%nseq)))
+             end if
+             lookupindex = 1
+             ishift = 0
+         end if
 
 
          if (count_flops) then
@@ -6642,7 +6663,7 @@ module sparsematrix_init
              ts = mpi_wtime()
          end if
 
-         !$omp parallel default(private) shared(ncol_proc, col_proc, smat, a, b, c, times_col)
+         !$omp parallel default(private) shared(ncol_proc, col_proc, smat, a, b, c, lookupindex, ishift, times_col)
          do icol=1,ncol_proc
              is = col_proc(1,icol)
              ie = col_proc(2,icol)
@@ -6662,8 +6683,12 @@ module sparsematrix_init
                      jorb = smat%smmm%consecutive_lookup(1,iblock)
                      jjorb = smat%smmm%consecutive_lookup(2,iblock)
                      ncount = smat%smmm%consecutive_lookup(3,iblock)
-                     ind = smat%smmm%consecutive_lookup(4,iblock) - smat%isvctrp_tg
-                     tt0=tt0+my_dot(ncount,b(jjorb),a(ind))
+                     !ind = smat%smmm%consecutive_lookup(4,iblock) - smat%isvctrp_tg
+                     ind = smat%smmm%consecutive_lookup(lookupindex,iblock) - ishift
+                     do j=0,ncount-1
+                         tt0 = tt0 + b(jjorb+j)*a(ind+j)
+                     end do
+                     !tt0=tt0+my_dot(ncount,b(jjorb),a(ind))
                  end do
 
                  c(i) = tt0

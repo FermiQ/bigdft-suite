@@ -40,7 +40,7 @@ module sparsematrix
   public :: transform_sparse_matrix!, transform_sparse_matrix_local
   public :: compress_matrix_distributed_wrapper
   public :: uncompress_matrix_distributed2
-  !!public :: sequential_acces_matrix_fast, sequential_acces_matrix_fast2
+  public :: sequential_acces_matrix_fast, sequential_acces_matrix_fast2
   !!public :: sparsemm_new
   public :: sparsemm_newnew
   public :: gather_matrix_from_taskgroups, gather_matrix_from_taskgroups_inplace
@@ -1242,70 +1242,70 @@ module sparsematrix
 
 
 
-   !!subroutine sequential_acces_matrix_fast(smat, a, a_seq)
-   !!  use dynamic_memory
-   !!  implicit none
-   !!
-   !!  ! Calling arguments
-   !!  type(sparse_matrix),intent(in) :: smat
-   !!  real(kind=mp),dimension(smat%nvctr),intent(in) :: a
-   !!  real(kind=mp),dimension(smat%smmm%nseq),intent(out) :: a_seq
-   !!
-   !!  ! Local variables
-   !!  integer :: ii
-   !!  integer(kind=8) :: iseq
+   subroutine sequential_acces_matrix_fast(smat, a, a_seq)
+     use dynamic_memory
+     implicit none
+   
+     ! Calling arguments
+     type(sparse_matrix),intent(in) :: smat
+     real(kind=mp),dimension(smat%nvctr),intent(in) :: a
+     real(kind=mp),dimension(smat%smmm%nseq),intent(out) :: a_seq
+   
+     ! Local variables
+     integer :: ii
+     integer(kind=8) :: iseq
 
-   !!  call f_routine(id='sequential_acces_matrix_fast')
+     call f_routine(id='sequential_acces_matrix_fast')
 
-   !!  if (.not.smat%smatmul_initialized) then
-   !!      call f_err_throw('sparse matrix multiplication not initialized', &
-   !!           err_name='SPARSEMATRIX_RUNTIME_ERROR')
-   !!  end if
-   !!
-   !!  !$omp parallel do default(none) private(iseq, ii) &
-   !!  !$omp shared(smat, a_seq, a)
-   !!  do iseq=1,smat%smmm%nseq
-   !!      ii=smat%smmm%indices_extract_sequential(iseq)
-   !!      a_seq(iseq)=a(ii)
-   !!  end do
-   !!  !$omp end parallel do
+     if (.not.smat%smatmul_initialized) then
+         call f_err_throw('sparse matrix multiplication not initialized', &
+              err_name='SPARSEMATRIX_RUNTIME_ERROR')
+     end if
+   
+     !$omp parallel do default(none) private(iseq, ii) &
+     !$omp shared(smat, a_seq, a)
+     do iseq=1,smat%smmm%nseq
+         ii=smat%smmm%indices_extract_sequential(iseq)
+         a_seq(iseq)=a(ii)
+     end do
+     !$omp end parallel do
 
-   !!  call f_release_routine()
-   !!
-   !!end subroutine sequential_acces_matrix_fast
+     call f_release_routine()
+   
+   end subroutine sequential_acces_matrix_fast
 
-   !!subroutine sequential_acces_matrix_fast2(smat, a, a_seq)
-   !!  use dynamic_memory
-   !!  implicit none
-   !!
-   !!  ! Calling arguments
-   !!  type(sparse_matrix),intent(in) :: smat
-   !!  real(kind=mp),dimension(smat%nvctrp_tg),intent(in) :: a
-   !!  real(kind=mp),dimension(smat%smmm%nseq),intent(out) :: a_seq
-   !!
-   !!  ! Local variables
-   !!  integer :: ii
-   !!  integer(kind=8) :: iseq
+   subroutine sequential_acces_matrix_fast2(smat, a, a_seq)
+     use dynamic_memory
+     implicit none
+   
+     ! Calling arguments
+     type(sparse_matrix),intent(in) :: smat
+     real(kind=mp),dimension(smat%nvctrp_tg),intent(in) :: a
+     real(kind=mp),dimension(smat%smmm%nseq),intent(out) :: a_seq
+   
+     ! Local variables
+     integer :: ii
+     integer(kind=8) :: iseq
 
-   !!  call f_routine(id='sequential_acces_matrix_fast2')
+     call f_routine(id='sequential_acces_matrix_fast2')
 
-   !!  if (.not.smat%smatmul_initialized) then
-   !!      call f_err_throw('sparse matrix multiplication not initialized', &
-   !!           err_name='SPARSEMATRIX_RUNTIME_ERROR')
-   !!  end if
-   !!
-   !!  !$omp parallel do schedule(guided) &
-   !!  !$omp default(none) private(iseq, ii) &
-   !!  !$omp shared(smat, a_seq, a)
-   !!  do iseq=1,smat%smmm%nseq
-   !!      ii=smat%smmm%indices_extract_sequential(iseq)
-   !!      a_seq(iseq)=a(ii-smat%isvctrp_tg)
-   !!  end do
-   !!  !$omp end parallel do
+     if (.not.smat%smatmul_initialized) then
+         call f_err_throw('sparse matrix multiplication not initialized', &
+              err_name='SPARSEMATRIX_RUNTIME_ERROR')
+     end if
+   
+     !$omp parallel do schedule(guided) &
+     !$omp default(none) private(iseq, ii) &
+     !$omp shared(smat, a_seq, a)
+     do iseq=1,smat%smmm%nseq
+         ii=smat%smmm%indices_extract_sequential(iseq)
+         a_seq(iseq)=a(ii-smat%isvctrp_tg)
+     end do
+     !$omp end parallel do
 
-   !!  call f_release_routine()
-   !!
-   !!end subroutine sequential_acces_matrix_fast2
+     call f_release_routine()
+   
+   end subroutine sequential_acces_matrix_fast2
 
 
 
@@ -1483,16 +1483,16 @@ module sparsematrix
      !Calling Arguments
      integer,intent(in) :: iproc
      type(sparse_matrix),intent(in) :: smat
-     real(kind=mp), dimension(smat%nvctrp_tg),intent(in) :: a
+     real(kind=mp), dimension(:),intent(in) :: a
      real(kind=mp), dimension(smat%smmm%nvctrp),intent(in) :: b
      real(kind=mp), dimension(smat%smmm%nvctrp), intent(out) :: c
    
      !Local variables
      !character(len=*), parameter :: subname='sparsemm'
      integer :: i,jorb,jjorb,iend,nblock, iblock, ncount
-     integer :: ii, ilen, iout, iiblock, isblock, is,ie, ind, idebug
+     integer :: ii, ilen, iout, iiblock, isblock, is,ie, ind, idebug, lookupindex, ishift
      real(kind=mp) :: tt0
-     integer :: n_dense
+     integer :: n_dense, j
      real(kind=mp),dimension(:,:),allocatable :: a_dense, b_dense, c_dense
      !real(kind=mp),dimension(:),allocatable :: b_dense, c_dense
      !!integer,parameter :: MATMUL_NEW = 101
@@ -1520,14 +1520,28 @@ module sparsematrix
      call f_timing(TCAT_SMAT_MULTIPLICATION,'IR')
 
 
-     ! The choice for matmul_version can be made in sparsematrix_base
+     ! The choice for matmul_version can be made in sparsematrix_defs
      if (matmul_version==MATMUL_NEW) then
+
+         if (matmul_matrix == MATMUL_ORIGINAL_MATRIX) then
+             if (size(a) /= smat%nvctrp_tg) then
+                 call f_err_throw('size(a) /= smat%nvctrp_tg')
+             end if
+             lookupindex = 4
+             ishift = smat%isvctrp_tg
+         else if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+             if (size(a) /= smat%smmm%nseq) then
+                 call f_err_throw(trim(yaml_toa(size(a)))//'=size(a) /= smat%smmm%nseq='//trim(yaml_toa(smat%smmm%nseq)))
+             end if
+             lookupindex = 1
+             ishift = 0
+         end if
 
          if (count_flops) then
              ! Start time
              ts = mpi_wtime()
          end if
-         !$omp parallel default(private) shared(smat, a, b, c)
+         !$omp parallel default(private) shared(smat, a, b, c, lookupindex, ishift)
          !$omp do schedule(guided)
          do iout=1,smat%smmm%nout
              i=smat%smmm%onedimindices_new(1,iout)
@@ -1541,8 +1555,12 @@ module sparsematrix
                  jorb = smat%smmm%consecutive_lookup(1,iblock)
                  jjorb = smat%smmm%consecutive_lookup(2,iblock)
                  ncount = smat%smmm%consecutive_lookup(3,iblock)
-                 ind = smat%smmm%consecutive_lookup(4,iblock) - smat%isvctrp_tg
-                 tt0=tt0+my_dot(ncount,b(jjorb),a(ind))
+                 ind = smat%smmm%consecutive_lookup(lookupindex,iblock) - ishift
+                 !write(*,*) 'lookupindex, ishift, jjorb, ind', lookupindex, ishift, jjorb, ind
+                 do j=0,ncount-1
+                     tt0 = tt0 + b(jjorb+j)*a(ind+j)
+                 end do
+                 !tt0=tt0+my_dot(ncount,b(jjorb),a(ind))
              end do
 
              c(i) = tt0
@@ -2185,11 +2203,13 @@ module sparsematrix
       ! Calling arguments
       integer,intent(in) :: iproc, nproc
       type(sparse_matrix),intent(in) :: smat
-      real(kind=mp),dimension(smat%nvctrp_tg),intent(in) :: a, b
+      real(kind=mp),dimension(smat%nvctrp_tg),target,intent(in) :: a
+      real(kind=mp),dimension(smat%nvctrp_tg),intent(in) :: b
       real(kind=mp),dimension(smat%nvctrp_tg),intent(inout) :: c
 
       ! Local variables
-      real(kind=mp),dimension(:),allocatable :: b_exp, c_exp, a_seq
+      real(kind=mp),dimension(:),allocatable :: b_exp, c_exp
+      real(kind=mp),dimension(:),pointer :: a_seq
 
       call f_routine(id='matrix_matrix_mult_wrapper')
 
@@ -2200,9 +2220,12 @@ module sparsematrix
 
       b_exp = f_malloc(smat%smmm%nvctrp, id='b_exp')
       c_exp = f_malloc(smat%smmm%nvctrp, id='c_exp')
-      !!a_seq = sparsematrix_malloc(smat, iaction=SPARSEMM_SEQ, id='a_seq')
-
-      !!call sequential_acces_matrix_fast2(smat, a, a_seq)
+      if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+          a_seq = sparsematrix_malloc_ptr(smat, iaction=SPARSEMM_SEQ, id='a_seq')
+          call sequential_acces_matrix_fast2(smat, a, a_seq)
+      else if (matmul_matrix == MATMUL_ORIGINAL_MATRIX) then
+          a_seq => a
+      end if
       if (smat%smmm%nvctrp_mm>0) then !to avoid out of bounds error...
           call transform_sparsity_pattern(iproc, smat%nfvctr, smat%smmm%nvctrp_mm, smat%smmm%isvctr_mm, &
                smat%nseg, smat%keyv, smat%keyg, &
@@ -2211,13 +2234,15 @@ module sparsematrix
                smat%smmm%nseg, smat%smmm%keyv, smat%smmm%keyg, smat%smmm%istsegline, &
                'small_to_large', matrix_s_in=b(smat%smmm%isvctr_mm-smat%isvctrp_tg+1), matrix_l_out=b_exp)
       end if
-      call sparsemm_newnew(iproc, smat, a, b_exp, c_exp)
+      call sparsemm_newnew(iproc, smat, a_seq, b_exp, c_exp)
       call compress_matrix_distributed_wrapper(iproc, nproc, smat, SPARSE_MATMUL_LARGE, &
            c_exp, ONESIDED_FULL, c)
 
       call f_free(b_exp)
       call f_free(c_exp)
-      !!call f_free(a_seq)
+      if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+          call f_free_ptr(a_seq)
+      end if
 
       call f_release_routine()
 

@@ -21,6 +21,7 @@
 
 module sparsematrix_memory
   !use sparsematrix_errorhandling
+  use sparsematrix_defs
   use sparsematrix_types
   !use dynamic_memory
   !use dictionaries
@@ -142,7 +143,7 @@ module sparsematrix_memory
       nullify(smmm%nsegline)
       nullify(smmm%istsegline)
       !!nullify(smmm%keyg)
-      !!nullify(smmm%indices_extract_sequential)
+      nullify(smmm%indices_extract_sequential)
       nullify(smmm%nvctr_par)
       nullify(smmm%isvctr_par)
       nullify(smmm%nvctr_mm_par)
@@ -200,7 +201,9 @@ module sparsematrix_memory
       !smmm%line_and_column_mm=f_malloc_ptr((/2,smmm%nvctrp_mm/),id='smmm%line_and_column_mm')
       smmm%nsegline=f_malloc_ptr(norb,id='smmm%nsegline')
       smmm%istsegline=f_malloc_ptr(norb,id='smmm%istsegline')
-      !!smmm%indices_extract_sequential=f_malloc_ptr(smmm%nseq,id='smmm%indices_extract_sequential')
+      if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+          smmm%indices_extract_sequential=f_malloc_ptr(smmm%nseq,id='smmm%indices_extract_sequential')
+      end if
       smmm%nvctr_par=f_malloc_ptr(0.to.nproc-1,id='smmm%nvctr_par')
       smmm%isvctr_par=f_malloc_ptr(0.to.nproc-1,id='smmm%isvctr_par')
       smmm%nvctr_mm_par=f_malloc_ptr(0.to.nproc-1,id='smmm%nvctr_mm_par')
@@ -469,8 +472,10 @@ module sparsematrix_memory
       !!converted  call allocate_and_copy(smmm_in%istsegline, smmm_out%istsegline, id='smmm_out%istsegline')
       smmm_out%istsegline=f_malloc_ptr(src_ptr=smmm_in%istsegline, id='smmm_out%istsegline')
       !!converted  call allocate_and_copy(smmm_in%indices_extract_sequential, smmm_out%indices_extract_sequential, &
-      !!smmm_out%indices_extract_sequential=f_malloc_ptr(src_ptr=smmm_in%indices_extract_sequential, &
-      !!     id='smmm_out%ndices_extract_sequential')
+      if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+          smmm_out%indices_extract_sequential=f_malloc_ptr(src_ptr=smmm_in%indices_extract_sequential, &
+               id='smmm_out%ndices_extract_sequential')
+      end if
       !!converted  call allocate_and_copy(smmm_in%onedimindices, smmm_out%onedimindices, id='smmm_out%onedimindices')
       !!smmm_out%onedimindices=f_malloc_ptr(src_ptr=smmm_in%onedimindices, id='smmm_out%onedimindices')
       !!converted  call allocate_and_copy(smmm_in%onedimindices_new, smmm_out%onedimindices_new, id='smmm_out%onedimindices_new')
@@ -543,7 +548,9 @@ module sparsematrix_memory
       call f_free_ptr(smmm%nsegline)
       call f_free_ptr(smmm%istsegline)
       !!call f_free_ptr(smmm%keyg)
-      !!call f_free_ptr(smmm%indices_extract_sequential)
+      if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+          call f_free_ptr(smmm%indices_extract_sequential)
+      end if
       call f_free_ptr(smmm%nvctr_par)
       call f_free_ptr(smmm%isvctr_par)
       call f_free_ptr(smmm%nvctr_mm_par)

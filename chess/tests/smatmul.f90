@@ -61,7 +61,8 @@ program smatmul
   logical :: symmetric
   real(kind=8) :: time_start, time_end
   real(kind=8),dimension(:),pointer :: mat_compr
-  real(kind=8),dimension(:),allocatable :: mat_seq, vector_in, vector_out
+  real(kind=8),dimension(:),pointer :: mat_seq
+  real(kind=8),dimension(:),allocatable :: vector_in, vector_out
   type(dictionary), pointer :: dict_timing_info
   type(dictionary), pointer :: options
   type(yaml_cl_parse) :: parser !< command line parser
@@ -158,7 +159,6 @@ program smatmul
   call mpibarrier(comm)
   time_start = mpi_wtime()
 
-  mat_seq = sparsematrix_malloc(smat(1), iaction=SPARSEMM_SEQ, id='mat_seq')
   vector_in = f_malloc0(smat(1)%smmm%nvctrp,id='vector_in')
   vector_out = f_malloc0(smat(1)%smmm%nvctrp,id='vector_out')
   !call sequential_acces_matrix_fast2(smat(1), matA%matrix_compr, mat_seq)
@@ -181,9 +181,15 @@ program smatmul
   !call vcopy(smat(1)%smmm%nvctrp, matA%matrix_compr(smat(1)%smmm%isvctr_mm_par(iproc)+1), 1, vector_in(1), 1)
   call vcopy(smat(1)%smmm%nvctrp, matA%matrix_compr(smat(1)%smmm%isvctr_mm_par(iproc)+1-smat(1)%isvctrp_tg), &
        1, vector_in(1), 1)
+  if (matmul_matrix == MATMUL_ORIGINAL_MATRIX) then
+      mat_seq => matA%matrix_compr
+  else if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+      mat_seq = sparsematrix_malloc_ptr(smat(1), iaction=SPARSEMM_SEQ, id='mat_seq')
+      call sequential_acces_matrix_fast2(smat(1), matA%matrix_compr, mat_seq)
+  end if
   do it=1,nit
       !call sparsemm_new(iproc, smat(1), mat_seq, vector_in, vector_out)
-      call sparsemm_newnew(iproc, smat(1), matA%matrix_compr, vector_in, vector_out)
+      call sparsemm_newnew(iproc, smat(1), mat_seq, vector_in, vector_out)
       call vcopy(smat(1)%smmm%nvctrp, vector_out(1), 1, vector_in(1), 1)
   end do
 
@@ -205,7 +211,9 @@ program smatmul
   call deallocate_matrices(matA)
   !call f_free_ptr(keyv)
   !call f_free_ptr(keyg)
-  call f_free(mat_seq)
+  if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+      call f_free_ptr(mat_seq)
+  end if
   !call f_free_ptr(mat_compr)
   call f_free(vector_in)
   call f_free(vector_out)
