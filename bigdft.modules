@@ -51,8 +51,6 @@
     <branch repo="netlib" module="lapack-3.7.0.tgz" version="3.7.0" checkoutdir="lapack"/>
   </cmake>
 
-
-
   <distutils id="PyYAML">
     <!--<branch repo="libyaml" module="PyYAML-3.10.tar.gz" version="3.10"/>-->
     <!--<branch repo="local" module="PyYAML-3.11.tar.gz" version="3.11" checkoutdir="PyYAML"/>-->
@@ -101,13 +99,6 @@
     <branch repo="local" module="psolver-1.8.tar.gz" version="1.8.0" checkoutdir="psolver"/>
     <dependencies>
       <dep package="futile"/>
-      <if condition-set="testing">
-        <dep package="PyYAML"/>
-      </if>
-      <if condition-set="python">
-        <dep package="pygobject"/>
-        <dep package="gobject-introspection"/>
-      </if>
     </dependencies>
   </autotools>
 
@@ -115,9 +106,6 @@
     <branch repo="local" module="CheSS-0.2.4.tar.gz" version="0.2.4" checkoutdir="chess"/>
     <dependencies>
       <dep package="futile"/>
-      <if condition-set="testing">
-        <dep package="PyYAML"/>
-      </if>
     </dependencies>
   </autotools>
 
@@ -131,14 +119,12 @@
       <dep package="psolver"/>
       <dep package="libABINIT"/>
       <dep package="GaIn"/>
-      <!-- <dep package="openbabel"/> -->
       <if condition-set="testing">
-        <dep package="PyYAML"/>
+        <dep package="PyBigDFT"/>
       </if>
-      <if condition-set="python">
-        <dep package="pygobject"/>
-        <dep package="gobject-introspection"/>
-      </if>
+      <if condition-set="babel">
+        <dep package="openbabel"/>
+      </if>     
     </dependencies>
   </autotools>
 
@@ -148,13 +134,6 @@
       <dep package="futile"/>
       <dep package="psolver"/>
       <dep package="bigdft"/>
-      <if condition-set="testing">
-        <dep package="PyYAML"/>
-      </if>
-      <if condition-set="python">
-        <dep package="pygobject"/>
-        <dep package="gobject-introspection"/>
-      </if>
     </dependencies>
   </autotools>
 
@@ -163,9 +142,6 @@
     <branch repo="local" module="pseudo-1.7.5.tar.gz" version="1.7.5" checkoutdir="pseudo"/>
     <dependencies>
       <dep package="libxc"/>
-      <if condition-set="testing">
-        <dep package="PyYAML"/>
-      </if>
     </dependencies>
   </autotools>
 
@@ -221,7 +197,7 @@
   <distutils id="PyBigDFT">
     <branch repo="local" module="PyBigDFT-0.1.tar.gz" version="0.1" checkoutdir="PyBigDFT"/>
     <dependencies>
-      <dep package="bigdft"/>
+      <dep package="PyYAML"/>
     </dependencies>
   </distutils>
 
@@ -243,14 +219,15 @@
 
   <metamodule id="bigdft-suite">
     <dependencies>
-      <dep package="spred"/>
+      <dep package="bigdft"/>
+      <dep package="PyBigDFT"/>
       <dep package="PyYAML"/>
-      <!--  dep package="openbabel" -->
     </dependencies>
   </metamodule>
 
   <metamodule id="spred-suite">
     <dependencies>
+      <dep package="spred"/>
       <dep package="bigdft-suite"/>
     </dependencies>
   </metamodule>

@@ -489,7 +489,7 @@
    -  [-4.1489E-05, -1.4951E+01,  3.8364E-05]
    -  [ 1.8098E+00,  3.8364E-05,  4.2704E+00]
    trace                               : -2.13E-14
- Spreads of the electronic density (AU):  [  4.435255E-01,  2.465368E-01,  5.930235E-01 ]
+ Spreads of the electronic density (AU):  [  1.327715E+00,  9.861472E-01,  2.237014E+00 ]
  Calculate local forces: Yes
  Calculate Non Local forces            :  Yes
  Average noise forces: {x:  1.94201192E-07, y:  5.99410344E-06, z: -1.71929903E-08, 
