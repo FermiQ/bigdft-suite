@@ -59,7 +59,8 @@ module matrix_operations
                                 uncompress_matrix_distributed2, &
                                 gather_matrix_from_taskgroups, gather_matrix_from_taskgroups_inplace, &
                                 uncompress_matrix2, transform_sparsity_pattern, &
-                                sparsemm_newnew, matrix_matrix_mult_wrapper
+                                sparsemm_newnew, matrix_matrix_mult_wrapper, &
+                                sequential_acces_matrix_fast, sequential_acces_matrix_fast2
         use parallel_linalg, only: dpotrf_parallel, dpotri_parallel
         use ice, only: inverse_chebyshev_expansion_new
         use foe_base, only: foe_data
@@ -94,15 +95,19 @@ module matrix_operations
         integer :: ispin, ishift, ishift2, isshift, ilshift, ilshift2, nspin, iline, icolumn, ist, j, iorder_taylor
         !integer,dimension(:,:,:),allocatable :: istindexarr
         real(kind=mp),dimension(:),pointer :: ovrlpminone_sparse
-        real(kind=mp),dimension(:),allocatable :: ovrlp_compr_seq, ovrlpminone_sparse_seq, ovrlp_large_compr, tmparr
-        real(kind=mp),dimension(:),allocatable :: invovrlp_compr_seq, ovrlpminoneoldp_new
+        real(kind=mp),dimension(:),pointer :: ovrlp_compr_seq, ovrlpminone_sparse_seq
+        real(kind=mp),dimension(:),allocatable,target :: ovrlp_large_compr
+        real(kind=mp),dimension(:),allocatable ::tmparr
+        real(kind=mp),dimension(:),pointer :: invovrlp_compr_seq
+        real(kind=mp),dimension(:),allocatable :: ovrlpminoneoldp_new
         !real(kind=mp),dimension(:,:),allocatable :: invovrlpp
         !real(kind=mp),dimension(:,:,:),allocatable :: invovrlpp_arr
         real(kind=mp),dimension(:,:),allocatable :: invovrlpp_arr_new
         real(kind=mp),dimension(:,:),allocatable :: Amat12p, Amat21p, Amat21
         real(kind=mp),dimension(:,:),pointer :: Amat12, Amat11p, Amat22p
         real(kind=mp),dimension(:),pointer :: Amat12_compr
-        real(kind=mp),dimension(:),allocatable :: Amat21_compr, Amat12_seq, Amat21_seq
+        real(kind=mp),dimension(:),pointer :: Amat21_compr
+        real(kind=mp),dimension(:),pointer :: Amat12_seq, Amat21_seq
         integer,parameter :: SPARSE=1
         integer,parameter :: DENSE=2
         !real(kind=mp) :: ex
@@ -599,17 +604,23 @@ module matrix_operations
       
                 call transform_sparse_matrix(iproc, ovrlp_smat, inv_ovrlp_smat, SPARSE_TASKGROUP, 'small_to_large', &
                      smat_in=ovrlp_mat%matrix_compr, lmat_out=Amat12_compr)
-                !Amat12_seq = sparsematrix_malloc(inv_ovrlp_smat, iaction=SPARSEMM_SEQ, id='Amat12_seq')
-                !Amat21_seq = sparsematrix_malloc(inv_ovrlp_smat, iaction=SPARSEMM_SEQ, id='Amat21_seq')
-                Amat21_compr = sparsematrix_malloc(inv_ovrlp_smat, iaction=SPARSE_FULL, id='Amat21_compr')
+                if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                    Amat12_seq = sparsematrix_malloc_ptr(inv_ovrlp_smat, iaction=SPARSEMM_SEQ, id='Amat12_seq')
+                    Amat21_seq = sparsematrix_malloc_ptr(inv_ovrlp_smat, iaction=SPARSEMM_SEQ, id='Amat21_seq')
+                end if
+                Amat21_compr = sparsematrix_malloc_ptr(inv_ovrlp_smat, iaction=SPARSE_FULL, id='Amat21_compr')
       
                 do ispin=1,nspin
       
                     ishift=(ispin-1)*inv_ovrlp_smat%nvctr
                     ishift2=(ispin-1)*inv_ovrlp_smat%nvctrp_tg
       
-                    !call sequential_acces_matrix_fast2(inv_ovrlp_smat, &
-                    !     Amat12_compr(ishift2+1:), Amat12_seq)
+                    if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                        call sequential_acces_matrix_fast2(inv_ovrlp_smat, &
+                             Amat12_compr(ishift2+1:), Amat12_seq)
+                    else if (matmul_matrix == MATMUL_ORIGINAL_MATRIX) then
+                        Amat12_seq => Amat12_compr(ishift2+1:)
+                    end if
                     !call timing(iproc,'lovrlp^-1     ','OF')
                     call f_timing(TCAT_HL_MATRIX_OPERATIONS,'OF')
                     !!call uncompress_matrix_distributed2(iproc, inv_ovrlp_smat, DENSE_MATMUL, &
@@ -653,7 +664,11 @@ module matrix_operations
                     !!write(*,*) 'after compr, sum(Amat21_compr)', sum(Amat21_compr)
                     !call timing(iproc,'lovrlp^-1     ','ON')
                     call f_timing(TCAT_HL_MATRIX_OPERATIONS,'ON')
-                    !call sequential_acces_matrix_fast(inv_ovrlp_smat, Amat21_compr, Amat21_seq)
+                    if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                        call sequential_acces_matrix_fast(inv_ovrlp_smat, Amat21_compr, Amat21_seq)
+                    else if (matmul_matrix == MATMUL_ORIGINAL_MATRIX) then
+                        Amat21_seq => Amat21_compr
+                    end if
       
                     ! calculate Xn+1=0.5*Xn*(3I-Xn**2)
                     do its=1,abs(iorder)
@@ -661,7 +676,7 @@ module matrix_operations
                         call f_timing(TCAT_HL_MATRIX_OPERATIONS,'OF')
                         !call sparsemm(inv_ovrlp_smat, Amat12_seq, Amat21p, Amat11p)
                         !!write(*,*) 'sum(Amat21p_new)', sum(Amat21p_new)
-                        call sparsemm_newnew(iproc, inv_ovrlp_smat, Amat12_compr(ishift2+1:), Amat21p_new, Amat11p_new)
+                        call sparsemm_newnew(iproc, inv_ovrlp_smat, Amat12_seq, Amat21p_new, Amat11p_new)
                         !call timing(iproc,'lovrlp^-1     ','ON')
                         call f_timing(TCAT_HL_MATRIX_OPERATIONS,'ON')
                         !!write(*,*) 'after matmul: sum(Amat11p_new)', sum(Amat11p_new)
@@ -693,8 +708,8 @@ module matrix_operations
                         !!call sparsemm(inv_ovrlp_smat, Amat12_seq, Amat22p, Amat12p)
                         !!call sparsemm(inv_ovrlp_smat, Amat21_seq, Amat11p, Amat21p)
                         !!write(*,*) 'sum(Amat11p_new)',sum(Amat11p_new)
-                        call sparsemm_newnew(iproc, inv_ovrlp_smat, Amat12_compr(ishift2+1:), Amat22p_new, Amat12p_new)
-                        call sparsemm_newnew(iproc, inv_ovrlp_smat, Amat21_compr, Amat11p_new, Amat21p_new)
+                        call sparsemm_newnew(iproc, inv_ovrlp_smat, Amat12_seq, Amat22p_new, Amat12p_new)
+                        call sparsemm_newnew(iproc, inv_ovrlp_smat, Amat21_seq, Amat11p_new, Amat21p_new)
                         !call timing(iproc,'lovrlp^-1     ','ON')
                         call f_timing(TCAT_HL_MATRIX_OPERATIONS,'ON')
       
@@ -710,7 +725,11 @@ module matrix_operations
                             call f_timing(TCAT_HL_MATRIX_OPERATIONS,'ON')
                         end if
                         if (its/=abs(iorder).or.power(1)==1) then
-                            !call sequential_acces_matrix_fast(inv_ovrlp_smat, Amat21_compr, Amat21_seq)
+                            if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                                call sequential_acces_matrix_fast(inv_ovrlp_smat, Amat21_compr, Amat21_seq)
+                            else if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                                Amat21_seq => Amat21_compr
+                            end if
                         end if
                         if (its/=abs(iorder).or.power(1)==2) then
                             !call timing(iproc,'lovrlp^-1     ','OF')
@@ -732,7 +751,7 @@ module matrix_operations
                         !call timing(iproc,'lovrlp^-1     ','OF')
                         call f_timing(TCAT_HL_MATRIX_OPERATIONS,'OF')
                         !call sparsemm(inv_ovrlp_smat, Amat21_seq, Amat21p, Amat12p)
-                        call sparsemm_newnew(iproc, inv_ovrlp_smat, Amat21_compr, Amat21p_new, Amat12p_new)
+                        call sparsemm_newnew(iproc, inv_ovrlp_smat, Amat21_seq, Amat21p_new, Amat12p_new)
                         !!call compress_matrix_distributed(iproc, nproc, inv_ovrlp_smat, DENSE_MATMUL, Amat12p, &
                         !!     inv_ovrlp_mat(1)%matrix_compr(ishift2+1:))
                         call compress_matrix_distributed_wrapper(iproc, nproc, inv_ovrlp_smat, SPARSE_MATMUL_LARGE, Amat12p_new, &
@@ -749,15 +768,19 @@ module matrix_operations
       
                 end do
       
-                !call f_free(Amat12_seq)
+                if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                    call f_free_ptr(Amat12_seq)
+                end if
                 nullify(Amat22p)
                 !!call f_free_ptr(Amat11p)
       
                 nullify(Amat12_compr)
-                call f_free(Amat21_compr)
+                call f_free_ptr(Amat21_compr)
                 !!call f_free(Amat12p)
                 !!call f_free(Amat21p)
-                !call f_free(Amat21_seq)
+                if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                    call f_free_ptr(Amat21_seq)
+                end if
                 call f_free(Amat12p_new)
                 call f_free(Amat21p_new)
                 call f_free_ptr(Amat11p_new)
@@ -781,8 +804,10 @@ module matrix_operations
                     invovrlpp_arr_new = f_malloc((/inv_ovrlp_smat%smmm%nvctrp,ncalc/),id='invovrlpp_arr_new')
       
                     if (iorder>1) then
-                        !ovrlpminone_sparse_seq = sparsematrix_malloc(inv_ovrlp_smat, iaction=SPARSEMM_SEQ, &
-                        !     id='ovrlpminone_sparse_seq')
+                        if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                            ovrlpminone_sparse_seq = sparsematrix_malloc_ptr(inv_ovrlp_smat, iaction=SPARSEMM_SEQ, &
+                                 id='ovrlpminone_sparse_seq')
+                        end if
                         ovrlpminone_sparse = sparsematrix_malloc_ptr(inv_ovrlp_smat, iaction=SPARSE_FULL, &
                              id='ovrlpminone_sparse')
                         !ovrlpminoneoldp = sparsematrix_malloc(inv_ovrlp_smat, iaction=DENSE_MATMUL, id='ovrlpminoneoldp')
@@ -807,7 +832,11 @@ module matrix_operations
                             call matrix_minus_identity_sparse(ovrlp_smat%nfvctr, inv_ovrlp_smat, &
                                  ovrlp_large_compr(isshift+1), ovrlpminone_sparse)
                             !!write(500+bigdft_mpi%iproc,'(a,2es16.8)') 'large, sparse', ovrlp_large_compr(1), ovrlpminone_sparse(1)
-                            !call sequential_acces_matrix_fast(inv_ovrlp_smat, ovrlpminone_sparse, ovrlpminone_sparse_seq)
+                            if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                                call sequential_acces_matrix_fast(inv_ovrlp_smat, ovrlpminone_sparse, ovrlpminone_sparse_seq)
+                            else if (matmul_matrix == MATMUL_ORIGINAL_MATRIX) then
+                                ovrlpminone_sparse_seq => ovrlpminone_sparse
+                            end if
                             !call timing(iproc,'lovrlp^-1     ','OF')
                             call f_timing(TCAT_HL_MATRIX_OPERATIONS,'OF')
                             !call uncompress_matrix_distributed(iproc, inv_ovrlp_smat, DENSE_MATMUL, ovrlpminone_sparse, ovrlpminoneoldp)
@@ -873,7 +902,8 @@ module matrix_operations
                             call f_timing(TCAT_HL_MATRIX_OPERATIONS,'OF')
                             !!call sparsemm(inv_ovrlp_smat, ovrlpminone_sparse_seq, ovrlpminoneoldp, ovrlpminonep)
                             !!write(500+bigdft_mpi%iproc,*) 'ovrlpminone_sparse_seq(1)', ovrlpminone_sparse_seq(1)
-                            call sparsemm_newnew(iproc, inv_ovrlp_smat, ovrlpminone_sparse, ovrlpminoneoldp_new, ovrlpminonep_new)
+                            call sparsemm_newnew(iproc, inv_ovrlp_smat, ovrlpminone_sparse_seq, &
+                                 ovrlpminoneoldp_new, ovrlpminonep_new)
                             !!write(500+bigdft_mpi%iproc,'(a,2es16.8)') 'ovrlpminoneoldp_new(1), ovrlpminonep_new(1)', ovrlpminoneoldp_new(1), ovrlpminonep_new(1)
                             !call timing(iproc,'lovrlp^-1     ','ON')
                             call f_timing(TCAT_HL_MATRIX_OPERATIONS,'ON')
@@ -916,7 +946,9 @@ module matrix_operations
                     call f_free(factor_arr)
       
                     if (iorder>1) then
-                        !call f_free(ovrlpminone_sparse_seq)
+                        if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                            call f_free_ptr(ovrlpminone_sparse_seq)
+                        end if
                         !!call f_free(ovrlpminoneoldp)
                         call f_free(ovrlpminoneoldp_new)
                         call f_free_ptr(ovrlpminone_sparse)
@@ -978,7 +1010,10 @@ module matrix_operations
                 ovrlp_large_compr = sparsematrix_malloc(inv_ovrlp_smat, iaction=SPARSE_TASKGROUP, id='ovrlp_large_compr')
                 call transform_sparse_matrix(iproc, ovrlp_smat, inv_ovrlp_smat, sparse_TASKGROUP, 'small_to_large', &
                      smat_in=ovrlp_mat%matrix_compr, lmat_out=ovrlp_large_compr)
-                !invovrlp_compr_seq = sparsematrix_malloc(inv_ovrlp_smat, iaction=SPARSEMM_SEQ, id='invovrlp_compr_seq')
+                if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                    invovrlp_compr_seq = sparsematrix_malloc_ptr(inv_ovrlp_smat, &
+                        iaction=SPARSEMM_SEQ, id='invovrlp_compr_seq')
+                end if
                 ovrlp_largep_new = f_malloc(inv_ovrlp_smat%smmm%nvctrp,id='ovrlp_largep')
 
                 !!if (iproc==0) write(*,*) 'TEST ##############################################'
@@ -1030,8 +1065,12 @@ module matrix_operations
       
                         !call timing(iproc,'lovrlp^-1     ','ON')
                         call f_timing(TCAT_HL_MATRIX_OPERATIONS,'ON')
-                        !call sequential_acces_matrix_fast2(inv_ovrlp_smat, &
-                        !     inv_ovrlp_mat(icalc)%matrix_compr(ilshift2+1:), invovrlp_compr_seq)
+                        if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                            call sequential_acces_matrix_fast2(inv_ovrlp_smat, &
+                                 inv_ovrlp_mat(icalc)%matrix_compr(ilshift2+1:), invovrlp_compr_seq)
+                        else if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                            invovrlp_compr_seq => inv_ovrlp_mat(icalc)%matrix_compr(ilshift2+1:)
+                        end if
                         !!write(500+bigdft_mpi%iproc,'(a,2es16.8)') 'inv, inv_seq', inv_ovrlp_mat(icalc)%matrix_compr(ilshift2+1), invovrlp_compr_seq(1)
                         !!write(*,*) 'sum(inv_ovrlp_mat(1)%matrix_compr(ilshift+1:ilshift+inv_ovrlp_smat%nvctr)', sum(inv_ovrlp_mat(1)%matrix_compr(ilshift+1:ilshift+inv_ovrlp_smat%nvctr))
       
@@ -1039,7 +1078,7 @@ module matrix_operations
                             call check_accur_overlap_minus_one_sparse_new(iproc, nproc, comm, inv_ovrlp_smat, ovrlp_smat%nfvctr, &
                                  inv_ovrlp_smat%smmm%nfvctrp, inv_ovrlp_smat%smmm%isfvctr, &
                                  inv_ovrlp_smat%smmm%nseq, inv_ovrlp_smat%smmm%nout, &
-                                 inv_ovrlp_mat(icalc)%matrix_compr(ilshift2+1:), ovrlp_largep_new, power(icalc), &
+                                 invovrlp_compr_seq, ovrlp_largep_new, power(icalc), &
                                  max_error, mean_error)
                         else if (power(icalc)==2) then
                             !call timing(iproc,'lovrlp^-1     ','OF')
@@ -1063,11 +1102,17 @@ module matrix_operations
                             call check_accur_overlap_minus_one_sparse_new(iproc, nproc, comm, inv_ovrlp_smat, ovrlp_smat%nfvctr, &
                                  inv_ovrlp_smat%smmm%nfvctrp, inv_ovrlp_smat%smmm%isfvctr, &
                                  inv_ovrlp_smat%smmm%nseq, inv_ovrlp_smat%smmm%nout, &
-                                 inv_ovrlp_mat(icalc)%matrix_compr(ilshift2+1:), invovrlpp_new, power(icalc), &
+                                 invovrlp_compr_seq, invovrlpp_new, power(icalc), &
                                  max_error, mean_error, cmatp=ovrlp_largep_new)
                         else if (power(icalc)==-2) then
-                            !ovrlp_compr_seq = sparsematrix_malloc(inv_ovrlp_smat, iaction=SPARSEMM_SEQ, id='ovrlp_compr_seq') 
-                            !!call sequential_acces_matrix_fast2(inv_ovrlp_smat, ovrlp_large_compr(ilshift+1), ovrlp_compr_seq)
+                            if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                                ovrlp_compr_seq = sparsematrix_malloc_ptr(inv_ovrlp_smat, &
+                                    iaction=SPARSEMM_SEQ, id='ovrlp_compr_seq') 
+                                call sequential_acces_matrix_fast2(inv_ovrlp_smat, &
+                                    ovrlp_large_compr(ilshift+1), ovrlp_compr_seq)
+                            else if (matmul_matrix == MATMUL_ORIGINAL_MATRIX) then
+                                ovrlp_compr_seq => ovrlp_large_compr(ilshift+1:)
+                            end if
                             !call timing(iproc,'lovrlp^-1     ','OF')
                             call f_timing(TCAT_HL_MATRIX_OPERATIONS,'OF')
                             !!call uncompress_matrix_distributed2(iproc, inv_ovrlp_smat, DENSE_MATMUL, &
@@ -1089,10 +1134,12 @@ module matrix_operations
                             call check_accur_overlap_minus_one_sparse_new(iproc, nproc, comm, inv_ovrlp_smat, ovrlp_smat%nfvctr, &
                                  inv_ovrlp_smat%smmm%nfvctrp, inv_ovrlp_smat%smmm%isfvctr, &
                                  inv_ovrlp_smat%smmm%nseq, inv_ovrlp_smat%smmm%nout, &
-                                 inv_ovrlp_mat(icalc)%matrix_compr(ilshift2+1:), invovrlpp_new, power(icalc), &
+                                 invovrlp_compr_seq, invovrlpp_new, power(icalc), &
                                  max_error, mean_error, &
-                                 ovrlp_large_compr(ilshift+1))
-                            !call f_free(ovrlp_compr_seq)
+                                 ovrlp_compr_seq)
+                            if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                                call f_free_ptr(ovrlp_compr_seq)
+                            end if
                         else
                             stop 'wrong power(icalc)'
                         end if
@@ -1113,7 +1160,9 @@ module matrix_operations
                 if (iproc==0 .and. verbosity_>0) then
                     call yaml_sequence_close()
                 end if
-                !call f_free(invovrlp_compr_seq)
+                if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                    call f_free_ptr(invovrlp_compr_seq)
+                end if
                 call f_free(ovrlp_largep_new)
                 call f_free(invovrlpp_new)
                 call f_free(ovrlp_large_compr)
@@ -1143,10 +1192,10 @@ module matrix_operations
         integer,intent(in) :: iproc, nproc, comm, norb, norbp, isorb, nout, power
         integer(kind=8),intent(in) :: nseq
         type(sparse_matrix) :: smat
-        real(kind=mp),dimension(smat%nvctrp_tg),intent(in) :: amat
+        real(kind=mp),dimension(:),intent(in) :: amat
         real(kind=mp),dimension(smat%smmm%nvctrp),intent(in) :: bmatp
         real(kind=mp),intent(out) :: max_error, mean_error
-        real(kind=mp),dimension(smat%nvctrp_tg),intent(in),optional :: dmat
+        real(kind=mp),dimension(:),intent(in),optional :: dmat
         real(kind=mp),dimension(smat%smmm%nvctrp),intent(in),optional :: cmatp
       
         !real(kind=mp), allocatable, dimension(:,:) :: tmp, tmp2
