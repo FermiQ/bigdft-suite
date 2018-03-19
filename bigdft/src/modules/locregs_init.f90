@@ -378,30 +378,6 @@ module locregs_init
       !determine the limits of the different localisation regions
       do ilr=1,nlr
          call nullify_locreg_descriptors(Llr(ilr))
-!!$         !nullify all pointers
-!!$    !     nullify(Llr(ilr)%projflg)
-!!$         nullify(Llr(ilr)%wfd%keygloc)
-!!$         nullify(Llr(ilr)%wfd%keyglob)
-!!$         nullify(Llr(ilr)%wfd%keyvloc)
-!!$         nullify(Llr(ilr)%wfd%keyvglob)
-!!$         nullify(Llr(ilr)%bounds%ibyyzz_r)
-!!$         nullify(Llr(ilr)%bounds%kb%ibyz_c)
-!!$         nullify(Llr(ilr)%bounds%kb%ibxz_c)
-!!$         nullify(Llr(ilr)%bounds%kb%ibxy_c)
-!!$         nullify(Llr(ilr)%bounds%kb%ibyz_f)
-!!$         nullify(Llr(ilr)%bounds%kb%ibxz_f)
-!!$         nullify(Llr(ilr)%bounds%kb%ibxy_f)
-!!$         nullify(Llr(ilr)%bounds%sb%ibzzx_c)
-!!$         nullify(Llr(ilr)%bounds%sb%ibyyzz_c)
-!!$         nullify(Llr(ilr)%bounds%sb%ibxy_ff)
-!!$         nullify(Llr(ilr)%bounds%sb%ibzzx_f)
-!!$         nullify(Llr(ilr)%bounds%sb%ibyyzz_f)
-!!$         nullify(Llr(ilr)%bounds%gb%ibzxx_c)
-!!$         nullify(Llr(ilr)%bounds%gb%ibxxyy_c)
-!!$         nullify(Llr(ilr)%bounds%gb%ibyz_ff)
-!!$         nullify(Llr(ilr)%bounds%gb%ibzxx_f)
-!!$         nullify(Llr(ilr)%bounds%gb%ibxxyy_f)
-    
          calc=.false.
          do iorb=1,orbs%norbp
             if(ilr == orbs%inwhichLocreg(iorb+orbs%isorb)) calc=.true.
@@ -750,6 +726,8 @@ module locregs_init
       integer :: ilr,isx,isy,isz,iex,iey,iez
       integer :: ln1,ln2,ln3
       real(gp) :: rx,ry,rz,cutoff
+
+      !to check if the floor and the ceiling are meaningful in this context
 
       linear = .true.
 
