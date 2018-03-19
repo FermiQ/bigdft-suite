@@ -242,8 +242,8 @@ contains
 !!$    nbox(END_,:)=ceiling((oxyz+cutoff)/mesh%hgrids)
 
     rbox=cell_cutoff_extrema(mesh,oxyz,cutoff)
-    nbox(START_,:)=floor(rbox(START_,:)/mesh%hgrids)
-    nbox(END_,:)=ceiling(rbox(END_,:)/mesh%hgrids)
+    nbox(START_,:)=ceiling(rbox(START_,:)/mesh%hgrids)
+    nbox(END_,:)=floor(rbox(END_,:)/mesh%hgrids)
 
   end function box_nbox_from_cutoff
 
