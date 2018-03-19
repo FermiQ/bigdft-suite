@@ -485,30 +485,31 @@ contains
        end if
     end if
 
+    nullify(hpsi_ptr)
     if (present(hpsi)) hpsi_ptr => ob_ket_map(hpsi, psi_it)
     if (present(hcproj_in)) then
        call cproj_dot(psp_it%ncplx, psp_it%mproj, psi_it%ncplx, psi_it%n_ket, &
             & psp_it%parent%scpr, psp_it%parent%cproj, hcproj_in, eproj)
-       if (present(hpsi)) &
+       if (associated(hpsi_ptr)) &
             & call cproj_pr_p_psi(hcproj_in, psp_it%ncplx, psp_it%mproj, &
             & psp_it%pspd%plr%wfd, psp_it%coeff, psi_it%ncplx, psi_it%n_ket, &
-            & psi_it%lr%wfd, hpsi, psp_it%tolr, &
+            & psi_it%lr%wfd, hpsi_ptr, psp_it%tolr, &
             & psp_it%parent%wpack, psp_it%parent%scpr)
     else if (present(hcproj_out)) then
        call cproj_dot(psp_it%ncplx, psp_it%mproj, psi_it%ncplx, psi_it%n_ket, &
             & psp_it%parent%scpr, psp_it%parent%cproj, hcproj_out, eproj)
-       if (present(hpsi)) &
+       if (associated(hpsi_ptr)) &
             & call cproj_pr_p_psi(hcproj_out, psp_it%ncplx, psp_it%mproj, &
             & psp_it%pspd%plr%wfd, psp_it%coeff, psi_it%ncplx, psi_it%n_ket, &
-            & psi_it%lr%wfd, hpsi, psp_it%tolr, &
+            & psi_it%lr%wfd, hpsi_ptr, psp_it%tolr, &
             & psp_it%parent%wpack, psp_it%parent%scpr)
     else
        call cproj_dot(psp_it%ncplx, psp_it%mproj, psi_it%ncplx, psi_it%n_ket, &
             & psp_it%parent%scpr, psp_it%parent%cproj, psp_it%parent%hcproj, eproj)
-       if (present(hpsi)) &
+       if (associated(hpsi_ptr)) &
             & call cproj_pr_p_psi(psp_it%parent%hcproj, psp_it%ncplx, psp_it%mproj, &
             & psp_it%pspd%plr%wfd, psp_it%coeff, psi_it%ncplx, psi_it%n_ket, &
-            & psi_it%lr%wfd, hpsi, psp_it%tolr, &
+            & psi_it%lr%wfd, hpsi_ptr, psp_it%tolr, &
             & psp_it%parent%wpack, psp_it%parent%scpr)
     end if
 
