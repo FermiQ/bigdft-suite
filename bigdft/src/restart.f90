@@ -91,7 +91,7 @@ subroutine reformatmywaves(iproc,orbs,at,&
   real(wp), dimension(:,:,:,:,:,:), allocatable :: psigold
 
 
-  mesh=cell_new(at%astruct%geocode,[n1,n2,n3],[hx,hy,hz])
+  mesh=cell_new(at%astruct%geocode,[n1+1,n2+1,n3+1],[hx,hy,hz])
   !conditions for periodicity in the three directions
   perx=(at%astruct%geocode /= 'F')
   pery=(at%astruct%geocode == 'P')
