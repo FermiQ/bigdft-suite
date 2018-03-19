@@ -46,7 +46,6 @@ libmodules_a_SOURCES = ab7_mixing.f90 \
 	psp_projectors.f90 \
 	psp_projectors_base.f90 \
 	input_keys.f90 \
-	gaussdaub.f90 \
 	input_dicts.f90 \
 	types.f90 \
 	input.f90 \
@@ -100,7 +99,8 @@ libmodules_a_SOURCES = ab7_mixing.f90 \
 	sw_potential.f90 \
 	get_basis.f90 \
 	asd_fake.f90 \
-	get_kernel.f90
+	get_kernel.f90 \
+	module_utilities.f90
 
 # Modules
 if CAPITALIZE
@@ -109,7 +109,6 @@ modules = MODULE_TYPES.@MODULE_EXT@ \
 	MODULE_INTERFACES.@MODULE_EXT@ \
 	MODULE_PRIVATE_API.@MODULE_EXT@ \
 	MODULE_INPUT.@MODULE_EXT@ \
-	GAUSSDAUB.@MODULE_EXT@ \
 	BIGDFT_API.@MODULE_EXT@ \
 	VDWCORRECTION.@MODULE_EXT@ \
 	MODULE_FRAGMENTS.@MODULE_EXT@ \
@@ -158,14 +157,14 @@ modules = MODULE_TYPES.@MODULE_EXT@ \
 	MODULE_CP2K.@MODULE_EXT@ \
 	SWPOTENTIAL.@MODULE_EXT@ \
 	GET_BASIS.@MODULE_EXT@ \
-	GET_KERNEL.@MODULE_EXT@
+	GET_KERNEL.@MODULE_EXT@ \
+	MODULE_UTILITIES.@MODULE_EXT@
 else
 modules = module_types.@MODULE_EXT@ \
 	module_mixing.@MODULE_EXT@ \
 	module_interfaces.@MODULE_EXT@ \
 	module_private_api.@MODULE_EXT@ \
 	module_input.@MODULE_EXT@ \
-	gaussdaub.@MODULE_EXT@ \
 	bigdft_api.@MODULE_EXT@ \
 	vdwcorrection.@MODULE_EXT@ \
 	module_fragments.@MODULE_EXT@ \
@@ -215,7 +214,8 @@ modules = module_types.@MODULE_EXT@ \
 	module_bazant.@MODULE_EXT@ \
 	swpotential.@MODULE_EXT@ \
 	get_basis.@MODULE_EXT@ \
-	get_kernel.@MODULE_EXT@
+	get_kernel.@MODULE_EXT@ \
+	module_utilities.@MODULE_EXT@
 endif
 
 ATOMS_INCLUDES = astruct-inc.f90
@@ -300,6 +300,7 @@ sw_potential.o: atoms_data.o
 bigdft_matrices.o: types.o sparsematrix_wrappers.o
 get_basis.o: types.o interfaces.o communications.o rhopotential.o constrained_dft.o fragment_base.o fragments.o transposed_operations.o locregs_init.o get_kernel.o io.o
 get_kernel.o: types.o interfaces.o diis_module.o communications.o constrained_dft.o rhopotential.o transposed_operations.o locregs_init.o orthonormalization.o
+module_utilities.o: multipole.o
 ##pexsi.o also depends on pexsi_interfaces, but it is not known which one...
 #if HAVE_PEXSI
 #pexsi_interfaces.o: pexsi_base.o

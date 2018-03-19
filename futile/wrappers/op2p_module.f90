@@ -180,7 +180,7 @@ module overlap_point_to_point
         OP2P%simulate=.false.
         OP2P%verbose=.false.
         OP2P%do_calculation=.false. !<tell is the calculation has to be done
-        OP2P%nearest_neighbor=.false. 
+        OP2P%nearest_neighbor=.false.
         OP2P%iproc_dump=mpirank_null()-1
         OP2P%istep=0
         OP2P%nstep=-1
@@ -319,11 +319,12 @@ module overlap_point_to_point
        use iso_c_binding
        use yaml_output
        use wrapper_MPI
+       use f_ternary
        implicit none
        integer(kind=C_SIZE_T) :: freeGPUSize, totalGPUSize, gpudirectresSize,gpudirectdataSize,phimemSize
        logical, intent(inout) :: symmetric
        integer, intent(in) :: iproc, nproc
-       integer :: i, igroup, iproc_node, nproc_node
+       integer :: i, igroup, iproc_node, nproc_node, ndevices
        type(OP2P_data), intent(inout) :: OP2P
        real(wp) alpha
        logical ltmp
@@ -332,11 +333,16 @@ module overlap_point_to_point
        gpudirectdataSize=0
        gpudirectresSize=0
        phimemSize=0
+       ndevices=1
 
-       call cuda_get_mem_info(freeGPUSize,totalGPUSize)
+
        call mpinoderanks(iproc,nproc,OP2P%mpi_comm,iproc_node,nproc_node)
        !call processor_id_per_node(iproc,nproc,iproc_node,nproc_node)
+
+       !get number of GPus on the node
+       call cudagetdevicecount(ndevices)
        
+       call cuda_get_mem_info(freeGPUSize,totalGPUSize)
        do i=1,2
          do igroup=1,OP2P%ngroupp
            gpudirectdataSize=gpudirectdataSize+OP2P%ndim*maxval(OP2P%nobj_par(:,OP2P%group_id(igroup)))*f_sizeof(alpha)
@@ -352,11 +358,10 @@ module overlap_point_to_point
        end do
 
        phimemSize=OP2P%ndim*sum(OP2P%nobj_par(iproc,:))*2*sizeof(alpha)
-
-       if((nproc_node * (phimemSize+gpudirectdataSize+gpudirectresSize) )< freeGPUSize) then
+       
+       if((nproc_node/ndevices * (phimemSize+gpudirectdataSize+gpudirectresSize) )< freeGPUSize) then
          OP2P%gpudirect=1
-       else if ((nproc_node * (phimemSize+gpudirectdataSize))<freeGPUSize) then
-
+       else if ((nproc_node/ndevices * (phimemSize+gpudirectdataSize))<freeGPUSize) then
          symmetric = .false.
          OP2P%gpudirect=1
        else
@@ -367,7 +372,7 @@ module overlap_point_to_point
     ! gpudirect is an integer, and some implementations of MPI don't provide MPI_LAND for integers
     ltmp=OP2P%gpudirect==1
     call fmpi_allreduce(ltmp,1,FMPI_LAND)
-    OP2P%gpudirect= merge(1,0,ltmp)
+    OP2P%gpudirect= .if. ltmp .then. 1 .else. 0 !merge(1,0,ltmp)
     call fmpi_allreduce(symmetric,1,FMPI_LAND)
 
     if (OP2P%gpudirect==0 .and. iproc==0) then
@@ -706,11 +711,11 @@ module overlap_point_to_point
 
 
      !> define tag according to the strategy
-     !pure 
+     !pure
      function OP2P_tag(OP2P,iproc,back) result(tag)
        use wrapper_MPI, only: mpisize
        implicit none
-       type(OP2P_data), intent(in) :: OP2P 
+       type(OP2P_data), intent(in) :: OP2P
        integer, intent(in) :: iproc
        logical, intent(in), optional :: back
        integer :: tag
@@ -720,11 +725,11 @@ module overlap_point_to_point
           if (back) tag=tag+mpisize(OP2P%mpi_comm)
        end if
        tag=tag+OP2P%tag_offset
-       
+
      end function OP2P_tag
 
      !>get the rank to which we have to send the data
-     !pure 
+     !pure
      function get_send_rank(igroup,OP2P)
        use wrapper_MPI
        implicit none
@@ -810,7 +815,7 @@ module overlap_point_to_point
        nelems=OP2P%nobj_par(original_source,igr)*OP2P%ndim
        iobj_local=OP2P%objects_id(LOCAL_,original_source,igr)
        jshift=phi%displ(iobj_local)
- 
+
        nullify(sendbuf)
        !this is the alternative communication scheme
        if (OP2P%istep == 0 .or. .not. OP2P%nearest_neighbor) then
@@ -1149,7 +1154,6 @@ module overlap_point_to_point
              OP2P%do_calculation=.false. !now the loop can cycle
              if (OP2P%igroup > OP2P%ngroupp) exit group_loop
           end do group_loop
-
 
           !verify that the messages have been passed
           call mpiwaitall(OP2P%ndata_comms,OP2P%requests_data,&

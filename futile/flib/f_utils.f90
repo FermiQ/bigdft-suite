@@ -28,9 +28,10 @@ module f_utils
 
   !preprocessed include file with processor-specific values
   !defines recl_kind
-  include 'f_utils.inc' 
+  include 'f_utils.inc'
 
   !> This type can be used to get strings from a file or a dictionary long string.
+  !! it should be amended to also contain the same information from a character buffer
   type, public :: io_stream
      integer :: iunit = 0
      type(dictionary), pointer :: lstring => null()
@@ -146,7 +147,7 @@ module f_utils
   public :: assignment(=),f_none,f_assert,f_sizeof,f_size
 
 contains
- 
+
   subroutine f_utils_errors()
 
     call f_err_define('INPUT_OUTPUT_ERROR',&
@@ -161,7 +162,7 @@ contains
     type(f_none_object) :: f_none
     f_none%none=NULL_
   end function f_none
- 
+
   pure function f_time()
     integer(f_long) :: f_time
     !local variables
@@ -186,7 +187,6 @@ contains
   end subroutine f_assert
 
   subroutine f_assert_str(condition,id,err_id,err_name)
-    use module_f_malloc, only: f_malloc_routine_name
     use yaml_strings
     use dictionaries
     implicit none
@@ -498,7 +498,7 @@ contains
     unt=7
     if (present(unit)) unt=unit
     inquire(unit=unt,opened=unit_is_open,iostat=ierr)
-    do while(unit_is_open .and. ierr==0)     
+    do while(unit_is_open .and. ierr==0)
        unt=unt+1
        inquire(unit=unt,opened=unit_is_open,iostat=ierr)
     end do
@@ -552,7 +552,7 @@ contains
             trim(file)//'iostat='//trim(yaml_toa(ierr)),&
             err_id=INPUT_OUTPUT_ERROR)
     end if
-    
+
   end subroutine f_delete_file
 
   subroutine f_move_file(src,dest)
@@ -560,7 +560,7 @@ contains
     character(len=*), intent(in) :: src,dest
     !local variables
     integer(f_integer) :: ierr
-    
+
     call movefile(trim(src),int(len_trim(src),f_integer),&
          trim(dest),int(len_trim(dest),f_integer),ierr)
     if (ierr /= 0) call f_err_throw('Error in moving file='//&
@@ -607,7 +607,7 @@ contains
     if (ierr /=0) call f_err_throw('Error in rewind unit='//&
          trim(yaml_toa(unit))//'iostat='//trim(yaml_toa(ierr)),&
          err_id=INPUT_OUTPUT_ERROR)
-    
+
   end subroutine f_rewind
 
   !>tentative example of writing the data in a buffer
@@ -624,7 +624,7 @@ contains
     integer :: lpos
     character(len=3) :: adv
     character(len=len(cr)) :: crtmp
-    
+
     adv='yes'
     if (present(advance)) call f_strcpy(src=advance,dest=adv)
 
@@ -632,7 +632,7 @@ contains
        !determine the size of the input
        lpos=len(msg)
        call f_zero(crtmp)
-       if (adv .eqv. 'yes') crtmp=cr 
+       if (adv .eqv. 'yes') crtmp=cr
        lpos=lpos+len_trim(cr)
        !copy the values we would like to add in the buffer
        !check if the total length is bigger than buffer size
@@ -640,7 +640,7 @@ contains
           write(unit=unit,fmt='(a)') buffer%buf(:buffer%ipos)
           buffer%ipos=1
        end if
-       !copy the data 
+       !copy the data
        !call f_memcpy(n=lpos,src=msg+crtmp,dest=buffer%buf(buffer%ipos))
        buffer%ipos=buffer%ipos+lpos
     else
@@ -648,12 +648,12 @@ contains
        write(unit=unit,fmt='(a)',advance=adv) msg
     end if
   end subroutine f_write
-  
+
   !> open a filename and retrieve the unteger for the unit
   subroutine f_open_file(unit,file,status,position,action,binary)
     use yaml_strings, only: f_strcpy
     implicit none
-    !> integer of the unit. On entry, it indicates the 
+    !> integer of the unit. On entry, it indicates the
     !! suggested unit number. On exit, it indicates the free unit
     !! which has been used for the file opening
     integer, intent(inout) :: unit
@@ -858,7 +858,7 @@ contains
     if (nl%none==NULL_) val=.false.
   end subroutine f_null_l0
 
-  
+
   !>increment a integer, to be used in low-performance routines
   !to improve readability
   pure elemental subroutine f_inc_i0(i,inc)
@@ -1305,46 +1305,46 @@ contains
   subroutine put_to_zero_double_3(da)
     implicit none
     double precision, dimension(:,:,:), intent(out) :: da
-    call f_timer_interrupt(TCAT_INIT_TO_ZERO) 
+    call f_timer_interrupt(TCAT_INIT_TO_ZERO)
     !call razero(size(da),da(lbound(da,1),lbound(da,2),lbound(da,3)))
     call setzero(int(size(da),f_long)*kind(da),da)
-    call f_timer_resume() 
+    call f_timer_resume()
   end subroutine put_to_zero_double_3
 
   subroutine put_to_zero_double_4(da)
     implicit none
     double precision, dimension(:,:,:,:), intent(out) :: da
-    call f_timer_interrupt(TCAT_INIT_TO_ZERO) 
+    call f_timer_interrupt(TCAT_INIT_TO_ZERO)
     !call razero(size(da),da(lbound(da,1),lbound(da,2),lbound(da,3),lbound(da,4)))
     call setzero(int(size(da),f_long)*kind(da),da)
-    call f_timer_resume() 
+    call f_timer_resume()
   end subroutine put_to_zero_double_4
 
   subroutine put_to_zero_double_5(da)
     implicit none
     double precision, dimension(:,:,:,:,:), intent(out) :: da
-    call f_timer_interrupt(TCAT_INIT_TO_ZERO) 
+    call f_timer_interrupt(TCAT_INIT_TO_ZERO)
     !call razero(size(da),da(lbound(da,1),lbound(da,2),lbound(da,3),lbound(da,4),lbound(da,5)))
     call setzero(int(size(da),f_long)*kind(da),da)
-    call f_timer_resume() 
+    call f_timer_resume()
   end subroutine put_to_zero_double_5
 
   subroutine put_to_zero_double_6(da)
     implicit none
     double precision, dimension(:,:,:,:,:,:), intent(out) :: da
-    call f_timer_interrupt(TCAT_INIT_TO_ZERO) 
+    call f_timer_interrupt(TCAT_INIT_TO_ZERO)
     !call razero(size(da),da(lbound(da,1),lbound(da,2),lbound(da,3),lbound(da,4),lbound(da,5),lbound(da,6)))
     call setzero(int(size(da),f_long)*kind(da),da)
-    call f_timer_resume() 
+    call f_timer_resume()
   end subroutine put_to_zero_double_6
 
   subroutine put_to_zero_double_7(da)
     implicit none
     double precision, dimension(:,:,:,:,:,:,:), intent(out) :: da
-    call f_timer_interrupt(TCAT_INIT_TO_ZERO) 
+    call f_timer_interrupt(TCAT_INIT_TO_ZERO)
     !call razero(size(da),da(lbound(da,1),lbound(da,2),lbound(da,3),lbound(da,4),lbound(da,5),lbound(da,6),lbound(da,7)))
     call setzero(int(size(da),f_long)*kind(da),da)
-    call f_timer_resume() 
+    call f_timer_resume()
   end subroutine put_to_zero_double_7
 
   subroutine put_to_zero_integer(n,da)

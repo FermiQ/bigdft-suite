@@ -20,9 +20,15 @@ module f_random
      !module procedure f_random_number_d4
   end interface f_random_number
 
-  public :: f_random_number
+  public :: f_random_number,f_random_seed
 
   contains
+
+    subroutine f_random_seed(seed)
+      implicit none
+      integer, intent(in) :: seed
+      idum=seed
+    end subroutine f_random_seed
 
     subroutine f_random_number_d0(harvest,seed,reset)
       implicit none
@@ -136,7 +142,7 @@ module f_random
       logical,intent(in),optional :: reset
       !local variables
       integer, parameter :: ia=16807,im=2147483647,iq=127773,ir=2836,ndiv=1+(im-1)/ntab
-      real(f_simple), parameter :: am=1.e0/im,eps=1.2e-7,rnmx=1.-eps
+      real(f_simple), parameter :: am=1.e0/real(im,kind=f_simple),eps=1.2e-7,rnmx=1.0-eps
       integer :: j,k
       logical :: reset_
     

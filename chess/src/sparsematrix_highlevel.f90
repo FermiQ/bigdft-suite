@@ -391,11 +391,11 @@ module sparsematrix_highlevel
       !!call bigdft_to_sparsebigdft(iproc, nproc, comm, nfvctr, nvctr, nseg, keyg, smat, &
       !!     nspin=nspin, geocode=geocode, cell_dim=cell_dim, on_which_atom=on_which_atom)
       if (init_matmul_) then
-          call sparse_matrix_init_from_data_bigdft(iproc, nproc, comm, nfvctr, nvctr, nseg, keyg, smat, init_matmul_, &
+          call sparse_matrix_init_from_data_bigdft(iproc, nproc, comm, nspin, nfvctr, nvctr, nseg, keyg, smat, init_matmul_, &
                nseg_mult=smat_mult%nseg, nvctr_mult=smat_mult%nvctr, keyg_mult=smat_mult%keyg)
           call deallocate_sparse_matrix(smat_mult)
       else
-          call sparse_matrix_init_from_data_bigdft(iproc, nproc, comm, nfvctr, nvctr, nseg, keyg, smat, init_matmul_)
+          call sparse_matrix_init_from_data_bigdft(iproc, nproc, comm, nspin, nfvctr, nvctr, nseg, keyg, smat, init_matmul_)
       end if
 
       ! Deallocate the pointers
@@ -497,7 +497,7 @@ module sparsematrix_highlevel
     end subroutine sparse_matrix_metadata_init_from_file
 
 
-    subroutine sparse_matrix_init_from_data_bigdft(iproc, nproc, comm, nfvctr, nvctr, nseg, keyg, smat, &
+    subroutine sparse_matrix_init_from_data_bigdft(iproc, nproc, comm, nspin, nfvctr, nvctr, nseg, keyg, smat, &
                init_matmul, nseg_mult, nvctr_mult, keyg_mult)
       use sparsematrix_init, only: ccs_to_sparsebigdft_short, &
            bigdft_to_sparsebigdft, init_matrix_taskgroups
@@ -505,7 +505,7 @@ module sparsematrix_highlevel
       implicit none
 
       ! Calling arguments
-      integer,intent(in) :: iproc, nproc, comm, nfvctr, nvctr, nseg
+      integer,intent(in) :: iproc, nproc, comm, nspin, nfvctr, nvctr, nseg
       integer,dimension(2,2,nseg),intent(in) :: keyg
       type(sparse_matrix),intent(out) :: smat
       logical,intent(in) :: init_matmul
@@ -528,10 +528,10 @@ module sparsematrix_highlevel
 
       ! Create the sparse_matrix structure
       if (init_matmul) then
-          call bigdft_to_sparsebigdft(iproc, nproc, comm, nfvctr, nvctr, nseg, keyg, smat, &
+          call bigdft_to_sparsebigdft(iproc, nproc, comm, nfvctr, nvctr, nseg, keyg, smat, nspin=nspin, &
                init_matmul=init_matmul, nseg_mult=nseg_mult, nvctr_mult=nvctr_mult, keyg_mult=keyg_mult)
       else
-          call bigdft_to_sparsebigdft(iproc, nproc, comm, nfvctr, nvctr, nseg, keyg, smat)
+          call bigdft_to_sparsebigdft(iproc, nproc, comm, nfvctr, nvctr, nseg, keyg, smat, nspin=nspin)
       end if
 
       call f_release_routine()
@@ -545,7 +545,7 @@ module sparsematrix_highlevel
 
       ! Calling arguments
       type(sparse_matrix),intent(in) :: smat
-      real(kind=mp),dimension(smat%nvctr),intent(in) :: val
+      real(kind=mp),dimension(smat%nvctr*smat%nspin),intent(in) :: val
       type(matrices),intent(out) :: mat
 
       call f_routine(id='matrices_init_from_data')
@@ -802,14 +802,16 @@ module sparsematrix_highlevel
       call f_routine(id='matrix_chebyshev_expansion')
 
       ! Check the dimensions of the internal arrays
-      if (size(mat_in%matrix_compr)/=smat_in%nvctrp_tg) then
+      if (size(mat_in%matrix_compr)/=smat_in%nvctrp_tg*smat_in%nspin) then
           call f_err_throw('The size of the array mat_in%matrix_compr is wrong: '&
-               &//trim(yaml_toa(size(mat_in%matrix_compr)))//' instead of '//trim(yaml_toa(smat_in%nvctrp_tg)))
+               &//trim(yaml_toa(size(mat_in%matrix_compr)))//' instead of '&
+               &//trim(yaml_toa(smat_in%nvctrp_tg*smat_in%nspin)))
       end if
       do i=1,ncalc
-          if (size(mat_out(i)%matrix_compr)/=smat_out%nvctrp_tg) then
+          if (size(mat_out(i)%matrix_compr)/=smat_out%nvctrp_tg*smat_out%nspin) then
               call f_err_throw('The size of the array mat_out%matrix_compr is wrong: '&
-                   &//trim(yaml_toa(size(mat_out(i)%matrix_compr)))//' instead of '//trim(yaml_toa(smat_out%nvctrp_tg)))
+                   &//trim(yaml_toa(size(mat_out(i)%matrix_compr)))//' instead of '&
+                   &//trim(yaml_toa(smat_out%nvctrp_tg*smat_out%nspin)))
           end if
       end do
 
@@ -989,6 +991,7 @@ module sparsematrix_highlevel
       symmetrize_kernel_ = .false.
       fscale_ = 5.e-3_mp
       if (present(fscale)) fscale_ = fscale
+
 
       ! Check the dimensions of the internal arrays
       if (size(overlap%matrix_compr)/=smat_s%nvctrp_tg*smat_s%nspin) then

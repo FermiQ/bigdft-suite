@@ -161,7 +161,7 @@ module f_functions
     end function f_function_new
 
 !!$    !>defines a new function that is the multipoication of func1 and func2
-!!$    !!@warning: such function has the same scope of func1 and func2. 
+!!$    !!@warning: such function has the same scope of func1 and func2.
 !!$    !!Should the stack frame of func1,2 change, the function is invalidated
 !!$    function functions_product(func1,func2) result(func)
 !!$      implicit none
@@ -170,13 +170,13 @@ module f_functions
 !!$      type(f_function) :: func
 !!$      !local variables
 !!$      type(f_function), pointer :: ftmp
-!!$      
+!!$
 !!$      func=func1 !depcopy of the params
 !!$      if (.not. associated(func%multiply)) then
 !!$         allocate(func%multiply)
 !!$         func%multiply=func2
 !!$      else
-!!$         
+!!$
 !!$
 !!$      ftmp=>func1
 !!$      do while(associated(ftmp%multiply))
@@ -184,7 +184,7 @@ module f_functions
 !!$      end do
 !!$      allocate(ftmp%multiply)
 !!$      ftmp%multiply=func2
-!!$         
+!!$
 !!$    end function functions_product
 
     recursive pure function eval(func,x) result(y)
@@ -220,7 +220,7 @@ module f_functions
                  eval_(func,x)*diff(func%multiply,x,order)
          end if
       end select
-      
+
     end function diff
 
     pure function eval_(func,x) result(y)
@@ -230,7 +230,7 @@ module f_functions
       real(f_double) :: y
       !local variables
       integer, parameter :: idiff=0
-      
+
       select case(func%function_type)
       case(FUNC_CONSTANT)
          y=func%params(PREFACTOR_)
@@ -265,7 +265,7 @@ module f_functions
       real(f_double) :: y
       !local variables
       integer :: idiff
-      
+
       idiff=1
       if (present(order)) idiff=order
 
@@ -317,7 +317,7 @@ module f_functions
       type(f_grid_1d), intent(in) :: g
       integer, intent(in) :: i
       real(f_double) :: x
-      
+
       !for the moment only 1d grid, but also radial grid might be generalized
       x=g%h*real(i-1,f_double)+g%a
     end function grid_x
@@ -330,7 +330,7 @@ module f_functions
       type(f_grid_1d), intent(in) :: grid
       !local variables
       integer :: i
-      real(f_double) :: fx,fx1,fx2,x      
+      real(f_double) :: fx,fx1,fx2,x
       do i=1,grid%npts
          x=grid_x(grid,i)
          fx=eval(func,x)
@@ -342,7 +342,7 @@ module f_functions
 
     pure function gaussian(a,x,idiff) result(f)
       implicit none
-      integer, intent(in) :: idiff 
+      integer, intent(in) :: idiff
       real(f_double), intent(in) :: a,x
       real(f_double) :: f
       !local variables
@@ -359,7 +359,7 @@ module f_functions
 
     pure function polynomial(coeffs,x,idiff) result(f)
       implicit none
-      integer, intent(in) :: idiff 
+      integer, intent(in) :: idiff
       real(f_double), intent(in) :: x
       real(f_double), dimension(0:MAX_FUNC_PARAMETERS-1), intent(in) :: coeffs
       real(f_double) :: f
@@ -394,7 +394,7 @@ module f_functions
 
     pure function gaussian_shrinked(length,x,idiff) result(f)
       implicit none
-      integer, intent(in) :: idiff 
+      integer, intent(in) :: idiff
       real(f_double), intent(in) :: length,x
       real(f_double) :: f
       !local variables
@@ -413,7 +413,7 @@ module f_functions
 
     pure function cosine(length,frequency,x,idiff) result(f)
       implicit none
-      integer, intent(in) :: idiff 
+      integer, intent(in) :: idiff
       real(f_double), intent(in) :: length,frequency,x
       real(f_double) :: f
       !local variables
@@ -434,7 +434,7 @@ module f_functions
 
     pure function exp_cosine(a,nu,x,idiff) result(f)
       implicit none
-      integer, intent(in) :: idiff 
+      integer, intent(in) :: idiff
       real(f_double), intent(in) :: a,nu,x
       real(f_double) :: f
       !local variables
@@ -442,7 +442,7 @@ module f_functions
 
       r=pi*nu/a*x
       y=cos(r)
-      f=safe_exp(y) !<checked 
+      f=safe_exp(y) !<checked
       select case(idiff)
       case(1)
          yp=-sin(r)
@@ -457,7 +457,7 @@ module f_functions
     !>not to be confused with gaussian_shrinked
     pure function shrinked_gaussian(length,x,idiff) result(f)
       implicit none
-      integer, intent(in) :: idiff 
+      integer, intent(in) :: idiff
       real(f_double), intent(in) :: length,x
       real(f_double) :: f
       !local variables

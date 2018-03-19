@@ -520,7 +520,8 @@ contains
       astruct_neighbours_next = .true.
     END FUNCTION astruct_neighbours_next
 
-    !determine the gaussian structure related to the given atom
+
+    !> Determine the gaussian structure related to the given atom
     subroutine atomic_charge_density(g,at,atit)
       use gaussians
       use numerics, only: twopi
@@ -697,9 +698,8 @@ contains
     type(f_matrix), intent(inout) :: mat
     !local variables
     character(len=4) :: aspin
-    integer :: ishell
     type(dictionary), pointer :: iter
-    
+
     select case(ispin)
     case(1)
        call f_strcpy(src='up',dest=aspin)
@@ -726,7 +726,7 @@ contains
     integer, intent(in) :: l
     real(gp), dimension(2*l+1,2*l+1), intent(out) :: mat
     !local variables
-    integer :: i,j,ln
+    integer :: i,ln
     real(gp) :: tr
 
     call f_zero(mat)
@@ -1219,6 +1219,8 @@ contains
       real(gp), dimension(:,:), pointer :: rxyz_
       character(len=len(astruct%inputfile_format)) :: formt
 
+      call f_routine(id='astruct_dump_to_file')
+
       energy_=0.0_gp
       if (present(energy)) energy_ = energy
       rxyz_ => astruct%rxyz
@@ -1280,17 +1282,23 @@ contains
             call addToCompress(trim(arFile), len(trim(arFile)), trim(fname), len(trim(fname)))
          end if
       end if
+
+      call f_release_routine()
+
     END SUBROUTINE astruct_dump_to_file
 
 
     !> Convert astruct to dictionary for later dump.
     subroutine astruct_merge_to_dict(dict, astruct, rxyz, comment)
+      use dynamic_memory
       use module_defs, only: gp, UNINITIALIZED
       use numerics, only: Bohr_Ang
       use dictionaries
       use yaml_strings
       use box, only: geocode_to_bc,bc_periodic_dims
       use ao_inguess, only: charge_and_spol
+      use yaml_output !tmp
+      
       implicit none
       type(dictionary), pointer :: dict
       type(atomic_structure), intent(in) :: astruct
@@ -1303,6 +1311,8 @@ contains
       logical, dimension(3) :: peri
       logical :: reduced
       character(len = 4) :: frzstr
+
+      call f_routine(id='astruct_merge_to_dict')
 
       !call dict_init(dict)
 
@@ -1328,9 +1338,15 @@ contains
             call set(dict // ASTRUCT_CELL // (i-1), '.inf')
          end if
       end do
+
       if (.not. any(peri)) then
          ! Default, store nothing and erase key if already exist.
-         if (has_key(dict, ASTRUCT_CELL)) call dict_remove(dict, ASTRUCT_CELL)
+         if (ASTRUCT_CELL .in. dict) then
+            last=>dict .pop. ASTRUCT_CELL
+            call dict_free(last)
+            if (.not. associated(dict)) call dict_init(dict)
+         end if
+!!$         if (has_key(dict, ASTRUCT_CELL)) call dict_remove(dict, ASTRUCT_CELL,destroy=.false.)
       end if
 
       !cell information
@@ -1366,7 +1382,12 @@ contains
 !!$         if (has_key(dict, ASTRUCT_CELL)) call dict_remove(dict, ASTRUCT_CELL)
 !!$      end select BC
 
-      if (has_key(dict, ASTRUCT_POSITIONS)) call dict_remove(dict, ASTRUCT_POSITIONS)
+      !if (has_key(dict, ASTRUCT_POSITIONS)) call dict_remove(dict, ASTRUCT_POSITIONS,destroy=.false.)
+      if (ASTRUCT_POSITIONS .in. dict) then
+         last=>dict .pop. ASTRUCT_POSITIONS
+         call dict_free(last)
+         if (.not. associated(dict)) call dict_init(dict)
+      end if
       if (astruct%nat > 0) pos => dict // ASTRUCT_POSITIONS
       nullify(last)
       do iat=1,astruct%nat
@@ -1399,12 +1420,15 @@ contains
       end if
 
       if (present(comment)) then
-         if (len_trim(comment) > 0) &
-              & call add(dict // ASTRUCT_PROPERTIES // "info", comment)
+         if (len_trim(comment) > 0) then
+             call add(dict // ASTRUCT_PROPERTIES // "info", comment)
+         end if
       end if
 
       if (len_trim(astruct%inputfile_format) > 0) &
            & call set(dict // ASTRUCT_PROPERTIES // "format", astruct%inputfile_format)
+
+      call f_release_routine()
 
     end subroutine astruct_merge_to_dict
 
@@ -1532,7 +1556,7 @@ contains
       !Arguments
       type(dictionary), pointer :: dict, types
       !Local variables
-      type(dictionary), pointer :: atoms, at
+      type(dictionary), pointer :: atoms
       character(len = max_field_length) :: str
       integer :: ityp
 
@@ -1557,7 +1581,7 @@ contains
 
     !> complete the atoms structure with the remaining information.
     !! must be called after the call to astruct_set
-    subroutine atoms_fill(atoms,dict,frmult,nspin,multipole_preserving,mp_isf,ixc,alpha_hartree_fock)
+    subroutine atoms_fill(atoms,dict,nspin,multipole_preserving,mp_isf,ixc,alpha_hartree_fock)
       use ao_inguess, only: lmax_ao
       use public_keys, only: IG_OCCUPATION,OUTPUT_VARIABLES,ATOMIC_DENSITY_MATRIX,&
            DFT_VARIABLES,OCCUPANCY_CONTROL
@@ -1574,7 +1598,6 @@ contains
       integer, intent(in) :: ixc         !< XC functional Id
       logical, intent(in) :: multipole_preserving !< Preserve multipole for ionic charge (integrated isf)
       real(gp), intent(in) :: alpha_hartree_fock !< exact exchange contribution
-      real(gp), intent(in) :: frmult           !< Used to scale the PAW radius projector
       type(atoms_data), intent(inout) :: atoms
       type(dictionary), pointer :: dict
       !local variables
@@ -1588,7 +1611,7 @@ contains
       call f_routine(id='atoms_fill')
 
       !fill the rest of the atoms structure
-      call psp_dict_analyse(dict, atoms,frmult)
+      call psp_dict_analyse(dict, atoms)
       call atomic_data_set_from_dict(dict,IG_OCCUPATION, atoms,nspin)
       !use get as the keys might not be there
       dict_gamma= dict .get. OUTPUT_VARIABLES
@@ -1618,7 +1641,7 @@ contains
               & pawnphi, nsym, pawntheta, atoms%pawang, atoms%pawrad, 0, &
               & atoms%pawtab, pawxcdev, xclevel, usepotzero)
       end if
-      
+
       call f_release_routine()
 
     end subroutine atoms_fill
@@ -1634,11 +1657,11 @@ contains
       type(dictionary), pointer :: dict
       !local variables
       type(dictionary), pointer :: types,iter
-      character(len = max_field_length) :: str
-      integer :: iat, stypes
-      character(len=max_field_length), dimension(:), allocatable :: keys
-      character(len=27) :: key
-      logical :: exists
+      !character(len = max_field_length) :: str
+      !integer :: iat, stypes
+      !character(len=max_field_length), dimension(:), allocatable :: keys
+      !character(len=27) :: key
+      !logical :: exists
 
       if (POSINP .notin. dict) return
       ! Loop on types for atomic data.
@@ -1932,7 +1955,7 @@ contains
 
 
     !> Fill up the atoms structure from dict
-    subroutine psp_dict_analyse(dict, atoms, frmult)
+    subroutine psp_dict_analyse(dict, atoms)
       use module_defs, only: gp
       !use m_pawrad, only: pawrad_type !, pawrad_nullify
       !use m_pawtab, only: pawtab_type, pawtab_nullify
@@ -1946,15 +1969,12 @@ contains
       !Arguments
       type(dictionary), pointer :: dict        !< Input dictionary
       type(atoms_data), intent(inout) :: atoms !< Atoms structure to fill up
-      real(gp), intent(in), optional :: frmult           !< Used to scale the PAW radius projector
       !Local variables
-      integer :: ityp, ityp2
+      integer :: ityp
       character(len = 27) :: filename
       real(gp), dimension(3) :: radii_cf
-      real(gp) :: rloc
-      real(gp), dimension(4) :: lcoeff
       real(gp), dimension(0:4,0:6) :: psppar
-      logical :: pawpatch, l
+      logical :: pawpatch
       integer :: paw_tot_l,  paw_tot_q, paw_tot_coefficients, paw_tot_matrices
 
       call f_routine(id='psp_dict_analyse')
@@ -2109,7 +2129,7 @@ contains
 
       !quick return if constraints are not defined according to API
       if (CONSTRAINTS .notin. astruct%properties) return
-      
+
       msg=bigdft_mpi%iproc==0
       dict_cst=>astruct%properties//CONSTRAINTS
       select case (astruct%units)
@@ -2131,10 +2151,10 @@ contains
             !for each loop cycle the iterator points
             !to the list [iat,jat,bond]
             !retrieve the values
-            iat=iter//0 
+            iat=iter//0
             jat=iter//1
             bnd=iter//2
-            !and check if the values are in agreement with 
+            !and check if the values are in agreement with
             !the positions
             dxyz=astruct%rxyz(:,iat)-astruct%rxyz(:,jat)
             actual_bond=factor*sqrt(dxyz(1)**2+dxyz(2)**2+dxyz(3)**2)
@@ -2149,7 +2169,7 @@ contains
          end do
          if (msg) call yaml_sequence_close()
       end if
-      !similar information can be retrieved for other options and 
+      !similar information can be retrieved for other options and
       !constraints
       !...
     end subroutine astruct_constraints
@@ -2444,7 +2464,7 @@ subroutine astruct_set_displacement(astruct, randdis)
    call rxyz_inside_box(astruct)
 
  END SUBROUTINE astruct_set_displacement
- 
+
  !> this routine should be merged with the cell definition in the box module
  subroutine astruct_distance(astruct, rxyz, dxyz, iat1, iat2)
    use module_defs, only: gp
@@ -2454,7 +2474,7 @@ subroutine astruct_set_displacement(astruct, randdis)
    real(gp), dimension(3, astruct%nat), intent(in) :: rxyz
    real(gp), dimension(3), intent(out) :: dxyz
    integer, intent(in) :: iat1, iat2
-   
+
    logical, dimension(3) :: per
 
    select case(astruct%geocode)

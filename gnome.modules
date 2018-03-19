@@ -30,6 +30,7 @@
     <branch repo="gnome.org" version="2.40" module="glib/2.40/glib-2.40.0.tar.xz" >
       <patch file="glib.patch"  strip="0"/>
       <patch file="glib2.patch" strip="0"/> 
+      <patch file="glib3.patch" strip="0"/> 
     </branch>
     <dependencies>
       <dep package="libffi"/>

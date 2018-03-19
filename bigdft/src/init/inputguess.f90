@@ -483,34 +483,34 @@ subroutine AtomicOrbitals(iproc,at,rxyz,norbe,orbse,norbsc,&
    if (orbse%nspinor == 4) then
       atmoments = f_malloc((/ 3, at%astruct%nat /),id='atmoments')
 
-!!!      itat=atoms_iter(at%astruct)
-!!!      do while(atoms_iter_next(itat))
-!!!         if ('IGmom' .in. itat%attrs) then
-!!!            atmoments(:,itat%iat)=itat%attrs//'IGmom'
-!!!         else
-!!!            call f_zero(atmoments(:,itat%iat))
-!!!         end if
-!!!      end do
-
-      open(unit=22,file='moments',form='formatted',action='read',status='old')
-      !this part can be transferred on the atomic orbitals section
-      do iat=1,at%astruct%nat
-         read(unit=22,fmt=*,iostat=i_stat) mx,my,mz
-         if (i_stat > 0) then
-            call f_err_throw('The file "moments" is not correct!' // &
-               & 'The file "moments" has the line ' // trim(yaml_toa(iat)) // &
-               & ' which have not 3 numbers for the atom ' // trim(yaml_toa(iat)) // '.', &
-               & err_id=BIGDFT_INPUT_VARIABLES_ERROR)
-            !write(unit=*,fmt='(a,i0,a,i0,a)') 'The file "moments" has the line ',iat,&
-            !   &   ' which have not 3 numbers for the atom ',iat,'.'
-            !stop 'The file "moments" is not correct!'
+      itat=atoms_iter(at%astruct)
+      do while(atoms_iter_next(itat))
+         if ('IGmom' .in. itat%attrs) then
+            atmoments(:,itat%iat)=itat%attrs//'IGmom'
+         else
+            call f_zero(atmoments(:,itat%iat))
          end if
-         atmoments(1,iat)=mx
-         atmoments(2,iat)=my
-         atmoments(3,iat)=mz
-         !write(unit=100,fmt='(2x,a,i4,3f12.6)')'NOYAML2'
-         !write(unit=100,fmt='(2x,a,i4,3f12.6)')'NOYAML',iproc,atmoments(:,iat)
-      end do
+     end do
+
+!!$      open(unit=22,file='moments',form='formatted',action='read',status='old')
+!!$      !this part can be transferred on the atomic orbitals section
+!!$      do iat=1,at%astruct%nat
+!!$         read(unit=22,fmt=*,iostat=i_stat) mx,my,mz
+!!$         if (i_stat > 0) then
+!!$            call f_err_throw('The file "moments" is not correct!' // &
+!!$               & 'The file "moments" has the line ' // trim(yaml_toa(iat)) // &
+!!$               & ' which have not 3 numbers for the atom ' // trim(yaml_toa(iat)) // '.', &
+!!$               & err_id=BIGDFT_INPUT_VARIABLES_ERROR)
+!!$            !write(unit=*,fmt='(a,i0,a,i0,a)') 'The file "moments" has the line ',iat,&
+!!$            !   &   ' which have not 3 numbers for the atom ',iat,'.'
+!!$            !stop 'The file "moments" is not correct!'
+!!$         end if
+!!$         atmoments(1,iat)=mx
+!!$         atmoments(2,iat)=my
+!!$         atmoments(3,iat)=mz
+!!$         !write(unit=100,fmt='(2x,a,i4,3f12.6)')'NOYAML2'
+!!$         !write(unit=100,fmt='(2x,a,i4,3f12.6)')'NOYAML',iproc,atmoments(:,iat)
+!!$      end do
    end if
 
    eks=0.0_gp

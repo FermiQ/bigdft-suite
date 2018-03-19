@@ -201,7 +201,7 @@ program smatmul
   call f_timing_checkpoint(ctr_name='FINISH',mpi_comm=comm,nproc=nproc,&
        gather_routine=gather_timings)
 
-  call build_dict_info(iproc, nproc, dict_timing_info)
+  call build_dict_info(dict_timing_info)
   call f_timing_stop(mpi_comm=comm, nproc=nproc, &
        gather_routine=gather_timings, dict_info=dict_timing_info)
   call dict_free(dict_timing_info)

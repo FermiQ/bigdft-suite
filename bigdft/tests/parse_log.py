@@ -119,7 +119,8 @@ if args.data is None:
 
 if args.analyze is not None and args.data:
   from BigDFT import Logfiles as lf
-  instructions=lf.get_log(args.analyze)
+  from futile import Yaml
+  instructions=Yaml.load(args.analyze) #lf.get_logs([args.analyze])
   print '#',args.data,argcl
   lf.process_logfiles(argcl,instructions)
   exit(0)

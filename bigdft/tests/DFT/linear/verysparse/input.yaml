@@ -22,6 +22,7 @@
    rpnrm_cv: 1.0E-010
    taylor_order: 6
    subspace_diag: Yes
+   output_mat: 1
  lin_basis:
    nit: 2
    idsx: 2
@@ -255,26 +256,8 @@
    - H: [0.8799999952316284, -0.6600000262260437, 80.63999938964844]
    - H: [0.0, 0.6235299706459045, 81.54895782470703]
  chess:
-   lapack:
-    
-    
-    
-    
    foe:
      ef_interpol_det: 0.10E-19
-    
      evbounds_nsatur: 100
-    
-    
-    
      eval_range_foe: [-1.0, 1.0]
      fscale: 1.0E-002
-   pexsi:
-    
-    
-    
-    
-    
-    
-    
-    

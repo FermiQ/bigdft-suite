@@ -222,6 +222,7 @@ module locregs_init
       !real(8),dimension(:,:),allocatable :: locregCenter
       type(orbitals_data) :: orbsder
       logical :: perx, pery, perz
+      real(gp), dimension(3) :: hgrids
     
       call f_routine(id='determine_locregSphere_parallel')
     
@@ -269,7 +270,8 @@ module locregs_init
                   nbox(1,1),nbox(1,2),nbox(1,3),nbox(2,1),nbox(2,2),nbox(2,3))
              !!!>isx, isy, isz, iex, iey, iez)
              !write(*,'(a,3i7)') 'ilr, isx, iex', ilr, isx, iex
-             call lr_box(llr(ilr),Glr,[hx,hy,hz],nbox,.false.)
+             hgrids = [hx,hy,hz]
+             call lr_box(llr(ilr),Glr,hgrids,nbox,.false.)
             ! construct the wavefunction descriptors (wfd)
             rootarr(ilr)=iproc
             call determine_wfdSphere(ilr,nlr,Glr,hx,hy,hz,Llr)
@@ -286,10 +288,11 @@ module locregs_init
          ! Communicate those parts of the locregs that all processes need.
          call communicate_locreg_descriptors_basics(iproc, nproc, nlr, rootarr, orbs, llr)
     
-         do ilr=1,nlr
-            if(.not. calculateBounds(ilr)) call lr_box(llr(ilr),Glr,[hx,hy,hz])
-            !    write(*,*) 'iproc, nseg_c', iproc, llr(ilr)%wfd%nseg_c
-         end do
+         ! SM: Seems not to be necessary to be called again
+         !!do ilr=1,nlr
+         !!   if(.not. calculateBounds(ilr)) call lr_box(llr(ilr),Glr,[hx,hy,hz])
+         !!   !    write(*,*) 'iproc, nseg_c', iproc, llr(ilr)%wfd%nseg_c
+         !!end do
     
          ! Now communicate those parts of the locreg that only some processes need (the keys).
          ! For this we first need to create orbsder that describes the derivatives.

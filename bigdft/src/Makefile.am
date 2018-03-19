@@ -62,7 +62,7 @@ if BUILD_DYNAMIC_LIBS
 bigdft_dynamic_library = libbigdft-1.so.@BIGDFT_MINOR_VERSION@.0.@BIGDFT_MICRO_VERSION@
 bigdft_soname_library = libbigdft-1.so.@BIGDFT_MINOR_VERSION@
 bigdft_deps += @LIB_BIGDFT_DEPS@
-bigdft_library += $(bigdft_soname_library)
+bigdft_library += $(bigdft_soname_library) $(bigdft_deps)
 AM_LDFLAGS = -Wl,-rpath=$(DESTDIR)$(dynlibdir)
 else
 bigdft_dynamic_library =
