@@ -276,12 +276,12 @@ module sparsematrix_init
 
 
     subroutine init_sparse_matrix_matrix_multiplication_new(iproc, nproc, comm, norb, norbp, isorb, nseg, &
-         nsegline, istsegline, keyv, keyg, optimize_load_balancing, sparsemat)
+         nsegline, istsegline, keyv, keyg, optimize_load_balancing, matmul_matrix, sparsemat)
       use dynamic_memory
       implicit none
 
       ! Calling arguments
-      integer,intent(in) :: iproc, nproc, comm, norb, norbp, isorb, nseg
+      integer,intent(in) :: iproc, nproc, comm, norb, norbp, isorb, nseg, matmul_matrix
       integer,dimension(norb),intent(in) :: nsegline, istsegline
       integer,dimension(nseg),intent(in) :: keyv
       integer,dimension(2,2,nseg),intent(in) :: keyg
@@ -304,6 +304,8 @@ module sparsematrix_init
       call f_routine(id='init_sparse_matrix_matrix_multiplication_new')
 
       nseq_per_line = f_malloc(norb,id='nseq_per_line')
+
+      sparsemat%smmm%matmul_matrix = matmul_matrix
 
       if (optimize_load_balancing) then
           ! Calculate the values of sparsemat%smmm%nout and sparsemat%smmm%nseq with
@@ -549,7 +551,7 @@ module sparsematrix_init
       !     sparsemat%nsegline, sparsemat%istsegline, sparsemat%keyg, sparsemat, sparsemat%smmm%nseq, &
       !     sparsemat%smmm%indices_extract_sequential)
       !t1 = mpi_wtime()
-      if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+      if (sparsemat%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
           call init_sequential_acces_matrix_new(sparsemat%smmm%nout, ispt, nseg, sparsemat%smmm%nseq, &
                norb, sparsemat%smmm%nfvctrp, sparsemat%smmm%isfvctr, keyv, keyg, sparsemat, &
                istsegline, line_and_column, compressed_indices, sparsemat%smmm%indices_extract_sequential)
@@ -561,7 +563,7 @@ module sparsematrix_init
 
       ! This array gives the starting and ending indices of the submatrix which
       ! is used by a given MPI task
-      if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+      if (sparsemat%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
           if (sparsemat%smmm%nseq>0) then
               sparsemat%smmm%istartend_mm(1) = sparsemat%nvctr
               sparsemat%smmm%istartend_mm(2) = 1
@@ -576,7 +578,7 @@ module sparsematrix_init
           end if
           !!write(*,*) 'iproc, ind_min, ind_max', iproc, ind_min, ind_max
           !!write(*,*) 'iproc, sparsemat%smmm%istartend_mm', iproc, sparsemat%smmm%istartend_mm
-      else if (matmul_matrix == MATMUL_ORIGINAL_MATRIX) then
+      else if (sparsemat%smmm%matmul_matrix == MATMUL_ORIGINAL_MATRIX) then
           if (sparsemat%smmm%nout>0) then
               sparsemat%smmm%istartend_mm(1) = ind_min
               sparsemat%smmm%istartend_mm(2) = ind_max
@@ -915,7 +917,7 @@ module sparsematrix_init
 
     !> Currently assuming square matrices
     subroutine init_sparse_matrix(iproc, nproc, comm, norbu, nnonzero, nonzero, nnonzero_mult, &
-               nonzero_mult, sparsemat, init_matmul, matmul_optimize_load_balancing, nspin, geocode, &
+               nonzero_mult, sparsemat, init_matmul, matmul_optimize_load_balancing, matmul_matrix, nspin, geocode, &
                cell_dim, norbup, isorbu, store_index, on_which_atom, allocate_full, print_info)
       use dynamic_memory
       use sparsematrix_memory, only: deallocate_sparse_matrix_matrix_multiplication
@@ -927,6 +929,7 @@ module sparsematrix_init
       integer,dimension(2,nnonzero_mult),intent(inout) :: nonzero_mult
       type(sparse_matrix),intent(out) :: sparsemat
       logical,intent(in),optional :: init_matmul, matmul_optimize_load_balancing
+      integer,intent(in),optional :: matmul_matrix
       character(len=1),intent(in),optional :: geocode
       real(kind=mp),dimension(3),intent(in),optional :: cell_dim
       logical,intent(in),optional :: allocate_full, print_info, store_index
@@ -936,7 +939,7 @@ module sparsematrix_init
       ! Local variables
       integer :: jproc, iorb, jorb, iiorb, iseg
       !integer :: jst_line, jst_seg, segn, ind
-      integer :: ist, ivctr, i, iel, iend_seg, ilen_seg, iiseg, ist_seg
+      integer :: ist, ivctr, i, iel, iend_seg, ilen_seg, iiseg, ist_seg, matmul_matrix_
       logical :: init_matmul_, found
       logical,dimension(:),allocatable :: lut
       integer :: nseg_mult, nvctr_mult, ivctr_mult
@@ -967,11 +970,13 @@ module sparsematrix_init
       store_index_=.false.
       init_matmul_ = .true.
       matmul_optimize_load_balancing_ = .false.
+      matmul_matrix_ = 301
       if (present(allocate_full)) allocate_full_=allocate_full
       if (present(print_info)) print_info_=print_info
       if (present(store_index)) store_index_=store_index
       if (present(init_matmul)) init_matmul_ = init_matmul
       if (present(matmul_optimize_load_balancing)) matmul_optimize_load_balancing_ = matmul_optimize_load_balancing
+      if (present(matmul_matrix)) matmul_matrix_ = matmul_matrix
 
       ! Sort the nonzero entries
       call sort_nonzero_entries(nnonzero, nonzero)
@@ -1276,15 +1281,15 @@ module sparsematrix_init
           call init_sparse_matrix_matrix_multiplication_new(iproc, nproc, comm, &
                norbu, sparsemat%nfvctrp, sparsemat%isfvctr, nseg_mult, &
                nsegline_mult, istsegline_mult, keyv_mult, keyg_mult, &
-               .true., sparsemat)
+               .true., matmul_matrix_, sparsemat)
           if (matmul_optimize_load_balancing_) then
     
               ! Perform a sparse multiplication and get the timings
               !call init_matrix_taskgroups(iproc, nproc, comm, .false., sparsemat)
               call init_matrix_taskgroups_wrapper(iproc, nproc, comm, .true., 1, sparsemat)
-              if (matmul_matrix == MATMUL_ORIGINAL_MATRIX) then
+              if (sparsemat%smmm%matmul_matrix == MATMUL_ORIGINAL_MATRIX) then
                   a = sparsematrix_malloc0(sparsemat, iaction=SPARSE_TASKGROUP, id='a')
-              else if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+              else if (sparsemat%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
                   a = sparsematrix_malloc0(sparsemat, iaction=SPARSEMM_SEQ, id='a')
               end if
               b = f_malloc0(sparsemat%smmm%nvctrp,id='b')
@@ -1408,14 +1413,14 @@ module sparsematrix_init
               call deallocate_sparse_matrix_matrix_multiplication(sparsemat%smmm)
               call init_sparse_matrix_matrix_multiplication_new(iproc, nproc, comm, &
                    norbu, norb_par_ideal(iproc), isorb_par_ideal(iproc), nseg_mult, &
-                   nsegline_mult, istsegline_mult, keyv_mult, keyg_mult, .false., sparsemat)
+                   nsegline_mult, istsegline_mult, keyv_mult, keyg_mult, .false., matmul_matrix_, sparsemat)
 
               call write_matmul_memory(iproc, nproc, comm, sparsemat%smmm)
 
               !!call f_free(times)
-              if (matmul_matrix == MATMUL_ORIGINAL_MATRIX) then
+              if (sparsemat%smmm%matmul_matrix == MATMUL_ORIGINAL_MATRIX) then
                   a = sparsematrix_malloc0(sparsemat, iaction=SPARSE_TASKGROUP, id='a')
-              else if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+              else if (sparsemat%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
                   a = sparsematrix_malloc0(sparsemat, iaction=SPARSEMM_SEQ, id='a')
               end if
               b = f_malloc0(sparsemat%smmm%nvctrp,id='b')
@@ -2015,7 +2020,7 @@ module sparsematrix_init
       ithread = 0
       nconsecutive_tot_arr(:) = 0
 
-      if (matmul_matrix == MATMUL_ORIGINAL_MATRIX) then
+      if (smat%smmm%matmul_matrix == MATMUL_ORIGINAL_MATRIX) then
 
           !$omp parallel &
           !$omp default(none) &
@@ -2200,7 +2205,7 @@ module sparsematrix_init
           call f_free(ind_min_thread)
           call f_free(ind_max_thread)
 
-      else if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+      else if (smat%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
 
           !$omp parallel &
           !$omp default(none) &
@@ -3079,7 +3084,7 @@ module sparsematrix_init
 
     !> Uses the BigDFT sparsity pattern to create a BigDFT sparse_matrix type
     subroutine bigdft_to_sparsebigdft(iproc, nproc, comm, ncol, nvctr, nseg, keyg, smat, &
-         init_matmul, nspin, geocode, cell_dim, on_which_atom, nseg_mult, nvctr_mult, keyg_mult)
+         init_matmul, nspin, geocode, cell_dim, on_which_atom, nseg_mult, nvctr_mult, keyg_mult, matmul_matrix)
       use f_utils
       use dynamic_memory
       implicit none
@@ -3092,11 +3097,11 @@ module sparsematrix_init
       character(len=1),intent(in),optional :: geocode
       real(kind=mp),dimension(3),intent(in),optional :: cell_dim
       integer,dimension(ncol),target,intent(in),optional :: on_which_atom
-      integer,intent(in),optional :: nseg_mult, nvctr_mult
+      integer,intent(in),optional :: nseg_mult, nvctr_mult, matmul_matrix
       integer,dimension(:,:,:),intent(in),optional :: keyg_mult
 
       ! Local variables
-      integer :: nspin_,i_none
+      integer :: nspin_, i_none, matmul_matrix_
       !integer :: ncolpx
       integer,dimension(:,:),allocatable :: nonzero, nonzero_mult
       !logical,dimension(:,:),allocatable :: mat
@@ -3127,6 +3132,12 @@ module sparsematrix_init
           init_matmul_ = init_matmul
       else
           init_matmul_ = .false.
+      end if
+
+      if (present(matmul_matrix)) then
+          matmul_matrix_ = matmul_matrix
+      else
+          matmul_matrix_ = MATMUL_REPLICATE_MATRIX
       end if
 
       if (init_matmul_) then
@@ -3202,11 +3213,13 @@ module sparsematrix_init
 
       if (init_matmul_) then
           call init_sparse_matrix(iproc, nproc, comm, ncol, nvctr, nonzero, nvctr_mult, nonzero_mult, smat, &
-               init_matmul=init_matmul_, matmul_optimize_load_balancing=.true., nspin=nspin_, geocode=geocode_, &
+               init_matmul=init_matmul_, matmul_optimize_load_balancing=.true., matmul_matrix=matmul_matrix_, &
+               nspin=nspin_, geocode=geocode_, &
                cell_dim=cell_dim_, on_which_atom=on_which_atom_)
       else
           call init_sparse_matrix(iproc, nproc, comm, ncol, nvctr, nonzero, nvctr, nonzero, smat, &
-               init_matmul=init_matmul_, matmul_optimize_load_balancing=.true., nspin=nspin_, geocode=geocode_, &
+               init_matmul=init_matmul_, matmul_optimize_load_balancing=.true., matmul_matrix=matmul_matrix_, &
+               nspin=nspin_, geocode=geocode_, &
                cell_dim=cell_dim_, on_which_atom=on_which_atom_)
       end if
 
@@ -6410,9 +6423,9 @@ module sparsematrix_init
 
      call check_compress_distributed_layout(smat,ind_min,ind_max)
      if (smat%smatmul_initialized) then
-         if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+         if (smat%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
              call check_matmul_layout(smat%smmm%nseq,smat%smmm%indices_extract_sequential,ind_min,ind_max)
-         else if (matmul_matrix == MATMUL_ORIGINAL_MATRIX) then
+         else if (smat%smmm%matmul_matrix == MATMUL_ORIGINAL_MATRIX) then
              ! The matrix as object of a matrix multiplication
              !!ind_min = min(ind_min,smat%smmm%isvctr_mm+1)
              !!ind_max = max(ind_max,smat%smmm%isvctr_mm+smat%smmm%nvctrp_mm)
@@ -6643,13 +6656,13 @@ module sparsematrix_init
      !call timing(iproc, 'sparse_matmul ', 'IR')
      call f_timing(TCAT_SMAT_MULTIPLICATION,'IR')
 
-         if (matmul_matrix == MATMUL_ORIGINAL_MATRIX) then
+         if (smat%smmm%matmul_matrix == MATMUL_ORIGINAL_MATRIX) then
              if (size(a) /= smat%nvctrp_tg) then
                  call f_err_throw('size(a) /= smat%nvctrp_tg')
              end if
              lookupindex = 4
              ishift = smat%isvctrp_tg
-         else if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+         else if (smat%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
              if (size(a) /= smat%smmm%nseq) then
                  call f_err_throw(trim(yaml_toa(size(a)))//'=size(a) /= smat%smmm%nseq='//trim(yaml_toa(smat%smmm%nseq)))
              end if

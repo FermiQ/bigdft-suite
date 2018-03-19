@@ -62,7 +62,8 @@
      format: xyz
      source: posinp
  chess:
- chess:
+   perf:
+     matmul_matrix: original_matrix
    lapack:
     
     

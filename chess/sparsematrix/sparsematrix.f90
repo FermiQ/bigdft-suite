@@ -1523,13 +1523,13 @@ module sparsematrix
      ! The choice for matmul_version can be made in sparsematrix_defs
      if (matmul_version==MATMUL_NEW) then
 
-         if (matmul_matrix == MATMUL_ORIGINAL_MATRIX) then
+         if (smat%smmm%matmul_matrix == MATMUL_ORIGINAL_MATRIX) then
              if (size(a) /= smat%nvctrp_tg) then
-                 call f_err_throw('size(a) /= smat%nvctrp_tg')
+                 call f_err_throw(trim(yaml_toa(size(a)))//'=size(a) /= smat%nvctrp_tg='//trim(yaml_toa(smat%nvctrp_tg)))
              end if
              lookupindex = 4
              ishift = smat%isvctrp_tg
-         else if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+         else if (smat%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
              if (size(a) /= smat%smmm%nseq) then
                  call f_err_throw(trim(yaml_toa(size(a)))//'=size(a) /= smat%smmm%nseq='//trim(yaml_toa(smat%smmm%nseq)))
              end if
@@ -2220,10 +2220,10 @@ module sparsematrix
 
       b_exp = f_malloc(smat%smmm%nvctrp, id='b_exp')
       c_exp = f_malloc(smat%smmm%nvctrp, id='c_exp')
-      if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+      if (smat%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
           a_seq = sparsematrix_malloc_ptr(smat, iaction=SPARSEMM_SEQ, id='a_seq')
           call sequential_acces_matrix_fast2(smat, a, a_seq)
-      else if (matmul_matrix == MATMUL_ORIGINAL_MATRIX) then
+      else if (smat%smmm%matmul_matrix == MATMUL_ORIGINAL_MATRIX) then
           a_seq => a
       end if
       if (smat%smmm%nvctrp_mm>0) then !to avoid out of bounds error...
@@ -2240,7 +2240,7 @@ module sparsematrix
 
       call f_free(b_exp)
       call f_free(c_exp)
-      if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+      if (smat%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
           call f_free_ptr(a_seq)
       end if
 

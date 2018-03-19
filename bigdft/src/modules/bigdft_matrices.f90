@@ -608,6 +608,7 @@ module bigdft_matrices
       call init_sparse_matrix_wrapper(iproc, nproc, &
            in%nspin, orbs, lzd_s, atoms%astruct, &
            in%store_index, init_matmul=.false., matmul_optimize_load_balancing=.false., &
+           matmul_matrix=in%cp%perf%matmul_matrix, &
            imode=1, smat=linmat%smat(1))
       call init_matrixindex_in_compressed_fortransposed(iproc, nproc, &
            collcom_s, collcom_m, collcom_s_sr, linmat%smat(1), &
@@ -618,6 +619,7 @@ module bigdft_matrices
       call init_sparse_matrix_wrapper(iproc, nproc, &
            in%nspin, orbs, lzd_m, atoms%astruct, &
            in%store_index, init_matmul=.false., matmul_optimize_load_balancing=.false., &
+           matmul_matrix=in%cp%perf%matmul_matrix, &
            imode=1, smat=linmat%smat(2))
       call init_matrixindex_in_compressed_fortransposed(iproc, nproc, &
            collcom_s, collcom_m, collcom_s_sr, linmat%smat(2), &
@@ -631,6 +633,7 @@ module bigdft_matrices
       call init_sparse_matrix_wrapper(iproc, nproc, &
            in%nspin, orbs, lzd_s, atoms%astruct, &
            in%store_index, init_matmul=.true., matmul_optimize_load_balancing=in%cp%foe%matmul_optimize_load_balancing, &
+           matmul_matrix=in%cp%perf%matmul_matrix, &
            imode=2, smat=linmat%smat(3), smat_ref=linmat%smat(2))
       !write(1000+iproc,*) 'calling init_matrixindex_in_compressed_fortransposed'
       call init_matrixindex_in_compressed_fortransposed(iproc, nproc, &

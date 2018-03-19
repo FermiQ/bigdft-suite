@@ -604,7 +604,7 @@ module matrix_operations
       
                 call transform_sparse_matrix(iproc, ovrlp_smat, inv_ovrlp_smat, SPARSE_TASKGROUP, 'small_to_large', &
                      smat_in=ovrlp_mat%matrix_compr, lmat_out=Amat12_compr)
-                if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                if (inv_ovrlp_smat%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
                     Amat12_seq = sparsematrix_malloc_ptr(inv_ovrlp_smat, iaction=SPARSEMM_SEQ, id='Amat12_seq')
                     Amat21_seq = sparsematrix_malloc_ptr(inv_ovrlp_smat, iaction=SPARSEMM_SEQ, id='Amat21_seq')
                 end if
@@ -615,10 +615,10 @@ module matrix_operations
                     ishift=(ispin-1)*inv_ovrlp_smat%nvctr
                     ishift2=(ispin-1)*inv_ovrlp_smat%nvctrp_tg
       
-                    if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                    if (inv_ovrlp_smat%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
                         call sequential_acces_matrix_fast2(inv_ovrlp_smat, &
                              Amat12_compr(ishift2+1:), Amat12_seq)
-                    else if (matmul_matrix == MATMUL_ORIGINAL_MATRIX) then
+                    else if (inv_ovrlp_smat%smmm%matmul_matrix == MATMUL_ORIGINAL_MATRIX) then
                         Amat12_seq => Amat12_compr(ishift2+1:)
                     end if
                     !call timing(iproc,'lovrlp^-1     ','OF')
@@ -664,9 +664,9 @@ module matrix_operations
                     !!write(*,*) 'after compr, sum(Amat21_compr)', sum(Amat21_compr)
                     !call timing(iproc,'lovrlp^-1     ','ON')
                     call f_timing(TCAT_HL_MATRIX_OPERATIONS,'ON')
-                    if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                    if (inv_ovrlp_smat%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
                         call sequential_acces_matrix_fast(inv_ovrlp_smat, Amat21_compr, Amat21_seq)
-                    else if (matmul_matrix == MATMUL_ORIGINAL_MATRIX) then
+                    else if (inv_ovrlp_smat%smmm%matmul_matrix == MATMUL_ORIGINAL_MATRIX) then
                         Amat21_seq => Amat21_compr
                     end if
       
@@ -725,9 +725,9 @@ module matrix_operations
                             call f_timing(TCAT_HL_MATRIX_OPERATIONS,'ON')
                         end if
                         if (its/=abs(iorder).or.power(1)==1) then
-                            if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                            if (inv_ovrlp_smat%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
                                 call sequential_acces_matrix_fast(inv_ovrlp_smat, Amat21_compr, Amat21_seq)
-                            else if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                            else if (inv_ovrlp_smat%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
                                 Amat21_seq => Amat21_compr
                             end if
                         end if
@@ -768,7 +768,7 @@ module matrix_operations
       
                 end do
       
-                if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                if (inv_ovrlp_smat%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
                     call f_free_ptr(Amat12_seq)
                 end if
                 nullify(Amat22p)
@@ -778,7 +778,7 @@ module matrix_operations
                 call f_free_ptr(Amat21_compr)
                 !!call f_free(Amat12p)
                 !!call f_free(Amat21p)
-                if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                if (inv_ovrlp_smat%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
                     call f_free_ptr(Amat21_seq)
                 end if
                 call f_free(Amat12p_new)
@@ -804,7 +804,7 @@ module matrix_operations
                     invovrlpp_arr_new = f_malloc((/inv_ovrlp_smat%smmm%nvctrp,ncalc/),id='invovrlpp_arr_new')
       
                     if (iorder>1) then
-                        if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                        if (inv_ovrlp_smat%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
                             ovrlpminone_sparse_seq = sparsematrix_malloc_ptr(inv_ovrlp_smat, iaction=SPARSEMM_SEQ, &
                                  id='ovrlpminone_sparse_seq')
                         end if
@@ -832,9 +832,9 @@ module matrix_operations
                             call matrix_minus_identity_sparse(ovrlp_smat%nfvctr, inv_ovrlp_smat, &
                                  ovrlp_large_compr(isshift+1), ovrlpminone_sparse)
                             !!write(500+bigdft_mpi%iproc,'(a,2es16.8)') 'large, sparse', ovrlp_large_compr(1), ovrlpminone_sparse(1)
-                            if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                            if (inv_ovrlp_smat%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
                                 call sequential_acces_matrix_fast(inv_ovrlp_smat, ovrlpminone_sparse, ovrlpminone_sparse_seq)
-                            else if (matmul_matrix == MATMUL_ORIGINAL_MATRIX) then
+                            else if (inv_ovrlp_smat%smmm%matmul_matrix == MATMUL_ORIGINAL_MATRIX) then
                                 ovrlpminone_sparse_seq => ovrlpminone_sparse
                             end if
                             !call timing(iproc,'lovrlp^-1     ','OF')
@@ -946,7 +946,7 @@ module matrix_operations
                     call f_free(factor_arr)
       
                     if (iorder>1) then
-                        if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                        if (inv_ovrlp_smat%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
                             call f_free_ptr(ovrlpminone_sparse_seq)
                         end if
                         !!call f_free(ovrlpminoneoldp)
@@ -1010,7 +1010,7 @@ module matrix_operations
                 ovrlp_large_compr = sparsematrix_malloc(inv_ovrlp_smat, iaction=SPARSE_TASKGROUP, id='ovrlp_large_compr')
                 call transform_sparse_matrix(iproc, ovrlp_smat, inv_ovrlp_smat, sparse_TASKGROUP, 'small_to_large', &
                      smat_in=ovrlp_mat%matrix_compr, lmat_out=ovrlp_large_compr)
-                if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                if (inv_ovrlp_smat%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
                     invovrlp_compr_seq = sparsematrix_malloc_ptr(inv_ovrlp_smat, &
                         iaction=SPARSEMM_SEQ, id='invovrlp_compr_seq')
                 end if
@@ -1065,10 +1065,10 @@ module matrix_operations
       
                         !call timing(iproc,'lovrlp^-1     ','ON')
                         call f_timing(TCAT_HL_MATRIX_OPERATIONS,'ON')
-                        if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                        if (inv_ovrlp_smat%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
                             call sequential_acces_matrix_fast2(inv_ovrlp_smat, &
                                  inv_ovrlp_mat(icalc)%matrix_compr(ilshift2+1:), invovrlp_compr_seq)
-                        else if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                        else if (inv_ovrlp_smat%smmm%matmul_matrix == MATMUL_ORIGINAL_MATRIX) then
                             invovrlp_compr_seq => inv_ovrlp_mat(icalc)%matrix_compr(ilshift2+1:)
                         end if
                         !!write(500+bigdft_mpi%iproc,'(a,2es16.8)') 'inv, inv_seq', inv_ovrlp_mat(icalc)%matrix_compr(ilshift2+1), invovrlp_compr_seq(1)
@@ -1105,12 +1105,12 @@ module matrix_operations
                                  invovrlp_compr_seq, invovrlpp_new, power(icalc), &
                                  max_error, mean_error, cmatp=ovrlp_largep_new)
                         else if (power(icalc)==-2) then
-                            if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                            if (inv_ovrlp_smat%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
                                 ovrlp_compr_seq = sparsematrix_malloc_ptr(inv_ovrlp_smat, &
                                     iaction=SPARSEMM_SEQ, id='ovrlp_compr_seq') 
                                 call sequential_acces_matrix_fast2(inv_ovrlp_smat, &
                                     ovrlp_large_compr(ilshift+1), ovrlp_compr_seq)
-                            else if (matmul_matrix == MATMUL_ORIGINAL_MATRIX) then
+                            else if (inv_ovrlp_smat%smmm%matmul_matrix == MATMUL_ORIGINAL_MATRIX) then
                                 ovrlp_compr_seq => ovrlp_large_compr(ilshift+1:)
                             end if
                             !call timing(iproc,'lovrlp^-1     ','OF')
@@ -1137,7 +1137,7 @@ module matrix_operations
                                  invovrlp_compr_seq, invovrlpp_new, power(icalc), &
                                  max_error, mean_error, &
                                  ovrlp_compr_seq)
-                            if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                            if (inv_ovrlp_smat%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
                                 call f_free_ptr(ovrlp_compr_seq)
                             end if
                         else
@@ -1160,7 +1160,7 @@ module matrix_operations
                 if (iproc==0 .and. verbosity_>0) then
                     call yaml_sequence_close()
                 end if
-                if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                if (inv_ovrlp_smat%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
                     call f_free_ptr(invovrlp_compr_seq)
                 end if
                 call f_free(ovrlp_largep_new)

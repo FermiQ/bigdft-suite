@@ -1023,7 +1023,7 @@ module foe_common
                      err_name='SPARSEMATRIX_RUNTIME_ERROR')
             end if
             tempp_new = f_malloc_ptr(smat%smmm%nvctrp, id='tempp_new')
-            if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+            if (smat%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
                 mat_compr_seq = sparsematrix_malloc_ptr(smat, iaction=SPARSEMM_SEQ, id='mat_compr_seq')
             end if
             !!kernel_compr_seq = sparsematrix_malloc(smat, iaction=SPARSEMM_SEQ, id='kernel_compr_seq')
@@ -1035,13 +1035,13 @@ module foe_common
                      'small_to_large', &
                      matrix_s_in=inv_ovrlp(smat%smmm%isvctr_mm-smat%isvctrp_tg+1), matrix_l_out=kernelpp_work)
             end if
-            if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+            if (smat%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
                 call sequential_acces_matrix_fast2(smat, kernel, mat_compr_seq)
             else
                 mat_compr_seq => kernel
             end if
             call sparsemm_newnew(iproc, smat, mat_compr_seq, kernelpp_work, tempp_new)
-            if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+            if (smat%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
                 call sequential_acces_matrix_fast2(smat, inv_ovrlp, mat_compr_seq)
             else
                 mat_compr_seq => inv_ovrlp
@@ -1050,7 +1050,7 @@ module foe_common
             !kernelpp_work = 1.d0
             !write(*,*) 'after calc, iproc, sum(kernelpp_work)', iproc, sum(kernelpp_work)
             call f_free_ptr(tempp_new)
-            if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+            if (smat%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
                 call f_free_ptr(mat_compr_seq)
             end if
             call f_zero(kernel)
@@ -1645,25 +1645,25 @@ module foe_common
           if (with_overlap) then
               ham_eff = f_malloc0(smatl%smmm%nvctrp,id='ham_eff')
               if (smatl%smmm%nvctrp>0) then
-                  if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                  if (smatl%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
                       mat_seq = sparsematrix_malloc_ptr(smatl, iaction=SPARSEMM_SEQ, id='mat_seq')
                   end if
                   matmul_tmp = f_malloc0(smatl%smmm%nvctrp,id='matmul_tmp')
                   call prepare_matrix(smatl, ovrlp_minus_one_half, ham_eff)
-                  if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                  if (smatl%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
                       call sequential_acces_matrix_fast2(smatl, hamscal_compr, mat_seq)
                   else
                       mat_seq => hamscal_compr
                   end if
                   call sparsemm_newnew(iproc, smatl, mat_seq, ham_eff, matmul_tmp)
                   call f_zero(ham_eff)
-                  if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                  if (smatl%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
                       call sequential_acces_matrix_fast2(smatl, ovrlp_minus_one_half, mat_seq)
                   else
                       mat_seq => ovrlp_minus_one_half
                   end if
                   call sparsemm_newnew(iproc, smatl, mat_seq, matmul_tmp, ham_eff)
-                  if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                  if (smatl%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
                       call f_free_ptr(mat_seq)
                   end if
                   call f_free(matmul_tmp)
@@ -1723,15 +1723,15 @@ module foe_common
               call mpibarrier(comm=comm)
               t1 = mpi_wtime()
           end if
-          if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+          if (smatl%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
               mat_seq = sparsematrix_malloc_ptr(smatl, iaction=SPARSEMM_SEQ, id='mat_seq')
-          else if (matmul_matrix == MATMUL_ORIGINAL_MATRIX) then
+          else if (smatl%smmm%matmul_matrix == MATMUL_ORIGINAL_MATRIX) then
               mat_seq = sparsematrix_malloc_ptr(smatl, iaction=SPARSE_TASKGROUP, id='mat_seq')
               call f_memcpy(src=workarr_compr, dest=mat_seq)
           end if
           !mat = sparsematrix_malloc(smatl, iaction=SPARSE_TASKGROUP, id='mat')
           !call f_memcpy(src=workarr_compr, dest=mat)
-          if (matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+          if (smatl%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
               if (smatl%smmm%nvctrp>0) then
                   call sequential_acces_matrix_fast2(smatl, workarr_compr, mat_seq)
               end if

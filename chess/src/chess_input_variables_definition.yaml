@@ -21,6 +21,17 @@
 ############################################
 # chess:
 #   DESCRIPTION: Parameters required for CheSS
+ perf:
+   DESCRIPTION: Performance parameters
+   matmul_matrix:
+     COMMENT: Indicate whether the matrix to be applied during the matrix multiplications shall be replicated to improve memory acces (at the cost of a larger memory footprint) or not.
+     default: replicate_matrix
+     EXCLUSIVE: 
+       301: replicate_matrix
+       302: original_matrix
+     # shortcuts
+     replicate_matrix: 301
+     original_matrix: 302
  foe:
    DESCRIPTION: Parameters for Fermi Operator Expansion
    ef_interpol_det:

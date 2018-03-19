@@ -1195,7 +1195,7 @@ end subroutine set_optimization_variables
 
 subroutine adjust_locregs_and_confinement(iproc, nproc, hx, hy, hz, at, input, &
            rxyz, KSwfn, tmb, denspot, nlpsp,ldiis, locreg_increased, lowaccur_converged, &
-           matmul_optimize_load_balancing, locrad)
+           matmul_optimize_load_balancing, matmul_matrix, locrad)
   use module_base
   use module_types
   use yaml_output
@@ -1213,7 +1213,7 @@ subroutine adjust_locregs_and_confinement(iproc, nproc, hx, hy, hz, at, input, &
   implicit none
 
   ! Calling argument
-  integer, intent(in) :: iproc, nproc
+  integer, intent(in) :: iproc, nproc, matmul_matrix
   real(8), intent(in) :: hx, hy, hz
   type(atoms_data), intent(in) :: at
   type(input_variables), intent(in) :: input
@@ -1394,6 +1394,7 @@ subroutine adjust_locregs_and_confinement(iproc, nproc, hx, hy, hz, at, input, &
      ! are always done with the tmb%linmat%smat(3) type.
      call init_sparse_matrix_wrapper(iproc, nproc, input%nspin, tmb%orbs, tmb%ham_descr%lzd, at%astruct, &
           input%store_index, init_matmul=.false., matmul_optimize_load_balancing=.false., &
+          matmul_matrix=matmul_matrix, &
           imode=1, smat=tmb%linmat%smat(2))
      !!call init_matrixindex_in_compressed_fortransposed(iproc, nproc, tmb%orbs, &
      !!     tmb%collcom, tmb%ham_descr%collcom, tmb%collcom_sr, tmb%linmat%ham)
@@ -1405,6 +1406,7 @@ subroutine adjust_locregs_and_confinement(iproc, nproc, hx, hy, hz, at, input, &
      ! are always done with the tmb%linmat%smat(3) type.
      call init_sparse_matrix_wrapper(iproc, nproc, input%nspin, tmb%orbs, tmb%lzd, at%astruct, &
           input%store_index, init_matmul=.false., matmul_optimize_load_balancing=.false., &
+          matmul_matrix=matmul_matrix, &
           imode=1, smat=tmb%linmat%smat(1))
      !call init_matrixindex_in_compressed_fortransposed(iproc, nproc, tmb%orbs, &
      !     tmb%collcom, tmb%ham_descr%collcom, tmb%collcom_sr, tmb%linmat%ovrlp)
@@ -1415,6 +1417,7 @@ subroutine adjust_locregs_and_confinement(iproc, nproc, hx, hy, hz, at, input, &
      call check_kernel_cutoff(iproc, tmb%orbs, at, input%hamapp_radius_incr, tmb%lzd)
      call init_sparse_matrix_wrapper(iproc, nproc, input%nspin, tmb%orbs, tmb%lzd, at%astruct, &
           input%store_index, init_matmul=.true., matmul_optimize_load_balancing=matmul_optimize_load_balancing, &
+          matmul_matrix=matmul_matrix, &
           imode=2, smat=tmb%linmat%smat(3), smat_ref=tmb%linmat%smat(2))
      !!call init_matrixindex_in_compressed_fortransposed(iproc, nproc, tmb%orbs, &
      !!     tmb%collcom, tmb%ham_descr%collcom, tmb%collcom_sr, tmb%linmat%denskern_large)

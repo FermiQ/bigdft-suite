@@ -39,6 +39,5 @@ module sparsematrix_defs
   ! to improve memory acces (at the cost of a larger memory footprint) or not.
   integer,parameter :: MATMUL_REPLICATE_MATRIX = 301
   integer,parameter :: MATMUL_ORIGINAL_MATRIX = 302
-  integer,parameter :: matmul_matrix = MATMUL_REPLICATE_MATRIX ! MATMUL_ORIGINAL_MATRIX
 
 end module sparsematrix_defs

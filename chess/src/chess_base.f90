@@ -34,6 +34,10 @@ module chess_base
   public :: chess_init
 
   !> Private types
+  type, public :: perf_params
+    integer :: matmul_matrix
+  end type perf_params
+
   type, public :: foe_params
     real(mp) :: ef_interpol_det
     real(mp) :: ef_interpol_chargediff
@@ -77,6 +81,7 @@ module chess_base
 
   !> Public types
   type,public :: chess_params
+    type(perf_params) :: perf
     type(foe_params) :: foe
     type(lapack_params) :: lapack
     type(pexsi_params) :: pexsi
@@ -84,6 +89,7 @@ module chess_base
 
 
   !> Parameters
+  character(len=*),parameter :: PERF_PARAMETERS         = "perf"
   character(len=*),parameter :: FOE_PARAMETERS         = "foe"
   character(len=*),parameter :: LAPACK_PARAMETERS      = "lapack"
   character(len=*),parameter :: PEXSI_PARAMETERS       = "pexsi"
@@ -124,6 +130,7 @@ module chess_base
   character(len=*),parameter :: DIFF_TOLERANCE         = "diff_tolerance"
   character(len=*),parameter :: DIFF_TARGET            = "diff_target"
   character(len=*),parameter :: ADJUST_FSCALE_SMOOTH   = "adjust_fscale_smooth"
+  character(len=*),parameter :: MATMUL_MATRIX          = "matmul_matrix"
 
 
 
@@ -132,10 +139,17 @@ module chess_base
     pure function chess_params_null() result(cp)
       implicit none
       type(chess_params) :: cp
+      cp%perf = perf_params_null()
       cp%foe = foe_params_null()
       cp%lapack = lapack_params_null()
       cp%pexsi = pexsi_params_null()
     end function chess_params_null
+
+    pure function perf_params_null() result(pp)
+      implicit none
+      type(perf_params) :: pp
+      pp%matmul_matrix = 0
+    end function perf_params_null
 
     pure function foe_params_null() result(fp)
       implicit none
@@ -303,6 +317,13 @@ module chess_base
       if (index(dict_key(val), "_attributes") > 0) return
 
       select case(trim(level))
+      case(PERF_PARAMETERS)
+          select case (trim(dict_key(val)))
+          case(MATMUL_MATRIX)
+              cp%perf%matmul_matrix = val
+          case default
+              call yaml_warning("unknown input key '" // trim(level) // "/" // trim(dict_key(val)) // "'")
+          end select
       case(FOE_PARAMETERS)
           select case (trim(dict_key(val)))
           case(EF_INTERPOL_DET)
