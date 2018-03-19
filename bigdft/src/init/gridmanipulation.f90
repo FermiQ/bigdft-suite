@@ -31,7 +31,7 @@ subroutine system_size(atoms,rxyz,crmult,frmult,hx,hy,hz,OCLconv,Glr)
    real(gp), parameter :: eps_mach=1.e-12_gp
    integer :: iat,n1,n2,n3,nfl1,nfl2,nfl3,nfu1,nfu2,nfu3,i!,n1i,n2i,n3i
    real(gp) :: ri,rad,cxmin,cxmax,cymin,cymax,czmin,czmax!,alatrue1,alatrue2,alatrue3
-   real(gp), dimension(3) :: hgridsh,acell,alat
+   real(gp), dimension(3) :: hgridsh,alat
    logical, dimension(3) :: peri
    integer, dimension(3) :: ndims
 
@@ -63,6 +63,9 @@ subroutine system_size(atoms,rxyz,crmult,frmult,hx,hy,hz,OCLconv,Glr)
    czmax = -ri 
    czmin =  ri
 
+   !this treatment is a pre-evaluation of the box dimensions
+   !as if all the directions were Free BC.
+   !therefore there is no need to intriduce the metric here
    do iat=1,atoms%astruct%nat
 
       rad=atoms%radii_cf(atoms%astruct%iatype(iat),1)*crmult
@@ -87,20 +90,27 @@ subroutine system_size(atoms,rxyz,crmult,frmult,hx,hy,hz,OCLconv,Glr)
    !!  czmin=czmin-eps_mach
 
    peri=bc_periodic_dims(geocode_to_bc(atoms%astruct%geocode))
-   acell(1)=(cxmax-cxmin)
-   acell(2)=(cymax-cymin)
-   acell(3)=(czmax-czmin)
+   alat(1)=(cxmax-cxmin)
+   alat(2)=(cymax-cymin)
+   alat(3)=(czmax-czmin)
    hgridsh(1)=hx
    hgridsh(2)=hy
    hgridsh(3)=hz
+   !assign the shift to the atomic positions
+   atoms%astruct%shift(1)=cxmin
+   atoms%astruct%shift(2)=cymin
+   atoms%astruct%shift(3)=czmin
    do i=1,3
       if (peri(i)) then
          call correct_grid(atoms%astruct%cell_dim(i),hgridsh(i),ndims(i))
-         alat(i)=acell(i)
+         atoms%astruct%shift(i)=0.0_gp
       else
-         atoms%astruct%cell_dim(i)=acell(i)
+         atoms%astruct%cell_dim(i)=alat(i)
          ndims(i)=int(atoms%astruct%cell_dim(i)/hgridsh(i))
          alat(i)=ndims(i)*hgridsh(i)
+         atoms%astruct%shift(i)=atoms%astruct%shift(i)+&
+              0.5_gp*(atoms%astruct%cell_dim(i)-alat(i))
+         atoms%astruct%cell_dim(i)=alat(i)
       end if
    end do
 !!$   alatrue1=alat(1)
@@ -113,80 +123,6 @@ subroutine system_size(atoms,rxyz,crmult,frmult,hx,hy,hz,OCLconv,Glr)
    n1=ndims(1)
    n2=ndims(2)
    n3=ndims(3)
-
-
-!!!   !define the box sizes for free BC, and calculate dimensions for the fine grid with ISF
-!!!   select case (atoms%astruct%geocode)
-!!!   
-!!!   case('F')
-!!!      atoms%astruct%cell_dim(1)=(cxmax-cxmin)
-!!!      atoms%astruct%cell_dim(2)=(cymax-cymin)
-!!!      atoms%astruct%cell_dim(3)=(czmax-czmin)
-!!!
-!!!      ! grid sizes n1,n2,n3
-!!!      n1=int(atoms%astruct%cell_dim(1)/hx)
-!!!      !if (mod(n1,2)==1) n1=n1+1
-!!!      n2=int(atoms%astruct%cell_dim(2)/hy)
-!!!      !if (mod(n2,2)==1) n2=n2+1
-!!!      n3=int(atoms%astruct%cell_dim(3)/hz)
-!!!      !if (mod(n3,2)==1) n3=n3+1
-!!!      alatrue1=real(n1,gp)*hx
-!!!      alatrue2=real(n2,gp)*hy
-!!!      alatrue3=real(n3,gp)*hz
-!!!
-!!!!!$      n1i=2*n1+31
-!!!!!$      n2i=2*n2+31
-!!!!!$      n3i=2*n3+31
-!!!
-!!!   case('P')
-!!!      !define the grid spacings, controlling the FFT compatibility
-!!!      call correct_grid(atoms%astruct%cell_dim(1),hx,n1)
-!!!      call correct_grid(atoms%astruct%cell_dim(2),hy,n2)
-!!!      call correct_grid(atoms%astruct%cell_dim(3),hz,n3)
-!!!      alatrue1=(cxmax-cxmin)
-!!!      alatrue2=(cymax-cymin)
-!!!      alatrue3=(czmax-czmin)
-!!!
-!!!!!$      n1i=2*n1+2
-!!!!!$      n2i=2*n2+2
-!!!!!$      n3i=2*n3+2
-!!!
-!!!   case('S')
-!!!      call correct_grid(atoms%astruct%cell_dim(1),hx,n1)
-!!!      atoms%astruct%cell_dim(2)=(cymax-cymin)
-!!!      call correct_grid(atoms%astruct%cell_dim(3),hz,n3)
-!!!
-!!!      alatrue1=(cxmax-cxmin)
-!!!      n2=int(atoms%astruct%cell_dim(2)/hy)
-!!!      alatrue2=real(n2,gp)*hy
-!!!      alatrue3=(czmax-czmin)
-!!!
-!!!!!$      n1i=2*n1+2
-!!!!!$      n2i=2*n2+31
-!!!!!$      n3i=2*n3+2
-!!!
-!!!   case default
-!!!      call f_err_throw('Illegal geocode in system_size',err_id=BIGDFT_INPUT_VARIABLES_ERROR)
-!!!
-!!!   end select
-
-!!$   !balanced shift taking into account the missing space
-!!$   cxmin=cxmin+0.5_gp*(atoms%astruct%cell_dim(1)-alatrue1)
-!!$   cymin=cymin+0.5_gp*(atoms%astruct%cell_dim(2)-alatrue2)
-!!$   czmin=czmin+0.5_gp*(atoms%astruct%cell_dim(3)-alatrue3)
-
-   !assign the shift to the atomic positions
-   atoms%astruct%shift(1)=cxmin
-   atoms%astruct%shift(2)=cymin
-   atoms%astruct%shift(3)=czmin
-   atoms%astruct%shift=atoms%astruct%shift+0.5_gp*(atoms%astruct%cell_dim-alat)
-   do i=1,3
-      if (peri(i)) then
-         atoms%astruct%shift(i)=0.0_gp
-      else
-         atoms%astruct%cell_dim(i)=alat(i)
-      end if
-   end do
 
 !!$   !correct the box sizes for the isolated case
 !!$   select case(atoms%astruct%geocode)
