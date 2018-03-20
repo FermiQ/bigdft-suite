@@ -89,7 +89,7 @@ module box
   public :: cell_r,cell_periodic_dims,rxyz_ortho,distance,closest_r,square_gu,square_gd,cell_new,box_iter,box_next_point
   public :: cell_geocode,box_next_x,box_next_y,box_next_z,dotp_gu,dotp_gd,cell_null,nullify_box_iterator
   public :: box_iter_rewind,box_iter_split,box_iter_merge,box_iter_set_nbox,box_iter_expand_nbox,box_nbox_from_cutoff
-  public :: bc_periodic_dims,geocode_to_bc
+  public :: bc_periodic_dims,geocode_to_bc,fill_logrid_with_spheres
 
 
 contains
@@ -277,6 +277,26 @@ contains
 !    end if
   end function cell_cutoff_extrema
 
+  !> Tick .true. inside the sphere of radius rad and center rxyz0.
+  !! Used to build up the localization regions around each atoms.
+  subroutine fill_logrid_with_spheres(mesh,rxyz0,rad,logrid)
+    implicit none
+    type(cell), intent(in) :: mesh
+    real(gp), dimension(3), intent(in) :: rxyz0
+    real(gp), intent(in) :: rad
+    logical, dimension(mesh%ndims(1),mesh%ndims(2),mesh%ndims(3)), intent(inout) :: logrid
+    !local variables
+    type(box_iterator) :: bit
+
+    bit=box_iter(mesh)
+    do while(box_next_point(bit))
+         ! Tick .true. inside the sphere of radius rad and center rxyz0
+         if (distance(bit%mesh,bit%rxyz,rxyz0) .le. rad) then
+             logrid(bit%i,bit%j,bit%k)=.true.
+         end if
+    end do
+
+  end subroutine fill_logrid_with_spheres
 
   pure subroutine box_iter_expand_nbox(bit)
     implicit none

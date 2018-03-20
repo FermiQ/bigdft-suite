@@ -1655,6 +1655,7 @@ subroutine fill_logrid(geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,nbuf,nat,  &
      &   ntypes,iatype,rxyz,radii,rmult,hx,hy,hz,logrid)
   use module_base
   use sparsematrix_init, only: distribute_on_tasks
+  use box
   implicit none
   !Arguments
   character(len=*), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
@@ -1670,8 +1671,11 @@ subroutine fill_logrid(geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,nbuf,nat,  &
   integer :: natp, isat, iiat
   real(gp) :: dx,dy2,dz2,rad,dy2pdz2,radsq
   logical :: parallel
+  type(cell) :: mesh
 
   call f_routine(id='fill_logrid')
+
+  mesh=cell_new(geocode,[n1,n2,n3],[hx,hy,hz]) 
 
   !some checks
   if (geocode(1:1) /= 'F') then
@@ -1784,36 +1788,39 @@ subroutine fill_logrid(geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,nbuf,nat,  &
               stop
            end if
         end if
-        i3s=max(ml3,-n3/2-1)
-        i3e=min(mu3,n3+n3/2+1)
-        i2s=max(ml2,-n2/2-1)
-        i2e=min(mu2,n2+n2/2+1)
-        i1s=max(ml1,-n1/2-1)
-        i1e=min(mu1,n1+n1/2+1)
-        radsq=rad**2
-        !what follows works always provided the check before
-        !$omp parallel default(shared) private(i3,dz2,j3,i2,dy2,j2,i1,j1,dx,dy2pdz2)
-        !$omp do schedule(static,1)
-        do i3=i3s,i3e
-           dz2=(real(i3,gp)*hz-rxyz(3,iiat))**2-eps_mach
-           if (dz2>radsq) cycle
-           j3=modulo(i3,n3+1)
-           do i2=i2s,i2e
-              dy2=(real(i2,gp)*hy-rxyz(2,iiat))**2
-              dy2pdz2=dy2+dz2
-              if (dy2pdz2>radsq) cycle
-              j2=modulo(i2,n2+1)
-              do i1=i1s,i1e
-                 j1=modulo(i1,n1+1)
-                 dx=real(i1,gp)*hx-rxyz(1,iiat)
-                 if (dx**2+dy2pdz2 <= radsq) then 
-                    logrid(j1,j2,j3)=.true.
-                 endif
-              enddo
-           enddo
-        enddo
-        !$omp enddo
-        !$omp end parallel
+!!$        i3s=max(ml3,-n3/2-1)
+!!$        i3e=min(mu3,n3+n3/2+1)
+!!$        i2s=max(ml2,-n2/2-1)
+!!$        i2e=min(mu2,n2+n2/2+1)
+!!$        i1s=max(ml1,-n1/2-1)
+!!$        i1e=min(mu1,n1+n1/2+1)
+!!$        radsq=rad**2
+!!$        !what follows works always provided the check before
+!!$        !$omp parallel default(shared) private(i3,dz2,j3,i2,dy2,j2,i1,j1,dx,dy2pdz2)
+!!$        !$omp do schedule(static,1)
+!!$        do i3=i3s,i3e
+!!$           dz2=(real(i3,gp)*hz-rxyz(3,iiat))**2-eps_mach
+!!$           if (dz2>radsq) cycle
+!!$           j3=modulo(i3,n3+1)
+!!$           do i2=i2s,i2e
+!!$              dy2=(real(i2,gp)*hy-rxyz(2,iiat))**2
+!!$              dy2pdz2=dy2+dz2
+!!$              if (dy2pdz2>radsq) cycle
+!!$              j2=modulo(i2,n2+1)
+!!$              do i1=i1s,i1e
+!!$                 j1=modulo(i1,n1+1)
+!!$                 dx=real(i1,gp)*hx-rxyz(1,iiat)
+!!$                 if (dx**2+dy2pdz2 <= radsq) then 
+!!$                    logrid(j1,j2,j3)=.true.
+!!$                 endif
+!!$              enddo
+!!$           enddo
+!!$        enddo
+!!$        !$omp enddo
+!!$        !$omp end parallel
+
+       call fill_logrid_with_spheres(mesh,rxyz(1:3,iiat),rad+eps_mach,logrid)
+
      end if
   enddo
 
