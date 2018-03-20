@@ -230,22 +230,35 @@ contains
   end subroutine box_iter_set_nbox
 
   !> this function has to be genralized for non-orthorhombic grids
-  pure function box_nbox_from_cutoff(mesh,oxyz,cutoff) result(nbox)
+  pure function box_nbox_from_cutoff(mesh,oxyz,cutoff,inner) result(nbox)
     implicit none
     type(cell), intent(in) :: mesh
     real(gp), dimension(3), intent(in) :: oxyz
     real(gp), intent(in) :: cutoff
     integer, dimension(2,3) :: nbox
+    logical, intent(in), optional :: inner
+    !local variables
+    logical :: inner_
     real(gp), dimension(2,3) :: rbox
     !for non-orthorhombic cells the concept of distance has to be inserted here (the box should contain the sphere)
 !!$    nbox(START_,:)=floor((oxyz-cutoff)/mesh%hgrids)
 !!$    nbox(END_,:)=ceiling((oxyz+cutoff)/mesh%hgrids)
 
+    inner_=.true.
+    if (present(inner)) inner_=inner
+
     rbox=cell_cutoff_extrema(mesh,oxyz,cutoff)
-    nbox(START_,:)=ceiling(rbox(START_,:)/mesh%hgrids)
-    nbox(END_,:)=floor(rbox(END_,:)/mesh%hgrids)
+    if (inner_) then
+       nbox(START_,:)=ceiling(rbox(START_,:)/mesh%hgrids)
+       nbox(END_,:)=floor(rbox(END_,:)/mesh%hgrids)
+    else
+       nbox(START_,:)=floor(rbox(START_,:)/mesh%hgrids)
+       nbox(END_,:)=ceiling(rbox(END_,:)/mesh%hgrids)
+    end if
 
   end function box_nbox_from_cutoff
+
+
 
 
   pure function cell_cutoff_extrema(mesh,oxyz,cutoff) result(rbox)
