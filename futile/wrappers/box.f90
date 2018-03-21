@@ -241,21 +241,27 @@ contains
 !!$    nbox(START_,:)=floor((oxyz-cutoff)/mesh%hgrids)
 !!$    nbox(END_,:)=ceiling((oxyz+cutoff)/mesh%hgrids)
 
-    rbox=cell_cutoff_extrema(oxyz,cutoff)
-    nbox(START_,:)=floor(rbox(START_,:)/mesh%hgrids)
-    nbox(END_,:)=ceiling(rbox(END_,:)/mesh%hgrids)
+    rbox=cell_cutoff_extrema(mesh,oxyz,cutoff)
+    nbox(START_,:)=ceiling(rbox(START_,:)/mesh%hgrids)
+    nbox(END_,:)=floor(rbox(END_,:)/mesh%hgrids)
 
   end function box_nbox_from_cutoff
 
 
-  pure function cell_cutoff_extrema(oxyz,cutoff) result(rbox)
+  pure function cell_cutoff_extrema(mesh,oxyz,cutoff) result(rbox)
     implicit none
+    type(cell), intent(in) :: mesh
     real(gp), dimension(3), intent(in) :: oxyz
     real(gp), intent(in) :: cutoff
     real(gp), dimension(2,3) :: rbox
     !for non-orthorhombic cells the concept of distance has to be inserted here (the box should contain the sphere)
-    rbox(START_,:)=oxyz-cutoff
-    rbox(END_,:)=oxyz+cutoff
+!    if (mesh%orthorhombic) then
+        rbox(START_,:)=oxyz-cutoff
+        rbox(END_,:)=oxyz+cutoff
+!    else
+!        rbox(START_,:)=rxyz_nonortho(mesh,rxyz_ortho(mesh,oxyz)-cutoff)
+!        rbox(END_,:)=rxyz_nonortho(mesh,rxyz_ortho(mesh,oxyz)+cutoff)
+!    end if
   end function cell_cutoff_extrema
 
 
@@ -382,7 +388,6 @@ contains
           end do
           call f_assert(jx == subdims(X_),'E')!,&
           !'Error boxit, ix='+ix+', itgtx='+subdims(X_))
-
           call f_assert(ly(jy) == bit%j,'F')!,&
           !'Error value, iy='+bit%j+', expected='+ly(iy))
        end do
@@ -962,6 +967,7 @@ contains
   end function cell_r
 
   !>gives the value of the coordinates for an orthorhombic reference system
+  !! from their value wrt a nonorthorhombic system
   pure function rxyz_ortho(mesh,rxyz)
     implicit none
     type(cell), intent(in) :: mesh
@@ -982,6 +988,30 @@ contains
     end if
 
   end function rxyz_ortho
+
+
+  !>gives the value of the coordinates for a nonorthorhombic reference system
+  !! from their value wrt an orthorhombic system
+  pure function rxyz_nonortho(mesh,rxyz)
+    implicit none
+    type(cell), intent(in) :: mesh
+    real(gp), dimension(3), intent(in) :: rxyz
+    real(gp), dimension(3) :: rxyz_nonortho
+    ! local variables
+    integer :: i,j
+
+    if (mesh%orthorhombic) then
+     rxyz_nonortho(1:3)=rxyz(1:3)
+    else
+     do i=1,3
+      rxyz_nonortho(i)=0.0_gp
+      do j=1,3
+       rxyz_nonortho(i)=rxyz_nonortho(i)+mesh%uabc(i,j)*rxyz(j)
+      end do
+     end do
+    end if
+
+  end function rxyz_nonortho
 
   pure function distance(mesh,r,c) result(d)
     use dictionaries, only: f_err_throw
