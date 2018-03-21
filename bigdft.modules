@@ -28,6 +28,7 @@
               href="http://www.netlib.org/lapack/"/> 
 
   <repository type="tarball" name="local" href="./"/>
+  <repository type="tarball" name="local-optional" href="./"/>
 
   <include href="gnome.modules"/>
 
@@ -44,7 +45,7 @@
   </autotools>
 
   <cmake id="openbabel">
-    <branch repo="local" module="openbabel-2.4.1.tar.gz" version="2.4.1" checkoutdir="openbabel"/>
+    <branch repo="local-optional" module="openbabel-2.4.1.tar.gz" version="2.4.1" checkoutdir="openbabel"/>
   </cmake>
 
   <cmake id="lapack">

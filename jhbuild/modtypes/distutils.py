@@ -99,11 +99,10 @@ class DistutilsModule(Package, DownloadableModule):
     do_clean.depends = [PHASE_CHECKOUT]
 
     def do_dist(self, buildscript):
-        #here we should modify if the tarfile has to be regenerated
-        if not(self.branch.repository.name == "local"):
-            tar = os.path.join(SRCDIR, os.path.basename(self.branch.module))
-            if os.path.exists(tar):
-                return
+        #if not(self.branch.repository.name == "local"):
+        #    tar = os.path.join(SRCDIR, os.path.basename(self.branch.module))
+        #    if os.path.exists(tar):
+        #        return
         buildscript.set_action(_('Creating tarball for'), self)
         srcdir = self.get_srcdir(buildscript)
         builddir = self.get_builddir(buildscript)

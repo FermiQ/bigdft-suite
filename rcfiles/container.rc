@@ -35,6 +35,8 @@ module_autogenargs.update({
    
 'spred': env_configuration()+" --with-gobject=yes ",
 
-'PyYAML': "build_ext -I%(prefix)s/include -L%(prefix)s/lib --rpath=%(prefix)s/lib " % {"prefix": prefix}
+'PyYAML': "build_ext -I%(prefix)s/include -L%(prefix)s/lib --rpath=%(prefix)s/lib " % {"prefix": prefix},
+
+'pygobject': 'PYTHON=/usr/bin/python'
    
 })
