@@ -47,7 +47,7 @@ program smatmul
 
   ! Variables
   integer :: iproc, nproc, ncol, nnonzero, nseg, ncolp, iscol, ierr, nspin,comm
-  integer :: nfvctr, nvctr, isfvctr, nfvctrp, nit, it, verbosity, nat, ntypes
+  integer :: nfvctr, nvctr, isfvctr, nfvctrp, nit, it, verbosity, nat, ntypes, matmul_matrix
   !character(len=*),parameter :: filename='matrix.dat'
   character(len=1024) :: filename
   character(len=1) :: geocode
@@ -81,7 +81,9 @@ program smatmul
   filename = options//'filename'
   nit = options//'nit'
   verbosity = options//'verbosity'
+  matmul_matrix = options//'matmul_matrix'
   call dict_free(options)
+
 
   if (verbosity<1 .or. verbosity>2) then
       call f_err_throw('wrong value for the verbosity, only 1 or 2 is allowed', &
@@ -103,6 +105,16 @@ program smatmul
 
   if (iproc==0) then
       call yaml_new_document()
+  end if
+
+
+  if (iproc==0) then
+      call yaml_mapping_open('Input parameters')
+      call yaml_map('filename',filename)
+      call yaml_map('nit',nit)
+      call yaml_map('verbosity',verbosity)
+      call yaml_map('matmul_matrix',matmul_matrix)
+      call yaml_mapping_close()
   end if
 
   call f_timing_reset(filename='time.yaml',master=iproc==0,verbose_mode=.true. .and. nproc>1)
@@ -131,7 +143,7 @@ program smatmul
   !!matA%matrix_compr = mat_compr
 
   call sparse_matrix_and_matrices_init_from_file_bigdft('serial_text', filename, iproc, nproc,comm, smat(1), matA, &
-       init_matmul=.true., filename_mult=filename)!, nat=nat, ntypes=ntypes, nzatom=nzatom, nelpsp=nelpsp, &
+       init_matmul=.true., filename_mult=filename, matmul_matrix=matmul_matrix)!, nat=nat, ntypes=ntypes, nzatom=nzatom, nelpsp=nelpsp, &
        !atomnames=atomnames, iatype=iatype, rxyz=rxyz, on_which_atom=on_which_atom)
 
   call init_matrix_taskgroups_wrapper(iproc, nproc, mpi_comm_world, .true., 1, smat)
@@ -304,8 +316,15 @@ subroutine commandline_options(parser)
   call yaml_cl_parse_option(parser,'verbosity','2',&
        'verbosity of the output','v',&
        dict_new('Usage' .is. &
-       'If the verbosity is high, the final result will be printed to the scree',&
+       'If the verbosity is high, the final result will be printed to the screen',&
        'Allowed values' .is. &
        'Integer. Only 1 or 2 is possible'))
+
+  call yaml_cl_parse_option(parser,'matmul_matrix','301',&
+       'storage format of the sparse matrix for the sparse matrix multiplications','m',&
+       dict_new('Usage' .is. &
+       'Indicate storage format of the sparse matrix for the sparse matrix multiplications.',&
+       'Allowed values' .is. &
+       'Integer. Only 301 (MATMUL_REPLICATE_MATRIX) or 302 (MATMUL_REPLICATE_MATRIX) is possible'))
 
 end subroutine commandline_options

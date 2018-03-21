@@ -209,7 +209,8 @@ program driver_random
       end if
       call sparse_matrix_init_from_file_bigdft('serial_text', trim(outfile), &
           iproc, nproc, mpi_comm_world, smat(2), &
-          init_matmul=init_matmul, filename_mult=trim(outmatmulfile))
+          init_matmul=init_matmul, filename_mult=trim(outmatmulfile), &
+          matmul_matrix=MATMUL_REPLICATE_MATRIX)
   end if
 
 

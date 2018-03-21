@@ -108,7 +108,8 @@ module module_utilities
            end if
            call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, trim(kernel_file), &
                 iproc, nproc, comm, smat(2), kernel_mat, &
-                init_matmul=.true., filename_mult=trim(kernel_matmul_file))
+                init_matmul=.true., filename_mult=trim(kernel_matmul_file), &
+                matmul_matrix=MATMUL_REPLICATE_MATRIX)
 
            call init_matrix_taskgroups_wrapper(iproc, nproc, comm, .false., 2, smat)
            call resize_matrix_to_taskgroup(smat(1), ovrlp_mat)

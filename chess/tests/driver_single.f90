@@ -144,7 +144,8 @@ program driver_single
   end if
   call sparse_matrix_init_from_file_bigdft('serial_text', trim(filename_out), &
        iproc, nproc, mpi_comm_world, smat_out, &
-       init_matmul=.true., filename_mult=trim(filename_out_matmul))
+       init_matmul=.true., filename_mult=trim(filename_out_matmul), &
+       matmul_matrix=MATMUL_REPLICATE_MATRIX)
   if (iproc==0) then
       call write_sparsematrix_info(smat_out, 'Input matrix')
       call yaml_mapping_close()

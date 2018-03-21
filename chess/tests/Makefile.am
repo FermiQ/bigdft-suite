@@ -134,7 +134,8 @@ define F_REGTEST_INSTRUCTIONS
    runs:
     - $(run_parallel) ./smatmul \
         --filename=$(srcdir)/mat_114_8986.txt \
-        --nit=10
+        --nit=10 \
+        --matmul_matrix=301
     - $(run_parallel) ./smatmul \
         --filename=$(srcdir)/mat_600_33620.txt \
         --nit=100 \

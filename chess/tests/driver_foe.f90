@@ -25,7 +25,7 @@ program driver_foe
   use foe_base, only: foe_data, foe_data_deallocate, foe_data_get_real
   use foe_common, only: init_foe
   use sparsematrix_highlevel, only: sparse_matrix_and_matrices_init_from_file_ccs, &
-                                    sparse_matrix_init_from_file_ccs, matrices_init, &
+                                    matrices_init, &
                                     matrices_get_values, matrices_set_values, &
                                     sparse_matrix_init_from_data_ccs, &
                                     ccs_data_from_sparse_matrix, ccs_matrix_write, &
@@ -239,7 +239,8 @@ program driver_foe
           call f_err_throw('wrong value for kernel_method')
       end select
       call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, kernel_file, &
-           iproc, nproc, mpi_comm_world, smat(3), mat_k, init_matmul=init_matmul, filename_mult=trim(kernel_matmul_file))
+           iproc, nproc, mpi_comm_world, smat(3), mat_k, init_matmul=init_matmul, &
+           filename_mult=trim(kernel_matmul_file), matmul_matrix=MATMUL_REPLICATE_MATRIX)
   else
       call f_err_throw('Wrong sparsity format')
   end if
