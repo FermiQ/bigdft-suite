@@ -67,7 +67,7 @@ extern "C" void FC_FUNC_(openbabel_load, OPENBABEL_LOAD)(f90_dictionary_pointer 
           rprimdFull[6] > 1e-12 || rprimdFull[6] < -1e-12 ||
           rprimdFull[7] > 1e-12 || rprimdFull[7] < -1e-12)
         {
-          err_throw_by_name("Non orthorhombic cell.",
+          err_throw_by_name("Non orthorhombic cell, or cell not defined",
                             "BIGDFT_INPUT_VARIABLES_ERROR");
           return;
         }
