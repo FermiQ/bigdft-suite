@@ -19,7 +19,8 @@ module module_utilities
                                         sparsematrix_malloc0, &
                                         sparsematrix_malloc_ptr, sparsematrix_malloc0_ptr,&
                                         deallocate_sparse_matrix, deallocate_matrices, &
-                                        sparse_matrix_metadata, deallocate_sparse_matrix_metadata
+                                        sparse_matrix_metadata, deallocate_sparse_matrix_metadata, &
+                                        MATMUL_REPLICATE_MATRIX
            use sparsematrix_init, only: bigdft_to_sparsebigdft, distribute_columns_on_processes_simple, &
                                         write_sparsematrix_info, init_matrix_taskgroups_wrapper
            use sparsematrix_io, only: read_sparse_matrix, write_sparse_matrix, read_linear_coefficients

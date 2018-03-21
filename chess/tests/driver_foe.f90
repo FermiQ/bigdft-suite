@@ -57,6 +57,7 @@ program driver_foe
   integer :: nfvctr, nvctr, ierr, iproc, nproc, nthread, ncharge, nfvctr_mult, nvctr_mult, scalapack_blocksize, icheck, it, nit
   integer :: ispin, ihomo, imax, ntemp, npl_max, pexsi_npoles, norbu, norbd, ii, info, norbp, isorb, norb, iorb, pexsi_np_sym_fact
   integer :: pexsi_nproc_per_pole, pexsi_max_iter, pexsi_verbosity, output_level, profiling_depth, occupation_function
+  integer :: matmul_matrix
   real(mp) :: pexsi_mumin, pexsi_mumax, pexsi_mu, pexsi_DeltaE, pexsi_temperature, pexsi_tol_charge, betax
   integer,dimension(:),pointer :: row_ind, col_ptr, row_ind_mult, col_ptr_mult
   real(mp),dimension(:),pointer :: kernel, overlap, overlap_large
@@ -180,6 +181,7 @@ program driver_foe
       call yaml_map('Use the new smooth way to adjust fscale',adjust_fscale_smooth)
       call yaml_map('The function to assign the occupation numbers',occupation_function)
       call yaml_map('Dynamically adjust the value of fscale or not',adjust_fscale)
+      call yaml_map('matmul_matrix',matmul_matrix)
       call yaml_mapping_close()
   end if
 
@@ -240,7 +242,7 @@ program driver_foe
       end select
       call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, kernel_file, &
            iproc, nproc, mpi_comm_world, smat(3), mat_k, init_matmul=init_matmul, &
-           filename_mult=trim(kernel_matmul_file), matmul_matrix=MATMUL_REPLICATE_MATRIX)
+           filename_mult=trim(kernel_matmul_file), matmul_matrix=matmul_matrix)
   else
       call f_err_throw('Wrong sparsity format')
   end if
@@ -683,6 +685,7 @@ program driver_foe
           adjust_fscale_smooth = options//'adjust_fscale_smooth'
           adjust_fscale = options//'adjust_fscale'
           occupation_function = options//'occupation_function'
+          matmul_matrix = options//'matmul_matrix'
          
           call dict_free(options)
       end if
@@ -726,6 +729,7 @@ program driver_foe
       call mpibcast(diff_tolerance, root=0, comm=mpi_comm_world)
       call mpibcast(diff_target, root=0, comm=mpi_comm_world)
       call mpibcast(occupation_function, root=0, comm=mpi_comm_world)
+      call mpibcast(matmul_matrix, root=0, comm=mpi_comm_world)
       ! Since there is no wrapper for logicals...
       if (iproc==0) then
           if (check_spectrum) then
@@ -1175,6 +1179,13 @@ subroutine commandline_options(parser)
        'Indicate the function to assign the occupation numbers',&
        'Allowed values' .is. &
        'Integer'))
+
+  call yaml_cl_parse_option(parser,'matmul_matrix','301',&
+       'storage format of the sparse matrix for the sparse matrix multiplications','m',&
+       dict_new('Usage' .is. &
+       'Indicate storage format of the sparse matrix for the sparse matrix multiplications.',&
+       'Allowed values' .is. &
+       'Integer. Only 301 (MATMUL_REPLICATE_MATRIX) or 302 (MATMUL_REPLICATE_MATRIX) is possible'))
 
 
 end subroutine commandline_options
