@@ -1787,8 +1787,8 @@ subroutine fill_logrid(geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,nbuf,nat,  &
 !!$     i1s=max(ml1,-n1/2-1)
 !!$     i1e=min(mu1,n1+n1/2+1)
 !!$
-!!$     print *,'limitold',ml1,mu1,i1s,i1e
-!!$     print *,'limitnew',nbox(:,1)
+!!$     print *,'limitold',ml3,mu3,i3s,i3e
+!!$     print *,'limitnew',nbox(:,3)
 
      bit=box_iter(mesh,nbox=nbox+1) !add here a plus one for the convention of ndims
      call fill_logrid_with_spheres(bit,rxyz(1,iiat),rad,logrid)

@@ -323,7 +323,7 @@ contains
     do i=1,3
        subdims(i)=bit%subbox(END_,i)-bit%subbox(START_,i)+1
     end do
-    subdims(3)=min(subdims(3),bit%i3e-bit%i3s+1)
+    if (bit%mesh%bc(Z_) /= PERIODIC) subdims(3)=min(subdims(3),bit%i3e-bit%i3s+1)
 
     !first, count if the iterator covers all the required points
     itgt=product(int(subdims,f_long))
@@ -419,23 +419,27 @@ contains
     !'Error sep boxit, icnt='+icnt+', itgt='+itgt)
 
     !complete mode
-    icnt=int(0,f_long)
-    do while(box_next_point(bit))
-       icnt=icnt+1
-       !here we might see if there are points from which
-       !we passed twice
-       !print *,bit%i,bit%j,bit%k
-       !if (.not. lxyz(bit%ind)) &
-       if (.not. lxyz(icnt)) &
-            call f_err_throw('Error point (2) ind='+bit%ind+&
-            ', i,j,k='+yaml_toa([bit%i,bit%j,bit%k]))
-       !lxyz(bit%ind)=f_F
-       lxyz(icnt)=f_F
-    end do
-    call f_assert(icnt == itgt,'Error boxit, icnt='+icnt+&
-         ', itgt='+itgt)
+    if (all( bit%subbox(END_,:)-bit%subbox(START_,:) < bit%mesh%ndims) .or. all(bit%mesh%bc == FREE)) then
+       icnt=int(0,f_long)
+       do while(box_next_point(bit))
+          icnt=icnt+1
+          !here we might see if there are points from which
+          !we passed twice
+          !print *,bit%i,bit%j,bit%k
+          !if (.not. lxyz(bit%ind)) &
+          if (.not. lxyz(icnt)) &
+               call f_err_throw('Error point (2) ind='+bit%ind+&
+               ', i,j,k='+yaml_toa([bit%i,bit%j,bit%k]))
+          !lxyz(bit%ind)=f_F
+          lxyz(icnt)=f_F
+       end do
+       call f_assert(icnt == itgt,'Error boxit, icnt='+icnt+&
+            ', itgt='+itgt)
+       !no points have to be left behind
+       if (any(lxyz)) call f_err_throw('Error boxit, points not covered')
+    end if
 
-    if (any(lxyz)) call f_err_throw('Error boxit, points not covered')
+
 
     call f_free(lxyz)
     call f_free(lx,ly,lz)
