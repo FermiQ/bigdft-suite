@@ -175,31 +175,6 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
        real(kind=8),dimension(3,atoms%astruct%nat),intent(in),optional :: locregcenters
      END SUBROUTINE input_wf
   end interface
-  interface
-     subroutine CalculateTailCorrection(iproc,nproc,at,rbuf,orbs,&
-          Glr,nlpsp,ncongt,pot,hgrid,rxyz,crmult,frmult,nspin,&
-          psi,output_denspot,ekin_sum,epot_sum,eproj_sum,paw)
-       use module_defs, only: gp,wp,dp
-       use module_types
-       use gaussians, only: gaussian_basis
-       use locregs
-       implicit none
-       type(atoms_data), intent(in) :: at
-       type(orbitals_data), intent(in) :: orbs
-       type(locreg_descriptors), intent(in) :: Glr
-       type(DFT_PSP_projectors), intent(inout) :: nlpsp
-       integer, intent(in) :: iproc,nproc,ncongt,nspin
-       logical, intent(in) :: output_denspot
-       real(kind=8), dimension(3), intent(in) :: hgrid
-       real(kind=8), intent(in) :: crmult,frmult,rbuf
-       !real(kind=8), dimension(at%astruct%ntypes,3), intent(in) :: radii_cf
-       real(kind=8), dimension(3,at%astruct%nat), intent(in) :: rxyz
-       real(kind=8), dimension(Glr%d%n1i,Glr%d%n2i,Glr%d%n3i,nspin), intent(in) :: pot
-       real(kind=8), dimension(Glr%wfd%nvctr_c+7*Glr%wfd%nvctr_f,orbs%norbp), intent(in) :: psi
-       real(kind=8), intent(out) :: ekin_sum,epot_sum,eproj_sum
-       type(paw_objects),optional,intent(inout)::paw
-     END SUBROUTINE CalculateTailCorrection
-  end interface
 
   interface
      subroutine davidson(iproc,nproc,in,at,&
@@ -1452,7 +1427,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
      call CalculateTailCorrection(iproc,nproc,atoms,in%rbuf,KSwfn%orbs,&
           KSwfn%Lzd%Glr,nlpsp,in%ncongt,denspot%pot_work,KSwfn%Lzd%hgrids,&
           rxyz,in%crmult,in%frmult,in%nspin,&
-          KSwfn%psi,(in%output_denspot /= ENUM_EMPTY),energs%ekin,energs%epot,energs%eproj)
+          KSwfn%psi,(in%output_denspot /= ENUM_EMPTY),energs%ekin,energs%epot,energs%eproj,KSwfn%paw)
 
      call f_free_ptr(denspot%pot_work)
 

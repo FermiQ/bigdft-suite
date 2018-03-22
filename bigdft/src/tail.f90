@@ -39,7 +39,7 @@ subroutine CalculateTailCorrection(iproc,nproc,at,rbuf,orbs,&
   real(kind=8), dimension(Glr%d%n1i,Glr%d%n2i,Glr%d%n3i,nspin), intent(in) :: pot
   real(kind=8), dimension(Glr%wfd%nvctr_c+7*Glr%wfd%nvctr_f,orbs%norbp), intent(in) :: psi
   real(kind=8), intent(out) :: ekin_sum,epot_sum,eproj_sum
-  type(paw_objects),optional,intent(inout)::paw
+  type(paw_objects),intent(inout)::paw
   !local variables
   type(locreg_descriptors), target :: lr
   character(len=*), parameter :: subname='CalculateTailCorrection'
@@ -47,7 +47,8 @@ subroutine CalculateTailCorrection(iproc,nproc,at,rbuf,orbs,&
   integer :: nb1,nb2,nb3,nbfl1,nbfu1,nbfl2,nbfu2,nbfl3,nbfu3
   integer :: n1,n2,n3,nsegb_c,nsegb_f,nvctrb_c,nvctrb_f
   real(kind=8) :: alatb1,alatb2,alatb3,ekin,epot,eproj,tt,cprecr,sum_tail !n(c) eproj1 epot1,ekin1
-  type(orbitals_data) :: orbsb
+  type(orbitals_data), target :: orbsb
+  type(orbital_basis), target :: ob
   type(ket) :: psi_it
   type(DFT_PSP_projector_iter) :: psp_it
   logical, dimension(:,:,:), allocatable :: logrid_c,logrid_f
@@ -339,6 +340,9 @@ subroutine CalculateTailCorrection(iproc,nproc,at,rbuf,orbs,&
      psi_it%ispin = ispin
      psi_it%ispsi = 1
      psi_it%nphidim = nvctrb_c+7*nvctrb_f
+     psi_it%ob => ob
+     ob%orbs => orbsb
+     orbsb%npsidim_orbs = nvctrb_c+7*nvctrb_f
        
      npt=2
      tail_adding: do ipt=1,npt
@@ -360,7 +364,7 @@ subroutine CalculateTailCorrection(iproc,nproc,at,rbuf,orbs,&
         call DFT_PSP_projectors_iter_new(psp_it, nlpsp)
         loop_proj: do while (DFT_PSP_projectors_iter_next(psp_it, ilr = 1, lr = lr, glr = lr))
            call DFT_PSP_projectors_iter_ensure(psp_it, [0._gp, 0._gp, 0._gp], 0, nwarnings, lr)
-           call DFT_PSP_projectors_iter_apply(psp_it, psi_it, paw, at, eproj, hpsi = hpsib)
+           call DFT_PSP_projectors_iter_apply(psp_it, psi_it, at, eproj, hpsi = hpsib, paw = paw)
         end do loop_proj
 
         !calculate residue for the single orbital

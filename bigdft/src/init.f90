@@ -220,7 +220,7 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
   use psp_projectors_base
   use psp_projectors, only: bounds_to_plr_limits
   use module_types
-  use gaussians, only: gaussian_basis, gaussian_basis_from_psp, gaussian_basis_from_paw
+  use gaussians, only: gaussian_basis_from_psp
   use public_enums, only: PSPCODE_PAW, PSPCODE_GTH, PSPCODE_HGH, PSPCODE_HGH_K, &
        & PSPCODE_HGH_K_NLCC, PSPCODE_PSPIO
   use orbitalbasis
@@ -263,24 +263,17 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
      ityp = at%astruct%iatype(iat)
      nl%pbasis(iat)%iat = iat
      nl%pbasis(iat)%rxyz = rxyz(:, iat)
-     if (at%npspcode(at%astruct%iatype(iat)) == PSPCODE_PAW) then
-        nl%pbasis(iat)%kind = PROJ_DESCRIPTION_GAUSSIAN
-        call gaussian_basis_from_paw(1, [1], rxyz(:, iat), &
-             & at%pawtab(ityp:ityp), 1, nl%pbasis(iat)%gbasis)
-        nl%pbasis(iat)%gau_cut = at%pawtab(at%astruct%iatype(iat))%rpaw
-        nl%pbasis(iat)%normalized = .false.
-     else if (at%npspcode(at%astruct%iatype(iat)) == PSPCODE_GTH .or. &
+     if (at%npspcode(at%astruct%iatype(iat)) == PSPCODE_GTH .or. &
           & at%npspcode(at%astruct%iatype(iat)) == PSPCODE_HGH .or. &
           & at%npspcode(at%astruct%iatype(iat)) == PSPCODE_HGH_K .or. &
           & at%npspcode(at%astruct%iatype(iat)) == PSPCODE_HGH_K_NLCC) then
         nl%pbasis(iat)%kind = PROJ_DESCRIPTION_GAUSSIAN
-        call gaussian_basis_from_psp(1, [1], rxyz(:, iat), &
+        call gaussian_basis_from_psp(1, [1], nl%pbasis(iat)%rxyz, &
              & at%psppar(:,:,ityp:ityp), 1, nl%pbasis(iat)%gbasis)
-        nl%pbasis(iat)%normalized = .true.
      else if (at%npspcode(at%astruct%iatype(iat)) == PSPCODE_PSPIO) then
-        nl%pbasis(iat)%kind = PROJ_DESCRIPTION_PSPIO
-        call rfunc_basis_from_pspio(at%pspio(ityp), nl%pbasis(iat)%rfuncs)
-        nl%pbasis(iat)%normalized = .true.
+        call rfunc_basis_from_pspio(nl%pbasis(iat), at%pspio(ityp))
+     else if (at%npspcode(at%astruct%iatype(iat)) == PSPCODE_PAW) then
+        call rfunc_basis_from_paw(nl%pbasis(iat), at%pawrad(ityp), at%pawtab(ityp))
      else
         call f_err_throw("Unknown PSP code for atom " // trim(yaml_toa(iat)), &
              & err_name = 'BIGDFT_RUNTIME_ERROR')
@@ -764,7 +757,7 @@ use wfn_extrap
   type(old_wavefunction), dimension(0:wfn_history+1), intent(inout) :: oldpsis
   integer, intent(inout) :: istep_history
   real(wp), dimension(Lzd%Glr%wfd%nvctr_c+7*Lzd%Glr%wfd%nvctr_f,orbs%nspinor*orbs%norbp), intent(out) :: psi
-
+  
   !local variables
   character(len=*), parameter :: subname='input_wf_memory_history'
   logical, parameter :: debug_flag=.false.

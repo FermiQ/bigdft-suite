@@ -956,12 +956,6 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
 !!$           mpz(i3-isz) = mp_exp(hzh,rz,rlocinv2sq,i3,0,at%multipole_preserving)
 !!$        end do
 
-        if (at%npspcode(atit%ityp) == PSPCODE_PAW) then
-
-           call atomic_charge_density(g,at,atit)
-           call three_dimensional_density(dpbox%bitp,g,-1.0_dp,rxyz(1,atit%iat),pot_ion)
-           rholeaked=0.0_dp
-
 !!$           !Calculate Ionic Density using HGH parameters.
 !!$           !Eq. 1.104, T. Deutsch and L. Genovese, JDN. 12, 2011
 !!$           do i3=isz,iez
@@ -1019,7 +1013,6 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
 !!$           end do
 !!$           rholeaked = rholeaked - &
 !!$                   & pspiof_pspdata_get_zvalence(at%pspio(atit%ityp)) / dpbox%mesh%volume_element
-        else
 
            call atomic_charge_density(g,at,atit)
            call set_box_around_gaussian(dpbox%bitp,g,rxyz(1,atit%iat))
@@ -1094,8 +1087,6 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
 !!$                 enddo
 !!$              enddo
 !!$           enddo
-
-        end if
 
         !De-allocate for multipole preserving
         !call f_free(mpx,mpy,mpz)

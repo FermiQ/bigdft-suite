@@ -1092,7 +1092,7 @@ subroutine NonLocalHamiltonianApplication(iproc,at,npsidim_orbs,orbs,&
              & lr = psi_it%lr, glr = lzd%glr))
            call DFT_PSP_projectors_iter_ensure(psp_it, psi_it%kpoint, 0, nwarnings, Lzd%Glr)
            loop_psi_kpt: do while(ket_next(psi_it,ikpt=psi_it%ikpt,ilr=psi_it%ilr))
-              call DFT_PSP_projectors_iter_apply(psp_it, psi_it, paw, at, eproj, hpsi = hpsi)
+              call DFT_PSP_projectors_iter_apply(psp_it, psi_it, at, eproj, hpsi = hpsi, paw = paw)
               eproj_sum = eproj_sum + psi_it%kwgt * psi_it%occup * eproj
            end do loop_psi_kpt
         end do loop_proj

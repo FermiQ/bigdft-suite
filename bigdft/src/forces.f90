@@ -915,8 +915,8 @@ subroutine nonlocal_forces(lr,at,ob,nlpsp,paw,fsep,calculate_strten,strten)
            ! Specific treatment of proj, before derivatives.
            call DFT_PSP_projectors_iter_ensure(psp_it, psi_it%kpoint, 0, nwarnings, lr)
            loop_psi_kpt0: do while(ket_next(psi_it,ikpt=psi_it%ikpt,ilr=psi_it%ilr))
-              call DFT_PSP_projectors_iter_apply(psp_it, psi_it, paw, at, falpha, &
-                   & hcproj_out = hcproj0(1, psi_it%iorbp))
+              call DFT_PSP_projectors_iter_apply(psp_it, psi_it, at, falpha, &
+                   & hcproj_out = hcproj0(1, psi_it%iorbp), paw = paw)
               Enl = Enl + falpha * psi_it%kwgt * psi_it%occup
            end do loop_psi_kpt0
            
@@ -924,8 +924,8 @@ subroutine nonlocal_forces(lr,at,ob,nlpsp,paw,fsep,calculate_strten,strten)
            loop_dir: do idir = 1, ndir
               call DFT_PSP_projectors_iter_ensure(psp_it, psi_it%kpoint, idir, nwarnings, lr)
               loop_psi_kpt: do while(ket_next(psi_it,ikpt=psi_it%ikpt,ilr=psi_it%ilr))
-                 call DFT_PSP_projectors_iter_apply(psp_it, psi_it, paw, at, falpha, &
-                      & hcproj_in = hcproj0(1, psi_it%iorbp))
+                 call DFT_PSP_projectors_iter_apply(psp_it, psi_it, at, falpha, &
+                      & hcproj_in = hcproj0(1, psi_it%iorbp), paw = paw)
 
                  !write(*,*) idir, psp_it%iat, falpha
                  if (idir < 4) then

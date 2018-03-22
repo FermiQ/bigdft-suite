@@ -1626,7 +1626,7 @@ program memguess
            & runObj%rst%KSwfn%Lzd%hgrids(1),runObj%rst%KSwfn%Lzd%hgrids(2),runObj%rst%KSwfn%Lzd%hgrids(3), &
            & nlpsp, runObj%atoms, runObj%atoms%astruct%rxyz, &
            & ikpt,iat,iproj,icplx)
-      call filename_of_proj(.false.,"proj",ikpt,iat,iproj,icplx,filename_wfn)
+      call filename_of_proj(.false.,"proj2",ikpt,iat,iproj,icplx,filename_wfn)
 !!$      nlpsp%pspd(iat)%plr%wfd%keygloc = nlpsp%pspd(iat)%plr%wfd%keyglob
 !!$      nlpsp%pspd(iat)%plr%wfd%keyvloc = nlpsp%pspd(iat)%plr%wfd%keyvglob
 !!$      ! Doing this is buggy.

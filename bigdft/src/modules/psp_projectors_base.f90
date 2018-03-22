@@ -5,6 +5,8 @@ module psp_projectors_base
   use compression
   use locreg_operations
   use pspiof_m, only: pspiof_projector_t
+  use m_pawrad, only: pawrad_type
+  use m_pawtab, only: pawtab_type
   implicit none
 
   private
@@ -33,20 +35,24 @@ module psp_projectors_base
 
   integer, parameter :: PROJ_DESCRIPTION_GAUSSIAN = 1
   integer, parameter :: PROJ_DESCRIPTION_PSPIO = 2
+  integer, parameter :: PROJ_DESCRIPTION_PAW = 3
   
   !> Description of the atomic functions
   type, public :: atomic_projectors
      integer :: iat !< Index of the atom this structure refers to.
      real(gp), dimension(3) :: rxyz !< Position of the center.
-     logical :: normalized !< .true. if projectors are normalized to one.
+     real(gp), dimension(:), pointer :: normalized !< The normalisation value.
      integer :: kind
 
      ! Gaussian specifics
-     real(gp) :: gau_cut !< cutting radius for the gaussian description of projectors.
      type(gaussian_basis_new) :: gbasis !< Gaussian description of the projectors.
 
      ! PSPIO specifics
      type(pspiof_projector_t), dimension(:), pointer :: rfuncs !< Radial projectors.
+
+     ! libPAW specifics
+     type(pawrad_type), pointer :: pawrad !< Radial mesh.
+     type(pawtab_type), pointer :: pawtab !< Radial projector.
   end type atomic_projectors
   
   integer, parameter :: SEPARABLE_1D=0
@@ -88,6 +94,7 @@ module psp_projectors_base
   type, public :: atomic_projector_iter
      type(atomic_projectors), pointer :: parent
      real(gp), dimension(3) :: kpoint
+     real(gp) :: normalisation
      
      integer :: cplx !< 1 for real coeff. 2 for complex ones.
      integer :: nc !< Number of components in one projector.
@@ -136,9 +143,10 @@ module psp_projectors_base
   public :: atomic_projectors_null
   public :: psp_update_positions
 
-  public :: PROJ_DESCRIPTION_GAUSSIAN, PROJ_DESCRIPTION_PSPIO
+  public :: PROJ_DESCRIPTION_GAUSSIAN
   public :: allocate_atomic_projectors_ptr
   public :: rfunc_basis_from_pspio
+  public :: rfunc_basis_from_paw
 
   public :: atomic_projector_iter_new, atomic_projector_iter_set_method
   public :: atomic_projector_iter_free, atomic_projector_iter_set_destination
@@ -177,9 +185,11 @@ contains
     implicit none
     type(atomic_projectors), intent(out) :: ap
     ap%iat=0
-    ap%gau_cut = UNINITIALIZED(ap%gau_cut)
     call nullify_gaussian_basis_new(ap%gbasis)
     nullify(ap%rfuncs)
+    nullify(ap%pawrad)
+    nullify(ap%pawtab)
+    nullify(ap%normalized)
   end subroutine nullify_atomic_projectors
 
   subroutine allocate_atomic_projectors_ptr(aps, nat)
@@ -281,6 +291,7 @@ contains
        end do
        deallocate(ap%rfuncs)
     end if
+    call f_free_ptr(ap%normalized)
   end subroutine deallocate_atomic_projectors
 
   subroutine free_atomic_projectors_ptr(aps)
@@ -449,7 +460,8 @@ contains
     iter%istart_c = 1
     if (iter%parent%kind == PROJ_DESCRIPTION_GAUSSIAN) then
        call gaussian_iter_start(iter%parent%gbasis, 1, iter%giter)
-    else if (iter%parent%kind == PROJ_DESCRIPTION_PSPIO) then
+    else if (iter%parent%kind == PROJ_DESCRIPTION_PSPIO .or. &
+         & iter%parent%kind == PROJ_DESCRIPTION_PAW) then
        iter%riter = 0
     else
        call f_err_throw("Unknown atomic projector kind.", &
@@ -474,6 +486,9 @@ contains
        if (.not. next) return
        iter%n = iter%giter%n
        iter%l = iter%giter%l
+       iter%normalisation = 1._gp
+       if (associated(iter%parent%normalized)) iter%normalisation = &
+            & iter%parent%normalized(iter%giter%ishell)
     else if (iter%parent%kind == PROJ_DESCRIPTION_PSPIO) then
        next = (iter%riter < size(iter%parent%rfuncs))
        if (.not. next) return
@@ -484,13 +499,21 @@ contains
        if (iter%n == 0) then
           iter%n = 1
        end if
+       iter%normalisation = 1._gp
+    else if (iter%parent%kind == PROJ_DESCRIPTION_PAW) then
+       next = (iter%riter < iter%parent%pawtab%basis_size)
+       if (.not. next) return
+       iter%riter = iter%riter + 1
+       iter%l = iter%parent%pawtab%orbitals(iter%riter) + 1
+       iter%n = 1
+       iter%normalisation = iter%parent%normalized(iter%riter)
     else
        call f_err_throw("Unknown atomic projector kind.", &
             & err_name = 'BIGDFT_RUNTIME_ERROR')
     end if
     iter%mproj = 2 * iter%l - 1    
     next = .true.
-    
+       
     if (associated(iter%proj_root)) then
        if (iter%istart_c + iter%nc * iter%mproj > size(iter%proj_root) + 1) &
             & call f_err_throw('istart_c > nprojel+1', err_name = 'BIGDFT_RUNTIME_ERROR')
@@ -522,12 +545,14 @@ contains
     integer, intent(inout), optional :: nwarnings 
 
     integer :: np
-    real(gp) :: scpr
+    real(gp) :: scpr, gau_cut
 
     if (iter%parent%kind == PROJ_DESCRIPTION_GAUSSIAN) then
        if (iter%method == PROJECTION_1D_SEPARABLE) then
+          gau_cut = UNINITIALIZED(gau_cut)
+          if (associated(iter%parent%pawtab)) gau_cut = iter%parent%pawtab%rpaw
           call gaussian_iter_to_wavelets_separable(iter%parent%gbasis, iter%giter, &
-               & ider, iter%glr%mesh_coarse, iter%lr, iter%parent%gau_cut, &
+               & ider, iter%glr%mesh_coarse, iter%lr, gau_cut, &
                & iter%parent%rxyz, iter%kpoint, iter%cplx, iter%wpr, &
                & iter%proj, iter%proj_tmp)
        else if (iter%method == PROJECTION_RS_COLLOCATION) then
@@ -551,24 +576,38 @@ contains
           call f_err_throw("Multipole preserving projection is not implemented for PSPIO.", &
                & err_name = 'BIGDFT_RUNTIME_ERROR')
        end if
+    else if (iter%parent%kind == PROJ_DESCRIPTION_PAW) then
+       if (iter%method == PROJECTION_1D_SEPARABLE) then
+          call f_err_throw("1D separable projection is not possible for PAW.", &
+               & err_name = 'BIGDFT_RUNTIME_ERROR')
+       else if (iter%method == PROJECTION_RS_COLLOCATION) then
+          call paw_to_wavelets_collocation(iter%parent%pawrad, &
+               & iter%parent%pawtab%tproj(1, iter%riter), &
+               & ider, iter%lr, iter%parent%rxyz, iter%l, iter%cplx, &
+               & iter%proj, iter%proj_tmp, iter%wcol)
+       else if (iter%method == PROJECTION_MP_COLLOCATION) then
+          call f_err_throw("Multipole preserving projection is not implemented for PAW.", &
+               & err_name = 'BIGDFT_RUNTIME_ERROR')
+       end if
     else
        call f_err_throw("Unknown atomic projector kind.", &
             & err_name = 'BIGDFT_RUNTIME_ERROR')
     end if
     
     ! Check norm for each proj.
-    if (ider == 0 .and. iter%parent%normalized) then
+    if (ider == 0) then
        do np = 1, iter%mproj
           !here the norm should be done with the complex components
           scpr = atomic_projector_iter_wnrm2(iter, np)
           !print '(a,3(i6),1pe14.7,2(i6))','iat,l,m,scpr',iter%parent%iat,iter%l,np,scpr,ider,iter%istart_c
-          if (abs(1.d0-scpr) > 1.d-2) then
-             if (abs(1.d0-scpr) > 1.d-1) then
+          if (abs(iter%normalisation-scpr) > 1.d-2) then
+             if (abs(iter%normalisation-scpr) > 1.d-1) then
                 if (bigdft_mpi%iproc == 0) call yaml_warning( &
                      'Norm of the nonlocal PSP atom ' // trim(yaml_toa(iter%parent%iat)) // &
                      ' l=' // trim(yaml_toa(iter%l)) // &
-                     ' m=' // trim(yaml_toa(iter%n)) // ' is ' // trim(yaml_toa(scpr)) // &
-                     ' while it is supposed to be about 1.0.')
+                     ' m=' // trim(yaml_toa(np)) // ' is ' // trim(yaml_toa(scpr)) // &
+                     ' while it is supposed to be about ' // &
+                     & trim(yaml_toa(iter%normalisation)) //'.')
                 !stop commented for the moment
                 !restore the norm of the projector
                 !call wscal_wrap(mbvctr_c,mbvctr_f,1.0_gp/sqrt(scpr),proj(istart_c))
@@ -643,20 +682,21 @@ contains
     call f_free(nbsegs_cf)
   end subroutine psp_update_positions
 
-  subroutine rfunc_basis_from_pspio(pspio, rfuncs)
+  subroutine rfunc_basis_from_pspio(aproj, pspio)
     use pspiof_m, only: pspiof_pspdata_t, pspiof_pspdata_get_n_projectors, &
          & pspiof_pspdata_get_projector, pspiof_projector_copy, PSPIO_SUCCESS
     implicit none
+    type(atomic_projectors), intent(inout) :: aproj
     type(pspiof_pspdata_t), intent(in) :: pspio
-    type(pspiof_projector_t), dimension(:), pointer :: rfuncs
 
     integer :: i, n
 
+    aproj%kind = PROJ_DESCRIPTION_PSPIO
     n = pspiof_pspdata_get_n_projectors(pspio)
-    allocate(rfuncs(n))
+    allocate(aproj%rfuncs(n))
     do i = 1, n
        if (f_err_raise(pspiof_projector_copy(pspiof_pspdata_get_projector(pspio, i), &
-            & rfuncs(i)) /= PSPIO_SUCCESS, "Cannot copy projector " // &
+            & aproj%rfuncs(i)) /= PSPIO_SUCCESS, "Cannot copy projector " // &
             & trim(yaml_toa(i)), err_name = 'BIGDFT_RUNTIME_ERROR')) return
     end do
   end subroutine rfunc_basis_from_pspio
@@ -681,7 +721,7 @@ contains
     integer, intent(in), optional :: mp_order
 
     !local variables
-    real(gp) :: r, v, centre(3)
+    real(gp) :: r, v, centre(3), factor
     type(box_iterator) :: boxit
     integer :: ithread, nthread
     type(ylm_coefficients) :: ylm
@@ -705,15 +745,114 @@ contains
        !$ nthread=omp_get_num_threads()
        call box_iter_split(boxit,nthread,ithread)
        do while(box_next_point(boxit))
-          projector_real(boxit%ind) = &
-               & ylm_coefficients_at(ylm, boxit, centre, r) * &
-               & pspiof_projector_eval(rfunc, r) * v
+          factor = ylm_coefficients_at(ylm, boxit, centre, r) * v
+          projector_real(boxit%ind) = factor * pspiof_projector_eval(rfunc, r)
        end do
        call box_iter_merge(boxit)
        !$omp end parallel
        call isf_to_daub(lr, w, projector_real, psi(1,1, ylm%m))
     end do
   end subroutine rfuncs_to_wavelets_collocation
+
+  subroutine rfunc_basis_from_paw(aproj, pawrad, pawtab)
+    use m_pawrad
+    use m_pawtab
+    use m_paw_numeric
+    implicit none
+    type(atomic_projectors), intent(inout) :: aproj
+    type(pawrad_type), intent(in), target :: pawrad
+    type(pawtab_type), intent(in), target :: pawtab
+
+    real(gp) :: eps, r
+    integer :: i, iproj, ierr
+    real(dp), dimension(1) :: raux
+    real(gp), dimension(:), allocatable :: d2
+
+    aproj%pawrad => pawrad
+    aproj%pawtab => pawtab
+    if (pawtab%has_wvl == 0) then
+       aproj%kind = PROJ_DESCRIPTION_PAW
+    else
+       aproj%kind = PROJ_DESCRIPTION_GAUSSIAN
+       call gaussian_basis_from_paw(1, [1], aproj%rxyz, [pawtab], 1, aproj%gbasis)
+    end if
+    aproj%normalized = f_malloc_ptr(size(pawtab%tproj, 2), id = "normalized")
+    d2 = f_malloc(pawrad%mesh_size, id = "d2")
+    eps = pawtab%rpaw / real(1000, gp)
+    do iproj = 1, size(pawtab%tproj, 2)
+       call paw_spline(pawrad%rad, pawtab%tproj(1, iproj), pawrad%mesh_size, 0._dp, 0._dp, d2)
+       aproj%normalized(iproj) = 0._gp
+       do i = 1, 1000
+          r = i * eps
+          call paw_splint(pawrad%mesh_size, pawrad%rad, pawtab%tproj(1, iproj), d2, &
+               & 1, [r], raux, ierr)
+          aproj%normalized(iproj) = aproj%normalized(iproj) + raux(1) * raux(1) * eps
+       end do
+    end do
+    call f_free(d2)
+  end subroutine rfunc_basis_from_paw
+
+  subroutine paw_to_wavelets_collocation(pawrad, tproj, &
+       & ider, lr, rxyz, l, ncplx_p, psi, projector_real, w, mp_order)
+    use box
+    use m_paw_numeric
+    use f_utils, only: f_zero
+    use gaussians, only: ylm_coefficients, ylm_coefficients_new
+    implicit none
+    type(pawrad_type), intent(in) :: pawrad
+    real(dp), dimension(pawrad%mesh_size), intent(in) :: tproj
+    integer, intent(in) :: ider !<direction in which to perform the derivative (0 if any)
+    type(locreg_descriptors), intent(in) :: lr !<projector descriptors for wavelets representation
+    real(gp), dimension(3), intent(in) :: rxyz !<center of the Gaussian
+    integer, intent(in) :: l !< angular momentum
+    integer, intent(in) :: ncplx_p !< 2 if the projector is supposed to be complex, 1 otherwise
+    real(wp), dimension(lr%wfd%nvctr_c+7*lr%wfd%nvctr_f,ncplx_p, 2 * l - 1), intent(out) :: psi
+    real(f_double), dimension(lr%mesh%ndim), intent(inout) :: projector_real
+    type(workarr_sumrho), intent(inout) :: w
+    integer, intent(in), optional :: mp_order
+
+    !local variables
+    real(gp) :: r, v, centre(3), factor
+    type(box_iterator) :: boxit
+    integer :: ithread, nthread, ierr
+    type(ylm_coefficients) :: ylm
+    real(dp), dimension(1) :: raux
+    real(gp), dimension(:), allocatable :: d2
+
+    call f_zero(psi)
+    call ylm_coefficients_new(ylm, 1, l - 1)
+    d2 = f_malloc(pawrad%mesh_size, id = "d2")
+    call paw_spline(pawrad%rad, tproj, pawrad%mesh_size, 0._dp, 0._dp, d2)
+      
+    centre = rxyz - [cell_r(lr%mesh_coarse, lr%ns1 + 1, 1), &
+         & cell_r(lr%mesh_coarse, lr%ns2 + 1, 2), &
+         & cell_r(lr%mesh_coarse, lr%ns3 + 1, 3)]
+    v = sqrt(lr%mesh%volume_element)
+    
+    do while(ylm_coefficients_next_m(ylm))
+       call f_zero(projector_real)
+       boxit = lr%bit
+       ithread=0
+       nthread=1
+       !$omp parallel default(shared)&
+       !$omp private(ithread, r) &
+       !$omp firstprivate(boxit) 
+       !$ ithread=omp_get_thread_num()
+       !$ nthread=omp_get_num_threads()
+       call box_iter_split(boxit,nthread,ithread)
+       do while(box_next_point(boxit))
+          factor = ylm_coefficients_at(ylm, boxit, centre, r)
+          r = max(r, 1e-8_gp)
+          call paw_splint(pawrad%mesh_size, pawrad%rad, tproj, d2, &
+               & 1, [r], raux, ierr)
+          projector_real(boxit%ind) = factor * raux(1) * v / r
+       end do
+       call box_iter_merge(boxit)
+       !$omp end parallel
+       call isf_to_daub(lr, w, projector_real, psi(1,1, ylm%m))
+    end do
+    call f_free(d2)
+  end subroutine paw_to_wavelets_collocation
 
   subroutine DFT_PSP_projectors_iter_new(iter, nlpsp)
     implicit none

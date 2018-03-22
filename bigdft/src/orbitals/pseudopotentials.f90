@@ -512,8 +512,8 @@ contains
          call libxc_functionals_init(ixcpsp, 1)
          call paw_from_file(pawrad(ityp), pawtab(ityp), &
               epsatm(ityp), trim(fpaw), &
-              & nzatom, nelpsp, ixcpsp)
-         radii_cf(3)= pawtab(ityp)%rpaw !/ frmult + 0.01
+              & nzatom, nelpsp, ixcpsp, psppar)
+         !radii_cf(3)= pawtab(ityp)%rpaw !/ frmult + 0.01
          call libxc_functionals_end()
       else if (npspcode == PSPCODE_PSPIO) then
          fpaw = dict // SOURCE_KEY
@@ -722,12 +722,18 @@ contains
 
       ! Radii (& carottes)
       if (any(radii_cf /= UNINITIALIZED(1._gp))) then
-         call dict_init(radii)
-         if (radii_cf(1) /= UNINITIALIZED(1._gp)) call set(radii // COARSE, radii_cf(1))
-         if (radii_cf(2) /= UNINITIALIZED(1._gp)) call set(radii // FINE, radii_cf(2))
-         if (radii_cf(3) /= UNINITIALIZED(1._gp)) call set(radii // COARSE_PSP, radii_cf(3))
+         if (.not. (RADII_KEY .in. dict)) then
+            call dict_init(radii)
+            call set(dict // RADII_KEY, radii)
+         end if
+         radii => dict // RADII_KEY
+         if (radii_cf(1) /= UNINITIALIZED(1._gp) .and. .not. (COARSE .in. radii)) &
+              & call set(radii // COARSE, radii_cf(1))
+         if (radii_cf(2) /= UNINITIALIZED(1._gp) .and. .not. (FINE .in. radii)) &
+              & call set(radii // FINE, radii_cf(2))
+         if (radii_cf(3) /= UNINITIALIZED(1._gp) .and. .not. (COARSE_PSP .in. radii)) &
+              & call set(radii // COARSE_PSP, radii_cf(3))
          call set(radii // SOURCE_KEY, RADII_SOURCE_FILE)
-         call set(dict // RADII_KEY, radii)
       end if
 
     end subroutine psp_data_merge_to_dict
@@ -741,6 +747,7 @@ contains
       use dictionaries
       use f_utils
       use m_pawpsp, only: pawpsp_read_header_2
+      use yaml_output
       implicit none
 
       type(io_stream), intent(inout) :: ios
@@ -755,8 +762,7 @@ contains
 
       integer :: ierror, ierror1, i, j, nn, nlterms, nprl, l, nzatom_, nelpsp_, npspcode_
       integer :: lmax,lloc,mmax, ixc_
-      integer:: pspversion,basis_size,lmn_size
-      real(dp) :: nelpsp_dp,nzatom_dp,r2well
+      real(dp) :: nelpsp_dp,nzatom_dp,r2well,rpaw
       character(len=max_field_length) :: line
       logical :: exists, eof
 
@@ -781,11 +787,24 @@ contains
          nzatom=int(nzatom_dp); nelpsp=int(nelpsp_dp)
          call f_iostream_get_line(ios, line)
          read(line,*) npspcode, ixcpsp, lmax, lloc, mmax, r2well
+         if (npspcode == 7) then
+            call f_iostream_get_line(ios, line)
+            call f_iostream_get_line(ios, line)
+            call f_iostream_get_line(ios, line)
+            call f_iostream_get_line(ios, line)
+            read(line, *) nn
+            do i = 1, nn
+               call f_iostream_get_line(ios, line)
+            end do
+            call f_iostream_get_line(ios, line)
+            read(line, *) rpaw
+         end if
       else
          npspcode = PSPCODE_PAW ! XML pseudo, try to get nzatom, nelpsp and ixcpsp by hand
          nzatom = 0
          nelpsp = 0
          ixcpsp = 0
+         rpaw   = 0._gp
          do
 
             call f_iostream_get_line(ios, line, eof)
@@ -808,6 +827,16 @@ contains
                i = i + index(line(i:max_field_length), '"')
                j = i + index(line(i:max_field_length), '"') - 2
                call xc_get_id_from_name(ixcpsp, line(i:j))
+               if (ixcpsp > 0) then
+                  call yaml_warning("Unknown xc functional " // line(i:j))
+                  ixcpsp = -20
+               end if
+            end if
+            if (line(1:12) == "<paw_radius ") then
+               i = index(line, "rc")
+               i = i + index(line(i:max_field_length), '"')
+               j = i + index(line(i:max_field_length), '"') - 2
+               read(line(i:j), *) rpaw
             end if
          end do
       end if
@@ -841,7 +870,7 @@ contains
          if (.not.exists) &
               call f_err_throw('Implement here.',err_name='BIGDFT_RUNTIME_ERROR')
          ! PAW format using libPAW.
-         if (ios%iunit /=0) call pawpsp_read_header_2(ios%iunit,pspversion,basis_size,lmn_size)
+         !if (ios%iunit /=0) call pawpsp_read_header_2(ios%iunit,pspversion,basis_size,lmn_size)
          ! PAW data will not be saved in the input dictionary,
          ! we keep their reading for later.
          pawpatch = .true.
@@ -921,19 +950,7 @@ contains
             pawpatch = (trim(line) == "PAWPATCH")
          end do
       else
-         ! Need NC psp for input guess.
-         call atomic_info(nzatom, nelpsp, symbol = symbol)
-         ixc_ = ixcpsp ! Because psp_from_data() will change ixc_.
-         call psp_from_data(symbol, nzatom_, nelpsp_, npspcode_, ixc_, &
-              & psppar, exists)
-         ! Fallback to LDA case, anyway, this is only for input guess.
-         if (.not.exists) then
-            ixc_ = 1
-            call psp_from_data(symbol, nzatom_, nelpsp_, npspcode_, ixc_, &
-                 psppar, exists)
-            if (.not. exists) call f_err_throw('Default PSP data for LDA not found',&
-                 err_name='BIGDFT_RUNTIME_ERROR')
-         end if
+         if (rpaw > 0._gp) radii_cf(3) = rpaw
       end if
     END SUBROUTINE psp_from_stream
 
@@ -1023,7 +1040,7 @@ contains
       call pspiof_pspdata_free(pspio)
     END SUBROUTINE psp_from_pspio
 
-    subroutine paw_from_file(pawrad, pawtab, epsatm, filename, nzatom, nelpsp, ixc)
+    subroutine paw_from_file(pawrad, pawtab, epsatm, filename, nzatom, nelpsp, ixc, psppar)
       use module_defs, only: dp, gp, pi_param
       !use module_base, only: bigdft_mpi
       use module_xc
@@ -1032,6 +1049,7 @@ contains
       use m_pawxmlps, only: paw_setup, rdpawpsxml, ipsp2xml, paw_setup_free
       use m_pawrad, only: pawrad_type !, pawrad_nullify
       use m_pawtab, only: pawtab_type, pawtab_nullify
+      use m_paw_numeric
       use dictionaries, only: max_field_length
       use dynamic_memory
       use f_utils
@@ -1043,11 +1061,12 @@ contains
       real(gp), intent(out) :: epsatm
       character(len = *), intent(in) :: filename
       integer, intent(in) :: nzatom, nelpsp, ixc
+      real(gp), dimension(0:4, 0:6), intent(out) :: psppar
 
-      integer:: icoulomb,ipsp !, ib, i, ii
+      integer:: icoulomb,ipsp, i, ii, ierr, l
       integer:: pawxcdev,usewvl,usexcnhat,xclevel
       integer::pspso
-      real(dp) :: xc_denpos
+      real(dp) :: xc_denpos, r, eps, nrm, rloc
       real(dp) :: xcccrc
       character(len = fnlen) :: filpsp   ! name of the psp file
       character(len = max_field_length) :: line
@@ -1056,9 +1075,10 @@ contains
       !!arrays
       integer:: wvl_ngauss(2)
       integer, parameter :: mqgrid_ff = 0, mqgrid_vl = 0
-      real(dp):: qgrid_ff(mqgrid_ff),qgrid_vl(mqgrid_vl)
+      real(dp):: qgrid_ff(mqgrid_ff),qgrid_vl(mqgrid_vl), raux(1)
       real(dp):: ffspl(mqgrid_ff,2,1)
       real(dp):: vlspl(mqgrid_vl,2)
+      real(gp), dimension(:), allocatable :: d2
 
       !call pawrad_nullify(pawrad)
       call pawtab_nullify(pawtab)
@@ -1066,7 +1086,7 @@ contains
       !Defines the number of Gaussian functions for projectors
       !See ABINIT input files documentation
       wvl_ngauss=[10,10]
-      icoulomb= 1 !Fake argument, this only indicates that we are inside bigdft..
+      icoulomb= 0 !Fake argument, this only indicates that we are inside bigdft..
       !do not change, even if icoulomb/=1
       ipsp=1      !This is relevant only for XML.
       ! For the moment, it will just work for LDA
@@ -1100,20 +1120,45 @@ contains
            & pawrad,pawtab,&
            & filpsp,usewvl,icoulomb,ixc,xclevel,pawxcdev,usexcnhat,&
            & qgrid_ff,qgrid_vl,ffspl,vlspl,epsatm,xcccrc,real(nelpsp, dp),real(nzatom, dp),&
-           & wvl_ngauss,comm_mpi=bigdft_mpi%mpi_comm,psxml = paw_setup(1))
+           & wvl_ngauss = wvl_ngauss, comm_mpi=bigdft_mpi%mpi_comm,psxml = paw_setup(1))
 
       call paw_setup_free(paw_setup(1))
       deallocate(paw_setup)
       if (allocated(ipsp2xml)) call f_free(ipsp2xml)
 
-!!$  ii = 0
-!!$  do ib = 1, pawtab%basis_size
-!!$     do i = 1, pawtab%wvl%pngau(ib)
-!!$        ii = ii + 1
-!!$        write(80 + ib,*) pawtab%wvl%pfac(:, ii), pawtab%wvl%parg(:, ii)
-!!$     end do
-!!$     close(80 + ib)
-!!$  end do
+      psppar = 0._gp
+
+      ! Compute projector radii.
+      d2 = f_malloc(pawrad%mesh_size, id = "d2")
+      eps = pawtab%rpaw / real(1000, gp)
+      do i = 1, pawtab%basis_size
+         l = pawtab%orbitals(i) + 1
+         if (psppar(l, 0) > 0._gp) cycle
+         
+         call paw_spline(pawrad%rad, pawtab%tproj(1, i), pawrad%mesh_size, 0._dp, 0._dp, d2)
+         nrm = 0._gp
+         do ii = 1, 1000
+            r = ii * eps
+            call paw_splint(pawrad%mesh_size, pawrad%rad, pawtab%tproj(1, i), d2, &
+                 & 1, [r], raux, ierr)
+            psppar(l, 0) = psppar(l, 0) + r * r * raux(1) * raux(1) * eps
+            nrm = nrm + raux(1) * raux(1) * eps
+         end do
+         psppar(l, 0) = sqrt(psppar(l, 0) / nrm /3._gp * 2._gp)
+      end do
+      call f_free(d2)
+      ! Try to guess a rloc for potential.
+      rloc = 0._gp
+      eps = 1e-4_gp
+      do i = 1, int(8._gp / eps)
+         r = real(i, gp) * eps
+         call paw_splint(pawtab%wvl%rholoc%msz, pawtab%wvl%rholoc%rad, &
+              & pawtab%wvl%rholoc%d(:,3), pawtab%wvl%rholoc%d(:,4), &
+              & 1, [r], raux, ierr)
+         if (raux(1) + nelpsp / r > 1e-8) rloc = r
+         write(92, *) r, raux(1)
+      end do
+      psppar(0, 0) = max(rloc / 6._gp, 0.2_gp) ! Avoid too sharp gaussians.
     END SUBROUTINE paw_from_file
     
     !> routine for applying the coefficients needed HGH-type PSP to the scalar product

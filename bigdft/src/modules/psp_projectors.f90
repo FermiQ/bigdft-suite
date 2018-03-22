@@ -404,8 +404,8 @@ contains
     call atomic_projector_iter_free(a_it)
   end subroutine DFT_PSP_projectors_iter_ensure
 
-  subroutine DFT_PSP_projectors_iter_apply(psp_it, psi_it, paw, at, eproj, &
-       & hcproj_in, hcproj_out, hpsi)
+  subroutine DFT_PSP_projectors_iter_apply(psp_it, psi_it, at, eproj, &
+       & hcproj_in, hcproj_out, hpsi, paw)
     use module_atoms
     use module_types
     use orbitalbasis
@@ -415,13 +415,14 @@ contains
     implicit none
     type(DFT_PSP_projector_iter), intent(in) :: psp_it
     type(ket), intent(in) :: psi_it
-    type(paw_objects), intent(inout) :: paw
     type(atoms_data), intent(in) :: at
     real(wp), intent(out) :: eproj
     real(wp), dimension(max(psp_it%ncplx, psp_it%ncplx), psi_it%n_ket, psp_it%mproj), intent(in), optional :: hcproj_in
     real(wp), dimension(max(psp_it%ncplx, psp_it%ncplx), psi_it%n_ket, psp_it%mproj), intent(out), optional :: hcproj_out
     real(wp), dimension(psi_it%ob%orbs%npsidim_orbs), intent(inout), optional :: hpsi
-    
+    type(paw_objects), intent(inout), optional :: paw
+
+    logical :: usepaw
     integer :: ityp, nc, m, mm
     real(gp), dimension(3,3,4) :: hij
     type(atomic_proj_matrix) :: prj
@@ -439,7 +440,9 @@ contains
             & psp_it%parent%cproj, psi_it%kwgt * psi_it%occup, &
             & psp_it%parent%iagamma(0, psp_it%iat), psp_it%parent%gamma_mmp(1,1,1,1,psi_it%ispin))
     end if
-    if (paw%usepaw) then
+    usepaw = .false.
+    if (present(paw)) usepaw = paw%usepaw
+    if (usepaw) then
        ! Can be done in a better way I guess...
        mm = 1
        nc = max(psp_it%ncplx, psi_it%ncplx) * psi_it%n_ket
@@ -453,7 +456,7 @@ contains
     if (.not. present(hcproj_in)) then
        nc = max(psi_it%ncplx, psp_it%ncplx) * psi_it%n_ket
        ! Compute hcproj.
-       if (.not. paw%usepaw) then
+       if (.not. usepaw) then
           ityp = at%astruct%iatype(psp_it%iat)
           call hgh_hij_matrix(at%npspcode(ityp), at%psppar(0,0,ityp), hij)
           if (associated(at%gamma_targets) .and. psp_it%parent%apply_gamma_target) then
@@ -513,7 +516,7 @@ contains
             & psp_it%parent%wpack, psp_it%parent%scpr)
     end if
 
-    if (paw%usepaw .and. present(hpsi)) then
+    if (usepaw .and. present(hpsi)) then
        ityp = at%astruct%iatype(psp_it%iat)
        nc = max(psi_it%ncplx, psp_it%ncplx) * psi_it%n_ket
        call apply_paw_coeff(at%pawtab(ityp)%sij, 1, nc, psp_it%mproj, &

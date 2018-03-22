@@ -956,25 +956,27 @@ subroutine print_atomic_variables(atoms, hmax, ixc)
      end if
      ! PAW case.
      if (atoms%npspcode(ityp) == PSPCODE_PAW) then
-        call yaml_sequence_open('NonLocal PSP Parameters (PAW)')
-        j0 = 1
-        l = 1
-        do i = 1, atoms%pawtab(ityp)%basis_size
-           call yaml_sequence(advance='no')
-           call yaml_map('Channel (l,m,n)', atoms%pawtab(ityp)%indlmn(1:3, l))
-           l = l + atoms%pawtab(ityp)%orbitals(i) * 2 + 1
-           call yaml_sequence_open('gaussians')
-           do j = j0, j0 + atoms%pawtab(ityp)%wvl%pngau(i) / 2 - 1
+        if (atoms%pawtab(ityp)%has_wvl > 0) then
+           call yaml_sequence_open('NonLocal PSP Parameters (PAW)')
+           j0 = 1
+           l = 1
+           do i = 1, atoms%pawtab(ityp)%basis_size
               call yaml_sequence(advance='no')
-              call yaml_mapping_open(flow = .true.)
-              call yaml_map('factor', atoms%pawtab(ityp)%wvl%pfac(:,j),fmt='(f10.6)')
-              call yaml_map('exponent', atoms%pawtab(ityp)%wvl%parg(:,j),fmt='(f10.6)')
-              call yaml_mapping_close()
+              call yaml_map('Channel (l,m,n)', atoms%pawtab(ityp)%indlmn(1:3, l))
+              l = l + atoms%pawtab(ityp)%orbitals(i) * 2 + 1
+              call yaml_sequence_open('gaussians')
+              do j = j0, j0 + atoms%pawtab(ityp)%wvl%pngau(i) / 2 - 1
+                 call yaml_sequence(advance='no')
+                 call yaml_mapping_open(flow = .true.)
+                 call yaml_map('factor', atoms%pawtab(ityp)%wvl%pfac(:,j),fmt='(f10.6)')
+                 call yaml_map('exponent', atoms%pawtab(ityp)%wvl%parg(:,j),fmt='(f10.6)')
+                 call yaml_mapping_close()
+              end do
+              j0 = j0 + atoms%pawtab(ityp)%wvl%pngau(i)
+              call yaml_sequence_close()
            end do
-           j0 = j0 + atoms%pawtab(ityp)%wvl%pngau(i)
            call yaml_sequence_close()
-        end do
-        call yaml_sequence_close()
+        end if
         mproj = 0
         do i = 1, atoms%pawtab(ityp)%basis_size
            mproj = mproj + 2 * atoms%pawtab(ityp)%orbitals(i) + 1
