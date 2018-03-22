@@ -89,7 +89,7 @@ module box
   public :: cell_r,cell_periodic_dims,rxyz_ortho,distance,closest_r,square_gu,square_gd,cell_new,box_iter,box_next_point
   public :: cell_geocode,box_next_x,box_next_y,box_next_z,dotp_gu,dotp_gd,cell_null,nullify_box_iterator
   public :: box_iter_rewind,box_iter_split,box_iter_merge,box_iter_set_nbox,box_iter_expand_nbox,box_nbox_from_cutoff
-  public :: bc_periodic_dims,geocode_to_bc,fill_logrid_with_spheres
+  public :: bc_periodic_dims,geocode_to_bc
 
 
 contains
@@ -230,23 +230,34 @@ contains
   end subroutine box_iter_set_nbox
 
   !> this function has to be genralized for non-orthorhombic grids
-  pure function box_nbox_from_cutoff(mesh,oxyz,cutoff) result(nbox)
+  pure function box_nbox_from_cutoff(mesh,oxyz,cutoff,inner) result(nbox)
     implicit none
     type(cell), intent(in) :: mesh
     real(gp), dimension(3), intent(in) :: oxyz
     real(gp), intent(in) :: cutoff
     integer, dimension(2,3) :: nbox
+    logical, intent(in), optional :: inner
+    !local variables
+    logical :: inner_
     real(gp), dimension(2,3) :: rbox
     !for non-orthorhombic cells the concept of distance has to be inserted here (the box should contain the sphere)
 !!$    nbox(START_,:)=floor((oxyz-cutoff)/mesh%hgrids)
 !!$    nbox(END_,:)=ceiling((oxyz+cutoff)/mesh%hgrids)
 
+    inner_=.true.
+    if (present(inner)) inner_=inner
+
     rbox=cell_cutoff_extrema(mesh,oxyz,cutoff)
-    nbox(START_,:)=ceiling(rbox(START_,:)/mesh%hgrids)
-    nbox(END_,:)=floor(rbox(END_,:)/mesh%hgrids)
+
+    if (inner_) then
+       nbox(START_,:)=ceiling(rbox(START_,:)/mesh%hgrids)
+       nbox(END_,:)=floor(rbox(END_,:)/mesh%hgrids)
+    else
+       nbox(START_,:)=floor(rbox(START_,:)/mesh%hgrids)
+       nbox(END_,:)=ceiling(rbox(END_,:)/mesh%hgrids)
+    end if
 
   end function box_nbox_from_cutoff
-
 
   pure function cell_cutoff_extrema(mesh,oxyz,cutoff) result(rbox)
     implicit none
@@ -263,27 +274,6 @@ contains
 !        rbox(END_,:)=rxyz_nonortho(mesh,rxyz_ortho(mesh,oxyz)+cutoff)
 !    end if
   end function cell_cutoff_extrema
-
-  !> Tick .true. inside the sphere of radius rad and center rxyz0.
-  !! Used to build up the localization regions around each atoms.
-  subroutine fill_logrid_with_spheres(mesh,rxyz0,rad,logrid)
-    implicit none
-    type(cell), intent(in) :: mesh
-    real(gp), dimension(3), intent(in) :: rxyz0
-    real(gp), intent(in) :: rad
-    logical, dimension(mesh%ndims(1),mesh%ndims(2),mesh%ndims(3)), intent(inout) :: logrid
-    !local variables
-    type(box_iterator) :: bit
-
-    bit=box_iter(mesh)
-    do while(box_next_point(bit))
-         ! Tick .true. inside the sphere of radius rad and center rxyz0
-         if (distance(bit%mesh,bit%rxyz,rxyz0) .le. rad) then
-             logrid(bit%i,bit%j,bit%k)=.true.
-         end if
-    end do
-
-  end subroutine fill_logrid_with_spheres
 
   pure subroutine box_iter_expand_nbox(bit)
     implicit none
@@ -333,7 +323,7 @@ contains
     do i=1,3
        subdims(i)=bit%subbox(END_,i)-bit%subbox(START_,i)+1
     end do
-    subdims(3)=min(subdims(3),bit%i3e-bit%i3s+1)
+    if (bit%mesh%bc(Z_) /= PERIODIC) subdims(3)=min(subdims(3),bit%i3e-bit%i3s+1)
 
     !first, count if the iterator covers all the required points
     itgt=product(int(subdims,f_long))
@@ -361,13 +351,19 @@ contains
 !!$    end do
 
     do iz=1,subdims(Z_)
-       lz(iz)=iz+bit%subbox(START_,Z_)-1
+       jz=iz+bit%subbox(START_,Z_)-1
+       if (bit%mesh%bc(Z_) == PERIODIC) jz=modulo(jz-1,bit%mesh%ndims(Z_))+1
+       lz(iz)=jz
     end do
     do iy=1,subdims(Y_)
-       ly(iy)=iy+bit%subbox(START_,Y_)-1
+       jy=iy+bit%subbox(START_,Y_)-1
+       if (bit%mesh%bc(Y_) == PERIODIC) jy=modulo(jy-1,bit%mesh%ndims(Y_))+1
+       ly(iy)=jy
     end do
     do ix=1,subdims(X_)
-       lx(ix)=ix+bit%subbox(START_,X_)-1
+       jx=ix+bit%subbox(START_,X_)-1
+       if (bit%mesh%bc(X_) == PERIODIC) jx=modulo(jx-1,bit%mesh%ndims(X_))+1
+       lx(ix)=jx
     end do
 
     !separable mode
@@ -397,7 +393,7 @@ contains
 
              icnt=icnt+1
              call f_assert(lx(jx) == bit%i,'D')!,&
-             !'Error value, ix='+bit%i+', expected='+lx(ix))
+                 !'Error value, ix='+bit%i+', expected='+lx(jx))
              !convert the value of the logical array
              !if (lxyz(bit%ind)) &
              if (lxyz(icnt)) &
@@ -423,23 +419,27 @@ contains
     !'Error sep boxit, icnt='+icnt+', itgt='+itgt)
 
     !complete mode
-    icnt=int(0,f_long)
-    do while(box_next_point(bit))
-       icnt=icnt+1
-       !here we might see if there are points from which
-       !we passed twice
-       !print *,bit%i,bit%j,bit%k
-       !if (.not. lxyz(bit%ind)) &
-       if (.not. lxyz(icnt)) &
-            call f_err_throw('Error point (2) ind='+bit%ind+&
-            ', i,j,k='+yaml_toa([bit%i,bit%j,bit%k]))
-       !lxyz(bit%ind)=f_F
-       lxyz(icnt)=f_F
-    end do
-    call f_assert(icnt == itgt,'Error boxit, icnt='+icnt+&
-         ', itgt='+itgt)
+    if (all( bit%subbox(END_,:)-bit%subbox(START_,:) < bit%mesh%ndims) .or. all(bit%mesh%bc == FREE)) then
+       icnt=int(0,f_long)
+       do while(box_next_point(bit))
+          icnt=icnt+1
+          !here we might see if there are points from which
+          !we passed twice
+          !print *,bit%i,bit%j,bit%k
+          !if (.not. lxyz(bit%ind)) &
+          if (.not. lxyz(icnt)) &
+               call f_err_throw('Error point (2) ind='+bit%ind+&
+               ', i,j,k='+yaml_toa([bit%i,bit%j,bit%k]))
+          !lxyz(bit%ind)=f_F
+          lxyz(icnt)=f_F
+       end do
+       call f_assert(icnt == itgt,'Error boxit, icnt='+icnt+&
+            ', itgt='+itgt)
+       !no points have to be left behind
+       if (any(lxyz)) call f_err_throw('Error boxit, points not covered')
+    end if
 
-    if (any(lxyz)) call f_err_throw('Error boxit, points not covered')
+
 
     call f_free(lxyz)
     call f_free(lx,ly,lz)
