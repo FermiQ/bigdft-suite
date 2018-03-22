@@ -427,6 +427,8 @@ subroutine segkeys_Sphere(perx, pery, perz, n1, n2, n3, nl1glob, nl2glob, nl3glo
      inside=.false.
      do ij3=ijs3,ije3
         jj3=ii3+ij3*(n3+1)
+        !this is not trivial for non-orthorhombic case
+        !should employ mesh-like quantities
         dz=((jj3*hz)-locregCenter(3))**2
         if(dz<=cut) then
            inside=.true.
@@ -1655,6 +1657,7 @@ subroutine fill_logrid(geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,nbuf,nat,  &
      &   ntypes,iatype,rxyz,radii,rmult,hx,hy,hz,logrid)
   use module_base
   use sparsematrix_init, only: distribute_on_tasks
+  use box
   implicit none
   !Arguments
   character(len=*), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
@@ -1665,26 +1668,31 @@ subroutine fill_logrid(geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,nbuf,nat,  &
   real(gp), dimension(3,nat), intent(in) :: rxyz
   logical, dimension(0:n1,0:n2,0:n3), intent(out) :: logrid
   !local variables
+  integer, parameter :: START_=1,END_=2
   real(kind=8), parameter :: eps_mach=1.d-12
-  integer :: i1,i2,i3,iat,ml1,ml2,ml3,mu1,mu2,mu3,j1,j2,j3,i1s,i1e,i2s,i2e,i3s,i3e
+  integer :: i1,i2,i3,iat,ml1,ml2,ml3,mu1,mu2,mu3,j1,j2,j3,i1s,i1e,i2s,i2e,i3s,i3e,i
   integer :: natp, isat, iiat
   real(gp) :: dx,dy2,dz2,rad,dy2pdz2,radsq
   logical :: parallel
+  integer, dimension(2,3) :: nbox_limit,nbox,nbox_tmp
+  type(cell) :: mesh
+  type(box_iterator) :: bit
 
   call f_routine(id='fill_logrid')
 
-  !some checks
-  if (geocode(1:1) /= 'F') then
-     !the nbuf value makes sense only in the case of free BC
-     if (nbuf /=0) then
-        write(*,'(1x,a)')'ERROR: a nonzero value of nbuf is allowed only for Free BC (tails)'
-        stop
-     end if
-  else
-     !The grid spacings must be the same
-     if (hx /= hy .or. hy /= hz .or. hx /= hz) then
-        !        write(*,'(1x,a)')'ERROR: For Free BC the grid spacings must be the same'
-     end if
+  mesh=cell_new(geocode,[n1+1,n2+1,n3+1],[hx,hy,hz]) 
+
+  nbox_limit(START_,1)=nl1
+  nbox_limit(END_,1)=nu1
+  nbox_limit(START_,2)=nl2
+  nbox_limit(END_,2)=nu2
+  nbox_limit(START_,3)=nl3
+  nbox_limit(END_,3)=nu3
+
+  if (geocode(1:1) /= 'F' .and. nbuf /=0) then
+        call f_err_throw('ERROR: a nonzero value of nbuf is allowed only for Free BC (tails)',&
+             err_name='BIGDFT_RUNTIME_ERROR')
+        return
   end if
 
   if (geocode(1:1) == 'F') then
@@ -1747,74 +1755,120 @@ subroutine fill_logrid(geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,nbuf,nat,  &
 
   do iat=1,natp
      iiat = iat + isat
-     rad=radii(iatype(iiat))*rmult+real(nbuf,gp)*hx
-     if (rad /= 0.0_gp) then
-        ml1=ceiling((rxyz(1,iiat)-rad)/hx - eps_mach)  
-        ml2=ceiling((rxyz(2,iiat)-rad)/hy - eps_mach)   
-        ml3=ceiling((rxyz(3,iiat)-rad)/hz - eps_mach)   
-        mu1=floor((rxyz(1,iiat)+rad)/hx + eps_mach)
-        mu2=floor((rxyz(2,iiat)+rad)/hy + eps_mach)
-        mu3=floor((rxyz(3,iiat)+rad)/hz + eps_mach)
+     if (radii(iatype(iiat)) == 0.0_gp) cycle
+     rad=radii(iatype(iiat))*rmult+(real(nbuf,gp)+eps_mach)*maxval(mesh%hgrids)
+     nbox=box_nbox_from_cutoff(mesh,rxyz(:,iiat),rad)
 
-        !for Free BC, there must be no incoherences with the previously calculated delimiters
-        if (geocode(1:1) == 'F') then
-           if (ml1 < nl1) then
-              write(*,'(a,i0,3x,i0)')  'ERROR: ml1 < nl1  ', ml1, nl1
-              stop
-           end if
-           if (ml2 < nl2) then
-              write(*,'(a,i0,3x,i0)')  'ERROR: ml2 < nl2  ', ml2, nl2
-              stop
-           end if
-           if (ml3 < nl3) then
-              write(*,'(a,i0,3x,i0)')  'ERROR: ml3 < nl3  ', ml3, nl3
-              stop
-           end if
-
-           if (mu1 > nu1) then
-              write(*,'(a,i0,3x,i0)')  'ERROR: mu1 > nu1  ', mu1, nu1
-              stop
-           end if
-           if (mu2 > nu2) then
-              write(*,'(a,i0,3x,i0)')  'ERROR: mu2 > nu2  ', mu2, nu2
-              stop
-           end if
-           if (mu3 > nu3) then
-              write(*,'(a,i0,3x,i0)')  'ERROR: mu3 > nu3  ', mu3, nu3
-              stop
-           end if
+     if (cell_geocode(mesh) == 'F') then
+        if (any( (nbox(START_,:) < nbox_limit(START_,:)) .or. (nbox(END_,:) > nbox_limit(END_,:)) )) then
+           call f_err_throw('The box of the atom '//trim(yaml_toa(iat))//' is outside the limit; '//&
+                trim(yaml_toa(reshape(nbox,[6])))//', '//trim(yaml_toa(reshape(nbox_limit,[6]))),&
+                err_name='BIGDFT_RUNTIME_ERROR')
         end if
-        i3s=max(ml3,-n3/2-1)
-        i3e=min(mu3,n3+n3/2+1)
-        i2s=max(ml2,-n2/2-1)
-        i2e=min(mu2,n2+n2/2+1)
-        i1s=max(ml1,-n1/2-1)
-        i1e=min(mu1,n1+n1/2+1)
-        radsq=rad**2
-        !what follows works always provided the check before
-        !$omp parallel default(shared) private(i3,dz2,j3,i2,dy2,j2,i1,j1,dx,dy2pdz2)
-        !$omp do schedule(static,1)
-        do i3=i3s,i3e
-           dz2=(real(i3,gp)*hz-rxyz(3,iiat))**2-eps_mach
-           if (dz2>radsq) cycle
-           j3=modulo(i3,n3+1)
-           do i2=i2s,i2e
-              dy2=(real(i2,gp)*hy-rxyz(2,iiat))**2
-              dy2pdz2=dy2+dz2
-              if (dy2pdz2>radsq) cycle
-              j2=modulo(i2,n2+1)
-              do i1=i1s,i1e
-                 j1=modulo(i1,n1+1)
-                 dx=real(i1,gp)*hx-rxyz(1,iiat)
-                 if (dx**2+dy2pdz2 <= radsq) then 
-                    logrid(j1,j2,j3)=.true.
-                 endif
-              enddo
-           enddo
-        enddo
-        !$omp enddo
-        !$omp end parallel
      end if
+
+     !in the case of periodic bc there should be no need to wrap around multiple times here
+     do i=1,3
+        nbox(START_,i)=max(nbox(START_,i),-(mesh%ndims(i)-1)/2-1)
+        nbox(END_,i)=min(nbox(END_,i),mesh%ndims(i)+(mesh%ndims(i)-1)/2)
+     end do
+
+
+!!$     ml1=ceiling((rxyz(1,iiat)-rad)/hx - eps_mach)  
+!!$     ml2=ceiling((rxyz(2,iiat)-rad)/hy - eps_mach)   
+!!$     ml3=ceiling((rxyz(3,iiat)-rad)/hz - eps_mach)   
+!!$     mu1=floor((rxyz(1,iiat)+rad)/hx + eps_mach)
+!!$     mu2=floor((rxyz(2,iiat)+rad)/hy + eps_mach)
+!!$     mu3=floor((rxyz(3,iiat)+rad)/hz + eps_mach)
+!!$     i3s=max(ml3,-n3/2-1)
+!!$     i3e=min(mu3,n3+n3/2+1)
+!!$     i2s=max(ml2,-n2/2-1)
+!!$     i2e=min(mu2,n2+n2/2+1)
+!!$     i1s=max(ml1,-n1/2-1)
+!!$     i1e=min(mu1,n1+n1/2+1)
+!!$
+!!$     nbox_tmp(START_,3)=i3s
+!!$     nbox_tmp(END_,3)=i3e
+!!$     nbox_tmp(START_,2)=i2s
+!!$     nbox_tmp(END_,2)=i2e
+!!$     nbox_tmp(START_,1)=i1s
+!!$     nbox_tmp(END_,1)=i1e
+!!$
+!!$
+!!$     !print *,'limitold',ml3,mu3,i3s,i3e
+!!$     !print *,'limitnew',nbox(:,3)
+!!$
+!!$     call f_assert(all(nbox_tmp == nbox),id='box different')
+
+     bit=box_iter(mesh,nbox=nbox+1) !add here a plus one for the convention of ndims
+     call fill_logrid_with_spheres(bit,rxyz(1,iiat),rad+eps_mach,logrid)
+
+!!$        ml1=ceiling((rxyz(1,iiat)-rad)/hx - eps_mach)  
+!!$        ml2=ceiling((rxyz(2,iiat)-rad)/hy - eps_mach)   
+!!$        ml3=ceiling((rxyz(3,iiat)-rad)/hz - eps_mach)   
+!!$        mu1=floor((rxyz(1,iiat)+rad)/hx + eps_mach)
+!!$        mu2=floor((rxyz(2,iiat)+rad)/hy + eps_mach)
+!!$        mu3=floor((rxyz(3,iiat)+rad)/hz + eps_mach)
+!!$
+!!$        !for Free BC, there must be no incoherences with the previously calculated delimiters
+!!$        if (geocode(1:1) == 'F') then
+!!$           if (ml1 < nl1) then
+!!$              write(*,'(a,i0,3x,i0)')  'ERROR: ml1 < nl1  ', ml1, nl1
+!!$              stop
+!!$           end if
+!!$           if (ml2 < nl2) then
+!!$              write(*,'(a,i0,3x,i0)')  'ERROR: ml2 < nl2  ', ml2, nl2
+!!$              stop
+!!$           end if
+!!$           if (ml3 < nl3) then
+!!$              write(*,'(a,i0,3x,i0)')  'ERROR: ml3 < nl3  ', ml3, nl3
+!!$              stop
+!!$           end if
+!!$
+!!$           if (mu1 > nu1) then
+!!$              write(*,'(a,i0,3x,i0)')  'ERROR: mu1 > nu1  ', mu1, nu1
+!!$              stop
+!!$           end if
+!!$           if (mu2 > nu2) then
+!!$              write(*,'(a,i0,3x,i0)')  'ERROR: mu2 > nu2  ', mu2, nu2
+!!$              stop
+!!$           end if
+!!$           if (mu3 > nu3) then
+!!$              write(*,'(a,i0,3x,i0)')  'ERROR: mu3 > nu3  ', mu3, nu3
+!!$              stop
+!!$           end if
+!!$        end if
+
+!!$        i3s=max(ml3,-n3/2-1)
+!!$        i3e=min(mu3,n3+n3/2+1)
+!!$        i2s=max(ml2,-n2/2-1)
+!!$        i2e=min(mu2,n2+n2/2+1)
+!!$        i1s=max(ml1,-n1/2-1)
+!!$        i1e=min(mu1,n1+n1/2+1)
+!!$        radsq=rad**2
+!!$        !what follows works always provided the check before
+!!$        !$omp parallel default(shared) private(i3,dz2,j3,i2,dy2,j2,i1,j1,dx,dy2pdz2)
+!!$        !$omp do schedule(static,1)
+!!$        do i3=i3s,i3e
+!!$           dz2=(real(i3,gp)*hz-rxyz(3,iiat))**2-eps_mach
+!!$           if (dz2>radsq) cycle
+!!$           j3=modulo(i3,n3+1)
+!!$           do i2=i2s,i2e
+!!$              dy2=(real(i2,gp)*hy-rxyz(2,iiat))**2
+!!$              dy2pdz2=dy2+dz2
+!!$              if (dy2pdz2>radsq) cycle
+!!$              j2=modulo(i2,n2+1)
+!!$              do i1=i1s,i1e
+!!$                 j1=modulo(i1,n1+1)
+!!$                 dx=real(i1,gp)*hx-rxyz(1,iiat)
+!!$                 if (dx**2+dy2pdz2 <= radsq) then 
+!!$                    logrid(j1,j2,j3)=.true.
+!!$                 endif
+!!$              enddo
+!!$           enddo
+!!$        enddo
+!!$        !$omp enddo
+!!$        !$omp end parallel
   enddo
 
   if (parallel) then
@@ -1824,3 +1878,23 @@ subroutine fill_logrid(geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,nbuf,nat,  &
   call f_release_routine()
 
 END SUBROUTINE fill_logrid
+
+!> Tick .true. inside the sphere of radius rad and center rxyz0.
+!! Used to build up the localization regions around each atoms.
+subroutine fill_logrid_with_spheres(bit,rxyz0,rad,logrid)
+  use module_defs, only: gp
+  use box
+  implicit none
+  type(box_iterator) :: bit
+  real(gp), dimension(3), intent(in) :: rxyz0
+  real(gp), intent(in) :: rad
+  logical, dimension(bit%mesh%ndims(1),bit%mesh%ndims(2),bit%mesh%ndims(3)), intent(inout) :: logrid
+  !local variables
+  do while(box_next_point(bit))
+     ! Tick .true. inside the sphere of radius rad and center rxyz0
+     if (distance(bit%mesh,bit%rxyz,rxyz0) <= rad) then
+        logrid(bit%i,bit%j,bit%k)=.true.
+     end if
+  end do
+
+end subroutine fill_logrid_with_spheres

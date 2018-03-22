@@ -221,7 +221,7 @@ module module_input_keys
      type(f_enumerator) :: output_denspot        !< 0= No output, 1= density, 2= density+potential
      integer :: dispersion            !< Dispersion term
      type(f_enumerator) :: output_wf!_format      !< Output Wavefunction format
-     real(gp) :: hx,hy,hz   !< Step grid parameter (hgrid)
+     real(gp) :: hx,hy,hz   !< Grid step parameter (hgrid)
      integer :: nx,ny,nz   !< Number of divisions
      real(gp) :: crmult     !< Coarse radius multiplier
      real(gp) :: frmult     !< Fine radius multiplier
@@ -805,7 +805,7 @@ contains
          in%multipole_preserving,in%mp_isf,in%ixc,in%alpha_hartree_fock)
 
 !!$    ! Update atoms with pseudo information.
-!!$    call psp_dict_analyse(dict, atoms, in%frmult)
+!!$    call psp_dict_analyse(dict, atoms)
 !!$    call atomic_data_set_from_dict(dict,IG_OCCUPATION, atoms, in%nspin)
 !!$
 !!$    !fill the requests for the atomic density matrix
@@ -3253,7 +3253,7 @@ contains
 
     !Geometry imput Parameters
     if (in%ncount_cluster_x > 0) then
-       call yaml_comment('Geometry optimization Input Parameters (file: '//trim(input_id)//'.geopt)',hfill='-')
+       call yaml_comment('Geometry optimization Input Parameters',hfill='-')
        call yaml_mapping_open('Geometry Optimization Parameters')
        call yaml_map('Maximum steps',in%ncount_cluster_x)
        call yaml_map('Algorithm', in%geopt_approach)
@@ -3517,7 +3517,7 @@ contains
                    !fr contains a format.
                    call astruct_file_merge_to_dict(dict,POSINP, trim(str),pos_format=trim(fr))
                 else
-                   call f_err_throw("The key 'format' from posinp section should be contained a valid format.", &
+                   call f_err_throw("The key 'format' from posinp section should specify a valid format.", &
                         & err_name='BIGDFT_INPUT_VARIABLES_ERROR')
                 end if
              else

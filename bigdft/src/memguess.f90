@@ -217,20 +217,22 @@ program memguess
       output_grid=0
       loop_getargs: do
          call get_command_argument(i_arg, value = tatonam, status = istat)
-         !call getarg(i_arg,tatonam)
-         if(trim(tatonam)=='' .or. istat > 0) then
-            exit loop_getargs
-         else if (trim(tatonam)=='y') then
+ 
+         if(istat > 0) exit loop_getargs
+
+         !first restructuring in view of better behaviour
+         select case(trim(tatonam))
+         case('y')
             output_grid=1
             write(*,'(1x,a)') 'The system grid will be displayed in the "grid.xyz" file'
             exit loop_getargs
-         else if (trim(tatonam)=='o') then
+         case('o')
             optimise=.true.
             output_grid=1
             write(*,'(1x,a)')&
-               &   'The optimised system grid will be displayed in the "grid.xyz" file and "posopt.xyz"'
+                 &   'The optimised system grid will be displayed in the "grid.xyz" file and "posopt.xyz"'
             exit loop_getargs
-         else if (trim(tatonam)=='GPUtest') then
+         case('GPUtest')
             GPUtest=.true.
             write(*,'(1x,a)')&
                &   'Perform the test with GPU, if present.'
@@ -249,7 +251,7 @@ program memguess
                read(unit=tatonam,fmt=*,iostat=ierror) norbgpu
             end if
             exit loop_getargs
-         else if (trim(tatonam)=='convert') then
+         case('convert')
             convert=.true.
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = fileFrom)
@@ -258,10 +260,9 @@ program memguess
             call get_command_argument(i_arg, value = fileTo)
             !call getarg(i_arg,fileTo)
             write(*,'(1x,5a)')&
-               &   'convert "', trim(fileFrom),'" file to "', trim(fileTo),'"'
+                 &   'convert "', trim(fileFrom),'" file to "', trim(fileTo),'"'
             exit loop_getargs
-
-         else if (trim(tatonam)=='exportwf') then
+         case('exportwf')
             !Export wavefunctions (cube format)
             exportwf=.true.
             i_arg = i_arg + 1
@@ -301,24 +302,24 @@ program memguess
                read(unit=tatonam,fmt=*) export_wf_ispinor
             end if
             exit loop_getargs
-         else if (trim(tatonam)=='exportproj') then
+         case('exportproj')
             !Export wavefunctions (cube format)
             exportproj=.true.
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = filename_proj)
             exit loop_getargs
-         else if (trim(tatonam)=='atwf') then
+         case('atwf')
             atwf=.true.
             write(*,'(1x,a)')&
-               &   'Perform the calculation of atomic wavefunction of the first atom'
+                 &   'Perform the calculation of atomic wavefunction of the first atom'
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = tatonam)
             !call getarg(i_arg,tatonam)
             read(unit=tatonam,fmt=*,iostat=ierror) ng
             write(*,'(1x,a,i0,a)')&
-               &   'Use gaussian basis of',ng,' elements.'
+                 &   'Use gaussian basis of',ng,' elements.'
             exit loop_getargs
-         else if (trim(tatonam)=='convert-positions') then
+         case('convert-positions')
             convertpos=.true.
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = fileFrom)
@@ -327,9 +328,9 @@ program memguess
             call get_command_argument(i_arg, value = fileTo)
             !call getarg(i_arg,fileTo)
             write(*,'(1x,5a)')&
-               &   'convert input file "', trim(fileFrom),'" file to "', trim(fileTo),'"'
+                 &   'convert input file "', trim(fileFrom),'" file to "', trim(fileTo),'"'
             exit loop_getargs
-         else if (trim(tatonam)=='transform-coordinates') then
+         case('transform-coordinates')
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = direction)
             i_arg = i_arg + 1
@@ -337,10 +338,10 @@ program memguess
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = fileTo)
             write(*,'(1x,5a)')&
-               &   'convert input file "', trim(fileFrom),'" file to "', trim(fileTo),'"'
+                 &   'convert input file "', trim(fileFrom),'" file to "', trim(fileTo),'"'
             transform_coordinates=.true.
             exit loop_getargs
-         else if (trim(tatonam)=='pdos') then
+         case('pdos')
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = coeff_file)
             i_arg = i_arg + 1
@@ -365,11 +366,11 @@ program memguess
             !call get_command_argument(i_arg, value = posinp_file)
             npdos = 1
             write(*,'(1x,a,i0,3a)')&
-               &   'calculate ', npdos,' PDOS based on the coeffs in the file "', trim(coeff_file),'"'
-               !&   'calculate ', npdos,' PDOS based on the coeffs (', ntmb, 'x', norbks, ') in the file "', trim(coeff_file),'"'
+                 &   'calculate ', npdos,' PDOS based on the coeffs in the file "', trim(coeff_file),'"'
+            !&   'calculate ', npdos,' PDOS based on the coeffs (', ntmb, 'x', norbks, ') in the file "', trim(coeff_file),'"'
             calculate_pdos=.true.
             exit loop_getargs
-         else if (trim(tatonam)=='dos') then
+         case('dos')
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = coeff_file)
             i_arg = i_arg + 1
@@ -383,10 +384,10 @@ program memguess
             call get_command_argument(i_arg, value = npts_)
             read(npts_,fmt=*,iostat=ierror) npts
             write(*,'(1x,3a)')&
-               &   'calculate total DOS based on the coeffs in the file "', trim(coeff_file),'"'
+                 &   'calculate total DOS based on the coeffs in the file "', trim(coeff_file),'"'
             calculate_dos=.true.
             exit loop_getargs
-         else if (trim(tatonam)=='kernel-analysis') then
+         case('kernel-analysis')
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = coeff_file)
             i_arg = i_arg + 1
@@ -401,11 +402,11 @@ program memguess
             call get_command_argument(i_arg, value = nat_)
             read(nat_,fmt=*,iostat=ierror) nat
             write(*,'(1x,5a)')&
-               &   'calculate a full kernel from the coeffs in "', trim(coeff_file), &
-               &'" and compres it to the sparse kernel in "', trim(kernel_file),'"'
+                 &   'calculate a full kernel from the coeffs in "', trim(coeff_file), &
+                 &'" and compres it to the sparse kernel in "', trim(kernel_file),'"'
             kernel_analysis = .true.
             exit loop_getargs
-         else if (trim(tatonam)=='extract-submatrix') then
+         case('extract-submatrix')
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = matrix_file)
             i_arg = i_arg + 1
@@ -418,10 +419,10 @@ program memguess
             call get_command_argument(i_arg, value = nsubmatrices_)
             read(nsubmatrices_,fmt=*,iostat=ierror) nsubmatrices
             write(*,'(1x,a,i0,3a,2(i0,a))')&
-               &   'extract ',nsubmatrices,' submatrices from the matrix in "', trim(matrix_file),'" (size ',ntmb,'x',ntmb,')'
+                 &   'extract ',nsubmatrices,' submatrices from the matrix in "', trim(matrix_file),'" (size ',ntmb,'x',ntmb,')'
             extract_submatrix = .true.
             exit loop_getargs
-         else if (trim(tatonam)=='solve-eigensystem') then
+         case('solve-eigensystem')
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = ham_file)
             i_arg = i_arg + 1
@@ -436,10 +437,10 @@ program memguess
             call get_command_argument(i_arg, value = coeff_file)
             read(nsubmatrices_,fmt=*,iostat=ierror) nsubmatrices
             write(*,'(1x,2(a,i0))')&
-               &   'solve the eigensystem Hc=lSc of size ',ntmb,'x',ntmb
+                 &   'solve the eigensystem Hc=lSc of size ',ntmb,'x',ntmb
             solve_eigensystem = .true.
             exit loop_getargs
-         else if (trim(tatonam)=='analyze-coeffs') then
+         case('analyze-coeffs')
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = coeff_file)
             i_arg = i_arg + 1
@@ -455,10 +456,10 @@ program memguess
             call get_command_argument(i_arg, value = ncategories_)
             read(ncategories_,fmt=*,iostat=ierror) ncategories
             write(*,'(1x,a)')&
-               &   'analyze the coeffs'
+                 &   'analyze the coeffs'
             analyze_coeffs = .true.
             exit loop_getargs
-         else if (trim(tatonam)=='peel-matrix') then
+         case('peel-matrix')
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = matrix_file)
             i_arg = i_arg + 1
@@ -471,10 +472,10 @@ program memguess
             call get_command_argument(i_arg, value = cutoff_)
             read(cutoff_,fmt=*,iostat=ierror) cutoff
             write(*,'(1x,a)')&
-               &   'peel the matrix'
+                 &   'peel the matrix'
             peel_matrix = .true.
             exit loop_getargs
-         else if (trim(tatonam)=='multiply-matrices') then
+         case('multiply-matrices')
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = amatrix_file)
             i_arg = i_arg + 1
@@ -489,10 +490,10 @@ program memguess
             read(nat_,fmt=*,iostat=ierror) nat
             i_arg = i_arg + 1
             write(*,'(1x,a,2(i0,a))')&
-               &   'multiply the matrices (size ',ntmb,'x',ntmb,')'
+                 &   'multiply the matrices (size ',ntmb,'x',ntmb,')'
             multiply_matrices = .true.
             exit loop_getargs
-         else if (trim(tatonam)=='matrixpower') then
+         case('matrixpower')
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = inmatrix_file)
             i_arg = i_arg + 1
@@ -508,42 +509,44 @@ program memguess
             read(power_,fmt=*,iostat=ierror) power
             i_arg = i_arg + 1
             write(*,'(1x,a,2(i0,a))')&
-               &   'calculate the power of a matrix'
+                 &   'calculate the power of a matrix'
             matrixpower = .true.
             exit loop_getargs
-         else if (trim(tatonam)=='plot-wavefunction') then
+         case('plot-wavefunction')
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = wf_file)
             write(*,'(1x,a,2(i0,a))')&
-               &   'plot the wave function from file ',trim(wf_file)
+                 &   'plot the wave function from file ',trim(wf_file)
             plot_wavefunction = .true.
             exit loop_getargs
-         else if (trim(tatonam)=='suggest-cutoff') then
+         case('suggest-cutoff')
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = posinp_file)
             write(*,'(1x,2a)')&
-               &   'suggest cutoff radii based on the atomic positions in ',trim(posinp_file)
+                 &   'suggest cutoff radii based on the atomic positions in ',trim(posinp_file)
             suggest_cutoff = .true.
             exit loop_getargs
-         else if (trim(tatonam)=='charge-analysis') then
+         case('charge-analysis')
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = overlap_file)
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = kernel_file)
             write(*,'(1x,2a)')&
-               &   'perform a Loewdin charge analysis'
+                 &   'perform a Loewdin charge analysis'
             charge_analysis = .true.
             exit loop_getargs
-         else if (trim(tatonam) == 'dd') then
+         case('dd')
             ! dd: disable deprecation message
             disable_deprecation = .true.
-         else if (trim(tatonam) == 'l') then
+         case('l')
             ! l: log to disk
             logfile = .true.
-         else
+         case('')
+            exit loop_getargs
+         case default
             ! Use value as radical for input files.
             write(radical, "(A)") trim(tatonam)
-         end if
+         end select
          i_arg = i_arg + 1
       end do loop_getargs
    end if

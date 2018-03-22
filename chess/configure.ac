@@ -114,6 +114,17 @@ if test -n "$ac_pexsi_linkline" ; then
 fi
 AM_CONDITIONAL(HAVE_PEXSI, test $ax_have_pexsi = "yes")
 
+dnl MINPACK
+AC_ARG_WITH(minpack, AS_HELP_STRING([--with-minpack],
+            [Give the link-line for MINPACK.]),
+            ac_minpack_linkline=$withval, ac_minpack_linkline=)
+ax_have_minpack="no"
+if test -n "$ac_minpack_linkline" ; then
+  MINPACK_LINKLINE="$ac_minpack_linkline"
+  ax_have_minpack="yes"
+fi
+AM_CONDITIONAL(HAVE_MINPACK, test $ax_have_minpack = "yes")
+
 AX_LINALG()
 AX_ETSF_IO()
 
@@ -177,6 +188,7 @@ Options:
    | MPI_INIT_THREAD avail:  $ac_with_mpinithread
    | MPI2 support:           $ac_with_mpi2
   With PEXSI:                $ax_have_pexsi
+  With MINPACK:              $ax_have_minpack
   With ETSF_IO:              $ax_have_etsf_io
    | include dir.:           $LIBETSFIO_INCLUDE
 

@@ -373,16 +373,24 @@ class TimeData:
     fontsize: Determine fontsize of the bar chart plot 
     nokey: Remove the visualization of the key from the main plot
     counter: retrieve as reference value the counter provided
+    only_last: retrieve only the last document in the time.yaml
     """
     #here a try-catch section should be added for multiple documents
     #if (len(filename) > 1
     import yaml
+    only_last = kwargs.get('only_last',False)
     self.log=[]
     for filename in filenames:
-      try:
-        self.log+=[yaml.load(open(filename, "r").read(), Loader = yaml.CLoader)]
-      except:
-        self.log+=yaml.load_all(open(filename, "r").read(), Loader = yaml.CLoader)
+      import Yaml
+      tmplogs=Yaml.load(filename,doc_lists=True)
+      if only_last:
+        self.log+=[[ a for a in tmplogs][-1]]
+      else:
+        self.log+=tmplogs
+      #try:
+      #  self.log+=[yaml.load(open(filename, "r").read(), Loader = yaml.CLoader)]
+      #except:
+      #  self.log+=yaml.load_all(open(filename, "r").read(), Loader = yaml.CLoader)
     #create the figure environemnt
     self.figures=FigureSet(title='Profiling',QuitButton=True,twinaxes=True)
     #self.barfig = None
@@ -434,7 +442,7 @@ class TimeData:
         if mpit is not None:
             mpi=mpit.get('MPI tasks')
             omp=mpit.get('OMP threads')
-            if title is None: 
+            if title is "Unknown": 
               title=str(mpi) if omp is None else str(mpi)+'-'+str(omp)
             ncores=mpi
             if omp is not None: ncores*=omp
@@ -444,9 +452,6 @@ class TimeData:
         self.ncores.append(ncores)
     self.classes.sort()
     self.classes.append("Unknown") #an evergreen
-    #self.classes=["Communications","Convolutions","BLAS-LAPACK","Linear Algebra",
-    #        "Other","PS Computation","Potential",
-    #        "Flib LowLevel","Initialization","Unknown"]
       
   def inspect_counter(self,counter,unit=None):
     self.routines=[]
@@ -628,11 +633,12 @@ class TimeData:
         break
     #print 'category',category
     if category is not None and category != "Unknown": self.inspect_category(category)  
-  def _barplot_gnuplot(self,data,ids,lookup=None):
+  def _barplot_gnuplot(self,data,ids,lookup=None,select_category=None):
       import Gnuplot
       import numpy as np
       gpdata=[]
       for cat,dat in data:
+        if select_category is not None and cat not in select_category: continue
         #gpdata.append(Gnuplot.Data(np.arange(len(dat)),dat,title=cat))
         lup=np.arange(len(dat)) if lookup is None else lookup
         toplt=[dat[0]]+dat[lup].tolist()
@@ -663,11 +669,11 @@ class TimeData:
       result.append((newkeys,newdata[newkeys]))
     return result
 
-  def gnuplot_figure(self,lookup=None,epsfile=None,aggregate=None):
+  def gnuplot_figure(self,lookup=None,epsfile=None,aggregate=None,select_category=None):
       import Gnuplot,numpy as np
       data=self.collect_categories(self.scf,self.vals)
       dataplot=data[0] if aggregate is None else self._aggregate_names(data[0],aggregate)
-      gpdata,names=self._barplot_gnuplot(dataplot,self.ids,lookup)
+      gpdata,names=self._barplot_gnuplot(dataplot,self.ids,lookup,select_category)
       gp=Gnuplot.Gnuplot()
       gp("""
 set style fill  pattern 1 border -1

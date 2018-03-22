@@ -399,8 +399,18 @@ them into the prefix."""
           (error-flag, [other-phases])
         """
         method = getattr(self, 'do_' + phase)
+        #modify the behaviour of the dist phase for
+        #upstream packages that have not been compiled locally
+        domethod = True
+        if phase == 'dist' and self.branch is not None:
+            #if the branch is local try to extract the dist file
+            #also if in nonet mode extract all the dist files which are available
+            domethod = self.branch.repository.name == "local" or buildscript.config.nonet
+            if not domethod:
+                tar = os.path.join(SRCDIR, os.path.basename(self.branch.module))
+                domethod = not os.path.exists(tar)               
         try:
-            method(buildscript)
+            if domethod: method(buildscript)
         except (CommandError, BuildStateError), e:
             error_phases = []
             if hasattr(method, 'error_phases'):
@@ -577,7 +587,8 @@ class MetaModule(Package):
         
         # Scan all available tars to add to the tarball.
         for mod in module_list:
-            if mod.branch is not None and (mod.branch.repository.name == "local" or
+            if mod.branch is None: continue
+            if ("local" in mod.branch.repository.name or
                                            buildscript.config.nonet):
                 tar = os.path.join(mod.get_builddir(buildscript), os.path.basename(mod.branch.module))
                 try:
@@ -586,7 +597,7 @@ class MetaModule(Package):
                 except:
                     tar = os.path.join(SRCDIR, os.path.basename(mod.branch.module))
                     shutil.copy(tar, destdir)
-            if mod.branch is not None and hasattr(mod.branch, "patches"):
+            if hasattr(mod.branch, "patches"):
                 for patch in mod.branch.patches:
                     shutil.copy(os.path.join(SRCDIR, patch[0]), destdir)
 

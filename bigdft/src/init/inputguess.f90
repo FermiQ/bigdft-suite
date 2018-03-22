@@ -231,30 +231,6 @@ subroutine readAtomicOrbitals(at,norbe,norbsc,nspin,nspinor,norbsc_arr,locrad)
          norbsc=norbsc+iorbsc_count
       end if
 
-!!$      nsccode=at%aoig(iat)%iasctype
-!!$      if (nsccode/=0) then !the atom has some semicore orbitals
-!!$         iatsc=iatsc+1
-!!$         niasc=nsccode
-!!$         !count the semicore orbitals for this atom
-!!$         iorbsc_count=0
-!!$         do lsc=4,1,-1
-!!$            nlsc=niasc/4**(lsc-1)
-!!$            iorbsc_count=iorbsc_count+nlsc*(2*lsc-1)
-!!$            if (nlsc > 2) then
-!!$               write(*,*)'ERROR, atom:',iat,&
-!!$                  &   ': cannot admit more than two semicore shells per channel',nlsc
-!!$               stop
-!!$            end if
-!!$            do i=1,nlsc
-!!$               scorb(lsc,i,iatsc)=.true.
-!!$            end do
-!!$            niasc=niasc-nlsc*4**(lsc-1)
-!!$         end do
-!!$         norbsc_arr(iatsc,1)=iorbsc_count
-!!$         norbsc=norbsc+iorbsc_count
-!!$         !if (iproc == 0) write(*,*) iat,nsccode,iorbsc_count,norbsc,scorb(:,:,iatsc)
-!!$      end if
-
    end do
 
    !print *,'NL',nl,norbe
@@ -483,34 +459,34 @@ subroutine AtomicOrbitals(iproc,at,rxyz,norbe,orbse,norbsc,&
    if (orbse%nspinor == 4) then
       atmoments = f_malloc((/ 3, at%astruct%nat /),id='atmoments')
 
-!!!      itat=atoms_iter(at%astruct)
-!!!      do while(atoms_iter_next(itat))
-!!!         if ('IGmom' .in. itat%attrs) then
-!!!            atmoments(:,itat%iat)=itat%attrs//'IGmom'
-!!!         else
-!!!            call f_zero(atmoments(:,itat%iat))
-!!!         end if
-!!!      end do
-
-      open(unit=22,file='moments',form='formatted',action='read',status='old')
-      !this part can be transferred on the atomic orbitals section
-      do iat=1,at%astruct%nat
-         read(unit=22,fmt=*,iostat=i_stat) mx,my,mz
-         if (i_stat > 0) then
-            call f_err_throw('The file "moments" is not correct!' // &
-               & 'The file "moments" has the line ' // trim(yaml_toa(iat)) // &
-               & ' which have not 3 numbers for the atom ' // trim(yaml_toa(iat)) // '.', &
-               & err_id=BIGDFT_INPUT_VARIABLES_ERROR)
-            !write(unit=*,fmt='(a,i0,a,i0,a)') 'The file "moments" has the line ',iat,&
-            !   &   ' which have not 3 numbers for the atom ',iat,'.'
-            !stop 'The file "moments" is not correct!'
+      itat=atoms_iter(at%astruct)
+      do while(atoms_iter_next(itat))
+         if ('IGmom' .in. itat%attrs) then
+            atmoments(:,itat%iat)=itat%attrs//'IGmom'
+         else
+            call f_zero(atmoments(:,itat%iat))
          end if
-         atmoments(1,iat)=mx
-         atmoments(2,iat)=my
-         atmoments(3,iat)=mz
-         !write(unit=100,fmt='(2x,a,i4,3f12.6)')'NOYAML2'
-         !write(unit=100,fmt='(2x,a,i4,3f12.6)')'NOYAML',iproc,atmoments(:,iat)
-      end do
+     end do
+
+!!$      open(unit=22,file='moments',form='formatted',action='read',status='old')
+!!$      !this part can be transferred on the atomic orbitals section
+!!$      do iat=1,at%astruct%nat
+!!$         read(unit=22,fmt=*,iostat=i_stat) mx,my,mz
+!!$         if (i_stat > 0) then
+!!$            call f_err_throw('The file "moments" is not correct!' // &
+!!$               & 'The file "moments" has the line ' // trim(yaml_toa(iat)) // &
+!!$               & ' which have not 3 numbers for the atom ' // trim(yaml_toa(iat)) // '.', &
+!!$               & err_id=BIGDFT_INPUT_VARIABLES_ERROR)
+!!$            !write(unit=*,fmt='(a,i0,a,i0,a)') 'The file "moments" has the line ',iat,&
+!!$            !   &   ' which have not 3 numbers for the atom ',iat,'.'
+!!$            !stop 'The file "moments" is not correct!'
+!!$         end if
+!!$         atmoments(1,iat)=mx
+!!$         atmoments(2,iat)=my
+!!$         atmoments(3,iat)=mz
+!!$         !write(unit=100,fmt='(2x,a,i4,3f12.6)')'NOYAML2'
+!!$         !write(unit=100,fmt='(2x,a,i4,3f12.6)')'NOYAML',iproc,atmoments(:,iat)
+!!$      end do
    end if
 
    eks=0.0_gp

@@ -641,7 +641,7 @@
  Interaction energy multipoles multipoles:  0.0
   #--------------------------------------------------------- Reading Wavefunctions from disk
  Input Hamiltonian:
-   max shift of a locreg center        :  0.00E+00
+   Max shift of a locreg center        :  0.00E+00
    Overview of the reformatting (several categories may apply):
      No reformatting required          :  6
      Grid spacing has changed          :  0

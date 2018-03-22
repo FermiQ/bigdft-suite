@@ -21,6 +21,16 @@ void dict_free(f90_dictionary_pointer *dict)
   FC_FUNC_(bind_dict_free, BIND_DICT_FREE)(dict);
 }
 
+void dict_set_string(f90_dictionary_pointer* dict, const char* key ,const char* value)
+{
+  FC_FUNC_(bind_dict_set_string, BIND_DICT_SET_STRING)(dict, key, value);
+}
+
+void dict_set_double(f90_dictionary_pointer* dict, const char* key ,double value)
+{
+  int klen = strlen(key);
+  FC_FUNC_(bind_dict_set_double, BIND_DICT_SET_DOUBLE)(dict, key, &klen, &value, klen);
+}
 
 void dict_set_double_array(f90_dictionary_pointer* dict, const char* key , const double * array, size_t len)
 {
@@ -28,6 +38,15 @@ void dict_set_double_array(f90_dictionary_pointer* dict, const char* key , const
   int klen = strlen(key);
   FC_FUNC_(bind_dict_set_double_array, BIND_DICT_SET_DOUBLE_ARRAY)(dict, key, &klen, array, &flen, klen);
 }
+
+void dict_set_double_matrix(f90_dictionary_pointer* dict, const char* key , const double * array, size_t lenx, size_t leny)
+{
+  int flenx = lenx;
+  int fleny = leny;
+  int klen = strlen(key);
+  FC_FUNC_(bind_dict_set_double_matrix, BIND_DICT_SET_DOUBLE_MATRIX)(dict, key, &klen, array, &flenx, &fleny, klen);
+}
+
 
 void dict_set_dict(f90_dictionary_pointer* dict, const char* key , f90_dictionary_pointer* value)
 {

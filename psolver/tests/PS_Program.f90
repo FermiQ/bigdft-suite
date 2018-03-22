@@ -193,7 +193,7 @@ program PSolver_Program
      call yaml_map('monopole',get_monopole(multipoles),fmt='(1pe15.7)')
      call yaml_map('dipole',get_dipole(multipoles),fmt='(1pe15.7)')
   end if
-  call f_multipoles_free(multipoles)
+  call f_multipoles_release(multipoles)
 
   call f_multipoles_create(multipoles,lmax=0)
   call field_multipoles(bit,potential,1,multipoles)
@@ -201,7 +201,7 @@ program PSolver_Program
   if (iproc==0) then
      call yaml_map('Offset (potential monopole)',offset)
   end if
-  call f_multipoles_free(multipoles)
+  call f_multipoles_release(multipoles)
 
   call f_memcpy(src=density,dest=rhopot)
 

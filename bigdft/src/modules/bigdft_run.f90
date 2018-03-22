@@ -2042,7 +2042,9 @@ contains
     if (bigdft_mpi%iproc==0 .and. .not. (runObj%run_mode .hasattr. RUN_MODE_CREATE_DOCUMENT)) &
          call yaml_sequence_open('Initializing '//trim(str(runObj%run_mode)))
 
-    if(trim(runObj%inputs%geopt_approach)/='SOCK') call bigdft_state(runObj,outs,infocode)
+    if(trim(runObj%inputs%geopt_approach)/='SOCK') then
+        call bigdft_state(runObj,outs,infocode)
+    end if
 
     if (runObj%inputs%ncount_cluster_x > 1) then
        if (bigdft_mpi%iproc ==0 ) call yaml_map('Wavefunction Optimization Finished, exit signal',infocode)

@@ -246,7 +246,7 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
           denspot%rhohat,denspot%V_XC,xcstr)
 
      if (denspot%cfd%nat >0) then
-!!$        !here the constraingin magnetic field is added on top of the local xc potential
+!!$        !here the constraining magnetic field is added on top of the local xc potential
            ! First calculate the new constraining field
            if(iproc==0) call cfd_field(denspot%cfd,iproc)
            call mpibcast(denspot%cfd%B_at,root=0,comm=bigdft_mpi%mpi_comm)!,check=.true.)
@@ -395,7 +395,7 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
         call paw_compute_dij(wfn%paw, atoms, denspot, denspot%V_XC, &
              & energs%epaw, energs%epawdc, compch_sph)
      end if
-  end if
+  end if !if (scf)
 
   !debug
   !call MPI_BARRIER(MPI_COMM_WORLD,i_stat)
@@ -416,7 +416,7 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
   !call MPI_BARRIER(MPI_COMM_WORLD,i_stat)
   !end debug
 
-  !non self-consistent case: rhov should be the total potential
+  ! self-consistent case or not: rhov should be the total potential
   if (denspot%rhov_is /= KS_POTENTIAL) &
        call f_err_throw('psitohpsi: KS_potential not available, control the operations on rhov',&
        err_name='BIGDFT_RUNTIME_ERROR')
@@ -541,6 +541,7 @@ subroutine FullHamiltonianApplication(iproc,nproc,at,orbs,&
   use yaml_output
   use locreg_operations, only: confpot_data
   implicit none
+  !Arguments
   integer, intent(in) :: iproc,nproc
   type(atoms_data), intent(in) :: at
   type(orbitals_data), intent(in) :: orbs
@@ -551,6 +552,7 @@ subroutine FullHamiltonianApplication(iproc,nproc,at,orbs,&
   integer, dimension(0:nproc-1,2), intent(in) :: ngatherarr
   real(wp), dimension(orbs%npsidim_orbs), intent(in) :: psi
   type(confpot_data), dimension(orbs%norbp), intent(in) :: confdatarr
+  !Local variables
   !real(wp), dimension(lzd%ndimpotisf) :: pot
   real(wp), dimension(:),pointer :: pot
   type(energy_terms), intent(inout) :: energs
@@ -586,7 +588,7 @@ subroutine FullHamiltonianApplication(iproc,nproc,at,orbs,&
           Lzd,confdatarr,ngatherarr,pot,psi,hpsi,&
           energs,SIC,GPU,1,xc,pkernel,orbsocc,psirocc)
   else
-     stop 'HamiltonianApplication, argument error'
+     call f_err_throw('HamiltonianApplication, argument error')
   end if
 
   !these two sections have to be inverted to profit of overlapping in GPU accelerated case
@@ -1488,7 +1490,7 @@ subroutine calculate_energy_and_gradient(iter,iproc,nproc,GPU,ncong,scf_mode,&
   tr_min=(scf_mode .hasattr. 'MIXING') .or. energs%eexctX /=0.0_gp
   if(wfn%paw%usepaw) then
     !PAW: spsi is used.
-    call orthoconstraint(iproc,nproc,wfn%orbs,wfn%comms,wfn%SIC%alpha/=0.0_gp,tr_min,& 
+    call orthoconstraint(iproc,nproc,wfn%orbs,wfn%comms,wfn%SIC%alpha/=0.0_gp,tr_min,&
          wfn%psit,wfn%hpsi,energs%trH,wfn%paw%spsi)
   else
     !NC:
@@ -2983,14 +2985,15 @@ subroutine integral_equation(iproc,nproc,atoms,wfn,ngatherarr,local_potential,GP
 
 end subroutine integral_equation
 
+
 !> Compute the Dij coefficients from the current KS potential.
 subroutine paw_compute_dij(paw, at, denspot, vxc, e_paw, e_pawdc, compch_sph)
+  use module_base, only: bigdft_mpi, f_err_throw
   use module_types, only: paw_objects, atoms_data, DFT_local_fields, &
        & TCAT_PAW_DIJ, TCAT_LIBPAW
   use public_enums, only: KS_POTENTIAL
   use module_defs, only: gp
   use numerics, only: Ha_eV
-  use module_base, only: bigdft_mpi
   use m_paw_an, only: paw_an_reset_flags
   use m_paw_ij, only: paw_ij_reset_flags
   use m_pawdij, only: pawdij
@@ -3061,7 +3064,9 @@ subroutine paw_compute_dij(paw, at, denspot, vxc, e_paw, e_pawdc, compch_sph)
   end if
 
   call f_timing(TCAT_LIBPAW, "ON")
-  if (denspot%rhov_is /= KS_POTENTIAL) stop "rhov must be KS pot here."
+  if (denspot%rhov_is /= KS_POTENTIAL) &
+     & call f_err_throw("rhov must be KS potential here",err_name="BIGDFT_RUNTIME_ERROR")
+     !stop "rhov must be KS pot here."
   call pawdij(cplex, enunit, gprimd, ipert, size(paw%pawrhoij), at%astruct%nat, nfft, nfftot, &
        & denspot%dpbox%nrhodim, at%astruct%ntypes, paw%paw_an, paw%paw_ij, at%pawang, &
        & paw%fgrtab, pawprtvol, at%pawrad, paw%pawrhoij, pawspnorb, at%pawtab, pawxcdev, &
@@ -3075,6 +3080,7 @@ subroutine paw_compute_dij(paw, at, denspot, vxc, e_paw, e_pawdc, compch_sph)
 
   call f_timing(TCAT_PAW_DIJ, "OF")
 end subroutine paw_compute_dij
+
 
 !> Compute the PAW quantities rhoij (augmentation occupancies)
 !  Remember:for each atom, rho_ij=Sum_{n,k} {occ(n,k)*<Cnk|p_i><p_j|Cnk>}

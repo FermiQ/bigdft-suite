@@ -79,7 +79,7 @@
      B97-D: -170 #to be verified
      B3LYP: -402
      HF: 100 #Hartree-Fock
-     NONE: 1000
+     NONE: 1000 #No Hartree and No XC (useful for H atom)
    qcharge:
      COMMENT: Charge of the system. Can be integer or real.
      DESCRIPTION: |
@@ -229,6 +229,9 @@
        100:   Linear AO
        101:   Linear restart
        102:   Linear on disk
+     #Useful shortcuts
+     LCAO: 0
+     RANDOM: -2
      #Here follow two shortcuts for linear
      linear: 100
      linear_restart: 102
@@ -2306,21 +2309,21 @@ linear_laura:
    #gnrm_cv_coeff: 1.0E-003
    rpnrm_cv: 1.0E-010
    #alphamix: 1.0
- lin_basis_params:
-   C:
-     nbasis: 4
-     ao_confinement: -1.0
-     confinement: -1.0
-     rloc: 7.0 #6.9 
-     rloc_kernel: 10.0 #14.0 #10.0
-     rloc_kernel_foe: 10.0 #14.0 #10.0
-   H:
-     nbasis: 1
-     ao_confinement: -1.0
-     confinement: -1.0
-     rloc: 7.0 #6.9 
-     rloc_kernel: 10.0 #14.0 #10.0
-     rloc_kernel_foe: 10.0 #14.0 #10.0
+ #lin_basis_params:
+ #  C:
+ #    nbasis: 4
+ #    ao_confinement: -1.0
+ #    confinement: -1.0
+ #    rloc: 7.0 #6.9 
+ #    rloc_kernel: 10.0 #14.0 #10.0
+ #    rloc_kernel_foe: 10.0 #14.0 #10.0
+ #  H:
+ #    nbasis: 1
+ #    ao_confinement: -1.0
+ #    confinement: -1.0
+ #    rloc: 7.0 #6.9 
+ #    rloc_kernel: 10.0 #14.0 #10.0
+ #    rloc_kernel_foe: 10.0 #14.0 #10.0
 mixing:
   COMMENT: To be used for metallic systems
   DESCRIPTION: |

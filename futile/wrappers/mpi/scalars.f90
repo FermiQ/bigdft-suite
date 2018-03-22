@@ -46,6 +46,7 @@ module fmpi_types
   !might be included in a config.inc fine
   integer, parameter, public :: fmpi_integer=kind(MPI_INTEGER) !as MPI_INTEGER_KIND is a spec of C MPI
   integer, parameter, public :: fmpi_address=MPI_ADDRESS_KIND
+  integer, parameter, public :: fmpi_offset=MPI_OFFSET_KIND
 
   !> Error codes
   integer, public, save :: ERR_MPI_WRAPPERS

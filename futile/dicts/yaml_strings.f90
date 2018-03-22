@@ -996,7 +996,7 @@ contains
     character(len=*), intent(out) :: dest
     !local variables
     integer :: i
-    dest=' '
+    dest(1:len(dest))=' '
     seek_and_copy: do i=1,len(dest)
        if (src(i)==char(0)) exit seek_and_copy
        dest(i:i)=src(i)

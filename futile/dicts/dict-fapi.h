@@ -239,6 +239,24 @@ void FC_FUNC_(bind_dict_set_double_array, BIND_DICT_SET_DOUBLE_ARRAY)(f90_dictio
                                                                       const int *arraylen,
 								      int str_ln_1);
 
+void FC_FUNC_(bind_dict_set_double_matrix, BIND_DICT_SET_DOUBLE_MATRIX)(f90_dictionary_pointer *dict,
+								      const char *key, 
+                                                                      const int *keylen, 
+                                                                      const double *array, 
+                                                                      const int *arraylenx,
+								      const int *arrayleny,
+								      int str_ln_1);
+
+void FC_FUNC_(bind_dict_set_double, BIND_DICT_SET_DOUBLE)(f90_dictionary_pointer *dict,
+							  const char *key, 
+							  const int *keylen, 
+							  const double *array,
+							  int str_ln_1);
+
+void FC_FUNC_(bind_dict_set_string, BIND_DICT_SET_STRING)(f90_dictionary_pointer *dict,
+							  const char* key, 
+							  const char* value);
+
 void FC_FUNC_(bind_dict_get_double_array, BIND_DICT_GET_DOUBLE_ARRAY)(f90_dictionary_pointer *dict,
 								      const char *key, 
                                                                       const int *keylen, 

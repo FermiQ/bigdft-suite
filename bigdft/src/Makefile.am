@@ -62,8 +62,11 @@ if BUILD_DYNAMIC_LIBS
 bigdft_dynamic_library = libbigdft-1.so.@BIGDFT_MINOR_VERSION@.0.@BIGDFT_MICRO_VERSION@
 bigdft_soname_library = libbigdft-1.so.@BIGDFT_MINOR_VERSION@
 bigdft_deps += @LIB_BIGDFT_DEPS@
-bigdft_library += $(bigdft_soname_library)
-AM_LDFLAGS = -Wl,-rpath=$(DESTDIR)$(dynlibdir)
+bigdft_library += $(bigdft_soname_library) $(bigdft_deps)
+AM_LDFLAGS = @FC_RPATH@$(DESTDIR)$(dynlibdir) 
+if HAVE_OPENBABEL
+AM_LDFLAGS += @FC_RPATH@$(abs_builddir)/modules
+endif
 else
 bigdft_dynamic_library =
 bigdft_soname_library =
@@ -370,6 +373,7 @@ additonal_sources = $(srcdir)/bindings/bindings.c \
 endif
 
 $(gir_DATA): $(G_IR_SCANNER) $(bigdft_soname_library)
+	echo $$LD_RUN_PATH
 	$(G_IR_SCANNER) -v --warn-all \
 		--namespace BigDFT \
 		--symbol-prefix=bigdft --identifier-prefix=BigDFT_ --identifier-prefix=Bigdft \
@@ -402,4 +406,5 @@ $(typelibs_DATA): $(gir_DATA) $(G_IR_COMPILER)
 		$(gir_DATA)
 
 CLEANFILES += $(gir_DATA) $(typelibs_DATA)
+
 endif
