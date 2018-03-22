@@ -4211,11 +4211,13 @@ subroutine filename_of_proj(lbin,filename,ikpt,iat,iproj,icplx,filename_out)
 end subroutine filename_of_proj
 
 !> Write all projectors
-subroutine writemyproj(filename,iformat,orbs,hx,hy,hz,at,rxyz,nl)
+subroutine writemyproj(filename,iformat,orbs,hx,hy,hz,at,rxyz,nl,glr)
   use module_types
   use module_base
   use yaml_output
+  use locregs
   use psp_projectors_base
+  use psp_projectors
   use public_enums, only: WF_FORMAT_ETSF, WF_FORMAT_BINARY
   use io, only: writeonewave
   implicit none
@@ -4224,11 +4226,12 @@ subroutine writemyproj(filename,iformat,orbs,hx,hy,hz,at,rxyz,nl)
   type(atoms_data), intent(in) :: at
   type(orbitals_data), intent(in) :: orbs
   type(DFT_PSP_projectors), intent(in) :: nl
+  type(locreg_descriptors), intent(in) :: glr
   real(gp), dimension(3,at%astruct%nat), intent(in) :: rxyz
   character(len=*), intent(in) :: filename
   !Local variables
-  type(atomic_projector_iter) :: iter
-  integer :: ncount1,ncount2,ncount_rate,ncount_max
+  type(DFT_PSP_projector_iter) :: psp_it
+  integer :: ncount1,ncount2,ncount_rate,ncount_max,nwarnings
   integer :: iat,ikpt,iproj,iskpt,iekpt,istart,icplx,l
   real(kind=4) :: tr0,tr1
   real(kind=8) :: tel
@@ -4256,45 +4259,38 @@ subroutine writemyproj(filename,iformat,orbs,hx,hy,hz,at,rxyz,nl)
      lbin = (iformat == WF_FORMAT_BINARY)
 
      do ikpt=iskpt,iekpt
-        do iat=1,at%astruct%nat
+        call DFT_PSP_projectors_iter_new(psp_it, nl)
+        loop_proj: do while (DFT_PSP_projectors_iter_next(psp_it))
+           call DFT_PSP_projectors_iter_ensure(psp_it, orbs%kpts(:,ikpt), 0, nwarnings, glr)
+           istart = 0
+           do iproj = 1, psp_it%mproj
+              do icplx = 1, psp_it%ncplx
+                 call filename_of_proj(lbin,filename,&
+                      & ikpt,psp_it%iat,iproj,icplx,filename_out)
+                 if (lbin) then
+                    open(unit=99,file=trim(filename_out),&
+                         & status='unknown',form="unformatted")
+                 else
+                    open(unit=99,file=trim(filename_out),status='unknown')
+                 end if
+                 call writeonewave(99,.not.lbin,iproj,&
+                      & glr%d%n1, glr%d%n2, glr%d%n3, &
+                      & hx,hy,hz, at%astruct%nat,rxyz, &
+                      & psp_it%pspd%plr%wfd%nseg_c, psp_it%pspd%plr%wfd%nvctr_c, &
+                      & psp_it%pspd%plr%wfd%keyglob, psp_it%pspd%plr%wfd%keyvglob, &
+                      & psp_it%pspd%plr%wfd%nseg_f, psp_it%pspd%plr%wfd%nvctr_f, &
+                      & psp_it%pspd%plr%wfd%keyglob(1:,psp_it%pspd%plr%wfd%nseg_c+1:), &
+                      & psp_it%pspd%plr%wfd%keyvglob(psp_it%pspd%plr%wfd%nseg_c+1:), &
+                      & psp_it%coeff(istart + 1:), &
+                      & psp_it%coeff(istart + psp_it%pspd%plr%wfd%nvctr_c:), &
+                      & UNINITIALIZED(1._wp))
 
-           call atomic_projector_iter_new(iter, nl%pbasis(iat), nl%projs(iat)%region%plr, &
-                & orbs%kpts(:, ikpt))
-           call atomic_projector_iter_set_destination(iter, nl%shared_proj)
-           
-           ! Start a gaussian iterator.
-           call atomic_projector_iter_start(iter)
-           iproj = 0
-           do while (atomic_projector_iter_next(iter))
-              istart = 1
-              do l = 1, iter%mproj
-                 iproj = iproj + 1
-                 do icplx = 1, iter%cplx
-                    call filename_of_proj(lbin,filename,&
-                         & ikpt,iat,iproj,icplx,filename_out)
-                    if (lbin) then
-                       open(unit=99,file=trim(filename_out),&
-                            & status='unknown',form="unformatted")
-                    else
-                       open(unit=99,file=trim(filename_out),status='unknown')
-                    end if
-                    call writeonewave(99,.not.lbin,iproj,&
-                         & iter%lr%d%n1, iter%lr%d%n2, iter%lr%d%n3, &
-                         & hx,hy,hz, at%astruct%nat,rxyz, &
-                         & iter%lr%wfd%nseg_c, iter%lr%wfd%nvctr_c, &
-                         & iter%lr%wfd%keyglob, iter%lr%wfd%keyvglob, &
-                         & iter%lr%wfd%nseg_f, iter%lr%wfd%nvctr_f, &
-                         & iter%lr%wfd%keyglob(1:,iter%lr%wfd%nseg_c+1:), &
-                         & iter%lr%wfd%keyvglob(iter%lr%wfd%nseg_c+1:), &
-                         & iter%proj(istart:), iter%proj(istart + iter%lr%wfd%nvctr_c:), &
-                         & UNINITIALIZED(1._wp))
-
-                    close(99)
-                    istart = istart + iter%nc / iter%cplx
-                 end do
+                 close(99)
+                 istart = istart + psp_it%pspd%plr%wfd%nvctr_c + 7 * psp_it%pspd%plr%wfd%nvctr_f
               end do
            end do
-        end do
+           
+        end do loop_proj
      enddo
 
      call cpu_time(tr1)
