@@ -1774,31 +1774,31 @@ subroutine fill_logrid(geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,nbuf,nat,  &
      end do
 
 
-     ml1=ceiling((rxyz(1,iiat)-rad)/hx - eps_mach)  
-     ml2=ceiling((rxyz(2,iiat)-rad)/hy - eps_mach)   
-     ml3=ceiling((rxyz(3,iiat)-rad)/hz - eps_mach)   
-     mu1=floor((rxyz(1,iiat)+rad)/hx + eps_mach)
-     mu2=floor((rxyz(2,iiat)+rad)/hy + eps_mach)
-     mu3=floor((rxyz(3,iiat)+rad)/hz + eps_mach)
-     i3s=max(ml3,-n3/2-1)
-     i3e=min(mu3,n3+n3/2+1)
-     i2s=max(ml2,-n2/2-1)
-     i2e=min(mu2,n2+n2/2+1)
-     i1s=max(ml1,-n1/2-1)
-     i1e=min(mu1,n1+n1/2+1)
-
-     nbox_tmp(START_,3)=i3s
-     nbox_tmp(END_,3)=i3e
-     nbox_tmp(START_,2)=i2s
-     nbox_tmp(END_,2)=i2e
-     nbox_tmp(START_,1)=i1s
-     nbox_tmp(END_,1)=i1e
-
-
-     !print *,'limitold',ml3,mu3,i3s,i3e
-     !print *,'limitnew',nbox(:,3)
-
-     call f_assert(all(nbox_tmp == nbox),id='box different')
+!!$     ml1=ceiling((rxyz(1,iiat)-rad)/hx - eps_mach)  
+!!$     ml2=ceiling((rxyz(2,iiat)-rad)/hy - eps_mach)   
+!!$     ml3=ceiling((rxyz(3,iiat)-rad)/hz - eps_mach)   
+!!$     mu1=floor((rxyz(1,iiat)+rad)/hx + eps_mach)
+!!$     mu2=floor((rxyz(2,iiat)+rad)/hy + eps_mach)
+!!$     mu3=floor((rxyz(3,iiat)+rad)/hz + eps_mach)
+!!$     i3s=max(ml3,-n3/2-1)
+!!$     i3e=min(mu3,n3+n3/2+1)
+!!$     i2s=max(ml2,-n2/2-1)
+!!$     i2e=min(mu2,n2+n2/2+1)
+!!$     i1s=max(ml1,-n1/2-1)
+!!$     i1e=min(mu1,n1+n1/2+1)
+!!$
+!!$     nbox_tmp(START_,3)=i3s
+!!$     nbox_tmp(END_,3)=i3e
+!!$     nbox_tmp(START_,2)=i2s
+!!$     nbox_tmp(END_,2)=i2e
+!!$     nbox_tmp(START_,1)=i1s
+!!$     nbox_tmp(END_,1)=i1e
+!!$
+!!$
+!!$     !print *,'limitold',ml3,mu3,i3s,i3e
+!!$     !print *,'limitnew',nbox(:,3)
+!!$
+!!$     call f_assert(all(nbox_tmp == nbox),id='box different')
 
      bit=box_iter(mesh,nbox=nbox+1) !add here a plus one for the convention of ndims
      call fill_logrid_with_spheres(bit,rxyz(1,iiat),rad+eps_mach,logrid)
