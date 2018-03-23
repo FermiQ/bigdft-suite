@@ -165,10 +165,10 @@ subroutine IonicEnergyandForces(iproc,nproc,dpbox,at,elecfield,&
         ityp=at%astruct%iatype(iat)
         if (at%npspcode(ityp) == PSPCODE_PAW) then
            shortlength = shortlength + at%epsatm(ityp)
-        else if (at%npspcode(atit%ityp) == PSPCODE_GTH .or. &
-             & at%npspcode(atit%ityp) == PSPCODE_HGH .or. &
-             & at%npspcode(atit%ityp) == PSPCODE_HGH_K .or. &
-             & at%npspcode(atit%ityp) == PSPCODE_HGH_K_NLCC) then
+        else if (at%npspcode(ityp) == PSPCODE_GTH .or. &
+             & at%npspcode(ityp) == PSPCODE_HGH .or. &
+             & at%npspcode(ityp) == PSPCODE_HGH_K .or. &
+             & at%npspcode(ityp) == PSPCODE_HGH_K_NLCC) then
            rloc=at%psppar(0,0,ityp)
            atint=at%psppar(0,1,ityp)+3.0_gp*at%psppar(0,2,ityp)+&
                 15.0_gp*at%psppar(0,3,ityp)+105.0_gp*at%psppar(0,4,ityp)
