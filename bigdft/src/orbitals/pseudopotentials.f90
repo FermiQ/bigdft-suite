@@ -1033,7 +1033,7 @@ contains
          r = real(j, gp) * eps
          pot = pspiof_potential_eval(pspiof_pspdata_get_vlocal(pspio), r)
          !write(92, *) r, pot
-         if (pot + pspiof_pspdata_get_zvalence(pspio) / r > 1e-8) rloc = r
+         if (abs(pot + pspiof_pspdata_get_zvalence(pspio) / r) > 1e-7) rloc = r
       end do
       psppar(0, 0) = max(rloc / 6._gp, 0.2_gp) ! Avoid too sharp gaussians.
 
@@ -1155,8 +1155,8 @@ contains
          call paw_splint(pawtab%wvl%rholoc%msz, pawtab%wvl%rholoc%rad, &
               & pawtab%wvl%rholoc%d(:,3), pawtab%wvl%rholoc%d(:,4), &
               & 1, [r], raux, ierr)
-         if (raux(1) + nelpsp / r > 1e-8) rloc = r
-         write(92, *) r, raux(1)
+         if (abs(raux(1) + nelpsp / r) > 1e-7) rloc = r
+         !write(92, *) r, raux(1)
       end do
       psppar(0, 0) = max(rloc / 6._gp, 0.2_gp) ! Avoid too sharp gaussians.
     END SUBROUTINE paw_from_file
