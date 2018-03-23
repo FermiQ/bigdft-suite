@@ -437,7 +437,7 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
       nl%projs(iat)%region%plr%d%nfu1 = nl%projs(iat)%region%plr%d%nfu1
       nl%projs(iat)%region%plr%d%nfu2 = nl%projs(iat)%region%plr%d%nfu2
       nl%projs(iat)%region%plr%d%nfu3 = nl%projs(iat)%region%plr%d%nfu3
-      nl%projs(iat)%region%plr%geocode = lr%geocode
+      nl%projs(iat)%region%plr%geocode = "F"
       nl%projs(iat)%region%plr%d%n1i = lr%d%n1i
       nl%projs(iat)%region%plr%d%n2i = lr%d%n2i
       nl%projs(iat)%region%plr%d%n3i = lr%d%n3i
