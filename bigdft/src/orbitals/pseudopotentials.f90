@@ -828,8 +828,14 @@ contains
                j = i + index(line(i:max_field_length), '"') - 2
                call xc_get_id_from_name(ixcpsp, line(i:j))
                if (ixcpsp > 0) then
-                  call yaml_warning("Unknown xc functional " // line(i:j))
-                  ixcpsp = -20
+                  if (line(i:j) == "PBE") then
+                     ixcpsp = -101130
+                  else if (line(i:j) == "PW") then
+                     ixcpsp = -20
+                  else
+                     ixcpsp = -20
+                     call yaml_warning("Unknown xc functional " // line(i:j))
+                  end if
                end if
             end if
             if (line(1:12) == "<paw_radius ") then
@@ -1130,7 +1136,7 @@ contains
 
       ! Compute projector radii.
       d2 = f_malloc(pawrad%mesh_size, id = "d2")
-      eps = pawtab%rpaw / real(1000, gp)
+      eps = 1.1_gp * pawtab%rpaw / real(1000, gp)
       do i = 1, pawtab%basis_size
          l = pawtab%orbitals(i) + 1
          if (psppar(l, 0) > 0._gp) cycle
@@ -1143,6 +1149,7 @@ contains
                  & 1, [r], raux, ierr)
             psppar(l, 0) = psppar(l, 0) + r * r * raux(1) * raux(1) * eps
             nrm = nrm + raux(1) * raux(1) * eps
+            !write(92 + i, *) r, raux(1)
          end do
          psppar(l, 0) = sqrt(psppar(l, 0) / nrm /3._gp * 2._gp)
       end do
