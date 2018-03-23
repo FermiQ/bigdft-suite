@@ -314,8 +314,9 @@ contains
     implicit none
     type(box_iterator), intent(inout) :: bit
     !local variables
+    logical :: impossible_wrap_on_z
     integer :: iz,iy,ix,i,jx,jy,jz
-    integer(f_long) :: icnt,itgt
+    integer(f_long) :: icnt,itgt,itgt_inner
     logical(f_byte), dimension(:), allocatable :: lxyz
     integer, dimension(:), allocatable :: lx,ly,lz
     integer, dimension(3) :: subdims
@@ -323,12 +324,12 @@ contains
     do i=1,3
        subdims(i)=bit%subbox(END_,i)-bit%subbox(START_,i)+1
     end do
-    if (bit%mesh%bc(Z_) /= PERIODIC) subdims(3)=min(subdims(3),bit%i3e-bit%i3s+1)
+    impossible_wrap_on_z=bit%mesh%bc(Z_) /= PERIODIC.or. bit%subbox(END_,Z_)-bit%subbox(START_,Z_) < bit%mesh%ndims(Z_)
+    if (impossible_wrap_on_z) subdims(3)=min(subdims(3),bit%i3e-bit%i3s+1)
 
     !first, count if the iterator covers all the required points
     itgt=product(int(subdims,f_long))
-    !!!itgt=int(bit%mesh%ndims(1),f_long)*int(bit%mesh%ndims(2),f_long)*&
-    !!!     int(bit%i3e-bit%i3s+1,f_long)
+    itgt_inner=int(subdims(1),f_long)*int(subdims(2),f_long)*min(subdims(3),bit%i3e-bit%i3s+1)!int(bit%i3e-bit%i3s+1,f_long)
 
     !allocate array of values corresponding to the expected grid
 !!$    lx=f_malloc(bit%mesh%ndims(1),id='lx')
@@ -413,11 +414,12 @@ contains
        call f_assert(lz(jz)+bit%i3s-1 == bit%k,'H') !&
        !yaml_toa([lz(jz),bit%k,bit%i3s]))!,&
     end do
-    call f_assert(jz == subdims(Z_),'I')!,&
+    if (impossible_wrap_on_z) then 
+         call f_assert(jz == min(subdims(Z_),bit%i3e-bit%i3s+1),'I') !,&
     !'Error boxit, iz='+iz+', itgtz='+subdims(Z_))
-    call f_assert(icnt == itgt,'J')!,&
+         call f_assert(icnt == itgt_inner,'J')!,&
     !'Error sep boxit, icnt='+icnt+', itgt='+itgt)
-
+      end if
     !complete mode
     if (all( bit%subbox(END_,:)-bit%subbox(START_,:) < bit%mesh%ndims) .or. all(bit%mesh%bc == FREE)) then
        icnt=int(0,f_long)

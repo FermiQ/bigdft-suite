@@ -155,13 +155,14 @@ subroutine test_box_functions()
 !tbu  call loop_dotp('ITM',mesh_ortho,v1,v2,tseq)
 !tbu  call yaml_map('Normal loop, mpi (ns)',tseq)
 
-  ndims=100
+  ndims=[24,24,24]
 
   mesh_ortho=cell_null()
-  mesh_ortho=cell_new('F',ndims,[1.0_gp,1.0_gp,1.0_gp])
-!tbu  call loop_box_function('distance',mesh_ortho)
-!  call loop_box_function('box_cutoff',mesh_ortho)
-   
+  mesh_ortho=cell_new('P',ndims,[0.42753557544797666_gp,0.42753557544797666_gp,0.42753557544797666_gp])
+  !mesh_ortho=cell_new('F',ndims,[1.0_gp,1.0_gp,1.0_gp])
+  call loop_box_function('distance',mesh_ortho)
+  call loop_box_function('box_cutoff',mesh_ortho)
+stop   
   mesh_ortho=cell_null()
   mesh_ortho=cell_new('S',ndims,[1.0_gp,1.0_gp,1.0_gp])
 !tbu  call loop_box_function('distance',mesh_ortho)
@@ -237,7 +238,8 @@ subroutine loop_box_function(fcheck,mesh)
   select case(trim(fcheck))
   case('distance')
      bit=box_iter(mesh)
-     r=20.0_f_double
+     r=7.4691327000004275_f_double
+     !r=20.0_f_double
      ! Full list of functions in box.f90 to be checked:
      ! rxyz_ortho, distance, r_wrap, closest_r, 
      ! square_gu, square_gd, dotp_gu, dotp_gd.
@@ -254,7 +256,7 @@ subroutine loop_box_function(fcheck,mesh)
      call yaml_map('Product of the two',matmul(mesh%gu,mesh%gd))
      call yaml_map('uabc matrix',mesh%uabc)
      call yaml_map('Sphere radius or cube side',r)
-     do i=1,3
+     do i=2,2
 
         totvolS=0.0_f_double
         totvolS1=0.0_f_double
@@ -268,6 +270,7 @@ subroutine loop_box_function(fcheck,mesh)
         if (mesh%bc(1)==0) rxyz0(1)=mesh%ndims(1)*0.5_f_double
         if (mesh%bc(2)==0) rxyz0(2)=mesh%ndims(2)*0.5_f_double
         if (mesh%bc(3)==0) rxyz0(3)=mesh%ndims(3)*0.5_f_double
+        rxyz0 = [7.6956403580635797d0, 2.5652134526878601d0,7.6956403580635797d0]
         do while(box_next_point(bit))
            ! Sphere volume integral with distance
            if (distance(bit%mesh,bit%rxyz,rxyz0) .le. r) then
@@ -338,6 +341,7 @@ subroutine loop_box_function(fcheck,mesh)
      call yaml_mapping_close()
   case('box_cutoff')
      r=20.0_f_double
+     r=7.4691327000004275_f_double
      cutoff = r
      ! To check the functions box_nbox_from_cutoff and 
      ! cell_cutoff_extremao of box.f90.
@@ -367,6 +371,7 @@ subroutine loop_box_function(fcheck,mesh)
         if (mesh%bc(1)==0) rxyz0(1)=mesh%ndims(1)*0.5_f_double
         if (mesh%bc(2)==0) rxyz0(2)=mesh%ndims(2)*0.5_f_double
         if (mesh%bc(3)==0) rxyz0(3)=mesh%ndims(3)*0.5_f_double
+        rxyz0 = [7.6956403580635797d0, 2.5652134526878601d0,7.6956403580635797d0]
         call yaml_map('Sphere or cube center',rxyz0)
         bit=box_iter(mesh)
         call yaml_map('bit%nbox whole box',bit%nbox)
@@ -396,12 +401,18 @@ subroutine loop_box_function(fcheck,mesh)
         errorC=abs((totvolC-IntaC)/IntaC)
         
         ! Using the internal nbox
-        !nbox = box_nbox_from_cutoff(mesh,rxyz0,cutoff)
+        nbox = box_nbox_from_cutoff(mesh,rxyz0,cutoff)
         !call yaml_map('nbox',nbox)
         !bit=box_iter(mesh,nbox)
         bit=box_iter(mesh,origin=rxyz0,cutoff=cutoff)
         call yaml_map('bit%nbox reduced box',bit%nbox)
         do while(box_next_point(bit))
+          if (bit%k.eq.1) then
+            write(*,*)'Inside fill_logrid'
+            write(*,*)bit%i,bit%j,bit%k
+            write(*,*)bit%rxyz
+            write(*,*)distance(bit%mesh,bit%rxyz,rxyz0)
+          end if 
            totvol_Bcutoff=totvol_Bcutoff+1.0_f_double
         end do
         totvol_Bcutoff=totvol_Bcutoff*mesh%volume_element

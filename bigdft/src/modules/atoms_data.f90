@@ -1126,23 +1126,21 @@ contains
       type(dictionary), pointer :: dict
 
       interface
-         subroutine openbabel_load(d, f,ln)
+         subroutine openbabel_load(d, f)!,ln)
            use dictionaries
            implicit none
            type(dictionary), pointer :: d
            !character(len = *), intent(in) :: f
            character, dimension(*), intent(in) :: f
-           integer, intent(in) :: ln
+           !integer, intent(in) :: ln
          end subroutine openbabel_load
       end interface
 
       call dict_init(dict)
-      call openbabel_load(dict,f_char_ptr(trim(obfile)),len(obfile))
-     call yaml_map('parsed dict',dict)
+      call openbabel_load(dict,f_char_ptr(trim(obfile)))!,len(obfile))
       call astruct_set_from_dict(dict, astruct)
       call dict_free(dict)
     end subroutine set_astruct_from_openbabel
-
 
     subroutine analyse_posinp_dict(dict)
       use dictionaries
@@ -1151,8 +1149,9 @@ contains
       type(dictionary), pointer :: dict
       !local variables
       real(gp) :: alpha,beta,gamma
-      real(gp), dimension(3) :: cell
+      real(gp), dimension(3) :: cell,rxyz_at
       real(gp), dimension(3,3) :: abc
+      type(dictionary), pointer :: dict_atoms,iter
 
       !take the default vfalues if the key does not exists in the dictionary
       alpha=90.0_gp
@@ -1186,11 +1185,17 @@ contains
 
       !loop on the atomic positions and 
       !remove duplicated atoms
-
-      !for all the atoms which are very close to the border of the region verify if there is a atom on the other side
-      !if so remove the atoms
+      nullify(iter)
+      dict_atoms => dict// ASTRUCT_POSITIONS
+      do while(iterating(iter,on=dict_atoms))
+         call astruct_at_from_dict(iter,rxyz=rxyz_at)
+         !for all the atoms which are very close to the border of the region verify if there is a atom on the other side
+         !if so remove the atoms
+        
+      end do
 
       !then put the correct units (for example from openbabel put the angstroem keyword)
+      !if there is only cell and angles we should for instance put the 'reduced' keyword somewhere
 
     end subroutine analyse_posinp_dict
 
@@ -1361,39 +1366,6 @@ contains
 !!$         if (has_key(dict, ASTRUCT_CELL)) call dict_remove(dict, ASTRUCT_CELL,destroy=.false.)
       end if
 
-      !cell information
-!!$      BC :select case(astruct%geocode)
-!!$      case('S')
-!!$         call set(dict // ASTRUCT_CELL // 0, yaml_toa(astruct%cell_dim(1)*factor(1)))
-!!$         call set(dict // ASTRUCT_CELL // 1, '.inf')
-!!$         call set(dict // ASTRUCT_CELL // 2, yaml_toa(astruct%cell_dim(3)*factor(3)))
-!!$         !angdeg to be added
-!!$         if (reduced) then
-!!$            factor(1) = 1._gp / astruct%cell_dim(1)
-!!$            factor(3) = 1._gp / astruct%cell_dim(3)
-!!$         end if
-!!$      case('W')
-!!$         call set(dict // ASTRUCT_CELL // 0, '.inf')
-!!$         call set(dict // ASTRUCT_CELL // 1, '.inf')
-!!$         call set(dict // ASTRUCT_CELL // 2, yaml_toa(astruct%cell_dim(3)*factor(3)))
-!!$         if (reduced) then
-!!$            factor(3) = 1._gp / astruct%cell_dim(3)
-!!$         end if
-!!$      case('P')
-!!$         call set(dict // ASTRUCT_CELL // 0, yaml_toa(astruct%cell_dim(1)*factor(1)))
-!!$         call set(dict // ASTRUCT_CELL // 1, yaml_toa(astruct%cell_dim(2)*factor(2)))
-!!$         call set(dict // ASTRUCT_CELL // 2, yaml_toa(astruct%cell_dim(3)*factor(3)))
-!!$         !angdeg to be added
-!!$         if (reduced) then
-!!$            factor(1) = 1._gp / astruct%cell_dim(1)
-!!$            factor(2) = 1._gp / astruct%cell_dim(2)
-!!$            factor(3) = 1._gp / astruct%cell_dim(3)
-!!$         end if
-!!$      case('F')
-!!$         ! Default, store nothing and erase key if already exist.
-!!$         if (has_key(dict, ASTRUCT_CELL)) call dict_remove(dict, ASTRUCT_CELL)
-!!$      end select BC
-
       !if (has_key(dict, ASTRUCT_POSITIONS)) call dict_remove(dict, ASTRUCT_POSITIONS,destroy=.false.)
       if (ASTRUCT_POSITIONS .in. dict) then
          last=>dict .pop. ASTRUCT_POSITIONS
@@ -1451,6 +1423,7 @@ contains
       use module_defs, only: UNINITIALIZED
       use dynamic_memory
       use f_enums, only: operator(==), f_int => toi
+      !retrieve the information related to the atoms
       implicit none
       type(dictionary), pointer :: dict
       character(len = max_field_length), intent(out), optional :: symbol !< Symbol

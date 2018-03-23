@@ -1674,9 +1674,10 @@ subroutine fill_logrid(geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,nbuf,nat,  &
   integer :: natp, isat, iiat
   real(gp) :: dx,dy2,dz2,rad,dy2pdz2,radsq
   logical :: parallel
-  integer, dimension(2,3) :: nbox_limit,nbox
+  integer, dimension(2,3) :: nbox_limit,nbox,nbox_tmp
   type(cell) :: mesh
   type(box_iterator) :: bit
+  !logical, dimension(0:n1,0:n2,0:n3) :: logrid_tmp
 
   call f_routine(id='fill_logrid')
 
@@ -1734,6 +1735,7 @@ subroutine fill_logrid(geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,nbuf,nat,  &
            do i2=0,n2 
               do i1=0,n1
                  logrid(i1,i2,i3)=.false.
+                 !logrid_tmp(i1,i2,i3)=.false.
               enddo
            enddo
         enddo
@@ -1787,78 +1789,93 @@ subroutine fill_logrid(geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,nbuf,nat,  &
 !!$     i1s=max(ml1,-n1/2-1)
 !!$     i1e=min(mu1,n1+n1/2+1)
 !!$
-!!$     print *,'limitold',ml3,mu3,i3s,i3e
-!!$     print *,'limitnew',nbox(:,3)
-
-     bit=box_iter(mesh,nbox=nbox+1) !add here a plus one for the convention of ndims
-     call fill_logrid_with_spheres(bit,rxyz(1,iiat),rad,logrid)
-
-!!$        ml1=ceiling((rxyz(1,iiat)-rad)/hx - eps_mach)  
-!!$        ml2=ceiling((rxyz(2,iiat)-rad)/hy - eps_mach)   
-!!$        ml3=ceiling((rxyz(3,iiat)-rad)/hz - eps_mach)   
-!!$        mu1=floor((rxyz(1,iiat)+rad)/hx + eps_mach)
-!!$        mu2=floor((rxyz(2,iiat)+rad)/hy + eps_mach)
-!!$        mu3=floor((rxyz(3,iiat)+rad)/hz + eps_mach)
+!!$     nbox_tmp(START_,3)=i3s
+!!$     nbox_tmp(END_,3)=i3e
+!!$     nbox_tmp(START_,2)=i2s
+!!$     nbox_tmp(END_,2)=i2e
+!!$     nbox_tmp(START_,1)=i1s
+!!$     nbox_tmp(END_,1)=i1e
 !!$
-!!$        !for Free BC, there must be no incoherences with the previously calculated delimiters
-!!$        if (geocode(1:1) == 'F') then
-!!$           if (ml1 < nl1) then
-!!$              write(*,'(a,i0,3x,i0)')  'ERROR: ml1 < nl1  ', ml1, nl1
-!!$              stop
-!!$           end if
-!!$           if (ml2 < nl2) then
-!!$              write(*,'(a,i0,3x,i0)')  'ERROR: ml2 < nl2  ', ml2, nl2
-!!$              stop
-!!$           end if
-!!$           if (ml3 < nl3) then
-!!$              write(*,'(a,i0,3x,i0)')  'ERROR: ml3 < nl3  ', ml3, nl3
-!!$              stop
-!!$           end if
 !!$
-!!$           if (mu1 > nu1) then
-!!$              write(*,'(a,i0,3x,i0)')  'ERROR: mu1 > nu1  ', mu1, nu1
-!!$              stop
-!!$           end if
-!!$           if (mu2 > nu2) then
-!!$              write(*,'(a,i0,3x,i0)')  'ERROR: mu2 > nu2  ', mu2, nu2
-!!$              stop
-!!$           end if
-!!$           if (mu3 > nu3) then
-!!$              write(*,'(a,i0,3x,i0)')  'ERROR: mu3 > nu3  ', mu3, nu3
-!!$              stop
-!!$           end if
-!!$        end if
+!!$     !print *,'limitold',ml3,mu3,i3s,i3e
+!!$     !print *,'limitnew',nbox(:,3)
+!!$
+!!$     call f_assert(all(nbox_tmp == nbox),id='box different')
 
-!!$        i3s=max(ml3,-n3/2-1)
-!!$        i3e=min(mu3,n3+n3/2+1)
-!!$        i2s=max(ml2,-n2/2-1)
-!!$        i2e=min(mu2,n2+n2/2+1)
-!!$        i1s=max(ml1,-n1/2-1)
-!!$        i1e=min(mu1,n1+n1/2+1)
-!!$        radsq=rad**2
-!!$        !what follows works always provided the check before
-!!$        !$omp parallel default(shared) private(i3,dz2,j3,i2,dy2,j2,i1,j1,dx,dy2pdz2)
-!!$        !$omp do schedule(static,1)
-!!$        do i3=i3s,i3e
-!!$           dz2=(real(i3,gp)*hz-rxyz(3,iiat))**2-eps_mach
-!!$           if (dz2>radsq) cycle
-!!$           j3=modulo(i3,n3+1)
-!!$           do i2=i2s,i2e
-!!$              dy2=(real(i2,gp)*hy-rxyz(2,iiat))**2
-!!$              dy2pdz2=dy2+dz2
-!!$              if (dy2pdz2>radsq) cycle
-!!$              j2=modulo(i2,n2+1)
-!!$              do i1=i1s,i1e
-!!$                 j1=modulo(i1,n1+1)
-!!$                 dx=real(i1,gp)*hx-rxyz(1,iiat)
-!!$                 if (dx**2+dy2pdz2 <= radsq) then 
-!!$                    logrid(j1,j2,j3)=.true.
-!!$                 endif
-!!$              enddo
-!!$           enddo
-!!$        enddo
-!!$        !$omp enddo
-!!$        !$omp end parallel
+     !rad = sqrt(rad**2 + eps_mach)
+!     bit=box_iter(mesh,nbox=nbox+1) !add here a plus one for the convention of ndims
+!     call fill_logrid_with_spheres(bit,rxyz(1,iiat),rad+eps_mach,logrid_tmp)
+
+        ml1=ceiling((rxyz(1,iiat)-rad)/hx - eps_mach)  
+        ml2=ceiling((rxyz(2,iiat)-rad)/hy - eps_mach)   
+        ml3=ceiling((rxyz(3,iiat)-rad)/hz - eps_mach)   
+        mu1=floor((rxyz(1,iiat)+rad)/hx + eps_mach)
+        mu2=floor((rxyz(2,iiat)+rad)/hy + eps_mach)
+        mu3=floor((rxyz(3,iiat)+rad)/hz + eps_mach)
+
+        !for Free BC, there must be no incoherences with the previously calculated delimiters
+        if (geocode(1:1) == 'F') then
+           if (ml1 < nl1) then
+              write(*,'(a,i0,3x,i0)')  'ERROR: ml1 < nl1  ', ml1, nl1
+              stop
+           end if
+           if (ml2 < nl2) then
+              write(*,'(a,i0,3x,i0)')  'ERROR: ml2 < nl2  ', ml2, nl2
+              stop
+           end if
+           if (ml3 < nl3) then
+              write(*,'(a,i0,3x,i0)')  'ERROR: ml3 < nl3  ', ml3, nl3
+              stop
+           end if
+
+           if (mu1 > nu1) then
+              write(*,'(a,i0,3x,i0)')  'ERROR: mu1 > nu1  ', mu1, nu1
+              stop
+           end if
+           if (mu2 > nu2) then
+              write(*,'(a,i0,3x,i0)')  'ERROR: mu2 > nu2  ', mu2, nu2
+              stop
+           end if
+           if (mu3 > nu3) then
+              write(*,'(a,i0,3x,i0)')  'ERROR: mu3 > nu3  ', mu3, nu3
+              stop
+           end if
+        end if
+
+        i3s=max(ml3,-n3/2-1)
+        i3e=min(mu3,n3+n3/2+1)
+        i2s=max(ml2,-n2/2-1)
+        i2e=min(mu2,n2+n2/2+1)
+        i1s=max(ml1,-n1/2-1)
+        i1e=min(mu1,n1+n1/2+1)
+        radsq=rad**2
+        !what follows works always provided the check before
+        !$omp parallel default(shared) private(i3,dz2,j3,i2,dy2,j2,i1,j1,dx,dy2pdz2)
+        !$omp do schedule(static,1)
+        do i3=i3s,i3e
+           dz2=(real(i3,gp)*hz-rxyz(3,iiat))**2-eps_mach
+           if (dz2>radsq) cycle
+           j3=modulo(i3,n3+1)
+           do i2=i2s,i2e
+              dy2=(real(i2,gp)*hy-rxyz(2,iiat))**2
+              dy2pdz2=dy2+dz2
+              if (dy2pdz2>radsq) cycle
+              j2=modulo(i2,n2+1)
+              do i1=i1s,i1e
+                 j1=modulo(i1,n1+1)
+                 dx=real(i1,gp)*hx-rxyz(1,iiat)
+                 if (dx**2+dy2pdz2 <= radsq) then 
+                    logrid(j1,j2,j3)=.true.
+                 endif
+              enddo
+           enddo
+        enddo
+        !$omp enddo
+        !$omp end parallel
+
+
+!        call f_assert(all(logrid .eqv. logrid_tmp),id='logrid different')
+
   enddo
 
   if (parallel) then

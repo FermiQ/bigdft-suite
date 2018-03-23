@@ -356,6 +356,7 @@ class BigDFTInstaller():
 
     def make(self):
         "Perform the simple make action"
+        #this make action should not be written like that, better use buildone -f
         self.shellaction('.',MAKEMODULES,'make -j6 && make install',hidden=not self.verbose)
 
     def dist(self):
