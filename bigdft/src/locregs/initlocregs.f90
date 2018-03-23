@@ -1672,6 +1672,7 @@ subroutine fill_logrid(geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,nbuf,nat,  &
   real(kind=8), parameter :: eps_mach=1.d-12
   integer :: i1,i2,i3,iat,ml1,ml2,ml3,mu1,mu2,mu3,j1,j2,j3,i1s,i1e,i2s,i2e,i3s,i3e,i
   integer :: natp, isat, iiat
+  !$ integer, external:: omp_get_num_threads,omp_get_thread_num
   real(gp) :: dx,dy2,dz2,rad,dy2pdz2,radsq
   logical :: parallel
   integer, dimension(2,3) :: nbox_limit,nbox,nbox_tmp
@@ -1797,7 +1798,13 @@ subroutine fill_logrid(geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,nbuf,nat,  &
 
 
      bit=box_iter(mesh,nbox=nbox+1) !add here a plus one for the convention of ndims
+
+     !split the iterator for openmp parallelisation
+     !$omp parallel firstprivate(bit)
+     !$ call box_iter_split(bit,omp_get_num_threads(),omp_get_thread_num())
      call fill_logrid_with_spheres(bit,rxyz(1,iiat),rad,logrid)
+     !$ call box_iter_merge(bit)
+     !$omp end parallel  
 
 !!$     call fill_logrid_with_spheres(bit,rxyz(1,iiat),rad,logrid_tmp)
 !!$
