@@ -103,7 +103,6 @@ extern "C" void FC_FUNC_(openbabel_load, OPENBABEL_LOAD)(f90_dictionary_pointer 
       cell[2] = uc->GetC();
       uc->GetOffset().Get(vect);
       uc->FillUnitCell(&mol);
-      dict_set_string(dict_posinp, "units", "angstroem");
       dict_set_double_array(dict_posinp, "cell", cell, 3);
       dict_set_double(dict_posinp, "alpha", alphabetagamma[0]);
       dict_set_double(dict_posinp, "beta", alphabetagamma[1]);
@@ -116,7 +115,8 @@ extern "C" void FC_FUNC_(openbabel_load, OPENBABEL_LOAD)(f90_dictionary_pointer 
       vect[1] = 0.;
       vect[2] = 0.;
     } 
-
+  /* the units for openbabel formats is supposed to be angstroem unless otherwise specified */
+  dict_set_string(dict_posinp, "units", "angstroem");
   /* retrieve positions */
   f90_dictionary_pointer dict_positions;
   dict_init(&dict_positions);
