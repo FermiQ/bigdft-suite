@@ -16,7 +16,7 @@ subroutine system_size(atoms,rxyz,crmult,frmult,hx,hy,hz,OCLconv,Glr)
    use module_types
    use yaml_strings, only: yaml_toa
    use locregs
-   use box, only: bc_periodic_dims,geocode_to_bc
+   use box, only: bc_periodic_dims,geocode_to_bc,cell,box_nbox_from_cutoff,cell_new
    implicit none
    type(atoms_data), intent(inout) :: atoms
    real(gp), intent(in) :: crmult,frmult
@@ -27,13 +27,15 @@ subroutine system_size(atoms,rxyz,crmult,frmult,hx,hy,hz,OCLconv,Glr)
    type(locreg_descriptors), intent(out) :: Glr
    !Local variables
    !character(len=*), parameter :: subname='system_size'
-   integer, parameter :: lupfil=14
+   type(cell) :: mesh_coarse
+   integer, parameter :: lupfil=14,START_=1,END_=2
    real(gp), parameter :: eps_mach=1.e-12_gp
    integer :: iat,n1,n2,n3,nfl1,nfl2,nfl3,nfu1,nfu2,nfu3,i!,n1i,n2i,n3i
    real(gp) :: ri,rad,cxmin,cxmax,cymin,cymax,czmin,czmax!,alatrue1,alatrue2,alatrue3
-   real(gp), dimension(3) :: hgridsh,acell,alat
+   real(gp), dimension(3) :: hgridsh,alat
    logical, dimension(3) :: peri
    integer, dimension(3) :: ndims
+   integer, dimension(2,3) :: nbox,nbox_tmp
 
    !check the geometry code with the grid spacings
    if (atoms%astruct%geocode == 'F' .and. (hx/=hy .or. hx/=hz .or. hy/=hz)) then
@@ -63,6 +65,9 @@ subroutine system_size(atoms,rxyz,crmult,frmult,hx,hy,hz,OCLconv,Glr)
    czmax = -ri 
    czmin =  ri
 
+   !this treatment is a pre-evaluation of the box dimensions
+   !as if all the directions were Free BC.
+   !therefore there is no need to intriduce the metric here
    do iat=1,atoms%astruct%nat
 
       rad=atoms%radii_cf(atoms%astruct%iatype(iat),1)*crmult
@@ -87,20 +92,27 @@ subroutine system_size(atoms,rxyz,crmult,frmult,hx,hy,hz,OCLconv,Glr)
    !!  czmin=czmin-eps_mach
 
    peri=bc_periodic_dims(geocode_to_bc(atoms%astruct%geocode))
-   acell(1)=(cxmax-cxmin)
-   acell(2)=(cymax-cymin)
-   acell(3)=(czmax-czmin)
+   alat(1)=(cxmax-cxmin)
+   alat(2)=(cymax-cymin)
+   alat(3)=(czmax-czmin)
    hgridsh(1)=hx
    hgridsh(2)=hy
    hgridsh(3)=hz
+   !assign the shift to the atomic positions
+   atoms%astruct%shift(1)=cxmin
+   atoms%astruct%shift(2)=cymin
+   atoms%astruct%shift(3)=czmin
    do i=1,3
       if (peri(i)) then
          call correct_grid(atoms%astruct%cell_dim(i),hgridsh(i),ndims(i))
-         alat(i)=acell(i)
+         atoms%astruct%shift(i)=0.0_gp
       else
-         atoms%astruct%cell_dim(i)=acell(i)
+         atoms%astruct%cell_dim(i)=alat(i)
          ndims(i)=int(atoms%astruct%cell_dim(i)/hgridsh(i))
          alat(i)=ndims(i)*hgridsh(i)
+         atoms%astruct%shift(i)=atoms%astruct%shift(i)+&
+              0.5_gp*(atoms%astruct%cell_dim(i)-alat(i))
+         atoms%astruct%cell_dim(i)=alat(i)
       end if
    end do
 !!$   alatrue1=alat(1)
@@ -113,80 +125,6 @@ subroutine system_size(atoms,rxyz,crmult,frmult,hx,hy,hz,OCLconv,Glr)
    n1=ndims(1)
    n2=ndims(2)
    n3=ndims(3)
-
-
-!!!   !define the box sizes for free BC, and calculate dimensions for the fine grid with ISF
-!!!   select case (atoms%astruct%geocode)
-!!!   
-!!!   case('F')
-!!!      atoms%astruct%cell_dim(1)=(cxmax-cxmin)
-!!!      atoms%astruct%cell_dim(2)=(cymax-cymin)
-!!!      atoms%astruct%cell_dim(3)=(czmax-czmin)
-!!!
-!!!      ! grid sizes n1,n2,n3
-!!!      n1=int(atoms%astruct%cell_dim(1)/hx)
-!!!      !if (mod(n1,2)==1) n1=n1+1
-!!!      n2=int(atoms%astruct%cell_dim(2)/hy)
-!!!      !if (mod(n2,2)==1) n2=n2+1
-!!!      n3=int(atoms%astruct%cell_dim(3)/hz)
-!!!      !if (mod(n3,2)==1) n3=n3+1
-!!!      alatrue1=real(n1,gp)*hx
-!!!      alatrue2=real(n2,gp)*hy
-!!!      alatrue3=real(n3,gp)*hz
-!!!
-!!!!!$      n1i=2*n1+31
-!!!!!$      n2i=2*n2+31
-!!!!!$      n3i=2*n3+31
-!!!
-!!!   case('P')
-!!!      !define the grid spacings, controlling the FFT compatibility
-!!!      call correct_grid(atoms%astruct%cell_dim(1),hx,n1)
-!!!      call correct_grid(atoms%astruct%cell_dim(2),hy,n2)
-!!!      call correct_grid(atoms%astruct%cell_dim(3),hz,n3)
-!!!      alatrue1=(cxmax-cxmin)
-!!!      alatrue2=(cymax-cymin)
-!!!      alatrue3=(czmax-czmin)
-!!!
-!!!!!$      n1i=2*n1+2
-!!!!!$      n2i=2*n2+2
-!!!!!$      n3i=2*n3+2
-!!!
-!!!   case('S')
-!!!      call correct_grid(atoms%astruct%cell_dim(1),hx,n1)
-!!!      atoms%astruct%cell_dim(2)=(cymax-cymin)
-!!!      call correct_grid(atoms%astruct%cell_dim(3),hz,n3)
-!!!
-!!!      alatrue1=(cxmax-cxmin)
-!!!      n2=int(atoms%astruct%cell_dim(2)/hy)
-!!!      alatrue2=real(n2,gp)*hy
-!!!      alatrue3=(czmax-czmin)
-!!!
-!!!!!$      n1i=2*n1+2
-!!!!!$      n2i=2*n2+31
-!!!!!$      n3i=2*n3+2
-!!!
-!!!   case default
-!!!      call f_err_throw('Illegal geocode in system_size',err_id=BIGDFT_INPUT_VARIABLES_ERROR)
-!!!
-!!!   end select
-
-!!$   !balanced shift taking into account the missing space
-!!$   cxmin=cxmin+0.5_gp*(atoms%astruct%cell_dim(1)-alatrue1)
-!!$   cymin=cymin+0.5_gp*(atoms%astruct%cell_dim(2)-alatrue2)
-!!$   czmin=czmin+0.5_gp*(atoms%astruct%cell_dim(3)-alatrue3)
-
-   !assign the shift to the atomic positions
-   atoms%astruct%shift(1)=cxmin
-   atoms%astruct%shift(2)=cymin
-   atoms%astruct%shift(3)=czmin
-   atoms%astruct%shift=atoms%astruct%shift+0.5_gp*(atoms%astruct%cell_dim-alat)
-   do i=1,3
-      if (peri(i)) then
-         atoms%astruct%shift(i)=0.0_gp
-      else
-         atoms%astruct%cell_dim(i)=alat(i)
-      end if
-   end do
 
 !!$   !correct the box sizes for the isolated case
 !!$   select case(atoms%astruct%geocode)
@@ -218,77 +156,103 @@ subroutine system_size(atoms,rxyz,crmult,frmult,hx,hy,hz,OCLconv,Glr)
       rxyz(3,iat)=rxyz(3,iat)-atoms%astruct%shift(3)
    enddo
 
+   !put the maximum and the miniumum inverted in the beginning
+   nbox(START_,:)=ndims
+   nbox(END_,:)=0
+
    ! fine grid size (needed for creation of input wavefunction, preconditioning)
    if (atoms%astruct%nat == 0) then
       !For homogeneous gaz, we fill the box with the fine grid
-      nfl1=0 
-      nfl2=0 
-      nfl3=0
-
-      nfu1=n1
-      nfu2=n2
-      nfu3=n3
-   else
-      !we start with nfl max to find th emin and nfu min to find the max
-      nfl1=n1 
-      nfl2=n2 
-      nfl3=n3
-
-      nfu1=0 
-      nfu2=0 
-      nfu3=0
+      nbox(START_,:)=0
+      nbox(END_,:)=ndims
+!!$      nfl1=0 
+!!$      nfl2=0 
+!!$      nfl3=0
+!!$
+!!$      nfu1=n1
+!!$      nfu2=n2
+!!$      nfu3=n3
+!!$   else
+!!$      !we start with nfl max to find th emin and nfu min to find the max
+!!$      nfl1=n1 
+!!$      nfl2=n2 
+!!$      nfl3=n3
+!!$
+!!$      nfu1=0 
+!!$      nfu2=0 
+!!$      nfu3=0
    end if
 
-   !
-   !mesh_coarse=cell_new(
-
+   !here we will put the nformations about the cell angles
+   !we will also have to decide where the mesh should be in astruct or not
+   mesh_coarse=cell_new(atoms%astruct%geocode,ndims+1,hgridsh)
+  
    do iat=1,atoms%astruct%nat
       rad=atoms%radii_cf(atoms%astruct%iatype(iat),2)*frmult
-
-      !nbox=box_nbox_from_cutoff(mesh_coarse,rxyz(:,iat),rad)
-      if (rad > 0.0_gp) then
-         nfl1=min(nfl1,ceiling((rxyz(1,iat)-rad)/hx - eps_mach))
-         nfu1=max(nfu1,floor((rxyz(1,iat)+rad)/hx + eps_mach))
-
-         nfl2=min(nfl2,ceiling((rxyz(2,iat)-rad)/hy - eps_mach))
-         nfu2=max(nfu2,floor((rxyz(2,iat)+rad)/hy + eps_mach))
-
-         nfl3=min(nfl3,ceiling((rxyz(3,iat)-rad)/hz - eps_mach)) 
-         nfu3=max(nfu3,floor((rxyz(3,iat)+rad)/hz + eps_mach))
-      end if
+      if (rad <= 0.0_gp) cycle
+      nbox_tmp=box_nbox_from_cutoff(mesh_coarse,rxyz(:,iat),rad+eps_mach*maxval(hgridsh))
+      do i=1,3
+         nbox(START_,i)=min(nbox(START_,i),nbox_tmp(START_,i))
+         nbox(END_,i)=max(nbox(END_,i),nbox_tmp(END_,i))
+      end do
+!!$      if (rad > 0.0_gp) then
+!!$         nfl1=min(nfl1,ceiling((rxyz(1,iat)-rad)/hx - eps_mach))
+!!$         nfu1=max(nfu1,floor((rxyz(1,iat)+rad)/hx + eps_mach))
+!!$
+!!$         nfl2=min(nfl2,ceiling((rxyz(2,iat)-rad)/hy - eps_mach))
+!!$         nfu2=max(nfu2,floor((rxyz(2,iat)+rad)/hy + eps_mach))
+!!$
+!!$         nfl3=min(nfl3,ceiling((rxyz(3,iat)-rad)/hz - eps_mach)) 
+!!$         nfu3=max(nfu3,floor((rxyz(3,iat)+rad)/hz + eps_mach))
+!!$      end if
    enddo
 
-   !correct the values of the delimiter if they go outside the box
-   if (nfl1 < 0 .or. nfu1 > n1) then
-      nfl1=0
-      nfu1=n1
-   end if
-   if (nfl2 < 0 .or. nfu2 > n2) then
-      nfl2=0
-      nfu2=n2
-   end if
-   if (nfl3 < 0 .or. nfu3 > n3) then
-      nfl3=0
-      nfu3=n3
-   end if
+   do i=1,3
+      if (nbox(START_,i) < 0 .or. nbox(END_,i) > ndims(i)) then
+         nbox(START_,i)=0
+         nbox(END_,i)=ndims(i)
+      end if
+      if (nbox(START_,i) == ndims(i) .and. nbox(END_,i) == 0) nbox(:,i)=ndims(i)/2
+   end do
 
-   !correct the values of the delimiter if there are no wavelets
-   if (nfl1 == n1 .and. nfu1 == 0) then
-      nfl1=n1/2
-      nfu1=n1/2
-   end if
-   if (nfl2 == n2 .and. nfu2 == 0) then
-      nfl2=n2/2
-      nfu2=n2/2
-   end if
-   if (nfl3 == n3 .and. nfu3 == 0) then
-      nfl3=n3/2
-      nfu3=n3/2
-   end if
+!!$   !correct the values of the delimiter if they go outside the box
+!!$   if (nfl1 < 0 .or. nfu1 > n1) then
+!!$      nfl1=0
+!!$      nfu1=n1
+!!$   end if
+!!$   if (nfl2 < 0 .or. nfu2 > n2) then
+!!$      nfl2=0
+!!$      nfu2=n2
+!!$   end if
+!!$   if (nfl3 < 0 .or. nfu3 > n3) then
+!!$      nfl3=0
+!!$      nfu3=n3
+!!$   end if
+!!$
+!!$   !correct the values of the delimiter if there are no wavelets
+!!$   if (nfl1 == n1 .and. nfu1 == 0) then
+!!$      nfl1=n1/2
+!!$      nfu1=n1/2
+!!$   end if
+!!$   if (nfl2 == n2 .and. nfu2 == 0) then
+!!$      nfl2=n2/2
+!!$      nfu2=n2/2
+!!$   end if
+!!$   if (nfl3 == n3 .and. nfu3 == 0) then
+!!$      nfl3=n3/2
+!!$      nfu3=n3/2
+!!$   end if
 
    hgridsh(1)=0.5_gp*hx
    hgridsh(2)=0.5_gp*hy
    hgridsh(3)=0.5_gp*hz
+
+   nfl1=nbox(START_,1)
+   nfu1=nbox(END_,1)   
+   nfl2=nbox(START_,2) 
+   nfu2=nbox(END_,2)   
+   nfl3=nbox(START_,3) 
+   nfu3=nbox(END_,3) 
 
    !assign the values
 !   call init_lr(Glr,mesh_coarse,nbox_fine,&

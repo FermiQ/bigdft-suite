@@ -340,6 +340,7 @@ module locregs_init
       use module_base
       use module_types
       use bounds, only: locreg_bounds, ext_buffers
+      use box
       implicit none
       integer, intent(in) :: iproc,nproc
       integer, intent(in) :: nlr
@@ -378,30 +379,6 @@ module locregs_init
       !determine the limits of the different localisation regions
       do ilr=1,nlr
          call nullify_locreg_descriptors(Llr(ilr))
-!!$         !nullify all pointers
-!!$    !     nullify(Llr(ilr)%projflg)
-!!$         nullify(Llr(ilr)%wfd%keygloc)
-!!$         nullify(Llr(ilr)%wfd%keyglob)
-!!$         nullify(Llr(ilr)%wfd%keyvloc)
-!!$         nullify(Llr(ilr)%wfd%keyvglob)
-!!$         nullify(Llr(ilr)%bounds%ibyyzz_r)
-!!$         nullify(Llr(ilr)%bounds%kb%ibyz_c)
-!!$         nullify(Llr(ilr)%bounds%kb%ibxz_c)
-!!$         nullify(Llr(ilr)%bounds%kb%ibxy_c)
-!!$         nullify(Llr(ilr)%bounds%kb%ibyz_f)
-!!$         nullify(Llr(ilr)%bounds%kb%ibxz_f)
-!!$         nullify(Llr(ilr)%bounds%kb%ibxy_f)
-!!$         nullify(Llr(ilr)%bounds%sb%ibzzx_c)
-!!$         nullify(Llr(ilr)%bounds%sb%ibyyzz_c)
-!!$         nullify(Llr(ilr)%bounds%sb%ibxy_ff)
-!!$         nullify(Llr(ilr)%bounds%sb%ibzzx_f)
-!!$         nullify(Llr(ilr)%bounds%sb%ibyyzz_f)
-!!$         nullify(Llr(ilr)%bounds%gb%ibzxx_c)
-!!$         nullify(Llr(ilr)%bounds%gb%ibxxyy_c)
-!!$         nullify(Llr(ilr)%bounds%gb%ibyz_ff)
-!!$         nullify(Llr(ilr)%bounds%gb%ibzxx_f)
-!!$         nullify(Llr(ilr)%bounds%gb%ibxxyy_f)
-    
          calc=.false.
          do iorb=1,orbs%norbp
             if(ilr == orbs%inwhichLocreg(iorb+orbs%isorb)) calc=.true.
@@ -414,13 +391,15 @@ module locregs_init
     
          cutoff=locrad(ilr)
 
-         nbox(1,1)=floor((rx-cutoff)/hx)
-         nbox(1,2)=floor((ry-cutoff)/hy)
-         nbox(1,3)=floor((rz-cutoff)/hz)
-    
-         nbox(2,1)=ceiling((rx+cutoff)/hx)
-         nbox(2,2)=ceiling((ry+cutoff)/hy)
-         nbox(2,3)=ceiling((rz+cutoff)/hz)
+         nbox=box_nbox_from_cutoff(Glr%mesh_coarse,cxyz(1,ilr),locrad(ilr),inner=.false.)
+
+!!$         nbox(1,1)=floor((rx-cutoff)/hx)
+!!$         nbox(1,2)=floor((ry-cutoff)/hy)
+!!$         nbox(1,3)=floor((rz-cutoff)/hz)
+!!$    
+!!$         nbox(2,1)=ceiling((rx+cutoff)/hx)
+!!$         nbox(2,2)=ceiling((ry+cutoff)/hy)
+!!$         nbox(2,3)=ceiling((rz+cutoff)/hz)
 
          call lr_box(Llr(ilr),Glr,[hx,hy,hz],nbox,.true.)
         
@@ -737,6 +716,7 @@ module locregs_init
     subroutine check_linear_inputguess(iproc,nlr,cxyz,locrad,hx,hy,hz,Glr,linear)
       use module_base
       use module_types
+      use box
       implicit none
       integer, intent(in) :: iproc
       integer, intent(in) :: nlr
@@ -746,10 +726,14 @@ module locregs_init
       real(gp), dimension(nlr), intent(in) :: locrad
       real(gp), dimension(3,nlr), intent(in) :: cxyz
       !local variables
+      integer, parameter :: START_=1,END_=2
       logical :: warningx,warningy,warningz
       integer :: ilr,isx,isy,isz,iex,iey,iez
       integer :: ln1,ln2,ln3
+      integer, dimension(2,3) :: nbox
       real(gp) :: rx,ry,rz,cutoff
+
+      !to check if the floor and the ceiling are meaningful in this context
 
       linear = .true.
 
@@ -767,13 +751,23 @@ module locregs_init
 
          cutoff=locrad(ilr)
 
-         isx=floor((rx-cutoff)/hx)
-         isy=floor((ry-cutoff)/hy)
-         isz=floor((rz-cutoff)/hz)
+         nbox=box_nbox_from_cutoff(Glr%mesh_coarse,cxyz(1,ilr),locrad(ilr),inner=.false.)
 
-         iex=ceiling((rx+cutoff)/hx)
-         iey=ceiling((ry+cutoff)/hy)
-         iez=ceiling((rz+cutoff)/hz)
+         isx=nbox(START_,1)
+         isy=nbox(START_,2)
+         isz=nbox(START_,3)
+
+         iex=nbox(END_,1)
+         iey=nbox(END_,2)
+         iez=nbox(END_,3)
+
+!!$         isx=floor((rx-cutoff)/hx)
+!!$         isy=floor((ry-cutoff)/hy)
+!!$         isz=floor((rz-cutoff)/hz)
+!!$
+!!$         iex=ceiling((rx+cutoff)/hx)
+!!$         iey=ceiling((ry+cutoff)/hy)
+!!$         iez=ceiling((rz+cutoff)/hz)
 
          ln1 = iex-isx
          ln2 = iey-isy

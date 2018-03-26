@@ -52,7 +52,15 @@ subroutine bind_dict_set(dict, val)
   call set(dict, val(1:len(val)))
 END SUBROUTINE bind_dict_set
 
-
+subroutine bind_dict_set_double(dict,key,keylen,val)
+  use f_precisions
+  use dictionaries
+  type(dictionary), pointer :: dict
+  integer, intent(in) :: keylen
+  character(len=keylen), intent(in) :: key
+  real(f_double), intent(in) :: val
+  call set(dict // key, val)
+end subroutine bind_dict_set_double
 
 subroutine bind_dict_pop(dict, exists, key)
   use dictionaries, only: dictionary, has_key, dict_remove, dict_init
@@ -181,6 +189,32 @@ subroutine bind_dict_set_double_array(dict,key,keylen,array,arraylen)
 
   call set(dict // key, array)
 end subroutine bind_dict_set_double_array
+
+subroutine bind_dict_set_double_matrix(dict,key,keylen,matrix,lx,ly)
+  use f_precisions
+  use dictionaries
+  type(dictionary), pointer :: dict
+  integer, intent(in) :: keylen,lx,ly
+  character(len=keylen), intent(in) :: key
+  real(f_double), dimension(lx,ly), intent(in) :: matrix
+  !local variables
+  integer :: i
+  do i=1,ly
+     call set(dict // key // i-1, matrix(:,i))
+  end do
+end subroutine bind_dict_set_double_matrix
+
+subroutine bind_dict_set_string(dict,key,val)
+  use dictionaries
+  use yaml_strings, only: convert_f_char_ptr
+  type(dictionary), pointer :: dict
+  character, dimension(*), intent(in) :: key,val
+  !local variables
+  character(len=max_field_length) :: key_,val_
+  call convert_f_char_ptr(src=key,dest=key_)
+  call convert_f_char_ptr(src=val,dest=val_)
+  call set(dict // trim(key_), trim(val_))
+end subroutine bind_dict_set_string
 
 subroutine bind_dict_set_dict(dict,key,keylen,val)
   use dictionaries

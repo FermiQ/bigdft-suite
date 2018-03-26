@@ -25,8 +25,8 @@ SETUP=' setup '
 GREP_M4_COMMENTS=" | grep -v dnl | grep -v '#' "
 
 
-CHECKMODULES= ['futile','chess','psolver','bigdft','spred']
-MAKEMODULES= ['futile','chess','psolver','libABINIT','bigdft','spred']
+CHECKMODULES= ['futile','chess','psolver','bigdft','PyBigDFT','spred']
+MAKEMODULES= ['futile','chess','psolver','libABINIT','bigdft','PyBigDFT','spred']
 
 #allowed actions and corresponding description
 ACTIONS={'build':
@@ -45,27 +45,33 @@ ACTIONS={'build':
          'Creates a tarfile for the suite tailored to reproduce the compilation options specified.',
          'check':
          'Perform check in the bigdft branches, skip external libraries.',
+         'cleanone':
+         'Clean a single module of the suite',
+         'buildone':
+         'Build a single module of the suite',
          'dry_run':
          "Visualize the list of modules that will be compiled with the provided configuration in the 'buildprocedure.png' file.",
          'link':
          'Show the linking line that have to be used to connect an external executable to the package (when applicable)' }
 
 #actions which need rcfile to be executed
-NEEDRC=['build','dist','dry_run','startover']
+NEEDRC=['build','dist','dry_run','startover','buildone']
 
 TARGETS={
     'bigdft': ['bin','bigdft'],
     'spred': ['bin','mhgps'],
     'chess': ['lib','libCheSS-1.a'],
     'futile': ['lib','libfutile-1.a'],
+    'PyBigDFT': ['bin','bigdft'], #not really a target
     'psolver': ['lib','libPSolver-1.a'],
     }
 
 class BigDFTInstaller():
     m4_re=['^AX_','CHECK_PYTHON','PKG_CHECK_MODULES'] #regular expressions to identify proprietary macros
-    def __init__(self,action,package,rcfile,verbose,quiet,yes):
+    def __init__(self,action,package,rcfile,conditions,verbose,quiet,yes):
         import os
         self.action=action    #Action to be performed
+        self.conditions = ['testing'] if conditions is None else conditions
         self.package=package  #Package
         self.yes=yes      #Ask a question
         #look where we are
@@ -95,6 +101,11 @@ class BigDFTInstaller():
         #jhbuild script
         self.jhb=os.path.join(self.srcdir,'jhbuild.py ')
         if self.rcfile != '': self.jhb += '-f '+self.rcfile
+        
+        #conditions to be added
+        if len(self.conditions) > 0: self.jhb += ' --conditions=+'+self.conditions[0]
+        for cond in self.conditions[1:]:
+            self.jhb += ',+'+cond
 
         #date of bigdft executable if present
         self.time0=self.target_time()
@@ -345,6 +356,7 @@ class BigDFTInstaller():
 
     def make(self):
         "Perform the simple make action"
+        #this make action should not be written like that, better use buildone -f
         self.shellaction('.',MAKEMODULES,'make -j6 && make install',hidden=not self.verbose)
 
     def dist(self):
@@ -373,37 +385,51 @@ class BigDFTInstaller():
         else:
             os.system(self.jhb+TINDERBOX+self.package+co)
 
+    def _wipeout(self,mod):
+        import shutil
+        print 'Wipe directory: ',mod
+        shutil.rmtree(mod, ignore_errors=True)
+
+    def _cleanone(self,mod):
+        import os
+        self.get_output(self.jhb+UNINSTALL+mod)
+        self.get_output(self.jhb+CLEANONE+mod)
+        #here we should eliminate residual .mod files
+        os.path.walk(mod,self.removefile,"*.mod")
+        os.path.walk(mod,self.removefile,"*.MOD")
+        if not self.branch: #this is necessary as we come from a tarfile
+            self._wipeout(mod)
+
+    def cleanone(self):
+        self._cleanone(self.package)
+
+    def buildone(self):
+        self._buildone(self.package)
+
     def clean(self):
         "Clean files in the build directory"
-        import os,shutil
         for mod in self.selected(MAKEMODULES[::-1]): #invert cleaning order for elegance
-            self.get_output(self.jhb+UNINSTALL+mod)
-            self.get_output(self.jhb+CLEANONE+mod)
-            #here we should eliminate residual .mod files
-            os.path.walk(mod,self.removefile,"*.mod")
-            os.path.walk(mod,self.removefile,"*.MOD")
-            if not self.branch: #this is necessary as we come from a tarfile
-                print 'Wipe directory: ',mod
-                shutil.rmtree(mod, ignore_errors=True)
+            self._cleanone(mod)
+
+    def _buildone(self,mod):
+        startat=' -t '
+        print 'Resetting: ',mod
+        self.get_output(self.jhb+SETUP+mod+startat+mod)
+        print 'Building: ',mod
+        self.get_output(self.jhb+BUILDONE+mod)
         
     def startover(self):
         "Wipe files in the makemodules directory"
         if not self.branch:
             print 'ERROR: The action "startover" is allowed only from a developer branch'
             exit(1)
-        import shutil
         import os
         for mod in self.selected(MAKEMODULES):
             self.get_output(self.jhb+UNINSTALL+mod)
-            print 'Wipe directory: ',mod
-            shutil.rmtree(mod, ignore_errors=True)
+            self._wipeout(mod)
         print 'Building again...'
-        startat=' -t '
         for mod in self.selected(MAKEMODULES):
-            print 'Resetting: ',mod
-            self.get_output(self.jhb+SETUP+mod+startat+mod)
-            print 'Building: ',mod
-            self.get_output(self.jhb+BUILDONE+mod)
+            self._buildone(mod)
         self.build()
         
     def dry_run(self):
@@ -466,7 +492,8 @@ all: build
         rclist.append("""#This is a python script which is executed by the build suite """)
         rclist.append(" ")
         rclist.append("""#Add the condition testing to run tests and includes PyYaml""")
-        rclist.append("""conditions.add("testing")""")
+        for cond in self.conditions:
+            rclist.append('conditions.add("'+cond+'")')
         rclist.append("""#List the module the this rcfile will build""")
         rclist.append("modules = ['"+self.package+"',]")
         sep=' """ '
@@ -556,6 +583,8 @@ parser.group_option("-q", "--quiet", action="store_true",help=
 
 parser.option('-d','--debug',action='store_true',
               help='Verbose output, default from a development branch')
+parser.option('-a','--add-condition',
+              help='Add a condition for the compilation of the suite.')
 parser.option('-y','--yes',action='store_true',
               help='Answer yes to dialog questions')
 parser.option('-c','--configure-line',remainder=True,
@@ -563,49 +592,7 @@ parser.option('-c','--configure-line',remainder=True,
 
 args = parser.args()
 
-
-##Now follows the available actions, argparse might be called
-#import argparse
-#
-##Redefine ArgumentParser to have the help message if no arguments
-#class Installer_Parser(argparse.ArgumentParser):
-#    def error(self, message):
-#        import sys
-#        sys.stderr.write('error: %s\n' % message)
-#        self.print_help()
-#        self.exit()
-#
-#parser = Installer_Parser(description='BigDFT suite Installer',
-#                            epilog='''
-#If you want more help type "%(prog)s help"
-#------------------------------------------------
-#For more information, visit www.bigdft.org''',
-#                            formatter_class=argparse.RawDescriptionHelpFormatter)
-#
-#parser.add_argument('action',nargs='?',default='help',
-#                    help='Action to be performed by the Installer.'
-#                    ' (default: %(default)s)',choices=['help']+[a for a in ACTIONS])
-#parser.add_argument('package',nargs='?',default='spred',
-#                    help='Package to be built by the installer. (default: %(default)s)',
-#                    choices=CHECKMODULES)
-#parser.add_argument('-f','--file',
-#                   help='Use an alternative configuration file instead of the default configuration '
-#                    + 'given by the environment variable %s' % BIGDFT_CFG)
-#
-#group = parser.add_mutually_exclusive_group()
-#group.add_argument("-v", "--verbose", action="store_true",help='Verbose output, default from a development branch')
-#group.add_argument("-q", "--quiet", action="store_true",help='Verbosity disabled output, default from a development branch')
-#
-#parser.add_argument('-d','--debug',action='store_true',
-#                   help='Verbose output, default from a development branch')
-#parser.add_argument('-y','--yes',action='store_true',
-#                   help='Answer yes to dialog questions')
-#parser.add_argument('-c','--configure-line',nargs=argparse.REMAINDER,
-#                   help='Specify the configure line to be passed (set BIGDFT_CONFIGURE_FLAGS variable)')
-#
-#
-#args = parser.parse_args()
-
+conds=None if args.add_condition is None else args.add_condition.split(',')
 
 if args.configure_line is not None:
   cfg=''
@@ -620,7 +607,9 @@ if args.action=='help':
     print 50*'-'
     print "USAGE: Installer.py <action> <package>"
     print 50*'-'+'Available actions'
-    for a in ACTIONS:
+    actions=ACTIONS.keys()
+    actions.sort()
+    for a in actions:
         print a,':'
         print '     ',ACTIONS[a]
     print 50*'-'
@@ -634,7 +623,9 @@ if args.action=='help':
 elif args.action=='update':
     yes=args.yes
     for action in ['clean','autogen','build']:
-        BigDFTInstaller(action,args.package,args.file,args.verbose,args.quiet,yes)
+        BigDFTInstaller(action,args.package,args.file,\
+                        conds,args.verbose,args.quiet,yes)
         yes=True
 else:
-    BigDFTInstaller(args.action,args.package,args.file,args.verbose,args.quiet,args.yes)
+    BigDFTInstaller(args.action,args.package,args.file,\
+                    conds,args.verbose,args.quiet,args.yes)

@@ -139,42 +139,55 @@ subroutine test_box_functions()
   v1=f_malloc([3,ndims(1),ndims(2),ndims(3)],id='v1')
   v2=f_malloc([3,ndims(1),ndims(2),ndims(3)],id='v2')
 
-  call loop_dotp('SEQ',mesh_ortho,v1,v2,tseq)
-  call yaml_map('Normal loop, seq (ns)',tseq)
-  
-  call loop_dotp('OMP',mesh_ortho,v1,v2,tomp)
-  call yaml_map('Normal loop, omp (ns)',tomp)
-
-  call loop_dotp('ITR',mesh_ortho,v1,v2,tseq)
-  call yaml_map('Normal loop, itr (ns)',tseq)
-
-  call loop_dotp('IOM',mesh_ortho,v1,v2,tseq)
-  call yaml_map('Normal loop, iom (ns)',tseq)
-
-  call loop_dotp('ITM',mesh_ortho,v1,v2,tseq)
-  call yaml_map('Normal loop, mpi (ns)',tseq)
+! to be uncommented
+!tbu  call loop_dotp('SEQ',mesh_ortho,v1,v2,tseq)   
+!tbu  call yaml_map('Normal loop, seq (ns)',tseq)
+!tbu  
+!tbu  call loop_dotp('OMP',mesh_ortho,v1,v2,tomp)
+!tbu  call yaml_map('Normal loop, omp (ns)',tomp)
+!tbu
+!tbu  call loop_dotp('ITR',mesh_ortho,v1,v2,tseq)
+!tbu  call yaml_map('Normal loop, itr (ns)',tseq)
+!tbu
+!tbu  call loop_dotp('IOM',mesh_ortho,v1,v2,tseq)
+!tbu  call yaml_map('Normal loop, iom (ns)',tseq)
+!tbu
+!tbu  call loop_dotp('ITM',mesh_ortho,v1,v2,tseq)
+!tbu  call yaml_map('Normal loop, mpi (ns)',tseq)
 
   ndims=100
 
   mesh_ortho=cell_null()
   mesh_ortho=cell_new('F',ndims,[1.0_gp,1.0_gp,1.0_gp])
-  call loop_box_function('distance',mesh_ortho)
-  !call loop_box_function('box_cutoff',mesh_ortho)
-  !stop 
+!tbu  call loop_box_function('distance',mesh_ortho)
+!  call loop_box_function('box_cutoff',mesh_ortho)
+   
   mesh_ortho=cell_null()
   mesh_ortho=cell_new('S',ndims,[1.0_gp,1.0_gp,1.0_gp])
-  call loop_box_function('distance',mesh_ortho)
+!tbu  call loop_box_function('distance',mesh_ortho)
+!  call loop_box_function('box_cutoff',mesh_ortho)
 
   mesh_ortho=cell_null()
   mesh_ortho=cell_new('P',ndims,[1.0_gp,1.0_gp,1.0_gp])
-  call loop_box_function('distance',mesh_ortho)
+!tbu  call loop_box_function('distance',mesh_ortho)
+!  call loop_box_function('box_cutoff',mesh_ortho)
 
   angrad(1) = 90.0_gp/180.0_gp*pi
   angrad(2) = 70.0_gp/180.0_gp*pi
   angrad(3) = 90.0_gp/180.0_gp*pi
   
   mesh_noortho=cell_new('S',ndims,[1.0_gp,1.0_gp,1.0_gp],alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3)) 
+!tbu  call loop_box_function('distance',mesh_noortho)
+!  call loop_box_function('box_cutoff',mesh_noortho)
+
+  angrad(1) = 80.0_gp/180.0_gp*pi
+  angrad(2) = 80.0_gp/180.0_gp*pi
+  angrad(3) = 80.0_gp/180.0_gp*pi
+  
+  mesh_noortho=cell_null()
+  mesh_noortho=cell_new('P',ndims,[1.0_gp,1.0_gp,1.0_gp],alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3)) 
   call loop_box_function('distance',mesh_noortho)
+  call loop_box_function('box_cutoff',mesh_noortho)
 
   angrad(1) = 80.0_gp/180.0_gp*pi
   angrad(2) = 76.0_gp/180.0_gp*pi
@@ -183,14 +196,18 @@ subroutine test_box_functions()
   mesh_noortho=cell_null()
   mesh_noortho=cell_new('P',ndims,[1.0_gp,1.0_gp,1.0_gp],alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3)) 
   call loop_box_function('distance',mesh_noortho)
+  call loop_box_function('box_cutoff',mesh_noortho)
   
-  angrad(1) = 80.0_gp/180.0_gp*pi
-  angrad(2) = 80.0_gp/180.0_gp*pi
-  angrad(3) = 80.0_gp/180.0_gp*pi
+
+  ndims=200
+  angrad(1) = 20.0_gp/180.0_gp*pi
+  angrad(2) = 25.0_gp/180.0_gp*pi
+  angrad(3) = 30.0_gp/180.0_gp*pi
   
   mesh_noortho=cell_null()
   mesh_noortho=cell_new('P',ndims,[1.0_gp,1.0_gp,1.0_gp],alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3)) 
   call loop_box_function('distance',mesh_noortho)
+  call loop_box_function('box_cutoff',mesh_noortho)
 
   call f_free(v1)
   call f_free(v2)
@@ -212,10 +229,11 @@ subroutine loop_box_function(fcheck,mesh)
   integer :: i,ii 
   real(f_double) :: totvolS,totvolS1,totvolS2,totvolC,r,IntaS,IntaC,cen,errorS,errorC,d2
   real(f_double) :: diff,diff_old,dist1,dist2,cutoff,totvol_Bcutoff
-  real(f_double), dimension(3) :: rxyz0,rd,rv
+  real(f_double), dimension(3) :: rxyz0,rd,rv, angdeg
   type(box_iterator) :: bit
   integer, dimension(2,3) :: nbox
 
+  angdeg = mesh%angrad*180.0_f_double/pi
   select case(trim(fcheck))
   case('distance')
      bit=box_iter(mesh)
@@ -227,7 +245,8 @@ subroutine loop_box_function(fcheck,mesh)
      call yaml_map('Cell orthorhombic',mesh%orthorhombic)
      call yaml_map('Cell ndims',mesh%ndims)
      call yaml_map('Cell hgrids',mesh%hgrids)
-     call yaml_map('Cell angles',mesh%angrad)
+     call yaml_map('Cell angles deg',angdeg)
+     call yaml_map('Cell angles rad',mesh%angrad)
      call yaml_map('Cell periodity (FREE=0,PERIODIC=1)',mesh%bc)
      call yaml_map('Volume element',mesh%volume_element)
      call yaml_map('Contravariant matrix',mesh%gu)
@@ -326,7 +345,8 @@ subroutine loop_box_function(fcheck,mesh)
      call yaml_map('Cell orthorhombic',mesh%orthorhombic)
      call yaml_map('Cell ndims',mesh%ndims)
      call yaml_map('Cell hgrids',mesh%hgrids)
-     call yaml_map('Cell angles',mesh%angrad)
+     call yaml_map('Cell angles deg',angdeg)
+     call yaml_map('Cell angles rad',mesh%angrad)
      call yaml_map('Cell periodity (FREE=0,PERIODIC=1)',mesh%bc)
      call yaml_map('Volume element',mesh%volume_element)
      call yaml_map('Contravariant matrix',mesh%gu)
@@ -335,7 +355,8 @@ subroutine loop_box_function(fcheck,mesh)
      call yaml_map('uabc matrix',mesh%uabc)
      call yaml_map('Sphere radius or cube side',r)
      call yaml_map('Box cube cutoff',cutoff)
-     do i=1,3
+!     do i=1,3
+        i=2
         totvolC=0.0_f_double
         totvol_Bcutoff=0.0_f_double
         diff=0.0_f_double
@@ -346,11 +367,9 @@ subroutine loop_box_function(fcheck,mesh)
         if (mesh%bc(1)==0) rxyz0(1)=mesh%ndims(1)*0.5_f_double
         if (mesh%bc(2)==0) rxyz0(2)=mesh%ndims(2)*0.5_f_double
         if (mesh%bc(3)==0) rxyz0(3)=mesh%ndims(3)*0.5_f_double
-        nbox = box_nbox_from_cutoff(mesh,rxyz0,cutoff)
         call yaml_map('Sphere or cube center',rxyz0)
-        call yaml_map('nbox',nbox)
-        bit=box_iter(mesh,nbox)
-        !bit=box_iter(mesh,origin=rxyz0,cutoff=cutoff)
+        bit=box_iter(mesh)
+        call yaml_map('bit%nbox whole box',bit%nbox)
         do while(box_next_point(bit))
            rd=closest_r(bit%mesh,bit%rxyz,rxyz0)
            rv=rxyz_ortho(bit%mesh,rd)
@@ -366,18 +385,27 @@ subroutine loop_box_function(fcheck,mesh)
               diff=diff_old
            end if
            ! Cube volume integral
-           if ((rv(1).ge.-r .and. rv(1).lt.r) .and.&
-               (rv(2).ge.-r .and. rv(2).lt.r) .and.&
-               (rv(3).ge.-r .and. rv(3).lt.r)) then
+           if ((rv(1).ge.-r .and. rv(1).le.r) .and.&
+               (rv(2).ge.-r .and. rv(2).le.r) .and.&
+               (rv(3).ge.-r .and. rv(3).le.r)) then
               totvolC=totvolC+1.0_f_double
            end if
-           ! Box cutoff volume integral
-           totvol_Bcutoff=totvol_Bcutoff+1.0_f_double
         end do
         totvolC=totvolC*mesh%volume_element
-        totvol_Bcutoff=totvol_Bcutoff*mesh%volume_element
         IntaC=(2.0_f_double*r)**3
         errorC=abs((totvolC-IntaC)/IntaC)
+        
+        ! Using the internal nbox
+        !nbox = box_nbox_from_cutoff(mesh,rxyz0,cutoff)
+        !call yaml_map('nbox',nbox)
+        !bit=box_iter(mesh,nbox)
+        bit=box_iter(mesh,origin=rxyz0,cutoff=cutoff)
+        call yaml_map('bit%nbox reduced box',bit%nbox)
+        do while(box_next_point(bit))
+           totvol_Bcutoff=totvol_Bcutoff+1.0_f_double
+        end do
+        totvol_Bcutoff=totvol_Bcutoff*mesh%volume_element
+
         call yaml_mapping_open('center')
         call yaml_map('Sphere or cube center',rxyz0)
         call yaml_map('Numerical cube integral',totvolC)
@@ -386,7 +414,7 @@ subroutine loop_box_function(fcheck,mesh)
         call yaml_map('Maximum difference between closest_r and square_gd',diff)
         call yaml_map('Numerical box cutoff integral',totvol_Bcutoff)
         call yaml_mapping_close()
-     end do
+!     end do
      call yaml_mapping_close()
   case('other')
   end select

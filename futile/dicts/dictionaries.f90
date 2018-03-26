@@ -83,7 +83,7 @@ module dictionaries
 
    interface assignment(=)
       module procedure get_value,get_integer,get_real,get_double,get_long,get_lg
-      module procedure get_rvec,get_dvec,get_ilvec,get_ivec,get_lvec,get_c1vec
+      module procedure get_rvec,get_dvec,get_ilvec,get_ivec,get_lvec,get_c1vec,get_d2vec
       !safe getter from list_container
       module procedure safe_get_dict,safe_get_integer,safe_get_double,safe_get_real,safe_get_char,safe_get_logical
       module procedure safe_get_long
@@ -1533,11 +1533,37 @@ contains
 
    end subroutine get_long
 
+   subroutine get_d2vec(arr,dict)
+     implicit none
+     real(f_double), dimension(:,:), intent(out) :: arr
+     type(dictionary), pointer, intent(in) :: dict
+     !local variables
+     integer :: j,ny
+     real(f_double) :: tmp
+     
+     if (dict%data%nitems == 0) then
+        tmp=dict
+        arr=tmp
+        return
+     end if
+     ny=size(arr,2)
+     if (dict%data%nitems/=ny) then
+        call f_err_throw('Matrix and dictionary differ in shape ( '//&
+          trim(yaml_toa(ny))//' and '//trim(yaml_toa(dict%data%nitems))//')',&
+          err_id=DICT_CONVERSION_ERROR)
+        return
+     end if
+     do j=1,ny
+        arr(:,j)=dict//(j-1)
+     end do
+
+   end subroutine get_d2vec
+
    !> Routine to retrieve an array from a dictionary
    subroutine get_dvec(arr,dict)
      use yaml_strings, only: yaml_toa
      implicit none
-     double precision, dimension(:), intent(out) :: arr
+     real(f_double), dimension(:), intent(out) :: arr
      type(dictionary), intent(in) :: dict
      !local variables
      double precision :: tmp
@@ -1720,7 +1746,7 @@ contains
 
    subroutine safe_get_double(val,el)
      implicit none
-     double precision, intent(inout) :: val
+     real(f_double), intent(inout) :: val
      type(list_container), intent(in) :: el
      if (associated(el%dict)) val=el%dict
    end subroutine safe_get_double
