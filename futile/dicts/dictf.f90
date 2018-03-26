@@ -200,7 +200,7 @@ subroutine bind_dict_set_double_matrix(dict,key,keylen,matrix,lx,ly)
   !local variables
   integer :: i
   do i=1,ly
-     call set(dict // key // i-1, matrix(:,i))
+     call set(dict // key // (i-1), matrix(:,i))
   end do
 end subroutine bind_dict_set_double_matrix
 

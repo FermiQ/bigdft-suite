@@ -1123,6 +1123,7 @@ contains
       use dictionaries
       use yaml_strings, only: f_char_ptr
       use yaml_output
+      use f_utils
       implicit none
       type(atomic_structure), intent(out) :: astruct
       character(len = *), intent(in) :: obfile
@@ -1182,6 +1183,7 @@ contains
 
     subroutine analyse_posinp_dict(dict)
       use dictionaries
+      use f_utils
       implicit none
       type(dictionary), pointer :: dict
       !local variables
@@ -1203,7 +1205,7 @@ contains
 
       call f_zero(abc)
       if ('abc' .in. dict) then
-         abc = dict//'abc'
+      !   abc = dict//'abc'
       else
          abc(1,1)=1.0_gp
          abc(2,2)=1.0_gp
