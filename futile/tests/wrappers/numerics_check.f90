@@ -403,8 +403,8 @@ subroutine loop_box_function(fcheck,mesh)
         ! Using the internal nbox
         nbox = box_nbox_from_cutoff(mesh,rxyz0,cutoff)
         !call yaml_map('nbox',nbox)
-        !bit=box_iter(mesh,nbox)
-        bit=box_iter(mesh,origin=rxyz0,cutoff=cutoff)
+        bit=box_iter(mesh,nbox+1)
+        !bit=box_iter(mesh,origin=rxyz0,cutoff=cutoff)
         call yaml_map('bit%nbox reduced box',bit%nbox)
         do while(box_next_point(bit))
           if (bit%k.eq.1) then
