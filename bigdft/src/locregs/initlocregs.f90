@@ -1919,7 +1919,7 @@ subroutine fill_logrid_with_spheres(bit,rxyz0,rad,logrid)
   !local variables
   do while(box_next_point(bit))
      ! Tick .true. inside the sphere of radius rad and center rxyz0
-     bit%tmp=bit%mesh%hgrids*(bit%inext-2)-rxyz0!-bit%oxyz
+     bit%tmp=bit%mesh%hgrids*(bit%inext-2)-rxyz0-bit%oxyz
 !!$     if (bit%k==1 .or. bit%k==24) then
 !!$        print *,'AA',bit%tmp,square_gd(bit%mesh,bit%tmp),rad**2
 !!$        print *,'ii',bit%inext-2

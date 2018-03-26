@@ -1201,9 +1201,9 @@ contains
       cell=1.0_gp
       if ('cell' .in. dict) cell=dict // 'cell'
 
-      call f_zero(abc)
+      !call f_zero(abc)
       if ('abc' .in. dict) then
-         abc = dict//'abc'
+         !abc = dict//'abc'
       else
          abc(1,1)=1.0_gp
          abc(2,2)=1.0_gp
