@@ -476,25 +476,31 @@ contains
     type(box_iterator), intent(inout) :: bit
     logical :: ok
 
+!!    print *,'here',bit%inext(Z_),bit%k,bit%i3s,bit%i3e
 !!$    call increment_dim(bit,3,bit%k,ok)
     ok = bit%i3e >= bit%i3s ! to be removed
     ok = bit%subbox(END_,Z_) >= bit%subbox(START_,Z_)
     if (.not. ok) return !there is nothing to explore
     ok= bit%inext(Z_) <= bit%subbox(END_,Z_)
+!    print *,'ok1',ok,bit%inext(Z_),bit%subbox(END_,Z_),bit%k
     do while(ok)
        if (bit%whole) then
           bit%k=bit%inext(Z_)
        else
           call internal_point(bit%mesh%bc(Z_),bit%inext(Z_),bit%mesh%ndims(Z_),&
                bit%k,bit%i3s,bit%i3e,ok)
+!          print *,'ok1.2',ok,bit%inext(Z_),bit%k
           if (.not. ok) bit%inext(Z_)=bit%inext(Z_)+1
        end if
+!       print *,'ok1.3',ok,bit%inext(Z_),bit%k
        if (ok) then
           bit%inext(Z_)=bit%inext(Z_)+1
           exit
        end if
        ok = bit%inext(Z_) <= bit%subbox(END_,Z_)
+!       print *,'ok1.5',ok,bit%inext(Z_),bit%k
     end do
+!    print *,'ok2',ok
     !reset x and y
     if (ok) then
        call update_boxit_z(bit)
@@ -503,6 +509,8 @@ contains
     end if
 
     !in the case the z_direction is over, make the iterator ready for new use
+!    print *,'o3',ok
+
     if (.not. ok) call box_iter_rewind(bit)
 
   end function box_next_z
@@ -647,7 +655,8 @@ contains
     box_next_point=associated(boxit%mesh)
     if (.not. box_next_point) return
     !this put the starting point
-    if (boxit%k==boxit%subbox(START_,Z_)-1) then
+    !if (boxit%k==boxit%subbox(START_,Z_)-1) then
+    if (boxit%inext(Z_)==boxit%subbox(START_,Z_)) then
        go=box_next_z(boxit)
        if (go) go=box_next_y(boxit)
        !if this one fails then there are no slices available
@@ -710,7 +719,6 @@ contains
 
   end subroutine distribute_on_tasks
 
-
   !> Terminate the splitting section. As after the call to this routine
   !! the iterator will run on the entire nbox
   pure subroutine box_iter_merge(boxit)
@@ -735,6 +743,7 @@ contains
     end if
     go=jpoint >= ilow
     if (go) go= jpoint <= ihigh
+    if (.not. go .and. ihigh == npoint) go = ilow==1
 
   end subroutine internal_point
 
@@ -1010,7 +1019,6 @@ contains
     end if
 
   end function rxyz_ortho
-
 
   !>gives the value of the coordinates for a nonorthorhombic reference system
   !! from their value wrt an orthorhombic system

@@ -22,6 +22,29 @@ extern "C" {
 }
 extern "C" void FC_FUNC_(astruct_get_types_dict, ASTRUCT_GET_TYPES_DICT)(f90_dictionary_pointer* dict, f90_dictionary_pointer* types);
 
+extern "C" void FC_FUNC_(openbabel_formats,OPENBABEL_FORMATS)(f90_dictionary_pointer* input_formats, f90_dictionary_pointer* output_formats)
+{
+  OpenBabel::OBConversion conv(NULL, NULL);
+  std::vector<std::string> informats, outformats;
+  std::vector<std::string>::iterator it;
+
+  informats = conv.GetSupportedInputFormat();
+  outformats = conv.GetSupportedOutputFormat();
+
+  dict_init(input_formats);
+  int i=0;
+  for(it = informats.begin(); it != informats.end(); it++,i++)    {
+    dict_add_string(input_formats, it->c_str());
+    }
+
+  dict_init(output_formats);
+  i=0;
+  for(it = outformats.begin(); it != outformats.end(); it++,i++)    {
+    dict_add_string(output_formats, it->c_str());
+  }
+
+}
+
 extern "C" void FC_FUNC_(openbabel_load, OPENBABEL_LOAD)(f90_dictionary_pointer *dict_posinp,
                                                          const char *filename) //, unsigned int *flen)
 {

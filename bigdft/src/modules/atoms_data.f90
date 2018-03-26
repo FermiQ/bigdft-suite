@@ -1066,10 +1066,14 @@ contains
          call yaml_parse_from_file(yaml_file_dict,trim(filename))
          call astruct_set_from_dict(yaml_file_dict//0, astruct, comment_)
          call dict_free(yaml_file_dict)
+         call f_strcpy(src='yaml',dest=astruct%inputfile_format)
       case(BABEL_SOURCE)
 
          call set_astruct_from_openbabel(astruct, trim(filename))
-         
+         !get atomic extension
+         l=index(filename,'.',back=.true.)+1
+         call f_strcpy(src=filename(l:),dest=astruct%inputfile_format)
+       
       case default
          call f_err_throw(err_msg="The specified format '" // trim(astruct%inputfile_format) // "' is not recognised."// &
               & " The format should be 'yaml', 'int', 'ascii' or 'xyz'.",err_id=BIGDFT_INPUT_FILE_ERROR)
@@ -1123,7 +1127,7 @@ contains
       type(atomic_structure), intent(out) :: astruct
       character(len = *), intent(in) :: obfile
 
-      type(dictionary), pointer :: dict
+      type(dictionary), pointer :: dict,indict,outdict
 
       interface
          subroutine openbabel_load(d, f)!,ln)
@@ -1134,13 +1138,47 @@ contains
            character, dimension(*), intent(in) :: f
            !integer, intent(in) :: ln
          end subroutine openbabel_load
+         subroutine openbabel_formats(indict,outdict)
+           use dictionaries, only: dictionary
+           implicit none
+           type(dictionary), pointer :: indict,outdict
+         end subroutine openbabel_formats
       end interface
 
       call dict_init(dict)
       call openbabel_load(dict,f_char_ptr(trim(obfile)))!,len(obfile))
+      call openbabel_formats(indict,outdict)
+
+      call yaml_map('Supported input formats',indict)
+      call yaml_map('Supported output formats',outdict)
+      call dict_free(indict,outdict)
+
       call astruct_set_from_dict(dict, astruct)
       call dict_free(dict)
     end subroutine set_astruct_from_openbabel
+
+    subroutine dump_dict_with_openbabel(dict,dict_types,fout)
+      use dictionaries
+      use yaml_strings, only: f_char_ptr
+      implicit none
+      type(dictionary), pointer :: dict,dict_types
+      character(len=*), intent(in) :: fout
+      !local variables
+
+      interface
+         subroutine openbabel_dump(d, dt, f)!,ln)
+           use dictionaries
+           implicit none
+           type(dictionary), pointer :: d,dt
+           !character(len = *), intent(in) :: f
+           character, dimension(*), intent(in) :: f
+           !integer, intent(in) :: ln
+         end subroutine openbabel_dump
+      end interface
+
+      call openbabel_dump(dict,dict_types,f_char_ptr(trim(fout)))! fout,len_trim(fout))
+
+    end subroutine dump_dict_with_openbabel
 
     subroutine analyse_posinp_dict(dict)
       use dictionaries
@@ -1229,7 +1267,7 @@ contains
       integer :: iunit
       character(len = 1024) :: fname
       real(gp), dimension(3), parameter :: dummy = (/ 0._gp, 0._gp, 0._gp /)
-      type(dictionary), pointer :: dict
+      type(dictionary), pointer :: dict,iter,types
       real(gp),dimension(:,:),allocatable :: rxyz_int
       real(kind=8),parameter :: degree=1.d0
       real(gp) :: energy_
@@ -1285,9 +1323,26 @@ contains
          call yaml_dict_dump(dict, unit = iunit)
          call dict_free(dict)
       case default
-         call f_err_throw('Writing the atomic file. Error, unknown file format ("'//&
-              trim(astruct%inputfile_format)//'")', &
-              err_name='BIGDFT_RUNTIME_ERROR')
+         !construct back the astruct dictionary from the datatype
+         call dict_init(dict)
+         call astruct_merge_to_dict(dict, astruct,rxyz_, comment)
+         !get the dictionary of the types of the atoms employed
+         call astruct_dict_get_types(dict, types)
+         nullify(iter)
+         do while (iterating(iter, on = types))
+            call dict_set(iter, dict_key(iter))
+         end do
+         !we should close the file as openbabel reopen it
+         if (iunit /=6) call f_close(iunit)
+         call f_err_open_try()
+         call dump_dict_with_openbabel(dict,types,trim(fname))
+         call f_err_close_try()
+         call dict_free(dict,types)
+         if (f_err_check()) then
+            call f_err_throw('Writing the atomic file. Error, unable to dump file format ("'//&
+                 trim(astruct%inputfile_format)//'")', &
+                 err_name='BIGDFT_RUNTIME_ERROR')
+         end if
       end select
 
       if (iunit /= 6 .and. .not. present(unit)) then
