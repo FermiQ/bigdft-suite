@@ -45,10 +45,10 @@
             version="3.99" checkoutdir="v_sim-dev"/>
     <dependencies>
       <dep package="openbabel"/>
-      <if condition-set="python">
+      <!-- <if condition-set="python">
         <dep package="pygobject"/>
         <dep package="gobject-introspection"/>
-      </if>
+      </if> -->
     </dependencies>
   </autotools>
 
