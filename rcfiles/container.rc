@@ -37,6 +37,8 @@ module_autogenargs.update({
 
 'PyYAML': "build_ext -I%(prefix)s/include -L%(prefix)s/lib --rpath=%(prefix)s/lib " % {"prefix": prefix},
 
-'pygobject': 'PYTHON=/usr/bin/python'
+'pygobject': 'PYTHON=/usr/bin/python',
+
+'v_sim-dev': '--with-abinit --with-archives --with-openbabel --with-cube --without-strict-cflags'
    
 })
