@@ -466,6 +466,7 @@ class BigDFTInstaller():
         #Otherwise stated: this is an automatic message, please do not reply.
 all: build
         """)
+        #this should be done only if buildrc is there
         for a in ACTIONS:
             sflist.append(a+':  ')
             sflist.append('\t'+
