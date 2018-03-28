@@ -17,7 +17,7 @@
   </autotools>
 
   <autotools id="gobject-introspection" autogen-sh="configure">
-    <branch repo="gnome.org" version="1.40" module="gobject-introspection/1.56/gobject-introspection-1.56.0.tar.xz" />
+    <branch repo="gnome.org" version="1.40" module="gobject-introspection/1.40/gobject-introspection-1.40.0.tar.xz" />
     <dependencies>
       <dep package="bison"/>
       <dep package="flex"/>

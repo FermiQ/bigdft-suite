@@ -44,6 +44,7 @@
     <branch repo="v_sim-dev" module="v_sim-dev.tar.gz"
             version="3.99" checkoutdir="v_sim-dev"/>
     <dependencies>
+      <dep package="openbabel"/>
       <if condition-set="python">
         <dep package="pygobject"/>
         <dep package="gobject-introspection"/>
