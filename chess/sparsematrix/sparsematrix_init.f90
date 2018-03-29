@@ -1374,6 +1374,7 @@ module sparsematrix_init
                nsegline_mult, istsegline_mult, keyv_mult, keyg_mult, &
                .true., matmul_matrix_, sparsemat)
           if (matmul_optimize_load_balancing_) then
+
     
               ! Perform a sparse multiplication and get the timings
               !call init_matrix_taskgroups(iproc, nproc, comm, .false., sparsemat)
@@ -1400,48 +1401,8 @@ module sparsematrix_init
     
               ! Determine the start and end of the columns of iproc
               call determine_columns_per_proc()
-              !!is = sparsemat%smmm%isvctr + 1
-              !!ie = sparsemat%smmm%isvctr + sparsemat%smmm%nvctrp
-              !!ncol_proc = 0
-              !!found = .false.
-              !!do icol=1,sparsemat%nfvctr
-              !!    if ((column_startend(1,icol)>=is .and. column_startend(1,icol)<=ie) .or. &
-              !!        (column_startend(2,icol)>=is .and. column_startend(2,icol)<=ie)) then
-              !!        ncol_proc = ncol_proc + 1
-              !!        if (.not.found) then
-              !!            iscol_proc = icol
-              !!            found = .true.
-              !!        end if
-              !!    end if
-              !!end do
-              !!write(*,*) 'iproc, ncol_proc', iproc, ncol_proc
-              !!col_proc = f_malloc([2,ncol_proc],id='col_proc')
-              !!icol_proc = 0
-              !!do icol=1,sparsemat%nfvctr
-              !!    write(*,*) 'iproc, icol, is, ie, column_startend(1,icol), column_startend(2,icol)', &
-              !!                iproc, icol, is, ie, column_startend(1,icol), column_startend(2,icol)
-              !!    if ((column_startend(1,icol)>=is .and. column_startend(1,icol)<=ie) .or. &
-              !!        (column_startend(2,icol)>=is .and. column_startend(2,icol)<=ie)) then
-              !!        icol_proc = icol_proc + 1
-              !!        col_proc(1,icol_proc) = max(is,column_startend(1,icol)) - sparsemat%smmm%isvctr
-              !!        col_proc(2,icol_proc) = min(ie,column_startend(2,icol)) - sparsemat%smmm%isvctr
-              !!    end if
-              !!end do
-              !!write(*,*) 'iproc, col_proc', iproc, col_proc
     
-              !!do iseg=1,sparsemat%nseg
-              !!    ii=sparsemat%keyv(iseg)
-              !!    icol = sparsemat%keyg(1,2,iseg)
-              !!    do i=sparsemat%keyg(1,1,iseg),sparsemat%keyg(2,1,iseg)
-              !!        if (ii>=is .and. ii<=ie) then
-              !!            times_col(icol,it) = times_col(icol,it) + times(ii-sparsemat%smmm%isvctr,it)
-              !!        end if
-              !!        ii=ii+1
-              !!    end do
-              !!end do
-    
-              nit = 20
-              !!times = f_malloc0([sparsemat%smmm%nvctrp,nit],id='times')
+              nit = 40
               times_col = f_malloc0([1.to.sparsemat%nfvctr,0.to.nit],id='times_col')
               if (ncol_proc>0) then
                   do it=1,nit
@@ -1462,24 +1423,6 @@ module sparsematrix_init
               call f_free(b)
               call f_free(c)
     
-              !!if (matmul_optimize_load_balancing_) then
-
-              !!! Assign the individual timings to the columns
-              !!is = sparsemat%smmm%isvctr + 1
-              !!ie = sparsemat%smmm%isvctr + sparsemat%smmm%nvctrp
-              !!do it=1,nit
-              !!    do iseg=1,sparsemat%nseg
-              !!        ii=sparsemat%keyv(iseg)
-              !!        icol = sparsemat%keyg(1,2,iseg)
-              !!        do i=sparsemat%keyg(1,1,iseg),sparsemat%keyg(2,1,iseg)
-              !!            if (ii>=is .and. ii<=ie) then
-              !!                times_col(icol,it) = times_col(icol,it) + times(ii-sparsemat%smmm%isvctr,it)
-              !!            end if
-              !!            ii=ii+1
-              !!        end do
-              !!    end do
-              !!end do
-              !!!write(*,*) 'iproc, times', iproc, times
               times = f_malloc(nit,id='times')
               call fmpi_allreduce(times_col ,FMPI_SUM, comm=comm)
               do icol=1,sparsemat%nfvctr
@@ -1487,7 +1430,6 @@ module sparsematrix_init
                   times_col(icol,0) = median(nit, times)
               end do
               call f_free(times)
-              !!write(*,*) 'iproc, times_col(:,0)', iproc, times_col(:,0)
 
               time_ideal = sum(times_col(:,0))/real(nproc,kind=mp)
               norb_par_ideal = f_malloc(0.to.nproc-1,id='norb_par_ideal')
@@ -1499,7 +1441,6 @@ module sparsematrix_init
               do jproc=1,nproc-1
                   isorb_par_ideal(jproc) = isorb_par_ideal(jproc-1) + norb_par_ideal(jproc-1)
               end do
-              !write(*,*) 'iproc, isorb_par_ideal, norb_par_ideal', iproc, isorb_par_ideal, norb_par_ideal
 
               call deallocate_sparse_matrix_matrix_multiplication(sparsemat%smmm)
               call init_sparse_matrix_matrix_multiplication_new(iproc, nproc, comm, &
@@ -6789,23 +6730,12 @@ module sparsematrix_init
                      jorb = smat%smmm%consecutive_lookup(1,iblock)
                      jjorb = smat%smmm%consecutive_lookup(2,iblock)
                      ncount = smat%smmm%consecutive_lookup(3,iblock)
-                     !ind = smat%smmm%consecutive_lookup(4,iblock) - smat%isvctrp_tg
                      ind = smat%smmm%consecutive_lookup(lookupindex,iblock) - ishift
-                     do j=0,ncount-1
-                         tt0 = tt0 + b(jjorb+j)*a(ind+j)
-                     end do
-                     !tt0=tt0+my_dot(ncount,b(jjorb),a(ind))
+                     tt0=tt0+my_dot(ncount,b(jjorb:),a(ind:))
                  end do
 
                  c(i) = tt0
-                 !write(*,*) 'i, t1, t2, time', i, t1, t2, t2-t1
              end do 
-             !$omp end do
-             !!if (iproc==0) then
-             !!    do iii=1,100000
-             !!        write(999,*) exp(0.1d0*iii)
-             !!    end do
-             !!end if
              !$omp master
              t2 = mpi_wtime()
              times_col(icol) = t2-t1
