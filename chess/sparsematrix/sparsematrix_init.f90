@@ -1011,7 +1011,7 @@ module sparsematrix_init
       if (present(matmul_matrix)) matmul_matrix_ = matmul_matrix
 
 
-      lut = f_malloc(norbu,id='lut')
+      !lut = f_malloc(norbu,id='lut')
 
       sparsemat=sparse_matrix_null()
 
@@ -1074,7 +1074,7 @@ module sparsematrix_init
       !!call f_memcpy(src=nonzero,dest=nonzero_orig)
 
       ! # NEW #######################################
-      call allocate_sparse_matrix_keys(store_index_, sparsemat)
+      !!call allocate_sparse_matrix_keys(store_index_, sparsemat)
       call get_segment_structure(nproc, comm, &
            sparsemat%nfvctr, sparsemat%nfvctrp, sparsemat%isfvctr, &
            nnonzero, nonzero, sparsemat%nseg, sparsemat%nvctr, sparsemat%keyg, &
