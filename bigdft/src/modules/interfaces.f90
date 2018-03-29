@@ -1381,4 +1381,21 @@ module module_interfaces
      END SUBROUTINE write_orbital_density
   end interface
 
+  interface
+    subroutine get_locrads_and_centers(nlr, input, astruct, rxyz, orbs, &
+               locrad, locrad_kernel, locrad_mult, locregCenter)
+      use module_types, only: input_variables, atomic_structure, orbitals_data
+      implicit none
+    
+      ! Calling arguments
+      integer,intent(in) :: nlr
+      type(input_variables), intent(in) :: input
+      type(atomic_structure), intent(in) :: astruct
+      real(kind=8),dimension(3,astruct%nat), intent(in) :: rxyz
+      type(orbitals_data), intent(in) :: orbs
+      real(kind=8),dimension(nlr),intent(out),optional :: locrad, locrad_kernel, locrad_mult
+      real(kind=8),dimension(3,nlr),intent(out),optional :: locregCenter
+    end subroutine get_locrads_and_centers
+  end interface
+
 END MODULE module_interfaces

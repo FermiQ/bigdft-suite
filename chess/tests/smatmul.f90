@@ -325,6 +325,6 @@ subroutine commandline_options(parser)
        dict_new('Usage' .is. &
        'Indicate storage format of the sparse matrix for the sparse matrix multiplications.',&
        'Allowed values' .is. &
-       'Integer. Only 301 (MATMUL_REPLICATE_MATRIX) or 302 (MATMUL_REPLICATE_MATRIX) is possible'))
+       'Integer. Only 301 (MATMUL_REPLICATE_MATRIX) or 302 (MATMUL_ORIGINAL_MATRIX) is possible'))
 
 end subroutine commandline_options

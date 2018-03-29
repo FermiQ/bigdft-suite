@@ -2122,7 +2122,7 @@ module sparsematrix
       real(kind=mp),dimension(nvctrp_l),intent(out),optional :: matrix_l_out
       real(kind=mp),dimension(nvctrp_s),intent(out),optional :: matrix_s_out
       ! Local variables
-      integer :: i, ii, ind, iline, icolumn
+      integer :: i, ii, ind, iline, icolumn, iseg
 
       call f_routine(id='transform_sparsity_pattern')
       !call timing(iproc, 'transformspars', 'ON')
@@ -2137,6 +2137,10 @@ module sparsematrix
                 call f_err_throw("'matrix_s_out' not present",err_name='BIGDFT_RUNTIME_ERROR')
             end if
 
+            !!do iseg=1,nseg_l
+            !!    write(*,*) 'iseg, keyg_l(:,:,iseg)', iseg, keyg_l(:,:,iseg)
+            !!end do
+
             ! No need for f_zero since every value will be overwritten.
             !$omp parallel default(none) &
             !$omp shared(nvctrp_s, isvctr_s, isvctr_l, line_and_column_s) &
@@ -2150,6 +2154,7 @@ module sparsematrix
                 icolumn = line_and_column_s(2,i)
                 ind = matrixindex_in_compressed_lowlevel(icolumn, iline, nfvctr, &
                       nseg_l, keyv_l, keyg_l, istsegline_l)
+                !!write(*,*) 'iline, icolumn, ind', iline, icolumn, ind
                 ind = ind - isvctr_l
                 matrix_s_out(i) = matrix_l_in(ind)
             end do

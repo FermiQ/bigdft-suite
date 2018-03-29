@@ -7,6 +7,7 @@ module bigdft_matrices
   !!public :: get_modulo_array
   public :: init_matrixindex_in_compressed_fortransposed
   public :: init_bigdft_matrices
+  public :: reduce_matrix_bandwidth
 
 
   contains
@@ -783,5 +784,61 @@ module bigdft_matrices
       call f_release_routine()
 
     end subroutine check_orbital_matrix_distribution
+
+
+    subroutine reduce_matrix_bandwidth(iproc, nproc, comm, nlr, glr, astruct, hgrids, locregcenter, locrad, orbs)
+      use futile
+      use locregs, only: locreg_descriptors
+      use module_types, only: orbitals_data, atomic_structure
+      use sparsematrix_wrappers, only: determine_sparsity_pattern_distance
+      use sparsematrix_init, only: get_segment_structure, compact_sparsity_pattern
+      implicit none
+
+      ! Calling arguments
+      integer,intent(in) :: iproc, nproc, comm, nlr
+      type(locreg_descriptors),intent(in) :: glr
+      type(atomic_structure), intent(in) :: astruct
+      real(kind=8),dimension(3),intent(in) :: hgrids
+      real(kind=8),dimension(3,nlr), intent(in) :: locregcenter
+      real(kind=8),dimension(nlr), intent(in) :: locrad
+      type(orbitals_data),intent(inout) :: orbs
+
+      ! Local variables
+      integer :: nnonzero, nseg, nvctr, iorb, iiorb, iiat, iilr
+      integer,dimension(:,:),pointer :: nonzero
+      integer,dimension(:),allocatable :: pivot, on_which_atom_pvt, in_which_locreg_pvt
+      integer,dimension(:,:,:),pointer :: keyg
+
+
+      !call determine_sparsity_pattern(iproc, nproc, orbs, lzd, nnonzero, nonzero)
+      call determine_sparsity_pattern_distance(nlr, orbs, glr, locregcenter, astruct, hgrids, locrad, &
+           nnonzero, nonzero)
+
+
+      call get_segment_structure(nproc, comm, orbs%norbu, orbs%norbup, orbs%isorb, &
+           nnonzero, nonzero, nseg, nvctr, keyg)
+
+      call f_free_ptr(nonzero)
+
+      pivot = f_malloc(orbs%norbu,id='pivot')
+      call compact_sparsity_pattern(orbs%norbu, nvctr, nseg, keyg, pivot)
+
+      on_which_atom_pvt = f_malloc0(orbs%norbu,id='on_which_atom_pvt')
+      in_which_locreg_pvt = f_malloc0(orbs%norbu,id='in_which_locreg_pvt')
+      do iorb=1,orbs%norbu
+          iiorb = pivot(iorb)
+          iiat = orbs%onwhichatom(iiorb)
+          iilr = orbs%inwhichlocreg(iiorb)
+          on_which_atom_pvt(iorb) = iiat
+          in_which_locreg_pvt(iorb) = iilr
+      end do
+      call f_memcpy(src=on_which_atom_pvt, dest=orbs%onwhichatom)
+      call f_memcpy(src=in_which_locreg_pvt, dest=orbs%inwhichlocreg)
+      call f_free(on_which_atom_pvt)
+      call f_free(in_which_locreg_pvt)
+      call f_free(pivot)
+      call f_free_ptr(keyg)
+
+    end subroutine reduce_matrix_bandwidth
 
 end module bigdft_matrices

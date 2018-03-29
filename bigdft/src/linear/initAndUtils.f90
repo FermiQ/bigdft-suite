@@ -512,6 +512,7 @@ subroutine lzd_init_llr(iproc, nproc, input, astruct, rxyz, orbs, lzd)
   use module_base
   use module_types
   use locregs, only: locreg_null
+  use module_interfaces, only: get_locrads_and_centers
   implicit none
 
   ! Calling arguments
@@ -524,9 +525,11 @@ subroutine lzd_init_llr(iproc, nproc, input, astruct, rxyz, orbs, lzd)
 
   ! Local variables
   integer :: iat, ityp, ilr, istat, iorb, iilr
-  real(kind=8),dimension(:,:), allocatable :: locregCenter
-  character(len=*), parameter :: subname='lzd_init_llr'
+  !real(kind=8),dimension(:,:), allocatable :: locregCenter
+  !!character(len=*), parameter :: subname='lzd_init_llr'
   real(8):: t1, t2
+  real(kind=8),dimension(:),allocatable :: locrad, locrad_kernel, locrad_mult
+  real(kind=8),dimension(:,:),allocatable :: locregCenter
 
   call timing(iproc,'init_locregs  ','ON')
 
@@ -538,37 +541,55 @@ subroutine lzd_init_llr(iproc, nproc, input, astruct, rxyz, orbs, lzd)
 
   lzd%nlr=orbs%norb
 
-  locregCenter = f_malloc((/ 3, orbs%norbu /),id='locregCenter')
+  !!locregCenter = f_malloc((/ 3, orbs%norbu /),id='locregCenter')
 
-  ilr=0
-  do iat=1,astruct%nat
-      ityp=astruct%iatype(iat)
-      do iorb=1,input%lin%norbsPerType(ityp)
-          ilr=ilr+1
-          locregCenter(:,ilr)=rxyz(:,iat)
-      end do
-  end do
+  !!ilr=0
+  !!do iat=1,astruct%nat
+  !!    ityp=astruct%iatype(iat)
+  !!    do iorb=1,input%lin%norbsPerType(ityp)
+  !!        ilr=ilr+1
+  !!        locregCenter(:,ilr)=rxyz(:,iat)
+  !!    end do
+  !!end do
 
   ! Allocate the array of localisation regions
   allocate(lzd%Llr(lzd%nlr),stat=istat)
   do ilr=1,lzd%nlr
      lzd%llr(ilr)=locreg_null()
   end do
-  do ilr=1,lzd%nlr
-      iilr=mod(ilr-1,orbs%norbu)+1 !correct value for a spin polarized system
-      !!write(*,*) 'ilr, iilr', ilr, iilr
-      lzd%llr(ilr)%locrad=input%lin%locrad(iilr)
-      lzd%llr(ilr)%locrad_kernel=input%lin%locrad_kernel(iilr)
-      lzd%llr(ilr)%locrad_mult=input%lin%locrad_mult(iilr)
-      lzd%llr(ilr)%locregCenter=locregCenter(:,iilr)
-      !!if (iproc==0) then
-      !!    write(*,'(a,i3,3x,es10.3,3x,es10.3,3x,es10.3,3x,3es10.3)') 'ilr, locrad, locrad_kernel, locrad_mult, locregCenter', &
-      !!    ilr, lzd%llr(ilr)%locrad, lzd%llr(ilr)%locrad_kernel, &
-      !!    lzd%llr(ilr)%locrad_mult, lzd%llr(ilr)%locregCenter
-      !!end if
-  end do
+  !!do ilr=1,lzd%nlr
+  !!    iilr=mod(ilr-1,orbs%norbu)+1 !correct value for a spin polarized system
+  !!    !!write(*,*) 'ilr, iilr', ilr, iilr
+  !!    lzd%llr(ilr)%locrad=input%lin%locrad(iilr)
+  !!    lzd%llr(ilr)%locrad_kernel=input%lin%locrad_kernel(iilr)
+  !!    lzd%llr(ilr)%locrad_mult=input%lin%locrad_mult(iilr)
+  !!    lzd%llr(ilr)%locregCenter=locregCenter(:,iilr)
+  !!    !!if (iproc==0) then
+  !!    !!    write(*,'(a,i3,3x,es10.3,3x,es10.3,3x,es10.3,3x,3es10.3)') 'ilr, locrad, locrad_kernel, locrad_mult, locregCenter', &
+  !!    !!    ilr, lzd%llr(ilr)%locrad, lzd%llr(ilr)%locrad_kernel, &
+  !!    !!    lzd%llr(ilr)%locrad_mult, lzd%llr(ilr)%locregCenter
+  !!    !!end if
+  !!end do
 
+  locrad = f_malloc(lzd%nlr,id='locrad')
+  locrad_kernel = f_malloc(lzd%nlr,id='locrad_kernel')
+  locrad_mult = f_malloc(lzd%nlr,id='locrad_mult')
+  locregCenter = f_malloc([3,lzd%nlr],id='locregCenter')
+  call get_locrads_and_centers(lzd%nlr, input, astruct, rxyz, orbs, &
+       locrad=locrad, locrad_kernel=locrad_kernel, &
+       locrad_mult=locrad_mult, locregCenter=locregCenter)
+  do ilr=1,lzd%nlr
+      lzd%llr(ilr)%locrad = locrad(ilr)
+      lzd%llr(ilr)%locrad_kernel = locrad_kernel(ilr)
+      lzd%llr(ilr)%locrad_mult = locrad_mult(ilr)
+      lzd%llr(ilr)%locregCenter(1:3) = locregCenter(1:3,ilr)
+  end do
+  call f_free(locrad)
+  call f_free(locrad_kernel)
+  call f_free(locrad_mult)
   call f_free(locregCenter)
+
+  !!call f_free(locregCenter)
 
   t2=mpi_wtime()
   !if(iproc==0) write(*,*) 'in lzd_init_llr: time',t2-t1
@@ -1809,3 +1830,46 @@ subroutine set_confdatarr(input, at, lorbs, onwhichatom, potential_prefac, locra
   call f_free(written)
 
 end subroutine set_confdatarr
+
+
+subroutine get_locrads_and_centers(nlr, input, astruct, rxyz, orbs, &
+           locrad, locrad_kernel, locrad_mult, locregCenter)
+  use futile
+  use module_types, only: input_variables, atomic_structure, orbitals_data
+  implicit none
+
+  ! Calling arguments
+  integer,intent(in) :: nlr
+  type(input_variables), intent(in) :: input
+  type(atomic_structure), intent(in) :: astruct
+  real(kind=8),dimension(3,astruct%nat), intent(in) :: rxyz
+  type(orbitals_data), intent(in) :: orbs
+  real(kind=8),dimension(nlr),intent(out),optional :: locrad, locrad_kernel, locrad_mult
+  real(kind=8),dimension(3,nlr),intent(out),optional :: locregCenter
+  ! Local variables
+  integer :: iat, ityp, ilr, istat, iorb, iilr
+  real(kind=8),dimension(:,:), allocatable :: lrc
+
+
+  lrc = f_malloc((/ 3, orbs%norbu /),id='lrc')
+
+  ilr=0
+  do iat=1,astruct%nat
+      ityp=astruct%iatype(iat)
+      do iorb=1,input%lin%norbsPerType(ityp)
+          ilr=ilr+1
+          lrc(:,ilr)=rxyz(:,iat)
+      end do
+  end do
+
+  do ilr=1,nlr
+      iilr=mod(ilr-1,orbs%norbu)+1 !correct value for a spin polarized system
+      if (present(locrad)) locrad(ilr) = input%lin%locrad(iilr)
+      if (present(locrad_kernel)) locrad_kernel(ilr) = input%lin%locrad_kernel(iilr)
+      if (present(locrad_mult)) locrad_mult(ilr) = input%lin%locrad_mult(iilr)
+      if (present(locregCenter)) locregCenter(1:3,ilr) = lrc(1:3,iilr)
+  end do
+
+  call f_free(lrc)
+
+end subroutine get_locrads_and_centers

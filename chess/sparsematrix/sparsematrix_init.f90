@@ -61,13 +61,35 @@ module sparsematrix_init
   public :: init_matrix_taskgroups_wrapper
   public :: check_projector_charge_analysis
   public :: analyze_unbalancing
+  public :: get_segment_structure
+  public :: compact_sparsity_pattern
 
   interface init_matrix_taskgroups_wrapper
       module procedure init_matrix_taskgroups_wrapper_multi
       module procedure init_matrix_taskgroups_wrapper_single
   end interface init_matrix_taskgroups_wrapper
 
+!!  type :: tRgn
+!!     ! The name of the region
+!!     character(len=R_NAME_LEN) :: name = ' '
+!!     ! The quantities in the region
+!!     integer :: n = 0
+!!     integer, pointer :: r(:) => null()
+!!     logical :: sorted = .false.
+!!  end type tRgn
+!!
+!!  type :: tPvtLvl
+!!     ! The pivot table
+!!     type(tRgn) :: pvt
+!!     ! The level that each entry belongs to
+!!     type(tRgn) :: lvl
+!!  end type tPvtLvl
+
+
   contains
+
+
+
 
 
 
@@ -941,12 +963,13 @@ module sparsematrix_init
       !integer :: jst_line, jst_seg, segn, ind
       integer :: ist, ivctr, i, iel, iend_seg, ilen_seg, iiseg, ist_seg, matmul_matrix_
       logical :: init_matmul_, found
+      integer :: inz, i1, i2, j1, j2, ipattern
       logical,dimension(:),allocatable :: lut
       integer :: nseg_mult, nvctr_mult, ivctr_mult
       integer,dimension(:),allocatable :: nsegline_mult, istsegline_mult, is_line
       integer,dimension(:),allocatable :: norb_par_ideal, isorb_par_ideal
-      integer,dimension(:,:,:),allocatable :: keyg_mult
-      integer,dimension(:),allocatable :: keyv_mult
+      integer,dimension(:,:,:),pointer :: keyg_mult
+      integer,dimension(:),pointer :: keyv_mult!, pivot
       logical :: allocate_full_, print_info_, store_index_, matmul_optimize_load_balancing_ !LG: internal variables have the underscore, not the opposite
       !integer(kind=mp) :: ntot
 
@@ -957,7 +980,16 @@ module sparsematrix_init
       real(mp),dimension(:),allocatable :: a, b, c
       real(mp),dimension(:,:),allocatable :: times_col
       real(mp),dimension(:),allocatable :: times
-      integer,dimension(:,:),allocatable :: column_startend, col_proc
+      integer,dimension(:,:),allocatable :: column_startend, col_proc, nonzero_orig
+
+
+      !!write(*,*) 'in init_sparse_matrix'
+      !!do inz=1,nnonzero
+      !!    write(*,*) 'inz, nonzero(:,inz)', inz, nonzero(:,inz)
+      !!end do
+      !!do inz=1,nnonzero_mult
+      !!    write(*,*) 'inz, nonzero_mult(:,inz)', inz, nonzero_mult(:,inz)
+      !!end do
 
 
       !call timing(iproc,'init_matrCompr','ON')
@@ -977,10 +1009,6 @@ module sparsematrix_init
       if (present(init_matmul)) init_matmul_ = init_matmul
       if (present(matmul_optimize_load_balancing)) matmul_optimize_load_balancing_ = matmul_optimize_load_balancing
       if (present(matmul_matrix)) matmul_matrix_ = matmul_matrix
-
-      ! Sort the nonzero entries
-      call sort_nonzero_entries(nnonzero, nonzero)
-      call sort_nonzero_entries(nnonzero_mult, nonzero_mult)
 
 
       lut = f_malloc(norbu,id='lut')
@@ -1040,73 +1068,127 @@ module sparsematrix_init
       !    sparsemat%on_which_atom(:) = UNINITIALIZED(1)
       !end if
 
+      !!is_line = f_malloc(norbu,id='is_line')
 
-      sparsemat%nseg=0
-      sparsemat%nvctr=0
-      sparsemat%nsegline=0
-      is_line = f_malloc(norbu,id='is_line')
-      !!do iorb=1,nnonzero
-      !!    write(*,*) 'iorb, nonzero(:,iorb)', iorb, nonzero(:,iorb)
-      !!end do
-      do iorb=1,sparsemat%nfvctrp
-          iiorb=sparsemat%isfvctr+iorb
-          !write(*,*) 'calling create_lookup_table 1, iproc, iorb', iproc, iorb
-          call create_lookup_table(nnonzero, nonzero, iiorb, norbu, is_line, iorb==1, lut)
-          call nseg_perline(norbu, lut, sparsemat%nseg, sparsemat%nvctr, sparsemat%nsegline(iiorb))
-          !!write(*,*) 'iorb, lut', iorb, lut
-      end do
+      !!nonzero_orig = f_malloc([2,nnonzero],id='nonzero_orig')
+      !!call f_memcpy(src=nonzero,dest=nonzero_orig)
 
-      if (nproc>1) then
-          call fmpi_allreduce(sparsemat%nvctr,1,op=FMPI_SUM,comm=comm)
-          call fmpi_allreduce(sparsemat%nseg,1,op=FMPI_SUM,comm=comm)
-          !call fmpi_allreduce(sparsemat%nseg, 1, FMPI_SUM, comm=comm)
-          call fmpi_allreduce(sparsemat%nsegline(1), sparsemat%nfvctr, FMPI_SUM, comm=comm)
-      end if
-      if (extra_timing) call cpu_time(tr1)
-      if (extra_timing) time0=real(tr1-tr0,kind=mp)
-
-      if (extra_timing) call cpu_time(tr0)
-
-      ist=1
-      do jorb=1,sparsemat%nfvctr
-          ! Starting segment for this line
-          sparsemat%istsegline(jorb)=ist
-          ist=ist+sparsemat%nsegline(jorb)
-      end do
-
-
-
+      ! # NEW #######################################
       call allocate_sparse_matrix_keys(store_index_, sparsemat)
+      call get_segment_structure(nproc, comm, &
+           sparsemat%nfvctr, sparsemat%nfvctrp, sparsemat%isfvctr, &
+           nnonzero, nonzero, sparsemat%nseg, sparsemat%nvctr, sparsemat%keyg, &
+           keyv=sparsemat%keyv, nsegline=sparsemat%nsegline, istsegline=sparsemat%istsegline)
+      !!do ipattern=2,2
+
+      !!    call f_memcpy(src=nonzero_orig,dest=nonzero)
+
+      !!    do inz=1,nnonzero
+      !!        write(*,*) 'inz, nonzero(:,inz)', inz, nonzero(:,inz)
+      !!    end do
+
+      !!    ! Sort the nonzero entries
+      !!    call sort_nonzero_entries(nnonzero, nonzero)
+      !!    call sort_nonzero_entries(nnonzero_mult, nonzero_mult)
 
 
-      ivctr=0
-      sparsemat%keyg=0
-      do iorb=1,sparsemat%nfvctrp
-          iiorb=sparsemat%isfvctr+iorb
-          !write(*,*) 'calling create_lookup_table 2, iproc, iorb', iproc, iorb
-          call create_lookup_table(nnonzero, nonzero, iiorb, norbu, is_line, .false., lut)
-          call keyg_per_line(norbu, sparsemat%nseg, iiorb, sparsemat%istsegline(iiorb), &
-               lut, ivctr, sparsemat%keyg)
-      end do
+      !!    sparsemat%nseg=0
+      !!    sparsemat%nvctr=0
+      !!    sparsemat%nsegline=0
+      !!    !!do iorb=1,nnonzero
+      !!    !!    write(*,*) 'iorb, nonzero(:,iorb)', iorb, nonzero(:,iorb)
+      !!    !!end do
+      !!    do iorb=1,sparsemat%nfvctrp
+      !!        iiorb=sparsemat%isfvctr+iorb
+      !!        !write(*,*) 'calling create_lookup_table 1, iproc, iorb', iproc, iorb
+      !!        call create_lookup_table(nnonzero, nonzero, iiorb, norbu, is_line, iorb==1, lut)
+      !!        call nseg_perline(norbu, lut, sparsemat%nseg, sparsemat%nvctr, sparsemat%nsegline(iiorb))
+      !!        !!write(*,*) 'iorb, lut', iorb, lut
+      !!    end do
 
-      ! check whether the number of elements agrees
-      if (nproc>1) then
-          call fmpi_allreduce(ivctr, 1, FMPI_SUM, comm=comm)
-      end if
-      if (ivctr/=sparsemat%nvctr) then
-          write(*,'(a,2i8)') 'ERROR: ivctr/=sparsemat%nvctr', ivctr, sparsemat%nvctr
-          stop
-      end if
-      if (nproc>1) then
-          call fmpi_allreduce(sparsemat%keyg(1,1,1), 2*2*sparsemat%nseg, FMPI_SUM, comm=comm)
-      end if
+      !!    if (nproc>1) then
+      !!        call fmpi_allreduce(sparsemat%nvctr,1,op=FMPI_SUM,comm=comm)
+      !!        call fmpi_allreduce(sparsemat%nseg,1,op=FMPI_SUM,comm=comm)
+      !!        !call fmpi_allreduce(sparsemat%nseg, 1, FMPI_SUM, comm=comm)
+      !!        call fmpi_allreduce(sparsemat%nsegline(1), sparsemat%nfvctr, FMPI_SUM, comm=comm)
+      !!    end if
+      !!    if (extra_timing) call cpu_time(tr1)
+      !!    if (extra_timing) time0=real(tr1-tr0,kind=mp)
 
-      ! start of the segments
-      sparsemat%keyv(1)=1
-      do iseg=2,sparsemat%nseg
-          ! A segment is always on one line, therefore no double loop
-          sparsemat%keyv(iseg) = sparsemat%keyv(iseg-1) + sparsemat%keyg(2,1,iseg-1) - sparsemat%keyg(1,1,iseg-1) + 1
-      end do
+      !!    if (extra_timing) call cpu_time(tr0)
+
+      !!    ist=1
+      !!    do jorb=1,sparsemat%nfvctr
+      !!        ! Starting segment for this line
+      !!        sparsemat%istsegline(jorb)=ist
+      !!        ist=ist+sparsemat%nsegline(jorb)
+      !!    end do
+
+
+      !!    call allocate_sparse_matrix_keys(store_index_, sparsemat)
+
+      !!    ivctr=0
+      !!    sparsemat%keyg=0
+      !!    do iorb=1,sparsemat%nfvctrp
+      !!        iiorb=sparsemat%isfvctr+iorb
+      !!        !write(*,*) 'calling create_lookup_table 2, iproc, iorb', iproc, iorb
+      !!        call create_lookup_table(nnonzero, nonzero, iiorb, norbu, is_line, .false., lut)
+      !!        call keyg_per_line(norbu, sparsemat%nseg, iiorb, sparsemat%istsegline(iiorb), &
+      !!             lut, ivctr, sparsemat%keyg)
+      !!    end do
+
+      !!    ! check whether the number of elements agrees
+      !!    if (nproc>1) then
+      !!        call fmpi_allreduce(ivctr, 1, FMPI_SUM, comm=comm)
+      !!    end if
+      !!    if (ivctr/=sparsemat%nvctr) then
+      !!        write(*,'(a,2i8)') 'ERROR: ivctr/=sparsemat%nvctr', ivctr, sparsemat%nvctr
+      !!        stop
+      !!    end if
+      !!    if (nproc>1) then
+      !!        call fmpi_allreduce(sparsemat%keyg(1,1,1), 2*2*sparsemat%nseg, FMPI_SUM, comm=comm)
+      !!    end if
+
+      !!    ! start of the segments
+      !!    sparsemat%keyv(1)=1
+      !!    do iseg=2,sparsemat%nseg
+      !!        ! A segment is always on one line, therefore no double loop
+      !!        sparsemat%keyv(iseg) = sparsemat%keyv(iseg-1) + sparsemat%keyg(2,1,iseg-1) - sparsemat%keyg(1,1,iseg-1) + 1
+      !!    end do
+
+      !!    do iseg=1,sparsemat%nseg
+      !!        write(*,*) 'iseg, sparsemat%keyg(:,:,iseg)', iseg, sparsemat%keyg(:,:,iseg)
+      !!    end do
+
+      !!    if (ipattern == 1) then
+      !!        !# NEW PIVOT ##############################################
+      !!        pivot = f_malloc(sparsemat%nfvctr,id='pivot')
+      !!        call compact_sparsity_pattern(sparsemat%nfvctr, sparsemat%nvctr, sparsemat%nseg, sparsemat%keyg, pivot)
+      !!        !# END PIVOT ##############################################
+      !!         !do inz=1,nnonzero
+      !!         !    write(*,*) 'inz, nonzero(:,inz)', inz, nonzero(:,inz)
+      !!         !end do
+      !!        do inz=1,nnonzero
+      !!            i1 = nonzero_orig(1,inz)
+      !!            i2 = nonzero_orig(2,inz)
+      !!            j1 = pivot(i1)
+      !!            j2 = pivot(i2)
+      !!            nonzero_orig(1,inz) = j1
+      !!            nonzero_orig(2,inz) = j2
+      !!        end do
+      !!         do inz=1,nnonzero
+      !!             write(*,*) 'inz, nonzero_orig(:,inz)', inz, nonzero_orig(:,inz)
+      !!         end do
+      !!        do inz=1,nnonzero_mult
+      !!            i1 = nonzero_mult(1,inz)
+      !!            i2 = nonzero_mult(2,inz)
+      !!            j1 = pivot(i1)
+      !!            j2 = pivot(i2)
+      !!            nonzero_mult(1,inz) = j1
+      !!            nonzero_mult(2,inz) = j2
+      !!        end do
+      !!    end if
+      !!end do
 
 
       if (extra_timing) call cpu_time(tr1)
@@ -1159,7 +1241,8 @@ module sparsematrix_init
 
       ! parallelization of matrices, following same idea as norb/norbp/isorb
       !most equal distribution, but want corresponding to norbp for second column
-      call init_matrix_parallelization(iproc, nproc, sparsemat%nfvctr, sparsemat%nseg, sparsemat%nvctr, &
+      call init_matrix_parallelization(iproc, nproc, &
+           sparsemat%nfvctr, sparsemat%nseg, sparsemat%nvctr, &
            sparsemat%isfvctr_par, sparsemat%nfvctr_par, sparsemat%istsegline, sparsemat%keyv, &
            sparsemat%isvctr, sparsemat%nvctrp, sparsemat%isvctr_par, sparsemat%nvctr_par)
       ! Get the segments containing the first and last element
@@ -1221,60 +1304,68 @@ module sparsematrix_init
 
           nsegline_mult = f_malloc0(norbu,id='nsegline_mult')
           istsegline_mult = f_malloc(norbu,id='istsegline_mult')
-          nseg_mult=0
-          nvctr_mult=0
-          do iorb=1,sparsemat%nfvctrp
-              iiorb=sparsemat%isfvctr+iorb
-              !write(*,*) 'calling create_lookup_table 3, iproc, iiorb', iproc, iiorb
-              call create_lookup_table(nnonzero_mult, nonzero_mult, iiorb, norbu, is_line, iorb==1, lut)
-              call nseg_perline(norbu, lut, nseg_mult, nvctr_mult, nsegline_mult(iiorb))
-          end do
-          if (nproc>1) then
-              call fmpi_allreduce(nvctr_mult,1,op=FMPI_SUM, comm=comm)
-              call fmpi_allreduce(nseg_mult, 1,FMPI_SUM, comm=comm)
-              call fmpi_allreduce(nsegline_mult,FMPI_SUM, comm=comm)
-          end if
+          call get_segment_structure(nproc, comm, &
+               sparsemat%nfvctr, sparsemat%nfvctrp, sparsemat%isfvctr, &
+               nnonzero_mult, nonzero_mult, nseg_mult, nvctr_mult, keyg_mult, &
+               keyv=keyv_mult, nsegline=nsegline_mult, istsegline=istsegline_mult)
+          !!nseg_mult=0
+          !!nvctr_mult=0
+          !!do iorb=1,sparsemat%nfvctrp
+          !!    iiorb=sparsemat%isfvctr+iorb
+          !!    !write(*,*) 'calling create_lookup_table 3, iproc, iiorb', iproc, iiorb
+          !!    call create_lookup_table(nnonzero_mult, nonzero_mult, iiorb, norbu, is_line, iorb==1, lut)
+          !!    call nseg_perline(norbu, lut, nseg_mult, nvctr_mult, nsegline_mult(iiorb))
+          !!end do
+          !!if (nproc>1) then
+          !!    call fmpi_allreduce(nvctr_mult,1,op=FMPI_SUM, comm=comm)
+          !!    call fmpi_allreduce(nseg_mult, 1,FMPI_SUM, comm=comm)
+          !!    call fmpi_allreduce(nsegline_mult,FMPI_SUM, comm=comm)
+          !!end if
 
 
 
-          ! Initialize istsegline, which gives the first segment of each line
-          istsegline_mult(1)=1
-          do iorb=2,norbu
-              istsegline_mult(iorb) = istsegline_mult(iorb-1) + nsegline_mult(iorb-1)
-          end do
+          !!! Initialize istsegline, which gives the first segment of each line
+          !!istsegline_mult(1)=1
+          !!do iorb=2,norbu
+          !!    istsegline_mult(iorb) = istsegline_mult(iorb-1) + nsegline_mult(iorb-1)
+          !!end do
 
-          keyg_mult = f_malloc0((/2,2,nseg_mult/),id='keyg_mult')
-          keyv_mult = f_malloc0((/nseg_mult/),id='keyg_mult')
+          !!keyg_mult = f_malloc0((/2,2,nseg_mult/),id='keyg_mult')
+          !!keyv_mult = f_malloc0((/nseg_mult/),id='keyg_mult')
 
-          ivctr_mult=0
-          do iorb=1,sparsemat%nfvctrp
-             iiorb=sparsemat%isfvctr+iorb
-              !write(*,*) 'calling create_lookup_table 4, iproc, iiorb', iproc, iiorb
-             call create_lookup_table(nnonzero_mult, nonzero_mult, iiorb, norbu, is_line, .false., lut)
-             call keyg_per_line(norbu, nseg_mult, iiorb, istsegline_mult(iiorb), &
-                  lut, ivctr_mult, keyg_mult)
-          end do
-          ! check whether the number of elements agrees
-          if (nproc>1) then
-              call fmpi_allreduce(ivctr_mult, 1, FMPI_SUM, comm=comm)
-          end if
-          if (ivctr_mult/=nvctr_mult) then
-              write(*,'(a,2i8)') 'ERROR: ivctr_mult/=nvctr_mult', ivctr_mult, nvctr_mult
-              stop
-          end if
-          if (nproc>1) then
-              call fmpi_allreduce(keyg_mult, FMPI_SUM, comm=comm)
-          end if
+          !!ivctr_mult=0
+          !!do iorb=1,sparsemat%nfvctrp
+          !!   iiorb=sparsemat%isfvctr+iorb
+          !!    !write(*,*) 'calling create_lookup_table 4, iproc, iiorb', iproc, iiorb
+          !!   call create_lookup_table(nnonzero_mult, nonzero_mult, iiorb, norbu, is_line, .false., lut)
+          !!   call keyg_per_line(norbu, nseg_mult, iiorb, istsegline_mult(iiorb), &
+          !!        lut, ivctr_mult, keyg_mult)
+          !!end do
+          !!! check whether the number of elements agrees
+          !!if (nproc>1) then
+          !!    call fmpi_allreduce(ivctr_mult, 1, FMPI_SUM, comm=comm)
+          !!end if
+          !!if (ivctr_mult/=nvctr_mult) then
+          !!    write(*,'(a,2i8)') 'ERROR: ivctr_mult/=nvctr_mult', ivctr_mult, nvctr_mult
+          !!    stop
+          !!end if
+          !!if (nproc>1) then
+          !!    call fmpi_allreduce(keyg_mult, FMPI_SUM, comm=comm)
+          !!end if
 
-          ! start of the segments
-          keyv_mult(1)=1
-          do iseg=2,nseg_mult
-              keyv_mult(iseg) = keyv_mult(iseg-1) + keyg_mult(2,1,iseg-1) - keyg_mult(1,1,iseg-1) + 1
-          end do
-          if (extra_timing) call cpu_time(tr1)   
-          if (extra_timing) time4=real(tr1-tr0,kind=mp)
+          !!! start of the segments
+          !!keyv_mult(1)=1
+          !!do iseg=2,nseg_mult
+          !!    keyv_mult(iseg) = keyv_mult(iseg-1) + keyg_mult(2,1,iseg-1) - keyg_mult(1,1,iseg-1) + 1
+          !!end do
+          !!if (extra_timing) call cpu_time(tr1)   
+          !!if (extra_timing) time4=real(tr1-tr0,kind=mp)
 
-          if (extra_timing) call cpu_time(tr0) 
+          !!if (extra_timing) call cpu_time(tr0) 
+
+          !!do iseg=1,nseg_mult
+          !!    write(*,*) 'iseg, keyg_mult(:,:,iseg)', iseg, keyg_mult(:,:,iseg)
+          !!end do
 
           ! # NEW #########################################################################################
           ! Initialize the sparse matrix matrix multiplications
@@ -1467,8 +1558,8 @@ module sparsematrix_init
 
           call f_free(nsegline_mult)
           call f_free(istsegline_mult)
-          call f_free(keyg_mult)
-          call f_free(keyv_mult)
+          call f_free_ptr(keyg_mult)
+          call f_free_ptr(keyv_mult)
       else
           sparsemat%smatmul_initialized = .false.
       end if
@@ -1476,8 +1567,8 @@ module sparsematrix_init
       if (extra_timing) call cpu_time(tr1)
       if (extra_timing) time5=real(tr1-tr0,kind=mp)    
 
-      call f_free(is_line)
-      call f_free(lut)
+      !!call f_free(is_line)
+      !!call f_free(lut)
 
 
       !!if (iproc==0 .and. print_info_) then
@@ -3207,6 +3298,8 @@ module sparsematrix_init
 
       if (init_matmul_) then
           nonzero_mult = f_malloc((/2,nvctr_mult/),id='nonzero')
+          write(*,*) '>>> keyg(:,:,1)', keyg(:,:,1)
+          write(*,*) '>>> keyg_mult(:,:,1)', keyg_mult(:,:,1)
           call calculate_nonzero_simple(ncol, nvctr_mult, nseg_mult, keyg_mult, nonzero_mult)
       end if
 
@@ -6975,6 +7068,456 @@ module sparsematrix_init
       call f_release_routine()
 
     end subroutine deallocate_taskgroup_arrays
+
+
+
+    subroutine compact_sparsity_pattern(nfvctr, nvctr, nseg, keyg, pivot)
+      use futile
+      use m_region
+      use m_pivot_methods
+      implicit none
+
+      ! Calling arguments
+      integer,intent(in) :: nfvctr, nvctr, nseg
+      integer,dimension(2,nseg),intent(in) :: keyg
+      integer,dimension(nfvctr),intent(out) :: pivot
+
+      ! Local variables
+      integer :: icol
+      integer,dimension(:),allocatable :: row_ind, col_ptr, n_col
+      type(tRgn) :: pvt, sub
+
+      call f_routine(id='compact_sparsity_pattern')
+
+      row_ind = f_malloc(nvctr,id='row_ind')
+      col_ptr = f_malloc(nfvctr,id='col_ptr')
+      n_col = f_malloc(nfvctr,id='n_col')
+
+      call sparsebigdft_to_ccs(nfvctr, nvctr, nseg, keyg, row_ind, col_ptr)
+      !!do icol=1,nvctr
+      !!    row_ind(icol) = row_ind(icol) - 1
+      !!end do
+      do icol=1,nfvctr
+          col_ptr(icol) = col_ptr(icol) - 1
+      end do
+
+      do icol=1,nfvctr-1
+          n_col(icol) = col_ptr(icol+1) - col_ptr(icol)
+      end do
+      if (nfvctr>1) then
+          n_col(nfvctr) = nvctr - col_ptr(nfvctr)! + 1
+      else
+          n_col(nfvctr) = nvctr
+      end if
+      if (sum(n_col) /= nvctr) then
+          call f_err_throw(trim(yaml_toa(sum(n_col)))//'= sum(n_col) /= nvctr='//trim(yaml_toa(nvctr)))
+      end if
+
+      call rgn_range(sub, 1, nfvctr)
+      call GPS(n=nfvctr, nnzs=nvctr, n_col=n_col, l_ptr=col_ptr, l_col=row_ind, &
+           sub=sub, pvt=pvt)
+      
+      call f_memcpy(src=pvt%r, dest=pivot)
+
+      call f_free(row_ind)
+      call f_free(col_ptr)
+      call f_free(n_col)
+
+      call f_release_routine()
+
+    end subroutine compact_sparsity_pattern
+
+
+
+
+
+
+!!    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!  subroutine GPS(n,nnzs,n_col,l_ptr,l_col,sub,pvt,priority)
+!!    ! the dimensionality of the system
+!!    integer, intent(in) :: n, nnzs
+!!    ! The sparse pattern
+!!    integer, intent(in) :: n_col(n), l_ptr(n), l_col(nnzs)
+!!    ! The region of interest
+!!    type(tRgn), intent(in) :: sub
+!!    ! The currently indexs of the pivoted arrays
+!!    type(tRgn), intent(inout) :: pvt
+!!    ! The priority of the rows, optional
+!!    integer, intent(in), optional :: priority(n)
+!!
+!!    ! The level structure created by the algo_i_ii
+!!    type(tPvtLvl) :: lvl
+!!    type(tRgn) :: ipvt, r
+!!    integer :: d, depth
+!!
+!!    ! Ensure it is clean
+!!    call rgn_delete(pvt)
+!!
+!!    ! Find a set of pseudo-peripherals using the GPS algorithm
+!!    call pseudo_peripheral(D_LOW,n,nnzs,n_col,l_ptr,l_col,sub,lvl, &
+!!         priority = priority)
+!!    depth = lvl_depth(lvl%lvl)
+!!#ifdef PVT_DEBUG
+!!       write(*,*)'   GPS found left peripheral ', lvl%pvt%r(1)
+!!#endif
+!!
+!!    ! Process the pivoting of each level
+!!    do d = 1 , depth
+!!
+!!       ! Order the level according to increasing degree
+!!       call lvl_struct_extract(lvl%pvt,lvl%lvl,d,ipvt)
+!!
+!!#ifdef PVT_DEBUG
+!!       write(*,*)'   GPS processing level ', d, ipvt%n
+!!       if ( d == depth ) then
+!!          write(*,*)'   GPS found right peripheral ', ipvt%r(1)
+!!       end if
+!!#endif
+!!       if ( ipvt%n == 1 ) then
+!!          call rgn_append(pvt,ipvt,pvt)
+!!       else
+!!          call sort_degree(D_LOW,n,nnzs,n_col,l_ptr,l_col,ipvt,r)
+!!          call rgn_append(pvt,r,pvt)
+!!       end if
+!!    end do
+!!
+!!    call rgn_delete(r,ipvt,lvl%pvt,lvl%lvl)
+!!
+!!  end subroutine GPS
+!!
+!!
+!!  ! Extract only a certain level from the level structure
+!!  subroutine lvl_struct_extract(pvt,lvl,ilvl,r)
+!!    type(tRgn), intent(in) :: pvt, lvl
+!!    integer, intent(in) :: ilvl
+!!    type(tRgn), intent(inout) :: r
+!!    integer :: i
+!!    logical :: suc
+!!
+!!    ! Count number of entries for the same level
+!!    i = count(lvl%r(1:lvl%n) == ilvl)
+!!
+!!    call rgn_init(r,i)
+!!    r%n = 0
+!!
+!!    ! Copy over the entries
+!!    do i = 1 , lvl%n
+!!       if ( lvl%r(i) == ilvl ) then
+!!          suc = rgn_push(r,pvt%r(i))
+!!       end if
+!!    end do
+!!
+!!  end subroutine lvl_struct_extract
+!!
+!!
+!!  subroutine pseudo_peripheral(method,n,nnzs,n_col,l_ptr,l_col,sub,lvs,&
+!!       small_wd, priority)
+!!    ! The method for the degree search
+!!    integer, intent(in) :: method
+!!    ! the dimensionality of the system
+!!    integer, intent(in) :: n, nnzs
+!!    ! The sparse pattern
+!!    integer, intent(in) :: n_col(n), l_ptr(n), l_col(nnzs)
+!!    ! The region of interest
+!!    type(tRgn), intent(in) :: sub
+!!    ! The level tree
+!!    type(tPvtLvl), intent(inout) :: lvs
+!!    ! The user can optionally obtain the smallest width and degree of
+!!    ! the sets created by the S set in the found level set
+!!    ! It also returns the entry that creates that structure
+!!    integer, intent(out), optional :: small_wd(3)
+!!    ! The priority of the rows, optional
+!!    integer, intent(in), optional :: priority(n)
+!!
+!!    ! Local variables
+!!    type(tRgn) :: pvt, lvl, S
+!!    integer :: idx, i, etr, j
+!!    integer :: depth
+!!
+!!    ! Algorithm I
+!!    !   (i) -- pick arbitrary node with minimal degree
+!!    idx = idx_degree(method,n,nnzs,n_col,l_ptr,l_col,sub, priority = priority)
+!!    !   (ii/iii) -- search for deepest level structure in these peripherals
+!!#ifdef PVT_DEBUG
+!!    write(*,*)'   first v set: ',sub%r(idx), idx
+!!#endif
+!!
+!!    call level_struct(n,nnzs,n_col,l_ptr,l_col,idx,sub,lvs%pvt,lvs%lvl,priority)
+!!    search_deepest: do
+!!
+!!       depth = lvl_depth(lvs%lvl)
+!!       if ( present(small_wd) ) then
+!!          !  (iv) -- collect the depth of the smallest width structure
+!!          small_wd(1) = huge(1)
+!!          small_wd(2) = 0
+!!          small_wd(3) = 0
+!!       end if
+!!
+!!       ! extract the nodes at the last level to search for deeper ones
+!!       call lvl_struct_extract(lvs%pvt,lvs%lvl,depth,S)
+!!
+!!       ! Sort by the degree of the nodes (lowest to highest)
+!!       call sort_degree(method,n,nnzs,n_col,l_ptr,l_col,S,pvt)
+!!       ! To get the correct index look up
+!!       S%r = rgn_pivot(sub,pvt%r)
+!!
+!!       do i = 1 , S%n
+!!          etr = S%r(i)
+!!#ifdef PVT_DEBUG
+!!          write(*,*)'     analyzing degree set: ',i,etr
+!!#endif
+!!
+!!          call level_struct(n,nnzs,n_col,l_ptr,l_col,etr,sub,pvt,lvl,priority)
+!!
+!!          if ( present(small_wd) ) then
+!!             j = lvl_width(lvl)
+!!             if ( j < small_wd(1) ) then
+!!                small_wd(1) = j
+!!                j = lvl_depth(lvl)
+!!                small_wd(2) = j
+!!                small_wd(3) = etr
+!!             else
+!!                j = lvl_depth(lvl)
+!!             end if
+!!          else
+!!             j = lvl_depth(lvl)
+!!          end if
+!!
+!!          ! If the level depth is larger than the current start over 
+!!          ! from that index (the last added element *must* be
+!!          ! the largest level)
+!!          if ( depth < j ) then
+!!#ifdef PVT_DEBUG
+!!             write(*,*)'   changing v set: ',pvt%r(1)
+!!#endif
+!!
+!!             call rgn_copy(pvt,lvs%pvt)
+!!             call rgn_copy(lvl,lvs%lvl)
+!!             cycle search_deepest
+!!          end if
+!!
+!!       end do
+!!
+!!       exit search_deepest
+!!
+!!    end do search_deepest
+!!
+!!    call rgn_delete(pvt,lvl,S)
+!!
+!!  end subroutine pseudo_peripheral
+!!
+!!
+!!  ! This routine creates a level structure
+!!  subroutine level_struct(n,nnzs,n_col,l_ptr,l_col,idx,sub,pvt,lvl,priority)
+!!    ! the dimensionality of the system
+!!    integer, intent(in) :: n, nnzs
+!!    ! The sparse pattern
+!!    integer, intent(in) :: n_col(n), l_ptr(n), l_col(nnzs)
+!!    ! We start this pseudo-periphael from this index
+!!    integer, intent(in) :: idx
+!!    ! The region of interest
+!!    type(tRgn), intent(in) :: sub
+!!    ! The currently indexs of the pivoted arrays,
+!!    ! the level associated with each added index (lvl%r(1) is the level
+!!    ! of element pvt%r(1))
+!!    type(tRgn) :: pvt, lvl
+!!    ! The priority of the rows, optional
+!!    integer, intent(in), optional :: priority(n)
+!!
+!!    ! Temporary region used to contain the connectivity graph
+!!    type(tRgn) :: con, con_c, rtmp, rskip, rskip_def
+!!
+!!    ! local variables
+!!    integer :: i, iidx, etr, iLvl
+!!    logical :: suc
+!!
+!!    ! by sorting, taking the complement is much faster
+!!    call rgn_copy(sub,rtmp)
+!!    call rgn_sort(rtmp)
+!!    call rgn_range(rskip_def,1,n)
+!!    call rgn_complement(rtmp,rskip_def,rskip_def)
+!!
+!!    ! initialize the pivoting array
+!!    call rgn_init(pvt,sub%n)
+!!    pvt%n = 0
+!!    call rgn_init(lvl,sub%n)
+!!    lvl%n = 0
+!!
+!!    ! Counter for level
+!!    iLvl = 0
+!!
+!!    ! initialize loop connectivity graph
+!!    call rgn_init(con_c,sub%n)
+!!    con_c%n = 0
+!!
+!!    ! initialize connectivity region
+!!    call rgn_init(con,1)
+!!    con%r(1) = sub%r(idx)
+!!
+!!    do while ( pvt%n < sub%n )
+!!
+!!       ! 1. Add the current connectivity graph
+!!       !    to the pivot table and increment level
+!!       iLvl = iLvl + 1
+!!
+!!       !  If the connectivity happens to be zero,
+!!       !  we need to add an arbitrary element with lowest degree
+!!       !  In TS this will probably be one of the worst choices, yet
+!!       !  it is hard to select another node on another basis.
+!!       if ( con%n == 0 ) then
+!!          ! this limits rtmp to those not chosen
+!!          call rgn_complement(rskip,sub,rtmp)
+!!          call sort_degree(D_LOW,n,nnzs,n_col,l_ptr,l_col,rtmp,con)
+!!          if ( con%n > 0 ) con%n = 1
+!!       end if
+!!       call rgn_copy(con,rtmp) ! rtmp is used to generate the next connectivity
+!!
+!!       do while ( con%n > 0 )
+!!          ! Get index with lowest degree
+!!          iidx = idx_degree(D_LOW,n,nnzs,n_col,l_ptr,l_col,con, priority = priority )
+!!          etr = con%r(iidx) ! the actual entry
+!!          i = rgn_pop(con,iidx) ! remove entry in con
+!!          if ( i /= etr ) call die('Erroneous popping of the connectivity &
+!!               &graph.')
+!!          suc = rgn_push(pvt,etr)
+!!          suc = rgn_push(lvl,iLvl)
+!!       end do
+!!
+!!       ! A simple check to see if we have finished the
+!!       ! level structure
+!!       if ( pvt%n == sub%n ) exit
+!!
+!!       ! 2. Create connectivity graph of all entries just added
+!!       !    This will loop on all previously connected entries.
+!!       !    We create a new connectivity graph and let it be
+!!       !    added on the following loop
+!!       ! 2a. Note that on entry con%n == 0
+!!       ! Create a skip region to not "get back" in the list
+!!       call rgn_append(pvt,rskip_def,rskip)
+!!       call rgn_sort(rskip) ! speeds it up
+!!       do i = 1 , rtmp%n
+!!          ! Find connections from followed entry
+!!          ! we pick-up the entry in the order they were added
+!!          ! to 'pvt'
+!!          etr = pvt%r(pvt%n-rtmp%n+i)
+!!          call graph_connect(etr,n,nnzs,n_col,l_ptr,l_col,con_c, &
+!!               skip = rskip)
+!!          call rgn_union(con,con_c,con)
+!!
+!!       end do
+!!
+!!    end do
+!!
+!!    call rgn_delete(con,rskip,con_c,rtmp)
+!!
+!!  end subroutine level_struct
+
+
+  subroutine get_segment_structure(nproc, comm, nfvctr, nfvctrp, isfvctr, nnonzero, nonzero, &
+             nseg, nvctr, keyg, keyv, nsegline, istsegline)
+    use futile
+    implicit none
+
+    ! Calling arguments
+    integer,intent(in) :: nproc, comm, nfvctr, nfvctrp, isfvctr, nnonzero
+    integer,dimension(nnonzero),intent(inout) :: nonzero
+    integer,intent(out) :: nseg, nvctr
+    integer,dimension(:,:,:),pointer,intent(out) :: keyg
+    integer,dimension(:),pointer,intent(out),optional :: keyv
+    integer,dimension(nfvctr),intent(out),target,optional :: nsegline, istsegline
+
+    ! Local variables
+    integer :: ist, iorb, iiorb, ivctr, jorb, nsl, iseg
+    logical  :: optionals_present
+    integer,dimension(:),pointer :: nsegline_, istsegline_
+    integer,dimension(:),allocatable :: is_line
+    logical,dimension(:),allocatable :: lut
+
+    call f_routine(id='get_segment_structure')
+
+    if (present(nsegline) .and. present(istsegline)) then
+        optionals_present = .true.
+        nsegline_ => nsegline
+        istsegline_ => istsegline
+    else
+        optionals_present = .false.
+        nsegline_=f_malloc_ptr(nfvctr,id='nsegline_')
+        istsegline_=f_malloc_ptr(nfvctr,id='istsegline_')
+    end if
+
+    ! Sort the nonzero entries
+    call sort_nonzero_entries(nnonzero, nonzero)
+
+    nseg=0
+    nvctr=0
+    call f_zero(nsegline_)
+
+    lut = f_malloc(nfvctr,id='lut')
+    is_line = f_malloc(nfvctr,id='is_line')
+
+    do iorb=1,nfvctrp
+        iiorb=isfvctr+iorb
+        call create_lookup_table(nnonzero, nonzero, iiorb, nfvctr, is_line, iorb==1, lut)
+        call nseg_perline(nfvctr, lut, nseg, nvctr, nsl)
+        nsegline_(iiorb) = nsl
+    end do
+
+    if (nproc>1) then
+        call fmpi_allreduce(nvctr,1,op=FMPI_SUM,comm=comm)
+        call fmpi_allreduce(nseg,1,op=FMPI_SUM,comm=comm)
+        call fmpi_allreduce(nsegline_(1), nfvctr, FMPI_SUM, comm=comm)
+    end if
+
+    ist=1
+    do jorb=1,nfvctr
+        ! Starting segment for this line
+        istsegline_(jorb)=ist
+        ist=ist+nsegline_(jorb)
+    end do
+
+    !call allocate_sparse_matrix_keys(store_index_, sparsemat)
+    keyg=f_malloc_ptr((/2,2,nseg/),id='keyg')
+
+    ivctr=0
+    call f_zero(keyg)
+    do iorb=1,nfvctrp
+        iiorb=isfvctr+iorb
+        call create_lookup_table(nnonzero, nonzero, iiorb, nfvctr, is_line, .false., lut)
+        call keyg_per_line(nfvctr, nseg, iiorb, istsegline_(iiorb), &
+             lut, ivctr, keyg)
+    end do
+
+    ! check whether the number of elements agrees
+    if (nproc>1) then
+        call fmpi_allreduce(ivctr, 1, FMPI_SUM, comm=comm)
+    end if
+    if (ivctr/=nvctr) then
+        call f_err_throw(trim(yaml_toa(ivctr))//'=ivctr /= nvctr='//trim(yaml_toa(nvctr)))
+    end if
+    if (nproc>1) then
+        call fmpi_allreduce(keyg(1,1,1), 2*2*nseg, FMPI_SUM, comm=comm)
+    end if
+
+    ! start of the segments
+    if (present(keyv)) then
+        keyv=f_malloc_ptr(nseg,id='keyv')
+        keyv(1)=1
+        do iseg=2,nseg
+            keyv(iseg) = keyv(iseg-1) + keyg(2,1,iseg-1) - keyg(1,1,iseg-1) + 1
+        end do
+    end if
+
+    if (.not.optionals_present) then
+        call f_free_ptr(nsegline_)
+        call f_free_ptr(istsegline_)
+    end if
+
+    call f_free(lut)
+    call f_free(is_line)
+
+    call f_release_routine()
+
+  end subroutine get_segment_structure
 
 
 end module sparsematrix_init

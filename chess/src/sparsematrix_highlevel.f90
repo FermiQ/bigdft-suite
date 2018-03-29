@@ -361,11 +361,11 @@ module sparsematrix_highlevel
       character(len=*),intent(in),optional :: filename_mult
 
       ! Local variables
-      integer :: nspin, nfvctr, nseg, nvctr
+      integer :: nspin, nfvctr, nseg, nvctr, nseg_mult, nvctr_mult
       !character(len=1) :: geocode
-      integer,dimension(:),pointer :: keyv
-      integer,dimension(:,:,:),pointer :: keyg
-      real(kind=mp),dimension(:),pointer :: val
+      integer,dimension(:),pointer :: keyv, keyv_mult
+      integer,dimension(:,:,:),pointer :: keyg, keyg_mult
+      real(kind=mp),dimension(:),pointer :: val, val_mult
       !real(kind=mp),dimension(3) :: cell_dim
       !integer,dimension(:),pointer :: on_which_atom
       logical :: init_matmul_
@@ -393,17 +393,27 @@ module sparsematrix_highlevel
           if (.not.present(matmul_matrix)) then
               call f_err_throw("'matmul_matrix' not present",err_name='SPARSEMATRIX_INITIALIZATION_ERROR')
           end if
-          call sparse_matrix_init_from_file_bigdft(mode, filename_mult, iproc, nproc, comm, smat_mult, init_matmul=.false.)
+          !call sparse_matrix_init_from_file_bigdft(mode, filename_mult, iproc, nproc, comm, smat_mult, init_matmul=.false.)
+          call read_sparse_matrix(mode, filename_mult, iproc, nproc, comm, nspin, nfvctr, &
+               nseg_mult, nvctr_mult, keyv_mult, keyg_mult, val_mult)
       end if
 
       ! Create the sparse_matrix structure
       !!call bigdft_to_sparsebigdft(iproc, nproc, comm, nfvctr, nvctr, nseg, keyg, smat, &
       !!     nspin=nspin, geocode=geocode, cell_dim=cell_dim, on_which_atom=on_which_atom)
       if (init_matmul_) then
+          write(*,*) '>>> keyg(:,:,1)', keyg(:,:,1)
+          write(*,*) '>>> smat_mult%keyg(:,:,1)', smat_mult%keyg(:,:,1)
+          !call sparse_matrix_init_from_data_bigdft(iproc, nproc, comm, nspin, nfvctr, nvctr, nseg, keyg, smat, init_matmul_, &
+          !     nseg_mult=smat_mult%nseg, nvctr_mult=smat_mult%nvctr, keyg_mult=smat_mult%keyg, &
+          !     matmul_matrix=matmul_matrix)
           call sparse_matrix_init_from_data_bigdft(iproc, nproc, comm, nspin, nfvctr, nvctr, nseg, keyg, smat, init_matmul_, &
-               nseg_mult=smat_mult%nseg, nvctr_mult=smat_mult%nvctr, keyg_mult=smat_mult%keyg, &
+               nseg_mult=nseg_mult, nvctr_mult=nvctr_mult, keyg_mult=keyg_mult, &
                matmul_matrix=matmul_matrix)
-          call deallocate_sparse_matrix(smat_mult)
+          !call deallocate_sparse_matrix(smat_mult)
+          call f_free_ptr(keyv_mult)
+          call f_free_ptr(keyg_mult)
+          call f_free_ptr(val_mult)
       else
           call sparse_matrix_init_from_data_bigdft(iproc, nproc, comm, nspin, nfvctr, nvctr, nseg, keyg, smat, init_matmul_)
       end if
