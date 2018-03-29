@@ -190,7 +190,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
               locrad_kernel=locrad, locregcenter=lrc) 
      end if
      call reduce_matrix_bandwidth(iproc, nproc, bigdft_mpi%mpi_comm, lorbs%norb, lzd%glr, &
-          atoms%astruct, lzd%hgrids, lrc, locrad, lorbs)
+          atoms%astruct, lzd%hgrids, lrc, locrad, in%lin%pvt_method, lorbs)
      call init_lzd_linear()
      !!lzd_lin=default_lzd()
      !!call nullify_local_zone_descriptors(lzd_lin)
@@ -237,7 +237,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
          totaltimes = f_malloc0(nproc,id='totaltimes')
          call fragment_stuff()
          call reduce_matrix_bandwidth(iproc, nproc, bigdft_mpi%mpi_comm, lorbs%norb, lzd%glr, &
-              atoms%astruct, lzd%hgrids, lrc, locrad, lorbs)
+              atoms%astruct, lzd%hgrids, lrc, locrad, in%lin%pvt_method, lorbs)
          call init_lzd_linear()
          !!lzd_lin=default_lzd()
          !!call nullify_local_zone_descriptors(lzd_lin)

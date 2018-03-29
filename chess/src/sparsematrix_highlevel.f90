@@ -402,8 +402,6 @@ module sparsematrix_highlevel
       !!call bigdft_to_sparsebigdft(iproc, nproc, comm, nfvctr, nvctr, nseg, keyg, smat, &
       !!     nspin=nspin, geocode=geocode, cell_dim=cell_dim, on_which_atom=on_which_atom)
       if (init_matmul_) then
-          write(*,*) '>>> keyg(:,:,1)', keyg(:,:,1)
-          write(*,*) '>>> smat_mult%keyg(:,:,1)', smat_mult%keyg(:,:,1)
           !call sparse_matrix_init_from_data_bigdft(iproc, nproc, comm, nspin, nfvctr, nvctr, nseg, keyg, smat, init_matmul_, &
           !     nseg_mult=smat_mult%nseg, nvctr_mult=smat_mult%nvctr, keyg_mult=smat_mult%keyg, &
           !     matmul_matrix=matmul_matrix)

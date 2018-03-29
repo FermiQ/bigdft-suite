@@ -1748,6 +1748,29 @@
      consider_entropy:
        COMMENT: Indicate whether the entropy contribution to the total energy shall be considered
        default: False
+     pvt_method:
+       COMMENT: Pivoting scheme to reduce the bandwith of the sparse matrices
+       EXCLUSIVE:
+         0: None
+         1: Cuthill-Mckee
+         2: rev-Cuthill-Mckee
+         3: Gibbs-Poole-Stockmeyer
+         4: rev-Gibbs-Poole-Stockmeyer
+         5: Peripheral-Connect-Graph
+         6: rev-Peripheral-Connect-Graph
+         7: General-Gibbs-Poole-Stockmeyer
+         8: rev-General-Gibbs-Poole-Stockmeyer
+       default: None
+       # shortcuts
+       None                              : 0
+       Cuthill-Mckee                     : 1 
+       rev-Cuthill-Mckee                 : 2 
+       Gibbs-Poole-Stockmeyer            : 3
+       rev-Gibbs-Poole-Stockmeyer        : 4
+       Peripheral-Connect-Graph          : 5
+       rev-Peripheral-Connect-Graph      : 6
+       General-Gibbs-Poole-Stockmeyer    : 7
+       rev-General-Gibbs-Poole-Stockmeyer: 8
 #Parameters for the localised basis set (or support function) for the linear scaling version
  lin_basis:
      nit:

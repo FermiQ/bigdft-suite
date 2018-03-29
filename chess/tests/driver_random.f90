@@ -227,20 +227,6 @@ program driver_random
       call yaml_mapping_close()
   end if
 
-  !# HACK #####################
-  do i=1,smat(1)%nvctr
-      iline = line_and_column_s(1,i)
-      icolumn = line_and_column_s(2,i)
-      ii = isvctr_s + i
-      !!call get_line_and_column(ii, nseg_s, keyv_s, keyg_s, iline, icolumn)
-      ind = matrixindex_in_compressed_lowlevel(icolumn, iline, nfvctr, &
-            nseg_l, keyv_l, keyg_l, istsegline_l)
-      !!write(*,*) 'iline, icolumn, ind', iline, icolumn, ind
-      ind = ind - isvctr_l
-      matrix_s_out(i) = matrix_l_in(ind)
-  end do
-  !# END HACK #################
-
   times = f_malloc(nit,id='times')
   sumarr = f_malloc(nit,id='sumarr')
   allocate(ice_obj(nit))

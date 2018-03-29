@@ -40,4 +40,16 @@ module sparsematrix_defs
   integer,parameter :: MATMUL_REPLICATE_MATRIX = 301
   integer,parameter :: MATMUL_ORIGINAL_MATRIX = 302
 
+  !> Pivoting scheme to reduce the bandwith of the sparse matrices
+  integer,parameter :: PVT_NONE              = 0
+  integer,parameter :: PVT_CUTHILL_MCKEE     = 1
+  integer,parameter :: PVT_REV_CUTHILL_MCKEE = 2
+  integer,parameter :: PVT_GPS               = 3
+  integer,parameter :: PVT_REV_GPS           = 4
+  integer,parameter :: PVT_GGPS              = 5
+  integer,parameter :: PVT_REV_GGPS          = 6
+  integer,parameter :: PVT_PCG               = 7
+  integer,parameter :: PVT_REV_PCG           = 8
+
+
 end module sparsematrix_defs

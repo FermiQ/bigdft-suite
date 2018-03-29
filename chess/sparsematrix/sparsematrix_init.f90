@@ -7071,14 +7071,14 @@ module sparsematrix_init
 
 
 
-    subroutine compact_sparsity_pattern(nfvctr, nvctr, nseg, keyg, pivot)
+    subroutine compact_sparsity_pattern(nfvctr, nvctr, nseg, keyg, pvt_method, pivot)
       use futile
       use m_region
       use m_pivot_methods
       implicit none
 
       ! Calling arguments
-      integer,intent(in) :: nfvctr, nvctr, nseg
+      integer,intent(in) :: nfvctr, nvctr, nseg, pvt_method
       integer,dimension(2,nseg),intent(in) :: keyg
       integer,dimension(nfvctr),intent(out) :: pivot
 
@@ -7114,8 +7114,9 @@ module sparsematrix_init
       end if
 
       call rgn_range(sub, 1, nfvctr)
-      call GPS(n=nfvctr, nnzs=nvctr, n_col=n_col, l_ptr=col_ptr, l_col=row_ind, &
-           sub=sub, pvt=pvt)
+      !!call GPS(n=nfvctr, nnzs=nvctr, n_col=n_col, l_ptr=col_ptr, l_col=row_ind, &
+      !!     sub=sub, pvt=pvt)
+      call do_pivoting(pvt_method, nfvctr, nvctr, row_ind, col_ptr, n_col, sub, pvt)
       
       call f_memcpy(src=pvt%r, dest=pivot)
 
@@ -7518,6 +7519,54 @@ module sparsematrix_init
     call f_release_routine()
 
   end subroutine get_segment_structure
+
+
+  subroutine do_pivoting(pvt_method, nfvctr, nvctr, row_ind, col_ptr, n_col, sub, pvt)
+    use futile
+    use m_region
+    use m_pivot_methods
+    implicit none
+
+    ! Calling arguments
+    integer,intent(in) :: pvt_method, nfvctr, nvctr
+    integer,dimension(nvctr),intent(in) :: row_ind
+    integer,dimension(nfvctr),intent(in) :: col_ptr, n_col
+    type(tRgn),intent(in) :: sub
+    type(tRgn),intent(inout) :: pvt
+
+    call GPS(n=nfvctr, nnzs=nvctr, n_col=n_col, l_ptr=col_ptr, l_col=row_ind, sub=sub, pvt=pvt)
+
+    select case (pvt_method)
+    case (PVT_NONE)
+    case (PVT_CUTHILL_MCKEE)
+        call Cuthill_Mckee(n=nfvctr, nnzs=nvctr, n_col=n_col, l_ptr=col_ptr, l_col=row_ind, sub=sub, pvt=pvt)
+        pvt%name = 'Cuthill-Mckee'
+    case (PVT_REV_CUTHILL_MCKEE)
+        call rev_Cuthill_Mckee(n=nfvctr, nnzs=nvctr, n_col=n_col, l_ptr=col_ptr, l_col=row_ind, sub=sub, pvt=pvt)
+        pvt%name = 'rev-Cuthill-Mckee'
+    case (PVT_GPS)
+        call GPS(n=nfvctr, nnzs=nvctr, n_col=n_col, l_ptr=col_ptr, l_col=row_ind, sub=sub, pvt=pvt)
+        pvt%name = 'Gibbs-Poole-Stockmeyer'
+    case (PVT_REV_GPS)
+        call rev_GPS(n=nfvctr, nnzs=nvctr, n_col=n_col, l_ptr=col_ptr, l_col=row_ind, sub=sub, pvt=pvt)
+        pvt%name = 'rev-Gibbs-Poole-Stockmeyer'
+    case (PVT_PCG)
+        call PCG(n=nfvctr, nnzs=nvctr, n_col=n_col, l_ptr=col_ptr, l_col=row_ind, sub=sub, pvt=pvt)
+        pvt%name = 'Peripheral-Connect-Graph'
+    case (PVT_REV_PCG)
+        call rev_PCG(n=nfvctr, nnzs=nvctr, n_col=n_col, l_ptr=col_ptr, l_col=row_ind, sub=sub, pvt=pvt)
+        pvt%name = 'rev-Peripheral-Connect-Graph'
+    case (PVT_GGPS)
+        call GGPS(n=nfvctr, nnzs=nvctr, n_col=n_col, l_ptr=col_ptr, l_col=row_ind, sub=sub, pvt=pvt)
+        pvt%name = 'General-Gibbs-Poole-Stockmeyer'
+    case (PVT_REV_GGPS)
+        call rev_GGPS(n=nfvctr, nnzs=nvctr, n_col=n_col, l_ptr=col_ptr, l_col=row_ind, sub=sub, pvt=pvt)
+        pvt%name = 'rev-General-Gibbs-Poole-Stockmeyer'
+    case default
+        call f_err_throw('Wrong pivoting method')
+    end select
+
+  end subroutine do_pivoting
 
 
 end module sparsematrix_init
