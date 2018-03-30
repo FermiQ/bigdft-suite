@@ -41,7 +41,7 @@
   </autotools>
 
   <autotools id="v_sim-dev" autogen-sh="autoreconf" skip-autogen="true">
-    <branch repo="v_sim-dev" module="v_sim-dev.tar.gz"
+    <branch repo="v_sim-dev" module="v_sim-dev.tar.bz2"
             version="3.99" checkoutdir="v_sim-dev"/>
     <dependencies>
       <dep package="openbabel"/>
