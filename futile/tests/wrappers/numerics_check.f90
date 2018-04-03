@@ -139,46 +139,45 @@ subroutine test_box_functions()
   v1=f_malloc([3,ndims(1),ndims(2),ndims(3)],id='v1')
   v2=f_malloc([3,ndims(1),ndims(2),ndims(3)],id='v2')
 
-! to be uncommented
-!tbu  call loop_dotp('SEQ',mesh_ortho,v1,v2,tseq)   
-!tbu  call yaml_map('Normal loop, seq (ns)',tseq)
-!tbu  
-!tbu  call loop_dotp('OMP',mesh_ortho,v1,v2,tomp)
-!tbu  call yaml_map('Normal loop, omp (ns)',tomp)
-!tbu
-!tbu  call loop_dotp('ITR',mesh_ortho,v1,v2,tseq)
-!tbu  call yaml_map('Normal loop, itr (ns)',tseq)
-!tbu
-!tbu  call loop_dotp('IOM',mesh_ortho,v1,v2,tseq)
-!tbu  call yaml_map('Normal loop, iom (ns)',tseq)
-!tbu
-!tbu  call loop_dotp('ITM',mesh_ortho,v1,v2,tseq)
-!tbu  call yaml_map('Normal loop, mpi (ns)',tseq)
+  call loop_dotp('SEQ',mesh_ortho,v1,v2,tseq)   
+  call yaml_map('Normal loop, seq (ns)',tseq)
+  
+  call loop_dotp('OMP',mesh_ortho,v1,v2,tomp)
+  call yaml_map('Normal loop, omp (ns)',tomp)
+
+  call loop_dotp('ITR',mesh_ortho,v1,v2,tseq)
+  call yaml_map('Normal loop, itr (ns)',tseq)
+
+  call loop_dotp('IOM',mesh_ortho,v1,v2,tseq)
+  call yaml_map('Normal loop, iom (ns)',tseq)
+
+  call loop_dotp('ITM',mesh_ortho,v1,v2,tseq)
+  call yaml_map('Normal loop, mpi (ns)',tseq)
 
   ndims=[100,100,100]
 
   mesh_ortho=cell_null()
   mesh_ortho=cell_new('F',ndims,[1.0_gp,1.0_gp,1.0_gp])
-!tbu  call loop_box_function('distance',mesh_ortho)
-!  call loop_box_function('box_cutoff',mesh_ortho)
+  call loop_box_function('distance',mesh_ortho)
+  call loop_box_function('box_cutoff',mesh_ortho)
    
   mesh_ortho=cell_null()
   mesh_ortho=cell_new('S',ndims,[1.0_gp,1.0_gp,1.0_gp])
-!tbu  call loop_box_function('distance',mesh_ortho)
-!  call loop_box_function('box_cutoff',mesh_ortho)
+  call loop_box_function('distance',mesh_ortho)
+  call loop_box_function('box_cutoff',mesh_ortho)
 
   mesh_ortho=cell_null()
   mesh_ortho=cell_new('P',ndims,[1.0_gp,1.0_gp,1.0_gp])
   call loop_box_function('distance',mesh_ortho)
   call loop_box_function('box_cutoff',mesh_ortho)
-stop
+
   angrad(1) = 90.0_gp/180.0_gp*pi
   angrad(2) = 70.0_gp/180.0_gp*pi
   angrad(3) = 90.0_gp/180.0_gp*pi
   
   mesh_noortho=cell_new('S',ndims,[1.0_gp,1.0_gp,1.0_gp],alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3)) 
-!tbu  call loop_box_function('distance',mesh_noortho)
-!  call loop_box_function('box_cutoff',mesh_noortho)
+  call loop_box_function('distance',mesh_noortho)
+  call loop_box_function('box_cutoff',mesh_noortho)
 
   angrad(1) = 80.0_gp/180.0_gp*pi
   angrad(2) = 80.0_gp/180.0_gp*pi
@@ -186,18 +185,17 @@ stop
   
   mesh_noortho=cell_null()
   mesh_noortho=cell_new('P',ndims,[1.0_gp,1.0_gp,1.0_gp],alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3)) 
-!  call loop_box_function('distance',mesh_noortho)
-!  call loop_box_function('box_cutoff',mesh_noortho)
+  call loop_box_function('distance',mesh_noortho)
+  call loop_box_function('box_cutoff',mesh_noortho)
 
-  angrad(1) = 80.0_gp/180.0_gp*pi
-  angrad(2) = 76.0_gp/180.0_gp*pi
-  angrad(3) = 101.0_gp/180.0_gp*pi
+  angrad(1) = 60.0_gp/180.0_gp*pi
+  angrad(2) = 50.0_gp/180.0_gp*pi
+  angrad(3) = 90.0_gp/180.0_gp*pi
   
   mesh_noortho=cell_null()
   mesh_noortho=cell_new('P',ndims,[1.0_gp,1.0_gp,1.0_gp],alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3)) 
   call loop_box_function('distance',mesh_noortho)
   call loop_box_function('box_cutoff',mesh_noortho)
-  
 
   ndims=200
   angrad(1) = 20.0_gp/180.0_gp*pi
@@ -231,8 +229,9 @@ subroutine loop_box_function(fcheck,mesh)
   real(f_double) :: diff,diff_old,dist1,dist2,cutoff,totvol_Bcutoff
   real(f_double), dimension(3) :: rxyz0,rd,rv, angdeg
   type(box_iterator) :: bit
-  integer, dimension(2,3) :: nbox,nbox_ref
+  integer, dimension(2,3) :: nbox,nbox_ref,nbox_ref_cub
   integer, parameter :: START_=1,END_=2
+  logical :: enter
 
   angdeg = mesh%angrad*180.0_f_double/pi
   select case(trim(fcheck))
@@ -375,6 +374,9 @@ subroutine loop_box_function(fcheck,mesh)
         call yaml_map('bit%nbox whole box',bit%nbox)
         nbox_ref(START_,:)= 10000000
         nbox_ref(END_,:)  =-10000000
+        nbox_ref_cub(START_,:)= 10000000
+        nbox_ref_cub(END_,:)  =-10000000
+        enter=.true.
         do while(box_next_point(bit))
 
            ! Sphere volume integral with distance
@@ -407,13 +409,21 @@ subroutine loop_box_function(fcheck,mesh)
            if (diff_old.gt.diff) then
               diff=diff_old
            end if
-
            ! Cube volume integral
            if ((rv(1).ge.-r .and. rv(1).lt.r) .and.&
                (rv(2).ge.-r .and. rv(2).lt.r) .and.&
                (rv(3).ge.-r .and. rv(3).lt.r)) then
+               nbox_ref_cub(START_,1)=min(bit%i,nbox_ref_cub(START_,1))
+               nbox_ref_cub(END_,1)=max(bit%i,nbox_ref_cub(END_,1))
+               nbox_ref_cub(START_,2)=min(bit%j,nbox_ref_cub(START_,2))
+               nbox_ref_cub(END_,2)=max(bit%j,nbox_ref_cub(END_,2))
+               nbox_ref_cub(START_,3)=min(bit%k,nbox_ref_cub(START_,3))
+               nbox_ref_cub(END_,3)=max(bit%k,nbox_ref_cub(END_,3))
               totvolC=totvolC+1.0_f_double
-              print*, bit%i,bit%j,bit%k
+              if (enter) then
+               print*, bit%i,bit%j,bit%k
+               enter=.false.
+              end if
            end if
         end do
         totvolC=totvolC*mesh%volume_element
@@ -421,15 +431,25 @@ subroutine loop_box_function(fcheck,mesh)
         IntaC=(2.0_f_double*r)**3
         errorC=abs((totvolC-IntaC)/IntaC)
         call yaml_map('nbox_ref',nbox_ref)
+        call yaml_map('nbox_ref_cub',nbox_ref_cub)
         
         ! Using the internal nbox
         nbox = box_nbox_from_cutoff(mesh,rxyz0,cutoff)
         call yaml_map('nbox',nbox)
-        bit=box_iter(mesh,nbox)
+        bit=box_iter(mesh,nbox+1) ! Here we need a +1 otherwise the box is not centered at rxyz0 (50.0) which corresponds to vit%i=bit%j=bit%k=51
         !bit=box_iter(mesh,origin=rxyz0,cutoff=cutoff)
         call yaml_map('bit%nbox reduced box',bit%nbox)
+        enter=.true.
         do while(box_next_point(bit))
-            print*, bit%i,bit%j,bit%k
+              if (enter) then
+               print*, bit%i,bit%j,bit%k
+               enter=.false.
+              end if
+              if (distance(bit%mesh,bit%rxyz,rxyz0) .le. 0.0_f_double) then
+               print*, bit%rxyz
+               print*, rxyz0
+               print*, bit%i,bit%j,bit%k
+              end if
            totvol_Bcutoff=totvol_Bcutoff+1.0_f_double
         end do
         totvol_Bcutoff=totvol_Bcutoff*mesh%volume_element

@@ -11,6 +11,7 @@
 module box
 
   use f_precisions, gp=>f_double
+  use numerics, only: onehalf,pi
 
   private
 
@@ -260,19 +261,71 @@ contains
   end function box_nbox_from_cutoff
 
   pure function cell_cutoff_extrema(mesh,oxyz,cutoff) result(rbox)
+    !use yaml_strings
     implicit none
     type(cell), intent(in) :: mesh
     real(gp), dimension(3), intent(in) :: oxyz
     real(gp), intent(in) :: cutoff
     real(gp), dimension(2,3) :: rbox
+    !local variables
+    real(gp), dimension(3) :: fac
+    real(gp) :: aa,b,c,p,area,h,l,p2,area2,hf
+    integer :: i,i1,i2
     !for non-orthorhombic cells the concept of distance has to be inserted here (the box should contain the sphere)
-!    if (mesh%orthorhombic) then
+    ! compute the inverse of mesh%uabc
+
+    if (mesh%orthorhombic) then
         rbox(START_,:)=oxyz-cutoff
         rbox(END_,:)=oxyz+cutoff
-!    else
-!        rbox(START_,:)=rxyz_nonortho(mesh,rxyz_ortho(mesh,oxyz)-cutoff)
-!        rbox(END_,:)=rxyz_nonortho(mesh,rxyz_ortho(mesh,oxyz)+cutoff)
-!    end if
+    else
+        rbox(START_,:)=1.0d10
+        rbox(END_,:) =-1.0d10
+        fac(:)=1.0_gp
+        do i=1,3
+         i1=mod(i,3)+1
+         i2=mod(i+1,3)+1
+         if (abs(mesh%angrad(i1) - onehalf*pi) .lt. 1.0d-15) then
+          if (abs(mesh%angrad(i2) - onehalf*pi) .lt. 1.0d-15) then
+           hf=1.0_gp
+          else
+           c=cos(mesh%angrad(i2))/sin(mesh%angrad(i))
+           hf=sqrt(1.0_gp-c**2)
+          end if
+         else if (abs(mesh%angrad(i2) - onehalf*pi) .lt. 1.0d-15) then
+          if (abs(mesh%angrad(i1) - onehalf*pi) .lt. 1.0d-15) then
+           hf=1.0_gp
+          else
+           c=cos(mesh%angrad(i1))/sin(mesh%angrad(i))
+           hf=sqrt(1.0_gp-c**2)
+          end if
+         else
+          aa=1.0_gp/cos(mesh%angrad(i2))
+          b=1.0_gp/cos(mesh%angrad(i1))
+          c=sqrt(aa**2+b**2-2.0_gp*aa*b*cos(mesh%angrad(i)))
+          p=(tan(mesh%angrad(i2))+tan(mesh%angrad(i1))+c)*0.5_gp
+          area=sqrt(p*(p-tan(mesh%angrad(i2)))*(p-tan(mesh%angrad(i1)))*(p-c))
+          h=2.0_gp*area/c
+          l=sqrt(1.0_gp+h**2)
+          p2=(1.0_gp+h+l)*0.5_gp
+          area2=sqrt(p2*(p2-1.0_gp)*(p2-h)*(p2-l))
+          hf=2.0_gp*area2/l
+         end if
+         fac(i)=1.0_gp/hf
+        end do
+        do i=1,3
+         i1=mod(i,3)+1
+         i2=mod(i+1,3)+1
+         rbox(START_,i1)=min(rbox(START_,i1),oxyz(i1)-cutoff*fac(i1))
+         rbox(END_,i1)  =max(rbox(END_,i1),oxyz(i1)+cutoff*fac(i1))
+         rbox(START_,i2)=min(rbox(START_,i2),oxyz(i2)-cutoff*fac(i2))
+         rbox(END_,i2)  =max(rbox(END_,i2),oxyz(i2)+cutoff*fac(i2))
+        end do
+        do i=1,3
+         if (rbox(START_,i) .lt. 0.0_gp) rbox(START_,i) = 0.0_gp
+         if (rbox(END_,i) .gt. mesh%hgrids(i)*(mesh%ndims(i)-1)) rbox(END_,i) = mesh%hgrids(i)*(mesh%ndims(i)-1)
+        end do
+    end if
+
   end function cell_cutoff_extrema
 
   pure subroutine box_iter_expand_nbox(bit)
@@ -1022,10 +1075,11 @@ contains
 
   !>gives the value of the coordinates for a nonorthorhombic reference system
   !! from their value wrt an orthorhombic system
-  pure function rxyz_nonortho(mesh,rxyz)
+  pure function rxyz_nonortho(mesh,rxyz,mtmp)
     implicit none
     type(cell), intent(in) :: mesh
     real(gp), dimension(3), intent(in) :: rxyz
+    real(gp), dimension(3,3), intent(in) :: mtmp
     real(gp), dimension(3) :: rxyz_nonortho
     ! local variables
     integer :: i,j
@@ -1036,7 +1090,7 @@ contains
      do i=1,3
       rxyz_nonortho(i)=0.0_gp
       do j=1,3
-       rxyz_nonortho(i)=rxyz_nonortho(i)+mesh%uabc(i,j)*rxyz(j)
+       rxyz_nonortho(i)=rxyz_nonortho(i)+mtmp(i,j)*rxyz(j)
       end do
      end do
     end if
