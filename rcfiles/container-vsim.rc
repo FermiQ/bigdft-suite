@@ -40,6 +40,6 @@ module_autogenargs.update({
 
 'pygobject': 'PYTHON=/usr/bin/python',
 
-'v_sim-dev': '--with-abinit --with-archives --with-openbabel --with-cube --without-strict-cflags'
+'v_sim-dev': '--with-abinit --with-archives --with-openbabel --with-cube --without-strict-cflags --enable-debug-messages'
    
 })
