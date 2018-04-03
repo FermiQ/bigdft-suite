@@ -41,13 +41,14 @@
   </autotools>
 
   <autotools id="v_sim-dev" autogen-sh="autoreconf" skip-autogen="true">
-    <branch repo="local-optional" module="v_sim-dev.tar.gz"
+    <branch repo="v_sim-dev" module="v_sim-dev.tar.bz2"
             version="3.99" checkoutdir="v_sim-dev"/>
     <dependencies>
-      <if condition-set="python">
+      <dep package="openbabel"/>
+      <!-- <if condition-set="python">
         <dep package="pygobject"/>
         <dep package="gobject-introspection"/>
-      </if>
+      </if> -->
     </dependencies>
   </autotools>
 
@@ -137,7 +138,10 @@
       </if>
       <if condition-set="babel">
         <dep package="openbabel"/>
-      </if>     
+      </if>
+      <if condition-set="vsim">
+        <dep package="v_sim-dev"/>
+      </if>
     </dependencies>
   </autotools>
 

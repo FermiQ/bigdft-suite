@@ -27,6 +27,7 @@ GREP_M4_COMMENTS=" | grep -v dnl | grep -v '#' "
 
 CHECKMODULES= ['futile','chess','psolver','bigdft','PyBigDFT','spred']
 MAKEMODULES= ['futile','chess','psolver','libABINIT','bigdft','PyBigDFT','spred']
+MANUALMAKEMODULES = ['futile','chess','psolver','libABINIT','bigdft','spred']
 
 #allowed actions and corresponding description
 ACTIONS={'build':
@@ -356,8 +357,7 @@ class BigDFTInstaller():
 
     def make(self):
         "Perform the simple make action"
-        #this make action should not be written like that, better use buildone -f
-        self.shellaction('.',MAKEMODULES,'make -j6 && make install',hidden=not self.verbose)
+        self.shellaction('.',MANUALMAKEMODULES,'make -j6 && make install',hidden=not self.verbose)
 
     def dist(self):
         "Perform make dist action"
@@ -466,6 +466,7 @@ class BigDFTInstaller():
         #Otherwise stated: this is an automatic message, please do not reply.
 all: build
         """)
+        #this should be done only if buildrc is there
         for a in ACTIONS:
             sflist.append(a+':  ')
             sflist.append('\t'+
