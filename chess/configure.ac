@@ -160,6 +160,7 @@ src/Makefile
 src/python/Makefile
 src/python/CheSS/Makefile
 chesspexsi/Makefile
+libsiesta/Makefile
 tests/Makefile
 ])
 

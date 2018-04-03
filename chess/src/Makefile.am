@@ -92,7 +92,8 @@ EXTRA_DIST = \
     chess_input_variables_definition.yaml \
 	configure.inc.in
 
-subs_static_library = $(top_builddir)/sparsematrix/libsparsematrix.a \
+subs_static_library = $(top_builddir)/libsiesta/liblibsiesta.a \
+                      $(top_builddir)/sparsematrix/libsparsematrix.a \
                       $(top_builddir)/chesspexsi/libchesspexsi.a
 
 

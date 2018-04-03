@@ -1075,7 +1075,7 @@ module sparsematrix_init
 
       ! # NEW #######################################
       !!call allocate_sparse_matrix_keys(store_index_, sparsemat)
-      call get_segment_structure(nproc, comm, &
+      call get_segment_structure(iproc, nproc, comm, &
            sparsemat%nfvctr, sparsemat%nfvctrp, sparsemat%isfvctr, &
            nnonzero, nonzero, sparsemat%nseg, sparsemat%nvctr, sparsemat%keyg, &
            keyv=sparsemat%keyv, nsegline=sparsemat%nsegline, istsegline=sparsemat%istsegline)
@@ -1304,7 +1304,7 @@ module sparsematrix_init
 
           nsegline_mult = f_malloc0(norbu,id='nsegline_mult')
           istsegline_mult = f_malloc(norbu,id='istsegline_mult')
-          call get_segment_structure(nproc, comm, &
+          call get_segment_structure(iproc, nproc, comm, &
                sparsemat%nfvctr, sparsemat%nfvctrp, sparsemat%isfvctr, &
                nnonzero_mult, nonzero_mult, nseg_mult, nvctr_mult, keyg_mult, &
                keyv=keyv_mult, nsegline=nsegline_mult, istsegline=istsegline_mult)
@@ -1631,7 +1631,7 @@ module sparsematrix_init
           ie = nnonzero
       end if
 
-      !write(*,*) 'iiorb, is, ie', iiorb, is, ie
+      !!write(*,*) 'iiorb, is, ie', iiorb, is, ie
 
       !!$omp parallel default(none) &
       !!$omp shared(nnonzero, nonzero, iiorb, lut) &
@@ -6232,7 +6232,7 @@ module sparsematrix_init
      integer,dimension(2,nnonzero),intent(inout) :: nonzero
 
      ! Local variables
-     integer :: i, ii
+     integer :: i, j, ii, il, il_old, is, iorb, iline
      integer,dimension(:),allocatable :: sortarr, iswaparr, workarr_sort, workarr_swap
      integer,dimension(:,:),allocatable :: nonzero_work
 
@@ -6244,15 +6244,17 @@ module sparsematrix_init
      workarr_sort = f_malloc((nnonzero+1)/2,id='workarr_sort')
      workarr_swap = f_malloc((nnonzero+1)/2,id='workarr_swap')
 
+    !!do iorb=1,nnonzero
+    !!    write(*,*) 'init: iorb, nonzero(1:2,iorb)', iorb, nonzero(1:2,iorb)
+    !!end do
+
+     ! First sort according to the second entries
      do i=1,nnonzero
          sortarr(i) = nonzero(2,i)
          iswaparr(i) = i
      end do
      call MergeSort(sortarr, nnonzero, workarr_sort, iswaparr, workarr_swap)
 
-     call f_free(sortarr)
-     call f_free(workarr_sort)
-     call f_free(workarr_swap)
 
      nonzero_work = f_malloc((/2,nnonzero/),id='nonzero_work')
      call f_memcpy(src=nonzero, dest=nonzero_work)
@@ -6260,6 +6262,50 @@ module sparsematrix_init
          ii = iswaparr(i)
          nonzero(1:2,i) = nonzero_work(1:2,ii)
      end do
+
+    !!do iorb=1,nnonzero
+    !!    write(*,*) '2nd: iorb, nonzero(1:2,iorb)', iorb, nonzero(1:2,iorb)
+    !!end do
+
+     ! Now sort according to the first entries
+     call f_memcpy(src=nonzero, dest=nonzero_work)
+     iline = 0
+     il = -1
+     is = 0
+     il_old = -1
+     do i=1,nnonzero
+         il = nonzero_work(2,i)
+         if (il /= il_old .and. il_old /= -1) then
+             !!write(*,*) 'B: il, sortarr', il, sortarr(1:iline)
+             call MergeSort(sortarr, iline, workarr_sort, iswaparr, workarr_swap)
+             !!write(*,*) 'A: iswaparr', iswaparr(1:iline)
+             do j=1,iline
+                 ii = iswaparr(j)
+                 !!write(*,*) 'A: j+is, iline+is, is, j, iline', j+is, iline+is, is, j, iline
+                 nonzero(1:2,j+is) = nonzero_work(1:2,ii+is)
+             end do
+             is = is + iline
+             iline = 0
+         end if
+         iline = iline + 1
+         sortarr(iline) = nonzero_work(1,i)
+         iswaparr(iline) = iline
+         il_old = il
+     end do
+     call MergeSort(sortarr, iline, workarr_sort, iswaparr, workarr_swap)
+     do i=1,iline
+         ii = iswaparr(i)
+         !!write(*,*) 'B: i+is, iline+is', i+is, iline+is
+         nonzero(1:2,i+is) = nonzero_work(1:2,ii+is)
+     end do
+
+    !!do iorb=1,nnonzero
+    !!    write(*,*) '1st: iorb, nonzero(1:2,iorb)', iorb, nonzero(1:2,iorb)
+    !!end do
+
+     call f_free(sortarr)
+     call f_free(workarr_sort)
+     call f_free(workarr_swap)
      call f_free(nonzero_work)
      call f_free(iswaparr)
 
@@ -7048,6 +7094,7 @@ module sparsematrix_init
       !!     sub=sub, pvt=pvt)
       call do_pivoting(pvt_method, nfvctr, nvctr, row_ind, col_ptr, n_col, sub, pvt)
       
+      !!write(*,*) 'size(pvt%r), size(pivot)', size(pvt%r), size(pivot)
       call f_memcpy(src=pvt%r, dest=pivot)
 
       call f_free(row_ind)
@@ -7344,25 +7391,27 @@ module sparsematrix_init
 !!  end subroutine level_struct
 
 
-  subroutine get_segment_structure(nproc, comm, nfvctr, nfvctrp, isfvctr, nnonzero, nonzero, &
+  subroutine get_segment_structure(iproc, nproc, comm, nfvctr, nfvctrp, isfvctr, nnonzero, nonzero, &
              nseg, nvctr, keyg, keyv, nsegline, istsegline)
     use futile
     implicit none
 
     ! Calling arguments
-    integer,intent(in) :: nproc, comm, nfvctr, nfvctrp, isfvctr, nnonzero
-    integer,dimension(nnonzero),intent(inout) :: nonzero
+    integer,intent(in) :: iproc, nproc, comm, nfvctr, nfvctrp, isfvctr, nnonzero
+    integer,dimension(2,nnonzero),intent(inout) :: nonzero
     integer,intent(out) :: nseg, nvctr
     integer,dimension(:,:,:),pointer,intent(out) :: keyg
     integer,dimension(:),pointer,intent(out),optional :: keyv
     integer,dimension(nfvctr),intent(out),target,optional :: nsegline, istsegline
 
     ! Local variables
-    integer :: ist, iorb, iiorb, ivctr, jorb, nsl, iseg
+    integer :: ist, iorb, iiorb, ivctr, jorb, nsl, iseg, is, ie, jproc, nnonzero_ordered, i, il, ir, n
     logical  :: optionals_present
     integer,dimension(:),pointer :: nsegline_, istsegline_
-    integer,dimension(:),allocatable :: is_line
+    integer,dimension(:),allocatable :: is_line, nfvctr_par, isfvctr_par, nnonzero_par, nnonzero_line, on_which_proc, is_on_proc
+    integer,dimension(:,:),allocatable :: nonzero_ordered
     logical,dimension(:),allocatable :: lut
+    type(fmpi_win) :: window
 
     call f_routine(id='get_segment_structure')
 
@@ -7379,6 +7428,109 @@ module sparsematrix_init
     ! Sort the nonzero entries
     call sort_nonzero_entries(nnonzero, nonzero)
 
+    !!write(*,*) 'nnonzero', nnonzero
+
+    !!do i=1,nnonzero
+    !!    write(*,*) 'i, nonzero(:,i)', i, nonzero(:,i)
+    !!end do
+    !!write(1000,*) '##############################'
+
+    !!write(*,*) 'iproc, nonzero', iproc, nonzero
+
+    !!nfvctr_par = f_malloc0(0.to.nproc-1,id='nfvctr_par')
+    !!isfvctr_par = f_malloc0(0.to.nproc-1,id='isfvctr_par')
+    !!nnonzero_par = f_malloc0(0.to.nproc-1,id='nnonzero_par')
+    !!nfvctr_par(iproc) = maxval(nonzero(2,:)) - minval(nonzero(2,:)) + 1
+    !!isfvctr_par(iproc) = minval(nonzero(2,:)) - 1
+    !!nnonzero_par(iproc) = nnonzero
+    !!call fmpi_allreduce(nfvctr_par,op=FMPI_SUM)
+    !!call fmpi_allreduce(isfvctr_par,op=FMPI_SUM)
+    !!call fmpi_allreduce(nnonzero_par,op=FMPI_SUM)
+
+    !write(*,*) 'isfvctr_par', isfvctr_par
+    !write(*,*) 'nfvctr_par', nfvctr_par
+
+    ! Count the number of nonzero entries per line
+    nnonzero_line = f_malloc0(nfvctr,id='nnonzero_line')
+    on_which_proc = f_malloc0(nfvctr,id='on_which_proc')
+    is_on_proc = f_malloc0(nfvctr,id='is_on_proc')
+    do i=1,nnonzero
+        il = nonzero(2,i)
+        nnonzero_line(il) = nnonzero_line(il) + 1
+        !!if (on_which_proc(il) == -1) then
+            on_which_proc(il) = iproc
+        !!else
+        !!    if (on_which_proc(il) /= iproc) then
+        !!        call f_err_throw('line on different procs: '//trim(yaml_toa(on_which_proc(il)))//','//trim(yaml_toa(iproc)))
+        !!    end if
+        !!end if
+        if (is_on_proc(il) == 0) then
+            is_on_proc(il) = i
+        end if
+    end do
+    call fmpi_allreduce(nnonzero_line,op=FMPI_SUM)
+    call fmpi_allreduce(on_which_proc,op=FMPI_SUM)
+    call fmpi_allreduce(is_on_proc,op=FMPI_SUM)
+
+    !write(*,*) 'on_which_proc', on_which_proc
+
+    nnonzero_ordered = 0
+    do i=isfvctr+1,isfvctr+nfvctrp
+        nnonzero_ordered = nnonzero_ordered + nnonzero_line(i)
+    end do
+
+
+    call fmpi_win_create(window, nonzero(1,1), 2*nnonzero, comm)
+    call fmpi_win_fence(window,FMPI_WIN_OPEN)
+    nonzero_ordered = f_malloc([2,nnonzero_ordered],id='nonzero_ordered')
+    do iorb=isfvctr+1,isfvctr+nfvctrp
+        n = nnonzero_line(iorb)
+        jproc = on_which_proc(iorb)
+        il = 1
+        do i=isfvctr+1,iorb-1
+            il = il + nnonzero_line(i)
+        end do
+        ir = is_on_proc(iorb)-1
+        !write(*,*) 'iproc, jproc, il, ir, n', iproc, jproc, il, ir, n
+        call fmpi_get(nonzero_ordered(1,il), count=2*n, target_rank=jproc,&
+             target_disp=int(2*ir,fmpi_address), win=window)
+    end do
+    !!do jproc=0,nproc-1
+    !!    is = max(isfvctr_par(jproc)+1,isfvctr+1)
+    !!    ie = min(isfvctr_par(jproc)+nfvctr_par(jproc),isfvctr+nfvctrp)
+    !!    !!write(*,*) 'iproc, jproc, isfvctr_par(jproc)+nfvctr_par(jproc), isfvctr+nfvctr, is, ie', &
+    !!    !!            iproc, jproc, isfvctr_par(jproc)+nfvctr_par(jproc), isfvctr+nfvctr, is, ie
+    !!    if (ie>=is) then
+    !!        il = 1
+    !!        do i=isfvctr+1,is-1
+    !!            il = il + nnonzero_line(i)
+    !!        end do
+    !!        ir = 0
+    !!        do i=isfvctr_par(jproc)+1,is-1
+    !!            ir = ir + nnonzero_line(i)
+    !!        end do
+    !!        n = 0
+    !!        do i=is,ie
+    !!            n = n + nnonzero_line(i)
+    !!        end do
+    !!        write(*,*) 'iproc, jproc, il, ir, n', iproc, jproc, il, ir, n
+    !!        !!call fmpi_get(nonzero_ordered(1,is-isfvctr), count=n, target_rank=jproc,&
+    !!        !!     target_disp=int(2*(is-isfvctr_par(jproc)),fmpi_address), win=window)
+    !!        call fmpi_get(nonzero_ordered(1,il), count=2*n, target_rank=jproc,&
+    !!             target_disp=int(2*ir,fmpi_address), win=window)
+    !!    end if
+    !!end do
+    call fmpi_win_shut(window)
+    !!do iorb=1,nnonzero_ordered
+    !!    write(*,*) 'iorb, nonzero(1:2,iorb)', iorb, nonzero(1:2,iorb)
+    !!end do
+    !write(*,*) 'iproc, nonzero_ordered', iproc, nonzero_ordered
+
+    call f_free(nnonzero_line)
+    call f_free(on_which_proc)
+    call f_free(is_on_proc)
+
+
     nseg=0
     nvctr=0
     call f_zero(nsegline_)
@@ -7388,7 +7540,8 @@ module sparsematrix_init
 
     do iorb=1,nfvctrp
         iiorb=isfvctr+iorb
-        call create_lookup_table(nnonzero, nonzero, iiorb, nfvctr, is_line, iorb==1, lut)
+        !call create_lookup_table(nnonzero, nonzero, iiorb, nfvctr, is_line, iorb==1, lut)
+        call create_lookup_table(nnonzero_ordered, nonzero_ordered, iiorb, nfvctr, is_line, iorb==1, lut)
         call nseg_perline(nfvctr, lut, nseg, nvctr, nsl)
         nsegline_(iiorb) = nsl
     end do
@@ -7413,7 +7566,7 @@ module sparsematrix_init
     call f_zero(keyg)
     do iorb=1,nfvctrp
         iiorb=isfvctr+iorb
-        call create_lookup_table(nnonzero, nonzero, iiorb, nfvctr, is_line, .false., lut)
+        call create_lookup_table(nnonzero_ordered, nonzero_ordered, iiorb, nfvctr, is_line, .false., lut)
         call keyg_per_line(nfvctr, nseg, iiorb, istsegline_(iiorb), &
              lut, ivctr, keyg)
     end do
@@ -7445,6 +7598,7 @@ module sparsematrix_init
 
     call f_free(lut)
     call f_free(is_line)
+    call f_free(nonzero_ordered)
 
     call f_release_routine()
 
@@ -7464,10 +7618,19 @@ module sparsematrix_init
     type(tRgn),intent(in) :: sub
     type(tRgn),intent(inout) :: pvt
 
-    call GPS(n=nfvctr, nnzs=nvctr, n_col=n_col, l_ptr=col_ptr, l_col=row_ind, sub=sub, pvt=pvt)
+    ! Local variables
+    integer :: i
+
+    call f_routine(id='do_pivoting')
+
+    !call GPS(n=nfvctr, nnzs=nvctr, n_col=n_col, l_ptr=col_ptr, l_col=row_ind, sub=sub, pvt=pvt)
 
     select case (pvt_method)
     case (PVT_NONE)
+        pvt%r = f_malloc_ptr(nfvctr,id='pvt%r')
+        do i=1,nfvctr
+            pvt%r(i) = i
+        end do
     case (PVT_CUTHILL_MCKEE)
         call Cuthill_Mckee(n=nfvctr, nnzs=nvctr, n_col=n_col, l_ptr=col_ptr, l_col=row_ind, sub=sub, pvt=pvt)
         pvt%name = 'Cuthill-Mckee'
@@ -7495,6 +7658,8 @@ module sparsematrix_init
     case default
         call f_err_throw('Wrong pivoting method')
     end select
+
+    call f_release_routine()
 
   end subroutine do_pivoting
 

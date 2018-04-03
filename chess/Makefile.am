@@ -5,7 +5,7 @@ ACLOCAL_AMFLAGS = -I m4
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = chess.pc
 
-SUBDIRS = sparsematrix chesspexsi src
+SUBDIRS = libsiesta sparsematrix chesspexsi src
 
 dist_bin_SCRIPTS = chessvars.sh chess_environment.sh
 
