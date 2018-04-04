@@ -19,19 +19,21 @@ program babel
   type(atomic_structure) :: astruct
 
   interface
-     subroutine openbabel_load(d, f,ln)
+     subroutine openbabel_load(d, f)
        use dictionaries
        implicit none
        type(dictionary), pointer :: d
-       character(len = *), intent(in) :: f
-       integer, intent(in) :: ln
+       character, dimension(*), intent(in) :: f
+       !character(len = *), intent(in) :: f
+       !integer, intent(in) :: ln
      end subroutine openbabel_load
-     subroutine openbabel_dump(d, t, f,ln)
+     subroutine openbabel_dump(d, t, f)
        use dictionaries
        implicit none
        type(dictionary), pointer :: d, t
-       character(len = *), intent(in) :: f
-       integer, intent(in) :: ln
+       character, dimension(*), intent(in) :: f
+       !character(len = *), intent(in) :: f
+       !integer, intent(in) :: ln
      end subroutine openbabel_dump
   end interface
 
@@ -48,7 +50,7 @@ program babel
 
   !dict=>dict_new()
   call dict_init(dict)
-  call openbabel_load(dict,fin,len_trim(fin))
+  call openbabel_load(dict,f_char_ptr(trim(fin)))!,len_trim(fin))
 
   call yaml_map(fin,dict)
   call yaml_mapping_close()
@@ -61,7 +63,7 @@ program babel
      call set(iter, dict_key(iter))
   end do
   
-  call openbabel_dump(dict,types, fout,len_trim(fout))
+  call openbabel_dump(dict,types,f_char_ptr(trim(fout)))! fout,len_trim(fout))
   call yaml_map('Positions dumped into file',fout)
 
   call dict_free(options,dict, types)

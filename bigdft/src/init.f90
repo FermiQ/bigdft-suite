@@ -77,6 +77,7 @@ subroutine createWavefunctionsDescriptors(iproc,hx,hy,hz,atoms,rxyz,&
   output_denspot_ = .false.
   if (present(output_denspot)) output_denspot_ = output_denspot
   if (output_denspot_) then
+     !this routine will be used as a method for the logrid array
      call export_grids("grid.xyz", atoms, rxyz, hx, hy, hz, n1, n2, n3, logrid_c, logrid_f)
   end if
 

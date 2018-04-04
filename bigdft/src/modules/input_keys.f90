@@ -3503,7 +3503,7 @@ contains
                    !fr contains a format.
                    call astruct_file_merge_to_dict(dict,POSINP, trim(str),pos_format=trim(fr))
                 else
-                   call f_err_throw("The key 'format' from posinp section should be contained a valid format.", &
+                   call f_err_throw("The key 'format' from posinp section should specify a valid format.", &
                         & err_name='BIGDFT_INPUT_VARIABLES_ERROR')
                 end if
              else
