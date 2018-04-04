@@ -4366,12 +4366,12 @@
  -  {Process:  0, Timing:  [  1.4E-01,  1.360E-01 ]}
  Wavefunction written No.              :  0
  Overview of the reformatting (several categories may apply):
-   No reformatting required            :  4
-   Grid spacing has changed            :  0
+   No reformatting required            :  3
+   Grid spacing has changed            :  2
    Number of coarse grid points has changed:  1
    Number of fine grid points has changed:  0
-   Box size has changed                :  1
-   Molecule was shifted                :  1
+   Box size has changed                :  2
+   Molecule was shifted                :  2
    Molecule was rotated                :  0
    Wrapping/unwrapping                 :  0
  Total charge                          :  7.999999377291E+00
