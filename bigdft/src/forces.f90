@@ -296,7 +296,6 @@ subroutine rhocore_forces(iproc,atoms,dpbox,nspin,rxyz,potxc,fxyz)
   real(gp), dimension(3,atoms%astruct%nat), intent(in) :: rxyz
   real(gp), dimension(3,atoms%astruct%nat), intent(inout) :: fxyz
   !Local variables
-  logical, parameter :: use_iterator=.false.
   real(gp), parameter :: oneo4pi=.079577471545947_wp
   type(dpbox_iterator) :: boxit
   integer, dimension(2,3) :: nbox
@@ -365,56 +364,16 @@ subroutine rhocore_forces(iproc,atoms,dpbox,nspin,rxyz,potxc,fxyz)
            cutoff=10.d0*rloc
 
            !conditions for periodicity in the three directions
-           if (.not. use_iterator) then
-              perx=(atoms%astruct%geocode /= 'F')
-              pery=(atoms%astruct%geocode == 'P')
-              perz=(atoms%astruct%geocode /= 'F')
+           perx=(atoms%astruct%geocode /= 'F')
+           pery=(atoms%astruct%geocode == 'P')
+           perz=(atoms%astruct%geocode /= 'F')
 
-              call ext_buffers(perx,nbl1,nbr1)
-              call ext_buffers(pery,nbl2,nbr2)
-              call ext_buffers(perz,nbl3,nbr3)
-           end if
+           call ext_buffers(perx,nbl1,nbr1)
+           call ext_buffers(pery,nbl2,nbr2)
+           call ext_buffers(perz,nbl3,nbr3)
 
            if (dpbox%n3p > 0) then
 
-              if (use_iterator) then
-                 nbox(1,1) = floor((rx-cutoff)/hxh)
-                 nbox(1,2) = floor((ry-cutoff)/hyh)
-                 nbox(1,3) = floor((rz-cutoff)/hzh)
-                 nbox(2,1) = ceiling((rx+cutoff)/hxh)
-                 nbox(2,2) = ceiling((ry+cutoff)/hyh)
-                 nbox(2,3) = ceiling((rz+cutoff)/hzh)
-                 do ispin=1,nspin
-                    boxit = dpbox_iter(dpbox,DPB_POT,nbox=nbox)
-                    do while(dpbox_iter_next(boxit))
-                       x = boxit%x - rx
-                       y = boxit%y - ry
-                       z = boxit%z - rz
-                       r2 = x**2 + y**2 + z**2
-                       ilcc=islcc
-                       drhov=0.0_dp
-                       do ig=1,(ngv*(ngv+1))/2
-                          ilcc=ilcc+1
-                          !derivative wrt r2
-                          drhov=drhov+&
-                               spherical_gaussian_value(r2,atoms%nlccpar(0,ilcc),atoms%nlccpar(1,ilcc),1)
-                       end do
-                       drhoc=0.0_dp
-                       do ig=1,(ngc*(ngc+1))/2
-                          ilcc=ilcc+1
-                          !derivative wrt r2
-                          drhoc=drhoc+&
-                               spherical_gaussian_value(r2,atoms%nlccpar(0,ilcc),atoms%nlccpar(1,ilcc),1)
-                       end do
-                       !forces in all the directions for the given atom
-                       drhodr2=drhoc-drhov
-                       frcx = frcx + potxc(boxit%ind,ispin)*x*drhodr2
-                       frcy = frcy + potxc(boxit%ind,ispin)*y*drhodr2
-                       frcz = frcz + potxc(boxit%ind,ispin)*z*drhodr2
-                       !write(*,'(i0,1x,6(1x,1pe24.17))') boxit%ind,potxc(boxit%ind),drhoc,drhov,x,y,z
-                    end do
-                 end do
-              else
                  isx=floor((rx-cutoff)/hxh)
                  isy=floor((ry-cutoff)/hyh)
                  isz=floor((rz-cutoff)/hzh)
@@ -471,7 +430,6 @@ subroutine rhocore_forces(iproc,atoms,dpbox,nspin,rxyz,potxc,fxyz)
                        end if
                     enddo
                  end do
-              end if
            end if
         end if
 
