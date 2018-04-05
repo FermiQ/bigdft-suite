@@ -1,5 +1,5 @@
---- v_sim-dev/lib/plug-ins/OpenBabel-wrapper/ob_basic.cpp	2018-01-23 15:30:24.000000000 +0100
-+++ v_sim-dev/lib/plug-ins/OpenBabel-wrapper/ob_basic.cpp	2018-04-05 13:23:52.244142557 +0200
+--- lib/plug-ins/OpenBabel-wrapper/ob_basic.cpp	2018-01-23 15:30:24.000000000 +0100
++++ lib/plug-ins/OpenBabel-wrapper/ob_basic.cpp	2018-04-05 13:23:52.244142557 +0200
 @@ -240,10 +240,10 @@
          {
            visu_box_convertFullToCell(box, xyz, xyz0);
