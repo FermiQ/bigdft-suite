@@ -132,10 +132,10 @@ extern "C" void FC_FUNC_(openbabel_load, OPENBABEL_LOAD)(f90_dictionary_pointer 
       xred[1] = xyz[1] / cell[1];
       xred[2] = xyz[2] / cell[2];
       //very dangerous condition, should be removed
-      if (uc && (xred[0] > 1 - 1e-6 && xred [0] < 1 ||
+      /*if (uc && (xred[0] > 1 - 1e-6 && xred [0] < 1 ||
                  xred[1] > 1 - 1e-6 && xred [1] < 1 ||
 		 xred[2] > 1 - 1e-6 && xred [2] < 1 ))
-	continue;
+		 continue;*/
       f90_dictionary_pointer atom;
       dict_init(&atom);
       dict_set_double_array(&atom, OpenBabel::etab.GetSymbol(a->GetAtomicNum()), xyz, 3);
