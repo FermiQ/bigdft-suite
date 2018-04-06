@@ -3,7 +3,8 @@
  
 #Add the condition testing to run tests and includes PyYaml
 conditions.add("testing")
-conditions.add("python")
+conditions.add("vsim")
+#conditions.add("python")
 #List the module the this rcfile will build
 modules = ['spred',]
 #example of the potentialities of the python syntax in this file
@@ -39,6 +40,6 @@ module_autogenargs.update({
 
 'pygobject': 'PYTHON=/usr/bin/python',
 
-'v_sim-dev': '--with-abinit --with-archives --with-openbabel --with-cube --without-strict-cflags'
+'v_sim-dev': '--with-abinit --with-archives --with-openbabel --with-cube --without-strict-cflags --enable-debug-messages'
    
 })

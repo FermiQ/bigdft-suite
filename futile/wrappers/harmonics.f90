@@ -59,6 +59,7 @@ module f_harmonics
       real(dp), dimension(3), intent(in), optional :: center
       !local variables
       !integer :: l
+      call nullify_f_multipoles(mp)
       mp%fmt=SOLID_HARMONIC_ENUM
       if (present(center)) then
          mp%rxyz=center
@@ -138,6 +139,8 @@ module f_harmonics
       type(f_multipoles), intent(inout) :: mp
       real(dp), intent(in) :: density
       real(dp), dimension(3), intent(in) :: rxyz
+      !here we might add the origin of the multipole
+
       call accumulate_multipoles(rxyz,density,&
            mp%nmonomials,mp%monomials)
     end subroutine f_multipoles_accumulate
@@ -272,12 +275,15 @@ module f_harmonics
       !local variables
       real(dp) :: q
       real(dp), dimension(3) :: d
-            
+
+      q=get_monopole(mp)            
       s=get_quadrupole_intensities(mp)
+      s=s/q
       d=get_dipole(mp)
-      q=get_monopole(mp)
-      s=s+(q-2.0_dp)*d**2
+      d=d/q
+      s=s-d**2
       where (s/=0.0_dp) s=sqrt(s)
+
 
     end function get_spreads
     !> Calculates the solid harmonic S_lm (possibly multplied by a power or r) for given values of l, m, x, y, z.

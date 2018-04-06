@@ -231,30 +231,6 @@ subroutine readAtomicOrbitals(at,norbe,norbsc,nspin,nspinor,norbsc_arr,locrad)
          norbsc=norbsc+iorbsc_count
       end if
 
-!!$      nsccode=at%aoig(iat)%iasctype
-!!$      if (nsccode/=0) then !the atom has some semicore orbitals
-!!$         iatsc=iatsc+1
-!!$         niasc=nsccode
-!!$         !count the semicore orbitals for this atom
-!!$         iorbsc_count=0
-!!$         do lsc=4,1,-1
-!!$            nlsc=niasc/4**(lsc-1)
-!!$            iorbsc_count=iorbsc_count+nlsc*(2*lsc-1)
-!!$            if (nlsc > 2) then
-!!$               write(*,*)'ERROR, atom:',iat,&
-!!$                  &   ': cannot admit more than two semicore shells per channel',nlsc
-!!$               stop
-!!$            end if
-!!$            do i=1,nlsc
-!!$               scorb(lsc,i,iatsc)=.true.
-!!$            end do
-!!$            niasc=niasc-nlsc*4**(lsc-1)
-!!$         end do
-!!$         norbsc_arr(iatsc,1)=iorbsc_count
-!!$         norbsc=norbsc+iorbsc_count
-!!$         !if (iproc == 0) write(*,*) iat,nsccode,iorbsc_count,norbsc,scorb(:,:,iatsc)
-!!$      end if
-
    end do
 
    !print *,'NL',nl,norbe

@@ -477,20 +477,6 @@
    BC                                  : Surface
    Box                                 :  [  28,  115,  48 ]
    MPI tasks                           :  2
- Multipole analysis origin             :  [  1.15347E+00,  7.350000E+00,  3.329775E+00 ]
- Electric Dipole Moment (AU):
-   P vector                            :  [ -1.7139E+01, -1.7668E-04, -1.2947E+01 ]
-   norm(P)                             :  2.147951E+01
- Electric Dipole Moment (Debye):
-   P vector                            :  [ -4.3563E+01, -4.4908E-04, -3.2908E+01 ]
-   norm(P)                             :  5.459547E+01
- Quadrupole Moment (AU):
-   Q matrix:
-   -  [-2.9857E+01, -5.7025E-04,  6.5843E+01]
-   -  [-5.7025E-04,  1.3860E-02, -3.5355E-04]
-   -  [ 6.5843E+01, -3.5355E-04,  2.9843E+01]
-   trace                               :  2.77E-13
- Multipole analysis origin             :  [  1.15347E+00,  7.350000E+00,  1.331910E+00 ]
  Electric Dipole Moment (AU):
    P vector                            :  [ -1.2551E+00, -1.7668E-04,  8.4165E-01 ]
    norm(P)                             :  1.511211E+00
@@ -503,7 +489,7 @@
    -  [-4.1489E-05, -1.4951E+01,  3.8364E-05]
    -  [ 1.8098E+00,  3.8364E-05,  4.2704E+00]
    trace                               : -2.13E-14
- Spreads of the electronic density (AU):  [  5.169943E+00,  3.944589E+00,  8.910870E+00 ]
+ Spreads of the electronic density (AU):  [  1.327715E+00,  9.861472E-01,  2.237014E+00 ]
  Calculate local forces: Yes
  Calculate Non Local forces            :  Yes
  Average noise forces: {x:  1.94201192E-07, y:  5.99410344E-06, z: -1.71929903E-08, 

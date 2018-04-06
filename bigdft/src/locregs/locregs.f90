@@ -412,16 +412,27 @@ contains
       call f_routine(id='init_lr')
 
       lr%geocode=geocode
-      lr%ns1=0
-      lr%ns2=0
-      lr%ns3=0
-      if (present(isx)) lr%ns1=isx
-      if (present(isy)) lr%ns2=isy
-      if (present(isz)) lr%ns3=isz
+      if (present(isx)) then
+         lr%ns1=isx
+      else
+         lr%ns1=0
+      end if
+      if (present(isy)) then
+         lr%ns2=isy
+      else
+         lr%ns2=0
+      end if
+      if (present(isz)) then
+         lr%ns3=isz
+      else
+         lr%ns3=0
+      end if
 
-      peri(1)=geocode /= 'F'
-      peri(2)=geocode == 'P'
-      peri(3)=geocode /= 'F'
+!!$      peri(1)=geocode /= 'F'
+!!$      peri(2)=geocode == 'P'
+!!$      peri(3)=geocode /= 'F'
+
+      peri=bc_periodic_dims(geocode_to_bc(geocode))
 
       lr%d=grid_init(peri,n1,n2,n3,nfl1,nfl2,nfl3,nfu1,nfu2,nfu3,&
          lr%ns1,lr%ns2,lr%ns3)
@@ -468,7 +479,6 @@ contains
       if (present(isx)) lr%nsi1= 2 * lr%ns1 - (Lnbl1 - Gnbl1)
       if (present(isy)) lr%nsi2= 2 * lr%ns2 - (Lnbl2 - Gnbl2)
       if (present(isz)) lr%nsi3= 2 * lr%ns3 - (Lnbl3 - Gnbl3)
-      
 
       lr%hybrid_on = hybrid_flag
       lr%hybrid_on=lr%hybrid_on .and. (nfu1-nfl1+S0_GROW_BUFFER < n1+1)
@@ -476,6 +486,8 @@ contains
       lr%hybrid_on=lr%hybrid_on .and. (nfu3-nfl3+S0_GROW_BUFFER < n3+1)
 
       if (present(wfd)) lr%wfd=wfd !it just associates the pointers
+
+      !this is a point where the geocode is stull used
       if (geocode == 'F' .and. present(bnds)) lr%bounds=bnds
 
       oxyz=locreg_mesh_origin(lr%mesh)
@@ -627,7 +639,6 @@ contains
             geocode = 'P'
          end if
       end select
-
       ! Make sure that the localization regions are not periodic
       if (xperiodic .or. yperiodic .or. zperiodic) then
          call f_err_throw('The localization region '//&

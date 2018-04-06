@@ -98,6 +98,19 @@ class DistutilsModule(Package, DownloadableModule):
         buildscript.execute(cmd, cwd = srcdir, extra_env = self.extra_env)
     do_clean.depends = [PHASE_CHECKOUT]
 
+    def do_dist(self, buildscript):
+        #if not(self.branch.repository.name == "local"):
+        #    tar = os.path.join(SRCDIR, os.path.basename(self.branch.module))
+        #    if os.path.exists(tar):
+        #        return
+        buildscript.set_action(_('Creating tarball for'), self)
+        srcdir = self.get_srcdir(buildscript)
+        builddir = self.get_builddir(buildscript)
+        python = os.environ.get('PYTHON', 'python')
+        cmd = [python, 'setup.py', 'sdist']
+        cmd.extend(['--dist-dir', builddir])
+        buildscript.execute(cmd, cwd = srcdir, extra_env = self.extra_env)
+  
     def xml_tag_and_attrs(self):
         return 'distutils', [('id', 'name', None),
                              ('supports-non-srcdir-builds',

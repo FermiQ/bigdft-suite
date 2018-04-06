@@ -91,7 +91,7 @@ subroutine reformatmywaves(iproc,orbs,at,&
   real(wp), dimension(:,:,:,:,:,:), allocatable :: psigold
 
 
-  mesh=cell_new(at%astruct%geocode,[n1,n2,n3],[hx,hy,hz])
+  mesh=cell_new(at%astruct%geocode,[n1+1,n2+1,n3+1],[hx,hy,hz])
   !conditions for periodicity in the three directions
   perx=(at%astruct%geocode /= 'F')
   pery=(at%astruct%geocode == 'P')
@@ -2203,6 +2203,7 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
   use rototranslations
   use reformatting
   use locregs, only: lr_box,reset_lr
+  use box, only: cell_new
   implicit none
   integer, intent(in) :: iproc, nproc
   integer, intent(in) :: iformat
@@ -2365,7 +2366,6 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
               nbox(2,3)=tmb%lzd%glr%d%nfu3
                    
               !call lr_box(Lzd_old%Llr(ilr),tmb%lzd%glr,lzd_old%hgrids)!,nbox,.false.)
-              
               call reset_lr(Lzd_old%Llr(ilr),'F',lzd_old%hgrids,nbox,tmb%lzd%glr%geocode)
 
               ! DEBUG: print*,iproc,iorb,iorb+orbs%isorb,iorb_old,iorb_out
@@ -2728,10 +2728,10 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
   !!end if
 
 
-  ! hack to make reformatting work for case when hgrid changes, ideally we should fill this in properly
-  Lzd_old%glr%mesh_coarse%hgrids=lzd_old%hgrids
-  Lzd_old%glr%mesh_coarse%bc=tmb%lzd%glr%mesh%bc
-
+  ! hack to make reformatting work for case when hgrid changes, here the ndims is meaningless
+  Lzd_old%glr%mesh_coarse=&
+       cell_new(tmb%lzd%glr%geocode,tmb%lzd%glr%mesh_coarse%ndims,lzd_old%hgrids)
+ 
   call timing(iproc,'tmbrestart','OF')
   call reformat_supportfunctions(iproc,nproc,&
        at,rxyz_old,rxyz,.false.,tmb,ndim_old,lzd_old,frag_trans_orb,&
@@ -3922,7 +3922,8 @@ subroutine reformat_supportfunctions(iproc,nproc,at,rxyz_old,rxyz,add_derivative
           psirold=f_malloc0((2*n_old+31),id='psirold')
 
           !call f_zero((2*n_old(1)+31)*(2*n_old(2)+31)*(2*n_old(3)+31),psirold(1,1,1))
-          call vcopy((2*n_old(1)+2)*(2*n_old(2)+2)*(2*n_old(3)+2),phigold(0,1,0,1,0,1),1,psirold(1,1,1),1)
+          !call vcopy((2*n_old(1)+2)*(2*n_old(2)+2)*(2*n_old(3)+2),phigold(0,1,0,1,0,1),1,psirold(1,1,1),1)
+          call f_memcpy(src=phigold,dest=psirold)
           call psig_to_psir_free(n_old(1),n_old(2),n_old(3),workarraytmp,psirold)
           call f_free(workarraytmp)
 
@@ -3993,7 +3994,7 @@ subroutine reformat_supportfunctions(iproc,nproc,at,rxyz_old,rxyz,add_derivative
   if (nproc>1) then
       call fmpi_allreduce(max_shift, 1, FMPI_MAX, comm=bigdft_mpi%mpi_comm)
   end if
-  if (iproc==0) call yaml_map('Max shift of a locreg center',max_shift,fmt='(es9.2)')
+  if (iproc==0) call yaml_map('max shift of a locreg center',max_shift,fmt='(es9.2)')
 
   ! Determine the dumping factor for the confinement. In the limit wbohere the atoms
   ! have not moved, it goes to zero; in the limit where they have moved a lot, it goes to one.

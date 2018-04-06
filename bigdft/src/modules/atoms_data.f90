@@ -907,6 +907,7 @@ contains
       use internal_coordinates, only: internal_to_cartesian
       use yaml_output, only: yaml_dict_dump
       use yaml_parse, only: yaml_parse_from_file,yaml_load
+      use public_keys, only: BABEL_SOURCE
       implicit none
       !Arguments
       character(len=*), intent(in) :: file                  !< File name containing the atomic positions
@@ -958,57 +959,6 @@ contains
          end if
       end if
 
-!!$      ! Test file//'.xyz'
-!!$      if (.not. file_exists) then
-!!$         call f_file_exists(file//'.xyz',file_exists)
-!!$         !files = trim(files) // "'" // trim(file)//".xyz'"
-!!$         files = files+"'"+file+".xyz'"
-!!$         if (file_exists) then
-!!$            ext='xyz'
-!!$            !write(filename, "(A)") file//'.xyz'!"posinp.xyz"
-!!$            !write(astruct%inputfile_format, "(A)") "xyz"
-!!$            !write(astruct%source, "(A)") trim(filename)
-!!$            call f_open_file(unit=iunit,file=trim(filename),status='old')
-!!$         end if
-!!$      end if
-!!$
-!!$      ! Test file//'.ascii'
-!!$      if (.not. file_exists) then
-!!$         call f_file_exists(file//'.ascii',file_exists)
-!!$         !files = trim(files) // ", '" //trim(file)//".ascii'"
-!!$         files = files+"'"+file+".ascii'"
-!!$         if (file_exists) then
-!!$            ext='ascii'
-!!$            !write(filename, "(A)") file//'.ascii'!"posinp.ascii"
-!!$            !write(astruct%inputfile_format, "(A)") "ascii"
-!!$            !write(astruct%source, "(A)") trim(filename)
-!!$            call f_open_file(unit=iunit,file=trim(filename),status='old')
-!!$         end if
-!!$      end if
-!!$      ! Test file//'.int'
-!!$      if (.not. file_exists) then
-!!$         call f_file_exists(file//'.int',file_exists)
-!!$         files = files+"'"+file+".int'"
-!!$         if (file_exists) then
-!!$            ext='int'
-!!$            !write(filename, "(A)") file//'.int'!"posinp.int
-!!$            !write(astruct%inputfile_format, "(A)") "int"
-!!$            !write(astruct%source, "(A)") trim(filename)
-!!$            call f_open_file(unit=iunit,file=trim(filename),status='old')
-!!$         end if
-!!$      end if
-!!$      ! Test file//'.yaml'
-!!$      if (.not. file_exists) then
-!!$         call f_file_exists(file//'.yaml',file_exists)
-!!$         files = trim(files) // ", '" //trim(file)//".yaml'"
-!!$         if (file_exists) then
-!!$            write(filename, "(A)") file//'.yaml'!"posinp.yaml
-!!$            write(astruct%inputfile_format, "(A)") "yaml"
-!!$            write(astruct%source, "(A)") trim(filename)
-!!$            ! Pb if toto.yaml because means that there is no key posinp!!
-!!$         end if
-!!$      end if
-
       if (.not. file_exists) then
          !general search for the file extension
          dict_extensions=>yaml_load('[xyz,ascii,int,yaml]')
@@ -1054,8 +1004,9 @@ contains
                else if (file(l-4:l) == ".yaml") then
                   write(astruct%inputfile_format, "(A)") "yaml"
                else
-                  !We assume that the format of the file is 'xyz'
-                  write(astruct%inputfile_format, "(A)") "xyz"
+                  !We assume that the format of the file is can be opened by babel
+                  !write(astruct%inputfile_format, "(A)") BABEL_SOURCE
+                  call f_strcpy(src=BABEL_SOURCE,dest=astruct%inputfile_format)
                end if
             else
                ! The format is specified
@@ -1067,6 +1018,7 @@ contains
          end if
       end if
 
+      !if the file does not exists we have to check if babel is able to read it
       if (f_err_raise(.not.file_exists, &
            "Atomic input file not found. Files looked for were: "//&
            trim(files) //"but none matched.", &
@@ -1101,22 +1053,30 @@ contains
             call read_int_positions(iproc,iunit,astruct,comment_,energy_,fxyz_,archiveGetLine,disableTrans)
          end if
          ! Fill the ordinary rxyz array
-         !!! convert to rad
+!!! convert to rad
          !!astruct%rxyz_int(2:3,1:astruct%nat) = astruct%rxyz_int(2:3,1:astruct%nat) / degree
          ! The bond angle must be modified (take 180 degrees minus the angle)
          astruct%rxyz_int(2:2,1:astruct%nat) = pi_param - astruct%rxyz_int(2:2,1:astruct%nat)
          call internal_to_cartesian(astruct%nat, astruct%ixyz_int(1,:), astruct%ixyz_int(2,:), astruct%ixyz_int(3,:), &
               astruct%rxyz_int, astruct%rxyz)
 
-       case("yaml")
-          nullify(yaml_file_dict)
-          call f_zero(energy_)
-          call yaml_parse_from_file(yaml_file_dict,trim(filename))
-          call astruct_set_from_dict(yaml_file_dict//0, astruct, comment_)
-          call dict_free(yaml_file_dict)
+      case("yaml")
+         nullify(yaml_file_dict)
+         call f_zero(energy_)
+         call yaml_parse_from_file(yaml_file_dict,trim(filename))
+         call astruct_set_from_dict(yaml_file_dict//0, astruct, comment_)
+         call dict_free(yaml_file_dict)
+         call f_strcpy(src='yaml',dest=astruct%inputfile_format)
+      case(BABEL_SOURCE)
+
+         call set_astruct_from_openbabel(astruct, trim(filename))
+         !get atomic extension
+         l=index(filename,'.',back=.true.)+1
+         call f_strcpy(src=filename(l:),dest=astruct%inputfile_format)
+       
       case default
          call f_err_throw(err_msg="The specified format '" // trim(astruct%inputfile_format) // "' is not recognised."// &
-            & " The format should be 'yaml', 'int', 'ascii' or 'xyz'.",err_id=BIGDFT_INPUT_FILE_ERROR)
+              & " The format should be 'yaml', 'int', 'ascii' or 'xyz'.",err_id=BIGDFT_INPUT_FILE_ERROR)
 
       end select
       !if an error has been produced return
@@ -1161,26 +1121,120 @@ contains
 
     subroutine set_astruct_from_openbabel(astruct, obfile)
       use dictionaries
+      use yaml_strings, only: f_char_ptr
+      use yaml_output
       implicit none
       type(atomic_structure), intent(out) :: astruct
       character(len = *), intent(in) :: obfile
 
-      type(dictionary), pointer :: dict
+      type(dictionary), pointer :: dict,indict,outdict
 
       interface
-         subroutine openbabel_load(d, f)
+         subroutine openbabel_load(d, f)!,ln)
            use dictionaries
            implicit none
            type(dictionary), pointer :: d
-           character(len = *), intent(in) :: f
+           !character(len = *), intent(in) :: f
+           character, dimension(*), intent(in) :: f
+           !integer, intent(in) :: ln
          end subroutine openbabel_load
+         subroutine openbabel_formats(indict,outdict)
+           use dictionaries, only: dictionary
+           implicit none
+           type(dictionary), pointer :: indict,outdict
+         end subroutine openbabel_formats
       end interface
 
       call dict_init(dict)
-      call openbabel_load(dict, obfile)
+      call openbabel_load(dict,f_char_ptr(trim(obfile)))!,len(obfile))
+      call openbabel_formats(indict,outdict)
+
+      call yaml_map('Supported input formats',indict)
+      call yaml_map('Supported output formats',outdict)
+      call dict_free(indict,outdict)
+
       call astruct_set_from_dict(dict, astruct)
       call dict_free(dict)
     end subroutine set_astruct_from_openbabel
+
+    subroutine dump_dict_with_openbabel(dict,dict_types,fout)
+      use dictionaries
+      use yaml_strings, only: f_char_ptr
+      implicit none
+      type(dictionary), pointer :: dict,dict_types
+      character(len=*), intent(in) :: fout
+      !local variables
+
+      interface
+         subroutine openbabel_dump(d, dt, f)!,ln)
+           use dictionaries
+           implicit none
+           type(dictionary), pointer :: d,dt
+           !character(len = *), intent(in) :: f
+           character, dimension(*), intent(in) :: f
+           !integer, intent(in) :: ln
+         end subroutine openbabel_dump
+      end interface
+
+      call openbabel_dump(dict,dict_types,f_char_ptr(trim(fout)))! fout,len_trim(fout))
+
+    end subroutine dump_dict_with_openbabel
+
+    subroutine analyse_posinp_dict(dict)
+      use dictionaries
+      implicit none
+      type(dictionary), pointer :: dict
+      !local variables
+      real(gp) :: alpha,beta,gamma
+      real(gp), dimension(3) :: cell,rxyz_at
+      real(gp), dimension(3,3) :: abc
+      type(dictionary), pointer :: dict_atoms,iter
+
+      !take the default vfalues if the key does not exists in the dictionary
+      alpha=90.0_gp
+      beta=90.0_gp
+      gamma=90.0_gp
+      alpha= dict .get. 'alpha'
+      beta= dict .get. 'beta'
+      gamma= dict .get. 'gamma'
+
+      cell=1.0_gp
+      if ('cell' .in. dict) cell=dict // 'cell'
+
+      !call f_zero(abc)
+      if ('abc' .in. dict) then
+         !abc = dict//'abc'
+      else
+         abc(1,1)=1.0_gp
+         abc(2,2)=1.0_gp
+         abc(3,3)=1.0_gp
+      end if
+
+      !now cross-check the values to see if they are consistent and clean them to roundoff
+
+      !clean the angles to 90 up to tolerance    
+
+      !construct reduced cell vectors (if they do not exist)
+
+      !verify that the cell vectors are in agreement with angles
+
+      !put clean values in the dictionary
+
+      !loop on the atomic positions and 
+      !remove duplicated atoms
+      nullify(iter)
+      dict_atoms => dict// ASTRUCT_POSITIONS
+      do while(iterating(iter,on=dict_atoms))
+         call astruct_at_from_dict(iter,rxyz=rxyz_at)
+         !for all the atoms which are very close to the border of the region verify if there is a atom on the other side
+         !if so remove the atoms
+        
+      end do
+
+      !then put the correct units (for example from openbabel put the angstroem keyword)
+      !if there is only cell and angles we should for instance put the 'reduced' keyword somewhere
+
+    end subroutine analyse_posinp_dict
 
     !> Write an atomic file
     !! Yaml output included
@@ -1212,7 +1266,7 @@ contains
       integer :: iunit
       character(len = 1024) :: fname
       real(gp), dimension(3), parameter :: dummy = (/ 0._gp, 0._gp, 0._gp /)
-      type(dictionary), pointer :: dict
+      type(dictionary), pointer :: dict,iter,types
       real(gp),dimension(:,:),allocatable :: rxyz_int
       real(kind=8),parameter :: degree=1.d0
       real(gp) :: energy_
@@ -1268,9 +1322,26 @@ contains
          call yaml_dict_dump(dict, unit = iunit)
          call dict_free(dict)
       case default
-         call f_err_throw('Writing the atomic file. Error, unknown file format ("'//&
-              trim(astruct%inputfile_format)//'")', &
-              err_name='BIGDFT_RUNTIME_ERROR')
+         !construct back the astruct dictionary from the datatype
+         call dict_init(dict)
+         call astruct_merge_to_dict(dict, astruct,rxyz_, comment)
+         !get the dictionary of the types of the atoms employed
+         call astruct_dict_get_types(dict, types)
+         nullify(iter)
+         do while (iterating(iter, on = types))
+            call dict_set(iter, dict_key(iter))
+         end do
+         !we should close the file as openbabel reopen it
+         if (iunit /=6) call f_close(iunit)
+         call f_err_open_try()
+         call dump_dict_with_openbabel(dict,types,trim(fname))
+         call f_err_close_try()
+         call dict_free(dict,types)
+         if (f_err_check()) then
+            call f_err_throw('Writing the atomic file. Error, unable to dump file format ("'//&
+                 trim(astruct%inputfile_format)//'")', &
+                 err_name='BIGDFT_RUNTIME_ERROR')
+         end if
       end select
 
       if (iunit /= 6 .and. .not. present(unit)) then
@@ -1338,52 +1409,22 @@ contains
             call set(dict // ASTRUCT_CELL // (i-1), '.inf')
          end if
       end do
+
       if (.not. any(peri)) then
          ! Default, store nothing and erase key if already exist.
          if (ASTRUCT_CELL .in. dict) then
             last=>dict .pop. ASTRUCT_CELL
             call dict_free(last)
+            if (.not. associated(dict)) call dict_init(dict)
          end if
 !!$         if (has_key(dict, ASTRUCT_CELL)) call dict_remove(dict, ASTRUCT_CELL,destroy=.false.)
       end if
-
-      !cell information
-!!$      BC :select case(astruct%geocode)
-!!$      case('S')
-!!$         call set(dict // ASTRUCT_CELL // 0, yaml_toa(astruct%cell_dim(1)*factor(1)))
-!!$         call set(dict // ASTRUCT_CELL // 1, '.inf')
-!!$         call set(dict // ASTRUCT_CELL // 2, yaml_toa(astruct%cell_dim(3)*factor(3)))
-!!$         !angdeg to be added
-!!$         if (reduced) then
-!!$            factor(1) = 1._gp / astruct%cell_dim(1)
-!!$            factor(3) = 1._gp / astruct%cell_dim(3)
-!!$         end if
-!!$      case('W')
-!!$         call set(dict // ASTRUCT_CELL // 0, '.inf')
-!!$         call set(dict // ASTRUCT_CELL // 1, '.inf')
-!!$         call set(dict // ASTRUCT_CELL // 2, yaml_toa(astruct%cell_dim(3)*factor(3)))
-!!$         if (reduced) then
-!!$            factor(3) = 1._gp / astruct%cell_dim(3)
-!!$         end if
-!!$      case('P')
-!!$         call set(dict // ASTRUCT_CELL // 0, yaml_toa(astruct%cell_dim(1)*factor(1)))
-!!$         call set(dict // ASTRUCT_CELL // 1, yaml_toa(astruct%cell_dim(2)*factor(2)))
-!!$         call set(dict // ASTRUCT_CELL // 2, yaml_toa(astruct%cell_dim(3)*factor(3)))
-!!$         !angdeg to be added
-!!$         if (reduced) then
-!!$            factor(1) = 1._gp / astruct%cell_dim(1)
-!!$            factor(2) = 1._gp / astruct%cell_dim(2)
-!!$            factor(3) = 1._gp / astruct%cell_dim(3)
-!!$         end if
-!!$      case('F')
-!!$         ! Default, store nothing and erase key if already exist.
-!!$         if (has_key(dict, ASTRUCT_CELL)) call dict_remove(dict, ASTRUCT_CELL)
-!!$      end select BC
 
       !if (has_key(dict, ASTRUCT_POSITIONS)) call dict_remove(dict, ASTRUCT_POSITIONS,destroy=.false.)
       if (ASTRUCT_POSITIONS .in. dict) then
          last=>dict .pop. ASTRUCT_POSITIONS
          call dict_free(last)
+         if (.not. associated(dict)) call dict_init(dict)
       end if
       if (astruct%nat > 0) pos => dict // ASTRUCT_POSITIONS
       nullify(last)
@@ -1436,6 +1477,7 @@ contains
       use module_defs, only: UNINITIALIZED
       use dynamic_memory
       use f_enums, only: operator(==), f_int => toi
+      !retrieve the information related to the atoms
       implicit none
       type(dictionary), pointer :: dict
       character(len = max_field_length), intent(out), optional :: symbol !< Symbol
