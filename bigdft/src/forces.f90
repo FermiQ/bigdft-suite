@@ -70,7 +70,7 @@ subroutine calculate_forces(iproc,nproc,psolver_groupsize,Glr,atoms,ob,nlpsp,rxy
   logical, intent(in) :: refill_proj
   integer, intent(in) :: iproc,nproc,i3s,n3p,nspin,psolver_groupsize,imode,nsize_psi
   real(gp), intent(in) :: hx,hy,hz,psoffset
-  type(denspot_distribution), intent(in) :: dpbox
+  type(denspot_distribution), intent(inout) :: dpbox
   type(locreg_descriptors), intent(in) :: Glr
   type(atoms_data), intent(in) :: atoms
   type(orbital_basis), intent(in) :: ob
@@ -284,12 +284,15 @@ subroutine rhocore_forces(iproc,atoms,dpbox,nspin,rxyz,potxc,fxyz)
   use module_dpbox
   use module_types
   use yaml_output
+  use module_atoms
+  use gaussians
+  use box
   use bounds, only: ext_buffers
   implicit none
   !Arguments
   integer, intent(in) :: iproc,nspin
 !!!  integer, intent(in) :: n1i,n2i,n3i,n3p,i3s,n1,n2,n3
-  type(denspot_distribution), intent(in) :: dpbox
+  type(denspot_distribution), intent(inout) :: dpbox
 !!!  real(gp), intent(in) :: hxh,hyh,hzh
   type(atoms_data), intent(in) :: atoms
   real(wp), dimension(dpbox%mesh%ndims(1)*dpbox%mesh%ndims(2)*dpbox%n3p,nspin), intent(in) :: potxc
@@ -298,8 +301,10 @@ subroutine rhocore_forces(iproc,atoms,dpbox,nspin,rxyz,potxc,fxyz)
   !Local variables
   real(gp), parameter :: oneo4pi=.079577471545947_wp
   type(dpbox_iterator) :: boxit
+  type(atoms_iterator) :: atit
+  type(gaussian_real_space) :: g
   integer, dimension(2,3) :: nbox
-  integer :: ilcc,ityp,iat,jtyp,islcc,ngv,ngc,ig,ispin
+  integer :: ilcc,ityp,jtyp,islcc,ngv,ngc,ig,ispin
   logical :: perx,pery,perz,gox,goy,goz
   integer :: nbl1,nbl2,nbl3,nbr1,nbr2,nbr3,isx,isy,isz,iex,iey,iez
   integer :: i1,i2,i3,j1,j2,j3,ispinsh,ind,n1i,n2i,n3i,i3s,n3pi,n3p
@@ -308,15 +313,15 @@ subroutine rhocore_forces(iproc,atoms,dpbox,nspin,rxyz,potxc,fxyz)
 
   call f_routine(id='rhocore_forces')
 
-  hxh = dpbox%mesh%hgrids(1)
-  hyh = dpbox%mesh%hgrids(2)
-  hzh = dpbox%mesh%hgrids(3)
-  n1i=dpbox%mesh%ndims(1)
-  n2i=dpbox%mesh%ndims(2)
-  n3i=dpbox%mesh%ndims(3)
-  n3pi = dpbox%n3pi
-  n3p = dpbox%n3p
-  i3s = dpbox%i3s + dpbox%i3xcsh
+!!$  hxh = dpbox%mesh%hgrids(1)
+!!$  hyh = dpbox%mesh%hgrids(2)
+!!$  hzh = dpbox%mesh%hgrids(3)
+!!$  n1i=dpbox%mesh%ndims(1)
+!!$  n2i=dpbox%mesh%ndims(2)
+!!$  n3i=dpbox%mesh%ndims(3)
+!!$  n3pi = dpbox%n3pi
+!!$  n3p = dpbox%n3p
+!!$  i3s = dpbox%i3s + dpbox%i3xcsh
 
 
   if (atoms%donlcc) then
@@ -329,12 +334,15 @@ subroutine rhocore_forces(iproc,atoms,dpbox,nspin,rxyz,potxc,fxyz)
      end if
 
      !perform the loop on any of the atoms which have this feature
-     do iat=1,atoms%astruct%nat
-        rx=rxyz(1,iat)
-        ry=rxyz(2,iat)
-        rz=rxyz(3,iat)
+     !do iat=1,atoms%astruct%nat
+     atit = atoms_iter(atoms%astruct)
+     do while(atoms_iter_next(atit))
+        
+!!$        rx=rxyz(1,atit%iat)
+!!$        ry=rxyz(2,atit%iat)
+!!$        rz=rxyz(3,atit%iat)
 
-        ityp=atoms%astruct%iatype(iat)
+        ityp=atoms%astruct%iatype(atit%iat)
         frcx=0.0_gp
         frcy=0.0_gp
         frcz=0.0_gp
@@ -355,88 +363,138 @@ subroutine rhocore_forces(iproc,atoms,dpbox,nspin,rxyz,potxc,fxyz)
            if (ngv==UNINITIALIZED(1)) ngv=0
            ngc=atoms%nlcc_ngc(ityp)
            if (ngc==UNINITIALIZED(1)) ngc=0
-           rloc=0.0_gp
-           do ig=1,(ngv*(ngv+1))/2+(ngc*(ngc+1))/2
-              ilcc=ilcc+1
-              rloc=max(rloc,atoms%nlccpar(0,ilcc))
-           end do
+           
+           if (ngv /= 0 .or. ngc /= 1) call f_err_throw('Error in rhocore_forces (works only for ngv = 0 and ngc = 1)')
 
-           cutoff=10.d0*rloc
+!!$           rloc=0.0_gp
+!!$           do ig=1,(ngv*(ngv+1))/2+(ngc*(ngc+1))/2
+!!$              ilcc=ilcc+1
+!!$              rloc=max(rloc,atoms%nlccpar(0,ilcc))
+!!$           end do
+!!$
+!!$           cutoff=10.d0*rloc
 
-           !conditions for periodicity in the three directions
-           perx=(atoms%astruct%geocode /= 'F')
-           pery=(atoms%astruct%geocode == 'P')
-           perz=(atoms%astruct%geocode /= 'F')
-
-           call ext_buffers(perx,nbl1,nbr1)
-           call ext_buffers(pery,nbl2,nbr2)
-           call ext_buffers(perz,nbl3,nbr3)
+!!$           !conditions for periodicity in the three directions
+!!$           perx=(atoms%astruct%geocode /= 'F')
+!!$           pery=(atoms%astruct%geocode == 'P')
+!!$           perz=(atoms%astruct%geocode /= 'F')
+!!$
+!!$           call ext_buffers(perx,nbl1,nbr1)
+!!$           call ext_buffers(pery,nbl2,nbr2)
+!!$           call ext_buffers(perz,nbl3,nbr3)
 
            if (dpbox%n3p > 0) then
-
-                 isx=floor((rx-cutoff)/hxh)
-                 isy=floor((ry-cutoff)/hyh)
-                 isz=floor((rz-cutoff)/hzh)
-                 iex=ceiling((rx+cutoff)/hxh)
-                 iey=ceiling((ry+cutoff)/hyh)
-                 iez=ceiling((rz+cutoff)/hzh)
-
-                 do ispin=1,nspin
-                    ispinsh=0
-                    if (ispin==2) ispinsh=n1i*n2i*n3p
-                    do i3=isz,iez
-                       z=real(i3,kind=8)*hzh-rz
-                       !call ind_positions(perz,i3,n3,j3,goz)
-                       call ind_positions_new(perz,i3,n3i,j3,goz)
-                       j3=j3+nbl3+1
-                       if (j3 >= i3s .and. j3 <= i3s+n3p-1) then
-                          do i2=isy,iey
-                             y=real(i2,kind=8)*hyh-ry
-                             !call ind_positions(pery,i2,n2,j2,goy)
-                             call ind_positions_new(pery,i2,n2i,j2,goy)
-                             if (goy) then
-                                do i1=isx,iex
-                                   x=real(i1,kind=8)*hxh-rx
-                                   !call ind_positions(perx,i1,n1,j1,gox)
-                                   call ind_positions_new(perx,i1,n1i,j1,gox)
-                                   if (gox) then
-                                      r2=x**2+y**2+z**2
-                                      ilcc=islcc
-                                      drhov=0.0_dp
-                                      do ig=1,(ngv*(ngv+1))/2
-                                         ilcc=ilcc+1
-                                         !derivative wrt r2
-                                         drhov=drhov+&
-                                              spherical_gaussian_value(r2,atoms%nlccpar(0,ilcc),atoms%nlccpar(1,ilcc),1)
-                                      end do
-                                      drhoc=0.0_dp
-                                      do ig=1,(ngc*(ngc+1))/2
-                                         ilcc=ilcc+1
-                                         !derivative wrt r2
-                                         drhoc=drhoc+&
-                                              spherical_gaussian_value(r2,atoms%nlccpar(0,ilcc),atoms%nlccpar(1,ilcc),1)
-                                      end do
-                                      !forces in all the directions for the given atom
-                                      ind=j1+1+nbl1+(j2+nbl2)*n1i+(j3-i3s+1-1)*n1i*n2i!+ispinsh
-                                      drhodr2=drhoc-drhov
-                                      frcx=frcx+potxc(ind,ispin)*x*drhodr2
-                                      frcy=frcy+potxc(ind,ispin)*y*drhodr2
-                                      frcz=frcz+potxc(ind,ispin)*z*drhodr2
-                                      !write(*,'(i0,1x,6(1x,1pe24.17))') ind,potxc(ind),drhoc,drhov,x,y,z
-                                   endif
-                                enddo
-                             end if
-                          enddo
-                       end if
-                    enddo
-                 end do
+!!$ new giuseppe ----------------------------------------------------------------------
+           call nlcc_spherical_gaussian_set(g,atoms) 
+           call set_box_around_gaussian(dpbox%bitp,g,rxyz(1,atit%iat))
+           do ispin=1,nspin
+            do while(box_next_point(dpbox%bitp))
+                ilcc=islcc
+                drhov=0.0_dp
+                do ig=1,(ngv*(ngv+1))/2
+                   ilcc=ilcc+1
+                   !derivative wrt r2
+                   drhov=drhov+&
+                        gaussian_radial_value(g,rxyz(1,atit%iat),dpbox%bitp,1)
+                        !spherical_gaussian_value(r2,atoms%nlccpar(0,ilcc),atoms%nlccpar(1,ilcc),1)
+                end do
+                drhoc=0.0_dp
+                do ig=1,(ngc*(ngc+1))/2
+                   ilcc=ilcc+1
+                   !derivative wrt r2
+                   drhoc=drhoc+&
+                        gaussian_radial_value(g,rxyz(1,atit%iat),dpbox%bitp,1)
+                        !spherical_gaussian_value(r2,atoms%nlccpar(0,ilcc),atoms%nlccpar(1,ilcc),1)
+                end do
+                !forces in all the directions for the given atom
+                drhodr2=drhoc-drhov
+                dpbox%bitp%tmp=closest_r(dpbox%bitp%mesh,dpbox%bitp%rxyz,rxyz(1,atit%iat))
+                frcx=frcx+potxc(dpbox%bitp%ind,ispin)*drhodr2*dpbox%bitp%tmp(1)
+                frcy=frcy+potxc(dpbox%bitp%ind,ispin)*drhodr2*dpbox%bitp%tmp(2)
+                frcz=frcz+potxc(dpbox%bitp%ind,ispin)*drhodr2*dpbox%bitp%tmp(3)
+            enddo
+           end do
+           call box_iter_expand_nbox(dpbox%bitp)
+!!$ end new giuseppe ----------------------------------------------------------------------
+!!$ stat old ----------------------------------------------------------------------
+!!$                 frcx=0.0_gp
+!!$                 frcy=0.0_gp
+!!$                 frcz=0.0_gp
+!!$
+!!$                 isx=floor((rx-cutoff)/hxh)
+!!$                 isy=floor((ry-cutoff)/hyh)
+!!$                 isz=floor((rz-cutoff)/hzh)
+!!$                 iex=ceiling((rx+cutoff)/hxh)
+!!$                 iey=ceiling((ry+cutoff)/hyh)
+!!$                 iez=ceiling((rz+cutoff)/hzh)
+!!$
+!!$                 do ispin=1,nspin
+!!$                    check=.true.
+!!$                    ispinsh=0
+!!$                    if (ispin==2) ispinsh=n1i*n2i*n3p
+!!$                    do i3=isz,iez
+!!$                       icheck=i3
+!!$                       z=real(i3,kind=8)*hzh-rz
+!!$                       !call ind_positions(perz,i3,n3,j3,goz)
+!!$                       call ind_positions_new(perz,i3,n3i,j3,goz)
+!!$                       j3=j3+nbl3+1
+!!$                       if (j3 >= i3s .and. j3 <= i3s+n3p-1) then
+!!$                          do i2=isy,iey
+!!$                             y=real(i2,kind=8)*hyh-ry
+!!$                             !call ind_positions(pery,i2,n2,j2,goy)
+!!$                             call ind_positions_new(pery,i2,n2i,j2,goy)
+!!$                             if (goy) then
+!!$                                do i1=isx,iex
+!!$                                   x=real(i1,kind=8)*hxh-rx
+!!$                                   !call ind_positions(perx,i1,n1,j1,gox)
+!!$                                   call ind_positions_new(perx,i1,n1i,j1,gox)
+!!$                                   if (gox) then
+!!$                                      if (check) then
+!!$                                       print *, 'Inside old loop'
+!!$                                       print *, i1,i2,i3,icheck
+!!$                                       print *, x,y,z
+!!$                                       print *, rx,ry,rz
+!!$                                       print *, r2
+!!$                                       check=.false.
+!!$                                      end if
+!!$                                      r2=x**2+y**2+z**2
+!!$                                      ilcc=islcc
+!!$                                      drhov=0.0_dp
+!!$                                      do ig=1,(ngv*(ngv+1))/2
+!!$                                         ilcc=ilcc+1
+!!$                                         !derivative wrt r2
+!!$                                         drhov=drhov+&
+!!$                                              spherical_gaussian_value(r2,atoms%nlccpar(0,ilcc),atoms%nlccpar(1,ilcc),1)
+!!$                                      end do
+!!$                                      drhoc=0.0_dp
+!!$                                      do ig=1,(ngc*(ngc+1))/2
+!!$                                         ilcc=ilcc+1
+!!$                                         !derivative wrt r2
+!!$                                         drhoc=drhoc+&
+!!$                                              spherical_gaussian_value(r2,atoms%nlccpar(0,ilcc),atoms%nlccpar(1,ilcc),1)
+!!$                                      end do
+!!$                                      !forces in all the directions for the given atom
+!!$                                      ind=j1+1+nbl1+(j2+nbl2)*n1i+(j3-i3s+1-1)*n1i*n2i!+ispinsh
+!!$                                      drhodr2=drhoc-drhov
+!!$                                      frcx=frcx+potxc(ind,ispin)*x*drhodr2
+!!$                                      frcy=frcy+potxc(ind,ispin)*y*drhodr2
+!!$                                      frcz=frcz+potxc(ind,ispin)*z*drhodr2
+!!$                                      !write(*,'(i0,1x,6(1x,1pe24.17))') ind,potxc(ind),drhoc,drhov,x,y,z
+!!$                                   endif
+!!$                                enddo
+!!$                             end if
+!!$                          enddo
+!!$                       end if
+!!$                    enddo
+!!$                 end do
+!!$ end old ----------------------------------------------------------------------
            end if
         end if
 
         !assign contribution per atom
-        fxyz(1,iat)=fxyz(1,iat)+frcx*hxh*hyh*hzh*spinfac*oneo4pi
-        fxyz(2,iat)=fxyz(2,iat)+frcy*hxh*hyh*hzh*spinfac*oneo4pi
-        fxyz(3,iat)=fxyz(3,iat)+frcz*hxh*hyh*hzh*spinfac*oneo4pi
+        fxyz(1,atit%iat)=fxyz(1,atit%iat)+frcx*dpbox%bitp%mesh%volume_element*spinfac*oneo4pi
+        fxyz(2,atit%iat)=fxyz(2,atit%iat)+frcy*dpbox%bitp%mesh%volume_element*spinfac*oneo4pi
+        fxyz(3,atit%iat)=fxyz(3,atit%iat)+frcz*dpbox%bitp%mesh%volume_element*spinfac*oneo4pi
 
         !print *,'iat,iproc',iat,iproc,frcx*hxh*hyh*hzh*spinfac*oneo4pi
      end do

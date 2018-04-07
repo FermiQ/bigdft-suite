@@ -9,14 +9,18 @@
 
 
 !> Calculate the array of the core density for the atom iat
-subroutine calc_rhocore_iat(iproc,atoms,ityp,rx,ry,rz,cutoff,hxh,hyh,hzh,&
-     n1i,n2i,n3i,i3s,n3d,charge,rhocore) 
+subroutine calc_rhocore_iat(dpbox,iproc,atoms,ityp,rx,ry,rz,cutoff,hxh,hyh,hzh,&
+     n1i,n2i,n3i,i3s,n3d,charge,rhocore)
+  use module_dpbox, only: denspot_distribution
   use module_defs, only: gp,dp,wp
   use module_types
   use yaml_output
   use bounds, only: ext_buffers
   use numerics, only: oneo4pi => oneofourpi
+  use gaussians
+  use box
   implicit none
+  type(denspot_distribution), intent(inout) :: dpbox
   integer, intent(in) :: n1i,n2i,n3i,i3s,n3d,iproc,ityp 
   real(gp), intent(in) :: rx,ry,rz,cutoff,hxh,hyh,hzh
   type(atoms_data), intent(in) :: atoms
@@ -25,6 +29,7 @@ subroutine calc_rhocore_iat(iproc,atoms,ityp,rx,ry,rz,cutoff,hxh,hyh,hzh,&
   !local variables
   !n(c) character(len=*), parameter :: subname='calc_rhocore'
 !  real(gp), parameter :: oneo4pi=.079577471545947_wp
+  type(gaussian_real_space) :: g
   logical :: gox,goy,perx,pery,perz
   integer :: ig,ngv,ngc,isx,isy,isz,iex,iey,iez
   integer :: nbl1,nbl2,nbl3,nbr1,nbr2,nbr3,ilcc,islcc
@@ -64,104 +69,23 @@ subroutine calc_rhocore_iat(iproc,atoms,ityp,rx,ry,rz,cutoff,hxh,hyh,hzh,&
   charge=chc-chv
   !if (iproc == 0) write(*,'(1x,a,f12.6)',advance='no')' analytic core charge: ',chc-chv
 
-  !conditions for periodicity in the three directions
-  perx=(atoms%astruct%geocode /= 'F')
-  pery=(atoms%astruct%geocode == 'P')
-  perz=(atoms%astruct%geocode /= 'F')
-
-  call ext_buffers(perx,nbl1,nbr1)
-  call ext_buffers(pery,nbl2,nbr2)
-  call ext_buffers(perz,nbl3,nbr3)
+!!$  !conditions for periodicity in the three directions
+!!$  perx=(atoms%astruct%geocode /= 'F')
+!!$  pery=(atoms%astruct%geocode == 'P')
+!!$  perz=(atoms%astruct%geocode /= 'F')
+!!$
+!!$  call ext_buffers(perx,nbl1,nbr1)
+!!$  call ext_buffers(pery,nbl2,nbr2)
+!!$  call ext_buffers(perz,nbl3,nbr3)
 
   if (n3d >0) then
 
 
 ! Start new giuseppe ----------------------------------------------------------------------------
-!           call nlcc_spherical_gaussian_set(g,atoms)
-!           call set_box_around_gaussian(dpbox%bitp,g,rxyz(1,atit%iat))
-!            do while(box_next_point(dpbox%bitp))
-!
-!                       r2=x**2+y**2+z**2
-!                       !here we can sum up the gaussians for the
-!                       !valence density and the core density
-!                       !restart again from the previously calculated index
-!                       ilcc=islcc
-!                       rhov=0.0_dp
-!                       drhov=0.0_dp
-!                       do ig=1,(ngv*(ngv+1))/2
-!                          ilcc=ilcc+1
-!                          rhov=rhov+&
-!                               gaussian_radial_value(g,rxyz(1,atit%iat),dpbox%bitp)
-!                               !spherical_gaussian_value(r2,atoms%nlccpar(0,ilcc),atoms%nlccpar(1,ilcc),0)
-!                          !derivative wrt r2
-!                          drhov=drhov+&
-!                               gaussian_radial_value(g,rxyz(1,atit%iat),dpbox%bitp,1)
-!                               !spherical_gaussian_value(r2,atoms%nlccpar(0,ilcc),atoms%nlccpar(1,ilcc),1)
-!                       end do
-!                       rhoc=0.0_dp
-!                       drhoc=0.0_dp
-!                       do ig=1,(ngc*(ngc+1))/2
-!                          ilcc=ilcc+1
-!                          !arg=r2/rhocxp(ig)**2
-!                          rhoc=rhoc+&
-!                               spherical_gaussian_value(r2,atoms%nlccpar(0,ilcc),atoms%nlccpar(1,ilcc),0)
-!                          drhoc=drhoc+&
-!                               spherical_gaussian_value(r2,atoms%nlccpar(0,ilcc),atoms%nlccpar(1,ilcc),1)
-!                       end do
-!                       rhocore(dpbox%bitp%ind,0)=rhocore(dpbox%bitp%ind,0)+oneo4pi*(rhoc-rhov)
-!                       drhodr2=drhoc-drhov
-!                       dpbox%bitp%tmp=closest_r(dpbox%bitp%mesh,dpbox%bitp%rxyz,[rx,ry,rz])
-!                       rhocore(dpbox%bitp%ind,1)=  rhocore(dpbox%bitp%ind,1)+drhodr2*oneo4pi*dpbox%bitp%tmp(1)
-!                       rhocore(dpbox%bitp%ind,2)=  rhocore(dpbox%bitp%ind,2)+drhodr2*oneo4pi*dpbox%bitp%tmp(2)
-!                       rhocore(dpbox%bitp%ind,3)=  rhocore(dpbox%bitp%ind,3)+drhodr2*oneo4pi*dpbox%bitp%tmp(3)
-!                       !stress components
-!                       rhocore(dpbox%bitp%ind,4)=rhocore(dpbox%bitp%ind,4)+drhodr2*oneo4pi*dpbox%bitp%tmp(1)*dpbox%bitp%tmp(1) 
-!                       rhocore(dpbox%bitp%ind,5)=rhocore(dpbox%bitp%ind,5)+drhodr2*oneo4pi*dpbox%bitp%tmp(2)*dpbox%bitp%tmp(2)
-!                       rhocore(dpbox%bitp%ind,6)=rhocore(dpbox%bitp%ind,6)+drhodr2*oneo4pi*dpbox%bitp%tmp(3)*dpbox%bitp%tmp(3)
-!                       rhocore(dpbox%bitp%ind,7)=rhocore(dpbox%bitp%ind,7)+drhodr2*oneo4pi*dpbox%bitp%tmp(2)*dpbox%bitp%tmp(3)
-!                       rhocore(dpbox%bitp%ind,8)=rhocore(dpbox%bitp%ind,8)+drhodr2*oneo4pi*dpbox%bitp%tmp(1)*dpbox%bitp%tmp(3)
-!                       rhocore(dpbox%bitp%ind,9)=rhocore(dpbox%bitp%ind,9)+drhodr2*oneo4pi*dpbox%bitp%tmp(1)*dpbox%bitp%tmp(2)
-!
-!            enddo
-!           call box_iter_expand_nbox(dpbox%bitp)
-!
-!
-! End new giuseppe ----------------------------------------------------------------------------
-! Start old ----------------------------------------------------------------------------
-     isx=floor((rx-cutoff)/hxh)
-     isy=floor((ry-cutoff)/hyh)
-     isz=floor((rz-cutoff)/hzh)
+            call nlcc_spherical_gaussian_set(g,atoms)
+            call set_box_around_gaussian(dpbox%bitp,g,[rx,ry,rz])
+            do while(box_next_point(dpbox%bitp))
 
-     iex=ceiling((rx+cutoff)/hxh)
-     iey=ceiling((ry+cutoff)/hyh)
-     iez=ceiling((rz+cutoff)/hzh)
-
-     do i3=isz,iez
-        z=real(i3,kind=8)*hzh-rz
-        !call ind_positions(perz,i3,n3,j3,goz)
-        if (perz) then
-           j3=modulo(i3,n3i)
-           if (j3 -n3i >= i3s-1 ) j3=j3-n3i !to wrap with negative values
-           if (j3 + n3i < i3s+n3d-1) j3=j3+n3i
-        else
-           j3=i3
-        end if
-        !in periodic case nbl3=0
-        j3=j3+nbl3+1
-
-        !if (atoms%astruct%geocode /= 'F' .and. j3 >= modulo(i3s,n3i) .and. i3s < 0) j3=j3-n3i
-        if (j3 >= i3s .and. j3 <= i3s+n3d-1) then
-           do i2=isy,iey
-              y=real(i2,kind=8)*hyh-ry
-              !call ind_positions(pery,i2,n2,j2,goy)
-              call ind_positions_new(pery,i2,n2i,j2,goy)
-              if (goy) then
-                 do i1=isx,iex
-                    x=real(i1,kind=8)*hxh-rx
-                    !call ind_positions(perx,i1,n1,j1,gox)
-                    call ind_positions_new(perx,i1,n1i,j1,gox)
-                    if (gox) then
-                       r2=x**2+y**2+z**2
                        !here we can sum up the gaussians for the
                        !valence density and the core density
                        !restart again from the previously calculated index
@@ -171,14 +95,12 @@ subroutine calc_rhocore_iat(iproc,atoms,ityp,rx,ry,rz,cutoff,hxh,hyh,hzh,&
                        do ig=1,(ngv*(ngv+1))/2
                           ilcc=ilcc+1
                           rhov=rhov+&
-                               spherical_gaussian_value(r2,atoms%nlccpar(0,ilcc),atoms%nlccpar(1,ilcc),0)
+                               gaussian_radial_value(g,[rx,ry,rz],dpbox%bitp)
+                               !spherical_gaussian_value(r2,atoms%nlccpar(0,ilcc),atoms%nlccpar(1,ilcc),0)
                           !derivative wrt r2
                           drhov=drhov+&
-                               spherical_gaussian_value(r2,atoms%nlccpar(0,ilcc),atoms%nlccpar(1,ilcc),1)
-
-                          !arg=r2/rhovxp(ig)**2
-                          !(rhovc(ig,1)+r2*rhovc(ig,2)+r2**2*rhovc(ig,3)+r2**3*rhovc(ig,4))*&
-                          !     exp(-0.5_gp*arg)
+                               gaussian_radial_value(g,[rx,ry,rz],dpbox%bitp,1)
+                               !spherical_gaussian_value(r2,atoms%nlccpar(0,ilcc),atoms%nlccpar(1,ilcc),1)
                        end do
                        rhoc=0.0_dp
                        drhoc=0.0_dp
@@ -186,38 +108,122 @@ subroutine calc_rhocore_iat(iproc,atoms,ityp,rx,ry,rz,cutoff,hxh,hyh,hzh,&
                           ilcc=ilcc+1
                           !arg=r2/rhocxp(ig)**2
                           rhoc=rhoc+&
-                               spherical_gaussian_value(r2,atoms%nlccpar(0,ilcc),atoms%nlccpar(1,ilcc),0)
+                               gaussian_radial_value(g,[rx,ry,rz],dpbox%bitp)
+                               !spherical_gaussian_value(r2,atoms%nlccpar(0,ilcc),atoms%nlccpar(1,ilcc),0)
                           drhoc=drhoc+&
-                               spherical_gaussian_value(r2,atoms%nlccpar(0,ilcc),atoms%nlccpar(1,ilcc),1)
-                          !(rhocc(ig,1)+r2*rhocc(ig,2)+r2**2*rhocc(ig,3)+r2**3*rhocc(ig,4))*&
-                          !     exp(-0.5_gp*arg)
+                               gaussian_radial_value(g,[rx,ry,rz],dpbox%bitp,1)
+                               !spherical_gaussian_value(r2,atoms%nlccpar(0,ilcc),atoms%nlccpar(1,ilcc),1)
                        end do
-
-                       !if (j3 >= i3s .and. j3 <= i3s+n3d-1  .and. goy  .and. gox ) then
-                       ind=j1+1+nbl1+(j2+nbl2)*n1i+(j3-i3s+1-1)*n1i*n2i
-                       rhocore(ind,0)=rhocore(ind,0)+oneo4pi*(rhoc-rhov)
+                       rhocore(dpbox%bitp%ind,0)=rhocore(dpbox%bitp%ind,0)+oneo4pi*(rhoc-rhov)
                        drhodr2=drhoc-drhov
-                       rhocore(ind,1)=rhocore(ind,1)+x*drhodr2*oneo4pi
-                       rhocore(ind,2)=rhocore(ind,2)+y*drhodr2*oneo4pi
-                       rhocore(ind,3)=rhocore(ind,3)+z*drhodr2*oneo4pi
-!stress components
-                       rhocore(ind,4)=rhocore(ind,4)+x*x*drhodr2*oneo4pi
-                       rhocore(ind,5)=rhocore(ind,5)+y*y*drhodr2*oneo4pi
-                       rhocore(ind,6)=rhocore(ind,6)+z*z*drhodr2*oneo4pi
-                       rhocore(ind,7)=rhocore(ind,7)+y*z*drhodr2*oneo4pi
-                       rhocore(ind,8)=rhocore(ind,8)+x*z*drhodr2*oneo4pi
-                       rhocore(ind,9)=rhocore(ind,9)+x*y*drhodr2*oneo4pi
+                       dpbox%bitp%tmp=closest_r(dpbox%bitp%mesh,dpbox%bitp%rxyz,[rx,ry,rz])
+                       rhocore(dpbox%bitp%ind,1)=  rhocore(dpbox%bitp%ind,1)+drhodr2*oneo4pi*dpbox%bitp%tmp(1)
+                       rhocore(dpbox%bitp%ind,2)=  rhocore(dpbox%bitp%ind,2)+drhodr2*oneo4pi*dpbox%bitp%tmp(2)
+                       rhocore(dpbox%bitp%ind,3)=  rhocore(dpbox%bitp%ind,3)+drhodr2*oneo4pi*dpbox%bitp%tmp(3)
+                       !stress components
+                       rhocore(dpbox%bitp%ind,4)=rhocore(dpbox%bitp%ind,4)+drhodr2*oneo4pi*dpbox%bitp%tmp(1)*dpbox%bitp%tmp(1) 
+                       rhocore(dpbox%bitp%ind,5)=rhocore(dpbox%bitp%ind,5)+drhodr2*oneo4pi*dpbox%bitp%tmp(2)*dpbox%bitp%tmp(2)
+                       rhocore(dpbox%bitp%ind,6)=rhocore(dpbox%bitp%ind,6)+drhodr2*oneo4pi*dpbox%bitp%tmp(3)*dpbox%bitp%tmp(3)
+                       rhocore(dpbox%bitp%ind,7)=rhocore(dpbox%bitp%ind,7)+drhodr2*oneo4pi*dpbox%bitp%tmp(2)*dpbox%bitp%tmp(3)
+                       rhocore(dpbox%bitp%ind,8)=rhocore(dpbox%bitp%ind,8)+drhodr2*oneo4pi*dpbox%bitp%tmp(1)*dpbox%bitp%tmp(3)
+                       rhocore(dpbox%bitp%ind,9)=rhocore(dpbox%bitp%ind,9)+drhodr2*oneo4pi*dpbox%bitp%tmp(1)*dpbox%bitp%tmp(2)
 
-!!$                 !print out the result, to see what happens
-!!$                 if (z==0.0_gp .and. y==0.0_gp) then
-!!$                    write(16,'(3(1x,i0),10(1pe25.17))')j1+1+nbl1,j2+1+nbl2,j3,rhocore(ind),rhoc,rhov,r2,x
-!!$                 end if
-                    endif
-                 enddo
-              end if
-           enddo
-        end if
-     enddo
+            enddo
+           call box_iter_expand_nbox(dpbox%bitp)
+
+
+! End new giuseppe ----------------------------------------------------------------------------
+! Start old ----------------------------------------------------------------------------
+!!$     isx=floor((rx-cutoff)/hxh)
+!!$     isy=floor((ry-cutoff)/hyh)
+!!$     isz=floor((rz-cutoff)/hzh)
+!!$
+!!$     iex=ceiling((rx+cutoff)/hxh)
+!!$     iey=ceiling((ry+cutoff)/hyh)
+!!$     iez=ceiling((rz+cutoff)/hzh)
+!!$
+!!$     do i3=isz,iez
+!!$        z=real(i3,kind=8)*hzh-rz
+!!$        !call ind_positions(perz,i3,n3,j3,goz)
+!!$        if (perz) then
+!!$           j3=modulo(i3,n3i)
+!!$           if (j3 -n3i >= i3s-1 ) j3=j3-n3i !to wrap with negative values
+!!$           if (j3 + n3i < i3s+n3d-1) j3=j3+n3i
+!!$        else
+!!$           j3=i3
+!!$        end if
+!!$        !in periodic case nbl3=0
+!!$        j3=j3+nbl3+1
+!!$
+!!$        !if (atoms%astruct%geocode /= 'F' .and. j3 >= modulo(i3s,n3i) .and. i3s < 0) j3=j3-n3i
+!!$        if (j3 >= i3s .and. j3 <= i3s+n3d-1) then
+!!$           do i2=isy,iey
+!!$              y=real(i2,kind=8)*hyh-ry
+!!$              !call ind_positions(pery,i2,n2,j2,goy)
+!!$              call ind_positions_new(pery,i2,n2i,j2,goy)
+!!$              if (goy) then
+!!$                 do i1=isx,iex
+!!$                    x=real(i1,kind=8)*hxh-rx
+!!$                    !call ind_positions(perx,i1,n1,j1,gox)
+!!$                    call ind_positions_new(perx,i1,n1i,j1,gox)
+!!$                    if (gox) then
+!!$                       r2=x**2+y**2+z**2
+!!$                       !here we can sum up the gaussians for the
+!!$                       !valence density and the core density
+!!$                       !restart again from the previously calculated index
+!!$                       ilcc=islcc
+!!$                       rhov=0.0_dp
+!!$                       drhov=0.0_dp
+!!$                       do ig=1,(ngv*(ngv+1))/2
+!!$                          ilcc=ilcc+1
+!!$                          rhov=rhov+&
+!!$                               spherical_gaussian_value(r2,atoms%nlccpar(0,ilcc),atoms%nlccpar(1,ilcc),0)
+!!$                          !derivative wrt r2
+!!$                          drhov=drhov+&
+!!$                               spherical_gaussian_value(r2,atoms%nlccpar(0,ilcc),atoms%nlccpar(1,ilcc),1)
+!!$
+!!$                          !arg=r2/rhovxp(ig)**2
+!!$                          !(rhovc(ig,1)+r2*rhovc(ig,2)+r2**2*rhovc(ig,3)+r2**3*rhovc(ig,4))*&
+!!$                          !     exp(-0.5_gp*arg)
+!!$                       end do
+!!$                       rhoc=0.0_dp
+!!$                       drhoc=0.0_dp
+!!$                       do ig=1,(ngc*(ngc+1))/2
+!!$                          ilcc=ilcc+1
+!!$                          !arg=r2/rhocxp(ig)**2
+!!$                          rhoc=rhoc+&
+!!$                               spherical_gaussian_value(r2,atoms%nlccpar(0,ilcc),atoms%nlccpar(1,ilcc),0)
+!!$                          drhoc=drhoc+&
+!!$                               spherical_gaussian_value(r2,atoms%nlccpar(0,ilcc),atoms%nlccpar(1,ilcc),1)
+!!$                          !(rhocc(ig,1)+r2*rhocc(ig,2)+r2**2*rhocc(ig,3)+r2**3*rhocc(ig,4))*&
+!!$                          !     exp(-0.5_gp*arg)
+!!$                       end do
+!!$
+!!$                       !if (j3 >= i3s .and. j3 <= i3s+n3d-1  .and. goy  .and. gox ) then
+!!$                       ind=j1+1+nbl1+(j2+nbl2)*n1i+(j3-i3s+1-1)*n1i*n2i
+!!$                       rhocore(ind,0)=rhocore(ind,0)+oneo4pi*(rhoc-rhov)
+!!$                       drhodr2=drhoc-drhov
+!!$                       rhocore(ind,1)=rhocore(ind,1)+x*drhodr2*oneo4pi
+!!$                       rhocore(ind,2)=rhocore(ind,2)+y*drhodr2*oneo4pi
+!!$                       rhocore(ind,3)=rhocore(ind,3)+z*drhodr2*oneo4pi
+!!$!stress components
+!!$                       rhocore(ind,4)=rhocore(ind,4)+x*x*drhodr2*oneo4pi
+!!$                       rhocore(ind,5)=rhocore(ind,5)+y*y*drhodr2*oneo4pi
+!!$                       rhocore(ind,6)=rhocore(ind,6)+z*z*drhodr2*oneo4pi
+!!$                       rhocore(ind,7)=rhocore(ind,7)+y*z*drhodr2*oneo4pi
+!!$                       rhocore(ind,8)=rhocore(ind,8)+x*z*drhodr2*oneo4pi
+!!$                       rhocore(ind,9)=rhocore(ind,9)+x*y*drhodr2*oneo4pi
+!!$
+!!$!!$                 !print out the result, to see what happens
+!!$!!$                 if (z==0.0_gp .and. y==0.0_gp) then
+!!$!!$                    write(16,'(3(1x,i0),10(1pe25.17))')j1+1+nbl1,j2+1+nbl2,j3,rhocore(ind),rhoc,rhov,r2,x
+!!$!!$                 end if
+!!$                    endif
+!!$                 enddo
+!!$              end if
+!!$           enddo
+!!$        end if
+!!$     enddo
 ! End old ----------------------------------------------------------------------------
   end if
   
@@ -229,6 +235,8 @@ END SUBROUTINE calc_rhocore_iat
 !! the principal quantum numbers admitted are from 1 to 4
 subroutine nlcc_spherical_gaussian_set(g,at)
   use gaussians
+  use module_types
+  use module_defs, only: gp
   implicit none
   type(atoms_data), intent(in) :: at
   type(gaussian_real_space), intent(out) :: g

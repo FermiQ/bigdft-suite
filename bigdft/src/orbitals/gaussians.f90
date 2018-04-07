@@ -128,7 +128,7 @@ contains
     real(gp) :: f
     !local variables
     logical :: domp
-    integer :: i,ider_
+    integer :: i,ider_,pow
     real(gp) :: tt,tt0,tt1,r2,r,val,fe
     real(gp), dimension(3) :: vect, rclosest
     integer, dimension(3) :: itmp
@@ -141,20 +141,22 @@ contains
        !r = distance(bit%mesh,bit%rxyz,rxyz)
        !r2=g%exponent*r**2
        bit%tmp=bit%mesh%hgrids*(bit%inext-2)-rxyz-bit%oxyz
-       r2=square_gd(bit%mesh,bit%tmp)*g%exponent
+       r2=square_gd(bit%mesh,bit%tmp)
        !bit%tmp=closest_r(bit%mesh,bit%rxyz,rxyz)
        !r2=square_gd(bit%mesh,bit%tmp)*g%exponent
-       fe=safe_exp(-r2,underflow=1.e-120_f_double)
+       fe=safe_exp(-r2*g%exponent,underflow=1.e-120_f_double)
        rclosest = closest_r(bit%mesh,bit%rxyz,rxyz)
        vect=rxyz_ortho(bit%mesh,rclosest)
        tt=0.0_gp
+       pow=0
        do i=1,g%nterms
           !this should be in absolute coordinates
           val=product(vect**g%lxyz(:,i))
           tt=tt+g%factors(i)*val
+          pow=pow+g%pows(i)
        end do
        f=fe*tt
-       if any(g%pows /= 0) then
+       if (pow /= 0) then
           tt0=0.0_gp
           tt1=0.0_gp
           do i=1,g%nterms
