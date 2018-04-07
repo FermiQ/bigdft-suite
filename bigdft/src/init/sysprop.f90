@@ -1299,7 +1299,7 @@ subroutine calculate_rhocore(at,rxyz,dpbox,rhocore)
                 & dpbox%i3s,dpbox%n3d,core_mesh, rhocore, ncmax, ifftsph, &
                 & rr, rcart, raux)
         else
-           call calc_rhocore_iat(bigdft_mpi%iproc,at,ityp,rx,ry,rz,cutoff,&
+           call calc_rhocore_iat(dpbox,bigdft_mpi%iproc,at,ityp,rx,ry,rz,cutoff,&
                 & dpbox%mesh%hgrids(1),dpbox%mesh%hgrids(2),dpbox%mesh%hgrids(3), &
                 & dpbox%mesh%ndims(1), dpbox%mesh%ndims(2),dpbox%mesh%ndims(3), &
                 & dpbox%i3s,dpbox%n3d,chgat,rhocore)
