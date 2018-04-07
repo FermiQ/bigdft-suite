@@ -75,6 +75,59 @@ subroutine calc_rhocore_iat(iproc,atoms,ityp,rx,ry,rz,cutoff,hxh,hyh,hzh,&
 
   if (n3d >0) then
 
+
+! Start new giuseppe ----------------------------------------------------------------------------
+!           call nlcc_spherical_gaussian_set(g,atoms)
+!           call set_box_around_gaussian(dpbox%bitp,g,rxyz(1,atit%iat))
+!            do while(box_next_point(dpbox%bitp))
+!
+!                       r2=x**2+y**2+z**2
+!                       !here we can sum up the gaussians for the
+!                       !valence density and the core density
+!                       !restart again from the previously calculated index
+!                       ilcc=islcc
+!                       rhov=0.0_dp
+!                       drhov=0.0_dp
+!                       do ig=1,(ngv*(ngv+1))/2
+!                          ilcc=ilcc+1
+!                          rhov=rhov+&
+!                               gaussian_radial_value(g,rxyz(1,atit%iat),dpbox%bitp)
+!                               !spherical_gaussian_value(r2,atoms%nlccpar(0,ilcc),atoms%nlccpar(1,ilcc),0)
+!                          !derivative wrt r2
+!                          drhov=drhov+&
+!                               gaussian_radial_value(g,rxyz(1,atit%iat),dpbox%bitp,1)
+!                               !spherical_gaussian_value(r2,atoms%nlccpar(0,ilcc),atoms%nlccpar(1,ilcc),1)
+!                       end do
+!                       rhoc=0.0_dp
+!                       drhoc=0.0_dp
+!                       do ig=1,(ngc*(ngc+1))/2
+!                          ilcc=ilcc+1
+!                          !arg=r2/rhocxp(ig)**2
+!                          rhoc=rhoc+&
+!                               spherical_gaussian_value(r2,atoms%nlccpar(0,ilcc),atoms%nlccpar(1,ilcc),0)
+!                          drhoc=drhoc+&
+!                               spherical_gaussian_value(r2,atoms%nlccpar(0,ilcc),atoms%nlccpar(1,ilcc),1)
+!                       end do
+!                       rhocore(dpbox%bitp%ind,0)=rhocore(dpbox%bitp%ind,0)+oneo4pi*(rhoc-rhov)
+!                       drhodr2=drhoc-drhov
+!                       dpbox%bitp%tmp=closest_r(dpbox%bitp%mesh,dpbox%bitp%rxyz,[rx,ry,rz])
+!                       rhocore(dpbox%bitp%ind,1)=  rhocore(dpbox%bitp%ind,1)+drhodr2*oneo4pi*dpbox%bitp%tmp(1)
+!                       rhocore(dpbox%bitp%ind,2)=  rhocore(dpbox%bitp%ind,2)+drhodr2*oneo4pi*dpbox%bitp%tmp(2)
+!                       rhocore(dpbox%bitp%ind,3)=  rhocore(dpbox%bitp%ind,3)+drhodr2*oneo4pi*dpbox%bitp%tmp(3)
+!                       !stress components
+!                       rhocore(dpbox%bitp%ind,4)=rhocore(dpbox%bitp%ind,4)+drhodr2*oneo4pi*dpbox%bitp%tmp(1)*dpbox%bitp%tmp(1) 
+!                       rhocore(dpbox%bitp%ind,5)=rhocore(dpbox%bitp%ind,5)+drhodr2*oneo4pi*dpbox%bitp%tmp(2)*dpbox%bitp%tmp(2)
+!                       rhocore(dpbox%bitp%ind,6)=rhocore(dpbox%bitp%ind,6)+drhodr2*oneo4pi*dpbox%bitp%tmp(3)*dpbox%bitp%tmp(3)
+!                       rhocore(dpbox%bitp%ind,7)=rhocore(dpbox%bitp%ind,7)+drhodr2*oneo4pi*dpbox%bitp%tmp(2)*dpbox%bitp%tmp(3)
+!                       rhocore(dpbox%bitp%ind,8)=rhocore(dpbox%bitp%ind,8)+drhodr2*oneo4pi*dpbox%bitp%tmp(1)*dpbox%bitp%tmp(3)
+!                       rhocore(dpbox%bitp%ind,9)=rhocore(dpbox%bitp%ind,9)+drhodr2*oneo4pi*dpbox%bitp%tmp(1)*dpbox%bitp%tmp(2)
+!
+!            enddo
+!           call box_iter_expand_nbox(dpbox%bitp)
+!
+!
+! End new giuseppe ----------------------------------------------------------------------------
+! Start old ----------------------------------------------------------------------------
      isx=floor((rx-cutoff)/hxh)
      isy=floor((ry-cutoff)/hyh)
      isz=floor((rz-cutoff)/hzh)
@@ -165,9 +218,39 @@ subroutine calc_rhocore_iat(iproc,atoms,ityp,rx,ry,rz,cutoff,hxh,hyh,hzh,&
            enddo
         end if
      enddo
+! End old ----------------------------------------------------------------------------
   end if
   
 END SUBROUTINE calc_rhocore_iat
+
+!> Determine the gaussian structure related to the nlcc:
+!! gaussian function described by a sum of spherical harmonics of s-channel with
+!! principal quantum number increased with a given exponent.
+!! the principal quantum numbers admitted are from 1 to 4
+subroutine nlcc_spherical_gaussian_set(g,at)
+  use gaussians
+  use module_types
+  use module_defs, only: gp
+  implicit none
+  type(atoms_data), intent(in) :: at
+  type(gaussian_real_space), intent(out) :: g
+  !local variables
+  integer :: mp_isf
+  real(gp) :: sigma
+  integer, dimension(3) :: zeros
+  real(gp), dimension(4) :: factors
+  integer, dimension(4) :: pows
+
+  sigma=at%nlccpar(0,1)
+  factors=at%nlccpar(1:4,1)
+  pows=[0,1,2,3]
+  zeros=0
+  mp_isf=at%mp_isf
+  if (.not. at%multipole_preserving) mp_isf=0
+  call gaussian_real_space_set(g,sigma,4,factors,zeros,pows,mp_isf)
+
+end subroutine nlcc_spherical_gaussian_set
+
 
 !> Accumulate the contribution of atom iat to core density for PAW atoms.
 subroutine mkcore_paw_iat(iproc,atoms,ityp,rx,ry,rz,cutoff,hxh,hyh,hzh,&

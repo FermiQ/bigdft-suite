@@ -116,7 +116,7 @@ contains
 
   !here the different treatment of the gaussian for multipole preserving can be triggered
   !pure
-  function gaussian_radial_value(g,rxyz,bit) result(f)
+  function gaussian_radial_value(g,rxyz,bit,ider) result(f)
     use numerics
     use box
     use multipole_preserving
@@ -124,32 +124,52 @@ contains
     real(gp), dimension(3), intent(in) :: rxyz
     type(gaussian_real_space), intent(in) :: g
     type(box_iterator) :: bit
+    integer, intent(in), optional :: ider
     real(gp) :: f
     !local variables
     logical :: domp
-    integer :: i
-    real(gp) :: tt,r2,r,val
+    integer :: i,ider_,pow
+    real(gp) :: tt,tt0,tt1,r2,r,val,fe
     real(gp), dimension(3) :: vect, rclosest
     integer, dimension(3) :: itmp
+
+    ider_=0 !first derivative wrt r2, works only with g%pows
+    if (present(ider)) ider_=ider
 
     select case(g%discretization_method)
     case(RADIAL_COLLOCATION)
        !r = distance(bit%mesh,bit%rxyz,rxyz)
        !r2=g%exponent*r**2
        bit%tmp=bit%mesh%hgrids*(bit%inext-2)-rxyz-bit%oxyz
-       r2=square_gd(bit%mesh,bit%tmp)*g%exponent
+       r2=square_gd(bit%mesh,bit%tmp)
        !bit%tmp=closest_r(bit%mesh,bit%rxyz,rxyz)
        !r2=square_gd(bit%mesh,bit%tmp)*g%exponent
-       f=safe_exp(-r2,underflow=1.e-120_f_double)
+       fe=safe_exp(-r2*g%exponent,underflow=1.e-120_f_double)
+       rclosest = closest_r(bit%mesh,bit%rxyz,rxyz)
+       vect=rxyz_ortho(bit%mesh,rclosest)
        tt=0.0_gp
+       pow=0
        do i=1,g%nterms
           !this should be in absolute coordinates
-          rclosest = closest_r(bit%mesh,bit%rxyz,rxyz)
-          vect=rxyz_ortho(bit%mesh,rclosest)
           val=product(vect**g%lxyz(:,i))
           tt=tt+g%factors(i)*val
+          pow=pow+g%pows(i)
        end do
-       f=f*tt
+       f=fe*tt
+       if (pow /= 0) then
+          tt0=0.0_gp
+          tt1=0.0_gp
+          do i=1,g%nterms
+             !this should be in absolute coordinates
+             tt0=tt0+g%factors(i)*r2**g%pows(i)
+             if (g%pows(i) /= 0) tt1=tt1+g%factors(i)*g%pows(i)*r2**(g%pows(i)-1)
+          end do
+          f=fe*tt0
+          if (ider_ == 1) then
+           f=-g%exponent*f+tt1*fe
+          end if
+       end if
+
     case(MULTIPOLE_PRESERVING_COLLOCATION)
 !!$       f=0.0_gp
 !!$       domp=g%mp_isf>0
