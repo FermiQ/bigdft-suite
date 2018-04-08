@@ -257,7 +257,6 @@ subroutine nlcc_spherical_gaussian_set(g,at)
 
 end subroutine nlcc_spherical_gaussian_set
 
-
 !> Accumulate the contribution of atom iat to core density for PAW atoms.
 subroutine mkcore_paw_iat(iproc,atoms,ityp,rx,ry,rz,cutoff,hxh,hyh,hzh,&
      n1i,n2i,n3i,i3s,n3d,core_mesh,rhocore, ncmax, ifftsph, rr, rcart, raux)
