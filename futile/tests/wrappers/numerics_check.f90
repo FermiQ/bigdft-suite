@@ -170,6 +170,7 @@ subroutine test_box_functions()
   mesh_ortho=cell_new('P',ndims,[1.0_gp,1.0_gp,1.0_gp])
   call loop_box_function('distance',mesh_ortho)
   call loop_box_function('box_cutoff',mesh_ortho)
+  call loop_box_function('consistency_check',mesh_ortho)
 
   angrad(1) = 90.0_gp/180.0_gp*pi
   angrad(2) = 70.0_gp/180.0_gp*pi
@@ -196,6 +197,7 @@ subroutine test_box_functions()
   mesh_noortho=cell_new('P',ndims,[1.0_gp,1.0_gp,1.0_gp],alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3)) 
   call loop_box_function('distance',mesh_noortho)
   call loop_box_function('box_cutoff',mesh_noortho)
+  call loop_box_function('consistency_check',mesh_noortho)
 
   ndims=200
   angrad(1) = 20.0_gp/180.0_gp*pi
@@ -220,14 +222,17 @@ subroutine loop_box_function(fcheck,mesh)
   use yaml_strings
   use wrapper_MPI
   use numerics, only:pi
+  use module_defs, only: gp
   implicit none
   character(len=*), intent(in) :: fcheck
   type(cell), intent(in) :: mesh
   !local variables
-  integer :: i,ii 
+  integer :: i,ii,i1,i2
   real(f_double) :: totvolS,totvolS1,totvolS2,totvolC,r,IntaS,IntaC,cen,errorS,errorC,d2
   real(f_double) :: diff,diff_old,dist1,dist2,cutoff,totvol_Bcutoff
-  real(f_double), dimension(3) :: rxyz0,rd,rv, angdeg
+  real(f_double), dimension(3) :: rxyz0,rd,rv, angdeg, vect_norm, ang
+  real(f_double), dimension(3,3) :: abc
+  real(f_double) :: alpha,beta,gamma,ths1,ths2
   type(box_iterator) :: bit
   integer, dimension(2,3) :: nbox,nbox_ref,nbox_ref_cub
   integer, parameter :: START_=1,END_=2
@@ -469,6 +474,56 @@ subroutine loop_box_function(fcheck,mesh)
         call yaml_mapping_close()
 !     end do
      call yaml_mapping_close()
+  case('consistency_check')
+     call yaml_mapping_open('Check of consistency of cell data')
+     call yaml_map('Cell orthorhombic',mesh%orthorhombic)
+     call yaml_map('Cell ndims',mesh%ndims)
+     call yaml_map('Cell hgrids',mesh%hgrids)
+     call yaml_map('Cell angles deg',angdeg)
+     call yaml_map('Cell angles rad',mesh%angrad)
+     call yaml_map('Cell periodity (FREE=0,PERIODIC=1)',mesh%bc)
+     call yaml_map('Volume element',mesh%volume_element)
+     call yaml_map('Contravariant matrix',mesh%gu)
+     call yaml_map('Covariant matrix',mesh%gd)
+     call yaml_map('Product of the two',matmul(mesh%gu,mesh%gd))
+     call yaml_map('uabc matrix',mesh%uabc)
+
+     abc = mesh%uabc
+
+     alpha=mesh%angrad(1)
+     beta=mesh%angrad(2)
+     gamma=mesh%angrad(3)
+     ths1 = 1.0d-15
+
+     ! check if vectors are normalized. In this case vectors are given by column
+     call yaml_mapping_open('norm of cell vectors')
+     do i=1,3
+         vect_norm(i) = sqrt(abc(1,i)**2 + abc(2,i)**2 + abc(3,i)**2)
+     end do
+     call yaml_map('norm vector a', vect_norm(1))
+     call yaml_map('norm vector b', vect_norm(2))
+     call yaml_map('norm vector c', vect_norm(3))
+     call yaml_mapping_close()
+
+     ! clean the angles to 90 up to tolerance
+     do i=1,3
+         if (abs(alpha-90.0_gp).lt.ths1) alpha = 90.0_gp
+         if (abs(beta-90.0_gp).lt.ths1) alpha = 90.0_gp
+         if (abs(gamma-90.0_gp).lt.ths1) alpha = 90.0_gp
+     end do
+
+     ! check if vectors are consistent with angles
+     ths2 = 1.0d-15
+     call yaml_mapping_open('norm of cell vectors')
+     do i=1,3
+        i1=mod(i,3)+1
+        i2=mod(i+1,3)+1
+        ang(i) = dot_product(abc(:,i1),abc(:,i2))
+     end do
+     call yaml_map('Cell angles rad from abc',acos(ang))
+     call yaml_map('Cell angles rad input',mesh%angrad)
+     call yaml_mapping_close()
+     if (any(abs(acos(ang) - mesh%angrad) >= ths2)) call yaml_map('Inconsistency between anglesi and primitive cell vectors','')
   case('other')
   end select
 
