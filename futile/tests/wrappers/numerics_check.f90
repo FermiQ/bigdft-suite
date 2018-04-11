@@ -520,10 +520,10 @@ subroutine loop_box_function(fcheck,mesh)
         i2=mod(i+1,3)+1
         ang(i) = dot_product(abc(:,i1),abc(:,i2))
      end do
-     call yaml_map('Cell angles rad from abc',acos(ang))
-     call yaml_map('Cell angles rad input',mesh%angrad)
+     call yaml_map('Cell angles cosine from abc',ang)
+     call yaml_map('Cell angles cosine input',cos(mesh%angrad))
      call yaml_mapping_close()
-     if (any(abs(acos(ang) - mesh%angrad) >= ths2)) call yaml_map('Inconsistency between anglesi and primitive cell vectors','')
+     if (any(abs(ang - cos(mesh%angrad)) >= ths2)) call yaml_map('Inconsistency between angles and primitive cell vectors','')
   case('other')
   end select
 
