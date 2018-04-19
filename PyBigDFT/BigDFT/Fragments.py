@@ -48,8 +48,22 @@ def dump_xyz_positions(f,array,basename='',names=None):
         if names is not None: nm=basename+names[i]
         f.write(str(nm)+' '+str(r[0])+' '+str(r[1])+' '+str(r[2])+'\n')
 
-def dump_xyz(array,basename='',units='atomic',names=None,filename=None,position='a',comment=None):
-    cmt=comment if comment is not None else '# xyz dump with basename "'+basename+'"'
+def xyz_bc_spec(cell):
+    """
+    Defines the specification for expressing the Boundary Conditions starting from a cell vector
+    """
+    if cell is None: 
+        return ""
+    elif cell[1] == 0.0 and cell[2] != 0.0:
+        return "surface "+str(cell[0])+" 0.0 "+str(cell[2])+" "
+    elif cell[1] == 0.0 and cell[2] == 0.0:
+        return "wire 0.0 0.0 "+cell[2]+" "
+    else:
+        return "periodic "+str(cell[0])+" "+str(cell[1])+" "+str(cell[2])+" "
+
+def dump_xyz(array,basename='',units='atomic',names=None,filename=None,position='a',comment=None,cell=None):
+    cmt=xyz_bc_spec(cell)
+    cmt+=comment if comment is not None else '# xyz dump with basename "'+basename+'"'
     f=open_xyz(filename,len(array),units,cmt,position)
     dump_xyz_positions(f,array,basename=basename,names=names)
     close_xyz(f,filename)
