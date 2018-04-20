@@ -248,16 +248,20 @@ subroutine LDiagHam(iproc,nproc,natsc,nspin,orbs,Lzd,Lzde,comms,&
   npsidim=max(orbse%npsidim_orbs,orbse%npsidim_comp)
   nspinor=orbse%nspinor
 
+  !LG:the transposition routines are not fortran compliant in the handlinf of pointers/optionals
+  ! they should be changed
   if (nproc > 1 .or. Lzde%linear) then
      Gdim = (Lzde%Glr%wfd%nvctr_c+7*Lzde%Glr%wfd%nvctr_f)*orbse%norb_par(iproc,0)*orbse%nspinor
      psiw = f_malloc_ptr(max(npsidim, Gdim),id='psiw')
+     !transpose all the wavefunctions for having a piece of all the orbitals
+     call toglobal_and_transpose(iproc,nproc,orbse,Lzde,commse,psi,psiw)
+     call toglobal_and_transpose(iproc,nproc,orbse,Lzde,commse,hpsi,psiw)
   else
      nullify(psiw)
+     call toglobal_and_transpose(iproc,nproc,orbse,Lzde,commse,psi)
+     call toglobal_and_transpose(iproc,nproc,orbse,Lzde,commse,hpsi)
   end if
 
-  !transpose all the wavefunctions for having a piece of all the orbitals
-  call toglobal_and_transpose(iproc,nproc,orbse,Lzde,commse,psi,psiw)
-  call toglobal_and_transpose(iproc,nproc,orbse,Lzde,commse,hpsi,psiw)
 
   if(nproc > 1.or. Lzde%linear) then
      call f_free_ptr(psiw)
@@ -431,6 +435,7 @@ end if
 
         if (iproc==0) call yaml_map('Noise added to input eigenvalues to determine occupation numbers',&
              max(Tel,1.0e-3_gp),fmt='(1pe12.5)')
+        call f_random_seed(0) !for uniformity
 !        !add a small displacement in the eigenvalues
         do iorb=1,orbse%norb*orbse%nkpts
            !tt=builtin_rand(idum)
@@ -973,7 +978,7 @@ subroutine psitospi(iproc,nproc,norbe,norbep, &
    fac=0.5d0
    do iorb=norbep*nproc,1,-1
       jorb=iorb-iproc*norbep
-      !     print *,'Kolla', shape(psi),4*iorb,shape(spinsgne),iorb
+       !   print *,'Kolla', shape(psi),4*iorb,shape(spinsgne),iorb
       if (myorbital(iorb,nspin*norbe,iproc,nproc)) then
          mx=mom(1,otoa(iorb))
          my=mom(2,otoa(iorb))
@@ -994,7 +999,7 @@ subroutine psitospi(iproc,nproc,norbe,norbep, &
             end do
          end if
       end if
-      !     print *,'OtoA',(otoa(iorb),iorb=1,norbe)
+          !print *,'OtoA',(otoa(iorb),iorb=1,norbe)
 
    end do
    call f_free(mom)

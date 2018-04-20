@@ -5,7 +5,7 @@
 !!    This file is distributed under the terms of the
 !!    GNU General Public License, see ~/COPYING file
 !!    or http://www.gnu.org/copyleft/gpl.txt .
-!!    For the list of contributors, see ~/AUTHORS 
+!!    For the list of contributors, see ~/AUTHORS
 
 
 !> Program testing new ideas like momentum-preserving gaussian integrals 2D
@@ -20,7 +20,7 @@ program MP_gaussian
   integer, parameter :: nstep=10        !< Number of resolution to calculate the moments
   integer, parameter :: nsigma=1        !< Number of different gaussian functions
   integer, parameter :: npts=50         !< Arrays from -npts to npts
-  real(gp), parameter :: hgrid = 1.0_gp !< Step grid
+  real(gp), parameter :: hgrid = 1.0_gp !< Grid step
   real(gp), parameter :: sigma = 0.25_gp !< Sigma gaussian
   integer :: j
   integer :: imoms,pow,istep,isigma
@@ -28,7 +28,7 @@ program MP_gaussian
   real(gp), dimension(0:nmoms,2) :: moments
   real(gp), dimension(3,2,0:nmoms) :: avgmaxmin
   real(gp), dimension(:,:), allocatable :: fj_phi,fj_coll
-  
+
 
   call f_lib_initialize()
 
@@ -106,7 +106,7 @@ program MP_gaussian
   call yaml_map('Results',reshape(avgmaxmin,(/6,nmoms+1/)),fmt='(1pe14.5)')
 
   call finalize_real_space_conversion()
-  
+
   call f_free(fj_phi)
   call f_free(fj_coll)
   call f_lib_finalize()
@@ -148,7 +148,7 @@ subroutine evaluate_moments2D(nmoms,npts,hgrid,pgauss,pow,x0,y0,fj_phi,fj_coll,m
 end subroutine evaluate_moments2D
 
 
-!> Calculate the moments of an array with respect to a reference point 
+!> Calculate the moments of an array with respect to a reference point
 subroutine moments_2d(nx,ny,array,x0,y0,h,nmoms,moments)
   use module_base, only: gp
   implicit none

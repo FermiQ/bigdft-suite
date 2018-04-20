@@ -24,10 +24,10 @@ subroutine internal_calculation_exctx(istep,factor,pkernel,norb,occup,spinsgn,re
   type(coulomb_operator), intent(inout) :: pkernel
   type(local_data), intent(inout) :: phi_i,phi_j
   real(gp), intent(inout) :: eexctX
-  real(wp), dimension(product(pkernel%mesh%ndims)), intent(out) :: rp_ij
+  real(wp), dimension(pkernel%mesh%ndim), intent(out) :: rp_ij
   !local variables
-  integer :: iorb,jorb,ndim,iorb_glb,jorb_glb,ishift,jshift,ishift_res,jshift_res,i
-  real(gp) :: hfaci,hfacj,hfac2,ehart
+  integer :: iorb,jorb,ndim,iorb_glb,jorb_glb,ishift,jshift,ishift_res,jshift_res
+  real(gp) :: hfaci,hfacj,ehart
 !loop over all the orbitals
 !for the first step do only the upper triangular part
   !do iorb=iorbs,iorbs+norbi-1
@@ -99,11 +99,10 @@ subroutine exctx_pre_computation(iorb, jorb, rp_ij, phi1, phi2, pkernel)
   use Poisson_Solver
   implicit none
   type(coulomb_operator), intent(inout) :: pkernel
-  real(wp), dimension(product(pkernel%mesh%ndims)), intent(inout) :: rp_ij
+  real(wp), dimension(pkernel%mesh%ndim), intent(inout) :: rp_ij
   type(local_data), intent(inout) :: phi1,phi2
   real(gp) :: hfac
-  integer(f_address) :: myrho_GPU
-  integer :: iorb,jorb,ndim,shift1,shift2,i,i_stat
+  integer :: iorb,jorb,ndim,shift1,shift2,i
   hfac=1.0_gp/product(pkernel%mesh%hgrids)
   shift1=phi1%displ(iorb)
   shift2=phi2%displ(jorb)
@@ -139,14 +138,14 @@ subroutine exctx_post_computation(orb1, orb2, rp_ij, phi1, phi2, pkernel, norb, 
   use Poisson_Solver
   implicit none
   type(coulomb_operator), intent(inout) :: pkernel
-  real(wp), dimension(product(pkernel%mesh%ndims)), intent(inout) :: rp_ij
+  real(wp), dimension(pkernel%mesh%ndim), intent(inout) :: rp_ij
   type(local_data), intent(inout) :: phi1,phi2
   integer, intent(in) :: norb
   real(gp), dimension(norb), intent(in) :: occup
   real(gp), intent(in) :: factor !<overall factor to treat the data
   real(gp) :: hfac1
   integer(f_address) :: myrho_GPU
-  integer :: orb1,orb2,ndim,orb2_glb,shift2,shift1_res,i,i_stat
+  integer :: orb1,orb2,ndim,orb2_glb,shift2,shift1_res,i
 
 
   orb2_glb=phi2%id_glb(orb2)
@@ -193,11 +192,9 @@ subroutine exctx_accum_eexctX(orb1, orb2, phi1, phi2, pkernel, norb, occup, fact
   real(gp), dimension(norb), intent(in) :: occup
   real(gp), intent(in) :: factor,ehart
   real(gp) :: hfac2
-  real(gp), pointer ::sendbuf
   integer :: orb1,orb2,orb2_glb,orb1_glb, istep
   real(gp), intent(inout) :: eexctX
   logical, intent(in) :: remote_result
-  type(c_ptr)::val
   
   orb1_glb=phi1%id_glb(orb1)
   orb2_glb=phi2%id_glb(orb2)

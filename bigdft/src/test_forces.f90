@@ -43,7 +43,7 @@ program test_forces
    integer :: ipath,npath,natx
    real(gp):: dx,etot0,path,fdr,stepsize,fact,t1,t2,t3
    !parameter (dx=1.d-2 , npath=2*16+1)  ! npath = 2*n+1 where n=2,4,6,8,...
-   parameter (dx=1.d-2 , npath=500,natx=1000)
+   parameter (dx=1.d-2 , npath=8,natx=1000)
    real(gp) :: simpson(1:npath),dd(3,natx,2)
    !character(len=60) :: radical
    !integer, dimension(4) :: mpi_info
@@ -185,7 +185,11 @@ int0(:,:)=runObj%atoms%astruct%rxyz(:,:)
 !!$               !runObj%inputs%frag%nfrag=1
 !!$            end if
 !            runObj%atoms%astruct%rxyz(:,:)=int0(:,:)+dr(:,:)
-            call bigdft_set_input_policy(INPUT_POLICY_MEMORY, runObj)
+            if (ipath==0) then
+                call bigdft_set_input_policy(INPUT_POLICY_SCRATCH, runObj)
+            else
+                call bigdft_set_input_policy(INPUT_POLICY_MEMORY, runObj)
+            end if
 !         end if
 
 !            runObj%atoms%astruct%rxyz(:,:)=int0(:,:)+dr(:,:)

@@ -34,7 +34,7 @@ module chess_base
   public :: chess_init
 
   !> Private types
-  type :: foe_params
+  type, public :: foe_params
     real(mp) :: ef_interpol_det
     real(mp) :: ef_interpol_chargediff
     integer :: evbounds_nsatur
@@ -44,19 +44,22 @@ module chess_base
     real(mp) :: fscale_lowerbound
     real(mp) :: fscale_upperbound
     real(mp),dimension(2) :: eval_range_foe
-    real(mp) :: accuracy_foe, accuracy_ice, accuracy_penalty
+    real(mp) :: accuracy_foe, accuracy_ice, accuracy_penalty, accuracy_entropy
     real(mp) :: betax_foe, betax_ice
     logical :: adjust_fscale
+    logical :: matmul_optimize_load_balancing
+    real(mp) :: fscale_ediff_low
+    real(mp) :: fscale_ediff_up
   end type foe_params
 
-  type :: lapack_params
+  type, public :: lapack_params
     integer :: blocksize_pdsyev
     integer :: blocksize_pdgemm
     integer :: maxproc_pdsyev
     integer :: maxproc_pdgemm
   end type lapack_params
 
-  type :: pexsi_params
+  type, public :: pexsi_params
     integer :: pexsi_npoles
     integer :: pexsi_nproc_per_pole
     real(mp) :: pexsi_mumin
@@ -111,10 +114,14 @@ module chess_base
   character(len=*),parameter :: ACCURACY_FOE           = "accuracy_foe"
   character(len=*),parameter :: ACCURACY_ICE           = "accuracy_ice"
   character(len=*),parameter :: ACCURACY_PENALTY       = "accuracy_penalty"
+  character(len=*),parameter :: ACCURACY_ENTROPY       = "accuracy_entropy"
   character(len=*),parameter :: BETAX_FOE              = "betax_foe"
   character(len=*),parameter :: BETAX_ICE              = "betax_ice"
   character(len=*),parameter :: OCCUPATION_FUNCTION    = "occupation_function"
   character(len=*),parameter :: ADJUST_FSCALE          = "adjust_fscale"
+  character(len=*),parameter :: MATMUL_OPTIMIZE_LOAD_BALANCING = "matmul_optimize_load_balancing"
+  character(len=*),parameter :: FSCALE_EDIFF_LOW       = "fscale_ediff_low"
+  character(len=*),parameter :: FSCALE_EDIFF_UP        = "fscale_ediff_up"
 
 
 
@@ -142,10 +149,14 @@ module chess_base
       fp%accuracy_foe = 0.0_mp
       fp%accuracy_ice = 0.0_mp
       fp%accuracy_penalty = 0.0_mp
+      fp%accuracy_entropy = 0.0_mp
       fp%betax_foe = 0.0_mp
       fp%betax_ice = 0.0_mp
       fp%occupation_function = 0
       fp%adjust_fscale = .false.
+      fp%matmul_optimize_load_balancing = .false.
+      fp%fscale_ediff_low = 0.0_mp
+      fp%fscale_ediff_up = 0.0_mp
     end function foe_params_null
 
     pure function lapack_params_null() result(lp)
@@ -313,6 +324,8 @@ module chess_base
               cp%foe%accuracy_ice = val
           case(ACCURACY_PENALTY)
               cp%foe%accuracy_penalty = val
+          case(ACCURACY_ENTROPY)
+              cp%foe%accuracy_entropy = val
           case(BETAX_FOE)
               cp%foe%betax_foe = val
           case(BETAX_ICE)
@@ -321,6 +334,12 @@ module chess_base
               cp%foe%occupation_function = val
           case(ADJUST_FSCALE)
               cp%foe%adjust_fscale = val
+          case(MATMUL_OPTIMIZE_LOAD_BALANCING)
+              cp%foe%matmul_optimize_load_balancing = val
+          case(FSCALE_EDIFF_LOW)
+              cp%foe%fscale_ediff_low = val
+          case(FSCALE_EDIFF_UP)
+              cp%foe%fscale_ediff_up = val
           case default
               call yaml_warning("unknown input key '" // trim(level) // "/" // trim(dict_key(val)) // "'")
           end select

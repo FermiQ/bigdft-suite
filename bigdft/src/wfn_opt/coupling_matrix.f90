@@ -42,15 +42,17 @@ END SUBROUTINE center_of_charge
 
 
 !> Calculate the coupling matrix needed for Casida's TDDFT approach
-subroutine calculate_coupling_matrix(iproc,nproc,boxit,tddft_approach,nspin,ndimp,orbsocc,orbsvirt,&
+subroutine calculate_coupling_matrix(iproc,nproc,dir_output,boxit,tddft_approach,nspin,ndimp,orbsocc,orbsvirt,&
      center_of_charge,pkernel,dvxcdrho,psirocc,psivirtr)
   use module_base
   use module_types
   use Poisson_Solver, except_dp => dp, except_gp => gp
   use yaml_output
   use box
+  use f_harmonics
   implicit none
   character(len=4), intent(in) :: tddft_approach
+  character(len=*), intent(in) :: dir_output
   integer, intent(in) :: iproc,nproc,nspin,ndimp
   real(gp), dimension(3) :: center_of_charge
   type(orbitals_data), intent(in) :: orbsocc,orbsvirt
@@ -63,13 +65,17 @@ subroutine calculate_coupling_matrix(iproc,nproc,boxit,tddft_approach,nspin,ndim
   integer, parameter :: ALPHA_=2,P_=1,SPIN_=3
   integer :: imulti,jmulti,spinindex,ialpha,ip,ibeta,iq,ispin,jspin,ntda
   integer :: nmulti,ndipoles,iap,ibq,nalphap,istep
-  real(wp) :: eap,ebq,krpa,kfxc,q
+  real(wp) :: eap,ebq,krpa,kfxc,q,rho_bq,kfxc_od
   type(f_progress_bar) :: bar
+  type(f_multipoles) :: mp
   integer, dimension(:,:), allocatable :: transitions
-  real(wp), dimension(:,:), allocatable :: Kaux,dipoles
+  real(wp), dimension(:,:), allocatable :: Kaux!,dipoles
+  real(wp), dimension(:,:), allocatable :: transition_quantities
   real(wp), dimension(:,:), pointer :: Kbig,K
   real(wp), dimension(:), allocatable :: v_ias
-  real(wp), dimension(:,:), allocatable :: rho_ias
+  real(wp), dimension(:), allocatable :: rho_ias
+  !$ integer, external :: omp_get_max_threads
+  !$ integer :: nthreads
 
   call f_routine('calculate_coupling_matrix')
 
@@ -81,16 +87,20 @@ subroutine calculate_coupling_matrix(iproc,nproc,boxit,tddft_approach,nspin,ndim
   if (nspin == 1) ndipoles=2*nmulti
 
   !Allocate partial densities and potentials
-  rho_ias = f_malloc([ndimp,nmulti],id='rho_ias')
+  !rho_ias = f_malloc([ndimp,nmulti],id='rho_ias')
+  rho_ias = f_malloc(ndimp,id='rho_ias')
   v_ias = f_malloc(ndimp,id='v_ias')
 
   !Allocation of dipoles (computed in order to get the oscillator strength)
-  dipoles = f_malloc0([3, ndipoles],id='dipoles')
+  !dipoles = f_malloc0([3, ndipoles],id='dipoles')
+  transition_quantities = f_malloc0([10, ndipoles],id='transition_quantities')
   K = f_malloc0_ptr([nmulti, nmulti],id='K')
   !For nspin=1, define an auxiliary matrix for spin-off-diagonal terms.
   if (nspin==1) Kaux = f_malloc0([nmulti, nmulti],id='Kaux')
 
   if (iproc==0) bar=f_progress_bar_new(nstep=((nalphap+1)*nalphap)/2)
+
+  !$ nthreads=omp_get_max_threads()
 
   call PS_set_options(pkernel,verbose=.false.)
   istep=0
@@ -100,64 +110,90 @@ subroutine calculate_coupling_matrix(iproc,nproc,boxit,tddft_approach,nspin,ndim
        ispin=transitions(SPIN_,iap)
        eap=orbsvirt%eval(ialpha)-orbsocc%eval(ip)
 
-       !extraction fo the coefficients d_i
+       call f_multipoles_create(mp,2,center=center_of_charge)
+       !extraction of the coefficients d_i
        do while(box_next_point(boxit))
          !fill the rho_ias array
-         rho_ias(boxit%ind,iap)=psirocc(boxit%ind,ip)*psivirtr(boxit%ind,ialpha)/boxit%mesh%volume_element
-         q=rho_ias(boxit%ind,iap)
+         rho_ias(boxit%ind)=psirocc(boxit%ind,ip)*psivirtr(boxit%ind,ialpha)/boxit%mesh%volume_element
+         q=rho_ias(boxit%ind)
          boxit%tmp=boxit%rxyz-center_of_charge
-         dipoles(:,iap)=dipoles(:,iap)+boxit%tmp*q
+         !dipoles(:,iap)=dipoles(:,iap)+boxit%tmp*q
+         call f_multipoles_accumulate(mp,boxit%tmp,q*boxit%mesh%volume_element)
        end do
-       dipoles(:,iap)=sqrt(eap)*dipoles(:,iap)*boxit%mesh%volume_element
+       transition_quantities(:,iap)=mp%monomials
+       call f_multipoles_release(mp)
+       !dipoles(:,iap)=sqrt(eap)*dipoles(:,iap)*boxit%mesh%volume_element
 
        !for every rho iap  calculate the corresponding potential
        !copy the transition  density in the inout structure
-       call f_memcpy(n=ndimp,src=rho_ias(1,iap),dest=v_ias(1))
+       call f_memcpy(src=rho_ias,dest=v_ias)
        call Electrostatic_Solver(pkernel,v_ias)
 
        !now we have to calculate the corresponding element of the RPA part of the coupling matrix
+       !$omp parallel do if (iap>=6*nthreads .and. nthreads>1) default(none) &
+       !$omp shared(transitions,orbsvirt,orbsocc,ispin,iap,psirocc,psivirtr)&
+       !$omp shared(v_ias,rho_ias,dvxcdrho,K,Kaux,nspin,tddft_approach,eap)&
+       !$omp private(ibq,ibeta,iq,jspin,ebq,spinindex,krpa,kfxc,kfxc_od,rho_bq)&
+       !$omp firstprivate(boxit)
        do ibq=1,iap
          ibeta=transitions(ALPHA_,ibq)
          iq=transitions(P_,ibq)
          jspin=transitions(SPIN_,ibq)
          ebq=orbsvirt%eval(ibeta)-orbsocc%eval(iq)
 
-         !and of the rpa part
-         krpa=dot(ndimp,rho_ias(1,ibq),1,v_ias(1),1)*boxit%mesh%volume_element
-         K(iap,ibq)=krpa
-         if (nspin==1) Kaux(iap,ibq)=krpa
-         !calculate the fxc term
          spinindex=ispin+jspin-1
+
+         !and of the rpa part
+         !reconstruct the density on the fly
+         krpa=0.0_dp
          kfxc=0.0_wp
+         kfxc_od=0.0_wp
          do while(box_next_point(boxit))
-           kfxc=kfxc+rho_ias(boxit%ind,iap)*rho_ias(boxit%ind,ibq)*dvxcdrho(boxit%ind,spinindex)*boxit%mesh%volume_element
+            rho_bq=psirocc(boxit%ind,iq)*psivirtr(boxit%ind,ibeta) !volume element for the integration is considered inside
+            krpa=krpa+v_ias(boxit%ind)*rho_bq
+            kfxc=kfxc+rho_ias(boxit%ind)*rho_bq*dvxcdrho(boxit%ind,spinindex)
+            !in the nspin=1 case we also have to calculate the off-diagonal term
+            if (nspin==1) kfxc_od=kfxc_od+rho_ias(boxit%ind)*rho_bq*dvxcdrho(boxit%ind,2)
          end do
-         K(iap,ibq)=K(iap,ibq)+kfxc
-         !in the nspin=1 case we also have to calculate the off-diagonal term
-         if (nspin==1) then
-           kfxc=0.0_wp
-           do while(box_next_point(boxit))
-             kfxc=kfxc+rho_ias(boxit%ind,iap)*rho_ias(boxit%ind,ibq)*dvxcdrho(boxit%ind,2)*boxit%mesh%volume_element
-           end do
-           Kaux(iap,ibq)=Kaux(iap,ibq)+kfxc
-         end if
+!!$         krpa=dot(ndimp,rho_ias(1,ibq),1,v_ias(1),1)*boxit%mesh%volume_element
+
+         K(iap,ibq)=krpa+kfxc
+         if (nspin==1) Kaux(iap,ibq)=krpa+kfxc_od
+
+!!$         K(iap,ibq)=krpa
+!!$         if (nspin==1) Kaux(iap,ibq)=krpa
+!!$         !calculate the fxc term
+!!$         kfxc=0.0_wp
+!!$         do while(box_next_point(boxit))
+!!$           kfxc=kfxc+rho_ias(boxit%ind,iap)*rho_ias(boxit%ind,ibq)*dvxcdrho(boxit%ind,spinindex)*boxit%mesh%volume_element
+!!$         end do
+!!$         K(iap,ibq)=K(iap,ibq)+kfxc
+!!$         !in the nspin=1 case we also have to calculate the off-diagonal term
+!!$         if (nspin==1) then
+!!$           kfxc=0.0_wp
+!!$           do while(box_next_point(boxit))
+!!$             kfxc=kfxc+rho_ias(boxit%ind,iap)*rho_ias(boxit%ind,ibq)*dvxcdrho(boxit%ind,2)*boxit%mesh%volume_element
+!!$           end do
+!!$           Kaux(iap,ibq)=Kaux(iap,ibq)+kfxc
+!!$         end if
+
          !add factors from energy occupation numbers (for non-tda case)
          !If full TDDFT, then multiply the coupling matrix element by the "2*sqrt(\omega_q*\omega_{q'})" coefficient of eq. 2.
          if (tddft_approach=='full') then
            K(iap,ibq)=K(iap,ibq)*2.0_wp*sqrt(eap)*sqrt(ebq)
-           if (nspin ==1) then
-             Kaux(iap,ibq)=Kaux(iap,ibq)*2.0_wp*sqrt(eap)*sqrt(ebq)
-           end if
+           if (nspin ==1) Kaux(iap,ibq)=Kaux(iap,ibq)*2.0_wp*sqrt(eap)*sqrt(ebq)
          end if
-         istep=istep+1
-       end do
-       if (iproc==0) call dump_progress_bar(bar,step=istep)
-     end do
+         !istep=istep+1
+      end do
+      !$omp end parallel do
+       if (iproc==0) call dump_progress_bar(bar,step=((iap+1)*iap)/2)
+    end do
   !If more than one processor, then perform the MPI_all_reduce of K (and of Kaux if nspin=1) and of dipoles.
   if (nproc > 1) then
      call fmpi_allreduce(K,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
      if (nspin ==1) call fmpi_allreduce(Kaux,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
-     call fmpi_allreduce(dipoles(1,1),3*nmulti,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
+     !call fmpi_allreduce(dipoles(1,1),3*nmulti,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
+     call fmpi_allreduce(transition_quantities(1,1),10*nmulti,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
   end if
 
 
@@ -184,12 +220,15 @@ subroutine calculate_coupling_matrix(iproc,nproc,boxit,tddft_approach,nspin,ndim
   end if
 
   !Add the diagonal part: {\omega_i}^{1+ntda} \delta_{i,j}
-    do iap=1,nalphap
-      ialpha=transitions(ALPHA_,iap)
-      ip=transitions(P_,iap)
-      eap=orbsvirt%eval(ialpha)-orbsocc%eval(ip)
-      K(iap,iap)=K(iap,iap)+eap**(ntda+1)
-    end do
+  do iap=1,nalphap
+     ialpha=transitions(ALPHA_,iap)
+     ip=transitions(P_,iap)
+     eap=orbsvirt%eval(ialpha)-orbsocc%eval(ip)
+     K(iap,iap)=K(iap,iap)+eap**(ntda+1)
+     !put the sqrt of the transition energies in the first place of the array
+     !as the monopole of a codensity is always 0
+     transition_quantities(1,iap)=sqrt(eap)
+  end do
   !Construction of the whole coupling matrix Kbig for nspin=1
   if (nspin == 1) then
      Kbig = f_malloc0_ptr((/ 2*nmulti, 2*nmulti /),id='Kbig')
@@ -202,20 +241,24 @@ subroutine calculate_coupling_matrix(iproc,nproc,boxit,tddft_approach,nspin,ndim
         end do
      end do
      !Copy the values of the dipoles in the second part of the array
-     call f_memcpy(n=3*nmulti,src=dipoles(1,1),dest=dipoles(1,nmulti+1))
+     !call f_memcpy(n=3*nmulti,src=dipoles(1,1),dest=dipoles(1,nmulti+1))
+     call f_memcpy(n=10*nmulti,src=transition_quantities(1,1),&
+          dest=transition_quantities(1,nmulti+1))
   else
     Kbig=>K
   end if
 
   !here the matrix can be written on disk, together with the transition dipoles
   if (iproc==0) then
-     call f_savetxt('coupling_matrix.txt',Kbig)
-     call f_savetxt('transition_dipoles.txt',dipoles)
+     call f_savetxt(dir_output//'coupling_matrix.txt',Kbig)
+     !call f_savetxt(dir_output//'transition_dipoles.txt',dipoles)
+     call f_savetxt(dir_output//'transition_quantities.txt',transition_quantities)
   end if
 
   !Deallocations
   call f_free_ptr(K)
-  call f_free(dipoles)
+  !call f_free(dipoles)
+  call f_free(transition_quantities)
   call f_free(transitions)
   if (nspin ==1 ) then
      call f_free(Kaux)

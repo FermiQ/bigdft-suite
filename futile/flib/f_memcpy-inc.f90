@@ -371,6 +371,18 @@ subroutine f_memcpy_d4(dest,src)
   include 'f_memcpy-base-inc.f90'
 end subroutine f_memcpy_d4
 
+subroutine f_memcpy_d6d3(dest,src)
+  implicit none
+  real(f_double), dimension(:,:,:), intent(inout) :: dest !<destination buffer
+  real(f_double), dimension(:,:,:,:,:,:), intent(in) :: src !<source buffer 
+  !local variables
+  integer(f_long) :: ns,nd
+  nd=f_sizeof(dest)
+  ns=f_sizeof(src)
+  include 'f_memcpy-base-inc.f90'
+end subroutine f_memcpy_d6d3
+
+
 subroutine f_memcpy_r0r1(dest,src,n)
   implicit none
   integer, intent(in) :: n !<nelems
@@ -596,6 +608,17 @@ subroutine f_memcpy_l0l1(dest,src,n)
   ns=n*kind(src)
   include 'f_memcpy-base-inc.f90'
 end subroutine f_memcpy_l0l1
+
+subroutine f_memcpy_z2(dest,src)
+  implicit none
+  complex(f_double), dimension(:,:), intent(inout) :: dest !<destination buffer
+  complex(f_double), dimension(:,:), intent(in) :: src !<source buffer 
+  !local variables
+  integer(f_long) :: ns,nd
+  nd=f_sizeof(dest)
+  ns=f_sizeof(src)
+  include 'f_memcpy-base-inc.f90'
+end subroutine f_memcpy_z2
 
 
 function f_maxdiff_i0(a,b,n) result(maxdiff)
@@ -953,3 +976,4 @@ function f_maxdiff_i0i1(a,b,n) result(maxdiff)
   ns=f_sizeof(b)
   include 'f_maxdiff-base-inc.f90'
 end function f_maxdiff_i0i1
+

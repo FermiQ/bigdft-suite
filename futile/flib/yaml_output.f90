@@ -2328,7 +2328,8 @@ contains
     logical, intent(in), optional :: verbatim       !< if .true. print as comments the calls performed
     integer, intent(in), optional :: unit           !< unit in which the dump has to be
     !local variables
-    logical :: flowrite,verb
+    !logical :: flowrite
+    logical :: verb
     integer :: unt,idoc
 
     if (f_err_raise(dict_len(dict) == 0,'The dictionary is not a list',&

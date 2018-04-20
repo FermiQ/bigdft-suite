@@ -529,7 +529,7 @@ contains
 
     if( ha%nproc/=1) then
        call transpose_v(ha%iproc,ha%nproc,ha%orbs,ha%lzd%glr%wfd,ha%comms,&
-            &   Qvect_tmp,wrk,out_add=Qvect)
+            &   Qvect_tmp,wrk,recvbuf=Qvect)
     else
        do i=1, EP_dim_tot
           Qvect(i,0)= Qvect_tmp(i,1)
@@ -954,7 +954,7 @@ contains
     if(p<0) then
        if(  ha%nproc/=1) then
           call transpose_v(ha%iproc,ha%nproc,ha%orbs,ha%lzd%glr%wfd,ha%comms,&
-               &   wrk,Qvect_tmp,out_add=dumQvect(1:,-p:))  
+               &   wrk,Qvect_tmp,recvbuf=dumQvect(1:,-p:))  
        else
           do k=1, EP_dim_tot
              dumQvect(k,-p) =  wrk(k,1)
@@ -963,7 +963,7 @@ contains
     else
        if(  ha%nproc/=1) then
           call transpose_v(ha%iproc,ha%nproc,ha%orbs,ha%lzd%glr%wfd,ha%comms,&
-               &   wrk,Qvect_tmp,out_add=Qvect(1:,p:))  
+               &   wrk,Qvect_tmp,recvbuf=Qvect(1:,p:))  
        else
           do k=1, EP_dim_tot
              Qvect(k,p) =  wrk(k,1)
@@ -1033,7 +1033,7 @@ contains
     if(p<0) then
        if(  ha%nproc/=1) then
           call transpose_v(ha%iproc,ha%nproc,ha%orbs,ha%lzd%glr%wfd,ha%comms,&
-               &   wrk,Qvect_tmp,out_add=dumQvect(1:,-p:))  
+               &   wrk,Qvect_tmp,recvbuf=dumQvect(1:,-p:))  
        else
           do k=1, EP_dim_tot
              dumQvect(k,-p) =  wrk(k,1)
@@ -1158,7 +1158,7 @@ contains
     if(p<0) then
        if(  ha%nproc/=1) then
           call transpose_v(ha%iproc,ha%nproc,ha%orbs,ha%lzd%glr%wfd,ha%comms,&
-               &   wrk,Qvect_tmp,out_add=dumQvect(1:,-p:))  
+               &   wrk,Qvect_tmp,recvbuf=dumQvect(1:,-p:))  
        else
           do k=1, EP_dim_tot
              dumQvect(k,-p) =  wrk(k,1)
@@ -1167,7 +1167,7 @@ contains
     else
        if(  ha%nproc/=1) then
           call transpose_v(ha%iproc,ha%nproc,ha%orbs,ha%lzd%glr%wfd,ha%comms,&
-               &   wrk,Qvect_tmp,out_add=Qvect(1:,p:))  
+               &   wrk,Qvect_tmp,recvbuf=Qvect(1:,p:))  
        else
           do k=1, EP_dim_tot
              Qvect(k,p) =  wrk(k,1)
@@ -1222,7 +1222,7 @@ contains
     if(p<0) then
        if(  ha%nproc/=1) then
           call transpose_v(ha%iproc,ha%nproc,ha%orbs,ha%lzd%glr%wfd,ha%comms,&
-               &   wrk,Qvect_tmp,out_add=dumQvect(1:,-p:))  
+               &   wrk,Qvect_tmp,recvbuf=dumQvect(1:,-p:))  
        else
           do k=1, EP_dim_tot
              dumQvect(k,-p) =  wrk(k,1)
@@ -1231,7 +1231,7 @@ contains
     else
        if(  ha%nproc/=1) then
           call transpose_v(ha%iproc,ha%nproc,ha%orbs,ha%lzd%glr%wfd,ha%comms,&
-               &   wrk,Qvect_tmp,out_add=Qvect(1:,p:))  
+               &   wrk,Qvect_tmp,recvbuf=Qvect(1:,p:))  
        else
           do k=1, EP_dim_tot
              Qvect(k,p) =  wrk(k,1)
@@ -1287,7 +1287,7 @@ contains
     if(p<0) then
        if(  ha%nproc/=1) then
           call transpose_v(ha%iproc,ha%nproc,ha%orbs,ha%lzd%glr%wfd,ha%comms,&
-               &   wrk,Qvect_tmp,out_add=dumQvect(1:,-p:))  
+               &   wrk,Qvect_tmp,recvbuf=dumQvect(1:,-p:))  
        else
           do k=1, EP_dim_tot
              dumQvect(k,-p) =  wrk(k,1)
@@ -1296,7 +1296,7 @@ contains
     else
        if(  ha%nproc/=1) then
           call transpose_v(ha%iproc,ha%nproc,ha%orbs,ha%lzd%glr%wfd,ha%comms,&
-               &   wrk,Qvect_tmp,out_add=Qvect(1:,p:))  
+               &   wrk,Qvect_tmp,recvbuf=Qvect(1:,p:))  
        else
           do k=1, EP_dim_tot
              Qvect(k,p) =  wrk(k,1)

@@ -178,7 +178,7 @@ program yaml_test
       call yaml_new_document()
       call test_dynamic_memory()
       call yaml_release_document()
-      
+      dict_tmp=>dict_new()
       call f_malloc_dump_status(dict_summary=dict_tmp)
       call yaml_map('Summary',dict_tmp)
       call dict_free(dict_tmp)

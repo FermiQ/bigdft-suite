@@ -17,21 +17,24 @@ module box
   !>parameter for the definition of the bc
   integer, parameter :: FREE=0
   integer, parameter :: PERIODIC=1
-  
+
   !to ease readiness
   integer, parameter :: START_=1,END_=2
   integer, parameter :: X_=1,Y_=2,Z_=3
 
+  !> data type which stores all informations of the simulation box. 
+  !! It contains also the metric for nonorthorhombic cells.
   type, public :: cell
      logical :: orthorhombic !<true if the cell is orthorhombic
-     integer, dimension(3) :: bc
-     integer, dimension(3) :: ndims
-     real(gp), dimension(3) :: hgrids
+     integer, dimension(3) :: bc !< boundary conditions on each direction (FREE=0, PERIODIC=1)
+     integer, dimension(3) :: ndims !< number of grid points on each direction
+     real(gp), dimension(3) :: hgrids !< real space grid on each direction
      real(gp), dimension(3) :: angrad !<angles between the dimensions in radiant (alpha_bc,beta_ac,gamma_bc)
      !derived data
      integer(f_long) :: ndim !< product of the dimension, long integer to avoid overflow
-     real(gp) :: volume_element
+     real(gp) :: volume_element !< volume element of the primitive cell
      real(gp), dimension(3,3) :: habc !<primitive volume elements in the translation vectors direction
+     real(gp), dimension(3,3) :: uabc !<matrix of the normalized translation vectors direction
      real(gp), dimension(3,3) :: gd !<covariant metric needed for non-orthorhombic operations
      real(gp), dimension(3,3) :: gu !<controvariant metric needed for non-orthorhombic operations
      real(gp) :: detgd !<determinant of the covariant matrix
@@ -39,20 +42,20 @@ module box
 
   !> defines the object to iterate around the real-space grid points.
   !! given a cell type, it might iterate on a section of this gris provided by the extremes nbox
-  !! it also provides a facility to parallelize over the 
+  !! it also provides a facility to parallelize over the
   type, public :: box_iterator
      integer :: i3s !<starting point in the dimension z
      integer :: i3e !<ending point in the dimension z
      integer :: i23 !<collapsed index in 23 dimension (in relative conventions)
      integer :: ind !<one-dimensional index for arrays (in relative conventions)
      !> indices in absolute coordinates in the given box,
-     !! from nbox(1,:) to nbox(2,:). To be intended as private 
-     integer, dimension(3)  :: inext  
+     !! from nbox(1,:) to nbox(2,:). To be intended as private
+     integer, dimension(3)  :: inext
      !> actual index inside the box,from 1 to mesh%ndims(:)
      integer :: i,j,k !better as scalars
      !> Sub-box to iterate over the points (ex. around atoms)
      !! start and end points for each direction
-     integer, dimension(2,3) :: nbox 
+     integer, dimension(2,3) :: nbox
      real(gp), dimension(3) :: oxyz !<origin of the coordinate system
      real(gp), dimension(3) :: rxyz !<coordinates of the grid point
      real(gp), dimension(3) :: tmp !< size 3 array buffer to avoid the creation of temporary arrays
@@ -83,9 +86,10 @@ module box
      module procedure square_gd,square_gd_add
   end interface square_gd
 
-  public :: cell_r,cell_periodic_dims,distance,closest_r,square_gu,square_gd,cell_new,box_iter,box_next_point
+  public :: cell_r,cell_periodic_dims,rxyz_ortho,distance,closest_r,square_gu,square_gd,cell_new,box_iter,box_next_point
   public :: cell_geocode,box_next_x,box_next_y,box_next_z,dotp_gu,dotp_gd,cell_null,nullify_box_iterator
   public :: box_iter_rewind,box_iter_split,box_iter_merge,box_iter_set_nbox,box_iter_expand_nbox,box_nbox_from_cutoff
+  public :: bc_periodic_dims,geocode_to_bc
 
 
 contains
@@ -103,6 +107,7 @@ contains
    me%ndim=0
    me%volume_element=0.0_gp
    me%habc=0.0_gp
+   me%uabc=0.0_gp
    me%gd=0.0_gp
    me%gu=0.0_gp
    me%detgd=0.0_gp
@@ -112,7 +117,7 @@ contains
   pure subroutine nullify_box_iterator(boxit)
     implicit none
     type(box_iterator), intent(out) :: boxit
-    boxit%i3s =-1 
+    boxit%i3s =-1
     boxit%i3e =-1
     boxit%i23 =-1
     boxit%ind =-1
@@ -121,7 +126,7 @@ contains
     boxit%k=-1
     boxit%inext=0
     boxit%inext(X_)=-1
-    boxit%nbox=-1 
+    boxit%nbox=-1
     boxit%oxyz=-1.0_gp
     boxit%rxyz=-1.0_gp
     boxit%tmp=0.0_gp
@@ -138,7 +143,7 @@ contains
 !!$    integer, intent(in), optional :: n3p
 !!$    !> Box of start and end points which have to be considered
 !!$    integer, dimension(2,3), intent(in), optional :: nbox
-!!$    !> real coordinates of the origin in the reference frame of the 
+!!$    !> real coordinates of the origin in the reference frame of the
 !!$    !box (the first point has the 000 coordinate)
 !!$    real(gp), dimension(3), intent(in), optional :: origin
 !!$    type(box_iterator) :: boxit
@@ -159,18 +164,18 @@ contains
     !> Box of start and end points which have to be considered
     integer, dimension(2,3), intent(in), optional :: nbox
     real(gp), intent(in), optional :: cutoff !< determine the box around the origin
-    !> real coordinates of the origin in the reference frame of the 
+    !> real coordinates of the origin in the reference frame of the
     !! box (the first point has the 000 coordinate)
     real(gp), dimension(3), intent(in), optional :: origin
 
     type(box_iterator) :: boxit
-    
+
     call nullify_box_iterator(boxit)
 
     !if the mesh is invalid (e.g. no dims, return)
     if (mesh%ndim==0) return
     !associate the mesh
-    boxit%mesh => mesh 
+    boxit%mesh => mesh
 
     call f_zero(boxit%oxyz)
     if (present(origin)) boxit%oxyz=origin
@@ -209,7 +214,7 @@ contains
        call set_subbox(bit%mesh%bc,bit%mesh%ndims,bit%nbox,bit%subbox)
        call box_iter_rewind(bit)
     else if (present(cutoff)) then
-!!$       
+!!$
 !!$       bit%nbox(START_,:)=floor((oxyz-cutoff)/bit%mesh%hgrids)
 !!$       bit%nbox(END_,:)=ceiling((oxyz+cutoff)/bit%mesh%hgrids)
        bit%nbox=box_nbox_from_cutoff(bit%mesh,oxyz,cutoff)
@@ -225,17 +230,50 @@ contains
   end subroutine box_iter_set_nbox
 
   !> this function has to be genralized for non-orthorhombic grids
-  pure function box_nbox_from_cutoff(mesh,oxyz,cutoff) result(nbox)
+  pure function box_nbox_from_cutoff(mesh,oxyz,cutoff,inner) result(nbox)
     implicit none
     type(cell), intent(in) :: mesh
     real(gp), dimension(3), intent(in) :: oxyz
     real(gp), intent(in) :: cutoff
     integer, dimension(2,3) :: nbox
+    logical, intent(in), optional :: inner
+    !local variables
+    logical :: inner_
+    real(gp), dimension(2,3) :: rbox
     !for non-orthorhombic cells the concept of distance has to be inserted here (the box should contain the sphere)
-    nbox(START_,:)=floor((oxyz-cutoff)/mesh%hgrids)
-    nbox(END_,:)=ceiling((oxyz+cutoff)/mesh%hgrids)
+!!$    nbox(START_,:)=floor((oxyz-cutoff)/mesh%hgrids)
+!!$    nbox(END_,:)=ceiling((oxyz+cutoff)/mesh%hgrids)
+
+    inner_=.true.
+    if (present(inner)) inner_=inner
+
+    rbox=cell_cutoff_extrema(mesh,oxyz,cutoff)
+
+    if (inner_) then
+       nbox(START_,:)=ceiling(rbox(START_,:)/mesh%hgrids)
+       nbox(END_,:)=floor(rbox(END_,:)/mesh%hgrids)
+    else
+       nbox(START_,:)=floor(rbox(START_,:)/mesh%hgrids)
+       nbox(END_,:)=ceiling(rbox(END_,:)/mesh%hgrids)
+    end if
 
   end function box_nbox_from_cutoff
+
+  pure function cell_cutoff_extrema(mesh,oxyz,cutoff) result(rbox)
+    implicit none
+    type(cell), intent(in) :: mesh
+    real(gp), dimension(3), intent(in) :: oxyz
+    real(gp), intent(in) :: cutoff
+    real(gp), dimension(2,3) :: rbox
+    !for non-orthorhombic cells the concept of distance has to be inserted here (the box should contain the sphere)
+!    if (mesh%orthorhombic) then
+        rbox(START_,:)=oxyz-cutoff
+        rbox(END_,:)=oxyz+cutoff
+!    else
+!        rbox(START_,:)=rxyz_nonortho(mesh,rxyz_ortho(mesh,oxyz)-cutoff)
+!        rbox(END_,:)=rxyz_nonortho(mesh,rxyz_ortho(mesh,oxyz)+cutoff)
+!    end if
+  end function cell_cutoff_extrema
 
   pure subroutine box_iter_expand_nbox(bit)
     implicit none
@@ -276,8 +314,9 @@ contains
     implicit none
     type(box_iterator), intent(inout) :: bit
     !local variables
-    integer :: iz,iy,ix,i
-    integer(f_long) :: icnt,itgt
+    logical :: impossible_wrap_on_z
+    integer :: iz,iy,ix,i,jx,jy,jz
+    integer(f_long) :: icnt,itgt,itgt_inner
     logical(f_byte), dimension(:), allocatable :: lxyz
     integer, dimension(:), allocatable :: lx,ly,lz
     integer, dimension(3) :: subdims
@@ -285,12 +324,12 @@ contains
     do i=1,3
        subdims(i)=bit%subbox(END_,i)-bit%subbox(START_,i)+1
     end do
-    subdims(3)=min(subdims(3),bit%i3e-bit%i3s+1)
+    impossible_wrap_on_z=bit%mesh%bc(Z_) /= PERIODIC.or. bit%subbox(END_,Z_)-bit%subbox(START_,Z_) < bit%mesh%ndims(Z_)
+    if (impossible_wrap_on_z) subdims(3)=min(subdims(3),bit%i3e-bit%i3s+1)
 
-    !first, count if the iterator covers all the points
+    !first, count if the iterator covers all the required points
     itgt=product(int(subdims,f_long))
-    !!!itgt=int(bit%mesh%ndims(1),f_long)*int(bit%mesh%ndims(2),f_long)*&
-    !!!     int(bit%i3e-bit%i3s+1,f_long)
+    itgt_inner=int(subdims(1),f_long)*int(subdims(2),f_long)*min(subdims(3),bit%i3e-bit%i3s+1)!int(bit%i3e-bit%i3s+1,f_long)
 
     !allocate array of values corresponding to the expected grid
 !!$    lx=f_malloc(bit%mesh%ndims(1),id='lx')
@@ -313,86 +352,106 @@ contains
 !!$    end do
 
     do iz=1,subdims(Z_)
-       lz(iz)=iz+bit%subbox(START_,Z_)-1
+       jz=iz+bit%subbox(START_,Z_)-1
+       if (bit%mesh%bc(Z_) == PERIODIC) jz=modulo(jz-1,bit%mesh%ndims(Z_))+1
+       lz(iz)=jz
     end do
     do iy=1,subdims(Y_)
-       ly(iy)=iy+bit%subbox(START_,Y_)-1
+       jy=iy+bit%subbox(START_,Y_)-1
+       if (bit%mesh%bc(Y_) == PERIODIC) jy=modulo(jy-1,bit%mesh%ndims(Y_))+1
+       ly(iy)=jy
     end do
     do ix=1,subdims(X_)
-       lx(ix)=ix+bit%subbox(START_,X_)-1
+       jx=ix+bit%subbox(START_,X_)-1
+       if (bit%mesh%bc(X_) == PERIODIC) jx=modulo(jx-1,bit%mesh%ndims(X_))+1
+       lx(ix)=jx
     end do
 
     !separable mode
-    iz=0
+    iz=bit%subbox(START_,Z_)-1 !0
     icnt=0
+    jz=0
     do while(box_next_z(bit))
        iz=iz+1
+       jz=iz-bit%subbox(START_,Z_)+1
        !print *,'bit',bit%k,bit%inext(Z_)
        call f_assert(iz+bit%i3s-1==bit%inext(Z_)-1,'A')!,&
        !'Error iz='+iz+', inext(Z)='+bit%inext(Z_))
-       iy=0
+       iy=bit%subbox(START_,Y_)-1!0
+       jy=0
        do while(box_next_y(bit))
           iy=iy+1
+          jy=iy-bit%subbox(START_,Y_)+1
           call f_assert(iy==bit%inext(Y_)-1,'B')!,&
           !'Error iy='+iy+', inext(Y)='+bit%inext(Y_))
-          ix=0
+          ix=bit%subbox(START_,X_)-1!0
+          jx=0
           do while(box_next_x(bit))
              ix=ix+1
+             jx=ix-bit%subbox(START_,X_)+1
              call f_assert(ix==bit%inext(X_)-1,'C')!,&
              !'Error ix='+ix+', inext(X)='+bit%inext(X_))
 
              icnt=icnt+1
-             call f_assert(lx(ix) == bit%i,'D')!,&
-             !'Error value, ix='+bit%i+', expected='+lx(ix))
+             call f_assert(lx(jx) == bit%i,'D')!,&
+                 !'Error value, ix='+bit%i+', expected='+lx(jx))
              !convert the value of the logical array
-             if (lxyz(bit%ind)) call f_err_throw('Error point ind='+bit%ind+&
+             !if (lxyz(bit%ind)) &
+             if (lxyz(icnt)) &
+                  call f_err_throw('Error point ind='+bit%ind+&
                ', i,j,k='+yaml_toa([bit%i,bit%j,bit%k]))
-             lxyz(bit%ind)=f_T
+             !lxyz(bit%ind)=f_T
+             lxyz(icnt)=f_T
           end do
-          call f_assert(ix == subdims(X_),'E')!,&
+          call f_assert(jx == subdims(X_),'E')!,&
           !'Error boxit, ix='+ix+', itgtx='+subdims(X_))
-          
-          call f_assert(ly(iy) == bit%j,'F')!,&
+          call f_assert(ly(jy) == bit%j,'F')!,&
           !'Error value, iy='+bit%j+', expected='+ly(iy))
        end do
-       call f_assert(iy == subdims(Y_),'G')!,&
+       call f_assert(jy == subdims(Y_),'G')!,&
        !'Error boxit, iy='+iy+', itgty='+subdims(Y_))
 
-       call f_assert(lz(iz)+bit%i3s-1 == bit%k,&
-            yaml_toa([lz(iz),bit%k,bit%i3s]))!,&
+       call f_assert(lz(jz)+bit%i3s-1 == bit%k,'H') !&
+       !yaml_toa([lz(jz),bit%k,bit%i3s]))!,&
     end do
-    call f_assert(iz == subdims(Z_),'I')!,&
+    if (impossible_wrap_on_z) then 
+         call f_assert(jz == min(subdims(Z_),bit%i3e-bit%i3s+1),'I') !,&
     !'Error boxit, iz='+iz+', itgtz='+subdims(Z_))
-    call f_assert(icnt == itgt,'J')!,&
+         call f_assert(icnt == itgt_inner,'J')!,&
     !'Error sep boxit, icnt='+icnt+', itgt='+itgt)
-
+      end if
     !complete mode
-    icnt=int(0,f_long)
-    do while(box_next_point(bit))
-       icnt=icnt+1
-       !here we might see if there are points from which 
-       !we passed twice
-       !print *,bit%i,bit%j,bit%k
-       if (.not. lxyz(bit%ind)) &
-            call f_err_throw('Error point (2) ind='+bit%ind+&
-            ', i,j,k='+yaml_toa([bit%i,bit%j,bit%k]))
-       lxyz(bit%ind)=f_F
-    end do
-    call f_assert(icnt == itgt,'Error boxit, icnt='+icnt+&
-         ', itgt='+itgt)
+    if (all( bit%subbox(END_,:)-bit%subbox(START_,:) < bit%mesh%ndims) .or. all(bit%mesh%bc == FREE)) then
+       icnt=int(0,f_long)
+       do while(box_next_point(bit))
+          icnt=icnt+1
+          !here we might see if there are points from which
+          !we passed twice
+          !print *,bit%i,bit%j,bit%k
+          !if (.not. lxyz(bit%ind)) &
+          if (.not. lxyz(icnt)) &
+               call f_err_throw('Error point (2) ind='+bit%ind+&
+               ', i,j,k='+yaml_toa([bit%i,bit%j,bit%k]))
+          !lxyz(bit%ind)=f_F
+          lxyz(icnt)=f_F
+       end do
+       call f_assert(icnt == itgt,'Error boxit, icnt='+icnt+&
+            ', itgt='+itgt)
+       !no points have to be left behind
+       if (any(lxyz)) call f_err_throw('Error boxit, points not covered')
+    end if
 
-    if (any(lxyz)) call f_err_throw('Error boxit, points not covered')
+
 
     call f_free(lxyz)
     call f_free(lx,ly,lz)
-    
+
   end subroutine probe_iterator
 
   pure subroutine box_iter_rewind(bit)
     implicit none
     type(box_iterator), intent(inout) :: bit
     !local variables
-    logical :: test
 
     bit%inext=bit%subbox(START_,:)
 !!$    if (bit%whole) then
@@ -417,25 +476,31 @@ contains
     type(box_iterator), intent(inout) :: bit
     logical :: ok
 
+!!    print *,'here',bit%inext(Z_),bit%k,bit%i3s,bit%i3e
 !!$    call increment_dim(bit,3,bit%k,ok)
     ok = bit%i3e >= bit%i3s ! to be removed
-    ok = bit%subbox(END_,Z_) >= bit%subbox(START_,Z_) 
+    ok = bit%subbox(END_,Z_) >= bit%subbox(START_,Z_)
     if (.not. ok) return !there is nothing to explore
     ok= bit%inext(Z_) <= bit%subbox(END_,Z_)
+!    print *,'ok1',ok,bit%inext(Z_),bit%subbox(END_,Z_),bit%k
     do while(ok)
        if (bit%whole) then
           bit%k=bit%inext(Z_)
-       else 
+       else
           call internal_point(bit%mesh%bc(Z_),bit%inext(Z_),bit%mesh%ndims(Z_),&
                bit%k,bit%i3s,bit%i3e,ok)
+!          print *,'ok1.2',ok,bit%inext(Z_),bit%k
           if (.not. ok) bit%inext(Z_)=bit%inext(Z_)+1
        end if
+!       print *,'ok1.3',ok,bit%inext(Z_),bit%k
        if (ok) then
           bit%inext(Z_)=bit%inext(Z_)+1
           exit
        end if
        ok = bit%inext(Z_) <= bit%subbox(END_,Z_)
+!       print *,'ok1.5',ok,bit%inext(Z_),bit%k
     end do
+!    print *,'ok2',ok
     !reset x and y
     if (ok) then
        call update_boxit_z(bit)
@@ -444,8 +509,10 @@ contains
     end if
 
     !in the case the z_direction is over, make the iterator ready for new use
+!    print *,'o3',ok
+
     if (.not. ok) call box_iter_rewind(bit)
-    
+
   end function box_next_z
 
   !find the first y value which is available from the starting point
@@ -479,12 +546,12 @@ contains
     integer, intent(inout) :: indi
     type(box_iterator), intent(inout) :: bit
     logical, intent(out) :: ok
-    
+
     ok= bit%inext(idim) <= bit%subbox(END_,idim)
     if (.not. ok) return
     if (bit%whole) then
        indi=bit%inext(idim)
-    else 
+    else
        if (bit%mesh%bc(idim) == PERIODIC) then
           indi=modulo(bit%inext(idim)-1,bit%mesh%ndims(idim))+1
        else
@@ -496,7 +563,7 @@ contains
 !!$    do !while(ok)
 !!$       if (bit%whole) then
 !!$          indi=bit%inext(idim)
-!!$       else 
+!!$       else
 !!$          if (bit%mesh%bc(idim) == PERIODIC) then
 !!$             indi=modulo(bit%inext(idim)-1,bit%mesh%ndims(idim))+1
 !!$          else
@@ -518,7 +585,7 @@ contains
 
   pure subroutine update_boxit_x(boxit)
     implicit none
-    type(box_iterator), intent(inout) :: boxit 
+    type(box_iterator), intent(inout) :: boxit
 
     !one dimensional index (to be corrected)
     boxit%ind = boxit%i+boxit%mesh%ndims(1)*boxit%i23
@@ -530,7 +597,7 @@ contains
 
   pure subroutine update_boxit_y(boxit)
     implicit none
-    type(box_iterator), intent(inout) :: boxit 
+    type(box_iterator), intent(inout) :: boxit
     !here we have the indices      boxit%inext as well as boxit%ixyz
     !we might then calculate the related quantities
     !two dimensional index, last two elements
@@ -544,7 +611,7 @@ contains
 
   pure subroutine update_boxit_z(boxit)
     implicit none
-    type(box_iterator), intent(inout) :: boxit 
+    type(box_iterator), intent(inout) :: boxit
 
     !the position associated to the coordinates
     boxit%rxyz(Z_)=cell_r(boxit%mesh,boxit%k,Z_)-boxit%oxyz(Z_)
@@ -554,7 +621,7 @@ contains
 !!!>  !this routine should not use inext as it is now prepared for the next step
 !!!>  pure subroutine update_boxit(boxit)
 !!!>    implicit none
-!!!>    type(box_iterator), intent(inout) :: boxit 
+!!!>    type(box_iterator), intent(inout) :: boxit
 !!!>
 !!!>    call update_boxit_x(boxit)
 !!!>    call update_boxit_y(boxit)
@@ -588,25 +655,26 @@ contains
     box_next_point=associated(boxit%mesh)
     if (.not. box_next_point) return
     !this put the starting point
-    if (boxit%k==boxit%subbox(START_,Z_)-1) then
+    !if (boxit%k==boxit%subbox(START_,Z_)-1) then
+    if (boxit%inext(Z_)==boxit%subbox(START_,Z_)) then
        go=box_next_z(boxit)
        if (go) go=box_next_y(boxit)
        !if this one fails then there are no slices available
        if (.not. go) box_next_point=.false.
     end if
     !simulate loop
-    flattened_loop: do 
+    flattened_loop: do
        if (box_next_x(boxit)) exit flattened_loop
        if (box_next_y(boxit)) cycle flattened_loop !and then redo the check for x
        box_next_point =box_next_z(boxit)
        if (box_next_point) box_next_point =box_next_y(boxit)
        if (.not. box_next_point) exit flattened_loop
     end do flattened_loop
-    
+
   end function box_next_point
 
   !>split the box iterator in different tasks
-  !!after the call to this routine the iterator will only run on the 
+  !!after the call to this routine the iterator will only run on the
   !!part corresponding to the given task.
   !!After the splitting finished the routine box_iter_merge have to be called.
   !!One cannot split an iterator more than once.
@@ -622,7 +690,7 @@ contains
     !we might add in the following different approaches
     n=boxit%subbox(END_,Y_)-boxit%subbox(START_,Y_)+1
     call distribute_on_tasks(n,itask,ntasks,np,is)
-    
+
     !then define the subbox on which the iteration has to be done
     boxit%subbox(START_,Y_)=boxit%subbox(START_,Y_)+is
     boxit%subbox(END_,Y_)=boxit%subbox(START_,Y_)+np-1
@@ -642,7 +710,7 @@ contains
     integer :: ii
 
     ! First distribute evenly... (LG: if n is, say, 34 and nproc is 7 - thus 8 MPI processes)
-    np = n/nproc                !(LG: we here have np=4) 
+    np = n/nproc                !(LG: we here have np=4)
     is = iproc*np               !(LG: is=iproc*4 : 0,4,8,12,16,20,24,28)
     ! ... and now distribute the remaining objects.
     ii = n-nproc*np             !(LG: ii=34-28=6)
@@ -650,7 +718,6 @@ contains
     is = is + min(iproc,ii)     !(LG: update is, so (iproc,np,is): (0,5,0),(1,5,5),(2,5,10),(3,5,15),(4,5,20),(5,5,25),(6,4,30),(7,4,34))
 
   end subroutine distribute_on_tasks
-
 
   !> Terminate the splitting section. As after the call to this routine
   !! the iterator will run on the entire nbox
@@ -676,9 +743,31 @@ contains
     end if
     go=jpoint >= ilow
     if (go) go= jpoint <= ihigh
+    if (.not. go .and. ihigh == npoint) go = ilow==1
 
   end subroutine internal_point
 
+  function geocode_to_bc(geocode) result(bc)
+    use dictionaries, only: f_err_throw
+    implicit none
+    character(len=1), intent(in) :: geocode
+    integer, dimension(3) :: bc
+    select case(geocode)
+    case('P')
+       bc=PERIODIC
+    case('S')
+       bc=PERIODIC
+       bc(2)=FREE
+    case('F')
+       bc=FREE
+    case('W')
+       bc=FREE
+       bc(3)=PERIODIC
+    case default
+       call f_err_throw('Invalid specification of the variable "geocode"')
+    end select
+  end function geocode_to_bc
+    
   function cell_new(geocode,ndims,hgrids,alpha_bc,beta_ac,gamma_ab,abc) result(mesh)
     use numerics, only: onehalf,pi
     use wrapper_linalg, only: det_3x3
@@ -697,21 +786,8 @@ contains
     real(gp) :: aa,cc,a2,cosang
     integer :: i,j
 
+    mesh%bc=geocode_to_bc(geocode)
 
-    select case(geocode)
-    case('P')
-       mesh%bc=PERIODIC
-    case('S')
-       mesh%bc=PERIODIC
-       mesh%bc(2)=FREE
-    case('F')
-       mesh%bc=FREE
-    case('W')
-       mesh%bc=FREE
-       mesh%bc(3)=PERIODIC
-    case default
-       call f_err_throw('Invalid specification of the variable "geocode"')
-    end select
     mesh%ndims=ndims
     mesh%hgrids=hgrids
     mesh%ndim=product(int(ndims,f_long))
@@ -754,7 +830,7 @@ contains
           mesh%gd(1,3) = cos(mesh%angrad(2)) !beta_ac
           mesh%gd(2,2) = 1.0_gp
           mesh%gd(2,3) = cos(mesh%angrad(1)) !alpha_bc
-          mesh%gd(3,3) = 1.0_gp 
+          mesh%gd(3,3) = 1.0_gp
           !Set the determinant of the covariant metric
           mesh%detgd = 1.0_gp - cos(mesh%angrad(1))**2 - cos(mesh%angrad(2))**2 - cos(mesh%angrad(3))**2 +&
                2.0_gp*cos(mesh%angrad(1))*cos(mesh%angrad(2))*cos(mesh%angrad(3))
@@ -779,7 +855,7 @@ contains
           mesh%gd(1,3) = cos(mesh%angrad(2)) !beta_ac
           mesh%gd(2,2) = 1.0_gp
           mesh%gd(2,3) = cos(mesh%angrad(1)) !alpha_bc
-          mesh%gd(3,3) = 1.0_gp 
+          mesh%gd(3,3) = 1.0_gp
           !Set the determinant of the covariant metric
           mesh%detgd = 1.0_gp - cos(mesh%angrad(1))**2 - cos(mesh%angrad(2))**2 - cos(mesh%angrad(3))**2 +&
                2.0_gp*cos(mesh%angrad(1))*cos(mesh%angrad(2))*cos(mesh%angrad(3))
@@ -801,9 +877,9 @@ contains
           mesh%gd(1,1) = 1.0_gp
           mesh%gd(1,3) = cos(mesh%angrad(2)) !beta_ac
           mesh%gd(2,2) = 1.0_gp
-          mesh%gd(3,3) = 1.0_gp 
+          mesh%gd(3,3) = 1.0_gp
           !Set the determinant of the covariant metric
-          mesh%detgd = sin(mesh%angrad(2))**2 
+          mesh%detgd = sin(mesh%angrad(2))**2
           !Set the contravariant metric
           mesh%gu=0.0_gp
           mesh%gu(1,1) = 1.0_gp/mesh%detgd
@@ -811,6 +887,9 @@ contains
           mesh%gu(2,2) = 1.0_gp!/mesh%detgd
           mesh%gu(3,3) = 1.0_gp/mesh%detgd
        end if
+       mesh%uabc=0.0_gp
+       mesh%uabc(1:3,1:3)=mesh%habc(1:3,1:3)
+
        !Rescale habc using hgrid
        mesh%habc(:,1)=hgrids*mesh%habc(:,1)
        mesh%habc(:,2)=hgrids*mesh%habc(:,2)
@@ -820,8 +899,10 @@ contains
        mesh%volume_element=det_3x3(mesh%habc)
     else
        mesh%habc=0.0_gp
+       mesh%uabc=0.0_gp
        do i=1,3
           mesh%habc(i,i)=hgrids(i)
+          mesh%uabc(i,i)=1.0_gp
        end do
        mesh%angrad=onehalf*pi
        mesh%volume_element=product(mesh%hgrids)
@@ -830,14 +911,14 @@ contains
        mesh%gd(1,3) = 0.0_gp
        mesh%gd(2,2) = 1.0_gp
        mesh%gd(2,3) = 0.0_gp
-       mesh%gd(3,3) = 1.0_gp 
-       mesh%detgd = 1.0_gp 
+       mesh%gd(3,3) = 1.0_gp
+       mesh%detgd = 1.0_gp
        !Set the contravariant metric
        mesh%gu(1,1) = 1.0_gp
        mesh%gu(1,2) = 0.0_gp
        mesh%gu(1,3) = 0.0_gp
        mesh%gu(2,2) = 1.0_gp
-       mesh%gu(2,3) = 0.0_gp 
+       mesh%gu(2,3) = 0.0_gp
        mesh%gu(3,3) = 1.0_gp
     end if
     mesh%gd(2,1) = mesh%gd(1,2)
@@ -849,6 +930,8 @@ contains
     mesh%gu(3,2) = mesh%gu(2,3)
     do i=1,3
        do j=1,3
+          if (abs(mesh%habc(i,j)).lt.1.0d-15) mesh%habc(i,j)=0.0_gp
+          if (abs(mesh%uabc(i,j)).lt.1.0d-15) mesh%uabc(i,j)=0.0_gp
           if (abs(mesh%gd(i,j)).lt.1.0d-15) mesh%gd(i,j)=0.0_gp
           if (abs(mesh%gu(i,j)).lt.1.0d-15) mesh%gu(i,j)=0.0_gp
        end do
@@ -861,13 +944,21 @@ contains
   end function cell_new
 
   !> returns a logical array of size 3 which is .true. for all the periodic dimensions
+  pure function bc_periodic_dims(bc) result(peri)
+    implicit none
+    integer, dimension(3), intent(in) :: bc
+    logical, dimension(3) :: peri
+    peri= bc == PERIODIC
+  end function bc_periodic_dims
+
+  !> returns a logical array of size 3 which is .true. for all the periodic dimensions
   pure function cell_periodic_dims(mesh) result(peri)
     implicit none
     type(cell), intent(in) :: mesh
     logical, dimension(3) :: peri
     !local variables
 
-    peri= mesh%bc == PERIODIC
+    peri=bc_periodic_dims(mesh%bc)
 
   end function cell_periodic_dims
 
@@ -906,26 +997,105 @@ contains
     t=mesh%hgrids(dim)*(i-1)
   end function cell_r
 
-  pure function distance(mesh,v1,v2) result(d)
+  !>gives the value of the coordinates for an orthorhombic reference system
+  !! from their value wrt a nonorthorhombic system
+  pure function rxyz_ortho(mesh,rxyz)
+    implicit none
+    type(cell), intent(in) :: mesh
+    real(gp), dimension(3), intent(in) :: rxyz
+    real(gp), dimension(3) :: rxyz_ortho
+    ! local variables
+    integer :: i,j
+
+    if (mesh%orthorhombic) then
+     rxyz_ortho(1:3)=rxyz(1:3)
+    else
+     do i=1,3
+      rxyz_ortho(i)=0.0_gp
+      do j=1,3
+       rxyz_ortho(i)=rxyz_ortho(i)+mesh%uabc(i,j)*rxyz(j)
+      end do
+     end do
+    end if
+
+  end function rxyz_ortho
+
+
+  !>gives the value of the coordinates for a nonorthorhombic reference system
+  !! from their value wrt an orthorhombic system
+  pure function rxyz_nonortho(mesh,rxyz)
+    implicit none
+    type(cell), intent(in) :: mesh
+    real(gp), dimension(3), intent(in) :: rxyz
+    real(gp), dimension(3) :: rxyz_nonortho
+    ! local variables
+    integer :: i,j
+
+    if (mesh%orthorhombic) then
+     rxyz_nonortho(1:3)=rxyz(1:3)
+    else
+     do i=1,3
+      rxyz_nonortho(i)=0.0_gp
+      do j=1,3
+       rxyz_nonortho(i)=rxyz_nonortho(i)+mesh%uabc(i,j)*rxyz(j)
+      end do
+     end do
+    end if
+
+  end function rxyz_nonortho
+
+  pure function distance(mesh,r,c) result(d)
     use dictionaries, only: f_err_throw
     implicit none
-    real(gp), dimension(3), intent(in) :: v1,v2
+    real(gp), dimension(3), intent(in) :: r,c
     type(cell), intent(in) :: mesh
     real(gp) :: d
     !local variables
-    integer :: i
-    real(gp) :: d2
+    integer :: i !,j,k,ii
+    real(gp) :: d2!,dold
+    real(gp), dimension(3) :: rt!,ri,ci
+
+    rt=closest_r(mesh,r,c)
+    d2=square_gd(mesh,rt)
+    d=sqrt(d2)
 
     d=0.0_gp
     if (mesh%orthorhombic) then
        d2=0.0_gp
        do i=1,3
           d2=d2+r_wrap(mesh%bc(i),mesh%hgrids(i)*mesh%ndims(i),&
-               v1(i),v2(i))**2
+               r(i),c(i))**2
        end do
        d=sqrt(d2)
-    !else
-    !   call f_err_throw('Distance not yet implemented for nonorthorhombic cells')
+    else
+       rt=closest_r(mesh,r,c)
+       d2=square_gd(mesh,rt)
+       d=sqrt(d2)
+!       dold=1.0d100 !huge_number
+!       do ii=1,3
+!        if (mesh%bc(ii)==PERIODIC) then
+!          ri(ii)=mod(r(ii),mesh%ndims(ii)*mesh%hgrids(ii))
+!          ci(ii)=mod(c(ii),mesh%ndims(ii)*mesh%hgrids(ii))
+!        else
+!          ri(ii)=r(ii)
+!          ci(ii)=c(ii)
+!        end if
+!       end do
+!       do i=-mesh%bc(1),mesh%bc(1)
+!        do j=-mesh%bc(2),mesh%bc(2)
+!         do k=-mesh%bc(3),mesh%bc(3)
+!            rt(1)=ri(1)+real(i,kind=8)*mesh%ndims(1)*mesh%hgrids(1)
+!            rt(2)=ri(2)+real(j,kind=8)*mesh%ndims(2)*mesh%hgrids(2)
+!            rt(3)=ri(3)+real(k,kind=8)*mesh%ndims(3)*mesh%hgrids(3)
+!            d2=square_gd(mesh,rt-ci)
+!            d=sqrt(d2)
+!            if (d.lt.dold) then
+!               dold=d
+!            end if
+!         end do
+!        end do
+!       end do
+!       d=dold
     end if
 
   end function distance
@@ -952,15 +1122,22 @@ contains
 
   !> Calculates the minimum difference between two coordinates
   !!@warning: this is only valid if the coordinates wrap once.
-  pure function r_wrap(bc,alat,r,c)
+  pure function r_wrap(bc,alat,ri,ci)
     implicit none
     integer, intent(in) :: bc
-    real(gp), intent(in) :: r,c,alat
+    real(gp), intent(in) :: ri,ci,alat
     real(gp) :: r_wrap
+    ! local variables
+    real(gp) :: r,c
 
     !for periodic BC calculate mindist only if the center of mass can be defined without the modulo
+    r=ri
+    c=ci
     r_wrap=r-c
     if (bc==PERIODIC) then
+      r=mod(ri,alat)
+      c=mod(ci,alat)
+      r_wrap=r-c
        if (abs(r_wrap) > 0.5_gp*alat) then
           if (r < 0.5_gp*alat) then
              r_wrap=r+alat-c
@@ -980,13 +1157,50 @@ contains
     type(cell), intent(in) :: mesh
     real(gp), dimension(3) :: r
     !local variables
-    integer :: i
+    integer :: i,j,k,ii,icurr,jcurr,kcurr
+    real(gp) :: d,d2,dold
+    real(gp), dimension(3) :: rt,ri,ci!,c_ortho,r_ortho
 
     if (mesh%orthorhombic) then
        do i=1,3
           r(i)=r_wrap(mesh%bc(i),mesh%hgrids(i)*mesh%ndims(i),&
                v(i),center(i))
        end do
+    else
+       dold=1.0d100 !huge_number
+       icurr=0
+       jcurr=0
+       kcurr=0
+       do ii=1,3
+        if (mesh%bc(ii)==PERIODIC) then
+          ri(ii)=mod(v(ii),mesh%ndims(ii)*mesh%hgrids(ii))
+          ci(ii)=mod(center(ii),mesh%ndims(ii)*mesh%hgrids(ii))
+        else
+          ri(ii)=v(ii)
+          ci(ii)=center(ii)
+        end if
+       end do
+       do i=-mesh%bc(1),mesh%bc(1)
+        do j=-mesh%bc(2),mesh%bc(2)
+         do k=-mesh%bc(3),mesh%bc(3)
+            rt(1)=ri(1)+real(i,gp)*mesh%ndims(1)*mesh%hgrids(1)
+            rt(2)=ri(2)+real(j,gp)*mesh%ndims(2)*mesh%hgrids(2)
+            rt(3)=ri(3)+real(k,gp)*mesh%ndims(3)*mesh%hgrids(3)
+            d2=square_gd(mesh,rt-ci)
+            d=sqrt(d2)
+            if (d.lt.dold) then
+               dold=d
+               icurr=i
+               jcurr=j
+               kcurr=k
+            end if
+         end do
+        end do
+       end do
+       d=dold
+       r(1)=ri(1)+real(icurr,gp)*mesh%ndims(1)*mesh%hgrids(1) - ci(1)
+       r(2)=ri(2)+real(jcurr,gp)*mesh%ndims(2)*mesh%hgrids(2) - ci(2)
+       r(3)=ri(3)+real(kcurr,gp)*mesh%ndims(3)*mesh%hgrids(3) - ci(3)
     end if
 
   end function closest_r
@@ -1000,7 +1214,6 @@ contains
     real(gp), dimension(3), intent(in) :: v
     type(cell), intent(in) :: mesh !<definition of the cell
     real(gp) :: square
-    integer :: i,j
 
     if (mesh%orthorhombic) then
        square=v(1)**2+v(2)**2+v(3)**2
@@ -1034,7 +1247,6 @@ contains
     real(gp), dimension(3), intent(in) :: v
     type(cell), intent(in) :: mesh !<definition of the cell
     real(gp) :: square_gd
-    integer :: i,j
 
     if (mesh%orthorhombic) then
        square_gd=v(1)**2+v(2)**2+v(3)**2
@@ -1163,7 +1375,7 @@ contains
 
 end module box
 
-subroutine dotp_external_ortho(v1,v2,dotp)  
+subroutine dotp_external_ortho(v1,v2,dotp)
   use f_precisions, only: gp=>f_double
   implicit none
   real(gp), dimension(3), intent(in) :: v1,v2
@@ -1172,7 +1384,7 @@ subroutine dotp_external_ortho(v1,v2,dotp)
   dotp=v1(1)*v2(1)+v1(2)*v2(2)+v1(3)*v2(3)
 end subroutine dotp_external_ortho
 
-subroutine dotp_external_nonortho(g,v1,v2,dotp)  
+subroutine dotp_external_nonortho(g,v1,v2,dotp)
   use f_precisions, only: gp=>f_double
   implicit none
   real(gp), dimension(3,3), intent(in) :: g

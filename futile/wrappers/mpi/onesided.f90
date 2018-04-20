@@ -21,13 +21,15 @@ module f_onesided
     module procedure mpiwindowl_i0,mpiwindowi_i0
     module procedure mpiwindowl_li0,mpiwindowi_li0
     module procedure mpiwindowl_d1,mpiwindowi_d1
+    module procedure mpiwindowl_d2,mpiwindowi_d2
     module procedure mpiwindowl_i1,mpiwindowi_i1
     module procedure mpiwindowl_li1,mpiwindowi_li1
+    module procedure mpiwindowl_l0, mpiwindowi_l0
  end interface fmpi_win_create
 
   interface fmpi_get
      module procedure fmpi_get_d0,fmpi_get_i0,fmpi_get_li0
-     module procedure fmpi_get_li1,fmpi_get_d1,fmpi_get_i1
+     module procedure fmpi_get_li1,fmpi_get_d1,fmpi_get_i1,fmpi_get_d2
   end interface fmpi_get
 
   interface mpiput
@@ -169,6 +171,25 @@ module f_onesided
 
     end subroutine mpiwindowi_d1
 
+    subroutine mpiwindowl_d2(win,base,size,comm,dict_info,info)
+      implicit none
+      real(f_double), dimension(:,:), intent(in) :: base
+      integer(f_long),intent(in) :: size
+
+      include 'win-create-inc.f90'
+
+    end subroutine mpiwindowl_d2
+
+    subroutine mpiwindowi_d2(win,base,size,comm,dict_info,info)
+      implicit none
+      real(f_double), dimension(:,:), intent(in) :: base
+      integer(f_integer),intent(in) :: size
+
+      include 'win-create-inc.f90'
+
+    end subroutine mpiwindowi_d2
+
+
 
     subroutine mpiwindowi_i0(win,base,size,comm,dict_info,info)
       implicit none
@@ -243,6 +264,23 @@ module f_onesided
 
     end subroutine mpiwindowl_li1
 
+    subroutine mpiwindowi_l0(win,base,size,comm,dict_info,info)
+      implicit none
+      logical :: base
+      integer(f_integer),intent(in) :: size
+
+      include 'win-create-inc.f90'
+
+    end subroutine mpiwindowi_l0
+
+    subroutine mpiwindowl_l0(win,base,size,comm,dict_info,info)
+      implicit none
+      logical :: base
+      integer(f_long),intent(in) :: size
+
+      include 'win-create-inc.f90'
+
+    end subroutine mpiwindowl_l0
 
 
     
@@ -623,6 +661,34 @@ module f_onesided
     real(f_double), dimension(:), pointer :: origin_ptr
     include 'get-inc.f90'
   end subroutine fmpi_get_d1
+
+  subroutine fmpi_get_d2(origin_addr,target_rank,win,count,target_disp,origin_displ)
+    use dynamic_memory, only: f_subptr
+    implicit none
+    real(f_double), dimension(:,:), intent(in) :: origin_addr
+    !local variables
+    real(f_double), dimension(:), pointer :: origin_ptr
+    integer, intent(in) :: count
+    integer(fmpi_integer), intent(in) :: target_rank
+    type(fmpi_win), intent(in) :: win
+    integer(fmpi_address), intent(in), optional :: target_disp
+    integer, intent(in), optional :: origin_displ
+    ! Local variables
+    integer :: from
+    integer(fmpi_integer) :: ierr
+    integer(fmpi_address) :: tdispl
+    external :: MPI_GET
+
+    from=1
+    if(present(origin_displ)) from=origin_displ+1
+    origin_ptr=>f_subptr(origin_addr(1,1),size=count,from=from)
+    tdispl=int(0,fmpi_address)
+    if (present(target_disp)) tdispl=target_disp
+    call MPI_GET(origin_ptr,int(count,fmpi_integer),mpitype(origin_ptr),target_rank, &
+         tdispl,int(count,fmpi_integer),mpitype(origin_ptr), win%handle, ierr)
+    if (ierr/=FMPI_SUCCESS) call f_err_throw('Error in mpi_get',err_id=ERR_MPI_WRAPPERS)
+  end subroutine fmpi_get_d2
+
 
 
   subroutine fmpi_get_i0(origin_addr,target_rank,win,count,target_disp,origin_displ)

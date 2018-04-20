@@ -13,7 +13,7 @@ module sparsematrix_wrappers
   contains
 
     subroutine init_sparse_matrix_wrapper(iproc, nproc, nspin, orbs, lzd, astruct, &
-               store_index, init_matmul, imode, smat, smat_ref)
+               store_index, init_matmul, matmul_optimize_load_balancing, imode, smat, smat_ref)
       use module_types, only: orbitals_data, local_zone_descriptors, atomic_structure
       use sparsematrix_init, only: init_sparse_matrix
       implicit none
@@ -23,7 +23,7 @@ module sparsematrix_wrappers
       type(orbitals_data),intent(in) :: orbs
       type(local_zone_descriptors),intent(in) :: lzd
       type(atomic_structure),intent(in) :: astruct
-      logical,intent(in) :: store_index, init_matmul
+      logical,intent(in) :: store_index, init_matmul, matmul_optimize_load_balancing
       type(sparse_matrix),intent(out) :: smat
       type(sparse_matrix),intent(in),optional :: smat_ref !< reference sparsity pattern, in case smat must be at least as large as smat_ref
 
@@ -78,7 +78,8 @@ module sparsematrix_wrappers
       end if
       call init_sparse_matrix(iproc, nproc, bigdft_mpi%mpi_comm, &
            orbs%norbu, nnonzero, nonzero, nnonzero_mult, nonzero_mult, smat, &
-           init_matmul=init_matmul, nspin=nspin, geocode=astruct%geocode, &
+           init_matmul=init_matmul, matmul_optimize_load_balancing=matmul_optimize_load_balancing, &
+           nspin=nspin, geocode=astruct%geocode, &
            cell_dim=astruct%cell_dim, norbup=orbs%norbup, &
            isorbu=orbs%isorbu, store_index=store_index, on_which_atom=orbs%onwhichatom)
       call f_free_ptr(nonzero)
@@ -90,7 +91,7 @@ module sparsematrix_wrappers
     end subroutine init_sparse_matrix_wrapper
 
 
-    subroutine check_kernel_cutoff(iproc, orbs, atoms, hamapp_radius_incr, lzd)
+    subroutine check_kernel_cutoff(iproc, orbs, atoms, hamapp_radius_incr, lzd, only_check)
       use module_types
       use yaml_output
       implicit none
@@ -100,21 +101,24 @@ module sparsematrix_wrappers
       type(orbitals_data),intent(in) :: orbs
       type(atoms_data),intent(in) :: atoms
       type(local_zone_descriptors),intent(inout) :: lzd
+      logical,intent(in),optional :: only_check
 
       ! Local variables
       integer :: iorb, ilr, iat, iatype
       real(kind=8) :: cutoff_sf, cutoff_kernel
       character(len=20) :: atomname
-      logical :: write_data
+      logical :: write_data, only_check_
       logical,dimension(atoms%astruct%ntypes) :: write_atomtype
 
       write_atomtype=.true.
+      only_check_ = .false.
+      if (present(only_check)) only_check_ = only_check
 
-      if (iproc==0) then
+      if (.not. only_check_ .and. iproc==0) then
           call yaml_sequence_open('Check of kernel cutoff radius')
       end if
 
-      do iorb=1,orbs%norb
+      orbloop: do iorb=1,orbs%norb
           ilr=orbs%inwhichlocreg(iorb)
 
           ! cutoff radius of the support function, including shamop region
@@ -123,7 +127,14 @@ module sparsematrix_wrappers
           ! cutoff of the density kernel
           cutoff_kernel=lzd%llr(ilr)%locrad_kernel
 
-          ! check whether the date for this atomtype has already shoudl been written
+          if (only_check_) then
+              if (cutoff_sf>cutoff_kernel) then
+                  call f_err_throw(trim(yaml_toa(cutoff_sf))//'=cutoff_sf > cutoff_kernel='//trim(yaml_toa(cutoff_kernel)))
+              end if
+              cycle orbloop
+          end if
+
+          ! check whether the date for this atomtype has already been written
           iat=orbs%onwhichatom(iorb)
           iatype=atoms%astruct%iatype(iat)
           if (write_atomtype(iatype)) then
@@ -158,9 +169,9 @@ module sparsematrix_wrappers
           if (write_data) then
               call yaml_mapping_close()
           end if
-      end do
+      end do orbloop
 
-      if (iproc==0) then
+      if (.not. only_check_ .and. iproc==0) then
           call yaml_sequence_close
       end if
 
@@ -353,7 +364,8 @@ module sparsematrix_wrappers
           end do
           call init_sparse_matrix(iproc, nproc, bigdft_mpi%mpi_comm, &
                norb, norb*norbp, nonzero, norb*norbp, nonzero, smat(ispin), &
-               init_matmul=.false., nspin=input%nspin, geocode=geocode, &
+               init_matmul=.false., matmul_optimize_load_balancing=.false., &
+               nspin=input%nspin, geocode=geocode, &
                cell_dim=cell_dim, norbup=norbp, isorbu=isorb, &
                store_index=input%store_index, on_which_atom=orbs%onwhichatom, print_info=.false.)
           call f_free(nonzero)
@@ -387,7 +399,8 @@ module sparsematrix_wrappers
           call init_sparse_matrix(iproc, nproc, bigdft_mpi%mpi_comm, &
                orbs_aux%norb, orbs_aux%norbu*orbs_aux%norbup, nonzero, &
                orbs_aux%norbu*orbs_aux%norbup, nonzero, smat_extra(ispin), &
-               init_matmul=.false., nspin=input%nspin, geocode=geocode, cell_dim=cell_dim, &
+               init_matmul=.false., matmul_optimize_load_balancing=.false., &
+               nspin=input%nspin, geocode=geocode, cell_dim=cell_dim, &
                norbup=orbs_aux%norbp, isorbu=orbs_aux%isorb, &
                store_index=input%store_index, on_which_atom=orbs_aux%onwhichatom, print_info=.false.)
           call f_free(nonzero)

@@ -142,6 +142,7 @@ module module_input_keys
      logical :: orthogonalize_ao !< orthogonalize the AO generated as input guess
      logical :: reset_DIIS_history !< reset the DIIS history when starting the loop which optimizes the support functions
      real(kind=8) :: delta_pnrm !<stop the kernel optimization if the density/potential difference has decreased by this factor
+     logical :: consider_entropy !< Indicate whether the entropy contribution to the total energy shall be considered
   end type linearInputParameters
 
   !> Structure controlling the nature of the accelerations (Convolutions, Poisson Solver)
@@ -219,7 +220,7 @@ module module_input_keys
      type(f_enumerator) :: output_denspot        !< 0= No output, 1= density, 2= density+potential
      integer :: dispersion            !< Dispersion term
      type(f_enumerator) :: output_wf!_format      !< Output Wavefunction format
-     real(gp) :: hx,hy,hz   !< Step grid parameter (hgrid)
+     real(gp) :: hx,hy,hz   !< Grid step parameter (hgrid)
      integer :: nx,ny,nz   !< Number of divisions
      real(gp) :: crmult     !< Coarse radius multiplier
      real(gp) :: frmult     !< Fine radius multiplier
@@ -232,6 +233,8 @@ module module_input_keys
      logical :: calculate_strten
      !> calculate the magnetic torque as in the constrained field dynamics
      logical :: calculate_magnetic_torque
+     !> perform LLG spin dynamics using magnetic torques
+     logical :: do_spin_dynamics         
      !character(len=8) :: set_epsilon !< method for setting the dielectric constant
 
      !> solver parameters
@@ -797,11 +800,11 @@ contains
     call kpt_input_analyse(bigdft_mpi%iproc, in, dict//KPT_VARIABLES, &
          & atoms%astruct%sym, atoms%astruct%geocode, atoms%astruct%cell_dim)
 
-    call atoms_fill(atoms,dict,in%frmult,in%nspin,&
+    call atoms_fill(atoms,dict,in%nspin,&
          in%multipole_preserving,in%mp_isf,in%ixc,in%alpha_hartree_fock)
 
 !!$    ! Update atoms with pseudo information.
-!!$    call psp_dict_analyse(dict, atoms, in%frmult)
+!!$    call psp_dict_analyse(dict, atoms)
 !!$    call atomic_data_set_from_dict(dict,IG_OCCUPATION, atoms, in%nspin)
 !!$
 !!$    !fill the requests for the atomic density matrix
@@ -1770,6 +1773,8 @@ contains
           in%calculate_strten=val
        case(MAGNETIC_TORQUE)
           in%calculate_magnetic_torque=val
+       case(SPIN_DYNAMICS)
+          in%do_spin_dynamics=val
        case (PLOT_MPPOT_AXES)
            in%plot_mppot_axes = val
        case (PLOT_POT_AXES)
@@ -2213,6 +2218,8 @@ contains
           in%lin%precision_FOE_eigenvalues = val
        case (MULTIPOLE_CENTERS)
           ! Do nothing
+       case (CONSIDER_ENTROPY)
+          in%lin%consider_entropy = val
        case DEFAULT
           if (bigdft_mpi%iproc==0) &
                call yaml_warning("unknown input key '" // trim(level) // "/" // trim(dict_key(val)) // "'")
@@ -2508,6 +2515,7 @@ contains
     nullify(in%at_gamma)
     call f_zero(in%calculate_strten)
     call f_zero(in%calculate_magnetic_torque)
+    call f_zero(in%do_spin_dynamics)
     call f_zero(in%nab_options)
     in%sdos=.false.
     !in%profiling_depth=-1
@@ -3231,7 +3239,7 @@ contains
 
     !Geometry imput Parameters
     if (in%ncount_cluster_x > 0) then
-       call yaml_comment('Geometry optimization Input Parameters (file: '//trim(input_id)//'.geopt)',hfill='-')
+       call yaml_comment('Geometry optimization Input Parameters',hfill='-')
        call yaml_mapping_open('Geometry Optimization Parameters')
        call yaml_map('Maximum steps',in%ncount_cluster_x)
        call yaml_map('Algorithm', in%geopt_approach)
@@ -3495,7 +3503,7 @@ contains
                    !fr contains a format.
                    call astruct_file_merge_to_dict(dict,POSINP, trim(str),pos_format=trim(fr))
                 else
-                   call f_err_throw("The key 'format' from posinp section should be contained a valid format.", &
+                   call f_err_throw("The key 'format' from posinp section should specify a valid format.", &
                         & err_name='BIGDFT_INPUT_VARIABLES_ERROR')
                 end if
              else

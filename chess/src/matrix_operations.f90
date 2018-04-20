@@ -82,31 +82,31 @@ module matrix_operations
         type(foe_data),intent(inout),optional :: ice_obj
         
         ! Local variables
-        integer :: iorb, jorb, info, iiorb, isorb, norbp, ii, ii_inv, iii, ierr, i, its, maxits
-        integer :: matrixindex_in_compressed, nmaxvalk, icalc, verbosity_
+        integer :: iorb, isorb, norbp, ii, ierr, i, its
+        integer :: icalc, verbosity_
         real(kind=mp), dimension(:,:), pointer :: inv_ovrlpp, ovrlppowerp
-        real(kind=mp), dimension(:,:), pointer :: inv_ovrlp_half_tmp
+        !real(kind=mp), dimension(:,:), pointer :: inv_ovrlp_half_tmp
         real(kind=mp), dimension(:), pointer :: ovrlpminonep_new
         real(kind=mp), dimension(:,:,:), pointer :: ovrlpminone, ovrlp_local, inv_ovrlp_local, ovrlppoweroldp, ovrlpminonep
         real(kind=mp) :: factor
-        logical :: ovrlp_allocated, inv_ovrlp_allocated
+        !logical :: ovrlp_allocated
       
         ! new for sparse taylor
-        integer :: nout, nseq, ispin, ishift, ishift2, isshift, ilshift, ilshift2, nspin, iline, icolumn, ist, j, iorder_taylor
-        integer,dimension(:,:,:),allocatable :: istindexarr
+        integer :: ispin, ishift, ishift2, isshift, ilshift, ilshift2, nspin, iline, icolumn, ist, j, iorder_taylor
+        !integer,dimension(:,:,:),allocatable :: istindexarr
         real(kind=mp),dimension(:),pointer :: ovrlpminone_sparse
-        real(kind=mp),dimension(:),allocatable :: ovrlp_compr_seq, ovrlpminone_sparse_seq, ovrlp_large_compr, tmparr, resmat
+        real(kind=mp),dimension(:),allocatable :: ovrlp_compr_seq, ovrlpminone_sparse_seq, ovrlp_large_compr, tmparr
         real(kind=mp),dimension(:),allocatable :: invovrlp_compr_seq, ovrlpminoneoldp_new
-        real(kind=mp),dimension(:,:),allocatable :: ovrlpminoneoldp, invovrlpp, ovrlp_largep
-        real(kind=mp),dimension(:,:,:),allocatable :: invovrlpp_arr
+        !real(kind=mp),dimension(:,:),allocatable :: invovrlpp
+        !real(kind=mp),dimension(:,:,:),allocatable :: invovrlpp_arr
         real(kind=mp),dimension(:,:),allocatable :: invovrlpp_arr_new
         real(kind=mp),dimension(:,:),allocatable :: Amat12p, Amat21p, Amat21
         real(kind=mp),dimension(:,:),pointer :: Amat12, Amat11p, Amat22p
         real(kind=mp),dimension(:),pointer :: Amat12_compr
-        real(kind=mp),dimension(:),allocatable :: Amat21_compr, Amat12_seq, Amat21_seq, tmpmat
+        real(kind=mp),dimension(:),allocatable :: Amat21_compr, Amat12_seq, Amat21_seq
         integer,parameter :: SPARSE=1
         integer,parameter :: DENSE=2
-        real(kind=mp) :: ex, max_error_p, mean_error_p, tt1, tt2
+        !real(kind=mp) :: ex
         real(kind=mp),dimension(:),allocatable :: factor_arr
         real(kind=mp),dimension(:),allocatable :: ovrlp_largep_new, invovrlpp_new
         real(kind=mp),dimension(:),allocatable :: Amat12p_new, Amat21p_new
@@ -1141,7 +1141,8 @@ module matrix_operations
         use sparsematrix, only: sparsemm_new
         use dynamic_memory
         implicit none
-        integer,intent(in) :: iproc, nproc, comm, norb, norbp, isorb, nseq, nout, power
+        integer,intent(in) :: iproc, nproc, comm, norb, norbp, isorb, nout, power
+        integer(kind=8),intent(in) :: nseq
         type(sparse_matrix) :: smat
         real(kind=mp),dimension(nseq),intent(in) :: amat_seq
         real(kind=mp),dimension(smat%smmm%nvctrp),intent(in) :: bmatp
@@ -1149,9 +1150,9 @@ module matrix_operations
         real(kind=mp),dimension(nseq),intent(in),optional :: dmat_seq
         real(kind=mp),dimension(smat%smmm%nvctrp),intent(in),optional :: cmatp
       
-        real(kind=mp), allocatable, dimension(:,:) :: tmp, tmp2
+        !real(kind=mp), allocatable, dimension(:,:) :: tmp, tmp2
         real(kind=mp), allocatable, dimension(:) :: tmpp, tmp2p
-        integer :: ierr, i,j
+        !integer :: ierr, i,j
       
         call f_routine(id='check_accur_overlap_minus_one_sparse_new')
 
@@ -1215,24 +1216,24 @@ module matrix_operations
         real(kind=mp),intent(out),optional :: max_error, mean_error
         
         ! Local variables
-        integer :: iorb, jorb, info, iiorb, isorb, norbp, ii, ii_inv, iii, ierr, i, its, maxits
-        integer :: matrixindex_in_compressed, nmaxvalk
+        integer :: iorb, i, its
+        !integer :: matrixindex_in_compressed, nmaxvalk
         real(kind=mp), dimension(:,:), pointer :: ovrlpminonep, ovrlpminone, inv_ovrlpp, ovrlppowerp, ovrlppoweroldp
-        real(kind=mp), dimension(:,:), pointer :: inv_ovrlp_half_tmp, ovrlp_local, inv_ovrlp_local
+        !real(kind=mp), dimension(:,:), pointer :: inv_ovrlp_half_tmp, ovrlp_local, inv_ovrlp_local
         real(kind=mp) :: factor
-        logical :: ovrlp_allocated, inv_ovrlp_allocated
+        !logical :: ovrlp_allocated , inv_ovrlp_allocated
       
         ! new for sparse taylor
-        integer :: nout, nseq
-        integer,dimension(:,:,:),allocatable :: istindexarr
-        real(kind=mp),dimension(:),pointer :: ovrlpminone_sparse
-        real(kind=mp),dimension(:),allocatable :: ovrlp_compr_seq, ovrlpminone_sparse_seq, ovrlp_large_compr
-        real(kind=mp),dimension(:),allocatable :: invovrlp_compr_seq
-        real(kind=mp),dimension(:,:),allocatable :: ovrlpminoneoldp, invovrlpp, ovrlp_largep
+        !integer :: nout, nseq
+        !integer,dimension(:,:,:),allocatable :: istindexarr
+        !real(kind=mp),dimension(:),pointer :: ovrlpminone_sparse
+        !real(kind=mp),dimension(:),allocatable :: ovrlpminone_sparse_seq
+        !real(kind=mp),dimension(:),allocatable :: invovrlp_compr_seq
+        !real(kind=mp),dimension(:,:),allocatable :: ovrlp_largep
         real(kind=mp),dimension(:,:),allocatable :: Amat12p, Amat21p, Amat21
         real(kind=mp),dimension(:,:),pointer :: Amat12, Amat11p, Amat22p
-        real(kind=mp),dimension(:),pointer :: Amat12_compr
-        real(kind=mp),dimension(:),allocatable :: Amat21_compr, Amat12_seq, Amat21_seq
+        !real(kind=mp),dimension(:),pointer :: Amat12_compr
+        !real(kind=mp),dimension(:),allocatable :: Amat21_compr, Amat12_seq, Amat21_seq
         integer,parameter :: SPARSE=1
         integer,parameter :: DENSE=2
       
@@ -1395,9 +1396,9 @@ module matrix_operations
         type(sparse_matrix),intent(in) :: smat
         real(kind=mp),intent(out) :: max_error, mean_error
       
-        real(kind=mp), allocatable, dimension(:,:) :: tmp, tmp2
+        !real(kind=mp), allocatable, dimension(:,:) :: tmp, tmp2
         real(kind=mp), allocatable, dimension(:,:) :: tmpp, tmp2p
-        integer :: ierr, i,j
+        !integer :: ierr, i,j
       
         call f_routine(id='check_accur_overlap_minus_one')
       
@@ -1459,7 +1460,7 @@ module matrix_operations
         real(8),intent(out):: max_deviation, mean_deviation
       
         ! Local variables
-        integer:: iorb, iiorb, jorb, ierr, ind, iline, icolumn, i, ii
+        integer:: ind, iline, icolumn, i, ii
         real(8):: error, num
         real(kind=mp),dimension(2) :: reducearr
       
@@ -1824,7 +1825,7 @@ module matrix_operations
         logical, intent(in) :: plusminus
         type(sparse_matrix),intent(in) :: smat
       
-        integer :: info, iorb, jorb, ierr, iiorb, isorb, norbp, lwork, jjorb,ninetynine
+        integer :: info, iorb, jorb, ierr, isorb, norbp, lwork, jjorb,ninetynine
         real(kind=mp),dimension(:),allocatable :: eval, work
         real(kind=mp),dimension(:,:),allocatable :: tempArr, orig_ovrlp
         real(kind=mp),dimension(:,:),pointer :: inv_ovrlp_halfp
@@ -1834,7 +1835,7 @@ module matrix_operations
         real(kind=mp), allocatable, dimension(:) :: temp_vec
         logical, parameter :: symmetric=.true.
         logical, parameter :: check_lapack=.true.
-        integer :: korb, jproc
+        integer :: jproc
         integer,dimension(:),allocatable :: recvcounts
       
       
@@ -2085,7 +2086,7 @@ module matrix_operations
         real(8),intent(out):: max_deviation, mean_deviation
       
         ! Local variables
-        integer:: iorb, iiorb, jorb, ierr, ind
+        integer:: iorb, iiorb, jorb, ind
         real(8):: error, num
         real(kind=mp),dimension(2) :: reducearr
       
@@ -2191,7 +2192,7 @@ module matrix_operations
         real(8),intent(out):: max_deviation, mean_deviation
       
         ! Local variables
-        integer:: iorb, iiorb, jorb, ierr, ind
+        integer:: iorb, iiorb, jorb, ind
         real(8):: error, num
         real(kind=mp),dimension(2) :: reducearr
       
@@ -2250,7 +2251,7 @@ module matrix_operations
         real(8),intent(out):: max_deviation, mean_deviation
       
         ! Local variables
-        integer:: iorb, iiorb, jorb, ierr, ind, iline, icolumn, i, ii
+        integer:: ind, iline, icolumn, i, ii
         real(8):: error, num
         real(kind=mp),dimension(2) :: reducearr
 
@@ -2336,9 +2337,9 @@ module matrix_operations
       
         ! Local variables
         integer(kind=mp) :: ii, iend
-        integer :: i, iorb, n, istat, iall, jorb, korb, jjorb, kkorb!, ilr
-        integer :: iiorb, ierr, iseg, ind, ishift_ovrlp, ishift_inv_ovrlp, ispin
-        real(kind=mp) :: error
+        integer :: i, iorb, n, jorb, korb, jjorb, kkorb!, ilr
+        integer :: iiorb, iseg, ind, ishift_ovrlp, ishift_inv_ovrlp, ispin
+        !real(kind=mp) :: error
         real(kind=mp),dimension(:,:),pointer :: ovrlp_tmp, ovrlp_tmp_inv_half
         logical,dimension(:),allocatable :: in_neighborhood
         character(len=*),parameter :: subname='overlap_power_minus_one_half_parallel'
@@ -2622,7 +2623,7 @@ module matrix_operations
     !! on one atom and calculate S^{-1/2} for this subblock. The remaining parts of the matrix are empty.
     subroutine calculate_S_minus_one_half_onsite(iproc, nproc, comm, norb, onwhichatom, smats, smatl, ovrlp_, inv_ovrlp_)
       use sparsematrix_init, only: matrixindex_in_compressed
-      use sparsematrix, only: extract_taskgroup
+      use sparsematrix, only: extract_taskgroup, compress_matrix_distributed_wrapper
       use dynamic_memory
       implicit none
 
@@ -2634,9 +2635,10 @@ module matrix_operations
 
       ! Local variables
       integer :: nat, natp, isat, ii, iorb, iiat, iiat_old, n, jorb, jjat, ind, korb, isshift, ilshift, ispin
-      integer :: iiorb_min, iiorb_max, iiorb, jjorb, iseg
-      real(kind=mp),dimension(:,:),allocatable :: matrix
-      real(kind=mp),dimension(:),allocatable :: matrix_compr_notaskgroup
+      integer :: iiorb_min, iiorb_max, iiorb, jjorb, iseg, norb_max, is, ie
+      real(kind=mp),dimension(:,:),allocatable :: matrix, matrix_large
+      logical :: isfound, iefound
+      !real(kind=mp),dimension(:),allocatable :: matrix_compr_notaskgroup
 
       call f_routine(id='calculate_S_minus_one_half_onsite')
 
@@ -2712,65 +2714,163 @@ module matrix_operations
       !# END OLD ##################################################################
 
 
-      !# NEW ######################################################################
-      !isegstart=smatl%istsegline(smatl%isfvctr+1)
-      !isegend=smatl%istsegline(smatl%isfvctr+smatl%nfvctrp)+smatl%nsegline(smatl%isfvctr+smatl%nfvctrp)-1
-      iiorb_min = smatl%nfvctr
-      iiorb_max = 0
-      do iseg=smatl%istartendseg_local(1),smatl%istartendseg_local(2)
-          ii=smatl%keyv(iseg)-1
-          ! A segment is always on one line, therefore no double loop
-          do jorb=smatl%keyg(1,1,iseg),smatl%keyg(2,1,iseg)
-              ii=ii+1
-              iiorb = smatl%keyg(1,2,iseg)
-              jjorb = jorb
-              iiorb_min = min(iiorb_min,iiorb,jjorb)
-              iiorb_max = max(iiorb_max,iiorb,jjorb)
-          end do
+!!      !# NEW ######################################################################
+!!      !isegstart=smatl%istsegline(smatl%isfvctr+1)
+!!      !isegend=smatl%istsegline(smatl%isfvctr+smatl%nfvctrp)+smatl%nsegline(smatl%isfvctr+smatl%nfvctrp)-1
+!!      iiorb_min = smatl%nfvctr
+!!      iiorb_max = 0
+!!      do iseg=smatl%istartendseg_local(1),smatl%istartendseg_local(2)
+!!          ii=smatl%keyv(iseg)-1
+!!          ! A segment is always on one line, therefore no double loop
+!!          do jorb=smatl%keyg(1,1,iseg),smatl%keyg(2,1,iseg)
+!!              ii=ii+1
+!!              iiorb = smatl%keyg(1,2,iseg)
+!!              jjorb = jorb
+!!              iiorb_min = min(iiorb_min,iiorb,jjorb)
+!!              iiorb_max = max(iiorb_max,iiorb,jjorb)
+!!          end do
+!!      end do
+!!
+!!      do ispin=1,smats%nspin
+!!
+!!          isshift = (ispin-1)*smats%nvctrp_tg
+!!          ilshift = (ispin-1)*smatl%nvctrp_tg
+!!
+!!          iiat_old = -1
+!!          do iorb=iiorb_min,iiorb_max
+!!              iiat = onwhichatom(iorb)
+!!              if (iiat==iiat_old) cycle
+!!              iiat_old = iiat
+!!              n = 0
+!!              !write(*,*) 'iproc, iorb, iiat', iproc, iorb, iiat
+!!              do jorb=iorb,norb
+!!                  jjat = onwhichatom(jorb)
+!!                  if (jjat/=iiat) exit
+!!                  n = n + 1
+!!              end do
+!!              matrix = f_malloc((/n,n/),id='matrix')
+!!              do jorb=iorb,iorb+n-1
+!!                  do korb=iorb,iorb+n-1
+!!                      ind = matrixindex_in_compressed(smats, korb, jorb) - smats%isvctrp_tg + isshift
+!!                      !!write(2000+iproc,*) 'iorb, jorb, korb, mic, is, ind', &
+!!                      !!     iorb, jorb, korb, matrixindex_in_compressed(smats, korb, jorb), smats%isvctrp_tg, ind
+!!                      matrix(korb-iorb+1,jorb-iorb+1) = ovrlp_%matrix_compr(ind)
+!!                      !!write(1000+iproc,*) 'iorb, jorb, korb, ind, val', iorb, jorb, korb, ind, ovrlp_%matrix_compr(ind)
+!!                  end do
+!!              end do
+!!              ! Passing 0 as comm... not best practice
+!!              call overlap_plus_minus_one_half_exact(0,1,0,n,-1,.false.,matrix,smats)
+!!              do jorb=iorb,iorb+n-1
+!!                  do korb=iorb,iorb+n-1
+!!                      ind = matrixindex_in_compressed(smatl, korb, jorb) - smatl%isvctrp_tg + ilshift
+!!                      !ind = matrixindex_in_compressed(smatl, korb, jorb) + ilshift
+!!                      inv_ovrlp_%matrix_compr(ind) = matrix(korb-iorb+1,jorb-iorb+1)
+!!                      !matrix_compr_notaskgroup(ind) = matrix(korb-iorb+1,jorb-iorb+1)
+!!                  end do
+!!              end do
+!!              call f_free(matrix)
+!!          end do
+!!
+!!      end do
+!!      open(unit=1000+iproc,file='old'//adjustl(trim(yaml_toa(iproc)))//'.dat')
+!!      do ii=1,size(inv_ovrlp_%matrix_compr)
+!!          write(1000+iproc,*) inv_ovrlp_%matrix_compr(ii)
+!!      end do
+!!      close(unit=1000+iproc)
+!!      !# END NEW ##################################################################
+
+
+      !# VERYNEW ########################################
+
+      ! Count the maximal number of support functions per atom
+      norb_max = 0
+      ii = 0
+      iiat_old = -1
+      do iorb=1,smats%nfvctr
+          iiat = onwhichatom(iorb)
+          if (iiat == iiat_old) then
+              ii = ii + 1
+          else
+              norb_max = max(norb_max,ii)
+              ii = 1
+              iiat_old = iiat
+          end if
       end do
 
-      do ispin=1,smats%nspin
 
+      call f_zero(inv_ovrlp_%matrix_compr)
+      if (smats%nfvctrp /= smatl%nfvctrp) then
+          call f_err_throw('smats%nfvctrp /= smatl%nfvctrp')
+      end if
+      if (smats%isfvctr /= smatl%isfvctr) then
+          call f_err_throw('smats%isfvctr /= smatl%isfvctr')
+      end if
+      matrix_large = f_malloc([smats%nfvctr,smats%nfvctrp],id='matrix_large')
+      do ispin=1,smats%nspin
+          call f_zero(matrix_large)
           isshift = (ispin-1)*smats%nvctrp_tg
           ilshift = (ispin-1)*smatl%nvctrp_tg
-
-          iiat_old = -1
-          do iorb=iiorb_min,iiorb_max
+          !iiat_old = -1
+          do iorb=smats%isfvctr+1,smats%isfvctr+smats%nfvctrp
               iiat = onwhichatom(iorb)
-              if (iiat==iiat_old) cycle
-              iiat_old = iiat
+              !if (iiat==iiat_old) cycle
+              !iiat_old = iiat
               n = 0
-              !write(*,*) 'iproc, iorb, iiat', iproc, iorb, iiat
-              do jorb=iorb,norb
+              isfound = .false.
+              iefound = .false.
+              is = 1
+              ie = smats%nfvctr
+              do jorb=max(1,iorb-norb_max+1),min(smats%nfvctr,norb+norb_max-1)
                   jjat = onwhichatom(jorb)
-                  if (jjat/=iiat) exit
-                  n = n + 1
+                  if (jjat==iiat) then
+                      if (.not.isfound) then
+                          is = jorb
+                          isfound = .true.
+                      end if
+                      n = n + 1
+                  else
+                      if (isfound .and. .not.iefound) then
+                          ie = jorb-1
+                          iefound = .true.
+                      end if
+                  end if
+                  !write(*,*) 'iorb, jorb, iiat, jjat, is, ie, n', iorb, jorb, iiat, jjat, is, ie, n
               end do
+              !write(*,*) 'iproc, iorb, is, ie', iproc, iorb, is, ie
               matrix = f_malloc((/n,n/),id='matrix')
-              do jorb=iorb,iorb+n-1
-                  do korb=iorb,iorb+n-1
+              do jorb=is,ie
+                  do korb=is,ie
                       ind = matrixindex_in_compressed(smats, korb, jorb) - smats%isvctrp_tg + isshift
-                      !!write(2000+iproc,*) 'iorb, jorb, korb, mic, is, ind', &
-                      !!     iorb, jorb, korb, matrixindex_in_compressed(smats, korb, jorb), smats%isvctrp_tg, ind
-                      matrix(korb-iorb+1,jorb-iorb+1) = ovrlp_%matrix_compr(ind)
-                      !!write(1000+iproc,*) 'iorb, jorb, korb, ind, val', iorb, jorb, korb, ind, ovrlp_%matrix_compr(ind)
+                      matrix(korb-is+1,jorb-is+1) = ovrlp_%matrix_compr(ind)
                   end do
               end do
               ! Passing 0 as comm... not best practice
-              call  overlap_plus_minus_one_half_exact(0,1,0,n,-1,.false.,matrix,smats)
-              do jorb=iorb,iorb+n-1
-                  do korb=iorb,iorb+n-1
-                      ind = matrixindex_in_compressed(smatl, korb, jorb) - smatl%isvctrp_tg + ilshift
-                      !ind = matrixindex_in_compressed(smatl, korb, jorb) + ilshift
-                      inv_ovrlp_%matrix_compr(ind) = matrix(korb-iorb+1,jorb-iorb+1)
-                      !matrix_compr_notaskgroup(ind) = matrix(korb-iorb+1,jorb-iorb+1)
+              call overlap_plus_minus_one_half_exact(0,1,0,n,-1,.false.,matrix,smats)
+              !do jorb=iorb,iorb
+                  do korb=is,ie
+                      !matrix_large(korb,jorb-smats%isfvctr) = matrix(korb-iorb+1,jorb-iorb+1)
+                      matrix_large(korb,iorb-smats%isfvctr) = matrix(korb-is+1,iorb-is+1)
                   end do
-              end do
+              !end do
               call f_free(matrix)
           end do
-
+          !!open(unit=3000+iproc,file='newfull'//adjustl(trim(yaml_toa(iproc)))//'.dat')
+          !!do ii=1,size(matrix_large,2)
+          !!    do n=1,size(matrix_large,1)
+          !!        write(3000+iproc,*) matrix_large(n,ii)
+          !!    end do
+          !!end do
+          !!close(unit=3000+iproc)
+          call compress_matrix_distributed_wrapper(iproc, nproc, smatl, DENSE_PARALLEL, &
+               matrix_large, ONESIDED_FULL, inv_ovrlp_%matrix_compr(ilshift+1:ilshift+smatl%nvctrp_tg))
       end do
-      !# END NEW ##################################################################
+      call f_free(matrix_large)
+      !!open(unit=2000+iproc,file='new'//adjustl(trim(yaml_toa(iproc)))//'.dat')
+      !!do ii=1,size(inv_ovrlp_%matrix_compr)
+      !!    write(2000+iproc,*) inv_ovrlp_%matrix_compr(ii)
+      !!end do
+      !!close(unit=2000+iproc)
+      !# END VERYNEW ####################################
 
       call f_release_routine()
 
@@ -2803,9 +2903,9 @@ module matrix_operations
       ! Local variables
       type(matrices),dimension(:),pointer :: inv_ovrlp
       type(matrices),dimension(1),target :: inv_ovrlp_
-      real(kind=8),dimension(:),allocatable :: weight_matrix_compr_tg, proj_ovrlp_half_compr
-      real(kind=8) :: max_error, mean_error
-      integer :: ioperation
+      real(kind=8),dimension(:),allocatable :: proj_ovrlp_half_compr
+      !real(kind=8) :: max_error, mean_error
+      integer :: ioperation, ispin, ist
       integer, dimension(1) :: power
       logical :: inv_ovrlp_ext_present
 
@@ -2847,13 +2947,19 @@ module matrix_operations
 
       proj_ovrlp_half_compr = sparsematrix_malloc0(smatl,iaction=SPARSE_TASKGROUP,id='proj_mat_compr')
       !if (norbp>0) then
-         call matrix_matrix_mult_wrapper(iproc, nproc, smatl, &
-              matrix%matrix_compr, inv_ovrlp(1)%matrix_compr, proj_ovrlp_half_compr)
+      do ispin=1,smatl%nspin
+          ist=(ispin-1)*smatl%nvctrp_tg+1
+          call matrix_matrix_mult_wrapper(iproc, nproc, smatl, &
+               matrix%matrix_compr(ist:), inv_ovrlp(1)%matrix_compr(ist:), proj_ovrlp_half_compr(ist:))
+      end do
       !end if
       !weight_matrix_compr_tg = sparsematrix_malloc0(smatl,iaction=SPARSE_TASKGROUP,id='weight_matrix_compr_tg')
       !if (norbp>0) then
-         call matrix_matrix_mult_wrapper(iproc, nproc, smatl, &
-              inv_ovrlp(1)%matrix_compr, proj_ovrlp_half_compr, weight_matrix_compr)
+      do ispin=1,smatl%nspin
+          ist=(ispin-1)*smatl%nvctrp_tg+1
+          call matrix_matrix_mult_wrapper(iproc, nproc, smatl, &
+               inv_ovrlp(1)%matrix_compr(ist:), proj_ovrlp_half_compr(ist:), weight_matrix_compr(ist:))
+      end do
       !end if
       call f_free(proj_ovrlp_half_compr)
 

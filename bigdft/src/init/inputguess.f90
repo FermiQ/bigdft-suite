@@ -150,22 +150,27 @@ subroutine inputguess_gaussian_orbitals(iproc,nproc,at,rxyz,nvirt,nspin,&
    psigau = f_malloc_ptr((/ norbe , orbse%nspinor , max(orbse%norbp,1) /),id='psigau')
    iorbtolr = f_malloc(orbse%norbp,id='iorbtolr')
 
+
    !fill just the interesting part of the orbital
    if (present(mapping)) then
-       ! this will be use for the linear scaling part
-       if(present(quartic_prefactor)) then
-           call AtomicOrbitals(iproc,at,rxyz,norbe,orbse,norbsc,nspin,eks,G,&
-                psigau(1,1,1),&
-                iorbtolr,mapping,quartic_prefactor)
-       else
-           call AtomicOrbitals(iproc,at,rxyz,norbe,orbse,norbsc,nspin,eks,G,&
-                psigau(1,1,1),&
-                iorbtolr,mapping)
-       end if
+      ! this will be use for the linear scaling part
+      if(present(quartic_prefactor)) then
+  !      print *,'YYYYYYYAAAAAAAAAAAMMMMMMMMMLLLLLLLLL',1
+         call AtomicOrbitals(iproc,at,rxyz,norbe,orbse,norbsc,nspin,eks,G,&
+            psigau(1,1,1),&
+            iorbtolr,mapping,quartic_prefactor)
+      else
+  !      print *,'YYYYYYYAAAAAAAAAAAMMMMMMMMMLLLLLLLLL',2
+         call AtomicOrbitals(iproc,at,rxyz,norbe,orbse,norbsc,nspin,eks,G,&
+            psigau(1,1,1),&
+            iorbtolr,mapping)
+      end if
    else
-       call AtomicOrbitals(iproc,at,rxyz,norbe,orbse,norbsc,nspin,eks,G,&
-            psigau(1,1,1),iorbtolr)
+  !   print *,'YYYYYYYAAAAAAAAAAAMMMMMMMMMLLLLLLLLL',3
+      call AtomicOrbitals(iproc,at,rxyz,norbe,orbse,norbsc,nspin,eks,G,&
+         psigau(1,1,1),iorbtolr)
    end if
+  !print *,'YYYYYYYAAAAAAAAAAAMMMMMMMMMLLLLLLLLL',4
 
    call f_free(iorbtolr)
 
@@ -226,30 +231,6 @@ subroutine readAtomicOrbitals(at,norbe,norbsc,nspin,nspinor,norbsc_arr,locrad)
          norbsc=norbsc+iorbsc_count
       end if
 
-!!$      nsccode=at%aoig(iat)%iasctype
-!!$      if (nsccode/=0) then !the atom has some semicore orbitals
-!!$         iatsc=iatsc+1
-!!$         niasc=nsccode
-!!$         !count the semicore orbitals for this atom
-!!$         iorbsc_count=0
-!!$         do lsc=4,1,-1
-!!$            nlsc=niasc/4**(lsc-1)
-!!$            iorbsc_count=iorbsc_count+nlsc*(2*lsc-1)
-!!$            if (nlsc > 2) then
-!!$               write(*,*)'ERROR, atom:',iat,&
-!!$                  &   ': cannot admit more than two semicore shells per channel',nlsc
-!!$               stop
-!!$            end if
-!!$            do i=1,nlsc
-!!$               scorb(lsc,i,iatsc)=.true.
-!!$            end do
-!!$            niasc=niasc-nlsc*4**(lsc-1)
-!!$         end do
-!!$         norbsc_arr(iatsc,1)=iorbsc_count
-!!$         norbsc=norbsc+iorbsc_count
-!!$         !if (iproc == 0) write(*,*) iat,nsccode,iorbsc_count,norbsc,scorb(:,:,iatsc)
-!!$      end if
-
    end do
 
    !print *,'NL',nl,norbe
@@ -293,6 +274,7 @@ subroutine AtomicOrbitals(iproc,at,rxyz,norbe,orbse,norbsc,&
    integer :: noncoll,ig,ispinor,icoll,ikpts,ikorb,nlo,ntypesx,ityx,jat,ng,nspin_print
    !integer :: nsccode
    real(gp) :: ek,mx,my,mz,ma,mb,mc,md,tt
+   real(dp) :: rm
    real(gp) :: mnorm,fac,theta,phi,chi,chipphi,chimphi
    !logical, dimension(lmax,noccmax) :: semicore
    integer, dimension(2) :: iorbsc,iorbv
@@ -390,6 +372,9 @@ subroutine AtomicOrbitals(iproc,at,rxyz,norbe,orbse,norbsc,&
    do iat=1,at%astruct%nat
       ity=at%astruct%iatype(iat)
       ityx=iatypex(iat)
+
+      !beginning of atomic routine
+
       ishltmp=0
       !call count_atomic_shells(nspin_print,at%aoig(iat)%aocc,occup,nl)
       if (ityx > ntypesx) then
@@ -444,6 +429,9 @@ subroutine AtomicOrbitals(iproc,at,rxyz,norbe,orbse,norbsc,&
          !write(*,*)'ERROR: ishelltmp <> nshell',ishell,G%nshell(iat)
          !stop 
       end if
+
+      !end of atomic routine
+
    end do
    if (iproc == 0 .and. get_verbose_level() > 1) then
       call yaml_sequence_close()
@@ -478,7 +466,7 @@ subroutine AtomicOrbitals(iproc,at,rxyz,norbe,orbse,norbsc,&
          else
             call f_zero(atmoments(:,itat%iat))
          end if
-      end do
+     end do
 
 !!$      open(unit=22,file='moments',form='formatted',action='read',status='old')
 !!$      !this part can be transferred on the atomic orbitals section
@@ -496,6 +484,8 @@ subroutine AtomicOrbitals(iproc,at,rxyz,norbe,orbse,norbsc,&
 !!$         atmoments(1,iat)=mx
 !!$         atmoments(2,iat)=my
 !!$         atmoments(3,iat)=mz
+!!$         !write(unit=100,fmt='(2x,a,i4,3f12.6)')'NOYAML2'
+!!$         !write(unit=100,fmt='(2x,a,i4,3f12.6)')'NOYAML',iproc,atmoments(:,iat)
 !!$      end do
    end if
 
@@ -625,85 +615,105 @@ subroutine AtomicOrbitals(iproc,at,rxyz,norbe,orbse,norbsc,&
                               !if the shell is not polarised
                               !put one electron up and the other down
                               !otherwise, put a small unbalancing on the orbitals
-                              !such that the momentum of the
-                              if (orbpol_nc) then
-                                 !in the case of unoccupied orbital, 
-                                 !choose the orthogonal direction
-                                 mx=atmoments(1,iat)
-                                 my=atmoments(2,iat)
-                                 mz=atmoments(3,iat)
+                               !such that the momentum of the
+                               if (orbpol_nc) then
+                                  !in the case of unoccupied orbital, 
+                                  !choose the orthogonal direction
+                                  mx=atmoments(1,iat)
+                                  my=atmoments(2,iat)
+                                  mz=atmoments(3,iat)
+ 
+                                  if (orbse%occup(ikorb) == 0.0_gp) then
+                                     mx=-mx
+                                     my=-my
+                                     mz=-mz
+                                  end if
+                               else
+                                  !mx=atmoments(1,iat)
+                                  !my=atmoments(2,iat)
+                                  !mz=atmoments(3,iat)
+ 
+                                  !if (orbse%occup(ikorb) == 0.0_gp) then
+                                  !   mx=-mx
+                                  !   my=-my
+                                  !   mz=-mz
+                                  !end if
+                                  !Possibly add a random fluctuaton to the unpolarized case
+                                  !Who would run a non-magnetic system with spinors anyway?
+                                  call random_number(rm)
+                                  mx=0.0_gp!+0.1_gp*(0.5-rm)
+                                  call random_number(rm)
+                                  my=0.0_gp!+0.1_gp*(0.5-rm)
+                                  call random_number(rm)
+                                  mz=1.0_gp-2.0_gp*real(icoll-1,gp)!+0.1_gp*(0.5-rm)
+                                  !
+                               end if
+ 
+!!!                                 mx=atmoments(1,iat)
+!!!                                 my=atmoments(2,iat)
+!!!                                 mz=atmoments(3,iat)
+!!!                                 !mx=0;my=0;mz=1
+!!!                               mnorm=sqrt(mx**2+my**2+mz**2)
+!!!                               if (mnorm /= 0.0_gp) then
+!!!                                  mx=mx/mnorm
+!!!                                  my=my/mnorm
+!!!                                  mz=mz/mnorm
+!!!                               end if
+!!! 
+!!!                                !determine the representation of the spinor
+!!!                                theta=0.5_gp*acos(mz)
+!!!                                if (abs(theta) > 1.e-8) then
+!!!                                   tt=1.0_gp/(sin(2.0_gp*theta)+epsilon(1.0_gp))
+!!!                                   chipphi=acos(mx*tt)
+!!!                                   chimphi=asin(-my*tt)
+!!!                                   chi=0.5_gp*(chipphi+chimphi)
+!!!                                   phi=0.5_gp*(chipphi-chimphi)
+!!!                                   ma=cos(theta)*cos(phi)
+!!!                                   mb=cos(theta)*sin(phi)
+!!!                                   mc=sin(theta)*cos(chi)
+!!!                                   md=sin(theta)*sin(chi)
+!!!                                else
+!!!                                   ma=1.0_gp
+!!!                                   mb=0.0_gp
+!!!                                   mc=0.0_gp
+!!!                                   md=0.0_gp
+!!!                                end if
+!!!                               
 
-                                 if (orbse%occup(ikorb) == 0.0_gp) then
-                                    mx=-mx
-                                    my=-my
-                                    mz=-mz
-                                 end if
-                              else
-                                 mx=0.0_gp
-                                 my=0.0_gp
-                                 mz=1.0_gp-2.0_gp*real(icoll-1,gp)
-                              end if
-
-                              mnorm=sqrt(mx**2+my**2+mz**2)
-                              if (mnorm /= 0.0_gp) then
-                                 mx=mx/mnorm
-                                 my=my/mnorm
-                                 mz=mz/mnorm
-                              end if
-
-                              !determine the representation of the spinor
-                              theta=0.5_gp*acos(mz)
-                              if (abs(theta) > 1.e-8) then
-                                 tt=1.0_gp/(sin(2.0_gp*theta)+epsilon(1.0_gp))
-                                 chipphi=acos(mx*tt)
-                                 chimphi=asin(-my*tt)
-                                 chi=0.5_gp*(chipphi+chimphi)
-                                 phi=0.5_gp*(chipphi-chimphi)
-                                 ma=cos(theta)*cos(phi)
-                                 mb=cos(theta)*sin(phi)
-                                 mc=sin(theta)*cos(chi)
-                                 md=sin(theta)*sin(chi)
-                              else
-                                 ma=1.0_gp
-                                 mb=0.0_gp
-                                 mc=0.0_gp
-                                 md=0.0_gp
-                              end if
-                              
-
-!!$                              if(mz > 0.0_gp) then 
-!!$                                 ma=ma+mz
-!!$                              else
-!!$                                 mc=mc+abs(mz)
-!!$                              end if
-!!$                              if(mx > 0.0_gp) then 
-!!$                                 ma=ma+fac*mx
-!!$                                 mb=mb+fac*mx
-!!$                                 mc=mc+fac*mx
-!!$                                 md=md+fac*mx
-!!$                              else
-!!$                                 ma=ma-fac*abs(mx)
-!!$                                 mb=mb-fac*abs(mx)
-!!$                                 mc=mc+fac*abs(mx)
-!!$                                 md=md+fac*abs(mx)
-!!$                              end if
-!!$                              if(my > 0.0_gp) then 
-!!$                                 ma=ma+fac*my
-!!$                                 mb=mb-fac*my
-!!$                                 mc=mc+fac*my
-!!$                                 md=md+fac*my
-!!$                              else
-!!$                                 ma=ma-fac*abs(my)
-!!$                                 mb=mb+fac*abs(my)
-!!$                                 mc=mc+fac*abs(my)
-!!$                                 md=md+fac*abs(my)
-!!$                              end if
-!!$                              if(mx==0.0_gp .and. my==0.0_gp .and. mz==0.0_gp) then
-!!$                                 ma=1.0_gp/sqrt(2.0_gp)
-!!$                                 mb=0.0_gp
-!!$                                 mc=1.0_gp/sqrt(2.0_gp)
-!!$                                 md=0.0_gp
-!!$                              end if
+                               ma=0.0_gp;mb=0.0_gp;mc=0.0_gp;md=0.0_gp
+                               if(mz > 0.0_gp) then 
+                                  ma=ma+mz
+                               else
+                                  mc=mc+abs(mz)
+                               end if
+                               if(mx > 0.0_gp) then 
+                                  ma=ma+fac*mx
+                                  mb=mb+fac*mx
+                                  mc=mc+fac*mx
+                                  md=md+fac*mx
+                               else
+                                  ma=ma-fac*abs(mx)
+                                  mb=mb-fac*abs(mx)
+                                  mc=mc+fac*abs(mx)
+                                  md=md+fac*abs(mx)
+                               end if
+                               if(my > 0.0_gp) then 
+                                  ma=ma+fac*my
+                                  mb=mb-fac*my
+                                  mc=mc+fac*my
+                                  md=md+fac*my
+                               else
+                                  ma=ma-fac*abs(my)
+                                  mb=mb+fac*abs(my)
+                                  mc=mc+fac*abs(my)
+                                  md=md+fac*abs(my)
+                               end if
+                               if(mx==0.0_gp .and. my==0.0_gp .and. mz==0.0_gp) then
+                                  ma=1.0_gp/sqrt(2.0_gp)
+                                  mb=0.0_gp
+                                  mc=1.0_gp/sqrt(2.0_gp)
+                                  md=0.0_gp
+                               end if
 
                               !assign the gaussian coefficients for each
                               !spinorial component
@@ -1181,7 +1191,7 @@ END SUBROUTINE calc_coeff_inguess
 subroutine gatom(rcov,rprb,lmax,lpx,noccmax,occup,&
       &   zion,alpz,gpot,alpl,hsep,alps,ngv,ngc,nlccpar,vh,xp,rmt,fact,nintp,&
       &   aeval,ng,psi,res,chrg,iorder)
-   use module_base, only: gp,f_err_throw,BIGDFT_RUNTIME_ERROR,safe_exp
+   use module_base, only: gp,f_err_throw,BIGDFT_RUNTIME_ERROR,safe_exp,safe_erf
    use yaml_strings, only: yaml_toa
    use abi_interfaces_numeric, only: abi_derf_ab
    implicit none
@@ -1520,8 +1530,9 @@ subroutine gatom(rcov,rprb,lmax,lpx,noccmax,occup,&
          do i=0,ng
             d=xp(i)+xp(j)
             sd=sqrt(d)
-            call abi_derf_ab(terf, sd*rcov) 
-            texp=exp(-d*rcov**2)
+            !call abi_derf_ab(terf, sd*rcov) 
+            terf=safe_erf(sd*rcov)
+            texp=safe_exp(-d*rcov**2)
 
             tt=0.4431134627263791_gp*terf/sd**3 - 0.5_gp*rcov*texp/d
             chrg(iocc,1)=chrg(iocc,1) + psi(i,iocc,1)*psi(j,iocc,1)*tt

@@ -4855,6 +4855,7 @@ module communications_init
       integer(kind=8) :: nsize_direct, nsize_direct_min, nsize_direct_max, nsize_direct_all
       integer(kind=8) :: nsize_transposed, nsize_transposed_min, nsize_transposed_max, nsize_transposed_all
       integer(kind=8) :: nsize_grid, nsize_grid_min, nsize_grid_max, nsize_grid_all
+      real(kind=8) :: size_grid_all
 
       nsize_direct = size(comms%irecvbuf_c)*kind(comms%irecvbuf_c) + &
                      size(comms%isendbuf_c)*kind(comms%isendbuf_c)
@@ -4882,11 +4883,11 @@ module communications_init
 
       nsize_grid_min = nsize_grid
       nsize_grid_max = nsize_grid
-      nsize_grid_all = nsize_grid
+      size_grid_all = real(nsize_grid,kind=8)/real(nproc,kind=8)
       call fmpi_allreduce(nsize_grid_min, 1, FMPI_MIN, comm=comm)
       call fmpi_allreduce(nsize_grid_max, 1, FMPI_MAX, comm=comm)
-      call fmpi_allreduce(nsize_grid_all, 1, FMPI_SUM, comm=comm)
-      nsize_grid_all = nint(real(nsize_grid_all,kind=8)/real(nproc,kind=8))
+      call fmpi_allreduce(size_grid_all, 1, FMPI_SUM, comm=comm)
+      nsize_grid_all = nint(size_grid_all,kind=8)
 
       if (iproc==0) then
           call yaml_mapping_open(trim(message))

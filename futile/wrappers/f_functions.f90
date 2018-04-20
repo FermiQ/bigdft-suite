@@ -74,7 +74,7 @@ module f_functions
 !!$     module procedure functions_product
 !!$  end interface operator(*)
 
-  public :: f_function_new,eval,diff,f_grid_1d_new,f_function_dump
+  public :: f_function_new,eval,diff,f_grid_1d_new,f_function_dump,FD_first_der
   public :: separable_3d_function,separable_3d_laplacian,radial_3d_function
 !  public :: operator(*)
 
@@ -161,7 +161,7 @@ module f_functions
     end function f_function_new
 
 !!$    !>defines a new function that is the multipoication of func1 and func2
-!!$    !!@warning: such function has the same scope of func1 and func2. 
+!!$    !!@warning: such function has the same scope of func1 and func2.
 !!$    !!Should the stack frame of func1,2 change, the function is invalidated
 !!$    function functions_product(func1,func2) result(func)
 !!$      implicit none
@@ -170,13 +170,13 @@ module f_functions
 !!$      type(f_function) :: func
 !!$      !local variables
 !!$      type(f_function), pointer :: ftmp
-!!$      
+!!$
 !!$      func=func1 !depcopy of the params
 !!$      if (.not. associated(func%multiply)) then
 !!$         allocate(func%multiply)
 !!$         func%multiply=func2
 !!$      else
-!!$         
+!!$
 !!$
 !!$      ftmp=>func1
 !!$      do while(associated(ftmp%multiply))
@@ -184,7 +184,7 @@ module f_functions
 !!$      end do
 !!$      allocate(ftmp%multiply)
 !!$      ftmp%multiply=func2
-!!$         
+!!$
 !!$    end function functions_product
 
     recursive pure function eval(func,x) result(y)
@@ -220,7 +220,7 @@ module f_functions
                  eval_(func,x)*diff(func%multiply,x,order)
          end if
       end select
-      
+
     end function diff
 
     pure function eval_(func,x) result(y)
@@ -230,7 +230,7 @@ module f_functions
       real(f_double) :: y
       !local variables
       integer, parameter :: idiff=0
-      
+
       select case(func%function_type)
       case(FUNC_CONSTANT)
          y=func%params(PREFACTOR_)
@@ -265,7 +265,7 @@ module f_functions
       real(f_double) :: y
       !local variables
       integer :: idiff
-      
+
       idiff=1
       if (present(order)) idiff=order
 
@@ -317,7 +317,7 @@ module f_functions
       type(f_grid_1d), intent(in) :: g
       integer, intent(in) :: i
       real(f_double) :: x
-      
+
       !for the moment only 1d grid, but also radial grid might be generalized
       x=g%h*real(i-1,f_double)+g%a
     end function grid_x
@@ -330,7 +330,7 @@ module f_functions
       type(f_grid_1d), intent(in) :: grid
       !local variables
       integer :: i
-      real(f_double) :: fx,fx1,fx2,x      
+      real(f_double) :: fx,fx1,fx2,x
       do i=1,grid%npts
          x=grid_x(grid,i)
          fx=eval(func,x)
@@ -342,7 +342,7 @@ module f_functions
 
     pure function gaussian(a,x,idiff) result(f)
       implicit none
-      integer, intent(in) :: idiff 
+      integer, intent(in) :: idiff
       real(f_double), intent(in) :: a,x
       real(f_double) :: f
       !local variables
@@ -359,12 +359,12 @@ module f_functions
 
     pure function polynomial(coeffs,x,idiff) result(f)
       implicit none
-      integer, intent(in) :: idiff 
+      integer, intent(in) :: idiff
       real(f_double), intent(in) :: x
       real(f_double), dimension(0:MAX_FUNC_PARAMETERS-1), intent(in) :: coeffs
       real(f_double) :: f
       !local variables
-      integer :: ncoeff,i,istart
+      integer :: ncoeff,i
       real(f_double) :: pow
 
       ncoeff=nint(coeffs(0))
@@ -394,7 +394,7 @@ module f_functions
 
     pure function gaussian_shrinked(length,x,idiff) result(f)
       implicit none
-      integer, intent(in) :: idiff 
+      integer, intent(in) :: idiff
       real(f_double), intent(in) :: length,x
       real(f_double) :: f
       !local variables
@@ -413,7 +413,7 @@ module f_functions
 
     pure function cosine(length,frequency,x,idiff) result(f)
       implicit none
-      integer, intent(in) :: idiff 
+      integer, intent(in) :: idiff
       real(f_double), intent(in) :: length,frequency,x
       real(f_double) :: f
       !local variables
@@ -434,7 +434,7 @@ module f_functions
 
     pure function exp_cosine(a,nu,x,idiff) result(f)
       implicit none
-      integer, intent(in) :: idiff 
+      integer, intent(in) :: idiff
       real(f_double), intent(in) :: a,nu,x
       real(f_double) :: f
       !local variables
@@ -442,7 +442,7 @@ module f_functions
 
       r=pi*nu/a*x
       y=cos(r)
-      f=safe_exp(y) !<checked 
+      f=safe_exp(y) !<checked
       select case(idiff)
       case(1)
          yp=-sin(r)
@@ -457,7 +457,7 @@ module f_functions
     !>not to be confused with gaussian_shrinked
     pure function shrinked_gaussian(length,x,idiff) result(f)
       implicit none
-      integer, intent(in) :: idiff 
+      integer, intent(in) :: idiff
       real(f_double), intent(in) :: length,x
       real(f_double) :: f
       !local variables
@@ -661,5 +661,101 @@ module f_functions
          end do
       end if
     end subroutine separable_3d_laplacian
+
+    subroutine FD_first_der(geocode,n01,hx,u,du,nord)
+          implicit none
+    !c..this routine computes 'nord' order accurate first derivatives 
+    !c..on a equally spaced grid with coefficients from 'Matematica' program.
+    
+    !c..input:
+    !c..ngrid       = number of points in the grid, 
+    !c..u(ngrid)    = function values at the grid points
+    
+    !c..output:
+    !c..du(ngrid)   = first derivative values at the grid points
+    
+    !c..declare the pass
+          character(len=1), intent(in) :: geocode
+          integer, intent(in) :: n01,nord
+          real(kind=8), intent(in) :: hx
+          real(kind=8), dimension(n01) :: u
+          real(kind=8), dimension(n01) :: du
+    
+    !c..local variables
+          integer :: n,m,n_cell
+          integer :: i,j,i1,ii
+          real(kind=8), dimension(-nord/2:nord/2,-nord/2:nord/2) :: c1D,c1DF
+          logical :: perx
+    
+          n = nord+1
+          m = nord/2
+          n_cell = n01
+    
+          !buffers associated to the geocode
+          !conditions for periodicity
+          perx=(geocode /= 'F')
+    
+          ! Beware that n_cell has to be > than n.
+          if (n_cell.lt.n) then
+           write(*,*)'ngrid in has to be setted > than n=nord + 1'
+           stop
+          end if
+    
+          ! Setting of 'nord' order accurate first derivative coefficient from 'Matematica'.
+          !Only nord=2,4,6,8,16
+    
+          select case(nord)
+          case(2,4,6,8,16)
+           !O.K.
+          case default
+           write(*,*)'Only nord-order 2,4,6,8,16 accurate first derivative'
+           stop
+          end select
+    
+          do i=-m,m
+           do j=-m,m
+            c1D(i,j)=0.d0
+            c1DF(i,j)=0.d0
+           end do
+          end do
+    
+          include 'FiniteDiffCorff.inc'
+    
+          do i1=1,n01
+       
+           du(i1) = 0.0d0
+       
+           if (i1.le.m) then
+            if (perx) then
+             do j=-m,m
+              ii=modulo(i1 + j + n01 - 1, n01 ) + 1
+              du(i1) = du(i1) + c1D(j,0)*u(ii)
+             end do
+            else
+             do j=-m,m
+              du(i1) = du(i1) + c1D(j,i1-m-1)*u(j+m+1)
+             end do
+            end if
+           else if (i1.gt.n01-m) then
+            if (perx) then
+             do j=-m,m
+              ii=modulo(i1 + j - 1, n01 ) + 1
+              du(i1) = du(i1) + c1D(j,0)*u(ii)
+             end do
+            else
+             do j=-m,m
+              du(i1) = du(i1) + c1D(j,i1-n01+m)*u(n01 + j - m)
+             end do
+            end if
+           else
+            do j=-m,m
+             du(i1) = du(i1) + c1D(j,0)*u(i1 + j)
+            end do
+           end if
+           du(i1)=du(i1)/hx
+       
+          end do
+    
+    end subroutine FD_first_der
 
 end module f_functions

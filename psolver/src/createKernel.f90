@@ -181,16 +181,17 @@ subroutine pkernel_set(kernel,eps,dlogeps,oneoeps,oneosqrteps,corr,verbose) !opt
   type(coulomb_operator), intent(inout) :: kernel
   !> dielectric function. Needed for non VAC methods, given in full dimensions
   real(dp), dimension(:,:,:), intent(in), optional :: eps
-  !> logarithmic derivative of epsilon. Needed for PCG method.
+  !> logarithmic derivative of epsilon. Needed for SC method.
   !! if absent, it will be calculated from the array of epsilon
   real(dp), dimension(:,:,:,:), intent(in), optional :: dlogeps
-  !> inverse of epsilon. Needed for PI method.
+  !> inverse of epsilon. Needed for the SC method.
   !! if absent, it will be calculated from the array of epsilon
   real(dp), dimension(:,:,:), intent(in), optional :: oneoeps
   !> inverse square root of epsilon. Needed for PCG method.
   !! if absent, it will be calculated from the array of epsilon
   real(dp), dimension(:,:,:), intent(in), optional :: oneosqrteps
-  !> correction term of the Generalized Laplacian
+  !> correction term for the PCG method (represents q(r) of equation (16)
+  !! in Fisicaro J. Chem. Phys. 144, 014103 (2016)).
   !! if absent, it will be calculated from the array of epsilon
   real(dp), dimension(:,:,:), intent(in), optional :: corr
   real(dp) :: alpha
@@ -204,7 +205,7 @@ subroutine pkernel_set(kernel,eps,dlogeps,oneoeps,oneosqrteps,corr,verbose) !opt
   real(kind=8) :: mu0t
   real(kind=8), dimension(:), allocatable :: pkernel2
   integer :: i1,i2,i3,j1,j2,j3,ind,indt,switch_alg,size2,sizek,kernelnproc,size3
-  integer :: n3pr1,n3pr2,istart,jend,i23,i3s,n23,displ,gpuPCGRed
+  integer :: n3pr1,n3pr2,istart,jend,n23,displ
   integer :: myiproc_node, mynproc_node
   integer,dimension(3) :: n
   real(dp) :: p1,p2,mu3,ker
@@ -586,9 +587,12 @@ subroutine pkernel_set(kernel,eps,dlogeps,oneoeps,oneosqrteps,corr,verbose) !opt
     n(1)=n1!kernel%mesh%ndims(1)*(2-kernel%geo(1))
     n(2)=n3!kernel%mesh%ndims(2)*(2-kernel%geo(2))
     n(3)=n2!kernel%mesh%ndims(3)*(2-kernel%geo(3))
+    
+    
     !perform the estimation of the processors
     call mpinoderanks(kernel%mpi_env%iproc,kernel%mpi_env%nproc,kernel%mpi_env%mpi_comm,&
          myiproc_node,mynproc_node)
+
 
     call cuda_estimate_memory_needs(kernel, n, &
          int(myiproc_node,kind=8), int(mynproc_node,kind=8)) !LG: why longs?
@@ -818,7 +822,6 @@ END SUBROUTINE pkernel_set
 
 subroutine cuda_estimate_memory_needs(kernel, n,iproc_node, nproc_node)
   use iso_c_binding
-!  use module_base
   implicit none
   !Arguments
   type(coulomb_operator), intent(inout) :: kernel
@@ -826,8 +829,9 @@ subroutine cuda_estimate_memory_needs(kernel, n,iproc_node, nproc_node)
   integer(kind=8), intent(in) :: iproc_node,nproc_node
   !Local variables
   integer(kind=C_SIZE_T) :: maxPlanSize, freeGPUSize, totalGPUSize
-  integer(kind=8) :: size2,sizek,size3,NX,NY,NZ
+  integer(kind=8) :: size2,sizek,size3
   integer(kind=8) :: kernelSize, PCGRedSize, plansSize
+  integer :: myiproc_node, mynproc_node, ndevices
   real(dp) alpha
 
   kernelSize=0
@@ -836,6 +840,15 @@ subroutine cuda_estimate_memory_needs(kernel, n,iproc_node, nproc_node)
   maxPlanSize=0
   freeGPUSize=0
   totalGPUSize=0
+  
+  !perform the estimation of the processors in the world
+  call mpinoderanks(mpirank(mpiworld()),mpisize(mpiworld()),mpiworld(),&
+       myiproc_node,mynproc_node)
+  !assign the process to one GPU, round robin style
+  call cudagetdevicecount(ndevices)
+  if(ndevices>1) then
+    call cudasetdevice(modulo(myiproc_node,ndevices))
+  end if
 
  !estimate with CUDA the free memory size, and the size of the plans
  call cuda_estimate_memory_needs_cu(kernel%mpi_env%iproc,n,&
@@ -887,7 +900,7 @@ call mpibarrier()
 end subroutine cuda_estimate_memory_needs
 
 !>put in depsdrho array the extra potential
-subroutine sccs_extra_potential(kernel,pot,depsdrho,dsurfdrho,eps0)
+subroutine sccs_extra_potential(kernel,pot,depsdrho,eps0)
   use FDder
   use yaml_output
   implicit none
@@ -895,11 +908,11 @@ subroutine sccs_extra_potential(kernel,pot,depsdrho,dsurfdrho,eps0)
   !>complete potential, needed to calculate the derivative
   real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%mesh%ndims(3)), intent(in) :: pot
   real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2)*kernel%grid%n3p), intent(inout) :: depsdrho
-  real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2)*kernel%grid%n3p), intent(in) :: dsurfdrho
+  !real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2)*kernel%grid%n3p), intent(in) :: dsurfdrho
   real(dp), intent(in) :: eps0
   !local variables
-  integer :: i3,i3s,i2,i1,i23,i,n01,n02,n03,unt
-  real(dp) :: d2,x,pi,gammaSau,alphaSau,betaVau
+  integer :: i3,i3s,i2,i1,i23,i,n01,n02,n03
+  real(dp) :: d2,pi,gammaSau,alphaSau,betaVau
   real(dp), dimension(:,:,:,:), allocatable :: nabla2_pot
   !real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%mesh%ndims(3)) :: pot2,depsdrho1,depsdrho2
 
@@ -955,8 +968,8 @@ subroutine polarization_charge(kernel,pot,rho)
   real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%mesh%ndims(3)), intent(in) :: pot
   real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2)*kernel%grid%n3p), intent(in) :: rho
   !local variables
-  integer :: i3,i3s,i2,i1,i23,i,n01,n02,n03
-  real(dp) :: d2,pi
+  integer :: i3,i3s,i2,i1,i23,n01,n02,n03
+  real(dp) :: pi
   real(dp), dimension(:,:,:,:), allocatable :: nabla_pot
   real(dp), dimension(:,:,:), allocatable :: lapla_pot
 
@@ -1021,7 +1034,7 @@ subroutine pkernel_build_epsilon(kernel,edens,eps0,depsdrho,dsurfdrho)
   real(kind=8), parameter :: edensmin = 0.0001d0
   real(kind=8), parameter :: innervalue = 0.9d0
   integer :: n01,n02,n03,i,i1,i2,i3,i23,i3s,unt
-  real(dp) :: oneoeps0,oneosqrteps0,pi,coeff,coeff1,fact1,fact2,fact3,r,t,d2,dtx,dd,x,y,z
+  real(dp) :: oneoeps0,oneosqrteps0,pi,fact1,fact2,fact3,d2,dd,x,y,z
   real(dp) :: de,d
   !real(dp) :: dde,ddtx,c1,c2
   real(dp), dimension(:,:,:), allocatable :: ddt_edens,epscurr,epsinner,depsdrho1,cc
@@ -1029,7 +1042,7 @@ subroutine pkernel_build_epsilon(kernel,edens,eps0,depsdrho,dsurfdrho)
   real(dp), parameter :: gammaS = 72.d0 ![dyn/cm]
   real(dp), parameter :: alphaS = -22.0d0 ![dyn/cm]
   real(dp), parameter :: betaV = -0.35d0 ![GPa]
-  real(dp) :: gammaSau, alphaSau,betaVau,epsm1,rho,logepspr,surf,zeta
+  real(dp) :: gammaSau, alphaSau,betaVau,epsm1,rho,logepspr
   real(gp) :: IntSur,IntVol,noeleene,Cavene,Repene,Disene
 
   gammaSau=kernel%cavity%gammaS*5.291772109217d-9/8.238722514d-3 ! in atomic unit

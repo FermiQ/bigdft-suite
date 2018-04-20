@@ -76,8 +76,7 @@ subroutine bomd(run_md,outs,nproc,iproc)
   !Getting a local copy of the coordinates
   rxyz => bigdft_get_rxyz_ptr(run_md)
 
-  ionode=.false.
-  IF(iproc==0)ionode=.true. 
+  ionode = iproc==0
 
   if(ionode) call yaml_comment('Starting BO MD',hfill='*')
 
@@ -89,8 +88,6 @@ subroutine bomd(run_md,outs,nproc,iproc)
   call initialize_NHC_data(nhc,run_md%inputs%nhc, &
                                 run_md%inputs%nhnc, &
                                 run_md%inputs%nsuzuki,run_md%inputs%nmultint,run_md%inputs%nosefrq) 
-
-
 
   if(no_translation)call get_com(natoms,com,rxyz)
 

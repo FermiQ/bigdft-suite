@@ -49,7 +49,7 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
   use public_enums
   use multipole, only: multipole_analysis_driver_new, &
                        support_function_gross_multipoles, potential_from_charge_multipoles, &
-                       calculate_rpowerx_matrices
+                       calculate_rpowerx_matrices, calculate_and_write_multipole_matrices
   use transposed_operations, only: calculate_overlap_transposed
   use foe_base, only: foe_data_set_real
   use rhopotential, only: full_local_potential
@@ -61,6 +61,8 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
   use sparsematrix_highlevel, only: get_selected_eigenvalues_from_FOE
   use sparsematrix_io, only: write_linear_coefficients
   use coeffs, only: calculate_kernel_and_energy
+  use foe, only: calculate_entropy_term
+  use foe_base, only: foe_data_get_real
   implicit none
 
   ! Calling arguments
@@ -141,7 +143,7 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
 !!$  real(kind=8), dimension(:,:,:), allocatable :: multipoles_out
 !!$  real(kind=8), dimension(:,:,:,:), allocatable :: test_pot
   type(orbital_basis) :: ob
-  real(kind=8) :: tt, ddot, max_error, ef, ef_low, ef_up, fac
+  real(kind=8) :: tt, ddot, max_error, ef, ef_low, ef_up, fac, eTS
   type(matrices), dimension(24) :: rpower_matrix
   character(len=20) :: method, do_ortho, projectormode
 
@@ -432,7 +434,8 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
           end if
           ! Adjust the confining potential if required.
           call adjust_locregs_and_confinement(iproc, nproc, KSwfn%Lzd%hgrids(1), KSwfn%Lzd%hgrids(2), KSwfn%Lzd%hgrids(3), &
-               at, input, rxyz, KSwfn, tmb, denspot, nlpsp, ldiis, locreg_increased, lowaccur_converged, locrad)
+               at, input, rxyz, KSwfn, tmb, denspot, nlpsp, ldiis, locreg_increased, lowaccur_converged, &
+               input%cp%foe%matmul_optimize_load_balancing, locrad)
           orthonormalization_on=.true.
 
           call deallocate_precond_arrays(tmb%orbs, tmb%lzd, precond_convol_workarrays, precond_workarrays)
@@ -742,6 +745,16 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
 
     call scf_kernel(nit_scc, .false., update_phi)
 
+    !# NEW: calculate the entropy contribution
+    !!write(*,*) 'before entropy: sum(tmb%linmat%ovrlppowers_(2)%matrix_compr)', sum(tmb%linmat%ovrlppowers_(2)%matrix_compr)
+    !!write(*,*) 'before entropy: sum(tmb%linmat%kernel_%matrix_compr)', sum(tmb%linmat%kernel_%matrix_compr)
+    !!call calculate_entropy_term(iproc, nproc, bigdft_mpi%mpi_comm, &
+    !!     foe_data_get_real(tmb%foe_obj,"fscale"), &
+    !!     tmb%linmat%smat(1), tmb%linmat%smat(3), &
+    !!     tmb%linmat%ovrlp_, tmb%linmat%kernel_, tmb%linmat%ovrlppowers_(2), &
+    !!     energs%eTS)
+    !# #######################################
+
 
     ! Write the final results
     if (iproc==0) then
@@ -779,7 +792,27 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
     end if
 
     call check_for_exit()
-    if(exit_outer_loop) exit outerLoop
+    if(exit_outer_loop) then
+        if (input%lin%consider_entropy) then
+            ! Calculate the entropy contribution to the energy
+            if (iproc==0) then
+                call yaml_comment('Calculate entropy contribution',hfill='-')
+                call yaml_mapping_open('Calculate entropy contribution')
+            end if
+            call calculate_entropy_term(iproc, nproc, bigdft_mpi%mpi_comm, &
+                 foe_data_get_real(tmb%foe_obj,"fscale"), &
+                 tmb%linmat%smat(1), tmb%linmat%smat(3), &
+                 tmb%linmat%ovrlp_, tmb%linmat%kernel_, tmb%linmat%ovrlppowers_(2), &
+                 input%cp%foe%accuracy_entropy, energs%eTS)
+             energy = energy - energs%eTS
+             if (iproc==0) then
+                 call write_energies(0,energs,0.d0,0.d0,'FINAL',only_energies=.true.)
+                 call yaml_map('energy',energy)
+                 call yaml_mapping_close()
+             end if
+         end if
+         exit outerLoop
+     end if
 
     if(pnrm_out<input%lin%support_functions_converged.and.lowaccur_converged) then
         !if(iproc==0) write(*,*) 'fix the support functions from now on'
@@ -952,34 +985,38 @@ end if
 
   ! Diagonalize the matrix for the FOE/direct min case to get the coefficients. Only necessary if
   ! the Pulay forces are to be calculated, or if we are printing eigenvalues for restart
-  if ((input%lin%scf_mode==LINEAR_FOE.or.input%lin%scf_mode==LINEAR_DIRECT_MINIMIZATION)&
-       .and. (mod(input%lin%plotBasisFunctions,10) /= WF_FORMAT_NONE&
-       .or. input%lin%diag_end .or. mod(input%lin%output_coeff_format,10) /= WF_FORMAT_NONE)) then
+  if ((input%lin%scf_mode==LINEAR_FOE.or.input%lin%scf_mode==LINEAR_DIRECT_MINIMIZATION)) then
+      !!if(mod(input%lin%plotBasisFunctions,10) /= WF_FORMAT_NONE) then
+      !!    !Assigne an obvisouly wrong value to the eigenvalues
+      !!    tmb%orbs%eval(:) = -123456789.0d0
+      !!else if(input%lin%diag_end .or. mod(input%lin%output_coeff_format,10) /= WF_FORMAT_NONE) then
+      if(mod(input%lin%plotBasisFunctions,10) /= WF_FORMAT_NONE .or. &
+      input%lin%diag_end .or. mod(input%lin%output_coeff_format,10) /= WF_FORMAT_NONE) then
 
-       !!if (input%lin%scf_mode==LINEAR_FOE) then
-       !!    tmb%coeff=f_malloc_ptr((/tmb%orbs%norb,tmb%orbs%norb/),id='tmb%coeff')
-       !!end if
+          !!if (input%lin%scf_mode==LINEAR_FOE) then
+          !!    tmb%coeff=f_malloc_ptr((/tmb%orbs%norb,tmb%orbs%norb/),id='tmb%coeff')
+          !!end if
 
-       !!call extract_taskgroup_inplace(tmb%linmat%smat(3), tmb%linmat%kernel_)
-       call get_coeff(iproc,nproc,LINEAR_MIXDENS_SIMPLE,KSwfn%orbs,at,rxyz,denspot,GPU,&
-           infoCoeff,energs,nlpsp,input%SIC,tmb,pnrm,update_phi,.true.,.true.,.false.,&
-           .true.,input%lin%extra_states,itout,0,0,norder_taylor,input%lin%max_inversion_error,&
-           input%calculate_KS_residue,input%calculate_gap,energs_work,update_kernel,input%lin%coeff_factor, &
-           input%tel, input%occopt, &
-           input%cp%pexsi%pexsi_npoles,input%cp%pexsi%pexsi_nproc_per_pole,input%cp%pexsi%pexsi_mumin,&
-           input%cp%pexsi%pexsi_mumax,input%cp%pexsi%pexsi_mu,input%cp%pexsi%pexsi_DeltaE, &
-           input%cp%pexsi%pexsi_temperature,input%cp%pexsi%pexsi_tol_charge,input%cp%pexsi%pexsi_np_sym_fact, &
-           input%cp%pexsi%pexsi_do_inertia_count, input%cp%pexsi%pexsi_max_iter, &
-           input%cp%pexsi%pexsi_verbosity)
-       !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%smat(3), tmb%linmat%kernel_)
+          !!call extract_taskgroup_inplace(tmb%linmat%smat(3), tmb%linmat%kernel_)
+          call get_coeff(iproc,nproc,LINEAR_MIXDENS_SIMPLE,KSwfn%orbs,at,rxyz,denspot,GPU,&
+              infoCoeff,energs,nlpsp,input%SIC,tmb,pnrm,update_phi,.true.,.true.,.false.,&
+              .true.,input%lin%extra_states,itout,0,0,norder_taylor,input%lin%max_inversion_error,&
+              input%calculate_KS_residue,input%calculate_gap,energs_work,update_kernel,input%lin%coeff_factor, &
+              input%tel, input%occopt, &
+              input%cp%pexsi%pexsi_npoles,input%cp%pexsi%pexsi_nproc_per_pole,input%cp%pexsi%pexsi_mumin,&
+              input%cp%pexsi%pexsi_mumax,input%cp%pexsi%pexsi_mu,input%cp%pexsi%pexsi_DeltaE, &
+              input%cp%pexsi%pexsi_temperature,input%cp%pexsi%pexsi_tol_charge,input%cp%pexsi%pexsi_np_sym_fact, &
+              input%cp%pexsi%pexsi_do_inertia_count, input%cp%pexsi%pexsi_max_iter, &
+              input%cp%pexsi%pexsi_verbosity)
+          !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%smat(3), tmb%linmat%kernel_)
 
-       !!if (input%lin%scf_mode==LINEAR_FOE) then
-       !!    call f_free_ptr(tmb%coeff)
-       !!end if
-
-       if (bigdft_mpi%iproc ==0) then
-          call write_eigenvalues_data(0.1d0,tmb%orbs,mom_vec_fake)
-       end if
+          !!if (input%lin%scf_mode==LINEAR_FOE) then
+          !!    call f_free_ptr(tmb%coeff)
+          !!end if
+          if (bigdft_mpi%iproc ==0) then
+             call write_eigenvalues_data(0.1d0,tmb%orbs,mom_vec_fake)
+          end if
+      end if
   end if
 
   !!if (input%kernel_analysis) then
@@ -1016,7 +1053,7 @@ end if
       !!     ieval_min, ieval_max, &
       !!     tmb%linmat%smat(1), tmb%linmat%smat(2), tmb%linmat%smat(3), &
       !!     tmb%linmat%ham_, tmb%linmat%ovrlp_, tmb%linmat%ovrlppowers_(2), evals)
-      call get_selected_eigenvalues_from_FOE(iproc, nproc, bigdft_mpi%mpi_comm, &
+      call get_selected_eigenvalues_from_FOE(iproc, nproc, bigdft_mpi%mpi_comm, 1, &
            ieval_min, ieval_max, tmb%linmat%smat(1), tmb%linmat%smat(2), tmb%linmat%smat(3), &
            tmb%linmat%ovrlp_, tmb%linmat%ham_, tmb%linmat%ovrlppowers_(2), evals, &
            fscale=input%lin%precision_FOE_eigenvalues, calculate_minusonehalf=.true., foe_verbosity=2)
@@ -1353,6 +1390,17 @@ end if
            input%lin%output_mat_format,tmb,at,rxyz,norder_taylor, &
            input%lin%calculate_onsite_overlap, write_SminusonehalfH=.false.)
 
+      nullify(mp_centers)
+      if (.not.input%mp_centers_auto) then
+          mp_centers => input%mp_centers
+      end if
+      call calculate_and_write_multipole_matrices(iproc, nproc, tmb%npsidim_orbs, &
+           max(tmb%collcom_sr%ndimpsi_c,1), tmb%psi, tmb%lzd%hgrids, tmb%orbs, &
+           tmb%collcom, tmb%lzd, tmb%linmat%smmd, tmb%linmat%smat(1), tmb%linmat%auxs, &
+           rxyz, at%astruct%shift, centers_auto=input%mp_centers_auto, &
+           filename=trim(input%dir_output), write_multipole_matrices_mode=input%lin%output_mat_format, &
+           multipole_centers=mp_centers)
+
       !temporary at the moment - to eventually be moved to more appropriate location
       !tmb%linmat%ovrlp_%matrix = sparsematrix_malloc_ptr(tmb%linmat%smat(1), iaction=DENSE_FULL, id='tmb%linmat%ovrlp_%matrix')
       !call tmb_overlap_onsite(iproc, nproc, input%imethod_overlap, at, tmb, rxyz)
@@ -1654,6 +1702,11 @@ end if
            end if
 
 
+           !!call calculate_entropy_term(iproc, nproc, bigdft_mpi%mpi_comm, &
+           !!     foe_data_get_real(tmb%foe_obj,"fscale"), &
+           !!     tmb%linmat%smat(1), tmb%linmat%smat(3), &
+           !!     tmb%linmat%ovrlp_, tmb%linmat%kernel_, tmb%linmat%ovrlppowers_(2), &
+           !!     energs%eTS)
 
 
            !do i=1,tmb%linmat%smat(3)%nvctr
@@ -1693,9 +1746,10 @@ end if
            ! Calculate the total energy.
            !if(iproc==0) write(*,'(a,9es14.6)') 'energs', &
            !    energs%ebs,energs%ekin, energs%epot, energs%eh,energs%exc,energs%evxc,energs%eexctX,energs%eion,energs%edisp
-           energy=energs%ebs-energs%eh+energs%exc-energs%evxc-energs%eexctX+energs%eion+energs%edisp
+           energy=energs%ebs-energs%eh+energs%exc-energs%evxc-energs%eexctX+energs%eion+energs%edisp-energs%eTS
            energyDiff=energy-energyold
            energyold=energy
+           !energy=energs%ebs-energs%eh+energs%exc-energs%evxc-energs%evsic+energs%eion+energs%edisp-energs%eTS+energs%ePV
 
            ! update alpha_coeff for direct minimization steepest descents
            if(input%lin%scf_mode==LINEAR_DIRECT_MINIMIZATION .and. it_scc>1 .and.&
@@ -2518,6 +2572,7 @@ subroutine output_fragment_rotations(iproc,nat,rxyz,iformat,filename,input_frag,
   use module_fragments
   !use internal_io
   use public_enums
+  use rototranslations
   implicit none
 
   integer, intent(in) :: iproc, iformat, nat
@@ -2530,7 +2585,7 @@ subroutine output_fragment_rotations(iproc,nat,rxyz,iformat,filename,input_frag,
   integer :: ifrag, jfrag, ifrag_ref, jfrag_ref, iat, isfat, jsfat,itoo_big
   real(kind=gp), dimension(:,:), allocatable :: rxyz_ref, rxyz_new
   real(kind=gp) :: null_axe, error
-  type(fragment_transformation) :: frag_trans
+  type(rototranslation) :: frag_trans
   character(len=*), parameter :: subname='output_fragment_rotations'
 
   if (iproc==0) then
@@ -2588,17 +2643,20 @@ subroutine output_fragment_rotations(iproc,nat,rxyz,iformat,filename,input_frag,
               rxyz_ref(:,iat)=rxyz(:,jsfat+iat)
            end do
 
-           ! use center of fragment for now, could later change to center of symmetry
-           frag_trans%rot_center=frag_center(ref_frags(jfrag_ref)%astruct_frg%nat,rxyz_ref)
-           frag_trans%rot_center_new=frag_center(ref_frags(ifrag_ref)%astruct_frg%nat,rxyz_new)
-
-           ! shift rxyz wrt center of rotation
-           do iat=1,ref_frags(ifrag_ref)%astruct_frg%nat
-              rxyz_ref(:,iat)=rxyz_ref(:,iat)-frag_trans%rot_center
-              rxyz_new(:,iat)=rxyz_new(:,iat)-frag_trans%rot_center_new
-           end do
-
-           call find_frag_trans(ref_frags(ifrag_ref)%astruct_frg%nat,rxyz_ref,rxyz_new,frag_trans)
+           call set_rototranslation(frag_trans,ref_frags(jfrag_ref)%astruct_frg%nat,&
+                src=rxyz_ref,dest=rxyz_new)
+!!$           ! use center of fragment for now, could later change to center of symmetry
+!!$           frag_trans%rot_center=frag_center(ref_frags(jfrag_ref)%astruct_frg%nat,rxyz_ref)
+!!$           frag_trans%rot_center_new=frag_center(ref_frags(ifrag_ref)%astruct_frg%nat,rxyz_new)
+!!$
+!!$           ! shift rxyz wrt center of rotation
+!!$           do iat=1,ref_frags(ifrag_ref)%astruct_frg%nat
+!!$              rxyz_ref(:,iat)=rxyz_ref(:,iat)-frag_trans%rot_center
+!!$              rxyz_new(:,iat)=rxyz_new(:,iat)-frag_trans%rot_center_new
+!!$           end do
+!!$
+!!$           call find_frag_trans(ref_frags(ifrag_ref)%astruct_frg%nat,rxyz_ref,rxyz_new,frag_trans)
+           
            if (frag_trans%Werror > W_tol) call f_increment(itoo_big)
            call f_free(rxyz_ref)
            call f_free(rxyz_new)
@@ -2606,11 +2664,11 @@ subroutine output_fragment_rotations(iproc,nat,rxyz,iformat,filename,input_frag,
            if (iformat==WF_FORMAT_PLAIN) then
               write(99,'(2(a,1x,I5,1x),F12.6,2x,3(F12.6,1x),6(1x,F18.6))') trim(input_frag%label(ifrag_ref)),ifrag,&
                    trim(input_frag%label(jfrag_ref)),jfrag,frag_trans%theta/(4.0_gp*atan(1.d0)/180.0_gp),frag_trans%rot_axis,&
-                   frag_trans%rot_center,frag_trans%rot_center_new
+                   frag_trans%rot_center_src,frag_trans%rot_center_dest
            else
               write(99) trim(input_frag%label(ifrag_ref)),ifrag,&
                    trim(input_frag%label(jfrag_ref)),jfrag,frag_trans%theta/(4.0_gp*atan(1.d0)/180.0_gp),frag_trans%rot_axis,&
-                   frag_trans%rot_center,frag_trans%rot_center_new
+                   frag_trans%rot_center_src,frag_trans%rot_center_dest
            end if
            isfat=isfat+ref_frags(ifrag_ref)%astruct_frg%nat
         end do

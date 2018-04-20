@@ -5,13 +5,13 @@
 !!    This file is distributed under the terms of the
 !!    GNU General Public License, see ~/COPYING file
 !!    or http://www.gnu.org/copyleft/gpl.txt .
-!!    For the list of contributors, see ~/AUTHORS 
+!!    For the list of contributors, see ~/AUTHORS
 
 
 !> Build the kernel of the Poisson operator with
 !! surfaces Boundary conditions
 !! in an interpolating scaling functions basis.
-!! @warning 
+!! @warning
 !!  Beware of the fact that the nonperiodic direction is y!
 subroutine Periodic_Kernel(n1,n2,n3,nker1,nker2,nker3,h1,h2,h3,itype_scf,karray,iproc,nproc,&
      !,mu0_screening,alpha,beta,gamma,
@@ -30,22 +30,21 @@ subroutine Periodic_Kernel(n1,n2,n3,nker1,nker2,nker3,h1,h2,h3,itype_scf,karray,
   real(dp), intent(in) :: h1,h2,h3         !< Mesh steps in the three dimensions
   real(dp), dimension(nker1,nker2,nker3/nproc), intent(out) :: karray !< output array
   !real(dp), intent(in) :: mu0_screening,alpha,beta,gamma
-  !Local variables 
+  !Local variables
   character(len=*), parameter :: subname='Periodic_Kernel'
   real(dp), parameter :: pi=3.14159265358979323846_dp
   integer :: i1,i2,i3,j3,iproc1
-  real(dp) :: p1,p2,mu3,ker
+  real(dp) :: p1,p2,mu3,h
   real(dp), dimension(:), allocatable :: fourISFx,fourISFy,fourISFz
   !metric for triclinic lattices
-  real(dp) :: detg
   !! ABINIT stuff /// to be fixed
   !scalars
   integer :: iout,id1,id2,id3
   !arrays
-  real(kind=8) :: rprimd(3,3)
 !!$   integer(kind=8) :: id(3),ii,ing,ig
 !  real(kind=8),allocatable :: gq(:,:)
   !! end of ABINIT stuff
+  h=h1*h2*h3
 
   !!! PSolver n1-n2 plane mpi partitioning !!!
 
@@ -62,7 +61,7 @@ subroutine Periodic_Kernel(n1,n2,n3,nker1,nker2,nker3,h1,h2,h3,itype_scf,karray,
           itype_scf,n1,n2,n3
      stop
   end if
- 
+
 !!$  detg = 1.0_dp - dcos(alpha)**2 - dcos(beta)**2 - dcos(gamma)**2 + 2.0_dp*dcos(alpha)*dcos(beta)*dcos(gamma)
 !!$
   iout=1 !turn the switch on
@@ -127,7 +126,7 @@ subroutine Periodic_Kernel(n1,n2,n3,nker1,nker2,nker3,h1,h2,h3,itype_scf,karray,
               p1=real(i1-1,dp)/real(n1,dp)
               !beware of the exchanged dimension
 !              ker = pi*((p1/h1)**2+(p2/h3)**2+mu3)+mu0_screening**2/16.0_dp/datan(1.0_dp)
-              
+
 !!$              !triclinic cell
 !!$              !acerioni
 !!$              ig1=i1-int(i1/id1)*n1-1
@@ -161,10 +160,10 @@ subroutine Periodic_Kernel(n1,n2,n3,nker1,nker2,nker3,h1,h2,h3,itype_scf,karray,
 !!$
 !!$                ker = ker + pi*(gd(1,1)*(p1/h1)**2+gd(3,3)*(p2/h3)**2+gd(2,2)*(p3/h2)**2)
 !!$                !ker = ker + 2.0_dp*pi*(gd(1,3)*(p1/h1)*(p2/h3)+gd(2,3)*(p2/h3)*(p3/h2)+gd(1,2)*(p1/h1)*(p3/h2))
-!!$             
+!!$
 !!$              if (i3 == nker3/2) write(16,*) i1,i2,gs,ker
- 
-              
+
+
 !              if (ker/=0._dp) then
                  !karray(i1,i2,i3)=1._dp/ker*fourISFx(i1-1)*fourISFy(i2-1)*fourISFz(j3-1)
                  karray(i1,i2,i3)=fourISFx(i1-1)*fourISFy(i2-1)*fourISFz(j3-1)
@@ -288,7 +287,7 @@ subroutine Surfaces_Kernel(iproc,nproc,mpi_comm,inplane_comm,n1,n2,n3,m3,nker1,n
   use numerics, only: twopi
   implicit none
   include 'perfdata.inc'
-  
+
   !Arguments
   integer, intent(in) :: n1,n2,n3          !< Dimensions for the FFT
   integer, intent(in) :: m3                !< Actual dimension in non-periodic direction
@@ -300,14 +299,14 @@ subroutine Surfaces_Kernel(iproc,nproc,mpi_comm,inplane_comm,n1,n2,n3,m3,nker1,n
   type(cell), intent(in) :: mesh
   real(dp), dimension(nker1,nker2,nker3/nproc), intent(out) :: karray !< Output array
   real(dp), intent(in) :: mu0_screening!,alpha!,beta,gamma
-  
-  !Local variables 
+
+  !Local variables
   character(len=*), parameter :: subname='Surfaces_Kernel'
   !Better if higher (1024 points are enough 10^{-14}: 2*itype_scf*n_points)
   integer, parameter :: n_points = 2**6
   !Maximum number of points for FFT (should be same number in fft3d routine)
   !n(c) integer, parameter :: nfft_max=24000
-  
+
   real(dp), dimension(:), allocatable :: kernel_scf
   real(dp), dimension(:), allocatable :: x_scf ,y_scf
   !FFT arrays
@@ -331,27 +330,27 @@ subroutine Surfaces_Kernel(iproc,nproc,mpi_comm,inplane_comm,n1,n2,n3,m3,nker1,n
   !coefficients for the polynomial interpolation
   real(dp), dimension(9,8) :: cpol
 
-  !assign the values of the coefficients  
+  !assign the values of the coefficients
   cpol(:,:)=1._dp
 
   cpol(1,2)=.25_dp
-  
+
   cpol(1,3)=1._dp/3._dp
-  
+
   cpol(1,4)=7._dp/12._dp
   cpol(2,4)=8._dp/3._dp
-  
+
   cpol(1,5)=19._dp/50._dp
   cpol(2,5)=3._dp/2._dp
-  
+
   cpol(1,6)=41._dp/272._dp
   cpol(2,6)=27._dp/34._dp
   cpol(3,6)=27._dp/272._dp
-  
+
   cpol(1,7)=751._dp/2989._dp
   cpol(2,7)=73._dp/61._dp
   cpol(3,7)=27._dp/61._dp
-  
+
   cpol(1,8)=-989._dp/4540._dp
   cpol(2,8)=-1472._dp/1135._dp
   cpol(3,8)=232._dp/1135._dp
@@ -366,7 +365,7 @@ subroutine Surfaces_Kernel(iproc,nproc,mpi_comm,inplane_comm,n1,n2,n3,m3,nker1,n
   cpol(1:4,6)=34._dp/105._dp*cpol(1:4,6)
   cpol(1:4,7)=2989._dp/17280._dp*cpol(1:4,7)
   cpol(1:5,8)=-454._dp/2835._dp*cpol(1:5,8)
-  
+
   !assign the complete values
   cpol(2,1)=cpol(1,1)
 
@@ -410,7 +409,7 @@ subroutine Surfaces_Kernel(iproc,nproc,mpi_comm,inplane_comm,n1,n2,n3,m3,nker1,n
   y_scf = f_malloc(0.to.n_scf,id='y_scf')
   !Build the scaling function
   call scaling_function(itype_scf,n_scf,n_range,x_scf,y_scf)
-  !Step grid for the integration
+  !Grid step for the integration
   dx = real(n_range,dp)/real(n_scf,dp)
   !Extend the range (no more calculations because fill in by 0._dp)
   n_cell = m3
@@ -461,8 +460,8 @@ subroutine Surfaces_Kernel(iproc,nproc,mpi_comm,inplane_comm,n1,n2,n3,m3,nker1,n
 
   !arrays for the halFFT
   call ctrig_sg(n3/2,ntrig,btrig,after,before,now,1,ic)
- 
-  !build the phases for the HalFFT reconstruction 
+
+  !build the phases for the HalFFT reconstruction
   pion=2._dp*pi/real(n3,dp)
   do i3=2,n3/2
      x=real(i3-1,dp)*pion
@@ -481,7 +480,7 @@ subroutine Surfaces_Kernel(iproc,nproc,mpi_comm,inplane_comm,n1,n2,n3,m3,nker1,n
   ipolyord=8 !this part should be incorporated inside the numerical integration
   !here we have to choice the piece of the x-y grid to cover
 
-  !let us now calculate the fraction of mu that will be considered 
+  !let us now calculate the fraction of mu that will be considered
   j2st=iproc*(nact2/nproc)
   j2nd=min((iproc+1)*(nact2/nproc),nker2)!n2/2+1) !here we might write nker2 instead of n2/2+1
 
@@ -493,7 +492,7 @@ subroutine Surfaces_Kernel(iproc,nproc,mpi_comm,inplane_comm,n1,n2,n3,m3,nker1,n
 
      !initialization of the interesting part of the cache array
      halfft_cache(:,:,:)=0._dp
-     
+
      if (istart == 1) then
         !i2=1
         shift=1
@@ -517,7 +516,7 @@ subroutine Surfaces_Kernel(iproc,nproc,mpi_comm,inplane_comm,n1,n2,n3,m3,nker1,n
 
            end do
 
-        else 
+        else
            mu1=abs(mu0_screening)*h3
            call calculates_green_opt(n_range,n_scf,itype_scf,ipolyord,x_scf,y_scf,&
                 cpol(1,ipolyord),mu1,dx,kernel_scf)
@@ -560,7 +559,7 @@ subroutine Surfaces_Kernel(iproc,nproc,mpi_comm,inplane_comm,n1,n2,n3,m3,nker1,n
      loopimpulses : do imu=istart+shift,iend
 
         !here there is the value of mu associated to hgrid
-        !note that we have multiplicated mu for hgrid to be comparable 
+        !note that we have multiplicated mu for hgrid to be comparable
         !with mu0ref
 
         !calculate the proper value of mu taking into account the periodic dimensions
@@ -571,9 +570,9 @@ subroutine Surfaces_Kernel(iproc,nproc,mpi_comm,inplane_comm,n1,n2,n3,m3,nker1,n
         !with these conventions imu=i1+(i2-1)*(n1/2+1), with i1=0,...,n1/2 and (hopefully) i2=0,..,n2/2,-n2/2,-n2/2+1,...,-1
         ponx=real(i1-1,dp)/real(n1,dp)
         pony=real(p_index(i2,n2),dp)/real(n2,dp)!real(i2-1,dp)/real(n2,dp) !here we should put the value of p
-        
+
         !print *,'here',i1,i2,i1-1,p_index(i2,n2)
-        
+
         !acerioni --- adding the mu0_screening
         !mu1=2._dp*pi*sqrt((ponx/h1)**2+(pony/h2)**2)*h3
         !old:
@@ -642,7 +641,7 @@ subroutine Surfaces_Kernel(iproc,nproc,mpi_comm,inplane_comm,n1,n2,n3,m3,nker1,n
            feR=.5_dp*(a+c)
            !n(c) feI=.5_dp*(b-d)
            foR=.5_dp*(a-c)
-           foI=.5_dp*(b+d) 
+           foI=.5_dp*(b+d)
            fR=feR+cp*foI-sp*foR
            kernel(i1,j2,i3)=fR
         end do
@@ -876,7 +875,7 @@ subroutine calculates_green_opt_muzero(n,n_scf,intorder,xval,yval,c,hres,green)
   !n(c) character(len=*), parameter :: subname='calculates_green_opt_muzero'
   integer :: izero,ivalue,i,iend,ikern
   real(dp) :: x,y,filter,gl0,gl1,gr0,gr1,c0,c1
- 
+
   !initialization of the branching value
   ikern=0
   izero=0
@@ -1028,7 +1027,7 @@ subroutine Free_Kernel(n01,n02,n03,nfft1,nfft2,nfft3,n1k,n2k,n3k,&
    iproc1=iproc
  endif
 
- !substitute 'iproc1' for all 'iproc' here after 
+ !substitute 'iproc1' for all 'iproc' here after
  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !print *,'arguments',n01,n02,n03,nfft1,nfft2,nfft3,n1k,n2k,n3k,&
@@ -1065,7 +1064,7 @@ subroutine Free_Kernel(n01,n02,n03,nfft1,nfft2,nfft3,n1k,n2k,n3k,&
 !!$ !Build the scaling function
 !!$ call scaling_function(itype_scf,n_scf,n_range,x_scf,y_scf)
  n_range=2*itype_scf
- !Step grid for the integration
+ !Grid step for the integration
  !n(c) dx = real(n_range,dp)/real(n_scf,dp)
  !Extend the range (no more calculations because fill in by 0._dp)
  n_cell = max(n01,n02,n03)
@@ -1075,7 +1074,7 @@ subroutine Free_Kernel(n01,n02,n03,nfft1,nfft2,nfft3,n1k,n2k,n3k,&
  a1 = hx * real(n01,dp)
  a2 = hy * real(n02,dp)
  a3 = hz * real(n03,dp)
- 
+
  if (mu0_screening == 0.0_dp) then
 
  !We divide the p_gauss by a_range**2 and a_gauss by a_range
@@ -1084,7 +1083,7 @@ subroutine Free_Kernel(n01,n02,n03,nfft1,nfft2,nfft3,n1k,n2k,n3k,&
     !factor2 = factor*factor
     factor2 = 1._dp/(a1*a1+a2*a2+a3*a3)
 
-    if (.not.high_accuracy) then 
+    if (.not.high_accuracy) then
      n_gauss = 89
      p_gauss = f_malloc(1.to.n_gauss,id='p_gauss')
      w_gauss = f_malloc(1.to.n_gauss,id='w_gauss')
@@ -1112,7 +1111,7 @@ subroutine Free_Kernel(n01,n02,n03,nfft1,nfft2,nfft3,n1k,n2k,n3k,&
     n_gauss = 90
     p_gauss = f_malloc(1.to.n_gauss,id='p_gauss')
     w_gauss = f_malloc(1.to.n_gauss,id='w_gauss')
-    
+
     !Initialization of the gaussian (Mirone)
     call Yukawa_gequad(p_gauss,w_gauss,ur_gauss,dr_gauss,acc_gauss)
     !In order to have a range from a_range=sqrt(a1*a1+a2*a2+a3*a3)
@@ -1131,7 +1130,7 @@ subroutine Free_Kernel(n01,n02,n03,nfft1,nfft2,nfft3,n1k,n2k,n3k,&
  end if
 
  call f_zero(karray)
-!!$  do i3=1,n3k/nproc 
+!!$  do i3=1,n3k/nproc
 !!$    !$omp parallel do default(shared) private(i2, i1)
 !!$    do i2=1,n2k
 !!$      do i1=1,n1k
@@ -1158,7 +1157,7 @@ subroutine Free_Kernel(n01,n02,n03,nfft1,nfft2,nfft3,n1k,n2k,n3k,&
   do i_gauss=n_gauss,1,-1
     !Gaussian
     pgauss = p_gauss(i_gauss) * factor2
-    
+
 !!$    if (i_gauss == 71 .or. .true.) then
 !!$       print *,'pgauss,wgauss',pgauss,w_gauss(i_gauss)
 !!$       !take the timings
@@ -1189,7 +1188,7 @@ subroutine Free_Kernel(n01,n02,n03,nfft1,nfft2,nfft3,n1k,n2k,n3k,&
 !!$       do i=0,n_range
 !!$          write(18,'(i4,3(1pe25.17))')i,kernel_scf(i,1),fwork(i)
 !!$       end do
-!!$       
+!!$
 !!$       write(*,'(1x,a,i3,2(1pe12.5),1pe24.17)')'time,i_gauss',i_gauss,told,tnew,maxdiff
 !!$       !stop
 !!$    end if
@@ -1219,7 +1218,7 @@ subroutine Free_Kernel(n01,n02,n03,nfft1,nfft2,nfft3,n1k,n2k,n3k,&
        !$omp end parallel do
     end do
 !print *,'igauss,tt',i_gauss,tt
-!!$    do i3=1,nker3/nproc  
+!!$    do i3=1,nker3/nproc
 !!$       if (iproc*(nker3/nproc)+i3  <= nfft3/2+1) then
 !!$          i03=iproc*(nker3/nproc)+i3
 !!$          do i2=1,n2k
@@ -1236,19 +1235,13 @@ subroutine Free_Kernel(n01,n02,n03,nfft1,nfft2,nfft3,n1k,n2k,n3k,&
  end do
 !!$stop
 !!$
- 
+
 !!$ !De-allocations
  call f_free(kernel_scf)
  call f_free(fwork)
  call f_free(fftwork)
  call f_free(p_gauss)
  call f_free(w_gauss)
-!!$ i_all=-product(shape(x_scf))*kind(x_scf)
-!!$ deallocate(x_scf,stat=i_stat)
-!!$ call memocc(i_stat,i_all,'x_scf',subname)
-!!$ i_all=-product(shape(y_scf))*kind(y_scf)
-!!$ deallocate(y_scf,stat=i_stat)
-!!$ call memocc(i_stat,i_all,'y_scf',subname)
 
 END SUBROUTINE Free_Kernel
 
@@ -1310,24 +1303,24 @@ subroutine gauconv_ffts(itype_scf,pgauss,hx,hy,hz,n1,n2,n3,nk1,nk2,nk3,n_range,f
      !Build the scaling function
      call scaling_function(itype_scf,n_scf,nrange,x_scf,y_scf)
 
-     !Step grid for the integration
+     !Grid step for the integration
      dx = real(nrange,dp)/real(n_scf,dp)
   else
   end if
 
   !write(*,*) 'n_range = ', n_range
-  
+
   !Allocations
   !allocate(work(-n_range:n_range), stat=i_stat)
   !allocate(fwork2(-n_range:n_range), stat=i_stat)
   !!acerioni
 
-  
+
   if (hx == hy .and. hy == hz) then
-     
-     if(an_int) then 
+
+     if(an_int) then
         !call analytic_integral(sqrt(pgauss)*hx,n_range,itype_scf,fwork)
-     else 
+     else
         call gauss_conv_scf(itype_scf, pgauss, hx, dx, n_range, n_scf, x_scf, y_scf, fwork_tmp, work)
         fwork(0:n_range) = fwork_tmp(0:n_range)
      end if
@@ -1342,7 +1335,7 @@ subroutine gauconv_ffts(itype_scf,pgauss,hx,hy,hz,n1,n2,n3,nk1,nk2,nk3,n_range,f
         n=ndims(idir)
         nk=ndimsk(idir)
         !copy the values on the real part of the fftwork array
-        
+
         ! fftwork=0.0_dp
         ! do j=0,min(n_range,n/2)
         !    fftwork(1,n/2+1+j)=fwork(j)
@@ -1361,7 +1354,7 @@ subroutine gauconv_ffts(itype_scf,pgauss,hx,hy,hz,n1,n2,n3,nk1,nk2,nk3,n_range,f
         !   fftwork(1,n/2+1+j)=fwork(j)
         !   fftwork(1,n/2+1-j)=fftwork(1,n/2+1+j)
         !end do
-        !calculate the fft 
+        !calculate the fft
         call fft_1d_ctoc(1,1,n,fftwork,inzee)
         !copy the real part on the kfft array
         call dcopy(nk,fftwork(1,n*(inzee-1)+1),2,kffts(1,idir),1)
@@ -1374,7 +1367,7 @@ subroutine gauconv_ffts(itype_scf,pgauss,hx,hy,hz,n1,n2,n3,nk1,nk2,nk3,n_range,f
         nk=ndimsk(idir)
         if(an_int) then
            !call analytic_integral(sqrt(pgauss)*h,n_range,itype_scf,fwork)
-        else 
+        else
            call gauss_conv_scf(itype_scf, pgauss, h, dx, n_range, n_scf, x_scf, y_scf, fwork_tmp, work)
            fwork(0:n_range) = fwork_tmp(0:n_range)
         end if
@@ -1384,21 +1377,21 @@ subroutine gauconv_ffts(itype_scf,pgauss,hx,hy,hz,n1,n2,n3,nk1,nk2,nk3,n_range,f
            fftwork(1,n/2+1+j)=fwork(j)
            fftwork(1,n/2+1-j)=fwork(j)
         end do
-     
+
         ! fftwork=0.0_dp
         ! do j=0,min(n_range,n/2)
            !fftwork(1,n/2+1+j)=fwork(j)
            !fftwork(1,n/2+1-j)=fftwork(1,n/2+1+j)
         ! end do
 
-        !calculate the fft 
+        !calculate the fft
         call fft_1d_ctoc(1,1,n,fftwork,inzee)
         !copy the real part on the kfft array
         call dcopy(nk,fftwork(1,n*(inzee-1)+1),2,kffts(1,idir),1)
         !write(17+idir-1,'(1pe24.17)')kffts(:,idir)
      end do
   end if
-  
+
   if(.not. an_int) then
      call f_free(x_scf)
      call f_free(y_scf)
@@ -1510,13 +1503,13 @@ END SUBROUTINE gauconv_ffts
 !!!!!$  !Only itype=8,14,16,20,24,30,40,50,60,100
 !!!!!$  select case(m)
 !!!!!$  case(8)
-!!!!!$     fISF => fISF8   
+!!!!!$     fISF => fISF8
 !!!!!$  case(14)
 !!!!!$     fISF => fISF14
 !!!!!$  case(16)
 !!!!!$     fISF => fISF16
 !!!!!$  case(20)
-!!!!!$     fISF => fISF20    
+!!!!!$     fISF => fISF20
 !!!!!$  case(24)
 !!!!!$     fISF => fISF24
 !!!!!$  case(30)
@@ -1535,7 +1528,7 @@ END SUBROUTINE gauconv_ffts
 !!!!!$  end select
 !!!
 !!!
-!!!  ! if(present(argument_nf)) then 
+!!!  ! if(present(argument_nf)) then
 !!!  !    nf=argument_nf
 !!!  ! else
 !!!  !    nf = 64 ! "default value"
@@ -1560,7 +1553,7 @@ END SUBROUTINE gauconv_ffts
 !!!     do q=nf,2,-2
 !!!        !the sign of q only influences the imaginary part
 !!!        !so we can multiply by a factor of two
-!!!        
+!!!
 !!!        !call wofz_mod(alpha,m,-q,-j,r1,if,flag1)
 !!!        call wofz_mod(alpha,m,q,-j-m,r1,if,flag1)
 !!!        call wofz_mod(alpha,m,q,-j+m,r2,if,flag2)
@@ -1570,7 +1563,7 @@ END SUBROUTINE gauconv_ffts
 !!!        flag=flag1 .or. flag2 .or. flag
 !!!        !if (flag) then
 !!!        !   print *,'here',xe,y,q,j
-!!!        !   stop 
+!!!        !   stop
 !!!        !end if
 !!!        !call wofz_mod(alpha,m,-q+1,-j,r1,if,flag1)
 !!!        call wofz_mod(alpha,m,q-1,-j-m,r1,if,flag1)
@@ -1581,14 +1574,14 @@ END SUBROUTINE gauconv_ffts
 !!!        flag=flag1 .or. flag2 .or. flag
 !!!        !if (flag) then
 !!!        !   print *,'there',xo,y
-!!!        !   stop 
+!!!        !   stop
 !!!        !end if
 !!!        !write(16,'(2(i4),6(1pe15.7))')j,q,re,ro,erfcmm-erfcpm
 !!!        re=re*fISF(q)
 !!!        ro=ro*fISF(q-1)
 !!!        res=res+re-ro
 !!!     end do
-!!!     !q=0 
+!!!     !q=0
 !!!     !fwork(j)=derf(y)+rese-reso
 !!!     fwork(j)=erfcmm-erfcpm+2.0_dp*res!e-reso
 !!!     fwork(j)=factorend*fwork(j)
@@ -1608,7 +1601,7 @@ END SUBROUTINE gauconv_ffts
 !!!  do jz=j+1,ntot
 !!!     fwork(jz)=0.0_dp
 !!!  end do
-!!! 
+!!!
 !!!END SUBROUTINE analytic_integral
 
 
@@ -1627,12 +1620,12 @@ subroutine gauss_conv_scf(itype_scf,pgauss,hgrid,dx,n_range,n_scf,x_scf,y_scf,ke
   integer :: n_iter,i_kern,i
   real(dp) :: p0_cell,p0gauss,absci,kern,x_limit
 
-  !Step grid for the integration
+  !Grid step for the integration
   !dx = real(n_range,dp)/real(n_scf,dp)
 
   !To have a correct integration
   p0_cell = p0_ref/(hgrid*hgrid)
-    
+
   !We calculate the number of iterations to go from pgauss to p0_ref
   n_iter = nint((log(pgauss) - log(p0_cell))/log(4.0_dp))
   if (n_iter <= 0)then
@@ -1665,7 +1658,7 @@ subroutine gauss_conv_scf(itype_scf,pgauss,hgrid,dx,n_range,n_scf,x_scf,y_scf,ke
 
   !Start the iteration to go from p0gauss to pgauss
   call scf_recursion(itype_scf,n_iter,n_range,kernel_scf,work)
-  
+
 END SUBROUTINE gauss_conv_scf
 
 
@@ -1695,14 +1688,14 @@ END SUBROUTINE inserthalf
 
 !> The conversion from d0 to dp type should be finished
 subroutine gequad(p,w,urange,drange,acc)
-  
+
    use Poisson_Solver, only: dp
    implicit none
- 
+
    !Arguments
    real(dp), intent(out) :: urange,drange,acc
    real(dp), intent(out) :: p(*),w(*)
- 
+
    ! range [10^(-9),1] and accuracy ~10^(-8);
    p(1)=4.96142640560223544d19
    p(2)=1.37454269147978052d19
@@ -1793,7 +1786,7 @@ subroutine gequad(p,w,urange,drange,acc)
    p(87)=1.75371394604499472_dp
    p(88)=0.64705932650658966_dp
    p(89)=0.072765905943708247_dp
- 
+
    w(1)=47.67445484528304247d10
    w(2)=11.37485774750442175d9
    w(3)=78.64340976880190239d8
@@ -1883,23 +1876,23 @@ subroutine gequad(p,w,urange,drange,acc)
    w(87)=0.576182522545327589_dp
    w(88)=0.596688817388997178_dp
    w(89)=0.607879901151108771_dp
- 
+
    urange = 1._dp
    drange=1d-08
    acc   =1d-08
- 
+
 END SUBROUTINE gequad
 
 !> The conversion from d0 to dp type should be finished
 subroutine HighAcc_gequad(p,w,urange,drange,acc)
-  
+
    use Poisson_Solver, only: dp
    implicit none
- 
+
    !Arguments
    real(dp), intent(out) :: urange,drange,acc
    real(dp), intent(out) :: p(*),w(*)
- 
+
    ! range [10^(-9),1] and accuracy ~10^(-14);
     p(1)=  0.95133594396161155d-4
     p(2)=  0.83736214493632534d-3
@@ -2248,11 +2241,11 @@ subroutine HighAcc_gequad(p,w,urange,drange,acc)
     w(171)= 0.65203505568868458d9
     w(172)= 0.75626700167512512d9
     w(173)= 0.87716108640598845d9
- 
+
    urange = 1._dp
    drange=1d-09
    acc   =1d-14
- 
+
 END SUBROUTINE HighAcc_gequad
 
 
@@ -2274,11 +2267,11 @@ subroutine Wires_Kernel(iproc,nproc,n01,n02,n03,n1,n2,n3,nker1,nker2,nker3,h1,h2
   real(dp), intent(in) :: h1,h2,h3          !< Mesh steps in the three dimensions
   real(dp), dimension(nker1,nker2,nker3/nproc), intent(out) :: karray !< Output array
   real(dp), intent(in) :: mu0_screening
-  !Local variables 
+  !Local variables
   character(len=*), parameter :: subname='Wires_Kernel'
   real(dp), parameter :: pi=3.14159265358979323846_dp
   integer, parameter :: n_gauss = 144
-  integer :: i1, i2, i3, n_range, n_cell, k,i3s,i3e
+  integer :: i1, i2, i3, n_range, n_cell, k,i3s,i3e,nn
   real(dp) :: mu, t0, t1
   !real(dp), dimension(:), allocatable :: fourISFx,fourISFy,fourISFz
   real(dp), dimension(:), allocatable :: fwork
@@ -2290,6 +2283,8 @@ subroutine Wires_Kernel(iproc,nproc,n01,n02,n03,n1,n2,n3,nker1,nker2,nker3,h1,h2
 
   !write(*,*) "Entering the Wires_Kernel subroutine..."
   call cpu_time(t0)
+
+  nn=n03
 
   w2 = -w2 !because we actually need -K0(mu*r)
 
@@ -2345,7 +2340,7 @@ subroutine Wires_Kernel(iproc,nproc,n01,n02,n03,n1,n2,n3,nker1,nker2,nker3,h1,h2
   ! loads the coefficients alpha(:) and w(:) of the Gaussian fit for -BesselK0
   alpha => p2
   w => w2
-  
+
   do i2 = 2, nker2
      if (i2 <= n2/2+1) then
         mu = 2.0_dp*pi/real(n2,dp)*real(i2-1,dp)/h3
@@ -2367,7 +2362,7 @@ subroutine Wires_Kernel(iproc,nproc,n01,n02,n03,n1,n2,n3,nker1,nker2,nker3,h1,h2
   end do
 
 
- 
+
   call cpu_time(t1)
   !write(*,*) "Exiting the Wires_Kernel subroutine..."
   !write(*,*) "Elapsed time = ", t1-t0
@@ -2383,7 +2378,7 @@ END SUBROUTINE Wires_Kernel
 
 !> The conversion from d0 to dp type should be finished
 subroutine Yukawa_gequad(p,w,urange,drange,acc)
- 
+
   use Poisson_Solver, only: dp
   implicit none
 
@@ -2393,8 +2388,8 @@ subroutine Yukawa_gequad(p,w,urange,drange,acc)
 !
 ! range [10^(-9), 15] and accuracy ~?;
 !
-  
-  include 'gaussfit_Yukawa.inc' 
+
+  include 'gaussfit_Yukawa.inc'
 
   p = p1
   w = w1
@@ -2414,7 +2409,7 @@ subroutine test_g2cart(n1,n2,n3,gprimd,g2cart)
    !local variables
    integer :: count, i1,i2,i3,id1,id2,id3,ifft,ig1,ig2,ig3,ii1
    real(kind=8) :: b11,b12,b13,b21,b22,b23,b31,b32,b33
-   
+
 
    id1=int(n1/2)+2
    id2=int(n2/2)+2

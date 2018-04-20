@@ -1,3 +1,232 @@
+module fragment_functions
+  use dynamic_memory
+  use f_utils
+  use dictionaries
+
+  ! Data
+  private
+
+  integer :: N, nel, maxfrag, ifound
+  real(kind=8),dimension(:,:),pointer :: K, xold
+
+  public :: set_N
+  public :: set_nel
+  public :: set_maxfrag
+  public :: allocate_K
+  public :: allocate_xold
+  public :: set_K
+  public :: fcn_fragments
+  public :: get_subkernel_purity
+  public :: deallocate_K
+  public :: deallocate_xold
+  public :: orthogonalize_inputguess
+  public :: set_ifound
+  public :: set_xold
+
+
+  contains
+
+  subroutine set_N(N_in)
+    implicit none
+    integer,intent(in) :: N_in
+    N = N_in
+  end subroutine set_N
+
+  subroutine set_nel(nel_in)
+    implicit none
+    integer,intent(in) :: nel_in
+    nel = nel_in
+  end subroutine set_nel
+
+  subroutine set_maxfrag(maxfrag_in)
+    implicit none
+    integer,intent(in) :: maxfrag_in
+    maxfrag = maxfrag_in
+  end subroutine set_maxfrag
+
+  subroutine set_ifound(ifound_in)
+    implicit none
+    integer,intent(in) :: ifound_in
+    ifound = ifound_in
+  end subroutine set_ifound
+
+  subroutine allocate_K()
+    implicit none
+    K = f_malloc_ptr([N,N],id='K')
+  end subroutine allocate_K
+
+  subroutine allocate_xold()
+    implicit none
+    xold = f_malloc_ptr([N,maxfrag],id='xold')
+  end subroutine allocate_xold
+
+  subroutine deallocate_K()
+    implicit none
+    call f_free_ptr(K)
+  end subroutine deallocate_K
+
+  subroutine deallocate_xold()
+    implicit none
+    call f_free_ptr(xold)
+  end subroutine deallocate_xold
+
+  subroutine set_K(K_in)
+    implicit none
+    real(kind=8),dimension(:,:),intent(in) :: K_in
+    if (size(K_in,1)/=N) call f_err_throw('wrong 1st dimension of K_in')
+    if (size(K_in,2)/=N) call f_err_throw('wrong 2nd dimension of K_in')
+    if (.not.associated(K)) then
+        call f_err_throw('K is not associated')
+    end if
+    if (size(K,1)/=N) call f_err_throw('wrong 1st dimension of K')
+    if (size(K,2)/=N) call f_err_throw('wrong 2nd dimension of K')
+    call f_memcpy(src=K_in, dest=K)
+  end subroutine set_K
+
+
+  subroutine set_xold(it, weights)
+    implicit none
+    integer,intent(in) :: it
+    real(kind=8),dimension(:),intent(in) :: weights
+    if (size(weights)/=N) then
+        call f_err_throw('wrong 1st dimension of weights')
+    end if
+    call f_memcpy(src=weights, dest=xold(1:N,it))
+  end subroutine set_xold
+
+
+
+
+subroutine fcn_fragments(m,n,x,fvec,iflag)
+integer m,n,iflag
+double precision x(n),fvec(m)
+!real(kind=8),dimension(:,:),allocatable :: tmpmat
+!real(kind=8),dimension(12) :: xold=[1,1,1,1,1,1,0,0,0,0,0,0]
+
+  if (m/=n+2+ifound) then
+      write(*,*) 'm, n, ifound', m, n, ifound
+      call f_err_throw('m/=n+2+ifound')
+  end if
+
+  do i=1,n
+      fvec(i) = 0.d0
+      do j=1,n
+          fvec(i) = fvec(i) + K(j,i)**2*x(j)
+      end do
+      fvec(i) = fvec(i) - x(i)*K(i,i)
+  end do
+
+  fvec(n+1) = 0.d0
+  do j=1,n
+      !fvec(n+1) = fvec(n+1) + x(j)*(x(j)-1.d0)
+      fvec(n+1) = fvec(n+1) + (x(j)*(x(j)-1.d0))**2
+      !fvec(n+1) = fvec(n+1) + x(j)**4 -2.d0*x(j)**3 + x(j)**2
+      !write(*,*) 'new, total', x(j)**4 -2.d0*x(j)**3 + x(j)**2, fvec(n+1)
+  end do
+
+  fvec(n+2) = 0.d0
+  do j=1,n
+      !fvec(n+2) = fvec(n+2) + x(j)**2
+      fvec(n+2) = fvec(n+2) + x(j)**1
+  end do
+  fvec(n+2) = fvec(n+2) - real(nel,kind=8)
+
+  call f_memcpy(src=x(1:n), dest=xold(1:n,m-(n+1)))
+
+  ! This will only be done if m>=n+3, meaning that we have previous solutions
+  do i=n+3,m
+      !write(*,*) 'additional constraint: i', i
+      fvec(i) = 0.d0
+      do j=1,n
+          fvec(i) = fvec(i) + x(j)*xold(j,i-(n+2))
+      end do
+  end do
+  
+  !write(*,'(a,12(f8.3),es12.4)') 'fvec**2',fvec(1:12)**2, sum(fvec(1:12)**2)
+  !write(*,'(a,es12.4)') 'sum(fvec**2)', sum(fvec**2)
+
+
+!----------
+!calculate the functions at x and
+!return this vector in fvec.
+!----------
+return
+end subroutine fcn_fragments
+
+
+function get_subkernel_purity(n, K, in_frag, charge) result(trace)
+implicit none
+
+! Calling arguments
+integer,intent(in) :: n
+real(kind=8),dimension(n,n),intent(in) :: K
+logical,dimension(n),intent(in) :: in_frag
+real(kind=8),intent(in) :: charge
+real(kind=8) :: trace
+
+! Local variables
+integer :: i, j
+real(kind=8) :: tt
+
+  trace = 0.d0
+  do i=1,n
+      if (in_frag(i)) then
+          tt = 0.d0
+          do j=1,n
+              if (in_frag(j)) then
+                  tt = tt + K(j,i)**2
+              end if
+          end do
+          !write(*,*) 'tt, K(i,i)', tt, K(i,i)
+          tt = tt - K(i,i)
+          trace = trace + tt
+      end if
+  end do
+  trace = trace/charge
+
+end function get_subkernel_purity
+
+
+
+
+subroutine orthogonalize_inputguess(m, n, x)
+use wrapper_linalg
+implicit none
+integer,intent(in) :: n, m
+real(kind=8),dimension(n),intent(inout) :: x
+real(kind=8) :: tt, ttmax
+integer :: i, iortho
+  ! This will only be done if m>=n+3, meaning that we have previous solutions
+  do iortho=1,10
+      do i=n+3,m
+          tt = dot(n, x(1), 1, xold(1,i-(n+2)), 1)
+          !tt = tt/sqrt(dot(n, x(1), 1, x(1), 1))
+          tt = tt/dot(n, xold(1,i-(n+2)), 1, xold(1,i-(n+2)), 1)
+          call axpy(n, -tt, xold(1,i-(n+2)), 1, x(1), 1)
+      end do
+      ttmax = 0.d0
+      do i=n+3,m
+          tt = dot(n, x(1), 1, xold(1,i-(n+2)), 1)
+          if (abs(tt)>ttmax) ttmax = abs(tt)
+          !write(*,*) 'i, tt', i, tt
+      end do
+      if (ttmax<1.d-2) then
+          !write(*,*) 'exit after iortho, ttmax',iortho, ttmax
+          exit
+      end if
+  end do
+
+
+end subroutine orthogonalize_inputguess
+
+end module fragment_functions
+
+
+
+
+
+
+
 !> @file
 !!   Auxiliary program to perform pre-/post-processing
 !! @author
@@ -35,10 +264,10 @@ program chess_toolbox
    use sparsematrix_base
    use sparsematrix_init, only: bigdft_to_sparsebigdft, distribute_columns_on_processes_simple, &
                                 write_sparsematrix_info, init_matrix_taskgroups_wrapper
-   use sparsematrix_io, only: read_sparse_matrix, write_sparse_matrix, write_dense_matrix
+   use sparsematrix_io, only: read_sparse_matrix, write_sparse_matrix, write_dense_matrix, read_dense_matrix
    use sparsematrix, only: uncompress_matrix, uncompress_matrix_distributed2, diagonalizeHamiltonian2, &
                            transform_sparse_matrix, compress_matrix, get_minmax_eigenvalues, &
-                           resize_matrix_to_taskgroup
+                           resize_matrix_to_taskgroup, uncompress_matrix2
    use sparsematrix_highlevel, only: sparse_matrix_and_matrices_init_from_file_bigdft, &
                                      sparse_matrix_and_matrices_init_from_file_ccs, &
                                      sparse_matrix_metadata_init_from_file, &
@@ -46,7 +275,6 @@ program chess_toolbox
                                      ccs_data_from_sparse_matrix, &
                                      ccs_matrix_write, &
                                      matrices_init, &
-                                     get_selected_eigenvalues_from_FOE, &
                                      matrix_matrix_multiplication, &
                                      matrix_chebyshev_expansion
    !!use postprocessing_linear, only: CHARGE_ANALYSIS_LOEWDIN, CHARGE_ANALYSIS_MULLIKEN
@@ -58,69 +286,91 @@ program chess_toolbox
    use parallel_linalg, only: dgemm_parallel
    use f_random, only: f_random_number
    use highlevel_wrappers, only: calculate_eigenvalues, solve_eigensystem_lapack
+   use foe, only: overlap_plusminus_onehalf, calculate_entropy_term
+   use fragment_functions
+   use minpack
    implicit none
    external :: gather_timings
    character(len=*), parameter :: subname='utilities'
-   character(len=1) :: geocode
-   character(len=3) :: do_ortho
-   character(len=30) :: tatonam, radical, colorname, linestart, lineend, cname, methodc
-   character(len=128) :: method_name, overlap_file, hamiltonian_file, hamiltonian_manipulated_file, overlap_manipulated_file
-   character(len=128) :: kernel_file, coeff_file, pdos_file, metadata_file
-   character(len=128) :: line, cc, output_pdos, conversion, infile, outfile, iev_min_, iev_max_, fscale_, matrix_basis
-   character(len=128) :: ihomo_state_, homo_value_, lumo_value_, smallest_value_, largest_value_, scalapack_blocksize_
+   !character(len=1) :: geocode
+   !character(len=3) :: do_ortho
+   character(len=30) :: tatonam, radical, colorname, linestart, lineend, cname
+   character(len=128) :: overlap_file, hamiltonian_file, hamiltonian_manipulated_file
+   character(len=128) :: kernel_file, coeff_file, eval_file, pdos_file, metadata_file, output_file, output_bins_file
+   character(len=128) :: line, cc, output_pdos, conversion, infile, outfile, iev_min_, iev_max_, fscale_
+   character(len=128) :: ihomo_state_, homo_value_, lumo_value_, smallest_value_, largest_value_, scalapack_blocksize_, kT_
+   character(len=128) :: accuracy_entropy_, nbin_, itype_, only_evals_, only_binned_values_
+   character(len=128) :: frag_elements_start_, frag_elements_end_
    !!character(len=128),dimension(-lmax:lmax,0:lmax) :: multipoles_files
    character(len=128) :: kernel_matmul_file, fragment_file, manipulation_mode, diag_algorithm
-   logical :: multipole_analysis = .false.
+   !logical :: multipole_analysis = .false.
    logical :: solve_eigensystem = .false.
    logical :: calculate_pdos = .false.
    logical :: convert_matrix_format = .false.
    logical :: calculate_selected_eigenvalues = .false.
    logical :: kernel_purity = .false.
    logical :: manipulate_eigenvalue_spectrum = .false.
+   logical :: calculate_entropy = .false.
+   logical :: analyze_density_matrix_dense = .false.
+   logical :: find_fragments = .false.
    !!type(atoms_data) :: at
    type(sparse_matrix_metadata) :: smmd
    integer :: iproc, nproc
-   integer :: istat, i_arg, ierr, nspin, icount, nthread, method, ntypes
+   integer :: istat, i_arg, ierr, nspin, nthread
    integer :: nfvctr_m, nseg_m, nvctr_m
    integer :: nfvctr_l, nseg_l, nvctr_l
    !integer :: nfvctrp_l, isfvctr_l, nfvctrp_m, isfvctr_m, nfvctrp_s, isfvctr_s
-   integer :: iconv, iev, iev_min, iev_max, l, ll, m, jat, jat_start, jtype
-   integer,dimension(:),pointer :: on_which_atom
-   integer,dimension(:),pointer :: keyv_s, keyv_m, keyv_l, on_which_atom_s, on_which_atom_m, on_which_atom_l
-   integer,dimension(:),pointer :: iatype, nzatom, nelpsp
+   integer :: iconv, iev_min, iev_max, jat, jat_start, jtype
+   !integer,dimension(:),pointer :: on_which_atom
+   !integer,dimension(:),pointer :: keyv_s, keyv_m, keyv_l
+   !integer,dimension(:),pointer :: on_which_atom_s, on_which_atom_m, on_which_atom_l
+   !integer,dimension(:),pointer :: nzatom
    integer,dimension(:),pointer :: col_ptr, row_ind
-   integer,dimension(:,:,:),pointer :: keyg_s, keyg_m, keyg_l
+   !integer,dimension(:,:,:),pointer :: keyg_s, keyg_m, keyg_l
    integer,dimension(:),allocatable :: fragment_atom_id, fragment_supfun_id
    !!logical,dimension(-lmax:lmax) :: file_present
-   real(kind=8),dimension(:),pointer :: matrix_compr, eval_ptr
-   real(kind=8),dimension(:,:),pointer :: rxyz, coeff_ptr
-   real(kind=8),dimension(:),allocatable :: eval, energy_arr, occups
+   real(kind=8),dimension(:),pointer :: eval_ptr
+   real(kind=8),dimension(:,:),pointer :: coeff_ptr
+   real(kind=8),dimension(:),allocatable :: eval, energy_arr, occups, darr, valarr
    real(kind=8),dimension(:,:),allocatable :: denskernel, pdos, occup_arr, hamiltonian_tmp, ovrlp_tmp, matrix_tmp
    real(kind=8),dimension(:,:),allocatable :: kernel_fragment, overlap_fragment, ksk_fragment, tmpmat
    logical,dimension(:,:),allocatable :: calc_array
-   logical :: file_exists, found, found_a_fragment, found_icol, found_irow
+   logical :: file_exists, found, found_a_fragment, found_icol, found_irow, only_evals, only_binned_values
+   logical,dimension(3) :: periodic
    type(matrices) :: ovrlp_mat, hamiltonian_mat, kernel_mat, mat, ovrlp_large, KS_large, kernel_ortho
    type(matrices),dimension(1) :: ovrlp_minus_one_half
-   type(matrices),dimension(:,:),allocatable :: multipoles_matrices
+   !type(matrices),dimension(:,:),allocatable :: multipoles_matrices
    type(sparse_matrix) :: smat_s, smat_m, smat_l
    type(sparse_matrix),dimension(1) :: smat_arr1
    type(sparse_matrix),dimension(2) :: smat
    type(dictionary), pointer :: dict_timing_info
-   integer :: iunit, nat, iat, iat_prev, ii, iitype, iorb, itmb, itype, ival, ios, ipdos, ispin
+   integer :: iunit, iat, iat_prev, ii, iitype, iorb, itmb, itype, ival, ios, ipdos, ispin
    integer :: jtmb, norbks, npdos, npt, ntmb, jjtmb, nat_frag, nfvctr_frag, i, iiat
-   integer :: icol, irow, icol_atom, irow_atom, iseg, iirow, iicol, j, ifrag, index_dot, ihomo_state, ieval, scalapack_blocksize
-   character(len=20),dimension(:),pointer :: atomnames
+   integer :: icol, irow, icol_atom, irow_atom, iseg, iirow, iicol, j, ifrag, index_dot, ihomo_state, ieval
+   integer :: scalapack_blocksize, nbin
+   integer(f_long) :: iil, jjl, nnl
    character(len=128),dimension(:),allocatable :: pdos_name, fragment_atomnames
-   real(kind=8),dimension(3) :: cell_dim
+   real(kind=8),dimension(3) ::  ri, rj
    character(len=2) :: backslash, num
    real(kind=8) :: energy, occup, occup_pdos, total_occup, fscale, factor, scale_value, shift_value
    real(kind=8) :: maxdiff, meandiff, tt, tracediff, totdiff
    real(kind=8) :: homo_value, lumo_value, smallest_value, largest_value, gap, gap_target, actual_eval
-   real(kind=8) :: mult_factor, add_shift
+   real(kind=8) :: mult_factor, add_shift, kT, eTS, accuracy_entropy, d, get_minimal_distance, val, val_mean, binwidth
+   real(kind=8) :: dmin, dmax, dstart, dend
    real(mp),dimension(:),allocatable :: eval_min, eval_max
    type(f_progress_bar) :: bar
    integer,parameter :: ncolors = 12
    character(len=1024) :: outfile_base, outfile_extension, matrix_format
+   real(kind=8),dimension(:),allocatable :: wa1, wa2, wa3, wa4, qtfa, diag, fvec, weights, qtf, purity_indicator_list
+   real(kind=8),dimension(:,:),allocatable :: fjac
+   integer,dimension(:),allocatable :: ipvt, natlist, natfrag
+   integer,dimension(:,:),allocatable :: fraglist
+   real(kind=8) :: epsfcn, gtol, xtol, ftol, charge, purity_indicator
+   logical,dimension(:),allocatable :: in_frag, nat_in_frag, at_assigned
+   integer :: maxfev, nfev, info, iflag, maxfrag, iel, ifound, nfrag, nfragmax, nfragfound
+   integer :: frag_elements_start, frag_elements_end, l
+   logical :: weights_integer, atom_complete
+   !external :: fcn_fragments
    ! Presumably well suited colorschemes from colorbrewer2.org
    character(len=20),dimension(ncolors),parameter :: colors=(/'#a6cee3', &
                                                               '#1f78b4', &
@@ -135,6 +385,152 @@ program chess_toolbox
                                                               '#ffff99', &
                                                               '#b15928'/)
    !$ integer :: omp_get_max_threads
+!!real(kind=8),dimension(12,12) :: K = reshape([ &
+!!   6.938149198647E-01*0.5d0, & !  6.5054268884712541E-01, &
+!!   3.272295963759E-01*0.5d0, & !  3.2949680805585824E-01, &
+!!  -8.232598245090E-01*0.5d0, & ! -7.9744818038650966E-01, &
+!!  -3.374415636414E-01*0.5d0, & ! -3.3662077658064471E-01, &
+!!  -5.623089185219E-02*0.5d0, & ! -7.5980028127545063E-02, &
+!!  -6.528366322909E-02*0.5d0, & ! -7.3684217368715610E-02, &
+!!   7.242523061010E-04*0.5d0, & ! -1.2512277871330202E-03, &
+!!   2.872021888738E-03*0.5d0, & !  2.2569388373053366E-03, &
+!!   1.778886557592E-03*0.5d0, & !  4.8311346900689316E-03, &
+!!   3.269024530123E-03*0.5d0, & !  3.3868168991838957E-03, &
+!!  -9.921706166357E-03*0.5d0, & ! -7.1606382026126979E-03, &
+!!  -1.733865002582E-03*0.5d0, & ! -8.5501092318784650E-04, &
+!!   3.272295963759E-01*0.5d0, & !  3.2949680805585824E-01, &
+!!   1.828160565676E+00*0.5d0, & !  1.8142766035698217E+00, &
+!!   1.531491157888E-01*0.5d0, & !  1.2573342964474479E-01, &
+!!   9.590253229407E-02*0.5d0, & !  8.3026504183287608E-02, &
+!!  -2.062748255364E-01*0.5d0, & ! -1.6221890701920783E-01, &
+!!   3.618556568157E-01*0.5d0, & !  3.7054721394408252E-01, &
+!!   1.201561640500E-04*0.5d0, & ! -1.2194754811245149E-04, &
+!!  -8.656222443658E-03*0.5d0, & ! -4.9981248726740143E-03, &
+!!  -5.384348451516E-03*0.5d0, & ! -4.7672118220079603E-03, &
+!!  -8.418414296216E-03*0.5d0, & ! -7.0690308032024703E-03, &
+!!   2.692708235747E-02*0.5d0, & !  2.1147900609865499E-02, &
+!!   5.498002569627E-03*0.5d0, & !  3.7789743870511642E-03, &
+!!  -8.232598245090E-01*0.5d0, & ! -7.9744818038650966E-01, &
+!!   1.531491157888E-01*0.5d0, & !  1.2573342964474479E-01, &
+!!   1.449739573264E+00*0.5d0, & !  1.4030428147089755E+00, &
+!!  -2.059717562278E-01*0.5d0, & ! -1.3654876198174021E-01, &
+!!  -1.656261339265E-01*0.5d0, & ! -1.0440414552220369E-01, &
+!!   1.629979868882E-01*0.5d0, & !  1.8099981938571919E-01, &
+!!  -1.660077632940E-03*0.5d0, & !  2.1053816511540126E-03, &
+!!  -2.090230780194E-03*0.5d0, & ! -5.6860832890118511E-04, &
+!!  -3.222215909655E-03*0.5d0, & ! -1.0051982793567579E-02, &
+!!  -2.527136514363E-03*0.5d0, & !  1.0962495609968344E-03, &
+!!   8.556425891157E-03*0.5d0, & !  2.0296568024845965E-03, &
+!!   1.046493878568E-03*0.5d0, & ! -2.2742381910128176E-06, &
+!!  -3.374415636414E-01*0.5d0, & ! -3.3662077658064471E-01, &
+!!   9.590253229407E-02*0.5d0, & !  8.3026504183287608E-02, &
+!!  -2.059717562278E-01*0.5d0, & ! -1.3654876198174021E-01, &
+!!   1.911367448688E+00*0.5d0, & !  1.8964816824154958E+00, &
+!!   1.340436977048E-02*0.5d0, & !  7.4380996259336262E-03, &
+!!  -6.055808797439E-02*0.5d0, & ! -4.9894477672102464E-02, &
+!!  -1.375815893670E-03*0.5d0, & !  1.4217061236529552E-04, &
+!!   3.377611075509E-03*0.5d0, & !  6.0156170474603143E-03, &
+!!   3.708146810445E-04*0.5d0, & !  2.6008616037529937E-03, &
+!!   3.666160354128E-03*0.5d0, & ! -6.5022284714939069E-03, &
+!!  -3.192439992136E-03*0.5d0, & ! -5.5945806147258441E-03, &
+!!  -6.072425610887E-03*0.5d0, & ! -7.8622994567272425E-03, &
+!!  -5.623089185219E-02*0.5d0, & ! -7.5980028127545063E-02, &
+!!  -2.062748255364E-01*0.5d0, & ! -1.6221890701920783E-01, &
+!!  -1.656261339265E-01*0.5d0, & ! -1.0440414552220369E-01, &
+!!   1.340436977048E-02*0.5d0, & !  7.4380996259336262E-03, &
+!!   1.457006798880E+00*0.5d0, & !  1.4183912699351939E+00, &
+!!   8.444350854373E-01*0.5d0, & !  8.1878263380436023E-01, &
+!!   8.661995700227E-03*0.5d0, & !  1.3683480430607777E-03, &
+!!  -2.484291264832E-02*0.5d0, & ! -4.5540309103186849E-02, &
+!!  -7.721767373712E-03*0.5d0, & ! -8.6840733871503956E-03, &
+!!  -2.301031396063E-02*0.5d0, & ! -2.9176672522041612E-02, &
+!!   5.265768990670E-02*0.5d0, & !  9.3406154473348435E-02, &
+!!   2.640320090742E-02*0.5d0, & !  2.9912070463652879E-02, &
+!!  -6.528366322909E-02*0.5d0, & ! -7.3684217368715610E-02, &
+!!   3.618556568157E-01*0.5d0, & !  3.7054721394408252E-01, &
+!!   1.629979868882E-01*0.5d0, & !  1.8099981938571919E-01, &
+!!  -6.055808797439E-02*0.5d0, & ! -4.9894477672102464E-02, &
+!!   8.444350854373E-01*0.5d0, & !  8.1878263380436023E-01, &
+!!   6.683336108225E-01*0.5d0, & !  6.3247478790462075E-01, &
+!!  -3.532808259313E-03*0.5d0, & ! -5.6303402248811217E-03, &
+!!   3.067540132742E-02*0.5d0, & !  1.0711374355425686E-05, &
+!!   1.740960169147E-02*0.5d0, & !  8.5993223276595553E-03, &
+!!   2.786817284489E-02*0.5d0, & !  1.1108721075642548E-02, &
+!!  -9.570937630381E-02*0.5d0, & ! -2.8349562302968374E-02, &
+!!  -1.721101354245E-02*0.5d0, & ! -3.0935575444983382E-03, &
+!!   7.242523061010E-04*0.5d0, & ! -1.2512277871330202E-03, &
+!!   1.201561640500E-04*0.5d0, & ! -1.2194754811245149E-04, &
+!!  -1.660077632940E-03*0.5d0, & !  2.1053816511540126E-03, &
+!!  -1.375815893670E-03*0.5d0, & !  1.4217061236529552E-04, &
+!!   8.661995700227E-03*0.5d0, & !  1.3683480430607777E-03, &
+!!  -3.532808259313E-03*0.5d0, & ! -5.6303402248811217E-03, &
+!!   6.775452402912E-01*0.5d0, & !  6.3891534399201377E-01, &
+!!   3.477296941647E-01*0.5d0, & !  3.5455479907524345E-01, &
+!!  -8.439439333169E-01*0.5d0, & ! -8.1310158325536031E-01, &
+!!  -2.421804759560E-01*0.5d0, & ! -2.5307523261966697E-01, &
+!!  -2.473013933785E-03*0.5d0, & ! -2.0451934147435610E-02, &
+!!  -6.415160018399E-02*0.5d0, & ! -6.8451734329208674E-02, &
+!!   2.872021888738E-03*0.5d0, & !  2.2569388373053366E-03, &
+!!  -8.656222443658E-03*0.5d0, & ! -4.9981248726740143E-03, &
+!!  -2.090230780194E-03*0.5d0, & ! -5.6860832890118511E-04, &
+!!   3.377611075509E-03*0.5d0, & !  6.0156170474603143E-03, &
+!!  -2.484291264832E-02*0.5d0, & ! -4.5540309103186849E-02, &
+!!   3.067540132742E-02*0.5d0, & !  1.0711374355425686E-05, &
+!!   3.477296941647E-01*0.5d0, & !  3.5455479907524345E-01, &
+!!   1.824505308778E+00*0.5d0, & !  1.8119342627076809E+00, &
+!!   2.038691374048E-01*0.5d0, & !  1.6381227320617225E-01, &
+!!  -8.191619821176E-02*0.5d0, & ! -6.9703698558694530E-02, &
+!!  -1.641304758174E-01*0.5d0, & ! -1.2993163626536569E-01, &
+!!   3.498660418079E-01*0.5d0, & !  3.5846246321685293E-01, &
+!!   1.778886557592E-03*0.5d0, & !  4.8311346900689316E-03, &
+!!  -5.384348451516E-03*0.5d0, & ! -4.7672118220079603E-03, &
+!!  -3.222215909655E-03*0.5d0, & ! -1.0051982793567579E-02, &
+!!   3.708146810445E-04*0.5d0, & !  2.6008616037529937E-03, &
+!!  -7.721767373712E-03*0.5d0, & ! -8.6840733871503956E-03, &
+!!   1.740960169147E-02*0.5d0, & !  8.5993223276595553E-03, &
+!!  -8.439439333169E-01*0.5d0, & ! -8.1310158325536031E-01, &
+!!   2.038691374048E-01*0.5d0, & !  1.6381227320617225E-01, &
+!!   1.457419959568E+00*0.5d0, & !  1.4132133557845523E+00, &
+!!  -1.855646470249E-01*0.5d0, & ! -1.2198143352104893E-01, &
+!!  -3.539189941822E-02*0.5d0, & ! -2.3593222798839068E-02, &
+!!   2.950885123566E-02*0.5d0, & !  5.1252005652155611E-02, &
+!!   3.269024530123E-03*0.5d0, & !  3.3868168991838957E-03, &
+!!  -8.418414296216E-03*0.5d0, & ! -7.0690308032024703E-03, &
+!!  -2.527136514363E-03*0.5d0, & !  1.0962495609968344E-03, &
+!!   3.666160354128E-03*0.5d0, & ! -6.5022284714939069E-03, &
+!!  -2.301031396063E-02*0.5d0, & ! -2.9176672522041612E-02, &
+!!   2.786817284489E-02*0.5d0, & !  1.1108721075642548E-02, &
+!!  -2.421804759560E-01*0.5d0, & ! -2.5307523261966697E-01, &
+!!  -8.191619821176E-02*0.5d0, & ! -6.9703698558694530E-02, &
+!!  -1.855646470249E-01*0.5d0, & ! -1.2198143352104893E-01, &
+!!   1.703074846814E+00*0.5d0, & !  1.6677627145616152E+00, &
+!!  -2.885435063655E-01*0.5d0, & ! -1.8701748632621470E-01, &
+!!   5.667671718127E-01*0.5d0, & !  5.6902619024084800E-01, &
+!!  -9.921706166357E-03*0.5d0, & ! -7.1606382026126979E-03, &
+!!   2.692708235747E-02*0.5d0, & !  2.1147900609865499E-02, &
+!!   8.556425891157E-03*0.5d0, & !  2.0296568024845965E-03, &
+!!  -3.192439992136E-03*0.5d0, & ! -5.5945806147258441E-03, &
+!!   5.265768990669E-02*0.5d0, & !  9.3406154473348435E-02, &
+!!  -9.570937630381E-02*0.5d0, & ! -2.8349562302968374E-02, &
+!!  -2.473013933785E-03*0.5d0, & ! -2.0451934147435610E-02, &
+!!  -1.641304758174E-01*0.5d0, & ! -1.2993163626536569E-01, &
+!!  -3.539189941822E-02*0.5d0, & ! -2.3593222798839068E-02, &
+!!  -2.885435063655E-01*0.5d0, & ! -1.8701748632621470E-01, &
+!!   1.658977490784E+00*0.5d0, & !  1.6195295556214508E+00, &
+!!   6.644198725245E-01*0.5d0, & !  6.5469534647209005E-01, &
+!!  -1.733865002582E-03*0.5d0, & ! -8.5501092318784650E-04, &
+!!   5.498002569627E-03*0.5d0, & !  3.7789743870511642E-03, &
+!!   1.046493878568E-03*0.5d0, & ! -2.2742381910128176E-06, &
+!!  -6.072425610887E-03*0.5d0, & ! -7.8622994567272425E-03, &
+!!   2.640320090742E-02*0.5d0, & !  2.9912070463652879E-02, &
+!!  -1.721101354245E-02*0.5d0, & ! -3.0935575444983382E-03, &
+!!  -6.415160018399E-02*0.5d0, & ! -6.8451734329208674E-02, &
+!!   3.498660418079E-01*0.5d0, & !  3.5846246321685293E-01, &
+!!   2.950885123566E-02*0.5d0, & !  5.1252005652155611E-02, &
+!!   5.667671718127E-01*0.5d0, & !  5.6902619024084800E-01, &
+!!   6.644198725245E-01*0.5d0, & !  6.5469534647209005E-01, &
+!!   6.700542365811E-01*0.5d0],& !  6.3058157710140161E-01],&
+!!  [12,12])
 
    call f_lib_initialize()
 
@@ -225,6 +621,9 @@ program chess_toolbox
          !!   exit loop_getargs
          else if (trim(tatonam)=='solve-eigensystem') then
             i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = itype_)
+            read(itype_,fmt=*,iostat=ierr) itype
+            i_arg = i_arg + 1
             call get_command_argument(i_arg, value = matrix_format)
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = metadata_file)
@@ -234,6 +633,11 @@ program chess_toolbox
             call get_command_argument(i_arg, value = overlap_file)
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = coeff_file)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = eval_file)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = only_evals_)
+            read(only_evals_,fmt=*,iostat=ierr) only_evals
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = scalapack_blocksize_)
             read(scalapack_blocksize_,fmt=*,iostat=ierr) scalapack_blocksize
@@ -276,6 +680,9 @@ program chess_toolbox
             call get_command_argument(i_arg, value = kernel_file)
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = kernel_matmul_file)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = itype_)
+            read(itype_,fmt=*,iostat=ierr) itype
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = iev_min_)
             read(iev_min_,fmt=*,iostat=ierr) iev_min
@@ -338,6 +745,58 @@ program chess_toolbox
             call get_command_argument(i_arg, value = scalapack_blocksize_)
             read(scalapack_blocksize_,fmt=*,iostat=ierr) scalapack_blocksize
             manipulate_eigenvalue_spectrum = .true.
+        else if (trim(tatonam)=='calculate-entropy') then
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = matrix_format)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = overlap_file)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = kernel_file)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = kernel_matmul_file)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = kT_)
+            read(kT_,fmt=*,iostat=ierr) kT
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = accuracy_entropy_)
+            read(accuracy_entropy_,fmt=*,iostat=ierr) accuracy_entropy
+            calculate_entropy = .true.
+        else if (trim(tatonam)=='analyze-density-matrix-dense') then
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = matrix_format)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = metadata_file)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = kernel_file)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = nbin_)
+            read(nbin_,fmt=*,iostat=ierr) nbin
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = output_file)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = output_bins_file)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = only_binned_values_)
+            read(only_binned_values_,fmt=*,iostat=ierr) only_binned_values
+            analyze_density_matrix_dense = .true.
+        else if (trim(tatonam)=='find-fragments') then
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = matrix_format)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = metadata_file)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = overlap_file)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = kernel_file)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = kernel_matmul_file)
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = frag_elements_start_)
+            read(frag_elements_start_,fmt=*,iostat=ierr) frag_elements_start
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = frag_elements_end_)
+            read(frag_elements_end_,fmt=*,iostat=ierr) frag_elements_end
+            find_fragments = .true.
          end if
          i_arg = i_arg + 1
       end do loop_getargs
@@ -469,9 +928,22 @@ program chess_toolbox
 
 
    if (solve_eigensystem) then
-       call solve_eigensystem_lapack(iproc, nproc, matrix_format, metadata_file, &
-            overlap_file, hamiltonian_file, scalapack_blocksize, write_output=.true., &
-            coeff_file=trim(coeff_file))
+       if (iproc==0) then
+           if (only_evals) then
+               i = 1
+           else
+               i = 0
+           end if
+       end if
+       call mpibcast(i, root=0, comm=mpi_comm_world)
+       if (i==1) then
+           only_evals = .true.
+       else
+           only_evals = .false.
+       end if
+       call solve_eigensystem_lapack(iproc, nproc, mpi_comm_world, itype, matrix_format, metadata_file, &
+            overlap_file, hamiltonian_file, scalapack_blocksize, write_coeff=.not.only_evals, write_eval=only_evals, &
+            coeff_file=trim(coeff_file), eval_file=trim(eval_file))
 
        !!!if (iproc==0) call yaml_comment('Reading from file '//trim(overlap_file),hfill='~')
        !!call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, trim(overlap_file), &
@@ -694,10 +1166,10 @@ program chess_toolbox
                end do
                !call fmpi_allreduce(energy, 1, FMPI_SUM, comm=mpiworld())
                do ispin=1,nspin
-                   !$omp parallel default(none) &
-                   !$omp shared(ispin,smat,ntmb,denskernel,ovrlp_mat,calc_array,npdos,occups) &
-                   !$omp private(itmb,jtmb,jjtmb,occup,ipdos)
-                   !$omp do reduction(+:occups)
+!                   !$omp parallel default(none) &
+!                   !$omp shared(ispin,smat,ntmb,denskernel,ovrlp_mat,calc_array,npdos,occups) &
+!                   !$omp private(itmb,jtmb,jjtmb,occup,ipdos)
+!                   !$omp do reduction(+:occups)
                    do jtmb=1,smat(1)%nfvctrp
                        jjtmb = smat(1)%isfvctr + jtmb
                        !if (calc_array(jjtmb,ipdos)) then
@@ -714,8 +1186,8 @@ program chess_toolbox
                            end do
                        !end if
                    end do
-                   !$omp end do
-                   !$omp end parallel
+!                   !$omp end do
+!                   !$omp end parallel
                    do ipdos=1,npdos
                        occup_arr(ipdos,iorb) = occups(ipdos)
                    end do
@@ -914,7 +1386,7 @@ program chess_toolbox
    if (calculate_selected_eigenvalues) then
        call calculate_eigenvalues(iproc, nproc, matrix_format, metadata_file, &
             overlap_file, hamiltonian_file, kernel_file, kernel_matmul_file, &
-            iev_min, iev_max, fscale)
+            itype, iev_min, iev_max, fscale)
        !!!call sparse_matrix_metadata_init_from_file(trim(metadata_file), smmd)
        !!!call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, trim(overlap_file), &
        !!!     iproc, nproc, mpiworld(), smat_s, ovrlp_mat, &
@@ -1017,7 +1489,7 @@ program chess_toolbox
 
        ! Calculate K'=S^1/2*K*S^1/2
        kernel_ortho = matrices_null()
-       kernel_ortho%matrix_compr = sparsematrix_malloc_ptr(smat(2), iaction=SPARSE_FULL, id='kernel_ortho%matrix_compr')
+       kernel_ortho%matrix_compr = sparsematrix_malloc_ptr(smat(2), iaction=SPARSE_TASKGROUP, id='kernel_ortho%matrix_compr')
        call matrix_for_orthonormal_basis(iproc, nproc, mpiworld(), &
             1020, smat(1), smat(2), &
             ovrlp_mat, kernel_mat, 'plus', kernel_ortho%matrix_compr)
@@ -1379,7 +1851,7 @@ program chess_toolbox
            !!ovrlp_tmp = f_malloc((/smat_s%nfvctr,smat_s%nfvctr/),id='ovrlp_tmp')
            call f_memcpy(src=hamiltonian_mat%matrix,dest=hamiltonian_tmp)
            call f_memcpy(src=ovrlp_mat%matrix,dest=ovrlp_tmp)
-           call diagonalizeHamiltonian2(iproc, nproc, mpiworld(), scalapack_blocksize, &
+           call diagonalizeHamiltonian2(iproc, nproc, mpiworld(), 1, scalapack_blocksize, &
                 smat_s%nfvctr, hamiltonian_tmp, ovrlp_tmp, eval)
            if (iproc==0) then
                call yaml_comment('Matrix succesfully diagonalized',hfill='~')
@@ -1627,7 +2099,463 @@ program chess_toolbox
    end if
 
 
-   call build_dict_info(iproc, nproc, dict_timing_info)
+
+   if (calculate_entropy) then
+       call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, trim(overlap_file), &
+            iproc, nproc, mpiworld(), smat(1), ovrlp_mat, &
+            init_matmul=.false.)
+       call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, trim(kernel_file), &
+            iproc, nproc, mpiworld(), smat(2), kernel_mat, &
+            init_matmul=.true., filename_mult=trim(kernel_matmul_file))
+       call init_matrix_taskgroups_wrapper(iproc, nproc, mpiworld(), .false., 2, smat)
+       call resize_matrix_to_taskgroup(smat(1), ovrlp_mat)
+       call resize_matrix_to_taskgroup(smat(2), kernel_mat)
+
+       if (iproc==0) then
+           call yaml_mapping_open('Matrix properties')
+           call write_sparsematrix_info(smat(1), 'Overlap matrix')
+           call write_sparsematrix_info(smat(2), 'Density kernel')
+           call yaml_mapping_close()
+       end if
+
+       ovrlp_minus_one_half(1) = matrices_null()
+       ovrlp_minus_one_half(1)%matrix_compr = &
+           sparsematrix_malloc_ptr(smat(2),iaction=SPARSE_TASKGROUP,id='ovrlp_minus_one_half(1)%matrix_compr')
+
+       if (iproc==0) then
+           call yaml_mapping_open('Calculate S^-1/2')
+       end if
+       call overlap_plusminus_onehalf('minus', 'ICE', iproc, nproc, mpiworld(), &
+            smat(1), smat(2), ovrlp_mat, ovrlp_minus_one_half(1))
+       if (iproc==0) then
+           call yaml_mapping_close()
+       end if
+
+       if (iproc==0) then
+           call yaml_mapping_open('Calculate entropy')
+       end if
+       call calculate_entropy_term(iproc, nproc, mpiworld(), &
+            kT, smat(1), smat(2), &
+            ovrlp_mat, kernel_mat, ovrlp_minus_one_half(1), &
+            accuracy_entropy, eTS)
+       if (iproc==0) then
+           call yaml_map('eTS',eTS)
+           call yaml_mapping_close()
+       end if
+
+       call f_timing_checkpoint(ctr_name='LAST',mpi_comm=mpiworld(),nproc=mpisize(),&
+                    gather_routine=gather_timings)
+
+       call deallocate_sparse_matrix(smat(1))
+       call deallocate_sparse_matrix(smat(2))
+       call deallocate_matrices(ovrlp_mat)
+       call deallocate_matrices(kernel_mat)
+       call deallocate_matrices(ovrlp_minus_one_half(1))
+
+   end if
+
+
+
+
+   if (analyze_density_matrix_dense) then
+
+       call sparse_matrix_metadata_init_from_file(trim(metadata_file), smmd)
+       kernel_mat = matrices_null()
+       call read_dense_matrix(.not.matrix_format=='serial_text', trim(kernel_file), &
+            iproc, nproc, mpiworld(), nfvctr_l, nspin, kernel_mat%matrix)
+
+       if (nspin/=1) then
+           call f_err_throw('dense density kernel analysis at the moment only possible for nspin=1')
+       end if
+
+       select case (smmd%geocode)
+       case ('F')
+           periodic = [.false.,.false.,.false.]
+       case ('P')
+           periodic = [.true.,.true.,.true.]
+       case default
+           call f_err_throw('Unknown boundary conditions')
+       end select
+
+       nnl = int(int(nfvctr_l,f_long)*int(nfvctr_l,f_long),f_long)
+       darr = f_malloc(nnl,id='darr')
+       valarr = f_malloc(nnl,id='valarr')
+
+       ! Calculate the distances between the atoms to which the support functions belong
+       dmin = huge(0._mp)
+       dmax = 0._mp
+       iil = int(0,f_long)
+       if (iproc==0) then
+           call yaml_comment('Calculating values',hfill='-')
+           bar=f_progress_bar_new(nstep=nfvctr_l)
+       end if
+       do i=1,nfvctr_l
+           iat = smmd%on_which_atom(i)
+           ri = smmd%rxyz(1:3,iat)
+           do j=1,nfvctr_l
+               jat = smmd%on_which_atom(j)
+               rj = smmd%rxyz(1:3,jat)
+               iil = iil + int(1,f_long)
+               d = get_minimal_distance(ri, rj, smmd%cell_dim, periodic)
+               val = kernel_mat%matrix(j,i,1)
+               if (d < dmin) then
+                   dmin = d
+               end if
+               if (d > dmax) then
+                   dmax = d
+               end if
+               darr(iil) = d
+               valarr(iil) = val
+           end do
+           if ((mod(i,2)==0 .or. i==nfvctr_l) .and. iproc==0) call dump_progress_bar(bar,step=i)
+       end do
+       if (iproc==0) then
+           call yaml_comment('Done',hfill='-')
+       end if
+       if (iil/=nnl) then
+           call f_err_throw('iil/=nnl')
+       end if
+
+       if (.not.only_binned_values .and. iproc==0) then
+           call yaml_comment('Writing values',hfill='-')
+           call yaml_map('Output file for raw values',trim(output_file))
+           iunit = 99
+           call f_open_file(iunit, file=trim(output_file), binary=.false.)
+           write(iunit,'(a)') '# distance      value'
+           do iil=1,nnl
+               write(iunit,'(2es20.12)') darr(iil), valarr(iil)
+           end do
+           call f_close(iunit)
+       end if
+
+       ! Calculate the mean value within bins.
+       ! Make the maximal value slightly larger to take into account values which have the maximal values
+       if (iproc==0) then
+           call yaml_map('Output file for binned values',trim(output_bins_file))
+           iunit = 99
+           call f_open_file(iunit, file=trim(output_bins_file)//'', binary=.false.)
+           write(iunit,'(a)') '# distance      value'
+
+           dmax = dmax + 1.e-10
+           nbin = 100
+           binwidth = (dmax-dmin)/real(nbin,f_double)
+           do i=0,nbin-1
+               dstart = dmin + real(i,f_double)*binwidth
+               dend = dmin + real(i+1,f_double)*binwidth
+               val_mean = 0._mp
+               jjl = int(0,f_long)
+               !write(*,*) 'i, dstart, dend, dmin, dmax', i, dstart, dend, dmin, dmax
+               do iil=1,nnl
+                   if (darr(iil)>=dstart .and. darr(iil)<=dend) then
+                       val_mean = val_mean + valarr(iil)
+                       jjl = jjl + int(1,f_long)
+                   end if 
+               end do
+               if (jjl>0) then
+                   write(iunit,'(2es20.12)') 0.5_mp*(dstart+dend), val_mean/real(jjl,f_double)
+               end if
+           end do
+           call yaml_comment('Done',hfill='-')
+           call f_close(iunit)
+       end if
+
+       call f_free(darr)
+       call f_free(valarr)
+
+       call deallocate_matrices(kernel_mat)
+       call deallocate_sparse_matrix_metadata(smmd)
+
+   end if
+
+
+
+
+   if (find_fragments) then
+
+       call sparse_matrix_metadata_init_from_file(trim(metadata_file), smmd)
+       call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, trim(overlap_file), &
+            iproc, nproc, mpiworld(), smat(1), ovrlp_mat, &
+            init_matmul=.false.)
+       call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, trim(kernel_file), &
+            iproc, nproc, mpiworld(), smat(2), kernel_mat, &
+            init_matmul=.true., filename_mult=trim(kernel_matmul_file))
+       call init_matrix_taskgroups_wrapper(iproc, nproc, mpiworld(), .false., 2, smat)
+       call resize_matrix_to_taskgroup(smat(1), ovrlp_mat)
+       call resize_matrix_to_taskgroup(smat(2), kernel_mat)
+
+       if (iproc==0) then
+           call yaml_mapping_open('Matrix properties')
+           call write_sparsematrix_info(smat(1), 'Overlap matrix')
+           call write_sparsematrix_info(smat(2), 'Density kernel')
+           call yaml_mapping_close()
+       end if
+
+       ! Calculate K'=S^1/2*K*S^1/2
+       kernel_ortho = matrices_null()
+       kernel_ortho%matrix_compr = sparsematrix_malloc_ptr(smat(2), iaction=SPARSE_TASKGROUP, id='kernel_ortho%matrix_compr')
+       call matrix_for_orthonormal_basis(iproc, nproc, mpiworld(), &
+            1020, smat(1), smat(2), &
+            ovrlp_mat, kernel_mat, 'plus', kernel_ortho%matrix_compr)
+       kernel_ortho%matrix = sparsematrix_malloc_ptr(smat(2), iaction=DENSE_FULL, id='kernel_ortho%matrix')
+       call uncompress_matrix2(iproc, nproc, mpiworld(), smat(2), kernel_ortho%matrix_compr, kernel_ortho%matrix)
+
+       call vscal(smat(1)%nfvctr**2, 0.5d0, kernel_ortho%matrix(1,1,1), 1)
+
+       tmpmat = f_malloc([smat(1)%nfvctr,smat(1)%nfvctr],id='tmpmat')
+       tmpmat = matmul(kernel_ortho%matrix(:,:,1),kernel_ortho%matrix(:,:,1))
+       !write(*,*) 'kernel_ortho%matrix(1,1,1), tmpmat(1,1)', kernel_ortho%matrix(1,1,1), tmpmat(1,1)
+
+       ! Maybe we should check here the consistency of nfvctr etc...
+
+       ! Solve the overdetermined system in a least-square sense
+
+       maxfrag = 4 !12
+
+       call set_N(smat(1)%nfvctr)
+       call set_maxfrag(maxfrag)
+       call allocate_K()
+       call set_K(kernel_ortho%matrix(:,:,1))
+       call allocate_xold()
+
+       in_frag = f_malloc(smat(1)%nfvctr,id='in_frag')
+       nat_in_frag = f_malloc(smmd%nat,id='nat_in_frag')
+
+       ftol = 1.e-5_mp
+       xtol = 1.e-5_mp
+       gtol = 1.e-5_mp
+       maxfev = 10000
+       epsfcn = 1.e-10_mp
+       diag = f_malloc(smat(1)%nfvctr, id='diag')
+       ipvt = f_malloc(smat(1)%nfvctr, id='ipvt')
+       qtf = f_malloc(smat(1)%nfvctr, id='qtf')
+       fvec = f_malloc(smat(1)%nfvctr+maxfrag+1, id='fvec')
+       fjac = f_malloc([smat(1)%nfvctr+maxfrag+1,smat(1)%nfvctr], id='fjac')
+       wa1 = f_malloc(smat(1)%nfvctr, id='wa1')
+       wa2 = f_malloc(smat(1)%nfvctr, id='wa2')
+       wa3 = f_malloc(smat(1)%nfvctr, id='wa3')
+       wa4 = f_malloc(smat(1)%nfvctr+maxfrag+1, id='wa4')
+       weights = f_malloc(smat(1)%nfvctr,id='weights')
+       natlist = f_malloc(smmd%nat,id='natlist')
+       at_assigned = f_malloc(smmd%nat,id='at_assigned')
+       nfragmax = 100
+       fraglist = f_malloc([smmd%nat,nfragmax],id='fraglist')
+       natfrag = f_malloc(nfragmax,id='natfrag')
+       purity_indicator_list = f_malloc(nfragmax, id='purity_indicator_list')
+
+       if (iproc==0) then
+           call yaml_sequence_open('Searching fragments')
+       end if
+
+       nfragfound = 0
+
+       if (frag_elements_start<1) then
+           frag_elements_start = 1
+           if (iproc==0) then
+               call yaml_warning('frag_elements_start is to small, adjusting to: '//trim(yaml_toa(frag_elements_start)))
+           end if
+       end if
+       if (frag_elements_end>smat(1)%nfvctr) then
+           frag_elements_end = smat(1)%nfvctr
+           if (iproc==0) then
+               call yaml_warning('frag_elements_end is to large, adjusting to: '//trim(yaml_toa(frag_elements_end)))
+           end if
+       end if
+
+       do iel=frag_elements_start,frag_elements_end
+           call set_nel(iel)
+           ifound = 0
+           call set_ifound(ifound)
+           call yaml_comment('Searching fragment with '//trim(yaml_toa(iel))//' elements')
+           do i=1,maxfrag
+               !ii = i + 1
+               ii = ifound + 2
+               !weights(:) = 1.d0
+               weights(:) = 0.d0
+               !weights(13:18) = 0.7
+               call random_number(weights)
+               call orthogonalize_inputguess(smat(1)%nfvctr+ii, smat(1)%nfvctr, weights)
+               !weights = 0.5d0
+               !weights(1:6) = 0.8d0
+               !weights(7:12) = 0.d0
+               !write(*,*) 'call with smat(1)%nfvctr+ii, ii, ifound',smat(1)%nfvctr+ii, ii, ifound
+               call fcn_fragments(smat(1)%nfvctr+ii, smat(1)%nfvctr, weights, fvec, iflag)
+               !write(*,*) 'weights', weights
+               !write(*,*) 'fvec', fvec
+               call lmdif_wrapper(fcn_fragments, smat(1)%nfvctr+ii, smat(1)%nfvctr, weights, fvec, ftol, xtol, gtol, &
+                    maxfev, epsfcn, diag, 1, 100._mp, 1, info, nfev, &
+                    fjac, smat(1)%nfvctr+maxfrag+1, ipvt, qtf, &
+                    wa1, wa2, wa3, wa4)
+               !write(*,*) 'info', info
+
+               ! Determine whether the found solutions corresponds to roughly integer weights.
+               !write(*,'(a,2i5,12(f7.3))') 'iel, i, weights', iel, i, weights
+               weights_integer = .true.
+               do l=1,smat(1)%nfvctr
+                   if (abs(weights(l))<0.1d0) then
+                       in_frag(l) = .false.
+                   else if (abs(weights(l)-1.d0)<0.1d0) then
+                       in_frag(l) = .true.
+                   else
+                       !write(*,*) 'non-integer:',l, weights(l)
+                       weights_integer = .false.
+                   end if
+               end do
+               if (.not.weights_integer .or. all(.not.in_frag)) cycle
+
+               ! Determine to which atoms the support functions belong.
+               ! Also check that all support functions of a given atom belong to the selected fragment.
+               at_assigned(:) = .false.
+               atom_complete = .true.
+               do l=1,smat(1)%nfvctr
+                   iiat = smmd%on_which_atom(l)
+                   if (in_frag(l)) then
+                       if (at_assigned(iiat) .and. .not.nat_in_frag(iiat)) then
+                           ! Not all support functions of this atom belong to the fragment.
+                           atom_complete = .false.
+                       end if
+                       nat_in_frag(iiat) = .true.
+                   else
+                       if (at_assigned(iiat) .and. nat_in_frag(iiat)) then
+                           ! Not all support functions of this atom belong to the fragment.
+                           atom_complete = .false.
+                       end if
+                       nat_in_frag(iiat) = .false.
+                   end if
+                   at_assigned(iiat) = .true.
+               end do
+
+               if (.not.atom_complete) then
+                   !write(*,*) 'cycle due no incomplete atom'
+                   cycle
+               end if
+
+               ifound = ifound + 1
+               call set_ifound(ifound)
+
+               ! Set the xold array
+               ! Convert the weights into proper 0 and 1
+               weights(:) = 0.d0
+               do l=1,smat(1)%nfvctr
+                   if (in_frag(l)) then
+                       weights(l) = 1.d0
+                   else
+                       weights(l) = 0.d0
+                   end if
+               end do
+               call set_xold(ifound, weights)
+
+               ! Check whether the fragment is indeed pure.
+               nat_frag = 0
+               do iat=1,smmd%nat
+                   if (nat_in_frag(iat)) then
+                       nat_frag = nat_frag + 1
+                       natlist(nat_frag) = iat
+                   end if
+               end do
+
+               charge = 0.d0
+               do l=1,smmd%nat
+                   if (nat_in_frag(l)) then
+                       charge = charge + real(smmd%nelpsp(smmd%iatype(l)),kind=8)
+                   end if
+               end do
+               !write(*,'(a,2i5,12(f7.3))') 'iel, i, weights', iel, i, weights
+               !write(*,*) nat_in_frag, charge
+               !write(*,*) 'purity indincator',  get_subkernel_purity(smat(1)%nfvctr, kernel_ortho%matrix, in_frag, charge)
+               purity_indicator = get_subkernel_purity(smat(1)%nfvctr, kernel_ortho%matrix, in_frag, charge)
+               if (iproc==0) then
+                   call yaml_sequence(advance='no')
+                   call yaml_mapping_open('frag')
+                   call yaml_map('number of target elements',iel)
+                   call yaml_map('fragment search',i)
+                   call yaml_map('nat_in_frag',nat_frag)
+                   call yaml_map('atom list',natlist(1:nat_frag))
+                   call yaml_map('fragment charge',charge)
+                   call yaml_map('purity indicator',purity_indicator)
+                   call yaml_mapping_close()
+               end if
+
+               ! Check whether this fragment has already been found before.
+               do ifrag=1,nfragfound
+                   found = .true.
+                   if (nat_frag /= natfrag(ifrag)) then
+                       ! For sure a new fragment as the number of atoms is different
+                       found = .false.
+                       cycle
+                   end if
+                   do l=1,nat_frag
+                       if (natlist(l) /= fraglist(l,ifrag)) then
+                           found = .false.
+                           cycle
+                       end if
+                   end do
+                   if (found) then
+                       ! This fragment has already been found
+                       exit
+                   end if
+               end do
+               if (.not.found) then
+                   write(*,*) 'new fragment'
+                   nfragfound = nfragfound + 1
+                   if (nfragfound>nfragmax) then
+                       call f_err_throw('maximal number of fragments found')
+                   end if
+                   natfrag(nfragfound) = nat_frag
+                   call f_memcpy(src=natlist(1:nat_frag), dest=fraglist(1:nat_frag,ifrag))
+                   purity_indicator_list(nfragfound) = purity_indicator
+               else
+                   write(*,*) 'FOUND fragment'
+               end if
+           end do
+       end do
+
+       if (iproc==0) then
+           call yaml_sequence_close()
+       end if
+
+   call build_dict_info(dict_timing_info)
+       if (iproc==0) then
+           call yaml_sequence_open('List of calculated fragments')
+           do ifrag=1,nfragfound
+               call yaml_sequence(advance='no')
+               call yaml_mapping_open('Fragment')
+               call yaml_map('Number of atoms in fragment',natfrag(ifrag))
+               call yaml_map('IDs of atom in fragment',fraglist(1:natfrag(ifrag),ifrag))
+               call yaml_map('purity indicator',purity_indicator_list(ifrag))
+               call yaml_mapping_close()
+           end do
+       end if
+
+       call f_free(at_assigned)
+       call f_free(in_frag)
+       call f_free(nat_in_frag)
+       call f_free(weights)
+       call f_free(fvec)
+       call f_free(diag)
+       call f_free(fjac)
+       call f_free(ipvt)
+       call f_free(qtf)
+       call f_free(wa1)
+       call f_free(wa2)
+       call f_free(wa3)
+       call f_free(wa4)
+       call deallocate_K()
+       call deallocate_xold()
+       call f_free(natlist)
+       call f_free(natfrag)
+       call f_free(fraglist)
+       call f_free(purity_indicator_list)
+
+       call deallocate_sparse_matrix(smat(1))
+       call deallocate_sparse_matrix(smat(2))
+       call deallocate_matrices(ovrlp_mat)
+       call deallocate_matrices(kernel_mat)
+       call deallocate_matrices(kernel_ortho)
+       call deallocate_sparse_matrix_metadata(smmd)
+
+   end if
+
+
    call f_timing_stop(mpi_comm=mpiworld(),nproc=nproc,&
         gather_routine=gather_timings,dict_info=dict_timing_info)
    call dict_free(dict_timing_info)
@@ -1728,7 +2656,7 @@ subroutine extract_fragment_submatrix(smmd, smat, mat, nat_frag, nfvctr_frag, &
               iirow = fragment_supfun_id(irow)
               iicol = fragment_supfun_id(icol)
               !!if (mpirank()==0) write(*,'(a,5i8,es16.6)') 'irow, icol, iirow, iicol, ii, val', irow, icol, iirow, iicol, ii, mat%matrix_compr(ii)
-              mat_frag(iirow,iicol) = mat%matrix_compr(ii)
+              mat_frag(iirow,iicol) = mat%matrix_compr(ii-smat%isvctrp_tg)
           end if
           !write(*,*) 'iirow, iicol, ii, mat_frag, mat_compr', iirow, iicol, ii, mat_frag(iirow,iicol), mat%matrix_compr(ii)
           ii = ii + 1
@@ -1736,3 +2664,42 @@ subroutine extract_fragment_submatrix(smmd, smat, mat, nat_frag, nfvctr_frag, &
   end do seg_loop
 
 end subroutine extract_fragment_submatrix
+
+
+
+
+function get_minimal_distance(ra, rb, cell, periodic) result(d)
+  use sparsematrix_base
+  implicit none
+
+  ! Calling arguments
+  real(mp),dimension(3),intent(in) :: ra, rb, cell
+  logical,dimension(3),intent(in) :: periodic
+  real(mp) :: d
+
+  ! Local variables
+  integer :: i
+  real(mp) :: di, shift
+
+  d = 0._mp
+  do i=1,3
+      ! Distance in reduced coordinates
+      di = abs(ra(i)-rb(i))/cell(i)
+      !write(*,*) 'i, di', i, di
+      if (periodic(i)) then
+          !If the distance is larger than half the box size 
+          !(which is 1 due to the reduced coordinates), 
+          !we have to make a periodic wrap around
+          shift=real(floor(di+0.5_mp),kind=mp)
+      else
+          shift = 0._mp
+      end if
+      ! Convert back to the corect cell size and add it up
+      d = d + (cell(i)*(di-shift))**2
+  end do
+  d = sqrt(d)
+
+end function get_minimal_distance
+
+
+

@@ -674,7 +674,7 @@ program BigDFT2Wannier
          !call f_zero(npsidim,psi_etsf2)
          if(nproc > 1) then
             pwork = f_malloc_ptr(npsidim,id='pwork')
-            call transpose_v(iproc,nproc,orbsb,lzd%glr%wfd,commsb,psi_etsf,pwork,out_add=psi_etsf2)
+            call transpose_v(iproc,nproc,orbsb,lzd%glr%wfd,commsb,psi_etsf,pwork,recvbuf=psi_etsf2)
             call f_free_ptr(pwork)
          else
             call vcopy(orbsb%norb*orbsb%nspinor*(lzd%Glr%wfd%nvctr_c+7*lzd%Glr%wfd%nvctr_f),psi_etsf(1,1),1,psi_etsf2(1),1)
@@ -686,7 +686,7 @@ program BigDFT2Wannier
          !call f_zero(npsidim,psi_etsf2)
          if(nproc > 1) then
             pwork = f_malloc_ptr(npsidim,id='pwork')
-            call transpose_v(iproc,nproc,orbsb,lzd%glr%wfd,commsb,psi_etsf,pwork,out_add=psi_etsf2)
+            call transpose_v(iproc,nproc,orbsb,lzd%glr%wfd,commsb,psi_etsf,pwork,recvbuf=psi_etsf2)
             call f_free_ptr(pwork)
          else
             call vcopy(orbsb%norb*orbs%nspinor*(lzd%Glr%wfd%nvctr_c+7*lzd%Glr%wfd%nvctr_f),psi_etsf(1,1),1,psi_etsf2(1),1)

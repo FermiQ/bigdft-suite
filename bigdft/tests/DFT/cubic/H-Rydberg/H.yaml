@@ -1,5 +1,5 @@
 dft:
-  ixc: 1000
+  ixc: NONE
   hgrids: 0.8
   rmult: [15.0, 8.0]
   nvirt: 4

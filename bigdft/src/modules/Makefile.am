@@ -46,7 +46,6 @@ libmodules_a_SOURCES = ab7_mixing.f90 \
 	psp_projectors.f90 \
 	psp_projectors_base.f90 \
 	input_keys.f90 \
-	gaussdaub.f90 \
 	input_dicts.f90 \
 	types.f90 \
 	input.f90 \
@@ -67,7 +66,6 @@ libmodules_a_SOURCES = ab7_mixing.f90 \
 	fragment_base.f90 \
 	constrained_dft.f90 \
 	diis_module.f90 \
-	reformatting.f90 \
 	atoms_data.f90 \
 	communications_init.f90 \
 	communications.f90 \
@@ -97,9 +95,12 @@ libmodules_a_SOURCES = ab7_mixing.f90 \
 	$(openbabel_static_sources) \
 	module_dftbp.f90 \
 	constrained_magnetic_field.f90 \
+	module_asd.f90 \
 	sw_potential.f90 \
 	get_basis.f90 \
-	get_kernel.f90
+	asd_fake.f90 \
+	get_kernel.f90 \
+	module_utilities.f90
 
 # Modules
 if CAPITALIZE
@@ -108,7 +109,6 @@ modules = MODULE_TYPES.@MODULE_EXT@ \
 	MODULE_INTERFACES.@MODULE_EXT@ \
 	MODULE_PRIVATE_API.@MODULE_EXT@ \
 	MODULE_INPUT.@MODULE_EXT@ \
-	GAUSSDAUB.@MODULE_EXT@ \
 	BIGDFT_API.@MODULE_EXT@ \
 	VDWCORRECTION.@MODULE_EXT@ \
 	MODULE_FRAGMENTS.@MODULE_EXT@ \
@@ -120,9 +120,9 @@ modules = MODULE_TYPES.@MODULE_EXT@ \
 	PSP_PROJECTORS.@MODULE_EXT@ \
 	PSP_PROJECTORS_BASE.@MODULE_EXT@ \
 	MODULE_DPBOX.@MODULE_EXT@ \
-	REFORMATTING.@MODULE_EXT@ \
 	MODULE_ATOMS.@MODULE_EXT@ \
 	MODULE_CFD.@MODULE_EXT@ \
+	MODULE_ASD.@MODULE_EXT@ \
 	COMMUNICATIONS_INIT.@MODULE_EXT@ \
 	COMMUNICATIONS.@MODULE_EXT@ \
 	SPARSEMATRIX_WRAPPERS.@MODULE_EXT@ \
@@ -157,14 +157,14 @@ modules = MODULE_TYPES.@MODULE_EXT@ \
 	MODULE_CP2K.@MODULE_EXT@ \
 	SWPOTENTIAL.@MODULE_EXT@ \
 	GET_BASIS.@MODULE_EXT@ \
-	GET_KERNEL.@MODULE_EXT@
+	GET_KERNEL.@MODULE_EXT@ \
+	MODULE_UTILITIES.@MODULE_EXT@
 else
 modules = module_types.@MODULE_EXT@ \
 	module_mixing.@MODULE_EXT@ \
 	module_interfaces.@MODULE_EXT@ \
 	module_private_api.@MODULE_EXT@ \
 	module_input.@MODULE_EXT@ \
-	gaussdaub.@MODULE_EXT@ \
 	bigdft_api.@MODULE_EXT@ \
 	vdwcorrection.@MODULE_EXT@ \
 	module_fragments.@MODULE_EXT@ \
@@ -176,9 +176,9 @@ modules = module_types.@MODULE_EXT@ \
 	psp_projectors.@MODULE_EXT@ \
 	psp_projectors_base.@MODULE_EXT@ \
 	module_dpbox.@MODULE_EXT@ \
-	reformatting.@MODULE_EXT@ \
 	module_atoms.@MODULE_EXT@ \
 	module_cfd.@MODULE_EXT@ \
+	module_asd.@MODULE_EXT@ \
 	communications_init.@MODULE_EXT@ \
 	communications.@MODULE_EXT@ \
 	sparsematrix_wrappers.@MODULE_EXT@ \
@@ -214,11 +214,12 @@ modules = module_types.@MODULE_EXT@ \
 	module_bazant.@MODULE_EXT@ \
 	swpotential.@MODULE_EXT@ \
 	get_basis.@MODULE_EXT@ \
-	get_kernel.@MODULE_EXT@
+	get_kernel.@MODULE_EXT@ \
+	module_utilities.@MODULE_EXT@
 endif
 
 ATOMS_INCLUDES = astruct-inc.f90
-COMMS_INCLUDES = check_array-inc.f90
+COMMS_INCLUDES = transpose-inc.f90
 
 if HAVE_OPENBABEL
 openbabel_dynamic_sources = openbabel.cpp
@@ -227,7 +228,8 @@ openbabel_soname_library = libbabel.so.@BIGDFT_MINOR_VERSION@
 openbabel_library = $(openbabel_soname_library)
 AM_LDFLAGS = -Wl,-rpath=$(DESTDIR)$(dynlibdir)
 else
-openbabel_static_sources = openbabel_fake.cpp
+openbabel_static_sources = openbabel_fake.c
+AM_CFLAGS = -I. -I$(srcdir) -I$(top_builddir)/includes @MPI_INCLUDE@ @LIBABINIT_INCLUDE@ @LIB_XC_CFLAGS@ @LIB_FUTILE_CFLAGS@
 endif
 
 EXTRA_DIST = $(ATOMS_INCLUDES) $(COMMS_INCLUDES) openbabel.cpp
@@ -250,7 +252,7 @@ input_dicts.o: fragment_base.o input.o
 atoms_data.o: $(ATOMS_INCLUDES) internal_coordinates.o input_dicts.o
 input_keys.o: multipole_base.o atoms_data.o input.o fragment_base.o vdwcorrection.o
 types.o: psp_projectors_base.o atoms_data.o input_keys.o \
-	ab7_mixing.o multipole_base.o dpbox.o constrained_magnetic_field.o
+	ab7_mixing.o multipole_base.o dpbox.o constrained_magnetic_field.o module_asd.o
 interfaces.o: types.o fragments.o diis_module.o constrained_dft.o input_keys.o
 
 BigDFT_API.o: types.o interfaces.o atoms_data.o input_dicts.o psp_projectors.o communications_init.o bigdft_run.o
@@ -261,11 +263,10 @@ fragments.o: input_keys.o types.o fragment_base.o
 constrained_dft.o: input_keys.o
 #psp_projectors_base.o:  gaussians.o
 psp_projectors.o: locregs_init.o psp_projectors_base.o
-#reformatting.o: base.o
 #communications_base.o: base.o
 #dpbox.o: base.o bounds.o
 communications_init.o: types.o
-communications.o: types.o
+communications.o: $(COMMS_INCLUDES) types.o
 sparsematrix_wrappers.o: types.o interfaces.o
 gaussdaub.o: psp_projectors_base.o
 #module_sqn.o: base.o
@@ -297,8 +298,9 @@ locregs_init.o: types.o communications.o sort.o interfaces.o
 forces_linear.o: types.o psp_projectors.o transposed_operations.o
 sw_potential.o: atoms_data.o
 bigdft_matrices.o: types.o sparsematrix_wrappers.o
-get_basis.o: types.o interfaces.o communications.o rhopotential.o constrained_dft.o fragment_base.o fragments.o transposed_operations.o locregs_init.o get_kernel.o
+get_basis.o: types.o interfaces.o communications.o rhopotential.o constrained_dft.o fragment_base.o fragments.o transposed_operations.o locregs_init.o get_kernel.o io.o
 get_kernel.o: types.o interfaces.o diis_module.o communications.o constrained_dft.o rhopotential.o transposed_operations.o locregs_init.o orthonormalization.o
+module_utilities.o: multipole.o
 ##pexsi.o also depends on pexsi_interfaces, but it is not known which one...
 #if HAVE_PEXSI
 #pexsi_interfaces.o: pexsi_base.o

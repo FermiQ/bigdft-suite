@@ -34,6 +34,7 @@ module module_types
   use fragment_base, only: fragmentInputParameters
   use locreg_operations,only: confpot_data
   use module_cfd
+  use module_asd
   implicit none
 
   private
@@ -314,6 +315,8 @@ module module_types
      type(coulomb_operator) :: pkernelseq !< For monoproc PS (useful for exactX, SIC,...)
      !>constrained field dynamics local data
      type(cfd_data) :: cfd
+     !>LLG dynamics data (move?)
+     type(asd_data) :: asd
      integer(kind = 8) :: c_obj = 0       !< Storage of the C wrapper object.
   end type DFT_local_fields
 
@@ -419,9 +422,11 @@ module module_types
  integer, save, public :: TCAT_EXCHANGECORR=TIMING_UNINITIALIZED
  integer, parameter, private :: ncls_max=6,ncat_bigdft=158   ! define timimg categories and classes
  character(len=*), parameter, private :: tgrp_paw='PAW'
+ character(len=*), parameter, private :: tgrp_io='IO'
  integer, save, public :: TCAT_LIBPAW    = TIMING_UNINITIALIZED
  integer, save, public :: TCAT_PAW_DIJ   = TIMING_UNINITIALIZED
  integer, save, public :: TCAT_PAW_RHOIJ = TIMING_UNINITIALIZED
+ integer, save, public :: TCAT_IO_MULTIPOLES = TIMING_UNINITIALIZED
  character(len=14), dimension(ncls_max), parameter, private :: clss = (/ &
       'Communications'    ,  &
       'Convolutions  '    ,  &
@@ -1180,6 +1185,7 @@ contains
     !initialize groups
     call f_timing_category_group(tgrp_pot,'Operations for local potential construction (mainly XC)')
     call f_timing_category_group(tgrp_paw,'Operations done for PAW treatment')
+    call f_timing_category_group(tgrp_io,'Operations related to I/O')
 
     do icls=2,ncls_max
        call f_timing_category_group(trim(clss(icls)),'Empty description for the moment')
@@ -1197,6 +1203,11 @@ contains
          TCAT_PAW_DIJ)
     call f_timing_category('paw rhoij',tgrp_paw, 'Computation of PAW rhoij terms',&
          TCAT_PAW_RHOIJ)
+
+    ! define the categories for the I/O
+    call f_timing_category('dump multipoles', tgrp_io, 'Output of the multipoles to the standard output ',&
+         TCAT_IO_MULTIPOLES)
+
 
     !! little by little, these categories should be transformed in the 
     !! new scheme dictated by f_timing API in time_profiling module of f_lib.

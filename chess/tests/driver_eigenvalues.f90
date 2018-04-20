@@ -379,7 +379,7 @@ program driver_eigenvalues
   ! Calculate the eigenvalues
   call calculate_eigenvalues(iproc, nproc, matrix_format, metadata_file, &
        overlap_file, hamiltonian_file, kernel_file, kernel_matmul_file, &
-       iev_min, iev_max, fscale, evals_out=evals)
+       1, iev_min, iev_max, fscale, evals_out=evals)
 
   call mpibarrier()
   call f_timing_checkpoint(ctr_name='CALC',mpi_comm=mpiworld(),nproc=mpisize(), &
@@ -398,8 +398,8 @@ program driver_eigenvalues
       !!     smat_h%nfvctr, norbu, norbd, norb, scalapack_blocksize, &
       !!     smat_s, smat_h, mat_s, mat_h, coeff, &
       !!     eval_all, eval_occup, info)
-      call solve_eigensystem_lapack(iproc, nproc, matrix_format, metadata_file, &
-           overlap_file, hamiltonian_file, scalapack_blocksize, write_output=.false., &
+      call solve_eigensystem_lapack(iproc, nproc, mpiworld(), 1, matrix_format, metadata_file, &
+           overlap_file, hamiltonian_file, scalapack_blocksize, write_coeff=.false., write_eval=.false., &
            evals_out=evals_check)
       !!call yaml_map('evals',evals_check)
 
@@ -585,7 +585,7 @@ program driver_eigenvalues
   call f_timing_checkpoint(ctr_name='LAST',mpi_comm=mpiworld(),nproc=mpisize(), &
        gather_routine=gather_timings)
 
-  call build_dict_info(iproc, nproc, dict_timing_info)
+  call build_dict_info(dict_timing_info)
   call f_timing_stop(mpi_comm=mpi_comm_world,nproc=nproc,&
        gather_routine=gather_timings,dict_info=dict_timing_info)
   call dict_free(dict_timing_info)

@@ -23,6 +23,8 @@
    calc_dipole: Yes
    calc_quadrupole: Yes
    charge_multipoles: 1
+   output_mat: 4
+   output_wf: 1
  lin_basis:
    nit: 2
    idsx: [3, 0]

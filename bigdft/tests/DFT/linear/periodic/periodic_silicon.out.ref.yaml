@@ -642,8 +642,6 @@
    Maximum size of masking arrays for a projector:  30120
    Cumulative size of masking arrays   :  1024680
   #------------------------------------------------------------ Sparse matrix initialization
- Check of kernel cutoff radius:
- -  {atom type: Si, adjustment required:  No}
  Matrices:
    Overlap matrix:
      total elements                    :  48400
@@ -1052,6 +1050,7 @@
      PV (Ha)                           : -111.81408233131
   #-------------------------------- Warnings obtained during the run, check their relevance!
  WARNINGS:
+ - Inconsistency in Tr(H), check your cutoff radii
  - No orthogonalizing of the support functions
  - The support function localization radii might be too small, got 220 warnings
  - density optimization not converged

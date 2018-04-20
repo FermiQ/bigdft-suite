@@ -39,13 +39,14 @@ module fmpi_types
   end interface mpitype
 
   interface mpitypesize
-    module procedure mpitypesize_d0, mpitypesize_d1, mpitypesize_i0, mpitypesize_long0, mpitypesize_l0
+    module procedure mpitypesize_d0, mpitypesize_d1, mpitypesize_d2, mpitypesize_i0, mpitypesize_long0, mpitypesize_l0
     module procedure mpitypesize_i1, mpitypesize_li1
   end interface mpitypesize
 
-  !might be included in a config.inc file
-  integer, parameter, public :: fmpi_integer=f_integer
+  !might be included in a config.inc fine
+  integer, parameter, public :: fmpi_integer=kind(MPI_INTEGER) !as MPI_INTEGER_KIND is a spec of C MPI
   integer, parameter, public :: fmpi_address=MPI_ADDRESS_KIND
+  integer, parameter, public :: fmpi_offset=MPI_OFFSET_KIND
 
   !> Error codes
   integer, public, save :: ERR_MPI_WRAPPERS
@@ -184,6 +185,16 @@ contains
     sizeof=mpitypesize(1.0_f_double)
   end function mpitypesize_d1
 
+  function mpitypesize_d2(foo) result(sizeof)
+    implicit none
+    real(f_double), dimension(:,:), intent(in) :: foo
+    integer :: sizeof
+    integer :: kindt
+    kindt=kind(foo) !to remove compilation warning
+    sizeof=mpitypesize(1.0_f_double)
+  end function mpitypesize_d2
+
+
   function mpitypesize_i0(foo) result(sizeof)
     use dictionaries, only: f_err_throw,f_err_define
     implicit none
@@ -217,7 +228,8 @@ contains
     integer :: kindt
     kindt=kind(foo) !to remove compilation warning
 
-    call mpi_type_size(MPI_LONG, sizeof, ierr)
+    !call mpi_type_size(MPI_LONG, sizeof, ierr)
+    call mpi_type_size(MPI_INTEGER8, sizeof, ierr)
     if (ierr/=0) then
        call f_err_throw('Error in mpi_type_size',&
             err_id=ERR_MPI_WRAPPERS)
