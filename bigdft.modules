@@ -56,7 +56,7 @@
   </autotools>
 
   <cmake id="ntpoly">
-    <branch repo="ntpoly" module="v1.2.tar.gz" version="1.2" checkoutdir="ntpoly"/>
+    <branch repo="ntpoly" module="v1.2.1.tar.gz" version="1.2.1" checkoutdir="ntpoly"/>
   </cmake>
 
   <autotools id="libyaml" autogen-sh="autoreconf" skip-autogen="true">
