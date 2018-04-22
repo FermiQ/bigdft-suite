@@ -1,3 +1,9 @@
+"""
+This module is useful to process a logfile of BigDFT run, in yaml format.
+It also provides some tools to extract typical informations about the run,
+like the energy, the eigenvalues and so on.
+"""
+
 #This module needs: os, yaml, futile, matplotlib, numpy, BZ, DoS
 import os
 import yaml
@@ -18,7 +24,7 @@ PRE_POST = [EVAL, SETUP, INITIALIZATION]
 BUILTIN={
     'nat': {PATH: [ ['Atomic System Properties','Number of atoms']],
                  PRINT: "Number of Atoms", GLOBAL: True},
-    "energy": {PATH: [["Last Iteration", "FKS"],["Last Iteration", "EKS"], ["Energy (Hartree)"]], 
+    "energy": {PATH: [["Last Iteration", "FKS"],["Last Iteration", "EKS"], ["Energy (Hartree)"]],
                     PRINT: "Energy", GLOBAL: False},
     "fermi_level": {PATH:[["Ground State Optimization", -1, "Fermi Energy"], ["Ground State Optimization", -1, "Hamiltonian Optimization", -1, "Subspace Optimization", "Fermi Energy"]],
                          PRINT: True, GLOBAL: False},
@@ -41,16 +47,16 @@ BUILTIN={
     'support_functions': {PATH: [["Gross support functions moments",'Multipole coefficients','values']]},
     'electrostatic_multipoles': {PATH: [['Multipole coefficients','values']]},
     'sdos': {PATH: [['SDos files']], GLOBAL: True},
-    'symmetry': {PATH: [ ['Atomic System Properties','Space group']], 
+    'symmetry': {PATH: [ ['Atomic System Properties','Space group']],
                  PRINT: "Symmetry group", GLOBAL: True}}
 
-def get_logs(files,select_document=None):
+def get_logs(files): #,select_document=None):
     """
     Return a list of loaded logfiles from files, which is a list
     of paths leading to logfiles.
-    
-    Optional arguments:
-    - select_document:
+
+    :param files: List of filenames indicating the logfiles
+    :returns: List of Logfile instances associated to filename
     """
     from futile import Yaml
     logs=[]
@@ -58,57 +64,22 @@ def get_logs(files,select_document=None):
         logs+=Yaml.load(filename,doc_lists=True,safe_mode=True)
     return logs
 
-##
-##def get_logs(files,safe_mode=False,select_document=None):
-##    """
-##    Return a list of loaded logfiles from files, which is a list
-##    of paths leading to logfiles.
-##    
-##    Optional arguments:
-##    - safe_mode:
-##    - select_document:
-##    """
-##    logs=[]
-##    for filename in files:
-##      rawfile=open(filename, "r").read()
-##      try:
-##         logs+=[yaml.load(rawfile, Loader = yaml.CLoader)]
-##      except Exception,e:
-##         print 'WARNING: More than one document are present',e
-##         if safe_mode or select_document is not None:
-##             documents=rawfile.split('---\n')
-##             print 'Safe mode, Found',len(documents),'documents,try loading them separately'
-##             actual_doc=-1
-##             for i,raw_doc in enumerate(documents):
-##                 if len(raw_doc)==0: continue
-##                 actual_doc+=1
-##                 if select_document is not None and actual_doc not in select_document: continue
-##                 try:
-##                     logs.append(yaml.load(raw_doc,Loader=yaml.CLoader))
-##                     print 'Document',i,'...loaded.'
-##                 except Exception,f:
-##                     print 'Document',i,'...NOT loaded.'
-##                     print f
-##                     #logs+=[None]
-##                     #print "warning, skipping logfile",filename
-##         else:
-##             try: 
-##                 from futile import Yaml
-##                 test=Yaml.YamlDB(rawfile)
-##                 for a in range(len(test)):
-##                     # we should use another representation for the logfile, to be changed
-##                     lg=dict(test[a]) 
-##                     if lg is not None: logs+=[lg]
-##                 #logs+=yaml.load_all(rawfile, Loader = yaml.CLoader)
-##             except Exception,e:
-##                 print e
-##                 print 'WARNING: Usual loading of the document have some errors, some documents might not be there'
-##                 print 'Consider to put safe_mode=True'
-##    return logs
-##
-
 def floatify(scalar):
-    """Useful to make float from strings compatible from fortran"""
+    """
+    Useful to make float from strings compatible from fortran
+
+    Args:
+       scalar (str, float): When string representing a float that might be given in fortran notation,
+       otherwise it might be a floating point
+    Returns:
+       float. The value associated to scalar as a floating point number
+
+    This function works like that:
+
+    >>> floatify('1.d-4') #this would be the same with "1.e-4" or with 0.0001
+    1.e-4
+
+    """
     import numpy
     if isinstance(scalar,str):
         return float(scalar.replace('d','e').replace('D','E'))
@@ -118,7 +89,13 @@ def floatify(scalar):
 
 # This is a tentative function written to extract information from the runs
 def document_quantities(doc,to_extract):
-    """Extract information from the runs."""
+    """
+    Extract information from the runs.
+
+    .. warning::
+        This routine was designed for the previous parse_log.py script and it is here only for
+        backward compatibility purposes.
+    """
     analysis={}
     for quantity in to_extract:
       if quantity in PRE_POST: continue
@@ -143,10 +120,15 @@ def document_quantities(doc,to_extract):
       analysis[quantity]=value
     return analysis
 
-
 def perform_operations(variables,ops,debug=False):
-    """Perform operations given by 'ops'.
-    'variables' is a dictionary of variables i.e. key=value."""
+    """
+    Perform operations given by 'ops'.
+    'variables' is a dictionary of variables i.e. key=value.
+
+    .. warning::
+       This routine was designed for the previous parse_log.py script and it is here only for
+       backward compatibility purposes.
+    """
 ##    glstr=''
 ##    if globs is not None:
 ##        for var in globs:
@@ -162,9 +144,14 @@ def perform_operations(variables,ops,debug=False):
     #exec(glstr+ops, globals(), locals())
     exec(ops, globals(), locals())
 
-
 def process_logfiles(files,instructions,debug=False):
-    """Process the logfiles in files with the dictionary 'instructions'."""
+    """
+    Process the logfiles in files with the dictionary 'instructions'.
+
+    .. warning::
+       This routine was designed for the previous parse_log.py script and it is here only for
+       backward compatibility purposes.
+    """
     import sys
     glstr='global __LAST_FILE__ \n'
     glstr+='__LAST_FILE__='+str(len(files))+'\n'
@@ -184,7 +171,17 @@ def process_logfiles(files,instructions,debug=False):
 
 
 def find_iterations(log):
-    """Identify the different block of the iterations of the wavefunctions optimization."""
+    """
+    Identify the different block of the iterations of the wavefunctions optimization.
+
+    .. todo::
+       Should be generalized and checked for mixing calculation and O(N) logfiles
+
+    :param log: logfile load
+    :type log: dictionary
+    :returns: wavefunction residue per iterations, per each subspace diagonalization
+    :rtype: numpy array of rank two
+    """
     import numpy
     for itrp in log['Ground State Optimization']:
         rpnrm=[]
@@ -198,9 +195,15 @@ def find_iterations(log):
 
 
 def plot_wfn_convergence(wfn_it,gnrm_cv):
-    """Plot the convergence of the wavefunction coming from the find_iterations function.""" 
+    """
+    Plot the convergence of the wavefunction coming from the find_iterations function.
+    Cumulates the plot in matplotlib.pyplot module
+
+    :param wfn_it: list coming from :func:`find_iterations`
+    :param gnrm_cv: convergence criterion for the residue of the wfn_it list
+    """
     import matplotlib.pyplot as plt
-    import numpy 
+    import numpy
     plt.semilogy(numpy.ravel(wfn_it))
     plt.axhline(gnrm_cv,color='k',linestyle='--')
     it=0
@@ -210,14 +213,35 @@ def plot_wfn_convergence(wfn_it,gnrm_cv):
 
 
 class Logfile():
-    """Import a Logfile from a filename in yaml format, a list of filenames,
-        an archive (compressed tar file), aidctionaory or a list od dictionaries:
-        l = Logfile('one.yaml','two.yaml')
-        l = Logfile(archive='calc.tgz')
-        l = Logfile(archive='calc.tgz',member='one.yaml')
-        l = Logfile(dictionary=dict)
-        l = Logfile(dictionary=[dict1, dict2])"""
+    """
+    Import a Logfile from a filename in yaml format, a list of filenames,
+    an archive (compressed tar file), a dictionary or a list of dictionaries.
+
+    :param args: logfile names to be parsed
+    :type args: strings
+    :param kwargs: keyword arguments
+
+       * archive: name of the archive from which retrieve the logfiles
+       * member: name of the logfile within the archive. If absent, all the files of the archive will be considered as args
+       * label: the label of the logfile instance
+       * dictionary: parsed logfile given as a dictionary, serialization of the yaml logfile
+
+    :Example:
+       >>> l = Logfile('one.yaml','two.yaml')
+       >>> l = Logfile(archive='calc.tgz')
+       >>> l = Logfile(archive='calc.tgz',member='one.yaml')
+       >>> l = Logfile(dictionary=dict)
+       >>> l = Logfile(dictionary=[dict1, dict2])
+
+    .. todo::
+       Document the automatically generated attributes, perhaps via a inner function
+       in futile python module
+
+    """
     def __init__(self,*args,**kwargs):
+        """
+        Initialize the class
+        """
         import os
         dicts = []
         #Read the dictionary kwargs
@@ -248,8 +272,9 @@ class Logfile():
             dicts=get_logs(args,select_document=member)
             label = label if label is not None else args[0]
             srcdir=os.path.dirname(args[0])
-        #Set the label
+        #: Label of the Logfile instance
         self.label=label
+        #: Absolute path of the directory of logfile
         self.srcdir=os.path.abspath('.' if srcdir == '' else srcdir)
         if not dicts:
             raise ValueError("No log information provided.")
@@ -269,10 +294,11 @@ class Logfile():
                 instance._initialize_class(d)
                 self._instances.append(instance)
             #then we should find the best values for the dictionary
-            print('Found',len(self._instances),'different runs')	
+            print('Found',len(self._instances),'different runs')
             import numpy
             #Initialize the class with the dictionary corresponding to the lower value of the energy
-            ens=[(l.energy if hasattr(l,'energy') else 1.e100) for l in self._instances] 
+            ens=[(l.energy if hasattr(l,'energy') else 1.e100) for l in self._instances]
+            #: Position in the logfile items of the run associated to lower energy
             self.reference_log=numpy.argmin(ens)
             #print 'Energies',ens
             self._initialize_class(dicts[self.reference_log])
@@ -295,12 +321,12 @@ class Logfile():
             return 0 #single point run
     def _initialize_class(self,d):
         import numpy
-        self.log=d
+        self.log=d #: dictionary of the logfile (serialization of yaml format)
         #here we should initialize different instances of the logfile class again
         sublog=document_quantities(self.log,{val: val for val in BUILTIN})
         for att in sublog:
             val=sublog[att]
-            if val is not None: 
+            if val is not None:
                 val_tmp=floatify(val) if BUILTIN[att].get(FLOAT_SCALAR) else val
                 setattr(self,att,val_tmp)
             elif hasattr(self,att) and not BUILTIN[att].get(GLOBAL):
@@ -310,13 +336,15 @@ class Logfile():
             self._fermi_level_from_evals(self.evals)
 
         if hasattr(self,'kpts'):
+            #: Number of k-points, present only if meaningful
             self.nkpt=len(self.kpts)
             if hasattr(self,'evals'): self.evals=self._get_bz(self.evals,self.kpts)
-            if hasattr(self,'forces') and hasattr(self,'astruct'): 
+            if hasattr(self,'forces') and hasattr(self,'astruct'):
                 self.astruct.update({'forces': self.forces})
                 delattr(self,'forces')
         elif hasattr(self,'evals'):
             import BZ
+            #: Eigenvalues of the run, represented as a :class:`BigDFT.BZ.BandArray` class instance
             self.evals=[BZ.BandArray(self.evals),]
         if hasattr(self,'sdos'):
             import os
@@ -338,6 +366,7 @@ class Logfile():
                     sd.append({'coord':xs,'dos':ba})
                 else:
                     sd.append(None)
+            #: Spatial density of states, when available
             self.sdos=sd
     #
     def _fermi_level_from_evals(self,evals):
@@ -355,6 +384,7 @@ class Logfile():
             if e is not None: fl=e
             e=ev.get('e_vrt',ev.get('e_virt'))
             if e is not None: break
+        #: Chemical potential of the system
         self.fermi_level=fl
     #
     def _sdos_line_to_orbitals_old(self,sorbs):
@@ -404,7 +434,16 @@ class Logfile():
         return evals
     #
     def get_dos(self,label=None,npts=2500):
-        """Get the density of states from the logfile."""
+        """
+        Get the density of states from the logfile.
+
+        :param label: id of the density of states.
+        :type label: string
+        :param npts: number of points of the DoS curve
+        :type npts: int
+        :returns: Instance of the DoS class
+        :rtype: :class:`BigDFT.DoS.DoS`
+        """
         import DoS
         #reload(DoS)
         lbl=self.label if label is None else label
@@ -412,12 +451,16 @@ class Logfile():
         return DoS.DoS(bandarrays=self.evals,label=lbl,units='AU',fermi_level=self.fermi_level,npts=npts,sdos=sdos)
     #
     def get_brillouin_zone(self):
-        """Returns an instance of the BrillouinZone class, useful for band structure."""
+        """
+        Return an instance of the BrillouinZone class, useful for band structure.
+        :returns: Brillouin Zone of the logfile
+        :rtype: :class:`BigDFT.BZ.BrillouinZone`
+        """
         import BZ
-        if self.nkpt==1: 
+        if self.nkpt==1:
             print('WARNING: Brillouin Zone plot cannot be defined properly with only one k-point')
             #raise
-        mesh=self.kpt_mesh
+        mesh=self.kpt_mesh #: K-points grid
         if isinstance(mesh,int): mesh=[mesh,]*3
         if self.astruct['Cell'][1]==float('inf'): mesh[1]=1
         return BZ.BrillouinZone(self.astruct,mesh,self.evals,self.fermi_level)
@@ -428,12 +471,22 @@ class Logfile():
         plot_wfn_convergence(wfn_it,self.gnrm_cv)
     #
     def geopt_plot(self):
-        """For a set of logfiles construct the convergence plot if available."""
+        """
+        For a set of logfiles construct the convergence plot if available.
+        Plot the Maximum value of the forces against the difference between the minimum value of the energy
+        and the energy of the iteration. Also an errorbar is given indicating
+        the noise on the forces for a given point.
+        Show the plot as per plt.show() with matplotlib.pyplots as plt
+
+        :Example:
+           >>> tt=Logfile('log-with-geometry-optimization.yaml')
+           >>> tt.geopt_plot()
+        """
         import numpy
         energies=[]
         forces=[]
         ferr=[]
-        if not hasattr(self,'_instances'): 
+        if not hasattr(self,'_instances'):
             print('ERROR: No geopt plot possible, single point run')
             return
         for l in self._instances:
@@ -457,9 +510,9 @@ class Logfile():
     def _print_information(self):
         """Display short information about the logfile (used by str)."""
         import yaml,numpy
-        summary=[{'Atom types': 
+        summary=[{'Atom types':
                   numpy.unique([ at.keys()[0] for at in self.astruct['Positions']]).tolist()},
-                 {'Cell': 
+                 {'Cell':
                   self.astruct.get('Cell','Free BC')}]
         #normal printouts in the document, according to definition
         for field in BUILTIN:
