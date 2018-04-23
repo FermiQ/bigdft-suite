@@ -810,7 +810,7 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
   logical :: perx,pery,perz,gox,goy,goz,yespar
   logical :: htoobig=.false.,check_potion=.false.!use_iterator=.false.
   integer :: i1,i2,i3,ierr !n(c) nspin
-  integer :: nloc,iloc, ithread, nthread
+  integer :: nloc,iloc
   integer  :: i3s,n3pi,nbl1,nbr1,nbl2,nbl3,nbr2,nbr3
   real(kind=8) :: raux1(1),rr1(1)
   integer :: iex,iey,iez,ind,indj3,indj23,isx,isy,isz,j1,j2,j3
@@ -990,7 +990,7 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
                     raux1(1) = pspiof_potential_eval(pot, rr1(1))
                  end if
                  if (rr1(1) < 1e-6_dp) then
-                    tt = -at%nelpsp(atit%ityp) / sqrt(2._dp) / at%psppar(0,0,atit%ityp)
+                    tt = -at%nelpsp(atit%ityp) / sqrt(2._dp * pi) / at%psppar(0,0,atit%ityp) * 2._dp
                  else
                     call abi_derf_ab(tt, rr1(1) / sqrt(2._dp) / at%psppar(0,0,atit%ityp))
                     tt = -at%nelpsp(atit%ityp) * tt / rr1(1)
