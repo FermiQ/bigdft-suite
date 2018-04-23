@@ -1,6 +1,9 @@
 AU_to_A=0.52917721092
 Debye_to_AU = 0.393430307
 
+MULTIPOLE_ANALYSIS_KEYS=['q0','q1','q2','sigma']
+PROTECTED_KEYS=MULTIPOLE_ANALYSIS_KEYS+["frag"]
+
 class XYZfile():
     def __init__(self,filename=None,units='atomic'):
         self.filename=filename
@@ -117,11 +120,26 @@ class Rotation(RotoTranslation):
         self.R=R
         self.J=0.0
 
+def GetSymbol(atom):
+    "provide the key which contains the positions"
+    ks=atom.keys()
+    for k in ks:
+        if k not in PROTECTED_KEYS and type(atom[k])==type([]):
+            if len(atom[k])==3: return k
+    raise ValueError
+
+def SetFragId(name, fragid):
+    return name+":"+str(fragid)
+
+def GetFragTuple(id):
+    temp = id.split(':')
+    return (temp[0], int(temp[1]))
+
 class Fragment():
-    protected_keys=['q0','q1','q2','sigma']
     def __init__(self,atomlist=None,id='Unknown',units='AU'):
         self.atoms=[]
         self.id=self.set_id(id)
+        self.purity_indicator = 0
         self.to_AU=1.0
         if units == 'A': self.to_AU=1.0/AU_to_A
         self.allset=False
@@ -137,6 +155,8 @@ class Fragment():
     #    return yaml.dump({'Positions': self.atoms,'Properties': {'name': self.id}})
     def set_id(self,id):
 	self.id=id
+    def set_purity_indicator(self, pi):
+        self.purity_indicator = pi
     def xyz(self,filename=None,units='atomic'):
         "Write the fragment positions in a xyz file"
         import numpy as np
@@ -150,11 +170,11 @@ class Fragment():
         lat=[]
         for at in self.atoms:
             dat=at.copy()
-            dat['r']=list(at[self.__torxyz(at)])
+            dat['r']=list(at[GetSymbol(at)])
             dat['sym']=self.element(at)
             #assume that the provided charge is alway the net charge
             if 'nzion' in dat: dat.pop('nzion') #for the modification of the conventions
-            for k in self.protected_keys:
+            for k in MULTIPOLE_ANALYSIS_KEYS:
                 if k in at: dat[k]=list(at[k]) #.tolist()
             lat.append(dat)
         return lat
@@ -166,19 +186,12 @@ class Fragment():
         if self.allset: self.positions=self.__positions()  #update positions
     def element(self,atom):
         "Provides the name of the element"
-        el=self.__torxyz(atom)
+        el=GetSymbol(atom)
         if el == 'r': el=atom['sym']
         return el
-    def __torxyz(self,atom):
-        "provide the key which contains the positions"
-        ks=atom.keys()
-        for k in ks:
-            if k not in self.protected_keys and type(atom[k])==type([]):
-                if len(atom[k])==3: return k
-        raise ValueError
     def rxyz(self,atom):
         import numpy as np
-        k=self.__torxyz(atom)
+        k=GetSymbol(atom)
         return self.to_AU*np.array(atom[k])
     def __positions(self):
         import numpy
@@ -210,7 +223,7 @@ class Fragment():
         #    self.positions=w.apply_Rt(R,t,self.positions)
         #then replace the correct positions at the atoms
         for at,r in zip(self.atoms,self.positions):
-            k=self.__torxyz(at)
+            k=GetSymbol(at)
             at[k]=np.ravel(r).tolist()
         #further treatments have to be added for the atomic multipoles
         #they should be transfomed accordingly, up the the dipoles at least
@@ -240,7 +253,7 @@ class Fragment():
             I[2,0]+=rxyz[2]*rxyz[0]
             I[1,2]+=rxyz[2]*rxyz[1]
             I[2,1]+=rxyz[2]*rxyz[1]
-        return I        
+        return I
     def q0(self,atom):
         "Provides the charge of the atom"
         charge=atom.get('q0')
@@ -301,16 +314,58 @@ class Fragment():
         else:
             return None
 
-                        
+def CreateFragDict(start):
+    frag_dict = {}
+    for iat, atom in enumerate(start["positions"]):
+        fragname, fragid = atom["frag"]
+        if fragname in frag_dict:
+            if fragid in frag_dict[fragname]:
+                frag_dict[fragname][fragid].append(iat+1)
+            else:
+                frag_dict[fragname][fragid] = [iat+1]
+        else:
+            frag_dict[fragname] = {fragid: [iat+1]}
+    return frag_dict
+
+def MergeFragmentsTogether(frag_dict, merge_list):
+    import copy
+    new_dict = copy.deepcopy(frag_dict)
+    frag_list = []
+    for new_frag in merge_list:
+        temp = []
+        tempstr = ""
+        if len(new_frag) == 1: continue
+        for target in new_frag:
+            fragname, fragid = target
+            temp += new_dict[fragname][fragid]
+            new_dict[fragname].pop(fragid)
+            tempstr += SetFragId(fragname, fragid)
+        frag_list.append((tempstr, temp))
+    return new_dict, frag_list
+
+def CreateFragList(frag_dict, merge_list=None):
+    frag_list = []
+    if merge_list:
+        new_dict, temp_list = MergeFragmentsTogether(frag_dict, merge_list)
+        frag_list += temp_list
+    else:
+        new_dict = frag_dict
+    for fragname in new_dict:
+        for fragid in new_dict[fragname]:
+            frag_list.append((SetFragId(fragname, fragid), new_dict[fragname][fragid]))
+    return frag_list
+
+
 class System():
     "A system is defined by a collection of Fragments. It might be given by one single fragment"
-    def __init__(self,mp_dict=None,xyz=None,nat_reference=None,units='AU',transformations=None,reference_fragments=None):
+    def __init__(self,mp_dict=None,xyz=None,nat_reference=None,units='AU',transformations=None,reference_fragments=None,posinp_dict=None):
         self.fragments=[]
         self.CMs=[]
         self._get_units(units)
         if xyz is not None: self.fill_from_xyz(xyz,nat_reference)
         if mp_dict is not None: self.fill_from_mp_dict(mp_dict,nat_reference)
         if transformations is not None: self.recompose(transformations,reference_fragments)
+        if posinp_dict is not None: self.fill_from_posinp_dict(posinp_dict)
     def __len__(self):
         return sum([len(frag) for frag in self.fragments])
     def _get_units(self,unt):
@@ -343,7 +398,7 @@ class System():
                     if nat_reference is not None and iat == nat_reference: #we should break the fragment, alternative strategy
                         if frag is not None: self.append(frag)
                         frag=Fragment(units=self.units)
-                        iat=0  
+                        iat=0
                     frag.append({pos[0]: map(float,pos[1:])})
                     nat+=1
                     iat+=1
@@ -358,11 +413,24 @@ class System():
             #frag.append(sym=at['sym'],positions=at['r'])
             frag.append(at)
             iat+=1
-            if nat_reference is not None and iat == nat_reference: 
+            if nat_reference is not None and iat == nat_reference:
                 if len(frag) !=0: self.append(frag)
                 frag=Fragment(units=self.units)
                 iat=0
         if nat_reference is None: self.append(frag) #case of one single fragment
+    def fill_from_posinp_dict(self,dict):
+        frag_dict = CreateFragDict(dict)
+        frag_list = CreateFragList(frag_dict)
+        for frag in frag_list:
+            fragtemp = Fragment(units=self.units)
+            for iatom in frag[1]:
+                at_dict = dict["positions"][iatom-1]
+                sym = GetSymbol(at_dict)
+                rxyz = at_dict[sym]
+                fragtemp.append({sym: rxyz})
+            fragtemp.set_id(frag[0])
+            self.append(fragtemp)
+        pass
     def xyz(self,filename=None,units='atomic'):
         import numpy as np
         f=XYZfile(filename,units)
@@ -375,7 +443,7 @@ class System():
         atoms=[]
         for f in self.fragments:
             atoms+=f.dict()
-        #if self.units != 'A': 
+        #if self.units != 'A':
         #    print 'Dictionary version not available if the system is given in AU'
         #    raise Exception
         dc={'units': self._bigdft_units(),'global monopole': float(self.Q()), 'values': atoms}
@@ -431,7 +499,7 @@ class System():
     def recompose(self,transformations=None,reference_fragments=None):
         "Rebuild the system from a set of transformations"
         import copy,numpy as np
-        if transformations is not None: 
+        if transformations is not None:
             RT=transformations
             self.decomposition=RT
         else:
@@ -482,7 +550,7 @@ def prepare_fragment_inputs(name,directory='.',flavour='Isolated',system=None,te
 	tempdatadir='data-'+template_name
 	ensure_dir(datadir)
 	datatemplate=os.path.join(datadir,tempdatadir)
-	if flavour=='Embedded':          		
+	if flavour=='Embedded':
 	   ensure_dir(datatemplate)
 	elif not os.path.exists(datatemplate):
 	   os.symlink(os.path.abspath(os.path.join(template_dir,tempdatadir)),datatemplate)
@@ -510,10 +578,10 @@ def frag_average(ref,flist,clean_monopole=True):
     favg=copy.deepcopy(ref)
     qtot=0.0
     for i,at in enumerate(favg.atoms):
-        #form a fragment which has the positions of the references and 
+        #form a fragment which has the positions of the references and
         #neutral total monopole if asked for.
         for k in keys:
-            population=[ f.atoms[i][k] for f in flist ] 
+            population=[ f.atoms[i][k] for f in flist ]
             vals=np.mean(population,axis=0)
             st=np.std(population,axis=0)
             at[k]=vals
@@ -525,11 +593,15 @@ def frag_average(ref,flist,clean_monopole=True):
         at['q0'][0]-=qtot
         #print 'retest',i,at
     return favg
-                        
-def distance(i,j):
+
+def distance(i,j, cell=None):
     "Distance between fragments, defined as distance between center of mass"
     import numpy
     vec=i.centroid()-j.centroid()
+    if cell:
+        per = numpy.where(cell > 0.0)
+        for i, p in enumerate(per):
+            vec -= cell[i]*int(round(vec[i]/cell[i]))
     return numpy.sqrt(numpy.dot(vec,vec.T))
 
 def build_transformations(RTlist,ref):
@@ -563,7 +635,7 @@ def rotot_collection(ref_frag,lookup,fragments):
         W.append({'R':roto,'t':translation,'J':J,'ref':refF})
     return W
 
-if __name__ == '__main__': 
+if __name__ == '__main__':
     #extract fragments
     import sys,numpy
     one1=System(xyz='one-1.xyz')
@@ -628,7 +700,7 @@ if __name__ == '__main__':
     limit=36 #maximum value of each fragment
     fragments=[]
     #try to initialize with the class
-    
+
     fil=open(filename,'r')
     count=0
     nat=0
@@ -648,16 +720,16 @@ if __name__ == '__main__':
             if iat == limit: #we should break the fragment, alternative strategy
                 if frag is not None: fragments.append(frag)
                 frag=Fragment()
-                iat=0  
+                iat=0
             frag.append({pos[0]: map(float,pos[1:])})
             nat+=1
             iat+=1
         except Exception,e:
             print 'error',l,e
             break
-    
+
     print 'calculation finished',len(fragments),'balance',nat
-    
+
     #find the F4TCNQ
     F4TCNQs=[]
     PCs=[]
@@ -670,9 +742,9 @@ if __name__ == '__main__':
             PCs.append(f)
     #find the central molecule
     centroid= numpy.mean(CMs, axis=0)
-            
+
     print 'species identified:',len(F4TCNQs),'F4TCNQ and',len(PCs),' pentacenes, tot',len(fragments),len(CMs)
-    
+
     #now append the fragments to the System class
     stm=System(xyz=filename,nat_reference=36)
     print len(stm.fragments),'before'
@@ -680,7 +752,7 @@ if __name__ == '__main__':
         stm.append(frag)
     print len(stm.fragments),'after'
     print centroid,[i for i in CMs[0]],[i for i in centroid],stm.centroid(),stm.central_fragment()
-    
+
     refF4=0
     refPC=0
     #try:
@@ -689,12 +761,12 @@ if __name__ == '__main__':
     #except:
     #    icen=PCs.index(imin)
     #    refPC=icen
-        
+
     #check if now all the atoms are the rototranslation of the same fragment and find the transformation
     W_F4=rotot_collection(refF4,F4TCNQs,fragments)
     W_PEN=rotot_collection(refPC,PCs,fragments)
-    
-        
+
+
     #print CMs
     #search the NN of each of the F4TCNQs
     DFP=[]
@@ -702,12 +774,12 @@ if __name__ == '__main__':
     for f in F4TCNQs:
         DFP.append(numpy.array([distance(f,p) for p in PCs]))
         DFF.append(numpy.array([distance(f,p) for p in F4TCNQs]))
-    
-        
+
+
     #Then we can classify the attributes of each pentacene accordingly to the limiting distance
-    
+
     threshold=10.0
-    
+
     for i,f in enumerate(F4TCNQs):
         import yaml
         if (i==0):
@@ -726,5 +798,3 @@ if __name__ == '__main__':
             if dist < threshold and dist !=0:
                 iFF+=1
         print i,iFF,iPC
-
-    
