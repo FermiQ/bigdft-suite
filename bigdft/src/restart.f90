@@ -266,12 +266,51 @@ displ=0.0_gp
 END SUBROUTINE reformatmywaves
 
 
+subroutine readrhoij(unitf, lbin, nat, pawrhoij)
+  use m_pawrhoij
+  use dictionaries
+  implicit none
+  integer, intent(in) :: unitf, nat
+  logical, intent(in) :: lbin
+  type(pawrhoij_type), dimension(nat), intent(inout) :: pawrhoij
 
+  integer :: i, iat, s1, s2
+
+  if (lbin) then
+     do i = 1, nat
+        read(unitf) iat, s1, s2
+        if (f_err_raise(s1 /= size(pawrhoij(i)%rhoijp, 1), &
+             & 'wrong read size for rhoij', &
+             & err_name='BIGDFT_RUNTIME_ERROR')) return
+        if (f_err_raise(s2 /= size(pawrhoij(i)%rhoijp, 2), &
+             & 'wrong read size for rhoij', &
+             & err_name='BIGDFT_RUNTIME_ERROR')) return
+        if (f_err_raise(i < 1 .or. i > nat, &
+             & 'wrong atomic id', &
+             & err_name='BIGDFT_RUNTIME_ERROR')) return
+        read(unitf) pawrhoij(iat)%rhoijp
+     end do
+  else
+     do i = 1, nat
+        read(unitf, *) iat, s1, s2
+        if (f_err_raise(s1 /= size(pawrhoij(i)%rhoijp, 1), &
+             & 'wrong read size for rhoij', &
+             & err_name='BIGDFT_RUNTIME_ERROR')) return
+        if (f_err_raise(s2 /= size(pawrhoij(i)%rhoijp, 2), &
+             & 'wrong read size for rhoij', &
+             & err_name='BIGDFT_RUNTIME_ERROR')) return
+        if (f_err_raise(i < 1 .or. i > nat, &
+             & 'wrong atomic id', &
+             & err_name='BIGDFT_RUNTIME_ERROR')) return
+        read(unitf, "(4(1x,e17.10))") pawrhoij(iat)%rhoijp
+     end do
+  end if
+END SUBROUTINE readrhoij
 
 !> Reads wavefunction from file and transforms it properly if hgrid or size of simulation cell
 !!  have changed
 subroutine readmywaves(iproc,filename,iformat,orbs,n1,n2,n3,hx,hy,hz,at,rxyz_old,rxyz,  &
-     wfd,psi,orblist)
+     wfd,psi,orblist,pawrhoij)
   use module_base
   use module_types
   use yaml_output
@@ -279,6 +318,7 @@ subroutine readmywaves(iproc,filename,iformat,orbs,n1,n2,n3,hx,hy,hz,at,rxyz_old
   use public_enums
   use bounds, only: ext_buffers_coarse
   use compression
+  use m_pawrhoij
   implicit none
   integer, intent(in) :: iproc,n1,n2,n3, iformat
   real(gp), intent(in) :: hx,hy,hz
@@ -290,6 +330,7 @@ subroutine readmywaves(iproc,filename,iformat,orbs,n1,n2,n3,hx,hy,hz,at,rxyz_old
   real(wp), dimension(wfd%nvctr_c+7*wfd%nvctr_f,orbs%nspinor,orbs%norbp), intent(out) :: psi
   character(len=*), intent(in) :: filename
   integer, dimension(orbs%norb), optional :: orblist
+  type(pawrhoij_type), dimension(at%astruct%nat), intent(inout), optional :: pawrhoij
   !Local variables
   character(len=*), parameter :: subname='readmywaves'
   logical :: perx,pery,perz
@@ -350,6 +391,15 @@ subroutine readmywaves(iproc,filename,iformat,orbs,n1,n2,n3,hx,hy,hz,at,rxyz_old
 
      call f_free(psifscf)
 
+     if (present(pawrhoij)) then
+        if (iformat == WF_FORMAT_BINARY) then
+           call f_open_file(unitwf, file = filename // "-rhoij.bin", binary = .true.)
+        else
+           call f_open_file(unitwf, file = filename // "-rhoij", binary = .false.)
+        end if
+        call readrhoij(unitwf, (iformat == WF_FORMAT_BINARY), at%astruct%nat, pawrhoij)
+        call f_close(unitwf)
+     end if
   else
      call yaml_warning('Unknown wavefunction file format from filename.')
      stop

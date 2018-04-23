@@ -2794,9 +2794,30 @@ module io
    
    END SUBROUTINE writeonewave
 
+   subroutine writerhoij(unitf, lbin, nat, pawrhoij)
+     use m_pawrhoij
+     implicit none
+     integer, intent(in) :: unitf, nat
+     logical, intent(in) :: lbin
+     type(pawrhoij_type), dimension(nat), intent(in) :: pawrhoij
+
+     integer :: i
+
+     if (lbin) then
+        do i = 1, nat
+           write(unitf) i, size(pawrhoij(i)%rhoijp, 1), size(pawrhoij(i)%rhoijp, 2)
+           write(unitf) pawrhoij(i)%rhoijp
+        end do
+     else
+        do i = 1, nat
+           write(unitf, *) i, size(pawrhoij(i)%rhoijp, 1), size(pawrhoij(i)%rhoijp, 2)
+           write(unitf, "(4(1x,e17.10))") pawrhoij(i)%rhoijp
+        end do
+     end if
+   END SUBROUTINE writerhoij
 
    !> Write all my wavefunctions in files by calling writeonewave
-   subroutine writemywaves(iproc,filename,iformat,orbs,n1,n2,n3,hx,hy,hz,at,rxyz,wfd,psi,iorb_shift)
+   subroutine writemywaves(iproc,filename,iformat,orbs,n1,n2,n3,hx,hy,hz,at,rxyz,wfd,psi,iorb_shift,paw)
      use module_types
      use module_base
      use yaml_output
@@ -2813,6 +2834,7 @@ module io
      real(wp), dimension(wfd%nvctr_c+7*wfd%nvctr_f,orbs%nspinor,orbs%norbp), intent(in) :: psi
      character(len=*), intent(in) :: filename
      integer,intent(in),optional :: iorb_shift
+     type(paw_objects), intent(in), optional :: paw
      !Local variables
      integer :: ncount1,ncount_rate,ncount_max,iorb,ncount2,iorb_out,ispinor,unitwf,iorb_shift_
      real(kind=4) :: tr0,tr1
@@ -2848,6 +2870,17 @@ module io
               call f_close(unitwf)
            end do
         enddo
+
+        ! Additional PAW data.
+        if (iproc == 0) then
+           if (iformat == WF_FORMAT_BINARY) then
+              call f_open_file(unitwf, file = filename // "-rhoij.bin", binary = .true.)
+           else
+              call f_open_file(unitwf, file = filename // "-rhoij", binary = .false.)
+           end if
+           call writerhoij(unitwf, (iformat == WF_FORMAT_BINARY), at%astruct%nat, paw%pawrhoij)
+           call f_close(unitwf)
+        end if
    
         call cpu_time(tr1)
         call system_clock(ncount2,ncount_rate,ncount_max)

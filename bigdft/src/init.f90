@@ -249,12 +249,12 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
   !local variables
   character(len=*), parameter :: subname='createProjectorsArrays'
   integer :: n1,n2,n3,nl1,nl2,nl3,nu1,nu2,nu3,mseg,nbseg_dim,npack_dim,mproj_max
-  integer :: iat,iseg,nseg,isat,natp,ist,ityp,i, isx, isy, isz
+  integer :: iat,iseg,nseg,isat,natp,ist,ityp,i, ii
   !type(orbital_basis) :: ob
   integer, dimension(:), allocatable :: nbsegs_cf,keyg_lin
   logical, dimension(:,:,:), allocatable :: logrid
   integer,dimension(:,:),allocatable :: reducearr
-  real(gp) :: r, tt
+  real(gp) :: r, tt, eps
   
   call f_routine(id=subname)
 
@@ -298,7 +298,9 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
      if (at%npspcode(ityp) == PSPCODE_PSPIO) then
         do i = 1, pspiof_pspdata_get_n_projectors(at%pspio(ityp))
            tt = 0._gp
-           do r = 1d-4, 10, 1d-4
+           eps = 1d-4
+           do ii = 1, int(10.d0 / eps)
+              r = eps * ii;
               tt = tt + (pspiof_projector_eval(pspiof_pspdata_get_projector(at%pspio(ityp), &
                    & i), r) ** 2)  * r * r * 1d-4
            end do
@@ -437,10 +439,10 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
       nl%projs(iat)%region%plr%d%nfu1 = nl%projs(iat)%region%plr%d%nfu1
       nl%projs(iat)%region%plr%d%nfu2 = nl%projs(iat)%region%plr%d%nfu2
       nl%projs(iat)%region%plr%d%nfu3 = nl%projs(iat)%region%plr%d%nfu3
-      nl%projs(iat)%region%plr%geocode = "F"
-      nl%projs(iat)%region%plr%d%n1i = lr%d%n1i
-      nl%projs(iat)%region%plr%d%n2i = lr%d%n2i
-      nl%projs(iat)%region%plr%d%n3i = lr%d%n3i
+!!$      nl%projs(iat)%region%plr%geocode = "F"
+!!$      nl%projs(iat)%region%plr%d%n1i = lr%d%n1i
+!!$      nl%projs(iat)%region%plr%d%n2i = lr%d%n2i
+!!$      nl%projs(iat)%region%plr%d%n3i = lr%d%n3i
 
       !in the case of linear scaling this section has to be built again
       if (init_projectors_completely) then
@@ -1755,7 +1757,7 @@ END SUBROUTINE input_memory_linear
 
 !> Input wavefunctions from disk
 subroutine input_wf_disk(iproc, nproc, input_wf_format, d, hx, hy, hz, &
-     in, atoms, rxyz, wfd, orbs, psi)
+     in, atoms, rxyz, GPU, Lzd, wfd, orbs, psi, denspot, nlpsp, paw)
   use module_base
   use module_types
   use module_interfaces, only: readmywaves
@@ -1769,11 +1771,16 @@ subroutine input_wf_disk(iproc, nproc, input_wf_format, d, hx, hy, hz, &
   real(gp), intent(in) :: hx, hy, hz
   type(input_variables), intent(in) :: in
   type(atoms_data), intent(in) :: atoms
+  type(GPU_pointers), intent(inout) :: GPU
+  type(local_zone_descriptors), intent(in) :: Lzd
   real(gp), dimension(3, atoms%astruct%nat), intent(in) :: rxyz
 !  real(gp), dimension(3, atoms%astruct%nat), intent(out) :: rxyz_old
   type(wavefunctions_descriptors), intent(in) :: wfd
   type(orbitals_data), intent(inout) :: orbs
   real(wp), dimension(:), pointer :: psi
+  type(paw_objects), intent(inout) :: paw
+  type(DFT_PSP_projectors), intent(in) :: nlpsp
+  type(DFT_local_fields), intent(inout) :: denspot
   !local variables
   real(gp), dimension(:,:), allocatable :: rxyz_old !<this is read from the disk and not needed
 
@@ -1784,8 +1791,14 @@ subroutine input_wf_disk(iproc, nproc, input_wf_format, d, hx, hy, hz, &
   !call to_zero(orbs%norb*orbs%nkpts,orbs%eval(1))
   call f_zero(orbs%eval)
 
-  call readmywaves(iproc,trim(in%dir_output) // "wavefunction", input_wf_format, &
-       & orbs,d%n1,d%n2,d%n3,hx,hy,hz,atoms,rxyz_old,rxyz,wfd,psi)
+  if (paw%usepaw) then
+     call readmywaves(iproc,trim(in%dir_output) // "wavefunction", input_wf_format, &
+          & orbs,d%n1,d%n2,d%n3,hx,hy,hz,atoms,rxyz_old,rxyz,wfd,psi,pawrhoij=paw%pawrhoij)
+     call input_wf_disk_paw(iproc, nproc, atoms, GPU, Lzd, orbs, psi, denspot, nlpsp, paw)
+  else
+     call readmywaves(iproc,trim(in%dir_output) // "wavefunction", input_wf_format, &
+          & orbs,d%n1,d%n2,d%n3,hx,hy,hz,atoms,rxyz_old,rxyz,wfd,psi)
+  end if
 
   !reduce the value for all the eigenvectors
   if (nproc > 1) call fmpi_allreduce(orbs%eval,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
@@ -1812,15 +1825,10 @@ subroutine input_wf_disk_pw(filename, iproc, nproc, at, rxyz, GPU, Lzd, orbs, ps
   use module_defs, only: gp, wp
   use module_types, only: orbitals_data, paw_objects, DFT_local_fields, &
        & GPU_pointers, local_zone_descriptors, energy_terms, energy_terms_null
-  use public_enums, only: ELECTRONIC_DENSITY, KS_POTENTIAL
   use psp_projectors_base, only: DFT_PSP_projectors
   use module_atoms
-  use m_pawrhoij, only: pawrhoij_type, pawrhoij_init_unpacked, pawrhoij_free_unpacked, pawrhoij_unpack
+  use module_interfaces, only: read_pw_waves
   use dynamic_memory
-  use module_interfaces, only: communicate_density, read_pw_waves, sumrho
-  use rhopotential, only: updatePotential
-  use f_utils, only: f_zero
-  use io, only: write_energies
 
   implicit none
 
@@ -1837,10 +1845,7 @@ subroutine input_wf_disk_pw(filename, iproc, nproc, at, rxyz, GPU, Lzd, orbs, ps
   type(DFT_local_fields), intent(inout) :: denspot
 
   integer :: i, iat, isp
-  real(wp), dimension(:), allocatable :: hpsi
   real(wp), dimension(:,:,:), pointer :: rhoij
-  real(gp) :: compch_sph
-  type(energy_terms) :: energs
 
   call read_pw_waves(filename, iproc, nproc, at, rxyz, Lzd%Glr, orbs, psig, rhoij)
 
@@ -1854,41 +1859,71 @@ subroutine input_wf_disk_pw(filename, iproc, nproc, at, rxyz, GPU, Lzd, orbs, ps
         paw%pawrhoij(iat)%nrhoijsel = size(paw%pawrhoij(iat)%rhoijselect)
      end do
 
-     ! Create rho to generate KS potential to generate spsi for later first orthon.
-     call sumrho(denspot%dpbox, orbs, Lzd, GPU, at%astruct%sym, denspot%rhod, &
-          & denspot%xc, psig, denspot%rho_psi)
-     call communicate_density(denspot%dpbox, orbs%nspin, denspot%rhod,&
-          denspot%rho_psi, denspot%rhov, .false.)
-     call denspot_set_rhov_status(denspot, ELECTRONIC_DENSITY, 0, iproc, nproc)
-
-     call pawrhoij_init_unpacked(paw%pawrhoij)
-     call pawrhoij_unpack(paw%pawrhoij)
-     call paw_update_rho(paw, denspot, at)
-
-     ! Create KS potential.
-     energs = energy_terms_null()
-     call updatePotential(orbs%nspin, denspot, energs)
-     call denspot_set_rhov_status(denspot, KS_POTENTIAL, 0, iproc, nproc)
-
-     ! Compute |s|psi>.
-     call paw_compute_dij(paw, at, denspot, denspot%V_XC(1,1,1,1), energs%epaw, energs%epawdc, compch_sph)
-
-     !@todo Change this for the calculation of spsi only, don't need hpsi here.
-     hpsi = f_malloc(orbs%npsidim_orbs, id = "hpsi")
-     if (orbs%npsidim_orbs > 0) call f_zero(orbs%npsidim_orbs, hpsi(1))
-     call NonLocalHamiltonianApplication(iproc,at,orbs%npsidim_orbs,orbs,&
-          Lzd,nlpsp,psig,hpsi,energs%eproj,paw)
-     call f_free(hpsi)
-
-     call write_energies(0, energs, 0._gp, 0._gp, "", only_energies=.true.)
-!!$     write(*,*) energs%exc, energs%evxc, energs%eh
-!!$     write(*,*) sum(denspot%V_XC), maxval(denspot%V_XC), minval(denspot%V_XC)
-!!$     write(*,*) sum(denspot%rhov), maxval(denspot%rhov), minval(denspot%rhov)
+     call input_wf_disk_paw(iproc, nproc, at, GPU, Lzd, orbs, psig, denspot, nlpsp, paw)
   end if
-
   if (associated(rhoij)) call f_free_ptr(rhoij)
 
 END SUBROUTINE input_wf_disk_pw
+
+subroutine input_wf_disk_paw(iproc, nproc, at, GPU, Lzd, orbs, psig, denspot, nlpsp, paw)
+  use module_defs, only: gp, wp
+  use module_types, only: orbitals_data, paw_objects, DFT_local_fields, &
+       & GPU_pointers, local_zone_descriptors, energy_terms, energy_terms_null
+  use public_enums, only: ELECTRONIC_DENSITY, KS_POTENTIAL
+  use psp_projectors_base, only: DFT_PSP_projectors
+  use module_atoms
+  use m_pawrhoij, only: pawrhoij_type, pawrhoij_init_unpacked, pawrhoij_free_unpacked, pawrhoij_unpack
+  use dynamic_memory
+  use module_interfaces, only: communicate_density, sumrho
+  use rhopotential, only: updatePotential
+  use f_utils, only: f_zero
+  use io, only: write_energies
+  implicit none
+  integer, intent(in) :: iproc, nproc
+  type(atoms_data), intent(in) :: at
+  type(GPU_pointers), intent(inout) :: GPU
+  type(local_zone_descriptors), intent(in) :: Lzd
+  type(orbitals_data), intent(in) :: orbs
+  real(wp), dimension(orbs%npsidim_orbs / orbs%norbp, orbs%norbp), intent(in) :: psig
+  type(paw_objects), intent(inout) :: paw
+  type(DFT_PSP_projectors), intent(in) :: nlpsp
+  type(DFT_local_fields), intent(inout) :: denspot
+
+  real(wp), dimension(:), allocatable :: hpsi
+  real(gp) :: compch_sph
+  type(energy_terms) :: energs
+
+  ! Create rho to generate KS potential to generate spsi for later first orthon.
+  call sumrho(denspot%dpbox, orbs, Lzd, GPU, at%astruct%sym, denspot%rhod, &
+       & denspot%xc, psig, denspot%rho_psi)
+  call communicate_density(denspot%dpbox, orbs%nspin, denspot%rhod,&
+       denspot%rho_psi, denspot%rhov, .false.)
+  call denspot_set_rhov_status(denspot, ELECTRONIC_DENSITY, 0, iproc, nproc)
+
+  call pawrhoij_init_unpacked(paw%pawrhoij)
+  call pawrhoij_unpack(paw%pawrhoij)
+  call paw_update_rho(paw, denspot, at)
+
+  ! Create KS potential.
+  energs = energy_terms_null()
+  call updatePotential(orbs%nspin, denspot, energs)
+  call denspot_set_rhov_status(denspot, KS_POTENTIAL, 0, iproc, nproc)
+
+  ! Compute |s|psi>.
+  call paw_compute_dij(paw, at, denspot, denspot%V_XC(1,1,1,1), energs%epaw, energs%epawdc, compch_sph)
+
+  !@todo Change this for the calculation of spsi only, don't need hpsi here.
+  hpsi = f_malloc(orbs%npsidim_orbs, id = "hpsi")
+  if (orbs%npsidim_orbs > 0) call f_zero(orbs%npsidim_orbs, hpsi(1))
+  call NonLocalHamiltonianApplication(iproc,at,orbs%npsidim_orbs,orbs,&
+       Lzd,nlpsp,psig,hpsi,energs%eproj,paw)
+  call f_free(hpsi)
+
+  call write_energies(0, energs, 0._gp, 0._gp, "", only_energies=.true.)
+!!$     write(*,*) energs%exc, energs%evxc, energs%eh
+!!$     write(*,*) sum(denspot%V_XC), maxval(denspot%V_XC), minval(denspot%V_XC)
+!!$     write(*,*) sum(denspot%rhov), maxval(denspot%rhov), minval(denspot%rhov)
+end subroutine input_wf_disk_paw
 
 
 !> Input guess wavefunction diagonalization
@@ -2636,8 +2671,8 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
   end interface
   interface
      subroutine input_wf_disk(iproc, nproc, input_wf_format, d, hx, hy, hz, &
-          in, atoms, rxyz, wfd, orbs, psi)
-       use module_defs
+          in, atoms, rxyz, GPU, Lzd, wfd, orbs, psi, denspot, nlpsp, paw)
+       use module_base
        use module_types
        use compression
        use locregs
@@ -2647,11 +2682,15 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
        real(gp), intent(in) :: hx, hy, hz
        type(input_variables), intent(in) :: in
        type(atoms_data), intent(in) :: atoms
+       type(GPU_pointers), intent(inout) :: GPU
+       type(local_zone_descriptors), intent(in) :: Lzd
        real(gp), dimension(3, atoms%astruct%nat), intent(in) :: rxyz
-       !real(gp), dimension(3, atoms%astruct%nat), intent(out) :: rxyz_old
        type(wavefunctions_descriptors), intent(in) :: wfd
        type(orbitals_data), intent(inout) :: orbs
        real(wp), dimension(:), pointer :: psi
+       type(paw_objects), intent(inout) :: paw
+       type(DFT_PSP_projectors), intent(in) :: nlpsp
+       type(DFT_local_fields), intent(inout) :: denspot
      END SUBROUTINE input_wf_disk
   end interface
   interface
@@ -2960,7 +2999,10 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
      end if
      call input_wf_disk(iproc, nproc, input_wf_format, KSwfn%Lzd%Glr%d,&
           KSwfn%Lzd%hgrids(1),KSwfn%Lzd%hgrids(2),KSwfn%Lzd%hgrids(3),&
-          in, atoms, rxyz, KSwfn%Lzd%Glr%wfd, KSwfn%orbs, KSwfn%psi)
+          in, atoms, rxyz, GPU, KSwfn%Lzd, KSwfn%Lzd%Glr%wfd, KSwfn%orbs, KSwfn%psi, denspot, nlpsp, KSwfn%paw)
+     if (KSwfn%paw%usepaw) &
+          & KSwfn%hpsi = f_malloc_ptr(max(KSwfn%orbs%npsidim_comp, &
+          & KSwfn%orbs%npsidim_orbs),id='KSwfn%hpsi')
 
   case(INPUT_PSI_DISK_PW)
      if (iproc == 0) then
@@ -3506,7 +3548,8 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
   !if (inputpsi /= 0 .and. inputpsi /=-1000) then
   if ((inputpsi .hasattr. 'CUBIC') .and. (inputpsi /= 'INPUT_PSI_LCAO') .and. &
        (inputpsi /= 'INPUT_PSI_EMPTY') .and. (inputpsi /= 'INPUT_PSI_LCAO_GAUSS') .and. &
-       (inputpsi /= 'INPUT_PSI_DISK_PW')) then
+       (inputpsi /= 'INPUT_PSI_DISK_PW') .and. &
+       & (inputpsi /= 'INPUT_PSI_DISK_WVL' .or. .not. KSwfn%paw%usepaw)) then
 !!$  if ( inputpsi /= INPUT_PSI_LCAO .and. inputpsi /= INPUT_PSI_LINEAR_AO .and. &
 !!$        inputpsi /= INPUT_PSI_EMPTY .and. inputpsi /= INPUT_PSI_DISK_LINEAR .and. &
 !!$        inputpsi /= INPUT_PSI_MEMORY_LINEAR) then

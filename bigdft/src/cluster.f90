@@ -943,7 +943,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
      else if (inputpsi .hasattr. 'CUBIC') then
         call writemywaves(iproc,trim(in%dir_output) // trim(in%outputpsiid), f_int(in%output_wf), &
              KSwfn%orbs,n1,n2,n3,KSwfn%Lzd%hgrids(1),KSwfn%Lzd%hgrids(2),KSwfn%Lzd%hgrids(3),&
-             atoms,rxyz,KSwfn%Lzd%Glr%wfd,KSwfn%psi)
+             atoms,rxyz,KSwfn%Lzd%Glr%wfd,KSwfn%psi,paw = KSwfn%paw)
      end if
   end if
 
@@ -2205,6 +2205,11 @@ subroutine kswfn_post_treatments(iproc, nproc, KSwfn, tmb, linear, &
         if (iproc == 0) call yaml_map('Writing core density in file','core_density'//gridformat)
         call plot_density(iproc,nproc,trim(dir_output)//'core_density' // gridformat,&
              atoms,rxyz,denspot%pkernel,1,denspot%rho_C(1:,1:,i3xcsh_old+1:,1:))
+     end if
+     if (associated(denspot%rhohat)) then
+        if (iproc == 0) call yaml_map('Writing compensation density in file', 'hat_density'//gridformat)
+        call plot_density(iproc,nproc,trim(dir_output)//'hat_density' // gridformat,&
+             atoms,rxyz,denspot%pkernel,1,denspot%rhohat)
      end if
   end if
   !plot also the electrostatic potential

@@ -695,10 +695,11 @@ module module_interfaces
 
       interface
         subroutine readmywaves(iproc,filename,iformat,orbs,n1,n2,n3,hx,hy,hz,at,rxyz_old,rxyz,  &
-         wfd,psi,orblist)
+         wfd,psi,orblist,pawrhoij)
          use module_defs, only: gp,dp,wp
          use module_types
          use compression
+         use m_pawrhoij
          implicit none
          integer, intent(in) :: iproc,n1,n2,n3, iformat
          real(gp), intent(in) :: hx,hy,hz
@@ -710,6 +711,7 @@ module module_interfaces
          real(gp), dimension(3,at%astruct%nat), intent(out) :: rxyz_old
          real(wp), dimension(wfd%nvctr_c+7*wfd%nvctr_f,orbs%nspinor,orbs%norbp), intent(out) :: psi
          character(len=*), intent(in) :: filename
+         type(pawrhoij_type), dimension(at%astruct%nat), intent(inout), optional :: pawrhoij
         END SUBROUTINE readmywaves
       end interface
 
