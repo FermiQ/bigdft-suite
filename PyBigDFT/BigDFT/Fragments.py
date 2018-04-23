@@ -1,7 +1,26 @@
+"""
+This module is related to the usage of BigDFT with Fragment-related Quantities.
+Input as well as Logfiles might be processed with the classes and methods provided by it.
+
+"""
+
+#: Conversion between Atomic Units and Bohr
 AU_to_A=0.52917721092
+#: Conversion between Debye and Atomic units
 Debye_to_AU = 0.393430307
 
 class XYZfile():
+    """
+    .. |filename_docs| replace::
+         The file which will be created. If None, the file will be eventually dumped in :class:~`sys.stdout`.
+
+    A class associated to a xyz input file as processed by BigDFT
+
+    :param filename: |filename_docs|
+    :type filename: string
+    :param units: The units of measure of the positions. Allowed avlues are 'atomic' or 'angstroem'
+    :type units: string
+    """
     def __init__(self,filename=None,units='atomic'):
         self.filename=filename
         self.lines=[]
@@ -9,7 +28,19 @@ class XYZfile():
         self.fac=1.0
         if units == 'angstroem': self.fac=AU_to_A
     def append(self,array,basename='',names=None,attributes=None):
-        "Add lines to the file position list"
+        """
+        Add lines to the file position list
+
+        :param array: list of the atomic positions
+        :type array: list of  float triples
+        :param basename: base for the name of the atoms
+        :type basename: string
+        :param names: list of atom names. Will be appended to `basename` if the latter is present
+        :type names: list of strings
+        :param attributes: list of further attributes to be associated to each of the atoms.
+            Will be serialized close to each of the atomic positions
+        :type attributes: list of dictionaries
+        """
         nm=basename
         for i,r in enumerate(array):
             if names is not None: nm=basename+names[i]
@@ -19,7 +50,13 @@ class XYZfile():
             if attributes is not None: line+=' '+str(attributes[i])
             self.lines.append(line+'\n')
     def dump(self,position='w'):
-        "Dump the file as it is now ready for writing"
+        """
+        Dump the file on the file system if filename has been provided,
+        otherwise dump on sys.stdout.
+
+        :param position: filename position statement. Only menaingful for a file dumping.
+        :type position: char
+        """
         import sys
         f=sys.stdout
         if self.filename is not None: f=open(self.filename,position)
@@ -48,14 +85,46 @@ def dump_xyz_positions(f,array,basename='',names=None):
         if names is not None: nm=basename+names[i]
         f.write(str(nm)+' '+str(r[0])+' '+str(r[1])+' '+str(r[2])+'\n')
 
-def dump_xyz(array,basename='',units='atomic',names=None,filename=None,position='a',comment=None):
-    cmt=comment if comment is not None else '# xyz dump with basename "'+basename+'"'
+def xyz_bc_spec(cell):
+    """
+    Defines the specification for expressing the Boundary Conditions starting from a cell vector.
+
+    :param cell: array of the (orthorhombic) cell. Should be 0.0 on directions with free BC.
+       If None is given, the BC are assumed to be Free.
+    :type cell: triple of floats or None
+    :returns: comment Line of the xyz file specifying the bc
+    :rtype: string
+    """
+    if cell is None:
+        return ""
+    elif cell[1] == 0.0 and cell[2] != 0.0:
+        return "surface "+str(cell[0])+" 0.0 "+str(cell[2])+" "
+    elif cell[1] == 0.0 and cell[2] == 0.0:
+        return "wire 0.0 0.0 "+cell[2]+" "
+    else:
+        return "periodic "+str(cell[0])+" "+str(cell[1])+" "+str(cell[2])+" "
+
+def dump_xyz(array,basename='',units='atomic',names=None,filename=None,position='a',comment=None,cell=None):
+    """
+    Create a BigDFT xyz filename. Duplicates the meaning of the :class:`XYZfile` class.
+
+    :param filename: |filename_docs|
+    :type filename: string
+
+    .. todo::
+       Remove the duplication of operations in favour or the class.
+       Move the related operation into a lower-level module.
+    """
+    cmt=xyz_bc_spec(cell)
+    cmt+=comment if comment is not None else '# xyz dump with basename "'+basename+'"'
     f=open_xyz(filename,len(array),units,cmt,position)
     dump_xyz_positions(f,array,basename=basename,names=names)
     close_xyz(f,filename)
 
 class Lattice():
-    "Defines the fundamental objects to deal with periodic systems"
+    """
+    Defines the fundamental objects to deal with periodic systems
+    """
     def __init__(self,vectors):
         self.vectors=vectors
     def grid(self,origin=[0.0,0.0,0.0],extremes=None,radius=None):
@@ -118,6 +187,14 @@ class Rotation(RotoTranslation):
         self.J=0.0
 
 class Fragment():
+    """
+    Introduce the concept of fragment. This is a subportion of the system
+    (it may also coincide with the system itself) that is made of atoms.
+    Such fragment might have quantities associated to it, like its
+    electrostatic multipoles (charge, dipole, etc.) and also geometrical information
+    (center of mass, principla axis etc.). A Fragment might also be rototranslated
+    and combined with other moieteies to form a :class:`System`.
+    """
     protected_keys=['q0','q1','q2','sigma']
     def __init__(self,atomlist=None,id='Unknown',units='AU'):
         self.atoms=[]
@@ -240,7 +317,7 @@ class Fragment():
             I[2,0]+=rxyz[2]*rxyz[0]
             I[1,2]+=rxyz[2]*rxyz[1]
             I[2,1]+=rxyz[2]*rxyz[1]
-        return I        
+        return I
     def q0(self,atom):
         "Provides the charge of the atom"
         charge=atom.get('q0')
@@ -301,7 +378,7 @@ class Fragment():
         else:
             return None
 
-                        
+
 class System():
     "A system is defined by a collection of Fragments. It might be given by one single fragment"
     def __init__(self,mp_dict=None,xyz=None,nat_reference=None,units='AU',transformations=None,reference_fragments=None):
@@ -343,7 +420,7 @@ class System():
                     if nat_reference is not None and iat == nat_reference: #we should break the fragment, alternative strategy
                         if frag is not None: self.append(frag)
                         frag=Fragment(units=self.units)
-                        iat=0  
+                        iat=0
                     frag.append({pos[0]: map(float,pos[1:])})
                     nat+=1
                     iat+=1
@@ -358,7 +435,7 @@ class System():
             #frag.append(sym=at['sym'],positions=at['r'])
             frag.append(at)
             iat+=1
-            if nat_reference is not None and iat == nat_reference: 
+            if nat_reference is not None and iat == nat_reference:
                 if len(frag) !=0: self.append(frag)
                 frag=Fragment(units=self.units)
                 iat=0
@@ -375,7 +452,7 @@ class System():
         atoms=[]
         for f in self.fragments:
             atoms+=f.dict()
-        #if self.units != 'A': 
+        #if self.units != 'A':
         #    print 'Dictionary version not available if the system is given in AU'
         #    raise Exception
         dc={'units': self._bigdft_units(),'global monopole': float(self.Q()), 'values': atoms}
@@ -431,7 +508,7 @@ class System():
     def recompose(self,transformations=None,reference_fragments=None):
         "Rebuild the system from a set of transformations"
         import copy,numpy as np
-        if transformations is not None: 
+        if transformations is not None:
             RT=transformations
             self.decomposition=RT
         else:
@@ -482,7 +559,7 @@ def prepare_fragment_inputs(name,directory='.',flavour='Isolated',system=None,te
 	tempdatadir='data-'+template_name
 	ensure_dir(datadir)
 	datatemplate=os.path.join(datadir,tempdatadir)
-	if flavour=='Embedded':          		
+	if flavour=='Embedded':
 	   ensure_dir(datatemplate)
 	elif not os.path.exists(datatemplate):
 	   os.symlink(os.path.abspath(os.path.join(template_dir,tempdatadir)),datatemplate)
@@ -510,10 +587,10 @@ def frag_average(ref,flist,clean_monopole=True):
     favg=copy.deepcopy(ref)
     qtot=0.0
     for i,at in enumerate(favg.atoms):
-        #form a fragment which has the positions of the references and 
+        #form a fragment which has the positions of the references and
         #neutral total monopole if asked for.
         for k in keys:
-            population=[ f.atoms[i][k] for f in flist ] 
+            population=[ f.atoms[i][k] for f in flist ]
             vals=np.mean(population,axis=0)
             st=np.std(population,axis=0)
             at[k]=vals
@@ -525,7 +602,7 @@ def frag_average(ref,flist,clean_monopole=True):
         at['q0'][0]-=qtot
         #print 'retest',i,at
     return favg
-                        
+
 def distance(i,j):
     "Distance between fragments, defined as distance between center of mass"
     import numpy
@@ -563,7 +640,7 @@ def rotot_collection(ref_frag,lookup,fragments):
         W.append({'R':roto,'t':translation,'J':J,'ref':refF})
     return W
 
-if __name__ == '__main__': 
+if __name__ == '__main__':
     #extract fragments
     import sys,numpy
     one1=System(xyz='one-1.xyz')
@@ -628,7 +705,7 @@ if __name__ == '__main__':
     limit=36 #maximum value of each fragment
     fragments=[]
     #try to initialize with the class
-    
+
     fil=open(filename,'r')
     count=0
     nat=0
@@ -648,16 +725,16 @@ if __name__ == '__main__':
             if iat == limit: #we should break the fragment, alternative strategy
                 if frag is not None: fragments.append(frag)
                 frag=Fragment()
-                iat=0  
+                iat=0
             frag.append({pos[0]: map(float,pos[1:])})
             nat+=1
             iat+=1
         except Exception,e:
             print 'error',l,e
             break
-    
+
     print 'calculation finished',len(fragments),'balance',nat
-    
+
     #find the F4TCNQ
     F4TCNQs=[]
     PCs=[]
@@ -670,9 +747,9 @@ if __name__ == '__main__':
             PCs.append(f)
     #find the central molecule
     centroid= numpy.mean(CMs, axis=0)
-            
+
     print 'species identified:',len(F4TCNQs),'F4TCNQ and',len(PCs),' pentacenes, tot',len(fragments),len(CMs)
-    
+
     #now append the fragments to the System class
     stm=System(xyz=filename,nat_reference=36)
     print len(stm.fragments),'before'
@@ -680,7 +757,7 @@ if __name__ == '__main__':
         stm.append(frag)
     print len(stm.fragments),'after'
     print centroid,[i for i in CMs[0]],[i for i in centroid],stm.centroid(),stm.central_fragment()
-    
+
     refF4=0
     refPC=0
     #try:
@@ -689,12 +766,12 @@ if __name__ == '__main__':
     #except:
     #    icen=PCs.index(imin)
     #    refPC=icen
-        
+
     #check if now all the atoms are the rototranslation of the same fragment and find the transformation
     W_F4=rotot_collection(refF4,F4TCNQs,fragments)
     W_PEN=rotot_collection(refPC,PCs,fragments)
-    
-        
+
+
     #print CMs
     #search the NN of each of the F4TCNQs
     DFP=[]
@@ -702,12 +779,12 @@ if __name__ == '__main__':
     for f in F4TCNQs:
         DFP.append(numpy.array([distance(f,p) for p in PCs]))
         DFF.append(numpy.array([distance(f,p) for p in F4TCNQs]))
-    
-        
+
+
     #Then we can classify the attributes of each pentacene accordingly to the limiting distance
-    
+
     threshold=10.0
-    
+
     for i,f in enumerate(F4TCNQs):
         import yaml
         if (i==0):
@@ -726,5 +803,3 @@ if __name__ == '__main__':
             if dist < threshold and dist !=0:
                 iFF+=1
         print i,iFF,iPC
-
-    

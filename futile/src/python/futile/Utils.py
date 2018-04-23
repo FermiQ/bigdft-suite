@@ -15,6 +15,21 @@ def write(*args,**kwargs):
     """
     return print(*args,**kwargs)
 
+def show_image(imgfile,title=None):
+    """
+    Show image file using matplotlib imgread. Useful to bypass the 
+    Jupyter bug for converting a notebook into a pdf file
+    """
+    import matplotlib.pyplot as plt
+    import matplotlib.image as mpimg
+    my_image = mpimg.imread(imgfile)
+    fig = plt.figure()
+    ax1 = fig.add_subplot(1,1,1)
+    ax1.set_axis_off()
+    ax1.imshow(my_image)
+    if title: plt.title(title)
+    plt.show()
+
 #interesting slider for vertical matplotlib
 #taken from https://stackoverflow.com/questions/25934279/add-a-vertical-slider-with-matplotlib
 class VertSlider(AxesWidget):
