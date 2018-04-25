@@ -380,6 +380,7 @@ subroutine local_partial_density(nproc,rsflag,nscatterarr,&
    use module_interfaces, only: partial_density_free
    use locreg_operations
    use locregs
+   use box, only: cell_geocode
    implicit none
    logical, intent(in) :: rsflag
    integer, intent(in) :: nproc,nrhotot
@@ -415,11 +416,11 @@ subroutine local_partial_density(nproc,rsflag,nscatterarr,&
    psir = f_malloc((/ lr%d%n1i*lr%d%n2i*lr%d%n3i, npsir /),id='psir')
    !initialisation
    !print *,iproc,'there'
-   if (lr%geocode == 'F') call f_zero(psir)
+   if (cell_geocode(lr%mesh_fine) == 'F') call f_zero(psir)
 
    do iorb=1,orbs%norbp
       !print *,'norbp',orbs%norbp,orbs%norb,orbs%nkpts,orbs%kwgts,orbs%iokpt,orbs%occup
-      hfac=orbs%kwgts(orbs%iokpt(iorb))*(orbs%occup(orbs%isorb+iorb)/(hxh*hyh*hzh))
+      hfac=orbs%kwgts(orbs%iokpt(iorb))*(orbs%occup(orbs%isorb+iorb)/lr%mesh_fine%volume_element)
       spinval=orbs%spinsgn(orbs%isorb+iorb)
 
       if (hfac /= 0.d0) then
@@ -437,26 +438,19 @@ subroutine local_partial_density(nproc,rsflag,nscatterarr,&
             !print *,'iorb,nrm',iorb,npsir,&
             !     nrm2(lr%d%n1i*lr%d%n2i*lr%d%n3i*npsir,psir(1,1),1)
 
-            select case(lr%geocode)
-            case('F')
+            if (cell_geocode(lr%mesh_fine) == 'F') then
 
                call partial_density_free(rsflag,nproc,lr%d%n1i,lr%d%n2i,lr%d%n3i,&
                   &   npsir,nspinn,nrhotot,&
                   &   hfac,nscatterarr,spinval,psir,rho_p,lr%bounds%ibyyzz_r)
 
-            case('P')
+            else
 
                call partial_density(rsflag,nproc,lr%d%n1i,lr%d%n2i,lr%d%n3i,&
                   &   npsir,nspinn,nrhotot,&
                   &   hfac,nscatterarr,spinval,psir,rho_p)
 
-            case('S')
-
-               call partial_density(rsflag,nproc,lr%d%n1i,lr%d%n2i,lr%d%n3i,&
-                  &   npsir,nspinn,nrhotot,&
-                  &   hfac,nscatterarr,spinval,psir,rho_p)
-
-            end select
+            end if
 
          end do
       end if

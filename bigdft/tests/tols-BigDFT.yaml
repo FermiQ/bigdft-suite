@@ -255,6 +255,7 @@ GEOPT-LBFGS:
 NaCl:
  Epsilon: 2.e-9
  Mean L2 norm of gaussian-wavelet difference: 1.358e-4
+ Band Structure Energy: 2.2e-09
 
 NH3:
  Epsilon: 1.1e-10
