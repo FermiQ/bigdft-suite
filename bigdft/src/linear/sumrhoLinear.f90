@@ -18,6 +18,7 @@ subroutine local_partial_densityLinear(nproc,rsflag,nscatterarr,&
   use module_xc
   use Poisson_Solver, except_dp => dp, except_gp => gp
   use locreg_operations
+  use box
   implicit none
   logical, intent(in) :: rsflag
   integer, intent(in) :: nproc
@@ -41,6 +42,8 @@ subroutine local_partial_densityLinear(nproc,rsflag,nscatterarr,&
   real(wp), dimension(:,:), allocatable :: psir
   real(dp), dimension(:),allocatable :: rho_p
   integer, dimension(:,:), allocatable :: Lnscatterarr
+  type(box_iterator) :: bit
+  logical, dimension(3) :: peri
  !components of wavefunction in real space which must be considered simultaneously
   !and components of the charge density
   if (orbs%nspinor ==4) then
@@ -78,7 +81,7 @@ subroutine local_partial_densityLinear(nproc,rsflag,nscatterarr,&
      rho_p = f_malloc0(Lzd%Llr(ilr)%d%n1i*Lzd%Llr(ilr)%d%n2i*Lzd%Llr(ilr)%d%n3i*nspinn,id='rho_p')
      psir = f_malloc((/ Lzd%Llr(ilr)%d%n1i*Lzd%Llr(ilr)%d%n2i*Lzd%Llr(ilr)%d%n3i, npsir /),id='psir')
   
-     if (Lzd%Llr(ilr)%geocode == 'F') then
+     if (cell_geocode(Lzd%Llr(ilr)%mesh) == 'F') then
         call f_zero(psir)
      end if
  
@@ -87,7 +90,7 @@ subroutine local_partial_densityLinear(nproc,rsflag,nscatterarr,&
 
      !print *,'norbp',orbs%norbp,orbs%norb,orbs%nkpts,orbs%kwgts,orbs%iokpt,orbs%occup
      !hfac=orbs%kwgts(orbs%iokpt(ii))*(orbs%occup(iorb)/(hxh*hyh*hzh))
-     hfac=orbs%kwgts(orbs%iokpt(ii))*(orbs%occup(mapping(iorb))/(hxh*hyh*hzh))
+     hfac=orbs%kwgts(orbs%iokpt(ii))*(orbs%occup(mapping(iorb))/Lzd%Llr(ilr)%mesh%volume_element)
      spinval=orbs%spinsgn(iorb)
 
      !this shoudl have aleady been defined
@@ -105,54 +108,80 @@ subroutine local_partial_densityLinear(nproc,rsflag,nscatterarr,&
            end do
            
 
-           select case(Lzd%Llr(ilr)%geocode)
-           case('F')
+           if (cell_geocode(Lzd%Llr(ilr)%mesh) == 'F') then
+
               !write(*,*) 'WARNING: MODIFIED CALLING SEQUENCE OF partial_density_free!!!!'
               call partial_density_free((rsflag .and. .not. Lzd%linear),nproc,Lzd%Llr(ilr)%d%n1i,&
                    Lzd%Llr(ilr)%d%n2i,Lzd%Llr(ilr)%d%n3i,npsir,nspinn,Lzd%Llr(ilr)%d%n3i,&!nrhotot,&
                    hfac,Lnscatterarr,spinval,psir,rho_p,Lzd%Llr(ilr)%bounds%ibyyzz_r)
-           case('P')
+
+           else
 
               call partial_density(rsflag,nproc,Lzd%Llr(ilr)%d%n1i,Lzd%Llr(ilr)%d%n2i,Lzd%Llr(ilr)%d%n3i,&
                    npsir,nspinn,Lzd%Llr(ilr)%d%n3i,&!nrhotot,&
                    hfac,nscatterarr,spinval,psir,rho_p)
 
-           case('S')
-
-              call partial_density(rsflag,nproc,Lzd%Llr(ilr)%d%n1i,Lzd%Llr(ilr)%d%n2i,Lzd%Llr(ilr)%d%n3i,&
-                   npsir,nspinn,Lzd%Llr(ilr)%d%n3i,&!nrhotot,&
-                   hfac,nscatterarr,spinval,psir,rho_p)
-
-           end select
+           end if
 
            ! Copy rho_p to the correct place in rho
-           indSmall=0
+!----- Start new loop giuseppe ----------------------------------------------------------------------------------------
+           peri=cell_periodic_dims(Lzd%Glr%mesh)
+           bit=box_iter(Lzd%Llr(ilr)%mesh)
            do ispin=1,nspinn
-               do i3=1,Lzd%Llr(ilr)%d%n3i !min(Lzd%Llr(ilr)%d%n3i,nscatterarr(iproc,1)) 
-                   ii3 = i3 + Lzd%Llr(ilr)%nsi3 - 1
-                   if(ii3 < 0 .and. Lzd%Glr%geocode /='F') ii3=ii3+Lzd%Glr%d%n3i
-                   if(ii3+1 > Lzd%Glr%d%n3i .and. Lzd%Glr%geocode /='F') &
+               do while(box_next_z(bit))
+                   ii3 = bit%k + Lzd%Llr(ilr)%nsi3 - 1
+                   if(ii3 < 0 .and. peri(3)) ii3=ii3+Lzd%Glr%d%n3i
+                   if(ii3+1 > Lzd%Glr%d%n3i .and. peri(3)) &
                         ii3 = modulo(ii3+1,Lzd%Glr%d%n3i+1)
-                   do i2=1,Lzd%Llr(ilr)%d%n2i
-                       ii2 = i2 + Lzd%Llr(ilr)%nsi2 - 1
-                       if(ii2 < 0 .and. Lzd%Glr%geocode =='P') ii2=ii2+Lzd%Glr%d%n2i
-                       if(ii2+1 > Lzd%Glr%d%n2i .and. Lzd%Glr%geocode =='P') &
+                   do while(box_next_y(bit))
+                       ii2 = bit%j + Lzd%Llr(ilr)%nsi2 - 1
+                       if(ii2 < 0 .and. peri(2)) ii2=ii2+Lzd%Glr%d%n2i
+                       if(ii2+1 > Lzd%Glr%d%n2i .and. peri(2)) &
                             ii2 = modulo(ii2+1,Lzd%Glr%d%n2i+1)
-                       do i1=1,Lzd%Llr(ilr)%d%n1i
-                           ii1=i1 + Lzd%Llr(ilr)%nsi1-1
-                           if(ii1<0 .and. Lzd%Glr%geocode /= 'F') ii1=ii1+Lzd%Glr%d%n1i
-                           if(ii1+1 > Lzd%Glr%d%n1i.and.Lzd%Glr%geocode/='F') &
+                       do while(box_next_x(bit))
+                           ii1=bit%i + Lzd%Llr(ilr)%nsi1-1
+                           if(ii1<0 .and. peri(1)) ii1=ii1+Lzd%Glr%d%n1i
+                           if(ii1+1 > Lzd%Glr%d%n1i.and. peri(1)) &
                                 ii1 = modulo(ii1+1,Lzd%Glr%d%n1i+1)
-                           ! indSmall is the index in the currect localization region
-                           indSmall=indSmall+1
                            ! indLarge is the index in the whole box. 
                            indLarge=ii3*Lzd%Glr%d%n2i*Lzd%Glr%d%n1i +&
                                ii2*Lzd%Glr%d%n1i + ii1 + 1
-                           rho(indLarge,ispin)=rho(indLarge,ispin)+rho_p(indSmall)
+                           rho(indLarge,ispin)=rho(indLarge,ispin)+rho_p(bit%ind)
                        end do
                    end do
                end do
            end do
+!----- End new loop giuseppe ----------------------------------------------------------------------------------------
+
+!!$!----- Start old loop ----------------------------------------------------------------------------------------
+!!$           indSmall=0
+!!$           do ispin=1,nspinn
+!!$               do i3=1,Lzd%Llr(ilr)%d%n3i !min(Lzd%Llr(ilr)%d%n3i,nscatterarr(iproc,1)) 
+!!$                   ii3 = i3 + Lzd%Llr(ilr)%nsi3 - 1
+!!$                   if(ii3 < 0 .and. Lzd%Glr%geocode /='F') ii3=ii3+Lzd%Glr%d%n3i
+!!$                   if(ii3+1 > Lzd%Glr%d%n3i .and. Lzd%Glr%geocode /='F') &
+!!$                        ii3 = modulo(ii3+1,Lzd%Glr%d%n3i+1)
+!!$                   do i2=1,Lzd%Llr(ilr)%d%n2i
+!!$                       ii2 = i2 + Lzd%Llr(ilr)%nsi2 - 1
+!!$                       if(ii2 < 0 .and. Lzd%Glr%geocode =='P') ii2=ii2+Lzd%Glr%d%n2i
+!!$                       if(ii2+1 > Lzd%Glr%d%n2i .and. Lzd%Glr%geocode =='P') &
+!!$                            ii2 = modulo(ii2+1,Lzd%Glr%d%n2i+1)
+!!$                       do i1=1,Lzd%Llr(ilr)%d%n1i
+!!$                           ii1=i1 + Lzd%Llr(ilr)%nsi1-1
+!!$                           if(ii1<0 .and. Lzd%Glr%geocode /= 'F') ii1=ii1+Lzd%Glr%d%n1i
+!!$                           if(ii1+1 > Lzd%Glr%d%n1i.and.Lzd%Glr%geocode/='F') &
+!!$                                ii1 = modulo(ii1+1,Lzd%Glr%d%n1i+1)
+!!$                           ! indSmall is the index in the currect localization region
+!!$                           indSmall=indSmall+1
+!!$                           ! indLarge is the index in the whole box. 
+!!$                           indLarge=ii3*Lzd%Glr%d%n2i*Lzd%Glr%d%n1i +&
+!!$                               ii2*Lzd%Glr%d%n1i + ii1 + 1
+!!$                           rho(indLarge,ispin)=rho(indLarge,ispin)+rho_p(indSmall)
+!!$                       end do
+!!$                   end do
+!!$               end do
+!!$           end do
+!!$!----- End old loop ----------------------------------------------------------------------------------------
         end do
      else
         ind=ind+(Lzd%Llr(ilr)%wfd%nvctr_c+7*Lzd%Llr(ilr)%wfd%nvctr_f)*max(ncomplex,1)*npsir

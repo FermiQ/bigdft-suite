@@ -416,11 +416,11 @@ subroutine local_partial_density(nproc,rsflag,nscatterarr,&
    psir = f_malloc((/ lr%d%n1i*lr%d%n2i*lr%d%n3i, npsir /),id='psir')
    !initialisation
    !print *,iproc,'there'
-   if (cell_geocode(lr%mesh_fine) == 'F') call f_zero(psir)
+   if (cell_geocode(lr%mesh) == 'F') call f_zero(psir)
 
    do iorb=1,orbs%norbp
       !print *,'norbp',orbs%norbp,orbs%norb,orbs%nkpts,orbs%kwgts,orbs%iokpt,orbs%occup
-      hfac=orbs%kwgts(orbs%iokpt(iorb))*(orbs%occup(orbs%isorb+iorb)/lr%mesh_fine%volume_element)
+      hfac=orbs%kwgts(orbs%iokpt(iorb))*(orbs%occup(orbs%isorb+iorb)/lr%mesh%volume_element)
       spinval=orbs%spinsgn(orbs%isorb+iorb)
 
       if (hfac /= 0.d0) then
@@ -438,7 +438,7 @@ subroutine local_partial_density(nproc,rsflag,nscatterarr,&
             !print *,'iorb,nrm',iorb,npsir,&
             !     nrm2(lr%d%n1i*lr%d%n2i*lr%d%n3i*npsir,psir(1,1),1)
 
-            if (cell_geocode(lr%mesh_fine) == 'F') then
+            if (cell_geocode(lr%mesh) == 'F') then
 
                call partial_density_free(rsflag,nproc,lr%d%n1i,lr%d%n2i,lr%d%n3i,&
                   &   npsir,nspinn,nrhotot,&

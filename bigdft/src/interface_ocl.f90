@@ -876,6 +876,7 @@ subroutine local_partial_density_OCL(orbs,&
   use module_base
   use module_types
   use locregs
+  use box, only: cell_periodic_dims
   implicit none
   integer, intent(in) :: nrhotot
   type(orbitals_data), intent(in) :: orbs
@@ -891,22 +892,27 @@ subroutine local_partial_density_OCL(orbs,&
   real(gp) :: hfac
   integer, dimension(3) :: periodic
   real(kind=8) :: rhopot
+  logical, dimension(3) :: peri
 
-  if (lr%geocode /= 'F') then
-    periodic(1) = 1
-  else
-    periodic(1) = 0
-  endif
-  if (lr%geocode == 'P') then
-    periodic(2) = 1
-  else
-    periodic(2) = 0
-  endif
-  if (lr%geocode /= 'F') then
-    periodic(3) = 1
-  else
-    periodic(3) = 0
-  endif
+!!$  if (lr%geocode /= 'F') then
+!!$    periodic(1) = 1
+!!$  else
+!!$    periodic(1) = 0
+!!$  endif
+!!$  if (lr%geocode == 'P') then
+!!$    periodic(2) = 1
+!!$  else
+!!$    periodic(2) = 0
+!!$  endif
+!!$  if (lr%geocode /= 'F') then
+!!$    periodic(3) = 1
+!!$  else
+!!$    periodic(3) = 0
+!!$  endif
+
+  peri=cell_periodic_dims(lr%mesh)
+  periodic=0
+  where (peri) periodic=1
 
   if (lr%wfd%nvctr_f > 0) then
      isf=lr%wfd%nvctr_c+1
@@ -943,7 +949,8 @@ subroutine local_partial_density_OCL(orbs,&
      if (pin) call ocl_unmap_mem_object(GPU%queue, GPU%psicf_host(1,1), psi(isf,iorb))
 !     call ocl_release_mem_object(GPU%psicf_host(2+(ispinor-1)*2,iorb_r))
 
-     hfac=orbs%kwgts(orbs%iokpt(iorb_r))*orbs%occup(orbs%isorb+iorb_r)/(hxh*hyh*hzh)
+!!$     hfac=orbs%kwgts(orbs%iokpt(iorb_r))*orbs%occup(orbs%isorb+iorb_r)/(hxh*hyh*hzh)
+     hfac=orbs%kwgts(orbs%iokpt(iorb_r))*orbs%occup(orbs%isorb+iorb_r)/(lr%mesh%volume_element)
      if (orbs%spinsgn(orbs%isorb+iorb_r) > 0.0) then
         rhopot = GPU%rhopot_up
      else
