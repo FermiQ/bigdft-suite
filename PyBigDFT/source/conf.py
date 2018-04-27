@@ -190,6 +190,7 @@ intersphinx_mapping = {'https://docs.python.org/': None}
 import os
 on_rtd = os.environ.get('READTHEDOCS') == 'True'
 if on_rtd:
+    sys.path.insert(0, os.path.abspath('../../futile/src/python/'))
     import sys
     from unittest.mock import MagicMock
 
@@ -198,5 +199,5 @@ if on_rtd:
         def __getattr__(cls, name):
             return MagicMock()
 
-    MOCK_MODULES = ['futile','yaml']
+    MOCK_MODULES = ['yaml']
     sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)

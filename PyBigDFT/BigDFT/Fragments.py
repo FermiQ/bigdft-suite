@@ -4,6 +4,7 @@ Input as well as Logfiles might be processed with the classes and methods provid
 
 """
 
+from futile.Utils import write as safe_print
 #: Conversion between Atomic Units and Bohr
 AU_to_A=0.52917721092
 #: Conversion between Debye and Atomic units
@@ -157,8 +158,8 @@ class RotoTranslation():
         try:
             import wahba
             self.R,self.t,self.J=wahba.rigid_transform_3D(pos1,pos2)
-        except Exception,e:
-            print 'Error',e
+        except Exception(e):
+            safe_print('Error',e)
             self.R,self.t,self.J=(None,None,1.0e10)
     def dot(self,pos):
         "Apply the rototranslations on the set of positions provided by pos"
@@ -424,8 +425,8 @@ class System():
                     frag.append({pos[0]: map(float,pos[1:])})
                     nat+=1
                     iat+=1
-            except Exception,e:
-                print 'Warning, line not parsed: "',l,e,'"'
+            except Exception(e):
+                safe_print('Warning, line not parsed: "',l,e,'"')
         if iat != 0: self.append(frag) #append the remaining fragment
     def fill_from_mp_dict(self,mpd,nat_reference=None):
         "Fill the System from a dictionary of multipole coefficients"
@@ -627,7 +628,7 @@ def rotot_collection(ref_frag,lookup,fragments):
         refF=lookup[ref_frag]
         roto,translation,J=wahba_fragment(fragments[f],fragments[refF])
         if (J > 1.e-12):
-            print 'Error',f,J,refF
+            safe_print('Error',f,J,refF)
             #try with the second ref
             refF2=lookup[ref_frag+1]
             roto2,translation2,J2=wahba_fragment(fragments[f],fragments[refF2])
@@ -644,19 +645,19 @@ if __name__ == '__main__':
     #extract fragments
     import sys,numpy
     one1=System(xyz='one-1.xyz')
-    print 'Parsed',len(one1.fragments)
-    print one1.xyz()
+    safe_print('Parsed',len(one1.fragments))
+    safe_print(one1.xyz())
     two=System(xyz='two.xyz',nat_reference=len(one1),units='A')
     two.decompose(one1.fragments)
     trans=two.decomposition
     PC1=one1.fragments[0]
-    print 'one',PC1.centroid()
+    safe_print('one',PC1.centroid())
     for frag,t in zip(two.fragments,trans):
-        print 'ff',frag.centroid()
-        print 't',t['t']
-        print 'R',t['R']
-    print two.CMs
-    print trans
+        safe_print('ff',frag.centroid())
+        safe_print('t',t['t'])
+        safe_print('R',t['R'])
+    safe_print(two.CMs)
+    safe_print(trans)
     two2=System(transformations=trans)
     two2.xyz('two-2.xyz',units='angstroem')
     #now rigidify the big case scenario
@@ -664,13 +665,13 @@ if __name__ == '__main__':
     fil=open('lattice.txt','r')
     acell=[eval(l.strip('\r\n')) for l in fil]
     latt=Lattice(acell)
-    print latt.vectors
-    print 0.5*numpy.array(latt.vectors)
-    print two.CMs[1]-two.CMs[0]
+    safe_print (latt.vectors)
+    safe_print (0.5*numpy.array(latt.vectors))
+    safe_print (two.CMs[1]-two.CMs[0])
     #find the positions of the center of mass of the big system
     bigold=System(xyz='BigCase.xyz',nat_reference=36)
     icen=bigold.central_fragment()
-    print icen,bigold.CMs[icen],bigold.CMs[icen-1]
+    safe_print(icen,bigold.CMs[icen],bigold.CMs[icen-1])
     samples=[bigold.CMs[icen],bigold.CMs[icen-1]]
     extremes=[[-5,5],[-5,5],[-1,1]]
     grid=[]
@@ -691,14 +692,14 @@ if __name__ == '__main__':
     cents.append(big.CMs,basename='Cen')
     cents.dump()
     icen = big.central_fragment()
-    print 'the central fragment is',icen
+    safe_print('the central fragment is',icen)
     #find the atoms
     iat=0
     for i,f in enumerate(big.fragments):
-        if i==icen: print 'from',iat+1
+        if i==icen: safe_print('from',iat+1)
         iat+=len(f)
         if i==icen:
-            print 'to',iat+1
+            safe_print('to',iat+1)
             break
     exit(0)
     filename=sys.argv[1]
@@ -728,13 +729,13 @@ if __name__ == '__main__':
                 iat=0
             frag.append({pos[0]: map(float,pos[1:])})
             nat+=1
-            iat+=1
-        except Exception,e:
-            print 'error',l,e
+            iat+=1)
+        except Exception(e):
+            safe_print('error',l,e)
             break
 
-    print 'calculation finished',len(fragments),'balance',nat
-
+    safe_print('calculation finished',len(fragments),'balance',nat)
+    
     #find the F4TCNQ
     F4TCNQs=[]
     PCs=[]
@@ -748,15 +749,15 @@ if __name__ == '__main__':
     #find the central molecule
     centroid= numpy.mean(CMs, axis=0)
 
-    print 'species identified:',len(F4TCNQs),'F4TCNQ and',len(PCs),' pentacenes, tot',len(fragments),len(CMs)
+    safe_print('species identified:',len(F4TCNQs),'F4TCNQ and',len(PCs),' pentacenes, tot',len(fragments),len(CMs))
 
     #now append the fragments to the System class
     stm=System(xyz=filename,nat_reference=36)
-    print len(stm.fragments),'before'
+    safe_print(len(stm.fragments),'before')
     for frag in fragments:
         stm.append(frag)
-    print len(stm.fragments),'after'
-    print centroid,[i for i in CMs[0]],[i for i in centroid],stm.centroid(),stm.central_fragment()
+    safe_print(len(stm.fragments),'after')
+    safe_print(centroid,[i for i in CMs[0]],[i for i in centroid],stm.centroid(),stm.central_fragment())
 
     refF4=0
     refPC=0
@@ -788,12 +789,12 @@ if __name__ == '__main__':
     for i,f in enumerate(F4TCNQs):
         import yaml
         if (i==0):
-            print yaml.dump(fragments[f])
-            print 'test wahba'
+            safe_print( yaml.dump(fragments[f]))
+            safe_print( 'test wahba')
             roto,translation,J=wahba_fragment(fragments[f],fragments[f])
-            print roto
-            print translation
-            print 'Rototranslation Error',J
+            safe_print( roto)
+            safe_print( translation)
+            safe_print( 'Rototranslation Error',J)
         iPC=0
         for dist in DFP[i]:
             if dist < threshold:
@@ -802,4 +803,4 @@ if __name__ == '__main__':
         for dist in DFF[i]:
             if dist < threshold and dist !=0:
                 iFF+=1
-        print i,iFF,iPC
+        safe_print(i,iFF,iPC)

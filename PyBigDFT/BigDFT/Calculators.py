@@ -1,3 +1,4 @@
+from futile.Utils import safe_print
 #file for BigDFT calculators
 class GIBinding():
     """Calculator for BigDFT from Gobject Introspection bindings"""
@@ -90,7 +91,7 @@ psppar.Be: {Pseudopotential XC: 11}
     #perform the first calculation
     out=study.run()
 
-    print 'starting energy',out.eKS
+    safe_print('starting energy',out.eKS)
 
     energy=[out.eKS]
     pos=[1.0]
@@ -102,10 +103,10 @@ psppar.Be: {Pseudopotential XC: 11}
         out=study.run()
         energy.append(out.eKS)
         pos.append(pos[-1]+sh)
-        if study.iproc==0: print 'iter',i,'shift',sh,'energy',out.eKS
+        if study.iproc==0: safe_print('iter',i,'shift',sh,'energy',out.eKS)
 
     out=None
-    print 'End of the calculations'
+    safe_print('End of the calculations')
 
     if study.iproc==0:
         import matplotlib.pyplot as plt

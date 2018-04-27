@@ -1,5 +1,6 @@
 from numpy import *
 from math import sqrt
+from futile.Utile import write as safe_print
 
 def apply_R(R,A):
     "Apply the rotation on the set of vectors A"
@@ -47,7 +48,7 @@ def rigid_transform_3D(A, B):
 
     # special reflection case
     if linalg.det(R) < 0:
-       print "#Reflection detected"
+       safe_print("#Reflection detected")
        Vt[2,:] *= -1
        R = Vt.T * U.T
 
@@ -103,22 +104,22 @@ if __name__ == '__main__':
     err = sum(err)
     rmse = sqrt(err/n);
     
-    print "Points A"
-    print A
-    print ""
+    safe_print( "Points A")
+    safe_print( A)
+    safe_print( "")
     
-    print "Points B"
-    print B
-    print ""
+    safe_print( "Points B")
+    safe_print( B)
+    safe_print( "")
     
-    print "Rotation"
-    print R
-    print ""
+    safe_print( "Rotation")
+    safe_print( R)
+    safe_print( "")
     
-    print "Translation"
-    print t
-    print ""
+    safe_print( "Translation")
+    safe_print( t)
+    safe_print( "")
     
-    print "RMSE:", rmse
-    print "If RMSE is near zero, the function is correct!"
+    safe_print( "RMSE:", rmse)
+    safe_print( "If RMSE is near zero, the function is correct!")
     

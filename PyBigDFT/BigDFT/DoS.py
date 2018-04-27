@@ -1,5 +1,5 @@
 import numpy
-from futile.Utils import write
+from futile.Utils import write as safe_print
 
 AU_eV=27.21138386
 
@@ -205,7 +205,7 @@ class DoS():
         data=[ dos['dos'].curve(self.range,sigma=sigma)[1] for dos in self.ens]
 
         for i,e in enumerate(self.range):
-            print e,' '.join(map(str,[d[i] for d in data]))
+            safe_print(e,' '.join(map(str,[d[i] for d in data])))
     def plot(self,sigma=None,legend=False):
         import matplotlib.pyplot as plt
         from matplotlib.widgets import Slider#, Button, RadioButtons
