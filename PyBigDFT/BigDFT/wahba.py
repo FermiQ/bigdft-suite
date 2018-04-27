@@ -1,6 +1,6 @@
 from numpy import *
 from math import sqrt
-from futile.Utile import write as safe_print
+from futile.Utils import write as safe_print
 
 def apply_R(R,A):
     "Apply the rotation on the set of vectors A"
