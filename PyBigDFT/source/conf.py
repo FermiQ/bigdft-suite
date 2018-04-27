@@ -19,8 +19,6 @@
 import os
 import sys
 sys.path.insert(0, os.path.abspath('../'))
-sys.path.insert(0, os.path.abspath('../../futile/src/python'))
-
 
 # -- General configuration ------------------------------------------------
 
@@ -187,3 +185,18 @@ epub_exclude_files = ['search.html']
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {'https://docs.python.org/': None}
+
+# tools to be done in the readthedocs environment
+import os
+on_rtd = os.environ.get('READTHEDOCS') == 'True'
+if on_rtd:
+    import sys
+    from unittest.mock import MagicMock
+
+    class Mock(MagicMock):
+        @classmethod
+        def __getattr__(cls, name):
+            return MagicMock()
+
+    MOCK_MODULES = ['futile','yaml']
+    sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
