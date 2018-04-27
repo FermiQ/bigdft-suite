@@ -214,7 +214,7 @@ class Fragment():
     #    import yaml
     #    return yaml.dump({'Positions': self.atoms,'Properties': {'name': self.id}})
     def set_id(self,id):
-	self.id=id
+        self.id=id
     def xyz(self,filename=None,units='atomic'):
         "Write the fragment positions in a xyz file"
         import numpy as np
@@ -516,15 +516,15 @@ class System():
             RT=self.decomposition
         self.fragments=[]
         self.CMs=[]
-	self.templates=[]
+        self.templates=[]
         for item in RT:
             if reference_fragments:
                 idf=item['id']
-		template=reference_fragments[idf]
+                template=reference_fragments[idf]
             else:
-		template=item['ref']
-	    frag=copy.deepcopy(template)
-	    self.templates.append(template)
+                template=item['ref']
+            frag=copy.deepcopy(template)
+            self.templates.append(template)
             #frag.transform(item['R'],item['t'])
             frag.transform(item['RT'])
             self.append(frag)
@@ -532,16 +532,16 @@ class System():
             "Provides the global monopole of the system given as a sum of the monopoles of the atoms"
             return sum([ f.Q() for f in self.fragments])
     def fragdict(self):
-	""" Provides the value of the dictionary fragment to be used for the inputfile in a fragment calculation """
-	refs=[]
-	for t in self.templates:
-	    if t not in refs: refs.append(t)
-	#generate the fragments id that have to be put into the input posinp
-	allfrags=find_reference_fragment(refs,self.templates)
-	fragdict={}
-	for t,r in zip(refs,allfrags):
-	     fragdict[t.id]=r
-	return fragdict
+        """ Provides the value of the dictionary fragment to be used for the inputfile in a fragment calculation """
+        refs=[]
+        for t in self.templates:
+            if t not in refs: refs.append(t)
+        #generate the fragments id that have to be put into the input posinp
+        allfrags=find_reference_fragment(refs,self.templates)
+        fragdict={}
+        for t,r in zip(refs,allfrags):
+            fragdict[t.id]=r
+        return fragdict
 
 # create the directory of the template file
 def prepare_fragment_inputs(name,directory='.',flavour='Isolated',system=None,template=None,template_dir=None,template_name=None):
@@ -553,20 +553,20 @@ def prepare_fragment_inputs(name,directory='.',flavour='Isolated',system=None,te
     if template is not None: template.xyz(filename=posinp)
     input_dict={'posinp': posinp,'import': 'linear_laura'}
     if system is not None:
-	input_dict['import']=['linear_laura','linear_fragments'] if flavour!='Embedded' else 'linear_laura'
-	input_dict['frag']=system.fragdict()
-	system.xyz(filename=posinp)
-	datadir=os.path.join(dirct,'data-'+name)
-	tempdatadir='data-'+template_name
-	ensure_dir(datadir)
-	datatemplate=os.path.join(datadir,tempdatadir)
-	if flavour=='Embedded':
-	   ensure_dir(datatemplate)
-	elif not os.path.exists(datatemplate):
-	   os.symlink(os.path.abspath(os.path.join(template_dir,tempdatadir)),datatemplate)
-	for ext in ['.xyz','.yaml']:
-	   f=os.path.join(template_dir,template_name+ext)
-	   if os.path.exists(f): shutil.copyfile(src=f,dst=os.path.join(datadir,template_name+ext))
+        input_dict['import']=['linear_laura','linear_fragments'] if flavour!='Embedded' else 'linear_laura'
+        input_dict['frag']=system.fragdict()
+        system.xyz(filename=posinp)
+        datadir=os.path.join(dirct,'data-'+name)
+        tempdatadir='data-'+template_name
+        ensure_dir(datadir)
+        datatemplate=os.path.join(datadir,tempdatadir)
+        if flavour=='Embedded':
+            ensure_dir(datatemplate)
+        elif not os.path.exists(datatemplate):
+            os.symlink(os.path.abspath(os.path.join(template_dir,tempdatadir)),datatemplate)
+        for ext in ['.xyz','.yaml']:
+            f=os.path.join(template_dir,template_name+ext)
+            if os.path.exists(f): shutil.copyfile(src=f,dst=os.path.join(datadir,template_name+ext))
     if dirct != '.': shutil.copyfile(src=posinp,dst=os.path.join(dirct,posinp))
     f=open(os.path.join(dirct,name+'.yaml'),'w')
     f.write(yaml.dump(input_dict))

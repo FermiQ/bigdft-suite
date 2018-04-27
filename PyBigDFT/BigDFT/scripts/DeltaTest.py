@@ -94,7 +94,7 @@ mix:
     #Control the diagonalisation scheme
     if dico["name"] in ("Cr", ):
         var["mix"]["iscf"] = 3
-	var["mix"]["alphamix"] = 0.9
+        var["mix"]["alphamix"] = 0.9
     if dico["name"] in ("Ba", "Ca"):
         var["mix"]["norbsempty"] = 8
     var["ig_occupation"] = {dico["name"]: {"empty_shells": ("s", "p", "d")}}
@@ -298,14 +298,14 @@ def elements_from_cif(files):
               b = P[1][0] * u + P[1][1] * v + P[1][2] * w
               c = P[2][0] * u + P[2][1] * v + P[2][2] * w
               dico[j * dico["nat"] + i + 1] = (a, b, c)
-    	      dico["nat"] *= len(dd)
-    	      dico["alpha"] = "90"
-    	      dico["beta"] = "90"
-    	      dico["gamma"] = "90"
+              dico["nat"] *= len(dd)
+              dico["alpha"] = "90"
+              dico["beta"] = "90"
+              dico["gamma"] = "90"
         elif btype != "orthorombic":
             safe_print("to be treated", dico["name"], dico["alpha"], dico["beta"], dico["gamma"], dico["a"], dico["b"], dico["c"])
-    	    # Update volume after orthomrombic tranformation and in angstroem^3
-    	    dico["volume"] = dico["a"]*dico["b"]*dico["c"]/atob**3
+            # Update volume after orthomrombic tranformation and in angstroem^3
+            dico["volume"] = dico["a"]*dico["b"]*dico["c"]/atob**3
         name = dico['name']
         if dico["alpha"] != "90" or dico["beta"] != "90" or dico["gamma"] != "90":
             nonortho.append(name)
