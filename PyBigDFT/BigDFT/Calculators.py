@@ -1,4 +1,4 @@
-from futile.Utils import safe_print
+from futile.Utils import write as safe_print
 #file for BigDFT calculators
 class GIBinding():
     """Calculator for BigDFT from Gobject Introspection bindings"""

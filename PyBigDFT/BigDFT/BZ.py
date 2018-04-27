@@ -1,6 +1,6 @@
 #This module needs: numpy, matplotlib, scipy, ase, spglib 
 import numpy
-from futile.Utile import write as safe_print
+from futile.Utils import write as safe_print
 
 def get_ev(ev,keys=None,ikpt=1):
     """Get the correct list of the energies for this eigenvalue."""

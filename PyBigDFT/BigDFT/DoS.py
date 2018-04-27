@@ -168,7 +168,7 @@ class DoS():
         elif units == 'eV':
             fac=1.0
         else:
-            raise 'Unrecognized units (',unit,')'
+            raise ValueError('Unrecognized units ('+unit+')')
         return fac
     def fermi_level(self,fermi_level,units='eV'):
         if fermi_level is not None:
