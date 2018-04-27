@@ -566,7 +566,7 @@ def prepare_fragment_inputs(name,directory='.',flavour='Isolated',system=None,te
             os.symlink(os.path.abspath(os.path.join(template_dir,tempdatadir)),datatemplate)
         for ext in ['.xyz','.yaml']:
             f=os.path.join(template_dir,template_name+ext)
-   if os.path.exists(f): shutil.copyfile(src=f,dst=os.path.join(datadir,template_name+ext))
+            if os.path.exists(f): shutil.copyfile(src=f,dst=os.path.join(datadir,template_name+ext))
     if dirct != '.': shutil.copyfile(src=posinp,dst=os.path.join(dirct,posinp))
     f=open(os.path.join(dirct,name+'.yaml'),'w')
     f.write(yaml.dump(input_dict))
