@@ -63,6 +63,7 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
   use coeffs, only: calculate_kernel_and_energy
   use foe, only: calculate_entropy_term
   use foe_base, only: foe_data_get_real
+  use locreg_operations, only: get_isf_offset
   implicit none
 
   ! Calling arguments
@@ -838,10 +839,11 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
       do iorb=1,tmb%orbs%norbp
           iiorb = tmb%orbs%isorb + iorb
           ilr = tmb%orbs%inwhichlocreg(iiorb)
-          call geocode_buffers(tmb%lzd%Llr(ilr)%geocode, tmb%lzd%glr%geocode, nl1, nl2, nl3)
-          ioffset_isf(1,iorb) = tmb%lzd%llr(ilr)%nsi1 - nl1 - 1
-          ioffset_isf(2,iorb) = tmb%lzd%llr(ilr)%nsi2 - nl2 - 1
-          ioffset_isf(3,iorb) = tmb%lzd%llr(ilr)%nsi3 - nl3 - 1
+!!$          call geocode_buffers(tmb%lzd%Llr(ilr)%geocode, tmb%lzd%glr%geocode, nl1, nl2, nl3)
+!!$          ioffset_isf(1,iorb) = tmb%lzd%llr(ilr)%nsi1 - nl1 - 1
+!!$          ioffset_isf(2,iorb) = tmb%lzd%llr(ilr)%nsi2 - nl2 - 1
+!!$          ioffset_isf(3,iorb) = tmb%lzd%llr(ilr)%nsi3 - nl3 - 1
+          ioffset_isf(:,iorb) = get_isf_offset(tmb%lzd%llr(ilr),tmb%lzd%glr)
           !write(*,'(a,i8,2es16.8)') 'iorb, rxyzConf(3), locregcenter(3)', iorb, tmb%confdatarr(iorb)%rxyzConf(3), tmb%lzd%llr(ilr)%locregcenter(3)
       end do
       call analyze_wavefunctions('Support functions extent analysis', 'local', &

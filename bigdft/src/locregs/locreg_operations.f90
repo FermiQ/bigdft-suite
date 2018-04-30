@@ -97,6 +97,7 @@ module locreg_operations
   public :: deallocate_workarrays_quartic_convolutions,zero_local_work_arrays
   public :: nullify_workarrays_projectors, allocate_workarrays_projectors, deallocate_workarrays_projectors
   public :: set_wfd_to_wfd
+  public :: get_isf_offset
 
   ! to avoid creating array temporaries
   interface initialize_work_arrays_sumrho
@@ -2752,5 +2753,44 @@ module locreg_operations
       end select
 
     END SUBROUTINE isf_to_daub_kinetic
+
+    !>get the offsset of the isf description of the support function
+    function get_isf_offset(lr,Glr) result(ioffset)
+        use box, only: cell_periodic_dims
+        use bounds, only: ext_buffers
+        implicit none
+        type(locreg_descriptors), intent(in) :: lr,Glr
+        integer, dimension(3) :: ioffset
+        !local variables
+        logical, dimension(3) :: peri_local,peri_global
+        integer :: nl1, nl2, nl3, nr1, nr2, nr3
+        
+        !geocode_buffers
+        !conditions for periodicity in the three directions
+        peri_local=cell_periodic_dims(lr%mesh)
+        peri_global=cell_periodic_dims(Glr%mesh)
+      
+        call ext_buffers(peri_local(1), nl1, nr1)
+        call ext_buffers(peri_local(2), nl2, nr2)
+        call ext_buffers(peri_local(3), nl3, nr3)
+      
+        ! If the global box has non-free boundary conditions, the shift is already
+        ! contained in nsi1,nsi2,nsi3 and does not need to be subtracted.
+        if (peri_global(1)) then
+            nl1 = 0
+        end if
+        if (peri_global(2)) then
+            nl2 = 0
+        end if
+        if (peri_global(3)) then
+            nl3 = 0
+        end if
+        
+        ! offset
+        ioffset(1) = lr%nsi1 - nl1 - 1
+        ioffset(2) = lr%nsi2 - nl2 - 1
+        ioffset(3) = lr%nsi3 - nl3 - 1
+        
+    end function
 
 end module locreg_operations
