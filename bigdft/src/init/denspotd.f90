@@ -551,8 +551,8 @@ subroutine define_confinement_data(confdatarr,orbs,rxyz,at,hx,hy,hz,&
            confpotorder,potentialprefac,Lzd,confinementCenter)
   use module_base
   use module_types
-  use locreg_operations, only: confpot_data
-  use bounds, only: geocode_buffers
+  use locreg_operations, only: confpot_data,get_isf_offset
+!!$  use bounds, only: geocode_buffers
   implicit none
   real(gp), intent(in) :: hx,hy,hz
   type(atoms_data), intent(in) :: at
@@ -579,10 +579,13 @@ subroutine define_confinement_data(confdatarr,orbs,rxyz,at,hx,hy,hz,&
      confdatarr(iorb)%hh(2)=.5_gp*hy
      confdatarr(iorb)%hh(3)=.5_gp*hz
      confdatarr(iorb)%rxyzConf(1:3)=rxyz(1:3,icenter)!Lzd%Llr(ilr)%locregCenter(1:3)
-     call geocode_buffers(Lzd%Llr(ilr)%geocode, lzd%glr%geocode, nl1, nl2, nl3)
-     confdatarr(iorb)%ioffset(1)=lzd%llr(ilr)%nsi1-nl1-1
-     confdatarr(iorb)%ioffset(2)=lzd%llr(ilr)%nsi2-nl2-1
-     confdatarr(iorb)%ioffset(3)=lzd%llr(ilr)%nsi3-nl3-1
+
+!!$     call geocode_buffers(Lzd%Llr(ilr)%geocode, lzd%glr%geocode, nl1, nl2, nl3)
+!!$     confdatarr(iorb)%ioffset(1)=lzd%llr(ilr)%nsi1-nl1-1
+!!$     confdatarr(iorb)%ioffset(2)=lzd%llr(ilr)%nsi2-nl2-1
+!!$     confdatarr(iorb)%ioffset(3)=lzd%llr(ilr)%nsi3-nl3-1
+     confdatarr(iorb)%ioffset(:)=get_isf_offset(lzd%llr(ilr),lzd%glr%mesh)
+
      !confdatarr(iorb)%ioffset(1)=lzd%llr(ilr)%nsi1-1
      !confdatarr(iorb)%ioffset(2)=lzd%llr(ilr)%nsi2-1
      !confdatarr(iorb)%ioffset(3)=lzd%llr(ilr)%nsi3-1

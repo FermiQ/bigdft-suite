@@ -2755,11 +2755,12 @@ module locreg_operations
     END SUBROUTINE isf_to_daub_kinetic
 
     !>get the offsset of the isf description of the support function
-    function get_isf_offset(lr,Glr) result(ioffset)
-        use box, only: cell_periodic_dims
+    function get_isf_offset(lr,mesh_global) result(ioffset)
+        use box
         use bounds, only: ext_buffers
         implicit none
-        type(locreg_descriptors), intent(in) :: lr,Glr
+        type(locreg_descriptors), intent(in) :: lr
+        type(cell), intent(in) :: mesh_global
         integer, dimension(3) :: ioffset
         !local variables
         logical, dimension(3) :: peri_local,peri_global
@@ -2768,7 +2769,7 @@ module locreg_operations
         !geocode_buffers
         !conditions for periodicity in the three directions
         peri_local=cell_periodic_dims(lr%mesh)
-        peri_global=cell_periodic_dims(Glr%mesh)
+        peri_global=cell_periodic_dims(mesh_global)
       
         call ext_buffers(peri_local(1), nl1, nr1)
         call ext_buffers(peri_local(2), nl2, nr2)

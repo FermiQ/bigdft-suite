@@ -163,7 +163,7 @@ module multipole
       use yaml_output
       use io, only: plot_density
       use bounds, only: geocode_buffers
-      use box, only: cell_periodic_dims
+      use box, only: cell_periodic_dims,cell_geocode
       implicit none
 
       ! Calling arguments
@@ -283,7 +283,8 @@ module multipole
           nonzero_startend3 = f_malloc((/2,ep%nmpl/),id='nonzero_startend3')
 
           do ilr=1,lzd%nlr
-              if (lzd%Llr(ilr)%geocode/='F') then
+!!$              if (lzd%Llr(ilr)%geocode/='F') then
+              if (cell_geocode(lzd%Llr(ilr)%mesh) /='F') then
                   call f_err_throw('support function locregs must always have free BC')
               end if
           end do

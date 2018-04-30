@@ -54,7 +54,7 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
   use foe_base, only: foe_data_set_real
   use rhopotential, only: full_local_potential
   use transposed_operations, only: calculate_overlap_transposed
-  use bounds, only: geocode_buffers
+!!$  use bounds, only: geocode_buffers
   use orthonormalization, only : orthonormalizeLocalized
   use multipole_base, only: lmax, external_potential_descriptors, deallocate_external_potential_descriptors
   use orbitalbasis
@@ -843,7 +843,7 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
 !!$          ioffset_isf(1,iorb) = tmb%lzd%llr(ilr)%nsi1 - nl1 - 1
 !!$          ioffset_isf(2,iorb) = tmb%lzd%llr(ilr)%nsi2 - nl2 - 1
 !!$          ioffset_isf(3,iorb) = tmb%lzd%llr(ilr)%nsi3 - nl3 - 1
-          ioffset_isf(:,iorb) = get_isf_offset(tmb%lzd%llr(ilr),tmb%lzd%glr)
+          ioffset_isf(:,iorb) = get_isf_offset(tmb%lzd%llr(ilr),tmb%lzd%glr%mesh)
           !write(*,'(a,i8,2es16.8)') 'iorb, rxyzConf(3), locregcenter(3)', iorb, tmb%confdatarr(iorb)%rxyzConf(3), tmb%lzd%llr(ilr)%locregcenter(3)
       end do
       call analyze_wavefunctions('Support functions extent analysis', 'local', &
