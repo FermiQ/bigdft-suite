@@ -1635,21 +1635,24 @@ module multipole
     end function nearest_gridpoint
 
     !>apply the Slm operator onto a set of support functions
-    subroutine apply_Slm(l,m,geocode,hgrids,acell,psi_ob,nphi,Slmphi,integrate_in_sphere,centers)
+    subroutine apply_Slm(l,m,mesh_global,hgrids,acell,psi_ob,nphi,Slmphi,integrate_in_sphere,centers)
       use module_base
       use locreg_operations
       use orbitalbasis
-      use bounds, only: geocode_buffers
+!!$      use bounds, only: geocode_buffers
+      use box, only: cell, cell_periodic_dims
       implicit none
       integer, intent(in) :: l, m, nphi
-      character(len=1), intent(in) :: geocode
+      type(cell), intent(in) :: mesh_global
+!!$      character(len=1), intent(in) :: geocode
       real(gp),dimension(3) :: hgrids,acell
       type(orbital_basis), intent(in) :: psi_ob
       real(wp),dimension(nphi),intent(out) :: Slmphi
       logical, intent(in), optional :: integrate_in_sphere
       real(gp), dimension(3,*), intent(in), optional :: centers
       !local variables
-      logical :: perx,pery,perz,sphere
+!!$      logical :: perx,pery,perz
+      logical :: sphere
       integer :: npsir,ii1,ii2,ii3,nl1,nl2,nl3,i1,i2,i3,ind
       type(ket) :: psi_it
       type(workarr_sumrho) :: w
@@ -1657,15 +1660,18 @@ module multipole
       real(wp), dimension(3) :: lrcntr
       real(wp),dimension(:),allocatable :: phi2r, sphi2r
       real(wp), dimension(:), pointer :: sphi_ptr
+      logical, dimension(3) :: peri
+      integer, dimension(3) :: ioffset_isf
 
       call f_routine(id='apply_Slm')
 
       sphere=.false.
       if (present(integrate_in_sphere)) sphere=integrate_in_sphere
       ! Conditions for periodicity
-      perx=(geocode /= 'F')
-      pery=(geocode == 'P')
-      perz=(geocode /= 'F')
+!!$      perx=(geocode /= 'F')
+!!$      pery=(geocode == 'P')
+!!$      perz=(geocode /= 'F')
+      peri=cell_periodic_dims(mesh_global)
 
       !first search the maximum sizes of psir array
       npsir=1
@@ -1684,7 +1690,8 @@ module multipole
          call initialize_work_arrays_sumrho(psi_it%lr,.true.,w)
          rmax = min(psi_it%lr%d%n1*0.5d0*hgrids(1),psi_it%lr%d%n2*0.5d0*hgrids(2),&
               psi_it%lr%d%n3*0.5d0*hgrids(3))+1.e-3_gp*maxval(hgrids)
-         call geocode_buffers(psi_it%lr%geocode,geocode, nl1, nl2, nl3)
+!!$         call geocode_buffers(psi_it%lr%geocode,geocode, nl1, nl2, nl3)
+         ioffset_isf(:) = get_isf_offset(psi_it%lr,mesh_global)
          if (present(centers)) then
             lrcntr=centers(:,psi_it%ilr)
          else
@@ -1695,21 +1702,24 @@ module multipole
             call daub_to_isf(psi_it%lr,w,psi_it%phi_wvl,phi2r)
             !$omp parallel default(none) &
             !$omp shared(psi_it, hgrids, lrcntr, acell, nl3, nl2, nl1) &
-            !$omp shared(perz, pery, perx, sphere, rmax, sphi2r, phi2r, l, m) &
+            !$omp shared(peri, ioffset_isf, sphere, rmax, sphi2r, phi2r, l, m) &
             !$omp private(i3, ii3, z, i2, ii2, y, i1, ii1, x, ind, tt)
             !$omp do
             do i3=1,psi_it%lr%d%n3i
-               ii3 = psi_it%lr%nsi3 + i3 - nl3 - 1
+!!$               ii3 = psi_it%lr%nsi3 + i3 - nl3 - 1
+               ii3 = ioffset_isf(3) + i3
                z=ii3*0.5d0*hgrids(3)-lrcntr(3)
-               z=closest_image(z,acell(3),perz)
+               z=closest_image(z,acell(3),peri(3))
                do i2=1,psi_it%lr%d%n2i
-                  ii2 = psi_it%lr%nsi2 + i2 - nl2 - 1
+!!$                  ii2 = psi_it%lr%nsi2 + i2 - nl2 - 1
+                  ii2 = ioffset_isf(2) + i2
                   y=ii2*0.5d0*hgrids(2)-lrcntr(2)
-                  y=closest_image(y,acell(2),pery)
+                  y=closest_image(y,acell(2),peri(2))
                   do i1=1,psi_it%lr%d%n1i
-                     ii1 = psi_it%lr%nsi1 + i1 - nl1 - 1
+!!$                     ii1 = psi_it%lr%nsi1 + i1 - nl1 - 1
+                     ii1 = ioffset_isf(1) + i1
                      x=ii1*0.5d0*hgrids(1)-lrcntr(1)
-                     x=closest_image(x,acell(1),perx)
+                     x=closest_image(x,acell(1),peri(1))
                      ind = (i3-1)*psi_it%lr%d%n2i*psi_it%lr%d%n1i + (i2-1)*psi_it%lr%d%n1i + i1
                      if (sphere) then
                         if (x**2+y**2+z**2>rmax**2) cycle
@@ -1737,23 +1747,26 @@ module multipole
 
 
     !>calculate the multipoles of phi
-    subroutine Qlm_phi(lmax,geocode,hgrids,acell,psi_ob,Qlm,integrate_in_sphere,centers)
+    subroutine Qlm_phi(lmax,mesh_global,hgrids,acell,psi_ob,Qlm,integrate_in_sphere,centers)
       use module_defs
       use dynamic_memory
       use f_utils
       use locreg_operations
       use orbitalbasis
-      use bounds, only: geocode_buffers
+!!$      use bounds, only: geocode_buffers
+      use box, only: cell, cell_periodic_dims
       implicit none
       integer, intent(in) :: lmax
-      character(len=1), intent(in) :: geocode
+      type(cell), intent(in) :: mesh_global
+!!$      character(len=1), intent(in) :: geocode
       real(gp),dimension(3) :: hgrids,acell
       type(orbital_basis), intent(in) :: psi_ob
       real(wp), dimension(-lmax:lmax,0:lmax,psi_ob%orbs%norbp), intent(out) :: Qlm
       logical, intent(in), optional :: integrate_in_sphere
       real(gp), dimension(3,*), intent(in), optional :: centers
       !local variables
-      logical :: perx,pery,perz,sphere
+!!$      logical :: perx,pery,perz
+      logical :: sphere
       integer :: npsir,ii1,ii2,ii3,nl1,nl2,nl3,i1,i2,i3,ind,l,m
       type(ket) :: psi_it
       type(workarr_sumrho) :: w
@@ -1762,15 +1775,18 @@ module multipole
       real(wp),dimension(:),allocatable :: phi2r
       real(wp), dimension(:), pointer :: sphi_ptr
       real(wp),dimension(-lmax:lmax,0:lmax) :: Qlm_work
+      logical, dimension(3) :: peri
+      integer, dimension(3) :: ioffset_isf
 
       call f_routine(id='Qlm_phi')
 
       sphere=.false.
       if (present(integrate_in_sphere)) sphere=integrate_in_sphere
       ! Conditions for periodicity
-      perx=(geocode /= 'F')
-      pery=(geocode == 'P')
-      perz=(geocode /= 'F')
+!!$      perx=(geocode /= 'F')
+!!$      pery=(geocode == 'P')
+!!$      perz=(geocode /= 'F')
+      peri=cell_periodic_dims(mesh_global)
 
       !first search the maximum sizes of psir array
       npsir=1
@@ -1787,7 +1803,8 @@ module multipole
          call initialize_work_arrays_sumrho(psi_it%lr,.true.,w)
          rmax = min(psi_it%lr%d%n1*0.5d0*hgrids(1),psi_it%lr%d%n2*0.5d0*hgrids(2),&
               psi_it%lr%d%n3*0.5d0*hgrids(3))+1.e-3_gp*maxval(hgrids)
-         call geocode_buffers(psi_it%lr%geocode,geocode, nl1, nl2, nl3)
+!!$         call geocode_buffers(psi_it%lr%geocode,geocode, nl1, nl2, nl3)
+         ioffset_isf(:) = get_isf_offset(psi_it%lr,mesh_global)
          if (present(centers)) then
             lrcntr=centers(:,psi_it%ilr)
          else
@@ -1798,21 +1815,24 @@ module multipole
             call f_zero(Qlm_work)
             !$omp parallel default(none) &
             !$omp shared(psi_it, hgrids, lrcntr, acell, nl3, nl2, nl1) &
-            !$omp shared(perz, pery, perx, sphere, rmax, Qlm_work, phi2r, lmax) &
+            !$omp shared(peri, ioffset_isf, sphere, rmax, Qlm_work, phi2r, lmax) &
             !$omp private(i3, ii3, z, i2, ii2, y, i1, ii1, x, ind, tt, l, m)
             !$omp do reduction(+: Qlm_work)
             do i3=1,psi_it%lr%d%n3i
-               ii3 = psi_it%lr%nsi3 + i3 - nl3 - 1
+!!$               ii3 = psi_it%lr%nsi3 + i3 - nl3 - 1
+               ii3 = ioffset_isf(3) + i3
                z=ii3*0.5d0*hgrids(3)-lrcntr(3)
-               z=closest_image(z,acell(3),perz)
+               z=closest_image(z,acell(3),peri(3))
                do i2=1,psi_it%lr%d%n2i
-                  ii2 = psi_it%lr%nsi2 + i2 - nl2 - 1
+!!$                  ii2 = psi_it%lr%nsi2 + i2 - nl2 - 1
+                  ii2 = ioffset_isf(2) + i2
                   y=ii2*0.5d0*hgrids(2)-lrcntr(2)
-                  y=closest_image(y,acell(2),pery)
+                  y=closest_image(y,acell(2),peri(2))
                   do i1=1,psi_it%lr%d%n1i
-                     ii1 = psi_it%lr%nsi1 + i1 - nl1 - 1
+!!$                     ii1 = psi_it%lr%nsi1 + i1 - nl1 - 1
+                     ii1 = ioffset_isf(1) + i1
                      x=ii1*0.5d0*hgrids(1)-lrcntr(1)
-                     x=closest_image(x,acell(1),perx)
+                     x=closest_image(x,acell(1),peri(1))
                      ind = (i3-1)*psi_it%lr%d%n2i*psi_it%lr%d%n1i + (i2-1)*psi_it%lr%d%n1i + i1
                      if (sphere) then
                         if (x**2+y**2+z**2>rmax**2) cycle
@@ -1905,7 +1925,7 @@ module multipole
 
       call orbital_basis_associate(psi_ob,orbs=orbs,phis_wvl=phi2,Lzd=Lzd,id='calculate_multipole_matrix')
 
-      call apply_Slm(l,m,smmd%geocode,hgrids,acell,psi_ob,nphi,sphi2,&
+      call apply_Slm(l,m,Lzd%glr%mesh,hgrids,acell,psi_ob,nphi,sphi2,&
            integrate_in_sphere,centers=locregcenter)
 
       call orbital_basis_release(psi_ob)
@@ -2902,7 +2922,7 @@ module multipole
                norb, norbp, isorb, in_which_locreg, lzd, com)
       use module_base
       use module_types, only: local_zone_descriptors
-      use bounds, only: geocode_buffers
+!!$      use bounds, only: geocode_buffers
       use locreg_operations
       use yaml_output
       implicit none
@@ -2922,6 +2942,7 @@ module multipole
       real(kind=8),dimension(-1:1) :: dipole
       real(kind=8) :: weight, tt, x, y, z, r2, hxh, hyh, hzh, q, qtot, monopole, r
       real(kind=8),parameter :: sigma2=0.1d0
+      integer, dimension(3) :: ioffset_isf
 
       call f_routine(id='supportfunction_centers')
 
@@ -2956,18 +2977,22 @@ module multipole
       do iorb=1,norbp
           iiorb=isorb+iorb
           ilr=in_which_locreg(iiorb)
-          call geocode_buffers(lzd%Llr(ilr)%geocode, lzd%glr%geocode, nl1, nl2, nl3)
+!!$          call geocode_buffers(lzd%Llr(ilr)%geocode, lzd%glr%geocode, nl1, nl2, nl3)
+          ioffset_isf(:) = get_isf_offset(lzd%Llr(ilr),lzd%glr%mesh)
           !write(*,*) 'iorb, iiorb, ilr', iorb, iiorb, ilr
           com(1:3,iorb) = 0.d0
           weight = 0.d0
           do i3=1,lzd%llr(ilr)%d%n3i
-              ii3 = lzd%llr(ilr)%nsi3 + i3 - nl3 - 1
+!!$              ii3 = lzd%llr(ilr)%nsi3 + i3 - nl3 - 1
+              ii3 = ioffset_isf(3) + i3
               z = ii3*hzh
               do i2=1,lzd%llr(ilr)%d%n2i
-                  ii2 = lzd%llr(ilr)%nsi2 + i2 - nl2 - 1
+!!$                  ii2 = lzd%llr(ilr)%nsi2 + i2 - nl2 - 1
+                  ii2 = ioffset_isf(2) + i2
                   y = ii2*hyh
                   do i1=1,lzd%llr(ilr)%d%n1i
-                      ii1 = lzd%llr(ilr)%nsi1 + i1 - nl1 - 1
+!!$                      ii1 = lzd%llr(ilr)%nsi1 + i1 - nl1 - 1
+                      ii1 = ioffset_isf(1) + i1
                       x = ii1*hxh
                       tt = psir(istr)**2
                       com(1,iorb) = com(1,iorb) + x*tt
@@ -3351,9 +3376,11 @@ module multipole
                                 matrices_null, sparsematrix_malloc_ptr, deallocate_matrices, &
                                 sparse_matrix_metadata
    use locreg_operations,only: workarr_sumrho, initialize_work_arrays_sumrho, deallocate_work_arrays_sumrho
+   use locreg_operations,only: get_isf_offset
    use yaml_output
-   use bounds, only: geocode_buffers
+!!$   use bounds, only: geocode_buffers
    use orbitalbasis
+   use box, only: cell_geocode
    implicit none
    ! Calling arguments
    integer,intent(in) :: iproc, nproc, nphi, nphir
@@ -3377,6 +3404,7 @@ module multipole
    real(gp), dimension(3) :: acell
    real(wp), dimension(:,:,:), allocatable :: Qlm
    real(kind=8),dimension(:),allocatable :: gg1, gg2, gg3
+   integer, dimension(3) :: ioffset_isf
 
 
    call f_routine(id='unitary_test_multipoles')
@@ -3395,11 +3423,12 @@ module multipole
    locregcenter = f_malloc0((/3,lzd%nlr/),id='locregcenter')
 
    do ilr=1,lzd%nlr
-       if (lzd%Llr(ilr)%geocode/='F') then
+!!$       if (lzd%Llr(ilr)%geocode/='F') then
+       if (cell_geocode(lzd%Llr(ilr)%mesh) /='F') then
            call f_err_throw('support function locregs must always have free BC')
        end if
    end do
-   call geocode_buffers('F', lzd%glr%geocode, nl1, nl2, nl3)
+!!$   call geocode_buffers('F', lzd%glr%geocode, nl1, nl2, nl3)
 
   sigma=0.5d0
   r=1.d0 !not used...
@@ -3408,6 +3437,7 @@ module multipole
    do iorb=1,orbs%norbp
        iiorb = orbs%isorb + iorb
        ilr = orbs%inwhichlocreg(iiorb)
+       ioffset_isf(:) = get_isf_offset(lzd%llr(ilr),lzd%glr%mesh)
        !rmax = min(lzd%llr(ilr)%d%n1i*0.25d0*hgrids(1),lzd%llr(ilr)%d%n2i*0.25d0*hgrids(2),lzd%llr(ilr)%d%n3i*0.25d0*hgrids(3))
        rmax = min(lzd%llr(ilr)%d%n1*0.5d0*hgrids(1),lzd%llr(ilr)%d%n2*0.5d0*hgrids(2),lzd%llr(ilr)%d%n3*0.5d0*hgrids(3))
        factor_normalization = 0.5d0*lzd%hgrids(1)*0.5d0*lzd%hgrids(2)*0.5d0*lzd%hgrids(3) !*3.d0/(4.d0*pi*rmax**3)
@@ -3419,34 +3449,40 @@ module multipole
        gg2 = f_malloc(lzd%llr(ilr)%d%n2i,id='gg2')
        gg3 = f_malloc(lzd%llr(ilr)%d%n3i,id='gg3')
        do i1=1,lzd%llr(ilr)%d%n1i
-           ii1 = lzd%llr(ilr)%nsi1 + i1 - nl1 - 1
+!!$           ii1 = lzd%llr(ilr)%nsi1 + i1 - nl1 - 1
+           ii1 = ioffset_isf(1) + i1
            x = ii1*0.5d0*lzd%hgrids(1) - locregcenter(1,ilr)
            gg1(i1) = safe_exp(-0.5d0*x**2/sigma**2)
        end do
        do i2=1,lzd%llr(ilr)%d%n2i
-           ii2 = lzd%llr(ilr)%nsi2 + i2 - nl2 - 1
+!!$           ii2 = lzd%llr(ilr)%nsi2 + i2 - nl2 - 1
+           ii2 = ioffset_isf(2) + i2
            y = ii2*0.5d0*lzd%hgrids(2) - locregcenter(2,ilr)
            gg2(i2) = safe_exp(-0.5d0*y**2/sigma**2)
        end do
        do i3=1,lzd%llr(ilr)%d%n3i
-           ii3 = lzd%llr(ilr)%nsi3 + i3 - nl3 - 1
+!!$           ii3 = lzd%llr(ilr)%nsi3 + i3 - nl3 - 1
+           ii3 = ioffset_isf(3) + i3
            z = ii3*0.5d0*lzd%hgrids(3) - locregcenter(3,ilr)
            gg3(i3) = safe_exp(-0.5d0*z**2/sigma**2)
        end do
 
        !$omp parallel default(none) &
-       !$omp shared(lzd, nl1, nl2, nl3, ilr, locregcenter, sigma, phi2r, ist, factor_normalization) &
+       !$omp shared(lzd, ioffset_isf, ilr, locregcenter, sigma, phi2r, ist, factor_normalization) &
        !$omp shared(gg1, gg2, gg3, r) &
        !$omp private(i1, i2, i3, ii1, ii2, ii3, x, y, z, ind, l, m, factor)
        !$omp do schedule(static)
        do i3=1,lzd%llr(ilr)%d%n3i
-           ii3 = lzd%llr(ilr)%nsi3 + i3 - nl3 - 1
+!!$           ii3 = lzd%llr(ilr)%nsi3 + i3 - nl3 - 1
+           ii3 = ioffset_isf(3) + i3
            z = ii3*0.5d0*lzd%hgrids(3) - locregcenter(3,ilr)
            do i2=1,lzd%llr(ilr)%d%n2i
-               ii2 = lzd%llr(ilr)%nsi2 + i2 - nl2 - 1
+!!$               ii2 = lzd%llr(ilr)%nsi2 + i2 - nl2 - 1
+               ii2 = ioffset_isf(2) + i2
                y = ii2*0.5d0*lzd%hgrids(2) - locregcenter(2,ilr)
                do i1=1,lzd%llr(ilr)%d%n1i
-                   ii1 = lzd%llr(ilr)%nsi1 + i1 - nl1 - 1
+!!$                   ii1 = lzd%llr(ilr)%nsi1 + i1 - nl1 - 1
+                   ii1 = ioffset_isf(1) + i1
                    x = ii1*0.5d0*lzd%hgrids(1) - locregcenter(1,ilr)
                    ind = (i3-1)*lzd%llr(ilr)%d%n2i*lzd%llr(ilr)%d%n1i + (i2-1)*lzd%llr(ilr)%d%n1i + i1
                    do l=0,lmax
@@ -3496,7 +3532,7 @@ module multipole
    acell(3)=0.5_gp*hgrids(3)*Lzd%glr%d%n3i
    Qlm=f_malloc([-lmax .to. lmax ,0 .to. lmax,1 .to. orbs%norbp ],id='Qlm')
    call orbital_basis_associate(psi_ob,orbs=orbs,phis_wvl=phi2,Lzd=Lzd,id='unitary_test_multipoles')
-   call Qlm_phi(lmax,smmd%geocode,hgrids,acell,psi_ob,Qlm,.false.,centers=locregcenter)
+   call Qlm_phi(lmax,Lzd%glr%mesh,hgrids,acell,psi_ob,Qlm,.false.,centers=locregcenter)
    call orbital_basis_release(psi_ob)
    call f_zero(values)
    do l=0,lmax
@@ -3803,7 +3839,7 @@ module multipole
   Qlm=f_malloc([-lmax .to. lmax ,0 .to. lmax,1 .to. tmb%orbs%norbp ],id='Qlm')
   call orbital_basis_associate(psi_ob,orbs=tmb%orbs,&
        phis_wvl=phi_ortho,Lzd=tmb%Lzd,id='support_function_gross_multipoles')
-  call Qlm_phi(lmax,tmb%linmat%smmd%geocode,tmb%lzd%hgrids,acell,psi_ob,Qlm,.false.,centers=center_locreg)
+  call Qlm_phi(lmax,tmb%Lzd%glr%mesh,tmb%lzd%hgrids,acell,psi_ob,Qlm,.false.,centers=center_locreg)
   call orbital_basis_release(psi_ob)
   do iorb=1,tmb%orbs%norbp
      iiorb = tmb%orbs%isorb + iorb
@@ -4559,11 +4595,12 @@ subroutine calculate_rpowerx_matrices(iproc, nproc, nphi, nphir, lzd, orbs, coll
   use module_base
   use module_types, only: local_zone_descriptors, orbitals_data, comms_linear, linmat_auxiliary
   use locreg_operations,only: workarr_sumrho, initialize_work_arrays_sumrho, deallocate_work_arrays_sumrho
+  use locreg_operations,only: get_isf_offset
   use communications_base, only: TRANSPOSE_FULL
   use communications, only: transpose_localized
   use transposed_operations, only: calculate_overlap_transposed
   use sparsematrix_base, only: sparse_matrix, matrices
-  use bounds, only: geocode_buffers
+!!$  use bounds, only: geocode_buffers
   implicit none
 
   ! Calling arguments
@@ -4582,6 +4619,7 @@ subroutine calculate_rpowerx_matrices(iproc, nproc, nphi, nphir, lzd, orbs, coll
   real(kind=8),dimension(:),allocatable :: phir, phit_c, phit_f, xphit_c, xphit_f
   real(kind=8),dimension(:,:),allocatable :: xphi, xphir
   real(kind=8) :: hxh, hyh, hzh, x, y, z, r, r2
+  integer, dimension(3) :: ioffset_isf
 
   call f_routine(id='calculate_rpowerx_matrices')
 
@@ -4605,15 +4643,19 @@ subroutine calculate_rpowerx_matrices(iproc, nproc, nphi, nphir, lzd, orbs, coll
       hyh = 0.5d0*lzd%hgrids(2)
       hzh = 0.5d0*lzd%hgrids(3)
       ii = istr
-      call geocode_buffers(lzd%Llr(ilr)%geocode, lzd%glr%geocode, nl1, nl2, nl3)
+!!$      call geocode_buffers(lzd%Llr(ilr)%geocode, lzd%glr%geocode, nl1, nl2, nl3)
+      ioffset_isf(:) = get_isf_offset(lzd%Llr(ilr),lzd%glr%mesh)
       do i3=1,lzd%llr(ilr)%d%n3i
-          ii3 = lzd%llr(ilr)%nsi3 + i3 - nl3 - 1
+!!$          ii3 = lzd%llr(ilr)%nsi3 + i3 - nl3 - 1
+          ii3 = ioffset_isf(3) + i3
           z = ii3*hzh
           do i2=1,lzd%llr(ilr)%d%n2i
-              ii2 = lzd%llr(ilr)%nsi2 + i2 - nl2 - 1
+!!$              ii2 = lzd%llr(ilr)%nsi2 + i2 - nl2 - 1
+              ii2 = ioffset_isf(2) + i2
               y = ii2*hyh
               do i1=1,lzd%llr(ilr)%d%n1i
-                  ii1 = lzd%llr(ilr)%nsi1 + i1 - nl1 - 1
+!!$                  ii1 = lzd%llr(ilr)%nsi1 + i1 - nl1 - 1
+                  ii1 = ioffset_isf(1) + i1
                   x = ii1*hxh
                   r2 = x**2+y**2+z**2
                   xphir(ii,1) = x*phir(ii)
@@ -5650,7 +5692,8 @@ end subroutine calculate_rpowerx_matrices
       use dynamic_memory
       use f_utils
       use locregs, only: locreg_descriptors
-      use bounds, only: geocode_buffers
+      use locreg_operations,only: get_isf_offset
+!!$      use bounds, only: geocode_buffers
       implicit none
 
       ! Calling arguments
@@ -5664,27 +5707,32 @@ end subroutine calculate_rpowerx_matrices
       integer :: nl1, nl2, nl3, i1, i2, i3, ii1, ii2, ii3, ii
       real(kind=8) :: weight, hxh, hyh, hzh, x, y, z, tt
       real(kind=8),dimension(3) :: center
+      integer, dimension(3) :: ioffset_isf
 
       call f_routine(id='calculate_weight_center')
 
       hxh = 0.5d0*hgrids(1)
       hyh = 0.5d0*hgrids(2)
       hzh = 0.5d0*hgrids(3)
-      call geocode_buffers(llr%geocode, glr%geocode, nl1, nl2, nl3)
+!!$      call geocode_buffers(llr%geocode, glr%geocode, nl1, nl2, nl3)
+      ioffset_isf(:) = get_isf_offset(llr,glr%mesh)
       weight = 0.d0
       center(1:3) = 0.0_gp
       !$omp parallel default(none) &
-      !$omp shared(llr, nl1, nl2, nl3, hxh, hyh, hzh, phir, center, weight) &
+      !$omp shared(llr, ioffset_isf, hxh, hyh, hzh, phir, center, weight) &
       !$omp private(i1, i2, i3, ii1, ii2, ii3, x, y, z, tt, ii)
       !$omp do reduction(+: center, weight)
       do i3=1,llr%d%n3i
-          ii3 = llr%nsi3 + i3 - nl3 - 1
+!!$          ii3 = llr%nsi3 + i3 - nl3 - 1
+          ii3 = ioffset_isf(3) + i3
           z = ii3*hzh
           do i2=1,llr%d%n2i
-              ii2 = llr%nsi2 + i2 - nl2 - 1
+!!$              ii2 = llr%nsi2 + i2 - nl2 - 1
+              ii2 = ioffset_isf(2) + i2
               y = ii2*hyh
               do i1=1,llr%d%n1i
-                  ii1 = llr%nsi1 + i1 - nl1 - 1
+!!$                  ii1 = llr%nsi1 + i1 - nl1 - 1
+                  ii1 = ioffset_isf(1) + i1
                   x = ii1*hxh
                   ii = (i3-1)*llr%d%n2i*llr%d%n1i+(i2-1)*llr%d%n1i+i1
                   tt = phir(ii)**2

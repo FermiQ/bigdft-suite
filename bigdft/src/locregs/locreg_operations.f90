@@ -2756,7 +2756,7 @@ module locreg_operations
 
     !>get the offsset of the isf description of the support function
     function get_isf_offset(lr,mesh_global) result(ioffset)
-        use box
+        use box, only: cell,cell_periodic_dims
         use bounds, only: ext_buffers
         implicit none
         type(locreg_descriptors), intent(in) :: lr
