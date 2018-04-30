@@ -1235,6 +1235,7 @@ subroutine wf_iorbp_to_psi(psir, psi, lr)
   use module_base, only: wp,f_zero
   use locregs
   use locreg_operations
+  use box, only: cell_geocode
   implicit none
   type(locreg_descriptors), intent(in) :: lr
   real(wp), dimension(lr%wfd%nvctr_c+7*lr%wfd%nvctr_f), intent(in) :: psi
@@ -1246,7 +1247,8 @@ subroutine wf_iorbp_to_psi(psir, psi, lr)
   call initialize_work_arrays_sumrho(lr,.true.,w)
 
   !initialisation
-  if (lr%geocode == 'F') then
+  !if (lr%geocode == 'F') then
+  if (cell_geocode(lr%mesh_coarse) == 'F') then
      call f_zero(psir)
   end if
 

@@ -711,6 +711,7 @@ subroutine gaussians_to_wavelets_orb(ncplx,lr,hx,hy,hz,kx,ky,kz,G,wfn_gau,psi)
   use module_types
   use gaussians
   use locregs
+  use box, only: cell_periodic_dims
   implicit none
   integer,parameter:: ncplx_g=1 !this is true for NC pseudos
   integer, intent(in) :: ncplx
@@ -722,7 +723,7 @@ subroutine gaussians_to_wavelets_orb(ncplx,lr,hx,hy,hz,kx,ky,kz,G,wfn_gau,psi)
   !local variables
   character(len=*), parameter :: subname='gaussians_to_wavelets_orb'
   integer, parameter :: nterm_max=3,maxsizeKB=2048,nw=65536
-  logical :: perx,pery,perz
+!!  logical :: perx,pery,perz
   integer :: ishell,iexpo,icoeff,iat,isat,ng,l,m,i,nterm,ig
 !! integer :: i_stat,i_all,
   integer :: nterms_max,nterms,iterm,n_gau,ml1,mu1,ml2,mu2,ml3,mu3 !n(c) iscoeff
@@ -732,6 +733,7 @@ subroutine gaussians_to_wavelets_orb(ncplx,lr,hx,hy,hz,kx,ky,kz,G,wfn_gau,psi)
   real(gp), dimension(nterm_max) :: fac_arr
   real(wp), allocatable, dimension(:,:,:) :: work
   real(wp), allocatable, dimension(:,:,:,:) :: wx,wy,wz
+  logical, dimension(3) :: peri
 
   !calculate nterms_max:
   !allows only maxsizeKB per one-dimensional array
@@ -745,9 +747,10 @@ subroutine gaussians_to_wavelets_orb(ncplx,lr,hx,hy,hz,kx,ky,kz,G,wfn_gau,psi)
   wz = f_malloc((/ 1.to.ncplx, 0.to.lr%d%n3, 1.to.2, 1.to.nterms_max /),id='wz')
 
   !conditions for periodicity in the three directions
-  perx=(lr%geocode /= 'F')
-  pery=(lr%geocode == 'P')
-  perz=(lr%geocode /= 'F')
+!!$  perx=(lr%geocode /= 'F')
+!!$  pery=(lr%geocode == 'P')
+!!$  perz=(lr%geocode /= 'F')
+  peri=cell_periodic_dims(lr%mesh_coarse)
 
   !initialize the wavefunction
   call f_zero(psi)
@@ -797,18 +800,18 @@ subroutine gaussians_to_wavelets_orb(ncplx,lr,hx,hy,hz,kx,ky,kz,G,wfn_gau,psi)
                     n_gau=lx(i)
                     call gauss_to_daub_k(hx,kx*hx,ncplx,ncplx_g,ncplx,fac_arr(i),rx,gau_a,n_gau,&
                          lr%ns1,lr%d%n1,ml1,mu1,&
-                         wx(1,0,1,iterm),work,nw,perx,gau_cut)
+                         wx(1,0,1,iterm),work,nw,peri(1),gau_cut)
                     !write(*,'(a,2i7,f9.2,i7)') 'iat, m, rx, n1', iat, m, rx, lr%d%n1
                     !print *,'x',gau_a,nterm,ncplx,kx,ky,kz,ml1,mu1,lr%d%n1
                     n_gau=ly(i)
                     call gauss_to_daub_k(hy,ky*hy,ncplx,ncplx_g,ncplx,wfn_gau(icoeff),ry,gau_a,n_gau,&
                          lr%ns2,lr%d%n2,ml2,mu2,&
-                         wy(1,0,1,iterm),work,nw,pery,gau_cut)
+                         wy(1,0,1,iterm),work,nw,peri(2),gau_cut)
                     !print *,'y',ml2,mu2,lr%d%n2
                     n_gau=lz(i)
                     call gauss_to_daub_k(hz,kz*hz,ncplx,ncplx_g,ncplx,G%psiat(:,iexpo+ig-1),rz,gau_a,n_gau,&
                          lr%ns3,lr%d%n3,ml3,mu3,&
-                         wz(1,0,1,iterm),work,nw,perz,gau_cut)
+                         wz(1,0,1,iterm),work,nw,peri(3),gau_cut)
                     !print *,'z',ml3,mu3,lr%d%n3
                     iterm=iterm+1
                  end do
