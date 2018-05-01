@@ -808,7 +808,8 @@ contains
 !!$       call PZ_SIC_potential(psi%iorb,psi%lr,psi%ob%orbs,xc,&
 !!$            hh,pkernel,psir,vsicpsir,eSICi,eSIC_DCi)
        fi=psi%kwgt*psi%occup
-       hfac=fi/product(hh)
+!!$       hfac=fi/product(hh)
+       hfac=fi/psi%lr%mesh%volume_element
 
        call PZ_SIC_potential(psi%nspin,psi%nspinor,hfac,psi%spinval,psi%lr,xc,&
             hh,pkernel,psir,vsicpsir,eSICi,eSIC_DCi)
