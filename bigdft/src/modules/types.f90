@@ -167,6 +167,7 @@ module module_types
      real(gp), dimension(3) :: hgrids                       !< Grid spacings of wavelet grid (coarser resolution)
      type(locreg_descriptors) :: Glr                        !< Global region descriptors
      type(locreg_descriptors), dimension(:), pointer :: Llr !< Local region descriptors (dimension = nlr)
+     integer :: llr_on_all_mpi                              !< index of locreg which is available on all MPI
   end type local_zone_descriptors
 
   !!> Fermi Operator Expansion parameters
@@ -683,6 +684,7 @@ contains
     lzd%ndimpotisf=0
     lzd%hgrids=(/0.0_gp,0.0_gp,0.0_gp/)
     lzd%Glr=locreg_null()
+    lzd%llr_on_all_mpi=0
     nullify(lzd%Llr)
   end function default_lzd
  
@@ -1124,6 +1126,7 @@ contains
     lzd%lintyp=0
     lzd%ndimpotisf=0
     lzd%hgrids=0.0_gp
+    lzd%llr_on_all_mpi=0
     call nullify_locreg_descriptors(lzd%glr)
     nullify(lzd%llr) 
   end subroutine nullify_local_zone_descriptors
