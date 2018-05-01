@@ -132,8 +132,8 @@ subroutine get_coeff(iproc,nproc,scf_mode,orbs,at,rxyz,denspot,GPU,infoCoeff,&
 
       if (tmb%ham_descr%npsidim_orbs > 0) call to_zero(tmb%ham_descr%npsidim_orbs,tmb%hpsi(1))
 
-      call NonLocalHamiltonianApplication(iproc,at,tmb%ham_descr%npsidim_orbs,tmb%orbs,rxyz,&
-           tmb%ham_descr%lzd,nlpsp,tmb%ham_descr%psi,tmb%hpsi,energs%eproj)
+      call NonLocalHamiltonianApplication(iproc,at,tmb%ham_descr%npsidim_orbs,tmb%orbs,&
+           tmb%ham_descr%lzd,nlpsp,tmb%ham_descr%psi,tmb%hpsi,energs%eproj,tmb%paw)
       ! only kinetic as waiting for communications
       call LocalHamiltonianApplication(iproc,nproc,at,tmb%ham_descr%npsidim_orbs,tmb%orbs,&
            tmb%ham_descr%lzd,confdatarrtmp,denspot%dpbox%ngatherarr,denspot%pot_work,&
@@ -259,7 +259,9 @@ subroutine get_coeff(iproc,nproc,scf_mode,orbs,at,rxyz,denspot,GPU,infoCoeff,&
 
       call f_free(matrixElements)
   else if (scf_mode==LINEAR_DIRECT_MINIMIZATION) then
-     if(.not.present(ldiis_coeff)) stop 'ldiis_coeff must be present for scf_mode==LINEAR_DIRECT_MINIMIZATION'
+     if(.not.present(ldiis_coeff)) &
+          call f_err_throw('ldiis_coeff must be present for scf_mode==LINEAR_DIRECT_MINIMIZATION',&
+          err_name='BIGDFT_RUNTIME_ERROR')
      ! call routine which updates coeffs for tmb%orbs%norb or orbs%norb depending on whether or not extra states are required
      if (iproc==0) call yaml_map('method','directmin')
      if (extra_states>0) then
@@ -527,8 +529,8 @@ subroutine getLocalizedBasis(iproc,nproc,at,orbs,rxyz,denspot,GPU,trH,trH_old,&
       call small_to_large_locreg(iproc, tmb%npsidim_orbs, tmb%ham_descr%npsidim_orbs, tmb%lzd, tmb%ham_descr%lzd, &
            tmb%orbs, tmb%psi, tmb%ham_descr%psi)
 
-      call NonLocalHamiltonianApplication(iproc,at,tmb%ham_descr%npsidim_orbs,tmb%orbs,rxyz,&
-           tmb%ham_descr%lzd,nlpsp,tmb%ham_descr%psi,tmb%hpsi,energs%eproj)
+      call NonLocalHamiltonianApplication(iproc,at,tmb%ham_descr%npsidim_orbs,tmb%orbs,&
+           tmb%ham_descr%lzd,nlpsp,tmb%ham_descr%psi,tmb%hpsi,energs%eproj,tmb%paw)
       ! only kinetic because waiting for communications
       call LocalHamiltonianApplication(iproc,nproc,at,tmb%ham_descr%npsidim_orbs,tmb%orbs,&
            tmb%ham_descr%lzd,tmb%confdatarr,denspot%dpbox%ngatherarr,denspot%pot_work,&
@@ -2593,7 +2595,7 @@ subroutine renormalize_kernel(iproc, nproc, order_taylor, max_inversion_error, t
   call check_taylor_order(mean_error, max_inversion_error, order_taylor)
 
   ! Calculate S^1/2 * K * S^1/2
-  call retransform()
+  call retransform_local()
 
   ! Calculate S^-1/2 for the new overlap matrix
   call overlapPowerGeneral(iproc, nproc, order_taylor, -2, -1, &
@@ -2603,7 +2605,7 @@ subroutine renormalize_kernel(iproc, nproc, order_taylor, max_inversion_error, t
   call check_taylor_order(mean_error, max_inversion_error, order_taylor)
 
   ! Calculate S^-1/2 * K * S^-1/2
-  call retransform()
+  call retransform_local()
 
   call f_free_ptr(inv_ovrlpp)
   call f_free_ptr(tempp)
@@ -2615,8 +2617,9 @@ subroutine renormalize_kernel(iproc, nproc, order_taylor, max_inversion_error, t
 
   contains
 
-      subroutine retransform()
-          use sparsematrix, only: sequential_acces_matrix_fast, sparsemm
+      subroutine retransform_local()
+          use sparsematrix, only: sequential_acces_matrix_fast, sparsemm, &
+               & uncompress_matrix_distributed, compress_matrix_distributed
 
           call sequential_acces_matrix_fast(tmb%linmat%l, tmb%linmat%kernel_%matrix_compr, kernel_compr_seq)
           call sequential_acces_matrix_fast(tmb%linmat%l, &
@@ -2632,6 +2635,6 @@ subroutine renormalize_kernel(iproc, nproc, order_taylor, max_inversion_error, t
           call to_zero(tmb%linmat%l%nvctr, tmb%linmat%kernel_%matrix_compr(1))
           call compress_matrix_distributed(iproc, tmb%linmat%l, inv_ovrlpp, tmb%linmat%kernel_%matrix_compr)
 
-      end subroutine retransform
+      end subroutine retransform_local
 
 end subroutine renormalize_kernel

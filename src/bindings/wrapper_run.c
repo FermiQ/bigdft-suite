@@ -344,17 +344,11 @@ BigDFT_Run* bigdft_run_new_from_files(const gchar *radical, const gchar *posinp)
 BigDFT_Run* bigdft_run_new_from_dict(BigDFT_Dict *dict)
 {
   BigDFT_Run *run;
-  f90_dictionary_pointer copy;
 
   run = bigdft_run_new();
 
-  /* Make a copy of the given dictionary. */
-  FC_FUNC_(dict_init_binding, DICT_INIT_BINDING)(&copy);
-  FC_FUNC_(dict_copy_binding, DICT_COPY_BINDING)(&copy, &dict->root);
-
   /* Associate the dictionary and parse it. */
-  FC_FUNC_(run_objects_set_dict, RUN_OBJECTS_SET_DICT)(F_TYPE(run->data), &copy);
-  FC_FUNC_(run_objects_parse, RUN_OBJECTS_PARSE)(F_TYPE(run->data));
+  FC_FUNC_(run_objects_update, RUN_OBJECTS_UPDATE)(F_TYPE(run->data), &dict->root);
 
   _attributes_from_fortran(run);
 
@@ -497,8 +491,7 @@ BigDFT_Goutput* bigdft_run_calculate(BigDFT_Run *run, guint iproc, guint nproc)
   BigDFT_Goutput *outs;
 
   outs = bigdft_goutput_new(run->atoms->nat);
-  FC_FUNC_(call_bigdft, CALL_BIGDFT)(F_TYPE(run->data), F_TYPE(outs->data),
-                                     (int*)&nproc, (int*)&iproc, &infocode);
+  FC_FUNC_(bigdft_exec, BIGDFT_EXEC)(F_TYPE(run->data), F_TYPE(outs->data),&infocode);
   _inputs_sync(run->inputs);
 
   if (run->inputs->ncount_cluster_x > 1)
@@ -511,7 +504,7 @@ BigDFT_Goutput* bigdft_run_calculate(BigDFT_Run *run, guint iproc, guint nproc)
   /* if there is a last run to be performed do it now before stopping */
   if (run->inputs->last_run == -1)
     {
-      FC_FUNC_(call_bigdft, CALL_BIGDFT)(F_TYPE(run->data), F_TYPE(outs->data),
+      FC_FUNC_(bigdft_exec, BIGDFT_EXEC)(F_TYPE(run->data), F_TYPE(outs->data),
                                          (int*)&nproc, (int*)&iproc, &infocode);
       _inputs_sync(run->inputs);
     }
