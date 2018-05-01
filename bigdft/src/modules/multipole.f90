@@ -1700,6 +1700,18 @@ module multipole
          do while(ket_next(psi_it,ilr=psi_it%ilr))
             if (sphere) call f_zero(sphi2r)
             call daub_to_isf(psi_it%lr,w,psi_it%phi_wvl,phi2r)
+
+!--- Start new loop -------------------------------------------------------------------------------------
+!         bit=box_iter(lzd%llr(ilr)%mesh)
+!         do while box_next_point(bit)
+!             tt = solid_harmonic(0, l, m, x, y, z)
+!             tt = tt*sqrt(4.d0*pi/real(2*l+1,gp))
+!             sphi2r(bit%ind) = tt*phi2r(bit%ind)
+!         end do
+!--- End new loop ---------------------------------------------------------------------------------------
+
+!--- Start old loop -------------------------------------------------------------------------------------
+
             !$omp parallel default(none) &
             !$omp shared(psi_it, hgrids, lrcntr, acell, nl3, nl2, nl1) &
             !$omp shared(peri, ioffset_isf, sphere, rmax, sphi2r, phi2r, l, m) &
@@ -1732,6 +1744,7 @@ module multipole
             end do
             !$omp end do
             !$omp end parallel
+!--- End old loop ---------------------------------------------------------------------------------------
             sphi_ptr => ob_ket_map(Slmphi,psi_it)
             call isf_to_daub(psi_it%lr, w, sphi2r, sphi_ptr)
          end do
