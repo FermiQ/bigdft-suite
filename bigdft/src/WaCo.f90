@@ -1732,6 +1732,7 @@ subroutine write_wannier_cube(jfile,filename,atoms,Glr,input,rxyz,wannr)
    use module_types
    use bounds, only: ext_buffers
    use locregs
+   use box, only: cell_periodic_dims
    implicit none
    character(len=*), intent(in) :: filename
    integer, intent(in) :: jfile
@@ -1744,10 +1745,16 @@ subroutine write_wannier_cube(jfile,filename,atoms,Glr,input,rxyz,wannr)
    logical :: perx, pery, perz
    integer :: nbl1,nbr1,nbl2,nbr2,nbl3,nbr3,rem
    integer :: i,j,ix,iy,iz,ind,ifile
+   logical, dimension(3) :: peri
    
-   perx=(Glr%geocode /= 'F')
-   pery=(Glr%geocode == 'P')
-   perz=(Glr%geocode /= 'F')
+!!$   perx=(Glr%geocode /= 'F')
+!!$   pery=(Glr%geocode == 'P')
+!!$   perz=(Glr%geocode /= 'F')
+   peri=cell_periodic_dims(Glr%mesh)
+   perx=peri(1)
+   pery=peri(2)
+   perz=peri(3)
+
    call ext_buffers(perx,nbl1,nbr1)
    call ext_buffers(pery,nbl2,nbr2)
    call ext_buffers(perz,nbl3,nbr3)
