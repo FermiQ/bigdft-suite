@@ -1654,7 +1654,7 @@ contains
 
     GPU%full_locham=.true.
     if (GPU%OCLconv) then
-       call allocate_data_OCL(Lzd%Glr%d%n1,Lzd%Glr%d%n2,Lzd%Glr%d%n3,at%astruct%geocode,&
+       call allocate_data_OCL(Lzd%Glr%d%n1,Lzd%Glr%d%n2,Lzd%Glr%d%n3,Lzd%Glr%mesh_coarse,&
             &   in%nspin,Lzd%Glr%wfd,orbs,GPU)
        if (iproc == 0) write(*,*) 'GPU data allocated'
     end if
@@ -1809,7 +1809,7 @@ contains
     GPU%full_locham=.true.
 
     if (GPU%OCLconv) then
-       call allocate_data_OCL(Lzd%Glr%d%n1,Lzd%Glr%d%n2,Lzd%Glr%d%n3,at%astruct%geocode,&
+       call allocate_data_OCL(Lzd%Glr%d%n1,Lzd%Glr%d%n2,Lzd%Glr%d%n3,Lzd%Glr%mesh_coarse,&
             &   in%nspin,Lzd%Glr%wfd,orbs,GPU)
        if (iproc == 0) write(*,*)&
             &   'GPU data allocated'
@@ -2049,7 +2049,7 @@ contains
 
     GPU%full_locham=.true.
     if (GPU%OCLconv) then
-       call allocate_data_OCL(Lzd%Glr%d%n1,Lzd%Glr%d%n2,Lzd%Glr%d%n3,at%astruct%geocode,&
+       call allocate_data_OCL(Lzd%Glr%d%n1,Lzd%Glr%d%n2,Lzd%Glr%d%n3,Lzd%Glr%mesh_coarse,&
             &   in%nspin,Lzd%Glr%wfd,orbs,GPU)
        if (iproc == 0) write(*,*)&
             &   'GPU data allocated'

@@ -2134,7 +2134,7 @@ subroutine compare_cpu_gpu_hamiltonian(iproc,nproc,matacc,at,orbs,&
    !allocate arrays for the GPU if a card is present
    if (GPU%OCLconv) then
       !the same with OpenCL, but they cannot exist at same time
-      call allocate_data_OCL(Lzd%Glr%d%n1,Lzd%Glr%d%n2,Lzd%Glr%d%n3,Lzd%Glr%geocode,&
+      call allocate_data_OCL(Lzd%Glr%d%n1,Lzd%Glr%d%n2,Lzd%Glr%d%n3,Lzd%Glr%mesh_coarse,&
            nspin,Lzd%Glr%wfd,orbs,GPU)
    end if
    if (iproc == 0) write(*,*)&

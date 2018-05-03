@@ -1596,7 +1596,7 @@ subroutine extract_potential_for_spectra(iproc,nproc,at,rhod,dpcom,&
   !allocate arrays for the GPU if a card is present
   switchOCLconv=.false.
   if (GPU%OCLconv .and. potshortcut ==0) then
-     call allocate_data_OCL(Lzde%Glr%d%n1,Lzde%Glr%d%n2,Lzde%Glr%d%n3,at%astruct%geocode,&
+     call allocate_data_OCL(Lzde%Glr%d%n1,Lzde%Glr%d%n2,Lzde%Glr%d%n3,Lzde%Glr%mesh_coarse,&
           nspin_ig,Lzde%Glr%wfd,orbse,GPU)
      if (iproc == 0) write(*,*)&
           'GPU data allocated'

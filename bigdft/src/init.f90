@@ -2011,7 +2011,7 @@ subroutine input_wf_diag(iproc,nproc,at,denspot,&
   GPUe = GPU
   !switchOCLconv=.false.
   if (GPU%OCLconv) then
-     call allocate_data_OCL(Lzde%Glr%d%n1,Lzde%Glr%d%n2,Lzde%Glr%d%n3,at%astruct%geocode,&
+     call allocate_data_OCL(Lzde%Glr%d%n1,Lzde%Glr%d%n2,Lzde%Glr%d%n3,Lzde%Glr%mesh_coarse,&
           nspin_ig,Lzde%Glr%wfd,orbse,GPUe)
      if (iproc == 0) call yaml_comment('GPU data allocated')
      !if (iproc == 0) write(*,*) 'GPU data allocated'
@@ -3483,7 +3483,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
      !allocate arrays for the GPU if a card is present
      if (GPU%OCLconv) then
         call allocate_data_OCL(KSwfn%Lzd%Glr%d%n1,KSwfn%Lzd%Glr%d%n2,KSwfn%Lzd%Glr%d%n3,&
-             atoms%astruct%geocode,&
+             KSwfn%Lzd%Glr%mesh_coarse,&
              in%nspin,KSwfn%Lzd%Glr%wfd,KSwfn%orbs,GPU)
         if (iproc == 0) call yaml_comment('GPU data allocated')
         !if (iproc == 0) write(*,*)'GPU data allocated'

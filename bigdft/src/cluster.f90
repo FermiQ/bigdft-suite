@@ -1224,7 +1224,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
            !does it make sense to use GPU only for a one-shot sumrho?
            if (GPU%OCLconv) then
               call allocate_data_OCL(KSwfn%Lzd%Glr%d%n1,KSwfn%Lzd%Glr%d%n2,KSwfn%Lzd%Glr%d%n3,&
-                   atoms%astruct%geocode,&
+                   KSwfn%Lzd%Glr%mesh_coarse,&
                    in%nspin,KSwfn%Lzd%Glr%wfd,KSwfn%orbs,GPU)
            end if
 
