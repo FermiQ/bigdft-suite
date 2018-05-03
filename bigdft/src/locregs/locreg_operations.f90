@@ -1870,6 +1870,7 @@ module locreg_operations
     END SUBROUTINE global_to_local_parallel
 
     function boundary_weight(hgrids,glr,lr,rad,psi) result(weight_normalized)
+      use box, only: cell_periodic_dims
       implicit none
       real(gp), intent(in) :: rad
       real(gp), dimension(3) :: hgrids
@@ -1883,15 +1884,20 @@ module locreg_operations
       real(kind=8) :: h, x, y, z, d, weight_inside, weight_boundary, points_inside, points_boundary, ratio
       real(kind=8) :: boundary
       logical :: perx, pery, perz, on_boundary
+      logical, dimension(3) :: peri
 
 
       ! mean value of the grid spacing
       h = sqrt(hgrids(1)**2+hgrids(2)**2+hgrids(3)**2)
 
       ! periodicity in the three directions
-      perx=(glr%geocode /= 'F')
-      pery=(glr%geocode == 'P')
-      perz=(glr%geocode /= 'F')
+!!$      perx=(glr%geocode /= 'F')
+!!$      pery=(glr%geocode == 'P')
+!!$      perz=(glr%geocode /= 'F')
+      peri=cell_periodic_dims(glr%mesh)
+      perx=peri(1)
+      pery=peri(2)
+      perz=peri(3)
 
       ! For perdiodic boundary conditions, one has to check also in the neighboring
       ! cells (see in the loop below)
@@ -2213,6 +2219,7 @@ module locreg_operations
     !!   This routine supposes that the region Blr is contained in the region Alr.
     !!   This should always be the case, if we concentrate on the overlap between two regions.
     subroutine shift_locreg_indexes(Alr,Blr,keymask,nseg)
+     use box, only: cell_geocode
      implicit none
     
     ! Arguments
@@ -2229,7 +2236,8 @@ module locreg_operations
     
     
      ! This routine is only intended for conversions between locregs with the same boundary conditions.
-     if (blr%geocode/='F') then
+!!$     if (blr%geocode/='F') then
+     if (cell_geocode(blr%mesh) /= 'F') then
          call f_err_throw('shift_locreg_indexes can only be used for locregs with free boundary conditions', &
               err_name='BIGDFT_RUNTIME_ERROR')
      end if
@@ -2280,7 +2288,8 @@ module locreg_operations
     !> Projects a quantity stored with the global indexes (i1,i2,i3) within the localisation region.
     !! @warning: The quantity must not be stored in a compressed form.
     subroutine global_to_local(Glr,Llr,nspin,size_rho,size_Lrho,rho,Lrho)
-     
+     use box, only: cell_geocode
+ 
      implicit none
     
     ! Arguments
@@ -2301,7 +2310,8 @@ module locreg_operations
     ! Cut out a piece of the quantity (rho) from the global region (rho) and
     ! store it in a local region (Lrho).
     
-     if(Glr%geocode == 'F') then
+!!$     if(Glr%geocode == 'F') then
+     if(cell_geocode(Glr%mesh) == 'F') then
          ! Use loop unrolling here
          indSmall=0
          indSpin=0
@@ -2391,6 +2401,7 @@ module locreg_operations
     !> apply the potential to the psir wavefunction and calculate potential energy
     subroutine psir_to_vpsi(npot,nspinor,lr,pot,vpsir,epot,confdata,vpsir_noconf,econf)
       use dynamic_memory
+      use box, only: cell_geocode
       implicit none
       integer, intent(in) :: npot,nspinor
       type(locreg_descriptors), intent(in) :: lr !< localization region of the wavefunction
@@ -2414,7 +2425,8 @@ module locreg_operations
       if (confining) confining= (confdata%potorder /=0)
 
       if (confining) then
-         if (lr%geocode == 'F') then
+!!$         if (lr%geocode == 'F') then
+         if (cell_geocode(lr%mesh) == 'F') then
             if (present(vpsir_noconf)) then
                if (.not.present(econf)) stop 'ERROR: econf must be present when vpsir_noconf is present!'
                !call apply_potential_lr(lr%d%n1i,lr%d%n2i,lr%d%n3i,&
@@ -2455,7 +2467,8 @@ module locreg_operations
 
       else
 
-         if (lr%geocode == 'F') then
+!!$         if (lr%geocode == 'F') then
+         if (cell_geocode(lr%mesh) == 'F') then
             !call apply_potential_lr(lr%d%n1i,lr%d%n2i,lr%d%n3i,&
             call apply_potential_lr_bounds(lr%d%n1i,lr%d%n2i,lr%d%n3i,&
                  lr%d%n1i,lr%d%n2i,lr%d%n3i,&

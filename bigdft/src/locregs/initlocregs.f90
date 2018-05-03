@@ -777,6 +777,7 @@ subroutine determine_wfdSphere(ilr,nlr,Glr,hx,hy,hz,Llr)!,outofzone)
 
   use module_base
   use locregs, only: allocate_wfd,locreg_descriptors
+  use box, only: cell_periodic_dims
   implicit none
 
   ! Subroutine Scalar Arguments
@@ -795,13 +796,19 @@ subroutine determine_wfdSphere(ilr,nlr,Glr,hx,hy,hz,Llr)!,outofzone)
   !!  integer :: nseg_c,nseg_f,nvctr_c,nvctr_f      ! total number of sgements and elements
   integer, allocatable :: keygloc_tmp(:,:)
   logical :: perx, pery, perz
+  logical, dimension(3) :: peri
 
   call f_routine(id=subname)
 
   ! periodicity in the three directions
-  perx=(glr%geocode /= 'F')
-  pery=(glr%geocode == 'P')
-  perz=(glr%geocode /= 'F')
+!!$  perx=(glr%geocode /= 'F')
+!!$  pery=(glr%geocode == 'P')
+!!$  perz=(glr%geocode /= 'F')
+
+  peri=cell_periodic_dims(glr%mesh)
+  perx=peri(1)
+  pery=peri(2)
+  perz=peri(3)
 
   !starting point of locreg (can be outside the simulation box)
   isdir(1) = Llr(ilr)%ns1
