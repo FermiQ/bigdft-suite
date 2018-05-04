@@ -844,6 +844,7 @@ subroutine gaussians_c_to_wavelets_orb(ncplx,lr,hx,hy,hz,kx,ky,kz,G,wfn_gau,psi,
   use module_types
   use gaussians
   use locregs
+  use box, only: cell_periodic_dims
   implicit none
   integer, intent(in) :: ncplx
   real(gp), intent(in) :: hx,hy,hz,kx,ky,kz
@@ -867,6 +868,7 @@ subroutine gaussians_c_to_wavelets_orb(ncplx,lr,hx,hy,hz,kx,ky,kz,G,wfn_gau,psi,
   real(wp), allocatable, dimension(:,  :,:,:,:) :: wx,wy,wz
   real(wp), allocatable, dimension(:,:) :: cossinfacts
   integer :: ncplxC
+  logical, dimension(3) :: peri
 
   ncplxC=2
 
@@ -888,9 +890,13 @@ subroutine gaussians_c_to_wavelets_orb(ncplx,lr,hx,hy,hz,kx,ky,kz,G,wfn_gau,psi,
 
 
   !conditions for periodicity in the three directions
-  perx=(lr%geocode /= 'F')
-  pery=(lr%geocode == 'P')
-  perz=(lr%geocode /= 'F')
+!!$  perx=(lr%geocode /= 'F')
+!!$  pery=(lr%geocode == 'P')
+!!$  perz=(lr%geocode /= 'F')
+  peri=cell_periodic_dims(lr%mesh)
+  perx=peri(1)
+  pery=peri(2)
+  perz=peri(3)
 
   !initialize the wavefunction
   call f_zero(psi)

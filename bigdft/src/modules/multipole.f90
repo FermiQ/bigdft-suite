@@ -288,7 +288,8 @@ module multipole
                   call f_err_throw('support function locregs must always have free BC')
               end if
           end do
-          call geocode_buffers('F', lzd%glr%geocode, nl1, nl2, nl3)
+          ! This will not works for wires bc.
+          call geocode_buffers('F', cell_geocode(lzd%glr%mesh), nl1, nl2, nl3)
           call calculate_gaussian(is1, ie1, 1, nl1, lzd%glr%d%n1i, perx, hx, shift, ep, gaussians1, nonzero_startend1)
           call calculate_gaussian(is2, ie2, 2, nl2, lzd%glr%d%n2i, pery, hy, shift, ep, gaussians2, nonzero_startend2)
           call calculate_gaussian(is3, ie3, 3, nl3, lzd%glr%d%n3i, perz, hz, shift, ep, gaussians3, nonzero_startend3)
