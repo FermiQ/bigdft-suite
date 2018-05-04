@@ -936,7 +936,8 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
 
      thetaphi = f_malloc0((/ 2, KSwfn%gbd%nat /),id='thetaphi')
      !thetaphi=0.0_gp
-     call wavelets_to_gaussians(atoms%astruct%geocode,KSwfn%orbs%norbp,KSwfn%orbs%nspinor,&
+!!$     call wavelets_to_gaussians(atoms%astruct%geocode,KSwfn%orbs%norbp,KSwfn%orbs%nspinor,&
+     call wavelets_to_gaussians(KSwfn%Lzd%Glr,KSwfn%orbs%norbp,KSwfn%orbs%nspinor,&
           n1,n2,n3,KSwfn%gbd,thetaphi,&
           KSwfn%Lzd%hgrids(1),KSwfn%Lzd%hgrids(2),KSwfn%Lzd%hgrids(3),&
           KSwfn%Lzd%Glr%wfd,KSwfn%psi,KSwfn%gaucoeffs)
