@@ -449,6 +449,7 @@ module locreg_operations
 
     !> Initialize work arrays for local hamiltonian
     subroutine initialize_work_arrays_locham_llr(lr,nspinor,allocate_arrays,w)
+      use box, only: cell_geocode
       implicit none
       integer, intent(in) ::  nspinor
       type(locreg_descriptors), intent(in) :: lr
@@ -492,7 +493,8 @@ module locreg_operations
       end if
 
 
-      select case(lr%geocode)
+!!$      select case(lr%geocode)
+      select case(cell_geocode(lr%mesh))
       case('F')
          !dimensions of work arrays
          ! shrink convention: nw1>nw2
@@ -601,12 +603,16 @@ module locreg_operations
                w%y_c = f_malloc_ptr((/ w%nyc, nspinor /),id='w%y_c')
             end if
          endif
+      case('W')
+         call f_err_throw("Wires bc has to be implemented here", &
+              err_name='BIGDFT_RUNTIME_ERROR')
       end select
 
     END SUBROUTINE initialize_work_arrays_locham_llr
 
 
     subroutine memspace_work_arrays_locham(lr,memwork) !n(c) nspinor (arg:2)
+      use box, only: cell_geocode
       implicit none
       type(locreg_descriptors), intent(in) :: lr
       integer(kind=8), intent(out) :: memwork
@@ -627,7 +633,8 @@ module locreg_operations
       nfu2=lr%d%nfu2
       nfu3=lr%d%nfu3
 
-      select case(lr%geocode) 
+!!$      select case(lr%geocode) 
+      select case(cell_geocode(lr%mesh)) 
       case('F')
          !dimensions of work arrays
          ! shrink convention: nw1>nw2
@@ -696,6 +703,9 @@ module locreg_operations
             nxf3=0
 
          endif
+      case('W')
+         call f_err_throw("Wires bc has to be implemented here", &
+              err_name='BIGDFT_RUNTIME_ERROR')
       end select
 
       memwork=nw1+nw2+nxc+nxf+nyc+nyf+nxf1+nxf2+nxf3
@@ -705,6 +715,7 @@ module locreg_operations
 
     !> Set to zero the work arrays for local hamiltonian
     subroutine zero_work_arrays_locham(lr,nspinor,w)
+      use box, only: cell_geocode
       implicit none
       integer, intent(in) :: nspinor
       type(locreg_descriptors), intent(in) :: lr
@@ -722,7 +733,8 @@ module locreg_operations
       nfu2=lr%d%nfu2
       nfu3=lr%d%nfu3
 
-      select case(lr%geocode)
+!!$      select case(lr%geocode)
+      select case(cell_geocode(lr%mesh)) 
 
       case('F')
 
@@ -746,6 +758,10 @@ module locreg_operations
       case('S')
 
       case('P')
+
+      case('W')
+         call f_err_throw("Wires bc has to be implemented here", &
+              err_name='BIGDFT_RUNTIME_ERROR')
 
       end select
 
@@ -886,6 +902,7 @@ module locreg_operations
 
 
     subroutine initialize_work_arrays_sumrho_llr(lr,allocate_arrays,w)
+      use box, only: cell_geocode
       implicit none
       type(locreg_descriptors), intent(in) :: lr
       logical, intent(in) :: allocate_arrays
@@ -918,7 +935,8 @@ module locreg_operations
          nullify(w%w2)
       end if
 
-      select case(lr%geocode)
+!!$      select case(lr%geocode)
+      select case(cell_geocode(lr%mesh))
       case('F')
          !dimension of the work arrays
          ! shrink convention: nw1>nw2
@@ -958,7 +976,9 @@ module locreg_operations
             w%nxc=(2*n1+2)*(2*n2+2)*(2*n3+2)
             w%nxf=1
          endif
-
+      case('W')
+         call f_err_throw("Wires bc has to be implemented here", &
+              err_name='BIGDFT_RUNTIME_ERROR')
       end select
       !work arrays
       if (allocate_arrays) then
@@ -969,7 +989,8 @@ module locreg_operations
       end if
 
 
-      if (lr%geocode == 'F') then
+!!$      if (lr%geocode == 'F') then
+      if (cell_geocode(lr%mesh) == 'F') then
          call f_zero(w%x_c)
          call f_zero(w%x_f)
       end if
@@ -980,6 +1001,7 @@ module locreg_operations
 
 
     subroutine memspace_work_arrays_sumrho(lr,memwork)
+      use box, only: cell_geocode
       implicit none
       type(locreg_descriptors), intent(in) :: lr
       integer(kind=8), intent(out) :: memwork
@@ -997,7 +1019,8 @@ module locreg_operations
       nfu2=lr%d%nfu2
       nfu3=lr%d%nfu3
 
-      select case(lr%geocode)
+!!$      select case(lr%geocode)
+      select case(cell_geocode(lr%mesh))
       case('F')
          !dimension of the work arrays
          ! shrink convention: nw1>nw2
@@ -1037,7 +1060,9 @@ module locreg_operations
             nxc=(2*n1+2)*(2*n2+2)*(2*n3+2)
             nxf=1
          endif
-
+      case('W')
+         call f_err_throw("Wires bc has to be implemented here", &
+              err_name='BIGDFT_RUNTIME_ERROR')
       end select
       memwork=nxc+nxf+nw1+nw2
 
@@ -1210,6 +1235,9 @@ module locreg_operations
             memwork=d%n1+d%n3+14*(lupfil-lowfil+1)
          end if
          memwork=memwork+2*ncplx*(2*d%n1+2)*(2*d%n2+16)*(2*d%n3+2)
+      else if (geocode == 'W') then
+         call f_err_throw("Wires bc has to be implemented here", &
+              err_name='BIGDFT_RUNTIME_ERROR')
       end if
 
     END SUBROUTINE memspace_work_arrays_precond
@@ -2512,6 +2540,7 @@ module locreg_operations
     end subroutine psir_to_vpsi
    
     subroutine isf_to_daub_kinetic(hx,hy,hz,kx,ky,kz,nspinor,lr,w,psir,hpsi,ekin,k_strten)
+      use box, only: cell_geocode
       implicit none
       integer, intent(in) :: nspinor
       real(gp), intent(in) :: hx,hy,hz,kx,ky,kz
@@ -2552,7 +2581,8 @@ module locreg_operations
       ekin=0.0_gp
 
       kstrten=0.0_wp
-      select case(lr%geocode)
+!!$      select case(lr%geocode)
+      select case(cell_geocode(lr%mesh))
       case('F')
 
          !here kpoints cannot be used (for the moment, to be activated for the 
@@ -2784,6 +2814,11 @@ module locreg_operations
          end if
          ekin=ekin+kstrten(1)+kstrten(2)+kstrten(3)
          if (present(k_strten)) k_strten=kstrten 
+ 
+      case('W')
+
+         call f_err_throw("Wires bc has to be implemented here", &
+              err_name='BIGDFT_RUNTIME_ERROR')
 
       end select
 
