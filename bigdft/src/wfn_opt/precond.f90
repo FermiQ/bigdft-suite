@@ -13,6 +13,7 @@ subroutine preconditionall(orbs,lr,hx,hy,hz,ncong,hpsi,gnrm,gnrm_zero)
   use module_base
   use module_types
   use locregs
+  use box, only: cell_geocode
   implicit none
   integer, intent(in) :: ncong
   real(gp), intent(in) :: hx,hy,hz
@@ -88,11 +89,14 @@ subroutine preconditionall(orbs,lr,hx,hy,hz,ncong,hpsi,gnrm,gnrm_zero)
 
        if (scpr /= 0.0_wp) then
 
-          call cprecr_from_eval(lr%geocode,eval_zero,orbs%eval(orbs%isorb+iorb),cprecr)          
+!!$          call cprecr_from_eval(lr%geocode,eval_zero,orbs%eval(orbs%isorb+iorb),cprecr)          
+          call cprecr_from_eval(lr%mesh_coarse,eval_zero,orbs%eval(orbs%isorb+iorb),cprecr)          
            !cases with no CG iterations, diagonal preconditioning
            !for Free BC it is incorporated in the standard procedure
-           if (ncong == 0 .and. lr%geocode /= 'F') then
-              select case(lr%geocode)
+!!$           if (ncong == 0 .and. lr%geocode /= 'F') then
+           if (ncong == 0 .and. cell_geocode(lr%mesh_coarse) /= 'F') then
+!!$              select case(lr%geocode)
+              select case(cell_geocode(lr%mesh_coarse))
               case('F')
               case('S')
                  call prec_fft_slab(lr%d%n1,lr%d%n2,lr%d%n3, &
@@ -104,6 +108,9 @@ subroutine preconditionall(orbs,lr,hx,hy,hz,ncong,hpsi,gnrm,gnrm_zero)
                       lr%wfd%nseg_c,lr%wfd%nvctr_c,lr%wfd%nseg_f,lr%wfd%nvctr_f,&
                       lr%wfd%keygloc,lr%wfd%keyvloc, &
                       cprecr,hx,hy,hz,hpsi(1,inds,iorb))
+              case('W')
+                 call f_err_throw("Wires bc has to be implemented here", &
+                      err_name='BIGDFT_RUNTIME_ERROR')
               end select
 
            else !normal preconditioner
@@ -207,6 +214,7 @@ subroutine preconditionall2(iproc,nproc,orbs,Lzd,hx,hy,hz,ncong,npsidim,hpsi,con
   use yaml_output
   use locregs
   use locreg_operations
+  use box, only: cell_geocode
   implicit none
   integer, intent(in) :: iproc,nproc,ncong,npsidim
   real(gp), intent(in) :: hx,hy,hz
@@ -339,11 +347,14 @@ subroutine preconditionall2(iproc,nproc,orbs,Lzd,hx,hy,hz,ncong,npsidim,hpsi,con
 
         
        if (scpr /= 0.0_wp) then
-          call cprecr_from_eval(Lzd%Llr(ilr)%geocode,eval_zero,orbs%eval(orbs%isorb+iorb),cprecr)
+!!$          call cprecr_from_eval(Lzd%Llr(ilr)%geocode,eval_zero,orbs%eval(orbs%isorb+iorb),cprecr)
+          call cprecr_from_eval(Lzd%Llr(ilr)%mesh_coarse,eval_zero,orbs%eval(orbs%isorb+iorb),cprecr)
            !cases with no CG iterations, diagonal preconditioning
            !for Free BC it is incorporated in the standard procedure
-           if (ncong == 0 .and. Lzd%Llr(ilr)%geocode /= 'F') then
-              select case(Lzd%Llr(ilr)%geocode)
+!!$           if (ncong == 0 .and. Lzd%Llr(ilr)%geocode /= 'F') then
+           if (ncong == 0 .and. cell_geocode(Lzd%Llr(ilr)%mesh_coarse) /= 'F') then
+!!$              select case(Lzd%Llr(ilr)%geocode)
+              select case(cell_geocode(Lzd%Llr(ilr)%mesh_coarse))
               case('F')
               case('S')
                  call prec_fft_slab(Lzd%Llr(ilr)%d%n1,Lzd%Llr(ilr)%d%n2,Lzd%Llr(ilr)%d%n3, &
@@ -356,6 +367,9 @@ subroutine preconditionall2(iproc,nproc,orbs,Lzd,hx,hy,hz,ncong,npsidim,hpsi,con
                       Lzd%Llr(ilr)%wfd%nseg_f,Lzd%Llr(ilr)%wfd%nvctr_f,&
                       Lzd%Llr(ilr)%wfd%keygloc,Lzd%Llr(ilr)%wfd%keyvloc, &
                       cprecr,hx,hy,hz,hpsi(1+ist))
+              case('W')
+                 call f_err_throw("Wires bc has to be implemented here", &
+                      err_name='BIGDFT_RUNTIME_ERROR')
               end select
 
            else !normal preconditioner
@@ -376,7 +390,8 @@ subroutine preconditionall2(iproc,nproc,orbs,Lzd,hx,hy,hz,ncong,npsidim,hpsi,con
                  end if
                  ! When preconditioning the support functions, take as eigenvalue -0.5, as the Kohn-Sham
                  ! eigenvalues do not really have a meaning for the support functions
-                 call cprecr_from_eval(Lzd%Llr(ilr)%geocode,eval_zero,-0.5d0,cprecr)
+!!$                 call cprecr_from_eval(Lzd%Llr(ilr)%geocode,eval_zero,-0.5d0,cprecr)
+                 call cprecr_from_eval(Lzd%Llr(ilr)%mesh_coarse,eval_zero,-0.5d0,cprecr)
                  call solvePrecondEquation(iproc,nproc,Lzd%Llr(ilr),ncplx,ncong,&
                       cprecr,&
                       hx,hy,hz,kx,ky,kz,hpsi(1+ist),&
@@ -448,21 +463,29 @@ subroutine preconditionall2(iproc,nproc,orbs,Lzd,hx,hy,hz,ncong,npsidim,hpsi,con
 END SUBROUTINE preconditionall2
 
 ! > This function has been created also for the GPU-ported routines
-subroutine cprecr_from_eval(geocode,eval_zero,eval,cprecr)
+subroutine cprecr_from_eval(mesh,eval_zero,eval,cprecr)
   use module_base
+  use box, only: cell,cell_geocode
   implicit none
-  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+!!$  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+  type(cell), intent(in) :: mesh
   real(gp), intent(in) :: eval,eval_zero
   real(gp), intent(out) :: cprecr
 
-  select case(geocode)
-  case('F')
+!!$  select case(geocode)
+!!$  case('F')
+!!$     cprecr=sqrt(.2d0**2+min(0.d0,eval)**2)
+!!$  case('S')
+!!$     cprecr=sqrt(0.2d0**2+(eval-eval_zero)**2)
+!!$  case('P')
+!!$     cprecr=sqrt(0.2d0**2+(eval-eval_zero)**2)
+!!$  end select
+
+  if (cell_geocode(mesh) == 'F') then
      cprecr=sqrt(.2d0**2+min(0.d0,eval)**2)
-  case('S')
+  else
      cprecr=sqrt(0.2d0**2+(eval-eval_zero)**2)
-  case('P')
-     cprecr=sqrt(0.2d0**2+(eval-eval_zero)**2)
-  end select
+  end if
 
 END SUBROUTINE cprecr_from_eval
 

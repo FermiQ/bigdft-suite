@@ -814,13 +814,15 @@ contains
 
   subroutine deallocate_Lzd(Lzd)
     use module_base
+    use box, only: cell_geocode
     !Arguments
     type(local_zone_descriptors) :: Lzd
     !Local variables
     integer :: ilr
 
 !   nullify the bounds of Glr
-    if ((Lzd%Glr%geocode == 'P' .and. Lzd%Glr%hybrid_on) .or. Lzd%Glr%geocode == 'F') then
+!!$    if ((Lzd%Glr%geocode == 'P' .and. Lzd%Glr%hybrid_on) .or. Lzd%Glr%geocode == 'F') then
+    if ((cell_geocode(Lzd%Glr%mesh) == 'P' .and. Lzd%Glr%hybrid_on) .or. cell_geocode(Lzd%Glr%mesh) == 'F') then
        nullify(Lzd%Glr%bounds%kb%ibyz_f)
        nullify(Lzd%Glr%bounds%kb%ibxz_f)
        nullify(Lzd%Glr%bounds%kb%ibxy_f)
@@ -832,7 +834,8 @@ contains
        nullify(Lzd%Glr%bounds%gb%ibxxyy_f)
     end if
     !the arrays which are needed only for free BC
-    if (Lzd%Glr%geocode == 'F') then
+!!$    if (Lzd%Glr%geocode == 'F') then
+    if (cell_geocode(Lzd%Glr%mesh) == 'F') then
        nullify(Lzd%Glr%bounds%kb%ibyz_c)
        nullify(Lzd%Glr%bounds%kb%ibxz_c)
        nullify(Lzd%Glr%bounds%kb%ibxy_c)
@@ -842,6 +845,9 @@ contains
        nullify(Lzd%Glr%bounds%gb%ibxxyy_c)
        nullify(Lzd%Glr%bounds%ibyyzz_r)
     end if
+
+    if (cell_geocode(Lzd%Glr%mesh) == 'W') call f_err_throw("Wires bc has to be implemented here", &
+               err_name='BIGDFT_RUNTIME_ERROR')
 
 ! nullify the wfd of Glr
    nullify(Lzd%Glr%wfd%keyglob)

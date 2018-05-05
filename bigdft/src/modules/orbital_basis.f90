@@ -861,6 +861,7 @@ contains
        lin_prec_conv_work,lin_prec_work)
     use module_base,only: bigdft_mpi,nrm2
     use locreg_operations, only: workarrays_quartic_convolutions,workarr_precond
+    use box, only: cell_geocode
     implicit none
     integer, intent(in) :: ncong,ncplx
     real(gp), intent(in) :: eval,eval_zero
@@ -879,11 +880,14 @@ contains
     scpr=nrm2(ncplx*(lr%wfd%nvctr_c+7*lr%wfd%nvctr_f),hpsi(1),1)
     if (scpr == 0.0_wp) return
 
-    call cprecr_from_eval(lr%geocode,eval_zero,eval,cprecr)
+!!$    call cprecr_from_eval(lr%geocode,eval_zero,eval,cprecr)
+    call cprecr_from_eval(lr%mesh_coarse,eval_zero,eval,cprecr)
     !cases with no CG iterations, diagonal preconditioning
     !for Free BC it is incorporated in the standard procedure
-    if (ncong == 0 .and. lr%geocode /= 'F') then
-       select case(lr%geocode)
+!!$    if (ncong == 0 .and. lr%geocode /= 'F') then
+    if (ncong == 0 .and. cell_geocode(lr%mesh_coarse) /= 'F') then
+!!$       select case(lr%geocode)
+       select case(cell_geocode(lr%mesh_coarse))
        case('F')
        case('S')
           call prec_fft_slab(lr%d%n1,lr%d%n2,lr%d%n3, &
@@ -896,6 +900,9 @@ contains
                lr%wfd%nseg_f,lr%wfd%nvctr_f,&
                lr%wfd%keygloc,lr%wfd%keyvloc, &
                cprecr,hgrids(1),hgrids(2),hgrids(3),hpsi)
+       case('W')
+          call f_err_throw("Wires bc has to be implemented here", &
+               err_name='BIGDFT_RUNTIME_ERROR')
        end select
     else !normal preconditioner
        !case active only in the linear scaling case

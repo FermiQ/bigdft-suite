@@ -1332,151 +1332,151 @@ contains
 
 
 
-  subroutine gaussians_to_wavelets_nonorm(iproc,nproc,geocode,orbs,grid,hx,hy,hz,wfd,G,wfn_gau,psi)
-    !use module_base
-    use module_types
-    use gaussians
-    use compression
-    use locregs
-    implicit none
-    character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
-    integer, intent(in) :: iproc,nproc
-    real(gp), intent(in) :: hx,hy,hz
-    type(grid_dimensions), intent(in) :: grid
-    type(wavefunctions_descriptors), intent(in) :: wfd
-    type(orbitals_data), intent(in) :: orbs
-    type(gaussian_basis), intent(in) :: G
-    real(wp), dimension(G%ncoeff,orbs%nspinor,orbs%norbp), intent(in) :: wfn_gau
-    real(wp), dimension(wfd%nvctr_c+7*wfd%nvctr_f,orbs%nspinor,orbs%norbp), intent(out) :: psi
-
-    !local variables
-    character(len=*), parameter :: subname='gaussians_to_wavelets'
-    integer, parameter :: nterm_max=3
-    logical :: maycalc
-    integer :: ishell,iexpo,icoeff,iat,isat,ng,l,m,iorb,jorb,nterm,ierr,ispinor
-    real(dp) :: normdev,tt,scpr,totnorm
-    real(gp) :: rx,ry,rz
-    integer, dimension(nterm_max) :: lx,ly,lz
-    real(gp), dimension(nterm_max) :: fac_arr
-    real(wp), dimension(:), allocatable :: tpsi
-
-    if(iproc == 0 .and. get_verbose_level() > 1) write(*,'(1x,a)',advance='no')'Writing wavefunctions in wavelet form '
-    
-    tpsi = f_malloc(wfd%nvctr_c+7*wfd%nvctr_f,id='tpsi')
-
-    !initialize the wavefunction
-    call f_zero(psi)
-    !this can be changed to be passed only once to all the gaussian basis
-    !eks=0.d0
-    !loop over the atoms
-    ishell=0
-    iexpo=1
-    icoeff=1
-
-
-
-    do iat=1,G%nat
-       rx=G%rxyz(1,iat)
-       ry=G%rxyz(2,iat)
-       rz=G%rxyz(3,iat)
-
-       !loop over the number of shells of the atom type
-       do isat=1,G%nshell(iat)
-          ishell=ishell+1
-          !the degree of contraction of the basis function
-          !is the same as the ng value of the createAtomicOrbitals routine
-          ng=G%ndoc(ishell)
-          !angular momentum of the basis set(shifted for compatibility with BigDFT routines
-          l=G%nam(ishell)
-          !print *,iproc,iat,ishell,G%nam(ishell),G%nshell(iat)
-          !multiply the values of the gaussian contraction times the orbital coefficient
-
-
-
-
-          do m=1,2*l-1
-             call calc_coeff_inguess(l,m,nterm_max,nterm,lx,ly,lz,fac_arr)
-             !control whether the basis element may be
-             !contribute to some of the orbital of the processor
-             maycalc=.false.
-             loop_calc: do iorb=1,orbs%norb
-                if (orbs%isorb < iorb .and. iorb <= orbs%isorb+orbs%norbp) then
-                   jorb=iorb-orbs%isorb
-                   do ispinor=1,orbs%nspinor
-                      if (wfn_gau(icoeff,ispinor,jorb) /= 0.0_wp) then
-                         maycalc=.true.
-                         exit loop_calc
-                      end if
-                   end do
-                end if
-             end do loop_calc
-             if (maycalc) then
-                call crtonewave(geocode,grid%n1,grid%n2,grid%n3,ng,nterm,lx,ly,lz,fac_arr,&
-                     &   G%xp(1,iexpo),G%psiat(1,iexpo),&
-                     &   rx,ry,rz,hx,hy,hz,&
-                     &   0,grid%n1,0,grid%n2,0,grid%n3,&
-                     &   grid%nfl1,grid%nfu1,grid%nfl2,grid%nfu2,grid%nfl3,grid%nfu3,  & 
-                     wfd%nseg_c,wfd%nvctr_c,wfd%keygloc,wfd%keyvloc,wfd%nseg_f,wfd%nvctr_f,&
-                     &   wfd%keygloc(1,wfd%nseg_c+1),wfd%keyvloc(wfd%nseg_c+1),&
-                     &   tpsi(1),tpsi(wfd%nvctr_c+1))
-             end if
-             !sum the result inside the orbital wavefunction
-             !loop over the orbitals
-             do iorb=1,orbs%norb
-                if (orbs%isorb < iorb .and. iorb <= orbs%isorb+orbs%norbp) then
-                   jorb=iorb-orbs%isorb
-                   do ispinor=1,orbs%nspinor
-                      call axpy(wfd%nvctr_c+7*wfd%nvctr_f,wfn_gau(icoeff,ispinor,jorb),&
-                           &   tpsi(1),1,psi(1,ispinor,jorb),1)
-                   end do
-                end if
-             end do
-             icoeff=icoeff+1
-          end do
-          iexpo=iexpo+ng
-       end do
-       if (iproc == 0 .and. get_verbose_level() > 1) then
-          write(*,'(a)',advance='no') &
-               &   repeat('.',(iat*40)/G%nat-((iat-1)*40)/G%nat)
-       end if
-    end do
-
-    if (iproc==0)    call gaudim_check(iexpo,icoeff,ishell,G%nexpo,G%ncoeff,G%nshltot)
-
-    !if (iproc ==0  .and. get_verbose_level() > 1) write(*,'(1x,a)')'done.'
-    !renormalize the orbitals
-    !calculate the deviation from 1 of the orbital norm
-    normdev=0.0_dp
-    tt=0.0_dp
-
-    do iorb=1,orbs%norb
-       if (orbs%isorb < iorb .and. iorb <= orbs%isorb+orbs%norbp) then
-          jorb=iorb-orbs%isorb
-          totnorm=0.0_dp
-          do ispinor=1,orbs%nspinor !to be verified in case of nspinor=4
-             call wnrm(wfd%nvctr_c,wfd%nvctr_f,psi(1,ispinor,jorb),psi(wfd%nvctr_c+1,ispinor,jorb),scpr) 
-             totnorm=totnorm+scpr
-          end do
-          !! print *, " TOTNORM QUI " , totnorm 
-          totnorm=1.0_wp
-          do ispinor=1,orbs%nspinor !to be verified in case of nspinor=4
-             call wscal(wfd%nvctr_c,wfd%nvctr_f,real(1.0_dp/sqrt(totnorm),wp),psi(1,ispinor,jorb),psi(wfd%nvctr_c+1,ispinor,jorb))
-          end do
-          !write(*,'(1x,a,i5,1pe14.7)')'norm of orbital ',iorb,totnorm
-          tt=max(tt,abs(1.0_dp-totnorm))
-       end if
-    end do
-    if (nproc > 1) then
-       call MPI_REDUCE(tt,normdev,1,mpidtypd,MPI_MAX,0,bigdft_mpi%mpi_comm,ierr)
-    else
-       normdev=tt
-    end if
-    if (iproc ==0) write(*,'(1x,a,1pe12.2)')&
-         &   'Deviation from normalization of the imported orbitals',normdev
-
-    call f_free(tpsi)
-
-  END SUBROUTINE gaussians_to_wavelets_nonorm
+!!$  subroutine gaussians_to_wavelets_nonorm(iproc,nproc,geocode,orbs,grid,hx,hy,hz,wfd,G,wfn_gau,psi)
+!!$    !use module_base
+!!$    use module_types
+!!$    use gaussians
+!!$    use compression
+!!$    use locregs
+!!$    implicit none
+!!$    character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+!!$    integer, intent(in) :: iproc,nproc
+!!$    real(gp), intent(in) :: hx,hy,hz
+!!$    type(grid_dimensions), intent(in) :: grid
+!!$    type(wavefunctions_descriptors), intent(in) :: wfd
+!!$    type(orbitals_data), intent(in) :: orbs
+!!$    type(gaussian_basis), intent(in) :: G
+!!$    real(wp), dimension(G%ncoeff,orbs%nspinor,orbs%norbp), intent(in) :: wfn_gau
+!!$    real(wp), dimension(wfd%nvctr_c+7*wfd%nvctr_f,orbs%nspinor,orbs%norbp), intent(out) :: psi
+!!$
+!!$    !local variables
+!!$    character(len=*), parameter :: subname='gaussians_to_wavelets'
+!!$    integer, parameter :: nterm_max=3
+!!$    logical :: maycalc
+!!$    integer :: ishell,iexpo,icoeff,iat,isat,ng,l,m,iorb,jorb,nterm,ierr,ispinor
+!!$    real(dp) :: normdev,tt,scpr,totnorm
+!!$    real(gp) :: rx,ry,rz
+!!$    integer, dimension(nterm_max) :: lx,ly,lz
+!!$    real(gp), dimension(nterm_max) :: fac_arr
+!!$    real(wp), dimension(:), allocatable :: tpsi
+!!$
+!!$    if(iproc == 0 .and. get_verbose_level() > 1) write(*,'(1x,a)',advance='no')'Writing wavefunctions in wavelet form '
+!!$    
+!!$    tpsi = f_malloc(wfd%nvctr_c+7*wfd%nvctr_f,id='tpsi')
+!!$
+!!$    !initialize the wavefunction
+!!$    call f_zero(psi)
+!!$    !this can be changed to be passed only once to all the gaussian basis
+!!$    !eks=0.d0
+!!$    !loop over the atoms
+!!$    ishell=0
+!!$    iexpo=1
+!!$    icoeff=1
+!!$
+!!$
+!!$
+!!$    do iat=1,G%nat
+!!$       rx=G%rxyz(1,iat)
+!!$       ry=G%rxyz(2,iat)
+!!$       rz=G%rxyz(3,iat)
+!!$
+!!$       !loop over the number of shells of the atom type
+!!$       do isat=1,G%nshell(iat)
+!!$          ishell=ishell+1
+!!$          !the degree of contraction of the basis function
+!!$          !is the same as the ng value of the createAtomicOrbitals routine
+!!$          ng=G%ndoc(ishell)
+!!$          !angular momentum of the basis set(shifted for compatibility with BigDFT routines
+!!$          l=G%nam(ishell)
+!!$          !print *,iproc,iat,ishell,G%nam(ishell),G%nshell(iat)
+!!$          !multiply the values of the gaussian contraction times the orbital coefficient
+!!$
+!!$
+!!$
+!!$
+!!$          do m=1,2*l-1
+!!$             call calc_coeff_inguess(l,m,nterm_max,nterm,lx,ly,lz,fac_arr)
+!!$             !control whether the basis element may be
+!!$             !contribute to some of the orbital of the processor
+!!$             maycalc=.false.
+!!$             loop_calc: do iorb=1,orbs%norb
+!!$                if (orbs%isorb < iorb .and. iorb <= orbs%isorb+orbs%norbp) then
+!!$                   jorb=iorb-orbs%isorb
+!!$                   do ispinor=1,orbs%nspinor
+!!$                      if (wfn_gau(icoeff,ispinor,jorb) /= 0.0_wp) then
+!!$                         maycalc=.true.
+!!$                         exit loop_calc
+!!$                      end if
+!!$                   end do
+!!$                end if
+!!$             end do loop_calc
+!!$             if (maycalc) then
+!!$                call crtonewave(geocode,grid%n1,grid%n2,grid%n3,ng,nterm,lx,ly,lz,fac_arr,&
+!!$                     &   G%xp(1,iexpo),G%psiat(1,iexpo),&
+!!$                     &   rx,ry,rz,hx,hy,hz,&
+!!$                     &   0,grid%n1,0,grid%n2,0,grid%n3,&
+!!$                     &   grid%nfl1,grid%nfu1,grid%nfl2,grid%nfu2,grid%nfl3,grid%nfu3,  & 
+!!$                     wfd%nseg_c,wfd%nvctr_c,wfd%keygloc,wfd%keyvloc,wfd%nseg_f,wfd%nvctr_f,&
+!!$                     &   wfd%keygloc(1,wfd%nseg_c+1),wfd%keyvloc(wfd%nseg_c+1),&
+!!$                     &   tpsi(1),tpsi(wfd%nvctr_c+1))
+!!$             end if
+!!$             !sum the result inside the orbital wavefunction
+!!$             !loop over the orbitals
+!!$             do iorb=1,orbs%norb
+!!$                if (orbs%isorb < iorb .and. iorb <= orbs%isorb+orbs%norbp) then
+!!$                   jorb=iorb-orbs%isorb
+!!$                   do ispinor=1,orbs%nspinor
+!!$                      call axpy(wfd%nvctr_c+7*wfd%nvctr_f,wfn_gau(icoeff,ispinor,jorb),&
+!!$                           &   tpsi(1),1,psi(1,ispinor,jorb),1)
+!!$                   end do
+!!$                end if
+!!$             end do
+!!$             icoeff=icoeff+1
+!!$          end do
+!!$          iexpo=iexpo+ng
+!!$       end do
+!!$       if (iproc == 0 .and. get_verbose_level() > 1) then
+!!$          write(*,'(a)',advance='no') &
+!!$               &   repeat('.',(iat*40)/G%nat-((iat-1)*40)/G%nat)
+!!$       end if
+!!$    end do
+!!$
+!!$    if (iproc==0)    call gaudim_check(iexpo,icoeff,ishell,G%nexpo,G%ncoeff,G%nshltot)
+!!$
+!!$    !if (iproc ==0  .and. get_verbose_level() > 1) write(*,'(1x,a)')'done.'
+!!$    !renormalize the orbitals
+!!$    !calculate the deviation from 1 of the orbital norm
+!!$    normdev=0.0_dp
+!!$    tt=0.0_dp
+!!$
+!!$    do iorb=1,orbs%norb
+!!$       if (orbs%isorb < iorb .and. iorb <= orbs%isorb+orbs%norbp) then
+!!$          jorb=iorb-orbs%isorb
+!!$          totnorm=0.0_dp
+!!$          do ispinor=1,orbs%nspinor !to be verified in case of nspinor=4
+!!$             call wnrm(wfd%nvctr_c,wfd%nvctr_f,psi(1,ispinor,jorb),psi(wfd%nvctr_c+1,ispinor,jorb),scpr) 
+!!$             totnorm=totnorm+scpr
+!!$          end do
+!!$          !! print *, " TOTNORM QUI " , totnorm 
+!!$          totnorm=1.0_wp
+!!$          do ispinor=1,orbs%nspinor !to be verified in case of nspinor=4
+!!$             call wscal(wfd%nvctr_c,wfd%nvctr_f,real(1.0_dp/sqrt(totnorm),wp),psi(1,ispinor,jorb),psi(wfd%nvctr_c+1,ispinor,jorb))
+!!$          end do
+!!$          !write(*,'(1x,a,i5,1pe14.7)')'norm of orbital ',iorb,totnorm
+!!$          tt=max(tt,abs(1.0_dp-totnorm))
+!!$       end if
+!!$    end do
+!!$    if (nproc > 1) then
+!!$       call MPI_REDUCE(tt,normdev,1,mpidtypd,MPI_MAX,0,bigdft_mpi%mpi_comm,ierr)
+!!$    else
+!!$       normdev=tt
+!!$    end if
+!!$    if (iproc ==0) write(*,'(1x,a,1pe12.2)')&
+!!$         &   'Deviation from normalization of the imported orbitals',normdev
+!!$
+!!$    call f_free(tpsi)
+!!$
+!!$  END SUBROUTINE gaussians_to_wavelets_nonorm
 
 
   subroutine lowpass_projector(n1,n2,n3,nvctr,psi)

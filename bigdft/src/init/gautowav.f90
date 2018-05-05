@@ -395,16 +395,18 @@ subroutine parse_cp2k_files(iproc,basisfile,orbitalfile,nat,ntypes,orbs,iatype,r
 END SUBROUTINE parse_cp2k_files
 
 
-subroutine gaussians_to_wavelets(iproc,nproc,geocode,orbs,grid,hx,hy,hz,wfd,G,wfn_gau,psi)
+subroutine gaussians_to_wavelets(iproc,nproc,mesh,orbs,grid,hx,hy,hz,wfd,G,wfn_gau,psi)
   use module_base
   use module_types
   use yaml_output
   use gaussians
   use compression
   use locregs
+  use box, only: cell
   implicit none
-  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+!!$  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
   integer, intent(in) :: iproc,nproc
+  type(cell), intent(in) :: mesh
   real(gp), intent(in) :: hx,hy,hz
   type(grid_dimensions), intent(in) :: grid
   type(wavefunctions_descriptors), intent(in) :: wfd
@@ -472,7 +474,7 @@ subroutine gaussians_to_wavelets(iproc,nproc,geocode,orbs,grid,hx,hy,hz,wfd,G,wf
               end if
            end do loop_calc
            if (maycalc) then
-              call crtonewave(geocode,grid%n1,grid%n2,grid%n3,ng,nterm,lx,ly,lz,fac_arr,&
+              call crtonewave(mesh,grid%n1,grid%n2,grid%n3,ng,nterm,lx,ly,lz,fac_arr,&
                    G%xp(:,iexpo),G%psiat(:,iexpo),&
                    rx,ry,rz,hx,hy,hz,&
                    0,grid%n1,0,grid%n2,0,grid%n3,&
@@ -1836,15 +1838,17 @@ END SUBROUTINE segments_to_grid
 
 
 !> Parse the output of CP2K to read the basis set information
-subroutine gautowav(geocode,iproc,nproc,nat,ntypes,norb,norbp,n1,n2,n3,&
+subroutine gautowav(mesh,iproc,nproc,nat,ntypes,norb,norbp,n1,n2,n3,&
      nfl1,nfu1,nfl2,nfu2,nfl3,nfu3,&
      nvctr_c,nvctr_f,nseg_c,nseg_f,keyg,keyv,iatype,rxyz,hx,hy,hz,psi) !n(c) occup (arg:l-5)
   use module_base
   use module_types
   use gaussians
   use yaml_output
+  use box, only: cell
   implicit none
-  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+!!$  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+  type(cell), intent(in) :: mesh
   integer, intent(in) :: norb,norbp,iproc,nproc,nat,ntypes
   integer, intent(in) :: nvctr_c,nvctr_f,n1,n2,n3,nseg_c,nseg_f
   integer, intent(in) :: nfl1,nfu1,nfl2,nfu2,nfl3,nfu3
@@ -2175,7 +2179,7 @@ subroutine gautowav(geocode,iproc,nproc,nat,ntypes,norb,norbp,n1,n2,n3,&
            call calc_coeff_inguess(l,m,nterm_max,nterm,lx,ly,lz,fac_arr)
 !!!           !this kinetic energy is not reliable
 !!!           eks=eks+ek*occup(iorb)*cimu(m,ishell,iat,iorb)
-           call crtonewave(geocode,n1,n2,n3,ng,nterm,lx,ly,lz,fac_arr,xp,psiatn,&
+           call crtonewave(mesh,n1,n2,n3,ng,nterm,lx,ly,lz,fac_arr,xp,psiatn,&
                 rx,ry,rz,hx,hy,hz,0,n1,0,n2,0,n3,nfl1,nfu1,nfl2,nfu2,nfl3,nfu3,  &
                 nseg_c,nvctr_c,keyg,keyv,nseg_f,nvctr_f,&
                 keyg(1,nseg_c+1),keyv(nseg_c+1),&
@@ -2313,12 +2317,14 @@ end function myorbital
 !> Returns an input guess orbital that is a Gaussian centered at a Wannier center
 !! @f$ exp (-1/(2*gau_a^2) *((x-cntrx)^2 + (y-cntry)^2 + (z-cntrz)^2 )) @f$
 !! in the arrays psi_c, psi_f
-subroutine crtonewave(geocode,n1,n2,n3,nterm,ntp,lx,ly,lz,fac_arr,xp,psiat,rx,ry,rz,hx,hy,hz, &
+subroutine crtonewave(mesh,n1,n2,n3,nterm,ntp,lx,ly,lz,fac_arr,xp,psiat,rx,ry,rz,hx,hy,hz, &
      nl1_c,nu1_c,nl2_c,nu2_c,nl3_c,nu3_c,nl1_f,nu1_f,nl2_f,nu2_f,nl3_f,nu3_f,  &
      nseg_c,mvctr_c,keyg_c,keyv_c,nseg_f,mvctr_f,keyg_f,keyv_f,psi_c,psi_f)
   use module_base
+  use box, only: cell,cell_periodic_dims
   implicit none
-  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+!!#  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+  type(cell), intent(in) :: mesh
   integer, intent(in) :: n1,n2,n3,nterm,ntp,nseg_c,nseg_f,mvctr_c,mvctr_f
   integer, intent(in) :: nl1_c,nu1_c,nl2_c,nu2_c,nl3_c,nu3_c,nl1_f,nu1_f,nl2_f,nu2_f,nl3_f,nu3_f
   real(gp), intent(in) :: rx,ry,rz,hx,hy,hz
@@ -2342,11 +2348,16 @@ subroutine crtonewave(geocode,n1,n2,n3,nterm,ntp,lx,ly,lz,fac_arr,xp,psiat,rx,ry
   real(wp), dimension(:,:), allocatable :: wprojx,wprojy,wprojz
   real(wp), dimension(:,:,:), allocatable :: psig_c
   real(wp), dimension(:,:,:,:), allocatable :: psig_f
+  logical, dimension(3) :: peri
 
   !conditions for periodicity in the three directions
-  perx=(geocode /= 'F')
-  pery=(geocode == 'P')
-  perz=(geocode /= 'F')
+!!$  perx=(geocode /= 'F')
+!!$  pery=(geocode == 'P')
+!!$  perz=(geocode /= 'F')
+  peri=cell_periodic_dims(mesh)
+  perx=peri(1)
+  pery=peri(2)
+  perz=peri(3)
 
 
   wprojx = f_malloc((/ 0.to.n1, 1.to.2 /),id='wprojx')
