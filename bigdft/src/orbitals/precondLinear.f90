@@ -79,7 +79,8 @@ subroutine solvePrecondEquation(iproc,nproc,lr,ncplx,ncong,cprecr,&
   ! Rewritten using axpy since precondition_preconditioner is now called with r instead of b
   call axpy(lr%wfd%nvctr_c+7*lr%wfd%nvctr_f, -1.d0, d(1), 1, r(1), 1)
 
-  call calculate_rmr_new(lr%geocode,lr%hybrid_on,ncplx,lr%wfd,scal,r,d,rmr_new)
+!!$  call calculate_rmr_new(lr%geocode,lr%hybrid_on,ncplx,lr%wfd,scal,r,d,rmr_new)
+  call calculate_rmr_new(lr%mesh,lr%hybrid_on,ncplx,lr%wfd,scal,r,d,rmr_new)
   !stands for
   !d=r
   !rmr_new=dot_product(r,r)
@@ -101,7 +102,8 @@ subroutine solvePrecondEquation(iproc,nproc,lr,ncplx,ncong,cprecr,&
 
      rmr_old=rmr_new
 
-     call calculate_rmr_new(lr%geocode,lr%hybrid_on,ncplx,lr%wfd,scal,r,b,rmr_new)
+!!$     call calculate_rmr_new(lr%geocode,lr%hybrid_on,ncplx,lr%wfd,scal,r,b,rmr_new)
+     call calculate_rmr_new(lr%mesh,lr%hybrid_on,ncplx,lr%wfd,scal,r,b,rmr_new)
 
      beta=rmr_new/rmr_old
 
@@ -111,7 +113,8 @@ subroutine solvePrecondEquation(iproc,nproc,lr,ncplx,ncong,cprecr,&
     
   enddo
 
-  call finalise_precond_residue(lr%geocode,lr%hybrid_on,ncplx,lr%wfd,scal,x)
+!!$  call finalise_precond_residue(lr%geocode,lr%hybrid_on,ncplx,lr%wfd,scal,x)
+  call finalise_precond_residue(lr%mesh,lr%hybrid_on,ncplx,lr%wfd,scal,x)
 
   !!call deallocate_workarrays_quartic_convolutions(work_conv)
 
