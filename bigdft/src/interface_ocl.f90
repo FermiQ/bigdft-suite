@@ -707,7 +707,8 @@ subroutine preconditionall_OCL(orbs,lr,hx,hy,hz,ncong,hpsi,gnrm,gnrm_zero,GPU)
 
      gnrm=0.0_dp
      gnrm_zero=0.0_dp
-  call allocate_work_arrays(lr%geocode,lr%hybrid_on,orbs%nspinor,lr%d,w)
+!!$  call allocate_work_arrays(lr%geocode,lr%hybrid_on,orbs%nspinor,lr%d,w)
+  call allocate_work_arrays(lr%mesh,lr%hybrid_on,orbs%nspinor,lr%d,w)
   if (orbs%norbp >0) ikpt=orbs%iokpt(1)
   do iorb=1,orbs%norbp
      !if it is the first orbital or the k-point has changed calculate the max
@@ -889,7 +890,8 @@ subroutine preconditionall_OCL(orbs,lr,hx,hy,hz,ncong,hpsi,gnrm,gnrm_zero,GPU)
         call ocl_release_mem_object(GPU%hpsicf_host(1,1))
      end if
 
-     call deallocate_work_arrays(lr%geocode,lr%hybrid_on,ncplx,w)
+!!$     call deallocate_work_arrays(lr%geocode,lr%hybrid_on,ncplx,w)
+     call deallocate_work_arrays(lr%mesh,lr%hybrid_on,ncplx,w)
 
 !!$  i_all=-product(shape(b))*kind(b)
 !!$  deallocate(b,stat=i_stat)

@@ -1314,7 +1314,8 @@ module get_basis
           else
              ncplx=1
           end if
-          call allocate_work_arrays(lzd%llr(ilr)%geocode, lzd%llr(ilr)%hybrid_on, &
+!!$          call allocate_work_arrays(lzd%llr(ilr)%geocode, lzd%llr(ilr)%hybrid_on, &
+          call allocate_work_arrays(lzd%llr(ilr)%mesh, lzd%llr(ilr)%hybrid_on, &
                ncplx, lzd%llr(ilr)%d, precond_workarrays(iorb))
       end do
     
@@ -1348,7 +1349,8 @@ module get_basis
           else
              ncplx=1
           end if
-          call deallocate_work_arrays(lzd%llr(ilr)%geocode, lzd%llr(ilr)%hybrid_on, &
+!!$          call deallocate_work_arrays(lzd%llr(ilr)%geocode, lzd%llr(ilr)%hybrid_on, &
+          call deallocate_work_arrays(lzd%llr(ilr)%mesh, lzd%llr(ilr)%hybrid_on, &
                ncplx, precond_workarrays(iorb))
       end do
       deallocate(precond_convol_workarrays)

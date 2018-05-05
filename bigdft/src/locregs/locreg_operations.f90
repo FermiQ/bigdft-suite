@@ -1061,9 +1061,12 @@ module locreg_operations
 
     END SUBROUTINE deallocate_work_arrays_sumrho
 
-    subroutine allocate_work_arrays(geocode,hybrid_on,ncplx,d,w)
+!!$    subroutine allocate_work_arrays(geocode,hybrid_on,ncplx,d,w)
+    subroutine allocate_work_arrays(mesh,hybrid_on,ncplx,d,w)
+      use box, only: cell,cell_geocode
       implicit none
-      character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+!!$      character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+      type(cell), intent(in) :: mesh
       logical, intent(in) :: hybrid_on
       integer, intent(in) :: ncplx
       type(grid_dimensions), intent(in) :: d
@@ -1075,7 +1078,8 @@ module locreg_operations
       integer :: n1f,n3f,n1b,n3b,nd1f,nd3f,nd1b,nd3b
       integer :: nf
 
-      if (geocode == 'F') then
+!!$      if (geocode == 'F') then
+      if (cell_geocode(mesh) == 'F') then
 
          nf=(d%nfu1-d%nfl1+1)*(d%nfu2-d%nfl2+1)*(d%nfu3-d%nfl3+1)
          !allocate work arrays
@@ -1088,7 +1092,8 @@ module locreg_operations
          w%x_f2 = f_malloc_ptr(nf,id='w%x_f2')
          w%x_f3 = f_malloc_ptr(nf,id='w%x_f3')
 
-      else if (geocode == 'P') then
+!!$      else if (geocode == 'P') then
+      else if (cell_geocode(mesh) == 'P') then
 
          if (hybrid_on) then
 
@@ -1130,7 +1135,8 @@ module locreg_operations
 
          end if
 
-      else if (geocode == 'S') then
+!!$      else if (geocode == 'S') then
+      else if (cell_geocode(mesh) == 'S') then
 
          if (ncplx == 1) then
             w%modul1 = f_malloc_ptr(lowfil.to.d%n1+lupfil,id='w%modul1')
@@ -1143,6 +1149,11 @@ module locreg_operations
 
          w%psifscf = f_malloc_ptr(ncplx*(2*d%n1+2)*(2*d%n2+16)*(2*d%n3+2),id='w%psifscf')
          w%ww = f_malloc_ptr(ncplx*(2*d%n1+2)*(2*d%n2+16)*(2*d%n3+2),id='w%ww')
+
+      else if (cell_geocode(mesh) == 'W') then
+
+         call f_err_throw("Wires bc has to be implemented here", &
+              err_name='BIGDFT_RUNTIME_ERROR')
 
       end if
 
@@ -1203,16 +1214,20 @@ module locreg_operations
 
     END SUBROUTINE memspace_work_arrays_precond
 
-    subroutine deallocate_work_arrays(geocode,hybrid_on,ncplx,w)
+!!$    subroutine deallocate_work_arrays(geocode,hybrid_on,ncplx,w)
+    subroutine deallocate_work_arrays(mesh,hybrid_on,ncplx,w)
+      use box, only: cell,cell_geocode
       implicit none
-      character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+!!$      character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+      type(cell), intent(in) :: mesh
       logical, intent(in) :: hybrid_on
       integer, intent(in) :: ncplx
       type(workarr_precond), intent(inout) :: w
       !local variables
       character(len=*), parameter :: subname='deallocate_work_arrays'
 
-      if (geocode == 'F') then
+!!$      if (geocode == 'F') then
+      if (cell_geocode(mesh) == 'F') then
 
          call f_free_ptr(w%xpsig_c)
          call f_free_ptr(w%ypsig_c)
@@ -1222,11 +1237,13 @@ module locreg_operations
          call f_free_ptr(w%x_f2)
          call f_free_ptr(w%x_f3)
 
-      else if ((geocode == 'P' .and. .not. hybrid_on) .or. geocode == 'S') then
+!!$      else if ((geocode == 'P' .and. .not. hybrid_on) .or. geocode == 'S') then
+      else if ((cell_geocode(mesh) == 'P' .and. .not. hybrid_on) .or. cell_geocode(mesh) == 'S') then
 
          if (ncplx == 1) then
             call f_free_ptr(w%modul1)
-            if (geocode /= 'S') then
+!!$            if (geocode /= 'S') then
+            if (cell_geocode(mesh) /= 'S') then
                call f_free_ptr(w%modul2)
             end if
             call f_free_ptr(w%modul3)
@@ -1239,7 +1256,8 @@ module locreg_operations
          call f_free_ptr(w%psifscf)
          call f_free_ptr(w%ww)
 
-      else if (geocode == 'P' .and. hybrid_on) then
+!!$      else if (geocode == 'P' .and. hybrid_on) then
+      else if (cell_geocode(mesh) == 'P' .and. hybrid_on) then
 
          call f_free_ptr(w%z1)
          call f_free_ptr(w%z3)
@@ -1254,6 +1272,10 @@ module locreg_operations
          call f_free_ptr(w%y_f)
          call f_free_ptr(w%ypsig_c)
 
+      else if (cell_geocode(mesh) == 'W') then
+
+         call f_err_throw("Wires bc has to be implemented here", &
+              err_name='BIGDFT_RUNTIME_ERROR')
 
       end if
 

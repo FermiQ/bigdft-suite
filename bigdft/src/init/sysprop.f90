@@ -592,7 +592,8 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
           else
              ncplx=1
           end if
-          call allocate_work_arrays(lzd_lin%llr(ilr)%geocode, lzd_lin%llr(ilr)%hybrid_on, &
+!!$          call allocate_work_arrays(lzd_lin%llr(ilr)%geocode, lzd_lin%llr(ilr)%hybrid_on, &
+          call allocate_work_arrays(lzd_lin%llr(ilr)%mesh, lzd_lin%llr(ilr)%hybrid_on, &
                ncplx, lzd_lin%llr(ilr)%d, precond_workarrays(iorb))
       end do
 
@@ -654,7 +655,8 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
            else
               ncplx=1
            end if
-           call deallocate_work_arrays(lzd_lin%llr(ilr)%geocode, lzd_lin%llr(ilr)%hybrid_on, &
+!!$           call deallocate_work_arrays(lzd_lin%llr(ilr)%geocode, lzd_lin%llr(ilr)%hybrid_on, &
+           call deallocate_work_arrays(lzd_lin%llr(ilr)%mesh, lzd_lin%llr(ilr)%hybrid_on, &
                 ncplx, precond_workarrays(iorb))
        end do
        deallocate(precond_convol_workarrays)

@@ -516,7 +516,8 @@ subroutine precondition_residue(lr,ncplx,ncong,cprecr,&
   r = f_malloc(ncplx*(lr%wfd%nvctr_c+7*lr%wfd%nvctr_f),id='r')
   d = f_malloc(ncplx*(lr%wfd%nvctr_c+7*lr%wfd%nvctr_f),id='d')
 
-  call allocate_work_arrays(lr%geocode,lr%hybrid_on,ncplx,lr%d,w)
+!!$  call allocate_work_arrays(lr%geocode,lr%hybrid_on,ncplx,lr%d,w)
+  call allocate_work_arrays(lr%mesh,lr%hybrid_on,ncplx,lr%d,w)
 
   call precondition_preconditioner(lr,ncplx,hx,hy,hz,scal,cprecr,w,x,b)
 
@@ -569,7 +570,8 @@ subroutine precondition_residue(lr,ncplx,ncong,cprecr,&
   call f_free(r)
   call f_free(d)
 
-  call deallocate_work_arrays(lr%geocode,lr%hybrid_on,ncplx,w)
+!!$  call deallocate_work_arrays(lr%geocode,lr%hybrid_on,ncplx,w)
+  call deallocate_work_arrays(lr%mesh,lr%hybrid_on,ncplx,w)
 
 END SUBROUTINE precondition_residue
 

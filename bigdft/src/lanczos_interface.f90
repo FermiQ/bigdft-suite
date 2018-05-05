@@ -841,7 +841,8 @@ contains
     dopcproj=.true.
 
 
-    call allocate_work_arrays('P',.true.,1,ha%Lzd%Glr%d,w)
+!!$    call allocate_work_arrays('P',.true.,1,ha%Lzd%Glr%d,w)
+    call allocate_work_arrays(ha%Lzd%Glr%mesh,.true.,1,ha%Lzd%Glr%d,w)
 
 !!$
 !!$    hh(1)=.5_wp/ha%hx**2
@@ -971,7 +972,8 @@ contains
        endif
     endif
 
-    call deallocate_work_arrays('P',.true.,1,w)
+!!$    call deallocate_work_arrays('P',.true.,1,w)
+    call deallocate_work_arrays(ha%Lzd%Glr%mesh,.true.,1,w)
 
   END SUBROUTINE EP_precondition
 
