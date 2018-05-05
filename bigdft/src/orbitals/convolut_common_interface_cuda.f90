@@ -352,7 +352,8 @@ subroutine preconditionall_GPU(orbs,lr,hx,hy,hz,ncong,hpsi,gnrm,gnrm_zero,GPU) !
            gnrm=gnrm+orbs%kwgts(orbs%iokpt(iorb))*scpr**2
         end if
 
-        call cprecr_from_eval(lr%geocode,eval_zero,orbs%eval(orbs%isorb+iorb),cprecr)          
+!!$        call cprecr_from_eval(lr%geocode,eval_zero,orbs%eval(orbs%isorb+iorb),cprecr)          
+        call cprecr_from_eval(lr%mesh_coarse,eval_zero,orbs%eval(orbs%isorb+iorb),cprecr)          
 
         call precondition_preconditioner(lr,ncplx,hx,hy,hz,scal,cprecr,w,&
              hpsi(1,inds,iorb),b(1,iorb))
