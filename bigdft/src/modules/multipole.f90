@@ -258,7 +258,8 @@ module multipole
       ! No need to do this if there are no multipoles given.
       multipoles_if: if (ep%nmpl>0) then
 
-          hhh = hx*hy*hz
+!!$          hhh = hx*hy*hz
+          hhh = denspot%dpbox%mesh%volume_element
 
           ! Used for the calculations of the solid harmonics, see description there
           rmin = 2.0d0*hhh**(1.d0/3.d0)
@@ -1641,7 +1642,7 @@ module multipole
       use locreg_operations
       use orbitalbasis
 !!$      use bounds, only: geocode_buffers
-      use box, only: cell, cell_periodic_dims
+      use box
       implicit none
       integer, intent(in) :: l, m, nphi
       type(cell), intent(in) :: mesh_global
@@ -1658,11 +1659,12 @@ module multipole
       type(ket) :: psi_it
       type(workarr_sumrho) :: w
       real(wp) :: norm, rmax, tt, x, y, z
-      real(wp), dimension(3) :: lrcntr
+      real(wp), dimension(3) :: lrcntr,rc,rxyz
       real(wp),dimension(:),allocatable :: phi2r, sphi2r
       real(wp), dimension(:), pointer :: sphi_ptr
       logical, dimension(3) :: peri
       integer, dimension(3) :: ioffset_isf
+      type(box_iterator) :: bit
 
       call f_routine(id='apply_Slm')
 
@@ -1703,49 +1705,54 @@ module multipole
             call daub_to_isf(psi_it%lr,w,psi_it%phi_wvl,phi2r)
 
 !--- Start new loop -------------------------------------------------------------------------------------
-!         bit=box_iter(lzd%llr(ilr)%mesh)
-!         do while box_next_point(bit)
-!             tt = solid_harmonic(0, l, m, x, y, z)
-!             tt = tt*sqrt(4.d0*pi/real(2*l+1,gp))
-!             sphi2r(bit%ind) = tt*phi2r(bit%ind)
-!         end do
+            bit=box_iter(psi_it%lr%mesh,origin=-(ioffset_isf+1)*(hgrids*0.5d0))
+            do while (box_next_point(bit))
+                rc=closest_r(psi_it%lr%mesh,bit%rxyz,lrcntr)
+                rxyz=rxyz_ortho(psi_it%lr%mesh,rc)
+                if (sphere) then
+                   if (square_gd(psi_it%lr%mesh,rc)>rmax**2) cycle
+                end if
+                tt = solid_harmonic(0, l, m, rxyz(1), rxyz(2), rxyz(3))
+                tt = tt*sqrt(4.d0*pi/real(2*l+1,gp))
+                sphi2r(bit%ind) = tt*phi2r(bit%ind)
+            end do
 !--- End new loop ---------------------------------------------------------------------------------------
 
-!--- Start old loop -------------------------------------------------------------------------------------
-
-            !$omp parallel default(none) &
-            !$omp shared(psi_it, hgrids, lrcntr, acell, nl3, nl2, nl1) &
-            !$omp shared(peri, ioffset_isf, sphere, rmax, sphi2r, phi2r, l, m) &
-            !$omp private(i3, ii3, z, i2, ii2, y, i1, ii1, x, ind, tt)
-            !$omp do
-            do i3=1,psi_it%lr%d%n3i
-!!$               ii3 = psi_it%lr%nsi3 + i3 - nl3 - 1
-               ii3 = ioffset_isf(3) + i3
-               z=ii3*0.5d0*hgrids(3)-lrcntr(3)
-               z=closest_image(z,acell(3),peri(3))
-               do i2=1,psi_it%lr%d%n2i
-!!$                  ii2 = psi_it%lr%nsi2 + i2 - nl2 - 1
-                  ii2 = ioffset_isf(2) + i2
-                  y=ii2*0.5d0*hgrids(2)-lrcntr(2)
-                  y=closest_image(y,acell(2),peri(2))
-                  do i1=1,psi_it%lr%d%n1i
-!!$                     ii1 = psi_it%lr%nsi1 + i1 - nl1 - 1
-                     ii1 = ioffset_isf(1) + i1
-                     x=ii1*0.5d0*hgrids(1)-lrcntr(1)
-                     x=closest_image(x,acell(1),peri(1))
-                     ind = (i3-1)*psi_it%lr%d%n2i*psi_it%lr%d%n1i + (i2-1)*psi_it%lr%d%n1i + i1
-                     if (sphere) then
-                        if (x**2+y**2+z**2>rmax**2) cycle
-                     end if
-                     tt = solid_harmonic(0, l, m, x, y, z)
-                     tt = tt*sqrt(4.d0*pi/real(2*l+1,gp))
-                     sphi2r(ind) = tt*phi2r(ind)
-                  end do
-               end do
-            end do
-            !$omp end do
-            !$omp end parallel
-!--- End old loop ---------------------------------------------------------------------------------------
+!!$!--- Start old loop -------------------------------------------------------------------------------------
+!!$
+!!$            !$omp parallel default(none) &
+!!$            !$omp shared(psi_it, hgrids, lrcntr, acell, nl3, nl2, nl1) &
+!!$            !$omp shared(peri, ioffset_isf, sphere, rmax, sphi2r, phi2r, l, m) &
+!!$            !$omp private(i3, ii3, z, i2, ii2, y, i1, ii1, x, ind, tt)
+!!$            !$omp do
+!!$            do i3=1,psi_it%lr%d%n3i
+!!$!!$               ii3 = psi_it%lr%nsi3 + i3 - nl3 - 1
+!!$               ii3 = ioffset_isf(3) + i3
+!!$               z=ii3*0.5d0*hgrids(3)-lrcntr(3)
+!!$               z=closest_image(z,acell(3),peri(3))
+!!$               do i2=1,psi_it%lr%d%n2i
+!!$!!$                  ii2 = psi_it%lr%nsi2 + i2 - nl2 - 1
+!!$                  ii2 = ioffset_isf(2) + i2
+!!$                  y=ii2*0.5d0*hgrids(2)-lrcntr(2)
+!!$                  y=closest_image(y,acell(2),peri(2))
+!!$                  do i1=1,psi_it%lr%d%n1i
+!!$!!$                     ii1 = psi_it%lr%nsi1 + i1 - nl1 - 1
+!!$                     ii1 = ioffset_isf(1) + i1
+!!$                     x=ii1*0.5d0*hgrids(1)-lrcntr(1)
+!!$                     x=closest_image(x,acell(1),peri(1))
+!!$                     ind = (i3-1)*psi_it%lr%d%n2i*psi_it%lr%d%n1i + (i2-1)*psi_it%lr%d%n1i + i1
+!!$                     if (sphere) then
+!!$                        if (x**2+y**2+z**2>rmax**2) cycle
+!!$                     end if
+!!$                     tt = solid_harmonic(0, l, m, x, y, z)
+!!$                     tt = tt*sqrt(4.d0*pi/real(2*l+1,gp))
+!!$                     sphi2r(ind) = tt*phi2r(ind)
+!!$                  end do
+!!$               end do
+!!$            end do
+!!$            !$omp end do
+!!$            !$omp end parallel
+!!$!--- End old loop ---------------------------------------------------------------------------------------
             sphi_ptr => ob_ket_map(Slmphi,psi_it)
             call isf_to_daub(psi_it%lr, w, sphi2r, sphi_ptr)
          end do
