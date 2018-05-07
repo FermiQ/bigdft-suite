@@ -5734,6 +5734,7 @@ end subroutine calculate_rpowerx_matrices
       use f_utils
       use locregs, only: locreg_descriptors
       use locreg_operations,only: get_isf_offset
+      use box
 !!$      use bounds, only: geocode_buffers
       implicit none
 
@@ -5747,8 +5748,9 @@ end subroutine calculate_rpowerx_matrices
       ! Local variables
       integer :: nl1, nl2, nl3, i1, i2, i3, ii1, ii2, ii3, ii
       real(kind=8) :: weight, hxh, hyh, hzh, x, y, z, tt
-      real(kind=8),dimension(3) :: center
+      real(kind=8),dimension(3) :: center,rxyz
       integer, dimension(3) :: ioffset_isf
+      type(box_iterator) :: bit
 
       call f_routine(id='calculate_weight_center')
 
@@ -5759,34 +5761,49 @@ end subroutine calculate_rpowerx_matrices
       ioffset_isf(:) = get_isf_offset(llr,glr%mesh)
       weight = 0.d0
       center(1:3) = 0.0_gp
-      !$omp parallel default(none) &
-      !$omp shared(llr, ioffset_isf, hxh, hyh, hzh, phir, center, weight) &
-      !$omp private(i1, i2, i3, ii1, ii2, ii3, x, y, z, tt, ii)
-      !$omp do reduction(+: center, weight)
-      do i3=1,llr%d%n3i
-!!$          ii3 = llr%nsi3 + i3 - nl3 - 1
-          ii3 = ioffset_isf(3) + i3
-          z = ii3*hzh
-          do i2=1,llr%d%n2i
-!!$              ii2 = llr%nsi2 + i2 - nl2 - 1
-              ii2 = ioffset_isf(2) + i2
-              y = ii2*hyh
-              do i1=1,llr%d%n1i
-!!$                  ii1 = llr%nsi1 + i1 - nl1 - 1
-                  ii1 = ioffset_isf(1) + i1
-                  x = ii1*hxh
-                  ii = (i3-1)*llr%d%n2i*llr%d%n1i+(i2-1)*llr%d%n1i+i1
-                  tt = phir(ii)**2
-                  center(1) = center(1) + x*tt
-                  center(2) = center(2) + y*tt
-                  center(3) = center(3) + z*tt
-                  weight = weight + tt
-                  !!ii = ii + 1
-              end do
-          end do
+
+!--- Start new loop -------------------------------------------------------------------------------------
+      bit=box_iter(llr%mesh,origin=-(ioffset_isf+1)*(hgrids*0.5d0))
+      do while (box_next_point(bit))
+          rxyz=rxyz_ortho(llr%mesh,bit%rxyz)
+          tt = phir(bit%ind)**2
+          center(1) = center(1) + tt*rxyz(1)
+          center(2) = center(2) + tt*rxyz(2)
+          center(3) = center(3) + tt*rxyz(3)
+          weight = weight + tt
       end do
-      !$omp end do
-      !$omp end parallel
+!--- End new loop ---------------------------------------------------------------------------------------
+
+!--- Start old loop -------------------------------------------------------------------------------------
+!!$      !$omp parallel default(none) &
+!!$      !$omp shared(llr, ioffset_isf, hxh, hyh, hzh, phir, center, weight) &
+!!$      !$omp private(i1, i2, i3, ii1, ii2, ii3, x, y, z, tt, ii)
+!!$      !$omp do reduction(+: center, weight)
+!!$      do i3=1,llr%d%n3i
+!!$!!$          ii3 = llr%nsi3 + i3 - nl3 - 1
+!!$          ii3 = ioffset_isf(3) + i3
+!!$          z = ii3*hzh
+!!$          do i2=1,llr%d%n2i
+!!$!!$              ii2 = llr%nsi2 + i2 - nl2 - 1
+!!$              ii2 = ioffset_isf(2) + i2
+!!$              y = ii2*hyh
+!!$              do i1=1,llr%d%n1i
+!!$!!$                  ii1 = llr%nsi1 + i1 - nl1 - 1
+!!$                  ii1 = ioffset_isf(1) + i1
+!!$                  x = ii1*hxh
+!!$                  ii = (i3-1)*llr%d%n2i*llr%d%n1i+(i2-1)*llr%d%n1i+i1
+!!$                  tt = phir(ii)**2
+!!$                  center(1) = center(1) + x*tt
+!!$                  center(2) = center(2) + y*tt
+!!$                  center(3) = center(3) + z*tt
+!!$                  weight = weight + tt
+!!$                  !!ii = ii + 1
+!!$              end do
+!!$          end do
+!!$      end do
+!!$      !$omp end do
+!!$      !$omp end parallel
+!--- Start old loop -------------------------------------------------------------------------------------
       center_locreg(1:3) = center(1:3)/weight
       center_orb(1:3) = center_locreg(1:3)
 
