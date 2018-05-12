@@ -1,0 +1,27 @@
+---
+Default tolerances:
+  Epsilon: 1.1e-11
+
+Keys to ignore:
+  - Timestamp of the run
+  - Parallel environment
+  - Tot. No. of Allocations
+  - Tot. No. of Deallocations
+  - Memory occupation
+  - Walltime since initialization
+  - Max No. of dictionaries used
+  - Number of dictionary folders allocated
+  - Timinig summary
+  - Timing analysis
+  - taskgroup summary
+
+driver_random:
+  penalty: 96001
+  max error relative: 8.1e-9
+  mean error relative: 4.5e-10
+
+driver_foe:
+  difference: 2.0e-11
+  trace(KS): 1.8e-11
+  max diff of eigenvectors: 2.5e-11
+  penalty: 150001
