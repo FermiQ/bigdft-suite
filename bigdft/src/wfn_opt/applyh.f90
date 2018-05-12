@@ -1685,7 +1685,7 @@ subroutine gather_cprj(orbs, paw)
      !   
      !    call MPI_ALLGATHER(raux,sendcnt,MPI_DOUBLE_PRECISION,&
      !&     raux2,recvcnt,MPI_DOUBLE_PRECISION,MPI_COMM_WORLD,ierr)
-     call mpiallgather(sendbuf = raux(1,1,1,1), recvcounts = ncntt, &
+     call fmpi_allgather(sendbuf = raux(1,1,1,1), recvcounts = ncntt, &
           & displs = ndsplt, comm = bigdft_mpi%mpi_comm)
 !!$     call MPI_ALLGATHERV(raux,ncntd,mpidtypw,&
 !!$          &     raux2,ncntt,ndsplt,mpidtypw,MPI_COMM_WORLD,ierr)

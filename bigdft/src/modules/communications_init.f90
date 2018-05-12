@@ -3479,7 +3479,7 @@ module communications_init
 !!$              indexsendbuf, indexrecvbuf)
          call fmpi_alltoall(sendbuf=indexsendbuf,sendcounts=nsendcounts,sdispls=nsenddspls,&
               recvbuf=indexrecvbuf,recvcounts=nrecvcounts,rdispls=nrecvdspls,comm=bigdft_mpi%mpi_comm,&
-              algorithm=ALLTOALL_GET_ENUM)
+              algorithm=ONESIDED_ENUM)
          !do i=1,size(indexrecvbuf)
          !    write(1000+iproc,*) 'i, indexrecvbuf(i)', i, indexrecvbuf(i)
          !end do
@@ -3491,7 +3491,7 @@ module communications_init
 !!$              indexsendorbital, indexrecvorbital)
          call fmpi_alltoall(sendbuf=indexsendorbital,sendcounts=nsendcounts,sdispls=nsenddspls,&
               recvbuf=indexrecvorbital,recvcounts=nrecvcounts,rdispls=nrecvdspls,comm=bigdft_mpi%mpi_comm,&
-              algorithm=ALLTOALL_GET_ENUM)
+              algorithm=ONESIDED_ENUM)
       else
            indexrecvbuf=indexsendbuf
            indexrecvorbital=indexsendorbital

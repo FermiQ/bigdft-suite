@@ -1488,7 +1488,76 @@ module sparsematrix
    !!end function orb_from_index
 
 
-   subroutine gather_matrix_from_taskgroups(iproc, nproc, comm, smat, mat_tg, mat_global)
+   subroutine gather_matrix_spin(nproc,mat_tg,count,mat_global,ld_global,recvcounts,displs,comm)
+     implicit none
+     integer, intent(in) :: count,ld_global,comm,nproc
+     real(mp), dimension(count), intent(in) :: mat_tg
+     real(mp), dimension(ld_global), intent(out) :: mat_global
+     integer, dimension(nproc), intent(in) :: recvcounts,displs
+     
+      call fmpi_allgather(sendbuf=mat_tg,sendcount=count,&
+           recvbuf=mat_global,recvcounts=recvcounts, &
+           displs=displs,comm=comm,algorithm=ONESIDED_ENUM)
+
+    end subroutine gather_matrix_spin
+
+    subroutine gather_matrix_from_taskgroups(iproc, nproc, comm, smat, mat_tg, mat_global)
+      use dynamic_memory
+      implicit none
+
+      ! Calling arguments
+      integer,intent(in) :: iproc, nproc, comm
+      type(sparse_matrix),intent(in) :: smat
+      real(kind=mp),dimension(smat%nvctrp_tg*smat%nspin),intent(in) :: mat_tg !< matrix distributed over the taskgroups
+      real(kind=mp),dimension(smat%nvctr*smat%nspin),intent(out) :: mat_global !< global matrix gathered together
+
+      ! Local variables
+      integer,dimension(:),allocatable :: recvcounts, recvdspls
+      integer :: ncount, ist_send, jproc, ispin, ishift
+
+      call f_routine(id='gather_matrix_from_taskgroups')
+
+      if (nproc>1) then
+         recvcounts = f_malloc0(0.to.nproc-1,id='recvcounts')
+         recvdspls = f_malloc0(0.to.nproc-1,id='recvdspls')
+         !call to_zero(nproc, recvcounts(0))
+         !call to_zero(nproc, recvdspls(0))
+         !ncount = smat%smmm%istartend_mm_dj(2) - smat%smmm%istartend_mm_dj(1) + 1
+         ncount = smat%nvctrp
+         recvcounts(iproc) = ncount
+         call fmpi_allreduce(recvcounts(0), nproc, FMPI_SUM, comm=comm)
+         recvdspls(0) = 0
+         do jproc=1,nproc-1
+            recvdspls(jproc) = recvdspls(jproc-1) + recvcounts(jproc-1)
+         end do
+         do ispin=1,smat%nspin
+            ishift = (ispin-1)*smat%nvctr
+            !ist_send = smat%smmm%istartend_mm_dj(1) - smat%isvctrp_tg + ishift
+            ist_send = smat%isvctr + 1 - smat%isvctrp_tg + ishift
+            ! The following condition is necessary for ncount=0, in order to avoid out of bound problems
+            ist_send = min(ist_send,ispin*smat%nvctrp_tg)
+            call gather_matrix_spin(nproc,mat_tg(ist_send),ncount,mat_global(ishift+1),&
+                 sum(recvcounts),recvcounts,recvdspls,comm)
+!!$            call fmpi_allgather(mat_tg(ist_send), ncount, &
+!!$                 mat_global(ishift+1), recvcounts=recvcounts, &
+!!$                 displs=recvdspls, comm=comm,&
+!!$                 algorithm=ONESIDED_ENUM)
+            !!call mpi_allgatherv(mat_tg(ist_send), ncount, mpi_double_precision, &
+            !!                    mat_global(1), recvcounts, recvdspls, mpi_double_precision, &
+            !!                    bigdft_mpi%mpi_comm, ierr)
+         end do
+         call f_free(recvcounts)
+         call f_free(recvdspls)
+      else
+         call vcopy(smat%nvctrp*smat%nspin, mat_tg(1), 1, mat_global(1), 1)
+      end if
+
+      call f_release_routine()
+
+    end subroutine gather_matrix_from_taskgroups
+
+
+   subroutine gather_matrix_from_taskgroups_deprecated(iproc, nproc, comm, smat, mat_tg, mat_global)
      use dynamic_memory
      implicit none
    
@@ -1523,8 +1592,10 @@ module sparsematrix
              ist_send = smat%isvctr + 1 - smat%isvctrp_tg + ishift
              ! The following condition is necessary for ncount=0, in order to avoid out of bound problems
              ist_send = min(ist_send,ispin*smat%nvctrp_tg)
-             call mpi_get_to_allgatherv_double(mat_tg(ist_send), ncount, &
-                  mat_global(ishift+1), recvcounts, recvdspls, comm)
+             call fmpi_allgather(mat_tg(ist_send), ncount, &
+                  mat_global(ishift+1), recvcounts=recvcounts, &
+                  displs=recvdspls, comm=comm,&
+                  algorithm=ONESIDED_ENUM)
              !!call mpi_allgatherv(mat_tg(ist_send), ncount, mpi_double_precision, &
              !!                    mat_global(1), recvcounts, recvdspls, mpi_double_precision, &
              !!                    bigdft_mpi%mpi_comm, ierr)
@@ -1537,7 +1608,7 @@ module sparsematrix
 
      call f_release_routine()
 
-   end subroutine gather_matrix_from_taskgroups
+   end subroutine gather_matrix_from_taskgroups_deprecated
 
 
    subroutine gather_matrix_from_taskgroups_inplace(iproc, nproc, comm, smat, mat)
@@ -1578,8 +1649,10 @@ module sparsematrix
          do ispin=1,smat%nspin
              ishift = (ispin-1)*smat%nvctr
              ist_send = smat%smmm%istartend_mm_dj(1) - smat%isvctrp_tg + ishift
-             call mpi_get_to_allgatherv_double(mat%matrix_compr(ist_send), ncount, &
-                  mat_global(ishift+1), recvcounts, recvdspls, comm)
+             call fmpi_allgather(mat%matrix_compr(ist_send), ncount, &
+                  mat_global(ishift+1), recvcounts=recvcounts, &
+                  displs=recvdspls, comm=comm,&
+                  algorithm=ONESIDED_ENUM)
              !!call mpi_allgatherv(mat%matrix_compr(ist_send), ncount, mpi_double_precision, &
              !!                    mat_global(1), recvcounts, recvdspls, mpi_double_precision, &
              !!                    bigdft_mpi%mpi_comm, ierr)
@@ -2786,7 +2859,6 @@ module sparsematrix
           end do
       end if
       eval = f_malloc(n,id='eval')
-
       if (present(algorithm)) then
           call dsyev_parallel(iproc, nproc, blocksize_diag, comm, 'v', 'l', n, mat_diag, n, eval, info, algorithm=algorithm)
       else

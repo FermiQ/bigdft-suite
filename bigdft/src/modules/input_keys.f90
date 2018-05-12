@@ -626,7 +626,7 @@ contains
     use public_enums
     use fragment_base
     use f_utils, only: f_get_free_unit
-    use wrapper_MPI, only: mpibarrier
+    use wrapper_MPI, only: fmpi_barrier
     use abi_interfaces_add_libpaw, only : abi_pawinit
     use PStypes, only: SETUP_VARIABLES,VERBOSITY
     use vdwcorrection, only: vdwcorrection_warnings
@@ -793,7 +793,7 @@ contains
 
     ! Shake atoms, if required.
     call astruct_set_displacement(atoms%astruct, in%randdis)
-    if (bigdft_mpi%nproc > 1) call mpibarrier(bigdft_mpi%mpi_comm)
+    if (bigdft_mpi%nproc > 1) call fmpi_barrier(bigdft_mpi%mpi_comm)
     ! Update atoms with symmetry information
     call astruct_set_symmetries(atoms%astruct, in%disableSym, in%symTol, in%elecfield, in%nspin)
 
@@ -964,7 +964,7 @@ contains
     use yaml_output
     use module_base, only: bigdft_mpi
     use f_utils, only: f_zero,f_mkdir
-    use wrapper_MPI, only: mpibcast
+    use wrapper_MPI, only: fmpi_bcast
     use yaml_strings, only: f_strcpy
     implicit none
     integer, intent(in) :: iproc
@@ -999,7 +999,7 @@ contains
        if (iproc == 0) then
           call f_mkdir(in%dir_output,dirname)
        end if
-       call mpibcast(dirname,comm=bigdft_mpi%mpi_comm)
+       call fmpi_bcast(dirname,comm=bigdft_mpi%mpi_comm)
        !in%dir_output=dirname
        call f_strcpy(src=dirname,dest=in%dir_output)
        if (iproc==0) call yaml_map('Data Writing directory',trim(in%dir_output))

@@ -27,10 +27,14 @@ module compression
 
   !> Used for lookup table for compressed wavefunctions
   type, public :: wavefunctions_descriptors
-     integer :: nvctr_c,nvctr_f,nseg_c,nseg_f
-     integer, dimension(:,:), pointer :: keyglob
-     integer, dimension(:,:), pointer :: keygloc
-     integer, dimension(:), pointer :: keyvloc,keyvglob
+     integer :: nvctr_c=0
+     integer :: nvctr_f=0
+     integer :: nseg_c=0
+     integer :: nseg_f=0
+     integer, dimension(:,:), pointer :: keyglob=>null()
+     integer, dimension(:,:), pointer :: keygloc=>null()
+     integer, dimension(:), pointer :: keyvloc=>null()
+     integer, dimension(:), pointer :: keyvglob=>null()
   end type wavefunctions_descriptors
 
   !> arrays defining how a given projector and a given wavefunction descriptor should interact
@@ -47,28 +51,39 @@ module compression
   public :: nullify_wfd_to_wfd,tolr_set_strategy
   public :: cproj_dot,cproj_pr_p_psi,pr_dot_psi
   public :: wfd_to_wfd_skip,free_tolr_ptr,init_tolr,wnrm2
+  public :: nullify_wfd_pointers
 
 contains
 
   pure function wfd_null() result(wfd)
     implicit none
     type(wavefunctions_descriptors) :: wfd
-    call nullify_wfd(wfd)
+    !call nullify_wfd(wfd)
   end function wfd_null
 
   pure subroutine nullify_wfd(wfd)
     implicit none
     type(wavefunctions_descriptors), intent(out) :: wfd
-    wfd%nvctr_c=0
-    wfd%nvctr_f=0
-    wfd%nseg_c=0
-    wfd%nseg_f=0
+!!$    wfd%nvctr_c=0
+!!$    wfd%nvctr_f=0
+!!$    wfd%nseg_c=0
+!!$    wfd%nseg_f=0
+!!$    nullify(wfd%keyglob)
+!!$    nullify(wfd%keygloc)
+!!$    nullify(wfd%keyvglob)
+!!$    nullify(wfd%keyvloc)
+  end subroutine nullify_wfd
+
+  subroutine nullify_wfd_pointers(wfd)
+    implicit none
+    type(wavefunctions_descriptors), intent(inout) :: wfd
+  
     nullify(wfd%keyglob)
     nullify(wfd%keygloc)
     nullify(wfd%keyvglob)
-    nullify(wfd%keyvloc)
-  end subroutine nullify_wfd
-
+    nullify(wfd%keyvloc)   
+  end subroutine nullify_wfd_pointers
+  
   !creators
   pure function wfd_to_wfd_null() result(tolr)
     implicit none
@@ -154,7 +169,6 @@ contains
     end if
   END SUBROUTINE deallocate_wfd
 
-
   subroutine copy_wavefunctions_descriptors(wfdin, wfdout)
     use dynamic_memory
     implicit none
@@ -178,13 +192,6 @@ contains
     wfdout%keyglob=f_malloc_ptr(src_ptr=wfdin%keyglob,id='wfdout%keyglob')
     wfdout%keyvloc=f_malloc_ptr(src_ptr=wfdin%keyvloc,id='wfdout%keyvloc')
     wfdout%keyvglob=f_malloc_ptr(src_ptr=wfdin%keyvglob,id='wfdout%keyvglob')
-
-!!$    !no need to insert lbounds as the allocation start from 1
-!!$    if (associated(wfdin%keygloc)) wfdout%keygloc=f_malloc_ptr(src=wfdin%keygloc,id='wfdout%keygloc')
-!!$    if (associated(wfdin%keyglob)) wfdout%keyglob=f_malloc_ptr(src=wfdin%keyglob,id='wfdout%keyglob')
-!!$    if (associated(wfdin%keyvloc)) wfdout%keyvloc=f_malloc_ptr(src=wfdin%keyvloc,id='wfdout%keyvloc')
-!!$    if (associated(wfdin%keyvglob))wfdout%keyvglob=f_malloc_ptr(src=wfdin%keyvglob,id='wfdout%keyvglob')
-
 
   end subroutine copy_wavefunctions_descriptors
 

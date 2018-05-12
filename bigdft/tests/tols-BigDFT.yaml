@@ -177,7 +177,7 @@ SiBulk:
  Last Iteration: 7.01e-10
  Atomic Forces (Ha/Bohr): 7.01e-10
  Clean forces norm (Ha/Bohr): 3.3e-10
- Force Norm (Hartree/Bohr): 2.7e-10
+ Force Norm (Hartree/Bohr): 4.3e-10
  Average noise forces: 9.3e-10
  HOMO LUMO gap (AU, eV): 1.8e-10
  PV (Ha): 1.89e-10
@@ -187,7 +187,7 @@ SiBulk:
  GPa: 2.0e-9
  Q matrix: 7.6e-9
  Quadrupole Moment (AU): 8.8e-11
- # Necessary for GPU runs, to be updated...
+ # Necessary for GPU runs
  Keys to ignore:
   - Residues per orbital
 
@@ -1944,7 +1944,7 @@ periodic_wateredge:
  relative difference: 1.7e-11
  Epot: 1.1e-9
  Omega: 3.0e-10
- Enl: 2.1e-10
+ Enl: 3.1e-10
  EH: 1.1e-9
  EXC: 1.1e-10
  EvXC: 2.1e-10

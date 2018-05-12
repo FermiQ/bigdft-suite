@@ -1753,7 +1753,7 @@ subroutine set_confdatarr(input, at, lorbs, onwhichatom, potential_prefac, locra
           tt = max(tt,abs(confdatarr(iorb)%damping-confdatarr(jorb)%damping))
       end do
   end do
-  damping_diff = mpimaxdiff(1, tt)
+  damping_diff = fmpi_maxdiff(1, tt)
 
   if (bigdft_mpi%iproc==0) call yaml_comment('Set the confinement prefactors',hfill='~')
   if (bigdft_mpi%iproc==0 .and. add_sequence) call yaml_sequence(advance='no')

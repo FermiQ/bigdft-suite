@@ -67,7 +67,7 @@ subroutine kswfn_emit_psi(Wfn, iter, psi_or_hpsi, iproc, nproc)
         ! proc to continue (jproc == -1).
         message = SIGNAL_DONE
         !call MPI_BCAST(message, 1, MPI_INTEGER, 0, bigdft_mpi%mpi_comm, ierr)
-        call mpibcast(message, 1,comm=bigdft_mpi%mpi_comm)
+        call fmpi_bcast(message, 1,comm=bigdft_mpi%mpi_comm)
      end if
   else
      message = SIGNAL_WAIT
@@ -76,7 +76,7 @@ subroutine kswfn_emit_psi(Wfn, iter, psi_or_hpsi, iproc, nproc)
            exit
         end if
         !call MPI_BCAST(message, 1, MPI_INTEGER, 0, bigdft_mpi%mpi_comm, ierr)
-        call mpibcast(message, 1,comm=bigdft_mpi%mpi_comm)
+        call fmpi_bcast(message, 1,comm=bigdft_mpi%mpi_comm)
 
         if (message > 0 .and. iproc == message) then
            ! Will have to send to iproc 0 some of psi.
@@ -108,7 +108,7 @@ subroutine kswfn_mpi_copy(psic, jproc, psiStart, psiSize)
   if (jproc == 0) return
 
   !call MPI_BCAST(jproc, 1, MPI_INTEGER, 0, bigdft_mpi%mpi_comm, ierr)
-  call mpibcast(jproc, 1,comm=bigdft_mpi%mpi_comm)
+  call fmpi_bcast(jproc, 1,comm=bigdft_mpi%mpi_comm)
 
   call MPI_SEND((/ psiStart, psiSize /), 2, MPI_INTEGER, jproc, 123, bigdft_mpi%mpi_comm, ierr)
   call MPI_RECV(psic, psiSize, MPI_DOUBLE_PRECISION, jproc, 123, bigdft_mpi%mpi_comm, status, ierr)

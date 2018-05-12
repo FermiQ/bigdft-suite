@@ -297,7 +297,7 @@ module metadata_interfaces
 interface pad_array
   module procedure pad_i1,pad_i2,pad_i3,pad_i4
 !  module procedure pad_il1, pad_il2
-  module procedure pad_c1
+  module procedure pad_c1,pad_c2
   module procedure pad_l1,pad_l2,pad_l3
   module procedure pad_ll1,pad_ll2
   module procedure pad_r1,pad_r2,pad_r3,pad_r4
@@ -317,7 +317,7 @@ interface loc_arr
    module procedure la_l1,la_l2,la_l3
    module procedure la_z1,la_z2,la_z3
    module procedure la_ll1,la_ll2
-   module procedure la_c1
+   module procedure la_c1,la_c2
    module procedure la_li1,la_li2,la_li3,la_li4
 end interface
 
@@ -414,6 +414,18 @@ contains
     call pad_character(array,init_to_zero,shp(1),shp(1)+ndebug)
 
   end subroutine pad_c1
+
+  subroutine pad_c2(array,init_to_zero,shp,ndebug)
+    implicit none
+    logical, intent(in) :: init_to_zero
+    integer, intent(in) :: ndebug
+    integer(f_kind), dimension(2), intent(in) :: shp
+    character(len=*), dimension(shp(1),shp(2)+ndebug), intent(out) :: array
+
+    call pad_character(array,init_to_zero,product(shp),product(shp(1:1))*(shp(2)+ndebug))
+
+  end subroutine pad_c2
+
 
   subroutine pad_l1(array,init_to_zero,shp,ndebug)
     implicit none
@@ -1080,6 +1092,13 @@ contains
     include 'getadd-c-inc.f90' 
     la=f_loc(array(1))
   end function la_c1
+  function la_c2(array) result(la)
+    implicit none
+    character(len=*), dimension(:,:), intent(in) :: array
+    include 'getadd-c-inc.f90' 
+    la=f_loc(array(1,1))
+  end function la_c2
+
   function la_li1(array) result(la)
     implicit none
     integer(f_long), dimension(:), intent(in) :: array

@@ -155,20 +155,20 @@ module sparsematrix_io
           end if
 
           ! Communicate to the other tasks
-          call mpibcast(nspin, count=1, root=0, comm=comm)
-          call mpibcast(nfvctr, count=1, root=0, comm=comm)
-          call mpibcast(nseg, count=1, root=0, comm=comm)
-          call mpibcast(nvctr, count=1, root=0, comm=comm)
+          call fmpi_bcast(nspin, count=1, root=0, comm=comm)
+          call fmpi_bcast(nfvctr, count=1, root=0, comm=comm)
+          call fmpi_bcast(nseg, count=1, root=0, comm=comm)
+          call fmpi_bcast(nvctr, count=1, root=0, comm=comm)
           if (iproc/=0) then
               keyv = f_malloc_ptr(nseg,id='keyv')
               keyg = f_malloc_ptr((/2,2,nseg/),id='keyg')
           end if
-          call mpibcast(keyv, root=0, comm=comm)
-          call mpibcast(keyg, root=0, comm=comm)
+          call fmpi_bcast(keyv, root=0, comm=comm)
+          call fmpi_bcast(keyg, root=0, comm=comm)
           if (iproc/=0) then
               mat_compr = f_malloc_ptr(nvctr*nspin,id='mat_compr')
           end if
-          call mpibcast(mat_compr, root=0, comm=comm)
+          call fmpi_bcast(mat_compr, root=0, comm=comm)
 
       else
           call f_err_throw("wrong value for 'mode'")
@@ -691,7 +691,7 @@ module sparsematrix_io
                nspin, ntmb, nfvctr, eval, coeff)
       use sparsematrix_init, only: distribute_on_tasks
       use wrapper_linalg, only: vcopy
-      use wrapper_mpi, only: mpibcast
+      use wrapper_mpi, only: fmpi_bcast
       use yaml_output
       implicit none
 
@@ -713,7 +713,7 @@ module sparsematrix_io
       call f_routine(id='write_linear_coefficients_parallel')
 
       ! Make sure that all processes have the same filename
-      call mpibcast(filename, root=0, comm=comm)
+      call fmpi_bcast(filename, root=0, comm=comm)
 
       call mpi_file_open(comm, trim(filename), & 
            mpi_mode_wronly + mpi_mode_create, & 
@@ -1167,12 +1167,12 @@ module sparsematrix_io
           end if
 
           ! Communicate the matrix
-          call mpibcast(nfvctr, root=0, comm=comm)
-          call mpibcast(nspin, root=0, comm=comm)
+          call fmpi_bcast(nfvctr, root=0, comm=comm)
+          call fmpi_bcast(nspin, root=0, comm=comm)
           if (iproc/=0) then
               matrix = f_malloc_ptr((/nfvctr,nfvctr,nspin/),id='matrix')
           end if
-          call mpibcast(matrix, root=0, comm=comm)
+          call fmpi_bcast(matrix, root=0, comm=comm)
 
       end if
 

@@ -722,7 +722,7 @@ module sparsematrix_init
       narr = f_malloc(0.to.nproc-1,id='narr')
       isarr = f_malloc(0.to.nproc-1,id='n=isarr')
       if (nproc>1) then
-          call mpigather(sendbuf=n_, recvbuf=narr, root=nproc-1, comm=comm)
+          call fmpi_gather(sendbuf=n_, recvbuf=narr, root=nproc-1, comm=comm)
       else
           narr(0) = n_(1)
       end if
@@ -5398,15 +5398,15 @@ module sparsematrix_init
 
       !end if root_if2
 
-      call mpibcast(nnonzero, 1, root=0, comm=comm)
-      call mpibcast(nnonzero_buf_mult, 1, root=0, comm=comm)
-      call mpibcast(nonzero(1:2,1:nnonzero), root=0, comm=comm)
-      call mpibcast(nonzero_buf_mult(1:2,1:nnonzero_buf_mult), root=0, comm=comm)
+      call fmpi_bcast(nnonzero, 1, root=0, comm=comm)
+      call fmpi_bcast(nnonzero_buf_mult, 1, root=0, comm=comm)
+      call fmpi_bcast(nonzero(1:2,1:nnonzero), root=0, comm=comm)
+      call fmpi_bcast(nonzero_buf_mult(1:2,1:nnonzero_buf_mult), root=0, comm=comm)
 
       if (calc_nextra) then
           do iextra=1,nextra_
-              call mpibcast(nnonzero_extra(iextra), 1, root=0, comm=comm)
-              call mpibcast(nonzero_extra(1:2,1:nnonzero_extra(iextra),iextra), root=0, comm=comm)
+              call fmpi_bcast(nnonzero_extra(iextra), 1, root=0, comm=comm)
+              call fmpi_bcast(nonzero_extra(1:2,1:nnonzero_extra(iextra),iextra), root=0, comm=comm)
           end do
       end if
 

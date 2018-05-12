@@ -117,7 +117,7 @@ subroutine call_abscalc(nproc,iproc,runObj,energy,fxyz,infocode)
    call f_routine(id='call_abscalc')
 
    !put a barrier for all the processes
-   call mpibarrier()
+   call fmpi_barrier()
 
    !assign the verbosity of the output
    !the verbose variables is defined in module_base
@@ -145,7 +145,7 @@ subroutine call_abscalc(nproc,iproc,runObj,energy,fxyz,infocode)
       !assume always clean exit for abscalc
 
    !put a barrier for all the processes
-   call mpibarrier()!MPI_COMM_WORLD,ierr)
+   call fmpi_barrier()!MPI_COMM_WORLD,ierr)
 
    call f_release_routine()
 

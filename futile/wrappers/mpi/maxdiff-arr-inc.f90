@@ -11,7 +11,7 @@
   if (srce==-1) then
      !check that the values are identical for all the processes
      array_glob=f_malloc((/ndims,nproc/),id='array_glob')
-     call mpigather(array,recvbuf=array_glob,&
+     call fmpi_gather(array,recvbuf=array_glob,&
           root=iroot,comm=mpi_comm)
   else
      !check that the positions are identical for all the processes
@@ -19,7 +19,7 @@
      call f_memcpy(src=array,dest=array_glob(:,2))
      if (irank == srce) call f_memcpy(src=array,dest=array_glob(:,1))
      !copy is overridden for non-source processors
-     call mpibcast(array_glob(1,1),ndims,root=srce,comm=mpi_comm,&
+     call fmpi_bcast(array_glob(1,1),ndims,root=srce,comm=mpi_comm,&
           check=.false.)
      if (bcst .and. irank /= srce) &
           call f_memcpy(dest=array,src=array_glob(:,1))

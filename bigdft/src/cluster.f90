@@ -1475,7 +1475,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
   else
      call pkernel_free(denspot%pkernel)
      !    No tail calculation
-     if (nproc > 1) call mpibarrier(comm=bigdft_mpi%mpi_comm)!,ierr)
+     if (nproc > 1) call fmpi_barrier(comm=bigdft_mpi%mpi_comm)!,ierr)
      call f_free_ptr(denspot%rhov)
      call f_free_ptr(denspot%V_XC)
      call dpbox_free(denspot%dpbox)
@@ -1798,7 +1798,7 @@ subroutine kswfn_optimization_loop(iproc, nproc, opt, &
            end if
            ! Emergency exit case
            if (opt%infocode == 2 .or. opt%infocode == 3) then
-              if (nproc > 1) call mpibarrier(comm=bigdft_mpi%mpi_comm)
+              if (nproc > 1) call fmpi_barrier(comm=bigdft_mpi%mpi_comm)
               if (iproc==0) then
                  !call yaml_mapping_close()
                  call yaml_sequence_close() !wfn iterations

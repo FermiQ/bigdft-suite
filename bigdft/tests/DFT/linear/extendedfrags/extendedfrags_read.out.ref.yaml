@@ -607,14 +607,14 @@
  Interaction energy multipoles multipoles:  0.0
   #--------------------------------------------------------- Reading Wavefunctions from disk
  Input Hamiltonian:
-   max shift of a locreg center        :  3.34E-01
+   max shift of a locreg center        :  6.46E-01
    Overview of the reformatting (several categories may apply):
      No reformatting required          :  0
      Grid spacing has changed          :  40
      Number of coarse grid points has changed:  40
      Number of fine grid points has changed:  40
      Box size has changed              :  40
-     Molecule was shifted              :  32
+     Molecule was shifted              :  36
      Molecule was rotated              :  0
      Wrapping/unwrapping               :  40
    Reading Waves Time:

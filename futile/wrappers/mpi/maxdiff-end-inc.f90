@@ -27,9 +27,9 @@
 
   !in case of broadcasting the difference should be known by everyone
   if (bcst .and. srce==-1) then
-     !never put check =.true. here, otherwise stack overflow
-     call mpibcast(maxdiff,1,root=iroot,comm=mpi_comm,check=.false.)
-     call mpibarrier(mpi_comm) !redundant?
+     !never put check =.true. here, otherwise stack overflow as recursion occurs
+     call fmpi_bcast(maxdiff,1,root=iroot,comm=mpi_comm,check=.false.)
+     call fmpi_barrier(mpi_comm) !redundant, but just in case
   else if(srce >=0) then
      call fmpi_allreduce(maxdiff,1,FMPI_MAX,comm=mpi_comm)
   end if

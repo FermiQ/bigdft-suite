@@ -30,7 +30,7 @@
      cnt=count
   else
      !division of the components per nproc
-     cnt=min(sizets,sizetr)/nproc
+     cnt=int(min(sizets,sizetr)/nproc,fmpi_integer)
      if (cnt*nproc /= min(sizets,sizetr) .and. .not. present(sendcounts)) &
           call f_err_throw(&
           'The provided array has not a size which is a multiple of the number of processes',&
@@ -41,12 +41,12 @@
        cnt,sendcounts,sdispls,&
        cnt,recvcounts,rdispls,algorithm,comm)
   if (present(request)) request=FMPI_REQUEST_NULL
-  if (present(win)) algo=VARIABLE_ONE_SIDED_GET
+  if (present(win)) algo=VARIABLE_ONE_SIDED_GET_ALGO
   select case(algo)
-  case(NOT_VARIABLE)
+  case(NOT_VARIABLE_ALGO)
      call MPI_ALLTOALL(sendbuf,cnt,mpitype(sendbuf), &
           recvbuf,cnt,mpitype(recvbuf),comm,ierr)
-  case(VARIABLE)
+  case(VARIABLE_ALGO)
      if (present(request)) then
         ierr=FMPI_SUCCESS
         call MPI_IALLTOALLV(sendbuf,sendcounts,sdispls,mpitype(sendbuf), &
@@ -55,7 +55,7 @@
         call MPI_ALLTOALLV(sendbuf,sendcounts,sdispls,mpitype(sendbuf), &
              recvbuf,recvcounts,rdispls,mpitype(recvbuf),comm,ierr)
      end if
-  case(VARIABLE_ONE_SIDED_GET)
+  case(VARIABLE_ONE_SIDED_GET_ALGO)
      nsenddspls_remote = f_malloc(0.to.nproc-1,id='nsenddspls_remote')
      call fmpi_alltoall(sendbuf=sdispls,recvbuf=nsenddspls_remote,comm=comm)
      !info=mpiinfo("no_locks", "true")

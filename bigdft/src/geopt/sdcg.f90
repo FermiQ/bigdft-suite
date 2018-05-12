@@ -664,7 +664,7 @@ subroutine vstepsd(runObj,outs,nproc,iproc,ncount_bigdft)
      if (fmax < 3.d-1) call updatefluctsum(outs%fnoise,fluct) !n(m)
 !     if (iproc==0) write(16,'(1x,a,3(1x,1pe14.5))') 'fnrm2,fluct*frac_fluct,fluct',fnrm,fluct*runObj%inputs%frac_fluct,fluct
      call convcheck(fmax,fluct*runObj%inputs%frac_fluct, runObj%inputs%forcemax,check) !n(m)
-     call mpibarrier()
+     call fmpi_barrier()
      if (check > 5) exit loop_ntsd
      if (ncount_bigdft >= runObj%inputs%ncount_cluster_x) then 
         if (iproc==0)  write(16,*) 'VSSD exited before the geometry optimization converged because more than ',& 

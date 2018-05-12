@@ -192,32 +192,32 @@ program driver_eigenvalues
   end if
 
   ! Send the input parameters to all MPI tasks
-  call mpibcast(sparsity_format, root=0, comm=mpi_comm_world)
-  call mpibcast(matrix_format, root=0, comm=mpi_comm_world)
-  call mpibcast(metadata_file, root=0, comm=mpi_comm_world)
-  call mpibcast(overlap_file, root=0, comm=mpi_comm_world)
-  call mpibcast(hamiltonian_file, root=0, comm=mpi_comm_world)
-  call mpibcast(kernel_file, root=0, comm=mpi_comm_world)
-  call mpibcast(kernel_matmul_file, root=0, comm=mpi_comm_world)
-  call mpibcast(kernel_method, root=0, comm=mpi_comm_world)
-  call mpibcast(scalapack_blocksize, root=0, comm=mpi_comm_world)
-  call mpibcast(kernel_matmul_file, root=0, comm=mpi_comm_world)
-  call mpibcast(fscale_lowerbound, root=0, comm=mpi_comm_world)
-  call mpibcast(fscale_upperbound, root=0, comm=mpi_comm_world)
-  call mpibcast(ntemp, root=0, comm=mpi_comm_world)
-  call mpibcast(ef, root=0, comm=mpi_comm_world)
-  call mpibcast(npl_max, root=0, comm=mpi_comm_world)
-  call mpibcast(pexsi_npoles, root=0, comm=mpi_comm_world)
-  call mpibcast(pexsi_mumin, root=0, comm=mpi_comm_world)
-  call mpibcast(pexsi_mumax, root=0, comm=mpi_comm_world)
-  call mpibcast(pexsi_mu, root=0, comm=mpi_comm_world)
-  call mpibcast(pexsi_DeltaE, root=0, comm=mpi_comm_world)
-  call mpibcast(pexsi_temperature, root=0, comm=mpi_comm_world)
-  call mpibcast(pexsi_tol_charge, root=0, comm=mpi_comm_world)
-  call mpibcast(pexsi_np_sym_fact, root=0, comm=mpi_comm_world)
-  call mpibcast(iev_min, root=0, comm=mpi_comm_world)
-  call mpibcast(iev_max, root=0, comm=mpi_comm_world)
-  call mpibcast(fscale, root=0, comm=mpi_comm_world)
+  call fmpi_bcast(sparsity_format)
+  call fmpi_bcast(matrix_format)
+  call fmpi_bcast(metadata_file)
+  call fmpi_bcast(overlap_file)
+  call fmpi_bcast(hamiltonian_file)
+  call fmpi_bcast(kernel_file)
+  call fmpi_bcast(kernel_matmul_file)
+  call fmpi_bcast(kernel_method)
+  call fmpi_bcast(scalapack_blocksize)
+  call fmpi_bcast(kernel_matmul_file)
+  call fmpi_bcast(fscale_lowerbound)
+  call fmpi_bcast(fscale_upperbound)
+  call fmpi_bcast(ntemp)
+  call fmpi_bcast(ef)
+  call fmpi_bcast(npl_max)
+  call fmpi_bcast(pexsi_npoles)
+  call fmpi_bcast(pexsi_mumin)
+  call fmpi_bcast(pexsi_mumax)
+  call fmpi_bcast(pexsi_mu)
+  call fmpi_bcast(pexsi_DeltaE)
+  call fmpi_bcast(pexsi_temperature)
+  call fmpi_bcast(pexsi_tol_charge)
+  call fmpi_bcast(pexsi_np_sym_fact)
+  call fmpi_bcast(iev_min)
+  call fmpi_bcast(iev_max)
+  call fmpi_bcast(fscale)
   ! Since there is no wrapper for logicals...
   if (iproc==0) then
       if (check_spectrum) then
@@ -226,7 +226,7 @@ program driver_eigenvalues
           icheck = 0
       end if
   end if
-  call mpibcast(icheck, root=0, comm=mpi_comm_world)
+  call fmpi_bcast(icheck)
   if (icheck==1) then
       check_spectrum = .true.
   else
@@ -239,7 +239,7 @@ program driver_eigenvalues
           icheck = 0
       end if
   end if
-  call mpibcast(icheck, root=0, comm=mpi_comm_world)
+  call fmpi_bcast(icheck)
   if (icheck==1) then
       do_cubic_check = .true.
   else
@@ -331,7 +331,7 @@ program driver_eigenvalues
   !!! Initialize the same object for the calculation of the inverse. Charge does not really make sense here...
   !!call init_foe(iproc, nproc, smat_s%nspin, charge, ice_obj, evlow=0.5_mp, evhigh=1.5_mp)
 
-  !!call mpibarrier()
+  !!call fmpi_barrier()
   !!call f_timing_checkpoint(ctr_name='INIT',mpi_comm=mpiworld(),nproc=mpisize(), &
   !!     gather_routine=gather_timings)
 
@@ -371,7 +371,7 @@ program driver_eigenvalues
   !!    call f_free(eval_max)
   !!end if
 
-  !!call mpibarrier()
+  !!call fmpi_barrier()
   !!call f_timing_checkpoint(ctr_name='INFO',mpi_comm=mpiworld(),nproc=mpisize(), &
   !!     gather_routine=gather_timings)
 
@@ -381,7 +381,7 @@ program driver_eigenvalues
        overlap_file, hamiltonian_file, kernel_file, kernel_matmul_file, &
        1, iev_min, iev_max, fscale, evals_out=evals)
 
-  call mpibarrier()
+  call fmpi_barrier()
   call f_timing_checkpoint(ctr_name='CALC',mpi_comm=mpiworld(),nproc=mpisize(), &
        gather_routine=gather_timings)
 
@@ -481,7 +481,7 @@ program driver_eigenvalues
   !!    call f_err_throw("wrong value for 'kernel_method'; possible values are 'FOE', 'PEXSI' or 'LAPACK'")
   !!end if
 
-  !!call mpibarrier()
+  !!call fmpi_barrier()
   !!call f_timing_checkpoint(ctr_name='CALC',mpi_comm=mpiworld(),nproc=mpisize(), &
   !!     gather_routine=gather_timings)
 
@@ -581,7 +581,7 @@ program driver_eigenvalues
   !!call f_free_ptr(overlap)
   !!call f_free_ptr(overlap_large)
 
-  call mpibarrier()
+  call fmpi_barrier()
   call f_timing_checkpoint(ctr_name='LAST',mpi_comm=mpiworld(),nproc=mpisize(), &
        gather_routine=gather_timings)
 
