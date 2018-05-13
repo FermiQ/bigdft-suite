@@ -33,6 +33,9 @@ module pseudopotentials
      real(gp) :: hij !<coefficient
      real(gp), dimension(:,:), pointer :: mat !<matrix of nonlocal projectors in the mm' space
   end type atomic_proj_coeff
+  type, public :: atomic_proj_matrix
+     type(atomic_proj_coeff), dimension(IMAX, IMAX, LMAX + 1) :: ij_terms
+  end type atomic_proj_matrix
 
   type, public :: PSP_data
      integer :: nelpsp
@@ -49,12 +52,16 @@ module pseudopotentials
      real(gp), dimension(NG_VAL_MAX) :: core_v !< valence charge case
   end type PSP_data
 
-  public :: psp_set_from_dict,get_psp,psp_dict_fill_all,f_free_prj_ptr
-  public :: apply_hij_coeff,update_psp_dict,psp_from_stream,nullify_atomic_proj_coeff
+  public :: psp_set_from_dict,get_psp,psp_dict_fill_all
+  public :: apply_hij_coeff,update_psp_dict,psp_from_stream,apply_paw_coeff
+  public :: nullify_atomic_proj_matrix, allocate_atomic_proj_matrix, free_atomic_proj_matrix
 
-  contains
+  ! Psp dictionary representation, keys.
+  character(len = *), parameter :: kRLOC = "Rloc"
 
-    subroutine nullify_atomic_proj_coeff(prj)
+contains
+
+    pure subroutine nullify_atomic_proj_coeff(prj)
       use f_utils, only: f_zero
       implicit none
       type(atomic_proj_coeff), intent(out) :: prj
@@ -69,23 +76,82 @@ module pseudopotentials
       call nullify_atomic_proj_coeff(prj)
     end subroutine free_atomic_proj_coeff
 
-    subroutine f_free_prj_ptr(prj)
+    pure subroutine nullify_atomic_proj_matrix(mat)
       implicit none
-      type(atomic_proj_coeff), dimension(:,:,:), pointer :: prj
-      !local variables
+      type(atomic_proj_matrix), intent(out) :: mat
+
       integer :: i1,i2,i3
-      if (.not. associated(prj)) return
-      do i3=lbound(prj,3),ubound(prj,3)
-         do i2=lbound(prj,2),ubound(prj,2)
-            do i1=lbound(prj,1),ubound(prj,1)
-               call free_atomic_proj_coeff(prj(i1,i2,i3))
+      do i3=lbound(mat%ij_terms,3),ubound(mat%ij_terms,3)
+         do i2=lbound(mat%ij_terms,2),ubound(mat%ij_terms,2)
+            do i1=lbound(mat%ij_terms,1),ubound(mat%ij_terms,1)
+               call nullify_atomic_proj_coeff(mat%ij_terms(i1,i2,i3))
             end do
          end do
       end do
-      deallocate(prj)
-      nullify(prj)
-    end subroutine f_free_prj_ptr
+    end subroutine nullify_atomic_proj_matrix
+    subroutine free_atomic_proj_matrix(mat)
+      implicit none
+      type(atomic_proj_matrix), intent(inout) :: mat
+      !local variables
+      integer :: i1,i2,i3
+      do i3=lbound(mat%ij_terms,3),ubound(mat%ij_terms,3)
+         do i2=lbound(mat%ij_terms,2),ubound(mat%ij_terms,2)
+            do i1=lbound(mat%ij_terms,1),ubound(mat%ij_terms,1)
+               call free_atomic_proj_coeff(mat%ij_terms(i1,i2,i3))
+            end do
+         end do
+      end do
+    end subroutine free_atomic_proj_matrix
     
+    subroutine allocate_atomic_proj_matrix(hij, iat,ispin,prj, gamma_targets)
+      use f_arrays
+      use dynamic_memory
+      integer, intent(in) :: iat,ispin
+      real(gp), dimension(3,3,4), intent(in) :: hij
+      type(atomic_proj_matrix), intent(out) :: prj
+      type(f_matrix), dimension(:,:,:), intent(in), optional :: gamma_targets
+      !local variables
+      logical :: occ_ctrl
+      integer :: i,l,j,m !, igamma
+
+      !igamma=0
+
+      !then allocate the structure as needed
+      do l=1,LMAX+1
+         !the matrix is used only for i=1 at present
+         !if (associated(nl%iagamma)) igamma=nl%iagamma(l-1,iat)
+         !if the matrix is available search for the target
+         occ_ctrl=.false.
+         if (present(gamma_targets)) &
+                                !if the given point need a target then associate the actual potential
+              occ_ctrl= associated(gamma_targets(l-1,ispin,iat)%ptr)
+         do i=1,IMAX
+            call nullify_atomic_proj_coeff(prj%ij_terms(i,i,l))
+            prj%ij_terms(i,i,l)%hij=hij(i,i,l)
+            if (i==1 .and. occ_ctrl) then
+               !it has to be discussed if the coefficient should change in to one
+               !and we have to add the h11 term in the diagonal
+               prj%ij_terms(i,i,l)%mat=&
+                    f_malloc_ptr(src_ptr=gamma_targets(l-1,ispin,iat)%ptr,id='prjmat')
+               do m=1,2*l-1
+                  prj%ij_terms(i,i,l)%mat(m,m) = &
+                       & prj%ij_terms(i,i,l)%mat(m,m)+prj%ij_terms(i,i,l)%hij
+               end do
+               prj%ij_terms(i,i,l)%hij=1.0_gp
+            end if
+            do j=i+1,IMAX
+               call nullify_atomic_proj_coeff(prj%ij_terms(i,j,l))
+               call nullify_atomic_proj_coeff(prj%ij_terms(j,i,l))
+               !allocate upper triangular and associate lower triangular
+               prj%ij_terms(i,j,l)%hij=hij(i,j,l)
+
+               prj%ij_terms(j,i,l)%mat => prj%ij_terms(i,j,l)%mat 
+               prj%ij_terms(j,i,l)%hij=hij(j,i,l)
+            end do
+         end do
+      end do
+
+    end subroutine allocate_atomic_proj_matrix
 
     !> Fill up the dict with all pseudopotential information
     subroutine psp_dict_fill_all(dict, atomname, run_ixc, projrad, crmult, frmult)
@@ -117,36 +183,35 @@ module pseudopotentials
 
       call f_routine(id='psp_dict_fill_all')
 
-
       filename = 'psppar.' // atomname
       dict_psp => dict // filename !inquire for the key?
 
-      exists = has_key(dict_psp, LPSP_KEY)
+      exists = has_key(dict_psp, ATOMIC_NUMBER) .and. &
+           & has_key(dict_psp, ELECTRON_NUMBER)
       if (.not. exists) then
          if (dict_len(dict_psp) > 0) then
             ! Long string case, we parse it.
             call psp_file_merge_to_dict(dict, filename, lstring = dict_psp)
             ! Since it has been overrided.
             dict_psp => dict // filename
-            exists = has_key(dict_psp, LPSP_KEY)
-            nzatom = dict_psp .get. ATOMIC_NUMBER
-            nelpsp = dict_psp .get. ELECTRON_NUMBER
          else
             ixc = run_ixc
             ixc = dict_psp .get. PSPXC_KEY
             call psp_from_data(atomname, nzatom, &
                  & nelpsp, npspcode, ixc, psppar(:,:), exists)
             radii_cf(:) = UNINITIALIZED(1._gp)
-            call psp_data_merge_to_dict(dict_psp, nzatom, nelpsp, npspcode, ixc, &
-                 & psppar(0:4,0:6), radii_cf, UNINITIALIZED(1._gp), UNINITIALIZED(1._gp))
-            call set(dict_psp // SOURCE_KEY, "Hard-Coded")
+            if (exists) then
+               call psp_data_merge_to_dict(dict_psp, nzatom, nelpsp, npspcode, ixc, &
+                    & psppar(0:4,0:6), radii_cf, UNINITIALIZED(1._gp), UNINITIALIZED(1._gp))
+               call set(dict_psp // SOURCE_KEY, "Hard-Coded")
+            end if
          end if
-      else
+      end if
+      if (has_key(dict_psp, ATOMIC_NUMBER) .and. &
+           & has_key(dict_psp, ELECTRON_NUMBER)) then
          nzatom = dict_psp // ATOMIC_NUMBER
          nelpsp = dict_psp // ELECTRON_NUMBER
-      end if
-
-      if (.not. exists) then
+      else
          call f_err_throw('The pseudopotential parameter file "'//&
               trim(filename)//&
               '" is lacking, and no registered pseudo found for "'//&
@@ -176,11 +241,18 @@ module pseudopotentials
          write(source_val, "(A)") RADII_SOURCE(RADII_SOURCE_HARD_CODED)
       end if
       if (radii_cf(2) == UNINITIALIZED(1.0_gp)) then
-         radfine = dict_psp // LPSP_KEY // "Rloc"
+         if (has_key(dict_psp, LPSP_KEY)) then
+            radfine = dict_psp // LPSP_KEY // kRLOC
+         else
+            radfine = radii_cf(1) / 4._gp
+         end if
          if (has_key(dict_psp, NLPSP_KEY)) then
             nlen=dict_len(dict_psp // NLPSP_KEY)
             do i=1, nlen
-               rad = dict_psp // NLPSP_KEY // (i - 1) // "Rloc"
+               rad = 0._gp
+               if (has_key(dict_psp // NLPSP_KEY // (i - 1), kRLOC)) then
+                  rad = dict_psp // NLPSP_KEY // (i - 1) // kRLOC
+               end if
                if (rad /= 0._gp) then
                   radfine=min(radfine, rad)
                end if
@@ -192,13 +264,14 @@ module pseudopotentials
       if (radii_cf(3) == UNINITIALIZED(1.0_gp)) radii_cf(3)=crmult*radii_cf(1)/frmult
       ! Correct radii_cf(3) for the projectors.
       maxrad=0.e0_gp ! This line added by Alexey, 03.10.08, to be able to compile with -g -C
-      if (has_key( dict_psp, NLPSP_KEY)) then
+      if (has_key(dict_psp, NLPSP_KEY)) then
          nlen=dict_len(dict_psp // NLPSP_KEY)
          do i=1, nlen
-            rad =  dict_psp  // NLPSP_KEY // (i - 1) // "Rloc"
-            if (rad /= 0._gp) then
-               maxrad=max(maxrad, rad)
+            rad = 0._gp
+            if (has_key(dict_psp // NLPSP_KEY // (i - 1), kRLOC)) then
+               rad = dict_psp // NLPSP_KEY // (i - 1) // kRLOC
             end if
+            maxrad=max(maxrad, rad)
          end do
       end if
       if (maxrad == 0.0_gp) then
@@ -255,10 +328,10 @@ module pseudopotentials
       if (present(lcoeff)) lcoeff(:) = 0._gp
       if (has_key(dict, LPSP_KEY)) then
          loc => dict // LPSP_KEY
-         if (has_key(loc, "Rloc") .and. present(rloc)) rloc = loc // 'Rloc'
+         if (has_key(loc, kRLOC) .and. present(rloc)) rloc = loc // kRLOC
          if (has_key(loc, COEFF_KEY) .and. present(lcoeff)) lcoeff = loc // COEFF_KEY
          ! Validate
-         if (present(valid)) valid = valid .and. has_key(loc, "Rloc") .and. &
+         if (present(valid)) valid = valid .and. has_key(loc, kRLOC) .and. &
               & has_key(loc, COEFF_KEY)
       end if
  
@@ -270,9 +343,9 @@ module pseudopotentials
             if (has_key(loc, "Channel (l)")) then
                l = loc // "Channel (l)"
                l = l + 1
-               if (has_key(loc, "Rloc"))       psppar(l,0)   = loc // 'Rloc'
+               if (has_key(loc, kRLOC))       psppar(l,0)   = loc // kRLOC
                if (has_key(loc, "h_ij terms")) psppar(l,1:6) = loc // 'h_ij terms'
-               if (present(valid)) valid = valid .and. has_key(loc, "Rloc") .and. &
+               if (present(valid)) valid = valid .and. has_key(loc, kRLOC) .and. &
                     & has_key(loc, "h_ij terms")
             else
                if (present(valid)) valid = .false.
@@ -300,6 +373,8 @@ module pseudopotentials
                  ("Core charge" .in. dict // NLCC_KEY)
          case("PAW")
             npspcode = PSPCODE_PAW
+         case("PSPIO")
+            npspcode = PSPCODE_PSPIO
          case default
             if (present(valid)) valid = .false.
          end select
@@ -348,7 +423,7 @@ module pseudopotentials
       exists=key .in. dict
 
       if (exists) then
-         tmp => dict // key 
+         tmp => dict // key
          if (SOURCE_KEY .in. tmp) then
             str = dict_value(dict // key // SOURCE_KEY)
          else
@@ -376,11 +451,13 @@ module pseudopotentials
 
 
     subroutine get_psp(dict,ityp,ntypes,nzatom,nelpsp,npspcode,ixcpsp,iradii_source,psppar,radii_cf,pawpatch,&
-         pawrad,pawtab,epsatm)
+         pawrad,pawtab,epsatm, pspio)
       use dynamic_memory
       use m_libpaw_libxc, only: libxc_functionals_init, libxc_functionals_end
       !use libxc_functionals, only: libxc_functionals_init, libxc_functionals_end
       use m_pawtab, only: pawtab_nullify
+      use pspiof_m, only: pspiof_pspdata_t, pspiof_pspdata_alloc, pspiof_pspdata_read, &
+           & PSPIO_SUCCESS, PSPIO_FMT_UNKNOWN
       implicit none
       type(dictionary), pointer :: dict
       integer, intent(in) :: ntypes,ityp
@@ -395,6 +472,7 @@ module pseudopotentials
       real(gp), dimension(0:4,0:6), intent(out) :: psppar !< Pseudopotential parameters (HGH NL section)
       type(pawrad_type), dimension(:), pointer :: pawrad  !< PAW radial objects.
       type(pawtab_type), dimension(:), pointer :: pawtab  !< PAW objects for something.
+      type(pspiof_pspdata_t), dimension(:), pointer :: pspio
       !local variables
       logical :: l
       integer :: ityp2
@@ -434,9 +512,22 @@ module pseudopotentials
          call libxc_functionals_init(ixcpsp, 1)
          call paw_from_file(pawrad(ityp), pawtab(ityp), &
               epsatm(ityp), trim(fpaw), &
-              & nzatom, nelpsp, ixcpsp)
-         radii_cf(3)= pawtab(ityp)%rpaw !/ frmult + 0.01
+              & nzatom, nelpsp, ixcpsp, psppar)
+         !radii_cf(3)= pawtab(ityp)%rpaw !/ frmult + 0.01
          call libxc_functionals_end()
+      else if (npspcode == PSPCODE_PSPIO) then
+         fpaw = dict // SOURCE_KEY
+         ! Allocate the PSPIO array on the fly.
+         !TO be removed in the new PSP structure
+         if (.not. associated(pspio)) then
+            allocate(pspio(ntypes))
+         end if
+         if (f_err_raise(pspiof_pspdata_alloc(pspio(ityp)) /= PSPIO_SUCCESS, &
+              & "Cannot initialise PSPIO data.", err_name='BIGDFT_RUNTIME_ERROR')) &
+              & return
+         if (f_err_raise(pspiof_pspdata_read(pspio(ityp), PSPIO_FMT_UNKNOWN, trim(fpaw)) /= PSPIO_SUCCESS, &
+              & "Cannot read PSPIO data from " // trim(fpaw), &
+              & err_name='BIGDFT_RUNTIME_ERROR')) return
       end if
 
     end subroutine get_psp
@@ -505,8 +596,10 @@ module pseudopotentials
       !Local variables
       integer :: nzatom, nelpsp, npspcode, ixcpsp
       real(gp) :: psppar(0:4,0:6), radii_cf(3), rcore, qcore
-      logical :: exists, donlcc, pawpatch
+      logical :: exists, donlcc, pawpatch, frompspio
       type(io_stream) :: ios
+      character(len = max_field_length) :: str
+      character(len = 3) :: symbol
 
       if (present(filename)) then
          inquire(file=trim(filename),exist=exists)
@@ -519,9 +612,26 @@ module pseudopotentials
               & err_name='BIGDFT_RUNTIME_ERROR')
       end if
 
-      !ALEX: if npspcode==PSPCODE_HGH_K_NLCC, nlccpar are read from psppar.Xy via rcore and qcore 
-      call psp_from_stream(ios, nzatom, nelpsp, npspcode, ixcpsp, &
-           & psppar, donlcc, rcore, qcore, radii_cf, pawpatch)
+      frompspio = .false.
+      if (present(filename) .and. has_key(dict, key)) then
+         if (PSP_TYPE .in. dict // key) then
+            ! Merge file only for supported formats.
+            str = dict_value(dict // key // PSP_TYPE)
+            frompspio = (trim(str) == "PSPIO")
+         end if
+      end if
+      !ALEX: if npspcode==PSPCODE_HGH_K_NLCC, nlccpar are read from psppar.Xy via rcore and qcore
+      if (frompspio) then
+         call psp_from_pspio(filename, nzatom, nelpsp, ixcpsp, symbol, psppar)
+         npspcode = PSPCODE_PSPIO
+         pawpatch = .false.
+         radii_cf = UNINITIALIZED(1._gp)
+         rcore = UNINITIALIZED(rcore)
+         qcore = UNINITIALIZED(qcore)
+      else
+         call psp_from_stream(ios, nzatom, nelpsp, npspcode, ixcpsp, &
+              & psppar, donlcc, rcore, qcore, radii_cf, pawpatch)
+      end if
 
       call f_iostream_release(ios)
 
@@ -572,6 +682,8 @@ module pseudopotentials
          call set(dict // PSP_TYPE, 'HGH-K + NLCC')
       case(PSPCODE_PAW)
          call set(dict // PSP_TYPE, 'PAW')
+      case(PSPCODE_PSPIO)
+         call set(dict // PSP_TYPE, 'PSPIO')
       end select
 
       call set(dict // ATOMIC_NUMBER, nzatom)
@@ -581,7 +693,7 @@ module pseudopotentials
       ! Local terms
       if (psppar(0,0)/=0) then
          call dict_init(channel)
-         call set(channel // 'Rloc', psppar(0,0))
+         call set(channel // kRLOC, psppar(0,0))
          do i = 1, 4, 1
             call add(channel // COEFF_KEY, psppar(0,i))
          end do
@@ -597,10 +709,10 @@ module pseudopotentials
 
       ! Nonlocal terms
       do l=1,4
-         if (psppar(l,0) /= 0._gp) then
+         if (psppar(l,1) /= 0._gp .or. psppar(l,0) /= 0._gp) then
             call dict_init(channel)
             call set(channel // 'Channel (l)', l - 1)
-            call set(channel // 'Rloc', psppar(l,0))
+            if (psppar(l,0) /= 0._gp) call set(channel // kRLOC, psppar(l,0))
             do i = 1, 6, 1
                call add(channel // 'h_ij terms', psppar(l,i))
             end do
@@ -610,12 +722,18 @@ module pseudopotentials
 
       ! Radii (& carottes)
       if (any(radii_cf /= UNINITIALIZED(1._gp))) then
-         call dict_init(radii)
-         if (radii_cf(1) /= UNINITIALIZED(1._gp)) call set(radii // COARSE, radii_cf(1))
-         if (radii_cf(2) /= UNINITIALIZED(1._gp)) call set(radii // FINE, radii_cf(2))
-         if (radii_cf(3) /= UNINITIALIZED(1._gp)) call set(radii // COARSE_PSP, radii_cf(3))
+         if (.not. (RADII_KEY .in. dict)) then
+            call dict_init(radii)
+            call set(dict // RADII_KEY, radii)
+         end if
+         radii => dict // RADII_KEY
+         if (radii_cf(1) /= UNINITIALIZED(1._gp) .and. .not. (COARSE .in. radii)) &
+              & call set(radii // COARSE, radii_cf(1))
+         if (radii_cf(2) /= UNINITIALIZED(1._gp) .and. .not. (FINE .in. radii)) &
+              & call set(radii // FINE, radii_cf(2))
+         if (radii_cf(3) /= UNINITIALIZED(1._gp) .and. .not. (COARSE_PSP .in. radii)) &
+              & call set(radii // COARSE_PSP, radii_cf(3))
          call set(radii // SOURCE_KEY, RADII_SOURCE_FILE)
-         call set(dict // RADII_KEY, radii)
       end if
 
     end subroutine psp_data_merge_to_dict
@@ -629,6 +747,7 @@ module pseudopotentials
       use dictionaries
       use f_utils
       use m_pawpsp, only: pawpsp_read_header_2
+      use yaml_output
       implicit none
 
       type(io_stream), intent(inout) :: ios
@@ -643,8 +762,7 @@ module pseudopotentials
 
       integer :: ierror, ierror1, i, j, nn, nlterms, nprl, l, nzatom_, nelpsp_, npspcode_
       integer :: lmax,lloc,mmax, ixc_
-      integer:: pspversion,basis_size,lmn_size
-      real(dp) :: nelpsp_dp,nzatom_dp,r2well
+      real(dp) :: nelpsp_dp,nzatom_dp,r2well,rpaw
       character(len=max_field_length) :: line
       logical :: exists, eof
 
@@ -669,11 +787,24 @@ module pseudopotentials
          nzatom=int(nzatom_dp); nelpsp=int(nelpsp_dp)
          call f_iostream_get_line(ios, line)
          read(line,*) npspcode, ixcpsp, lmax, lloc, mmax, r2well
+         if (npspcode == 7) then
+            call f_iostream_get_line(ios, line)
+            call f_iostream_get_line(ios, line)
+            call f_iostream_get_line(ios, line)
+            call f_iostream_get_line(ios, line)
+            read(line, *) nn
+            do i = 1, nn
+               call f_iostream_get_line(ios, line)
+            end do
+            call f_iostream_get_line(ios, line)
+            read(line, *) rpaw
+         end if
       else
          npspcode = PSPCODE_PAW ! XML pseudo, try to get nzatom, nelpsp and ixcpsp by hand
          nzatom = 0
          nelpsp = 0
          ixcpsp = 0
+         rpaw   = 0._gp
          do
 
             call f_iostream_get_line(ios, line, eof)
@@ -696,6 +827,22 @@ module pseudopotentials
                i = i + index(line(i:max_field_length), '"')
                j = i + index(line(i:max_field_length), '"') - 2
                call xc_get_id_from_name(ixcpsp, line(i:j))
+               if (ixcpsp > 0) then
+                  if (line(i:j) == "PBE") then
+                     ixcpsp = -101130
+                  else if (line(i:j) == "PW") then
+                     ixcpsp = -20
+                  else
+                     ixcpsp = -20
+                     call yaml_warning("Unknown xc functional " // line(i:j))
+                  end if
+               end if
+            end if
+            if (line(1:12) == "<paw_radius ") then
+               i = index(line, "rc")
+               i = i + index(line(i:max_field_length), '"')
+               j = i + index(line(i:max_field_length), '"') - 2
+               read(line(i:j), *) rpaw
             end if
          end do
       end if
@@ -729,7 +876,7 @@ module pseudopotentials
          if (.not.exists) &
               call f_err_throw('Implement here.',err_name='BIGDFT_RUNTIME_ERROR')
          ! PAW format using libPAW.
-         if (ios%iunit /=0) call pawpsp_read_header_2(ios%iunit,pspversion,basis_size,lmn_size)
+         !if (ios%iunit /=0) call pawpsp_read_header_2(ios%iunit,pspversion,basis_size,lmn_size)
          ! PAW data will not be saved in the input dictionary,
          ! we keep their reading for later.
          pawpatch = .true.
@@ -809,23 +956,97 @@ module pseudopotentials
             pawpatch = (trim(line) == "PAWPATCH")
          end do
       else
-         ! Need NC psp for input guess.
-         call atomic_info(nzatom, nelpsp, symbol = symbol)
-         ixc_ = ixcpsp ! Because psp_from_data() will change ixc_.
-         call psp_from_data(symbol, nzatom_, nelpsp_, npspcode_, ixc_, &
-              & psppar, exists)
-         ! Fallback to LDA case, anyway, this is only for input guess.
-         if (.not.exists) then
-            ixc_ = 1
-            call psp_from_data(symbol, nzatom_, nelpsp_, npspcode_, ixc_, &
-                 psppar, exists)
-            if (.not. exists) call f_err_throw('Default PSP data for LDA not found',&
-                 err_name='BIGDFT_RUNTIME_ERROR')
-         end if
+         if (rpaw > 0._gp) radii_cf(3) = rpaw
       end if
     END SUBROUTINE psp_from_stream
 
-    subroutine paw_from_file(pawrad, pawtab, epsatm, filename, nzatom, nelpsp, ixc)
+    subroutine psp_from_pspio(filename, nzatom, nelpsp, ixcpsp, symbol, psppar)
+      use pspiof_m
+      use yaml_strings, only: yaml_toa
+      implicit none
+      character(len = *), intent(in) :: filename
+      integer, intent(out) :: nzatom, nelpsp, ixcpsp
+      character(len = 3), intent(out) :: symbol
+      real(gp), dimension(0:4, 0:6), intent(out) :: psppar
+
+      type(pspiof_pspdata_t) :: pspio
+      type(pspiof_projector_t) :: proj
+      type(pspiof_xc_t) :: xc
+      integer, dimension(2, 12) :: indices
+      integer :: ierr, i, n, l, j
+      character(len = PSPIO_STRLEN_ERROR) :: expl
+      real(gp) :: rloc, r, pot
+      real(gp), parameter :: eps = 1e-4_gp
+
+      if (f_err_raise(pspiof_pspdata_alloc(pspio) /= PSPIO_SUCCESS, &
+           & "Cannot initialise PSPIO data.", err_name='BIGDFT_RUNTIME_ERROR')) &
+           & return
+
+      ierr = pspiof_pspdata_read(pspio, PSPIO_FMT_UNKNOWN, filename)
+      if (ierr /= PSPIO_SUCCESS) call pspiof_error_string(ierr, expl)
+      if (f_err_raise(ierr /= PSPIO_SUCCESS, &
+           & "Cannot read PSPIO data from " // trim(filename) // &
+           & " (" // trim(yaml_toa(pspiof_pspdata_get_format_guessed(pspio))) // "): " // trim(expl) // &
+           & " (" // trim(yaml_toa(ierr)) // ")", err_name='BIGDFT_RUNTIME_ERROR')) &
+           & return
+
+      nzatom = int(pspiof_pspdata_get_z(pspio))
+      nelpsp = max(int(pspiof_pspdata_get_nelvalence(pspio)), &
+           & int(pspiof_pspdata_get_zvalence(pspio)))
+      xc = pspiof_pspdata_get_xc(pspio)
+      ixcpsp = -(pspiof_xc_get_exchange(xc) + 1000 * pspiof_xc_get_correlation(xc))
+      symbol = pspiof_pspdata_get_symbol(pspio)
+
+      psppar = 0._gp
+      indices = 0
+      do i = 1, pspiof_pspdata_get_n_projectors(pspio)
+         proj = pspiof_pspdata_get_projector(pspio, i)
+         l = pspiof_qn_get_l(pspiof_projector_get_qn(proj)) + 1
+         n = pspiof_qn_get_n(pspiof_projector_get_qn(proj))
+         if (n == 0) then
+            do n = 1, 3
+               if (psppar(l, n) == 0._gp) exit
+            end do
+         end if
+         indices(:, i) = [l, n]
+         psppar(l, n) = pspiof_projector_get_energy(proj)
+         if (n == 1) then
+            ! rloc is defined from the standard deviation of the projector n = 1.
+            ! sigma^2 = int_0^inf r^4p^2(r)dr
+            ! with the HGH projector definition, sigma^2 = 3/2r_l^2
+            ! To be backward compatible, we define rloc = sqrt(2/3*sigma^2)
+            rloc = 0._gp
+            do j = 1, int(10._gp / eps)
+               r = real(j, gp) * eps
+               rloc = rloc + r ** 4 * pspiof_projector_eval(proj, r) ** 2 * eps
+               !write(92+i, *) r, pspiof_projector_eval(proj, r)
+            end do
+            psppar(l, 0) = sqrt(rloc / 3._gp * 2._gp)
+         end if
+      end do
+      ! Add the non diagonal parts, must wait for all diagonal parts to be done.
+      do i = 1, pspiof_pspdata_get_n_projectors(pspio)
+         do j = i + 1, pspiof_pspdata_get_n_projectors(pspio)
+            if (indices(1, i) /= indices(1, j)) cycle
+            l = indices(1, i)
+            n = indices(2, i) + indices(2, j) + 1
+            psppar(l, n) = pspiof_pspdata_get_projector_energy(pspio, i, j)
+         end do
+      end do
+      ! Try to guess a rloc for potential.
+      rloc = 0._gp
+      do j = 1, int(10._gp / eps)
+         r = real(j, gp) * eps
+         pot = pspiof_potential_eval(pspiof_pspdata_get_vlocal(pspio), r)
+         !write(92, *) r, pot
+         if (abs(pot + pspiof_pspdata_get_zvalence(pspio) / r) > 1e-7) rloc = r
+      end do
+      psppar(0, 0) = max(rloc / 6._gp, 0.2_gp) ! Avoid too sharp gaussians.
+
+      call pspiof_pspdata_free(pspio)
+    END SUBROUTINE psp_from_pspio
+
+    subroutine paw_from_file(pawrad, pawtab, epsatm, filename, nzatom, nelpsp, ixc, psppar)
       use module_defs, only: dp, gp, pi_param
       !use module_base, only: bigdft_mpi
       use module_xc
@@ -834,6 +1055,7 @@ module pseudopotentials
       use m_pawxmlps, only: paw_setup, rdpawpsxml, ipsp2xml, paw_setup_free
       use m_pawrad, only: pawrad_type !, pawrad_nullify
       use m_pawtab, only: pawtab_type, pawtab_nullify
+      use m_paw_numeric
       use dictionaries, only: max_field_length
       use dynamic_memory
       use f_utils
@@ -845,11 +1067,12 @@ module pseudopotentials
       real(gp), intent(out) :: epsatm
       character(len = *), intent(in) :: filename
       integer, intent(in) :: nzatom, nelpsp, ixc
+      real(gp), dimension(0:4, 0:6), intent(out) :: psppar
 
-      integer:: icoulomb,ipsp !, ib, i, ii
+      integer:: icoulomb,ipsp, i, ii, ierr, l
       integer:: pawxcdev,usewvl,usexcnhat,xclevel
       integer::pspso
-      real(dp) :: xc_denpos
+      real(dp) :: xc_denpos, r, eps, nrm, rloc
       real(dp) :: xcccrc
       character(len = fnlen) :: filpsp   ! name of the psp file
       character(len = max_field_length) :: line
@@ -858,9 +1081,10 @@ module pseudopotentials
       !!arrays
       integer:: wvl_ngauss(2)
       integer, parameter :: mqgrid_ff = 0, mqgrid_vl = 0
-      real(dp):: qgrid_ff(mqgrid_ff),qgrid_vl(mqgrid_vl)
+      real(dp):: qgrid_ff(mqgrid_ff),qgrid_vl(mqgrid_vl), raux(1)
       real(dp):: ffspl(mqgrid_ff,2,1)
       real(dp):: vlspl(mqgrid_vl,2)
+      real(gp), dimension(:), allocatable :: d2
 
       !call pawrad_nullify(pawrad)
       call pawtab_nullify(pawtab)
@@ -868,7 +1092,7 @@ module pseudopotentials
       !Defines the number of Gaussian functions for projectors
       !See ABINIT input files documentation
       wvl_ngauss=[10,10]
-      icoulomb= 1 !Fake argument, this only indicates that we are inside bigdft..
+      icoulomb= 0 !Fake argument, this only indicates that we are inside bigdft..
       !do not change, even if icoulomb/=1
       ipsp=1      !This is relevant only for XML.
       ! For the moment, it will just work for LDA
@@ -902,20 +1126,46 @@ module pseudopotentials
            & pawrad,pawtab,&
            & filpsp,usewvl,icoulomb,ixc,xclevel,pawxcdev,usexcnhat,&
            & qgrid_ff,qgrid_vl,ffspl,vlspl,epsatm,xcccrc,real(nelpsp, dp),real(nzatom, dp),&
-           & wvl_ngauss,comm_mpi=bigdft_mpi%mpi_comm,psxml = paw_setup(1))
+           & wvl_ngauss = wvl_ngauss, comm_mpi=bigdft_mpi%mpi_comm,psxml = paw_setup(1))
 
       call paw_setup_free(paw_setup(1))
       deallocate(paw_setup)
       if (allocated(ipsp2xml)) call f_free(ipsp2xml)
 
-!!$  ii = 0
-!!$  do ib = 1, pawtab%basis_size
-!!$     do i = 1, pawtab%wvl%pngau(ib)
-!!$        ii = ii + 1
-!!$        write(80 + ib,*) pawtab%wvl%pfac(:, ii), pawtab%wvl%parg(:, ii)
-!!$     end do
-!!$     close(80 + ib)
-!!$  end do
+      psppar = 0._gp
+
+      ! Compute projector radii.
+      d2 = f_malloc(pawrad%mesh_size, id = "d2")
+      eps = 1.1_gp * pawtab%rpaw / real(1000, gp)
+      do i = 1, pawtab%basis_size
+         l = pawtab%orbitals(i) + 1
+         if (psppar(l, 0) > 0._gp) cycle
+         
+         call paw_spline(pawrad%rad, pawtab%tproj(1, i), pawrad%mesh_size, 0._dp, 0._dp, d2)
+         nrm = 0._gp
+         do ii = 1, 1000
+            r = ii * eps
+            call paw_splint(pawrad%mesh_size, pawrad%rad, pawtab%tproj(1, i), d2, &
+                 & 1, [r], raux, ierr)
+            psppar(l, 0) = psppar(l, 0) + r * r * raux(1) * raux(1) * eps
+            nrm = nrm + raux(1) * raux(1) * eps
+            !write(92 + i, *) r, raux(1)
+         end do
+         psppar(l, 0) = sqrt(psppar(l, 0) / nrm /3._gp * 2._gp)
+      end do
+      call f_free(d2)
+      ! Try to guess a rloc for potential.
+      rloc = 0._gp
+      eps = 1e-4_gp
+      do i = 1, int(8._gp / eps)
+         r = real(i, gp) * eps
+         call paw_splint(pawtab%wvl%rholoc%msz, pawtab%wvl%rholoc%rad, &
+              & pawtab%wvl%rholoc%d(:,3), pawtab%wvl%rholoc%d(:,4), &
+              & 1, [r], raux, ierr)
+         if (abs(raux(1) + nelpsp / r) > 1e-7) rloc = r
+         !write(92, *) r, raux(1)
+      end do
+      psppar(0, 0) = max(rloc / 6._gp, 0.2_gp) ! Avoid too sharp gaussians.
     END SUBROUTINE paw_from_file
     
     !> routine for applying the coefficients needed HGH-type PSP to the scalar product
@@ -928,7 +1178,7 @@ module pseudopotentials
       implicit none
       integer, intent(in) :: n_p,n_w
 !!$      real(gp), dimension(3,3,4), intent(in) :: hij
-      type(atomic_proj_coeff), dimension(3,3,4), intent(in) :: prj
+      type(atomic_proj_matrix), intent(in) :: prj
       real(gp), dimension(n_w,n_p), intent(in) :: scpr
       real(gp), dimension(n_w,n_p), intent(out) :: hscpr
       !local variables
@@ -941,7 +1191,7 @@ module pseudopotentials
       !define the logical array to identify the point from which the block is finished
       do l=1,4
          do i=1,3
-            cont(i,l)= prj(i,i,l)%hij /= 0.0_gp
+            cont(i,l)= prj%ij_terms(i,i,l)%hij /= 0.0_gp
 !!$            cont(i,l)=(hij(i,i,l) /= 0.0_gp)
          end do
       end do
@@ -973,14 +1223,14 @@ module pseudopotentials
                !the projector have always to act symmetrically
                !this will be done by pointing on the same matrices
                do j=1,3
-                  if (prj(i,j,l)%hij == 0.0_gp) cycle
-                  if (associated(prj(i,j,l)%mat)) then
+                  if (prj%ij_terms(i,j,l)%hij == 0.0_gp) cycle
+                  if (associated(prj%ij_terms(i,j,l)%mat)) then
                      !nondiagonal projector approach
-                     call f_gemv(a=prj(i,j,l)%mat,alpha=prj(i,j,l)%hij,beta=1.0_wp,&
+                     call f_gemv(a=prj%ij_terms(i,j,l)%mat,alpha=prj%ij_terms(i,j,l)%hij,beta=1.0_wp,&
                           y=dproj(1,i,l),x=cproj(1,j,l))
                   else
                      !diagonal case
-                     call f_gemv(a=f_eye(2*l-1),alpha=prj(i,j,l)%hij,beta=1.0_wp,&
+                     call f_gemv(a=f_eye(2*l-1),alpha=prj%ij_terms(i,j,l)%hij,beta=1.0_wp,&
                           y=dproj(1,i,l),x=cproj(1,j,l))
                   end if
 !!$                  do m=1,2*l-1 !diagonal in m
@@ -1007,6 +1257,38 @@ module pseudopotentials
       end do reversed_loop
 
     end subroutine apply_hij_coeff
+
+    subroutine apply_paw_coeff(kij, ncplx, n_w, n_p, scpr, hscpr)
+      use module_defs, only: gp,wp
+      use f_utils
+      implicit none
+      integer, intent(in) :: n_p, n_w, ncplx
+      real(wp), dimension(n_p * (n_p + 1) / 2, ncplx), intent(in) :: kij
+      real(wp), dimension(n_w,n_p), intent(in) :: scpr
+      real(wp), dimension(n_w,n_p), intent(out) :: hscpr
+      
+      integer :: klmn, j_m, i_m
+      real(wp), dimension(n_w) :: k
+
+      call f_zero(hscpr)
+      do j_m = 1, n_p, 1
+         do i_m = 1, j_m - 1
+            klmn = j_m * (j_m - 1) / 2 + i_m
+            k = kij(klmn, 1)
+            if (ncplx == 2) k(2) = kij(klmn, 2)
+!!$           write(*,*) j_m, i_m, klmn
+            hscpr(:, j_m) = hscpr(:, j_m) + k(:) * scpr(:, i_m)
+         end do
+         do i_m = j_m, n_p, 1
+            klmn = i_m * (i_m - 1) / 2 + j_m
+            k = kij(klmn, 1)
+            if (ncplx == 2) k(2) = kij(klmn, 2)
+!!$           write(*,*) j_m, i_m, klmn
+            hscpr(:, j_m) = hscpr(:, j_m) + k(:) * scpr(:, i_m)
+         end do
+      end do
+
+    end subroutine apply_paw_coeff
 
 end module pseudopotentials
 
@@ -1055,7 +1337,7 @@ end function spherical_gaussian_value
 !> External routine as the psppar parameters are often passed by address
 subroutine hgh_hij_matrix(npspcode,psppar,hij)
   use module_defs, only: gp
-  use public_enums, only: PSPCODE_GTH, PSPCODE_HGH, PSPCODE_HGH_K, PSPCODE_HGH_K_NLCC, PSPCODE_PAW
+  use public_enums, only: PSPCODE_GTH, PSPCODE_HGH, PSPCODE_HGH_K, PSPCODE_HGH_K_NLCC, PSPCODE_PSPIO
   implicit none
   !Arguments
   integer, intent(in) :: npspcode
@@ -1086,7 +1368,7 @@ subroutine hgh_hij_matrix(npspcode,psppar,hij)
      !term for all npspcodes
      loop_diag: do i=1,3
         hij(i,i,l)=psppar(l,i) !diagonal term
-        if ((npspcode == PSPCODE_HGH .and. l/=4 .and. i/=3) .or. &
+        if (((npspcode == PSPCODE_HGH .or. npspcode == PSPCODE_PSPIO) .and. l/=4 .and. i/=3) .or. &
              ((npspcode == PSPCODE_HGH_K .or. npspcode == PSPCODE_HGH_K_NLCC) .and. i/=3)) then !HGH(-K) case, offdiagonal terms
            loop_offdiag: do j=i+1,3
               if (psppar(l,j) == 0.0_gp) exit loop_offdiag

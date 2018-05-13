@@ -424,8 +424,8 @@
    Effective box size (AU)             :  [  3.06E+01,  3.06E+01,  3.06E+01 ]
    Grid spacing units                  :  [  68,  68,  68 ]
    Extremes for the new high resolution grid points:  [  27,  41,  27,  41,  27,  41 ]
-   Coarse resolution grid: {Segments:  3625, Points:  3625}
-   Fine resolution grid: {Segments:  161, Points:  161}
+   Coarse resolution grid: {Segments:  3625, Points:  164517}
+   Fine resolution grid: {Segments:  161, Points:  1503}
    Wavefunction memory occupation in the extended grid (Bytes)::  1400304
     #Calculating tail corrections, orbitals are processed separately
    Corrected Energies: {Ekin:  6.3024651516, Epot: -1.06798395651E+01, Eproj:  0.0}

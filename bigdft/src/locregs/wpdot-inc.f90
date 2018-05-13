@@ -1,4 +1,4 @@
-!> template for the wpdot routine
+  !> template for the wpdot routine
 
   integer, intent(in) :: mavctr_c,mavctr_f,maseg_c,maseg_f,mbvctr_c,mbvctr_f,mbseg_c,mbseg_f
   integer, dimension(maseg_c), intent(in) :: keyav_c

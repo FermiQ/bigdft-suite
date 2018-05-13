@@ -12,6 +12,7 @@ Keys to ignore:
  - Maximal OpenMP threads per MPI task
  - OpenMP threads per task
  - OpenMP parallelization
+ - radical
  - logfile
  - Memory*
  - Orbitals Repartition*
@@ -382,7 +383,19 @@ test.testforces.ref.yaml:
  Tr(K): 3.0e-07
  trace(Ktilde): 3.4e-10
 
-
+SiH4-collocation:
+ Atomic Forces (Ha/Bohr): 5e-9
+ Average noise forces: 5e-11
+ Clean forces norm (Ha/Bohr): 1e-9
+ Electric Dipole Moment (AU): 1.5e-8
+ Electric Dipole Moment (Debye): 5e-8
+ Force Norm (Hartree/Bohr): 5e-9
+ Raw forces norm (Ha/Bohr): 1e-9
+ Energy (Hartree): 5e-8
+ Energies: 5e-7
+ Orbitals: 1e-8
+ EKS: 5e-8
+ Q matrix: 5e-8
 
 H2O-bader:
  Epsilon: 3.0e-11
@@ -452,6 +465,7 @@ NLCC: &NLCCsnew
  Atomic Forces (Ha/Bohr): 5.0e-11
  Clean forces norm (Ha/Bohr): 5.0e-11
  Total electronic charge: 1.2e-11
+ Total stress tensor matrix (Ha/Bohr^3): 5e-11
  Value for Exc[rhoc]: 3.8e-9
  PV (Ha): 5.9e-11
  Exc(rhoc): 3.8e-9
