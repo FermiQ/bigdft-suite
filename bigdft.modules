@@ -42,7 +42,9 @@
 
   <autotools id="v_sim-dev" autogen-sh="autoreconf" skip-autogen="true">
     <branch repo="v_sim-dev" module="v_sim-dev.tar.bz2"
-            version="3.99" checkoutdir="v_sim-dev"/>
+            version="3.99" checkoutdir="v_sim-dev">
+      <patch file="v_sim-dev.patch" />
+    </branch>
     <dependencies>
       <dep package="openbabel"/>
       <!-- <if condition-set="python">

@@ -34,13 +34,13 @@ module fmpi_types
      module procedure mpitype_l3
      module procedure mpitype_r1,mpitype_r2,mpitype_r3,mpitype_r4
      module procedure mpitype_d1,mpitype_d2,mpitype_d3,mpitype_d4,mpitype_d5,mpitype_d6
-     module procedure mpitype_c1
+     module procedure mpitype_c1,mpitype_c2
      module procedure mpitype_li1,mpitype_li2,mpitype_li3
   end interface mpitype
 
   interface mpitypesize
     module procedure mpitypesize_d0, mpitypesize_d1, mpitypesize_d2, mpitypesize_i0, mpitypesize_long0, mpitypesize_l0
-    module procedure mpitypesize_i1, mpitypesize_li1
+    module procedure mpitypesize_i1, mpitypesize_li1, mpitypesize_i2
   end interface mpitypesize
 
   !might be included in a config.inc fine
@@ -61,6 +61,18 @@ module fmpi_types
   type(f_enumerator), public :: FMPI_MIN=f_enumerator('MPI_MIN',int(MPI_MIN),null())
   type(f_enumerator), public :: FMPI_SUM=f_enumerator('MPI_SUM',int(MPI_SUM),null())
 
+  !algorithms
+  integer, parameter, public :: AUTOMATIC_ALGO=0
+  integer, parameter, public :: NOT_VARIABLE_ALGO=10
+  integer, parameter, public :: VARIABLE_ALGO=11
+  integer, parameter, public :: VARIABLE_ONE_SIDED_GET_ALGO=12
+
+  type(f_enumerator), public :: AUTOMATIC_ENUM =f_enumerator('AUTOMATIC',AUTOMATIC_ALGO,null())
+  type(f_enumerator), public :: NOT_VARIABLE_ENUM =f_enumerator('ALLTOALL',NOT_VARIABLE_ALGO,null())
+  type(f_enumerator), public :: VARIABLE_ENUM =f_enumerator('ALLTOALLV',VARIABLE_ALGO,null())
+  type(f_enumerator), public :: ONESIDED_ENUM =f_enumerator('ALLTOALL_GET',VARIABLE_ONE_SIDED_GET_ALGO,null())
+
+
   !>enumerator of objects
   !type(f_enumerator), public :: FMPI_SUCCESS=f_enumerator('MPI_SUCCESS',int(MPI_SUCCESS),null())
   !type(f_enumerator), public :: FMPI_REQUEST_NULL=f_enumerator('MPI_REQUEST_NULL',int(MPI_REQUEST_NULL),null())
@@ -69,10 +81,7 @@ module fmpi_types
   public :: FMPI_IN_PLACE,FMPI_REQUEST_NULL,FMPI_SUCCESS,FMPI_INFO_NULL,FMPI_WIN_NULL,FMPI_COMM_NULL
   public :: FMPI_MODE_NOPUT,FMPI_MODE_NOPRECEDE,FMPI_MODE_NOSTORE,FMPI_MODE_NOSUCCEED,FMPI_GROUP_NULL
 
-
-  public :: mpitype,mpirank,mpisize,fmpi_comm,mpitypesize
-
-
+  public :: mpitype,mpirank,mpisize,fmpi_comm,mpitypesize,fmpi_barrier
 
 contains
 
@@ -107,6 +116,24 @@ contains
     end if
 
   end function fmpi_comm
+
+  !> Performs the barrier of a given communicator, if present
+  subroutine fmpi_barrier(comm)
+    use dictionaries, only: f_err_throw
+    implicit none
+    integer, intent(in), optional :: comm !< the communicator
+    !local variables
+    integer :: mpi_comm,ierr
+
+    mpi_comm=fmpi_comm(comm)
+    !call the barrier
+    call MPI_BARRIER(mpi_comm,ierr)
+    if (ierr /=0) then
+       call f_err_throw('An error in calling to MPI_BARRIER occured',&
+            err_id=ERR_MPI_WRAPPERS)
+    end if
+  end subroutine fmpi_barrier
+
 
   !> Function giving the mpi rank id for a given communicator
   function mpirank(comm)
@@ -218,6 +245,15 @@ contains
     kindt=kind(foo) !to remove compilation warning
     sizeof=mpitypesize(int(1,f_integer))
   end function mpitypesize_i1
+
+  function mpitypesize_i2(foo) result(sizeof)
+    implicit none
+    integer(f_integer), dimension(:,:), intent(in) :: foo
+    integer :: sizeof
+    integer :: kindt
+    kindt=kind(foo) !to remove compilation warning
+    sizeof=mpitypesize(int(1,f_integer))
+  end function mpitypesize_i2
 
 
   function mpitypesize_long0(foo) result(sizeof)
@@ -460,6 +496,14 @@ contains
     kindt=kind(data) !to remove compilation warning
     mt=MPI_CHARACTER
   end function mpitype_c1
+  pure function mpitype_c2(data) result(mt)
+    implicit none
+    character, dimension(:,:), intent(in) :: data
+    integer(fmpi_integer) :: mt
+    integer :: kindt
+    kindt=kind(data) !to remove compilation warning
+    mt=MPI_CHARACTER
+  end function mpitype_c2
 
 
 end module fmpi_types

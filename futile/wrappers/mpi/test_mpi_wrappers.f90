@@ -20,7 +20,7 @@ module test_mpi_wrappers
   private
 
 
-  public :: test_mpi_alltoallv
+  public :: test_mpi_alltoallv,test_mpi_allgather
 
   contains
 
@@ -42,7 +42,7 @@ module test_mpi_wrappers
 
       nstride = maxsize_local/(ntest*nproc)
 
-      fac = 1.0_f_long/real(ceiling(log(real(nproc,kind=f_double))),f_double)
+      fac = 1.0_f_long/real(ceiling(log(real(nproc+1,kind=f_double))),f_double)
 
       sendcounts = f_malloc(0.to.nproc-1,id='sendcounts')
       recvcounts = f_malloc(0.to.nproc-1,id='recvdispls')
@@ -94,7 +94,7 @@ module test_mpi_wrappers
               !     recvbuf, recvcounts, recvdispls, comm, algorithm='mpi_get')
               call fmpi_alltoall(sendbuf,recvbuf=recvbuf,&
                    sendcounts=sendcounts,sdispls=senddispls,&
-                   recvcounts=recvcounts,rdispls=recvdispls,comm=comm,algorithm=ALLTOALL_GET_ENUM)
+                   recvcounts=recvcounts,rdispls=recvdispls,comm=comm,algorithm=ONESIDED_ENUM)
               t2 = mpi_wtime()
               times(irep,1) = t2 - t1
               correct(1) = check_result(iproc, nproc, comm, itest, nstride, nsize_local, fac, recvbuf)
@@ -113,7 +113,7 @@ module test_mpi_wrappers
               !     recvbuf, recvcounts, recvdispls, comm, algorithm='native')
               call fmpi_alltoall(sendbuf,recvbuf=recvbuf,&
                    sendcounts=sendcounts,sdispls=senddispls,&
-                   recvcounts=recvcounts,rdispls=recvdispls,comm=comm,algorithm=ALLTOALLV_ENUM)
+                   recvcounts=recvcounts,rdispls=recvdispls,comm=comm,algorithm=VARIABLE_ENUM)
 
               t2 = mpi_wtime()
               times(irep,2) = t2 - t1
@@ -149,6 +149,78 @@ module test_mpi_wrappers
 
     end subroutine test_mpi_alltoallv
 
+    subroutine test_mpi_allgather(nvctrp,comm)
+      use dictionaries, only: f_err_throw
+      use f_utils, only: f_pause
+      implicit none
+      integer, intent(in) :: comm,nvctrp
+      !local variables
+      integer :: nproc,iproc,jproc
+      integer, dimension(:), allocatable :: counts,displs
+      real(f_double), dimension(:), allocatable :: matp,mat
+
+      nproc=mpisize(comm)
+      iproc=mpirank(comm)
+      matp=f_malloc(nvctrp,id='matp')
+      mat=f_malloc(nvctrp*nproc,id='mat')
+
+      !initialize with test data
+      matp=iproc
+
+      counts=f_malloc(0.to.nproc-1,id='counts')
+      displs=f_malloc0(0.to.nproc-1,id='displs')
+      counts=nvctrp
+      do jproc=0,nproc-2
+         displs(jproc+1)=displs(jproc)+counts(jproc)
+      end do
+
+      call allgather_with_algo()
+      !call allgather_with_algo(VARIABLE_ENUM) this cannot be forced
+      call allgather_with_algo(NOT_VARIABLE_ENUM)
+      call allgather_with_algo(ONESIDED_ENUM)
+
+      call f_free(mat,matp)
+      call f_free(counts,displs)
+
+    contains
+
+      subroutine allgather_with_algo(algo)
+        use f_enums
+        implicit none
+        type(f_enumerator), intent(in), optional :: algo
+        call fmpi_allgather(sendbuf=matp,sendcount=nvctrp,recvbuf=mat,&
+             recvcount=nvctrp,comm=comm,algorithm=algo)
+
+        !verify test data
+        if (.not. verify_mat(nproc,nvctrp,mat)) then
+           call f_err_throw('Mpi all gather not working')
+        end if
+      end subroutine allgather_with_algo
+
+    end subroutine test_mpi_allgather
+
+
+
+    function verify_mat(nproc,nvctrp,mat) result(ok)
+      implicit none
+      integer, intent(in) :: nproc,nvctrp
+      real(f_double), dimension(nvctrp,nproc), intent(in) :: mat
+      logical :: ok
+      !local variables
+      integer :: jproc,i
+
+      do jproc=1,nproc
+         do i=1,nvctrp
+            if (nint(mat(i,jproc)) /= jproc-1) then
+               call yaml_map('Error',[i,jproc-1,nint(mat(i,jproc))])
+               ok=.false.
+               return
+            end if
+         end do
+      end do
+      ok=.true.
+      
+    end function verify_mat
 
     function check_result(iproc, nproc, comm, itest, nstride, nsize_local, fac, recvbuf)
       implicit none

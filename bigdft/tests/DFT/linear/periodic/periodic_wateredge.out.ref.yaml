@@ -1991,7 +1991,7 @@
  Electric Dipole Moment (Debye):
    P vector                            :  [ -1.2059E+01, -1.1799E+01, -1.3202E+01 ]
    norm(P)                             :  2.142290E+01
- Spreads of the electronic density (AU):  [  6.271411E+01,  6.034660E+01,  6.824321E+01 ]
+ Spreads of the electronic density (AU):  [  5.741213E+00,  5.525004E+00,  6.247594E+00 ]
  Calculate local forces                :  Yes
  Calculate NLCC forces                 :  Yes
  Calculate Non Local forces            :  Yes

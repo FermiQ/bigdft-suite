@@ -1,0 +1,15 @@
+--- lib/plug-ins/OpenBabel-wrapper/ob_basic.cpp	2018-01-23 15:30:24.000000000 +0100
++++ lib/plug-ins/OpenBabel-wrapper/ob_basic.cpp	2018-04-05 13:23:52.244142557 +0200
+@@ -240,10 +240,10 @@
+         {
+           visu_box_convertFullToCell(box, xyz, xyz0);
+           visu_box_convertXYZtoBoxCoordinates(box, red, xyz);
+-          if (red[0] > 1 - 1e-6 ||
++          /*if (red[0] > 1 - 1e-6 ||
+               red[1] > 1 - 1e-6 ||
+               red[2] > 1 - 1e-6)
+-            continue;
++            continue;*/
+         }
+       ele1 = visu_element_lookup(etab.GetSymbol(a->GetAtomicNum()));
+       node = visu_data_addNodeFromElement(data, ele1, xyz, FALSE, FALSE);

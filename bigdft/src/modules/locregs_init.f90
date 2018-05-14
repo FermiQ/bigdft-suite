@@ -193,7 +193,7 @@ module locregs_init
       use module_base
       use module_types
       !use module_interfaces, except_this_one => determine_locregSphere_parallel
-      use communications, only: communicate_locreg_descriptors_basics, communicate_locreg_descriptors_keys
+      use communications, only: communicate_locreg_descriptors_keys
       use bounds, only: locreg_bounds , ext_buffers
       use box, only: cell_geocode,cell_periodic_dims
       implicit none
@@ -290,15 +290,21 @@ module locregs_init
       call timing(iproc,'comm_llr      ','ON')
       if (nproc > 1) then
          call fmpi_allreduce(rootarr(1), nlr, FMPI_MIN, comm=bigdft_mpi%mpi_comm)
+
+!!$         do ilr=1,nlr
+!!$            !!   if(.not. calculateBounds(ilr)) call lr_box(llr(ilr),Glr,[hx,hy,hz])
+!!$            write(*,*) 'iproc, nseg_c, before', iproc, llr(ilr)%wfd%nseg_c,rootarr(ilr)
+!!$         end do
+
          
          ! Communicate those parts of the locregs that all processes need.
-         call communicate_locreg_descriptors_basics(iproc, nproc, nlr, rootarr, orbs, llr)
+         call communicate_locreg_descriptors_basics(iproc, nproc, nlr, rootarr, llr)!orbs, llr)
     
-         ! SM: Seems not to be necessary to be called again
-         !!do ilr=1,nlr
-         !!   if(.not. calculateBounds(ilr)) call lr_box(llr(ilr),Glr,[hx,hy,hz])
-         !!   !    write(*,*) 'iproc, nseg_c', iproc, llr(ilr)%wfd%nseg_c
-         !!end do
+!!$         ! SM: Seems not to be necessary to be called again
+!!$         do ilr=1,nlr
+!!$         !!   if(.not. calculateBounds(ilr)) call lr_box(llr(ilr),Glr,[hx,hy,hz])
+!!$            write(*,*) 'iproc, nseg_c', iproc, llr(ilr)%wfd%nseg_c
+!!$         end do
     
          ! Now communicate those parts of the locreg that only some processes need (the keys).
          ! For this we first need to create orbsder that describes the derivatives.

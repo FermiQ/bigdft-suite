@@ -124,14 +124,18 @@ extern "C" void FC_FUNC_(openbabel_load, OPENBABEL_LOAD)(f90_dictionary_pointer 
   /* Stores coordinates. */
   FOR_ATOMS_OF_MOL(a, mol)
     {
-      double xyz[3];
+      double xyz[3],xred[3];
       xyz[0] = a->x() + vect[0];
       xyz[1] = a->y() + vect[1];
       xyz[2] = a->z() + vect[2];
-      if (uc && (xyz[0] / cell[0] > 1 - 1e-6 ||
-                 xyz[1] / cell[1] > 1 - 1e-6 ||
-                 xyz[2] / cell[2] > 1 - 1e-6))
-        continue;
+      xred[0] = xyz[0] / cell[0];
+      xred[1] = xyz[1] / cell[1];
+      xred[2] = xyz[2] / cell[2];
+      //very dangerous condition, should be removed
+      /*if (uc && (xred[0] > 1 - 1e-6 && xred [0] < 1 ||
+                 xred[1] > 1 - 1e-6 && xred [1] < 1 ||
+		 xred[2] > 1 - 1e-6 && xred [2] < 1 ))
+		 continue;*/
       f90_dictionary_pointer atom;
       dict_init(&atom);
       dict_set_double_array(&atom, OpenBabel::etab.GetSymbol(a->GetAtomicNum()), xyz, 3);

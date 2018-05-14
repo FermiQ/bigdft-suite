@@ -119,10 +119,10 @@ program driver_single
   end if
 
   ! Send the input parameters to all MPI tasks
-  call mpibcast(filename_in, root=0, comm=mpi_comm_world)
-  call mpibcast(filename_out, root=0, comm=mpi_comm_world)
-  call mpibcast(filename_out_matmul, root=0, comm=mpi_comm_world)
-  call mpibcast(exp_power, root=0, comm=mpi_comm_world)
+  call fmpi_bcast(filename_in)
+  call fmpi_bcast(filename_out)
+  call fmpi_bcast(filename_out_matmul)
+  call fmpi_bcast(exp_power)
 
   ! Read the input matrix descriptors and the matrix itself, and create the correpsonding structures
   if (iproc==0) then

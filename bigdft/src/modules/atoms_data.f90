@@ -139,7 +139,7 @@ module module_atoms
   public :: astruct_set_from_dict
   public :: astruct_file_merge_to_dict,atoms_file_merge_to_dict
   public :: psp_dict_analyse, nlcc_set_from_dict,atoms_gamma_from_dict
-  public :: astruct_constraints,astruct_set,atomic_charge_density
+  public :: astruct_constraints,astruct_set,atomic_charge_density,atomic_cores_charge_density
 
 
 contains
@@ -545,6 +545,34 @@ contains
       call gaussian_real_space_set(g,rloc,1,charge,zeros,zero1,mp_isf)
 
     end subroutine atomic_charge_density
+
+
+    !> Determine the gaussian structure related to the core density for
+    !multipole
+    subroutine atomic_cores_charge_density(g,at,mpli)
+      use gaussians
+      use numerics, only: twopi
+      use multipole_base, only: multipole_set
+      implicit none
+      type(atoms_data), intent(in) :: at
+      type(multipole_set), intent(in) :: mpli
+      type(gaussian_real_space), intent(out) :: g
+      !local variables
+      integer :: mp_isf
+      real(gp) :: rloc
+      real(gp), dimension(1) :: charge
+      integer, dimension(1) :: zero1
+      integer, dimension(3) :: zeros
+
+      rloc=mpli%sigma(0)
+      charge(1)=real(mpli%nzion,gp)/(twopi*sqrt(twopi)*rloc**3)
+      zeros=0
+      zero1=0
+      mp_isf=at%mp_isf
+      if (.not. at%multipole_preserving) mp_isf=0
+      call gaussian_real_space_set(g,rloc,1,charge,zeros,zero1,mp_isf)
+
+    end subroutine atomic_cores_charge_density
 
 !!!    subroutine local_psp_terms(g,at,atit)
 !!!      implicit none

@@ -15,7 +15,6 @@ program MINHOP
   use module_atoms, only: deallocate_atoms_data,atoms_data,astruct_dump_to_file
   use module_fingerprints
   use SPREDtypes
-  use f_random!, only: builtin_rand
   !implicit real(kind=8) (a-h,o-z) !!!dangerous when using modules!!!
   implicit none
   type(SPRED_inputs) :: spredinputs
@@ -30,14 +29,15 @@ program MINHOP
   real(kind=8), parameter :: beta_S=1.05d0,beta_O=1.05d0,beta_N=1.d0/1.05d0
   real(kind=8), parameter :: alpha_A=1.d0/1.05d0,alpha_R=1.05d0
   real(kind=8), allocatable, dimension(:,:) ::vxyz,gg,poshop
-  real(kind=8), allocatable, dimension(:) :: rcov,ksevals
+  real(kind=8), allocatable, dimension(:) :: rcov
+!  real(kind=8), allocatable, dimension(:) :: ksevals
   real(kind=8), dimension(:,:), pointer :: pos
   real(kind=8),allocatable, dimension(:) :: en_arr,ct_arr
   real(kind=8),allocatable, dimension(:,:) :: fp_arr
   real(kind=8),allocatable, dimension(:) :: fp,wfp,fphop
   real(kind=8),allocatable, dimension(:,:,:) :: pl_arr
-  integer :: iproc,iat,ierr,infocode,nksevals,i,natoms,nrandoff,nsoften
-  integer :: n_unique,n_nonuni,nputback,ncount_bigdft,ngeopt,nid,nlmin,nlminx
+  integer :: iproc,iat,ierr,infocode,i,id,natoms,irand,nsoften !,nksevals,
+  integer :: n_unique,n_nonuni,nputback,ncount_bigdft,ngeopt,nid,nlmin,nlminx,j
   integer :: ilmin,k,nvisit,kid,k_e,nlmin_old,ndfree,ndfroz,nummax,nummin
   ! integer :: ierror,ixyz, nproc,natp
   integer :: istepnext,istep,run_policy
@@ -65,10 +65,8 @@ program MINHOP
   type(state_properties) :: outs
   !type(dictionary), pointer :: user_inputs
   type(dictionary), pointer :: options,run
-  integer:: nposacc=0
-  integer:: nposaccmax
+  integer:: nposaccmax,nposacc
   logical:: disable_hatrans
-  integer, save :: idum=0
   real(kind=4) :: rtmp
 
   call f_lib_initialize()
@@ -91,8 +89,6 @@ program MINHOP
   if(iproc==0)call yaml_cite('Goedecker2004')
   if (iproc==0) call print_logo_MH()
 
-  !if (iproc == 0) write(*,'(a,2(1x,1pe10.3))') '(MH) predicted fraction accepted, rejected', & 
-  !     ratio/(1.d0+ratio), 1.d0/(1.d0+ratio)
   accepted=0.0d0
 
 
@@ -166,41 +162,19 @@ program MINHOP
 
   call give_rcov(bigdft_mpi%iproc,bigdft_get_astruct_ptr(run_opt),rcov)
 
-! read random offset
-  open(unit=11,file='rand'//trim(naming_id)//'.inp')
-  read(11,*) nrandoff
-  !        write(*,*) 'nrandoff ',nrandoff
-  close(11)
-  idum=nrandoff
-  do i=1,nrandoff
-     call random_number(rtmp)
-     !rtmp = builtin_rand(idum)
-     !call f_random_number(rtmp)
-  enddo
-  if(bigdft_mpi%iproc == 0)call yaml_map('(MH) First random number',rtmp)
 
-!!  inquire(file='disable_hatrans',exist=disable_hatrans)
-!!  if(disable_hatrans)then
-!!    open(unit=137,file='disable_hatrans')
-!!        read(137,*)nposaccmax
-!!    close(137)
-!!  endif
-  
   ! open output files
   if (bigdft_mpi%iproc==0) then 
-     !open(unit=2,file='global'//trim(bigdft_run_id_toa())//'.mon',status='unknown',position='append')
      open(unit=2,file=trim(run_md%inputs%dir_output)//'global.mon',status='unknown',position='append')
-     !open(unit=16,file='geopt'//trim(bigdft_run_id_toa())//'.mon',status='unknown')
-     !open(unit=16,file=trim(inputs_md%dir_output)//'geopt.mon',status='unknown')
   endif
 
   ! read input parameters
   write(filename,'(a6,i3.3)') 'ioput'//trim(naming_id) !,bigdft_mpi%iproc
   open(unit=11,file='ioput'//trim(naming_id),status='old')
-  read(11,*) ediff,ekinetic,dt,nsoften
+  read(11,*) ediff,ekinetic,dt,nsoften,irand
   close(11)
   if (bigdft_mpi%iproc == 0) call yaml_map('(MH) Input ediff, ekinetic, dt',(/ediff,ekinetic,dt/),fmt='(1pe10.3)')
-  if (bigdft_mpi%iproc == 0) call yaml_map('(MH) Input nsoften',nsoften,fmt='(i4)')
+  if (bigdft_mpi%iproc == 0) call yaml_map('(MH) Input nsoften, irand',(/nsoften,irand/),fmt='(i4)')
 
   n_unique=0
   n_nonuni=0
@@ -234,30 +208,30 @@ program MINHOP
           err_name='BIGDFT_RUNTIME_ERROR')
   end if
 
-  !we start with md
-  call bigdft_state(run_md,outs,infocode)
+  !we start with opt
+  call bigdft_state(run_opt,outs,infocode)
 
   energyold=1.d100
   ncount_bigdft=0
 
   if (bigdft_mpi%iproc == 0) call yaml_map('(MH) calling conjgrad for the first time here. energy ',outs%energy)
 
-  ngeopt=0
+  ngeopt=-1
   do 
      write(fn6,'(i6.6)') ngeopt+1
-     !filename='poslocm_'//fn4//'_'//trim(bigdft_run_id_toa())//'.xyz'
      filename='poslocm_'//fn6//trim(naming_id)//'.xyz'
-!     write(*,*) 'filename: ',filename
      inquire(file=trim(filename),exist=exist_poslocm)
      if (exist_poslocm) then
+!        write(*,*) 'Existing file found:: ',filename
+        call yaml_map('(MH) Existing file found: ',filename)
         ngeopt=ngeopt+1
      else
         exit 
      endif
   enddo 
-  if (bigdft_mpi%iproc == 0) call yaml_map('(MH) number of poslocm files that exist already ',ngeopt)
+  if (bigdft_mpi%iproc == 0) call yaml_map('(MH) number of poslocm files that exist already ',ngeopt+1)
 
-  nposacc=0
+  nposacc=-1
   do 
      write(fn6,'(i6.6)') nposacc+1
      !filename='posacc_'//fn4//'_'//trim(bigdft_run_id_toa())//'.xyz'
@@ -270,108 +244,39 @@ program MINHOP
         exit 
      endif
   enddo 
-  if (bigdft_mpi%iproc == 0) call yaml_map('(MH) number of posacc files that exist already ',nposacc)
+  if (bigdft_mpi%iproc == 0) call yaml_map('(MH) number of posacc files that exist already ',nposacc+1)
 
-!  call geopt(run_md, outs, bigdft_mpi%nproc,bigdft_mpi%iproc,ncount_bigdft)
-!!  call release_run_objects(runObj)
-!  if (bigdft_mpi%iproc == 0) call yaml_map('(MH) Wvfnctn Opt. steps for approximate geo. rel of initial conf.',ncount_bigdft)
-!  count_sdcg=count_sdcg+ncount_bigdft
-!  ngeopt=ngeopt+1
-
-!  if (bigdft_mpi%iproc == 0) then 
-!     tt=dnrm2(3*natoms,ff,1)
-!     write(fn4,'(i4.4)') ngeopt
-!     write(comment,'(a,1pe10.3)')'fnrm= ',tt
-!     call write_atomic_file('posimed_'//fn4//'_'//trim(bigdft_run_id_toa()),&
-!          outs%energy,atoms%astruct%rxyz,atoms%astruct%ixyz_int,atoms,trim(comment),forces=outs%fxyz)
-!      open(unit=864,file='ksemed_'//fn4//'_'//trim(bigdft_run_id_toa()))
-!      do i=1,nksevals
-!      write(864,*) ksevals(i)
-!      enddo
-!      close(864)
-!  endif
-! call yaml_map('Conditions for ha_trans',[bigdft_get_geocode(run_md)=='F',(.not. disable_hatrans)])
-
-
-!!  if (bigdft_get_geocode(run_md)=='F' .and. (.not. disable_hatrans)) call ha_trans(bigdft_nat(run_md),rxyz_md)
-
-!  if ( .not. atoms%astruct%geocode=='F') then 
-!         write(*,*) 'Generating new input guess'
-!          inputs_opt%inputPsiId=0
-!          call run_objects_associate(runObj, inputs_opt, atoms, rst)
-!          call bigdft_state(runObj,outs,bigdft_mpi%nproc,bigdft_mpi%iproc,infocode)
-!          inputs_opt%inputPsiId=1
-!  endif   
-  !call run_objects_associate(runObj, inputs_opt, atoms, rst)
   !here the atomic positions of run_opt have to be updated
-  call bigdft_set_rxyz(run_opt,rxyz=rxyz_md)!bigdft_get_rxyz_ptr(run_md))
+  call bigdft_set_rxyz(run_opt,rxyz=rxyz_opt)!bigdft_get_rxyz_ptr(run_md))
   outs%fnoise = 0.0_gp !Bastian: reset noise from coarse level
 
-  call geopt(run_opt, outs, bigdft_mpi%nproc,bigdft_mpi%iproc,ncount_bigdft)
-  !call release_run_objects(runObj)
+  call geopt(run_opt, outs, bigdft_mpi%nproc,bigdft_mpi%iproc,ncount_bigdft) !first geopt
   if (bigdft_mpi%iproc == 0) call yaml_map('(MH) Wvfnctn Opt. steps for accurate geo. rel of initial conf.',ncount_bigdft)
   count_bfgs=count_bfgs+ncount_bigdft
   e_pos = outs%energy
   call bigdft_get_rxyz(run_opt,rxyz=pos)
-  !call f_memcpy(src=atoms%astruct%rxyz,dest=pos)
   if (bigdft_mpi%iproc == 0) then
      call yaml_map('(MH) INPUT(relaxed), e_pos ',outs%energy,fmt='(e17.10)')
   end if
 
-!  nid=natoms
-!  fp = f_malloc(nid,id='fp')
-!  wfp = f_malloc(nid,id='wfp')
-!  fphop = f_malloc(nid,id='fphop')
-  
-!  call fingerprint(bigdft_nat(run_opt),nid,bigdft_get_cell(run_opt),bigdft_get_geocode(run_opt),&
-!       rcov,pos,fp)
 call fingerprint(spredinputs,nid,bigdft_nat(run_opt),bigdft_get_cell(run_opt),rcov,pos,fp)
 
   !retrieve the eigenvalues from this run
-  if(run_opt%run_mode=='QM_RUN_MODE') then
-      nksevals=bigdft_norb(run_opt)
-      ksevals = f_malloc(nksevals,id='ksevals')
-      call bigdft_get_eval(run_opt,ksevals)
-  endif  
+!  if(run_opt%run_mode=='QM_RUN_MODE') then
+!      nksevals=bigdft_norb(run_opt)
+!      ksevals = f_malloc(nksevals,id='ksevals')
+!      call bigdft_get_eval(run_opt,ksevals)
+!  endif  
 
-  if(nposacc==0)then
-    nposacc=nposacc+1
-  if (bigdft_mpi%iproc == 0) then
-     tt=dnrm2(3*outs%fdim,outs%fxyz,1)
-     write(fn6,'(i6.6)')nposacc
-     write(comment,'(a,1pe10.3)')'fnrm= ',tt
-!!     if(disable_hatrans)then
-!!         write(comment,'(a,1pe10.3)')'ha_trans disabled, fnrm= ',tt
-!!     else
-!!         write(comment,'(a,1pe10.3)')'ha_trans enabled, fnrm= ',tt
 !!     endif
-     call bigdft_write_atomic_file(run_opt,outs,&
-          'posacc_'//fn6//trim(naming_id),&
-          !'posacc_'//fn4//'_'//trim(bigdft_run_id_toa()),&
-          trim(comment),cwd_path=.true.)
-!!$     call write_atomic_file('posacc_'//fn4//'_'//trim(bigdft_run_id_toa()),&
-!!$          outs%energy,atoms%astruct%rxyz,atoms%astruct%ixyz_int,atoms,trim(comment),forces=outs%fxyz)
-  endif
-  endif
-
   if (bigdft_mpi%iproc == 0) then 
-     tt=dnrm2(3*outs%fdim,outs%fxyz,1)
-     write(fn6,'(i6.6)') ngeopt
-     write(comment,'(a,1pe10.3)')'fnrm= ',tt
-     call bigdft_write_atomic_file(run_opt,outs,&
-          'poslocm_'//fn6//trim(naming_id),&
-          !'poslocm_'//fn4//'_'//trim(bigdft_run_id_toa()),&
-          trim(comment),cwd_path=.true.)
-!!$     call write_atomic_file('poslocm_'//fn4//'_'//trim(bigdft_run_id_toa()),&
-!!$          outs%energy,atoms%astruct%rxyz,atoms%astruct%ixyz_int,atoms,trim(comment),forces=outs%fxyz)
-     !open(unit=864,file='kseloc_'//fn4//'_'//trim(bigdft_run_id_toa()))
-    if(run_opt%run_mode=='QM_RUN_MODE') then
-      open(unit=864,file='kseloc_'//fn6//trim(naming_id))
-      do i=1,nksevals
-      write(864,*) ksevals(i)
-      enddo
-      close(864)
-    endif
+!    if(run_opt%run_mode=='QM_RUN_MODE') then
+!      open(unit=864,file='kseloc_'//fn6//trim(naming_id))
+!      do i=1,nksevals
+!      write(864,*) ksevals(i)
+!      enddo
+!      close(864)
+!    endif
   endif
 
 ! Read previously found energies and properties
@@ -412,13 +317,7 @@ call fingerprint(spredinputs,nid,bigdft_nat(run_opt),bigdft_get_cell(run_opt),rc
   do ilmin=1,nlmin
 
      write(fn5,'(i5.5)') ilmin
-     !filename = 'poslow'//fn5//'_'//trim(bigdft_run_id_toa())!//'.xyz'
      filename = 'poslow'//fn5//trim(naming_id)!//'.xyz'
-!!$     call f_file_exists(filename,exist_poslocm)
-!!$     if (.not. exist_poslocm) then
-!!$        write(*,*) bigdft_mpi%iproc,' COULD not read file ',filename
-!!$        exit
-!!$     end if
      call bigdft_get_rxyz(filename=filename,rxyz_add=pl_arr(1,1,ilmin))
      if (f_err_check()) then
         if (f_err_check(err_name='BIGDFT_INPUT_FILE_ERROR')) then
@@ -428,32 +327,6 @@ call fingerprint(spredinputs,nid,bigdft_nat(run_opt),bigdft_get_cell(run_opt),rc
            ierr = f_get_last_error(msg)
         end if
      end if
-!!$     open(unit=192,file=filename,status='old',iostat=ierror)
-!!$     if (ierror /= 0) then
-!!$        write(*,*) bigdft_mpi%iproc,' COULD not read file ',filename
-!!$        exit
-!!$     end if
-!!$     read(192,*) natp,unitsp,en_arr(ilmin)
-!!$     if (natoms.ne.natp) stop   'nat <> natp'
-!!$     if (trim(unitsp).ne.trim(atoms%astruct%units) .and. bigdft_mpi%iproc.eq.0) write(*,*)  & 
-!!$          '(MH) different units in poslow and poscur file: ',trim(unitsp),' ',trim(atoms%astruct%units)
-!!$     if (trim(unitsp).ne.trim(atoms%astruct%units) .and. bigdft_mpi%iproc.eq.0) call yaml_scalar( &
-!!$          '(MH) different units in poslow and poscur file: '//trim(unitsp)//' , '//trim(atoms%astruct%units))
-!!$     write(*,*) "Bohr_Ang",Bohr_Ang
-!!$     read(192,*) 
-!!$     do iat=1,natoms
-!!$        read(192,*) atmn,t1,t2,t3
-!!$        if (atoms%astruct%units=='angstroem' .or. atoms%astruct%units=='angstroemd0') then ! if Angstroem convert to Bohr
-!!$           pl_arr(1,iat,ilmin)=t1/Bohr_Ang
-!!$           pl_arr(2,iat,ilmin)=t2/Bohr_Ang
-!!$           pl_arr(3,iat,ilmin)=t3/Bohr_Ang
-!!$        else
-!!$           pl_arr(1,iat,ilmin)=t1
-!!$           pl_arr(2,iat,ilmin)=t2
-!!$           pl_arr(3,iat,ilmin)=t3
-!!$        endif
-!!$     enddo
-!!$     close(192)
      if (bigdft_mpi%iproc == 0) call yaml_scalar('(MH) read file '//trim(filename))
   end do
   call f_err_close_try()
@@ -471,17 +344,28 @@ call fingerprint(spredinputs,nid,bigdft_nat(run_opt),bigdft_get_cell(run_opt),rc
         fp_arr(i,1)=fp(i)
      enddo
      call bigdft_get_rxyz(run_opt,rxyz_add=pl_arr(1,1,1))
-!!$     do iat=1,natoms
-!!$        pl_arr(1,iat,1)=atoms%astruct%rxyz(1,iat) 
-!!$        pl_arr(2,iat,1)=atoms%astruct%rxyz(2,iat) 
-!!$        pl_arr(3,iat,1)=atoms%astruct%rxyz(3,iat) 
-!!$     enddo
+
+  if (bigdft_mpi%iproc == 0) then
+          ngeopt=ngeopt+1
+          tt=dnrm2(3*outs%fdim,outs%fxyz,1)
+          write(fn6,'(i6.6)') ngeopt
+          call bigdft_write_atomic_file(run_opt,outs,'poslocm_'//fn6//trim(naming_id),trim(comment),cwd_path=.true.)
+
+          nposacc=nposacc+1
+          write(fn6,'(i6.6)')nposacc
+          call bigdft_write_atomic_file(run_opt,outs,'posacc_'//fn6//trim(naming_id),trim(comment),cwd_path=.true.)
+
+          write(2,'((1x,f10.0),1x,1pe21.14,2(1x,1pe10.3),a,i5)') escape,e_pos,ediff,ekinetic,'  P ',nvisit 
+          call f_utils_flush(2)
+  end if
+
+
 
   else  ! continuation run, check whether the poscur file has been modified by hand
      call identical(spredinputs,run_opt,bigdft_mpi%iproc,nlminx,nlmin,nid,e_pos,fp,en_arr,fp_arr,en_delta,fp_delta,&
           newmin,kid,dmin,k_e,n_unique,n_nonuni)
-     if (newmin) then  
-        if (bigdft_mpi%iproc == 0) call yaml_map('(MH) initial minimum is new, dmin= ',dmin)
+     if (newmin) then  ! poscur.xyz has been modified by hand before the restart
+        if (bigdft_mpi%iproc == 0) call yaml_map('(MH) initial minimum is new, FP distance from previous ',dmin,fmt='(1pe11.4)')
         nlmin=nlmin+1
         if (nlmin.gt.nlminx) stop 'nlminx too small'
         !            add minimum to history list
@@ -489,28 +373,29 @@ call fingerprint(spredinputs,nid,bigdft_nat(run_opt),bigdft_get_cell(run_opt),rc
         k_e=k_e+1
         if (k_e .gt. nlminx .or. k_e .lt. 1) stop "k_e out of bounds"
         nvisit=int(ct_arr(k_e))
+        if (bigdft_mpi%iproc == 0) then
+          write(2,'((1x,f10.0),1x,1pe21.14,2(1x,1pe10.3),a,i5)') escape,e_pos,ediff,ekinetic,'  P ',nvisit 
+          call f_utils_flush(2)
+        end if
+        ngeopt=ngeopt+1
+        if (bigdft_mpi%iproc == 0) then 
+           tt=dnrm2(3*outs%fdim,outs%fxyz,1)
+           write(fn6,'(i6.6)') ngeopt
+           write(comment,'(a,1pe10.3)')'fnrm= ',tt
+           call bigdft_write_atomic_file(run_opt,outs,'poslocm_'//fn6//trim(naming_id),trim(comment),cwd_path=.true.)
+        endif
+
      else
-        if (bigdft_mpi%iproc == 0) call yaml_map('(MH) initial minimum is old, dmin=',dmin)
+        if (bigdft_mpi%iproc == 0) call yaml_map('(MH) initial minimum is old, FP distance from previous ',dmin,fmt='(1pe11.4)')
         if (kid .gt. nlminx .or. kid .lt. 1) stop "kid out of bounds"
         nvisit=int(ct_arr(kid))
      endif
   endif
 
-  if (bigdft_mpi%iproc == 0) then
-          write(2,'((1x,f10.0),1x,1pe21.14,2(1x,1pe10.3),a,i5)')  &
-          escape,e_pos,ediff,ekinetic,'  P ',nvisit 
-          call f_utils_flush(2)
-          !call bigdft_utils_flush(unit=2)
-          !flush(2)
-  end if
-
   nlmin_old=nlmin
   CPUcheck=.false.
 
-  !equivalent methods
   call bigdft_get_rxyz(run_opt,rxyz=pos)
-  !call f_memcpy(src=atoms%astruct%rxyz,dest=pos)
-  !call vcopy(3*natoms, atoms%astruct%rxyz(1,1) , 1, pos(1,1), 1)
 
   !C outer (hopping) loop
    hopping_loop: do
@@ -543,7 +428,7 @@ call fingerprint(spredinputs,nid,bigdft_nat(run_opt),bigdft_get_cell(run_opt),rc
 555 continue
   close(55)
   !maybe broadcast on comm_world?
-  if (bigdft_mpi%nproc > 1) call mpibcast(tleft,1,comm=bigdft_mpi%mpi_comm)
+  if (bigdft_mpi%nproc > 1) call fmpi_bcast(tleft,1,comm=bigdft_mpi%mpi_comm)
   !call MPI_BCAST(tleft,1,MPI_DOUBLE_PRECISION,0,bigdft_mpi%mpi_comm,ierr)
   if (tleft < 0.d0) then
      call yaml_map('(MH) Process'//trim(yaml_toa(bigdft_mpi%iproc))//' has exceeded CPU time. Tleft',tleft)
@@ -551,23 +436,13 @@ call fingerprint(spredinputs,nid,bigdft_nat(run_opt),bigdft_get_cell(run_opt),rc
   endif
   CPUcheck=.true.
 
-  !call run_objects_associate(runObj, inputs_md, atoms, rst, pos(1,1))
   call bigdft_set_rxyz(run_md,rxyz=pos) !one could write here also rxyz=bigdft_get_rxyz_ptr(run_opt)
   escape=escape+1.d0
-  call mdescape(idum,nsoften,mdmin,ekinetic,gg,vxyz,dt,count_md, run_md, outs, &
-                ngeopt,bigdft_mpi%iproc)
+  call mdescape(irand,nsoften,mdmin,ekinetic,gg,vxyz,dt,count_md, run_md, outs,bigdft_mpi%iproc)
   if (bigdft_mpi%iproc == 0) then 
      tt=dnrm2(3*outs%fdim,outs%fxyz,1)
      write(fn6,'(i6.6)') nint(escape)
      write(comment,'(a,1pe10.3)')'fnrm= ',tt
-     
-!!     call bigdft_write_atomic_file(run_md,outs,&
-!!          !'posaftermd_'//fn4//'_'//trim(bigdft_run_id_toa()),&
-!!          'posaftermd_'//fn6//trim(naming_id),&
-!!          trim(comment),cwd_path=.true.)
-
-!!$     call write_atomic_file('posaftermd_'//fn4//'_'//trim(bigdft_run_id_toa()),&
-!!$          outs%energy,atoms%astruct%rxyz,atoms%astruct%ixyz_int,atoms,trim(comment),forces=outs%fxyz)
   endif
 
      if (bigdft_get_geocode(run_md) == 'F') &
@@ -584,67 +459,32 @@ call fingerprint(spredinputs,nid,bigdft_nat(run_opt),bigdft_get_cell(run_opt),rc
   if (bigdft_mpi%iproc == 0) call yaml_map('(MH) Wvfnctn Opt. steps for approximate geo. rel of MD conf.',ncount_bigdft)
      count_sdcg=count_sdcg+ncount_bigdft
 
-  ngeopt=ngeopt+1
-!  if (bigdft_mpi%iproc == 0) then 
-!     tt=dnrm2(3*outs%fdim,outs%fxyz,1)
-!     write(fn4,'(i4.4)') ngeopt
-!     write(comment,'(a,1pe10.3)')'fnrm= ',tt
-!     call write_atomic_file('posimed_'//fn4//'_'//trim(bigdft_run_id_toa()),&
-!          outs%energy,atoms%astruct%rxyz,atoms%astruct%ixyz_int,atoms,trim(comment),forces=outs%fxyz)
-!      open(unit=864,file='ksemed_'//fn4//'_'//trim(bigdft_run_id_toa()))
-!      do i=1,nksevals
-!      write(864,*) ksevals(i)
-!      enddo
-!      close(864)
-!  endif
-
-!!  if (bigdft_get_geocode(run_md)=='F' .and. (.not. disable_hatrans)) call ha_trans(bigdft_nat(run_md),rxyz_md)
-
-!  if ( .not. atoms%astruct%geocode=='F') then 
-!         write(*,*) 'Generating new input guess'
-!          inputs_opt%inputPsiId=0
-!          call run_objects_associate(runObj, inputs_opt, atoms, rst)
-!          call bigdft_state(runObj,outs,bigdft_mpi%nproc,bigdft_mpi%iproc,infocode)
-!          inputs_opt%inputPsiId=1
-!  endif   
-  !call run_objects_associate(runObj, inputs_opt, atoms, rst)
   call bigdft_set_rxyz(run_opt,rxyz=rxyz_md)
   outs%fnoise = 0.0_gp !Bastian: reset noise from coarse level
   call geopt(run_opt, outs, bigdft_mpi%nproc,bigdft_mpi%iproc,ncount_bigdft)
-  !call release_run_objects(runObj)
   if (bigdft_mpi%iproc == 0) call yaml_map('(MH) Wvfnctn Opt. steps for accurate geo. rel of MD conf',ncount_bigdft)
   count_bfgs=count_bfgs+ncount_bigdft
   
-  if(run_opt%run_mode=='QM_RUN_MODE') then 
-      call bigdft_get_eval(run_opt,ksevals)
-    !!$  if (i_stat /= BIGDFT_SUCCESS) then
-    !!$     write(*,*)'error(ksevals), i_stat',i_stat
-    !!$     if (bigdft_mpi%iproc == 0) call yaml_map('(MH) Number of Wvfnctn Opt. steps for accurate geo. rel of MD conf.', & 
-    !!$          ncount_bigdft)
-    !!$     stop
-    !!$  end if
-  endif    
+!  if(run_opt%run_mode=='QM_RUN_MODE') then 
+!      call bigdft_get_eval(run_opt,ksevals)
+!  endif    
 
 
+  ngeopt=ngeopt+1
   if (bigdft_mpi%iproc == 0) then 
      tt=dnrm2(3*outs%fdim,outs%fxyz,1)
      write(fn6,'(i6.6)') ngeopt
      write(comment,'(a,1pe10.3)')'fnrm= ',tt
-     call bigdft_write_atomic_file(run_opt,outs,&
-          !'poslocm_'//fn4//'_'//trim(bigdft_run_id_toa()),trim(comment),&
-          'poslocm_'//fn6//trim(naming_id),trim(comment),&
-          cwd_path=.true.)
+     call bigdft_write_atomic_file(run_opt,outs,'poslocm_'//fn6//trim(naming_id),trim(comment),cwd_path=.true.)
 
-!!$     call write_atomic_file('poslocm_'//fn4//'_'//trim(bigdft_run_id_toa()),&
-!!$          outs%energy,atoms%astruct%rxyz,atoms%astruct%ixyz_int,atoms,trim(comment),forces=outs%fxyz)
-    if(run_opt%run_mode=='QM_RUN_MODE') then
-        !open(unit=864,file='kseloc_'//fn4//'_'//trim(bigdft_run_id_toa()))
-        open(unit=864,file='kseloc_'//fn6//trim(naming_id))
-        do i=1,nksevals
-          write(864,*) ksevals(i)
-        enddo
-        close(864)
-    endif
+!    if(run_opt%run_mode=='QM_RUN_MODE') then
+!        !open(unit=864,file='kseloc_'//fn4//'_'//trim(bigdft_run_id_toa()))
+!        open(unit=864,file='kseloc_'//fn6//trim(naming_id))
+!        do i=1,nksevals
+!          write(864,*) ksevals(i)
+!        enddo
+!        close(864)
+!    endif
   endif
 
   if (bigdft_mpi%iproc == 0) then 
@@ -654,20 +494,17 @@ call fingerprint(spredinputs,nid,bigdft_nat(run_opt),bigdft_get_cell(run_opt),rc
      call yaml_mapping_close()
   endif
 
-!  call fingerprint(bigdft_nat(run_opt),nid,bigdft_get_cell(run_opt),bigdft_get_geocode(run_opt),&
-!       rcov,rxyz_opt,wfp)
 call fingerprint(spredinputs,nid,bigdft_nat(run_opt),bigdft_get_cell(run_opt),rcov,rxyz_opt,wfp)
 
      if (abs(outs%energy-e_pos).lt.en_delta) then
      call fpdistance(spredinputs,nid,bigdft_nat(run_opt),wfp,fp,d)
-     !call fpdistance(run_opt,wfp,fp,d)
        if (bigdft_mpi%iproc == 0) call yaml_map('(MH) checked fpdistance',(/outs%energy-e_pos,d/),fmt='(e11.4)')
      if (d.lt.fp_delta) then ! not escaped
        escape_sam=escape_sam+1.d0
         fp_sep=max(fp_sep,d)
         ekinetic=ekinetic*beta_S
         if (bigdft_mpi%iproc == 0) then 
-             call wtioput(naming_id,ediff,ekinetic,dt,nsoften)
+             call wtioput(naming_id,ediff,ekinetic,dt,nsoften,irand)
              write(2,'((1x,f10.0),1x,1pe21.14,2(1x,1pe10.3),3(1x,0pf5.2),a)')  &
              escape,outs%energy,ediff,ekinetic, &
              escape_sam/escape,escape_old/escape,escape_new/escape,'  S '
@@ -697,19 +534,16 @@ call fingerprint(spredinputs,nid,bigdft_nat(run_opt),bigdft_get_cell(run_opt),rc
       call insert(bigdft_mpi%iproc,nlminx,nlmin,nid,bigdft_nat(run_opt),k_e,outs%energy,wfp,&
            rxyz_opt,en_arr,ct_arr,fp_arr,pl_arr)
       ! write intermediate results
-
       if (bigdft_mpi%iproc == 0) then
          if(mod(nlmin,spredinputs%glbl_nwrite)==0)then
          call yaml_comment('(MH) WINTER')
          call winter(naming_id,natoms,bigdft_get_astruct_ptr(run_opt),&
                                  nid,nlminx,nlmin,singlestep,en_delta,fp_delta,en_arr,ct_arr,&
-                                 fp_arr,pl_arr,ediff,ekinetic,dt,nsoften)
+                                 fp_arr,pl_arr,ediff,ekinetic,dt,nsoften,irand)
         endif
-        !call yaml_stream_attributes()
         call yaml_mapping_open('(MH) New minimum',flow=.true.)
         call yaml_map('(MH) has energy',outs%energy,fmt='(e14.7)')
-        !if (dmin < 1.e100_gp) 
-           call yaml_map('(MH) distance',dmin,fmt='(e11.4)')
+        !call yaml_map('(MH) FP distance dmin',dmin,fmt='(e11.4)')
         call yaml_mapping_close(advance='yes')
       end if
       nvisit=1
@@ -719,7 +553,7 @@ call fingerprint(spredinputs,nid,bigdft_nat(run_opt),bigdft_get_cell(run_opt),rc
         call yaml_mapping_open('(MH) Revisited:',flow=.true.)
         call yaml_map('(MH) number',kid)
         call yaml_map('(MH) with energy',en_arr(kid),fmt='(e14.7)')
-        call yaml_map('(MH) distance',dmin,fmt='(e11.4)')
+        call yaml_map('(MH) FP distance dmin',dmin,fmt='(e11.4)')
         call yaml_mapping_close(advance='yes')
       endif
       ct_arr(kid)=ct_arr(kid)+1.d0
@@ -772,30 +606,20 @@ call fingerprint(spredinputs,nid,bigdft_nat(run_opt),bigdft_get_cell(run_opt),rc
   nposacc=nposacc+1
   if (bigdft_mpi%iproc == 0) then
      write(fn6,'(i6.6)')nposacc
-     if(disable_hatrans)then
-         write(comment,'(a)')'ha_trans disabled'
-     else
-         write(comment,'(a)')'ha_trans enabled'
-     endif
      call astruct_dump_to_file(bigdft_get_astruct_ptr(run_opt),&
-          !'posacc_'//fn4//'_'//trim(bigdft_run_id_toa()),&
-          'posacc_'//fn6//trim(naming_id),&
-          trim(comment),energy=e_pos,rxyz=pos)
+          'posacc_'//fn6//trim(naming_id),trim(comment),energy=e_pos,rxyz=pos)
   endif
 
      if (bigdft_mpi%iproc == 0) then
         !call yaml_mapping_open('(MH) Write poscur file')
         call astruct_dump_to_file(bigdft_get_astruct_ptr(run_opt),&
-             !'poscur'//trim(bigdft_run_id_toa()),'',&
-             'poscur'//trim(naming_id),'',&
-             energy=e_pos,rxyz=pos)
+             'poscur'//trim(naming_id),'',energy=e_pos,rxyz=pos)
        call yaml_map('(MH) poscur.xyz for  RESTART written',.true.)
 
        write(2,'(1x,f10.0,1x,1pe21.14,2(1x,1pe10.3),3(1x,0pf5.2),a)')  &
               escape,e_hop,ediff,ekinetic, &
               escape_sam/escape,escape_old/escape,escape_new/escape,'  A '
        call f_utils_flush(2)
-       !flush(2)
       endif
 
       e_hop=1.d100
@@ -816,18 +640,28 @@ call fingerprint(spredinputs,nid,bigdft_nat(run_opt),bigdft_get_cell(run_opt),rc
      rejected=rejected+1.d0
      ediff=ediff*alpha_R
   endif
-     if (bigdft_mpi%iproc == 0) call wtioput(naming_id,ediff,ekinetic,dt,nsoften)
+     if (bigdft_mpi%iproc == 0) call wtioput(naming_id,ediff,ekinetic,dt,nsoften,irand)
 
 end do hopping_loop
 
 !3000 continue
+
 
   if (bigdft_mpi%iproc == 0) then
      call yaml_mapping_open('(MH) Final results')
      call yaml_map('(MH) Total number of minima found',nlmin)
      call yaml_map('(MH) Number of accepted minima',accepted)
      call winter(naming_id,natoms,bigdft_get_astruct_ptr(run_opt),nid,nlminx,nlmin,singlestep,en_delta,fp_delta, &
-           en_arr,ct_arr,fp_arr,pl_arr,ediff,ekinetic,dt,nsoften)
+           en_arr,ct_arr,fp_arr,pl_arr,ediff,ekinetic,dt,nsoften,irand)
+
+     open(file="FPdistances.dat",unit=963)
+     do i=1,nlmin
+     do j=i+1,nlmin
+     call fpdistance(spredinputs,nid,bigdft_nat(run_opt),fp_arr(1,i),fp_arr(1,j),d)
+     write(963,'(i4,1x,i4,2x,e12.5,2x,e12.5)') i,j,abs(en_arr(i)-en_arr(j)),d
+     enddo
+     enddo
+     close(961)
   endif
 
 
@@ -863,62 +697,44 @@ end do hopping_loop
   endif
   close(2) 
   !deallocations as in BigDFT
-  !call run_objects_free_container(runObj)
 
-  !call free_restart_objects(rst)
-!  if (iproc==0) write(*,*) 'quit 1'
   call release_run_objects(run_md)
-!  if (iproc==0) write(*,*) 'quit 2'
-  if(run_opt%run_mode=='QM_RUN_MODE') then
-   call f_free(ksevals) 
-  endif
+!  if(run_opt%run_mode=='QM_RUN_MODE') then
+!   call f_free(ksevals) 
+!  endif
   call free_run_objects(run_opt)
-!!$  call deallocate_atoms_data(atoms)
 
   ! deallocation of global's variables
-
-!  if (iproc==0) write(*,*) 'quit 3'
   call f_free_ptr(pos)
   call f_free(en_arr)
   call f_free(ct_arr)
   call f_free(fp_arr)
-  !call f_free(fp)
-  !call f_free(wfp)
+  call f_free(pl_arr)
   call finalize_fingerprint(fp)
   call finalize_fingerprint(wfp)
+  call finalize_fingerprint(fphop)
   call f_free(vxyz)
   call f_free(gg)
-  call f_free(pl_arr)
   call f_free(poshop)
-  !call f_free(fphop)
-  call finalize_fingerprint(fphop)
   call f_free(rcov)
-!  if (iproc==0) write(*,*) 'quit 4'
 
 
   call deallocate_state_properties(outs)
-!!$  call free_input_variables(inputs_md)
-!!$  call free_input_variables(inputs_opt)
 
-!  if (iproc==0)idum, write(*,*) 'quit 5'
   call bigdft_finalize(ierr)
 
-!  if (iproc==0) write(*,*) 'quit 6'
   call f_lib_finalize()
-!  if (iproc==0) write(*,*) 'quit 7'
 
 contains
 
 
   !> Does a MD run with the atomic positions rxyz
-  subroutine mdescape(idum,nsoften,mdmin,ekinetic,gg,vxyz,dt,count_md, &
-       runObj,outs,ngeopt,iproc)!  &
+  subroutine mdescape(irand,nsoften,mdmin,ekinetic,gg,vxyz,dt,count_md,runObj,outs,iproc)
     use module_base
     use module_types
     use m_ab6_symmetry
     implicit none !real*8 (a-h,o-z)
-    integer :: nsoften,mdmin,ngeopt,iproc
-    integer, intent(inout) :: idum
+    integer :: nsoften,mdmin,iproc,irand
     real(kind=8) :: ekinetic,dt,count_md
     type(run_objects), intent(inout) :: runObj
     type(state_properties), intent(inout) :: outs
@@ -939,12 +755,11 @@ contains
     rxyz_run => bigdft_get_rxyz_ptr(runObj)
 
   !! Either random velocity distribution 
-          call randdist(natoms,bigdft_get_geocode(runObj),rxyz_run,vxyz)
+          call randdist(irand,natoms,bigdft_get_geocode(runObj),rxyz_run,vxyz)
   !! or Gauss velocity distribution
-  !! or exponential  velocity distribution
-  !        call gausdist(natoms,bigdft_get_geocode(runObj),rxyz,vxyz)
+  !        call gausdist(irand,natoms,bigdft_get_geocode(runObj),rxyz_run,vxyz)
   !! or localized velocities
-  !        call localdist(natoms,bigdft_get_geocode(runObj),rxyz,vxyz)
+  !        call localdist(irand,natoms,bigdft_get_geocode(runObj),rxyz,vxyz)
 
     !!! Put to zero the velocities for all boron atoms
     !!do iat=1,natoms
@@ -995,32 +810,15 @@ contains
        if (iproc == 0) then
           write(fn6,'(i6.6)') istep
           call bigdft_write_atomic_file(runObj,outs,'posmd_'//fn6,'')
-!!$          call write_atomic_file(trim(inputs_md%dir_output)//'posmd_'//fn4,outs%energy,&
-!!$              atoms%astruct%rxyz,atoms%astruct%ixyz_int,atoms,'',forces=outs%fxyz)
        end if
 
        en0000=outs%energy-e0
        if (istep >= 3 .and. enmin1 > enmin2 .and. enmin1 > en0000)  nummax=nummax+1
        if (istep >= 3 .and. enmin1 < enmin2 .and. enmin1 < en0000)  nummin=nummin+1
-!  write configuration file for data base
-!!       if (istep >= 3 .and. enmin1 < enmin2 .and. enmin1 < en0000)  then
-!!          ngeopt=ngeopt+1
-!!          write(fn6,'(i6.6)') ngeopt
-!!          write(comment,'(a,i3)')'nummin= ',nummin
-!!          call bigdft_write_atomic_file(runObj,outs,&
-!!               !'poslocm_'//fn4//'_'//trim(bigdft_run_id_toa()),&
-!!               'poslocm_'//fn6//trim(naming_id),&
-!!               trim(comment),cwd_path=.true.)
-!!$          call write_atomic_file('poslocm_'//fn4//'_'//trim(bigdft_run_id_toa()), & 
-!!$               outs%energy,atoms%astruct%rxyz,atoms%astruct%ixyz_int,atoms,trim(comment),forces=outs%fxyz)
-!!       endif
        econs_max=max(econs_max,rkin+outs%energy)
        econs_min=min(econs_min,rkin+outs%energy)
        devcon=econs_max-econs_min
-       !if (iproc == 0) writei17,'(a,i5,1x,1pe17.10,2(1x,i2))') 'MD ',&
-       !     istep,e_rxyz,nummax,nummin
        if (iproc == 0) then
-!          write(*,'(a,i5,1x,1pe17.10,2(1x,i2))') '# (MH) MD ',istep,e_rxyz,nummax,nummin
            write(555,'(i4,3(2x,e12.5))') istep,outs%energy,rkin,rkin+outs%energy
           call yaml_mapping_open('(MH) MD',flow=.true.)
             call yaml_map('Step',istep)
@@ -1077,13 +875,12 @@ contains
     ! adjust time step to meet precision criterion
     devcon=devcon/(3*bigdft_nat(runObj)-3)
     !if (iproc == 0) &
-    !     write(66,'(a,2(1x,1pe11.4),1x,i5)')&
-    !     'MD devcon ',devcon,devcon/ekinetic,istep
+    !     write(66,'(a,2(1x,1pe11.4),1x,i5)') 'MD devcon ',devcon,devcon/ekinetic,istep
     if (devcon/ekinetic.lt.10.d-2) then
-       if (iproc == 0) write(*,*) 'MD:old,new dt',dt,dt*1.05d0,devcon
+    !   if (iproc == 0) write(*,*) 'MD:old,new dt',dt,dt*1.05d0,devcon
        dt=dt*1.05d0
     else
-       if (iproc == 0) write(*,*) 'MD:old,new dt',dt,dt/1.05d0,devcon
+    !   if (iproc == 0) write(*,*) 'MD:old,new dt',dt,dt/1.05d0,devcon
        dt=dt*(1.d0/1.05d0)
     endif
     
@@ -1146,7 +943,7 @@ contains
        call bigdft_state(runObj,outs,infocode)
 
        call atomic_dot(bigdft_get_astruct_ptr(runObj),vxyz,vxyz,svxyz)
-        if(iproc == 0) call yaml_map('(MH)  svxyz=',svxyz)
+!        if(iproc == 0) call yaml_map('(MH)  svxyz=',svxyz)
        call atomic_dot(bigdft_get_astruct_ptr(runObj),vxyz,outs%fxyz,sdf)
        !fd2=2.d0*(outs%energy-etot0)/eps_vxyz**2
        fd2=2.d0*(outs%energy-etot0)/svxyz
@@ -1172,7 +969,7 @@ contains
             call yaml_map('dE',outs%energy-etot0,fmt='(f12.5)')
             call yaml_map('dE/natoms',(outs%energy-etot0)/natoms,fmt='(f12.5)')
             call yaml_map('res',res,fmt='(f12.5)')
-            call yaml_map('(MH) eps_vxyz',eps_vxyz,fmt='(f12.5)')
+!            call yaml_map('(MH) eps_vxyz',eps_vxyz,fmt='(f12.5)')
           call yaml_mapping_close(advance='yes')
        end if
        if (curv.lt.0.d0 .or. fd2.lt.0.d0) then
@@ -1319,16 +1116,17 @@ subroutine velnorm(nat,ekinetic,vxyz)
 END SUBROUTINE velnorm
 
 
-      subroutine randdist(nat,geocode,rxyz,vxyz)
+      subroutine randdist(irand,nat,geocode,rxyz,vxyz)
 ! create a random displacement vector without translational and angular moment
       implicit real*8 (a-h,o-z)
       real ss
       character(len=1) :: geocode
       dimension vxyz(3*nat),rxyz(3*nat)
 
+!      write(*,*) '(MH) random number used by mdescape ',irand
      do i=1,3*nat
-       call random_number(ss)
-       vxyz(i)=dble(ss-.5)
+       call random_LinCon(irand,rand)
+       vxyz(i)=rand
      enddo
     call elim_moment(nat,vxyz)
     if (geocode == 'F')  call elim_torque_reza(nat,rxyz,vxyz)
@@ -1337,29 +1135,22 @@ END SUBROUTINE randdist
 
 
 !>  generates 3*nat random numbers distributed according to  exp(-.5*vxyz**2)
-subroutine gausdist(nat,geocode,rxyz,vxyz)
+subroutine gausdist(irand,nat,geocode,rxyz,vxyz)
   implicit real*8 (a-h,o-z)
-  real s1,s2
   character(len=1) :: geocode
-  !C On Intel the random_number can take on the values 0. and 1.. To prevent overflow introduce eps
-  parameter(eps=1.d-8)
   dimension vxyz(3*nat),rxyz(3*nat)
 
   do i=1,3*nat-1,2
-     call random_number(s1)
-     t1=eps+(1.d0-2.d0*eps)*dble(s1)
-     call random_number(s2)
-     t2=dble(s2)
-     tt=sqrt(-2.d0*log(t1))
+     call random_LinCon(irand,t1)
+     call random_LinCon(irand,t2)
+     tt=sqrt(-2.d0*log(.5d0-.5d0*t1))
      vxyz(i)=tt*cos(6.28318530717958648d0*t2)
      vxyz(i+1)=tt*sin(6.28318530717958648d0*t2)
   enddo
-  call random_number(s1)
-  t1=eps+(1.d0-2.d0*eps)*dble(s1)
-  call random_number(s2)
-  t2=dble(s2)
-  tt=sqrt(-2.d0*log(t1))
-  vxyz(3*nat)=tt*cos(6.28318530717958648d0*t2)
+     call random_LinCon(irand,t1)
+     call random_LinCon(irand,t2)
+     tt=sqrt(-2.d0*log(.5d0-.5d0*t1))
+     vxyz(3*nat)=tt*cos(6.28318530717958648d0*t2)
 
   call elim_moment(nat,vxyz)
   if (geocode == 'F') &
@@ -1379,6 +1170,7 @@ END SUBROUTINE gausdist
 !
 !  do i=1,3*nat
 !     call random_number(ss)
+!       call random_LinCon(irand,rand)
 !     tt=eps+(1.d0-2.d0*eps)*dble(ss)
 !     vxyz(i)=log(tt)
 !  enddo
@@ -1600,7 +1392,7 @@ END SUBROUTINE elim_moment
 
 
 subroutine winter(naming_id,nat,astruct,nid,nlminx,nlmin,singlestep,en_delta,fp_delta, &
-     en_arr,ct_arr,fp_arr,pl_arr,ediff,ekinetic,dt,nsoften)
+     en_arr,ct_arr,fp_arr,pl_arr,ediff,ekinetic,dt,nsoften,irand)
   use module_base
   use module_atoms, only: atomic_structure,astruct_dump_to_file
 !!$  use module_types
@@ -1610,7 +1402,7 @@ subroutine winter(naming_id,nat,astruct,nid,nlminx,nlmin,singlestep,en_delta,fp_
   implicit none
   !Arguments
   character(len=*), intent(in) :: naming_id
-  integer, intent(in) :: nlminx,nlmin,nsoften,nid
+  integer, intent(in) :: nlminx,nlmin,nsoften,nid,irand
   real(gp), intent(in) :: ediff,ekinetic,dt,en_delta,fp_delta
   type(atomic_structure), intent(in) :: astruct
   integer, intent(in) :: nat 
@@ -1643,7 +1435,7 @@ subroutine winter(naming_id,nat,astruct,nid,nlminx,nlmin,singlestep,en_delta,fp_
   call yaml_map('(MH) idarr for  RESTART written',.true.)
 
   ! write ioput file
-  call  wtioput(naming_id,ediff,ekinetic,dt,nsoften)
+  call  wtioput(naming_id,ediff,ekinetic,dt,nsoften,irand)
   call yaml_map('(MH) ioput for  RESTART written',.true.)
 
   ! write poslow files
@@ -1668,16 +1460,16 @@ subroutine winter(naming_id,nat,astruct,nid,nlminx,nlmin,singlestep,en_delta,fp_
 END SUBROUTINE winter
 
 
-subroutine wtioput(naming_id,ediff,ekinetic,dt,nsoften)
+subroutine wtioput(naming_id,ediff,ekinetic,dt,nsoften,irand)
   implicit none
   !Arguments
   character(len=*), intent(in) :: naming_id
   real(kind=8), intent(in) :: ediff,ekinetic,dt
-  integer, intent(in) :: nsoften
+  integer, intent(in) :: nsoften,irand
   !Local variables
   integer, parameter :: iunit=11
   open(unit=iunit,file='ioput'//trim(naming_id),status='unknown')
-  write(iunit,'(3(1x,1pe24.17)1x,i4,a)') ediff,ekinetic,dt,nsoften,' ediff, ekinetic dt and nsoften'
+  write(iunit,'(3(1x,1pe24.17)1x,i5,i15,a)') ediff,ekinetic,dt,nsoften,irand,' ediff,ekinetic,dt,nsoften,irand'
   close(unit=iunit)
 END SUBROUTINE wtioput
 
@@ -2231,7 +2023,7 @@ if(nfrag.ne.1) then          !"if there is fragmentation..."
          vcm3=vcm3+vel(3,iat)
       enddo
       if (iproc==0) then
-          write(*,'(a,e14.7,3(e10.3))') '(MH) EKIN CM before invert',ekin0,vcm1,vcm2,vcm3
+!          write(*,'(a,e14.7,3(e10.3))') '(MH) EKIN CM before invert',ekin0,vcm1,vcm2,vcm3
 !          call yaml_mapping_open(,flow=.true.)
           call yaml_map('(MH) EKIN CM before invert',(/ekin0,vcm1,vcm2,vcm3/),fmt='(e10.3)')
 !          call yaml_mapping_close(advance='yes')
@@ -2275,7 +2067,7 @@ if(nfrag.ne.1) then          !"if there is fragmentation..."
          vcm3=vcm3+vel(3,iat)
       enddo
       if (iproc==0) then
-          write(*,'(a,e14.7,3(e10.3))') '(MH) EKIN CM after  invert',ekin,vcm1,vcm2,vcm3
+!          write(*,'(a,e14.7,3(e10.3))') '(MH) EKIN CM after  invert',ekin,vcm1,vcm2,vcm3
           !call yaml_mapping_open('(MH) EKIN CM after invert',flow=.true.)
           call yaml_map('(MH) EKIN CM after invert',(/ekin0,vcm1,vcm2,vcm3/),fmt='(e10.3)')
           !call yaml_mapping_close(advance='yes')
@@ -2525,13 +2317,9 @@ subroutine identical(spredinputs,runObj,iproc,nlminx,nlmin,nid,e_wpos,wfp,en_arr
   !C  check whether new minimum
   call hunt_g(en_arr,min(nlmin,nlminx),e_wpos,k_e_wpos)
   newmin=.true.
-!  do i=1,nlmin
-!     if (iproc.eq.0) write(*,'(a,i3,5(e24.17))') '(MH) enarr ',i,en_arr(i),(fp_arr(l,i),l=1,2)
-!  enddo
-  !if (iproc.eq.0) write(*,'(a,e24.17,i3,5(e24.17))') '(MH) e_wpos,k_e_wpos ',e_wpos,k_e_wpos!,(wfp(l),l=1,2)
-  if (iproc == 0) then
-     call yaml_map('(MH) e_wpos,k_e_wpos ',e_wpos)
-     call yaml_map('(MH) k_e_wpos ',k_e_wpos)
+  if (iproc==0) then
+     call yaml_map( '(MH) hunt result k_e_wpos',k_e_wpos)
+     call yaml_map( '(MH) en_arr(k_e_wpos-2:k_e_wpos+2 ',[ (en_arr(i),i=max(k_e_wpos-2,1),min(k_e_wpos+2,nlmin) ) ] )
   end if
 
   ! find lowest configuration that might be identical
@@ -2551,19 +2339,22 @@ subroutine identical(spredinputs,runObj,iproc,nlminx,nlmin,nid,e_wpos,wfp,en_arr
   enddo
 
   nsm=0
-  if (iproc.eq.0) write(*,*) '(MH) k bounds ',max(1,klow),min(nlmin,khigh)
+  !if (iproc.eq.0) write(*,*) '(MH) k bounds ',max(1,klow),min(nlmin,khigh)
+  if (iproc.eq.0) call yaml_map('(MH) k bounds ',(/ max(1,klow),min(nlmin,khigh) /))
   dmin=1.d100
   do k=max(1,klow),min(nlmin,khigh)
   if (abs(e_wpos-en_arr(k)).le.en_delta) then
      call fpdistance(spredinputs,nid,bigdft_nat(runObj),wfp,fp_arr(1,k),d)
-     !call fpdistance(runObj,wfp,fp_arr(1,k),d)
-     if (iproc == 0) call yaml_map('(MH) Checking fpdistance',(/e_wpos-en_arr(k),d/),fmt='(e11.4)')
-!     if (iproc.eq.0) write(*,*) '(MH)  k,d',k,d
-!     if (iproc.eq.0) write(*,*) '(MH)  e_wpos,en_arr(k)', e_wpos,en_arr(k)
-!     if (iproc.eq.0) write(*,'(a,20(e10.3))') '(MH)    wfp', (wfp(i),i=1,nid)
-!     if (iproc.eq.0) write(*,'(a,20(e10.3))') '(MH) fp_arr', (fp_arr(i,k),i=1,nid)
+     if (iproc == 0)  then
+      call yaml_map('(MH)  k', k)
+      call yaml_map('(MH)  Energy difference,  FP distance',(/e_wpos-en_arr(k),d/),fmt='(1pe11.4)')
+!      call yaml_map( '(MH) wfp::: ',[ (wfp(i),i=1,nid) ] )
+!      call yaml_map( '(MH) fp_arr ',[ (fp_arr(i,k),i=1,nid) ] )
+     endif
+
+
      if (d.lt.fp_delta) then
-        if (iproc.eq.0) write(*,*) '(MH) identical to ',k
+        if (iproc.eq.0) call yaml_map( '(MH) identical to ',k )
         newmin=.false.
         nsm=nsm+1
         if (d.lt.dmin) then 
@@ -2575,9 +2366,9 @@ subroutine identical(spredinputs,runObj,iproc,nlminx,nlmin,nid,e_wpos,wfp,en_arr
   endif
   enddo
   if (iproc.eq.0) then
-     write(*,*) '(MH)  newmin ',newmin
-     write(*,*) ' ----------------------------------------------------'
-     if (nsm.gt.1) write(*,*) '(MH) WARNING: more than one identical configuration found'
+     call yaml_map( '(MH)  newmin ',newmin)
+     call yaml_map(' ----------------------------------------------------',iproc)
+     if (nsm.gt.1) call yaml_map('(MH) WARNING: more than one identical configuration found',nsm)
   endif
   !          if (nsm.gt.1) write(100+iproc,*) 'WARNING: more than one identical configuration found'
   if (nsm.eq.1) n_unique=n_unique+1
@@ -2588,6 +2379,7 @@ end subroutine identical
 
 subroutine insert(iproc,nlminx,nlmin,nid,nat,k_e_wpos,e_wpos,wfp,wpos,en_arr,ct_arr,fp_arr,pl_arr)
   ! inserts the energy e_wpos at position k_e_wpos and shifts up all other energies
+  use yaml_output
   implicit real*8 (a-h,o-z)
   dimension ct_arr(nlminx),en_arr(nlminx),fp_arr(nid,nlminx),pl_arr(3,nat,nlminx),wfp(nid),wpos(3,nat)
   do k=nlmin-1,k_e_wpos+1,-1
@@ -2612,79 +2404,81 @@ subroutine insert(iproc,nlminx,nlmin,nid,nat,k_e_wpos,e_wpos,wfp,wpos,en_arr,ct_
      pl_arr(2,iat,k+1)=wpos(2,iat)
      pl_arr(3,iat,k+1)=wpos(3,iat)
   enddo
-  if (iproc.eq.0) then
-     write(*,*) '  -----   INSERT -----------'
-     do k=1,nlmin
-        write(*,'(a,i3,20(e10.3))') '(MH) fingerprint ',k,(fp_arr(i,k),i=1,nid)
-     enddo
-  endif
+!  if (iproc.eq.0) then
+!     write(*,*) '  -----   INSERT -----------'
+!     do k=1,nlmin
+!        write(*,'(a,i3,20(e10.3))') '(MH) fingerprint ',k,(fp_arr(i,k),i=1,nid)
+!        call yaml_map( '(MH) fingerprint ',k)
+!        call yaml_map( '(MH) fingerprint ',fp_arr(:,k))
+!     enddo
+!  endif
   return
 end subroutine insert
 
 
-!> x is in interval [xx(jlo),xx(jlow+1)[ ; xx(0)=-Infinity ; xx(n+1) = Infinity
-subroutine hunt_orig(xx,n,x,jlo)
-  integer :: jlo,n
-  real*8 x,xx(n)
-  integer :: inc,jhi,jm
-  logical :: ascnd
-
-  if (n.le.0) stop 'hunt_orig'
-  if (n.eq.1) then
-     if (x.ge.xx(1)) then
-        jlo=1
-     else
-        jlo=0
-     endif
-     return
-  endif
-  ascnd=xx(n).ge.xx(1)
-
-  if(jlo.le.0.or.jlo.gt.n)then
-     jlo=0
-     jhi=n+1
-     goto 3
-  endif
-  inc=1
-
-  if(x.ge.xx(jlo).eqv.ascnd) then
-1    continue
-     jhi=jlo+inc
-     if(jhi.gt.n)then
-        jhi=n+1
-     else if(x.ge.xx(jhi).eqv.ascnd) then
-        jlo=jhi
-        inc=inc+inc
-        goto 1
-     endif
-  else
-     jhi=jlo
-2    continue
-     jlo=jhi-inc
-     if(jlo.lt.1)then
-        jlo=0
-     else if(x.lt.xx(jlo).eqv.ascnd)then
-        jhi=jlo
-        inc=inc+inc
-        goto 2
-     endif
-  endif
-
-3 continue
-  if(jhi-jlo.eq.1)then
-     if(x.eq.xx(n))jlo=n
-     if(x.eq.xx(1))jlo=1
-     return
-  endif
-  jm=(jhi+jlo)/2
-  if(x.ge.xx(jm).eqv.ascnd)then
-     jlo=jm
-  else
-     jhi=jm
-  endif
-  goto 3
-
-END subroutine hunt_orig
+! !> x is in interval [xx(jlo),xx(jlow+1)[ ; xx(0)=-Infinity ; xx(n+1) = Infinity
+! subroutine hunt_orig(xx,n,x,jlo)
+!   integer :: jlo,n
+!   real*8 x,xx(n)
+!   integer :: inc,jhi,jm
+!   logical :: ascnd
+! 
+!   if (n.le.0) stop 'hunt_orig'
+!   if (n.eq.1) then
+!      if (x.ge.xx(1)) then
+!         jlo=1
+!      else
+!         jlo=0
+!      endif
+!      return
+!   endif
+!   ascnd=xx(n).ge.xx(1)
+! 
+!   if(jlo.le.0.or.jlo.gt.n)then
+!      jlo=0
+!      jhi=n+1
+!      goto 3
+!   endif
+!   inc=1
+! 
+!   if(x.ge.xx(jlo).eqv.ascnd) then
+! 1    continue
+!      jhi=jlo+inc
+!      if(jhi.gt.n)then
+!         jhi=n+1
+!      else if(x.ge.xx(jhi).eqv.ascnd) then
+!         jlo=jhi
+!         inc=inc+inc
+!         goto 1
+!      endif
+!   else
+!      jhi=jlo
+! 2    continue
+!      jlo=jhi-inc
+!      if(jlo.lt.1)then
+!         jlo=0
+!      else if(x.lt.xx(jlo).eqv.ascnd)then
+!         jhi=jlo
+!         inc=inc+inc
+!         goto 2
+!      endif
+!   endif
+! 
+! 3 continue
+!   if(jhi-jlo.eq.1)then
+!      if(x.eq.xx(n))jlo=n
+!      if(x.eq.xx(1))jlo=1
+!      return
+!   endif
+!   jm=(jhi+jlo)/2
+!   if(x.ge.xx(jm).eqv.ascnd)then
+!      jlo=jm
+!   else
+!      jhi=jm
+!   endif
+!   goto 3
+! 
+! END subroutine hunt_orig
 
 
 
@@ -3084,3 +2878,50 @@ subroutine frozen_dof(astruct,vxyz,ndfree,ndfroz)
      enddo
   enddo
 end subroutine frozen_dof
+
+
+         
+!!      implicit real*8 (a-h,o-z)
+!!       parameter(nbin=100)
+!!       dimension hist(0:nbin)
+!!
+!!       do i=0,nbin
+!!       hist(i)=0.d0
+!!       enddo
+!!
+!!       irand=0
+!!       do i=1,100
+!!       call random_LinCon(irand,rand)
+!!       write(*,*) rand
+!!       enddo
+!!
+!!       irand=0
+!!       ii=0
+!!       do 
+!!       ii=ii+1
+!!       call random_LinCon(irand,rand)
+!!       ibin=nbin*(1.d0+rand)/2.d0
+!!       hist(ibin)=hist(ibin)+1.d0
+!!       if (irand.eq.0) exit
+!!       enddo
+!!
+!!       do i=0,nbin
+!!       write(*,*) i,hist(i)
+!!       enddo
+!!
+!!       nex=log(1.d0*ii)/log(2.d0)
+!!       write(*,*) ii,nex,2**nex
+!!
+!!
+!!      end
+
+   subroutine random_LinCon(irand,rand)
+   ! linear congruential random number generatot with a period of 2**30
+   ! the output rand is equally distributed in the intervall [-1:1[
+      implicit real*8 (a-h,o-z)
+      parameter(na=123456789,nb=987654321,m=2**30,rm=1.d0/m)
+         
+      rand=irand*rm
+      irand=mod(na*irand+nb,m)
+
+   end subroutine

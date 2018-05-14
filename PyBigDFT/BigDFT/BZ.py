@@ -1,5 +1,6 @@
 #This module needs: numpy, matplotlib, scipy, ase, spglib 
 import numpy
+from futile.Utils import write as safe_print
 
 def get_ev(ev,keys=None,ikpt=1):
     """Get the correct list of the energies for this eigenvalue."""
@@ -93,9 +94,9 @@ class BandArray(numpy.ndarray):
         self.kwgt=kwgt
     def __add__(self,b):
         if hasattr(b,'kpt') and (b.kpt != self.kpt): 
-            raise ValueError, 'cannot sum BandArray with different kpoints'
+            raise ValueError('cannot sum BandArray with different kpoints')
         if hasattr(b,'kwgt') and (b.kwgt != self.kwgt): 
-            raise ValueError, 'cannot sum BandArray with different kweights'
+            raise ValueError('cannot sum BandArray with different kweights')
         c=super(type(self),self).__add__(b)
         return BandArray(data=c,ikpt=self.ikpt,kpt=self.kpt,kwgt=self.kwgt)
 
@@ -131,7 +132,7 @@ class BrillouinZone():
         #ianames,iatype=numpy.unique(atoms,return_inverse=True) #[1,]*4+[2,]*4 #we should write a function for the iatype
         #print 'iatype', iatype
         #cell=(self.lattice,pos,iatype)
-        print 'spacegroup',spglib.get_spacegroup(cell, symprec=1e-5)
+        safe_print('spacegroup',spglib.get_spacegroup(cell, symprec=1e-5))
         #then define the pathes and special points
         import ase.dft.kpoints as ase
         #we should adapt the 'cubic'
@@ -141,7 +142,7 @@ class BrillouinZone():
             lattice_string='cubic'
         else:
             lattice_string='orthorhombic'
-        print 'Lattice found:',lattice_string
+        safe_print('Lattice found:',lattice_string)
         self.special_points=ase.get_special_points(lattice_string, self.lattice, eps=0.0001)
         self.special_paths=ase.parse_path_string(ase.special_paths[lattice_string])
         self.fermi_energy=fermi_energy
@@ -156,7 +157,7 @@ class BrillouinZone():
                 if m==ikpt:
                     ltmp.append((g,ind))
             lookup.append(ltmp)
-        print 'irreductible k-points',len(lookup)
+        safe_print('irreductible k-points',len(lookup))
         #print 'mapping',mapping
         #print 'grid',len(grid),numpy.max(grid)
         coords=numpy.array(grid, dtype = numpy.float)/mesh
@@ -181,10 +182,10 @@ class BrillouinZone():
                         break 
                 if irrk is not None: break
             if irrk is None:
-                print 'error in ik',ik
-                print 'our',ourkpt
-                print 'spglib',grid
-                print 'mapping',mapping
+                safe_print( 'error in ik',ik)
+                safe_print( 'our',ourkpt)
+                safe_print( 'spglib',grid)
+                safe_print( 'mapping',mapping)
             for (kt,ind) in ik:
                 #r=kt+shift
                 #ind=numpy.argwhere([(g==kt).all() for g in grid])
@@ -214,7 +215,7 @@ class BrillouinZone():
         for kpt in evals:
             diff=numpy.ravel(numpy.ravel(kpt)-numpy.ravel(self.interpolator([ kpt.kpt])))
             sanity=max(sanity,numpy.dot(diff,diff))
-        print 'Interpolation bias',sanity
+        print('Interpolation bias',sanity)
     def plot(self,path=None,npts=50):
         if path is None: 
             #ppath=BZPath(self.lattice,self.special_paths[0]+['G',],self.special_points,npts)

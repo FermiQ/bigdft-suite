@@ -781,6 +781,7 @@ subroutine tmb_overlap_onsite(iproc, nproc, imethod_overlap, at, tmb, rxyz)
       call deallocate_wfd(tmb%lzd%llr(ilr_tmp)%wfd)
       call allocate_wfd(tmb%lzd%llr(ilr_tmp)%wfd)
   end if
+  !here another routine to copy the descriptors
   if (nproc>1) then
       ncount = tmb%lzd%llr(ilr_tmp)%wfd%nseg_c + tmb%lzd%llr(ilr_tmp)%wfd%nseg_f
       workarray = f_malloc(6*ncount,id='workarray')
@@ -790,7 +791,7 @@ subroutine tmb_overlap_onsite(iproc, nproc, imethod_overlap, at, tmb, rxyz)
           call vcopy(ncount, tmb%lzd%llr(ilr_tmp)%wfd%keyvloc(1), 1, workarray(4*ncount+1), 1)
           call vcopy(ncount, tmb%lzd%llr(ilr_tmp)%wfd%keyvglob(1), 1, workarray(5*ncount+1), 1)
       end if
-      call mpibcast(workarray,root=iroot, comm=bigdft_mpi%mpi_comm)
+      call fmpi_bcast(workarray,root=iroot, comm=bigdft_mpi%mpi_comm)
       if (iproc/=iroot) then
           call vcopy(2*ncount, workarray(1), 1, tmb%lzd%llr(ilr_tmp)%wfd%keygloc(1,1), 1)
           call vcopy(2*ncount, workarray(2*ncount+1), 1, tmb%lzd%llr(ilr_tmp)%wfd%keyglob(1,1), 1)
@@ -945,6 +946,7 @@ subroutine tmb_overlap_onsite(iproc, nproc, imethod_overlap, at, tmb, rxyz)
 
              !!call f_free(psirold)
              !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
              call reformat_one_supportfunction(tmb%lzd%llr(ilr_tmp),tmb%lzd%llr(ilr),&
                   tmb%lzd%glr%mesh_coarse,tmb%lzd%glr%mesh_coarse,&
                   !at%astruct%geocode,& !,tmb%lzd%llr(ilr_tmp)%geocode,&
@@ -1323,7 +1325,7 @@ subroutine tmb_overlap_onsite_rotate(iproc, nproc, input, at, tmb, rxyz, ref_fra
           call vcopy(ncount, tmb%lzd%llr(ilr_tmp)%wfd%keyvloc(1), 1, workarray(4*ncount+1), 1)
           call vcopy(ncount, tmb%lzd%llr(ilr_tmp)%wfd%keyvglob(1), 1, workarray(5*ncount+1), 1)
       end if
-      call mpibcast(workarray, root=iroot, comm=bigdft_mpi%mpi_comm)
+      call fmpi_bcast(workarray, root=iroot, comm=bigdft_mpi%mpi_comm)
       if (iproc/=iroot) then
           call vcopy(2*ncount, workarray(1), 1, tmb%lzd%llr(ilr_tmp)%wfd%keygloc(1,1), 1)
           call vcopy(2*ncount, workarray(2*ncount+1), 1, tmb%lzd%llr(ilr_tmp)%wfd%keyglob(1,1), 1)
@@ -1493,7 +1495,7 @@ subroutine tmb_overlap_onsite_rotate(iproc, nproc, input, at, tmb, rxyz, ref_fra
               !call vcopy(2*ncount, tmb%lzd%llr(ilr_tmp)%wfd%keygloc(1,1), 1, workarray(1), 1)
               call vcopy(ndim_tmp1, psi_tmp(istart_tmp), 1, psi_tmp_i(1), 1)
           end if
-          call mpibcast(psi_tmp_i, root=iroot, comm=bigdft_mpi%mpi_comm)
+          call fmpi_bcast(psi_tmp_i, root=iroot, comm=bigdft_mpi%mpi_comm)
           if (iproc==iroot) then
               istart_tmp = istart_tmp + ndim_tmp1
           !else

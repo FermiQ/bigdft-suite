@@ -76,7 +76,7 @@ module f_utils
      module procedure f_sizeof_r1,f_sizeof_r2,f_sizeof_r3,f_sizeof_r4,f_sizeof_r5
      module procedure f_sizeof_d1,f_sizeof_d2,f_sizeof_d3,f_sizeof_d4,f_sizeof_d5,f_sizeof_d6,f_sizeof_d7
      module procedure f_sizeof_z1,f_sizeof_z2,f_sizeof_z3,f_sizeof_z4,f_sizeof_z5
-     module procedure f_sizeof_c0,f_sizeof_c1
+     module procedure f_sizeof_c0,f_sizeof_c1,f_sizeof_c2
   end interface f_sizeof
 
   interface f_size
@@ -1567,6 +1567,12 @@ contains
     character(len=ln), dimension(:), intent(in) :: datatype
     integer(f_long) :: s; s=product(int(shape(datatype),f_long))*int(ln,f_long)
   end function f_sizeof_c1
+  pure function f_sizeof_c2(ln,datatype) result(s)
+    integer, intent(in) :: ln
+    character(len=ln), dimension(:,:), intent(in) :: datatype
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))*int(ln,f_long)
+  end function f_sizeof_c2
+
 
   pure function f_sizeof_z1(datatype) result(s)
     complex(f_double), dimension(:), intent(in) :: datatype

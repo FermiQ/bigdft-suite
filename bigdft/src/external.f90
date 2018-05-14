@@ -127,11 +127,11 @@ subroutine bigdft_finalize(ierr)
   call bigdft_python_finalize()
 
   !here a routine to free the environment should be called
-  call mpibarrier() !over comm world
+  call fmpi_barrier() !over comm world
   !call MPI_BARRIER(MPI_COMM_WORLD,ierr)
   call release_mpi_environment(bigdft_mpi)
   !wait all processes before finalisation
-  call mpibarrier() !over comm world
+  call fmpi_barrier() !over comm world
   call mpifinalize()
 
 end subroutine bigdft_finalize

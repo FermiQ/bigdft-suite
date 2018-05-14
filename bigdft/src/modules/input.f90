@@ -64,6 +64,9 @@ contains
 
 
    subroutine input_set_file(iproc, dump, filename, exists,comment_file_usage)
+     use wrapper_MPI, only: fmpi_bcast
+     implicit none
+     
       integer, intent(in) :: iproc
       logical, intent(in) :: dump
       character(len = *), intent(in) :: filename,comment_file_usage
@@ -125,13 +128,13 @@ contains
          end if
          !broadcast the number of lines
          !if (lmpinit) call MPI_BCAST(nlines,1,MPI_INTEGER,0,bigdft_mpi%mpi_comm,ierr)
-         if (lmpinit) call mpibcast(nlines,1,comm=bigdft_mpi%mpi_comm)
+         if (lmpinit) call fmpi_bcast(nlines,1,comm=bigdft_mpi%mpi_comm)
          if (ierr /=0) stop 'input_file BCAST (1) '
          nlines_total=nlines
 
          !broadcast all the lines
          if (lmpinit) call MPI_BCAST(lines,max_length*nlines,MPI_CHARACTER,0,bigdft_mpi%mpi_comm,ierr)
-         !if (lmpinit) call mpibcast(lines,max_length*nlines,comm=bigdft_mpi%mpi_comm)
+         !if (lmpinit) call fmpi_bcast(lines,max_length*nlines,comm=bigdft_mpi%mpi_comm)
          if (ierr /=0) stop 'input_file BCAST (2) '
 
          !!$    write(0,*) "Setup input file '", trim(filename), "' with ", i - 1, "lines."

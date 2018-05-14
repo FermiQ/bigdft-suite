@@ -55,7 +55,7 @@ program babel
   call yaml_map(fin,dict)
   call yaml_mapping_close()
 
-  call dict_to_frags(dict//'positions')
+  !call dict_to_frags(dict//'positions')
 
   call astruct_dict_get_types(dict, types)
   nullify(iter)
@@ -111,12 +111,20 @@ program babel
          !now store the data in the dictionary
          call set(frag//trim(yaml_toa(id))//'name',fragname)
          call add(frag//trim(yaml_toa(id))//'atoms',iat)
+         print *,'here',iat,ifrag_max
       end do
+      call yaml_map('Fragment dict',frag)
       fileunit=12
       call f_open_file(fileunit,'frag.yaml')
       call dict_init(frag_list)
       call yaml_set_stream(unit=fileunit)
       do id=1,ifrag_max
+         atom = frag .get. trim(yaml_toa(id))
+         if (.not. associated(atom)) then
+            call yaml_warning('The fragment"'+id+'" is not assigned to a fragment')
+            cycle
+         end if
+
          iter=>frag//trim(yaml_toa(id))//'atoms'
          call dict_copy(dest=frag_list//id-1,src=iter)
       end do

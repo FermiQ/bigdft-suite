@@ -767,13 +767,14 @@ subroutine extra_sccs_potential(kernel,work_full,depsdrho,pot,eps0)
   real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2)*kernel%grid%n3p) :: pot !intent in
   real(dp), intent(in) :: eps0
 
-  !first gather the potential to calculate the derivative
-  if (kernel%mpi_env%nproc > 1) then
-     call mpiallgather(pot,recvbuf=work_full,recvcounts=kernel%counts,&
-          displs=kernel%displs,comm=kernel%mpi_env%mpi_comm)
-  else
-     call f_memcpy(src=pot,dest=work_full)
-  end if
+  call PS_gather(src=pot,kernel=kernel,dest=work_full)
+!!$  !first gather the potential to calculate the derivative
+!!$  if (kernel%mpi_env%nproc > 1) then
+!!$     call fmpi_allgather(pot,recvbuf=work_full,recvcounts=kernel%counts,&
+!!$          displs=kernel%displs,comm=kernel%mpi_env%mpi_comm)
+!!$  else
+!!$     call f_memcpy(src=pot,dest=work_full)
+!!$  end if
 
   !then calculate the extra potential and add it to pot
   !call sccs_extra_potential(kernel,work_full,depsdrho,dsurfdrho,eps0)
@@ -789,12 +790,13 @@ subroutine pol_charge(kernel,pot_full,rho,pot)
   real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2)*kernel%grid%n3p) :: pot !intent in
 
   !first gather the potential to calculate the derivative
-  if (kernel%mpi_env%nproc > 1) then
-     call mpiallgather(pot,recvbuf=pot_full,recvcounts=kernel%counts,&
-          displs=kernel%displs,comm=kernel%mpi_env%mpi_comm)
-  else
-     call f_memcpy(src=pot,dest=pot_full)
-  end if
+  call PS_gather(src=pot,kernel=kernel,dest=pot_full)
+!!$  if (kernel%mpi_env%nproc > 1) then
+!!$     call fmpi_allgather(pot,recvbuf=pot_full,recvcounts=kernel%counts,&
+!!$          displs=kernel%displs,comm=kernel%mpi_env%mpi_comm)
+!!$  else
+!!$     call f_memcpy(src=pot,dest=pot_full)
+!!$  end if
 
   !calculate the extra potential and add it to pot
   call polarization_charge(kernel,pot_full,rho)

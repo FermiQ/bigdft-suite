@@ -3671,6 +3671,7 @@
   #-------------------------------- Warnings obtained during the run, check their relevance!
  WARNINGS:
  - The coarse grid does not fill the entire periodic box
+ - Inconsistency in Tr(H), check your cutoff radii
  - No orthogonalizing of the support functions
  - The support function localization radii might be too small, got 20 warnings
  - density optimization not converged

@@ -386,7 +386,7 @@ subroutine grow_freezstring(mhgpsst,uinp,runObj,outs,gammainv,perpnrmtol,trust,&
             !parts in interpol are OpenMP parallelized. It might hapenpen
             !that finished is not identical on all processors
             if (bigdft_mpi%nproc >1) then
-               call mpibcast(finished,comm=bigdft_mpi%mpi_comm)
+               call fmpi_bcast(finished,comm=bigdft_mpi%mpi_comm)
             end if
         !!$      maxdiff=mpimaxdiff(runObj%atoms%astruct%rxyz,comm=bigdft_mpi%mpi_comm,bcast=.true.)
             if(finished/=0)then

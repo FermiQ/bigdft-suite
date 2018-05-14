@@ -249,8 +249,8 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
 !!$        !here the constraining magnetic field is added on top of the local xc potential
            ! First calculate the new constraining field
            if(iproc==0) call cfd_field(denspot%cfd,iproc)
-           call mpibcast(denspot%cfd%B_at,root=0,comm=bigdft_mpi%mpi_comm)!,check=.true.)
-           call mpibcast(denspot%cfd%constrained_mom_err,root=0,comm=bigdft_mpi%mpi_comm)!,check=.true.)
+           call fmpi_bcast(denspot%cfd%B_at,root=0,comm=bigdft_mpi%mpi_comm)!,check=.true.)
+           call fmpi_bcast(denspot%cfd%constrained_mom_err,root=0,comm=bigdft_mpi%mpi_comm)!,check=.true.)
 !!$        call f_zero(denspot%cfd%B_at)
 !!$        denspot%cfd%B_at(1,1)=0.5_gp
 !!$        denspot%cfd%B_at(1,2)=0.5_gp
@@ -267,7 +267,7 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
                 !if(iproc==0) 
                 call asd_wrapper(asd,denspot%cfd%m_at_ref,denspot%cfd%B_at,denspot%cfd%nat)
              end if
-             call mpibcast(denspot%cfd%m_at_ref,root=0,comm=bigdft_mpi%mpi_comm)!,check=.true.)
+             call fmpi_bcast(denspot%cfd%m_at_ref,root=0,comm=bigdft_mpi%mpi_comm)!,check=.true.)
              if (iproc==0) then
                 call yaml_map('Moments out',denspot%cfd%m_at_ref,fmt='(f12.6)')
                 call yaml_mapping_close()
@@ -957,7 +957,7 @@ subroutine LocalHamiltonianApplication(iproc,nproc,at,npsidim_orbs,orbs,&
            call deallocate_work_arrays_locham(wrk_lh)
         end do loop_lr
         call f_free(psir)
-        !call mpibarrier()
+        !call fmpi_barrier()
         !stop
         call orbital_basis_release(psi_ob)
 
@@ -3095,15 +3095,15 @@ subroutine broadcast_kpt_objects(nproc, nkpts, ndata, data, ikptproc)
 
 
    if (nproc > 1) then
-      call mpibarrier(comm=bigdft_mpi%mpi_comm)
+      call fmpi_barrier(comm=bigdft_mpi%mpi_comm)
       do ikpt = 1, nkpts
          !print *,'data(:),ikpt',data(:,ikpt),ikpt,bigdft_mpi%iproc,ikptproc(ikpt)
-         call mpibcast(data(:,ikpt),root=ikptproc(ikpt),&
+         call fmpi_bcast(data(:,ikpt),root=ikptproc(ikpt),&
               comm=bigdft_mpi%mpi_comm)!,check=.true.)
          !call MPI_BCAST(data(1,ikpt), ndata,mpidtypg, &
          !   &   ikptproc(ikpt), bigdft_mpi%mpi_comm, ierr)
          !redundant barrier
-         call mpibarrier(comm=bigdft_mpi%mpi_comm)
+         call fmpi_barrier(comm=bigdft_mpi%mpi_comm)
          !call MPI_BARRIER(bigdft_mpi%mpi_comm,ierr)
       end do
    end if
