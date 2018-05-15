@@ -1,3 +1,5 @@
+from futile.Utils import write as safe_print
+
 cpickle_file = "bigdft-results.cpickle"
 
 def process_element(run,var,dico,force_run,Elements,strains):
@@ -9,11 +11,11 @@ def process_element(run,var,dico,force_run,Elements,strains):
               math.ceil(strains[0] * dico["c"] / hgrids[2]))
     for strain in strains:
         if run.iproc == 0:
-            print "(%s)" % strain
+            safe_print("(%s)" % strain)
         if dico["eKS"].has_key(strain) and not force_run:
             #The calculation is already done
             if run.iproc == 0:
-                print (name,strain),": ", dico["eKS"][strain]
+                safe_print((name,strain),": ", dico["eKS"][strain])
             continue
         var.update(set_strain(strain,ngrids,dico))
 
@@ -52,7 +54,7 @@ def process_element(run,var,dico,force_run,Elements,strains):
             HatoeV = 27.21138386
             eKS = float(dico["eKS"][strain])*HatoeV/dico["nat"]
             fd.write("%16.9f %16.9f\n" % (volume,eKS))
-            print strain,dico["eKS"][strain],volume,eKS
+            safe_print(strain,dico["eKS"][strain],volume,eKS)
         fd.close()
 
 
@@ -92,14 +94,14 @@ mix:
     #Control the diagonalisation scheme
     if dico["name"] in ("Cr", ):
         var["mix"]["iscf"] = 3
-	var["mix"]["alphamix"] = 0.9
+        var["mix"]["alphamix"] = 0.9
     if dico["name"] in ("Ba", "Ca"):
         var["mix"]["norbsempty"] = 8
     var["ig_occupation"] = {dico["name"]: {"empty_shells": ("s", "p", "d")}}
     #Atoms
     pspfile="psppar."+dico["name"]
     if not os.path.isfile(pspfile):
-        print "WARNING: Using default PSP for atom",dico["name"]
+        safe_print("WARNING: Using default PSP for atom",dico["name"])
     else:
         var[pspfile]=open(pspfile,'r').read()
     #var["posinp"] = {"positions": [{dico["name"]: map(float, dico[i + 1].split())} for i in range(dico["nat"])], "units": "reduced", "cell": (dico["a"], dico["b"], dico["c"])}
@@ -296,14 +298,14 @@ def elements_from_cif(files):
               b = P[1][0] * u + P[1][1] * v + P[1][2] * w
               c = P[2][0] * u + P[2][1] * v + P[2][2] * w
               dico[j * dico["nat"] + i + 1] = (a, b, c)
-    	      dico["nat"] *= len(dd)
-    	      dico["alpha"] = "90"
-    	      dico["beta"] = "90"
-    	      dico["gamma"] = "90"
+              dico["nat"] *= len(dd)
+              dico["alpha"] = "90"
+              dico["beta"] = "90"
+              dico["gamma"] = "90"
         elif btype != "orthorombic":
-            print "to be treated", dico["name"], dico["alpha"], dico["beta"], dico["gamma"], dico["a"], dico["b"], dico["c"]
-    	    # Update volume after orthomrombic tranformation and in angstroem^3
-    	    dico["volume"] = dico["a"]*dico["b"]*dico["c"]/atob**3
+            safe_print("to be treated", dico["name"], dico["alpha"], dico["beta"], dico["gamma"], dico["a"], dico["b"], dico["c"])
+            # Update volume after orthomrombic tranformation and in angstroem^3
+            dico["volume"] = dico["a"]*dico["b"]*dico["c"]/atob**3
         name = dico['name']
         if dico["alpha"] != "90" or dico["beta"] != "90" or dico["gamma"] != "90":
             nonortho.append(name)
@@ -325,16 +327,16 @@ def xyz_from_elements(dirXYZ,Elements,ortho,nonortho):
     shutil.rmtree(dirXYZ,ignore_errors=True)
     #Create it
     os.mkdir(dirXYZ)
-    print "---"
+    safe_print( "---")
     #Start and create the xyz files
-    print "Delta-test timestamp:", time.strftime('%X %x %Z')
-    print "Delta-test code: BigDFT"
-    print "Number of elements: ", len(Elements)
-    print "List of elements:", Elements.keys()
-    print "Number of orthorhombic elements: ", len(ortho)
-    print "Orthorhombic elements: ", ortho
-    print "Number of non-orthorhombic elements: ", len(nonortho)
-    print "Non-orthorhombic elements: ", nonortho
+    safe_print( "Delta-test timestamp:", time.strftime('%X %x %Z'))
+    safe_print( "Delta-test code: BigDFT")
+    safe_print( "Number of elements: ", len(Elements))
+    safe_print( "List of elements:", Elements.keys())
+    safe_print( "Number of orthorhombic elements: ", len(ortho))
+    safe_print( "Orthorhombic elements: ", ortho)
+    safe_print( "Number of non-orthorhombic elements: ", len(nonortho))
+    safe_print( "Non-orthorhombic elements: ", nonortho)
     for dico in Elements.values():
         name = dico['name']
         #We have all the specification
@@ -382,7 +384,7 @@ class Benchmark():
             self.Elements = cPickle.load(open(cpickle_file,"r"))
         for name in atomlist:
             dico=self.Elements[name]
-            if self.calculator.iproc == 0: print "Start calculation of %s" % dico["name"]
+            if self.calculator.iproc == 0: safe_print( "Start calculation of %s" % dico["name"])
             hgrid = 0.30
             var = set_inputfile(hgrid,dico)
             self.calculator.set(var)

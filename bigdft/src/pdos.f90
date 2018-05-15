@@ -136,9 +136,9 @@ subroutine write_sdos(bit,norbp,norb,epsx,epsy,epsz,output_dir)
   real(wp), dimension(:), pointer :: epsx_tot,epsy_tot,epsz_tot
 
   !here we may gather the results and write the file
-  epsx_tot=>mpigathered(epsx,comm=bigdft_mpi%mpi_comm)
-  epsy_tot=>mpigathered(epsy,comm=bigdft_mpi%mpi_comm)
-  epsz_tot=>mpigathered(epsz,comm=bigdft_mpi%mpi_comm)
+  epsx_tot=>fmpi_gather_ptr(epsx,comm=bigdft_mpi%mpi_comm)
+  epsy_tot=>fmpi_gather_ptr(epsy,comm=bigdft_mpi%mpi_comm)
+  epsz_tot=>fmpi_gather_ptr(epsz,comm=bigdft_mpi%mpi_comm)
 
   unt=82
   if (bigdft_mpi%iproc==0) then

@@ -6,15 +6,24 @@ ALLTOALL_INCLUDES = alltoallv-inc.f90 mpi_get_alltoallv-inc.f90
 
 ALLREDUCE_INCLUDES = allreduce-inc.f90 allreduce-arr-inc.f90 allreduce-core-inc.f90 allreduce-decl-inc.f90 allreduce-multi-inc.f90
 
-MPI_INCLUDES = gather-inc.f90 \
-	gather-inner-inc.f90 maxdiff-arr-inc.f90 maxdiff-inc.f90 \
-	bcast-inc.f90 bcast-decl-inc.f90 bcast-decl-arr-inc.f90 \
-	maxdiff-decl-inc.f90 maxdiff-end-inc.f90 \
-	allgather-inc.f90 scatter-inc.f90 scatterv-inc.f90 scatterv-decl-inc.f90 \
-	$(ALLREDUCE_INCLUDES) $(ALLTOALL_INCLUDES) $(WIN_INCLUDES) $(GET_INCLUDES)
+ALLGATHER_INCLUDES = allgather-inc.f90 control-routines-inc.f90
+
+MAXDIFF_INCLUDES =  maxdiff-arr-inc.f90 maxdiff-inc.f90 \
+	maxdiff-decl-inc.f90 maxdiff-end-inc.f90
+
+BCAST_INCLUDES = bcast-inc.f90 bcast-decl-inc.f90 bcast-decl-arr-inc.f90 \
+	maxdiff-routines-inc.f90 $(MAXDIFF_INCLUDES)
 
 WIN_INCLUDES = win-create-inc.f90
-GET_INCLUDES = get-inc.f90
+
+GET_INCLUDES = get-inc.f90 get-decl-inc.f90 get-end-inc.f90
+
+GATHER_INCLUDES = gather-inc.f90 gather-inner-inc.f90
+
+MPI_INCLUDES = scatter-inc.f90 scatterv-inc.f90 scatterv-decl-inc.f90 \
+	$(ALLGATHER_INCLUDES) $(ALLREDUCE_INCLUDES) $(ALLTOALL_INCLUDES) \
+	$(WIN_INCLUDES) $(GET_INCLUDES)
+	$(BCAST_INCLUDES) $(GATHER_INCLUDES)
 
 if USE_MPI
 if HAVE_MPI3
@@ -49,15 +58,19 @@ mpif.h:
 	echo "integer, parameter :: MPI_IN_PLACE=0" >> mpif.h &&\
 	echo "real(kind=8), external :: mpi_wtime" >> mpif.h
 
-libfmpi_a_SOURCES = scalars.f90 allreduce.f90 alltoall.f90 onesided.f90 \
+libfmpi_a_SOURCES = scalars.f90 allreduce.f90 alltoall.f90 onesided.f90 allgather.f90 bcast.f90 gather.f90 \
 	mpi.F90 $(mpi_source) test_mpi_wrappers.f90
 
 $(modules): $(libfmpi_a_OBJECTS)
-mpi.o: $(mpi_include) alltoall.o allreduce.o
+mpi.o: $(mpi_include) alltoall.o allreduce.o allgather.o
 test_mpi_wrappers.o: mpi.o
-onesided.o: scalars.o
+onesided.o:  $(GET_INCLUDES) scalars.o
 allreduce.o: $(ALLREDUCE_INCLUDES) scalars.o
 alltoall.o: $(ALLTOALL_INCLUDES) allreduce.o onesided.o
+allgather.o: $(ALLGATHER_INCLUDES) scalars.o onesided.o bcast.o
+bcast.o: $(BCAST_INCLUDES) scalars.o allreduce.o gather.o
+gather.o: $(GATHER_INCLUDES) scalars.o
+#control.o: scalars.o bcast.o allgather.o
 
 AM_FCFLAGS = -I. -I$(top_builddir)/dicts/ -I$(top_builddir)/flib/ @MPI_INCLUDE@
 
@@ -69,6 +82,9 @@ modules = WRAPPER_MPI.@MODULE_EXT@ \
 	FMPI_TYPES.@MODULE_EXT@ \
 	F_ALLREDUCE.@MODULE_EXT@ \
 	F_ONESIDED.@MODULE_EXT@ \
+	F_ALLGATHER.@MODULE_EXT@ \
+	F_BCAST.@MODULE_EXT@ \
+	F_GATHER.@MODULE_EXT@ \
 	F_ALLTOALL.@MODULE_EXT@
 else
 modules = wrapper_mpi.@MODULE_EXT@ \
@@ -77,6 +93,9 @@ modules = wrapper_mpi.@MODULE_EXT@ \
 	fmpi_types.@MODULE_EXT@ \
 	f_allreduce.@MODULE_EXT@ \
 	f_onesided.@MODULE_EXT@ \
+	f_allgather.@MODULE_EXT@ \
+	f_bcast.@MODULE_EXT@ \
+	f_gather.@MODULE_EXT@ \
 	f_alltoall.@MODULE_EXT@
 endif
 CLEANFILES = *.@MODULE_EXT@ mpif.h

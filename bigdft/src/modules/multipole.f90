@@ -2709,7 +2709,7 @@ module multipole
           end if
 
           ! Put here a barrier to get the timings right
-          call mpibarrier(bigdft_mpi%mpi_comm)
+          call fmpi_barrier(bigdft_mpi%mpi_comm)
 
           call f_release_routine()
 
@@ -3588,8 +3588,6 @@ module multipole
        call yaml_sequence_close()
        call yaml_mapping_close()
    end if
-
-
 
    call f_free(phi1r)
    call f_free(phi2r)

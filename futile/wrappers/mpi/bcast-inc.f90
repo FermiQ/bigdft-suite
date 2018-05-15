@@ -9,8 +9,7 @@
 
   iroot=0
   if (present(root)) iroot=root
-  mpi_comm=MPI_COMM_WORLD
-  if (present(comm)) mpi_comm=comm
+  mpi_comm=fmpi_comm(comm)
   if (present(check)) chk=check
   !performs debug check if active
   if (chk) then
@@ -19,11 +18,11 @@
         call yaml_mapping_open('BCAST check')
         call yaml_comment('Barrier over all processes')
      end if
-     call mpibarrier(comm=mpi_comm)
+     call fmpi_barrier(comm=mpi_comm)
      if (mpirank(mpi_comm) == 0) call yaml_flush_document()
      !if barrier passed, verify that the size of the communicated objects is the same
      iarg_check=[n,mpitype(buffer),iroot]
-     ierr=mpimaxdiff(iarg_check,comm=mpi_comm)
+     ierr=fmpi_maxdiff(iarg_check,comm=mpi_comm)
      !inform that everything seems OK
      if (mpirank(mpi_comm) == 0) then
         call yaml_map('Check passed',ierr == 0)
@@ -49,7 +48,7 @@
   end if
 
   if (chk) then
-     call mpibarrier(comm=mpi_comm)
+     call fmpi_barrier(comm=mpi_comm)
      if (mpirank(mpi_comm) == 0) then
         call yaml_comment('Actual Broadcast terminated') 
         call yaml_flush_document()

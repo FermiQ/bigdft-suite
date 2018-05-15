@@ -230,23 +230,34 @@ contains
   end subroutine box_iter_set_nbox
 
   !> this function has to be genralized for non-orthorhombic grids
-  pure function box_nbox_from_cutoff(mesh,oxyz,cutoff) result(nbox)
+  pure function box_nbox_from_cutoff(mesh,oxyz,cutoff,inner) result(nbox)
     implicit none
     type(cell), intent(in) :: mesh
     real(gp), dimension(3), intent(in) :: oxyz
     real(gp), intent(in) :: cutoff
     integer, dimension(2,3) :: nbox
+    logical, intent(in), optional :: inner
+    !local variables
+    logical :: inner_
     real(gp), dimension(2,3) :: rbox
     !for non-orthorhombic cells the concept of distance has to be inserted here (the box should contain the sphere)
 !!$    nbox(START_,:)=floor((oxyz-cutoff)/mesh%hgrids)
 !!$    nbox(END_,:)=ceiling((oxyz+cutoff)/mesh%hgrids)
 
+    inner_=.true.
+    if (present(inner)) inner_=inner
+
     rbox=cell_cutoff_extrema(mesh,oxyz,cutoff)
-    nbox(START_,:)=ceiling(rbox(START_,:)/mesh%hgrids)
-    nbox(END_,:)=floor(rbox(END_,:)/mesh%hgrids)
+
+    if (inner_) then
+       nbox(START_,:)=ceiling(rbox(START_,:)/mesh%hgrids)
+       nbox(END_,:)=floor(rbox(END_,:)/mesh%hgrids)
+    else
+       nbox(START_,:)=floor(rbox(START_,:)/mesh%hgrids)
+       nbox(END_,:)=ceiling(rbox(END_,:)/mesh%hgrids)
+    end if
 
   end function box_nbox_from_cutoff
-
 
   pure function cell_cutoff_extrema(mesh,oxyz,cutoff) result(rbox)
     implicit none
@@ -263,7 +274,6 @@ contains
 !        rbox(END_,:)=rxyz_nonortho(mesh,rxyz_ortho(mesh,oxyz)+cutoff)
 !    end if
   end function cell_cutoff_extrema
-
 
   pure subroutine box_iter_expand_nbox(bit)
     implicit none
@@ -304,8 +314,9 @@ contains
     implicit none
     type(box_iterator), intent(inout) :: bit
     !local variables
+    logical :: impossible_wrap_on_z
     integer :: iz,iy,ix,i,jx,jy,jz
-    integer(f_long) :: icnt,itgt
+    integer(f_long) :: icnt,itgt,itgt_inner
     logical(f_byte), dimension(:), allocatable :: lxyz
     integer, dimension(:), allocatable :: lx,ly,lz
     integer, dimension(3) :: subdims
@@ -313,12 +324,12 @@ contains
     do i=1,3
        subdims(i)=bit%subbox(END_,i)-bit%subbox(START_,i)+1
     end do
-    subdims(3)=min(subdims(3),bit%i3e-bit%i3s+1)
+    impossible_wrap_on_z=bit%mesh%bc(Z_) /= PERIODIC.or. bit%subbox(END_,Z_)-bit%subbox(START_,Z_) < bit%mesh%ndims(Z_)
+    if (impossible_wrap_on_z) subdims(3)=min(subdims(3),bit%i3e-bit%i3s+1)
 
     !first, count if the iterator covers all the required points
     itgt=product(int(subdims,f_long))
-    !!!itgt=int(bit%mesh%ndims(1),f_long)*int(bit%mesh%ndims(2),f_long)*&
-    !!!     int(bit%i3e-bit%i3s+1,f_long)
+    itgt_inner=int(subdims(1),f_long)*int(subdims(2),f_long)*min(subdims(3),bit%i3e-bit%i3s+1)!int(bit%i3e-bit%i3s+1,f_long)
 
     !allocate array of values corresponding to the expected grid
 !!$    lx=f_malloc(bit%mesh%ndims(1),id='lx')
@@ -341,13 +352,19 @@ contains
 !!$    end do
 
     do iz=1,subdims(Z_)
-       lz(iz)=iz+bit%subbox(START_,Z_)-1
+       jz=iz+bit%subbox(START_,Z_)-1
+       if (bit%mesh%bc(Z_) == PERIODIC) jz=modulo(jz-1,bit%mesh%ndims(Z_))+1
+       lz(iz)=jz
     end do
     do iy=1,subdims(Y_)
-       ly(iy)=iy+bit%subbox(START_,Y_)-1
+       jy=iy+bit%subbox(START_,Y_)-1
+       if (bit%mesh%bc(Y_) == PERIODIC) jy=modulo(jy-1,bit%mesh%ndims(Y_))+1
+       ly(iy)=jy
     end do
     do ix=1,subdims(X_)
-       lx(ix)=ix+bit%subbox(START_,X_)-1
+       jx=ix+bit%subbox(START_,X_)-1
+       if (bit%mesh%bc(X_) == PERIODIC) jx=modulo(jx-1,bit%mesh%ndims(X_))+1
+       lx(ix)=jx
     end do
 
     !separable mode
@@ -377,7 +394,7 @@ contains
 
              icnt=icnt+1
              call f_assert(lx(jx) == bit%i,'D')!,&
-             !'Error value, ix='+bit%i+', expected='+lx(ix))
+                 !'Error value, ix='+bit%i+', expected='+lx(jx))
              !convert the value of the logical array
              !if (lxyz(bit%ind)) &
              if (lxyz(icnt)) &
@@ -397,29 +414,34 @@ contains
        call f_assert(lz(jz)+bit%i3s-1 == bit%k,'H') !&
        !yaml_toa([lz(jz),bit%k,bit%i3s]))!,&
     end do
-    call f_assert(jz == subdims(Z_),'I')!,&
+    if (impossible_wrap_on_z) then 
+         call f_assert(jz == min(subdims(Z_),bit%i3e-bit%i3s+1),'I') !,&
     !'Error boxit, iz='+iz+', itgtz='+subdims(Z_))
-    call f_assert(icnt == itgt,'J')!,&
+         call f_assert(icnt == itgt_inner,'J')!,&
     !'Error sep boxit, icnt='+icnt+', itgt='+itgt)
-
+      end if
     !complete mode
-    icnt=int(0,f_long)
-    do while(box_next_point(bit))
-       icnt=icnt+1
-       !here we might see if there are points from which
-       !we passed twice
-       !print *,bit%i,bit%j,bit%k
-       !if (.not. lxyz(bit%ind)) &
-       if (.not. lxyz(icnt)) &
-            call f_err_throw('Error point (2) ind='+bit%ind+&
-            ', i,j,k='+yaml_toa([bit%i,bit%j,bit%k]))
-       !lxyz(bit%ind)=f_F
-       lxyz(icnt)=f_F
-    end do
-    call f_assert(icnt == itgt,'Error boxit, icnt='+icnt+&
-         ', itgt='+itgt)
+    if (all( bit%subbox(END_,:)-bit%subbox(START_,:) < bit%mesh%ndims) .or. all(bit%mesh%bc == FREE)) then
+       icnt=int(0,f_long)
+       do while(box_next_point(bit))
+          icnt=icnt+1
+          !here we might see if there are points from which
+          !we passed twice
+          !print *,bit%i,bit%j,bit%k
+          !if (.not. lxyz(bit%ind)) &
+          if (.not. lxyz(icnt)) &
+               call f_err_throw('Error point (2) ind='+bit%ind+&
+               ', i,j,k='+yaml_toa([bit%i,bit%j,bit%k]))
+          !lxyz(bit%ind)=f_F
+          lxyz(icnt)=f_F
+       end do
+       call f_assert(icnt == itgt,'Error boxit, icnt='+icnt+&
+            ', itgt='+itgt)
+       !no points have to be left behind
+       if (any(lxyz)) call f_err_throw('Error boxit, points not covered')
+    end if
 
-    if (any(lxyz)) call f_err_throw('Error boxit, points not covered')
+
 
     call f_free(lxyz)
     call f_free(lx,ly,lz)
@@ -454,25 +476,31 @@ contains
     type(box_iterator), intent(inout) :: bit
     logical :: ok
 
+!!    print *,'here',bit%inext(Z_),bit%k,bit%i3s,bit%i3e
 !!$    call increment_dim(bit,3,bit%k,ok)
     ok = bit%i3e >= bit%i3s ! to be removed
     ok = bit%subbox(END_,Z_) >= bit%subbox(START_,Z_)
     if (.not. ok) return !there is nothing to explore
     ok= bit%inext(Z_) <= bit%subbox(END_,Z_)
+!    print *,'ok1',ok,bit%inext(Z_),bit%subbox(END_,Z_),bit%k
     do while(ok)
        if (bit%whole) then
           bit%k=bit%inext(Z_)
        else
           call internal_point(bit%mesh%bc(Z_),bit%inext(Z_),bit%mesh%ndims(Z_),&
                bit%k,bit%i3s,bit%i3e,ok)
+!          print *,'ok1.2',ok,bit%inext(Z_),bit%k
           if (.not. ok) bit%inext(Z_)=bit%inext(Z_)+1
        end if
+!       print *,'ok1.3',ok,bit%inext(Z_),bit%k
        if (ok) then
           bit%inext(Z_)=bit%inext(Z_)+1
           exit
        end if
        ok = bit%inext(Z_) <= bit%subbox(END_,Z_)
+!       print *,'ok1.5',ok,bit%inext(Z_),bit%k
     end do
+!    print *,'ok2',ok
     !reset x and y
     if (ok) then
        call update_boxit_z(bit)
@@ -481,6 +509,8 @@ contains
     end if
 
     !in the case the z_direction is over, make the iterator ready for new use
+!    print *,'o3',ok
+
     if (.not. ok) call box_iter_rewind(bit)
 
   end function box_next_z
@@ -625,7 +655,8 @@ contains
     box_next_point=associated(boxit%mesh)
     if (.not. box_next_point) return
     !this put the starting point
-    if (boxit%k==boxit%subbox(START_,Z_)-1) then
+    !if (boxit%k==boxit%subbox(START_,Z_)-1) then
+    if (boxit%inext(Z_)==boxit%subbox(START_,Z_)) then
        go=box_next_z(boxit)
        if (go) go=box_next_y(boxit)
        !if this one fails then there are no slices available
@@ -688,7 +719,6 @@ contains
 
   end subroutine distribute_on_tasks
 
-
   !> Terminate the splitting section. As after the call to this routine
   !! the iterator will run on the entire nbox
   pure subroutine box_iter_merge(boxit)
@@ -713,6 +743,7 @@ contains
     end if
     go=jpoint >= ilow
     if (go) go= jpoint <= ihigh
+    if (.not. go .and. ihigh == npoint) go = ilow==1
 
   end subroutine internal_point
 

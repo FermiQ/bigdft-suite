@@ -18,17 +18,6 @@ module f_alltoall
 
   private
 
-  integer, parameter :: AUTOMATIC=0
-  integer, parameter :: NOT_VARIABLE=10
-  integer, parameter :: VARIABLE=11
-  integer, parameter :: VARIABLE_ONE_SIDED_GET=12
-
-  type(f_enumerator), public :: AUTOMATIC_ENUM =f_enumerator('AUTOMATIC',AUTOMATIC,null())
-  type(f_enumerator), public :: ALLTOALL_ENUM =f_enumerator('ALLTOALL',NOT_VARIABLE,null())
-  type(f_enumerator), public :: ALLTOALLV_ENUM =f_enumerator('ALLTOALLV',VARIABLE,null())
-  type(f_enumerator), public :: ALLTOALL_GET_ENUM =f_enumerator('ALLTOALL_GET',VARIABLE_ONE_SIDED_GET,null())
-
-
   interface fmpi_alltoall
      module procedure mpialltoallw_d11,mpialltoallw_i11
      module procedure mpialltoallw_li11
@@ -73,6 +62,7 @@ module f_alltoall
       logical :: large
       integer(f_long) :: sizecomms,sizecommr
 
+      sizecomms=0
       !priority to variable version
       if (present(sendcounts)) then
          sizecomms=sum(int(sendcounts,f_long))
@@ -99,10 +89,11 @@ module f_alltoall
            //trim(yaml_toa([sizetr,sizecommr]))//')',&
            err_name='ERR_MPI_WRAPPERS')
 
+      algo=AUTOMATIC_ALGO
       if (present(sendcounts) .and. present(sdispls) .and. present(recvcounts) .and. present(rdispls)) then
-         algo=toi(ALLTOALLV_ENUM)
+         algo=toi(VARIABLE_ENUM)
       else if(present(sendcount) .and. present(recvcount)) then
-         algo=toi(ALLTOALL_ENUM)
+         algo=toi(NOT_VARIABLE_ENUM)
       else
          call f_err_throw('Illegal arguments for alltoall',err_id=ERR_MPI_WRAPPERS)
       end if
@@ -110,31 +101,31 @@ module f_alltoall
       if (present(algorithm)) then
          !if the algorithm has been already provided check if it is possible
          select case(toi(algorithm))
-         case(AUTOMATIC)
+         case(AUTOMATIC_ALGO)
             !nothing to do here
-         case(NOT_VARIABLE)
+         case(NOT_VARIABLE_ALGO)
             !check if the proposition is compatible
-            if (algo == toi(ALLTOALLV_ENUM)) &
+            if (algo == toi(VARIABLE_ENUM)) &
                  call f_err_throw('Algorithm not compatible with arguments',err_id=ERR_MPI_WRAPPERS)
             return !ok
-         case(VARIABLE,VARIABLE_ONE_SIDED_GET)
+         case(VARIABLE_ALGO,VARIABLE_ONE_SIDED_GET_ALGO)
             !check if the proposition is compatible
-            if (algo == toi(ALLTOALL_ENUM)) &
+            if (algo == toi(NOT_VARIABLE_ENUM)) &
                  call f_err_throw('Algorithm (variable) not compatible with arguments',err_id=ERR_MPI_WRAPPERS)
-            if (algorithm == ALLTOALL_GET_ENUM) algo=VARIABLE_ONE_SIDED_GET
+            if (algorithm == ONESIDED_ENUM) algo=VARIABLE_ONE_SIDED_GET_ALGO
             return !ok
          case default
             call f_err_throw('Illegal value for algorithm',err_id=ERR_MPI_WRAPPERS)
          end select
       end if
 
-      if (algo==VARIABLE) then !here we are in the automatic case
+      if (algo==VARIABLE_ALGO) then !here we are in the automatic case
          ! Check whether we are having a "big" case. If so, use the hand-made
          ! version using mpi_get, otherwise the standard function.
          !large = (sizets>max_size .or. sizetr>max_size) .and. associated(sdispls_) .and. associated(rdispls_)
          large = (sizecommr>max_size .or. sizecomms>max_size)
          call fmpi_allreduce(large, 1,FMPI_LOR, comm=comm)
-         if (large) algo=VARIABLE_ONE_SIDED_GET
+         if (large) algo=VARIABLE_ONE_SIDED_GET_ALGO
       end if
      
     end function alltoall_algorithm
@@ -205,8 +196,6 @@ module f_alltoall
       real(f_double), dimension(:,:),intent(out) :: recvbuf
       include 'alltoallv-inc.f90'
     end subroutine mpialltoallw_d12
-
-
 
 !!$    subroutine mpialltoallw_d00(sendbuf, recvbuf, &
 !!$         count, sendcounts, sdispls, recvcounts, rdispls, comm, request, win, algorithm)

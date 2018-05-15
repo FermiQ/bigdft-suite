@@ -109,7 +109,7 @@ program driver_random
   end if
 
   ! Timing initialization
-  call mpibarrier()
+  call fmpi_barrier()
   call f_timing_reset(filename='time.yaml', master=(iproc==0), verbose_mode=.false.)
 
   if (iproc==0) then
@@ -316,7 +316,7 @@ program driver_random
 
   ! Initialization part done
   !call timing(mpi_comm_world,'INIT','PR')
-  call mpibarrier()
+  call fmpi_barrier()
   call f_timing_checkpoint(ctr_name='INIT',mpi_comm=mpiworld(),nproc=mpisize(),&
        gather_routine=gather_timings)
 
@@ -343,7 +343,7 @@ program driver_random
       call write_sparse_matrix('serial_text', iproc, nproc, mpi_comm_world, smat(1), mat2, 'randommatrix_sparse')
   end if
 
-  call mpibarrier()
+  call fmpi_barrier()
   call f_timing_checkpoint(ctr_name='INFO',mpi_comm=mpiworld(),nproc=mpisize(),&
        gather_routine=gather_timings)
 
@@ -385,7 +385,7 @@ program driver_random
       end if
       ! Calculation part done
 
-      call mpibarrier()
+      call fmpi_barrier()
       t2 = mpi_wtime()
       times(it) = t2-t1
       sumarr(it) = sum(mat3(1)%matrix_compr)
@@ -424,7 +424,7 @@ program driver_random
   end if
 
   !call timing(mpi_comm_world,'CALC','PR')
-  call mpibarrier()
+  call fmpi_barrier()
   call f_timing_checkpoint(ctr_name='CALC',mpi_comm=mpiworld(),nproc=mpisize(),&
        gather_routine=gather_timings)
 
@@ -492,7 +492,7 @@ program driver_random
            'Check the deviation from the original matrix')
     
       !call timing(mpi_comm_world,'CHECK_LINEAR','PR')
-      call mpibarrier()
+      call fmpi_barrier()
       call f_timing_checkpoint(ctr_name='CHECK_LINEAR',mpi_comm=mpiworld(),nproc=mpisize(),&
            gather_routine=gather_timings)
 
@@ -509,7 +509,7 @@ program driver_random
       mat3(3)%matrix = sparsematrix_malloc_ptr(smat(1), iaction=DENSE_FULL, id='mat3(3)%matrix')
       call matrix_power_dense_lapack(iproc, nproc, mpiworld(), blocksize_diag, blocksize_matmul, .true., &
             expo, smat(1), smat(2), mat2, mat3(3), algorithm=diag_algorithm)
-      call mpibarrier()
+      call fmpi_barrier()
       call f_timing_checkpoint(ctr_name='CALC_CUBIC',mpi_comm=mpiworld(),nproc=mpisize(),&
            gather_routine=gather_timings)
       if (write_matrices) then
@@ -640,7 +640,7 @@ program driver_random
       call f_free_ptr(mat3(1)%matrix)
 
       !call timing(mpi_comm_world,'CHECK_CUBIC','PR')
-      call mpibarrier()
+      call fmpi_barrier()
       call f_timing_checkpoint(ctr_name='CHECK_CUBIC',mpi_comm=mpiworld(),nproc=mpisize(),&
            gather_routine=gather_timings)
   end if cubic_check
@@ -667,7 +667,7 @@ program driver_random
   end do
 
   ! Gather the timings
-  call mpibarrier()
+  call fmpi_barrier()
   call build_dict_info(dict_timing_info)
   call f_timing_stop(mpi_comm=mpi_comm_world, nproc=nproc, &
        gather_routine=gather_timings, dict_info=dict_timing_info)
@@ -776,30 +776,30 @@ program driver_random
       end if
 
       ! Send the input parameters to all MPI tasks
-      call mpibcast(metadata_file, root=0, comm=mpi_comm_world)
-      call mpibcast(nfvctr, root=0, comm=mpi_comm_world)
-      call mpibcast(nvctr, root=0, comm=mpi_comm_world)
-      call mpibcast(nbuf_large, root=0, comm=mpi_comm_world)
-      call mpibcast(nbuf_mult, root=0, comm=mpi_comm_world)
-      call mpibcast(condition_number, root=0, comm=mpi_comm_world)
-      call mpibcast(expo, root=0, comm=mpi_comm_world)
-      call mpibcast(infile, root=0, comm=mpi_comm_world)
-      call mpibcast(outfile, root=0, comm=mpi_comm_world)
-      call mpibcast(outmatmulfile, root=0, comm=mpi_comm_world)
-      call mpibcast(sparsegen_method, root=0, comm=mpi_comm_world)
-      call mpibcast(matgen_method, root=0, comm=mpi_comm_world)
-      call mpibcast(solution_method, root=0, comm=mpi_comm_world)
-      call mpibcast(betax, root=0, comm=mpi_comm_world)
-      call mpibcast(blocksize_diag, root=0, comm=mpi_comm_world)
-      call mpibcast(blocksize_matmul, root=0, comm=mpi_comm_world)
-      call mpibcast(evlow, root=0, comm=mpi_comm_world)
-      call mpibcast(evhigh, root=0, comm=mpi_comm_world)
-      call mpibcast(diag_algorithm, root=0, comm=mpi_comm_world)
-      call mpibcast(eval_multiplicator, root=0, comm=mpi_comm_world)
-      call mpibcast(pexsi_np_sym_fact, root=0, comm=mpi_comm_world)
-      call mpibcast(accuracy_ice, root=0, comm=mpi_comm_world)
-      call mpibcast(accuracy_penalty, root=0, comm=mpi_comm_world)
-      call mpibcast(nit, root=0, comm=mpi_comm_world)
+      call fmpi_bcast(metadata_file)
+      call fmpi_bcast(nfvctr)
+      call fmpi_bcast(nvctr)
+      call fmpi_bcast(nbuf_large)
+      call fmpi_bcast(nbuf_mult)
+      call fmpi_bcast(condition_number)
+      call fmpi_bcast(expo)
+      call fmpi_bcast(infile)
+      call fmpi_bcast(outfile)
+      call fmpi_bcast(outmatmulfile)
+      call fmpi_bcast(sparsegen_method)
+      call fmpi_bcast(matgen_method)
+      call fmpi_bcast(solution_method)
+      call fmpi_bcast(betax)
+      call fmpi_bcast(blocksize_diag)
+      call fmpi_bcast(blocksize_matmul)
+      call fmpi_bcast(evlow)
+      call fmpi_bcast(evhigh)
+      call fmpi_bcast(diag_algorithm)
+      call fmpi_bcast(eval_multiplicator)
+      call fmpi_bcast(pexsi_np_sym_fact)
+      call fmpi_bcast(accuracy_ice)
+      call fmpi_bcast(accuracy_penalty)
+      call fmpi_bcast(nit)
 
       ! Since there is no wrapper for logicals...
       if (iproc==0) then
@@ -824,10 +824,10 @@ program driver_random
               ispec = 0
           end if
       end if
-      call mpibcast(iwrite, root=0, comm=mpi_comm_world)
-      call mpibcast(icheck, root=0, comm=mpi_comm_world)
-      call mpibcast(icons, root=0, comm=mpi_comm_world)
-      call mpibcast(ispec, root=0, comm=mpi_comm_world)
+      call fmpi_bcast(iwrite)
+      call fmpi_bcast(icheck)
+      call fmpi_bcast(icons)
+      call fmpi_bcast(ispec)
       if (iwrite==1) then
           write_matrices = .true.
       else

@@ -895,7 +895,7 @@ subroutine cuda_estimate_memory_needs(kernel, n,iproc_node, nproc_node)
      kernel%initCufftPlan=1;
  end if
 
-call mpibarrier()
+call fmpi_barrier(comm=kernel%mpi_env%mpi_comm)
 
 end subroutine cuda_estimate_memory_needs
 

@@ -193,7 +193,7 @@ module locregs_init
       use module_base
       use module_types
       !use module_interfaces, except_this_one => determine_locregSphere_parallel
-      use communications, only: communicate_locreg_descriptors_basics, communicate_locreg_descriptors_keys
+      use communications, only: communicate_locreg_descriptors_keys
       use bounds, only: locreg_bounds , ext_buffers
       implicit none
       integer, intent(in) :: iproc,nproc
@@ -284,15 +284,21 @@ module locregs_init
       call timing(iproc,'comm_llr      ','ON')
       if (nproc > 1) then
          call fmpi_allreduce(rootarr(1), nlr, FMPI_MIN, comm=bigdft_mpi%mpi_comm)
+
+!!$         do ilr=1,nlr
+!!$            !!   if(.not. calculateBounds(ilr)) call lr_box(llr(ilr),Glr,[hx,hy,hz])
+!!$            write(*,*) 'iproc, nseg_c, before', iproc, llr(ilr)%wfd%nseg_c,rootarr(ilr)
+!!$         end do
+
          
          ! Communicate those parts of the locregs that all processes need.
-         call communicate_locreg_descriptors_basics(iproc, nproc, nlr, rootarr, orbs, llr)
+         call communicate_locreg_descriptors_basics(iproc, nproc, nlr, rootarr, llr)!orbs, llr)
     
-         ! SM: Seems not to be necessary to be called again
-         !!do ilr=1,nlr
-         !!   if(.not. calculateBounds(ilr)) call lr_box(llr(ilr),Glr,[hx,hy,hz])
-         !!   !    write(*,*) 'iproc, nseg_c', iproc, llr(ilr)%wfd%nseg_c
-         !!end do
+!!$         ! SM: Seems not to be necessary to be called again
+!!$         do ilr=1,nlr
+!!$         !!   if(.not. calculateBounds(ilr)) call lr_box(llr(ilr),Glr,[hx,hy,hz])
+!!$            write(*,*) 'iproc, nseg_c', iproc, llr(ilr)%wfd%nseg_c
+!!$         end do
     
          ! Now communicate those parts of the locreg that only some processes need (the keys).
          ! For this we first need to create orbsder that describes the derivatives.
@@ -340,6 +346,7 @@ module locregs_init
       use module_base
       use module_types
       use bounds, only: locreg_bounds, ext_buffers
+      use box
       implicit none
       integer, intent(in) :: iproc,nproc
       integer, intent(in) :: nlr
@@ -390,13 +397,15 @@ module locregs_init
     
          cutoff=locrad(ilr)
 
-         nbox(1,1)=floor((rx-cutoff)/hx)
-         nbox(1,2)=floor((ry-cutoff)/hy)
-         nbox(1,3)=floor((rz-cutoff)/hz)
-    
-         nbox(2,1)=ceiling((rx+cutoff)/hx)
-         nbox(2,2)=ceiling((ry+cutoff)/hy)
-         nbox(2,3)=ceiling((rz+cutoff)/hz)
+         nbox=box_nbox_from_cutoff(Glr%mesh_coarse,cxyz(1,ilr),locrad(ilr),inner=.false.)
+
+!!$         nbox(1,1)=floor((rx-cutoff)/hx)
+!!$         nbox(1,2)=floor((ry-cutoff)/hy)
+!!$         nbox(1,3)=floor((rz-cutoff)/hz)
+!!$    
+!!$         nbox(2,1)=ceiling((rx+cutoff)/hx)
+!!$         nbox(2,2)=ceiling((ry+cutoff)/hy)
+!!$         nbox(2,3)=ceiling((rz+cutoff)/hz)
 
          call lr_box(Llr(ilr),Glr,[hx,hy,hz],nbox,.true.)
         
@@ -713,6 +722,7 @@ module locregs_init
     subroutine check_linear_inputguess(iproc,nlr,cxyz,locrad,hx,hy,hz,Glr,linear)
       use module_base
       use module_types
+      use box
       implicit none
       integer, intent(in) :: iproc
       integer, intent(in) :: nlr
@@ -722,9 +732,11 @@ module locregs_init
       real(gp), dimension(nlr), intent(in) :: locrad
       real(gp), dimension(3,nlr), intent(in) :: cxyz
       !local variables
+      integer, parameter :: START_=1,END_=2
       logical :: warningx,warningy,warningz
       integer :: ilr,isx,isy,isz,iex,iey,iez
       integer :: ln1,ln2,ln3
+      integer, dimension(2,3) :: nbox
       real(gp) :: rx,ry,rz,cutoff
 
       !to check if the floor and the ceiling are meaningful in this context
@@ -745,13 +757,23 @@ module locregs_init
 
          cutoff=locrad(ilr)
 
-         isx=floor((rx-cutoff)/hx)
-         isy=floor((ry-cutoff)/hy)
-         isz=floor((rz-cutoff)/hz)
+         nbox=box_nbox_from_cutoff(Glr%mesh_coarse,cxyz(1,ilr),locrad(ilr),inner=.false.)
 
-         iex=ceiling((rx+cutoff)/hx)
-         iey=ceiling((ry+cutoff)/hy)
-         iez=ceiling((rz+cutoff)/hz)
+         isx=nbox(START_,1)
+         isy=nbox(START_,2)
+         isz=nbox(START_,3)
+
+         iex=nbox(END_,1)
+         iey=nbox(END_,2)
+         iez=nbox(END_,3)
+
+!!$         isx=floor((rx-cutoff)/hx)
+!!$         isy=floor((ry-cutoff)/hy)
+!!$         isz=floor((rz-cutoff)/hz)
+!!$
+!!$         iex=ceiling((rx+cutoff)/hx)
+!!$         iey=ceiling((ry+cutoff)/hy)
+!!$         iez=ceiling((rz+cutoff)/hz)
 
          ln1 = iex-isx
          ln2 = iey-isy

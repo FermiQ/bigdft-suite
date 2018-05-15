@@ -268,9 +268,25 @@ subroutine c1_all(array,m)
   !include 'allocate-inc.f90'
 end subroutine c1_all
 
+subroutine c2_all(array,m)
+  use metadata_interfaces, metadata_address => getc1
+  implicit none
+  type(malloc_information_str_all), intent(in) :: m
+  character(len=m%len), dimension(:,:), allocatable, intent(inout) :: array
+  include 'allocate-profile-inc.f90' 
+  if (f_nan_pad_size > 0) then
+     padding=f_nan_pad_size
+     call togglepadding(product(int(m%shape(1:m%rank-1),f_long))*&
+          m%len*kind(array)*(m%shape(m%rank)+padding))
+  end if
+  !allocate the array
+  allocate(array(m%lbounds(1):m%ubounds(1),m%lbounds(2):m%ubounds(2)+ndebug),stat=ierror)
+  include 'allocate-c-inc.f90'
+  !include 'allocate-inc.f90'
+end subroutine c2_all
 
-!subroutine c1_all_free(length,array)
-subroutine f_free_str(length,array)
+subroutine c1_all_free(length,array)
+!subroutine f_free_str(length,array)
   use metadata_interfaces, metadata_address => getc1
   implicit none
   integer, intent(in) :: length !< need to specify length for the declaration below (sometimes fortran runtime error)
@@ -278,7 +294,18 @@ subroutine f_free_str(length,array)
   include 'deallocate-profile-inc.f90' 
   !include 'deallocate-c-inc.f90' 
   include 'deallocate-inc.f90' 
-end subroutine f_free_str
+end subroutine c1_all_free
+
+subroutine c2_all_free(length,array)
+  use metadata_interfaces, metadata_address => getc1
+  implicit none
+  integer, intent(in) :: length !< need to specify length for the declaration below (sometimes fortran runtime error)
+  character(len=length), dimension(:,:), allocatable, intent(inout) :: array
+  include 'deallocate-profile-inc.f90' 
+  !include 'deallocate-c-inc.f90' 
+  include 'deallocate-inc.f90' 
+end subroutine c2_all_free
+
 
 subroutine ll1_all(array,m)
   use metadata_interfaces, metadata_address => getl1

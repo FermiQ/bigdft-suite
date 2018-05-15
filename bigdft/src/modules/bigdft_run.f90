@@ -588,7 +588,7 @@ contains
     if (size(outs%fxyz)>0) call f_memcpy(n=size(outs%fxyz),src=outs%fxyz(1,1),dest=data(4))
     call f_memcpy(n=size(outs%strten),src=outs%strten(1),dest=data(4+size(outs%fxyz)))
 
-    call mpibcast(data,comm=bigdft_mpi%mpi_comm,&
+    call fmpi_bcast(data,comm=bigdft_mpi%mpi_comm,&
          maxdiff=maxdiff)
     if (maxdiff > epsilon(1.0_gp)) then
        if (bigdft_mpi%iproc==0) then
@@ -1132,7 +1132,7 @@ contains
   !> Currently, set_run_objects() is not set recursively.
   !! This routine, handle a subpar of it for sections.
   subroutine set_section_objects(runObj)
-    use module_base, only: bigdft_mpi,mpibarrier
+    use module_base, only: bigdft_mpi,fmpi_barrier
     use module_interfaces, only: atoms_new, inputs_new
     use module_atoms, only: atomic_structure, astruct_at_from_dict, &
          & astruct_merge_to_dict, deallocate_atomic_structure
@@ -1796,7 +1796,7 @@ contains
     use module_lenosky_si
     use public_enums
     use module_defs
-    use module_base, only: bigdft_mpi,mpibcast,Bohr_Ang,kcalMolAng_HaBohr,&
+    use module_base, only: bigdft_mpi,fmpi_bcast,Bohr_Ang,kcalMolAng_HaBohr,&
          ev_Ha,evang_habohr,Kcalmol_ha,f_increment
     use dynamic_memory, only: f_memcpy,f_routine,f_release_routine
     use yaml_strings
@@ -1856,7 +1856,7 @@ contains
 
     !Check the consistency between MPI processes of the atomic coordinates and broadcast them
     if (bigdft_mpi%nproc >1) then
-       call mpibcast(rxyz_ptr,comm=bigdft_mpi%mpi_comm,&
+       call fmpi_bcast(rxyz_ptr,comm=bigdft_mpi%mpi_comm,&
             maxdiff=maxdiff)
        if (maxdiff > epsilon(1.0_gp)) then
           if (bigdft_mpi%iproc==0) then
@@ -2106,7 +2106,7 @@ contains
     !integer :: iat
     external :: cluster
     !put a barrier for all the processes
-    call mpibarrier(bigdft_mpi%mpi_comm)
+    call fmpi_barrier(bigdft_mpi%mpi_comm)
 
     call f_routine(id=subname)
     !fill the rxyz array with the positions
@@ -2191,7 +2191,7 @@ contains
 
              !test if stderr works
              write(0,*) 'unnormal end'
-             call mpibarrier(bigdft_mpi%mpi_comm)
+             call fmpi_barrier(bigdft_mpi%mpi_comm)
              call f_err_throw('Convergence error (probably gnrm>4.0), cannot proceed. '//&
                   'Writing positions in file posfail.xyz',err_name='BIGDFT_RUNTIME_ERROR')
           end if
@@ -2227,7 +2227,7 @@ contains
 !!$
 !!$          !test if stderr works
 !!$          write(0,*) 'unnormal end'
-!!$          call mpibarrier(bigdft_mpi%mpi_comm)
+!!$          call fmpi_barrier(bigdft_mpi%mpi_comm)
 !!$          call f_err_throw('Convergence error (probably gnrm>4.0), cannot proceed. '//&
 !!$               'Writing positions in file posfail.xyz',err_name='BIGDFT_RUNTIME_ERROR')
 !!$       else
@@ -2241,7 +2241,7 @@ contains
 
     !put a barrier for all the processes
     call f_release_routine()
-    call mpibarrier(bigdft_mpi%mpi_comm)
+    call fmpi_barrier(bigdft_mpi%mpi_comm)
 
   END SUBROUTINE quantum_mechanical_state
 

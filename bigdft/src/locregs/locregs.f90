@@ -20,11 +20,19 @@ module locregs
 
   !> Grid dimensions in all different wavelet basis
   type, public :: grid_dimensions
-     integer :: n1,n2,n3                      !< Coarse grid dimensions
-     integer :: nfl1,nfu1,nfl2,nfu2,nfl3,nfu3 !< Lower and upper indices of fine grid in 3D 
-     integer :: n1i,n2i,n3i                   !< ISF grid dimension (roughly 2*n+buffer)
+     integer :: n1   = 0
+     integer :: n2   = 0
+     integer :: n3   = 0 !< Coarse grid dimensions
+     integer :: nfl1 = 0
+     integer :: nfu1 = 0
+     integer :: nfl2 = 0
+     integer :: nfu2 = 0
+     integer :: nfl3 = 0
+     integer :: nfu3 = 0 !< Lower and upper indices of fine grid in 3D 
+     integer :: n1i  = 0
+     integer :: n2i  = 0
+     integer :: n3i  = 0 !< ISF grid dimension (roughly 2*n+buffer)
   end type grid_dimensions
-
 
   !> Contains the information needed for describing completely a wavefunction localisation region
   type, public :: locreg_descriptors
@@ -55,23 +63,12 @@ module locregs
   public :: allocate_wfd,copy_locreg_descriptors,copy_grid_dimensions
   public :: check_overlap,check_overlap_cubic_periodic,check_overlap_from_descriptors_periodic,lr_box
   public :: init_lr,reset_lr
+  public :: communicate_locreg_descriptors_basics
 
 contains
 
   pure function grid_null() result(g)
     type(grid_dimensions) :: g
-    g%n1   = 0
-    g%n2   = 0
-    g%n3   = 0
-    g%nfl1 = 0
-    g%nfu1 = 0
-    g%nfl2 = 0
-    g%nfu2 = 0
-    g%nfl3 = 0
-    g%nfu3 = 0
-    g%n1i  = 0
-    g%n2i  = 0
-    g%n3i  = 0
   end function grid_null
 
   pure function locreg_null() result(lr)
@@ -117,6 +114,181 @@ contains
     call deallocate_convolutions_bounds(lr%bounds)
     
   end subroutine deallocate_locreg_descriptors
+
+  subroutine nullify_lr_pointers(lr)
+    use bounds
+    use compression
+    implicit none
+    type(locreg_descriptors), intent(inout) :: lr
+    
+    !nullify pointers internal to the structure to avoid fake deallocation
+    call nullify_wfd_pointers(lr%wfd)
+    call nullify_convolutions_bounds(lr%bounds)
+  end subroutine nullify_lr_pointers
+
+  !>methods to encode and decode the structure
+  !might be used in favour of copying of the datatypes
+  function get_locreg_encode_size() result(s)
+    implicit none
+    integer :: s
+    !local variable
+    type(locreg_descriptors) :: lr
+    integer, dimension(3) :: dummy_char_mold
+
+    s=size(transfer(lr,dummy_char_mold))
+
+  end function get_locreg_encode_size
+
+  subroutine locreg_encode(lr,lr_size,dest)
+    implicit none
+    type(locreg_descriptors), intent(in) :: lr
+    integer, intent(in) :: lr_size !<obtained from locreg_encode_size
+    !array of dimension at least equal to locreg_encod_size
+    integer, dimension(lr_size), intent(out) :: dest
+    
+    dest=transfer(lr,dest)
+  end subroutine locreg_encode
+
+  subroutine locregs_encode(llr,nlr,lr_size,dest_arr,mask)
+    implicit none
+    integer, intent(in) :: lr_size,nlr
+    type(locreg_descriptors), dimension(nlr), intent(in) :: llr
+    !>array of minimal second dimension count(mask(nlr)), if present
+    integer, dimension(lr_size,*), intent(out) :: dest_arr
+    !> array of logical telling the locregs to mask
+    logical, dimension(nlr), intent(in), optional :: mask
+    !local variables
+    integer :: ilr,iilr
+
+    iilr=0
+    do ilr=1,nlr
+       iilr=iilr+1
+       if (present(mask)) then
+          if (.not. mask(ilr)) then
+             iilr=iilr-1
+             cycle
+          end if
+       end if
+       call locreg_encode(llr(ilr),lr_size,dest_arr(1,iilr))
+    end do
+
+  end subroutine locregs_encode
+
+  !>decode a locreg from a src array
+  !! warning, the status of the pointers of lr might become
+  !!unreliable if the src array comes from a communicated object
+  subroutine locreg_decode(src,lr_size,lr)
+    implicit none
+    integer, intent(in) :: lr_size
+    type(locreg_descriptors), intent(out) :: lr
+    integer, dimension(lr_size), intent(in) :: src
+
+    lr=transfer(src,lr)   
+    call nullify_lr_pointers(lr)
+  end subroutine locreg_decode
+
+  !>decode a group of locregs given a src array
+  subroutine locregs_decode(src_arr,lr_size,nlr,llr,ipiv)
+    implicit none
+    integer, intent(in) :: lr_size,nlr
+    type(locreg_descriptors), dimension(nlr), intent(inout) :: llr
+    integer, dimension(lr_size,nlr), intent(in) :: src_arr
+    integer, dimension(nlr), optional  :: ipiv !<array expressing the order of the lrs in the src_arr. When its values are put to zero  the update is not performed
+    !local variables
+    integer :: ilr,iilr
+    
+    do ilr=1,nlr
+       iilr=ilr
+       if (present(ipiv)) iilr=ipiv(ilr)
+       !only decode locregs which were not present already
+       if (iilr /= 0) call locreg_decode(src_arr(1,ilr),lr_size,llr(iilr))
+    end do
+    
+  end subroutine locregs_decode
+
+  !> Locreg communication
+  subroutine communicate_locreg_descriptors_basics(iproc, nproc, nlr, rootarr, llr)
+    implicit none
+
+    ! Calling arguments
+    integer,intent(in) :: iproc, nproc, nlr
+    integer,dimension(nlr),intent(in) :: rootarr
+    type(locreg_descriptors), dimension(nlr), intent(inout) :: llr
+
+    ! Local variables
+    character(len=*),parameter :: subname='communicate_locreg_descriptors_basics'
+    integer :: ilr,iilr,jlr,jproc,lr_size,nlrp
+    !type(locreg_descriptors) :: lr_tmp
+    logical, dimension(:), allocatable :: mask
+    integer, dimension(:), allocatable :: ipiv,recvcounts
+    integer, dimension(:,:), allocatable :: encoded_send,encoded_recv
+
+    call f_routine(id=subname)
+
+    !first encode and communicate
+    lr_size=get_locreg_encode_size()
+    mask=f_malloc(nlr,id='mask')    
+    recvcounts=f_malloc0(0.to.nproc-1,id='recvcounts')
+
+    do ilr=1,nlr
+       !count order the locregs per process
+       jproc=rootarr(ilr)
+       recvcounts(jproc)=recvcounts(jproc)+1
+       !mask the number of locreg that are associated to the 
+       !present mpi process
+       mask(ilr) = iproc == jproc
+    end do
+
+    nlrp=recvcounts(iproc)
+
+    encoded_send=f_malloc([lr_size,nlrp],id='encoded_send')
+
+!!$    iilr=0
+!!$    do ilr=1,nlr
+!!$       if (mask(ilr)) then
+!!$          iilr=iilr+1
+!!$          print *,'ilr,iproc',iproc,ilr,llr(ilr)%wfd%nseg_c
+!!$          call locreg_encode(llr(ilr),lr_size,encoded_send(1,iilr))
+!!$          call locreg_decode(encoded_send(1,iilr),lr_size,lr_tmp)
+!!$          print *,'ilr,iproc,after',iproc,ilr,lr_tmp%wfd%nseg_c
+!!$       end if
+!!$    end do
+
+    call locregs_encode(llr,nlr,lr_size,encoded_send,mask)
+
+    encoded_recv=f_malloc([lr_size,nlr],id='encoded_recv')
+
+    recvcounts=lr_size*recvcounts
+
+    call fmpi_allgather(sendbuf=encoded_send,&
+         recvbuf=encoded_recv,&
+         recvcounts=recvcounts,comm=bigdft_mpi%mpi_comm)
+
+    call f_free(mask)
+    call f_free(recvcounts)
+    call f_free(encoded_send)
+
+    !then decode
+    ipiv=f_malloc(nlr,id='ipiv')
+    iilr=0
+    do jproc=0,nproc-1
+       do ilr=1,nlr
+          jlr=ilr
+          if (jproc == iproc) jlr=0 !do not decode locregs already present on the process
+          if (rootarr(ilr) == jproc) then
+             iilr=iilr+1
+             ipiv(iilr)=jlr
+          end if
+       end do
+    end do
+    call locregs_decode(encoded_recv,lr_size,nlr,llr,ipiv)
+    call f_free(ipiv)
+    call f_free(encoded_recv)
+
+    call f_release_routine()
+
+  end subroutine communicate_locreg_descriptors_basics
+
 
   !> Methods for copying the structures, can be needed to avoid recalculating them
   !! should be better by defining a f_malloc inheriting the shapes and the structure from other array

@@ -509,6 +509,13 @@ call f_free(weight)
    tmp1=5.0_f_double
    nullify(tmp1)
 
+   !even more "illegal": provide displacements wrt the shift
+   tmp1=>f_subptr(test_association(18),from=3,size=5)
+   call inspect_pointer(tmp1,'derived subpointer with a shift')
+   call yaml_map('subpointer, derived case',tmp1)
+   tmp1=55.0_f_double
+   nullify(tmp1)
+
    call yaml_map('Original pointer',test_association)
    call f_free_ptr(test_association)
 

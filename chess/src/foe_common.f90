@@ -212,7 +212,7 @@ module foe_common
       call f_routine(id='get_chebyshev_expansion_coefficients')
 
       call f_routine(id='synchronize_mpi_tasks')
-      call mpibarrier(comm)
+      call fmpi_barrier(comm)
       call f_release_routine()
 
       ! MPI parallelization... maybe only worth for large n?
@@ -1659,7 +1659,7 @@ module foe_common
                    ham_eff, ONESIDED_GATHER, workarr_compr, matrix_localx=matrix_local, windowsx=windows)
           end if
           if (measure_unbalance) then
-              call mpibarrier(comm=comm)
+              call fmpi_barrier(comm=comm)
               t1 = mpi_wtime()
           end if
           mat_seq = sparsematrix_malloc(smatl, iaction=SPARSEMM_SEQ, id='mat_seq')
