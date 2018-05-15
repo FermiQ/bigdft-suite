@@ -58,6 +58,7 @@ module sparsematrix_memory
   public :: sparse_matrix_metadata_null, nullify_sparse_matrix_metadata
   public :: deallocate_sparse_matrix_metadata
   public :: copy_sparse_matrix_metadata
+  public :: deallocate_sparse_matrix_matrix_multiplication
 !!$
 !!$
   type, public :: sparse_matrix_info_ptr
@@ -184,13 +185,16 @@ module sparsematrix_memory
 
 
 
-    subroutine allocate_sparse_matrix_matrix_multiplication(nproc, norb, nseg, smmm)
+    subroutine allocate_sparse_matrix_matrix_multiplication(nproc, norb, nseg, allocate_ivectorindex, smmm)
       use dynamic_memory
       implicit none
       integer,intent(in) :: nproc, norb, nseg
+      logical,intent(in) :: allocate_ivectorindex
       type(sparse_matrix_matrix_multiplication),intent(inout):: smmm
       !smmm%ivectorindex=f_malloc_ptr(smmm%nseq,id='smmm%ivectorindex')
-      smmm%ivectorindex_new=f_malloc_ptr(smmm%nseq,id='smmm%ivectorindex_new')
+      if (allocate_ivectorindex) then
+          smmm%ivectorindex_new=f_malloc_ptr(smmm%nseq,id='smmm%ivectorindex_new')
+      end if
       !smmm%onedimindices=f_malloc_ptr((/4,smmm%nout/),id='smmm%onedimindices')
       smmm%onedimindices_new=f_malloc_ptr((/5,smmm%nout/),id='smmm%onedimindices_new')
       !smmm%line_and_column_mm=f_malloc_ptr((/2,smmm%nvctrp_mm/),id='smmm%line_and_column_mm')
@@ -271,7 +275,7 @@ module sparsematrix_memory
       ! Calling arguments
       type(sparse_matrix),intent(inout):: sparsemat
       ! Local variables
-      integer :: i, is, ie
+      !integer :: i, is, ie
       call f_free_ptr(sparseMat%keyg)
       call f_free_ptr(sparseMat%keyv)
       call f_free_ptr(sparseMat%nsegline)

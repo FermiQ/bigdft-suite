@@ -51,7 +51,7 @@ module module_atoms
 
   !> Structure of the system. This derived type contains the information about the physical properties
   type, public :: atomic_structure
-     character(len=1) :: geocode           !< @copydoc poisson_solver::doc::geocode
+     character(len=1) :: geocode         !shoud become integer, dimension(3) :: bc
      character(len=5) :: inputfile_format  !< Can be xyz, ascii, int or yaml
      character(len=256) :: source          !< Name of the file or origin
      character(len=20) :: units            !< Can be angstroem or bohr
@@ -1219,6 +1219,8 @@ contains
       real(gp), dimension(:,:), pointer :: rxyz_
       character(len=len(astruct%inputfile_format)) :: formt
 
+      call f_routine(id='astruct_dump_to_file')
+
       energy_=0.0_gp
       if (present(energy)) energy_ = energy
       rxyz_ => astruct%rxyz
@@ -1280,16 +1282,23 @@ contains
             call addToCompress(trim(arFile), len(trim(arFile)), trim(fname), len(trim(fname)))
          end if
       end if
+
+      call f_release_routine()
+
     END SUBROUTINE astruct_dump_to_file
 
 
     !> Convert astruct to dictionary for later dump.
     subroutine astruct_merge_to_dict(dict, astruct, rxyz, comment)
+      use dynamic_memory
       use module_defs, only: gp, UNINITIALIZED
       use numerics, only: Bohr_Ang
       use dictionaries
       use yaml_strings
+      use box, only: geocode_to_bc,bc_periodic_dims
       use ao_inguess, only: charge_and_spol
+      use yaml_output !tmp
+      
       implicit none
       type(dictionary), pointer :: dict
       type(atomic_structure), intent(in) :: astruct
@@ -1297,10 +1306,13 @@ contains
       character(len=*), intent(in), optional :: comment
       !local variables
       type(dictionary), pointer :: pos, at, last
-      integer :: iat,ichg,ispol
+      integer :: iat,ichg,ispol,i
       real(gp) :: factor(3)
+      logical, dimension(3) :: peri
       logical :: reduced
       character(len = 4) :: frzstr
+
+      call f_routine(id='astruct_merge_to_dict')
 
       !call dict_init(dict)
 
@@ -1317,39 +1329,65 @@ contains
          ! Default, store nothing
       end select Units
 
-      !cell information
-      BC :select case(astruct%geocode)
-      case('S')
-         call set(dict // ASTRUCT_CELL // 0, yaml_toa(astruct%cell_dim(1)*factor(1)))
-         call set(dict // ASTRUCT_CELL // 1, '.inf')
-         call set(dict // ASTRUCT_CELL // 2, yaml_toa(astruct%cell_dim(3)*factor(3)))
-         !angdeg to be added
-         if (reduced) then
-            factor(1) = 1._gp / astruct%cell_dim(1)
-            factor(3) = 1._gp / astruct%cell_dim(3)
+      peri=bc_periodic_dims(geocode_to_bc(astruct%geocode))
+      do i=1,3
+         if (peri(i)) then         
+            call set(dict // ASTRUCT_CELL // (i-1), yaml_toa(astruct%cell_dim(i)*factor(i)))
+            if (reduced) factor(i) = 1._gp / astruct%cell_dim(i)
+         else
+            call set(dict // ASTRUCT_CELL // (i-1), '.inf')
          end if
-      case('W')
-         call set(dict // ASTRUCT_CELL // 0, '.inf')
-         call set(dict // ASTRUCT_CELL // 1, '.inf')
-         call set(dict // ASTRUCT_CELL // 2, yaml_toa(astruct%cell_dim(3)*factor(3)))
-         if (reduced) then
-            factor(3) = 1._gp / astruct%cell_dim(3)
-         end if
-      case('P')
-         call set(dict // ASTRUCT_CELL // 0, yaml_toa(astruct%cell_dim(1)*factor(1)))
-         call set(dict // ASTRUCT_CELL // 1, yaml_toa(astruct%cell_dim(2)*factor(2)))
-         call set(dict // ASTRUCT_CELL // 2, yaml_toa(astruct%cell_dim(3)*factor(3)))
-         !angdeg to be added
-         if (reduced) then
-            factor(1) = 1._gp / astruct%cell_dim(1)
-            factor(2) = 1._gp / astruct%cell_dim(2)
-            factor(3) = 1._gp / astruct%cell_dim(3)
-         end if
-      case('F')
+      end do
+
+      if (.not. any(peri)) then
          ! Default, store nothing and erase key if already exist.
-         if (has_key(dict, ASTRUCT_CELL)) call dict_remove(dict, ASTRUCT_CELL)
-      end select BC
-      if (has_key(dict, ASTRUCT_POSITIONS)) call dict_remove(dict, ASTRUCT_POSITIONS)
+         if (ASTRUCT_CELL .in. dict) then
+            last=>dict .pop. ASTRUCT_CELL
+            call dict_free(last)
+            if (.not. associated(dict)) call dict_init(dict)
+         end if
+!!$         if (has_key(dict, ASTRUCT_CELL)) call dict_remove(dict, ASTRUCT_CELL,destroy=.false.)
+      end if
+
+      !cell information
+!!$      BC :select case(astruct%geocode)
+!!$      case('S')
+!!$         call set(dict // ASTRUCT_CELL // 0, yaml_toa(astruct%cell_dim(1)*factor(1)))
+!!$         call set(dict // ASTRUCT_CELL // 1, '.inf')
+!!$         call set(dict // ASTRUCT_CELL // 2, yaml_toa(astruct%cell_dim(3)*factor(3)))
+!!$         !angdeg to be added
+!!$         if (reduced) then
+!!$            factor(1) = 1._gp / astruct%cell_dim(1)
+!!$            factor(3) = 1._gp / astruct%cell_dim(3)
+!!$         end if
+!!$      case('W')
+!!$         call set(dict // ASTRUCT_CELL // 0, '.inf')
+!!$         call set(dict // ASTRUCT_CELL // 1, '.inf')
+!!$         call set(dict // ASTRUCT_CELL // 2, yaml_toa(astruct%cell_dim(3)*factor(3)))
+!!$         if (reduced) then
+!!$            factor(3) = 1._gp / astruct%cell_dim(3)
+!!$         end if
+!!$      case('P')
+!!$         call set(dict // ASTRUCT_CELL // 0, yaml_toa(astruct%cell_dim(1)*factor(1)))
+!!$         call set(dict // ASTRUCT_CELL // 1, yaml_toa(astruct%cell_dim(2)*factor(2)))
+!!$         call set(dict // ASTRUCT_CELL // 2, yaml_toa(astruct%cell_dim(3)*factor(3)))
+!!$         !angdeg to be added
+!!$         if (reduced) then
+!!$            factor(1) = 1._gp / astruct%cell_dim(1)
+!!$            factor(2) = 1._gp / astruct%cell_dim(2)
+!!$            factor(3) = 1._gp / astruct%cell_dim(3)
+!!$         end if
+!!$      case('F')
+!!$         ! Default, store nothing and erase key if already exist.
+!!$         if (has_key(dict, ASTRUCT_CELL)) call dict_remove(dict, ASTRUCT_CELL)
+!!$      end select BC
+
+      !if (has_key(dict, ASTRUCT_POSITIONS)) call dict_remove(dict, ASTRUCT_POSITIONS,destroy=.false.)
+      if (ASTRUCT_POSITIONS .in. dict) then
+         last=>dict .pop. ASTRUCT_POSITIONS
+         call dict_free(last)
+         if (.not. associated(dict)) call dict_init(dict)
+      end if
       if (astruct%nat > 0) pos => dict // ASTRUCT_POSITIONS
       nullify(last)
       do iat=1,astruct%nat
@@ -1382,12 +1420,15 @@ contains
       end if
 
       if (present(comment)) then
-         if (len_trim(comment) > 0) &
-              & call add(dict // ASTRUCT_PROPERTIES // "info", comment)
+         if (len_trim(comment) > 0) then
+             call add(dict // ASTRUCT_PROPERTIES // "info", comment)
+         end if
       end if
 
       if (len_trim(astruct%inputfile_format) > 0) &
            & call set(dict // ASTRUCT_PROPERTIES // "format", astruct%inputfile_format)
+
+      call f_release_routine()
 
     end subroutine astruct_merge_to_dict
 

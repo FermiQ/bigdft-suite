@@ -80,29 +80,29 @@ module PStypes
   end type FFT_metadata
 
 
-  !> Define the work arrays needed for the treatment of the
-  !! Poisson Equation. Not all of them are allocated, the actual memory usage
+  !> Define the work arrays needed for the treatment of the generalized (nonvacuum) or
+  !! standard (vacuum) Poisson Equation. Not all of them are allocated, the actual memory usage 
   !! depends on the treatment.
   type, public :: PS_workarrays
      integer :: nat !< dimensions of the atomic based cavity. Zero if unused
      !>positions of the atoms of the cavity in the simulation box
-     real(dp), dimension(:,:), pointer :: rxyz
+     real(dp), dimension(:,:), pointer :: rxyz !< atomic coordinates
      real(dp), dimension(:), pointer :: radii !<radii of the cavity per atom
      !> dielectric function epsilon, continuous and differentiable in the whole
-     !domain, to be used in the case of Preconditioned Conjugate Gradient method
+     !domain, to be used in the case of Preconditioned Conjugate Gradient (PCG) method
      real(dp), dimension(:,:), pointer :: eps
-     !> logaritmic derivative of the dielectric function,
-     !! to be used in the case of Polarization Iteration method
+     !> logaritmic derivative of the dielectric function epsilon,
+     !! to be used in the case of Polarization Iteration (SC) method
      real(dp), dimension(:,:,:,:), pointer :: dlogeps
      !> inverse of the dielectric function
-     !! in the case of Polarization Iteration method
+     !! in the case of Polarization Iteration (SC) method
      !! inverse of the square root of epsilon
-     !! in the case of the Preconditioned Conjugate Gradient
+     !! in the case of the Preconditioned Conjugate Gradient (PCG)
      real(dp), dimension(:,:), pointer :: oneoeps
      !> correction term, given in terms of the multiplicative factor of nabla*eps*nabla
      !! to be used for Preconditioned Conjugate Gradient
      real(dp), dimension(:,:), pointer :: corr
-     !> ionic density, in the case of a PB approach
+     !> ionic density, in the case of a Poisson-Boltzmann (PB) approach
      real(dp), dimension(:,:), pointer :: rho_ions
      !> inner rigid cavity to be integrated in the sccs method to avoit inner
      !! cavity discontinuity due to near-zero edens near atoms
@@ -129,7 +129,7 @@ module PStypes
   end type PS_workarrays
 
 
-  !> Datatype defining the mode for the running of the Poisson solver
+  !> Datatype defining the mode for the running of the electrostatic solver
   type, public :: PSolver_options
      !> @copydoc poisson_solver::doc::datacode
      character(len=1) :: datacode
@@ -138,23 +138,23 @@ module PStypes
      !> if .true., and the cavity is set to 'sccs' attribute, then the epsilon is updated according to rhov
      logical :: update_cavity
      !> if .true. calculate the stress tensor components.
-     !! The stress tensor calculation are so far validated only for orthorhombic cells and vacuum treatments
      logical :: calculate_strten
-     !> Use the input guess procedure for the solution in the case of a electrostatic medium
-     !! this value is ignored in the case of a vacuum solver
+     !> Use the input guess procedure for the solution of the generalized Poisson equation (PCG or SC).
+     !! This value is ignored in the case of a vacuum solver
      logical :: use_input_guess
-     !> Trigger the calculation of the electrostatic contribution only
-     !! if .true., the code only calculates the electrostatic contribution
-     !! and the cavitation terms are neglected
+     !> For an implicit solvation run, trigger the energy calculation to the only electrostatic contribution.
+     !! If .true., the code only calculates the electrostatic contribution
+     !! and the non electrostatic terms to the total solvation energy (cavitation, 
+     !! repulsion and dispersion) are neglected.
      logical :: only_electrostatic
      !> extract the polarization charge and the dielectric function, to be used for plotting purposes
      logical :: cavity_info
-     !> Use the input guess procedure for the solution in the case of the Poisson Boltzmann Equation
-     !! this option is ignored in the case of a neutral solution
+     !> Use the input guess procedure for the solution in the case of the Poisson Boltzmann Equation.
+     !! This option is ignored in the case of a neutral solution
      logical :: use_pb_input_guess
      !> Total integral on the supercell of the final potential on output
-     !! clearly meaningful only for Fully periodic BC, ignored in the other cases
-     !> prepare the information in the rigid cavity case which is needed
+     !! clearly meaningful only for Fully periodic BC, ignored in the other cases.
+     !> Prepare the information in the rigid cavity case which is needed
      !! to calculate the forces (nabla2pot times epsilon minus one)
      logical :: final_call
      real(gp) :: potential_integral
@@ -166,36 +166,36 @@ module PStypes
      !variables with physical meaning
      integer :: itype_scf             !< Order of the ISF family to be used
      real(gp) :: mu                   !< Inverse screening length for the Helmholtz Eq. (Poisson Eq. -> mu=0)
-     !> geocode is used in all the code to specify the boundary conditions (BC) the problem:
-     !!          - 'F' free BC, isolated systems.
-     !!                The program calculates the solution as if the given density is
-     !!                "alone" in R^3 space.
-     !!          - 'S' surface BC, isolated in y direction, periodic in xz plane
-     !!                The given density is supposed to be periodic in the xz plane,
-     !!                so the dimensions in these direction mus be compatible with the FFT
-     !!                Beware of the fact that the isolated direction is y!
-     !!          - 'P' periodic BC.
-     !!                The density is supposed to be periodic in all the three directions,
-     !!                then all the dimensions must be compatible with the FFT.
-     !!                No need for setting up the kernel (in principle for Plane Waves)
-     !!          - 'W' Wires BC.
-     !!                The density is supposed to be periodic in z direction,
-     !!                which has to be compatible with the FFT.
-     !!          - 'H' Helmholtz Equation Solver
-!     character(len=1) :: geocode
-     !> method of embedding in the environment
-     !!          - 'VAC' Poisson Equation in vacuum. Default case.
-     !!          - 'PCG' Generalized Poisson Equation, Preconditioned Conjugate Gradient
-     !!          - 'PI'  Generalized Poisson Equation, Polarization Iteration method
-     !character(len=3) :: method
-     !! this represents the information for the equation and the algorithm to be solved
-     !! this enumerator contains the algorithm and has the attribute associated to the
-     !! type of cavity to be used
+!!$     !> geocode is used in all the code to specify the boundary conditions (BC) the problem:
+!!$     !!          - 'F' free BC, isolated systems.
+!!$     !!                The program calculates the solution as if the given density is
+!!$     !!                "alone" in R^3 space.
+!!$     !!          - 'S' surface BC, isolated in y direction, periodic in xz plane                
+!!$     !!                The given density is supposed to be periodic in the xz plane,
+!!$     !!                so the dimensions in these direction mus be compatible with the FFT
+!!$     !!                Beware of the fact that the isolated direction is y!
+!!$     !!          - 'P' periodic BC.
+!!$     !!                The density is supposed to be periodic in all the three directions,
+!!$     !!                then all the dimensions must be compatible with the FFT.
+!!$     !!                No need for setting up the kernel (in principle for Plane Waves)
+!!$     !!          - 'W' Wires BC.
+!!$     !!                The density is supposed to be periodic in z direction, 
+!!$     !!                which has to be compatible with the FFT.
+!!$     !!          - 'H' Helmholtz Equation Solver
+!!$!     character(len=1) :: geocode
+!!$     !> method of embedding in the environment
+!!$     !!          - 'VAC' Poisson Equation in vacuum. Default case.
+!!$     !!          - 'PCG' Generalized Poisson Equation, Preconditioned Conjugate Gradient
+!!$     !!          - 'PI'  Generalized Poisson Equation, Polarization Iteration method
+!!$     !character(len=3) :: method 
+!!$     !! this represents the information for the equation and the algorithm to be solved
+!!$     !! this enumerator contains the algorithm and has the attribute associated to the 
+!!$     !! type of cavity to be used
      type(f_enumerator) :: method
      type(cell) :: mesh !< structure which includes all cell informations
-!     integer, dimension(3) :: ndims   !< dimension of the box of the density
-!     real(gp), dimension(3) :: hgrids !<grid spacings in each direction
-     !real(gp), dimension(3) :: angrad !< angles in radiants between each of the axis
+!!$     integer, dimension(3) :: ndims   !< dimension of the box of the density
+!!$     real(gp), dimension(3) :: hgrids !<grid spacings in each direction
+!!$     real(gp), dimension(3) :: angrad !< angles in radiants between each of the axis
      type(cavity_data) :: cavity !< description of the cavity for the dielectric medium
      type(PSolver_options) :: opt !<Datatype controlling the operations of the solver
      real(dp), dimension(:), pointer :: kernel !< kernel of the Poisson Solver
@@ -205,7 +205,7 @@ module PStypes
      !!memory footprints dependently of the treatment.
      type(PS_workarrays) :: w
      !variables with computational meaning
-     type(mpi_environment) :: mpi_env !< complete environment for the POisson Solver
+     type(mpi_environment) :: mpi_env !< complete environment for the Poisson Solver
      type(mpi_environment) :: inplane_mpi,part_mpi !<mpi_environment for internal ini-plane parallelization
      type(FFT_metadata) :: grid !<dimensions of the FFT grid associated to this kernel
      logical :: use_gpu_direct
@@ -216,16 +216,17 @@ module PStypes
      integer :: stay_on_gpu
      integer :: keepzf
      !parameters for the iterative methods
-     !> Order of accuracy for derivatives into ApplyLaplace subroutine = Total number
-     !! of points at left and right of the x0 where we want to calculate the derivative.
+     !> Order of accuracy for the finite difference nabla, used for nonvacuum calculations (only in SC).
+     !! Usead also for the additional contribution to the KS potential for an implicit solvation run.
+     !! Represents the total number of points at left and right of the x0 where we want to calculate the derivative.
      integer :: nord
      !> default set of radii for the rigid cavity
      integer :: radii_set
      !> dictionary of the atom species radii defined by the user
      type(dictionary), pointer :: radii_dict
-     integer :: max_iter    !< maximum number of convergence iterations
-     real(dp) :: minres     !< Convergence criterion for the iteration
-     real(dp) :: PI_eta     !< Parameter for the update of PI iteration
+     integer :: max_iter    !< Maximum number of convergence iterations for PCG or SC.
+     real(dp) :: minres     !< Convergence criterion for the PCG or SC loop.
+     real(dp) :: PI_eta     !< Mixing parameter for the update of SC iteration
      integer :: max_iter_PB !< Max conv iterations for PB treatment
      real(dp) :: minres_PB  !< Convergence criterion for PB residue
      real(dp) :: PB_eta     !< Mixing scheme for PB
@@ -239,7 +240,7 @@ module PStypes
   end type coulomb_operator
 
 
-  !> Define the energy terms for the Poisson Operator and Generalized applications
+  !> Define the energy terms for the Poisson and Generalized poisson operator applications
   type, public :: PSolver_energies
      !> hartree energy, defined as the @f$\int \rho(\mathbf{r}) V(\mathbf{r}) \mathrm d r @f$, with @f$\rho@f$ being the
      !! input density and @f$V@f$ the potential defined by this density
@@ -249,9 +250,9 @@ module PStypes
      !! the hartree energy can be obtained by subtraction with the potential energy terms
      real(gp) :: elec
      !> Energetic term coming from the @f$\int \rho V_extra@f$, in the case of a @f$\rho@f$-dependent cavity.
-     !! clearly this term is calculated only if the potential is corrected. When the cavity is fixed, the eVextra is zero.
+     !! Clearly this term is calculated only if the potential is corrected. When the cavity is fixed, the eVextra is zero.
      real(gp) :: eVextra
-     !> surface and volume term
+     !> Nonelectrostatic contribution, function of the cavity surface and volume (only for implicit solvation).
      real(gp) :: cavitation
      !> stress tensor, to be calculated when calculate_strten is .true.
      real(gp), dimension(6) :: strten
@@ -470,12 +471,11 @@ contains
     if (.not. use_input_guess) call f_free_ptr(w%pot)
   end subroutine release_PS_potential
 
-  !> Free memory used by the kernel operation
+  !> Free memory used by the kernel operation and all workarrays.
   subroutine pkernel_free(kernel)
     use dictionaries, only: dict_free
     implicit none
     type(coulomb_operator), intent(inout) :: kernel
-    integer :: i_stat
     call dict_free(kernel%radii_dict)
     call f_free_ptr(kernel%kernel)
     call f_free_ptr(kernel%counts)
@@ -500,7 +500,8 @@ contains
     call release_mpi_environment(kernel%mpi_env)
   end subroutine pkernel_free
 
-  !> Initialization of the Poisson kernel
+  !> Initialization of the Poisson kernel starting from the box and boundary
+  !! conditions data.
   function pkernel_init(iproc,nproc,dict,geocode,ndims,hgrids,alpha_bc,beta_ac,gamma_ab,mpi_env) result(kernel)
     use yaml_output
     use dictionaries
@@ -517,13 +518,11 @@ contains
     character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
     integer, dimension(3), intent(in) :: ndims
     real(gp), dimension(3), intent(in) :: hgrids
-    !real(gp), dimension(3), intent(in), optional :: angrad
     real(gp), intent(in), optional :: alpha_bc,beta_ac,gamma_ab
     type(mpi_environment), intent(in), optional :: mpi_env
     type(coulomb_operator) :: kernel
     !local variables
     integer :: nthreads,group_size,taskgroup_size
-    real(gp), dimension(3) :: angrad
     !$ integer :: omp_get_max_threads
 
     !nullification
@@ -531,13 +530,6 @@ contains
 
     !mesh initialization
     kernel%mesh=cell_new(geocode,ndims,hgrids,alpha_bc,beta_ac,gamma_ab)
-
-    !these parts should be removed
-    !geocode and ISF family
-!    kernel%geocode=geocode
-    !dimensions and grid spacings
-!    kernel%ndims=ndims
-!    kernel%hgrids=hgrids
 
     !new treatment for the kernel input variables
     kernel%method=PS_VAC_ENUM
@@ -639,9 +631,9 @@ contains
     type(dictionary), pointer :: dict
     type(dictionary), pointer, optional :: dict_minimal
     !local variables
-    integer(f_integer) :: params_size
+    !integer(f_integer) :: params_size
     !integer(kind = 8) :: cbuf_add !< address of c buffer
-    character, dimension(:), allocatable :: params
+    !character, dimension(:), allocatable :: params
     type(dictionary), pointer :: parameters
     type(dictionary), pointer :: parsed_parameters
     type(dictionary), pointer :: profiles
@@ -727,12 +719,11 @@ contains
     !local variables
     logical :: dummy_l
     real(gp) :: dummy_d
-    integer, dimension(2) :: dummy_int !<to use as filling for input variables
+    !integer, dimension(2) :: dummy_int !<to use as filling for input variables
     real(gp), dimension(2) :: dummy_gp !< to fill the input variables
-    logical, dimension(2) :: dummy_log !< to fill the input variables
-    character(len=256) :: dummy_char
+    !logical, dimension(2) :: dummy_log !< to fill the input variables
+    !character(len=256) :: dummy_char
     character(len = max_field_length) :: strn
-    integer :: i, ipos
 
     if (index(dict_key(val), "_attributes") > 0) return
 
@@ -886,8 +877,7 @@ contains
   END SUBROUTINE PS_input_fill
 
 
-  !> allocate the workarrays needed to perform the
-  !! GPS operation
+  !> allocate the workarrays needed to perform a nonvacuum GPe operation
   subroutine PS_allocate_lowlevel_workarrays(poisson_boltzmann,cudasolver,rho,kernel)
     use f_utils, only: f_zero
     use wrapper_linalg, only: axpy
@@ -987,7 +977,7 @@ contains
   !! their allocation depends on the treatment which we are going to
   !! apply
   subroutine PS_allocate_cavity_workarrays(n1,n23,ndims,method,w)
-    use psolver_environment, only: PS_SCCS_ENUM,PS_PB_NONE_ENUM
+    use psolver_environment, only: PS_PB_NONE_ENUM
     use dynamic_memory
     implicit none
     integer, intent(in) :: n1,n23
@@ -1070,9 +1060,6 @@ contains
     character(len=*), intent(in) :: atname
     !> radii of each of the atom types, calculated on the basis of the input values
     real(dp)  :: radius
-    !local variables
-    integer :: i
-    real(dp) :: fact
 
     if (atname .in. kernel%radii_dict) then
        radius=kernel%radii_dict//atname
@@ -1089,8 +1076,28 @@ contains
 
   end function pkernel_get_radius
 
-  !> set the epsilon in the pkernel structure as a function of the seteps variable.
-  !! This routine has to be called each time the dielectric function has to be set
+  !> Set the dielectric cavity epsilon in the pkernel structure for a nonvacuum
+  !! treatment. It generate the dielectric cavity epsilon(r) and all working
+  !! arrays needed by the PCG or SC solver of the generalized Poisson equation.
+  !! There are several methods to do that:
+  !! 1. In case of the soft-sphere model we need just to pass some informations 
+  !!    of our atomistic system like the total number of atoms (nat), their positions 
+  !!    (rxyz(1:3,nat)) and their radii.
+  !!      call pkernel_set_epsilon(pkernel,nat=nat,rxyz=rxyz,radii=radii)
+  !! 2. If you have a given cavity epsilon(r) (on the same real space grid of the input
+  !!    charge) build up with other methods, you can directly set up all working arrays:
+  !!      call pkernel_set_epsilon(pkernel,eps=eps)
+  !! 3. If you have both the cavity and the working arrays you can pass all of them to
+  !!    the solver. In the case of PCG solver you need these three vectors:
+  !!      call pkernel_set_epsilon(pkernel,eps=eps,oneosqrteps=oneosqrteps,corr=corr)
+  !!    Here eps represent the dielectric cavity epsilon(r), oneosqrteps the inverse of
+  !!    its square root, and corr the vector q(r) of equation (16) in Fisicaro J. Chem.
+  !!    Phys. 144, 014103 (2016). All these vectors have to be on the same real space
+  !!    grid of the input charge.
+  !!    In the case of SC solver you need to pass these vectors:
+  !!      call pkernel_set_epsilon(pkernel,eps=eps,oneoeps=oneoeps,dlogeps=dlogeps)
+  !!    where oneoeps is the inverse of epsilon and dlogeps the derivative of its
+  !!    natural logarithm.
   subroutine pkernel_set_epsilon(kernel,eps,dlogeps,oneoeps,oneosqrteps,corr,nat,rxyz,radii)
     use yaml_strings
     use dynamic_memory
@@ -1104,16 +1111,16 @@ contains
     type(coulomb_operator), intent(inout) :: kernel
     !> dielectric function. Needed for non VAC methods, given in full dimensions
     real(dp), dimension(:,:,:), intent(in), optional :: eps
-    !> logarithmic derivative of epsilon. Needed for PCG method.
+    !> logarithmic derivative of epsilon. Needed for SC method.
     !! if absent, it will be calculated from the array of epsilon
     real(dp), dimension(:,:,:,:), intent(in), optional :: dlogeps
-    !> inverse of epsilon. Needed for PI method.
+    !> inverse of epsilon. Needed for SC method.
     !! if absent, it will be calculated from the array of epsilon
     real(dp), dimension(:,:,:), intent(in), optional :: oneoeps
     !> inverse square root of epsilon. Needed for PCG method.
     !! if absent, it will be calculated from the array of epsilon
     real(dp), dimension(:,:,:), intent(in), optional :: oneosqrteps
-    !> correction term of the Generalized Laplacian
+    !> correction term for PCG
     !! if absent, it will be calculated from the array of epsilon
     real(dp), dimension(:,:,:), intent(in), optional :: corr
     !> number of atoms, can be inserted to define the rigid cavity

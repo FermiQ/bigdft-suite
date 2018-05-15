@@ -149,60 +149,60 @@ subroutine uncompress(n1,n2,n3,nseg_c,nvctr_c,keyg_c,keyv_c,  &
 END SUBROUTINE uncompress
 
 
-subroutine fill_random(n1,n2,n3,nfl1,nfu1,nfl2,nfu2,nfl3,nfu3,  & !n(c) mvctr_c, mvctr_f (arg:11,15)
-     mseg_c,keyg_c,  &
-     mseg_f,keyg_f,  & 
-     psig_c,psig_f)
-  use module_base
-  implicit none
-  integer, intent(in) :: n1,n2,n3,nfl1,nfu1,nfl2,nfu2,nfl3,nfu3,mseg_c,mseg_f !n(c) mvctr_c,mvctr_f 
-  integer, dimension(2,mseg_c), intent(in) :: keyg_c
-  integer, dimension(2,mseg_f), intent(in) :: keyg_f
-  real(wp), dimension(0:n1,0:n2,0:n3), intent(out) :: psig_c
-  real(wp), dimension(7,nfl1:nfu1,nfl2:nfu2,nfl3:nfu3), intent(out) :: psig_f
-  !local variables
-  real(wp)::x
-  integer :: iseg,j0,j1,ii,i1,i2,i3,i0,i,l !n(c) jj
-
-  psig_c=0._wp
-  psig_f=0._wp
-  ! coarse part
-  do iseg=1,mseg_c
-     !n(c) jj=keyv_c(iseg)
-     j0=keyg_c(1,iseg)
-     j1=keyg_c(2,iseg)
-     ii=j0-1
-     i3=ii/((n1+1)*(n2+1))
-     ii=ii-i3*(n1+1)*(n2+1)
-     i2=ii/(n1+1)
-     i0=ii-i2*(n1+1)
-     i1=i0+j1-j0
-     do i=i0,i1
-      call random_number(x) 
-        psig_c(i,i2,i3)=x
-     enddo
-  enddo
-
-  ! fine part
-  do iseg=1,mseg_f
-     !n(c) jj=keyv_f(iseg)
-     j0=keyg_f(1,iseg)
-     j1=keyg_f(2,iseg)
-     ii=j0-1
-     i3=ii/((n1+1)*(n2+1))
-     ii=ii-i3*(n1+1)*(n2+1)
-     i2=ii/(n1+1)
-     i0=ii-i2*(n1+1)
-     i1=i0+j1-j0
-     do i=i0,i1
-       do l=1,7
-          call random_number(x)
-          psig_f(l,i,i2,i3)=x
-       enddo
-     enddo
-  enddo
-
-END SUBROUTINE fill_random
+!!$subroutine fill_random(n1,n2,n3,nfl1,nfu1,nfl2,nfu2,nfl3,nfu3,  & !n(c) mvctr_c, mvctr_f (arg:11,15)
+!!$     mseg_c,keyg_c,  &
+!!$     mseg_f,keyg_f,  & 
+!!$     psig_c,psig_f)
+!!$  use module_base
+!!$  implicit none
+!!$  integer, intent(in) :: n1,n2,n3,nfl1,nfu1,nfl2,nfu2,nfl3,nfu3,mseg_c,mseg_f !n(c) mvctr_c,mvctr_f 
+!!$  integer, dimension(2,mseg_c), intent(in) :: keyg_c
+!!$  integer, dimension(2,mseg_f), intent(in) :: keyg_f
+!!$  real(wp), dimension(0:n1,0:n2,0:n3), intent(out) :: psig_c
+!!$  real(wp), dimension(7,nfl1:nfu1,nfl2:nfu2,nfl3:nfu3), intent(out) :: psig_f
+!!$  !local variables
+!!$  real(wp)::x
+!!$  integer :: iseg,j0,j1,ii,i1,i2,i3,i0,i,l !n(c) jj
+!!$
+!!$  psig_c=0._wp
+!!$  psig_f=0._wp
+!!$  ! coarse part
+!!$  do iseg=1,mseg_c
+!!$     !n(c) jj=keyv_c(iseg)
+!!$     j0=keyg_c(1,iseg)
+!!$     j1=keyg_c(2,iseg)
+!!$     ii=j0-1
+!!$     i3=ii/((n1+1)*(n2+1))
+!!$     ii=ii-i3*(n1+1)*(n2+1)
+!!$     i2=ii/(n1+1)
+!!$     i0=ii-i2*(n1+1)
+!!$     i1=i0+j1-j0
+!!$     do i=i0,i1
+!!$      call random_number(x) 
+!!$        psig_c(i,i2,i3)=x
+!!$     enddo
+!!$  enddo
+!!$
+!!$  ! fine part
+!!$  do iseg=1,mseg_f
+!!$     !n(c) jj=keyv_f(iseg)
+!!$     j0=keyg_f(1,iseg)
+!!$     j1=keyg_f(2,iseg)
+!!$     ii=j0-1
+!!$     i3=ii/((n1+1)*(n2+1))
+!!$     ii=ii-i3*(n1+1)*(n2+1)
+!!$     i2=ii/(n1+1)
+!!$     i0=ii-i2*(n1+1)
+!!$     i1=i0+j1-j0
+!!$     do i=i0,i1
+!!$       do l=1,7
+!!$          call random_number(x)
+!!$          psig_f(l,i,i2,i3)=x
+!!$       enddo
+!!$     enddo
+!!$  enddo
+!!$
+!!$END SUBROUTINE fill_random
 
 
 !> Expands the compressed wavefunction in vector form (psi_c,psi_f) into the psig format

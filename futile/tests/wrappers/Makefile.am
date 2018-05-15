@@ -7,7 +7,7 @@ EXTRA_DIST = \
 	mpi_layer.f90
 
 
-check_PROGRAMS = op2p_check linalg_check numerics_check
+check_PROGRAMS = op2p_check linalg_check numerics_check mpi_check
 
 check: regtest report #op2p_check.report.yaml $(check_PROGRAMS)
 
@@ -36,7 +36,6 @@ numerics_check_LDADD = @LIB_FUTILE_LIBS@
 
 linalg_check_SOURCES = linalg_check.f90
 linalg_check_LDADD = @LIB_FUTILE_LIBS@
-
 
 mpi_check_SOURCES = mpi_check.f90
 mpi_check_LDADD =  @LIB_FUTILE_LIBS@
@@ -71,5 +70,8 @@ define F_REGTEST_INSTRUCTIONS
     - ./linalg_check -o 75 -v 10000 -s Yes
     - ./linalg_check -o 75 -v 10000 -c 2
     - ./linalg_check -o 75 -v 10000 -c 2 -s Yes
+- mpi_check:
+   runs:
+    - $(run_parallel) ./mpi_check
 endef
 export F_REGTEST_INSTRUCTIONS

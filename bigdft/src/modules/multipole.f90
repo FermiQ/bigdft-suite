@@ -16,6 +16,10 @@ module multipole
   public :: calculate_dipole_moment
   public :: calculate_rpowerx_matrices
   public :: multipole_analysis_driver_new
+  public :: init_extract_matrix_lookup
+  public :: extract_matrix
+  public :: correct_multipole_origin
+  public :: calculate_and_write_multipole_matrices
 
   contains
 
@@ -153,7 +157,7 @@ module multipole
                center_cores, rxyz, ixyz0, write_directory, dipole_total, quadrupole_total, all_norms_ok, &
                rho_mp, pot_mp)
       use module_types, only: DFT_local_fields, local_zone_descriptors
-      use Poisson_Solver, except_dp => dp, except_gp => gp
+      use Poisson_Solver, except_dp => dp
       use module_atoms, only: atoms_data
       use bounds, only: ext_buffers
       use yaml_output
@@ -1055,6 +1059,7 @@ module multipole
       use yaml_output
       use numerics, only: Bohr_Ang
       use f_precisions, only: db => f_double
+      use module_types, only: TCAT_IO_MULTIPOLES
       implicit none
 
       ! Calling arguments
@@ -1080,6 +1085,7 @@ module multipole
       logical :: present_delta_rxyz, present_on_which_atom, present_scaled, present_monopoles_analytic, do_guess_type_
 
       call f_routine(id='write_multipoles_new')
+      call f_timing(TCAT_IO_MULTIPOLES,'ON')
 
       present_delta_rxyz = present(delta_rxyz)
       present_on_which_atom = present(on_which_atom)
@@ -1166,6 +1172,7 @@ module multipole
           call yaml_flush_document()
 
       call f_release_routine()
+      call f_timing(TCAT_IO_MULTIPOLES,'OF')
 
 
           contains
@@ -1944,7 +1951,7 @@ module multipole
                auxs, nphi, lphi, nphir, hgrids, orbs, collcom, collcom_sr, &
                lzd, at, denspot, orthpar, shift, multipole_matrix_in, ice_obj, filename, &
                multipole_centers)
-      use module_base
+      !use module_base, except_gp => gp
       use module_types, only: orbitals_data, comms_linear, local_zone_descriptors, orthon_data, DFT_local_fields, comms_linear, &
                               linmat_auxiliary
       use sparsematrix_base, only: sparse_matrix, matrices, sparsematrix_malloc0, assignment(=), &
@@ -1962,7 +1969,7 @@ module multipole
       use orbitalbasis
       use matrix_operations, only: overlapPowerGeneral, matrix_for_orthonormal_basis
       !use Poisson_Solver, only: H_potential
-      use Poisson_Solver, except_dp => dp, except_gp => gp
+      use Poisson_Solver, except_dp => dp
       use foe_base, only: foe_data
       use box
       use io, only: get_sparse_matrix_format
@@ -2007,14 +2014,14 @@ module multipole
       real(kind=8),dimension(:),pointer :: phit_c, phit_f
       real(kind=8),dimension(:),allocatable :: phi_ortho, Qmat, kernel_ortho, Qmat_tmp,Slmphi
       real(kind=8),dimension(:),allocatable :: eval, work, newoverlap, newmultipole_matrix_large, newoverlap_large
-      real(kind=8),dimension(:,:),allocatable :: Qmat_tilde, kp, locregcenter, overlap_small, tmpmat, tempmat
+      real(kind=8),dimension(:,:),allocatable :: locregcenter, overlap_small, tmpmat, tempmat, projx
       real(kind=8),dimension(:,:,:),pointer :: atomic_multipoles
       real(kind=8),dimension(:,:),pointer :: mp_centers
       real(kind=8),dimension(:),pointer :: atomic_monopoles_analytic
       real(kind=8),dimension(:,:,:),allocatable :: test_pot
       real(kind=8),dimension(:,:,:,:),allocatable :: lmp_extracted
-      real(kind=8),dimension(:,:),allocatable :: projx
-      real(kind=8),dimension(:,:),allocatable :: kernel_extracted, multipole_extracted
+      real(kind=8),dimension(:,:,:),allocatable :: qmat_tilde, kp
+      real(kind=8),dimension(:,:,:),allocatable :: kernel_extracted, multipole_extracted
       real(kind=8) :: q, tt, rloc, max_error, mean_error
       type(matrices) :: multipole_matrix
       !type(matrices),target :: multipole_matrix_
@@ -2037,7 +2044,7 @@ module multipole
       type(external_potential_descriptors) :: ep
       !character(len=*),parameter :: projectormode='verynew'!'old'
       !character(len=*),parameter :: do_ortho = no!yes
-      integer :: is1, ie1, is2, ie2, is3, ie3, ioffset, icheck, nmax
+      integer :: is1, ie1, is2, ie2, is3, ie3, ioffset, icheck, nmax, ist, is, ists, istl
       real(kind=8),dimension(:,:,:),allocatable :: rho_exact, rho_mp, pot_exact, pot_mp
       integer,parameter :: ncheck = 5
       real(kind=8),dimension(ncheck),parameter :: check_threshold = [ 1.d-12 , &
@@ -2054,9 +2061,9 @@ module multipole
 
       call f_routine(id='multipole_analysis_driver')
 
-      if (smatl%nspin/=1) then
-          call f_err_throw('Atomic multipole analysis not yet ready for nspin>1')
-      end if
+      !!if (smatl%nspin/=1) then
+      !!    call f_err_throw('Atomic multipole analysis not yet ready for nspin>1')
+      !!end if
 
       perx=(smmd%geocode /= 'F')
       pery=(smmd%geocode == 'P')
@@ -2201,7 +2208,11 @@ module multipole
           call transform_sparse_matrix(iproc, smats, smatl, SPARSE_TASKGROUP, 'small_to_large', &
                smat_in=ovrlp%matrix_compr, lmat_out=ovrlp_large%matrix_compr)
           ! Should use the highlevel wrapper...
-          call matrix_matrix_mult_wrapper(iproc, nproc, smatl, kernel%matrix_compr, ovrlp_large%matrix_compr, kernel_ortho)
+          do ispin=1,smatl%nspin
+              ist=(ispin-1)*smatl%nvctrp_tg+1
+              call matrix_matrix_mult_wrapper(iproc, nproc, smatl, &
+                   kernel%matrix_compr(ist:), ovrlp_large%matrix_compr(ist:), kernel_ortho(ist:))
+          end do
           call deallocate_matrices(ovrlp_large)
       end if
 
@@ -2211,7 +2222,7 @@ module multipole
       neighborx = f_malloc((/smats%nfvctr,natpx/),id='neighborx')
       nx = f_malloc(natpx,id='nx')
       call determine_submatrix_sizes(natpx, isatx, smmd, smatl, neighborx, nx, nmax)
-      projx = f_malloc((/nmax**2,natpx/),id='projx')
+      projx = f_malloc((/smats%nspin*nmax**2,natpx/),id='projx')
       mat_lookup_s = f_malloc((/nmax**2,natpx/),id='mat_lookup_s')
       mat_lookup_l = f_malloc((/nmax**2,natpx/),id='mat_lookup_l')
 
@@ -2321,6 +2332,10 @@ module multipole
               if (calculate_multipole_matrices) then
                   call calculate_multipole_matrix(iproc, nproc, l, m, nphi, lphi, lphi, nphir, hgrids, &
                        orbs, collcom, lzd, smmd, smats, auxs, locregcenter, 'box', multipole_matrix)
+                   !!write(*,*) 'multipole_matrix%matrix_compr(1:smats%nvctr)', &
+                   !!            multipole_matrix%matrix_compr(1:smats%nvctr)
+                   !!write(*,*) 'multipole_matrix%matrix_compr(smats%nvctr+1:2*smats%nvctr)', &
+                   !!            multipole_matrix%matrix_compr(smats%nvctr+1:2*smats%nvctr)
                   if (write_matrices) then
                       call get_sparse_matrix_format(write_multipole_matrices_mode, sparse_format)
                       write(lname,'(i0)') l
@@ -2365,55 +2380,69 @@ module multipole
               do kat=1,natpx
                   kkat = kat + isatx
                   n = nx(kat)
-                  qmat_tilde = f_malloc((/n,n/),id='qmat_tilde')
-                  kp = f_malloc((/n,n/),id='kp')
-                  kernel_extracted = f_malloc((/n,n/),id='kernel_extracted')
-                  multipole_extracted = f_malloc((/n,n/),id='multipole_extracted')
-                  call extract_matrix(smats, multipole_matrix%matrix_compr, &
-                      neighborx(1,kat), n, mat_lookup_s(1,kat), multipole_extracted)
-                  ! The minus sign is required since the phi*S_lm*phi represent the electronic charge which is a negative quantity
-                  call dscal(n**2, -1.d0, multipole_extracted(1,1), 1)
-                  call extract_matrix(smatl, kernel_ortho, neighborx(1,kat), n, mat_lookup_l(1,kat), kernel_extracted)
-                  if (l>0) then
-                      call correct_multipole_origin(smmd%nat, l, m, n, smmd%nfvctr, natpx, kat, kkat, &
-                           smmd, smats, mp_centers, neighborx, perx, pery, perz, acell, &
-                           lower_multipole_matrices, mat_lookup_s(1,kat), multipole_extracted)
-                  end if
+                  qmat_tilde = f_malloc((/n,n,smats%nspin/),id='qmat_tilde')
+                  kp = f_malloc((/n,n,smats%nspin/),id='kp')
+                  kernel_extracted = f_malloc((/n,n,smats%nspin/),id='kernel_extracted')
+                  multipole_extracted = f_malloc((/n,n,smats%nspin/),id='multipole_extracted')
+                  do ispin=1,smats%nspin
+                      ists=(ispin-1)*smats%nvctrp_tg+1
+                      istl=(ispin-1)*smatl%nvctrp_tg+1
+                      call extract_matrix(smats, multipole_matrix%matrix_compr(ists:), &
+                           n, mat_lookup_s(1,kat), multipole_extracted(1,1,ispin))
+                      ! The minus sign is required since the phi*S_lm*phi represent the electronic charge which is a negative quantity
+                      call dscal(n**2, -1.d0, multipole_extracted(1,1,ispin), 1)
+                      call extract_matrix(smatl, kernel_ortho(istl), n, &
+                           mat_lookup_l(1,kat), kernel_extracted(1,1,ispin))
+                      if (l>0) then
+                          call correct_multipole_origin(ispin, smmd%nat, l, m, n, &
+                               smmd, smats, mp_centers(1:3,kkat), mp_centers, neighborx(1:smats%nfvctr,kat), &
+                               perx, pery, perz, acell, &
+                               lower_multipole_matrices, mat_lookup_s(1,kat), multipole_extracted(1,1,ispin))
+                      end if
+                  end do
                   !do i=1,n
                   !    do j=1,n
                   !        write(*,*) 'i, j, multipole_extracted(j,i)', i, j, multipole_extracted(j,i)
                   !    end do
                   !end do
                   if (trim(method)=='loewdin') then
-                      call extract_matrix(smatl, inv_ovrlp(1)%matrix_compr, neighborx(1,kat), &
-                           n, mat_lookup_l(1,kat), projx(1,kat))
-                      call prepare_loewdin_projector(smats, smmd, n, kkat, neighborx(1,kat), projx(1,kat))
-                      !!iiorb = 0
-                      !!do iorb=1,smats%nfvctr
-                      !!    if (neighborx(iorb,kat)) then
-                      !!        iiorb = iiorb + 1
-                      !!        if (smmd%on_which_atom(iorb)/=kkat) then
-                      !!            do jorb=1,n
-                      !!                projx((iiorb-1)*n+jorb,kat) = 0.d0
-                      !!            end do
-                      !!        end if
-                      !!    end if
-                      !!end do
+                      do ispin=1,smatl%nspin
+                          istl=(ispin-1)*smatl%nvctrp_tg+1
+                          is=(ispin-1)*nmax**2+1
+                          call extract_matrix(smatl, inv_ovrlp(1)%matrix_compr(istl:), &
+                               n, mat_lookup_l(1,kat), projx(is,kat))
+                          call prepare_loewdin_projector(smats, smmd, n, kkat, neighborx(1,kat), projx(is,kat))
+                          !!iiorb = 0
+                          !!do iorb=1,smats%nfvctr
+                          !!    if (neighborx(iorb,kat)) then
+                          !!        iiorb = iiorb + 1
+                          !!        if (smmd%on_which_atom(iorb)/=kkat) then
+                          !!            do jorb=1,n
+                          !!                projx((iiorb-1)*n+jorb,kat) = 0.d0
+                          !!            end do
+                          !!        end if
+                          !!    end if
+                          !!end do
+                      end do
                   end if
                   !do i=1,n**2
                   !    write(*,*) 'i, j, projx(i,kat)', i, j, projx(i,kat)
                   !end do
-                  call calculate_population_matrix(n, kernel_extracted, projx(1,kat), multipole_extracted, qmat_tilde, kp)
-                  !!call gemm('n', 'n', n, n, n, 1.d0, kernel_extracted(1,1), n, &
-                  !!     projx(1,kat), n, 0.d0, qmat_tilde(1,1), n)
-                  !!call gemm('n', 'n', n, n, n, 1.d0, qmat_tilde(1,1), n, multipole_extracted(1,1), n, 0.d0, kp(1,1), n)
+                  do ispin=1,smats%nspin
+                      is=(ispin-1)*nmax**2+1
+                      call calculate_population_matrix(n, kernel_extracted(1,1,ispin), projx(is,kat), &
+                           multipole_extracted(1,1,ispin), qmat_tilde(1,1,ispin), kp(1,1,ispin))
+                      !!call gemm('n', 'n', n, n, n, 1.d0, kernel_extracted(1,1), n, &
+                      !!     projx(1,kat), n, 0.d0, qmat_tilde(1,1), n)
+                      !!call gemm('n', 'n', n, n, n, 1.d0, qmat_tilde(1,1), n, multipole_extracted(1,1), n, 0.d0, kp(1,1), n)
+                      tt = 0.d0
+                      do i=1,n
+                          tt = tt + kp(i,i,ispin)
+                      end do
+                      atomic_multipoles(m,l,kkat) = atomic_multipoles(m,l,kkat) + tt
+                  end do
                   call f_free(kernel_extracted)
                   call f_free(multipole_extracted)
-                  tt = 0.d0
-                  do i=1,n
-                      tt = tt + kp(i,i)
-                  end do
-                  atomic_multipoles(m,l,kkat) = tt
                   call f_free(qmat_tilde)
                   call f_free(kp)
               end do
@@ -2577,6 +2606,11 @@ module multipole
               if ((ie1-is1+1)*(ie2-is2+1)*(ie3-is3+1)>0) then
                   call f_memcpy(n=(ie1-is1+1)*(ie2-is2+1)*(ie3-is3+1), &
                        src=denspot%rhov(ioffset+1), dest=rho_exact(is1,is2,is3))
+                  if (smats%nspin>1) then
+                      call axpy((ie1-is1+1)*(ie2-is2+1)*(ie3-is3+1), 1.d0, &
+                          denspot%rhov(lzd%glr%d%n1i*lzd%glr%d%n2i*denspot%dpbox%n3d+ioffset+1), 1, &
+                          rho_exact(is1,is2,is3), 1)
+                  end if
               end if
               call f_memcpy(src=rho_exact, dest=pot_exact)
               call Electrostatic_Solver(denspot%pkernel,pot_exact,pot_ion=denspot%V_ext)
@@ -2610,18 +2644,6 @@ module multipole
                       call yaml_map('int(V)',potential_total(icheck),fmt='(es10.3)')
                       call yaml_map('Err %',potential_error(icheck)/potential_total(icheck),fmt='(2pf5.1)')
                       call yaml_map('int(rho)',charge_error(icheck),fmt='(es10.3)')
-!!$                      !call yaml_mapping_open('density threshold for check is'//&
-!!$                      !     &trim(yaml_toa(check_threshold(icheck),fmt='(es9.2)')))
-!!$                      call yaml_mapping_open('rho',flow=.true.)
-!!$                      call yaml_map('int(q-q_exact))',charge_error(icheck),fmt='(es10.3)')
-!!$                      call yaml_map('int(q_exact)',charge_total(icheck),fmt='(es10.3)')
-!!$                      call yaml_map('ratio',charge_error(icheck)/charge_total(icheck),fmt='(es10.3)')
-!!$                      call yaml_mapping_close()
-!!$                      call yaml_mapping_open('pot',flow=.true.)
-!!$                      call yaml_map('int(V-V_exact))',potential_error(icheck),fmt='(es10.3)')
-!!$                      call yaml_map('int(V_exact)',potential_total(icheck),fmt='(es10.3)')
-!!$                      call yaml_map('ratio',potential_error(icheck)/potential_total(icheck),fmt='(es10.3)')
-!!$                      call yaml_mapping_close()
                       call yaml_mapping_close()
                   end do
                   call yaml_sequence_close()
@@ -2698,7 +2720,7 @@ module multipole
 
 
 
-  subroutine extract_matrix(smat, matrix_compr, neighbor, n, mat_lookup, matrix)
+  subroutine extract_matrix(smat, matrix_compr, n, mat_lookup, matrix)
     use module_defs
     use dynamic_memory
     use f_utils
@@ -2708,14 +2730,13 @@ module multipole
 
     ! Calling arguments
     type(sparse_matrix),intent(in) :: smat
-    real(kind=8),dimension(smat%nvctrp_tg*smat%nspin),intent(in) :: matrix_compr
-    logical,dimension(smat%nfvctr),intent(in) :: neighbor
+    real(kind=8),dimension(smat%nvctrp_tg),intent(in) :: matrix_compr
     integer,intent(in) :: n
     integer,dimension(n,n),intent(in) :: mat_lookup
     real(kind=8),dimension(n,n),intent(out) :: matrix
 
     ! Local variables
-    integer :: icheck, ii, jj, i, j, ind
+    integer :: icheck, ii, jj, i, j, ind, ispin, ist
     !logical :: optional_present
     integer,dimension(:),allocatable :: lookup
 
@@ -2723,22 +2744,25 @@ module multipole
 
     !optional_present = present(ilup)
 
-    !$omp parallel default(none) &
-    !$omp shared(n, mat_lookup, matrix_compr, matrix, smat) &
-    !$omp private(i, j, ind)
-    !$omp do
-    do i=1,n
-        do j=1,n
-            ind = mat_lookup(j,i)
-            if (ind>0) then
-                matrix(j,i) = matrix_compr(ind-smat%isvctrp_tg)
-            else
-                matrix(j,i) = 0.d0
-            end if
+    !!do ispin=1,smat%nspin
+        ist=(ispin-1)*smat%nvctrp_tg+1
+        !$omp parallel default(none) &
+        !$omp shared(n, mat_lookup, matrix_compr, matrix, smat) &
+        !$omp private(i, j, ind)
+        !$omp do
+        do i=1,n
+            do j=1,n
+                ind = mat_lookup(j,i)
+                if (ind>0) then
+                    matrix(j,i) = matrix_compr(ind-smat%isvctrp_tg)
+                else
+                    matrix(j,i) = 0.d0
+                end if
+            end do
         end do
-    end do
-    !$omp end do
-    !$omp end parallel
+        !$omp end do
+        !$omp end parallel
+    !!end do
 
     !!lookup = f_malloc(smat%nfvctr,id='lookup')
     !!ii = 0
@@ -4349,6 +4373,7 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
   use yaml_output
   use box
   use numerics
+  use f_harmonics
   implicit none
   integer, intent(in) :: nspin
   type(denspot_distribution), intent(inout) :: dpbox
@@ -4365,12 +4390,12 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
   real(gp) :: q,qtot, delta_term,x,y,z,ri,rj,tt
   !integer  :: i1,i2,i3, nl1,nl2,nl3, n1i,n2i,n3i,  is, ie
   integer :: iat,ispin,i, j
-  real(gp), dimension(3) :: dipole_el,dipole_cores,tmpdip,charge_center_cores
+  real(gp), dimension(3) :: dipole_el,dipole_cores,tmpdip,charge_center_cores,el_spread
   real(gp),dimension(3,nspin) :: charge_center_elec
   real(gp), dimension(3,3) :: quadropole_el,quadropole_cores,tmpquadrop
   real(dp), dimension(:,:,:,:), pointer :: ele_rho
   logical :: quiet
-!!$  real(dp), dimension(:,:,:,:), pointer :: rho_buf
+  type(f_multipoles) :: mp_cores,mp_electrons
 
   call f_routine(id='calculate_dipole_moment')
 
@@ -4380,264 +4405,124 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
       quiet = .false.
   end if
 
-!!$  n1i=dpbox%mesh%ndims(1)
-!!$  n2i=dpbox%mesh%ndims(2)
-!!$  n3i=dpbox%mesh%ndims(3)
-!!$  n3p=dpbox%n3p
-!!$
-!!$
-!!$  if (at%astruct%geocode /= 'F') then
-!!$     nl1=1
-!!$     !nl3=1
-!!$     nc1=n1i
-!!$     !nc3=n3i
-!!$     nc3=n3p
-!!$     nnc3=n3i
-!!$     !is = 1
-!!$     is = dpbox%nscatterarr(dpbox%mpi_env%iproc,3)+1
-!!$     ie = dpbox%nscatterarr(dpbox%mpi_env%iproc,3)+dpbox%nscatterarr(dpbox%mpi_env%iproc,2)
-!!$     i3shift = 1
-!!$  else
-!!$     nl1=15
-!!$     !nl3=15
-!!$     !nl3=max(1,15-dpbox%nscatterarr(dpbox%mpi_env%iproc,3))
-!!$     nc1=n1i-31
-!!$     !nc3=n3i-31
-!!$     !nc3=n3p-31
-!!$     is = max(dpbox%nscatterarr(dpbox%mpi_env%iproc,3)+1,15)
-!!$     ie = min(dpbox%nscatterarr(dpbox%mpi_env%iproc,3)+dpbox%nscatterarr(dpbox%mpi_env%iproc,2),n3i-17)
-!!$     nnc3=n3i-31
-!!$     i3shift = 15
-!!$     !write(*,*) 'iproc, is, ie, nl3, nc3, n3p', bigdft_mpi%iproc, is, ie, nl3, nc3, n3p
-!!$  end if
-!!$  nc3 = ie - is + 1 !number of z planes to be treated
-!!$  nl3=max(1,i3shift-dpbox%nscatterarr(dpbox%mpi_env%iproc,3)) !offset within rho array
-!!$  !value of the buffer in the y direction
-!!$  if (at%astruct%geocode == 'P') then
-!!$     nl2=1
-!!$     nc2=n2i
-!!$  else
-!!$     nl2=15
-!!$     nc2=n2i-31
-!!$  end if
-
-  qtot=0.d0
-  call f_zero(dipole_cores)!(1:3)=0._gp
+  !call center_of_charge(at,at%astruct%rxyz,charge_center_cores)
   call f_zero(charge_center_cores)
-  do iat=1,at%astruct%nat
-     !write(*,*) 'iat, rxyz(1:3,iat)',iat, rxyz(1:3,iat)
-     q=at%nelpsp(at%astruct%iatype(iat))
-     dipole_cores(1:3)=dipole_cores(1:3)+q * rxyz(1:3,iat)
-     qtot=qtot+q
-  end do
+  call f_multipoles_create(mp_cores,1)!,center=charge_center_cores)
+  call vector_multipoles(mp_cores,at%astruct%nat,rxyz,dpbox%mesh,&
+       charges=real(at%nelpsp,dp),lookup=at%astruct%iatype)
+  qtot=get_monopole(mp_cores)
+  dipole_cores=get_dipole(mp_cores)
   !this defines the origin of the coordinate system
   if (qtot /=0.0_gp) charge_center_cores=dipole_cores/qtot
+  call f_multipoles_release(mp_cores)
+
+  !now the cores dipole should become zero
+
+!!$  qtot=0.d0
+!!$  call f_zero(dipole_cores)!(1:3)=0._gp
+!!$  call f_zero(charge_center_cores)
+!!$  do iat=1,at%astruct%nat
+!!$     !write(*,*) 'iat, rxyz(1:3,iat)',iat, rxyz(1:3,iat)
+!!$     q=at%nelpsp(at%astruct%iatype(iat))
+!!$     dipole_cores(1:3)=dipole_cores(1:3)+q * rxyz(1:3,iat)
+!!$     qtot=qtot+q
+!!$  end do
+!!$  !this defines the origin of the coordinate system
+!!$  if (qtot /=0.0_gp) charge_center_cores=dipole_cores/qtot
 
   !!write(*,*) 'dipole_cores',dipole_cores
   !!write(*,*) 'nc3',nc3
 
-  !calculate electronic dipole and thus total dipole of the system
-  call f_zero(dipole_el)!   (1:3)=0._gp
-  do ispin=1,nspin
-     !the iterator here is on the potential distribution
-     do while(box_next_point(dpbox%bitp))
-        q= - rho(dpbox%bitp%i,dpbox%bitp%j,dpbox%bitp%k-dpbox%bitp%i3s+1,ispin) *dpbox%mesh%volume_element
-        !q= - rho(dpbox%bitp%ibox(1),dpbox%bitp%ibox(2),dpbox%bitp%ibox(3),ispin) *dpbox%mesh%volume_element
-        !write(*,*) 'i1, i2, i3, nl1, nl2, nl3, q', i1, i2, i3, nl1, nl2, nl3, q
-        qtot=qtot+q
-        dipole_el=dipole_el+q*(dpbox%bitp%rxyz-charge_center_cores)
-     end do
-!!$     do i3=0,nc3 - 1
-!!$        !ii3 = i3 + dpbox%nscatterarr(dpbox%mpi_env%iproc,3)
-!!$        ii3 = i3+nl3+dpbox%nscatterarr(dpbox%mpi_env%iproc,3) - i3shift !real coordinate, without buffer
-!!$        !write(*,*) 'iproc, i3+nl3+dpbox%nscatterarr(dpbox%mpi_env%iproc,3), ii3', &
-!!$        !            bigdft_mpi%iproc, i3+nl3+dpbox%nscatterarr(dpbox%mpienv%iproc,3), ii3
-!!$        do i2=0,nc2 - 1
-!!$           do i1=0,nc1 - 1
-!!$              !ind=i1+nl1+(i2+nl2-1)*n1i+(i3+nl3-1)*n1i*n2i
-!!$              !q= ( ele_rho(ind,ispin) ) * hxh*hyh*hzh
-!!$              !q= - ele_rho(i1+nl1,i2+nl2,i3+nl3,ispin) * product(dpbox%hgrids)
-!!$              q= - rho(i1+nl1,i2+nl2,i3+nl3,ispin) *dpbox%mesh%volume_element
-!!$              !write(*,*) 'i1, i2, i3, nl1, nl2, nl3, q', i1, i2, i3, nl1, nl2, nl3, q
-!!$              qtot=qtot+q
-!!$              dipole_el(1)=dipole_el(1)+ q* at%astruct%cell_dim(1)/real(nc1,dp)*i1
-!!$              dipole_el(2)=dipole_el(2)+ q* at%astruct%cell_dim(2)/real(nc2,dp)*i2
-!!$              dipole_el(3)=dipole_el(3)+ q* at%astruct%cell_dim(3)/real(nnc3,dp)*ii3
-!!$           end do
-!!$        end do
+  !now reset the multipole quantities 
+  call f_multipoles_create(mp_electrons,2,center=charge_center_cores)
+  call field_multipoles(dpbox%bitp,rho,nspin,mp_electrons)
+  call f_multipoles_reduce(mp_electrons,comm=bigdft_mpi%mpi_comm)
+  !in case there is no ionic charge the dipole of the 
+  !electronic density is set to zero by default
+  if (qtot==0.0_dp) then
+     call f_zero(dipole_el)
+     el_spread=get_quadrupole_intensities(mp_electrons)
+  else
+     dipole_el=-get_dipole(mp_electrons)
+     el_spread=get_spreads(mp_electrons)
+  end if
+  qtot=-get_monopole(mp_electrons)
+
+!!$  !calculate electronic dipole and thus total dipole of the system
+!!$  call f_zero(dipole_el)!   (1:3)=0._gp
+!!$  do ispin=1,nspin
+!!$     !the iterator here is on the potential distribution
+!!$     do while(box_next_point(dpbox%bitp))
+!!$        q= - rho(dpbox%bitp%i,dpbox%bitp%j,dpbox%bitp%k-dpbox%bitp%i3s+1,ispin) *dpbox%mesh%volume_element
+!!$        qtot=qtot+q
+!!$        dipole_el=dipole_el+q*(dpbox%bitp%rxyz-charge_center_cores)
 !!$     end do
-  !!write(*,*) 'iproc, dipole_el,sum(rho), qtot',bigdft_mpi%iproc,dipole_el,sum(rho), qtot
-  end do
+!!$  end do
 
-  !!call mpi_barrier(mpi_comm_world,ispin)
-  call fmpi_allreduce(qtot, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
-  call fmpi_allreduce(dipole_el, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
-  !!call mpi_barrier(mpi_comm_world,ispin)
-  !!write(*,*) 'after allred: iproc, dipole_el,sum(rho), qtot',bigdft_mpi%iproc,dipole_el,sum(rho), qtot
+!!$  call fmpi_allreduce(qtot, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+!!$  call fmpi_allreduce(dipole_el, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
 
-  !!write(*,*) 'dipole_cores first', dipole_cores
-  !!call mpi_barrier(mpi_comm_world,ispin)
+  if (present(dipole)) dipole = dipole_el
 
   !quadrupole should be calculated with the shifted positions!
   quadrupole_if: if (calculate_quadrupole) then
 
-      call f_zero(quadropole_cores)!(1:3,1:3)=0._gp
-      do iat=1,at%astruct%nat
-         q=at%nelpsp(at%astruct%iatype(iat))
-         tmpdip=rxyz(:,iat)-charge_center_cores
-         tt=square_gd(dpbox%mesh,tmpdip)
-          do i=1,3
-             ri=rxyz(i,iat)-charge_center_cores(i)
-             do j=1,3
-                rj=rxyz(j,iat)-charge_center_cores(j)
-                if (i==j) then
-                   delta_term = tt
-                else
-                   delta_term=0.d0
-                end if
-                quadropole_cores(j,i) = quadropole_cores(j,i) + q*(3.d0*rj*ri-delta_term)
-             end do
-          end do
-       end do
+     !now reset the multipole quantities 
+     call f_multipoles_create(mp_cores,2,center=charge_center_cores)
+     call vector_multipoles(mp_cores,at%astruct%nat,rxyz,dpbox%mesh,&
+          charges=real(at%nelpsp,dp),lookup=at%astruct%iatype)
+     quadropole_cores=get_quadrupole(mp_cores)
 
-      ! charge center
-!!$      charge_center_elec(1:3,1:nspin)=0.d0
+!!$      call f_zero(quadropole_cores)!(1:3,1:3)=0._gp
+!!$      do iat=1,at%astruct%nat
+!!$         q=at%nelpsp(at%astruct%iatype(iat))
+!!$         tmpdip=rxyz(:,iat)-charge_center_cores
+!!$         tt=square_gd(dpbox%mesh,tmpdip)
+!!$          do i=1,3
+!!$             ri=rxyz(i,iat)-charge_center_cores(i)
+!!$             do j=1,3
+!!$                rj=rxyz(j,iat)-charge_center_cores(j)
+!!$                if (i==j) then
+!!$                   delta_term = tt
+!!$                else
+!!$                   delta_term=0.d0
+!!$                end if
+!!$                quadropole_cores(j,i) = quadropole_cores(j,i) + q*(3.d0*rj*ri-delta_term)
+!!$             end do
+!!$          end do
+!!$       end do
+
+!!$     call f_zero(quadropole_el)
 !!$      do ispin=1,nspin
-!!$         !LG: this is exactly the same calculation as before
-!!$         qtot=0.d0
 !!$         do while(box_next_point(dpbox%bitp))
 !!$            q= - rho(dpbox%bitp%i,dpbox%bitp%j,dpbox%bitp%k-dpbox%bitp%i3s+1,ispin) *dpbox%mesh%volume_element
-!!$            !write(*,*) 'i1, i2, i3, nl1, nl2, nl3, q', i1, i2, i3, nl1, nl2, nl3, q
-!!$            qtot=qtot+q
-!!$            charge_center_elec=charge_center_elec+q*dpbox%bitp%rxyz
+!!$            tmpdip=dpbox%bitp%rxyz-charge_center_cores
+!!$            tt=square_gd(dpbox%mesh,tmpdip)
+!!$            do i=1,3
+!!$               ri=dpbox%bitp%rxyz(i)-charge_center_cores(i)
+!!$               do j=1,3
+!!$                  rj=dpbox%bitp%rxyz(j)-charge_center_cores(j)
+!!$                  if (i==j) then
+!!$                     delta_term = tt
+!!$                  else
+!!$                     delta_term=0.d0
+!!$                  end if
+!!$                  quadropole_el(j,i) = quadropole_el(j,i) + q*(3.d0*rj*ri-delta_term)
+!!$               end do
+!!$            end do
 !!$         end do
-
-!!$          do i3=0,nc3 - 1
-!!$             ii3 = i3+nl3+dpbox%nscatterarr(dpbox%mpi_env%iproc,3) - i3shift !real coordinate, without buffer
-!!$              do i2=0,nc2 - 1
-!!$                  do i1=0,nc1 - 1
-!!$                      !q= - ele_rho(i1+nl1,i2+nl2,i3+nl3,ispin) * product(dpbox%hgrids)
-!!$                      q= - rho(i1+nl1,i2+nl2,i3+nl3,ispin) * dpbox%mesh%volume_element
-!!$                      x=at%astruct%cell_dim(1)/real(nc1,dp)*i1
-!!$                      y=at%astruct%cell_dim(2)/real(nc2,dp)*i2
-!!$                      z=at%astruct%cell_dim(3)/real(nnc3,dp)*ii3
-!!$                      charge_center_elec(1,ispin) = charge_center_elec(1,ispin) + q*x
-!!$                      charge_center_elec(2,ispin) = charge_center_elec(2,ispin) + q*y
-!!$                      charge_center_elec(3,ispin) = charge_center_elec(3,ispin) + q*z
-!!$                      qtot=qtot+q
-!!$                  end do
-!!$              end do
 !!$      end do
-!!$          !!write(*,*) 'qtot',qtot
-!!$         call fmpi_allreduce(qtot, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm) !LG: why two spins parallelized that way?
-!!$         charge_center_elec(1:3,ispin)=charge_center_elec(1:3,ispin)/qtot
-!!$      end do
-!!$
-!!$      call fmpi_allreduce(charge_center_elec, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
 
-       call f_zero(quadropole_el)
-      do ispin=1,nspin
-         do while(box_next_point(dpbox%bitp))
-            q= - rho(dpbox%bitp%i,dpbox%bitp%j,dpbox%bitp%k-dpbox%bitp%i3s+1,ispin) *dpbox%mesh%volume_element
-            tmpdip=dpbox%bitp%rxyz-charge_center_cores
-            tt=square_gd(dpbox%mesh,tmpdip)
-            do i=1,3
-               ri=dpbox%bitp%rxyz(i)-charge_center_cores(i)
-               do j=1,3
-                  rj=dpbox%bitp%rxyz(j)-charge_center_cores(j)
-                  if (i==j) then
-                     delta_term = tt
-                  else
-                     delta_term=0.d0
-                  end if
-                  quadropole_el(j,i) = quadropole_el(j,i) + q*(3.d0*rj*ri-delta_term)
-               end do
-            end do
-         end do
+      quadropole_el=-get_quadrupole(mp_electrons)
 
-!!$          do i3=0,nc3 - 1
-!!$             ii3 = i3+nl3+dpbox%nscatterarr(dpbox%mpi_env%iproc,3) - i3shift !real coordinate, without buffer
-!!$              do i2=0,nc2 - 1
-!!$                  do i1=0,nc1 - 1
-!!$                      !q= - ele_rho(i1+nl1,i2+nl2,i3+nl3,ispin) * product(dpbox%hgrids)
-!!$                      q= - rho(i1+nl1,i2+nl2,i3+nl3,ispin) * dpbox%mesh%volume_element
-!!$                      x=at%astruct%cell_dim(1)/real(nc1,dp)*i1
-!!$                      y=at%astruct%cell_dim(2)/real(nc2,dp)*i2
-!!$                      z=at%astruct%cell_dim(3)/real(nnc3,dp)*ii3
-!!$                      do i=1,3
-!!$                          select case (i)
-!!$                          case (1)
-!!$                              !ri=x-charge_center_cores(1)
-!!$                              ri=x+(charge_center_cores(1)-charge_center_elec(1,ispin))
-!!$                          case (2)
-!!$                              !ri=y-charge_center_cores(2)
-!!$                              ri=y+(charge_center_cores(2)-charge_center_elec(2,ispin))
-!!$                          case (3)
-!!$                              !ri=z-charge_center_cores(3)
-!!$                              ri=z+(charge_center_cores(3)-charge_center_elec(3,ispin))
-!!$                          case default
-!!$                              stop 'wrong value of i'
-!!$                          end select
-!!$                          do j=1,3
-!!$                              select case (j)
-!!$                              case (1)
-!!$                                  !rj=x-charge_center_cores(1)
-!!$                                  rj=x+(charge_center_cores(1)-charge_center_elec(1,ispin))
-!!$                              case (2)
-!!$                                  !rj=y-charge_center_cores(2)
-!!$                                  rj=y+(charge_center_cores(2)-charge_center_elec(2,ispin))
-!!$                              case (3)
-!!$                                  !rj=z-charge_center_cores(3)
-!!$                                  rj=z+(charge_center_cores(3)-charge_center_elec(3,ispin))
-!!$                              case default
-!!$                                  stop 'wrong value of j'
-!!$                              end select
-!!$                              if (i==j) then
-!!$                                  !delta_term = (x-charge_center_cores(1))**2 + &
-!!$                                  !             (y-charge_center_cores(2))**2 + &
-!!$                                  !             (z-charge_center_cores(3))**2
-!!$                                  delta_term = (x+(charge_center_cores(1)-charge_center_elec(1,ispin)))**2 + &
-!!$                                               (y+(charge_center_cores(2)-charge_center_elec(2,ispin)))**2 + &
-!!$                                               (z+(charge_center_cores(3)-charge_center_elec(3,ispin)))**2
-!!$                              else
-!!$                                  delta_term=0.d0
-!!$                              end if
-!!$                              quadropole_el(j,i) = quadropole_el(j,i) + q*(3.d0*rj*ri-delta_term)
-!!$                          end do
-!!$                      end do
-!!$                  end do
-!!$              end do
-!!$          end do
-      end do
+!!$      call fmpi_allreduce(quadropole_el, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+      tmpquadrop=quadropole_cores+quadropole_el
 
-      !!if (.not. is_net_charge) then
-          call fmpi_allreduce(quadropole_el, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
-          tmpquadrop=quadropole_cores+quadropole_el
-      !!else
-      !!    tmpquadrop=quadropole_el
-      !!end if
-
-      if (present(quadrupole)) then
-          quadrupole = tmpquadrop
-      end if
-
-      !!if (dpbox%mpi_env%nproc > 1) then
-      !!   call f_free_ptr(ele_rho)
-      !!else
-      !!   nullify(ele_rho)
-      !!end if
+      if (present(quadrupole)) quadrupole = tmpquadrop
 
   end if quadrupole_if
 
-  !!if (.not.is_net_charge) then
-      tmpdip=dipole_el !dipole_cores+ !should not be needed as it is now included in the center of charge
-  !!else
-  !!    tmpdip=dipole_el
-  !!end if
-  !!write(*,*) 'tmpdip before',tmpdip
-  !!call mpi_barrier(mpi_comm_world,ispin)
-  !!write(*,*) 'tmpdip',tmpdip
-  if (present(dipole)) dipole(1:3) = tmpdip(1:3)
+  tmpdip=dipole_el !dipole_cores+ !should not be needed as it is now in  if (present(dipole)) dipole(1:3) = tmpdip(1:3)
   if(bigdft_mpi%iproc==0 .and. .not.quiet) then
      call yaml_map('Multipole analysis origin',charge_center_cores,fmt='(1pe14.6)')
      call yaml_mapping_open('Electric Dipole Moment (AU)')
@@ -4657,8 +4542,12 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
            call yaml_map('trace',tmpquadrop(1,1)+tmpquadrop(2,2)+tmpquadrop(3,3),fmt='(es12.2)')
           call yaml_mapping_close()
       end if
+      call yaml_map('Spreads of the electronic density (AU)',el_spread,fmt='(1pe14.6)')
 
   end if
+
+  call f_multipoles_release(mp_cores)
+  call f_multipoles_release(mp_electrons)
 
   call f_release_routine()
 
@@ -4992,19 +4881,20 @@ end subroutine calculate_rpowerx_matrices
     end subroutine get_minmax_eigenvalues
 
 
-    subroutine correct_multipole_origin(nat, l, m, n, nlr, natpx, kat, kkat, &
-               smmd, smats, rxyz, neighborx, perx, pery, perz, acell, &
+    subroutine correct_multipole_origin(ispin, nat, l, m, n, &
+               smmd, smats, center, rxyz, neighborx, perx, pery, perz, acell, &
                lower_multipole_matrices, mat_lookup, multipole_extracted)
       use sparsematrix_base, only: sparse_matrix_metadata, sparse_matrix, matrices
       use module_types, only: orbitals_data
       implicit none
 
       ! Calling arguments
-      integer,intent(in) :: nat, l, m, n, nlr, natpx, kat, kkat
+      integer,intent(in) :: ispin, nat, l, m, n
+      real(kind=8),dimension(3),intent(in) :: center
       real(kind=8),dimension(3,nat),intent(in) :: rxyz
       type(sparse_matrix),intent(in) :: smats
       type(sparse_matrix_metadata),intent(in) :: smmd
-      logical,dimension(smats%nfvctr,natpx),intent(in) :: neighborx
+      logical,dimension(smats%nfvctr),intent(in) :: neighborx
       logical,intent(in) :: perx, pery, perz
       real(kind=8),dimension(3),intent(in) :: acell
       type(matrices),dimension(-1:1,0:1),intent(in):: lower_multipole_matrices
@@ -5012,7 +4902,7 @@ end subroutine calculate_rpowerx_matrices
       real(kind=8),dimension(n,n),intent(inout) :: multipole_extracted
 
       ! Local variables
-      integer :: ii, ilr, i, j, iat
+      integer :: ii, ilr, i, j, iat, ist
       real(kind=8) :: rr1, rr2, rr3
       real(kind=8),dimension(:,:,:,:),allocatable :: lmp_extracted
       real(kind=8),dimension(:,:),allocatable :: tmpmat
@@ -5022,164 +4912,170 @@ end subroutine calculate_rpowerx_matrices
         if (l==1) then
             lmp_extracted = f_malloc((/1.to.n,1.to.n,0.to.0,0.to.0/),id='lmp_extracted')
             tmpmat = f_malloc((/n,n/),id='tmpmat')
-            call extract_matrix(smats, lower_multipole_matrices(0,0)%matrix_compr, &
-                 neighborx(1,kat), n, mat_lookup, lmp_extracted(1,1,0,0))
-            select case (m)
-            case (-1)
-                ii = 0
-                do i=1,smats%nfvctr
-                    if (neighborx(i,kat)) then
-                        ii = ii + 1
-                        iat = smmd%on_which_atom(i)
-                        !rr2 = closest_image(rxyz(2,kkat)-smmd%rxyz(2,iat),acell(2),pery)
-                        rr2 = closest_image(rxyz(2,kkat)-rxyz(2,iat),acell(2),pery)
-                        do j=1,n
-                            tmpmat(j,ii) = rr2*lmp_extracted(j,ii,0,0)
-                        end do
-                    end if
-                end do
-            case (0)
-                ii = 0
-                do i=1,smats%nfvctr
-                    if (neighborx(i,kat)) then
-                        ii = ii + 1
-                        iat = smmd%on_which_atom(i)
-                        !rr3 = closest_image(rxyz(3,kkat)-smmd%rxyz(3,iat),acell(3),perz)
-                        rr3 = closest_image(rxyz(3,kkat)-rxyz(3,iat),acell(3),perz)
-                        do j=1,n
-                            tmpmat(j,ii) = rr3*lmp_extracted(j,ii,0,0)
-                        end do
-                    end if
-                end do
-            case (1)
-                ii = 0
-                do i=1,smats%nfvctr
-                    if (neighborx(i,kat)) then
-                        ii = ii + 1
-                        iat = smmd%on_which_atom(i)
-                        !rr1 = closest_image(rxyz(1,kkat)-smmd%rxyz(1,iat),acell(1),perx)
-                        rr1 = closest_image(rxyz(1,kkat)-rxyz(1,iat),acell(1),perx)
-                        do j=1,n
-                            tmpmat(j,ii) = rr1*lmp_extracted(j,ii,0,0)
-                        end do
-                    end if
-                end do
-            end select
-            call axpy(n**2, 1.d0, tmpmat(1,1), 1, multipole_extracted(1,1), 1)
+            !do ispin=1,smats%nspin
+                ist=(ispin-1)*smats%nvctrp_tg+1
+                call extract_matrix(smats, lower_multipole_matrices(0,0)%matrix_compr(ist:), &
+                     n, mat_lookup, lmp_extracted(1,1,0,0))
+                select case (m)
+                case (-1)
+                    ii = 0
+                    do i=1,smats%nfvctr
+                        if (neighborx(i)) then
+                            ii = ii + 1
+                            iat = smmd%on_which_atom(i)
+                            !rr2 = closest_image(rxyz(2,kkat)-smmd%rxyz(2,iat),acell(2),pery)
+                            rr2 = closest_image(center(2)-rxyz(2,iat),acell(2),pery)
+                            do j=1,n
+                                tmpmat(j,ii) = rr2*lmp_extracted(j,ii,0,0)
+                            end do
+                        end if
+                    end do
+                case (0)
+                    ii = 0
+                    do i=1,smats%nfvctr
+                        if (neighborx(i)) then
+                            ii = ii + 1
+                            iat = smmd%on_which_atom(i)
+                            !rr3 = closest_image(center(3)-smmd%rxyz(3,iat),acell(3),perz)
+                            rr3 = closest_image(center(3)-rxyz(3,iat),acell(3),perz)
+                            do j=1,n
+                                tmpmat(j,ii) = rr3*lmp_extracted(j,ii,0,0)
+                            end do
+                        end if
+                    end do
+                case (1)
+                    ii = 0
+                    do i=1,smats%nfvctr
+                        if (neighborx(i)) then
+                            ii = ii + 1
+                            iat = smmd%on_which_atom(i)
+                            !rr1 = closest_image(center(1)-smmd%rxyz(1,iat),acell(1),perx)
+                            rr1 = closest_image(center(1)-rxyz(1,iat),acell(1),perx)
+                            do j=1,n
+                                tmpmat(j,ii) = rr1*lmp_extracted(j,ii,0,0)
+                            end do
+                        end if
+                    end do
+                end select
+                call axpy(n**2, 1.d0, tmpmat(1,1), 1, multipole_extracted(1,1), 1)
+            !end do
             call f_free(lmp_extracted)
             call f_free(tmpmat)
         else if (l==2) then
             lmp_extracted = f_malloc((/1.to.n,1.to.n,-1.to.1,0.to.1/),id='lmp_extracted')
             tmpmat = f_malloc((/n,n/),id='tmpmat')
-            call extract_matrix(smats, lower_multipole_matrices(0,0)%matrix_compr, &
-                 neighborx(1,kat), n, mat_lookup, lmp_extracted(1,1,0,0))
-            do i=-1,1
-                call extract_matrix(smats, lower_multipole_matrices(i,1)%matrix_compr, &
-                     neighborx(1,kat), n, mat_lookup, lmp_extracted(1,1,i,1))
-            end do
-            select case (m)
-            case (-2)
-                ii = 0
-                do i=1,smats%nfvctr
-                    if (neighborx(i,kat)) then
-                        ii = ii + 1
-                        iat = smmd%on_which_atom(i)
-                        !rr1 = closest_image(rxyz(1,kkat)-smmd%rxyz(1,iat),acell(1),perx)
-                        !rr2 = closest_image(rxyz(2,kkat)-smmd%rxyz(2,iat),acell(2),pery)
-                        !rr3 = closest_image(rxyz(3,kkat)-smmd%rxyz(3,iat),acell(3),perz)
-                        rr1 = closest_image(rxyz(1,kkat)-rxyz(1,iat),acell(1),perx)
-                        rr2 = closest_image(rxyz(2,kkat)-rxyz(2,iat),acell(2),pery)
-                        rr3 = closest_image(rxyz(3,kkat)-rxyz(3,iat),acell(3),perz)
-                        do j=1,n
-                            tmpmat(j,ii) = -sqrt(3.d0)*rr1*lmp_extracted(j,ii,-1,1) &
-                                           -sqrt(3.d0)*rr2*lmp_extracted(j,ii,1,1) &
-                                           +sqrt(3.d0)*rr1*rr2*lmp_extracted(j,ii,0,0)
-                        end do
-                    end if
+            !do ispin=1,smats%nspin
+                ist=(ispin-1)*smats%nvctrp_tg+1
+                call extract_matrix(smats, lower_multipole_matrices(0,0)%matrix_compr(ist:), &
+                     n, mat_lookup, lmp_extracted(1,1,0,0))
+                do i=-1,1
+                    call extract_matrix(smats, lower_multipole_matrices(i,1)%matrix_compr(ist:), &
+                         n, mat_lookup, lmp_extracted(1,1,i,1))
                 end do
-            case (-1)
-                ii = 0
-                do i=1,smats%nfvctr
-                    if (neighborx(i,kat)) then
-                        ii = ii + 1
-                        iat = smmd%on_which_atom(i)
-                        !rr1 = closest_image(rxyz(1,kkat)-smmd%rxyz(1,iat),acell(1),perx)
-                        !rr2 = closest_image(rxyz(2,kkat)-smmd%rxyz(2,iat),acell(2),pery)
-                        !rr3 = closest_image(rxyz(3,kkat)-smmd%rxyz(3,iat),acell(3),perz)
-                        rr1 = closest_image(rxyz(1,kkat)-rxyz(1,iat),acell(1),perx)
-                        rr2 = closest_image(rxyz(2,kkat)-rxyz(2,iat),acell(2),pery)
-                        rr3 = closest_image(rxyz(3,kkat)-rxyz(3,iat),acell(3),perz)
-                        do j=1,n
-                            tmpmat(j,ii) = -sqrt(3.d0)*rr2*lmp_extracted(j,ii,0,1) &
-                                           -sqrt(3.d0)*rr3*lmp_extracted(j,ii,-1,1) &
-                                           +sqrt(3.d0)*rr2*rr3*lmp_extracted(j,ii,0,0)
-                        end do
-                    end if
-                end do
-            case (0)
-                ii = 0
-                do i=1,smats%nfvctr
-                    if (neighborx(i,kat)) then
-                        ii = ii + 1
-                        iat = smmd%on_which_atom(i)
-                        !rr1 = closest_image(rxyz(1,kkat)-smmd%rxyz(1,iat),acell(1),perx)
-                        !rr2 = closest_image(rxyz(2,kkat)-smmd%rxyz(2,iat),acell(2),pery)
-                        !rr3 = closest_image(rxyz(3,kkat)-smmd%rxyz(3,iat),acell(3),perz)
-                        rr1 = closest_image(rxyz(1,kkat)-rxyz(1,iat),acell(1),perx)
-                        rr2 = closest_image(rxyz(2,kkat)-rxyz(2,iat),acell(2),pery)
-                        rr3 = closest_image(rxyz(3,kkat)-rxyz(3,iat),acell(3),perz)
-                        do j=1,n
-                            tmpmat(j,ii) =  rr1*lmp_extracted(j,ii,1,1) &
-                                           +rr2*lmp_extracted(j,ii,-1,1) &
-                                           -2.d0*rr3*lmp_extracted(j,ii,0,1) &
-                                           +0.5d0*(-rr1**2-rr2**2+&
-                                             2.d0*rr3**2)&
-                                             *lmp_extracted(j,ii,0,0)
-                        end do
-                    end if
-                end do
-            case (1)
-                ii = 0
-                do i=1,smats%nfvctr
-                    if (neighborx(i,kat)) then
-                        ii = ii + 1
-                        iat = smmd%on_which_atom(i)
-                        !rr1 = closest_image(rxyz(1,kkat)-smmd%rxyz(1,iat),acell(1),perx)
-                        !rr2 = closest_image(rxyz(2,kkat)-smmd%rxyz(2,iat),acell(2),pery)
-                        !rr3 = closest_image(rxyz(3,kkat)-smmd%rxyz(3,iat),acell(3),perz)
-                        rr1 = closest_image(rxyz(1,kkat)-rxyz(1,iat),acell(1),perx)
-                        rr2 = closest_image(rxyz(2,kkat)-rxyz(2,iat),acell(2),pery)
-                        rr3 = closest_image(rxyz(3,kkat)-rxyz(3,iat),acell(3),perz)
-                        do j=1,n
-                            tmpmat(j,ii) = -sqrt(3.d0)*rr1*lmp_extracted(j,ii,0,1) &
-                                           -sqrt(3.d0)*rr3*lmp_extracted(j,ii,1,1) &
-                                           +sqrt(3.d0)*rr1*rr3&
-                                             *lmp_extracted(j,ii,0,0)
-                        end do
-                    end if
-                end do
-            case (2)
-                ii = 0
-                do i=1,smats%nfvctr
-                    if (neighborx(i,kat)) then
-                        ii = ii + 1
-                        iat = smmd%on_which_atom(i)
-                        !rr1 = closest_image(rxyz(1,kkat)-smmd%rxyz(1,iat),acell(1),perx)
-                        !rr2 = closest_image(rxyz(2,kkat)-smmd%rxyz(2,iat),acell(2),pery)
-                        !rr3 = closest_image(rxyz(3,kkat)-smmd%rxyz(3,iat),acell(3),perz)
-                        rr1 = closest_image(rxyz(1,kkat)-rxyz(1,iat),acell(1),perx)
-                        rr2 = closest_image(rxyz(2,kkat)-rxyz(2,iat),acell(2),pery)
-                        rr3 = closest_image(rxyz(3,kkat)-rxyz(3,iat),acell(3),perz)
-                        do j=1,n
-                            tmpmat(j,ii) = -sqrt(3.d0)*(rr1)*lmp_extracted(j,ii,1,1) &
-                                           +sqrt(3.d0)*(rr2)*lmp_extracted(j,ii,-1,1) &
-                                           +sqrt(0.75d0)*(rr1**2-rr2**2)&
-                                             *lmp_extracted(j,ii,0,0)
-                        end do
-                    end if
-                end do
-            end select
-            call axpy(n**2, -1.d0, tmpmat(1,1), 1, multipole_extracted(1,1), 1)
+                select case (m)
+                case (-2)
+                    ii = 0
+                    do i=1,smats%nfvctr
+                        if (neighborx(i)) then
+                            ii = ii + 1
+                            iat = smmd%on_which_atom(i)
+                            !rr1 = closest_image(center(1)-smmd%rxyz(1,iat),acell(1),perx)
+                            !rr2 = closest_image(center(2)-smmd%rxyz(2,iat),acell(2),pery)
+                            !rr3 = closest_image(center(3)-smmd%rxyz(3,iat),acell(3),perz)
+                            rr1 = closest_image(center(1)-rxyz(1,iat),acell(1),perx)
+                            rr2 = closest_image(center(2)-rxyz(2,iat),acell(2),pery)
+                            rr3 = closest_image(center(3)-rxyz(3,iat),acell(3),perz)
+                            do j=1,n
+                                tmpmat(j,ii) = -sqrt(3.d0)*rr1*lmp_extracted(j,ii,-1,1) &
+                                               -sqrt(3.d0)*rr2*lmp_extracted(j,ii,1,1) &
+                                               +sqrt(3.d0)*rr1*rr2*lmp_extracted(j,ii,0,0)
+                            end do
+                        end if
+                    end do
+                case (-1)
+                    ii = 0
+                    do i=1,smats%nfvctr
+                        if (neighborx(i)) then
+                            ii = ii + 1
+                            iat = smmd%on_which_atom(i)
+                            !rr1 = closest_image(center(1)-smmd%rxyz(1,iat),acell(1),perx)
+                            !rr2 = closest_image(center(2)-smmd%rxyz(2,iat),acell(2),pery)
+                            !rr3 = closest_image(center(3)-smmd%rxyz(3,iat),acell(3),perz)
+                            rr1 = closest_image(center(1)-rxyz(1,iat),acell(1),perx)
+                            rr2 = closest_image(center(2)-rxyz(2,iat),acell(2),pery)
+                            rr3 = closest_image(center(3)-rxyz(3,iat),acell(3),perz)
+                            do j=1,n
+                                tmpmat(j,ii) = -sqrt(3.d0)*rr2*lmp_extracted(j,ii,0,1) &
+                                               -sqrt(3.d0)*rr3*lmp_extracted(j,ii,-1,1) &
+                                               +sqrt(3.d0)*rr2*rr3*lmp_extracted(j,ii,0,0)
+                            end do
+                        end if
+                    end do
+                case (0)
+                    ii = 0
+                    do i=1,smats%nfvctr
+                        if (neighborx(i)) then
+                            ii = ii + 1
+                            iat = smmd%on_which_atom(i)
+                            !rr1 = closest_image(center(1)-smmd%rxyz(1,iat),acell(1),perx)
+                            !rr2 = closest_image(center(2)-smmd%rxyz(2,iat),acell(2),pery)
+                            !rr3 = closest_image(center(3)-smmd%rxyz(3,iat),acell(3),perz)
+                            rr1 = closest_image(center(1)-rxyz(1,iat),acell(1),perx)
+                            rr2 = closest_image(center(2)-rxyz(2,iat),acell(2),pery)
+                            rr3 = closest_image(center(3)-rxyz(3,iat),acell(3),perz)
+                            do j=1,n
+                                tmpmat(j,ii) =  rr1*lmp_extracted(j,ii,1,1) &
+                                               +rr2*lmp_extracted(j,ii,-1,1) &
+                                               -2.d0*rr3*lmp_extracted(j,ii,0,1) &
+                                               +0.5d0*(-rr1**2-rr2**2+&
+                                                 2.d0*rr3**2)&
+                                                 *lmp_extracted(j,ii,0,0)
+                            end do
+                        end if
+                    end do
+                case (1)
+                    ii = 0
+                    do i=1,smats%nfvctr
+                        if (neighborx(i)) then
+                            ii = ii + 1
+                            iat = smmd%on_which_atom(i)
+                            !rr1 = closest_image(center(1)-smmd%rxyz(1,iat),acell(1),perx)
+                            !rr2 = closest_image(center(2)-smmd%rxyz(2,iat),acell(2),pery)
+                            !rr3 = closest_image(center(3)-smmd%rxyz(3,iat),acell(3),perz)
+                            rr1 = closest_image(center(1)-rxyz(1,iat),acell(1),perx)
+                            rr2 = closest_image(center(2)-rxyz(2,iat),acell(2),pery)
+                            rr3 = closest_image(center(3)-rxyz(3,iat),acell(3),perz)
+                            do j=1,n
+                                tmpmat(j,ii) = -sqrt(3.d0)*rr1*lmp_extracted(j,ii,0,1) &
+                                               -sqrt(3.d0)*rr3*lmp_extracted(j,ii,1,1) &
+                                               +sqrt(3.d0)*rr1*rr3&
+                                                 *lmp_extracted(j,ii,0,0)
+                            end do
+                        end if
+                    end do
+                case (2)
+                    ii = 0
+                    do i=1,smats%nfvctr
+                        if (neighborx(i)) then
+                            ii = ii + 1
+                            iat = smmd%on_which_atom(i)
+                            !rr1 = closest_image(center(1)-smmd%rxyz(1,iat),acell(1),perx)
+                            !rr2 = closest_image(center(2)-smmd%rxyz(2,iat),acell(2),pery)
+                            !rr3 = closest_image(center(3)-smmd%rxyz(3,iat),acell(3),perz)
+                            rr1 = closest_image(center(1)-rxyz(1,iat),acell(1),perx)
+                            rr2 = closest_image(center(2)-rxyz(2,iat),acell(2),pery)
+                            rr3 = closest_image(center(3)-rxyz(3,iat),acell(3),perz)
+                            do j=1,n
+                                tmpmat(j,ii) = -sqrt(3.d0)*(rr1)*lmp_extracted(j,ii,1,1) &
+                                               +sqrt(3.d0)*(rr2)*lmp_extracted(j,ii,-1,1) &
+                                               +sqrt(0.75d0)*(rr1**2-rr2**2)&
+                                                 *lmp_extracted(j,ii,0,0)
+                            end do
+                        end if
+                    end do
+                end select
+                call axpy(n**2, -1.d0, tmpmat(1,1), 1, multipole_extracted(1,1), 1)
+            !end do
             call f_free(lmp_extracted)
             call f_free(tmpmat)
         end if
@@ -6075,7 +5971,6 @@ end subroutine calculate_rpowerx_matrices
 
       ! Local variables
       integer :: iat_old, iorb, iat, ii, ilr, itype, l, m, mm
-      integer,dimension(:),allocatable :: iatype_tmp
       real(kind=8),dimension(:,:),allocatable :: delta_centers
       character(len=20),dimension(:),allocatable :: names
       type(external_potential_descriptors) :: ep
@@ -6084,7 +5979,6 @@ end subroutine calculate_rpowerx_matrices
 
       call yaml_sequence_open('Gross support functions moments')
       call yaml_map('Orthonormalization',do_ortho)
-      iatype_tmp = f_malloc(tmb%orbs%norb,id='iatype_tmp')
       delta_centers = f_malloc((/3,tmb%orbs%norb/),id='delta_centers')
       iat_old = -1
       names = f_malloc_str(len(names),tmb%orbs%norb,id='names')
@@ -6094,52 +5988,183 @@ end subroutine calculate_rpowerx_matrices
       allocate(ep%mpl(ep%nmpl))
 
       do iorb=1,tmb%orbs%norb
-          iat = tmb%orbs%onwhichatom(iorb)
-          if (iat/=iat_old) then
-              ii = 1
-          else
-              ii = ii + 1
-          end if
-          iat_old = iat
-          ilr = tmb%orbs%inwhichlocreg(iorb)
-          itype = atoms%astruct%iatype(iat)
-          iatype_tmp(iorb) = itype
-          names(iorb) = trim(atoms%astruct%atomnames(itype))//'-'//adjustl(trim(yaml_toa(ii)))
-          ! delta_centers gives the difference between the charge center and the localization center
-          delta_centers(1:3,iorb) = center_locreg(1:3,ilr) - tmb%lzd%llr(ilr)%locregcenter(1:3)
-          !write(*,*) 'iorb, ilr, center_locreg(1:3,ilr) - tmb%lzd%llr(ilr)%locregcenter(1:3)', &
-          !           iorb, ilr, center_locreg(1:3,ilr) - tmb%lzd%llr(ilr)%locregcenter(1:3)
-          !write(*,*) 'iorb, delta_centers(1:3,iorb)', iorb, delta_centers(1:3,iorb)
-          ! Undo the global shift of the centers
-          center_orb(1:3,iorb) = center_orb(1:3,iorb) + shift(1:3)
-
-          ep%mpl(iorb) = multipole_set_null()
-          allocate(ep%mpl(iorb)%qlm(0:lmax))
-          ep%mpl(iorb)%rxyz = center_orb(1:3,iorb)
-          ep%mpl(iorb)%sym = trim(names(iorb))
-          ep%mpl(iorb)%mpchar = 'G'
-          do l=0,lmax
-              ep%mpl(iorb)%qlm(l) = multipole_null()
-              !if (l>=3) cycle
-              ep%mpl(iorb)%qlm(l)%q = f_malloc_ptr(2*l+1,id='q')
-              mm = 0
-              do m=-l,l
-                  mm = mm + 1
-                  ep%mpl(iorb)%qlm(l)%q(mm) = multipoles(m,l,iorb)
-              end do
-          end do
+         call prepare_multipole_object(iorb, tmb, atoms, center_locreg, center_orb, &
+              lmax, shift, multipoles, names, delta_centers, iat_old, ep)
       end do
       call write_multipoles_new(ep, lmax, atoms%astruct%units, &
            delta_centers, tmb%orbs%onwhichatom, scaled)
       call deallocate_external_potential_descriptors(ep)
       call f_free(delta_centers)
-      call f_free(iatype_tmp)
       call f_free_str(len(names),names)
 
       call yaml_sequence_close()
 
       call f_release_routine()
 
+
+
+
     end subroutine write_support_functions_multipoles
+
+
+
+    ! This subroutine only exists for the timing...
+    subroutine prepare_multipole_object(iorb, tmb, atoms, center_locreg, center_orb, &
+               lmax, shift, multipoles, names, delta_centers, iat_old, ep)
+      use module_types, only: DFT_wavefunction, atoms_data
+      use multipole_base, only: external_potential_descriptors, multipole_set_null, multipole_null
+      implicit none
+
+      ! Calling arguments
+      type(DFT_wavefunction),intent(in) :: tmb
+      type(atoms_data),intent(in) :: atoms
+      real(kind=8),dimension(3,tmb%lzd%nlr),intent(in) :: center_locreg
+      real(kind=8),dimension(3,tmb%lzd%nlr),intent(inout) :: center_orb
+      integer,intent(in) :: lmax
+      real(kind=8),dimension(3),intent(in) :: shift !< global shift of the atomic positions
+      real(kind=8),dimension(-lmax:lmax,0:lmax,1:tmb%orbs%norb),intent(in) :: multipoles
+      character(len=*),dimension(tmb%orbs%norb),intent(inout) :: names
+      real(kind=8),dimension(3,tmb%orbs%norb),intent(inout) :: delta_centers
+      integer,intent(inout) :: iat_old
+      type(external_potential_descriptors),intent(inout) :: ep
+
+      integer :: iorb, iat, ii, ilr, itype, l, m, mm
+
+      call f_routine(id='prepare_multipole_object')
+
+      iat = tmb%orbs%onwhichatom(iorb)
+      if (iat/=iat_old) then
+          ii = 1
+      else
+          ii = ii + 1
+      end if
+      iat_old = iat
+      ilr = tmb%orbs%inwhichlocreg(iorb)
+      itype = atoms%astruct%iatype(iat)
+      names(iorb) = trim(atoms%astruct%atomnames(itype))//'-'//adjustl(trim(yaml_toa(ii)))
+      ! delta_centers gives the difference between the charge center and the localization center
+      delta_centers(1:3,iorb) = center_locreg(1:3,ilr) - tmb%lzd%llr(ilr)%locregcenter(1:3)
+      !write(*,*) 'iorb, ilr, center_locreg(1:3,ilr) - tmb%lzd%llr(ilr)%locregcenter(1:3)', &
+      !           iorb, ilr, center_locreg(1:3,ilr) - tmb%lzd%llr(ilr)%locregcenter(1:3)
+      !write(*,*) 'iorb, delta_centers(1:3,iorb)', iorb, delta_centers(1:3,iorb)
+      ! Undo the global shift of the centers
+      center_orb(1:3,iorb) = center_orb(1:3,iorb) + shift(1:3)
+
+      ep%mpl(iorb) = multipole_set_null()
+      allocate(ep%mpl(iorb)%qlm(0:lmax))
+      ep%mpl(iorb)%rxyz = center_orb(1:3,iorb)
+      ep%mpl(iorb)%sym = trim(names(iorb))
+      ep%mpl(iorb)%mpchar = 'G'
+      do l=0,lmax
+          ep%mpl(iorb)%qlm(l) = multipole_null()
+          !if (l>=3) cycle
+          ep%mpl(iorb)%qlm(l)%q = f_malloc_ptr(2*l+1,id='q')
+          mm = 0
+          do m=-l,l
+              mm = mm + 1
+              ep%mpl(iorb)%qlm(l)%q(mm) = multipoles(m,l,iorb)
+          end do
+      end do
+
+      call f_release_routine()
+
+    end subroutine prepare_multipole_object
+
+
+    subroutine calculate_and_write_multipole_matrices(iproc, nproc, nphi, nphir, lphi, hgrids, &
+               orbs, collcom, lzd, smmd, smats, auxs, rxyz, shift, centers_auto, filename, &
+               write_multipole_matrices_mode, multipole_centers)
+      use module_types, only: orbitals_data, comms_linear, local_zone_descriptors, linmat_auxiliary
+      use sparsematrix_base, only: sparse_matrix, matrices, assignment(=), matrices_null, &
+                                   sparsematrix_malloc_ptr, SPARSE_TASKGROUP, sparse_matrix_metadata, &
+                                   deallocate_matrices
+      use sparsematrix_io, only: write_sparse_matrix
+      use io, only: get_sparse_matrix_format
+      implicit none
+
+      ! Calling arguments
+      integer,intent(in) :: iproc, nproc
+      integer,intent(in),optional :: nphi, nphir
+      real(kind=8),dimension(:),intent(in),optional :: lphi
+      real(kind=8),dimension(3),intent(in),optional :: hgrids
+      type(orbitals_data),intent(in),optional :: orbs
+      type(comms_linear),intent(in),optional :: collcom
+      type(local_zone_descriptors),intent(in),optional :: lzd
+      type(sparse_matrix_metadata),intent(in) :: smmd
+      type(sparse_matrix),intent(in) :: smats
+      type(linmat_auxiliary),intent(in),optional :: auxs
+      real(kind=8),dimension(3,smmd%nat),intent(in) :: rxyz
+      real(kind=8),dimension(3),intent(in),optional :: shift
+      logical,intent(in) :: centers_auto
+      character(len=*),intent(in) :: filename
+      integer,intent(in) :: write_multipole_matrices_mode
+      real(kind=8),dimension(:,:),target,intent(in),optional :: multipole_centers
+
+      ! Local variables
+      integer :: iat, ilr, iilr, l, m
+      type(matrices) :: multipole_matrix
+      real(kind=8),dimension(:,:),pointer :: mp_centers
+      integer,dimension(:),allocatable :: inwhichlocreg_reverse
+      real(kind=8),dimension(:,:),allocatable :: locregcenter
+      character(len=14) :: matname
+      character(len=128) :: sparse_format
+      character(len=2) :: lname, mname
+
+      if (.not.centers_auto) then
+          if (.not.present(multipole_centers)) then
+              call f_err_throw("'multipole_centers' must be present if 'centers_auto' is true")
+          end if
+          if (size(multipole_centers,1)/=3) then
+              call f_err_throw('wrong 1st dimension of array multipole_centers')
+          end if
+          if (size(multipole_centers,2)/=smmd%nat) then
+              call f_err_throw('wrong 2nd dimension of array multipole_centers')
+          end if
+      end if
+
+      locregcenter = f_malloc((/3,lzd%nlr/),id='locregcenter')
+
+      if (centers_auto) then
+          mp_centers => smmd%rxyz
+      else
+          mp_centers => multipole_centers
+      end if
+
+      inwhichlocreg_reverse = f_malloc(lzd%nlr,id='inwhichlocreg_reverse')
+      do ilr=1,lzd%nlr
+          iilr = orbs%inwhichlocreg(ilr)
+          inwhichlocreg_reverse(iilr) = ilr
+      end do
+      do ilr=1,lzd%nlr
+          iilr = inwhichlocreg_reverse(ilr)
+          iat = smmd%on_which_atom(iilr)
+          locregcenter(1:3,ilr) = mp_centers(1:3,iat) -shift(1:3)
+      end do
+      call f_free(inwhichlocreg_reverse)
+
+      multipole_matrix = matrices_null()
+      multipole_matrix%matrix_compr = sparsematrix_malloc_ptr(smats, SPARSE_TASKGROUP, id='multipole_matrix%matrix_compr')
+
+      do l=0,lmax
+          do m=-l,l
+              call f_zero(multipole_matrix%matrix_compr)
+              ! Calculate the multipole matrix
+              call calculate_multipole_matrix(iproc, nproc, l, m, nphi, lphi, lphi, nphir, hgrids, &
+                   orbs, collcom, lzd, smmd, smats, auxs, locregcenter, 'box', multipole_matrix) 
+              ! Write the multipole matrix
+              call get_sparse_matrix_format(write_multipole_matrices_mode, sparse_format)
+              write(lname,'(i0)') l
+              write(mname,'(i0)') m
+              matname = 'mpmat_'//trim(lname)//'_'//trim(mname)
+              call write_sparse_matrix(sparse_format, iproc, nproc, bigdft_mpi%mpi_comm, &
+                   smats, multipole_matrix, &
+                   filename=trim(filename//matname))
+           end do
+       end do
+
+      call f_free(locregcenter)
+      call deallocate_matrices(multipole_matrix)
+
+   end subroutine calculate_and_write_multipole_matrices
 
 end module multipole

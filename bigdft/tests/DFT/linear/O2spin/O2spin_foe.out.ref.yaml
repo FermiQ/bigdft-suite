@@ -159,7 +159,7 @@
     #                                              automatic
    taylor_order                        : 0 #      Order of the Taylor approximation; 0 -> exact
    output_wf                           : 0 #      Output basis functions; 0 no output, 1 formatted output, 2 Fortran bin, 3 ETSF
-   output_mat                          : 0 #      Output sparse matrices; 0 no output, 1 formatted sparse, 11 formatted dense, 21 
+   output_mat                          : 4 #      Output sparse matrices; 0 no output, 1 formatted sparse, 11 formatted dense, 21 
     #                                              formatted both
    output_coeff                        : 0 #      Output KS coefficients; 0 no output, 1 formatted output
    output_fragments                    : 0 #      Output support functions, kernel and coeffs; 0 fragments and full system, 1 
@@ -178,7 +178,7 @@
     #                                              only), must be equal to norbsempty
    calculate_onsite_overlap            : No #     Calculate the onsite overlap matrix (has only an effect if the matrices are all 
     #                                              written to disk)
-   charge_multipoles                   : 0 #      Calculate the atom-centered multipole coefficients; 0 no, 1 old approach Loewdin, 2 
+   charge_multipoles                   : 11 #     Calculate the atom-centered multipole coefficients; 0 no, 1 old approach Loewdin, 2 
     #                                              new approach Projector
    support_function_multipoles         : False #  Calculate the multipole moments of the support functions
    plot_locreg_grids                   : False #  Plot the scaling function and wavelets grid of each localization region
@@ -527,8 +527,6 @@
    Maximum size of masking arrays for a projector:  17280
    Cumulative size of masking arrays   :  34560
   #------------------------------------------------------------ Sparse matrix initialization
- Check of kernel cutoff radius:
- -  {atom type: O, adjustment required:  Yes, new value:  8.88}
  Matrices:
    Overlap matrix:
      total elements                    :  324
@@ -1503,6 +1501,125 @@
           energy: -3.19107288087634799E+01,                       D:  0.000E+00,  #FINAL
  }
  Total charge                          :  1.199999935105E+01
+  #================================================= Atomic multipole analysis, new approach
+ Method                                : loewdin
+ Projector mode                        : none
+ Orthogonalized support functions      : no
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Unitary test of the multipole routines
+ Unitary check of the multipole calculations:
+   Original values:
+   - q0                                :  [  1.0E+00 ]
+   - q1: [ 1.10000000E+01,  1.20000000E+01,  1.30000000E+01]
+   - q2: [ 2.10000000E+01,  2.20000000E+01,  2.30000000E+01,  2.40000000E+01, 
+           2.50000000E+01]
+   Calculated values:
+   - q0                                :  [  1.0E+00 ]
+   - q1: [ 1.10000000E+01,  1.20000000E+01,  1.30000000E+01]
+   - q2: [ 2.10000000E+01,  2.20000000E+01,  2.30000000E+01,  2.40000000E+01, 
+           2.50000000E+01]
+   Relative errors in percent:
+   - q0                                :  [  4.7E-12 ]
+   - q1                                :  [  5.66E-13,  9.99E-14,  3.11E-13 ]
+   - q2: [ 2.22E-14,  1.78E-13,  1.11E-13,  2.44E-13,  2.22E-14]
+ calculate S^x:
+   mode                                : sparse
+   powers:
+     x                                 : -1
+   order                               :  1020
+   beta for penaltyfunction            : -1000.0
+   determine eigenvalue bounds:
+   -  {npl:  110, npl determined by: penalty, scale:  1.00E+00, 
+ bounds:  [  0.500,  1.500 ], exp accur:  [  7.24E-14 ], up: {penalty:  2.1E-15, ok: [ Yes, 
+  Yes]}, down: {penalty:  2.1E-15, ok:  [  Yes,  Yes ]}}
+   summary: {npl:  110, npl determined by: penalty, scale:  1.00E+00, 
+ bounds:  [  0.500,  1.500 ], exp accur:  [  7.24E-14 ]}
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Final result of the multipole analysis
+ Multipole coefficients:
+   units                               : angstroem
+   global monopole                     :  6.492409E-07
+   values:
+   - sym                               : O # 0001
+     r                                 :  [  0.0,  0.0,  0.0 ]
+     multipole character               : gross
+     nzion                             :  6
+     sigma                             :  [  0.245,  0.245,  0.245 ]
+     q0                                :  [ -5.987652E+00 ]
+     q1                                :  [  2.914685E-04,  3.042720E-01,  2.914683E-04 ]
+     q2: [ 4.185148E-05, -8.641953E-03,  5.148961E-01, -8.641955E-03,  3.837281E-10]
+   - sym                               : O # 0002
+     r                                 :  [  0.0,  0.0,  1.208 ]
+     multipole character               : gross
+     nzion                             :  6
+     sigma                             :  [  0.245,  0.245,  0.245 ]
+     q0                                :  [ -6.012347E+00 ]
+     q1                                :  [ -7.200853E-04, -3.033269E-01, -7.200856E-04 ]
+     q2: [ 5.041391E-05,  1.056585E-02,  5.046076E-01,  1.056586E-02,  9.941201E-11]
+ Checking the total multipoles based on the atomic multipoles:
+ - Up to multipole l= 0:
+     Electric Dipole Moment (Debye):
+       P vector                        :  [  1.8343E-14,  1.8347E-14, -7.1643E-02 ]
+       norm(P)                         :  7.164257E-02
+     Quadrupole Moment (AU):
+       Q matrix:
+       -  [-8.4582E-07,  1.9915E-17,  5.1404E-18]
+       -  [ 1.9915E-17, -8.4582E-07,  1.0958E-16]
+       -  [ 5.1404E-18,  1.0958E-16,  1.6916E-06]
+       trace                           :  9.59E-14
+     Average relative error of resulting potential in the Exterior region:
+     -  {Thr:  1.0E-12, Ext. Vol. %:  73.8, int(V):  9.642E-01, Err %:  73.8, 
+    int(rho):  0.000E+00}
+     -  {Thr:  1.0E-10, Ext. Vol. %:  78.7, int(V):  1.105E+00, Err %:  76.1, 
+    int(rho):  0.000E+00}
+     -  {Thr:  1.0E-08, Ext. Vol. %:  81.7, int(V):  1.204E+00, Err %:  77.9, 
+    int(rho):  0.000E+00}
+     -  {Thr:  1.0E-06, Ext. Vol. %:  87.2, int(V):  1.445E+00, Err %:  80.2, 
+    int(rho):  0.000E+00}
+     -  {Thr:  1.0E-04, Ext. Vol. %:  93.8, int(V):  1.947E+00, Err %:  84.3, 
+    int(rho):  2.962E-59}
+ - Up to multipole l= 1:
+     Electric Dipole Moment (Debye):
+       P vector                        :  [ -1.0894E-03, -1.0894E-03, -6.9240E-02 ]
+       norm(P)                         :  6.925739E-02
+     Quadrupole Moment (AU):
+       Q matrix:
+       -  [ 1.3870E+00,  2.4722E-17, -3.4637E-03]
+       -  [ 2.4722E-17,  1.3870E+00, -3.4637E-03]
+       -  [-3.4637E-03, -3.4637E-03, -2.7740E+00]
+       trace                           : -1.49E-13
+     Average relative error of resulting potential in the Exterior region:
+     -  {Thr:  1.0E-12, Ext. Vol. %:  73.8, int(V):  9.642E-01, Err %:  194.5, 
+    int(rho):  0.000E+00}
+     -  {Thr:  1.0E-10, Ext. Vol. %:  78.7, int(V):  1.105E+00, Err %:  200.1, 
+    int(rho):  0.000E+00}
+     -  {Thr:  1.0E-08, Ext. Vol. %:  81.7, int(V):  1.204E+00, Err %:  204.2, 
+    int(rho):  0.000E+00}
+     -  {Thr:  1.0E-06, Ext. Vol. %:  87.2, int(V):  1.445E+00, Err %:  209.8, 
+    int(rho):  0.000E+00}
+     -  {Thr:  1.0E-04, Ext. Vol. %:  93.8, int(V):  1.947E+00, Err %:  214.5, 
+    int(rho):  8.676E-59}
+ - Up to multipole l= 2:
+     Electric Dipole Moment (Debye):
+       P vector                        :  [ -1.0894E-03, -1.0894E-03, -6.9240E-02 ]
+       norm(P)                         :  6.925739E-02
+     Quadrupole Moment (AU):
+       Q matrix:
+       -  [ 3.6752E-01,  1.5981E-04, -1.3145E-04]
+       -  [ 1.5981E-04,  3.6752E-01, -1.3145E-04]
+       -  [-1.3145E-04, -1.3145E-04, -7.3503E-01]
+       trace                           :  8.53E-14
+     Average relative error of resulting potential in the Exterior region:
+     -  {Thr:  1.0E-12, Ext. Vol. %:  73.8, int(V):  9.642E-01, Err %:  2.9, 
+    int(rho):  0.000E+00}
+     -  {Thr:  1.0E-10, Ext. Vol. %:  78.7, int(V):  1.105E+00, Err %:  3.2, 
+    int(rho):  0.000E+00}
+     -  {Thr:  1.0E-08, Ext. Vol. %:  81.7, int(V):  1.204E+00, Err %:  3.4, 
+    int(rho):  0.000E+00}
+     -  {Thr:  1.0E-06, Ext. Vol. %:  87.2, int(V):  1.445E+00, Err %:  4.0, 
+    int(rho):  0.000E+00}
+     -  {Thr:  1.0E-04, Ext. Vol. %:  93.8, int(V):  1.947E+00, Err %:  5.3, 
+    int(rho):  1.533E-58}
+  #========================================================== Atomic multipole analysis done
+ Total charge                          :  1.199999935106E+01
   #---------------------------------------------------------------------- Forces Calculation
  Poisson Solver:
    BC                                  : Free

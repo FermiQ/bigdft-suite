@@ -5,7 +5,7 @@
 
 cl_uint use_constant_memory=1;
 
-inline void fft_generated_generic(cl_kernel kernel, bigdft_command_queue command_queue, cl_uint *n,cl_uint *ndat,cl_mem *psi,cl_mem *out,cl_mem *cosi){
+static inline void fft_generated_generic(cl_kernel kernel, bigdft_command_queue command_queue, cl_uint *n,cl_uint *ndat,cl_mem *psi,cl_mem *out,cl_mem *cosi){
   cl_int ciErrNum;
   size_t block_size_i, block_size_j, elem_per_thread;
   fft_compute_sizes(&(command_queue->device_infos), *n, &block_size_i, &block_size_j, &elem_per_thread);
@@ -24,7 +24,7 @@ inline void fft_generated_generic(cl_kernel kernel, bigdft_command_queue command
   oclErrorCheck(ciErrNum,"Failed to enqueue fft kernel!");
 }
 
-inline void fft_k_generated_generic(cl_kernel kernel, bigdft_command_queue command_queue, cl_uint *n,cl_uint *ndat,cl_mem *psi,cl_mem *out,cl_mem *k,cl_mem *cosi){
+static inline void fft_k_generated_generic(cl_kernel kernel, bigdft_command_queue command_queue, cl_uint *n,cl_uint *ndat,cl_mem *psi,cl_mem *out,cl_mem *k,cl_mem *cosi){
   cl_int ciErrNum;
   size_t block_size_i, block_size_j, elem_per_thread;
   fft_compute_sizes(&(command_queue->device_infos), *n, &block_size_i, &block_size_j, &elem_per_thread);

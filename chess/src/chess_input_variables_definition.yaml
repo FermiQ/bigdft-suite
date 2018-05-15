@@ -22,7 +22,7 @@
 # chess:
 #   DESCRIPTION: Parameters required for CheSS
  foe:
-   DESCRIPTION: Parameters for Fermi Operatir Expansion
+   DESCRIPTION: Parameters for Fermi Operator Expansion
    ef_interpol_det:
      COMMENT: FOE max determinant of cubic interpolation matrix
      RANGE: [0., 1.]
@@ -79,6 +79,10 @@
      COMMENT: Required accuracy for the Chebyshev fit for the penalty function
      default: 1.e-5
      RANGE: [1.e-10,1.e-3]
+   accuracy_entropy:
+     COMMENT: Required accuracy for the Chebyshev fit for the function to calculate the entropy term
+     default: 1.e-4
+     RANGE: [1.e-9,1.e-2]
    betax_foe:
      COMMENT: the exponent in the exponential penalty function which is used to determine the eigenvalue bounds for FOE
      default: -1000.0
@@ -106,6 +110,17 @@
    #    This value will be adjusted automatically if not chosen appropriately.
    #  RANGE: [1.e-3,5.e-2]
    #  default: 2.e-2
+   matmul_optimize_load_balancing:
+     COMMENT: optimize the load balancing of the sparse matrix matrix multiplications (at the cost of memory unbalancing)
+     default: no
+   fscale_ediff_low:
+     COMMENT: lower bound for the optimal relative energy difference between the kernel and the control kernel
+     default: 5.e-5
+     RANGE: [1.e-7,1.e-3]
+   fscale_ediff_up:
+     COMMENT: upper bound for the optimal relative energy difference between the kernel and the control kernel
+     default: 1.e-4
+     RANGE: [5.e-6,5.e-2]
  lapack:
    blocksize_pdsyev:
      COMMENT: SCALAPACK linear scaling blocksize for diagonalization

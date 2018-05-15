@@ -604,9 +604,6 @@
    Maximum size of masking arrays for a projector:  2058
    Cumulative size of masking arrays   :  4116
   #------------------------------------------------------------ Sparse matrix initialization
- Check of kernel cutoff radius:
- -  {atom type: H, adjustment required:  Yes, new value:  10.60}
- -  {atom type: C, adjustment required:  Yes, new value:  10.60}
  Matrices:
    Overlap matrix:
      total elements                    :  196
@@ -1846,9 +1843,6 @@
    Maximum size of masking arrays for a projector:  2058
    Cumulative size of masking arrays   :  4116
   #--------------------------------------------------------------- Sparse matrix initialization
- Check of kernel cutoff radius:
- -  {atom type: H, adjustment required:  Yes, new value:  10.60}
- -  {atom type: C, adjustment required:  Yes, new value:  10.60}
  Matrices:
    Overlap matrix:
      total elements                    :  196
@@ -3098,9 +3092,6 @@
    Maximum size of masking arrays for a projector:  2052
    Cumulative size of masking arrays   :  4104
   #--------------------------------------------------------------- Sparse matrix initialization
- Check of kernel cutoff radius:
- -  {atom type: H, adjustment required:  Yes, new value:  10.60}
- -  {atom type: C, adjustment required:  Yes, new value:  10.60}
  Matrices:
    Overlap matrix:
      total elements                    :  196
@@ -4350,9 +4341,6 @@
    Maximum size of masking arrays for a projector:  2070
    Cumulative size of masking arrays   :  4116
   #--------------------------------------------------------------- Sparse matrix initialization
- Check of kernel cutoff radius:
- -  {atom type: H, adjustment required:  Yes, new value:  10.60}
- -  {atom type: C, adjustment required:  Yes, new value:  10.60}
  Matrices:
    Overlap matrix:
      total elements                    :  196
@@ -5602,9 +5590,6 @@
    Maximum size of masking arrays for a projector:  2070
    Cumulative size of masking arrays   :  4116
   #--------------------------------------------------------------- Sparse matrix initialization
- Check of kernel cutoff radius:
- -  {atom type: H, adjustment required:  Yes, new value:  10.60}
- -  {atom type: C, adjustment required:  Yes, new value:  10.60}
  Matrices:
    Overlap matrix:
      total elements                    :  196

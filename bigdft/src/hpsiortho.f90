@@ -2377,13 +2377,13 @@ subroutine first_orthon(iproc,nproc,orbs,lzd,comms,psi,hpsi,psit,orthpar,paw)
    !to be substituted, must pass the wavefunction descriptors to the routine
    if (nproc>1) then
        call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,psi,&
-          &   hpsi,out_add=psit)
+          &   hpsi,recvbuf=psit)
        if (usepaw) call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,&
             & paw%spsi, hpsi)
    else
        ! work array not nedded for nproc==1, so pass the same address
        call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,psi,&
-          &   psi,out_add=psit)
+          &   psi,recvbuf=psit)
        if (usepaw) call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,&
             & paw%spsi, paw%spsi)
    end if

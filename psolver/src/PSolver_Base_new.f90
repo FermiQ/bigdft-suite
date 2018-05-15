@@ -343,6 +343,8 @@ subroutine G_PoissonSolver(iproc,nproc,planes_comm,iproc_inplane,inplane_comm,nc
   use dynamic_memory
   use dictionaries ! for f_err_throw
   use box
+  use f_perfs
+  use f_utils, only: f_size,f_sizeof
   implicit none
   !to be preprocessed
   include 'perfdata.inc'
@@ -383,6 +385,9 @@ subroutine G_PoissonSolver(iproc,nproc,planes_comm,iproc_inplane,inplane_comm,nc
   integer :: n3pr1,n3pr2,j1start,n1p,n2dimp
   integer :: ithread, nthread
   integer,parameter :: max_memory_zt = 500 !< maximal memory for zt array, in megabytes
+  !integer(f_long) :: readb,writeb
+  real(f_double) :: gflops_fft
+  type(f_perf) :: performance_info
   ! OpenMP variables
   !$ integer :: omp_get_thread_num, omp_get_max_threads !, omp_get_num_threads
 
@@ -561,7 +566,7 @@ subroutine G_PoissonSolver(iproc,nproc,planes_comm,iproc_inplane,inplane_comm,nc
   !write(*,*) 'nthread', nthread
   zw = f_malloc((/ 1.to.2,1.to.ncache/4,1.to.2,0.to.nthread-1 /),id='zw')
   zt = f_malloc((/ 1.to.2,1.to.lzt/n3pr1,1.to.n1p,0.to.nthread-1 /),id='zt')
-
+    
   ithread = 0
   !$omp parallel num_threads(nthread) &
   !$omp default(shared)&
@@ -619,6 +624,8 @@ subroutine G_PoissonSolver(iproc,nproc,planes_comm,iproc_inplane,inplane_comm,nc
   !$omp end do
   ! DO NOT USE NOWAIT, removes the implicit barrier
 
+  gflops_fft=5*2*real(n1dim*maxIter,f_double)*n3dim*log(real(n3dim,f_double))
+
   !$omp master
     nd3=nd3/n3pr1
     !Interprocessor data transposition
@@ -651,6 +658,10 @@ subroutine G_PoissonSolver(iproc,nproc,planes_comm,iproc_inplane,inplane_comm,nc
     endif
   endif
 
+  gflops_fft=gflops_fft+5*2*maxIter*(real(n2dimp/n3pr1*n1,f_double)*log(real(n1,f_double))+&
+       real(n1p/n3pr1*n2,f_double)*log(real(n2,f_double)))
+  gflops_fft=gflops_fft+2*f_size(pot)
+  
   strten_omp=0
 
   !$omp do schedule(static)
@@ -915,6 +926,8 @@ subroutine G_PoissonSolver(iproc,nproc,planes_comm,iproc_inplane,inplane_comm,nc
   end do
   !$omp end do
 
+
+
   !$omp end parallel
 
   call f_free(zw)
@@ -939,7 +952,12 @@ subroutine G_PoissonSolver(iproc,nproc,planes_comm,iproc_inplane,inplane_comm,nc
      call f_free(zmpi1)
   end if
   call f_timing(TCAT_PSOLV_COMPUT,'OF')
-  call f_release_routine()
+
+  call f_perf_set_model(performance_info,F_PERF_GFLOPS,nint(gflops_fft,f_long))
+  call f_perf_set_model(performance_info,F_PERF_READB,f_sizeof(zf)+f_sizeof(pot))
+  call f_perf_set_model(performance_info,F_PERF_WRITEB,f_sizeof(zf))
+  call f_release_routine(performance_info=performance_info)
+  call f_perf_free(performance_info)
   !call system_clock(ncount1,ncount_rate,ncount_max)
   !write(*,*) 'TIMING:PS ', real(ncount1-ncount0)/real(ncount_rate)
 END SUBROUTINE G_PoissonSolver
@@ -2566,7 +2584,6 @@ subroutine P_multkernel_NO(nd1,nd2,n1,n2,n3,lot,nfft,jS,pot,zw,j3,mesh,offset,sc
     
     subroutine internal_loop()
       implicit none
-      integer :: i,j
       j1=i1+jS-1
       !running recip space coordinate
       pxyz(1)=p(j1,n1)/L1

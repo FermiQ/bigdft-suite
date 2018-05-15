@@ -43,14 +43,15 @@ libwrappers_a_SOURCES = $(DGEMMSY_SOURCES) $(CUBLAS_SOURCES) $(OCL_SOURCES) \
 	box.f90 \
 	harmonics.f90
 
+EXTRA_DIST = FiniteDiffCorff.inc
 # Dependencies
 $(modules): $(libwrappers_a_OBJECTS)
 interface_cuda_fake.o: linalg.o
 interface_dgemmsy_fake.o: linalg.o
 f_blas.o: linalg.o
-f_functions.o: numerics.o box.o
+f_functions.o: numerics.o box.o FiniteDiffCorff.inc
 op2p_module.o: linalg.o
-harmonics.o: numerics.o
+harmonics.o: numerics.o box.o
 box.o: linalg.o
 #fft2d.o: fft3d.o
 

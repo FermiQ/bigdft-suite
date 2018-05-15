@@ -122,6 +122,8 @@ module wrapper_MPI
   public :: release_mpi_environment
   public :: mpi_environment_set
   public :: mpi_environment_set1 !to be removed
+  public :: mpi_environment_dict
+  public :: mpi_environment_comm
 
   !> Fake type to enhance documentation
   type, private :: doc
@@ -186,6 +188,17 @@ contains
     mpi_env=mpi_environment_null()
   end subroutine release_mpi_environment
 
+  function mpi_environment_comm(comm) result(mpi_env)
+    !create the mpi environment associated to mpi_comm_worl
+    integer(fmpi_integer), intent(in), optional :: comm
+    type(mpi_environment) :: mpi_env
+
+    mpi_env=mpi_environment_null()
+    mpi_env%mpi_comm=fmpi_comm(comm)
+    mpi_env%nproc=mpisize(mpi_env%mpi_comm)
+    mpi_env%iproc=mpirank(mpi_env%mpi_comm)
+
+  end function mpi_environment_comm
 
   !> Deep copy of the mpi_environment.
   subroutine deepcopy_mpi_environment(dest,src)
@@ -286,6 +299,38 @@ contains
     end if
     call f_release_routine()
   end subroutine mpi_environment_set
+
+  subroutine mpi_environment_dict(mpi_env,dict_info)
+    !build the information of the mpi environment associated and write that in a dictionary
+    !also integrate the OMP information
+    use dictionaries
+    use dynamic_memory
+    implicit none
+    type(mpi_environment), intent(in) :: mpi_env
+    type(dictionary), pointer :: dict_info !dictionary (valid) in which to store the information
+    !local variables
+    integer :: nthreads
+    character(len=MPI_MAX_PROCESSOR_NAME) :: nodename_local
+    character(len=MPI_MAX_PROCESSOR_NAME), dimension(:), allocatable :: nodename
+    !$ integer :: omp_get_max_threads
+
+    nthreads = 0
+    !$  nthreads=omp_get_max_threads()
+    call set(dict_info//'CPU parallelism'//'MPI tasks',mpi_env%nproc)
+    if (nthreads /= 0) call set(dict_info//'CPU parallelism'//'OMP threads',&
+         nthreads)
+    nodename=f_malloc0_str(MPI_MAX_PROCESSOR_NAME,0.to.mpi_env%nproc-1,id='nodename')
+    if (mpi_env%nproc>1) then
+       nodename_local=mpihostname()
+       call mpigather(MPI_MAX_PROCESSOR_NAME,nodename_local,nodename,&
+            comm=mpi_env%mpi_comm)
+       if (mpi_env%iproc==0) call set(dict_info//'Hostnames',&
+            list_new(.item. nodename))
+    end if
+    call f_free_str(MPI_MAX_PROCESSOR_NAME,nodename)
+   
+  end subroutine mpi_environment_dict
+
 
   function mpimaxtag(comm)
     implicit none

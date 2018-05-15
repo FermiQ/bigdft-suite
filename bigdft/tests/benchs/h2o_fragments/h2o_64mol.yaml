@@ -1,3 +1,4 @@
+ import: linear
  dft:
    hgrids: 0.4
    rmult: [5.0, 7.0]
@@ -10,7 +11,8 @@
    calculate_KS_residue: No
    store_index: Yes
    hamapp_radius_incr: 6
-   profiling_depth: 0
+   #profiling_depth: 0
+ output:
    verbosity: 3
  lin_general:
    hybrid: No

@@ -671,7 +671,7 @@ subroutine local_forces(iproc,at,rxyz,hxh,hyh,hzh,&
      !$omp & shared(cprime,nloc,rloc,rlocinvsq,prefactor,nbox) &
      !$omp & private(fxerf,fyerf,fzerf,fxgau,fygau,fzgau) &
      !$omp & private(Txx,Tyy,Tzz,Txy,Txz,Tyz,boxit,xp,x,y,z,r2,arg,tt,rhoel,forceloc,Vel) &
-     !$omp & private(iloc,i3,zp,zsq,j3,yp,ysq,goy,gox,goz,i1,i2,j1,j2,ind,yzsq)
+     !$omp & private(iloc,i3,zp,zsq,j3,yp,goy,gox,goz,i1,i2,j1,j2,ind,yzsq)
 
      !Initialization of the forces
      !ion-electron term, error function part

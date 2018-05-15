@@ -631,10 +631,10 @@ contains
     end if
   end subroutine add_Vextra
 
-  subroutine nabla2pot_epsm1(n1,n23,eps,nabla2_pot,np2em1)
+  subroutine nabla2pot_epsm1(n1,n23,nabla2_pot,np2em1)
     implicit none
     integer, intent(in) :: n1,n23
-    real(dp), dimension(n1*n23), intent(in) :: eps,nabla2_pot
+    real(dp), dimension(n1*n23), intent(in) :: nabla2_pot
     real(dp), dimension(n1*n23), intent(out) :: np2em1
     !local variables
     integer :: i123

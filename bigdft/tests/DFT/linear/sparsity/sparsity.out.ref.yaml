@@ -800,12 +800,6 @@
    Maximum size of masking arrays for a projector:  54456
    Cumulative size of masking arrays   :  724029
   #------------------------------------------------------------ Sparse matrix initialization
- Check of kernel cutoff radius:
- -  {atom type: H, adjustment required:  Yes, new value:  6.56}
- -  {atom type: C, adjustment required:  Yes, new value:  7.16}
- -  {atom type: N, adjustment required:  Yes, new value:  7.16}
- -  {atom type: O, adjustment required:  Yes, new value:  7.16}
- -  {atom type: P, adjustment required:  Yes, new value:  7.16}
  Matrices:
    Overlap matrix:
      total elements                    :  18496
@@ -1363,6 +1357,7 @@
  Calculate Non Local forces            :  Yes
   #-------------------------------- Warnings obtained during the run, check their relevance!
  WARNINGS:
+ - Inconsistency in Tr(H), check your cutoff radii
  - No orthogonalizing of the support functions
  - The support function localization radii might be too small, got 29 warnings
  - density optimization not converged

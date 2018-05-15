@@ -396,6 +396,9 @@ subroutine AtomicOrbitals(iproc,at,rxyz,norbe,orbse,norbsc,&
    do iat=1,at%astruct%nat
       ity=at%astruct%iatype(iat)
       ityx=iatypex(iat)
+
+      !beginning of atomic routine
+
       ishltmp=0
       !call count_atomic_shells(nspin_print,at%aoig(iat)%aocc,occup,nl)
       if (ityx > ntypesx) then
@@ -450,6 +453,9 @@ subroutine AtomicOrbitals(iproc,at,rxyz,norbe,orbse,norbsc,&
          !write(*,*)'ERROR: ishelltmp <> nshell',ishell,G%nshell(iat)
          !stop 
       end if
+
+      !end of atomic routine
+
    end do
    if (iproc == 0 .and. get_verbose_level() > 1) then
       call yaml_sequence_close()
@@ -477,34 +483,34 @@ subroutine AtomicOrbitals(iproc,at,rxyz,norbe,orbse,norbsc,&
    if (orbse%nspinor == 4) then
       atmoments = f_malloc((/ 3, at%astruct%nat /),id='atmoments')
 
-!!!      itat=atoms_iter(at%astruct)
-!!!      do while(atoms_iter_next(itat))
-!!!         if ('IGmom' .in. itat%attrs) then
-!!!            atmoments(:,itat%iat)=itat%attrs//'IGmom'
-!!!         else
-!!!            call f_zero(atmoments(:,itat%iat))
-!!!         end if
-!!!      end do
-
-      open(unit=22,file='moments',form='formatted',action='read',status='old')
-      !this part can be transferred on the atomic orbitals section
-      do iat=1,at%astruct%nat
-         read(unit=22,fmt=*,iostat=i_stat) mx,my,mz
-         if (i_stat > 0) then
-            call f_err_throw('The file "moments" is not correct!' // &
-               & 'The file "moments" has the line ' // trim(yaml_toa(iat)) // &
-               & ' which have not 3 numbers for the atom ' // trim(yaml_toa(iat)) // '.', &
-               & err_id=BIGDFT_INPUT_VARIABLES_ERROR)
-            !write(unit=*,fmt='(a,i0,a,i0,a)') 'The file "moments" has the line ',iat,&
-            !   &   ' which have not 3 numbers for the atom ',iat,'.'
-            !stop 'The file "moments" is not correct!'
+      itat=atoms_iter(at%astruct)
+      do while(atoms_iter_next(itat))
+         if ('IGmom' .in. itat%attrs) then
+            atmoments(:,itat%iat)=itat%attrs//'IGmom'
+         else
+            call f_zero(atmoments(:,itat%iat))
          end if
-         atmoments(1,iat)=mx
-         atmoments(2,iat)=my
-         atmoments(3,iat)=mz
-         !write(unit=100,fmt='(2x,a,i4,3f12.6)')'NOYAML2'
-         !write(unit=100,fmt='(2x,a,i4,3f12.6)')'NOYAML',iproc,atmoments(:,iat)
-      end do
+     end do
+
+!!$      open(unit=22,file='moments',form='formatted',action='read',status='old')
+!!$      !this part can be transferred on the atomic orbitals section
+!!$      do iat=1,at%astruct%nat
+!!$         read(unit=22,fmt=*,iostat=i_stat) mx,my,mz
+!!$         if (i_stat > 0) then
+!!$            call f_err_throw('The file "moments" is not correct!' // &
+!!$               & 'The file "moments" has the line ' // trim(yaml_toa(iat)) // &
+!!$               & ' which have not 3 numbers for the atom ' // trim(yaml_toa(iat)) // '.', &
+!!$               & err_id=BIGDFT_INPUT_VARIABLES_ERROR)
+!!$            !write(unit=*,fmt='(a,i0,a,i0,a)') 'The file "moments" has the line ',iat,&
+!!$            !   &   ' which have not 3 numbers for the atom ',iat,'.'
+!!$            !stop 'The file "moments" is not correct!'
+!!$         end if
+!!$         atmoments(1,iat)=mx
+!!$         atmoments(2,iat)=my
+!!$         atmoments(3,iat)=mz
+!!$         !write(unit=100,fmt='(2x,a,i4,3f12.6)')'NOYAML2'
+!!$         !write(unit=100,fmt='(2x,a,i4,3f12.6)')'NOYAML',iproc,atmoments(:,iat)
+!!$      end do
    end if
 
    eks=0.0_gp
@@ -1209,7 +1215,7 @@ END SUBROUTINE calc_coeff_inguess
 subroutine gatom(rcov,rprb,lmax,lpx,noccmax,occup,&
       &   zion,alpz,gpot,alpl,hsep,alps,ngv,ngc,nlccpar,vh,xp,rmt,fact,nintp,&
       &   aeval,ng,psi,res,chrg,iorder)
-   use module_base, only: gp,f_err_throw,BIGDFT_RUNTIME_ERROR,safe_exp
+   use module_base, only: gp,f_err_throw,BIGDFT_RUNTIME_ERROR,safe_exp,safe_erf
    use yaml_strings, only: yaml_toa
    use abi_interfaces_numeric, only: abi_derf_ab
    implicit none
@@ -1548,8 +1554,9 @@ subroutine gatom(rcov,rprb,lmax,lpx,noccmax,occup,&
          do i=0,ng
             d=xp(i)+xp(j)
             sd=sqrt(d)
-            call abi_derf_ab(terf, sd*rcov) 
-            texp=exp(-d*rcov**2)
+            !call abi_derf_ab(terf, sd*rcov) 
+            terf=safe_erf(sd*rcov)
+            texp=safe_exp(-d*rcov**2)
 
             tt=0.4431134627263791_gp*terf/sd**3 - 0.5_gp*rcov*texp/d
             chrg(iocc,1)=chrg(iocc,1) + psi(i,iocc,1)*psi(j,iocc,1)*tt
