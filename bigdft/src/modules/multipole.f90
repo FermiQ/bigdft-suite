@@ -163,7 +163,7 @@ module multipole
       use yaml_output
       use io, only: plot_density
       use bounds, only: geocode_buffers
-      use box, only: cell_periodic_dims,cell_geocode
+      use box
       use gaussians
       use module_atoms, only: atomic_cores_charge_density
       implicit none
@@ -212,7 +212,7 @@ module multipole
       logical :: perx, pery, perz
       logical,parameter :: use_iterator = .false.
       real(kind=8) :: cutoff, rholeaked, hxh, hyh, hzh, rx, ry, rz, qq, ttl, sig
-      real(kind=8),dimension(3) :: center
+      real(kind=8),dimension(3) :: center,cen,rc,drxyz
       integer :: n1i, n2i, n3i, itype, ntype
       integer :: nmpx, nmpy, nmpz, ndensity, izion, ioffset, ishift, iat
       real(dp), dimension(:), allocatable  :: mpx,mpy,mpz
@@ -226,6 +226,7 @@ module multipole
       integer,dimension(3) :: ixyz0_
       character(len=128) :: filename
       type(gaussian_real_space) :: g
+      type(box_iterator) :: bit
       !$ integer  :: omp_get_thread_num,omp_get_max_threads
 
       call f_routine(id='potential_from_charge_multipoles')
@@ -475,6 +476,7 @@ module multipole
           !$omp shared(norm_check, monopole, dipole, quadrupole, density, density_loc, potential_loc) &
           !$omp shared (gaussians1, gaussians2, gaussians3, rmax, rmin) &
           !$omp shared (j1s, j1e, j2s, j2e, j3s, j3e, nl1, nl2, nl3, lzd) &
+!!!          !$omp shared (bit,cen,rc,drxyz) &
           !$omp private(i1, i2, i3, ii1, ii2, ii3, x, y, z, impl, r, l, gg, m, mm, tt, ttt, ttl, ithread, center, ll) &
           !$omp private(rnrm1, rnrm2, rnrm3, rnrm5, qq, ii, sig, lmax_avail, found_non_associated, j1, j2, j3, dr)
           ithread = 0
@@ -508,6 +510,10 @@ module multipole
                           found_non_associated = .true.
                       end if
                   end do
+
+
+!--- Start old loop -------------------------------------------------------------------------------------
+
                   i3loop: do i3=is3,ie3
                       if (maxval(gaussians3(:,i3,impl))<1.d-20) cycle i3loop
                       ii3 = i3 - nl3 -1
@@ -599,6 +605,76 @@ module multipole
                           end do i1loop
                       end do i2loop
                   end do i3loop
+
+!--- End old loop -------------------------------------------------------------------------------------
+
+!--- Start new iterator loop -------------------------------------------------------------------------------------
+!!$            cen=ep%mpl(impl)%rxyz - shift
+!!$            bit=box_iter(lzd%glr%mesh)
+!!$            do while (box_next_point(bit))
+!!$                rc=closest_r(lzd%glr%mesh,bit%rxyz,cen)
+!!$                drxyz=rxyz_ortho(lzd%glr%mesh,rc)
+!!$                rnrm2 = square_gd(lzd%glr%mesh,rc)
+!!$                tt = 0.d0
+!!$                ttl = 0.d0
+!!$                do l=0,lmax_avail
+!!$                    ! Calculate the Gaussian as product of three 1D Gaussians
+!!$                    gg = gaussians1(l,bit%i,impl)*gaussians2(l,bit%j,impl)*gaussians3(l,bit%k,impl)
+!!$                    ! Additional modification to avoid divergence
+!!$                    sig = ep%mpl(impl)%sigma(l)
+!!$                    if (l==1) then
+!!$                        gg = gg/(3.d0*sig**2)
+!!$                    else if (l==2) then
+!!$                        gg = gg/(15.d0*sig**4)
+!!$                    end if
+!!$                    norm_check(l,impl) = norm_check(l,impl) + gg*hhh*rnrm2**l
+!!$                    !if (rnrm2<=rmax(impl)**2) then
+!!$                        mm = 0
+!!$                        do m=-l,l
+!!$                            mm = mm + 1
+!!$                            !!! For the monopole term, the atomic core charge (which has been expressed using a Gaussian
+!!$                            !!! above) has to be added in order to compensate it in case that the net charges have been provided.
+!!$                            !!! In addition the sign has to be switched since the charge density is a positive quantity.
+!!$                            !!if (l==0 .and. ep%mpl(impl)%mpchar=='N') then
+!!$                            !!    !qq = -(ep%mpl(impl)%qlm(l)%q(mm) - real(nelpsp(impl),kind=8))
+!!$                            !!    qq = -(ep%mpl(impl)%qlm(l)%q(mm) - real(ep%mpl(impl)%nzion,kind=8))
+!!$                            !!    !qq = -ep%mpl(impl)%qlm(l)%q(mm)
+!!$                            !!else
+!!$                                ! The sign has to be switched since the charge density is a positive quantity.
+!!$                                qq = -ep%mpl(impl)%qlm(l)%q(mm)
+!!$                            !!end if
+!!$                            ttt = qq*&
+!!$                                  real(2*l+1,kind=8)*solid_harmonic(0, l, m, drxyz(1), drxyz(2), drxyz(3))*&
+!!$                                  sqrt(4.d0*pi/real(2*l+1,kind=8))*gg!*sqrt(4.d0*pi_param)
+!!$                            tt = tt + ttt
+!!$                            ttl = ttl + ttt
+!!$                        end do
+!!$                    !end if
+!!$                end do
+!!$                density_loc(bit%i,bit%j,bit%k,ithread) = density_loc(bit%i,bit%j,bit%k,ithread) + tt
+!!$                ! Again calculate the multipole values to verify whether they are represented exactly
+!!$                ll = 0
+!!$                m = 0
+!!$                monopole(impl,ithread) = monopole(impl,ithread) + tt*hhh*&
+!!$                                 solid_harmonic(0,ll,m,drxyz(1),drxyz(2),drxyz(3))*&
+!!$                                 sqrt(4.d0*pi/real(2*ll+1,kind=8))
+!!$                ll = 1
+!!$                do m=-ll,ll
+!!$                    ii = m + 2
+!!$                    dipole(ii,impl,ithread) = dipole(ii,impl,ithread) + tt*hhh*&
+!!$                                     solid_harmonic(0,ll,m,drxyz(1),drxyz(2),drxyz(3))*&
+!!$                                     sqrt(4.d0*pi/real(2*ll+1,kind=8))
+!!$                end do
+!!$                ll = 2
+!!$                do m=-ll,ll
+!!$                    ii = m + 3
+!!$                    quadrupole(ii,impl,ithread) = quadrupole(ii,impl,ithread) + tt*hhh*&
+!!$                                     solid_harmonic(0,ll,m,drxyz(1),drxyz(2),drxyz(3))*&
+!!$                                     sqrt(4.d0*pi/real(2*ll+1,kind=8))
+!!$                end do
+!!$            end do
+!--- End new iterator loop -------------------------------------------------------------------------------------
+
               else norm_if
                   ! Use the method based on the analytic formula
                   do l=0,lmax

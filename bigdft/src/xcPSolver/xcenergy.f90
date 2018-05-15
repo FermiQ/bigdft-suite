@@ -80,11 +80,10 @@ subroutine calc_rhocore_iat(dpbox,iproc,atoms,ityp,rx,ry,rz,cutoff,hxh,hyh,hzh,&
 
   if (n3d >0) then
 
-
 ! Start new giuseppe ----------------------------------------------------------------------------
             call nlcc_spherical_gaussian_set(g,atoms)
-            call set_box_around_gaussian(dpbox%bitp,g,[rx,ry,rz])
-            do while(box_next_point(dpbox%bitp))
+            call set_box_around_gaussian(dpbox%bitd,g,[rx,ry,rz])
+            do while(box_next_point(dpbox%bitd))
 
                        !here we can sum up the gaussians for the
                        !valence density and the core density
@@ -95,11 +94,11 @@ subroutine calc_rhocore_iat(dpbox,iproc,atoms,ityp,rx,ry,rz,cutoff,hxh,hyh,hzh,&
                        do ig=1,(ngv*(ngv+1))/2
                           ilcc=ilcc+1
                           rhov=rhov+&
-                               gaussian_radial_value(g,[rx,ry,rz],dpbox%bitp)
+                               gaussian_radial_value(g,[rx,ry,rz],dpbox%bitd)
                                !spherical_gaussian_value(r2,atoms%nlccpar(0,ilcc),atoms%nlccpar(1,ilcc),0)
                           !derivative wrt r2
                           drhov=drhov+&
-                               gaussian_radial_value(g,[rx,ry,rz],dpbox%bitp,1)
+                               gaussian_radial_value(g,[rx,ry,rz],dpbox%bitd,1)
                                !spherical_gaussian_value(r2,atoms%nlccpar(0,ilcc),atoms%nlccpar(1,ilcc),1)
                        end do
                        rhoc=0.0_dp
@@ -108,29 +107,28 @@ subroutine calc_rhocore_iat(dpbox,iproc,atoms,ityp,rx,ry,rz,cutoff,hxh,hyh,hzh,&
                           ilcc=ilcc+1
                           !arg=r2/rhocxp(ig)**2
                           rhoc=rhoc+&
-                               gaussian_radial_value(g,[rx,ry,rz],dpbox%bitp)
+                               gaussian_radial_value(g,[rx,ry,rz],dpbox%bitd)
                                !spherical_gaussian_value(r2,atoms%nlccpar(0,ilcc),atoms%nlccpar(1,ilcc),0)
                           drhoc=drhoc+&
-                               gaussian_radial_value(g,[rx,ry,rz],dpbox%bitp,1)
+                               gaussian_radial_value(g,[rx,ry,rz],dpbox%bitd,1)
                                !spherical_gaussian_value(r2,atoms%nlccpar(0,ilcc),atoms%nlccpar(1,ilcc),1)
                        end do
-                       rhocore(dpbox%bitp%ind,0)=rhocore(dpbox%bitp%ind,0)+oneo4pi*(rhoc-rhov)
+                       rhocore(dpbox%bitd%ind,0)=rhocore(dpbox%bitd%ind,0)+oneo4pi*(rhoc-rhov)
                        drhodr2=drhoc-drhov
-                       dpbox%bitp%tmp=closest_r(dpbox%bitp%mesh,dpbox%bitp%rxyz,[rx,ry,rz])
-                       rhocore(dpbox%bitp%ind,1)=  rhocore(dpbox%bitp%ind,1)+drhodr2*oneo4pi*dpbox%bitp%tmp(1)
-                       rhocore(dpbox%bitp%ind,2)=  rhocore(dpbox%bitp%ind,2)+drhodr2*oneo4pi*dpbox%bitp%tmp(2)
-                       rhocore(dpbox%bitp%ind,3)=  rhocore(dpbox%bitp%ind,3)+drhodr2*oneo4pi*dpbox%bitp%tmp(3)
+                       dpbox%bitd%tmp=closest_r(dpbox%bitd%mesh,dpbox%bitd%rxyz,[rx,ry,rz])
+                       rhocore(dpbox%bitd%ind,1)=  rhocore(dpbox%bitd%ind,1)+drhodr2*oneo4pi*dpbox%bitd%tmp(1)
+                       rhocore(dpbox%bitd%ind,2)=  rhocore(dpbox%bitd%ind,2)+drhodr2*oneo4pi*dpbox%bitd%tmp(2)
+                       rhocore(dpbox%bitd%ind,3)=  rhocore(dpbox%bitd%ind,3)+drhodr2*oneo4pi*dpbox%bitd%tmp(3)
                        !stress components
-                       rhocore(dpbox%bitp%ind,4)=rhocore(dpbox%bitp%ind,4)+drhodr2*oneo4pi*dpbox%bitp%tmp(1)*dpbox%bitp%tmp(1) 
-                       rhocore(dpbox%bitp%ind,5)=rhocore(dpbox%bitp%ind,5)+drhodr2*oneo4pi*dpbox%bitp%tmp(2)*dpbox%bitp%tmp(2)
-                       rhocore(dpbox%bitp%ind,6)=rhocore(dpbox%bitp%ind,6)+drhodr2*oneo4pi*dpbox%bitp%tmp(3)*dpbox%bitp%tmp(3)
-                       rhocore(dpbox%bitp%ind,7)=rhocore(dpbox%bitp%ind,7)+drhodr2*oneo4pi*dpbox%bitp%tmp(2)*dpbox%bitp%tmp(3)
-                       rhocore(dpbox%bitp%ind,8)=rhocore(dpbox%bitp%ind,8)+drhodr2*oneo4pi*dpbox%bitp%tmp(1)*dpbox%bitp%tmp(3)
-                       rhocore(dpbox%bitp%ind,9)=rhocore(dpbox%bitp%ind,9)+drhodr2*oneo4pi*dpbox%bitp%tmp(1)*dpbox%bitp%tmp(2)
+                       rhocore(dpbox%bitd%ind,4)=rhocore(dpbox%bitd%ind,4)+drhodr2*oneo4pi*dpbox%bitd%tmp(1)*dpbox%bitd%tmp(1) 
+                       rhocore(dpbox%bitd%ind,5)=rhocore(dpbox%bitd%ind,5)+drhodr2*oneo4pi*dpbox%bitd%tmp(2)*dpbox%bitd%tmp(2)
+                       rhocore(dpbox%bitd%ind,6)=rhocore(dpbox%bitd%ind,6)+drhodr2*oneo4pi*dpbox%bitd%tmp(3)*dpbox%bitd%tmp(3)
+                       rhocore(dpbox%bitd%ind,7)=rhocore(dpbox%bitd%ind,7)+drhodr2*oneo4pi*dpbox%bitd%tmp(2)*dpbox%bitd%tmp(3)
+                       rhocore(dpbox%bitd%ind,8)=rhocore(dpbox%bitd%ind,8)+drhodr2*oneo4pi*dpbox%bitd%tmp(1)*dpbox%bitd%tmp(3)
+                       rhocore(dpbox%bitd%ind,9)=rhocore(dpbox%bitd%ind,9)+drhodr2*oneo4pi*dpbox%bitd%tmp(1)*dpbox%bitd%tmp(2)
 
             enddo
-           call box_iter_expand_nbox(dpbox%bitp)
-
+            call box_iter_expand_nbox(dpbox%bitd)
 
 ! End new giuseppe ----------------------------------------------------------------------------
 ! Start old ----------------------------------------------------------------------------
