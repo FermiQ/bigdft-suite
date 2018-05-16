@@ -476,7 +476,7 @@ module multipole
           !$omp shared(norm_check, monopole, dipole, quadrupole, density, density_loc, potential_loc) &
           !$omp shared (gaussians1, gaussians2, gaussians3, rmax, rmin) &
           !$omp shared (j1s, j1e, j2s, j2e, j3s, j3e, nl1, nl2, nl3, lzd) &
-          !$omp shared (bit,cen,rc,drxyz,check,denspot) &
+          !$omp shared (bit,cen,rc,drxyz,denspot) &
           !$omp private(i1, i2, i3, ii1, ii2, ii3, x, y, z, impl, r, l, gg, m, mm, tt, ttt, ttl, ithread, center, ll) &
           !$omp private(rnrm1, rnrm2, rnrm3, rnrm5, qq, ii, sig, lmax_avail, found_non_associated, j1, j2, j3, dr)
           ithread = 0
@@ -510,7 +510,6 @@ module multipole
                           found_non_associated = .true.
                       end if
                   end do
-
 
 !--- Start old loop -------------------------------------------------------------------------------------
 !!$                  i3loop: do i3=is3,ie3
@@ -608,121 +607,148 @@ module multipole
 !--- End old loop -------------------------------------------------------------------------------------
 
 !--- Start new iterator loop -------------------------------------------------------------------------------------
-            cen=ep%mpl(impl)%rxyz - shift
-            bit=denspot%dpbox%bitp
-            do while (box_next_point(bit))
-                rc=closest_r(lzd%glr%mesh,bit%rxyz,cen)
-                drxyz=rxyz_ortho(lzd%glr%mesh,rc)
-                rnrm2 = square_gd(lzd%glr%mesh,rc)
-                tt = 0.d0
-                ttl = 0.d0
-                do l=0,lmax_avail
-                    ! Calculate the Gaussian as product of three 1D Gaussians
-                    gg = gaussians1(l,bit%i,impl)*gaussians2(l,bit%j,impl)*gaussians3(l,bit%k,impl)
-                    ! Additional modification to avoid divergence
-                    sig = ep%mpl(impl)%sigma(l)
-                    if (l==1) then
-                        gg = gg/(3.d0*sig**2)
-                    else if (l==2) then
-                        gg = gg/(15.d0*sig**4)
-                    end if
-                    norm_check(l,impl) = norm_check(l,impl) + gg*hhh*rnrm2**l
-                    !if (rnrm2<=rmax(impl)**2) then
-                        mm = 0
-                        do m=-l,l
-                            mm = mm + 1
-                            !!! For the monopole term, the atomic core charge (which has been expressed using a Gaussian
-                            !!! above) has to be added in order to compensate it in case that the net charges have been provided.
-                            !!! In addition the sign has to be switched since the charge density is a positive quantity.
-                            !!if (l==0 .and. ep%mpl(impl)%mpchar=='N') then
-                            !!    !qq = -(ep%mpl(impl)%qlm(l)%q(mm) - real(nelpsp(impl),kind=8))
-                            !!    qq = -(ep%mpl(impl)%qlm(l)%q(mm) - real(ep%mpl(impl)%nzion,kind=8))
-                            !!    !qq = -ep%mpl(impl)%qlm(l)%q(mm)
-                            !!else
-                                ! The sign has to be switched since the charge density is a positive quantity.
-                                qq = -ep%mpl(impl)%qlm(l)%q(mm)
-                            !!end if
-                            ttt = qq*&
-                                  real(2*l+1,kind=8)*solid_harmonic(0, l, m, drxyz(1), drxyz(2), drxyz(3))*&
-                                  sqrt(4.d0*pi/real(2*l+1,kind=8))*gg!*sqrt(4.d0*pi_param)
-                            tt = tt + ttt
-                            ttl = ttl + ttt
-                        end do
-                    !end if
-                end do
-                density_loc(bit%i,bit%j,bit%k,ithread) = density_loc(bit%i,bit%j,bit%k,ithread) + tt
-                ! Again calculate the multipole values to verify whether they are represented exactly
-                ll = 0
-                m = 0
-                monopole(impl,ithread) = monopole(impl,ithread) + tt*hhh*&
-                                 solid_harmonic(0,ll,m,drxyz(1),drxyz(2),drxyz(3))*&
-                                 sqrt(4.d0*pi/real(2*ll+1,kind=8))
-                ll = 1
-                do m=-ll,ll
-                    ii = m + 2
-                    dipole(ii,impl,ithread) = dipole(ii,impl,ithread) + tt*hhh*&
-                                     solid_harmonic(0,ll,m,drxyz(1),drxyz(2),drxyz(3))*&
-                                     sqrt(4.d0*pi/real(2*ll+1,kind=8))
-                end do
-                ll = 2
-                do m=-ll,ll
-                    ii = m + 3
-                    quadrupole(ii,impl,ithread) = quadrupole(ii,impl,ithread) + tt*hhh*&
-                                     solid_harmonic(0,ll,m,drxyz(1),drxyz(2),drxyz(3))*&
-                                     sqrt(4.d0*pi/real(2*ll+1,kind=8))
-                end do
-            end do
+                  cen = ep%mpl(impl)%rxyz - shift
+                  bit = denspot%dpbox%bitp
+                  do while (box_next_point(bit))
+                      rc = closest_r(denspot%dpbox%mesh,bit%rxyz,cen)
+                      drxyz = rxyz_ortho(denspot%dpbox%mesh,rc)
+                      rnrm2 = square_gd(denspot%dpbox%mesh,rc)
+                      tt = 0.d0
+                      ttl = 0.d0
+                      do l=0,lmax_avail
+                          ! Calculate the Gaussian as product of three 1D Gaussians
+                          gg = gaussians1(l,bit%i,impl)*gaussians2(l,bit%j,impl)*gaussians3(l,bit%k,impl)
+                          ! Additional modification to avoid divergence
+                          sig = ep%mpl(impl)%sigma(l)
+                          if (l==1) then
+                              gg = gg/(3.d0*sig**2)
+                          else if (l==2) then
+                              gg = gg/(15.d0*sig**4)
+                          end if
+                          norm_check(l,impl) = norm_check(l,impl) + gg*hhh*rnrm2**l
+                          !if (rnrm2<=rmax(impl)**2) then
+                              mm = 0
+                              do m=-l,l
+                                  mm = mm + 1
+                                  !!! For the monopole term, the atomic core charge (which has been expressed using a Gaussian
+                                  !!! above) has to be added in order to compensate it in case that the net charges have been provided.
+                                  !!! In addition the sign has to be switched since the charge density is a positive quantity.
+                                  !!if (l==0 .and. ep%mpl(impl)%mpchar=='N') then
+                                  !!    !qq = -(ep%mpl(impl)%qlm(l)%q(mm) - real(nelpsp(impl),kind=8))
+                                  !!    qq = -(ep%mpl(impl)%qlm(l)%q(mm) - real(ep%mpl(impl)%nzion,kind=8))
+                                  !!    !qq = -ep%mpl(impl)%qlm(l)%q(mm)
+                                  !!else
+                                      ! The sign has to be switched since the charge density is a positive quantity.
+                                      qq = -ep%mpl(impl)%qlm(l)%q(mm)
+                                  !!end if
+                                  ttt = qq*&
+                                        real(2*l+1,kind=8)*solid_harmonic(0, l, m, drxyz(1), drxyz(2), drxyz(3))*&
+                                        sqrt(4.d0*pi/real(2*l+1,kind=8))*gg!*sqrt(4.d0*pi_param)
+                                  tt = tt + ttt
+                                  ttl = ttl + ttt
+                              end do
+                          !end if
+                      end do
+                      density_loc(bit%i,bit%j,bit%k,ithread) = density_loc(bit%i,bit%j,bit%k,ithread) + tt
+                      ! Again calculate the multipole values to verify whether they are represented exactly
+                      ll = 0
+                      m = 0
+                      monopole(impl,ithread) = monopole(impl,ithread) + tt*hhh*&
+                                       solid_harmonic(0,ll,m,drxyz(1),drxyz(2),drxyz(3))*&
+                                       sqrt(4.d0*pi/real(2*ll+1,kind=8))
+                      ll = 1
+                      do m=-ll,ll
+                          ii = m + 2
+                          dipole(ii,impl,ithread) = dipole(ii,impl,ithread) + tt*hhh*&
+                                           solid_harmonic(0,ll,m,drxyz(1),drxyz(2),drxyz(3))*&
+                                           sqrt(4.d0*pi/real(2*ll+1,kind=8))
+                      end do
+                      ll = 2
+                      do m=-ll,ll
+                          ii = m + 3
+                          quadrupole(ii,impl,ithread) = quadrupole(ii,impl,ithread) + tt*hhh*&
+                                           solid_harmonic(0,ll,m,drxyz(1),drxyz(2),drxyz(3))*&
+                                           sqrt(4.d0*pi/real(2*ll+1,kind=8))
+                      end do
+                  end do
 !--- End new iterator loop -------------------------------------------------------------------------------------
 
               else norm_if
                   ! Use the method based on the analytic formula
                   do l=0,lmax
                       if (associated(ep%mpl(impl)%qlm(l)%q)) then
-                          do i3=is3,ie3
-                              ii3 = i3 - nl3 -1
-                              !z = real(ii3,kind=8)*hz + shift(3)
-                              r(3) = huge(r(3))
-                              do j3=j3s,j3e
-                                  dr = real(ii3+j3*lzd%glr%d%n3i,kind=8)*hz + shift(3) - ep%mpl(impl)%rxyz(3)
-                                  if (abs(dr)<abs(r(3))) r(3) = dr
-                              end do
-                              do i2=is2,ie2
-                                  ii2 = i2 - nl2 -1
-                                  r(2) = huge(r(2))
-                                  do j2=j2s,j2e
-                                      dr = real(ii2+j2*lzd%glr%d%n2i,kind=8)*hy + shift(2) - ep%mpl(impl)%rxyz(2)
-                                      if (abs(dr)<abs(r(2))) r(2) = dr
-                                  end do
-                                  do i1=is1,ie1
-                                      ii1 = i1 - nl1 -1
-                                      r(1) = huge(r(1))
-                                      do j1=j1s,j1e
-                                          dr = real(ii1+j1*lzd%glr%d%n1i,kind=8)*hx + shift(1) - ep%mpl(impl)%rxyz(1)
-                                          if (abs(dr)<abs(r(1))) r(1) = dr
-                                      end do
-                                      !r(1) = x - ep%mpl(impl)%rxyz(1)
-                                      !r(2) = y - ep%mpl(impl)%rxyz(2)
-                                      !r(3) = z - ep%mpl(impl)%rxyz(3)
-                                      rnrm2 = r(1)**2 + r(2)**2 + r(3)**2
-                                      rnrm1 = sqrt(rnrm2)
-                                      rnrm3 = rnrm1*rnrm2
-                                      rnrm5 = rnrm3*rnrm2
-                                      select case(l)
-                                      case (0)
-                                          tt = calc_monopole(ep%mpl(impl)%qlm(l)%q, rnrm1)
-                                      case (1)
-                                          tt = calc_dipole(ep%mpl(impl)%qlm(l)%q, r, rnrm3)
-                                      case (2)
-                                          tt = calc_quadropole(ep%mpl(impl)%qlm(l)%q, r, rnrm5)
-                                      case (3)
-                                          call f_err_throw('octupole not yet implemented', err_name='BIGDFT_RUNTIME_ERROR')
-                                      case default
-                                          call f_err_throw('Wrong value of l', err_name='BIGDFT_RUNTIME_ERROR')
-                                      end select
-                                      potential_loc(i1,i2,i3,ithread) = potential_loc(i1,i2,i3,ithread) + tt
-                                  end do
-                              end do
+!--- Start old loop -------------------------------------------------------------------------------------
+!!$                          do i3=is3,ie3
+!!$                              ii3 = i3 - nl3 -1
+!!$                              !z = real(ii3,kind=8)*hz + shift(3)
+!!$                              r(3) = huge(r(3))
+!!$                              do j3=j3s,j3e
+!!$                                  dr = real(ii3+j3*lzd%glr%d%n3i,kind=8)*hz + shift(3) - ep%mpl(impl)%rxyz(3)
+!!$                                  if (abs(dr)<abs(r(3))) r(3) = dr
+!!$                              end do
+!!$                              do i2=is2,ie2
+!!$                                  ii2 = i2 - nl2 -1
+!!$                                  r(2) = huge(r(2))
+!!$                                  do j2=j2s,j2e
+!!$                                      dr = real(ii2+j2*lzd%glr%d%n2i,kind=8)*hy + shift(2) - ep%mpl(impl)%rxyz(2)
+!!$                                      if (abs(dr)<abs(r(2))) r(2) = dr
+!!$                                  end do
+!!$                                  do i1=is1,ie1
+!!$                                      ii1 = i1 - nl1 -1
+!!$                                      r(1) = huge(r(1))
+!!$                                      do j1=j1s,j1e
+!!$                                          dr = real(ii1+j1*lzd%glr%d%n1i,kind=8)*hx + shift(1) - ep%mpl(impl)%rxyz(1)
+!!$                                          if (abs(dr)<abs(r(1))) r(1) = dr
+!!$                                      end do
+!!$                                      !r(1) = x - ep%mpl(impl)%rxyz(1)
+!!$                                      !r(2) = y - ep%mpl(impl)%rxyz(2)
+!!$                                      !r(3) = z - ep%mpl(impl)%rxyz(3)
+!!$                                      rnrm2 = r(1)**2 + r(2)**2 + r(3)**2
+!!$                                      rnrm1 = sqrt(rnrm2)
+!!$                                      rnrm3 = rnrm1*rnrm2
+!!$                                      rnrm5 = rnrm3*rnrm2
+!!$                                      select case(l)
+!!$                                      case (0)
+!!$                                          tt = calc_monopole(ep%mpl(impl)%qlm(l)%q, rnrm1)
+!!$                                      case (1)
+!!$                                          tt = calc_dipole(ep%mpl(impl)%qlm(l)%q, r, rnrm3)
+!!$                                      case (2)
+!!$                                          tt = calc_quadropole(ep%mpl(impl)%qlm(l)%q, r, rnrm5)
+!!$                                      case (3)
+!!$                                          call f_err_throw('octupole not yet implemented', err_name='BIGDFT_RUNTIME_ERROR')
+!!$                                      case default
+!!$                                          call f_err_throw('Wrong value of l', err_name='BIGDFT_RUNTIME_ERROR')
+!!$                                      end select
+!!$                                      potential_loc(i1,i2,i3,ithread) = potential_loc(i1,i2,i3,ithread) + tt
+!!$                                  end do
+!!$                              end do
+!!$                          end do
+!--- End old loop -------------------------------------------------------------------------------------
+!--- Start new iterator loop -------------------------------------------------------------------------------------
+                          cen = ep%mpl(impl)%rxyz - shift
+                          bit = denspot%dpbox%bitp
+                          do while (box_next_point(bit))
+                              rc = closest_r(denspot%dpbox%mesh,bit%rxyz,cen)
+                              drxyz = rxyz_ortho(denspot%dpbox%mesh,rc)
+                              rnrm2 = square_gd(denspot%dpbox%mesh,rc)
+                              rnrm1 = sqrt(rnrm2)
+                              rnrm3 = rnrm1*rnrm2
+                              rnrm5 = rnrm3*rnrm2
+                              select case(l)
+                              case (0)
+                                  tt = calc_monopole(ep%mpl(impl)%qlm(l)%q, rnrm1)
+                              case (1)
+                                  tt = calc_dipole(ep%mpl(impl)%qlm(l)%q, drxyz, rnrm3)
+                              case (2)
+                                  tt = calc_quadropole(ep%mpl(impl)%qlm(l)%q, drxyz, rnrm5)
+                              case (3)
+                                  call f_err_throw('octupole not yet implemented', err_name='BIGDFT_RUNTIME_ERROR')
+                              case default
+                                  call f_err_throw('Wrong value of l', err_name='BIGDFT_RUNTIME_ERROR')
+                              end select
+                              potential_loc(bit%i,bit%j,bit%k,ithread) = potential_loc(bit%i,bit%j,bit%k,ithread) + tt
                           end do
+!--- End new iterator loop -------------------------------------------------------------------------------------
                       end if
                   end do
               end if norm_if
