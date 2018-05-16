@@ -828,6 +828,7 @@ contains
     !use module_base
     use communications, only: transpose_v, untranspose_v
     use locreg_operations
+    use box, only: cell_geocode
     !Arguments
     implicit none
     integer, intent(in) :: p,i
@@ -844,6 +845,8 @@ contains
 !!$    call allocate_work_arrays('P',.true.,1,ha%Lzd%Glr%d,w)
     call allocate_work_arrays(ha%Lzd%Glr%mesh,.true.,1,ha%Lzd%Glr%d,w)
 
+    if (cell_geocode(ha%Lzd%Glr%mesh) == 'W') &
+       call f_err_throw("Wires bc has to be implemented here",err_name='BIGDFT_RUNTIME_ERROR')
 !!$
 !!$    hh(1)=.5_wp/ha%hx**2
 !!$    hh(2)=.5_wp/ha%hy**2

@@ -199,23 +199,25 @@ module multipole
       real(8),dimension(:,:),allocatable :: monopole
       real(8),dimension(:,:,:),allocatable :: dipole, quadrupole
       real(8),dimension(:,:),allocatable :: norm, norm_check
-      real(kind=8),dimension(:,:,:),allocatable :: gaussians1, gaussians2, gaussians3
-      integer,dimension(:,:),allocatable :: nonzero_startend1, nonzero_startend2, nonzero_startend3
+      real(kind=8),dimension(:,:,:,:,:),allocatable :: gaussian
+!!$      real(kind=8),dimension(:,:,:),allocatable :: gaussians1, gaussians2, gaussians3
+!!$      integer,dimension(:,:),allocatable :: nonzero_startend1, nonzero_startend2, nonzero_startend3
       logical,dimension(:),allocatable :: norm_ok, skip3_array
       real(kind=8),parameter :: norm_threshold = 1.d-2
       real(kind=8),dimension(0:lmax) :: max_error
-      integer :: ixc_tmp, nzatom, npspcode, ilr, j1s, j1e, j2s, j2e, j3s, j3e, j1, j2, j3
+      integer :: ixc_tmp, nzatom, npspcode, ilr, j1, j2, j3
+!!$      integer :: j1s, j1e, j2s, j2e, j3s, j3e
       integer :: nbl1, nbl2, nbl3, nbr1, nbr2, nbr3, n3pi, i3s, lmax_avail, nl1, nl2, nl3
       integer,dimension(:),allocatable :: nelpsp, psp_source
       real(gp),dimension(0:4,0:6) :: psppar
       logical :: exists, found, found_non_associated, written
-      logical :: perx, pery, perz
+!!$      logical :: perx, pery, perz
       logical,parameter :: use_iterator = .false.
       real(kind=8) :: cutoff, rholeaked, hxh, hyh, hzh, rx, ry, rz, qq, ttl, sig
       real(kind=8),dimension(3) :: center,cen,rc,drxyz
       integer :: n1i, n2i, n3i, itype, ntype
       integer :: nmpx, nmpy, nmpz, ndensity, izion, ioffset, ishift, iat
-      real(dp), dimension(:), allocatable  :: mpx,mpy,mpz
+!!$      real(dp), dimension(:), allocatable  :: mpx,mpy,mpz
       real(kind=8),dimension(:),allocatable :: rmax
       !real(kind=8),parameter :: rmin=3.d-1
       real(kind=8) :: rmin
@@ -227,37 +229,41 @@ module multipole
       character(len=128) :: filename
       type(gaussian_real_space) :: g
       type(box_iterator) :: bit
+      integer :: mp_isf
+      real(gp), dimension(1) :: charge
+      integer, dimension(1) :: zero1
+      integer, dimension(3) :: zeros
       !$ integer  :: omp_get_thread_num,omp_get_max_threads
 
       call f_routine(id='potential_from_charge_multipoles')
 
       call f_zero(rholeaked)
 
-      ! Conditions for periodicity
-      perx=(at%astruct%geocode /= 'F')
-      pery=(at%astruct%geocode == 'P')
-      perz=(at%astruct%geocode /= 'F')
-      if (perx) then
-          j1s = -1
-          j1e = 1
-      else
-          j1s = 0
-          j1e = 0
-      end if
-      if (pery) then
-          j2s = -1
-          j2e = 1
-      else
-          j2s = 0
-          j2e = 0
-      end if
-      if (perz) then
-          j3s = -1
-          j3e = 1
-      else
-          j3s = 0
-          j3e = 0
-      end if
+!!$      ! Conditions for periodicity
+!!$      perx=(at%astruct%geocode /= 'F')
+!!$      pery=(at%astruct%geocode == 'P')
+!!$      perz=(at%astruct%geocode /= 'F')
+!!$      if (perx) then
+!!$          j1s = -1
+!!$          j1e = 1
+!!$      else
+!!$          j1s = 0
+!!$          j1e = 0
+!!$      end if
+!!$      if (pery) then
+!!$          j2s = -1
+!!$          j2e = 1
+!!$      else
+!!$          j2s = 0
+!!$          j2e = 0
+!!$      end if
+!!$      if (perz) then
+!!$          j3s = -1
+!!$          j3e = 1
+!!$      else
+!!$          j3s = 0
+!!$          j3e = 0
+!!$      end if
 
       ! No need to do this if there are no multipoles given.
       multipoles_if: if (ep%nmpl>0) then
@@ -280,12 +286,13 @@ module multipole
           density_loc = f_malloc0((/is1.to.ie1,is2.to.ie2,is3.to.ie3,0.to.nthread-1/),id='density_loc')
           potential_loc = f_malloc0((/is1.to.ie1,is2.to.ie2,is3.to.ie3,0.to.nthread-1/),id='potential_loc')
 
-          gaussians1 = f_malloc((/0.to.lmax,is1.to.ie1,1.to.ep%nmpl/),id='gaussians1')
-          gaussians2 = f_malloc((/0.to.lmax,is2.to.ie2,1.to.ep%nmpl/),id='gaussians2')
-          gaussians3 = f_malloc((/0.to.lmax,is3.to.ie3,1.to.ep%nmpl/),id='gaussians3')
-          nonzero_startend1 = f_malloc((/2,ep%nmpl/),id='nonzero_startend1')
-          nonzero_startend2 = f_malloc((/2,ep%nmpl/),id='nonzero_startend2')
-          nonzero_startend3 = f_malloc((/2,ep%nmpl/),id='nonzero_startend3')
+          gaussian = f_malloc((/0.to.lmax,is1.to.ie1,is2.to.ie2,is3.to.ie3,1.to.ep%nmpl/),id='gaussian')
+!!$          gaussians1 = f_malloc((/0.to.lmax,is1.to.ie1,1.to.ep%nmpl/),id='gaussians1')
+!!$          gaussians2 = f_malloc((/0.to.lmax,is2.to.ie2,1.to.ep%nmpl/),id='gaussians2')
+!!$          gaussians3 = f_malloc((/0.to.lmax,is3.to.ie3,1.to.ep%nmpl/),id='gaussians3')
+!!$          nonzero_startend1 = f_malloc((/2,ep%nmpl/),id='nonzero_startend1')
+!!$          nonzero_startend2 = f_malloc((/2,ep%nmpl/),id='nonzero_startend2')
+!!$          nonzero_startend3 = f_malloc((/2,ep%nmpl/),id='nonzero_startend3')
 
           do ilr=1,lzd%nlr
 !!$              if (lzd%Llr(ilr)%geocode/='F') then
@@ -294,11 +301,26 @@ module multipole
               end if
           end do
           ! This will not works for wires bc.
-          call geocode_buffers('F', cell_geocode(lzd%glr%mesh), nl1, nl2, nl3)
-          call calculate_gaussian(is1, ie1, 1, nl1, lzd%glr%d%n1i, perx, hx, shift, ep, gaussians1, nonzero_startend1)
-          call calculate_gaussian(is2, ie2, 2, nl2, lzd%glr%d%n2i, pery, hy, shift, ep, gaussians2, nonzero_startend2)
-          call calculate_gaussian(is3, ie3, 3, nl3, lzd%glr%d%n3i, perz, hz, shift, ep, gaussians3, nonzero_startend3)
+!!$          call geocode_buffers('F', cell_geocode(lzd%glr%mesh), nl1, nl2, nl3)
+!!$          call calculate_gaussian(is1, ie1, 1, nl1, lzd%glr%d%n1i, perx, hx, shift, ep, gaussians1, nonzero_startend1)
+!!$          call calculate_gaussian(is2, ie2, 2, nl2, lzd%glr%d%n2i, pery, hy, shift, ep, gaussians2, nonzero_startend2)
+!!$          call calculate_gaussian(is3, ie3, 3, nl3, lzd%glr%d%n3i, perz, hz, shift, ep, gaussians3, nonzero_startend3)
 
+          ! To be parellalized omp
+          do impl=1,ep%nmpl
+              do l=0,lmax
+                  sig = ep%mpl(impl)%sigma(l)
+                  charge(1)=1.0d0/(twopi*sqrt(twopi)*sig**3)
+                  cen = ep%mpl(impl)%rxyz - shift
+                  zeros=0
+                  zero1=0
+                  mp_isf=at%mp_isf
+                  if (.not. at%multipole_preserving) mp_isf=0
+                  call gaussian_real_space_set(g,sig,1,charge,zeros,zero1,mp_isf)
+                  call three_dimensional_density(denspot%dpbox%bitp,g,1.0_dp,cen,&
+                                          gaussian(l,is1:ie1,is2:ie2,is3:ie3,impl))
+              end do
+          end do
 
           norm = f_malloc((/0.to.2,1.to.ep%nmpl/),id='norm')
           norm_check = f_malloc((/0.to.2,1.to.ep%nmpl/),id='norm_check')
@@ -307,17 +329,17 @@ module multipole
           quadrupole = f_malloc((/1.to.5,1.to.ep%nmpl,0.to.nthread-1/),id='quadrupole')
           norm_ok = f_malloc0(ep%nmpl,id='norm_ok')
 
-
-
           ! First calculate the norm of the Gaussians for each multipole
           !norm = 0.d0
-          call calculate_norm(nproc, is1, ie1, is2, ie2, is3, ie3, ep, &
-               hhh, gaussians1, gaussians2, gaussians3, &
-               nonzero_startend1, nonzero_startend2, nonzero_startend3, norm)
+!!$          call calculate_norm(nproc, is1, ie1, is2, ie2, is3, ie3, ep, &
+!!$               hhh, gaussians1, gaussians2, gaussians3, &
+!!$               nonzero_startend1, nonzero_startend2, nonzero_startend3, norm)
+          call calculate_gaussian_norm(denspot%dpbox%bitp,nproc, is1, ie1, is2, ie2, is3, ie3, ep, &
+               hhh, gaussian, norm)
 
-          call f_free(nonzero_startend1)
-          call f_free(nonzero_startend2)
-          call f_free(nonzero_startend3)
+!!$          call f_free(nonzero_startend1)
+!!$          call f_free(nonzero_startend2)
+!!$          call f_free(nonzero_startend3)
 
           ! Check whether they are ok.
           do impl=1,ep%nmpl
@@ -338,9 +360,10 @@ module multipole
                   call f_free(density_cores)
                   call f_free(density_loc)
                   call f_free(potential_loc)
-                  call f_free(gaussians1)
-                  call f_free(gaussians2)
-                  call f_free(gaussians3)
+!!$                  call f_free(gaussians1)
+!!$                  call f_free(gaussians2)
+!!$                  call f_free(gaussians3)
+                  call f_free(gaussian)
                   call f_free(norm)
                   call f_free(norm_check)
                   call f_free(monopole)
@@ -359,10 +382,10 @@ module multipole
 !!$         perx = (denspot%dpbox%geocode /= 'F')
 !!$         pery = (denspot%dpbox%geocode == 'P')
 !!$         perz = (denspot%dpbox%geocode /= 'F')
-         peri=cell_periodic_dims(denspot%dpbox%mesh)
-         perx =peri(1)
-         pery =peri(2)
-         perz =peri(3)
+!!$         peri=cell_periodic_dims(denspot%dpbox%mesh)
+!!$         perx =peri(1)
+!!$         pery =peri(2)
+!!$         perz =peri(3)
 
          n3pi = denspot%dpbox%n3pi
          i3s = denspot%dpbox%i3s + denspot%dpbox%i3xcsh
@@ -372,9 +395,9 @@ module multipole
          n1i = denspot%dpbox%mesh%ndims(1)
          n2i = denspot%dpbox%mesh%ndims(2)
          n3i = denspot%dpbox%mesh%ndims(3)
-         call ext_buffers(perx,nbl1,nbr1)
-         call ext_buffers(pery,nbl2,nbr2)
-         call ext_buffers(perz,nbl3,nbr3)
+!!$         call ext_buffers(perx,nbl1,nbr1)
+!!$         call ext_buffers(pery,nbl2,nbr2)
+!!$         call ext_buffers(perz,nbl3,nbr3)
          !write(*,*) 'ep%nmpl, n1i, n2i, n3i', ep%nmpl, n1i, n2i, n3i
 
 
@@ -388,20 +411,20 @@ module multipole
          !    call get_psp_info(trim(ep%mpl(impl)%sym), ixc, at, nelpsp(impl), psp_source(impl), rloc(impl))
          !end do
 
-         !Determine the maximal bounds for mpx, mpy, mpz (1D-integral)
-         !cutoff=10.0_gp*maxval(rloc(:))
-         cutoff=10.0_gp*maxval(ep%mpl(:)%sigma(0))
-         if (at%multipole_preserving) then
-            !We want to have a good accuracy of the last point rloc*10
-            cutoff=cutoff+max(hxh,hyh,hzh)*real(at%mp_isf,kind=gp)
-         end if
-         !Separable function: do 1-D integrals before and store it.
-         nmpx = (ceiling(cutoff/hxh) - floor(-cutoff/hxh)) + 1
-         nmpy = (ceiling(cutoff/hyh) - floor(-cutoff/hyh)) + 1
-         nmpz = (ceiling(cutoff/hzh) - floor(-cutoff/hzh)) + 1
-         mpx = f_malloc( (/ 0 .to. nmpx /),id='mpx')
-         mpy = f_malloc( (/ 0 .to. nmpy /),id='mpy')
-         mpz = f_malloc( (/ 0 .to. nmpz /),id='mpz')
+!!$         !Determine the maximal bounds for mpx, mpy, mpz (1D-integral)
+!!$         !cutoff=10.0_gp*maxval(rloc(:))
+!!$         cutoff=10.0_gp*maxval(ep%mpl(:)%sigma(0))
+!!$         if (at%multipole_preserving) then
+!!$            !We want to have a good accuracy of the last point rloc*10
+!!$            cutoff=cutoff+max(hxh,hyh,hzh)*real(at%mp_isf,kind=gp)
+!!$         end if
+!!$         !Separable function: do 1-D integrals before and store it.
+!!$         nmpx = (ceiling(cutoff/hxh) - floor(-cutoff/hxh)) + 1
+!!$         nmpy = (ceiling(cutoff/hyh) - floor(-cutoff/hyh)) + 1
+!!$         nmpz = (ceiling(cutoff/hzh) - floor(-cutoff/hzh)) + 1
+!!$         mpx = f_malloc( (/ 0 .to. nmpx /),id='mpx')
+!!$         mpy = f_malloc( (/ 0 .to. nmpy /),id='mpy')
+!!$         mpz = f_malloc( (/ 0 .to. nmpz /),id='mpz')
 
 
          do impl=1,ep%nmpl
@@ -449,9 +472,9 @@ module multipole
 !! UNCOMMENT FOR TEST             end do
 !! UNCOMMENT FOR TEST         end do
 
-         call f_free(mpx)
-         call f_free(mpy)
-         call f_free(mpz)
+!!$         call f_free(mpx)
+!!$         call f_free(mpy)
+!!$         call f_free(mpz)
 
 
           ! Calculate the density only within a sphere of radius rmax
@@ -474,9 +497,11 @@ module multipole
           !$omp default(none) &
           !$omp shared(is1, ie1, is2, ie2, is3, ie3, hx, hy, hz, hhh, ep, shift, nthread, norm_ok) &
           !$omp shared(norm_check, monopole, dipole, quadrupole, density, density_loc, potential_loc) &
-          !$omp shared (gaussians1, gaussians2, gaussians3, rmax, rmin) &
-          !$omp shared (j1s, j1e, j2s, j2e, j3s, j3e, nl1, nl2, nl3, lzd) &
-          !$omp shared (bit,cen,rc,drxyz,denspot) &
+          !$omp shared (rmax, rmin) &
+!!$          !$omp shared (gaussians1, gaussians2, gaussians3) &
+          !$omp shared (nl1, nl2, nl3, lzd) &
+!!$          !$omp shared (j1s, j1e, j2s, j2e, j3s, j3e, nl1, nl2, nl3, lzd) &
+          !$omp shared (bit,cen,rc,drxyz,denspot,gaussian) &
           !$omp private(i1, i2, i3, ii1, ii2, ii3, x, y, z, impl, r, l, gg, m, mm, tt, ttt, ttl, ithread, center, ll) &
           !$omp private(rnrm1, rnrm2, rnrm3, rnrm5, qq, ii, sig, lmax_avail, found_non_associated, j1, j2, j3, dr)
           ithread = 0
@@ -617,7 +642,8 @@ module multipole
                       ttl = 0.d0
                       do l=0,lmax_avail
                           ! Calculate the Gaussian as product of three 1D Gaussians
-                          gg = gaussians1(l,bit%i,impl)*gaussians2(l,bit%j,impl)*gaussians3(l,bit%k,impl)
+!                          gg = gaussians1(l,bit%i,impl)*gaussians2(l,bit%j,impl)*gaussians3(l,bit%k,impl)
+                          gg = gaussian(l,bit%i,bit%j,bit%k,impl)
                           ! Additional modification to avoid divergence
                           sig = ep%mpl(impl)%sigma(l)
                           if (l==1) then
@@ -793,9 +819,10 @@ module multipole
 
           call f_free(density_loc)
           call f_free(potential_loc)
-          call f_free(gaussians1)
-          call f_free(gaussians2)
-          call f_free(gaussians3)
+!!$          call f_free(gaussians1)
+!!$          call f_free(gaussians2)
+!!$          call f_free(gaussians3)
+          call f_free(gaussian)
 
 !! UNCOMMENT FOR TEST          tt = 0.d0
 !! UNCOMMENT FOR TEST          do i3=is3,ie3
@@ -4321,146 +4348,143 @@ module multipole
 
  !!end subroutine get_optimal_sigmas
 
- subroutine calculate_gaussian(is, ie, idim, nl, nglob, periodic, hh, shift, ep, gaussian_array, nonzero_startend)
-   use module_base
-   use multipole_base, only: lmax, external_potential_descriptors
-   implicit none
+!!$ subroutine calculate_gaussian(is, ie, idim, nl, nglob, periodic, hh, shift, ep, gaussian_array, nonzero_startend)
+!!$   use module_base
+!!$   use multipole_base, only: lmax, external_potential_descriptors
+!!$   implicit none
+!!$
+!!$   ! Calling arguments
+!!$   integer,intent(in) :: is, ie, idim, nl, nglob
+!!$   logical,intent(in) :: periodic
+!!$   real(kind=8),intent(in) :: hh
+!!$   real(kind=8),dimension(3),intent(in) :: shift
+!!$   type(external_potential_descriptors),intent(in) :: ep
+!!$   real(kind=8),dimension(0:lmax,is:ie,ep%nmpl),intent(out) :: gaussian_array
+!!$   integer,dimension(2,ep%nmpl),intent(out) :: nonzero_startend
+!!$
+!!$   ! Local variables
+!!$   integer :: i, ii, impl, l, isx, iex, n, imod, nn, nu, nd, js, je, j
+!!$   real(kind=8) :: x, tt, sig, dr, gg
+!!$   logical :: nonzero, nonzero_segment
+!!$
+!!$   call f_routine(id='calculate_gaussian')
+!!$
+!!$   !do impl=1,ep%nmpl
+!!$   !    write(*,*) 'idim, shift(idim), ep%mpl(impl)%rxyz(idim)', idim, shift(idim), ep%mpl(impl)%rxyz(idim)
+!!$   !end do
+!!$
+!!$
+!!$   call f_zero(gaussian_array)
+!!$
+!!$   ! Calculate the boundaries of the Gaussian to be calculated. To make it simple, take always the maximum:
+!!$   ! - free BC: entire box
+!!$   ! - periodic BC: half of the box size, with periodic wrap around
+!!$   if (.not.periodic) then
+!!$       js = 0
+!!$       je = 0
+!!$   else
+!!$       js = -1
+!!$       je = 1
+!!$   end if
+!!$
+!!$   !$omp parallel default(none) &
+!!$   !$omp shared(is, ie, hh, shift, idim, ep, gaussian_array, js, je, nl, nglob, nonzero_startend) &
+!!$   !$omp private(i, ii, x, impl, tt, l, sig, j, dr, gg, nonzero, nonzero_segment)
+!!$   !$omp do
+!!$   do impl=1,ep%nmpl
+!!$       nonzero_segment = .false.
+!!$       ! Start and end of the non-zero segment
+!!$       nonzero_startend(1,impl) = is
+!!$       nonzero_startend(2,impl) = ie
+!!$       do i=is,ie
+!!$           ii = i - nl - 1
+!!$           tt = huge(tt)
+!!$           do j=js,je
+!!$               dr = real(ii+j*nglob,kind=8)*hh + shift(idim) - ep%mpl(impl)%rxyz(idim)
+!!$               if (abs(dr)<abs(tt)) tt = dr
+!!$           end do
+!!$           tt = tt**2
+!!$           nonzero = .false.
+!!$           do l=0,lmax
+!!$               sig = ep%mpl(impl)%sigma(l)
+!!$               gg = gaussian(sig,tt)
+!!$               gaussian_array(l,i,impl) = gg
+!!$               if (gg>0.d0) then
+!!$                   nonzero = .true.
+!!$               end if
+!!$           end do
+!!$           !write(*,*) 'i, nonzero', i , nonzero
+!!$           if (.not.nonzero_segment .and. nonzero) then
+!!$               ! We enter a new segment with non-zero values
+!!$               nonzero_startend(1,impl) = i
+!!$               nonzero_segment = .true.
+!!$           else if (nonzero_segment .and. .not.nonzero) then
+!!$               ! We finish a segment with non-zero values
+!!$               nonzero_startend(2,impl) = i-1
+!!$               nonzero_segment = .false.
+!!$           end if
+!!$       end do
+!!$       !write(*,*) 'B: impl, se', impl, nonzero_startend(1,impl), nonzero_startend(2,impl)
+!!$       if (nonzero_startend(2,impl)<nonzero_startend(1,impl)) then
+!!$           ! This is the case of a periodic wrap around
+!!$           nonzero_startend(2,impl) = ie + nonzero_startend(2,impl) - is + 1
+!!$           !write(*,*) 'A: impl, se', impl, nonzero_startend(1,impl), nonzero_startend(2,impl)
+!!$       end if
+!!$   end do
+!!$   !$omp end do
+!!$   !$omp end parallel
+!!$
+!!$
+!!$   call f_release_routine()
+!!$
+!!$   contains
+!!$
+!!$     function gaussian(sigma, r2) result(g)
+!!$       use module_base, only: pi => pi_param
+!!$       implicit none
+!!$       ! Calling arguments
+!!$       real(kind=8),intent(in) :: sigma, r2
+!!$       real(kind=8) :: tt, g
+!!$
+!!$       ! Only calculate the Gaussian if the result will be larger than 10^-30
+!!$       tt = r2/(2.d0*sigma**2)
+!!$       if (tt<=69.07755279d0) then
+!!$           g = safe_exp(-tt)
+!!$           g = g/sqrt(2.d0*pi*sigma**2)**1!3
+!!$       else
+!!$           g = 0.d0
+!!$       end if
+!!$       !g = g/(sigma**3*sqrt(2.d0*pi)**3)
+!!$
+!!$     end function gaussian
+!!$
+!!$ end subroutine calculate_gaussian
 
-   ! Calling arguments
-   integer,intent(in) :: is, ie, idim, nl, nglob
-   logical,intent(in) :: periodic
-   real(kind=8),intent(in) :: hh
-   real(kind=8),dimension(3),intent(in) :: shift
-   type(external_potential_descriptors),intent(in) :: ep
-   real(kind=8),dimension(0:lmax,is:ie,ep%nmpl),intent(out) :: gaussian_array
-   integer,dimension(2,ep%nmpl),intent(out) :: nonzero_startend
-
-   ! Local variables
-   integer :: i, ii, impl, l, isx, iex, n, imod, nn, nu, nd, js, je, j
-   real(kind=8) :: x, tt, sig, dr, gg
-   logical :: nonzero, nonzero_segment
-
-   call f_routine(id='calculate_gaussian')
-
-   !do impl=1,ep%nmpl
-   !    write(*,*) 'idim, shift(idim), ep%mpl(impl)%rxyz(idim)', idim, shift(idim), ep%mpl(impl)%rxyz(idim)
-   !end do
-
-
-   call f_zero(gaussian_array)
-
-   ! Calculate the boundaries of the Gaussian to be calculated. To make it simple, take always the maximum:
-   ! - free BC: entire box
-   ! - periodic BC: half of the box size, with periodic wrap around
-   if (.not.periodic) then
-       js = 0
-       je = 0
-   else
-       js = -1
-       je = 1
-   end if
-
-   !$omp parallel default(none) &
-   !$omp shared(is, ie, hh, shift, idim, ep, gaussian_array, js, je, nl, nglob, nonzero_startend) &
-   !$omp private(i, ii, x, impl, tt, l, sig, j, dr, gg, nonzero, nonzero_segment)
-   !$omp do
-   do impl=1,ep%nmpl
-       nonzero_segment = .false.
-       ! Start and end of the non-zero segment
-       nonzero_startend(1,impl) = is
-       nonzero_startend(2,impl) = ie
-       do i=is,ie
-           ii = i - nl - 1
-           tt = huge(tt)
-           do j=js,je
-               dr = real(ii+j*nglob,kind=8)*hh + shift(idim) - ep%mpl(impl)%rxyz(idim)
-               if (abs(dr)<abs(tt)) tt = dr
-           end do
-           tt = tt**2
-           nonzero = .false.
-           do l=0,lmax
-               sig = ep%mpl(impl)%sigma(l)
-               gg = gaussian(sig,tt)
-               gaussian_array(l,i,impl) = gg
-               if (gg>0.d0) then
-                   nonzero = .true.
-               end if
-           end do
-           !write(*,*) 'i, nonzero', i , nonzero
-           if (.not.nonzero_segment .and. nonzero) then
-               ! We enter a new segment with non-zero values
-               nonzero_startend(1,impl) = i
-               nonzero_segment = .true.
-           else if (nonzero_segment .and. .not.nonzero) then
-               ! We finish a segment with non-zero values
-               nonzero_startend(2,impl) = i-1
-               nonzero_segment = .false.
-           end if
-       end do
-       !write(*,*) 'B: impl, se', impl, nonzero_startend(1,impl), nonzero_startend(2,impl)
-       if (nonzero_startend(2,impl)<nonzero_startend(1,impl)) then
-           ! This is the case of a periodic wrap around
-           nonzero_startend(2,impl) = ie + nonzero_startend(2,impl) - is + 1
-           !write(*,*) 'A: impl, se', impl, nonzero_startend(1,impl), nonzero_startend(2,impl)
-       end if
-   end do
-   !$omp end do
-   !$omp end parallel
-
-
-   call f_release_routine()
-
-   contains
-
-     function gaussian(sigma, r2) result(g)
-       use module_base, only: pi => pi_param
-       implicit none
-       ! Calling arguments
-       real(kind=8),intent(in) :: sigma, r2
-       real(kind=8) :: tt, g
-
-       ! Only calculate the Gaussian if the result will be larger than 10^-30
-       tt = r2/(2.d0*sigma**2)
-       if (tt<=69.07755279d0) then
-           g = safe_exp(-tt)
-           g = g/sqrt(2.d0*pi*sigma**2)**1!3
-       else
-           g = 0.d0
-       end if
-       !g = g/(sigma**3*sqrt(2.d0*pi)**3)
-
-     end function gaussian
-
- end subroutine calculate_gaussian
-
- subroutine calculate_norm(nproc, is1, ie1, is2, ie2, is3, ie3, ep, &
-            hhh, gaussians1, gaussians2, gaussians3, &
-            nonzero_startend1, nonzero_startend2, nonzero_startend3, norm)
+ subroutine calculate_gaussian_norm(bitp,nproc, is1, ie1, is2, ie2, is3, ie3, ep, &
+            hhh, gaussian, norm)
    use module_base
    use multipole_base, only: external_potential_descriptors
+   use box
    implicit none
 
    ! Calling arguments
+   type(box_iterator), intent(in) :: bitp
    integer,intent(in) :: nproc, is1, ie1, is2, ie2, is3, ie3
    type(external_potential_descriptors),intent(in) :: ep
    real(kind=8),intent(in) :: hhh
-   real(kind=8),dimension(0:lmax,is1:ie1,1:ep%nmpl),intent(in) :: gaussians1
-   real(kind=8),dimension(0:lmax,is2:ie2,1:ep%nmpl),intent(in) :: gaussians2
-   real(kind=8),dimension(0:lmax,is3:ie3,1:ep%nmpl),intent(in) :: gaussians3
-   integer,dimension(2,ep%nmpl),intent(in) :: nonzero_startend1
-   integer,dimension(2,ep%nmpl),intent(in) :: nonzero_startend2
-   integer,dimension(2,ep%nmpl),intent(in) :: nonzero_startend3
+   real(kind=8),dimension(0:lmax,is1:ie1,is2:ie2,is3:ie3,1:ep%nmpl),intent(in) :: gaussian
    real(kind=8),dimension(0:2,ep%nmpl),intent(out) :: norm
 
    ! Local variables
    integer :: impl, i1, i2, i3, ii1, ii2, ii3, l, ithread, nthread
    real(kind=8) :: gg
    real(kind=8),dimension(0:lmax) :: gg23
+   type(box_iterator) :: bit
    !logical,dimension(:,:),allocatable :: i2skip
    logical :: i2skip_initialized
    !$ integer :: omp_get_max_threads, omp_get_thread_num
 
-   call f_routine(id='calculate_norm')
+   call f_routine(id='calculate_gaussian_norm')
 
    nthread = 1
    !$ nthread = omp_get_max_threads()
@@ -4471,60 +4495,47 @@ module multipole
    ithread = 0
    !$omp parallel default(none) &
    !$omp shared(ep, is1, ie1, is2, ie2, is3, ie3, norm, hhh) &
-   !$omp shared(gaussians1, gaussians2, gaussians3, nonzero_startend1, nonzero_startend2, nonzero_startend3) &
+   !$omp shared(gaussian,bit,bitp) &
    !$omp private(impl, i1, i2, i3, ii1, ii2, ii3, l, gg23, gg, i2skip_initialized) &
    !$omp firstprivate(ithread)
    !$ ithread = omp_get_thread_num()
    !$omp do schedule(guided)
    impl_loop: do impl=1,ep%nmpl
-       !!if (skip3_array(impl)) then
-       !!    !write(*,'(a,i0)') '#skip impl ',impl
-       !!    cycle impl_loop
-       !!end if
-       i2skip_initialized = .false.
-       !i3loop: do i3=is3,ie3
-       i3loop: do i3=nonzero_startend3(1,impl),nonzero_startend3(2,impl)
-           ii3 = is3 + mod(i3-is3,ie3-is3+1)
-           !write(*,*) 'is3, ie3, se, i3, ii3', is3, ie3, nonzero_startend3(1:2,impl), i3, ii3
-           if (maxval(gaussians3(:,ii3,impl))<1.d-20) cycle i3loop
-           !!if (.not.i2skip_initialized) then
-           !!    do i2=is2,ie2
-           !!        if (maxval(gaussians2(:,i2,impl))<1.d-20) then
-           !!            i2skip(i2,ithread) = .true.
-           !!        else
-           !!            i2skip(i2,ithread) = .false.
-           !!        end if
-           !!    end do
-           !!    i2skip_initialized = .true.
-           !!end if
-           !i2loop: do i2=is2,ie2
-           i2loop: do i2=nonzero_startend2(1,impl),nonzero_startend2(2,impl)
-               ii2 = is2 + mod(i2-is2,ie2-is2+1)
-               if (maxval(gaussians2(:,ii2,impl))<1.d-20) cycle i2loop
-               !!if (i2skip(i2,ithread)) cycle i2loop
-               do l=0,lmax
-                   gg23(l) = gaussians2(l,ii2,impl)*gaussians3(l,ii3,impl)
-               end do
-               !i1loop: do i1=is1,ie1
-               i1loop: do i1=nonzero_startend1(1,impl),nonzero_startend1(2,impl)
-                   ii1 = is1 + mod(i1-is1,ie1-is1+1)
-                   if (maxval(gaussians1(:,ii1,impl))<1.d-20) cycle i1loop
-                   do l=0,lmax
-                       ! Calculate the Gaussian as product of three 1D Gaussians
-                       !gg = gaussians1(l,i1,impl)*gaussians2(l,i2,impl)*gaussians3(l,i3,impl)
-                       gg = gaussians1(l,ii1,impl)*gg23(l)
-                       norm(l,impl) = norm(l,impl) + gg*hhh
-                   end do
-               end do i1loop
-           end do i2loop
-       end do i3loop
+!--- Start old loop -------------------------------------------------------------------------------------
+!!$       i3loop: do i3=nonzero_startend3(1,impl),nonzero_startend3(2,impl)
+!!$           ii3 = is3 + mod(i3-is3,ie3-is3+1)
+!!$           if (maxval(gaussians3(:,ii3,impl))<1.d-20) cycle i3loop
+!!$           i2loop: do i2=nonzero_startend2(1,impl),nonzero_startend2(2,impl)
+!!$               ii2 = is2 + mod(i2-is2,ie2-is2+1)
+!!$               if (maxval(gaussians2(:,ii2,impl))<1.d-20) cycle i2loop
+!!$               do l=0,lmax
+!!$                   gg23(l) = gaussians2(l,ii2,impl)*gaussians3(l,ii3,impl)
+!!$               end do
+!!$               i1loop: do i1=nonzero_startend1(1,impl),nonzero_startend1(2,impl)
+!!$                   ii1 = is1 + mod(i1-is1,ie1-is1+1)
+!!$                   if (maxval(gaussians1(:,ii1,impl))<1.d-20) cycle i1loop
+!!$                   do l=0,lmax
+!!$                       gg = gaussians1(l,ii1,impl)*gg23(l)
+!!$                       norm(l,impl) = norm(l,impl) + gg*hhh
+!!$                   end do
+!!$               end do i1loop
+!!$           end do i2loop
+!!$       end do i3loop
+!--- Start old loop -------------------------------------------------------------------------------------
+!--- Start new iterator loop -------------------------------------------------------------------------------------
+       bit=bitp
+       do while (box_next_point(bit))
+           do l=0,lmax
+               norm(l,impl) = norm(l,impl) + gaussian(l,bit%i,bit%j,bit%k,impl)*hhh
+           end do
+       end do
+!--- End new iterator loop -------------------------------------------------------------------------------------
    end do impl_loop
    !$omp end do
    !$omp end parallel
 
    call communicate_norm()
 
-   !call f_free(i2skip)
 
    call f_release_routine()
 
@@ -4545,7 +4556,121 @@ module multipole
 
      end subroutine communicate_norm
 
- end subroutine calculate_norm
+ end subroutine calculate_gaussian_norm
+
+!!$ subroutine calculate_norm(nproc, is1, ie1, is2, ie2, is3, ie3, ep, &
+!!$            hhh, gaussians1, gaussians2, gaussians3, &
+!!$            nonzero_startend1, nonzero_startend2, nonzero_startend3, norm)
+!!$   use module_base
+!!$   use multipole_base, only: external_potential_descriptors
+!!$   implicit none
+!!$
+!!$   ! Calling arguments
+!!$   integer,intent(in) :: nproc, is1, ie1, is2, ie2, is3, ie3
+!!$   type(external_potential_descriptors),intent(in) :: ep
+!!$   real(kind=8),intent(in) :: hhh
+!!$   real(kind=8),dimension(0:lmax,is1:ie1,1:ep%nmpl),intent(in) :: gaussians1
+!!$   real(kind=8),dimension(0:lmax,is2:ie2,1:ep%nmpl),intent(in) :: gaussians2
+!!$   real(kind=8),dimension(0:lmax,is3:ie3,1:ep%nmpl),intent(in) :: gaussians3
+!!$   integer,dimension(2,ep%nmpl),intent(in) :: nonzero_startend1
+!!$   integer,dimension(2,ep%nmpl),intent(in) :: nonzero_startend2
+!!$   integer,dimension(2,ep%nmpl),intent(in) :: nonzero_startend3
+!!$   real(kind=8),dimension(0:2,ep%nmpl),intent(out) :: norm
+!!$
+!!$   ! Local variables
+!!$   integer :: impl, i1, i2, i3, ii1, ii2, ii3, l, ithread, nthread
+!!$   real(kind=8) :: gg
+!!$   real(kind=8),dimension(0:lmax) :: gg23
+!!$   !logical,dimension(:,:),allocatable :: i2skip
+!!$   logical :: i2skip_initialized
+!!$   !$ integer :: omp_get_max_threads, omp_get_thread_num
+!!$
+!!$   call f_routine(id='calculate_norm')
+!!$
+!!$   nthread = 1
+!!$   !$ nthread = omp_get_max_threads()
+!!$   !i2skip = f_malloc((/is2.to.ie2,0.to.nthread/),id='i2skip')
+!!$
+!!$   call f_zero(norm)
+!!$
+!!$   ithread = 0
+!!$   !$omp parallel default(none) &
+!!$   !$omp shared(ep, is1, ie1, is2, ie2, is3, ie3, norm, hhh) &
+!!$   !$omp shared(gaussians1, gaussians2, gaussians3, nonzero_startend1, nonzero_startend2, nonzero_startend3) &
+!!$   !$omp private(impl, i1, i2, i3, ii1, ii2, ii3, l, gg23, gg, i2skip_initialized) &
+!!$   !$omp firstprivate(ithread)
+!!$   !$ ithread = omp_get_thread_num()
+!!$   !$omp do schedule(guided)
+!!$   impl_loop: do impl=1,ep%nmpl
+!!$       !!if (skip3_array(impl)) then
+!!$       !!    !write(*,'(a,i0)') '#skip impl ',impl
+!!$       !!    cycle impl_loop
+!!$       !!end if
+!!$       i2skip_initialized = .false.
+!!$       !i3loop: do i3=is3,ie3
+!!$       i3loop: do i3=nonzero_startend3(1,impl),nonzero_startend3(2,impl)
+!!$           ii3 = is3 + mod(i3-is3,ie3-is3+1)
+!!$           !write(*,*) 'is3, ie3, se, i3, ii3', is3, ie3, nonzero_startend3(1:2,impl), i3, ii3
+!!$           if (maxval(gaussians3(:,ii3,impl))<1.d-20) cycle i3loop
+!!$           !!if (.not.i2skip_initialized) then
+!!$           !!    do i2=is2,ie2
+!!$           !!        if (maxval(gaussians2(:,i2,impl))<1.d-20) then
+!!$           !!            i2skip(i2,ithread) = .true.
+!!$           !!        else
+!!$           !!            i2skip(i2,ithread) = .false.
+!!$           !!        end if
+!!$           !!    end do
+!!$           !!    i2skip_initialized = .true.
+!!$           !!end if
+!!$           !i2loop: do i2=is2,ie2
+!!$           i2loop: do i2=nonzero_startend2(1,impl),nonzero_startend2(2,impl)
+!!$               ii2 = is2 + mod(i2-is2,ie2-is2+1)
+!!$               if (maxval(gaussians2(:,ii2,impl))<1.d-20) cycle i2loop
+!!$               !!if (i2skip(i2,ithread)) cycle i2loop
+!!$               do l=0,lmax
+!!$                   gg23(l) = gaussians2(l,ii2,impl)*gaussians3(l,ii3,impl)
+!!$               end do
+!!$               !i1loop: do i1=is1,ie1
+!!$               i1loop: do i1=nonzero_startend1(1,impl),nonzero_startend1(2,impl)
+!!$                   ii1 = is1 + mod(i1-is1,ie1-is1+1)
+!!$                   if (maxval(gaussians1(:,ii1,impl))<1.d-20) cycle i1loop
+!!$                   do l=0,lmax
+!!$                       ! Calculate the Gaussian as product of three 1D Gaussians
+!!$                       !gg = gaussians1(l,i1,impl)*gaussians2(l,i2,impl)*gaussians3(l,i3,impl)
+!!$                       gg = gaussians1(l,ii1,impl)*gg23(l)
+!!$                       norm(l,impl) = norm(l,impl) + gg*hhh
+!!$                   end do
+!!$               end do i1loop
+!!$           end do i2loop
+!!$       end do i3loop
+!!$   end do impl_loop
+!!$   !$omp end do
+!!$   !$omp end parallel
+!!$
+!!$   call communicate_norm()
+!!$
+!!$   !call f_free(i2skip)
+!!$
+!!$   call f_release_routine()
+!!$
+!!$   contains
+!!$
+!!$     ! This routine is just here for the timing
+!!$     subroutine communicate_norm()
+!!$       implicit none
+!!$
+!!$       call f_routine(id='communicate_norm')
+!!$
+!!$       ! Sum up the norms of the Gaussians.
+!!$       if (nproc>1) then
+!!$           call fmpi_allreduce(norm, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+!!$       end if
+!!$
+!!$       call f_release_routine()
+!!$
+!!$     end subroutine communicate_norm
+!!$
+!!$ end subroutine calculate_norm
 
 
 !> Calculate the dipole of a Field given in the rho array.
