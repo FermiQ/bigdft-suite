@@ -670,6 +670,7 @@ contains
     END SUBROUTINE init_lr
 
     subroutine correct_lr_extremes(lr,Glr,geocode,correct,nbox_lr,nbox)
+      use box, only: cell_geocode
       implicit none
       logical, intent(in) :: correct
       type(locreg_descriptors), intent(inout) :: lr
@@ -714,7 +715,8 @@ contains
 
       !assign the starting/ending points and outofzone for the different
       ! geometries
-      select case(Glr%geocode)
+!!$      select case(Glr%geocode)
+      select case(cell_geocode(Glr%mesh))
       case('F')
          isx=max(isx,Glr%ns1)
          isy=max(isy,Glr%ns2)
@@ -810,6 +812,9 @@ contains
          if(xperiodic .and. yperiodic .and. zperiodic ) then
             geocode = 'P'
          end if
+      case('W')
+         call f_err_throw("Wires bc has to be implemented here", &
+              err_name='BIGDFT_RUNTIME_ERROR')
       end select
       ! Make sure that the localization regions are not periodic
       if (xperiodic .or. yperiodic .or. zperiodic) then
@@ -851,6 +856,7 @@ contains
     !> initalize the box-related components of the localization regions
     subroutine lr_box(lr,Glr,hgrids,nbox,correction)
       use bounds, only: ext_buffers
+      use box, only: cell_geocode
       implicit none
       !> Sub-box to iterate over the points (ex. around atoms)
       !! start and end points for each direction
@@ -876,7 +882,8 @@ contains
       call init_lr(lr,geocode,hgridsh,nbox_lr(2,1),nbox_lr(2,2),nbox_lr(2,3),&
            Glr%d%nfl1,Glr%d%nfl2,Glr%d%nfl3,&
            Glr%d%nfu1,Glr%d%nfu2,Glr%d%nfu3,&
-           .false.,nbox_lr(1,1),nbox_lr(1,2),nbox_lr(1,3),Glr%geocode)
+!!$           .false.,nbox_lr(1,1),nbox_lr(1,2),nbox_lr(1,3),Glr%geocode)
+           .false.,nbox_lr(1,1),nbox_lr(1,2),nbox_lr(1,3),cell_geocode(Glr%mesh))
 
       ! Make sure that the extent of the interpolating functions grid for the
       ! locreg is not larger than the that of the global box.
