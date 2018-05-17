@@ -600,7 +600,8 @@ subroutine finalise_precond_residue(mesh,hybrid_on,ncplx,wfd,scal,x)
         call wscalv_wrap(wfd%nvctr_c,wfd%nvctr_f,scal,x(1,idx))
      end do
 !!$  else if ((geocode == 'P' .and. .not. hybrid_on) .or. geocode == 'S') then
-  else if ((cell_geocode(mesh) == 'P' .and. .not. hybrid_on) .or. cell_geocode(mesh) == 'S') then
+  else if ((cell_geocode(mesh) == 'P' .and. .not. hybrid_on) .or. cell_geocode(mesh) == 'S' &
+             .or. cell_geocode(mesh) == 'W' ) then
      do idx=1,ncplx
         ! x=D^{-1/2}x'
         call wscal_per_self(wfd%nvctr_c,wfd%nvctr_f,scal,x(1,idx),&
@@ -608,9 +609,6 @@ subroutine finalise_precond_residue(mesh,hybrid_on,ncplx,wfd,scal,x)
         !	write(30,*) x
         !	stop
      end do
-  else if (cell_geocode(mesh) == 'W') then
-     call f_err_throw("Wires bc has to be implemented here", &
-          err_name='BIGDFT_RUNTIME_ERROR')
   else
   end if
 
@@ -643,10 +641,8 @@ subroutine calculate_rmr_new(mesh,hybrid_on,ncplx,wfd,scal,r,b,rmr_new)
 !!$  noscal = ((geocode == 'P' .and. .not. hybrid_on) .or. &
 !!$      geocode == 'F' .or. geocode == 'S')
   noscal = ((cell_geocode(mesh) == 'P' .and. .not. hybrid_on) .or. &
-       cell_geocode(mesh) == 'F' .or. cell_geocode(mesh) == 'S')
-
-  if (cell_geocode(mesh) == 'W') call f_err_throw("Wires bc has to be implemented here", &
-             err_name='BIGDFT_RUNTIME_ERROR')
+       cell_geocode(mesh) == 'F' .or. cell_geocode(mesh) == 'S'.or. &
+               cell_geocode(mesh) == 'W' )
 
   if (noscal) then
      call vcopy(ncplx*(wfd%nvctr_c+7*wfd%nvctr_f),r(1,1),1,b(1,1),1) 

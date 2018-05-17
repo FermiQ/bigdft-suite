@@ -14,7 +14,7 @@ module multipole
 !!$  public :: gaussian_density
   public :: support_function_gross_multipoles
   public :: calculate_dipole_moment
-  public :: calculate_rpowerx_matrices
+!!$  public :: calculate_rpowerx_matrices
   public :: multipole_analysis_driver_new
   public :: init_extract_matrix_lookup
   public :: extract_matrix
@@ -26,13 +26,15 @@ module multipole
 
     !> Calculate the interaction between the ions and the external multipoles.
     !! At the moment only the monopoles are taken into account.
-    subroutine interaction_multipoles_ions(iproc, ep, at, eion, fion)
+    subroutine interaction_multipoles_ions(iproc, mesh, ep, at, eion, fion)
       use module_types, only: atoms_data
       use yaml_output, only: yaml_map
+      use box, only: cell,closest_r,rxyz_ortho,square_gd
       implicit none
 
       ! Calling arguments
       integer,intent(in) :: iproc
+      type(cell), intent(in) :: mesh
       type(external_potential_descriptors),intent(in) :: ep
       type(atoms_data),intent(in) :: at
       real(gp),intent(inout) :: eion
@@ -40,17 +42,24 @@ module multipole
 
       ! Local variables
       integer :: iat, ityp, impl
-      real(gp) :: r, charge, emp, qq
+      real(gp) :: r, r2, charge, emp, qq
+      real(gp), dimension(3) :: rc,dr
 
       !write(*,*) 'WARNING DEBUG HERE!!!!!!!!!!!!!!!!!!!!!!!!!'
       !return
 
       call f_routine(id='interaction_multipoles_ions')
 
+
+
       emp = 0.0_gp
       do iat=1,at%astruct%nat
           ityp=at%astruct%iatype(iat)
           do impl=1,ep%nmpl
+!              rc = closest_r(mesh,at%astruct%rxyz(1:3,iat),ep%mpl(impl)%rxyz(1:3))
+!              dr = rxyz_ortho(mesh,rc)
+!              r2 = square_gd(mesh,rc)
+!              r = sqrt(r2)
               r = sqrt((at%astruct%rxyz(1,iat)-ep%mpl(impl)%rxyz(1))**2 + &
                        (at%astruct%rxyz(2,iat)-ep%mpl(impl)%rxyz(2))**2 + &
                        (at%astruct%rxyz(3,iat)-ep%mpl(impl)%rxyz(3))**2)
@@ -69,6 +78,9 @@ module multipole
                   fion(1,iat) = fion(1,iat) + charge/(r**3)*(at%astruct%rxyz(1,iat)-ep%mpl(impl)%rxyz(1))
                   fion(2,iat) = fion(2,iat) + charge/(r**3)*(at%astruct%rxyz(2,iat)-ep%mpl(impl)%rxyz(2))
                   fion(3,iat) = fion(3,iat) + charge/(r**3)*(at%astruct%rxyz(3,iat)-ep%mpl(impl)%rxyz(3))
+!                  fion(1,iat) = fion(1,iat) + charge/(r**3)*(dr(1))
+!                  fion(2,iat) = fion(2,iat) + charge/(r**3)*(dr(2))
+!                  fion(3,iat) = fion(3,iat) + charge/(r**3)*(dr(3))
               end if
           end do
       end do
@@ -87,20 +99,23 @@ module multipole
 
     !> Calculate the interaction between the external multipoles.
     !! At the moment only the monopoles are taken into account.
-    subroutine ionic_energy_of_external_charges(iproc, ep, at, eion)
+    subroutine ionic_energy_of_external_charges(iproc, mesh, ep, at, eion)
       use module_types, only: atoms_data
       use yaml_output, only: yaml_map
+      use box, only: cell,closest_r,rxyz_ortho,square_gd
       implicit none
 
       ! Calling arguments
       integer,intent(in) :: iproc
+      type(cell), intent(in) :: mesh
       type(external_potential_descriptors),intent(in) :: ep
       type(atoms_data),intent(in) :: at
       real(gp),intent(inout) :: eion
 
       ! Local variables
       integer :: impl, jmpl
-      real(gp) :: r, charge, emp, qqi, qqj
+      real(gp) :: r, r2, charge, emp, qqi, qqj
+      real(gp), dimension(3) :: rc
 
       !write(*,*) 'WARNING DEBUG HERE!!!!!!!!!!!!!!!!!!!!!!!!!'
       !return
@@ -130,6 +145,9 @@ module multipole
                           ! Net value, take as is
                           qqj = -1.0_gp*ep%mpl(jmpl)%qlm(0)%q(1)
                       end if
+!                      rc = closest_r(mesh,ep%mpl(impl)%rxyz(1:3),ep%mpl(jmpl)%rxyz(1:3))
+!                      r2 = square_gd(mesh,rc)
+!                      r = sqrt(r2)
                       r = sqrt((ep%mpl(impl)%rxyz(1)-ep%mpl(jmpl)%rxyz(1))**2 + &
                                (ep%mpl(impl)%rxyz(2)-ep%mpl(jmpl)%rxyz(2))**2 + &
                                (ep%mpl(impl)%rxyz(3)-ep%mpl(jmpl)%rxyz(3))**2)
@@ -3094,359 +3112,353 @@ module multipole
 
 
 
-    subroutine supportfunction_centers(nat, rxyz, nphidim, phi, nphirdim, &
-               norb, norbp, isorb, in_which_locreg, lzd, com)
-      use module_base
-      use module_types, only: local_zone_descriptors
-!!$      use bounds, only: geocode_buffers
-      use locreg_operations
-      use yaml_output
-      implicit none
+!!$    subroutine supportfunction_centers(nat, rxyz, nphidim, phi, nphirdim, &
+!!$               norb, norbp, isorb, in_which_locreg, lzd, com)
+!!$      use module_base
+!!$      use module_types, only: local_zone_descriptors
+!!$!!$      use bounds, only: geocode_buffers
+!!$      use locreg_operations
+!!$      use yaml_output
+!!$      implicit none
+!!$
+!!$      ! Calling arguments
+!!$      integer,intent(in) :: nat, nphidim, nphirdim, norb, norbp, isorb
+!!$      integer,dimension(norb),intent(in) :: in_which_locreg
+!!$      real(kind=8),dimension(3,nat),intent(in) :: rxyz
+!!$      real(kind=8),dimension(nphidim),intent(in) :: phi
+!!$      type(local_zone_descriptors),intent(in) :: lzd
+!!$      real(kind=8),dimension(3,norbp),intent(out) :: com
+!!$
+!!$      ! Local variables
+!!$      real(kind=8),dimension(:),allocatable :: psir
+!!$      type(workarr_sumrho) :: w
+!!$      integer :: ist, istr, iorb, iiorb, ilr, i1, i2, i3, ii1, ii2, ii3, iat, iiat, l, m, nl1, nl2, nl3
+!!$      real(kind=8),dimension(-1:1) :: dipole
+!!$      real(kind=8) :: weight, tt, x, y, z, r2, hxh, hyh, hzh, q, qtot, monopole, r
+!!$      real(kind=8),parameter :: sigma2=0.1d0
+!!$      integer, dimension(3) :: ioffset_isf
+!!$
+!!$      call f_routine(id='supportfunction_centers')
+!!$
+!!$      ! Transform the support functions to real space
+!!$      psir = f_malloc(max(nphirdim,1),id='psir')
+!!$      ist=1
+!!$      istr=1
+!!$      do iorb=1,norbp
+!!$          iiorb=isorb+iorb
+!!$          ilr=in_which_locreg(iiorb)
+!!$          call initialize_work_arrays_sumrho(lzd%Llr(ilr),.true.,w)
+!!$          call daub_to_isf(lzd%Llr(ilr), w, phi(ist), psir(istr))
+!!$          call deallocate_work_arrays_sumrho(w)
+!!$          !write(*,'(a,4i8,es16.6)') 'INITIAL: iproc, iiorb, n, istr, ddot', &
+!!$          !    iproc, iiorb, lzd%Llr(ilr)%d%n1i*lzd%Llr(ilr)%d%n2i*lzd%Llr(ilr)%d%n3i, &
+!!$          !    istr, ddot(lzd%Llr(ilr)%d%n1i*lzd%Llr(ilr)%d%n2i*lzd%Llr(ilr)%d%n3i, psir(istr), 1, psir(istr), 1)
+!!$          !testarr(1,iiorb) = ddot(lzd%Llr(ilr)%d%n1i*lzd%Llr(ilr)%d%n2i*lzd%Llr(ilr)%d%n3i, psir(istr), 1, psir(istr), 1)
+!!$          ist = ist + lzd%Llr(ilr)%wfd%nvctr_c + 7*lzd%Llr(ilr)%wfd%nvctr_f
+!!$          istr = istr + lzd%Llr(ilr)%d%n1i*lzd%Llr(ilr)%d%n2i*lzd%Llr(ilr)%d%n3i
+!!$      end do
+!!$      if(istr/=nphirdim+1) then
+!!$          call f_err_throw('ERROR on process '//adjustl(trim(yaml_toa(bigdft_mpi%iproc)))//': istr/=nphirdim+1', &
+!!$               err_name='BIGDFT_RUNTIME_ERROR')
+!!$          stop
+!!$      end if
+!!$
+!!$      hxh = 0.5d0*lzd%hgrids(1)
+!!$      hyh = 0.5d0*lzd%hgrids(2)
+!!$      hzh = 0.5d0*lzd%hgrids(3)
+!!$
+!!$      istr = 1
+!!$      do iorb=1,norbp
+!!$          iiorb=isorb+iorb
+!!$          ilr=in_which_locreg(iiorb)
+!!$!!$          call geocode_buffers(lzd%Llr(ilr)%geocode, lzd%glr%geocode, nl1, nl2, nl3)
+!!$          ioffset_isf(:) = get_isf_offset(lzd%Llr(ilr),lzd%glr%mesh)
+!!$          !write(*,*) 'iorb, iiorb, ilr', iorb, iiorb, ilr
+!!$          com(1:3,iorb) = 0.d0
+!!$          weight = 0.d0
+!!$          do i3=1,lzd%llr(ilr)%d%n3i
+!!$!!$              ii3 = lzd%llr(ilr)%nsi3 + i3 - nl3 - 1
+!!$              ii3 = ioffset_isf(3) + i3
+!!$              z = ii3*hzh
+!!$              do i2=1,lzd%llr(ilr)%d%n2i
+!!$!!$                  ii2 = lzd%llr(ilr)%nsi2 + i2 - nl2 - 1
+!!$                  ii2 = ioffset_isf(2) + i2
+!!$                  y = ii2*hyh
+!!$                  do i1=1,lzd%llr(ilr)%d%n1i
+!!$!!$                      ii1 = lzd%llr(ilr)%nsi1 + i1 - nl1 - 1
+!!$                      ii1 = ioffset_isf(1) + i1
+!!$                      x = ii1*hxh
+!!$                      tt = psir(istr)**2
+!!$                      com(1,iorb) = com(1,iorb) + x*tt
+!!$                      com(2,iorb) = com(2,iorb) + y*tt
+!!$                      com(3,iorb) = com(3,iorb) + z*tt
+!!$                      weight = weight + tt
+!!$                      istr = istr + 1
+!!$                  end do
+!!$              end do
+!!$          end do
+!!$          !call yaml_map('weight',weight)
+!!$          com(1:3,iorb) = com(1:3,iorb)/weight
+!!$
+!!$      end do
+!!$
+!!$      call f_free(psir)
+!!$
+!!$      call f_release_routine()
+!!$
+!!$    end subroutine supportfunction_centers
 
-      ! Calling arguments
-      integer,intent(in) :: nat, nphidim, nphirdim, norb, norbp, isorb
-      integer,dimension(norb),intent(in) :: in_which_locreg
-      real(kind=8),dimension(3,nat),intent(in) :: rxyz
-      real(kind=8),dimension(nphidim),intent(in) :: phi
-      type(local_zone_descriptors),intent(in) :: lzd
-      real(kind=8),dimension(3,norbp),intent(out) :: com
-
-      ! Local variables
-      real(kind=8),dimension(:),allocatable :: psir
-      type(workarr_sumrho) :: w
-      integer :: ist, istr, iorb, iiorb, ilr, i1, i2, i3, ii1, ii2, ii3, iat, iiat, l, m, nl1, nl2, nl3
-      real(kind=8),dimension(-1:1) :: dipole
-      real(kind=8) :: weight, tt, x, y, z, r2, hxh, hyh, hzh, q, qtot, monopole, r
-      real(kind=8),parameter :: sigma2=0.1d0
-      integer, dimension(3) :: ioffset_isf
-
-      call f_routine(id='supportfunction_centers')
-
-      ! Transform the support functions to real space
-      psir = f_malloc(max(nphirdim,1),id='psir')
-      ist=1
-      istr=1
-      do iorb=1,norbp
-          iiorb=isorb+iorb
-          ilr=in_which_locreg(iiorb)
-          call initialize_work_arrays_sumrho(lzd%Llr(ilr),.true.,w)
-          call daub_to_isf(lzd%Llr(ilr), w, phi(ist), psir(istr))
-          call deallocate_work_arrays_sumrho(w)
-          !write(*,'(a,4i8,es16.6)') 'INITIAL: iproc, iiorb, n, istr, ddot', &
-          !    iproc, iiorb, lzd%Llr(ilr)%d%n1i*lzd%Llr(ilr)%d%n2i*lzd%Llr(ilr)%d%n3i, &
-          !    istr, ddot(lzd%Llr(ilr)%d%n1i*lzd%Llr(ilr)%d%n2i*lzd%Llr(ilr)%d%n3i, psir(istr), 1, psir(istr), 1)
-          !testarr(1,iiorb) = ddot(lzd%Llr(ilr)%d%n1i*lzd%Llr(ilr)%d%n2i*lzd%Llr(ilr)%d%n3i, psir(istr), 1, psir(istr), 1)
-          ist = ist + lzd%Llr(ilr)%wfd%nvctr_c + 7*lzd%Llr(ilr)%wfd%nvctr_f
-          istr = istr + lzd%Llr(ilr)%d%n1i*lzd%Llr(ilr)%d%n2i*lzd%Llr(ilr)%d%n3i
-      end do
-      if(istr/=nphirdim+1) then
-          call f_err_throw('ERROR on process '//adjustl(trim(yaml_toa(bigdft_mpi%iproc)))//': istr/=nphirdim+1', &
-               err_name='BIGDFT_RUNTIME_ERROR')
-          stop
-      end if
-
-      hxh = 0.5d0*lzd%hgrids(1)
-      hyh = 0.5d0*lzd%hgrids(2)
-      hzh = 0.5d0*lzd%hgrids(3)
-
-      istr = 1
-      do iorb=1,norbp
-          iiorb=isorb+iorb
-          ilr=in_which_locreg(iiorb)
-!!$          call geocode_buffers(lzd%Llr(ilr)%geocode, lzd%glr%geocode, nl1, nl2, nl3)
-          ioffset_isf(:) = get_isf_offset(lzd%Llr(ilr),lzd%glr%mesh)
-          !write(*,*) 'iorb, iiorb, ilr', iorb, iiorb, ilr
-          com(1:3,iorb) = 0.d0
-          weight = 0.d0
-          do i3=1,lzd%llr(ilr)%d%n3i
-!!$              ii3 = lzd%llr(ilr)%nsi3 + i3 - nl3 - 1
-              ii3 = ioffset_isf(3) + i3
-              z = ii3*hzh
-              do i2=1,lzd%llr(ilr)%d%n2i
-!!$                  ii2 = lzd%llr(ilr)%nsi2 + i2 - nl2 - 1
-                  ii2 = ioffset_isf(2) + i2
-                  y = ii2*hyh
-                  do i1=1,lzd%llr(ilr)%d%n1i
-!!$                      ii1 = lzd%llr(ilr)%nsi1 + i1 - nl1 - 1
-                      ii1 = ioffset_isf(1) + i1
-                      x = ii1*hxh
-                      tt = psir(istr)**2
-                      com(1,iorb) = com(1,iorb) + x*tt
-                      com(2,iorb) = com(2,iorb) + y*tt
-                      com(3,iorb) = com(3,iorb) + z*tt
-                      weight = weight + tt
-                      istr = istr + 1
-                  end do
-              end do
-          end do
-          !call yaml_map('weight',weight)
-          com(1:3,iorb) = com(1:3,iorb)/weight
-
-      end do
-
-      call f_free(psir)
-
-      call f_release_routine()
-
-    end subroutine supportfunction_centers
-
-
-
-
-
-
-
-  subroutine add_penalty_term(geocode, nfvctr, neighbor, rxyz, cell_dim, com, alpha, n, ovrlp, ham)
-    use module_base
-    implicit none
-
-    ! Calling arguments
-    character(len=1),intent(in) :: geocode
-    integer,intent(in) :: nfvctr, n
-    logical,dimension(nfvctr),intent(in) :: neighbor
-    real(kind=8),dimension(3),intent(in) :: rxyz, cell_dim
-    real(kind=8),intent(in) :: alpha
-    real(kind=8),dimension(3,nfvctr),intent(in) :: com
-    real(kind=8),dimension(n,n),intent(inout) :: ovrlp
-    real(kind=8),dimension(n,n),intent(inout) :: ham
-
-    ! Local variables
-    logical :: perx, pery, perz
-    integer :: is1, ie1, is2, ie2, is3, ie3, icheck, ii, i, jj, j, i1, i2, i3
-    real(kind=8) :: rr2, x, y, z, ttx, tty, ttz, tt
-
-    call f_routine(id='add_penalty_term')
-
-    ! Determine the periodicity...
-    !write(*,*) 'geocode',geocode
-    perx=(geocode /= 'F')
-    pery=(geocode == 'P')
-    perz=(geocode /= 'F')
-    if (perx) then
-        is1 = -1
-        ie1 = 1
-    else
-        is1 = 0
-        ie1 = 0
-    end if
-    if (pery) then
-        is2 = -1
-        ie2 = 1
-    else
-        is2 = 0
-        ie2 = 0
-    end if
-    if (perz) then
-        is3 = -1
-        ie3 = 1
-    else
-        is3 = 0
-        ie3 = 0
-    end if
-
-
-    ! Add the penalty term
-    icheck = 0
-    ii = 0
-    do i=1,nfvctr
-        if (neighbor(i)) then
-            jj = 0
-            do j=1,nfvctr
-                if (neighbor(j)) then
-                    icheck = icheck + 1
-                    jj = jj + 1
-                    if (jj==1) ii = ii + 1 !new column if we are at the first line element of a a column
-                    if (i==j) then
-                        rr2 = huge(rr2)
-                        do i3=is3,ie3
-                            z = rxyz(3) + i3*cell_dim(3)
-                            ttz = (com(3,i)-z)**2
-                            do i2=is2,ie2
-                                y = rxyz(2) + i2*cell_dim(2)
-                                tty = (com(2,i)-y)**2
-                                do i1=is1,ie1
-                                    x = rxyz(1) + i1*cell_dim(1)
-                                    ttx = (com(1,i)-x)**2
-                                    tt = ttx + tty + ttz
-                                    if (tt<rr2) then
-                                        rr2 = tt
-                                    end if
-                                end do
-                            end do
-                        end do
-                        !write(*,*) 'i, j, ii, jj, tt', ii, jj, alpha*rr2**3
-                        !ham(jj,ii) = ham(jj,ii) + alpha*rr2**3*ovrlp(jj,ii)
-                        if (jj==ii) then
-                            ham(jj,ii) = ham(jj,ii) + alpha*rr2**3
-                        end if
-                    end if
-                end if
-            end do
-        end if
-    end do
-    if (icheck>n**2) then
-        call f_err_throw('icheck('//adjustl(trim(yaml_toa(icheck)))//') > n**2('//&
-            &adjustl(trim(yaml_toa(n**2)))//')',err_name='BIGDFT_RUNTIME_ERROR')
-    end if
-
-    call f_release_routine()
-
-  end subroutine add_penalty_term
+!!$  subroutine add_penalty_term(geocode, nfvctr, neighbor, rxyz, cell_dim, com, alpha, n, ovrlp, ham)
+!!$    use module_base
+!!$    implicit none
+!!$
+!!$    ! Calling arguments
+!!$    character(len=1),intent(in) :: geocode
+!!$    integer,intent(in) :: nfvctr, n
+!!$    logical,dimension(nfvctr),intent(in) :: neighbor
+!!$    real(kind=8),dimension(3),intent(in) :: rxyz, cell_dim
+!!$    real(kind=8),intent(in) :: alpha
+!!$    real(kind=8),dimension(3,nfvctr),intent(in) :: com
+!!$    real(kind=8),dimension(n,n),intent(inout) :: ovrlp
+!!$    real(kind=8),dimension(n,n),intent(inout) :: ham
+!!$
+!!$    ! Local variables
+!!$    logical :: perx, pery, perz
+!!$    integer :: is1, ie1, is2, ie2, is3, ie3, icheck, ii, i, jj, j, i1, i2, i3
+!!$    real(kind=8) :: rr2, x, y, z, ttx, tty, ttz, tt
+!!$
+!!$    call f_routine(id='add_penalty_term')
+!!$
+!!$    ! Determine the periodicity...
+!!$    !write(*,*) 'geocode',geocode
+!!$    perx=(geocode /= 'F')
+!!$    pery=(geocode == 'P')
+!!$    perz=(geocode /= 'F')
+!!$    if (perx) then
+!!$        is1 = -1
+!!$        ie1 = 1
+!!$    else
+!!$        is1 = 0
+!!$        ie1 = 0
+!!$    end if
+!!$    if (pery) then
+!!$        is2 = -1
+!!$        ie2 = 1
+!!$    else
+!!$        is2 = 0
+!!$        ie2 = 0
+!!$    end if
+!!$    if (perz) then
+!!$        is3 = -1
+!!$        ie3 = 1
+!!$    else
+!!$        is3 = 0
+!!$        ie3 = 0
+!!$    end if
+!!$
+!!$
+!!$    ! Add the penalty term
+!!$    icheck = 0
+!!$    ii = 0
+!!$    do i=1,nfvctr
+!!$        if (neighbor(i)) then
+!!$            jj = 0
+!!$            do j=1,nfvctr
+!!$                if (neighbor(j)) then
+!!$                    icheck = icheck + 1
+!!$                    jj = jj + 1
+!!$                    if (jj==1) ii = ii + 1 !new column if we are at the first line element of a a column
+!!$                    if (i==j) then
+!!$                        rr2 = huge(rr2)
+!!$                        do i3=is3,ie3
+!!$                            z = rxyz(3) + i3*cell_dim(3)
+!!$                            ttz = (com(3,i)-z)**2
+!!$                            do i2=is2,ie2
+!!$                                y = rxyz(2) + i2*cell_dim(2)
+!!$                                tty = (com(2,i)-y)**2
+!!$                                do i1=is1,ie1
+!!$                                    x = rxyz(1) + i1*cell_dim(1)
+!!$                                    ttx = (com(1,i)-x)**2
+!!$                                    tt = ttx + tty + ttz
+!!$                                    if (tt<rr2) then
+!!$                                        rr2 = tt
+!!$                                    end if
+!!$                                end do
+!!$                            end do
+!!$                        end do
+!!$                        !write(*,*) 'i, j, ii, jj, tt', ii, jj, alpha*rr2**3
+!!$                        !ham(jj,ii) = ham(jj,ii) + alpha*rr2**3*ovrlp(jj,ii)
+!!$                        if (jj==ii) then
+!!$                            ham(jj,ii) = ham(jj,ii) + alpha*rr2**3
+!!$                        end if
+!!$                    end if
+!!$                end if
+!!$            end do
+!!$        end if
+!!$    end do
+!!$    if (icheck>n**2) then
+!!$        call f_err_throw('icheck('//adjustl(trim(yaml_toa(icheck)))//') > n**2('//&
+!!$            &adjustl(trim(yaml_toa(n**2)))//')',err_name='BIGDFT_RUNTIME_ERROR')
+!!$    end if
+!!$
+!!$    call f_release_routine()
+!!$
+!!$  end subroutine add_penalty_term
 
 
 
 
-  subroutine add_penalty_term_new(geocode, nat, nfvctr, neighbor, rxyz, on_which_atom, &
-             multipoles, cell_dim, com, alpha, n, ham, nmax, penalty_matrix)
-    use module_base
-    use multipole_base, only: lmax
-    use module_base
-    implicit none
-
-    ! Calling arguments
-    character(len=1),intent(in) :: geocode
-    integer,intent(in) :: nat, nfvctr, n, nmax
-    logical,dimension(nfvctr),intent(in) :: neighbor
-    real(kind=8),dimension(3),intent(in) :: rxyz, cell_dim
-    integer,dimension(nfvctr),intent(in) :: on_which_atom
-    real(kind=8),dimension(-lmax:lmax,0:lmax,nfvctr) :: multipoles
-    real(kind=8),dimension(3,nfvctr),intent(in) :: com
-    real(kind=8),intent(in) :: alpha
-    real(kind=8),dimension(n,n),intent(inout) :: ham
-    real(kind=8),dimension(n,n),intent(out) :: penalty_matrix
-
-    ! Local variables
-    logical :: perx, pery, perz
-    integer :: is1, ie1, is2, ie2, is3, ie3, icheck, ii, i, jj, j, i1, i2, i3
-    integer :: il, jl, im, jm, ix, iy, iz, iat, jat
-    real(kind=8) :: rr2, x, y, z, ttx, tty, ttz, tt, argi, argj, expi, expj, silim, sjljm, rr, xx, yy, zz
-    real(kind=8),dimension(1:3) :: rip, rjp
-    integer,parameter :: nn=25
-    real(kind=8),parameter :: hh=0.35d0
-    real(kind=8),parameter :: sigma2 = 1.d-1
-
-
-    stop 'not working any more'
-
-!!    call f_routine(id='add_penalty_term_new')
-!!
-!!    call f_zero(penalty_matrix)
-!!
-!!    ! Determine the periodicity...
-!!    !write(*,*) 'geocode',geocode
-!!    perx=(geocode /= 'F')
-!!    pery=(geocode == 'P')
-!!    perz=(geocode /= 'F')
-!!    if (perx) then
-!!        is1 = -1
-!!        ie1 = 1
-!!    else
-!!        is1 = 0
-!!        ie1 = 0
-!!    end if
-!!    if (pery) then
-!!        is2 = -1
-!!        ie2 = 1
-!!    else
-!!        is2 = 0
-!!        ie2 = 0
-!!    end if
-!!    if (perz) then
-!!        is3 = -1
-!!        ie3 = 1
-!!    else
-!!        is3 = 0
-!!        ie3 = 0
-!!    end if
-!!
-!!    ! FOR THE MOMENT NOT WORKING FOR PERIODIC SYSTEMS! NEED TO TAKE THIS INTO ACCOUNT.
-!!
-!!
-!!    ! Loop over all elements to be calculated
-!!    icheck = 0
-!!    ii = 0
-!!    do i=1,nfvctr
-!!        if (neighbor(i)) then
-!!            iat = on_which_atom(i)
-!!            jj = 0
-!!            do j=1,nfvctr
-!!                if (neighbor(j)) then
-!!                    !!write(*,*) 'i, j', i, j
-!!                    jat = on_which_atom(j)
-!!                    icheck = icheck + 1
-!!                    jj = jj + 1
-!!                    if (jj==1) ii = ii + 1 !new column if we are at the first line element of a a column
-!!                    !if (i==j) then
-!!                        ! distances from the atoms iat and jat (respectively the sup fun centered on them) to the one for which the projector should be calculated
-!!                        rip(1:3) = com(1:3,i) - rxyz(1:3)
-!!                        rjp(1:3) = com(1:3,j) - rxyz(1:3)
-!!                        ! Do the summation over l,l' and m,m'
-!!                        tt = 0.d0
-!!                        do il=0,lmax
-!!                            do jl=0,lmax
-!!                                do im=-il,il
-!!                                    do jm=-jl,jl
-!!                                        ! Do the integration
-!!                                        rr = 0.d0
-!!                                        do ix=-nn,nn
-!!                                            x = real(ix,kind=8)*hh
-!!                                            xx = x + rxyz(1)
-!!                                            do iy=-nn,nn
-!!                                                y = real(iy,kind=8)*hh
-!!                                                yy = y + rxyz(2)
-!!                                                do iz=-nn,nn
-!!                                                    z = real(iz,kind=8)*hh
-!!                                                    zz = z + rxyz(3)
-!!                                                    argi = ((x-rip(1))**2 + (y-rip(2))**2 + (z-rip(3))**2)/(2*sigma2)
-!!                                                    argj = ((x-rjp(1))**2 + (y-rjp(2))**2 + (z-rjp(3))**2)/(2*sigma2)
-!!                                                    !expi = safe_exp(-argi)/(2*pi*sigma2)**(3.d0/2.d0)
-!!                                                    !expj = safe_exp(-argj)/(2*pi*sigma2)**(3.d0/2.d0)
-!!                                                    expi = safe_exp(-argi)/(1.d0*pi*sigma2)**(3.d0/4.d0)
-!!                                                    expj = safe_exp(-argj)/(1.d0*pi*sigma2)**(3.d0/4.d0)
-!!                                                    silim = spherical_harmonic(il,im,xx,yy,zz)*sqrt(4.d0*pi)
-!!                                                    sjljm = spherical_harmonic(jl,jm,xx,yy,zz)*sqrt(4.d0*pi)
-!!                                                    !if (abs(argi)>1000.d0) write(*,*) 'WARNING argi'
-!!                                                    !if (abs(argj)>1000.d0) write(*,*) 'WARNING argj'
-!!                                                    !if (abs(expi)>1000.d0) write(*,*) 'WARNING expi'
-!!                                                    !if (abs(expj)>1000.d0) write(*,*) 'WARNING expj'
-!!                                                    !if (abs(silim)>1000.d0) write(*,*) 'WARNING silim'
-!!                                                    !if (abs(sjljm)>1000.d0) write(*,*) 'WARNING sjljm'
-!!                                                    !rr = rr + silim*expi*alpha*(x**2+y**2+z**2)*sjljm*expj*hh**3
-!!                                                    !rr = rr + silim*expi*sjljm*expj*hh**3*sqrt(4.d0*pi)
-!!                                                    !write(*,*) 'argi, expi, argj, expj', argi, argj, expi, expj
-!!                                                    rr = rr + silim*expi*alpha*(x**2+y**2+z**2)**3*sjljm*expj*hh**3
-!!                                                    !rr = rr + silim*expi*sjljm*expj*hh**3
-!!                                                end do
-!!                                            end do
-!!                                        end do
-!!                                        !write(*,*) 'i, j, il, im, jl, jm, rr', i, j, il, im, jl, jm, rr
-!!                                        !tt = tt + multipoles(im,il,iat)*multipoles(jm,jl,jat)*rr
-!!                                        !if (il==0 .and. jl==0) then
-!!                                            tt = tt + multipoles(im,il,i)*multipoles(jm,jl,j)*rr
-!!                                        !end if
-!!                                        !if (abs(multipoles(im,il,iat))>1000.d0) write(*,*) 'WARNING multipoles(im,il,iat)'
-!!                                        !if (abs(multipoles(jm,jl,jat))>1000.d0) write(*,*) 'WARNING multipoles(jm,jl,jat)'
-!!                                    end do
-!!                                end do
-!!                            end do
-!!                        end do
-!!                        write(*,*) 'i, j, ii, jj, tt', ii, jj, tt
-!!                        ham(jj,ii) = ham(jj,ii) + tt
-!!                        penalty_matrix(jj,ii) = tt
-!!                    !end if
-!!                end if
-!!            end do
-!!        end if
-!!    end do
-!!
-!!    if (icheck>n**2) then
-!!        call f_err_throw('icheck('//adjustl(trim(yaml_toa(icheck)))//') > n**2('//&
-!!            &adjustl(trim(yaml_toa(n**2)))//')',err_name='BIGDFT_RUNTIME_ERROR')
-!!    end if
-!!
-!!    call f_release_routine()
-
-  end subroutine add_penalty_term_new
+!!$  subroutine add_penalty_term_new(geocode, nat, nfvctr, neighbor, rxyz, on_which_atom, &
+!!$             multipoles, cell_dim, com, alpha, n, ham, nmax, penalty_matrix)
+!!$    use module_base
+!!$    use multipole_base, only: lmax
+!!$    use module_base
+!!$    implicit none
+!!$
+!!$    ! Calling arguments
+!!$    character(len=1),intent(in) :: geocode
+!!$    integer,intent(in) :: nat, nfvctr, n, nmax
+!!$    logical,dimension(nfvctr),intent(in) :: neighbor
+!!$    real(kind=8),dimension(3),intent(in) :: rxyz, cell_dim
+!!$    integer,dimension(nfvctr),intent(in) :: on_which_atom
+!!$    real(kind=8),dimension(-lmax:lmax,0:lmax,nfvctr) :: multipoles
+!!$    real(kind=8),dimension(3,nfvctr),intent(in) :: com
+!!$    real(kind=8),intent(in) :: alpha
+!!$    real(kind=8),dimension(n,n),intent(inout) :: ham
+!!$    real(kind=8),dimension(n,n),intent(out) :: penalty_matrix
+!!$
+!!$    ! Local variables
+!!$    logical :: perx, pery, perz
+!!$    integer :: is1, ie1, is2, ie2, is3, ie3, icheck, ii, i, jj, j, i1, i2, i3
+!!$    integer :: il, jl, im, jm, ix, iy, iz, iat, jat
+!!$    real(kind=8) :: rr2, x, y, z, ttx, tty, ttz, tt, argi, argj, expi, expj, silim, sjljm, rr, xx, yy, zz
+!!$    real(kind=8),dimension(1:3) :: rip, rjp
+!!$    integer,parameter :: nn=25
+!!$    real(kind=8),parameter :: hh=0.35d0
+!!$    real(kind=8),parameter :: sigma2 = 1.d-1
+!!$
+!!$
+!!$    stop 'not working any more'
+!!$
+!!$!!    call f_routine(id='add_penalty_term_new')
+!!$!!
+!!$!!    call f_zero(penalty_matrix)
+!!$!!
+!!$!!    ! Determine the periodicity...
+!!$!!    !write(*,*) 'geocode',geocode
+!!$!!    perx=(geocode /= 'F')
+!!$!!    pery=(geocode == 'P')
+!!$!!    perz=(geocode /= 'F')
+!!$!!    if (perx) then
+!!$!!        is1 = -1
+!!$!!        ie1 = 1
+!!$!!    else
+!!$!!        is1 = 0
+!!$!!        ie1 = 0
+!!$!!    end if
+!!$!!    if (pery) then
+!!$!!        is2 = -1
+!!$!!        ie2 = 1
+!!$!!    else
+!!$!!        is2 = 0
+!!$!!        ie2 = 0
+!!$!!    end if
+!!$!!    if (perz) then
+!!$!!        is3 = -1
+!!$!!        ie3 = 1
+!!$!!    else
+!!$!!        is3 = 0
+!!$!!        ie3 = 0
+!!$!!    end if
+!!$!!
+!!$!!    ! FOR THE MOMENT NOT WORKING FOR PERIODIC SYSTEMS! NEED TO TAKE THIS INTO ACCOUNT.
+!!$!!
+!!$!!
+!!$!!    ! Loop over all elements to be calculated
+!!$!!    icheck = 0
+!!$!!    ii = 0
+!!$!!    do i=1,nfvctr
+!!$!!        if (neighbor(i)) then
+!!$!!            iat = on_which_atom(i)
+!!$!!            jj = 0
+!!$!!            do j=1,nfvctr
+!!$!!                if (neighbor(j)) then
+!!$!!                    !!write(*,*) 'i, j', i, j
+!!$!!                    jat = on_which_atom(j)
+!!$!!                    icheck = icheck + 1
+!!$!!                    jj = jj + 1
+!!$!!                    if (jj==1) ii = ii + 1 !new column if we are at the first line element of a a column
+!!$!!                    !if (i==j) then
+!!$!!                        ! distances from the atoms iat and jat (respectively the sup fun centered on them) to the one for which the projector should be calculated
+!!$!!                        rip(1:3) = com(1:3,i) - rxyz(1:3)
+!!$!!                        rjp(1:3) = com(1:3,j) - rxyz(1:3)
+!!$!!                        ! Do the summation over l,l' and m,m'
+!!$!!                        tt = 0.d0
+!!$!!                        do il=0,lmax
+!!$!!                            do jl=0,lmax
+!!$!!                                do im=-il,il
+!!$!!                                    do jm=-jl,jl
+!!$!!                                        ! Do the integration
+!!$!!                                        rr = 0.d0
+!!$!!                                        do ix=-nn,nn
+!!$!!                                            x = real(ix,kind=8)*hh
+!!$!!                                            xx = x + rxyz(1)
+!!$!!                                            do iy=-nn,nn
+!!$!!                                                y = real(iy,kind=8)*hh
+!!$!!                                                yy = y + rxyz(2)
+!!$!!                                                do iz=-nn,nn
+!!$!!                                                    z = real(iz,kind=8)*hh
+!!$!!                                                    zz = z + rxyz(3)
+!!$!!                                                    argi = ((x-rip(1))**2 + (y-rip(2))**2 + (z-rip(3))**2)/(2*sigma2)
+!!$!!                                                    argj = ((x-rjp(1))**2 + (y-rjp(2))**2 + (z-rjp(3))**2)/(2*sigma2)
+!!$!!                                                    !expi = safe_exp(-argi)/(2*pi*sigma2)**(3.d0/2.d0)
+!!$!!                                                    !expj = safe_exp(-argj)/(2*pi*sigma2)**(3.d0/2.d0)
+!!$!!                                                    expi = safe_exp(-argi)/(1.d0*pi*sigma2)**(3.d0/4.d0)
+!!$!!                                                    expj = safe_exp(-argj)/(1.d0*pi*sigma2)**(3.d0/4.d0)
+!!$!!                                                    silim = spherical_harmonic(il,im,xx,yy,zz)*sqrt(4.d0*pi)
+!!$!!                                                    sjljm = spherical_harmonic(jl,jm,xx,yy,zz)*sqrt(4.d0*pi)
+!!$!!                                                    !if (abs(argi)>1000.d0) write(*,*) 'WARNING argi'
+!!$!!                                                    !if (abs(argj)>1000.d0) write(*,*) 'WARNING argj'
+!!$!!                                                    !if (abs(expi)>1000.d0) write(*,*) 'WARNING expi'
+!!$!!                                                    !if (abs(expj)>1000.d0) write(*,*) 'WARNING expj'
+!!$!!                                                    !if (abs(silim)>1000.d0) write(*,*) 'WARNING silim'
+!!$!!                                                    !if (abs(sjljm)>1000.d0) write(*,*) 'WARNING sjljm'
+!!$!!                                                    !rr = rr + silim*expi*alpha*(x**2+y**2+z**2)*sjljm*expj*hh**3
+!!$!!                                                    !rr = rr + silim*expi*sjljm*expj*hh**3*sqrt(4.d0*pi)
+!!$!!                                                    !write(*,*) 'argi, expi, argj, expj', argi, argj, expi, expj
+!!$!!                                                    rr = rr + silim*expi*alpha*(x**2+y**2+z**2)**3*sjljm*expj*hh**3
+!!$!!                                                    !rr = rr + silim*expi*sjljm*expj*hh**3
+!!$!!                                                end do
+!!$!!                                            end do
+!!$!!                                        end do
+!!$!!                                        !write(*,*) 'i, j, il, im, jl, jm, rr', i, j, il, im, jl, jm, rr
+!!$!!                                        !tt = tt + multipoles(im,il,iat)*multipoles(jm,jl,jat)*rr
+!!$!!                                        !if (il==0 .and. jl==0) then
+!!$!!                                            tt = tt + multipoles(im,il,i)*multipoles(jm,jl,j)*rr
+!!$!!                                        !end if
+!!$!!                                        !if (abs(multipoles(im,il,iat))>1000.d0) write(*,*) 'WARNING multipoles(im,il,iat)'
+!!$!!                                        !if (abs(multipoles(jm,jl,jat))>1000.d0) write(*,*) 'WARNING multipoles(jm,jl,jat)'
+!!$!!                                    end do
+!!$!!                                end do
+!!$!!                            end do
+!!$!!                        end do
+!!$!!                        write(*,*) 'i, j, ii, jj, tt', ii, jj, tt
+!!$!!                        ham(jj,ii) = ham(jj,ii) + tt
+!!$!!                        penalty_matrix(jj,ii) = tt
+!!$!!                    !end if
+!!$!!                end if
+!!$!!            end do
+!!$!!        end if
+!!$!!    end do
+!!$!!
+!!$!!    if (icheck>n**2) then
+!!$!!        call f_err_throw('icheck('//adjustl(trim(yaml_toa(icheck)))//') > n**2('//&
+!!$!!            &adjustl(trim(yaml_toa(n**2)))//')',err_name='BIGDFT_RUNTIME_ERROR')
+!!$!!    end if
+!!$!!
+!!$!!    call f_release_routine()
+!!$
+!!$  end subroutine add_penalty_term_new
 
 
 
@@ -4863,195 +4875,195 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
 END SUBROUTINE calculate_dipole_moment
 
 
-subroutine calculate_rpowerx_matrices(iproc, nproc, nphi, nphir, lzd, orbs, collcom, phi, smat, aux, rpower_matrix)
-  use module_base
-  use module_types, only: local_zone_descriptors, orbitals_data, comms_linear, linmat_auxiliary
-  use locreg_operations,only: workarr_sumrho, initialize_work_arrays_sumrho, deallocate_work_arrays_sumrho
-  use locreg_operations,only: get_isf_offset
-  use communications_base, only: TRANSPOSE_FULL
-  use communications, only: transpose_localized
-  use transposed_operations, only: calculate_overlap_transposed
-  use sparsematrix_base, only: sparse_matrix, matrices
-!!$  use bounds, only: geocode_buffers
-  implicit none
+!!$subroutine calculate_rpowerx_matrices(iproc, nproc, nphi, nphir, lzd, orbs, collcom, phi, smat, aux, rpower_matrix)
+!!$  use module_base
+!!$  use module_types, only: local_zone_descriptors, orbitals_data, comms_linear, linmat_auxiliary
+!!$  use locreg_operations,only: workarr_sumrho, initialize_work_arrays_sumrho, deallocate_work_arrays_sumrho
+!!$  use locreg_operations,only: get_isf_offset
+!!$  use communications_base, only: TRANSPOSE_FULL
+!!$  use communications, only: transpose_localized
+!!$  use transposed_operations, only: calculate_overlap_transposed
+!!$  use sparsematrix_base, only: sparse_matrix, matrices
+!!$!!$  use bounds, only: geocode_buffers
+!!$  implicit none
+!!$
+!!$  ! Calling arguments
+!!$  integer,intent(in) :: iproc, nproc, nphi, nphir
+!!$  type(local_zone_descriptors),intent(in) :: lzd
+!!$  type(orbitals_data),intent(in) :: orbs
+!!$  type(comms_linear),intent(in) :: collcom
+!!$  real(kind=8),dimension(nphi),intent(in) :: phi
+!!$  type(sparse_matrix),intent(in) :: smat
+!!$  type(linmat_auxiliary),intent(in) :: aux
+!!$  type(matrices),dimension(24),intent(inout) :: rpower_matrix
+!!$
+!!$  ! Local variables
+!!$  integer :: iorb, iiorb, ilr, iat, ii, i1, i2, i3, ii1, ii2, ii3, ist, istr, nl1, nl2, nl3, i
+!!$  type(workarr_sumrho) :: w
+!!$  real(kind=8),dimension(:),allocatable :: phir, phit_c, phit_f, xphit_c, xphit_f
+!!$  real(kind=8),dimension(:,:),allocatable :: xphi, xphir
+!!$  real(kind=8) :: hxh, hyh, hzh, x, y, z, r, r2
+!!$  integer, dimension(3) :: ioffset_isf
+!!$
+!!$  call f_routine(id='calculate_rpowerx_matrices')
+!!$
+!!$  xphi = f_malloc0((/nphi,24/),id='xphi')
+!!$  phir = f_malloc(nphir,id='phir')
+!!$  xphir = f_malloc0((/nphir,24/),id='xphir')
+!!$
+!!$  ist=1
+!!$  istr=1
+!!$  do iorb=1,orbs%norbp
+!!$      iiorb=orbs%isorb+iorb
+!!$      ilr=orbs%inwhichlocreg(iiorb)
+!!$      iat=orbs%onwhichatom(iiorb)
+!!$      call initialize_work_arrays_sumrho(lzd%Llr(ilr),.true.,w)
+!!$      ! Transform the support function to real space
+!!$      call daub_to_isf(lzd%llr(ilr), w, phi(ist), phir(istr))
+!!$      call initialize_work_arrays_sumrho(lzd%llr(ilr),.false.,w)
+!!$
+!!$      ! NEW: CALCULATE THE WEIGHT CENTER OF THE SUPPORT FUNCTION ############################
+!!$      hxh = 0.5d0*lzd%hgrids(1)
+!!$      hyh = 0.5d0*lzd%hgrids(2)
+!!$      hzh = 0.5d0*lzd%hgrids(3)
+!!$      ii = istr
+!!$!!$      call geocode_buffers(lzd%Llr(ilr)%geocode, lzd%glr%geocode, nl1, nl2, nl3)
+!!$      ioffset_isf(:) = get_isf_offset(lzd%Llr(ilr),lzd%glr%mesh)
+!!$      do i3=1,lzd%llr(ilr)%d%n3i
+!!$!!$          ii3 = lzd%llr(ilr)%nsi3 + i3 - nl3 - 1
+!!$          ii3 = ioffset_isf(3) + i3
+!!$          z = ii3*hzh
+!!$          do i2=1,lzd%llr(ilr)%d%n2i
+!!$!!$              ii2 = lzd%llr(ilr)%nsi2 + i2 - nl2 - 1
+!!$              ii2 = ioffset_isf(2) + i2
+!!$              y = ii2*hyh
+!!$              do i1=1,lzd%llr(ilr)%d%n1i
+!!$!!$                  ii1 = lzd%llr(ilr)%nsi1 + i1 - nl1 - 1
+!!$                  ii1 = ioffset_isf(1) + i1
+!!$                  x = ii1*hxh
+!!$                  r2 = x**2+y**2+z**2
+!!$                  xphir(ii,1) = x*phir(ii)
+!!$                  xphir(ii,2) = x**2*phir(ii)
+!!$                  xphir(ii,3) = x**3*phir(ii)
+!!$                  xphir(ii,4) = x**4*phir(ii)
+!!$                  xphir(ii,5) = y*phir(ii)
+!!$                  xphir(ii,6) = y**2*phir(ii)
+!!$                  xphir(ii,7) = y**3*phir(ii)
+!!$                  xphir(ii,8) = y**4*phir(ii)
+!!$                  xphir(ii,9) = z*phir(ii)
+!!$                  xphir(ii,10) = z**2*phir(ii)
+!!$                  xphir(ii,11) = z**3*phir(ii)
+!!$                  xphir(ii,12) = z**4*phir(ii)
+!!$                  xphir(ii,13) = x*y*phir(ii)
+!!$                  xphir(ii,14) = x**2*y*phir(ii)
+!!$                  xphir(ii,15) = x*y**2*phir(ii)
+!!$                  xphir(ii,16) = x**2*y**2*phir(ii)
+!!$                  xphir(ii,17) = x*z*phir(ii)
+!!$                  xphir(ii,18) = x**2*z*phir(ii)
+!!$                  xphir(ii,19) = x*z**2*phir(ii)
+!!$                  xphir(ii,20) = x**2*z**2*phir(ii)
+!!$                  xphir(ii,21) = y*z*phir(ii)
+!!$                  xphir(ii,22) = y**2*z*phir(ii)
+!!$                  xphir(ii,23) = y*z**2*phir(ii)
+!!$                  xphir(ii,24) = y**2*z**2*phir(ii)
+!!$                  ii = ii + 1
+!!$              end do
+!!$          end do
+!!$      end do
+!!$      ! Transform the functions back to wavelets
+!!$      do i=1,24
+!!$          call isf_to_daub(lzd%llr(ilr), w, xphir(istr,i), xphi(ist,i))
+!!$      end do
+!!$      call deallocate_work_arrays_sumrho(w)
+!!$      ist = ist + lzd%Llr(ilr)%wfd%nvctr_c + 7*lzd%Llr(ilr)%wfd%nvctr_f
+!!$      istr = istr + lzd%Llr(ilr)%d%n1i*lzd%Llr(ilr)%d%n2i*lzd%Llr(ilr)%d%n3i
+!!$  end do
+!!$
+!!$  ! Calculate the matrices
+!!$  phit_c = f_malloc(collcom%ndimind_c,id='phit_c')
+!!$  phit_f = f_malloc(7*collcom%ndimind_f,id='phit_f')
+!!$  xphit_c = f_malloc(collcom%ndimind_c,id='xphit_c')
+!!$  xphit_f = f_malloc(7*collcom%ndimind_f,id='xphit_f')
+!!$  call transpose_localized(iproc, nproc, nphi, orbs, collcom, &
+!!$       TRANSPOSE_FULL, phi, phit_c, phit_f, lzd)
+!!$  do i=1,24
+!!$      call transpose_localized(iproc, nproc, nphi, orbs, collcom, &
+!!$           TRANSPOSE_FULL, xphi(:,i), xphit_c, xphit_f, lzd)
+!!$      call calculate_overlap_transposed(iproc, nproc, orbs, collcom, &
+!!$           phit_c, xphit_c, phit_f, xphit_f, smat, aux, rpower_matrix(i))
+!!$  end do
+!!$  !call transpose_localized(iproc, nproc, nphi, orbs, collcom, &
+!!$  !     TRANSPOSE_FULL, xphi(:,2), xphit_c, xphit_f, lzd)
+!!$  !call calculate_overlap_transposed(iproc, nproc, orbs, collcom, &
+!!$  !     phit_c, xphit_c, xphit_f, xphit_f, smat, rpower_matrix(2))
+!!$  call f_free(phit_c)
+!!$  call f_free(phit_f)
+!!$  call f_free(xphit_c)
+!!$  call f_free(xphit_f)
+!!$
+!!$  !!if (iproc==0) then
+!!$  !!    do iorb=1,smat%nvctr
+!!$  !!        write(*,*) 'i, val', iorb, rpower_matrix(1)%matrix_compr(iorb)
+!!$  !!    end do
+!!$  !!end if
+!!$
+!!$  call f_free(xphi)
+!!$  call f_free(phir)
+!!$  call f_free(xphir)
+!!$
+!!$  call f_release_routine()
+!!$
+!!$end subroutine calculate_rpowerx_matrices
 
-  ! Calling arguments
-  integer,intent(in) :: iproc, nproc, nphi, nphir
-  type(local_zone_descriptors),intent(in) :: lzd
-  type(orbitals_data),intent(in) :: orbs
-  type(comms_linear),intent(in) :: collcom
-  real(kind=8),dimension(nphi),intent(in) :: phi
-  type(sparse_matrix),intent(in) :: smat
-  type(linmat_auxiliary),intent(in) :: aux
-  type(matrices),dimension(24),intent(inout) :: rpower_matrix
 
-  ! Local variables
-  integer :: iorb, iiorb, ilr, iat, ii, i1, i2, i3, ii1, ii2, ii3, ist, istr, nl1, nl2, nl3, i
-  type(workarr_sumrho) :: w
-  real(kind=8),dimension(:),allocatable :: phir, phit_c, phit_f, xphit_c, xphit_f
-  real(kind=8),dimension(:,:),allocatable :: xphi, xphir
-  real(kind=8) :: hxh, hyh, hzh, x, y, z, r, r2
-  integer, dimension(3) :: ioffset_isf
-
-  call f_routine(id='calculate_rpowerx_matrices')
-
-  xphi = f_malloc0((/nphi,24/),id='xphi')
-  phir = f_malloc(nphir,id='phir')
-  xphir = f_malloc0((/nphir,24/),id='xphir')
-
-  ist=1
-  istr=1
-  do iorb=1,orbs%norbp
-      iiorb=orbs%isorb+iorb
-      ilr=orbs%inwhichlocreg(iiorb)
-      iat=orbs%onwhichatom(iiorb)
-      call initialize_work_arrays_sumrho(lzd%Llr(ilr),.true.,w)
-      ! Transform the support function to real space
-      call daub_to_isf(lzd%llr(ilr), w, phi(ist), phir(istr))
-      call initialize_work_arrays_sumrho(lzd%llr(ilr),.false.,w)
-
-      ! NEW: CALCULATE THE WEIGHT CENTER OF THE SUPPORT FUNCTION ############################
-      hxh = 0.5d0*lzd%hgrids(1)
-      hyh = 0.5d0*lzd%hgrids(2)
-      hzh = 0.5d0*lzd%hgrids(3)
-      ii = istr
-!!$      call geocode_buffers(lzd%Llr(ilr)%geocode, lzd%glr%geocode, nl1, nl2, nl3)
-      ioffset_isf(:) = get_isf_offset(lzd%Llr(ilr),lzd%glr%mesh)
-      do i3=1,lzd%llr(ilr)%d%n3i
-!!$          ii3 = lzd%llr(ilr)%nsi3 + i3 - nl3 - 1
-          ii3 = ioffset_isf(3) + i3
-          z = ii3*hzh
-          do i2=1,lzd%llr(ilr)%d%n2i
-!!$              ii2 = lzd%llr(ilr)%nsi2 + i2 - nl2 - 1
-              ii2 = ioffset_isf(2) + i2
-              y = ii2*hyh
-              do i1=1,lzd%llr(ilr)%d%n1i
-!!$                  ii1 = lzd%llr(ilr)%nsi1 + i1 - nl1 - 1
-                  ii1 = ioffset_isf(1) + i1
-                  x = ii1*hxh
-                  r2 = x**2+y**2+z**2
-                  xphir(ii,1) = x*phir(ii)
-                  xphir(ii,2) = x**2*phir(ii)
-                  xphir(ii,3) = x**3*phir(ii)
-                  xphir(ii,4) = x**4*phir(ii)
-                  xphir(ii,5) = y*phir(ii)
-                  xphir(ii,6) = y**2*phir(ii)
-                  xphir(ii,7) = y**3*phir(ii)
-                  xphir(ii,8) = y**4*phir(ii)
-                  xphir(ii,9) = z*phir(ii)
-                  xphir(ii,10) = z**2*phir(ii)
-                  xphir(ii,11) = z**3*phir(ii)
-                  xphir(ii,12) = z**4*phir(ii)
-                  xphir(ii,13) = x*y*phir(ii)
-                  xphir(ii,14) = x**2*y*phir(ii)
-                  xphir(ii,15) = x*y**2*phir(ii)
-                  xphir(ii,16) = x**2*y**2*phir(ii)
-                  xphir(ii,17) = x*z*phir(ii)
-                  xphir(ii,18) = x**2*z*phir(ii)
-                  xphir(ii,19) = x*z**2*phir(ii)
-                  xphir(ii,20) = x**2*z**2*phir(ii)
-                  xphir(ii,21) = y*z*phir(ii)
-                  xphir(ii,22) = y**2*z*phir(ii)
-                  xphir(ii,23) = y*z**2*phir(ii)
-                  xphir(ii,24) = y**2*z**2*phir(ii)
-                  ii = ii + 1
-              end do
-          end do
-      end do
-      ! Transform the functions back to wavelets
-      do i=1,24
-          call isf_to_daub(lzd%llr(ilr), w, xphir(istr,i), xphi(ist,i))
-      end do
-      call deallocate_work_arrays_sumrho(w)
-      ist = ist + lzd%Llr(ilr)%wfd%nvctr_c + 7*lzd%Llr(ilr)%wfd%nvctr_f
-      istr = istr + lzd%Llr(ilr)%d%n1i*lzd%Llr(ilr)%d%n2i*lzd%Llr(ilr)%d%n3i
-  end do
-
-  ! Calculate the matrices
-  phit_c = f_malloc(collcom%ndimind_c,id='phit_c')
-  phit_f = f_malloc(7*collcom%ndimind_f,id='phit_f')
-  xphit_c = f_malloc(collcom%ndimind_c,id='xphit_c')
-  xphit_f = f_malloc(7*collcom%ndimind_f,id='xphit_f')
-  call transpose_localized(iproc, nproc, nphi, orbs, collcom, &
-       TRANSPOSE_FULL, phi, phit_c, phit_f, lzd)
-  do i=1,24
-      call transpose_localized(iproc, nproc, nphi, orbs, collcom, &
-           TRANSPOSE_FULL, xphi(:,i), xphit_c, xphit_f, lzd)
-      call calculate_overlap_transposed(iproc, nproc, orbs, collcom, &
-           phit_c, xphit_c, phit_f, xphit_f, smat, aux, rpower_matrix(i))
-  end do
-  !call transpose_localized(iproc, nproc, nphi, orbs, collcom, &
-  !     TRANSPOSE_FULL, xphi(:,2), xphit_c, xphit_f, lzd)
-  !call calculate_overlap_transposed(iproc, nproc, orbs, collcom, &
-  !     phit_c, xphit_c, xphit_f, xphit_f, smat, rpower_matrix(2))
-  call f_free(phit_c)
-  call f_free(phit_f)
-  call f_free(xphit_c)
-  call f_free(xphit_f)
-
-  !!if (iproc==0) then
-  !!    do iorb=1,smat%nvctr
-  !!        write(*,*) 'i, val', iorb, rpower_matrix(1)%matrix_compr(iorb)
-  !!    end do
-  !!end if
-
-  call f_free(xphi)
-  call f_free(phir)
-  call f_free(xphir)
-
-  call f_release_routine()
-
-end subroutine calculate_rpowerx_matrices
-
-
-  function get_quartic_penalty(n, j, i, penaltymat, ovrlp, rxyz) result(gqp)
-    implicit none
-
-    ! Calling arguments
-    integer,intent(in) :: n, j, i
-    real(kind=8),dimension(n,n,24),intent(in) :: penaltymat
-    real(kind=8),dimension(n,n),intent(in) :: ovrlp
-    real(kind=8),dimension(3) :: rxyz
-    real(kind=8) :: gqp
-
-    gqp = penaltymat(j,i,4) - 4.d0*rxyz(1)*penaltymat(j,i,3) &
-          + 6.d0*rxyz(1)**2*penaltymat(j,i,2) - 4.d0*rxyz(1)**3*penaltymat(j,i,1) &
-          + rxyz(1)**4*ovrlp(j,i) &
-          + penaltymat(j,i,8) - 4.d0*rxyz(2)*penaltymat(j,i,7) &
-          + 6.d0*rxyz(2)**2*penaltymat(j,i,6) - 4.d0*rxyz(2)**3*penaltymat(j,i,5) &
-          + rxyz(2)**4*ovrlp(j,i) &
-          + penaltymat(j,i,12) - 4.d0*rxyz(3)*penaltymat(j,i,11) &
-          + 6.d0*rxyz(3)**2*penaltymat(j,i,10) - 4.d0*rxyz(3)**3*penaltymat(j,i,9) &
-          + rxyz(3)**4*ovrlp(j,i) &
-          + 2.d0*(penaltymat(j,i,16) &
-                  - 2.d0*rxyz(2)*penaltymat(j,i,14) &
-                  + rxyz(2)**2*penaltymat(j,i,2) &
-                  - 2.d0*rxyz(1)*penaltymat(j,i,15) &
-                  + 4.d0*rxyz(1)*rxyz(2)*penaltymat(j,i,13) &
-                  - 2.d0*rxyz(1)*rxyz(2)**2*penaltymat(j,i,1) &
-                  + rxyz(1)**2*penaltymat(j,i,6) &
-                  - 2.d0*rxyz(1)**2*rxyz(2)*penaltymat(j,i,5) &
-                  + rxyz(1)**2*rxyz(2)**2*ovrlp(j,i) &
-                  + penaltymat(j,i,20) &
-                  - 2.d0*rxyz(3)*penaltymat(j,i,18) &
-                  + rxyz(3)**2*penaltymat(j,i,2) &
-                  - 2.d0*rxyz(1)*penaltymat(j,i,19) &
-                  + 4.d0*rxyz(1)*rxyz(3)*penaltymat(j,i,17) &
-                  - 2.d0*rxyz(1)*rxyz(3)**2*penaltymat(j,i,1) &
-                  + rxyz(1)**2*penaltymat(j,i,10) &
-                  - 2.d0*rxyz(1)**2*rxyz(3)*penaltymat(j,i,9) &
-                  + rxyz(1)**2*rxyz(3)**2*ovrlp(j,i) &
-                  + penaltymat(j,i,24) &
-                  - 2.d0*rxyz(3)*penaltymat(j,i,22) &
-                  + rxyz(3)**2*penaltymat(j,i,6) &
-                  - 2.d0*rxyz(2)*penaltymat(j,i,23) &
-                  + 4.d0*rxyz(2)*rxyz(3)*penaltymat(j,i,21) &
-                  - 2.d0*rxyz(2)*rxyz(3)**2*penaltymat(j,i,5) &
-                  + rxyz(2)**2*penaltymat(j,i,10) &
-                  - 2.d0*rxyz(2)**2*rxyz(3)*penaltymat(j,i,9) &
-                  + rxyz(2)**2*rxyz(3)**2*ovrlp(j,i) )
-
-  end function get_quartic_penalty
+!!$  function get_quartic_penalty(n, j, i, penaltymat, ovrlp, rxyz) result(gqp)
+!!$    implicit none
+!!$
+!!$    ! Calling arguments
+!!$    integer,intent(in) :: n, j, i
+!!$    real(kind=8),dimension(n,n,24),intent(in) :: penaltymat
+!!$    real(kind=8),dimension(n,n),intent(in) :: ovrlp
+!!$    real(kind=8),dimension(3) :: rxyz
+!!$    real(kind=8) :: gqp
+!!$
+!!$    gqp = penaltymat(j,i,4) - 4.d0*rxyz(1)*penaltymat(j,i,3) &
+!!$          + 6.d0*rxyz(1)**2*penaltymat(j,i,2) - 4.d0*rxyz(1)**3*penaltymat(j,i,1) &
+!!$          + rxyz(1)**4*ovrlp(j,i) &
+!!$          + penaltymat(j,i,8) - 4.d0*rxyz(2)*penaltymat(j,i,7) &
+!!$          + 6.d0*rxyz(2)**2*penaltymat(j,i,6) - 4.d0*rxyz(2)**3*penaltymat(j,i,5) &
+!!$          + rxyz(2)**4*ovrlp(j,i) &
+!!$          + penaltymat(j,i,12) - 4.d0*rxyz(3)*penaltymat(j,i,11) &
+!!$          + 6.d0*rxyz(3)**2*penaltymat(j,i,10) - 4.d0*rxyz(3)**3*penaltymat(j,i,9) &
+!!$          + rxyz(3)**4*ovrlp(j,i) &
+!!$          + 2.d0*(penaltymat(j,i,16) &
+!!$                  - 2.d0*rxyz(2)*penaltymat(j,i,14) &
+!!$                  + rxyz(2)**2*penaltymat(j,i,2) &
+!!$                  - 2.d0*rxyz(1)*penaltymat(j,i,15) &
+!!$                  + 4.d0*rxyz(1)*rxyz(2)*penaltymat(j,i,13) &
+!!$                  - 2.d0*rxyz(1)*rxyz(2)**2*penaltymat(j,i,1) &
+!!$                  + rxyz(1)**2*penaltymat(j,i,6) &
+!!$                  - 2.d0*rxyz(1)**2*rxyz(2)*penaltymat(j,i,5) &
+!!$                  + rxyz(1)**2*rxyz(2)**2*ovrlp(j,i) &
+!!$                  + penaltymat(j,i,20) &
+!!$                  - 2.d0*rxyz(3)*penaltymat(j,i,18) &
+!!$                  + rxyz(3)**2*penaltymat(j,i,2) &
+!!$                  - 2.d0*rxyz(1)*penaltymat(j,i,19) &
+!!$                  + 4.d0*rxyz(1)*rxyz(3)*penaltymat(j,i,17) &
+!!$                  - 2.d0*rxyz(1)*rxyz(3)**2*penaltymat(j,i,1) &
+!!$                  + rxyz(1)**2*penaltymat(j,i,10) &
+!!$                  - 2.d0*rxyz(1)**2*rxyz(3)*penaltymat(j,i,9) &
+!!$                  + rxyz(1)**2*rxyz(3)**2*ovrlp(j,i) &
+!!$                  + penaltymat(j,i,24) &
+!!$                  - 2.d0*rxyz(3)*penaltymat(j,i,22) &
+!!$                  + rxyz(3)**2*penaltymat(j,i,6) &
+!!$                  - 2.d0*rxyz(2)*penaltymat(j,i,23) &
+!!$                  + 4.d0*rxyz(2)*rxyz(3)*penaltymat(j,i,21) &
+!!$                  - 2.d0*rxyz(2)*rxyz(3)**2*penaltymat(j,i,5) &
+!!$                  + rxyz(2)**2*penaltymat(j,i,10) &
+!!$                  - 2.d0*rxyz(2)**2*rxyz(3)*penaltymat(j,i,9) &
+!!$                  + rxyz(2)**2*rxyz(3)**2*ovrlp(j,i) )
+!!$
+!!$  end function get_quartic_penalty
 
 
   subroutine get_psp_info(sym, ixc, smmd, nelpsp, psp_source, rloc, psppar)
