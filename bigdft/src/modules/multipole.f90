@@ -352,8 +352,22 @@ module multipole
 !!$          call calculate_norm(nproc, is1, ie1, is2, ie2, is3, ie3, ep, &
 !!$               hhh, gaussians1, gaussians2, gaussians3, &
 !!$               nonzero_startend1, nonzero_startend2, nonzero_startend3, norm)
-          call calculate_gaussian_norm(denspot%dpbox%bitp,nproc, is1, ie1, is2, ie2, is3, ie3, ep, &
-               hhh, gaussian, norm)
+!          call calculate_gaussian_norm(denspot%dpbox%bitp,nproc, is1, ie1, is2, ie2, is3, ie3, ep, &
+!               hhh, gaussian, norm)
+
+!!$!--- Start new iterator loop -------------------------------------------------------------------------------------
+          call f_zero(norm)
+          do impl=1,ep%nmpl
+              bit=denspot%dpbox%bitp
+              do while (box_next_point(bit))
+                  do l=0,lmax
+                      norm(l,impl) = norm(l,impl) + gaussian(l,bit%i,bit%j,bit%k,impl)
+                  end do
+              end do
+          end do
+          norm=norm*hhh
+!!$!--- End new iterator loop -------------------------------------------------------------------------------------
+
 
 !!$          call f_free(nonzero_startend1)
 !!$          call f_free(nonzero_startend2)
@@ -4484,7 +4498,7 @@ module multipole
    integer,intent(in) :: nproc, is1, ie1, is2, ie2, is3, ie3
    type(external_potential_descriptors),intent(in) :: ep
    real(kind=8),intent(in) :: hhh
-   real(kind=8),dimension(0:lmax,is1:ie1,is2:ie2,is3:ie3,1:ep%nmpl),intent(in) :: gaussian
+   real(kind=8),dimension(0:2,is1:ie1,is2:ie2,is3:ie3,1:ep%nmpl),intent(in) :: gaussian
    real(kind=8),dimension(0:2,ep%nmpl),intent(out) :: norm
 
    ! Local variables
@@ -4535,9 +4549,9 @@ module multipole
 !!$       end do i3loop
 !--- Start old loop -------------------------------------------------------------------------------------
 !--- Start new iterator loop -------------------------------------------------------------------------------------
-       bit=bitp
-       do while (box_next_point(bit))
-           do l=0,lmax
+       do l=0,lmax
+           bit=bitp
+           do while (box_next_point(bit))
                norm(l,impl) = norm(l,impl) + gaussian(l,bit%i,bit%j,bit%k,impl)*hhh
            end do
        end do
