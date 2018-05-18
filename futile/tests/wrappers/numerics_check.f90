@@ -260,8 +260,7 @@ subroutine loop_box_function(fcheck,mesh)
      call yaml_map('Product of the two',matmul(mesh%gu,mesh%gd))
      call yaml_map('uabc matrix',mesh%uabc)
      call yaml_map('Sphere radius or cube side',r)
-     do i=2,2
-
+     do i=1,3
         totvolS=0.0_f_double
         totvolS1=0.0_f_double
         totvolS2=0.0_f_double
@@ -361,8 +360,7 @@ subroutine loop_box_function(fcheck,mesh)
      call yaml_map('uabc matrix',mesh%uabc)
      call yaml_map('Sphere radius or cube side',r)
      call yaml_map('Box cube cutoff',cutoff)
-!     do i=1,3
-        i=2
+     do i=2,2
         totvolC=0.0_f_double
         totvolS=0.0_f_double
         totvol_Bcutoff=0.0_f_double
@@ -472,7 +470,7 @@ subroutine loop_box_function(fcheck,mesh)
         call yaml_map('Maximum difference between closest_r and square_gd',diff)
         call yaml_map('Numerical box cutoff integral',totvol_Bcutoff)
         call yaml_mapping_close()
-!     end do
+     end do
      call yaml_mapping_close()
   case('consistency_check')
      call yaml_mapping_open('Check of consistency of cell data')
