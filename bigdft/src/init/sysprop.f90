@@ -475,13 +475,6 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
            do iorb=lorbs%norbu+1,lorbs%norb
                lorbs%inwhichlocreg(iorb)=lorbs%inwhichlocreg(iorb-lorbs%norbu)+lorbs%norbu
            end do
-
-           !i_all=-product(shape(inwhichlocreg_old))*kind(inwhichlocreg_old)
-           !deallocate(inwhichlocreg_old,stat=i_stat)
-           !call memocc(i_stat,i_all,'inwhichlocreg_old',subname)
-           !i_all=-product(shape(onwhichatom_old))*kind(onwhichatom_old)
-           !deallocate(onwhichatom_old,stat=i_stat)
-           !call memocc(i_stat,i_all,'onwhichatom_old',subname)
        end if
      end subroutine init_linear_orbs
 
