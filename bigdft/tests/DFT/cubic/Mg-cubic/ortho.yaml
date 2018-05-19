@@ -1,0 +1,22 @@
+ dft:
+   hgrids: 0.30
+   rmult: [9, 10]
+   ixc: 1 
+   nspin: 1 
+   mpol: 0
+   gnrm_cv: 1.e-5
+   nrepmax: 2
+   itermax: 50
+   ncong: 5
+   idsx: 8
+   disablesym: Yes
+#   norbv: -20
+#   nvirt: 20
+#   itermax_virt: 100
+ output:
+   verbosity: 3
+ perf:
+   projrad: 8.000
+   rho_commun: MIX
+   psp_onfly: No
+ posinp: ortho.cif

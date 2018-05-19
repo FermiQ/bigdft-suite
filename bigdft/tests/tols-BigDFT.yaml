@@ -2640,6 +2640,12 @@ Cavity_H2OfsccsPI:
   Keys to ignore:
    - Electronic charge changed by rho compression
 
+Mg-cubic_ortho:
+  Keys to ignore:
+   - radical
+  Q matrix: 7.50e-11
+  Total ionic charge: 1.50e-11
+
 pexsi:
   Energy (Hartree): 2.3e-11
   Omega: 4.2e-11
