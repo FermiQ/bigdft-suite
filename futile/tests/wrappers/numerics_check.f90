@@ -94,7 +94,7 @@ subroutine test_f_functions()
   !local variables
   type(f_function) :: func1,func2!,func3
   type(f_grid_1d) :: grid
-  integer :: unit
+!  integer :: unit
 
   !start with the simple evaluation
   grid=f_grid_1d_new(UNIFORM_GRID,[-1.0_gp,1.0_gp],npts=1000)
@@ -107,10 +107,10 @@ subroutine test_f_functions()
 !!$
 !!$  func3=func1*func2
 !!$
-  unit=12
-  call f_open_file(unit=unit,file='testfunction.txt')
-  call f_function_dump(unit,func1,grid)
-  call f_close(unit=unit)
+!  unit=12
+!  call f_open_file(unit=unit,file='testfunction.txt')
+!  call f_function_dump(unit,func1,grid)
+!  call f_close(unit=unit)
 
 !!$  call f_open_file(unit=unit,file='testproduct.txt')
 !!$  call f_function_dump(unit,func3,grid)
@@ -154,7 +154,7 @@ subroutine test_box_functions()
   call loop_dotp('ITM',mesh_ortho,v1,v2,tseq)
   call yaml_map('Normal loop, mpi (ns)',tseq)
 
-  ndims=[100,100,100]
+  ndims=70
 
   mesh_ortho=cell_null()
   mesh_ortho=cell_new('F',ndims,[1.0_gp,1.0_gp,1.0_gp])
@@ -199,7 +199,9 @@ subroutine test_box_functions()
   call loop_box_function('box_cutoff',mesh_noortho)
   call loop_box_function('consistency_check',mesh_noortho)
 
-  ndims=200
+! to be set 2oo to have the sphere inside the whole box
+  ndims=150
+  !ndims=200
   angrad(1) = 20.0_gp/180.0_gp*pi
   angrad(2) = 25.0_gp/180.0_gp*pi
   angrad(3) = 30.0_gp/180.0_gp*pi
@@ -393,11 +395,11 @@ subroutine loop_box_function(fcheck,mesh)
              totvolS=totvolS+1.0_f_double
            end if
 
-           if (distance(bit%mesh,bit%rxyz,rxyz0) .le. 0.0_f_double) then
-            print*, bit%rxyz
-            print*, rxyz0
-            print*, bit%i,bit%j,bit%k
-           end if
+!           if (distance(bit%mesh,bit%rxyz,rxyz0) .le. 0.0_f_double) then
+!            print*, bit%rxyz
+!            print*, rxyz0
+!            print*, bit%i,bit%j,bit%k
+!           end if
 
            rd=closest_r(bit%mesh,bit%rxyz,rxyz0)
            rv=rxyz_ortho(bit%mesh,rd)
@@ -423,10 +425,10 @@ subroutine loop_box_function(fcheck,mesh)
                nbox_ref_cub(START_,3)=min(bit%k,nbox_ref_cub(START_,3))
                nbox_ref_cub(END_,3)=max(bit%k,nbox_ref_cub(END_,3))
               totvolC=totvolC+1.0_f_double
-              if (enter) then
-               print*, bit%i,bit%j,bit%k
-               enter=.false.
-              end if
+!              if (enter) then
+!               print*, bit%i,bit%j,bit%k
+!               enter=.false.
+!              end if
            end if
         end do
         totvolC=totvolC*mesh%volume_element
@@ -444,15 +446,15 @@ subroutine loop_box_function(fcheck,mesh)
         call yaml_map('bit%nbox reduced box',bit%nbox)
         enter=.true.
         do while(box_next_point(bit))
-              if (enter) then
-               print*, bit%i,bit%j,bit%k
-               enter=.false.
-              end if
-              if (distance(bit%mesh,bit%rxyz,rxyz0) .le. 0.0_f_double) then
-               print*, bit%rxyz
-               print*, rxyz0
-               print*, bit%i,bit%j,bit%k
-              end if
+!              if (enter) then
+!               print*, bit%i,bit%j,bit%k
+!               enter=.false.
+!              end if
+!              if (distance(bit%mesh,bit%rxyz,rxyz0) .le. 0.0_f_double) then
+!               print*, bit%rxyz
+!               print*, rxyz0
+!               print*, bit%i,bit%j,bit%k
+!              end if
            totvol_Bcutoff=totvol_Bcutoff+1.0_f_double
         end do
         totvol_Bcutoff=totvol_Bcutoff*mesh%volume_element

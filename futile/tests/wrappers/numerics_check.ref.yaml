@@ -9,14 +9,14 @@
    -  [ 48.0674124956131,  0.0,  48.0674124956131]
    -  [ 48.0674124956131,  48.0674124956131,  0.0]
    quadrupole intensity: [ 16.02247083187103,  16.02247083187103,  16.02247083187103]
- Normal loop, seq (ns)                 :  274842620
- Normal loop, omp (ns)                 :  56239567
- Normal loop, itr (ns)                 :  669073732
- Normal loop, iom (ns)                 :  96285198
- Normal loop, mpi (ns)                 :  679225797
+ Normal loop, seq (ns)                 :  265360690
+ Normal loop, omp (ns)                 :  84626639
+ Normal loop, itr (ns)                 :  675814878
+ Normal loop, iom (ns)                 :  98647628
+ Normal loop, mpi (ns)                 :  682355613
  Check of functions distance, closest_r, rxyz_ortho:
    Cell orthorhombic                   :  Yes
-   Cell ndims                          :  [  100,  100,  100 ]
+   Cell ndims                          :  [  70,  70,  70 ]
    Cell hgrids                         :  [  1.0,  1.0,  1.0 ]
    Cell angles deg                     :  [  90.0,  90.0,  90.0 ]
    Cell angles rad: [ 1.570796326794897,  1.570796326794897,  1.570796326794897]
@@ -40,7 +40,7 @@
    -  [ 0.0,  0.0,  1.0]
    Sphere radius or cube side          :  20.0
    center:
-     Sphere or cube center             :  [  50.0,  50.0,  50.0 ]
+     Sphere or cube center             :  [  35.0,  35.0,  35.0 ]
      Numerical sphere integral with distance:  33401.0
      Numerical sphere integral with closest_r and rxyz_ortho:  33401.0
      Numerical sphere integral with closest_r and square_gd:  33401.0
@@ -51,7 +51,7 @@
      Cube integral error               :  0.0
      Maximum difference between closest_r and square_gd:  0.0
    center:
-     Sphere or cube center             :  [  50.0,  50.0,  50.0 ]
+     Sphere or cube center             :  [  35.0,  35.0,  35.0 ]
      Numerical sphere integral with distance:  33401.0
      Numerical sphere integral with closest_r and rxyz_ortho:  33401.0
      Numerical sphere integral with closest_r and square_gd:  33401.0
@@ -62,7 +62,7 @@
      Cube integral error               :  0.0
      Maximum difference between closest_r and square_gd:  0.0
    center:
-     Sphere or cube center             :  [  50.0,  50.0,  50.0 ]
+     Sphere or cube center             :  [  35.0,  35.0,  35.0 ]
      Numerical sphere integral with distance:  33401.0
      Numerical sphere integral with closest_r and rxyz_ortho:  33401.0
      Numerical sphere integral with closest_r and square_gd:  33401.0
@@ -74,7 +74,7 @@
      Maximum difference between closest_r and square_gd:  0.0
  Check of box cutoff:
    Cell orthorhombic                   :  Yes
-   Cell ndims                          :  [  100,  100,  100 ]
+   Cell ndims                          :  [  70,  70,  70 ]
    Cell hgrids                         :  [  1.0,  1.0,  1.0 ]
    Cell angles deg                     :  [  90.0,  90.0,  90.0 ]
    Cell angles rad: [ 1.570796326794897,  1.570796326794897,  1.570796326794897]
@@ -98,37 +98,29 @@
    -  [ 0.0,  0.0,  1.0]
    Sphere radius or cube side          :  20.0
    Box cube cutoff                     :  20.0
-   Sphere or cube center               :  [  50.0,  50.0,  50.0 ]
+   Sphere or cube center               :  [  35.0,  35.0,  35.0 ]
    bit%nbox whole box:
-   -  [ 1,  100]
-   -  [ 1,  100]
-   -  [ 1,  100]
-          31          31          31
-   50.000000000000000        50.000000000000000        50.000000000000000     
-   50.000000000000000        50.000000000000000        50.000000000000000     
-          51          51          51
+   -  [ 1,  70]
+   -  [ 1,  70]
+   -  [ 1,  70]
    nbox_ref:
-   -  [ 31,  71]
-   -  [ 31,  71]
-   -  [ 31,  71]
+   -  [ 16,  56]
+   -  [ 16,  56]
+   -  [ 16,  56]
    nbox_ref_cub:
-   -  [ 31,  70]
-   -  [ 31,  70]
-   -  [ 31,  70]
+   -  [ 16,  55]
+   -  [ 16,  55]
+   -  [ 16,  55]
    nbox:
-   -  [ 30,  70]
-   -  [ 30,  70]
-   -  [ 30,  70]
+   -  [ 15,  55]
+   -  [ 15,  55]
+   -  [ 15,  55]
    bit%nbox reduced box:
-   -  [ 31,  71]
-   -  [ 31,  71]
-   -  [ 31,  71]
-          31          31          31
-   50.000000000000000        50.000000000000000        50.000000000000000     
-   50.000000000000000        50.000000000000000        50.000000000000000     
-          51          51          51
+   -  [ 16,  56]
+   -  [ 16,  56]
+   -  [ 16,  56]
    center:
-     Sphere or cube center             :  [  50.0,  50.0,  50.0 ]
+     Sphere or cube center             :  [  35.0,  35.0,  35.0 ]
      Numerical sphere integral with distance:  33401.0
      Analytical sphere integral        :  33510.32163829113
      Sphere integral error             :  3.2623273351756995E-003
@@ -139,7 +131,7 @@
      Numerical box cutoff integral     :  68921.0
  Check of functions distance, closest_r, rxyz_ortho:
    Cell orthorhombic                   :  Yes
-   Cell ndims                          :  [  100,  100,  100 ]
+   Cell ndims                          :  [  70,  70,  70 ]
    Cell hgrids                         :  [  1.0,  1.0,  1.0 ]
    Cell angles deg                     :  [  90.0,  90.0,  90.0 ]
    Cell angles rad: [ 1.570796326794897,  1.570796326794897,  1.570796326794897]
@@ -163,7 +155,7 @@
    -  [ 0.0,  0.0,  1.0]
    Sphere radius or cube side          :  20.0
    center:
-     Sphere or cube center             :  [  0.0,  50.0,  0.0 ]
+     Sphere or cube center             :  [  0.0,  35.0,  0.0 ]
      Numerical sphere integral with distance:  33401.0
      Numerical sphere integral with closest_r and rxyz_ortho:  33401.0
      Numerical sphere integral with closest_r and square_gd:  33401.0
@@ -174,7 +166,7 @@
      Cube integral error               :  0.0
      Maximum difference between closest_r and square_gd:  0.0
    center:
-     Sphere or cube center             :  [  50.0,  50.0,  50.0 ]
+     Sphere or cube center             :  [  35.0,  35.0,  35.0 ]
      Numerical sphere integral with distance:  33401.0
      Numerical sphere integral with closest_r and rxyz_ortho:  33401.0
      Numerical sphere integral with closest_r and square_gd:  33401.0
@@ -185,7 +177,7 @@
      Cube integral error               :  0.0
      Maximum difference between closest_r and square_gd:  0.0
    center:
-     Sphere or cube center             :  [  150.0,  50.0,  150.0 ]
+     Sphere or cube center             :  [  105.0,  35.0,  105.0 ]
      Numerical sphere integral with distance:  33401.0
      Numerical sphere integral with closest_r and rxyz_ortho:  33401.0
      Numerical sphere integral with closest_r and square_gd:  33401.0
@@ -197,7 +189,7 @@
      Maximum difference between closest_r and square_gd:  0.0
  Check of box cutoff:
    Cell orthorhombic                   :  Yes
-   Cell ndims                          :  [  100,  100,  100 ]
+   Cell ndims                          :  [  70,  70,  70 ]
    Cell hgrids                         :  [  1.0,  1.0,  1.0 ]
    Cell angles deg                     :  [  90.0,  90.0,  90.0 ]
    Cell angles rad: [ 1.570796326794897,  1.570796326794897,  1.570796326794897]
@@ -221,37 +213,29 @@
    -  [ 0.0,  0.0,  1.0]
    Sphere radius or cube side          :  20.0
    Box cube cutoff                     :  20.0
-   Sphere or cube center               :  [  50.0,  50.0,  50.0 ]
+   Sphere or cube center               :  [  35.0,  35.0,  35.0 ]
    bit%nbox whole box:
-   -  [ 1,  100]
-   -  [ 1,  100]
-   -  [ 1,  100]
-          31          31          31
-   50.000000000000000        50.000000000000000        50.000000000000000     
-   50.000000000000000        50.000000000000000        50.000000000000000     
-          51          51          51
+   -  [ 1,  70]
+   -  [ 1,  70]
+   -  [ 1,  70]
    nbox_ref:
-   -  [ 31,  71]
-   -  [ 31,  71]
-   -  [ 31,  71]
+   -  [ 16,  56]
+   -  [ 16,  56]
+   -  [ 16,  56]
    nbox_ref_cub:
-   -  [ 31,  70]
-   -  [ 31,  70]
-   -  [ 31,  70]
+   -  [ 16,  55]
+   -  [ 16,  55]
+   -  [ 16,  55]
    nbox:
-   -  [ 30,  70]
-   -  [ 30,  70]
-   -  [ 30,  70]
+   -  [ 15,  55]
+   -  [ 15,  55]
+   -  [ 15,  55]
    bit%nbox reduced box:
-   -  [ 31,  71]
-   -  [ 31,  71]
-   -  [ 31,  71]
-          31          31          31
-   50.000000000000000        50.000000000000000        50.000000000000000     
-   50.000000000000000        50.000000000000000        50.000000000000000     
-          51          51          51
+   -  [ 16,  56]
+   -  [ 16,  56]
+   -  [ 16,  56]
    center:
-     Sphere or cube center             :  [  50.0,  50.0,  50.0 ]
+     Sphere or cube center             :  [  35.0,  35.0,  35.0 ]
      Numerical sphere integral with distance:  33401.0
      Analytical sphere integral        :  33510.32163829113
      Sphere integral error             :  3.2623273351756995E-003
@@ -262,7 +246,7 @@
      Numerical box cutoff integral     :  68921.0
  Check of functions distance, closest_r, rxyz_ortho:
    Cell orthorhombic                   :  Yes
-   Cell ndims                          :  [  100,  100,  100 ]
+   Cell ndims                          :  [  70,  70,  70 ]
    Cell hgrids                         :  [  1.0,  1.0,  1.0 ]
    Cell angles deg                     :  [  90.0,  90.0,  90.0 ]
    Cell angles rad: [ 1.570796326794897,  1.570796326794897,  1.570796326794897]
@@ -297,7 +281,7 @@
      Cube integral error               :  0.0
      Maximum difference between closest_r and square_gd:  0.0
    center:
-     Sphere or cube center             :  [  50.0,  50.0,  50.0 ]
+     Sphere or cube center             :  [  35.0,  35.0,  35.0 ]
      Numerical sphere integral with distance:  33401.0
      Numerical sphere integral with closest_r and rxyz_ortho:  33401.0
      Numerical sphere integral with closest_r and square_gd:  33401.0
@@ -308,7 +292,7 @@
      Cube integral error               :  0.0
      Maximum difference between closest_r and square_gd:  0.0
    center:
-     Sphere or cube center             :  [  150.0,  150.0,  150.0 ]
+     Sphere or cube center             :  [  105.0,  105.0,  105.0 ]
      Numerical sphere integral with distance:  33401.0
      Numerical sphere integral with closest_r and rxyz_ortho:  33401.0
      Numerical sphere integral with closest_r and square_gd:  33401.0
@@ -320,7 +304,7 @@
      Maximum difference between closest_r and square_gd:  0.0
  Check of box cutoff:
    Cell orthorhombic                   :  Yes
-   Cell ndims                          :  [  100,  100,  100 ]
+   Cell ndims                          :  [  70,  70,  70 ]
    Cell hgrids                         :  [  1.0,  1.0,  1.0 ]
    Cell angles deg                     :  [  90.0,  90.0,  90.0 ]
    Cell angles rad: [ 1.570796326794897,  1.570796326794897,  1.570796326794897]
@@ -344,37 +328,29 @@
    -  [ 0.0,  0.0,  1.0]
    Sphere radius or cube side          :  20.0
    Box cube cutoff                     :  20.0
-   Sphere or cube center               :  [  50.0,  50.0,  50.0 ]
+   Sphere or cube center               :  [  35.0,  35.0,  35.0 ]
    bit%nbox whole box:
-   -  [ 1,  100]
-   -  [ 1,  100]
-   -  [ 1,  100]
-          31          31          31
-   50.000000000000000        50.000000000000000        50.000000000000000     
-   50.000000000000000        50.000000000000000        50.000000000000000     
-          51          51          51
+   -  [ 1,  70]
+   -  [ 1,  70]
+   -  [ 1,  70]
    nbox_ref:
-   -  [ 31,  71]
-   -  [ 31,  71]
-   -  [ 31,  71]
+   -  [ 16,  56]
+   -  [ 16,  56]
+   -  [ 16,  56]
    nbox_ref_cub:
-   -  [ 31,  70]
-   -  [ 31,  70]
-   -  [ 31,  70]
+   -  [ 16,  55]
+   -  [ 16,  55]
+   -  [ 16,  55]
    nbox:
-   -  [ 30,  70]
-   -  [ 30,  70]
-   -  [ 30,  70]
+   -  [ 15,  55]
+   -  [ 15,  55]
+   -  [ 15,  55]
    bit%nbox reduced box:
-   -  [ 31,  71]
-   -  [ 31,  71]
-   -  [ 31,  71]
-          31          31          31
-   50.000000000000000        50.000000000000000        50.000000000000000     
-   50.000000000000000        50.000000000000000        50.000000000000000     
-          51          51          51
+   -  [ 16,  56]
+   -  [ 16,  56]
+   -  [ 16,  56]
    center:
-     Sphere or cube center             :  [  50.0,  50.0,  50.0 ]
+     Sphere or cube center             :  [  35.0,  35.0,  35.0 ]
      Numerical sphere integral with distance:  33401.0
      Analytical sphere integral        :  33510.32163829113
      Sphere integral error             :  3.2623273351756995E-003
@@ -385,7 +361,7 @@
      Numerical box cutoff integral     :  68921.0
  Check of consistency of cell data:
    Cell orthorhombic                   :  Yes
-   Cell ndims                          :  [  100,  100,  100 ]
+   Cell ndims                          :  [  70,  70,  70 ]
    Cell hgrids                         :  [  1.0,  1.0,  1.0 ]
    Cell angles deg                     :  [  90.0,  90.0,  90.0 ]
    Cell angles rad: [ 1.570796326794897,  1.570796326794897,  1.570796326794897]
@@ -417,7 +393,7 @@
                                  6.123233995736766E-017]
    Check of functions distance, closest_r, rxyz_ortho:
      Cell orthorhombic                 :  No
-     Cell ndims                        :  [  100,  100,  100 ]
+     Cell ndims                        :  [  70,  70,  70 ]
      Cell hgrids                       :  [  1.0,  1.0,  1.0 ]
      Cell angles deg                   :  [  90.0,  70.0,  90.0 ]
      Cell angles rad: [ 1.570796326794897,  1.221730476396031,  1.570796326794897]
@@ -441,7 +417,7 @@
      -  [ 0.3420201433256688,  0.0,  0.9396926207859083]
      Sphere radius or cube side        :  20.0
      center:
-       Sphere or cube center           :  [  0.0,  50.0,  0.0 ]
+       Sphere or cube center           :  [  0.0,  35.0,  0.0 ]
        Numerical sphere integral with distance:  33519.77547605414
        Numerical sphere integral with closest_r and rxyz_ortho:  33519.77547605414
        Numerical sphere integral with closest_r and square_gd:  33519.77547605414
@@ -452,7 +428,7 @@
        Cube integral error             :  1.016956734485143E-002
        Maximum difference between closest_r and square_gd:  1.4210854715202004E-014
      center:
-       Sphere or cube center           :  [  50.0,  50.0,  50.0 ]
+       Sphere or cube center           :  [  35.0,  35.0,  35.0 ]
        Numerical sphere integral with distance:  33519.77547605414
        Numerical sphere integral with closest_r and rxyz_ortho:  33519.77547605414
        Numerical sphere integral with closest_r and square_gd:  33519.77547605414
@@ -463,7 +439,7 @@
        Cube integral error             :  1.016956734485143E-002
        Maximum difference between closest_r and square_gd:  1.4210854715202004E-014
      center:
-       Sphere or cube center           :  [  150.0,  50.0,  150.0 ]
+       Sphere or cube center           :  [  105.0,  35.0,  105.0 ]
        Numerical sphere integral with distance:  33519.77547605414
        Numerical sphere integral with closest_r and rxyz_ortho:  33519.77547605414
        Numerical sphere integral with closest_r and square_gd:  33519.77547605414
@@ -475,7 +451,7 @@
        Maximum difference between closest_r and square_gd:  1.4210854715202004E-014
    Check of box cutoff:
      Cell orthorhombic                 :  No
-     Cell ndims                        :  [  100,  100,  100 ]
+     Cell ndims                        :  [  70,  70,  70 ]
      Cell hgrids                       :  [  1.0,  1.0,  1.0 ]
      Cell angles deg                   :  [  90.0,  70.0,  90.0 ]
      Cell angles rad: [ 1.570796326794897,  1.221730476396031,  1.570796326794897]
@@ -499,37 +475,29 @@
      -  [ 0.3420201433256688,  0.0,  0.9396926207859083]
      Sphere radius or cube side        :  20.0
      Box cube cutoff                   :  20.0
-     Sphere or cube center             :  [  50.0,  50.0,  50.0 ]
+     Sphere or cube center             :  [  35.0,  35.0,  35.0 ]
      bit%nbox whole box:
-     -  [ 1,  100]
-     -  [ 1,  100]
-     -  [ 1,  100]
-          39          31          30
-   50.000000000000000        50.000000000000000        50.000000000000000     
-   50.000000000000000        50.000000000000000        50.000000000000000     
-          51          51          51
+     -  [ 1,  70]
+     -  [ 1,  70]
+     -  [ 1,  70]
      nbox_ref:
-     -  [ 30,  72]
-     -  [ 31,  71]
-     -  [ 30,  72]
+     -  [ 15,  57]
+     -  [ 16,  56]
+     -  [ 15,  57]
      nbox_ref_cub:
-     -  [ 24,  78]
-     -  [ 31,  70]
-     -  [ 30,  72]
+     -  [ 9,  63]
+     -  [ 16,  55]
+     -  [ 15,  57]
      nbox:
-     -  [ 29,  71]
-     -  [ 30,  70]
-     -  [ 29,  71]
+     -  [ 14,  56]
+     -  [ 15,  55]
+     -  [ 14,  56]
      bit%nbox reduced box:
-     -  [ 30,  72]
-     -  [ 31,  71]
-     -  [ 30,  72]
-          30          31          30
-   50.000000000000000        50.000000000000000        50.000000000000000     
-   50.000000000000000        50.000000000000000        50.000000000000000     
-          51          51          51
+     -  [ 15,  57]
+     -  [ 16,  56]
+     -  [ 15,  57]
      center:
-       Sphere or cube center           :  [  50.0,  50.0,  50.0 ]
+       Sphere or cube center           :  [  35.0,  35.0,  35.0 ]
        Numerical sphere integral with distance:  33519.77547605414
        Analytical sphere integral      :  33510.32163829113
        Sphere integral error           :  2.8211718959468871E-004
@@ -540,7 +508,7 @@
        Numerical box cutoff integral   :  71237.15788915893
    Check of functions distance, closest_r, rxyz_ortho:
      Cell orthorhombic                 :  No
-     Cell ndims                        :  [  100,  100,  100 ]
+     Cell ndims                        :  [  70,  70,  70 ]
      Cell hgrids                       :  [  1.0,  1.0,  1.0 ]
      Cell angles deg                   :  [  80.0,  80.0,  80.0 ]
      Cell angles rad: [ 1.396263401595464,  1.396263401595464,  1.396263401595464]
@@ -573,9 +541,9 @@
        Numerical cube integral         :  63609.41893031081
        Analytical cube integral        :  64000.0
        Cube integral error             :  6.1028292138935285E-003
-       Maximum difference between closest_r and square_gd:  2.8421709430404007E-014
+       Maximum difference between closest_r and square_gd:  1.4210854715202004E-014
      center:
-       Sphere or cube center           :  [  50.0,  50.0,  50.0 ]
+       Sphere or cube center           :  [  35.0,  35.0,  35.0 ]
        Numerical sphere integral with distance:  33518.27049655007
        Numerical sphere integral with closest_r and rxyz_ortho:  33518.27049655007
        Numerical sphere integral with closest_r and square_gd:  33518.27049655007
@@ -584,9 +552,9 @@
        Numerical cube integral         :  63609.41893031081
        Analytical cube integral        :  64000.0
        Cube integral error             :  6.1028292138935285E-003
-       Maximum difference between closest_r and square_gd:  2.8421709430404007E-014
+       Maximum difference between closest_r and square_gd:  1.4210854715202004E-014
      center:
-       Sphere or cube center           :  [  150.0,  150.0,  150.0 ]
+       Sphere or cube center           :  [  105.0,  105.0,  105.0 ]
        Numerical sphere integral with distance:  33518.27049655007
        Numerical sphere integral with closest_r and rxyz_ortho:  33518.27049655007
        Numerical sphere integral with closest_r and square_gd:  33518.27049655007
@@ -595,10 +563,10 @@
        Numerical cube integral         :  63609.41893031081
        Analytical cube integral        :  64000.0
        Cube integral error             :  6.1028292138935285E-003
-       Maximum difference between closest_r and square_gd:  2.8421709430404007E-014
+       Maximum difference between closest_r and square_gd:  1.4210854715202004E-014
    Check of box cutoff:
      Cell orthorhombic                 :  No
-     Cell ndims                        :  [  100,  100,  100 ]
+     Cell ndims                        :  [  70,  70,  70 ]
      Cell hgrids                       :  [  1.0,  1.0,  1.0 ]
      Cell angles deg                   :  [  80.0,  80.0,  80.0 ]
      Cell angles rad: [ 1.396263401595464,  1.396263401595464,  1.396263401595464]
@@ -622,48 +590,40 @@
      -  [-0.3711135994842796, -0.6427876096865393,  0.6701483306785797]
      Sphere radius or cube side        :  20.0
      Box cube cutoff                   :  20.0
-     Sphere or cube center             :  [  50.0,  50.0,  50.0 ]
+     Sphere or cube center             :  [  35.0,  35.0,  35.0 ]
      bit%nbox whole box:
-     -  [ 1,  100]
-     -  [ 1,  100]
-     -  [ 1,  100]
-          59          48          17
-   50.000000000000000        50.000000000000000        50.000000000000000     
-   50.000000000000000        50.000000000000000        50.000000000000000     
-          51          51          51
+     -  [ 1,  70]
+     -  [ 1,  70]
+     -  [ 1,  70]
      nbox_ref:
-     -  [ 31,  71]
-     -  [ 31,  71]
-     -  [ 31,  71]
+     -  [ 16,  56]
+     -  [ 16,  56]
+     -  [ 16,  56]
      nbox_ref_cub:
-     -  [ 24,  78]
-     -  [ 17,  85]
-     -  [ 17,  85]
+     -  [ 9,  63]
+     -  [ 2,  70]
+     -  [ 2,  70]
      nbox:
-     -  [ 30,  70]
-     -  [ 30,  70]
-     -  [ 30,  70]
+     -  [ 15,  55]
+     -  [ 15,  55]
+     -  [ 15,  55]
      bit%nbox reduced box:
-     -  [ 31,  71]
-     -  [ 31,  71]
-     -  [ 31,  71]
-          31          31          31
-   50.000000000000000        50.000000000000000        50.000000000000000     
-   50.000000000000000        50.000000000000000        50.000000000000000     
-          51          51          51
+     -  [ 16,  56]
+     -  [ 16,  56]
+     -  [ 16,  56]
      center:
-       Sphere or cube center           :  [  50.0,  50.0,  50.0 ]
+       Sphere or cube center           :  [  35.0,  35.0,  35.0 ]
        Numerical sphere integral with distance:  33518.27049655007
        Analytical sphere integral      :  33510.32163829113
        Sphere integral error           :  2.3720626572156037E-004
        Numerical cube integral         :  63609.41893031081
        Analytical cube integral        :  64000.0
        Cube integral error             :  6.1028292138935285E-003
-       Maximum difference between closest_r and square_gd:  2.8421709430404007E-014
+       Maximum difference between closest_r and square_gd:  1.4210854715202004E-014
        Numerical box cutoff integral   :  66107.10318765855
    Check of functions distance, closest_r, rxyz_ortho:
      Cell orthorhombic                 :  No
-     Cell ndims                        :  [  100,  100,  100 ]
+     Cell ndims                        :  [  70,  70,  70 ]
      Cell hgrids                       :  [  1.0,  1.0,  1.0 ]
      Cell angles deg                   :  [  59.99999999999999,  50.0,  90.0 ]
      Cell angles rad: [ 1.047197551196598,  0.8726646259971648,  1.570796326794897]
@@ -693,35 +653,35 @@
        Numerical sphere integral with closest_r and square_gd:  33515.52602779377
        Analytical sphere integral      :  33510.32163829113
        Sphere integral error           :  1.5530705908524392E-004
-       Numerical cube integral         :  64072.34884532083
+       Numerical cube integral         :  63744.4423498715
        Analytical cube integral        :  64000.0
-       Cube integral error             :  1.1304507081379143E-003
-       Maximum difference between closest_r and square_gd:  2.1316282072803006E-014
+       Cube integral error             :  3.9930882832578622E-003
+       Maximum difference between closest_r and square_gd:  1.4210854715202004E-014
      center:
-       Sphere or cube center           :  [  50.0,  50.0,  50.0 ]
+       Sphere or cube center           :  [  35.0,  35.0,  35.0 ]
        Numerical sphere integral with distance:  33515.52602779377
        Numerical sphere integral with closest_r and rxyz_ortho:  33515.52602779377
        Numerical sphere integral with closest_r and square_gd:  33515.52602779377
        Analytical sphere integral      :  33510.32163829113
        Sphere integral error           :  1.5530705908524392E-004
-       Numerical cube integral         :  64072.34884532083
+       Numerical cube integral         :  63744.4423498715
        Analytical cube integral        :  64000.0
-       Cube integral error             :  1.1304507081379143E-003
-       Maximum difference between closest_r and square_gd:  2.1316282072803006E-014
+       Cube integral error             :  3.9930882832578622E-003
+       Maximum difference between closest_r and square_gd:  1.4210854715202004E-014
      center:
-       Sphere or cube center           :  [  150.0,  150.0,  150.0 ]
+       Sphere or cube center           :  [  105.0,  105.0,  105.0 ]
        Numerical sphere integral with distance:  33515.52602779377
        Numerical sphere integral with closest_r and rxyz_ortho:  33515.52602779377
        Numerical sphere integral with closest_r and square_gd:  33515.52602779377
        Analytical sphere integral      :  33510.32163829113
        Sphere integral error           :  1.5530705908524392E-004
-       Numerical cube integral         :  64072.34884532083
+       Numerical cube integral         :  63744.4423498715
        Analytical cube integral        :  64000.0
-       Cube integral error             :  1.1304507081379143E-003
-       Maximum difference between closest_r and square_gd:  2.1316282072803006E-014
+       Cube integral error             :  3.9930882832578622E-003
+       Maximum difference between closest_r and square_gd:  1.4210854715202004E-014
    Check of box cutoff:
      Cell orthorhombic                 :  No
-     Cell ndims                        :  [  100,  100,  100 ]
+     Cell ndims                        :  [  70,  70,  70 ]
      Cell hgrids                       :  [  1.0,  1.0,  1.0 ]
      Cell angles deg                   :  [  59.99999999999999,  50.0,  90.0 ]
      Cell angles rad: [ 1.047197551196598,  0.8726646259971648,  1.570796326794897]
@@ -745,48 +705,40 @@
      -  [ 0.6427876096865394,  0.5000000000000001,  0.5803654786713843]
      Sphere radius or cube side        :  20.0
      Box cube cutoff                   :  20.0
-     Sphere or cube center             :  [  50.0,  50.0,  50.0 ]
+     Sphere or cube center             :  [  35.0,  35.0,  35.0 ]
      bit%nbox whole box:
-     -  [ 1,  100]
-     -  [ 1,  100]
-     -  [ 1,  100]
-          53          49          17
-   50.000000000000000        50.000000000000000        50.000000000000000     
-   50.000000000000000        50.000000000000000        50.000000000000000     
-          51          51          51
+     -  [ 1,  70]
+     -  [ 1,  70]
+     -  [ 1,  70]
      nbox_ref:
-     -  [ 22,  80]
-     -  [ 25,  77]
-     -  [ 17,  85]
+     -  [ 7,  65]
+     -  [ 10,  62]
+     -  [ 2,  70]
      nbox_ref_cub:
-     -  [ 10,  92]
-     -  [ 14,  88]
-     -  [ 17,  85]
+     -  [ 1,  70]
+     -  [ 1,  70]
+     -  [ 2,  70]
      nbox:
-     -  [ 21,  79]
-     -  [ 24,  76]
-     -  [ 16,  84]
+     -  [ 6,  64]
+     -  [ 9,  61]
+     -  [ 1,  69]
      bit%nbox reduced box:
-     -  [ 22,  80]
-     -  [ 25,  77]
-     -  [ 17,  85]
-          22          25          17
-   50.000000000000000        50.000000000000000        50.000000000000000     
-   50.000000000000000        50.000000000000000        50.000000000000000     
-          51          51          51
+     -  [ 7,  65]
+     -  [ 10,  62]
+     -  [ 2,  70]
      center:
-       Sphere or cube center           :  [  50.0,  50.0,  50.0 ]
+       Sphere or cube center           :  [  35.0,  35.0,  35.0 ]
        Numerical sphere integral with distance:  33515.52602779377
        Analytical sphere integral      :  33510.32163829113
        Sphere integral error           :  1.5530705908524392E-004
-       Numerical cube integral         :  64072.34884532083
+       Numerical cube integral         :  63744.4423498715
        Analytical cube integral        :  64000.0
-       Cube integral error             :  1.1304507081379143E-003
-       Maximum difference between closest_r and square_gd:  2.1316282072803006E-014
+       Cube integral error             :  3.9930882832578622E-003
+       Maximum difference between closest_r and square_gd:  1.4210854715202004E-014
        Numerical box cutoff integral   :  125221.3967745739
    Check of consistency of cell data:
      Cell orthorhombic                 :  No
-     Cell ndims                        :  [  100,  100,  100 ]
+     Cell ndims                        :  [  70,  70,  70 ]
      Cell hgrids                       :  [  1.0,  1.0,  1.0 ]
      Cell angles deg                   :  [  59.99999999999999,  50.0,  90.0 ]
      Cell angles rad: [ 1.047197551196598,  0.8726646259971648,  1.570796326794897]
@@ -819,7 +771,7 @@
                                    6.123233995736766E-017]
      Check of functions distance, closest_r, rxyz_ortho:
        Cell orthorhombic               :  No
-       Cell ndims                      :  [  200,  200,  200 ]
+       Cell ndims                      :  [  150,  150,  150 ]
        Cell hgrids                     :  [  1.0,  1.0,  1.0 ]
        Cell angles deg                 :  [  20.0,  25.0,  30.0 ]
        Cell angles rad: [ 0.3490658503988659,  0.4363323129985824,  0.5235987755982988]
@@ -849,35 +801,35 @@
          Numerical sphere integral with closest_r and square_gd:  33513.94482292959
          Analytical sphere integral    :  33510.32163829113
          Sphere integral error         :  1.0812145217733715E-004
-         Numerical cube integral       :  63980.18674777159
+         Numerical cube integral       :  63626.37130986241
          Analytical cube integral      :  64000.0
-         Cube integral error           :  3.0958206606896966E-004
-         Maximum difference between closest_r and square_gd:  1.0658141036401503E-013
+         Cube integral error           :  5.8379482833997827E-003
+         Maximum difference between closest_r and square_gd:  7.1054273576010019E-014
        center:
-         Sphere or cube center         :  [  100.0,  100.0,  100.0 ]
+         Sphere or cube center         :  [  75.0,  75.0,  75.0 ]
          Numerical sphere integral with distance:  33513.94482292959
          Numerical sphere integral with closest_r and rxyz_ortho:  33513.94482292959
          Numerical sphere integral with closest_r and square_gd:  33513.94482292959
          Analytical sphere integral    :  33510.32163829113
          Sphere integral error         :  1.0812145217733715E-004
-         Numerical cube integral       :  63980.18674777159
+         Numerical cube integral       :  63626.37130986241
          Analytical cube integral      :  64000.0
-         Cube integral error           :  3.0958206606896966E-004
-         Maximum difference between closest_r and square_gd:  1.0658141036401503E-013
+         Cube integral error           :  5.8379482833997827E-003
+         Maximum difference between closest_r and square_gd:  7.1054273576010019E-014
        center:
-         Sphere or cube center         :  [  300.0,  300.0,  300.0 ]
+         Sphere or cube center         :  [  225.0,  225.0,  225.0 ]
          Numerical sphere integral with distance:  33513.94482292959
          Numerical sphere integral with closest_r and rxyz_ortho:  33513.94482292959
          Numerical sphere integral with closest_r and square_gd:  33513.94482292959
          Analytical sphere integral    :  33510.32163829113
          Sphere integral error         :  1.0812145217733715E-004
-         Numerical cube integral       :  63980.18674777159
+         Numerical cube integral       :  63626.37130986241
          Analytical cube integral      :  64000.0
-         Cube integral error           :  3.0958206606896966E-004
-         Maximum difference between closest_r and square_gd:  1.0658141036401503E-013
+         Cube integral error           :  5.8379482833997827E-003
+         Maximum difference between closest_r and square_gd:  7.1054273576010019E-014
      Check of box cutoff:
        Cell orthorhombic               :  No
-       Cell ndims                      :  [  200,  200,  200 ]
+       Cell ndims                      :  [  150,  150,  150 ]
        Cell hgrids                     :  [  1.0,  1.0,  1.0 ]
        Cell angles deg                 :  [  20.0,  25.0,  30.0 ]
        Cell angles rad: [ 0.3490658503988659,  0.4363323129985824,  0.5235987755982988]
@@ -901,44 +853,36 @@
        -  [ 0.9063077870366499,  0.3096141071290253,  0.2876548275684363]
        Sphere radius or cube side      :  20.0
        Box cube cutoff                 :  20.0
-       Sphere or cube center           :  [  100.0,  100.0,  100.0 ]
+       Sphere or cube center           :  [  75.0,  75.0,  75.0 ]
        bit%nbox whole box:
-       -  [ 1,  200]
-       -  [ 1,  200]
-       -  [ 1,  200]
-         141         104          32
-   100.00000000000000        100.00000000000000        100.00000000000000     
-   100.00000000000000        100.00000000000000        100.00000000000000     
-         101         101         101
+       -  [ 1,  150]
+       -  [ 1,  150]
+       -  [ 1,  150]
        nbox_ref:
-       -  [ 54,  148]
-       -  [ 43,  159]
-       -  [ 32,  170]
+       -  [ 29,  123]
+       -  [ 18,  134]
+       -  [ 7,  145]
        nbox_ref_cub:
-       -  [ 22,  180]
-       -  [ 19,  183]
-       -  [ 32,  170]
+       -  [ 1,  150]
+       -  [ 1,  150]
+       -  [ 7,  145]
        nbox:
-       -  [ 53,  147]
-       -  [ 42,  158]
-       -  [ 31,  169]
+       -  [ 28,  122]
+       -  [ 17,  133]
+       -  [ 6,  144]
        bit%nbox reduced box:
-       -  [ 54,  148]
-       -  [ 43,  159]
-       -  [ 32,  170]
-          54          43          32
-   100.00000000000000        100.00000000000000        100.00000000000000     
-   100.00000000000000        100.00000000000000        100.00000000000000     
-         101         101         101
+       -  [ 29,  123]
+       -  [ 18,  134]
+       -  [ 7,  145]
        center:
-         Sphere or cube center         :  [  100.0,  100.0,  100.0 ]
+         Sphere or cube center         :  [  75.0,  75.0,  75.0 ]
          Numerical sphere integral with distance:  33513.94482292959
          Analytical sphere integral    :  33510.32163829113
          Sphere integral error         :  1.0812145217733715E-004
-         Numerical cube integral       :  63980.18674777159
+         Numerical cube integral       :  63626.37130986241
          Analytical cube integral      :  64000.0
-         Cube integral error           :  3.0958206606896966E-004
-         Maximum difference between closest_r and square_gd:  1.0658141036401503E-013
+         Cube integral error           :  5.8379482833997827E-003
+         Maximum difference between closest_r and square_gd:  7.1054273576010019E-014
          Numerical box cutoff integral :  222211.1968854102
      Memory Consumption Report:
        Tot. No. of Allocations         :  99
@@ -948,7 +892,7 @@
          Peak Value (MB)               :  1261.715
          for the array                 : lxyz
          in the routine                : Main_program
-         Memory Peak of process        : 1307.796 MB
-     Walltime since initialization     :  00:02:29.734737826
+         Memory Peak of process        : 1307.732 MB
+     Walltime since initialization     :  00:01:02.994375008
      Max No. of dictionaries used      :  221 #( 170 still in use)
      Number of dictionary folders allocated:  1
