@@ -269,7 +269,7 @@ class Logfile():
             label = label if label is not None else 'dict'
         elif args:
             #Read the list of files (member replaces load_only...)
-            dicts=get_logs(args,select_document=member)
+            dicts=get_logs(args)#,select_document=member)
             label = label if label is not None else args[0]
             srcdir=os.path.dirname(args[0])
         #: Label of the Logfile instance
