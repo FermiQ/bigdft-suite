@@ -231,7 +231,7 @@ END SUBROUTINE calc_rhocore_iat
 !! gaussian function described by a sum of spherical harmonics of s-channel with
 !! principal quantum number increased with a given exponent.
 !! the principal quantum numbers admitted are from 1 to 4
-subroutine nlcc_spherical_gaussian_set(g,at)
+subroutine nlcc_gaussian_set(g,at)
   use gaussians
   use module_types
   use module_defs, only: gp
@@ -242,18 +242,18 @@ subroutine nlcc_spherical_gaussian_set(g,at)
   integer :: mp_isf
   real(gp) :: sigma
   integer, dimension(3) :: zeros
-  real(gp), dimension(4) :: factors
-  integer, dimension(4) :: pows
+  real(gp), dimension(1) :: factors
+  integer, dimension(1) :: pows
 
   sigma=at%nlccpar(0,1)
-  factors=at%nlccpar(1:4,1)
-  pows=[0,1,2,3]
+  factors=1.0_gp
+  pows=0
   zeros=0
   mp_isf=at%mp_isf
   if (.not. at%multipole_preserving) mp_isf=0
-  call gaussian_real_space_set(g,sigma,4,factors,zeros,pows,mp_isf)
+  call gaussian_real_space_set(g,sigma,1,factors,zeros,pows,mp_isf)
 
-end subroutine nlcc_spherical_gaussian_set
+end subroutine nlcc_gaussian_set
 
 !> Accumulate the contribution of atom iat to core density for PAW atoms.
 subroutine mkcore_paw_iat(iproc,atoms,ityp,rx,ry,rz,cutoff,hxh,hyh,hzh,&

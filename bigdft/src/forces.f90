@@ -105,7 +105,7 @@ subroutine calculate_forces(iproc,nproc,psolver_groupsize,Glr,atoms,ob,nlpsp,rxy
 
 
   if (extra_timing) call cpu_time(tr0)
-
+  
   call local_forces(iproc,atoms,rxyz,0.5_gp*hx,0.5_gp*hy,0.5_gp*hz,&
        dpbox, &
        n3p,i3s,Glr%d%n1i,Glr%d%n2i,Glr%d%n3i,rho,pot,fxyz,strtens(1,1),charge)
@@ -118,12 +118,14 @@ subroutine calculate_forces(iproc,nproc,psolver_groupsize,Glr,atoms,ob,nlpsp,rxy
   !!end do
 
   !calculate forces originated by rhocore
+  
   call rhocore_forces(iproc,atoms,dpbox,nspin,rxyz,potxc,fxyz)
 
   !for a taksgroup Poisson Solver, multiply by the ratio.
   !it is important that the forces are bitwise identical among the processors.
   if (psolver_groupsize < nproc) call vscal(3*atoms%astruct%nat,real(psolver_groupsize,gp)/real(nproc,gp),fxyz(1,1),1)
 
+  
   !if (iproc == 0 .and. verbose > 1) write( *,'(1x,a)',advance='no')'Calculate nonlocal forces...'
   if (extra_timing) call cpu_time(tr0)
   select case(imode)
@@ -168,6 +170,7 @@ subroutine calculate_forces(iproc,nproc,psolver_groupsize,Glr,atoms,ob,nlpsp,rxy
   end if
 
 
+  
   !add to the forces the ionic and dispersion contribution
   if (.true.) then!.not. experimental_modulebase_var_onlyfion) then !normal case
      if (iproc==0) then
@@ -309,7 +312,7 @@ subroutine rhocore_forces(iproc,atoms,dpbox,nspin,rxyz,potxc,fxyz)
   integer :: nbl1,nbl2,nbl3,nbr1,nbr2,nbr3,isx,isy,isz,iex,iey,iez
   integer :: i1,i2,i3,j1,j2,j3,ispinsh,ind,n1i,n2i,n3i,i3s,n3pi,n3p
   real(gp) :: spinfac,rx,ry,rz,frcx,frcy,frcz,rloc,cutoff,x,y,z,r2,hxh,hyh,hzh
-  real(gp) :: spherical_gaussian_value,drhoc,drhov,drhodr2
+  real(gp) :: drhoc,drhov,drhodr2
 
   call f_routine(id='rhocore_forces')
 
@@ -385,7 +388,11 @@ subroutine rhocore_forces(iproc,atoms,dpbox,nspin,rxyz,potxc,fxyz)
 
            if (dpbox%n3p > 0) then
 !!$ new giuseppe ----------------------------------------------------------------------
-              call nlcc_spherical_gaussian_set(g,atoms) 
+              frcx=0.0_gp
+              frcy=0.0_gp
+              frcz=0.0_gp
+              
+              call nlcc_gaussian_set(g,atoms) 
               call set_box_around_gaussian(dpbox%bitp,g,rxyz(1,atit%iat))
               do ispin=1,nspin
                do while(box_next_point(dpbox%bitp))
@@ -395,7 +402,7 @@ subroutine rhocore_forces(iproc,atoms,dpbox,nspin,rxyz,potxc,fxyz)
                       ilcc=ilcc+1
                       !derivative wrt r2
                       drhov=drhov+&
-                           gaussian_radial_value(g,rxyz(1,atit%iat),dpbox%bitp,1)
+                           spherical_times_gaussian(g,rxyz(1,atit%iat),dpbox%bitp,atoms%nlccpar(1:4,ilcc),1)
                            !spherical_gaussian_value(r2,atoms%nlccpar(0,ilcc),atoms%nlccpar(1,ilcc),1)
                    end do
                    drhoc=0.0_dp
@@ -403,7 +410,7 @@ subroutine rhocore_forces(iproc,atoms,dpbox,nspin,rxyz,potxc,fxyz)
                       ilcc=ilcc+1
                       !derivative wrt r2
                       drhoc=drhoc+&
-                           gaussian_radial_value(g,rxyz(1,atit%iat),dpbox%bitp,1)
+                           spherical_times_gaussian(g,rxyz(1,atit%iat),dpbox%bitp,atoms%nlccpar(1:4,ilcc),1)
                            !spherical_gaussian_value(r2,atoms%nlccpar(0,ilcc),atoms%nlccpar(1,ilcc),1)
                    end do
                    !forces in all the directions for the given atom

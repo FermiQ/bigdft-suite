@@ -670,8 +670,10 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
        ixc=in%ixc, lzd=tmb%lzd, pot=denspot%V_ext, &
        rxyz=rxyz, ixyz0=in%plot_mppot_axes, write_directory=trim(in%dir_output))
   call interaction_multipoles_ions(bigdft_mpi%iproc, KSwfn%Lzd%Glr%mesh, in%ep, atoms, energs%eion, fion)
+!!$  call interaction_multipoles_ions(bigdft_mpi%iproc, in%ep, atoms, energs%eion, fion)
   !write(*,*) 'eion before', energs%eion
   call ionic_energy_of_external_charges(bigdft_mpi%iproc, KSwfn%Lzd%Glr%mesh, in%ep, atoms, energs%eion)
+!!$  call ionic_energy_of_external_charges(bigdft_mpi%iproc, in%ep, atoms, energs%eion)
   !write(*,*) 'eion after', energs%eion
   !call yaml_map('rxyz',rxyz)
   !call yaml_map('atoms%astruct%rxyz',atoms%astruct%rxyz)
