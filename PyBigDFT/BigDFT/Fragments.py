@@ -191,7 +191,14 @@ class Rotation(RotoTranslation):
         self.J=0.0
 
 def GetSymbol(atom):
-    "provide the key which contains the positions"
+    """
+    Provide the key which contains the positions
+
+    :param atom: the dictionary describing the atom
+    :type atom: dictionary
+    :returns: atom symbol
+    :rtype: string
+    """
     ks=atom.keys()
     for k in ks:
         if k not in PROTECTED_KEYS and type(atom[k])==type([]):
@@ -213,6 +220,21 @@ class Fragment():
     electrostatic multipoles (charge, dipole, etc.) and also geometrical information
     (center of mass, principla axis etc.). A Fragment might also be rototranslated
     and combined with other moieteies to form a :class:`System`.
+
+    :param list-type atomlist: list of atomic dictionaries defining the fragment
+    :param string id: label of the fragment
+    :param string units: the units of the fragment, can be 'AU' or 'A'
+
+    :Example:
+      >>> f = Fragment(atomlist) #provide the list of atomic dictionaries
+      >>> # or otherwise:
+      >>> f = Fragment(units='A') #initialize the fragment
+      >>> f.append(atom) #add an atom according to the f.append spec
+      >>> ... # repeat that until the fragment is completed
+    
+    .. todo::
+       Define and describe if this API is also suitable for solid-state fragments
+
     """
     def __init__(self,atomlist=None,id='Unknown',units='AU'):
         self.atoms=[]
@@ -257,6 +279,14 @@ class Fragment():
             lat.append(dat)
         return lat
     def append(self,atom=None,sym=None,positions=None):
+        """
+        Include an atom in the fragment.
+        
+        :param dictionary atom: 
+             The dictionary of the atom. Should be provided in the yaml format of BigDFT atomic positions.
+        :param string sym: The symbol of the atom. Need positions when specified.
+        :param list positions: The atomic positions, given in fragment units.
+        """
         if atom is not None:
             self.atoms.append(atom)
         elif sym is not None:
