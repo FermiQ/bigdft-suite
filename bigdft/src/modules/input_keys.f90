@@ -211,6 +211,7 @@ module module_input_keys
      !!   - 1 : read waves from argument psi, using n1, n2, n3, hgrid and rxyz_old
      !!         as definition of the previous system.
      !!   - 2 : read waves from disk
+     type(f_enumerator) :: projection !< Method to compute the projectors from atomic description.
      integer :: nspin       !< Spin components (no spin 1, collinear 2, non collinear 4)
      integer :: mpol        !< Total spin polarisation of the system
      integer :: norbv       !< Number of virtual orbitals to compute after direct minimisation
@@ -220,7 +221,7 @@ module module_input_keys
      type(f_enumerator) :: output_denspot        !< 0= No output, 1= density, 2= density+potential
      integer :: dispersion            !< Dispersion term
      type(f_enumerator) :: output_wf!_format      !< Output Wavefunction format
-     real(gp) :: hx,hy,hz   !< Step grid parameter (hgrid)
+     real(gp) :: hx,hy,hz   !< Grid step parameter (hgrid)
      integer :: nx,ny,nz   !< Number of divisions
      real(gp) :: crmult     !< Coarse radius multiplier
      real(gp) :: frmult     !< Fine radius multiplier
@@ -626,7 +627,7 @@ contains
     use public_enums
     use fragment_base
     use f_utils, only: f_get_free_unit
-    use wrapper_MPI, only: mpibarrier
+    use wrapper_MPI, only: fmpi_barrier
     use abi_interfaces_add_libpaw, only : abi_pawinit
     use PStypes, only: SETUP_VARIABLES,VERBOSITY
     use vdwcorrection, only: vdwcorrection_warnings
@@ -793,18 +794,18 @@ contains
 
     ! Shake atoms, if required.
     call astruct_set_displacement(atoms%astruct, in%randdis)
-    if (bigdft_mpi%nproc > 1) call mpibarrier(bigdft_mpi%mpi_comm)
+    if (bigdft_mpi%nproc > 1) call fmpi_barrier(bigdft_mpi%mpi_comm)
     ! Update atoms with symmetry information
     call astruct_set_symmetries(atoms%astruct, in%disableSym, in%symTol, in%elecfield, in%nspin)
 
     call kpt_input_analyse(bigdft_mpi%iproc, in, dict//KPT_VARIABLES, &
          & atoms%astruct%sym, atoms%astruct%geocode, atoms%astruct%cell_dim)
 
-    call atoms_fill(atoms,dict,in%frmult,in%nspin,&
+    call atoms_fill(atoms,dict,in%nspin,&
          in%multipole_preserving,in%mp_isf,in%ixc,in%alpha_hartree_fock)
 
 !!$    ! Update atoms with pseudo information.
-!!$    call psp_dict_analyse(dict, atoms, in%frmult)
+!!$    call psp_dict_analyse(dict, atoms)
 !!$    call atomic_data_set_from_dict(dict,IG_OCCUPATION, atoms, in%nspin)
 !!$
 !!$    !fill the requests for the atomic density matrix
@@ -964,7 +965,7 @@ contains
     use yaml_output
     use module_base, only: bigdft_mpi
     use f_utils, only: f_zero,f_mkdir
-    use wrapper_MPI, only: mpibcast
+    use wrapper_MPI, only: fmpi_bcast
     use yaml_strings, only: f_strcpy
     implicit none
     integer, intent(in) :: iproc
@@ -999,7 +1000,7 @@ contains
        if (iproc == 0) then
           call f_mkdir(in%dir_output,dirname)
        end if
-       call mpibcast(dirname,comm=bigdft_mpi%mpi_comm)
+       call fmpi_bcast(dirname,comm=bigdft_mpi%mpi_comm)
        !in%dir_output=dirname
        call f_strcpy(src=dirname,dest=in%dir_output)
        if (iproc==0) call yaml_map('Data Writing directory',trim(in%dir_output))
@@ -1597,6 +1598,8 @@ contains
     use yaml_output, only: yaml_warning
     use yaml_strings, only: operator(.eqv.),is_atoi
     use module_base, only: bigdft_mpi
+    use psp_projectors_base, only: PROJECTION_1D_SEPARABLE, &
+         & PROJECTION_RS_COLLOCATION, PROJECTION_MP_COLLOCATION
     implicit none
     type(input_variables), intent(inout) :: in
     type(dictionary), pointer :: val
@@ -1745,6 +1748,16 @@ contains
        case (INPUTPSIID)
           ipos=val
           call set_inputpsiid(ipos,in%inputPsiId)
+       case (PROJECTION)
+          str=val
+          select case(trim(str))
+          case('gaussian')
+             in%projection=PROJECTION_1D_SEPARABLE
+          case('radial')
+             in%projection=PROJECTION_RS_COLLOCATION
+          case('radial+mp')
+             in%projection=PROJECTION_MP_COLLOCATION
+          end select
        !case (OUTPUT_WF)
        !ipos=val
        !call set_output_wf(ipos,in%output_wf)
@@ -2505,6 +2518,7 @@ contains
     call f_zero(in%dir_perturbation)
     call f_zero(in%outputpsiid)
     call f_zero(in%naming_id)
+    in%projection=f_enumerator_null()
     nullify(in%gen_kpt)
     nullify(in%gen_wkpt)
     nullify(in%kptv)
@@ -3239,7 +3253,7 @@ contains
 
     !Geometry imput Parameters
     if (in%ncount_cluster_x > 0) then
-       call yaml_comment('Geometry optimization Input Parameters (file: '//trim(input_id)//'.geopt)',hfill='-')
+       call yaml_comment('Geometry optimization Input Parameters',hfill='-')
        call yaml_mapping_open('Geometry Optimization Parameters')
        call yaml_map('Maximum steps',in%ncount_cluster_x)
        call yaml_map('Algorithm', in%geopt_approach)
@@ -3503,7 +3517,7 @@ contains
                    !fr contains a format.
                    call astruct_file_merge_to_dict(dict,POSINP, trim(str),pos_format=trim(fr))
                 else
-                   call f_err_throw("The key 'format' from posinp section should be contained a valid format.", &
+                   call f_err_throw("The key 'format' from posinp section should specify a valid format.", &
                         & err_name='BIGDFT_INPUT_VARIABLES_ERROR')
                 end if
              else

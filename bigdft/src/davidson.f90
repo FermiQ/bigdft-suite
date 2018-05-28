@@ -1,6 +1,6 @@
 !> @file
 !!  Routines to do diagonalisation with Davidson algorithm
-!! @author
+! @author
 !!    Copyright (C) 2007-2015 BigDFT group
 !!    This file is distributed under the terms of the
 !!    GNU General Public License, see ~/COPYING file
@@ -1487,14 +1487,14 @@ subroutine psivirt_from_gaussians(iproc,nproc,filerad,at,orbs,Lzd,comms,rxyz,nsp
    type(ket) :: it
    logical :: ok,binary,chosen,notenough
    character(len=500) :: filename
-   type(cell) :: mesh
+   !type(cell) :: mesh
 
    rxyz_old=f_malloc([3,at%astruct%nat],id='rxyz_old')
 
-   mesh=cell_new(at%astruct%geocode,&
-        [Lzd%Glr%d%n1,Lzd%Glr%d%n2,Lzd%Glr%d%n3],Lzd%hgrids)
+   !mesh=cell_new(at%astruct%geocode,&
+   !     [Lzd%Glr%d%n1,Lzd%Glr%d%n2,Lzd%Glr%d%n3],Lzd%hgrids)
 
-   psifscf=f_malloc(locreg_mesh_shape(mesh,highres=.true.),id='psifscf')
+   psifscf=f_malloc(locreg_mesh_shape(lzd%Glr%mesh_coarse,highres=.true.),id='psifscf')
 
    call orbital_basis_associate(ob,orbs=orbs,Lzd=Lzd,phis_wvl=psivirt)
    mask=f_malloc(ob%orbs%norbp,id='mask')
@@ -1997,7 +1997,9 @@ subroutine dump_eigenfunctions(dir_output,nplot,at,hgrids,lr,orbs,orbsv,rxyz,psi
   character(len=*), intent(in) :: dir_output !<directory where the data have to be put in
   real(gp), dimension(3), intent(in) :: hgrids !<grid spacings of the simulation domain
   real(gp), dimension(3,at%astruct%nat), intent(in) :: rxyz !<atomic positions
+  !real(wp), dimension(lr%wfd%nvctr_c+7*lr%wfd%nvctr_f), intent(in) :: psi,psivirt !<occupied and virtual eigenfunctions
   real(wp), dimension(lr%wfd%nvctr_c+7*lr%wfd%nvctr_f), intent(in) :: psi,psivirt !<occupied and virtual eigenfunctions
+  !real(wp), dimension(*), intent(in) :: psi,psivirt !<occupied and virtual eigenfunctions
   !local variables
   integer :: ind,iorb
   character(len=300) :: orbname,denname
@@ -2350,7 +2352,7 @@ subroutine evaluate_completeness_relation(ob_occ,ob_virt,ob_prime,hpsiprime,h2ps
       character(len=3) :: spinstr
 
       if (nspin==1) then
-         spinstr=' '
+         spinstr='   '
       else if (ispin==1) then
          spinstr='-up'
       else if (ispin==2) then

@@ -89,7 +89,7 @@ contains
 
     ! We put a barrier here to be sure that non master proc will be stopped
     ! by any issue on the master proc.
-    if(present(mpi_env_))  call mpibarrier(comm=mpi_env%mpi_comm)
+    if(present(mpi_env_))  call fmpi_barrier(comm=mpi_env%mpi_comm)
 
     call dict_free(dict)
     call f_release_routine()
@@ -119,7 +119,7 @@ contains
        call getFileContent(cbuf, cbuf_len, fname, len_trim(fname))
     end if
 
-    if (mpi_env%nproc > 1) call mpibcast(cbuf_len,comm=mpi_env%mpi_comm)
+    if (mpi_env%nproc > 1) call fmpi_bcast(cbuf_len,comm=mpi_env%mpi_comm)
     fbuf=f_malloc0_str(1,int(cbuf_len),id='fbuf')
 
     if (mpi_env%iproc == 0) then
@@ -134,7 +134,7 @@ contains
     end if
 
     !this call can be replaced with the size of the character array
-    if (mpi_env%nproc > 1) call mpibcast(fbuf,comm=mpi_env%mpi_comm)
+    if (mpi_env%nproc > 1) call fmpi_bcast(fbuf,comm=mpi_env%mpi_comm)
 
     call f_err_open_try()
     call yaml_parse_from_char_array(udict, fbuf)

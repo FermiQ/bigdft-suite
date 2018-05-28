@@ -448,10 +448,10 @@ module pexsi
 
       ! In case not all processed participated in the PEXSI calculation
       call f_timing(TCAT_PEXSI_COMMUNICATE,'ON')
-      call mpibcast(energy, root=0, comm=comm) 
-      call mpibcast(kernel, root=0, comm=comm) 
+      call fmpi_bcast(energy, root=0, comm=comm) 
+      call fmpi_bcast(kernel, root=0, comm=comm) 
       if (present(energy_kernel)) then
-          call mpibcast(energy_kernel, root=0, comm=comm) 
+          call fmpi_bcast(energy_kernel, root=0, comm=comm) 
       end if
       call f_timing(TCAT_PEXSI_COMMUNICATE,'OF')
 

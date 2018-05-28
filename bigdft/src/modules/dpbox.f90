@@ -163,6 +163,7 @@ contains
     type(denspot_distribution), intent(out) :: dpbox
     !local variables
     integer :: npsolver_groupsize,i3sd,n3p,n3d,i3sp,igpu
+    real(gp), dimension(3) :: or
 
     dpbox=dpbox_null()
 
@@ -193,8 +194,8 @@ contains
 
 !!$  dpbox%bitd=box_iter(dpbox%mesh,&
 !!$       origin=locreg_mesh_origin(dpbox%mesh),i3s=i3sd,n3p=n3d)
-    dpbox%bitp=box_iter(dpbox%mesh,&
-         origin=locreg_mesh_origin(dpbox%mesh),i3s=i3sp,n3p=n3p)
+    or = locreg_mesh_origin(dpbox%mesh)
+    dpbox%bitp=box_iter(dpbox%mesh,origin=or,i3s=i3sp,n3p=n3p)
 
   end subroutine dpbox_set
 

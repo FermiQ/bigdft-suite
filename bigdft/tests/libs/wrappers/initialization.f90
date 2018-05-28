@@ -33,7 +33,7 @@ subroutine define_lr(lr,tree_posinp,crmult,frmult,hgrids)
   end do
   call dict_free(types)
 
-  call atoms_fill(atoms,dict_dm,frmult,1,.false.,16,0,0.0_f_double)
+  call atoms_fill(atoms,dict_dm,1,.false.,16,0,0.0_f_double)
 
   rxyz=f_malloc(src=atoms%astruct%rxyz,id='rxyz')
 

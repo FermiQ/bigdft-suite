@@ -3,6 +3,7 @@
 EXTRA_DIST = \
 	fldiff_yaml.py.in \
 	report.py.in \
+	yaml_hl.cfg yaml_hl_remarks.cfg	\
 	README
 
 SUBDIRS = \

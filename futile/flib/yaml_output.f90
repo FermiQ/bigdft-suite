@@ -2328,6 +2328,7 @@ contains
     logical, intent(in), optional :: verbatim       !< if .true. print as comments the calls performed
     integer, intent(in), optional :: unit           !< unit in which the dump has to be
     !local variables
+    !logical :: flowrite
     logical :: verb
     integer :: unt,idoc
 

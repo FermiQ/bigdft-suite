@@ -28,6 +28,8 @@ AM_LDFLAGS += -Wl,-rpath=$(abs_top_builddir)/src -Wl,-rpath=$(DESTDIR)$(libdir)
 endif
 endif
 
+#note: this way of iluding LDADD does not force the 
+#dependency between the programs and the library.	
 op2p_check_SOURCES = op2p_check.f90
 op2p_check_LDADD = @LIB_FUTILE_LIBS@
 

@@ -174,7 +174,6 @@ subroutine pkernel_set(kernel,eps,dlogeps,oneoeps,oneosqrteps,corr,verbose) !opt
   use time_profiling, only: f_timing
   use dictionaries, only: f_err_throw
   use yaml_strings, only: operator(+)
-  use module_base, only: bigdft_mpi
   use numerics
   use box
   implicit none
@@ -896,7 +895,7 @@ subroutine cuda_estimate_memory_needs(kernel, n,iproc_node, nproc_node)
      kernel%initCufftPlan=1;
  end if
 
-call mpibarrier()
+call fmpi_barrier(comm=kernel%mpi_env%mpi_comm)
 
 end subroutine cuda_estimate_memory_needs
 

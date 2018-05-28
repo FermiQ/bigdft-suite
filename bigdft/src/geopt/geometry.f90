@@ -980,12 +980,12 @@ subroutine f2fslave(runObj,outs,nproc,iproc,ncount_bigdft,fail)
     host = TRIM(host)//achar(0)
     call open_socket( socket, inet, port, host )
   endif
-  if (bigdft_mpi%nproc > 1)  call mpibcast(port,1,comm=bigdft_mpi%mpi_comm)
+  if (bigdft_mpi%nproc > 1)  call fmpi_bcast(port,1,comm=bigdft_mpi%mpi_comm)
   
   do    ! receive-send iteration
     if (iproc==0) call readbuffer(socket, header, MSGLEN)
     if (iproc==0) call str2arr(header,header_arr,MSGLEN)
-    if (bigdft_mpi%nproc > 1) call mpibcast(header_arr,comm=bigdft_mpi%mpi_comm)
+    if (bigdft_mpi%nproc > 1) call fmpi_bcast(header_arr,comm=bigdft_mpi%mpi_comm)
     call arr2str(header,header_arr,MSGLEN)
 
     if (iproc==0) write(*,'(i6,a,a)') iproc, ' # SOCKET SLAVE: header received ',trim(header)
@@ -994,7 +994,7 @@ subroutine f2fslave(runObj,outs,nproc,iproc,ncount_bigdft,fail)
       else if (trim(header) == "INIT") then
          if(iproc==0) call get_init   (header, MSGLEN, repid, isinit)
          isinit=.true.
-         if (bigdft_mpi%nproc > 1)  call mpibcast(repid,1,comm=bigdft_mpi%mpi_comm)
+         if (bigdft_mpi%nproc > 1)  call fmpi_bcast(repid,1,comm=bigdft_mpi%mpi_comm)
 !Although the number of atoms and the arrays assiciated with that side should be
 !allocate already, we allocate fcart and pos here         
          if(iproc==0.and.runObj%atoms%astruct%nat.ne.repid) &
@@ -1009,7 +1009,7 @@ subroutine f2fslave(runObj,outs,nproc,iproc,ncount_bigdft,fail)
                PsiId=1
             endif
           endif
-          if (bigdft_mpi%nproc > 1)  call mpibcast(PsiId,1,comm=bigdft_mpi%mpi_comm)
+          if (bigdft_mpi%nproc > 1)  call fmpi_bcast(PsiId,1,comm=bigdft_mpi%mpi_comm)
           select case(PsiId)
           case(0)
              call bigdft_set_input_policy(INPUT_POLICY_SCRATCH,runObj)
@@ -1018,8 +1018,8 @@ subroutine f2fslave(runObj,outs,nproc,iproc,ncount_bigdft,fail)
           end select
       else if (trim(header) == "POSDATA") then
          if(iproc==0 ) call get_data(pos,latvec,runObj%atoms%astruct%nat,nat_get);
-         if (bigdft_mpi%nproc > 1) call mpibcast(pos,comm=bigdft_mpi%mpi_comm)
-         if (bigdft_mpi%nproc > 1) call mpibcast(latvec,comm=bigdft_mpi%mpi_comm)
+         if (bigdft_mpi%nproc > 1) call fmpi_bcast(pos,comm=bigdft_mpi%mpi_comm)
+         if (bigdft_mpi%nproc > 1) call fmpi_bcast(latvec,comm=bigdft_mpi%mpi_comm)
 !Convert the units of positions and lattice vectors in a format the bigdft can understand
          call rxyz_int2cart(latvec,pos,rxyz,runObj%atoms%astruct%nat)
          call bigdft_set_rxyz(runObj,rxyz_add=rxyz(1,1))

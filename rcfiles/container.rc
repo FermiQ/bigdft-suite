@@ -1,0 +1,44 @@
+#This is the configuration file for the BigDFT installer
+#This is a python script which is executed by the build suite 
+ 
+#Add the condition testing to run tests and includes PyYaml
+conditions.add("testing")
+conditions.add("python")
+#List the module the this rcfile will build
+modules = ['spred',]
+#example of the potentialities of the python syntax in this file
+def env_configuration():
+    return  """ "FCFLAGS=-O2 -fPIC -fopenmp" "--enable-opencl" "--with-ocl-path=/usr/local/cuda" "--enable-cuda-gpu" "--with-cuda-path=/usr/local/cuda" "CFLAGS=-fPIC -O2 -fopenmp" "FC=mpif90" "F77=mpif77" "FCLIBS= " "LIBS=-ldl -lstdc++ -lgfortran" "NVCC_FLAGS=--compiler-options -fPIC" "--enable-dynamic-libraries"  """ 
+#the following command sets the environment variable to give these settings
+#to all the modules
+import os
+os.environ['BIGDFT_CONFIGURE_FLAGS']=env_configuration()
+#here follow the configuration instructions for the modules built
+#we specify the configurations for the modules to customize the options if needed
+module_autogenargs.update({
+   
+'libyaml': env_configuration(),
+   
+'futile': env_configuration(),
+   
+'psolver': env_configuration(),
+   
+'chess': env_configuration(),
+   
+'libxc': env_configuration(),
+   
+'libABINIT': env_configuration(),
+   
+'GaIn': env_configuration(),
+   
+'bigdft': env_configuration()+" --with-gobject=yes ",
+   
+'spred': env_configuration()+" --with-gobject=yes ",
+
+'PyYAML': "build_ext -I%(prefix)s/include -L%(prefix)s/lib --rpath=%(prefix)s/lib " % {"prefix": prefix},
+
+'pygobject': 'PYTHON=/usr/bin/python',
+
+'v_sim-dev': '--with-abinit --with-archives --with-openbabel --with-cube --without-strict-cflags'
+   
+})

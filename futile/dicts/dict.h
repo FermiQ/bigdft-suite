@@ -16,13 +16,18 @@ typedef struct {
 
 f90_dictionary_pointer* dict_new(void);
 
+void dict_set_string(f90_dictionary_pointer* dict, const char* key ,const char* value);
 void dict_set_double_array(f90_dictionary_pointer* dict, const char* key ,const double * array, size_t len);
+void dict_set_double(f90_dictionary_pointer* dict, const char* key ,double value);
+void dict_set_double_matrix(f90_dictionary_pointer* dict, const char* key , const double * array, size_t lenx, size_t leny);
 
 void dict_set_dict(f90_dictionary_pointer* dict, const char* key , f90_dictionary_pointer* value);
 
 void dict_add_dict(f90_dictionary_pointer* dict, f90_dictionary_pointer* value);
 
+void dict_add_int(f90_dictionary_pointer* dict, int value);
 void dict_add_double(f90_dictionary_pointer* dict, double value);
+void dict_add_string(f90_dictionary_pointer* dict, const char *value);
 
 bool dict_get_double_array(f90_dictionary_pointer* dict, const char* key , double * array, size_t len);
 

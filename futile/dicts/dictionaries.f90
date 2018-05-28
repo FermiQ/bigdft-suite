@@ -83,7 +83,7 @@ module dictionaries
 
    interface assignment(=)
       module procedure get_value,get_integer,get_real,get_double,get_long,get_lg
-      module procedure get_rvec,get_dvec,get_ilvec,get_ivec,get_lvec,get_c1vec
+      module procedure get_rvec,get_dvec,get_ilvec,get_ivec,get_lvec,get_c1vec,get_d2vec
       !safe getter from list_container
       module procedure safe_get_dict,safe_get_integer,safe_get_double,safe_get_real,safe_get_char,safe_get_logical
       module procedure safe_get_long
@@ -293,15 +293,16 @@ contains
 
      !first, identify whether the subdictionary exists
      if (dict_size(dict) > 0) then !popping from a hash key
-        subd=>find_key(dict,key)
+        subd = dict .get. key !find_key(dict,trim(key))
      else if (dict_len(dict) > 0) then !popping from a list value
-        indx=find_index(dict,key)
+        indx=find_index(dict,trim(key))
      end if
 
      !if something has been found, pop
      !!@warning here the usage of dict_remove is abused,
      !!as this routine frees dict if it is the last object
      !!therefore it changes the pointer association status of dict
+     !! with the destroy=.false. the problem should be resolved
      if (associated(subd)) then
         call dict_remove(dict,key,destroy=.false.)
      else if (indx > -1) then
@@ -313,6 +314,7 @@ contains
      end if
 
    end function pop_key
+
 
    !> Pop a subdictionary from a mother one. Returns the subdictionary.
    !! raise an error if the subdictionary does not exist.
@@ -1011,9 +1013,9 @@ contains
    !> Retrieve the pointer to the dictionary which has this key.
    !! If the key does not exist, search for it in the next chain
    !! Key Must be already present, otherwise result is nullified
-   recursive function find_key(dict,key) result(dict_ptr1)
+   function find_key(dict,key) result(dict_ptr1)
      implicit none
-     type(dictionary), intent(in), pointer :: dict !< Hidden inout
+     type(dictionary), intent(in), pointer :: dict
      character(len=*), intent(in) :: key
      type(dictionary), pointer :: dict_ptr1
      if (.not. associated(dict)) then
@@ -1021,24 +1023,25 @@ contains
         return
      end if
 
-!!$     !eliminate recursion
-!!$     if (.not. associated(dict%parent)) then
-!!$        if (.not. associated(dict%child)) then
-!!$           nullify(dict_ptr1)
-!!$        else
-!!$           dict_ptr1 => get_dict_from_key(dict%child,key)
-!!$        end if
-!!$     else
-!!$        dict_ptr1 => get_dict_from_key(dict,key)
-!!$     end if
-
+     !eliminate recursion
      if (.not. associated(dict%parent)) then
-        dict_ptr1 => find_key(dict%child,key)
-        return
+        if (.not. associated(dict%child)) then
+           nullify(dict_ptr1)
+        else
+           dict_ptr1 => get_dict_from_key(dict%child,key)
+        end if
+     else
+        dict_ptr1 => get_dict_from_key(dict,key)
      end if
-
-     dict_ptr1 => get_dict_from_key(dict,key)
-
+!!$print *,'here',associated(dict%parent),key,len(key)
+!!$     if (.not. associated(dict%parent)) then
+!!$        dict_ptr1 => find_key(dict%child,key)
+!!$        return
+!!$     end if
+!!$print *,'ciao',associated(dict)
+!!$print *,'dict',dict%data%key,'key',key
+!!$     dict_ptr1 => get_dict_from_key(dict,key)
+!!$print *,'there',associated(dict_ptr1)
    end function find_key
 
    function dict_keys(dict)
@@ -1530,11 +1533,37 @@ contains
 
    end subroutine get_long
 
+   subroutine get_d2vec(arr,dict)
+     implicit none
+     real(f_double), dimension(:,:), intent(out) :: arr
+     type(dictionary), pointer, intent(in) :: dict
+     !local variables
+     integer :: j,ny
+     real(f_double) :: tmp
+     
+     if (dict%data%nitems == 0) then
+        tmp=dict
+        arr=tmp
+        return
+     end if
+     ny=size(arr,2)
+     if (dict%data%nitems/=ny) then
+        call f_err_throw('Matrix and dictionary differ in shape ( '//&
+          trim(yaml_toa(ny))//' and '//trim(yaml_toa(dict%data%nitems))//')',&
+          err_id=DICT_CONVERSION_ERROR)
+        return
+     end if
+     do j=1,ny
+        arr(:,j)=dict//(j-1)
+     end do
+
+   end subroutine get_d2vec
+
    !> Routine to retrieve an array from a dictionary
    subroutine get_dvec(arr,dict)
      use yaml_strings, only: yaml_toa
      implicit none
-     double precision, dimension(:), intent(out) :: arr
+     real(f_double), dimension(:), intent(out) :: arr
      type(dictionary), intent(in) :: dict
      !local variables
      double precision :: tmp
@@ -1717,7 +1746,7 @@ contains
 
    subroutine safe_get_double(val,el)
      implicit none
-     double precision, intent(inout) :: val
+     real(f_double), intent(inout) :: val
      type(list_container), intent(in) :: el
      if (associated(el%dict)) val=el%dict
    end subroutine safe_get_double

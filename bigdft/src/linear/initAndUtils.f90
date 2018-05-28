@@ -49,7 +49,9 @@ subroutine init_foe_wrapper(iproc, nproc, input, orbs_KS, tmprtr, foe_obj)
        eval_multiplicator=1.d0, &
        accuracy_function=input%cp%foe%accuracy_foe, accuracy_penalty=input%cp%foe%accuracy_penalty, &
        betax=input%cp%foe%betax_foe, occupation_function=input%cp%foe%occupation_function, &
-       adjust_fscale=input%cp%foe%adjust_fscale)
+       adjust_fscale=input%cp%foe%adjust_fscale, &
+       fscale_ediff_low=input%cp%foe%fscale_ediff_low, &
+       fscale_ediff_up=input%cp%foe%fscale_ediff_up)
 
   call f_release_routine()
 
@@ -1191,7 +1193,8 @@ end subroutine set_optimization_variables
 
 
 subroutine adjust_locregs_and_confinement(iproc, nproc, hx, hy, hz, at, input, &
-           rxyz, KSwfn, tmb, denspot, nlpsp,ldiis, locreg_increased, lowaccur_converged, locrad)
+           rxyz, KSwfn, tmb, denspot, nlpsp,ldiis, locreg_increased, lowaccur_converged, &
+           matmul_optimize_load_balancing, locrad)
   use module_base
   use module_types
   use yaml_output
@@ -1219,7 +1222,7 @@ subroutine adjust_locregs_and_confinement(iproc, nproc, hx, hy, hz, at, input, &
   type(DFT_PSP_projectors), intent(inout) :: nlpsp
   type(localizedDIISParameters), intent(inout) :: ldiis
   logical, intent(out) :: locreg_increased
-  logical, intent(in) :: lowaccur_converged
+  logical, intent(in) :: lowaccur_converged, matmul_optimize_load_balancing
   real(8), dimension(tmb%lzd%nlr), intent(inout) :: locrad
 
   ! Local variables
@@ -1388,7 +1391,8 @@ subroutine adjust_locregs_and_confinement(iproc, nproc, hx, hy, hz, at, input, &
      ! Do not initialize the matrix multiplication to save memory. The multiplications
      ! are always done with the tmb%linmat%smat(3) type.
      call init_sparse_matrix_wrapper(iproc, nproc, input%nspin, tmb%orbs, tmb%ham_descr%lzd, at%astruct, &
-          input%store_index, init_matmul=.false., imode=1, smat=tmb%linmat%smat(2))
+          input%store_index, init_matmul=.false., matmul_optimize_load_balancing=.false., &
+          imode=1, smat=tmb%linmat%smat(2))
      !!call init_matrixindex_in_compressed_fortransposed(iproc, nproc, tmb%orbs, &
      !!     tmb%collcom, tmb%ham_descr%collcom, tmb%collcom_sr, tmb%linmat%ham)
      call init_matrixindex_in_compressed_fortransposed(iproc, nproc, &
@@ -1398,7 +1402,8 @@ subroutine adjust_locregs_and_confinement(iproc, nproc, hx, hy, hz, at, input, &
      ! Do not initialize the matrix multiplication to save memory. The multiplications
      ! are always done with the tmb%linmat%smat(3) type.
      call init_sparse_matrix_wrapper(iproc, nproc, input%nspin, tmb%orbs, tmb%lzd, at%astruct, &
-          input%store_index, init_matmul=.false., imode=1, smat=tmb%linmat%smat(1))
+          input%store_index, init_matmul=.false., matmul_optimize_load_balancing=.false., &
+          imode=1, smat=tmb%linmat%smat(1))
      !call init_matrixindex_in_compressed_fortransposed(iproc, nproc, tmb%orbs, &
      !     tmb%collcom, tmb%ham_descr%collcom, tmb%collcom_sr, tmb%linmat%ovrlp)
      call init_matrixindex_in_compressed_fortransposed(iproc, nproc, &
@@ -1407,7 +1412,8 @@ subroutine adjust_locregs_and_confinement(iproc, nproc, hx, hy, hz, at, input, &
 
      call check_kernel_cutoff(iproc, tmb%orbs, at, input%hamapp_radius_incr, tmb%lzd)
      call init_sparse_matrix_wrapper(iproc, nproc, input%nspin, tmb%orbs, tmb%lzd, at%astruct, &
-          input%store_index, init_matmul=.true., imode=2, smat=tmb%linmat%smat(3), smat_ref=tmb%linmat%smat(2))
+          input%store_index, init_matmul=.true., matmul_optimize_load_balancing=matmul_optimize_load_balancing, &
+          imode=2, smat=tmb%linmat%smat(3), smat_ref=tmb%linmat%smat(2))
      !!call init_matrixindex_in_compressed_fortransposed(iproc, nproc, tmb%orbs, &
      !!     tmb%collcom, tmb%ham_descr%collcom, tmb%collcom_sr, tmb%linmat%denskern_large)
      call init_matrixindex_in_compressed_fortransposed(iproc, nproc, &
@@ -1424,7 +1430,7 @@ subroutine adjust_locregs_and_confinement(iproc, nproc, hx, hy, hz, at, input, &
 
      !!call get_sparsematrix_local_extent(iproc, nproc, tmb%linmat%smmd, tmb%linmat%smat(1), ind_min_s, ind_mas_s)
      call check_local_matrix_extents(iproc, nproc, tmb%collcom, &
-          tmb%collcom_sr, tmb%linmat%smmd, tmb%linmat%smat(1), tmb%linmat%auxs, &
+          tmb%collcom_sr, tmb%orbs, tmb%linmat%smmd, tmb%linmat%smat(1), tmb%linmat%auxs, &
           ind_min_s, ind_mas_s)
      !!call get_sparsematrix_local_rows_columns(tmb%linmat%smat(1), ind_min_s, ind_mas_s, irow, icol)
      !!iirow(1) = min(irow(1),iirow(1))
@@ -1434,7 +1440,7 @@ subroutine adjust_locregs_and_confinement(iproc, nproc, hx, hy, hz, at, input, &
 
      !!call get_sparsematrix_local_extent(iproc, nproc, tmb%linmat%smmd, tmb%linmat%smat(2), ind_min_m, ind_mas_m)
      call check_local_matrix_extents(iproc, nproc, tmb%ham_descr%collcom, &
-          tmb%collcom_sr, tmb%linmat%smmd, tmb%linmat%smat(2), tmb%linmat%auxm, &
+          tmb%collcom_sr, tmb%orbs, tmb%linmat%smmd, tmb%linmat%smat(2), tmb%linmat%auxm, &
           ind_min_m, ind_mas_m)
      !!call get_sparsematrix_local_rows_columns(tmb%linmat%smat(2), ind_min_m, ind_mas_m, irow, icol)
      !!iirow(1) = min(irow(1),iirow(1))
@@ -1444,7 +1450,7 @@ subroutine adjust_locregs_and_confinement(iproc, nproc, hx, hy, hz, at, input, &
 
      !!call get_sparsematrix_local_extent(iproc, nproc, tmb%linmat%smmd, tmb%linmat%smat(3), ind_min_l, ind_mas_l)
      call check_local_matrix_extents(iproc, nproc, tmb%ham_descr%collcom, &
-          tmb%collcom_sr, tmb%linmat%smmd, tmb%linmat%smat(3), tmb%linmat%auxl, &
+          tmb%collcom_sr, tmb%orbs, tmb%linmat%smmd, tmb%linmat%smat(3), tmb%linmat%auxl, &
           ind_min_l, ind_mas_l)
      !!call get_sparsematrix_local_rows_columns(tmb%linmat%smat(3), ind_min_l, ind_mas_l, irow, icol)
      !!iirow(1) = min(irow(1),iirow(1))
@@ -1747,7 +1753,7 @@ subroutine set_confdatarr(input, at, lorbs, onwhichatom, potential_prefac, locra
           tt = max(tt,abs(confdatarr(iorb)%damping-confdatarr(jorb)%damping))
       end do
   end do
-  damping_diff = mpimaxdiff(1, tt)
+  damping_diff = fmpi_maxdiff(1, tt)
 
   if (bigdft_mpi%iproc==0) call yaml_comment('Set the confinement prefactors',hfill='~')
   if (bigdft_mpi%iproc==0 .and. add_sequence) call yaml_sequence(advance='no')

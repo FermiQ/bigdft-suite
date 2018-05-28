@@ -19,19 +19,21 @@ program babel
   type(atomic_structure) :: astruct
 
   interface
-     subroutine openbabel_load(d, f,ln)
+     subroutine openbabel_load(d, f)
        use dictionaries
        implicit none
        type(dictionary), pointer :: d
-       character(len = *), intent(in) :: f
-       integer, intent(in) :: ln
+       character, dimension(*), intent(in) :: f
+       !character(len = *), intent(in) :: f
+       !integer, intent(in) :: ln
      end subroutine openbabel_load
-     subroutine openbabel_dump(d, t, f,ln)
+     subroutine openbabel_dump(d, t, f)
        use dictionaries
        implicit none
        type(dictionary), pointer :: d, t
-       character(len = *), intent(in) :: f
-       integer, intent(in) :: ln
+       character, dimension(*), intent(in) :: f
+       !character(len = *), intent(in) :: f
+       !integer, intent(in) :: ln
      end subroutine openbabel_dump
   end interface
 
@@ -48,10 +50,12 @@ program babel
 
   !dict=>dict_new()
   call dict_init(dict)
-  call openbabel_load(dict,fin,len_trim(fin))
+  call openbabel_load(dict,f_char_ptr(trim(fin)))!,len_trim(fin))
 
   call yaml_map(fin,dict)
   call yaml_mapping_close()
+
+  !call dict_to_frags(dict//'positions')
 
   call astruct_dict_get_types(dict, types)
   nullify(iter)
@@ -59,7 +63,7 @@ program babel
      call set(iter, dict_key(iter))
   end do
   
-  call openbabel_dump(dict,types, fout,len_trim(fout))
+  call openbabel_dump(dict,types,f_char_ptr(trim(fout)))! fout,len_trim(fout))
   call yaml_map('Positions dumped into file',fout)
 
   call dict_free(options,dict, types)
@@ -77,4 +81,59 @@ program babel
   call dict_free(dict)
 
   call f_lib_finalize()
+
+  contains
+
+    subroutine dict_to_frags(dict)
+      !convert dictionaries to fragments to be passed to the chess-toolbox routine
+      implicit none
+      type(dictionary), pointer :: dict
+      !local variables
+      integer :: iat,id,ifrag_max,fileunit
+      character(len=32) :: fragname
+      type(dictionary), pointer :: frag,iter,atom,frag_list
+
+      frag=>dict_new()
+      iter => null()
+      iat=0
+      ifrag_max=0
+      !create the dict of the atoms which belong to each fragment
+      do while(iterating(iter,on=dict))
+         call f_increment(iat)
+         atom = iter .get. 'frag'
+         if (.not. associated(atom)) then
+            call yaml_warning('The atom "'+iat+'" is not assigned to a fragment')
+            cycle
+         end if
+         id=atom//1
+         ifrag_max=max(ifrag_max,id)
+         fragname=atom//0
+         !now store the data in the dictionary
+         call set(frag//trim(yaml_toa(id))//'name',fragname)
+         call add(frag//trim(yaml_toa(id))//'atoms',iat)
+         print *,'here',iat,ifrag_max
+      end do
+      call yaml_map('Fragment dict',frag)
+      fileunit=12
+      call f_open_file(fileunit,'frag.yaml')
+      call dict_init(frag_list)
+      call yaml_set_stream(unit=fileunit)
+      do id=1,ifrag_max
+         atom = frag .get. trim(yaml_toa(id))
+         if (.not. associated(atom)) then
+            call yaml_warning('The fragment"'+id+'" is not assigned to a fragment')
+            cycle
+         end if
+
+         iter=>frag//trim(yaml_toa(id))//'atoms'
+         call dict_copy(dest=frag_list//id-1,src=iter)
+      end do
+      call yaml_dict_dump(frag_list,flow=.true.)
+      call yaml_close_stream(unit=fileunit)
+      call f_close(fileunit)
+
+      call dict_free(frag_list,frag)
+    end subroutine dict_to_frags
+
 end program babel
+

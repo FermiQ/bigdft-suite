@@ -9,7 +9,6 @@ Keys to ignore:
  - Walltime since initialization
  - Max No. of dictionaries used
  - Number of omp threads
-
 numerics_check:
   Patterns to ignore:
     - Normal loop

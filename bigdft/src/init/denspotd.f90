@@ -158,6 +158,7 @@ subroutine denspot_set_history(denspot, scf_enum, &
 !!$  end if
 end subroutine denspot_set_history
 
+
 subroutine denspot_free_history(denspot)
   use module_types
   use module_mixing
@@ -171,6 +172,8 @@ subroutine denspot_free_history(denspot)
   end if
 end subroutine denspot_free_history
 
+
+!> Set the status of denspot (should be KS_POTENTIAL, HARTREE_POTENTIAL, CHARGE_DENSITY)
 subroutine denspot_set_rhov_status(denspot, status, istep, iproc, nproc)
   use module_base
   use module_types
@@ -303,11 +306,11 @@ subroutine denspot_emit_rhov(denspot, iter, iproc, nproc)
         ! After handling the signal, iproc 0 broadcasts to other
         ! proc to continue (jproc == -1).
         message = SIGNAL_DONE
-        call mpibcast(message, 1,comm=bigdft_mpi%mpi_comm)
+        call fmpi_bcast(message, 1,comm=bigdft_mpi%mpi_comm)
      end if
   else
      do
-        call mpibcast(message, 1,comm=bigdft_mpi%mpi_comm)
+        call fmpi_bcast(message, 1,comm=bigdft_mpi%mpi_comm)
         if (message == SIGNAL_DONE) then
            exit
         else if (message == SIGNAL_DENSITY) then
@@ -357,11 +360,11 @@ subroutine denspot_emit_v_ext(denspot, iproc, nproc)
         ! After handling the signal, iproc 0 broadcasts to other
         ! proc to continue (jproc == -1).
         message = SIGNAL_DONE
-        call mpibcast(message, 1,comm=bigdft_mpi%mpi_comm)
+        call fmpi_bcast(message, 1,comm=bigdft_mpi%mpi_comm)
      end if
   else
      do
-        call mpibcast(message, 1,comm=bigdft_mpi%mpi_comm)
+        call fmpi_bcast(message, 1,comm=bigdft_mpi%mpi_comm)
         !call MPI_BCAST(message, 1, MPI_INTEGER, 0, bigdft_mpi%mpi_comm, ierr)
         if (message == SIGNAL_DONE) then
            exit
@@ -540,9 +543,6 @@ subroutine default_confinement_data(confdatarr,norbp)
      call nullify_confpot_data(confdatarr(iorb))
   end do
 end subroutine default_confinement_data
-
-
-
 
 subroutine define_confinement_data(confdatarr,orbs,rxyz,at,hx,hy,hz,&
            confpotorder,potentialprefac,Lzd,confinementCenter)

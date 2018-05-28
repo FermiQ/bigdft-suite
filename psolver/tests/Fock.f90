@@ -56,7 +56,7 @@ program Fock_Operator_Program
   !call f_malloc_set_status(memory_limit=0.e0,iproc=iproc)
   call f_routine(id='Fock_Operator_Program')
   if (iproc ==0) then
-     call yaml_set_stream(record_length=92,tabbing=30)!unit=70,filename='log.yaml')
+     call yaml_set_stream(record_length=92,tabbing=30,istat=i_stat)!unit=70,filename='log.yaml')
      call yaml_new_document()
      call PSolver_logo()
   end if

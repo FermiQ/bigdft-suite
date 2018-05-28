@@ -180,7 +180,7 @@ module overlap_point_to_point
         OP2P%simulate=.false.
         OP2P%verbose=.false.
         OP2P%do_calculation=.false. !<tell is the calculation has to be done
-        OP2P%nearest_neighbor=.false. 
+        OP2P%nearest_neighbor=.false.
         OP2P%iproc_dump=mpirank_null()-1
         OP2P%istep=0
         OP2P%nstep=-1
@@ -338,7 +338,7 @@ module overlap_point_to_point
 
        call mpinoderanks(iproc,nproc,OP2P%mpi_comm,iproc_node,nproc_node)
        !call processor_id_per_node(iproc,nproc,iproc_node,nproc_node)
-       
+
        !get number of GPus on the node
        call cudagetdevicecount(ndevices)
        
@@ -711,11 +711,11 @@ module overlap_point_to_point
 
 
      !> define tag according to the strategy
-     !pure 
+     !pure
      function OP2P_tag(OP2P,iproc,back) result(tag)
        use wrapper_MPI, only: mpisize
        implicit none
-       type(OP2P_data), intent(in) :: OP2P 
+       type(OP2P_data), intent(in) :: OP2P
        integer, intent(in) :: iproc
        logical, intent(in), optional :: back
        integer :: tag
@@ -725,11 +725,11 @@ module overlap_point_to_point
           if (back) tag=tag+mpisize(OP2P%mpi_comm)
        end if
        tag=tag+OP2P%tag_offset
-       
+
      end function OP2P_tag
 
      !>get the rank to which we have to send the data
-     !pure 
+     !pure
      function get_send_rank(igroup,OP2P)
        use wrapper_MPI
        implicit none
@@ -815,7 +815,7 @@ module overlap_point_to_point
        nelems=OP2P%nobj_par(original_source,igr)*OP2P%ndim
        iobj_local=OP2P%objects_id(LOCAL_,original_source,igr)
        jshift=phi%displ(iobj_local)
- 
+
        nullify(sendbuf)
        !this is the alternative communication scheme
        if (OP2P%istep == 0 .or. .not. OP2P%nearest_neighbor) then
@@ -1154,7 +1154,6 @@ module overlap_point_to_point
              OP2P%do_calculation=.false. !now the loop can cycle
              if (OP2P%igroup > OP2P%ngroupp) exit group_loop
           end do group_loop
-
 
           !verify that the messages have been passed
           call mpiwaitall(OP2P%ndata_comms,OP2P%requests_data,&

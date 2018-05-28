@@ -117,7 +117,7 @@ subroutine call_abscalc(nproc,iproc,runObj,energy,fxyz,infocode)
    call f_routine(id='call_abscalc')
 
    !put a barrier for all the processes
-   call mpibarrier()
+   call fmpi_barrier()
 
    !assign the verbosity of the output
    !the verbose variables is defined in module_base
@@ -145,7 +145,7 @@ subroutine call_abscalc(nproc,iproc,runObj,energy,fxyz,infocode)
       !assume always clean exit for abscalc
 
    !put a barrier for all the processes
-   call mpibarrier()!MPI_COMM_WORLD,ierr)
+   call fmpi_barrier()!MPI_COMM_WORLD,ierr)
 
    call f_release_routine()
 
@@ -457,7 +457,7 @@ subroutine abscalc(nproc,iproc,atoms,rxyz,&
    call orbitals_communicators(iproc,nproc,KSwfn%Lzd%Glr,orbs,comms)  
    call orbital_basis_associate(ob,orbs=orbs,Glr=KSwfn%Lzd%Glr)
    call createProjectorsArrays(iproc,nproc,KSwfn%Lzd%Glr,rxyz,atoms,ob,&
-        cpmult,fpmult,hx,hy,hz,.false.,nlpsp,.true.)
+        cpmult,fpmult,hx,hy,hz,in%projection,.false.,nlpsp,.true.)
    call orbital_basis_release(ob)
    if (iproc == 0) call print_nlpsp(nlpsp)
 

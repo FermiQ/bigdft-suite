@@ -204,7 +204,6 @@ module forces_linear
       use module_types
       use sparsematrix_base, only: sparse_matrix, matrices, sparsematrix_malloc, assignment(=), SPARSE_FULL
       use sparsematrix, only: gather_matrix_from_taskgroups
-      use psp_projectors, only: projector_has_overlap
       use public_enums, only: PSPCODE_HGH,PSPCODE_HGH_K,PSPCODE_HGH_K_NLCC,&
            PSPCODE_PAW
     
@@ -227,7 +226,7 @@ module forces_linear
       real(gp), dimension(3,at%astruct%nat), intent(inout) :: fsep
       real(gp), dimension(6), intent(out) :: strten
       !local variables--------------
-      integer :: istart_c,iproj,iat,ityp,i,j,l,m,iorbout,iiorb,ilr
+      integer :: iat,ityp,i,j,l,m,iorbout,iiorb,ilr
       integer :: mbseg_c,mbseg_f,jseg_c,jseg_f,ind,iseg,jjorb,ispin
       integer :: mbvctr_c,mbvctr_f,iorb,nwarnings,nspinor,ispinor,jorbd,ncount,ist_send
       real(gp) :: offdiagcoeff,hij,sp0,spi,sp0i,sp0j,spj,Enl,vol
@@ -449,7 +448,7 @@ module forces_linear
       use module_base
       use module_types, only: atoms_data, local_zone_descriptors, &
                               DFT_PSP_projectors, orbitals_data
-      use psp_projectors, only: projector_has_overlap
+      use psp_projectors, only: DFT_PSP_projector_iter, DFT_PSP_projectors_iter_new, DFT_PSP_projectors_iter_next
       implicit none
     
       ! Calling arguments
@@ -464,6 +463,7 @@ module forces_linear
       !logical :: projector_has_overlap
 
       ! Local variables
+      type(DFT_PSP_projector_iter) :: iter
       integer :: ikpt, ii, isorb, ieorb, iorb, iiorb, ilr, nspinor, iat, iiat, ityp 
 
       call f_routine(id='determine_dimension_scalprod')
@@ -486,25 +486,14 @@ module forces_linear
     
                call orbs_in_kpt(ikpt,orbs,isorb,ieorb,nspinor)
     
-    
-               do iat=1,natp
-                  iiat = iat+isat-1
-    
-                  ityp=at%astruct%iatype(iiat)
-                  ii = 0
-                  do iorb=isorb,ieorb
-                     iiorb=orbs%isorb+iorb
-                     ilr=orbs%inwhichlocreg(iiorb)
-                     ! Check whether there is an overlap between projector and support functions
-                     if (.not.projector_has_overlap(iat, ilr, lzd%llr(ilr), lzd%glr, nlpsp)) then
-                        cycle 
-                     else
-                        ii = ii +1
-                     end if
+               do iorb=isorb,ieorb
+                  iiorb=orbs%isorb+iorb
+                  ilr=orbs%inwhichlocreg(iiorb)
+                  call DFT_PSP_projectors_iter_new(iter, nlpsp)
+                  do while (DFT_PSP_projectors_iter_next(iter, ilr, lzd%llr(ilr), lzd%glr))
+                     supfun_per_atom(iter%iat) = supfun_per_atom(iter%iat) + 1
+                     nscalprod_send = nscalprod_send + 1 !ii
                   end do
-                  nscalprod_send = nscalprod_send + ii
-                  supfun_per_atom(iat) = supfun_per_atom(iat) + ii
-    
                end do
     
                if (ieorb == orbs%norbp) exit loop_kptD
@@ -586,7 +575,7 @@ module forces_linear
       real(kind=8),dimension(1:2,0:ndir,1:m_max,1:i_max,1:l_max,1:nscalprod_send),intent(inout) ::  scalprod_sendbuf_new
     
       ! Local variables
-      integer :: ikpt, ispsi, ispsi_k, jorb, jorbd, iii, nwarnings, iproj, nspinor
+      integer :: ikpt, ispsi, ispsi_k, jorb, jorbd, iii, nwarnings, nspinor
       integer :: iat, isorb, ieorb, iorb, iiorb, ilr, ityp, istart_c, i, m, l, ispinor
       integer :: mbseg_c, mbseg_f, mbvctr_c, mbvctr_f, jseg_c, jseg_f, idir, ncplx, iiat
       logical :: increase
@@ -623,7 +612,6 @@ module forces_linear
                call ncplx_kpt(ikpt,orbs,ncplx)
     
                nwarnings=0 !not used, simply initialised 
-               iproj=0 !should be equal to four times nproj at the end
                jorbd=jorb
                do iat=1,natp
                   iiat = iat+isat-1
@@ -634,7 +622,8 @@ module forces_linear
                      iiorb=orbs%isorb+iorb
                      ilr=orbs%inwhichlocreg(iiorb)
                      ! Check whether there is an overlap between projector and support functions
-                     if (projector_has_overlap(iat, ilr, lzd%llr(ilr), lzd%glr, nlpsp)) then
+                     if (nlpsp%projs(iat)%mproj > 0 .and. &
+                          & projector_has_overlap(ilr, lzd%llr(ilr), lzd%glr, nlpsp%projs(iiat)%region)) then
                         need_proj=.true.
                         exit
                      end if
@@ -643,7 +632,7 @@ module forces_linear
                   if (.not. need_proj) cycle
     
     
-                  call plr_segs_and_vctrs(nlpsp%pspd(iiat)%plr,&
+                  call plr_segs_and_vctrs(nlpsp%projs(iiat)%region%plr,&
                        mbseg_c,mbseg_f,mbvctr_c,mbvctr_f)
                   jseg_c=1
                   jseg_f=1
@@ -655,14 +644,9 @@ module forces_linear
     
                      ityp=at%astruct%iatype(iiat)
                      !calculate projectors
-                     istart_c=1
-    
-    
                      if (extra_timing) call cpu_time(tr0)
-                     call atom_projector(nlpsp, ityp, iiat, at%astruct%atomnames(ityp), &
-                          & at%astruct%geocode, idir, lr, hx, hy, hz, &
-                          & orbs%kpts(1,ikpt), orbs%kpts(2,ikpt), orbs%kpts(3,ikpt), &
-                          & istart_c, iproj, nwarnings)
+                     call atom_projector(nlpsp, iiat, idir, lr, orbs%kpts(:,ikpt), &
+                          & nwarnings)
                      if (extra_timing) call cpu_time(tr1)
                      if (extra_timing) time0=time0+real(tr1-tr0,kind=8)
                      if (extra_timing) call cpu_time(tr0)
@@ -675,7 +659,7 @@ module forces_linear
                         iiorb=orbs%isorb+iorb
                         ilr=orbs%inwhichlocreg(iiorb)
                         ! Check whether there is an overlap between projector and support functions
-                        if (.not.projector_has_overlap(iat, ilr, lzd%llr(ilr), lzd%glr, nlpsp)) then
+                        if (.not.projector_has_overlap(ilr, lzd%llr(ilr), lzd%glr, nlpsp%projs(iat)%region)) then
                            jorb=jorb+1
                            ispsi=ispsi+(lzd%llr(ilr)%wfd%nvctr_c+7*lzd%llr(ilr)%wfd%nvctr_f)*ncplx
                            cycle 
@@ -693,9 +677,9 @@ module forces_linear
                                             lzd%llr(ilr)%wfd%nseg_c,lzd%llr(ilr)%wfd%nseg_f,&
                                             lzd%llr(ilr)%wfd%keyvglob,lzd%llr(ilr)%wfd%keyglob,phi(ispsi),&
                                             mbvctr_c,mbvctr_f,mbseg_c,mbseg_f,&
-                                            nlpsp%pspd(iiat)%plr%wfd%keyvglob(jseg_c),&
-                                            nlpsp%pspd(iiat)%plr%wfd%keyglob(1,jseg_c),&
-                                            nlpsp%proj(istart_c),&
+                                            nlpsp%projs(iiat)%region%plr%wfd%keyvglob(jseg_c),&
+                                            nlpsp%projs(iiat)%region%plr%wfd%keyglob(1,jseg_c),&
+                                            nlpsp%shared_proj(istart_c),&
                                             scpr)
                                        !if (scpr/=0.d0) then
                                        ! SM: In principle it would be sufficient to update only is_supfun_per_atom_tmp
@@ -722,8 +706,6 @@ module forces_linear
                      end do
                      if (extra_timing) call cpu_time(tr1)
                      if (extra_timing) time1=time1+real(tr1-tr0,kind=8)
-    
-                     if (istart_c-1  > nlpsp%nprojel) stop '2:applyprojectors'
                   end do
                end do
     
@@ -885,8 +867,6 @@ module forces_linear
          !call f_memcpy(n=nsendcounts(0), src=scalprod_sendbuf_new(1,0,1,1,1,1), dest=scalprod_recvbuf(1))
          call f_memcpy(n=nsendcounts(0), src=scalprod_sendbuf_new(1), dest=scalprod_recvbuf(1))
       end if
-    
-    
     
       ! Now the value of supfun_per_atom can be summed up, since each task has all scalprods for a given atom.
       ! In principle this is only necessary for the atoms handled by a given task, but do it for the moment for all...
@@ -1379,3 +1359,46 @@ module forces_linear
     END SUBROUTINE local_hamiltonian_stress_linear
 
 end module forces_linear
+
+!> Create projectors from gaussian decomposition.
+subroutine atom_projector(nl, iat, idir, lr, kpoint, nwarnings)
+  use module_base, only: gp, f_routine, f_release_routine
+  use locregs, only: locreg_descriptors
+  use psp_projectors_base
+  use f_enums
+  implicit none
+  type(DFT_PSP_projectors), intent(inout) :: nl
+  integer, intent(in) :: iat
+  type(locreg_descriptors), intent(in) :: lr
+  integer, intent(in) :: idir
+  real(gp), dimension(3), intent(in) :: kpoint
+  integer, intent(inout) :: nwarnings
+
+  type(atomic_projector_iter) :: iter
+
+  call f_routine(id='atom_projector')
+
+  ! Start an atomic iterator.
+  call atomic_projector_iter_new(iter, nl%pbasis(iat), nl%projs(iat)%region%plr, kpoint)
+  call atomic_projector_iter_set_destination(iter, nl%shared_proj)
+  if (PROJECTION_1D_SEPARABLE == nl%method) then
+     if (nl%pbasis(iat)%kind == PROJ_DESCRIPTION_GAUSSIAN) then
+        call atomic_projector_iter_set_method(iter, PROJECTION_1D_SEPARABLE, lr)
+     else
+        call atomic_projector_iter_set_method(iter, PROJECTION_RS_COLLOCATION) 
+     end if
+  else
+     call atomic_projector_iter_set_method(iter, nl%method)
+  end if
+
+  call atomic_projector_iter_start(iter)
+  ! Loop on shell.
+  do while (atomic_projector_iter_next(iter))
+     call atomic_projector_iter_to_wavelets(iter, idir, nwarnings)
+  end do
+
+  call atomic_projector_iter_free(iter)
+
+  call f_release_routine()
+
+end subroutine atom_projector

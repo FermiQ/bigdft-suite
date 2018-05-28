@@ -65,6 +65,7 @@ program driver_foe
   real(mp) :: energy, tr_KS, tr_KS_check, ef, energy_fake, efermi, eTS, evlow, evhigh, t1, t2
   type(foe_data),dimension(:),allocatable :: foe_obj, ice_obj
   real(mp) :: tr, fscale, fscale_lowerbound, fscale_upperbound, accuracy_foe, accuracy_ice, accuracy_penalty
+  real(mp) :: fscale_ediff_low, fscale_ediff_up
   type(dictionary),pointer :: dict_timing_info, options
   type(yaml_cl_parse) :: parser !< command line parser
   character(len=1024) :: metadata_file, overlap_file, hamiltonian_file, kernel_file, kernel_matmul_file
@@ -292,7 +293,7 @@ program driver_foe
   end do
 
 
-  call mpibarrier()
+  call fmpi_barrier()
   call f_timing_checkpoint(ctr_name='INIT',mpi_comm=mpiworld(),nproc=mpisize(), &
        gather_routine=gather_timings)
 
@@ -332,7 +333,7 @@ program driver_foe
       call f_free(eval_max)
   end if
 
-  call mpibarrier()
+  call fmpi_barrier()
   call f_timing_checkpoint(ctr_name='INFO',mpi_comm=mpiworld(),nproc=mpisize(), &
        gather_routine=gather_timings)
 
@@ -409,7 +410,7 @@ program driver_foe
       else
           call f_err_throw("wrong value for 'kernel_method'; possible values are 'FOE', 'PEXSI' or 'LAPACK'")
       end if
-      call mpibarrier()
+      call fmpi_barrier()
       t2 = mpi_wtime()
       times(it) = t2-t1
       energies(it) = energy
@@ -488,7 +489,7 @@ program driver_foe
       call yaml_scalar('',hfill='=')
   end if
 
-  call mpibarrier()
+  call fmpi_barrier()
   call f_timing_checkpoint(ctr_name='CALC',mpi_comm=mpiworld(),nproc=mpisize(), &
        gather_routine=gather_timings)
 
@@ -600,7 +601,7 @@ program driver_foe
   call f_free_ptr(overlap)
   call f_free_ptr(overlap_large)
 
-  call mpibarrier()
+  call fmpi_barrier()
   call f_timing_checkpoint(ctr_name='LAST',mpi_comm=mpiworld(),nproc=mpisize(), &
        gather_routine=gather_timings)
 
@@ -671,46 +672,50 @@ program driver_foe
           keep_dense_kernel = options//'keep_dense_kernel'
           write_kernel = options//'write_kernel'
           write_symmetrized_kernel = options//'write_symmetrized_kernel'
+          fscale_ediff_low = options//'fscale_ediff_low'
+          fscale_ediff_up = options//'fscale_ediff_up'
          
           call dict_free(options)
       end if
 
       ! Send the input parameters to all MPI tasks
-      call mpibcast(sparsity_format, root=0, comm=mpi_comm_world)
-      call mpibcast(matrix_format, root=0, comm=mpi_comm_world)
-      call mpibcast(metadata_file, root=0, comm=mpi_comm_world)
-      call mpibcast(overlap_file, root=0, comm=mpi_comm_world)
-      call mpibcast(hamiltonian_file, root=0, comm=mpi_comm_world)
-      call mpibcast(kernel_file, root=0, comm=mpi_comm_world)
-      call mpibcast(kernel_matmul_file, root=0, comm=mpi_comm_world)
-      call mpibcast(kernel_method, root=0, comm=mpi_comm_world)
-      call mpibcast(scalapack_blocksize, root=0, comm=mpi_comm_world)
-      call mpibcast(kernel_matmul_file, root=0, comm=mpi_comm_world)
-      call mpibcast(fscale, root=0, comm=mpi_comm_world)
-      call mpibcast(fscale_lowerbound, root=0, comm=mpi_comm_world)
-      call mpibcast(fscale_upperbound, root=0, comm=mpi_comm_world)
-      call mpibcast(evlow, root=0, comm=mpi_comm_world)
-      call mpibcast(evhigh, root=0, comm=mpi_comm_world)
-      call mpibcast(ntemp, root=0, comm=mpi_comm_world)
-      call mpibcast(ef, root=0, comm=mpi_comm_world)
-      call mpibcast(npl_max, root=0, comm=mpi_comm_world)
-      call mpibcast(pexsi_npoles, root=0, comm=mpi_comm_world)
-      call mpibcast(pexsi_nproc_per_pole, root=0, comm=mpi_comm_world)
-      call mpibcast(pexsi_mumin, root=0, comm=mpi_comm_world)
-      call mpibcast(pexsi_mumax, root=0, comm=mpi_comm_world)
-      call mpibcast(pexsi_mu, root=0, comm=mpi_comm_world)
-      call mpibcast(pexsi_DeltaE, root=0, comm=mpi_comm_world)
-      call mpibcast(pexsi_temperature, root=0, comm=mpi_comm_world)
-      call mpibcast(pexsi_tol_charge, root=0, comm=mpi_comm_world)
-      call mpibcast(pexsi_np_sym_fact, root=0, comm=mpi_comm_world)
-      call mpibcast(pexsi_max_iter, root=0, comm=mpi_comm_world)
-      call mpibcast(pexsi_verbosity, root=0, comm=mpi_comm_world)
-      call mpibcast(accuracy_foe, root=0, comm=mpi_comm_world)
-      call mpibcast(accuracy_ice, root=0, comm=mpi_comm_world)
-      call mpibcast(accuracy_penalty, root=0, comm=mpi_comm_world)
-      call mpibcast(nit, root=0, comm=mpi_comm_world)
-      call mpibcast(betax, root=0, comm=mpi_comm_world)
-      call mpibcast(inversion_method, root=0, comm=mpi_comm_world)
+      call fmpi_bcast(sparsity_format)
+      call fmpi_bcast(matrix_format)
+      call fmpi_bcast(metadata_file)
+      call fmpi_bcast(overlap_file)
+      call fmpi_bcast(hamiltonian_file)
+      call fmpi_bcast(kernel_file)
+      call fmpi_bcast(kernel_matmul_file)
+      call fmpi_bcast(kernel_method)
+      call fmpi_bcast(scalapack_blocksize)
+      call fmpi_bcast(kernel_matmul_file)
+      call fmpi_bcast(fscale)
+      call fmpi_bcast(fscale_lowerbound)
+      call fmpi_bcast(fscale_upperbound)
+      call fmpi_bcast(evlow)
+      call fmpi_bcast(evhigh)
+      call fmpi_bcast(ntemp)
+      call fmpi_bcast(ef)
+      call fmpi_bcast(npl_max)
+      call fmpi_bcast(pexsi_npoles)
+      call fmpi_bcast(pexsi_nproc_per_pole)
+      call fmpi_bcast(pexsi_mumin)
+      call fmpi_bcast(pexsi_mumax)
+      call fmpi_bcast(pexsi_mu)
+      call fmpi_bcast(pexsi_DeltaE)
+      call fmpi_bcast(pexsi_temperature)
+      call fmpi_bcast(pexsi_tol_charge)
+      call fmpi_bcast(pexsi_np_sym_fact)
+      call fmpi_bcast(pexsi_max_iter)
+      call fmpi_bcast(pexsi_verbosity)
+      call fmpi_bcast(accuracy_foe)
+      call fmpi_bcast(accuracy_ice)
+      call fmpi_bcast(accuracy_penalty)
+      call fmpi_bcast(nit)
+      call fmpi_bcast(betax)
+      call fmpi_bcast(inversion_method)
+      call fmpi_bcast(fscale_ediff_low)
+      call fmpi_bcast(fscale_ediff_up)
       ! Since there is no wrapper for logicals...
       if (iproc==0) then
           if (check_spectrum) then
@@ -719,7 +724,7 @@ program driver_foe
               icheck = 0
           end if
       end if
-      call mpibcast(icheck, root=0, comm=mpi_comm_world)
+      call fmpi_bcast(icheck)
       if (icheck==1) then
           check_spectrum = .true.
       else
@@ -732,7 +737,7 @@ program driver_foe
               icheck = 0
           end if
       end if
-      call mpibcast(icheck, root=0, comm=mpi_comm_world)
+      call fmpi_bcast(icheck)
       if (icheck==1) then
           do_cubic_check = .true.
       else
@@ -745,7 +750,7 @@ program driver_foe
               icheck = 0
           end if
       end if
-      call mpibcast(icheck, root=0, comm=mpi_comm_world)
+      call fmpi_bcast(icheck)
       if (icheck==1) then
           pexsi_do_inertia_count = .true.
       else
@@ -758,7 +763,7 @@ program driver_foe
               icheck = 0
           end if
       end if
-      call mpibcast(icheck, root=0, comm=mpi_comm_world)
+      call fmpi_bcast(icheck)
       if (icheck==1) then
           keep_dense_kernel = .true.
       else
@@ -771,7 +776,7 @@ program driver_foe
               icheck = 0
           end if
       end if
-      call mpibcast(icheck, root=0, comm=mpi_comm_world)
+      call fmpi_bcast(icheck)
       if (icheck==1) then
           write_kernel = .true.
       else
@@ -784,7 +789,7 @@ program driver_foe
               icheck = 0
           end if
       end if
-      call mpibcast(icheck, root=0, comm=mpi_comm_world)
+      call fmpi_bcast(icheck)
       if (icheck==1) then
           write_symmetrized_kernel = .true.
       else
@@ -1099,6 +1104,20 @@ subroutine commandline_options(parser)
        &(requires write_kernel=yes and keep_dense_kernel=yes)',&
        'Allowed values' .is. &
        'Logical'))
+
+  call yaml_cl_parse_option(parser,'fscale_ediff_low','5.e-5',&
+       'lower bound for the optimal relative energy difference between the kernel and the control kernel',&
+       help_dict=dict_new('Usage' .is. &
+       'Indicate the lower bound for the optimal relative energy difference between the kernel and the control kernel',&
+       'Allowed values' .is. &
+       'Double'))
+
+  call yaml_cl_parse_option(parser,'fscale_ediff_up','1.e-4',&
+       'lower bound for the optimal relative energy difference between the kernel and the control kernel',&
+       help_dict=dict_new('Usage' .is. &
+       'Indicate the lower bound for the optimal relative energy difference between the kernel and the control kernel',&
+       'Allowed values' .is. &
+       'Double'))
 
 
 end subroutine commandline_options

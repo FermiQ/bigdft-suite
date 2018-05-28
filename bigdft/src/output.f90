@@ -777,7 +777,7 @@ subroutine print_atomic_variables(atoms, hmax, ixc)
   use module_base
   use module_types
   use public_enums, only: RADII_SOURCE,PSPCODE_HGH,PSPCODE_HGH_K,PSPCODE_HGH_K_NLCC,&
-       PSPCODE_PAW,PSPCODE_GTH
+       PSPCODE_PAW,PSPCODE_GTH, PSPCODE_PSPIO
   use public_keys, only: COEFF_KEY
   use module_xc
   use yaml_output
@@ -868,10 +868,12 @@ subroutine print_atomic_variables(atoms, hmax, ixc)
            minrad=min(minrad,atoms%psppar(i,0,ityp))
         end if
      end do
-     if (atoms%radii_cf(ityp,2) /=0.0_gp) then
-        call yaml_map('Grid Spacing threshold (AU)',2.5_gp*minrad,fmt='(f5.2)')
-     else
-        call yaml_map('Grid Spacing threshold (AU)',1.25_gp*minrad,fmt='(f5.2)')
+     if (minrad < 1e9_gp) then
+        if (atoms%radii_cf(ityp,2) /=0.0_gp) then
+           call yaml_map('Grid Spacing threshold (AU)',2.5_gp*minrad,fmt='(f5.2)')
+        else
+           call yaml_map('Grid Spacing threshold (AU)',1.25_gp*minrad,fmt='(f5.2)')
+        end if
      end if
      !control whether the grid spacing is too high
      if (hmax > 2.5_gp*minrad) then
@@ -890,11 +892,18 @@ subroutine print_atomic_variables(atoms, hmax, ixc)
         call yaml_map('Pseudopotential type','HGH-K + NLCC')
      case(PSPCODE_PAW)
         call yaml_map('Pseudopotential type','PAW + HGH')
+     case(PSPCODE_PSPIO)
+        call yaml_map('Pseudopotential type','PSPIO')
      end select
      if (atoms%psppar(0,0,ityp)/=0) then
         call yaml_mapping_open('Local Pseudo Potential (HGH convention)')
           call yaml_map('Rloc',atoms%psppar(0,0,ityp),fmt='(f9.5)')
-          call yaml_map(COEFF_KEY,atoms%psppar(0,1:4,ityp),fmt='(f9.5)')
+          if (atoms%npspcode(ityp) == PSPCODE_GTH .or. &
+               & atoms%npspcode(ityp) == PSPCODE_HGH .or. &
+               & atoms%npspcode(ityp) == PSPCODE_HGH_K .or. &
+               & atoms%npspcode(ityp) == PSPCODE_HGH_K_NLCC .or. &
+               & atoms%npspcode(ityp) == PSPCODE_PAW) & ! to be removed later
+               & call yaml_map(COEFF_KEY,atoms%psppar(0,1:4,ityp),fmt='(f9.5)')
         call yaml_mapping_close()
      end if
      !nlcc term
@@ -919,7 +928,8 @@ subroutine print_atomic_variables(atoms, hmax, ixc)
            if (any(atoms%psppar(l,0:3,ityp) /= 0._gp)) then
               call yaml_sequence(advance='no')
               call yaml_map('Channel (l)',l-1)
-              call yaml_map('Rloc',atoms%psppar(l,0,ityp),fmt='(f9.5)')
+              if (atoms%psppar(l,0,ityp) > 0._gp) &
+                   & call yaml_map('Rloc',atoms%psppar(l,0,ityp),fmt='(f9.5)')
               hij=0._gp
               do i=1,3
                  hij(i,i)=atoms%psppar(l,i,ityp)
@@ -929,7 +939,8 @@ subroutine print_atomic_variables(atoms, hmax, ixc)
                  hij(1,3)=offdiagarr(1,2,l)*atoms%psppar(l,3,ityp)
                  hij(2,3)=offdiagarr(2,1,l)*atoms%psppar(l,3,ityp)
               else if (atoms%npspcode(ityp) == PSPCODE_HGH_K &
-                  .or. atoms%npspcode(ityp) == PSPCODE_HGH_K_NLCC) then !HGH-K convention
+                   .or. atoms%npspcode(ityp) == PSPCODE_HGH_K_NLCC &
+                   .or. atoms%npspcode(ityp) == PSPCODE_PSPIO) then !HGH-K convention
                  hij(1,2)=atoms%psppar(l,4,ityp)
                  hij(1,3)=atoms%psppar(l,5,ityp)
                  hij(2,3)=atoms%psppar(l,6,ityp)
@@ -945,25 +956,27 @@ subroutine print_atomic_variables(atoms, hmax, ixc)
      end if
      ! PAW case.
      if (atoms%npspcode(ityp) == PSPCODE_PAW) then
-        call yaml_sequence_open('NonLocal PSP Parameters (PAW)')
-        j0 = 1
-        l = 1
-        do i = 1, atoms%pawtab(ityp)%basis_size
-           call yaml_sequence(advance='no')
-           call yaml_map('Channel (l,m,n)', atoms%pawtab(ityp)%indlmn(1:3, l))
-           l = l + atoms%pawtab(ityp)%orbitals(i) * 2 + 1
-           call yaml_sequence_open('gaussians')
-           do j = j0, j0 + atoms%pawtab(ityp)%wvl%pngau(i) / 2 - 1
+        if (atoms%pawtab(ityp)%has_wvl > 0) then
+           call yaml_sequence_open('NonLocal PSP Parameters (PAW)')
+           j0 = 1
+           l = 1
+           do i = 1, atoms%pawtab(ityp)%basis_size
               call yaml_sequence(advance='no')
-              call yaml_mapping_open(flow = .true.)
-              call yaml_map('factor', atoms%pawtab(ityp)%wvl%pfac(:,j),fmt='(f10.6)')
-              call yaml_map('exponent', atoms%pawtab(ityp)%wvl%parg(:,j),fmt='(f10.6)')
-              call yaml_mapping_close()
+              call yaml_map('Channel (l,m,n)', atoms%pawtab(ityp)%indlmn(1:3, l))
+              l = l + atoms%pawtab(ityp)%orbitals(i) * 2 + 1
+              call yaml_sequence_open('gaussians')
+              do j = j0, j0 + atoms%pawtab(ityp)%wvl%pngau(i) / 2 - 1
+                 call yaml_sequence(advance='no')
+                 call yaml_mapping_open(flow = .true.)
+                 call yaml_map('factor', atoms%pawtab(ityp)%wvl%pfac(:,j),fmt='(f10.6)')
+                 call yaml_map('exponent', atoms%pawtab(ityp)%wvl%parg(:,j),fmt='(f10.6)')
+                 call yaml_mapping_close()
+              end do
+              j0 = j0 + atoms%pawtab(ityp)%wvl%pngau(i)
+              call yaml_sequence_close()
            end do
-           j0 = j0 + atoms%pawtab(ityp)%wvl%pngau(i)
            call yaml_sequence_close()
-        end do
-        call yaml_sequence_close()
+        end if
         mproj = 0
         do i = 1, atoms%pawtab(ityp)%basis_size
            mproj = mproj + 2 * atoms%pawtab(ityp)%orbitals(i) + 1
@@ -1092,17 +1105,6 @@ subroutine print_atoms_and_grid(Glr, atoms, rxyz, hx, hy, hz)
 
   if (atoms%astruct%ntypes > 0) then
      call yaml_comment('Atom Positions (specified and grid units)',hfill='-')
-!!$     call yaml_sequence_open('Atomic positions within the cell (Atomic and Grid Units)')
-!!$     do iat=1,atoms%astruct%nat
-!!$        call yaml_sequence(advance='no')
-!!$        call yaml_mapping_open(trim(atoms%astruct%atomnames(atoms%astruct%iatype(iat))),flow=.true.)
-!!$        call yaml_map('AU',rxyz(1:3,iat),fmt='(1pg12.5)')
-!!$        call yaml_map('GU',(/rxyz(1,iat)/hx,rxyz(2,iat)/hy,rxyz(3,iat)/hz/),fmt='(1pg12.5)')
-!!$        call yaml_mapping_close(advance='no')
-!!$        call yaml_comment(trim(yaml_toa(iat,fmt='(i4.4)')))
-!!$     enddo
-!!$     call yaml_sequence_close()
-!!$     call yaml_map('Rigid Shift Applied (AU)',(/-shift(1),-shift(2),-shift(3)/),fmt='(1pg12.5)')
      ! New version
      call yaml_mapping_open('Atomic structure')
      call yaml_get_default_stream(unit = iunit)
@@ -1356,16 +1358,17 @@ subroutine print_nlpsp(nlpsp)
   totmask=0
   totpack=0
   do iat=1,nlpsp%natoms
-     if (nlpsp%pspd(iat)%mproj>0) then
-        totpack=max(totpack,nlpsp%pspd(iat)%plr%wfd%nvctr_c+&
-             7*nlpsp%pspd(iat)%plr%wfd%nvctr_f)
+     if (nlpsp%projs(iat)%mproj>0) then
+        totpack=max(totpack,nlpsp%projs(iat)%region%plr%wfd%nvctr_c+&
+             7*nlpsp%projs(iat)%region%plr%wfd%nvctr_f)
      end if
      sizemask=0
-     if (associated(nlpsp%pspd(iat)%tolr)) then
+     if (associated(nlpsp%projs(iat)%region%tolr)) then
         !do ilr=1,nlpsp%pspd(iat)%nlr
-        do ilr=1,size(nlpsp%pspd(iat)%tolr)
+        do ilr=1,size(nlpsp%projs(iat)%region%tolr)
            sizemask=sizemask+&
-                nlpsp%pspd(iat)%tolr(ilr)%nmseg_c+nlpsp%pspd(iat)%tolr(ilr)%nmseg_f
+                nlpsp%projs(iat)%region%tolr(ilr)%nmseg_c+&
+                nlpsp%projs(iat)%region%tolr(ilr)%nmseg_f
         end do
      end if
      maxmask=max(maxmask,sizemask)

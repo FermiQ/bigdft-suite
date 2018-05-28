@@ -5,9 +5,9 @@
 !!    This file is distributed under the terms of the
 !!    GNU General Public License, see ~/COPYING file
 !!    or http://www.gnu.org/copyleft/gpl.txt .
-!!    For the list of contributors, see ~/AUTHORS 
+!!    For the list of contributors, see ~/AUTHORS
 
- 
+
 !> Modules which contains the handling of operations in Gaussian basis
 !! Spherical harmonics are used in the cartesian form
 module gaussians
@@ -22,22 +22,11 @@ module gaussians
   integer, parameter :: L_MAX=3                    !< Maximum number of angular momentum considered
   integer, parameter :: NTERM_MAX_RS=NTERM_MAX_KINETIC !< Max terms for the real space expression of the Gaussians
 
-  integer, parameter :: SEPARABLE_1D=0
-  integer, parameter :: SEPARABLE_COLLOCATION=1
-  integer, parameter :: RADIAL_COLLOCATION=2
-  integer, parameter :: MULTIPOLE_PRESERVING_COLLOCATION=3
-
-  type(f_enumerator), public :: PROJECTION_1D_SEPARABLE=f_enumerator('SEPARABLE_1D',SEPARABLE_1D,null())
-  type(f_enumerator), public :: PROJECTION_RS_COLLOCATION=f_enumerator('REAL_SPACE_COLLOCATION',SEPARABLE_COLLOCATION,null())
-  type(f_enumerator), public :: PROJECTION_MP_COLLOCATION=&
-       f_enumerator('MULTIPOLE_PRESERVING_COLLOCATION',MULTIPOLE_PRESERVING_COLLOCATION,null())
-
-
   !> Structures of basis of gaussian functions
   type, public :: gaussian_basis
      integer :: nat     !< Number of centers
      integer :: ncoeff  !< Number of total basis elements
-     integer :: nshltot !< Total number of shells (m quantum number ignored) 
+     integer :: nshltot !< Total number of shells (m quantum number ignored)
      integer :: nexpo   !< Number of exponents (sum of the contractions)
      integer :: ncplx   !< Number of complex comp. (real or complex gaussians)
      !storage units
@@ -51,7 +40,7 @@ module gaussians
   type, public :: gaussian_basis_new
      integer :: nat     !< Number of centers
      integer :: ncoeff  !< Number of total basis elements
-     integer :: nshltot !< Total number of shells (m quantum number ignored) 
+     integer :: nshltot !< Total number of shells (m quantum number ignored)
      integer :: nexpo   !< Number of exponents (sum of the contractions)
      integer :: ncplx   !< =1 if traditional, =2 if complex gaussians
      !storage units
@@ -60,6 +49,9 @@ module gaussians
      real(gp), dimension(:,:), pointer :: sd   !< Sigma and contraction coefficients the exponents (complex numbers are allowed)
      real(gp), dimension(:,:), pointer :: rxyz !< Positions of the centers
   end type gaussian_basis_new
+
+  integer, parameter :: RADIAL_COLLOCATION=2
+  integer, parameter :: MULTIPOLE_PRESERVING_COLLOCATION=3
 
   !>single-center gaussians for conversion in real space
   type, public :: gaussian_real_space
@@ -81,6 +73,7 @@ module gaussians
   public :: nullify_gaussian_basis, deallocate_gwf, gaussian_basis_null, gaussian_basis_free
 
   public :: gaussian_basis_from_psp, gaussian_basis_from_paw,nullify_gaussian_basis_new,overlap_gain,kinetic_gain
+  public :: gaussian_basis_add_one, init_gaussian_basis
 
   type, public :: gaussian_basis_iter
      integer :: nshell = 0 !< Number of shells to iter on, read only.
@@ -93,7 +86,18 @@ module gaussians
      integer :: iexpo      !< Internal, may change.
   end type gaussian_basis_iter
   public :: gaussian_iter_start, gaussian_iter_next_shell, gaussian_iter_next_gaussian,three_dimensional_density
-  public :: gaussian_real_space_set,gaussian_radial_value,gaussian_to_wavelets_locreg,set_box_around_gaussian
+  public :: gaussian_iter_to_wavelets_separable, gaussian_iter_to_wavelets_collocation
+  public :: gaussian_real_space_set,gaussian_radial_value,set_box_around_gaussian
+
+  type, public :: ylm_coefficients
+     integer :: n, l, m
+
+     integer, private :: ntot
+     integer, private, dimension(2*L_MAX+1) :: ntpd
+     integer, private, dimension(3,NTERM_MAX_OVERLAP) :: pow
+     real(gp), private, dimension(NTERM_MAX_OVERLAP) :: ftpd
+  end type ylm_coefficients
+  public :: ylm_coefficients_new, ylm_coefficients_at, ylm_coefficients_next_m
 
 contains
 
@@ -112,10 +116,10 @@ contains
     g%cutoff=0.0_gp
     nullify(g%mpx,g%mpy,g%mpz)
   end subroutine nullify_gaussian_real_space
-  
+
 
   !here the different treatment of the gaussian for multipole preserving can be triggered
-  !pure 
+  !pure
   function gaussian_radial_value(g,rxyz,bit) result(f)
     use numerics
     use box
@@ -129,7 +133,7 @@ contains
     logical :: domp
     integer :: i
     real(gp) :: tt,r2,r,val
-    real(gp), dimension(3) :: vect
+    real(gp), dimension(3) :: vect, rclosest
     integer, dimension(3) :: itmp
 
     select case(g%discretization_method)
@@ -144,7 +148,8 @@ contains
        tt=0.0_gp
        do i=1,g%nterms
           !this should be in absolute coordinates
-          vect=rxyz_ortho(bit%mesh,closest_r(bit%mesh,bit%rxyz,rxyz))
+          rclosest = closest_r(bit%mesh,bit%rxyz,rxyz)
+          vect=rxyz_ortho(bit%mesh,rclosest)
           val=product(vect**g%lxyz(:,i))
           tt=tt+g%factors(i)*val
        end do
@@ -167,11 +172,11 @@ contains
 
        f=get_mp_exps_product(g%nterms,bit%inext-1,g%factors)
 !!$       do i=1,g%nterms
-          !here the distance is calculated in a way that might be better handled       
+          !here the distance is calculated in a way that might be better handled
 !!$          bit%tmp(3)=mp_exp(bit%mesh%hgrids(3),rxyz(3),g%exponent,itmp(3),g%lxyz(3,i),domp)
 !!$          bit%tmp(2)=mp_exp(bit%mesh%hgrids(2),rxyz(2),g%exponent,itmp(2),g%lxyz(2,i),domp)
 !!$          bit%tmp(1)=mp_exp(bit%mesh%hgrids(1),rxyz(1),g%exponent,itmp(1),g%lxyz(1,i),domp)
-!!$          
+!!$
 !!$          f=f+product(bit%tmp)*g%factors(i)
 !!$       end do
     end select
@@ -198,7 +203,7 @@ contains
           facq=rfac(1,q)
           facpq=rfac(1,p-q)
           nterms=nterms+1
-          factors(nterms)=facn/(facpq*facq)          
+          factors(nterms)=facn/(facpq*facq)
           lxyz(1,nterms)=2*(n-p)
           lxyz(2,nterms)=2*q
           lxyz(3,nterms)=2*(p-q)
@@ -206,7 +211,7 @@ contains
     end do
   end subroutine expand_r2_power
 
-  !>multiply together separable terms and obtain a ploynomial which is the sum of the two
+  !>multiply together separable terms and obtain a polynomial which is the sum of the two
   subroutine multiply_separable_terms(nA,facA,lxyzA,nB,facB,lxyzB,nC,facC,lxyzC)
     implicit none
     integer, intent(in) :: nA,nB
@@ -230,20 +235,21 @@ contains
     end do
   end subroutine multiply_separable_terms
 
+
   subroutine gaussian_real_space_set(g,sigma,nterms,factors,lxyz,pows,mp_isf_order)
     implicit none
     integer, intent(in) :: nterms
     integer, intent(in) :: mp_isf_order
     real(gp), intent(in) :: sigma
     real(gp), dimension(nterms), intent(in) :: factors
-    type(gaussian_real_space), intent(out) :: g    
+    type(gaussian_real_space), intent(out) :: g
     integer, dimension(nterms), intent(in) :: pows
     integer, dimension(3,nterms), intent(in) :: lxyz
     !local variables
     integer :: nterms_tmp,nC,iterm
     real(gp), dimension(NTERM_MAX_RS) :: factors_tmp,facC
     integer, dimension(3,NTERM_MAX_RS) :: lxyz_tmp,lxyzC
-    
+
     call nullify_gaussian_real_space(g)
     g%sigma=sigma!sqrt(onehalf/expo)
     g%exponent=onehalf/sigma**2
@@ -260,7 +266,7 @@ contains
        g%lxyz(:,1:nterms)=lxyz
        g%pows(1:nterms)=pows
     case(MULTIPOLE_PRESERVING_COLLOCATION)
-       !here the pow is not allowed (yet) therefore combine the powers 
+       !here the pow is not allowed (yet) therefore combine the powers
        !into separable terms. Assume that the powers here are all even
        g%nterms=0
        do iterm=1,nterms
@@ -272,8 +278,9 @@ contains
           g%nterms=g%nterms+nC
        end do
     end select
-    
+
   end subroutine gaussian_real_space_set
+
 
   !>prepare for the discretization of the gaussian in real space
   subroutine set_box_around_gaussian(bit,g,rxyz)
@@ -313,7 +320,7 @@ contains
        nbox(2,:)=nbox(2,:)+gaussian%mp_isf
     end if
   end function gaussian_nbox
-  
+
   !> accumulate the density array
   !!warning@ array should be initialized to zero at the first call
   subroutine three_dimensional_density(boxit,gaussian,prefactor,oxyz,density)
@@ -341,7 +348,7 @@ contains
        !radial case
        !$omp parallel default(shared)&
        !$omp private(ithread,r) &
-       !$omp firstprivate(boxit) 
+       !$omp firstprivate(boxit)
        !$ ithread=omp_get_thread_num()
        !$ nthread=omp_get_num_threads()
        call box_iter_split(boxit,nthread,ithread)
@@ -391,7 +398,7 @@ contains
 !!$
 !!$         !$omp parallel default(shared)&
 !!$         !$omp private(ithread,fz,fy,fx,xp) &
-!!$         !$omp firstprivate(boxit) 
+!!$         !$omp firstprivate(boxit)
 !!$
 !!$         !$ ithread=omp_get_thread_num()
 !!$         !$ nthread=omp_get_num_threads()
@@ -415,156 +422,188 @@ contains
 
   end subroutine three_dimensional_density
 
-  !>accumulate the coefficients of the expression of a given gaussian in wavelets on the array of
-  !!compressed data
-  subroutine gaussian_to_wavelets_locreg(mesh,ider,&
-       ncplx_g,coeff,expo,distance_cutoff,n,l,rxyz,kpoint,&
-       ncplx_p,lr,wpr,psi,method)
+  subroutine gaussian_iter_to_wavelets_separable(G, iter, ider, mesh, lr, &
+       & distance_cutoff, rxyz, kpoint, ncplx_p, wpr, psi, proj_tmp)
     use box
-    use compression
-    use f_functions
     use locregs
     use locreg_operations
-    use f_utils, only: f_zero
-    use f_enums, only: toi
-    implicit none  
+    implicit none
+    type(gaussian_basis_new), intent(in) :: G
+    type(gaussian_basis_iter), intent(inout) :: iter
     integer, intent(in) :: ider !<direction in which to perform the derivative (0 if any)
-    integer, intent(in) :: n !<principal quantum number
-    integer, intent(in) :: l !<angular momentum of the shell
-    integer, intent(in) :: ncplx_g !< 1 or 2 if the gaussian factor is real or complex respectively
-    integer, intent(in) :: ncplx_p !< 2 if the projector is supposed to be complex, 1 otherwise
-    real(gp), intent(in) :: distance_cutoff !< 1d-distance starting from which the gaussian is assumed to be zero
     type(cell), intent(in) :: mesh !<cell structure *of the wavelet box* (coarse grid)
     type(locreg_descriptors), intent(in) :: lr !<projector descriptors for wavelets representation
-    real(gp), dimension(ncplx_g), intent(in) :: coeff !<prefactor of the gaussian
-    real(gp), dimension(ncplx_g), intent(in) :: expo !<exponents (1/2sigma^2 for the first element) of the gaussian (real and imaginary part)
+    real(gp), intent(in) :: distance_cutoff !< 1d-distance starting from which the gaussian is assumed to be zero
     real(gp), dimension(3), intent(in) :: rxyz !<center of the Gaussian
     real(gp), dimension(3), intent(in) :: kpoint !<coordinate of the kpoint in reciprocal space
     type(workarrays_projectors),intent(inout) :: wpr
     !> wavelet expression, @todo: create a routine that accumulates instead of overwriting
-    real(wp), dimension(lr%wfd%nvctr_c+7*lr%wfd%nvctr_f,ncplx_p,2*l-1), intent(out) :: psi
-    type(f_enumerator), intent(in), optional :: method
-    !local variables
-    integer, parameter :: nterm_max=20 !if GTH nterm_max=4 (this value should go in a module)
-    integer :: i,m,meth,iterm
-    type(box_iterator) :: bit
-    type(workarr_sumrho) :: w
-    type(gaussian_real_space) :: g
-    real(gp), dimension(3) :: oxyz
-    real(gp), dimension(ncplx_g) :: sigma_and_expo
+    integer, intent(in) :: ncplx_p !< 2 if the projector is supposed to be complex, 1 otherwise
+    real(wp), dimension(lr%wfd%nvctr_c+7*lr%wfd%nvctr_f,ncplx_p,2*iter%l-1), intent(out) :: psi
+    real(wp), dimension(lr%wfd%nvctr_c+7*lr%wfd%nvctr_f,ncplx_p,2*iter%l-1), intent(out) :: proj_tmp
+
+    real(gp), dimension(G%ncplx) :: coeff, expo
+
+    ! Loop on contraction, treat the first gaussian separately for performance reasons.
+    if (gaussian_iter_next_gaussian(G, iter, coeff, expo)) &
+         call gaussian_projector(cell_geocode(mesh), ider, iter%l, iter%n, coeff, expo, &
+         distance_cutoff, rxyz,mesh%ndims, mesh%hgrids,kpoint, ncplx_p,G%ncplx, &
+         lr%wfd, wpr,psi) 
+    do
+       if (.not. gaussian_iter_next_gaussian(G, iter, coeff, expo)) exit
+         call gaussian_projector(cell_geocode(mesh), ider, iter%l, iter%n, coeff, expo, &
+         distance_cutoff, rxyz,mesh%ndims, mesh%hgrids,kpoint, ncplx_p,G%ncplx, &
+         lr%wfd, wpr,proj_tmp) 
+         call axpy((lr%wfd%nvctr_c+7*lr%wfd%nvctr_f)*ncplx_p*(2*iter%l-1), &
+              & 1._wp, proj_tmp(1,1,1), 1, psi(1,1,1), 1)
+    end do
+  end subroutine gaussian_iter_to_wavelets_separable
+
+  subroutine gaussian_projector(geocode,idir,l,i,factor,gau_a,rpaw,rxyz,&
+       ndims,hgrids,kpoint,ncplx_k,ncplx_g,wfd,wpr,proj)
+    use module_base
+    use compression, only: wavefunctions_descriptors
+    use locreg_operations, only: workarrays_projectors
+    implicit none
+    character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+    type(wavefunctions_descriptors), intent(in) :: wfd !<projector descriptors for wavelets representation
+    integer, intent(in) :: ndims(3)
+    integer, intent(in) :: idir,l,i,ncplx_k,ncplx_g
+    real(gp), intent(in) :: rpaw
+    real(gp),dimension(ncplx_g),intent(in)::gau_a,factor
+    real(gp), dimension(3), intent(in) :: rxyz, hgrids, kpoint
+    type(workarrays_projectors),intent(inout) :: wpr
+    real(wp), dimension(wfd%nvctr_c+7*wfd%nvctr_f, ncplx_k, 2*l-1), intent(out) :: proj
+    !Local variables
+    integer, parameter :: nterm_max = 20
+    integer :: iterm
+    real(gp), dimension(ncplx_g) :: gau_c
     integer, dimension(2*l-1) :: nterms
     integer, dimension(nterm_max,3,2*l-1) :: lxyz
-    integer, dimension(3,nterm_max) :: lxyz_gau
     real(gp), dimension(ncplx_g,nterm_max,2*l-1) :: factors
-    type(f_function), dimension(3) :: funcs
-    real(f_double), dimension(:), allocatable :: projector_real
+
+    type(ylm_coefficients) :: ylm
+    type(gaussian_real_space) :: g
+    
+    call ylm_coefficients_new(ylm, i, l - 1)
+
+    if (ncplx_g > 1) then
+       call get_projector_coeffs(ncplx_g,l,i,idir,nterm_max,factor,gau_a,&
+            nterms,lxyz,gau_c,factors)
+    end if
+
+    !start of the projectors expansion routine
+    do while(ylm_coefficients_next_m(ylm))
+       if (ncplx_g == 1) then
+          g = ylm_coefficients_to_gaussian(ylm, factor(1), gau_a(1), idir, 0)
+          do iterm = 1, g%nterms
+             lxyz(iterm, 1, ylm%m) = g%lxyz(1, iterm)
+             lxyz(iterm, 2, ylm%m) = g%lxyz(2, iterm)
+             lxyz(iterm, 3, ylm%m) = g%lxyz(3, iterm)
+             factors(1, iterm, ylm%m) = g%factors(iterm)
+          end do
+          nterms(ylm%m) = g%nterms
+          gau_c = g%sigma
+       end if
+       call crtproj(geocode,nterms(ylm%m),0,0,0,ndims(1) - 1,ndims(2) - 1,ndims(3) - 1,&
+            hgrids(1),hgrids(2),hgrids(3),kpoint(1),kpoint(2),kpoint(3),&
+            ncplx_g,ncplx_k,gau_c,factors(1,1,ylm%m),rxyz(1),rxyz(2),rxyz(3),&
+            lxyz(1,1,ylm%m),lxyz(1,2,ylm%m),lxyz(1,3,ylm%m),&
+            wfd%nvctr_c,wfd%nvctr_f,wfd%nseg_c,wfd%nseg_f,wfd%keyvglob,wfd%keyglob,&
+            proj(1,1,ylm%m),wpr,rpaw)
+    enddo
+  END SUBROUTINE gaussian_projector
+
+  subroutine gaussian_iter_to_wavelets_collocation(G, iter, ider, lr, rxyz, ncplx_p, psi, &
+       & projector_real, w, mp_order)
+    use box
+    use locregs
+    use locreg_operations
+    use f_utils, only: f_zero
+    implicit none
+    type(gaussian_basis_new), intent(in) :: G
+    type(gaussian_basis_iter), intent(inout) :: iter
+    integer, intent(in) :: ider !<direction in which to perform the derivative (0 if any)
+    type(locreg_descriptors), intent(in) :: lr !<projector descriptors for wavelets representation
+    real(gp), dimension(3), intent(in) :: rxyz !<center of the Gaussian
+    integer, intent(in) :: ncplx_p !< 2 if the projector is supposed to be complex, 1 otherwise
+    real(wp), dimension(lr%wfd%nvctr_c+7*lr%wfd%nvctr_f,ncplx_p,2*iter%l-1), intent(out) :: psi
+    real(f_double), dimension(lr%mesh%ndim), intent(inout) :: projector_real
+    type(workarr_sumrho), intent(inout) :: w
+    integer, intent(in), optional :: mp_order
+
     !local variables
-    integer, dimension(1), parameter :: zero_v1=[0]
+    integer, parameter :: nterm_max=20 !if GTH nterm_max=4 (this value should go in a module)
+    real(gp), dimension(G%ncplx) :: coeff, expo
+    real(gp), dimension(G%ncplx) :: sigma_and_expo
+    integer, dimension(2*iter%l-1) :: nterms
+    integer, dimension(nterm_max,3,2*iter%l-1) :: lxyz
+    real(gp), dimension(G%ncplx,nterm_max,2*iter%l-1) :: factors
+    integer, dimension(nterm_max) :: zero_v1
+    integer, dimension(3,nterm_max) :: lxyz_gau
+    integer :: iterm, i
+    type(gaussian_real_space) :: grs
+    real(gp), dimension(3) :: oxyz
+    type(box_iterator) :: bit
+    type(gaussian_basis_iter) :: iterG
+    type(ylm_coefficients) :: ylm
 
-    meth=SEPARABLE_1D
-    if (present(method)) meth=toi(method)
+    call f_zero(psi)
+    call f_zero(zero_v1)
+    call ylm_coefficients_new(ylm, iter%n, iter%l - 1)
 
-    select case(meth)
-    case(SEPARABLE_1D)
-       !here iat is useless
-       call projector(cell_geocode(mesh), -1, ider,l,n, coeff, expo, &
-            distance_cutoff, rxyz,&
-            0,0,0,mesh%ndims(1)-1,mesh%ndims(2)-1,mesh%ndims(3)-1, &
-            mesh%hgrids(1),mesh%hgrids(2),mesh%hgrids(3),&
-            kpoint(1),kpoint(2),kpoint(3), ncplx_p,ncplx_g, &
-            lr%wfd%nvctr_c,lr%wfd%nvctr_f,lr%wfd%nseg_c,lr%wfd%nseg_f,&
-            lr%wfd%keyvglob,lr%wfd%keyglob, &
-            wpr,psi) 
-    case(SEPARABLE_COLLOCATION)
-       call get_projector_coeffs(ncplx_g,l,n,ider,nterm_max,coeff,expo,&
-            nterms,lxyz,sigma_and_expo,factors)
+    do while(ylm_coefficients_next_m(ylm))
+       call f_zero(projector_real)
 
-       projector_real=f_malloc(lr%mesh%ndim,id='projector_real')
-       call f_zero(psi)
-       call initialize_work_arrays_sumrho(lr,.true.,w)
-       do m=1,2*l-1
-          call f_zero(projector_real)
+       iterG = iter
+       do while (gaussian_iter_next_gaussian(G, iterG, coeff, expo))
           !call gaussian_real_space_set(g,sqrt(onehalf/expo(1)),nterms(m),factors(1,1,m),lxyz(1,1,m))
-          do iterm=1,nterms(m)
-             do i=1,3
-                lxyz_gau(i,iterm)=lxyz(iterm,i,m)
+          if (G%ncplx > 1) then
+             ! Need to port the ylm code for derivatives or complex.
+             call get_projector_coeffs(G%ncplx, iter%l, iter%n, ider, nterm_max, &
+                  & coeff, expo, nterms, lxyz, sigma_and_expo, factors)
+             do iterm = 1, nterms(ylm%m)
+                do i = 1, 3
+                   lxyz_gau(i, iterm) = lxyz(iterm, i, ylm%m)
+                end do
              end do
-          end do
-          call gaussian_real_space_set(g,sigma_and_expo(1),nterms(m),factors(1,1,m),lxyz_gau,zero_v1,0)
-          oxyz=lr%mesh%hgrids*[lr%nsi1,lr%nsi2,lr%nsi3]
-          bit=box_iter(lr%mesh,origin=oxyz) !use here the real space mesh of the projector locreg
-          call three_dimensional_density(bit,g,sqrt(lr%mesh%volume_element),rxyz,projector_real)
-          call isf_to_daub(lr,w,projector_real,psi(:,:,m))
+             if (present(mp_order)) then
+                call gaussian_real_space_set(grs, sigma_and_expo(1), nterms(ylm%m), &
+                     & factors(1,1,ylm%m), lxyz_gau, zero_v1, mp_order)
+             else
+                call gaussian_real_space_set(grs, sigma_and_expo(1), nterms(ylm%m), &
+                     & factors(1,1,ylm%m), lxyz_gau, zero_v1, 0)
+             end if
+          else
+             if (present(mp_order)) then
+                grs = ylm_coefficients_to_gaussian(ylm, coeff(1), expo(1), ider, mp_order)
+             else
+                grs = ylm_coefficients_to_gaussian(ylm, coeff(1), expo(1), ider, 0)
+             end if
+          end if
+          oxyz = [cell_r(lr%mesh, lr%nsi1 + 1, 1), &
+               & cell_r(lr%mesh, lr%nsi2 + 1, 2), &
+               & cell_r(lr%mesh, lr%nsi3 + 1, 3)]
+          bit = lr%bit !use here the real space mesh of the projector locreg
+          call three_dimensional_density(bit, grs, sqrt(lr%mesh%volume_element), &
+               & rxyz - oxyz - bit%oxyz, projector_real)
        end do
-       !print *,'testRS:',sum(projector_real**2)
-       call deallocate_work_arrays_sumrho(w)
-       call f_free(projector_real)
-    case(MULTIPOLE_PRESERVING_COLLOCATION)
-       call get_projector_coeffs(ncplx_g,l,n,ider,nterm_max,coeff,expo,&
-            nterms,lxyz,sigma_and_expo,factors)
-
-       projector_real=f_malloc(lr%mesh%ndim,id='projector_real')
-       call f_zero(psi)
-       call initialize_work_arrays_sumrho(lr,.true.,w)
-       do m=1,2*l-1
-          call f_zero(projector_real)
-          !call gaussian_real_space_set(g,sqrt(onehalf/expo(1)),nterms(m),factors(1,1,m),lxyz(1,1,m))
-          do iterm=1,nterms(m)
-             do i=1,3
-                lxyz_gau(i,iterm)=lxyz(iterm,i,m)
-             end do
-          end do
-          call gaussian_real_space_set(g,sigma_and_expo(1),nterms(m),factors(1,1,m),lxyz_gau,zero_v1,16) !to be customized
-          oxyz=lr%mesh%hgrids*[lr%nsi1,lr%nsi2,lr%nsi3]
-          bit=box_iter(lr%mesh,origin=oxyz) !use here the real space mesh of the projector locreg
-          call three_dimensional_density(bit,g,sqrt(lr%mesh%volume_element),rxyz,projector_real)
-          !print *,'test:',sum(projector_real**2)
-          call isf_to_daub(lr,w,projector_real,psi(:,:,m))
-       end do
-       call deallocate_work_arrays_sumrho(w)
-       call f_free(projector_real)
-
-       !new method, still separable
-
-!!$         !for the moment only with s projectors (l=0,n=1)
-!!$         oxyz=lr%mesh%hgrids*[lr%nsi1,lr%nsi2,lr%nsi3]
-!!$         oxyz=rxyz-oxyz
-!!$         bit=box_iter(lr%mesh,origin=oxyz) !use here the real space mesh of the projector locreg
-!!$         do m=1,2*l-1
-!!$            do i=1,3
-!!$               funcs(i)=f_function_new(f_gaussian,exponent=expo(1))
-!!$            end do
-!!$            !here we do not consider the lxyz terms yet
-!!$            !take the reference functions
-!!$            !print *,size(projector_real),'real',lr%mesh%ndims,&
-!!$            !     lr%mesh%hgrids*[lr%nsi1,lr%nsi2,lr%nsi3],&
-!!$            !     lr%mesh_coarse%hgrids*[lr%ns1,lr%ns2,lr%ns3],rxyz,oxyz
-!!$            call separable_3d_function(bit,funcs,factors(1,1,m)*sqrt(lr%mesh%volume_element),projector_real)
-!!$         end do !not correctly written, it should be used to define the functions
-!!$         
-!!$         call f_zero(psi)
-!!$         call initialize_work_arrays_sumrho(lr,.true.,w)
-!!$         !from real space to wavelet
-!!$         call isf_to_daub(lr,w,projector_real,psi)
-!!$         !free work arrays
-!!$         call deallocate_work_arrays_sumrho(w)
-!!$         call f_free(projector_real)
-    end select
-
-  end subroutine gaussian_to_wavelets_locreg
-
-
+       call isf_to_daub(lr, w, projector_real, psi(1,1,ylm%m))
+    end do
+    !print *,'testRS:',sum(projector_real**2)
+  end subroutine gaussian_iter_to_wavelets_collocation
+  
   !> Nullify the pointers of the structure gaussian_basis
   pure subroutine nullify_gaussian_basis(G)
 
     implicit none
     !Arguments
-    type(gaussian_basis),intent(inout) :: G 
+    type(gaussian_basis),intent(inout) :: G
 
-    G%nat=0     
-    G%ncoeff=0  
-    G%nshltot=0 
-    G%nexpo=0   
+    G%nat=0
+    G%ncoeff=0
+    G%nshltot=0
+    G%nexpo=0
     G%ncplx=1
     nullify(G%nshell)
     nullify(G%ndoc)
@@ -635,8 +674,59 @@ contains
        G%nshltot=G%nshltot+nshell(iat)
     end do
 
-    G%shid = f_malloc_ptr((/ NSHID_, G%nshltot /),id='G%shid')
+    G%shid = f_malloc0_ptr((/ NSHID_, G%nshltot /),id='G%shid')
   end subroutine init_gaussian_basis
+
+  !> For debugging purpose, set a single gaussian for l channel of atom iat.
+  subroutine gaussian_basis_add_one(G, iat, n, l, cplx, coeff, expo)
+    implicit none
+    type(gaussian_basis_new), intent(inout) :: G
+    integer, intent(in) :: iat, n, l, cplx
+    real(gp), dimension(cplx), intent(in) :: coeff, expo
+
+    integer :: jat, i, j, ishell, iexpo
+    real(gp), dimension(:,:), pointer :: sd
+    
+    if (f_err_raise(iat <= 0 .or. iat > G%nat, 'Atom index out of bounds', &
+         & err_name='BIGDFT_RUNTIME_ERROR')) return
+    if (f_err_raise(cplx /= G%ncplx, 'Complex mismatch', &
+         & err_name='BIGDFT_RUNTIME_ERROR')) return
+
+    ishell = 0
+    iexpo = 0
+    do jat = 1, iat - 1
+       ishell = ishell + G%nshell(jat)
+       do j = 1, G%nshell(jat)
+          iexpo = iexpo + G%shid(DOC_, ishell + j)
+       end do
+    end do
+    do i = 1, G%nshell(iat)
+       if (G%shid(DOC_, ishell + i) == 0) then
+          G%shid(DOC_, ishell + i) = 1
+          G%shid(L_, ishell + i) = l - 1
+          G%shid(N_, ishell + i) = n
+          exit
+       else
+          iexpo = iexpo + G%shid(DOC_, ishell + i)
+       end if
+    end do
+    if (f_err_raise(i > G%nshell(iat), 'Shell already full', &
+         & err_name='BIGDFT_RUNTIME_ERROR')) return
+
+    sd = f_malloc_ptr((/ G%ncplx*NSD_, G%nexpo + 1 /), id = 'sd')
+    if (associated(G%sd) .and. iexpo > 0) &
+         & sd(:, 1:iexpo) = G%sd(:, 1:iexpo)
+    sd(G%ncplx * (COEFF_ - 1) + 1, iexpo + 1) = coeff(1)
+    sd(G%ncplx * (EXPO_ - 1) + 1, iexpo + 1)  = expo(1)
+    sd(G%ncplx * (COEFF_ - 1) + G%ncplx, iexpo + 1) = coeff(G%ncplx)
+    sd(G%ncplx * (EXPO_ - 1) + G%ncplx, iexpo + 1)  = expo(G%ncplx)
+    if (associated(G%sd) .and. iexpo + 1 <= G%nexpo) &
+         & sd(:, iexpo + 2:G%nexpo + 1) = G%sd(:, iexpo + 1:G%nexpo)
+    G%nexpo = G%nexpo + 1
+    G%ncoeff = G%ncoeff + 2 * l - 1
+    if (associated(G%sd)) call f_free_ptr(G%sd)
+    G%sd => sd
+  end subroutine gaussian_basis_add_one
 
   subroutine gaussian_basis_from_psp(nat,iatyp,rxyz,psppar,ntyp,G)
     implicit none
@@ -706,7 +796,7 @@ contains
   !> Initialise the gaussian basis from PAW datas.
   subroutine gaussian_basis_from_paw(nat, iatyp, rxyz, pawtab, ntyp, G)
     use m_pawtab, only : pawtab_type
-    
+
     implicit none
 
     !Arguments ------------------------------------
@@ -969,7 +1059,7 @@ contains
   subroutine kinetic_overlap(A,B,ovrlp)
     implicit none
     type(gaussian_basis), intent(in) :: A,B
-    real(gp), dimension(A%ncoeff,B%ncoeff) :: ovrlp 
+    real(gp), dimension(A%ncoeff,B%ncoeff) :: ovrlp
     !only lower triangular part for A%ncoeff=B%ncoeff
     !local variables
     integer, parameter :: niw=18,nrw=6
@@ -1123,10 +1213,10 @@ contains
   !! to be rearranged when only some of them is zero
   subroutine gprod(a1,a2,dx,dy,dz,l1,m1,l2,m2,niw,nrw,iw,rw,ovrlp)
     implicit none
-    integer, intent(in) :: l1,l2,m1,m2,niw,nrw 
+    integer, intent(in) :: l1,l2,m1,m2,niw,nrw
     real(gp), intent(in) :: a1,a2,dx,dy,dz
     integer, dimension(niw) :: iw !work array of the exponents of the two polynomials
-    real(gp), dimension(nrw) :: rw !work array of the polynomials coefficients 
+    real(gp), dimension(nrw) :: rw !work array of the polynomials coefficients
     real(gp), intent(out) :: ovrlp
     !local variables
     integer, parameter :: nx=3
@@ -1233,7 +1323,7 @@ contains
   subroutine overlap(A,B,ovrlp)
     implicit none
     type(gaussian_basis_new), intent(in) :: A,B
-    real(gp), dimension(A%ncoeff,B%ncoeff), intent(out) :: ovrlp 
+    real(gp), dimension(A%ncoeff,B%ncoeff), intent(out) :: ovrlp
     !local variables
     integer :: ishell,iexpo,icoeff,iat,jat,isat,jsat,jshell
     integer :: iovrlp,jovrlp,jcoeff,jexpo,itpdA,itpdB,ig1,ig2
@@ -1333,7 +1423,7 @@ contains
   subroutine overlap_gain(A,B,ovrlp)
     implicit none
     type(gaussian_basis_new), intent(in) :: A,B
-    real(gp), dimension(A%ncoeff,B%ncoeff), intent(out) :: ovrlp 
+    real(gp), dimension(A%ncoeff,B%ncoeff), intent(out) :: ovrlp
     !local variables
     integer :: ishell,iexpo,icoeff,iat,jat,isat,jsat,jshell
     integer :: iovrlp,jovrlp,jcoeff,jexpo,itpdA,itpdB,ig1,ig2
@@ -1434,7 +1524,7 @@ contains
   subroutine kinetic_gain(A,B,ovrlp)
     implicit none
     type(gaussian_basis_new), intent(in) :: A,B
-    real(gp), dimension(A%ncoeff,B%ncoeff), intent(out) :: ovrlp 
+    real(gp), dimension(A%ncoeff,B%ncoeff), intent(out) :: ovrlp
     !local variables
     integer :: ishell,iexpo,icoeff,iat,jat,isat,jsat,jshell
     integer :: iovrlp,jovrlp,jcoeff,jexpo,itpdA,itpdB,ig1,ig2
@@ -1828,7 +1918,7 @@ contains
 !!$    call gaudim_check(jexpo+1,jcoeff,jshell,B%nexpo,B%ncoeff,B%nshltot)
 !!$
 !!$  END SUBROUTINE kinetic
-  
+
 
 
   !> Calculates @f$\int e^{-a1*x^2} x^l1 \exp^{-a2*(x-d)^2} (x-d)^l2 dx@f$
@@ -1889,7 +1979,7 @@ contains
     !final result
     govrlp=prefac*stot
   END FUNCTION govrlp
-  
+
 
   !> Kinetic overlap between gaussians, based on cartesian coordinates
   !! calculates a dot product between two differents gaussians times spherical harmonics
@@ -1897,10 +1987,10 @@ contains
   !! to be rearranged when only some of them is zero
   subroutine kinprod(a1,a2,dx,dy,dz,l1,m1,l2,m2,niw,nrw,iw,rw,ovrlp)
     implicit none
-    integer, intent(in) :: l1,l2,m1,m2,niw,nrw 
+    integer, intent(in) :: l1,l2,m1,m2,niw,nrw
     real(gp), intent(in) :: a1,a2,dx,dy,dz
     integer, dimension(niw) :: iw !work array of the exponents of the two polynomials
-    real(gp), dimension(nrw) :: rw !work array of the polynomials coefficients 
+    real(gp), dimension(nrw) :: rw !work array of the polynomials coefficients
     real(gp), intent(out) :: ovrlp
     !local variables
     integer, parameter :: nx=3
@@ -2172,6 +2262,148 @@ contains
     end do
   END FUNCTION xfac
 
+  subroutine ylm_coefficients_new(ylm, n, l)
+    implicit none
+    type(ylm_coefficients), intent(out) :: ylm
+    integer, intent(in) :: n,l
+
+    ylm%n = n
+    ylm%l = l
+    ylm%m = 0
+    call tensor_product_decomposition(n, l, ylm%ntot, ylm%ntpd, ylm%pow, ylm%ftpd)
+  end subroutine ylm_coefficients_new
+
+  function ylm_coefficients_next_m(ylm) result(next)
+    implicit none
+    type(ylm_coefficients), intent(inout) :: ylm
+    logical :: next
+
+    next = (ylm%m < 2 * ylm%l + 1)
+    ylm%m = ylm%m + 1
+  end function ylm_coefficients_next_m
+
+  function ylm_coefficients_at(ylm, boxit, rxyz, r) result(tt)
+    use box
+    implicit none
+    type(ylm_coefficients), intent(in) :: ylm
+    type(box_iterator), intent(in) :: boxit
+    real(gp), dimension(3) :: rxyz
+    real(gp), intent(out) :: r
+    real(gp) :: tt
+
+    integer :: i, offset
+    real(gp), dimension(3) :: vect
+
+    !this should be in absolute coordinates
+    vect = rxyz_ortho(boxit%mesh, closest_r(boxit%mesh, boxit%rxyz, rxyz))
+    r = distance(boxit%mesh, boxit%rxyz, rxyz)
+    tt = 0._gp
+    offset = sum(ylm%ntpd(1:ylm%m - 1))
+    do i = 1, ylm%ntpd(ylm%m)
+       tt = tt + ylm%ftpd(offset + i) * product(vect**ylm%pow(:, offset + i))
+    end do
+    if (r > 0._gp .and. ylm%l > 0) tt = tt / (r ** ylm%l)
+  end function ylm_coefficients_at
+
+  function ylm_coefficients_to_gaussian(ylm, coeff, expo, idir, mp_isf_order) result(g)
+    implicit none
+    type(gaussian_real_space) :: g
+    type(ylm_coefficients), intent(in) :: ylm
+    real(gp), intent(in) :: expo, coeff
+    integer, intent(in) :: idir, mp_isf_order
+    
+    !local variables
+    real(gp) :: fgamma, fpi, fder
+    integer :: offset, nC, nterms_tmp, iterm, der(3), sder(3), ider
+    real(gp), dimension(NTERM_MAX_RS) :: factors_tmp,facC
+    integer, dimension(3,NTERM_MAX_RS) :: lxyz_tmp,lxyzC
+    integer, dimension(3), parameter :: np0 = (/ 1, 3*5, 3*5*7*9 /)
+    integer, dimension(3), parameter :: np1 = (/ 1, 5*7, 5*7*9*11 /)
+    integer, dimension(3), parameter :: np2 = (/ 1, 7*9, 7*9*11*13 /)
+    integer, dimension(3), parameter :: np3 = (/ 1, 9*11, 9*11*13*15 /)
+
+    call nullify_gaussian_real_space(g)
+    g%sigma = 1._gp / sqrt(2._gp * expo)
+    g%exponent = expo
+    g%cutoff = 10.0_gp * g%sigma
+    g%mp_isf = mp_isf_order
+    if (mp_isf_order >0) g%discretization_method=MULTIPOLE_PRESERVING_COLLOCATION
+    !g%discretization_method=MULTIPOLE_PRESERVING_COLLOCATION !to do the tests
+
+    fpi=0.7511255444649425_gp ! pi^-1/4
+    fgamma=2.0_gp*fpi/(sqrt(g%sigma)**(2*ylm%l+4*ylm%n-1))*coeff
+    fgamma = fgamma * 2. ** (0.5_gp * ylm%l + ylm%n - 1)
+    select case(ylm%l)
+    case(0) 
+       fgamma = fgamma / 1._gp
+       fgamma = fgamma / sqrt(real(np0(ylm%n), gp))
+    case(1)
+       fgamma = fgamma / sqrt(3._gp)
+       fgamma = fgamma / sqrt(real(np1(ylm%n), gp))
+    case(2)
+       fgamma = fgamma / sqrt(3._gp * 5._gp)
+       fgamma = fgamma / sqrt(real(np2(ylm%n), gp))
+    case(3)
+       fgamma = fgamma / sqrt(3._gp * 5._gp * 7._gp)
+       fgamma = fgamma / sqrt(real(np3(ylm%n), gp))
+    end select
+    ider = 0
+    fder = 1._gp
+    der = [0,0,0]
+    sder = [0,0,0]
+    if (idir > 0) then
+       ider = mod(idir - 1, 3) + 1
+       fder = 1._gp / (-g%sigma ** 2._gp)
+       der(ider) = 1
+       select case(idir)
+       case(4,9)
+          sder(1) = 1
+       case(5,7)
+          sder(2) = 1
+       case(6,8)
+          sder(3) = 1
+       end select
+    end if
+
+    offset = sum(ylm%ntpd(1:ylm%m - 1))
+    select case(g%discretization_method)
+    case(RADIAL_COLLOCATION)
+       g%nterms=ylm%ntpd(ylm%m)
+       g%factors(1:g%nterms)=ylm%ftpd(offset + 1:offset + g%nterms) * fgamma
+       g%lxyz(:,1:g%nterms)=ylm%pow(:, offset + 1:offset + g%nterms)
+       g%pows(1:g%nterms)=0
+    case(MULTIPOLE_PRESERVING_COLLOCATION)
+       !here the pow is not allowed (yet) therefore combine the powers 
+       !into separable terms. Assume that the powers here are all even
+       g%nterms=0
+       do iterm=1,ylm%ntpd(ylm%m)
+          call expand_r2_power(0,factors_tmp,lxyz_tmp,nterms_tmp)
+          call multiply_separable_terms(nterms_tmp,factors_tmp,lxyz_tmp,&
+               ylm%ntpd(ylm%m),ylm%ftpd(offset + 1:offset + g%nterms) * fgamma,&
+               ylm%pow(:, offset + 1:offset + g%nterms),nC,facC,lxyzC)
+          g%factors(g%nterms+1:g%nterms+nC)=facC(1:nC)
+          g%lxyz(:,g%nterms+1:g%nterms+nC)=lxyzC(:,1:nC)
+          g%nterms=g%nterms+nC
+       end do
+    end select
+    if (idir > 0) then
+       nC = g%nterms
+       ! Add terms coming from the derivative of r^(l+2(n-1)).(spherical harmonics).
+       do iterm = 1, g%nterms
+          if (g%lxyz(ider, iterm) == 0) cycle
+
+          nC = nC + 1
+          g%factors(nC) = g%factors(iterm) * g%lxyz(ider, iterm)
+          g%lxyz(:, nC) = g%lxyz(:, iterm) - der + sder
+       end do
+       ! Modify terms coming from the derivative of the gaussian.
+       do iterm = 1, g%nterms
+          g%factors(iterm) = g%factors(iterm) * fder
+          g%lxyz(:, iterm) = g%lxyz(:, iterm) + der + sder
+       end do
+       g%nterms = nC
+    end if
+  end function ylm_coefficients_to_gaussian
 
   !> Routine to extract the coefficients from the quantum numbers and the operation
   pure subroutine tensor_product_decomposition(n,l,ntpd_shell,ntpd,pow,ftpd)

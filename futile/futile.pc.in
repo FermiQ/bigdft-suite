@@ -6,7 +6,7 @@ linalglibs=@LINALG_LIBS@
 
 Name: libfutile
 Description: library for Fortran utilities.
-Requires: 
+Requires: @GLIB_PKG@
 Version: @VERSION@
 Libs: -L${libdir} @LIB_FUTILE_LIBS@
 Cflags: -I${includedir}

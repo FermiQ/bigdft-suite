@@ -163,11 +163,9 @@ contains
     implicit none
     type(dictionary), intent(in) :: dict
     logical :: no_key
-    !TEST
     no_key=(len_trim(dict%data%key) == 0 .and. dict%data%item == -1) .and. &
          associated(dict%parent)
   end function no_key
-
 
   pure function no_value(dict)
     implicit none
@@ -670,7 +668,6 @@ contains
     !local variables
     logical :: crt
     type(dictionary), pointer :: iter
-    integer(kind=8), external :: f_loc
 
     crt=.false.
     if (present(create)) crt=create
@@ -707,6 +704,7 @@ contains
 !!$       if (.not. associated(dict_ptr)) then
 !!$          call init_next(iter)
 !!$          call set_elem(iter,key)
+!!$          dict_ptr=>iter
 !!$       end if
     end if
   end function get_dict_from_key
