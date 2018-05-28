@@ -90,7 +90,7 @@ module locreg_operations
   public :: boundary_weight
   public :: psi_to_locreg2
   public :: global_to_local
-  public :: initialize_work_arrays_sumrho,deallocate_work_arrays_sumrho
+  public :: initialize_work_arrays_sumrho,deallocate_work_arrays_sumrho,nullify_work_arrays_sumrho
   public :: initialize_work_arrays_locham,deallocate_work_arrays_locham
   public :: memspace_work_arrays_sumrho,memspace_work_arrays_locham
   public :: allocate_work_arrays,init_local_work_arrays,deallocate_work_arrays
@@ -999,6 +999,14 @@ module locreg_operations
 
     END SUBROUTINE initialize_work_arrays_sumrho_llr
 
+    pure subroutine nullify_work_arrays_sumrho(ws)
+      implicit none
+      type(workarr_sumrho),intent(out) :: ws
+      nullify(ws%x_c)
+      nullify(ws%x_f)
+      nullify(ws%w1)
+      nullify(ws%w2)
+    end subroutine nullify_work_arrays_sumrho
 
     subroutine memspace_work_arrays_sumrho(lr,memwork)
       use box, only: cell_geocode

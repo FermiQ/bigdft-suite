@@ -175,31 +175,6 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
        real(kind=8),dimension(3,atoms%astruct%nat),intent(in),optional :: locregcenters
      END SUBROUTINE input_wf
   end interface
-  interface
-     subroutine CalculateTailCorrection(iproc,nproc,at,rbuf,orbs,&
-          Glr,nlpsp,ncongt,pot,hgrid,rxyz,crmult,frmult,nspin,&
-          psi,output_denspot,ekin_sum,epot_sum,eproj_sum,paw)
-       use module_defs, only: gp,wp,dp
-       use module_types
-       use gaussians, only: gaussian_basis
-       use locregs
-       implicit none
-       type(atoms_data), intent(in) :: at
-       type(orbitals_data), intent(in) :: orbs
-       type(locreg_descriptors), intent(in) :: Glr
-       type(DFT_PSP_projectors), intent(inout) :: nlpsp
-       integer, intent(in) :: iproc,nproc,ncongt,nspin
-       logical, intent(in) :: output_denspot
-       real(kind=8), dimension(3), intent(in) :: hgrid
-       real(kind=8), intent(in) :: crmult,frmult,rbuf
-       !real(kind=8), dimension(at%astruct%ntypes,3), intent(in) :: radii_cf
-       real(kind=8), dimension(3,at%astruct%nat), intent(in) :: rxyz
-       real(kind=8), dimension(Glr%d%n1i,Glr%d%n2i,Glr%d%n3i,nspin), intent(in) :: pot
-       real(kind=8), dimension(Glr%wfd%nvctr_c+7*Glr%wfd%nvctr_f,orbs%norbp), intent(in) :: psi
-       real(kind=8), intent(out) :: ekin_sum,epot_sum,eproj_sum
-       type(paw_objects),optional,intent(inout)::paw
-     END SUBROUTINE CalculateTailCorrection
-  end interface
 
   interface
      subroutine davidson(iproc,nproc,in,at,&
@@ -687,7 +662,6 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
      call denspot_emit_v_ext(denspot, iproc, nproc)
   end if
 
-
   !ii = 0
   !do i3=1,denspot%dpbox%mesh%ndims(3)
   !    do i2=1,denspot%dpbox%mesh%ndims(2)
@@ -698,15 +672,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
   !    end do
   !end do
 
-  !call mpi_finalize(ii)
-  !stop
-
-
-
   norbv=abs(in%norbv)
-!!$  if (in%inputPsiId == INPUT_PSI_LINEAR_AO .or. &
-!!$      in%inputPsiId == INPUT_PSI_MEMORY_LINEAR .or. &
-!!$      in%inputPsiId == INPUT_PSI_DISK_LINEAR) then
   if (in%inputPsiId .hasattr. 'LINEAR') then
      ! Setup the mixing, if necessary -- NEW
      if (in%lin%mixHist_lowaccuracy /= in%lin%mixHist_highaccuracy) then
@@ -753,11 +719,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
 
   !end of the initialization part
   call timing(bigdft_mpi%mpi_comm,'INIT','PR')
-!!$call yaml_map('evals',KSwfn%orbs%eval)
-!!$KSwfn%orbs%eval=-0.3d0 !to test if they are erased
 
-!print *,'test',sum(KSwfn%psi)
-!stop
   !start the optimization
   energs%eexctX=0.0_gp
   ! Skip the following part in the linear scaling case.
@@ -971,7 +933,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
      else if (inputpsi .hasattr. 'CUBIC') then
         call writemywaves(iproc,trim(in%dir_output) // trim(in%outputpsiid), f_int(in%output_wf), &
              KSwfn%orbs,n1,n2,n3,KSwfn%Lzd%hgrids(1),KSwfn%Lzd%hgrids(2),KSwfn%Lzd%hgrids(3),&
-             atoms,rxyz,KSwfn%Lzd%Glr%wfd,KSwfn%psi)
+             atoms,rxyz,KSwfn%Lzd%Glr%wfd,KSwfn%psi,paw = KSwfn%paw)
      end if
   end if
 
@@ -1096,7 +1058,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
            call orbital_basis_associate(ob,orbs=VTwfn%orbs,Lzd=KSwfn%Lzd)
            call createProjectorsArrays(iproc,nproc,KSwfn%Lzd%Glr,rxyz,atoms,ob,&
                 in%frmult,in%frmult,KSwfn%Lzd%hgrids(1),KSwfn%Lzd%hgrids(2),KSwfn%Lzd%hgrids(3),&
-                .false.,nlpsp,.true.)
+                in%projection,.false.,nlpsp,.true.)
            call orbital_basis_release(ob)
            call timing(iproc,'CrtProjectors ','OF')
            if (iproc == 0) call print_nlpsp(nlpsp)
@@ -1457,7 +1419,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
      call CalculateTailCorrection(iproc,nproc,atoms,in%rbuf,KSwfn%orbs,&
           KSwfn%Lzd%Glr,nlpsp,in%ncongt,denspot%pot_work,KSwfn%Lzd%hgrids,&
           rxyz,in%crmult,in%frmult,in%nspin,&
-          KSwfn%psi,(in%output_denspot /= ENUM_EMPTY),energs%ekin,energs%epot,energs%eproj)
+          KSwfn%psi,(in%output_denspot /= ENUM_EMPTY),energs%ekin,energs%epot,energs%eproj,KSwfn%paw)
 
      call f_free_ptr(denspot%pot_work)
 
@@ -2234,6 +2196,11 @@ subroutine kswfn_post_treatments(iproc, nproc, KSwfn, tmb, linear, &
         call plot_density(iproc,nproc,trim(dir_output)//'core_density' // gridformat,&
              atoms,rxyz,denspot%pkernel,1,denspot%rho_C(1:,1:,i3xcsh_old+1:,1:))
      end if
+     if (associated(denspot%rhohat)) then
+        if (iproc == 0) call yaml_map('Writing compensation density in file', 'hat_density'//gridformat)
+        call plot_density(iproc,nproc,trim(dir_output)//'hat_density' // gridformat,&
+             atoms,rxyz,denspot%pkernel,1,denspot%rhohat)
+     end if
   end if
   !plot also the electrostatic potential
   if (output_denspot == 'DENSPOT') then
@@ -2289,15 +2256,19 @@ subroutine kswfn_post_treatments(iproc, nproc, KSwfn, tmb, linear, &
      nsize_psi = (KSwfn%Lzd%Glr%wfd%nvctr_c+7*KSwfn%Lzd%Glr%wfd%nvctr_f)*KSwfn%orbs%nspinor*KSwfn%orbs%norbp
   end if
   if (.not. KSwfn%paw%usepaw) then
-  !to be checked, as the description might change for the linear case
-  call orbital_basis_associate(ob,orbs=KSwfn%orbs,Lzd=KSwfn%Lzd)
+     !to be checked, as the description might change for the linear case
+     if (linear) then
+        call orbital_basis_associate(ob,orbs=KSwfn%orbs,Lzd=KSwfn%Lzd)
+     else
+        call orbital_basis_associate(ob,orbs=KSwfn%orbs,phis_wvl=KSwfn%psi,Lzd=KSwfn%Lzd)        
+     end if
   call calculate_forces(iproc,nproc,denspot%pkernel%mpi_env%nproc,KSwfn%Lzd%Glr,atoms,ob,nlpsp,rxyz,&
           KSwfn%Lzd%hgrids(1),KSwfn%Lzd%hgrids(2),KSwfn%Lzd%hgrids(3),&
        denspot%dpbox, &
           denspot%dpbox%i3s+denspot%dpbox%i3xcsh,denspot%dpbox%n3p,&
           denspot%dpbox%nrhodim,refill_proj,denspot%dpbox%ngatherarr,denspot%rho_work,&
           denspot%pot_work,denspot%V_XC,nsize_psi,KSwfn%psi,fion,fdisp,fxyz,&
-       calculate_strten,ewaldstr,hstrten,xcstr,strten,pressure,denspot%psoffset,imode,tmb,fpulay)
+       calculate_strten,ewaldstr,hstrten,xcstr,strten,pressure,denspot%psoffset,imode,tmb,KSwfn%paw,fpulay)
   call orbital_basis_release(ob)
   end if
 

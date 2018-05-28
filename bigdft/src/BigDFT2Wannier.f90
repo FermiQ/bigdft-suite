@@ -26,6 +26,7 @@ program BigDFT2Wannier
    use io, only: writemywaves
    use locregs_init, only: lr_set
    use box, only: cell_periodic_dims 
+   use f_allreduce
    implicit none
    character :: filetype*4
    !etsf
@@ -49,7 +50,7 @@ program BigDFT2Wannier
    real(kind=8),parameter :: eps6=1.0d-6!, eps8=1.0d-8
    real(gp), dimension(:,:), pointer :: rxyz_old
    real(wp), allocatable :: psi_etsf(:,:),psi_etsfv(:),sph_har_etsf(:),psir(:),psir_re(:),psir_im(:),sph_daub(:)
-   real(wp), allocatable :: psi_daub_im(:),psi_daub_re(:),psi_etsf2(:) !!,pvirt(:)
+   real(wp), allocatable :: psi_daub_im(:),psi_daub_re(:),psi_etsf2(:,:) !!,pvirt(:)
    real(wp), allocatable :: mmnk_v_re(:), mmnk_v_im(:)
    real(wp), pointer :: pwork(:)!,sph_daub(:)
    character(len=max_field_length) :: filename, run_id
@@ -386,7 +387,7 @@ program BigDFT2Wannier
          call gemm('T','N',orbsp%norb,orbsp%norb,nvctrp,1.0_wp,sph_daub(1),max(1,nvctrp),&
             &   sph_daub(1),max(1,nvctrp),0.0_wp,overlap_proj(1,1),orbsp%norb)
          if(nproc > 1) then
-            call mpiallred(overlap_proj(1,1),orbsp%norb*orbsp%norb,MPI_SUM)
+            call fmpi_allreduce(overlap_proj,FMPI_SUM)
          end if
          !print *,'overlap_proj',overlap_proj
          !print *,'orbsp%norb',orbsp%norb
@@ -409,7 +410,7 @@ program BigDFT2Wannier
             &   sph_daub(1),max(1,nvctrp),0.0_wp,amnk(1,1),orbsv%norb)
 
          ! Construction of the whole Amnk_guess matrix.
-         if(nproc > 1) call mpiallred(amnk,MPI_SUM)
+         if(nproc > 1) call fmpi_allreduce(amnk,FMPI_SUM)
 
          ! For each unoccupied orbitals, check how they project on spherical harmonics.
          ! The greater amnk_guess(nb) is, the more they project on spherical harmonics.
@@ -522,7 +523,7 @@ program BigDFT2Wannier
       end if
       ! For bin files, the eigenvalues are distributed, so reduce them
       if((filetype == 'bin' .or. filetype == 'BIN') .and. nproc > 0) then
-        call mpiallred(orbs%eval(1),orbs%norb*orbs%nkpts,MPI_SUM)
+         call fmpi_allreduce(orbs%eval,FMPI_SUM)
       end if
       ! Write the eigenvalues into a file to output the hamiltonian matrix elements in Wannier functions
       if(iproc==0) then     
@@ -557,7 +558,7 @@ program BigDFT2Wannier
       if(residentity)then
          orbsv%eval = 99.0_dp  !What to put for the energy?
       else if((filetype == 'bin' .or. filetype == 'BIN') .and.  nproc > 0 .and. orbsv%norb>0) then
-         call mpiallred(orbsv%eval(1),orbsv%norb*orbsv%nkpts,MPI_SUM)
+         call fmpi_allreduce(orbsv%eval,FMPI_SUM)
       end if
       ! Write the eigenvalues into a file to output the hamiltonian matrix elements in Wannier functions
       if(iproc==0) then
@@ -658,7 +659,7 @@ program BigDFT2Wannier
          call gemm('T','N',orbsp%norb,orbsp%norb,nvctrp,1.0_wp,sph_daub(1),max(1,nvctrp),&
             &   sph_daub(1),max(1,nvctrp),0.0_wp,overlap_proj(1,1),orbsp%norb)
          if(nproc > 1) then
-            call mpiallred(overlap_proj(1,1),orbsp%norb*orbsp%norb,MPI_SUM)
+            call fmpi_allreduce(overlap_proj,FMPI_SUM)
          end if
          !print *,'overlap_proj',overlap_proj
          ipiv = f_malloc(orbsp%norb,id='ipiv')
@@ -679,36 +680,36 @@ program BigDFT2Wannier
       if(.not. residentity)then
          ! Tranposition of the distribution of the BigDFT wavefunctions : orbitals -> components.
          npsidim=max((lzd%Glr%wfd%nvctr_c+7*lzd%Glr%wfd%nvctr_f)*orbsb%norbp*orbsb%nspinor,sum(commsb%ncntt(0:nproc-1)))
-         psi_etsf2 = f_malloc0(npsidim,id='psi_etsf2')
+         psi_etsf2 = f_malloc0([npsidim, 1],id='psi_etsf2')
          !call f_zero(npsidim,psi_etsf2)
          if(nproc > 1) then
             pwork = f_malloc_ptr(npsidim,id='pwork')
             call transpose_v(iproc,nproc,orbsb,lzd%glr%wfd,commsb,psi_etsf,pwork,recvbuf=psi_etsf2)
             call f_free_ptr(pwork)
          else
-            call vcopy(orbsb%norb*orbsb%nspinor*(lzd%Glr%wfd%nvctr_c+7*lzd%Glr%wfd%nvctr_f),psi_etsf(1,1),1,psi_etsf2(1),1)
+            call vcopy(orbsb%norb*orbsb%nspinor*(lzd%Glr%wfd%nvctr_c+7*lzd%Glr%wfd%nvctr_f),psi_etsf(1,1),1,psi_etsf2(1,1),1)
          end if
       else
          ! Tranposition of the distribution of the BigDFT occupied wavefunctions : orbitals -> components.
          npsidim=max((lzd%Glr%wfd%nvctr_c+7*lzd%Glr%wfd%nvctr_f)*orbsb%norbp*orbsb%nspinor,sum(commsb%ncntt(0:nproc-1)))
-         psi_etsf2 = f_malloc0(npsidim,id='psi_etsf2')
+         psi_etsf2 = f_malloc0([npsidim,1],id='psi_etsf2')
          !call f_zero(npsidim,psi_etsf2)
          if(nproc > 1) then
             pwork = f_malloc_ptr(npsidim,id='pwork')
             call transpose_v(iproc,nproc,orbsb,lzd%glr%wfd,commsb,psi_etsf,pwork,recvbuf=psi_etsf2)
             call f_free_ptr(pwork)
          else
-            call vcopy(orbsb%norb*orbs%nspinor*(lzd%Glr%wfd%nvctr_c+7*lzd%Glr%wfd%nvctr_f),psi_etsf(1,1),1,psi_etsf2(1),1)
+            call vcopy(orbsb%norb*orbs%nspinor*(lzd%Glr%wfd%nvctr_c+7*lzd%Glr%wfd%nvctr_f),psi_etsf(1,1),1,psi_etsf2(1,1),1)
          end if
 
          ! Scalar product of amnk=<sph_daub|occ> in parallel.
          nvctrp=commsb%nvctr_par(iproc,1)
-         call gemm('T','N',orbsb%norb,orbsp%norb,nvctrp,1.0_wp,psi_etsf2(1),max(1,nvctrp),&
+         call gemm('T','N',orbsb%norb,orbsp%norb,nvctrp,1.0_wp,psi_etsf2(1,1),max(1,nvctrp),&
             &   sph_daub(1),max(1,nvctrp),0.0_wp,amnk(1,1),orbsb%norb)
 
          ! Construction of the occupied Amnk submatrix.
          if(nproc > 1) then
-            call mpiallred(amnk(1,1),orbsb%norb*orbsp%norb,MPI_SUM)
+            call fmpi_allreduce(amnk,FMPI_SUM)
          end if
 
          ! Now build the new states corresponding to: sph_daub - sum{amnk occ} and place them at the virtual states
@@ -717,11 +718,11 @@ program BigDFT2Wannier
          shft  = nvctrp*orbs%norb
          do np=1, orbsp%norb
             !np=npp+orbsp%isorb 
-            call vcopy(nvctrp,sph_daub(1+pshft),1,psi_etsf2(1+shft),1)
+            call vcopy(nvctrp,sph_daub(1+pshft),1,psi_etsf2(1+shft,1),1)
             wshft = 0
             do nb = 1,orbs%norb*orbs%nspinor    !Should be on all occupied bands
                do j=1,nvctrp
-                  psi_etsf2(j+shft) = psi_etsf2(j+shft) - amnk(nb,np)*psi_etsf2(j+wshft) 
+                  psi_etsf2(j+shft,1) = psi_etsf2(j+shft,1) - amnk(nb,np)*psi_etsf2(j+wshft,1) 
                end do
                wshft = wshft + nvctrp
             end do
@@ -735,7 +736,7 @@ program BigDFT2Wannier
             call untranspose_v(iproc,nproc,orbsb,lzd%Glr%wfd,commsb,psi_etsf2,pwork,out_add=psi_etsf)
             call f_free_ptr(pwork)
          else
-            call vcopy(orbsb%norb*orbsb%nspinor*(lzd%Glr%wfd%nvctr_c+7*lzd%Glr%wfd%nvctr_f),psi_etsf2(1),1,psi_etsf(1,1),1)
+            call vcopy(orbsb%norb*orbsb%nspinor*(lzd%Glr%wfd%nvctr_c+7*lzd%Glr%wfd%nvctr_f),psi_etsf2(1,1),1,psi_etsf(1,1),1)
          end if
          ! Should write the symmetrized projectors to file
          if(write_resid .and. orbsv%norbp > 0)then
@@ -750,13 +751,11 @@ program BigDFT2Wannier
 
       ! Scalar product of amnk=<sph_daub|psi> in parallel.
       nvctrp=commsb%nvctr_par(iproc,1)
-      call gemm('T','N',orbsb%norb,orbsp%norb,nvctrp,1.0_wp,psi_etsf2(1),max(1,nvctrp),&
+      call gemm('T','N',orbsb%norb,orbsp%norb,nvctrp,1.0_wp,psi_etsf2(1,1),max(1,nvctrp),&
          &   sph_daub(1),max(1,nvctrp),0.0_wp,amnk(1,1),orbsb%norb)
 
       ! Construction of the whole Amnk matrix.
-      if(nproc > 0) then
-         call mpiallred(amnk(1,1),orbsb%norb*orbsp%norb,MPI_SUM)
-      end if
+      if (nproc > 0) call fmpi_allreduce(amnk,FMPI_SUM)
 
       call f_zero(amnk_tot)
       if (iproc==0) then
@@ -896,14 +895,14 @@ program BigDFT2Wannier
          mmnk_v_im = f_malloc(orbsb%norb*orbsb%norb,id='mmnk_v_im')
 
          call gemm('T','N',orbsb%norb,orbsb%norb,nvctrp,1.0_wp,psi_daub_re(1),max(1,nvctrp),&
-            &   psi_etsf2(1),max(1,nvctrp),0.0_wp,mmnk_v_re(1),orbsb%norb)
+            &   psi_etsf2(1,1),max(1,nvctrp),0.0_wp,mmnk_v_re(1),orbsb%norb)
          call gemm('T','N',orbsb%norb,orbsb%norb,nvctrp,1.0_wp,psi_daub_im(1),max(1,nvctrp),&
-            &   psi_etsf2(1),max(1,nvctrp),0.0_wp,mmnk_v_im(1),orbsb%norb)
+            &   psi_etsf2(1,1),max(1,nvctrp),0.0_wp,mmnk_v_im(1),orbsb%norb)
 
          ! Reduce the overlap matrix between all the processors
          if (nproc > 1) then
-            call mpiallred(mmnk_v_re(1),orbsb%norb*orbsb%norb,MPI_SUM)
-            call mpiallred(mmnk_v_im(1),orbsb%norb*orbsb%norb,MPI_SUM)
+            call fmpi_allreduce(mmnk_v_re,FMPI_SUM)
+            call fmpi_allreduce(mmnk_v_im,FMPI_SUM)
          end if
 
          ! Reshape the overlap matrix elements into a more manageable disposition

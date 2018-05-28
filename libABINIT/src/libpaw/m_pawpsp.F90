@@ -1160,7 +1160,10 @@ subroutine pawpsp_read(core_mesh,funit,imainmesh,lmax,&
        read(funit,*) val
        LIBPAW_DEALLOCATE(val)
      end do
-   end if
+  end if
+ else
+  pawtab%has_wvl = 0
+  call wvlpaw_free(pawtab%wvl)
  end if
 
 !---------------------------------
@@ -2842,10 +2845,6 @@ subroutine pawpsp_wvl_calc(pawtab,tnvale,usewvl,vale_mesh,vloc_mesh,vlocr)
 ! *************************************************************************
  
 !If usewvl flag is on, we must have the pawtab%wvl pointer allocated
- if (pawtab%has_wvl==0) then
-   msg='pawtab%has_wvl flag should be on o entry'
-   MSG_BUG(msg)
- end if
  call wvlpaw_allocate(pawtab%wvl)
 
 !==========================================================
@@ -2853,7 +2852,7 @@ subroutine pawpsp_wvl_calc(pawtab,tnvale,usewvl,vale_mesh,vloc_mesh,vlocr)
 !Compute second derivative from tNvale(r)
 
  if (pawtab%has_tvale/=0) then
-   if(usewvl==1) then
+   if(usewvl>0) then
      if(allocated(pawtab%tvalespl)) then
        LIBPAW_DEALLOCATE(pawtab%tvalespl)
      end if
@@ -3037,7 +3036,7 @@ subroutine pawpsp_17in(epsatm,ffspl,icoulomb,ipsp,ixc,lmax,&
  pawtab%usexcnhat=usexcnhat_in
  fourpi=4*acos(-1.d0)
  pspversion=pawpsp_header%pawver
- save_core_msz=(usewvl==1 .or. icoulomb .ne. 0)
+ save_core_msz=(usewvl>0 .or. icoulomb .ne. 0)
 
 !==========================================================
 !Initialize partial waves quantum numbers
@@ -3699,7 +3698,7 @@ subroutine pawpsp_17in(epsatm,ffspl,icoulomb,ipsp,ixc,lmax,&
 &     qgrid_ff,qgrid_vl,radmesh,tncore,tnvale,tproj,tproj_mesh,usexcnhat,vale_mesh,&
 &     vloc_mesh,vlocopt,vlocr,vlspl,xcccrc,xclevel,xc_denpos,zion,znucl)
 
- if(usewvl==1 .or. icoulomb > 0) then
+ if(usewvl>0 .or. icoulomb > 0) then
 !  Calculate up to the 5th derivative of tcoredens
    call pawpsp_calc_d5(core_mesh,pawtab%tcoredens)
 !  Other wvl related operations
@@ -3823,7 +3822,7 @@ subroutine pawpsp_7in(epsatm,ffspl,icoulomb,ixc,&
 !Destroy everything in pawrad
  call pawrad_free(pawrad)
 
- save_core_msz=(usewvl==1 .or. icoulomb .ne. 0)
+ save_core_msz=(usewvl>0 .or. icoulomb .ne. 0)
  nullify(ncore);nullify(tncore);nullify(tnvale)
  nullify(tproj);nullify(vlocr)
  nullify(radmesh)
@@ -3838,7 +3837,7 @@ subroutine pawpsp_7in(epsatm,ffspl,icoulomb,ixc,&
 &     qgrid_ff,qgrid_vl,radmesh,tncore,tnvale,tproj,tproj_mesh,usexcnhat,vale_mesh,&
 &     vloc_mesh,vlocopt,vlocr,vlspl,xcccrc,xclevel,xc_denpos,zion,znucl)
 
- if(usewvl==1 .or. icoulomb > 0) then
+ if(usewvl>0 .or. icoulomb > 0) then
 !  Calculate up to the 5th derivative of tcoredens
    call pawpsp_calc_d5(core_mesh,pawtab%tcoredens)
 !  Other wvl related operations
@@ -4246,13 +4245,13 @@ implicit none
  me=0; if (present(comm_mpi))me=xpaw_mpi_comm_rank(comm_mpi)
 
 !If usewvl flag is on, we must have the pawtab%wvl pointer allocated
- if (usewvl==1.and.pawtab%has_wvl==0) then
+ if (usewvl==2.and.pawtab%has_wvl==0) then
    call wvlpaw_allocate(pawtab%wvl)
    pawtab%has_wvl=1
  end if
 
 !Fit projectors to a sum of Gaussians:
- if (usewvl ==1 .and. pawtab%wvl%ptotgau==0 ) then
+ if (usewvl ==2 .and. pawtab%wvl%ptotgau==0 ) then
 
    if (pawtab%has_tproj==0) then
      msg='pawtab%tproj must be allocated'
@@ -4285,6 +4284,7 @@ implicit none
 &     gauss_param,tproj_mesh,&
 &     pawtab%rpaw,pawtab%tproj)
    end if
+   call pawrad_free(tproj_mesh)
 !  tproj is now as a sum of sin+cos functions,
 !  convert it to a sum of complex gaussians and fill %wvl object:
    call pawpsp_wvl_sin2gauss(pawtab%basis_size,mparam,&
@@ -4301,7 +4301,6 @@ implicit none
  end if
 
 !Projectors in real space are no more needed
- call pawrad_free(tproj_mesh)
  if(allocated(pawtab%tproj)) then 
    LIBPAW_DEALLOCATE(pawtab%tproj)
    pawtab%has_tproj=0
@@ -4807,7 +4806,7 @@ subroutine pawpsp_main( &
 ! *************************************************************************
 
 !Check consistency of parameters
- if (icoulomb/= 0.or.usewvl==1) then
+ if (icoulomb/= 0.or.usewvl==2) then
    if (.not.present(wvl_ngauss)) then
      msg='usewvl==1 or icoulomb/=0: a mandatory argument is missing!'
      MSG_BUG(msg)
@@ -4830,8 +4829,8 @@ subroutine pawpsp_main( &
  pawtab%usexcnhat=usexcnhat
  me=0;if (present(comm_mpi))me=xpaw_mpi_comm_rank(comm_mpi)
 
- has_wvl=0; if (usewvl==1.or.icoulomb/=0) has_wvl=1
- has_tproj=0; if (usewvl==1) has_tproj=1
+ has_wvl=0; if (usewvl>0.or.icoulomb/=0) has_wvl=1
+ has_tproj=0; if (usewvl>0) has_tproj=1
  call pawtab_set_flags(pawtab,has_tvale=1,has_wvl=has_wvl,has_tproj=has_tproj)
 
  if(me==0) then
@@ -4906,7 +4905,7 @@ subroutine pawpsp_main( &
  end if
 
 !WVL+PAW:
- if(icoulomb/=0.or.usewvl==1) then
+ if(icoulomb/=0.or.usewvl==2) then
    if(present(comm_mpi))then
     call pawpsp_wvl(filpsp,pawrad,pawtab,usewvl,wvl_ngauss,comm_mpi)
    else

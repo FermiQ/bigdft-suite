@@ -25,300 +25,23 @@
    |     |     |     |     |     |         D               T    T
    |     |     |     |     |     |   DDDDDD       F         TTTT
    |_____|_____|_____|_____|_____|______                    www.bigdft.org   "
-
+ 
  Reference Paper                       : The Journal of Chemical Physics 129, 014109 (2008)
- Version Number                        : 1.8.2
- Timestamp of this run                 : 2018-05-19 19:22:04.730
- Root process Hostname                 : maia.cluster.bc2.ch
+ Version Number                        : 1.8.1
+ Timestamp of this run                 : 2018-05-28 14:06:41.314
+ Root process Hostname                 : login10.cluster.bc2.ch
  Number of MPI tasks                   :  1
  OpenMP parallelization                :  Yes
- Maximal OpenMP threads per MPI task   :  12
+ Maximal OpenMP threads per MPI task   :  1
   #------------------------------------------------------------------ Code compiling options
  Compilation options:
    Configure arguments                 : "(...)"
-   Compilers (CC, FC, CXX)             :  [ gcc, mpif90, g++ ]
+   Compilers (CC, FC, CXX)             :  [ icc, mpif90, icpc ]
    Compiler flags:
      CFLAGS                            : -g -O2
      FCFLAGS:
-       -O2 -fopenmp -g -fbounds-check -fbacktrace -ffpe-trap=invalid,overflow -Wall
+       -O2 -qopenmp -I/scicore/soft/apps/imkl/2017.1.132-iompi-2017.01/mkl/include
      CXXFLAGS                          : -g -O2
- Supported input formats:
- - abinit -- ABINIT Output Format
- - acesout -- ACES output format
- - acr -- ACR format
- - adfout -- ADF output format
- - alc -- Alchemy format
- - aoforce -- Turbomole AOFORCE output format
- - arc -- Accelrys/MSI Biosym/Insight II CAR format
- - axsf -- XCrySDen Structure Format
- - bgf -- MSI BGF format
- - box -- Dock 3.5 Box format
- - bs -- Ball and Stick format
- - c09out -- Crystal 09 output format
- - c3d1 -- Chem3D Cartesian 1 format
- - c3d2 -- Chem3D Cartesian 2 format
- - caccrt -- Cacao Cartesian format
- - can -- Canonical SMILES format
- - car -- Accelrys/MSI Biosym/Insight II CAR format
- - castep -- CASTEP format
- - ccc -- CCC format
- - cdjson -- ChemDoodle JSON
- - cdx -- ChemDraw binary format
- - cdxml -- ChemDraw CDXML format
- - cif -- Crystallographic Information File
- - ck -- ChemKin format
- - cml -- Chemical Markup Language
- - cmlr -- CML Reaction format
- - CONFIG -- DL-POLY CONFIG
- - CONTCAR -- VASP format
- - CONTFF -- MDFF format
- - crk2d -- Chemical Resource Kit diagram(2D)
- - crk3d -- Chemical Resource Kit 3D format
- - ct -- ChemDraw Connection Table format
- - cub -- Gaussian cube format
- - cube -- Gaussian cube format
- - dallog -- DALTON output format
- - dalmol -- DALTON input format
- - dat -- Generic Output file format
- - dmol -- DMol3 coordinates format
- - dx -- OpenDX cube format for APBS
- - ent -- Protein Data Bank format
- - exyz -- Extended XYZ cartesian coordinates format
- - fa -- FASTA format
- - fasta -- FASTA format
- - fch -- Gaussian formatted checkpoint file format
- - fchk -- Gaussian formatted checkpoint file format
- - fck -- Gaussian formatted checkpoint file format
- - feat -- Feature format
- - fhiaims -- FHIaims XYZ format
- - fract -- Free Form Fractional format
- - fs -- Fastsearch format
- - fsa -- FASTA format
- - g03 -- Gaussian Output
- - g09 -- Gaussian Output
- - g92 -- Gaussian Output
- - g94 -- Gaussian Output
- - g98 -- Gaussian Output
- - gal -- Gaussian Output
- - gam -- GAMESS Output
- - gamess -- GAMESS Output
- - gamin -- GAMESS Input
- - gamout -- GAMESS Output
- - got -- GULP format
- - gpr -- Ghemical format
- - gro -- GRO format
- - gukin -- GAMESS-UK Input
- - gukout -- GAMESS-UK Output
- - gzmat -- Gaussian Z-Matrix Input
- - hin -- HyperChem HIN format
- - HISTORY -- DL-POLY HISTORY
- - inchi -- InChI format
- - inp -- GAMESS Input
- - ins -- ShelX format
- - jin -- Jaguar input format
- - jout -- Jaguar output format
- - log -- Generic Output file format
- - lpmd -- LPMD format
- - mcdl -- MCDL format
- - mcif -- Macromolecular Crystallographic Info
- - MDFF -- MDFF format
- - mdl -- MDL MOL format
- - ml2 -- Sybyl Mol2 format
- - mmcif -- Macromolecular Crystallographic Info
- - mmd -- MacroModel format
- - mmod -- MacroModel format
- - mol -- MDL MOL format
- - mol2 -- Sybyl Mol2 format
- - mold -- Molden format
- - molden -- Molden format
- - molf -- Molden format
- - moo -- MOPAC Output format
- - mop -- MOPAC Cartesian format
- - mopcrt -- MOPAC Cartesian format
- - mopin -- MOPAC Internal
- - mopout -- MOPAC Output format
- - mpc -- MOPAC Cartesian format
- - mpo -- Molpro output format
- - mpqc -- MPQC output format
- - mrv -- Chemical Markup Language
- - msi -- Accelrys/MSI Cerius II MSI format
- - nwo -- NWChem output format
- - orca -- ORCA output format
- - out -- Generic Output file format
- - outmol -- DMol3 coordinates format
- - output -- Generic Output file format
- - pc -- PubChem format
- - pcjson -- PubChem JSON
- - pcm -- PCModel Format
- - pdb -- Protein Data Bank format
- - pdbqt -- AutoDock PDBQT format
- - png -- PNG 2D depiction
- - pos -- POS cartesian coordinates format
- - POSCAR -- VASP format
- - POSFF -- MDFF format
- - pqr -- PQR format
- - pqs -- Parallel Quantum Solutions format
- - prep -- Amber Prep format
- - pwscf -- PWscf format
- - qcout -- Q-Chem output format
- - res -- ShelX format
- - rsmi -- Reaction SMILES format
- - rxn -- MDL RXN format
- - sd -- MDL MOL format
- - sdf -- MDL MOL format
- - siesta -- SIESTA format
- - smi -- SMILES format
- - smiles -- SMILES format
- - smy -- SMILES format using Smiley parser
- - sy2 -- Sybyl Mol2 format
- - t41 -- ADF TAPE41 format
- - tdd -- Thermo format
- - text -- Read and write raw text
- - therm -- Thermo format
- - tmol -- TurboMole Coordinate format
- - txt -- Title format
- - txyz -- Tinker XYZ format
- - unixyz -- UniChem XYZ format
- - VASP -- VASP format
- - vmol -- ViewMol format
- - xml -- General XML format
- - xsf -- XCrySDen Structure Format
- - xtc -- XTC format
- - xyz -- XYZ cartesian coordinates format
- - yob -- YASARA.org YOB format
- Supported output formats:
- - acesin -- ACES input format
- - adf -- ADF cartesian input format
- - alc -- Alchemy format
- - ascii -- ASCII format
- - bgf -- MSI BGF format
- - box -- Dock 3.5 Box format
- - bs -- Ball and Stick format
- - c3d1 -- Chem3D Cartesian 1 format
- - c3d2 -- Chem3D Cartesian 2 format
- - cac -- CAChe MolStruct format
- - caccrt -- Cacao Cartesian format
- - cache -- CAChe MolStruct format
- - cacint -- Cacao Internal format
- - can -- Canonical SMILES format
- - cdjson -- ChemDoodle JSON
- - cdxml -- ChemDraw CDXML format
- - cht -- Chemtool format
- - cif -- Crystallographic Information File
- - ck -- ChemKin format
- - cml -- Chemical Markup Language
- - cmlr -- CML Reaction format
- - com -- Gaussian 98/03 Input
- - CONFIG -- DL-POLY CONFIG
- - CONTCAR -- VASP format
- - CONTFF -- MDFF format
- - copy -- Copy raw text
- - crk2d -- Chemical Resource Kit diagram(2D)
- - crk3d -- Chemical Resource Kit 3D format
- - csr -- Accelrys/MSI Quanta CSR format
- - cssr -- CSD CSSR format
- - ct -- ChemDraw Connection Table format
- - cub -- Gaussian cube format
- - cube -- Gaussian cube format
- - dalmol -- DALTON input format
- - dmol -- DMol3 coordinates format
- - dx -- OpenDX cube format for APBS
- - ent -- Protein Data Bank format
- - exyz -- Extended XYZ cartesian coordinates format
- - fa -- FASTA format
- - fasta -- FASTA format
- - feat -- Feature format
- - fh -- Fenske-Hall Z-Matrix format
- - fhiaims -- FHIaims XYZ format
- - fix -- SMILES FIX format
- - fps -- FPS text fingerprint format (Dalke)
- - fpt -- Fingerprint format
- - fract -- Free Form Fractional format
- - fs -- Fastsearch format
- - fsa -- FASTA format
- - gamin -- GAMESS Input
- - gau -- Gaussian 98/03 Input
- - gjc -- Gaussian 98/03 Input
- - gjf -- Gaussian 98/03 Input
- - gpr -- Ghemical format
- - gr96 -- GROMOS96 format
- - gro -- GRO format
- - gukin -- GAMESS-UK Input
- - gukout -- GAMESS-UK Output
- - gzmat -- Gaussian Z-Matrix Input
- - hin -- HyperChem HIN format
- - inchi -- InChI format
- - inchikey -- InChIKey
- - inp -- GAMESS Input
- - jin -- Jaguar input format
- - k -- Compare molecules using InChI
- - lmpdat -- The LAMMPS data format
- - lpmd -- LPMD format
- - mcdl -- MCDL format
- - mcif -- Macromolecular Crystallographic Info
- - MDFF -- MDFF format
- - mdl -- MDL MOL format
- - ml2 -- Sybyl Mol2 format
- - mmcif -- Macromolecular Crystallographic Info
- - mmd -- MacroModel format
- - mmod -- MacroModel format
- - mna -- Multilevel Neighborhoods of Atoms (MNA)
- - mol -- MDL MOL format
- - mol2 -- Sybyl Mol2 format
- - mold -- Molden format
- - molden -- Molden format
- - molf -- Molden format
- - molreport -- Open Babel molecule report
- - mop -- MOPAC Cartesian format
- - mopcrt -- MOPAC Cartesian format
- - mopin -- MOPAC Internal
- - mp -- Molpro input format
- - mpc -- MOPAC Cartesian format
- - mpd -- MolPrint2D format
- - mpqcin -- MPQC simplified input format
- - mrv -- Chemical Markup Language
- - msms -- M.F. Sanner's MSMS input format
- - nul -- Outputs nothing
- - nw -- NWChem input format
- - orcainp -- ORCA input format
- - outmol -- DMol3 coordinates format
- - paint -- Painter format
- - pcjson -- PubChem JSON
- - pcm -- PCModel Format
- - pdb -- Protein Data Bank format
- - pdbqt -- AutoDock PDBQT format
- - png -- PNG 2D depiction
- - pointcloud -- Point cloud on VDW surface
- - POSCAR -- VASP format
- - POSFF -- MDFF format
- - pov -- POV-Ray input format
- - pqr -- PQR format
- - pqs -- Parallel Quantum Solutions format
- - qcin -- Q-Chem input format
- - report -- Open Babel report format
- - rsmi -- Reaction SMILES format
- - rxn -- MDL RXN format
- - sd -- MDL MOL format
- - sdf -- MDL MOL format
- - smi -- SMILES format
- - smiles -- SMILES format
- - stl -- STL 3D-printing format
- - svg -- SVG 2D depiction
- - sy2 -- Sybyl Mol2 format
- - tdd -- Thermo format
- - text -- Read and write raw text
- - therm -- Thermo format
- - tmol -- TurboMole Coordinate format
- - txt -- Title format
- - txyz -- Tinker XYZ format
- - unixyz -- UniChem XYZ format
- - VASP -- VASP format
- - vmol -- ViewMol format
- - xed -- XED format
- - xyz -- XYZ cartesian coordinates format
- - yob -- YASARA.org YOB format
- - zin -- ZINDO input format
-  #WARNING: Format not specified in the posinp dictionary, assuming yaml
   #------------------------------------------------------------------------ Input parameters
  radical                               : null
  outdir                                : ./
@@ -340,14 +63,15 @@
    ngrids: [0, 0, 0] #                            Number of grid spacing division in each direction
    qcharge                             : 0 #      Charge of the system. Can be integer or real.
    elecfield: [0., 0., 0.] #                      Electric field (Ex,Ey,Ez)
-   itermin                             : 0 #      Minimal iterations of wfn. optimized steps
+   itermin                             : 0 #      Minimal iterations of wfn. optimzed steps
    dispersion                          : 0 #      Dispersion correction potential (values 1,2,3,4,5), 0=none
    inputpsiid                          : 0 #      Input guess wavefunctions
+   output_wf                           : 0 #      Output of the support functions
    output_denspot                      : 0 #      Output of the density or the potential
    rbuf                                : 0. #     Length of the tail (AU)
    ncongt                              : 30 #     No. of tail CG iterations
    norbv                               : 0 #      Davidson subspace dimension (No. virtual orbitals)
-   nvirt                               : 0 #      No. of converged virtual orbs (< norbv)
+   nvirt                               : 0 #      No. of virtual orbs
    nplot                               : 0 #      No. of plotted orbs
    gnrm_cv_virt                        : 1.e-4 #  Convergence criterion gradient for virtual orbitals
    itermax_virt                        : 50 #     Max. iterations of wfn. opt. steps for virtual orbitals
@@ -363,17 +87,12 @@
     #                                              itermax
    nrepmax_occ_ctrl                    : 1 #      Number of re-diagonalizations of occupancy control scheme.
    alpha_hf                            : -1.0 #   Part of the exact exchange contribution for hybrid functionals
- output:
-   verbosity                           : 3 #      Verbosity of the output
-   atomic_density_matrix               : None #   Dictionary of the atoms for which the atomic density matrix has to be plotted
-   sdos                                : No #     Spatially-resolved density of states
-   orbitals                            : No #     Write KS orbitals in the full simulation domain (might take lot of disk space!)
-   outputpsiid                         : wavefunction # basename of the output wavefunctions files written in the data directory
  perf:
    projrad                             : 8.000 #  Radius of the projector as a function of the maxrad
    rho_commun                          : MIX #    Density communication scheme (DBL, RSC, MIX)
    psp_onfly                           : No #     Calculate pseudopotential projectors on the fly
    debug                               : No #     Debug option
+   profiling_depth                     : -1 #     Maximum level of the profiling for the tracking of the routines
    fftcache                            : 8192 #   Cache size for the FFT
    accel                               : NO #     Acceleration (hardware)
    ocl_platform                        : ~ #      Chosen OCL platform
@@ -393,6 +112,7 @@
    domain                              : ~ #      Domain to add to the hostname to find the IP
    inguess_geopt                       : 0 #      Input guess to be used during the optimization
    store_index                         : Yes #    Store indices or recalculate them for linear scaling
+   verbosity                           : 2 #      Verbosity of the output
    multipole_preserving                : No #     (EXPERIMENTAL) Preserve the multipole moment of the ionic density
    mp_isf                              : 16 #     (EXPERIMENTAL) Interpolating scaling function or lifted dual order for the multipole 
     #                                              preserving
@@ -401,6 +121,7 @@
    check_sumrho                        : 1 #      Enables linear sumrho check
    check_overlap                       : 1 #      Enables linear overlap check
    experimental_mode                   : No #     Activate the experimental mode in linear scaling
+   write_orbitals                      : 0 #      Linear scaling write KS orbitals for cubic restart (might take lot of disk space!)
    explicit_locregcenters              : No #     Linear scaling explicitly specify localization centers
    calculate_KS_residue                : Yes #    Linear scaling calculate Kohn-Sham residue
    intermediate_forces                 : No #     Linear scaling calculate intermediate forces
@@ -465,7 +186,7 @@
      ef_interpol_chargediff            : 1.0 #    FOE max charge difference for interpolation
      evbounds_nsatur                   : 3 #      Number of FOE cycles before the eigenvalue bounds are shrinked (linear)
      evboundsshrink_nsatur             : 4 #      Maximal number of unsuccessful eigenvalue bounds shrinkings
-     fscale                            : 5.e-2 #  Initial guess for the error function decay length
+     fscale                            : 5.e-2 #  Initial guess for the error fucntion decay length
      fscale_lowerbound                 : 5.e-3 #  Lower bound for the error function decay length
      fscale_upperbound                 : 5.e-2 #  Upper bound for the error function decay length
      eval_range_foe: [-0.5, 0.5] #                Lower and upper bound of the eigenvalue spectrum, will be adjusted 
@@ -473,19 +194,6 @@
      accuracy_foe                      : 1.e-5 #  Required accuracy for the Chebyshev fit for FOE
      accuracy_ice                      : 1.e-8 #  Required accuracy for the Chebyshev fit for ICE (calculation of matrix powers)
      accuracy_penalty                  : 1.e-5 #  Required accuracy for the Chebyshev fit for the penalty function
-     accuracy_entropy                  : 1.e-4 #  Required accuracy for the Chebyshev fit for the function to calculate the entropy term
-     betax_foe                         : -1000.0 # the exponent in the exponential penalty function which is used to determine the 
-      #                                            eigenvalue bounds for FOE
-     betax_ice                         : -1000.0 # the exponent in the exponential penalty function which is used to determine the 
-      #                                            eigenvalue bounds for ICE
-     occupation_function               : 102 #    the function to assign the occupation numbers
-     adjust_fscale                     : yes #    dynamically adjust the value of fscale or not
-     matmul_optimize_load_balancing    : no #     optimize the load balancing of the sparse matrix matrix multiplications (at the cost 
-      #                                            of memory unbalancing)
-     fscale_ediff_low                  : 5.e-5 #  lower bound for the optimal relative energy difference between the kernel and the 
-      #                                            control kernel
-     fscale_ediff_up                   : 1.e-4 #  upper bound for the optimal relative energy difference between the kernel and the 
-      #                                            control kernel
    lapack:
      blocksize_pdsyev                  : -8 #     SCALAPACK linear scaling blocksize for diagonalization
      blocksize_pdgemm                  : -8 #     SCALAPACK linear scaling blocksize for matrix matrix multiplication
@@ -493,7 +201,6 @@
      maxproc_pdgemm                    : 4 #      SCALAPACK linear scaling max num procs
    pexsi:
      pexsi_npoles                      : 40 #     Number of poles used by PEXSI
-     pexsi_nproc_per_pole              : 1 #      Number of processes used per pole by PEXSI
      pexsi_mumin                       : -1.0 #   Initial guess for the lower bound of the chemical potential used by PEXSI
      pexsi_mumax                       : 1.0 #    Initial guess for the upper bound of the chemical potential used by PEXSI
      pexsi_mu                          : 0.5 #    Initial guess for the  chemical potential used by PEXSI
@@ -501,9 +208,8 @@
      pexsi_tol_charge                  : 1.e-3 #  Charge tolerance used PEXSI
      pexsi_np_sym_fact                 : 16 #     Number of tasks for the symbolic factorization used by PEXSI
      pexsi_DeltaE                      : 10.0 #   Upper bound for the spectral radius of S^-1H (in hartree?) used by PEXSI
-     pexsi_do_inertia_count            : yes #    Decides whether PEXSI should use the inertia count at each iteration
-     pexsi_max_iter                    : 10 #     Maximal number of PEXSI iterations
-     pexsi_verbosity                   : 0 #      Verbosity level of the PEXSI solver
+ output:
+   atomic_density_matrix               : None #   Dictionary of the atoms for which the atomic density matrix has to be plotted
  kpt:
    method                              : manual # K-point sampling method
    kpt: #                                         Kpt coordinates
@@ -526,12 +232,11 @@
    no_translation                      : No #     Logical input to set translational correction
    thermostat                          : none #   Activates a thermostat for MD
    wavefunction_extrapolation          : 0 #      Activates the wavefunction extrapolation for MD
-   always_from_scratch                 : No #     When true, always restart wavefunctions from scratch to eliminate dissipation effects
    restart_nose                        : No #     Restart Nose Hoover Chain information from md.restart
    restart_pos                         : No #     Restart nuclear position information from md.restart
    restart_vel                         : No #     Restart nuclear velocities information from md.restart
  mix:
-   iscf                                : 0 #      Mixing scheme (default=0 i.e. direct minimization)
+   iscf                                : 0 #      Mixing parameters
    itrpmax                             : 1 #      Maximum number of diagonalisation iterations
    rpnrm_cv                            : 1.e-4 #  Stop criterion on the residue of potential or density
    norbsempty                          : 0 #      No. of additional bands
@@ -585,10 +290,6 @@
    calculate_FOE_eigenvalues: [0, -1] #           First and last eigenvalue to be calculated using the FOE procedure
    precision_FOE_eigenvalues           : 5.e-3 #  Decay length of the error function used to extract the eigenvalues (i.e. something like 
     #                                              the resolution)
-   multipole_centers                   : 0.0 #    Determines whether the multipole centers shall be determined automatically (i.e. 
-    #                                              taking the atoms) or whether they are 
-    #                                              provided manually
-   consider_entropy                    : False #  Indicate whether the entropy contribution to the total energy shall be considered
  lin_basis:
    nit: [4, 5] #                                  Maximal number of iterations in the optimization of the 
     #                                              support functions
@@ -639,17 +340,15 @@
  posinp:
     #---------------------------------------------- Atomic positions (by default bohr units)
    units                               : angstroem
-   cell: [ 3.204,  3.204,  3.204]
+   cell: [ 3.203999996185303,  3.203999996185303,  3.203999996185303]
    positions:
    - Mg: [0.0, 0.0, 0.0]
-     frag: [UNL, 1]
    properties:
-     format                            : cif
-     source                            : null
-   energy (Ha)                         : 0.0
+     format                            : xyz
+     source                            : posinp.xyz
   #--------------------------------------------------------------------------------------- |
  Data Writing directory                : ./
-  #------------------------------------------------------------ Input Atomic System (file: )
+  #-------------------------------------------------- Input Atomic System (file: posinp.xyz)
  Atomic System Properties:
    Number of atomic types              :  1
    Number of atoms                     :  1
@@ -658,7 +357,7 @@
    Box Sizes (AU)                      :  [  6.05468E+00,  6.05468E+00,  6.05468E+00 ]
    Number of Symmetries                :  0
    Space group                         : disabled
-  #-------------------------------------------------- Geometry optimization Input Parameters
+  #------------------------------ Geometry optimization Input Parameters (file: input.geopt)
  Geometry Optimization Parameters:
    Maximum steps                       :  1
    Algorithm                           : none
@@ -714,23 +413,23 @@
      Rloc                              :  0.55648
      h_ij matrix:
      -  [  2.97096, -0.51508,  0.00000 ]
-     -  [ -0.51508,  1.32994, -0.00000 ]
-     -  [  0.00000, -0.00000,  0.00000 ]
+     -  [ -0.51508,  1.32994,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
    - Channel (l)                       :  1
      Rloc                              :  0.67757
      h_ij matrix:
-     -  [  1.04988, -0.00000,  0.00000 ]
-     -  [ -0.00000,  0.00000, -0.00000 ]
-     -  [  0.00000, -0.00000,  0.00000 ]
+     -  [  1.04988,  0.00000,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
    No. of projectors                   :  5
    PSP XC                              : "XC: Teter 93"
   #----------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
    Units                               : angstroem
-   Cell                                :  [  3.204,  3.204,  3.204 ]
+   Cell: [ 3.203999996185303,  3.203999996185303,  3.203999996185303]
    Positions:
    - Mg: [ 0.000000000,  0.000000000,  0.000000000] # [  0.00,  0.00,  0.00 ] 0001
-   Rigid Shift Applied (AU)            :  [ -0.0000, -0.0000, -0.0000 ]
+   Rigid Shift Applied (AU)            :  [  0.0000,  0.0000,  0.0000 ]
   #------------------------------------------------------------------------- Grid properties
  Box Grid spacings                     :  [  0.2523,  0.2523,  0.2523 ]
  Sizes of the simulation domain:
@@ -741,13 +440,6 @@
      From                              :  [  0,  0,  0 ]
      To                                :  [  23,  23,  23 ]
  High Res. box is treated separately   :  No
- Wavefunctions Descriptors, full simulation domain:
-   Coarse resolution grid:
-     No. of segments                   :  576
-     No. of points                     :  13824
-   Fine resolution grid:
-     No. of segments                   :  576
-     No. of points                     :  13824
   #------------------------------------------------------------------- Kernel Initialization
  Poisson Kernel Initialization:
     #---------------------------------------------------------------------- Input parameters
@@ -768,14 +460,21 @@
      verbose                           : Yes #    Verbosity switch
      output                            : none #   Quantities to be plotted after the main solver routine
    MPI tasks                           :  1
-   OpenMP threads per MPI task         :  12
+   OpenMP threads per MPI task         :  1
  Poisson Kernel Creation:
    Boundary Conditions                 : Periodic
    Memory Requirements per MPI task:
      Density (MB)                      :  0.84
      Kernel (MB)                       :  0.12
      Full Grid Arrays (MB)             :  0.84
-  #------------------------------------------------------- Electronic Orbital Initialization
+ Wavefunctions Descriptors, full simulation domain:
+   Coarse resolution grid:
+     No. of segments                   :  576
+     No. of points                     :  13824
+   Fine resolution grid:
+     No. of segments                   :  576
+     No. of points                     :  13824
+  #---------------------------------------------------------------------- Occupation Numbers
  Total Number of Electrons             :  2
  Spin treatment                        : Averaged
  Orbitals Repartition:
@@ -812,7 +511,7 @@
    Hamiltonian application             : 24.603
    Orbitals Orthonormalization         : 24.603
  Estimated Memory Peak (MB)            :  26
- Ion-Ion interaction energy            : -1.00168387777115E+00
+ Ion-Ion interaction energy            : -1.00168387911726E+00
   #---------------------------------------------------------------- Ionic Potential Creation
  Total ionic charge                    : -2.000000000000
  Poisson Solver:
@@ -836,16 +535,16 @@
      BC                                : Periodic
      Box                               :  [  48,  48,  48 ]
      MPI tasks                         :  1
-   Energies: {Ekin:  1.88451929362E-02, Epot: -4.73023348149E-01, Enl:  2.31327582021E-01, 
-                EH:  1.37938525828E-03,  EXC: -3.83211026928E-01, EvXC: -4.98238596068E-01}
-   EKS                                 : -1.11088626708163196E+00
+   Energies: {Ekin:  1.88451928353E-02, Epot: -4.73023348169E-01, Enl:  2.31327582740E-01, 
+                EH:  1.37938523977E-03,  EXC: -3.83211027321E-01, EvXC: -4.98238596581E-01}
+   EKS                                 : -1.11088626769074761E+00
    Input Guess Overlap Matrices: {Calculated:  Yes, Diagonalized:  Yes}
     #Eigenvalues and New Occupation Numbers
    Orbitals: [
- {e: -1.114252865962E-01, f:  2.0000},  # 00001
- {e:  3.964120222561E-01, f:  0.0000},  # 00002
- {e:  3.964120222561E-01, f:  0.0000},  # 00003
- {e:  3.964120222561E-01, f:  0.0000}] # 00004
+ {e: -1.114252862971E-01, f:  2.0000},  # 00001
+ {e:  3.964120237861E-01, f:  0.0000},  # 00002
+ {e:  3.964120237861E-01, f:  0.0000},  # 00003
+ {e:  3.964120237861E-01, f:  0.0000}] # 00004
    IG wavefunctions defined            :  Yes
   #------------------------------------------------------------------- Self-Consistent Cycle
  Ground State Optimization:
@@ -855,97 +554,76 @@
        -  { #---------------------------------------------------------------------- iter: 1
  GPU acceleration:  No, Total electronic charge:  2.000000000000, 
  Poisson Solver: {BC: Periodic, Box:  [  48,  48,  48 ], MPI tasks:  1}, 
- Hamiltonian Applied:  Yes, Orthoconstraint:  Yes, 
- Residues per orbital: [
-  1.104117158417E-01],  # 00001
- Preconditioning:  Yes, 
- Energies: {Ekin:  1.88451929362E-02, Epot: -4.73023348149E-01, Enl:  2.31327582021E-01, 
-              EH:  1.37938525828E-03,  EXC: -3.83211026928E-01, EvXC: -4.98238596068E-01}, 
- iter:  1, EKS: -1.11088626708165239E+00, gnrm:  1.10E-01, D: -2.04E-14, 
+ Hamiltonian Applied:  Yes, Orthoconstraint:  Yes, Preconditioning:  Yes, 
+ Energies: {Ekin:  1.88451928353E-02, Epot: -4.73023348169E-01, Enl:  2.31327582740E-01, 
+              EH:  1.37938523977E-03,  EXC: -3.83211027321E-01, EvXC: -4.98238596581E-01}, 
+ iter:  1, EKS: -1.11088626769075605E+00, gnrm:  1.10E-01, D: -8.44E-15, 
  DIIS weights: [ 1.00E+00,  1.00E+00], Orthogonalization Method:  0}
        -  { #---------------------------------------------------------------------- iter: 2
  GPU acceleration:  No, Total electronic charge:  2.000000000000, 
  Poisson Solver: {BC: Periodic, Box:  [  48,  48,  48 ], MPI tasks:  1}, 
- Hamiltonian Applied:  Yes, Orthoconstraint:  Yes, 
- Residues per orbital: [
-  2.521191492238E-02],  # 00001
- Preconditioning:  Yes, 
- Energies: {Ekin:  5.64176978572E-02, Epot: -4.21559680698E-01, Enl:  1.31988805677E-01, 
-              EH:  2.44306947588E-03,  EXC: -3.85486754658E-01, EvXC: -5.01217079863E-01}, 
- iter:  2, EKS: -1.12154979920564690E+00, gnrm:  2.52E-02, D: -1.07E-02, 
+ Hamiltonian Applied:  Yes, Orthoconstraint:  Yes, Preconditioning:  Yes, 
+ Energies: {Ekin:  5.64176979043E-02, Epot: -4.21559680335E-01, Enl:  1.31988805783E-01, 
+              EH:  2.44306945825E-03,  EXC: -3.85486755058E-01, EvXC: -5.01217080385E-01}, 
+ iter:  2, EKS: -1.12154979989532744E+00, gnrm:  2.52E-02, D: -1.07E-02, 
  DIIS weights: [ 2.04E-01,  7.96E-01, -2.89E-04], Orthogonalization Method:  0}
        -  { #---------------------------------------------------------------------- iter: 3
  GPU acceleration:  No, Total electronic charge:  2.000000000000, 
  Poisson Solver: {BC: Periodic, Box:  [  48,  48,  48 ], MPI tasks:  1}, 
- Hamiltonian Applied:  Yes, Orthoconstraint:  Yes, 
- Residues per orbital: [
-  9.967747944136E-03],  # 00001
- Preconditioning:  Yes, 
- Energies: {Ekin:  5.46792761023E-02, Epot: -4.41616741692E-01, Enl:  1.53364249464E-01, 
-              EH:  2.92953257898E-03,  EXC: -3.85717170171E-01, EvXC: -5.01519809470E-01}, 
- iter:  3, EKS: -1.12238398717786869E+00, gnrm:  9.97E-03, D: -8.34E-04, 
+ Hamiltonian Applied:  Yes, Orthoconstraint:  Yes, Preconditioning:  Yes, 
+ Energies: {Ekin:  5.46792760995E-02, Epot: -4.41616741403E-01, Enl:  1.53364249681E-01, 
+              EH:  2.92953255487E-03,  EXC: -3.85717170565E-01, EvXC: -5.01519809984E-01}, 
+ iter:  3, EKS: -1.12238398787502947E+00, gnrm:  9.97E-03, D: -8.34E-04, 
  DIIS weights: [-9.03E-02, -1.90E-01,  1.28E+00, -9.34E-06], Orthogonalization Method:  0}
        -  { #---------------------------------------------------------------------- iter: 4
  GPU acceleration:  No, Total electronic charge:  2.000000000000, 
  Poisson Solver: {BC: Periodic, Box:  [  48,  48,  48 ], MPI tasks:  1}, 
- Hamiltonian Applied:  Yes, Orthoconstraint:  Yes, 
- Residues per orbital: [
-  1.691865501837E-03],  # 00001
- Preconditioning:  Yes, 
- Energies: {Ekin:  5.86527402869E-02, Epot: -4.44803055247E-01, Enl:  1.52659998953E-01, 
-              EH:  3.18081675363E-03,  EXC: -3.85990853034E-01, EvXC: -5.01878280758E-01}, 
- iter:  4, EKS: -1.12246758280850845E+00, gnrm:  1.69E-03, D: -8.36E-05, 
+ Hamiltonian Applied:  Yes, Orthoconstraint:  Yes, Preconditioning:  Yes, 
+ Energies: {Ekin:  5.86527402925E-02, Epot: -4.44803054969E-01, Enl:  1.52659999172E-01, 
+              EH:  3.18081672830E-03,  EXC: -3.85990853427E-01, EvXC: -5.01878281271E-01}, 
+ iter:  4, EKS: -1.12246758350623965E+00, gnrm:  1.69E-03, D: -8.36E-05, 
  DIIS weights: [ 1.03E-02,  2.10E-02, -8.54E-02,  1.05E+00, -8.51E-08], 
      Orthogonalization Method:  0}
        -  { #---------------------------------------------------------------------- iter: 5
  GPU acceleration:  No, Total electronic charge:  2.000000000000, 
  Poisson Solver: {BC: Periodic, Box:  [  48,  48,  48 ], MPI tasks:  1}, 
- Hamiltonian Applied:  Yes, Orthoconstraint:  Yes, 
- Residues per orbital: [
-  5.854098748914E-04],  # 00001
- Preconditioning:  Yes, 
- Energies: {Ekin:  5.85856413473E-02, Epot: -4.44809199687E-01, Enl:  1.52717482689E-01, 
-              EH:  3.15852379762E-03,  EXC: -3.85966066782E-01, EvXC: -5.01845806347E-01}, 
- iter:  5, EKS: -1.12246873765493049E+00, gnrm:  5.85E-04, D: -1.15E-06, 
+ Hamiltonian Applied:  Yes, Orthoconstraint:  Yes, Preconditioning:  Yes, 
+ Energies: {Ekin:  5.85856413524E-02, Epot: -4.44809199408E-01, Enl:  1.52717482908E-01, 
+              EH:  3.15852377231E-03,  EXC: -3.85966067175E-01, EvXC: -5.01845806860E-01}, 
+ iter:  5, EKS: -1.12246873835266547E+00, gnrm:  5.85E-04, D: -1.15E-06, 
  DIIS weights: [ 9.20E-05, -2.36E-04, -3.52E-02, -1.67E-01,  1.20E+00, -6.12E-10], 
      Orthogonalization Method:  0}
        -  { #---------------------------------------------------------------------- iter: 6
  GPU acceleration:  No, Total electronic charge:  2.000000000000, 
  Poisson Solver: {BC: Periodic, Box:  [  48,  48,  48 ], MPI tasks:  1}, 
- Hamiltonian Applied:  Yes, Orthoconstraint:  Yes, 
- Residues per orbital: [
-  4.363769662583E-05],  # 00001
- Preconditioning:  Yes, 
- Energies: {Ekin:  5.87099598958E-02, Epot: -4.44933822871E-01, Enl:  1.52720842392E-01, 
-              EH:  3.16309786998E-03,  EXC: -3.85970440502E-01, EvXC: -5.01851533324E-01}, 
- iter:  6, EKS: -1.12246890340252925E+00, gnrm:  4.36E-05, D: -1.66E-07, 
+ Hamiltonian Applied:  Yes, Orthoconstraint:  Yes, Preconditioning:  Yes, 
+ Energies: {Ekin:  5.87099599012E-02, Epot: -4.44933822592E-01, Enl:  1.52720842610E-01, 
+              EH:  3.16309784462E-03,  EXC: -3.85970440895E-01, EvXC: -5.01851533837E-01}, 
+ iter:  6, EKS: -1.12246890410027556E+00, gnrm:  4.36E-05, D: -1.66E-07, 
  DIIS weights: [-6.56E-05,  1.18E-04,  7.18E-03,  2.55E-02, -2.45E-01,  1.21E+00, 
                 -7.94E-13],           Orthogonalization Method:  0}
        -  { #---------------------------------------------------------------------- iter: 7
  GPU acceleration:  No, Total electronic charge:  2.000000000000, 
  Poisson Solver: {BC: Periodic, Box:  [  48,  48,  48 ], MPI tasks:  1}, 
- Hamiltonian Applied:  Yes, Orthoconstraint:  Yes, 
- Residues per orbital: [
-  1.813633766960E-06],  # 00001
- Preconditioning:  Yes, 
- Energies: {Ekin:  5.87121194283E-02, Epot: -4.44932979469E-01, Enl:  1.52717761467E-01, 
-              EH:  3.16297863295E-03,  EXC: -3.85970306810E-01, EvXC: -5.01851357865E-01}, 
- iter:  7, EKS: -1.12246890392220688E+00, gnrm:  1.81E-06, D: -5.20E-10, 
+ Hamiltonian Applied:  Yes, Orthoconstraint:  Yes, Preconditioning:  Yes, 
+ Energies: {Ekin:  5.87121194338E-02, Epot: -4.44932979190E-01, Enl:  1.52717761685E-01, 
+              EH:  3.16297860759E-03,  EXC: -3.85970307203E-01, EvXC: -5.01851358378E-01}, 
+ iter:  7, EKS: -1.12246890461995763E+00, gnrm:  1.81E-06, D: -5.20E-10, 
  DIIS weights: [ 1.02E-05, -2.01E-05, -1.19E-03, -4.33E-03,  4.08E-02, -2.15E-01, 
                  1.18E+00, -1.72E-15], Orthogonalization Method:  0}
        -  &FINAL001  { #----------------------------------------------------------- iter: 8
  GPU acceleration:  No, Total electronic charge:  2.000000000000, 
  Poisson Solver: {BC: Periodic, Box:  [  48,  48,  48 ], MPI tasks:  1}, 
  Hamiltonian Applied:  Yes, 
- iter:  8, EKS: -1.12246890392290499E+00, gnrm:  1.81E-06, D: -6.98E-13,  #FINAL
- Energies: {Ekin:  5.87121533152E-02, Epot: -4.44932962434E-01, Enl:  1.52717709701E-01, 
-              EH:  3.16297697390E-03,  EXC: -3.85970304184E-01, EvXC: -5.01851354424E-01, 
-            Eion: -1.00168387777E+00}, 
+ iter:  8, EKS: -1.12246890462062177E+00, gnrm:  1.81E-06, D: -6.64E-13,  #FINAL
+ Energies: {Ekin:  5.87121533206E-02, Epot: -4.44932962155E-01, Enl:  1.52717709919E-01, 
+              EH:  3.16297694854E-03,  EXC: -3.85970304577E-01, EvXC: -5.01851354937E-01, 
+            Eion: -1.00168387912E+00}, 
  }
        Non-Hermiticity of Hamiltonian in the Subspace:  0.00E+00
         #Eigenvalues and New Occupation Numbers
        Orbitals: [
- {e: -1.167515497089E-01, f:  2.0000}] # 00001
+ {e: -1.167515494576E-01, f:  2.0000}] # 00001
  Last Iteration                        : *FINAL001
   #---------------------------------------------------------------------- Forces Calculation
  GPU acceleration                      :  No
@@ -956,83 +634,51 @@
    MPI tasks                           :  1
  Multipole analysis origin             :  [  0.0E+00,  0.000000E+00,  0.000000E+00 ]
  Electric Dipole Moment (AU):
-   P vector                            :  [ -1.0866E-01, -1.0866E-01, -1.0866E-01 ]
-   norm(P)                             :  1.881990E-01
+   P vector                            :  [ -5.9212E+00, -5.9212E+00, -5.9212E+00 ]
+   norm(P)                             :  1.025587E+01
  Electric Dipole Moment (Debye):
-   P vector                            :  [ -2.7618E-01, -2.7618E-01, -2.7618E-01 ]
-   norm(P)                             :  4.783540E-01
+   P vector                            :  [ -1.505E+01, -1.5050E+01, -1.5050E+01 ]
+   norm(P)                             :  2.606781E+01
  Quadrupole Moment (AU):
    Q matrix:
-   -  [ 2.4869E-13, -1.6195E-02, -1.6195E-02]
-   -  [-1.6195E-02,  3.3751E-13, -1.6195E-02]
-   -  [-1.6195E-02, -1.6195E-02, -5.8265E-13]
-   trace                               :  3.55E-15
- Spreads of the electronic density (AU):  [  1.687334E+00,  1.687334E+00,  1.687334E+00 ]
+   -  [ 1.1266E-13, -5.2585E+01, -5.2585E+01]
+   -  [-5.2585E+01, -3.1569E-14, -5.2585E+01]
+   -  [-5.2585E+01, -5.2585E+01, -6.3089E-13]
+   trace                               : -5.50E-13
  Calculate local forces                :  Yes
  Calculate Non Local forces            :  Yes
  Stress Tensor calculated              :  Yes
  Stress Tensor:
-   Ewald stress tensor matrix (Ha/Bohr^3):
-   -  [  1.69791070268E-03, -2.208151817650E-21, -1.764540046910E-21 ]
-   -  [ -2.20815181765E-21,  1.697910702680E-03,  6.044345579780E-21 ]
-   -  [ -1.76454004691E-21,  6.044345579780E-21,  1.697910702680E-03 ]
-   Hartree stress tensor matrix (Ha/Bohr^3):
-   -  [ -4.750077028128E-06,  8.477538392522E-22, -2.318957735826E-21 ]
-   -  [  8.477538392522E-22, -4.750077028128E-06,  5.936508856123E-21 ]
-   -  [ -2.318957735826E-21,  5.936508856123E-21, -4.750077028128E-06 ]
-   XC stress tensor matrix (Ha/Bohr^3):
-   -  [  5.220814940627E-04,  0.00000000000,  0.00000000000 ]
-   -  [  0.00000000000,  5.220814940627E-04,  0.00000000000 ]
-   -  [  0.00000000000,  0.00000000000,  5.220814940627E-04 ]
-   PSP Short Range stress tensor matrix (Ha/Bohr^3):
-   -  [ -6.744014594806E-05,  8.733722441648E-14,  8.733727085353E-14 ]
-   -  [  8.733722441648E-14, -6.744014594806E-05,  8.733731609154E-14 ]
-   -  [  8.733727085353E-14,  8.733731609154E-14, -6.744014594808E-05 ]
-   PSP Projectors stress tensor matrix (Ha/Bohr^3):
-   -  [ -1.155940855784E-03,  6.683535587996E-20, -4.883737774887E-20 ]
-   -  [  6.683535587996E-20, -1.155940855784E-03, -3.651265169579E-20 ]
-   -  [ -4.883737774887E-20, -3.651265169579E-20, -1.155940855784E-03 ]
-   Kinetic stress tensor matrix (Ha/Bohr^3):
-   -  [ -1.763447872275E-04,  0.00000000000,  0.00000000000 ]
-   -  [  0.00000000000, -1.763447872275E-04,  0.00000000000 ]
-   -  [  0.00000000000,  0.00000000000, -1.763447872275E-04 ]
-   PSP Long Range stress tensor matrix (Ha/Bohr^3):
-   -  [  6.450288807402E-05,  1.408801359047E-20, -5.301864832920E-20 ]
-   -  [  1.408801359047E-20,  6.450288807401E-05,  1.403023946945E-19 ]
-   -  [ -5.30186483292E-20,  1.403023946945E-19,  6.450288807400E-05 ]
    Total stress tensor matrix (Ha/Bohr^3):
-   -  [  8.800192188289E-04,  8.733730397946E-14,  8.733716491401E-14 ]
-   -  [  8.733730397946E-14,  8.800192188289E-04,  8.733743186214E-14 ]
-   -  [  8.733716491401E-14,  8.733743186214E-14,  8.800192188289E-04 ]
+   -  [  8.800264841005E-04, -3.177741111587E-19, -3.681465972542E-19 ]
+   -  [ -3.177741111587E-19,  8.800264841005E-04, -3.478031727095E-19 ]
+   -  [ -3.681465972542E-19, -3.478031727095E-19,  8.800264841005E-04 ]
    Pressure:
-     Ha/Bohr^3                         :  8.80019218828917E-04
-     GPa                               :  25.8911
-     PV (Ha)                           :  0.19532879917991
-  #-------------------------------- Warnings obtained during the run, check their relevance!
- WARNINGS:
- - Format not specified in the posinp dictionary, assuming yaml
+     Ha/Bohr^3                         :  8.80026484100514E-04
+     GPa                               :  25.8913
+     PV (Ha)                           :  0.19533041107971
   #-------------------------------------------------------------------- Timing for root process
  Timings for root process:
-   CPU time (s)                        :  17.71
-   Elapsed time (s)                    :  2.54
+   CPU time (s)                        :  1.23
+   Elapsed time (s)                    :  1.23
  BigDFT infocode                       :  0
- Average noise forces: {x:  3.85110134E-06, y:  3.85110134E-06, z:  3.85110134E-06, 
-                    total:  6.67030318E-06}
- Clean forces norm (Ha/Bohr): {maxval:  6.670303183276E-06, fnrm2:  4.449294455682E-11}
+ Average noise forces: {x: -1.59221533E-14, y: -1.57788113E-14, z: -1.56773360E-14, 
+                    total:  2.73544277E-14}
+ Clean forces norm (Ha/Bohr): {maxval:  2.735442770314E-14, fnrm2:  7.482647149661E-28}
   #------------------------------------------------------------------------------ Atomic Forces
  Atomic Forces (Ha/Bohr):
- -  {Mg: [ 3.851101338616E-06,  3.851101338652E-06,  3.851101338054E-06]} # 0001
- Energy (Hartree)                      : -1.12246890392290499E+00
- Force Norm (Hartree/Bohr)             :  6.67030318327608415E-06
+ -  {Mg: [-1.592215330894E-14, -1.577881125538E-14, -1.567733600902E-14]} # 0001
+ Energy (Hartree)                      : -1.12246890462062177E+00
+ Force Norm (Hartree/Bohr)             :  2.73544277031361097E-14
  Memory Consumption Report:
-   Tot. No. of Allocations             :  907
-   Tot. No. of Deallocations           :  907
+   Tot. No. of Allocations             :  838
+   Tot. No. of Deallocations           :  838
    Remaining Memory (B)                :  0
    Memory occupation:
      Peak Value (MB)                   :  69.568
      for the array                     : wz
      in the routine                    : input_wf
-     Memory Peak of process            : 64.764 MB
- Walltime since initialization         :  00:00:03.253582794
- Max No. of dictionaries used          :  4907 #( 1172 still in use)
+     Memory Peak of process            : 101.056 MB
+ Walltime since initialization         :  00:00:01.748608923
+ Max No. of dictionaries used          :  4727 #( 1162 still in use)
  Number of dictionary folders allocated:  1

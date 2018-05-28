@@ -38,6 +38,7 @@ module public_keys
   character(len = *), parameter :: NCONG = "ncong", IDSX = "idsx"
   character(len = *), parameter :: DISPERSION = "dispersion"
   character(len = *), parameter :: INPUTPSIID = "inputpsiid"
+  character(len = *), parameter :: PROJECTION = "projection"
   character(len = *), parameter :: OUTPUT_WF = "output_wf"
   character(len = *), parameter :: OUTPUT_MAT = "output_mat"
   character(len = *), parameter :: OUTPUT_COEFF = "output_coeff"
@@ -393,7 +394,6 @@ module public_enums
   integer, parameter :: CUBE=22
   integer, parameter :: MPI_NATIVE=4 !<native (i.e. non-portable) MPI format
 
-
   !> Output wf parameters.
   integer, parameter, public :: WF_FORMAT_NONE       = NONE
   integer, parameter, public :: WF_FORMAT_PLAIN      = TEXT
@@ -576,6 +576,7 @@ module public_enums
   integer, parameter, public :: PSPCODE_PAW = 7
   integer, parameter, public :: PSPCODE_HGH_K = 10
   integer, parameter, public :: PSPCODE_HGH_K_NLCC = 12
+  integer, parameter, public :: PSPCODE_PSPIO = 50
 
   !> Output for run modes
   type(f_enumerator), public :: RUN_MODE_CREATE_DOCUMENT = &
