@@ -19,4 +19,4 @@
    projrad: 8.000
    rho_commun: MIX
    psp_onfly: No
- posinp: ortho.cif
+### posinp: ortho.cif
