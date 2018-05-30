@@ -585,7 +585,8 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
           else
              ncplx=1
           end if
-          call allocate_work_arrays(lzd_lin%llr(ilr)%geocode, lzd_lin%llr(ilr)%hybrid_on, &
+!!$          call allocate_work_arrays(lzd_lin%llr(ilr)%geocode, lzd_lin%llr(ilr)%hybrid_on, &
+          call allocate_work_arrays(lzd_lin%llr(ilr)%mesh, lzd_lin%llr(ilr)%hybrid_on, &
                ncplx, lzd_lin%llr(ilr)%d, precond_workarrays(iorb))
       end do
 
@@ -647,7 +648,8 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
            else
               ncplx=1
            end if
-           call deallocate_work_arrays(lzd_lin%llr(ilr)%geocode, lzd_lin%llr(ilr)%hybrid_on, &
+!!$           call deallocate_work_arrays(lzd_lin%llr(ilr)%geocode, lzd_lin%llr(ilr)%hybrid_on, &
+           call deallocate_work_arrays(lzd_lin%llr(ilr)%mesh, lzd_lin%llr(ilr)%hybrid_on, &
                 ncplx, precond_workarrays(iorb))
        end do
        deallocate(precond_convol_workarrays)
@@ -1292,7 +1294,7 @@ subroutine calculate_rhocore(at,rxyz,dpbox,rhocore)
                 & dpbox%i3s,dpbox%n3d,core_mesh, rhocore, ncmax, ifftsph, &
                 & rr, rcart, raux)
         else
-           call calc_rhocore_iat(bigdft_mpi%iproc,at,ityp,rx,ry,rz,cutoff,&
+           call calc_rhocore_iat(dpbox,bigdft_mpi%iproc,at,ityp,rx,ry,rz,cutoff,&
                 & dpbox%mesh%hgrids(1),dpbox%mesh%hgrids(2),dpbox%mesh%hgrids(3), &
                 & dpbox%mesh%ndims(1), dpbox%mesh%ndims(2),dpbox%mesh%ndims(3), &
                 & dpbox%i3s,dpbox%n3d,chgat,rhocore)

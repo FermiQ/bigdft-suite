@@ -13,6 +13,7 @@ subroutine preconditionall(orbs,lr,hx,hy,hz,ncong,hpsi,gnrm,gnrm_zero)
   use module_base
   use module_types
   use locregs
+  use box, only: cell_geocode
   implicit none
   integer, intent(in) :: ncong
   real(gp), intent(in) :: hx,hy,hz
@@ -88,11 +89,14 @@ subroutine preconditionall(orbs,lr,hx,hy,hz,ncong,hpsi,gnrm,gnrm_zero)
 
        if (scpr /= 0.0_wp) then
 
-          call cprecr_from_eval(lr%geocode,eval_zero,orbs%eval(orbs%isorb+iorb),cprecr)          
+!!$          call cprecr_from_eval(lr%geocode,eval_zero,orbs%eval(orbs%isorb+iorb),cprecr)          
+          call cprecr_from_eval(lr%mesh_coarse,eval_zero,orbs%eval(orbs%isorb+iorb),cprecr)          
            !cases with no CG iterations, diagonal preconditioning
            !for Free BC it is incorporated in the standard procedure
-           if (ncong == 0 .and. lr%geocode /= 'F') then
-              select case(lr%geocode)
+!!$           if (ncong == 0 .and. lr%geocode /= 'F') then
+           if (ncong == 0 .and. cell_geocode(lr%mesh_coarse) /= 'F') then
+!!$              select case(lr%geocode)
+              select case(cell_geocode(lr%mesh_coarse))
               case('F')
               case('S')
                  call prec_fft_slab(lr%d%n1,lr%d%n2,lr%d%n3, &
@@ -104,6 +108,9 @@ subroutine preconditionall(orbs,lr,hx,hy,hz,ncong,hpsi,gnrm,gnrm_zero)
                       lr%wfd%nseg_c,lr%wfd%nvctr_c,lr%wfd%nseg_f,lr%wfd%nvctr_f,&
                       lr%wfd%keygloc,lr%wfd%keyvloc, &
                       cprecr,hx,hy,hz,hpsi(1,inds,iorb))
+              case('W')
+                 call f_err_throw("Wires bc has to be implemented here", &
+                      err_name='BIGDFT_RUNTIME_ERROR')
               end select
 
            else !normal preconditioner
@@ -207,6 +214,7 @@ subroutine preconditionall2(iproc,nproc,orbs,Lzd,hx,hy,hz,ncong,npsidim,hpsi,con
   use yaml_output
   use locregs
   use locreg_operations
+  use box, only: cell_geocode
   implicit none
   integer, intent(in) :: iproc,nproc,ncong,npsidim
   real(gp), intent(in) :: hx,hy,hz
@@ -339,11 +347,14 @@ subroutine preconditionall2(iproc,nproc,orbs,Lzd,hx,hy,hz,ncong,npsidim,hpsi,con
 
         
        if (scpr /= 0.0_wp) then
-          call cprecr_from_eval(Lzd%Llr(ilr)%geocode,eval_zero,orbs%eval(orbs%isorb+iorb),cprecr)
+!!$          call cprecr_from_eval(Lzd%Llr(ilr)%geocode,eval_zero,orbs%eval(orbs%isorb+iorb),cprecr)
+          call cprecr_from_eval(Lzd%Llr(ilr)%mesh_coarse,eval_zero,orbs%eval(orbs%isorb+iorb),cprecr)
            !cases with no CG iterations, diagonal preconditioning
            !for Free BC it is incorporated in the standard procedure
-           if (ncong == 0 .and. Lzd%Llr(ilr)%geocode /= 'F') then
-              select case(Lzd%Llr(ilr)%geocode)
+!!$           if (ncong == 0 .and. Lzd%Llr(ilr)%geocode /= 'F') then
+           if (ncong == 0 .and. cell_geocode(Lzd%Llr(ilr)%mesh_coarse) /= 'F') then
+!!$              select case(Lzd%Llr(ilr)%geocode)
+              select case(cell_geocode(Lzd%Llr(ilr)%mesh_coarse))
               case('F')
               case('S')
                  call prec_fft_slab(Lzd%Llr(ilr)%d%n1,Lzd%Llr(ilr)%d%n2,Lzd%Llr(ilr)%d%n3, &
@@ -356,6 +367,9 @@ subroutine preconditionall2(iproc,nproc,orbs,Lzd,hx,hy,hz,ncong,npsidim,hpsi,con
                       Lzd%Llr(ilr)%wfd%nseg_f,Lzd%Llr(ilr)%wfd%nvctr_f,&
                       Lzd%Llr(ilr)%wfd%keygloc,Lzd%Llr(ilr)%wfd%keyvloc, &
                       cprecr,hx,hy,hz,hpsi(1+ist))
+              case('W')
+                 call f_err_throw("Wires bc has to be implemented here", &
+                      err_name='BIGDFT_RUNTIME_ERROR')
               end select
 
            else !normal preconditioner
@@ -376,7 +390,8 @@ subroutine preconditionall2(iproc,nproc,orbs,Lzd,hx,hy,hz,ncong,npsidim,hpsi,con
                  end if
                  ! When preconditioning the support functions, take as eigenvalue -0.5, as the Kohn-Sham
                  ! eigenvalues do not really have a meaning for the support functions
-                 call cprecr_from_eval(Lzd%Llr(ilr)%geocode,eval_zero,-0.5d0,cprecr)
+!!$                 call cprecr_from_eval(Lzd%Llr(ilr)%geocode,eval_zero,-0.5d0,cprecr)
+                 call cprecr_from_eval(Lzd%Llr(ilr)%mesh_coarse,eval_zero,-0.5d0,cprecr)
                  call solvePrecondEquation(iproc,nproc,Lzd%Llr(ilr),ncplx,ncong,&
                       cprecr,&
                       hx,hy,hz,kx,ky,kz,hpsi(1+ist),&
@@ -448,21 +463,29 @@ subroutine preconditionall2(iproc,nproc,orbs,Lzd,hx,hy,hz,ncong,npsidim,hpsi,con
 END SUBROUTINE preconditionall2
 
 ! > This function has been created also for the GPU-ported routines
-subroutine cprecr_from_eval(geocode,eval_zero,eval,cprecr)
+subroutine cprecr_from_eval(mesh,eval_zero,eval,cprecr)
   use module_base
+  use box, only: cell,cell_geocode
   implicit none
-  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+!!$  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+  type(cell), intent(in) :: mesh
   real(gp), intent(in) :: eval,eval_zero
   real(gp), intent(out) :: cprecr
 
-  select case(geocode)
-  case('F')
+!!$  select case(geocode)
+!!$  case('F')
+!!$     cprecr=sqrt(.2d0**2+min(0.d0,eval)**2)
+!!$  case('S')
+!!$     cprecr=sqrt(0.2d0**2+(eval-eval_zero)**2)
+!!$  case('P')
+!!$     cprecr=sqrt(0.2d0**2+(eval-eval_zero)**2)
+!!$  end select
+
+  if (cell_geocode(mesh) == 'F') then
      cprecr=sqrt(.2d0**2+min(0.d0,eval)**2)
-  case('S')
+  else
      cprecr=sqrt(0.2d0**2+(eval-eval_zero)**2)
-  case('P')
-     cprecr=sqrt(0.2d0**2+(eval-eval_zero)**2)
-  end select
+  end if
 
 END SUBROUTINE cprecr_from_eval
 
@@ -493,7 +516,8 @@ subroutine precondition_residue(lr,ncplx,ncong,cprecr,&
   r = f_malloc(ncplx*(lr%wfd%nvctr_c+7*lr%wfd%nvctr_f),id='r')
   d = f_malloc(ncplx*(lr%wfd%nvctr_c+7*lr%wfd%nvctr_f),id='d')
 
-  call allocate_work_arrays(lr%geocode,lr%hybrid_on,ncplx,lr%d,w)
+!!$  call allocate_work_arrays(lr%geocode,lr%hybrid_on,ncplx,lr%d,w)
+  call allocate_work_arrays(lr%mesh,lr%hybrid_on,ncplx,lr%d,w)
 
   call precondition_preconditioner(lr,ncplx,hx,hy,hz,scal,cprecr,w,x,b)
 
@@ -505,7 +529,8 @@ subroutine precondition_residue(lr,ncplx,ncong,cprecr,&
   !this operation should be rewritten in a better way
   r=b-d ! r=b-Ax
 
-  call calculate_rmr_new(lr%geocode,lr%hybrid_on,ncplx,lr%wfd,scal,r,d,rmr_new)
+!!$  call calculate_rmr_new(lr%geocode,lr%hybrid_on,ncplx,lr%wfd,scal,r,d,rmr_new)
+  call calculate_rmr_new(lr%mesh,lr%hybrid_on,ncplx,lr%wfd,scal,r,d,rmr_new)
   !stands for
   !d=r
   !rmr_new=dot_product(r,r)
@@ -526,7 +551,8 @@ subroutine precondition_residue(lr,ncplx,ncong,cprecr,&
 
      rmr_old=rmr_new
 
-     call calculate_rmr_new(lr%geocode,lr%hybrid_on,ncplx,lr%wfd,scal,r,b,rmr_new)
+!!$     call calculate_rmr_new(lr%geocode,lr%hybrid_on,ncplx,lr%wfd,scal,r,b,rmr_new)
+     call calculate_rmr_new(lr%mesh,lr%hybrid_on,ncplx,lr%wfd,scal,r,b,rmr_new)
 
      beta=rmr_new/rmr_old
 !print *,'beta.icong',icong,beta
@@ -534,7 +560,8 @@ subroutine precondition_residue(lr,ncplx,ncong,cprecr,&
     
   enddo
 
-  call finalise_precond_residue(lr%geocode,lr%hybrid_on,ncplx,lr%wfd,scal,x)
+!!$  call finalise_precond_residue(lr%geocode,lr%hybrid_on,ncplx,lr%wfd,scal,x)
+  call finalise_precond_residue(lr%mesh,lr%hybrid_on,ncplx,lr%wfd,scal,x)
 
   !write(*,*)'debug2',dot(ncplx*(lr%wfd%nvctr_c+7*lr%wfd%nvctr_f),x(1),1,x(1),1)
 
@@ -543,17 +570,20 @@ subroutine precondition_residue(lr,ncplx,ncong,cprecr,&
   call f_free(r)
   call f_free(d)
 
-  call deallocate_work_arrays(lr%geocode,lr%hybrid_on,ncplx,w)
+!!$  call deallocate_work_arrays(lr%geocode,lr%hybrid_on,ncplx,w)
+  call deallocate_work_arrays(lr%mesh,lr%hybrid_on,ncplx,w)
 
 END SUBROUTINE precondition_residue
 
 
-subroutine finalise_precond_residue(geocode,hybrid_on,ncplx,wfd,scal,x)
+subroutine finalise_precond_residue(mesh,hybrid_on,ncplx,wfd,scal,x)
   use module_base
   use module_types
   use compression
+  use box, only: cell,cell_geocode
   implicit none
-  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+!!$  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+  type(cell), intent(in) :: mesh
   logical, intent(in) :: hybrid_on
   integer, intent(in) :: ncplx
   type(wavefunctions_descriptors), intent(in) :: wfd
@@ -564,11 +594,14 @@ subroutine finalise_precond_residue(geocode,hybrid_on,ncplx,wfd,scal,x)
 
   call f_routine(id='finalise_precond_residue')
 
-  if (geocode == 'F') then
+!!$  if (geocode == 'F') then
+  if (cell_geocode(mesh) == 'F') then
      do idx=1,ncplx
         call wscalv_wrap(wfd%nvctr_c,wfd%nvctr_f,scal,x(1,idx))
      end do
-  else if ((geocode == 'P' .and. .not. hybrid_on) .or. geocode == 'S') then
+!!$  else if ((geocode == 'P' .and. .not. hybrid_on) .or. geocode == 'S') then
+  else if ((cell_geocode(mesh) == 'P' .and. .not. hybrid_on) .or. cell_geocode(mesh) == 'S' &
+             .or. cell_geocode(mesh) == 'W' ) then
      do idx=1,ncplx
         ! x=D^{-1/2}x'
         call wscal_per_self(wfd%nvctr_c,wfd%nvctr_f,scal,x(1,idx),&
@@ -584,12 +617,14 @@ subroutine finalise_precond_residue(geocode,hybrid_on,ncplx,wfd,scal,x)
 END SUBROUTINE finalise_precond_residue
 
 
-subroutine calculate_rmr_new(geocode,hybrid_on,ncplx,wfd,scal,r,b,rmr_new)
+subroutine calculate_rmr_new(mesh,hybrid_on,ncplx,wfd,scal,r,b,rmr_new)
   use module_base
   use module_types
   use compression
+  use box, only: cell,cell_geocode
   implicit none
-  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+!!$  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+  type(cell), intent(in) :: mesh
   logical, intent(in) :: hybrid_on
   integer, intent(in) :: ncplx
   type(wavefunctions_descriptors), intent(in) :: wfd
@@ -603,8 +638,11 @@ subroutine calculate_rmr_new(geocode,hybrid_on,ncplx,wfd,scal,r,b,rmr_new)
 
   call f_routine(id='calculate_rmr_new')
 
-  noscal = ((geocode == 'P' .and. .not. hybrid_on) .or. &
-       geocode == 'F' .or. geocode == 'S')
+!!$  noscal = ((geocode == 'P' .and. .not. hybrid_on) .or. &
+!!$      geocode == 'F' .or. geocode == 'S')
+  noscal = ((cell_geocode(mesh) == 'P' .and. .not. hybrid_on) .or. &
+       cell_geocode(mesh) == 'F' .or. cell_geocode(mesh) == 'S'.or. &
+               cell_geocode(mesh) == 'W' )
 
   if (noscal) then
      call vcopy(ncplx*(wfd%nvctr_c+7*wfd%nvctr_f),r(1,1),1,b(1,1),1) 
@@ -627,6 +665,7 @@ subroutine precondition_preconditioner(lr,ncplx,hx,hy,hz,scal,cprecr,w,x,b)
   use module_base
   use locregs
   use locreg_operations
+  use box, only: cell_geocode
   implicit none
   integer, intent(in) :: ncplx
   real(gp), intent(in) :: hx,hy,hz,cprecr
@@ -646,7 +685,8 @@ subroutine precondition_preconditioner(lr,ncplx,hx,hy,hz,scal,cprecr,w,x,b)
 
   call f_routine(id='precondition_preconditioner')
     
-  if (lr%geocode == 'F') then
+!!$  if (lr%geocode == 'F') then
+  if (cell_geocode(lr%mesh) == 'F') then
      !using hx instead of hgrid for isolated bc
      fac_h=1.0_wp/real(hx,wp)**2
      h0=    1.5_wp*a2*fac_h
@@ -694,7 +734,8 @@ subroutine precondition_preconditioner(lr,ncplx,hx,hy,hz,scal,cprecr,w,x,b)
      call f_zero(w%ypsig_c)
      call f_zero(w%ypsig_f)
 
-  else if (lr%geocode == 'P') then
+!!$  else if (lr%geocode == 'P') then
+  else if (cell_geocode(lr%mesh) == 'P') then
 
      call dimensions_fft(lr%d%n1,lr%d%n2,lr%d%n3,&
           nd1,nd2,nd3,n1f,n3f,n1b,n3b,nd1f,nd3f,nd1b,nd3b)
@@ -746,7 +787,8 @@ subroutine precondition_preconditioner(lr,ncplx,hx,hy,hz,scal,cprecr,w,x,b)
      end if
 
 
-  else if (lr%geocode == 'S') then
+!!$  else if (lr%geocode == 'S') then
+  else if (cell_geocode(lr%mesh) == 'S') then
 
      if (ncplx == 1) then
         call prepare_sdc_slab(lr%d%n1,lr%d%n3,w%modul1,w%modul3,&
@@ -781,6 +823,9 @@ subroutine precondition_preconditioner(lr,ncplx,hx,hy,hz,scal,cprecr,w,x,b)
         
      end do
 
+  else if (cell_geocode(lr%mesh) == 'W') then
+        call f_err_throw("Wires bc has to be implemented here", &
+             err_name='BIGDFT_RUNTIME_ERROR')
   end if
 
   call f_release_routine()
@@ -793,6 +838,7 @@ subroutine precond_locham(ncplx,lr,hx,hy,hz,kx,ky,kz,&
   use module_base
   use locregs
   use locreg_operations
+  use box, only: cell_geocode
   implicit none
   integer, intent(in) :: ncplx
   real(gp), intent(in) :: hx,hy,hz,cprecr,kx,ky,kz
@@ -808,7 +854,8 @@ subroutine precond_locham(ncplx,lr,hx,hy,hz,kx,ky,kz,&
   isegf=lr%wfd%nseg_c+min(1,lr%wfd%nseg_f)
   ipsif=lr%wfd%nvctr_c+min(1,lr%wfd%nvctr_f)
 
-  if (lr%geocode == 'F') then
+!!$  if (lr%geocode == 'F') then
+  if (cell_geocode(lr%mesh) == 'F') then
      do idx=1,ncplx
 
         if (sseprecond) then
@@ -848,7 +895,8 @@ subroutine precond_locham(ncplx,lr,hx,hy,hz,kx,ky,kz,&
                 w%x_f1,w%x_f2,w%x_f3)
         end if
      end do
-  else if (lr%geocode == 'P') then
+!!$  else if (lr%geocode == 'P') then
+  else if (cell_geocode(lr%mesh) == 'P') then
      if (lr%hybrid_on) then
 
         nf=(lr%d%nfu1-lr%d%nfl1+1)*(lr%d%nfu2-lr%d%nfl2+1)*(lr%d%nfu3-lr%d%nfl3+1)
@@ -876,7 +924,8 @@ subroutine precond_locham(ncplx,lr,hx,hy,hz,kx,ky,kz,&
                 cprecr,hx,hy,hz,kx,ky,kz,x,y,w%psifscf,w%ww,scal) 
         end if
      end if
-  else if (lr%geocode == 'S') then
+!!$  else if (lr%geocode == 'S') then
+  else if (cell_geocode(lr%mesh) == 'S') then
      if (ncplx == 1) then
         call apply_hp_slab_sd_scal(lr%d%n1,lr%d%n2,lr%d%n3,&
              lr%wfd%nseg_c,lr%wfd%nvctr_c,lr%wfd%nseg_f,&
@@ -890,6 +939,11 @@ subroutine precond_locham(ncplx,lr,hx,hy,hz,kx,ky,kz,&
              cprecr,hx,hy,hz,kx,ky,kz,x,y,w%psifscf,w%ww,scal) 
 
      end if
+
+  else if (cell_geocode(lr%mesh) == 'W') then
+        call f_err_throw("Wires bc has to be implemented here", &
+             err_name='BIGDFT_RUNTIME_ERROR')
+
    end if
 END SUBROUTINE precond_locham
 

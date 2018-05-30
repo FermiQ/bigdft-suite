@@ -793,6 +793,7 @@ END SUBROUTINE psi_from_gaussians
 subroutine plot_wf_sandbox(orbname,nexpo,at,lr,hxh,hyh,hzh,rxyz,psi,comment)
   use module_base
   use module_types
+  use box, only: cell_geocode
   implicit none
   character(len=10) :: comment
   character(len=*) :: orbname
@@ -844,7 +845,8 @@ subroutine plot_wf_sandbox(orbname,nexpo,at,lr,hxh,hyh,hzh,rxyz,psi,comment)
  
   psir = f_malloc((/ -nl1.to.2*n1+1+nu1, -nl2.to.2*n2+1+nu2, -nl3.to.2*n3+1+nu3 /),id='psir')
   !initialisation
-  if (lr%geocode == 'F') then
+!!$  if (lr%geocode == 'F') then
+  if (cell_geocode(lr%mesh) == 'F') then
      call f_zero(psir)
   end if
  

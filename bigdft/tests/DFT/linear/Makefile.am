@@ -163,7 +163,7 @@ linearcubic_linear.out.post-out:
 	rm -rf data-cubic
 	mv data-linear data-cubic
 
-multipoles_waterQMQM.out.out: multipoles_waterQM.out.out
+multipoles_waterQMQM.out.pre-in: multipoles_waterQM.out.out
 
 multipoles_waterQM.out.post-out:
 	python prepare_QMQM.py

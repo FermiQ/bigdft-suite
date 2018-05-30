@@ -992,7 +992,8 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
                  if (rr1(1) < 1e-6_dp) then
                     tt = -at%nelpsp(atit%ityp) / sqrt(2._dp * pi) / at%psppar(0,0,atit%ityp) * 2._dp
                  else
-                    call abi_derf_ab(tt, rr1(1) / sqrt(2._dp) / at%psppar(0,0,atit%ityp))
+                    !call abi_derf_ab(tt, rr1(1) / sqrt(2._dp) / at%psppar(0,0,atit%ityp))
+                    tt = safe_erf(rr1(1) / sqrt(2._dp) / at%psppar(0,0,atit%ityp))
                     tt = -at%nelpsp(atit%ityp) * tt / rr1(1)
                  end if
                  pot_add(dpbox%bitp%ind) = pot_add(dpbox%bitp%ind) + raux1(1) - tt
@@ -2188,10 +2189,11 @@ subroutine CounterIonPotential(iproc,in,shift,dpbox,pkernel,npot_ion,pot_ion)
   use multipole_preserving
   use module_atoms
   use module_dpbox
-  use multipole, only: gaussian_density
+!!$  use multipole, only: gaussian_density
   use bounds, only: ext_buffers
   use pseudopotentials, only: psp_dict_fill_all
   use box, only: cell_periodic_dims
+  use gaussians
   implicit none
   !Arguments
   integer, intent(in) :: iproc, npot_ion
@@ -2223,6 +2225,7 @@ subroutine CounterIonPotential(iproc,in,shift,dpbox,pkernel,npot_ion,pot_ion)
   !  real(gp), dimension(:,:), allocatable :: radii_cf
   type(atoms_iterator) :: atit
   type(dpbox_iterator) :: boxit
+  type(gaussian_real_space) :: g
 
 
   call timing(iproc,'CrtLocPot     ','ON')
@@ -2334,9 +2337,12 @@ subroutine CounterIonPotential(iproc,in,shift,dpbox,pkernel,npot_ion,pot_ion)
 
         ! SM: COPY FROM HERE... #############################################################
 
-        call gaussian_density(perx, pery, perz, n1i, n2i, n3i, nbl1, nbl2, nbl3, i3s, n3pi, hxh, hyh, hzh, rx, ry, rz, &
-             at%psppar(0,0,atit%ityp), at%nelpsp(atit%ityp), at%multipole_preserving, use_iterator, at%mp_isf, &
-             dpbox, nmpx, nmpy, nmpz, mpx, mpy, mpz, npot_ion, pot_ion, rholeaked)
+!!$        call gaussian_density(perx, pery, perz, n1i, n2i, n3i, nbl1, nbl2, nbl3, i3s, n3pi, hxh, hyh, hzh, rx, ry, rz, &
+!!$             at%psppar(0,0,atit%ityp), at%nelpsp(atit%ityp), at%multipole_preserving, use_iterator, at%mp_isf, &
+!!$             dpbox, nmpx, nmpy, nmpz, mpx, mpy, mpz, npot_ion, pot_ion, rholeaked)
+
+        call atomic_charge_density(g,at,atit)
+        call three_dimensional_density(dpbox%bitp,g,-1.0_dp,[rx,ry,rz],pot_ion)
 
 !!!!!-        rloc=at%psppar(0,0,ityp)
 !!!!!-        charge=real(at%nelpsp(ityp),gp)/(2.0_gp*pi*sqrt(2.0_gp*pi)*rloc**3)

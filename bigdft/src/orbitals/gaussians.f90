@@ -88,6 +88,7 @@ module gaussians
   public :: gaussian_iter_start, gaussian_iter_next_shell, gaussian_iter_next_gaussian,three_dimensional_density
   public :: gaussian_iter_to_wavelets_separable, gaussian_iter_to_wavelets_collocation
   public :: gaussian_real_space_set,gaussian_radial_value,set_box_around_gaussian
+  public :: spherical_times_gaussian
 
   type, public :: ylm_coefficients
      integer :: n, l, m
@@ -104,23 +105,12 @@ contains
   pure subroutine nullify_gaussian_real_space(g)
     implicit none
     type(gaussian_real_space), intent(out) :: g
-    g%discretization_method=RADIAL_COLLOCATION
-    g%mp_isf=0
-    g%nterms=0
-    g%factors=0.0_gp
-    g%lxyz=0
-    g%pows=0
-    g%rxyz=0.0_gp
-    g%exponent=0.0_gp
-    g%sigma=0.0_gp
-    g%cutoff=0.0_gp
-    nullify(g%mpx,g%mpy,g%mpz)
   end subroutine nullify_gaussian_real_space
 
 
   !here the different treatment of the gaussian for multipole preserving can be triggered
   !pure
-  function gaussian_radial_value(g,rxyz,bit) result(f)
+  function gaussian_radial_value(g,rxyz,bit,ider) result(f)
     use numerics
     use box
     use multipole_preserving
@@ -128,32 +118,72 @@ contains
     real(gp), dimension(3), intent(in) :: rxyz
     type(gaussian_real_space), intent(in) :: g
     type(box_iterator) :: bit
+    integer, intent(in), optional :: ider
     real(gp) :: f
     !local variables
     logical :: domp
-    integer :: i
-    real(gp) :: tt,r2,r,val
+    integer :: i,ider_,pow
+    real(gp) :: tt,tt0,tt1,r2,r,val,fe
     real(gp), dimension(3) :: vect, rclosest
     integer, dimension(3) :: itmp
+
+    ider_=0 !first derivative wrt r2, works only with g%pows
+    if (present(ider)) ider_=ider
 
     select case(g%discretization_method)
     case(RADIAL_COLLOCATION)
        !r = distance(bit%mesh,bit%rxyz,rxyz)
        !r2=g%exponent*r**2
-       bit%tmp=bit%mesh%hgrids*(bit%inext-2)-rxyz-bit%oxyz
-       r2=square_gd(bit%mesh,bit%tmp)*g%exponent
+       !bit%tmp=bit%mesh%hgrids*(bit%inext-2)-rxyz-bit%oxyz
+       bit%tmp=bit%rxyz_nbox-rxyz
+       r2=square_gd(bit%mesh,bit%tmp)
        !bit%tmp=closest_r(bit%mesh,bit%rxyz,rxyz)
        !r2=square_gd(bit%mesh,bit%tmp)*g%exponent
-       f=safe_exp(-r2,underflow=1.e-120_f_double)
+       fe=safe_exp(-r2*g%exponent,underflow=1.e-120_f_double)
+       rclosest = closest_r(bit%mesh,bit%rxyz,rxyz)
+       vect=rxyz_ortho(bit%mesh,rclosest)
        tt=0.0_gp
        do i=1,g%nterms
           !this should be in absolute coordinates
-          rclosest = closest_r(bit%mesh,bit%rxyz,rxyz)
-          vect=rxyz_ortho(bit%mesh,rclosest)
           val=product(vect**g%lxyz(:,i))
           tt=tt+g%factors(i)*val
        end do
-       f=f*tt
+       f=fe*tt
+! Old implementation for a gaussian times a polynomial of r2 (using g%pows).
+!!$       !r = distance(bit%mesh,bit%rxyz,rxyz)
+!!$       !r2=g%exponent*r**2
+!!$       bit%tmp=bit%mesh%hgrids*(bit%inext-2)-rxyz-bit%oxyz
+!!$       r2=square_gd(bit%mesh,bit%tmp)
+!!$       !bit%tmp=closest_r(bit%mesh,bit%rxyz,rxyz)
+!!$       !r2=square_gd(bit%mesh,bit%tmp)*g%exponent
+!!$       fe=safe_exp(-r2*g%exponent,underflow=1.e-120_f_double)
+!!$       rclosest = closest_r(bit%mesh,bit%rxyz,rxyz)
+!!$       vect=rxyz_ortho(bit%mesh,rclosest)
+!!$       ! ATTENTION: Thanks to the Cavity test Giuseppe detected a segmentation fault when g%pows /= 0 and the size of
+!!$       !g%lxyz(:,i). nterms maybe not the same for g%lxyz(:,i) and g%pows.
+!!$       ! The implemented approach does not work for mixed conditions, when both
+!!$       ! g%lxyz(:,i) and g%pows are /= 0 .
+!!$       tt=0.0_gp
+!!$       if (sum(abs(g%pows(:))) == 0) then  
+!!$          do i=1,g%nterms
+!!$             !this should be in absolute coordinates
+!!$             val=product(vect**g%lxyz(:,i))
+!!$             tt=tt+g%factors(i)*val
+!!$          end do
+!!$          f=fe*tt
+!!$       else if (sum(abs(g%pows(:))) /= 0) then
+!!$          tt0=0.0_gp
+!!$          tt1=0.0_gp
+!!$          do i=1,g%nterms
+!!$             !this should be in absolute coordinates
+!!$             tt0=tt0+g%factors(i)*r2**g%pows(i)
+!!$             if (g%pows(i) /= 0) tt1=tt1+g%factors(i)*g%pows(i)*r2**(g%pows(i)-1)
+!!$          end do
+!!$          f=fe*tt0
+!!$          if (ider_ == 1) then
+!!$           f=-g%exponent*f+tt1*fe
+!!$          end if
+!!$       end if
     case(MULTIPOLE_PRESERVING_COLLOCATION)
 !!$       f=0.0_gp
 !!$       domp=g%mp_isf>0
@@ -181,11 +211,47 @@ contains
 !!$       end do
     end select
 
+    if (ider_ == 1) then
+     f=-g%exponent*f
+    end if
+
   end function gaussian_radial_value
+
+  !> Calculate the value of the gaussian described by a sum of spherical harmonics of s-channel with 
+  !! principal quantum number increased with a given exponent.
+  !! the principal quantum numbers admitted are from 1 to 4
+  function spherical_times_gaussian(g,rxyz,bit,rhoc,ider) result(f)
+    use numerics
+    use box
+    use multipole_preserving
+    implicit none
+    type(gaussian_real_space), intent(in) :: g
+    real(gp), dimension(3), intent(in) :: rxyz
+    type(box_iterator) :: bit
+    real(gp), dimension(4), intent(in) :: rhoc
+    integer, intent(in), optional :: ider
+    real(gp) :: f
+    !local variables
+    real(gp) :: r2,fe
+    integer :: ider_
+    
+    ider_=0 ! Trigger the first derivative wrt r2
+    if (present(ider)) ider_=ider
+
+    !bit%tmp = bit%mesh%hgrids*(bit%inext-2)-rxyz-bit%oxyz
+    bit%tmp = bit%rxyz_nbox-rxyz
+    r2 = square_gd(bit%mesh,bit%tmp)
+    fe = gaussian_radial_value(g,rxyz,bit)
+    f = (rhoc(1)+r2*rhoc(2)+r2**2*rhoc(3)+r2**3*rhoc(4))*fe
+    if (ider ==1) then !first derivative with respect to r2
+       f=-g%exponent*f+(rhoc(2)+2.0_gp*r2*rhoc(3)+3.0_gp*r2**2*rhoc(4))*fe
+    end if
+
+  end function spherical_times_gaussian
 
   !>expand a power of the r2 into separable components of x^lx y^ly z^lz
   !!only works for even powers (pow%2 =0)
-  subroutine expand_r2_power(pow,factors,lxyz,nterms)
+  pure subroutine expand_r2_power(pow,factors,lxyz,nterms)
     implicit none
     integer, intent(in) :: pow
     integer, intent(out) :: nterms
@@ -212,7 +278,7 @@ contains
   end subroutine expand_r2_power
 
   !>multiply together separable terms and obtain a polynomial which is the sum of the two
-  subroutine multiply_separable_terms(nA,facA,lxyzA,nB,facB,lxyzB,nC,facC,lxyzC)
+  pure subroutine multiply_separable_terms(nA,facA,lxyzA,nB,facB,lxyzB,nC,facC,lxyzC)
     implicit none
     integer, intent(in) :: nA,nB
     real(gp), dimension(nA), intent(in) :: facA
@@ -236,7 +302,7 @@ contains
   end subroutine multiply_separable_terms
 
 
-  subroutine gaussian_real_space_set(g,sigma,nterms,factors,lxyz,pows,mp_isf_order)
+  pure subroutine gaussian_real_space_set(g,sigma,nterms,factors,lxyz,pows,mp_isf_order)
     implicit none
     integer, intent(in) :: nterms
     integer, intent(in) :: mp_isf_order
@@ -581,6 +647,8 @@ contains
                 grs = ylm_coefficients_to_gaussian(ylm, coeff(1), expo(1), ider, 0)
              end if
           end if
+          !we should modify the offset of the iterator
+          !by also including nsi inside
           oxyz = [cell_r(lr%mesh, lr%nsi1 + 1, 1), &
                & cell_r(lr%mesh, lr%nsi2 + 1, 2), &
                & cell_r(lr%mesh, lr%nsi3 + 1, 3)]
@@ -589,8 +657,9 @@ contains
                & rxyz - oxyz - bit%oxyz, projector_real)
        end do
        call isf_to_daub(lr, w, projector_real, psi(1,1,ylm%m))
+       !print *,'testRS:',sum(projector_real**2),sum(psi(:,:,ylm%m)**2)
     end do
-    !print *,'testRS:',sum(projector_real**2)
+
   end subroutine gaussian_iter_to_wavelets_collocation
   
   !> Nullify the pointers of the structure gaussian_basis

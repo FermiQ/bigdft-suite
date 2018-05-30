@@ -317,7 +317,8 @@ subroutine preconditionall_GPU(orbs,lr,hx,hy,hz,ncong,hpsi,gnrm,gnrm_zero,GPU) !
 
   ncplx=1
   
-  call allocate_work_arrays(lr%geocode,lr%hybrid_on,ncplx,lr%d,w)
+!!$  call allocate_work_arrays(lr%geocode,lr%hybrid_on,ncplx,lr%d,w)
+  call allocate_work_arrays(lr%mesh,lr%hybrid_on,ncplx,lr%d,w)
  
   !arrays for the CG procedure
   b = f_malloc((/ ncplx*(lr%wfd%nvctr_c+7*lr%wfd%nvctr_f), orbs%norbp /),id='b')
@@ -351,7 +352,8 @@ subroutine preconditionall_GPU(orbs,lr,hx,hy,hz,ncong,hpsi,gnrm,gnrm_zero,GPU) !
            gnrm=gnrm+orbs%kwgts(orbs%iokpt(iorb))*scpr**2
         end if
 
-        call cprecr_from_eval(lr%geocode,eval_zero,orbs%eval(orbs%isorb+iorb),cprecr)          
+!!$        call cprecr_from_eval(lr%geocode,eval_zero,orbs%eval(orbs%isorb+iorb),cprecr)          
+        call cprecr_from_eval(lr%mesh_coarse,eval_zero,orbs%eval(orbs%isorb+iorb),cprecr)          
 
         call precondition_preconditioner(lr,ncplx,hx,hy,hz,scal,cprecr,w,&
              hpsi(1,inds,iorb),b(1,iorb))
@@ -392,7 +394,8 @@ subroutine preconditionall_GPU(orbs,lr,hx,hy,hz,ncong,hpsi,gnrm,gnrm_zero,GPU) !
 
   call f_free(b)
 
-  call deallocate_work_arrays(lr%geocode,lr%hybrid_on,ncplx,w)
+!!$  call deallocate_work_arrays(lr%geocode,lr%hybrid_on,ncplx,w)
+  call deallocate_work_arrays(lr%mesh,lr%hybrid_on,ncplx,w)
 
 END SUBROUTINE preconditionall_GPU
 

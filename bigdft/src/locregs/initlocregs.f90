@@ -777,6 +777,7 @@ subroutine determine_wfdSphere(ilr,nlr,Glr,hx,hy,hz,Llr)!,outofzone)
 
   use module_base
   use locregs, only: allocate_wfd,locreg_descriptors
+  use box, only: cell_periodic_dims
   implicit none
 
   ! Subroutine Scalar Arguments
@@ -795,13 +796,19 @@ subroutine determine_wfdSphere(ilr,nlr,Glr,hx,hy,hz,Llr)!,outofzone)
   !!  integer :: nseg_c,nseg_f,nvctr_c,nvctr_f      ! total number of sgements and elements
   integer, allocatable :: keygloc_tmp(:,:)
   logical :: perx, pery, perz
+  logical, dimension(3) :: peri
 
   call f_routine(id=subname)
 
   ! periodicity in the three directions
-  perx=(glr%geocode /= 'F')
-  pery=(glr%geocode == 'P')
-  perz=(glr%geocode /= 'F')
+!!$  perx=(glr%geocode /= 'F')
+!!$  pery=(glr%geocode == 'P')
+!!$  perz=(glr%geocode /= 'F')
+
+  peri=cell_periodic_dims(glr%mesh)
+  perx=peri(1)
+  pery=peri(2)
+  perz=peri(3)
 
   !starting point of locreg (can be outside the simulation box)
   isdir(1) = Llr(ilr)%ns1
@@ -1679,6 +1686,7 @@ subroutine fill_logrid(geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,nbuf,nat,  &
 !  logical, dimension(0:n1,0:n2,0:n3) :: logrid_tmp
   type(cell) :: mesh
   type(box_iterator) :: bit
+  !logical, dimension(0:n1,0:n2,0:n3) :: logrid_tmp
 
   call f_routine(id='fill_logrid')
 
@@ -1736,6 +1744,7 @@ subroutine fill_logrid(geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,nbuf,nat,  &
            do i2=0,n2 
               do i1=0,n1
                  logrid(i1,i2,i3)=.false.
+                 !logrid_tmp(i1,i2,i3)=.false.
               enddo
            enddo
         enddo
@@ -1795,7 +1804,6 @@ subroutine fill_logrid(geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,nbuf,nat,  &
 !!$     !print *,'limitold',ml3,mu3,i3s,i3e
 !!$     !print *,'limitnew',nbox(:,3)
 !!$
-
 
      bit=box_iter(mesh,nbox=nbox+1) !add here a plus one for the convention of ndims
 

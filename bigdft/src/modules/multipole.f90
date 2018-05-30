@@ -11,10 +11,10 @@ module multipole
   public :: interaction_multipoles_ions
   public :: potential_from_charge_multipoles
   public :: ionic_energy_of_external_charges
-  public :: gaussian_density
+!!$  public :: gaussian_density
   public :: support_function_gross_multipoles
   public :: calculate_dipole_moment
-  public :: calculate_rpowerx_matrices
+!!$  public :: calculate_rpowerx_matrices
   public :: multipole_analysis_driver_new
   public :: init_extract_matrix_lookup
   public :: extract_matrix
@@ -26,13 +26,16 @@ module multipole
 
     !> Calculate the interaction between the ions and the external multipoles.
     !! At the moment only the monopoles are taken into account.
-    subroutine interaction_multipoles_ions(iproc, ep, at, eion, fion)
-      use module_types, only: atoms_data
+    !! this routine will need rewriting with the help of f_multipoles structure
+    subroutine interaction_multipoles_ions(iproc, mesh, ep, at, eion, fion)
+      use module_atoms
       use yaml_output, only: yaml_map
+      use box, only: cell,closest_r,rxyz_ortho,square_gd
       implicit none
 
       ! Calling arguments
       integer,intent(in) :: iproc
+      type(cell), intent(in) :: mesh
       type(external_potential_descriptors),intent(in) :: ep
       type(atoms_data),intent(in) :: at
       real(gp),intent(inout) :: eion
@@ -40,7 +43,9 @@ module multipole
 
       ! Local variables
       integer :: iat, ityp, impl
-      real(gp) :: r, charge, emp, qq
+      real(gp) :: r, r2, charge, emp, qq
+      real(gp), dimension(3) :: rc,dr
+      type(atoms_iterator) :: atit
 
       !write(*,*) 'WARNING DEBUG HERE!!!!!!!!!!!!!!!!!!!!!!!!!'
       !return
@@ -48,37 +53,46 @@ module multipole
       call f_routine(id='interaction_multipoles_ions')
 
       emp = 0.0_gp
-      do iat=1,at%astruct%nat
-          ityp=at%astruct%iatype(iat)
-          do impl=1,ep%nmpl
-              r = sqrt((at%astruct%rxyz(1,iat)-ep%mpl(impl)%rxyz(1))**2 + &
-                       (at%astruct%rxyz(2,iat)-ep%mpl(impl)%rxyz(2))**2 + &
-                       (at%astruct%rxyz(3,iat)-ep%mpl(impl)%rxyz(3))**2)
-              if (associated(ep%mpl(impl)%qlm(0)%q)) then
-                  ! For the multipoles, a positive value corresponds to a
-                  ! negative charge! Therefore multiply by -1
-                  if (ep%mpl(impl)%mpchar=='G') then
-                      ! Gross value, subtract core countercharge
-                      qq = -1.0_gp*ep%mpl(impl)%qlm(0)%q(1) - real(ep%mpl(impl)%nzion,kind=gp)
-                  else if (ep%mpl(impl)%mpchar=='N') then
-                      ! Net value, take as is
-                      qq = -1.0_gp*ep%mpl(impl)%qlm(0)%q(1)
-                  end if
-                  charge = real(at%nelpsp(ityp),gp)*qq
-                  emp = emp + charge/r
-                  fion(1,iat) = fion(1,iat) + charge/(r**3)*(at%astruct%rxyz(1,iat)-ep%mpl(impl)%rxyz(1))
-                  fion(2,iat) = fion(2,iat) + charge/(r**3)*(at%astruct%rxyz(2,iat)-ep%mpl(impl)%rxyz(2))
-                  fion(3,iat) = fion(3,iat) + charge/(r**3)*(at%astruct%rxyz(3,iat)-ep%mpl(impl)%rxyz(3))
-              end if
-          end do
+      atit=atoms_iter(at%astruct)
+      do while(atoms_iter_next(atit))
+!!$
+!!$      do iat=1,at%astruct%nat
+         ityp=atit%ityp!at%astruct%iatype(iat)
+         do impl=1,ep%nmpl
+            rc=atit%rxyz-ep%mpl(impl)%rxyz
+            dr = rxyz_ortho(mesh,rc)
+            r2 = square_gd(mesh,rc)
+            r = sqrt(r2)
+!!$             r = sqrt((at%astruct%rxyz(1,iat)-ep%mpl(impl)%rxyz(1))**2 + &
+!!$                  (at%astruct%rxyz(2,iat)-ep%mpl(impl)%rxyz(2))**2 + &
+!!$                  (at%astruct%rxyz(3,iat)-ep%mpl(impl)%rxyz(3))**2)
+            if (associated(ep%mpl(impl)%qlm(0)%q)) then
+               ! For the multipoles, a positive value corresponds to a
+               ! negative charge! Therefore multiply by -1
+               if (ep%mpl(impl)%mpchar=='G') then
+                  ! Gross value, subtract core countercharge
+                  qq = -1.0_gp*ep%mpl(impl)%qlm(0)%q(1) - real(ep%mpl(impl)%nzion,kind=gp)
+               else if (ep%mpl(impl)%mpchar=='N') then
+                  ! Net value, take as is
+                  qq = -1.0_gp*ep%mpl(impl)%qlm(0)%q(1)
+               end if
+               charge = real(at%nelpsp(ityp),gp)*qq
+               emp = emp + charge/r
+!!$                  fion(1,iat) = fion(1,iat) + charge/(r**3)*(at%astruct%rxyz(1,iat)-ep%mpl(impl)%rxyz(1))
+!!$                  fion(2,iat) = fion(2,iat) + charge/(r**3)*(at%astruct%rxyz(2,iat)-ep%mpl(impl)%rxyz(2))
+!!$                  fion(3,iat) = fion(3,iat) + charge/(r**3)*(at%astruct%rxyz(3,iat)-ep%mpl(impl)%rxyz(3))
+               !we should here probably use the gd metric
+               fion(1,atit%iat) = fion(1,atit%iat) + charge/(r**3)*(rc(1))
+               fion(2,atit%iat) = fion(2,atit%iat) + charge/(r**3)*(rc(2))
+               fion(3,atit%iat) = fion(3,atit%iat) + charge/(r**3)*(rc(3))
+            end if
+         end do
       end do
 
-
       if (iproc==0) then
-          call yaml_map('Interaction energy ions multipoles',emp)
+         call yaml_map('Interaction energy ions multipoles',emp)
       end if
       eion = eion + emp
-
 
       call f_release_routine()
 
@@ -87,20 +101,23 @@ module multipole
 
     !> Calculate the interaction between the external multipoles.
     !! At the moment only the monopoles are taken into account.
-    subroutine ionic_energy_of_external_charges(iproc, ep, at, eion)
+    subroutine ionic_energy_of_external_charges(iproc, mesh, ep, at, eion)
       use module_types, only: atoms_data
       use yaml_output, only: yaml_map
+      use box, only: cell,closest_r,rxyz_ortho,square_gd
       implicit none
 
       ! Calling arguments
       integer,intent(in) :: iproc
+      type(cell), intent(in) :: mesh
       type(external_potential_descriptors),intent(in) :: ep
       type(atoms_data),intent(in) :: at
       real(gp),intent(inout) :: eion
 
       ! Local variables
       integer :: impl, jmpl
-      real(gp) :: r, charge, emp, qqi, qqj
+      real(gp) :: r, r2, charge, emp, qqi, qqj
+      real(gp), dimension(3) :: rc
 
       !write(*,*) 'WARNING DEBUG HERE!!!!!!!!!!!!!!!!!!!!!!!!!'
       !return
@@ -130,9 +147,12 @@ module multipole
                           ! Net value, take as is
                           qqj = -1.0_gp*ep%mpl(jmpl)%qlm(0)%q(1)
                       end if
-                      r = sqrt((ep%mpl(impl)%rxyz(1)-ep%mpl(jmpl)%rxyz(1))**2 + &
-                               (ep%mpl(impl)%rxyz(2)-ep%mpl(jmpl)%rxyz(2))**2 + &
-                               (ep%mpl(impl)%rxyz(3)-ep%mpl(jmpl)%rxyz(3))**2)
+                      rc = ep%mpl(impl)%rxyz-ep%mpl(jmpl)%rxyz
+                      r2 = square_gd(mesh,rc)
+                      r = sqrt(r2)
+                      !r = sqrt((ep%mpl(impl)%rxyz(1)-ep%mpl(jmpl)%rxyz(1))**2 + &
+                      !         (ep%mpl(impl)%rxyz(2)-ep%mpl(jmpl)%rxyz(2))**2 + &
+                      !         (ep%mpl(impl)%rxyz(3)-ep%mpl(jmpl)%rxyz(3))**2)
                       charge = qqi*qqj
                       emp = emp + charge/r
                   end if
@@ -151,6 +171,8 @@ module multipole
 
 
     !> Calculate the external potential arising from the multipoles of the charge density
+    !! LG: this routine should nt be written like that. Too many conditional branches connected together.
+    !! Difficult to read, to optimize, to debug and to maintain.
     subroutine potential_from_charge_multipoles(iproc, nproc, at, denspot, ep, &
                is1, ie1, is2, ie2, is3, ie3, hx, hy, hz, shift, &
                verbosity, ixc, lzd, pot, &
@@ -159,11 +181,13 @@ module multipole
       use module_types, only: DFT_local_fields, local_zone_descriptors
       use Poisson_Solver, except_dp => dp
       use module_atoms, only: atoms_data
-      use bounds, only: ext_buffers
+      use bounds, only: ext_buffers,isf_box_buffers
       use yaml_output
       use io, only: plot_density
-      use bounds, only: geocode_buffers
-      use box, only: cell_periodic_dims
+!      use bounds, only: geocode_buffers
+      use box
+      use gaussians
+      use module_atoms, only: atomic_cores_charge_density
       implicit none
 
       ! Calling arguments
@@ -197,12 +221,14 @@ module multipole
       real(8),dimension(:,:),allocatable :: monopole
       real(8),dimension(:,:,:),allocatable :: dipole, quadrupole
       real(8),dimension(:,:),allocatable :: norm, norm_check
+      !real(kind=8),dimension(:,:,:,:,:),allocatable :: gaussian
       real(kind=8),dimension(:,:,:),allocatable :: gaussians1, gaussians2, gaussians3
       integer,dimension(:,:),allocatable :: nonzero_startend1, nonzero_startend2, nonzero_startend3
       logical,dimension(:),allocatable :: norm_ok, skip3_array
       real(kind=8),parameter :: norm_threshold = 1.d-2
       real(kind=8),dimension(0:lmax) :: max_error
-      integer :: ixc_tmp, nzatom, npspcode, ilr, j1s, j1e, j2s, j2e, j3s, j3e, j1, j2, j3
+      integer :: ixc_tmp, nzatom, npspcode, ilr, j1, j2, j3
+      integer :: j1s, j1e, j2s, j2e, j3s, j3e
       integer :: nbl1, nbl2, nbl3, nbr1, nbr2, nbr3, n3pi, i3s, lmax_avail, nl1, nl2, nl3
       integer,dimension(:),allocatable :: nelpsp, psp_source
       real(gp),dimension(0:4,0:6) :: psppar
@@ -210,10 +236,10 @@ module multipole
       logical :: perx, pery, perz
       logical,parameter :: use_iterator = .false.
       real(kind=8) :: cutoff, rholeaked, hxh, hyh, hzh, rx, ry, rz, qq, ttl, sig
-      real(kind=8),dimension(3) :: center
+      real(kind=8),dimension(3) :: center,cen,rc,drxyz
       integer :: n1i, n2i, n3i, itype, ntype
       integer :: nmpx, nmpy, nmpz, ndensity, izion, ioffset, ishift, iat
-      real(dp), dimension(:), allocatable  :: mpx,mpy,mpz
+!!$      real(dp), dimension(:), allocatable  :: mpx,mpy,mpz
       real(kind=8),dimension(:),allocatable :: rmax
       !real(kind=8),parameter :: rmin=3.d-1
       real(kind=8) :: rmin
@@ -221,720 +247,877 @@ module multipole
       integer,dimension(0:lmax) :: error_meaningful
       character(len=20),dimension(0:lmax) :: output_arr
       real(kind=8),dimension(:,:),allocatable :: rxyz_noshift
-      integer,dimension(3) :: ixyz0_
+      integer,dimension(3) :: ixyz0_,nbuf
       character(len=128) :: filename
+      type(gaussian_real_space) :: g
+      type(box_iterator) :: bit
+      integer :: mp_isf
+      real(gp), dimension(1) :: charge
+      integer, dimension(1) :: zero1
+      integer, dimension(3) :: zeros
       !$ integer  :: omp_get_thread_num,omp_get_max_threads
+
+      if (ep%nmpl<=0) return !quick return if possible
 
       call f_routine(id='potential_from_charge_multipoles')
 
       call f_zero(rholeaked)
 
-      ! Conditions for periodicity
-      perx=(at%astruct%geocode /= 'F')
-      pery=(at%astruct%geocode == 'P')
-      perz=(at%astruct%geocode /= 'F')
-      if (perx) then
-          j1s = -1
-          j1e = 1
-      else
-          j1s = 0
-          j1e = 0
+!!$      ! Conditions for periodicity
+!!$      perx=(at%astruct%geocode /= 'F')
+!!$      pery=(at%astruct%geocode == 'P')
+!!$      perz=(at%astruct%geocode /= 'F')
+!!$      if (perx) then
+!!$          j1s = -1
+!!$          j1e = 1
+!!$      else
+!!$          j1s = 0
+!!$          j1e = 0
+!!$      end if
+!!$      if (pery) then
+!!$          j2s = -1
+!!$          j2e = 1
+!!$      else
+!!$          j2s = 0
+!!$          j2e = 0
+!!$      end if
+!!$      if (perz) then
+!!$          j3s = -1
+!!$          j3e = 1
+!!$      else
+!!$          j3s = 0
+!!$          j3e = 0
+!!$      end if
+
+      peri=cell_periodic_dims(denspot%dpbox%mesh)
+      perx=peri(1)
+      pery=peri(2)
+      perz=peri(3)
+      
+!!$          hhh = hx*hy*hz
+      hhh = denspot%dpbox%mesh%volume_element
+
+      ! Used for the calculations of the solid harmonics, see description there
+      rmin = 2.0d0*hhh**(1.d0/3.d0)
+
+      sigma(0) = 1.0d0
+      sigma(1) = 0.8d0
+      sigma(2) = 0.6d0
+
+      density = f_malloc0((/is1.to.ie1,is2.to.ie2,is3.to.ie3/),id='density')
+      density_cores = f_malloc0((/is1.to.ie1,is2.to.ie2,is3.to.ie3/),id='density_cores')
+
+      nthread = 1
+      !$ nthread = omp_get_max_threads()
+      density_loc = f_malloc0((/is1.to.ie1,is2.to.ie2,is3.to.ie3,0.to.nthread-1/),id='density_loc')
+      potential_loc = f_malloc0((/is1.to.ie1,is2.to.ie2,is3.to.ie3,0.to.nthread-1/),id='potential_loc')
+
+!!$          gaussian = f_malloc((/0.to.lmax,is1.to.ie1,is2.to.ie2,is3.to.ie3,1.to.ep%nmpl/),id='gaussian')
+      gaussians1 = f_malloc((/0.to.lmax,is1.to.ie1,1.to.ep%nmpl/),id='gaussians1')
+      gaussians2 = f_malloc((/0.to.lmax,is2.to.ie2,1.to.ep%nmpl/),id='gaussians2')
+      gaussians3 = f_malloc((/0.to.lmax,is3.to.ie3,1.to.ep%nmpl/),id='gaussians3')
+      nonzero_startend1 = f_malloc((/2,ep%nmpl/),id='nonzero_startend1')
+      nonzero_startend2 = f_malloc((/2,ep%nmpl/),id='nonzero_startend2')
+      nonzero_startend3 = f_malloc((/2,ep%nmpl/),id='nonzero_startend3')
+
+      do ilr=1,lzd%nlr
+!!$              if (lzd%Llr(ilr)%geocode/='F') then
+         if (cell_geocode(lzd%Llr(ilr)%mesh) /='F') then
+            call f_err_throw('support function locregs must always have free BC')
+         end if
+      end do
+      nbuf=isf_box_buffers(cell_periodic_dims(lzd%Llr(lzd%nlr)%mesh),&
+           cell_periodic_dims(lzd%glr%mesh))
+      nl1=nbuf(1)
+      nl2=nbuf(2)
+      nl3=nbuf(3)
+      !! This will not works for wires bc.
+      !call geocode_buffers('F', cell_geocode(lzd%glr%mesh), nl1, nl2, nl3)
+      call calculate_gaussian(is1, ie1, 1, nl1, lzd%glr%d%n1i, perx, hx, shift, ep, gaussians1, nonzero_startend1)
+      call calculate_gaussian(is2, ie2, 2, nl2, lzd%glr%d%n2i, pery, hy, shift, ep, gaussians2, nonzero_startend2)
+      call calculate_gaussian(is3, ie3, 3, nl3, lzd%glr%d%n3i, perz, hz, shift, ep, gaussians3, nonzero_startend3)
+!!$
+!!$          !here we define a set of gaussians to verify if the norm is preserved
+!!$          do impl=1,ep%nmpl
+!!$              do l=0,lmax
+!!$                  sig = ep%mpl(impl)%sigma(l)
+!!$                  charge(1)=1.0d0/(twopi*sqrt(twopi)*sig**3)
+!!$                  cen = ep%mpl(impl)%rxyz - shift
+!!$                  zeros=0
+!!$                  zero1=0
+!!$                  mp_isf=at%mp_isf
+!!$                  if (.not. at%multipole_preserving) mp_isf=0
+!!$                  call gaussian_real_space_set(g,sig,1,charge,zeros,zero1,mp_isf)
+!!$                  call three_dimensional_density(denspot%dpbox%bitp,g,1.0_dp,cen,&
+!!$                                          gaussian(l,is1:ie1,is2:ie2,is3:ie3,impl))
+!!$              end do
+!!$          end do
+
+      norm = f_malloc((/0.to.2,1.to.ep%nmpl/),id='norm')
+      norm_check = f_malloc((/0.to.2,1.to.ep%nmpl/),id='norm_check')
+      monopole = f_malloc((/1.to.ep%nmpl,0.to.nthread-1/),id='monopole')
+      dipole = f_malloc((/1.to.3,1.to.ep%nmpl,0.to.nthread-1/),id='dipole')
+      quadrupole = f_malloc((/1.to.5,1.to.ep%nmpl,0.to.nthread-1/),id='quadrupole')
+      norm_ok = f_malloc0(ep%nmpl,id='norm_ok')
+
+      ! First calculate the norm of the Gaussians for each multipole
+      !norm = 0.d0
+      call calculate_norm(nproc, is1, ie1, is2, ie2, is3, ie3, ep, &
+           hhh, gaussians1, gaussians2, gaussians3, &
+           nonzero_startend1, nonzero_startend2, nonzero_startend3, norm)
+!!$!          call calculate_gaussian_norm(denspot%dpbox%bitp,nproc, is1, ie1, is2, ie2, is3, ie3, ep, &
+!!$!               hhh, gaussian, norm)
+!!$
+      !--- Start new iterator loop -------------------------------------------------------------------------------------
+!!$          call f_zero(norm)
+!!$          do impl=1,ep%nmpl
+!!$              bit=denspot%dpbox%bitp
+!!$              do while (box_next_point(bit))
+!!$                  do l=0,lmax
+!!$                      norm(l,impl) = norm(l,impl) + gaussian(l,bit%i,bit%j,bit%k,impl)
+!!$                  end do
+!!$              end do
+!!$          end do
+!!$          norm=norm*hhh
+      !--- End new iterator loop -------------------------------------------------------------------------------------
+!!$
+!!$
+      call f_free(nonzero_startend1)
+      call f_free(nonzero_startend2)
+      call f_free(nonzero_startend3)
+
+      ! Check whether they are ok.
+      do impl=1,ep%nmpl
+         norm_ok(impl) = .true.
+         do l=0,lmax !
+            !write(*,*) 'impl, l, norm', impl, l, norm(l,impl)
+            if (abs(1.d0-norm(l,impl))>norm_threshold) then
+               norm_ok(impl) = .false.
+            end if
+         end do
+         !write(*,*) 'impl, norm_ok(impl)', impl, norm_ok(impl)
+      end do
+
+      if (present(all_norms_ok)) then
+         all_norms_ok = all(norm_ok)
+         if (.not.all_norms_ok) then
+            call f_free(density)
+            call f_free(density_cores)
+            call f_free(density_loc)
+            call f_free(potential_loc)
+            call f_free(gaussians1)
+            call f_free(gaussians2)
+            call f_free(gaussians3)
+!!$                  call f_free(gaussian)
+            call f_free(norm)
+            call f_free(norm_check)
+            call f_free(monopole)
+            call f_free(dipole)
+            call f_free(quadrupole)
+            call f_free(norm_ok)
+            call f_release_routine()
+            return
+         end if
       end if
-      if (pery) then
-          j2s = -1
-          j2e = 1
-      else
-          j2s = 0
-          j2e = 0
-      end if
-      if (perz) then
-          j3s = -1
-          j3e = 1
-      else
-          j3s = 0
-          j3e = 0
-      end if
-
-      ! No need to do this if there are no multipoles given.
-      multipoles_if: if (ep%nmpl>0) then
-
-          hhh = hx*hy*hz
-
-          ! Used for the calculations of the solid harmonics, see description there
-          rmin = 2.0d0*hhh**(1.d0/3.d0)
-
-          sigma(0) = 1.0d0
-          sigma(1) = 0.8d0
-          sigma(2) = 0.6d0
-
-          density = f_malloc0((/is1.to.ie1,is2.to.ie2,is3.to.ie3/),id='density')
-          density_cores = f_malloc0((/is1.to.ie1,is2.to.ie2,is3.to.ie3/),id='density_cores')
-
-          nthread = 1
-          !$ nthread = omp_get_max_threads()
-          density_loc = f_malloc0((/is1.to.ie1,is2.to.ie2,is3.to.ie3,0.to.nthread-1/),id='density_loc')
-          potential_loc = f_malloc0((/is1.to.ie1,is2.to.ie2,is3.to.ie3,0.to.nthread-1/),id='potential_loc')
-
-          gaussians1 = f_malloc((/0.to.lmax,is1.to.ie1,1.to.ep%nmpl/),id='gaussians1')
-          gaussians2 = f_malloc((/0.to.lmax,is2.to.ie2,1.to.ep%nmpl/),id='gaussians2')
-          gaussians3 = f_malloc((/0.to.lmax,is3.to.ie3,1.to.ep%nmpl/),id='gaussians3')
-          nonzero_startend1 = f_malloc((/2,ep%nmpl/),id='nonzero_startend1')
-          nonzero_startend2 = f_malloc((/2,ep%nmpl/),id='nonzero_startend2')
-          nonzero_startend3 = f_malloc((/2,ep%nmpl/),id='nonzero_startend3')
-
-          do ilr=1,lzd%nlr
-              if (lzd%Llr(ilr)%geocode/='F') then
-                  call f_err_throw('support function locregs must always have free BC')
-              end if
-          end do
-          call geocode_buffers('F', lzd%glr%geocode, nl1, nl2, nl3)
-          call calculate_gaussian(is1, ie1, 1, nl1, lzd%glr%d%n1i, perx, hx, shift, ep, gaussians1, nonzero_startend1)
-          call calculate_gaussian(is2, ie2, 2, nl2, lzd%glr%d%n2i, pery, hy, shift, ep, gaussians2, nonzero_startend2)
-          call calculate_gaussian(is3, ie3, 3, nl3, lzd%glr%d%n3i, perz, hz, shift, ep, gaussians3, nonzero_startend3)
 
 
-          norm = f_malloc((/0.to.2,1.to.ep%nmpl/),id='norm')
-          norm_check = f_malloc((/0.to.2,1.to.ep%nmpl/),id='norm_check')
-          monopole = f_malloc((/1.to.ep%nmpl,0.to.nthread-1/),id='monopole')
-          dipole = f_malloc((/1.to.3,1.to.ep%nmpl,0.to.nthread-1/),id='dipole')
-          quadrupole = f_malloc((/1.to.5,1.to.ep%nmpl,0.to.nthread-1/),id='quadrupole')
-          norm_ok = f_malloc0(ep%nmpl,id='norm_ok')
-
-
-
-          ! First calculate the norm of the Gaussians for each multipole
-          !norm = 0.d0
-          call calculate_norm(nproc, is1, ie1, is2, ie2, is3, ie3, ep, &
-               hhh, gaussians1, gaussians2, gaussians3, &
-               nonzero_startend1, nonzero_startend2, nonzero_startend3, norm)
-
-          call f_free(nonzero_startend1)
-          call f_free(nonzero_startend2)
-          call f_free(nonzero_startend3)
-
-          ! Check whether they are ok.
-          do impl=1,ep%nmpl
-              norm_ok(impl) = .true.
-              do l=0,lmax !
-                  !write(*,*) 'impl, l, norm', impl, l, norm(l,impl)
-                  if (abs(1.d0-norm(l,impl))>norm_threshold) then
-                      norm_ok(impl) = .false.
-                  end if
-              end do
-              !write(*,*) 'impl, norm_ok(impl)', impl, norm_ok(impl)
-          end do
-
-          if (present(all_norms_ok)) then
-              all_norms_ok = all(norm_ok)
-              if (.not.all_norms_ok) then
-                  call f_free(density)
-                  call f_free(density_cores)
-                  call f_free(density_loc)
-                  call f_free(potential_loc)
-                  call f_free(gaussians1)
-                  call f_free(gaussians2)
-                  call f_free(gaussians3)
-                  call f_free(norm)
-                  call f_free(norm_check)
-                  call f_free(monopole)
-                  call f_free(dipole)
-                  call f_free(quadrupole)
-                  call f_free(norm_ok)
-                  return
-              end if
-          end if
-
-
-          ! Get the parameters for each multipole, required to compensate for the pseudopotential part
-          !nzatom = f_malloc(ep%nmpl,id='nzatom')
-          !nelpsp = f_malloc(ep%nmpl,id='nelpsp')
-          rloc = f_malloc(ep%nmpl,id='rloc')
+      ! Get the parameters for each multipole, required to compensate for the pseudopotential part
+      !nzatom = f_malloc(ep%nmpl,id='nzatom')
+      !nelpsp = f_malloc(ep%nmpl,id='nelpsp')
+      rloc = f_malloc(ep%nmpl,id='rloc')
 !!$         perx = (denspot%dpbox%geocode /= 'F')
 !!$         pery = (denspot%dpbox%geocode == 'P')
 !!$         perz = (denspot%dpbox%geocode /= 'F')
-         peri=cell_periodic_dims(denspot%dpbox%mesh)
-         perx =peri(1)
-         pery =peri(2)
-         perz =peri(3)
+!!$         peri=cell_periodic_dims(denspot%dpbox%mesh)
+!!$         perx =peri(1)
+!!$         pery =peri(2)
+!!$         perz =peri(3)
 
-         n3pi = denspot%dpbox%n3pi
-         i3s = denspot%dpbox%i3s + denspot%dpbox%i3xcsh
-         hxh = denspot%dpbox%mesh%hgrids(1)
-         hyh = denspot%dpbox%mesh%hgrids(2)
-         hzh = denspot%dpbox%mesh%hgrids(3)
-         n1i = denspot%dpbox%mesh%ndims(1)
-         n2i = denspot%dpbox%mesh%ndims(2)
-         n3i = denspot%dpbox%mesh%ndims(3)
-         call ext_buffers(perx,nbl1,nbr1)
-         call ext_buffers(pery,nbl2,nbr2)
-         call ext_buffers(perz,nbl3,nbr3)
-         !write(*,*) 'ep%nmpl, n1i, n2i, n3i', ep%nmpl, n1i, n2i, n3i
-
-
+      n3pi = denspot%dpbox%n3pi
+      i3s = denspot%dpbox%i3s + denspot%dpbox%i3xcsh
+      hxh = denspot%dpbox%mesh%hgrids(1)
+      hyh = denspot%dpbox%mesh%hgrids(2)
+      hzh = denspot%dpbox%mesh%hgrids(3)
+      n1i = denspot%dpbox%mesh%ndims(1)
+      n2i = denspot%dpbox%mesh%ndims(2)
+      n3i = denspot%dpbox%mesh%ndims(3)
+!!$         call ext_buffers(perx,nbl1,nbr1)
+!!$         call ext_buffers(pery,nbl2,nbr2)
+!!$         call ext_buffers(perz,nbl3,nbr3)
+      !write(*,*) 'ep%nmpl, n1i, n2i, n3i', ep%nmpl, n1i, n2i, n3i
 
 
-         ! Generate the density that comes from the pseudopotential atoms
-         ndensity = (ie1-is1+1)*(ie2-is2+1)*(ie3-is3+1)
-         !psp_source = f_malloc(ep%nmpl,id='psp_source')
-         !do impl=1,ep%nmpl
-         !    ! Search the rloc and zion of the corresponding pseudopotential
-         !    call get_psp_info(trim(ep%mpl(impl)%sym), ixc, at, nelpsp(impl), psp_source(impl), rloc(impl))
-         !end do
 
-         !Determine the maximal bounds for mpx, mpy, mpz (1D-integral)
-         !cutoff=10.0_gp*maxval(rloc(:))
-         cutoff=10.0_gp*maxval(ep%mpl(:)%sigma(0))
-         if (at%multipole_preserving) then
-            !We want to have a good accuracy of the last point rloc*10
-            cutoff=cutoff+max(hxh,hyh,hzh)*real(at%mp_isf,kind=gp)
+
+      ! Generate the density that comes from the pseudopotential atoms
+      ndensity = (ie1-is1+1)*(ie2-is2+1)*(ie3-is3+1)
+      !psp_source = f_malloc(ep%nmpl,id='psp_source')
+      !do impl=1,ep%nmpl
+      !    ! Search the rloc and zion of the corresponding pseudopotential
+      !    call get_psp_info(trim(ep%mpl(impl)%sym), ixc, at, nelpsp(impl), psp_source(impl), rloc(impl))
+      !end do
+
+!!$         !Determine the maximal bounds for mpx, mpy, mpz (1D-integral)
+!!$         !cutoff=10.0_gp*maxval(rloc(:))
+!!$         cutoff=10.0_gp*maxval(ep%mpl(:)%sigma(0))
+!!$         if (at%multipole_preserving) then
+!!$            !We want to have a good accuracy of the last point rloc*10
+!!$            cutoff=cutoff+max(hxh,hyh,hzh)*real(at%mp_isf,kind=gp)
+!!$         end if
+!!$         !Separable function: do 1-D integrals before and store it.
+!!$         nmpx = (ceiling(cutoff/hxh) - floor(-cutoff/hxh)) + 1
+!!$         nmpy = (ceiling(cutoff/hyh) - floor(-cutoff/hyh)) + 1
+!!$         nmpz = (ceiling(cutoff/hzh) - floor(-cutoff/hzh)) + 1
+!!$         mpx = f_malloc( (/ 0 .to. nmpx /),id='mpx')
+!!$         mpy = f_malloc( (/ 0 .to. nmpy /),id='mpy')
+!!$         mpz = f_malloc( (/ 0 .to. nmpz /),id='mpz')
+
+
+      do impl=1,ep%nmpl
+         !! Search the rloc and zion of the corresponding pseudopotential
+         !call get_psp_info(trim(ep%mpl(impl)%sym), ixc, at, nelpsp(impl), psp_source(impl), rloc(impl))
+         if (ep%mpl(impl)%mpchar=='G') then
+            ! The core counter charge has only to be considered if the electronic multipoles are the gross values
+            if(norm_ok(impl)) then
+               ! The following routine needs the shifted positions
+               if (present(center_cores)) then
+                  rx = center_cores(1,impl) - shift(1)
+                  ry = center_cores(2,impl) - shift(2)
+                  rz = center_cores(3,impl) - shift(3)
+               else
+                  rx = ep%mpl(impl)%rxyz(1) - shift(1)
+                  ry = ep%mpl(impl)%rxyz(2) - shift(2)
+                  rz = ep%mpl(impl)%rxyz(3) - shift(3)
+               end if
+!!$                     call gaussian_density(perx, pery, perz, n1i, n2i, n3i, nbl1, nbl2, nbl3, i3s, n3pi, hxh, hyh, hzh, &
+!!$                          rx, ry, rz, &
+!!$                          ep%mpl(impl)%sigma(0), ep%mpl(impl)%nzion, at%multipole_preserving, use_iterator, at%mp_isf, &
+!!$                          denspot%dpbox, nmpx, nmpy, nmpz, mpx, mpy, mpz, ndensity, density_cores, rholeaked)
+
+               call atomic_cores_charge_density(g,at,ep%mpl(impl))
+               call three_dimensional_density(denspot%dpbox%bitp,g,-1.0_dp,[rx,ry,rz],density_cores)
+
+               !!call gaussian_density(perx, pery, perz, n1i, n2i, n3i, nbl1, nbl2, nbl3, i3s, n3pi, hxh, hyh, hzh, &
+               !!     rx, ry, rz, &
+               !!     ep%mpl(impl)%sigma(0), nelpsp(impl), at%multipole_preserving, use_iterator, at%mp_isf, &
+               !!     denspot%dpbox, nmpx, nmpy, nmpz, mpx, mpy, mpz, ndensity, density_cores, rholeaked)
+               !!call gaussian_density(perx, pery, perz, n1i, n2i, n3i, nbl1, nbl2, nbl3, i3s, n3pi, hxh, hyh, hzh, &
+               !!     rx, ry, rz, &
+               !!     rloc(impl), nelpsp(impl), at%multipole_preserving, use_iterator, at%mp_isf, &
+               !!     denspot%dpbox, nmpx, nmpy, nmpz, mpx, mpy, mpz, ndensity, density_cores, rholeaked)
+            end if
          end if
-         !Separable function: do 1-D integrals before and store it.
-         nmpx = (ceiling(cutoff/hxh) - floor(-cutoff/hxh)) + 1
-         nmpy = (ceiling(cutoff/hyh) - floor(-cutoff/hyh)) + 1
-         nmpz = (ceiling(cutoff/hzh) - floor(-cutoff/hzh)) + 1
-         mpx = f_malloc( (/ 0 .to. nmpx /),id='mpx')
-         mpy = f_malloc( (/ 0 .to. nmpy /),id='mpy')
-         mpz = f_malloc( (/ 0 .to. nmpz /),id='mpz')
+      end do
+      !! UNCOMMENT FOR TEST          do i3=is3,ie3
+      !! UNCOMMENT FOR TEST              do i2=is2,ie2
+      !! UNCOMMENT FOR TEST                  do i1=is1,ie1
+      !! UNCOMMENT FOR TEST                     !write(400+iproc,'(a,3i7,es18.6)') 'i1, i2, i3, val', i1, i2, i3, density(i1,i2,i3)
+      !! UNCOMMENT FOR TEST                     write(500+bigdft_mpi%iproc,*) 'i1, i2, i3, val', i1, i2, i3, density(i1,i2,i3)
+      !! UNCOMMENT FOR TEST                     tt = tt + density(i1,i2,i3)*hhh
+      !! UNCOMMENT FOR TEST                 end do
+      !! UNCOMMENT FOR TEST             end do
+      !! UNCOMMENT FOR TEST         end do
+
+!!$         call f_free(mpx)
+!!$         call f_free(mpy)
+!!$         call f_free(mpz)
 
 
-         do impl=1,ep%nmpl
-             !! Search the rloc and zion of the corresponding pseudopotential
-             !call get_psp_info(trim(ep%mpl(impl)%sym), ixc, at, nelpsp(impl), psp_source(impl), rloc(impl))
-             if (ep%mpl(impl)%mpchar=='G') then
-                 ! The core counter charge has only to be considered if the electronic multipoles are the gross values
-                 if(norm_ok(impl)) then
-                     ! The following routine needs the shifted positions
-                     if (present(center_cores)) then
-                         rx = center_cores(1,impl) - shift(1)
-                         ry = center_cores(2,impl) - shift(2)
-                         rz = center_cores(3,impl) - shift(3)
-                     else
-                         rx = ep%mpl(impl)%rxyz(1) - shift(1)
-                         ry = ep%mpl(impl)%rxyz(2) - shift(2)
-                         rz = ep%mpl(impl)%rxyz(3) - shift(3)
-                     end if
-                     call gaussian_density(perx, pery, perz, n1i, n2i, n3i, nbl1, nbl2, nbl3, i3s, n3pi, hxh, hyh, hzh, &
-                          rx, ry, rz, &
-                          ep%mpl(impl)%sigma(0), ep%mpl(impl)%nzion, at%multipole_preserving, use_iterator, at%mp_isf, &
-                          denspot%dpbox, nmpx, nmpy, nmpz, mpx, mpy, mpz, ndensity, density_cores, rholeaked)
-                     !!call gaussian_density(perx, pery, perz, n1i, n2i, n3i, nbl1, nbl2, nbl3, i3s, n3pi, hxh, hyh, hzh, &
-                     !!     rx, ry, rz, &
-                     !!     ep%mpl(impl)%sigma(0), nelpsp(impl), at%multipole_preserving, use_iterator, at%mp_isf, &
-                     !!     denspot%dpbox, nmpx, nmpy, nmpz, mpx, mpy, mpz, ndensity, density_cores, rholeaked)
-                     !!call gaussian_density(perx, pery, perz, n1i, n2i, n3i, nbl1, nbl2, nbl3, i3s, n3pi, hxh, hyh, hzh, &
-                     !!     rx, ry, rz, &
-                     !!     rloc(impl), nelpsp(impl), at%multipole_preserving, use_iterator, at%mp_isf, &
-                     !!     denspot%dpbox, nmpx, nmpy, nmpz, mpx, mpy, mpz, ndensity, density_cores, rholeaked)
-                 end if
-             end if
-         end do
-!! UNCOMMENT FOR TEST          do i3=is3,ie3
-!! UNCOMMENT FOR TEST              do i2=is2,ie2
-!! UNCOMMENT FOR TEST                  do i1=is1,ie1
-!! UNCOMMENT FOR TEST                     !write(400+iproc,'(a,3i7,es18.6)') 'i1, i2, i3, val', i1, i2, i3, density(i1,i2,i3)
-!! UNCOMMENT FOR TEST                     write(500+bigdft_mpi%iproc,*) 'i1, i2, i3, val', i1, i2, i3, density(i1,i2,i3)
-!! UNCOMMENT FOR TEST                     tt = tt + density(i1,i2,i3)*hhh
-!! UNCOMMENT FOR TEST                 end do
-!! UNCOMMENT FOR TEST             end do
-!! UNCOMMENT FOR TEST         end do
-
-         call f_free(mpx)
-         call f_free(mpy)
-         call f_free(mpz)
+      ! Calculate the density only within a sphere of radius rmax
+      rmax = f_malloc(ep%nmpl,id='rmax')
+      do impl=1,ep%nmpl
+         !rmax(impl) = min(denspot%dpbox%mesh%ndims(1)*0.25d0*hx, &
+         !                 denspot%dpbox%mesh%ndims(2)*0.25d0*hy, &
+         !                 denspot%dpbox%mesh%ndims(3)*0.25d0*hz)
+         rmax(impl) = min((denspot%dpbox%mesh%ndims(1)-31)*0.25d0*hx, &
+              (denspot%dpbox%mesh%ndims(2)-31)*0.25d0*hy, &
+              (denspot%dpbox%mesh%ndims(3)-31)*0.25d0*hz)
+      end do
 
 
-          ! Calculate the density only within a sphere of radius rmax
-          rmax = f_malloc(ep%nmpl,id='rmax')
-          do impl=1,ep%nmpl
-              !rmax(impl) = min(denspot%dpbox%mesh%ndims(1)*0.25d0*hx, &
-              !                 denspot%dpbox%mesh%ndims(2)*0.25d0*hy, &
-              !                 denspot%dpbox%mesh%ndims(3)*0.25d0*hz)
-              rmax(impl) = min((denspot%dpbox%mesh%ndims(1)-31)*0.25d0*hx, &
-                               (denspot%dpbox%mesh%ndims(2)-31)*0.25d0*hy, &
-                               (denspot%dpbox%mesh%ndims(3)-31)*0.25d0*hz)
-          end do
-
-
-          norm_check = 0.d0
-          monopole = 0.d0
-          dipole = 0.d0
-          quadrupole = 0.d0
-          !$omp parallel &
-          !$omp default(none) &
-          !$omp shared(is1, ie1, is2, ie2, is3, ie3, hx, hy, hz, hhh, ep, shift, nthread, norm_ok) &
-          !$omp shared(norm_check, monopole, dipole, quadrupole, density, density_loc, potential_loc) &
-          !$omp shared (gaussians1, gaussians2, gaussians3, rmax, rmin) &
-          !$omp shared (j1s, j1e, j2s, j2e, j3s, j3e, nl1, nl2, nl3, lzd) &
-          !$omp private(i1, i2, i3, ii1, ii2, ii3, x, y, z, impl, r, l, gg, m, mm, tt, ttt, ttl, ithread, center, ll) &
-          !$omp private(rnrm1, rnrm2, rnrm3, rnrm5, qq, ii, sig, lmax_avail, found_non_associated, j1, j2, j3, dr)
-          ithread = 0
-          !$ ithread = omp_get_thread_num()
-          if (ithread<0 .or. ithread>nthread-1) then
-              !SM: Is it possible to call f_err_throw within OpenMP? Anyway this condition should never be true...
-              call f_err_throw('wrong value of ithread',err_name='BIGDFT_RUNTIME_ERROR')
-              !LG: yes it is possible but not advised to, as running conditions might arise. we will not be sure of
-              !! the actual status of the shared variable on exit as some threads might not have called the error
-              !! or even the routine has been called more than once by different threads.
-              !! it is better to raise exceptions outside OMP parallel regions. BTW, by construction this error can never happen
-              !! unless the OMP implementation is buggy.
-          end if
-          !$omp do
-          do impl=1,ep%nmpl
-              norm_if: if (norm_ok(impl)) then
-                  ! Use the method based on the Gaussians
-                  ! First determine the highest multipole coefficients which are available. It is required that
-                  ! all "lower" multipoles are associated as well.
-                  lmax_avail = 0
-                  found_non_associated = .false.
-                  do l=0,lmax
-                      if (associated(ep%mpl(impl)%qlm(l)%q)) then
-                          if (found_non_associated) then
-                              call f_err_throw('The multipoles for l='//trim(yaml_toa(l))//&
-                                   &' are associated, but there are lower multipoles which are &
-                                   &not associated. This is not allowed',err_name='BIGDFT_RUNTIME_ERROR')
-                          end if
-                          lmax_avail = l
-                      else
-                          found_non_associated = .true.
-                      end if
-                  end do
-                  i3loop: do i3=is3,ie3
-                      if (maxval(gaussians3(:,i3,impl))<1.d-20) cycle i3loop
-                      ii3 = i3 - nl3 -1
-                      !z = real(ii3,kind=8)*hz + shift(3)
-                      r(3) = huge(r(3))
-                      do j3=j3s,j3e
-                          dr = real(ii3+j3*lzd%glr%d%n3i,kind=8)*hz + shift(3) - ep%mpl(impl)%rxyz(3)
-                          if (abs(dr)<abs(r(3))) r(3) = dr
-                      end do
-                      i2loop: do i2=is2,ie2
-                          if (maxval(gaussians2(:,i2,impl))<1.d-20) cycle i2loop
-                          ii2 = i2 - nl2 - 1
-                          !y = real(ii2,kind=8)*hy + shift(2)
-                          r(2) = huge(r(2))
-                          do j2=j2s,j2e
-                              dr = real(ii2+j2*lzd%glr%d%n2i,kind=8)*hy + shift(2) - ep%mpl(impl)%rxyz(2)
-                              if (abs(dr)<abs(r(2))) r(2) = dr
-                          end do
-                          i1loop: do i1=is1,ie1
-                              if (maxval(gaussians1(:,i1,impl))<1.d-20) cycle i1loop
-                              ii1 = i1 - nl1 - 1
-                              !x = real(ii1,kind=8)*hx + shift(1)
-                              r(1) = huge(r(1))
-                              do j1=j1s,j1e
-                                  dr = real(ii1+j1*lzd%glr%d%n1i,kind=8)*hx + shift(1) - ep%mpl(impl)%rxyz(1)
-                                  if (abs(dr)<abs(r(1))) r(1) = dr
-                              end do
-                              !r(1) = x - ep%mpl(impl)%rxyz(1)
-                              !r(2) = y - ep%mpl(impl)%rxyz(2)
-                              !r(3) = z - ep%mpl(impl)%rxyz(3)
-                              rnrm2 = r(1)**2 + r(2)**2 + r(3)**2
-                              tt = 0.d0
-                              ttl = 0.d0
-                              do l=0,lmax_avail
-                                  ! Calculate the Gaussian as product of three 1D Gaussians
-                                  gg = gaussians1(l,i1,impl)*gaussians2(l,i2,impl)*gaussians3(l,i3,impl)
-                                  ! Additional modification to avoid divergence
-                                  sig = ep%mpl(impl)%sigma(l)
-                                  if (l==1) then
-                                      gg = gg/(3.d0*sig**2)
-                                  else if (l==2) then
-                                      gg = gg/(15.d0*sig**4)
-                                  end if
-                                  norm_check(l,impl) = norm_check(l,impl) + gg*hhh*rnrm2**l
-                                  !if (rnrm2<=rmax(impl)**2) then
-                                      mm = 0
-                                      do m=-l,l
-                                          mm = mm + 1
-                                          !!! For the monopole term, the atomic core charge (which has been expressed using a Gaussian
-                                          !!! above) has to be added in order to compensate it in case that the net charges have been provided.
-                                          !!! In addition the sign has to be switched since the charge density is a positive quantity.
-                                          !!if (l==0 .and. ep%mpl(impl)%mpchar=='N') then
-                                          !!    !qq = -(ep%mpl(impl)%qlm(l)%q(mm) - real(nelpsp(impl),kind=8))
-                                          !!    qq = -(ep%mpl(impl)%qlm(l)%q(mm) - real(ep%mpl(impl)%nzion,kind=8))
-                                          !!    !qq = -ep%mpl(impl)%qlm(l)%q(mm)
-                                          !!else
-                                              ! The sign has to be switched since the charge density is a positive quantity.
-                                              qq = -ep%mpl(impl)%qlm(l)%q(mm)
-                                          !!end if
-                                          ttt = qq*&
-                                                real(2*l+1,kind=8)*solid_harmonic(0, l, m, r(1), r(2), r(3))*&
-                                                sqrt(4.d0*pi/real(2*l+1,kind=8))*gg!*sqrt(4.d0*pi_param)
-                                          tt = tt + ttt
-                                          ttl = ttl + ttt
-                                      end do
-                                  !end if
-                              end do
-                              density_loc(i1,i2,i3,ithread) = density_loc(i1,i2,i3,ithread) + tt
-                              ! Again calculate the multipole values to verify whether they are represented exactly
-                              ll = 0
-                              m = 0
-                              monopole(impl,ithread) = monopole(impl,ithread) + tt*hhh*&
-                                               solid_harmonic(0,ll,m,r(1),r(2),r(3))*&
-                                               sqrt(4.d0*pi/real(2*ll+1,kind=8))
-                              ll = 1
-                              do m=-ll,ll
-                                  ii = m + 2
-                                  dipole(ii,impl,ithread) = dipole(ii,impl,ithread) + tt*hhh*&
-                                                   solid_harmonic(0,ll,m,r(1),r(2),r(3))*&
-                                                   sqrt(4.d0*pi/real(2*ll+1,kind=8))
-                              end do
-                              ll = 2
-                              do m=-ll,ll
-                                  ii = m + 3
-                                  quadrupole(ii,impl,ithread) = quadrupole(ii,impl,ithread) + tt*hhh*&
-                                                   solid_harmonic(0,ll,m,r(1),r(2),r(3))*&
-                                                   sqrt(4.d0*pi/real(2*ll+1,kind=8))
-                              end do
-                          end do i1loop
-                      end do i2loop
-                  end do i3loop
-              else norm_if
-                  ! Use the method based on the analytic formula
-                  do l=0,lmax
-                      if (associated(ep%mpl(impl)%qlm(l)%q)) then
-                          do i3=is3,ie3
-                              ii3 = i3 - nl3 -1
-                              !z = real(ii3,kind=8)*hz + shift(3)
-                              r(3) = huge(r(3))
-                              do j3=j3s,j3e
-                                  dr = real(ii3+j3*lzd%glr%d%n3i,kind=8)*hz + shift(3) - ep%mpl(impl)%rxyz(3)
-                                  if (abs(dr)<abs(r(3))) r(3) = dr
-                              end do
-                              do i2=is2,ie2
-                                  ii2 = i2 - nl2 -1
-                                  r(2) = huge(r(2))
-                                  do j2=j2s,j2e
-                                      dr = real(ii2+j2*lzd%glr%d%n2i,kind=8)*hy + shift(2) - ep%mpl(impl)%rxyz(2)
-                                      if (abs(dr)<abs(r(2))) r(2) = dr
-                                  end do
-                                  do i1=is1,ie1
-                                      ii1 = i1 - nl1 -1
-                                      r(1) = huge(r(1))
-                                      do j1=j1s,j1e
-                                          dr = real(ii1+j1*lzd%glr%d%n1i,kind=8)*hx + shift(1) - ep%mpl(impl)%rxyz(1)
-                                          if (abs(dr)<abs(r(1))) r(1) = dr
-                                      end do
-                                      !r(1) = x - ep%mpl(impl)%rxyz(1)
-                                      !r(2) = y - ep%mpl(impl)%rxyz(2)
-                                      !r(3) = z - ep%mpl(impl)%rxyz(3)
-                                      rnrm2 = r(1)**2 + r(2)**2 + r(3)**2
-                                      rnrm1 = sqrt(rnrm2)
-                                      rnrm3 = rnrm1*rnrm2
-                                      rnrm5 = rnrm3*rnrm2
-                                      select case(l)
-                                      case (0)
-                                          tt = calc_monopole(ep%mpl(impl)%qlm(l)%q, rnrm1)
-                                      case (1)
-                                          tt = calc_dipole(ep%mpl(impl)%qlm(l)%q, r, rnrm3)
-                                      case (2)
-                                          tt = calc_quadropole(ep%mpl(impl)%qlm(l)%q, r, rnrm5)
-                                      case (3)
-                                          call f_err_throw('octupole not yet implemented', err_name='BIGDFT_RUNTIME_ERROR')
-                                      case default
-                                          call f_err_throw('Wrong value of l', err_name='BIGDFT_RUNTIME_ERROR')
-                                      end select
-                                      potential_loc(i1,i2,i3,ithread) = potential_loc(i1,i2,i3,ithread) + tt
-                                  end do
-                              end do
-                          end do
-                      end if
-                  end do
-              end if norm_if
-          end do
-          !$omp end do
-          !$omp end parallel
-
-          ! Write the PSP info
-          !if (verbosity> 0 .and. iproc==0) call write_psp_source(ep, psp_source)
-          !!ntype = 0
-          !!do impl=1,ep%nmpl
-          !!    ! Check whether the info for this type has already been written
-          !!    written = .false.
-          !!    do itype=1,ntype
-          !!        if (trim(ep%mpl(impl)%sym)==trim(multipole_type_names(itype))) then
-          !!            written = .true.
-          !!            exit
-          !!        end if
-          !!    end do
-          !!    if (.not. written) then
-          !!        ntype = ntype + 1
-          !!        if (ntype>nmax_multipole_types) call f_err_throw('More than 5000 different multipole types are not allowed')
-          !!        multipole_type_names(ntype) = trim(ep%mpl(impl)%sym)
-          !!        if (psp_source(impl)==0) then
-          !!            call yaml_map(trim(ep%mpl(impl)%sym),'PSP of QM region')
-          !!        else if (psp_source(impl)==1) then
-          !!            call yaml_map(trim(ep%mpl(impl)%sym),'built-in PSP')
-          !!        end if
-          !!    end if
-          !!end do
-          !call f_free(psp_source)
-
-          if ((ie1-is1+1)*(ie2-is2+1)*(ie3-is3+1) > 0) then
-             do ithread=0,nthread-1
-                ! Gather the total density
-                call axpy((ie1-is1+1)*(ie2-is2+1)*(ie3-is3+1), 1.0_gp, density_loc(is1,is2,is3,ithread), 1, density(is1,is2,is3), 1)
-                ! Gather the total potential, store it directly in pot
-                call axpy((ie1-is1+1)*(ie2-is2+1)*(ie3-is3+1), 1.0_gp, potential_loc(is1,is2,is3,ithread), 1, pot(is1,is2,is3), 1)
-             end do
-          end if
-
-
-          call f_free(density_loc)
-          call f_free(potential_loc)
-          call f_free(gaussians1)
-          call f_free(gaussians2)
-          call f_free(gaussians3)
-
-!! UNCOMMENT FOR TEST          tt = 0.d0
-!! UNCOMMENT FOR TEST          do i3=is3,ie3
-!! UNCOMMENT FOR TEST              do i2=is2,ie2
-!! UNCOMMENT FOR TEST                  do i1=is1,ie1
-!! UNCOMMENT FOR TEST                      !write(400+iproc,'(a,3i7,es18.6)') 'i1, i2, i3, val', i1, i2, i3, density(i1,i2,i3)
-!! UNCOMMENT FOR TEST                      write(400+bigdft_mpi%iproc,*) 'i1, i2, i3, val', i1, i2, i3, density(i1,i2,i3)
-!! UNCOMMENT FOR TEST                      tt = tt + density(i1,i2,i3)*hhh
-!! UNCOMMENT FOR TEST                  end do
-!! UNCOMMENT FOR TEST              end do
-!! UNCOMMENT FOR TEST          end do
-!! UNCOMMENT FOR TEST          call plot_density(iproc,nproc,'data'//'multipoles'//'.cube',&
-!! UNCOMMENT FOR TEST                        at,at%astruct%rxyz,denspot%pkernel,1,density)
-
-          !write(*,*) 'DEBUG: tt',tt
-
-          do ithread=1,nthread-1
-              call axpy(ep%nmpl, 1.0_gp, monopole(1,ithread), 1, monopole(1,0), 1)
-              call axpy(3*ep%nmpl, 1.0_gp, dipole(1,1,ithread), 1, dipole(1,1,0), 1)
-              call axpy(5*ep%nmpl, 1.0_gp, quadrupole(1,1,ithread), 1, quadrupole(1,1,0), 1)
-          end do
-
-          if (nproc>1) then
-              call fmpi_allreduce(norm_check, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
-              call fmpi_allreduce(monopole(1:ep%nmpl,0), FMPI_SUM, comm=bigdft_mpi%mpi_comm)
-              call fmpi_allreduce(dipole(1:3,1:ep%nmpl,0), FMPI_SUM, comm=bigdft_mpi%mpi_comm)
-              call fmpi_allreduce(quadrupole(1:5,1:ep%nmpl,0), FMPI_SUM, comm=bigdft_mpi%mpi_comm)
-          end if
-
-
-          ! Check that the norm is the same as above
-          do impl=1,ep%nmpl
-              if (norm_ok(impl)) then
-                  do l=0,lmax
-                      tt = abs(1.d0-norm_check(l,impl))
-                      !if (abs(norm(l,impl)-norm_check(l,impl))>1.d-10) then
-                      !if (tt>1.d-2) then
-                      !    write(*,*) 'ERROR', abs(norm(l,impl)-norm_check(l,impl)), norm_check(l,impl)
-                      !    !call f_err_throw('The deviation from normalization of the radial function is too large: '//&
-                      !    !    yaml_toa(tt,fmt='(es7.1)'), err_name='BIGDFT_RUNTIME_ERROR')
-                      !end if
-                      if (tt>1.d-2 .and. iproc==0 .and. verbosity>1) then
-                          !write(*,*) 'ERROR', abs(norm(l,impl)-norm_check(l,impl)), norm_check(l,impl)
-                          call yaml_warning('The deviation from normalization of the radial function is large: '//&
-                              yaml_toa(tt,fmt='(es7.1)'))
-                      end if
-                  end do
-              end if
-          end do
-
-          call f_free(rmax)
-          call f_free(norm_check)
-
-
-          if (iproc==0 .and. ep%nmpl > 0 .and. verbosity>0) then
-              call yaml_mapping_open('Potential from multipoles')
-              call yaml_map('Number of multipole centers',ep%nmpl)
-              call yaml_map('Threshold for the norm of the Gaussians',norm_threshold)
-              call yaml_map('Minimal radius for divion of the solid harmonics by r^{2l}',rmin)
-              call yaml_sequence_open('Details for each multipole')
-              do impl=1,ep%nmpl
-                  call yaml_sequence(advance='no')
-                  call yaml_mapping_open(trim(yaml_toa(impl)))
-                  if (norm_ok(impl)) then
-                      call yaml_map('Method','Density based on Gaussians')
-                      call yaml_map('Sigma of the Gaussians',ep%mpl(impl)%sigma(:),fmt='(f5.3)')
-                      tt0 = 1.d0-norm(0,impl)
-                      tt1 = 1.d0-norm(1,impl)
-                      tt2 = 1.d0-norm(2,impl)
-                      call yaml_map('Deviation from normalization for the radial function',&
-                          (/tt0,tt1,tt2/),fmt='(1es8.1)')
-                      max_error(:) = 0.d0
-                      error_meaningful(:) = 0
-                      do l=0,lmax
-                          if (associated(ep%mpl(impl)%qlm(l)%q)) then
-                              mm = 0
-                              do m=-l,l
-                                  mm = mm + 1
-                                  !!if (l==0) then
-                                  !!    !qq = -(ep%mpl(impl)%qlm(l)%q(mm)-real(nelpsp(impl),kind=8))
-                                  !!    qq = -(ep%mpl(impl)%qlm(l)%q(mm)-real(ep%mpl(impl)%nzion,kind=8))
-                                  !!    !qq = -ep%mpl(impl)%qlm(l)%q(mm)
-                                  !!else
-                                      qq = -ep%mpl(impl)%qlm(l)%q(mm)
-                                  !!end if
-                                  if (abs(qq)>1.d-8) then
-                                      select case (l)
-                                      case (0)
-                                          !call yaml_map('monopole(impl)',monopole(impl))
-                                          max_error(l) = max(max_error(l),monopole(impl,0)/qq)
-                                      case (1)
-                                          !call yaml_map('dipole(mm,impl)',dipole(mm,impl))
-                                          max_error(l) = max(max_error(l),dipole(mm,impl,0)/qq)
-                                      case (2)
-                                          max_error(l) = max(max_error(l),quadrupole(mm,impl,0)/qq)
-                                      end select
-                                  else
-                                      error_meaningful(l) = 1
-                                  end if
-                              end do
-                              ! Convert to percentaged deviation
-                              if (error_meaningful(l)==0) then
-                                  max_error(l) = 100.d0*(max_error(l)-1.d0)
-                              end if
-                          else
-                              error_meaningful(l) = 2
-                          end if
-                      end do
-                      do l=0,lmax
-                          select case (error_meaningful(l))
-                          case (0)
-                              output_arr(l) = yaml_toa(max_error(l),fmt='(1es8.1)')
-                          case (1)
-                              output_arr(l) = 'not meaningful'
-                          case (2)
-                              output_arr(l) = 'no mltpole l='//yaml_toa(l)
-                          end select
-                      end do
-                      call yaml_map('Maximal deviation from the original values in percent',output_arr(:))
-                  else
-                      call yaml_map('Method','Analytic expression')
+      norm_check = 0.d0
+      monopole = 0.d0
+      dipole = 0.d0
+      quadrupole = 0.d0
+      !$omp parallel &
+      !$omp default(none) &
+      !$omp shared(is1, ie1, is2, ie2, is3, ie3, hx, hy, hz, hhh, ep, shift, nthread, norm_ok) &
+      !$omp shared(norm_check, monopole, dipole, quadrupole, density, density_loc, potential_loc) &
+      !$omp shared (rmax, rmin) &
+      !$omp shared (gaussians1, gaussians2, gaussians3) &
+      !          !$omp shared (nl1, nl2, nl3, lzd) &
+      !$omp shared (j1s, j1e, j2s, j2e, j3s, j3e, nl1, nl2, nl3, lzd) &
+      !$omp shared (bit,cen,rc,drxyz,denspot) & !,gaussian) &
+      !$omp private(i1, i2, i3, ii1, ii2, ii3, x, y, z, impl, r, l, gg, m, mm, tt, ttt, ttl, ithread, center, ll) &
+      !$omp private(rnrm1, rnrm2, rnrm3, rnrm5, qq, ii, sig, lmax_avail, found_non_associated, j1, j2, j3, dr)
+      ithread = 0
+      !$ ithread = omp_get_thread_num()
+      if (ithread<0 .or. ithread>nthread-1) then
+         !SM: Is it possible to call f_err_throw within OpenMP? Anyway this condition should never be true...
+         call f_err_throw('wrong value of ithread',err_name='BIGDFT_RUNTIME_ERROR')
+         !LG: yes it is possible but not advised to, as running conditions might arise. we will not be sure of
+         !! the actual status of the shared variable on exit as some threads might not have called the error
+         !! or even the routine has been called more than once by different threads.
+         !! it is better to raise exceptions outside OMP parallel regions. BTW, by construction this error can never happen
+         !! unless the OMP implementation is buggy.
+      end if
+      !$omp do
+      do impl=1,ep%nmpl
+         norm_if: if (norm_ok(impl)) then
+            ! Use the method based on the Gaussians
+            ! First determine the highest multipole coefficients which are available. It is required that
+            ! all "lower" multipoles are associated as well.
+            lmax_avail = 0
+            found_non_associated = .false.
+            do l=0,lmax
+               if (associated(ep%mpl(impl)%qlm(l)%q)) then
+                  if (found_non_associated) then
+                     call f_err_throw('The multipoles for l='//trim(yaml_toa(l))//&
+                          &' are associated, but there are lower multipoles which are &
+                          &not associated. This is not allowed',err_name='BIGDFT_RUNTIME_ERROR')
                   end if
-                  call yaml_mapping_close()
-              end do
-              call yaml_sequence_close()
-              call yaml_mapping_close()
-          end if
+                  lmax_avail = l
+               else
+                  found_non_associated = .true.
+               end if
+            end do
 
-          if (ep%nmpl > 0) then
+!!$!--- Start old loop -------------------------------------------------------------------------------------
+            i3loop: do i3=is3,ie3
+               if (maxval(gaussians3(:,i3,impl))<1.d-20) cycle i3loop
+               ii3 = i3 - nl3 -1
+               !z = real(ii3,kind=8)*hz + shift(3)
+               r(3) = huge(r(3))
+               do j3=j3s,j3e
+                  dr = real(ii3+j3*lzd%glr%d%n3i,kind=8)*hz + shift(3) - ep%mpl(impl)%rxyz(3)
+                  if (abs(dr)<abs(r(3))) r(3) = dr
+               end do
+               i2loop: do i2=is2,ie2
+                  if (maxval(gaussians2(:,i2,impl))<1.d-20) cycle i2loop
+                  ii2 = i2 - nl2 - 1
+                  !y = real(ii2,kind=8)*hy + shift(2)
+                  r(2) = huge(r(2))
+                  do j2=j2s,j2e
+                     dr = real(ii2+j2*lzd%glr%d%n2i,kind=8)*hy + shift(2) - ep%mpl(impl)%rxyz(2)
+                     if (abs(dr)<abs(r(2))) r(2) = dr
+                  end do
+                  i1loop: do i1=is1,ie1
+                     if (maxval(gaussians1(:,i1,impl))<1.d-20) cycle i1loop
+                     ii1 = i1 - nl1 - 1
+                     !x = real(ii1,kind=8)*hx + shift(1)
+                     r(1) = huge(r(1))
+                     do j1=j1s,j1e
+                        dr = real(ii1+j1*lzd%glr%d%n1i,kind=8)*hx + shift(1) - ep%mpl(impl)%rxyz(1)
+                        if (abs(dr)<abs(r(1))) r(1) = dr
+                     end do
+                     !r(1) = x - ep%mpl(impl)%rxyz(1)
+                     !r(2) = y - ep%mpl(impl)%rxyz(2)
+                     !r(3) = z - ep%mpl(impl)%rxyz(3)
+                     rnrm2 = r(1)**2 + r(2)**2 + r(3)**2
+                     tt = 0.d0
+                     ttl = 0.d0
+                     do l=0,lmax_avail
+                        ! Calculate the Gaussian as product of three 1D Gaussians
+                        gg = gaussians1(l,i1,impl)*gaussians2(l,i2,impl)*gaussians3(l,i3,impl)
+                        ! Additional modification to avoid divergence
+                        sig = ep%mpl(impl)%sigma(l)
+                        if (l==1) then
+                           gg = gg/(3.d0*sig**2)
+                        else if (l==2) then
+                           gg = gg/(15.d0*sig**4)
+                        end if
+                        norm_check(l,impl) = norm_check(l,impl) + gg*hhh*rnrm2**l
+                        !if (rnrm2<=rmax(impl)**2) then
+                        mm = 0
+                        do m=-l,l
+                           mm = mm + 1
+!!! For the monopole term, the atomic core charge (which has been expressed using a Gaussian
+!!! above) has to be added in order to compensate it in case that the net charges have been provided.
+!!! In addition the sign has to be switched since the charge density is a positive quantity.
+                           !!if (l==0 .and. ep%mpl(impl)%mpchar=='N') then
+                           !!    !qq = -(ep%mpl(impl)%qlm(l)%q(mm) - real(nelpsp(impl),kind=8))
+                           !!    qq = -(ep%mpl(impl)%qlm(l)%q(mm) - real(ep%mpl(impl)%nzion,kind=8))
+                           !!    !qq = -ep%mpl(impl)%qlm(l)%q(mm)
+                           !!else
+                           ! The sign has to be switched since the charge density is a positive quantity.
+                           qq = -ep%mpl(impl)%qlm(l)%q(mm)
+                           !!end if
+                           ttt = qq*&
+                                real(2*l+1,kind=8)*solid_harmonic(0, l, m, r(1), r(2), r(3))*&
+                                sqrt(4.d0*pi/real(2*l+1,kind=8))*gg!*sqrt(4.d0*pi_param)
+                           tt = tt + ttt
+                           ttl = ttl + ttt
+                        end do
+                        !end if
+                     end do
+                     density_loc(i1,i2,i3,ithread) = density_loc(i1,i2,i3,ithread) + tt
+                     ! Again calculate the multipole values to verify whether they are represented exactly
+                     ll = 0
+                     m = 0
+                     monopole(impl,ithread) = monopole(impl,ithread) + tt*hhh*&
+                          solid_harmonic(0,ll,m,r(1),r(2),r(3))*&
+                          sqrt(4.d0*pi/real(2*ll+1,kind=8))
+                     ll = 1
+                     do m=-ll,ll
+                        ii = m + 2
+                        dipole(ii,impl,ithread) = dipole(ii,impl,ithread) + tt*hhh*&
+                             solid_harmonic(0,ll,m,r(1),r(2),r(3))*&
+                             sqrt(4.d0*pi/real(2*ll+1,kind=8))
+                     end do
+                     ll = 2
+                     do m=-ll,ll
+                        ii = m + 3
+                        quadrupole(ii,impl,ithread) = quadrupole(ii,impl,ithread) + tt*hhh*&
+                             solid_harmonic(0,ll,m,r(1),r(2),r(3))*&
+                             sqrt(4.d0*pi/real(2*ll+1,kind=8))
+                     end do
+                  end do i1loop
+               end do i2loop
+            end do i3loop
+
+!!$!--- End old loop -------------------------------------------------------------------------------------
+!!$
+!!$!--- Start new iterator loop -------------------------------------------------------------------------------------
+!!$                  cen = ep%mpl(impl)%rxyz - shift
+!!$                  bit = denspot%dpbox%bitp
+!!$                  do while (box_next_point(bit))
+!!$                      rc = closest_r(denspot%dpbox%mesh,bit%rxyz,cen)
+!!$                      drxyz = rxyz_ortho(denspot%dpbox%mesh,rc)
+!!$                      rnrm2 = square_gd(denspot%dpbox%mesh,rc)
+!!$                      tt = 0.d0
+!!$                      ttl = 0.d0
+!!$                      do l=0,lmax_avail
+!!$                          ! Calculate the Gaussian as product of three 1D Gaussians
+!!$!                          gg = gaussians1(l,bit%i,impl)*gaussians2(l,bit%j,impl)*gaussians3(l,bit%k,impl)
+!!$                          gg = gaussian(l,bit%i,bit%j,bit%k,impl)
+!!$                          ! Additional modification to avoid divergence
+!!$                          sig = ep%mpl(impl)%sigma(l)
+!!$                          if (l==1) then
+!!$                              gg = gg/(3.d0*sig**2)
+!!$                          else if (l==2) then
+!!$                              gg = gg/(15.d0*sig**4)
+!!$                          end if
+!!$                          norm_check(l,impl) = norm_check(l,impl) + gg*hhh*rnrm2**l
+!!$                          !if (rnrm2<=rmax(impl)**2) then
+!!$                              mm = 0
+!!$                              do m=-l,l
+!!$                                  mm = mm + 1
+!!$                                  !!! For the monopole term, the atomic core charge (which has been expressed using a Gaussian
+!!$                                  !!! above) has to be added in order to compensate it in case that the net charges have been provided.
+!!$                                  !!! In addition the sign has to be switched since the charge density is a positive quantity.
+!!$                                  !!if (l==0 .and. ep%mpl(impl)%mpchar=='N') then
+!!$                                  !!    !qq = -(ep%mpl(impl)%qlm(l)%q(mm) - real(nelpsp(impl),kind=8))
+!!$                                  !!    qq = -(ep%mpl(impl)%qlm(l)%q(mm) - real(ep%mpl(impl)%nzion,kind=8))
+!!$                                  !!    !qq = -ep%mpl(impl)%qlm(l)%q(mm)
+!!$                                  !!else
+!!$                                      ! The sign has to be switched since the charge density is a positive quantity.
+!!$                                      qq = -ep%mpl(impl)%qlm(l)%q(mm)
+!!$                                  !!end if
+!!$                                  ttt = qq*&
+!!$                                        real(2*l+1,kind=8)*solid_harmonic(0, l, m, drxyz(1), drxyz(2), drxyz(3))*&
+!!$                                        sqrt(4.d0*pi/real(2*l+1,kind=8))*gg!*sqrt(4.d0*pi_param)
+!!$                                  tt = tt + ttt
+!!$                                  ttl = ttl + ttt
+!!$                              end do
+!!$                          !end if
+!!$                      end do
+!!$                      density_loc(bit%i,bit%j,bit%k,ithread) = density_loc(bit%i,bit%j,bit%k,ithread) + tt
+!!$                      ! Again calculate the multipole values to verify whether they are represented exactly
+!!$                      ll = 0
+!!$                      m = 0
+!!$                      monopole(impl,ithread) = monopole(impl,ithread) + tt*hhh*&
+!!$                                       solid_harmonic(0,ll,m,drxyz(1),drxyz(2),drxyz(3))*&
+!!$                                       sqrt(4.d0*pi/real(2*ll+1,kind=8))
+!!$                      ll = 1
+!!$                      do m=-ll,ll
+!!$                          ii = m + 2
+!!$                          dipole(ii,impl,ithread) = dipole(ii,impl,ithread) + tt*hhh*&
+!!$                                           solid_harmonic(0,ll,m,drxyz(1),drxyz(2),drxyz(3))*&
+!!$                                           sqrt(4.d0*pi/real(2*ll+1,kind=8))
+!!$                      end do
+!!$                      ll = 2
+!!$                      do m=-ll,ll
+!!$                          ii = m + 3
+!!$                          quadrupole(ii,impl,ithread) = quadrupole(ii,impl,ithread) + tt*hhh*&
+!!$                                           solid_harmonic(0,ll,m,drxyz(1),drxyz(2),drxyz(3))*&
+!!$                                           sqrt(4.d0*pi/real(2*ll+1,kind=8))
+!!$                      end do
+!!$                  end do
+!!$!--- End new iterator loop -------------------------------------------------------------------------------------
+
+         else norm_if
+            ! Use the method based on the analytic formula
+            do l=0,lmax
+               if (associated(ep%mpl(impl)%qlm(l)%q)) then
+!!$!--- Start old loop -------------------------------------------------------------------------------------
+                  do i3=is3,ie3
+                     ii3 = i3 - nl3 -1
+                     !z = real(ii3,kind=8)*hz + shift(3)
+                     r(3) = huge(r(3))
+                     do j3=j3s,j3e
+                        dr = real(ii3+j3*lzd%glr%d%n3i,kind=8)*hz + shift(3) - ep%mpl(impl)%rxyz(3)
+                        if (abs(dr)<abs(r(3))) r(3) = dr
+                     end do
+                     do i2=is2,ie2
+                        ii2 = i2 - nl2 -1
+                        r(2) = huge(r(2))
+                        do j2=j2s,j2e
+                           dr = real(ii2+j2*lzd%glr%d%n2i,kind=8)*hy + shift(2) - ep%mpl(impl)%rxyz(2)
+                           if (abs(dr)<abs(r(2))) r(2) = dr
+                        end do
+                        do i1=is1,ie1
+                           ii1 = i1 - nl1 -1
+                           r(1) = huge(r(1))
+                           do j1=j1s,j1e
+                              dr = real(ii1+j1*lzd%glr%d%n1i,kind=8)*hx + shift(1) - ep%mpl(impl)%rxyz(1)
+                              if (abs(dr)<abs(r(1))) r(1) = dr
+                           end do
+                           !r(1) = x - ep%mpl(impl)%rxyz(1)
+                           !r(2) = y - ep%mpl(impl)%rxyz(2)
+                           !r(3) = z - ep%mpl(impl)%rxyz(3)
+                           rnrm2 = r(1)**2 + r(2)**2 + r(3)**2
+                           rnrm1 = sqrt(rnrm2)
+                           rnrm3 = rnrm1*rnrm2
+                           rnrm5 = rnrm3*rnrm2
+                           select case(l)
+                           case (0)
+                              tt = calc_monopole(ep%mpl(impl)%qlm(l)%q, rnrm1)
+                           case (1)
+                              tt = calc_dipole(ep%mpl(impl)%qlm(l)%q, r, rnrm3)
+                           case (2)
+                              tt = calc_quadropole(ep%mpl(impl)%qlm(l)%q, r, rnrm5)
+                           case (3)
+                              call f_err_throw('octupole not yet implemented', err_name='BIGDFT_RUNTIME_ERROR')
+                           case default
+                              call f_err_throw('Wrong value of l', err_name='BIGDFT_RUNTIME_ERROR')
+                           end select
+                           potential_loc(i1,i2,i3,ithread) = potential_loc(i1,i2,i3,ithread) + tt
+                        end do
+                     end do
+                  end do
+!!$!--- End old loop -------------------------------------------------------------------------------------
+!!$!--- Start new iterator loop -------------------------------------------------------------------------------------
+!!$                          cen = ep%mpl(impl)%rxyz - shift
+!!$                          bit = denspot%dpbox%bitp
+!!$                          do while (box_next_point(bit))
+!!$                              rc = closest_r(denspot%dpbox%mesh,bit%rxyz,cen)
+!!$                              drxyz = rxyz_ortho(denspot%dpbox%mesh,rc)
+!!$                              rnrm2 = square_gd(denspot%dpbox%mesh,rc)
+!!$                              rnrm1 = sqrt(rnrm2)
+!!$                              rnrm3 = rnrm1*rnrm2
+!!$                              rnrm5 = rnrm3*rnrm2
+!!$                              select case(l)
+!!$                              case (0)
+!!$                                  tt = calc_monopole(ep%mpl(impl)%qlm(l)%q, rnrm1)
+!!$                              case (1)
+!!$                                  tt = calc_dipole(ep%mpl(impl)%qlm(l)%q, drxyz, rnrm3)
+!!$                              case (2)
+!!$                                  tt = calc_quadropole(ep%mpl(impl)%qlm(l)%q, drxyz, rnrm5)
+!!$                              case (3)
+!!$                                  call f_err_throw('octupole not yet implemented', err_name='BIGDFT_RUNTIME_ERROR')
+!!$                              case default
+!!$                                  call f_err_throw('Wrong value of l', err_name='BIGDFT_RUNTIME_ERROR')
+!!$                              end select
+!!$                              potential_loc(bit%i,bit%j,bit%k,ithread) = potential_loc(bit%i,bit%j,bit%k,ithread) + tt
+!!$                          end do
+!!$!--- End new iterator loop -------------------------------------------------------------------------------------
+               end if
+            end do
+         end if norm_if
+      end do
+      !$omp end do
+      !$omp end parallel
+
+      ! Write the PSP info
+      !if (verbosity> 0 .and. iproc==0) call write_psp_source(ep, psp_source)
+      !!ntype = 0
+      !!do impl=1,ep%nmpl
+      !!    ! Check whether the info for this type has already been written
+      !!    written = .false.
+      !!    do itype=1,ntype
+      !!        if (trim(ep%mpl(impl)%sym)==trim(multipole_type_names(itype))) then
+      !!            written = .true.
+      !!            exit
+      !!        end if
+      !!    end do
+      !!    if (.not. written) then
+      !!        ntype = ntype + 1
+      !!        if (ntype>nmax_multipole_types) call f_err_throw('More than 5000 different multipole types are not allowed')
+      !!        multipole_type_names(ntype) = trim(ep%mpl(impl)%sym)
+      !!        if (psp_source(impl)==0) then
+      !!            call yaml_map(trim(ep%mpl(impl)%sym),'PSP of QM region')
+      !!        else if (psp_source(impl)==1) then
+      !!            call yaml_map(trim(ep%mpl(impl)%sym),'built-in PSP')
+      !!        end if
+      !!    end if
+      !!end do
+      !call f_free(psp_source)
+
+      if ((ie1-is1+1)*(ie2-is2+1)*(ie3-is3+1) > 0) then
+         do ithread=0,nthread-1
+            ! Gather the total density
+            call axpy((ie1-is1+1)*(ie2-is2+1)*(ie3-is3+1), 1.0_gp, density_loc(is1,is2,is3,ithread), 1, density(is1,is2,is3), 1)
+            ! Gather the total potential, store it directly in pot
+            call axpy((ie1-is1+1)*(ie2-is2+1)*(ie3-is3+1), 1.0_gp, potential_loc(is1,is2,is3,ithread), 1, pot(is1,is2,is3), 1)
+         end do
+      end if
 
 
-             if (present(rxyz) .and. present(dipole_total)) then
-                 if (present(quadrupole_total)) then
-                     call calculate_dipole_moment(denspot%dpbox, 1, at, rxyz, density, &
-                          calculate_quadrupole=.true., &
-                          dipole=dipole_total, quadrupole=quadrupole_total, quiet_=.true.)
-                 else
-                     call calculate_dipole_moment(denspot%dpbox, 1, at, rxyz, density, &
-                          calculate_quadrupole=.true., &
-                          dipole=dipole_total, quiet_=.true.)
-                 end if
-             end if
+      call f_free(density_loc)
+      call f_free(potential_loc)
+      call f_free(gaussians1)
+      call f_free(gaussians2)
+      call f_free(gaussians3)
+!!$          call f_free(gaussian)
 
-             if (present(rho_mp)) then
-                 call f_memcpy(src=density, dest=rho_mp)
-             end if
+      !! UNCOMMENT FOR TEST          tt = 0.d0
+      !! UNCOMMENT FOR TEST          do i3=is3,ie3
+      !! UNCOMMENT FOR TEST              do i2=is2,ie2
+      !! UNCOMMENT FOR TEST                  do i1=is1,ie1
+      !! UNCOMMENT FOR TEST                      !write(400+iproc,'(a,3i7,es18.6)') 'i1, i2, i3, val', i1, i2, i3, density(i1,i2,i3)
+      !! UNCOMMENT FOR TEST                      write(400+bigdft_mpi%iproc,*) 'i1, i2, i3, val', i1, i2, i3, density(i1,i2,i3)
+      !! UNCOMMENT FOR TEST                      tt = tt + density(i1,i2,i3)*hhh
+      !! UNCOMMENT FOR TEST                  end do
+      !! UNCOMMENT FOR TEST              end do
+      !! UNCOMMENT FOR TEST          end do
+      !! UNCOMMENT FOR TEST          call plot_density(iproc,nproc,'data'//'multipoles'//'.cube',&
+      !! UNCOMMENT FOR TEST                        at,at%astruct%rxyz,denspot%pkernel,1,density)
 
-             ! Add the core contribution
-             if ((ie1-is1+1)*(ie2-is2+1)*(ie3-is3+1)>0) then
-                 call axpy((ie1-is1+1)*(ie2-is2+1)*(ie3-is3+1), 1.0_gp, density_cores(is1,is2,is3), 1, density(is1,is2,is3), 1)
-             end if
+      !write(*,*) 'DEBUG: tt',tt
 
+      do ithread=1,nthread-1
+         call axpy(ep%nmpl, 1.0_gp, monopole(1,ithread), 1, monopole(1,0), 1)
+         call axpy(3*ep%nmpl, 1.0_gp, dipole(1,1,ithread), 1, dipole(1,1,0), 1)
+         call axpy(5*ep%nmpl, 1.0_gp, quadrupole(1,1,ithread), 1, quadrupole(1,1,0), 1)
+      end do
 
-             call H_potential('D',denspot%pkernel,density,denspot%V_ext,ehart_ps,0.0_dp,.false.,&
-                  quiet='yes')!,rho_ion=denspot%rho_ion)
-
-             if (present(pot_mp)) then
-                 call f_memcpy(src=density, dest=pot_mp)
-             end if
-
-             !write(*,*) 'ehart_ps',ehart_ps
-             !LG: attention to stack overflow here !
-             !pot = pot + density
-             call daxpy(size(density),1.0_gp,density,1,pot,1)
-    !!$
-    !!$         !what if this API for axpy? Maybe complicated to understand
-    !!$         pot = f_axpy(1.d0,density)
-    !!$         !otherwise this is more explicit, but more verbose
-    !!$         call f_axpy(a=1.d0,x=density,y=pot)
-    !!$         !or this one, for a coefficient of 1
-    !!$         pot = .plus_equal. density
-    !!$         !maybe this is the better solution?
-    !!$         pot = pot .plus. density
-    !!$         !as it might be generalized for multiplications and gemms
-    !!$         pot= pot .plus. (1.d0 .times. density)
-    !!$         !for two matrices in the gemm API
-    !!$         C = alpha .times. (A .times. B) .plus. (beta .times. C)
-    !!$         !which might be shortcut as
-    !!$         C = alpha .t. (A .t. B) .p. (beta .t. C)
-    !!$         ! and for transposition
-    !!$         C = alpha .t. (A**'t' .t. B) .p. (beta .t. C)
-
-          end if
-
-          call f_free(norm)
-          call f_free(monopole)
-          call f_free(dipole)
-          call f_free(quadrupole)
-          call f_free(norm_ok)
+      if (nproc>1) then
+         call fmpi_allreduce(norm_check, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+         call fmpi_allreduce(monopole(1:ep%nmpl,0), FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+         call fmpi_allreduce(dipole(1:3,1:ep%nmpl,0), FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+         call fmpi_allreduce(quadrupole(1:5,1:ep%nmpl,0), FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+      end if
 
 
-          !!$$ UNCOMMENT FOR TEST ii = 0
-          !!$$ UNCOMMENT FOR TEST do i3=is3,ie3
-          !!$$ UNCOMMENT FOR TEST     ii3 = i3 - 15
-          !!$$ UNCOMMENT FOR TEST     do i2=is2,ie2
-          !!$$ UNCOMMENT FOR TEST         ii2 = i2 - 15
-          !!$$ UNCOMMENT FOR TEST         do i1=is1,ie1
-          !!$$ UNCOMMENT FOR TEST             ii1 = i1 - 15
-          !!$$ UNCOMMENT FOR TEST             ii = ii + 1
-          !!$$ UNCOMMENT FOR TEST             !write(300+bigdft_mpi%iproc,*) 'i1, i2, i3, val', i1, i2, i3, density(i1,i2,i3)
-          !!$$ UNCOMMENT FOR TEST             write(300+iproc,'(3(a,i6),a,es18.8)') 'i1= ',i1,' i2= ',i2,' i3= ',i3,' val= ',density(i1,i2,i3)
-          !!$$ UNCOMMENT FOR TEST             !do impl=1,ep%nmpl
-          !!$$ UNCOMMENT FOR TEST             !    r(1) = ep%mpl(impl)%rxyz(1) - x
-          !!$$ UNCOMMENT FOR TEST             !    r(2) = ep%mpl(impl)%rxyz(2) - y
-          !!$$ UNCOMMENT FOR TEST             !    r(3) = ep%mpl(impl)%rxyz(3) - z
-          !!$$ UNCOMMENT FOR TEST             !    rnrm2 = r(1)**2 + r(2)**2 + r(3)**2
-          !!$$ UNCOMMENT FOR TEST             !    rnrm1 = sqrt(rnrm2)
-          !!$$ UNCOMMENT FOR TEST             !    tt = spherical_harmonic(l, m, x, y, z)*gaussian(sigma, rnrm1)
-          !!$$ UNCOMMENT FOR TEST             !    density(i1,i2,i3) =+ tt
-          !!$$ UNCOMMENT FOR TEST             !    !write(300+bigdft_mpi%iproc,*) 'i1, i2, i3, val', i1, i2, i3, mp
-          !!$$ UNCOMMENT FOR TEST             !end do
-          !!$$ UNCOMMENT FOR TEST         end do
-          !!$$ UNCOMMENT FOR TEST     end do
-          !!$$ UNCOMMENT FOR TEST end do
+      ! Check that the norm is the same as above
+      do impl=1,ep%nmpl
+         if (norm_ok(impl)) then
+            do l=0,lmax
+               tt = abs(1.d0-norm_check(l,impl))
+               !if (abs(norm(l,impl)-norm_check(l,impl))>1.d-10) then
+               !if (tt>1.d-2) then
+               !    write(*,*) 'ERROR', abs(norm(l,impl)-norm_check(l,impl)), norm_check(l,impl)
+               !    !call f_err_throw('The deviation from normalization of the radial function is too large: '//&
+               !    !    yaml_toa(tt,fmt='(es7.1)'), err_name='BIGDFT_RUNTIME_ERROR')
+               !end if
+               if (tt>1.d-2 .and. iproc==0 .and. verbosity>1) then
+                  !write(*,*) 'ERROR', abs(norm(l,impl)-norm_check(l,impl)), norm_check(l,impl)
+                  call yaml_warning('The deviation from normalization of the radial function is large: '//&
+                       yaml_toa(tt,fmt='(es7.1)'))
+               end if
+            end do
+         end if
+      end do
 
-          if (present(ixyz0)) then
-              ixyz0_(1:3) = ixyz0
-          else
-              ixyz0_(1:3) = -1
-          end if
+      call f_free(rmax)
+      call f_free(norm_check)
 
-          if (any((/ixyz0_(1)>=0,ixyz0_(2)>=0,ixyz0_(3)>=0/))) then
-              if (.not.all((/ixyz0_(1)>=0,ixyz0_(2)>=0,ixyz0_(3)>=0/))) then
-                  call f_err_throw('The coordinates of the point through which &
-                                   &the potential shall be plotted must all be non-zero')
-              end if
-              rxyz_noshift = f_malloc((/3,at%astruct%nat/),id='rxyz_noshift')
-              do iat=1,at%astruct%nat
-                  rxyz_noshift(1:3,iat) = at%astruct%rxyz(1:3,iat) - shift(1:3)
-              end do
-              ! Plot of the density, in particular along the axes through the point ixyz0_
-              if (present(write_directory)) then
-                  filename = trim(write_directory)//'mppot.cube'
-              else
-                  filename = 'mppot.cube'
-              end if
-              call plot_density(iproc,nproc,trim(filename),at,rxyz_noshift,denspot%pkernel,nspin=1,rho=density, &
-                   ixyz0=ixyz0_)
-              call f_free(rxyz_noshift)
-          end if
 
-          call f_free(density)
-          call f_free(density_cores)
-          !call f_free(nzatom)
-          !call f_free(nelpsp)
-          call f_free(rloc)
-          !call f_free(npspcode)
-          !call f_free(psppar)
+      if (iproc==0 .and. ep%nmpl > 0 .and. verbosity>0) then
+         call yaml_mapping_open('Potential from multipoles')
+         call yaml_map('Number of multipole centers',ep%nmpl)
+         call yaml_map('Threshold for the norm of the Gaussians',norm_threshold)
+         call yaml_map('Minimal radius for divion of the solid harmonics by r^{2l}',rmin)
+         call yaml_sequence_open('Details for each multipole')
+         do impl=1,ep%nmpl
+            call yaml_sequence(advance='no')
+            call yaml_mapping_open(trim(yaml_toa(impl)))
+            if (norm_ok(impl)) then
+               call yaml_map('Method','Density based on Gaussians')
+               call yaml_map('Sigma of the Gaussians',ep%mpl(impl)%sigma(:),fmt='(f5.3)')
+               tt0 = 1.d0-norm(0,impl)
+               tt1 = 1.d0-norm(1,impl)
+               tt2 = 1.d0-norm(2,impl)
+               call yaml_map('Deviation from normalization for the radial function',&
+                    (/tt0,tt1,tt2/),fmt='(1es8.1)')
+               max_error(:) = 0.d0
+               error_meaningful(:) = 0
+               do l=0,lmax
+                  if (associated(ep%mpl(impl)%qlm(l)%q)) then
+                     mm = 0
+                     do m=-l,l
+                        mm = mm + 1
+                        !!if (l==0) then
+                        !!    !qq = -(ep%mpl(impl)%qlm(l)%q(mm)-real(nelpsp(impl),kind=8))
+                        !!    qq = -(ep%mpl(impl)%qlm(l)%q(mm)-real(ep%mpl(impl)%nzion,kind=8))
+                        !!    !qq = -ep%mpl(impl)%qlm(l)%q(mm)
+                        !!else
+                        qq = -ep%mpl(impl)%qlm(l)%q(mm)
+                        !!end if
+                        if (abs(qq)>1.d-8) then
+                           select case (l)
+                           case (0)
+                              !call yaml_map('monopole(impl)',monopole(impl))
+                              max_error(l) = max(max_error(l),monopole(impl,0)/qq)
+                           case (1)
+                              !call yaml_map('dipole(mm,impl)',dipole(mm,impl))
+                              max_error(l) = max(max_error(l),dipole(mm,impl,0)/qq)
+                           case (2)
+                              max_error(l) = max(max_error(l),quadrupole(mm,impl,0)/qq)
+                           end select
+                        else
+                           error_meaningful(l) = 1
+                        end if
+                     end do
+                     ! Convert to percentaged deviation
+                     if (error_meaningful(l)==0) then
+                        max_error(l) = 100.d0*(max_error(l)-1.d0)
+                     end if
+                  else
+                     error_meaningful(l) = 2
+                  end if
+               end do
+               do l=0,lmax
+                  select case (error_meaningful(l))
+                  case (0)
+                     output_arr(l) = yaml_toa(max_error(l),fmt='(1es8.1)')
+                  case (1)
+                     output_arr(l) = 'not meaningful'
+                  case (2)
+                     output_arr(l) = 'no mltpole l='//yaml_toa(l)
+                  end select
 
-      end if multipoles_if
+               end do
+               call yaml_map('Maximal deviation from the original values in percent',output_arr(:))
+            else
+               call yaml_map('Method','Analytic expression')
+            end if
+            call yaml_mapping_close()
+         end do
+         call yaml_sequence_close()
+         call yaml_mapping_close()
+      end if
+
+      if (ep%nmpl > 0) then
+
+
+         if (present(rxyz) .and. present(dipole_total)) then
+            if (present(quadrupole_total)) then
+               call calculate_dipole_moment(denspot%dpbox, 1, at, rxyz, density, &
+                    calculate_quadrupole=.true., &
+                    dipole=dipole_total, quadrupole=quadrupole_total, quiet_=.true.)
+            else
+               call calculate_dipole_moment(denspot%dpbox, 1, at, rxyz, density, &
+                    calculate_quadrupole=.true., &
+                    dipole=dipole_total, quiet_=.true.)
+            end if
+         end if
+
+         if (present(rho_mp)) then
+            call f_memcpy(src=density, dest=rho_mp)
+         end if
+
+         ! Add the core contribution
+         if ((ie1-is1+1)*(ie2-is2+1)*(ie3-is3+1)>0) then
+            call axpy((ie1-is1+1)*(ie2-is2+1)*(ie3-is3+1), 1.0_gp, density_cores(is1,is2,is3), 1, density(is1,is2,is3), 1)
+         end if
+
+
+         call H_potential('D',denspot%pkernel,density,denspot%V_ext,ehart_ps,0.0_dp,.false.,&
+              quiet='yes')!,rho_ion=denspot%rho_ion)
+
+         if (present(pot_mp)) then
+            call f_memcpy(src=density, dest=pot_mp)
+         end if
+
+         !write(*,*) 'ehart_ps',ehart_ps
+         !LG: attention to stack overflow here !
+         !pot = pot + density
+         call daxpy(size(density),1.0_gp,density,1,pot,1)
+!!$
+!!$         !what if this API for axpy? Maybe complicated to understand
+!!$         pot = f_axpy(1.d0,density)
+!!$         !otherwise this is more explicit, but more verbose
+!!$         call f_axpy(a=1.d0,x=density,y=pot)
+!!$         !or this one, for a coefficient of 1
+!!$         pot = .plus_equal. density
+!!$         !maybe this is the better solution?
+!!$         pot = pot .plus. density
+!!$         !as it might be generalized for multiplications and gemms
+!!$         pot= pot .plus. (1.d0 .times. density)
+!!$         !for two matrices in the gemm API
+!!$         C = alpha .times. (A .times. B) .plus. (beta .times. C)
+!!$         !which might be shortcut as
+!!$         C = alpha .t. (A .t. B) .p. (beta .t. C)
+!!$         ! and for transposition
+!!$         C = alpha .t. (A**'t' .t. B) .p. (beta .t. C)
+
+      end if
+
+      call f_free(norm)
+      call f_free(monopole)
+      call f_free(dipole)
+      call f_free(quadrupole)
+      call f_free(norm_ok)
+
+
+!!$$ UNCOMMENT FOR TEST ii = 0
+!!$$ UNCOMMENT FOR TEST do i3=is3,ie3
+!!$$ UNCOMMENT FOR TEST     ii3 = i3 - 15
+!!$$ UNCOMMENT FOR TEST     do i2=is2,ie2
+!!$$ UNCOMMENT FOR TEST         ii2 = i2 - 15
+!!$$ UNCOMMENT FOR TEST         do i1=is1,ie1
+!!$$ UNCOMMENT FOR TEST             ii1 = i1 - 15
+!!$$ UNCOMMENT FOR TEST             ii = ii + 1
+!!$$ UNCOMMENT FOR TEST             !write(300+bigdft_mpi%iproc,*) 'i1, i2, i3, val', i1, i2, i3, density(i1,i2,i3)
+!!$$ UNCOMMENT FOR TEST             write(300+iproc,'(3(a,i6),a,es18.8)') 'i1= ',i1,' i2= ',i2,' i3= ',i3,' val= ',density(i1,i2,i3)
+!!$$ UNCOMMENT FOR TEST             !do impl=1,ep%nmpl
+!!$$ UNCOMMENT FOR TEST             !    r(1) = ep%mpl(impl)%rxyz(1) - x
+!!$$ UNCOMMENT FOR TEST             !    r(2) = ep%mpl(impl)%rxyz(2) - y
+!!$$ UNCOMMENT FOR TEST             !    r(3) = ep%mpl(impl)%rxyz(3) - z
+!!$$ UNCOMMENT FOR TEST             !    rnrm2 = r(1)**2 + r(2)**2 + r(3)**2
+!!$$ UNCOMMENT FOR TEST             !    rnrm1 = sqrt(rnrm2)
+!!$$ UNCOMMENT FOR TEST             !    tt = spherical_harmonic(l, m, x, y, z)*gaussian(sigma, rnrm1)
+!!$$ UNCOMMENT FOR TEST             !    density(i1,i2,i3) =+ tt
+!!$$ UNCOMMENT FOR TEST             !    !write(300+bigdft_mpi%iproc,*) 'i1, i2, i3, val', i1, i2, i3, mp
+!!$$ UNCOMMENT FOR TEST             !end do
+!!$$ UNCOMMENT FOR TEST         end do
+!!$$ UNCOMMENT FOR TEST     end do
+!!$$ UNCOMMENT FOR TEST end do
+
+      if (present(ixyz0)) then
+         ixyz0_(1:3) = ixyz0
+      else
+         ixyz0_(1:3) = -1
+      end if
+
+      if (any((/ixyz0_(1)>=0,ixyz0_(2)>=0,ixyz0_(3)>=0/))) then
+         if (.not.all((/ixyz0_(1)>=0,ixyz0_(2)>=0,ixyz0_(3)>=0/))) then
+            call f_err_throw('The coordinates of the point through which &
+                 &the potential shall be plotted must all be non-zero')
+         end if
+         rxyz_noshift = f_malloc((/3,at%astruct%nat/),id='rxyz_noshift')
+         do iat=1,at%astruct%nat
+            rxyz_noshift(1:3,iat) = at%astruct%rxyz(1:3,iat) - shift(1:3)
+         end do
+         ! Plot of the density, in particular along the axes through the point ixyz0_
+         if (present(write_directory)) then
+            filename = trim(write_directory)//'mppot.cube'
+         else
+            filename = 'mppot.cube'
+         end if
+         call plot_density(iproc,nproc,trim(filename),at,rxyz_noshift,denspot%pkernel,nspin=1,rho=density, &
+              ixyz0=ixyz0_)
+         call f_free(rxyz_noshift)
+      end if
+
+      call f_free(density)
+      call f_free(density_cores)
+      !call f_free(nzatom)
+      !call f_free(nelpsp)
+      call f_free(rloc)
+      !call f_free(npspcode)
+      !call f_free(psppar)
 
       call f_release_routine()
 
@@ -1388,163 +1571,163 @@ module multipole
 
 
 
-    !> Creates the charge density of a Gaussian function, to be used for the local part
-    !! of the pseudopotentials (gives the error function term when later processed by the Poisson solver).
-    subroutine gaussian_density(perx, pery, perz, n1i, n2i, n3i, nbl1, nbl2, nbl3, i3s, n3pi, hxh, hyh, hzh, rx, ry, rz, &
-               rloc, zion, multipole_preservingl, use_iterator, mp_isf, &
-               dpbox, nmpx, nmpy, nmpz, mpx, mpy, mpz, nrho, pot_ion, rholeaked)
-      use module_base
-      use module_dpbox, only: denspot_distribution, dpbox_iterator, DPB_POT_ION, dpbox_iter, dpbox_iter_next
-      use multipole_preserving, only: mp_exp
-      implicit none
-      ! Calling arguments
-      logical,intent(in) :: perx, pery, perz
-      integer,intent(in) :: n1i, n2i, n3i, nrho, i3s, n3pi
-      real(kind=8),intent(in) :: rloc, rx, ry, rz, hxh, hyh, hzh
-      integer,intent(in) :: nbl1, nbl2, nbl3
-      integer,intent(in) :: zion !< ionic charge (integer!)
-      logical,intent(in) :: multipole_preservingl, use_iterator
-      integer,intent(in) :: mp_isf !< interpolating scaling function order for the multipole preserving
-      integer,intent(in) :: nmpx, nmpy, nmpz !< sizes of the temporary arrays; if too small the code stops
-      real(kind=8),dimension(0:nmpx),intent(inout) :: mpx !< temporary array for the exponentials in x direction
-      real(kind=8),dimension(0:nmpy),intent(inout) :: mpy !< temporary array for the exponentials in y direction
-      real(kind=8),dimension(0:nmpz),intent(inout) :: mpz !< temporary array for the exponentials in z direction
-      type(denspot_distribution),intent(in) :: dpbox
-      real(dp),dimension(nrho),intent(inout) :: pot_ion
-      real(kind=8),intent(inout) :: rholeaked
-
-      ! Local variables
-      real(kind=8) :: rlocinv2sq, charge, cutoff, xp, yp, zp
-      integer,dimension(2,3) :: nbox
-      integer :: i1, i2, i3, isx, iex, isy, iey, isz, iez, j1, j2, j3, ind
-      type(dpbox_iterator) :: boxit
-      real(gp),parameter :: mp_tiny = 1.e-30_gp
-      logical :: gox, goy, goz
-
-      call f_routine(id='gaussian_density')
-
-
-      !rloc=at%psppar(0,0,atit%ityp)
-      rlocinv2sq=0.5_gp/rloc**2
-      charge=real(zion,gp)/(2.0_gp*pi*sqrt(2.0_gp*pi)*rloc**3)
-
-      !write(*,*) 'rloc, charge', rloc, charge
-
-      !cutoff of the range
-      cutoff=10.0_gp*rloc
-      if (multipole_preservingl) then
-         !We want to have a good accuracy of the last point rloc*10
-         !cutoff=cutoff+max(hxh,hyh,hzh)*real(16,kind=gp)
-         cutoff=cutoff+max(hxh,hyh,hzh)*real(mp_isf,kind=gp)
-      end if
-
-      if (use_iterator) then
-         nbox(1,1)=floor((rx-cutoff)/hxh)
-         nbox(1,2)=floor((ry-cutoff)/hyh)
-         nbox(1,3)=floor((rz-cutoff)/hzh)
-         nbox(2,1)=ceiling((rx+cutoff)/hxh)
-         nbox(2,2)=ceiling((ry+cutoff)/hyh)
-         nbox(2,3)=ceiling((rz+cutoff)/hzh)
-
-         ! Check whether the temporary arrays are large enough
-         if (nbox(2,1)-nbox(1,1)>nmpx) then
-             call f_err_throw('Temporary array in x direction too small',err_name='BIGDFT_RUNTIME_ERROR')
-         end if
-         if (nbox(2,2)-nbox(1,2)>nmpy) then
-             call f_err_throw('Temporary array in y direction too small',err_name='BIGDFT_RUNTIME_ERROR')
-         end if
-         if (nbox(2,3)-nbox(1,3)>nmpz) then
-             call f_err_throw('Temporary array in z direction too small',err_name='BIGDFT_RUNTIME_ERROR')
-         end if
-
-         !Separable function: do 1-D integrals before and store it.
-         !mpx = f_malloc( (/ nbox(1,1).to.nbox(2,1) /),id='mpx')
-         !mpy = f_malloc( (/ nbox(1,2).to.nbox(2,2) /),id='mpy')
-         !mpz = f_malloc( (/ nbox(1,3).to.nbox(2,3) /),id='mpz')
-         do i1=nbox(1,1),nbox(2,1)
-            mpx(i1-nbox(1,1)) = mp_exp(hxh,rx,rlocinv2sq,i1,0,multipole_preservingl)
-         end do
-         do i2=nbox(1,2),nbox(2,2)
-            mpy(i2-nbox(1,2)) = mp_exp(hyh,ry,rlocinv2sq,i2,0,multipole_preservingl)
-         end do
-         do i3=nbox(1,3),nbox(2,3)
-            mpz(i3-nbox(1,3)) = mp_exp(hzh,rz,rlocinv2sq,i3,0,multipole_preservingl)
-         end do
-         boxit = dpbox_iter(dpbox,DPB_POT_ION,nbox)
-
-
-         do while(dpbox_iter_next(boxit))
-            xp = mpx(boxit%ibox(1)-nbox(1,1)) * mpy(boxit%ibox(2)-nbox(1,2)) * mpz(boxit%ibox(3)-nbox(1,3))
-            pot_ion(boxit%ind) = pot_ion(boxit%ind) - xp*charge
-         end do
-
-      else
-         isx=floor((rx-cutoff)/hxh)
-         isy=floor((ry-cutoff)/hyh)
-         isz=floor((rz-cutoff)/hzh)
-
-         iex=ceiling((rx+cutoff)/hxh)
-         iey=ceiling((ry+cutoff)/hyh)
-         iez=ceiling((rz+cutoff)/hzh)
-
-         ! Check whether the temporary arrays are large enough
-         if (iex-isx>nmpx) then
-             call f_err_throw('Temporary array in x direction too small',err_name='BIGDFT_RUNTIME_ERROR')
-         end if
-         if (iey-isy>nmpy) then
-             call f_err_throw('Temporary array in y direction too small',err_name='BIGDFT_RUNTIME_ERROR')
-         end if
-         if (iez-isz>nmpz) then
-             call f_err_throw('Temporary array in z direction too small',err_name='BIGDFT_RUNTIME_ERROR')
-         end if
-
-         !Separable function: do 1-D integrals before and store it.
-         !call mp_calculate(rx,ry,rz,hxh,hyh,hzh,cutoff,rlocinv2sq,at%multipole_preserving,mpx,mpy,mpz)
-         !mpx = f_malloc( (/ isx.to.iex /),id='mpx')
-         !mpy = f_malloc( (/ isy.to.iey /),id='mpy')
-         !mpz = f_malloc( (/ isz.to.iez /),id='mpz')
-         do i1=isx,iex
-            mpx(i1-isx) = mp_exp(hxh,rx,rlocinv2sq,i1,0,multipole_preservingl)
-         end do
-         do i2=isy,iey
-            mpy(i2-isy) = mp_exp(hyh,ry,rlocinv2sq,i2,0,multipole_preservingl)
-         end do
-         do i3=isz,iez
-            mpz(i3-isz) = mp_exp(hzh,rz,rlocinv2sq,i3,0,multipole_preservingl)
-         end do
-
-         do i3=isz,iez
-            zp = mpz(i3-isz)
-            if (abs(zp) < mp_tiny) cycle
-            !call ind_positions(perz,i3,grid%n3,j3,goz)
-            call ind_positions_new(perz,i3,n3i,j3,goz)
-            j3=j3+nbl3+1
-            do i2=isy,iey
-               yp = zp*mpy(i2-isy)
-               if (abs(yp) < mp_tiny) cycle
-               !call ind_positions(pery,i2,grid%n2,j2,goy)
-               call ind_positions_new(pery,i2,n2i,j2,goy)
-               do i1=isx,iex
-                  xp = yp*mpx(i1-isx)
-                  if (abs(xp) < mp_tiny) cycle
-                  !call ind_positions(perx,i1,grid%n1,j1,gox)
-                  call ind_positions_new(perx,i1,n1i,j1,gox)
-                  if (j3 >= i3s .and. j3 <= i3s+n3pi-1  .and. goy  .and. gox ) then
-                     ind=j1+1+nbl1+(j2+nbl2)*n1i+(j3-i3s)*n1i*n2i
-                     pot_ion(ind)=pot_ion(ind)-xp*charge
-                  else if (.not. goz ) then
-                     rholeaked=rholeaked+xp*charge
-                  endif
-               enddo
-            enddo
-         enddo
-
-
-      end if
-
-      call f_release_routine()
-
-    end subroutine gaussian_density
+!!$    !> Creates the charge density of a Gaussian function, to be used for the local part
+!!$    !! of the pseudopotentials (gives the error function term when later processed by the Poisson solver).
+!!$    subroutine gaussian_density(perx, pery, perz, n1i, n2i, n3i, nbl1, nbl2, nbl3, i3s, n3pi, hxh, hyh, hzh, rx, ry, rz, &
+!!$               rloc, zion, multipole_preservingl, use_iterator, mp_isf, &
+!!$               dpbox, nmpx, nmpy, nmpz, mpx, mpy, mpz, nrho, pot_ion, rholeaked)
+!!$      use module_base
+!!$      use module_dpbox, only: denspot_distribution, dpbox_iterator, DPB_POT_ION, dpbox_iter, dpbox_iter_next
+!!$      use multipole_preserving, only: mp_exp
+!!$      implicit none
+!!$      ! Calling arguments
+!!$      logical,intent(in) :: perx, pery, perz
+!!$      integer,intent(in) :: n1i, n2i, n3i, nrho, i3s, n3pi
+!!$      real(kind=8),intent(in) :: rloc, rx, ry, rz, hxh, hyh, hzh
+!!$      integer,intent(in) :: nbl1, nbl2, nbl3
+!!$      integer,intent(in) :: zion !< ionic charge (integer!)
+!!$      logical,intent(in) :: multipole_preservingl, use_iterator
+!!$      integer,intent(in) :: mp_isf !< interpolating scaling function order for the multipole preserving
+!!$      integer,intent(in) :: nmpx, nmpy, nmpz !< sizes of the temporary arrays; if too small the code stops
+!!$      real(kind=8),dimension(0:nmpx),intent(inout) :: mpx !< temporary array for the exponentials in x direction
+!!$      real(kind=8),dimension(0:nmpy),intent(inout) :: mpy !< temporary array for the exponentials in y direction
+!!$      real(kind=8),dimension(0:nmpz),intent(inout) :: mpz !< temporary array for the exponentials in z direction
+!!$      type(denspot_distribution),intent(in) :: dpbox
+!!$      real(dp),dimension(nrho),intent(inout) :: pot_ion
+!!$      real(kind=8),intent(inout) :: rholeaked
+!!$
+!!$      ! Local variables
+!!$      real(kind=8) :: rlocinv2sq, charge, cutoff, xp, yp, zp
+!!$      integer,dimension(2,3) :: nbox
+!!$      integer :: i1, i2, i3, isx, iex, isy, iey, isz, iez, j1, j2, j3, ind
+!!$      type(dpbox_iterator) :: boxit
+!!$      real(gp),parameter :: mp_tiny = 1.e-30_gp
+!!$      logical :: gox, goy, goz
+!!$
+!!$      call f_routine(id='gaussian_density')
+!!$
+!!$
+!!$      !rloc=at%psppar(0,0,atit%ityp)
+!!$      rlocinv2sq=0.5_gp/rloc**2
+!!$      charge=real(zion,gp)/(2.0_gp*pi*sqrt(2.0_gp*pi)*rloc**3)
+!!$
+!!$      !write(*,*) 'rloc, charge', rloc, charge
+!!$
+!!$      !cutoff of the range
+!!$      cutoff=10.0_gp*rloc
+!!$      if (multipole_preservingl) then
+!!$         !We want to have a good accuracy of the last point rloc*10
+!!$         !cutoff=cutoff+max(hxh,hyh,hzh)*real(16,kind=gp)
+!!$         cutoff=cutoff+max(hxh,hyh,hzh)*real(mp_isf,kind=gp)
+!!$      end if
+!!$
+!!$      if (use_iterator) then
+!!$         nbox(1,1)=floor((rx-cutoff)/hxh)
+!!$         nbox(1,2)=floor((ry-cutoff)/hyh)
+!!$         nbox(1,3)=floor((rz-cutoff)/hzh)
+!!$         nbox(2,1)=ceiling((rx+cutoff)/hxh)
+!!$         nbox(2,2)=ceiling((ry+cutoff)/hyh)
+!!$         nbox(2,3)=ceiling((rz+cutoff)/hzh)
+!!$
+!!$         ! Check whether the temporary arrays are large enough
+!!$         if (nbox(2,1)-nbox(1,1)>nmpx) then
+!!$             call f_err_throw('Temporary array in x direction too small',err_name='BIGDFT_RUNTIME_ERROR')
+!!$         end if
+!!$         if (nbox(2,2)-nbox(1,2)>nmpy) then
+!!$             call f_err_throw('Temporary array in y direction too small',err_name='BIGDFT_RUNTIME_ERROR')
+!!$         end if
+!!$         if (nbox(2,3)-nbox(1,3)>nmpz) then
+!!$             call f_err_throw('Temporary array in z direction too small',err_name='BIGDFT_RUNTIME_ERROR')
+!!$         end if
+!!$
+!!$         !Separable function: do 1-D integrals before and store it.
+!!$         !mpx = f_malloc( (/ nbox(1,1).to.nbox(2,1) /),id='mpx')
+!!$         !mpy = f_malloc( (/ nbox(1,2).to.nbox(2,2) /),id='mpy')
+!!$         !mpz = f_malloc( (/ nbox(1,3).to.nbox(2,3) /),id='mpz')
+!!$         do i1=nbox(1,1),nbox(2,1)
+!!$            mpx(i1-nbox(1,1)) = mp_exp(hxh,rx,rlocinv2sq,i1,0,multipole_preservingl)
+!!$         end do
+!!$         do i2=nbox(1,2),nbox(2,2)
+!!$            mpy(i2-nbox(1,2)) = mp_exp(hyh,ry,rlocinv2sq,i2,0,multipole_preservingl)
+!!$         end do
+!!$         do i3=nbox(1,3),nbox(2,3)
+!!$            mpz(i3-nbox(1,3)) = mp_exp(hzh,rz,rlocinv2sq,i3,0,multipole_preservingl)
+!!$         end do
+!!$         boxit = dpbox_iter(dpbox,DPB_POT_ION,nbox)
+!!$
+!!$
+!!$         do while(dpbox_iter_next(boxit))
+!!$            xp = mpx(boxit%ibox(1)-nbox(1,1)) * mpy(boxit%ibox(2)-nbox(1,2)) * mpz(boxit%ibox(3)-nbox(1,3))
+!!$            pot_ion(boxit%ind) = pot_ion(boxit%ind) - xp*charge
+!!$         end do
+!!$
+!!$      else
+!!$         isx=floor((rx-cutoff)/hxh)
+!!$         isy=floor((ry-cutoff)/hyh)
+!!$         isz=floor((rz-cutoff)/hzh)
+!!$
+!!$         iex=ceiling((rx+cutoff)/hxh)
+!!$         iey=ceiling((ry+cutoff)/hyh)
+!!$         iez=ceiling((rz+cutoff)/hzh)
+!!$
+!!$         ! Check whether the temporary arrays are large enough
+!!$         if (iex-isx>nmpx) then
+!!$             call f_err_throw('Temporary array in x direction too small',err_name='BIGDFT_RUNTIME_ERROR')
+!!$         end if
+!!$         if (iey-isy>nmpy) then
+!!$             call f_err_throw('Temporary array in y direction too small',err_name='BIGDFT_RUNTIME_ERROR')
+!!$         end if
+!!$         if (iez-isz>nmpz) then
+!!$             call f_err_throw('Temporary array in z direction too small',err_name='BIGDFT_RUNTIME_ERROR')
+!!$         end if
+!!$
+!!$         !Separable function: do 1-D integrals before and store it.
+!!$         !call mp_calculate(rx,ry,rz,hxh,hyh,hzh,cutoff,rlocinv2sq,at%multipole_preserving,mpx,mpy,mpz)
+!!$         !mpx = f_malloc( (/ isx.to.iex /),id='mpx')
+!!$         !mpy = f_malloc( (/ isy.to.iey /),id='mpy')
+!!$         !mpz = f_malloc( (/ isz.to.iez /),id='mpz')
+!!$         do i1=isx,iex
+!!$            mpx(i1-isx) = mp_exp(hxh,rx,rlocinv2sq,i1,0,multipole_preservingl)
+!!$         end do
+!!$         do i2=isy,iey
+!!$            mpy(i2-isy) = mp_exp(hyh,ry,rlocinv2sq,i2,0,multipole_preservingl)
+!!$         end do
+!!$         do i3=isz,iez
+!!$            mpz(i3-isz) = mp_exp(hzh,rz,rlocinv2sq,i3,0,multipole_preservingl)
+!!$         end do
+!!$
+!!$         do i3=isz,iez
+!!$            zp = mpz(i3-isz)
+!!$            if (abs(zp) < mp_tiny) cycle
+!!$            !call ind_positions(perz,i3,grid%n3,j3,goz)
+!!$            call ind_positions_new(perz,i3,n3i,j3,goz)
+!!$            j3=j3+nbl3+1
+!!$            do i2=isy,iey
+!!$               yp = zp*mpy(i2-isy)
+!!$               if (abs(yp) < mp_tiny) cycle
+!!$               !call ind_positions(pery,i2,grid%n2,j2,goy)
+!!$               call ind_positions_new(pery,i2,n2i,j2,goy)
+!!$               do i1=isx,iex
+!!$                  xp = yp*mpx(i1-isx)
+!!$                  if (abs(xp) < mp_tiny) cycle
+!!$                  !call ind_positions(perx,i1,grid%n1,j1,gox)
+!!$                  call ind_positions_new(perx,i1,n1i,j1,gox)
+!!$                  if (j3 >= i3s .and. j3 <= i3s+n3pi-1  .and. goy  .and. gox ) then
+!!$                     ind=j1+1+nbl1+(j2+nbl2)*n1i+(j3-i3s)*n1i*n2i
+!!$                     pot_ion(ind)=pot_ion(ind)-xp*charge
+!!$                  else if (.not. goz ) then
+!!$                     rholeaked=rholeaked+xp*charge
+!!$                  endif
+!!$               enddo
+!!$            enddo
+!!$         enddo
+!!$
+!!$
+!!$      end if
+!!$
+!!$      call f_release_routine()
+!!$
+!!$    end subroutine gaussian_density
 
 
     !!!!!!> Calculates the prefactor of the solid harmonics S_lm  for given values of l, m, x, y, z.
@@ -1634,37 +1817,47 @@ module multipole
     end function nearest_gridpoint
 
     !>apply the Slm operator onto a set of support functions
-    subroutine apply_Slm(l,m,geocode,hgrids,acell,psi_ob,nphi,Slmphi,integrate_in_sphere,centers)
+    subroutine apply_Slm(l,m,mesh_global,hgrids,acell,psi_ob,nphi,Slmphi,integrate_in_sphere,centers)
       use module_base
       use locreg_operations
+      use locregs, only: get_isf_offset
       use orbitalbasis
-      use bounds, only: geocode_buffers
+!!$      use bounds, only: geocode_buffers
+      use box
       implicit none
       integer, intent(in) :: l, m, nphi
-      character(len=1), intent(in) :: geocode
+      type(cell), intent(in) :: mesh_global
+!!$      character(len=1), intent(in) :: geocode
       real(gp),dimension(3) :: hgrids,acell
       type(orbital_basis), intent(in) :: psi_ob
       real(wp),dimension(nphi),intent(out) :: Slmphi
       logical, intent(in), optional :: integrate_in_sphere
       real(gp), dimension(3,*), intent(in), optional :: centers
       !local variables
-      logical :: perx,pery,perz,sphere
+!!$      logical :: perx,pery,perz
+      logical :: sphere
       integer :: npsir,ii1,ii2,ii3,nl1,nl2,nl3,i1,i2,i3,ind
       type(ket) :: psi_it
       type(workarr_sumrho) :: w
       real(wp) :: norm, rmax, tt, x, y, z
-      real(wp), dimension(3) :: lrcntr
+      real(wp), dimension(3) :: lrcntr,rc,rxyz
       real(wp),dimension(:),allocatable :: phi2r, sphi2r
       real(wp), dimension(:), pointer :: sphi_ptr
+      logical, dimension(3) :: peri
+      integer, dimension(3) :: ioffset_isf
+      type(box_iterator) :: bit
+      !$ integer, external:: omp_get_num_threads,omp_get_thread_num
+      
 
       call f_routine(id='apply_Slm')
 
       sphere=.false.
       if (present(integrate_in_sphere)) sphere=integrate_in_sphere
       ! Conditions for periodicity
-      perx=(geocode /= 'F')
-      pery=(geocode == 'P')
-      perz=(geocode /= 'F')
+!!$      perx=(geocode /= 'F')
+!!$      pery=(geocode == 'P')
+!!$      perz=(geocode /= 'F')
+      peri=cell_periodic_dims(mesh_global)
 
       !first search the maximum sizes of psir array
       npsir=1
@@ -1683,7 +1876,8 @@ module multipole
          call initialize_work_arrays_sumrho(psi_it%lr,.true.,w)
          rmax = min(psi_it%lr%d%n1*0.5d0*hgrids(1),psi_it%lr%d%n2*0.5d0*hgrids(2),&
               psi_it%lr%d%n3*0.5d0*hgrids(3))+1.e-3_gp*maxval(hgrids)
-         call geocode_buffers(psi_it%lr%geocode,geocode, nl1, nl2, nl3)
+!!$         call geocode_buffers(psi_it%lr%geocode,geocode, nl1, nl2, nl3)
+         ioffset_isf(:) = get_isf_offset(psi_it%lr,mesh_global)
          if (present(centers)) then
             lrcntr=centers(:,psi_it%ilr)
          else
@@ -1692,35 +1886,64 @@ module multipole
          do while(ket_next(psi_it,ilr=psi_it%ilr))
             if (sphere) call f_zero(sphi2r)
             call daub_to_isf(psi_it%lr,w,psi_it%phi_wvl,phi2r)
+
+!--- Start new loop -------------------------------------------------------------------------------------
+            bit=box_iter(psi_it%lr%mesh,origin=-(ioffset_isf+1)*(hgrids*0.5d0))
             !$omp parallel default(none) &
-            !$omp shared(psi_it, hgrids, lrcntr, acell, nl3, nl2, nl1) &
-            !$omp shared(perz, pery, perx, sphere, rmax, sphi2r, phi2r, l, m) &
-            !$omp private(i3, ii3, z, i2, ii2, y, i1, ii1, x, ind, tt)
-            !$omp do
-            do i3=1,psi_it%lr%d%n3i
-               ii3 = psi_it%lr%nsi3 + i3 - nl3 - 1
-               z=ii3*0.5d0*hgrids(3)-lrcntr(3)
-               z=closest_image(z,acell(3),perz)
-               do i2=1,psi_it%lr%d%n2i
-                  ii2 = psi_it%lr%nsi2 + i2 - nl2 - 1
-                  y=ii2*0.5d0*hgrids(2)-lrcntr(2)
-                  y=closest_image(y,acell(2),pery)
-                  do i1=1,psi_it%lr%d%n1i
-                     ii1 = psi_it%lr%nsi1 + i1 - nl1 - 1
-                     x=ii1*0.5d0*hgrids(1)-lrcntr(1)
-                     x=closest_image(x,acell(1),perx)
-                     ind = (i3-1)*psi_it%lr%d%n2i*psi_it%lr%d%n1i + (i2-1)*psi_it%lr%d%n1i + i1
-                     if (sphere) then
-                        if (x**2+y**2+z**2>rmax**2) cycle
-                     end if
-                     tt = solid_harmonic(0, l, m, x, y, z)
-                     tt = tt*sqrt(4.d0*pi/real(2*l+1,gp))
-                     sphi2r(ind) = tt*phi2r(ind)
-                  end do
-               end do
+            !$omp shared(psi_it, lrcntr, sphere, rmax, sphi2r, phi2r, l, m)&
+            !$omp private(tt,rc,rxyz) &
+            !$omp firstprivate(bit)
+            !$ call box_iter_split(bit,omp_get_num_threads(),omp_get_thread_num())
+            do while (box_next_point(bit))
+                rc=closest_r(psi_it%lr%mesh,bit%rxyz,lrcntr)
+                rxyz=rxyz_ortho(psi_it%lr%mesh,rc)
+                if (sphere) then
+                   if (square_gd(psi_it%lr%mesh,rc)>rmax**2) cycle
+                end if
+                tt = solid_harmonic(0, l, m, rxyz(1), rxyz(2), rxyz(3))
+                tt = tt*sqrt(4.d0*pi/real(2*l+1,gp))
+                sphi2r(bit%ind) = tt*phi2r(bit%ind)
             end do
-            !$omp end do
+            !$ call box_iter_merge(bit)
             !$omp end parallel
+
+!--- End new loop ---------------------------------------------------------------------------------------
+
+!!$!--- Start old loop -------------------------------------------------------------------------------------
+!!$
+!!$            !$omp parallel default(none) &
+!!$            !$omp shared(psi_it, hgrids, lrcntr, acell, nl3, nl2, nl1) &
+!!$            !$omp shared(peri, ioffset_isf, sphere, rmax, sphi2r, phi2r, l, m) &
+!!$            !$omp private(i3, ii3, z, i2, ii2, y, i1, ii1, x, ind, tt)
+!!$            !$omp do
+!!$            do i3=1,psi_it%lr%d%n3i
+!!$!!$               ii3 = psi_it%lr%nsi3 + i3 - nl3 - 1
+!!$               ii3 = ioffset_isf(3) + i3
+!!$               z=ii3*0.5d0*hgrids(3)-lrcntr(3)
+!!$               z=closest_image(z,acell(3),peri(3))
+!!$               do i2=1,psi_it%lr%d%n2i
+!!$!!$                  ii2 = psi_it%lr%nsi2 + i2 - nl2 - 1
+!!$                  ii2 = ioffset_isf(2) + i2
+!!$                  y=ii2*0.5d0*hgrids(2)-lrcntr(2)
+!!$                  y=closest_image(y,acell(2),peri(2))
+!!$                  do i1=1,psi_it%lr%d%n1i
+!!$!!$                     ii1 = psi_it%lr%nsi1 + i1 - nl1 - 1
+!!$                     ii1 = ioffset_isf(1) + i1
+!!$                     x=ii1*0.5d0*hgrids(1)-lrcntr(1)
+!!$                     x=closest_image(x,acell(1),peri(1))
+!!$                     ind = (i3-1)*psi_it%lr%d%n2i*psi_it%lr%d%n1i + (i2-1)*psi_it%lr%d%n1i + i1
+!!$                     if (sphere) then
+!!$                        if (x**2+y**2+z**2>rmax**2) cycle
+!!$                     end if
+!!$                     tt = solid_harmonic(0, l, m, x, y, z)
+!!$                     tt = tt*sqrt(4.d0*pi/real(2*l+1,gp))
+!!$                     sphi2r(ind) = tt*phi2r(ind)
+!!$                  end do
+!!$               end do
+!!$            end do
+!!$            !$omp end do
+!!$            !$omp end parallel
+!!$!--- End old loop ---------------------------------------------------------------------------------------
             sphi_ptr => ob_ket_map(Slmphi,psi_it)
             call isf_to_daub(psi_it%lr, w, sphi2r, sphi_ptr)
          end do
@@ -1736,40 +1959,50 @@ module multipole
 
 
     !>calculate the multipoles of phi
-    subroutine Qlm_phi(lmax,geocode,hgrids,acell,psi_ob,Qlm,integrate_in_sphere,centers)
+    subroutine Qlm_phi(lmax,mesh_global,hgrids,acell,psi_ob,Qlm,integrate_in_sphere,centers)
       use module_defs
       use dynamic_memory
       use f_utils
       use locreg_operations
+      use locregs, only: get_isf_offset
       use orbitalbasis
-      use bounds, only: geocode_buffers
+!!$      use bounds, only: geocode_buffers
+      use box
       implicit none
       integer, intent(in) :: lmax
-      character(len=1), intent(in) :: geocode
+      type(cell), intent(in) :: mesh_global
+!!$      character(len=1), intent(in) :: geocode
       real(gp),dimension(3) :: hgrids,acell
       type(orbital_basis), intent(in) :: psi_ob
       real(wp), dimension(-lmax:lmax,0:lmax,psi_ob%orbs%norbp), intent(out) :: Qlm
       logical, intent(in), optional :: integrate_in_sphere
       real(gp), dimension(3,*), intent(in), optional :: centers
       !local variables
-      logical :: perx,pery,perz,sphere
+!!$      logical :: perx,pery,perz
+      logical :: sphere
       integer :: npsir,ii1,ii2,ii3,nl1,nl2,nl3,i1,i2,i3,ind,l,m
       type(ket) :: psi_it
       type(workarr_sumrho) :: w
       real(wp) :: norm, rmax, tt, x, y, z
-      real(wp), dimension(3) :: lrcntr
+      real(wp), dimension(3) :: lrcntr,rc,rxyz
       real(wp),dimension(:),allocatable :: phi2r
       real(wp), dimension(:), pointer :: sphi_ptr
       real(wp),dimension(-lmax:lmax,0:lmax) :: Qlm_work
+      logical, dimension(3) :: peri
+      integer, dimension(3) :: ioffset_isf
+      type(box_iterator) :: bit
+      !$ integer, external:: omp_get_num_threads,omp_get_thread_num
+      
 
       call f_routine(id='Qlm_phi')
 
       sphere=.false.
       if (present(integrate_in_sphere)) sphere=integrate_in_sphere
       ! Conditions for periodicity
-      perx=(geocode /= 'F')
-      pery=(geocode == 'P')
-      perz=(geocode /= 'F')
+!!$      perx=(geocode /= 'F')
+!!$      pery=(geocode == 'P')
+!!$      perz=(geocode /= 'F')
+      peri=cell_periodic_dims(mesh_global)
 
       !first search the maximum sizes of psir array
       npsir=1
@@ -1786,7 +2019,8 @@ module multipole
          call initialize_work_arrays_sumrho(psi_it%lr,.true.,w)
          rmax = min(psi_it%lr%d%n1*0.5d0*hgrids(1),psi_it%lr%d%n2*0.5d0*hgrids(2),&
               psi_it%lr%d%n3*0.5d0*hgrids(3))+1.e-3_gp*maxval(hgrids)
-         call geocode_buffers(psi_it%lr%geocode,geocode, nl1, nl2, nl3)
+!!$         call geocode_buffers(psi_it%lr%geocode,geocode, nl1, nl2, nl3)
+         ioffset_isf(:) = get_isf_offset(psi_it%lr,mesh_global)
          if (present(centers)) then
             lrcntr=centers(:,psi_it%ilr)
          else
@@ -1795,39 +2029,69 @@ module multipole
          do while(ket_next(psi_it,ilr=psi_it%ilr))
             call daub_to_isf(psi_it%lr,w,psi_it%phi_wvl,phi2r)
             call f_zero(Qlm_work)
-            !$omp parallel default(none) &
-            !$omp shared(psi_it, hgrids, lrcntr, acell, nl3, nl2, nl1) &
-            !$omp shared(perz, pery, perx, sphere, rmax, Qlm_work, phi2r, lmax) &
-            !$omp private(i3, ii3, z, i2, ii2, y, i1, ii1, x, ind, tt, l, m)
-            !$omp do reduction(+: Qlm_work)
-            do i3=1,psi_it%lr%d%n3i
-               ii3 = psi_it%lr%nsi3 + i3 - nl3 - 1
-               z=ii3*0.5d0*hgrids(3)-lrcntr(3)
-               z=closest_image(z,acell(3),perz)
-               do i2=1,psi_it%lr%d%n2i
-                  ii2 = psi_it%lr%nsi2 + i2 - nl2 - 1
-                  y=ii2*0.5d0*hgrids(2)-lrcntr(2)
-                  y=closest_image(y,acell(2),pery)
-                  do i1=1,psi_it%lr%d%n1i
-                     ii1 = psi_it%lr%nsi1 + i1 - nl1 - 1
-                     x=ii1*0.5d0*hgrids(1)-lrcntr(1)
-                     x=closest_image(x,acell(1),perx)
-                     ind = (i3-1)*psi_it%lr%d%n2i*psi_it%lr%d%n1i + (i2-1)*psi_it%lr%d%n1i + i1
-                     if (sphere) then
-                        if (x**2+y**2+z**2>rmax**2) cycle
-                     end if
-                     do l=0,lmax
-                        do m=-l,l
-                           tt = solid_harmonic(0, l, m, x, y, z)
-                           tt = tt*sqrt(4.d0*pi/real(2*l+1,gp))
-                           Qlm_work(m,l)=Qlm_work(m,l)+tt*phi2r(ind)
-                        end do
-                     end do
-                  end do
-               end do
-            end do
-            !$end do
-            !$omp end parallel
+!--- Start new iterator loop ---------------------------------------------------------------------------------------
+            bit=box_iter(psi_it%lr%mesh,origin=-(ioffset_isf+1)*(hgrids*0.5d0))
+!!$            !$omp parallel default(none) &
+!!$            !$omp shared(psi_it, lrcntr, sphere, rmax, Qlm_work, phi2r, lmax) &
+!!$            !$omp private(l, m,rc,rxyz)
+!!$            !$omp reduction(+: Qlm_work)
+!!$            !$omp firstprivate(bit)           
+!!$            !$ call box_iter_split(bit,omp_get_num_threads(),omp_get_thread_num())
+            do while (box_next_point(bit))
+                rc=closest_r(psi_it%lr%mesh,bit%rxyz,lrcntr)
+                rxyz=rxyz_ortho(psi_it%lr%mesh,rc)
+                if (sphere) then
+                   if (square_gd(psi_it%lr%mesh,rc)>rmax**2) cycle
+                end if
+                do l=0,lmax
+                   do m=-l,l
+                      tt = solid_harmonic(0, l, m, rxyz(1), rxyz(2), rxyz(3))
+                      tt = tt*sqrt(4.d0*pi/real(2*l+1,gp))
+                      Qlm_work(m,l)=Qlm_work(m,l)+tt*phi2r(bit%ind)
+                   end do
+                end do
+             end do
+!!$             !$ call box_iter_merge()
+!!$             !$omp end parallel
+!--- End new iterator loop ---------------------------------------------------------------------------------------
+!!$!--- Start old loop ---------------------------------------------------------------------------------------
+!!$            !$omp parallel default(none) &
+!!$            !$omp shared(psi_it, hgrids, lrcntr, acell, nl3, nl2, nl1) &
+!!$            !$omp shared(peri, ioffset_isf, sphere, rmax, Qlm_work, phi2r, lmax) &
+!!$            !$omp private(i3, ii3, z, i2, ii2, y, i1, ii1, x, ind, tt, l, m)
+!!$            !$omp do reduction(+: Qlm_work)
+!!$            do i3=1,psi_it%lr%d%n3i
+!!$!!$               ii3 = psi_it%lr%nsi3 + i3 - nl3 - 1
+!!$               ii3 = ioffset_isf(3) + i3
+!!$               z=ii3*0.5d0*hgrids(3)-lrcntr(3)
+!!$               z=closest_image(z,acell(3),peri(3))
+!!$               do i2=1,psi_it%lr%d%n2i
+!!$!!$                  ii2 = psi_it%lr%nsi2 + i2 - nl2 - 1
+!!$                  ii2 = ioffset_isf(2) + i2
+!!$                  y=ii2*0.5d0*hgrids(2)-lrcntr(2)
+!!$                  y=closest_image(y,acell(2),peri(2))
+!!$                  do i1=1,psi_it%lr%d%n1i
+!!$!!$                     ii1 = psi_it%lr%nsi1 + i1 - nl1 - 1
+!!$                     ii1 = ioffset_isf(1) + i1
+!!$                     x=ii1*0.5d0*hgrids(1)-lrcntr(1)
+!!$                     x=closest_image(x,acell(1),peri(1))
+!!$                     ind = (i3-1)*psi_it%lr%d%n2i*psi_it%lr%d%n1i + (i2-1)*psi_it%lr%d%n1i + i1
+!!$                     if (sphere) then
+!!$                        if (x**2+y**2+z**2>rmax**2) cycle
+!!$                     end if
+!!$                     do l=0,lmax
+!!$                        do m=-l,l
+!!$                           tt = solid_harmonic(0, l, m, x, y, z)
+!!$                           tt = tt*sqrt(4.d0*pi/real(2*l+1,gp))
+!!$                           Qlm_work(m,l)=Qlm_work(m,l)+tt*phi2r(ind)
+!!$                        end do
+!!$                     end do
+!!$                  end do
+!!$               end do
+!!$            end do
+!!$            !$end do
+!!$            !$omp end parallel
+!!$!--- End old loop ---------------------------------------------------------------------------------------
             Qlm(-lmax:lmax,0:lmax,psi_it%iorbp) = Qlm_work(-lmax:lmax,0:lmax)
          end do
          !deallocations of work arrays
@@ -1849,7 +2113,7 @@ module multipole
       use communications_base, only: TRANSPOSE_FULL
       use transposed_operations, only: calculate_overlap_transposed
       use communications, only: transpose_localized
-      use bounds, only: geocode_buffers
+!      use bounds, only: geocode_buffers
       use orthonormalization, only: overlap_matrix
       use orbitalbasis
       implicit none
@@ -1904,7 +2168,7 @@ module multipole
 
       call orbital_basis_associate(psi_ob,orbs=orbs,phis_wvl=phi2,Lzd=Lzd,id='calculate_multipole_matrix')
 
-      call apply_Slm(l,m,smmd%geocode,hgrids,acell,psi_ob,nphi,sphi2,&
+      call apply_Slm(l,m,Lzd%glr%mesh,hgrids,acell,psi_ob,nphi,sphi2,&
            integrate_in_sphere,centers=locregcenter)
 
       call orbital_basis_release(psi_ob)
@@ -2897,354 +3161,353 @@ module multipole
 
 
 
-    subroutine supportfunction_centers(nat, rxyz, nphidim, phi, nphirdim, &
-               norb, norbp, isorb, in_which_locreg, lzd, com)
-      use module_base
-      use module_types, only: local_zone_descriptors
-      use bounds, only: geocode_buffers
-      use locreg_operations
-      use yaml_output
-      implicit none
+!!$    subroutine supportfunction_centers(nat, rxyz, nphidim, phi, nphirdim, &
+!!$               norb, norbp, isorb, in_which_locreg, lzd, com)
+!!$      use module_base
+!!$      use module_types, only: local_zone_descriptors
+!!$!!$      use bounds, only: geocode_buffers
+!!$      use locreg_operations
+!!$      use yaml_output
+!!$      implicit none
+!!$
+!!$      ! Calling arguments
+!!$      integer,intent(in) :: nat, nphidim, nphirdim, norb, norbp, isorb
+!!$      integer,dimension(norb),intent(in) :: in_which_locreg
+!!$      real(kind=8),dimension(3,nat),intent(in) :: rxyz
+!!$      real(kind=8),dimension(nphidim),intent(in) :: phi
+!!$      type(local_zone_descriptors),intent(in) :: lzd
+!!$      real(kind=8),dimension(3,norbp),intent(out) :: com
+!!$
+!!$      ! Local variables
+!!$      real(kind=8),dimension(:),allocatable :: psir
+!!$      type(workarr_sumrho) :: w
+!!$      integer :: ist, istr, iorb, iiorb, ilr, i1, i2, i3, ii1, ii2, ii3, iat, iiat, l, m, nl1, nl2, nl3
+!!$      real(kind=8),dimension(-1:1) :: dipole
+!!$      real(kind=8) :: weight, tt, x, y, z, r2, hxh, hyh, hzh, q, qtot, monopole, r
+!!$      real(kind=8),parameter :: sigma2=0.1d0
+!!$      integer, dimension(3) :: ioffset_isf
+!!$
+!!$      call f_routine(id='supportfunction_centers')
+!!$
+!!$      ! Transform the support functions to real space
+!!$      psir = f_malloc(max(nphirdim,1),id='psir')
+!!$      ist=1
+!!$      istr=1
+!!$      do iorb=1,norbp
+!!$          iiorb=isorb+iorb
+!!$          ilr=in_which_locreg(iiorb)
+!!$          call initialize_work_arrays_sumrho(lzd%Llr(ilr),.true.,w)
+!!$          call daub_to_isf(lzd%Llr(ilr), w, phi(ist), psir(istr))
+!!$          call deallocate_work_arrays_sumrho(w)
+!!$          !write(*,'(a,4i8,es16.6)') 'INITIAL: iproc, iiorb, n, istr, ddot', &
+!!$          !    iproc, iiorb, lzd%Llr(ilr)%d%n1i*lzd%Llr(ilr)%d%n2i*lzd%Llr(ilr)%d%n3i, &
+!!$          !    istr, ddot(lzd%Llr(ilr)%d%n1i*lzd%Llr(ilr)%d%n2i*lzd%Llr(ilr)%d%n3i, psir(istr), 1, psir(istr), 1)
+!!$          !testarr(1,iiorb) = ddot(lzd%Llr(ilr)%d%n1i*lzd%Llr(ilr)%d%n2i*lzd%Llr(ilr)%d%n3i, psir(istr), 1, psir(istr), 1)
+!!$          ist = ist + lzd%Llr(ilr)%wfd%nvctr_c + 7*lzd%Llr(ilr)%wfd%nvctr_f
+!!$          istr = istr + lzd%Llr(ilr)%d%n1i*lzd%Llr(ilr)%d%n2i*lzd%Llr(ilr)%d%n3i
+!!$      end do
+!!$      if(istr/=nphirdim+1) then
+!!$          call f_err_throw('ERROR on process '//adjustl(trim(yaml_toa(bigdft_mpi%iproc)))//': istr/=nphirdim+1', &
+!!$               err_name='BIGDFT_RUNTIME_ERROR')
+!!$          stop
+!!$      end if
+!!$
+!!$      hxh = 0.5d0*lzd%hgrids(1)
+!!$      hyh = 0.5d0*lzd%hgrids(2)
+!!$      hzh = 0.5d0*lzd%hgrids(3)
+!!$
+!!$      istr = 1
+!!$      do iorb=1,norbp
+!!$          iiorb=isorb+iorb
+!!$          ilr=in_which_locreg(iiorb)
+!!$!!$          call geocode_buffers(lzd%Llr(ilr)%geocode, lzd%glr%geocode, nl1, nl2, nl3)
+!!$          ioffset_isf(:) = get_isf_offset(lzd%Llr(ilr),lzd%glr%mesh)
+!!$          !write(*,*) 'iorb, iiorb, ilr', iorb, iiorb, ilr
+!!$          com(1:3,iorb) = 0.d0
+!!$          weight = 0.d0
+!!$          do i3=1,lzd%llr(ilr)%d%n3i
+!!$!!$              ii3 = lzd%llr(ilr)%nsi3 + i3 - nl3 - 1
+!!$              ii3 = ioffset_isf(3) + i3
+!!$              z = ii3*hzh
+!!$              do i2=1,lzd%llr(ilr)%d%n2i
+!!$!!$                  ii2 = lzd%llr(ilr)%nsi2 + i2 - nl2 - 1
+!!$                  ii2 = ioffset_isf(2) + i2
+!!$                  y = ii2*hyh
+!!$                  do i1=1,lzd%llr(ilr)%d%n1i
+!!$!!$                      ii1 = lzd%llr(ilr)%nsi1 + i1 - nl1 - 1
+!!$                      ii1 = ioffset_isf(1) + i1
+!!$                      x = ii1*hxh
+!!$                      tt = psir(istr)**2
+!!$                      com(1,iorb) = com(1,iorb) + x*tt
+!!$                      com(2,iorb) = com(2,iorb) + y*tt
+!!$                      com(3,iorb) = com(3,iorb) + z*tt
+!!$                      weight = weight + tt
+!!$                      istr = istr + 1
+!!$                  end do
+!!$              end do
+!!$          end do
+!!$          !call yaml_map('weight',weight)
+!!$          com(1:3,iorb) = com(1:3,iorb)/weight
+!!$
+!!$      end do
+!!$
+!!$      call f_free(psir)
+!!$
+!!$      call f_release_routine()
+!!$
+!!$    end subroutine supportfunction_centers
 
-      ! Calling arguments
-      integer,intent(in) :: nat, nphidim, nphirdim, norb, norbp, isorb
-      integer,dimension(norb),intent(in) :: in_which_locreg
-      real(kind=8),dimension(3,nat),intent(in) :: rxyz
-      real(kind=8),dimension(nphidim),intent(in) :: phi
-      type(local_zone_descriptors),intent(in) :: lzd
-      real(kind=8),dimension(3,norbp),intent(out) :: com
-
-      ! Local variables
-      real(kind=8),dimension(:),allocatable :: psir
-      type(workarr_sumrho) :: w
-      integer :: ist, istr, iorb, iiorb, ilr, i1, i2, i3, ii1, ii2, ii3, iat, iiat, l, m, nl1, nl2, nl3
-      real(kind=8),dimension(-1:1) :: dipole
-      real(kind=8) :: weight, tt, x, y, z, r2, hxh, hyh, hzh, q, qtot, monopole, r
-      real(kind=8),parameter :: sigma2=0.1d0
-
-      call f_routine(id='supportfunction_centers')
-
-      ! Transform the support functions to real space
-      psir = f_malloc(max(nphirdim,1),id='psir')
-      ist=1
-      istr=1
-      do iorb=1,norbp
-          iiorb=isorb+iorb
-          ilr=in_which_locreg(iiorb)
-          call initialize_work_arrays_sumrho(lzd%Llr(ilr),.true.,w)
-          call daub_to_isf(lzd%Llr(ilr), w, phi(ist), psir(istr))
-          call deallocate_work_arrays_sumrho(w)
-          !write(*,'(a,4i8,es16.6)') 'INITIAL: iproc, iiorb, n, istr, ddot', &
-          !    iproc, iiorb, lzd%Llr(ilr)%d%n1i*lzd%Llr(ilr)%d%n2i*lzd%Llr(ilr)%d%n3i, &
-          !    istr, ddot(lzd%Llr(ilr)%d%n1i*lzd%Llr(ilr)%d%n2i*lzd%Llr(ilr)%d%n3i, psir(istr), 1, psir(istr), 1)
-          !testarr(1,iiorb) = ddot(lzd%Llr(ilr)%d%n1i*lzd%Llr(ilr)%d%n2i*lzd%Llr(ilr)%d%n3i, psir(istr), 1, psir(istr), 1)
-          ist = ist + lzd%Llr(ilr)%wfd%nvctr_c + 7*lzd%Llr(ilr)%wfd%nvctr_f
-          istr = istr + lzd%Llr(ilr)%d%n1i*lzd%Llr(ilr)%d%n2i*lzd%Llr(ilr)%d%n3i
-      end do
-      if(istr/=nphirdim+1) then
-          call f_err_throw('ERROR on process '//adjustl(trim(yaml_toa(bigdft_mpi%iproc)))//': istr/=nphirdim+1', &
-               err_name='BIGDFT_RUNTIME_ERROR')
-          stop
-      end if
-
-      hxh = 0.5d0*lzd%hgrids(1)
-      hyh = 0.5d0*lzd%hgrids(2)
-      hzh = 0.5d0*lzd%hgrids(3)
-
-      istr = 1
-      do iorb=1,norbp
-          iiorb=isorb+iorb
-          ilr=in_which_locreg(iiorb)
-          call geocode_buffers(lzd%Llr(ilr)%geocode, lzd%glr%geocode, nl1, nl2, nl3)
-          !write(*,*) 'iorb, iiorb, ilr', iorb, iiorb, ilr
-          com(1:3,iorb) = 0.d0
-          weight = 0.d0
-          do i3=1,lzd%llr(ilr)%d%n3i
-              ii3 = lzd%llr(ilr)%nsi3 + i3 - nl3 - 1
-              z = ii3*hzh
-              do i2=1,lzd%llr(ilr)%d%n2i
-                  ii2 = lzd%llr(ilr)%nsi2 + i2 - nl2 - 1
-                  y = ii2*hyh
-                  do i1=1,lzd%llr(ilr)%d%n1i
-                      ii1 = lzd%llr(ilr)%nsi1 + i1 - nl1 - 1
-                      x = ii1*hxh
-                      tt = psir(istr)**2
-                      com(1,iorb) = com(1,iorb) + x*tt
-                      com(2,iorb) = com(2,iorb) + y*tt
-                      com(3,iorb) = com(3,iorb) + z*tt
-                      weight = weight + tt
-                      istr = istr + 1
-                  end do
-              end do
-          end do
-          !call yaml_map('weight',weight)
-          com(1:3,iorb) = com(1:3,iorb)/weight
-
-      end do
-
-      call f_free(psir)
-
-      call f_release_routine()
-
-    end subroutine supportfunction_centers
-
-
-
-
-
-
-
-  subroutine add_penalty_term(geocode, nfvctr, neighbor, rxyz, cell_dim, com, alpha, n, ovrlp, ham)
-    use module_base
-    implicit none
-
-    ! Calling arguments
-    character(len=1),intent(in) :: geocode
-    integer,intent(in) :: nfvctr, n
-    logical,dimension(nfvctr),intent(in) :: neighbor
-    real(kind=8),dimension(3),intent(in) :: rxyz, cell_dim
-    real(kind=8),intent(in) :: alpha
-    real(kind=8),dimension(3,nfvctr),intent(in) :: com
-    real(kind=8),dimension(n,n),intent(inout) :: ovrlp
-    real(kind=8),dimension(n,n),intent(inout) :: ham
-
-    ! Local variables
-    logical :: perx, pery, perz
-    integer :: is1, ie1, is2, ie2, is3, ie3, icheck, ii, i, jj, j, i1, i2, i3
-    real(kind=8) :: rr2, x, y, z, ttx, tty, ttz, tt
-
-    call f_routine(id='add_penalty_term')
-
-    ! Determine the periodicity...
-    !write(*,*) 'geocode',geocode
-    perx=(geocode /= 'F')
-    pery=(geocode == 'P')
-    perz=(geocode /= 'F')
-    if (perx) then
-        is1 = -1
-        ie1 = 1
-    else
-        is1 = 0
-        ie1 = 0
-    end if
-    if (pery) then
-        is2 = -1
-        ie2 = 1
-    else
-        is2 = 0
-        ie2 = 0
-    end if
-    if (perz) then
-        is3 = -1
-        ie3 = 1
-    else
-        is3 = 0
-        ie3 = 0
-    end if
-
-
-    ! Add the penalty term
-    icheck = 0
-    ii = 0
-    do i=1,nfvctr
-        if (neighbor(i)) then
-            jj = 0
-            do j=1,nfvctr
-                if (neighbor(j)) then
-                    icheck = icheck + 1
-                    jj = jj + 1
-                    if (jj==1) ii = ii + 1 !new column if we are at the first line element of a a column
-                    if (i==j) then
-                        rr2 = huge(rr2)
-                        do i3=is3,ie3
-                            z = rxyz(3) + i3*cell_dim(3)
-                            ttz = (com(3,i)-z)**2
-                            do i2=is2,ie2
-                                y = rxyz(2) + i2*cell_dim(2)
-                                tty = (com(2,i)-y)**2
-                                do i1=is1,ie1
-                                    x = rxyz(1) + i1*cell_dim(1)
-                                    ttx = (com(1,i)-x)**2
-                                    tt = ttx + tty + ttz
-                                    if (tt<rr2) then
-                                        rr2 = tt
-                                    end if
-                                end do
-                            end do
-                        end do
-                        !write(*,*) 'i, j, ii, jj, tt', ii, jj, alpha*rr2**3
-                        !ham(jj,ii) = ham(jj,ii) + alpha*rr2**3*ovrlp(jj,ii)
-                        if (jj==ii) then
-                            ham(jj,ii) = ham(jj,ii) + alpha*rr2**3
-                        end if
-                    end if
-                end if
-            end do
-        end if
-    end do
-    if (icheck>n**2) then
-        call f_err_throw('icheck('//adjustl(trim(yaml_toa(icheck)))//') > n**2('//&
-            &adjustl(trim(yaml_toa(n**2)))//')',err_name='BIGDFT_RUNTIME_ERROR')
-    end if
-
-    call f_release_routine()
-
-  end subroutine add_penalty_term
-
+!!$  subroutine add_penalty_term(geocode, nfvctr, neighbor, rxyz, cell_dim, com, alpha, n, ovrlp, ham)
+!!$    use module_base
+!!$    implicit none
+!!$
+!!$    ! Calling arguments
+!!$    character(len=1),intent(in) :: geocode
+!!$    integer,intent(in) :: nfvctr, n
+!!$    logical,dimension(nfvctr),intent(in) :: neighbor
+!!$    real(kind=8),dimension(3),intent(in) :: rxyz, cell_dim
+!!$    real(kind=8),intent(in) :: alpha
+!!$    real(kind=8),dimension(3,nfvctr),intent(in) :: com
+!!$    real(kind=8),dimension(n,n),intent(inout) :: ovrlp
+!!$    real(kind=8),dimension(n,n),intent(inout) :: ham
+!!$
+!!$    ! Local variables
+!!$    logical :: perx, pery, perz
+!!$    integer :: is1, ie1, is2, ie2, is3, ie3, icheck, ii, i, jj, j, i1, i2, i3
+!!$    real(kind=8) :: rr2, x, y, z, ttx, tty, ttz, tt
+!!$
+!!$    call f_routine(id='add_penalty_term')
+!!$
+!!$    ! Determine the periodicity...
+!!$    !write(*,*) 'geocode',geocode
+!!$    perx=(geocode /= 'F')
+!!$    pery=(geocode == 'P')
+!!$    perz=(geocode /= 'F')
+!!$    if (perx) then
+!!$        is1 = -1
+!!$        ie1 = 1
+!!$    else
+!!$        is1 = 0
+!!$        ie1 = 0
+!!$    end if
+!!$    if (pery) then
+!!$        is2 = -1
+!!$        ie2 = 1
+!!$    else
+!!$        is2 = 0
+!!$        ie2 = 0
+!!$    end if
+!!$    if (perz) then
+!!$        is3 = -1
+!!$        ie3 = 1
+!!$    else
+!!$        is3 = 0
+!!$        ie3 = 0
+!!$    end if
+!!$
+!!$
+!!$    ! Add the penalty term
+!!$    icheck = 0
+!!$    ii = 0
+!!$    do i=1,nfvctr
+!!$        if (neighbor(i)) then
+!!$            jj = 0
+!!$            do j=1,nfvctr
+!!$                if (neighbor(j)) then
+!!$                    icheck = icheck + 1
+!!$                    jj = jj + 1
+!!$                    if (jj==1) ii = ii + 1 !new column if we are at the first line element of a a column
+!!$                    if (i==j) then
+!!$                        rr2 = huge(rr2)
+!!$                        do i3=is3,ie3
+!!$                            z = rxyz(3) + i3*cell_dim(3)
+!!$                            ttz = (com(3,i)-z)**2
+!!$                            do i2=is2,ie2
+!!$                                y = rxyz(2) + i2*cell_dim(2)
+!!$                                tty = (com(2,i)-y)**2
+!!$                                do i1=is1,ie1
+!!$                                    x = rxyz(1) + i1*cell_dim(1)
+!!$                                    ttx = (com(1,i)-x)**2
+!!$                                    tt = ttx + tty + ttz
+!!$                                    if (tt<rr2) then
+!!$                                        rr2 = tt
+!!$                                    end if
+!!$                                end do
+!!$                            end do
+!!$                        end do
+!!$                        !write(*,*) 'i, j, ii, jj, tt', ii, jj, alpha*rr2**3
+!!$                        !ham(jj,ii) = ham(jj,ii) + alpha*rr2**3*ovrlp(jj,ii)
+!!$                        if (jj==ii) then
+!!$                            ham(jj,ii) = ham(jj,ii) + alpha*rr2**3
+!!$                        end if
+!!$                    end if
+!!$                end if
+!!$            end do
+!!$        end if
+!!$    end do
+!!$    if (icheck>n**2) then
+!!$        call f_err_throw('icheck('//adjustl(trim(yaml_toa(icheck)))//') > n**2('//&
+!!$            &adjustl(trim(yaml_toa(n**2)))//')',err_name='BIGDFT_RUNTIME_ERROR')
+!!$    end if
+!!$
+!!$    call f_release_routine()
+!!$
+!!$  end subroutine add_penalty_term
 
 
 
-  subroutine add_penalty_term_new(geocode, nat, nfvctr, neighbor, rxyz, on_which_atom, &
-             multipoles, cell_dim, com, alpha, n, ham, nmax, penalty_matrix)
-    use module_base
-    use multipole_base, only: lmax
-    use module_base
-    implicit none
 
-    ! Calling arguments
-    character(len=1),intent(in) :: geocode
-    integer,intent(in) :: nat, nfvctr, n, nmax
-    logical,dimension(nfvctr),intent(in) :: neighbor
-    real(kind=8),dimension(3),intent(in) :: rxyz, cell_dim
-    integer,dimension(nfvctr),intent(in) :: on_which_atom
-    real(kind=8),dimension(-lmax:lmax,0:lmax,nfvctr) :: multipoles
-    real(kind=8),dimension(3,nfvctr),intent(in) :: com
-    real(kind=8),intent(in) :: alpha
-    real(kind=8),dimension(n,n),intent(inout) :: ham
-    real(kind=8),dimension(n,n),intent(out) :: penalty_matrix
-
-    ! Local variables
-    logical :: perx, pery, perz
-    integer :: is1, ie1, is2, ie2, is3, ie3, icheck, ii, i, jj, j, i1, i2, i3
-    integer :: il, jl, im, jm, ix, iy, iz, iat, jat
-    real(kind=8) :: rr2, x, y, z, ttx, tty, ttz, tt, argi, argj, expi, expj, silim, sjljm, rr, xx, yy, zz
-    real(kind=8),dimension(1:3) :: rip, rjp
-    integer,parameter :: nn=25
-    real(kind=8),parameter :: hh=0.35d0
-    real(kind=8),parameter :: sigma2 = 1.d-1
-
-
-    stop 'not working any more'
-
-!!    call f_routine(id='add_penalty_term_new')
-!!
-!!    call f_zero(penalty_matrix)
-!!
-!!    ! Determine the periodicity...
-!!    !write(*,*) 'geocode',geocode
-!!    perx=(geocode /= 'F')
-!!    pery=(geocode == 'P')
-!!    perz=(geocode /= 'F')
-!!    if (perx) then
-!!        is1 = -1
-!!        ie1 = 1
-!!    else
-!!        is1 = 0
-!!        ie1 = 0
-!!    end if
-!!    if (pery) then
-!!        is2 = -1
-!!        ie2 = 1
-!!    else
-!!        is2 = 0
-!!        ie2 = 0
-!!    end if
-!!    if (perz) then
-!!        is3 = -1
-!!        ie3 = 1
-!!    else
-!!        is3 = 0
-!!        ie3 = 0
-!!    end if
-!!
-!!    ! FOR THE MOMENT NOT WORKING FOR PERIODIC SYSTEMS! NEED TO TAKE THIS INTO ACCOUNT.
-!!
-!!
-!!    ! Loop over all elements to be calculated
-!!    icheck = 0
-!!    ii = 0
-!!    do i=1,nfvctr
-!!        if (neighbor(i)) then
-!!            iat = on_which_atom(i)
-!!            jj = 0
-!!            do j=1,nfvctr
-!!                if (neighbor(j)) then
-!!                    !!write(*,*) 'i, j', i, j
-!!                    jat = on_which_atom(j)
-!!                    icheck = icheck + 1
-!!                    jj = jj + 1
-!!                    if (jj==1) ii = ii + 1 !new column if we are at the first line element of a a column
-!!                    !if (i==j) then
-!!                        ! distances from the atoms iat and jat (respectively the sup fun centered on them) to the one for which the projector should be calculated
-!!                        rip(1:3) = com(1:3,i) - rxyz(1:3)
-!!                        rjp(1:3) = com(1:3,j) - rxyz(1:3)
-!!                        ! Do the summation over l,l' and m,m'
-!!                        tt = 0.d0
-!!                        do il=0,lmax
-!!                            do jl=0,lmax
-!!                                do im=-il,il
-!!                                    do jm=-jl,jl
-!!                                        ! Do the integration
-!!                                        rr = 0.d0
-!!                                        do ix=-nn,nn
-!!                                            x = real(ix,kind=8)*hh
-!!                                            xx = x + rxyz(1)
-!!                                            do iy=-nn,nn
-!!                                                y = real(iy,kind=8)*hh
-!!                                                yy = y + rxyz(2)
-!!                                                do iz=-nn,nn
-!!                                                    z = real(iz,kind=8)*hh
-!!                                                    zz = z + rxyz(3)
-!!                                                    argi = ((x-rip(1))**2 + (y-rip(2))**2 + (z-rip(3))**2)/(2*sigma2)
-!!                                                    argj = ((x-rjp(1))**2 + (y-rjp(2))**2 + (z-rjp(3))**2)/(2*sigma2)
-!!                                                    !expi = safe_exp(-argi)/(2*pi*sigma2)**(3.d0/2.d0)
-!!                                                    !expj = safe_exp(-argj)/(2*pi*sigma2)**(3.d0/2.d0)
-!!                                                    expi = safe_exp(-argi)/(1.d0*pi*sigma2)**(3.d0/4.d0)
-!!                                                    expj = safe_exp(-argj)/(1.d0*pi*sigma2)**(3.d0/4.d0)
-!!                                                    silim = spherical_harmonic(il,im,xx,yy,zz)*sqrt(4.d0*pi)
-!!                                                    sjljm = spherical_harmonic(jl,jm,xx,yy,zz)*sqrt(4.d0*pi)
-!!                                                    !if (abs(argi)>1000.d0) write(*,*) 'WARNING argi'
-!!                                                    !if (abs(argj)>1000.d0) write(*,*) 'WARNING argj'
-!!                                                    !if (abs(expi)>1000.d0) write(*,*) 'WARNING expi'
-!!                                                    !if (abs(expj)>1000.d0) write(*,*) 'WARNING expj'
-!!                                                    !if (abs(silim)>1000.d0) write(*,*) 'WARNING silim'
-!!                                                    !if (abs(sjljm)>1000.d0) write(*,*) 'WARNING sjljm'
-!!                                                    !rr = rr + silim*expi*alpha*(x**2+y**2+z**2)*sjljm*expj*hh**3
-!!                                                    !rr = rr + silim*expi*sjljm*expj*hh**3*sqrt(4.d0*pi)
-!!                                                    !write(*,*) 'argi, expi, argj, expj', argi, argj, expi, expj
-!!                                                    rr = rr + silim*expi*alpha*(x**2+y**2+z**2)**3*sjljm*expj*hh**3
-!!                                                    !rr = rr + silim*expi*sjljm*expj*hh**3
-!!                                                end do
-!!                                            end do
-!!                                        end do
-!!                                        !write(*,*) 'i, j, il, im, jl, jm, rr', i, j, il, im, jl, jm, rr
-!!                                        !tt = tt + multipoles(im,il,iat)*multipoles(jm,jl,jat)*rr
-!!                                        !if (il==0 .and. jl==0) then
-!!                                            tt = tt + multipoles(im,il,i)*multipoles(jm,jl,j)*rr
-!!                                        !end if
-!!                                        !if (abs(multipoles(im,il,iat))>1000.d0) write(*,*) 'WARNING multipoles(im,il,iat)'
-!!                                        !if (abs(multipoles(jm,jl,jat))>1000.d0) write(*,*) 'WARNING multipoles(jm,jl,jat)'
-!!                                    end do
-!!                                end do
-!!                            end do
-!!                        end do
-!!                        write(*,*) 'i, j, ii, jj, tt', ii, jj, tt
-!!                        ham(jj,ii) = ham(jj,ii) + tt
-!!                        penalty_matrix(jj,ii) = tt
-!!                    !end if
-!!                end if
-!!            end do
-!!        end if
-!!    end do
-!!
-!!    if (icheck>n**2) then
-!!        call f_err_throw('icheck('//adjustl(trim(yaml_toa(icheck)))//') > n**2('//&
-!!            &adjustl(trim(yaml_toa(n**2)))//')',err_name='BIGDFT_RUNTIME_ERROR')
-!!    end if
-!!
-!!    call f_release_routine()
-
-  end subroutine add_penalty_term_new
+!!$  subroutine add_penalty_term_new(geocode, nat, nfvctr, neighbor, rxyz, on_which_atom, &
+!!$             multipoles, cell_dim, com, alpha, n, ham, nmax, penalty_matrix)
+!!$    use module_base
+!!$    use multipole_base, only: lmax
+!!$    use module_base
+!!$    implicit none
+!!$
+!!$    ! Calling arguments
+!!$    character(len=1),intent(in) :: geocode
+!!$    integer,intent(in) :: nat, nfvctr, n, nmax
+!!$    logical,dimension(nfvctr),intent(in) :: neighbor
+!!$    real(kind=8),dimension(3),intent(in) :: rxyz, cell_dim
+!!$    integer,dimension(nfvctr),intent(in) :: on_which_atom
+!!$    real(kind=8),dimension(-lmax:lmax,0:lmax,nfvctr) :: multipoles
+!!$    real(kind=8),dimension(3,nfvctr),intent(in) :: com
+!!$    real(kind=8),intent(in) :: alpha
+!!$    real(kind=8),dimension(n,n),intent(inout) :: ham
+!!$    real(kind=8),dimension(n,n),intent(out) :: penalty_matrix
+!!$
+!!$    ! Local variables
+!!$    logical :: perx, pery, perz
+!!$    integer :: is1, ie1, is2, ie2, is3, ie3, icheck, ii, i, jj, j, i1, i2, i3
+!!$    integer :: il, jl, im, jm, ix, iy, iz, iat, jat
+!!$    real(kind=8) :: rr2, x, y, z, ttx, tty, ttz, tt, argi, argj, expi, expj, silim, sjljm, rr, xx, yy, zz
+!!$    real(kind=8),dimension(1:3) :: rip, rjp
+!!$    integer,parameter :: nn=25
+!!$    real(kind=8),parameter :: hh=0.35d0
+!!$    real(kind=8),parameter :: sigma2 = 1.d-1
+!!$
+!!$
+!!$    stop 'not working any more'
+!!$
+!!$!!    call f_routine(id='add_penalty_term_new')
+!!$!!
+!!$!!    call f_zero(penalty_matrix)
+!!$!!
+!!$!!    ! Determine the periodicity...
+!!$!!    !write(*,*) 'geocode',geocode
+!!$!!    perx=(geocode /= 'F')
+!!$!!    pery=(geocode == 'P')
+!!$!!    perz=(geocode /= 'F')
+!!$!!    if (perx) then
+!!$!!        is1 = -1
+!!$!!        ie1 = 1
+!!$!!    else
+!!$!!        is1 = 0
+!!$!!        ie1 = 0
+!!$!!    end if
+!!$!!    if (pery) then
+!!$!!        is2 = -1
+!!$!!        ie2 = 1
+!!$!!    else
+!!$!!        is2 = 0
+!!$!!        ie2 = 0
+!!$!!    end if
+!!$!!    if (perz) then
+!!$!!        is3 = -1
+!!$!!        ie3 = 1
+!!$!!    else
+!!$!!        is3 = 0
+!!$!!        ie3 = 0
+!!$!!    end if
+!!$!!
+!!$!!    ! FOR THE MOMENT NOT WORKING FOR PERIODIC SYSTEMS! NEED TO TAKE THIS INTO ACCOUNT.
+!!$!!
+!!$!!
+!!$!!    ! Loop over all elements to be calculated
+!!$!!    icheck = 0
+!!$!!    ii = 0
+!!$!!    do i=1,nfvctr
+!!$!!        if (neighbor(i)) then
+!!$!!            iat = on_which_atom(i)
+!!$!!            jj = 0
+!!$!!            do j=1,nfvctr
+!!$!!                if (neighbor(j)) then
+!!$!!                    !!write(*,*) 'i, j', i, j
+!!$!!                    jat = on_which_atom(j)
+!!$!!                    icheck = icheck + 1
+!!$!!                    jj = jj + 1
+!!$!!                    if (jj==1) ii = ii + 1 !new column if we are at the first line element of a a column
+!!$!!                    !if (i==j) then
+!!$!!                        ! distances from the atoms iat and jat (respectively the sup fun centered on them) to the one for which the projector should be calculated
+!!$!!                        rip(1:3) = com(1:3,i) - rxyz(1:3)
+!!$!!                        rjp(1:3) = com(1:3,j) - rxyz(1:3)
+!!$!!                        ! Do the summation over l,l' and m,m'
+!!$!!                        tt = 0.d0
+!!$!!                        do il=0,lmax
+!!$!!                            do jl=0,lmax
+!!$!!                                do im=-il,il
+!!$!!                                    do jm=-jl,jl
+!!$!!                                        ! Do the integration
+!!$!!                                        rr = 0.d0
+!!$!!                                        do ix=-nn,nn
+!!$!!                                            x = real(ix,kind=8)*hh
+!!$!!                                            xx = x + rxyz(1)
+!!$!!                                            do iy=-nn,nn
+!!$!!                                                y = real(iy,kind=8)*hh
+!!$!!                                                yy = y + rxyz(2)
+!!$!!                                                do iz=-nn,nn
+!!$!!                                                    z = real(iz,kind=8)*hh
+!!$!!                                                    zz = z + rxyz(3)
+!!$!!                                                    argi = ((x-rip(1))**2 + (y-rip(2))**2 + (z-rip(3))**2)/(2*sigma2)
+!!$!!                                                    argj = ((x-rjp(1))**2 + (y-rjp(2))**2 + (z-rjp(3))**2)/(2*sigma2)
+!!$!!                                                    !expi = safe_exp(-argi)/(2*pi*sigma2)**(3.d0/2.d0)
+!!$!!                                                    !expj = safe_exp(-argj)/(2*pi*sigma2)**(3.d0/2.d0)
+!!$!!                                                    expi = safe_exp(-argi)/(1.d0*pi*sigma2)**(3.d0/4.d0)
+!!$!!                                                    expj = safe_exp(-argj)/(1.d0*pi*sigma2)**(3.d0/4.d0)
+!!$!!                                                    silim = spherical_harmonic(il,im,xx,yy,zz)*sqrt(4.d0*pi)
+!!$!!                                                    sjljm = spherical_harmonic(jl,jm,xx,yy,zz)*sqrt(4.d0*pi)
+!!$!!                                                    !if (abs(argi)>1000.d0) write(*,*) 'WARNING argi'
+!!$!!                                                    !if (abs(argj)>1000.d0) write(*,*) 'WARNING argj'
+!!$!!                                                    !if (abs(expi)>1000.d0) write(*,*) 'WARNING expi'
+!!$!!                                                    !if (abs(expj)>1000.d0) write(*,*) 'WARNING expj'
+!!$!!                                                    !if (abs(silim)>1000.d0) write(*,*) 'WARNING silim'
+!!$!!                                                    !if (abs(sjljm)>1000.d0) write(*,*) 'WARNING sjljm'
+!!$!!                                                    !rr = rr + silim*expi*alpha*(x**2+y**2+z**2)*sjljm*expj*hh**3
+!!$!!                                                    !rr = rr + silim*expi*sjljm*expj*hh**3*sqrt(4.d0*pi)
+!!$!!                                                    !write(*,*) 'argi, expi, argj, expj', argi, argj, expi, expj
+!!$!!                                                    rr = rr + silim*expi*alpha*(x**2+y**2+z**2)**3*sjljm*expj*hh**3
+!!$!!                                                    !rr = rr + silim*expi*sjljm*expj*hh**3
+!!$!!                                                end do
+!!$!!                                            end do
+!!$!!                                        end do
+!!$!!                                        !write(*,*) 'i, j, il, im, jl, jm, rr', i, j, il, im, jl, jm, rr
+!!$!!                                        !tt = tt + multipoles(im,il,iat)*multipoles(jm,jl,jat)*rr
+!!$!!                                        !if (il==0 .and. jl==0) then
+!!$!!                                            tt = tt + multipoles(im,il,i)*multipoles(jm,jl,j)*rr
+!!$!!                                        !end if
+!!$!!                                        !if (abs(multipoles(im,il,iat))>1000.d0) write(*,*) 'WARNING multipoles(im,il,iat)'
+!!$!!                                        !if (abs(multipoles(jm,jl,jat))>1000.d0) write(*,*) 'WARNING multipoles(jm,jl,jat)'
+!!$!!                                    end do
+!!$!!                                end do
+!!$!!                            end do
+!!$!!                        end do
+!!$!!                        write(*,*) 'i, j, ii, jj, tt', ii, jj, tt
+!!$!!                        ham(jj,ii) = ham(jj,ii) + tt
+!!$!!                        penalty_matrix(jj,ii) = tt
+!!$!!                    !end if
+!!$!!                end if
+!!$!!            end do
+!!$!!        end if
+!!$!!    end do
+!!$!!
+!!$!!    if (icheck>n**2) then
+!!$!!        call f_err_throw('icheck('//adjustl(trim(yaml_toa(icheck)))//') > n**2('//&
+!!$!!            &adjustl(trim(yaml_toa(n**2)))//')',err_name='BIGDFT_RUNTIME_ERROR')
+!!$!!    end if
+!!$!!
+!!$!!    call f_release_routine()
+!!$
+!!$  end subroutine add_penalty_term_new
 
 
 
@@ -3350,9 +3613,11 @@ module multipole
                                 matrices_null, sparsematrix_malloc_ptr, deallocate_matrices, &
                                 sparse_matrix_metadata
    use locreg_operations,only: workarr_sumrho, initialize_work_arrays_sumrho, deallocate_work_arrays_sumrho
+   use locregs, only: get_isf_offset
    use yaml_output
-   use bounds, only: geocode_buffers
+!!$   use bounds, only: geocode_buffers
    use orbitalbasis
+   use box, only: cell_geocode
    implicit none
    ! Calling arguments
    integer,intent(in) :: iproc, nproc, nphi, nphir
@@ -3376,6 +3641,7 @@ module multipole
    real(gp), dimension(3) :: acell
    real(wp), dimension(:,:,:), allocatable :: Qlm
    real(kind=8),dimension(:),allocatable :: gg1, gg2, gg3
+   integer, dimension(3) :: ioffset_isf
 
 
    call f_routine(id='unitary_test_multipoles')
@@ -3394,11 +3660,12 @@ module multipole
    locregcenter = f_malloc0((/3,lzd%nlr/),id='locregcenter')
 
    do ilr=1,lzd%nlr
-       if (lzd%Llr(ilr)%geocode/='F') then
+!!$       if (lzd%Llr(ilr)%geocode/='F') then
+       if (cell_geocode(lzd%Llr(ilr)%mesh) /='F') then
            call f_err_throw('support function locregs must always have free BC')
        end if
    end do
-   call geocode_buffers('F', lzd%glr%geocode, nl1, nl2, nl3)
+!!$   call geocode_buffers('F', lzd%glr%geocode, nl1, nl2, nl3)
 
   sigma=0.5d0
   r=1.d0 !not used...
@@ -3407,6 +3674,7 @@ module multipole
    do iorb=1,orbs%norbp
        iiorb = orbs%isorb + iorb
        ilr = orbs%inwhichlocreg(iiorb)
+       ioffset_isf(:) = get_isf_offset(lzd%llr(ilr),lzd%glr%mesh)
        !rmax = min(lzd%llr(ilr)%d%n1i*0.25d0*hgrids(1),lzd%llr(ilr)%d%n2i*0.25d0*hgrids(2),lzd%llr(ilr)%d%n3i*0.25d0*hgrids(3))
        rmax = min(lzd%llr(ilr)%d%n1*0.5d0*hgrids(1),lzd%llr(ilr)%d%n2*0.5d0*hgrids(2),lzd%llr(ilr)%d%n3*0.5d0*hgrids(3))
        factor_normalization = 0.5d0*lzd%hgrids(1)*0.5d0*lzd%hgrids(2)*0.5d0*lzd%hgrids(3) !*3.d0/(4.d0*pi*rmax**3)
@@ -3418,34 +3686,40 @@ module multipole
        gg2 = f_malloc(lzd%llr(ilr)%d%n2i,id='gg2')
        gg3 = f_malloc(lzd%llr(ilr)%d%n3i,id='gg3')
        do i1=1,lzd%llr(ilr)%d%n1i
-           ii1 = lzd%llr(ilr)%nsi1 + i1 - nl1 - 1
+!!$           ii1 = lzd%llr(ilr)%nsi1 + i1 - nl1 - 1
+           ii1 = ioffset_isf(1) + i1
            x = ii1*0.5d0*lzd%hgrids(1) - locregcenter(1,ilr)
            gg1(i1) = safe_exp(-0.5d0*x**2/sigma**2)
        end do
        do i2=1,lzd%llr(ilr)%d%n2i
-           ii2 = lzd%llr(ilr)%nsi2 + i2 - nl2 - 1
+!!$           ii2 = lzd%llr(ilr)%nsi2 + i2 - nl2 - 1
+           ii2 = ioffset_isf(2) + i2
            y = ii2*0.5d0*lzd%hgrids(2) - locregcenter(2,ilr)
            gg2(i2) = safe_exp(-0.5d0*y**2/sigma**2)
        end do
        do i3=1,lzd%llr(ilr)%d%n3i
-           ii3 = lzd%llr(ilr)%nsi3 + i3 - nl3 - 1
+!!$           ii3 = lzd%llr(ilr)%nsi3 + i3 - nl3 - 1
+           ii3 = ioffset_isf(3) + i3
            z = ii3*0.5d0*lzd%hgrids(3) - locregcenter(3,ilr)
            gg3(i3) = safe_exp(-0.5d0*z**2/sigma**2)
        end do
 
        !$omp parallel default(none) &
-       !$omp shared(lzd, nl1, nl2, nl3, ilr, locregcenter, sigma, phi2r, ist, factor_normalization) &
+       !$omp shared(lzd, ioffset_isf, ilr, locregcenter, sigma, phi2r, ist, factor_normalization) &
        !$omp shared(gg1, gg2, gg3, r) &
        !$omp private(i1, i2, i3, ii1, ii2, ii3, x, y, z, ind, l, m, factor)
        !$omp do schedule(static)
        do i3=1,lzd%llr(ilr)%d%n3i
-           ii3 = lzd%llr(ilr)%nsi3 + i3 - nl3 - 1
+!!$           ii3 = lzd%llr(ilr)%nsi3 + i3 - nl3 - 1
+           ii3 = ioffset_isf(3) + i3
            z = ii3*0.5d0*lzd%hgrids(3) - locregcenter(3,ilr)
            do i2=1,lzd%llr(ilr)%d%n2i
-               ii2 = lzd%llr(ilr)%nsi2 + i2 - nl2 - 1
+!!$               ii2 = lzd%llr(ilr)%nsi2 + i2 - nl2 - 1
+               ii2 = ioffset_isf(2) + i2
                y = ii2*0.5d0*lzd%hgrids(2) - locregcenter(2,ilr)
                do i1=1,lzd%llr(ilr)%d%n1i
-                   ii1 = lzd%llr(ilr)%nsi1 + i1 - nl1 - 1
+!!$                   ii1 = lzd%llr(ilr)%nsi1 + i1 - nl1 - 1
+                   ii1 = ioffset_isf(1) + i1
                    x = ii1*0.5d0*lzd%hgrids(1) - locregcenter(1,ilr)
                    ind = (i3-1)*lzd%llr(ilr)%d%n2i*lzd%llr(ilr)%d%n1i + (i2-1)*lzd%llr(ilr)%d%n1i + i1
                    do l=0,lmax
@@ -3495,7 +3769,7 @@ module multipole
    acell(3)=0.5_gp*hgrids(3)*Lzd%glr%d%n3i
    Qlm=f_malloc([-lmax .to. lmax ,0 .to. lmax,1 .to. orbs%norbp ],id='Qlm')
    call orbital_basis_associate(psi_ob,orbs=orbs,phis_wvl=phi2,Lzd=Lzd,id='unitary_test_multipoles')
-   call Qlm_phi(lmax,smmd%geocode,hgrids,acell,psi_ob,Qlm,.false.,centers=locregcenter)
+   call Qlm_phi(lmax,Lzd%glr%mesh,hgrids,acell,psi_ob,Qlm,.false.,centers=locregcenter)
    call orbital_basis_release(psi_ob)
    call f_zero(values)
    do l=0,lmax
@@ -3632,7 +3906,7 @@ module multipole
    use locreg_operations
    use yaml_output
    use multipole_base, only: lmax
-   use bounds, only: geocode_buffers
+!   use bounds, only: geocode_buffers
    use sparsematrix_base, only: matrices, matrices_null, sparsematrix_malloc_ptr, SPARSE_TASKGROUP, assignment(=), &
                                 deallocate_matrices
    use orthonormalization, only: orthonormalizelocalized
@@ -3800,7 +4074,7 @@ module multipole
   Qlm=f_malloc([-lmax .to. lmax ,0 .to. lmax,1 .to. tmb%orbs%norbp ],id='Qlm')
   call orbital_basis_associate(psi_ob,orbs=tmb%orbs,&
        phis_wvl=phi_ortho,Lzd=tmb%Lzd,id='support_function_gross_multipoles')
-  call Qlm_phi(lmax,tmb%linmat%smmd%geocode,tmb%lzd%hgrids,acell,psi_ob,Qlm,.false.,centers=center_locreg)
+  call Qlm_phi(lmax,tmb%Lzd%glr%mesh,tmb%lzd%hgrids,acell,psi_ob,Qlm,.false.,centers=center_locreg)
   call orbital_basis_release(psi_ob)
   do iorb=1,tmb%orbs%norbp
      iiorb = tmb%orbs%isorb + iorb
@@ -4185,7 +4459,7 @@ module multipole
        nonzero_startend(2,impl) = ie
        do i=is,ie
            ii = i - nl - 1
-           tt = huge(tt)
+           tt = huge(1.0_gp)
            do j=js,je
                dr = real(ii+j*nglob,kind=8)*hh + shift(idim) - ep%mpl(impl)%rxyz(idim)
                if (abs(dr)<abs(tt)) tt = dr
@@ -4246,6 +4520,104 @@ module multipole
      end function gaussian
 
  end subroutine calculate_gaussian
+
+ subroutine calculate_gaussian_norm(bitp,nproc, is1, ie1, is2, ie2, is3, ie3, ep, &
+            hhh, gaussian, norm)
+   use module_base
+   use multipole_base, only: external_potential_descriptors
+   use box
+   implicit none
+
+   ! Calling arguments
+   type(box_iterator), intent(in) :: bitp
+   integer,intent(in) :: nproc, is1, ie1, is2, ie2, is3, ie3
+   type(external_potential_descriptors),intent(in) :: ep
+   real(kind=8),intent(in) :: hhh
+   real(kind=8),dimension(0:2,is1:ie1,is2:ie2,is3:ie3,1:ep%nmpl),intent(in) :: gaussian
+   real(kind=8),dimension(0:2,ep%nmpl),intent(out) :: norm
+
+   ! Local variables
+   integer :: impl, i1, i2, i3, ii1, ii2, ii3, l, ithread, nthread
+   real(kind=8) :: gg
+   real(kind=8),dimension(0:lmax) :: gg23
+   type(box_iterator) :: bit
+   !logical,dimension(:,:),allocatable :: i2skip
+   logical :: i2skip_initialized
+   !$ integer :: omp_get_max_threads, omp_get_thread_num
+
+   call f_routine(id='calculate_gaussian_norm')
+
+   nthread = 1
+   !$ nthread = omp_get_max_threads()
+   !i2skip = f_malloc((/is2.to.ie2,0.to.nthread/),id='i2skip')
+
+   call f_zero(norm)
+
+   ithread = 0
+   !$omp parallel default(none) &
+   !$omp shared(ep, is1, ie1, is2, ie2, is3, ie3, norm, hhh) &
+   !$omp shared(gaussian,bit,bitp) &
+   !$omp private(impl, i1, i2, i3, ii1, ii2, ii3, l, gg23, gg, i2skip_initialized) &
+   !$omp firstprivate(ithread)
+   !$ ithread = omp_get_thread_num()
+   !$omp do schedule(guided)
+   impl_loop: do impl=1,ep%nmpl
+!--- Start old loop -------------------------------------------------------------------------------------
+!!$       i3loop: do i3=nonzero_startend3(1,impl),nonzero_startend3(2,impl)
+!!$           ii3 = is3 + mod(i3-is3,ie3-is3+1)
+!!$           if (maxval(gaussians3(:,ii3,impl))<1.d-20) cycle i3loop
+!!$           i2loop: do i2=nonzero_startend2(1,impl),nonzero_startend2(2,impl)
+!!$               ii2 = is2 + mod(i2-is2,ie2-is2+1)
+!!$               if (maxval(gaussians2(:,ii2,impl))<1.d-20) cycle i2loop
+!!$               do l=0,lmax
+!!$                   gg23(l) = gaussians2(l,ii2,impl)*gaussians3(l,ii3,impl)
+!!$               end do
+!!$               i1loop: do i1=nonzero_startend1(1,impl),nonzero_startend1(2,impl)
+!!$                   ii1 = is1 + mod(i1-is1,ie1-is1+1)
+!!$                   if (maxval(gaussians1(:,ii1,impl))<1.d-20) cycle i1loop
+!!$                   do l=0,lmax
+!!$                       gg = gaussians1(l,ii1,impl)*gg23(l)
+!!$                       norm(l,impl) = norm(l,impl) + gg*hhh
+!!$                   end do
+!!$               end do i1loop
+!!$           end do i2loop
+!!$       end do i3loop
+!--- Start old loop -------------------------------------------------------------------------------------
+!--- Start new iterator loop -------------------------------------------------------------------------------------
+       do l=0,lmax
+           bit=bitp
+           do while (box_next_point(bit))
+               norm(l,impl) = norm(l,impl) + gaussian(l,bit%i,bit%j,bit%k,impl)*hhh
+           end do
+       end do
+!--- End new iterator loop -------------------------------------------------------------------------------------
+   end do impl_loop
+   !$omp end do
+   !$omp end parallel
+
+   call communicate_norm()
+
+
+   call f_release_routine()
+
+   contains
+
+     ! This routine is just here for the timing
+     subroutine communicate_norm()
+       implicit none
+
+       call f_routine(id='communicate_norm')
+
+       ! Sum up the norms of the Gaussians.
+       if (nproc>1) then
+           call fmpi_allreduce(norm, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+       end if
+
+       call f_release_routine()
+
+     end subroutine communicate_norm
+
+ end subroutine calculate_gaussian_norm
 
  subroutine calculate_norm(nproc, is1, ie1, is2, ie2, is3, ie3, ep, &
             hhh, gaussians1, gaussians2, gaussians3, &
@@ -4552,189 +4924,195 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
 END SUBROUTINE calculate_dipole_moment
 
 
-subroutine calculate_rpowerx_matrices(iproc, nproc, nphi, nphir, lzd, orbs, collcom, phi, smat, aux, rpower_matrix)
-  use module_base
-  use module_types, only: local_zone_descriptors, orbitals_data, comms_linear, linmat_auxiliary
-  use locreg_operations,only: workarr_sumrho, initialize_work_arrays_sumrho, deallocate_work_arrays_sumrho
-  use communications_base, only: TRANSPOSE_FULL
-  use communications, only: transpose_localized
-  use transposed_operations, only: calculate_overlap_transposed
-  use sparsematrix_base, only: sparse_matrix, matrices
-  use bounds, only: geocode_buffers
-  implicit none
+!!$subroutine calculate_rpowerx_matrices(iproc, nproc, nphi, nphir, lzd, orbs, collcom, phi, smat, aux, rpower_matrix)
+!!$  use module_base
+!!$  use module_types, only: local_zone_descriptors, orbitals_data, comms_linear, linmat_auxiliary
+!!$  use locreg_operations,only: workarr_sumrho, initialize_work_arrays_sumrho, deallocate_work_arrays_sumrho
+!!$  use locreg_operations,only: get_isf_offset
+!!$  use communications_base, only: TRANSPOSE_FULL
+!!$  use communications, only: transpose_localized
+!!$  use transposed_operations, only: calculate_overlap_transposed
+!!$  use sparsematrix_base, only: sparse_matrix, matrices
+!!$!!$  use bounds, only: geocode_buffers
+!!$  implicit none
+!!$
+!!$  ! Calling arguments
+!!$  integer,intent(in) :: iproc, nproc, nphi, nphir
+!!$  type(local_zone_descriptors),intent(in) :: lzd
+!!$  type(orbitals_data),intent(in) :: orbs
+!!$  type(comms_linear),intent(in) :: collcom
+!!$  real(kind=8),dimension(nphi),intent(in) :: phi
+!!$  type(sparse_matrix),intent(in) :: smat
+!!$  type(linmat_auxiliary),intent(in) :: aux
+!!$  type(matrices),dimension(24),intent(inout) :: rpower_matrix
+!!$
+!!$  ! Local variables
+!!$  integer :: iorb, iiorb, ilr, iat, ii, i1, i2, i3, ii1, ii2, ii3, ist, istr, nl1, nl2, nl3, i
+!!$  type(workarr_sumrho) :: w
+!!$  real(kind=8),dimension(:),allocatable :: phir, phit_c, phit_f, xphit_c, xphit_f
+!!$  real(kind=8),dimension(:,:),allocatable :: xphi, xphir
+!!$  real(kind=8) :: hxh, hyh, hzh, x, y, z, r, r2
+!!$  integer, dimension(3) :: ioffset_isf
+!!$
+!!$  call f_routine(id='calculate_rpowerx_matrices')
+!!$
+!!$  xphi = f_malloc0((/nphi,24/),id='xphi')
+!!$  phir = f_malloc(nphir,id='phir')
+!!$  xphir = f_malloc0((/nphir,24/),id='xphir')
+!!$
+!!$  ist=1
+!!$  istr=1
+!!$  do iorb=1,orbs%norbp
+!!$      iiorb=orbs%isorb+iorb
+!!$      ilr=orbs%inwhichlocreg(iiorb)
+!!$      iat=orbs%onwhichatom(iiorb)
+!!$      call initialize_work_arrays_sumrho(lzd%Llr(ilr),.true.,w)
+!!$      ! Transform the support function to real space
+!!$      call daub_to_isf(lzd%llr(ilr), w, phi(ist), phir(istr))
+!!$      call initialize_work_arrays_sumrho(lzd%llr(ilr),.false.,w)
+!!$
+!!$      ! NEW: CALCULATE THE WEIGHT CENTER OF THE SUPPORT FUNCTION ############################
+!!$      hxh = 0.5d0*lzd%hgrids(1)
+!!$      hyh = 0.5d0*lzd%hgrids(2)
+!!$      hzh = 0.5d0*lzd%hgrids(3)
+!!$      ii = istr
+!!$!!$      call geocode_buffers(lzd%Llr(ilr)%geocode, lzd%glr%geocode, nl1, nl2, nl3)
+!!$      ioffset_isf(:) = get_isf_offset(lzd%Llr(ilr),lzd%glr%mesh)
+!!$      do i3=1,lzd%llr(ilr)%d%n3i
+!!$!!$          ii3 = lzd%llr(ilr)%nsi3 + i3 - nl3 - 1
+!!$          ii3 = ioffset_isf(3) + i3
+!!$          z = ii3*hzh
+!!$          do i2=1,lzd%llr(ilr)%d%n2i
+!!$!!$              ii2 = lzd%llr(ilr)%nsi2 + i2 - nl2 - 1
+!!$              ii2 = ioffset_isf(2) + i2
+!!$              y = ii2*hyh
+!!$              do i1=1,lzd%llr(ilr)%d%n1i
+!!$!!$                  ii1 = lzd%llr(ilr)%nsi1 + i1 - nl1 - 1
+!!$                  ii1 = ioffset_isf(1) + i1
+!!$                  x = ii1*hxh
+!!$                  r2 = x**2+y**2+z**2
+!!$                  xphir(ii,1) = x*phir(ii)
+!!$                  xphir(ii,2) = x**2*phir(ii)
+!!$                  xphir(ii,3) = x**3*phir(ii)
+!!$                  xphir(ii,4) = x**4*phir(ii)
+!!$                  xphir(ii,5) = y*phir(ii)
+!!$                  xphir(ii,6) = y**2*phir(ii)
+!!$                  xphir(ii,7) = y**3*phir(ii)
+!!$                  xphir(ii,8) = y**4*phir(ii)
+!!$                  xphir(ii,9) = z*phir(ii)
+!!$                  xphir(ii,10) = z**2*phir(ii)
+!!$                  xphir(ii,11) = z**3*phir(ii)
+!!$                  xphir(ii,12) = z**4*phir(ii)
+!!$                  xphir(ii,13) = x*y*phir(ii)
+!!$                  xphir(ii,14) = x**2*y*phir(ii)
+!!$                  xphir(ii,15) = x*y**2*phir(ii)
+!!$                  xphir(ii,16) = x**2*y**2*phir(ii)
+!!$                  xphir(ii,17) = x*z*phir(ii)
+!!$                  xphir(ii,18) = x**2*z*phir(ii)
+!!$                  xphir(ii,19) = x*z**2*phir(ii)
+!!$                  xphir(ii,20) = x**2*z**2*phir(ii)
+!!$                  xphir(ii,21) = y*z*phir(ii)
+!!$                  xphir(ii,22) = y**2*z*phir(ii)
+!!$                  xphir(ii,23) = y*z**2*phir(ii)
+!!$                  xphir(ii,24) = y**2*z**2*phir(ii)
+!!$                  ii = ii + 1
+!!$              end do
+!!$          end do
+!!$      end do
+!!$      ! Transform the functions back to wavelets
+!!$      do i=1,24
+!!$          call isf_to_daub(lzd%llr(ilr), w, xphir(istr,i), xphi(ist,i))
+!!$      end do
+!!$      call deallocate_work_arrays_sumrho(w)
+!!$      ist = ist + lzd%Llr(ilr)%wfd%nvctr_c + 7*lzd%Llr(ilr)%wfd%nvctr_f
+!!$      istr = istr + lzd%Llr(ilr)%d%n1i*lzd%Llr(ilr)%d%n2i*lzd%Llr(ilr)%d%n3i
+!!$  end do
+!!$
+!!$  ! Calculate the matrices
+!!$  phit_c = f_malloc(collcom%ndimind_c,id='phit_c')
+!!$  phit_f = f_malloc(7*collcom%ndimind_f,id='phit_f')
+!!$  xphit_c = f_malloc(collcom%ndimind_c,id='xphit_c')
+!!$  xphit_f = f_malloc(7*collcom%ndimind_f,id='xphit_f')
+!!$  call transpose_localized(iproc, nproc, nphi, orbs, collcom, &
+!!$       TRANSPOSE_FULL, phi, phit_c, phit_f, lzd)
+!!$  do i=1,24
+!!$      call transpose_localized(iproc, nproc, nphi, orbs, collcom, &
+!!$           TRANSPOSE_FULL, xphi(:,i), xphit_c, xphit_f, lzd)
+!!$      call calculate_overlap_transposed(iproc, nproc, orbs, collcom, &
+!!$           phit_c, xphit_c, phit_f, xphit_f, smat, aux, rpower_matrix(i))
+!!$  end do
+!!$  !call transpose_localized(iproc, nproc, nphi, orbs, collcom, &
+!!$  !     TRANSPOSE_FULL, xphi(:,2), xphit_c, xphit_f, lzd)
+!!$  !call calculate_overlap_transposed(iproc, nproc, orbs, collcom, &
+!!$  !     phit_c, xphit_c, xphit_f, xphit_f, smat, rpower_matrix(2))
+!!$  call f_free(phit_c)
+!!$  call f_free(phit_f)
+!!$  call f_free(xphit_c)
+!!$  call f_free(xphit_f)
+!!$
+!!$  !!if (iproc==0) then
+!!$  !!    do iorb=1,smat%nvctr
+!!$  !!        write(*,*) 'i, val', iorb, rpower_matrix(1)%matrix_compr(iorb)
+!!$  !!    end do
+!!$  !!end if
+!!$
+!!$  call f_free(xphi)
+!!$  call f_free(phir)
+!!$  call f_free(xphir)
+!!$
+!!$  call f_release_routine()
+!!$
+!!$end subroutine calculate_rpowerx_matrices
 
-  ! Calling arguments
-  integer,intent(in) :: iproc, nproc, nphi, nphir
-  type(local_zone_descriptors),intent(in) :: lzd
-  type(orbitals_data),intent(in) :: orbs
-  type(comms_linear),intent(in) :: collcom
-  real(kind=8),dimension(nphi),intent(in) :: phi
-  type(sparse_matrix),intent(in) :: smat
-  type(linmat_auxiliary),intent(in) :: aux
-  type(matrices),dimension(24),intent(inout) :: rpower_matrix
 
-  ! Local variables
-  integer :: iorb, iiorb, ilr, iat, ii, i1, i2, i3, ii1, ii2, ii3, ist, istr, nl1, nl2, nl3, i
-  type(workarr_sumrho) :: w
-  real(kind=8),dimension(:),allocatable :: phir, phit_c, phit_f, xphit_c, xphit_f
-  real(kind=8),dimension(:,:),allocatable :: xphi, xphir
-  real(kind=8) :: hxh, hyh, hzh, x, y, z, r, r2
-
-  call f_routine(id='calculate_rpowerx_matrices')
-
-  xphi = f_malloc0((/nphi,24/),id='xphi')
-  phir = f_malloc(nphir,id='phir')
-  xphir = f_malloc0((/nphir,24/),id='xphir')
-
-  ist=1
-  istr=1
-  do iorb=1,orbs%norbp
-      iiorb=orbs%isorb+iorb
-      ilr=orbs%inwhichlocreg(iiorb)
-      iat=orbs%onwhichatom(iiorb)
-      call initialize_work_arrays_sumrho(lzd%Llr(ilr),.true.,w)
-      ! Transform the support function to real space
-      call daub_to_isf(lzd%llr(ilr), w, phi(ist), phir(istr))
-      call initialize_work_arrays_sumrho(lzd%llr(ilr),.false.,w)
-
-      ! NEW: CALCULATE THE WEIGHT CENTER OF THE SUPPORT FUNCTION ############################
-      hxh = 0.5d0*lzd%hgrids(1)
-      hyh = 0.5d0*lzd%hgrids(2)
-      hzh = 0.5d0*lzd%hgrids(3)
-      ii = istr
-      call geocode_buffers(lzd%Llr(ilr)%geocode, lzd%glr%geocode, nl1, nl2, nl3)
-      do i3=1,lzd%llr(ilr)%d%n3i
-          ii3 = lzd%llr(ilr)%nsi3 + i3 - nl3 - 1
-          z = ii3*hzh
-          do i2=1,lzd%llr(ilr)%d%n2i
-              ii2 = lzd%llr(ilr)%nsi2 + i2 - nl2 - 1
-              y = ii2*hyh
-              do i1=1,lzd%llr(ilr)%d%n1i
-                  ii1 = lzd%llr(ilr)%nsi1 + i1 - nl1 - 1
-                  x = ii1*hxh
-                  r2 = x**2+y**2+z**2
-                  xphir(ii,1) = x*phir(ii)
-                  xphir(ii,2) = x**2*phir(ii)
-                  xphir(ii,3) = x**3*phir(ii)
-                  xphir(ii,4) = x**4*phir(ii)
-                  xphir(ii,5) = y*phir(ii)
-                  xphir(ii,6) = y**2*phir(ii)
-                  xphir(ii,7) = y**3*phir(ii)
-                  xphir(ii,8) = y**4*phir(ii)
-                  xphir(ii,9) = z*phir(ii)
-                  xphir(ii,10) = z**2*phir(ii)
-                  xphir(ii,11) = z**3*phir(ii)
-                  xphir(ii,12) = z**4*phir(ii)
-                  xphir(ii,13) = x*y*phir(ii)
-                  xphir(ii,14) = x**2*y*phir(ii)
-                  xphir(ii,15) = x*y**2*phir(ii)
-                  xphir(ii,16) = x**2*y**2*phir(ii)
-                  xphir(ii,17) = x*z*phir(ii)
-                  xphir(ii,18) = x**2*z*phir(ii)
-                  xphir(ii,19) = x*z**2*phir(ii)
-                  xphir(ii,20) = x**2*z**2*phir(ii)
-                  xphir(ii,21) = y*z*phir(ii)
-                  xphir(ii,22) = y**2*z*phir(ii)
-                  xphir(ii,23) = y*z**2*phir(ii)
-                  xphir(ii,24) = y**2*z**2*phir(ii)
-                  ii = ii + 1
-              end do
-          end do
-      end do
-      ! Transform the functions back to wavelets
-      do i=1,24
-          call isf_to_daub(lzd%llr(ilr), w, xphir(istr,i), xphi(ist,i))
-      end do
-      call deallocate_work_arrays_sumrho(w)
-      ist = ist + lzd%Llr(ilr)%wfd%nvctr_c + 7*lzd%Llr(ilr)%wfd%nvctr_f
-      istr = istr + lzd%Llr(ilr)%d%n1i*lzd%Llr(ilr)%d%n2i*lzd%Llr(ilr)%d%n3i
-  end do
-
-  ! Calculate the matrices
-  phit_c = f_malloc(collcom%ndimind_c,id='phit_c')
-  phit_f = f_malloc(7*collcom%ndimind_f,id='phit_f')
-  xphit_c = f_malloc(collcom%ndimind_c,id='xphit_c')
-  xphit_f = f_malloc(7*collcom%ndimind_f,id='xphit_f')
-  call transpose_localized(iproc, nproc, nphi, orbs, collcom, &
-       TRANSPOSE_FULL, phi, phit_c, phit_f, lzd)
-  do i=1,24
-      call transpose_localized(iproc, nproc, nphi, orbs, collcom, &
-           TRANSPOSE_FULL, xphi(:,i), xphit_c, xphit_f, lzd)
-      call calculate_overlap_transposed(iproc, nproc, orbs, collcom, &
-           phit_c, xphit_c, phit_f, xphit_f, smat, aux, rpower_matrix(i))
-  end do
-  !call transpose_localized(iproc, nproc, nphi, orbs, collcom, &
-  !     TRANSPOSE_FULL, xphi(:,2), xphit_c, xphit_f, lzd)
-  !call calculate_overlap_transposed(iproc, nproc, orbs, collcom, &
-  !     phit_c, xphit_c, xphit_f, xphit_f, smat, rpower_matrix(2))
-  call f_free(phit_c)
-  call f_free(phit_f)
-  call f_free(xphit_c)
-  call f_free(xphit_f)
-
-  !!if (iproc==0) then
-  !!    do iorb=1,smat%nvctr
-  !!        write(*,*) 'i, val', iorb, rpower_matrix(1)%matrix_compr(iorb)
-  !!    end do
-  !!end if
-
-  call f_free(xphi)
-  call f_free(phir)
-  call f_free(xphir)
-
-  call f_release_routine()
-
-end subroutine calculate_rpowerx_matrices
-
-
-  function get_quartic_penalty(n, j, i, penaltymat, ovrlp, rxyz) result(gqp)
-    implicit none
-
-    ! Calling arguments
-    integer,intent(in) :: n, j, i
-    real(kind=8),dimension(n,n,24),intent(in) :: penaltymat
-    real(kind=8),dimension(n,n),intent(in) :: ovrlp
-    real(kind=8),dimension(3) :: rxyz
-    real(kind=8) :: gqp
-
-    gqp = penaltymat(j,i,4) - 4.d0*rxyz(1)*penaltymat(j,i,3) &
-          + 6.d0*rxyz(1)**2*penaltymat(j,i,2) - 4.d0*rxyz(1)**3*penaltymat(j,i,1) &
-          + rxyz(1)**4*ovrlp(j,i) &
-          + penaltymat(j,i,8) - 4.d0*rxyz(2)*penaltymat(j,i,7) &
-          + 6.d0*rxyz(2)**2*penaltymat(j,i,6) - 4.d0*rxyz(2)**3*penaltymat(j,i,5) &
-          + rxyz(2)**4*ovrlp(j,i) &
-          + penaltymat(j,i,12) - 4.d0*rxyz(3)*penaltymat(j,i,11) &
-          + 6.d0*rxyz(3)**2*penaltymat(j,i,10) - 4.d0*rxyz(3)**3*penaltymat(j,i,9) &
-          + rxyz(3)**4*ovrlp(j,i) &
-          + 2.d0*(penaltymat(j,i,16) &
-                  - 2.d0*rxyz(2)*penaltymat(j,i,14) &
-                  + rxyz(2)**2*penaltymat(j,i,2) &
-                  - 2.d0*rxyz(1)*penaltymat(j,i,15) &
-                  + 4.d0*rxyz(1)*rxyz(2)*penaltymat(j,i,13) &
-                  - 2.d0*rxyz(1)*rxyz(2)**2*penaltymat(j,i,1) &
-                  + rxyz(1)**2*penaltymat(j,i,6) &
-                  - 2.d0*rxyz(1)**2*rxyz(2)*penaltymat(j,i,5) &
-                  + rxyz(1)**2*rxyz(2)**2*ovrlp(j,i) &
-                  + penaltymat(j,i,20) &
-                  - 2.d0*rxyz(3)*penaltymat(j,i,18) &
-                  + rxyz(3)**2*penaltymat(j,i,2) &
-                  - 2.d0*rxyz(1)*penaltymat(j,i,19) &
-                  + 4.d0*rxyz(1)*rxyz(3)*penaltymat(j,i,17) &
-                  - 2.d0*rxyz(1)*rxyz(3)**2*penaltymat(j,i,1) &
-                  + rxyz(1)**2*penaltymat(j,i,10) &
-                  - 2.d0*rxyz(1)**2*rxyz(3)*penaltymat(j,i,9) &
-                  + rxyz(1)**2*rxyz(3)**2*ovrlp(j,i) &
-                  + penaltymat(j,i,24) &
-                  - 2.d0*rxyz(3)*penaltymat(j,i,22) &
-                  + rxyz(3)**2*penaltymat(j,i,6) &
-                  - 2.d0*rxyz(2)*penaltymat(j,i,23) &
-                  + 4.d0*rxyz(2)*rxyz(3)*penaltymat(j,i,21) &
-                  - 2.d0*rxyz(2)*rxyz(3)**2*penaltymat(j,i,5) &
-                  + rxyz(2)**2*penaltymat(j,i,10) &
-                  - 2.d0*rxyz(2)**2*rxyz(3)*penaltymat(j,i,9) &
-                  + rxyz(2)**2*rxyz(3)**2*ovrlp(j,i) )
-
-  end function get_quartic_penalty
+!!$  function get_quartic_penalty(n, j, i, penaltymat, ovrlp, rxyz) result(gqp)
+!!$    implicit none
+!!$
+!!$    ! Calling arguments
+!!$    integer,intent(in) :: n, j, i
+!!$    real(kind=8),dimension(n,n,24),intent(in) :: penaltymat
+!!$    real(kind=8),dimension(n,n),intent(in) :: ovrlp
+!!$    real(kind=8),dimension(3) :: rxyz
+!!$    real(kind=8) :: gqp
+!!$
+!!$    gqp = penaltymat(j,i,4) - 4.d0*rxyz(1)*penaltymat(j,i,3) &
+!!$          + 6.d0*rxyz(1)**2*penaltymat(j,i,2) - 4.d0*rxyz(1)**3*penaltymat(j,i,1) &
+!!$          + rxyz(1)**4*ovrlp(j,i) &
+!!$          + penaltymat(j,i,8) - 4.d0*rxyz(2)*penaltymat(j,i,7) &
+!!$          + 6.d0*rxyz(2)**2*penaltymat(j,i,6) - 4.d0*rxyz(2)**3*penaltymat(j,i,5) &
+!!$          + rxyz(2)**4*ovrlp(j,i) &
+!!$          + penaltymat(j,i,12) - 4.d0*rxyz(3)*penaltymat(j,i,11) &
+!!$          + 6.d0*rxyz(3)**2*penaltymat(j,i,10) - 4.d0*rxyz(3)**3*penaltymat(j,i,9) &
+!!$          + rxyz(3)**4*ovrlp(j,i) &
+!!$          + 2.d0*(penaltymat(j,i,16) &
+!!$                  - 2.d0*rxyz(2)*penaltymat(j,i,14) &
+!!$                  + rxyz(2)**2*penaltymat(j,i,2) &
+!!$                  - 2.d0*rxyz(1)*penaltymat(j,i,15) &
+!!$                  + 4.d0*rxyz(1)*rxyz(2)*penaltymat(j,i,13) &
+!!$                  - 2.d0*rxyz(1)*rxyz(2)**2*penaltymat(j,i,1) &
+!!$                  + rxyz(1)**2*penaltymat(j,i,6) &
+!!$                  - 2.d0*rxyz(1)**2*rxyz(2)*penaltymat(j,i,5) &
+!!$                  + rxyz(1)**2*rxyz(2)**2*ovrlp(j,i) &
+!!$                  + penaltymat(j,i,20) &
+!!$                  - 2.d0*rxyz(3)*penaltymat(j,i,18) &
+!!$                  + rxyz(3)**2*penaltymat(j,i,2) &
+!!$                  - 2.d0*rxyz(1)*penaltymat(j,i,19) &
+!!$                  + 4.d0*rxyz(1)*rxyz(3)*penaltymat(j,i,17) &
+!!$                  - 2.d0*rxyz(1)*rxyz(3)**2*penaltymat(j,i,1) &
+!!$                  + rxyz(1)**2*penaltymat(j,i,10) &
+!!$                  - 2.d0*rxyz(1)**2*rxyz(3)*penaltymat(j,i,9) &
+!!$                  + rxyz(1)**2*rxyz(3)**2*ovrlp(j,i) &
+!!$                  + penaltymat(j,i,24) &
+!!$                  - 2.d0*rxyz(3)*penaltymat(j,i,22) &
+!!$                  + rxyz(3)**2*penaltymat(j,i,6) &
+!!$                  - 2.d0*rxyz(2)*penaltymat(j,i,23) &
+!!$                  + 4.d0*rxyz(2)*rxyz(3)*penaltymat(j,i,21) &
+!!$                  - 2.d0*rxyz(2)*rxyz(3)**2*penaltymat(j,i,5) &
+!!$                  + rxyz(2)**2*penaltymat(j,i,10) &
+!!$                  - 2.d0*rxyz(2)**2*rxyz(3)*penaltymat(j,i,9) &
+!!$                  + rxyz(2)**2*rxyz(3)**2*ovrlp(j,i) )
+!!$
+!!$  end function get_quartic_penalty
 
 
   subroutine get_psp_info(sym, ixc, smmd, nelpsp, psp_source, rloc, psppar)
@@ -5646,8 +6024,9 @@ end subroutine calculate_rpowerx_matrices
       use module_defs
       use dynamic_memory
       use f_utils
-      use locregs, only: locreg_descriptors
-      use bounds, only: geocode_buffers
+      use locregs, only: locreg_descriptors,get_isf_offset
+      use box
+!!$      use bounds, only: geocode_buffers
       implicit none
 
       ! Calling arguments
@@ -5660,41 +6039,64 @@ end subroutine calculate_rpowerx_matrices
       ! Local variables
       integer :: nl1, nl2, nl3, i1, i2, i3, ii1, ii2, ii3, ii
       real(kind=8) :: weight, hxh, hyh, hzh, x, y, z, tt
-      real(kind=8),dimension(3) :: center
+      real(kind=8),dimension(3) :: center,rxyz
+      integer, dimension(3) :: ioffset_isf
+      type(box_iterator) :: bit
 
       call f_routine(id='calculate_weight_center')
 
       hxh = 0.5d0*hgrids(1)
       hyh = 0.5d0*hgrids(2)
       hzh = 0.5d0*hgrids(3)
-      call geocode_buffers(llr%geocode, glr%geocode, nl1, nl2, nl3)
+!!$      call geocode_buffers(llr%geocode, glr%geocode, nl1, nl2, nl3)
+      ioffset_isf(:) = get_isf_offset(llr,glr%mesh)
       weight = 0.d0
       center(1:3) = 0.0_gp
-      !$omp parallel default(none) &
-      !$omp shared(llr, nl1, nl2, nl3, hxh, hyh, hzh, phir, center, weight) &
-      !$omp private(i1, i2, i3, ii1, ii2, ii3, x, y, z, tt, ii)
-      !$omp do reduction(+: center, weight)
-      do i3=1,llr%d%n3i
-          ii3 = llr%nsi3 + i3 - nl3 - 1
-          z = ii3*hzh
-          do i2=1,llr%d%n2i
-              ii2 = llr%nsi2 + i2 - nl2 - 1
-              y = ii2*hyh
-              do i1=1,llr%d%n1i
-                  ii1 = llr%nsi1 + i1 - nl1 - 1
-                  x = ii1*hxh
-                  ii = (i3-1)*llr%d%n2i*llr%d%n1i+(i2-1)*llr%d%n1i+i1
-                  tt = phir(ii)**2
-                  center(1) = center(1) + x*tt
-                  center(2) = center(2) + y*tt
-                  center(3) = center(3) + z*tt
-                  weight = weight + tt
-                  !!ii = ii + 1
-              end do
-          end do
-      end do
-      !$omp end do
-      !$omp end parallel
+
+      !this will have to be rewritten with f_multipole
+!--- Start new loop -------------------------------------------------------------------------------------
+      bit=box_iter(llr%mesh,origin=-(ioffset_isf+1)*(hgrids*0.5d0))
+      do while (box_next_point(bit))
+         !rxyz=rxyz_ortho(llr%mesh,bit%rxyz)
+         tt = phir(bit%ind)**2
+         center=center+tt*bit%rxyz
+!!$          center(1) = center(1) + tt*rxyz(1)
+!!$          center(2) = center(2) + tt*rxyz(2)
+!!$          center(3) = center(3) + tt*rxyz(3)
+          weight = weight + tt
+       end do
+!--- End new loop ---------------------------------------------------------------------------------------
+
+!--- Start old loop -------------------------------------------------------------------------------------
+!!$      !$omp parallel default(none) &
+!!$      !$omp shared(llr, ioffset_isf, hxh, hyh, hzh, phir, center, weight) &
+!!$      !$omp private(i1, i2, i3, ii1, ii2, ii3, x, y, z, tt, ii)
+!!$      !$omp do reduction(+: center, weight)
+!!$      do i3=1,llr%d%n3i
+!!$!!$          ii3 = llr%nsi3 + i3 - nl3 - 1
+!!$          ii3 = ioffset_isf(3) + i3
+!!$          z = ii3*hzh
+!!$          do i2=1,llr%d%n2i
+!!$!!$              ii2 = llr%nsi2 + i2 - nl2 - 1
+!!$              ii2 = ioffset_isf(2) + i2
+!!$              y = ii2*hyh
+!!$              do i1=1,llr%d%n1i
+!!$!!$                  ii1 = llr%nsi1 + i1 - nl1 - 1
+!!$                  ii1 = ioffset_isf(1) + i1
+!!$                  x = ii1*hxh
+!!$                  ii = (i3-1)*llr%d%n2i*llr%d%n1i+(i2-1)*llr%d%n1i+i1
+!!$                  tt = phir(ii)**2
+!!$                  center(1) = center(1) + x*tt
+!!$                  center(2) = center(2) + y*tt
+!!$                  center(3) = center(3) + z*tt
+!!$                  weight = weight + tt
+!!$                  !!ii = ii + 1
+!!$              end do
+!!$          end do
+!!$      end do
+!!$      !$omp end do
+!!$      !$omp end parallel
+!--- Start old loop -------------------------------------------------------------------------------------
       center_locreg(1:3) = center(1:3)/weight
       center_orb(1:3) = center_locreg(1:3)
 

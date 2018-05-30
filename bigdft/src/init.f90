@@ -95,6 +95,7 @@ subroutine wfd_from_grids(logrid_c, logrid_f, calculate_bounds, Glr)
    use locregs
    use bounds, only: make_bounds, make_all_ib, make_bounds_per, make_all_ib_per
    use locregs
+   use box, only: cell_geocode
    !use yaml_output
    implicit none
    !Arguments
@@ -117,7 +118,8 @@ subroutine wfd_from_grids(logrid_c, logrid_f, calculate_bounds, Glr)
    nfu3=Glr%d%nfu3
 
    !allocate kinetic bounds, only for free BC
-   if (calculate_bounds .and. Glr%geocode == 'F' ) then
+!!$   if (calculate_bounds .and. Glr%geocode == 'F' ) then
+   if (calculate_bounds .and. cell_geocode(Glr%mesh) == 'F' ) then
       Glr%bounds%kb%ibyz_c = f_malloc_ptr((/ 1.to.2,0.to.n2,0.to.n3 /),id='Glr%bounds%kb%ibyz_c')
       Glr%bounds%kb%ibxz_c = f_malloc_ptr((/ 1.to.2,0.to.n1,0.to.n3 /),id='Glr%bounds%kb%ibxz_c')
       Glr%bounds%kb%ibxy_c = f_malloc_ptr((/ 1.to.2,0.to.n1,0.to.n2 /),id='Glr%bounds%kb%ibxy_c')
@@ -137,13 +139,15 @@ subroutine wfd_from_grids(logrid_c, logrid_f, calculate_bounds, Glr)
       !stop
    end if
 
-   if (calculate_bounds .and. Glr%geocode == 'F') then
+!!$   if (calculate_bounds .and. Glr%geocode == 'F') then
+   if (calculate_bounds .and. cell_geocode(Glr%mesh) == 'F' ) then
       call make_bounds(n1,n2,n3,logrid_c,Glr%bounds%kb%ibyz_c,Glr%bounds%kb%ibxz_c,Glr%bounds%kb%ibxy_c)
    end if
 
    ! Do the fine region.
    call num_segkeys(n1,n2,n3,0,n1,0,n2,0,n3,logrid_f,Glr%wfd%nseg_f,Glr%wfd%nvctr_f)
-   if (calculate_bounds .and. Glr%geocode == 'F') then
+!!$   if (calculate_bounds .and. Glr%geocode == 'F') then
+   if (calculate_bounds .and. cell_geocode(Glr%mesh) == 'F' ) then
       call make_bounds(n1,n2,n3,logrid_f,Glr%bounds%kb%ibyz_f,Glr%bounds%kb%ibxz_f,Glr%bounds%kb%ibxy_f)
    end if
 
@@ -176,7 +180,8 @@ subroutine wfd_from_grids(logrid_c, logrid_f, calculate_bounds, Glr)
 !!$   end do
 
  !for free BC admits the bounds arrays
-   if (calculate_bounds .and. Glr%geocode == 'F' ) then
+!!$   if (calculate_bounds .and. Glr%geocode == 'F' ) then
+   if (calculate_bounds .and. cell_geocode(Glr%mesh) == 'F' ) then
       !allocate grow, shrink and real bounds
       Glr%bounds%gb%ibzxx_c = f_malloc_ptr((/ 1.to.2, 0.to.n3, -14.to.2*n1+16 /),id='Glr%bounds%gb%ibzxx_c')
       Glr%bounds%gb%ibxxyy_c = f_malloc_ptr((/ 1.to.2, -14.to.2*n1+16, -14.to.2*n2+16 /),id='Glr%bounds%gb%ibxxyy_c')
@@ -203,7 +208,8 @@ subroutine wfd_from_grids(logrid_c, logrid_f, calculate_bounds, Glr)
 
    end if
 
-   if (calculate_bounds .and. Glr%geocode == 'P' .and. Glr%hybrid_on) then
+!!$   if (calculate_bounds .and. Glr%geocode == 'P' .and. Glr%hybrid_on) then
+   if (calculate_bounds .and. cell_geocode(Glr%mesh) == 'P' .and. Glr%hybrid_on) then
       call make_bounds_per(n1,n2,n3,nfl1,nfu1,nfl2,nfu2,nfl3,nfu3,Glr%bounds,Glr%wfd)
       call make_all_ib_per(n1,n2,n3,nfl1,nfu1,nfl2,nfu2,nfl3,nfu3,&
          &   Glr%bounds%kb%ibxy_f,Glr%bounds%sb%ibxy_ff,Glr%bounds%sb%ibzzx_f,Glr%bounds%sb%ibyyzz_f,&
@@ -2061,7 +2067,7 @@ subroutine input_wf_diag(iproc,nproc,at,denspot,&
   GPUe = GPU
   !switchOCLconv=.false.
   if (GPU%OCLconv) then
-     call allocate_data_OCL(Lzde%Glr%d%n1,Lzde%Glr%d%n2,Lzde%Glr%d%n3,at%astruct%geocode,&
+     call allocate_data_OCL(Lzde%Glr%d%n1,Lzde%Glr%d%n2,Lzde%Glr%d%n3,Lzde%Glr%mesh_coarse,&
           nspin_ig,Lzde%Glr%wfd,orbse,GPUe)
      if (iproc == 0) call yaml_comment('GPU data allocated')
      !if (iproc == 0) write(*,*) 'GPU data allocated'
@@ -3566,7 +3572,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
      !allocate arrays for the GPU if a card is present
      if (GPU%OCLconv) then
         call allocate_data_OCL(KSwfn%Lzd%Glr%d%n1,KSwfn%Lzd%Glr%d%n2,KSwfn%Lzd%Glr%d%n3,&
-             atoms%astruct%geocode,&
+             KSwfn%Lzd%Glr%mesh_coarse,&
              in%nspin,KSwfn%Lzd%Glr%wfd,KSwfn%orbs,GPU)
         if (iproc == 0) call yaml_comment('GPU data allocated')
         !if (iproc == 0) write(*,*)'GPU data allocated'
@@ -3672,6 +3678,7 @@ subroutine input_wf_memory_new(nproc, iproc, atoms, &
   use ao_inguess, only: atomic_info
   use module_types
   use locreg_operations
+  use box, only: cell_geocode
   implicit none
 
   !Global Variables
@@ -3708,7 +3715,8 @@ subroutine input_wf_memory_new(nproc, iproc, atoms, &
 
   call f_routine(id='input_wf_memory_new')
 
-  if (lzd_old%Glr%geocode .ne. 'F') then
+!!$  if (lzd_old%Glr%geocode .ne. 'F') then
+  if (cell_geocode(lzd_old%Glr%mesh) .ne. 'F') then
      write(*,*) 'Not implemented for boundary conditions other than free'
      stop
   end if

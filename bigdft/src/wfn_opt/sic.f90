@@ -19,6 +19,7 @@ subroutine PZ_SIC_potential(nspin,nspinor,hfac,spinval,lr,xc,&
   use module_xc
   use locreg_operations
   use locregs
+  use box, only: cell_geocode,cell_periodic_dims
   implicit none
   integer, intent(in) :: nspinor,nspin
   real(gp), intent(in) :: hfac,spinval
@@ -38,6 +39,8 @@ subroutine PZ_SIC_potential(nspin,nspinor,hfac,spinval,lr,xc,&
   real(dp), dimension(:,:), allocatable :: rhopoti,vSICi
   real(dp), dimension(:,:,:,:), pointer :: rhocore_fake
   real(dp), dimension(6) :: xcstr
+  logical, dimension(3) :: peri
+  integer, dimension(3) :: free
 
   !fake nscatterarr array for compatibility with partial_density interface
   !monoprocessor calculation
@@ -106,20 +109,30 @@ subroutine PZ_SIC_potential(nspin,nspinor,hfac,spinval,lr,xc,&
         !print *,'iorb,nrm',iorb,&
         !     nrm2(lr%d%n1i*lr%d%n2i*lr%d%n3i*npsir,psir(1,1),1)
 
-        select case(lr%geocode)
-        case('F')
+!!$        select case(lr%geocode)
+!!$        case('F')
+!!$           call partial_density_free(.false.,nproc,lr%d%n1i,lr%d%n2i,lr%d%n3i,&
+!!$                npsir,nspinn,lr%d%n3i,&
+!!$                hfac,nscarr_fake,spinval,psir(1,icomplex*npsir+1),rhopoti,lr%bounds%ibyyzz_r)
+!!$        case('P')
+!!$           call partial_density(.false.,nproc,lr%d%n1i,lr%d%n2i,lr%d%n3i,&
+!!$                npsir,nspinn,lr%d%n3i,&
+!!$                hfac,nscarr_fake,spinval,psir(1,icomplex*npsir+1),rhopoti)
+!!$        case('S')
+!!$           call partial_density(.false.,nproc,lr%d%n1i,lr%d%n2i,lr%d%n3i,&
+!!$                npsir,nspinn,lr%d%n3i,&
+!!$                hfac,nscarr_fake,spinval,psir(1,icomplex*npsir+1),rhopoti)
+!!$        end select
+
+        if (cell_geocode(lr%mesh) == 'F') then
            call partial_density_free(.false.,nproc,lr%d%n1i,lr%d%n2i,lr%d%n3i,&
                 npsir,nspinn,lr%d%n3i,&
                 hfac,nscarr_fake,spinval,psir(1,icomplex*npsir+1),rhopoti,lr%bounds%ibyyzz_r)
-        case('P')
+        else
            call partial_density(.false.,nproc,lr%d%n1i,lr%d%n2i,lr%d%n3i,&
                 npsir,nspinn,lr%d%n3i,&
                 hfac,nscarr_fake,spinval,psir(1,icomplex*npsir+1),rhopoti)
-        case('S')
-           call partial_density(.false.,nproc,lr%d%n1i,lr%d%n2i,lr%d%n3i,&
-                npsir,nspinn,lr%d%n3i,&
-                hfac,nscarr_fake,spinval,psir(1,icomplex*npsir+1),rhopoti)
-        end select
+        end if
      end do
 
      !here the density should be transformed into a potential which is associated to the orbital
@@ -151,23 +164,37 @@ subroutine PZ_SIC_potential(nspin,nspinor,hfac,spinval,lr,xc,&
 
      end if
 
+!!$     select case(lr%geocode)
+!!$     case('F')
+!!$        call apply_potential(lr%d%n1,lr%d%n2,lr%d%n3,1,1,1,0,nspinor,npsir,vpsir,&
+!!$             rhopoti(1,ispin),eSICi,&
+!!$             lr%bounds%ibyyzz_r) !optional
+!!$
+!!$     case('P') 
+!!$        !here the hybrid BC act the same way
+!!$        call apply_potential(lr%d%n1,lr%d%n2,lr%d%n3,0,0,0,0,nspinor,npsir,vpsir,&
+!!$             rhopoti(1,ispin),eSICi)
+!!$
+!!$     case('S')
+!!$
+!!$        call apply_potential(lr%d%n1,lr%d%n2,lr%d%n3,0,1,0,0,nspinor,npsir,vpsir,&
+!!$             rhopoti(1,ispin),eSICi)
+!!$     end select
+
+     peri=cell_periodic_dims(lr%mesh)
+     free=1
+     where (peri) free=0
+
      !apply the potential to the psir wavefunction and calculate potential energy
-     select case(lr%geocode)
-     case('F')
+     if (cell_geocode(lr%mesh) == 'F') then
         call apply_potential(lr%d%n1,lr%d%n2,lr%d%n3,1,1,1,0,nspinor,npsir,vpsir,&
              rhopoti(1,ispin),eSICi,&
              lr%bounds%ibyyzz_r) !optional
-
-     case('P') 
+     else
         !here the hybrid BC act the same way
-        call apply_potential(lr%d%n1,lr%d%n2,lr%d%n3,0,0,0,0,nspinor,npsir,vpsir,&
-             rhopoti(1,ispin),eSICi)
-
-     case('S')
-
-        call apply_potential(lr%d%n1,lr%d%n2,lr%d%n3,0,1,0,0,nspinor,npsir,vpsir,&
-             rhopoti(1,ispin),eSICi)
-     end select
+        call apply_potential(lr%d%n1,lr%d%n2,lr%d%n3,free(1),free(2),free(3),0,&
+             nspinor,npsir,vpsir,rhopoti(1,ispin),eSICi)
+     end if
 
      !calculate the contribution to the double-counting SIC energy (to be multiplied by alphaSIC)
      
@@ -517,6 +544,7 @@ subroutine psir_to_rhoi(fi,spinval,nspinrho,nspinor,lr,psir,rhoi)
   use module_types
   use module_interfaces, only: partial_density_free
   use locregs
+  use box, only: cell_geocode
   implicit none
   integer, intent(in) :: nspinrho,nspinor
   real(gp), intent(in) :: fi      !< fi occupation number times k-point weigth divided by the volume unit
@@ -546,20 +574,32 @@ subroutine psir_to_rhoi(fi,spinval,nspinrho,nspinor,lr,psir,rhoi)
   end if
   
   do icomplex=0,ncomplex
-     select case(lr%geocode)
-     case('F')
+
+!!$     select case(lr%geocode)
+!!$     case('F')
+!!$        call partial_density_free(.false.,1,lr%d%n1i,lr%d%n2i,lr%d%n3i,&
+!!$             npsir,nspinrho,lr%d%n3i,&
+!!$             fi,nscarr_fake,spinval,psir(1,icomplex*npsir+1),rhoi,lr%bounds%ibyyzz_r)
+!!$     case('P')
+!!$        call partial_density(.false.,1,lr%d%n1i,lr%d%n2i,lr%d%n3i,&
+!!$             npsir,nspinrho,lr%d%n3i,&
+!!$             fi,nscarr_fake,spinval,psir(1,icomplex*npsir+1),rhoi)
+!!$     case('S')
+!!$        call partial_density(.false.,1,lr%d%n1i,lr%d%n2i,lr%d%n3i,&
+!!$             npsir,nspinrho,lr%d%n3i,&
+!!$             fi,nscarr_fake,spinval,psir(1,icomplex*npsir+1),rhoi)
+!!$     end select
+
+     if (cell_geocode(lr%mesh) == 'F') then
         call partial_density_free(.false.,1,lr%d%n1i,lr%d%n2i,lr%d%n3i,&
              npsir,nspinrho,lr%d%n3i,&
              fi,nscarr_fake,spinval,psir(1,icomplex*npsir+1),rhoi,lr%bounds%ibyyzz_r)
-     case('P')
+     else
         call partial_density(.false.,1,lr%d%n1i,lr%d%n2i,lr%d%n3i,&
              npsir,nspinrho,lr%d%n3i,&
              fi,nscarr_fake,spinval,psir(1,icomplex*npsir+1),rhoi)
-     case('S')
-        call partial_density(.false.,1,lr%d%n1i,lr%d%n2i,lr%d%n3i,&
-             npsir,nspinrho,lr%d%n3i,&
-             fi,nscarr_fake,spinval,psir(1,icomplex*npsir+1),rhoi)
-     end select
+     end if
+
   end do
 
 end subroutine psir_to_rhoi

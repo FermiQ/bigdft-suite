@@ -10,6 +10,7 @@ subroutine psi_to_tpsi(hgrids,kptv,nspinor,lr,psi,w,hpsi,ekin,k_strten)
   use module_base
   use locregs, only: locreg_descriptors
   use locreg_operations, only: workarr_locham
+  use box, only: cell_geocode
   implicit none
   integer, intent(in) :: nspinor
   real(gp), dimension(3), intent(in) :: hgrids,kptv
@@ -49,7 +50,8 @@ subroutine psi_to_tpsi(hgrids,kptv,nspinor,lr,psi,w,hpsi,ekin,k_strten)
   ekin=0.0_gp
 
   kstrten=0.0_wp
-  select case(lr%geocode)
+!!$  select case(lr%geocode)
+  select case(cell_geocode(lr%mesh))
   case('F')
 
      !here kpoints cannot be used (for the moment, to be activated for the 
@@ -279,6 +281,9 @@ subroutine psi_to_tpsi(hgrids,kptv,nspinor,lr,psi,w,hpsi,ekin,k_strten)
      ekin=ekin+kstrten(1)+kstrten(2)+kstrten(3)
      if (present(k_strten)) k_strten=kstrten 
 
+  case('W')
+     call f_err_throw("Wires bc has to be implemented here", &
+          err_name='BIGDFT_RUNTIME_ERROR')
   end select
 
 END SUBROUTINE psi_to_tpsi
