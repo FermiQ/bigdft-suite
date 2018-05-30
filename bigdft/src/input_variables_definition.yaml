@@ -235,6 +235,15 @@
      #Here follow two shortcuts for linear
      linear: 100
      linear_restart: 102
+   projection:
+     COMMENT: Projector construction method
+     DESCRIPTION: |
+       Specifies how the projectors are expressed in Daubechies from atomic description
+     default: gaussian
+     EXCLUSIVE:
+       gaussian: tensor product of 1D separable gaussians
+       radial: real space collocation of radial functions
+       radial+mp: as radial, but using multipole preserving techniques
   #  output_wf:
   #    COMMENT: Output of the support functions
   #    DESCRIPTION: |

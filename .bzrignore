@@ -107,6 +107,7 @@ libABINIT/depcomp
 yaml/
 PyYAML/
 libxc/
+pspio/
 openbabel/
 *.aux
 *.log

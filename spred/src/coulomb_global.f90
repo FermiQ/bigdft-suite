@@ -552,7 +552,7 @@ call fingerprint(spredinputs,nid,bigdft_nat(run_opt),bigdft_get_cell(run_opt),rc
 555 continue
   close(55)
   !maybe broadcast on comm_world?
-  if (bigdft_mpi%nproc > 1) call mpibcast(tleft,1,comm=bigdft_mpi%mpi_comm)
+  if (bigdft_mpi%nproc > 1) call fmpi_bcast(tleft,1,comm=bigdft_mpi%mpi_comm)
   !call MPI_BCAST(tleft,1,MPI_DOUBLE_PRECISION,0,bigdft_mpi%mpi_comm,ierr)
   if (tleft < 0.d0) then
      call yaml_map('(MH) Process'//trim(yaml_toa(bigdft_mpi%iproc))//' has exceeded CPU time. Tleft',tleft)

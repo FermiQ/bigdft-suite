@@ -237,7 +237,7 @@ subroutine read_jobs(uinp,mhgpsst)
     !put a barrier for all the processes
     !otherwise, the joblist file may be updated, before
     !all procsesses have read the identical file
-    call mpibarrier(bigdft_mpi%mpi_comm)
+    call fmpi_barrier(bigdft_mpi%mpi_comm)
 
     inquire(file=trim(adjustl(mhgpsst%currDir))//'/job_list',exist=exists)
     if(exists)jobfile=trim(adjustl(mhgpsst%currDir))//'/'//'job_list'
@@ -334,7 +334,7 @@ subroutine read_jobs(uinp,mhgpsst)
     !put a barrier for all the processes
     !otherwise, the joblist file may be updated, before
     !all procsesses have read the identical file
-    call mpibarrier(bigdft_mpi%mpi_comm)
+    call fmpi_barrier(bigdft_mpi%mpi_comm)
 end subroutine
 !=====================================================================
 subroutine check_struct_file_exists(filename,exists)

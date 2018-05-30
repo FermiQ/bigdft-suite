@@ -24,6 +24,9 @@ else
   LONG_TESTDIRS += $(tests_cpu_only_long)
   EXTRA_TESTDIRS += $(tests_ocl_only)
 endif
+if HAVE_PSPIO
+  SHORT_TESTDIRS += PSPIO
+endif
 
 SHORT_TESTDIRS += C \
 	taskgroups \
@@ -36,6 +39,7 @@ LONG_TESTDIRS += $(SHORT_TESTDIRS) \
 	  Li+ \
 	  H2-spin \
 	  SiH4 \
+	  SiH4-collocation \
 	  NaCl \
 	  Ca2 \
 	  H2O-CP2K \
@@ -71,6 +75,7 @@ OCL.psp: HGH/psppar.Si
 O2-Spin.psp: HGH-K/psppar.O
 ElectField.psp: HGH-K/psppar.H HGH-K/psppar.O
 PAW-GGA.psp: C.GGA_PBE-JTH.xml
+PSPIO.psp: Li.UPF Si.pbe-hgh.UPF
 
 SIC-test.post-in:
 	if [ ! -d data-PZ ] ; then mkdir data-PZ; fi

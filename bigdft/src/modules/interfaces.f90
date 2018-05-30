@@ -695,10 +695,11 @@ module module_interfaces
 
       interface
         subroutine readmywaves(iproc,filename,iformat,orbs,n1,n2,n3,hx,hy,hz,at,rxyz_old,rxyz,  &
-         wfd,psi,orblist)
+         wfd,psi,orblist,pawrhoij)
          use module_defs, only: gp,dp,wp
          use module_types
          use compression
+         use m_pawrhoij
          implicit none
          integer, intent(in) :: iproc,n1,n2,n3, iformat
          real(gp), intent(in) :: hx,hy,hz
@@ -710,6 +711,7 @@ module module_interfaces
          real(gp), dimension(3,at%astruct%nat), intent(out) :: rxyz_old
          real(wp), dimension(wfd%nvctr_c+7*wfd%nvctr_f,orbs%nspinor,orbs%norbp), intent(out) :: psi
          character(len=*), intent(in) :: filename
+         type(pawrhoij_type), dimension(at%astruct%nat), intent(inout), optional :: pawrhoij
         END SUBROUTINE readmywaves
       end interface
 
@@ -1314,31 +1316,6 @@ module module_interfaces
      END SUBROUTINE calculate_residue_ks
   end interface
 
-
-  interface
-     subroutine applyprojectorsonthefly(iproc,orbs,at,lr,&
-          rxyz,hx,hy,hz,wfd,nlpsp,psi,hpsi,eproj_sum,&
-          paw)
-       use module_defs, only: gp,dp,wp
-       use module_types
-       use gaussians, only:gaussian_basis
-       use locregs
-       use compression
-       implicit none
-       integer, intent(in) :: iproc
-       real(gp), intent(in) :: hx,hy,hz
-       type(atoms_data), intent(in) :: at
-       type(orbitals_data), intent(in) :: orbs
-       type(wavefunctions_descriptors), intent(in) :: wfd
-       type(DFT_PSP_projectors), intent(inout) :: nlpsp
-       type(locreg_descriptors),intent(in) :: lr
-       real(gp), dimension(3,at%astruct%nat), intent(in) :: rxyz
-       real(wp), dimension((wfd%nvctr_c+7*wfd%nvctr_f)*orbs%nspinor*orbs%norbp), intent(in) :: psi
-       real(wp), dimension((wfd%nvctr_c+7*wfd%nvctr_f)*orbs%nspinor*orbs%norbp), intent(inout) :: hpsi
-       real(gp), intent(out) :: eproj_sum
-       type(paw_objects),optional,intent(inout)::paw
-     END SUBROUTINE applyprojectorsonthefly
-  end interface
 
   interface
      subroutine plot_wf(units_provided,orbname,nexpo,at,factor,lr,hgrids,rxyz,psi, &

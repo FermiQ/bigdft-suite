@@ -124,7 +124,7 @@ AC_DEFUN([AX_PACKAGE],
   fi
 
   dnl eventually control if the library is statically linked or not
-  LIB_$1_DYNAMIC_LIBS=$3
+  LIB_$1_DYNAMIC_LIBS="$3"
   dnl Remove -L in detected LIBS to make comparison independant on -Llibdir,
   dnl good luck.
   ax_libs_alone=""

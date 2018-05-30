@@ -361,12 +361,12 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
   call orbital_basis_associate(ob,orbs=orbs,Lzd=Lzd,id='system_initialization')
   call createProjectorsArrays(iproc,nproc,Lzd%Glr,rxyz,atoms,ob,&
        in%frmult,in%frmult,Lzd%hgrids(1),Lzd%hgrids(2),&
-       Lzd%hgrids(3),dry_run,nlpsp,init_projectors_completely)
+       Lzd%hgrids(3),in%projection,dry_run,nlpsp,init_projectors_completely)
   call orbital_basis_release(ob)
   if (iproc == 0 .and. dump) call print_nlpsp(nlpsp)
   if (iproc == 0 .and. .not. nlpsp%on_the_fly .and. .false.) then
      call writemyproj("proj",WF_FORMAT_BINARY,orbs,Lzd%hgrids(1),Lzd%hgrids(2),&
-       Lzd%hgrids(3),atoms,rxyz,nlpsp)
+       Lzd%hgrids(3),atoms,rxyz,nlpsp,lzd%glr)
   end if
   !the complicated part of the descriptors has not been filled
   if (dry_run) then
@@ -475,13 +475,6 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
            do iorb=lorbs%norbu+1,lorbs%norb
                lorbs%inwhichlocreg(iorb)=lorbs%inwhichlocreg(iorb-lorbs%norbu)+lorbs%norbu
            end do
-
-           !i_all=-product(shape(inwhichlocreg_old))*kind(inwhichlocreg_old)
-           !deallocate(inwhichlocreg_old,stat=i_stat)
-           !call memocc(i_stat,i_all,'inwhichlocreg_old',subname)
-           !i_all=-product(shape(onwhichatom_old))*kind(onwhichatom_old)
-           !deallocate(onwhichatom_old,stat=i_stat)
-           !call memocc(i_stat,i_all,'onwhichatom_old',subname)
        end if
      end subroutine init_linear_orbs
 
@@ -2240,12 +2233,9 @@ subroutine pawpatch_from_file( filename, atoms,ityp, paw_tot_l, &
      ! if (iproc.eq.0) write(*,*) 'opening PSP file ',filename
      open(unit=11,file=trim(filename),status='old',iostat=ierror)
      !Check the open statement
-     if (ierror /= 0) then
-        write(*,*) ': Failed to open the PAWpatch file "',&
-             trim(filename),'"'
-        stop
-     end if
-     
+     if (f_err_raise(ierror /= 0, 'Failed to open the PAWpatch file "' // &
+          & trim(filename) // '".', err_name='BIGDFT_RUNTIME_ERROR')) &
+          & return
      !! search for paw_patch informations
      
      atoms%paw_NofL(ityp)=0

@@ -348,9 +348,9 @@
         !Check and synchronize input minimum mode over all processors.
         !This is important, since otherwise we get slightly different curvatures
         !on each processor (in subroutine curvforce)
-        call mpibarrier(bigdft_mpi%mpi_comm)
+        call fmpi_barrier(bigdft_mpi%mpi_comm)
         if (bigdft_mpi%nproc >1) then
-           call mpibcast(minmode,comm=bigdft_mpi%mpi_comm,&
+           call fmpi_bcast(minmode,comm=bigdft_mpi%mpi_comm,&
                 maxdiff=maxdiff)
            if (maxdiff > epsilon(1.0_gp)) then
               if (bigdft_mpi%iproc==0) then
@@ -1449,9 +1449,9 @@ subroutine mincurvforce(mhgpsst,imode,runObj,outs,diff,rxyz1,fxyz1,&
     !Check and synchronize input minimum mode over all processors.
     !This is important, since otherwise we might get slightly different curvatures
     !on each processor (in subroutine curvforce)
-    call mpibarrier(bigdft_mpi%mpi_comm)
+    call fmpi_barrier(bigdft_mpi%mpi_comm)
     if (bigdft_mpi%nproc >1) then
-       call mpibcast(vec,comm=bigdft_mpi%mpi_comm,&
+       call fmpi_bcast(vec,comm=bigdft_mpi%mpi_comm,&
             maxdiff=maxdiff)
        if (maxdiff > epsilon(1.0_gp)) then
           if (bigdft_mpi%iproc==0) then

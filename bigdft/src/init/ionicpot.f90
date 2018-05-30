@@ -31,7 +31,7 @@ subroutine IonicEnergyandForces(iproc,nproc,dpbox,at,elecfield,&
   use abi_interfaces_numeric, only: abi_derf_ab
   use vdwcorrection
   use yaml_output
-  use public_enums, only: PSPCODE_PAW
+  use public_enums, only: PSPCODE_PAW, PSPCODE_GTH, PSPCODE_HGH, PSPCODE_HGH_K, PSPCODE_HGH_K_NLCC
   use bounds, only: ext_buffers
   use sparsematrix_init, only: distribute_on_tasks
   use gaussians
@@ -55,20 +55,19 @@ subroutine IonicEnergyandForces(iproc,nproc,dpbox,at,elecfield,&
   logical :: perx,pery,perz
   integer :: nbl1,nbr1,nbl2,nbr2,nbl3,nbr3,n3i,n3pi,i3s
   integer :: n1i,n2i,i,iat,ii,ityp,jat,jtyp,natp,isat,iiat
-  integer :: mpnx,mpny,mpnz,ierr
+  integer :: mpnx,mpny,mpnz
   real(gp) :: ucvol,rloc
   real(gp) :: twopitothreehalf,atint,shortlength,charge,eself,rx,ry,rz
   real(gp) :: fxion,fyion,fzion,dist,fxerf,fyerf,fzerf
   real(gp) :: hxh,hyh,hzh
   real(gp) :: chgprod
-  real(gp) :: xp,Vel,prefactor,ehart,de,dv
+  real(gp) :: xp,Vel,prefactor,ehart,de
   !real(gp) :: Mz,cmassy
   real(gp), dimension(3,3) :: gmet,rmet,rprimd,gprimd
   !other arrays for the ewald treatment
   real(gp), dimension(:,:), allocatable :: fewald,xred
   real(gp), dimension(:), allocatable  :: mpx,mpy,mpz
   real(gp), dimension(3) :: cc
-  real(gp), dimension(1) :: rr, vr
   type(atoms_iterator) :: atit
   type(gaussian_real_space) :: g
 
@@ -164,31 +163,13 @@ subroutine IonicEnergyandForces(iproc,nproc,dpbox,at,elecfield,&
 !!$     !$omp do reduction(+: psoffset, shortlength, charge)
      do iat=1,at%astruct%nat
         ityp=at%astruct%iatype(iat)
-        rloc=at%psppar(0,0,ityp)
         if (at%npspcode(ityp) == PSPCODE_PAW) then
-           atint = 0.d0
-           ! Comment to remove psoffset for erf correction ---------------8<---
-           do ii = 1, 1000, 1
-              rr(1) = 10.d0 / 1000.d0 * (ii - 1)
-              dv = 4.d0 * pi * rr(1) ** 2 * 10.d0 / 1000.d0
-              call paw_splint(at%pawtab(ityp)%wvl%rholoc%msz, &
-                   & at%pawtab(ityp)%wvl%rholoc%rad, &
-                   & at%pawtab(ityp)%wvl%rholoc%d(:,3), &
-                   & at%pawtab(ityp)%wvl%rholoc%d(:,4), &
-                   & 1,rr,vr,ierr)
-              atint = atint + vr(1) * dv
-              if (ii == 1) then
-                 vr(1) = sqrt(2.0d0) / sqrt(pi) / rloc
-              else
-                 call abi_derf_ab(vr(1), rr(1) / (sqrt(2.0d0) * rloc))
-                 vr(1) = vr(1) / rr(1)
-              end if
-              atint = atint + real(at%nelpsp(ityp),gp) * vr(1) * dv
-           end do
-           ! ------------------------------------------------------------->8---
-           psoffset = psoffset + atint
-           shortlength = shortlength + at%epsatm(ityp) - atint
-        else
+           shortlength = shortlength + at%epsatm(ityp)
+        else if (at%npspcode(ityp) == PSPCODE_GTH .or. &
+             & at%npspcode(ityp) == PSPCODE_HGH .or. &
+             & at%npspcode(ityp) == PSPCODE_HGH_K .or. &
+             & at%npspcode(ityp) == PSPCODE_HGH_K_NLCC) then
+           rloc=at%psppar(0,0,ityp)
            atint=at%psppar(0,1,ityp)+3.0_gp*at%psppar(0,2,ityp)+&
                 15.0_gp*at%psppar(0,3,ityp)+105.0_gp*at%psppar(0,4,ityp)
            psoffset=psoffset+twopitothreehalf*rloc**3*atint
@@ -798,7 +779,11 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
   !  use module_interfaces, except_this_one => createIonicPotential
   use Poisson_Solver, except_dp => dp, except_gp => gp
   use abi_interfaces_numeric, only: abi_derf_ab
-  use public_enums, only: PSPCODE_PAW
+  use public_enums, only: PSPCODE_PAW, PSPCODE_PSPIO, PSPCODE_GTH, PSPCODE_HGH, &
+       & PSPCODE_HGH_K, PSPCODE_HGH_K_NLCC
+  use pspiof_m, only: pspiof_pspdata_get_vlocal, pspiof_potential_t, &
+       & pspiof_potential_eval_deriv, pspiof_potential_eval_deriv2, &
+       & pspiof_potential_eval, pspiof_pspdata_get_zvalence
   use bounds, only: ext_buffers
   use box
   use gaussians
@@ -831,16 +816,16 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
   integer :: iex,iey,iez,ind,indj3,indj23,isx,isy,isz,j1,j2,j3
   integer :: n1i,n2i,n3i,mpnx,mpny,mpnz
   real(gp) :: hxh,hyh,hzh
-  real(gp) :: rloc,charge,cutoff,r2,arg,xp,tt,rx,ry,rz
+  real(gp) :: rloc,cutoff,r2,arg,xp,tt,rx,ry,rz
   real(gp) :: tt_tot,potxyz,aval
-  real(gp) :: raux2,rlocinvsq,rlocinv2sq
-  real(gp) :: x,y,z,yp,zp,zsq,yzsq,rholeaked,rholeaked_tot
+  real(gp) :: rlocinvsq,rlocinv2sq
+  real(gp) :: x,y,z,yp,zp,zsq,yzsq,rholeaked,rholeaked_tot,psoff,psoff_tot
   !  real(gp), dimension(1) :: raux,rr
   real(wp) :: maxdiff
   real(gp) :: ehart
   logical, dimension(3) :: peri
-  real(dp), dimension(2) :: charges_mpi
-  real(dp), dimension(:), allocatable :: potion_corr
+  real(dp), dimension(3) :: charges_mpi
+  real(dp), dimension(:), allocatable :: potion_corr, pot_add
   logical, parameter :: pawErfCorrection = .true.
   real(gp), dimension(:), allocatable  :: mpx,mpy,mpz
   !real(dp), dimension(:), allocatable :: den_aux
@@ -848,6 +833,7 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
   type(dpbox_iterator) :: boxit
   type(box_iterator) :: bitp
   type(gaussian_real_space) :: g
+  type(pspiof_potential_t) :: pot
   real(gp), dimension(3) :: center_of_charge_ions
 
   call f_routine(id='createIonicPotential')
@@ -873,8 +859,14 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
   rholeaked=0.d0
   ! Ionic energy (can be calculated for all the processors)
 
+  ! Recalculated PSoffset on grid for real space potentials.
+  psoff = 0._gp
+
   !Creates charge density arising from the ionic PSP cores
   call f_zero(n1i*n2i*dpbox%n3pi,pot_ion(1))
+  if (any(at%npspcode == PSPCODE_PAW) .or. any(at%npspcode == PSPCODE_PSPIO)) then
+     pot_add = f_malloc0(n1i*n2i*dpbox%n3pi, id = "pot_add")
+  end if
 
   !conditions for periodicity in the three directions
   peri=cell_periodic_dims(dpbox%mesh)
@@ -944,12 +936,6 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
 !!$           mpz(i3-isz) = mp_exp(hzh,rz,rlocinv2sq,i3,0,at%multipole_preserving)
 !!$        end do
 
-        if ( .not. any(at%npspcode == PSPCODE_PAW) ) then
-
-           call atomic_charge_density(g,at,atit)
-           call three_dimensional_density(dpbox%bitp,g,-1.0_dp,rxyz(1,atit%iat),pot_ion)
-           rholeaked=0.0_dp
-
 !!$           !Calculate Ionic Density using HGH parameters.
 !!$           !Eq. 1.104, T. Deutsch and L. Genovese, JDN. 12, 2011
 !!$           do i3=isz,iez
@@ -980,86 +966,41 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
 !!$              enddo
 !!$           enddo
 
-        else
+           if (at%npspcode(atit%ityp) == PSPCODE_PSPIO) &
+                & pot = pspiof_pspdata_get_vlocal(at%pspio(atit%ityp))
 
            call atomic_charge_density(g,at,atit)
            call set_box_around_gaussian(dpbox%bitp,g,rxyz(1,atit%iat))
-           !call box_iter_set_nbox(dpbox%bitp,nbox=gaussian_nbox(rxyz(1,atit%iat),dpbox%bitp%mesh,g))
            do while(box_next_point(dpbox%bitp))
-              if(.not. pawErfCorrection) then
-                 !This converges very slowly
-                 rr1(1)=distance(dpbox%bitp%mesh,dpbox%bitp%rxyz,rxyz(1,atit%iat))
-                 call paw_splint(at%pawtab(atit%ityp)%wvl%rholoc%msz, &
-                      & at%pawtab(atit%ityp)%wvl%rholoc%rad, &
-                      & at%pawtab(atit%ityp)%wvl%rholoc%d(:,1), &
-                      & at%pawtab(atit%ityp)%wvl%rholoc%d(:,2), &
-                      & 1,rr1,raux1,ierr)
-              else
-                 !r = distance(dpbox%bitp%mesh,dpbox%bitp%rxyz,rxyz(1,atit%iat))
-                 !Take the HGH form for rho_L (long range)
-                 raux1(1)=-gaussian_radial_value(g,rxyz(1,atit%iat),dpbox%bitp)
-              end if
-              !raux=-4.d0**(3.0d0/2.0d0)*exp(-4.d0*pi*r2)
+              !Take the HGH form for rho_L (long range)
+              raux1(1)=-gaussian_radial_value(g,rxyz(1,atit%iat),dpbox%bitp)
               pot_ion(dpbox%bitp%ind)=pot_ion(dpbox%bitp%ind)+raux1(1)
+
+              !Create the additional part, should be done also for HGH in fact.
+              if (at%npspcode(atit%ityp) == PSPCODE_PAW .or. &
+                   & at%npspcode(atit%ityp) == PSPCODE_PSPIO) then
+                 rr1(1)=distance(dpbox%bitp%mesh,dpbox%bitp%rxyz,rxyz(1,atit%iat))
+                 if (at%npspcode(atit%ityp) == PSPCODE_PAW) then
+                    call paw_splint(at%pawtab(atit%ityp)%wvl%rholoc%msz, &
+                         & at%pawtab(atit%ityp)%wvl%rholoc%rad, &
+                         & at%pawtab(atit%ityp)%wvl%rholoc%d(:,3), &
+                         & at%pawtab(atit%ityp)%wvl%rholoc%d(:,4), &
+                         & 1,rr1,raux1,ierr)
+                 else
+                    raux1(1) = pspiof_potential_eval(pot, rr1(1))
+                 end if
+                 if (rr1(1) < 1e-6_dp) then
+                    tt = -at%nelpsp(atit%ityp) / sqrt(2._dp * pi) / at%psppar(0,0,atit%ityp) * 2._dp
+                 else
+                    call abi_derf_ab(tt, rr1(1) / sqrt(2._dp) / at%psppar(0,0,atit%ityp))
+                    tt = -at%nelpsp(atit%ityp) * tt / rr1(1)
+                 end if
+                 pot_add(dpbox%bitp%ind) = pot_add(dpbox%bitp%ind) + raux1(1) - tt
+                 if (cell_geocode(dpbox%mesh) == 'P') psoff = psoff + raux1(1) - tt
+              end if
            end do
            call box_iter_expand_nbox(dpbox%bitp)
            rholeaked=0.0_dp
-
-!!$           !Calculate Ionic Density using splines, PAW case
-!!$           !r2paw=at%pawtab(atit%ityp)%rpaw**2
-!!$           do i3=isz,iez
-!!$              zp = mpz(i3-isz)
-!!$              if (abs(zp) < mp_tiny) cycle
-!!$              !call ind_positions(perz,i3,n3,j3,goz)
-!!$              call ind_positions_new(perz,i3,n3i,j3,goz)
-!!$              j3=j3+nbl3+1
-!!$              indj3=(j3-i3s)*n1i*n2i
-!!$              z=real(i3,gp)*hzh-rz
-!!$              zsq=z**2
-!!$              do i2=isy,iey
-!!$                 yp = zp*mpy(i2-isy)
-!!$                 if (abs(yp) < mp_tiny) cycle
-!!$                 !call ind_positions(pery,i2,n2,j2,goy)
-!!$                 call ind_positions_new(pery,i2,n2i,j2,goy)
-!!$                 indj23=1+nbl1+(j2+nbl2)*n1i+indj3
-!!$                 y=real(i2,gp)*hyh-ry
-!!$                 yzsq=y**2+zsq
-!!$                 do i1=isx,iex
-!!$                    xp = yp*mpx(i1-isx)
-!!$                    if (abs(xp) < mp_tiny) cycle
-!!$                    !call ind_positions(perx,i1,n1,j1,gox)
-!!$                    call ind_positions_new(perx,i1,n1i,j1,gox)
-!!$                    x=real(i1,gp)*hxh-rx
-!!$                    r2=x**2+yzsq
-!!$                    !if(r2>r2paw) cycle
-!!$                    if(.not. pawErfCorrection) then
-!!$                       !This converges very slowly
-!!$                       rr1(1)=sqrt(r2)
-!!$                       call paw_splint(at%pawtab(atit%ityp)%wvl%rholoc%msz, &
-!!$                            & at%pawtab(atit%ityp)%wvl%rholoc%rad, &
-!!$                            & at%pawtab(atit%ityp)%wvl%rholoc%d(:,1), &
-!!$                            & at%pawtab(atit%ityp)%wvl%rholoc%d(:,2), &
-!!$                            & 1,rr1,raux1,ierr)
-!!$                    else
-!!$                       !Take the HGH form for rho_L (long range)
-!!$                       raux1(1)=-xp*charge
-!!$                    end if
-!!$                    !raux=-4.d0**(3.0d0/2.0d0)*exp(-4.d0*pi*r2)
-!!$
-!!$                    if (j3 >= i3s .and. j3 <= i3s+n3pi-1  .and. goy  .and. gox ) then
-!!$                       ind=j1+indj23
-!!$                       pot_ion(ind)=pot_ion(ind)+raux1(1)
-!!$                    else if (.not. goz) then
-!!$                       rholeaked=rholeaked-raux1(1)
-!!$                    endif
-!!$                 enddo
-!!$              enddo
-!!$           enddo
-
-        end if
-
-        !De-allocate for multipole preserving
-        !call f_free(mpx,mpy,mpz)
 
      enddo
 
@@ -1083,6 +1024,7 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
 
   tt=tt*dpbox%mesh%volume_element!hxh*hyh*hzh
   rholeaked=rholeaked*dpbox%mesh%volume_element!hxh*hyh*hzh
+  psoff=psoff*dpbox%mesh%volume_element!hxh*hyh*hzh
 
   !print *,'test case input_rho_ion',iproc,i3start,i3end,n3pi,2*n3+16,tt
   !if rho_ion is needed for the SCF cycle copy in the array
@@ -1093,15 +1035,18 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
   if (pkernel%mpi_env%nproc > 1) then
      charges_mpi(1)=tt
      charges_mpi(2)=rholeaked
+     charges_mpi(3)=psoff
 
      !Reduce from all mpi proc
      call fmpi_allreduce(charges_mpi,FMPI_SUM,comm=pkernel%mpi_env%mpi_comm)
 
      tt_tot=charges_mpi(1)
      rholeaked_tot=charges_mpi(2)
+     psoff_tot=charges_mpi(3)
   else
      tt_tot=tt
      rholeaked_tot=rholeaked
+     psoff_tot=psoff
   end if
 
   if (verb) then
@@ -1112,26 +1057,6 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
   else
      quiet = "yes"
   end if
-
-!!$  if (any(at%npspcode == PSPCODE_PAW)) then
-!!$     charge = 0.d0
-!!$     do iat = 1, at%astruct%nat, 1
-!!$        charge = charge + real(at%nelpsp(at%astruct%iatype(iat)), gp)
-!!$     end do
-!!$     write(*,*) "------------->", tt_tot, charge
-!!$     tt_tot = tt_tot / hxh / hyh / hzh / real(n1i * n2i * n3i, gp)
-!!$     charge = charge / hxh / hyh / hzh / real(n1i * n2i * n3i, gp)
-!!$     do j3=1,n3pi
-!!$        indj3=(j3-1)*n1i*n2i
-!!$        do i2= -nbl2,2*n2+1+nbr2
-!!$           indj23=1+nbl1+(i2+nbl2)*n1i+indj3
-!!$           do i1= -nbl1,2*n1+1+nbr1
-!!$              ind=i1+indj23
-!!$              pot_ion(ind)=pot_ion(ind)-(tt_tot + charge)
-!!$           enddo
-!!$        enddo
-!!$     enddo
-!!$  end if
 
   if (.not. htoobig) then
      call timing(iproc,'CrtLocPot     ','OF')
@@ -1146,9 +1071,13 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
      if (pkernel%method /= 'VAC') then
         call f_zero(n1i*n2i*dpbox%n3pi,pot_ion(1))
      else
-        call H_potential('D',pkernel,pot_ion,pot_ion,ehart,-psoffset,.false.,quiet=quiet)
+        if (allocated(pot_add)) then
+           call H_potential('D',pkernel,pot_ion,pot_add,ehart,-psoff_tot,.true.,quiet=quiet)
+        else
+           call H_potential('D',pkernel,pot_ion,pot_ion,ehart,-psoffset,.false.,quiet=quiet)
+        end if
      end if
-
+     
      call timing(iproc,'CrtLocPot     ','ON')
 
      if (check_potion) then
@@ -1211,6 +1140,8 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
 
   end if
 
+  if (allocated(pot_add)) call f_free(pot_add)
+
   !!-  !calculate the value of the offset to be put
   !!-  tt_tot=0.d0
   !!-  do ind=1,n1i*n2i*n3i
@@ -1271,7 +1202,10 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
           mpz(i3-isz) = mp_exp(hzh,rz,rlocinv2sq,i3,0,at%multipole_preserving)
         end do
 
-        if( at%npspcode(atit%ityp) /= PSPCODE_PAW) then
+        if (at%npspcode(atit%ityp) == PSPCODE_GTH .or. &
+             & at%npspcode(atit%ityp) == PSPCODE_HGH .or. &
+             & at%npspcode(atit%ityp) == PSPCODE_HGH_K .or. &
+             & at%npspcode(atit%ityp) == PSPCODE_HGH_K_NLCC) then
 
            ! Add the remaining local terms of Eq. (9) in JCP 129, 014109(2008)
 
@@ -1326,62 +1260,6 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
                  end if
               end do
            end if !nloc
-        else if (pawErfCorrection) then
-           !De-allocate the 1D temporary arrays for separability
-           !call f_free(mpx,mpy,mpz)
-
-
-           ! For PAW, add V^PAW-V_L^HGH
-           charge=real(at%nelpsp(atit%ityp),gp)
-           !!-           charge=real(at%nelpsp(ityp),gp)
-
-           do i3=isz,iez
-              z=real(i3,gp)*hzh-rz
-              !call ind_positions(perz,i3,n3,j3,goz)
-              call ind_positions_new(perz,i3,n3i,j3,goz)
-              j3=j3+nbl3+1
-              indj3=(j3-i3s)*n1i*n2i
-              zsq=z**2
-              if (goz .and. j3 >= i3s .and. j3 <=  i3s+n3pi-1) then
-                 do i2=isy,iey
-                    y=real(i2,gp)*hyh-ry
-                    !call ind_positions(pery,i2,n2,j2,goy)
-                    call ind_positions_new(pery,i2,n2i,j2,goy)
-                    indj23=1+nbl1+(j2+nbl2)*n1i+indj3
-                    yzsq=y**2+zsq
-                    if (goy) then
-                       do i1=isx,iex
-                          x=real(i1,gp)*hxh-rx
-                          !call ind_positions(perx,i1,n1,j1,gox)
-                          call ind_positions_new(perx,i1,n1i,j1,gox)
-                          if (gox) then
-                             r2=x**2+yzsq
-                             rr1(1)=sqrt(r2)
-                             !1) V_L^HGH
-                             if(rr1(1)>0.01d0) then
-                                arg=rr1(1)/(sqrt(2.0)*rloc)
-                                call abi_derf_ab(tt,arg)
-                                raux2=-charge/rr1(1)*tt
-                             else
-                                !In this case we deduce the values
-                                !from a quadratic interpolation (due to 1/rr factor)
-                                call interpol_vloc(rr1(1),rloc,charge,raux2)
-                             end if
-                             !2) V^PAW from splines
-                             call paw_splint(at%pawtab(atit%ityp)%wvl%rholoc%msz, &
-                                  & at%pawtab(atit%ityp)%wvl%rholoc%rad, &
-                                  & at%pawtab(atit%ityp)%wvl%rholoc%d(:,3), &
-                                  & at%pawtab(atit%ityp)%wvl%rholoc%d(:,4), &
-                                  & 1,rr1,raux1,ierr)
-                             ind=j1+indj23
-                             pot_ion(ind)=pot_ion(ind)+raux1(1)-raux2
-                          end if
-                       enddo
-                    end if
-                 enddo
-              end if
-           end do
-
         end if ! at%npspcode(iat) /= PSPCODE_PAW
      end do !iat
 
@@ -1536,54 +1414,6 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
 
   call timing(iproc,'CrtLocPot     ','OF')
   call f_release_routine()
-
-contains
-
-  ! We use a quadratic interpolation to get vloc(x)
-  ! useful for small values of x
-  SUBROUTINE interpol_vloc(xx,rloc,charge,yy)
-    implicit none
-    real(dp),intent(in)  :: xx,rloc,charge
-    real(dp),intent(out) :: yy
-    !   local variables
-    real(dp)::l0,l1,l2,x0,x1,x2,y0,y1,y2
-
-    !   Find 3 points (x0,y0), (x1,y1), (x2,y2).
-    x0=0.01d0; x1=0.02d0; x2=0.03d0
-    call calcVloc(y0,x0,rloc,charge)
-    call calcVloc(y1,x1,rloc,charge)
-    call calcVloc(y2,x2,rloc,charge)
-
-    !   Find a polynomial of the form:
-    !   P(x)=y0L0(x) + y1L1(x) + y2L2(x)
-
-    !   L0(x) = (x-x1)(x-x2)/((x0-x1)(x0-x2))
-    l0=(xx-x1)*(xx-x2)/((x0-x1)*(x0-x2))
-    !   L1(x) = (x-x0)(x-x2)/((x1-x0)(x1-x2))
-    l1=(xx-x0)*(xx-x2)/((x1-x0)*(x1-x2))
-    !   L2(x) = (x-x0)(x-x1)/((x2-x0)(x2-x1))
-    l2=(xx-x0)*(xx-x1)/((x2-x0)*(x2-x1))
-
-    yy=y0*l0+y1*l1+y2*l2
-
-  END SUBROUTINE interpol_vloc
-
-  subroutine calcVloc(yy,xx,rloc,Z)
-    use abi_interfaces_numeric, only: abi_derf_ab
-    implicit none
-    !Arguments
-    real(dp),intent(in)  :: xx,rloc,Z
-    real(dp),intent(out) :: yy
-    !Local variables
-    !integer, parameter   :: dp = kind(1.0d0) !< double precision
-    real(dp):: arg,tt
-
-    arg=xx/(sqrt(2.0_dp)*rloc)
-    call abi_derf_ab(tt,arg)
-    yy=-Z/xx*tt
-
-  end subroutine calcVloc
-
 END SUBROUTINE createIonicPotential
 
 

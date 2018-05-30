@@ -262,7 +262,7 @@ diis_module.o: types.o
 fragments.o: input_keys.o types.o fragment_base.o
 constrained_dft.o: input_keys.o
 #psp_projectors_base.o:  gaussians.o
-psp_projectors.o: locregs_init.o psp_projectors_base.o
+psp_projectors.o: locregs_init.o psp_projectors_base.o atoms_data.o orbital_basis.o
 #communications_base.o: base.o
 #dpbox.o: base.o bounds.o
 communications_init.o: types.o
