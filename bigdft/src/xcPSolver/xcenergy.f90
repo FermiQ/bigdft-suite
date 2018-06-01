@@ -231,11 +231,12 @@ END SUBROUTINE calc_rhocore_iat
 !! gaussian function described by a sum of spherical harmonics of s-channel with
 !! principal quantum number increased with a given exponent.
 !! the principal quantum numbers admitted are from 1 to 4
-subroutine nlcc_gaussian_set(g,at)
+subroutine nlcc_gaussian_set(g,at,ilcc)
   use gaussians
   use module_types
   use module_defs, only: gp
   implicit none
+  integer, intent(in) :: ilcc
   type(atoms_data), intent(in) :: at
   type(gaussian_real_space), intent(out) :: g
   !local variables
@@ -245,7 +246,7 @@ subroutine nlcc_gaussian_set(g,at)
   real(gp), dimension(1) :: factors
   integer, dimension(1) :: pows
 
-  sigma=at%nlccpar(0,1)
+  sigma=at%nlccpar(0,ilcc)
   factors=1.0_gp
   pows=0
   zeros=0

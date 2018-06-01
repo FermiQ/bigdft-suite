@@ -25,8 +25,8 @@ program BigDFT2Wannier
    use locreg_operations
    use io, only: writemywaves
    use locregs_init, only: lr_set
-   use box, only: cell_periodic_dims 
    use f_allreduce
+   use box, only: cell_periodic_dims 
    implicit none
    character :: filetype*4
    !etsf

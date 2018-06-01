@@ -286,6 +286,7 @@ module f_harmonics
 
 
     end function get_spreads
+
     !> Calculates the solid harmonic S_lm (possibly multplied by a power or r) for given values of l, m, x, y, z.
     !! They are normalized such that the integral over the angle gives r^2, i.e.
     !! \int d\Omega S_{lm}*S_{l'm'}/r^{2l} = r^2 \delta_{ll'}\delta_{mm'}

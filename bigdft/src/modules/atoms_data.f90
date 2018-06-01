@@ -536,34 +536,48 @@ contains
 
 
     !> Determine the gaussian structure related to the given atom
-    subroutine atomic_charge_density(g,at,atit)
+    pure subroutine atomic_charge_density(g,at,atit)
       use gaussians
-      use numerics, only: twopi
       implicit none
       type(atoms_data), intent(in) :: at
       type(atoms_iterator), intent(in) :: atit
       type(gaussian_real_space), intent(out) :: g
       !local variables
       integer :: mp_isf
-      real(gp) :: rloc
-      real(gp), dimension(1) :: charge
-      integer, dimension(1) :: zero1
-      integer, dimension(3) :: zeros
 
-      rloc=at%psppar(0,0,atit%ityp)
-      charge(1)=real(at%nelpsp(atit%ityp),gp)/(twopi*sqrt(twopi)*rloc**3)
-      zeros=0
-      zero1=0
       mp_isf=at%mp_isf
       if (.not. at%multipole_preserving) mp_isf=0
-      call gaussian_real_space_set(g,rloc,1,charge,zeros,zero1,mp_isf)
+
+      call atomic_gaussian(g,&
+           charge=real(at%nelpsp(atit%ityp),gp),&
+           sigma=at%psppar(0,0,atit%ityp),mp_isf=mp_isf)
 
     end subroutine atomic_charge_density
 
+    !> Determine the gaussian structure related to the given atom
+    pure subroutine atomic_gaussian(g,charge,sigma,mp_isf)
+      use gaussians
+      use numerics, only: twopi
+      implicit none
+      integer, intent(in) :: mp_isf
+      real(gp), intent(in) :: charge,sigma
+      type(gaussian_real_space), intent(out) :: g
+      !local variables
+      real(gp) :: rloc
+      real(gp), dimension(1) :: charge_
+      integer, dimension(1) :: zero1
+      integer, dimension(3) :: zeros
+
+      charge_(1)=charge/(twopi*sqrt(twopi)*sigma**3)
+      zeros=0
+      zero1=0
+      call gaussian_real_space_set(g,sigma,1,charge_,zeros,zero1,mp_isf)
+
+    end subroutine atomic_gaussian
 
     !> Determine the gaussian structure related to the core density for
     !multipole
-    subroutine atomic_cores_charge_density(g,at,mpli)
+    pure subroutine atomic_cores_charge_density(g,at,mpli)
       use gaussians
       use numerics, only: twopi
       use multipole_base, only: multipole_set
@@ -573,18 +587,12 @@ contains
       type(gaussian_real_space), intent(out) :: g
       !local variables
       integer :: mp_isf
-      real(gp) :: rloc
-      real(gp), dimension(1) :: charge
-      integer, dimension(1) :: zero1
-      integer, dimension(3) :: zeros
 
-      rloc=mpli%sigma(0)
-      charge(1)=real(mpli%nzion,gp)/(twopi*sqrt(twopi)*rloc**3)
-      zeros=0
-      zero1=0
       mp_isf=at%mp_isf
       if (.not. at%multipole_preserving) mp_isf=0
-      call gaussian_real_space_set(g,rloc,1,charge,zeros,zero1,mp_isf)
+
+      call atomic_gaussian(g,&
+           charge=real(mpli%nzion,gp),sigma=mpli%sigma(0),mp_isf=mp_isf)
 
     end subroutine atomic_cores_charge_density
 

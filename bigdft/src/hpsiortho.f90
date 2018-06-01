@@ -1089,7 +1089,6 @@ subroutine NonLocalHamiltonianApplication(iproc,at,npsidim_orbs,orbs,&
   !apply the projectors  k-point of the processor
   !iterate over the orbital_basis
   psi_it=orbital_basis_iterator(psi_ob)
-
   loop_kpt: do while(ket_next_kpt(psi_it))
      loop_lr: do while(ket_next_locreg(psi_it,ikpt=psi_it%ikpt))
         call DFT_PSP_projectors_iter_new(psp_it, nl)

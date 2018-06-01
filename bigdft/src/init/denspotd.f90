@@ -548,7 +548,8 @@ subroutine define_confinement_data(confdatarr,orbs,rxyz,at,hx,hy,hz,&
            confpotorder,potentialprefac,Lzd,confinementCenter)
   use module_base
   use module_types
-  use locreg_operations, only: confpot_data,get_isf_offset
+  use locreg_operations, only: confpot_data
+  use locregs, only: get_isf_offset
 !!$  use bounds, only: geocode_buffers
   implicit none
   real(gp), intent(in) :: hx,hy,hz

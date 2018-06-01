@@ -64,6 +64,7 @@ module locregs
   public :: check_overlap,check_overlap_cubic_periodic,check_overlap_from_descriptors_periodic,lr_box
   public :: init_lr,reset_lr
   public :: communicate_locreg_descriptors_basics
+  public :: get_isf_offset
 
 contains
 
@@ -662,6 +663,9 @@ contains
       !this is a point where the geocode is stull used
       if (geocode == 'F' .and. present(bnds)) lr%bounds=bnds
 
+      !here we have to put the modifications of the origin for the 
+      !iterator of the lr. get_isf_offset should be used as 
+      !soon as global_geocode is replaced
       oxyz=locreg_mesh_origin(lr%mesh)
       lr%bit=box_iter(lr%mesh,origin=oxyz)
 
@@ -915,6 +919,33 @@ contains
       call f_release_routine()
       
     end subroutine lr_box
+
+    !>get the offset of the isf description of the support function
+    pure function get_isf_offset(lr,mesh_global) result(ioffset)
+      use box, only: cell,cell_periodic_dims
+      use bounds, only: isf_box_buffers
+      implicit none
+      type(locreg_descriptors), intent(in) :: lr
+      type(cell), intent(in) :: mesh_global
+      integer, dimension(3) :: ioffset
+      !local variables
+      logical, dimension(3) :: peri_local,peri_global
+      integer, dimension(3) :: nli
+      !integer :: nl1, nl2, nl3, nr1, nr2, nr3
+
+      !geocode_buffers
+      !conditions for periodicity in the three directions
+      peri_local=cell_periodic_dims(lr%mesh)
+      peri_global=cell_periodic_dims(mesh_global)
+
+      nli=isf_box_buffers(peri_local,peri_global)
+
+      ! offset
+      ioffset(1) = lr%nsi1 - nli(1) - 1
+      ioffset(2) = lr%nsi2 - nli(2) - 1
+      ioffset(3) = lr%nsi3 - nli(3) - 1
+
+    end function get_isf_offset
 
 
 end module locregs

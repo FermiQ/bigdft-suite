@@ -63,7 +63,7 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
   use coeffs, only: calculate_kernel_and_energy
   use foe, only: calculate_entropy_term
   use foe_base, only: foe_data_get_real
-  use locreg_operations, only: get_isf_offset
+  use locregs, only: get_isf_offset
   implicit none
 
   ! Calling arguments

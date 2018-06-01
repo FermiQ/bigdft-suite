@@ -992,7 +992,8 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
                  if (rr1(1) < 1e-6_dp) then
                     tt = -at%nelpsp(atit%ityp) / sqrt(2._dp * pi) / at%psppar(0,0,atit%ityp) * 2._dp
                  else
-                    call abi_derf_ab(tt, rr1(1) / sqrt(2._dp) / at%psppar(0,0,atit%ityp))
+                    !call abi_derf_ab(tt, rr1(1) / sqrt(2._dp) / at%psppar(0,0,atit%ityp))
+                    tt = safe_erf(rr1(1) / sqrt(2._dp) / at%psppar(0,0,atit%ityp))
                     tt = -at%nelpsp(atit%ityp) * tt / rr1(1)
                  end if
                  pot_add(dpbox%bitp%ind) = pot_add(dpbox%bitp%ind) + raux1(1) - tt

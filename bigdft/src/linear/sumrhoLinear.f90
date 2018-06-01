@@ -34,7 +34,8 @@ subroutine local_partial_densityLinear(nproc,rsflag,nscatterarr,&
   real(dp),dimension(max(Lzd%Glr%d%n1i*Lzd%Glr%d%n2i*nrhotot,1),max(nspin,orbs%nspinor)),intent(out) :: rho
   !local variables
   character(len=*), parameter :: subname='local_partial_densityLinear'
-  integer :: iorb,i_stat,i_all,ii, ind, indSmall, indLarge
+  integer(f_long) :: indLarge,indLargezy
+  integer :: iorb,i_stat,i_all,ii, ind, indSmall, indLargez
   integer :: oidx,sidx,nspinn,npsir,ncomplex, i1, i2, i3, ilr, ispin
   integer :: nspincomp,ii1,ii2,ii3
   real(gp) :: hfac,spinval
@@ -130,22 +131,29 @@ subroutine local_partial_densityLinear(nproc,rsflag,nscatterarr,&
            do ispin=1,nspinn
                do while(box_next_z(bit))
                    ii3 = bit%k + Lzd%Llr(ilr)%nsi3 - 1
-                   if(ii3 < 0 .and. peri(3)) ii3=ii3+Lzd%Glr%d%n3i
-                   if(ii3+1 > Lzd%Glr%d%n3i .and. peri(3)) &
-                        ii3 = modulo(ii3+1,Lzd%Glr%d%n3i+1)
+                   if (peri(3)) ii3=modulo(ii3,Lzd%Glr%mesh%ndims(3))
+                   !if(ii3 < 0 .and. peri(3)) ii3=ii3+Lzd%Glr%d%n3i
+                   !if(ii3+1 > Lzd%Glr%d%n3i .and. peri(3)) &
+                   !     ii3 = modulo(ii3+1,Lzd%Glr%d%n3i+1)
+                   indLargez=ii3*Lzd%Glr%mesh%ndims(1)*Lzd%Glr%mesh%ndims(2)
                    do while(box_next_y(bit))
                        ii2 = bit%j + Lzd%Llr(ilr)%nsi2 - 1
-                       if(ii2 < 0 .and. peri(2)) ii2=ii2+Lzd%Glr%d%n2i
-                       if(ii2+1 > Lzd%Glr%d%n2i .and. peri(2)) &
-                            ii2 = modulo(ii2+1,Lzd%Glr%d%n2i+1)
+                       if (peri(2)) ii2=modulo(ii2,Lzd%Glr%mesh%ndims(2))
+                       !if(ii2 < 0 .and. peri(2)) ii2=ii2+Lzd%Glr%d%n2i
+                       !if(ii2+1 > Lzd%Glr%d%n2i .and. peri(2)) &
+                       !     ii2 = modulo(ii2+1,Lzd%Glr%d%n2i+1)
+                       indLargezy=int(indLargez,f_long)+int(ii2*Lzd%Glr%mesh%ndims(1),f_long)
                        do while(box_next_x(bit))
                            ii1=bit%i + Lzd%Llr(ilr)%nsi1-1
-                           if(ii1<0 .and. peri(1)) ii1=ii1+Lzd%Glr%d%n1i
-                           if(ii1+1 > Lzd%Glr%d%n1i.and. peri(1)) &
-                                ii1 = modulo(ii1+1,Lzd%Glr%d%n1i+1)
+                           if (peri(1)) ii1=modulo(ii1,Lzd%Glr%mesh%ndims(1))
+                           !if(ii1<0 .and. peri(1)) ii1=ii1+Lzd%Glr%d%n1i
+                           !if(ii1+1 > Lzd%Glr%d%n1i.and. peri(1)) &
+                           !     ii1 = modulo(ii1+1,Lzd%Glr%d%n1i+1)
                            ! indLarge is the index in the whole box. 
-                           indLarge=ii3*Lzd%Glr%d%n2i*Lzd%Glr%d%n1i +&
-                               ii2*Lzd%Glr%d%n1i + ii1 + 1
+                           !indLarge=ii3*Lzd%Glr%d%n2i*Lzd%Glr%d%n1i +&
+                           !        ii2*Lzd%Glr%d%n1i + ii1 + 1
+
+                           indLarge = indLargezy + int(ii1 + 1,f_long)
                            rho(indLarge,ispin)=rho(indLarge,ispin)+rho_p(bit%ind)
                        end do
                    end do

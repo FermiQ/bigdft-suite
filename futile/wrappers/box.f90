@@ -45,25 +45,26 @@ module box
   !! given a cell type, it might iterate on a section of this gris provided by the extremes nbox
   !! it also provides a facility to parallelize over the
   type, public :: box_iterator
-     integer :: i3s !<starting point in the dimension z
-     integer :: i3e !<ending point in the dimension z
-     integer :: i23 !<collapsed index in 23 dimension (in relative conventions)
-     integer :: ind !<one-dimensional index for arrays (in relative conventions)
+     integer :: i3s=-1 !<starting point in the dimension z
+     integer :: i3e=-1 !<ending point in the dimension z
+     integer :: i23=-1 !<collapsed index in 23 dimension (in relative conventions)
+     integer :: ind=-1 !<one-dimensional index for arrays (in relative conventions)
      !> indices in absolute coordinates in the given box,
      !! from nbox(1,:) to nbox(2,:). To be intended as private
-     integer, dimension(3)  :: inext
+     integer, dimension(3)  :: inext=0
      !> actual index inside the box,from 1 to mesh%ndims(:)
      integer :: i,j,k !better as scalars
      !> Sub-box to iterate over the points (ex. around atoms)
      !! start and end points for each direction
-     integer, dimension(2,3) :: nbox
-     real(gp), dimension(3) :: oxyz !<origin of the coordinate system
-     real(gp), dimension(3) :: rxyz !<coordinates of the grid point
-     real(gp), dimension(3) :: tmp !< size 3 array buffer to avoid the creation of temporary arrays
-     logical :: whole !<to assess if we run over the entire box or not (no check over the internal point)
-     integer, dimension(2,3) :: subbox !<box of the local task
+     integer, dimension(2,3) :: nbox=-1
+     real(gp), dimension(3) :: oxyz=-1.0_gp !<origin of the coordinate system
+     real(gp), dimension(3) :: rxyz=-1.0_gp !<coordinates of the grid point which is internal at the box
+     real(gp), dimension(3) :: rxyz_nbox=-1.0_gp !<coordinates of the grid point which is internal at the box
+     real(gp), dimension(3) :: tmp=0.0_gp !< size 3 array buffer to avoid the creation of temporary arrays
+     logical :: whole=.false. !<to assess if we run over the entire box or not (no check over the internal point)
+     integer, dimension(2,3) :: subbox=-1 !<box of the local task
      !>reference mesh from which it starts
-     type(cell), pointer :: mesh
+     type(cell), pointer :: mesh=>null()
   end type box_iterator
 
 !!$  interface box_iter
@@ -118,22 +119,7 @@ contains
   pure subroutine nullify_box_iterator(boxit)
     implicit none
     type(box_iterator), intent(out) :: boxit
-    boxit%i3s =-1
-    boxit%i3e =-1
-    boxit%i23 =-1
-    boxit%ind =-1
-    boxit%i=-1
-    boxit%j=-1
-    boxit%k=-1
-    boxit%inext=0
     boxit%inext(X_)=-1
-    boxit%nbox=-1
-    boxit%oxyz=-1.0_gp
-    boxit%rxyz=-1.0_gp
-    boxit%tmp=0.0_gp
-    nullify(boxit%mesh)
-    boxit%whole=.false.
-    boxit%subbox=-1
   end subroutine nullify_box_iterator
 
 !!$  function box_iter_c(mesh,origin) result(boxit)
@@ -645,6 +631,9 @@ contains
 
     !the position associated to the coordinates
     boxit%rxyz(X_)=cell_r(boxit%mesh,boxit%i,X_)-boxit%oxyz(X_)
+    !and the position associated to the subbox
+    boxit%rxyz_nbox(X_)=boxit%mesh%hgrids(X_)*&
+         (boxit%inext(X_)-2)-boxit%oxyz(X_)
 
   end subroutine update_boxit_x
 
@@ -659,6 +648,9 @@ contains
          boxit%mesh%ndims(2)*(boxit%k-boxit%i3s)
     !the position associated to the coordinates
     boxit%rxyz(Y_)=cell_r(boxit%mesh,boxit%j,Y_)-boxit%oxyz(Y_)
+    !and the position associated to the subbox
+    boxit%rxyz_nbox(Y_)=boxit%mesh%hgrids(Y_)*&
+         (boxit%inext(Y_)-2)-boxit%oxyz(Y_)
 
   end subroutine update_boxit_y
 
@@ -668,6 +660,10 @@ contains
 
     !the position associated to the coordinates
     boxit%rxyz(Z_)=cell_r(boxit%mesh,boxit%k,Z_)-boxit%oxyz(Z_)
+
+    !and the position associated to the subbox
+    boxit%rxyz_nbox(Z_)=boxit%mesh%hgrids(Z_)*&
+         (boxit%inext(Z_)-2)-boxit%oxyz(Z_)
 
   end subroutine update_boxit_z
 

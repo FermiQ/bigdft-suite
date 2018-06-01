@@ -1700,7 +1700,7 @@ O2spin_foe:
  D: 2.1e-7
  number of corrected points: 953
  total charge correction: 5.5e-09
- trace(KH): 7.7e-9
+ trace(KH): 7.8e-9
  norm(P): 1.1e-8
 
 O2spin_dirmin:
@@ -1731,7 +1731,7 @@ O2spin_dirmin:
  Force Norm (Hartree/Bohr): 3.45e-5
  Maxdiff for transpose (checksum): 5.9e-11
  number of corrected points: 33.0
- ENERGY: 3.1e-7
+ ENERGY: 3.3e-7
 
 verysparse:
  Total charge: 2.3e-8
@@ -2670,6 +2670,12 @@ Na8-periodic:
   trace: 6.6e-11
 
 
+Mg-cubic_ortho:
+  Keys to ignore:
+   - radical
+  Q matrix: 7.50e-11
+  Total ionic charge: 1.50e-11
+
 pexsi:
   Energy (Hartree): 2.3e-11
   Omega: 4.2e-11
@@ -2908,6 +2914,8 @@ matrixtaskgroups_no:
   EvXC: 1.1e-9
   EXC: 1.1e-9
   Enl: 3.0e-9
+  C: 1.4e-11
+  H: 1.5e-11
   Energy (Hartree): 4.1e-09
   Ion-Ion interaction energy: 2.9e-10
   Omega: 4.1e-09
@@ -2951,16 +2959,15 @@ matrixtaskgroups_yes:
   HOMO-LUMO gap (eV): 6.3e-11
   HYBRID: 4.0e-9
   TRACE: 4.0e-9
-  trace(KH): 4.1e-10
+  trace(KH): 5.1e-10
   Raw forces norm (Ha/Bohr): 3.6e-9
   Clean forces norm (Ha/Bohr): 3.9e-9
   Force Norm (Hartree/Bohr): 9.6e-11
   #Gross support functions moments: 1.1e-9
   Total ionic charge: 2.4e-10
   Maxdiff for transpose (checksum): 3.0e-11
-  C: 1.14e-11
   Multipole coefficients: 1.1e-9
-  Atomic Forces (Ha/Bohr): 1.3e-11
+  Atomic Forces (Ha/Bohr): 1.5e-11
   Keys to ignore:
    - Calculating wavelets expansion of projectors, found warnings
    - found warnings

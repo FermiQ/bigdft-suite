@@ -97,7 +97,6 @@ module locreg_operations
   public :: deallocate_workarrays_quartic_convolutions,zero_local_work_arrays
   public :: nullify_workarrays_projectors, allocate_workarrays_projectors, deallocate_workarrays_projectors
   public :: set_wfd_to_wfd
-  public :: get_isf_offset
 
   ! to avoid creating array temporaries
   interface initialize_work_arrays_sumrho
@@ -1111,8 +1110,10 @@ module locreg_operations
       integer :: n1f,n3f,n1b,n3b,nd1f,nd3f,nd1b,nd3b
       integer :: nf
 
+      select case(cell_geocode(mesh))
+      case('F')
 !!$      if (geocode == 'F') then
-      if (cell_geocode(mesh) == 'F') then
+         !if (cell_geocode(mesh) == 'F') then
 
          nf=(d%nfu1-d%nfl1+1)*(d%nfu2-d%nfl2+1)*(d%nfu3-d%nfl3+1)
          !allocate work arrays
@@ -1125,14 +1126,15 @@ module locreg_operations
          w%x_f2 = f_malloc_ptr(nf,id='w%x_f2')
          w%x_f3 = f_malloc_ptr(nf,id='w%x_f3')
 
+      case('P')
 !!$      else if (geocode == 'P') then
-      else if (cell_geocode(mesh) == 'P') then
-
+         !else if (cell_geocode(mesh) == 'P') then
+         
          if (hybrid_on) then
-
+            
             call dimensions_fft(d%n1,d%n2,d%n3,&
                  nd1,nd2,nd3,n1f,n3f,n1b,n3b,nd1f,nd3f,nd1b,nd3b)
-
+            
             nf=(d%nfu1-d%nfl1+1)*(d%nfu2-d%nfl2+1)*(d%nfu3-d%nfl3+1)
 
             w%kern_k1 = f_malloc_ptr(0.to.d%n1,id='w%kern_k1')
@@ -1141,15 +1143,15 @@ module locreg_operations
             w%z1 = f_malloc_ptr((/ 2, nd1b, nd2, nd3, 2 /),id='w%z1')
             w%z3 = f_malloc_ptr((/ 2, nd1, nd2, nd3f, 2 /),id='w%z3')
             w%x_c = f_malloc_ptr((/ 0.to.d%n1, 0.to.d%n2, 0.to.d%n3 /),id='w%x_c')
-
+            
             w%x_f = f_malloc_ptr((/ 1.to.7, d%nfl1.to.d%nfu1, d%nfl2.to.d%nfu2, d%nfl3.to.d%nfu3 /),id='w%x_f')
             w%x_f1 = f_malloc_ptr(nf,id='w%x_f1')
             w%x_f2 = f_malloc_ptr(nf,id='w%x_f2')
             w%x_f3 = f_malloc_ptr(nf,id='w%x_f3')
             w%y_f = f_malloc_ptr((/ 1.to.7, d%nfl1.to.d%nfu1, d%nfl2.to.d%nfu2, d%nfl3.to.d%nfu3 /),id='w%y_f')
             w%ypsig_c = f_malloc_ptr((/ 0.to.d%n1, 0.to.d%n2, 0.to.d%n3 /),id='w%ypsig_c')
-
-
+            
+            
          else 
 
             if (ncplx == 1) then
@@ -1165,12 +1167,13 @@ module locreg_operations
 
             w%psifscf = f_malloc_ptr(ncplx*(2*d%n1+2)*(2*d%n2+2)*(2*d%n3+2),id='w%psifscf')
             w%ww = f_malloc_ptr(ncplx*(2*d%n1+2)*(2*d%n2+2)*(2*d%n3+2),id='w%ww')
-
+            
          end if
-
+         
 !!$      else if (geocode == 'S') then
-      else if (cell_geocode(mesh) == 'S') then
-
+      !else if (cell_geocode(mesh) == 'S') then
+      case('S')
+         
          if (ncplx == 1) then
             w%modul1 = f_malloc_ptr(lowfil.to.d%n1+lupfil,id='w%modul1')
             w%modul3 = f_malloc_ptr(lowfil.to.d%n3+lupfil,id='w%modul3')
@@ -1183,12 +1186,13 @@ module locreg_operations
          w%psifscf = f_malloc_ptr(ncplx*(2*d%n1+2)*(2*d%n2+16)*(2*d%n3+2),id='w%psifscf')
          w%ww = f_malloc_ptr(ncplx*(2*d%n1+2)*(2*d%n2+16)*(2*d%n3+2),id='w%ww')
 
-      else if (cell_geocode(mesh) == 'W') then
-
+      case default
+      !else if (cell_geocode(mesh) == 'W') then
+         
          call f_err_throw("Wires bc has to be implemented here", &
               err_name='BIGDFT_RUNTIME_ERROR')
-
-      end if
+         
+      end select
 
     END SUBROUTINE allocate_work_arrays
 
@@ -2822,7 +2826,7 @@ module locreg_operations
          end if
          ekin=ekin+kstrten(1)+kstrten(2)+kstrten(3)
          if (present(k_strten)) k_strten=kstrten 
- 
+  
       case('W')
 
          call f_err_throw("Wires bc has to be implemented here", &
@@ -2831,45 +2835,5 @@ module locreg_operations
       end select
 
     END SUBROUTINE isf_to_daub_kinetic
-
-    !>get the offsset of the isf description of the support function
-    function get_isf_offset(lr,mesh_global) result(ioffset)
-        use box, only: cell,cell_periodic_dims
-        use bounds, only: ext_buffers
-        implicit none
-        type(locreg_descriptors), intent(in) :: lr
-        type(cell), intent(in) :: mesh_global
-        integer, dimension(3) :: ioffset
-        !local variables
-        logical, dimension(3) :: peri_local,peri_global
-        integer :: nl1, nl2, nl3, nr1, nr2, nr3
-        
-        !geocode_buffers
-        !conditions for periodicity in the three directions
-        peri_local=cell_periodic_dims(lr%mesh)
-        peri_global=cell_periodic_dims(mesh_global)
-      
-        call ext_buffers(peri_local(1), nl1, nr1)
-        call ext_buffers(peri_local(2), nl2, nr2)
-        call ext_buffers(peri_local(3), nl3, nr3)
-      
-        ! If the global box has non-free boundary conditions, the shift is already
-        ! contained in nsi1,nsi2,nsi3 and does not need to be subtracted.
-        if (peri_global(1)) then
-            nl1 = 0
-        end if
-        if (peri_global(2)) then
-            nl2 = 0
-        end if
-        if (peri_global(3)) then
-            nl3 = 0
-        end if
-        
-        ! offset
-        ioffset(1) = lr%nsi1 - nl1 - 1
-        ioffset(2) = lr%nsi2 - nl2 - 1
-        ioffset(3) = lr%nsi3 - nl3 - 1
-        
-    end function
 
 end module locreg_operations
