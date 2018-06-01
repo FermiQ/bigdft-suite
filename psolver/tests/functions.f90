@@ -461,10 +461,10 @@ subroutine test_functions_new(mesh,nspden,a_gauss,&
   do i=1,3
      if (pers(i)) then
         funcs(i)=f_function_new(f_exp_cosine,&
-             length=mesh%ndims(1)*mesh%hgrids(1),frequency=2.0_dp)
+             length=mesh%ndims(i)*mesh%hgrids(i),frequency=2.0_dp)
      else
         funcs(i)=f_function_new(f_shrink_gaussian,&
-             length=mesh%ndims(1)*mesh%hgrids(1))
+             length=mesh%ndims(i)*mesh%hgrids(i))
      end if
   end do
 

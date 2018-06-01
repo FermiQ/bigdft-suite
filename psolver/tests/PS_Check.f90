@@ -422,7 +422,7 @@ contains
     character(len=100) :: message
     integer :: n3d,n3p,n3pi,i3xcsh,i3s,istden,istpot,istpoti,i!,i_stat,i_all
     integer :: i1,i2,i3,isp,i3sd
-    real(kind=8) :: ehartree!,vexcu,eexcu
+    real(kind=8) :: ehartree!,charge!,vexcu,eexcu
     real(kind=8), dimension(:), allocatable :: test
     real(kind=8), dimension(:,:,:,:), allocatable :: rhopot
     real(dp), dimension(:,:,:,:), pointer :: rhocore
@@ -468,6 +468,7 @@ contains
 
     test(1:n01*n02*n03)=potential(1:n01*n02*n03)!+pot_ion
 
+!    charge=0.0d0
     do isp=1,nspden
        !add the initialisation of the density for the periodic GGA case
        do i3=1,n3d
@@ -475,10 +476,12 @@ contains
              do i1=1,n01
                 i=i1+(i2-1)*n01+(modulo(i3sd+i3-2,n03))*n01*n02+(isp-1)*n01*n02*n03
                 rhopot(i1,i2,i3,isp)=density(i)
+!                charge=charge+density(i)
              end do
           end do
        end do
     end do
+!    charge=charge*pkernel%mesh%volume_element
 
     call H_potential(distcode,pkernel,rhopot,rhopot,ehartree,offset,.false.,quiet='yes') !optional argument
     !compare the values of the analytic results (no dependence on spin)
@@ -496,6 +499,7 @@ contains
     if (pkernel%mpi_env%iproc + pkernel%mpi_env%igroup==0) then
        call yaml_mapping_open('Energy differences')
        call yaml_map('Hartree',ehref-ehartree,fmt="(1pe20.12)")
+!       call yaml_map('charge',charge,fmt="(1pe20.12)")
        call yaml_mapping_close()
     end if
 !!$         write(unit=*,fmt="(1x,a,3(1pe20.12))") &
