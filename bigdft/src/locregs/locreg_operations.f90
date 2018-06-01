@@ -2826,7 +2826,7 @@ module locreg_operations
          end if
          ekin=ekin+kstrten(1)+kstrten(2)+kstrten(3)
          if (present(k_strten)) k_strten=kstrten 
- 
+  
       case('W')
 
          call f_err_throw("Wires bc has to be implemented here", &

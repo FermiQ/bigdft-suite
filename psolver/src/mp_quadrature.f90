@@ -105,7 +105,7 @@ module multipole_preserving
 
       if (present(verbose)) then
         if (verbose) then
-          call yaml_mapping_open('Multipole preserving (ionic potential)',flow=.true.)
+          call yaml_mapping_open('Multipole preserving approach',flow=.true.)
           if (present(rlocs)) then
             call yaml_map('rloc',rloc)
             if (rloc <= rlocmin) call yaml_comment('Switch to integral with dirac function')

@@ -291,6 +291,7 @@ subroutine rhocore_forces(iproc,atoms,dpbox,nspin,rxyz,potxc,fxyz)
   use gaussians
   use box
   use bounds, only: ext_buffers
+  use multipole_preserving
   implicit none
   !Arguments
   integer, intent(in) :: iproc,nspin
@@ -315,6 +316,10 @@ subroutine rhocore_forces(iproc,atoms,dpbox,nspin,rxyz,potxc,fxyz)
   real(gp) :: drhoc,drhov,drhodr2
 
   call f_routine(id='rhocore_forces')
+
+
+  if (atoms%multipole_preserving) &
+     call initialize_real_space_conversion(isf_m=atoms%mp_isf,rlocs=atoms%nlccpar(0,:))
 
 !!$  hxh = dpbox%mesh%hgrids(1)
 !!$  hyh = dpbox%mesh%hgrids(2)
@@ -516,6 +521,8 @@ subroutine rhocore_forces(iproc,atoms,dpbox,nspin,rxyz,potxc,fxyz)
      if (iproc == 0 .and. get_verbose_level() > 1) call yaml_map('Calculate NLCC forces',.true.)
   end if
 
+  if (atoms%multipole_preserving) call finalize_real_space_conversion()
+
   call f_release_routine()
 
 end subroutine rhocore_forces
@@ -556,7 +563,7 @@ subroutine local_forces(iproc,at,rxyz,hxh,hyh,hzh,&
   real(gp) :: prefactor,cutoff,rloc,rlocinvsq,rlocinv2sq,Vel,rhoel
   real(gp) :: x,y,z!,rx,ry,rz,
   real(gp) :: fxerf,fyerf,fzerf,fxgau,fygau,fzgau,forceloc
-  logical :: perx,pery,perz,gox,goy,goz
+  !logical :: perx,pery,perz,gox,goy,goz
   integer :: j1,j2,j3,ind,nbl1,nbr1,nbl2,nbr2,nbl3,nbr3,mpnx,mpny,mpnz
   integer :: isx,isy,isz,iex,iey,iez
   real(gp) :: forceleaked
@@ -722,6 +729,12 @@ subroutine local_forces(iproc,at,rxyz,hxh,hyh,hzh,&
               Txy=Txy+forceloc*dpbox%bitp%tmp(1)*dpbox%bitp%tmp(2)
               Txz=Txz+forceloc*dpbox%bitp%tmp(1)*dpbox%bitp%tmp(3)
               Tyz=Tyz+forceloc*dpbox%bitp%tmp(2)*dpbox%bitp%tmp(3)
+                       !if (nloc /= 0) then
+                       !   tt=cprime(nloc)
+                       !   do iloc=nloc-1,1,-1
+                       !      tt=arg*tt+cprime(iloc)
+                       !   enddo
+                       !   forceleaked=forceleaked+prefactor*xp*tt*rho(1) !(as a sample value)
            end if
         end if
         !error function part
@@ -732,7 +745,6 @@ subroutine local_forces(iproc,at,rxyz,hxh,hyh,hzh,&
      end do
      call box_iter_expand_nbox(dpbox%bitp)
 !!$ End new loop giuseppe ------------------------------------------------------------------------------------
-
 !!$!!$ Start old loop ------------------------------------------------------------------------------------
 !!$
 !!$     !$omp parallel default(none) &
@@ -928,7 +940,6 @@ subroutine nonlocal_forces(lr,at,ob,nlpsp,paw,fsep,calculate_strten,strten)
 
   Enl=0._gp
   vol=real(at%astruct%cell_dim(1)*at%astruct%cell_dim(2)*at%astruct%cell_dim(3),gp)
-
   hcproj0 = f_malloc([size(nlpsp%hcproj), ob%orbs%norbp], id = 'hcproj0')
   psi_it=orbital_basis_iterator(ob)
   loop_kpt: do while(ket_next_kpt(psi_it))

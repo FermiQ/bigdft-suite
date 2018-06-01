@@ -132,6 +132,23 @@ contains
 
     select case(g%discretization_method)
     case(RADIAL_COLLOCATION)
+!!$       !r = distance(bit%mesh,bit%rxyz,rxyz)
+!!$       !r2=g%exponent*r**2
+!!$       !bit%tmp=bit%mesh%hgrids*(bit%inext-2)-rxyz-bit%oxyz
+!!$       bit%tmp=bit%rxyz_nbox-rxyz
+!!$       r2=square_gd(bit%mesh,bit%tmp)
+!!$       !bit%tmp=closest_r(bit%mesh,bit%rxyz,rxyz)
+!!$       !r2=square_gd(bit%mesh,bit%tmp)*g%exponent
+!!$       fe=safe_exp(-r2*g%exponent,underflow=1.e-120_f_double)
+!!$       rclosest = closest_r(bit%mesh,bit%rxyz,rxyz)
+!!$       vect=rxyz_ortho(bit%mesh,rclosest)
+!!$       tt=0.0_gp
+!!$       do i=1,g%nterms
+!!$          !this should be in absolute coordinates
+!!$          val=product(vect**g%lxyz(:,i))
+!!$          tt=tt+g%factors(i)*val
+!!$       end do
+!!$       f=fe*tt
        !r = distance(bit%mesh,bit%rxyz,rxyz)
        !r2=g%exponent*r**2
        !bit%tmp=bit%mesh%hgrids*(bit%inext-2)-rxyz-bit%oxyz
@@ -140,50 +157,33 @@ contains
        !bit%tmp=closest_r(bit%mesh,bit%rxyz,rxyz)
        !r2=square_gd(bit%mesh,bit%tmp)*g%exponent
        fe=safe_exp(-r2*g%exponent,underflow=1.e-120_f_double)
-       rclosest = closest_r(bit%mesh,bit%rxyz,rxyz)
-       vect=rxyz_ortho(bit%mesh,rclosest)
+       !rclosest = closest_r(bit%mesh,bit%rxyz,rxyz)
+       vect=rxyz_ortho(bit%mesh,bit%tmp)
+       ! ATTENTION: Thanks to the projector test Giuseppe detected a segmentation fault when g%pows /= 0 and the size of
+       !g%lxyz(:,i). nterms maybe not the same for g%lxyz(:,i) and g%pows.
+       ! The implemented approach does not work for mixed conditions, when both
+       ! g%lxyz(:,i) and g%pows are /= 0 .
        tt=0.0_gp
-       do i=1,g%nterms
-          !this should be in absolute coordinates
-          val=product(vect**g%lxyz(:,i))
-          tt=tt+g%factors(i)*val
-       end do
-       f=fe*tt
-! Old implementation for a gaussian times a polynomial of r2 (using g%pows).
-!!$       !r = distance(bit%mesh,bit%rxyz,rxyz)
-!!$       !r2=g%exponent*r**2
-!!$       bit%tmp=bit%mesh%hgrids*(bit%inext-2)-rxyz-bit%oxyz
-!!$       r2=square_gd(bit%mesh,bit%tmp)
-!!$       !bit%tmp=closest_r(bit%mesh,bit%rxyz,rxyz)
-!!$       !r2=square_gd(bit%mesh,bit%tmp)*g%exponent
-!!$       fe=safe_exp(-r2*g%exponent,underflow=1.e-120_f_double)
-!!$       rclosest = closest_r(bit%mesh,bit%rxyz,rxyz)
-!!$       vect=rxyz_ortho(bit%mesh,rclosest)
-!!$       ! ATTENTION: Thanks to the Cavity test Giuseppe detected a segmentation fault when g%pows /= 0 and the size of
-!!$       !g%lxyz(:,i). nterms maybe not the same for g%lxyz(:,i) and g%pows.
-!!$       ! The implemented approach does not work for mixed conditions, when both
-!!$       ! g%lxyz(:,i) and g%pows are /= 0 .
-!!$       tt=0.0_gp
-!!$       if (sum(abs(g%pows(:))) == 0) then  
-!!$          do i=1,g%nterms
-!!$             !this should be in absolute coordinates
-!!$             val=product(vect**g%lxyz(:,i))
-!!$             tt=tt+g%factors(i)*val
-!!$          end do
-!!$          f=fe*tt
-!!$       else if (sum(abs(g%pows(:))) /= 0) then
-!!$          tt0=0.0_gp
-!!$          tt1=0.0_gp
-!!$          do i=1,g%nterms
-!!$             !this should be in absolute coordinates
-!!$             tt0=tt0+g%factors(i)*r2**g%pows(i)
-!!$             if (g%pows(i) /= 0) tt1=tt1+g%factors(i)*g%pows(i)*r2**(g%pows(i)-1)
-!!$          end do
-!!$          f=fe*tt0
-!!$          if (ider_ == 1) then
-!!$           f=-g%exponent*f+tt1*fe
-!!$          end if
-!!$       end if
+       if (sum(abs(g%pows(:))) == 0) then  
+          do i=1,g%nterms
+             !this should be in absolute coordinates
+             val=product(vect**g%lxyz(:,i))
+             tt=tt+g%factors(i)*val
+          end do
+          f=fe*tt
+       else if (sum(abs(g%pows(:))) /= 0) then
+          tt0=0.0_gp
+          tt1=0.0_gp
+          do i=1,g%nterms
+             !this should be in absolute coordinates
+             tt0=tt0+g%factors(i)*r2**g%pows(i)
+             if (g%pows(i) /= 0) tt1=tt1+g%factors(i)*g%pows(i)*r2**(g%pows(i)-1)
+          end do
+          f=fe*tt0
+          if (ider_ == 1) then
+           f=-g%exponent*f+tt1*fe
+          end if
+       end if
     case(MULTIPOLE_PRESERVING_COLLOCATION)
 !!$       f=0.0_gp
 !!$       domp=g%mp_isf>0
@@ -241,13 +241,14 @@ contains
     !bit%tmp = bit%mesh%hgrids*(bit%inext-2)-rxyz-bit%oxyz
     bit%tmp = bit%rxyz_nbox-rxyz
     r2 = square_gd(bit%mesh,bit%tmp)
-    fe = gaussian_radial_value(g,rxyz,bit)
+    fe = gaussian_radial_value(g,rxyz(1),bit)
     f = (rhoc(1)+r2*rhoc(2)+r2**2*rhoc(3)+r2**3*rhoc(4))*fe
     if (ider ==1) then !first derivative with respect to r2
        f=-g%exponent*f+(rhoc(2)+2.0_gp*r2*rhoc(3)+3.0_gp*r2**2*rhoc(4))*fe
     end if
 
   end function spherical_times_gaussian
+
 
   !>expand a power of the r2 into separable components of x^lx y^ly z^lz
   !!only works for even powers (pow%2 =0)
@@ -659,7 +660,6 @@ contains
        call isf_to_daub(lr, w, projector_real, psi(1,1,ylm%m))
        !print *,'testRS:',sum(projector_real**2),sum(psi(:,:,ylm%m)**2)
     end do
-
   end subroutine gaussian_iter_to_wavelets_collocation
   
   !> Nullify the pointers of the structure gaussian_basis
@@ -820,7 +820,6 @@ contains
           end do
        end do
     end do
-
 
     call init_gaussian_basis(nat,nshell,rxyz,G)
 

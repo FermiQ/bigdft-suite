@@ -1731,7 +1731,7 @@ O2spin_dirmin:
  Force Norm (Hartree/Bohr): 3.45e-5
  Maxdiff for transpose (checksum): 5.9e-11
  number of corrected points: 33.0
- ENERGY: 3.1e-7
+ ENERGY: 3.3e-7
 
 verysparse:
  Total charge: 2.3e-8
@@ -2657,6 +2657,22 @@ Cavity_H2OfsccsPI:
 Mg-cubic_ortho:
   Keys to ignore:
    - radical
+  Q matrix: 7.5e-11
+
+Na8-periodic:
+  EH: 4.2e-11
+  EKS: 1.7e-11
+  EXC: 1.1e-10
+  Epot: 4.1e-11
+  EvXC: 3.1e-11
+  Total electronic charge: 5.6e-11
+  norm(P): 1.1e-10
+  trace: 6.6e-11
+
+
+Mg-cubic_ortho:
+  Keys to ignore:
+   - radical
   Q matrix: 7.50e-11
   Total ionic charge: 1.50e-11
 
@@ -2943,7 +2959,7 @@ matrixtaskgroups_yes:
   HOMO-LUMO gap (eV): 6.3e-11
   HYBRID: 4.0e-9
   TRACE: 4.0e-9
-  trace(KH): 4.1e-10
+  trace(KH): 5.1e-10
   Raw forces norm (Ha/Bohr): 3.6e-9
   Clean forces norm (Ha/Bohr): 3.9e-9
   Force Norm (Hartree/Bohr): 9.6e-11

@@ -361,11 +361,11 @@ subroutine CalculateTailCorrection(iproc,nproc,at,rbuf,orbs,&
              ibbzxx_c,ibbxxyy_c,ibbyz_ff,ibbzxx_f,ibbxxyy_f,nw1,nw2,ibbyyzz_r,1,1)
         !write(*,'(a,3i3,2f12.8)') 'applylocpotkinone finished',iproc,iorb,ipt,epot,ekin
 
+        eproj=0.0d0
         call DFT_PSP_projectors_iter_new(psp_it, nlpsp)
         loop_proj: do while (DFT_PSP_projectors_iter_next(psp_it, ilr = 1, lr = lr, glr = lr))
            call DFT_PSP_projectors_iter_ensure(psp_it, [0._gp, 0._gp, 0._gp], 0, nwarnings, lr)
            call DFT_PSP_projectors_iter_apply(psp_it, psi_it, at, eproj, hpsi = hpsib, paw = paw)
-           eproj_sum=eproj_sum+eproj*orbs%occup(iorb+orbs%isorb)
         end do loop_proj
 
         !calculate residue for the single orbital
@@ -422,7 +422,7 @@ subroutine CalculateTailCorrection(iproc,nproc,at,rbuf,orbs,&
      end if
      ekin_sum=ekin_sum+ekin*orbs%occup(iorb+orbs%isorb)
      epot_sum=epot_sum+epot*orbs%occup(iorb+orbs%isorb)
-
+     eproj_sum=eproj_sum+eproj*orbs%occup(iorb+orbs%isorb)
   end do
 
   if (iproc == 0) then
