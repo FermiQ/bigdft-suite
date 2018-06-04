@@ -315,8 +315,10 @@ subroutine rhocore_forces(iproc,atoms,dpbox,nspin,rxyz,potxc,fxyz)
   real(gp) :: spinfac,rx,ry,rz,frcx,frcy,frcz,rloc,cutoff,x,y,z,r2,hxh,hyh,hzh
   real(gp) :: drhoc,drhov,drhodr2
 
-  call f_routine(id='rhocore_forces')
+  !quick return if no nlcc
+  if (size(atoms%nlccpar,2) <= 0 .or. .not. atoms%donlcc) return
 
+  call f_routine(id='rhocore_forces')
 
   if (atoms%multipole_preserving) &
      call initialize_real_space_conversion(isf_m=atoms%mp_isf,rlocs=atoms%nlccpar(0,:))

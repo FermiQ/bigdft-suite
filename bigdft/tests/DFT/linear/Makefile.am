@@ -129,6 +129,7 @@ extendedfrags_nofrags.out.post-out:
 	mkdir -p data-write/data-c2
 	cp c.xyz data-write/c1.xyz
 	cp c.xyz data-write/c2.xyz
+	cat data-nofrags/overlap_onsite.bin >> extendedfrags_nofrags.out.out
 
 extendedfrags_write.out.post-out: 
 	rm -rf data-read

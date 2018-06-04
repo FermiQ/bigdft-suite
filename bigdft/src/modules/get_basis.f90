@@ -2026,7 +2026,7 @@ module get_basis
           call f_routine(id='calculate_trace_finish')
           call timing(iproc,'calctrace_comm','ON')
           if (nproc>1) then
-              call mpiwait(request)
+              call fmpi_wait(request)
               trH = trH_recvbuf(1)
               trH_direct = trH_recvbuf(2)
           end if

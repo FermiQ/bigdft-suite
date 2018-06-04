@@ -19,7 +19,9 @@ module fmpi_types
        FMPI_COMM_NULL=>MPI_COMM_NULL,FMPI_GROUP_NULL=>MPI_GROUP_NULL,&
        FMPI_MODE_NOPRECEDE=>MPI_MODE_NOPRECEDE,&
        FMPI_MODE_NOSUCCEED=>MPI_MODE_NOSUCCEED,FMPI_MODE_NOSTORE=>MPI_MODE_NOSTORE,&
-       FMPI_MODE_NOPUT=>MPI_MODE_NOPUT
+       FMPI_MODE_NOPUT=>MPI_MODE_NOPUT,FMPI_STATUSES_IGNORE=>MPI_STATUSES_IGNORE,&
+       FMPI_STATUS_IGNORE=>MPI_STATUS_IGNORE,FMPI_STATUS_SIZE => MPI_STATUS_SIZE,&
+       FMPI_ANY_SOURCE=>MPI_ANY_SOURCE,FMPI_ANY_TAG=>MPI_ANY_TAG
   use f_precisions
   use f_enums
   use dictionaries, only: f_err_throw
@@ -80,8 +82,11 @@ module fmpi_types
   !> while deciding the optimal strategy for handles leave them as integers
   public :: FMPI_IN_PLACE,FMPI_REQUEST_NULL,FMPI_SUCCESS,FMPI_INFO_NULL,FMPI_WIN_NULL,FMPI_COMM_NULL
   public :: FMPI_MODE_NOPUT,FMPI_MODE_NOPRECEDE,FMPI_MODE_NOSTORE,FMPI_MODE_NOSUCCEED,FMPI_GROUP_NULL
+  public :: FMPI_STATUSES_IGNORE,FMPI_STATUS_IGNORE,FMPI_STATUS_SIZE
+  public :: FMPI_ANY_TAG,FMPI_ANY_SOURCE
 
   public :: mpitype,mpirank,mpisize,fmpi_comm,mpitypesize,fmpi_barrier
+  public :: fmpi_maxtag,mpirank_null,mpicomm_null
 
 contains
 
@@ -133,6 +138,24 @@ contains
             err_id=ERR_MPI_WRAPPERS)
     end if
   end subroutine fmpi_barrier
+
+  pure function mpirank_null() result(iproc)
+    implicit none
+    integer :: iproc
+    iproc=MPI_PROC_NULL
+  end function mpirank_null
+
+  pure function mpicomm_null() result(comm)
+    implicit none
+    integer :: comm
+    comm=MPI_PROC_NULL
+  end function mpicomm_null
+
+!!$  pure function mpirequest_null() result(request)
+!!$    implicit none
+!!$    integer :: request
+!!$    request=MPI_REQUEST_NULL
+!!$  end function mpirequest_null
 
 
   !> Function giving the mpi rank id for a given communicator
@@ -187,6 +210,26 @@ contains
     end if
 
   end function mpisize
+
+  function fmpi_maxtag(comm) result(mpimaxtag)
+    implicit none
+    integer, intent(in), optional :: comm
+    integer(kind=MPI_ADDRESS_KIND) :: mpimaxtag
+    !local variables
+    logical :: flag
+    integer :: comm_,ierr
+
+    comm_=fmpi_comm(comm)
+
+    call MPI_COMM_GET_ATTR(comm_,MPI_TAG_UB,mpimaxtag,flag,ierr)
+
+    !error check
+    if (ierr /= FMPI_SUCCESS .or. .not. flag) then
+       call f_err_throw('An error in calling to mpimaxtag occured',&
+            err_id=ERR_MPI_WRAPPERS)
+    end if
+  end function fmpi_maxtag
+
 
   function mpitypesize_d0(foo) result(sizeof)
     use dictionaries, only: f_err_throw,f_err_define

@@ -1421,6 +1421,7 @@
   #-------------------------------- Warnings obtained during the run, check their relevance!
  WARNINGS:
  - The coarse grid does not fill the entire periodic box
+ - Inconsistency in Tr(H), check your cutoff radii
  - The support function localization radii might be too small, got 27 warnings
  - support function optimization not converged
   #-------------------------------------------------------------------- Timing for root process

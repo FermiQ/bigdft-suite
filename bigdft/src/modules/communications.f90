@@ -242,7 +242,7 @@ module communications
           transpose_action == TRANSPOSE_GATHER) then
 
           if (nproc>1) then
-              call mpiwait(wt%request)
+              call fmpi_wait(wt%request)
           end if
 
           ist=1
@@ -499,7 +499,7 @@ module communications
           transpose_action == TRANSPOSE_GATHER) then
 
           if (nproc>1) then
-              call mpiwait(wt%request)
+              call fmpi_wait(wt%request)
           end if
 
           ist=1
@@ -1551,7 +1551,7 @@ module communications
     
     end subroutine communicate_locreg_descriptors_basics_deprecated
     
-    subroutine communicate_locreg_descriptors_keys(iproc, nproc, nlr, glr, llr, orbs, rootarr, onwhichmpi)
+    subroutine communicate_locreg_descriptors_keys(iproc, nproc, nlr, glr, llr, orbs, rootarr, onwhichmpi, llr_on_all_mpi)
        use dynamic_memory
        use dictionaries
        use wrapper_mpi
@@ -1570,6 +1570,7 @@ module communications
        type(orbitals_data),intent(in) :: orbs
        integer,dimension(nlr),intent(in) :: rootarr
        integer,dimension(orbs%norb),intent(in) :: onwhichmpi
+       integer, intent(in) :: llr_on_all_mpi
     
        ! Local variables
        integer :: ierr, jorb, ilr, jlr, root, max_sim_comms, norb_max
@@ -1615,7 +1616,7 @@ module communications
        ! Determine which locregs process iproc should get.
        ncover = 0
        !$omp parallel default(none) &
-       !$omp shared(ncover, nlr, rootarr, covered, orbs, glr, llr, iproc) &
+       !$omp shared(ncover, nlr, rootarr, covered, orbs, glr, llr, iproc, llr_on_all_mpi) &
        !$omp private(ilr, root, jorb, jjorb, jlr, isoverlap)
        !$omp do reduction(+: ncover)
        do ilr=1,nlr
@@ -1625,7 +1626,7 @@ module communications
                jjorb=orbs%isorb+jorb
                jlr=orbs%inwhichlocreg(jjorb)
                ! don't communicate to ourselves, or if we've already sent this locreg
-               if (iproc == root .or. covered(ilr)) cycle
+               if (iproc == root .or. covered(ilr) .or. ilr==llr_on_all_mpi) cycle
                call check_overlap_cubic_periodic(glr,llr(ilr),llr(jlr),isoverlap)
                if (isoverlap) then         
                    covered(ilr)=.true.
@@ -1637,7 +1638,7 @@ module communications
                jjorb=orbs%isorbu+jorb
                jlr=orbs%inwhichlocreg(jjorb)
                ! don't communicate to ourselves, or if we've already sent this locreg
-               if (iproc == root .or. covered(ilr)) cycle
+               if (iproc == root .or. covered(ilr) .or. ilr==llr_on_all_mpi) cycle
                call check_overlap_cubic_periodic(glr,llr(ilr),llr(jlr),isoverlap)
                if (isoverlap) then         
                    covered(ilr)=.true.

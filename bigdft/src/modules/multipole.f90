@@ -255,7 +255,7 @@ module multipole
       real(gp), dimension(1) :: charge
       integer, dimension(1) :: zero1
       integer, dimension(3) :: zeros
-      !$ integer  :: omp_get_thread_num,omp_get_max_threads
+      !$ integer, external  :: omp_get_thread_num,omp_get_max_threads
 
       if (ep%nmpl<=0) return !quick return if possible
 
@@ -1847,6 +1847,7 @@ module multipole
       integer, dimension(3) :: ioffset_isf
       type(box_iterator) :: bit
       !$ integer, external:: omp_get_num_threads,omp_get_thread_num
+      !$ integer :: ithread,nthread
       
 
       call f_routine(id='apply_Slm')
@@ -1890,10 +1891,12 @@ module multipole
 !--- Start new loop -------------------------------------------------------------------------------------
             bit=box_iter(psi_it%lr%mesh,origin=-(ioffset_isf+1)*(hgrids*0.5d0))
             !$omp parallel default(none) &
-            !$omp shared(psi_it, lrcntr, sphere, rmax, sphi2r, phi2r, l, m)&
-            !$omp private(tt,rc,rxyz) &
+            !$omp shared(psi_it, lrcntr, sphere, rmax, sphi2r, phi2r, l, m,nthread)&
+            !$omp private(tt,rc,rxyz,ithread) &
             !$omp firstprivate(bit)
-            !$ call box_iter_split(bit,omp_get_num_threads(),omp_get_thread_num())
+            !$ nthread=omp_get_num_threads()
+            !$ ithread=omp_get_thread_num()
+            !$ call box_iter_split(bit,nthread,ithread)
             do while (box_next_point(bit))
                 rc=closest_r(psi_it%lr%mesh,bit%rxyz,lrcntr)
                 rxyz=rxyz_ortho(psi_it%lr%mesh,rc)
@@ -6370,7 +6373,7 @@ END SUBROUTINE calculate_dipole_moment
       real(kind=8),dimension(-lmax:lmax,0:lmax,1:tmb%orbs%norb),intent(in) :: multipoles
 
       ! Local variables
-      integer :: iat_old, iorb, iat, ii, ilr, itype, l, m, mm
+      integer :: iat_old, iorb, iat, iiorb, ilr, itype, l, m, mm
       real(kind=8),dimension(:,:),allocatable :: delta_centers
       character(len=20),dimension(:),allocatable :: names
       type(external_potential_descriptors) :: ep
@@ -6387,9 +6390,10 @@ END SUBROUTINE calculate_dipole_moment
       ep%nmpl = tmb%orbs%norb
       allocate(ep%mpl(ep%nmpl))
 
+      iiorb = 0
       do iorb=1,tmb%orbs%norb
          call prepare_multipole_object(iorb, tmb, atoms, center_locreg, center_orb, &
-              lmax, shift, multipoles, names, delta_centers, iat_old, ep)
+              lmax, shift, multipoles, names, delta_centers, iiorb, iat_old, ep)
       end do
       call write_multipoles_new(ep, lmax, atoms%astruct%units, &
            delta_centers, tmb%orbs%onwhichatom, scaled)
@@ -6410,7 +6414,7 @@ END SUBROUTINE calculate_dipole_moment
 
     ! This subroutine only exists for the timing...
     subroutine prepare_multipole_object(iorb, tmb, atoms, center_locreg, center_orb, &
-               lmax, shift, multipoles, names, delta_centers, iat_old, ep)
+               lmax, shift, multipoles, names, delta_centers, iiorb, iat_old, ep)
       use module_types, only: DFT_wavefunction, atoms_data
       use multipole_base, only: external_potential_descriptors, multipole_set_null, multipole_null
       implicit none
@@ -6425,23 +6429,23 @@ END SUBROUTINE calculate_dipole_moment
       real(kind=8),dimension(-lmax:lmax,0:lmax,1:tmb%orbs%norb),intent(in) :: multipoles
       character(len=*),dimension(tmb%orbs%norb),intent(inout) :: names
       real(kind=8),dimension(3,tmb%orbs%norb),intent(inout) :: delta_centers
-      integer,intent(inout) :: iat_old
+      integer,intent(inout) :: iiorb, iat_old
       type(external_potential_descriptors),intent(inout) :: ep
 
-      integer :: iorb, iat, ii, ilr, itype, l, m, mm
+      integer :: iorb, iat, ilr, itype, l, m, mm
 
       call f_routine(id='prepare_multipole_object')
 
       iat = tmb%orbs%onwhichatom(iorb)
       if (iat/=iat_old) then
-          ii = 1
+          iiorb = 1
       else
-          ii = ii + 1
+          iiorb = iiorb + 1
       end if
       iat_old = iat
       ilr = tmb%orbs%inwhichlocreg(iorb)
       itype = atoms%astruct%iatype(iat)
-      names(iorb) = trim(atoms%astruct%atomnames(itype))//'-'//adjustl(trim(yaml_toa(ii)))
+      names(iorb) = trim(atoms%astruct%atomnames(itype))//'-'//adjustl(trim(yaml_toa(iiorb)))
       ! delta_centers gives the difference between the charge center and the localization center
       delta_centers(1:3,iorb) = center_locreg(1:3,ilr) - tmb%lzd%llr(ilr)%locregcenter(1:3)
       !write(*,*) 'iorb, ilr, center_locreg(1:3,ilr) - tmb%lzd%llr(ilr)%locregcenter(1:3)', &

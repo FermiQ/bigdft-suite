@@ -64,7 +64,7 @@ module locregs
   public :: check_overlap,check_overlap_cubic_periodic,check_overlap_from_descriptors_periodic,lr_box
   public :: init_lr,reset_lr
   public :: communicate_locreg_descriptors_basics
-  public :: get_isf_offset
+  public :: get_isf_offset,ensure_locreg_bounds
 
 contains
 
@@ -290,7 +290,6 @@ contains
 
   end subroutine communicate_locreg_descriptors_basics
 
-
   !> Methods for copying the structures, can be needed to avoid recalculating them
   !! should be better by defining a f_malloc inheriting the shapes and the structure from other array
   !! of the type dest=f_malloc(src=source,id='dest')
@@ -300,6 +299,8 @@ contains
     ! Calling arguments
     type(locreg_descriptors), intent(in) :: glrin !<input locreg. Unchanged on exit.
     type(locreg_descriptors), intent(out):: glrout !<output locreg. Must be freed on input.
+
+    !we should here use encode and decode for safety
 
     glrout%geocode = glrin%geocode
     glrout%hybrid_on = glrin%hybrid_on
@@ -345,6 +346,20 @@ contains
     dout%n3i = din%n3i
 
   end subroutine copy_grid_dimensions
+
+  subroutine ensure_locreg_bounds(lr)
+    use bounds, only: locreg_bounds
+    implicit none
+    type(locreg_descriptors), intent(inout) :: lr
+    
+    !take this as exemple of already associated bounds
+    if (associated(lr%bounds%kb%ibyz_c)) return
+
+    call locreg_bounds(lr%d%n1,lr%d%n2,lr%d%n3,&
+         lr%d%nfl1,lr%d%nfu1,lr%d%nfl2,lr%d%nfu2,&
+         lr%d%nfl3,lr%d%nfu3,lr%wfd,lr%bounds)
+
+  end subroutine ensure_locreg_bounds
 
   !> Almost degenerate with get_number_of_overlap_region
   !! should merge the two... prefering this one since argument list is better 

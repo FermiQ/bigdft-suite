@@ -1,5 +1,6 @@
 module bounds
   use compression, only: wavefunctions_descriptors
+  use f_precisions
   implicit none
 
   private
@@ -265,7 +266,7 @@ module bounds
     function check_whether_bounds_overlap_int(i1, i2, j1, j2) result(overlap)
       implicit none
       ! Calling arguments
-      integer(kind=4),intent(in) :: i1, i2, j1, j2
+      integer(f_integer),intent(in) :: i1, i2, j1, j2
       logical :: overlap
       ! Local variables
       integer :: periodic
@@ -299,7 +300,7 @@ module bounds
     function check_whether_bounds_overlap_long(i1, i2, j1, j2) result(overlap)
       implicit none
       ! Calling arguments
-      integer(kind=8),intent(in) :: i1, i2, j1, j2
+      integer(f_long),intent(in) :: i1, i2, j1, j2
       logical :: overlap
       ! Local variables
       integer :: periodic

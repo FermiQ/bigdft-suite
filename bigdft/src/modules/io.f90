@@ -1420,14 +1420,12 @@ module io
 
     subroutine io_read_descr_linear(unitwf, formatted, iorb_old, eval, n_old1, n_old2, n_old3, &
            & ns_old1, ns_old2, ns_old3, hgrids_old, lstat, error, onwhichatom, locrad, locregCenter, &
-           & confPotOrder, confPotprefac, &
-           & nvctr_c, nvctr_f, nseg_c, nseg_f, &
-           & keygloc, keyglob, keyvloc, keyvglob, &
+           & confPotOrder, confPotprefac, wfd,&
+!!$           & nvctr_c, nvctr_f, nseg_c, nseg_f, &
+!!$           & keygloc, keyglob, keyvloc, keyvglob, &
            & nat, rxyz_old)
         use module_base
-        use module_types
-        !use internal_io
-        use yaml_output
+        use compression
         implicit none
     
         integer, intent(in) :: unitwf
@@ -1444,9 +1442,10 @@ module io
         integer, intent(out) :: confPotOrder
         real(gp), intent(out) :: confPotprefac
         ! Optional arguments
-        integer,intent(out),optional :: nseg_c, nvctr_c, nseg_f, nvctr_f
-        integer,dimension(:,:),pointer,intent(out),optional :: keygloc, keyglob
-        integer,dimension(:),pointer,intent(out),optional :: keyvloc, keyvglob
+        type(wavefunctions_descriptors), intent(out), optional :: wfd
+!!$        integer,intent(out),optional :: nseg_c, nvctr_c, nseg_f, nvctr_f
+!!$        integer,dimension(:,:),pointer,intent(out),optional :: keygloc, keyglob
+!!$        integer,dimension(:),pointer,intent(out),optional :: keyvloc, keyvglob
         integer,intent(in),optional :: nat
         real(gp),dimension(:,:),intent(out),optional :: rxyz_old
         integer :: nseg_c_, nvctr_c_, nseg_f_, nvctr_f_ , iseg
@@ -1490,22 +1489,25 @@ module io
                  if (i_stat /= 0) return
               enddo
            end if
-           if (present(nvctr_c) .and. present(nvctr_f)) then
-              read(unitwf,*,iostat=i_stat) nvctr_c, nvctr_f
+           !if (present(nvctr_c) .and. present(nvctr_f)) then
+           if (present(wfd)) then
+              read(unitwf,*,iostat=i_stat) wfd%nvctr_c, wfd%nvctr_f
               if (i_stat /= 0) return
            else
               read(unitwf,*,iostat=i_stat) nvctr_c_, nvctr_f_
            end if
-           if (present(nseg_c) .and. present(nseg_f) .and. &
-               present(keygloc) .and. present(keyglob) .and. &
-               present(keyvloc) .and. present(keyvglob)) then
-              read(unitwf,*,iostat=i_stat) nseg_c, nseg_f
-              keygloc = f_malloc_ptr((/2,nseg_c+nseg_f/),id='keygloc')
-              keyglob = f_malloc_ptr((/2,nseg_c+nseg_f/),id='keyglob')
-              keyvloc = f_malloc_ptr(nseg_c+nseg_f,id='keyvloc')
-              keyvglob = f_malloc_ptr(nseg_c+nseg_f,id='keyvglob')
-              do iseg=1,nseg_c+nseg_f
-                 read(unitwf,*,iostat=i_stat) keygloc(1:2,iseg), keyglob(1:2,iseg), keyvloc(iseg), keyvglob(iseg)
+           !if (present(nseg_c) .and. present(nseg_f) .and. &
+           !    present(keygloc) .and. present(keyglob) .and. &
+           !    present(keyvloc) .and. present(keyvglob)) then
+           if (present(wfd)) then
+              read(unitwf,*,iostat=i_stat) wfd%nseg_c, wfd%nseg_f
+              call allocate_wfd(wfd)
+!!$              keygloc = f_malloc_ptr((/2,nseg_c+nseg_f/),id='keygloc')
+!!$              keyglob = f_malloc_ptr((/2,nseg_c+nseg_f/),id='keyglob')
+!!$              keyvloc = f_malloc_ptr(nseg_c+nseg_f,id='keyvloc')
+!!$              keyvglob = f_malloc_ptr(nseg_c+nseg_f,id='keyvglob')
+              do iseg=1,wfd%nseg_c+wfd%nseg_f
+                 read(unitwf,*,iostat=i_stat) wfd%keygloc(1:2,iseg), wfd%keyglob(1:2,iseg), wfd%keyvloc(iseg), wfd%keyvglob(iseg)
                  if (i_stat /= 0) return
               end do
            else
@@ -1546,28 +1548,31 @@ module io
                  if (i_stat /= 0) return
               enddo
            end if
-           if (present(nvctr_c) .and. present(nvctr_f)) then
-              read(unitwf,iostat=i_stat) nvctr_c, nvctr_f
+           !if (present(nvctr_c) .and. present(nvctr_f)) then
+           if (present(wfd)) then
+              read(unitwf,iostat=i_stat) wfd%nvctr_c, wfd%nvctr_f
               if (i_stat /= 0) return
            else
               read(unitwf,iostat=i_stat) nvctr_c_, nvctr_f_
            end if
-           if (present(nseg_c) .and. present(nseg_f) .and. &
-               present(keygloc) .and. present(keyglob) .and. &
-               present(keyvloc) .and. present(keyvglob)) then
-              read(unitwf,*,iostat=i_stat) nseg_c, nseg_f
-              keygloc = f_malloc_ptr((/2,nseg_c+nseg_f/),id='keygloc')
-              keyglob = f_malloc_ptr((/2,nseg_c+nseg_f/),id='keyglob')
-              keyvloc = f_malloc_ptr(nseg_c+nseg_f,id='keyvloc')
-              keyvglob = f_malloc_ptr(nseg_c+nseg_f,id='keyvglob')
-              do iseg=1,nseg_c+nseg_f
-                 read(unitwf,*,iostat=i_stat) keygloc(1:2,iseg), keyglob(1:2,iseg), keyvloc(iseg), keyvglob(iseg)
+           if (present(wfd)) then
+           !if (present(nseg_c) .and. present(nseg_f) .and. &
+           !    present(keygloc) .and. present(keyglob) .and. &
+           !    present(keyvloc) .and. present(keyvglob)) then
+              read(unitwf,iostat=i_stat) wfd%nseg_c, wfd%nseg_f
+              call allocate_wfd(wfd)
+              !keygloc = f_malloc_ptr((/2,nseg_c+nseg_f/),id='keygloc')
+              !keyglob = f_malloc_ptr((/2,nseg_c+nseg_f/),id='keyglob')
+              !keyvloc = f_malloc_ptr(nseg_c+nseg_f,id='keyvloc')
+              !keyvglob = f_malloc_ptr(nseg_c+nseg_f,id='keyvglob')
+              do iseg=1,wfd%nseg_c+wfd%nseg_f
+                 read(unitwf,iostat=i_stat) wfd%keygloc(1:2,iseg), wfd%keyglob(1:2,iseg), wfd%keyvloc(iseg), wfd%keyvglob(iseg)
                  if (i_stat /= 0) return
               end do
            else
-              read(unitwf,*,iostat=i_stat) nseg_c_, nseg_f_
+              read(unitwf,iostat=i_stat) nseg_c_, nseg_f_
               do iseg=1,nseg_c_+nseg_f_
-                 read(unitwf,*,iostat=i_stat) idummy(1:6)
+                 read(unitwf,iostat=i_stat) idummy(1:6)
                  if (i_stat /= 0) return
               end do
            end if

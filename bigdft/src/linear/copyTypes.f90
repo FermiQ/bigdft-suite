@@ -129,6 +129,7 @@ subroutine copy_local_zone_descriptors(lzd_in, lzd_out, subname)
   lzd_out%lintyp=lzd_in%lintyp
   lzd_out%ndimpotisf=lzd_in%ndimpotisf
   lzd_out%hgrids=lzd_in%hgrids
+  lzd_out%llr_on_all_mpi=lzd_in%llr_on_all_mpi
 
   call nullify_locreg_descriptors(lzd_out%glr)
   call copy_locreg_descriptors(lzd_in%glr, lzd_out%glr)

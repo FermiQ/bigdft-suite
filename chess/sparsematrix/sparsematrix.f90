@@ -2323,7 +2323,7 @@ module sparsematrix
                   end if
               end do
               if (smat%mpi_groups(iitg)%nproc > 1) then
-                  call mpiwaitall(smat%ntaskgroupp, request)
+                  call fmpi_waitall(smat%ntaskgroupp, request)
               end if
               ncount = 0
               do itg=1,smat%ntaskgroupp
