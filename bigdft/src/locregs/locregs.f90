@@ -36,7 +36,7 @@ module locregs
 
   !> Contains the information needed for describing completely a wavefunction localisation region
   type, public :: locreg_descriptors
-     character(len=1) :: geocode            !< @copydoc poisson_solver::doc::geocode
+!!$     character(len=1) :: geocode            !< @copydoc poisson_solver::doc::geocode
      logical :: hybrid_on                   !< Interesting for global, periodic, localisation regions
      integer :: ns1,ns2,ns3                 !< Starting point of the localisation region in global coordinates
      integer :: nsi1,nsi2,nsi3              !< Starting point of locreg for interpolating grid
@@ -83,7 +83,7 @@ contains
     use bounds, only: nullify_convolutions_bounds
     implicit none
     type(locreg_descriptors), intent(out) :: lr
-    lr%geocode='F'
+!!$    lr%geocode='F'
     lr%hybrid_on=.false.   
     lr%ns1=0
     lr%ns2=0
@@ -301,7 +301,7 @@ contains
     type(locreg_descriptors), intent(in) :: glrin !<input locreg. Unchanged on exit.
     type(locreg_descriptors), intent(out):: glrout !<output locreg. Must be freed on input.
 
-    glrout%geocode = glrin%geocode
+!!$    glrout%geocode = glrin%geocode
     glrout%hybrid_on = glrin%hybrid_on
     glrout%ns1 = glrin%ns1
     glrout%ns2 = glrin%ns2
@@ -584,7 +584,7 @@ contains
 
       call f_routine(id='init_lr')
 
-      lr%geocode=geocode
+!!$      lr%geocode=geocode
       if (present(isx)) then
          lr%ns1=isx
       else

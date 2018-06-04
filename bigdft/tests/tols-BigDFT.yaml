@@ -2661,14 +2661,14 @@ Mg-cubic_ortho:
 
 Na8-periodic:
   EH: 4.2e-11
-  EKS: 1.7e-11
+  EKS: 1.9e-11
   EXC: 1.1e-10
   Epot: 4.1e-11
   EvXC: 3.1e-11
-  Total electronic charge: 5.6e-11
+  Total electronic charge: 6.0e-11
   norm(P): 1.1e-10
   trace: 6.6e-11
-
+  Energy (Hartree): 1.4e-11
 
 Mg-cubic_ortho:
   Keys to ignore:

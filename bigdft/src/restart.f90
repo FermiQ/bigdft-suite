@@ -647,47 +647,6 @@ subroutine open_filename_of_iorb(unitfile,lbin,filename,orbs,iorb,ispinor,iorb_o
 end subroutine open_filename_of_iorb
 
 
-
-
-subroutine read_wave_to_isf(lstat, filename, ln, iorbp, hx, hy, hz, &
-     & n1, n2, n3, nspinor, psiscf)
-  use module_base
-  use module_types
-  use module_interfaces, only: readwavetoisf, readwavetoisf_etsf
-  use public_enums
-  use module_input_keys
-  implicit none
-
-  integer, intent(in) :: ln
-  character, intent(in) :: filename(ln)
-  integer, intent(in) :: iorbp
-  integer, intent(out) :: n1, n2, n3, nspinor
-  real(gp), intent(out) :: hx, hy, hz
-  real(wp), dimension(:,:,:,:), pointer :: psiscf
-  logical, intent(out) :: lstat
-
-  character(len = 1024) :: filename_
-  integer :: iformat, i
-
-  write(filename_, "(A)") " "
-  do i = 1, ln, 1
-     filename_(i:i) = filename(i)
-  end do
-
-  ! Find format from name.
-  iformat = wave_format_from_filename(1, trim(filename_))
-
-  ! Call proper wraping routine.
-  if (iformat == WF_FORMAT_ETSF) then
-     call readwavetoisf_etsf(lstat, trim(filename_), iorbp, hx, hy, hz, &
-          & n1, n2, n3, nspinor, psiscf)
-  else
-     call readwavetoisf(lstat, trim(filename_), (iformat == WF_FORMAT_PLAIN), hx, hy, hz, &
-          & n1, n2, n3, nspinor, psiscf)
-  end if
-END SUBROUTINE read_wave_to_isf
-
-
 !!$subroutine free_wave_to_isf(psiscf)
 !!$  use module_base
 !!$  implicit none
@@ -699,7 +658,6 @@ END SUBROUTINE read_wave_to_isf
 !!$  deallocate(psiscf,stat=i_stat)
 !!$  call memocc(i_stat,i_all,'psiscf',"free_wave_to_isf_etsf")
 !!$END SUBROUTINE free_wave_to_isf
-
 
 subroutine read_wave_descr(lstat, filename, ln, &
      & norbu, norbd, iorbs, ispins, nkpt, ikpts, nspinor, ispinor)
@@ -2255,7 +2213,7 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
   use rototranslations
   use reformatting
   use locregs, only: lr_box,reset_lr
-  use box, only: cell_new
+  use box, only: cell_new,cell_geocode
   implicit none
   integer, intent(in) :: iproc, nproc
   integer, intent(in) :: iformat
@@ -2418,7 +2376,8 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
               nbox(2,3)=tmb%lzd%glr%d%nfu3
                    
               !call lr_box(Lzd_old%Llr(ilr),tmb%lzd%glr,lzd_old%hgrids)!,nbox,.false.)
-              call reset_lr(Lzd_old%Llr(ilr),'F',lzd_old%hgrids,nbox,tmb%lzd%glr%geocode)
+!!$              call reset_lr(Lzd_old%Llr(ilr),'F',lzd_old%hgrids,nbox,tmb%lzd%glr%geocode)
+              call reset_lr(Lzd_old%Llr(ilr),'F',lzd_old%hgrids,nbox,cell_geocode(tmb%lzd%glr%mesh))
 
               ! DEBUG: print*,iproc,iorb,iorb+orbs%isorb,iorb_old,iorb_out
 
@@ -2781,8 +2740,9 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
 
 
   ! hack to make reformatting work for case when hgrid changes, here the ndims is meaningless
-  Lzd_old%glr%mesh_coarse=&
-       cell_new(tmb%lzd%glr%geocode,tmb%lzd%glr%mesh_coarse%ndims,lzd_old%hgrids)
+!!$  Lzd_old%glr%mesh_coarse=&
+!!$       cell_new(tmb%lzd%glr%geocode,tmb%lzd%glr%mesh_coarse%ndims,lzd_old%hgrids)
+  Lzd_old%glr%mesh_coarse = tmb%lzd%glr%mesh_coarse
  
   call timing(iproc,'tmbrestart','OF')
   call reformat_supportfunctions(iproc,nproc,&

@@ -19,7 +19,7 @@ module io
 
   public :: io_error, io_warning, io_open
   public :: io_read_descr, read_psi_compress
-  public :: io_gcoordToLocreg
+!!$  public :: io_gcoordToLocreg
   public :: read_psig
   public :: read_dense_matrix_local
   public :: dist_and_shift
@@ -1694,88 +1694,6 @@ module io
       end if
       lstat = .true.
     END SUBROUTINE io_read_descr
-  
-  
-    subroutine io_gcoordToLocreg(n1, n2, n3, nvctr_c, nvctr_f, gcoord_c, gcoord_f, lr)
-      use module_base
-      use locregs
-      implicit none
-      !Arguments
-      integer, intent(in) :: n1, n2, n3, nvctr_c, nvctr_f
-      integer, dimension(3, nvctr_c), intent(in) :: gcoord_c
-      integer, dimension(3, nvctr_f), intent(in) :: gcoord_f
-      type(locreg_descriptors), intent(out) :: lr
-      !Local variables
-      character(len = *), parameter :: subname = "io_gcoordToLocreg"
-      integer :: i
-      logical, dimension(:,:,:), allocatable :: logrid_c, logrid_f
-  
-      call f_routine(id=subname)
-  
-      call nullify_locreg_descriptors(lr)
-  
-      lr%geocode = "P"
-      lr%hybrid_on = .false.
-  
-      lr%ns1 = 0
-      lr%ns2 = 0
-      lr%ns3 = 0
-  
-      lr%d%n1 = n1
-      lr%d%n2 = n2
-      lr%d%n3 = n3
-  
-      lr%d%n1i = 2 * n1 + 2
-      lr%d%n2i = 2 * n2 + 2
-      lr%d%n3i = 2 * n3 + 2
-  
-      logrid_c = f_malloc((/ 0.to.n1, 0.to.n2, 0.to.n3 /),id='logrid_c')
-      logrid_f = f_malloc((/ 0.to.n1, 0.to.n2, 0.to.n3 /),id='logrid_f')
-  
-      lr%d%nfl1 = n1
-      lr%d%nfl2 = n2
-      lr%d%nfl3 = n3
-      lr%d%nfu1 = 0
-      lr%d%nfu2 = 0
-      lr%d%nfu3 = 0
-  
-      logrid_c(:,:,:) = .false.
-      do i = 1, nvctr_c, 1
-         logrid_c(gcoord_c(1, i), gcoord_c(2, i), gcoord_c(3, i)) = .true.
-      end do
-      logrid_f(:,:,:) = .false.
-      do i = 1, nvctr_f, 1
-         logrid_f(gcoord_f(1, i), gcoord_f(2, i), gcoord_f(3, i)) = .true.
-         lr%d%nfl1 = min(lr%d%nfl1, gcoord_f(1, i))
-         lr%d%nfl2 = min(lr%d%nfl2, gcoord_f(2, i))
-         lr%d%nfl3 = min(lr%d%nfl3, gcoord_f(3, i))
-         lr%d%nfu1 = max(lr%d%nfu1, gcoord_f(1, i))
-         lr%d%nfu2 = max(lr%d%nfu2, gcoord_f(2, i))
-         lr%d%nfu3 = max(lr%d%nfu3, gcoord_f(3, i))
-      end do
-  
-      !correct the values of the delimiter if there are no wavelets
-      if (lr%d%nfl1 == n1 .and. lr%d%nfu1 == 0) then
-         lr%d%nfl1 = n1 / 2
-         lr%d%nfu1 = n1 / 2
-      end if
-      if (lr%d%nfl2 == n2 .and. lr%d%nfu2 == 0) then
-         lr%d%nfl2 = n2 / 2
-         lr%d%nfu2 = n2 / 2
-      end if
-      if (lr%d%nfl3 == n3 .and. lr%d%nfu3 == 0) then
-         lr%d%nfl3 = n3 / 2
-         lr%d%nfu3 = n3 / 2
-      end if
-  
-      call wfd_from_grids(logrid_c, logrid_f, .true., lr)
-  
-      call f_free(logrid_c)
-      call f_free(logrid_f)
-  
-      call f_release_routine()
-  
-    END SUBROUTINE io_gcoordToLocreg
   
     subroutine read_psi_compress(unitwf, formatted, nvctr_c, nvctr_f, psi, lstat, error, gcoord_c, gcoord_f)
       use module_base

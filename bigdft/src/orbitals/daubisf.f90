@@ -14,6 +14,7 @@ subroutine daub_to_isf(lr,w,psi,psir)
   use module_base
   use locregs
   use locreg_operations
+  use box, only: cell_geocode
   implicit none
   type(locreg_descriptors), intent(in) :: lr
   type(workarr_sumrho), intent(inout) :: w
@@ -32,7 +33,8 @@ subroutine daub_to_isf(lr,w,psi,psir)
      scal(i)=1.0_wp
   enddo
 
-  select case(lr%geocode)
+!!$  select case(lr%geocode)
+  select case(cell_geocode(lr%mesh))
   case('F')
      call f_zero(psir)
 
@@ -87,7 +89,9 @@ subroutine daub_to_isf(lr,w,psi,psir)
 
      call convolut_magic_n_slab_self(2*lr%d%n1+1,2*lr%d%n2+15,2*lr%d%n3+1,w%x_c,&
           psir) 
-
+  case('W')
+     call f_err_throw("Wires bc has to be implemented here", &
+          err_name='BIGDFT_RUNTIME_ERROR')
   end select
 
   call f_release_routine()
@@ -106,6 +110,7 @@ subroutine isf_to_daub(lr,w,psir,psi)
   use module_base
   use locregs
   use locreg_operations
+  use box, only: cell_geocode
   implicit none
   type(locreg_descriptors), intent(in) :: lr
   type(workarr_sumrho), intent(inout) :: w
@@ -127,7 +132,8 @@ subroutine isf_to_daub(lr,w,psir,psi)
   ipsif=lr%wfd%nvctr_c+i_f
   isegf=lr%wfd%nseg_c+iseg_f
 
-  select case(lr%geocode)
+!!$  select case(lr%geocode)
+  select case(cell_geocode(lr%mesh))
   case('F')
      call comb_shrink(lr%d%n1,lr%d%n2,lr%d%n3,&
           lr%d%nfl1,lr%d%nfu1,lr%d%nfl2,lr%d%nfu2,lr%d%nfl3,lr%d%nfu3,&
@@ -179,6 +185,10 @@ subroutine isf_to_daub(lr,w,psir,psi)
 
      end if
 
+  case('W')
+     call f_err_throw("Wires bc has to be implemented here", &
+          err_name='BIGDFT_RUNTIME_ERROR')
+
   end select
 
   call f_release_routine()
@@ -186,9 +196,10 @@ subroutine isf_to_daub(lr,w,psir,psi)
 END SUBROUTINE isf_to_daub
 
 subroutine daub_to_isf_locham(nspinor,lr,w,psi,psir)
-  use module_base, only: wp,f_zero
+  use module_base, only: wp,f_zero,f_err_throw
   use locregs
   use locreg_operations
+  use box, only: cell_geocode
   implicit none
   integer, intent(in) :: nspinor
   type(locreg_descriptors), intent(in) :: lr
@@ -210,7 +221,8 @@ subroutine daub_to_isf_locham(nspinor,lr,w,psi,psir)
 
   !call f_zero((2*n1+31)*(2*n2+31)*(2*n3+31)*nspinor,psir)
   !call MPI_COMM_RANK(bigdft_mpi%mpi_comm,iproc,ierr)
-  select case(lr%geocode)
+!!$  select case(lr%geocode)
+  select case(cell_geocode(lr%mesh))
   case('F')
      call f_zero(psir)
      !call timing(iproc,'CrtDescriptors','ON') !temporary
@@ -283,6 +295,11 @@ subroutine daub_to_isf_locham(nspinor,lr,w,psi,psir)
         end do
 
      end if
+
+  case('W')
+     call f_err_throw("Wires bc has to be implemented here", &
+          err_name='BIGDFT_RUNTIME_ERROR')
+
   end select
 
 END SUBROUTINE daub_to_isf_locham

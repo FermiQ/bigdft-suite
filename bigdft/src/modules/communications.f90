@@ -1373,7 +1373,7 @@ module communications
       ! Local variables
       integer:: ierr, ilr, iilr, jproc
       ! integer:: istat, iall
-      character(len=1),dimension(:),allocatable :: worksend_char, workrecv_char
+!!$      character(len=1),dimension(:),allocatable :: worksend_char, workrecv_char
       logical,dimension(:),allocatable :: worksend_log, workrecv_log
       integer,dimension(:,:),allocatable :: worksend_int, workrecv_int
       integer,dimension(:),allocatable :: norb_par, isorb_par
@@ -1382,14 +1382,14 @@ module communications
 
       call f_routine(id=subname)
     
-      worksend_char= f_malloc_str(len(worksend_char),orbs%norbp,&
-           id='worksend_char')
+!!$      worksend_char= f_malloc_str(len(worksend_char),orbs%norbp,&
+!!$           id='worksend_char')
       worksend_log = f_malloc(orbs%norbp,id='worksend_log')
       worksend_int = f_malloc((/ 27, orbs%norbp /),id='worksend_int')
       worksend_dbl = f_malloc((/ 6, orbs%norbp /),id='worksend_dbl')
     
-      workrecv_char= f_malloc_str(len(workrecv_char),orbs%norb,&
-           id='workrecv_char')
+!!$      workrecv_char= f_malloc_str(len(workrecv_char),orbs%norb,&
+!!$           id='workrecv_char')
       workrecv_log = f_malloc(orbs%norb,id='workrecv_log')
       workrecv_int = f_malloc((/ 27, orbs%norb /),id='workrecv_int')
       workrecv_dbl = f_malloc((/ 6, orbs%norb /),id='workrecv_dbl')
@@ -1399,7 +1399,7 @@ module communications
       do ilr=1,nlr
           if (iproc==rootarr(ilr)) then
               iilr=iilr+1
-              worksend_char(iilr)=llr(ilr)%geocode
+!!$              worksend_char(iilr)=llr(ilr)%geocode
               worksend_log(iilr)=llr(ilr)%hybrid_on
               worksend_int(1,iilr)=ilr
               worksend_int(2,iilr)=llr(ilr)%ns1
@@ -1438,8 +1438,8 @@ module communications
           norb_par(jproc) = orbs%norb_par(jproc,0)
       end do
     
-      call mpi_allgatherv(worksend_char, orbs%norbp, mpi_character, workrecv_char, norb_par, &
-           orbs%isorb_par, mpi_character, bigdft_mpi%mpi_comm, ierr)
+!!$      call mpi_allgatherv(worksend_char, orbs%norbp, mpi_character, workrecv_char, norb_par, &
+!!$           orbs%isorb_par, mpi_character, bigdft_mpi%mpi_comm, ierr)
       call mpi_allgatherv(worksend_log, orbs%norbp, mpi_logical, workrecv_log, norb_par, &
            orbs%isorb_par, mpi_logical, bigdft_mpi%mpi_comm, ierr)
       do jproc=0,nproc-1
@@ -1460,7 +1460,7 @@ module communications
     
       do ilr=1,nlr
           iilr=workrecv_int(1,ilr)
-          llr(iilr)%geocode=workrecv_char(ilr)
+!!$          llr(iilr)%geocode=workrecv_char(ilr)
           llr(iilr)%hybrid_on= workrecv_log(ilr)
           llr(iilr)%ns1=workrecv_int(2,ilr)
           llr(iilr)%ns2=workrecv_int(3,ilr)
@@ -1537,12 +1537,12 @@ module communications
       !!    llr(iilr)%d%n3i=workrecv_int(12,ilr)
       !!end do
     
-      call f_free_str(len(worksend_char),worksend_char)
+!!$      call f_free_str(len(worksend_char),worksend_char)
       call f_free(worksend_log)
       !!call f_free(worksend_int)
       call f_free(worksend_dbl)
 
-      call f_free_str(len(workrecv_char),workrecv_char)
+!!$      call f_free_str(len(workrecv_char),workrecv_char)
       call f_free(workrecv_log)
       !!call f_free(workrecv_int)
       call f_free(workrecv_dbl)

@@ -49,7 +49,7 @@ subroutine createWavefunctionsDescriptors(iproc,hx,hy,hz,atoms,rxyz,&
   nfu3=Glr%d%nfu3
 
   !assign geocode and the starting points
-  Glr%geocode=atoms%astruct%geocode
+!!$  Glr%geocode=atoms%astruct%geocode
 
   ! determine localization region for all orbitals, but do not yet fill the descriptor arrays
   logrid_c = f_malloc_ptr((/ 0.to.n1, 0.to.n2, 0.to.n3 /),id='logrid_c')

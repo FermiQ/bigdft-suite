@@ -269,6 +269,7 @@ module locreg_operations
 
     !> Initialize work arrays for local hamiltonian
     subroutine initialize_work_arrays_locham_nlr(nlr,lr,nspinor,allocate_arrays,w)
+      use box, only: cell_periodic_dims,cell_geocode
       implicit none
       integer, intent(in) :: nlr, nspinor
       type(locreg_descriptors), dimension(nlr), intent(in) :: lr
@@ -278,7 +279,7 @@ module locreg_operations
       character(len=*), parameter :: subname='initialize_work_arrays_locham'
       integer :: ilr
       integer :: n1,n2,n3,nfl1,nfu1,nfl2,nfu2,nfl3,nfu3,n1i,n2i,n3i,nw,nww,nf
-      character(len=1) :: geo
+!!$      character(len=1) :: geo
       logical :: hyb
 
       ! Determine the maximum array sizes for all locregs 1,..,nlr
@@ -296,7 +297,7 @@ module locreg_operations
       nfu1=0
       nfu2=0
       nfu3=0
-      geo=lr(1)%geocode
+!!$      geo=lr(1)%geocode
       hyb=lr(1)%hybrid_on
       do ilr=1,nlr
          n1=max(n1,lr(ilr)%d%n1)
@@ -311,7 +312,9 @@ module locreg_operations
          nfu1=max(nfu1,lr(ilr)%d%nfu1)
          nfu2=max(nfu2,lr(ilr)%d%nfu2)
          nfu3=max(nfu3,lr(ilr)%d%nfu3)
-         if (lr(ilr)%geocode /= geo) stop 'lr(ilr)%geocode/=geo'
+!!$         if (lr(ilr)%geocode /= geo) stop 'lr(ilr)%geocode/=geo'
+         if (any(cell_periodic_dims(lr(ilr)%mesh) .neqv. cell_periodic_dims(lr(1)%mesh))) &
+             call f_err_throw('The lrs do not have same BC',err_name='BIGDFT_RUNTIME_ERROR')
          if (lr(ilr)%hybrid_on .neqv. hyb) stop 'lr(ilr)%hybrid_on .neqv. hyb'
       end do
 
@@ -332,7 +335,8 @@ module locreg_operations
       end if
 
 
-      select case(geo)
+!!$      select case(geo)
+      select case(cell_geocode(lr(1)%mesh))
       case('F')
          !dimensions of work arrays
          ! shrink convention: nw1>nw2
@@ -441,6 +445,9 @@ module locreg_operations
                w%y_c = f_malloc_ptr((/ w%nyc, nspinor /),id='w%y_c')
             end if
          endif
+      case('W')
+         call f_err_throw("Wires bc has to be implemented here", &
+              err_name='BIGDFT_RUNTIME_ERROR')
       end select
 
     END SUBROUTINE initialize_work_arrays_locham_nlr
@@ -786,6 +793,7 @@ module locreg_operations
 
 
     subroutine initialize_work_arrays_sumrho_nlr(nlr,lr,allocate_arrays,w)
+      use box, only: cell_periodic_dims,cell_geocode
       implicit none
       integer, intent(in) :: nlr
       type(locreg_descriptors), dimension(nlr), intent(in) :: lr
@@ -795,7 +803,7 @@ module locreg_operations
       character(len=*), parameter :: subname='initialize_work_arrays_sumrho'
       integer :: n1,n2,n3,nfl1,nfu1,nfl2,nfu2,nfl3,nfu3!n(c) n1i,n2i,n3i
       integer :: ilr
-      character(len=1) :: geo
+!!$      character(len=1) :: geo
       logical :: hyb
 
       call f_routine(id='initialize_work_arrays_sumrho')
@@ -813,7 +821,7 @@ module locreg_operations
       nfu1=0
       nfu2=0
       nfu3=0
-      geo=lr(1)%geocode
+!!$      geo=lr(1)%geocode
       hyb=lr(1)%hybrid_on
       do ilr=1,nlr
          n1=max(n1,lr(ilr)%d%n1)
@@ -825,10 +833,12 @@ module locreg_operations
          nfu1=max(nfu1,lr(ilr)%d%nfu1)
          nfu2=max(nfu2,lr(ilr)%d%nfu2)
          nfu3=max(nfu3,lr(ilr)%d%nfu3)
-         if (lr(ilr)%geocode /= geo) then
-            write(*,*) 'lr(ilr)%geocode, geo', lr(ilr)%geocode, geo
-            stop 'lr(ilr)%geocode/=geo'
-         end if
+!!$         if (lr(ilr)%geocode /= geo) then
+!!$            write(*,*) 'lr(ilr)%geocode, geo', lr(ilr)%geocode, geo
+!!$            stop 'lr(ilr)%geocode/=geo'
+!!$         end if
+         if (any(cell_periodic_dims(lr(ilr)%mesh) .neqv. cell_periodic_dims(lr(1)%mesh))) &
+             call f_err_throw('The lrs do not have same BC',err_name='BIGDFT_RUNTIME_ERROR')
          if (lr(ilr)%hybrid_on .neqv. hyb) stop 'lr(ilr)%hybrid_on .neqv. hyb'
       end do
 
@@ -839,7 +849,8 @@ module locreg_operations
          nullify(w%w2)
       end if
 
-      select case(geo)
+!!$      select case(geo)
+      select case(cell_geocode(lr(1)%mesh))
       case('F')
          !dimension of the work arrays
          ! shrink convention: nw1>nw2
@@ -879,7 +890,9 @@ module locreg_operations
             w%nxc=(2*n1+2)*(2*n2+2)*(2*n3+2)
             w%nxf=1
          endif
-
+      case('W')
+         call f_err_throw("Wires bc has to be implemented here", &
+              err_name='BIGDFT_RUNTIME_ERROR')
       end select
       !work arrays
       if (allocate_arrays) then
@@ -890,7 +903,7 @@ module locreg_operations
       end if
 
 
-      if (geo == 'F') then
+      if (cell_geocode(lr(1)%mesh) == 'F') then
          call f_zero(w%x_c)
          call f_zero(w%x_f)
       end if
