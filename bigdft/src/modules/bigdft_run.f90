@@ -2433,6 +2433,9 @@ contains
                 rst%rxyz_new(i,iat)=modulo(rxyz_ref(i,iat)+dd,alat)
              else if (atoms%astruct%geocode == 'S') then
                 rst%rxyz_new(i,iat)=modulo(rxyz_ref(i,iat)+dd,alat)
+             else if (atoms%astruct%geocode == 'W') then
+                call f_err_throw("Wires bc has to be implemented here", &
+                     err_name='BIGDFT_RUNTIME_ERROR')
              else
                 rst%rxyz_new(i,iat)=rxyz_ref(i,iat)+dd
              end if

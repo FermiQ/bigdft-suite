@@ -222,6 +222,9 @@ subroutine clean_forces_dft(iproc,astruct,rxyz,fxyz,fnoise)
      do iat=1,astruct%nat
         fxyz(2,iat)=fxyz(2,iat)-sumy
      enddo
+  else if (astruct%geocode == 'W') then
+     call f_err_throw("Wires bc has to be implemented here", &
+          err_name='BIGDFT_RUNTIME_ERROR')
   end if
 
   call clean_forces_base(astruct,fxyz)

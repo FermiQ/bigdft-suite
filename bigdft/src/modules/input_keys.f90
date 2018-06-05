@@ -2969,6 +2969,9 @@ contains
     nullify(in%kptv, in%nkptsv_group)
     nullify(in%gen_kpt, in%gen_wkpt)
 
+    if (geocode == 'W') call f_err_throw("Wires bc has to be implemented here", &
+                             err_name='BIGDFT_RUNTIME_ERROR')
+
     method = dict // KPT_METHOD
     if (trim(method) .eqv. 'auto') then
        kptrlen_ = dict // KPTRLEN

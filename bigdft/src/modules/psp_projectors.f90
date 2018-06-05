@@ -147,6 +147,9 @@ contains
           nl3=0
           nu3=n3
        end if
+    else if (geocode == 'W') then
+      call f_err_throw("Wires bc has to be implemented here", &
+           err_name='BIGDFT_RUNTIME_ERROR')
     end if
 
   END SUBROUTINE pregion_size

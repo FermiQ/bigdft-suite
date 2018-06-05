@@ -205,6 +205,9 @@ contains
     if ( astruct%geocode .eq. 'S') pos(1:natoms) = modulo(pos(1:natoms), box_vec(1:natoms))
     if ( astruct%geocode .eq. 'S') pos(2*natoms+1:3*natoms) = modulo(pos(2*natoms+1:3*natoms), box_vec(2*natoms+1:3*natoms))
 
+    if ( astruct%geocode .eq. 'W') call f_err_throw("Wires bc has to be implemented here", &
+                                        err_name='BIGDFT_RUNTIME_ERROR')
+
     ! Generate a neighbour list
     call astruct_neighbours(astruct, rxyz, nei)
 

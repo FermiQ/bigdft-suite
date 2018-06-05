@@ -482,8 +482,7 @@ subroutine density_descriptors(iproc,nproc,xc,nspin,crmult,frmult,atoms,dpbox,&
      rhodsc%icomm=0
   else if (rho_commun == 'RSC') then
      rhodsc%icomm=1
-!!$  else if (rho_commun=='MIX' .and. (atoms%astruct%geocode.eq.'F') .and. (nproc > 1)) then
-  else if (rho_commun=='MIX' .and. (cell_geocode(dpbox%mesh).eq.'F') .and. (nproc > 1)) then
+  else if (rho_commun=='MIX' .and. (atoms%astruct%geocode.eq.'F') .and. (nproc > 1)) then
      rhodsc%icomm=2
   end if
 
@@ -500,8 +499,7 @@ subroutine density_descriptors(iproc,nproc,xc,nspin,crmult,frmult,atoms,dpbox,&
 
   !in the case of taskgroups the RSC scheme should be overridden
   if (rhodsc%icomm==1 .and. size(dpbox%nscatterarr,1) < nproc) then
-!!$     if (atoms%astruct%geocode.eq.'F') then
-     if (cell_geocode(dpbox%mesh).eq.'F') then
+     if (atoms%astruct%geocode.eq.'F') then
         rhodsc%icomm=2
      else
         rhodsc%icomm=0
