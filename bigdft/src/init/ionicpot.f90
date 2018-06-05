@@ -70,6 +70,7 @@ subroutine IonicEnergyandForces(iproc,nproc,dpbox,at,elecfield,&
   real(gp), dimension(3) :: cc
   type(atoms_iterator) :: atit
   type(gaussian_real_space) :: g
+  logical, dimension(3) :: peri
 
   call f_routine(id='IonicEnergyandForces')
   call timing(iproc,'ionic_energy','ON')
@@ -332,6 +333,11 @@ subroutine IonicEnergyandForces(iproc,nproc,dpbox,at,elecfield,&
 
      !if (nproc==1 .and. slowion) print *,'eself',eself
 
+  else if (at%astruct%geocode == 'W') then
+
+     call f_err_throw("Wires bc has to be implemented here", &
+        err_name='BIGDFT_RUNTIME_ERROR')
+
   end if
 
   !for the surfaces BC,
@@ -344,9 +350,13 @@ subroutine IonicEnergyandForces(iproc,nproc,dpbox,at,elecfield,&
 
      !case of slow ionic calculation
      !conditions for periodicity in the three directions
-     perx=(at%astruct%geocode /= 'F')
-     pery=(at%astruct%geocode == 'P')
-     perz=(at%astruct%geocode /= 'F')
+!!$     perx=(at%astruct%geocode /= 'F')
+!!$     pery=(at%astruct%geocode == 'P')
+!!$     perz=(at%astruct%geocode /= 'F')
+     peri=cell_periodic_dims(dpbox%mesh)
+     perx=peri(1)
+     pery=peri(2)
+     perz=peri(3)
 
      call ext_buffers(perx,nbl1,nbr1)
      call ext_buffers(pery,nbl2,nbr2)
