@@ -2589,6 +2589,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
   integer :: ifrag_ref, max_nbasis_env,ispin
   real(gp) :: e_paw, e_pawdc, compch_sph, e_nl
   type(cell) :: mesh
+  logical, dimension(3) :: peri
 
   interface
      subroutine input_memory_linear(iproc, nproc, at, KSwfn, tmb, tmb_old, denspot, input, &
@@ -2945,9 +2946,13 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
       enddo
       displ=sqrt(displ)
 
-     perx=(atoms%astruct%geocode /= 'F')
-     pery=(atoms%astruct%geocode == 'P')
-     perz=(atoms%astruct%geocode /= 'F')
+!!$     perx=(atoms%astruct%geocode /= 'F')
+!!$     pery=(atoms%astruct%geocode == 'P')
+!!$     perz=(atoms%astruct%geocode /= 'F')
+     peri=cell_periodic_dims(mesh)
+     perx=peri(1)
+     pery=peri(2)
+     perz=peri(3)
 
     !  tx=0.0_gp
     !  ty=0.0_gp
