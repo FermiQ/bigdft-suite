@@ -349,6 +349,9 @@ subroutine export_grids(fname, atoms, rxyz, hx, hy, hz, n1, n2, n3, logrid_c, lo
   else if (atoms%astruct%geocode =='P') then
      write(22,'(a,2x,3(1x,1pe24.17))')'periodic',atoms%astruct%cell_dim(1),atoms%astruct%cell_dim(2),&
           atoms%astruct%cell_dim(3)
+  else if (atoms%astruct%geocode =='W') then
+     call f_err_throw("Wires bc has to be implemented here", &
+          err_name='BIGDFT_RUNTIME_ERROR')
   end if
   do iat=1,atoms%astruct%nat
      write(22,'(a6,2x,3(1x,e12.5),3x)') &

@@ -914,6 +914,8 @@ contains
                call f_free(irrzon)
                call f_free(phnons)
             end if
+            if (geocode == "W") call f_err_throw("Wires bc has to be implemented here", &
+                                     err_name='BIGDFT_RUNTIME_ERROR')
          end if
       end if
 
@@ -2016,6 +2018,8 @@ contains
             astruct%cell_dim(1) = dict // ASTRUCT_CELL // 0
          end if
       end if
+      if (geocode == "W") call f_err_throw("Wires bc has to be implemented here", &
+                               err_name='BIGDFT_RUNTIME_ERROR')
       if (units == 1) astruct%cell_dim = astruct%cell_dim / Bohr_Ang
       ! The types
       call astruct_dict_get_types(dict, types)
@@ -2493,6 +2497,8 @@ subroutine astruct_set_symmetries(astruct, disableSym, tol, elecfield, nspin)
           & reshape((/ 1, 0, 0, 0, 1, 0, 0, 0, 1 /), (/ 3 ,3, 1 /)), &
           & reshape((/ 0.d0, 0.d0, 0.d0 /), (/ 3, 1/)), (/ 1 /), ierr)
      end if
+     if (geocode == "W") call f_err_throw("Wires bc has to be implemented here", &
+                              err_name='BIGDFT_RUNTIME_ERROR')
   else
      call deallocate_symmetry_data(astruct%sym)
      astruct%sym%symObj = -1
