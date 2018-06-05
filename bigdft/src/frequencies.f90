@@ -247,6 +247,8 @@ program frequencies
                   call yaml_map('displacement (Bohr)', dd,fmt='(1pe20.10)')
                call yaml_mapping_close()
             end if
+            if (runObj%atoms%astruct%geocode == 'W') call f_err_throw("Wires bc has to be implemented here", &
+                            err_name='BIGDFT_RUNTIME_ERROR') 
             if (runObj%atoms%astruct%geocode == 'P') then
                runObj%atoms%astruct%rxyz(i,iat)=modulo(rxyz0(i,iat)+dd,alat)
             else if (runObj%atoms%astruct%geocode == 'S') then

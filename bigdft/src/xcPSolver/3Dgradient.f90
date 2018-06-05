@@ -24,6 +24,7 @@
 subroutine wb_correction(geocode,n1,n2,n3,n3grad,wbl,wbr,f_i,hx,hy,hz,nspden,&
      wb_vxc)
   use Poisson_Solver, only: dp
+  use module_base, only: f_err_throw
  implicit none
  !Arguments
  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
@@ -569,6 +570,7 @@ subroutine calc_gradient(geocode,n1,n2,n3,n3grad,deltaleft,deltaright,rhoinp,nsp
   use memory_profiling
   use wrapper_linalg
   use dynamic_memory
+  use module_base, only: f_err_throw
  implicit none
  !Arguments
  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode

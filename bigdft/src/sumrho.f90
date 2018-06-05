@@ -731,6 +731,9 @@ subroutine symmetrise_density(iproc,nproc,mesh,n1i,n2i,n3i,nspin,rho,& !n(c) nsc
      return
   end if
 
+  if (cell_geocode(mesh) == 'W') call f_err_throw("Wires bc has to be implemented here", &
+                                      err_name='BIGDFT_RUNTIME_ERROR')
+
 !!$  ! Array sizes for the real-to-complex FFT: note that n1(there)=n1(here)+1
 !!$  ! and the same for n2,n3. Not needed for the moment
 !!$  call dimensions_fft(n1,n2,n3,nd1,nd2,nd3,n1f,n3f,n1b,n3b,nd1f,nd3f,nd1b,nd3b)
@@ -1431,6 +1434,7 @@ END SUBROUTINE rho_segkey
 
 
 subroutine gridcorrection(nbx,nby,nbz,nl1,nl2,nl3,geocode)
+   use module_base, only: f_err_throw
    implicit none
    character(len=1),intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
    integer,intent(out) :: nbx,nby,nbz,nl1,nl2,nl3
@@ -1456,6 +1460,8 @@ subroutine gridcorrection(nbx,nby,nbz,nl1,nl2,nl3,geocode)
       nl2=15
       nby = 0
    end if
+   if (geocode == 'W') call f_err_throw("Wires bc has to be implemented here", &
+                            err_name='BIGDFT_RUNTIME_ERROR')
 END SUBROUTINE gridcorrection
 
 

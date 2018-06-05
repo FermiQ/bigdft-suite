@@ -3798,6 +3798,7 @@ subroutine symmetrise_forces(fxyz, astruct)
   use module_atoms, only: atomic_structure
   use yaml_output
   use abi_interfaces_numeric, only: abi_mati3inv
+  use module_base, only: f_err_throw
 
   implicit none
 

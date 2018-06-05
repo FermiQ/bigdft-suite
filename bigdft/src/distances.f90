@@ -450,6 +450,8 @@ subroutine read_pos(iunit,whichone,nat,pos,nrep)
      if (atoms%astruct%geocode == 'F' .or. atoms%astruct%geocode == 'S') alat(2) = 1.d0
      alat(3) = atoms%astruct%cell_dim(3)
      if (atoms%astruct%geocode == 'F') alat(3) = 1.d0
+     if (atoms%astruct%geocode == 'W') call f_err_throw("Wires bc has to be implemented here", &
+                                            err_name='BIGDFT_RUNTIME_ERROR')
      do iat=1,nat
         pos(1,iat)=atoms%astruct%rxyz(1,iat)/alat(1)
         pos(2,iat)=atoms%astruct%rxyz(2,iat)/alat(2)

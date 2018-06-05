@@ -143,6 +143,7 @@ contains
          & deallocate_atomic_neighbours
     use dynamic_memory
     use f_utils
+    use module_base, only: f_err_throw
 
     implicit none
 

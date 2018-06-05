@@ -89,13 +89,18 @@ subroutine reformatmywaves(iproc,orbs,at,&
   type(cell) :: mesh
   real(wp), dimension(:,:,:), allocatable :: psifscf
   real(wp), dimension(:,:,:,:,:,:), allocatable :: psigold
+  logical, dimension(3) :: peri
 
 
   mesh=cell_new(at%astruct%geocode,[n1+1,n2+1,n3+1],[hx,hy,hz])
   !conditions for periodicity in the three directions
-  perx=(at%astruct%geocode /= 'F')
-  pery=(at%astruct%geocode == 'P')
-  perz=(at%astruct%geocode /= 'F')
+!!$  perx=(at%astruct%geocode /= 'F')
+!!$  pery=(at%astruct%geocode == 'P')
+!!$  perz=(at%astruct%geocode /= 'F')
+  peri=cell_periodic_dims(mesh)
+  perx=peri(1)
+  pery=peri(2)
+  perz=peri(3)
 
   !buffers related to periodicity
   !WARNING: the boundary conditions are not assumed to change between new and old
@@ -319,6 +324,7 @@ subroutine readmywaves(iproc,filename,iformat,orbs,n1,n2,n3,hx,hy,hz,at,rxyz_old
   use bounds, only: ext_buffers_coarse
   use compression
   use m_pawrhoij
+  use box, only: bc_periodic_dims,geocode_to_bc
   implicit none
   integer, intent(in) :: iproc,n1,n2,n3, iformat
   real(gp), intent(in) :: hx,hy,hz
@@ -338,6 +344,7 @@ subroutine readmywaves(iproc,filename,iformat,orbs,n1,n2,n3,hx,hy,hz,at,rxyz_old
   real(kind=4) :: tr0,tr1
   real(kind=8) :: tel
   real(wp), dimension(:,:,:), allocatable :: psifscf
+  logical, dimension(3) :: peri
   !integer, dimension(orbs%norb) :: orblist2
 
   call cpu_time(tr0)
@@ -356,9 +363,13 @@ subroutine readmywaves(iproc,filename,iformat,orbs,n1,n2,n3,hx,hy,hz,at,rxyz_old
           wfd,psi)
   else if (iformat == WF_FORMAT_BINARY .or. iformat == WF_FORMAT_PLAIN) then
      !conditions for periodicity in the three directions
-     perx=(at%astruct%geocode /= 'F')
-     pery=(at%astruct%geocode == 'P')
-     perz=(at%astruct%geocode /= 'F')
+!!$     perx=(at%astruct%geocode /= 'F')
+!!$     pery=(at%astruct%geocode == 'P')
+!!$     perz=(at%astruct%geocode /= 'F')
+     peri=bc_periodic_dims(geocode_to_bc(at%astruct%geocode))
+     perx=peri(1)
+     pery=peri(2)
+     perz=peri(3)
 
      !buffers related to periodicity
      !WARNING: the boundary conditions are not assumed to change between new and old
@@ -2957,6 +2968,7 @@ END SUBROUTINE readmywaves_linear_new
       use module_atoms, only: deallocate_atomic_structure, nullify_atomic_structure, set_astruct_from_file
       use io, only: dist_and_shift
       use rototranslations
+      use box, only: bc_periodic_dims,geocode_to_bc
       implicit none
       integer, intent(in) :: isfat
       type(atoms_data), intent(in) :: at
@@ -2984,6 +2996,7 @@ END SUBROUTINE readmywaves_linear_new
       logical :: perx, pery, perz, wrong_atom, check_for_ghosts, ghosts_exist
 
       character(len=2) :: atom_ref, atom_trial
+      logical, dimension(3) :: peri
 
       ! we only want to check for ghost atoms if they appear in the enviornment coordinates
       ! AND if we aren't ignoring species
@@ -3108,9 +3121,13 @@ END SUBROUTINE readmywaves_linear_new
       end do
 
       ! find distances from this atom BEFORE shifting
-      perx=(at%astruct%geocode /= 'F')
-      pery=(at%astruct%geocode == 'P')
-      perz=(at%astruct%geocode /= 'F')
+!!$      perx=(at%astruct%geocode /= 'F')
+!!$      pery=(at%astruct%geocode == 'P')
+!!$      perz=(at%astruct%geocode /= 'F')
+      peri=bc_periodic_dims(geocode_to_bc(at%astruct%geocode))
+      perx=peri(1)
+      pery=peri(2)
+      perz=peri(3)
 
       !if coordinates wrap around (in periodic), correct before shifting
       !assume that the fragment itself doesn't, just the environment...
@@ -3718,6 +3735,7 @@ subroutine reformat_supportfunctions(iproc,nproc,at,rxyz_old,rxyz,add_derivative
   use rototranslations
   use reformatting
   use locregs, only: lr_box
+  use box, only: bc_periodic_dims,geocode_to_bc
   implicit none
   integer, intent(in) :: iproc,nproc
   integer, intent(in) :: ndim_old
@@ -4039,9 +4057,10 @@ subroutine reformat_supportfunctions(iproc,nproc,at,rxyz_old,rxyz,add_derivative
              !print*,'using psirold to reformat',iiorb
              ! recalculate centres
              !conditions for periodicity in the three directions
-             per(1)=(at%astruct%geocode /= 'F')
-             per(2)=(at%astruct%geocode == 'P')
-             per(3)=(at%astruct%geocode /= 'F')
+!!$             per(1)=(at%astruct%geocode /= 'F')
+!!$             per(2)=(at%astruct%geocode == 'P')
+!!$             per(3)=(at%astruct%geocode /= 'F')
+             per=bc_periodic_dims(geocode_to_bc(at%astruct%geocode))
 
              !buffers related to periodicity
              !WARNING: the boundary conditions are not assumed to change between new and old

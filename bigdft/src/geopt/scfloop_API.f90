@@ -129,6 +129,10 @@ subroutine scfloop_main(acell, epot, fcart, grad, itime, me, natom, rprimd, xred
      !     & 'SCFloop API, call force calculation step=', itime
      call yaml_map('SCFloop API, call force calculation step',itime)
   end if
+  if (scfloop_obj%atoms%astruct%geocode=='W') then
+     call f_err_throw("Wires bc has to be implemented here", &
+          err_name='BIGDFT_RUNTIME_ERROR')
+  end if
 
   ! We transfer acell into at
   scfloop_obj%atoms%astruct%cell_dim(1) = acell(1)
@@ -366,6 +370,9 @@ subroutine wtvel(filename,vxyz,atoms,comment)
   else if (atoms%astruct%geocode == 'S') then
      write(iunit,'(a,3(1x,1pe24.17))') 'surface',&
        &  atoms%astruct%cell_dim(1)*factor,atoms%astruct%cell_dim(2)*factor,atoms%astruct%cell_dim(3)*factor
+  else if (atoms%astruct%geocode == 'W') then
+     call f_err_throw("Wires bc has to be implemented here", &
+          err_name='BIGDFT_RUNTIME_ERROR')
   else
      write(9,*)'free'
   end if

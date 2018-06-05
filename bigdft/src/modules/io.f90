@@ -695,6 +695,7 @@ module io
       use module_base
       use yaml_strings, only: f_strcpy
       use rototranslations, only: frag_center
+      use box, only: bc_periodic_dims,geocode_to_bc
       implicit none
       integer, intent(in) :: num_neighbours
       type(atoms_data), intent(in) :: at
@@ -718,10 +719,9 @@ module io
       real(kind=8), dimension(3) :: frag_centre
       real(kind=8), allocatable, dimension(:) :: dist
       real(kind=8), allocatable, dimension(:,:) :: rxyz_frag, rxyz_not_frag, rxyz_frag_and_env
-
       type(atomic_structure) :: astruct_ghost
-
       logical :: on_frag, perx, pery, perz, ghosts_exist
+      logical, dimension(3) :: peri
 
       if (closest_only) then
          tol=0.1d0
@@ -826,9 +826,13 @@ module io
       dist = f_malloc(nat_not_frag,id='dist')
       ipiv = f_malloc(nat_not_frag,id='ipiv')
       ! find distances from this atom BEFORE shifting
-      perx=(at%astruct%geocode /= 'F')
-      pery=(at%astruct%geocode == 'P')
-      perz=(at%astruct%geocode /= 'F')
+!!$      perx=(at%astruct%geocode /= 'F')
+!!$      pery=(at%astruct%geocode == 'P')
+!!$      perz=(at%astruct%geocode /= 'F')
+      peri=bc_periodic_dims(geocode_to_bc(at%astruct%geocode))
+      perx=peri(1)
+      pery=peri(2)
+      perz=peri(3)
 
       ! if coordinates wrap around (in periodic), take this into account
       ! assume that the fragment and environment are written in free bc
@@ -2431,6 +2435,9 @@ module io
       else if (atoms%astruct%geocode =='P') then
          write(2000+iproc,'(a,2x,3(1x,1pe24.17))')'periodic',atoms%astruct%cell_dim(1),atoms%astruct%cell_dim(2),&
               atoms%astruct%cell_dim(3)
+      else if (atoms%astruct%geocode =='W') then
+         call f_err_throw("Wires bc has to be implemented here", &
+              err_name='BIGDFT_RUNTIME_ERROR')
       end if
     
       do iat=1,atoms%astruct%nat

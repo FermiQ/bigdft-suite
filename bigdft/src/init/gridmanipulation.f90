@@ -310,6 +310,7 @@ END SUBROUTINE correct_grid
 subroutine export_grids(fname, atoms, rxyz, hx, hy, hz, n1, n2, n3, logrid_c, logrid_f)
   use module_defs, only: gp
   use module_types
+  use module_base, only: f_err_throw
   implicit none
   character(len = *), intent(in) :: fname
   type(atoms_data), intent(in) :: atoms

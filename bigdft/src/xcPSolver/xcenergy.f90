@@ -270,7 +270,7 @@ subroutine mkcore_paw_iat(iproc,atoms,ityp,rx,ry,rz,cutoff,hxh,hyh,hzh,&
   use dynamic_memory
   use dictionaries, only: f_err_raise
   use f_utils
-
+  use box, only: bc_periodic_dims,geocode_to_bc
   use m_pawrad,  only : pawrad_type, pawrad_init, pawrad_free
   use m_paw_numeric, only: paw_sort_dp, paw_splint
   use bounds, only: ext_buffers
@@ -299,6 +299,7 @@ subroutine mkcore_paw_iat(iproc,atoms,ityp,rx,ry,rz,cutoff,hxh,hyh,hzh,&
   real(gp) :: xx,yy,zz
   logical :: perx,pery,perz,gox,goy,goz
   integer, dimension(:), allocatable :: iperm
+  logical, dimension(3) :: peri
 
   ! *************************************************************************
 
@@ -306,9 +307,13 @@ subroutine mkcore_paw_iat(iproc,atoms,ityp,rx,ry,rz,cutoff,hxh,hyh,hzh,&
   ucvol = n1i * n2i * n3i / hxh / hyh / hzh
 
   !Conditions for periodicity in the three directions
-  perx=(atoms%astruct%geocode /= 'F')
-  pery=(atoms%astruct%geocode == 'P')
-  perz=(atoms%astruct%geocode /= 'F')
+!!$  perx=(atoms%astruct%geocode /= 'F')
+!!$  pery=(atoms%astruct%geocode == 'P')
+!!$  perz=(atoms%astruct%geocode /= 'F')
+  peri=bc_periodic_dims(geocode_to_bc(atoms%astruct%geocode))
+  perx=peri(1)
+  pery=peri(2)
+  perz=peri(3)
 
   !Compute values of external buffers
   call ext_buffers(perx,nbl1,nbr1) 

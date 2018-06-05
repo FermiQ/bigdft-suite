@@ -1874,7 +1874,8 @@ subroutine write_functions(w_sph, w_ang, w_rad, fn1, fn2, fn3, np, Glr, &
      nby = 0
      nc2=Glr%d%n2i-31
   end if
-
+  if (atoms%astruct%geocode == 'W') call f_err_throw("Wires bc has to be implemented here", &
+                                         err_name='BIGDFT_RUNTIME_ERROR')
 
    rem=nc3-floor(nc3/6.d0)*6
 

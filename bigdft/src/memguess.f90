@@ -2441,6 +2441,7 @@ subroutine take_proj_from_file(filename, hx, hy, hz, nl, at, rxyz, &
   use public_enums, only: WF_FORMAT_PLAIN, WF_FORMAT_BINARY, WF_FORMAT_ETSF
   use module_input_keys, only: wave_format_from_filename
   use bounds, only: ext_buffers_coarse
+  use box, only: bc_periodic_dims,geocode_to_bc
   implicit none
   real(gp), intent(in) :: hx,hy,hz
   integer, intent(inout) :: ikpt, iat, iproj, icplx
@@ -2455,6 +2456,7 @@ subroutine take_proj_from_file(filename, hx, hy, hz, nl, at, rxyz, &
   real(wp) :: eproj
   real(wp), dimension(:,:,:), allocatable :: psifscf
   real(gp), dimension(:,:), allocatable :: rxyz_file
+  logical, dimension(3) :: peri
 
   rxyz_file = f_malloc((/ at%astruct%nat, 3 /),id='rxyz_file')
 
@@ -2471,9 +2473,13 @@ subroutine take_proj_from_file(filename, hx, hy, hz, nl, at, rxyz, &
      if (i > 2) read(filename(i:i+2),*) iproj
 
      !conditions for periodicity in the three directions
-     perx=(at%astruct%geocode /= 'F')
-     pery=(at%astruct%geocode == 'P')
-     perz=(at%astruct%geocode /= 'F')
+!!$     perx=(at%astruct%geocode /= 'F')
+!!$     pery=(at%astruct%geocode == 'P')
+!!$     perz=(at%astruct%geocode /= 'F')
+     peri=bc_periodic_dims(geocode_to_bc(at%astruct%geocode))
+     perx=peri(1)
+     pery=peri(2)
+     perz=peri(3)
 
      !buffers related to periodicity
      !WARNING: the boundary conditions are not assumed to change between new and old
@@ -2517,6 +2523,7 @@ subroutine take_psi_from_file(filename,in_frag,hgrids,lr,at,rxyz,orbs,psi,iorbp,
    use public_enums
    use bounds, only: ext_buffers_coarse
    use locregs
+   use box, only: bc_periodic_dims,geocode_to_bc
    implicit none
    integer, intent(inout) :: iorbp, ispinor
    real(gp), dimension(3), intent(in) :: hgrids
@@ -2547,15 +2554,20 @@ subroutine take_psi_from_file(filename,in_frag,hgrids,lr,at,rxyz,orbs,psi,iorbp,
    character(len=100) :: filename_start
    real(wp), allocatable, dimension(:) :: lpsi
    type(orbitals_data) :: lin_orbs
+   logical, dimension(3) :: peri
 
    rxyz_file = f_malloc((/3, at%astruct%nat /),id='rxyz_file')
 
    iformat = wave_format_from_filename(0, filename)
    if (iformat == WF_FORMAT_PLAIN .or. iformat == WF_FORMAT_BINARY) then
       !conditions for periodicity in the three directions
-      perx=(at%astruct%geocode /= 'F')
-      pery=(at%astruct%geocode == 'P')
-      perz=(at%astruct%geocode /= 'F')
+!!$      perx=(at%astruct%geocode /= 'F')
+!!$      pery=(at%astruct%geocode == 'P')
+!!$      perz=(at%astruct%geocode /= 'F')
+      peri=bc_periodic_dims(geocode_to_bc(at%astruct%geocode))
+      perx=peri(1)
+      pery=peri(2)
+      perz=peri(3)
 
       !buffers related to periodicity
       !WARNING: the boundary conditions are not assumed to change between new and old

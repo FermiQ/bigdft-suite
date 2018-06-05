@@ -44,8 +44,8 @@ module IObox
       else
          nc2=ndims(2)-31
       end if
-      if (geocode == 'W') call f_err_throw("Wires bc has to be implemented here", &
-                               err_name='BIGDFT_RUNTIME_ERROR')
+!!$      if (geocode == 'W') call f_err_throw("Wires bc has to be implemented here", &
+!!$                               err_name='BIGDFT_RUNTIME_ERROR')
     end subroutine cube_dimensions
 
     pure subroutine startend_buffers(geocode,nl1,nl2,nl3,nbx,nby,nbz)
@@ -73,8 +73,8 @@ module IObox
          nby = 0
       end if
 
-      if (geocode == 'W') call f_err_throw("Wires bc has to be implemented here", &
-                               err_name='BIGDFT_RUNTIME_ERROR')
+!!$      if (geocode == 'W') call f_err_throw("Wires bc has to be implemented here", &
+!!%                               err_name='BIGDFT_RUNTIME_ERROR')
 
     end subroutine startend_buffers
 
