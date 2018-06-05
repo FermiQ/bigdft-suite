@@ -2003,6 +2003,9 @@ subroutine calc_vol(geocode,nat,rxyz,vol)
       vol=(cxmax-cxmin)*(cymax-cymin)*(czmax-czmin)
    else if (geocode == 'S') then
       vol=(cxmax-cxmin)*(czmax-czmin)
+   else if (geocode == 'W') then
+      call f_err_throw("Wires bc has to be implemented here", &
+           err_name='BIGDFT_RUNTIME_ERROR')
    end if
 
 END SUBROUTINE calc_vol

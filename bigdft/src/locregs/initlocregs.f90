@@ -1706,6 +1706,9 @@ subroutine fill_logrid(geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,nbuf,nat,  &
         return
   end if
 
+  if (geocode(1:1) == 'W') call f_err_throw("Wires bc has to be implemented here", &
+                           err_name='BIGDFT_RUNTIME_ERROR')
+
   if (geocode(1:1) == 'F') then
      !$omp parallel default(none) &
      !$omp shared(nl3, nu3, nl2, nu2, nl1, nu1, logrid) &
