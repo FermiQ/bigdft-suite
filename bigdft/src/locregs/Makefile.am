@@ -65,7 +65,8 @@ locregs_basics.o: locreg_operations.o
 #locreg_test.o: liblocregs.a
 rototranslations.o: base.o
 initlocregs.o: locregs.o
-base.o compression.o scalar_product.o: defs.o
+base.o scalar_product.o: defs.o
+compression.o : base.o
 $(modules): $(liblocregs_a_OBJECTS)
 
 #liblocregs.a: $(liblocregs_a_OBJECTS) insmod

@@ -1173,6 +1173,7 @@ contains
       use dictionaries
       use yaml_strings, only: f_char_ptr
       use yaml_output
+      use f_utils
       implicit none
       type(atomic_structure), intent(out) :: astruct
       character(len = *), intent(in) :: obfile

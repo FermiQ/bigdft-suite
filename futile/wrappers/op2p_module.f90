@@ -420,7 +420,7 @@ module overlap_point_to_point
        !check if the maximum tag would create problems
        maxtag=nproc
        if (symmetric) maxtag=maxtag+nproc
-       if (maxtag > mpimaxtag(OP2P%mpi_comm)) then
+       if (maxtag > fmpi_maxtag(OP2P%mpi_comm)) then
           call f_err_throw('Maximal tag "'+maxtag+'" is outside the allowed range',&
                err_name='BIGDFT_RUNTIME_ERROR')
        end if
@@ -870,7 +870,7 @@ module overlap_point_to_point
              OP2P%ndatas(DATA_,dest,igr)=&
                   OP2P%ndatas(DATA_,dest,igr)+count
              if(OP2P%gpudirect/=1)then
-                call mpisend(tmp(1),count,&
+                call fmpi_send(tmp(1),count,&
                      dest=dest,tag=OP2P_tag(OP2P,iproc),comm=OP2P%mpi_comm,&
                      request=OP2P%requests_data(OP2P%ndata_comms),&
                      verbose=OP2P%verbose,simulate=OP2P%simulate) ! dest==OP2P
@@ -879,7 +879,7 @@ module overlap_point_to_point
 !!$                  request=OP2P%requests_data(OP2P%ndata_comms),&
 !!$                  verbose=OP2P%verbose,simulate=OP2P%simulate) ! dest==OP2P%iproc_dump
              else
-               call mpisend(phi%data_GPU,count,&
+               call fmpi_send(phi%data_GPU,count,&
                   dest=dest,tag=OP2P_tag(OP2P,iproc),comm=OP2P%mpi_comm,&
                   request=OP2P%requests_data(OP2P%ndata_comms),&
                   verbose=OP2P%verbose,simulate=OP2P%simulate,&
@@ -895,12 +895,12 @@ module overlap_point_to_point
              OP2P%ndatas(DATA_,iproc,igr)=&
                   OP2P%ndatas(DATA_,iproc,igr)-count
              if(OP2P%gpudirect/=1)then
-               call mpirecv(OP2P%dataw(igroup,OP2P%irecv_data)%ptr(1,1),count,&!psiw(1,1,igroup,OP2P%irecv_data),count,&
+               call fmpi_recv(OP2P%dataw(igroup,OP2P%irecv_data)%ptr(1,1),count,&!psiw(1,1,igroup,OP2P%irecv_data),count,&
                   source=source,tag=OP2P_tag(OP2P,source),comm=OP2P%mpi_comm,&
                   request=OP2P%requests_data(OP2P%ndata_comms),&
                   verbose=OP2P%verbose,simulate=OP2P%simulate) ! source == OP2P%iproc_dump
             else
-               call mpirecv(OP2P%dataw(igroup,OP2P%irecv_data)%ptr_gpu,count,&!psiw(1,1,igroup,OP2P%irecv_data),count,&
+               call fmpi_recv(OP2P%dataw(igroup,OP2P%irecv_data)%ptr_gpu,count,&!psiw(1,1,igroup,OP2P%irecv_data),count,&
                   source=source,tag=OP2P_tag(OP2P,source),comm=OP2P%mpi_comm,&
                   request=OP2P%requests_data(OP2P%ndata_comms),&
                   verbose=OP2P%verbose,simulate=OP2P%simulate,&
@@ -931,7 +931,7 @@ module overlap_point_to_point
        !nproc=mpisize(OP2P%mpi_comm)
        if (OP2P%nres_comms > 0) then
           !verify that the messages have been passed
-          call mpiwaitall(OP2P%nres_comms,OP2P%requests_res,&
+          call fmpi_waitall(OP2P%nres_comms,OP2P%requests_res,&
                simulate=OP2P%simulate)
           !copy the results which have been received (the messages sending are after)
           !this part is already done by the mpi_accumulate
@@ -975,7 +975,7 @@ module overlap_point_to_point
              if(OP2P%gpudirect/=1)then
                call f_memcpy(src=OP2P%resw(igroup,3)%ptr,&
                   dest=OP2P%resw(igroup,OP2P%isend_res)%ptr)
-               call mpisend(OP2P%resw(igroup,OP2P%isend_res)%ptr(1,1),&!dpsiw(1,1,igroup,OP2P%isend_res),&
+               call fmpi_send(OP2P%resw(igroup,OP2P%isend_res)%ptr(1,1),&!dpsiw(1,1,igroup,OP2P%isend_res),&
                   count,dest=dest,&
                   tag=OP2P_tag(OP2P,iproc,back=.true.),comm=OP2P%mpi_comm,&
                   request=OP2P%requests_res(OP2P%nres_comms),simulate=OP2P%simulate,verbose=OP2P%verbose)
@@ -983,7 +983,7 @@ module overlap_point_to_point
                call copy_gpu_data(OP2P%ndim* maxval(OP2P%nobj_par(:,OP2P%group_id(igroup))),&
                     OP2P%resw(igroup,OP2P%isend_res)%ptr_gpu,OP2P%resw(igroup,3)%ptr_gpu)
                call synchronize()
-               call mpisend(OP2P%resw(igroup,OP2P%isend_res)%ptr_gpu,&!dpsiw(1,1,igroup,OP2P%isend_res),&
+               call fmpi_send(OP2P%resw(igroup,OP2P%isend_res)%ptr_gpu,&!dpsiw(1,1,igroup,OP2P%isend_res),&
                   count,dest=dest,&
                   tag=OP2P_tag(OP2P,iproc,back=.true.),comm=OP2P%mpi_comm,&
                   request=OP2P%requests_res(OP2P%nres_comms),simulate=OP2P%simulate,verbose=OP2P%verbose,&
@@ -1000,12 +1000,12 @@ module overlap_point_to_point
              OP2P%nres_comms=OP2P%nres_comms+1
              count=OP2P%ndim*OP2P%nobj_par(iproc,igr)
              if(OP2P%gpudirect/=1)then
-               call mpirecv(OP2P%resw(igroup,OP2P%irecv_res)%ptr(1,1),count,&
+               call fmpi_recv(OP2P%resw(igroup,OP2P%irecv_res)%ptr(1,1),count,&
                   source=source,tag=OP2P_tag(OP2P,source,back=.true.),&
                   comm=OP2P%mpi_comm,&
                   request=OP2P%requests_res(OP2P%nres_comms),simulate=OP2P%simulate,verbose=OP2P%verbose)
              else
-               call mpirecv(OP2P%resw(igroup,OP2P%irecv_res)%ptr_gpu,count,&
+               call fmpi_recv(OP2P%resw(igroup,OP2P%irecv_res)%ptr_gpu,count,&
                   source=source,tag=OP2P_tag(OP2P,source,back=.true.),&
                   comm=OP2P%mpi_comm,&
                   request=OP2P%requests_res(OP2P%nres_comms),simulate=OP2P%simulate,verbose=OP2P%verbose,&
@@ -1156,7 +1156,7 @@ module overlap_point_to_point
           end do group_loop
 
           !verify that the messages have been passed
-          call mpiwaitall(OP2P%ndata_comms,OP2P%requests_data,&
+          call fmpi_waitall(OP2P%ndata_comms,OP2P%requests_data,&
                simulate=OP2P%simulate)
           if(OP2P%gpudirect == 1) call synchronize()
           !if we come here this section can be done nonetheless

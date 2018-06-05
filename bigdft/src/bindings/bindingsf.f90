@@ -368,13 +368,14 @@ end subroutine glr_set_wave_descriptors
 
 subroutine glr_set_bounds(lr)
   use locregs
-  use bounds, only: locreg_bounds
+  !use bounds, only: locreg_bounds
   implicit none
   type(locreg_descriptors), intent(inout) :: lr
   
-  call locreg_bounds(lr%d%n1,lr%d%n2,lr%d%n3, &
-       & lr%d%nfl1,lr%d%nfu1,lr%d%nfl2,lr%d%nfu2,lr%d%nfl3,lr%d%nfu3, &
-       & lr%wfd,lr%bounds)
+  call ensure_locreg_bounds(lr)
+  !call locreg_bounds(lr%d%n1,lr%d%n2,lr%d%n3, &
+  !     & lr%d%nfl1,lr%d%nfu1,lr%d%nfl2,lr%d%nfu2,lr%d%nfl3,lr%d%nfu3, &
+  !     & lr%wfd,lr%bounds)
 END SUBROUTINE glr_set_bounds
 
 

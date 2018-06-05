@@ -1781,7 +1781,6 @@ module locreg_operations
             if(Gmin > lmax)  exit global_loop_f
             !if((lmin > Gmax) .or. (lmax < Gmin))  cycle global_loop_f
             if(lmin > Gmax)  cycle global_loop_f
-    
             offset = lmin - Gmin
             if(offset < 0) offset = 0
     

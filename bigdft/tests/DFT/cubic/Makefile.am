@@ -35,7 +35,7 @@ SHORT_TESTDIRS += C \
 	AgBulk \
 	PAW-GGA \
         Mg-cubic \
-        Na8-periodic
+        Na8-multipole
 
 LONG_TESTDIRS += $(SHORT_TESTDIRS) \
 	  Li+ \

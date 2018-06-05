@@ -17,7 +17,7 @@ subroutine write_orbital_density(iproc, transform_to_global, iformat, &
   !use module_interface2, except_this_one => write_orbital_density
   use locreg_operations, only: lpsi_to_global2
   use public_enums
-  use bounds, only: locreg_bounds
+  use locregs, only: ensure_locreg_bounds
   implicit none
 
   ! Calling arguments
@@ -77,14 +77,15 @@ subroutine write_orbital_density(iproc, transform_to_global, iformat, &
   binary = (iformat==WF_FORMAT_BINARY)
 
   ! Need to create the convolution bounds
-  ! check first if already allocated - maybe should be more thorough than just checking one array?
-  if (.not. associated(lzd_g%glr%bounds%kb%ibyz_c)) then
-     call locreg_bounds(lzd_g%glr%d%n1, lzd_g%glr%d%n2, lzd_g%glr%d%n3, &
-          lzd_g%glr%d%nfl1, lzd_g%glr%d%nfu1, &
-          lzd_g%glr%d%nfl2, lzd_g%glr%d%nfu2, &
-          lzd_g%glr%d%nfl3, lzd_g%glr%d%nfu3, &
-          lzd_g%glr%wfd, lzd_g%glr%bounds)
-  end if
+  call ensure_locreg_bounds(lzd_g%glr)
+!!$  ! check first if already allocated - maybe should be more thorough than just checking one array?
+!!$  if (.not. associated(lzd_g%glr%bounds%kb%ibyz_c)) then
+!!$     call locreg_bounds(lzd_g%glr%d%n1, lzd_g%glr%d%n2, lzd_g%glr%d%n3, &
+!!$          lzd_g%glr%d%nfl1, lzd_g%glr%d%nfu1, &
+!!$          lzd_g%glr%d%nfl2, lzd_g%glr%d%nfu2, &
+!!$          lzd_g%glr%d%nfl3, lzd_g%glr%d%nfu3, &
+!!$          lzd_g%glr%wfd, lzd_g%glr%bounds)
+!!$  end if
 
   ist = 1
   ncount = lzd_g%glr%wfd%nvctr_c+7*lzd_g%glr%wfd%nvctr_f
@@ -1140,7 +1141,7 @@ subroutine analyze_wavefunctions(output, region, lzd, orbs, npsidim, psi, ioffse
   use module_base
   use module_types
   use yaml_output
-  use bounds, only: locreg_bounds
+  use locregs, only: ensure_locreg_bounds
   implicit none
 
   ! Calling arguments
@@ -1159,12 +1160,13 @@ subroutine analyze_wavefunctions(output, region, lzd, orbs, npsidim, psi, ioffse
 
 
   if (trim(region)=='global') then
-      ! Need to create the convolution bounds
-      call locreg_bounds(lzd%glr%d%n1, lzd%glr%d%n2, lzd%glr%d%n3, &
-           lzd%glr%d%nfl1, lzd%glr%d%nfu1, &
-           lzd%glr%d%nfl2, lzd%glr%d%nfu2, &
-           lzd%glr%d%nfl3, lzd%glr%d%nfu3, &
-           lzd%glr%wfd, lzd%glr%bounds)
+     call ensure_locreg_bounds(lzd%glr)
+!!$      ! Need to create the convolution bounds
+!!$      call locreg_bounds(lzd%glr%d%n1, lzd%glr%d%n2, lzd%glr%d%n3, &
+!!$           lzd%glr%d%nfl1, lzd%glr%d%nfu1, &
+!!$           lzd%glr%d%nfl2, lzd%glr%d%nfu2, &
+!!$           lzd%glr%d%nfl3, lzd%glr%d%nfu3, &
+!!$           lzd%glr%wfd, lzd%glr%bounds)
   end if
 
   sigma_arr = f_malloc0(orbs%norb,id='sigma_arr')

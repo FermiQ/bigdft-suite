@@ -152,7 +152,7 @@ subroutine wfd_from_grids(logrid_c, logrid_f, calculate_bounds, Glr)
    end if
 
    ! allocations for arrays holding the wavefunctions and their data descriptors
-   call allocate_wfd(Glr%wfd)
+   call allocate_wfd(Glr%wfd,global=.true.)
 
    ! now fill the wavefunction descriptor arrays
    ! coarse grid quantities
@@ -166,11 +166,12 @@ subroutine wfd_from_grids(logrid_c, logrid_f, calculate_bounds, Glr)
    !that is the point where the association is given
    !one should consider the possiblity of associating the
    !arrays with f_associate
-   call f_free_ptr(Glr%wfd%keygloc)
-   Glr%wfd%keygloc => Glr%wfd%keyglob
-
-   call f_free_ptr(Glr%wfd%keyvloc)
-   Glr%wfd%keyvloc => Glr%wfd%keyvglob
+  
+!!$   call f_free_ptr(Glr%wfd%keygloc)
+!!$   Glr%wfd%keygloc => Glr%wfd%keyglob
+!!$
+!!$   call f_free_ptr(Glr%wfd%keyvloc)
+!!$   Glr%wfd%keyvloc => Glr%wfd%keyvglob
 
    ! Copy the information of keyglob to keygloc for Glr (just pointing leads to problem during the deallocation of wfd)
 !!$   do i = lbound(Glr%wfd%keyglob,1),ubound(Glr%wfd%keyglob,1)
@@ -236,7 +237,6 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
   use sparsematrix_init,only: distribute_on_tasks
   use locregs
   use f_ternary
-  use bounds, only: locreg_bounds
   use pspiof_m, only: pspiof_projector_eval, pspiof_pspdata_get_projector, pspiof_pspdata_get_n_projectors
   use yaml_output, only: yaml_warning
   implicit none
@@ -458,23 +458,24 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
          !let us try what happens with the new method
          !consideration, we should conceive differently the
          !initialization of the localisation regions
-         call locreg_bounds(nl%projs(iat)%region%plr%d%n1, &
-              & nl%projs(iat)%region%plr%d%n2, &
-              & nl%projs(iat)%region%plr%d%n3,&
-              & nl%projs(iat)%region%plr%d%nfl1, &
-              & nl%projs(iat)%region%plr%d%nfu1, &
-              & nl%projs(iat)%region%plr%d%nfl2, &
-              & nl%projs(iat)%region%plr%d%nfu2, &
-              & nl%projs(iat)%region%plr%d%nfl3, &
-              & nl%projs(iat)%region%plr%d%nfu3, &
-              & nl%projs(iat)%region%plr%wfd,nl%projs(iat)%region%plr%bounds)
+         call ensure_locreg_bounds(nl%projs(iat)%region%plr)
+         !call locreg_bounds(nl%projs(iat)%region%plr%d%n1, &
+         !     & nl%projs(iat)%region%plr%d%n2, &
+         !     & nl%projs(iat)%region%plr%d%n3,&
+         !     & nl%projs(iat)%region%plr%d%nfl1, &
+         !     & nl%projs(iat)%region%plr%d%nfu1, &
+         !     & nl%projs(iat)%region%plr%d%nfl2, &
+         !     & nl%projs(iat)%region%plr%d%nfu2, &
+         !     & nl%projs(iat)%region%plr%d%nfl3, &
+         !     & nl%projs(iat)%region%plr%d%nfu3, &
+         !     & nl%projs(iat)%region%plr%wfd,nl%projs(iat)%region%plr%bounds)
 
       end if
 
-      ! This is done for wavefunctions but not for projectors ?
-      ! Otherwise, keyvloc is allocated but not filled.
-      call f_free_ptr(nl%projs(iat)%region%plr%wfd%keyvloc)
-      nl%projs(iat)%region%plr%wfd%keyvloc => nl%projs(iat)%region%plr%wfd%keyvglob
+!!$      ! This is done for wavefunctions but not for projectors ?
+!!$      ! Otherwise, keyvloc is allocated but not filled.
+!!$      call f_free_ptr(nl%projs(iat)%region%plr%wfd%keyvloc)
+!!$      nl%projs(iat)%region%plr%wfd%keyvloc => nl%projs(iat)%region%plr%wfd%keyvglob
   end do
   call f_free(reducearr)
 
@@ -540,7 +541,7 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
       do iat=1,nl%natoms
          !also the fact of allocating pointers with size zero has to be discussed
          !for the moments the bounds are not needed for projectors
-         call allocate_wfd(nl%projs(iat)%region%plr%wfd)
+         call allocate_wfd(nl%projs(iat)%region%plr%wfd,global=.false.)
          if (nl%projs(iat)%mproj>0) then
             nbseg_dim=max(nbseg_dim,&
                  nl%projs(iat)%region%plr%wfd%nseg_c+nl%projs(iat)%region%plr%wfd%nseg_f)

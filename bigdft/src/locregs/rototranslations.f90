@@ -289,6 +289,14 @@ contains
        R(3,3)=1.0_gp
     end if
 
+    !!DEBUG
+    !!if (J>tol) then
+    !!    do iat=1,nat
+    !!       write(*,'(a,I3,F10.4,2x,2(3(F8.3,x),2x))') 'J0 large',nat,J0,rxyz_new(:,iat),rxyz_ref(:,iat) 
+    !!    end do
+    !!write(*,*) ''
+    !!end if
+    !!DEBUG
 
 !!$    !here yaml output
 !!$    !make it optional whether to print the warning from here or leave it to external function

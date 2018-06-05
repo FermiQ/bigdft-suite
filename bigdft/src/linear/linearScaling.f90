@@ -853,11 +853,13 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
 
 
   if (input%output_wf /= ENUM_EMPTY) then
-     if (input%lin%fragment_calculation .and. write_fragments) then
-        frag_coeffs=.true.
-     else if (write_full_system) then
+     ! frag_coeffs is for when we want to just visualize the fragment HOMO etc, need
+     ! a better choice of input variables to determine when this is actually what we want to do...
+     !if (input%lin%fragment_calculation .and. write_fragments) then
+     !   frag_coeffs=.true.
+     !else if (write_full_system) then
         frag_coeffs=.false.
-     end if
+     !end if
      call build_ks_orbitals(iproc, nproc, tmb, KSwfn, at, rxyz, denspot, GPU, &
           energs, nlpsp, input, norder_taylor,&
           energy, energyDiff, energyold, ref_frags,frag_coeffs)
