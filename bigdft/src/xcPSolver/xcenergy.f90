@@ -37,6 +37,7 @@ subroutine calc_rhocore_iat(dpbox,iproc,atoms,ityp,rx,ry,rz,cutoff,hxh,hyh,hzh,&
   real(gp) :: x,y,z,r2,rhov,rhoc,chv,chc
   real(gp) :: charge_from_gaussians,spherical_gaussian_value
   real(gp) :: drhoc,drhov,drhodr2
+  logical, dimension(3) :: peri
 
   !find the correct position of the nlcc parameters
   call nlcc_start_position(ityp,atoms,ngv,ngc,islcc)
@@ -70,9 +71,13 @@ subroutine calc_rhocore_iat(dpbox,iproc,atoms,ityp,rx,ry,rz,cutoff,hxh,hyh,hzh,&
   !if (iproc == 0) write(*,'(1x,a,f12.6)',advance='no')' analytic core charge: ',chc-chv
 
 !!$  !conditions for periodicity in the three directions
-  perx=(atoms%astruct%geocode /= 'F')
-  pery=(atoms%astruct%geocode == 'P')
-  perz=(atoms%astruct%geocode /= 'F')
+!!$  perx=(atoms%astruct%geocode /= 'F')
+!!$  pery=(atoms%astruct%geocode == 'P')
+!!$  perz=(atoms%astruct%geocode /= 'F')
+  peri=cell_periodic_dims(dpbox%mesh)
+  perx=peri(1)
+  pery=peri(2)
+  perz=peri(3)
 
   call ext_buffers(perx,nbl1,nbr1)
   call ext_buffers(pery,nbl2,nbr2)

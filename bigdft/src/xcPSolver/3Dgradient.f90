@@ -51,6 +51,8 @@ subroutine wb_correction(geocode,n1,n2,n3,n3grad,wbl,wbr,f_i,hx,hy,hz,nspden,&
     stop
  end if
 
+ if (geocode == 'W') call f_err_throw("Wires bc has to be implemented here", &
+                          err_name='BIGDFT_RUNTIME_ERROR') 
 
  !coefficients to calculate the wb correction to the gradient
  c4=a4
@@ -597,6 +599,9 @@ subroutine calc_gradient(geocode,n1,n2,n3,n3grad,deltaleft,deltaright,rhoinp,nsp
          'deltaleft=',deltaleft,'deltaright=',deltaright,'geocode=',geocode
     stop
  end if
+
+ if (geocode == 'W') call f_err_throw("Wires bc has to be implemented here", &
+                          err_name='BIGDFT_RUNTIME_ERROR') 
 
  !let us initialize the larger vector to calculate the gradient
  density = f_malloc((/ n1+8 , n2+8 , n3grad+8/),id='density')

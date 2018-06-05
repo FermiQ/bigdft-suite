@@ -47,6 +47,9 @@ subroutine plot_density_cube_old(filename,iproc,nproc,n1,n2,n3,n1i,n2i,n3i,n3p,n
      nby = 0
   end if
 
+  if (at%astruct%geocode == 'W') call f_err_throw("Wires bc has to be implemented here", &
+                                      err_name='BIGDFT_RUNTIME_ERROR')
+                              
   if (nproc > 1) then
      !allocate full density in pot_ion array
      pot_ion = f_malloc_ptr((/ n1i*n2i*n3i, nspin /),id='pot_ion')

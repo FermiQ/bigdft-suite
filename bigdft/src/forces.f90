@@ -3830,6 +3830,9 @@ subroutine symmetrise_forces(fxyz, astruct)
   alat =astruct%cell_dim
   if (astruct%geocode == 'S') alat(2) = real(1, gp)
 
+  if (astruct%geocode == 'W') call f_err_throw("Wires bc has to be implemented here", &
+                                   err_name='BIGDFT_RUNTIME_ERROR')
+
   !Save fxyz into dedt.
   allocate(dedt(3,astruct%nat))
   do ia = 1, astruct%nat
