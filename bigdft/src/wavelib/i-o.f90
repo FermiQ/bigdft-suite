@@ -39,6 +39,7 @@ subroutine reformatonewave(displ,wfd,at,hx_old,hy_old,hz_old,n1_old,n2_old,n3_ol
   real(wp), dimension(:,:,:), allocatable :: psifscfold
   real(gp), dimension(3) :: rd
   type(cell) :: mesh
+  logical, dimension(3) :: peri
   !real(kind=4) :: t0, t1
   !real(kind=8) :: time
 
@@ -47,9 +48,13 @@ subroutine reformatonewave(displ,wfd,at,hx_old,hy_old,hz_old,n1_old,n2_old,n3_ol
 
   mesh=cell_new(at%astruct%geocode,[n1,n2,n3],[hx,hy,hz])
   !conditions for periodicity in the three directions
-  perx=(at%astruct%geocode /= 'F')
-  pery=(at%astruct%geocode == 'P')
-  perz=(at%astruct%geocode /= 'F')
+!!$  perx=(at%astruct%geocode /= 'F')
+!!$  pery=(at%astruct%geocode == 'P')
+!!$  perz=(at%astruct%geocode /= 'F')
+  peri=cell_periodic_dims(mesh)
+  perx=peri(1)
+  pery=peri(2)
+  perz=peri(3)
 
   !buffers related to periodicity
   !WARNING: the boundary conditions are not assumed to change between new and old
@@ -66,6 +71,9 @@ subroutine reformatonewave(displ,wfd,at,hx_old,hy_old,hz_old,n1_old,n2_old,n3_ol
      call synthese_slab(n1_old,n2_old,n3_old,wwold,psigold,psifscfold)
   else if (at%astruct%geocode=='P') then
      call synthese_per(n1_old,n2_old,n3_old,wwold,psigold,psifscfold)
+  else if (at%astruct%geocode=='W') then
+     call f_err_throw("Wires bc has to be implemented here", &
+        err_name='BIGDFT_RUNTIME_ERROR')
   end if
 
   call f_free(wwold)
@@ -225,6 +233,9 @@ subroutine reformatonewave(displ,wfd,at,hx_old,hy_old,hz_old,n1_old,n2_old,n3_ol
      call analyse_slab(n1,n2,n3,ww,psifscf,psig)
   else if (at%astruct%geocode == 'P') then
      call analyse_per(n1,n2,n3,ww,psifscf,psig)
+  else if (at%astruct%geocode=='W') then
+     call f_err_throw("Wires bc has to be implemented here", &
+        err_name='BIGDFT_RUNTIME_ERROR')
   end if
 
   !write(100+iproc,*) 'norm new psig ',dnrm2(8*(n1+1)*(n2+1)*(n3+1),psig,1)

@@ -382,6 +382,9 @@ subroutine read_ascii_positions(ifile,filename,astruct,comment,energy,fxyz,getli
   logical :: disableTrans
   type(dictionary), pointer :: dict
 
+  if (astruct%geocode == "W") call f_err_throw("Wires bc has to be implemented here",&
+                           err_name='BIGDFT_RUNTIME_ERROR')
+
   if(present(disableTrans_))then
     disableTrans=disableTrans_
   else
@@ -658,6 +661,9 @@ subroutine read_int_positions(iproc,ifile,astruct,comment,energy,fxyz,getLine,di
   character(len=20), dimension(100) :: atomnames
   logical :: disableTrans
   character(len = max_field_length) :: errmess
+
+  if (astruct%geocode == "W") call f_err_throw("Wires bc has to be implemented here",&
+                           err_name='BIGDFT_RUNTIME_ERROR')
 
   if(present(disableTrans_))then
     disableTrans=disableTrans_

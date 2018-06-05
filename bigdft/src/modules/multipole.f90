@@ -2324,6 +2324,7 @@ module multipole
       character(len=2) :: lname, mname
       character(len=14) :: matname
       character(len=128) :: sparse_format
+!      logical, dimension(3) :: peri
 
 
       call f_routine(id='multipole_analysis_driver')
@@ -2335,6 +2336,11 @@ module multipole
       perx=(smmd%geocode /= 'F')
       pery=(smmd%geocode == 'P')
       perz=(smmd%geocode /= 'F')
+!      peri=cell_periodic_dims(mesh)
+!      perx=peri(1)
+!      pery=peri(2)
+!      perz=peri(3)
+
 
       ! Check that the proper optional arguments are present
       if (trim(do_ortho)==yes .and. calculate_multipole_matrices) then
