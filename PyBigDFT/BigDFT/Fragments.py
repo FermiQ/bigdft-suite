@@ -231,7 +231,7 @@ class Fragment():
       >>> f = Fragment(units='A') #initialize the fragment
       >>> f.append(atom) #add an atom according to the f.append spec
       >>> ... # repeat that until the fragment is completed
-    
+
     .. todo::
        Define and describe if this API is also suitable for solid-state fragments
 
@@ -658,7 +658,7 @@ def prepare_fragment_inputs(name,directory='.',flavour='Isolated',system=None,te
         tempdatadir='data-'+template_name
         ensure_dir(datadir)
         datatemplate=os.path.join(datadir,tempdatadir)
-	if flavour=='Embedded':
+        if flavour=='Embedded':
             ensure_dir(datatemplate)
         elif not os.path.exists(datatemplate):
             os.symlink(os.path.abspath(os.path.join(template_dir,tempdatadir)),datatemplate)
