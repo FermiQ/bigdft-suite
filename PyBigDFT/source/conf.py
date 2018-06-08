@@ -199,5 +199,5 @@ if on_rtd:
         def __getattr__(cls, name):
             return MagicMock()
 
-    MOCK_MODULES = ['yaml','gi']
+    MOCK_MODULES = ['yaml','gi.repository']
     sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
