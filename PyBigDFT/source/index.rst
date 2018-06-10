@@ -30,6 +30,10 @@ Calculators to be used with BigDFT package to trigger runs of the code
 
 .. toctree:: BigDFT.Calculators
 
+Examples of Tutorial
+
+.. toctree:: notebooks/Logfile-basics.ipynb
+
 Index of the Package
 ====================
 
