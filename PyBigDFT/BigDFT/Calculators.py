@@ -1,7 +1,6 @@
 """file for BigDFT calculators"""
 
 import os
-from gi.repository import BigDFT
 from futile.Utils import write as safe_print
 
 
@@ -9,6 +8,8 @@ class GIBinding():
     """Calculator for BigDFT from Gobject Introspection bindings"""
 
     def __init__(self):
+        #Import bindings about BigDFT (if the bindings are not generated, do not work at all)
+        from gi.repository import BigDFT
         self.runObj = -1
         # MPI initialisation
         (ierr, self.iproc, self.nproc, igroup, ngroup) = BigDFT.lib_init(0)
@@ -50,13 +51,13 @@ class GIBinding():
 class SystemCalculator():
     """Define the calculator from the system"""
 
-    def __init__(self, omp, mpi):
+    def __init__(self, omp=1, mpi=1):
         # Save variables for future use
         self.omp = str(omp)
         self.mpi = str(mpi)
         # Verify if $BIGDFT_ROOT is in the environment
         assert 'BIGDFT_ROOT' in os.environ
-        self.command = 'mpirun -np ' + self.mpi + ' $BIGDFT_ROOT/bigdft'
+        self.command = 'mpirun -np ' + self.mpi + ' ' + os.environ['BIGDFT_ROOT']+'/bigdft'
 
     def run(self, name='', outdir='', run_name='', skip=False):
         # Set the number of omp threads

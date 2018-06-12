@@ -121,11 +121,13 @@ contains
     mpi%nproc=-1
   end subroutine nullify_mpi_environment
 
+
   pure function mpi_environment_null() result(mpi)
     implicit none
     type(mpi_environment) :: mpi
     call nullify_mpi_environment(mpi)
   end function mpi_environment_null
+
 
   subroutine release_mpi_environment(mpi_env)
 !    use yaml_strings!, only: yaml_toa,operator(//),f_string
@@ -157,6 +159,7 @@ contains
     mpi_env=mpi_environment_null()
   end subroutine release_mpi_environment
 
+
   function mpi_environment_comm(comm) result(mpi_env)
     !create the mpi environment associated to mpi_comm_worl
     integer(fmpi_integer), intent(in), optional :: comm
@@ -168,6 +171,7 @@ contains
     mpi_env%iproc=mpirank(mpi_env%mpi_comm)
 
   end function mpi_environment_comm
+
 
   !> Deep copy of the mpi_environment.
   subroutine deepcopy_mpi_environment(dest,src)
