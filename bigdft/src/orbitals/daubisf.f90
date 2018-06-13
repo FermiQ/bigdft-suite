@@ -92,6 +92,16 @@ subroutine daub_to_isf(lr,w,psi,psir)
   case('W')
      call f_err_throw("Wires bc has to be implemented here", &
           err_name='BIGDFT_RUNTIME_ERROR')
+
+     call uncompress_wire(lr%d%n1,lr%d%n2,lr%d%n3,lr%wfd%nseg_c,lr%wfd%nvctr_c,&
+          lr%wfd%keygloc(1,1),lr%wfd%keyvloc(1),&
+          lr%wfd%nseg_f,lr%wfd%nvctr_f,lr%wfd%keygloc(1,lr%wfd%nseg_c+iseg_f),&
+          lr%wfd%keyvloc(lr%wfd%nseg_c+iseg_f), &
+          psi(1),psi(lr%wfd%nvctr_c+i_f),w%x_c,&
+          psir)
+
+     call convolut_magic_n_wire_self(2*lr%d%n1+15,2*lr%d%n2+15,2*lr%d%n3+1,w%x_c,&
+          psir) 
   end select
 
   call f_release_routine()
@@ -188,6 +198,16 @@ subroutine isf_to_daub(lr,w,psir,psi)
   case('W')
      call f_err_throw("Wires bc has to be implemented here", &
           err_name='BIGDFT_RUNTIME_ERROR')
+
+     call convolut_magic_t_wire_self(2*lr%d%n1+15,2*lr%d%n2+15,2*lr%d%n3+1,&
+          psir(1),w%x_c(1))
+
+     call analyse_wire_self(lr%d%n1,lr%d%n2,lr%d%n3,&
+          w%x_c,psir(1))
+     call compress_and_accumulate_mixed(lr%d,lr%wfd,&
+          lr%wfd%keyvloc(1),lr%wfd%keyvloc(isegf),&
+          lr%wfd%keygloc(1,1),lr%wfd%keygloc(1,isegf),&
+          psir(1),psi(1),psi(ipsif))
 
   end select
 
@@ -299,6 +319,18 @@ subroutine daub_to_isf_locham(nspinor,lr,w,psi,psir)
   case('W')
      call f_err_throw("Wires bc has to be implemented here", &
           err_name='BIGDFT_RUNTIME_ERROR')
+
+     do idx=1,nspinor
+        call uncompress_wire(lr%d%n1,lr%d%n2,lr%d%n3,&
+             lr%wfd%nseg_c,lr%wfd%nvctr_c,&
+             lr%wfd%keygloc(1,1),lr%wfd%keyvloc(1),   &
+             lr%wfd%nseg_f,lr%wfd%nvctr_f,&
+             lr%wfd%keygloc(1,lr%wfd%nseg_c+iseg_f),lr%wfd%keyvloc(lr%wfd%nseg_c+iseg_f),   &
+             psi(1,idx),psi(lr%wfd%nvctr_c+i_f,idx),w%x_c(1,idx),psir(1,idx))
+
+        call convolut_magic_n_wire(2*lr%d%n1+15,2*lr%d%n2+15,2*lr%d%n3+1,w%x_c(1,idx),psir(1,idx),w%y_c(1,idx)) 
+
+     end do
 
   end select
 

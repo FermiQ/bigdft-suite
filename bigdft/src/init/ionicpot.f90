@@ -1936,8 +1936,11 @@ subroutine external_potential(iproc,verb,at,rxyz,&
         call f_err_throw('The constant electric field is not allowed for Fully Periodic BC.', &
              err_name='BIGDFT_RUNTIME_ERROR')
         !constant electric field allowed for surface BC only normal to the surface
-     elseif (cell_geocode(dpbox%mesh) == 'S' .and. (elecfield(1) /= 0.0_gp .or. elecfield(3) /= 0.0_gp) ) then
+     else if (cell_geocode(dpbox%mesh) == 'S' .and. (elecfield(1) /= 0.0_gp .or. elecfield(3) /= 0.0_gp) ) then
         call f_err_throw('Only normal constant electric field (Ex=Ez=0) is allowed for Surface BC.', &
+             err_name='BIGDFT_RUNTIME_ERROR')
+     else if (cell_geocode(dpbox%mesh) == 'W') then
+        call f_err_throw("Wires bc has to be implemented here", &
              err_name='BIGDFT_RUNTIME_ERROR')
      end if
      if (verb) call yaml_map('Constant electric field (Ha/Bohr)',elecfield(1:3),fmt='(es10.2)')

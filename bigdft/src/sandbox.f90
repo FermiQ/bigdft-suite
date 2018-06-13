@@ -839,6 +839,9 @@ subroutine plot_wf_sandbox(orbname,nexpo,at,lr,hxh,hyh,hzh,rxyz,psi,comment)
      nu2=0
      nl3=0
      nu3=0
+  else if (at%geocode == 'W') then
+     call f_err_throw("Wires bc has to be implemented here", &
+          err_name='BIGDFT_RUNTIME_ERROR')
   end if
 
   call initialize_work_arrays_sumrho(1,lr,.true.,w)
