@@ -1,7 +1,7 @@
 !> @file
 !!   File containing the main FOE routine
 !! @author
-!!   Copyright (C) 2016 CheSS developers
+!!   Copyright (C) 2016-2018 CheSS developers
 !!
 !!   This file is part of CheSS.
 !!   
@@ -17,6 +17,7 @@
 !!   
 !!   You should have received a copy of the GNU Lesser General Public License
 !!   along with CheSS.  If not, see <http://www.gnu.org/licenses/>.
+
 
 module chess_base
   use f_precisions

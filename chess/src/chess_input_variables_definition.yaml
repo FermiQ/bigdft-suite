@@ -93,7 +93,7 @@
      RANGE: [-10000.0,-10.0]
    occupation_function:
      COMMENT: the function to assign the occupation numbers
-     default: error_function
+     default: 102
      EXCLUSIVE: 
        102: error_function
        106: fermi_function
