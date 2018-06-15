@@ -517,10 +517,14 @@ class Logfile():
         #normal printouts in the document, according to definition
         for field in BUILTIN:
             name=BUILTIN[field].get(PRINT)
-            if name==True: name=field
+            if name == True: name=field
             if not name or not hasattr(self,field): continue
             summary.append({name: getattr(self,field)})
-        if hasattr(self,'evals'): summary.append({'No. of KS orbitals per k-point': self.evals[0].info})
+        if hasattr(self,'evals'): 
+            nspin=self.log['dft']['nspin']
+            if nspin == 4: nspin=1
+            cmt=( ' per k-point'  if hasattr(self,'kpts') else '' )
+            summary.append({'No. of KS orbitals'+cmt: self.evals[0].info[0:nspin]})
         return yaml.dump(summary,default_flow_style=False)
 
 if __name__ == "__main__":

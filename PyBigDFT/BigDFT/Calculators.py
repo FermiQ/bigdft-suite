@@ -90,8 +90,8 @@ class SystemCalculator():
         # Verify if $BIGDFT_ROOT is in the environment
         assert 'BIGDFT_ROOT' in os.environ
         if mpi_run == None:
-            # Verify if $MPI_RUN is in the environment
-            mpi_run = os.environ.setdefault('MPI_RUN','')
+            # Verify if $BIGDFT_MPIRUN is in the environment
+            mpi_run = os.environ.setdefault('BIGDFT_MPIRUN','')
         if mpi_run != '':
             mpi_run = mpi_run + ' ' + self.mpi + ' '
         #Build the command setting the number of omp threads
