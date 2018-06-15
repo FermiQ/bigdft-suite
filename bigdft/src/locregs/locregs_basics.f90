@@ -282,8 +282,76 @@ subroutine psi_to_tpsi(hgrids,kptv,nspinor,lr,psi,w,hpsi,ekin,k_strten)
      if (present(k_strten)) k_strten=kstrten 
 
   case('W')
+
      call f_err_throw("Wires bc has to be implemented here", &
           err_name='BIGDFT_RUNTIME_ERROR')
+
+     if (usekpts) then
+        !first calculate the proper arrays then transpose them before passing to the
+        !proper routine
+        do idx=1,nspinor
+           call uncompress_wire(lr%d%n1,lr%d%n2,lr%d%n3,&
+                lr%wfd%nseg_c,lr%wfd%nvctr_c,&
+                lr%wfd%keygloc(1,1),lr%wfd%keyvloc(1),   &
+                lr%wfd%nseg_f,lr%wfd%nvctr_f,&
+                lr%wfd%keygloc(1,isegf),lr%wfd%keyvloc(isegf),   &
+                psi(1,idx),psi(ipsif,idx),w%x_c(1,idx),w%y_c(1,idx))
+        end do
+
+        !Transposition of the work arrays (use y_c as workspace)
+        call transpose_for_kpoints(nspinor,2*lr%d%n1+31,2*lr%d%n2+31,2*lr%d%n3+2,&
+             w%x_c,w%y_c,.true.)
+        call f_zero(nspinor*w%nyc,w%y_c(1,1))
+
+        ! compute the kinetic part and add  it to psi_out
+        ! the kinetic energy is calculated at the same time
+        ! do this thing for both components of the spinors
+        do idx=1,nspinor,2
+           call convolut_kinetic_wire_T_k(2*lr%d%n1+15,2*lr%d%n2+15,2*lr%d%n3+1,&
+                hgridh,w%x_c(1,idx),w%y_c(1,idx),ekino,kptv(1),kptv(2),kptv(3))
+           ekin=ekin+ekino        
+        end do
+
+        !re-Transposition of the work arrays (use x_c as workspace)
+        call transpose_for_kpoints(nspinor,2*lr%d%n1+31,2*lr%d%n2+31,2*lr%d%n3+2,&
+             w%y_c,w%x_c,.false.)
+
+        do idx=1,nspinor
+           !new compression routine in mixed form
+           call analyse_wire_self(lr%d%n1,lr%d%n2,lr%d%n3,&
+                w%y_c(1,idx),w%x_c(1,idx))
+           call compress_and_accumulate_mixed(lr%d,lr%wfd,&
+                lr%wfd%keyvloc(1),lr%wfd%keyvloc(isegf),&
+                lr%wfd%keygloc(1,1),lr%wfd%keygloc(1,isegf),&
+                w%x_c(1,idx),hpsi(1,idx),hpsi(ipsif,idx))
+
+        end do
+
+     else
+        do idx=1,nspinor
+           call uncompress_wire(lr%d%n1,lr%d%n2,lr%d%n3,&
+                lr%wfd%nseg_c,lr%wfd%nvctr_c,&
+                lr%wfd%keygloc(1,1),lr%wfd%keyvloc(1),   &
+                lr%wfd%nseg_f,lr%wfd%nvctr_f,&
+                lr%wfd%keygloc(1,isegf),lr%wfd%keyvloc(isegf),   &
+                psi(1,idx),psi(ipsif,idx),w%x_c(1,idx),w%y_c(1,idx))
+
+           call f_zero(w%nyc,w%y_c(1,idx))
+           ! compute the kinetic part and add  it to psi_out
+           ! the kinetic energy is calculated at the same time
+           call convolut_kinetic_wire_T(2*lr%d%n1+15,2*lr%d%n2+15,2*lr%d%n3+1,&
+                hgridh,w%x_c(1,idx),w%y_c(1,idx),ekino)
+           ekin=ekin+ekino
+
+           !new compression routine in mixed form
+           call analyse_wire_self(lr%d%n1,lr%d%n2,lr%d%n3,&
+                w%y_c(1,idx),w%x_c(1,idx))
+           call compress_and_accumulate_mixed(lr%d,lr%wfd,&
+                lr%wfd%keyvloc(1),lr%wfd%keyvloc(isegf),&
+                lr%wfd%keygloc(1,1),lr%wfd%keygloc(1,isegf),&
+                w%x_c(1,idx),hpsi(1,idx),hpsi(ipsif,idx))
+        end do
+     end if
   end select
 
 END SUBROUTINE psi_to_tpsi

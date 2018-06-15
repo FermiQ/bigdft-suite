@@ -111,6 +111,10 @@ subroutine preconditionall(orbs,lr,hx,hy,hz,ncong,hpsi,gnrm,gnrm_zero)
               case('W')
                  call f_err_throw("Wires bc has to be implemented here", &
                       err_name='BIGDFT_RUNTIME_ERROR')
+                 call prec_fft_wire(lr%d%n1,lr%d%n2,lr%d%n3, &
+                      lr%wfd%nseg_c,lr%wfd%nvctr_c,lr%wfd%nseg_f,&
+                      lr%wfd%nvctr_f,lr%wfd%keygloc,lr%wfd%keyvloc, &
+                      cprecr,hx,hy,hz,hpsi(1,inds,iorb))
               end select
 
            else !normal preconditioner
@@ -370,6 +374,10 @@ subroutine preconditionall2(iproc,nproc,orbs,Lzd,hx,hy,hz,ncong,npsidim,hpsi,con
               case('W')
                  call f_err_throw("Wires bc has to be implemented here", &
                       err_name='BIGDFT_RUNTIME_ERROR')
+                 call prec_fft_wire(Lzd%Llr(ilr)%d%n1,Lzd%Llr(ilr)%d%n2,Lzd%Llr(ilr)%d%n3, &
+                      Lzd%Llr(ilr)%wfd%nseg_c,Lzd%Llr(ilr)%wfd%nvctr_c,Lzd%Llr(ilr)%wfd%nseg_f,&
+                      Lzd%Llr(ilr)%wfd%nvctr_f,Lzd%Llr(ilr)%wfd%keygloc,Lzd%Llr(ilr)%wfd%keyvloc, &
+                      cprecr,hx,hy,hz,hpsi(1+ist))
               end select
 
            else !normal preconditioner
@@ -747,7 +755,6 @@ subroutine precondition_preconditioner(lr,ncplx,hx,hy,hz,scal,cprecr,w,x,b)
      !	initializes the wavelet scaling coefficients	
      call wscal_init_per(scal,hx,hy,hz,cprecr)
 
-
      if (lr%hybrid_on) then
         do idx=1,ncplx
            !b=x
@@ -824,8 +831,44 @@ subroutine precondition_preconditioner(lr,ncplx,hx,hy,hz,scal,cprecr,w,x,b)
      end do
 
   else if (cell_geocode(lr%mesh) == 'W') then
+
         call f_err_throw("Wires bc has to be implemented here", &
              err_name='BIGDFT_RUNTIME_ERROR')
+
+     if (ncplx == 1) then
+        call prepare_sdc_wire(lr%d%n3,w%modul3,w%af,w%bf,w%cf,w%ef,hx,hy,hz)
+     end if
+    
+     !	initializes the wavelet scaling coefficients	
+     call wscal_init_per(scal,hx,hy,hz,cprecr)
+    
+     do idx=1,ncplx
+
+        !recently added
+        !	scale the r.h.s. that is also the scaled input guess :
+        !	b'=D^{-1/2}b
+        call wscal_per_self(lr%wfd%nvctr_c,lr%wfd%nvctr_f,scal,&
+             x(1,idx),x(lr%wfd%nvctr_c+1,idx))
+        !end of that
+
+        !b=x
+        call vcopy(lr%wfd%nvctr_c+7*lr%wfd%nvctr_f,x(1,idx),1,b(1,idx),1) 
+        
+        !	compute the input guess x via a Fourier transform in a cubic box.
+        !	Arrays psifscf and ww serve as work arrays for the Fourier
+        call prec_fft_wire_fast(lr%d%n1,lr%d%n2,lr%d%n3,lr%wfd%nseg_c,lr%wfd%nvctr_c,&
+             lr%wfd%nseg_f,lr%wfd%nvctr_f,lr%wfd%keygloc,lr%wfd%keyvloc, &
+             cprecr,hx,hy,hz,x(1,idx),&
+             !w%psifscf(1),w%psifscf(lr%d%n1+2),w%ww(1),&  ! here consistency
+             !has to be checked wrt subroutine prec_fft_wire_fast (kern_k1 was
+             !removed as input wrt the original slab subroutine)
+             w%psifscf(1),w%ww(1),&
+             w%ww(2*((lr%d%n1+1)/2+1)*(lr%d%n2+1)*(lr%d%n3+1)+1))
+
+        !we will probably have to rescale x by fac=1.0_gp/scal(0)**2
+        call dscal(lr%wfd%nvctr_c+7*lr%wfd%nvctr_f,1.0_gp/scal(0)**2,x(1,idx),1)
+        
+     end do
   end if
 
   call f_release_routine()
@@ -939,11 +982,22 @@ subroutine precond_locham(ncplx,lr,hx,hy,hz,kx,ky,kz,&
              cprecr,hx,hy,hz,kx,ky,kz,x,y,w%psifscf,w%ww,scal) 
 
      end if
-
   else if (cell_geocode(lr%mesh) == 'W') then
         call f_err_throw("Wires bc has to be implemented here", &
              err_name='BIGDFT_RUNTIME_ERROR')
+     if (ncplx == 1) then
+        call apply_hp_wire_sd_scal(lr%d%n1,lr%d%n2,lr%d%n3,&
+             lr%wfd%nseg_c,lr%wfd%nvctr_c,lr%wfd%nseg_f,&
+             lr%wfd%nvctr_f,lr%wfd%keygloc,lr%wfd%keyvloc, &
+             cprecr,x,y,w%psifscf,w%ww,w%modul3,&
+             w%af,w%bf,w%cf,w%ef,scal)
+     else
+        call apply_hp_wire_k(lr%d%n1,lr%d%n2,lr%d%n3,&
+             lr%wfd%nseg_c,lr%wfd%nvctr_c,lr%wfd%nseg_f,&
+             lr%wfd%nvctr_f,lr%wfd%keygloc,lr%wfd%keyvloc, &
+             cprecr,hx,hy,hz,kx,ky,kz,x,y,w%psifscf,w%ww,scal) 
 
+     end if
    end if
 END SUBROUTINE precond_locham
 

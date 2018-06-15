@@ -2661,7 +2661,7 @@ Mg-cubic_ortho:
    - radical
   Q matrix: 7.5e-11
 
-Na8-periodic:
+Na8-multipole:
   EH: 4.2e-11
   EKS: 1.9e-11
   EXC: 1.1e-10

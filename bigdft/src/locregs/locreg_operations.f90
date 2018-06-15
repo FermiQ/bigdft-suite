@@ -448,6 +448,22 @@ module locreg_operations
       case('W')
          call f_err_throw("Wires bc has to be implemented here", &
               err_name='BIGDFT_RUNTIME_ERROR')
+         w%nw1=0
+         w%nw2=0
+         w%nyc=n1i*n2i*n3i
+         w%nyf=0
+         w%nxc=n1i*n2i*n3i
+         w%nxf=0
+         w%nxf1=0
+         w%nxf2=0
+         w%nxf3=0
+
+         !allocation of work arrays
+         if (allocate_arrays) then
+            w%x_c = f_malloc_ptr((/ w%nxc, nspinor /),id='w%x_c')
+            w%y_c = f_malloc_ptr((/ w%nyc, nspinor /),id='w%y_c')
+         end if
+
       end select
 
     END SUBROUTINE initialize_work_arrays_locham_nlr
@@ -612,6 +628,22 @@ module locreg_operations
       case('W')
          call f_err_throw("Wires bc has to be implemented here", &
               err_name='BIGDFT_RUNTIME_ERROR')
+         w%nw1=0
+         w%nw2=0
+         w%nyc=n1i*n2i*n3i
+         w%nyf=0
+         w%nxc=n1i*n2i*n3i
+         w%nxf=0
+         w%nxf1=0
+         w%nxf2=0
+         w%nxf3=0
+
+         !allocation of work arrays
+         if (allocate_arrays) then
+            w%x_c = f_malloc_ptr((/ w%nxc, nspinor /),id='w%x_c')
+            w%y_c = f_malloc_ptr((/ w%nyc, nspinor /),id='w%y_c')
+         end if
+
       end select
 
     END SUBROUTINE initialize_work_arrays_locham_llr
@@ -710,8 +742,19 @@ module locreg_operations
 
          endif
       case('W')
+
          call f_err_throw("Wires bc has to be implemented here", &
               err_name='BIGDFT_RUNTIME_ERROR')
+         nw1=0
+         nw2=0
+         nyc=n1i*n2i*n3i
+         nyf=0
+         nxc=n1i*n2i*n3i
+         nxf=0
+         nxf1=0
+         nxf2=0
+         nxf3=0
+
       end select
 
       memwork=nw1+nw2+nxc+nxf+nyc+nyf+nxf1+nxf2+nxf3
@@ -893,6 +936,11 @@ module locreg_operations
       case('W')
          call f_err_throw("Wires bc has to be implemented here", &
               err_name='BIGDFT_RUNTIME_ERROR')
+         !dimension of the work arrays
+         w%nw1=1
+         w%nw2=1
+         w%nxc=(2*n1+31)*(2*n2+31)*(2*n3+2)
+         w%nxf=1
       end select
       !work arrays
       if (allocate_arrays) then
@@ -991,6 +1039,11 @@ module locreg_operations
       case('W')
          call f_err_throw("Wires bc has to be implemented here", &
               err_name='BIGDFT_RUNTIME_ERROR')
+         !dimension of the work arrays
+         w%nw1=1
+         w%nw2=1
+         w%nxc=(2*n1+31)*(2*n2+31)*(2*n3+2)
+         w%nxf=1
       end select
       !work arrays
       if (allocate_arrays) then
@@ -1083,6 +1136,11 @@ module locreg_operations
       case('W')
          call f_err_throw("Wires bc has to be implemented here", &
               err_name='BIGDFT_RUNTIME_ERROR')
+         !dimension of the work arrays
+         nw1=1
+         nw2=1
+         nxc=(2*n1+31)*(2*n2+31)*(2*n3+2)
+         nxf=1
       end select
       memwork=nxc+nxf+nw1+nw2
 
@@ -1199,11 +1257,21 @@ module locreg_operations
          w%psifscf = f_malloc_ptr(ncplx*(2*d%n1+2)*(2*d%n2+16)*(2*d%n3+2),id='w%psifscf')
          w%ww = f_malloc_ptr(ncplx*(2*d%n1+2)*(2*d%n2+16)*(2*d%n3+2),id='w%ww')
 
-      case default
-      !else if (cell_geocode(mesh) == 'W') then
-         
+      case('W')
+
          call f_err_throw("Wires bc has to be implemented here", &
               err_name='BIGDFT_RUNTIME_ERROR')
+         
+         if (ncplx == 1) then
+            w%modul3 = f_malloc_ptr(lowfil.to.d%n3+lupfil,id='w%modul3')
+            w%af = f_malloc_ptr((/ lowfil.to.lupfil, 1.to.3 /),id='w%af')
+            w%bf = f_malloc_ptr((/ lowfil.to.lupfil, 1.to.3 /),id='w%bf')
+            w%cf = f_malloc_ptr((/ lowfil.to.lupfil, 1.to.3 /),id='w%cf')
+            w%ef = f_malloc_ptr((/ lowfil.to.lupfil, 1.to.3 /),id='w%ef')
+         end if
+
+         w%psifscf = f_malloc_ptr(ncplx*(2*d%n1+16)*(2*d%n2+16)*(2*d%n3+2),id='w%psifscf')
+         w%ww = f_malloc_ptr(ncplx*(2*d%n1+16)*(2*d%n2+16)*(2*d%n3+2),id='w%ww')
          
       end select
 
@@ -1260,9 +1328,17 @@ module locreg_operations
             memwork=d%n1+d%n3+14*(lupfil-lowfil+1)
          end if
          memwork=memwork+2*ncplx*(2*d%n1+2)*(2*d%n2+16)*(2*d%n3+2)
+
       else if (geocode == 'W') then
+
          call f_err_throw("Wires bc has to be implemented here", &
               err_name='BIGDFT_RUNTIME_ERROR')
+         memwork=0
+         if (ncplx == 1) then
+            memwork=d%n3+14*(lupfil-lowfil+1)  !!! To be checked !!!
+         end if
+         memwork=memwork+2*ncplx*(2*d%n1+16)*(2*d%n2+16)*(2*d%n3+2)
+
       end if
 
     END SUBROUTINE memspace_work_arrays_precond
@@ -1329,6 +1405,17 @@ module locreg_operations
 
          call f_err_throw("Wires bc has to be implemented here", &
               err_name='BIGDFT_RUNTIME_ERROR')
+
+         if (ncplx == 1) then
+            call f_free_ptr(w%modul3)
+            call f_free_ptr(w%af)
+            call f_free_ptr(w%bf)
+            call f_free_ptr(w%cf)
+            call f_free_ptr(w%ef)
+         end if
+
+         call f_free_ptr(w%psifscf)
+         call f_free_ptr(w%ww)
 
       end if
 
@@ -2843,6 +2930,71 @@ module locreg_operations
 
          call f_err_throw("Wires bc has to be implemented here", &
               err_name='BIGDFT_RUNTIME_ERROR')
+
+         if (usekpts) then
+            !first calculate the proper arrays then transpose them before passing to the
+            !proper routine
+            do idx=1,nspinor
+               call convolut_magic_t_wire_self(2*lr%d%n1+15,2*lr%d%n2+15,2*lr%d%n3+1,&
+                    psir(1,idx),w%y_c(1,idx))
+            end do
+
+            !Transposition of the work arrays (use psir as workspace)
+            call transpose_for_kpoints(nspinor,2*lr%d%n1+31,2*lr%d%n2+31,2*lr%d%n3+2,&
+                 w%x_c,psir,.true.)
+            call transpose_for_kpoints(nspinor,2*lr%d%n1+31,2*lr%d%n2+31,2*lr%d%n3+2,&
+                 w%y_c,psir,.true.)
+
+            ! compute the kinetic part and add  it to psi_out
+            ! the kinetic energy is calculated at the same time
+            ! do this thing for both components of the spinors
+            do idx=1,nspinor,2
+               call convolut_kinetic_wire_T_k(2*lr%d%n1+15,2*lr%d%n2+15,2*lr%d%n3+1,&
+                    hgridh,w%x_c(1,idx),w%y_c(1,idx),ekino,kx,ky,kz)
+               ekin=ekin+ekino        
+            end do
+
+            !re-Transposition of the work arrays (use psir as workspace)
+            call transpose_for_kpoints(nspinor,2*lr%d%n1+31,2*lr%d%n2+31,2*lr%d%n3+2,&
+                 w%y_c,psir,.false.)
+
+            do idx=1,nspinor
+               !new compression routine in mixed form
+               call analyse_wire_self(lr%d%n1,lr%d%n2,lr%d%n3,&
+                    w%y_c(1,idx),psir(1,idx))
+               call compress_and_accumulate_mixed(lr%d,lr%wfd,&
+                    lr%wfd%keyvloc(1),lr%wfd%keyvloc(isegf),&
+                    lr%wfd%keygloc(1,1),lr%wfd%keygloc(1,isegf),&
+                    psir(1,idx),hpsi(1,idx),hpsi(ipsif,idx))
+
+!!$           call compress_slab(lr%d%n1,lr%d%n2,lr%d%n3,&
+!!$                lr%wfd%nseg_c,lr%wfd%nvctr_c,&
+!!$                lr%wfd%keygloc(1,1),lr%wfd%keyv(1),   & 
+!!$                lr%wfd%nseg_f,lr%wfd%nvctr_f,&
+!!$                lr%wfd%keygloc(1,lr%wfd%nseg_c+iseg_f),lr%wfd%keyv(lr%wfd%nseg_c+iseg_f),   & 
+!!$                w%y_c(1,idx),hpsi(1,idx),hpsi(lr%wfd%nvctr_c+i_f,idx),psir(1,idx))
+            end do
+
+         else
+            do idx=1,nspinor
+               call convolut_magic_t_wire_self(2*lr%d%n1+15,2*lr%d%n2+15,2*lr%d%n3+1,&
+                    psir(1,idx),w%y_c(1,idx))
+
+               ! compute the kinetic part and add  it to psi_out
+               ! the kinetic energy is calculated at the same time
+               call convolut_kinetic_wire_T(2*lr%d%n1+15,2*lr%d%n2+15,2*lr%d%n3+1,&
+                    hgridh,w%x_c(1,idx),w%y_c(1,idx),ekino)
+               ekin=ekin+ekino
+
+               !new compression routine in mixed form
+               call analyse_wire_self(lr%d%n1,lr%d%n2,lr%d%n3,&
+                    w%y_c(1,idx),psir(1,idx))
+               call compress_and_accumulate_mixed(lr%d,lr%wfd,&
+                    lr%wfd%keyvloc(1),lr%wfd%keyvloc(isegf),&
+                    lr%wfd%keygloc(1,1),lr%wfd%keygloc(1,isegf),&
+                    psir(1,idx),hpsi(1,idx),hpsi(ipsif,idx))
+            end do
+         end if
 
       end select
 
