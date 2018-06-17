@@ -2661,6 +2661,12 @@ Mg-cubic_ortho:
    - radical
   Q matrix: 7.5e-11
 
+Mg-cubic_ortho:
+  Keys to ignore:
+   - radical
+  Q matrix: 7.50e-11
+  Total ionic charge: 1.50e-11
+
 Na8-multipole:
   EH: 4.2e-11
   EKS: 1.9e-11
@@ -2672,11 +2678,17 @@ Na8-multipole:
   trace: 6.6e-11
   Energy (Hartree): 1.4e-11
 
-Mg-cubic_ortho:
-  Keys to ignore:
-   - radical
-  Q matrix: 7.50e-11
-  Total ionic charge: 1.50e-11
+C2-chain_wire:
+  EH: 1.2e-10
+  Epot: 1.2e-10
+  Residues per orbital: 3.0e-11
+  Total electronic charge: 2.2e-11
+
+C2-chain_periodic:
+  EH: 1.2e-10
+  Epot: 1.2e-10
+  Residues per orbital: 3.0e-11
+  Total electronic charge: 2.2e-11
 
 pexsi:
   Energy (Hartree): 2.3e-11
