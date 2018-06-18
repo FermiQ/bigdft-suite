@@ -234,7 +234,7 @@ class Logfile():
        >>> l = Logfile(dictionary=[dict1, dict2])
 
     .. todo::
-       Document the automatically generated attributes, perhaps via a inner function
+       Document the automatically generated attributes, perhaps via an inner function
        in futile python module
 
     """

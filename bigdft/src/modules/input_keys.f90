@@ -1040,25 +1040,25 @@ contains
 
     call f_routine(id='input_keys_fill_all')
 
-    symbool=.true.
-    free=.false.
-    ! Overriding the default for isolated system
-    tmpdft = dict .get. DFT_VARIABLES
-    if (associated(tmpdft)) symbool=DISABLE_SYM .notin. tmpdft
-    tmppos = dict .get. POSINP
-    if (associated(tmppos)) free =ASTRUCT_CELL .notin. tmppos
-
-    
-    if (free .and. symbool) call set(dict // DFT_VARIABLES // DISABLE_SYM,.true.)
-
-
-!!$    if ((POSINP .in. dict) .and. (DFT_VARIABLES .in. dict) ) then
-!!$       free=ASTRUCT_CELL .notin. dict//POSINP
-!!$       dftvar=DISABLE_SYM .notin. dict//DFT_VARIABLES
-!!$       if (free .and. dftvar) then
-!!$          call set(dict // DFT_VARIABLES // DISABLE_SYM,.true.)
-!!$       end if
-!!$    end if
+!!$    symbool=.true.
+!!$    free=.false.
+!!$    ! Overriding the default for isolated system
+!!$    tmpdft = dict .get. DFT_VARIABLES
+!!$    if (associated(tmpdft)) symbool=DISABLE_SYM .notin. tmpdft
+!!$    tmppos = dict .get. POSINP
+!!$    if (associated(tmppos)) free =ASTRUCT_CELL .notin. tmppos
+!!$
+!!$    
+!!$    if (free .and. symbool) call set(dict // DFT_VARIABLES // DISABLE_SYM,.true.)
+!!$
+!!$
+    if ((POSINP .in. dict) .and. (DFT_VARIABLES .in. dict) ) then
+       free=ASTRUCT_CELL .notin. dict//POSINP
+       dftvar=DISABLE_SYM .notin. dict//DFT_VARIABLES
+       if (free .and. dftvar) then
+          call set(dict // DFT_VARIABLES // DISABLE_SYM,.true.)
+       end if
+    end if
 
 
     nested=>list_new(.item. LIN_BASIS_PARAMS)
