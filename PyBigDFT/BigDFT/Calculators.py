@@ -1,32 +1,37 @@
-"""file for BigDFT calculators"""
+"""
+This module defines some classes to perform a calculation using BigDFT
+using binding (GIBinding) or using system call (SystemCalculator).
 
-#The goal is to have a light Calculator almost compatible with ASE (Atomic Simulation environment, see https://gitlab.com/ase/ase)
-#In a future we add our method to ASE which is at a higher level (workflow of simulations)
-# from ase import Atoms
-# from ase.optimize import BFGS
-# from ase.calculators.nwchem import NWChem
-# from ase.io import write
-# h2 = Atoms('H2',
-#            positions=[[0, 0, 0],
-#                       [0, 0, 0.7]])
-# h2.calc = NWChem(xc='PBE')
-# opt = BFGS(h2, trajectory='h2.traj')
-# opt.run(fmax=0.02)
-# BFGS:   0  19:10:49    -31.435229     2.2691
-# BFGS:   1  19:10:50    -31.490773     0.3740
-# BFGS:   2  19:10:50    -31.492791     0.0630
-# BFGS:   3  19:10:51    -31.492848     0.0023
-# write('H2.xyz', h2)
-# h2.get_potential_energy()  # ASE's units are eV and Ang
-# -31.492847800329216
+The goal is to have a light Calculator almost compatible with ASE (Atomic Simulation environment, see https://gitlab.com/ase/ase)
+.. todo::
+    In a future we add our method to ASE which is at a higher level (workflow of simulations).
+:Example:
+   >>> from ase import Atoms
+   >>> from ase.optimize import BFGS
+   >>>  from ase.calculators.nwchem import NWChem
+   >>>  from ase.io import write
+   >>>  h2 = Atoms('H2',
+   >>>             positions=[[0, 0, 0],
+   >>>                        [0, 0, 0.7]])
+   >>>  h2.calc = NWChem(xc='PBE')
+   >>>  opt = BFGS(h2, trajectory='h2.traj')
+   >>>  opt.run(fmax=0.02)
+   >>>  BFGS:   0  19:10:49    -31.435229     2.2691
+   >>>  BFGS:   1  19:10:50    -31.490773     0.3740
+   >>>  BFGS:   2  19:10:50    -31.492791     0.0630
+   >>>  BFGS:   3  19:10:51    -31.492848     0.0023
+   >>>  write('H2.xyz', h2)
+   >>>  h2.get_potential_energy()  # ASE's units are eV and Ang
+   >>>  -31.492847800329216
 
-#In our case for the class SystemCalculator which uses system calls:
-#We define posinp (equivalent of Atoms)
-#We have a python dictionary for the parameter
-#We define a calculator (equivalent of BFGS which is an Optimizer (a method to optimize))
-#Then we do run
+In our case for the class SystemCalculator which uses system calls:
+* We define posinp (equivalent of Atoms)
+* We have a python dictionary for the parameter
+* We define a calculator (equivalent of BFGS which is an Optimizer (a method to optimize))
+Then we perform the method run.
 
-#For the class GIBinding using the Gobject Introspection bindings, two methods set and update are added.
+For the class GIBinding using the Gobject Introspection bindings, two methods set and update are added.
+"""
 
 import os
 import shutil
@@ -35,7 +40,9 @@ from futile.Utils import write as safe_print
 import BigDFT.Logfiles as Lf
 
 class GIBinding():
-    """Calculator for BigDFT from Gobject Introspection bindings"""
+    """
+    Calculator for BigDFT from Gobject Introspection bindings.
+    """
 
     def __init__(self):
         #Import bindings about BigDFT (if the bindings are not generated, do not work at all)
@@ -79,13 +86,33 @@ class GIBinding():
 
 
 class SystemCalculator():
-    """Define the calculator from the system"""
+    """
+    Define a BigDFT calculator.
+
+    :param int omp: number of OpenMP threads (if none set to $OMP_NUM_THREADS)
+    :param int mpi: number of MPI processes (if none set to 1)
+    :param str mpi_run: define the MPI command to be used
+
+    Check is the environment variable $BIGDFT_ROOT is defined.
+    Use also two environment variables:
+        * OMP_NUM_THREADS to set the number of OMP_NUM_THREADS
+        * BIGDFT_ROOT_MPIRUN to define the MPI execution command.
+
+    :Example:
+        >>> dico = { 'dft': { 'ixc': 'LDA' }}
+        >>> study = SystemCalculator(omp=1)
+        >>> logf = study.run(name="test",input=dico)
+    """
 
     def __init__(self, omp=None, mpi=1,mpi_run=None):
-        """Initialize the SystemCalculator defining the Unix command, the number of openMP threads and MPI processes."""
+        """
+        Initialize the SystemCalculator defining the Unix command, the number of openMP threads and MPI processes.
+        """
         # Save variables for future use
         if omp == None:
             self.omp = os.environ.setdefault('OMP_NUM_THREADS','1')
+        else:
+            self.omp = str(omp)
         self.mpi = str(mpi)
         # Verify if $BIGDFT_ROOT is in the environment
         assert 'BIGDFT_ROOT' in os.environ
@@ -99,9 +126,21 @@ class SystemCalculator():
         safe_print('Initialize a Calculator with OMP_NUM_THREADS=%s and command %s' % (self.omp,self.command) )
 
     def run(self, name='', outdir='', run_name='', input=None, posinp=None, skip=False):
-        """Run a calculation building the input file from a dictionary.
-           a Logfile instance is returned.
-           The 'skip' option avoids to rerun the calculation."""
+        """
+        Run a calculation building the input file from a dictionary.
+
+        :param str name: naming schme of the run i.e. <name>.yaml is the input file and log-<name>.yaml the output one.
+        :param str outdir: specify the output directory
+        :param str run_name: File containing the list of the run ids which have to be launched independently 
+                             (list in yaml format). The option runs-file is not compatible with the name option.
+        :param input: give the input parameters
+        :type input: dict or filename
+        :param bool skip: avoid to rerun the calculation. Check if the file log-<name> already exists.
+        :param posinp: indicate the posinp file (atomic position file)
+        :type posinp: filename
+        :return: a Logfile instance is returned.
+        :rtype: Logfile
+        """
         # Set the number of omp threads
         os.environ['OMP_NUM_THREADS'] = self.omp
         # Creating the yaml input file from a dictionary or another file
