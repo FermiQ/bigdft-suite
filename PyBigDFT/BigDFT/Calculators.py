@@ -5,30 +5,6 @@ using binding (GIBinding) or using system call (SystemCalculator).
 The goal is to have a light Calculator almost compatible with ASE (Atomic Simulation environment, see https://gitlab.com/ase/ase)
 .. todo::
     In a future we add our method to ASE which is at a higher level (workflow of simulations).
-:Example:
-   >>> from ase import Atoms
-   >>> from ase.optimize import BFGS
-   >>>  from ase.calculators.nwchem import NWChem
-   >>>  from ase.io import write
-   >>>  h2 = Atoms('H2',
-   >>>             positions=[[0, 0, 0],
-   >>>                        [0, 0, 0.7]])
-   >>>  h2.calc = NWChem(xc='PBE')
-   >>>  opt = BFGS(h2, trajectory='h2.traj')
-   >>>  opt.run(fmax=0.02)
-   >>>  BFGS:   0  19:10:49    -31.435229     2.2691
-   >>>  BFGS:   1  19:10:50    -31.490773     0.3740
-   >>>  BFGS:   2  19:10:50    -31.492791     0.0630
-   >>>  BFGS:   3  19:10:51    -31.492848     0.0023
-   >>>  write('H2.xyz', h2)
-   >>>  h2.get_potential_energy()  # ASE's units are eV and Ang
-   >>>  -31.492847800329216
-
-In our case for the class SystemCalculator which uses system calls:
-* We define posinp (equivalent of Atoms)
-* We have a python dictionary for the parameter
-* We define a calculator (equivalent of BFGS which is an Optimizer (a method to optimize))
-Then we perform the method run.
 
 For the class GIBinding using the Gobject Introspection bindings, two methods set and update are added.
 """
@@ -92,6 +68,8 @@ class SystemCalculator():
     :param int omp: number of OpenMP threads (if none set to $OMP_NUM_THREADS)
     :param int mpi: number of MPI processes (if none set to 1)
     :param str mpi_run: define the MPI command to be used
+    :param bool skip: if True, do not run the calculation if the corresponding logfile exists.
+    :param bool verbose: default verbosity (2 levels true or False)
 
     Check is the environment variable $BIGDFT_ROOT is defined.
     Use also two environment variables:
@@ -104,7 +82,7 @@ class SystemCalculator():
         >>> logf = study.run(name="test",input=dico)
     """
 
-    def __init__(self, omp=None, mpi=1,mpi_run=None):
+    def __init__(self, omp=None, mpi=1,mpi_run=None,skip=False,verbose=True):
         """
         Initialize the SystemCalculator defining the Unix command, the number of openMP threads and MPI processes.
         """
@@ -114,6 +92,10 @@ class SystemCalculator():
         else:
             self.omp = str(omp)
         self.mpi = str(mpi)
+        #Default value for all runs
+        self.skip = skip
+        #Default values for all runs
+        self.verbose = verbose
         # Verify if $BIGDFT_ROOT is in the environment
         assert 'BIGDFT_ROOT' in os.environ
         if mpi_run == None:
@@ -125,7 +107,7 @@ class SystemCalculator():
         self.command =  mpi_run + os.environ['BIGDFT_ROOT']+'/bigdft'
         safe_print('Initialize a Calculator with OMP_NUM_THREADS=%s and command %s' % (self.omp,self.command) )
 
-    def run(self, name='', outdir='', run_name='', input=None, posinp=None, skip=False):
+    def run(self, name='', outdir='', run_name='', input=None, posinp=None, skip=None,verbose=None):
         """
         Run a calculation building the input file from a dictionary.
 
@@ -136,6 +118,7 @@ class SystemCalculator():
         :param input: give the input parameters
         :type input: dict or filename
         :param bool skip: avoid to rerun the calculation. Check if the file log-<name> already exists.
+        :param bool verbose: verbosity
         :param posinp: indicate the posinp file (atomic position file)
         :type posinp: filename
         :return: a Logfile instance is returned.
@@ -144,6 +127,8 @@ class SystemCalculator():
         # Set the number of omp threads
         os.environ['OMP_NUM_THREADS'] = self.omp
         # Creating the yaml input file from a dictionary or another file
+        if skip == None: skip = self.skip
+        if verbose == None: verbose = self.verbose
         if len(name) > 0:
             input_file = "%s.yaml" % name
             logname = "log-%s.yaml" % name
@@ -157,24 +142,24 @@ class SystemCalculator():
             if isinstance(input,dict):
                 #Add into the dictionary a posinp key
                 input['posinp'] = posinp
-                safe_print('Add a "posinp" key with the value "%s" into the dictionary input' % posinp)
+                if verbose: safe_print('Add a "posinp" key with the value "%s" into the dictionary input' % posinp)
             else:
                 if len(name) > 0:
                     fn,fn_ext = os.path.splitext(posinp)
                     posinp_file = name+fn_ext
                 if posinp != posinp_file:
                     shutil.copyfile(posinp,posinp_file)
-                    safe_print('Copying from "%s" the posinp file "%s"' % (posinp,posinp_file))
+                    if verbose: safe_print('Copying from "%s" the posinp file "%s"' % (posinp,posinp_file))
         if isinstance(input,dict):
             #Creating the yaml input file
             yaml.dump(input,stream=open(input_file,"w"),default_flow_style=False)
-            safe_print('Creating from a dictionary the yaml input file "%s"' % input_file)
+            if verbose: safe_print('Creating from a dictionary the yaml input file "%s"' % input_file)
         elif isinstance(input,str):
              #Check if the file input does exist
             assert os.path.exists(input)
             if input != input_file:
                 shutil.copyfile(input,input_file)
-                safe_print('Copying from "%s" the yaml input file "%s"' % (input,input_file))
+                if verbose: safe_print('Copying from "%s" the yaml input file "%s"' % (input,input_file))
         # Adjust the command line with options
         command = self.command
         if len(name) > 0:
