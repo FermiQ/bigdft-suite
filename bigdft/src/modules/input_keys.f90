@@ -1040,12 +1040,14 @@ contains
 
     call f_routine(id='input_keys_fill_all')
 
+    symbool=.true.
+    free=.false.
     ! Overriding the default for isolated system
     tmpdft = dict .get. DFT_VARIABLES
-    symbool = .if. associated(tmpdft) .then. (DISABLE_SYM .notin. tmpdft) .else. .true.
-
+    if (associated(tmpdft)) symbool=DISABLE_SYM .notin. tmpdft
     tmppos = dict .get. POSINP
-    free = .if. associated(tmppos) .then. (ASTRUCT_CELL .notin. tmppos) .else. .false.
+    if (associated(tmppos)) free =ASTRUCT_CELL .notin. tmppos
+
     
     if (free .and. symbool) call set(dict // DFT_VARIABLES // DISABLE_SYM,.true.)
 
