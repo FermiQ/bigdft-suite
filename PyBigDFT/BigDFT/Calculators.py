@@ -106,7 +106,7 @@ class SystemCalculator():
       When using this calculator into a job submission script, the value of
       $BIGDFT_MPIRUN variable may be set appropriately to launch the bigdft executable.
 
-    Check is the environment variable $BIGDFT_ROOT is defined.
+    Check if the environment variable $BIGDFT_ROOT is defined.
     This is a signal that the environment has been properly set
     prior to the evaluation of the python command.
     Use also two environment variables:
@@ -151,12 +151,12 @@ class SystemCalculator():
         :type input: dict or yaml filename
         :param bool skip: avoid to rerun the calculation, in case it has been already performed.
         :param posinp: indicate the posinp file (atomic position file). 
-           It may be specified only when the input is given as a dictionary, otherwise it should be consistent with the inputfile naming scheme.
+           It may be specified only when the input is given as a dictionary, otherwise it is ignored: the position file should be consistent with the inputfile naming scheme.
         :type posinp: filename
         :return: a Logfile instance is returned. It returns None if an error occurred
-        :rtype: class::Logfile
+        :rtype: Logfile
 
-        ..todo::
+        .. todo::
            
            Set the return value of run in the case of a run_file. It should be a list of Logfile classes
 
