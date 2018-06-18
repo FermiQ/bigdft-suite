@@ -17,6 +17,7 @@ program mpi_check
   use f_enums
   use test_mpi_wrappers
   implicit none
+
   logical :: failed
   integer :: ntot,ierr,i,iproc,nproc,nspin,nother
   integer, dimension(:,:), allocatable  :: isizes
