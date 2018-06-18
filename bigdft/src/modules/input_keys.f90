@@ -1023,14 +1023,15 @@ contains
     use dictionaries
     use PStypes, only: PS_input_dict
     use chess_base, only: chess_input_dict
+    use f_ternary
     !use yaml_output
     implicit none
     type(dictionary), pointer :: dict,dict_minimal
     !local variables
-    type(dictionary), pointer :: as_is,nested,dict_ps_min,dict_chess_min,tmp
+    type(dictionary), pointer :: as_is,nested,dict_ps_min,dict_chess_min,tmp,tmpdft,tmppos
     character(max_field_length) :: meth
     real(gp) :: dtmax_, betax_
-    logical :: free,dftvar
+    logical :: free,dftvar,symbool
     integer :: nat
     integer, parameter :: natoms_dump = 500
 
@@ -1040,13 +1041,24 @@ contains
     call f_routine(id='input_keys_fill_all')
 
     ! Overriding the default for isolated system
-    if ((POSINP .in. dict) .and. (DFT_VARIABLES .in. dict) ) then
-       free=ASTRUCT_CELL .notin. dict//POSINP
-       dftvar=DISABLE_SYM .notin. dict//DFT_VARIABLES
-       if (free .and. dftvar) then
-          call set(dict // DFT_VARIABLES // DISABLE_SYM,.true.)
-       end if
-    end if
+    tmpdft = dict .get. DFT_VARIABLES
+    symbool = .if. associated(tmpdft) .then. (DISABLE_SYM .notin. tmpdft) .else. .true.
+
+    tmppos = dict .get. POSINP
+    free = .if. associated(tmppos) .then. (ASTRUCT_CELL .notin. tmppos) .else. .false.
+    
+    if (free .and. symbool) call set(dict // DFT_VARIABLES // DISABLE_SYM,.true.)
+
+
+!!$    if ((POSINP .in. dict) .and. (DFT_VARIABLES .in. dict) ) then
+!!$       free=ASTRUCT_CELL .notin. dict//POSINP
+!!$       dftvar=DISABLE_SYM .notin. dict//DFT_VARIABLES
+!!$       if (free .and. dftvar) then
+!!$          call set(dict // DFT_VARIABLES // DISABLE_SYM,.true.)
+!!$       end if
+!!$    end if
+
+
     nested=>list_new(.item. LIN_BASIS_PARAMS)
 
 
