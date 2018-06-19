@@ -265,7 +265,7 @@ run_message:
 	@for i in *.out.ref.yaml ; do \
 	name=`basename $$i .out.ref.yaml | $(SED) "s/[^_]*_\?\(.*\)$$/\1/"` ; \
 	if !(test -z "$$name" -o  "$$name" = memguess); then \
-	   if test ! -f $$name".yaml"; then \
+	   if (test ! -f $$name".yaml") && (test ! -f "prepare_QMQM.py"); then \
 	      echo "$(run_serial) $(abs_top_builddir)/src/bigdft-tool -l -n 1 --name=$$name"; \
 	      $(run_serial) $(abs_top_builddir)/src/bigdft-tool -l -n 1 --name=$$name; \
 	   fi; \

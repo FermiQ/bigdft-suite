@@ -60,7 +60,7 @@ mpif.h:
 	echo "integer, parameter :: MPI_IN_PLACE=0" >> mpif.h &&\
 	echo "real(kind=8), external :: mpi_wtime" >> mpif.h
 
-libfmpi_a_SOURCES = scalars.f90 allreduce.f90 alltoall.f90 onesided.f90 allgather.f90 bcast.f90 gather.f90 \
+libfmpi_a_SOURCES = scalars.f90 allreduce.f90 alltoall.f90 onesided.f90 allgather.f90 bcast.f90 gather.f90 sendrecv.f90 \
 	mpi.F90 $(mpi_source) test_mpi_wrappers.f90
 
 $(modules): $(libfmpi_a_OBJECTS)
@@ -73,6 +73,7 @@ alltoall.o: $(ALLTOALL_INCLUDES) allreduce.o onesided.o
 allgather.o: $(ALLGATHER_INCLUDES) scalars.o onesided.o bcast.o
 bcast.o: $(BCAST_INCLUDES) scalars.o allreduce.o gather.o
 gather.o: $(GATHER_INCLUDES) scalars.o
+sendrecv.o: scalars.o
 #control.o: scalars.o bcast.o allgather.o
 
 AM_FCFLAGS = -I. -I$(top_builddir)/dicts/ -I$(top_builddir)/flib/ @MPI_INCLUDE@
@@ -85,6 +86,7 @@ modules = WRAPPER_MPI.@MODULE_EXT@ \
 	FMPI_TYPES.@MODULE_EXT@ \
 	F_ALLREDUCE.@MODULE_EXT@ \
 	F_ONESIDED.@MODULE_EXT@ \
+	F_SENDRECV.@MODULE_EXT@ \
 	F_ALLGATHER.@MODULE_EXT@ \
 	F_BCAST.@MODULE_EXT@ \
 	F_GATHER.@MODULE_EXT@ \
@@ -96,6 +98,7 @@ modules = wrapper_mpi.@MODULE_EXT@ \
 	fmpi_types.@MODULE_EXT@ \
 	f_allreduce.@MODULE_EXT@ \
 	f_onesided.@MODULE_EXT@ \
+	f_sendrecv.@MODULE_EXT@ \
 	f_allgather.@MODULE_EXT@ \
 	f_bcast.@MODULE_EXT@ \
 	f_gather.@MODULE_EXT@ \

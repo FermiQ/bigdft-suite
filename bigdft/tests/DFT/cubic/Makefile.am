@@ -33,7 +33,9 @@ SHORT_TESTDIRS += C \
 	O2-Spin \
 	NLCC \
 	AgBulk \
-	PAW-GGA
+	PAW-GGA \
+        Mg-cubic \
+        Na8-periodic
 
 LONG_TESTDIRS += $(SHORT_TESTDIRS) \
 	  Li+ \

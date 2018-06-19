@@ -368,13 +368,14 @@ end subroutine glr_set_wave_descriptors
 
 subroutine glr_set_bounds(lr)
   use locregs
-  use bounds, only: locreg_bounds
+  !use bounds, only: locreg_bounds
   implicit none
   type(locreg_descriptors), intent(inout) :: lr
   
-  call locreg_bounds(lr%d%n1,lr%d%n2,lr%d%n3, &
-       & lr%d%nfl1,lr%d%nfu1,lr%d%nfl2,lr%d%nfu2,lr%d%nfl3,lr%d%nfu3, &
-       & lr%wfd,lr%bounds)
+  call ensure_locreg_bounds(lr)
+  !call locreg_bounds(lr%d%n1,lr%d%n2,lr%d%n3, &
+  !     & lr%d%nfl1,lr%d%nfu1,lr%d%nfl2,lr%d%nfu2,lr%d%nfl3,lr%d%nfu3, &
+  !     & lr%wfd,lr%bounds)
 END SUBROUTINE glr_set_bounds
 
 
@@ -1235,6 +1236,7 @@ subroutine wf_iorbp_to_psi(psir, psi, lr)
   use module_base, only: wp,f_zero
   use locregs
   use locreg_operations
+  use box, only: cell_geocode
   implicit none
   type(locreg_descriptors), intent(in) :: lr
   real(wp), dimension(lr%wfd%nvctr_c+7*lr%wfd%nvctr_f), intent(in) :: psi
@@ -1246,7 +1248,8 @@ subroutine wf_iorbp_to_psi(psir, psi, lr)
   call initialize_work_arrays_sumrho(lr,.true.,w)
 
   !initialisation
-  if (lr%geocode == 'F') then
+  !if (lr%geocode == 'F') then
+  if (cell_geocode(lr%mesh_coarse) == 'F') then
      call f_zero(psir)
   end if
 

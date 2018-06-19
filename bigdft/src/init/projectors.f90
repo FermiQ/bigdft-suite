@@ -103,8 +103,8 @@ subroutine localize_projectors(iproc,nproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,
         !shift of the locreg for the origin of the
         !coordinate system
         call init_lr(nl%projs(iat)%region%plr, 'F', 0.5_gp * [hx, hy, hz], &
-             & n1t, n2t, n3t, nl1, nl2, nl3, nu1, nu2, nu3, &
-             & .false., ns1t, ns2t, ns3t, at%astruct%geocode)
+             n1t, n2t, n3t, nl1, nl2, nl3, nu1, nu2, nu3, &
+             .false., ns1t, ns2t, ns3t, at%astruct%geocode)
 
         nl%projs(iat)%region%plr%wfd%nseg_f=mseg
         nl%projs(iat)%region%plr%wfd%nvctr_f=mvctr

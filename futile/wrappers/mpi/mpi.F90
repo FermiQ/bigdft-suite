@@ -22,6 +22,7 @@ module wrapper_MPI
   use dictionaries, only: f_err_throw
   use mpif_module
   use fmpi_types!, only: ERR_MPI_WRAPPERS
+  use f_sendrecv
   use f_allreduce
   use f_onesided
   use f_alltoall
@@ -47,9 +48,6 @@ module wrapper_MPI
 
   !> Timing categories
   integer, public, save :: TCAT_SCATTER      = TIMING_UNINITIALIZED
-  integer, public, save :: TCAT_SEND         = TIMING_UNINITIALIZED
-  integer, public, save :: TCAT_RECV         = TIMING_UNINITIALIZED
-  integer, public, save :: TCAT_WAIT         = TIMING_UNINITIALIZED
 
   interface mpiscatter
       module procedure mpiscatter_i1i1
@@ -59,14 +57,6 @@ module wrapper_MPI
      module procedure mpiscatterv_d0
      module procedure mpiscatterv_d2d3,mpiscatterv_d3d2
   end interface mpiscatterv
-
-  interface mpisend
-     module procedure mpisend_d0, mpisend_gpu
-  end interface mpisend
-
-  interface mpirecv
-     module procedure mpirecv_d0,mpirecv_gpu
-  end interface mpirecv
 
 
 !!$  interface mpiaccumulate
@@ -304,31 +294,6 @@ contains
    
   end subroutine mpi_environment_dict
 
-
-  function mpimaxtag(comm)
-    implicit none
-    integer, intent(in), optional :: comm
-    integer(kind=MPI_ADDRESS_KIND) :: mpimaxtag
-    !local variables
-    logical :: flag
-    integer :: comm_,ierr
-
-    if (present(comm)) then
-       comm_=comm
-    else
-       comm_=mpiworld()
-    end if
-
-    call MPI_COMM_GET_ATTR(comm_,MPI_TAG_UB,mpimaxtag,flag,ierr)
-   
-    !error check
-    if (ierr /= MPI_SUCCESS .or. .not. flag) then
-       call f_err_throw('An error in calling to mpimaxtag occured',&
-            err_id=ERR_MPI_WRAPPERS)
-    end if
-  end function mpimaxtag
-
-
 !!! PSolver n1-n2 plane mpi partitioning !!!
   !> This is exactly like mpi_environment_set but it always creates groups
   !! the routine above should be modified accordingly
@@ -466,11 +431,12 @@ contains
     !local variables
     integer :: ierr,mpi_comm
 
-    if (present(comm)) then
-       mpi_comm=comm
-    else
-       mpi_comm=MPI_COMM_WORLD
-    end if
+!!$    if (present(comm)) then
+!!$       mpi_comm=comm
+!!$    else
+!!$       mpi_comm=MPI_COMM_WORLD
+!!$    end if
+    mpi_comm=fmpi_comm(comm)
     call MPI_COMM_GROUP(mpi_comm,mpigroup,ierr)
     if (ierr /= 0) then
        mpigroup=mpigroup_null()
@@ -484,25 +450,6 @@ contains
     integer :: grp
     grp=MPI_GROUP_NULL
   end function mpigroup_null
-
-  pure function mpirank_null() result(iproc)
-    implicit none
-    integer :: iproc
-    iproc=MPI_PROC_NULL
-  end function mpirank_null
-
-  pure function mpicomm_null() result(comm)
-    implicit none
-    integer :: comm
-    comm=MPI_PROC_NULL
-  end function mpicomm_null
-
-  pure function mpirequest_null() result(request)
-    implicit none
-    integer :: request
-    request=MPI_REQUEST_NULL
-  end function mpirequest_null
-
 
   subroutine mpigroup_free(grp)
     implicit none
@@ -1018,333 +965,6 @@ contains
     end if
 
   end function p2p_group
-
-  subroutine mpisend_d0(buf,count,dest,tag,comm,request,simulate,verbose,type)
-    use yaml_output
-    implicit none
-    real(f_double) :: buf !fake intent(in)
-    integer, intent(in) :: count
-    integer, intent(in) :: dest
-    integer, intent(in), optional :: tag
-    integer, intent(in), optional :: comm
-    integer, intent(out), optional :: request !<toggle the isend operation
-    logical, intent(in), optional :: simulate,verbose
-    integer, intent(in), optional :: type
-    !local variables
-    logical :: verb,sim
-    integer :: mpi_comm,ierr,tag_,tcat
-
-    mpi_comm=MPI_COMM_WORLD
-    if (present(comm)) mpi_comm=comm
-    if (present(tag)) then
-       tag_=tag
-    else
-       tag_=mpirank(mpi_comm)
-    end if
-   
-    verb=.false.
-    if (present(verbose)) verb=verbose .and. dest /=mpirank_null()
-
-    if (verb) then
-       call yaml_mapping_open('MPI_(I)SEND')
-       call yaml_map('Elements',count)
-       call yaml_map('Source',mpirank(mpi_comm))
-       call yaml_map('Dest',dest)
-       call yaml_map('Tag',tag_)
-       call yaml_mapping_close()
-    end if
-
-    sim=.false.
-    if (present(simulate)) sim=simulate
-    if (sim) return
-
-    tcat=TCAT_SEND
-    ! Synchronize the communication
-    call f_timer_interrupt(tcat)
-
-    if (present(type)) then
-      if (present(request)) then
-         call MPI_ISEND(buf,count,type,dest,tag,mpi_comm,request,ierr)
-      else
-         call MPI_SEND(buf,count,type,dest,tag,mpi_comm,ierr)
-      end if
-    else
-      if (present(request)) then
-         call MPI_ISEND(buf,count,mpitype(buf),dest,tag,mpi_comm,request,ierr)
-      else
-         call MPI_SEND(buf,count,mpitype(buf),dest,tag,mpi_comm,ierr)
-      end if
-    end if
-    call f_timer_resume()
-    if (ierr/=0) call f_err_throw('An error in calling to MPI_(I)SEND occured',&
-            err_id=ERR_MPI_WRAPPERS)
-
-  end subroutine mpisend_d0
-
-  subroutine mpisend_gpu(buf,count,dest,tag,comm,request,simulate,verbose,type,offset)
-    use yaml_output
-    use iso_c_binding
-    use f_precisions, only: f_address
-    implicit none
-    type(c_ptr) :: buf !fake intent(in)
-    integer, intent(in) :: count
-    integer, intent(in) :: dest
-    integer, intent(in), optional :: tag
-    integer, intent(in), optional :: comm
-    integer, intent(out), optional :: request !<toggle the isend operation
-    logical, intent(in), optional :: simulate,verbose
-    integer, intent(in) :: type
-    integer, intent(in), optional :: offset
-    real(f_double),pointer :: a !fake intent(in)
-    !local variables
-    logical :: verb,sim
-    integer :: mpi_comm,ierr,tag_,tmpsize,tcat
-    integer(f_address) tmpint
-    type(c_ptr) :: tmpaddr
-
-    mpi_comm=MPI_COMM_WORLD
-    if (present(comm)) mpi_comm=comm
-    if (present(tag)) then
-       tag_=tag
-    else
-       tag_=mpirank(mpi_comm)
-    end if
-
-    verb=.false.
-    if (present(verbose)) verb=verbose .and. dest /=mpirank_null()
-
-    if (verb) then
-       call yaml_mapping_open('MPI_(I)SEND')
-       call yaml_map('Elements',count)
-       call yaml_map('Source',mpirank(mpi_comm))
-       call yaml_map('Dest',dest)
-       call yaml_map('Tag',tag_)
-       call yaml_mapping_close()
-    end if
-
-    sim=.false.
-    if (present(simulate)) sim=simulate
-    if (sim) return
-
-    tcat=TCAT_SEND
-    ! Synchronize the communication
-    call f_timer_interrupt(tcat)
-    
-    !LG: this cannot be written like that (segfault on some compilers, see fortran spec)
-    !if(present(offset) .and. offset/=0)then
-    if (present(offset)) then
-       if (offset /=0) then
-          tmpint = TRANSFER(buf, tmpint)
-          call mpi_type_size(type, tmpsize, ierr)
-          tmpint = tmpint + offset*tmpsize
-          tmpaddr= TRANSFER(tmpint, tmpaddr)
-          call c_f_pointer(tmpaddr, a)
-       else
-          call c_f_pointer(buf, a)
-       end if
-    else
-      call c_f_pointer(buf, a)
-    end if
-    if (present(request)) then
-       call MPI_ISEND(a,count,type,dest,tag,mpi_comm,request,ierr)
-    else
-       call MPI_SEND(a,count,type,dest,tag,mpi_comm,ierr)
-    end if
-    call f_timer_resume()
-
-    if (ierr/=0) call f_err_throw('An error in calling to MPI_(I)SEND occured',&
-            err_id=ERR_MPI_WRAPPERS)
-
-  end subroutine mpisend_gpu
-
-  subroutine mpirecv_d0(buf,count,source,tag,comm,status,request,simulate,verbose,type)
-    use yaml_output
-    implicit none
-    real(f_double), intent(inout) :: buf !fake intent(out)
-    integer, intent(in) :: count
-    integer, intent(in), optional :: source
-    integer, intent(in), optional :: tag
-    integer, intent(in), optional :: comm
-    integer, intent(out), optional :: request !<toggle the isend operation
-    integer, dimension(MPI_STATUS_SIZE), intent(out), optional :: status !<for the blocking operation
-    logical, intent(in), optional :: simulate,verbose
-    integer, intent(in), optional :: type
-    !local variables
-    logical :: verb,sim
-    integer :: mpi_comm,ierr,mpi_source,mpi_tag,mpi_type,tcat
-
-    mpi_comm=MPI_COMM_WORLD
-    if (present(comm)) mpi_comm=comm
-    mpi_source=MPI_ANY_SOURCE
-    mpi_tag=MPI_ANY_TAG
-    if (present(source)) then
-       mpi_source=source
-       mpi_tag=source
-    end if
-    if (present(tag)) mpi_tag=tag
-    verb=.false.
-    if (present(verbose)) verb=verbose .and. source /= mpirank_null()
-    if (verb) call yaml_comment('Receiving'//count//'elements from'//source//'in'//mpirank(mpi_comm))
-
-    if (verb) then
-       call yaml_mapping_open('MPI_(I)RECV')
-       call yaml_map('Elements',count)
-       call yaml_map('Source',source)
-       call yaml_map('Dest',mpirank(mpi_comm))
-       call yaml_map('Tag',mpi_tag)
-       call yaml_mapping_close()
-    end if
-
-    sim=.false.
-    if (present(simulate)) sim=simulate
-    if (sim) return
-
-    tcat=TCAT_RECV
-    ! Synchronize the communication
-    call f_timer_interrupt(tcat)
-
-    if (present(type)) then
-      mpi_type=type
-    else
-      mpi_type=mpitype(buf)
-    end if
-    if (present(request)) then
-       call MPI_IRECV(buf,count,mpi_type,mpi_source,mpi_tag,mpi_comm,request,ierr)
-    else
-       if (present(status)) then
-          call MPI_RECV(buf,count,mpi_type,mpi_source,mpi_tag,mpi_comm,status,ierr)
-       else
-          call MPI_RECV(buf,count,mpi_type,mpi_source,mpi_tag,mpi_comm,MPI_STATUS_IGNORE,ierr)
-       end if
-    end if
-    call f_timer_resume()
-    if (ierr/=0) call f_err_throw('An error in calling to MPI_(I)RECV occured',&
-         err_id=ERR_MPI_WRAPPERS)
-
-  end subroutine mpirecv_d0
-
-  subroutine mpirecv_gpu(buf,count,source,tag,comm,status,request,simulate,verbose,type)
-    use yaml_output
-    use iso_c_binding
-    implicit none
-    type(c_ptr) :: buf !fake intent(in)
-    real(f_double),pointer:: a !fake intent(out)
-    integer, intent(in) :: count
-    integer, intent(in), optional :: source
-    integer, intent(in), optional :: tag
-    integer, intent(in), optional :: comm
-    integer, intent(out), optional :: request !<toggle the isend operation
-    integer, dimension(MPI_STATUS_SIZE), intent(out), optional :: status !<for the blocking operation
-    logical, intent(in), optional :: simulate,verbose
-    integer, intent(in) :: type
-    !local variables
-    logical :: verb,sim
-    integer :: mpi_comm,ierr,mpi_source,mpi_tag,mpi_type,tcat
-
-    mpi_comm=MPI_COMM_WORLD
-    if (present(comm)) mpi_comm=comm
-    mpi_source=MPI_ANY_SOURCE
-    mpi_tag=MPI_ANY_TAG
-    if (present(source)) then
-       mpi_source=source
-       mpi_tag=source
-    end if
-    if (present(tag)) mpi_tag=tag
-    verb=.false.
-    if (present(verbose)) verb=verbose .and. source /= mpirank_null()
-    if (verb) call yaml_comment('Receiving'//count//'elements from'//source//'in'//mpirank(mpi_comm))
-
-    if (verb) then
-       call yaml_mapping_open('MPI_(I)RECV')
-       call yaml_map('Elements',count)
-       call yaml_map('Source',source)
-       call yaml_map('Dest',mpirank(mpi_comm))
-       call yaml_map('Tag',mpi_tag)
-       call yaml_mapping_close()
-    end if
-
-    sim=.false.
-    if (present(simulate)) sim=simulate
-    if (sim) return
-
-    tcat=TCAT_RECV
-    ! Synchronize the communication
-    call f_timer_interrupt(tcat)
-
-    mpi_type=type
-    call c_f_pointer(buf, a)
-    if (present(request)) then
-       call MPI_IRECV(a,count,mpi_type,mpi_source,mpi_tag,mpi_comm,request,ierr)
-    else
-       if (present(status)) then
-          call MPI_RECV(a,count,mpi_type,mpi_source,mpi_tag,mpi_comm,status,ierr)
-       else
-          call MPI_RECV(a,count,mpi_type,mpi_source,mpi_tag,mpi_comm,MPI_STATUS_IGNORE,ierr)
-       end if
-    end if
-    call f_timer_resume()
-    if (ierr/=0) call f_err_throw('An error in calling to MPI_(I)RECV occured',&
-         err_id=ERR_MPI_WRAPPERS)
-
-  end subroutine mpirecv_gpu
-
-  subroutine mpiwaitall(ncount, array_of_requests,array_of_statuses,simulate)
-    use dictionaries, only: f_err_throw,f_err_define
-    implicit none
-    ! Local variables
-    integer, intent(in) :: ncount
-    integer, dimension(ncount),intent(in) :: array_of_requests
-    logical, intent(in), optional :: simulate
-    integer, dimension(MPI_STATUS_SIZE,ncount), intent(out), optional :: array_of_statuses
-    ! Local variables
-    logical :: sim
-    integer :: ierr,tcat
-
-    !no wait if no requests
-    if (ncount==0) return
-
-    sim=.false.
-    if (present(simulate)) sim=simulate
-    if (sim) return
-
-    tcat=TCAT_WAIT
-    ! Synchronize the communication
-    call f_timer_interrupt(tcat)
-    if (present(array_of_statuses)) then
-       call mpi_waitall(ncount, array_of_requests,array_of_statuses, ierr)
-    else
-       call mpi_waitall(ncount, array_of_requests, MPI_STATUSES_IGNORE, ierr)
-    end if
-    call f_timer_resume()
-    if (ierr/=0) then
-       call f_err_throw('An error in calling to MPI_WAITALL occured',&
-            err_id=ERR_MPI_WRAPPERS)
-       return
-    end if
-
-  end subroutine mpiwaitall
-
-
-  subroutine mpiwait(request)
-    use dictionaries, only: f_err_throw,f_err_define
-    implicit none
-    ! Local variables
-    integer,intent(in) :: request
-    ! Local variables
-    integer :: ierr,tcat
-
-    if (request /= MPI_REQUEST_NULL) then
-       tcat=TCAT_WAIT
-       ! Synchronize the communication
-       call f_timer_interrupt(tcat)
-       call mpi_wait(request, MPI_STATUSES_IGNORE, ierr)
-       call f_timer_resume()
-       if (ierr/=0) then
-          call f_err_throw('An error in calling to MPI_WAIT occured',&
-               err_id=ERR_MPI_WRAPPERS)
-       end if
-    end if
-  end subroutine mpiwait
 
 end module wrapper_MPI
 

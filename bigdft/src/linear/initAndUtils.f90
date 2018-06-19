@@ -606,7 +606,7 @@ subroutine update_locreg(iproc, nproc, nlr, locrad, locrad_kernel, locrad_mult, 
   type(orbitals_data), intent(in) :: orbs_KS, orbs
   real(kind=8),dimension(3,nlr), intent(in) :: locregCenter
   type(locreg_descriptors), intent(in) :: glr_tmp
-  type(local_zone_descriptors), intent(inout) :: lzd
+  type(local_zone_descriptors), intent(inout) :: lzd !this is a intent(out)
   type(p2pComms), intent(inout) :: lbcomgp
   type(foe_data), intent(inout),optional :: lfoe
   type(comms_linear), intent(inout) :: lbcollcom

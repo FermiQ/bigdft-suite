@@ -724,7 +724,8 @@ subroutine LocalHamiltonianApplication(iproc,nproc,at,npsidim_orbs,orbs,&
 
      !here we have to add the round part
      if (present(psirocc) .and. present(orbsocc)) then
-        call exact_exchange_potential_virt(iproc,nproc,at%astruct%geocode,orbs%nspin,&
+!!$        call exact_exchange_potential_virt(iproc,nproc,at%astruct%geocode,orbs%nspin,&
+        call exact_exchange_potential_virt(iproc,nproc,orbs%nspin,&
              Lzd%Glr,orbsocc,orbs,ngatherarr(0,1),n3p,&
              0.5_gp*Lzd%hgrids(1),0.5_gp*Lzd%hgrids(2),0.5_gp*Lzd%hgrids(3),&
              pkernel,psirocc,psi,pot(ispot))
@@ -732,7 +733,8 @@ subroutine LocalHamiltonianApplication(iproc,nproc,at,npsidim_orbs,orbs,&
      else
         !here the condition for the scheme should be chosen
         if (.not. op2p_flag) then
-           call exact_exchange_potential(iproc,nproc,at%astruct%geocode,xc,orbs%nspin,&
+!!$           call exact_exchange_potential(iproc,nproc,at%astruct%geocode,xc,orbs%nspin,&
+           call exact_exchange_potential(iproc,nproc,xc,orbs%nspin,&
                 Lzd%Glr,orbs,ngatherarr(0,1),n3p,&
                 0.5_gp*Lzd%hgrids(1),0.5_gp*Lzd%hgrids(2),0.5_gp*Lzd%hgrids(3),&
                 pkernel,psi,pot(ispot),energs%eexctX)
@@ -1087,7 +1089,6 @@ subroutine NonLocalHamiltonianApplication(iproc,at,npsidim_orbs,orbs,&
   !apply the projectors  k-point of the processor
   !iterate over the orbital_basis
   psi_it=orbital_basis_iterator(psi_ob)
-
   loop_kpt: do while(ket_next_kpt(psi_it))
      loop_lr: do while(ket_next_locreg(psi_it,ikpt=psi_it%ikpt))
         call DFT_PSP_projectors_iter_new(psp_it, nl)

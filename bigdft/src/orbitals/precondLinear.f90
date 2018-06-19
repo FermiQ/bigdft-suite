@@ -79,7 +79,8 @@ subroutine solvePrecondEquation(iproc,nproc,lr,ncplx,ncong,cprecr,&
   ! Rewritten using axpy since precondition_preconditioner is now called with r instead of b
   call axpy(lr%wfd%nvctr_c+7*lr%wfd%nvctr_f, -1.d0, d(1), 1, r(1), 1)
 
-  call calculate_rmr_new(lr%geocode,lr%hybrid_on,ncplx,lr%wfd,scal,r,d,rmr_new)
+!!$  call calculate_rmr_new(lr%geocode,lr%hybrid_on,ncplx,lr%wfd,scal,r,d,rmr_new)
+  call calculate_rmr_new(lr%mesh,lr%hybrid_on,ncplx,lr%wfd,scal,r,d,rmr_new)
   !stands for
   !d=r
   !rmr_new=dot_product(r,r)
@@ -101,7 +102,8 @@ subroutine solvePrecondEquation(iproc,nproc,lr,ncplx,ncong,cprecr,&
 
      rmr_old=rmr_new
 
-     call calculate_rmr_new(lr%geocode,lr%hybrid_on,ncplx,lr%wfd,scal,r,b,rmr_new)
+!!$     call calculate_rmr_new(lr%geocode,lr%hybrid_on,ncplx,lr%wfd,scal,r,b,rmr_new)
+     call calculate_rmr_new(lr%mesh,lr%hybrid_on,ncplx,lr%wfd,scal,r,b,rmr_new)
 
      beta=rmr_new/rmr_old
 
@@ -111,7 +113,8 @@ subroutine solvePrecondEquation(iproc,nproc,lr,ncplx,ncong,cprecr,&
     
   enddo
 
-  call finalise_precond_residue(lr%geocode,lr%hybrid_on,ncplx,lr%wfd,scal,x)
+!!$  call finalise_precond_residue(lr%geocode,lr%hybrid_on,ncplx,lr%wfd,scal,x)
+  call finalise_precond_residue(lr%mesh,lr%hybrid_on,ncplx,lr%wfd,scal,x)
 
   !!call deallocate_workarrays_quartic_convolutions(work_conv)
 
@@ -133,6 +136,7 @@ subroutine differentiateBetweenBoundaryConditions(iproc,nproc,ncplx,lr,hx,hy,hz,
   use module_base
   use locregs
   use locreg_operations
+  use box, only: cell_geocode
   implicit none
   integer, intent(in) :: iproc,nproc,ncplx
   real(gp), intent(in) :: hx,hy,hz,cprecr,kx,ky,kz
@@ -150,7 +154,8 @@ subroutine differentiateBetweenBoundaryConditions(iproc,nproc,ncplx,lr,hx,hy,hz,
 
   call f_routine(id='differentiateBetweenBoundaryConditions')
 
-  if (lr%geocode == 'F') then
+!!$  if (lr%geocode == 'F') then
+  if (cell_geocode(lr%mesh) == 'F') then
      do idx=1,ncplx
         call applyOperator(iproc,nproc,lr%d%n1,lr%d%n2,lr%d%n3,&
              lr%d%nfl1,lr%d%nfu1,lr%d%nfl2,lr%d%nfu2,lr%d%nfl3,lr%d%nfu3, lr%ns1, lr%ns2, lr%ns3, &
@@ -167,7 +172,8 @@ subroutine differentiateBetweenBoundaryConditions(iproc,nproc,ncplx,lr,hx,hy,hz,
              w%xpsig_c,w%xpsig_f,w%ypsig_c,w%ypsig_f,&
              w%x_f1,w%x_f2,w%x_f3, work_conv)
      end do
-  else if (lr%geocode == 'P') then
+!!$  else if (lr%geocode == 'P') then
+  else if (cell_geocode(lr%mesh) == 'P') then
      if (lr%hybrid_on) then
 
         nf=(lr%d%nfu1-lr%d%nfl1+1)*(lr%d%nfu2-lr%d%nfl2+1)*(lr%d%nfu3-lr%d%nfl3+1)
@@ -195,7 +201,8 @@ subroutine differentiateBetweenBoundaryConditions(iproc,nproc,ncplx,lr,hx,hy,hz,
                 cprecr,hx,hy,hz,kx,ky,kz,x,y,w%psifscf,w%ww,scal) 
         end if
      end if
-  else if (lr%geocode == 'S') then
+!!$  else if (lr%geocode == 'S') then
+  else if (cell_geocode(lr%mesh) == 'S') then
      if (ncplx == 1) then
         call apply_hp_slab_sd(lr%d%n1,lr%d%n2,lr%d%n3,&
              lr%wfd%nseg_c,lr%wfd%nvctr_c,lr%wfd%nseg_f,&
@@ -209,7 +216,10 @@ subroutine differentiateBetweenBoundaryConditions(iproc,nproc,ncplx,lr,hx,hy,hz,
              cprecr,hx,hy,hz,kx,ky,kz,x,y,w%psifscf,w%ww) 
 
      end if
-   end if
+  else if (cell_geocode(lr%mesh) == 'W') then
+     call f_err_throw("Wires bc has to be implemented here", &
+          err_name='BIGDFT_RUNTIME_ERROR')
+  end if
 
   call f_release_routine()
 

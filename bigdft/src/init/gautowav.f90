@@ -395,16 +395,18 @@ subroutine parse_cp2k_files(iproc,basisfile,orbitalfile,nat,ntypes,orbs,iatype,r
 END SUBROUTINE parse_cp2k_files
 
 
-subroutine gaussians_to_wavelets(iproc,nproc,geocode,orbs,grid,hx,hy,hz,wfd,G,wfn_gau,psi)
+subroutine gaussians_to_wavelets(iproc,nproc,mesh,orbs,grid,hx,hy,hz,wfd,G,wfn_gau,psi)
   use module_base
   use module_types
   use yaml_output
   use gaussians
   use compression
   use locregs
+  use box, only: cell
   implicit none
-  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+!!$  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
   integer, intent(in) :: iproc,nproc
+  type(cell), intent(in) :: mesh
   real(gp), intent(in) :: hx,hy,hz
   type(grid_dimensions), intent(in) :: grid
   type(wavefunctions_descriptors), intent(in) :: wfd
@@ -472,7 +474,7 @@ subroutine gaussians_to_wavelets(iproc,nproc,geocode,orbs,grid,hx,hy,hz,wfd,G,wf
               end if
            end do loop_calc
            if (maycalc) then
-              call crtonewave(geocode,grid%n1,grid%n2,grid%n3,ng,nterm,lx,ly,lz,fac_arr,&
+              call crtonewave(mesh,grid%n1,grid%n2,grid%n3,ng,nterm,lx,ly,lz,fac_arr,&
                    G%xp(:,iexpo),G%psiat(:,iexpo),&
                    rx,ry,rz,hx,hy,hz,&
                    0,grid%n1,0,grid%n2,0,grid%n3,&
@@ -711,6 +713,7 @@ subroutine gaussians_to_wavelets_orb(ncplx,lr,hx,hy,hz,kx,ky,kz,G,wfn_gau,psi)
   use module_types
   use gaussians
   use locregs
+  use box, only: cell_periodic_dims
   implicit none
   integer,parameter:: ncplx_g=1 !this is true for NC pseudos
   integer, intent(in) :: ncplx
@@ -722,7 +725,7 @@ subroutine gaussians_to_wavelets_orb(ncplx,lr,hx,hy,hz,kx,ky,kz,G,wfn_gau,psi)
   !local variables
   character(len=*), parameter :: subname='gaussians_to_wavelets_orb'
   integer, parameter :: nterm_max=3,maxsizeKB=2048,nw=65536
-  logical :: perx,pery,perz
+!!  logical :: perx,pery,perz
   integer :: ishell,iexpo,icoeff,iat,isat,ng,l,m,i,nterm,ig
 !! integer :: i_stat,i_all,
   integer :: nterms_max,nterms,iterm,n_gau,ml1,mu1,ml2,mu2,ml3,mu3 !n(c) iscoeff
@@ -732,6 +735,7 @@ subroutine gaussians_to_wavelets_orb(ncplx,lr,hx,hy,hz,kx,ky,kz,G,wfn_gau,psi)
   real(gp), dimension(nterm_max) :: fac_arr
   real(wp), allocatable, dimension(:,:,:) :: work
   real(wp), allocatable, dimension(:,:,:,:) :: wx,wy,wz
+  logical, dimension(3) :: peri
 
   !calculate nterms_max:
   !allows only maxsizeKB per one-dimensional array
@@ -745,9 +749,10 @@ subroutine gaussians_to_wavelets_orb(ncplx,lr,hx,hy,hz,kx,ky,kz,G,wfn_gau,psi)
   wz = f_malloc((/ 1.to.ncplx, 0.to.lr%d%n3, 1.to.2, 1.to.nterms_max /),id='wz')
 
   !conditions for periodicity in the three directions
-  perx=(lr%geocode /= 'F')
-  pery=(lr%geocode == 'P')
-  perz=(lr%geocode /= 'F')
+!!$  perx=(lr%geocode /= 'F')
+!!$  pery=(lr%geocode == 'P')
+!!$  perz=(lr%geocode /= 'F')
+  peri=cell_periodic_dims(lr%mesh_coarse)
 
   !initialize the wavefunction
   call f_zero(psi)
@@ -797,18 +802,18 @@ subroutine gaussians_to_wavelets_orb(ncplx,lr,hx,hy,hz,kx,ky,kz,G,wfn_gau,psi)
                     n_gau=lx(i)
                     call gauss_to_daub_k(hx,kx*hx,ncplx,ncplx_g,ncplx,fac_arr(i),rx,gau_a,n_gau,&
                          lr%ns1,lr%d%n1,ml1,mu1,&
-                         wx(1,0,1,iterm),work,nw,perx,gau_cut)
+                         wx(1,0,1,iterm),work,nw,peri(1),gau_cut)
                     !write(*,'(a,2i7,f9.2,i7)') 'iat, m, rx, n1', iat, m, rx, lr%d%n1
                     !print *,'x',gau_a,nterm,ncplx,kx,ky,kz,ml1,mu1,lr%d%n1
                     n_gau=ly(i)
                     call gauss_to_daub_k(hy,ky*hy,ncplx,ncplx_g,ncplx,wfn_gau(icoeff),ry,gau_a,n_gau,&
                          lr%ns2,lr%d%n2,ml2,mu2,&
-                         wy(1,0,1,iterm),work,nw,pery,gau_cut)
+                         wy(1,0,1,iterm),work,nw,peri(2),gau_cut)
                     !print *,'y',ml2,mu2,lr%d%n2
                     n_gau=lz(i)
                     call gauss_to_daub_k(hz,kz*hz,ncplx,ncplx_g,ncplx,G%psiat(:,iexpo+ig-1),rz,gau_a,n_gau,&
                          lr%ns3,lr%d%n3,ml3,mu3,&
-                         wz(1,0,1,iterm),work,nw,perz,gau_cut)
+                         wz(1,0,1,iterm),work,nw,peri(3),gau_cut)
                     !print *,'z',ml3,mu3,lr%d%n3
                     iterm=iterm+1
                  end do
@@ -841,6 +846,7 @@ subroutine gaussians_c_to_wavelets_orb(ncplx,lr,hx,hy,hz,kx,ky,kz,G,wfn_gau,psi,
   use module_types
   use gaussians
   use locregs
+  use box, only: cell_periodic_dims
   implicit none
   integer, intent(in) :: ncplx
   real(gp), intent(in) :: hx,hy,hz,kx,ky,kz
@@ -864,6 +870,7 @@ subroutine gaussians_c_to_wavelets_orb(ncplx,lr,hx,hy,hz,kx,ky,kz,G,wfn_gau,psi,
   real(wp), allocatable, dimension(:,  :,:,:,:) :: wx,wy,wz
   real(wp), allocatable, dimension(:,:) :: cossinfacts
   integer :: ncplxC
+  logical, dimension(3) :: peri
 
   ncplxC=2
 
@@ -885,9 +892,13 @@ subroutine gaussians_c_to_wavelets_orb(ncplx,lr,hx,hy,hz,kx,ky,kz,G,wfn_gau,psi,
 
 
   !conditions for periodicity in the three directions
-  perx=(lr%geocode /= 'F')
-  pery=(lr%geocode == 'P')
-  perz=(lr%geocode /= 'F')
+!!$  perx=(lr%geocode /= 'F')
+!!$  pery=(lr%geocode == 'P')
+!!$  perz=(lr%geocode /= 'F')
+  peri=cell_periodic_dims(lr%mesh)
+  perx=peri(1)
+  pery=peri(2)
+  perz=peri(3)
 
   !initialize the wavefunction
   call f_zero(psi)
@@ -1827,15 +1838,17 @@ END SUBROUTINE segments_to_grid
 
 
 !> Parse the output of CP2K to read the basis set information
-subroutine gautowav(geocode,iproc,nproc,nat,ntypes,norb,norbp,n1,n2,n3,&
+subroutine gautowav(mesh,iproc,nproc,nat,ntypes,norb,norbp,n1,n2,n3,&
      nfl1,nfu1,nfl2,nfu2,nfl3,nfu3,&
      nvctr_c,nvctr_f,nseg_c,nseg_f,keyg,keyv,iatype,rxyz,hx,hy,hz,psi) !n(c) occup (arg:l-5)
   use module_base
   use module_types
   use gaussians
   use yaml_output
+  use box, only: cell
   implicit none
-  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+!!$  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+  type(cell), intent(in) :: mesh
   integer, intent(in) :: norb,norbp,iproc,nproc,nat,ntypes
   integer, intent(in) :: nvctr_c,nvctr_f,n1,n2,n3,nseg_c,nseg_f
   integer, intent(in) :: nfl1,nfu1,nfl2,nfu2,nfl3,nfu3
@@ -2166,7 +2179,7 @@ subroutine gautowav(geocode,iproc,nproc,nat,ntypes,norb,norbp,n1,n2,n3,&
            call calc_coeff_inguess(l,m,nterm_max,nterm,lx,ly,lz,fac_arr)
 !!!           !this kinetic energy is not reliable
 !!!           eks=eks+ek*occup(iorb)*cimu(m,ishell,iat,iorb)
-           call crtonewave(geocode,n1,n2,n3,ng,nterm,lx,ly,lz,fac_arr,xp,psiatn,&
+           call crtonewave(mesh,n1,n2,n3,ng,nterm,lx,ly,lz,fac_arr,xp,psiatn,&
                 rx,ry,rz,hx,hy,hz,0,n1,0,n2,0,n3,nfl1,nfu1,nfl2,nfu2,nfl3,nfu3,  &
                 nseg_c,nvctr_c,keyg,keyv,nseg_f,nvctr_f,&
                 keyg(1,nseg_c+1),keyv(nseg_c+1),&
@@ -2304,12 +2317,14 @@ end function myorbital
 !> Returns an input guess orbital that is a Gaussian centered at a Wannier center
 !! @f$ exp (-1/(2*gau_a^2) *((x-cntrx)^2 + (y-cntry)^2 + (z-cntrz)^2 )) @f$
 !! in the arrays psi_c, psi_f
-subroutine crtonewave(geocode,n1,n2,n3,nterm,ntp,lx,ly,lz,fac_arr,xp,psiat,rx,ry,rz,hx,hy,hz, &
+subroutine crtonewave(mesh,n1,n2,n3,nterm,ntp,lx,ly,lz,fac_arr,xp,psiat,rx,ry,rz,hx,hy,hz, &
      nl1_c,nu1_c,nl2_c,nu2_c,nl3_c,nu3_c,nl1_f,nu1_f,nl2_f,nu2_f,nl3_f,nu3_f,  &
      nseg_c,mvctr_c,keyg_c,keyv_c,nseg_f,mvctr_f,keyg_f,keyv_f,psi_c,psi_f)
   use module_base
+  use box, only: cell,cell_periodic_dims
   implicit none
-  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+!!#  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+  type(cell), intent(in) :: mesh
   integer, intent(in) :: n1,n2,n3,nterm,ntp,nseg_c,nseg_f,mvctr_c,mvctr_f
   integer, intent(in) :: nl1_c,nu1_c,nl2_c,nu2_c,nl3_c,nu3_c,nl1_f,nu1_f,nl2_f,nu2_f,nl3_f,nu3_f
   real(gp), intent(in) :: rx,ry,rz,hx,hy,hz
@@ -2333,11 +2348,16 @@ subroutine crtonewave(geocode,n1,n2,n3,nterm,ntp,lx,ly,lz,fac_arr,xp,psiat,rx,ry
   real(wp), dimension(:,:), allocatable :: wprojx,wprojy,wprojz
   real(wp), dimension(:,:,:), allocatable :: psig_c
   real(wp), dimension(:,:,:,:), allocatable :: psig_f
+  logical, dimension(3) :: peri
 
   !conditions for periodicity in the three directions
-  perx=(geocode /= 'F')
-  pery=(geocode == 'P')
-  perz=(geocode /= 'F')
+!!$  perx=(geocode /= 'F')
+!!$  pery=(geocode == 'P')
+!!$  perz=(geocode /= 'F')
+  peri=cell_periodic_dims(mesh)
+  perx=peri(1)
+  pery=peri(2)
+  perz=peri(3)
 
 
   wprojx = f_malloc((/ 0.to.n1, 1.to.2 /),id='wprojx')

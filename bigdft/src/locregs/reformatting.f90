@@ -114,6 +114,9 @@ contains
 !!$    oxyz_src=true_origin(llr_src%mesh,llr_src)
 !!$    oxyz_dest=true_origin(llr_dest%mesh,llr_dest)
     !mesh coarse vs mesh fine for free BC
+    !not sure if the correct thing to be passed is true_origin
+    !perhaps the shift might be inferred from the value of the
+    !offset of the box iterator of the localization regions
     oxyz_src=true_origin(mesh_glr_src,llr_src)
     oxyz_dest=true_origin(mesh_glr_dest,llr_dest)
 

@@ -77,7 +77,7 @@ subroutine direct_minimization(iproc,nproc,in,at,nvirt,rxyz,rhopot,nlpsp, &
    !rebind the GPU pointers to the orbsv structure
    if (GPU%OCLconv) then
       call free_gpu_OCL(GPU,KSwfn%orbs,in%nspin)
-      call allocate_data_OCL(VTwfn%Lzd%Glr%d%n1,VTwfn%Lzd%Glr%d%n2,VTwfn%Lzd%Glr%d%n3,at%astruct%geocode,&
+      call allocate_data_OCL(VTwfn%Lzd%Glr%d%n1,VTwfn%Lzd%Glr%d%n2,VTwfn%Lzd%Glr%d%n3,VTwfn%Lzd%Glr%mesh_coarse,&
          &   in%nspin,VTwfn%Lzd%Glr%wfd,VTwfn%orbs,GPU)
       if (iproc == 0) call yaml_map('GPU data allocated',.true.)
       !if (iproc == 0) write(*,*) 'GPU data allocated'
@@ -477,7 +477,7 @@ subroutine davidson(iproc,nproc,in,at,&
    !rebind the GPU pointers to the orbsv structure
    if (GPU%OCLconv) then
       call free_gpu_OCL(GPU,orbs,in%nspin)
-      call allocate_data_OCL(Lzd%Glr%d%n1,Lzd%Glr%d%n2,Lzd%Glr%d%n3,at%astruct%geocode,&
+      call allocate_data_OCL(Lzd%Glr%d%n1,Lzd%Glr%d%n2,Lzd%Glr%d%n3,Lzd%Glr%mesh_coarse,&
            in%nspin,Lzd%Glr%wfd,orbsv,GPU)
    end if
 
@@ -628,7 +628,7 @@ subroutine davidson(iproc,nproc,in,at,&
       !     pot(1),pot(Lzd%Glr%d%n1i*Lzd%Glr%d%n2i*Lzd%Glr%d%n3i*orbs%nspin+1))
 
 
-   !experimental: add parabolic potential to the hamiltonian
+   !experimental: add parabolic potential to the hamiltonian ! It is below and has been commented.
    !call add_parabolic_potential(at%astruct%geocode,at%astruct%nat,Lzd%Glr%d%n1i,Lzd%Glr%d%n2i,Lzd%Glr%d%n3i,0.5_gp*hx,0.5_gp*hy,0.5_gp*hz,12.0_gp,rxyz,pot)
 
    call FullHamiltonianApplication(iproc,nproc,at,orbsv,&
@@ -2115,71 +2115,71 @@ subroutine add_confining_potential(n1i,n2i,n3i,nspin,eps,dencutoff,rpow,pot,rho)
    end do
 END SUBROUTINE add_confining_potential
 
-subroutine add_parabolic_potential(geocode,nat,n1i,n2i,n3i,hxh,hyh,hzh,rlimit,rxyz,pot)
-   use module_base
-   use bounds, only: ext_buffers
-   implicit none
-   character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
-   integer, intent(in) :: n1i,n2i,n3i,nat
-   real(gp), intent(in) :: rlimit,hxh,hyh,hzh
-   real(gp), dimension(3,nat), intent(in) :: rxyz
-   real(wp), dimension(n1i*n2i*n3i), intent(inout) :: pot
-   !local variables
-   logical :: perx,pery,perz
-   integer :: nbl1,nbl2,nbl3,nbr1,nbr2,nbr3,i,i1,i2,i3,isx,iex,isy,iey,isz,iez
-   integer :: iat,ind
-   real(gp) :: x,y,z,r2,rx,ry,rz
-   real(gp), dimension(3) :: cxyz
-
-   !conditions for periodicity in the three directions
-   perx=(geocode /= 'F')
-   pery=(geocode == 'P')
-   perz=(geocode /= 'F')
-
-   call ext_buffers(perx,nbl1,nbr1)
-   call ext_buffers(pery,nbl2,nbr2)
-   call ext_buffers(perz,nbl3,nbr3)
-
-   !calculate the center of the molecule
-   call f_zero(cxyz)
-   do iat=1,nat
-      do i=1,3
-         cxyz(i)=cxyz(i)+rxyz(i,iat)
-      end do
-   end do
-   do i=1,3
-      cxyz(i)=cxyz(i)/real(nat,gp)
-   end do
-
-   rx=cxyz(1)
-   ry=cxyz(2)
-   rz=cxyz(3)
-
-   isx=-nbl1
-   isy=-nbl2
-   isz=-nbl3
-
-   iex=n1i-nbl1-1
-   iey=n2i-nbl2-1
-   iez=n3i-nbl3-1
-
-   do i3=isz,iez
-      z=real(i3,gp)*hzh-rz
-      do i2=isy,iey
-         y=real(i2,gp)*hyh-ry
-         do i1=isx,iex
-            x=real(i1,gp)*hxh-rx
-            r2=x**2+y**2+z**2
-            !add the parabolic correction to the potential
-            if (r2 > rlimit**2) then
-               ind=i1+1+nbl1+(i2+nbl2)*n1i+(i3+nbl3)*n1i*n2i
-               pot(ind)=pot(ind)+0.1_gp*(sqrt(r2)-rlimit)**2
-            endif
-         enddo
-      enddo
-   enddo
-
-END SUBROUTINE add_parabolic_potential
+!!$subroutine add_parabolic_potential(geocode,nat,n1i,n2i,n3i,hxh,hyh,hzh,rlimit,rxyz,pot)
+!!$   use module_base
+!!$   use bounds, only: ext_buffers
+!!$   implicit none
+!!$   character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+!!$   integer, intent(in) :: n1i,n2i,n3i,nat
+!!$   real(gp), intent(in) :: rlimit,hxh,hyh,hzh
+!!$   real(gp), dimension(3,nat), intent(in) :: rxyz
+!!$   real(wp), dimension(n1i*n2i*n3i), intent(inout) :: pot
+!!$   !local variables
+!!$   logical :: perx,pery,perz
+!!$   integer :: nbl1,nbl2,nbl3,nbr1,nbr2,nbr3,i,i1,i2,i3,isx,iex,isy,iey,isz,iez
+!!$   integer :: iat,ind
+!!$   real(gp) :: x,y,z,r2,rx,ry,rz
+!!$   real(gp), dimension(3) :: cxyz
+!!$
+!!$   !conditions for periodicity in the three directions
+!!$   perx=(geocode /= 'F')
+!!$   pery=(geocode == 'P')
+!!$   perz=(geocode /= 'F')
+!!$
+!!$   call ext_buffers(perx,nbl1,nbr1)
+!!$   call ext_buffers(pery,nbl2,nbr2)
+!!$   call ext_buffers(perz,nbl3,nbr3)
+!!$
+!!$   !calculate the center of the molecule
+!!$   call f_zero(cxyz)
+!!$   do iat=1,nat
+!!$      do i=1,3
+!!$         cxyz(i)=cxyz(i)+rxyz(i,iat)
+!!$      end do
+!!$   end do
+!!$   do i=1,3
+!!$      cxyz(i)=cxyz(i)/real(nat,gp)
+!!$   end do
+!!$
+!!$   rx=cxyz(1)
+!!$   ry=cxyz(2)
+!!$   rz=cxyz(3)
+!!$
+!!$   isx=-nbl1
+!!$   isy=-nbl2
+!!$   isz=-nbl3
+!!$
+!!$   iex=n1i-nbl1-1
+!!$   iey=n2i-nbl2-1
+!!$   iez=n3i-nbl3-1
+!!$
+!!$   do i3=isz,iez
+!!$      z=real(i3,gp)*hzh-rz
+!!$      do i2=isy,iey
+!!$         y=real(i2,gp)*hyh-ry
+!!$         do i1=isx,iex
+!!$            x=real(i1,gp)*hxh-rx
+!!$            r2=x**2+y**2+z**2
+!!$            !add the parabolic correction to the potential
+!!$            if (r2 > rlimit**2) then
+!!$               ind=i1+1+nbl1+(i2+nbl2)*n1i+(i3+nbl3)*n1i*n2i
+!!$               pot(ind)=pot(ind)+0.1_gp*(sqrt(r2)-rlimit)**2
+!!$            endif
+!!$         enddo
+!!$      enddo
+!!$   enddo
+!!$
+!!$END SUBROUTINE add_parabolic_potential
 
 
 subroutine evaluate_completeness_relation(ob_occ,ob_virt,ob_prime,hpsiprime,h2psiprime)

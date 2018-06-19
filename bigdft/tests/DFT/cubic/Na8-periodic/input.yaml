@@ -1,0 +1,17 @@
+ dft:
+   hgrids: [0.65, 0.65, 0.65]
+   rmult: [9, 11]
+   ixc: -101130
+   nspin: 1
+   gnrm_cv: 1.e-5
+   nrepmax: 3
+   itermax: 200
+   ncong: 6
+   idsx: 6
+   disablesym: Yes
+ perf:
+   multipole_preserving: yes
+   projrad: 8.000
+   rho_commun: MIX
+   psp_onfly: No
+   inguess_geopt: 1

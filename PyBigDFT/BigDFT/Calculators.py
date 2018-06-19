@@ -2,18 +2,52 @@
 This module defines some classes to perform a calculation using BigDFT
 using binding (GIBinding) or using system call (SystemCalculator).
 
-The goal is to have a light Calculator almost compatible with ASE (Atomic Simulation environment, see https://gitlab.com/ase/ase)
-.. todo::
-    In a future we add our method to ASE which is at a higher level (workflow of simulations).
-
-For the class GIBinding using the Gobject Introspection bindings, two methods set and update are added.
 """
+
+##In our case for the class SystemCalculator which uses system calls:
+##* We define posinp (equivalent of Atoms)
+##* We have a python dictionary for the parameter
+##* We define a calculator (equivalent of BFGS which is an Optimizer (a method to optimize))
+##Then we perform the method run.
+##
+##For the class GIBinding using the Gobject Introspection bindings, two methods set and update are added.
+##
+##The goal is to have a light Calculator almost compatible with ASE (Atomic Simulation environment, see https://gitlab.com/ase/ase)
+##.. todo::
+##    In a future we add our method to ASE which is at a higher level (workflow of simulations).
+##:Example:
+##   >>> from ase import Atoms
+##   >>> from ase.optimize import BFGS
+##   >>>  from ase.calculators.nwchem import NWChem
+##   >>>  from ase.io import write
+##   >>>  h2 = Atoms('H2',
+##   >>>             positions=[[0, 0, 0],
+##   >>>                        [0, 0, 0.7]])
+##   >>>  h2.calc = NWChem(xc='PBE')
+##   >>>  opt = BFGS(h2, trajectory='h2.traj')
+##   >>>  opt.run(fmax=0.02)
+##   >>>  BFGS:   0  19:10:49    -31.435229     2.2691
+##   >>>  BFGS:   1  19:10:50    -31.490773     0.3740
+##   >>>  BFGS:   2  19:10:50    -31.492791     0.0630
+##   >>>  BFGS:   3  19:10:51    -31.492848     0.0023
+##   >>>  write('H2.xyz', h2)
+##   >>>  h2.get_potential_energy()  # ASE's units are eV and Ang
+##   >>>  -31.492847800329216
+##
 
 import os
 import shutil
 import yaml
 from futile.Utils import write as safe_print
 import BigDFT.Logfiles as Lf
+
+def get_debugfile_date():
+    """
+    Get the information about the debug time of the last file in the current directory
+    """
+    from futile.Utils import file_time
+    return file_time(os.path.join('debug','bigdft-err-0.yaml'))
+
 
 class GIBinding():
     """
@@ -65,37 +99,34 @@ class SystemCalculator():
     """
     Define a BigDFT calculator.
 
-    :param int omp: number of OpenMP threads (if none set to $OMP_NUM_THREADS)
-    :param int mpi: number of MPI processes (if none set to 1)
-    :param str mpi_run: define the MPI command to be used
-    :param bool skip: if True, do not run the calculation if the corresponding logfile exists.
-    :param bool verbose: default verbosity (2 levels true or False)
+    :param int omp: number of OpenMP threads
+    :param int mpi: number of MPI processes
+    :param str mpi_run: define the MPI command to be used.
+      It defaults to the value $BIGDFT_MPIRUN of the environment, if present
+      When using this calculator into a job submission script, the value of
+      $BIGDFT_MPIRUN variable may be set appropriately to launch the bigdft executable.
 
-    Check is the environment variable $BIGDFT_ROOT is defined.
+    Check if the environment variable $BIGDFT_ROOT is defined.
+    This is a signal that the environment has been properly set
+    prior to the evaluation of the python command.
     Use also two environment variables:
         * OMP_NUM_THREADS to set the number of OMP_NUM_THREADS
-        * BIGDFT_ROOT_MPIRUN to define the MPI execution command.
+        * BIGDFT_MPIRUN to define the MPI execution command.
 
     :Example:
-        >>> dico = { 'dft': { 'ixc': 'LDA' }}
+        >>> inpdict = { 'dft': { 'ixc': 'LDA' }} #a simple input file
         >>> study = SystemCalculator(omp=1)
-        >>> logf = study.run(name="test",input=dico)
+        >>> logf = study.run(name="test",input=inpdict)
+        Executing command:  $BIGDFT_MPIRUN <path_to_$BIGDFT_ROOT>/bigdft test
     """
 
-    def __init__(self, omp=None, mpi=1,mpi_run=None,skip=False,verbose=True):
+    def __init__(self, omp=1, mpi=1,mpi_run=None):
         """
         Initialize the SystemCalculator defining the Unix command, the number of openMP threads and MPI processes.
         """
         # Save variables for future use
-        if omp == None:
-            self.omp = os.environ.setdefault('OMP_NUM_THREADS','1')
-        else:
-            self.omp = str(omp)
+        self.omp = str(omp)
         self.mpi = str(mpi)
-        #Default value for all runs
-        self.skip = skip
-        #Default values for all runs
-        self.verbose = verbose
         # Verify if $BIGDFT_ROOT is in the environment
         assert 'BIGDFT_ROOT' in os.environ
         if mpi_run == None:
@@ -107,59 +138,59 @@ class SystemCalculator():
         self.command =  mpi_run + os.environ['BIGDFT_ROOT']+'/bigdft'
         safe_print('Initialize a Calculator with OMP_NUM_THREADS=%s and command %s' % (self.omp,self.command) )
 
-    def run(self, name='', outdir='', run_name='', input=None, posinp=None, skip=None,verbose=None):
+    def run(self, name='', outdir='', run_name='', input={}, posinp=None, skip=False):
         """
         Run a calculation building the input file from a dictionary.
 
         :param str name: naming schme of the run i.e. <name>.yaml is the input file and log-<name>.yaml the output one.
+           Data will then be written in the directory `data-<name>.yaml`, unless the "radical" keyword is specified in the input dictionary.
         :param str outdir: specify the output directory
         :param str run_name: File containing the list of the run ids which have to be launched independently 
                              (list in yaml format). The option runs-file is not compatible with the name option.
         :param input: give the input parameters
-        :type input: dict or filename
-        :param bool skip: avoid to rerun the calculation. Check if the file log-<name> already exists.
-        :param bool verbose: verbosity
-        :param posinp: indicate the posinp file (atomic position file)
+        :type input: dict or yaml filename
+        :param bool skip: avoid to rerun the calculation, in case it has been already performed.
+        :param posinp: indicate the posinp file (atomic position file). 
+           It may be specified only when the input is given as a dictionary, otherwise it is ignored: the position file should be consistent with the inputfile naming scheme.
         :type posinp: filename
-        :return: a Logfile instance is returned.
+        :return: a Logfile instance is returned. It returns None if an error occurred
         :rtype: Logfile
+
+        .. todo::
+           
+           Set the return value of run in the case of a run_file. It should be a list of Logfile classes
+
         """
         # Set the number of omp threads
         os.environ['OMP_NUM_THREADS'] = self.omp
         # Creating the yaml input file from a dictionary or another file
-        if skip == None: skip = self.skip
-        if verbose == None: verbose = self.verbose
         if len(name) > 0:
             input_file = "%s.yaml" % name
             logname = "log-%s.yaml" % name
         else:
             input_file = "input.yaml" #default name
             logname = "log.yaml"
-        # Copying the posinp input file if needed
-        if posinp != None:
-            #Check if the file does exist
-            assert os.path.exists(posinp)
-            if isinstance(input,dict):
-                #Add into the dictionary a posinp key
-                input['posinp'] = posinp
-                if verbose: safe_print('Add a "posinp" key with the value "%s" into the dictionary input' % posinp)
-            else:
-                if len(name) > 0:
-                    fn,fn_ext = os.path.splitext(posinp)
-                    posinp_file = name+fn_ext
-                if posinp != posinp_file:
-                    shutil.copyfile(posinp,posinp_file)
-                    if verbose: safe_print('Copying from "%s" the posinp file "%s"' % (posinp,posinp_file))
-        if isinstance(input,dict):
-            #Creating the yaml input file
-            yaml.dump(input,stream=open(input_file,"w"),default_flow_style=False)
-            if verbose: safe_print('Creating from a dictionary the yaml input file "%s"' % input_file)
-        elif isinstance(input,str):
+        #check if the debug file will be updated (case of erroneous run)
+        timedbg=get_debugfile_date()
+        if isinstance(input,str):
              #Check if the file input does exist
-            assert os.path.exists(input)
+            assert os.path.isfile(input)
             if input != input_file:
                 shutil.copyfile(input,input_file)
-                if verbose: safe_print('Copying from "%s" the yaml input file "%s"' % (input,input_file))
+                safe_print('Copying from "%s" the yaml input file "%s"' % (input,input_file))
+        else:
+            import copy
+            local_input=copy.deepcopy(input)
+            # Copying the posinp input file if needed
+            if posinp != None:
+                #Check if the file does exist
+                assert os.path.isfile(posinp)
+                #Add into the dictionary a posinp key
+                local_input['posinp'] = posinp
+            #Creating the yaml input file
+            from futile import Yaml as Y
+            Y.dump(local_input,filename=input_file)
+            safe_print('Creating from a dictionary the yaml input file "%s"' % input_file)
         # Adjust the command line with options
         command = self.command
         if len(name) > 0:
@@ -172,7 +203,12 @@ class SystemCalculator():
             command += ' -s Yes'
         safe_print('Executing command: ', command)
         os.system(command)
+        #verify that no debug file has been created
+        if get_debugfile_date() > timedbg :
+            safe_print("ERROR: some problem occured during the execution of the command, check the 'debug/' directory and the logfile")
+            return None
         #Check the existence and the log file and return an instance logfile
+        #valid only without run_name
         if os.path.exists(logname):
             return Lf.Logfile(logname)
         else:

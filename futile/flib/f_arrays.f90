@@ -40,9 +40,7 @@ module f_arrays
   interface f_array_free
      module procedure f_vector_free,f_matrix_free
      module procedure f_vector_v1_free,f_matrix_v1_free
-  end interface f_array_free
-
-  
+  end interface f_array_free 
 
   interface f_array_ptr_free
      module procedure f_free_vector_1,f_free_matrix_ptr
@@ -128,7 +126,6 @@ module f_arrays
          call f_array_free(arr(i))
       end do
     end subroutine f_matrix_v1_free
-
 
     subroutine f_vector_shallow_copy(dest,src)
       implicit none

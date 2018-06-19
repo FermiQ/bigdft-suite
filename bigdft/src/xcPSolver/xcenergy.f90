@@ -9,14 +9,18 @@
 
 
 !> Calculate the array of the core density for the atom iat
-subroutine calc_rhocore_iat(iproc,atoms,ityp,rx,ry,rz,cutoff,hxh,hyh,hzh,&
-     n1i,n2i,n3i,i3s,n3d,charge,rhocore) 
+subroutine calc_rhocore_iat(dpbox,iproc,atoms,ityp,rx,ry,rz,cutoff,hxh,hyh,hzh,&
+     n1i,n2i,n3i,i3s,n3d,charge,rhocore)
+  use module_dpbox, only: denspot_distribution
   use module_defs, only: gp,dp,wp
   use module_types
   use yaml_output
   use bounds, only: ext_buffers
   use numerics, only: oneo4pi => oneofourpi
+  use gaussians
+  use box
   implicit none
+  type(denspot_distribution), intent(inout) :: dpbox
   integer, intent(in) :: n1i,n2i,n3i,i3s,n3d,iproc,ityp 
   real(gp), intent(in) :: rx,ry,rz,cutoff,hxh,hyh,hzh
   type(atoms_data), intent(in) :: atoms
@@ -25,6 +29,7 @@ subroutine calc_rhocore_iat(iproc,atoms,ityp,rx,ry,rz,cutoff,hxh,hyh,hzh,&
   !local variables
   !n(c) character(len=*), parameter :: subname='calc_rhocore'
 !  real(gp), parameter :: oneo4pi=.079577471545947_wp
+  type(gaussian_real_space) :: g
   logical :: gox,goy,perx,pery,perz
   integer :: ig,ngv,ngc,isx,isy,isz,iex,iey,iez
   integer :: nbl1,nbl2,nbl3,nbr1,nbr2,nbr3,ilcc,islcc
@@ -64,7 +69,7 @@ subroutine calc_rhocore_iat(iproc,atoms,ityp,rx,ry,rz,cutoff,hxh,hyh,hzh,&
   charge=chc-chv
   !if (iproc == 0) write(*,'(1x,a,f12.6)',advance='no')' analytic core charge: ',chc-chv
 
-  !conditions for periodicity in the three directions
+!!$  !conditions for periodicity in the three directions
   perx=(atoms%astruct%geocode /= 'F')
   pery=(atoms%astruct%geocode == 'P')
   perz=(atoms%astruct%geocode /= 'F')
@@ -75,6 +80,58 @@ subroutine calc_rhocore_iat(iproc,atoms,ityp,rx,ry,rz,cutoff,hxh,hyh,hzh,&
 
   if (n3d >0) then
 
+! Start new giuseppe ----------------------------------------------------------------------------
+!            call nlcc_spherical_gaussian_set(g,atoms)
+!            call set_box_around_gaussian(dpbox%bitd,g,[rx,ry,rz])
+!            do while(box_next_point(dpbox%bitd))
+!
+!                       !here we can sum up the gaussians for the
+!                       !valence density and the core density
+!                       !restart again from the previously calculated index
+!                       ilcc=islcc
+!                       rhov=0.0_dp
+!                       drhov=0.0_dp
+!                       do ig=1,(ngv*(ngv+1))/2
+!                          ilcc=ilcc+1
+!                          rhov=rhov+&
+!                               gaussian_radial_value(g,[rx,ry,rz],dpbox%bitd)
+!                               !spherical_gaussian_value(r2,atoms%nlccpar(0,ilcc),atoms%nlccpar(1,ilcc),0)
+!                          !derivative wrt r2
+!                          drhov=drhov+&
+!                               gaussian_radial_value(g,[rx,ry,rz],dpbox%bitd,1)
+!                               !spherical_gaussian_value(r2,atoms%nlccpar(0,ilcc),atoms%nlccpar(1,ilcc),1)
+!                       end do
+!                       rhoc=0.0_dp
+!                       drhoc=0.0_dp
+!                       do ig=1,(ngc*(ngc+1))/2
+!                          ilcc=ilcc+1
+!                          !arg=r2/rhocxp(ig)**2
+!                          rhoc=rhoc+&
+!                               gaussian_radial_value(g,[rx,ry,rz],dpbox%bitd)
+!                               !spherical_gaussian_value(r2,atoms%nlccpar(0,ilcc),atoms%nlccpar(1,ilcc),0)
+!                          drhoc=drhoc+&
+!                               gaussian_radial_value(g,[rx,ry,rz],dpbox%bitd,1)
+!                               !spherical_gaussian_value(r2,atoms%nlccpar(0,ilcc),atoms%nlccpar(1,ilcc),1)
+!                       end do
+!                       rhocore(dpbox%bitd%ind,0)=rhocore(dpbox%bitd%ind,0)+oneo4pi*(rhoc-rhov)
+!                       drhodr2=drhoc-drhov
+!                       dpbox%bitd%tmp=closest_r(dpbox%bitd%mesh,dpbox%bitd%rxyz,[rx,ry,rz])
+!                       rhocore(dpbox%bitd%ind,1)=  rhocore(dpbox%bitd%ind,1)+drhodr2*oneo4pi*dpbox%bitd%tmp(1)
+!                       rhocore(dpbox%bitd%ind,2)=  rhocore(dpbox%bitd%ind,2)+drhodr2*oneo4pi*dpbox%bitd%tmp(2)
+!                       rhocore(dpbox%bitd%ind,3)=  rhocore(dpbox%bitd%ind,3)+drhodr2*oneo4pi*dpbox%bitd%tmp(3)
+!                       !stress components
+!                       rhocore(dpbox%bitd%ind,4)=rhocore(dpbox%bitd%ind,4)+drhodr2*oneo4pi*dpbox%bitd%tmp(1)*dpbox%bitd%tmp(1) 
+!                       rhocore(dpbox%bitd%ind,5)=rhocore(dpbox%bitd%ind,5)+drhodr2*oneo4pi*dpbox%bitd%tmp(2)*dpbox%bitd%tmp(2)
+!                       rhocore(dpbox%bitd%ind,6)=rhocore(dpbox%bitd%ind,6)+drhodr2*oneo4pi*dpbox%bitd%tmp(3)*dpbox%bitd%tmp(3)
+!                       rhocore(dpbox%bitd%ind,7)=rhocore(dpbox%bitd%ind,7)+drhodr2*oneo4pi*dpbox%bitd%tmp(2)*dpbox%bitd%tmp(3)
+!                       rhocore(dpbox%bitd%ind,8)=rhocore(dpbox%bitd%ind,8)+drhodr2*oneo4pi*dpbox%bitd%tmp(1)*dpbox%bitd%tmp(3)
+!                       rhocore(dpbox%bitd%ind,9)=rhocore(dpbox%bitd%ind,9)+drhodr2*oneo4pi*dpbox%bitd%tmp(1)*dpbox%bitd%tmp(2)
+!
+!            enddo
+!            call box_iter_expand_nbox(dpbox%bitd)
+!
+! End new giuseppe ----------------------------------------------------------------------------
+! Start old ----------------------------------------------------------------------------
      isx=floor((rx-cutoff)/hxh)
      isy=floor((ry-cutoff)/hyh)
      isz=floor((rz-cutoff)/hzh)
@@ -165,9 +222,39 @@ subroutine calc_rhocore_iat(iproc,atoms,ityp,rx,ry,rz,cutoff,hxh,hyh,hzh,&
            enddo
         end if
      enddo
+! End old ----------------------------------------------------------------------------
   end if
   
 END SUBROUTINE calc_rhocore_iat
+
+!> Determine the gaussian structure related to the nlcc:
+!! gaussian function described by a sum of spherical harmonics of s-channel with
+!! principal quantum number increased with a given exponent.
+!! the principal quantum numbers admitted are from 1 to 4
+subroutine nlcc_gaussian_set(g,at,ilcc)
+  use gaussians
+  use module_types
+  use module_defs, only: gp
+  implicit none
+  integer, intent(in) :: ilcc
+  type(atoms_data), intent(in) :: at
+  type(gaussian_real_space), intent(out) :: g
+  !local variables
+  integer :: mp_isf
+  real(gp) :: sigma
+  integer, dimension(3) :: zeros
+  real(gp), dimension(1) :: factors
+  integer, dimension(1) :: pows
+
+  sigma=at%nlccpar(0,ilcc)
+  factors=1.0_gp
+  pows=0
+  zeros=0
+  mp_isf=at%mp_isf
+  if (.not. at%multipole_preserving) mp_isf=0
+  call gaussian_real_space_set(g,sigma,1,factors,zeros,pows,mp_isf)
+
+end subroutine nlcc_gaussian_set
 
 !> Accumulate the contribution of atom iat to core density for PAW atoms.
 subroutine mkcore_paw_iat(iproc,atoms,ityp,rx,ry,rz,cutoff,hxh,hyh,hzh,&

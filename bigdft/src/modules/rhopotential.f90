@@ -323,7 +323,7 @@ module rhopotential
           !pot=pot1
           !call f_free_ptr(pot1)
           pot=>pot1
-       else if(iflag>0 .and. iflag<2) then
+       else if(iflag>0 .and. iflag<2) then !LG: why should not we write iflag==1 here?
           pot = f_malloc_ptr(lzd%ndimpotisf,id='pot')
           ! Cut potential
           istl=1

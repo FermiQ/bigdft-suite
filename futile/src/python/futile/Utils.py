@@ -242,6 +242,20 @@ class VertSlider(AxesWidget):
         if (self.val != self.valinit):
             self.set_val(self.valinit)
 
+def file_time(filename):
+    """
+    Gives the date of the creation of the file, if exists.
+    
+    :param str filename: name of the file
+    :returns: if the file exists, the date of the filename as per os.path.getmtime.
+     Otherwise it returns 0
+    """
+    import os
+    if os.path.isfile(filename):
+        return os.path.getmtime(filename)
+    else:
+        return 0
+
 
 def find_files(regexp, archive=None):
     """
