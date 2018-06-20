@@ -100,7 +100,7 @@ class SystemCalculator():
     Define a BigDFT calculator.
 
     :param int omp: number of OpenMP threads
-    :param int mpi: number of MPI processes
+      It defaults to the $OMP_NUM_THREADS variable in the environment (if present), otherwise it fixes the run to 1 thread
     :param str mpi_run: define the MPI command to be used.
       It defaults to the value $BIGDFT_MPIRUN of the environment, if present
       When using this calculator into a job submission script, the value of
@@ -120,22 +120,29 @@ class SystemCalculator():
         Executing command:  $BIGDFT_MPIRUN <path_to_$BIGDFT_ROOT>/bigdft test
     """
 
-    def __init__(self, omp=1, mpi=1,mpi_run=None):
+    def __init__(self, omp=None,,mpi_run=None):
         """
         Initialize the SystemCalculator defining the Unix command, the number of openMP threads and MPI processes.
         """
-        # Save variables for future use
-        self.omp = str(omp)
-        self.mpi = str(mpi)
         # Verify if $BIGDFT_ROOT is in the environment
         assert 'BIGDFT_ROOT' in os.environ
-        if mpi_run == None:
-            # Verify if $BIGDFT_MPIRUN is in the environment
-            mpi_run = os.environ.setdefault('BIGDFT_MPIRUN','')
-        if mpi_run != '':
-            mpi_run = mpi_run + ' ' + self.mpi + ' '
+        # Verify if $OMP_NUM_THREADS is in the environment
+        omp_thd = 1
+        if omp == None:  
+            omp_thd = os.environ.setdefault('OMP_NUM_THREADS','')       
+        else:
+            omp_thd = omp
+        # Verify if $BIGDFT_MPIRUN is in the environment
+        mpi_cmd = ''
+        if mpi_run == None:  
+            mpi_cmd = os.environ.setdefault('BIGDFT_MPIRUN','')
+        else:
+            mpi_cmd = mpi_run
+        # Save variables for future use
+        self.omp = str(omp_thd)
+        self.mpi = str(mpi_cmd)
         #Build the command setting the number of omp threads
-        self.command =  mpi_run + os.environ['BIGDFT_ROOT']+'/bigdft'
+        self.command =  self.mpi + os.environ['BIGDFT_ROOT']+'/bigdft'
         safe_print('Initialize a Calculator with OMP_NUM_THREADS=%s and command %s' % (self.omp,self.command) )
 
     def run(self, name='', outdir='', run_name='', input={}, posinp=None, skip=False):
