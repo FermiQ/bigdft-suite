@@ -249,7 +249,7 @@ $(modules): $(libmodules_a_OBJECTS)
 
 input.o: fragment_base.o
 input_dicts.o: fragment_base.o input.o
-atoms_data.o: $(ATOMS_INCLUDES) internal_coordinates.o input_dicts.o
+atoms_data.o: $(ATOMS_INCLUDES) internal_coordinates.o input_dicts.o multipole_base.o
 input_keys.o: multipole_base.o atoms_data.o input.o fragment_base.o vdwcorrection.o
 types.o: psp_projectors_base.o atoms_data.o input_keys.o \
 	ab7_mixing.o multipole_base.o dpbox.o constrained_magnetic_field.o module_asd.o
