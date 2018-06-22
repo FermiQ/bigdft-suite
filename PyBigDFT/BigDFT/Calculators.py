@@ -100,11 +100,13 @@ class SystemCalculator():
     Define a BigDFT calculator.
 
     :param int omp: number of OpenMP threads
-    :param int mpi: number of MPI processes
+      It defaults to the $OMP_NUM_THREADS variable in the environment (if present), otherwise it fixes the run to 1 thread
     :param str mpi_run: define the MPI command to be used.
       It defaults to the value $BIGDFT_MPIRUN of the environment, if present
       When using this calculator into a job submission script, the value of
       $BIGDFT_MPIRUN variable may be set appropriately to launch the bigdft executable.
+    :param bool skip: if True, do not run the calculation if the corresponding logfile exists.
+    :param bool verbose: default verbosity (2 levels true or False)      
 
     Check if the environment variable $BIGDFT_ROOT is defined.
     This is a signal that the environment has been properly set
@@ -120,25 +122,35 @@ class SystemCalculator():
         Executing command:  $BIGDFT_MPIRUN <path_to_$BIGDFT_ROOT>/bigdft test
     """
 
-    def __init__(self, omp=1, mpi=1,mpi_run=None):
+    def __init__(self, omp=None,mpi_run=None,skip=False,verbose=True):
         """
         Initialize the SystemCalculator defining the Unix command, the number of openMP threads and MPI processes.
         """
-        # Save variables for future use
-        self.omp = str(omp)
-        self.mpi = str(mpi)
         # Verify if $BIGDFT_ROOT is in the environment
         assert 'BIGDFT_ROOT' in os.environ
-        if mpi_run == None:
-            # Verify if $BIGDFT_MPIRUN is in the environment
-            mpi_run = os.environ.setdefault('BIGDFT_MPIRUN','')
-        if mpi_run != '':
-            mpi_run = mpi_run + ' ' + self.mpi + ' '
-        #Build the command setting the number of omp threads
-        self.command =  mpi_run + os.environ['BIGDFT_ROOT']+'/bigdft'
+        # Verify if $OMP_NUM_THREADS is in the environment
+        omp_thd = 1
+        if omp == None:  
+            omp_thd = os.environ.setdefault('OMP_NUM_THREADS','1')       
+        else:
+            omp_thd = omp
+        # Verify if $BIGDFT_MPIRUN is in the environment
+        mpi_cmd = ''
+        if mpi_run == None:  
+            mpi_cmd = os.environ.setdefault('BIGDFT_MPIRUN','')
+        else:
+            mpi_cmd = mpi_run
+        # Save variables for future use
+        self.omp = str(omp_thd)
+        self.mpi = str(mpi_cmd)
+        #Default value for all runs
+        self.skip = skip
+        self.verbose = verbose
+         #Build the command setting the number of omp threads
+        self.command =  self.mpi + os.environ['BIGDFT_ROOT']+'/bigdft'
         safe_print('Initialize a Calculator with OMP_NUM_THREADS=%s and command %s' % (self.omp,self.command) )
 
-    def run(self, name='', outdir='', run_name='', input={}, posinp=None, skip=False):
+    def run(self, name='', outdir='', run_name='', input={}, posinp=None, skip=None, verbose=None):
         """
         Run a calculation building the input file from a dictionary.
 
@@ -149,10 +161,11 @@ class SystemCalculator():
                              (list in yaml format). The option runs-file is not compatible with the name option.
         :param input: give the input parameters
         :type input: dict or yaml filename
-        :param bool skip: avoid to rerun the calculation, in case it has been already performed.
         :param posinp: indicate the posinp file (atomic position file). 
            It may be specified only when the input is given as a dictionary, otherwise it is ignored: the position file should be consistent with the inputfile naming scheme.
         :type posinp: filename
+        :param bool skip: avoid to rerun the calculation, in case it has been already performed.
+        :param bool verbose: verbosity        
         :return: a Logfile instance is returned. It returns None if an error occurred
         :rtype: Logfile
 
@@ -163,6 +176,8 @@ class SystemCalculator():
         """
         # Set the number of omp threads
         os.environ['OMP_NUM_THREADS'] = self.omp
+        if skip == None: skip = self.skip
+        if verbose == None: verbose = self.verbose
         # Creating the yaml input file from a dictionary or another file
         if len(name) > 0:
             input_file = "%s.yaml" % name
@@ -177,7 +192,7 @@ class SystemCalculator():
             assert os.path.isfile(input)
             if input != input_file:
                 shutil.copyfile(input,input_file)
-                safe_print('Copying from "%s" the yaml input file "%s"' % (input,input_file))
+                if verbose: safe_print('Copying from "%s" the yaml input file "%s"' % (input,input_file))
         else:
             import copy
             local_input=copy.deepcopy(input)
@@ -190,7 +205,7 @@ class SystemCalculator():
             #Creating the yaml input file
             from futile import Yaml as Y
             Y.dump(local_input,filename=input_file)
-            safe_print('Creating from a dictionary the yaml input file "%s"' % input_file)
+            if verbose: safe_print('Creating from a dictionary the yaml input file "%s"' % input_file)
         # Adjust the command line with options
         command = self.command
         if len(name) > 0:
@@ -201,11 +216,11 @@ class SystemCalculator():
             command += ' -d '+outdir
         if skip:
             command += ' -s Yes'
-        safe_print('Executing command: ', command)
+        if verbose: safe_print('Executing command: ', command)
         os.system(command)
         #verify that no debug file has been created
         if get_debugfile_date() > timedbg :
-            safe_print("ERROR: some problem occured during the execution of the command, check the 'debug/' directory and the logfile")
+            if verbose: safe_print("ERROR: some problem occured during the execution of the command, check the 'debug/' directory and the logfile")
             return None
         #Check the existence and the log file and return an instance logfile
         #valid only without run_name

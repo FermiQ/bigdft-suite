@@ -966,7 +966,7 @@ module rhopotential
        end if
 
        !rescale the density to apply that to ABINIT routines
-       if (nspin==1) call vscal(dpbox%ndimrho,0.5_dp,rho(1,1),1)
+       if (nspin==1 .and. dpbox%ndimrho > 0) call vscal(dpbox%ndimrho,0.5_dp,rho(1,1),1)
 
        !allocate array for XC potential enlarged for the WB procedure
        vxci = f_malloc0([ dpbox%mesh%ndims(1), dpbox%mesh%ndims(2), max(1, nwb), nspin],id='vxci')
