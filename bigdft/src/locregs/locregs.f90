@@ -688,8 +688,32 @@ contains
 
     END SUBROUTINE init_lr
 
+    subroutine correct_dimensions(is,ie,ns,n,ln,outofzone,correct,periodic)
+      implicit none
+      logical, intent(in) :: correct
+      integer, intent(in) :: ns,n,ln
+      integer, intent(inout) :: outofzone
+      logical, intent(inout) :: periodic
+      integer, intent(inout) :: is,ie
+
+      if (ie - is >= n) then       
+         is=ns
+         ie=ns + n
+         periodic = .true.
+      else
+         if (correct) then
+            is=modulo(is,n+1) + ns
+            ie= ln + is
+         end if
+         if (ie > ns+n) then
+            outofzone=modulo(ie,n+1)
+         end if
+      end if
+    end subroutine correct_dimensions
+
+
     subroutine correct_lr_extremes(lr,Glr,geocode,correct,nbox_lr,nbox)
-      use box, only: cell_geocode
+      use box, only: cell_geocode,cell_periodic_dims
       implicit none
       logical, intent(in) :: correct
       type(locreg_descriptors), intent(inout) :: lr
@@ -701,6 +725,7 @@ contains
       logical :: xperiodic,yperiodic,zperiodic
       integer :: isx,iex,isy,iey,isz,iez
       integer :: ln1,ln2,ln3
+      logical, dimension(3) :: peri
 
 
       !initialize out of zone
@@ -732,109 +757,135 @@ contains
       yperiodic = .false.
       zperiodic = .false. 
 
-      !assign the starting/ending points and outofzone for the different
-      ! geometries
-!!$      select case(Glr%geocode)
-      select case(cell_geocode(Glr%mesh))
-      case('F')
+      peri=cell_periodic_dims(Glr%mesh)
+      if (peri(1)) then
+         call correct_dimensions(isx,iex,Glr%ns1,Glr%d%n1,ln1,lr%outofzone(1),correct,xperiodic)
+      else
          isx=max(isx,Glr%ns1)
-         isy=max(isy,Glr%ns2)
-         isz=max(isz,Glr%ns3)
-
          iex=min(iex,Glr%ns1+Glr%d%n1)
-         iey=min(iey,Glr%ns2+Glr%d%n2)
-         iez=min(iez,Glr%ns3+Glr%d%n3)
-      case('S')
-         ! Get starting and ending for x direction     
-         if (iex - isx >= Glr%d%n1) then       
-            isx=Glr%ns1
-            iex=Glr%ns1 + Glr%d%n1
-            xperiodic = .true.
-         else
-            if (correct) then
-               isx=modulo(isx,Glr%d%n1+1) + Glr%ns1
-               iex= ln1 + isx
-            end if
-            if (iex > Glr%ns1+Glr%d%n1) then
-               lr%outofzone(1)=modulo(iex,Glr%d%n1+1)
-            end if
-         end if
-
-         ! Get starting and ending for y direction (perpendicular to surface)
+         lr%outofzone(1) = 0
+      end if
+      if (peri(2)) then
+         call correct_dimensions(isy,iey,Glr%ns2,Glr%d%n2,ln2,lr%outofzone(2),correct,yperiodic)
+      else
          isy=max(isy,Glr%ns2)
-         iey=min(iey,Glr%ns2 + Glr%d%n2)
+         iey=min(iey,Glr%ns2+Glr%d%n2)
          lr%outofzone(2) = 0
+      end if
+      if (peri(3)) then
+         call correct_dimensions(isz,iez,Glr%ns3,Glr%d%n3,ln3,lr%outofzone(3),correct,zperiodic)
+      else
+         isz=max(isz,Glr%ns3)
+         iez=min(iez,Glr%ns3+Glr%d%n3)
+         lr%outofzone(3) = 0
+      end if
+      if (zperiodic) geocode = 'W'
+      if (xperiodic .and. zperiodic) geocode = 'S'
+      if (xperiodic .and. yperiodic .and. zperiodic) geocode = 'P'
 
-         !Get starting and ending for z direction
-         if (iez - isz >= Glr%d%n3) then
-            isz=Glr%ns3 
-            iez=Glr%ns3 + Glr%d%n3
-            zperiodic = .true.
-         else
-            if (correct) then
-               isz=modulo(isz,Glr%d%n3+1) +  Glr%ns3
-               iez= ln3 + isz
-            end if
-            if (iez > Glr%ns3+Glr%d%n3) then
-               lr%outofzone(3)=modulo(iez,Glr%d%n3+1)
-            end if
-         end if
-         if(xperiodic .and. zperiodic) then
-            geocode = 'S'
-         end if
-
-      case('P')
-         ! Get starting and ending for x direction     
-         if (iex - isx >= Glr%d%n1) then       
-            isx=Glr%ns1
-            iex=Glr%ns1 + Glr%d%n1
-            xperiodic = .true.
-         else
-            if (correct) then
-               isx=modulo(isx,Glr%d%n1+1) + Glr%ns1
-               iex= ln1 + isx
-            end if
-            if (iex > Glr%ns1+Glr%d%n1) then
-               lr%outofzone(1)=modulo(iex,Glr%d%n1+1)
-            end if
-         end if
-
-         ! Get starting and ending for y direction (perpendicular to surface)
-         if (iey - isy >= Glr%d%n2) then       
-            isy=Glr%ns2
-            iey=Glr%ns2 + Glr%d%n2
-            yperiodic = .true.
-         else
-            if (correct) then
-               isy=modulo(isy,Glr%d%n2+1) + Glr%ns2
-               iey= ln2 + isy
-            end if
-            if (iey > Glr%ns2+Glr%d%n2) then
-               lr%outofzone(2)=modulo(iey,Glr%d%n2+1)
-            end if
-         end if
-
-         !Get starting and ending for z direction
-         if (iez - isz >= Glr%d%n3) then
-            isz=Glr%ns3 
-            iez=Glr%ns3 + Glr%d%n3
-            zperiodic = .true.
-         else
-            if (correct) then
-               isz=modulo(isz,Glr%d%n3+1) +  Glr%ns3
-               iez= ln3 + isz
-            end if
-            if (iez > Glr%ns3+Glr%d%n3) then
-               lr%outofzone(3)=modulo(iez,Glr%d%n3+1)
-            end if
-         end if
-         if(xperiodic .and. yperiodic .and. zperiodic ) then
-            geocode = 'P'
-         end if
-      case('W')
-         call f_err_throw("Wires bc has to be implemented here", &
-              err_name='BIGDFT_RUNTIME_ERROR')
-      end select
+!!$      !assign the starting/ending points and outofzone for the different
+!!$      ! geometries
+!!$      !!!select case(Glr%geocode)
+!!$      select case(cell_geocode(Glr%mesh))
+!!$      case('F')
+!!$         isx=max(isx,Glr%ns1)
+!!$         isy=max(isy,Glr%ns2)
+!!$         isz=max(isz,Glr%ns3)
+!!$
+!!$         iex=min(iex,Glr%ns1+Glr%d%n1)
+!!$         iey=min(iey,Glr%ns2+Glr%d%n2)
+!!$         iez=min(iez,Glr%ns3+Glr%d%n3)
+!!$      case('S')
+!!$         ! Get starting and ending for x direction     
+!!$         if (iex - isx >= Glr%d%n1) then       
+!!$            isx=Glr%ns1
+!!$            iex=Glr%ns1 + Glr%d%n1
+!!$            xperiodic = .true.
+!!$         else
+!!$            if (correct) then
+!!$               isx=modulo(isx,Glr%d%n1+1) + Glr%ns1
+!!$               iex= ln1 + isx
+!!$            end if
+!!$            if (iex > Glr%ns1+Glr%d%n1) then
+!!$               lr%outofzone(1)=modulo(iex,Glr%d%n1+1)
+!!$            end if
+!!$         end if
+!!$
+!!$         ! Get starting and ending for y direction (perpendicular to surface)
+!!$         isy=max(isy,Glr%ns2)
+!!$         iey=min(iey,Glr%ns2 + Glr%d%n2)
+!!$         lr%outofzone(2) = 0
+!!$
+!!$         !Get starting and ending for z direction
+!!$         if (iez - isz >= Glr%d%n3) then
+!!$            isz=Glr%ns3 
+!!$            iez=Glr%ns3 + Glr%d%n3
+!!$            zperiodic = .true.
+!!$         else
+!!$            if (correct) then
+!!$               isz=modulo(isz,Glr%d%n3+1) +  Glr%ns3
+!!$               iez= ln3 + isz
+!!$            end if
+!!$            if (iez > Glr%ns3+Glr%d%n3) then
+!!$               lr%outofzone(3)=modulo(iez,Glr%d%n3+1)
+!!$            end if
+!!$         end if
+!!$         if(xperiodic .and. zperiodic) then
+!!$            geocode = 'S'
+!!$         end if
+!!$
+!!$      case('P')
+!!$         ! Get starting and ending for x direction     
+!!$         if (iex - isx >= Glr%d%n1) then       
+!!$            isx=Glr%ns1
+!!$            iex=Glr%ns1 + Glr%d%n1
+!!$            xperiodic = .true.
+!!$         else
+!!$            if (correct) then
+!!$               isx=modulo(isx,Glr%d%n1+1) + Glr%ns1
+!!$               iex= ln1 + isx
+!!$            end if
+!!$            if (iex > Glr%ns1+Glr%d%n1) then
+!!$               lr%outofzone(1)=modulo(iex,Glr%d%n1+1)
+!!$            end if
+!!$         end if
+!!$
+!!$         ! Get starting and ending for y direction (perpendicular to surface)
+!!$         if (iey - isy >= Glr%d%n2) then       
+!!$            isy=Glr%ns2
+!!$            iey=Glr%ns2 + Glr%d%n2
+!!$            yperiodic = .true.
+!!$         else
+!!$            if (correct) then
+!!$               isy=modulo(isy,Glr%d%n2+1) + Glr%ns2
+!!$               iey= ln2 + isy
+!!$            end if
+!!$            if (iey > Glr%ns2+Glr%d%n2) then
+!!$               lr%outofzone(2)=modulo(iey,Glr%d%n2+1)
+!!$            end if
+!!$         end if
+!!$
+!!$         !Get starting and ending for z direction
+!!$         if (iez - isz >= Glr%d%n3) then
+!!$            isz=Glr%ns3 
+!!$            iez=Glr%ns3 + Glr%d%n3
+!!$            zperiodic = .true.
+!!$         else
+!!$            if (correct) then
+!!$               isz=modulo(isz,Glr%d%n3+1) +  Glr%ns3
+!!$               iez= ln3 + isz
+!!$            end if
+!!$            if (iez > Glr%ns3+Glr%d%n3) then
+!!$               lr%outofzone(3)=modulo(iez,Glr%d%n3+1)
+!!$            end if
+!!$         end if
+!!$         if(xperiodic .and. yperiodic .and. zperiodic ) then
+!!$            geocode = 'P'
+!!$         end if
+!!$      case('W')
+!!$         call f_err_throw("Wires bc has to be implemented here", &
+!!$              err_name='BIGDFT_RUNTIME_ERROR')
+!!$      end select
       ! Make sure that the localization regions are not periodic
       if (xperiodic .or. yperiodic .or. zperiodic) then
          call f_err_throw('The localization region '//&

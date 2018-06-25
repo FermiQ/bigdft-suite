@@ -105,6 +105,7 @@ subroutine scfloop_main(acell, epot, fcart, grad, itime, me, natom, rprimd, xred
   use yaml_output
   use module_input_keys, only: inputpsiid_set_policy
   use public_enums, only: ENUM_MEMORY
+  use box, only: bc_periodic_dims,geocode_to_bc
   implicit none
 
   integer, intent(in) :: natom, itime, me
@@ -115,6 +116,7 @@ subroutine scfloop_main(acell, epot, fcart, grad, itime, me, natom, rprimd, xred
   real(dp), intent(out), target :: fcart(3, natom)
 
   character(len=*), parameter :: subname='scfloop_main'
+  logical, dimension(3) :: peri
   integer :: infocode, i, j
   real(dp) :: favg(3)
   type(state_properties) :: outs
@@ -129,10 +131,10 @@ subroutine scfloop_main(acell, epot, fcart, grad, itime, me, natom, rprimd, xred
      !     & 'SCFloop API, call force calculation step=', itime
      call yaml_map('SCFloop API, call force calculation step',itime)
   end if
-  if (scfloop_obj%atoms%astruct%geocode=='W') then
-     call f_err_throw("Wires bc has to be implemented here", &
-          err_name='BIGDFT_RUNTIME_ERROR')
-  end if
+!!$  if (scfloop_obj%atoms%astruct%geocode=='W') then
+!!$     call f_err_throw("Wires bc has to be implemented here", &
+!!$          err_name='BIGDFT_RUNTIME_ERROR')
+!!$  end if
 
   ! We transfer acell into at
   scfloop_obj%atoms%astruct%cell_dim(1) = acell(1)
@@ -141,13 +143,19 @@ subroutine scfloop_main(acell, epot, fcart, grad, itime, me, natom, rprimd, xred
   !scfloop_obj%inputs%inputPsiId=1
   call inputpsiid_set_policy(ENUM_MEMORY,scfloop_obj%inputs%inputPsiId)
   ! need to transform xred into xcart
+  peri=bc_periodic_dims(geocode_to_bc(scfloop_obj%atoms%astruct%geocode))
   do i = 1, scfloop_obj%atoms%astruct%nat, 1
      do j=1,3
-        if (scfloop_obj%atoms%astruct%geocode=='F') then
-           scfloop_obj%atoms%astruct%rxyz(j,i)=xred(j,i)*acell(j)
-        else
+        if (peri(j)) then
            scfloop_obj%atoms%astruct%rxyz(j,i)=modulo(xred(j,i),1._gp)*acell(j)
+        else
+           scfloop_obj%atoms%astruct%rxyz(j,i)=xred(j,i)*acell(j)
         end if
+!!$        if (scfloop_obj%atoms%astruct%geocode=='F') then
+!!$           scfloop_obj%atoms%astruct%rxyz(j,i)=xred(j,i)*acell(j)
+!!$        else
+!!$           scfloop_obj%atoms%astruct%rxyz(j,i)=modulo(xred(j,i),1._gp)*acell(j)
+!!$        end if
      end do
   end do
 !!$  open(100+me)
@@ -341,6 +349,7 @@ END SUBROUTINE read_velocities
 subroutine wtvel(filename,vxyz,atoms,comment)
   use module_base
   use module_types
+  use module_atoms, only: write_xyz_bc
   implicit none
   character(len=*), intent(in) :: filename,comment
   type(atoms_data), intent(in) :: atoms
@@ -348,7 +357,7 @@ subroutine wtvel(filename,vxyz,atoms,comment)
   !Local variables
   integer, parameter :: iunit = 9
   character(len=2) :: symbol
-  character(len=10) :: name
+  character(len=10) :: name,bcname
   character(len=11) :: units
   integer :: iat,j
   real(gp) :: factor
@@ -362,20 +371,22 @@ subroutine wtvel(filename,vxyz,atoms,comment)
      units='atomicd0'
   end if
 
-  write(iunit,'(i6,2x,a,2x,a)') atoms%astruct%nat,trim(units),comment
+  write(iunit,'(i6,2x,a,2x,a)') atoms%astruct%nat,trim(units),comment  
 
-  if (atoms%astruct%geocode == 'P') then
-     write(iunit,'(a,3(1x,1pe24.17))') 'periodic',&
-       &  atoms%astruct%cell_dim(1)*factor,atoms%astruct%cell_dim(2)*factor,atoms%astruct%cell_dim(3)*factor
-  else if (atoms%astruct%geocode == 'S') then
-     write(iunit,'(a,3(1x,1pe24.17))') 'surface',&
-       &  atoms%astruct%cell_dim(1)*factor,atoms%astruct%cell_dim(2)*factor,atoms%astruct%cell_dim(3)*factor
-  else if (atoms%astruct%geocode == 'W') then
-     call f_err_throw("Wires bc has to be implemented here", &
-          err_name='BIGDFT_RUNTIME_ERROR')
-  else
-     write(9,*)'free'
-  end if
+  call write_xyz_bc(iunit,atoms%astruct%geocode,factor,atoms%astruct%cell_dim)
+
+!!$  if (atoms%astruct%geocode == 'P') then
+!!$     write(iunit,'(a,3(1x,1pe24.17))') 'periodic',&
+!!$       &  atoms%astruct%cell_dim(1)*factor,atoms%astruct%cell_dim(2)*factor,atoms%astruct%cell_dim(3)*factor
+!!$  else if (atoms%astruct%geocode == 'S') then
+!!$     write(iunit,'(a,3(1x,1pe24.17))') 'surface',&
+!!$       &  atoms%astruct%cell_dim(1)*factor,atoms%astruct%cell_dim(2)*factor,atoms%astruct%cell_dim(3)*factor
+!!$  else if (atoms%astruct%geocode == 'W') then
+!!$     call f_err_throw("Wires bc has to be implemented here", &
+!!$          err_name='BIGDFT_RUNTIME_ERROR')
+!!$  else
+!!$     write(9,*)'free'
+!!$  end if
   do iat=1,atoms%astruct%nat
      name=trim(atoms%astruct%atomnames(atoms%astruct%iatype(iat)))
      if (name(3:3)=='_') then

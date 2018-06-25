@@ -27,6 +27,7 @@ program frequencies
    use dictionaries, only: f_err_throw
    use abi_interfaces_numeric, only: abi_sort_dp
    use module_Atoms, only: move_this_coordinate
+   use box, only: bc_periodic_dims,geocode_to_bc
    implicit none
 
    !Parameters
@@ -67,6 +68,7 @@ program frequencies
    logical :: exists
    integer :: FREQUENCIES_RUNTIME_ERROR
    !integer, dimension(4) :: mpi_info
+   logical, dimension(3) :: peri
    type(dictionary), pointer :: options
 
    call f_lib_initialize()
@@ -201,6 +203,9 @@ program frequencies
 
    !Number of considered degrees of freedom
    nfree = 0
+   !get the periodic dimension
+   peri=bc_periodic_dims(geocode_to_bc(runObj%atoms%astruct%geocode))
+
    ! Loop over the atoms for the degrees of freedom
    do iat=1,runObj%atoms%astruct%nat
 
@@ -215,16 +220,17 @@ program frequencies
          ii = i+3*(iat-1)
          !One more degree of freedom
          nfree = nfree + 1
-         if (i==1) then
-            !Along x axis
-            alat=runObj%atoms%astruct%cell_dim(1)
-         else if (i==2) then
-            !Along y axis
-            alat=runObj%atoms%astruct%cell_dim(2)
-         else
-            !Along z axis
-            alat=runObj%atoms%astruct%cell_dim(3)
-         end if
+         alat=runObj%atoms%astruct%cell_dim(i)
+!!$         if (i==1) then
+!!$            !Along x axis
+!!$            alat=runObj%atoms%astruct%cell_dim(1)
+!!$         else if (i==2) then
+!!$            !Along y axis
+!!$            alat=runObj%atoms%astruct%cell_dim(2)
+!!$         else
+!!$            !Along z axis
+!!$            alat=runObj%atoms%astruct%cell_dim(3)
+!!$         end if
          km = 0
          do ik=1,n_order
             k = kmoves(ik)
@@ -247,15 +253,21 @@ program frequencies
                   call yaml_map('displacement (Bohr)', dd,fmt='(1pe20.10)')
                call yaml_mapping_close()
             end if
-            if (runObj%atoms%astruct%geocode == 'W') call f_err_throw("Wires bc has to be implemented here", &
-                            err_name='BIGDFT_RUNTIME_ERROR') 
-            if (runObj%atoms%astruct%geocode == 'P') then
-               runObj%atoms%astruct%rxyz(i,iat)=modulo(rxyz0(i,iat)+dd,alat)
-            else if (runObj%atoms%astruct%geocode == 'S') then
+
+            if (peri(i)) then
                runObj%atoms%astruct%rxyz(i,iat)=modulo(rxyz0(i,iat)+dd,alat)
             else
                runObj%atoms%astruct%rxyz(i,iat)=rxyz0(i,iat)+dd
             end if
+!!$            if (runObj%atoms%astruct%geocode == 'W') call f_err_throw("Wires bc has to be implemented here", &
+!!$                            err_name='BIGDFT_RUNTIME_ERROR') 
+!!$            if (runObj%atoms%astruct%geocode == 'P') then
+!!$               runObj%atoms%astruct%rxyz(i,iat)=modulo(rxyz0(i,iat)+dd,alat)
+!!$            else if (runObj%atoms%astruct%geocode == 'S') then
+!!$               runObj%atoms%astruct%rxyz(i,iat)=modulo(rxyz0(i,iat)+dd,alat)
+!!$            else
+!!$               runObj%atoms%astruct%rxyz(i,iat)=rxyz0(i,iat)+dd
+!!$            end if
             call bigdft_state(runObj,outs,infocode)
             call frequencies_write_restart(km,i,iat,runObj%atoms%astruct%rxyz,outs%energy,outs%fxyz)
             call vcopy(3*outs%fdim, outs%fxyz(1,1), 1, fpos(1,km), 1)

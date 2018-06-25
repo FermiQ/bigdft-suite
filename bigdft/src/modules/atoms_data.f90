@@ -140,7 +140,7 @@ module module_atoms
   ! Types from dictionaries
   public :: astruct_set_from_dict
   public :: astruct_file_merge_to_dict,atoms_file_merge_to_dict
-  public :: psp_dict_analyse, nlcc_set_from_dict,atoms_gamma_from_dict
+  public :: psp_dict_analyse, nlcc_set_from_dict,atoms_gamma_from_dict,write_xyz_bc
   public :: astruct_constraints,astruct_set,atomic_charge_density,atomic_cores_charge_density
 
 
@@ -914,8 +914,8 @@ contains
                call f_free(irrzon)
                call f_free(phnons)
             end if
-            if (geocode == "W") call f_err_throw("Wires bc has to be implemented here", &
-                                     err_name='BIGDFT_RUNTIME_ERROR')
+            if (geocode == "W") call f_err_throw("Wires bc should not have symmetries implemented", &
+                                     err_name='BIGDFT_INPUT_VARIABLES_ERROR')
          end if
       end if
 
@@ -2018,8 +2018,6 @@ contains
             astruct%cell_dim(1) = dict // ASTRUCT_CELL // 0
          end if
       end if
-      if (astruct%geocode == "W") call f_err_throw("Wires bc has to be implemented here", &
-                               err_name='BIGDFT_RUNTIME_ERROR')
       if (units == 1) astruct%cell_dim = astruct%cell_dim / Bohr_Ang
       ! The types
       call astruct_dict_get_types(dict, types)
@@ -2451,7 +2449,7 @@ subroutine astruct_set_symmetries(astruct, disableSym, tol, elecfield, nspin)
   integer :: spaceGroupId, pointGroupMagn
 
   ! Calculate the symmetries, if needed (for periodic systems only)
-  if (astruct%geocode /= 'F') then
+  if (astruct%geocode /= 'F' .and. astruct%geocode /= 'W') then
      if (astruct%sym%symObj < 0) then
         call symmetry_new(astruct%sym%symObj)
      end if
@@ -2497,8 +2495,6 @@ subroutine astruct_set_symmetries(astruct, disableSym, tol, elecfield, nspin)
           & reshape((/ 1, 0, 0, 0, 1, 0, 0, 0, 1 /), (/ 3 ,3, 1 /)), &
           & reshape((/ 0.d0, 0.d0, 0.d0 /), (/ 3, 1/)), (/ 1 /), ierr)
      end if
-     if (astruct%geocode == "W") call f_err_throw("Wires bc has to be implemented here", &
-                              err_name='BIGDFT_RUNTIME_ERROR')
   else
      call deallocate_symmetry_data(astruct%sym)
      astruct%sym%symObj = -1

@@ -731,9 +731,6 @@ subroutine symmetrise_density(iproc,nproc,mesh,n1i,n2i,n3i,nspin,rho,& !n(c) nsc
      return
   end if
 
-  if (cell_geocode(mesh) == 'W') call f_err_throw("Wires bc has to be implemented here", &
-                                      err_name='BIGDFT_RUNTIME_ERROR')
-
 !!$  ! Array sizes for the real-to-complex FFT: note that n1(there)=n1(here)+1
 !!$  ! and the same for n2,n3. Not needed for the moment
 !!$  call dimensions_fft(n1,n2,n3,nd1,nd2,nd3,n1f,n3f,n1b,n3b,nd1f,nd3f,nd1b,nd3b)
@@ -1170,7 +1167,6 @@ subroutine rho_segkey(iproc,at,rxyz,crmult,frmult,&
    spadd=5.0_gp
    dpmult=1.0_gp
 
-
    ! calculate the corrections of the grid when transforming from 
    ! n1,n2,n3 to n1i, n2i, n3i
    call gridcorrection(nbx,nby,nbz,nl1,nl2,nl3,at%astruct%geocode)
@@ -1434,34 +1430,58 @@ END SUBROUTINE rho_segkey
 
 
 subroutine gridcorrection(nbx,nby,nbz,nl1,nl2,nl3,geocode)
-   use module_base, only: f_err_throw
+   use box
    implicit none
    character(len=1),intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
    integer,intent(out) :: nbx,nby,nbz,nl1,nl2,nl3
 
    !conditions for periodicity in the three directions
    !value of the buffer in the x and z direction
-   if (geocode /= 'F') then
+   logical, dimension(3) :: peri
+
+   peri=bc_periodic_dims(geocode_to_bc(geocode))
+   if (peri(1)) then
       nl1=1
-      nl3=1
-      nbx = 1
-      nbz = 1
+      nbx=1
    else
       nl1=15
-      nl3=15
       nbx = 0
-      nbz = 0
    end if
-   !value of the buffer in the y direction
-   if (geocode == 'P') then
+   if (peri(2)) then
       nl2=1
-      nby = 1
+      nby=1
    else
       nl2=15
       nby = 0
    end if
-   if (geocode == 'W') call f_err_throw("Wires bc has to be implemented here", &
-                            err_name='BIGDFT_RUNTIME_ERROR')
+   if (peri(3)) then
+      nl3=1
+      nbx=1
+   else
+      nl1=15
+      nbz = 0
+   end if
+
+!!$   if (geocode /= 'F') then
+!!$      nl1=1
+!!$      nl3=1
+!!$      nbx = 1
+!!$      nbz = 1
+!!$   else
+!!$      nl1=15
+!!$      nl3=15
+!!$      nbx = 0
+!!$      nbz = 0
+!!$   end if
+!!$   !value of the buffer in the y direction
+!!$   if (geocode == 'P') then
+!!$      nl2=1
+!!$      nby = 1
+!!$   else
+!!$      nl2=15
+!!$      nby = 0
+!!$   end if
+
 END SUBROUTINE gridcorrection
 
 

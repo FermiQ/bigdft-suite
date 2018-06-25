@@ -72,8 +72,7 @@ subroutine reformatonewave(displ,wfd,at,hx_old,hy_old,hz_old,n1_old,n2_old,n3_ol
   else if (at%astruct%geocode=='P') then
      call synthese_per(n1_old,n2_old,n3_old,wwold,psigold,psifscfold)
   else if (at%astruct%geocode=='W') then
-     call f_err_throw("Wires bc has to be implemented here", &
-        err_name='BIGDFT_RUNTIME_ERROR')
+     call synthese_wire(n1_old,n2_old,n3_old,wwold,psigold,psifscfold)
   end if
 
   call f_free(wwold)
@@ -234,8 +233,7 @@ subroutine reformatonewave(displ,wfd,at,hx_old,hy_old,hz_old,n1_old,n2_old,n3_ol
   else if (at%astruct%geocode == 'P') then
      call analyse_per(n1,n2,n3,ww,psifscf,psig)
   else if (at%astruct%geocode=='W') then
-     call f_err_throw("Wires bc has to be implemented here", &
-        err_name='BIGDFT_RUNTIME_ERROR')
+     call analyse_wire(n1,n2,n3,ww,psifscf,psig)
   end if
 
   !write(100+iproc,*) 'norm new psig ',dnrm2(8*(n1+1)*(n2+1)*(n3+1),psig,1)

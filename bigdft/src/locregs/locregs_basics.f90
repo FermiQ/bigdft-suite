@@ -283,8 +283,6 @@ subroutine psi_to_tpsi(hgrids,kptv,nspinor,lr,psi,w,hpsi,ekin,k_strten)
 
   case('W')
 
-     call f_err_throw("Wires bc has to be implemented here", &
-          err_name='BIGDFT_RUNTIME_ERROR')
 
      if (usekpts) then
         !first calculate the proper arrays then transpose them before passing to the

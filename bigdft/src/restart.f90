@@ -108,7 +108,6 @@ subroutine reformatmywaves(iproc,orbs,at,&
   call ext_buffers_coarse(pery,nb2)
   call ext_buffers_coarse(perz,nb3)
 
-
   psifscf = f_malloc((/ -nb1.to.2*n1+1+nb1, -nb2.to.2*n2+1+nb2, -nb3.to.2*n3+1+nb3 /),id='psifscf')
 
   tx=0.0_gp

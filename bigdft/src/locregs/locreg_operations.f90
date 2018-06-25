@@ -446,8 +446,7 @@ module locreg_operations
             end if
          endif
       case('W')
-         call f_err_throw("Wires bc has to be implemented here", &
-              err_name='BIGDFT_RUNTIME_ERROR')
+
          w%nw1=0
          w%nw2=0
          w%nyc=n1i*n2i*n3i
@@ -626,8 +625,6 @@ module locreg_operations
             end if
          endif
       case('W')
-         call f_err_throw("Wires bc has to be implemented here", &
-              err_name='BIGDFT_RUNTIME_ERROR')
          w%nw1=0
          w%nw2=0
          w%nyc=n1i*n2i*n3i
@@ -743,8 +740,6 @@ module locreg_operations
          endif
       case('W')
 
-         call f_err_throw("Wires bc has to be implemented here", &
-              err_name='BIGDFT_RUNTIME_ERROR')
          nw1=0
          nw2=0
          nyc=n1i*n2i*n3i
@@ -809,8 +804,6 @@ module locreg_operations
       case('P')
 
       case('W')
-         call f_err_throw("Wires bc has to be implemented here", &
-              err_name='BIGDFT_RUNTIME_ERROR')
 
       end select
 
@@ -934,8 +927,6 @@ module locreg_operations
             w%nxf=1
          endif
       case('W')
-         call f_err_throw("Wires bc has to be implemented here", &
-              err_name='BIGDFT_RUNTIME_ERROR')
          !dimension of the work arrays
          w%nw1=1
          w%nw2=1
@@ -1037,8 +1028,6 @@ module locreg_operations
             w%nxf=1
          endif
       case('W')
-         call f_err_throw("Wires bc has to be implemented here", &
-              err_name='BIGDFT_RUNTIME_ERROR')
          !dimension of the work arrays
          w%nw1=1
          w%nw2=1
@@ -1134,8 +1123,6 @@ module locreg_operations
             nxf=1
          endif
       case('W')
-         call f_err_throw("Wires bc has to be implemented here", &
-              err_name='BIGDFT_RUNTIME_ERROR')
          !dimension of the work arrays
          nw1=1
          nw2=1
@@ -1258,9 +1245,6 @@ module locreg_operations
          w%ww = f_malloc_ptr(ncplx*(2*d%n1+2)*(2*d%n2+16)*(2*d%n3+2),id='w%ww')
 
       case('W')
-
-         call f_err_throw("Wires bc has to be implemented here", &
-              err_name='BIGDFT_RUNTIME_ERROR')
          
          if (ncplx == 1) then
             w%modul3 = f_malloc_ptr(lowfil.to.d%n3+lupfil,id='w%modul3')
@@ -1330,9 +1314,6 @@ module locreg_operations
          memwork=memwork+2*ncplx*(2*d%n1+2)*(2*d%n2+16)*(2*d%n3+2)
 
       else if (geocode == 'W') then
-
-         call f_err_throw("Wires bc has to be implemented here", &
-              err_name='BIGDFT_RUNTIME_ERROR')
          memwork=0
          if (ncplx == 1) then
             memwork=d%n3+14*(lupfil-lowfil+1)  !!! To be checked !!!
@@ -1403,9 +1384,6 @@ module locreg_operations
 
       else if (cell_geocode(mesh) == 'W') then
 
-         call f_err_throw("Wires bc has to be implemented here", &
-              err_name='BIGDFT_RUNTIME_ERROR')
-
          if (ncplx == 1) then
             call f_free_ptr(w%modul3)
             call f_free_ptr(w%af)
@@ -1428,89 +1406,47 @@ module locreg_operations
       type(workarrays_quartic_convolutions),intent(inout):: work
 
       call f_free_ptr(work%xx_c)
-
       call f_free_ptr(work%xy_c)
-
       call f_free_ptr(work%xz_c)
-
       call f_free_ptr(work%xx_f1)
-
       call f_free_ptr(work%xx_f)
-
       call f_free_ptr(work%xy_f2)
-
       call f_free_ptr(work%xy_f)
-
       call f_free_ptr(work%xz_f4)
-
       call f_free_ptr(work%xz_f)
-
       call f_free_ptr(work%y_c)
-
       call f_free_ptr(work%y_f)
-
       call f_free_ptr(work%aeff0array)
-
       call f_free_ptr(work%beff0array)
-
       call f_free_ptr(work%ceff0array)
-
       call f_free_ptr(work%eeff0array)
-
       call f_free_ptr(work%aeff0_2array)
-
       call f_free_ptr(work%beff0_2array)
-
       call f_free_ptr(work%ceff0_2array)
-
       call f_free_ptr(work%eeff0_2array)
-
       call f_free_ptr(work%aeff0_2auxarray)
-
       call f_free_ptr(work%beff0_2auxarray)
-
       call f_free_ptr(work%ceff0_2auxarray)
-
       call f_free_ptr(work%eeff0_2auxarray)
-
       call f_free_ptr(work%xya_c)
-
       call f_free_ptr(work%xyc_c)
-
       call f_free_ptr(work%xza_c)
-
       call f_free_ptr(work%xzc_c)
-
       call f_free_ptr(work%yza_c)
-
       call f_free_ptr(work%yzb_c)
-
       call f_free_ptr(work%yzc_c)
-
       call f_free_ptr(work%yze_c)
-
       call f_free_ptr(work%xya_f)
-
       call f_free_ptr(work%xyb_f)
-
       call f_free_ptr(work%xyc_f)
-
       call f_free_ptr(work%xye_f)
-
       call f_free_ptr(work%xza_f)
-
       call f_free_ptr(work%xzb_f)
-
       call f_free_ptr(work%xzc_f)
-
       call f_free_ptr(work%xze_f)
-
       call f_free_ptr(work%yza_f)
-
       call f_free_ptr(work%yzb_f)
-
       call f_free_ptr(work%yzc_f)
-
       call f_free_ptr(work%yze_f)
 
     end subroutine deallocate_workarrays_quartic_convolutions
@@ -2927,9 +2863,6 @@ module locreg_operations
          if (present(k_strten)) k_strten=kstrten 
   
       case('W')
-
-         call f_err_throw("Wires bc has to be implemented here", &
-              err_name='BIGDFT_RUNTIME_ERROR')
 
          if (usekpts) then
             !first calculate the proper arrays then transpose them before passing to the

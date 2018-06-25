@@ -27,6 +27,29 @@ subroutine analyse_wire_self(n1,n2,n3,y,x)
 
 END SUBROUTINE analyse_wire_self
 
+!>   An analysis wavelet transformation where the size of the data is forced to shrink
+!!   The input array y is not overwritten
+subroutine analyse_wire(n1,n2,n3,ww,y,x)
+  implicit none
+  !Arguments
+  integer, intent(in) :: n1,n2,n3
+  real(kind=8) :: x(0:n1,2,0:n2,2,0:n3,2)
+  real(kind=8) :: y (-7:2*n1+8,-7:2*n2+8,0:2*n3+1)
+  real(kind=8) :: ww(-7:2*n1+8,-7:2*n2+8,0:2*n3+1)
+  !Local variables
+  integer :: nt
+
+  ! i1,I2,i3 -> I2,i3,i1
+  nt=(2*n2+16)*(2*n3+2)
+  call  ana_rot_shrink(n1,nt,y,ww)
+  ! I2,i3,i1 -> i3,i1,i2
+  nt=(2*n3+2)*(2*n1+16)
+  call  ana_rot_shrink(n2,nt,ww,y)
+  ! i3,i1,i2 -> i1,i2,i3
+  nt=(2*n1+2)*(2*n2+2)
+  call  ana_rot_per(n3,nt,y,x)
+
+END SUBROUTINE analyse_wire
 
 !>   A synthesis wavelet transformation where the size of the data is allowed to grow
 !!   The input array x is overwritten
@@ -48,6 +71,25 @@ subroutine synthese_wire_self(n1,n2,n3,x,y)
 
 END SUBROUTINE synthese_wire_self
 
+!>   A synthesis wavelet transformation where the size of the data is allowed to grow
+!!   The input array x is not overwritten
+subroutine synthese_wire(n1,n2,n3,ww,x,y)
+  implicit real(kind=8) (a-h,o-z)
+  real(kind=8) :: x(0:n1,2,0:n2,2,0:n3,2)
+  real(kind=8) :: y (-7:2*n1+8,-7:2*n2+8,0:2*n3+1)
+  real(kind=8) :: ww(-7:2*n1+8,-7:2*n2+8,0:2*n3+1)
+
+  ! i1,i2,i3 -> i2,i3,i1
+  nt=(2*n2+2)*(2*n3+2)
+  call  syn_rot_grow(n1,nt,x,y)
+  ! i2,i3,i1 -> i3,i1,I2
+  nt=(2*n3+2)*(2*n1+16)
+  call  syn_rot_grow(n2,nt,y,ww)
+  ! i3,i1,I2  -> i1,I2,i3
+  nt=(2*n1+16)*(2*n2+16)
+  call  syn_rot_per(n3,nt,ww,y)
+
+END SUBROUTINE synthese_wire
 
 !>   Applies the magic filter matrix in wire BC ( no transposition)
 !!   The input array x is overwritten
@@ -290,7 +332,6 @@ subroutine convolut_kinetic_wire_T(n1,n2,n3,hgrid,x,y,ekin)
   integer :: mod_arr3(lowfil:n3+lupfil)   
   !integer :: ncount0,ncount1,ncount_max,ncount_rate
 
-  call fill_mod_arr(mod_arr1,lowfil,n1+lupfil,n1+1)
   call fill_mod_arr(mod_arr3,lowfil,n3+lupfil,n3+1)
    
   scale(:)=real(-.5_gp/hgrid(:)**2,wp)
@@ -320,7 +361,7 @@ subroutine convolut_kinetic_wire_T(n1,n2,n3,hgrid,x,y,ekin)
   !call system_clock(ncount0,ncount_rate,ncount_max)
 
   !call conv_kin_x(x,y,(n2+1)*(n3+1))   
-  call conv_kin_x_new(n1,x,y,(n2+1)*(n3+1),lowfil,lupfil,fil,ekin,mod_arr1)
+  call conv_kin_x_new_wire(n1,x,y,(n2+1)*(n3+1),lowfil,lupfil,fil,ekin)!,mod_arr1)
 
   !call conv_kin_y
   call conv_kin_y_new(n1,n2,n3,x,y,lowfil,lupfil,fil,ekin)
@@ -700,3 +741,88 @@ subroutine prepare_sdc_wire(n3,modul3,a,b,c,e,hx,hy,hz)
      e(-i,:)=e(i,:)
   enddo
 END SUBROUTINE prepare_sdc_wire
+! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! New conv routine taken out from convolut_kinetic_slab_T. These routines 
+! significantly speedup the version included in convolut_kinetic_slab_T.
+subroutine conv_kin_x_new_wire(n1,x,y,ndat,lowfil,lupfil,fil,ekin)!,mod_arr1)
+  use module_defs, only: wp
+  implicit none
+  integer,intent(in)::n1,ndat,lowfil,lupfil
+  real(wp), intent(in), dimension(lowfil:lupfil,3) :: fil
+  real(wp),intent(in):: x(0:n1,ndat)
+  real(wp),intent(inout)::y(0:n1,ndat),ekin
+!  integer,intent(in) :: mod_arr1(lowfil:n1+lupfil)   
+  real(wp) :: tt,tt1,tt2,tt3,tt4,tt5,tt6,tt7,tt8,tt9,tt10,tt11,tt12,ekin_tmp
+  integer :: i,i1,l,j
+
+  ekin_tmp=0.0_wp
+  !$omp parallel do default(private)&
+  !$omp shared(ndat,n1,lowfil,lupfil,x,y,fil)&
+  !$omp reduction(+:ekin_tmp)
+  do i=0,ndat/12-1
+    do i1=0,n1
+      tt1=0.e0_wp
+      tt2=0.e0_wp
+      tt3=0.e0_wp
+      tt4=0.e0_wp
+      tt5=0.e0_wp
+      tt6=0.e0_wp
+      tt7=0.e0_wp
+      tt8=0.e0_wp
+      tt9 =0.e0_wp
+      tt10=0.e0_wp
+      tt11=0.e0_wp
+      tt12=0.e0_wp
+      do l=max(lowfil,-i1),min(lupfil,n1-i1)!lowfil,lupfil
+         j=i1+l !j=mod_arr1(i1+l)
+         tt1=tt1+x(j,i*12+1)*fil(l,1)
+         tt2=tt2+x(j,i*12+2)*fil(l,1)
+         tt3=tt3+x(j,i*12+3)*fil(l,1)
+         tt4=tt4+x(j,i*12+4)*fil(l,1)
+         tt5=tt5+x(j,i*12+5)*fil(l,1)
+         tt6=tt6+x(j,i*12+6)*fil(l,1)
+         tt7=tt7+x(j,i*12+7)*fil(l,1)
+         tt8=tt8+x(j,i*12+8)*fil(l,1)
+         tt9 =tt9 +x(j,i*12+9 )*fil(l,1)
+         tt10=tt10+x(j,i*12+10)*fil(l,1)
+         tt11=tt11+x(j,i*12+11)*fil(l,1)
+         tt12=tt12+x(j,i*12+12)*fil(l,1)
+      enddo
+      y(i1,i*12+1)=y(i1,i*12+1)+tt1;    ekin_tmp=ekin_tmp+tt1*x(i1,i*12+1)
+      y(i1,i*12+2)=y(i1,i*12+2)+tt2;    ekin_tmp=ekin_tmp+tt2*x(i1,i*12+2)
+      y(i1,i*12+3)=y(i1,i*12+3)+tt3;    ekin_tmp=ekin_tmp+tt3*x(i1,i*12+3)
+      y(i1,i*12+4)=y(i1,i*12+4)+tt4;    ekin_tmp=ekin_tmp+tt4*x(i1,i*12+4)
+      y(i1,i*12+5)=y(i1,i*12+5)+tt5;    ekin_tmp=ekin_tmp+tt5*x(i1,i*12+5)
+      y(i1,i*12+6)=y(i1,i*12+6)+tt6;    ekin_tmp=ekin_tmp+tt6*x(i1,i*12+6)
+      y(i1,i*12+7)=y(i1,i*12+7)+tt7;    ekin_tmp=ekin_tmp+tt7*x(i1,i*12+7)
+      y(i1,i*12+8)=y(i1,i*12+8)+tt8;    ekin_tmp=ekin_tmp+tt8*x(i1,i*12+8)
+      y(i1,i*12+9 )=y(i1,i*12+9 )+tt9 ; ekin_tmp=ekin_tmp+tt9 *x(i1,i*12+9 )
+      y(i1,i*12+10)=y(i1,i*12+10)+tt10; ekin_tmp=ekin_tmp+tt10*x(i1,i*12+10)
+      y(i1,i*12+11)=y(i1,i*12+11)+tt11; ekin_tmp=ekin_tmp+tt11*x(i1,i*12+11)
+      y(i1,i*12+12)=y(i1,i*12+12)+tt12; ekin_tmp=ekin_tmp+tt12*x(i1,i*12+12)
+    enddo
+  enddo
+  !$omp end parallel do
+
+  ekin=ekin+ekin_tmp
+
+  ekin_tmp=0.0_wp
+  !$omp parallel do default(private) &
+  !$omp shared(ndat,n1,lowfil,lupfil,x,y,fil) &
+  !$omp reduction(+:ekin_tmp)
+  do i=(ndat/12)*12+1,ndat
+    do i1=0,n1
+      tt=0.e0_wp
+      !do l=lowfil,lupfil
+      !  j=mod_arr1(i1+l)
+      do l=max(lowfil,-i1),min(lupfil,n1-i1)!lowfil,lupfil
+         j=i1+l !j=mod_arr1(i1+l)
+         tt=tt+x(j   ,i)*fil(l,1)
+      enddo
+      y(i1,i)=y(i1,i)+tt ; ekin_tmp=ekin_tmp+tt*x(i1,i)
+    enddo
+  enddo
+  !$omp end parallel do
+
+  ekin=ekin+ekin_tmp
+END SUBROUTINE conv_kin_x_new_wire

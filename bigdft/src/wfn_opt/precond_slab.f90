@@ -406,7 +406,7 @@ subroutine prec_fft_wire(n1,n2,n3, &
   !   solve the helmholtz equation for the scfunction part  
 !  call hit_with_kernel_wire(x_c,z,kern_k3,n1,n2,n3,cprecr,hx,hy)
 
-  call   compress_c(hpsi,x_c,keyg(1,1),keyv(1),nseg_c,nvctr_c,n1,n2,n3)
+  call compress_c(hpsi,x_c,keyg(1,1),keyv(1),nseg_c,nvctr_c,n1,n2,n3)
 
   call deallocate_all
 

@@ -90,8 +90,6 @@ subroutine daub_to_isf(lr,w,psi,psir)
      call convolut_magic_n_slab_self(2*lr%d%n1+1,2*lr%d%n2+15,2*lr%d%n3+1,w%x_c,&
           psir) 
   case('W')
-     call f_err_throw("Wires bc has to be implemented here", &
-          err_name='BIGDFT_RUNTIME_ERROR')
 
      call uncompress_wire(lr%d%n1,lr%d%n2,lr%d%n3,lr%wfd%nseg_c,lr%wfd%nvctr_c,&
           lr%wfd%keygloc(1,1),lr%wfd%keyvloc(1),&
@@ -196,8 +194,6 @@ subroutine isf_to_daub(lr,w,psir,psi)
      end if
 
   case('W')
-     call f_err_throw("Wires bc has to be implemented here", &
-          err_name='BIGDFT_RUNTIME_ERROR')
 
      call convolut_magic_t_wire_self(2*lr%d%n1+15,2*lr%d%n2+15,2*lr%d%n3+1,&
           psir(1),w%x_c(1))
@@ -317,8 +313,6 @@ subroutine daub_to_isf_locham(nspinor,lr,w,psi,psir)
      end if
 
   case('W')
-     call f_err_throw("Wires bc has to be implemented here", &
-          err_name='BIGDFT_RUNTIME_ERROR')
 
      do idx=1,nspinor
         call uncompress_wire(lr%d%n1,lr%d%n2,lr%d%n3,&
