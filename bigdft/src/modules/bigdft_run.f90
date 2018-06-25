@@ -428,9 +428,6 @@ contains
     if (rst%version == LINEAR_VERSION) then
        call destroy_DFT_wavefunction(rst%tmb)
     end if
-    !always deallocate lzd for new input guess
-    !call deallocate_lzd(rst%tmb%lzd)
-    ! Modified by SM
     call deallocate_local_zone_descriptors(rst%tmb%lzd)
 
     call deallocate_locreg_descriptors(rst%KSwfn%Lzd%Glr)
@@ -2338,6 +2335,7 @@ contains
     real(gp), dimension(3,atoms%astruct%nat), intent(inout) :: fxyz
     !local variables
     character(len=*), parameter :: subname='forces_via_finite_differences'
+    logical, dimension(3) :: peri
     character(len=4) :: cc
     integer :: ik,km,n_order,iat,ii,i,k,order,iorb_ref
     real(gp) :: dd,alat,functional_ref,fd_alpha,energy_ref,pressure
@@ -2393,8 +2391,9 @@ contains
     rxyz_ref = f_malloc(src=rst%rxyz_new,id='rxyz_ref')
     fxyz_fake = f_malloc((/ 3, atoms%astruct%nat /),id='fxyz_fake')
 
+    !get the periodic dimension
+    peri=bc_periodic_dims(geocode_to_bc(atoms%astruct%geocode))
     do iat=1,atoms%astruct%nat
-
        do i=1,3 !a step in each of the three directions
 
           if (.not.move_this_coordinate(atoms%astruct%ifrztyp(iat),i)) then
@@ -2429,16 +2428,22 @@ contains
                 write(*,"(1x,a,i0,a,a,a,1pe20.10,a)") &
                      '=FD Move the atom ',iat,' in the direction ',cc,' by ',dd,' bohr'
              end if
-             if (atoms%astruct%geocode == 'P') then
-                rst%rxyz_new(i,iat)=modulo(rxyz_ref(i,iat)+dd,alat)
-             else if (atoms%astruct%geocode == 'S') then
-                rst%rxyz_new(i,iat)=modulo(rxyz_ref(i,iat)+dd,alat)
-             else if (atoms%astruct%geocode == 'W') then
-                call f_err_throw("Wires bc has to be implemented here", &
-                     err_name='BIGDFT_RUNTIME_ERROR')
+             if (peri(i)) then
+                rst%rxyz(i,iat)=modulo(rxyz_ref(i,iat)+dd,alat)
              else
-                rst%rxyz_new(i,iat)=rxyz_ref(i,iat)+dd
+                rst%rxyz(i,iat)=rxyz_ref(i,iat)+dd
              end if
+
+!!$             if (atoms%astruct%geocode == 'P') then
+!!$                rst%rxyz_new(i,iat)=modulo(rxyz_ref(i,iat)+dd,alat)
+!!$             else if (atoms%astruct%geocode == 'S') then
+!!$                rst%rxyz_new(i,iat)=modulo(rxyz_ref(i,iat)+dd,alat)
+!!$             else if (atoms%astruct%geocode == 'W') then
+!!$                call f_err_throw("Wires bc has to be implemented here", &
+!!$                     err_name='BIGDFT_RUNTIME_ERROR')
+!!$             else
+!!$                rst%rxyz_new(i,iat)=rxyz_ref(i,iat)+dd
+!!$             end if
              !inputs%inputPsiId=1
              call inputpsiid_set_policy(ENUM_MEMORY,inputs%inputPsiId)
              !here we should call cluster

@@ -284,18 +284,7 @@
 !!$        astruct%rxyz(3,iat)=modulo(astruct%rxyz(3,iat),alat3d0)
 !!$     end if
 
-     do ityp=1,ntyp
-        if (tatonam == atomnames(ityp)) then
-           astruct%iatype(iat)=ityp
-           goto 200
-        endif
-     enddo
-     ntyp=ntyp+1
-     if (f_err_raise(ntyp > 100, "More than 100 atomnames not permitted",&
-          err_id=BIGDFT_INPUT_VARIABLES_ERROR)) return
-     atomnames(ityp)=tatonam
-     astruct%iatype(iat)=ntyp
-200  continue
+     call assign_iatype(iat,ntyp,tatonam,atomnames,astruct%iatype)
 
   enddo
   ! Try forces
@@ -341,6 +330,27 @@ contains
 
 END SUBROUTINE read_xyz_positions
 
+subroutine assign_iatype(iat,ntyp,tatonam,atomnames,iatype)
+  implicit none
+  character(len=*), intent(in) :: tatonam
+  character(len=20), dimension(:), intent(inout) :: atomnames
+  integer, intent(inout) :: iat,ntyp
+  integer, dimension(:), intent(inout) :: iatype
+  !local variables
+  integer :: ityp
+  do ityp=1,ntyp
+     if (tatonam == atomnames(ityp)) then
+        iatype(iat)=ityp
+        return !type already assigned goto 200
+     endif
+  enddo
+  ntyp=ntyp+1
+  if (ntyp > 100) call f_err_throw("More than 100 atomnames not permitted",&
+       err_id=BIGDFT_INPUT_VARIABLES_ERROR))
+
+  atomnames(ityp)=tatonam
+  iatype(iat)=ntyp
+end subroutine assign_iatype
 
 !> Read atomic positions of ascii files.
 subroutine read_ascii_positions(ifile,filename,astruct,comment,energy,fxyz,getline,disableTrans_)
@@ -370,7 +380,7 @@ subroutine read_ascii_positions(ifile,filename,astruct,comment,energy,fxyz,getli
   character(len=226) :: extra
   character(len=256) :: line
   logical :: lpsdbl, reduced, eof, forces
-  integer :: iat,ntyp,ityp,i,i_stat,nlines,istart,istop,count,nspol,nchrg
+  integer :: iat,ntyp,ityp,i,i_stat,nlines,istart,istop,count,nspol,nchrg,idir
 ! To read the file posinp (avoid differences between compilers)
   real(kind=4) :: rx,ry,rz,alat1,alat2,alat3,alat4,alat5,alat6
 ! case for which the atomic positions are given whithin general precision
@@ -380,10 +390,8 @@ subroutine read_ascii_positions(ifile,filename,astruct,comment,energy,fxyz,getli
   ! Store the file.
   character(len = 256), dimension(5000) :: lines
   logical :: disableTrans
+  logical, dimension(3) :: peri
   type(dictionary), pointer :: dict
-
-  if (astruct%geocode == "W") call f_err_throw("Wires bc has to be implemented here",&
-                           err_name='BIGDFT_RUNTIME_ERROR')
 
   if(present(disableTrans_))then
     disableTrans=disableTrans_
@@ -438,6 +446,7 @@ subroutine read_ascii_positions(ifile,filename,astruct,comment,energy,fxyz,getli
         if (index(line, 'reduced') > 0)     reduced = .true.
         if (index(line, 'periodic') > 0) astruct%geocode = 'P'
         if (index(line, 'surface') > 0)  astruct%geocode = 'S'
+        if (index(line, 'wire') > 0)  astruct%geocode = 'W'
         if (index(line, 'freeBC') > 0)   astruct%geocode = 'F'
      else if (line(1:9) == "#metaData" .or. line(1:9) == "!metaData") then
         if (index(line, 'totalEnergy') > 0) then
@@ -502,6 +511,8 @@ subroutine read_ascii_positions(ifile,filename,astruct,comment,energy,fxyz,getli
      astruct%cell_dim(3) = astruct%cell_dim(3) / Bohr_Ang
   endif
 
+  peri=bc_periodic_dims(geocode_to_bc(astruct%geocode))
+
   ntyp=0
   iat = 1
   do i = 4, nlines, 1
@@ -546,57 +557,68 @@ subroutine read_ascii_positions(ifile,filename,astruct,comment,energy,fxyz,getli
         end if
 
         if (reduced) then !add treatment for reduced coordinates
-           if (astruct%geocode == 'P' .or. astruct%geocode == 'S') &
-                & astruct%rxyz(1,iat)=modulo(astruct%rxyz(1,iat),1.0_gp)*astruct%cell_dim(1)
-           if (astruct%geocode == 'P') &
-                & astruct%rxyz(2,iat)=modulo(astruct%rxyz(2,iat),1.0_gp)*astruct%cell_dim(2)
-           if (astruct%geocode == 'P' .or. astruct%geocode == 'S') &
-                & astruct%rxyz(3,iat)=modulo(astruct%rxyz(3,iat),1.0_gp)*astruct%cell_dim(3)
-        else if (astruct%geocode == 'P' .and. (.not. disableTrans)) then
-           astruct%rxyz(1,iat)=modulo(astruct%rxyz(1,iat),astruct%cell_dim(1))
-           astruct%rxyz(2,iat)=modulo(astruct%rxyz(2,iat),astruct%cell_dim(2))
-           astruct%rxyz(3,iat)=modulo(astruct%rxyz(3,iat),astruct%cell_dim(3))
-        else if (astruct%geocode == 'S'.and. (.not. disableTrans)) then
-           astruct%rxyz(1,iat)=modulo(astruct%rxyz(1,iat),astruct%cell_dim(1))
-           astruct%rxyz(3,iat)=modulo(astruct%rxyz(3,iat),astruct%cell_dim(3))
+           do idir=1,3
+              if (peri(idir)) astruct%rxyz(idir,iat)=modulo(astruct%rxyz(idir,iat),1.0_gp)*astruct%cell_dim(idir)
+           end do
+!!$           if (astruct%geocode == 'P' .or. astruct%geocode == 'S') &
+!!$                & astruct%rxyz(1,iat)=modulo(astruct%rxyz(1,iat),1.0_gp)*astruct%cell_dim(1)
+!!$           if (astruct%geocode == 'P') &
+!!$                & astruct%rxyz(2,iat)=modulo(astruct%rxyz(2,iat),1.0_gp)*astruct%cell_dim(2)
+!!$           if (astruct%geocode == 'P' .or. astruct%geocode == 'S') &
+!!$                & astruct%rxyz(3,iat)=modulo(astruct%rxyz(3,iat),1.0_gp)*astruct%cell_dim(3)
+        else if(.not. disableTrans) then
+           do idir=1,3
+              if (peri(idir)) astruct%rxyz(idir,iat)=modulo(astruct%rxyz(idir,iat),astruct%cell_dim(idir))
+           end do
         end if
+!!$        else if (astruct%geocode == 'P' .and. (.not. disableTrans)) then
+!!$           astruct%rxyz(1,iat)=modulo(astruct%rxyz(1,iat),astruct%cell_dim(1))
+!!$           astruct%rxyz(2,iat)=modulo(astruct%rxyz(2,iat),astruct%cell_dim(2))
+!!$           astruct%rxyz(3,iat)=modulo(astruct%rxyz(3,iat),astruct%cell_dim(3))
+!!$        else if (astruct%geocode == 'S'.and. (.not. disableTrans)) then
+!!$           astruct%rxyz(1,iat)=modulo(astruct%rxyz(1,iat),astruct%cell_dim(1))
+!!$           astruct%rxyz(3,iat)=modulo(astruct%rxyz(3,iat),astruct%cell_dim(3))
+!!$        end if
 
-        do ityp=1,ntyp
-           if (tatonam == atomnames(ityp)) then
-              astruct%iatype(iat)=ityp
-              goto 200
-           endif
-        enddo
-        ntyp=ntyp+1
-        if (f_err_raise(ntyp>100, "File '"//trim(filename)//"' more than 100 atomnames not permitted", &
-           & err_id=BIGDFT_INPUT_VARIABLES_ERROR)) then
-        !if (ntyp > 100) then
-        !   write(*,*) 'more than 100 atomnames not permitted'
-           astruct%nat = -1
-           return
-        end if
-        atomnames(ityp)=tatonam
-        astruct%iatype(iat)=ntyp
-200     continue
+
+        call assign_iatype(iat,ntyp,tatonam,atomnames,astruct%iatype)
+
+!!$        do ityp=1,ntyp
+!!$           if (tatonam == atomnames(ityp)) then
+!!$              astruct%iatype(iat)=ityp
+!!$              goto 200
+!!$           endif
+!!$        enddo
+!!$        ntyp=ntyp+1
+!!$        if (f_err_raise(ntyp>100, "File '"//trim(filename)//"' more than 100 atomnames not permitted", &
+!!$           & err_id=BIGDFT_INPUT_VARIABLES_ERROR)) then
+!!$           astruct%nat = -1
+!!$           return
+!!$        end if
+!!$        atomnames(ityp)=tatonam
+!!$        astruct%iatype(iat)=ntyp
+!!$200     continue
 
         iat = iat + 1
      end if
   enddo
 
-  if (astruct%geocode == 'S') then
-     astruct%cell_dim(2) = 0.0_gp
-  else if (astruct%geocode == 'F') then
-     astruct%cell_dim(1) = 0.0_gp
-     astruct%cell_dim(2) = 0.0_gp
-     astruct%cell_dim(3) = 0.0_gp
-  end if
+  where(.not. peri) astruct%cell_dim=0.0_gp
+
+!!$  if (astruct%geocode == 'S') then
+!!$     astruct%cell_dim(2) = 0.0_gp
+!!$  else if (astruct%geocode == 'F') then
+!!$     astruct%cell_dim(1) = 0.0_gp
+!!$     astruct%cell_dim(2) = 0.0_gp
+!!$     astruct%cell_dim(3) = 0.0_gp
+!!$  end if
 
   if (reduced) then
      write(astruct%units, "(A)") "reduced"
   end if
 
   if (forces) then
-     fxyz = f_malloc_ptr((/ 3, astruct%nat /),id='fxyz')
+     fxyz = f_malloc_ptr([3, astruct%nat],id='fxyz')
 
      count = 0
      forces = .false.
@@ -652,7 +674,8 @@ subroutine read_int_positions(iproc,ifile,astruct,comment,energy,fxyz,getLine,di
   character(len=226) :: extra
   character(len=256) :: line
   logical :: lpsdbl, eof
-  integer :: iat,ityp,ntyp,i,ierrsfx,nchrg, nspol
+  logical, dimension(3) :: peri
+  integer :: iat,ityp,ntyp,i,ierrsfx,nchrg, nspol,idir
   ! To read the file posinp (avoid differences between compilers)
   real(kind=4) :: rx,ry,rz,alat1,alat2,alat3
   ! case for which the atomic positions are given whithin general precision
@@ -661,9 +684,6 @@ subroutine read_int_positions(iproc,ifile,astruct,comment,energy,fxyz,getLine,di
   character(len=20), dimension(100) :: atomnames
   logical :: disableTrans
   character(len = max_field_length) :: errmess
-
-  if (astruct%geocode == "W") call f_err_throw("Wires bc has to be implemented here",&
-                           err_name='BIGDFT_RUNTIME_ERROR')
 
   if(present(disableTrans_))then
     disableTrans=disableTrans_
@@ -728,17 +748,28 @@ subroutine read_int_positions(iproc,ifile,astruct,comment,energy,fxyz,getLine,di
      read(line,*,iostat=ierrsfx) tatonam,alat1,alat2,alat3
   end if
   if (ierrsfx == 0) then
-     if (trim(tatonam)=='periodic') then
+     select case(trim(tatonam))
+     case('periodic')
         astruct%geocode='P'
-     else if (trim(tatonam)=='surface') then 
+     case('surface')
         astruct%geocode='S'
-        astruct%cell_dim(2)=0.0_gp
-     else !otherwise free bc
+     case('wire')
+        astruct%geocode='W'
+     case default
         astruct%geocode='F'
-        astruct%cell_dim(1)=0.0_gp
-        astruct%cell_dim(2)=0.0_gp
-        astruct%cell_dim(3)=0.0_gp
-     end if
+     end select
+     where (.not. bc_periodic_dims(geocode_to_bc(astruct%geocode))) astruct%cell_dim=0.0_gp
+!!$     if (trim(tatonam)=='periodic') then
+!!$        astruct%geocode='P'
+!!$     else if (trim(tatonam)=='surface') then 
+!!$        astruct%geocode='S'
+!!$        astruct%cell_dim(2)=0.0_gp
+!!$     else !otherwise free bc
+!!$        astruct%geocode='F'
+!!$        astruct%cell_dim(1)=0.0_gp
+!!$        astruct%cell_dim(2)=0.0_gp
+!!$        astruct%cell_dim(3)=0.0_gp
+!!$     end if
      if (.not. lpsdbl) then
         alat1d0=real(alat1,gp)
         alat2d0=real(alat2,gp)
@@ -758,27 +789,25 @@ subroutine read_int_positions(iproc,ifile,astruct,comment,energy,fxyz,getLine,di
           'ERROR: Reduced coordinates are not allowed with isolated BC'
   end if
 
-  !convert the values of the cell sizes in bohr
-  if (astruct%units=='angstroem' .or. astruct%units=='angstroemd0') then
+  select case(trim(astruct%units))
+  case('angstroem','angstroemd0')
      ! if Angstroem convert to Bohr
      astruct%cell_dim(1)=alat1d0/Bohr_Ang
      astruct%cell_dim(2)=alat2d0/Bohr_Ang
      astruct%cell_dim(3)=alat3d0/Bohr_Ang
-  else if  (astruct%units=='atomic' .or. astruct%units=='bohr'  .or.&
-       astruct%units== 'atomicd0' .or. astruct%units== 'bohrd0') then
+  case('atomic','bohr','atomicd0','bohrd0')
      astruct%cell_dim(1)=alat1d0
      astruct%cell_dim(2)=alat2d0
      astruct%cell_dim(3)=alat3d0
-  else if (astruct%units == 'reduced') then
+  case('reduced')
      !assume that for reduced coordinates cell size is in bohr
      astruct%cell_dim(1)=alat1d0
      astruct%cell_dim(2)=alat2d0
      astruct%cell_dim(3)=alat3d0
-  else
-     write(*,*) 'length units in input file unrecognized'
-     write(*,*) 'recognized units are angstroem or atomic = bohr'
-     stop 
-  endif
+  case default
+     call f_err_throw('length units in input file unrecognized, recognized units are angstroem or atomic = bohr',&
+          err_name='BIGDFT_INPUT_VARIABLES_ERROR')
+  end select
 
   ntyp=0
   do iat=1,astruct%nat
@@ -833,30 +862,18 @@ subroutine read_int_positions(iproc,ifile,astruct,comment,energy,fxyz,getLine,di
         astruct%rxyz_int(2:3,iat)=astruct%rxyz_int(2:3,iat) / Radian_Degree
      end if
 
-     if (astruct%units == 'reduced') then !add treatment for reduced coordinates
-        astruct%rxyz(1,iat)=modulo(astruct%rxyz(1,iat),1.0_gp)
-        if (astruct%geocode == 'P') astruct%rxyz(2,iat)=modulo(astruct%rxyz(2,iat),1.0_gp)
-        astruct%rxyz(3,iat)=modulo(astruct%rxyz(3,iat),1.0_gp)
-     else if (astruct%geocode == 'P'.and. (.not. disableTrans)) then
-        astruct%rxyz(1,iat)=modulo(astruct%rxyz(1,iat),alat1d0)
-        astruct%rxyz(2,iat)=modulo(astruct%rxyz(2,iat),alat2d0)
-        astruct%rxyz(3,iat)=modulo(astruct%rxyz(3,iat),alat3d0)
-     else if (astruct%geocode == 'S'.and. (.not. disableTrans)) then
-        astruct%rxyz(1,iat)=modulo(astruct%rxyz(1,iat),alat1d0)
-        astruct%rxyz(3,iat)=modulo(astruct%rxyz(3,iat),alat3d0)
-     end if
-
-     do ityp=1,ntyp
-        if (tatonam == atomnames(ityp)) then
-           astruct%iatype(iat)=ityp
-           goto 200
-        endif
-     enddo
-     ntyp=ntyp+1
-     if (ntyp > 100) stop 'more than 100 atomnames not permitted'
-     atomnames(ityp)=tatonam
-     astruct%iatype(iat)=ntyp
-200  continue
+     call assign_iatype(iat,ntyp,tatonam,atomnames,astruct%iatype)
+!!$     do ityp=1,ntyp
+!!$        if (tatonam == atomnames(ityp)) then
+!!$           astruct%iatype(iat)=ityp
+!!$           goto 200
+!!$        endif
+!!$     enddo
+!!$     ntyp=ntyp+1
+!!$     if (ntyp > 100) stop 'more than 100 atomnames not permitted'
+!!$     atomnames(ityp)=tatonam
+!!$     astruct%iatype(iat)=ntyp
+!!$200  continue
 
      if (astruct%units=='angstroem' .or. astruct%units=='angstroemd0') then
         ! if Angstroem convert to Bohr
@@ -1374,6 +1391,39 @@ subroutine write_extra_info(extra,natpol,ifrztyp)
 
 END SUBROUTINE write_extra_info
 
+subroutine write_xyz_bc(iunit,geocode,factor,cell_dim,advance)
+  implicit none
+  integer, intent(in) :: iunit
+  character(len=1), intent(in) :: geocode
+  real(gp), intent(in) :: factor
+  real(gp), dimension(3), intent(in) :: cell_dim
+  character(len=*), intent(in), optional :: advance
+  !local variables
+  character(len=3) :: adv
+  character(len=10) :: bcname
+
+  adv='yes'
+  if (present(advance)) call f_strcpy(src=advance,dest=adv)
+
+  select case(geocode)
+  case('F')
+     call f_strcpy(src='free',dest=bcname)
+  case('S')
+     call f_strcpy(src='surface',dest=bcname)
+  case('W')
+     call f_strcpy(src='wire',dest=bcname)
+  case('P')
+     call f_strcpy(src='periodic',dest=bcname)
+  end select
+
+  if (geocode == 'F') then
+     write(iunit,*,advance=adv)'free'
+  else
+     write(iunit,'(a,3(1x,1pe24.17))',advance=adv) trim(bcname),&
+          &  cell_dim(1)*factor,cell_dim(2)*factor,cell_dim(3)*factor
+  end if
+end subroutine write_xyz_bc
+
 
 !> Write xyz atomic file.
 subroutine wtxyz(iunit,energy,rxyz,astruct,comment)
@@ -1423,19 +1473,20 @@ subroutine wtxyz(iunit,energy,rxyz,astruct,comment)
 
   adv = "yes"
   if (associated(astruct%properties)) adv = "no "
-  select case(astruct%geocode)
-  case('P')
-     write(iunit,'(a,3(1x,1pe24.17))', advance = adv)'periodic',&
-          astruct%cell_dim(1)*factor,astruct%cell_dim(2)*factor,astruct%cell_dim(3)*factor
-  case('S')
-     write(iunit,'(a,3(1x,1pe24.17))', advance = adv)'surface',&
-          astruct%cell_dim(1)*factor,astruct%cell_dim(2)*factor,astruct%cell_dim(3)*factor
-  case('W')
-     write(iunit,'(a,3(1x,1pe24.17))', advance = adv)'wire',&
-          astruct%cell_dim(1)*factor,astruct%cell_dim(2)*factor,astruct%cell_dim(3)*factor
-  case('F')
-     write(iunit,'(a)', advance = adv)'free'
-  end select
+  call write_xyz_bc(iunit,astruct%geocode,factor,astruct%cell_dim,advance=adv)
+!!$  select case(astruct%geocode)
+!!$  case('P')
+!!$     write(iunit,'(a,3(1x,1pe24.17))', advance = adv)'periodic',&
+!!$          astruct%cell_dim(1)*factor,astruct%cell_dim(2)*factor,astruct%cell_dim(3)*factor
+!!$  case('S')
+!!$     write(iunit,'(a,3(1x,1pe24.17))', advance = adv)'surface',&
+!!$          astruct%cell_dim(1)*factor,astruct%cell_dim(2)*factor,astruct%cell_dim(3)*factor
+!!$  case('W')
+!!$     write(iunit,'(a,3(1x,1pe24.17))', advance = adv)'wire',&
+!!$          astruct%cell_dim(1)*factor,astruct%cell_dim(2)*factor,astruct%cell_dim(3)*factor
+!!$  case('F')
+!!$     write(iunit,'(a)', advance = adv)'free'
+!!$  end select
   if (associated(astruct%properties)) then
      call yaml_mapping_open(flow = .true., advance = "NO", tabbing = 0, unit = iunit)
      call yaml_dict_dump(astruct%properties, flow = .true., unit = iunit)

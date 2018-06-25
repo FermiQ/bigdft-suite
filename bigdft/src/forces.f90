@@ -3810,6 +3810,7 @@ subroutine symmetrise_forces(fxyz, astruct)
   integer :: indsym(4, AB6_MAX_SYMMETRIES)
   real(gp) :: summ
   real(gp) :: alat(3)
+  logical, dimension(3) :: peri
   real(gp), allocatable :: dedt(:,:)
   integer, allocatable :: symrec(:,:,:)
   integer, pointer  :: sym(:,:,:)
@@ -3828,11 +3829,15 @@ subroutine symmetrise_forces(fxyz, astruct)
      call abi_mati3inv(sym(:,:,isym), symrec(:,:,isym))
   end do
 
-  alat =astruct%cell_dim
-  if (astruct%geocode == 'S') alat(2) = real(1, gp)
+  peri=bc_periodic_dims(geocode_to_bc(astruct%geocode))
+  alat=1.d0
+  where(peri) alat=astruct%cell_dim
 
-  if (astruct%geocode == 'W') call f_err_throw("Wires bc has to be implemented here", &
-                                   err_name='BIGDFT_RUNTIME_ERROR')
+!!$  alat =astruct%cell_dim
+!!$  if (astruct%geocode == 'S') alat(2) = real(1, gp)
+!!$
+!!$  if (astruct%geocode == 'W') call f_err_throw("Wires bc has to be implemented here", &
+!!$                                   err_name='BIGDFT_RUNTIME_ERROR')
 
   !Save fxyz into dedt.
   allocate(dedt(3,astruct%nat))

@@ -217,8 +217,6 @@ subroutine differentiateBetweenBoundaryConditions(iproc,nproc,ncplx,lr,hx,hy,hz,
 
      end if
   else if (cell_geocode(lr%mesh) == 'W') then
-     call f_err_throw("Wires bc has to be implemented here", &
-          err_name='BIGDFT_RUNTIME_ERROR')
      if (ncplx == 1) then
         call apply_hp_wire_sd(lr%d%n1,lr%d%n2,lr%d%n3,&
              lr%wfd%nseg_c,lr%wfd%nvctr_c,lr%wfd%nseg_f,&

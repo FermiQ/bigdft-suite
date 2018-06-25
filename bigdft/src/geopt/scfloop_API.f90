@@ -98,82 +98,89 @@ contains
 end module scfloop_API
 
 
-subroutine scfloop_main(acell, epot, fcart, grad, itime, me, natom, rprimd, xred)
-  use scfloop_API
-  use module_base
-  use bigdft_run
-  use yaml_output
-  use module_input_keys, only: inputpsiid_set_policy
-  use public_enums, only: ENUM_MEMORY
-  implicit none
-
-  integer, intent(in) :: natom, itime, me
-  real(dp), intent(out) :: epot
-  real(dp), intent(in) :: acell(3)
-  real(dp), intent(in) :: rprimd(3,3), xred(3,natom)
-  real(dp), intent(out) :: grad(3, natom)
-  real(dp), intent(out), target :: fcart(3, natom)
-
-  character(len=*), parameter :: subname='scfloop_main'
-  integer :: infocode, i, j
-  real(dp) :: favg(3)
-  type(state_properties) :: outs
-
-  if (.not. scfloop_initialised) then
-     write(0,*) "No previous call to scfloop_init(). On strike, refuse to work."
-     stop
-  end if
-
-  if (me == 0) then
-     !write( *,'(1x,a,1x,i0)') &
-     !     & 'SCFloop API, call force calculation step=', itime
-     call yaml_map('SCFloop API, call force calculation step',itime)
-  end if
-  if (scfloop_obj%atoms%astruct%geocode=='W') then
-     call f_err_throw("Wires bc has to be implemented here", &
-          err_name='BIGDFT_RUNTIME_ERROR')
-  end if
-
-  ! We transfer acell into at
-  scfloop_obj%atoms%astruct%cell_dim(1) = acell(1)
-  scfloop_obj%atoms%astruct%cell_dim(2)= rprimd(2,2)
-  scfloop_obj%atoms%astruct%cell_dim(3)= acell(3)
-  !scfloop_obj%inputs%inputPsiId=1
-  call inputpsiid_set_policy(ENUM_MEMORY,scfloop_obj%inputs%inputPsiId)
-  ! need to transform xred into xcart
-  do i = 1, scfloop_obj%atoms%astruct%nat, 1
-     do j=1,3
-        if (scfloop_obj%atoms%astruct%geocode=='F') then
-           scfloop_obj%atoms%astruct%rxyz(j,i)=xred(j,i)*acell(j)
-        else
-           scfloop_obj%atoms%astruct%rxyz(j,i)=modulo(xred(j,i),1._gp)*acell(j)
-        end if
-     end do
-  end do
-!!$  open(100+me)
-!!$  write(100+me,*)xcart
-!!$  close(100+me)
-  call init_state_properties(outs, 1)
-  call f_free_ptr(outs%fxyz)
-  outs%fxyz => fcart
-  !scfloop_obj%inputs%inputPsiId = 1
-  call inputpsiid_set_policy(ENUM_MEMORY,scfloop_obj%inputs%inputPsiId)
-  call bigdft_state(scfloop_obj,outs,infocode)
-  epot = outs%energy
-  nullify(outs%fxyz)
-  
-  call deallocate_state_properties(outs)
-  ! need to transform the forces into reduced ones.
-  favg(:) = real(0, dp)
-  do i = 1, scfloop_obj%atoms%astruct%nat, 1
-     favg(:) = favg(:) + fcart(:, i) / real(natom, dp)
-     grad(:, i) = -fcart(:, i) / acell(:)
-  end do
-  do i = 1, scfloop_obj%atoms%astruct%nat, 1
-     fcart(:, i) = fcart(:, i) - favg(:)
-  end do
-END SUBROUTINE scfloop_main
-
+!!!subroutine scfloop_main(acell, epot, fcart, grad, itime, me, natom, rprimd, xred)
+!!!  use scfloop_API
+!!!  use module_base
+!!!  use bigdft_run
+!!!  use yaml_output
+!!!  use module_input_keys, only: inputpsiid_set_policy
+!!!  use public_enums, only: ENUM_MEMORY
+!!!  implicit none
+!!!
+!!!  integer, intent(in) :: natom, itime, me
+!!!  real(dp), intent(out) :: epot
+!!!  real(dp), intent(in) :: acell(3)
+!!!  real(dp), intent(in) :: rprimd(3,3), xred(3,natom)
+!!!  real(dp), intent(out) :: grad(3, natom)
+!!!  real(dp), intent(out), target :: fcart(3, natom)
+!!!
+!!!  character(len=*), parameter :: subname='scfloop_main'
+!!!  logical, dimension(3) :: peri
+!!!  integer :: infocode, i, j
+!!!  real(dp) :: favg(3)
+!!!  type(state_properties) :: outs
+!!!
+!!!  if (.not. scfloop_initialised) then
+!!!     write(0,*) "No previous call to scfloop_init(). On strike, refuse to work."
+!!!     stop
+!!!  end if
+!!!
+!!!  if (me == 0) then
+!!!     !write( *,'(1x,a,1x,i0)') &
+!!!     !     & 'SCFloop API, call force calculation step=', itime
+!!!     call yaml_map('SCFloop API, call force calculation step',itime)
+!!!  end if
+!!!!!$  if (scfloop_obj%atoms%astruct%geocode=='W') then
+!!!!!$     call f_err_throw("Wires bc has to be implemented here", &
+!!!!!$          err_name='BIGDFT_RUNTIME_ERROR')
+!!!!!$  end if
+!!!
+!!!  ! We transfer acell into at
+!!!  scfloop_obj%atoms%astruct%cell_dim(1) = acell(1)
+!!!  scfloop_obj%atoms%astruct%cell_dim(2)= rprimd(2,2)
+!!!  scfloop_obj%atoms%astruct%cell_dim(3)= acell(3)
+!!!  !scfloop_obj%inputs%inputPsiId=1
+!!!  call inputpsiid_set_policy(ENUM_MEMORY,scfloop_obj%inputs%inputPsiId)
+!!!  ! need to transform xred into xcart
+!!!  peri=bc_periodic_dims(geocode_to_bc(scfloop_obj%atoms%astruct%geocode))
+!!!  do i = 1, scfloop_obj%atoms%astruct%nat, 1
+!!!     do j=1,3
+!!!        if (peri(j)) then
+!!!           scfloop_obj%atoms%astruct%rxyz(j,i)=modulo(xred(j,i),1._gp)*acell(j)
+!!!        else
+!!!           scfloop_obj%atoms%astruct%rxyz(j,i)=xred(j,i)*acell(j)
+!!!        end if
+!!!!!$        if (scfloop_obj%atoms%astruct%geocode=='F') then
+!!!!!$           scfloop_obj%atoms%astruct%rxyz(j,i)=xred(j,i)*acell(j)
+!!!!!$        else
+!!!!!$           scfloop_obj%atoms%astruct%rxyz(j,i)=modulo(xred(j,i),1._gp)*acell(j)
+!!!!!$        end if
+!!!     end do
+!!!  end do
+!!!!!$  open(100+me)
+!!!!!$  write(100+me,*)xcart
+!!!!!$  close(100+me)
+!!!  call init_state_properties(outs, 1)
+!!!  call f_free_ptr(outs%fxyz)
+!!!  outs%fxyz => fcart
+!!!  !scfloop_obj%inputs%inputPsiId = 1
+!!!  call inputpsiid_set_policy(ENUM_MEMORY,scfloop_obj%inputs%inputPsiId)
+!!!  call bigdft_state(scfloop_obj,outs,infocode)
+!!!  epot = outs%energy
+!!!  nullify(outs%fxyz)
+!!!  
+!!!  call deallocate_state_properties(outs)
+!!!  ! need to transform the forces into reduced ones.
+!!!  favg(:) = real(0, dp)
+!!!  do i = 1, scfloop_obj%atoms%astruct%nat, 1
+!!!     favg(:) = favg(:) + fcart(:, i) / real(natom, dp)
+!!!     grad(:, i) = -fcart(:, i) / acell(:)
+!!!  end do
+!!!  do i = 1, scfloop_obj%atoms%astruct%nat, 1
+!!!     fcart(:, i) = fcart(:, i) - favg(:)
+!!!  end do
+!!!END SUBROUTINE scfloop_main
+!!!
 
 subroutine scfloop_output(acell, epot, ekin, fred, itime, me, natom, rprimd, vel, xred)
   use scfloop_API
@@ -348,7 +355,7 @@ subroutine wtvel(filename,vxyz,atoms,comment)
   !Local variables
   integer, parameter :: iunit = 9
   character(len=2) :: symbol
-  character(len=10) :: name
+  character(len=10) :: name,bcname
   character(len=11) :: units
   integer :: iat,j
   real(gp) :: factor
@@ -362,20 +369,22 @@ subroutine wtvel(filename,vxyz,atoms,comment)
      units='atomicd0'
   end if
 
-  write(iunit,'(i6,2x,a,2x,a)') atoms%astruct%nat,trim(units),comment
+  write(iunit,'(i6,2x,a,2x,a)') atoms%astruct%nat,trim(units),comment  
 
-  if (atoms%astruct%geocode == 'P') then
-     write(iunit,'(a,3(1x,1pe24.17))') 'periodic',&
-       &  atoms%astruct%cell_dim(1)*factor,atoms%astruct%cell_dim(2)*factor,atoms%astruct%cell_dim(3)*factor
-  else if (atoms%astruct%geocode == 'S') then
-     write(iunit,'(a,3(1x,1pe24.17))') 'surface',&
-       &  atoms%astruct%cell_dim(1)*factor,atoms%astruct%cell_dim(2)*factor,atoms%astruct%cell_dim(3)*factor
-  else if (atoms%astruct%geocode == 'W') then
-     call f_err_throw("Wires bc has to be implemented here", &
-          err_name='BIGDFT_RUNTIME_ERROR')
-  else
-     write(9,*)'free'
-  end if
+  call write_xyz_bc(iunit,atoms%astruct%geocode,factor,atoms%astruct%cell_dim)
+
+!!$  if (atoms%astruct%geocode == 'P') then
+!!$     write(iunit,'(a,3(1x,1pe24.17))') 'periodic',&
+!!$       &  atoms%astruct%cell_dim(1)*factor,atoms%astruct%cell_dim(2)*factor,atoms%astruct%cell_dim(3)*factor
+!!$  else if (atoms%astruct%geocode == 'S') then
+!!$     write(iunit,'(a,3(1x,1pe24.17))') 'surface',&
+!!$       &  atoms%astruct%cell_dim(1)*factor,atoms%astruct%cell_dim(2)*factor,atoms%astruct%cell_dim(3)*factor
+!!$  else if (atoms%astruct%geocode == 'W') then
+!!$     call f_err_throw("Wires bc has to be implemented here", &
+!!$          err_name='BIGDFT_RUNTIME_ERROR')
+!!$  else
+!!$     write(9,*)'free'
+!!$  end if
   do iat=1,atoms%astruct%nat
      name=trim(atoms%astruct%atomnames(atoms%astruct%iatype(iat)))
      if (name(3:3)=='_') then

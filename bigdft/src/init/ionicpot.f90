@@ -333,18 +333,13 @@ subroutine IonicEnergyandForces(iproc,nproc,dpbox,at,elecfield,&
 
      !if (nproc==1 .and. slowion) print *,'eself',eself
 
-  else if (at%astruct%geocode == 'W') then
-
-     call f_err_throw("Wires bc has to be implemented here", &
-        err_name='BIGDFT_RUNTIME_ERROR')
-
   end if
 
   !for the surfaces BC,
   !activate for the moment only the slow calculation of the ionic energy and forces
   !the slowion command has also to be activated for the cavity calculation
   !if (at%astruct%geocode == 'S' .or. at%astruct%geocode == 'P') slowion=.true.
-  if (at%astruct%geocode == 'S' .or. pkernel%method /= 'VAC') slowion=.true.
+  if (at%astruct%geocode == 'S' .or. at%astruct%geocode == 'W' .or. pkernel%method /= 'VAC') slowion=.true.
 
   slowion_if: if (slowion) then
 
@@ -1937,10 +1932,10 @@ subroutine external_potential(iproc,verb,at,rxyz,&
              err_name='BIGDFT_RUNTIME_ERROR')
         !constant electric field allowed for surface BC only normal to the surface
      else if (cell_geocode(dpbox%mesh) == 'S' .and. (elecfield(1) /= 0.0_gp .or. elecfield(3) /= 0.0_gp) ) then
-        call f_err_throw('Only normal constant electric field (Ex=Ez=0) is allowed for Surface BC.', &
+        call f_err_throw('Only zero xz electric field (Ex=Ez=0) is allowed for Surface BC.', &
              err_name='BIGDFT_RUNTIME_ERROR')
-     else if (cell_geocode(dpbox%mesh) == 'W') then
-        call f_err_throw("Wires bc has to be implemented here", &
+     else if (cell_geocode(dpbox%mesh) == 'W' .and. elecfield(3) /= 0.0_gp) then
+        call f_err_throw("Only zero z electric field (Ez=0) is allowed for Wires BC", &
              err_name='BIGDFT_RUNTIME_ERROR')
      end if
      if (verb) call yaml_map('Constant electric field (Ha/Bohr)',elecfield(1:3),fmt='(es10.2)')

@@ -23,32 +23,33 @@ subroutine plot_density_cube_old(filename,iproc,nproc,n1,n2,n3,n1i,n2i,n3i,n3p,n
   character(len=3) :: advancestring
   character(len=5) :: suffix
   character(len=15) :: message
-  integer :: nl1,nl2,nl3,i1,i2,i3,ind,ierr,icount,j,iat,ia,ib,nbxz,nby
+  integer :: nl1,nl2,nl3,i1,i2,i3,ind,ierr,icount,j,iat,ia,ib,nbx,nby,nbz
   real(dp) :: a,b
   real(dp), dimension(:,:), pointer :: pot_ion
 
   !conditions for periodicity in the three directions
   !value of the buffer in the x and z direction
-  if (at%astruct%geocode /= 'F') then
-     nl1=1
-     nl3=1
-     nbxz = 1
-  else
-     nl1=15
-     nl3=15
-     nbxz = 0
-  end if
-  !value of the buffer in the y direction
-  if (at%astruct%geocode == 'P') then
-     nl2=1
-     nby = 1
-  else
-     nl2=15
-     nby = 0
-  end if
-
-  if (at%astruct%geocode == 'W') call f_err_throw("Wires bc has to be implemented here", &
-                                      err_name='BIGDFT_RUNTIME_ERROR')
+  call gridcorrection(nbx,nby,nbz,nl1,nl2,nl3,at%astruct%geocode)
+!!$  if (at%astruct%geocode /= 'F') then
+!!$     nl1=1
+!!$     nl3=1
+!!$     nbxz = 1
+!!$  else
+!!$     nl1=15
+!!$     nl3=15
+!!$     nbxz = 0
+!!$  end if
+!!$  !value of the buffer in the y direction
+!!$  if (at%astruct%geocode == 'P') then
+!!$     nl2=1
+!!$     nby = 1
+!!$  else
+!!$     nl2=15
+!!$     nby = 0
+!!$  end if
+!!$
+!!$  if (at%astruct%geocode == 'W') call f_err_throw("Wires bc has to be implemented here", &
+!!$                                      err_name='BIGDFT_RUNTIME_ERROR')
                               
   if (nproc > 1) then
      !allocate full density in pot_ion array
@@ -133,9 +134,9 @@ contains
 !           write(22,'(i5,3(f12.6))') at%astruct%nat,-hxh,-hyh,-hzh
 !        end if
         !grid and grid spacings
-        write(22,'(i5,3(f12.6))') 2*(n1+nbxz),hxh,0.0_gp,0.0_gp
+        write(22,'(i5,3(f12.6))') 2*(n1+nbx),hxh,0.0_gp,0.0_gp
         write(22,'(i5,3(f12.6))') 2*(n2+nby) ,0.0_gp,hyh,0.0_gp
-        write(22,'(i5,3(f12.6))') 2*(n3+nbxz),0.0_gp,0.0_gp,hzh
+        write(22,'(i5,3(f12.6))') 2*(n3+nbz),0.0_gp,0.0_gp,hzh
         !atomic number and positions
         do iat=1,at%astruct%nat
            write(22,'(i5,4(f12.6))') at%nzatom(at%astruct%iatype(iat)),0.0_gp,(rxyz(j,iat),j=1,3)

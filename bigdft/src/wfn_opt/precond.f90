@@ -109,8 +109,6 @@ subroutine preconditionall(orbs,lr,hx,hy,hz,ncong,hpsi,gnrm,gnrm_zero)
                       lr%wfd%keygloc,lr%wfd%keyvloc, &
                       cprecr,hx,hy,hz,hpsi(1,inds,iorb))
               case('W')
-                 call f_err_throw("Wires bc has to be implemented here", &
-                      err_name='BIGDFT_RUNTIME_ERROR')
                  call prec_fft_wire(lr%d%n1,lr%d%n2,lr%d%n3, &
                       lr%wfd%nseg_c,lr%wfd%nvctr_c,lr%wfd%nseg_f,&
                       lr%wfd%nvctr_f,lr%wfd%keygloc,lr%wfd%keyvloc, &
@@ -372,12 +370,12 @@ subroutine preconditionall2(iproc,nproc,orbs,Lzd,hx,hy,hz,ncong,npsidim,hpsi,con
                       Lzd%Llr(ilr)%wfd%keygloc,Lzd%Llr(ilr)%wfd%keyvloc, &
                       cprecr,hx,hy,hz,hpsi(1+ist))
               case('W')
-                 call f_err_throw("Wires bc has to be implemented here", &
+                 call f_err_throw("Wires bc will not work with ncong=0", &
                       err_name='BIGDFT_RUNTIME_ERROR')
-                 call prec_fft_wire(Lzd%Llr(ilr)%d%n1,Lzd%Llr(ilr)%d%n2,Lzd%Llr(ilr)%d%n3, &
-                      Lzd%Llr(ilr)%wfd%nseg_c,Lzd%Llr(ilr)%wfd%nvctr_c,Lzd%Llr(ilr)%wfd%nseg_f,&
-                      Lzd%Llr(ilr)%wfd%nvctr_f,Lzd%Llr(ilr)%wfd%keygloc,Lzd%Llr(ilr)%wfd%keyvloc, &
-                      cprecr,hx,hy,hz,hpsi(1+ist))
+!!$                 call prec_fft_wire(Lzd%Llr(ilr)%d%n1,Lzd%Llr(ilr)%d%n2,Lzd%Llr(ilr)%d%n3, &
+!!$                      Lzd%Llr(ilr)%wfd%nseg_c,Lzd%Llr(ilr)%wfd%nvctr_c,Lzd%Llr(ilr)%wfd%nseg_f,&
+!!$                      Lzd%Llr(ilr)%wfd%nvctr_f,Lzd%Llr(ilr)%wfd%keygloc,Lzd%Llr(ilr)%wfd%keyvloc, &
+!!$                      cprecr,hx,hy,hz,hpsi(1+ist))
               end select
 
            else !normal preconditioner
@@ -832,9 +830,6 @@ subroutine precondition_preconditioner(lr,ncplx,hx,hy,hz,scal,cprecr,w,x,b)
 
   else if (cell_geocode(lr%mesh) == 'W') then
 
-        call f_err_throw("Wires bc has to be implemented here", &
-             err_name='BIGDFT_RUNTIME_ERROR')
-
      if (ncplx == 1) then
         call prepare_sdc_wire(lr%d%n3,w%modul3,w%af,w%bf,w%cf,w%ef,hx,hy,hz)
      end if
@@ -983,8 +978,6 @@ subroutine precond_locham(ncplx,lr,hx,hy,hz,kx,ky,kz,&
 
      end if
   else if (cell_geocode(lr%mesh) == 'W') then
-        call f_err_throw("Wires bc has to be implemented here", &
-             err_name='BIGDFT_RUNTIME_ERROR')
      if (ncplx == 1) then
         call apply_hp_wire_sd_scal(lr%d%n1,lr%d%n2,lr%d%n3,&
              lr%wfd%nseg_c,lr%wfd%nvctr_c,lr%wfd%nseg_f,&

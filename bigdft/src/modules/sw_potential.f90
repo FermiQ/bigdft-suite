@@ -173,7 +173,7 @@ contains
     real(gp) :: A_EPS
 
     real(gp), dimension(:), pointer :: xa, ya, za
-
+    logical, dimension(3) :: peri
     integer :: i, j, i_id, j_id, k, k_id
     integer :: my_counter_i
     real(gp) :: invsig
@@ -196,18 +196,24 @@ contains
     pos(1 + NATOMS:2 * NATOMS) = rxyz(2, :) * Bohr_Ang
     pos(1 + 2 * NATOMS:3 * NATOMS) = rxyz(3, :) * Bohr_Ang
     box = astruct%cell_dim * Bohr_Ang
-    if (astruct%geocode == "S") box(2) = 1._gp
+
+    peri=bc_periodic_dims(geocode_to_bc(astruct%geocode))
+
+    where(.not. peri) box = 1._gp
 
     box_vec(1:natoms) = box(1)
     box_vec(1+natoms:2*natoms) = box(2)
     box_vec(1+natoms+natoms:3*natoms) = box(3)
 
-    if ( astruct%geocode .eq. 'P') pos = modulo(pos, box_vec) !apply PBC implement surface later on
-    if ( astruct%geocode .eq. 'S') pos(1:natoms) = modulo(pos(1:natoms), box_vec(1:natoms))
-    if ( astruct%geocode .eq. 'S') pos(2*natoms+1:3*natoms) = modulo(pos(2*natoms+1:3*natoms), box_vec(2*natoms+1:3*natoms))
+    if (peri(1)) pos(1:natoms) = modulo(pos(1:natoms), box_vec(1:natoms))
+    if (peri(2)) pos(natoms+1:2*natoms) = modulo(pos(natoms+1:2*natoms), box_vec(natoms+1:2*natoms))
+    if (peri(3)) pos(2*natoms+1:3*natoms) = modulo(pos(2*natoms+1:3*natoms), box_vec(2*natoms+1:3*natoms))
+       
+!!$    if ( astruct%geocode .eq. 'P') pos = modulo(pos, box_vec) !apply PBC implement surface later on
+!!$    if ( astruct%geocode .eq. 'S') pos(1:natoms) = modulo(pos(1:natoms), box_vec(1:natoms))
+!!$    if ( astruct%geocode .eq. 'W') pos(natoms+1:2*natoms) = modulo(pos(natoms+1:2*natoms), box_vec(natoms+1:2*natoms))
+!!$    if ( astruct%geocode .eq. 'S') pos(2*natoms+1:3*natoms) = modulo(pos(2*natoms+1:3*natoms), box_vec(2*natoms+1:3*natoms))
 
-    if ( astruct%geocode .eq. 'W') call f_err_throw("Wires bc has to be implemented here", &
-                                        err_name='BIGDFT_RUNTIME_ERROR')
 
     ! Generate a neighbour list
     call astruct_neighbours(astruct, rxyz, nei)
