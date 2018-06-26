@@ -1456,9 +1456,9 @@ subroutine gridcorrection(nbx,nby,nbz,nl1,nl2,nl3,geocode)
    end if
    if (peri(3)) then
       nl3=1
-      nbx=1
+      nbz=1
    else
-      nl1=15
+      nl3=15
       nbz = 0
    end if
 
