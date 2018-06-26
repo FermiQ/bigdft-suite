@@ -16,6 +16,7 @@ module box
   private
 
   !>parameter for the definition of the bc
+  integer, parameter :: NULL_BC=-100
   integer, parameter :: FREE=0
   integer, parameter :: PERIODIC=1
 
@@ -796,7 +797,7 @@ contains
 
   end subroutine internal_point
 
-  function geocode_to_bc(geocode) result(bc)
+  pure function geocode_to_bc(geocode) result(bc)
     use dictionaries, only: f_err_throw
     implicit none
     character(len=1), intent(in) :: geocode
@@ -813,7 +814,7 @@ contains
        bc=FREE
        bc(3)=PERIODIC
     case default
-       call f_err_throw('Invalid specification of the variable "geocode"')
+       bc=NULL_BC
     end select
   end function geocode_to_bc
     

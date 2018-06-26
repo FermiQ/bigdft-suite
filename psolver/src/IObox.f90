@@ -26,52 +26,100 @@ module IObox
   contains
     
     pure subroutine cube_dimensions(geocode,ndims,nc1,nc2,nc3)
+      use box
       implicit none
       character(len=1), intent(in) :: geocode
       integer, dimension(3), intent(in) :: ndims
       integer, intent(out) :: nc1,nc2,nc3
-      !value of the buffer in the x and z direction
-      if (geocode /= 'F') then
+      !local variables
+      logical, dimension(3) :: peri
+
+      peri=bc_periodic_dims(geocode_to_bc(geocode))
+
+      if (peri(1)) then
          nc1=ndims(1)
-         nc3=ndims(3)
       else
          nc1=ndims(1)-31
-         nc3=ndims(3)-31
       end if
-      !value of the buffer in the y direction
-      if (geocode == 'P') then
+      if (peri(2)) then
          nc2=ndims(2)
       else
          nc2=ndims(2)-31
       end if
-!!$      if (geocode == 'W') call f_err_throw("Wires bc has to be implemented here", &
-!!$                               err_name='BIGDFT_RUNTIME_ERROR')
+      if (peri(3)) then
+         nc3=ndims(3)
+      else
+         nc3=ndims(3)-31
+      end if
+
+!!$      !value of the buffer in the x and z direction
+!!$      if (geocode /= 'F') then
+!!$         nc1=ndims(1)
+!!$         nc3=ndims(3)
+!!$      else
+!!$         nc1=ndims(1)-31
+!!$         nc3=ndims(3)-31
+!!$      end if
+!!$      !value of the buffer in the y direction
+!!$      if (geocode == 'P') then
+!!$         nc2=ndims(2)
+!!$      else
+!!$         nc2=ndims(2)-31
+!!$      end if
     end subroutine cube_dimensions
 
     pure subroutine startend_buffers(geocode,nl1,nl2,nl3,nbx,nby,nbz)
+      use box
       implicit none
       character(len=1), intent(in) :: geocode
       integer, intent(out) :: nl1,nl2,nl3,nbx,nby,nbz
+      !local variables
+      logical, dimension(3) :: peri
 
-      if (geocode /= 'F') then
-         nl1=1
-         nl3=1
+      peri=bc_periodic_dims(geocode_to_bc(geocode))
+
+      if (peri(1)) then
+         nl1 = 1
          nbx = 1
-         nbz = 1
       else
          nl1=15
-         nl3=15
-         nbx = 0
-         nbz = 0
+         nbx=0
       end if
-      !value of the buffer in the y direction
-      if (geocode == 'P') then
-         nl2=1
+      if (peri(2)) then
+         nl2 = 1
          nby = 1
       else
          nl2=15
-         nby = 0
+         nby=0
       end if
+      if (peri(3)) then
+         nl3 = 1
+         nbz = 1
+      else
+         nl3 = 15
+         nbz = 0
+      end if
+!!$
+!!$
+!!$      if (geocode /= 'F') then
+!!$         nl1=1
+!!$         nl3=1
+!!$         nbx = 1
+!!$         nbz = 1
+!!$      else
+!!$         nl1=15
+!!$         nl3=15
+!!$         nbx = 0
+!!$         nbz = 0
+!!$      end if
+!!$      !value of the buffer in the y direction
+!!$      if (geocode == 'P') then
+!!$         nl2=1
+!!$         nby = 1
+!!$      else
+!!$         nl2=15
+!!$         nby = 0
+!!$      end if
 
 !!$      if (geocode == 'W') call f_err_throw("Wires bc has to be implemented here", &
 !!%                               err_name='BIGDFT_RUNTIME_ERROR')
@@ -745,103 +793,92 @@ module IObox
       end if
 
       call f_zero(ns)
-
+      
       fformat=get_file_format(filename,isuffix)
 
 
-
-!!$      if (iproc == 0) then
-
-
-!!$         open(unit=unit0,file=trim(filename(:isuffix))//'.cube',status='unknown')
-!!$         open(unit=unitx,file=trim(filename(:isuffix))//'_avg_x',status='unknown')
-!!$         open(unit=unity,file=trim(filename(:isuffix))//'_avg_y',status='unknown')
-!!$         open(unit=unitz,file=trim(filename(:isuffix))//'_avg_z',status='unknown')
-
-         if (nspin /=2) then
+      if (nspin /=2) then
+         message='total spin'
+         if (fformat == CUBE) then
+            suffix=''
+            a=1.0_dp
+            ia=1
+            b=0.0_dp
+            ib=1
+            call write_cube_fields(filename(:isuffix),message,geocode,&
+                 ndims,ns,hgrids,&
+                 1.0_dp,a,rho(1,1,1,ia),1,b,rho(1,1,1,ib),nat,rxyz_,iatype_,nzatom_,nelpsp_,ixyz0_)
+         else
+            call write_etsf_density(filename(:isuffix),message,geocode,&
+                 ndims,hgrids,&
+                 rho, 1,nat,rxyz_,iatype_,size(nzatom_),nzatom_)
+         end if
+      else
+         if (fformat == CUBE) then
+            suffix=''
             message='total spin'
-            if (fformat == CUBE) then
-               suffix=''
-               a=1.0_dp
-               ia=1
-               b=0.0_dp
-               ib=1
-               call write_cube_fields(filename(:isuffix),message,geocode,&
-                    ndims,ns,hgrids,&
-                    1.0_dp,a,rho(1,1,1,ia),1,b,rho(1,1,1,ib),nat,rxyz_,iatype_,nzatom_,nelpsp_,ixyz0_)
-            else
-               call write_etsf_density(filename(:isuffix),message,geocode,&
-                    ndims,hgrids,&
-                    rho, 1,nat,rxyz_,iatype_,size(nzatom_),nzatom_)
-            end if
+            a=1.0_dp
+            ia=1
+            b=0.0_dp
+            ib=2
+            call write_cube_fields(trim(filename(:isuffix))//trim(suffix),message,geocode,&
+                 ndims,ns,hgrids,&
+                 1.0_dp,a,rho(1,1,1,ia),1,b,rho(1,1,1,ib),nat,rxyz_,iatype_,nzatom_,nelpsp_,ixyz0_)
+            suffix='-down'
+            message='spin down'
+            a=0.0_dp
+            ia=1
+            b=1.0_dp
+            ib=2
+            call write_cube_fields(trim(filename(:isuffix))//trim(suffix),message,geocode,&
+                 ndims,ns,hgrids,&
+                 1.0_dp,a,rho(1,1,1,ia),1,b,rho(1,1,1,ib),nat,rxyz_,iatype_,nzatom_,nelpsp_,ixyz0_)
+            suffix='-u-d'
+            message='spin difference'
+            a=1.0_dp
+            ia=1
+            b=-2.0_dp
+            ib=2
+            call write_cube_fields(trim(filename(:isuffix))//trim(suffix),message,geocode,&
+                 ndims,ns,hgrids,&
+                 1.0_dp,a,rho(1,1,1,ia),1,b,rho(1,1,1,ib),nat,rxyz_,iatype_,nzatom_,nelpsp_,ixyz0_)
+            suffix='-up'
+            message='spin up'
+            a=1.0_dp
+            ia=1
+            b=-1.0_dp
+            ib=2
+            call write_cube_fields(trim(filename(:isuffix))//trim(suffix),message,geocode,&
+                 ndims,ns,hgrids,&
+                 1.0_dp,a,rho(1,1,1,ia),1,b,rho(1,1,1,ib),nat,rxyz_,iatype_,nzatom_,nelpsp_,ixyz0_)
          else
-            if (fformat == CUBE) then
-               suffix=''
-               message='total spin'
-               a=1.0_dp
-               ia=1
-               b=0.0_dp
-               ib=2
-               call write_cube_fields(trim(filename(:isuffix))//trim(suffix),message,geocode,&
-                    ndims,ns,hgrids,&
-                    1.0_dp,a,rho(1,1,1,ia),1,b,rho(1,1,1,ib),nat,rxyz_,iatype_,nzatom_,nelpsp_,ixyz0_)
-               suffix='-down'
-               message='spin down'
-               a=0.0_dp
-               ia=1
-               b=1.0_dp
-               ib=2
-               call write_cube_fields(trim(filename(:isuffix))//trim(suffix),message,geocode,&
-                    ndims,ns,hgrids,&
-                    1.0_dp,a,rho(1,1,1,ia),1,b,rho(1,1,1,ib),nat,rxyz_,iatype_,nzatom_,nelpsp_,ixyz0_)
-               suffix='-u-d'
-               message='spin difference'
-               a=1.0_dp
-               ia=1
-               b=-2.0_dp
-               ib=2
-               call write_cube_fields(trim(filename(:isuffix))//trim(suffix),message,geocode,&
-                    ndims,ns,hgrids,&
-                    1.0_dp,a,rho(1,1,1,ia),1,b,rho(1,1,1,ib),nat,rxyz_,iatype_,nzatom_,nelpsp_,ixyz0_)
-               suffix='-up'
-               message='spin up'
-               a=1.0_dp
-               ia=1
-               b=-1.0_dp
-               ib=2
-               call write_cube_fields(trim(filename(:isuffix))//trim(suffix),message,geocode,&
-                    ndims,ns,hgrids,&
-                    1.0_dp,a,rho(1,1,1,ia),1,b,rho(1,1,1,ib),nat,rxyz_,iatype_,nzatom_,nelpsp_,ixyz0_)
-            else
-               message = 'spin up, down, total, difference'
-               call write_etsf_density(filename(:isuffix),message,geocode,&
-                    ndims,hgrids,&
-                    rho, 2,nat,rxyz_,iatype_,size(nzatom_),nzatom_)
-            end if
-
+            message = 'spin up, down, total, difference'
+            call write_etsf_density(filename(:isuffix),message,geocode,&
+                 ndims,hgrids,&
+                 rho, 2,nat,rxyz_,iatype_,size(nzatom_),nzatom_)
          end if
 
-         close(unit=unit0)
-         close(unit=unitx)
-         close(unit=unity)
-         close(unit=unitz)
+      end if
 
-!!$      end if
+      close(unit=unit0)
+      close(unit=unitx)
+      close(unit=unity)
+      close(unit=unitz)
 
-         if (present(iatype)) then
-            nullify(iatype_)
-            nullify(rxyz_)
-            nullify(nzatom_)
-            nullify(nelpsp_)
-         else
-            call f_free_ptr(iatype_)
-            call f_free_ptr(rxyz_)
-            call f_free_ptr(nzatom_)
-            call f_free_ptr(nelpsp_)
-         end if
+      if (present(iatype)) then
+         nullify(iatype_)
+         nullify(rxyz_)
+         nullify(nzatom_)
+         nullify(nelpsp_)
+      else
+         call f_free_ptr(iatype_)
+         call f_free_ptr(rxyz_)
+         call f_free_ptr(nzatom_)
+         call f_free_ptr(nelpsp_)
+      end if
 
-         call f_release_routine()
+      call f_release_routine()
 
-       END SUBROUTINE dump_field
+    END SUBROUTINE dump_field
 
 end module IObox

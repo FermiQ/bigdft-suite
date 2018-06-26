@@ -2971,6 +2971,8 @@ contains
     nullify(in%kptv, in%nkptsv_group)
     nullify(in%gen_kpt, in%gen_wkpt)
 
+    peri=bc_periodic_dims(geocode_to_bc(geocode))
+
     method = dict // KPT_METHOD
     if (trim(method) .eqv. 'auto') then
        kptrlen_ = dict // KPTRLEN
@@ -2995,7 +2997,7 @@ contains
     else if (trim(method) .eqv. 'mpgrid') then
        !take the points of Monkhorst-pack grid
        ngkpt_(1:3) = dict // NGKPT
-       where (.not. bc_periodic_dims(geocode_to_bc(geocode))) ngkpt_=1
+       where (.not. peri) ngkpt_=1
        !if (geocode == 'S' .or. geocode == 'W') ngkpt_(2) = 1
        !if (geocode == 'W') ngkpt_(1) = 1
        !shift
@@ -3050,7 +3052,6 @@ contains
           call yaml_warning('K-point weights automatically put to one as kwgts is not correctly specified')
           read_wgts=.false.
        end if
-       peri=bc_periodic_dims(geocode_to_bc(geocode))
        do i=1,in%gen_nkpt
           in%gen_kpt(1:3, i) = dict // KPT // (i-1)
           do idir=1,3
@@ -3081,11 +3082,7 @@ contains
 
     ! Convert reduced coordinates into BZ coordinates.
     alat_ = alat
-    if (geocode /= 'P') alat_(2) = 1.0_gp
-    if (geocode == 'F') then
-       alat_(1)=1.0_gp
-       alat_(3)=1.0_gp
-    end if
+    where( .not. peri) alat_=1.0_gp
     do i = 1, in%gen_nkpt, 1
        in%gen_kpt(:, i) = in%gen_kpt(:, i) / alat_(:) * two_pi
     end do
