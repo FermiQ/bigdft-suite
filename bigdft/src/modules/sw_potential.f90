@@ -159,7 +159,7 @@ contains
     real(gp), dimension(3*astruct%nat), target :: pos_normalised
     real(gp), dimension(3*astruct%nat) :: box_vec
     real(gp), dimension(:), pointer :: pos
-    real(gp), dimension(3) :: box
+    real(gp), dimension(3) :: lbox
     integer :: NATOMS
     real(gp)  :: SIGMA 
     real(gp)  :: A 
@@ -196,15 +196,15 @@ contains
     pos(1:NATOMS) = rxyz(1, :) * Bohr_Ang
     pos(1 + NATOMS:2 * NATOMS) = rxyz(2, :) * Bohr_Ang
     pos(1 + 2 * NATOMS:3 * NATOMS) = rxyz(3, :) * Bohr_Ang
-    box = astruct%cell_dim * Bohr_Ang
+    lbox = astruct%cell_dim * Bohr_Ang
 
     peri=bc_periodic_dims(geocode_to_bc(astruct%geocode))
 
-    where(.not. peri) box = 1._gp
+    where(.not. peri) lbox = 1._gp
 
-    box_vec(1:natoms) = box(1)
-    box_vec(1+natoms:2*natoms) = box(2)
-    box_vec(1+natoms+natoms:3*natoms) = box(3)
+    box_vec(1:natoms) = lbox(1)
+    box_vec(1+natoms:2*natoms) = lbox(2)
+    box_vec(1+natoms+natoms:3*natoms) = lbox(3)
 
     if (peri(1)) pos(1:natoms) = modulo(pos(1:natoms), box_vec(1:natoms))
     if (peri(2)) pos(natoms+1:2*natoms) = modulo(pos(natoms+1:2*natoms), box_vec(natoms+1:2*natoms))
@@ -257,9 +257,9 @@ contains
           endif
 
           ! Rescale the lengths into Angstroems
-          xij = xij * box(1)
-          yij = yij * box(2)
-          zij = zij * box(3)
+          xij = xij * lbox(1)
+          yij = yij * lbox(2)
+          zij = zij * lbox(3)
 
           rij2 = xij*xij + yij*yij + zij*zij
 
@@ -332,9 +332,9 @@ contains
                 endif
 
                 ! Rescale the lengths into Angstroems
-                xik = xik * box(1)
-                yik = yik * box(2)
-                zik = zik * box(3)
+                xik = xik * lbox(1)
+                yik = yik * lbox(2)
+                zik = zik * lbox(3)
 
                 rik2 = xik*xik + yik*yik + zik*zik
 
