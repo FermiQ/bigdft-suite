@@ -333,9 +333,10 @@ END SUBROUTINE read_xyz_positions
 subroutine assign_iatype(iat,ntyp,tatonam,atomnames,iatype)
   use module_base, only: f_err_throw
   implicit none
+  integer, intent(in) :: iat
   character(len=*), intent(in) :: tatonam
   character(len=20), dimension(:), intent(inout) :: atomnames
-  integer, intent(inout) :: iat,ntyp
+  integer, intent(inout) :: ntyp
   integer, dimension(:), intent(inout) :: iatype
   !local variables
   integer :: ityp
