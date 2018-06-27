@@ -31,7 +31,7 @@ module m_libpaw_mpi
 #ifdef HAVE_MPI2
  use mpi
 #endif
-
+ use wrapper_mpi, only: fmpi_maxtag
  implicit none
 
  private
@@ -2279,7 +2279,6 @@ subroutine xpaw_mpi_recv_int1d(xval,source,tag,spaceComm,ier)
 #undef ABI_FUNC
 #define ABI_FUNC 'xpaw_mpi_recv_int1d'
 !End of the abilint section
-
  implicit none
 
 !Arguments-------------------------
@@ -2297,7 +2296,7 @@ subroutine xpaw_mpi_recv_int1d(xval,source,tag,spaceComm,ier)
 #if defined HAVE_MPI
  if (spaceComm /= xpaw_mpi_comm_self .and. spaceComm /= xpaw_mpi_comm_null) then
    n1=size(xval,dim=1)
-   my_tag = MOD(tag,MPI_TAG_UB)
+   my_tag = MOD(tag,fmpi_maxtag(spaceComm))
    call MPI_RECV(xval,n1,MPI_INTEGER,source,my_tag,spaceComm,MPI_STATUS_IGNORE,ier)
  end if
 #endif
@@ -2358,7 +2357,7 @@ subroutine xpaw_mpi_recv_dp1d(xval,source,tag,spaceComm,ier)
 #if defined HAVE_MPI
  if (spaceComm /= xpaw_mpi_comm_self .and. spaceComm /= xpaw_mpi_comm_null) then
    n1=size(xval,dim=1)
-   my_tag = MOD(tag,MPI_TAG_UB)
+   my_tag = MOD(tag,fmpi_maxtag(spaceComm))
    call MPI_RECV(xval,n1,MPI_DOUBLE_PRECISION,source,my_tag,spaceComm,MPI_STATUS_IGNORE,ier)
  end if
 #endif
@@ -2419,7 +2418,7 @@ subroutine xpaw_mpi_recv_dp2d(xval,source,tag,spaceComm,ier)
 #if defined HAVE_MPI
  if (spaceComm /= xpaw_mpi_comm_self .and. spaceComm /= xpaw_mpi_comm_null) then
    n1=size(xval,dim=1) ; n2=size(xval,dim=2)
-   my_tag=MOD(tag,MPI_TAG_UB)
+   my_tag=MOD(tag,fmpi_maxtag(spaceComm))
    call MPI_RECV(xval,n1*n2,MPI_DOUBLE_PRECISION,source,my_tag,spaceComm,MPI_STATUS_IGNORE,ier)
  end if
 #endif
@@ -2480,7 +2479,7 @@ subroutine xpaw_mpi_recv_dp3d(xval,source,tag,spaceComm,ier)
 #if defined HAVE_MPI
  if (spaceComm /= xpaw_mpi_comm_self .and. spaceComm /= xpaw_mpi_comm_null) then
    n1=size(xval,dim=1) ; n2=size(xval,dim=2) ; n3=size(xval,dim=3)
-   my_tag=MOD(tag,MPI_TAG_UB)
+   my_tag=MOD(tag,fmpi_maxtag(spaceComm))
    call MPI_RECV(xval,n1*n2*n3,MPI_DOUBLE_PRECISION,source,my_tag,spaceComm,MPI_STATUS_IGNORE,ier)
  end if
 #endif
@@ -2541,7 +2540,7 @@ subroutine xpaw_mpi_irecv_int1d(xval,source,tag,spaceComm,request,ierr)
  ierr=0
 #if defined HAVE_MPI
  if (spaceComm /= xpaw_mpi_comm_self .and. spaceComm /= xpaw_mpi_comm_null) then
-   my_tag=MOD(tag,MPI_TAG_UB)
+   my_tag=MOD(tag,fmpi_maxtag(spaceComm))
    n1=size(xval)
    call MPI_IRECV(xval,n1,MPI_INTEGER,source,my_tag,spaceComm,request,ier)
    ierr=ier
@@ -2604,7 +2603,7 @@ subroutine xpaw_mpi_irecv_dp1d(xval,source,tag,spaceComm,request,ierr)
 #if defined HAVE_MPI
  if (spaceComm /= xpaw_mpi_comm_self .and. spaceComm /= xpaw_mpi_comm_null) then
    n1=size(xval,dim=1)
-   my_tag=MOD(tag,MPI_TAG_UB)
+   my_tag=MOD(tag,fmpi_maxtag(spaceComm))
    call MPI_IRECV(xval,n1,MPI_DOUBLE_PRECISION,source,my_tag,spaceComm,request,ier)
    ierr=ier
  end if
@@ -2666,7 +2665,7 @@ subroutine xpaw_mpi_irecv_dp2d(xval,source,tag,spaceComm,request,ierr)
 #if defined HAVE_MPI
  if (spaceComm /= xpaw_mpi_comm_self .and. spaceComm /= xpaw_mpi_comm_null) then
    n1=size(xval,dim=1);n2=size(xval,dim=2)
-   my_tag=MOD(tag,MPI_TAG_UB)
+   my_tag=MOD(tag,fmpi_maxtag(spaceComm))
    call MPI_IRECV(xval,n1*n2,MPI_DOUBLE_PRECISION,source,my_tag,spaceComm,request,ier)
    ierr=ier
  end if
@@ -2727,7 +2726,7 @@ subroutine xpaw_mpi_send_int1d(xval,dest,tag,spaceComm,ier)
 #if defined HAVE_MPI
  if (spaceComm /= xpaw_mpi_comm_self .and. spaceComm /= xpaw_mpi_comm_null) then
    n1=size(xval,dim=1)
-   my_tag = MOD(tag,MPI_TAG_UB)
+   my_tag = MOD(tag,fmpi_maxtag(spaceComm))
    call MPI_SEND(xval,n1,MPI_INTEGER,dest,my_tag,spaceComm,ier)
  end if
 #endif
@@ -2785,7 +2784,7 @@ subroutine xpaw_mpi_send_dp1d(xval,dest,tag,spaceComm,ier)
 #if defined HAVE_MPI
  if (spaceComm /= xpaw_mpi_comm_self .and. spaceComm /= xpaw_mpi_comm_null) then
    n1=size(xval,dim=1)
-   my_tag = MOD(tag,MPI_TAG_UB)
+   my_tag = MOD(tag,fmpi_maxtag(spaceComm))
    call MPI_SEND(xval,n1,MPI_DOUBLE_PRECISION,dest,my_tag,spaceComm,ier)
  end if
 #endif
@@ -2843,7 +2842,7 @@ subroutine xpaw_mpi_send_dp2d(xval,dest,tag,spaceComm,ier)
 #if defined HAVE_MPI
  if (spaceComm /= xpaw_mpi_comm_self .and. spaceComm /= xpaw_mpi_comm_null) then
    n1=size(xval,dim=1) ; n2=size(xval,dim=2)
-   my_tag = MOD(tag,MPI_TAG_UB)
+   my_tag = MOD(tag,fmpi_maxtag(spaceComm))
    call MPI_SEND(xval,n1*n2,MPI_DOUBLE_PRECISION,dest,my_tag,spaceComm,ier)
  end if
 #endif
@@ -2901,7 +2900,7 @@ subroutine xpaw_mpi_send_dp3d(xval,dest,tag,spaceComm,ier)
 #if defined HAVE_MPI
  if (spaceComm /= xpaw_mpi_comm_self .and. spaceComm /= xpaw_mpi_comm_null) then
    n1=size(xval,dim=1) ; n2=size(xval,dim=2) ; n3=size(xval,dim=3)
-   my_tag = MOD(tag,MPI_TAG_UB)
+   my_tag = MOD(tag,fmpi_maxtag(spaceComm))
    call MPI_SEND(xval,n1*n2*n3,MPI_DOUBLE_PRECISION,dest,my_tag,spaceComm,ier)
  end if
 #endif
@@ -2961,7 +2960,7 @@ subroutine xpaw_mpi_isend_int1d(xval,dest,tag,spaceComm,request,ierr)
 #if defined HAVE_MPI
  if (spaceComm /= xpaw_mpi_comm_self .and. spaceComm /= xpaw_mpi_comm_null) then
    n1=size(xval,dim=1)
-   my_tag = MOD(tag,MPI_TAG_UB)
+   my_tag = MOD(tag,fmpi_maxtag(spaceComm))
    call MPI_ISEND(xval,n1,MPI_INTEGER,dest,my_tag,spaceComm,request,ier)
    ierr=ier
  end if
@@ -3020,7 +3019,7 @@ subroutine xpaw_mpi_isend_dp1d(xval,dest,tag,spaceComm,request,ierr)
 #if defined HAVE_MPI
  if (spaceComm /= xpaw_mpi_comm_self .and. spaceComm /= xpaw_mpi_comm_null) then
    n1=size(xval,dim=1)
-   my_tag = MOD(tag,MPI_TAG_UB)
+   my_tag = MOD(tag,fmpi_maxtag(spaceComm))
    call MPI_ISEND(xval,n1,MPI_DOUBLE_PRECISION,dest,my_tag,spaceComm,request,ier)
    ierr=ier
  end if
@@ -3079,7 +3078,7 @@ subroutine xpaw_mpi_isend_dp2d(xval,dest,tag,spaceComm,request,ierr)
 #if defined HAVE_MPI
  if (spaceComm /= xpaw_mpi_comm_self .and. spaceComm /= xpaw_mpi_comm_null) then
    n1=size(xval,dim=1) ; n1=size(xval,dim=2)
-   my_tag = MOD(tag,MPI_TAG_UB)
+   my_tag = MOD(tag,fmpi_maxtag(spaceComm))
    call MPI_ISEND(xval,n1*n2,MPI_DOUBLE_PRECISION,dest,my_tag,spaceComm,request,ier)
    ierr=ier
  end if
@@ -3145,7 +3144,7 @@ subroutine xpaw_mpi_exch_int1d(vsend,n1,sender,vrecv,recever,spaceComm,ier)
 #if defined HAVE_MPI
  if (sender==recever.or.spaceComm==xpaw_mpi_comm_null.or.(n1==0)) return
  call MPI_COMM_RANK(spaceComm,me,ier)
- tag = MOD(n1,MPI_TAG_UB)
+ tag = MOD(n1,fmpi_maxtag(spaceComm))
  if (recever==me) then
    call MPI_RECV(vrecv,n1,MPI_INTEGER,sender,tag,spaceComm,status,ier)
  end if
@@ -3212,7 +3211,7 @@ subroutine xpaw_mpi_exch_dp1d(vsend,n1,sender,vrecv,recever,spaceComm,ier)
 #if defined HAVE_MPI
  if (sender==recever.or.spaceComm==xpaw_mpi_comm_null.or.(n1==0)) return
  call MPI_COMM_RANK(spaceComm,me,ier)
- tag = MOD(n1,MPI_TAG_UB)
+ tag = MOD(n1,fmpi_maxtag(spaceComm))
  if (recever==me) then
    call MPI_RECV(vrecv,n1,MPI_DOUBLE_PRECISION,sender,tag,spaceComm,status,ier)
  end if
@@ -3279,7 +3278,7 @@ subroutine xpaw_mpi_exch_dp2d(vsend,nt,sender,vrecv,recever,spaceComm,ier)
 #if defined HAVE_MPI
  if (sender==recever.or.spaceComm==xpaw_mpi_comm_null.or.(nt==0)) return
  call MPI_COMM_RANK(spaceComm,me,ier)
- tag=MOD(nt,MPI_TAG_UB)
+ tag=MOD(nt,fmpi_maxtag(spaceComm))
  if (recever==me) then
    call MPI_RECV(vrecv,nt,MPI_DOUBLE_PRECISION,sender,tag,spaceComm,status,ier)
  end if
@@ -3346,7 +3345,7 @@ subroutine xpaw_mpi_exch_dp3d(vsend,nt,sender,vrecv,recever,spaceComm,ier)
 #if defined HAVE_MPI
  if (sender==recever.or.spaceComm==xpaw_mpi_comm_null.or.(nt==0)) return
  call MPI_COMM_RANK(spaceComm,me,ier)
- tag=MOD(nt,MPI_TAG_UB)
+ tag=MOD(nt,fmpi_maxtag(spaceComm))
  if (recever==me) then
    call MPI_RECV(vrecv,nt,MPI_DOUBLE_PRECISION,sender,tag,spaceComm,status,ier)
  end if
