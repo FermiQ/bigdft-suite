@@ -29,6 +29,8 @@ module yaml_strings
   character(len=*), parameter :: escape_bold=char(27)//"[0;1m"
   character(len=*), parameter :: escape_blink=char(27)//"[0;5m"
 
+  character(len=*), parameter, public :: YAML_INFINITY='.inf'
+
   !> structure containing the string and its length
   !! for the moment implement it basically, we might then
   !! identifty a strategy to allocate the string according to the needs

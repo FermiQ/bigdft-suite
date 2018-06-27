@@ -816,8 +816,8 @@ contains
     case default
        bc=NULL_BC
     end select
-  end function geocode_to_bc
-    
+  end function geocode_to_bc     
+
   function cell_new(geocode,ndims,hgrids,alpha_bc,beta_ac,gamma_ab,abc) result(mesh)
     use numerics, only: onehalf,pi
     use wrapper_linalg, only: det_3x3
@@ -988,8 +988,6 @@ contains
     end do
 
     !here we should verify that the the inverse metric times the metric is the identity
-
-
 
   end function cell_new
 
