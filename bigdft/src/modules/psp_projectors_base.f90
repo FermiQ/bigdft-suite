@@ -238,7 +238,7 @@ contains
     type(DFT_PSP_projectors), intent(out) :: nl
     nl%on_the_fly=.true.
     nl%apply_gamma_target=.false.
-    nl%method = f_enumerator_null()
+!!$    nl%method = f_enumerator_null()
     nl%nproj=0
     nl%nprojel=0
     nl%natoms=0

@@ -170,6 +170,11 @@ module dynamic_memory_base
      module procedure f_subptr_li1,f_subptr_i1
   end interface f_subptr
 
+  ! for rank-two pointers
+  interface f_subptr2
+     module procedure f_subptr2_i1
+  end interface f_subptr2
+
   interface malloc_validate
      module procedure validate_allocation_all,validate_allocation_ptr
      module procedure validate_allocation_str_ptr,validate_allocation_str_all
@@ -185,7 +190,7 @@ module dynamic_memory_base
   public :: assignment(=),operator(.to.),operator(.plus.)
 
   !for internal f_lib usage
-  public :: dynamic_memory_errors,malloc_validate
+  public :: dynamic_memory_errors,malloc_validate,f_subptr2
 
 contains
 
@@ -1573,6 +1578,48 @@ contains
     integer :: get_lbnd
     get_lbnd=lbound(win,1)
   end function get_lbnd_li0
+
+  pure function get_lbnd2_i0(win) result(get_lbnd)
+    implicit none
+    integer(f_integer), dimension(:,:), pointer :: win
+    integer, dimension(2) :: get_lbnd
+    get_lbnd=lbound(win)
+  end function get_lbnd2_i0
+
+
+  !>points toward a region of a given pointer
+  function f_subptr2_i1(ptr,shape,from,lbound) result(win)
+    implicit none
+    integer(f_integer), dimension(:), target :: ptr
+    integer(f_integer), dimension(:,:), pointer :: win
+    integer, dimension(2), intent(in) :: shape
+    integer, intent(in), optional :: from
+    integer, dimension(2), intent(in), optional :: lbound !<in the case of different bounds for the pointer
+    !local variables
+    integer :: size
+    integer(f_kind), dimension(2) :: lbs,ubs
+    integer, dimension(:), pointer :: ptr2
+
+    nullify(win)
+    lbs=1
+    if (present(lbound)) lbs=lbound
+    ubs=lbs+shape-1
+    size=int(product(shape))
+    ptr2 => f_subptr(ptr,from=from,size=size)
+    call remap_bounds_i2(lbs,ubs,ptr2,win)
+
+    !then perform the check for the subpointer region
+    if (any(get_lbnd2_i0(win) /= lbs)) call f_err_throw(&
+         'ERROR (f_subptr2): expected shape does not match, '//&
+         trim(yaml_toa(get_lbnd2_i0(win)))//' vs. '//trim(yaml_toa(lbs)),&
+         ERR_MALLOC_INTERNAL)
+
+    if (f_loc(win(lbs(1),lbs(2))) /= f_loc(ptr(from)) .or. &
+         f_loc(win(ubs(1),ubs(2))) /= f_loc(ptr(from+size-1))) call f_err_throw(&
+         'ERROR (f_subptr2): addresses do not match, the allocating system has performed a copy',&
+         ERR_MALLOC_INTERNAL)
+
+  end function f_subptr2_i1
 
 
   !> This routine identifies for each of the routines the most time consuming parts and print it in the logfile

@@ -9,7 +9,7 @@
 
 
 !> Calculate the exact exchange potential
-subroutine exact_exchange_potential(iproc,nproc,geocode,xc,nspin,lr,orbs,n3parr,n3p,&
+subroutine exact_exchange_potential(iproc,nproc,xc,nspin,lr,orbs,n3parr,n3p,&
      hxh,hyh,hzh,pkernel,psi,psir,eexctX)
   use module_base
   use module_types
@@ -18,8 +18,9 @@ subroutine exact_exchange_potential(iproc,nproc,geocode,xc,nspin,lr,orbs,n3parr,
   use yaml_output
   use locreg_operations
   use locregs
+  use box, only: cell_geocode
   implicit none
-  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode             !< Determine Boundary conditions
+!!$  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode             !< Determine Boundary conditions
   integer, intent(in) :: iproc,nproc                  !< MPI information
   integer, intent(in) :: n3p,nspin                    !< spin and ...
   real(gp), intent(in) :: hxh,hyh,hzh                 !< hgrid
@@ -63,7 +64,8 @@ subroutine exact_exchange_potential(iproc,nproc,geocode,xc,nspin,lr,orbs,n3parr,
   rp_ij = f_malloc((/ lr%d%n1i, lr%d%n2i, n3p, ngran /),id='rp_ij')
   psiw = f_malloc(max(max(lr%d%n1i*lr%d%n2i*lr%d%n3i*orbs%norbp, n3parr(0)*orbs%norb), 1),id='psiw')
 
-  if (geocode == 'F') then
+!!$  if (geocode == 'F') then
+  if (cell_geocode(lr%mesh) == 'F') then
      !call to_zero(lr%d%n1i*lr%d%n2i*lr%d%n3i*orbs%norbp,psiw)
      call f_zero(psiw)
   end if
@@ -332,6 +334,7 @@ subroutine prepare_psirocc(iproc,nproc,lr,orbsocc,n3p,n3parr,psiocc,psirocc)
   use module_types
   use locreg_operations
   use locregs
+  use box, only: cell_geocode
   implicit none
   integer, intent(in) :: iproc,nproc,n3p
   type(locreg_descriptors), intent(in) :: lr
@@ -353,7 +356,8 @@ subroutine prepare_psirocc(iproc,nproc,lr,orbsocc,n3p,n3parr,psiocc,psirocc)
 
   !call to_zero(max(max(lr%d%n1i*lr%d%n2i*lr%d%n3i*orbsocc%norbp,n3parr(0)*orbsocc%norb),1),psiwocc)
 
-  if (lr%geocode == 'F') then
+!!$  if (lr%geocode == 'F') then
+  if (cell_geocode(lr%mesh) == 'F') then
      !call f_zero(lr%d%n1i*lr%d%n2i*lr%d%n3i*orbsocc%norbp,psirocc)
      call f_zero(psirocc)
   end if
@@ -435,7 +439,7 @@ END SUBROUTINE prepare_psirocc
 !> Calculate the exact exchange potential only on virtual orbitals
 !! by knowing the occupied orbitals and their distribution
 !! both sets of orbitals are to be 
-subroutine exact_exchange_potential_virt(iproc,nproc,geocode,nspin,lr,orbsocc,orbsvirt,n3parr,n3p,&
+subroutine exact_exchange_potential_virt(iproc,nproc,nspin,lr,orbsocc,orbsvirt,n3parr,n3p,&
      hxh,hyh,hzh,pkernel,psirocc,psivirt,psirvirt)
   use module_base
   use module_types
@@ -443,8 +447,9 @@ subroutine exact_exchange_potential_virt(iproc,nproc,geocode,nspin,lr,orbsocc,or
   use yaml_output
   use locreg_operations
   use locregs
+  use box, only: cell_geocode
   implicit none
-  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+!!$  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
   integer, intent(in) :: iproc,nproc,n3p,nspin
   real(gp), intent(in) :: hxh,hyh,hzh
   type(locreg_descriptors), intent(in) :: lr
@@ -477,7 +482,8 @@ subroutine exact_exchange_potential_virt(iproc,nproc,geocode,nspin,lr,orbsocc,or
   rp_ij = f_malloc((/ lr%d%n1i, lr%d%n2i, n3p, ngran /),id='rp_ij')
   psiwvirt = f_malloc(max(max(lr%d%n1i*lr%d%n2i*lr%d%n3i*orbsvirt%norbp, n3parr(0)*orbsvirt%norb), 1),id='psiwvirt')
 
-  if (geocode == 'F') then
+!!$  if (geocode == 'F') then
+  if (cell_geocode(lr%mesh) == 'F') then
      call f_zero(psiwvirt)
   end if
 

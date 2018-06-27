@@ -377,7 +377,7 @@ contains
     if (iter%parent%on_the_fly) then
        iter%coeff => iter%parent%shared_proj
     else
-       if (f_err_raise(.not. associated(proj), "Non existing projecor.", &
+       if (f_err_raise(.not. associated(proj), "Non existing projector.", &
             & err_name='BIGDFT_RUNTIME_ERROR')) return
        proj%idir = idir
        if (.not. associated(proj%coeff)) proj%coeff = f_malloc_ptr(a_it%nproj * a_it%nc)

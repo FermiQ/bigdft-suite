@@ -11,6 +11,7 @@
 module box
 
   use f_precisions, gp=>f_double
+  use numerics, only: onehalf,pi
 
   private
 
@@ -44,25 +45,26 @@ module box
   !! given a cell type, it might iterate on a section of this gris provided by the extremes nbox
   !! it also provides a facility to parallelize over the
   type, public :: box_iterator
-     integer :: i3s !<starting point in the dimension z
-     integer :: i3e !<ending point in the dimension z
-     integer :: i23 !<collapsed index in 23 dimension (in relative conventions)
-     integer :: ind !<one-dimensional index for arrays (in relative conventions)
+     integer :: i3s=-1 !<starting point in the dimension z
+     integer :: i3e=-1 !<ending point in the dimension z
+     integer :: i23=-1 !<collapsed index in 23 dimension (in relative conventions)
+     integer :: ind=-1 !<one-dimensional index for arrays (in relative conventions)
      !> indices in absolute coordinates in the given box,
      !! from nbox(1,:) to nbox(2,:). To be intended as private
-     integer, dimension(3)  :: inext
+     integer, dimension(3)  :: inext=0
      !> actual index inside the box,from 1 to mesh%ndims(:)
      integer :: i,j,k !better as scalars
      !> Sub-box to iterate over the points (ex. around atoms)
      !! start and end points for each direction
-     integer, dimension(2,3) :: nbox
-     real(gp), dimension(3) :: oxyz !<origin of the coordinate system
-     real(gp), dimension(3) :: rxyz !<coordinates of the grid point
-     real(gp), dimension(3) :: tmp !< size 3 array buffer to avoid the creation of temporary arrays
-     logical :: whole !<to assess if we run over the entire box or not (no check over the internal point)
-     integer, dimension(2,3) :: subbox !<box of the local task
+     integer, dimension(2,3) :: nbox=-1
+     real(gp), dimension(3) :: oxyz=-1.0_gp !<origin of the coordinate system
+     real(gp), dimension(3) :: rxyz=-1.0_gp !<coordinates of the grid point which is internal at the box
+     real(gp), dimension(3) :: rxyz_nbox=-1.0_gp !<coordinates of the grid point which is internal at the box
+     real(gp), dimension(3) :: tmp=0.0_gp !< size 3 array buffer to avoid the creation of temporary arrays
+     logical :: whole=.false. !<to assess if we run over the entire box or not (no check over the internal point)
+     integer, dimension(2,3) :: subbox=-1 !<box of the local task
      !>reference mesh from which it starts
-     type(cell), pointer :: mesh
+     type(cell), pointer :: mesh=>null()
   end type box_iterator
 
 !!$  interface box_iter
@@ -117,22 +119,7 @@ contains
   pure subroutine nullify_box_iterator(boxit)
     implicit none
     type(box_iterator), intent(out) :: boxit
-    boxit%i3s =-1
-    boxit%i3e =-1
-    boxit%i23 =-1
-    boxit%ind =-1
-    boxit%i=-1
-    boxit%j=-1
-    boxit%k=-1
-    boxit%inext=0
     boxit%inext(X_)=-1
-    boxit%nbox=-1
-    boxit%oxyz=-1.0_gp
-    boxit%rxyz=-1.0_gp
-    boxit%tmp=0.0_gp
-    nullify(boxit%mesh)
-    boxit%whole=.false.
-    boxit%subbox=-1
   end subroutine nullify_box_iterator
 
 !!$  function box_iter_c(mesh,origin) result(boxit)
@@ -260,19 +247,71 @@ contains
   end function box_nbox_from_cutoff
 
   pure function cell_cutoff_extrema(mesh,oxyz,cutoff) result(rbox)
+    !use yaml_strings
     implicit none
     type(cell), intent(in) :: mesh
     real(gp), dimension(3), intent(in) :: oxyz
     real(gp), intent(in) :: cutoff
     real(gp), dimension(2,3) :: rbox
+    !local variables
+    real(gp), dimension(3) :: fac
+    real(gp) :: aa,b,c,p,area,h,l,p2,area2,hf
+    integer :: i,i1,i2
     !for non-orthorhombic cells the concept of distance has to be inserted here (the box should contain the sphere)
-!    if (mesh%orthorhombic) then
+    ! compute the inverse of mesh%uabc
+
+    if (mesh%orthorhombic) then
         rbox(START_,:)=oxyz-cutoff
         rbox(END_,:)=oxyz+cutoff
-!    else
-!        rbox(START_,:)=rxyz_nonortho(mesh,rxyz_ortho(mesh,oxyz)-cutoff)
-!        rbox(END_,:)=rxyz_nonortho(mesh,rxyz_ortho(mesh,oxyz)+cutoff)
-!    end if
+    else
+        rbox(START_,:)=1.0d10
+        rbox(END_,:) =-1.0d10
+        fac(:)=1.0_gp
+        do i=1,3
+         i1=mod(i,3)+1
+         i2=mod(i+1,3)+1
+         if (abs(mesh%angrad(i1) - onehalf*pi) .lt. 1.0d-15) then
+          if (abs(mesh%angrad(i2) - onehalf*pi) .lt. 1.0d-15) then
+           hf=1.0_gp
+          else
+           c=cos(mesh%angrad(i2))/sin(mesh%angrad(i))
+           hf=sqrt(1.0_gp-c**2)
+          end if
+         else if (abs(mesh%angrad(i2) - onehalf*pi) .lt. 1.0d-15) then
+          if (abs(mesh%angrad(i1) - onehalf*pi) .lt. 1.0d-15) then
+           hf=1.0_gp
+          else
+           c=cos(mesh%angrad(i1))/sin(mesh%angrad(i))
+           hf=sqrt(1.0_gp-c**2)
+          end if
+         else
+          aa=1.0_gp/cos(mesh%angrad(i2))
+          b=1.0_gp/cos(mesh%angrad(i1))
+          c=sqrt(aa**2+b**2-2.0_gp*aa*b*cos(mesh%angrad(i)))
+          p=(tan(mesh%angrad(i2))+tan(mesh%angrad(i1))+c)*0.5_gp
+          area=sqrt(p*(p-tan(mesh%angrad(i2)))*(p-tan(mesh%angrad(i1)))*(p-c))
+          h=2.0_gp*area/c
+          l=sqrt(1.0_gp+h**2)
+          p2=(1.0_gp+h+l)*0.5_gp
+          area2=sqrt(p2*(p2-1.0_gp)*(p2-h)*(p2-l))
+          hf=2.0_gp*area2/l
+         end if
+         fac(i)=1.0_gp/hf
+        end do
+        do i=1,3
+         i1=mod(i,3)+1
+         i2=mod(i+1,3)+1
+         rbox(START_,i1)=min(rbox(START_,i1),oxyz(i1)-cutoff*fac(i1))
+         rbox(END_,i1)  =max(rbox(END_,i1),oxyz(i1)+cutoff*fac(i1))
+         rbox(START_,i2)=min(rbox(START_,i2),oxyz(i2)-cutoff*fac(i2))
+         rbox(END_,i2)  =max(rbox(END_,i2),oxyz(i2)+cutoff*fac(i2))
+        end do
+        do i=1,3
+         if (rbox(START_,i) .lt. 0.0_gp) rbox(START_,i) = 0.0_gp
+         if (rbox(END_,i) .gt. mesh%hgrids(i)*(mesh%ndims(i)-1)) rbox(END_,i) = mesh%hgrids(i)*(mesh%ndims(i)-1)
+        end do
+    end if
+
   end function cell_cutoff_extrema
 
   pure subroutine box_iter_expand_nbox(bit)
@@ -592,6 +631,9 @@ contains
 
     !the position associated to the coordinates
     boxit%rxyz(X_)=cell_r(boxit%mesh,boxit%i,X_)-boxit%oxyz(X_)
+    !and the position associated to the subbox
+    boxit%rxyz_nbox(X_)=boxit%mesh%hgrids(X_)*&
+         (boxit%inext(X_)-2)-boxit%oxyz(X_)
 
   end subroutine update_boxit_x
 
@@ -606,6 +648,9 @@ contains
          boxit%mesh%ndims(2)*(boxit%k-boxit%i3s)
     !the position associated to the coordinates
     boxit%rxyz(Y_)=cell_r(boxit%mesh,boxit%j,Y_)-boxit%oxyz(Y_)
+    !and the position associated to the subbox
+    boxit%rxyz_nbox(Y_)=boxit%mesh%hgrids(Y_)*&
+         (boxit%inext(Y_)-2)-boxit%oxyz(Y_)
 
   end subroutine update_boxit_y
 
@@ -615,6 +660,10 @@ contains
 
     !the position associated to the coordinates
     boxit%rxyz(Z_)=cell_r(boxit%mesh,boxit%k,Z_)-boxit%oxyz(Z_)
+
+    !and the position associated to the subbox
+    boxit%rxyz_nbox(Z_)=boxit%mesh%hgrids(Z_)*&
+         (boxit%inext(Z_)-2)-boxit%oxyz(Z_)
 
   end subroutine update_boxit_z
 
@@ -1020,13 +1069,13 @@ contains
 
   end function rxyz_ortho
 
-
   !>gives the value of the coordinates for a nonorthorhombic reference system
   !! from their value wrt an orthorhombic system
-  pure function rxyz_nonortho(mesh,rxyz)
+  pure function rxyz_nonortho(mesh,rxyz,mtmp)
     implicit none
     type(cell), intent(in) :: mesh
     real(gp), dimension(3), intent(in) :: rxyz
+    real(gp), dimension(3,3), intent(in) :: mtmp
     real(gp), dimension(3) :: rxyz_nonortho
     ! local variables
     integer :: i,j
@@ -1037,7 +1086,7 @@ contains
      do i=1,3
       rxyz_nonortho(i)=0.0_gp
       do j=1,3
-       rxyz_nonortho(i)=rxyz_nonortho(i)+mesh%uabc(i,j)*rxyz(j)
+       rxyz_nonortho(i)=rxyz_nonortho(i)+mtmp(i,j)*rxyz(j)
       end do
      end do
     end if

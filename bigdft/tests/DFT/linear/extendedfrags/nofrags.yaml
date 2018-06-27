@@ -24,7 +24,7 @@
    rpnrm_cv: 1.0e-11
    #output_wf: 1
    output_mat: 11
-   #calculate_onsite_overlap: Yes
+   calculate_onsite_overlap: Yes
  lin_basis:
    nit: 5
    idsx: 5

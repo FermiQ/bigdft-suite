@@ -26,6 +26,7 @@ program BigDFT2Wannier
    use io, only: writemywaves
    use locregs_init, only: lr_set
    use f_allreduce
+   use box, only: cell_periodic_dims 
    implicit none
    character :: filetype*4
    !etsf
@@ -80,7 +81,7 @@ program BigDFT2Wannier
    type(dictionary), pointer :: user_inputs
    type(dictionary), pointer :: options
    external :: gather_timings
-
+   logical, dimension(3) :: peri
 
    call f_lib_initialize()
    !-finds the number of taskgroup size
@@ -324,9 +325,13 @@ program BigDFT2Wannier
          end if
 
          !calculate buffer shifts
-         perx=(lzd%Glr%geocode /= 'F')
-         pery=(lzd%Glr%geocode == 'P')
-         perz=(lzd%Glr%geocode /= 'F')
+!!$         perx=(lzd%Glr%geocode /= 'F')
+!!$         pery=(lzd%Glr%geocode == 'P')
+!!$         perz=(lzd%Glr%geocode /= 'F')
+         peri=cell_periodic_dims(lzd%Glr%mesh)
+         perx=peri(1)
+         pery=peri(2)
+         perz=peri(3)
          call ext_buffers(perx,nbl1,nbr1)
          call ext_buffers(pery,nbl2,nbr2)
          call ext_buffers(perz,nbl3,nbr3)
@@ -592,9 +597,13 @@ program BigDFT2Wannier
          sph_daub = f_malloc0(npsidim2,id='sph_daub')
          !if(npsidim2 > 0) call f_zero(npsidim2,sph_daub(1))
          !calculate buffer shifts
-         perx=(lzd%Glr%geocode /= 'F')
-         pery=(lzd%Glr%geocode == 'P')
-         perz=(lzd%Glr%geocode /= 'F')
+!!$         perx=(lzd%Glr%geocode /= 'F')
+!!$         pery=(lzd%Glr%geocode == 'P')
+!!$         perz=(lzd%Glr%geocode /= 'F')
+         peri=cell_periodic_dims(lzd%Glr%mesh)
+         perx=peri(1)
+         pery=peri(2)
+         perz=peri(3)
          call ext_buffers(perx,nbl1,nbr1)
          call ext_buffers(pery,nbl2,nbr2)
          call ext_buffers(perz,nbl3,nbr3)
@@ -821,9 +830,13 @@ program BigDFT2Wannier
       call mmnk_calculation_allocation()
 
       !calculate buffer shifts
-      perx=(lzd%Glr%geocode /= 'F')
-      pery=(lzd%Glr%geocode == 'P')
-      perz=(lzd%Glr%geocode /= 'F')
+!!$      perx=(lzd%Glr%geocode /= 'F')
+!!$      pery=(lzd%Glr%geocode == 'P')
+!!$      perz=(lzd%Glr%geocode /= 'F')
+      peri=cell_periodic_dims(lzd%Glr%mesh)
+      perx=peri(1)
+      pery=peri(2)
+      perz=peri(3)
       call ext_buffers(perx,nbl1,nbr1)
       call ext_buffers(pery,nbl2,nbr2)
       call ext_buffers(perz,nbl3,nbr3)
@@ -2114,6 +2127,7 @@ subroutine write_unk_bin(Glr,orbs,orbsv,orbsb,input,atoms,rxyz,n_occ,n_virt,virt
    use locreg_operations
    use module_interfaces, only: readmywaves
    use locregs
+   use box, only: cell_periodic_dims 
    implicit none
    ! I/O variables
    type(locreg_descriptors), intent(in) :: Glr
@@ -2133,6 +2147,7 @@ subroutine write_unk_bin(Glr,orbs,orbsv,orbsb,input,atoms,rxyz,n_occ,n_virt,virt
    real(wp), dimension(Glr%wfd%nvctr_c+7*Glr%wfd%nvctr_f,n_occ+n_virt) :: psi_etsf
    real(gp), dimension(3,atoms%astruct%nat) :: rxyz_old
    type(workarr_sumrho) :: w
+   logical, dimension(3) :: peri
 
    n_bands=n_occ+n_virt
 
@@ -2188,9 +2203,13 @@ subroutine write_unk_bin(Glr,orbs,orbsv,orbsb,input,atoms,rxyz,n_occ,n_virt,virt
    end if
 
    !calculate buffer shifts
-   perx=(Glr%geocode /= 'F')
-   pery=(Glr%geocode == 'P')
-   perz=(Glr%geocode /= 'F')
+!!$   perx=(Glr%geocode /= 'F')
+!!$   pery=(Glr%geocode == 'P')
+!!$   perz=(Glr%geocode /= 'F')
+   peri=cell_periodic_dims(Glr%mesh)
+   perx=peri(1)
+   pery=peri(2)
+   perz=peri(3)
    call ext_buffers(perx,nbl1,nbr1)
    call ext_buffers(pery,nbl2,nbr2)
    call ext_buffers(perz,nbl3,nbr3)

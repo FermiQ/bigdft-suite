@@ -20,7 +20,7 @@ program wvl
   use module_input_dicts
   use module_input_keys
   use module_atoms, only: deallocate_atoms_data
-  use module_dpbox, only: denspot_distribution,dpbox_free
+  use module_dpbox, only: denspot_distribution,dpbox_free,dpbox_set
   use communications_base, only: deallocate_comms
   use communications_init, only: orbitals_communicators
   use communications, only: transpose_v, untranspose_v
@@ -32,7 +32,7 @@ program wvl
   type(input_variables)             :: inputs
   type(atoms_data)                  :: atoms
 
-  type(local_zone_descriptors)          :: Lzd
+  type(local_zone_descriptors)      :: Lzd
   type(orbitals_data)               :: orbs
   type(comms_cubic)       :: comms
   type(workarr_sumrho)              :: wisf
@@ -95,7 +95,8 @@ program wvl
 !  allocate(radii_cf(atoms%astruct%ntypes,3))
   call system_properties(iproc,nproc,inputs,atoms,orbs)!,radii_cf)
   Lzd=default_lzd()
-  call lzd_set_hgrids(Lzd,(/inputs%hx,inputs%hy,inputs%hz/))
+  !call lzd_set_hgrids(Lzd,(/inputs%hx,inputs%hy,inputs%hz/))
+  Lzd%hgrids=(/ inputs%hx, inputs%hy, inputs%hz /)
   call lr_set(lzd%Glr,iproc,GPU%OCLconv,.true.,inputs%crmult,inputs%frmult,&
        Lzd%hgrids,atoms%astruct%rxyz,atoms,.true.,.false.)
 !!$  call system_size(atoms,atoms%astruct%rxyz,inputs%crmult,inputs%frmult, &
@@ -116,7 +117,8 @@ program wvl
   !grid spacings and box of the density
   call dpbox_set(dpcom,Lzd,xc,iproc,nproc,MPI_COMM_WORLD,&
        !inputs%PSolver_groupsize, &
-       & inputs%SIC%approach,atoms%astruct%geocode, inputs%nspin)!,inputs%matacc%PSolver_igpu)
+       & inputs%SIC%approach, !atoms%astruct%geocode, 
+       & inputs%nspin)!,inputs%matacc%PSolver_igpu)
 
   ! Read wavefunctions from disk and store them in psi.
   allocate(orbs%eval(orbs%norb*orbs%nkpts))
@@ -165,7 +167,7 @@ program wvl
   !---------------------------!
   allocate(w(max(orbs%npsidim_orbs,orbs%npsidim_comp)))
   ! Transpose the psi wavefunction
-  call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,psi(1),work_add=w(1))
+  call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,psi,workbuf=w)
   !write(*,*) "Proc", iproc, " treats ", comms%nvctr_par(iproc, 0) * orbs%norb, "components of all orbitals."
   call yaml_comment("Proc" // trim(yaml_toa(iproc)) // " treats " // &
                    & trim(yaml_toa(comms%nvctr_par(iproc, 0) * orbs%norb)) // "components of all orbitals.")
@@ -206,7 +208,7 @@ program wvl
   deallocate(ovrlp)
 
   ! Retranspose the psi wavefunction
-  call untranspose_v(iproc,nproc,orbs,Lzd%glr%wfd,comms,psi(1),work_add=w(1))
+  call untranspose_v(iproc,nproc,orbs,Lzd%glr%wfd,comms,psi,work_add=w)
   deallocate(w)
 
   call yaml_flush_document()

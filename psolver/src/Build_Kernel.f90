@@ -1,7 +1,7 @@
 !> @file
 !!  Routines to build the kernel used by the Poisson solver
 !! @author
-!!    Copyright (C) 2006-2011 BigDFT group (LG)
+!!    Copyright (C) 2006-2017 BigDFT group (LG)
 !!    This file is distributed under the terms of the
 !!    GNU General Public License, see ~/COPYING file
 !!    or http://www.gnu.org/copyleft/gpl.txt .
@@ -1055,12 +1055,6 @@ subroutine Free_Kernel(n01,n02,n03,nfft1,nfft2,nfft3,n1k,n2k,n3k,&
     nker3=nker3+1
  end do
 
-!!$ !Allocations
-!!$ allocate(x_scf(0:n_scf+ndebug),stat=i_stat)
-!!$ call memocc(i_stat,x_scf,'x_scf',subname)
-!!$ allocate(y_scf(0:n_scf+ndebug),stat=i_stat)
-!!$ call memocc(i_stat,y_scf,'y_scf',subname)
-!!$
 !!$ !Build the scaling function
 !!$ call scaling_function(itype_scf,n_scf,n_range,x_scf,y_scf)
  n_range=2*itype_scf
@@ -1139,20 +1133,14 @@ subroutine Free_Kernel(n01,n02,n03,nfft1,nfft2,nfft3,n1k,n2k,n3k,&
 !!$    end do
 !!$    !$omp end parallel do
 !!$  end do
-
-
-  fwork = f_malloc(0.to.n_range,id='fwork')
-  fftwork = f_malloc((/ 2, max(nfft1, nfft2, nfft3)*2 /),id='fftwork')
-
-!!$ allocate(kern_1_scf(-n_range:n_range+ndebug),stat=i_stat)
-!!$ call memocc(i_stat,kern_1_scf,'kern_1_scf',subname)
-
+ 
+ 
+ fwork = f_malloc(0.to.n_range,id='fwork')
+ fftwork = f_malloc((/ 2, max(nfft1, nfft2, nfft3)*2 /),id='fftwork')
 
  kernel_scf = f_malloc((/ max(n1k, n2k, n3k), 3 /),id='kernel_scf')
-!!$ allocate(kernel_scf(-n_range:n_range,3+ndebug),stat=i_stat)
-!!$ call memocc(i_stat,kernel_scf,'kernel_scf',subname)
-  iMin = iproc1 * (nker3/nproc) + 1
-  iMax = min((iproc1+1)*(nker3/nproc),nfft3/2+1)
+ iMin = iproc1 * (nker3/nproc) + 1
+ iMax = min((iproc1+1)*(nker3/nproc),nfft3/2+1)
 
   do i_gauss=n_gauss,1,-1
     !Gaussian
@@ -2306,7 +2294,7 @@ subroutine Wires_Kernel(iproc,nproc,n01,n02,n03,n1,n2,n3,nker1,nker2,nker3,h1,h2
   i3s=iproc*(nker3/nproc)+1
   i3e=min((iproc+1)*(nker3/nproc),nker3)
 
-  if (mu0_screening == 0.0_dp .and. i3s==1) then
+  if (mu0_screening == 0.0_dp) then ! .and. i3s==1) then
      !loads the coefficients alpha(:) and w(:) of the Gaussian fit for log(x):
      alpha => p1
      w => w1
@@ -2324,7 +2312,6 @@ subroutine Wires_Kernel(iproc,nproc,n01,n02,n03,n1,n2,n3,nker1,nker2,nker3,h1,h2
      w => w2
      mu = mu0_screening
   end if
-
 
   do k = 1, n_gauss
      fwork = 0.0_dp

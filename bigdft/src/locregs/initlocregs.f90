@@ -777,6 +777,7 @@ subroutine determine_wfdSphere(ilr,nlr,Glr,hx,hy,hz,Llr)!,outofzone)
 
   use module_base
   use locregs, only: allocate_wfd,locreg_descriptors
+  use box, only: cell_periodic_dims
   implicit none
 
   ! Subroutine Scalar Arguments
@@ -795,13 +796,19 @@ subroutine determine_wfdSphere(ilr,nlr,Glr,hx,hy,hz,Llr)!,outofzone)
   !!  integer :: nseg_c,nseg_f,nvctr_c,nvctr_f      ! total number of sgements and elements
   integer, allocatable :: keygloc_tmp(:,:)
   logical :: perx, pery, perz
+  logical, dimension(3) :: peri
 
   call f_routine(id=subname)
 
   ! periodicity in the three directions
-  perx=(glr%geocode /= 'F')
-  pery=(glr%geocode == 'P')
-  perz=(glr%geocode /= 'F')
+!!$  perx=(glr%geocode /= 'F')
+!!$  pery=(glr%geocode == 'P')
+!!$  perz=(glr%geocode /= 'F')
+
+  peri=cell_periodic_dims(glr%mesh)
+  perx=peri(1)
+  pery=peri(2)
+  perz=peri(3)
 
   !starting point of locreg (can be outside the simulation box)
   isdir(1) = Llr(ilr)%ns1
@@ -1673,12 +1680,14 @@ subroutine fill_logrid(geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,nbuf,nat,  &
   integer :: i1,i2,i3,iat,ml1,ml2,ml3,mu1,mu2,mu3,j1,j2,j3,i1s,i1e,i2s,i2e,i3s,i3e,i
   integer :: natp, isat, iiat
   !$ integer, external:: omp_get_num_threads,omp_get_thread_num
+  !$ integer :: ithread,nthread
   real(gp) :: dx,dy2,dz2,rad,dy2pdz2,radsq
   logical :: parallel
   integer, dimension(2,3) :: nbox_limit,nbox,nbox_tmp
 !  logical, dimension(0:n1,0:n2,0:n3) :: logrid_tmp
   type(cell) :: mesh
   type(box_iterator) :: bit
+  !logical, dimension(0:n1,0:n2,0:n3) :: logrid_tmp
 
   call f_routine(id='fill_logrid')
 
@@ -1736,6 +1745,7 @@ subroutine fill_logrid(geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,nbuf,nat,  &
            do i2=0,n2 
               do i1=0,n1
                  logrid(i1,i2,i3)=.false.
+                 !logrid_tmp(i1,i2,i3)=.false.
               enddo
            enddo
         enddo
@@ -1796,12 +1806,13 @@ subroutine fill_logrid(geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,nbuf,nat,  &
 !!$     !print *,'limitnew',nbox(:,3)
 !!$
 
-
      bit=box_iter(mesh,nbox=nbox+1) !add here a plus one for the convention of ndims
 
      !split the iterator for openmp parallelisation
-     !$omp parallel firstprivate(bit)
-     !$ call box_iter_split(bit,omp_get_num_threads(),omp_get_thread_num())
+     !$omp parallel firstprivate(bit) private(ithread)
+     !$ nthread=omp_get_num_threads()
+     !$ ithread=omp_get_thread_num()
+     !$ call box_iter_split(bit,nthread,ithread)
      call fill_logrid_with_spheres(bit,rxyz(1,iiat),rad,logrid)
      !$ call box_iter_merge(bit)
      !$omp end parallel  

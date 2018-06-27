@@ -10,6 +10,9 @@ AU_to_A=0.52917721092
 #: Conversion between Debye and Atomic units
 Debye_to_AU = 0.393430307
 
+MULTIPOLE_ANALYSIS_KEYS=['q0','q1','q2','sigma']
+PROTECTED_KEYS=MULTIPOLE_ANALYSIS_KEYS+["frag"]
+
 class XYZfile():
     """
     .. |filename_docs| replace::
@@ -187,6 +190,28 @@ class Rotation(RotoTranslation):
         self.R=R
         self.J=0.0
 
+def GetSymbol(atom):
+    """
+    Provide the key which contains the positions
+
+    :param atom: the dictionary describing the atom
+    :type atom: dictionary
+    :returns: atom symbol
+    :rtype: string
+    """
+    ks=atom.keys()
+    for k in ks:
+        if k not in PROTECTED_KEYS and type(atom[k])==type([]):
+            if len(atom[k])==3: return k
+    raise ValueError
+
+def SetFragId(name, fragid):
+    return name+":"+str(fragid)
+
+def GetFragTuple(id):
+    temp = id.split(':')
+    return (temp[0], int(temp[1]))
+
 class Fragment():
     """
     Introduce the concept of fragment. This is a subportion of the system
@@ -195,11 +220,26 @@ class Fragment():
     electrostatic multipoles (charge, dipole, etc.) and also geometrical information
     (center of mass, principla axis etc.). A Fragment might also be rototranslated
     and combined with other moieteies to form a :class:`System`.
+
+    :param list-type atomlist: list of atomic dictionaries defining the fragment
+    :param string id: label of the fragment
+    :param string units: the units of the fragment, can be 'AU' or 'A'
+
+    :Example:
+      >>> f = Fragment(atomlist) #provide the list of atomic dictionaries
+      >>> # or otherwise:
+      >>> f = Fragment(units='A') #initialize the fragment
+      >>> f.append(atom) #add an atom according to the f.append spec
+      >>> ... # repeat that until the fragment is completed
+
+    .. todo::
+       Define and describe if this API is also suitable for solid-state fragments
+
     """
-    protected_keys=['q0','q1','q2','sigma']
     def __init__(self,atomlist=None,id='Unknown',units='AU'):
         self.atoms=[]
         self.id=self.set_id(id)
+        self.purity_indicator = 0
         self.to_AU=1.0
         if units == 'A': self.to_AU=1.0/AU_to_A
         self.allset=False
@@ -215,6 +255,8 @@ class Fragment():
     #    return yaml.dump({'Positions': self.atoms,'Properties': {'name': self.id}})
     def set_id(self,id):
         self.id=id
+    def set_purity_indicator(self, pi):
+        self.purity_indicator = pi
     def xyz(self,filename=None,units='atomic'):
         "Write the fragment positions in a xyz file"
         import numpy as np
@@ -228,15 +270,23 @@ class Fragment():
         lat=[]
         for at in self.atoms:
             dat=at.copy()
-            dat['r']=list(at[self.__torxyz(at)])
+            dat['r']=list(at[GetSymbol(at)])
             dat['sym']=self.element(at)
             #assume that the provided charge is alway the net charge
             if 'nzion' in dat: dat.pop('nzion') #for the modification of the conventions
-            for k in self.protected_keys:
+            for k in MULTIPOLE_ANALYSIS_KEYS:
                 if k in at: dat[k]=list(at[k]) #.tolist()
             lat.append(dat)
         return lat
     def append(self,atom=None,sym=None,positions=None):
+        """
+        Include an atom in the fragment.
+        
+        :param dictionary atom: 
+             The dictionary of the atom. Should be provided in the yaml format of BigDFT atomic positions.
+        :param string sym: The symbol of the atom. Need positions when specified.
+        :param list positions: The atomic positions, given in fragment units.
+        """
         if atom is not None:
             self.atoms.append(atom)
         elif sym is not None:
@@ -244,19 +294,12 @@ class Fragment():
         if self.allset: self.positions=self.__positions()  #update positions
     def element(self,atom):
         "Provides the name of the element"
-        el=self.__torxyz(atom)
+        el=GetSymbol(atom)
         if el == 'r': el=atom['sym']
         return el
-    def __torxyz(self,atom):
-        "provide the key which contains the positions"
-        ks=atom.keys()
-        for k in ks:
-            if k not in self.protected_keys and type(atom[k])==type([]):
-                if len(atom[k])==3: return k
-        raise ValueError
     def rxyz(self,atom):
         import numpy as np
-        k=self.__torxyz(atom)
+        k=GetSymbol(atom)
         return self.to_AU*np.array(atom[k])
     def __positions(self):
         import numpy
@@ -288,7 +331,7 @@ class Fragment():
         #    self.positions=w.apply_Rt(R,t,self.positions)
         #then replace the correct positions at the atoms
         for at,r in zip(self.atoms,self.positions):
-            k=self.__torxyz(at)
+            k=GetSymbol(at)
             at[k]=np.ravel(r).tolist()
         #further treatments have to be added for the atomic multipoles
         #they should be transfomed accordingly, up the the dipoles at least
@@ -379,16 +422,58 @@ class Fragment():
         else:
             return None
 
+def CreateFragDict(start):
+    frag_dict = {}
+    for iat, atom in enumerate(start["positions"]):
+        fragname, fragid = atom["frag"]
+        if fragname in frag_dict:
+            if fragid in frag_dict[fragname]:
+                frag_dict[fragname][fragid].append(iat+1)
+            else:
+                frag_dict[fragname][fragid] = [iat+1]
+        else:
+            frag_dict[fragname] = {fragid: [iat+1]}
+    return frag_dict
+
+def MergeFragmentsTogether(frag_dict, merge_list):
+    import copy
+    new_dict = copy.deepcopy(frag_dict)
+    frag_list = []
+    for new_frag in merge_list:
+        temp = []
+        tempstr = ""
+        if len(new_frag) == 1: continue
+        for target in new_frag:
+            fragname, fragid = target
+            temp += new_dict[fragname][fragid]
+            new_dict[fragname].pop(fragid)
+            tempstr += SetFragId(fragname, fragid)
+        frag_list.append((tempstr, temp))
+    return new_dict, frag_list
+
+def CreateFragList(frag_dict, merge_list=None):
+    frag_list = []
+    if merge_list:
+        new_dict, temp_list = MergeFragmentsTogether(frag_dict, merge_list)
+        frag_list += temp_list
+    else:
+        new_dict = frag_dict
+    for fragname in new_dict:
+        for fragid in new_dict[fragname]:
+            frag_list.append((SetFragId(fragname, fragid), new_dict[fragname][fragid]))
+    return frag_list
+
 
 class System():
     "A system is defined by a collection of Fragments. It might be given by one single fragment"
-    def __init__(self,mp_dict=None,xyz=None,nat_reference=None,units='AU',transformations=None,reference_fragments=None):
+    def __init__(self,mp_dict=None,xyz=None,nat_reference=None,units='AU',transformations=None,reference_fragments=None,posinp_dict=None):
         self.fragments=[]
         self.CMs=[]
         self._get_units(units)
         if xyz is not None: self.fill_from_xyz(xyz,nat_reference)
         if mp_dict is not None: self.fill_from_mp_dict(mp_dict,nat_reference)
         if transformations is not None: self.recompose(transformations,reference_fragments)
+        if posinp_dict is not None: self.fill_from_posinp_dict(posinp_dict)
     def __len__(self):
         return sum([len(frag) for frag in self.fragments])
     def _get_units(self,unt):
@@ -441,6 +526,19 @@ class System():
                 frag=Fragment(units=self.units)
                 iat=0
         if nat_reference is None: self.append(frag) #case of one single fragment
+    def fill_from_posinp_dict(self,dict):
+        frag_dict = CreateFragDict(dict)
+        frag_list = CreateFragList(frag_dict)
+        for frag in frag_list:
+            fragtemp = Fragment(units=self.units)
+            for iatom in frag[1]:
+                at_dict = dict["positions"][iatom-1]
+                sym = GetSymbol(at_dict)
+                rxyz = at_dict[sym]
+                fragtemp.append({sym: rxyz})
+            fragtemp.set_id(frag[0])
+            self.append(fragtemp)
+        pass
     def xyz(self,filename=None,units='atomic'):
         import numpy as np
         f=XYZfile(filename,units)
@@ -604,10 +702,14 @@ def frag_average(ref,flist,clean_monopole=True):
         #print 'retest',i,at
     return favg
 
-def distance(i,j):
+def distance(i,j, cell=None):
     "Distance between fragments, defined as distance between center of mass"
     import numpy
     vec=i.centroid()-j.centroid()
+    if cell:
+        per = numpy.where(cell > 0.0)
+        for i, p in enumerate(per):
+            vec -= cell[i]*int(round(vec[i]/cell[i]))
     return numpy.sqrt(numpy.dot(vec,vec.T))
 
 def build_transformations(RTlist,ref):
@@ -735,7 +837,7 @@ if __name__ == '__main__':
             break
 
     safe_print('calculation finished',len(fragments),'balance',nat)
-    
+
     #find the F4TCNQ
     F4TCNQs=[]
     PCs=[]

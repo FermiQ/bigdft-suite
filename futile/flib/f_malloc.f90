@@ -238,6 +238,7 @@ module module_f_malloc
   public :: f_malloc,f_malloc0,f_malloc_ptr,f_malloc0_ptr,operator(.to.),operator(.plus.)
   public :: f_malloc_str,f_malloc0_str,f_malloc_str_ptr,f_malloc0_str_ptr
   public :: f_map_ptr,f_malloc_buf,f_malloc0_buf
+  public :: remap_bounds_i2 !to verify if it works
 
 
 contains
@@ -409,6 +410,15 @@ contains
     ptr => heap
   end subroutine remap_bounds_l
 
+
+  subroutine remap_bounds_i2(lb,lu,heap,ptr)
+    implicit none
+    integer(f_kind), dimension(2), intent(in) :: lb,lu
+    integer(f_integer), dimension(lb(1):lu(1),lb(2):lu(2)), intent(in), target :: heap
+    integer(f_integer), dimension(:,:), pointer, intent(out) :: ptr
+    ptr => heap
+  end subroutine remap_bounds_i2
+  
 
 
   !---routines for low-level dynamic memory handling

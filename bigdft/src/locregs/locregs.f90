@@ -64,6 +64,7 @@ module locregs
   public :: check_overlap,check_overlap_cubic_periodic,check_overlap_from_descriptors_periodic,lr_box
   public :: init_lr,reset_lr
   public :: communicate_locreg_descriptors_basics
+  public :: get_isf_offset,ensure_locreg_bounds
 
 contains
 
@@ -289,7 +290,6 @@ contains
 
   end subroutine communicate_locreg_descriptors_basics
 
-
   !> Methods for copying the structures, can be needed to avoid recalculating them
   !! should be better by defining a f_malloc inheriting the shapes and the structure from other array
   !! of the type dest=f_malloc(src=source,id='dest')
@@ -299,6 +299,8 @@ contains
     ! Calling arguments
     type(locreg_descriptors), intent(in) :: glrin !<input locreg. Unchanged on exit.
     type(locreg_descriptors), intent(out):: glrout !<output locreg. Must be freed on input.
+
+    !we should here use encode and decode for safety
 
     glrout%geocode = glrin%geocode
     glrout%hybrid_on = glrin%hybrid_on
@@ -344,6 +346,20 @@ contains
     dout%n3i = din%n3i
 
   end subroutine copy_grid_dimensions
+
+  subroutine ensure_locreg_bounds(lr)
+    use bounds, only: locreg_bounds
+    implicit none
+    type(locreg_descriptors), intent(inout) :: lr
+    
+    !take this as exemple of already associated bounds
+    if (associated(lr%bounds%kb%ibyz_c)) return
+
+    call locreg_bounds(lr%d%n1,lr%d%n2,lr%d%n3,&
+         lr%d%nfl1,lr%d%nfu1,lr%d%nfl2,lr%d%nfu2,&
+         lr%d%nfl3,lr%d%nfu3,lr%wfd,lr%bounds)
+
+  end subroutine ensure_locreg_bounds
 
   !> Almost degenerate with get_number_of_overlap_region
   !! should merge the two... prefering this one since argument list is better 
@@ -662,6 +678,9 @@ contains
       !this is a point where the geocode is stull used
       if (geocode == 'F' .and. present(bnds)) lr%bounds=bnds
 
+      !here we have to put the modifications of the origin for the 
+      !iterator of the lr. get_isf_offset should be used as 
+      !soon as global_geocode is replaced
       oxyz=locreg_mesh_origin(lr%mesh)
       lr%bit=box_iter(lr%mesh,origin=oxyz)
 
@@ -670,6 +689,7 @@ contains
     END SUBROUTINE init_lr
 
     subroutine correct_lr_extremes(lr,Glr,geocode,correct,nbox_lr,nbox)
+      use box, only: cell_geocode
       implicit none
       logical, intent(in) :: correct
       type(locreg_descriptors), intent(inout) :: lr
@@ -714,7 +734,8 @@ contains
 
       !assign the starting/ending points and outofzone for the different
       ! geometries
-      select case(Glr%geocode)
+!!$      select case(Glr%geocode)
+      select case(cell_geocode(Glr%mesh))
       case('F')
          isx=max(isx,Glr%ns1)
          isy=max(isy,Glr%ns2)
@@ -810,6 +831,9 @@ contains
          if(xperiodic .and. yperiodic .and. zperiodic ) then
             geocode = 'P'
          end if
+      case('W')
+         call f_err_throw("Wires bc has to be implemented here", &
+              err_name='BIGDFT_RUNTIME_ERROR')
       end select
       ! Make sure that the localization regions are not periodic
       if (xperiodic .or. yperiodic .or. zperiodic) then
@@ -851,6 +875,7 @@ contains
     !> initalize the box-related components of the localization regions
     subroutine lr_box(lr,Glr,hgrids,nbox,correction)
       use bounds, only: ext_buffers
+      use box, only: cell_geocode
       implicit none
       !> Sub-box to iterate over the points (ex. around atoms)
       !! start and end points for each direction
@@ -876,7 +901,8 @@ contains
       call init_lr(lr,geocode,hgridsh,nbox_lr(2,1),nbox_lr(2,2),nbox_lr(2,3),&
            Glr%d%nfl1,Glr%d%nfl2,Glr%d%nfl3,&
            Glr%d%nfu1,Glr%d%nfu2,Glr%d%nfu3,&
-           .false.,nbox_lr(1,1),nbox_lr(1,2),nbox_lr(1,3),Glr%geocode)
+!!$           .false.,nbox_lr(1,1),nbox_lr(1,2),nbox_lr(1,3),Glr%geocode)
+           .false.,nbox_lr(1,1),nbox_lr(1,2),nbox_lr(1,3),cell_geocode(Glr%mesh))
 
       ! Make sure that the extent of the interpolating functions grid for the
       ! locreg is not larger than the that of the global box.
@@ -908,6 +934,33 @@ contains
       call f_release_routine()
       
     end subroutine lr_box
+
+    !>get the offset of the isf description of the support function
+    pure function get_isf_offset(lr,mesh_global) result(ioffset)
+      use box, only: cell,cell_periodic_dims
+      use bounds, only: isf_box_buffers
+      implicit none
+      type(locreg_descriptors), intent(in) :: lr
+      type(cell), intent(in) :: mesh_global
+      integer, dimension(3) :: ioffset
+      !local variables
+      logical, dimension(3) :: peri_local,peri_global
+      integer, dimension(3) :: nli
+      !integer :: nl1, nl2, nl3, nr1, nr2, nr3
+
+      !geocode_buffers
+      !conditions for periodicity in the three directions
+      peri_local=cell_periodic_dims(lr%mesh)
+      peri_global=cell_periodic_dims(mesh_global)
+
+      nli=isf_box_buffers(peri_local,peri_global)
+
+      ! offset
+      ioffset(1) = lr%nsi1 - nli(1) - 1
+      ioffset(2) = lr%nsi2 - nli(2) - 1
+      ioffset(3) = lr%nsi3 - nli(3) - 1
+
+    end function get_isf_offset
 
 
 end module locregs

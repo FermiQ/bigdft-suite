@@ -953,9 +953,9 @@
  Overview of the reformatting (several categories may apply):
    No reformatting required            :  4
    Grid spacing has changed            :  0
+   Box size has changed                :  0
    Number of coarse grid points has changed:  3
    Number of fine grid points has changed:  0
-   Box size has changed                :  0
    Molecule was shifted                :  3
    Molecule was rotated                :  0
    Wrapping/unwrapping                 :  0

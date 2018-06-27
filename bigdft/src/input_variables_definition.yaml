@@ -2156,6 +2156,7 @@ linear_accurate:
     K:  {nbasis: 1, rloc: 8.0}
     Sn: {nbasis: 4, rloc: 6.5}
 
+
 linear_moderate:
   COMMENT: Appropriate input parameters for a moderate accuracy linear scaling calculation
   DESCRIPTION: |
@@ -2206,6 +2207,8 @@ linear_moderate:
     Na: {nbasis: 1, rloc: 7.5}
     K:  {nbasis: 1, rloc: 8.0}
     Sn: {nbasis: 4, rloc: 6.5}
+
+
 linear_fast:
   COMMENT: Appropriate input parameters for a low accuracy linear scaling calculation
   DESCRIPTION: |
@@ -2253,6 +2256,8 @@ linear_fast:
     Na: {nbasis: 1, rloc: 7.5}
     K:  {nbasis: 1, rloc: 8.0}
     Sn: {nbasis: 4, rloc: 6.5}
+
+
 linear_laura:
  COMMENT: temporary profile, to be merged
  DESCRIPTION: |
@@ -2324,6 +2329,8 @@ linear_laura:
  #    rloc: 7.0 #6.9 
  #    rloc_kernel: 10.0 #14.0 #10.0
  #    rloc_kernel_foe: 10.0 #14.0 #10.0
+
+
 mixing:
   COMMENT: To be used for metallic systems
   DESCRIPTION: |
@@ -2342,6 +2349,8 @@ mixing:
    tel: 0.01
    alphamix: 0.8
    alphadiis: 1.d0
+
+
 linear:
  COMMENT: Linear parameters sufficient for PDoS, charge analysis, MD
  DESCRIPTION: |
@@ -2434,6 +2443,8 @@ linear:
      6s: 2.0
      5d: 4.0
      6p: 0.0
+
+
 linear_fragments:
   COMMENT: Input parameters to be added to the linear profile for fragment calculationn (templates ready)
   #import: linear #to be tested
@@ -2452,6 +2463,8 @@ linear_fragments:
     experimental_mode: No
     adjust_kernel_threshold: No
     adjust_kernel_iterations: No
+
+
 md:
   COMMENT: Molecular dynamics input parameters for H2O molecules
   geopt:

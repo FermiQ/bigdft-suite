@@ -448,6 +448,7 @@ module locreg_operations
 
     !> Initialize work arrays for local hamiltonian
     subroutine initialize_work_arrays_locham_llr(lr,nspinor,allocate_arrays,w)
+      use box, only: cell_geocode
       implicit none
       integer, intent(in) ::  nspinor
       type(locreg_descriptors), intent(in) :: lr
@@ -491,7 +492,8 @@ module locreg_operations
       end if
 
 
-      select case(lr%geocode)
+!!$      select case(lr%geocode)
+      select case(cell_geocode(lr%mesh))
       case('F')
          !dimensions of work arrays
          ! shrink convention: nw1>nw2
@@ -600,12 +602,16 @@ module locreg_operations
                w%y_c = f_malloc_ptr((/ w%nyc, nspinor /),id='w%y_c')
             end if
          endif
+      case('W')
+         call f_err_throw("Wires bc has to be implemented here", &
+              err_name='BIGDFT_RUNTIME_ERROR')
       end select
 
     END SUBROUTINE initialize_work_arrays_locham_llr
 
 
     subroutine memspace_work_arrays_locham(lr,memwork) !n(c) nspinor (arg:2)
+      use box, only: cell_geocode
       implicit none
       type(locreg_descriptors), intent(in) :: lr
       integer(kind=8), intent(out) :: memwork
@@ -626,7 +632,8 @@ module locreg_operations
       nfu2=lr%d%nfu2
       nfu3=lr%d%nfu3
 
-      select case(lr%geocode) 
+!!$      select case(lr%geocode) 
+      select case(cell_geocode(lr%mesh)) 
       case('F')
          !dimensions of work arrays
          ! shrink convention: nw1>nw2
@@ -695,6 +702,9 @@ module locreg_operations
             nxf3=0
 
          endif
+      case('W')
+         call f_err_throw("Wires bc has to be implemented here", &
+              err_name='BIGDFT_RUNTIME_ERROR')
       end select
 
       memwork=nw1+nw2+nxc+nxf+nyc+nyf+nxf1+nxf2+nxf3
@@ -704,6 +714,7 @@ module locreg_operations
 
     !> Set to zero the work arrays for local hamiltonian
     subroutine zero_work_arrays_locham(lr,nspinor,w)
+      use box, only: cell_geocode
       implicit none
       integer, intent(in) :: nspinor
       type(locreg_descriptors), intent(in) :: lr
@@ -721,7 +732,8 @@ module locreg_operations
       nfu2=lr%d%nfu2
       nfu3=lr%d%nfu3
 
-      select case(lr%geocode)
+!!$      select case(lr%geocode)
+      select case(cell_geocode(lr%mesh)) 
 
       case('F')
 
@@ -745,6 +757,10 @@ module locreg_operations
       case('S')
 
       case('P')
+
+      case('W')
+         call f_err_throw("Wires bc has to be implemented here", &
+              err_name='BIGDFT_RUNTIME_ERROR')
 
       end select
 
@@ -885,6 +901,7 @@ module locreg_operations
 
 
     subroutine initialize_work_arrays_sumrho_llr(lr,allocate_arrays,w)
+      use box, only: cell_geocode
       implicit none
       type(locreg_descriptors), intent(in) :: lr
       logical, intent(in) :: allocate_arrays
@@ -917,7 +934,8 @@ module locreg_operations
          nullify(w%w2)
       end if
 
-      select case(lr%geocode)
+!!$      select case(lr%geocode)
+      select case(cell_geocode(lr%mesh))
       case('F')
          !dimension of the work arrays
          ! shrink convention: nw1>nw2
@@ -957,7 +975,9 @@ module locreg_operations
             w%nxc=(2*n1+2)*(2*n2+2)*(2*n3+2)
             w%nxf=1
          endif
-
+      case('W')
+         call f_err_throw("Wires bc has to be implemented here", &
+              err_name='BIGDFT_RUNTIME_ERROR')
       end select
       !work arrays
       if (allocate_arrays) then
@@ -968,7 +988,8 @@ module locreg_operations
       end if
 
 
-      if (lr%geocode == 'F') then
+!!$      if (lr%geocode == 'F') then
+      if (cell_geocode(lr%mesh) == 'F') then
          call f_zero(w%x_c)
          call f_zero(w%x_f)
       end if
@@ -987,6 +1008,7 @@ module locreg_operations
     end subroutine nullify_work_arrays_sumrho
 
     subroutine memspace_work_arrays_sumrho(lr,memwork)
+      use box, only: cell_geocode
       implicit none
       type(locreg_descriptors), intent(in) :: lr
       integer(kind=8), intent(out) :: memwork
@@ -1004,7 +1026,8 @@ module locreg_operations
       nfu2=lr%d%nfu2
       nfu3=lr%d%nfu3
 
-      select case(lr%geocode)
+!!$      select case(lr%geocode)
+      select case(cell_geocode(lr%mesh))
       case('F')
          !dimension of the work arrays
          ! shrink convention: nw1>nw2
@@ -1044,7 +1067,9 @@ module locreg_operations
             nxc=(2*n1+2)*(2*n2+2)*(2*n3+2)
             nxf=1
          endif
-
+      case('W')
+         call f_err_throw("Wires bc has to be implemented here", &
+              err_name='BIGDFT_RUNTIME_ERROR')
       end select
       memwork=nxc+nxf+nw1+nw2
 
@@ -1068,9 +1093,12 @@ module locreg_operations
 
     END SUBROUTINE deallocate_work_arrays_sumrho
 
-    subroutine allocate_work_arrays(geocode,hybrid_on,ncplx,d,w)
+!!$    subroutine allocate_work_arrays(geocode,hybrid_on,ncplx,d,w)
+    subroutine allocate_work_arrays(mesh,hybrid_on,ncplx,d,w)
+      use box, only: cell,cell_geocode
       implicit none
-      character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+!!$      character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+      type(cell), intent(in) :: mesh
       logical, intent(in) :: hybrid_on
       integer, intent(in) :: ncplx
       type(grid_dimensions), intent(in) :: d
@@ -1082,7 +1110,10 @@ module locreg_operations
       integer :: n1f,n3f,n1b,n3b,nd1f,nd3f,nd1b,nd3b
       integer :: nf
 
-      if (geocode == 'F') then
+      select case(cell_geocode(mesh))
+      case('F')
+!!$      if (geocode == 'F') then
+         !if (cell_geocode(mesh) == 'F') then
 
          nf=(d%nfu1-d%nfl1+1)*(d%nfu2-d%nfl2+1)*(d%nfu3-d%nfl3+1)
          !allocate work arrays
@@ -1095,13 +1126,15 @@ module locreg_operations
          w%x_f2 = f_malloc_ptr(nf,id='w%x_f2')
          w%x_f3 = f_malloc_ptr(nf,id='w%x_f3')
 
-      else if (geocode == 'P') then
-
+      case('P')
+!!$      else if (geocode == 'P') then
+         !else if (cell_geocode(mesh) == 'P') then
+         
          if (hybrid_on) then
-
+            
             call dimensions_fft(d%n1,d%n2,d%n3,&
                  nd1,nd2,nd3,n1f,n3f,n1b,n3b,nd1f,nd3f,nd1b,nd3b)
-
+            
             nf=(d%nfu1-d%nfl1+1)*(d%nfu2-d%nfl2+1)*(d%nfu3-d%nfl3+1)
 
             w%kern_k1 = f_malloc_ptr(0.to.d%n1,id='w%kern_k1')
@@ -1110,15 +1143,15 @@ module locreg_operations
             w%z1 = f_malloc_ptr((/ 2, nd1b, nd2, nd3, 2 /),id='w%z1')
             w%z3 = f_malloc_ptr((/ 2, nd1, nd2, nd3f, 2 /),id='w%z3')
             w%x_c = f_malloc_ptr((/ 0.to.d%n1, 0.to.d%n2, 0.to.d%n3 /),id='w%x_c')
-
+            
             w%x_f = f_malloc_ptr((/ 1.to.7, d%nfl1.to.d%nfu1, d%nfl2.to.d%nfu2, d%nfl3.to.d%nfu3 /),id='w%x_f')
             w%x_f1 = f_malloc_ptr(nf,id='w%x_f1')
             w%x_f2 = f_malloc_ptr(nf,id='w%x_f2')
             w%x_f3 = f_malloc_ptr(nf,id='w%x_f3')
             w%y_f = f_malloc_ptr((/ 1.to.7, d%nfl1.to.d%nfu1, d%nfl2.to.d%nfu2, d%nfl3.to.d%nfu3 /),id='w%y_f')
             w%ypsig_c = f_malloc_ptr((/ 0.to.d%n1, 0.to.d%n2, 0.to.d%n3 /),id='w%ypsig_c')
-
-
+            
+            
          else 
 
             if (ncplx == 1) then
@@ -1134,11 +1167,13 @@ module locreg_operations
 
             w%psifscf = f_malloc_ptr(ncplx*(2*d%n1+2)*(2*d%n2+2)*(2*d%n3+2),id='w%psifscf')
             w%ww = f_malloc_ptr(ncplx*(2*d%n1+2)*(2*d%n2+2)*(2*d%n3+2),id='w%ww')
-
+            
          end if
-
-      else if (geocode == 'S') then
-
+         
+!!$      else if (geocode == 'S') then
+      !else if (cell_geocode(mesh) == 'S') then
+      case('S')
+         
          if (ncplx == 1) then
             w%modul1 = f_malloc_ptr(lowfil.to.d%n1+lupfil,id='w%modul1')
             w%modul3 = f_malloc_ptr(lowfil.to.d%n3+lupfil,id='w%modul3')
@@ -1151,7 +1186,13 @@ module locreg_operations
          w%psifscf = f_malloc_ptr(ncplx*(2*d%n1+2)*(2*d%n2+16)*(2*d%n3+2),id='w%psifscf')
          w%ww = f_malloc_ptr(ncplx*(2*d%n1+2)*(2*d%n2+16)*(2*d%n3+2),id='w%ww')
 
-      end if
+      case default
+      !else if (cell_geocode(mesh) == 'W') then
+         
+         call f_err_throw("Wires bc has to be implemented here", &
+              err_name='BIGDFT_RUNTIME_ERROR')
+         
+      end select
 
     END SUBROUTINE allocate_work_arrays
 
@@ -1206,20 +1247,27 @@ module locreg_operations
             memwork=d%n1+d%n3+14*(lupfil-lowfil+1)
          end if
          memwork=memwork+2*ncplx*(2*d%n1+2)*(2*d%n2+16)*(2*d%n3+2)
+      else if (geocode == 'W') then
+         call f_err_throw("Wires bc has to be implemented here", &
+              err_name='BIGDFT_RUNTIME_ERROR')
       end if
 
     END SUBROUTINE memspace_work_arrays_precond
 
-    subroutine deallocate_work_arrays(geocode,hybrid_on,ncplx,w)
+!!$    subroutine deallocate_work_arrays(geocode,hybrid_on,ncplx,w)
+    subroutine deallocate_work_arrays(mesh,hybrid_on,ncplx,w)
+      use box, only: cell,cell_geocode
       implicit none
-      character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+!!$      character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+      type(cell), intent(in) :: mesh
       logical, intent(in) :: hybrid_on
       integer, intent(in) :: ncplx
       type(workarr_precond), intent(inout) :: w
       !local variables
       character(len=*), parameter :: subname='deallocate_work_arrays'
 
-      if (geocode == 'F') then
+!!$      if (geocode == 'F') then
+      if (cell_geocode(mesh) == 'F') then
 
          call f_free_ptr(w%xpsig_c)
          call f_free_ptr(w%ypsig_c)
@@ -1229,11 +1277,13 @@ module locreg_operations
          call f_free_ptr(w%x_f2)
          call f_free_ptr(w%x_f3)
 
-      else if ((geocode == 'P' .and. .not. hybrid_on) .or. geocode == 'S') then
+!!$      else if ((geocode == 'P' .and. .not. hybrid_on) .or. geocode == 'S') then
+      else if ((cell_geocode(mesh) == 'P' .and. .not. hybrid_on) .or. cell_geocode(mesh) == 'S') then
 
          if (ncplx == 1) then
             call f_free_ptr(w%modul1)
-            if (geocode /= 'S') then
+!!$            if (geocode /= 'S') then
+            if (cell_geocode(mesh) /= 'S') then
                call f_free_ptr(w%modul2)
             end if
             call f_free_ptr(w%modul3)
@@ -1246,7 +1296,8 @@ module locreg_operations
          call f_free_ptr(w%psifscf)
          call f_free_ptr(w%ww)
 
-      else if (geocode == 'P' .and. hybrid_on) then
+!!$      else if (geocode == 'P' .and. hybrid_on) then
+      else if (cell_geocode(mesh) == 'P' .and. hybrid_on) then
 
          call f_free_ptr(w%z1)
          call f_free_ptr(w%z3)
@@ -1261,6 +1312,10 @@ module locreg_operations
          call f_free_ptr(w%y_f)
          call f_free_ptr(w%ypsig_c)
 
+      else if (cell_geocode(mesh) == 'W') then
+
+         call f_err_throw("Wires bc has to be implemented here", &
+              err_name='BIGDFT_RUNTIME_ERROR')
 
       end if
 
@@ -1713,7 +1768,6 @@ module locreg_operations
             if(Gmin > lmax)  exit global_loop_f
             !if((lmin > Gmax) .or. (lmax < Gmin))  cycle global_loop_f
             if(lmin > Gmax)  cycle global_loop_f
-    
             offset = lmin - Gmin
             if(offset < 0) offset = 0
     
@@ -1877,6 +1931,7 @@ module locreg_operations
     END SUBROUTINE global_to_local_parallel
 
     function boundary_weight(hgrids,glr,lr,rad,psi) result(weight_normalized)
+      use box, only: cell_periodic_dims
       implicit none
       real(gp), intent(in) :: rad
       real(gp), dimension(3) :: hgrids
@@ -1890,15 +1945,20 @@ module locreg_operations
       real(kind=8) :: h, x, y, z, d, weight_inside, weight_boundary, points_inside, points_boundary, ratio
       real(kind=8) :: boundary
       logical :: perx, pery, perz, on_boundary
+      logical, dimension(3) :: peri
 
 
       ! mean value of the grid spacing
       h = sqrt(hgrids(1)**2+hgrids(2)**2+hgrids(3)**2)
 
       ! periodicity in the three directions
-      perx=(glr%geocode /= 'F')
-      pery=(glr%geocode == 'P')
-      perz=(glr%geocode /= 'F')
+!!$      perx=(glr%geocode /= 'F')
+!!$      pery=(glr%geocode == 'P')
+!!$      perz=(glr%geocode /= 'F')
+      peri=cell_periodic_dims(glr%mesh)
+      perx=peri(1)
+      pery=peri(2)
+      perz=peri(3)
 
       ! For perdiodic boundary conditions, one has to check also in the neighboring
       ! cells (see in the loop below)
@@ -2220,6 +2280,7 @@ module locreg_operations
     !!   This routine supposes that the region Blr is contained in the region Alr.
     !!   This should always be the case, if we concentrate on the overlap between two regions.
     subroutine shift_locreg_indexes(Alr,Blr,keymask,nseg)
+     use box, only: cell_geocode
      implicit none
     
     ! Arguments
@@ -2236,7 +2297,8 @@ module locreg_operations
     
     
      ! This routine is only intended for conversions between locregs with the same boundary conditions.
-     if (blr%geocode/='F') then
+!!$     if (blr%geocode/='F') then
+     if (cell_geocode(blr%mesh) /= 'F') then
          call f_err_throw('shift_locreg_indexes can only be used for locregs with free boundary conditions', &
               err_name='BIGDFT_RUNTIME_ERROR')
      end if
@@ -2287,7 +2349,8 @@ module locreg_operations
     !> Projects a quantity stored with the global indexes (i1,i2,i3) within the localisation region.
     !! @warning: The quantity must not be stored in a compressed form.
     subroutine global_to_local(Glr,Llr,nspin,size_rho,size_Lrho,rho,Lrho)
-     
+     use box, only: cell_geocode
+ 
      implicit none
     
     ! Arguments
@@ -2308,7 +2371,8 @@ module locreg_operations
     ! Cut out a piece of the quantity (rho) from the global region (rho) and
     ! store it in a local region (Lrho).
     
-     if(Glr%geocode == 'F') then
+!!$     if(Glr%geocode == 'F') then
+     if(cell_geocode(Glr%mesh) == 'F') then
          ! Use loop unrolling here
          indSmall=0
          indSpin=0
@@ -2398,6 +2462,7 @@ module locreg_operations
     !> apply the potential to the psir wavefunction and calculate potential energy
     subroutine psir_to_vpsi(npot,nspinor,lr,pot,vpsir,epot,confdata,vpsir_noconf,econf)
       use dynamic_memory
+      use box, only: cell_geocode
       implicit none
       integer, intent(in) :: npot,nspinor
       type(locreg_descriptors), intent(in) :: lr !< localization region of the wavefunction
@@ -2421,7 +2486,8 @@ module locreg_operations
       if (confining) confining= (confdata%potorder /=0)
 
       if (confining) then
-         if (lr%geocode == 'F') then
+!!$         if (lr%geocode == 'F') then
+         if (cell_geocode(lr%mesh) == 'F') then
             if (present(vpsir_noconf)) then
                if (.not.present(econf)) stop 'ERROR: econf must be present when vpsir_noconf is present!'
                !call apply_potential_lr(lr%d%n1i,lr%d%n2i,lr%d%n3i,&
@@ -2462,7 +2528,8 @@ module locreg_operations
 
       else
 
-         if (lr%geocode == 'F') then
+!!$         if (lr%geocode == 'F') then
+         if (cell_geocode(lr%mesh) == 'F') then
             !call apply_potential_lr(lr%d%n1i,lr%d%n2i,lr%d%n3i,&
             call apply_potential_lr_bounds(lr%d%n1i,lr%d%n2i,lr%d%n3i,&
                  lr%d%n1i,lr%d%n2i,lr%d%n3i,&
@@ -2484,6 +2551,7 @@ module locreg_operations
     end subroutine psir_to_vpsi
    
     subroutine isf_to_daub_kinetic(hx,hy,hz,kx,ky,kz,nspinor,lr,w,psir,hpsi,ekin,k_strten)
+      use box, only: cell_geocode
       implicit none
       integer, intent(in) :: nspinor
       real(gp), intent(in) :: hx,hy,hz,kx,ky,kz
@@ -2524,7 +2592,8 @@ module locreg_operations
       ekin=0.0_gp
 
       kstrten=0.0_wp
-      select case(lr%geocode)
+!!$      select case(lr%geocode)
+      select case(cell_geocode(lr%mesh))
       case('F')
 
          !here kpoints cannot be used (for the moment, to be activated for the 
@@ -2756,6 +2825,11 @@ module locreg_operations
          end if
          ekin=ekin+kstrten(1)+kstrten(2)+kstrten(3)
          if (present(k_strten)) k_strten=kstrten 
+  
+      case('W')
+
+         call f_err_throw("Wires bc has to be implemented here", &
+              err_name='BIGDFT_RUNTIME_ERROR')
 
       end select
 

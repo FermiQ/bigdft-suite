@@ -494,15 +494,15 @@ program utilities
             lzd%glr%d%n1, lzd%glr%d%n2, lzd%glr%d%n3, &
             lzd%glr%ns1, lzd%glr%ns2, lzd%glr%ns3, lzd%hgrids, &
             lstat, error, onwhichatom_tmp, lzd%glr%locrad, lzd%glr%locregCenter, &
-            confpotorder, confpotprefac, &
-            nvctr_c=lzd%glr%wfd%nvctr_c, &
-            nvctr_f=lzd%glr%wfd%nvctr_f, &
-            nseg_c=lzd%glr%wfd%nseg_c, &
-            nseg_f=lzd%glr%wfd%nseg_f, &
-            keygloc=lzd%glr%wfd%keygloc, &
-            keyglob=lzd%glr%wfd%keyglob, &
-            keyvloc=lzd%glr%wfd%keyvloc, &
-            keyvglob=lzd%glr%wfd%keyvglob)
+            confpotorder, confpotprefac, wfd=lzd%glr%wfd)!, &
+            !nvctr_c=lzd%glr%wfd%nvctr_c, &
+            !nvctr_f=lzd%glr%wfd%nvctr_f, &
+            !nseg_c=lzd%glr%wfd%nseg_c, &
+            !nseg_f=lzd%glr%wfd%nseg_f, &
+            !keygloc=lzd%glr%wfd%keygloc, &
+            !keyglob=lzd%glr%wfd%keyglob, &
+            !keyvloc=lzd%glr%wfd%keyvloc, &
+            !keyvglob=lzd%glr%wfd%keyvglob)
        call f_close(iunit)
 
        ! THIS MUST BE MADE CLEANEE !!!!!!!!!
@@ -551,15 +551,15 @@ program utilities
                         lzd%llr(ilr)%d%n1, lzd%llr(ilr)%d%n2, lzd%llr(ilr)%d%n3, &
                         lzd%llr(ilr)%ns1, lzd%llr(ilr)%ns2, lzd%llr(ilr)%ns3, lzd%hgrids, &
                         lstat, error, onwhichatom_tmp, lzd%llr(ilr)%locrad, lzd%llr(ilr)%locregCenter, &
-                        confpotorder, confpotprefac, &
-                        nvctr_c=lzd%llr(ilr)%wfd%nvctr_c, &
-                        nvctr_f=lzd%llr(ilr)%wfd%nvctr_f, &
-                        nseg_c=lzd%llr(ilr)%wfd%nseg_c, &
-                        nseg_f=lzd%llr(ilr)%wfd%nseg_f, &
-                        keygloc=lzd%llr(ilr)%wfd%keygloc, &
-                        keyglob=lzd%llr(ilr)%wfd%keyglob, &
-                        keyvloc=lzd%llr(ilr)%wfd%keyvloc, &
-                        keyvglob=lzd%llr(ilr)%wfd%keyvglob)
+                        confpotorder, confpotprefac, wfd=lzd%llr(ilr)%wfd)! &
+                        !nvctr_c=lzd%llr(ilr)%wfd%nvctr_c, &
+                        !nvctr_f=lzd%llr(ilr)%wfd%nvctr_f, &
+                        !nseg_c=lzd%llr(ilr)%wfd%nseg_c, &
+                        !nseg_f=lzd%llr(ilr)%wfd%nseg_f, &
+                        !keygloc=lzd%llr(ilr)%wfd%keygloc, &
+                        !keyglob=lzd%llr(ilr)%wfd%keyglob, &
+                        !keyvloc=lzd%llr(ilr)%wfd%keyvloc, &
+                        !keyvglob=lzd%llr(ilr)%wfd%keyvglob)
 
                     ! THIS MUST BE MADE CLEANER !!!!!!!!!
                     !starting point of the region for interpolating functions grid

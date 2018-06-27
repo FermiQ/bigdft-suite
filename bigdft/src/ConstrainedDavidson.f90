@@ -120,7 +120,7 @@ subroutine constrained_davidson(iproc,nproc,in,at,&
   !rebind the GPU pointers to the orbsv structure
   if (GPU%OCLconv) then
      call free_gpu_OCL(GPU,orbs,in%nspin)   
-     call allocate_data_OCL(Lzd%Glr%d%n1,Lzd%Glr%d%n2,Lzd%Glr%d%n3,at%astruct%geocode,&
+     call allocate_data_OCL(Lzd%Glr%d%n1,Lzd%Glr%d%n2,Lzd%Glr%d%n3,Lzd%Glr%mesh_coarse,&
           in%nspin,Lzd%Glr%wfd,orbsv,GPU) 
   end if
  

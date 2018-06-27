@@ -40,13 +40,15 @@ subroutine init_acceleration_OCL(matacc,GPU)
 END SUBROUTINE init_acceleration_OCL
 
 
-subroutine allocate_data_OCL(n1,n2,n3,geocode,nspin,wfd,orbs,GPU)
+subroutine allocate_data_OCL(n1,n2,n3,mesh_coarse,nspin,wfd,orbs,GPU)
   use module_base
   use module_types
   use compression
+  use box, only: cell,cell_periodic_dims
   implicit none
-  character(len=1), intent (in) :: geocode !< @copydoc poisson_solver::doc::geocode
+!!$  character(len=1), intent (in) :: geocode !< @copydoc poisson_solver::doc::geocode
   integer, intent(in) :: n1,n2,n3,nspin
+  type(cell), intent(in) :: mesh_coarse
   type(wavefunctions_descriptors), intent(in) :: wfd
   type(orbitals_data), intent(in) :: orbs
   type(GPU_pointers), intent(out) :: GPU
@@ -55,24 +57,30 @@ subroutine allocate_data_OCL(n1,n2,n3,geocode,nspin,wfd,orbs,GPU)
   logical, parameter :: pin=.false.
   integer :: n1b, n2b, n3b, iorb,ispinor
   integer, dimension(3) :: periodic
+  logical, dimension(3) :: peri
 
   call f_routine(id=subname)
 
-  if (geocode /= 'F') then
-    periodic(1) = 1
-  else
-    periodic(1) = 0
-  endif
-  if (geocode == 'P') then
-    periodic(2) = 1
-  else
-    periodic(2) = 0
-  endif 
-  if (geocode /= 'F') then
-    periodic(3) = 1
-  else
-    periodic(3) = 0
-  endif
+!!$  if (geocode /= 'F') then
+!!$    periodic(1) = 1
+!!$  else
+!!$    periodic(1) = 0
+!!$  endif
+!!$  if (geocode == 'P') then
+!!$    periodic(2) = 1
+!!$  else
+!!$    periodic(2) = 0
+!!$  endif 
+!!$  if (geocode /= 'F') then
+!!$    periodic(3) = 1
+!!$  else
+!!$    periodic(3) = 0
+!!$  endif
+
+  peri=cell_periodic_dims(mesh_coarse)
+  periodic=0
+  where (peri) periodic=1
+
 
   n1b = (n1+1) * 2
   n2b = (n2+1) * 2
@@ -263,6 +271,7 @@ subroutine daub_to_isf_OCL(lr,psi,psi_r,GPU)
   use module_base
   use module_types
   use locregs
+  use box, only: cell_periodic_dims
   implicit none
   type(locreg_descriptors), intent(in) :: lr
   type(GPU_pointers), intent(inout) :: GPU
@@ -271,22 +280,27 @@ subroutine daub_to_isf_OCL(lr,psi,psi_r,GPU)
   
   integer, dimension(3) :: periodic
   integer :: isf
+  logical, dimension(3) :: peri
 
-  if (lr%geocode /= 'F') then
-    periodic(1) = 1
-  else
-    periodic(1) = 0
-  endif
-  if (lr%geocode == 'P') then
-    periodic(2) = 1
-  else
-    periodic(2) = 0
-  endif
-  if (lr%geocode /= 'F') then
-    periodic(3) = 1
-  else
-    periodic(3) = 0
-  endif 
+!!$  if (lr%geocode /= 'F') then
+!!$    periodic(1) = 1
+!!$  else
+!!$    periodic(1) = 0
+!!$  endif
+!!$  if (lr%geocode == 'P') then
+!!$    periodic(2) = 1
+!!$  else
+!!$    periodic(2) = 0
+!!$  endif
+!!$  if (lr%geocode /= 'F') then
+!!$    periodic(3) = 1
+!!$  else
+!!$    periodic(3) = 0
+!!$  endif
+
+  peri=cell_periodic_dims(lr%mesh)
+  periodic=0
+  where (peri) periodic=1
 
   if (lr%wfd%nvctr_f > 0) then
      isf=lr%wfd%nvctr_c+1
@@ -317,6 +331,7 @@ subroutine isf_to_daub_OCL(lr,psi_r,psi,GPU)
   use module_base
   use module_types
   use locregs
+  use box, only: cell_periodic_dims
   implicit none
   type(locreg_descriptors), intent(in) :: lr
   type(GPU_pointers), intent(inout) :: GPU
@@ -325,22 +340,27 @@ subroutine isf_to_daub_OCL(lr,psi_r,psi,GPU)
   
   integer, dimension(3) :: periodic
   integer :: isf
+  logical, dimension(3) :: peri
 
-  if (lr%geocode /= 'F') then
-    periodic(1) = 1
-  else
-    periodic(1) = 0
-  endif
-  if (lr%geocode == 'P') then
-    periodic(2) = 1
-  else
-    periodic(2) = 0
-  endif
-  if (lr%geocode /= 'F') then
-    periodic(3) = 1
-  else
-    periodic(3) = 0
-  endif 
+!!$  if (lr%geocode /= 'F') then
+!!$    periodic(1) = 1
+!!$  else
+!!$    periodic(1) = 0
+!!$  endif
+!!$  if (lr%geocode == 'P') then
+!!$    periodic(2) = 1
+!!$  else
+!!$    periodic(2) = 0
+!!$  endif
+!!$  if (lr%geocode /= 'F') then
+!!$    periodic(3) = 1
+!!$  else
+!!$    periodic(3) = 0
+!!$  endif
+
+  peri=cell_periodic_dims(lr%mesh)
+  periodic=0
+  where (peri) periodic=1
 
   if (lr%wfd%nvctr_f > 0) then
      isf=lr%wfd%nvctr_c+1
@@ -372,6 +392,7 @@ subroutine local_hamiltonian_OCL(orbs,lr,hx,hy,hz,&
   use module_base
   use module_types
   use locregs
+  use box, only: cell_periodic_dims
   implicit none
   integer, intent(in) :: nspin
   real(gp), intent(in) :: hx,hy,hz
@@ -391,23 +412,27 @@ subroutine local_hamiltonian_OCL(orbs,lr,hx,hy,hz,&
   !stream ptr array
   real(kind=8) :: rhopot
   integer :: n1, n2, n3
+  logical, dimension(3) :: peri
 
-  if (lr%geocode /= 'F') then
-    periodic(1) = 1
-  else
-    periodic(1) = 0
-  endif
-  if (lr%geocode == 'P') then
-    periodic(2) = 1
-  else
-    periodic(2) = 0
-  endif 
-  if (lr%geocode /= 'F') then
-    periodic(3) = 1
-  else
-    periodic(3) = 0
-  endif
+!!$  if (lr%geocode /= 'F') then
+!!$    periodic(1) = 1
+!!$  else
+!!$    periodic(1) = 0
+!!$  endif
+!!$  if (lr%geocode == 'P') then
+!!$    periodic(2) = 1
+!!$  else
+!!$    periodic(2) = 0
+!!$  endif 
+!!$  if (lr%geocode /= 'F') then
+!!$    periodic(3) = 1
+!!$  else
+!!$    periodic(3) = 0
+!!$  endif
 
+  peri=cell_periodic_dims(lr%mesh)
+  periodic=0
+  where (peri) periodic=1
   
   n1 = (lr%d%n1+1) * 2
   n2 = (lr%d%n2+1) * 2
@@ -598,6 +623,7 @@ subroutine preconditionall_OCL(orbs,lr,hx,hy,hz,ncong,hpsi,gnrm,gnrm_zero,GPU)
   use module_types
   use locreg_operations, only: workarr_precond,allocate_work_arrays,deallocate_work_arrays
   use locregs
+  use box, only: cell_periodic_dims
   implicit none
   type(orbitals_data), intent(in) :: orbs
   integer, intent(in) :: ncong
@@ -616,6 +642,7 @@ subroutine preconditionall_OCL(orbs,lr,hx,hy,hz,ncong,hpsi,gnrm,gnrm_zero,GPU)
   integer, dimension(3) :: periodic
   real(wp), dimension(:,:), allocatable :: b
   real(gp), dimension(0:7) :: scal
+  logical, dimension(3) :: peri
   !stream ptr array
 
   !the eval array contains all the values
@@ -624,21 +651,25 @@ subroutine preconditionall_OCL(orbs,lr,hx,hy,hz,ncong,hpsi,gnrm,gnrm_zero,GPU)
 
   call f_routine(id=subname)
 
-  if (lr%geocode /= 'F') then
-    periodic(1) = 1
-  else
-    periodic(1) = 0
-  endif
-  if (lr%geocode == 'P') then
-    periodic(2) = 1
-  else
-    periodic(2) = 0
-  endif
-  if (lr%geocode /= 'F') then
-    periodic(3) = 1
-  else
-    periodic(3) = 0
-  endif
+!!$  if (lr%geocode /= 'F') then
+!!$    periodic(1) = 1
+!!$  else
+!!$    periodic(1) = 0
+!!$  endif
+!!$  if (lr%geocode == 'P') then
+!!$    periodic(2) = 1
+!!$  else
+!!$    periodic(2) = 0
+!!$  endif
+!!$  if (lr%geocode /= 'F') then
+!!$    periodic(3) = 1
+!!$  else
+!!$    periodic(3) = 0
+!!$  endif
+
+  peri=cell_periodic_dims(lr%mesh)
+  periodic=0
+  where (peri) periodic=1
 
 
   if (lr%wfd%nvctr_f > 0) then
@@ -676,7 +707,8 @@ subroutine preconditionall_OCL(orbs,lr,hx,hy,hz,ncong,hpsi,gnrm,gnrm_zero,GPU)
 
      gnrm=0.0_dp
      gnrm_zero=0.0_dp
-  call allocate_work_arrays(lr%geocode,lr%hybrid_on,orbs%nspinor,lr%d,w)
+!!$  call allocate_work_arrays(lr%geocode,lr%hybrid_on,orbs%nspinor,lr%d,w)
+  call allocate_work_arrays(lr%mesh,lr%hybrid_on,orbs%nspinor,lr%d,w)
   if (orbs%norbp >0) ikpt=orbs%iokpt(1)
   do iorb=1,orbs%norbp
      !if it is the first orbital or the k-point has changed calculate the max
@@ -858,7 +890,8 @@ subroutine preconditionall_OCL(orbs,lr,hx,hy,hz,ncong,hpsi,gnrm,gnrm_zero,GPU)
         call ocl_release_mem_object(GPU%hpsicf_host(1,1))
      end if
 
-     call deallocate_work_arrays(lr%geocode,lr%hybrid_on,ncplx,w)
+!!$     call deallocate_work_arrays(lr%geocode,lr%hybrid_on,ncplx,w)
+     call deallocate_work_arrays(lr%mesh,lr%hybrid_on,ncplx,w)
 
 !!$  i_all=-product(shape(b))*kind(b)
 !!$  deallocate(b,stat=i_stat)
@@ -876,6 +909,7 @@ subroutine local_partial_density_OCL(orbs,&
   use module_base
   use module_types
   use locregs
+  use box, only: cell_periodic_dims
   implicit none
   integer, intent(in) :: nrhotot
   type(orbitals_data), intent(in) :: orbs
@@ -891,22 +925,27 @@ subroutine local_partial_density_OCL(orbs,&
   real(gp) :: hfac
   integer, dimension(3) :: periodic
   real(kind=8) :: rhopot
+  logical, dimension(3) :: peri
 
-  if (lr%geocode /= 'F') then
-    periodic(1) = 1
-  else
-    periodic(1) = 0
-  endif
-  if (lr%geocode == 'P') then
-    periodic(2) = 1
-  else
-    periodic(2) = 0
-  endif
-  if (lr%geocode /= 'F') then
-    periodic(3) = 1
-  else
-    periodic(3) = 0
-  endif
+!!$  if (lr%geocode /= 'F') then
+!!$    periodic(1) = 1
+!!$  else
+!!$    periodic(1) = 0
+!!$  endif
+!!$  if (lr%geocode == 'P') then
+!!$    periodic(2) = 1
+!!$  else
+!!$    periodic(2) = 0
+!!$  endif
+!!$  if (lr%geocode /= 'F') then
+!!$    periodic(3) = 1
+!!$  else
+!!$    periodic(3) = 0
+!!$  endif
+
+  peri=cell_periodic_dims(lr%mesh)
+  periodic=0
+  where (peri) periodic=1
 
   if (lr%wfd%nvctr_f > 0) then
      isf=lr%wfd%nvctr_c+1
@@ -943,7 +982,8 @@ subroutine local_partial_density_OCL(orbs,&
      if (pin) call ocl_unmap_mem_object(GPU%queue, GPU%psicf_host(1,1), psi(isf,iorb))
 !     call ocl_release_mem_object(GPU%psicf_host(2+(ispinor-1)*2,iorb_r))
 
-     hfac=orbs%kwgts(orbs%iokpt(iorb_r))*orbs%occup(orbs%isorb+iorb_r)/(hxh*hyh*hzh)
+!!$     hfac=orbs%kwgts(orbs%iokpt(iorb_r))*orbs%occup(orbs%isorb+iorb_r)/(hxh*hyh*hzh)
+     hfac=orbs%kwgts(orbs%iokpt(iorb_r))*orbs%occup(orbs%isorb+iorb_r)/(lr%mesh%volume_element)
      if (orbs%spinsgn(orbs%isorb+iorb_r) > 0.0) then
         rhopot = GPU%rhopot_up
      else
