@@ -565,6 +565,9 @@ subroutine test_functions_new(mesh,nspden,a_gauss,&
        density,potential)
   case('W')
      call fill_functions_arrays_wires(mesh,density,potential)
+!     factor=oneofourpi
+!     call fill_functions_arrays(cell_geocode(mesh) /= 'F',mesh,funcs,factor,&
+!          density,potential)
      !the different modes for the wires-like bc are not used here
   end select
 

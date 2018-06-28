@@ -392,13 +392,13 @@ subroutine IonicEnergyandForces(iproc,nproc,dpbox,at,elecfield,&
         !then calculate the hartree energy and forces of the charge distributions
         !(and save the values for the ionic potential)
 
-        !Determine the maximal bounds for mpx, mpy, mpz (1D-integral)
-        call mp_range(at%multipole_preserving,at%mp_isf,1,&
-             hxh,hyh,hzh,maxval(at%psppar(0,0,:)),mpnx,mpny,mpnz)
-        !Separable function: do 1-D integrals before and store it.
-        mpx = f_malloc( (/ 0 .to. mpnx /),id='mpx')
-        mpy = f_malloc( (/ 0 .to. mpny /),id='mpy')
-        mpz = f_malloc( (/ 0 .to. mpnz /),id='mpz')
+!!$        !Determine the maximal bounds for mpx, mpy, mpz (1D-integral)
+!!$        call mp_range(at%multipole_preserving,at%mp_isf,1,&
+!!$             hxh,hyh,hzh,maxval(at%psppar(0,0,:)),mpnx,mpny,mpnz)
+!!$        !Separable function: do 1-D integrals before and store it.
+!!$        mpx = f_malloc( (/ 0 .to. mpnx /),id='mpx')
+!!$        mpy = f_malloc( (/ 0 .to. mpny /),id='mpy')
+!!$        mpz = f_malloc( (/ 0 .to. mpnz /),id='mpz')
 
         atit = atoms_iter(at%astruct)
         do while(atoms_iter_next(atit))
@@ -487,8 +487,8 @@ subroutine IonicEnergyandForces(iproc,nproc,dpbox,at,elecfield,&
 
         enddo
 
-        !De-allocate the 1D temporary arrays for separability
-        call f_free(mpx,mpy,mpz)
+!!$        !De-allocate the 1D temporary arrays for separability
+!!$        call f_free(mpx,mpy,mpz)
 
      end if
 
@@ -885,13 +885,13 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
 
   if (dpbox%n3pi >0 .and. .not. htoobig) then
 
-     !Determine the maximal bounds for mpx, mpy, mpz (1D-integral)
-     call mp_range(at%multipole_preserving,at%mp_isf,at%astruct%nat,&
-         hxh,hyh,hzh,maxval(at%psppar(0,0,:)),mpnx,mpny,mpnz)
-     !Separable function: do 1-D integrals before and store it.
-     mpx = f_malloc( (/ 0 .to. mpnx /),id='mpx')
-     mpy = f_malloc( (/ 0 .to. mpny /),id='mpy')
-     mpz = f_malloc( (/ 0 .to. mpnz /),id='mpz')
+!!$     !Determine the maximal bounds for mpx, mpy, mpz (1D-integral)
+!!$     call mp_range(at%multipole_preserving,at%mp_isf,at%astruct%nat,&
+!!$         hxh,hyh,hzh,maxval(at%psppar(0,0,:)),mpnx,mpny,mpnz)
+!!$     !Separable function: do 1-D integrals before and store it.
+!!$     mpx = f_malloc( (/ 0 .to. mpnx /),id='mpx')
+!!$     mpy = f_malloc( (/ 0 .to. mpny /),id='mpy')
+!!$     mpz = f_malloc( (/ 0 .to. mpnz /),id='mpz')
 
      atit = atoms_iter(at%astruct)
      do while(atoms_iter_next(atit))
@@ -1010,8 +1010,8 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
 
      enddo
 
-     !De-allocate for multipole preserving
-     call f_free(mpx,mpy,mpz)
+!!$     !De-allocate for multipole preserving
+!!$     call f_free(mpx,mpy,mpz)
 
   end if
 

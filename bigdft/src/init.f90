@@ -1946,7 +1946,7 @@ subroutine input_wf_diag(iproc,nproc,at,denspot,&
   use module_interfaces, only: FullHamiltonianApplication, LDiagHam, &
        & communicate_density, free_full_potential, inputguess_gaussian_orbitals, &
        & sumrho
-  use io, only: write_energies
+  use io, only: write_energies,plot_density
   use module_types
   use module_xc, only: XC_NO_HARTREE
   use Poisson_Solver, except_dp => dp, except_gp => gp
@@ -2191,6 +2191,12 @@ subroutine input_wf_diag(iproc,nproc,at,denspot,&
         end do
      end if
      !Now update the potential
+
+      call plot_density(iproc,nproc,'electronic_density_checks',&
+                        at,rxyz,denspot%pkernel,denspot%dpbox%nrhodim,denspot%rhov)
+      call plot_density(iproc,nproc,'Vextra_checks',&
+                        at,rxyz,denspot%pkernel,denspot%dpbox%nrhodim,denspot%V_ext)
+
      call updatePotential(nspin,denspot,energs)!%eh,energs%exc,energs%evxc)
   else
      !Put to zero the density if no Hartree
