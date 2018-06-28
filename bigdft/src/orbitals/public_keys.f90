@@ -304,8 +304,8 @@ module public_keys
   character(len=*), parameter :: PEXSI_NP_SYM_FACT='pexsi_np_sym_fact'
 
   !> Parameters to avoid typos in dictionary keys
-!  character(len=*), parameter :: ASTRUCT_UNITS = 'units'
-!  character(len=*), parameter :: ASTRUCT_CELL = 'cell'
+  character(len=*), parameter :: ASTRUCT_UNITS = 'units'
+  character(len=*), parameter :: ASTRUCT_CELL = 'cell'
   character(len=*), parameter :: ASTRUCT_POSITIONS = 'positions'
   character(len=*), parameter :: ASTRUCT_PROPERTIES = 'properties'
   character(len=*), parameter :: ASTRUCT_ATT_FROZEN = 'Frozen'

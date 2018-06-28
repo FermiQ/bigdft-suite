@@ -304,7 +304,7 @@ subroutine Electrostatic_Solver(kernel,rhov,energies,pot_ion,rho_ion,ehartree)
   end if
 
   ehartreeLOC=0.0_gp
-  select case(trim(str(kernel%method)))
+  select case(trim(toa(kernel%method)))
   case('VAC')
      call finalize_hartree_results(present(pot_ion),cudasolver,kernel,&
           pot_ion_eff,&
@@ -477,7 +477,7 @@ subroutine Parallel_GPS(kernel,cudasolver,offset,strten,wrtmsg,rho_dist,use_inpu
   n1=kernel%grid%m1
 
   !now switch the treatment according to the method used
-  select case(trim(str(kernel%method)))
+  select case(trim(toa(kernel%method)))
   case('VAC')
      !initalise to zero the zf array 
      !call f_zero(kernel%w%zf)

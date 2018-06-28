@@ -54,6 +54,7 @@ f_functions.o: numerics.o box.o FiniteDiffCorff.inc
 op2p_module.o: linalg.o
 harmonics.o: numerics.o box.o
 box.o: linalg.o domain.o
+domain.o: numerics.o
 #fft2d.o: fft3d.o
 
 AM_FCFLAGS = -I. -I$(top_builddir)/dicts/ -I$(top_builddir)/flib/ -I$(builddir)/mpi #@MPI_INCLUDE@

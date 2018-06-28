@@ -17,7 +17,7 @@ module bigdft_run
   use f_refcnts, only: f_reference_counter,f_ref_new,f_ref,f_unref,&
        nullify_f_ref,f_ref_free
   use f_utils
-  use f_enums, f_str => str
+  use f_enums, f_str => toa
   use module_input_dicts, only: bigdft_set_run_properties => dict_set_run_properties,&
        bigdft_get_run_properties => dict_get_run_properties,&
        final_positions_filename
@@ -2037,7 +2037,7 @@ contains
     call f_routine(id='process_run (id="'+id+'")')
 
     if (bigdft_mpi%iproc==0 .and. .not. (runObj%run_mode .hasattr. RUN_MODE_CREATE_DOCUMENT)) &
-         call yaml_sequence_open('Initializing '//trim(str(runObj%run_mode)))
+         call yaml_sequence_open('Initializing '//trim(toa(runObj%run_mode)))
 
     if(trim(runObj%inputs%geopt_approach)/='SOCK') then
         call bigdft_state(runObj,outs,infocode)

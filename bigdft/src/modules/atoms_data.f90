@@ -62,7 +62,7 @@ module module_atoms
      real(gp), dimension(3) :: cell_dim    !< Dimensions of the simulation domain (each one periodic or free according to geocode)
      real(gp), dimension(3) :: shift       !< Rigid shift applied to the atomic positions
      !pointers
-     type(domain) :: dom
+!     type(domain) :: dom
      real(gp), dimension(:,:), pointer :: rxyz             !< Atomic positions (always in AU, units variable is considered for I/O only)
      real(gp), dimension(:,:), pointer :: rxyz_int         !< Atomic positions in internal coordinates (Z matrix)
      integer, dimension(:,:), pointer :: ixyz_int          !< Neighbor list for internal coordinates (Z matrix)

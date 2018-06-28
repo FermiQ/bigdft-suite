@@ -218,7 +218,7 @@ subroutine finalize_hartree_results(sumpion,gpu,kernel,pot_ion,m1,m2,m3p,&
   if(gpu) then
 
      !in VAC case, rho and zf are already on the card and untouched
-     if( kernel%stay_on_gpu /= 1 .and. trim(str(kernel%method))/='VAC') then
+     if( kernel%stay_on_gpu /= 1 .and. trim(toa(kernel%method))/='VAC') then
         call reset_gpu_data(m1*m2*m3p,rho,kernel%w%rho_GPU)
         call reset_gpu_data(m1*m2*m3p,zf,kernel%w%work1_GPU)
      end if
