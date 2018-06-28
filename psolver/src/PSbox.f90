@@ -20,9 +20,10 @@ module PSbox
   end interface PS_reduce
   
 
-  public :: PS_reduce,PS_gather
+  public :: PS_reduce,PS_gather,PS_dump_field
 
 contains
+   
 
   !>gather a distributed array to have a full array
   !!if only src is present this is assumed to be a full array

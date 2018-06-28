@@ -19,6 +19,7 @@ program PS_Check
   use time_profiling
   use yaml_strings
   use box
+  use PSbox
   implicit none
   !Length of the box
   character(len=*), parameter :: subname='PS_Check'
@@ -171,7 +172,14 @@ program PS_Check
   !calculate the Poisson potential in parallel
   !with the global data distribution (also for xc potential)
 
+  !dump the density
+  call PS_dump_field(pkernel,'density',src_full=rhopot)
+
   call H_potential('G',pkernel,rhopot,pot_ion,ehartree,offset,.false.) !optional argument
+
+  !dump the potential
+  call PS_dump_field(pkernel,'potential',src_full=rhopot)
+
 
   if (pkernel%mpi_env%iproc +pkernel%mpi_env%igroup == 0) then
      call yaml_mapping_open('Energies',flow=.true.)

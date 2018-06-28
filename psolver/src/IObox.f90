@@ -11,6 +11,8 @@
 !!    For the list of contributors, see ~/AUTHORS
 module IObox
   use PSbase
+  use box
+  use f_enums
   implicit none
 
   integer, parameter :: UNKNOWN=0
@@ -20,13 +22,15 @@ module IObox
 
   private
 
+  type(f_enumerator), parameter :: CUBE_FORMAT=f_enumerator('CUBE',CUBE,null())
+  type(f_enumerator), parameter :: ETSF_FORMAT=f_enumerator('ETSF',ETSF,null())
+  type(f_enumerator) :: FULL_MESH_ENUM=f_enumerator('FULL',-1000,null())
 
   public :: read_field,read_field_dimensions,dump_field
 
   contains
     
     pure subroutine cube_dimensions(geocode,ndims,nc1,nc2,nc3)
-      use box
       implicit none
       character(len=1), intent(in) :: geocode
       integer, dimension(3), intent(in) :: ndims
@@ -69,7 +73,6 @@ module IObox
     end subroutine cube_dimensions
 
     pure subroutine startend_buffers(geocode,nl1,nl2,nl3,nbx,nby,nbz)
-      use box
       implicit none
       character(len=1), intent(in) :: geocode
       integer, intent(out) :: nl1,nl2,nl3,nbx,nby,nbz
@@ -521,205 +524,309 @@ module IObox
     END SUBROUTINE read_cube
 
     !> Write a (sum of two) field in the ISF basis in the cube format
-    subroutine write_cube_fields(prefix,message,geocode,ndims,ns,hgrids,&
+    subroutine write_cube_fields(form,prefix,message,mesh,ns,&
          factor,a,x,nexpo,b,y,nat,rxyz,iatype,nzatom,nelpsp,ixyz0)
       use f_utils
       use dynamic_memory
       implicit none
       !integer,intent(in) :: fileunit0,fileunitx,fileunity,fileunitz
-      character(len=1), intent(in) :: geocode
+      !character(len=1), intent(in) :: geocode
+      type(f_enumerator), intent(in) :: form
       character(len=*), intent(in) :: message,prefix
       integer, intent(in) :: nexpo,nat
       real(gp), intent(in) :: a,b,factor
-      integer, dimension(3), intent(in) :: ndims,ns
-      real(gp), dimension(3), intent(in) :: hgrids
+      integer, dimension(3), intent(in) :: ns!ndims
+      !real(gp), dimension(3), intent(in) :: hgrids
+      type(cell), intent(in) :: mesh
       !type(atoms_data), intent(in) :: at
-      real(dp), dimension(ndims(1),ndims(2),ndims(3)), intent(in) :: x,y
+      real(dp), dimension(mesh%ndims(1),mesh%ndims(2),mesh%ndims(3)), intent(in) :: x,y
       real(gp), dimension(3,nat), intent(in) :: rxyz
       integer, dimension(nat), intent(in) :: iatype
       integer, dimension(*), intent(in) :: nzatom !< of dimension ntypes
       integer, dimension(*), intent(in) :: nelpsp !< of dimension ntypes
       integer, dimension(3), intent(in) :: ixyz0
       !local variables
-      character(len=3) :: advancestring
-      integer :: fileunit0,fileunitx,fileunity,fileunitz,n1i,n2i,n3i,n1s,n2s,n3s
-      integer :: nl1,nl2,nl3,nbx,nby,nbz,i1,i2,i3,icount,j,iat,nc1,nc2,nc3
-      real(dp) :: later_avg,xx,yy,zz
-      real(gp), dimension(3) :: cell_dim
+!!$      character(len=3) :: advancestring
+      integer :: fileunit0!,fileunitx,fileunity,fileunitz,n1i,n2i,n3i,n1s,n2s,n3s
+!!$      integer :: nl1,nl2,nl3,nbx,nby,nbz,i1,i2,i3,icount,j,iat,nc1,nc2,nc3
+!!$      real(dp) :: later_avg,xx,yy,zz
+!!$      real(gp), dimension(3) :: cell_dim
 
       call f_routine(id='write_cube_fields')
 
-      call startend_buffers(geocode,nl1,nl2,nl3,nbx,nby,nbz)
-      call cube_dimensions(geocode,ndims,nc1,nc2,nc3)
+!!$      call startend_buffers(geocode,nl1,nl2,nl3,nbx,nby,nbz)
+!!$      call cube_dimensions(geocode,ndims,nc1,nc2,nc3)
+!!$
+!!$      n1i=ndims(1)
+!!$      n2i=ndims(2)
+!!$      n3i=ndims(3)
+      fileunit0=f_get_free_unit(22)
 
-      n1i=ndims(1)
-      n2i=ndims(2)
-      n3i=ndims(3)
+      call f_open_file(unit=fileunit0,file=trim(prefix)//'.cube',status='unknown')
+
+      call cubefile_header_dump(fileunit0,nat,mesh,message,form)
+
+      if (nat >0)  call cubefile_header_dump_atoms(fileunit0,nat,iatype,rxyz,nzatom,nelpsp)
+
+      call cubefile_fields_dump(fileunit0,mesh,x,y,a,b,nexpo,form)
+
+      !close(22)
+      call f_close(fileunit0)
+      !  close(23)
+      call dump_fields_lateral_averages(prefix,mesh,x,y,a,b,nexpo,factor,ns,form)
+
+      !plot one single line of the file
+      if ( .not. all(ixyz0 == -1)) call dump_fields_lines(prefix,mesh,x,y,a,b,nexpo,ixyz0)
+
+      call f_release_routine()
+
+    END SUBROUTINE write_cube_fields
+
+    subroutine dump_fields_lateral_averages(filename,mesh,x,y,a,b,nexpo,factor,ns,form)
+      use f_utils
+      implicit none
+      type(f_enumerator), intent(in) :: form
+      character(len=*), intent(in) :: filename
+      integer, intent(in) :: nexpo
+      type(cell), intent(in) :: mesh
+      real(dp) :: a,b,factor
+      integer, dimension(3), intent(in) :: ns
+      real(dp), dimension(mesh%ndims(1),mesh%ndims(2),mesh%ndims(3)), intent(in) :: x,y
+      !local variables
+      integer :: n1s,n2s,n3s,fileunitx,fileunity,fileunitz!,n1i,n2i,n3i,
+      integer :: i1,i2,i3,icount,j,iat
+      real(dp) :: later_avg!,xx,yy,zz
+      real(gp), dimension(3) :: cell_dim
+      integer, dimension(3) :: nl,nc
+
+      call dimensions_from_format(form,mesh,nl,nc)
+
       n1s=ns(1)
       n2s=ns(2)
       n3s=ns(3)
-      fileunit0=f_get_free_unit(22)
-      call f_open_file(unit=fileunit0,file=trim(prefix)//'.cube',status='unknown')
+
+      cell_dim=nc*mesh%hgrids
+
+      fileunitx=f_get_free_unit(23)
+      fileunity=f_get_free_unit(24)
+      fileunitz=f_get_free_unit(25)
+
+      call f_open_file(unit=fileunitx,file=trim(filename)//'_avg_x.dat',status='unknown')
+      call f_open_file(unit=fileunity,file=trim(filename)//'_avg_y.dat',status='unknown')
+      call f_open_file(unit=fileunitz,file=trim(filename)//'_avg_z.dat',status='unknown')
+
+      !average in x direction
+      !open(unit=23,file=trim(filename)//'_avg_x',status='unknown')
+      !open(unit=24,file=trim(filename)//'_centre_x',status='unknown')
+      !  do i1=0,2*n1+1
+      do i1=0,nc(1) - 1
+         later_avg=0.0_dp
+         do i3=0,nc(3) -1
+            do i2=0,nc(2) - 1
+               later_avg=later_avg+&
+                    a*x(i1+nl(1),i2+nl(2),i3+nl(3))**nexpo+b*y(i1+nl(1),i2+nl(2),i3+nl(3))
+            end do
+         end do
+         later_avg=later_avg/real(nc(2)*nc(3),dp) !2D integration/2D Volume
+         !to be checked with periodic/isolated BC
+         write(fileunitx,*)i1+n1s,cell_dim(1)/real(factor*nc(1),dp)*(i1+n1s),later_avg
+      end do
+
+      !average in y direction
+      do i2=0,nc(2) - 1
+         later_avg=0.0_dp
+         do i3=0,nc(3) - 1
+            do i1=0,nc(1) -1
+               later_avg=later_avg+&
+                    a*x(i1+nl(1),i2+nl(2),i3+nl(3))**nexpo+b*y(i1+nl(1),i2+nl(2),i3+nl(3))
+            end do
+         end do
+         later_avg=later_avg/real(nc(1)*nc(3),dp) !2D integration/2D Volume
+         write(fileunity,*)i2+n2s,cell_dim(2)/real(factor*nc(2),dp)*(i2+n2s),later_avg
+      end do
+
+      !average in z direction
+      do i3=0,nc(3) - 1
+         later_avg=0.0_dp
+         do i2=0,nc(2) - 1
+            do i1=0,nc(1) -1
+               later_avg=later_avg+&
+                    a*x(i1+nl(1),i2+nl(2),i3+nl(3))**nexpo+b*y(i1+nl(1),i2+nl(2),i3+nl(3))
+            end do
+         end do
+         later_avg=later_avg/real(nc(1)*nc(2),dp) !2D integration/2D Volume
+         write(fileunitz,*)i3+n3s,cell_dim(3)/real(factor*nc(3),dp)*(i3+n3s),later_avg
+      end do
+
+      call f_close(fileunitx)
+      call f_close(fileunity)
+      call f_close(fileunitz)
+
+    end subroutine dump_fields_lateral_averages
+
+    subroutine cubefile_header_dump_atoms(unit,nat,iatype,rxyz,nzatom,nelpsp)
+      implicit none
+      integer, intent(in) :: nat,unit
+      integer, dimension(nat), intent(in) :: iatype
+      real(gp), dimension(3,nat), intent(in) :: rxyz
+      integer, dimension(*), intent(in) :: nzatom !< of dimension ntypes
+      integer, dimension(*), intent(in) :: nelpsp !< of dimension ntypes
+      !local variables
+      integer :: iat,j
+
+      !atomic number and positions
+      do iat=1,nat
+         write(unit,'(i5,4(f12.6))') nzatom(iatype(iat)), real(nelpsp(iatype(iat)),gp) &
+              ,(rxyz(j,iat),j=1,3)
+      end do
+
+    end subroutine cubefile_header_dump_atoms
+
+    subroutine cubefile_header_dump(unit,nat,mesh,message,form)
+      implicit none
+      type(f_enumerator), intent(in) :: form
+      integer, intent(in) :: unit,nat
+      type(cell), intent(in) :: mesh
+      character(len=*), intent(in) :: message       
+      !local variables
+      integer, dimension(3) :: nc,nl
+
+      call dimensions_from_format(form,mesh,nl,nc)
 
       ! A nonstandard .CUBE file where the field is written with the maximum number of
       ! decimal places can be obtained by uncommenting the writes to unit 23
       !open(unit=22,file=trim(filename)//'.cube',status='unknown')
       !  open(unit=23,file=trim(filename)//'.CUBE',status='unknown')
-      write(fileunit0,*)'CUBE file for ISF field'
-      write(fileunit0,*)'Case for '//trim(message)
-      write(fileunit0,'(i5,3(f12.6))') nat,0.0_gp,0.0_gp,0.0_gp
+      write(unit,*)'CUBE file for ISF field'
+      write(unit,*)'Case for '//trim(message)
+      write(unit,'(i5,3(f12.6))') nat,0.0_gp,0.0_gp,0.0_gp
       !  write(23,*)'CUBE file for ISF field'
       !  write(23,*)'Case for '//trim(message)
       !  write(23,'(i5,3(f12.6))') at%astruct%nat,0.0_gp,0.0_gp,0.0_gp
       !grid and grid spacings
-      write(fileunit0,'(i5,3(f12.6))') nc1,hgrids(1),0.0_gp,0.0_gp
-      write(fileunit0,'(i5,3(f12.6))') nc2,0.0_gp,hgrids(2),0.0_gp
-      write(fileunit0,'(i5,3(f12.6))') nc3,0.0_gp,0.0_gp,hgrids(3)
-      !  write(23,'(i5,3(f12.6))') nc1,hxh,0.0_gp,0.0_gp
-      !  write(23,'(i5,3(f12.6))') nc2,0.0_gp,hyh,0.0_gp
-      !  write(23,'(i5,3(f12.6))') nc3,0.0_gp,0.0_gp,hzh
-      !atomic number and positions
-      do iat=1,nat
-         write(fileunit0,'(i5,4(f12.6))') nzatom(iatype(iat)), real(nelpsp(iatype(iat)),gp) &
-              ,(rxyz(j,iat),j=1,3)
-         !     write(23,'(i5,f12.6,3(f19.12))') at%nzatom(at%astruct%iatype(iat)), at%nelpsp(at%astruct%iatype(iat))*1. &
-         !          ,(rxyz(j,iat),j=1,3)
-      end do
+      write(unit,'(i5,3(f12.6))') nc(1),mesh%habc(:,1)!hgrids(1),0.0_gp,0.0_gp
+      write(unit,'(i5,3(f12.6))') nc(2),mesh%habc(:,2)!0.0_gp,hgrids(2),0.0_gp
+      write(unit,'(i5,3(f12.6))') nc(3),mesh%habc(:,3)!0.0_gp,0.0_gp,hgrids(3)
+    end subroutine cubefile_header_dump
+
+    subroutine dimensions_from_format(form,mesh,nl,nc)
+      implicit none
+      type(f_enumerator), intent(in) :: form
+      type(cell), intent(in) :: mesh
+      integer, dimension(3), intent(out) :: nl,nc
+      !local variables
+      integer :: nbx,nby,nbz
+
+      if (form .hasattr. FULL_MESH_ENUM) then
+         nl=1
+         nc=mesh%ndims
+      else
+         call startend_buffers(cell_geocode(mesh),nl(1),nl(2),nl(3),nbx,nby,nbz)
+         call cube_dimensions(cell_geocode(mesh),mesh%ndims,nc(1),nc(2),nc(3))
+      end if
+    end subroutine dimensions_from_format
+
+    subroutine cubefile_fields_dump(unit,mesh,x,y,a,b,nexpo,form)
+      implicit none
+      type(f_enumerator), intent(in) :: form
+      integer, intent(in) :: unit,nexpo
+      type(cell), intent(in) :: mesh
+      real(dp) :: a,b
+      real(dp), dimension(mesh%ndims(1),mesh%ndims(2),mesh%ndims(3)), intent(in) :: x,y
+      !local variables
+      integer :: i1,i2,i3,icount
+      character(len=3) :: advancestring
+      integer, dimension(3) :: nl,nc
+
+      call dimensions_from_format(form,mesh,nl,nc)
 
       !the loop is reverted for a cube file
       !charge normalised to the total charge
-      do i1=0,nc1 - 1
-         do i2=0,nc2 - 1
+      do i1=0,nc(1) - 1
+         do i2=0,nc(2) - 1
             icount=0
-            do i3=0,nc3 - 1
+            do i3=0,nc(3) - 1
                icount=icount+1
-               if (icount == 6 .or. i3==nc3 - 1) then
+               if (icount == 6 .or. i3==nc(3) - 1) then
                   advancestring='yes'
                   icount=0
                else
                   advancestring='no'
                end if
                !ind=i1+nl1+(i2+nl2-1)*n1i+(i3+nl3-1)*n1i*n2i
-               write(fileunit0,'(1x,1pe13.6)',advance=advancestring)&
-                    a*x(i1+nl1,i2+nl2,i3+nl3)**nexpo+b*y(i1+nl1,i2+nl2,i3+nl3)
+               write(unit,'(1x,1pe13.6)',advance=advancestring)&
+                    a*x(i1+nl(1),i2+nl(2),i3+nl(3))**nexpo+b*y(i1+nl(1),i2+nl(2),i3+nl(3))
                !           write(23,'(1x,e24.17)',advance=advancestring)&
                !                a*x(i1+nl1,i2+nl2,i3+nl3)**nexpo+b*y(i1+nl1,i2+nl2,i3+nl3)
             end do
          end do
       end do
-      !close(22)
-      call f_close(fileunit0)
-      !  close(23)
+    end subroutine cubefile_fields_dump
 
-      cell_dim(1)=nc1*hgrids(1)
-      cell_dim(2)=nc2*hgrids(2)
-      cell_dim(3)=nc3*hgrids(3)
+    subroutine dump_fields_lines(filename,mesh,x,y,a,b,nexpo,ixyz0)
+      use f_utils
+      implicit none
+      character(len=*), intent(in) :: filename
+      integer, intent(in) :: nexpo
+      type(cell), intent(in) :: mesh
+      real(dp) :: a,b
+      real(dp), dimension(mesh%ndims(1),mesh%ndims(2),mesh%ndims(3)), intent(in) :: x,y
+      integer, dimension(3), intent(in) :: ixyz0
+      !local variables
+      integer :: fileunit0,fileunitx,fileunity,fileunitz,n1i,n2i,n3i,n1s,n2s,n3s
+      integer :: nl1,nl2,nl3,nbx,nby,nbz,i1,i2,i3,icount,j,iat,nc1,nc2,nc3
+      real(dp) :: later_avg,xx,yy,zz
 
 
-      fileunitx=f_get_free_unit(23)
-      fileunity=f_get_free_unit(24)
-      fileunitz=f_get_free_unit(25)
+      fileunitx=f_get_free_unit(26)
+      fileunity=f_get_free_unit(27)
+      fileunitz=f_get_free_unit(28)
 
-      call f_open_file(unit=fileunitx,file=trim(prefix)//'_avg_x.dat',status='unknown')
-      call f_open_file(unit=fileunity,file=trim(prefix)//'_avg_y.dat',status='unknown')
-      call f_open_file(unit=fileunitz,file=trim(prefix)//'_avg_z.dat',status='unknown')
+      call f_open_file(unit=fileunitx,file=trim(filename)//'_line_x.dat',status='unknown')
+      call f_open_file(unit=fileunity,file=trim(filename)//'_line_y.dat',status='unknown')
+      call f_open_file(unit=fileunitz,file=trim(filename)//'_line_z.dat',status='unknown')
 
-      !average in x direction
-      !open(unit=23,file=trim(filename)//'_avg_x',status='unknown')
-      !open(unit=24,file=trim(filename)//'_centre_x',status='unknown')
-      !  do i1=0,2*n1+1
-      do i1=0,nc1 - 1
-         later_avg=0.0_dp
-         do i3=0,nc3 -1
-            do i2=0,nc2 - 1
-               later_avg=later_avg+&
-                    a*x(i1+nl1,i2+nl2,i3+nl3)**nexpo+b*y(i1+nl1,i2+nl2,i3+nl3)
-            end do
-         end do
-         later_avg=later_avg/real(nc2*nc3,dp) !2D integration/2D Volume
-         !to be checked with periodic/isolated BC
-         write(fileunitx,*)i1+n1s,cell_dim(1)/real(factor*nc1,dp)*(i1+n1s),later_avg
-         !write(24,*)i1+n1s,at%astruct%cell_dim(1)/real(factor*nc1,dp)*(i1+n1s),&
-         !     a*x(i1+nl1,nc2/2+nl2,nc3/2+nl3)**nexpo+b*y(i1+nl1,nc2/2+nl2,nc3/2+nl3)
+      do i1=1,mesh%ndims(1)
+         xx=i1*mesh%hgrids(1)
+         write(fileunitx,'(1x,I8,4(1x,e22.15))')i1,xx,a*x(i1,ixyz0(2),ixyz0(3))**nexpo+b*y(i1,ixyz0(2),ixyz0(3))
       end do
-      !close(23)
-      !close(24)
-      !average in y direction
-      !open(unit=23,file=trim(filename)//'_avg_y',status='unknown')
-      !open(unit=24,file=trim(filename)//'_centre_y',status='unknown')
-      do i2=0,nc2 - 1
-         later_avg=0.0_dp
-         do i3=0,nc3 - 1
-            do i1=0,nc1 -1
-               later_avg=later_avg+&
-                    a*x(i1+nl1,i2+nl2,i3+nl3)**nexpo+b*y(i1+nl1,i2+nl2,i3+nl3)
-            end do
-         end do
-         later_avg=later_avg/real(nc1*nc3,dp) !2D integration/2D Volume
-         !to be checked with periodic/isolated BC
-         write(fileunity,*)i2+n2s,cell_dim(2)/real(factor*nc2,dp)*(i2+n2s),later_avg
-         !write(24,*)i2+n2s,at%astruct%cell_dim(2)/real(factor*nc2,dp)*(i2+n2s),&
-         !    a*x(nc1/2+nl1,i2+nl2,nc3/2+nl3)**nexpo+b*y(nc1/2+nl1,i2+nl2,nc3/2+nl3)
+
+      do i2=1,mesh%ndims(2)
+         yy=i2*mesh%hgrids(2)
+         write(fileunity,'(1x,I8,3(1x,e22.15))')i2,yy,a*x(ixyz0(1),i2,ixyz0(3))**nexpo+b*y(ixyz0(1),i2,ixyz0(3))
       end do
-      !close(23)
-      !close(24)
-      !average in z direction
-      !open(unit=23,file=trim(filename)//'_avg_z',status='unknown')
-      !open(unit=24,file=trim(filename)//'_centre_z',status='unknown')
-      do i3=0,nc3 - 1
-         later_avg=0.0_dp
-         do i2=0,nc2 - 1
-            do i1=0,nc1 -1
-               later_avg=later_avg+&
-                    a*x(i1+nl1,i2+nl2,i3+nl3)**nexpo+b*y(i1+nl1,i2+nl2,i3+nl3)
-            end do
-         end do
-         later_avg=later_avg/real(nc1*nc2,dp) !2D integration/2D Volume
-         !to be checked with periodic/isolated BC
-         write(fileunitz,*)i3+n3s,cell_dim(3)/real(factor*nc3,dp)*(i3+n3s),later_avg
-         !write(24,*)i3+n3s,at%astruct%cell_dim(3)/real(factor*nc3,dp)*(i3+n3s),&
-         !     a*x(nc1/2+nl1,nc2/2+nl2,i3+nl3)**nexpo+b*y(nc1/2+nl1,nc2/2+nl2,i3+nl3)
+
+      do i3=1,mesh%ndims(3)
+         zz=i3*mesh%hgrids(3)
+         write(fileunitz,'(1x,I8,3(1x,e22.15))')i3,zz,a*x(ixyz0(1),ixyz0(2),i3)**nexpo+b*y(ixyz0(1),ixyz0(2),i3)
       end do
 
       call f_close(fileunitx)
       call f_close(fileunity)
       call f_close(fileunitz)
-      !close(23)
-      !close(24)
+    end subroutine dump_fields_lines
 
-      !plot one single line of the file
-      if ( .not. all(ixyz0 == -1)) then
-         fileunitx=f_get_free_unit(26)
-         fileunity=f_get_free_unit(27)
-         fileunitz=f_get_free_unit(28)
+    subroutine get_format_enum(filename,form,isuffix)
+      implicit none
+      character(len=*), intent(in) :: filename
+      integer, intent(out) :: isuffix
+      type(f_enumerator), intent(out) :: form
+      !local variables
+      integer :: fformat
+      
+      fformat=get_file_format(filename,isuffix)
 
-         call f_open_file(unit=fileunitx,file=trim(prefix)//'_line_x.dat',status='unknown')
-         call f_open_file(unit=fileunity,file=trim(prefix)//'_line_y.dat',status='unknown')
-         call f_open_file(unit=fileunitz,file=trim(prefix)//'_line_z.dat',status='unknown')
+      select case(fformat)
+      case(CUBE)
+         form=CUBE_FORMAT
+      case(ETSF)
+         form=ETSF_FORMAT
+      case(POT)
+         form=CUBE_FORMAT
+      end select
 
-         do i1=1,n1i
-            xx=i1*hgrids(1)
-            write(fileunitx,'(1x,I8,4(1x,e22.15))')i1,xx,a*x(i1,ixyz0(2),ixyz0(3))**nexpo+b*y(i1,ixyz0(2),ixyz0(3))
-         end do
+    end subroutine get_format_enum
 
-         do i2=1,n2i
-            yy=i2*hgrids(2)
-            write(fileunity,'(1x,I8,3(1x,e22.15))')i2,yy,a*x(ixyz0(1),i2,ixyz0(3))**nexpo+b*y(ixyz0(1),i2,ixyz0(3))
-         end do
-
-         do i3=1,n3i
-            zz=i3*hgrids(3)
-            write(fileunitz,'(1x,I8,3(1x,e22.15))')i3,zz,a*x(ixyz0(1),ixyz0(2),i3)**nexpo+b*y(ixyz0(1),ixyz0(2),i3)
-         end do
-
-         call f_close(fileunitx)
-         call f_close(fileunity)
-         call f_close(fileunitz)
-      end if
-
-      call f_release_routine()
-
-    END SUBROUTINE write_cube_fields
 
     subroutine dump_field(filename,mesh,nspin,rho,rxyz,iatype,nzatom,nelpsp,ixyz0)
       use dynamic_memory
@@ -727,7 +834,7 @@ module IObox
       use f_utils
       use IOboxETSF, only: write_etsf_density
       use yaml_strings
-      use box
+      use f_harmonics
       implicit none
       !integer,intent(in) :: fileunit0,fileunitx,fileunity,fileunitz
       integer, intent(in) :: nspin
@@ -745,13 +852,15 @@ module IObox
       integer, dimension(3) :: ndims
       real(gp), dimension(3) :: hgrids
       character(len=5) :: suffix
-      character(len=65) :: message
+      character(len=65) :: message,tmp_filename
       integer :: ia,ib,isuffix,fformat,nat!ierr,n1i,n2i,n3i
       real(gp), dimension(:,:), pointer :: rxyz_
       integer, dimension(:), pointer :: iatype_
       integer, dimension(:), pointer :: nzatom_
       integer, dimension(:), pointer :: nelpsp_
       !local variables
+      integer, parameter :: TOTAL_=1,DOWN_=2
+      real(dp), parameter :: one=1.0_dp,zero=0.0_dp,minus_two=-2.0_dp,minus_one=-1.0_dp
       real(dp) :: a,b
       !real(gp) :: hxh,hyh,hzh
       integer, dimension(3) :: ns,ixyz0_ !< starting points (zero in this case)
@@ -760,8 +869,13 @@ module IObox
       integer,parameter :: unitx = 23
       integer,parameter :: unity = 24
       integer,parameter :: unitz = 25
+      type(f_multipoles) :: multipoles
+      type(box_iterator) :: bit
+      type(f_enumerator) :: form
 
       call f_routine(id='dump_field')
+
+      call get_format_enum(filename,form,isuffix)
 
       geocode=cell_geocode(mesh)
       ndims=mesh%ndims
@@ -775,10 +889,21 @@ module IObox
          nzatom_=>nzatom
          nelpsp_=>nelpsp
       else
+         nat=1
+         !create one atom in the center of mass of the system (use the sum the components of the density)
+         call f_multipoles_create(multipoles,lmax=2)
+         bit=box_iter(mesh,centered=.true.)
+         call field_multipoles(bit,rho,nspin,multipoles)
          iatype_=f_malloc_ptr(1,id='iatype_')
          nzatom_=f_malloc_ptr(1,id='nzatom_')
          nelpsp_=f_malloc_ptr(1,id='nelpsp_')
+         nelpsp_=1
+         nzatom_=1
+         iatype_=1
          rxyz_=f_malloc_ptr([1,1],id='rxyz_')
+         rxyz_(:,1)=get_dipole(multipoles)
+         !in this case the full grid has to be used
+         call f_enum_attr(dest=form,attr=FULL_MESH_ENUM)
       end if
 
       ixyz0_=-1
@@ -794,71 +919,85 @@ module IObox
 
       call f_zero(ns)
       
-      fformat=get_file_format(filename,isuffix)
-
-
-      if (nspin /=2) then
-         message='total spin'
-         if (fformat == CUBE) then
-            suffix=''
-            a=1.0_dp
-            ia=1
-            b=0.0_dp
-            ib=1
-            call write_cube_fields(filename(:isuffix),message,geocode,&
-                 ndims,ns,hgrids,&
-                 1.0_dp,a,rho(1,1,1,ia),1,b,rho(1,1,1,ib),nat,rxyz_,iatype_,nzatom_,nelpsp_,ixyz0_)
-         else
-            call write_etsf_density(filename(:isuffix),message,geocode,&
-                 ndims,hgrids,&
-                 rho, 1,nat,rxyz_,iatype_,size(nzatom_),nzatom_)
+      call f_strcpy(src=trim(filename(:isuffix)),dest=tmp_filename)
+      if (form == CUBE_FORMAT) then
+         call dump_rho_section(tmp_filename,'total spin',one,TOTAL_,zero,TOTAL_)
+         if (nspin == 2) then
+            call dump_rho_section(tmp_filename+'-down','spin down',zero,TOTAL_,one,DOWN_)
+            call dump_rho_section(tmp_filename+'-u-d','spin difference',one,TOTAL_,minus_two,DOWN_)
+            call dump_rho_section(tmp_filename+'-up','spin up',one,TOTAL_,minus_one,DOWN_)
          end if
       else
-         if (fformat == CUBE) then
-            suffix=''
-            message='total spin'
-            a=1.0_dp
-            ia=1
-            b=0.0_dp
-            ib=2
-            call write_cube_fields(trim(filename(:isuffix))//trim(suffix),message,geocode,&
-                 ndims,ns,hgrids,&
-                 1.0_dp,a,rho(1,1,1,ia),1,b,rho(1,1,1,ib),nat,rxyz_,iatype_,nzatom_,nelpsp_,ixyz0_)
-            suffix='-down'
-            message='spin down'
-            a=0.0_dp
-            ia=1
-            b=1.0_dp
-            ib=2
-            call write_cube_fields(trim(filename(:isuffix))//trim(suffix),message,geocode,&
-                 ndims,ns,hgrids,&
-                 1.0_dp,a,rho(1,1,1,ia),1,b,rho(1,1,1,ib),nat,rxyz_,iatype_,nzatom_,nelpsp_,ixyz0_)
-            suffix='-u-d'
-            message='spin difference'
-            a=1.0_dp
-            ia=1
-            b=-2.0_dp
-            ib=2
-            call write_cube_fields(trim(filename(:isuffix))//trim(suffix),message,geocode,&
-                 ndims,ns,hgrids,&
-                 1.0_dp,a,rho(1,1,1,ia),1,b,rho(1,1,1,ib),nat,rxyz_,iatype_,nzatom_,nelpsp_,ixyz0_)
-            suffix='-up'
-            message='spin up'
-            a=1.0_dp
-            ia=1
-            b=-1.0_dp
-            ib=2
-            call write_cube_fields(trim(filename(:isuffix))//trim(suffix),message,geocode,&
-                 ndims,ns,hgrids,&
-                 1.0_dp,a,rho(1,1,1,ia),1,b,rho(1,1,1,ib),nat,rxyz_,iatype_,nzatom_,nelpsp_,ixyz0_)
+         if (nspin /=2) then
+            call f_strcpy(src='total spin',dest=message)
          else
-            message = 'spin up, down, total, difference'
-            call write_etsf_density(filename(:isuffix),message,geocode,&
-                 ndims,hgrids,&
-                 rho, 2,nat,rxyz_,iatype_,size(nzatom_),nzatom_)
+            call f_strcpy(src='spin up, down, total, difference',dest=message)
          end if
-
+         call write_etsf_density(trim(tmp_filename),message,geocode,&
+              ndims,hgrids,&
+              rho, nspin ,nat,rxyz_,iatype_,size(nzatom_),nzatom_)
       end if
+
+!!$
+!!$      if (nspin /=2) then
+!!$         message='total spin'
+!!$         if (fformat == CUBE) then
+!!$            call dump_rho_section(tmp_filename,'total spin',one,TOTAL_,zero,DOWN_)
+!!$            suffix=''
+!!$            a=1.0_dp
+!!$            ia=1
+!!$            b=0.0_dp
+!!$            ib=1
+!!$            call write_cube_fields(form,filename(:isuffix),message,mesh,ns,&
+!!$                 1.0_dp,a,rho(1,1,1,ia),1,b,rho(1,1,1,ib),nat,rxyz_,iatype_,nzatom_,nelpsp_,ixyz0_)
+!!$         else
+!!$            call write_etsf_density(trim(tmp_filename),message,geocode,&
+!!$                 ndims,hgrids,&
+!!$                 rho, 1,nat,rxyz_,iatype_,size(nzatom_),nzatom_)
+!!$         end if
+!!$      else
+!!$
+!!$            suffix=''
+!!$            message='total spin'
+!!$            a=1.0_dp
+!!$            ia=1
+!!$            b=0.0_dp
+!!$            ib=2
+!!$            call write_cube_fields(form,trim(filename(:isuffix))//trim(suffix),message,mesh,ns,&
+!!$                 1.0_dp,a,rho(1,1,1,ia),1,b,rho(1,1,1,ib),nat,rxyz_,iatype_,nzatom_,nelpsp_,ixyz0_)
+!!$            suffix='-down'
+!!$            message='spin down'
+!!$            a=0.0_dp
+!!$            ia=1
+!!$            b=1.0_dp
+!!$            ib=2
+!!$            call write_cube_fields(form,trim(filename(:isuffix))//trim(suffix),message,mesh,ns,&
+!!$                 1.0_dp,a,rho(1,1,1,ia),1,b,rho(1,1,1,ib),nat,rxyz_,iatype_,nzatom_,nelpsp_,ixyz0_)
+!!$            suffix='-u-d'
+!!$            message='spin difference'
+!!$            a=1.0_dp
+!!$            ia=1
+!!$            b=-2.0_dp
+!!$            ib=2
+!!$            call write_cube_fields(form,trim(filename(:isuffix))//trim(suffix),message,mesh,ns,&
+!!$                 1.0_dp,a,rho(1,1,1,ia),1,b,rho(1,1,1,ib),nat,rxyz_,iatype_,nzatom_,nelpsp_,ixyz0_)
+!!$            call dump_rho_section(filename,message,ia,ib,a,b)
+!!$            suffix='-up'
+!!$            message='spin up'
+!!$            a=1.0_dp
+!!$            ia=1
+!!$            b=-1.0_dp
+!!$            ib=2
+!!$            call write_cube_fields(form,trim(filename(:isuffix))//trim(suffix),message,mesh,ns,&
+!!$                 1.0_dp,a,rho(1,1,1,ia),1,b,rho(1,1,1,ib),nat,rxyz_,iatype_,nzatom_,nelpsp_,ixyz0_)
+!!$         else
+!!$            message = 'spin up, down, total, difference'
+!!$            call write_etsf_density(trim(tmp_filename),message,geocode,&
+!!$                 ndims,hgrids,&
+!!$                 rho, 2,nat,rxyz_,iatype_,size(nzatom_),nzatom_)
+!!$         end if
+!!$
+!!$      end if
 
       close(unit=unit0)
       close(unit=unitx)
@@ -878,6 +1017,20 @@ module IObox
       end if
 
       call f_release_routine()
+
+    contains
+
+      subroutine dump_rho_section(filename,message,a,ia,b,ib)
+        implicit none
+        character(len=*), intent(in) :: filename,message
+        integer, intent(in) :: ia,ib
+        real(gp), intent(in) :: a,b
+
+        call write_cube_fields(form,filename,message,mesh,ns,&
+             1.0_dp,a,rho(1,1,1,ia),1,b,rho(1,1,1,ib),&
+             nat,rxyz_,iatype_,nzatom_,nelpsp_,ixyz0_)
+        
+      end subroutine dump_rho_section
 
     END SUBROUTINE dump_field
 
