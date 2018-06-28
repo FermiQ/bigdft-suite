@@ -71,12 +71,12 @@ module f_enums
      module procedure int_enum
   end interface toi
 
-  interface str
+  interface toa
      module procedure char_enum
-  end interface str
+  end interface toa
 
   public :: f_enum_attr,operator(.hasattr.),nullify_f_enum,f_enum_update
-  public :: toi,str,f_enumerator_null,operator(==),operator(/=),operator(.getattr.)
+  public :: toi,toa,f_enumerator_null,operator(==),operator(/=),operator(.getattr.)
 
 contains
 

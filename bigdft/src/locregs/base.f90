@@ -14,7 +14,7 @@ module module_base
   use wrapper_MPI
   use numerics
   use module_defs
-  use dictionaries, dict_set => set !error_handling
+  use dictionaries, dict_set => set 
   use dynamic_memory
   use time_profiling
   use f_utils

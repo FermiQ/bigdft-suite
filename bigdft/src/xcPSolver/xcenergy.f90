@@ -726,7 +726,7 @@ subroutine XC_potential(geocode,datacode,iproc,nproc,mpi_comm,n01,n02,n03,xcObj,
   end if
 
   !if rhohat is present, add it to charge density
-  if(associated(rhohat) .and. m1*m3*nxc .gt.0) then
+  if(associated(rhohat) .and. m1*m3*nxc > 0) then
      call axpy(m1*m3*nxc,1._wp,rhohat(1,1,1,1),1,rho(1),1)
      if (nspin==2) call axpy(m1*m3*nxc,1._wp,rhohat(1,1,1,2),1,&
           rho(1+m1*m3*nxt),1)
@@ -737,7 +737,7 @@ subroutine XC_potential(geocode,datacode,iproc,nproc,mpi_comm,n01,n02,n03,xcObj,
 
   !if rhocore is associated we then remove it from the charge density
   !and subtract its contribution from the evaluation of the XC potential integral vexcu
-  if (associated(rhocore) .and. m1*m3*nxc .gt.0) then
+  if (associated(rhocore) .and. m1*m3*nxc > 0) then
      !at this stage the density is not anymore spin-polarised
      !sum the complete core density for non-spin polarised calculations
      call axpy(m1*m3*nxc,-1.0_wp,rhocore(1,1,i3xcsh_fake+1,1),1,rho(1),1)
