@@ -19,12 +19,14 @@ module IObox
   integer, parameter :: CUBE=1
   integer, parameter :: ETSF=2
   integer, parameter :: POT=3
+  integer, parameter :: BIGCUBE=4
 
   private
 
   type(f_enumerator), parameter :: CUBE_FORMAT=f_enumerator('CUBE',CUBE,null())
   type(f_enumerator), parameter :: ETSF_FORMAT=f_enumerator('ETSF',ETSF,null())
   type(f_enumerator) :: FULL_MESH_ENUM=f_enumerator('FULL',-1000,null())
+  type(f_enumerator) :: FULL_DATA_ENUM=f_enumerator('BITWISE',-1001,null())
 
   public :: read_field,read_field_dimensions,dump_field
 
@@ -136,8 +138,8 @@ module IObox
       integer :: fformat
       !local variables
       integer :: ipos,iext
-      character(len=8), dimension(4), parameter :: &
-           exts=['.cube   ','.etsf   ','.etsf.nc','.pot    ']
+      character(len=8), dimension(5), parameter :: &
+           exts=['.cube   ','.etsf   ','.etsf.nc','.pot    ','.CUBE   ']
 
       ! Format = 1 -> cube (default)
       ! Format = 2 -> ETSF
@@ -156,6 +158,8 @@ module IObox
             fformat=ETSF
          case(4)
             fformat=POT
+         case(5)
+            fformat=BIGCUBE
          end select
       else
          isuffix = len(filename)
@@ -180,7 +184,7 @@ module IObox
          !eliminate slashes
          ipos=index(filename, "/",back=.true.)
          ipos=max(ipos,1)
-         if (index(filename(ipos:), ".") == 0) fformat=CUBE
+         if (index(filename(ipos:), ".") == 0) fformat=BIGCUBE
       end if
 
     end function get_file_format
@@ -429,6 +433,47 @@ module IObox
       call f_release_routine()
     END SUBROUTINE read_field
 
+    function get_format_enum_from_basename(filename) result(form)
+      implicit none
+      character(len=*), intent(in) :: filename
+      type(f_enumerator) :: form
+      !local variables
+      integer :: nspin
+
+      nspin=nspin_from_basename(filename,'CUBE')
+      if (nspin==0) nspin=nspin_from_basename(filename,'cube')
+      if (nspin /= 0) form=CUBE_FORMAT
+    end function get_format_enum_from_basename
+
+    function nspin_from_basename(filename,suffix) result(nspin)
+      use f_utils
+      implicit none
+      integer :: nspin
+      character(len=*), intent(in) :: filename,suffix
+      ! Test if we have up and down densities.
+      logical :: exists
+
+      nspin=0
+      call f_file_exists(file=trim(filename)//"-up."//suffix,exists=exists)
+      if (exists) then
+         call f_file_exists(file=trim(filename)//"-down."//suffix,exists=exists)
+         if (.not.exists) then
+            !call f_err_throw("found a "+filename+"-up."//suffix//" file, but no -down."//suffix)
+            nspin = 0
+         else
+            nspin = 2
+         end if
+      else
+         call f_file_exists(file=trim(filename)//suffix,exists=exists)
+         if (.not. exists) then !call f_err_throw('The file '+filename+suffix+' does not exists')
+            nspin=0
+         else
+            nspin = 1
+         end if
+      end if
+    end function nspin_from_basename
+
+
     !> Read density or potential in cube format
     subroutine read_cube(filename,geocode,ndims,hgrids,nspin,ldrho,nrho,rho,&
          nat,rxyz, iatypes, znucl,dry_run)
@@ -512,13 +557,10 @@ module IObox
 
       !read the header of the files and verify it is coherent for nspin==2
       if (nspin /= 2) then
-         call f_strcpy(src='',dest=suffix)
-         call read_cube_field(filename//trim(suffix),geocode,ndims,rho)
+         call read_cube_field(filename,geocode,ndims,rho)
       else
-         call f_strcpy(src='-up',dest=suffix)
-         call read_cube_field(filename//trim(suffix),geocode,ndims,rho(1,1))
-         call f_strcpy(src='-down',dest=suffix)
-         call read_cube_field(filename//trim(suffix),geocode,ndims,rho(1,2))
+         call read_cube_field(filename//'-up',geocode,ndims,rho(1,1))
+         call read_cube_field(filename//'-down',geocode,ndims,rho(1,2))
       end if
 
     END SUBROUTINE read_cube
@@ -546,7 +588,7 @@ module IObox
       integer, dimension(*), intent(in) :: nelpsp !< of dimension ntypes
       integer, dimension(3), intent(in) :: ixyz0
       !local variables
-!!$      character(len=3) :: advancestring
+      character(len=5) :: suffix
       integer :: fileunit0!,fileunitx,fileunity,fileunitz,n1i,n2i,n3i,n1s,n2s,n3s
 !!$      integer :: nl1,nl2,nl3,nbx,nby,nbz,i1,i2,i3,icount,j,iat,nc1,nc2,nc3
 !!$      real(dp) :: later_avg,xx,yy,zz
@@ -562,7 +604,13 @@ module IObox
 !!$      n3i=ndims(3)
       fileunit0=f_get_free_unit(22)
 
-      call f_open_file(unit=fileunit0,file=trim(prefix)//'.cube',status='unknown')
+      if (form .hasattr. FULL_DATA_ENUM) then
+         suffix='.CUBE'
+      else
+         suffix='.cube'
+      end if
+      
+      call f_open_file(unit=fileunit0,file=trim(prefix)//suffix,status='unknown')
 
       call cubefile_header_dump(fileunit0,nat,mesh,message,form)
 
@@ -727,6 +775,7 @@ module IObox
     end subroutine dimensions_from_format
 
     subroutine cubefile_fields_dump(unit,mesh,x,y,a,b,nexpo,form)
+      use yaml_strings
       implicit none
       type(f_enumerator), intent(in) :: form
       integer, intent(in) :: unit,nexpo
@@ -737,9 +786,15 @@ module IObox
       integer :: i1,i2,i3,icount
       character(len=3) :: advancestring
       integer, dimension(3) :: nl,nc
+      character(len=32) :: format_str
 
       call dimensions_from_format(form,mesh,nl,nc)
 
+      if (form .hasattr. FULL_DATA_ENUM) then
+         call f_strcpy(src='(1x,1pe25.17)',dest=format_str)
+      else
+         call f_strcpy(src='(1x,1pe13.6)',dest=format_str)
+      end if
       !the loop is reverted for a cube file
       !charge normalised to the total charge
       do i1=0,nc(1) - 1
@@ -754,7 +809,7 @@ module IObox
                   advancestring='no'
                end if
                !ind=i1+nl1+(i2+nl2-1)*n1i+(i3+nl3-1)*n1i*n2i
-               write(unit,'(1x,1pe13.6)',advance=advancestring)&
+               write(unit,trim(format_str),advance=advancestring)&
                     a*x(i1+nl(1),i2+nl(2),i3+nl(3))**nexpo+b*y(i1+nl(1),i2+nl(2),i3+nl(3))
                !           write(23,'(1x,e24.17)',advance=advancestring)&
                !                a*x(i1+nl1,i2+nl2,i3+nl3)**nexpo+b*y(i1+nl1,i2+nl2,i3+nl3)
@@ -823,6 +878,9 @@ module IObox
          form=ETSF_FORMAT
       case(POT)
          form=CUBE_FORMAT
+      case(BIGCUBE)
+         form=CUBE_FORMAT
+         call f_enum_attr(dest=form,attr=FULL_DATA_ENUM)
       end select
 
     end subroutine get_format_enum
