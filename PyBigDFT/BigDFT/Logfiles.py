@@ -22,31 +22,34 @@ PRE_POST = [EVAL, SETUP, INITIALIZATION]
 
 #Builtin pathes to define the search paths
 BUILTIN={
-    'nat': {PATH: [ ['Atomic System Properties','Number of atoms']],
-                 PRINT: "Number of Atoms", GLOBAL: True},
-    "energy": {PATH: [["Last Iteration", "FKS"],["Last Iteration", "EKS"], ["Energy (Hartree)"]],
-                    PRINT: "Energy", GLOBAL: False},
-    "fermi_level": {PATH:[["Ground State Optimization", -1, "Fermi Energy"], ["Ground State Optimization", -1, "Hamiltonian Optimization", -1, "Subspace Optimization", "Fermi Energy"]],
-                         PRINT: True, GLOBAL: False},
     'astruct': {PATH: [ ['Atomic structure']]},
+    'electrostatic_multipoles': {PATH: [['Multipole coefficients','values']]},
+    'energy': {PATH: [["Last Iteration", "FKS"],["Last Iteration", "EKS"], ["Energy (Hartree)"]],
+                 PRINT: "Energy", GLOBAL: False},
     'evals': {PATH: [ ["Complete list of energy eigenvalues"], [ "Ground State Optimization", -1, "Orbitals"],
                     ["Ground State Optimization",-1,"Hamiltonian Optimization",-1,"Subspace Optimization","Orbitals"] ]},
-    'kpts': {PATH: [["K points"]],
-             PRINT: False, GLOBAL: True},
-    'gnrm_cv': {PATH: [["dft","gnrm_cv"]], PRINT: "Convergence criterion on Wfn. Residue", GLOBAL: True},
-    'kpt_mesh': {PATH:[['kpt','ngkpt']], PRINT: True, GLOBAL: True},
+    'fermi_level': {PATH:[["Ground State Optimization", -1, "Fermi Energy"], ["Ground State Optimization", -1, "Hamiltonian Optimization", -1, "Subspace Optimization", "Fermi Energy"]],
     'forcemax': {PATH: [["Geometry","FORCES norm(Ha/Bohr)","maxval"],['Clean forces norm (Ha/Bohr)','maxval']],
                  PRINT: "Max val of Forces"},
-    'pressure': {PATH: [['Pressure','GPa']], PRINT: True},
-    'forces': {PATH: [['Atomic Forces (Ha/Bohr)']]},
     'forcemax_cv': {PATH: [['geopt','forcemax']], PRINT: 'Convergence criterion on forces', GLOBAL: True, FLOAT_SCALAR: True},
     'force_fluct': {PATH:[["Geometry","FORCES norm(Ha/Bohr)","fluct"]], PRINT: "Threshold fluctuation of Forces"},
+                 PRINT: True, GLOBAL: False},
+    'forces': {PATH: [['Atomic Forces (Ha/Bohr)']]},
+    'gnrm_cv': {PATH: [["dft","gnrm_cv"]], PRINT: "Convergence criterion on Wfn. Residue", GLOBAL: True},
+    'kpts': {PATH: [["K points"]],
+                 PRINT: False, GLOBAL: True},
+    'kpt_mesh': {PATH:[['kpt','ngkpt']], PRINT: True, GLOBAL: True},
     'magnetization': {PATH:[[ "Ground State Optimization", -1, "Total magnetization"],
                             ["Ground State Optimization",-1,"Hamiltonian Optimization",-1,"Subspace Optimization","Total magnetization"]],
-                      PRINT: "Total magnetization of the system"},
-    'support_functions': {PATH: [["Gross support functions moments",'Multipole coefficients','values']]},
-    'electrostatic_multipoles': {PATH: [['Multipole coefficients','values']]},
+                 PRINT: "Total magnetization of the system"},
+    'memory_run': {PATH: [ ['Accumulated memory requirements during principal run stages (MiB.KiB)']]},
+    'memory_quantities': {PATH: [ ['Memory requirements for principal quantities (MiB.KiB)']]},
+    'memory_peak': {PATH: [ ['Estimated Memory Peak (MB)']]},
+    'nat': {PATH: [ ['Atomic System Properties','Number of atoms']],
+                 PRINT: "Number of Atoms", GLOBAL: True},
+    'pressure': {PATH: [['Pressure','GPa']], PRINT: True},
     'sdos': {PATH: [['SDos files']], GLOBAL: True},
+    'support_functions': {PATH: [["Gross support functions moments",'Multipole coefficients','values']]},
     'symmetry': {PATH: [ ['Atomic System Properties','Space group']],
                  PRINT: "Symmetry group", GLOBAL: True}}
 
@@ -319,6 +322,7 @@ class Logfile():
             return len(self._instances)
         else:
             return 0 #single point run
+    #
     def _initialize_class(self,d):
         import numpy
         self.log=d #: dictionary of the logfile (serialization of yaml format)
@@ -368,6 +372,13 @@ class Logfile():
                     sd.append(None)
             #: Spatial density of states, when available
             self.sdos=sd
+        #memory attributes
+        self.memory = {}
+        for key in [ 'memory_run','memory_quantities','memory_peak']:
+            if hasattr(self,key):
+                title = BUILTIN[key][PATH][0][0]
+                self.memory[title] = getattr(self,key)
+                if key != 'memory_peak': delattr(self,key)
     #
     def _fermi_level_from_evals(self,evals):
         import numpy

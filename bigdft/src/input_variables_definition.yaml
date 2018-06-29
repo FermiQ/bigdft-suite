@@ -624,11 +624,8 @@
  geopt:
    DESCRIPTION: |
           This character string specifies the method used for the geometry optimization.
-
           - VSSD Variable Stepsize Steepest Descent method.
-
           - SDCG A combination of Steepest Descent and Conjugate Gradient.
-
           - LBFGS Limited Memory BFGS.
 
      #    - BFGS Preconditioned steepest descent with energy feedback. A preconditioning matrix is build
