@@ -14,7 +14,8 @@ package offers to ease the extraction of scientific data.
 
    tutorials/Tutorial-N2.ipynb
    tutorials/Tutorial-N2-solution.ipynb
-
+   tutorials/Tutorial-CH4.ipynb
+  
 * Examining and postpocessing the output
 
  .. toctree:: 

@@ -98,23 +98,29 @@ class GIBinding():
 class Runner:
     """
     Define a generic class parent of SystemCalculator and Workshop which
-    defines a run method and global_options
+    defines a run method and functions to handle some global options.
     """
     def __init__(self,**kwargs):
+        """All arguments are saved in a pivate dictionary of global options"""
         self.__global_options=kwargs
     def set_global_options(self,**kwargs):
+        """Update the global options"""
         self.__global_options.update(kwargs)
     def set_global_option(self,key,value):
+        """Set a given global option"""
         self.__global_options[key] = value
     def get_global_option(self,key,default=None):
+        """Get  a given global option"""
         return self.__global_options.get(key,default)
     def unset_global_option(self,key):
+        """Remove a givne global option"""
         self.__global_option.pop(key)
     def __run_options(self,**kwargs):
         tmp_options={}
         tmp_options.update(kwargs)
         tmp_options.update(self.__global_options)
     def run(self):
+        """Implement a run method by default (do nothing)"""
         pass
 
 class SystemCalculator(Runner):
@@ -133,8 +139,7 @@ class SystemCalculator(Runner):
     :param int dry_mpi: Number of MPI processes for the estimation of the memory when dry_run is True
 
     Check if the environment variable $BIGDFT_ROOT is defined.
-    This is a signal that the environment has been properly set
-    prior to the evaluation of the python command.
+    This is a signal that the environment has been properly set prior to the evaluation of the python command.
     Use also two environment variables:
         * OMP_NUM_THREADS to set the number of OMP_NUM_THREADS
         * BIGDFT_MPIRUN to define the MPI execution command.
@@ -163,7 +168,7 @@ class SystemCalculator(Runner):
         self.set_global_option('skip', self.get_global_option('skip',False) )
         self.set_global_option('verbose', self.get_global_option('verbose',True) )
          #Build the command setting the number of omp threads
-        self.command = self.get_global_option('mpi_run') + ' ' + os.environ['BIGDFT_ROOT']+'/bigdft'
+        self.command = (self.get_global_option('mpi_run') + ' ' + os.environ['BIGDFT_ROOT']+'/bigdft').strip()
         safe_print('Initialize a Calculator with OMP_NUM_THREADS=%s and command %s' % (self.get_global_option('omp'),self.command) )
 
     def run(self, name='', outdir='', run_name='', input={}, posinp=None):
