@@ -110,10 +110,10 @@ class Runner:
         """Set a given global option"""
         self.__global_options[key] = value
     def get_global_option(self,key,default=None):
-        """Get  a given global option"""
+        """Get a given global option"""
         return self.__global_options.get(key,default)
     def unset_global_option(self,key):
-        """Remove a givne global option"""
+        """Remove a given global option"""
         self.__global_option.pop(key)
     def __run_options(self,**kwargs):
         tmp_options={}
@@ -122,6 +122,7 @@ class Runner:
     def run(self):
         """Implement a run method by default (do nothing)"""
         pass
+
 
 class SystemCalculator(Runner):
     """
@@ -209,7 +210,6 @@ class SystemCalculator(Runner):
         #Create the input file
         local_input={}
         local_input.update(input)
-        # Copying the posinp input file if needed
         if posinp != None:
             #Check if the file does exist
             assert os.path.isfile(posinp)

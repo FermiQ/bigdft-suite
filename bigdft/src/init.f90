@@ -2856,7 +2856,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
      !now the meaning is KS potential
      do ispin=1,denspot%dpbox%nrhodim
         call f_memcpy(n=denspot%dpbox%ndimpot,&
-             src=denspot%V_ext(1,1,1,ispin),&
+             src=denspot%V_ext(1,1,1,1),&
              dest=denspot%rhov(1+(ispin-1)*denspot%dpbox%ndimpot))
      end do
      call denspot_set_rhov_status(denspot, KS_POTENTIAL, 0, iproc, nproc)
