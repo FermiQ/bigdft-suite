@@ -1417,7 +1417,7 @@
      COMMENT: Calculate pseudopotential projectors on the fly
      default: Yes
    multipole_preserving:
-     COMMENT: (EXPERIMENTAL) Preserve the multipole moment of the ionic density
+     COMMENT: (EXPERIMENTAL) Preserve the multipole moments of the ionic density
      default: No
    mp_isf:
      COMMENT: (EXPERIMENTAL) Interpolating scaling function or lifted dual order for the multipole preserving

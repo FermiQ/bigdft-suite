@@ -555,7 +555,7 @@ TDDFT:
   Transition energies (eV): 3.01e-4
 
 BigDFT2Wannier.b2w.ref.yaml:
-  amnk_guess(nb): 3.8e-10
+  amnk_guess(nb): 2.1e-9
 
 cleanup:
  Ekin: 5.1e-9
