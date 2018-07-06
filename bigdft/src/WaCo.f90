@@ -1212,6 +1212,7 @@ program WaCo
 
 end program Waco
 
+
 subroutine Waco_input_variables(iproc,filename,nband,nwann,bondAna,Stereo,hamilAna,WannCon,filetype,nwannCon,refpos,units,&
            sprdfact,sprddiff,enediff,iformat,linear,nbandmB,sprdmult)
    use module_base

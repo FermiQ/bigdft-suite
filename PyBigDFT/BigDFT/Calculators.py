@@ -38,6 +38,7 @@ using binding (GIBinding) or using system call (SystemCalculator).
 import os
 import shutil
 import yaml
+import copy
 from futile.Utils import write as safe_print
 import BigDFT.Logfiles as Lf
 
@@ -116,8 +117,8 @@ class Runner:
         """Remove a given global option"""
         self.__global_option.pop(key)
     def __run_options(self,**kwargs):
-        tmp_options={}
-        tmp_options.update(kwargs)
+        import copy
+        tmp_options=copy.deepcopy(kwargs)
         tmp_options.update(self.__global_options)
     def run(self):
         """Implement a run method by default (do nothing)"""
@@ -208,8 +209,7 @@ class SystemCalculator(Runner):
         #check if the debug file will be updated (case of erroneous run)
         timedbg=get_debugfile_date()
         #Create the input file
-        local_input={}
-        local_input.update(input)
+        local_input=copy.deepcopy(input)
         if posinp != None:
             #Check if the file does exist
             assert os.path.isfile(posinp)
