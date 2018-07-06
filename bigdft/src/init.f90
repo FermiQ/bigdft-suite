@@ -368,6 +368,9 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
              nl%projs(iat)%region%plr%wfd%nseg_c,&
              nl%projs(iat)%region%plr%wfd%keyglob(1,1),nl%projs(iat)%region%plr%wfd%keyvglob(1))
 
+        call f_memcpy(n = nl%projs(iat)%region%plr%wfd%nseg_c, &
+             & src = nl%projs(iat)%region%plr%wfd%keyvglob(1), &
+             & dest = nl%projs(iat)%region%plr%wfd%keyvloc(1))
         call transform_keyglob_to_keygloc(lr,nl%projs(iat)%region%plr,nl%projs(iat)%region%plr%wfd%nseg_c,&
              nl%projs(iat)%region%plr%wfd%keyglob,nl%projs(iat)%region%plr%wfd%keygloc)
 
@@ -387,6 +390,9 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
                 logrid,mseg,nl%projs(iat)%region%plr%wfd%keyglob(1,iseg),&
                 nl%projs(iat)%region%plr%wfd%keyvglob(iseg))
 
+           call f_memcpy(n = mseg, &
+                & src = nl%projs(iat)%region%plr%wfd%keyvglob(iseg), &
+                & dest = nl%projs(iat)%region%plr%wfd%keyvloc(iseg))
            call transform_keyglob_to_keygloc(lr,nl%projs(iat)%region%plr,mseg,nl%projs(iat)%region%plr%wfd%keyglob(1,iseg),&
                 nl%projs(iat)%region%plr%wfd%keygloc(1,iseg))
         end if
