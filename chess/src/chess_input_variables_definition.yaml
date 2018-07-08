@@ -21,6 +21,17 @@
 ############################################
 # chess:
 #   DESCRIPTION: Parameters required for CheSS
+ perf:
+   DESCRIPTION: Performance parameters
+   matmul_matrix:
+     COMMENT: Indicate whether the matrix to be applied during the matrix multiplications shall be replicated to improve memory acces (at the cost of a larger memory footprint) or not.
+     default: replicate_matrix
+     EXCLUSIVE: 
+       301: replicate_matrix
+       302: original_matrix
+     # shortcuts
+     replicate_matrix: 301
+     original_matrix: 302
  foe:
    DESCRIPTION: Parameters for Fermi Operator Expansion
    ef_interpol_det:
@@ -113,14 +124,17 @@
    matmul_optimize_load_balancing:
      COMMENT: optimize the load balancing of the sparse matrix matrix multiplications (at the cost of memory unbalancing)
      default: no
-   fscale_ediff_low:
-     COMMENT: lower bound for the optimal relative energy difference between the kernel and the control kernel
+   diff_target:
+     COMMENT: target energy difference between the normal kernel and the control kernel
      default: 5.e-5
-     RANGE: [1.e-7,1.e-3]
-   fscale_ediff_up:
-     COMMENT: upper bound for the optimal relative energy difference between the kernel and the control kernel
-     default: 1.e-4
-     RANGE: [5.e-6,5.e-2]
+     RANGE: [1.e-7,1.e-2]
+   diff_tolerance:
+     COMMENT: tolerance factor (with respect to diff_target) beyond which the calculation will be repeated
+     default: 2.0
+     RANGE: [1.0,100.0]
+   adjust_fscale_smooth:
+     COMMENT: new smooth way to adjust fscale
+     default: no
  lapack:
    blocksize_pdsyev:
      COMMENT: SCALAPACK linear scaling blocksize for diagonalization

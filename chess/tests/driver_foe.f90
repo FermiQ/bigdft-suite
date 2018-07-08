@@ -25,7 +25,7 @@ program driver_foe
   use foe_base, only: foe_data, foe_data_deallocate, foe_data_get_real
   use foe_common, only: init_foe
   use sparsematrix_highlevel, only: sparse_matrix_and_matrices_init_from_file_ccs, &
-                                    sparse_matrix_init_from_file_ccs, matrices_init, &
+                                    matrices_init, &
                                     matrices_get_values, matrices_set_values, &
                                     sparse_matrix_init_from_data_ccs, &
                                     ccs_data_from_sparse_matrix, ccs_matrix_write, &
@@ -56,7 +56,8 @@ program driver_foe
   type(sparse_matrix_metadata) :: smmd
   integer :: nfvctr, nvctr, ierr, iproc, nproc, nthread, ncharge, nfvctr_mult, nvctr_mult, scalapack_blocksize, icheck, it, nit
   integer :: ispin, ihomo, imax, ntemp, npl_max, pexsi_npoles, norbu, norbd, ii, info, norbp, isorb, norb, iorb, pexsi_np_sym_fact
-  integer :: pexsi_nproc_per_pole, pexsi_max_iter, pexsi_verbosity, output_level, profiling_depth
+  integer :: pexsi_nproc_per_pole, pexsi_max_iter, pexsi_verbosity, output_level, profiling_depth, occupation_function
+  integer :: matmul_matrix
   real(mp) :: pexsi_mumin, pexsi_mumax, pexsi_mu, pexsi_DeltaE, pexsi_temperature, pexsi_tol_charge, betax
   integer,dimension(:),pointer :: row_ind, col_ptr, row_ind_mult, col_ptr_mult
   real(mp),dimension(:),pointer :: kernel, overlap, overlap_large
@@ -65,13 +66,13 @@ program driver_foe
   real(mp) :: energy, tr_KS, tr_KS_check, ef, energy_fake, efermi, eTS, evlow, evhigh, t1, t2
   type(foe_data),dimension(:),allocatable :: foe_obj, ice_obj
   real(mp) :: tr, fscale, fscale_lowerbound, fscale_upperbound, accuracy_foe, accuracy_ice, accuracy_penalty
-  real(mp) :: fscale_ediff_low, fscale_ediff_up
+  real(mp) :: diff_tolerance, diff_target
   type(dictionary),pointer :: dict_timing_info, options
   type(yaml_cl_parse) :: parser !< command line parser
   character(len=1024) :: metadata_file, overlap_file, hamiltonian_file, kernel_file, kernel_matmul_file
   character(len=1024) :: sparsity_format, matrix_format, kernel_method, inversion_method
   logical :: check_spectrum, do_cubic_check, pexsi_do_inertia_count, init_matmul, keep_dense_kernel, write_kernel
-  logical :: write_symmetrized_kernel
+  logical :: write_symmetrized_kernel, adjust_fscale_smooth, adjust_fscale
   integer,parameter :: nthreshold = 10 !< number of checks with threshold
   real(mp),dimension(nthreshold),parameter :: threshold = (/ 1.e-1_mp, &
                                                              1.e-2_mp, &
@@ -177,6 +178,10 @@ program driver_foe
       call yaml_map('Routine timing profiling depth',profiling_depth)
       call yaml_map('Keep the dense kernel',keep_dense_kernel)
       call yaml_map('Write the density kernel to disk',write_kernel)
+      call yaml_map('Use the new smooth way to adjust fscale',adjust_fscale_smooth)
+      call yaml_map('The function to assign the occupation numbers',occupation_function)
+      call yaml_map('Dynamically adjust the value of fscale or not',adjust_fscale)
+      call yaml_map('matmul_matrix',matmul_matrix)
       call yaml_mapping_close()
   end if
 
@@ -236,7 +241,8 @@ program driver_foe
           call f_err_throw('wrong value for kernel_method')
       end select
       call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, kernel_file, &
-           iproc, nproc, mpi_comm_world, smat(3), mat_k, init_matmul=init_matmul, filename_mult=trim(kernel_matmul_file))
+           iproc, nproc, mpi_comm_world, smat(3), mat_k, init_matmul=init_matmul, &
+           filename_mult=trim(kernel_matmul_file), matmul_matrix=matmul_matrix)
   else
       call f_err_throw('Wrong sparsity format')
   end if
@@ -285,7 +291,9 @@ program driver_foe
            fscale=fscale, fscale_lowerbound=fscale_lowerbound, fscale_upperbound=fscale_upperbound, &
            evlow=evlow, evhigh=evhigh, betax=betax, &
            ntemp = ntemp, ef=ef, npl_max=npl_max, &
-           accuracy_function=accuracy_foe, accuracy_penalty=accuracy_penalty)
+           accuracy_function=accuracy_foe, accuracy_penalty=accuracy_penalty, &
+           occupation_function=occupation_function, adjust_fscale=adjust_fscale, &
+           diff_tolerance=diff_tolerance, diff_target=diff_target, adjust_fscale_smooth=adjust_fscale_smooth)
       ! Initialize the same object for the calculation of the inverse. Charge does not really make sense here...
       call init_foe(iproc, nproc, smat(1)%nspin, charge, ice_obj(it), &
            evlow=0.5_mp, evhigh=1.5_mp, betax=betax, &
@@ -672,8 +680,12 @@ program driver_foe
           keep_dense_kernel = options//'keep_dense_kernel'
           write_kernel = options//'write_kernel'
           write_symmetrized_kernel = options//'write_symmetrized_kernel'
-          fscale_ediff_low = options//'fscale_ediff_low'
-          fscale_ediff_up = options//'fscale_ediff_up'
+          diff_tolerance = options//'diff_tolerance'
+          diff_target = options//'diff_target'
+          adjust_fscale_smooth = options//'adjust_fscale_smooth'
+          adjust_fscale = options//'adjust_fscale'
+          occupation_function = options//'occupation_function'
+          matmul_matrix = options//'matmul_matrix'
          
           call dict_free(options)
       end if
@@ -716,6 +728,10 @@ program driver_foe
       call fmpi_bcast(inversion_method)
       call fmpi_bcast(fscale_ediff_low)
       call fmpi_bcast(fscale_ediff_up)
+      call mpibcast(diff_tolerance, root=0, comm=mpi_comm_world)
+      call mpibcast(diff_target, root=0, comm=mpi_comm_world)
+      call mpibcast(occupation_function, root=0, comm=mpi_comm_world)
+      call mpibcast(matmul_matrix, root=0, comm=mpi_comm_world)
       ! Since there is no wrapper for logicals...
       if (iproc==0) then
           if (check_spectrum) then
@@ -794,6 +810,32 @@ program driver_foe
           write_symmetrized_kernel = .true.
       else
           write_symmetrized_kernel = .false.
+      end if
+      if (iproc==0) then
+          if (adjust_fscale_smooth) then
+              icheck = 1
+          else
+              icheck = 0
+          end if
+      end if
+      call mpibcast(icheck, root=0, comm=mpi_comm_world)
+      if (icheck==1) then
+          adjust_fscale_smooth = .true.
+      else
+          adjust_fscale_smooth = .false.
+      end if
+      if (iproc==0) then
+          if (adjust_fscale) then
+              icheck = 1
+          else
+              icheck = 0
+          end if
+      end if
+      call mpibcast(icheck, root=0, comm=mpi_comm_world)
+      if (icheck==1) then
+          adjust_fscale = .true.
+      else
+          adjust_fscale = .false.
       end if
 
     end subroutine read_and_communicate_input_variables
@@ -1105,19 +1147,47 @@ subroutine commandline_options(parser)
        'Allowed values' .is. &
        'Logical'))
 
-  call yaml_cl_parse_option(parser,'fscale_ediff_low','5.e-5',&
-       'lower bound for the optimal relative energy difference between the kernel and the control kernel',&
+  call yaml_cl_parse_option(parser,'adjust_fscale','.false.',&
+       'Dynamically adjust the value of fscale or not', &
        help_dict=dict_new('Usage' .is. &
-       'Indicate the lower bound for the optimal relative energy difference between the kernel and the control kernel',&
+       'Indicate whether to dynamically adjust the value of fscale or not',&
+       'Allowed values' .is. &
+       'Logical'))
+
+  call yaml_cl_parse_option(parser,'diff_target','5.e-5',&
+       'target energy difference between the normal kernel and the control kernel',&
+       help_dict=dict_new('Usage' .is. &
+       'Indicate the target energy difference between the normal kernel and the control kernel',&
        'Allowed values' .is. &
        'Double'))
 
-  call yaml_cl_parse_option(parser,'fscale_ediff_up','1.e-4',&
-       'upper bound for the optimal relative energy difference between the kernel and the control kernel',&
+  call yaml_cl_parse_option(parser,'diff_tolerance','2.0',&
+       'tolerance factor (with respect to diff_target) beyond which the calculation will be repeated',&
        help_dict=dict_new('Usage' .is. &
-       'Indicate the upper bound for the optimal relative energy difference between the kernel and the control kernel',&
+       'Indicate the tolerance factor (with respect to diff_target) beyond which the calculation will be repeated',&
        'Allowed values' .is. &
        'Double'))
+
+  call yaml_cl_parse_option(parser,'adjust_fscale_smooth','.false.',&
+       'new smooth way to adjust fscale',&
+       help_dict=dict_new('Usage' .is. &
+       'Indicate whether to use the new smooth way to adjust fscale',&
+       'Allowed values' .is. &
+       'Double'))
+
+  call yaml_cl_parse_option(parser,'occupation_function','102',&
+       'the function to assign the occupation numbers',&
+       help_dict=dict_new('Usage' .is. &
+       'Indicate the function to assign the occupation numbers',&
+       'Allowed values' .is. &
+       'Integer'))
+
+  call yaml_cl_parse_option(parser,'matmul_matrix','301',&
+       'storage format of the sparse matrix for the sparse matrix multiplications','m',&
+       dict_new('Usage' .is. &
+       'Indicate storage format of the sparse matrix for the sparse matrix multiplications.',&
+       'Allowed values' .is. &
+       'Integer. Only 301 (MATMUL_REPLICATE_MATRIX) or 302 (MATMUL_REPLICATE_MATRIX) is possible'))
 
 
 end subroutine commandline_options

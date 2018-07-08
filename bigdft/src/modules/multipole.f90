@@ -208,7 +208,6 @@ module multipole
       real(kind=8),dimension(3,3),intent(out),optional :: quadrupole_total
       logical,intent(out),optional :: all_norms_ok
       real(kind=8),dimension(is1:ie1,is2:ie2,is3:ie3),intent(out),optional :: rho_mp, pot_mp
-
       ! Local variables
       integer :: i1, i2, i3, ii1, ii2, ii3, impl, l, m, ii, mm, nthread, ithread, ll
       real(dp) :: x, y, z, rnrm1, rnrm2, rnrm3, rnrm5, mp, ehart_ps, tt, ttt, gg, hhh, tt0, tt1, tt2
@@ -263,36 +262,37 @@ module multipole
 
       call f_zero(rholeaked)
 
-!!$      ! Conditions for periodicity
-!!$      perx=(at%astruct%geocode /= 'F')
-!!$      pery=(at%astruct%geocode == 'P')
-!!$      perz=(at%astruct%geocode /= 'F')
-!!$      if (perx) then
-!!$          j1s = -1
-!!$          j1e = 1
-!!$      else
-!!$          j1s = 0
-!!$          j1e = 0
-!!$      end if
-!!$      if (pery) then
-!!$          j2s = -1
-!!$          j2e = 1
-!!$      else
-!!$          j2s = 0
-!!$          j2e = 0
-!!$      end if
-!!$      if (perz) then
-!!$          j3s = -1
-!!$          j3e = 1
-!!$      else
-!!$          j3s = 0
-!!$          j3e = 0
-!!$      end if
-
       peri=cell_periodic_dims(denspot%dpbox%mesh)
       perx=peri(1)
       pery=peri(2)
       perz=peri(3)
+
+      ! Conditions for periodicity
+      perx=(at%astruct%geocode /= 'F')
+      pery=(at%astruct%geocode == 'P')
+      perz=(at%astruct%geocode /= 'F')
+      if (perx) then
+          j1s = -1
+          j1e = 1
+      else
+          j1s = 0
+          j1e = 0
+      end if
+      if (pery) then
+          j2s = -1
+          j2e = 1
+      else
+          j2s = 0
+          j2e = 0
+      end if
+      if (perz) then
+          j3s = -1
+          j3e = 1
+      else
+          j3s = 0
+          j3e = 0
+      end if
+
       
 !!$          hhh = hx*hy*hz
       hhh = denspot%dpbox%mesh%volume_element

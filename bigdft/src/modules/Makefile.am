@@ -295,7 +295,7 @@ multipole.o: multipole_base.o interfaces.o orthonormalization.o io.o orbital_bas
 orbital_basis.o:  types.o interfaces.o communications.o
 orthonormalization.o: types.o communications.o transposed_operations.o atoms_data.o
 locregs_init.o: types.o communications.o sort.o interfaces.o
-forces_linear.o: types.o psp_projectors.o transposed_operations.o
+forces_linear.o: types.o psp_projectors.o transposed_operations.o orthonormalization.o
 sw_potential.o: atoms_data.o
 bigdft_matrices.o: types.o sparsematrix_wrappers.o
 get_basis.o: types.o interfaces.o communications.o rhopotential.o constrained_dft.o fragment_base.o fragments.o transposed_operations.o locregs_init.o get_kernel.o io.o

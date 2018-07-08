@@ -209,7 +209,8 @@ program driver_random
       end if
       call sparse_matrix_init_from_file_bigdft('serial_text', trim(outfile), &
           iproc, nproc, mpi_comm_world, smat(2), &
-          init_matmul=init_matmul, filename_mult=trim(outmatmulfile))
+          init_matmul=init_matmul, filename_mult=trim(outmatmulfile), &
+          matmul_matrix=MATMUL_REPLICATE_MATRIX)
   end if
 
 
@@ -225,7 +226,6 @@ program driver_random
       call write_sparsematrix_info(smat(2), 'Large random matrix')
       call yaml_mapping_close()
   end if
-
 
   times = f_malloc(nit,id='times')
   sumarr = f_malloc(nit,id='sumarr')
@@ -272,6 +272,7 @@ program driver_random
 !!$          call f_random_number(tt_real)
 !!$          mat1%matrix_compr(i) = real(tt_real,kind=8)
 !!$      end do
+      call f_random_number(tt_real, reset=.true.)
       call f_random_number(mat1%matrix_compr)
 
     

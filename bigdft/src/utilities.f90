@@ -22,7 +22,8 @@ program utilities
                                 SPARSE_FULL, DENSE_FULL, DENSE_PARALLEL, SPARSE_TASKGROUP, &
                                 sparsematrix_malloc_ptr, sparsematrix_malloc0_ptr,&
                                 deallocate_sparse_matrix, deallocate_matrices, &
-                                sparse_matrix_metadata, deallocate_sparse_matrix_metadata
+                                sparse_matrix_metadata, deallocate_sparse_matrix_metadata, &
+                                MATMUL_REPLICATE_MATRIX
    use sparsematrix_init, only: bigdft_to_sparsebigdft, distribute_columns_on_processes_simple, &
                                 write_sparsematrix_info, init_matrix_taskgroups_wrapper
    use sparsematrix_io, only: read_sparse_matrix, write_sparse_matrix, read_linear_coefficients
@@ -346,7 +347,8 @@ program utilities
 
        call sparse_matrix_and_matrices_init_from_file_bigdft('serial_text', trim(kernel_file), &
             bigdft_mpi%iproc, bigdft_mpi%nproc, bigdft_mpi%mpi_comm, smat_l, kernel_mat, &
-            init_matmul=.true., filename_mult=trim(kernel_matmul_file))
+            init_matmul=.true., filename_mult=trim(kernel_matmul_file), &
+            matmul_matrix=MATMUL_REPLICATE_MATRIX)
 
        if (bigdft_mpi%iproc==0) then
            call yaml_mapping_open('Matrix properties')

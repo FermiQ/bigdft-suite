@@ -17,7 +17,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
   use module_base
   use module_types
   use module_interfaces, only: createWavefunctionsDescriptors, &
-       & init_orbitals_data_for_linear, orbitals_descriptors
+       & init_orbitals_data_for_linear, orbitals_descriptors, get_locrads_and_centers
   use module_xc
   use module_fragments
   use vdwcorrection
@@ -34,6 +34,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
   use chess_base, only: chess_init
   use module_dpbox, only: dpbox_set
   use rhopotential, only: set_cfd_data
+!!$  use bigdft_matrices, only: reduce_matrix_bandwidth
   implicit none
   integer, intent(in) :: iproc,nproc 
   logical, intent(in) :: dry_run, dump
@@ -64,6 +65,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
   real(kind=8), dimension(:), allocatable :: locrad, times_convol
   integer :: ilr, iilr
   real(kind=8),dimension(:),allocatable :: totaltimes, locrads
+  real(kind=8),dimension(:,:),allocatable :: lrc
   real(kind=8),dimension(2) :: time_max, time_average
   !real(kind=8) :: ratio_before, ratio_after
   logical :: init_projectors_completely
@@ -178,7 +180,23 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
         call f_free(norbd_par)
      end if
      call fragment_stuff()
+     locrad = f_malloc(lorbs%norb,id='locrad')
+     lrc = f_malloc([3,lorbs%norb],id='lrc')
+     if (present(locregcenters)) then
+         call get_locrads_and_centers(lorbs%norb, in, atoms%astruct, locregcenters, lorbs, &
+              locrad_kernel=locrad, locregcenter=lrc) 
+     else
+         call get_locrads_and_centers(lorbs%norb, in, atoms%astruct, atoms%astruct%rxyz, lorbs, &
+              locrad_kernel=locrad, locregcenter=lrc) 
+     end if
+!!$     call reduce_matrix_bandwidth(iproc, nproc, bigdft_mpi%mpi_comm, lorbs%norb, lzd%glr, &
+!!$          atoms%astruct, lzd%hgrids, lrc, locrad, in%lin%pvt_method, lorbs)
      call init_lzd_linear()
+     !!lzd_lin=default_lzd()
+     !!call nullify_local_zone_descriptors(lzd_lin)
+     !!lzd_lin%nlr = 0
+     !!call init_lzd_linear()
+     !!write(*,*) 'after reduce_matrix_bandwidth 1'
      ! For restart calculations, the suport function distribution must not be modified
      !if (inputpsi == INPUT_PSI_LINEAR_AO .or. inputpsi == INPUT_PSI_DISK_LINEAR .or. in%lin%fragment_calculation) then
      !SM: added the ".or. fin%lin%fragment_calculation", as this came from a merge with Laura...
@@ -218,7 +236,14 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
          call init_linear_orbs(LINEAR_PARTITION_OPTIMAL)
          totaltimes = f_malloc0(nproc,id='totaltimes')
          call fragment_stuff()
+!!$         call reduce_matrix_bandwidth(iproc, nproc, bigdft_mpi%mpi_comm, lorbs%norb, lzd%glr, &
+!!$              atoms%astruct, lzd%hgrids, lrc, locrad, in%lin%pvt_method, lorbs)
          call init_lzd_linear()
+         !!lzd_lin=default_lzd()
+         !!call nullify_local_zone_descriptors(lzd_lin)
+         !!lzd_lin%nlr = 0
+         !!call init_lzd_linear()
+         !!write(*,*) 'after reduce_matrix_bandwidth 2'
          call test_preconditioning()
          time_max(2) = sum(times_convol(lorbs%isorb+1:lorbs%isorb+lorbs%norbp))
          time_average(2) = time_max(2)/real(nproc,kind=8)
@@ -241,6 +266,8 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
          call f_free(times_convol)
          call f_free(totaltimes)
      end if
+     call f_free(locrad)
+     call f_free(lrc)
   end if
 
   !In the case in which the number of orbitals is not "trivial" check whether they are too many

@@ -577,7 +577,7 @@ module orthonormalization
                                    assignment(=), SPARSE_TASKGROUP
       use sparsematrix_init, only: matrixindex_in_compressed
       use sparsematrix, only: uncompress_matrix, &
-                              sequential_acces_matrix_fast2, transform_sparse_matrix, &
+                              transform_sparse_matrix, &
                               gather_matrix_from_taskgroups_inplace, extract_taskgroup_inplace, &
                               uncompress_matrix_distributed2, &
                               matrix_matrix_mult_wrapper, symmetrize_matrix

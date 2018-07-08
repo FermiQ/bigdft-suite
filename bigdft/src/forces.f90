@@ -125,7 +125,6 @@ subroutine calculate_forces(iproc,nproc,psolver_groupsize,Glr,atoms,ob,nlpsp,rxy
   !for a taksgroup Poisson Solver, multiply by the ratio.
   !it is important that the forces are bitwise identical among the processors.
   if (psolver_groupsize < nproc) call vscal(3*atoms%astruct%nat,real(psolver_groupsize,gp)/real(nproc,gp),fxyz(1,1),1)
-
   
   !if (iproc == 0 .and. verbose > 1) write( *,'(1x,a)',advance='no')'Calculate nonlocal forces...'
   if (extra_timing) call cpu_time(tr0)
@@ -140,9 +139,6 @@ subroutine calculate_forces(iproc,nproc,psolver_groupsize,Glr,atoms,ob,nlpsp,rxy
      call nonlocal_forces_linear(iproc,nproc,tmb%npsidim_orbs,tmb%lzd%glr,hx,hy,hz,atoms,rxyz,&
           tmb%orbs,nlpsp,tmb%lzd,tmb%psi,tmb%linmat%smat(3),tmb%linmat%kernel_,fxyz,refill_proj,&
           calculate_strten .and. (atoms%astruct%geocode == 'P'),strtens(1,2))
-     !fxyz_tmp = fxyz - fxyz_tmp
-     !do iat=1,atoms%astruct%nat
-     !    write(1000+iproc,'(a,2i8,3es15.6)') 'iproc, iat, fxyz(:,iat)', iproc, iat, fxyz(:,iat)
   case default
      call f_err_throw('Wrong imode',err_name='BIGDFT_RUNTIME_ERROR')
      !stop 'wrong imode'

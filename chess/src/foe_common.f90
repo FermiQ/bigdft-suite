@@ -964,23 +964,23 @@ module foe_common
 
     subroutine retransform_ext(iproc, nproc, smat, onesided_action, kernelpp_work, inv_ovrlp, kernel, &
                matrix_localx, windowsx)
-        use sparsematrix, only: sequential_acces_matrix_fast, sequential_acces_matrix_fast2, &
-                                compress_matrix_distributed_wrapper, &
-                                sparsemm_new, transform_sparsity_pattern
+        !!use sparsematrix, only: sequential_acces_matrix_fast, sequential_acces_matrix_fast2, &
+        use sparsematrix, only: compress_matrix_distributed_wrapper, &
+                                sparsemm_newnew, transform_sparsity_pattern, sequential_acces_matrix_fast2
         use dynamic_memory
         implicit none
         ! Calling arguments
         integer,intent(in) :: iproc, nproc, onesided_action
         type(sparse_matrix),intent(in) :: smat
         real(mp),dimension(smat%smmm%nvctrp),intent(inout) :: kernelpp_work
-        real(kind=mp),dimension(smat%nvctrp_tg),intent(inout) :: inv_ovrlp
-        real(kind=mp),dimension(smat%nvctrp_tg),intent(inout) :: kernel
+        real(kind=mp),dimension(smat%nvctrp_tg),target,intent(inout) :: inv_ovrlp
+        real(kind=mp),dimension(smat%nvctrp_tg),target,intent(inout) :: kernel
         real(kind=mp),dimension(:),intent(inout),target,optional :: matrix_localx
         type(fmpi_win),dimension(:),target,intent(inout),optional :: windowsx
 
         ! Local variables
         real(kind=mp),dimension(:),pointer :: tempp_new, matrix_local
-        real(kind=mp),dimension(:),allocatable :: mat_compr_seq
+        real(kind=mp),dimension(:),pointer :: mat_compr_seq
         type(fmpi_win),dimension(:),pointer :: windows
 
         call f_routine(id='retransform_ext')
@@ -1023,7 +1023,9 @@ module foe_common
                      err_name='SPARSEMATRIX_RUNTIME_ERROR')
             end if
             tempp_new = f_malloc_ptr(smat%smmm%nvctrp, id='tempp_new')
-            mat_compr_seq = sparsematrix_malloc(smat, iaction=SPARSEMM_SEQ, id='mat_compr_seq')
+            if (smat%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                mat_compr_seq = sparsematrix_malloc_ptr(smat, iaction=SPARSEMM_SEQ, id='mat_compr_seq')
+            end if
             !!kernel_compr_seq = sparsematrix_malloc(smat, iaction=SPARSEMM_SEQ, id='kernel_compr_seq')
             if (smat%smmm%nvctrp_mm>0) then !to avoid an out of bounds error
                 call transform_sparsity_pattern(iproc, smat%nfvctr, smat%smmm%nvctrp_mm, smat%smmm%isvctr_mm, &
@@ -1033,14 +1035,24 @@ module foe_common
                      'small_to_large', &
                      matrix_s_in=inv_ovrlp(smat%smmm%isvctr_mm-smat%isvctrp_tg+1), matrix_l_out=kernelpp_work)
             end if
-            call sequential_acces_matrix_fast2(smat, kernel, mat_compr_seq)
-            call sparsemm_new(iproc, smat, mat_compr_seq, kernelpp_work, tempp_new)
-            call sequential_acces_matrix_fast2(smat, inv_ovrlp, mat_compr_seq)
-            call sparsemm_new(iproc, smat, mat_compr_seq, tempp_new, kernelpp_work)
+            if (smat%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                call sequential_acces_matrix_fast2(smat, kernel, mat_compr_seq)
+            else
+                mat_compr_seq => kernel
+            end if
+            call sparsemm_newnew(iproc, smat, mat_compr_seq, kernelpp_work, tempp_new)
+            if (smat%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                call sequential_acces_matrix_fast2(smat, inv_ovrlp, mat_compr_seq)
+            else
+                mat_compr_seq => inv_ovrlp
+            end if
+            call sparsemm_newnew(iproc, smat, mat_compr_seq, tempp_new, kernelpp_work)
             !kernelpp_work = 1.d0
             !write(*,*) 'after calc, iproc, sum(kernelpp_work)', iproc, sum(kernelpp_work)
             call f_free_ptr(tempp_new)
-            call f_free(mat_compr_seq)
+            if (smat%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                call f_free_ptr(mat_compr_seq)
+            end if
             call f_zero(kernel)
         end if
         !!if (onesided_action==ONESIDED_GATHER .or. onesided_action==ONESIDED_FULL) then
@@ -1125,7 +1137,7 @@ module foe_common
                evlow, evhigh, fscale, ef_interpol_det, ef_interpol_chargediff, &
                fscale_lowerbound, fscale_upperbound, eval_multiplicator, &
                npl_min, npl_max, npl_stride, betax, ntemp, accuracy_function, accuracy_penalty, occupation_function, &
-               adjust_fscale, fscale_ediff_low, fscale_ediff_up)
+               adjust_fscale, diff_tolerance, diff_target, adjust_fscale_smooth)
       use foe_base, only: foe_data, foe_data_set_int, foe_data_set_real, foe_data_set_logical, foe_data_get_real, foe_data_null
       use dynamic_memory
       use chess_base, only: chess_params, chess_input_dict, chess_init
@@ -1157,8 +1169,15 @@ module foe_common
       real(kind=mp),intent(in),optional :: accuracy_penalty
       integer,intent(in),optional :: occupation_function
       logical,intent(in),optional :: adjust_fscale
-      real(kind=mp),intent(in),optional :: fscale_ediff_low
-      real(kind=mp),intent(in),optional :: fscale_ediff_up
+      real(kind=mp),intent(in),optional :: diff_tolerance
+      real(kind=mp),intent(in),optional :: diff_target
+      logical,intent(in),optional :: adjust_fscale_smooth
+      !real(kind=mp),intent(in),optional :: fscale_inc_factor
+      !real(kind=mp),intent(in),optional :: fscale_dec_factor
+      !real(kind=mp),intent(in),optional :: fscale_inc_factor_min
+      !real(kind=mp),intent(in),optional :: fscale_inc_factor_max
+      !real(kind=mp),intent(in),optional :: fscale_dec_factor_min
+      !real(kind=mp),intent(in),optional :: fscale_dec_factor_max
 
       ! Local variables
       character(len=*), parameter :: subname='init_foe'
@@ -1184,8 +1203,15 @@ module foe_common
       real(kind=mp) :: accuracy_penalty_
       integer :: occupation_function_
       logical :: adjust_fscale_
-      real(kind=mp) :: fscale_ediff_low_
-      real(kind=mp) :: fscale_ediff_up_
+      real(kind=mp) :: diff_tolerance_
+      real(kind=mp) :: diff_target_
+      real(kind=mp) :: fscale_inc_factor_
+      real(kind=mp) :: fscale_dec_factor_
+      real(kind=mp) :: fscale_inc_factor_min_
+      real(kind=mp) :: fscale_inc_factor_max_
+      real(kind=mp) :: fscale_dec_factor_min_
+      real(kind=mp) :: fscale_dec_factor_max_
+      logical :: adjust_fscale_smooth_
       type(chess_params) :: cp
       type(dictionary),pointer :: dict
 
@@ -1221,8 +1247,14 @@ module foe_common
       ntemp_ = 4
       accuracy_function_ = 1.e-5_mp
       accuracy_penalty_ = 1.e-5_mp
-      fscale_ediff_low_ = 5.e-5
-      fscale_ediff_up_ = 1.e-4
+      diff_tolerance_ = 5.e-5_mp
+      diff_target_ = 2.0_mp
+      !fscale_inc_factor_ = 1.10_mp
+      !fscale_dec_factor_ = 0.8_mp
+      !fscale_inc_factor_min_ = 1.01_mp
+      !fscale_inc_factor_max_ = 1.10_mp
+      !fscale_dec_factor_min_ = 0.80_mp
+      !fscale_dec_factor_max_ = 0.99_mp
 
       if (present(ef)) ef_ = ef
       if (present(evbounds_nsatur)) evbounds_nsatur_ = evbounds_nsatur
@@ -1245,8 +1277,15 @@ module foe_common
       if (present(accuracy_penalty)) accuracy_penalty_ = accuracy_penalty
       if (present(occupation_function)) occupation_function_ = occupation_function
       if (present(adjust_fscale)) adjust_fscale_ = adjust_fscale
-      if (present(fscale_ediff_low)) fscale_ediff_low_ = fscale_ediff_low
-      if (present(fscale_ediff_low)) fscale_ediff_up_ = fscale_ediff_up
+      if (present(diff_tolerance)) diff_tolerance_ = diff_tolerance
+      if (present(diff_target)) diff_target_ = diff_target
+      if (present(adjust_fscale_smooth)) adjust_fscale_smooth_ = adjust_fscale_smooth
+      !if (present(fscale_inc_factor)) fscale_inc_factor_ = fscale_inc_factor
+      !if (present(fscale_dec_factor)) fscale_dec_factor_ = fscale_dec_factor
+      !if (present(fscale_inc_factor_min)) fscale_inc_factor_min_ = fscale_inc_factor_min
+      !if (present(fscale_inc_factor_max)) fscale_inc_factor_max_ = fscale_inc_factor_max
+      !if (present(fscale_dec_factor_min)) fscale_dec_factor_min_ = fscale_dec_factor_min
+      !if (present(fscale_dec_factor_max)) fscale_dec_factor_max_ = fscale_dec_factor_max
     
       foe_obj = foe_data_null()
 
@@ -1270,8 +1309,15 @@ module foe_common
       call foe_data_set_real(foe_obj,"accuracy_penalty",accuracy_penalty_)
       call foe_data_set_int(foe_obj,"occupation_function",occupation_function_)
       call foe_data_set_logical(foe_obj,"adjust_fscale",adjust_fscale_)
-      call foe_data_set_real(foe_obj,"fscale_ediff_low",fscale_ediff_low_)
-      call foe_data_set_real(foe_obj,"fscale_ediff_up",fscale_ediff_up_)
+      call foe_data_set_real(foe_obj,"diff_tolerance",diff_tolerance_)
+      call foe_data_set_real(foe_obj,"diff_target",diff_target_)
+      call foe_data_set_logical(foe_obj,"adjust_fscale_smooth",adjust_fscale_smooth_)
+      !call foe_data_set_real(foe_obj,"fscale_inc_factor",fscale_inc_factor_)
+      !call foe_data_set_real(foe_obj,"fscale_dec_factor",fscale_dec_factor_)
+      !call foe_data_set_real(foe_obj,"fscale_inc_factor_min",fscale_inc_factor_min_)
+      !call foe_data_set_real(foe_obj,"fscale_inc_factor_max",fscale_inc_factor_max_)
+      !call foe_data_set_real(foe_obj,"fscale_dec_factor_min",fscale_dec_factor_min_)
+      !call foe_data_set_real(foe_obj,"fscale_dec_factor_max",fscale_dec_factor_max_)
 
       foe_obj%charge = f_malloc0_ptr(nspin,id='foe_obj%charge')
       foe_obj%evlow = f_malloc0_ptr(nspin,id='foe_obj%evlow')
@@ -1446,8 +1492,9 @@ module foe_common
                hamscal_compr, scale_factor, shift_value, smats, ovrlp_, ovrlp_minus_one_half)
       use sparsematrix_init, only: analyze_unbalancing
       use sparsematrix, only: compress_matrix, uncompress_matrix, &
-                              transform_sparsity_pattern, sequential_acces_matrix_fast2, sparsemm_new, &
-                              compress_matrix_distributed_wrapper
+                              transform_sparsity_pattern, sparsemm_newnew, &
+                              compress_matrix_distributed_wrapper, &
+                              sequential_acces_matrix_fast2
       use foe_base, only: foe_data, foe_data_set_int, foe_data_get_int, foe_data_set_real, foe_data_get_real, &
                           foe_data_get_logical
       use fermi_level, only: fermi_aux, init_fermi_level, determine_fermi_level, &
@@ -1468,11 +1515,11 @@ module foe_common
       !real(kind=mp),dimension(:,:),pointer,intent(inout) :: chebyshev_polynomials
       real(kind=mp),dimension(smatl%smmm%nvctrp_mm,npl),intent(out) :: chebyshev_polynomials
       logical,dimension(2),intent(out) :: eval_bounds_ok
-      real(kind=mp),dimension(smatl%nvctrp_tg),intent(out) :: hamscal_compr
+      real(kind=mp),dimension(smatl%nvctrp_tg),target,intent(out) :: hamscal_compr
       real(kind=mp),intent(out) :: scale_factor, shift_value
       type(sparse_matrix),intent(in),optional :: smats
       type(matrices),intent(in),optional :: ovrlp_
-      real(kind=mp),dimension(smatl%nvctrp_tg),intent(in),optional :: ovrlp_minus_one_half
+      real(kind=mp),dimension(smatl%nvctrp_tg),target,intent(in),optional :: ovrlp_minus_one_half
 
       ! Local variables
       integer :: ipl, it
@@ -1501,7 +1548,8 @@ module foe_common
       integer,parameter :: imode=SPARSE
       type(fermi_aux) :: f
       !real(kind=mp),dimension(2) :: temparr
-      real(kind=mp),dimension(:),allocatable :: penalty_ev_new, ham_eff, mat_seq, matmul_tmp, matrix_local
+      real(kind=mp),dimension(:),allocatable :: penalty_ev_new, ham_eff, matmul_tmp, matrix_local
+      real(kind=mp),dimension(:),pointer :: mat_seq
       real(kind=mp),dimension(:),allocatable :: fermi_new
       !integer :: icalc
       type(fmpi_win), dimension(:),allocatable :: windows
@@ -1597,15 +1645,27 @@ module foe_common
           if (with_overlap) then
               ham_eff = f_malloc0(smatl%smmm%nvctrp,id='ham_eff')
               if (smatl%smmm%nvctrp>0) then
-                  mat_seq = sparsematrix_malloc(smatl, iaction=SPARSEMM_SEQ, id='mat_seq')
+                  if (smatl%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                      mat_seq = sparsematrix_malloc_ptr(smatl, iaction=SPARSEMM_SEQ, id='mat_seq')
+                  end if
                   matmul_tmp = f_malloc0(smatl%smmm%nvctrp,id='matmul_tmp')
                   call prepare_matrix(smatl, ovrlp_minus_one_half, ham_eff)
-                  call sequential_acces_matrix_fast2(smatl, hamscal_compr, mat_seq)
-                  call sparsemm_new(iproc, smatl, mat_seq, ham_eff, matmul_tmp)
+                  if (smatl%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                      call sequential_acces_matrix_fast2(smatl, hamscal_compr, mat_seq)
+                  else
+                      mat_seq => hamscal_compr
+                  end if
+                  call sparsemm_newnew(iproc, smatl, mat_seq, ham_eff, matmul_tmp)
                   call f_zero(ham_eff)
-                  call sequential_acces_matrix_fast2(smatl, ovrlp_minus_one_half, mat_seq)
-                  call sparsemm_new(iproc, smatl, mat_seq, matmul_tmp, ham_eff)
-                  call f_free(mat_seq)
+                  if (smatl%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                      call sequential_acces_matrix_fast2(smatl, ovrlp_minus_one_half, mat_seq)
+                  else
+                      mat_seq => ovrlp_minus_one_half
+                  end if
+                  call sparsemm_newnew(iproc, smatl, mat_seq, matmul_tmp, ham_eff)
+                  if (smatl%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+                      call f_free_ptr(mat_seq)
+                  end if
                   call f_free(matmul_tmp)
               end if
               call compress_matrix_distributed_wrapper(iproc, nproc, smatl, SPARSE_MATMUL_LARGE, &
@@ -1618,6 +1678,7 @@ module foe_common
       if (npl>nplx) then
           call f_err_throw('npl>nplx')
       end if
+
 
 
       cc = f_malloc((/npl,2,1/),id='cc')
@@ -1662,9 +1723,20 @@ module foe_common
               call fmpi_barrier(comm=comm)
               t1 = mpi_wtime()
           end if
-          mat_seq = sparsematrix_malloc(smatl, iaction=SPARSEMM_SEQ, id='mat_seq')
-          if (smatl%smmm%nvctrp>0) then
-              call sequential_acces_matrix_fast2(smatl, workarr_compr, mat_seq)
+          if (smatl%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+              mat_seq = sparsematrix_malloc_ptr(smatl, iaction=SPARSEMM_SEQ, id='mat_seq')
+          else if (smatl%smmm%matmul_matrix == MATMUL_ORIGINAL_MATRIX) then
+              mat_seq = sparsematrix_malloc_ptr(smatl, iaction=SPARSE_TASKGROUP, id='mat_seq')
+              call f_memcpy(src=workarr_compr, dest=mat_seq)
+          end if
+          !mat = sparsematrix_malloc(smatl, iaction=SPARSE_TASKGROUP, id='mat')
+          !call f_memcpy(src=workarr_compr, dest=mat)
+          if (smatl%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
+              if (smatl%smmm%nvctrp>0) then
+                  call sequential_acces_matrix_fast2(smatl, workarr_compr, mat_seq)
+              end if
+          !else
+          !    mat_seq => workarr_compr
           end if
           vectors_new = f_malloc0((/smatl%smmm%nvctrp,4/),id='vectors_new')
           !!write(*,*) 'npl, npl_penalty', npl, npl_penalty
@@ -1739,7 +1811,7 @@ module foe_common
           call foe_data_set_int(foe_obj,"evbounds_isatur",foe_data_get_int(foe_obj,"evbounds_isatur")+1)
       end if
 
-      call f_free(mat_seq)
+      call f_free_ptr(mat_seq)
       call f_free(vectors_new)
 
       call f_free(penalty_ev_new)
