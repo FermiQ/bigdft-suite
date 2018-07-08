@@ -40,7 +40,7 @@ program WaCo
    type(comms_cubic), target :: commsw
    type(local_zone_descriptors) :: Lzd             !< debug only
    integer :: iiband,ldim,gdim                     !< debug only
-   logical, dimension(:),allocatable :: calcbounds !< debug only
+!   logical, dimension(:),allocatable :: calcbounds !< debug only
    real(gp), parameter :: b2a=0.5291772108_dp
    real :: tcpu0,tcpu1
    real(gp) :: tel
@@ -330,7 +330,7 @@ program WaCo
          iat = 0
          do i = 1, atoms%astruct%nat
 !!$            call get_mindist(Glr%geocode,rxyz_wann(1,i),cxyz(1,iwann),box,dist)
-            dist = distance(Glr%mesh,rxyz_wann(1,i),cxyz(1,iwann))
+            dist = distance(Glr%mesh,rxyz_wann(:,i),cxyz(:,iwann))
             if (dist**2 <= sprdfact * sprd(iwann)) then    !for normal distribution: 1=68%, 1.64=80%, 3=94%
                ncenters(iwann) = ncenters(iwann) +1
                iat = iat +1
@@ -371,7 +371,7 @@ program WaCo
          distw = 0.0_dp
          do iat = 1, ncenters(iwann)
 !!$            call get_mindist(Glr%geocode,rxyz_wann(1,Zatoms(iat,iwann)),cxyz(1,iwann),box,distw(iat))
-            distw(iat) = distance(Glr%mesh,rxyz_wann(1,Zatoms(iat,iwann)),cxyz(1,iwann))
+            distw(iat) = distance(Glr%mesh,rxyz_wann(:,Zatoms(iat,iwann)),cxyz(:,iwann))
          end do
          prodw = 0.0_dp
          do iat = 1, ncenters(iwann)
@@ -935,7 +935,8 @@ program WaCo
         end do
 
         ! Construction of the Wannier function.
-        call mpiallred(wann,MPI_SUM)
+!        call mpiallred(wann,MPI_SUM)
+        call fmpi_allreduce(wann,op=FMPI_SUM,comm=bigdft_mpi%mpi_comm)
 
         if(iproc == 0) then
            write(num,'(i4.4)') iwann
@@ -1210,6 +1211,7 @@ program WaCo
 !  call MPI_FINALIZE(ierr)
 
 end program Waco
+
 
 subroutine Waco_input_variables(iproc,filename,nband,nwann,bondAna,Stereo,hamilAna,WannCon,filetype,nwannCon,refpos,units,&
            sprdfact,sprddiff,enediff,iformat,linear,nbandmB,sprdmult)

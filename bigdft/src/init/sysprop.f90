@@ -1440,7 +1440,7 @@ subroutine read_n_orbitals(iproc, qelec_up, qelec_down, norbe, &
   else 
      if (mod(nel+mpol,2) /=0 .and. int_charge) then
           call f_err_throw('The mpol polarization should have the same parity of the (rounded) number of electrons. ' // &
-            & '(mpol='+mpol+' and qelec='+qelec+')', &
+            & '(mpol='+trim(yaml_toa(mpol)) // 'and qelec='+qelec+')', &
             & err_name='BIGDFT_INPUT_VARIABLES_ERROR')
 
      end if
