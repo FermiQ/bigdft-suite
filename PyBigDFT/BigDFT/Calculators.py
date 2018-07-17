@@ -98,18 +98,22 @@ class GIBinding():
 
 class Runner:
     """
-    Define a generic class parent of SystemCalculator and Workshop which
+    Define a generic class parent of SystemCalculator and Workflow which
     defines a run method and functions to handle some global options.
     """
     def __init__(self,**kwargs):
         """All arguments are saved in a pivate dictionary of global options"""
-        self.__global_options=kwargs
+        import copy
+        self.__global_options=copy.deepcopy(kwargs)
     def set_global_options(self,**kwargs):
         """Update the global options"""
         self.__global_options.update(kwargs)
     def set_global_option(self,key,value):
         """Set a given global option"""
         self.__global_options[key] = value
+    def get_global_options(self):
+        """Get all global options"""
+        return self.__global_options
     def get_global_option(self,key,default=None):
         """Get a given global option"""
         return self.__global_options.get(key,default)
