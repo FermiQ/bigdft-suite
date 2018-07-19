@@ -173,8 +173,6 @@ class SystemCalculator(Runner):
         #Build the command setting the number of omp threads
         self.command = (self._global_options['mpi_run'] + ' ' + os.environ['BIGDFT_ROOT']+'/bigdft').strip()
         safe_print('Initialize a Calculator with OMP_NUM_THREADS=%s and command %s' % (self._global_options['omp'],self.command) )
-        #Add default values for the run calculations
-        self.update_global_options(name='',outdir='',run_name='',input={},posinp=None)
 
     def run(self, **kwargs):
     #def run(self, name='', outdir='', run_name='', input={}, posinp=None,**kwargs):
@@ -200,24 +198,30 @@ class SystemCalculator(Runner):
         """
         #Create a temporary dictionary of options
         self._run_options(**kwargs)
+        #Give the default values in case of unset_global_options are called
+        name=self.run_options.get('name','')
+        outdir=self.run_options.get('outdir','')
+        run_name=self.run_options.get('run_name','')
+        inp=self.run_options.get('input',{})
+        posinp=self.run_options.get('posinp',None)
         # Set the number of omp threads
         os.environ['OMP_NUM_THREADS'] = self.run_options['omp']
         # Creating the yaml input file from a dictionary or another file
-        if len(self.run_options['name']) > 0:
-            input_file = "%s.yaml" % self.run_options['name']
-            logname = "log-%s.yaml" % self.run_options['name']
+        if len(name) > 0:
+            input_file = "%s.yaml" % name
+            logname = "log-%s.yaml" % name
         else:
             input_file = "input.yaml" #default name
             logname = "log.yaml"
         #check if the debug file will be updated (case of erroneous run)
         timedbg=get_debugfile_date()
         #Create the input file
-        local_input=copy.deepcopy(self.run_options['input'])
-        if self.run_options['posinp'] != None:
+        local_input=copy.deepcopy(inp)
+        if posinp != None:
             #Check if the file does exist
-            assert os.path.isfile(self.run_options['posinp'])
+            assert os.path.isfile(posinp)
             #Add into the dictionary a posinp key
-            local_input['posinp'] = self.run_options['posinp']
+            local_input['posinp'] = posinp
         #Creating the yaml input file
         from futile import Yaml as Y
         Y.dump(local_input,filename=input_file)
@@ -228,17 +232,17 @@ class SystemCalculator(Runner):
             command = self.run_options['mpi_run'] + ' ' + os.environ['BIGDFT_ROOT']+'/bigdft-tool -l'
             if self.run_options['dry_run']:
                 command += ' -n ' + str(self.run_options['dry_run'])
-            if len(self.run_options['name']) > 0:
-                command += ' --name='+self.run_options['name']
+            if len(name) > 0:
+                command += ' --name='+name
         else:   
             # Adjust the command line with options
             command = self.command
-            if len(self.run_options['name']) > 0:
-                command += ' -n ' + self.run_options['name']
-            if len(self.run_options['run_name']) > 0:
-                command += ' -r ' + self.run_options['run_name']
-            if len(self.run_options['outdir']) > 0:
-                command += ' -d ' + self.run_options['outdir']
+            if len(name) > 0:
+                command += ' -n ' + name
+            if len(run_name) > 0:
+                command += ' -r ' + run_name
+            if len(outdir) > 0:
+                command += ' -d ' + outdir
             if self.run_options['skip']:
                 command += ' -s Yes'
         if self.run_options['verbose']: safe_print('Executing command: ', command)
