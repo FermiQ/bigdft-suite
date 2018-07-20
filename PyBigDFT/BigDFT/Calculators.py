@@ -42,6 +42,27 @@ import copy
 from futile.Utils import write as safe_print
 import BigDFT.Logfiles as Lf
 
+import collections
+
+def dict_merge(dct, merge_dct):
+    """ Recursive dict merge. Inspired by :meth:``dict.update()``, instead of
+    updating only top-level keys, dict_merge recurses down into dicts nested
+    to an arbitrary depth, updating keys. The ``merge_dct`` is merged into
+    ``dct``.
+    :param dct: dict onto which the merge is executed
+    :param merge_dct: dct merged into dct
+    :return: None
+    
+    From [angstwad/dict-merge.py](https://gist.github.com/angstwad/bf22d1822c38a92ec0a9)
+    """
+    for k, v in merge_dct.iteritems():
+        if (k in dct and isinstance(dct[k], dict)
+                and isinstance(merge_dct[k], collections.Mapping)):
+            dict_merge(dct[k], merge_dct[k])
+        else:
+            dct[k] = merge_dct[k]
+
+
 def get_debugfile_date():
     """
     Get the information about the debug time of the last file in the current directory
@@ -70,7 +91,7 @@ class GIBinding():
             var = inputfile
         else:
             var = inputfile.copy()
-            var.update({'dft': {'inputpsiid': 1}})
+            dict_merge(var,{'dft': {'inputpsiid': 1}})
         self.runObj.update(BigDFT.Dict(var))
 
     def run(self):
@@ -109,27 +130,39 @@ class Runner():
         """All arguments for the runs are saved in a private dictionary of global options"""
         import copy
         self._global_options=copy.deepcopy(kwargs)
+
     def global_options(self):
         """Get all global options"""
         return self._global_options
+
     def get_global_option(self,key):
         """Get one key in global options"""
         return self._global_options[key]
+
     def update_global_options(self,**kwargs):
         """Update the global options"""
         self._global_options.update(kwargs)
+
     def unset_global_option(self,key):
         """Remove a given global option"""
         self._global_option.pop(key)
+
     def _run_options(self,**kwargs):
         """Create a local dictionary for a specific run."""
         import copy
-        self.run_options=copy.deepcopy(kwargs)
-        self.run_options.update(self._global_options)
+        #First deepcopy from global_options and update from kwargs (warning: a dictionary is not update)
+        self.run_options=copy.deepcopy(self._global_options)
+        self.run_options.update(kwargs)
+
     def run(self,**kwargs):
         """Implement a run method by default (do nothing except updating run options)"""
         self._run_options(**kwargs)
-
+        #Do nothing
+        return self.post_processing()
+    
+    def post_processing(self):
+        """Post-processing"""
+        return None
 
 class SystemCalculator(Runner):
     """
@@ -243,6 +276,8 @@ class SystemCalculator(Runner):
                 command += ' -r ' + run_name
             if len(outdir) > 0:
                 command += ' -d ' + outdir
+                #Change logname
+                logname = outdir+"/"+logname
             if self.run_options['skip']:
                 command += ' -s Yes'
         if self.run_options['verbose']: safe_print('Executing command: ', command)
@@ -252,8 +287,13 @@ class SystemCalculator(Runner):
             if self.run_options['verbose']: 
                 safe_print("ERROR: some problem occured during the execution of the command, check the 'debug/' directory and the logfile")
             return None
-        #Check the existence and the log file and return an instance logfile
-        #valid only without run_name
+        return self.post_processing(logname)
+    
+    def post_processing(self,logname):
+        """
+        Check the existence and the log file and return an instance logfile
+        valid only without run_name
+        """
         if os.path.exists(logname):
             return Lf.Logfile(logname)
         else:
