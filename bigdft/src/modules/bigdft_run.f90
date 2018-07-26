@@ -136,12 +136,14 @@ module bigdft_run
 !!$     END SUBROUTINE geopt
 !!$
 !!$  end interface
+
   !> Keys of a run dict. All private, use get_run_prop() and set_run_prop() to change them.
   character(len = *), parameter :: RADICAL_NAME = "radical"
   character(len = *), parameter :: INPUT_NAME   = "input_file"
   character(len = *), parameter :: OUTDIR       = "outdir"
   character(len = *), parameter :: LOGFILE      = "logfile"
   character(len = *), parameter :: USE_FILES    = "run_from_files"
+
 contains
 
   !> All in one routine to initialise and set-up restart objects.
@@ -743,6 +745,7 @@ contains
     if (associated(runObj%atoms)) astruct => runObj%atoms%astruct
   end function bigdft_get_astruct_ptr
 
+
   !> Routine to dump the atomic file in normal BigDFT mode
   subroutine bigdft_write_atomic_file(runObj,outs,filename,comment,&
        cwd_path)
@@ -753,8 +756,8 @@ contains
     type(state_properties), intent(in) :: outs
     character(len=*), intent(in) :: filename,comment
     !> when present and true, output the file in the main
-    !! working directory (where input files are present)
-    !! and not in dir_output
+    !! outdir directory (where the logfile is present)
+    !! and not automatically in dir_output
     logical, intent(in), optional :: cwd_path
     !local variables
     logical :: indir
@@ -771,7 +774,7 @@ contains
             energy=outs%energy,forces=outs%fxyz)
     else
        call astruct_dump_to_file(bigdft_get_astruct_ptr(runObj),&
-            trim(runObj%inputs%dir_output)//trim(filename),comment,&
+            trim(filename),comment,&
             energy=outs%energy,forces=outs%fxyz)
     end if
 
@@ -1349,6 +1352,7 @@ contains
     call f_release_routine()
 
   END SUBROUTINE run_objects_init
+
   
   subroutine run_objects_update(runObj, dict)
     use module_base, only: bigdft_mpi
@@ -1580,7 +1584,8 @@ contains
 
   end subroutine bigdft_init
 
-  !>identify the options from command line
+
+  !> Identify the options from command line
   !! and write the result in options dict
   subroutine bigdft_command_line_options(options)
     use yaml_parse
@@ -2066,13 +2071,13 @@ contains
 
     if (runObj%inputs%ncount_cluster_x > 1) then
        !call f_strcpy(src='final_'+id,dest=filename)
-       call final_positions_filename(.false.,id,filename)
+       call final_positions_filename(.false.,id,runObj%inputs%outdir,filename)
        call bigdft_write_atomic_file(runObj,outs,filename,&
             'FINAL CONFIGURATION',cwd_path=.true.)
 
     else
        !call f_strcpy(src='forces_'+id,dest=filename)
-       call final_positions_filename(.true.,id,filename)
+       call final_positions_filename(.true.,id,runObj%inputs%outdir,filename)
        call bigdft_write_atomic_file(runObj,outs,filename,&
             'Geometry + metaData forces',cwd_path=.true.)
 

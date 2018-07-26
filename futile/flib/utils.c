@@ -140,7 +140,8 @@ void FC_FUNC(getdir, GETDIR)(const char *dir, int *lgDir,
   free(path);
   lgCpy = ((*lgDir > *lgOut - 1)?*lgOut - 1:*lgDir);
   memcpy(out, dir, sizeof(char) * lgCpy);
-  out[lgCpy] = '/';
+  /* Add a '/' if not already present */
+  if (out[lgCpy-1] != '/') { out[lgCpy] = '/'; };
   *status = 0;
   return;
 }
