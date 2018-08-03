@@ -1764,7 +1764,7 @@ contains
              !this section has to be done sequentially for each of the
              !!taskgroups of BigDFT
              !we should implement a lock, but for the moment let us do it three times for the processes which
-             !!did not had problem
+             !! had problems
              do trials=1,ntrials
                 call ensure_log_file(trim(writing_directory), trim(logfilename), ierr)
                 !if (ierr /= 0) call MPI_ABORT(bigdft_mpi%mpi_comm,ierror,ierr)
