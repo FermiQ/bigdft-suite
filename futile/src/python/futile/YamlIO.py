@@ -167,7 +167,7 @@ def load(file=None,stream=None,doc_lists=True,safe_mode=False):
     return ld
 
 def dump(data,filename=None,raw=False,tar=None):
-    todump=str(data) if raw else yaml.dump(data)
+    todump=str(data) if raw else yaml.dump(data,default_flow_style=None)
     if filename:
         if tar:
             import tarfile

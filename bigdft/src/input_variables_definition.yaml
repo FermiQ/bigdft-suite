@@ -515,9 +515,9 @@
     default: No
   orbitals:
     COMMENT: Write KS orbitals in the full simulation domain (might take lot of disk space!)
-    default: No
+    default: None
     EXCLUSIVE:
-       No: No output
+       None: No output
        text: Output in wavelet basis
        binary: Binary file output
        text_with_densities: In addition output wavefunction densities in interpolating scaling functions (cube file)

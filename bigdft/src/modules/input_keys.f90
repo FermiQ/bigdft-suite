@@ -1563,7 +1563,7 @@ contains
     type(f_enumerator), intent(out) :: output_wf
 
     select case(trim(profile))
-    case('No')
+    case('None')
        output_wf=ENUM_EMPTY
     case('text')
        output_wf=ENUM_TEXT

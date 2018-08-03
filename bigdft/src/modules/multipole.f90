@@ -2891,11 +2891,11 @@ module multipole
                   call yaml_sequence(advance='no')
                   call yaml_mapping_open('Up to multipole l='//trim(yaml_toa(lcheck)))
                   call yaml_mapping_open('Electric Dipole Moment (Debye)')
-                  call yaml_map('P vector',dipole_check(1:3),fmt='(1es13.4)')
-                  call yaml_map('norm(P)',sqrt(sum(dipole_check**2)),fmt='(1es14.6)')
+                  call yaml_map('P vector',dipole_check(1:3),fmt='(1es15.6)')
+                  call yaml_map('norm(P)',sqrt(sum(dipole_check**2)),fmt='(1es16.8)')
                   call yaml_mapping_close()
                   call yaml_mapping_open('Quadrupole Moment (AU)')
-                  call yaml_map('Q matrix',quadrupole_check,fmt='(1es13.4)')
+                  call yaml_map('Q matrix',quadrupole_check,fmt='(1es15.6)')
                   call yaml_map('trace',quadrupole_check(1,1)+quadrupole_check(2,2)+quadrupole_check(3,3),fmt='(es12.2)')
                   call yaml_mapping_close()
                   call yaml_sequence_open('Average relative error of resulting potential in the Exterior region')
@@ -4899,13 +4899,13 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
   if(bigdft_mpi%iproc==0 .and. .not.quiet) then
      call yaml_map('Multipole analysis origin',charge_center_cores,fmt='(1pe14.6)')
      call yaml_mapping_open('Electric Dipole Moment (AU)')
-       call yaml_map('P vector',tmpdip(1:3),fmt='(1pe13.4)')
-       call yaml_map('norm(P)',sqrt(sum(tmpdip**2)),fmt='(1pe14.6)')
+       call yaml_map('P vector',tmpdip(1:3),fmt='(1pe15.6)')
+       call yaml_map('norm(P)',sqrt(sum(tmpdip**2)),fmt='(1pe16.8)')
      call yaml_mapping_close()
      tmpdip=tmpdip/Debye_AU  ! au2debye
      call yaml_mapping_open('Electric Dipole Moment (Debye)')
-       call yaml_map('P vector',tmpdip(1:3),fmt='(1pe13.4)')
-       call yaml_map('norm(P)',sqrt(sum(tmpdip**2)),fmt='(1pe14.6)')
+       call yaml_map('P vector',tmpdip(1:3),fmt='(1pe15.6)')
+       call yaml_map('norm(P)',sqrt(sum(tmpdip**2)),fmt='(1pe16.8)')
      call yaml_mapping_close()
 
 

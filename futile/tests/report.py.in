@@ -105,7 +105,8 @@ tosucc = 0
 toyfail = 0
 toysucc = 0
 
-print "Final report for writings in stdout ('passed' means all significant floats are correct):"
+#We use a string to display the report after the suggestions.
+text = "Final report for writings in stdout ('passed' means all significant floats are correct):\n"
 for file in files:
     dirc = os.path.normpath(os.path.dirname(file))
     fic = "%s" % os.path.basename(file)
@@ -160,17 +161,17 @@ for file in files:
             tofail += 1
         else:
             tosucc += 1
-        print "%s%-67s%s%s%s" % (start,dirfic,state,time,end)
+        text += "%s%-67s%s%s%s\n" % (start,dirfic,state,time,end)
     else:
         if not empty_file:
             tofail +=1
             start = start_fail
             state = "can not parse file.    failed"
-            print "%s%-74s%s%s" % (start,dirfic,state,end)
+            text+= "%s%-74s%s%s\n" % (start,dirfic,state,end)
 
 suggestions={}
 sugg_key=None            
-print "Final report for yaml outputs: if succeeded %53s" % "max diff (significant epsilon)"
+text += "Final report for yaml outputs: if succeeded %53s" % "max diff (significant epsilon)\n"
 for file in yaml_files:
     dirc = os.path.normpath(os.path.dirname(file))
     fic = ("%s" % os.path.basename(file)).replace('.report.yaml','')
@@ -205,12 +206,12 @@ for file in yaml_files:
         #Test if time is present
         time = documents[thedoc]["Seconds needed for the test"]
         totime += time
-        print "%s%-66s %s%8.2fs%s" % (start,dirfic,state,time,end)
+        text +=  "%s%-66s %s%8.2fs%s\n" % (start,dirfic,state,time,end)
     except Exception,e:
-        print e
+        text += e
         start = start_fail
         state = "Failed: Can not parse file!"
-        print "%s%-66s %s%s" % (start,dirfic,state,end)
+        text += "%s%-66s %s%s\n" % (start,dirfic,state,end)
     if "Failed" in state:
         toyfail += 1
     else:
@@ -226,15 +227,16 @@ totimeh = int(totime/3600)
 totimem = int(totime-totimeh*3600)/60
 totimes = totime-totimem*60-totimeh*3600
 p_time  = "%sh %sm %ss" % (totimeh,totimem,totimes)
-print 105*"-"
-print 63*" "+"Time Needed for timed tests:%14s%s" % (p_time,end)
-if Exit==0:
-    print "Test set (%d tests) succeeded!" % totest
+text += 105*"-"+"\n"
+text += 63*" "+"Time Needed for timed tests:%14s%s\n" % (p_time,end)
+if Exit == 0:
+    text += "Test set (%d tests) succeeded!\n" % totest
 else:
     if len(suggestions) > 0:
         highlight_iftty(suggestions)
         #sys.stdout.write(yaml.dump(suggestions, default_flow_style=False, explicit_start=True))
-    print "Test set failed (%d failed, %d succeeded), check the above report!" % (tofail,tosucc)
+    text += "Test set failed (%d failed, %d succeeded), check the above report!\n" % (tofail,tosucc)
 
+print text
 #Error code
 sys.exit(Exit)
