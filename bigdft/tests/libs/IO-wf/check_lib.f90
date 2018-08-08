@@ -29,7 +29,7 @@ program IO_wf_test
   call f_lib_initialize()
 
   call MPI_INIT(ierr)
-  call f_malloc_set_status(memory_limit=0.e0)
+  call f_malloc_set_status()!memory_limit=0.e0)
 
   call get_command_argument(1, value = filename)
 

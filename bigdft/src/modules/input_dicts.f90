@@ -139,7 +139,7 @@ contains
       to_out=>list_new(.item. OUTPUT_WF)
       conversion=>dict_new(OUTPUT_WF .is. &
            dict_new('key' .is. WRITE_ORBITALS,&
-           '0' .is. 'No', '1' .is. 'text', '2' .is. 'binary', '3' .is. 'etsf'))
+           '0' .is. 'None', '1' .is. 'text', '2' .is. 'binary', '3' .is. 'etsf'))
       nullify(iter)
       do while(iterating(iter,on=to_out))
          key=dict_value(iter)
