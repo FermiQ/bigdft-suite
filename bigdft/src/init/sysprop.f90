@@ -1437,7 +1437,7 @@ subroutine read_n_orbitals(iproc, qelec_up, qelec_down, norbe, &
      end do
 
      if (ispinsum /= nel_up-nel_dwn .and. int_charge) then
-        call f_err_throw('Total polarization for the input guess (found ' // &
+        call f_err_throw('Total polarization for the input guess (found' // &
              trim(yaml_toa(ispinsum)) // &
              ') must be equal to rounded nel_up-nel_dwn ' // &
              '(nelec=' // trim(yaml_toa(qelec)) // ', mpol=' // trim(yaml_toa(mpol)) // &
