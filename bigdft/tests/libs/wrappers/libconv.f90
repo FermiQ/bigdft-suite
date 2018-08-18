@@ -21,7 +21,7 @@ program libconv
   real(f_double), dimension(6) :: k_strten
   type(f_function), dimension(3) :: funcs
   type(f_tree) :: dict_posinp
-  real(f_double), dimension(:), allocatable :: psir,psi,tpsi,psir_work,tpsir
+  real(f_double), dimension(:), POINTER :: psir,psi,tpsi,psir_work,tpsir
   
   call f_lib_initialize()
  
@@ -60,12 +60,16 @@ program libconv
 
   call yaml_map('Periodicity of the x,y,z dimensions',pers)
 
-  psir=f_malloc(mesh%ndim,id='psir')
-  tpsir=f_malloc(mesh%ndim,id='tpsir')
-  psir_work=f_malloc0(mesh%ndim,id='psir_work')
-  psi=f_malloc0(lr%wfd%nvctr_c+7*lr%wfd%nvctr_f,id='psi')
-  tpsi=f_malloc0(lr%wfd%nvctr_c+7*lr%wfd%nvctr_f,id='tpsi')
+  psir=f_malloc_ptr(mesh%ndim,id='psir',info='{alignment: 32}')
+  tpsir=f_malloc_ptr(mesh%ndim,id='tpsir',info='{alignment: 32}')
 
+  psir_work=f_malloc_ptr(mesh%ndim,id='psir_work',info='{alignment: 32}')
+  psi=f_malloc_ptr(lr%wfd%nvctr_c+7*lr%wfd%nvctr_f,id='psi',info='{alignment: 32}')
+  tpsi=f_malloc_ptr(lr%wfd%nvctr_c+7*lr%wfd%nvctr_f,id='tpsi',info='{alignment: 32}')
+
+  call f_zero(psir_work)
+  call f_zero(psi)
+  call f_zero(tpsi)
   bit=box_iter(mesh,centered=.true.)
   !take the reference functions
   call separable_3d_function(bit,funcs,1.0_f_double,psir)
@@ -106,8 +110,11 @@ program libconv
 
   call yaml_map('Final difference',maxdiff)
 
-  call f_free(psir,tpsir,psir_work)
-  call f_free(psi,tpsi)
+  call f_free_ptr(psir)
+  call f_free_ptr(tpsir)
+  call f_free_ptr(psir_work)
+  call f_free_ptr(psi)
+  call f_free_ptr(tpsi)
 
 !!$  !list of routines which have to be duplicated and modified
 !!$  call convolut_kinetic_slab_T_k(2*lr%d%n1+1,2*lr%d%n2+15,2*lr%d%n3+1,&
@@ -319,7 +326,7 @@ subroutine isf_to_daub_kinetic_clone(hx,hy,hz,kx,ky,kz,nspinor,lr,w,psir,hpsi,ek
             dimsin=(/2*lr%d%n1+2,2*lr%d%n2+31,2*lr%d%n3+2/)
             dimsout=dimsin
             do i=0,2
-              call d_s0s0_1d_dims(SYM8_IMF,3,i,dimsin,bc(i), 1.0_wp, 1.0_wp,0.0_wp, dimsout(i))
+              call d_s0s0_1d_dims(SYM8_IMF,3,i,dimsin,bc(i), 1.0_wp, 1.0_wp,0.0_wp, dimsout)
 !              print*,i,'dims in ', dimsin
 !              print*,i,'dims out', dimsout
 
@@ -327,7 +334,7 @@ subroutine isf_to_daub_kinetic_clone(hx,hy,hz,kx,ky,kz,nspinor,lr,w,psir,hpsi,ek
                    dimsin,&
                    dimsout,1,&
                    1.0_wp, 1.0_wp,0.0_wp, cost)
-            print *, "cost for call ",i,":", cost, " flops"
+!            print *, "cost for call ",i,":", cost, " flops"
             if(i/=1) then
               call d_s0s0_1d(SYM8_IMF,3,i,dimsin,bc(i),&
                    dimsin,&
@@ -358,7 +365,7 @@ subroutine isf_to_daub_kinetic_clone(hx,hy,hz,kx,ky,kz,nspinor,lr,w,psir,hpsi,ek
 
               dimsin=dimsout
               do i=0,2
-                call d_s0s1_1d_dims(SYM8_DWT,3,i,dimsin,bc(i), 1.0_wp,0.0_wp, dimsout(i))
+                call d_s0s1_1d_dims(SYM8_DWT,3,i,dimsin,bc(i), 1.0_wp,0.0_wp, dimsout)
                 print*,i,'dims in ', dimsin
                 print*,i,'dims out', dimsout
 
@@ -491,7 +498,7 @@ subroutine isf_to_daub_kinetic_clone(hx,hy,hz,kx,ky,kz,nspinor,lr,w,psir,hpsi,ek
             dimsin=(/2*lr%d%n1+2,2*lr%d%n2+2,2*lr%d%n3+2/)
             dimsout=dimsin
             do i=0,2
-              call d_s0s0_1d_dims(SYM8_IMF,3,i,dimsin,bc(i), 1.0_wp, 1.0_wp,0.0_wp, dimsout(i))
+              call d_s0s0_1d_dims(SYM8_IMF,3,i,dimsin,bc(i), 1.0_wp, 1.0_wp,0.0_wp, dimsout)
 !              print*,i,'dims in ', dimsin
 !              print*,i,'dims out', dimsout
 
@@ -527,7 +534,7 @@ subroutine isf_to_daub_kinetic_clone(hx,hy,hz,kx,ky,kz,nspinor,lr,w,psir,hpsi,ek
               
               dimsin=dimsout
               do i=0,2
-                call d_s0s1_1d_dims(SYM8_DWT,3,i,dimsin,bc(i), 1.0_wp,0.0_wp, dimsout(i))
+                call d_s0s1_1d_dims(SYM8_DWT,3,i,dimsin,bc(i), 1.0_wp,0.0_wp, dimsout)
                 print*,i,'dims in ', dimsin
                 print*,i,'dims out', dimsout
 

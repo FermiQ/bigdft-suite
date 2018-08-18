@@ -901,6 +901,7 @@ subroutine system_initKernels(verb, iproc, nproc, geocode, in, denspot)
   use module_xc
   use Poisson_Solver, except_dp => dp, except_gp => gp
   use module_base
+  use dictionaries
   implicit none
   logical, intent(in) :: verb
   integer, intent(in) :: iproc, nproc
@@ -909,14 +910,18 @@ subroutine system_initKernels(verb, iproc, nproc, geocode, in, denspot)
   type(DFT_local_fields), intent(inout) :: denspot
 
   integer, parameter :: ndegree_ip = 16
-
+! deactivate GPU in all cases for this kernel  
+  if (xc_exctXfac(denspot%xc) /= 0.0_gp .and. in%exctxpar=='OP2P' .or. in%SIC%alpha /= 0.0_gp) then
+    call dict_set(in%PS_dict//'setup'//'accel','No')
+  end if
   denspot%pkernel=pkernel_init(iproc,nproc,in%PS_dict,&
        geocode,denspot%dpbox%mesh%ndims,denspot%dpbox%mesh%hgrids,&
        mpi_env=denspot%dpbox%mpi_env)
 
   !create the sequential kernel if the exctX parallelisation scheme requires it
-  if ((xc_exctXfac(denspot%xc) /= 0.0_gp .and. in%exctxpar=='OP2P' .or. in%SIC%alpha /= 0.0_gp)&
-       .and. denspot%dpbox%mpi_env%nproc > 1) then
+!  if ((xc_exctXfac(denspot%xc) /= 0.0_gp .or. in%SIC%alpha /= 0.0_gp))then
+  if (xc_exctXfac(denspot%xc) /= 0.0_gp .and. in%exctxpar=='OP2P' .or. in%SIC%alpha /= 0.0_gp) then
+!       .and. denspot%dpbox%mpi_env%nproc > 1) then
      !the communicator of this kernel is bigdft_mpi%mpi_comm
      !this might pose problems when using SIC or exact exchange with taskgroups
      denspot%pkernelseq=pkernel_init(0,1,in%PS_dict_seq,&
@@ -936,12 +941,9 @@ subroutine system_createKernels(denspot, verb)
   type(DFT_local_fields), intent(inout) :: denspot
   call pkernel_set(denspot%pkernel,verbose=verb)
     !create the sequential kernel if pkernelseq is not pkernel
-  if (denspot%pkernelseq%mpi_env%nproc == 1 .and. denspot%pkernel%mpi_env%nproc /= 1) then
-     call pkernel_set(denspot%pkernelseq,verbose=.false.)
-  else
-     denspot%pkernelseq = denspot%pkernel
+  if (.not. associated(denspot%pkernelseq%kernel,target=denspot%pkernel%kernel)) then
+    call pkernel_set(denspot%pkernelseq,verbose=.false.)
   end if
-
 END SUBROUTINE system_createKernels
 
 !> calculate the dielectric function for the cavitBy

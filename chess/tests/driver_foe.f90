@@ -726,12 +726,10 @@ program driver_foe
       call fmpi_bcast(nit)
       call fmpi_bcast(betax)
       call fmpi_bcast(inversion_method)
-      call fmpi_bcast(fscale_ediff_low)
-      call fmpi_bcast(fscale_ediff_up)
-      call mpibcast(diff_tolerance, root=0, comm=mpi_comm_world)
-      call mpibcast(diff_target, root=0, comm=mpi_comm_world)
-      call mpibcast(occupation_function, root=0, comm=mpi_comm_world)
-      call mpibcast(matmul_matrix, root=0, comm=mpi_comm_world)
+      call fmpi_bcast(diff_tolerance)
+      call fmpi_bcast(diff_target)
+      call fmpi_bcast(occupation_function)
+      call fmpi_bcast(matmul_matrix)
       ! Since there is no wrapper for logicals...
       if (iproc==0) then
           if (check_spectrum) then
@@ -818,7 +816,7 @@ program driver_foe
               icheck = 0
           end if
       end if
-      call mpibcast(icheck, root=0, comm=mpi_comm_world)
+      call fmpi_bcast(icheck)
       if (icheck==1) then
           adjust_fscale_smooth = .true.
       else
@@ -831,7 +829,7 @@ program driver_foe
               icheck = 0
           end if
       end if
-      call mpibcast(icheck, root=0, comm=mpi_comm_world)
+      call fmpi_bcast(icheck)
       if (icheck==1) then
           adjust_fscale = .true.
       else
