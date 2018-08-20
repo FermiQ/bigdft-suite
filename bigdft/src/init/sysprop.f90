@@ -114,7 +114,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
 
      ! Create the Poisson solver kernels.
      call system_initKernels(.true.,iproc,nproc,atoms%astruct%geocode,in,denspot)
-     call system_createKernels(denspot, (get_verbose_level() > 1))
+     call system_createKernels(in,denspot, (get_verbose_level() > 1))
      if (denspot%pkernel%method .hasattr. 'rigid') then
         call epsilon_cavity(atoms,rxyz,denspot%pkernel)
         !allocate cavity, in the case of nonvacuum treatment
@@ -910,17 +910,17 @@ subroutine system_initKernels(verb, iproc, nproc, geocode, in, denspot)
   type(DFT_local_fields), intent(inout) :: denspot
 
   integer, parameter :: ndegree_ip = 16
+
 ! deactivate GPU in all cases for this kernel  
-  if (xc_exctXfac(denspot%xc) /= 0.0_gp .and. in%exctxpar=='OP2P' .or. in%SIC%alpha /= 0.0_gp) then
-    call dict_set(in%PS_dict//'setup'//'accel','No')
-  end if
+  if (pkernel_seq_is_needed(in,denspot)) &
+       call dict_set(in%PS_dict//'setup'//'accel','No')
   denspot%pkernel=pkernel_init(iproc,nproc,in%PS_dict,&
        geocode,denspot%dpbox%mesh%ndims,denspot%dpbox%mesh%hgrids,&
        mpi_env=denspot%dpbox%mpi_env)
 
   !create the sequential kernel if the exctX parallelisation scheme requires it
 !  if ((xc_exctXfac(denspot%xc) /= 0.0_gp .or. in%SIC%alpha /= 0.0_gp))then
-  if (xc_exctXfac(denspot%xc) /= 0.0_gp .and. in%exctxpar=='OP2P' .or. in%SIC%alpha /= 0.0_gp) then
+  if (pkernel_seq_is_needed(in,denspot)) then
 !       .and. denspot%dpbox%mpi_env%nproc > 1) then
      !the communicator of this kernel is bigdft_mpi%mpi_comm
      !this might pose problems when using SIC or exact exchange with taskgroups
@@ -932,18 +932,19 @@ subroutine system_initKernels(verb, iproc, nproc, geocode, in, denspot)
 
 END SUBROUTINE system_initKernels
 
-subroutine system_createKernels(denspot, verb)
+subroutine system_createKernels(in,denspot, verb)
   use module_base
   use module_types
   use Poisson_Solver, except_dp => dp, except_gp => gp
   implicit none
   logical, intent(in) :: verb
+  type(input_variables), intent(in) :: in
   type(DFT_local_fields), intent(inout) :: denspot
   call pkernel_set(denspot%pkernel,verbose=verb)
-    !create the sequential kernel if pkernelseq is not pkernel
-  if (.not. associated(denspot%pkernelseq%kernel,target=denspot%pkernel%kernel)) then
-    call pkernel_set(denspot%pkernelseq,verbose=.false.)
-  end if
+      !create the sequential kernel if pkernelseq is not pkernel
+  if (pkernel_seq_is_needed(in,denspot)) & !.not. associated(denspot%pkernelseq%kernel,target=denspot%pkernel%kernel)) then
+       call pkernel_set(denspot%pkernelseq,verbose=.false.)
+
 END SUBROUTINE system_createKernels
 
 !> calculate the dielectric function for the cavitBy

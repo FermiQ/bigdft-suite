@@ -1473,22 +1473,24 @@ contains
   subroutine deallocate_before_exiting
     use communications_base, only: deallocate_comms
     use module_cfd, only: cfd_free
+    use PStypes
     implicit none
     external :: gather_timings
   !when this condition is verified we are in the middle of the SCF cycle
     if (infocode /=0 .and. infocode /=1 .and. inputpsi /= 'INPUT_PSI_EMPTY') then
        call f_free_ptr(denspot%V_ext)
 
-       if (((in%exctxpar == 'OP2P' .and. xc_exctXfac(denspot%xc) /= 0.0_gp) &
-            .or. in%SIC%alpha /= 0.0_gp) .and. nproc >1) then
-          if (.not. associated(denspot%pkernelseq%kernel,target=denspot%pkernel%kernel) .and. &
-               associated(denspot%pkernelseq%kernel)) then
-             call pkernel_free(denspot%pkernelseq)
-          end if
-       else if (nproc == 1 .and. (in%exctxpar == 'OP2P' .or. in%SIC%alpha /= 0.0_gp)) then
-          nullify(denspot%pkernelseq%kernel)
+       if (pkernel_seq_is_needed(in,denspot)) then ! .and. nproc >1) then
+          !if (.not. associated(denspot%pkernelseq%kernel,target=denspot%pkernel%kernel) .and. &
+          !     associated(denspot%pkernelseq%kernel)) then
+          call pkernel_free(denspot%pkernelseq)
        end if
+       !else if (nproc == 1 .and. (in%exctxpar == 'OP2P' .or. in%SIC%alpha /= 0.0_gp)) then
+       !   nullify(denspot%pkernelseq%kernel)
+       !end if
        call pkernel_free(denspot%pkernel)
+       denspot%pkernel   =pkernel_null()
+       denspot%pkernelseq=pkernel_null()
 
        ! calc_tail false
        call f_free_ptr(denspot%rhov)
