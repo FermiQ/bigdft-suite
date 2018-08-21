@@ -121,7 +121,7 @@ def clean_logfile(logfile_lines,to_remove):
   return cleaned_logfile
 
 
-def load(file=None,stream=None,doc_lists=False,safe_mode=False):
+def load(file=None,stream=None,doc_lists=True,safe_mode=False):
     """
     Return a list of loaded logfiles from files, which is a list
     of paths leading to logfiles.
@@ -130,6 +130,8 @@ def load(file=None,stream=None,doc_lists=False,safe_mode=False):
     :param str stream: the stream to load (a chain of character of yaml documents)
     - doc_lists: if True ensures that the results is always in a form 
              of lists of documents, event in the case of a single doc
+             When False, the return type is either a dictionary or a generator according
+             to the specifications of yaml.load and yaml.load_all respectively
     : param bool safe_mode: When true, in the case of multiple documents 
              in the stream, it loads the document one after another. 
              This is useful to avoid losing of all the document list 
@@ -161,6 +163,7 @@ def load(file=None,stream=None,doc_lists=False,safe_mode=False):
                     print 'Document',i,'of stream NOT loaded, error:',f
         else:
             ld=yaml.load_all(strm,Loader=ldr)
+            if doc_lists: ld=[l for l in ld]
     return ld
 
 def dump(data,filename=None,raw=False,tar=None):

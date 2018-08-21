@@ -143,6 +143,7 @@ module module_input_keys
      logical :: reset_DIIS_history !< reset the DIIS history when starting the loop which optimizes the support functions
      real(kind=8) :: delta_pnrm !<stop the kernel optimization if the density/potential difference has decreased by this factor
      logical :: consider_entropy !< Indicate whether the entropy contribution to the total energy shall be considered
+     integer :: pvt_method !< pivoting scheme to reduce the bandwith of the sparse matrices
   end type linearInputParameters
 
   !> Structure controlling the nature of the accelerations (Convolutions, Poisson Solver)
@@ -2251,6 +2252,8 @@ contains
           ! Do nothing
        case (CONSIDER_ENTROPY)
           in%lin%consider_entropy = val
+       case (PVT_METHOD)
+          in%lin%pvt_method = val
        case DEFAULT
           if (bigdft_mpi%iproc==0) &
                call yaml_warning("unknown input key '" // trim(level) // "/" // trim(dict_key(val)) // "'")

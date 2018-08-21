@@ -46,3 +46,7 @@ subroutine cudasetdevice()
    implicit none
    stop 'cudasetdevice'
  END SUBROUTINE cudasetdevice
+subroutine cudaresetdevice()
+   implicit none
+   stop 'cudaresetdevice'
+ END SUBROUTINE cudaresetdevice

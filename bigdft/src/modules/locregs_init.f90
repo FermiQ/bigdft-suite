@@ -468,7 +468,7 @@ module locregs_init
       integer,dimension(:),pointer,intent(out):: on_which_atom, in_which_locreg
 
       ! Local variables
-      integer:: iat, jproc, iiOrb, iorb, jorb, jat, iiat, i_stat, i_all, ispin, iispin, istart, iend, ilr, jjat
+      integer:: iat, jproc, iiorb, iorb, jorb, jat, iiat, i_stat, i_all, ispin, iispin, istart, iend, ilr, jjat
       integer :: jjorb, norb_check, norb_nospin, isat, ii, iisorb, natp
       integer,dimension(:),allocatable :: irxyz_ordered, nat_par
       real(kind=8), parameter :: tol=1.0d-6 
@@ -485,6 +485,9 @@ module locregs_init
       real(kind=8),parameter :: binwidth = 6.d0 ! should probably be more or less the same as the locrads... make it variable?
       character(len=3),parameter :: old='old', new='new'
       character(len=3),parameter :: mode = new !old
+
+      integer :: iilr
+      integer,dimension(:),allocatable :: pivots, on_which_atom_pvt, in_which_locreg_pvt
 
       call f_routine(id='assign_to_atoms_and_locregs')
 
@@ -723,6 +726,25 @@ module locregs_init
             end do
          end do
       end do
+
+      !!!# HACK ################################
+      !!open(unit=999, file='pivots.dat')
+      !!pivots = f_malloc(norb,id='pivots')
+      !!read(999,*) pivots
+      !!close(unit=999)
+      !!on_which_atom_pvt = f_malloc0(norb,id='on_which_atom_pvt')
+      !!in_which_locreg_pvt = f_malloc0(norb,id='in_which_locreg_pvt')
+      !!do iorb=1,norb
+      !!    iiorb = pivots(iorb)
+      !!    iiat = on_which_atom(iiorb)
+      !!    iilr = in_which_locreg(iiorb)
+      !!    on_which_atom_pvt(iorb) = iiat
+      !!    in_which_locreg_pvt(iorb) = iilr
+      !!end do
+      !!call f_memcpy(src=on_which_atom_pvt, dest=on_which_atom)
+      !!call f_memcpy(src=in_which_locreg_pvt, dest=in_which_locreg)
+      !!!# END HACK ############################
+
       call fmpi_allreduce(norb_check, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
       if (norb_check/=norb) call f_err_throw('norb_check (' // &
            & trim(yaml_toa(norb_check)) // ') /= norb (' // &

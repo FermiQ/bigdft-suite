@@ -268,7 +268,7 @@ psp_projectors.o: locregs_init.o psp_projectors_base.o atoms_data.o orbital_basi
 communications_init.o: types.o
 communications.o: $(COMMS_INCLUDES) types.o
 sparsematrix_wrappers.o: types.o interfaces.o
-gaussdaub.o: psp_projectors_base.o
+#gaussdaub.o: psp_projectors_base.o
 #module_sqn.o: base.o
 bigdft_run.o: types.o input_dicts.o interfaces.o module_forces.o module_lenosky_si.o module_lj.o module_morse_bulk.o \
 		module_tersoff.o module_alborz.o module_bornmayerhugginstosifumi.o module_cp2k.o module_dftbp.o sw_potential.o module_tdpot.o \
@@ -295,7 +295,7 @@ multipole.o: multipole_base.o interfaces.o orthonormalization.o io.o orbital_bas
 orbital_basis.o:  types.o interfaces.o communications.o
 orthonormalization.o: types.o communications.o transposed_operations.o atoms_data.o
 locregs_init.o: types.o communications.o sort.o interfaces.o
-forces_linear.o: types.o psp_projectors.o transposed_operations.o
+forces_linear.o: types.o psp_projectors.o transposed_operations.o orthonormalization.o
 sw_potential.o: atoms_data.o
 bigdft_matrices.o: types.o sparsematrix_wrappers.o
 get_basis.o: types.o interfaces.o communications.o rhopotential.o constrained_dft.o fragment_base.o fragments.o transposed_operations.o locregs_init.o get_kernel.o io.o

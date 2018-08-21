@@ -289,6 +289,7 @@ contains
 !!$    end if
   END SUBROUTINE deallocate_wfd
 
+
   subroutine copy_wavefunctions_descriptors(wfdin, wfdout)
     use dynamic_memory
     implicit none
@@ -319,7 +320,8 @@ contains
 
   end subroutine copy_wavefunctions_descriptors
 
-  !> initialize the wfd_to_wfd descriptor starting from 
+
+  !> Initialize the wfd_to_wfd descriptor starting from 
   !! the descriptors of the localization regions
   subroutine init_tolr(tolr,wfd_lr,wfd_p,keyag_lin_cf,nbsegs_cf)
     use dynamic_memory

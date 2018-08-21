@@ -802,6 +802,7 @@ subroutine tmb_overlap_onsite(iproc, nproc, imethod_overlap, at, tmb, rxyz)
   use communications_base, only: comms_linear_null, deallocate_comms_linear, TRANSPOSE_FULL
   use communications_init, only: init_comms_linear
   use communications, only: transpose_localized
+  use sparsematrix_defs
   use sparsematrix, only: uncompress_matrix
   use sparsematrix_base, only: matrices, sparse_matrix, &
                                matrices_null, sparse_matrix_null, &
@@ -1153,6 +1154,7 @@ subroutine tmb_overlap_onsite(iproc, nproc, imethod_overlap, at, tmb, rxyz)
   ! Do not initialize the matrix multiplication to save memory. 
   call init_sparse_matrix_wrapper(iproc, nproc, tmb%linmat%smat(1)%nspin, tmb%orbs, &
        lzd_tmp, at%astruct, .false., init_matmul=.false., matmul_optimize_load_balancing=.false., &
+       matmul_matrix=MATMUL_REPLICATE_MATRIX, &
        imode=2, smat=smat_tmp(1))
   call init_matrixindex_in_compressed_fortransposed(iproc, nproc, &
        collcom_tmp, collcom_tmp, collcom_tmp, smat_tmp(1), &

@@ -184,6 +184,14 @@ module dynamic_memory_base
      module procedure get_lbnd_d0,get_lbnd_i0,get_lbnd_li0
   end interface get_lbnd
 
+  interface aligned_alloc
+    function aligned_alloc(align_size, size)  bind(C, name="aligned_alloc")
+      use iso_c_binding, only:  c_ptr,c_size_t
+      integer(c_size_t), value :: align_size, size
+      type(c_ptr) :: aligned_alloc
+    end function aligned_alloc
+  end interface
+
   public :: f_free,f_free_ptr,f_free_str,f_free_str_ptr,f_malloc_dump_status
   public :: f_routine,f_release_routine,f_malloc_set_status,f_malloc_initialize,f_malloc_finalize
   public :: f_memcpy,f_maxdiff,f_update_database,f_purge_database,f_subptr

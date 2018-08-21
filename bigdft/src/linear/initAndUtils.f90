@@ -50,16 +50,16 @@ subroutine init_foe_wrapper(iproc, nproc, input, orbs_KS, tmprtr, foe_obj)
        accuracy_function=input%cp%foe%accuracy_foe, accuracy_penalty=input%cp%foe%accuracy_penalty, &
        betax=input%cp%foe%betax_foe, occupation_function=input%cp%foe%occupation_function, &
        adjust_fscale=input%cp%foe%adjust_fscale, &
-       fscale_ediff_low=input%cp%foe%fscale_ediff_low, &
-       fscale_ediff_up=input%cp%foe%fscale_ediff_up)
+       diff_tolerance=input%cp%foe%diff_tolerance, &
+       diff_target=input%cp%foe%diff_target, &
+       adjust_fscale_smooth=input%cp%foe%adjust_fscale_smooth)
 
   call f_release_routine()
 
 end subroutine init_foe_wrapper
 
 
-
-
+!> See if linear scaling should be activated and build the correct Lzd 
 subroutine check_linear_and_create_Lzd(iproc,nproc,linType,Lzd,atoms,orbs,nspin,rxyz)
   use module_base
   use module_types
@@ -511,6 +511,7 @@ subroutine lzd_init_llr(iproc, nproc, input, astruct, rxyz, orbs, lzd)
   use module_base
   use module_types
   use locregs, only: locreg_null
+  use module_interfaces, only: get_locrads_and_centers
   implicit none
 
   ! Calling arguments
@@ -523,9 +524,11 @@ subroutine lzd_init_llr(iproc, nproc, input, astruct, rxyz, orbs, lzd)
 
   ! Local variables
   integer :: iat, ityp, ilr, istat, iorb, iilr
-  real(kind=8),dimension(:,:), allocatable :: locregCenter
-  character(len=*), parameter :: subname='lzd_init_llr'
+  !real(kind=8),dimension(:,:), allocatable :: locregCenter
+  !!character(len=*), parameter :: subname='lzd_init_llr'
   real(8):: t1, t2
+  real(kind=8),dimension(:),allocatable :: locrad, locrad_kernel, locrad_mult
+  real(kind=8),dimension(:,:),allocatable :: locregCenter
 
   call timing(iproc,'init_locregs  ','ON')
 
@@ -537,37 +540,55 @@ subroutine lzd_init_llr(iproc, nproc, input, astruct, rxyz, orbs, lzd)
 
   lzd%nlr=orbs%norb
 
-  locregCenter = f_malloc((/ 3, orbs%norbu /),id='locregCenter')
+  !!locregCenter = f_malloc((/ 3, orbs%norbu /),id='locregCenter')
 
-  ilr=0
-  do iat=1,astruct%nat
-      ityp=astruct%iatype(iat)
-      do iorb=1,input%lin%norbsPerType(ityp)
-          ilr=ilr+1
-          locregCenter(:,ilr)=rxyz(:,iat)
-      end do
-  end do
+  !!ilr=0
+  !!do iat=1,astruct%nat
+  !!    ityp=astruct%iatype(iat)
+  !!    do iorb=1,input%lin%norbsPerType(ityp)
+  !!        ilr=ilr+1
+  !!        locregCenter(:,ilr)=rxyz(:,iat)
+  !!    end do
+  !!end do
 
   ! Allocate the array of localisation regions
   allocate(lzd%Llr(lzd%nlr),stat=istat)
   do ilr=1,lzd%nlr
      lzd%llr(ilr)=locreg_null()
   end do
-  do ilr=1,lzd%nlr
-      iilr=mod(ilr-1,orbs%norbu)+1 !correct value for a spin polarized system
-      !!write(*,*) 'ilr, iilr', ilr, iilr
-      lzd%llr(ilr)%locrad=input%lin%locrad(iilr)
-      lzd%llr(ilr)%locrad_kernel=input%lin%locrad_kernel(iilr)
-      lzd%llr(ilr)%locrad_mult=input%lin%locrad_mult(iilr)
-      lzd%llr(ilr)%locregCenter=locregCenter(:,iilr)
-      !!if (iproc==0) then
-      !!    write(*,'(a,i3,3x,es10.3,3x,es10.3,3x,es10.3,3x,3es10.3)') 'ilr, locrad, locrad_kernel, locrad_mult, locregCenter', &
-      !!    ilr, lzd%llr(ilr)%locrad, lzd%llr(ilr)%locrad_kernel, &
-      !!    lzd%llr(ilr)%locrad_mult, lzd%llr(ilr)%locregCenter
-      !!end if
-  end do
+  !!do ilr=1,lzd%nlr
+  !!    iilr=mod(ilr-1,orbs%norbu)+1 !correct value for a spin polarized system
+  !!    !!write(*,*) 'ilr, iilr', ilr, iilr
+  !!    lzd%llr(ilr)%locrad=input%lin%locrad(iilr)
+  !!    lzd%llr(ilr)%locrad_kernel=input%lin%locrad_kernel(iilr)
+  !!    lzd%llr(ilr)%locrad_mult=input%lin%locrad_mult(iilr)
+  !!    lzd%llr(ilr)%locregCenter=locregCenter(:,iilr)
+  !!    !!if (iproc==0) then
+  !!    !!    write(*,'(a,i3,3x,es10.3,3x,es10.3,3x,es10.3,3x,3es10.3)') 'ilr, locrad, locrad_kernel, locrad_mult, locregCenter', &
+  !!    !!    ilr, lzd%llr(ilr)%locrad, lzd%llr(ilr)%locrad_kernel, &
+  !!    !!    lzd%llr(ilr)%locrad_mult, lzd%llr(ilr)%locregCenter
+  !!    !!end if
+  !!end do
 
+  locrad = f_malloc(lzd%nlr,id='locrad')
+  locrad_kernel = f_malloc(lzd%nlr,id='locrad_kernel')
+  locrad_mult = f_malloc(lzd%nlr,id='locrad_mult')
+  locregCenter = f_malloc([3,lzd%nlr],id='locregCenter')
+  call get_locrads_and_centers(lzd%nlr, input, astruct, rxyz, orbs, &
+       locrad=locrad, locrad_kernel=locrad_kernel, &
+       locrad_mult=locrad_mult, locregCenter=locregCenter)
+  do ilr=1,lzd%nlr
+      lzd%llr(ilr)%locrad = locrad(ilr)
+      lzd%llr(ilr)%locrad_kernel = locrad_kernel(ilr)
+      lzd%llr(ilr)%locrad_mult = locrad_mult(ilr)
+      lzd%llr(ilr)%locregCenter(1:3) = locregCenter(1:3,ilr)
+  end do
+  call f_free(locrad)
+  call f_free(locrad_kernel)
+  call f_free(locrad_mult)
   call f_free(locregCenter)
+
+  !!call f_free(locregCenter)
 
   t2=mpi_wtime()
   !if(iproc==0) write(*,*) 'in lzd_init_llr: time',t2-t1
@@ -1194,7 +1215,7 @@ end subroutine set_optimization_variables
 
 subroutine adjust_locregs_and_confinement(iproc, nproc, hx, hy, hz, at, input, &
            rxyz, KSwfn, tmb, denspot, nlpsp,ldiis, locreg_increased, lowaccur_converged, &
-           matmul_optimize_load_balancing, locrad)
+           matmul_optimize_load_balancing, matmul_matrix, locrad)
   use module_base
   use module_types
   use yaml_output
@@ -1212,7 +1233,7 @@ subroutine adjust_locregs_and_confinement(iproc, nproc, hx, hy, hz, at, input, &
   implicit none
 
   ! Calling argument
-  integer, intent(in) :: iproc, nproc
+  integer, intent(in) :: iproc, nproc, matmul_matrix
   real(8), intent(in) :: hx, hy, hz
   type(atoms_data), intent(in) :: at
   type(input_variables), intent(in) :: input
@@ -1232,6 +1253,7 @@ subroutine adjust_locregs_and_confinement(iproc, nproc, hx, hy, hz, at, input, &
   type(local_zone_descriptors) :: lzd_tmp
   character(len=*), parameter :: subname='adjust_locregs_and_confinement'
   integer,dimension(2) :: irow, icol, iirow, iicol
+  integer, dimension(2,3) :: ind_minmax
   integer :: ind_min_s, ind_mas_s
   integer :: ind_min_m, ind_mas_m
   integer :: ind_min_l, ind_mas_l
@@ -1392,6 +1414,7 @@ subroutine adjust_locregs_and_confinement(iproc, nproc, hx, hy, hz, at, input, &
      ! are always done with the tmb%linmat%smat(3) type.
      call init_sparse_matrix_wrapper(iproc, nproc, input%nspin, tmb%orbs, tmb%ham_descr%lzd, at%astruct, &
           input%store_index, init_matmul=.false., matmul_optimize_load_balancing=.false., &
+          matmul_matrix=matmul_matrix, &
           imode=1, smat=tmb%linmat%smat(2))
      !!call init_matrixindex_in_compressed_fortransposed(iproc, nproc, tmb%orbs, &
      !!     tmb%collcom, tmb%ham_descr%collcom, tmb%collcom_sr, tmb%linmat%ham)
@@ -1403,6 +1426,7 @@ subroutine adjust_locregs_and_confinement(iproc, nproc, hx, hy, hz, at, input, &
      ! are always done with the tmb%linmat%smat(3) type.
      call init_sparse_matrix_wrapper(iproc, nproc, input%nspin, tmb%orbs, tmb%lzd, at%astruct, &
           input%store_index, init_matmul=.false., matmul_optimize_load_balancing=.false., &
+          matmul_matrix=matmul_matrix, &
           imode=1, smat=tmb%linmat%smat(1))
      !call init_matrixindex_in_compressed_fortransposed(iproc, nproc, tmb%orbs, &
      !     tmb%collcom, tmb%ham_descr%collcom, tmb%collcom_sr, tmb%linmat%ovrlp)
@@ -1413,6 +1437,7 @@ subroutine adjust_locregs_and_confinement(iproc, nproc, hx, hy, hz, at, input, &
      call check_kernel_cutoff(iproc, tmb%orbs, at, input%hamapp_radius_incr, tmb%lzd)
      call init_sparse_matrix_wrapper(iproc, nproc, input%nspin, tmb%orbs, tmb%lzd, at%astruct, &
           input%store_index, init_matmul=.true., matmul_optimize_load_balancing=matmul_optimize_load_balancing, &
+          matmul_matrix=matmul_matrix, &
           imode=2, smat=tmb%linmat%smat(3), smat_ref=tmb%linmat%smat(2))
      !!call init_matrixindex_in_compressed_fortransposed(iproc, nproc, tmb%orbs, &
      !!     tmb%collcom, tmb%ham_descr%collcom, tmb%collcom_sr, tmb%linmat%denskern_large)
@@ -1471,9 +1496,15 @@ subroutine adjust_locregs_and_confinement(iproc, nproc, hx, hy, hz, at, input, &
      !!     input%enable_matrix_taskgroups, tmb%linmat%smat(3), &
      !!     ind_min_l, ind_mas_l, &
      !!     iirow, iicol)
+     ind_minmax(1,1) = ind_min_s
+     ind_minmax(2,1) = ind_mas_s
+     ind_minmax(1,2) = ind_min_m
+     ind_minmax(2,2) = ind_mas_m
+     ind_minmax(1,3) = ind_min_l
+     ind_minmax(2,3) = ind_mas_l
      call init_matrix_taskgroups_wrapper(iproc, nproc, bigdft_mpi%mpi_comm, input%enable_matrix_taskgroups, &
-          3, tmb%linmat%smat, &
-          (/(/ind_min_s,ind_mas_s/),(/ind_min_m,ind_mas_m/),(/ind_min_l,ind_mas_l/)/))
+          3, tmb%linmat%smat, ind_minmax)
+          !!(/(/ind_min_s,ind_mas_s/),(/ind_min_m,ind_mas_m/),(/ind_min_l,ind_mas_l/)/))
 
 
      !call allocate_matrices(tmb%linmat%smat(2), allocate_full=.false., &
@@ -1796,3 +1827,46 @@ subroutine set_confdatarr(input, at, lorbs, onwhichatom, potential_prefac, locra
   call f_free(written)
 
 end subroutine set_confdatarr
+
+
+subroutine get_locrads_and_centers(nlr, input, astruct, rxyz, orbs, &
+           locrad, locrad_kernel, locrad_mult, locregCenter)
+  use futile
+  use module_types, only: input_variables, atomic_structure, orbitals_data
+  implicit none
+
+  ! Calling arguments
+  integer,intent(in) :: nlr
+  type(input_variables), intent(in) :: input
+  type(atomic_structure), intent(in) :: astruct
+  real(kind=8),dimension(3,astruct%nat), intent(in) :: rxyz
+  type(orbitals_data), intent(in) :: orbs
+  real(kind=8),dimension(nlr),intent(out),optional :: locrad, locrad_kernel, locrad_mult
+  real(kind=8),dimension(3,nlr),intent(out),optional :: locregCenter
+  ! Local variables
+  integer :: iat, ityp, ilr, istat, iorb, iilr
+  real(kind=8),dimension(:,:), allocatable :: lrc
+
+
+  lrc = f_malloc((/ 3, orbs%norbu /),id='lrc')
+
+  ilr=0
+  do iat=1,astruct%nat
+      ityp=astruct%iatype(iat)
+      do iorb=1,input%lin%norbsPerType(ityp)
+          ilr=ilr+1
+          lrc(:,ilr)=rxyz(:,iat)
+      end do
+  end do
+
+  do ilr=1,nlr
+      iilr=mod(ilr-1,orbs%norbu)+1 !correct value for a spin polarized system
+      if (present(locrad)) locrad(ilr) = input%lin%locrad(iilr)
+      if (present(locrad_kernel)) locrad_kernel(ilr) = input%lin%locrad_kernel(iilr)
+      if (present(locrad_mult)) locrad_mult(ilr) = input%lin%locrad_mult(iilr)
+      if (present(locregCenter)) locregCenter(1:3,ilr) = lrc(1:3,iilr)
+  end do
+
+  call f_free(lrc)
+
+end subroutine get_locrads_and_centers

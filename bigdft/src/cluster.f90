@@ -433,8 +433,9 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
           accuracy_function=in%cp%foe%accuracy_ice, accuracy_penalty=in%cp%foe%accuracy_penalty, &
           betax=in%cp%foe%betax_ice, occupation_function=in%cp%foe%occupation_function, &
           adjust_fscale=in%cp%foe%adjust_fscale, &
-          fscale_ediff_low=in%cp%foe%fscale_ediff_low, &
-          fscale_ediff_up=in%cp%foe%fscale_ediff_up)
+          diff_tolerance=in%cp%foe%diff_tolerance, &
+          diff_target=in%cp%foe%diff_target, &
+          adjust_fscale_smooth=in%cp%foe%adjust_fscale_smooth)
      call f_free(charge_fake)
 
      !!call f_free(locreg_centers)
@@ -712,7 +713,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
            inputpsi,input_wf_format,norbv,lzd_old,psi_old,rxyz_old,tmb_old,ref_frags,cdft)
    end if
 
-  nvirt=max(in%nvirt,norbv)
+  nvirt=min(in%nvirt,norbv)
 
   ! modified by SM
   call deallocate_local_zone_descriptors(lzd_old)

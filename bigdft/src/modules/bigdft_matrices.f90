@@ -7,6 +7,7 @@ module bigdft_matrices
   !!public :: get_modulo_array
   public :: init_matrixindex_in_compressed_fortransposed
   public :: init_bigdft_matrices
+!  public :: reduce_matrix_bandwidth
 
 
   contains
@@ -608,6 +609,7 @@ module bigdft_matrices
       call init_sparse_matrix_wrapper(iproc, nproc, &
            in%nspin, orbs, lzd_s, atoms%astruct, &
            in%store_index, init_matmul=.false., matmul_optimize_load_balancing=.false., &
+           matmul_matrix=in%cp%perf%matmul_matrix, &
            imode=1, smat=linmat%smat(1))
       call init_matrixindex_in_compressed_fortransposed(iproc, nproc, &
            collcom_s, collcom_m, collcom_s_sr, linmat%smat(1), &
@@ -618,6 +620,7 @@ module bigdft_matrices
       call init_sparse_matrix_wrapper(iproc, nproc, &
            in%nspin, orbs, lzd_m, atoms%astruct, &
            in%store_index, init_matmul=.false., matmul_optimize_load_balancing=.false., &
+           matmul_matrix=in%cp%perf%matmul_matrix, &
            imode=1, smat=linmat%smat(2))
       call init_matrixindex_in_compressed_fortransposed(iproc, nproc, &
            collcom_s, collcom_m, collcom_s_sr, linmat%smat(2), &
@@ -631,6 +634,7 @@ module bigdft_matrices
       call init_sparse_matrix_wrapper(iproc, nproc, &
            in%nspin, orbs, lzd_s, atoms%astruct, &
            in%store_index, init_matmul=.true., matmul_optimize_load_balancing=in%cp%foe%matmul_optimize_load_balancing, &
+           matmul_matrix=in%cp%perf%matmul_matrix, &
            imode=2, smat=linmat%smat(3), smat_ref=linmat%smat(2))
       !write(1000+iproc,*) 'calling init_matrixindex_in_compressed_fortransposed'
       call init_matrixindex_in_compressed_fortransposed(iproc, nproc, &
@@ -780,5 +784,174 @@ module bigdft_matrices
       call f_release_routine()
 
     end subroutine check_orbital_matrix_distribution
+
+
+!!$    subroutine reduce_matrix_bandwidth(iproc, nproc, comm, nlr, glr, &
+!!$               astruct, hgrids, locregcenter, locrad, pvt_method, orbs)
+!!$      use futile
+!!$      use locregs, only: locreg_descriptors
+!!$      use module_types, only: orbitals_data, atomic_structure
+!!$      use sparsematrix_wrappers, only: determine_sparsity_pattern_distance
+!!$      use sparsematrix_init, only: get_segment_structure, compact_sparsity_pattern
+!!$      use sparsematrix_base
+!!$      implicit none
+!!$
+!!$      ! Calling arguments
+!!$      integer,intent(in) :: iproc, nproc, comm, nlr, pvt_method
+!!$      type(locreg_descriptors),intent(in) :: glr
+!!$      type(atomic_structure), intent(in) :: astruct
+!!$      real(kind=8),dimension(3),intent(in) :: hgrids
+!!$      real(kind=8),dimension(3,nlr), intent(in) :: locregcenter
+!!$      real(kind=8),dimension(nlr), intent(in) :: locrad
+!!$      type(orbitals_data),intent(inout) :: orbs
+!!$
+!!$      ! Local variables
+!!$      integer :: nnonzero, nseg, nvctr, iorb, iiorb, iiat, iilr, ii1, ii2, jj1, jj2, nseg_best, pvtm, ipvt, ipvts, ipvte
+!!$      integer :: nseg_orig, nvctr_orig, ipvt_best
+!!$      integer,dimension(:,:),pointer :: nonzero
+!!$      integer,dimension(:,:),allocatable :: nonzero_pivot
+!!$      integer,dimension(:),allocatable :: pivot, pivot_best, on_which_atom_pvt, in_which_locreg_pvt
+!!$      integer,dimension(:),allocatable :: on_which_atom_best, in_which_locreg_best
+!!$      integer,dimension(:,:,:),pointer :: keyg
+!!$      integer,dimension(:,:,:),allocatable :: keyg_orig
+!!$      integer,dimension(0:8),parameter :: pivot_methods = [PVT_NONE            , &
+!!$                                                          PVT_CUTHILL_MCKEE    , &
+!!$                                                          PVT_REV_CUTHILL_MCKEE, &
+!!$                                                          PVT_GPS              , &
+!!$                                                          PVT_REV_GPS          , &
+!!$                                                          PVT_GGPS             , &
+!!$                                                          PVT_REV_GGPS         , &
+!!$                                                          PVT_PCG              , &
+!!$                                                          PVT_REV_PCG          ]
+!!$
+!!$
+!!$
+!!$      call f_routine(id='reduce_matrix_bandwidth')
+!!$
+!!$      if (pvt_method /= PVT_NONE) then
+!!$
+!!$          !call determine_sparsity_pattern(iproc, nproc, orbs, lzd, nnonzero, nonzero)
+!!$          call determine_sparsity_pattern_distance(nlr, orbs, glr, locregcenter, astruct, hgrids, locrad, &
+!!$               nnonzero, nonzero)
+!!$
+!!$          call get_segment_structure(iproc, nproc, comm, orbs%norbu, orbs%norbup, orbs%isorb, &
+!!$               nnonzero, nonzero, nseg, nvctr, keyg)
+!!$          call f_free_ptr(nonzero)
+!!$
+!!$          pivot = f_malloc(orbs%norbu,id='pivot')
+!!$          pivot_best = f_malloc(orbs%norbu,id='pivot_best')
+!!$          nonzero_pivot = f_malloc([2,nnonzero],id='nonzero_pivot')
+!!$
+!!$          if (iproc==0) then
+!!$              call yaml_mapping_open('Reduce the matrix bandwidth')
+!!$              call yaml_sequence_open('Testing pivoting schemes')
+!!$          end if
+!!$
+!!$          if (pvt_method<0) then
+!!$              ipvts = 0
+!!$              ipvte = 8
+!!$          else
+!!$              ipvts = pvt_method
+!!$              ipvte = pvt_method
+!!$          end if
+!!$
+!!$          nseg_best = huge(1)
+!!$
+!!$
+!!$          nseg_orig = nseg
+!!$          nvctr_orig = nvctr
+!!$          keyg_orig = f_malloc([2,2,nseg],id='keyg_orig')
+!!$          call f_memcpy(src=keyg, dest=keyg_orig)
+!!$          call f_free_ptr(keyg)
+!!$
+!!$          on_which_atom_best = f_malloc(orbs%norbu,id='on_which_atom_best')
+!!$          in_which_locreg_best = f_malloc(orbs%norbu,id='in_which_locreg_best')
+!!$          on_which_atom_pvt = f_malloc0(orbs%norbu,id='on_which_atom_pvt')
+!!$          in_which_locreg_pvt = f_malloc0(orbs%norbu,id='in_which_locreg_pvt')
+!!$
+!!$          call f_memcpy(src=orbs%onwhichatom, dest=on_which_atom_best)
+!!$          call f_memcpy(src=orbs%inwhichlocreg, dest=in_which_locreg_best)
+!!$
+!!$          do ipvt=ipvts,ipvte
+!!$          
+!!$              pvtm = pivot_methods(ipvt)
+!!$
+!!$              nseg = nseg_orig
+!!$              nvctr = nvctr_orig
+!!$              keyg = f_malloc_ptr([2,2,nseg],id='keyg')
+!!$              call f_memcpy(src=keyg_orig, dest=keyg)
+!!$              call compact_sparsity_pattern(orbs%norbu, nvctr, nseg, keyg, pvtm, pivot)
+!!$              call f_free_ptr(keyg)
+!!$              !!do iorb=1,nnonzero
+!!$              !!    ii1 = nonzero(1,iorb)
+!!$              !!    ii2 = nonzero(2,iorb)
+!!$              !!    jj1 = pivot(ii1)
+!!$              !!    jj2 = pivot(ii2)
+!!$              !!    nonzero_pivot(1,iorb) = jj1
+!!$              !!    nonzero_pivot(2,iorb) = jj2
+!!$              !!end do
+!!$              !!!!write(*,*) 'pivot', pivot
+!!$              !!!!write(*,*) 'nonzero', nonzero
+!!$              !!!!write(*,*) 'nonzero_pivot', nonzero_pivot
+!!$              !!call get_segment_structure(iproc, nproc, comm, orbs%norbu, orbs%norbup, orbs%isorb, &
+!!$              !!     nnonzero, nonzero_pivot, nseg, nvctr, keyg)
+!!$
+!!$              do iorb=1,orbs%norbu
+!!$                  iiorb = pivot(iorb)
+!!$                  iiat = orbs%onwhichatom(iiorb)
+!!$                  iilr = orbs%inwhichlocreg(iiorb)
+!!$                  on_which_atom_pvt(iorb) = iiat
+!!$                  in_which_locreg_pvt(iorb) = iilr
+!!$              end do
+!!$              call f_memcpy(src=on_which_atom_pvt, dest=orbs%onwhichatom)
+!!$              call f_memcpy(src=in_which_locreg_pvt, dest=orbs%inwhichlocreg)
+!!$              call determine_sparsity_pattern_distance(nlr, orbs, glr, locregcenter, astruct, hgrids, locrad, &
+!!$                   nnonzero, nonzero)
+!!$              call get_segment_structure(iproc, nproc, comm, orbs%norbu, orbs%norbup, orbs%isorb, &
+!!$                   nnonzero, nonzero, nseg, nvctr, keyg)
+!!$              call f_free_ptr(nonzero)
+!!$              if (iproc==0) then
+!!$                  call yaml_sequence(advance='no')
+!!$                  call yaml_map('Pivoting algorithm',pvtm)
+!!$                  call yaml_map('Number of segments',nseg)
+!!$              end if
+!!$              if (nseg<nseg_best) then
+!!$                  !!write(*,*) 'copy pivots'
+!!$                  !!call f_memcpy(src=pivot, dest=pivot_best)
+!!$                  nseg_best = nseg
+!!$                  call f_memcpy(src=orbs%onwhichatom, dest=on_which_atom_best)
+!!$                  call f_memcpy(src=orbs%inwhichlocreg, dest=in_which_locreg_best)
+!!$                  ipvt_best = ipvt
+!!$              else
+!!$                  call f_memcpy(src=on_which_atom_best, dest=orbs%onwhichatom)
+!!$                  call f_memcpy(src=in_which_locreg_best, dest=orbs%inwhichlocreg)
+!!$              end if
+!!$              call f_free_ptr(keyg)
+!!$
+!!$          end do
+!!$
+!!$          call f_free_ptr(nonzero)
+!!$
+!!$          if (iproc==0) then
+!!$              call yaml_sequence_close()
+!!$              call yaml_map('Pivoting method chosen',ipvt_best)
+!!$              call yaml_mapping_close()
+!!$          end if
+!!$
+!!$          call f_free(on_which_atom_pvt)
+!!$          call f_free(in_which_locreg_pvt)
+!!$          call f_free(pivot)
+!!$          call f_free(pivot_best)
+!!$          call f_free(nonzero_pivot)
+!!$          call f_free_ptr(keyg)
+!!$          call f_free(keyg_orig)
+!!$          call f_free(on_which_atom_best)
+!!$          call f_free(in_which_locreg_best)
+!!$
+!!$      end if
+!!$
+!!$      call f_release_routine()
+!!$
+!!$    end subroutine reduce_matrix_bandwidth
 
 end module bigdft_matrices

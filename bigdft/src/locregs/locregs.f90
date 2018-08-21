@@ -68,15 +68,19 @@ module locregs
 
 contains
 
+
+  !> Create a grid_dimensions instance with all dimensions equal to 0.
   pure function grid_null() result(g)
     type(grid_dimensions) :: g
   end function grid_null
+
 
   pure function locreg_null() result(lr)
     implicit none
     type(locreg_descriptors) :: lr
     call nullify_locreg_descriptors(lr)
   end function locreg_null
+
 
   pure subroutine nullify_locreg_descriptors(lr)
     use box
@@ -104,6 +108,7 @@ contains
     call nullify_box_iterator(lr%bit)
   end subroutine nullify_locreg_descriptors
 
+
   !> Destructors
   subroutine deallocate_locreg_descriptors(lr)
     use bounds
@@ -116,6 +121,7 @@ contains
     
   end subroutine deallocate_locreg_descriptors
 
+
   subroutine nullify_lr_pointers(lr)
     use bounds
     use compression
@@ -127,7 +133,8 @@ contains
     call nullify_convolutions_bounds(lr%bounds)
   end subroutine nullify_lr_pointers
 
-  !>methods to encode and decode the structure
+
+  !> Methods to encode and decode the structure
   !might be used in favour of copying of the datatypes
   function get_locreg_encode_size() result(s)
     implicit none
@@ -140,6 +147,7 @@ contains
 
   end function get_locreg_encode_size
 
+
   subroutine locreg_encode(lr,lr_size,dest)
     implicit none
     type(locreg_descriptors), intent(in) :: lr
@@ -149,6 +157,7 @@ contains
     
     dest=transfer(lr,dest)
   end subroutine locreg_encode
+
 
   subroutine locregs_encode(llr,nlr,lr_size,dest_arr,mask)
     implicit none
@@ -175,7 +184,8 @@ contains
 
   end subroutine locregs_encode
 
-  !>decode a locreg from a src array
+
+  !> Decode a locreg from a src array
   !! warning, the status of the pointers of lr might become
   !!unreliable if the src array comes from a communicated object
   subroutine locreg_decode(src,lr_size,lr)
@@ -188,13 +198,15 @@ contains
     call nullify_lr_pointers(lr)
   end subroutine locreg_decode
 
-  !>decode a group of locregs given a src array
+
+  !> Decode a group of locregs given a src array
   subroutine locregs_decode(src_arr,lr_size,nlr,llr,ipiv)
     implicit none
     integer, intent(in) :: lr_size,nlr
     type(locreg_descriptors), dimension(nlr), intent(inout) :: llr
     integer, dimension(lr_size,nlr), intent(in) :: src_arr
-    integer, dimension(nlr), optional  :: ipiv !<array expressing the order of the lrs in the src_arr. When its values are put to zero  the update is not performed
+    integer, dimension(nlr), optional  :: ipiv !<array expressing the order of the lrs in the src_arr. 
+                                               !!When its values are put to zero the update is not performed
     !local variables
     integer :: ilr,iilr
     
@@ -206,6 +218,7 @@ contains
     end do
     
   end subroutine locregs_decode
+
 
   !> Locreg communication
   subroutine communicate_locreg_descriptors_basics(iproc, nproc, nlr, rootarr, llr)
@@ -290,6 +303,7 @@ contains
 
   end subroutine communicate_locreg_descriptors_basics
 
+
   !> Methods for copying the structures, can be needed to avoid recalculating them
   !! should be better by defining a f_malloc inheriting the shapes and the structure from other array
   !! of the type dest=f_malloc(src=source,id='dest')
@@ -326,6 +340,8 @@ contains
     glrout%mesh_coarse=glrin%mesh_coarse
     glrout%bit=glrin%bit
   end subroutine copy_locreg_descriptors
+
+
   pure subroutine copy_grid_dimensions(din, dout)
     implicit none
     ! Calling arguments
@@ -347,6 +363,7 @@ contains
 
   end subroutine copy_grid_dimensions
 
+
   subroutine ensure_locreg_bounds(lr)
     use bounds, only: locreg_bounds
     implicit none
@@ -360,6 +377,7 @@ contains
          lr%d%nfl3,lr%d%nfu3,lr%wfd,lr%bounds)
 
   end subroutine ensure_locreg_bounds
+
 
   !> Almost degenerate with get_number_of_overlap_region
   !! should merge the two... prefering this one since argument list is better 

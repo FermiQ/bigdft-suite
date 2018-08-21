@@ -380,7 +380,7 @@ contains
        if (f_err_raise(.not. associated(proj), "Non existing projector.", &
             & err_name='BIGDFT_RUNTIME_ERROR')) return
        proj%idir = idir
-       if (.not. associated(proj%coeff)) proj%coeff = f_malloc_ptr(a_it%nproj * a_it%nc)
+       if (.not. associated(proj%coeff)) proj%coeff = f_malloc_ptr(a_it%nproj * a_it%nc,id='coeff')
        iter%coeff => proj%coeff
     end if
     call atomic_projector_iter_set_destination(a_it, iter%coeff)

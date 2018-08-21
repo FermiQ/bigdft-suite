@@ -79,11 +79,43 @@ def combine_dicts(dest,src):
                 res[key]=val
     return res
 
+def get_mantissa_and_exp(val):
+  """
+  Get the mantissa and the exponent of a floating point
+  """
+  import math
+  if val == 0.0: return 0.0,1
+  sign= 1.0 if val >= 0 else -1.0
+  exponent = math.log(sign*val)/math.log(10)
+  if float(int(exponent)) != exponent: exponent = int(exponent)-1
+  exponent = int(exponent)
+  mantissa = val/10**(exponent)
+  assert( abs(mantissa*10**exponent - val) < 10.e-16)
+  return mantissa,exponent
+
+def excess_round_float(val,digits):
+  """
+  Round a floating point number to a given number of digits
+  """
+  mant,exp=get_mantissa_and_exp(val)
+  return float(str(round(mant,digits)+10**(-digits))+'e'+str(exp)) #*(10**exp)
+
+def number_of_significative_digits(scl,ref):
+  """
+  Identify the number of significative digits that are preserved in both the values
+  """
+  import math
+  #first check the sign
+  if (scl >=0) != (ref >=0): return 0
+  rel_diff=abs(scl/ref-1.0)
+  digits=math.log(rel_diff)/math.log(10)
+  return 1-int(digits)
+
 def suggestion_for_tolerances(remarks):
     res={}
     if "FAILURE" in remarks:
         for key in remarks["FAILURE"]:
-            res[key]=remarks["FAILURE"][key]["diff"]
+            res[key]=excess_round_float(remarks["FAILURE"][key]["diff"],3)
     return res
 
 def compare(data, ref, tols=None, always_fails=False,keyword=[]):
@@ -99,20 +131,21 @@ def compare(data, ref, tols=None, always_fails=False,keyword=[]):
         # for a floating point the reference is set for all the lower levels
         if isinstance(tols, str):
             tols = float(tols)
-        if isinstance(tols,float):
+        if isinstance(tols,float) or isinstance(tols,int):
             neweps = tols
             tols = {}
             for key in ref:
-                if key in def_tols:
-                    tols[key] = def_tols[key]
-                else:
-                    tols[key] = neweps
+              tols[key] = def_tols.get(key,neweps)
+              #if key in def_tols:
+              #   tols[key] = def_tols[key]
+              #else:
+              #   tols[key] = neweps
             # print neweps,tols,def_tols
         ret = compare_map(data, ref, tols, always_fails,keyword)
     elif isinstance(ref,list):
         if isinstance(tols, str):
             tols = float(tols)
-        if isinstance(tols,float):
+        if isinstance(tols,float) or isinstance(tols,int):
             neweps = tols
             tols = []
             tols.append(neweps)
@@ -279,17 +312,18 @@ def compare_scl(scl, ref, tols, always_fails=False, keyword=[]):
             failed = False
             diff = 0.
         else:
-            try:
-                diff = math.fabs(scl - ref)
-                ret_diff = diff
-                if tols is None:
-                    failed = not (diff <= epsilon)
-                else:
-                    failed = not (diff <= tols)
-            except TypeError:
-                ret_diff = "NOT SAME KIND"
-                diff = 0.
-                failed = True
+          try:
+              truetol=epsilon if tols is None else tols
+              diff = math.fabs(scl - ref)
+              ret_diff = diff
+              if isinstance(truetol,int):
+                failed = number_of_significative_digits(scl,ref) < truetol
+              else:
+                failed = not (diff <= truetol)
+          except TypeError:
+              ret_diff = "NOT SAME KIND"
+              diff = 0.
+              failed = True
         discrepancy = max(discrepancy, diff)
         #  if (discrepancy > 1.85e-6):
         #      print 'test',scl,ref,tols,discrepancy,failed
