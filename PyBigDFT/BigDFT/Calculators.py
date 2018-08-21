@@ -192,7 +192,7 @@ class SystemCalculator(Runner):
         Executing command:  $BIGDFT_MPIRUN <path_to_$BIGDFT_ROOT>/bigdft test
     """
 
-    import os
+    import os,shutil
     def __init__(self, 
                  omp=os.environ.get('OMP_NUM_THREADS','1'),
                  mpi_run=os.environ.get('BIGDFT_MPIRUN',''),
@@ -214,7 +214,9 @@ class SystemCalculator(Runner):
 
         :param str name: naming scheme of the run i.e. <name>.yaml is the input file and log-<name>.yaml the output one.
            Data will then be written in the directory `data-<name>.yaml`, unless the "radical" keyword is specified in the input dictionary.
-        :param str outdir: specify the output directory
+        :param str run_dir: specify the directory where bigdft will be executed (the input and log file will be created in it)
+                            it must be a simple 
+        :param str outdir: specify the output directory for all data coming from bigdft (parameter of bigdft)
         :param str run_name: File containing the list of the run ids which have to be launched independently 
                              (list in yaml format). The option runs-file is not compatible with the name option.
         :param input: give the input parameters (a dictionary or a list of dictionary)
@@ -234,29 +236,38 @@ class SystemCalculator(Runner):
         #Give the default values in case of unset_global_options are called
         name=self.run_options.get('name','')
         outdir=self.run_options.get('outdir','')
+        run_dir=self.run_options.get('run_dir','.')
+        #Restrict run_dir to a sub-directory
+        assert not "/" in run_dir 
         run_name=self.run_options.get('run_name','')
         inp=self.run_options.get('input',{})
         posinp=self.run_options.get('posinp',None)
-        # Set the number of omp threads
-        os.environ['OMP_NUM_THREADS'] = self.run_options['omp']
-        # Creating the yaml input file from a dictionary or another file
-        if len(name) > 0:
-            input_file = "%s.yaml" % name
-            logname = "log-%s.yaml" % name
-        else:
-            input_file = "input.yaml" #default name
-            logname = "log.yaml"
-        #check if the debug file will be updated (case of erroneous run)
-        timedbg=get_debugfile_date()
+        #Create the run_dir
+        if not os.path.exists(run_dir):
+            #Creation of the sub-directory run_dir
+            os.mkdir(run_dir)
         #Create the input file
         local_input=copy.deepcopy(inp)
         if posinp != None:
             #Check if the file does exist
             assert os.path.isfile(posinp)
             #Add into the dictionary a posinp key
-            local_input['posinp'] = posinp
+            if run_dir == '.':
+                local_input['posinp'] = posinp
+            else:
+                #Copy the posinp
+                shutil.copy2(posinp,run_dir)
+                local_input['posinp'] = os.path.basename(posinp)
+        if len(name) > 0:
+            input_file = "%s/%s.yaml" % (run_dir,name)
+            logname = "%s/log-%s.yaml" % (run_dir,name)
+        else:
+            input_file = "input.yaml" #default name
+            logname = "log.yaml"
+        #check if the debug file will be updated (case of erroneous run)
+        timedbg=get_debugfile_date()
         #Creating the yaml input file
-        from futile import Yaml as Y
+        from futile import YamlIO as Y
         Y.dump(local_input,filename=input_file)
         if self.run_options['verbose']: safe_print('Creating the yaml input file "%s"' % input_file)
         #Check if it is a dry run
@@ -281,7 +292,10 @@ class SystemCalculator(Runner):
             if self.run_options['skip']:
                 command += ' -s Yes'
         if self.run_options['verbose']: safe_print('Executing command: ', command)
-        os.system(command)
+        # Set the number of omp threads
+        os.environ['OMP_NUM_THREADS'] = self.run_options['omp']
+        #Run the command
+        os.system("cd "+run_dir+"; "+command)
         #verify that no debug file has been created
         if get_debugfile_date() > timedbg :
             if self.run_options['verbose']: 
