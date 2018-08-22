@@ -174,7 +174,9 @@ module module_input_keys
      character(len=100) :: file_lin
      character(len=100) :: file_frag   !< Fragments
      character(len=max_field_length) :: dir_output  !< Strings of the directory which contains all data output files
-     character(len=max_field_length) :: naming_id
+     character(len=max_field_length) :: outdir      !< Strings of the directory which contains 
+                                                    !! logfile, iput_minimal, and forces_xxx
+     character(len=max_field_length) :: naming_id   !< Name of the job
      !integer :: files                  !< Existing files.
 
      !> Miscellaneous variables
@@ -742,18 +744,18 @@ contains
        lvl => dict_next(lvl)
     end do
 
-    ! Generate the dir_output
+    ! Generate the in%dir_output and in%outdir
     !outdir has to be initialized
     call f_zero(outdir)
     call dict_get_run_properties(dict, naming_id = run_id, posinp_id = posinp_id, input_id = input_id, outdir_id = outdir)
+    call f_strcpy(dest = in%outdir, src = trim(outdir))
     call f_strcpy(dest = in%dir_output, src = trim(outdir) // "data" // trim(run_id))
     call f_strcpy(dest= in%naming_id, src=trim(run_id))
     call set_cache_size(in%ncache_fft)
 
     !status of the allocation verbosity and profiling
     !filename of the memory allocation status, if needed
-    call f_strcpy(src=trim(outdir) // 'memstatus' // trim(run_id) // '.yaml',&
-         dest=filename)
+    call f_strcpy(src=trim(in%outdir) // 'memstatus' // trim(run_id) // '.yaml', dest=filename)
     if (.not. in%debug) then
        if (in%verbosity==3) then
           call f_malloc_set_status(output_level=1, iproc=bigdft_mpi%iproc,logfile_name=filename)!,profiling_depth=in%profiling_depth)
@@ -942,7 +944,7 @@ contains
        call dict_get_run_properties(dict, input_id = run_id , minimal_file = filename)
        !       call f_strcpy(src=trim(run_id)//'_minimal.yaml',dest=filename)
        unt=f_get_free_unit(99971)
-       call yaml_set_stream(unit=unt,filename=trim(outdir)//trim(filename)//'.yaml',&
+       call yaml_set_stream(unit=unt,filename=trim(in%outdir)//trim(filename)//'.yaml',&
             record_length=92,istat=ierr,setdefault=.false.,tabbing=0,position='rewind')
        if (ierr==0) then
           call yaml_comment('Minimal input file',hfill='-',unit=unt)
@@ -981,17 +983,17 @@ contains
     !shouldwrite=.false.
 
     shouldwrite= &!shouldwrite .or. &
-         in%output_wf /= ENUM_EMPTY .or. &    !write wavefunctions
-         in%output_denspot /= ENUM_EMPTY .or. & !write output density
+         in%output_wf /= ENUM_EMPTY .or. &               !write wavefunctions
+         in%output_denspot /= ENUM_EMPTY .or. &          !write output density
          in%ncount_cluster_x > 1 .or. &                  !write posouts or posmds
          (in%inputPsiId .hasattr. 'FILE') .or. &
-         (in%inputPsiId .hasattr. 'GAUSSIAN') .or. &   !Mulliken and local density of states
+         (in%inputPsiId .hasattr. 'GAUSSIAN') .or. &     !Mulliken and local density of states
          bigdft_mpi%ngroup > 1   .or. &                  !taskgroups have been inserted
          mod(in%lin%plotBasisFunctions,10) > 0 .or. &    !dumping of basis functions for locreg runs
          !in%write_orbitals>0 .or. &                      !writing the KS orbitals in the linear case
          mod(in%lin%output_mat_format,10)>0 .or. &       !writing the sparse linear matrices
-         mod(in%lin%output_coeff_format,10)>0 .or. &          !writing the linear KS coefficients
-         in%mdsteps>0                                !write the MD restart file always in dir_output
+         mod(in%lin%output_coeff_format,10)>0 .or. &     !writing the linear KS coefficients
+         in%mdsteps>0                                    !write the MD restart file always in dir_output
 
     !here you can check whether the etsf format is compiled
 
@@ -1004,11 +1006,16 @@ contains
        call fmpi_bcast(dirname,comm=bigdft_mpi%mpi_comm)
        !in%dir_output=dirname
        call f_strcpy(src=dirname,dest=in%dir_output)
-       if (iproc==0) call yaml_map('Data Writing directory',trim(in%dir_output))
+       if (iproc==0) &
+            call yaml_map('Data Writing directory',trim(in%dir_output))
     else
-       if (iproc==0) call yaml_map('Data Writing directory','./')
-       call f_zero(in%dir_output)!=repeat(' ',len(in%dir_output))
+       !We use outdir for time-xxx.yaml avoiding to create data directory
+       call f_strcpy(src=in%outdir,dest=in%dir_output)
+       !call f_zero(in%dir_output)!=repeat(' ',len(in%dir_output))
+       if (iproc==0) &
+            call yaml_map('Data Writing directory','./')
     end if
+
 
   END SUBROUTINE check_for_data_writing_directory
 
@@ -1556,6 +1563,7 @@ contains
     end select
 
   end subroutine set_output_wf
+
 
   subroutine set_output_wf_from_text(profile,output_wf)
     implicit none

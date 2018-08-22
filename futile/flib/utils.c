@@ -99,6 +99,13 @@ void FC_FUNC(getdir, GETDIR)(const char *dir, int *lgDir,
   char *path;
   struct stat sb;
   int lgCpy;
+#if defined _WIN32 || defined __CYGWIN__
+  const char kPathSeparator = '\\';
+  int lnsep=2;
+#else
+  const char kPathSeparator = '/';
+  int lnsep=1;
+#endif
 
   *status = 1;
   memset(out, ' ', sizeof(char) * (*lgOut));
@@ -114,8 +121,8 @@ void FC_FUNC(getdir, GETDIR)(const char *dir, int *lgDir,
           *status = 0;
           lgCpy = ((*lgDir > *lgOut - 1)?*lgOut - 1:*lgDir);
           memcpy(out, dir, sizeof(char) * lgCpy);
-          /* Add a '/' if not already present */
-          if (out[lgCpy-1] != '/') { out[lgCpy] = '/'; };
+          /* Add a separator if not already present */
+          if (out[lgCpy-lnsep] != kPathSeparator) { out[lgCpy] = kPathSeparator; };
         }
       else
         *status = 1;
@@ -123,7 +130,7 @@ void FC_FUNC(getdir, GETDIR)(const char *dir, int *lgDir,
     }
 
   /* Try to create it. */
-#ifdef _WIN32
+#ifdef _WIN32 || defined __CYGWIN__
   if (mkdir(path) != 0)
 #else
   if (mkdir(path, 0755) != 0)
@@ -140,7 +147,8 @@ void FC_FUNC(getdir, GETDIR)(const char *dir, int *lgDir,
   free(path);
   lgCpy = ((*lgDir > *lgOut - 1)?*lgOut - 1:*lgDir);
   memcpy(out, dir, sizeof(char) * lgCpy);
-  out[lgCpy] = '/';
+  /* Add a '/' if not already present */
+  if (out[lgCpy-lnsep] != kPathSeparator) { out[lgCpy] = kPathSeparator; };
   *status = 0;
   return;
 }

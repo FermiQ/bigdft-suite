@@ -942,8 +942,12 @@ subroutine system_createKernels(in,denspot, verb)
   type(DFT_local_fields), intent(inout) :: denspot
   call pkernel_set(denspot%pkernel,verbose=verb)
       !create the sequential kernel if pkernelseq is not pkernel
-  if (pkernel_seq_is_needed(in,denspot)) & !.not. associated(denspot%pkernelseq%kernel,target=denspot%pkernel%kernel)) then
-       call pkernel_set(denspot%pkernelseq,verbose=.false.)
+  if (pkernel_seq_is_needed(in,denspot)) then !.not. associated(denspot%pkernelseq%kernel,target=denspot%pkernel%kernel)) then
+     call pkernel_set(denspot%pkernelseq,verbose=.false.)
+  else !reassociate it after initialization
+     denspot%pkernelseq = denspot%pkernel
+  end if
+     
 
 END SUBROUTINE system_createKernels
 
@@ -1384,8 +1388,6 @@ subroutine calculate_rhocore(at,rxyz,dpbox,rhocore)
 END SUBROUTINE calculate_rhocore
 
 
-
-
 !> Calculate the number of electrons and check the polarisation (mpol)
 subroutine read_n_orbitals(iproc, qelec_up, qelec_down, norbe, &
      & atoms, qcharge, nspin, mpol, norbsempty)
@@ -1442,7 +1444,8 @@ subroutine read_n_orbitals(iproc, qelec_up, qelec_down, norbe, &
      qelec_down=0.0_gp
   else 
      if (mod(nel+mpol,2) /=0 .and. int_charge) then
-          call f_err_throw('The mpol polarization should have the same parity of the (rounded) number of electrons. ' // &
+          call f_err_throw('Spin-Polarized calculation (nspin=' // trim(yaml_toa(nspin)) // &
+            & '). The mpol polarization should have the same parity of the (rounded) number of electrons. ' // &
             & '(mpol='+trim(yaml_toa(mpol)) // 'and qelec='+qelec+')', &
             & err_name='BIGDFT_INPUT_VARIABLES_ERROR')
 
@@ -1456,7 +1459,7 @@ subroutine read_n_orbitals(iproc, qelec_up, qelec_down, norbe, &
      !then the elec_up part is redefined with the actual charge
      qelec_up=qelec-qelec_down
 
-     !test if the spin is compatible with the input guess polarisations
+     !test if the spin is compatible with the input guess polarizations
      ispinsum=0
      ichgsum=0
      iabspol=0
@@ -1468,14 +1471,15 @@ subroutine read_n_orbitals(iproc, qelec_up, qelec_down, norbe, &
      end do
 
      if (ispinsum /= nel_up-nel_dwn .and. int_charge) then
-        call f_err_throw('Total polarisation for the input guess (found ' // &
+        call f_err_throw('Total polarization for the input guess (found' // &
              trim(yaml_toa(ispinsum)) // &
              ') must be equal to rounded nel_up-nel_dwn ' // &
              '(nelec=' // trim(yaml_toa(qelec)) // ', mpol=' // trim(yaml_toa(mpol)) // &
              ', nel_up-nel_dwn=' // trim((yaml_toa(nel_up-nel_dwn))) // &
              ', nel_up=' // trim((yaml_toa(nel_up))) // &
              ', nel_dwn=' // trim((yaml_toa(nel_dwn))) // &
-             '). Use the keyword "IGSpin" or add a spin component for the input guess per atom.', &
+             '). By default, each atom has an input guess polarization (IGSpin) equal to 0. ' // &
+             'Use the keyword "IGSpin" or add a spin component for the input guess per atom.', &
              err_name='BIGDFT_INPUT_VARIABLES_ERROR')
      end if
 

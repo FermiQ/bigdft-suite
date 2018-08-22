@@ -694,7 +694,6 @@ subroutine LocalHamiltonianApplication(iproc,nproc,at,npsidim_orbs,orbs,&
   ipotmethod=0
   if (exctX) ipotmethod=1
 
-
   !the PZ-SIC correction does not makes sense for virtual orbitals procedure
   !if alphaSIC is zero no SIC correction
   if (SIC%approach == 'PZ' .and. .not. present(orbsocc) .and. SIC%alpha /= 0.0_gp ) ipotmethod=2
@@ -702,11 +701,9 @@ subroutine LocalHamiltonianApplication(iproc,nproc,at,npsidim_orbs,orbs,&
 
   !the poisson kernel should be present and associated in the case of SIC
   if ((ipotmethod /= 0) .and. present(pkernel)) then
-     if (.not. associated(pkernel%kernel)) then
-        if (iproc ==0) write(*,*)&
-             &   'ERROR(LocalHamiltonianApplication): Poisson Kernel must be associated in SIC case'
-        stop
-     end if
+     if (.not. associated(pkernel%kernel)) call f_err_throw(&
+             'ERROR(LocalHamiltonianApplication): Poisson Kernel must be associated in SIC / Exct case',&
+             err_name='BIGDFT_RUNTIME_ERROR')
   end if
 
   !associate the poisson kernel pointer in case of SIC

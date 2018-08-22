@@ -79,6 +79,7 @@ contains
     end do
   end subroutine input_psi_help
 
+
   subroutine output_wf_format_help()
     integer :: i
 
@@ -89,7 +90,7 @@ contains
     end do
   end subroutine output_wf_format_help
 
-    !Arguments
+
   subroutine input_from_old_text_format(radical,mpi_env,dict)
     use public_keys
     use wrapper_MPI
@@ -203,6 +204,7 @@ contains
 
   end subroutine input_from_old_text_format
 
+
   !> Set and check the input file
   !! if radical is empty verify if the file input.ext exists.
   !! otherwise search for radical.ext
@@ -225,6 +227,7 @@ contains
     if (.not. exists .and. (trim(radical) /= "input" .and. trim(radical) /= "")) &
          & write(filename, "(A,A,A)") "default", ".", trim(ext)
   end subroutine set_inputfile
+
 
   subroutine read_dft_from_text_format(iproc,dict,filename)
     use module_base
@@ -1701,8 +1704,8 @@ contains
     use dictionaries
     implicit none
     type(dictionary), pointer :: dict
-    logical, intent(out) :: dict_from_files !<identifies if the dictionary comes from files
-    logical, intent(out), optional :: skip !<if .true. the code should not be run as the logfile is existing already
+    logical, intent(out) :: dict_from_files !< Identifies if the dictionary comes from files
+    logical, intent(out), optional :: skip  !< If .true. the code should not be run as the logfile is existing already
     !local variables
     integer, parameter :: ntrials=1
     logical :: log_to_disk,skip_tmp
@@ -1816,10 +1819,12 @@ contains
 
   END SUBROUTINE create_log_file
 
+
   pure subroutine final_positions_filename(singlepoint,id,filename)
     use yaml_strings
     implicit none
     logical, intent(in) :: singlepoint
+!    character(len=max_field_length), intent(in) :: outdir
     character(len=*), intent(in) :: id
     character(len=*), intent(out) :: filename
     if (singlepoint) then
@@ -1829,7 +1834,8 @@ contains
     end if
   end subroutine final_positions_filename
 
-  !> get the information about the final file position
+
+  !> Get the information about the final file position
   subroutine final_file_exists(id,exists)
     use f_utils
     use yaml_strings
@@ -1837,6 +1843,7 @@ contains
     use module_base, only: bigdft_mpi
     implicit none
     character(len=*), intent(in) :: id
+!    character(len = max_field_length), intent(in) :: outdir
     logical, intent(out) :: exists
     !local variables
     integer, parameter :: next=4
@@ -1859,6 +1866,7 @@ contains
            filename+'.'+exts(iext),unit=6)
 
   end subroutine final_file_exists
+
 
   !> Routine to read YAML input files and create input dictionary.
   !! Update the input dictionary with the result of yaml_parse
