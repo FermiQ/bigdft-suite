@@ -276,8 +276,7 @@ class SystemCalculator(Runner):
         #check if the debug file will be updated (case of erroneous run)
         timedbg=get_debugfile_date()
         #Creating the yaml input file
-        from futile import YamlIO as Y
-        Y.dump(local_input,filename=input_file)
+        open(input_file,"w").write(yaml.dump(local_input,default_flow_style=None))
         if verbose: safe_print('Creating the yaml input file "%s"' % input_file)
         #Check if it is a dry run
         if dry_run:
