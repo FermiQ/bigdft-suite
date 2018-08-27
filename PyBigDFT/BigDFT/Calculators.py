@@ -281,9 +281,7 @@ class SystemCalculator(Runner):
         #Check if it is a dry run
         if dry_run:
             #Use bigdft-tool
-            command = self.run_options['mpi_run'] + ' ' + os.environ['BIGDFT_ROOT']+'/bigdft-tool -l'
-            if dry_run:
-                command += ' -n ' + str(dry_run)
+            command = self.run_options['mpi_run'] + ' ' + os.environ['BIGDFT_ROOT']+'/bigdft-tool -a memory-estimation -l'
             if len(name) > 0:
                 command += ' --name='+name
         else:   
