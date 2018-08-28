@@ -2120,7 +2120,8 @@
  ##     DESCRIPTION: Number of tasks used for the symbolic factorization within PEXSI. Too large values can apparently decrease the performance
  ##     default: 16
  ##     RANGE: [1,10000]
---- #here starts the document of possible profiles, that have to be evoked with the 'import' keyword
+--- 
+#here starts the document of possible profiles, that have to be evoked with the 'import' keyword
 linear_accurate:
   COMMENT: Appropriate input parameters for a high accuracy linear scaling calculation
   DESCRIPTION: |

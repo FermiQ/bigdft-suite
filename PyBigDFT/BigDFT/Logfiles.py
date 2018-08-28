@@ -528,8 +528,11 @@ class Logfile():
     def _print_information(self):
         """Display short information about the logfile (used by str)."""
         import yaml,numpy
-        summary=[{'Atom types':
-                  numpy.unique([ at.keys()[0] for at in self.astruct['Positions']]).tolist()},
+        #summary=[{'Atom types':
+        #          numpy.unique([ at.keys()[0] for at in self.astruct['Positions']]).tolist()},
+        #         {'Cell':
+        #          self.astruct.get('Cell','Free BC')}]
+        summary=[{'Atom types': self.log['Atomic System Properties']['Types of atoms']},
                  {'Cell':
                   self.astruct.get('Cell','Free BC')}]
         #normal printouts in the document, according to definition
