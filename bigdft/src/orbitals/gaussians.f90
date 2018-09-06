@@ -655,7 +655,7 @@ contains
                & cell_r(lr%mesh, lr%nsi3 + 1, 3)]
           bit = lr%bit !use here the real space mesh of the projector locreg
           call three_dimensional_density(bit, grs, sqrt(lr%mesh%volume_element), &
-               & rxyz - oxyz - bit%oxyz, projector_real)
+               & rxyz - oxyz, projector_real)
        end do
        call isf_to_daub(lr, w, projector_real, psi(1,1,ylm%m))
        !print *,'testRS:',sum(projector_real**2),sum(psi(:,:,ylm%m)**2)

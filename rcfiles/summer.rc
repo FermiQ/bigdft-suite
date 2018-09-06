@@ -1,13 +1,15 @@
 #This is the configuration file for the BigDFT installer
 #This is a python script which is executed by the build suite 
- 
+
+print "Do before 'module load icc impi mkl python'"
+
 #Add the condition testing to run tests and includes PyYaml
 conditions.add("testing")
 #List the module the this rcfile will build
 modules = ['spred',]
 #example of the potentialities of the python syntax in this file
 def env_configuration():
-    return  """ "FC=mpif90" "CC=icc" "FCFLAGS=-O2 -openmp -I/opt/softs/mkl/15/mkl/include" "--with-ext-linalg= -Wl,--start-group /opt/softs/mkl/15/mkl/lib/intel64/libmkl_intel_lp64.a /opt/softs/mkl/15/mkl/lib/intel64/libmkl_core.a /opt/softs/mkl/15/mkl/lib/intel64/libmkl_intel_thread.a -Wl,--end-group -lpthread -lm"  """ 
+    return  """ --without-archives "FC=mpiifort" "CC=icc" "FCFLAGS=-O2 -openmp -I$[MKLROOT}/include" "--with-ext-linalg= -Wl,--start-group $[MKLROOT}/lib/intel64/libmkl_intel_lp64.a $[MKLROOT}/lib/intel64/libmkl_core.a $[MKLROOT}/lib/intel64/libmkl_intel_thread.a -Wl,--end-group -lpthread -lm"  """ 
 #the following command sets the environment variable to give these settings
 #to all the modules
 import os

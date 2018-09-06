@@ -380,7 +380,7 @@ contains
        if (f_err_raise(.not. associated(proj), "Non existing projector.", &
             & err_name='BIGDFT_RUNTIME_ERROR')) return
        proj%idir = idir
-       if (.not. associated(proj%coeff)) proj%coeff = f_malloc_ptr(a_it%nproj * a_it%nc)
+       if (.not. associated(proj%coeff)) proj%coeff = f_malloc_ptr(a_it%nproj * a_it%nc,id='coeff')
        iter%coeff => proj%coeff
     end if
     call atomic_projector_iter_set_destination(a_it, iter%coeff)
@@ -413,6 +413,7 @@ contains
     use compression
     use ao_inguess, only: lmax_ao
     implicit none
+    !Arguments
     type(DFT_PSP_projector_iter), intent(in) :: psp_it
     type(ket), intent(in) :: psi_it
     type(atoms_data), intent(in) :: at

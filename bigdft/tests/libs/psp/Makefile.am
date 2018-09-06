@@ -19,6 +19,15 @@ else
 bigdft_library = $(top_builddir)/src/libbigdft-1.a @LIB_BIGDFT_DEPS@
 endif
 
+if HAVE_OPENBABEL
+bigdft_library += $(top_builddir)/src/modules/libbabel.so.@BIGDFT_MINOR_VERSION@
+if BUILD_DYNAMIC_LIBS
+else
+AM_LDFLAGS += -Wl,-rpath=$(abs_top_builddir)/src/modules
+endif
+endif
+
+
 check_psp_SOURCES = check_psp.f90
 check_psp_LDADD = $(bigdft_library) @LIB_FUTILE_LIBS@
 

@@ -185,4 +185,7 @@ extern "C" void FC_FUNC_(cudasetdevice, CUDASETDEVICE)(int* device){
   gpuErrchk(cudaSetDevice(*device));
 }
 
+extern "C" void FC_FUNC_(cudadevicereset, CUDADEVICERESET)(int* device){
+  gpuErrchk(cudaDeviceReset());
+}
 

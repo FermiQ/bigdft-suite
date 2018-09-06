@@ -627,7 +627,7 @@ module module_types
  public :: nullify_orbitals_data, nullify_DFT_wavefunctions
  public :: SIC_data,orthon_data,input_variables,evaltoocc
  public :: linear_matrices_null, linmat_auxiliary_null, deallocate_linmat_auxiliary
- public :: deallocate_linear_matrices
+ public :: deallocate_linear_matrices,pkernel_seq_is_needed
  !public :: matrixindex_in_compressed_fortransposed_null
  public :: matrixindex_in_compressed_fortransposed2_null
 
@@ -786,9 +786,7 @@ contains
     call f_free_ptr(orbs%onwhichatom)
 
     call f_free_ptr(orbs%isorb_par)
-    if (associated(orbs%ispot)) then
-       call f_free_ptr(orbs%ispot)
-    end if
+    call f_free_ptr(orbs%ispot)
 
   END SUBROUTINE deallocate_orbs
 
@@ -798,21 +796,11 @@ contains
     implicit none
     type(rho_descriptors) :: rhodsc
 
-    if (associated(rhodsc%spkey))then
-       call f_free_ptr(rhodsc%spkey)
-    end if
-    if (associated(rhodsc%dpkey))then
-       call f_free_ptr(rhodsc%dpkey)
-    end if
-    if (associated(rhodsc%cseg_b))then
-       call f_free_ptr(rhodsc%cseg_b)
-    end if
-    if (associated(rhodsc%fseg_b))then
-       call f_free_ptr(rhodsc%fseg_b)
-    end if
-
+    call f_free_ptr(rhodsc%spkey)
+    call f_free_ptr(rhodsc%dpkey)
+    call f_free_ptr(rhodsc%cseg_b)
+    call f_free_ptr(rhodsc%fseg_b)
   end subroutine deallocate_rho_descriptors
-
 
   subroutine deallocate_Lzd(Lzd)
     use module_base
@@ -854,7 +842,6 @@ contains
 ! nullify the wfd of Glr
    nullify(Lzd%Glr%wfd%keyglob)
    nullify(Lzd%Glr%wfd%keygloc)
-!   nullify(Lzd%Glr%wfd%keyv)
    nullify(Lzd%Glr%wfd%keyvloc)
    nullify(Lzd%Glr%wfd%keyvglob)
 
@@ -1075,6 +1062,19 @@ contains
       end do
     end if
   end subroutine cprj_to_array
+
+  function pkernel_seq_is_needed(in,denspot) result(yes)
+    use module_xc
+    implicit none
+    type(input_variables), intent(in) :: in
+    type(DFT_local_fields), intent(in) :: denspot
+    logical :: yes
+
+    yes = (in%exctxpar == 'OP2P' .and. xc_exctXfac(denspot%xc) /= 0.0_gp) &
+            .or. in%SIC%alpha /= 0.0_gp
+
+  end function pkernel_seq_is_needed
+
 
 
   pure function work_mpiaccumulate_null() result(w)

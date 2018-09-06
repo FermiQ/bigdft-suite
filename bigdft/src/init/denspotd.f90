@@ -15,6 +15,7 @@ subroutine initialize_DFT_local_fields(denspot, ixc, nspden, alpha_hf)
   use module_types
   use module_xc
   use public_enums
+  use PStypes
   implicit none
   type(DFT_local_fields), intent(inout) :: denspot
   integer, intent(in) :: ixc, nspden
@@ -41,8 +42,9 @@ subroutine initialize_DFT_local_fields(denspot, ixc, nspden, alpha_hf)
      denspot%PSquiet='YES'
   end if
 
-  call initialize_coulomb_operator(denspot%pkernel)
-  call initialize_coulomb_operator(denspot%pkernelseq)
+  denspot%pkernel=pkernel_null()
+  denspot%pkernelseq=pkernel_null()
+
   call initialize_rho_descriptors(denspot%rhod)
   denspot%dpbox=dpbox_null()
 
@@ -54,19 +56,6 @@ subroutine initialize_DFT_local_fields(denspot, ixc, nspden, alpha_hf)
      call xc_init(denspot%xc, ixc, XC_ABINIT, nspden, alpha_hf)
   end if
 end subroutine initialize_DFT_local_fields
-
-
-subroutine initialize_coulomb_operator(kernel)
-  use module_base
-  use module_types
-  implicit none
-  type(coulomb_operator), intent(out) :: kernel
-
-  nullify(kernel%kernel)
-
-
-end subroutine initialize_coulomb_operator
-
 
 subroutine initialize_rho_descriptors(rhod)
   use module_base

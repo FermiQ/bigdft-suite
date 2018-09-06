@@ -112,7 +112,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
 
      ! Create the Poisson solver kernels.
      call system_initKernels(.true.,iproc,nproc,atoms%astruct%geocode,in,denspot)
-     call system_createKernels(denspot, (get_verbose_level() > 1))
+     call system_createKernels(in,denspot, (get_verbose_level() > 1))
      if (denspot%pkernel%method .hasattr. 'rigid') then
         call epsilon_cavity(atoms,rxyz,denspot%pkernel)
         !allocate cavity, in the case of nonvacuum treatment
@@ -874,6 +874,7 @@ subroutine system_initKernels(verb, iproc, nproc, geocode, in, denspot)
   use module_xc
   use Poisson_Solver, except_dp => dp, except_gp => gp
   use module_base
+  use dictionaries
   implicit none
   logical, intent(in) :: verb
   integer, intent(in) :: iproc, nproc
@@ -883,13 +884,17 @@ subroutine system_initKernels(verb, iproc, nproc, geocode, in, denspot)
 
   integer, parameter :: ndegree_ip = 16
 
+! deactivate GPU in all cases for this kernel  
+  if (pkernel_seq_is_needed(in,denspot)) &
+       call dict_set(in%PS_dict//'setup'//'accel','No')
   denspot%pkernel=pkernel_init(iproc,nproc,in%PS_dict,&
        geocode,denspot%dpbox%mesh%ndims,denspot%dpbox%mesh%hgrids,&
        mpi_env=denspot%dpbox%mpi_env)
 
   !create the sequential kernel if the exctX parallelisation scheme requires it
-  if ((xc_exctXfac(denspot%xc) /= 0.0_gp .and. in%exctxpar=='OP2P' .or. in%SIC%alpha /= 0.0_gp)&
-       .and. denspot%dpbox%mpi_env%nproc > 1) then
+!  if ((xc_exctXfac(denspot%xc) /= 0.0_gp .or. in%SIC%alpha /= 0.0_gp))then
+  if (pkernel_seq_is_needed(in,denspot)) then
+!       .and. denspot%dpbox%mpi_env%nproc > 1) then
      !the communicator of this kernel is bigdft_mpi%mpi_comm
      !this might pose problems when using SIC or exact exchange with taskgroups
      denspot%pkernelseq=pkernel_init(0,1,in%PS_dict_seq,&
@@ -900,20 +905,22 @@ subroutine system_initKernels(verb, iproc, nproc, geocode, in, denspot)
 
 END SUBROUTINE system_initKernels
 
-subroutine system_createKernels(denspot, verb)
+subroutine system_createKernels(in,denspot, verb)
   use module_base
   use module_types
   use Poisson_Solver, except_dp => dp, except_gp => gp
   implicit none
   logical, intent(in) :: verb
+  type(input_variables), intent(in) :: in
   type(DFT_local_fields), intent(inout) :: denspot
   call pkernel_set(denspot%pkernel,verbose=verb)
-    !create the sequential kernel if pkernelseq is not pkernel
-  if (denspot%pkernelseq%mpi_env%nproc == 1 .and. denspot%pkernel%mpi_env%nproc /= 1) then
+      !create the sequential kernel if pkernelseq is not pkernel
+  if (pkernel_seq_is_needed(in,denspot)) then !.not. associated(denspot%pkernelseq%kernel,target=denspot%pkernel%kernel)) then
      call pkernel_set(denspot%pkernelseq,verbose=.false.)
-  else
+  else !reassociate it after initialization
      denspot%pkernelseq = denspot%pkernel
   end if
+     
 
 END SUBROUTINE system_createKernels
 
@@ -1354,8 +1361,6 @@ subroutine calculate_rhocore(at,rxyz,dpbox,rhocore)
 END SUBROUTINE calculate_rhocore
 
 
-
-
 !> Calculate the number of electrons and check the polarisation (mpol)
 subroutine read_n_orbitals(iproc, qelec_up, qelec_down, norbe, &
      & atoms, qcharge, nspin, mpol, norbsempty)
@@ -1412,8 +1417,9 @@ subroutine read_n_orbitals(iproc, qelec_up, qelec_down, norbe, &
      qelec_down=0.0_gp
   else 
      if (mod(nel+mpol,2) /=0 .and. int_charge) then
-          call f_err_throw('The mpol polarization should have the same parity of the (rounded) number of electrons. ' // &
-            & '(mpol='+mpol+' and qelec='+qelec+')', &
+          call f_err_throw('Spin-Polarized calculation (nspin=' // trim(yaml_toa(nspin)) // &
+            & '). The mpol polarization should have the same parity of the (rounded) number of electrons. ' // &
+            & '(mpol='+trim(yaml_toa(mpol)) // 'and qelec='+qelec+')', &
             & err_name='BIGDFT_INPUT_VARIABLES_ERROR')
 
      end if
@@ -1426,7 +1432,7 @@ subroutine read_n_orbitals(iproc, qelec_up, qelec_down, norbe, &
      !then the elec_up part is redefined with the actual charge
      qelec_up=qelec-qelec_down
 
-     !test if the spin is compatible with the input guess polarisations
+     !test if the spin is compatible with the input guess polarizations
      ispinsum=0
      ichgsum=0
      iabspol=0
@@ -1438,14 +1444,15 @@ subroutine read_n_orbitals(iproc, qelec_up, qelec_down, norbe, &
      end do
 
      if (ispinsum /= nel_up-nel_dwn .and. int_charge) then
-        call f_err_throw('Total polarisation for the input guess (found ' // &
+        call f_err_throw('Total polarization for the input guess (found' // &
              trim(yaml_toa(ispinsum)) // &
              ') must be equal to rounded nel_up-nel_dwn ' // &
              '(nelec=' // trim(yaml_toa(qelec)) // ', mpol=' // trim(yaml_toa(mpol)) // &
              ', nel_up-nel_dwn=' // trim((yaml_toa(nel_up-nel_dwn))) // &
              ', nel_up=' // trim((yaml_toa(nel_up))) // &
              ', nel_dwn=' // trim((yaml_toa(nel_dwn))) // &
-             '). Use the keyword "IGSpin" or add a spin component for the input guess per atom.', &
+             '). By default, each atom has an input guess polarization (IGSpin) equal to 0. ' // &
+             'Use the keyword "IGSpin" or add a spin component for the input guess per atom.', &
              err_name='BIGDFT_INPUT_VARIABLES_ERROR')
      end if
 

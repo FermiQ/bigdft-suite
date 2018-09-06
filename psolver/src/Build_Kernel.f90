@@ -2306,7 +2306,7 @@ subroutine Wires_Kernel(iproc,nproc,n01,n02,n03,n1,n2,n3,nker1,nker2,nker3,h1,h2
      !mu = 2.0d0/max(h1*n01,h2*n02)
 
      ! because of the scaling properties of the log function we have to add the following:
-     karray(1,1,1) = karray(1,1,1) - (n1*n3)*log(mu)
+     if (i3s == 1) karray(1,1,1) = karray(1,1,1) - (n1*n3)*log(mu)
   else
      alpha => p2
      w => w2

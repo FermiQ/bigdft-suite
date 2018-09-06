@@ -22,7 +22,7 @@ GATHER_INCLUDES = gather-inc.f90 gather-inner-inc.f90
 
 MPI_INCLUDES = scatter-inc.f90 scatterv-inc.f90 scatterv-decl-inc.f90 \
 	$(ALLGATHER_INCLUDES) $(ALLREDUCE_INCLUDES) $(ALLTOALL_INCLUDES) \
-	$(WIN_INCLUDES) $(GET_INCLUDES)
+	$(WIN_INCLUDES) $(GET_INCLUDES) \
 	$(BCAST_INCLUDES) $(GATHER_INCLUDES)
 
 if USE_MPI

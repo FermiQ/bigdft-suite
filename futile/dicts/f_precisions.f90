@@ -7,40 +7,39 @@
 !!    or http://www.gnu.org/copyleft/gpl.txt .
 !!    For the list of contributors, see ~/AUTHORS
 module f_precisions
+  !This module enhances the portability of various kind of variables
+  !and defines other objects that might be used in the host code
   implicit none
 
   public
 
   !for reals and complex, to be verified if supported
-  integer, parameter :: f_simple = selected_real_kind(6, 37)
-  integer, parameter :: f_double = selected_real_kind(15, 307)
-  integer, parameter :: f_quadruple = selected_real_kind(33, 4931)
+  integer, parameter :: f_simple = selected_real_kind(6, 37) !simple precision specification, to be used for real variables
+  integer, parameter :: f_double = selected_real_kind(15, 307) !double precision for real 
+  integer, parameter :: f_quadruple = selected_real_kind(33, 4931) !parameter indicating the quadrupole precision, if supported by the fortran processor
 
   !for integers to be verified if they are supported, especially long
-  integer, parameter :: f_short=selected_int_kind(4)
-  integer, parameter :: f_integer=selected_int_kind(8)
-  integer, parameter :: f_long=selected_int_kind(16)
+  integer, parameter :: f_short=selected_int_kind(4) !16-bit integer
+  integer, parameter :: f_integer=selected_int_kind(8) !32-bit integer, usual precision for default integer
+  integer, parameter :: f_long=selected_int_kind(16) !64-bit integer, usually needed for pointer adresses on modern machines
 
   !logicals to be done also, and tested against bits and bytes with f_loc
   !integer, parameter :: bit=0 !not supported
-  integer, parameter :: f_byte=1
+  integer, parameter :: f_byte=1 !precision for 1-byte logical, to be declared as logical(f_byte)
 
-  !> kind of a address, long integer on most machines. Might be detected at configure time
-  integer, parameter :: f_address = f_long
+  integer, parameter :: f_address = f_long ! kind of a pointer address, long integer on most machines. Might be detected at configure time
 
-  !> portable carriage return, contains both CR for unix and DOS
-  character(len=*), parameter :: f_cr=char(13)//char(10)
+  character(len=*), parameter :: f_cr=char(13)//char(10) !portable carriage return, contains both CR for unix and DOS
 
-  !> portable backslash as some compilers do not appreciate it even in strings
-  character(len=*), parameter :: f_backslash=char(92)
+  character(len=*), parameter :: f_backslash=char(92)  ! portable backslash character  as some compilers do not appreciate it even in strings
 
   !>characters for the equality and the association of the parameters
   integer, parameter, private :: num_size=4
   character(len=num_size), parameter, private :: c_0='zero'
   character(len=num_size), parameter, private :: c_1='one '
 
-  !>type for the definition of a parameter
   type, public :: f_parameter
+     !type for the definition of a f_parameter
      character(len=num_size) :: val
   end type f_parameter
 
@@ -87,6 +86,7 @@ module f_precisions
 
 
     function sizeof_r(av) result(k)
+      !function documented here
       implicit none
       real(f_simple), intent(in) :: av
       real(f_simple), dimension(2) :: a
