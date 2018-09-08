@@ -714,8 +714,8 @@ program driver_foe
       call fmpi_bcast(nit)
       call fmpi_bcast(betax)
       call fmpi_bcast(inversion_method)
-      call fmpi_bcast(diff_tolerance)
-      call fmpi_bcast(diff_target)
+      !call fmpi_bcast(diff_tolerance)
+      !call fmpi_bcast(diff_target)
       ! Since there is no wrapper for logicals...
       if (iproc==0) then
           if (check_spectrum) then
