@@ -934,7 +934,7 @@ subroutine epsilon_cavity(atoms,rxyz,pkernel)
   use numerics, only : Bohr_Ang
   use module_base, only: bigdft_mpi,f_zero
   use module_defs, only: UNINITIALIZED
-  use f_enums, f_str => str
+  use f_enums, f_str => toa
   use yaml_output
   use dictionaries, only: f_err_throw
   use box
@@ -1138,7 +1138,7 @@ subroutine epsinnersccs_cavity(atoms,rxyz,pkernel)
   !use yaml_output
   use numerics, only : Bohr_Ang
   use module_base, only: bigdft_mpi
-  use f_enums, f_str => str
+  use f_enums, f_str => toa
   use yaml_output
   use dictionaries, only: f_err_throw
   use PStypes, only: epsilon_inner_cavity

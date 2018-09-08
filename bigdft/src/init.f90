@@ -49,7 +49,7 @@ subroutine createWavefunctionsDescriptors(iproc,hx,hy,hz,atoms,rxyz,&
   nfu3=Glr%d%nfu3
 
   !assign geocode and the starting points
-  Glr%geocode=atoms%astruct%geocode
+!!$  Glr%geocode=atoms%astruct%geocode
 
   ! determine localization region for all orbitals, but do not yet fill the descriptor arrays
   logrid_c = f_malloc_ptr((/ 0.to.n1, 0.to.n2, 0.to.n3 /),id='logrid_c')
@@ -2197,6 +2197,7 @@ subroutine input_wf_diag(iproc,nproc,at,denspot,&
         end do
      end if
      !Now update the potential
+
      call updatePotential(nspin,denspot,energs)!%eh,energs%exc,energs%evxc)
   else
      !Put to zero the density if no Hartree
@@ -2595,6 +2596,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
   integer :: ifrag_ref, max_nbasis_env,ispin
   real(gp) :: e_paw, e_pawdc, compch_sph, e_nl
   type(cell) :: mesh
+  logical, dimension(3) :: peri
 
   interface
      subroutine input_memory_linear(iproc, nproc, at, KSwfn, tmb, tmb_old, denspot, input, &
@@ -2951,9 +2953,13 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
       enddo
       displ=sqrt(displ)
 
-     perx=(atoms%astruct%geocode /= 'F')
-     pery=(atoms%astruct%geocode == 'P')
-     perz=(atoms%astruct%geocode /= 'F')
+!!$     perx=(atoms%astruct%geocode /= 'F')
+!!$     pery=(atoms%astruct%geocode == 'P')
+!!$     perz=(atoms%astruct%geocode /= 'F')
+     peri=cell_periodic_dims(mesh)
+     perx=peri(1)
+     pery=peri(2)
+     perz=peri(3)
 
     !  tx=0.0_gp
     !  ty=0.0_gp
@@ -3521,7 +3527,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
 
   case default
      !call input_psi_help()
-     call f_err_throw('Illegal value of inputPsiId (' // trim(str(in%inputPsiId)) // ')', &
+     call f_err_throw('Illegal value of inputPsiId (' // trim(toa(in%inputPsiId)) // ')', &
           err_name='BIGDFT_RUNTIME_ERROR')
 
   end select

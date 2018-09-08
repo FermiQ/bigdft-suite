@@ -496,6 +496,7 @@ subroutine read_waves_from_list_etsf(iproc,filename,n1,n2,n3,hx,hy,hz,at,rxyz_ol
    type(etsf_io_low_error) :: error
    logical :: lstat
    type(cell) :: mesh
+   logical, dimension(3) :: peri
 
    mesh=cell_new(at%astruct%geocode,[n1,n2,n3],[hx,hy,hz])
 
@@ -510,9 +511,13 @@ subroutine read_waves_from_list_etsf(iproc,filename,n1,n2,n3,hx,hy,hz,at,rxyz_ol
    orbsd%isorb = isorb
 
    !conditions for periodicity in the three directions
-   perx=(at%astruct%geocode /= 'F')
-   pery=(at%astruct%geocode == 'P')
-   perz=(at%astruct%geocode /= 'F')
+!!$   perx=(at%astruct%geocode /= 'F')
+!!$   pery=(at%astruct%geocode == 'P')
+!!$   perz=(at%astruct%geocode /= 'F')
+   peri=cell_periodic_dims(mesh)
+   perx=peri(1)
+   pery=peri(2)
+   perz=peri(3)
 
    displ=0.0_gp
    do iat=1,at%astruct%nat

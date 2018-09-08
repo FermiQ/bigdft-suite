@@ -2960,6 +2960,7 @@ contains
     use yaml_output
     use public_keys
     use f_utils
+    use box, only: bc_periodic_dims,geocode_to_bc
     implicit none
     !Arguments
     integer, intent(in) :: iproc
@@ -2971,7 +2972,8 @@ contains
     !local variables
     logical :: lstat,read_wgts
     character(len=*), parameter :: subname='kpt_input_analyse'
-    integer :: ierror,i, nshiftk, ikpt, j, ncount, nseg, iseg_, ngranularity_
+    integer :: ierror,i, nshiftk, ikpt, j, ncount, nseg, iseg_, ngranularity_,idir
+    logical, dimension(3) :: peri
     integer, dimension(3) :: ngkpt_
     real(gp), dimension(3) :: alat_
     real(gp), dimension(3,8) :: shiftk_
@@ -2990,6 +2992,8 @@ contains
     call free_kpt_variables(in)
     nullify(in%kptv, in%nkptsv_group)
     nullify(in%gen_kpt, in%gen_wkpt)
+
+    peri=bc_periodic_dims(geocode_to_bc(geocode))
 
     method = dict // KPT_METHOD
     if (trim(method) .eqv. 'auto') then
@@ -3015,7 +3019,9 @@ contains
     else if (trim(method) .eqv. 'mpgrid') then
        !take the points of Monkhorst-pack grid
        ngkpt_(1:3) = dict // NGKPT
-       if (geocode == 'S') ngkpt_(2) = 1
+       where (.not. peri) ngkpt_=1
+       !if (geocode == 'S' .or. geocode == 'W') ngkpt_(2) = 1
+       !if (geocode == 'W') ngkpt_(1) = 1
        !shift
        nshiftk=1
        shiftk_=0.0_gp
@@ -3070,10 +3076,12 @@ contains
        end if
        do i=1,in%gen_nkpt
           in%gen_kpt(1:3, i) = dict // KPT // (i-1)
-          if (geocode == 'S' .and. in%gen_kpt(2,i) /= 0.) then
-             in%gen_kpt(2,i) = 0.
-             if (iproc==0) call yaml_warning('Surface conditions, suppressing k-points along y.')
-          end if
+          do idir=1,3
+             if (.not. peri(idir) .and. in%gen_kpt(idir,i) /= 0.0_gp) then
+                in%gen_kpt(idir,i) = 0.
+                if (iproc==0) call yaml_warning('Suppressing manual k-points along free BC directions.')
+             end if
+          end do
           if (read_wgts) then
              in%gen_wkpt(i) = dict // WKPT // (i-1)
           else
@@ -3096,11 +3104,7 @@ contains
 
     ! Convert reduced coordinates into BZ coordinates.
     alat_ = alat
-    if (geocode /= 'P') alat_(2) = 1.0_gp
-    if (geocode == 'F') then
-       alat_(1)=1.0_gp
-       alat_(3)=1.0_gp
-    end if
+    where( .not. peri) alat_=1.0_gp
     do i = 1, in%gen_nkpt, 1
        in%gen_kpt(:, i) = in%gen_kpt(:, i) / alat_(:) * two_pi
     end do
@@ -3457,11 +3461,11 @@ contains
     call yaml_map('DIIS History length',in%idsx)
     call yaml_map('Max. Wfn Iterations',in%itermax,label='itermax')
     call yaml_map('Max. Subspace Diagonalizations',in%nrepmax)
-    call yaml_map('Input wavefunction policy',  trim(str(in%inputPsiId)), advance="no")
+    call yaml_map('Input wavefunction policy',  trim(toa(in%inputPsiId)), advance="no")
     call yaml_comment(trim(yaml_toa(f_int(in%inputPsiId))))
-    call yaml_map('Output wavefunction policy', trim(str(in%output_wf)), advance="no")
+    call yaml_map('Output wavefunction policy', trim(toa(in%output_wf)), advance="no")
     call yaml_comment(trim(yaml_toa(f_int(in%output_wf))))
-    call yaml_map('Output grid policy',trim(str(in%output_denspot)),advance='no')
+    call yaml_map('Output grid policy',trim(toa(in%output_denspot)),advance='no')
     call yaml_comment(trim(yaml_toa(f_int(in%output_denspot))))
     if (in%output_denspot .hasattr. 'TEXT') then
        call yaml_map('Output grid format','TEXT',advance='no')

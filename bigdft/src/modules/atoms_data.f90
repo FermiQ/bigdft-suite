@@ -62,6 +62,7 @@ module module_atoms
      real(gp), dimension(3) :: cell_dim    !< Dimensions of the simulation domain (each one periodic or free according to geocode)
      real(gp), dimension(3) :: shift       !< Rigid shift applied to the atomic positions
      !pointers
+!     type(domain) :: dom
      real(gp), dimension(:,:), pointer :: rxyz             !< Atomic positions (always in AU, units variable is considered for I/O only)
      real(gp), dimension(:,:), pointer :: rxyz_int         !< Atomic positions in internal coordinates (Z matrix)
      integer, dimension(:,:), pointer :: ixyz_int          !< Neighbor list for internal coordinates (Z matrix)
@@ -140,7 +141,7 @@ module module_atoms
   ! Types from dictionaries
   public :: astruct_set_from_dict
   public :: astruct_file_merge_to_dict,atoms_file_merge_to_dict
-  public :: psp_dict_analyse, nlcc_set_from_dict,atoms_gamma_from_dict
+  public :: psp_dict_analyse, nlcc_set_from_dict,atoms_gamma_from_dict,write_xyz_bc
   public :: astruct_constraints,astruct_set,atomic_charge_density,atomic_cores_charge_density
 
 
@@ -925,6 +926,8 @@ contains
              call f_free(irrzon)
              call f_free(phnons)
           end if
+            if (geocode == "W") call f_err_throw("Wires bc should not have symmetries implemented", &
+                                     err_name='BIGDFT_INPUT_VARIABLES_ERROR')
        end if
     end if
 
@@ -1216,6 +1219,8 @@ contains
     call yaml_map('Supported output formats',outdict)
     call dict_free(indict,outdict)
 
+      call yaml_map('Parsed posinp dict from openbabel',dict)
+
     ! giuseppe line
     !call analyse_posinp_dict(dict)
 
@@ -1249,7 +1254,6 @@ contains
 
 
   subroutine analyse_posinp_dict(dict)
-    use module_base
     use dictionaries
     use f_utils
     use yaml_output
@@ -1266,10 +1270,11 @@ contains
     real(gp), parameter :: ths2 = 1.e-13_gp
     integer :: i,i1,i2
     logical :: boundary
+      type(dictionary) :: dict_tmp
 
     call yaml_map('input posinp',dict)
 
-    !take the default vfalues if the key does not exists in the dictionary
+      !take the default values if the key does not exists in the dictionary
     alpha=90.0_gp
     beta=90.0_gp
     gamma=90.0_gp
@@ -1282,7 +1287,7 @@ contains
 
     call f_zero(abc)
     if ('abc' .in. dict) then
-!!$         abc = dict // 'abc'
+         abc = dict//'abc'
     else
        abc(1,1)=1.0_gp
        abc(2,2)=1.0_gp
@@ -1314,7 +1319,7 @@ contains
        if (abs(vect_norm(i) - 1.0_gp) >= ths2) then
           if (abs(vect_norm(i) - cell(i)) >= ths2) call f_err_throw(err_msg=&
               "Inconsistency between the primitive vector norm and the cell lenght, direction = "// &
-               & trim(yaml_toa(i))//" ",err_id=BIGDFT_INPUT_FILE_ERROR)
+                 & trim(yaml_toa(i))//" ",err_name='BIGDFT_INPUT_FILE_ERROR')
        end if
     end do
     call yaml_map('norm vector a', vect_norm(1))
@@ -1338,11 +1343,11 @@ contains
     call yaml_map('cos(gamma) input', cos(angrad(3)))
    
     if (abs(ang(1) - cos(angrad(1))) >= ths2) call f_err_throw(err_msg=&
-        "Inconsistency between alpha and the primitive cell vectors b and c",err_id=BIGDFT_INPUT_FILE_ERROR)
+          "Inconsistency between alpha and the primitive cell vectors b and c",err_name='BIGDFT_INPUT_FILE_ERROR')
     if (abs(ang(2) - cos(angrad(2))) >= ths2) call f_err_throw(err_msg=&
-        "Inconsistency between beta and the primitive cell vectors a and c",err_id=BIGDFT_INPUT_FILE_ERROR)
+          "Inconsistency between beta and the primitive cell vectors a and c",err_name='BIGDFT_INPUT_FILE_ERROR')
     if (abs(ang(3) - cos(angrad(3))) >= ths2) call f_err_throw(err_msg=&
-        "Inconsistency between gamma and the primitive cell vectors a and b",err_id=BIGDFT_INPUT_FILE_ERROR)
+          "Inconsistency between gamma and the primitive cell vectors a and b",err_name='BIGDFT_INPUT_FILE_ERROR')
 
     !put clean values in the dictionary
 
@@ -2462,7 +2467,7 @@ subroutine astruct_set_symmetries(astruct, disableSym, tol, elecfield, nspin)
   integer :: spaceGroupId, pointGroupMagn
 
   ! Calculate the symmetries, if needed (for periodic systems only)
-  if (astruct%geocode /= 'F') then
+  if (astruct%geocode /= 'F' .and. astruct%geocode /= 'W') then
      if (astruct%sym%symObj < 0) then
         call symmetry_new(astruct%sym%symObj)
      end if
@@ -2702,7 +2707,7 @@ subroutine astruct_neighbours(astruct, rxyz, neighb)
   case ("S")
      per = (/ .true., .false., .true. /)
   case ("W")
-     per = (/ .false., .true., .false. /)
+     per = (/ .false., .false., .true. /)
   case default
      per = (/ .false., .false., .false. /)
   end select
@@ -2804,7 +2809,7 @@ subroutine astruct_from_subset(asub, astruct, rxyz, mask, passivate, bufNeighbou
      case ("S")
         per = (/ .true., .false., .true. /)
      case ("W")
-        per = (/ .false., .true., .false. /)
+        per = (/ .false., .false., .true. /)
      case default
         per = (/ .false., .false., .false. /)
      end select

@@ -839,6 +839,13 @@ subroutine plot_wf_sandbox(orbname,nexpo,at,lr,hxh,hyh,hzh,rxyz,psi,comment)
      nu2=0
      nl3=0
      nu3=0
+  else if (at%geocode == 'W') then
+     nl1=14
+     nu1=15
+     nl2=14
+     nu2=15
+     nl3=0
+     nu3=0
   end if
 
   call initialize_work_arrays_sumrho(1,lr,.true.,w)

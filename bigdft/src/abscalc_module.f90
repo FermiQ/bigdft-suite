@@ -635,7 +635,7 @@ contains
                             Plr%d%n1=Glr%d%n1
                             Plr%d%n2=Glr%d%n2
                             Plr%d%n3=Glr%d%n3
-                            Plr%geocode=at%astruct%geocode
+!!$                            Plr%geocode=at%astruct%geocode
 
                             call plr_segs_and_vctrs(PPD%pc_nl%projs(iat)%region%plr,&
                                  Plr%wfd%nseg_c,Plr%wfd%nseg_f,&

@@ -156,7 +156,7 @@ function pkernel_init_old(verb,iproc,nproc,igpu,geocode,ndims,hgrids,itype_scf,&
      call yaml_map('MPI tasks',kernel%mpi_env%nproc)
      if (nthreads /=0) call yaml_map('OpenMP threads per MPI task',nthreads)
      if (kernel%igpu==1) call yaml_map('Kernel copied on GPU',.true.)
-     if (kernel%method /= 'VAC') call yaml_map('Iterative method for Generalised Equation',str(kernel%method))
+     if (kernel%method /= 'VAC') call yaml_map('Iterative method for Generalised Equation',toa(kernel%method))
      if (kernel%method .hasattr. PS_RIGID_ENUM) call yaml_map('Cavity determination','rigid')
      if (kernel%method .hasattr. PS_SCCS_ENUM) call yaml_map('Cavity determination','sccs')
      call yaml_mapping_close() !kernel
@@ -583,7 +583,7 @@ subroutine pkernel_set(kernel,eps,dlogeps,oneoeps,oneosqrteps,corr,verbose) !opt
 
   kernel%gpuPCGRed=0
   if (kernel%igpu >0) then
-    if(trim(str(kernel%method))=='PCG') kernel%gpuPCGRed=1
+    if(trim(toa(kernel%method))=='PCG') kernel%gpuPCGRed=1
     n(1)=n1!kernel%mesh%ndims(1)*(2-kernel%geo(1))
     n(2)=n3!kernel%mesh%ndims(2)*(2-kernel%geo(2))
     n(3)=n2!kernel%mesh%ndims(3)*(2-kernel%geo(3))
@@ -783,7 +783,7 @@ end if
        kernel%method,kernel%w)
 
   !>>>>set the treatment of the cavity
-  select case(trim(str(kernel%method)))
+  select case(trim(toa(kernel%method)))
   case('PCG')
      if (present(eps)) then
          if (present(oneosqrteps)) then
@@ -1080,11 +1080,11 @@ subroutine pkernel_build_epsilon(kernel,edens,eps0,depsdrho,dsurfdrho)
 
   epsm1=(kernel%cavity%epsilon0-1.0_gp)
   if (kernel%mpi_env%iproc==0 .and. kernel%mpi_env%igroup==0) &
-       call yaml_map('Rebuilding the cavity for method',trim(str(kernel%method)))
+       call yaml_map('Rebuilding the cavity for method',trim(toa(kernel%method)))
 
   !now fill the pkernel arrays according the the chosen method
   !if ( trim(PSol)=='PCG') then
-  select case(trim(str(kernel%method)))
+  select case(trim(toa(kernel%method)))
   case('PCG')
      !in PCG we only need corr, oneosqrtepsilon
      i23=1

@@ -2061,6 +2061,7 @@ subroutine kswfn_post_treatments(iproc, nproc, KSwfn, tmb, linear, &
   real(gp) :: ehart_fake, exc_fake, evxc_fake
   type(orbital_basis) :: ob
   type(PSolver_energies) :: PSenergies
+  real(dp), dimension(:), pointer :: rhocore_ptr
 
   call f_routine(id=subname)
   !manipulate scatter array for avoiding the GGA shift
@@ -2194,10 +2195,13 @@ subroutine kswfn_post_treatments(iproc, nproc, KSwfn, tmb, linear, &
      ! an MPI gather. To avoid out of bounds errors, rho_C is now allocted min max(n3d,1).
      !if (associated(denspot%rho_C) .and. denspot%dpbox%n3d>0) then
      if (associated(denspot%rho_C)) then
+        !create a temporary array in which to copy the core density
+        rhocore_ptr => f_subptr(denspot%rho_C(1,1,i3xcsh_old+1,1),size=denspot%dpbox%ndimpot)
         if (iproc == 0) call yaml_map('Writing core density in file','core_density'//gridformat)
         call plot_density(iproc,nproc,trim(dir_output)//'core_density' // gridformat,&
-             atoms,rxyz,denspot%pkernel,1,denspot%rho_C(1:,1:,i3xcsh_old+1:,1:))
+             atoms,rxyz,denspot%pkernel,1,rhocore_ptr)
      end if
+
      if (associated(denspot%rhohat)) then
         if (iproc == 0) call yaml_map('Writing compensation density in file', 'hat_density'//gridformat)
         call plot_density(iproc,nproc,trim(dir_output)//'hat_density' // gridformat,&

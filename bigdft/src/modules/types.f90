@@ -771,20 +771,14 @@ contains
     call f_free_ptr(orbs%norb_par)
     call f_free_ptr(orbs%norbu_par)
     call f_free_ptr(orbs%norbd_par)
-
     call f_free_ptr(orbs%occup)
     call f_free_ptr(orbs%spinsgn)
     call f_free_ptr(orbs%kpts)
     call f_free_ptr(orbs%kwgts)
-
     call f_free_ptr(orbs%iokpt)
-
     call f_free_ptr(orbs%ikptproc)
-
     call f_free_ptr(orbs%inwhichlocreg)
-
     call f_free_ptr(orbs%onwhichatom)
-
     call f_free_ptr(orbs%isorb_par)
     call f_free_ptr(orbs%ispot)
 
@@ -802,69 +796,67 @@ contains
     call f_free_ptr(rhodsc%fseg_b)
   end subroutine deallocate_rho_descriptors
 
-  subroutine deallocate_Lzd(Lzd)
-    use module_base
-    use box, only: cell_geocode
-    !Arguments
-    type(local_zone_descriptors) :: Lzd
-    !Local variables
-    integer :: ilr
-
-!   nullify the bounds of Glr
-!!$    if ((Lzd%Glr%geocode == 'P' .and. Lzd%Glr%hybrid_on) .or. Lzd%Glr%geocode == 'F') then
-    if ((cell_geocode(Lzd%Glr%mesh) == 'P' .and. Lzd%Glr%hybrid_on) .or. cell_geocode(Lzd%Glr%mesh) == 'F') then
-       nullify(Lzd%Glr%bounds%kb%ibyz_f)
-       nullify(Lzd%Glr%bounds%kb%ibxz_f)
-       nullify(Lzd%Glr%bounds%kb%ibxy_f)
-       nullify(Lzd%Glr%bounds%sb%ibxy_ff)
-       nullify(Lzd%Glr%bounds%sb%ibzzx_f)
-       nullify(Lzd%Glr%bounds%sb%ibyyzz_f)
-       nullify(Lzd%Glr%bounds%gb%ibyz_ff)
-       nullify(Lzd%Glr%bounds%gb%ibzxx_f)
-       nullify(Lzd%Glr%bounds%gb%ibxxyy_f)
-    end if
-    !the arrays which are needed only for free BC
-!!$    if (Lzd%Glr%geocode == 'F') then
-    if (cell_geocode(Lzd%Glr%mesh) == 'F') then
-       nullify(Lzd%Glr%bounds%kb%ibyz_c)
-       nullify(Lzd%Glr%bounds%kb%ibxz_c)
-       nullify(Lzd%Glr%bounds%kb%ibxy_c)
-       nullify(Lzd%Glr%bounds%sb%ibzzx_c)
-       nullify(Lzd%Glr%bounds%sb%ibyyzz_c)
-       nullify(Lzd%Glr%bounds%gb%ibzxx_c)
-       nullify(Lzd%Glr%bounds%gb%ibxxyy_c)
-       nullify(Lzd%Glr%bounds%ibyyzz_r)
-    end if
-
-    if (cell_geocode(Lzd%Glr%mesh) == 'W') call f_err_throw("Wires bc has to be implemented here", &
-               err_name='BIGDFT_RUNTIME_ERROR')
-
-! nullify the wfd of Glr
-   nullify(Lzd%Glr%wfd%keyglob)
-   nullify(Lzd%Glr%wfd%keygloc)
-   nullify(Lzd%Glr%wfd%keyvloc)
-   nullify(Lzd%Glr%wfd%keyvglob)
-
-! nullify the Gnlpspd
-!   call deallocate_proj_descr(Lzd%Gnlpspd,subname)
-!!$   nullify(Lzd%Gnlpspd%nvctr_p)
-!!$   nullify(Lzd%Gnlpspd%nseg_p)
-!!$   nullify(Lzd%Gnlpspd%keyv_p)
-!!$   nullify(Lzd%Gnlpspd%keyg_p)
-!!$   nullify(Lzd%Gnlpspd%nboxp_c)
-!!$   nullify(Lzd%Gnlpspd%nboxp_f)
- 
-!Now destroy the Llr
-    do ilr = 1, Lzd%nlr
-       call deallocate_locreg_descriptors(Lzd%Llr(ilr))
-       !call deallocate_lr(Lzd%Llr(ilr))
-!       call deallocate_Lnlpspd(Lzd%Lnlpspd(ilr),subname)
-    end do
-     nullify(Lzd%Llr)
-!     nullify(Lzd%Lnlpspd)
-
-  END SUBROUTINE deallocate_Lzd
-
+!!!  subroutine deallocate_Lzd(Lzd)
+!!!    use module_base
+!!!    use box, only: cell_geocode
+!!!    !Arguments
+!!!    type(local_zone_descriptors) :: Lzd
+!!!    !Local variables
+!!!    integer :: ilr
+!!!
+!!!!   nullify the bounds of Glr
+!!!!!$    if ((Lzd%Glr%geocode == 'P' .and. Lzd%Glr%hybrid_on) .or. Lzd%Glr%geocode == 'F') then
+!!!    if ((cell_geocode(Lzd%Glr%mesh) == 'P' .and. Lzd%Glr%hybrid_on) .or. cell_geocode(Lzd%Glr%mesh) == 'F') then
+!!!       nullify(Lzd%Glr%bounds%kb%ibyz_f)
+!!!       nullify(Lzd%Glr%bounds%kb%ibxz_f)
+!!!       nullify(Lzd%Glr%bounds%kb%ibxy_f)
+!!!       nullify(Lzd%Glr%bounds%sb%ibxy_ff)
+!!!       nullify(Lzd%Glr%bounds%sb%ibzzx_f)
+!!!       nullify(Lzd%Glr%bounds%sb%ibyyzz_f)
+!!!       nullify(Lzd%Glr%bounds%gb%ibyz_ff)
+!!!       nullify(Lzd%Glr%bounds%gb%ibzxx_f)
+!!!       nullify(Lzd%Glr%bounds%gb%ibxxyy_f)
+!!!    end if
+!!!    !the arrays which are needed only for free BC
+!!!!!$    if (Lzd%Glr%geocode == 'F') then
+!!!    if (cell_geocode(Lzd%Glr%mesh) == 'F') then
+!!!       nullify(Lzd%Glr%bounds%kb%ibyz_c)
+!!!       nullify(Lzd%Glr%bounds%kb%ibxz_c)
+!!!       nullify(Lzd%Glr%bounds%kb%ibxy_c)
+!!!       nullify(Lzd%Glr%bounds%sb%ibzzx_c)
+!!!       nullify(Lzd%Glr%bounds%sb%ibyyzz_c)
+!!!       nullify(Lzd%Glr%bounds%gb%ibzxx_c)
+!!!       nullify(Lzd%Glr%bounds%gb%ibxxyy_c)
+!!!       nullify(Lzd%Glr%bounds%ibyyzz_r)
+!!!    end if
+!!!
+!!!! nullify the wfd of Glr
+!!!   nullify(Lzd%Glr%wfd%keyglob)
+!!!   nullify(Lzd%Glr%wfd%keygloc)
+!!!!   nullify(Lzd%Glr%wfd%keyv)
+!!!   nullify(Lzd%Glr%wfd%keyvloc)
+!!!   nullify(Lzd%Glr%wfd%keyvglob)
+!!!
+!!!! nullify the Gnlpspd
+!!!!   call deallocate_proj_descr(Lzd%Gnlpspd,subname)
+!!!!!$   nullify(Lzd%Gnlpspd%nvctr_p)
+!!!!!$   nullify(Lzd%Gnlpspd%nseg_p)
+!!!!!$   nullify(Lzd%Gnlpspd%keyv_p)
+!!!!!$   nullify(Lzd%Gnlpspd%keyg_p)
+!!!!!$   nullify(Lzd%Gnlpspd%nboxp_c)
+!!!!!$   nullify(Lzd%Gnlpspd%nboxp_f)
+!!! 
+!!!!Now destroy the Llr
+!!!    do ilr = 1, Lzd%nlr
+!!!       call deallocate_locreg_descriptors(Lzd%Llr(ilr))
+!!!       !call deallocate_lr(Lzd%Llr(ilr))
+!!!!       call deallocate_Lnlpspd(Lzd%Lnlpspd(ilr),subname)
+!!!    end do
+!!!     nullify(Lzd%Llr)
+!!!!     nullify(Lzd%Lnlpspd)
+!!!
+!!!  END SUBROUTINE deallocate_Lzd
+!!!
 !!$  !> Nullify a DFT_local_fields structure
 !!$  subroutine nullify_DFT_local_fields(denspot)
 !!$    implicit none

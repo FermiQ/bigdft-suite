@@ -33,6 +33,7 @@ routines = $(CONV_SOURCES) \
 	conv_per_common.f90 \
 	convolut_common_slab.f90 \
 	convolut_common_per.f90 \
+        convolut_common_wire.f90 \
 	convolut_new_per.f90 \
 	convolut_simple_per_k.f90 \
 	convolut_simple_slab_k.f90 \
