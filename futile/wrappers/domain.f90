@@ -41,6 +41,9 @@ module at_domain
   type(f_enumerator), parameter,  public :: ANGSTROEM_UNITS=f_enumerator('angstroem',ANGSTROEM,null())
   type(f_enumerator), parameter,  public :: NANOMETER_UNITS=f_enumerator('nanometer',NANOMETER,null())
 
+  !as it can be used in enum_attr calls
+  type(f_enumerator), public :: DOUBLE_PRECISION_ENUM=f_enumerator('double precision',487,null())
+
   !>data type for the simulation domain
   type, public :: domain
      integer :: units=NULL_PAR
@@ -49,6 +52,8 @@ module at_domain
      real(gp), dimension(3,3) :: abc=0.0_gp !<matrix of the normalized translation vectors direction
      real(gp), dimension(3) :: acell=0.0_gp !lengths of the primitive vectors abc
   end type domain
+
+  public :: domain_null,domain_set_from_dict,domain_geocode,units_enum_from_str
 
 contains
 
@@ -64,6 +69,7 @@ contains
   end function bc_is_periodic
 
   function domain_new(units,bc,abc,alpha_bc,beta_ac,gamma_ab,acell) result(dom)
+    use f_utils
     implicit none
     type(f_enumerator), intent(in) :: units
     type(f_enumerator), dimension(3), intent(in) :: bc !boundary conditions of the system
@@ -73,8 +79,6 @@ contains
     real(gp), dimension(3,3), intent(in), optional :: abc
     real(gp), intent(in), optional :: alpha_bc,beta_ac,gamma_ab
     type(domain) :: dom
-    !local variables   
-    real(gp), dimension(3) :: angrad
 
     dom%units=toi(units)
     dom%bc=toi(bc)
@@ -83,7 +87,7 @@ contains
     if (.not. any(bc_is_periodic(bc))) return
 
     !check of the availablilty of the options
-    if (present(acell) .neqv. present(abc)) call f_err_throw('Domain inconsistency: only acell or abc may be given')
+    if (present(acell) .eqv. present(abc)) call f_err_throw('Domain inconsistency: only acell or abc may be given')
 
     if (any([present(alpha_bc),present(beta_ac),present(gamma_ab)]) .and. present(abc)) &
          call f_err_throw('Domain inconsistency: angles cannot be present if unit cell vectors are given')
@@ -204,22 +208,38 @@ contains
     real(gp), dimension(3), intent(in) :: angrad,acell
     real(gp) :: tol
     !local variables  
-    integer :: i
+    integer, parameter :: ANGLE_=1,AXIS1_=2,AXIS2_=3
+    integer :: i,angle,ax1,ax2
     real(gp), dimension(3) :: vect_norm,cang
+    integer, dimension(3,3) :: icontrol
     
     tol=0.0_gp
     do i=1,3
        vect_norm(i) = sqrt(abc(1,i)**2 + abc(2,i)**2 + abc(3,i)**2)
-       tol=max(tol,abs(vect_norm(i) - acell(i)))
+       if (vect_norm(i) > 0.0_gp) tol=max(tol,abs(vect_norm(i) - acell(i)))
     end do
 
-    cang(AB_) = dot_product(abc(:,A_),abc(:,B_))/(vect_norm(A_)*vect_norm(B_))
-    cang(BC_) = dot_product(abc(:,B_),abc(:,C_))/(vect_norm(B_)*vect_norm(C_))
-    cang(AC_) = dot_product(abc(:,A_),abc(:,C_))/(vect_norm(A_)*vect_norm(C_))
+    icontrol(ANGLE_,1)=AB_
+    icontrol(AXIS1_,1)=A_
+    icontrol(AXIS2_,1)=B_
 
-    tol=max(tol,abs(cang(BC_) - cos(angrad(BC_))))
-    tol=max(tol,abs(cang(AC_) - cos(angrad(AC_))))
-    tol=max(tol,abs(cang(AB_) - cos(angrad(AB_))))
+    icontrol(ANGLE_,2)=BC_
+    icontrol(AXIS1_,2)=B_
+    icontrol(AXIS2_,2)=C_
+
+    icontrol(ANGLE_,3)=AC_
+    icontrol(AXIS1_,3)=A_
+    icontrol(AXIS2_,3)=C_
+    
+    do i=1,3
+       angle=icontrol(ANGLE_,i)
+       ax1=icontrol(AXIS1_,i)
+       ax2=icontrol(AXIS2_,i)
+       if (vect_norm(ax1)*vect_norm(ax2) == 0.0_gp) cycle
+       cang(angle) = &
+            dot_product(abc(:,ax1),abc(:,ax2))/(vect_norm(ax1)*vect_norm(ax2))
+       tol=max(tol,abs(cang(angle) - cos(angrad(angle))))
+    end do
 
   end function get_abc_angrad_acell_consistency
 
@@ -281,7 +301,7 @@ contains
     end select
   end function bc_enum_from_int
 
-  pure function units_enum_from_str(str) result(units)
+  function units_enum_from_str(str) result(units)
     implicit none
     character(len=*), intent(in) :: str
     type(f_enumerator) :: units
@@ -296,6 +316,12 @@ contains
     case default
        units=ANGSTROEM_UNITS
     end select Units_case
+
+    !double precision attribute, to be used from files for backward compatibility
+    select case(trim(str))
+    case('angstroemd0','atomicd0','bohrd0')
+       call f_enum_attr(dest=units,attr=DOUBLE_PRECISION_ENUM)
+    end select
     
   end function units_enum_from_str
 
@@ -318,10 +344,14 @@ contains
   end function units_enum_from_int  
 
   subroutine domain_set_from_dict(dict,dom)
+    use yaml_output
+    use f_utils
     implicit none
     type(dictionary), pointer :: dict
     type(domain), intent(out) :: dom
     !local variables
+    integer :: i
+    real(gp), parameter :: ths2 = 1.e-13_gp
     real(gp) :: alpha,beta,gamma,tol
     real(gp), dimension(3) :: cell,angrad
     real(gp), dimension(3,3) :: abc
@@ -346,6 +376,12 @@ contains
     alpha= dict .get. DOMAIN_ALPHA
     beta= dict .get. DOMAIN_BETA
     gamma= dict .get. DOMAIN_GAMMA
+
+    do i=1,3
+       if (abs(alpha-90.0_gp).lt.ths2) alpha = 90.0_gp
+       if (abs(beta-90.0_gp).lt.ths2) beta = 90.0_gp
+       if (abs(gamma-90.0_gp).lt.ths2) gamma = 90.0_gp
+    end do
 
     angrad(BC_)=alpha/Radian_Degree
     angrad(AC_)=beta/Radian_Degree
@@ -407,6 +443,69 @@ contains
        bc=FREE_BC
     end select
   end function geocode_to_bc
+ 
+  !>give the associated geocode, 'X' for unknown
+  pure function domain_geocode(dom) result(cell_geocode)
+    implicit none
+    type(domain), intent(in) :: dom
+    character(len=1) :: cell_geocode
+    !local variables
+    logical, dimension(3) :: peri
+
+    peri= dom%bc == PERIODIC
+    if (all(peri)) then
+       cell_geocode='P'
+    else if (.not. any(peri)) then
+       cell_geocode='F'
+    else if (peri(1) .and. .not. peri(2) .and. peri(3)) then
+       cell_geocode='S'
+    else if (.not. peri(1) .and. .not. peri(2) .and. peri(3)) then
+       cell_geocode='W'
+    else
+       cell_geocode='X'
+    end if
+
+  end function domain_geocode 
+
+!!$  subroutine parse_xyz_header(ios,dom_dict)
+!!$    use f_iostream
+!!$    implicit none
+!!$    type(io_stream), intent(inout) :: ios
+!!$    type(dictionary), pointer :: dom_dict
+!!$    !local variables
+!!$    logical :: eol
+!!$    character(len=256) :: line
+!!$   
+!!$    !first line of the header
+!!$    eol=f_iostream_line_read(ios,&
+!!$         '[nat,units_str,energy,comment]',&
+!!$         dom_dict)
+!!$    !second line of the header
+!!$    eol=f_iostream_line_read(ios,&
+!!$         '[boundary_conditions,alat(3),properties(dict)]',&
+!!$         dom_dict)
+!!$
+!!$    !check eol, should be always true
+!!$
+!!$  end subroutine parse_xyz_header
+!!$
+!!$  subroutine parse_ascii_header(ios,dom_dict)
+!!$    use f_iostream
+!!$    implicit none
+!!$    type(io_stream), intent(inout) :: ios
+!!$    type(dictionary), pointer :: dom_dict
+!!$    !local variables
+!!$    logical :: eof
+!!$    character(len=256) :: line
+!!$
+!!$    !second line of the header
+!!$    eol=f_iostream_line_read(ios,&
+!!$         '[boundary_conditions,alat(3),properties(dict)]',&
+!!$         dom_dict)   
+!!$
+!!$  end subroutine parse_ascii_header
+
+  
 
 !!$  !direct metric
 !!$  function gd(bc,angrad) 

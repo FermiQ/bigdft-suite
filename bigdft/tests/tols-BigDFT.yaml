@@ -592,7 +592,7 @@ cleanup:
  Maxdiff for transpose (checksum): 1.5e-11
  e: 6.3e-10
  trace(Ktilde): 1.2e-11
- ENERGY: 5.3e-11
+ ENERGY: 5.6e-11
 
 directmin:
  Patterns to ignore:
@@ -2503,7 +2503,7 @@ extendedfrags_write:
  Energy (Hartree): 4.7e-11
  energy: 4.7e-11
  relative difference: 1.3e-11
- trace(KH): 5.1e-09
+ trace(KH): 1.1e-08
 
 Cavity_H2OfrigidPCG:
  Atomic Forces (Ha/Bohr): 2.5e-6
@@ -2668,13 +2668,14 @@ Mg-cubic_ortho:
   Total ionic charge: 1.50e-11
 
 Na8-multipole:
-  EH: 4.2e-11
+  Electronic charge changed by rho compression: 4.6e-11
+  EH: 5.1e-11
   EKS: 1.9e-11
   EXC: 1.1e-10
-  Epot: 4.1e-11
+  Epot: 6.1e-11
   EvXC: 3.1e-11
-  Total electronic charge: 6.0e-11
-  norm(P): 1.1e-10
+  Total electronic charge: 8.2e-11
+  norm(P): 4.1e-10
   trace: 6.6e-11
   Energy (Hartree): 1.4e-11
 
@@ -2975,7 +2976,7 @@ matrixtaskgroups_yes:
   HOMO-LUMO gap (eV): 6.3e-11
   HYBRID: 4.0e-9
   TRACE: 4.0e-9
-  trace(KH): 5.1e-10
+  trace(KH): 6.1e-10
   Raw forces norm (Ha/Bohr): 3.6e-9
   Clean forces norm (Ha/Bohr): 3.9e-9
   Force Norm (Hartree/Bohr): 1.2e-10

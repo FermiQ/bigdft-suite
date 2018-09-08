@@ -27,6 +27,7 @@ module module_atoms
   use f_trees, only: f_tree
   use f_arrays
   use pspiof_m, only: pspiof_pspdata_t
+  use at_domain
   implicit none
 
   private
@@ -62,7 +63,7 @@ module module_atoms
      real(gp), dimension(3) :: cell_dim    !< Dimensions of the simulation domain (each one periodic or free according to geocode)
      real(gp), dimension(3) :: shift       !< Rigid shift applied to the atomic positions
      !pointers
-!     type(domain) :: dom
+     type(domain) :: dom
      real(gp), dimension(:,:), pointer :: rxyz             !< Atomic positions (always in AU, units variable is considered for I/O only)
      real(gp), dimension(:,:), pointer :: rxyz_int         !< Atomic positions in internal coordinates (Z matrix)
      integer, dimension(:,:), pointer :: ixyz_int          !< Neighbor list for internal coordinates (Z matrix)
@@ -398,6 +399,7 @@ contains
     !local variables
     character(len=*), parameter :: subname='deallocate_atomic_structure' !remove
     integer :: iat
+    astruct%dom=domain_null()
     ! Deallocations for the geometry part.
     if (astruct%nat >= 0) then
        call f_free_ptr(astruct%ifrztyp)
@@ -1260,81 +1262,6 @@ contains
 
       call yaml_map('input posinp',dict)
 
-      !take the default values if the key does not exists in the dictionary
-      alpha=90.0_gp
-      beta=90.0_gp
-      gamma=90.0_gp
-      alpha= dict .get. 'alpha'
-      beta= dict .get. 'beta'
-      gamma= dict .get. 'gamma'
-
-      cell=1.0_gp
-      if ('cell' .in. dict) cell=dict // 'cell'
-
-      call f_zero(abc)
-      if ('abc' .in. dict) then
-         abc = dict//'abc'
-      else
-         abc(1,1)=1.0_gp
-         abc(2,2)=1.0_gp
-         abc(3,3)=1.0_gp
-      end if
-
-      call yaml_mapping_open('Some checks of consistency')
-      call yaml_map('cell',cell)
-      call yaml_map('abc',abc)
-
-      !now cross-check the values to see if they are consistent and clean them to roundoff
-
-      !clean the angles to 90 up to tolerance    
-      call yaml_map('alpha before cleaning',alpha)
-      call yaml_map('beta before cleaning',beta)
-      call yaml_map('gamma before cleaning',gamma)
-      do i=1,3
-         if (abs(alpha-90.0_gp).lt.ths1) alpha = 90.0_gp
-         if (abs(beta-90.0_gp).lt.ths1) alpha = 90.0_gp
-         if (abs(gamma-90.0_gp).lt.ths1) alpha = 90.0_gp
-      end do
-      call yaml_map('alpha after cleaning',alpha)
-      call yaml_map('beta after cleaning',beta)
-      call yaml_map('gamma after cleaning',gamma)
-
-      !construct reduced cell vectors (if they do not exist)
-      do i=1,3
-         vect_norm(i) = sqrt(abc(1,i)**2 + abc(2,i)**2 + abc(3,i)**2)
-         if (abs(vect_norm(i) - 1.0_gp) >= ths2) then
-            if (abs(vect_norm(i) - cell(i)) >= ths2) call f_err_throw(err_msg=&
-                "Inconsistency between the primitive vector norm and the cell lenght, direction = "// &
-                 & trim(yaml_toa(i))//" ",err_name='BIGDFT_INPUT_FILE_ERROR')
-         end if
-      end do
-      call yaml_map('norm vector a', vect_norm(1))
-      call yaml_map('norm vector b', vect_norm(2))
-      call yaml_map('norm vector c', vect_norm(3))
-
-      !verify that the cell vectors are in agreement with angles
-      do i=1,3
-         i1=mod(i,3)+1
-         i2=mod(i+1,3)+1
-         ang(i) = vect_norm(i1)*vect_norm(i2)*dot_product(abc(:,i1),abc(:,i2))
-      end do
-      angrad(1) = alpha/180.0_gp*pi
-      angrad(2) = beta/180.0_gp*pi
-      angrad(3) = gamma/180.0_gp*pi
-      call yaml_map('cos(alpha)', ang(1))
-      call yaml_map('cos(beta)' , ang(2))
-      call yaml_map('cos(gamma)', ang(3))
-      call yaml_map('cos(alpha) input', cos(angrad(1)))
-      call yaml_map('cos(beta) input' , cos(angrad(2)))
-      call yaml_map('cos(gamma) input', cos(angrad(3)))
-     
-      if (abs(ang(1) - cos(angrad(1))) >= ths2) call f_err_throw(err_msg=&
-          "Inconsistency between alpha and the primitive cell vectors b and c",err_name='BIGDFT_INPUT_FILE_ERROR')
-      if (abs(ang(2) - cos(angrad(2))) >= ths2) call f_err_throw(err_msg=&
-          "Inconsistency between beta and the primitive cell vectors a and c",err_name='BIGDFT_INPUT_FILE_ERROR')
-      if (abs(ang(3) - cos(angrad(3))) >= ths2) call f_err_throw(err_msg=&
-          "Inconsistency between gamma and the primitive cell vectors a and b",err_name='BIGDFT_INPUT_FILE_ERROR')
-
       !put clean values in the dictionary
 
       !loop on the atomic positions and 
@@ -1966,6 +1893,8 @@ contains
       use dynamic_memory
       use dictionaries
       use yaml_output, only: yaml_warning
+      use f_enums
+      use public_keys
       implicit none
       !Arguments
       type(dictionary), pointer :: dict !< dictionary of the input variables
@@ -1974,6 +1903,7 @@ contains
       character(len = 1024), intent(out), optional :: comment !< Extra comment retrieved from the file if present
       !local variables
       character(len=*), parameter :: subname='astruct_set_from_dict'
+      logical :: reduced
       type(dictionary), pointer :: pos, at, types
       character(len = max_field_length) :: str
       integer :: iat, ityp, units, igspin, igchrg, ntyp
@@ -1983,43 +1913,76 @@ contains
       call nullify_atomic_structure(astruct)
       astruct%nat = -1
       if (present(comment)) write(comment, "(A)") " "
-
-      ! The units
-      units = 0
-      write(astruct%units, "(A)") "bohr"
-      if (has_key(dict, ASTRUCT_UNITS)) astruct%units = dict // ASTRUCT_UNITS
-      select case(trim(astruct%units))
-      case('atomic','atomicd0','bohr','bohrd0')
-         units = 0
-      case('angstroem','angstroemd0')
-         units = 1
-      case('reduced')
-         units = 2
-      end select
-      ! The cell
-      astruct%cell_dim = 0.0_gp
-      if (.not. has_key(dict, ASTRUCT_CELL)) then
-         astruct%geocode = 'F'
+      reduced=.false.
+      if (ASTRUCT_PROPERTIES .in. dict) then
+         pos => dict // ASTRUCT_PROPERTIES
+         if (("info" .in. pos) .and. present(comment)) comment = pos // "info"
+         if ("format" .in. pos) then
+            astruct%inputfile_format = pos // "format"
+         else
+            if (bigdft_mpi%iproc==0) &
+                 call yaml_warning('Format not specified in the posinp dictionary, assuming yaml')
+            astruct%inputfile_format='yaml'
+         end if
+         if ("source" .in. pos) astruct%source = pos // "source"
+         call dict_copy(astruct%properties, pos)
+         reduced = pos .get. ASTRUCT_REDUCED
       else
-         astruct%geocode = 'P'
-         ! z
-         astruct%cell_dim(3) = dict // ASTRUCT_CELL // 2
-         ! y
-         str = dict // ASTRUCT_CELL // 1
-         if (trim(str) == ".inf") then
-            astruct%geocode = 'S'
-         else
-            astruct%cell_dim(2) = dict // ASTRUCT_CELL // 1
-         end if
-         ! x
-         str = dict // ASTRUCT_CELL // 0
-         if (trim(str) == ".inf") then
-            astruct%geocode = 'W'
-         else
-            astruct%cell_dim(1) = dict // ASTRUCT_CELL // 0
-         end if
+         if (bigdft_mpi%iproc==0) &
+              call yaml_warning('Format not specified in the posinp dictionary, assuming yaml')
+         astruct%inputfile_format='yaml'
       end if
-      if (units == 1) astruct%cell_dim = astruct%cell_dim / Bohr_Ang
+
+      call domain_set_from_dict(dict,astruct%dom)    
+
+      ! Temporary assignation before removal - WARNING, reduced coordinates have to be still defined
+      units = astruct%dom%units
+      if (reduced) units=2 !LG: oh my god an explicit number here...
+      astruct%cell_dim=astruct%dom%acell
+      astruct%geocode=domain_geocode(astruct%dom)
+      astruct%units=dict_get(dict,ASTRUCT_UNITS,default='bohr')
+
+      !units = 0
+      !write(astruct%units, "(A)") "bohr"
+      !if (has_key(dict, ASTRUCT_UNITS)) astruct%units = dict // ASTRUCT_UNITS
+!!$      select case(trim(astruct%units))
+!!$      case('atomic','atomicd0','bohr','bohrd0')
+!!$         units = 0
+!!$      case('angstroem','angstroemd0')
+!!$         units = 1
+!!$      case('reduced')
+!!$         units = 2 !LG: it comes from here...
+!!$         call f_err_throw('Error, reduced units convention has changed, it should be indicated in '//&
+!!$              ASTRUCT_PROPERTIES//' now',&
+!!$              err_name='BIGDFT_RUNTIME_ERROR')
+!!$      end select
+
+!!$      ! The cell
+!!$      astruct%cell_dim = 0.0_gp
+!!$      if (.not. has_key(dict, ASTRUCT_CELL)) then
+!!$         astruct%geocode = 'F'
+!!$      else
+!!$         astruct%geocode = 'P'
+!!$         ! z
+!!$         astruct%cell_dim(3) = dict // ASTRUCT_CELL // 2
+!!$         ! y
+!!$         str = dict // ASTRUCT_CELL // 1
+!!$         if (trim(str) == ".inf") then
+!!$            astruct%geocode = 'S'
+!!$         else
+!!$            astruct%cell_dim(2) = dict // ASTRUCT_CELL // 1
+!!$         end if
+!!$         ! x
+!!$         str = dict // ASTRUCT_CELL // 0
+!!$         if (trim(str) == ".inf") then
+!!$            astruct%geocode = 'W'
+!!$         else
+!!$            astruct%cell_dim(1) = dict // ASTRUCT_CELL // 0
+!!$         end if
+!!$      end if
+
+      if (astruct%dom%units == ANGSTROEM_UNITS) astruct%cell_dim = astruct%cell_dim / Bohr_Ang
+
       ! The types
       call astruct_dict_get_types(dict, types)
       ntyp = max(dict_size(types),0) !if types is nullified ntyp=-1
@@ -2079,24 +2042,6 @@ contains
          end do
       else
          call astruct_set_n_atoms(astruct,0)
-      end if
-
-      if (ASTRUCT_PROPERTIES .in. dict) then
-         pos => dict // ASTRUCT_PROPERTIES
-         if (("info" .in. pos) .and. present(comment)) comment = pos // "info"
-         if ("format" .in. pos) then
-            astruct%inputfile_format = pos // "format"
-         else
-            if (bigdft_mpi%iproc==0) &
-                 call yaml_warning('Format not specified in the posinp dictionary, assuming yaml')
-            astruct%inputfile_format='yaml'
-         end if
-         if ("source" .in. pos) astruct%source = pos // "source"
-         call dict_copy(astruct%properties, pos)
-      else
-         if (bigdft_mpi%iproc==0) &
-              call yaml_warning('Format not specified in the posinp dictionary, assuming yaml')
-         astruct%inputfile_format='yaml'
       end if
 
       call dict_free(types)

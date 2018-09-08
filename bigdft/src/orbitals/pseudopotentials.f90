@@ -587,6 +587,7 @@ contains
       use yaml_output
       use dictionaries
       use public_keys, only: SOURCE_KEY
+      use f_iostream
       implicit none
       !Arguments
       type(dictionary), pointer :: dict
@@ -748,7 +749,9 @@ contains
       use f_utils
       use m_pawpsp, only: pawpsp_read_header_2
       use yaml_output
+      use f_iostream
       implicit none
+
 
       type(io_stream), intent(inout) :: ios
       integer, intent(out) :: nzatom, nelpsp, npspcode, ixcpsp
@@ -1059,7 +1062,7 @@ contains
       use dictionaries, only: max_field_length
       use dynamic_memory
       use f_utils
-
+      use f_iostream
       implicit none
 
       type(pawrad_type), intent(out) :: pawrad
