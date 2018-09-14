@@ -1978,6 +1978,23 @@ contains
   !end subroutine aocc_to_dict
 
 
+  !> Determine the number of up (norbu) and down (norbd) orbitals
+  !! and the occupation numbers from the dictionary
+  !! occupation:
+  !!   K point 1:
+  !!     Orbital 2: 2/3
+  !!     Orbital 3: 2/3
+  !!     Orbital 4: 2/3
+  !!   K point 2: 
+  !!     Orbital 2: 2
+  !!
+  !! If not K point, you can remove the keyword 'K points 1'
+  !! if nspin=2
+  !! occupation:
+  !!   up:
+  !!     Orbital 1: 1
+  !!   down:
+  !!     Orbital 1: 0
   subroutine occupation_set_from_dict(dict, key, norbu, norbd, occup, &
        & nkpts, nspin, norbsempty, qelec_up, qelec_down, norb_max)
     use module_defs, only: gp, BIGDFT_INPUT_VARIABLES_ERROR, BIGDFT_INPUT_FILE_ERROR
@@ -1986,13 +2003,14 @@ contains
     use yaml_strings, only: yaml_toa
     use yaml_output
     implicit none
+    !Arguments
     type(dictionary), pointer :: dict
     character(len = *), intent(in) :: key
     real(gp), dimension(:), pointer :: occup
     integer, intent(in) :: nkpts, nspin, norbsempty, norb_max
     real(gp), intent(in) :: qelec_up, qelec_down
     integer, intent(out) :: norbu, norbd
-
+    !Local variables
     integer :: norb
     integer :: ikpt,ne_up,ne_dwn
     type(dictionary), pointer :: occup_src

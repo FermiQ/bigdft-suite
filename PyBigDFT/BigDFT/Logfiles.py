@@ -454,7 +454,7 @@ class Logfile():
     def get_dos(self,label=None,npts=2500):
         """
         Get the density of states from the logfile.
-
+        
         :param label: id of the density of states.
         :type label: string
         :param npts: number of points of the DoS curve

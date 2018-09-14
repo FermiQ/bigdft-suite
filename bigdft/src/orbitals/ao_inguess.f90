@@ -1359,6 +1359,7 @@ contains
 
   END SUBROUTINE set_aocc_from_string
 
+
   !>  Here the fraction is indicated by the :
   subroutine read_fraction_string_old(l,string,occ)
     implicit none
@@ -1382,6 +1383,7 @@ contains
        read(string,*)occ
     end if
   END SUBROUTINE read_fraction_string_old
+
 
   !> Calculate the charge and the spin polarisation to be placed on a given atom
   !! RULE: natpol = c*1000 + sgn(c)*100 + s: charged and polarised atom (charge c, polarisation s)
