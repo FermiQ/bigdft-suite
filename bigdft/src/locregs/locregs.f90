@@ -18,6 +18,8 @@ module locregs
 
   private 
 
+  integer, parameter :: SIZE_=1,LR_=2
+
   !> Grid dimensions in all different wavelet basis
   type, public :: grid_dimensions
      integer :: n1   = 0
@@ -57,6 +59,23 @@ module locregs
      !>iterator over the mesh degrees of freedom
      type(box_iterator) :: bit
   end type locreg_descriptors
+
+  !>storage of localization regions, to be used for
+  !!communicating the descriptors
+  type, public :: locregs_ptr
+     type(locreg_descriptors), pointer :: lr=>null()
+  end type locregs_ptr
+
+  type, public :: locreg_storage
+     type(locregs_ptr), dimension(:), pointer  :: lrs_ptr=>null()
+     integer, dimension(:), pointer :: encode_buffer => null()
+     integer, dimension(:,:), pointer :: lr_full_sizes => null()
+     integer :: lr_size = 0
+  end type locreg_storage
+
+  interface assignment(=)
+     module procedure allocate_locregs_ptr
+  end interface assignment(=)
 
   public :: nullify_locreg_descriptors,locreg_null
   public :: deallocate_locreg_descriptors,deallocate_wfd
@@ -104,6 +123,11 @@ contains
     call nullify_box_iterator(lr%bit)
   end subroutine nullify_locreg_descriptors
 
+  pure subroutine nullify_lr_storage(lr_storage)
+    implicit none
+    type(locreg_storage), intent(out) :: lr_storage
+  end subroutine nullify_lr_storage
+
   !> Destructors
   subroutine deallocate_locreg_descriptors(lr)
     use bounds
@@ -127,6 +151,76 @@ contains
     call nullify_convolutions_bounds(lr%bounds)
   end subroutine nullify_lr_pointers
 
+  function lr_ptr_sizeof(array)
+    implicit none
+    type(locregs_ptr), dimension(:), intent(in) :: array
+    integer :: lr_ptr_sizeof
+    !local variables
+    type(locregs_ptr), dimension(2) :: lrs_ptr
+
+    if (size(array) > 1) then
+       lr_ptr_sizeof=int(f_loc(array(2))-f_loc(array(1)))
+    else
+       lr_ptr_sizeof=int(f_loc(lrs_ptr(2))-f_loc(lrs_ptr(1)))
+    end if
+  end function lr_ptr_sizeof
+
+  subroutine allocate_locregs_ptr(array,m)
+    implicit none
+    type(locregs_ptr), dimension(:), pointer, intent(inout) :: array
+    type(malloc_information_ptr), intent(in) :: m
+    !local variables
+    integer :: ierror
+    
+    call f_timer_interrupt(TCAT_ARRAY_ALLOCATIONS)
+
+    allocate(array(m%lbounds(1):m%ubounds(1)),stat=ierror)
+
+    if (.not. malloc_validate(ierror,size(shape(array)),m)) return
+
+    !here the database for the allocation might be updated
+    call update_allocation_database(f_loc(array),&
+         product(int(m%shape(1:m%rank),f_long)),lr_ptr_sizeof(array),m)
+
+    call f_timer_resume()!TCAT_ARRAY_ALLOCATIONS
+
+  end subroutine allocate_locregs_ptr
+
+  subroutine locregs_ptr_free(array)
+    implicit none
+    type(locregs_ptr), dimension(:), pointer, intent(inout) :: array
+    !local variables
+    integer :: ierror
+    call f_timer_interrupt(TCAT_ARRAY_ALLOCATIONS)
+
+    call f_purge_database(product(int(shape(array),f_long)),lr_ptr_sizeof(array),&
+         f_loc(array))
+
+    deallocate(array,stat=ierror)
+
+    if (.not. free_validate(ierror)) return
+    nullify(array)
+    call f_timer_resume()!TCAT_ARRAY_ALLOCATIONS
+  end subroutine locregs_ptr_free
+
+  subroutine lr_storage_init(lr_storage,nlr)
+    implicit none
+    type(locreg_storage), intent(out) :: lr_storage
+    integer, intent(in) :: nlr
+
+    lr_storage%lrs_ptr=f_malloc_ptr(nlr,id='lrs_ptr')
+    lr_storage%lr_size=get_locreg_encode_size()
+  end subroutine lr_storage_init
+
+  subroutine lr_storage_free(lr_storage)
+    implicit none
+    type(locreg_storage), intent(inout) :: lr_storage
+    call locregs_ptr_free(lr_storage%lrs_ptr)
+    call f_free_ptr(lr_storage%encode_buffer)
+    call f_free_ptr(lr_storage%lr_full_sizes)
+    call nullify_lr_storage(lr_storage)
+  end subroutine lr_storage_free
+
   !>methods to encode and decode the structure
   !might be used in favour of copying of the datatypes
   function get_locreg_encode_size() result(s)
@@ -140,15 +234,37 @@ contains
 
   end function get_locreg_encode_size
 
+  function get_locreg_full_encode_size(lr) result(s)
+    implicit none
+    type(locreg_descriptors), intent(in) :: lr
+    integer :: s
+
+    s=get_locreg_encode_size()
+    if (associated(lr%wfd%buffer)) s=s+size(lr%wfd%buffer)
+
+  end function get_locreg_full_encode_size
+
   subroutine locreg_encode(lr,lr_size,dest)
     implicit none
     type(locreg_descriptors), intent(in) :: lr
     integer, intent(in) :: lr_size !<obtained from locreg_encode_size
-    !array of dimension at least equal to locreg_encod_size
+    !array of dimension at least equal to locreg_encode_size
     integer, dimension(lr_size), intent(out) :: dest
     
     dest=transfer(lr,dest)
   end subroutine locreg_encode
+
+  subroutine locreg_full_encode(lr,lr_size,lr_full_size,dest)
+    implicit none
+    type(locreg_descriptors), intent(in) :: lr
+    integer, intent(in) :: lr_size,lr_full_size !<obtained from locreg_encode_size
+    !array of dimension at least equal to locreg_full_encode_size
+    integer, dimension(lr_full_size), intent(out) :: dest
+
+    call locreg_encode(lr,lr_size,dest)
+    call f_memcpy(n=lr_full_size-lr_size,src=lr%wfd%buffer,dest=dest(lr_size+1))
+
+  end subroutine locreg_full_encode
 
   subroutine locregs_encode(llr,nlr,lr_size,dest_arr,mask)
     implicit none
@@ -176,8 +292,7 @@ contains
   end subroutine locregs_encode
 
   !>decode a locreg from a src array
-  !! warning, the status of the pointers of lr might become
-  !!unreliable if the src array comes from a communicated object
+  !! warning, the status of the pointers of lr is nullified after communication
   subroutine locreg_decode(src,lr_size,lr)
     implicit none
     integer, intent(in) :: lr_size
@@ -187,6 +302,25 @@ contains
     lr=transfer(src,lr)   
     call nullify_lr_pointers(lr)
   end subroutine locreg_decode
+
+  subroutine locreg_full_decode(src,lr_size,lr_full_size,lr,bounds)
+    implicit none
+    integer, intent(in) :: lr_full_size,lr_size
+    type(locreg_descriptors), intent(out) :: lr
+    integer, dimension(lr_full_size), intent(in) :: src
+    logical, intent(in), optional :: bounds
+    !local variables
+    logical :: bounds_
+    integer, dimension(:), pointer :: buffer
+    
+    call locreg_decode(src,lr_size,lr)
+    if (lr_size == lr_full_size) return 
+    buffer => f_subptr(src,from=lr_size+1,size=lr_full_size-lr_size)
+    call wfd_keys_from_buffer(lr%wfd,buffer)
+
+    if (f_get_option(default=.true.,opt=bounds)) call ensure_locreg_bounds(lr)
+
+  end subroutine locreg_full_decode
 
   !>decode a group of locregs given a src array
   subroutine locregs_decode(src_arr,lr_size,nlr,llr,ipiv)
@@ -227,7 +361,6 @@ contains
     call f_routine(id=subname)
 
     !first encode and communicate
-    lr_size=get_locreg_encode_size()
     mask=f_malloc(nlr,id='mask')    
     recvcounts=f_malloc0(0.to.nproc-1,id='recvcounts')
 
@@ -242,6 +375,7 @@ contains
 
     nlrp=recvcounts(iproc)
 
+    lr_size=get_locreg_encode_size()
     encoded_send=f_malloc([lr_size,nlrp],id='encoded_send')
 
 !!$    iilr=0
@@ -289,6 +423,108 @@ contains
     call f_release_routine()
 
   end subroutine communicate_locreg_descriptors_basics
+
+  !put the localization region lr in the lrs_ptr array
+  subroutine store_lr(lr_storage,ilr,lr)
+    implicit none
+    type(locreg_storage), intent(inout) :: lr_storage
+    integer, intent(in) :: ilr
+    type(locreg_descriptors), intent(in), target :: lr
+
+    lr_storage%lrs_ptr(ilr)%lr => lr
+  end subroutine store_lr
+
+  !> Communicate the total locreg quantities given in a pointer of localisation regions
+  !! WARNING: we assume that the association of the storage is performed in a mutually exclusive way, that if a locreg is associated on one proc it is not in the others.
+  subroutine gather_locreg_storage(lr_storage)
+    implicit none
+    type(locreg_storage), intent(inout) :: lr_storage
+    !local variables
+    integer :: ilr,iilr,nproc,encoding_buffer_idx,nlr
+    integer :: lr_full_size,nlrp,encoding_buffer_size
+    integer(f_long) :: full_encoding_buffer_size
+    type(fmpi_win) :: win_counts
+    integer, dimension(:), allocatable :: encoding_buffer
+    integer, dimension(:,:), allocatable :: lr_sizes
+
+
+    nlr=size(lr_storage%lrs_ptr)
+    lr_storage%lr_full_sizes=f_malloc_ptr([2,nlr],id='lr_full_sizes')
+    encoding_buffer_size=0
+    iilr=0
+    do ilr=1,nlr
+       if ( .not. associated(lr_storage%lrs_ptr(ilr)%lr)) cycle
+       iilr=iilr+1
+       lr_full_size=get_locreg_full_encode_size(lr_storage%lrs_ptr(ilr)%lr)
+       lr_storage%lr_full_sizes(SIZE_,iilr)=lr_full_size
+       lr_storage%lr_full_sizes(LR_,iilr)=ilr
+       encoding_buffer_size=encoding_buffer_size+lr_full_size
+    end do
+    lr_sizes=f_malloc([2,iilr],id='lr_sizes')
+    call f_memcpy(n=2*iilr,src=lr_storage%lr_full_sizes,dest=lr_sizes(1,1))
+
+    call fmpi_allgather(sendbuf=lr_sizes,recvbuf=lr_storage%lr_full_sizes,&
+         comm=bigdft_mpi%mpi_comm,win=win_counts)
+
+    encoding_buffer=f_malloc(encoding_buffer_size,id='encoding_buffer')
+    !redo the loop to fill the encoding buffer
+    encoding_buffer_idx=1
+    iilr=0
+    do ilr=1,nlr
+       if ( .not. associated(lr_storage%lrs_ptr(ilr)%lr)) cycle
+       iilr=iilr+1
+       lr_full_size=lr_sizes(SIZE_,iilr)
+       call locreg_full_encode(lr_storage%lrs_ptr(ilr)%lr,lr_storage%lr_size,lr_full_size,encoding_buffer(encoding_buffer_idx))
+       encoding_buffer_idx=encoding_buffer_idx+lr_full_size
+    end do
+
+    !close the previous communication window
+    call fmpi_win_shut(win_counts)
+
+    !allocate the full sized array
+    full_encoding_buffer_size=0
+    do ilr=1,nlr
+       full_encoding_buffer_size=full_encoding_buffer_size+lr_storage%lr_full_sizes(SIZE_,ilr)
+    end do
+    lr_storage%encode_buffer=f_malloc_ptr(full_encoding_buffer_size,id='lr_storage%encode_buffer')
+
+    !gather the array in the full encoding buffer
+    call fmpi_allgather(sendbuf=encoding_buffer,recvbuf=lr_storage%encode_buffer,comm=bigdft_mpi%mpi_comm) 
+
+    call f_free(encoding_buffer)
+    call f_free(lr_sizes)
+
+  end subroutine gather_locreg_storage
+
+  subroutine extract_lr(lr_storage,ilr,lr,bounds)
+    implicit none
+    type(locreg_storage), intent(in) :: lr_storage
+    integer, intent(in) :: ilr
+    type(locreg_descriptors), intent(out) :: lr
+    logical, intent(in), optional :: bounds
+    !local variables
+    integer :: iilr,nlr
+    integer(f_long) :: encoding_buffer_idx
+    integer, dimension(:), pointer :: src_buf
+
+    nlr=size(lr_storage%lr_full_sizes,dim=2)
+    !assume that lr_storage is ready for extraction
+    encoding_buffer_idx=1
+    do iilr=1,nlr
+       if (lr_storage%lr_full_sizes(LR_,iilr) == ilr) exit
+       encoding_buffer_idx=encoding_buffer_idx+lr_storage%lr_full_sizes(SIZE_,iilr)
+    end do
+    if (iilr == nlr+1) call f_err_throw('The locreg has not been found in the lr_storage',&
+         err_name='BIGDFT_RUNTIME_ERROR')
+
+    !we should generalize the API for the from optional variable
+    src_buf => f_subptr(lr_storage%encode_buffer,&
+         from=int(encoding_buffer_idx),size=lr_storage%lr_full_sizes(SIZE_,iilr))
+
+    call locreg_full_decode(src_buf,&
+         lr_storage%lr_size,lr_storage%lr_full_sizes(SIZE_,iilr),lr,bounds)
+    
+  end subroutine extract_lr
 
   !> Methods for copying the structures, can be needed to avoid recalculating them
   !! should be better by defining a f_malloc inheriting the shapes and the structure from other array

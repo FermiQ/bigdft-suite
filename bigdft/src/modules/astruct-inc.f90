@@ -12,14 +12,15 @@
     !> Read atomic positions from xyz file and create astruct structure from it
     subroutine read_xyz_positions(ifile,filename,astruct,comment,energy,fxyz,getLine,disableTrans_)
       use module_defs, only: gp,UNINITIALIZED, BIGDFT_INPUT_VARIABLES_ERROR
-      use dictionaries
+      use dictionaries, dict_set => set
       use dynamic_memory
       use box, only: geocode_to_bc,bc_periodic_dims
       use numerics, only: Bohr_Ang
       use module_base, only: bigdft_mpi
       use yaml_parse, only: yaml_parse_from_string
-      use yaml_strings, only: yaml_toa
+      use yaml_strings, only: yaml_toa,f_strcpy
       use yaml_output, only: yaml_warning
+      use public_keys, only: ASTRUCT_REDUCED
       implicit none
       !Arguments
       integer, intent(in) :: ifile
@@ -42,10 +43,11 @@
       character(len=20) :: tatonam
       character(len=226) :: extra
       character(len=256) :: line
-      logical :: lpsdbl, eof
+      logical :: lpsdbl, eof,reduced
       integer :: iat,ityp,ntyp,i,ierrsfx,nspol,nchrg
       ! To read the file posinp (avoid differences between compilers)
       real(kind=4) :: rx,ry,rz,alat1,alat2,alat3
+      character(len=32) :: units_str
       ! case for which the atomic positions are given whithin general precision
       real(gp) :: rxd0,ryd0,rzd0,alat1d0,alat2d0,alat3d0
       character(len=20), dimension(100) :: atomnames
@@ -69,16 +71,16 @@
       !   stop
       !end if
       energy = UNINITIALIZED(energy)
-      read(line,*, iostat = ierrsfx) iat,astruct%units,energy,comment
+      read(line,*, iostat = ierrsfx) iat,units_str,energy,comment
       if (ierrsfx /= 0) then
-         read(line,*, iostat = ierrsfx) iat,astruct%units,energy
+         read(line,*, iostat = ierrsfx) iat,units_str,energy
          write(comment, "(A)") ""
          if (ierrsfx /= 0) then
-            read(line,*, iostat = ierrsfx) iat,astruct%units
+            read(line,*, iostat = ierrsfx) iat,units_str
             energy = UNINITIALIZED(energy)
             if (ierrsfx /= 0) then
                read(line,*, iostat = ierrsfx) iat
-               write(astruct%units, "(A)") "bohr"
+               write(units_str, "(A)") "bohr"
                if (f_err_raise((ierrsfx /= 0), "Missing number of atoms on line 1 of '" &
                     & // trim(filename)//"'.",err_id=BIGDFT_INPUT_VARIABLES_ERROR)) return
                if (bigdft_mpi%iproc==0) call yaml_warning('No units specified in the xyz input file.'//&
@@ -90,7 +92,16 @@
          write(comment, "(A)") line(i:)
       end if
 
-      call astruct_set_n_atoms(astruct, iat)
+      !custom treatment for reduced coordinates
+      reduced=.false.
+      if (trim(units_str) == 'reduced') then
+         call f_strcpy(src='atomicd0',dest=units_str)
+         reduced=.true.
+      end if
+      
+      call f_strcpy(src=units_str,dest=astruct%units)
+
+      !from here onwards the function domain_from_xyz should be written
 
       !controls if the positions are provided with machine precision
       if (astruct%units == 'angstroemd0' .or. astruct%units== 'atomicd0' .or. &
@@ -171,15 +182,20 @@
          if (dict_len(dict) > 0) astruct%properties => dict .pop. 0
          call dict_free(dict)
       end if
+
+      if (reduced) then
+         if (.not. associated(astruct%properties)) then
+            call dict_init(astruct%properties)
+         end if
+         call dict_set(astruct%properties//ASTRUCT_REDUCED,reduced)
+      end if
+
     !!!  end if
 
       !reduced coordinates are possible only with periodic units
       if (f_err_raise( (astruct%units == 'reduced' .and. astruct%geocode == 'F'), &
            & 'Reduced coordinates are not allowed with isolated BC', &
            err_id=BIGDFT_INPUT_VARIABLES_ERROR)) return
-
-      bc=geocode_to_bc(astruct%geocode) !should become a variable of astruct
-      peri=bc_periodic_dims(bc)
 
       !convert the values of the cell sizes in bohr
       select case(trim(astruct%units))
@@ -203,6 +219,11 @@
               '"). Recognized units are angstroem or atomic = bohr',err_id=BIGDFT_INPUT_VARIABLES_ERROR)
          return
       end select
+
+      bc=geocode_to_bc(astruct%geocode) !should become a variable of astruct
+      peri=bc_periodic_dims(bc)
+
+      call astruct_set_n_atoms(astruct, iat)
 
       ntyp=0
       do iat=1,astruct%nat
@@ -357,10 +378,11 @@ end subroutine assign_iatype
 !> Read atomic positions of ascii files.
 subroutine read_ascii_positions(ifile,filename,astruct,comment,energy,fxyz,getline,disableTrans_)
   use module_base
-  use dictionaries
+  use dictionaries, dict_set=>set
   use yaml_parse
   use yaml_output
   use box, only: geocode_to_bc,bc_periodic_dims
+  use public_keys, only: ASTRUCT_REDUCED
   implicit none
   integer, intent(in) :: ifile
   character(len=*), intent(in) :: filename
@@ -462,11 +484,16 @@ subroutine read_ascii_positions(ifile,filename,astruct,comment,energy,fxyz,getli
            if (dict_len(dict) > 0) astruct%properties => dict .pop. 0
            call dict_free(dict)
         end if
+        if (reduced) then
+           if (.not. associated(astruct%properties)) then
+              call dict_init(astruct%properties)
+           end if
+           call dict_set(astruct%properties//ASTRUCT_REDUCED,reduced)
+        end if
+
         if (index(line, 'forces') > 0) forces = .true.
      end if
   end do
-
-  call astruct_set_n_atoms(astruct, iat)
 
 
   !controls if the positions are provided within machine precision
@@ -513,6 +540,8 @@ subroutine read_ascii_positions(ifile,filename,astruct,comment,energy,fxyz,getli
      astruct%cell_dim(2) = astruct%cell_dim(2) / Bohr_Ang
      astruct%cell_dim(3) = astruct%cell_dim(3) / Bohr_Ang
   endif
+
+  call astruct_set_n_atoms(astruct, iat)
 
   peri=bc_periodic_dims(geocode_to_bc(astruct%geocode))
 
@@ -583,7 +612,6 @@ subroutine read_ascii_positions(ifile,filename,astruct,comment,energy,fxyz,getli
 !!$           astruct%rxyz(3,iat)=modulo(astruct%rxyz(3,iat),astruct%cell_dim(3))
 !!$        end if
 
-
         call assign_iatype(iat,ntyp,tatonam,atomnames,astruct%iatype)
 
 !!$        do ityp=1,ntyp
@@ -616,9 +644,9 @@ subroutine read_ascii_positions(ifile,filename,astruct,comment,energy,fxyz,getli
 !!$     astruct%cell_dim(3) = 0.0_gp
 !!$  end if
 
-  if (reduced) then
-     write(astruct%units, "(A)") "reduced"
-  end if
+!  if (reduced) then
+!     write(astruct%units, "(A)") "reduced"
+!  end if
 
   if (forces) then
      fxyz = f_malloc_ptr([3, astruct%nat],id='fxyz')
@@ -718,8 +746,6 @@ subroutine read_int_positions(iproc,ifile,astruct,comment,energy,fxyz,getLine,di
      write(comment, "(A)") line(i:)
   end if
 
-  call astruct_set_n_atoms(astruct, iat)
-
   !controls if the positions are provided with machine precision
   if (astruct%units == 'angstroemd0' .or. astruct%units== 'atomicd0' .or. &
        astruct%units== 'bohrd0' .or. astruct%units=='reduced') then
@@ -812,6 +838,8 @@ subroutine read_int_positions(iproc,ifile,astruct,comment,energy,fxyz,getLine,di
      call f_err_throw('length units in input file unrecognized, recognized units are angstroem or atomic = bohr',&
           err_name='BIGDFT_INPUT_VARIABLES_ERROR')
   end select
+
+  call astruct_set_n_atoms(astruct, iat)
 
   ntyp=0
   do iat=1,astruct%nat
@@ -1201,22 +1229,28 @@ subroutine valid_frzchain(frzchain,go)
   ! p: fix angle phi (internal coordinates)
   ! t: fix angle theta (internal coordinates)
 
-  go = frzchain == 'f'    .or. &
-       frzchain == 'fx'   .or. &
-       frzchain == 'fy'   .or. &
-       frzchain == 'fz'   .or. &
-       frzchain == 'fxy'  .or. &
-       frzchain == 'fxz'  .or. &
-       frzchain == 'fyz'  .or. &
-       frzchain == 'fxyz' .or. &
-       frzchain == 'f'    .or. &
-       frzchain == 'fb'   .or. &
-       frzchain == 'fp'   .or. &
-       frzchain == 'ft'   .or. &
-       frzchain == 'fbp'  .or. &
-       frzchain == 'fbt'  .or. &
-       frzchain == 'fyt'  .or. &
-       frzchain == 'fbpt'
+  select case(trim(frzchain))
+  case('f','fx','fy','fz','fxy','fxz','fyz','fxyz','fb','fp','ft','fbp','fbt','fyt','fbpt')
+     go=.true.
+  case default
+     go = .false.
+  end select
+!!$  go = frzchain == 'f'    .or. &
+!!$       frzchain == 'fx'   .or. &
+!!$       frzchain == 'fy'   .or. &
+!!$       frzchain == 'fz'   .or. &
+!!$       frzchain == 'fxy'  .or. &
+!!$       frzchain == 'fxz'  .or. &
+!!$       frzchain == 'fyz'  .or. &
+!!$       frzchain == 'fxyz' .or. &
+!!$       frzchain == 'f'    .or. &
+!!$       frzchain == 'fb'   .or. &
+!!$       frzchain == 'fp'   .or. &
+!!$       frzchain == 'ft'   .or. &
+!!$       frzchain == 'fbp'  .or. &
+!!$       frzchain == 'fbt'  .or. &
+!!$       frzchain == 'fyt'  .or. &
+!!$       frzchain == 'fbpt'
   if (.not.go .and. len_trim(frzchain) >= 3) then
      go = (frzchain(1:1) == 'f' .and. verify(frzchain(2:), '0123456789') == 0) .or. &
           (frzchain(1:2) == 'fb' .and. verify(frzchain(3:), '12') == 0)

@@ -1363,8 +1363,6 @@ contains
 
    end function item_int
 
-
-
    function item_dict(val) result(elem)
      implicit none
      type(dictionary), pointer, intent(in) :: val

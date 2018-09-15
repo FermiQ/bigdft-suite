@@ -62,10 +62,7 @@ module sparsematrix_init
   public :: check_projector_charge_analysis
   public :: analyze_unbalancing
 
-
-  contains
-
-
+contains
 
   integer function matrixindex_in_compressed(sparsemat, iorb, jorb, init_, n_)
       use dynamic_memory
@@ -219,8 +216,6 @@ module sparsematrix_init
 
     end function compressed_index_fn
 
-
-
     !> Does the same as matrixindex_in_compressed, but has different
     ! arguments (at lower level) and is less optimized
     integer function matrixindex_in_compressed_lowlevel(irow, jcol, norb, nseg, keyv, keyg, istsegline) result(micf)
@@ -268,8 +263,6 @@ module sparsematrix_init
       micf=0
 
     end function matrixindex_in_compressed_lowlevel
-
-
 
     subroutine init_sparse_matrix_matrix_multiplication_new(iproc, nproc, comm, norb, norbp, isorb, nseg, &
          nsegline, istsegline, keyv, keyg, optimize_load_balancing, sparsemat)
@@ -1634,10 +1627,6 @@ module sparsematrix_init
     !!!  end do
 
     !!!end subroutine determine_sequential_length
-
-
-
-
 
     subroutine determine_sequential_length_new2(iproc, npt, ispt, nseg, nline, nlinep, isline, keyv, keyg, smat, &
                istsegline, line_and_column, compressed_index, nseq, nseq_per_line)
