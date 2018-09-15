@@ -722,8 +722,8 @@ contains
                       allocc(1:(2*l-1),n,l)=tt
                    end if
                 else
-                   call f_err_throw('Only scalar and list of correct lenghts are allowed for '//&
-                        'Atomic occupation number of up channel',&
+                   call f_err_throw('Only scalar and list of correct length ('//trim(yaml_toa(2*l-1))//&
+                        ') are allowed for Atomic occupation number of up channel',&
                         err_name='BIGDFT_INPUT_VARIABLES_ERROR')
                    return
                 end if
@@ -767,8 +767,8 @@ contains
                       end do
                    end if
                 else
-                   call f_err_throw('Only scalar and list of correct lenghts are allowed for '//&
-                        'Atomic occupation number of down channel',&
+                   call f_err_throw('Only scalar and list of correct length ('//trim(yaml_toa(2*l-1))//&
+                        ') are allowed for Atomic occupation number of down channel',&
                         err_name='BIGDFT_INPUT_VARIABLES_ERROR')
                    return
                 end if
@@ -781,8 +781,9 @@ contains
              tt=tt/real(nspin*noncoll*(2*l-1),gp)
              allocc(1:nspin*noncoll*(2*l-1),n,l)=tt
           else
-             call f_err_throw('Only scalar and list of correct lenghts are allowed for '//&
-                  'Atomic occupation number',err_name='BIGDFT_INPUT_VARIABLES_ERROR')
+             call f_err_throw('Only scalar and list of correct length ('//trim(yaml_toa(2*l-1))//&
+                  ') are allowed for Atomic occupation number',&
+                  err_name='BIGDFT_INPUT_VARIABLES_ERROR')
           end if
 
           dict_tmp=>dict_next(dict_tmp)
@@ -938,7 +939,8 @@ contains
 
   END SUBROUTINE print_eleconf
 
-  !>calculate the total charge of a given set of occupation numbers in compressed form
+
+  !> Calculate the total charge of a given set of occupation numbers in compressed form
   function ao_ig_charge(nspin,occupIG) result(elec)
     integer, intent(in) :: nspin
     double precision, dimension(nelecmax_ao), intent(in) :: occupIG
@@ -1357,6 +1359,7 @@ contains
 
   END SUBROUTINE set_aocc_from_string
 
+
   !>  Here the fraction is indicated by the :
   subroutine read_fraction_string_old(l,string,occ)
     implicit none
@@ -1380,6 +1383,7 @@ contains
        read(string,*)occ
     end if
   END SUBROUTINE read_fraction_string_old
+
 
   !> Calculate the charge and the spin polarisation to be placed on a given atom
   !! RULE: natpol = c*1000 + sgn(c)*100 + s: charged and polarised atom (charge c, polarisation s)

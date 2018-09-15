@@ -192,7 +192,7 @@ class SystemCalculator(Runner):
         Executing command:  $BIGDFT_MPIRUN <path_to_$BIGDFT_ROOT>/bigdft test
     """
 
-    import os
+    import os,shutil
     def __init__(self, 
                  omp=os.environ.get('OMP_NUM_THREADS','1'),
                  mpi_run=os.environ.get('BIGDFT_MPIRUN',''),
@@ -214,7 +214,9 @@ class SystemCalculator(Runner):
 
         :param str name: naming scheme of the run i.e. <name>.yaml is the input file and log-<name>.yaml the output one.
            Data will then be written in the directory `data-<name>.yaml`, unless the "radical" keyword is specified in the input dictionary.
-        :param str outdir: specify the output directory
+        :param str run_dir: specify the directory where bigdft will be executed (the input and log file will be created in it)
+                            it must be a simple 
+        :param str outdir: specify the output directory for all data coming from bigdft (parameter of bigdft)
         :param str run_name: File containing the list of the run ids which have to be launched independently 
                              (list in yaml format). The option runs-file is not compatible with the name option.
         :param input: give the input parameters (a dictionary or a list of dictionary)
@@ -232,39 +234,54 @@ class SystemCalculator(Runner):
         #Create a temporary dictionary of options
         self._run_options(**kwargs)
         #Give the default values in case of unset_global_options are called
-        name=self.run_options.get('name','')
-        outdir=self.run_options.get('outdir','')
-        run_name=self.run_options.get('run_name','')
-        inp=self.run_options.get('input',{})
-        posinp=self.run_options.get('posinp',None)
-        # Set the number of omp threads
-        os.environ['OMP_NUM_THREADS'] = self.run_options['omp']
-        # Creating the yaml input file from a dictionary or another file
+        name = self.run_options.get('name','')
+        outdir = self.run_options.get('outdir','')
+        run_dir = self.run_options.get('run_dir','.')
+        run_name = self.run_options.get('run_name','')
+        posinp = self.run_options.get('posinp',None)
+        inp = self.run_options.get('input',{})
+        verbose = self.run_options['verbose']
+        dry_run = self.run_options['dry_run']
+        #Restrict run_dir to a sub-directory
+        if  ("/" in run_dir or run_dir == ".."):
+            raise ValueError("run_dir '%s' where bigdft is executed must be a sub-directory" % run_dir)
+        #Create the run_dir if not exist
+        if not os.path.exists(run_dir):
+            #Creation of the sub-directory run_dir
+            os.mkdir(run_dir)
+            if verbose: safe_print("Create the sub-directory '%s'" % run_dir)
+        #Create the input file (deepcopy because we modify it!)
+        local_input=copy.deepcopy(inp)
+        #Check posinp file
+        if posinp != None:
+            #Check if the file does exist
+            if not os.path.isfile(posinp):
+                raise ValueError("posinp: The atomic position file '%s' does not exist" % posinp)
+            #Add into the dictionary a posinp key
+            if run_dir == '.':
+                local_input['posinp'] = posinp
+            else:
+                #Copy the posinp if not identical
+                cp_posinp = "%s/%s" % (run_dir,posinp)
+                if not (os.path.isfile(cp_posinp) and os.stat(posinp) != os.stat(cp_posinp)):
+                    shutil.copy2(posinp,run_dir)
+                    if verbose: safe_print("Copy the posinp file '%s' into '%s'" % (posinp,run_dir))
+                local_input['posinp'] = os.path.basename(posinp)
         if len(name) > 0:
-            input_file = "%s.yaml" % name
-            logname = "log-%s.yaml" % name
+            input_file = "%s/%s.yaml" % (run_dir,name)
+            logname = "%s/log-%s.yaml" % (run_dir,name)
         else:
             input_file = "input.yaml" #default name
             logname = "log.yaml"
         #check if the debug file will be updated (case of erroneous run)
         timedbg=get_debugfile_date()
-        #Create the input file
-        local_input=copy.deepcopy(inp)
-        if posinp != None:
-            #Check if the file does exist
-            assert os.path.isfile(posinp)
-            #Add into the dictionary a posinp key
-            local_input['posinp'] = posinp
         #Creating the yaml input file
-        from futile import Yaml as Y
-        Y.dump(local_input,filename=input_file)
-        if self.run_options['verbose']: safe_print('Creating the yaml input file "%s"' % input_file)
+        open(input_file,"w").write(yaml.dump(local_input,default_flow_style=None))
+        if verbose: safe_print('Creating the yaml input file "%s"' % input_file)
         #Check if it is a dry run
-        if self.run_options['dry_run']:
-            #Use bigdft-tool
-            command = self.run_options['mpi_run'] + ' ' + os.environ['BIGDFT_ROOT']+'/bigdft-tool -l'
-            if self.run_options['dry_run']:
-                command += ' -n ' + str(self.run_options['dry_run'])
+        if dry_run:
+            #Use bigdft-tool (do not use BIGDFT_MPIRUN because it is a python script)
+            command = os.environ['BIGDFT_ROOT']+'/bigdft-tool -a memory-estimation -l'
             if len(name) > 0:
                 command += ' --name='+name
         else:   
@@ -280,11 +297,14 @@ class SystemCalculator(Runner):
                 logname = outdir+"/"+logname
             if self.run_options['skip']:
                 command += ' -s Yes'
-        if self.run_options['verbose']: safe_print('Executing command: ', command)
-        os.system(command)
+        if verbose: safe_print('Executing command: ', command)
+        # Set the number of omp threads
+        os.environ['OMP_NUM_THREADS'] = self.run_options['omp']
+        #Run the command
+        os.system("cd "+run_dir+"; "+command)
         #verify that no debug file has been created
         if get_debugfile_date() > timedbg :
-            if self.run_options['verbose']: 
+            if verbose: 
                 safe_print("ERROR: some problem occured during the execution of the command, check the 'debug/' directory and the logfile")
             return None
         return self.post_processing(logname)

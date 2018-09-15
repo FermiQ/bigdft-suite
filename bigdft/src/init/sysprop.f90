@@ -1366,7 +1366,7 @@ subroutine read_n_orbitals(iproc, qelec_up, qelec_down, norbe, &
      & atoms, qcharge, nspin, mpol, norbsempty)
   use module_atoms, only: atoms_data
   use ao_inguess, only: charge_and_spol
-  use module_defs, only: gp
+  use module_defs, only: gp, BIGDFT_INPUT_VARIABLES_ERROR,BIGDFT_RUNTIME_ERROR  
   use dictionaries, only: f_err_throw
   use yaml_strings
   use yaml_output, only: yaml_warning, yaml_comment
@@ -1405,32 +1405,41 @@ subroutine read_n_orbitals(iproc, qelec_up, qelec_down, norbe, &
 
   if(qelec < 0.0_gp ) then
     call f_err_throw('Number of electrons is negative:' // trim(yaml_toa(qelec)) // &
-      & '. FIX: decrease value of qcharge.', err_name='BIGDFT_RUNTIME_ERROR')
+      & '. FIX: decrease value of qcharge.', err_id=BIGDFT_INPUT_VARIABLES_ERROR)
   end if
 
-  ! Number of orbitals
+  ! Determine the number of orbitals versus nspin
   if (nspin==1) then
      qelec_up=qelec
      qelec_down=0.0_gp
+
   else if(nspin==4) then
      qelec_up=qelec
      qelec_down=0.0_gp
-  else 
-     if (mod(nel+mpol,2) /=0 .and. int_charge) then
-          call f_err_throw('Spin-Polarized calculation (nspin=' // trim(yaml_toa(nspin)) // &
-            & '). The mpol polarization should have the same parity of the (rounded) number of electrons. ' // &
-            & '(mpol='+trim(yaml_toa(mpol)) // 'and qelec='+qelec+')', &
-            & err_name='BIGDFT_INPUT_VARIABLES_ERROR')
 
-     end if
-     !put the charge according to the polarization.
-     !non-integer part always goes to the upper spin shell
-     !nelec_up=min((nelec+mpol)/2,nelec) !this is the integer part (rounded)
-     nel_up=min((nel+mpol)/2,nel)
-     nel_dwn=nel-nel_up
-     qelec_down=real(nel_dwn,gp)
-     !then the elec_up part is redefined with the actual charge
-     qelec_up=qelec-qelec_down
+  else if(nspin==2) then
+!TD!    if (mod(nel+mpol,2) /=0 .and. int_charge) &
+!TD!       r&  call f_err_throw('Spin-Polarized calculation (nspin=' // trim(yaml_toa(nspin)) // &
+!TD!           & '). The mpol polarization should have the same parity of the (rounded) number of electrons. ' // &
+!TD!           & '(mpol='+trim(yaml_toa(mpol)) // 'and qelec='+qelec+')', &
+!TD!           & err_id=BIGDFT_INPUT_VARIABLES_ERROR)
+
+     if (abs(mpol) > nel) call f_err_throw('Spin-Polarized calculation (nspin=' // trim(yaml_toa(nspin)) // &
+            & '). The mpol polarization should be less than the number of electrons' // &
+            & '(mpol='+trim(yaml_toa(mpol)) // 'and nel='//trim(yaml_toa(nel))//')', &
+            & err_id=BIGDFT_INPUT_VARIABLES_ERROR)
+
+     !Put the charge according to the polarization.
+!TD!    !non-integer part always goes to the upper spin shell
+!TD!    nelec_up=min((nelec+mpol)/2,nelec) !this is the integer part (rounded)
+!TD!    nel_up=min((nel+mpol)/2,nel)
+!TD!    nel_dwn=nel-nel_up
+!TD!    qelec_down=real(nel_dwn,gp)
+!TD!    !then the elec_up part is redefined with the actual charge
+!TD!    qelec_up=qelec-qelec_down
+
+     qelec_up=(qelec+real(mpol,gp))/2.0
+     qelec_down=qelec-qelec_up
 
      !test if the spin is compatible with the input guess polarizations
      ispinsum=0
@@ -1443,25 +1452,25 @@ subroutine read_n_orbitals(iproc, qelec_up, qelec_down, norbe, &
         iabspol=iabspol+abs(ispol)
      end do
 
-     if (ispinsum /= nel_up-nel_dwn .and. int_charge) then
-        call f_err_throw('Total polarization for the input guess (found' // &
-             trim(yaml_toa(ispinsum)) // &
-             ') must be equal to rounded nel_up-nel_dwn ' // &
-             '(nelec=' // trim(yaml_toa(qelec)) // ', mpol=' // trim(yaml_toa(mpol)) // &
-             ', nel_up-nel_dwn=' // trim((yaml_toa(nel_up-nel_dwn))) // &
-             ', nel_up=' // trim((yaml_toa(nel_up))) // &
-             ', nel_dwn=' // trim((yaml_toa(nel_dwn))) // &
-             '). By default, each atom has an input guess polarization (IGSpin) equal to 0. ' // &
-             'Use the keyword "IGSpin" or add a spin component for the input guess per atom.', &
-             err_name='BIGDFT_INPUT_VARIABLES_ERROR')
-     end if
-
-     if (ichgsum /= nchg .and. ichgsum /= 0) then
-        call f_err_throw('Total input charge (found ' // trim(yaml_toa(ichgsum)) // &
-             & ') cannot be different than rounded charge. With charge =' // trim(yaml_toa(qcharge)) // &
-             & ' and input charge=' // trim(yaml_toa(ichgsum)), &
-             & err_name='BIGDFT_INPUT_VARIABLES_ERROR')
-     end if
+!TD!    if (ispinsum /= nel_up-nel_dwn .and. int_charge) then
+!TD!       call f_err_throw('Total polarization for the input guess (found' // &
+!TD!            trim(yaml_toa(ispinsum)) // &
+!TD!            ') must be equal to rounded nel_up-nel_dwn ' // &
+!TD!            '(nelec=' // trim(yaml_toa(qelec)) // ', mpol=' // trim(yaml_toa(mpol)) // &
+!TD!            ', nel_up-nel_dwn=' // trim((yaml_toa(nel_up-nel_dwn))) // &
+!TD!            ', nel_up=' // trim((yaml_toa(nel_up))) // &
+!TD!            ', nel_dwn=' // trim((yaml_toa(nel_dwn))) // &
+!TD!            '). By default, each atom has an input guess polarization (IGSpin) equal to 0. ' // &
+!TD!            'Use the keyword "IGSpin" or add a spin component for the input guess per atom.', &
+!TD!            err_name='BIGDFT_INPUT_VARIABLES_ERROR')
+!TD!    end if
+!TD!
+!TD!    if (ichgsum /= nchg .and. ichgsum /= 0) then
+!TD!       call f_err_throw('Total input charge (found ' // trim(yaml_toa(ichgsum)) // &
+!TD!            & ') cannot be different than rounded charge. With charge =' // trim(yaml_toa(qcharge)) // &
+!TD!            & ' and input charge=' // trim(yaml_toa(ichgsum)), &
+!TD!            & err_name='BIGDFT_INPUT_VARIABLES_ERROR')
+!TD!    end if
 
      !now warn if there is no input guess spin polarisation
 !!$     ispinsum=0
@@ -1470,8 +1479,12 @@ subroutine read_n_orbitals(iproc, qelec_up, qelec_down, norbe, &
 !!$        ispinsum=ispinsum+abs(ispol)
 !!$     end do
 !!$     if (ispinsum == 0) then
-     if (iabspol == 0 .and. iproc==0 .and. norbsempty == 0) &
-          call yaml_warning('Found no input polarisation, add it for a correct input guess')
+!TD!    if (iabspol == 0 .and. iproc==0 .and. norbsempty == 0) &
+!TD!         call yaml_warning('Found no input polarisation, add it for a correct input guess')
+
+  else
+     call f_err_throw('The value of nspin ('//trim(yaml_toa(nspin))//' is not correct', &
+     err_id=BIGDFT_RUNTIME_ERROR)
   end if
 
   norbe = 0

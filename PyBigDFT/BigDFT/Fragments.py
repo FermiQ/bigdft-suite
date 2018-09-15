@@ -526,13 +526,13 @@ class System():
                 frag=Fragment(units=self.units)
                 iat=0
         if nat_reference is None: self.append(frag) #case of one single fragment
-    def fill_from_posinp_dict(self,dict):
-        frag_dict = CreateFragDict(dict)
+    def fill_from_posinp_dict(self,dct):
+        frag_dict = CreateFragDict(dct)
         frag_list = CreateFragList(frag_dict)
         for frag in frag_list:
             fragtemp = Fragment(units=self.units)
             for iatom in frag[1]:
-                at_dict = dict["positions"][iatom-1]
+                at_dict = dct["positions"][iatom-1]
                 sym = GetSymbol(at_dict)
                 rxyz = at_dict[sym]
                 fragtemp.append({sym: rxyz})

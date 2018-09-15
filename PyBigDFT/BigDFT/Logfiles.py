@@ -62,10 +62,10 @@ def get_logs(files):
     :param files: List of filenames indicating the logfiles
     :returns: List of Logfile instances associated to filename
     """
-    from futile import Yaml
+    from futile import YamlIO
     logs=[]
     for filename in files:
-        logs+=Yaml.load(filename,doc_lists=True,safe_mode=True)
+        logs+=YamlIO.load(filename,doc_lists=True,safe_mode=True)
     return logs
 
 
@@ -259,13 +259,13 @@ class Logfile():
         if arch:
             #An archive is detected
             import tarfile
-            from futile import Yaml
+            from futile import YamlIO
             tar = tarfile.open(arch)
             members = [ tar.getmember(member) ] if member else tar.getmembers()
             #print members
             for memb in members:
                 f = tar.extractfile(memb)
-                dicts.append(Yaml.load(stream=f.read()))
+                dicts.append(YamlIO.load(stream=f.read()))
                 #dicts[-1]['label'] = memb.name #Add the label (name of the file)
             srcdir=os.path.dirname(arch)
             label = label if label is not None else arch
@@ -454,7 +454,7 @@ class Logfile():
     def get_dos(self,label=None,npts=2500):
         """
         Get the density of states from the logfile.
-
+        
         :param label: id of the density of states.
         :type label: string
         :param npts: number of points of the DoS curve
@@ -528,8 +528,11 @@ class Logfile():
     def _print_information(self):
         """Display short information about the logfile (used by str)."""
         import yaml,numpy
-        summary=[{'Atom types':
-                  numpy.unique([ at.keys()[0] for at in self.astruct['Positions']]).tolist()},
+        #summary=[{'Atom types':
+        #          numpy.unique([ at.keys()[0] for at in self.astruct['Positions']]).tolist()},
+        #         {'Cell':
+        #          self.astruct.get('Cell','Free BC')}]
+        summary=[{'Atom types': self.log['Atomic System Properties']['Types of atoms']},
                  {'Cell':
                   self.astruct.get('Cell','Free BC')}]
         #normal printouts in the document, according to definition

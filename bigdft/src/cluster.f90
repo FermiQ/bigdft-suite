@@ -712,7 +712,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
            inputpsi,input_wf_format,norbv,lzd_old,psi_old,rxyz_old,tmb_old,ref_frags,cdft)
    end if
 
-  nvirt=max(in%nvirt,norbv)
+  nvirt=min(in%nvirt,norbv)
 
   ! modified by SM
   call deallocate_local_zone_descriptors(lzd_old)
@@ -1003,7 +1003,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
 
      call kswfn_post_treatments(iproc, nproc, KSwfn, tmb, &
           inputpsi .hasattr. 'LINEAR',&
-          fxyz, fnoise, fion, fdisp, fpulay, &
+          fxyz, fion, fdisp, fpulay, &
           strten, pressure, ewaldstr, xcstr, GPU, denspot, atoms, rxyz, nlpsp, &
           output_denspot, in%dir_output, gridformat, refill_proj, calculate_dipole, calculate_quadrupole, &
           in%calculate_strten,in%nspin, in%plot_pot_axes)
@@ -2007,7 +2007,7 @@ END SUBROUTINE kswfn_optimization_loop
 
 
 subroutine kswfn_post_treatments(iproc, nproc, KSwfn, tmb, linear, &
-     & fxyz, fnoise, fion, fdisp, fpulay, &
+     & fxyz, fion, fdisp, fpulay, &
      & strten, pressure, ewaldstr, xcstr, &
      & GPU, denspot, atoms, rxyz, nlpsp, &
      & output_denspot, dir_output, gridformat, refill_proj, &
@@ -2046,7 +2046,8 @@ subroutine kswfn_post_treatments(iproc, nproc, KSwfn, tmb, linear, &
   real(gp), dimension(3, atoms%astruct%nat), intent(inout) :: fion
   real(dp), dimension(6), intent(in) :: ewaldstr
   real(dp), dimension(6), intent(inout) :: xcstr
-  real(gp), intent(out) :: fnoise, pressure
+  !real(gp), intent(out) :: fnoise
+  real(gp), intent(out) :: pressure
   real(gp), dimension(6), intent(out) :: strten
   real(gp), dimension(3, atoms%astruct%nat), intent(out) :: fxyz
   integer,dimension(3),intent(in) :: plot_pot_axes

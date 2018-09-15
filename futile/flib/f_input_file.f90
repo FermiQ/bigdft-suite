@@ -6,6 +6,7 @@
 !!    GNU General Public License, see ~/COPYING file
 !!    or http://www.gnu.org/copyleft/gpl.txt .
 !!    For the list of contributors, see ~/AUTHORS
+
 module f_input_file
   use dictionaries
   use yaml_strings, only: operator(.eqv.),f_strcpy
@@ -126,15 +127,18 @@ contains
              iter => dict_iter(dict_tmp2)
              do while(associated(iter))
                 call dict_update(dict,imports//dict_value(iter))
-                if (COMMENT .in. dict) call dict_remove(dict,COMMENT)
                 iter => dict_next(iter)
              end do
           else if (dict_size(dict_tmp2) > 0 ) then
              call f_err_throw(err_id = INPUT_VAR_ILLEGAL, &
                   err_msg ='The "'//IMPORT_KEY//'" key only accepts scalars or lists')
           else
+             !Only one entry
              call dict_copy(src=imports//dict_value(dict_tmp2),dest=dict)
           end if
+          !Remove COMMENT and DESCRIPTION entries
+          if (COMMENT .in. dict) call dict_remove(dict,COMMENT)
+          if (DESCRIPTION .in. dict) call dict_remove(dict,DESCRIPTION)
           !then override with the input defaults
           call dict_update(dict,dict_tmp)
           call dict_free(dict_tmp)

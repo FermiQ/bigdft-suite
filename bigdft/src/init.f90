@@ -1997,7 +1997,6 @@ subroutine input_wf_diag(iproc,nproc,at,denspot,&
   type(orbitals_data) :: orbse
   type(comms_cubic) :: commse
   integer, dimension(:,:), allocatable :: norbsc_arr
-  real(wp), dimension(:), allocatable :: passmat
   !real(wp), dimension(:,:,:), allocatable :: mom_vec
   real(gp), dimension(:), allocatable :: locrad
   !   real(wp), dimension(:), pointer :: pot,pot1
@@ -2405,19 +2404,14 @@ subroutine input_wf_diag(iproc,nproc,at,denspot,&
   !allocate the passage matrix for transforming the LCAO wavefunctions in the IG wavefucntions
   ncplx=1
   if (orbs%nspinor > 1) ncplx=2
-  passmat = f_malloc(ncplx*orbs%nkptsp*(orbse%norbu*orbs%norbu+orbse%norbd*orbs%norbd),id='passmat')
-  !!print '(a,10i5)','iproc,passmat',iproc,ncplx*orbs%nkptsp*(orbse%norbu*orbs%norbu+orbse%norbd*orbs%norbd),&
-  !!     orbs%nspinor,orbs%nkptsp,orbse%norbu,orbse%norbd,orbs%norbu,orbs%norbd
 
   if (iproc==0) call yaml_newline()
 
   !test merging of Linear and cubic
   call LDiagHam(iproc,nproc,at%natsc,nspin_ig,orbs,Lzd,Lzde,comms,&
-       psi,hpsi,psit,input%orthpar,passmat,input%scf .hasattr. 'MIXING',&
+       psi,hpsi,psit,input%orthpar,input%scf .hasattr. 'MIXING',&
        input%Tel,input%occopt,&
        orbse,commse,etol,norbsc_arr)
-
-  call f_free(passmat)
 
   if ((input%scf .hasattr. 'MIXING') .or. input%Tel > 0.0_gp) then
 
@@ -2891,8 +2885,8 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
 
      if (any(atoms%npspcode == PSPCODE_PAW) .or. &
           & any(atoms%npspcode == PSPCODE_PSPIO)) then
-        npspcode = f_malloc(src = atoms%npspcode)
-        psppar   = f_malloc(src = atoms%psppar)
+        npspcode = f_malloc(src = atoms%npspcode, id="npspcode")
+        psppar   = f_malloc(src = atoms%psppar, id="psppar")
         ! Cheating lines here.
         do ityp = 1, atoms%astruct%ntypes
            if (atoms%npspcode(ityp) /= PSPCODE_PAW .and. &

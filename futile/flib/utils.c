@@ -55,6 +55,13 @@ static int clock_gettime(int clk_id, struct timespec *tp)
 }
 #endif
 
+#ifndef HAVE_ALIGNED_ALLOC
+void *aligned_alloc(size_t alignment, size_t size)
+{
+    return memalign(alignment,size);
+}
+#endif
+
 void FC_FUNC(nanosec,NANOSEC)(unsigned long long int * t){
   struct timespec time;
   clock_gettime(CLOCK_REALTIME, &time);

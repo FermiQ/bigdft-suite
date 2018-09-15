@@ -31,6 +31,7 @@ module input_old_text_format
 
   !public :: read_input_dict_from_files!input_from_old_text_format
   public :: input_from_old_text_format
+
 contains
 
   function input_psi_names(id)
@@ -925,7 +926,7 @@ contains
     type(dictionary), pointer :: dict_basis
 
     !call f_err_throw('For the linear version the input parameters must be read in the .yaml format, &
-    !    &the old version is deprecated', err_name='BIGDFT_INPUT_VARIABLES_ERROR')
+    !    &the old version is deprecated', err_id=BIGDFT_INPUT_VARIABLES_ERROR)
 
     filename=repeat(' ',len(filename))
     call set_inputfile(filename, trim(run_name),    "lin")
@@ -1179,9 +1180,11 @@ contains
 
   end subroutine read_neb_from_text_format
 
+
   !> Read fragment input parameters
   subroutine fragment_input_variables_from_text_format(iproc,dump,filename,shouldexist,dict)
-    use module_defs, only: gp
+    use module_base, only : f_err_throw
+    use module_defs, only: gp, BIGDFT_INPUT_VARIABLES_ERROR
     use fragment_base
     use module_input
     use dictionaries
@@ -1207,7 +1210,7 @@ contains
 
     if (.not. exists .and. shouldexist) then ! we should be doing a fragment calculation, so this is a problem
        call f_err_throw("The file 'input.frag' is missing and fragment calculation was specified",&
-            err_name='BIGDFT_INPUT_VARIABLES_ERROR')
+            err_id=BIGDFT_INPUT_VARIABLES_ERROR)
        call input_free(.false.)
        return
     end if
@@ -1239,7 +1242,7 @@ contains
        call input_var(frag_num,'1',ranges=(/1,frag%nfrag_ref/))
        if (frag_num/=ifrag) then
           call f_err_throw("The file 'input.frag'  has an error when specifying"//&
-               " the reference fragments",err_name='BIGDFT_INPUT_VARIABLES_ERROR')
+               " the reference fragments",err_id=BIGDFT_INPUT_VARIABLES_ERROR)
        end if
        call input_var(frag%label(frag_num),' ',comment=comments)
        frag%label(frag_num)=trim(frag%label(frag_num))
@@ -1256,7 +1259,7 @@ contains
        call input_var(frag_num,'1',ranges=(/1,frag%nfrag/))
        if (frag_num/=ifrag) then
           call f_err_throw("The file 'input.frag'  has an error when specifying"//&
-               " the system fragments",err_name='BIGDFT_INPUT_VARIABLES_ERROR')
+               " the system fragments",err_id=BIGDFT_INPUT_VARIABLES_ERROR)
        end if
        call input_var(frag%frag_index(frag_num),'1',ranges=(/0,100000/))
        call input_var(charge,'0.d0',ranges=(/-500.d0,500.d0/),comment=comments)
@@ -1371,6 +1374,7 @@ contains
 
     run => dict_new(RADICAL_NAME .is. ' ')
   end subroutine dict_run_new
+
 
   subroutine set_dict_run_file(run_id,options)
     implicit none
@@ -1589,6 +1593,7 @@ contains
     use dictionaries
     use yaml_output
     use yaml_strings, only: operator(.eqv.)
+    use module_defs, only: BIGDFT_INPUT_VARIABLES_ERROR
     use module_base, only: bigdft_mpi
     use public_keys, only: POSINP, PERF_VARIABLES, DFT_VARIABLES, KPT_VARIABLES, &
          & GEOPT_VARIABLES, MD_VARIABLES, MIX_VARIABLES, SIC_VARIABLES, TDDFT_VARIABLES, LIN_GENERAL, &
@@ -1685,7 +1690,7 @@ contains
           call yaml_map('Invalid entries of the input dictionary',invalid_entries)
        end if
        call f_err_throw('The input dictionary contains invalid entries,'//&
-            ' check above the valid entries',err_name='BIGDFT_INPUT_VARIABLES_ERROR')
+            ' check above the valid entries',err_id=BIGDFT_INPUT_VARIABLES_ERROR)
     !else if (loginput) then
     !      call yaml_warning('This input file has been created from a logfile')
     end if
@@ -1973,20 +1978,39 @@ contains
   !end subroutine aocc_to_dict
 
 
+  !> Determine the number of up (norbu) and down (norbd) orbitals
+  !! and the occupation numbers from the dictionary
+  !! occupation:
+  !!   K point 1:
+  !!     Orbital 2: 2/3
+  !!     Orbital 3: 2/3
+  !!     Orbital 4: 2/3
+  !!   K point 2: 
+  !!     Orbital 2: 2
+  !!
+  !! If not K point, you can remove the keyword 'K points 1'
+  !! if nspin=2
+  !! occupation:
+  !!   up:
+  !!     Orbital 1: 1
+  !!   down:
+  !!     Orbital 1: 0
   subroutine occupation_set_from_dict(dict, key, norbu, norbd, occup, &
        & nkpts, nspin, norbsempty, qelec_up, qelec_down, norb_max)
-    use module_defs, only: gp
+    use module_defs, only: gp, BIGDFT_INPUT_VARIABLES_ERROR, BIGDFT_INPUT_FILE_ERROR
+    use module_base, only : f_err_throw
     use dynamic_memory
     use yaml_strings, only: yaml_toa
     use yaml_output
     implicit none
+    !Arguments
     type(dictionary), pointer :: dict
     character(len = *), intent(in) :: key
     real(gp), dimension(:), pointer :: occup
     integer, intent(in) :: nkpts, nspin, norbsempty, norb_max
     real(gp), intent(in) :: qelec_up, qelec_down
     integer, intent(out) :: norbu, norbd
-
+    !Local variables
     integer :: norb
     integer :: ikpt,ne_up,ne_dwn
     type(dictionary), pointer :: occup_src
@@ -2047,12 +2071,12 @@ contains
 
     ! Summarize and check.
     norb = norbu + norbd
-    if (((nspin == 1 .or. nspin == 2) .and. (norbu > norb_max .or. norbd > norb_max)) &
+    if ( ((nspin == 1 .or. nspin == 2) .and. (norbu > norb_max .or. norbd > norb_max)) &
          & .or. (nspin == 4 .and. (norbu > 2 * norb_max .or. norbd > 0))) then
-       call yaml_warning('Total number of orbitals (found ' // trim(yaml_toa(norb)) &
+       call f_err_throw('Total number of orbitals (found ' // trim(yaml_toa(norb)) &
             & // ') exceeds the available input guess orbitals (being ' &
-            & // trim(yaml_toa(norb_max)) // ').')
-       stop
+            & // trim(yaml_toa(norb_max)) // ').',&
+            & err_id=BIGDFT_INPUT_VARIABLES_ERROR)
     end if
 
     ! Allocate occupation accordingly.
@@ -2092,7 +2116,7 @@ contains
        call f_err_throw('The total number of electrons ' &
             & // trim(yaml_toa(sum(occup) / nkpts,fmt='(f13.6)')) &
             & // ' is not equal to' // trim(yaml_toa(qelec_up + qelec_down)),&
-            err_name='BIGDFT_INPUT_FILE_ERROR')
+            err_id=BIGDFT_INPUT_FILE_ERROR)
     end if
 
     call f_release_routine()
@@ -2109,19 +2133,22 @@ contains
       if (qelec - real(ne,gp) > 1.e-12_gp) ne=ne+1
     end function int_elec
 
+    
     subroutine count_for_kpt(occ)
+      use module_defs, only: BIGDFT_INPUT_VARIABLES_ERROR
       implicit none
       type(dictionary), pointer :: occ
 
       if (nspin == 2) then
-         if (.not. has_key(occ, "up") .or. &
-              & .not. has_key(occ, "down")) stop "missing up or down"
+         if (.not. has_key(occ, "up") .or.  .not. has_key(occ, "down")) &
+            call f_err_throw("missing up or down in 'occup'",err_id=BIGDFT_INPUT_VARIABLES_ERROR)
          call count_orbs(norbu, occ // "up")
          call count_orbs(norbd, occ // "down")
       else
          call count_orbs(norbu, occ)
       end if
     end subroutine count_for_kpt
+
 
     subroutine count_orbs(n, occ)
       implicit none
@@ -2183,7 +2210,7 @@ contains
 
 
   subroutine occupation_data_file_merge_to_dict(dict, key, filename)
-    use module_defs, only: gp, UNINITIALIZED
+    use module_defs, only: gp, UNINITIALIZED, BIGDFT_INPUT_VARIABLES_ERROR
     use yaml_output
     use yaml_strings, only: yaml_toa
     implicit none
@@ -2200,10 +2227,9 @@ contains
 
     open(unit=91,file=filename,status='old',iostat=ierror)
     !Check the open statement
-    if (ierror /= 0) then
-       call yaml_warning('Failed to open the existing file '// trim(filename))
-       stop
-    end if
+    if (ierror /= 0) &
+       call f_err_throw('Failed to open the existing file '// trim(filename),&
+            & err_id=BIGDFT_INPUT_VARIABLES_ERROR)
 
     !The first line gives the number of orbitals
     read(unit=91,fmt='(a100)') line
@@ -2213,7 +2239,9 @@ contains
        !The first line gives the number of orbitals
        ntd = 0
        read(line,fmt=*,iostat=ierror) ntu
-       if (ierror /=0) stop 'ERROR: reading the number of orbitals.'
+       if (ierror /=0) &
+          call f_err_throw('ERROR: reading the number of orbitals.', &
+          & err_id=BIGDFT_INPUT_VARIABLES_ERROR)
     end if
 
     call dict_init(valu)
@@ -2246,11 +2274,9 @@ contains
        nt=nt+1
 
        if (iorb<0 .or. iorb>ntu + ntd) then
-          !if (iproc==0) then
-          write(*,'(1x,a,i0,a)') 'ERROR in line ',nt,' of the file "[name].occ"'
-          write(*,'(10x,a,i0,a)') 'The orbital index ',iorb,' is incorrect'
-          !end if
-          stop
+          call f_err_throw('ERROR in line '//trim(yaml_toa(nt))//' of the file "'//&
+               & trim(filename)//'.occ". The orbital index '//trim(yaml_toa(iorb))//' is incorrect.',&
+               & err_id=BIGDFT_INPUT_VARIABLES_ERROR)
        else
           if (iorb <= ntu) then
              call set(valu // ("Orbital" // trim(yaml_toa(iorb, fmt = "(I0)"))), string)

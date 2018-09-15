@@ -816,7 +816,7 @@ contains
   end subroutine get_matrix_from_dict
 
   
-  !> Initialize atomic data from the dict (key=ig_occupation)
+  !> Initialize atomic data from the dict (key='ig_occupation')
   subroutine atomic_data_set_from_dict(dict, key, atoms, nspin)
     use module_defs, only: gp
     use ao_inguess, only: ao_ig_charge,atomic_info,aoig_set_from_dict,&
@@ -868,8 +868,9 @@ contains
              elec=ao_ig_charge(nspin,atoms%aoig(it%iat)%aocc)
              if (nint(elec) /= atoms%nelpsp(it%ityp) .and. bigdft_mpi%iproc==0) then
                 call print_eleconf(nspin,atoms%aoig(it%iat)%aocc,atoms%aoig(it%iat)%nl_sc)
-                call yaml_warning('The total atomic charge '//trim(yaml_toa(elec))//&
-                     ' is different from the PSP charge '//trim(yaml_toa(atoms%nelpsp(it%ityp))))
+                call yaml_warning('Total atomic charge for '//trim(yaml_toa(it%name))// &
+                     & ' with ig_occupation'//trim(yaml_toa(elec))//&
+                     & ' different from the PSP charge'//trim(yaml_toa(atoms%nelpsp(it%ityp))))
              end if
           end if
        end if

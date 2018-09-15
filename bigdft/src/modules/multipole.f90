@@ -267,32 +267,34 @@ module multipole
 !!$      perx=(at%astruct%geocode /= 'F')
 !!$      pery=(at%astruct%geocode == 'P')
 !!$      perz=(at%astruct%geocode /= 'F')
-!!$      if (perx) then
-!!$          j1s = -1
-!!$          j1e = 1
-!!$      else
-!!$          j1s = 0
-!!$          j1e = 0
-!!$      end if
-!!$      if (pery) then
-!!$          j2s = -1
-!!$          j2e = 1
-!!$      else
-!!$          j2s = 0
-!!$          j2e = 0
-!!$      end if
-!!$      if (perz) then
-!!$          j3s = -1
-!!$          j3e = 1
-!!$      else
-!!$          j3s = 0
-!!$          j3e = 0
-!!$      end if
 
       peri=cell_periodic_dims(denspot%dpbox%mesh)
       perx=peri(1)
       pery=peri(2)
       perz=peri(3)
+
+      if (perx) then
+          j1s = -1
+          j1e = 1
+      else
+          j1s = 0
+          j1e = 0
+      end if
+      if (pery) then
+          j2s = -1
+          j2e = 1
+      else
+          j2s = 0
+          j2e = 0
+      end if
+      if (perz) then
+          j3s = -1
+          j3e = 1
+      else
+          j3s = 0
+          j3e = 0
+      end if
+
       
 !!$          hhh = hx*hy*hz
       hhh = denspot%dpbox%mesh%volume_element
