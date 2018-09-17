@@ -486,8 +486,8 @@ contains
 
   end function yaml_date_and_time_toa
 
-  !> Yaml Spaced format for Date
   function yaml_date_toa(values)
+    ! Yaml Spaced format for Date
     implicit none
     integer, dimension(8), optional, intent(in) :: values
     character(len=max_value_length) :: yaml_date_toa
