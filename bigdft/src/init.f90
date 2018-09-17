@@ -1770,6 +1770,7 @@ END SUBROUTINE input_memory_linear
 
 
 !> Input wavefunctions from disk
+!! Read the wavefunctions from the directory dir_output (<outdir>/data-<name>)
 subroutine input_wf_disk(iproc, nproc, input_wf_format, d, hx, hy, hz, &
      in, atoms, rxyz, GPU, Lzd, wfd, orbs, psi, denspot, nlpsp, paw)
   use module_base
