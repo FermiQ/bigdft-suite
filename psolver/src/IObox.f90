@@ -958,7 +958,7 @@ module IObox
          nelpsp_=1
          nzatom_=1
          iatype_=1
-         rxyz_=f_malloc_ptr([1,1],id='rxyz_')
+         rxyz_=f_malloc_ptr([3,1],id='rxyz_')
          rxyz_(:,1)=get_dipole(multipoles)
          !in this case the full grid has to be used
          call f_enum_attr(dest=form,attr=FULL_MESH_ENUM)

@@ -82,8 +82,8 @@ module rhopotential
             denspot%dpbox%mesh%hgrids,&
             denspot%rhov,energs%exc,energs%evxc,nspin,denspot%rho_C,denspot%rhohat,denspot%V_XC,xcstr)
 
-       call H_potential('D',denspot%pkernel,denspot%rhov,denspot%V_ext,ehart_ps,0.0_dp,.false.,&
-            quiet=denspot%PSquiet)!,rho_ion=denspot%rho_ion) !optional argument
+       call H_potential('D',denspot%pkernel,denspot%rhov,denspot%V_ext,ehart_ps,0.0_dp,.true.,&
+            quiet=denspot%PSquiet,rho_ion=denspot%rho_ion) !optional argument
 
        if (denspot%pkernel%method /= 'VAC') then
           energs%eelec=ehart_ps
@@ -967,7 +967,7 @@ module rhopotential
        end if
 
        !rescale the density to apply that to ABINIT routines
-       if (nspin==1) call vscal(dpbox%ndimrho,0.5_dp,rho(1,1),1)
+       if (nspin==1 .and. dpbox%ndimrho > 0) call vscal(dpbox%ndimrho,0.5_dp,rho(1,1),1)
 
        !allocate array for XC potential enlarged for the WB procedure
        vxci = f_malloc0([ dpbox%mesh%ndims(1), dpbox%mesh%ndims(2), max(1, nwb), nspin],id='vxci')

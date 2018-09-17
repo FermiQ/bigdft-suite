@@ -627,7 +627,7 @@ module module_types
  public :: nullify_orbitals_data, nullify_DFT_wavefunctions
  public :: SIC_data,orthon_data,input_variables,evaltoocc
  public :: linear_matrices_null, linmat_auxiliary_null, deallocate_linmat_auxiliary
- public :: deallocate_linear_matrices
+ public :: deallocate_linear_matrices,pkernel_seq_is_needed
  !public :: matrixindex_in_compressed_fortransposed_null
  public :: matrixindex_in_compressed_fortransposed2_null
 
@@ -794,9 +794,7 @@ contains
     call f_free_ptr(rhodsc%dpkey)
     call f_free_ptr(rhodsc%cseg_b)
     call f_free_ptr(rhodsc%fseg_b)
-
   end subroutine deallocate_rho_descriptors
-
 
 !!!  subroutine deallocate_Lzd(Lzd)
 !!!    use module_base
@@ -1056,6 +1054,19 @@ contains
       end do
     end if
   end subroutine cprj_to_array
+
+  function pkernel_seq_is_needed(in,denspot) result(yes)
+    use module_xc
+    implicit none
+    type(input_variables), intent(in) :: in
+    type(DFT_local_fields), intent(in) :: denspot
+    logical :: yes
+
+    yes = (in%exctxpar == 'OP2P' .and. xc_exctXfac(denspot%xc) /= 0.0_gp) &
+            .or. in%SIC%alpha /= 0.0_gp
+
+  end function pkernel_seq_is_needed
+
 
 
   pure function work_mpiaccumulate_null() result(w)

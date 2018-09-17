@@ -233,7 +233,7 @@ dy_field(j,i,k) =((1.0d0/cos(theta))-1.0d0)*y+tan(theta)*x
 
 !    call scaling_function(itype,nd,nrange,x_phi,y_phi)
 !cut the size of the array to exclude points outside support
-  call my_scaling_function4b2B(itype,nd,nrange,x_phi,y_phi)
+!temporary comment  call my_scaling_function4b2B(itype,nd,nrange,x_phi,y_phi)
   !    if( abs(y_phi(nd/2)-1)>1.0e-10 ) then
   do i=0,nd
  ! if (abs(y_phi(i)-0.97821193752582369d0) <= 1.d-5) then
@@ -1685,7 +1685,7 @@ subroutine scaling_function4b2B_again(itype,nd,nrange,a,x)
       case(14)
          stop
       case(16)
-         call back_trans_16_reversed(nd,nt,x,y)
+!tmp         call back_trans_16_reversed(nd,nt,x,y)
       case(20)
          stop
       case(24)

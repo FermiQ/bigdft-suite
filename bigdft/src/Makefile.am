@@ -64,15 +64,17 @@ bigdft_soname_library = libbigdft-1.so.@BIGDFT_MINOR_VERSION@
 bigdft_deps += @LIB_BIGDFT_DEPS@
 bigdft_library += $(bigdft_soname_library) $(bigdft_deps)
 AM_LDFLAGS = @FC_RPATH@$(DESTDIR)$(dynlibdir) 
-if HAVE_OPENBABEL
-AM_LDFLAGS += @FC_RPATH@$(abs_builddir)/modules
-endif
 else
 bigdft_dynamic_library =
 bigdft_soname_library =
 bigdft_deps += @LIB_BIGDFT_DEPS@ @LINALG_LIBS@
 bigdft_library += libbigdft-1.a $(bigdft_deps)
 endif
+
+if HAVE_OPENBABEL
+AM_LDFLAGS += @FC_RPATH@$(abs_builddir)/modules
+endif
+
 
 if BUILD_BINARIES
 binaries_sources = bigdft memguess frequencies abscalc utilities

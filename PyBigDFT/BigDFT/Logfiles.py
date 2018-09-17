@@ -20,37 +20,41 @@ FLOAT_SCALAR='scalar'
 
 PRE_POST = [EVAL, SETUP, INITIALIZATION]
 
-#Builtin pathes to define the search paths
+#Builtin paths to define the search paths
 BUILTIN={
-    'nat': {PATH: [ ['Atomic System Properties','Number of atoms']],
-                 PRINT: "Number of Atoms", GLOBAL: True},
-    "energy": {PATH: [["Last Iteration", "FKS"],["Last Iteration", "EKS"], ["Energy (Hartree)"]],
-                    PRINT: "Energy", GLOBAL: False},
-    "fermi_level": {PATH:[["Ground State Optimization", -1, "Fermi Energy"], ["Ground State Optimization", -1, "Hamiltonian Optimization", -1, "Subspace Optimization", "Fermi Energy"]],
-                         PRINT: True, GLOBAL: False},
     'astruct': {PATH: [ ['Atomic structure']]},
+    'electrostatic_multipoles': {PATH: [['Multipole coefficients','values']]},
+    'energy': {PATH: [["Last Iteration", "FKS"],["Last Iteration", "EKS"], ["Energy (Hartree)"]],
+                 PRINT: "Energy", GLOBAL: False},
     'evals': {PATH: [ ["Complete list of energy eigenvalues"], [ "Ground State Optimization", -1, "Orbitals"],
                     ["Ground State Optimization",-1,"Hamiltonian Optimization",-1,"Subspace Optimization","Orbitals"] ]},
-    'kpts': {PATH: [["K points"]],
-             PRINT: False, GLOBAL: True},
-    'gnrm_cv': {PATH: [["dft","gnrm_cv"]], PRINT: "Convergence criterion on Wfn. Residue", GLOBAL: True},
-    'kpt_mesh': {PATH:[['kpt','ngkpt']], PRINT: True, GLOBAL: True},
+    'fermi_level': {PATH:[["Ground State Optimization", -1, "Fermi Energy"], ["Ground State Optimization", -1, "Hamiltonian Optimization", -1, "Subspace Optimization", "Fermi Energy"]],
+                 PRINT: True, GLOBAL: False},
     'forcemax': {PATH: [["Geometry","FORCES norm(Ha/Bohr)","maxval"],['Clean forces norm (Ha/Bohr)','maxval']],
                  PRINT: "Max val of Forces"},
-    'pressure': {PATH: [['Pressure','GPa']], PRINT: True},
-    'forces': {PATH: [['Atomic Forces (Ha/Bohr)']]},
     'forcemax_cv': {PATH: [['geopt','forcemax']], PRINT: 'Convergence criterion on forces', GLOBAL: True, FLOAT_SCALAR: True},
     'force_fluct': {PATH:[["Geometry","FORCES norm(Ha/Bohr)","fluct"]], PRINT: "Threshold fluctuation of Forces"},
+    'forces': {PATH: [['Atomic Forces (Ha/Bohr)']]},
+    'gnrm_cv': {PATH: [["dft","gnrm_cv"]], PRINT: "Convergence criterion on Wfn. Residue", GLOBAL: True},
+    'kpts': {PATH: [["K points"]],
+                 PRINT: False, GLOBAL: True},
+    'kpt_mesh': {PATH:[['kpt','ngkpt']], PRINT: True, GLOBAL: True},
     'magnetization': {PATH:[[ "Ground State Optimization", -1, "Total magnetization"],
                             ["Ground State Optimization",-1,"Hamiltonian Optimization",-1,"Subspace Optimization","Total magnetization"]],
-                      PRINT: "Total magnetization of the system"},
-    'support_functions': {PATH: [["Gross support functions moments",'Multipole coefficients','values']]},
-    'electrostatic_multipoles': {PATH: [['Multipole coefficients','values']]},
+                 PRINT: "Total magnetization of the system"},
+    'memory_run': {PATH: [ ['Accumulated memory requirements during principal run stages (MiB.KiB)']]},
+    'memory_quantities': {PATH: [ ['Memory requirements for principal quantities (MiB.KiB)']]},
+    'memory_peak': {PATH: [ ['Estimated Memory Peak (MB)']]},
+    'nat': {PATH: [ ['Atomic System Properties','Number of atoms']],
+                 PRINT: "Number of Atoms", GLOBAL: True},
+    'pressure': {PATH: [['Pressure','GPa']], PRINT: True},
     'sdos': {PATH: [['SDos files']], GLOBAL: True},
+    'support_functions': {PATH: [["Gross support functions moments",'Multipole coefficients','values']]},
     'symmetry': {PATH: [ ['Atomic System Properties','Space group']],
                  PRINT: "Symmetry group", GLOBAL: True}}
 
-def get_logs(files): #,select_document=None):
+
+def get_logs(files):
     """
     Return a list of loaded logfiles from files, which is a list
     of paths leading to logfiles.
@@ -58,11 +62,12 @@ def get_logs(files): #,select_document=None):
     :param files: List of filenames indicating the logfiles
     :returns: List of Logfile instances associated to filename
     """
-    from futile import Yaml
+    from futile import YamlIO
     logs=[]
     for filename in files:
-        logs+=Yaml.load(filename,doc_lists=True,safe_mode=True)
+        logs+=YamlIO.load(filename,doc_lists=True,safe_mode=True)
     return logs
+
 
 def floatify(scalar):
     """
@@ -98,27 +103,28 @@ def document_quantities(doc,to_extract):
     """
     analysis={}
     for quantity in to_extract:
-      if quantity in PRE_POST: continue
-      #follow the levels indicated to find the quantity
-      field=to_extract[quantity]
-      if type(field) is not type([]) is not type({}) and field in BUILTIN:
-          paths=BUILTIN[field][PATH]
-      else:
-          paths=[field]
-      #now try to find the first of the different alternatives
-      for path in paths:
-        #print path,BUILTIN,BUILTIN.keys(),field in BUILTIN,field
-        value=doc
-        for key in path:
-          #as soon as there is a problem the quantity is null
-          try:
-            value=value[key]
-          except:
-            value=None
-            break
-        if value is not None: break
-      analysis[quantity]=value
+        if quantity in PRE_POST: continue
+        #follow the levels indicated to find the quantity
+        field=to_extract[quantity]
+        if type(field) is not type([]) is not type({}) and field in BUILTIN:
+            paths=BUILTIN[field][PATH]
+        else:
+            paths=[field]
+        #now try to find the first of the different alternatives
+        for path in paths:
+          #print path,BUILTIN,BUILTIN.keys(),field in BUILTIN,field
+          value=doc
+          for key in path:
+            #as soon as there is a problem the quantity is null
+            try:
+              value=value[key]
+            except:
+              value=None
+              break
+          if value is not None: break
+        analysis[quantity]=value
     return analysis
+
 
 def perform_operations(variables,ops,debug=False):
     """
@@ -143,6 +149,7 @@ def perform_operations(variables,ops,debug=False):
     if debug: print(ops)
     #exec(glstr+ops, globals(), locals())
     exec(ops, globals(), locals())
+
 
 def process_logfiles(files,instructions,debug=False):
     """
@@ -230,11 +237,11 @@ class Logfile():
        >>> l = Logfile('one.yaml','two.yaml')
        >>> l = Logfile(archive='calc.tgz')
        >>> l = Logfile(archive='calc.tgz',member='one.yaml')
-       >>> l = Logfile(dictionary=dict)
+       >>> l = Logfile(dictionary=dict1)
        >>> l = Logfile(dictionary=[dict1, dict2])
 
     .. todo::
-       Document the automatically generated attributes, perhaps via a inner function
+       Document the automatically generated attributes, perhaps via an inner function
        in futile python module
 
     """
@@ -252,24 +259,25 @@ class Logfile():
         if arch:
             #An archive is detected
             import tarfile
-            from futile import Yaml
+            from futile import YamlIO
             tar = tarfile.open(arch)
             members = [ tar.getmember(member) ] if member else tar.getmembers()
             #print members
             for memb in members:
                 f = tar.extractfile(memb)
-                dicts.append(Yaml.load(stream=f.read()))
+                dicts.append(YamlIO.load(stream=f.read()))
                 #dicts[-1]['label'] = memb.name #Add the label (name of the file)
             srcdir=os.path.dirname(arch)
             label = label if label is not None else arch
         elif dictionary:
             #Read the dictionary or a list of dictionaries or from a generator
-            dicts = dictionary if isinstance(dictionary,list) else [d for d in dictionary]
+            #Need to return a list
+            dicts = [dictionary] if isinstance(dictionary,dict) else [d for d in dictionary]
             srcdir=''
             label = label if label is not None else 'dict'
         elif args:
             #Read the list of files (member replaces load_only...)
-            dicts=get_logs(args)#,select_document=member)
+            dicts=get_logs(args)
             label = label if label is not None else args[0]
             srcdir=os.path.dirname(args[0])
         #: Label of the Logfile instance
@@ -278,8 +286,10 @@ class Logfile():
         self.srcdir=os.path.abspath('.' if srcdir == '' else srcdir)
         if not dicts:
             raise ValueError("No log information provided.")
+        #So we have a list of a dictionary or a list of dictionaries
         #Initialize the logfile with the first document
         self._initialize_class(dicts[0])
+        #
         if len(dicts)>1:
             #first initialize the instances with the previous logfile such as to provide the
             #correct information
@@ -289,7 +299,7 @@ class Logfile():
                 #label=d.get('label','log'+str(i))
                 label = 'log'+str(i)
                 dtmp=dicts[0]
-                instance=Logfile(dictionary=dtmp,label=label)
+                instance=Logfile(dictionary=dtmp,label=label) #Warning: recursive call!!
                 #now update the instance with the other value
                 instance._initialize_class(d)
                 self._instances.append(instance)
@@ -319,6 +329,7 @@ class Logfile():
             return len(self._instances)
         else:
             return 0 #single point run
+    #
     def _initialize_class(self,d):
         import numpy
         self.log=d #: dictionary of the logfile (serialization of yaml format)
@@ -368,6 +379,13 @@ class Logfile():
                     sd.append(None)
             #: Spatial density of states, when available
             self.sdos=sd
+        #memory attributes
+        self.memory = {}
+        for key in [ 'memory_run','memory_quantities','memory_peak']:
+            if hasattr(self,key):
+                title = BUILTIN[key][PATH][0][0]
+                self.memory[title] = getattr(self,key)
+                if key != 'memory_peak': delattr(self,key)
     #
     def _fermi_level_from_evals(self,evals):
         import numpy
@@ -436,7 +454,7 @@ class Logfile():
     def get_dos(self,label=None,npts=2500):
         """
         Get the density of states from the logfile.
-
+        
         :param label: id of the density of states.
         :type label: string
         :param npts: number of points of the DoS curve
@@ -510,17 +528,24 @@ class Logfile():
     def _print_information(self):
         """Display short information about the logfile (used by str)."""
         import yaml,numpy
-        summary=[{'Atom types':
-                  numpy.unique([ at.keys()[0] for at in self.astruct['Positions']]).tolist()},
+        #summary=[{'Atom types':
+        #          numpy.unique([ at.keys()[0] for at in self.astruct['Positions']]).tolist()},
+        #         {'Cell':
+        #          self.astruct.get('Cell','Free BC')}]
+        summary=[{'Atom types': self.log['Atomic System Properties']['Types of atoms']},
                  {'Cell':
                   self.astruct.get('Cell','Free BC')}]
         #normal printouts in the document, according to definition
         for field in BUILTIN:
             name=BUILTIN[field].get(PRINT)
-            if name==True: name=field
+            if name == True: name=field
             if not name or not hasattr(self,field): continue
             summary.append({name: getattr(self,field)})
-        if hasattr(self,'evals'): summary.append({'No. of KS orbitals per k-point': self.evals[0].info})
+        if hasattr(self,'evals'): 
+            nspin=self.log['dft']['nspin']
+            if nspin == 4: nspin=1
+            cmt=( ' per k-point'  if hasattr(self,'kpts') else '' )
+            summary.append({'No. of KS orbitals'+cmt: self.evals[0].info[0:nspin]})
         return yaml.dump(summary,default_flow_style=False)
 
 if __name__ == "__main__":

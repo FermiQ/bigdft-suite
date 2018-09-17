@@ -114,6 +114,7 @@ AC_CHECK_LIB([rt], [clock_gettime])
 AC_CHECK_LIB([dl], [dlopen])
 AC_CHECK_FUNCS([clock_gettime])
 AC_CHECK_FUNCS([strndup])
+AC_CHECK_FUNCS([aligned_alloc])
 AC_LANG_POP(C)
 
 dnl Test Python availability

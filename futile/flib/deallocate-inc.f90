@@ -35,12 +35,14 @@
      deallocate(array,stat=ierror)
   end if
 
-  if (ierror/=0) then
-     call f_timer_resume()!TCAT_ARRAY_ALLOCATIONS
-     call f_err_throw('Deallocation problem, error code '//trim(yaml_toa(ierror)),&
-          ERR_DEALLOCATE)
-     return
-  end if
+  if (.not. free_validate(ierror)) return
+
+!!$  if (ierror/=0) then
+!!$     call f_timer_resume()!TCAT_ARRAY_ALLOCATIONS
+!!$     call f_err_throw('Deallocation problem, error code '//trim(yaml_toa(ierror)),&
+!!$          ERR_DEALLOCATE)
+!!$     return
+!!$  end if
 
   call f_timer_resume()!TCAT_ARRAY_ALLOCATIONS
   

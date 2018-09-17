@@ -12,7 +12,14 @@ def kw_pop(*args,**kwargs):
 
 #function which removes from a set of lines the yaml_fields contained in the to_remove list
 def clean_logfile(logfile_lines,to_remove):
-  """Removes from a set of lines the yaml_fields contained in the to_remove list."""
+  """
+  Removes from a set of lines the yaml_fields contained in the to_remove list.
+
+  :param list logfile_lines: list of the lines of the logfile
+  :param list to_remove: list of lines to removed
+  :return: a list of lines (str)
+  :rtype: list of str
+  """
   line_rev=logfile_lines #list of the lines of the logfile
   #loop in the reversed from (such as to parse by blocks)
   extra_lines=20 #internal variable to be customized
@@ -113,26 +120,29 @@ def clean_logfile(logfile_lines,to_remove):
     print 'Difference: ',list(set(to_remove) - set(removed) )
   return cleaned_logfile
 
-def load(file=None,stream=None,doc_lists=False,safe_mode=False):
+
+def load(file=None,stream=None,doc_lists=True,safe_mode=False):
     """
     Return a list of loaded logfiles from files, which is a list
     of paths leading to logfiles.
     
-    Optional arguments:
-    - file: the yaml file containing the stream to be loaded
-    - stream: the stream to load
-    - doc_lists: if true ensures that the results is always in a form 
-                 of lists of documents, event in the case of a single doc
-    - safe_mode: When true, in the case of multiple documents 
-                 in the stream, it loads the document one after another. 
-                 This is useful to avoid losing of all the document list 
-                 in the case when one of the document is 
-                 not yaml compliant. Works only when the separation of the 
-                 documents is indicated by the usual syntax "---\n" 
-                 (i.e. no yaml tags)
+    :param str file: the yaml file containing the stream to be loaded
+    :param str stream: the stream to load (a chain of character of yaml documents)
+    - doc_lists: if True ensures that the results is always in a form 
+             of lists of documents, event in the case of a single doc
+             When False, the return type is either a dictionary or a generator according
+             to the specifications of yaml.load and yaml.load_all respectively
+    : param bool safe_mode: When true, in the case of multiple documents 
+             in the stream, it loads the document one after another. 
+             This is useful to avoid losing of all the document list 
+             in the case when one of the document is 
+             not yaml compliant. Works only when the separation of the 
+             documents is indicated by the usual syntax "---\n" 
+             (i.e. no yaml tags)
                  
     """
-    strm=stream if stream else open(file,'r').read()
+    #Detect None otherwise a doc == '' gives an error
+    strm=stream if stream != None else open(file,'r').read()
     try:
         ldr=yaml.MinLoader #seems only to work with the strings
     except:
@@ -153,10 +163,11 @@ def load(file=None,stream=None,doc_lists=False,safe_mode=False):
                     print 'Document',i,'of stream NOT loaded, error:',f
         else:
             ld=yaml.load_all(strm,Loader=ldr)
+            if doc_lists: ld=[l for l in ld]
     return ld
 
 def dump(data,filename=None,raw=False,tar=None):
-    todump=str(data) if raw else yaml.dump(data)
+    todump=str(data) if raw else yaml.dump(data,default_flow_style=None)
     if filename:
         if tar:
             import tarfile
@@ -174,25 +185,25 @@ def dump(data,filename=None,raw=False,tar=None):
         sys.stdout.write(todump)
 
 class YamlDB(dict):
-    """Yaml Database, read from a file or a stream
-    Attributes:
+    """
+    Yaml Database, read from a file or a stream
 
-    file: take the database from a file
-    stream: associate the stream as the value of the dictionary
-    singledoc: guarantees that the provided stream can only contain one document
-    ignore: A list of keys that will not be considered in the loading.
+    :param str file: take the database from a file
+    :param str stream: associate the stream as the value of the dictionary
+    :param bool singledoc: guarantees that the provided stream can only contain one document
+    :param list ignore: A list of keys that will not be considered in the loading.
             Useful to parse log logfiles in less time
-    YamlDB(file) -> Database from a file
-    YamlDB(stream) -> Database from a stream
-    YamlDB() -> new empty dictionary
-    YamlDB(mapping) -> new dictionary initialized from a mapping object's
-              (key, value) pairs
-    YamlDB(key, stream=stream) -> new YamlDB with unparsed stream written as the value of the key.
-    YamlDB(iterable) -> new dictionary initialized as if via:
+
+    * YamlDB(file) -> Database from a file
+    * YamlDB(stream) -> Database from a stream
+    * YamlDB() -> new empty dictionary
+    * YamlDB(mapping) -> new dictionary initialized from a mapping object's (key, value) pairs
+    * YamlDB(key, stream=stream) -> new YamlDB with unparsed stream written as the value of the key.
+    * YamlDB(iterable) -> new dictionary initialized as if via:
            d = {}
            for k, v in iterable:
                d[k] = v
-    YamlDB(**kwargs) -> new dictionary initialized with the name=value pairs
+    * YamlDB(**kwargs) -> new dictionary initialized with the name=value pairs
       in the keyword argument list.  For example:  YamlDB(one=1, two=2)
     """
     def __init__(self,*args,**kwargs): #stream=None,singledoc=False):

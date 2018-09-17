@@ -458,7 +458,6 @@ contains
           call cudafree(w%k_GPU)
        endif
     end if
-
   end subroutine free_PS_workarrays
 
   subroutine release_PS_potential(keepzf,w,use_input_guess)

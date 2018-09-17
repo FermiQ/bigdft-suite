@@ -162,7 +162,7 @@ program Fock_Operator_Program
   symmetric=.true.
   call f_zero(dpsir)
   if (iproc==0) call yaml_map('Orbital repartition',nobj_par)
-  call OP2P_unitary_test(mpiworld(),iproc,nproc,ngroup,ndim,nobj_par,symmetric)
+!  call OP2P_unitary_test(mpiworld(),iproc,nproc,ngroup,ndim,nobj_par,symmetric)
   !this part should go inside the kernel initialization
   if(pkernel%igpu==1 .and. pkernel%initCufftPlan==0) then
      igpu=0

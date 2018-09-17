@@ -81,7 +81,7 @@ module box
   end interface square_gu
 
   interface dotp_gd
-     module procedure dotp_gd,dotp_gd_add1,dotp_gd_add2
+     module procedure dotp_gd,dotp_gd_add1,dotp_gd_add2,dotp_gd_add12
   end interface dotp_gd
 
 
@@ -1228,13 +1228,14 @@ contains
           ci(ii)=center(ii)
         end if
        end do
+       ri=ri-ci
        do i=-mesh%bc(1),mesh%bc(1)
         do j=-mesh%bc(2),mesh%bc(2)
          do k=-mesh%bc(3),mesh%bc(3)
             rt(1)=ri(1)+real(i,gp)*mesh%ndims(1)*mesh%hgrids(1)
             rt(2)=ri(2)+real(j,gp)*mesh%ndims(2)*mesh%hgrids(2)
             rt(3)=ri(3)+real(k,gp)*mesh%ndims(3)*mesh%hgrids(3)
-            d2=square_gd(mesh,rt-ci)
+            d2=square_gd(mesh,rt)!-ci)
             d=sqrt(d2)
             if (d.lt.dold) then
                dold=d
@@ -1246,9 +1247,9 @@ contains
         end do
        end do
        d=dold
-       r(1)=ri(1)+real(icurr,gp)*mesh%ndims(1)*mesh%hgrids(1) - ci(1)
-       r(2)=ri(2)+real(jcurr,gp)*mesh%ndims(2)*mesh%hgrids(2) - ci(2)
-       r(3)=ri(3)+real(kcurr,gp)*mesh%ndims(3)*mesh%hgrids(3) - ci(3)
+       r(1)=ri(1)+real(icurr,gp)*mesh%ndims(1)*mesh%hgrids(1)! - ci(1)
+       r(2)=ri(2)+real(jcurr,gp)*mesh%ndims(2)*mesh%hgrids(2)! - ci(2)
+       r(3)=ri(3)+real(kcurr,gp)*mesh%ndims(3)*mesh%hgrids(3)! - ci(3)
     end if
 
   end function closest_r
@@ -1420,6 +1421,21 @@ contains
     end if
 
   end function dotp_gd_add1
+
+  function dotp_gd_add12(mesh,v1_add,v2_add) result(dotp)
+    implicit none
+    real(gp) :: v1_add,v2_add !<intent in, cannot be declared as such
+    type(cell), intent(in) :: mesh !<definition of the cell
+    real(gp) :: dotp
+
+    if (mesh%orthorhombic) then
+       call dotp_external_ortho(v1_add,v2_add,dotp)
+    else
+       call dotp_external_nonortho(mesh%gd,v1_add,v2_add,dotp)
+    end if
+
+  end function dotp_gd_add12
+
 
 end module box
 

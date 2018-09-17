@@ -388,8 +388,11 @@ program GPS_3D
 !   rhopot(:,:,:,:) = density(:,:,:,:)
 !  end if
 
+  if (usegpu) then
+    call dict_set(dict_input//'setup'//'accel','CUDA')
+    call dict_set(dict_input//'setup'//'use_gpu_direct','No')
+  end if
 
-   if (usegpu) call dict_set(dict_input//'setup'//'accel','CUDA')
    call dict_set(dict_input//'environment'//'delta',delta)
    if (trim(PSol) /= 'VAC') then
       call dict_set(dict_input//'environment'//'cavity','soft-sphere')

@@ -421,7 +421,7 @@ program f_buffer_allocations
   call f_zero(d1_ptr)
   call detect_dnan(d1_ptr,shape(d1_ptr))
   call f_free_ptr(d1_ptr)
-  d2_ptr=f_malloc_ptr(n2,id='d2_ptr')
+  d2_ptr=f_malloc_ptr(n2,id='d2_ptr',info='{alignment: 32}')
   call buffer_info(shape(d2_ptr),lbound(d2_ptr),ubound(d2_ptr),kind(d2_ptr),'Double_ptr')
   !here we might detect some NaN
   call f_zero(d2_ptr)

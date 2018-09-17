@@ -839,7 +839,7 @@ module module_interfaces
 
      interface
        subroutine LDiagHam(iproc,nproc,natsc,nspin,orbs,Lzd,Lzde,comms,&
-          psi,hpsi,psit,orthpar,passmat,mixing,Tel,occopt,& !mandatory
+          psi,hpsi,psit,orthpar,mixing,Tel,occopt,& !mandatory
           orbse,commse,etol,norbsc_arr) !optional
        use module_defs, only: gp,dp,wp
        use module_types
@@ -853,7 +853,6 @@ module module_interfaces
        type(comms_cubic), intent(in) :: comms
        type(orbitals_data), intent(inout) :: orbs
        type(orthon_data), intent(in):: orthpar
-       real(wp), dimension(*), intent(out) :: passmat !< passage matrix for building the eigenvectors (the size depends of the optional arguments)
        real(wp), dimension(:), pointer :: psi,hpsi,psit
        real(gp), intent(in) :: etol
        type(orbitals_data), intent(inout) :: orbse

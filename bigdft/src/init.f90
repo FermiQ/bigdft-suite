@@ -257,6 +257,7 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
   integer :: n1,n2,n3,nl1,nl2,nl3,nu1,nu2,nu3,mseg,nbseg_dim,npack_dim,mproj_max
   integer :: iat,iseg,nseg,isat,natp,ist,ityp,i, ii
   !type(orbital_basis) :: ob
+  type(locreg_storage) :: lr_storage
   integer, dimension(:), allocatable :: nbsegs_cf,keyg_lin
   logical, dimension(:,:,:), allocatable :: logrid
   integer,dimension(:,:),allocatable :: reducearr
@@ -346,13 +347,15 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
   end do
   reducearr = f_malloc0((/5*nseg+9,at%astruct%nat/),id='reducearr')
 
+!!$  call lr_storage_init(lr_storage,at%astruct%nat)
+
   ! After having determined the size of the projector descriptor arrays fill them
   !do iat=1,at%astruct%nat
   do iat=isat+1,isat+natp
-     if (nl%projs(iat)%mproj > 0) then
+     if (nl%projs(iat)%mproj <= 0) cycle
 
-        call bounds_to_plr_limits(.false.,1,nl%projs(iat)%region%plr,&
-             nl1,nl2,nl3,nu1,nu2,nu3)
+     call bounds_to_plr_limits(.false.,1,nl%projs(iat)%region%plr,&
+          nl1,nl2,nl3,nu1,nu2,nu3)
 
 !!$        !most likely the call can here be replaced by
 !!$        call fill_logrid(at%astruct%geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,0,1,  &
@@ -360,73 +363,91 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
 !!$             cpmult,hx,hy,hz,logrid)
 !!$        !which make radiicf and rxyz the only external data needed
 
-        call fill_logrid(at%astruct%geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,0,1,  &
-             at%astruct%ntypes,at%astruct%iatype(iat),rxyz(1,iat),at%radii_cf(1,3),&
-             cpmult,hx,hy,hz,logrid)
+     call fill_logrid(at%astruct%geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,0,1,  &
+          at%astruct%ntypes,at%astruct%iatype(iat),rxyz(1,iat),at%radii_cf(1,3),&
+          cpmult,hx,hy,hz,logrid)
 
-        call segkeys(n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,logrid,&
-             nl%projs(iat)%region%plr%wfd%nseg_c,&
-             nl%projs(iat)%region%plr%wfd%keyglob(1,1),nl%projs(iat)%region%plr%wfd%keyvglob(1))
+     call segkeys(n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,logrid,&
+          nl%projs(iat)%region%plr%wfd%nseg_c,&
+          nl%projs(iat)%region%plr%wfd%keyglob(1,1),nl%projs(iat)%region%plr%wfd%keyvglob(1))
 
-        call transform_keyglob_to_keygloc(lr,nl%projs(iat)%region%plr,nl%projs(iat)%region%plr%wfd%nseg_c,&
-             nl%projs(iat)%region%plr%wfd%keyglob,nl%projs(iat)%region%plr%wfd%keygloc)
+     call f_memcpy(n = nl%projs(iat)%region%plr%wfd%nseg_c, &
+          & src = nl%projs(iat)%region%plr%wfd%keyvglob(1), &
+          & dest = nl%projs(iat)%region%plr%wfd%keyvloc(1))
+     call transform_keyglob_to_keygloc(lr,nl%projs(iat)%region%plr,nl%projs(iat)%region%plr%wfd%nseg_c,&
+          nl%projs(iat)%region%plr%wfd%keyglob,nl%projs(iat)%region%plr%wfd%keygloc)
 
-        ! fine grid quantities
-        call bounds_to_plr_limits(.false.,2,nl%projs(iat)%region%plr,&
-             nl1,nl2,nl3,nu1,nu2,nu3)
+     ! fine grid quantities
+     call bounds_to_plr_limits(.false.,2,nl%projs(iat)%region%plr,&
+          nl1,nl2,nl3,nu1,nu2,nu3)
 
-        call fill_logrid(at%astruct%geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,0,1,  &
-             & at%astruct%ntypes,at%astruct%iatype(iat),rxyz(1,iat),at%radii_cf(1,2),&
-             fpmult,hx,hy,hz,logrid)
+     call fill_logrid(at%astruct%geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,0,1,  &
+          & at%astruct%ntypes,at%astruct%iatype(iat),rxyz(1,iat),at%radii_cf(1,2),&
+          fpmult,hx,hy,hz,logrid)
 
-        mseg=nl%projs(iat)%region%plr%wfd%nseg_f
-        iseg=nl%projs(iat)%region%plr%wfd%nseg_c+1
+     mseg=nl%projs(iat)%region%plr%wfd%nseg_f
+     iseg=nl%projs(iat)%region%plr%wfd%nseg_c+1
 
-        if (mseg > 0) then
-           call segkeys(n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,  &
-                logrid,mseg,nl%projs(iat)%region%plr%wfd%keyglob(1,iseg),&
-                nl%projs(iat)%region%plr%wfd%keyvglob(iseg))
+     if (mseg > 0) then
+        call segkeys(n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,  &
+             logrid,mseg,nl%projs(iat)%region%plr%wfd%keyglob(1,iseg),&
+             nl%projs(iat)%region%plr%wfd%keyvglob(iseg))
 
-           call transform_keyglob_to_keygloc(lr,nl%projs(iat)%region%plr,mseg,nl%projs(iat)%region%plr%wfd%keyglob(1,iseg),&
-                nl%projs(iat)%region%plr%wfd%keygloc(1,iseg))
-        end if
-        !!!in the case of linear scaling this section has to be built again
-        !!if (init_projectors_completely) then
-        !!   call set_wfd_to_wfd(lr,nl%pspd(iat)%plr,&
-        !!        keyg_lin,nbsegs_cf,nl%pspd(iat)%noverlap,nl%pspd(iat)%lut_tolr,nl%pspd(iat)%tolr)
-        !!end if
+        call f_memcpy(n = mseg, &
+             & src = nl%projs(iat)%region%plr%wfd%keyvglob(iseg), &
+             & dest = nl%projs(iat)%region%plr%wfd%keyvloc(iseg))
+        call transform_keyglob_to_keygloc(lr,nl%projs(iat)%region%plr,mseg,nl%projs(iat)%region%plr%wfd%keyglob(1,iseg),&
+             nl%projs(iat)%region%plr%wfd%keygloc(1,iseg))
+     end if
 
-        !!! This is done for wavefunctions but not for projectors ?
-        !!! Otherwise, keyvloc is allocated but not filled.
-        !!call f_free_ptr(nl%pspd(iat)%plr%wfd%keyvloc)
-        !!nl%pspd(iat)%plr%wfd%keyvloc => nl%pspd(iat)%plr%wfd%keyvglob
+!!$     !store the data for communication
+!!$     call store_lr(lr_storage,iat,nl%projs(iat)%region%plr)
 
-        ! Copy the data for the communication
-        nseg = nl%projs(iat)%region%plr%wfd%nseg_c + nl%projs(iat)%region%plr%wfd%nseg_f
-        ist = 1
-        call vcopy(2*nseg, nl%projs(iat)%region%plr%wfd%keyglob(1,1), 1, reducearr(ist,iat), 1)
-        ist = ist + 2*nseg
-        call vcopy(nseg, nl%projs(iat)%region%plr%wfd%keyvglob(1), 1, reducearr(ist,iat), 1)
-        ist = ist + nseg
-        call vcopy(2*nseg, nl%projs(iat)%region%plr%wfd%keygloc(1,1), 1, reducearr(ist,iat), 1)
-        ist = ist + 2*nseg
-        reducearr(ist+0,iat) = nl%projs(iat)%region%plr%d%n1
-        reducearr(ist+1,iat) = nl%projs(iat)%region%plr%d%n2
-        reducearr(ist+2,iat) = nl%projs(iat)%region%plr%d%n3
-        reducearr(ist+3,iat) = nl%projs(iat)%region%plr%d%nfl1
-        reducearr(ist+4,iat) = nl%projs(iat)%region%plr%d%nfl2
-        reducearr(ist+5,iat) = nl%projs(iat)%region%plr%d%nfl3
-        reducearr(ist+6,iat) = nl%projs(iat)%region%plr%d%nfu1
-        reducearr(ist+7,iat) = nl%projs(iat)%region%plr%d%nfu2
-        reducearr(ist+8,iat) = nl%projs(iat)%region%plr%d%nfu3
-        !@todo: broadcast the meshes also, please.
-     endif
+!!!in the case of linear scaling this section has to be built again
+     !!if (init_projectors_completely) then
+     !!   call set_wfd_to_wfd(lr,nl%pspd(iat)%plr,&
+     !!        keyg_lin,nbsegs_cf,nl%pspd(iat)%noverlap,nl%pspd(iat)%lut_tolr,nl%pspd(iat)%tolr)
+     !!end if
+
+!!! This is done for wavefunctions but not for projectors ?
+!!! Otherwise, keyvloc is allocated but not filled.
+     !!call f_free_ptr(nl%pspd(iat)%plr%wfd%keyvloc)
+     !!nl%pspd(iat)%plr%wfd%keyvloc => nl%pspd(iat)%plr%wfd%keyvglob
+
+     ! Copy the data for the communication
+     nseg = nl%projs(iat)%region%plr%wfd%nseg_c + nl%projs(iat)%region%plr%wfd%nseg_f
+     ist = 1
+     call vcopy(2*nseg, nl%projs(iat)%region%plr%wfd%keyglob(1,1), 1, reducearr(ist,iat), 1)
+     ist = ist + 2*nseg
+     call vcopy(nseg, nl%projs(iat)%region%plr%wfd%keyvglob(1), 1, reducearr(ist,iat), 1)
+     ist = ist + nseg
+     call vcopy(2*nseg, nl%projs(iat)%region%plr%wfd%keygloc(1,1), 1, reducearr(ist,iat), 1)
+     ist = ist + 2*nseg
+     reducearr(ist+0,iat) = nl%projs(iat)%region%plr%d%n1
+     reducearr(ist+1,iat) = nl%projs(iat)%region%plr%d%n2
+     reducearr(ist+2,iat) = nl%projs(iat)%region%plr%d%n3
+     reducearr(ist+3,iat) = nl%projs(iat)%region%plr%d%nfl1
+     reducearr(ist+4,iat) = nl%projs(iat)%region%plr%d%nfl2
+     reducearr(ist+5,iat) = nl%projs(iat)%region%plr%d%nfl3
+     reducearr(ist+6,iat) = nl%projs(iat)%region%plr%d%nfu1
+     reducearr(ist+7,iat) = nl%projs(iat)%region%plr%d%nfu2
+     reducearr(ist+8,iat) = nl%projs(iat)%region%plr%d%nfu3
+     !@todo: broadcast the meshes also, please.
   enddo
+
+!!$  !put the locreg storage in a buffer
+!!$  call gather_locreg_storage(lr_storage)
 
   ! Distribute the data to all process, using an allreduce
   call fmpi_allreduce(reducearr, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
   do iat=1,at%astruct%nat
-      if (nl%projs(iat)%mproj == 0) cycle
+      if (nl%projs(iat)%mproj <= 0) cycle
+
+!!$      if (iat >= isat+1 .and. iat <= isat+natp) then
+!!$         if (init_projectors_completely) call ensure_locreg_bounds(nl%projs(iat)%region%plr)
+!!$      else
+!!$         call extract_lr(lr_storage,iat,nl%projs(iat)%region%plr,bounds=init_projectors_completely)
+!!$      end if
 
       nseg = nl%projs(iat)%region%plr%wfd%nseg_c + nl%projs(iat)%region%plr%wfd%nseg_f
       ist = 1
@@ -454,22 +475,10 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
       if (init_projectors_completely) then
          call set_wfd_to_wfd(lr,nl%projs(iat)%region%plr,&
               keyg_lin,nbsegs_cf,nl%projs(iat)%region%noverlap,nl%projs(iat)%region%lut_tolr,nl%projs(iat)%region%tolr)
-
          !let us try what happens with the new method
          !consideration, we should conceive differently the
          !initialization of the localisation regions
          call ensure_locreg_bounds(nl%projs(iat)%region%plr)
-         !call locreg_bounds(nl%projs(iat)%region%plr%d%n1, &
-         !     & nl%projs(iat)%region%plr%d%n2, &
-         !     & nl%projs(iat)%region%plr%d%n3,&
-         !     & nl%projs(iat)%region%plr%d%nfl1, &
-         !     & nl%projs(iat)%region%plr%d%nfu1, &
-         !     & nl%projs(iat)%region%plr%d%nfl2, &
-         !     & nl%projs(iat)%region%plr%d%nfu2, &
-         !     & nl%projs(iat)%region%plr%d%nfl3, &
-         !     & nl%projs(iat)%region%plr%d%nfu3, &
-         !     & nl%projs(iat)%region%plr%wfd,nl%projs(iat)%region%plr%bounds)
-
       end if
 
 !!$      ! This is done for wavefunctions but not for projectors ?
@@ -478,6 +487,8 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
 !!$      nl%projs(iat)%region%plr%wfd%keyvloc => nl%projs(iat)%region%plr%wfd%keyvglob
   end do
   call f_free(reducearr)
+
+!!$  call lr_storage_free(lr_storage)
 
   call f_free(logrid)
   call f_free(keyg_lin)
@@ -1986,7 +1997,6 @@ subroutine input_wf_diag(iproc,nproc,at,denspot,&
   type(orbitals_data) :: orbse
   type(comms_cubic) :: commse
   integer, dimension(:,:), allocatable :: norbsc_arr
-  real(wp), dimension(:), allocatable :: passmat
   !real(wp), dimension(:,:,:), allocatable :: mom_vec
   real(gp), dimension(:), allocatable :: locrad
   !   real(wp), dimension(:), pointer :: pot,pot1
@@ -2394,19 +2404,14 @@ subroutine input_wf_diag(iproc,nproc,at,denspot,&
   !allocate the passage matrix for transforming the LCAO wavefunctions in the IG wavefucntions
   ncplx=1
   if (orbs%nspinor > 1) ncplx=2
-  passmat = f_malloc(ncplx*orbs%nkptsp*(orbse%norbu*orbs%norbu+orbse%norbd*orbs%norbd),id='passmat')
-  !!print '(a,10i5)','iproc,passmat',iproc,ncplx*orbs%nkptsp*(orbse%norbu*orbs%norbu+orbse%norbd*orbs%norbd),&
-  !!     orbs%nspinor,orbs%nkptsp,orbse%norbu,orbse%norbd,orbs%norbu,orbs%norbd
 
   if (iproc==0) call yaml_newline()
 
   !test merging of Linear and cubic
   call LDiagHam(iproc,nproc,at%natsc,nspin_ig,orbs,Lzd,Lzde,comms,&
-       psi,hpsi,psit,input%orthpar,passmat,input%scf .hasattr. 'MIXING',&
+       psi,hpsi,psit,input%orthpar,input%scf .hasattr. 'MIXING',&
        input%Tel,input%occopt,&
        orbse,commse,etol,norbsc_arr)
-
-  call f_free(passmat)
 
   if ((input%scf .hasattr. 'MIXING') .or. input%Tel > 0.0_gp) then
 
@@ -2858,7 +2863,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
      !now the meaning is KS potential
      do ispin=1,denspot%dpbox%nrhodim
         call f_memcpy(n=denspot%dpbox%ndimpot,&
-             src=denspot%V_ext(1,1,1,ispin),&
+             src=denspot%V_ext(1,1,1,1),&
              dest=denspot%rhov(1+(ispin-1)*denspot%dpbox%ndimpot))
      end do
      call denspot_set_rhov_status(denspot, KS_POTENTIAL, 0, iproc, nproc)
@@ -2880,8 +2885,8 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
 
      if (any(atoms%npspcode == PSPCODE_PAW) .or. &
           & any(atoms%npspcode == PSPCODE_PSPIO)) then
-        npspcode = f_malloc(src = atoms%npspcode)
-        psppar   = f_malloc(src = atoms%psppar)
+        npspcode = f_malloc(src = atoms%npspcode, id="npspcode")
+        psppar   = f_malloc(src = atoms%psppar, id="psppar")
         ! Cheating lines here.
         do ityp = 1, atoms%astruct%ntypes
            if (atoms%npspcode(ityp) /= PSPCODE_PAW .and. &

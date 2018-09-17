@@ -37,6 +37,7 @@ module yaml_strings
   type, public :: f_string
      character(len=4*max_value_length) :: msg
   end type f_string
+
   interface yaml_toa
      module procedure yaml_itoa,yaml_litoa,yaml_ftoa,yaml_dtoa,yaml_ltoa,yaml_ctoa
      module procedure yaml_dvtoa,yaml_ivtoa,yaml_cvtoa,yaml_ztoa,yaml_zvtoa,yaml_lvtoa,yaml_rvtoa
