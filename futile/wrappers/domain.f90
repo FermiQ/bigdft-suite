@@ -278,9 +278,9 @@ contains
 
     do i=1,3
        if (bc_is_periodic(bc(i))) then
-          call set(dict//i-1,cell(i))
+          call set(dict//(i-1),cell(i))
        else
-          call set(dict//i-1,YAML_INFINITY)
+          call set(dict//(i-1),YAML_INFINITY)
        end if
     end do
 
