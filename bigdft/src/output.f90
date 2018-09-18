@@ -1,3 +1,4 @@
+
 !>  @file
 !!  File where most relevant screen output are collected
 !!  Routines which are present in this file should have *all* arguments as intent(in)
@@ -1137,6 +1138,8 @@ subroutine wtyaml(iunit,energy,rxyz,astruct,wrtforces,forces, &
   use yaml_strings
   use module_atoms, only: atomic_structure,frozen_itof
   use ao_inguess, only: charge_and_spol
+  use public_keys, only: ASTRUCT_UNITS,ASTRUCT_CELL,ASTRUCT_POSITIONS,&
+       ASTRUCT_ATT_IGSPIN,ASTRUCT_ATT_IGCHRG,ASTRUCT_ATT_FROZEN
   implicit none
   !Arguments
   logical, intent(in) :: wrtforces !< True if write the atomic forces
@@ -1156,11 +1159,11 @@ subroutine wtyaml(iunit,energy,rxyz,astruct,wrtforces,forces, &
   reduced=.false.
   Units: select case(trim(astruct%units))
   case('angstroem','angstroemd0')
-     call yaml_map('Units','angstroem', unit = iunit)
+     call yaml_map(ASTRUCT_UNITS,'angstroem', unit = iunit)
      factor=Bohr_Ang
   case('reduced')
      if (.not. wrtlog) then
-        call yaml_map('Units','reduced', unit = iunit)
+        call yaml_map(ASTRUCT_UNITS,'reduced', unit = iunit)
         reduced=.true.
      end if
      factor = 1.0_gp
@@ -1168,7 +1171,7 @@ subroutine wtyaml(iunit,energy,rxyz,astruct,wrtforces,forces, &
      ! Default
      factor=1.0_gp
      !Important to display the default units (TD)
-     if (wrtlog) call yaml_map('Units','bohr')
+     if (wrtlog) call yaml_map(ASTRUCT_UNITS,'bohr')
   case default
      call f_err_throw('Writing the atomic file. Error, unknown units ("'// trim(astruct%units)//'")', &
           & err_name='BIGDFT_RUNTIME_ERROR')
@@ -1180,7 +1183,7 @@ subroutine wtyaml(iunit,energy,rxyz,astruct,wrtforces,forces, &
   perz = .false.
   BC :select case(astruct%geocode)
   case('S')
-     call yaml_sequence_open('Cell', flow=.true., unit = iunit)
+     call yaml_sequence_open(ASTRUCT_CELL, flow=.true., unit = iunit)
      call yaml_sequence(yaml_toa(astruct%cell_dim(1)*factor), unit = iunit) !x
      call yaml_sequence('.inf', unit = iunit)             !y
      call yaml_sequence(yaml_toa(astruct%cell_dim(3)*factor), unit = iunit) !z
@@ -1190,7 +1193,7 @@ subroutine wtyaml(iunit,energy,rxyz,astruct,wrtforces,forces, &
      pery = .false.
      perz = .true.
   case('W')
-     call yaml_sequence_open('Cell', flow=.true., unit = iunit)
+     call yaml_sequence_open(ASTRUCT_CELL, flow=.true., unit = iunit)
      call yaml_sequence('.inf', unit = iunit)             !x
      call yaml_sequence('.inf', unit = iunit)             !y
      call yaml_sequence(yaml_toa(astruct%cell_dim(3)*factor), unit = iunit) !z
@@ -1199,7 +1202,7 @@ subroutine wtyaml(iunit,energy,rxyz,astruct,wrtforces,forces, &
      pery = .false.
      perz = .true.
   case('P')
-     call yaml_map('Cell',(/astruct%cell_dim(1)*factor, &
+     call yaml_map(ASTRUCT_CELL,(/astruct%cell_dim(1)*factor, &
           & astruct%cell_dim(2)*factor, astruct%cell_dim(3)*factor/), unit = iunit)
      !angdeg to be added
      perx = .true.
@@ -1211,7 +1214,7 @@ subroutine wtyaml(iunit,energy,rxyz,astruct,wrtforces,forces, &
   end select BC
 
   !Write atomic positions
-  call yaml_sequence_open('Positions', unit = iunit)
+  call yaml_sequence_open(ASTRUCT_POSITIONS, unit = iunit)
   do iat=1,astruct%nat
      !for very large systems, consider deactivating the printing, but should do this in a cleaner manner
      !if (astruct%nat < 500.or.(.not. wrtlog)) then
@@ -1246,11 +1249,11 @@ subroutine wtyaml(iunit,energy,rxyz,astruct,wrtforces,forces, &
      end if
      if (extra_info(iat)) then
         call charge_and_spol(astruct%input_polarization(iat),ichg,ispol)
-        if (ispol /=0) call yaml_map('IGSpin',ispol, unit = iunit)
-        if (ichg /=0) call yaml_map('IGChg',ichg, unit = iunit)
+        if (ispol /=0) call yaml_map(ASTRUCT_ATT_IGSPIN,ispol, unit = iunit)
+        if (ichg /=0) call yaml_map(ASTRUCT_ATT_IGCHRG,ichg, unit = iunit)
         if (astruct%ifrztyp(iat) /= 0) then
            call frozen_itof(astruct%ifrztyp(iat),frzchain)
-           call yaml_map('Frozen',frzchain, unit = iunit)
+           call yaml_map(ASTRUCT_ATT_FROZEN,frzchain, unit = iunit)
         end if
         call yaml_mapping_close(unit = iunit)
      end if

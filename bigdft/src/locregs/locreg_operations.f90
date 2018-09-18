@@ -537,7 +537,8 @@ module locreg_operations
 
          !allocation of work arrays
          if (allocate_arrays) then
-            w%y_c = f_malloc_ptr((/ w%nyc, nspinor /),id='w%y_c',info='{alignment: 32}')
+            !w%y_c = f_malloc_ptr((/ w%nyc, nspinor /),id='w%y_c',info='{alignment: 32}')
+            w%y_c = f_malloc_ptr((/ w%nyc, nspinor /),id='w%y_c')!info='{alignment: 32}')
             w%y_f = f_malloc_ptr((/ w%nyf, nspinor /),id='w%y_f')
             w%x_c = f_malloc_ptr((/ w%nxc, nspinor /),id='w%x_c')
             w%x_f = f_malloc_ptr((/ w%nxf, nspinor /),id='w%x_f')
