@@ -311,6 +311,7 @@ subroutine readrhoij(unitf, lbin, nat, pawrhoij)
   end if
 END SUBROUTINE readrhoij
 
+
 !> Reads wavefunction from file and transforms it properly if hgrid or size of simulation cell
 !!  have changed
 subroutine readmywaves(iproc,filename,iformat,orbs,n1,n2,n3,hx,hy,hz,at,rxyz_old,rxyz,  &
@@ -596,6 +597,7 @@ subroutine filename_of_iorb(lbin,filename,orbs,iorb,ispinor,filename_out,iorb_ou
   !print *,'filename: ',filename_out
 end subroutine filename_of_iorb
 
+
 subroutine wfn_filename(filename_out,filename,lbin,ikpt,nspinor,nspin,ispinor,spin,iorb)
   use f_ternary
   use yaml_strings
@@ -707,10 +709,11 @@ subroutine read_wave_descr(lstat, filename, ln, &
   end if
 END SUBROUTINE read_wave_descr
 
-! make sure we have one locreg which is defined on all MPI so that we can use it for onsite overlap
-! need to make sure that there are no other bigger locrads
-! it would be helpful to make a variable indicating which locreg we have, but don't want to edit structures unnecessarily...
-! just in case there is some noise in the locrads
+
+!> Make sure we have one locreg which is defined on all MPI so that we can use it for onsite overlap
+!! need to make sure that there are no other bigger locrads
+!! it would be helpful to make a variable indicating which locreg we have, but don't want to edit structures unnecessarily...
+!! just in case there is some noise in the locrads
 subroutine identify_on_all_mpi(lzd)
   use module_types, only: local_zone_descriptors
   use module_defs, only: gp
@@ -735,6 +738,7 @@ subroutine identify_on_all_mpi(lzd)
 
 end subroutine identify_on_all_mpi
 
+
 subroutine identify_locreg_proc(ilr,orbs,source)
   use module_types, only: orbitals_data
   implicit none
@@ -756,7 +760,6 @@ subroutine identify_locreg_proc(ilr,orbs,source)
      end do
   end do find_proc
 end subroutine identify_locreg_proc
-
 
 
 subroutine tmb_overlap_onsite(iproc, nproc, imethod_overlap, at, tmb, rxyz)
