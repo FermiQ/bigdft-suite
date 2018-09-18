@@ -3567,7 +3567,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
           KSwfn%psi,KSwfn%hpsi,KSwfn%psit,in%orthpar)
   end if
 
-  if (iproc==0) call yaml_mapping_close() !input hamiltonian
+  if (iproc==0) call yaml_mapping_close() ! Close map 'Input Hamiltonian'
 
 !!$  if(inputpsi /= INPUT_PSI_LINEAR_AO .and. inputpsi /= INPUT_PSI_DISK_LINEAR .and. &
 !!$     inputpsi /= INPUT_PSI_MEMORY_LINEAR) then

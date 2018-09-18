@@ -94,6 +94,7 @@ define F_REGTEST_INSTRUCTIONS
     - ./small_programs -n [100,70] -t 1.e-2 -o 3 
     - ./small_programs -n [100,70] -t 1.e-2 -o 4 
     - ./small_programs -n [100,70] -t 1.e-2 -o 5 
+    - ./small_programs -e [-3.88324012786,-0.3021609833706,-0.1440794711642,-3.883210129002,-0.3022049247153,-0.1445156309774] -n [3,3] -t 0 -c 5
 - driver_random:
    binary: driver_random
    runs:
