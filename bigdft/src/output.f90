@@ -1,5 +1,4 @@
-
-Uni!>  @file
+!>  @file
 !!  File where most relevant screen output are collected
 !!  Routines which are present in this file should have *all* arguments as intent(in)
 !!  Also, the master process only should acces these routines
@@ -1139,7 +1138,7 @@ subroutine wtyaml(iunit,energy,rxyz,astruct,wrtforces,forces, &
   use module_atoms, only: atomic_structure,frozen_itof
   use ao_inguess, only: charge_and_spol
   use public_keys, only: ASTRUCT_UNITS,ASTRUCT_CELL,ASTRUCT_POSITIONS,&
-       ASTRUCT_ATT_IGSPIN,ASTRUCT_ATT_IGCHRG
+       ASTRUCT_ATT_IGSPIN,ASTRUCT_ATT_IGCHRG,ASTRUCT_ATT_FROZEN
   implicit none
   !Arguments
   logical, intent(in) :: wrtforces !< True if write the atomic forces
