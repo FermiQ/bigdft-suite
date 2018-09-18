@@ -254,16 +254,16 @@ contains
     
     !get the specific cells
     bc=PERIODIC_BC
-    do i=1,3
-       str(i)=dict//i-1
+    do i=0,2
+       str(i+1)=dict//i
     end do
 
     where (str == YAML_INFINITY) bc=FREE_BC
     
     !for the periodic bc retrieve the cell size
     cell=0.0_gp
-    do i=1,3
-       if (bc_is_periodic(bc(i))) cell(i)=dict//i-1
+    do i=0,2
+       if (bc_is_periodic(bc(i+1))) cell(i+1)=dict//i
     end do
 
   end subroutine bc_and_cell_from_dict
