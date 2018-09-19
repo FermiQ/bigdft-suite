@@ -58,7 +58,11 @@ static int clock_gettime(int clk_id, struct timespec *tp)
 #ifndef HAVE_ALIGNED_ALLOC
 void *aligned_alloc(size_t alignment, size_t size)
 {
-    return memalign(alignment,size);
+  void* ptr = NULL;
+  //printf(" size, alignment %zu, %zu \n",size,alignment);
+  posix_memalign(&ptr,alignment,size);
+  //printf("ptr %p \n",ptr);
+  return ptr;
 }
 #endif
 
