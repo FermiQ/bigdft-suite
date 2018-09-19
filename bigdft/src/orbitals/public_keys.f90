@@ -347,7 +347,8 @@ module public_keys
   character(len=*), parameter :: BABEL_SOURCE = 'babel'
 end module public_keys
 
-!>module identifying constants that have to be used as enumerators
+
+!> Module identifying constants that have to be used as enumerators
 !! they can be used to define f_enumerator types or directly as integers
 module public_enums
   use f_enums
