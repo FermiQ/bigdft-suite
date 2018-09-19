@@ -542,7 +542,7 @@ contains
     implicit none
     type(atomic_projector_iter), intent(inout) :: iter
     integer, intent(in) :: ider
-    integer, intent(inout), optional :: nwarnings 
+    integer, intent(inout), optional :: nwarnings
 
     integer :: np
     real(gp) :: scpr, gau_cut
@@ -770,6 +770,7 @@ contains
     integer :: i, iproj, ierr
     real(dp), dimension(1) :: raux
     real(gp), dimension(:), allocatable :: d2
+    integer, parameter :: nsteps = 100
 
     aproj%pawrad => pawrad
     aproj%pawtab => pawtab
@@ -781,12 +782,13 @@ contains
     end if
     aproj%normalized = f_malloc_ptr(size(pawtab%tproj, 2), id = "normalized")
     d2 = f_malloc(pawrad%mesh_size, id = "d2")
-    eps = pawtab%rpaw / real(1000, gp)
+    eps = 1.05_gp * pawtab%rpaw / real(nsteps, gp)
     do iproj = 1, size(pawtab%tproj, 2)
-       call paw_spline(pawrad%rad, pawtab%tproj(1, iproj), pawrad%mesh_size, 0._dp, 0._dp, d2)
+       call paw_spline(pawrad%rad, pawtab%tproj(1, iproj), pawrad%mesh_size, &
+            & (pawtab%tproj(2, iproj) - pawtab%tproj(1, iproj)) / (pawrad%rad(2) - pawrad%rad(1)), 0._dp, d2)
        aproj%normalized(iproj) = 0._gp
-       do i = 1, 1000
-          r = i * eps
+       do i = 1, nsteps
+          r = (i - 1) * eps
           call paw_splint(pawrad%mesh_size, pawrad%rad, pawtab%tproj(1, iproj), d2, &
                & 1, [r], raux, ierr)
           aproj%normalized(iproj) = aproj%normalized(iproj) + raux(1) * raux(1) * eps
@@ -826,13 +828,14 @@ contains
     call f_zero(psi)
     call ylm_coefficients_new(ylm, 1, l - 1)
     d2 = f_malloc(pawrad%mesh_size, id = "d2")
-    call paw_spline(pawrad%rad, tproj, pawrad%mesh_size, 0._dp, 0._dp, d2)
+    call paw_spline(pawrad%rad, tproj, pawrad%mesh_size, &
+         & (tproj(2) - tproj(1)) / (pawrad%rad(2) - pawrad%rad(1)), 0._dp, d2)
       
     centre = rxyz - [cell_r(lr%mesh_coarse, lr%ns1 + 1, 1), &
          & cell_r(lr%mesh_coarse, lr%ns2 + 1, 2), &
          & cell_r(lr%mesh_coarse, lr%ns3 + 1, 3)]
     v = sqrt(lr%mesh%volume_element)
-    
+
     do while(ylm_coefficients_next_m(ylm))
        call f_zero(projector_real)
        boxit = lr%bit
