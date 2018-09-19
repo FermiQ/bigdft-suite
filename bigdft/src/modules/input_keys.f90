@@ -628,7 +628,6 @@ contains
     use fragment_base
     use f_utils, only: f_get_free_unit
     use wrapper_MPI, only: fmpi_barrier
-    use abi_interfaces_add_libpaw, only : abi_pawinit
     use PStypes, only: SETUP_VARIABLES,VERBOSITY
     use vdwcorrection, only: vdwcorrection_warnings
     implicit none
@@ -823,25 +822,6 @@ contains
          in%gen_norbu, in%gen_norbd, in%gen_occup, &
          in%gen_nkpt, in%nspin, in%norbsempty, qelec_up, qelec_down, norb_max)
     in%gen_norb = in%gen_norbu + in%gen_norbd
-
-!!$    ! Complement PAW initialisation.
-!!$    if (any(atoms%npspcode == PSPCODE_PAW)) then
-!!$     call xc_init(xc, in%ixc, XC_MIXED, 1, in%alpha_hartree_fock)
-!!$     xclevel = 1 ! xclevel=XC functional level (1=LDA, 2=GGA)
-!!$     if (xc_isgga(xc)) xclevel = 2
-!!$     call xc_end(xc)
-!!$     !gsqcut_shp = two*abs(dtset%diecut)*dtset%dilatmx**2/pi**2
-!!$     gsqcut_shp = 2._gp * 2.2_gp / pi_param ** 2
-!!$     nsym = 0
-!!$     call symmetry_get_n_sym(atoms%astruct%sym%symObj, nsym, ierr)
-!!$     mpsang = -1
-!!$     do iat = 1, atoms%astruct%nat
-!!$        mpsang = max(mpsang, maxval(atoms%pawtab(iat)%orbitals))
-!!$     end do
-!!$     call abi_pawinit(1, gsqcut_shp, pawlcutd, pawlmix, mpsang + 1, &
-!!$          & pawnphi, nsym, pawntheta, atoms%pawang, atoms%pawrad, 0, &
-!!$          & atoms%pawtab, pawxcdev, xclevel, usepotzero)
-!!$    end if
 
     if (in%gen_nkpt > 1 .and. (in%inputpsiid .hasattr. 'GAUSSIAN')) then
        call f_err_throw('Gaussian projection is not implemented with k-point support',err_name='BIGDFT_INPUT_VARIABLES_ERROR')

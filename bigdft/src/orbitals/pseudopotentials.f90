@@ -1080,7 +1080,7 @@ contains
       type(xc_info) :: xc
       !!arrays
       integer:: wvl_ngauss(2)
-      integer, parameter :: mqgrid_ff = 0, mqgrid_vl = 0
+      integer, parameter :: mqgrid_ff = 0, mqgrid_vl = 0, nsteps = 1000
       real(dp):: qgrid_ff(mqgrid_ff),qgrid_vl(mqgrid_vl), raux(1)
       real(dp):: ffspl(mqgrid_ff,2,1)
       real(dp):: vlspl(mqgrid_vl,2)
@@ -1136,14 +1136,14 @@ contains
 
       ! Compute projector radii.
       d2 = f_malloc(pawrad%mesh_size, id = "d2")
-      eps = 1.1_gp * pawtab%rpaw / real(1000, gp)
+      eps = 1.1_gp * pawtab%rpaw / real(nsteps, gp)
       do i = 1, pawtab%basis_size
          l = pawtab%orbitals(i) + 1
          if (psppar(l, 0) > 0._gp) cycle
          
          call paw_spline(pawrad%rad, pawtab%tproj(1, i), pawrad%mesh_size, 0._dp, 0._dp, d2)
          nrm = 0._gp
-         do ii = 1, 1000
+         do ii = 1, nsteps
             r = ii * eps
             call paw_splint(pawrad%mesh_size, pawrad%rad, pawtab%tproj(1, i), d2, &
                  & 1, [r], raux, ierr)
