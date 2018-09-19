@@ -40,7 +40,8 @@ program small_things
        '- {name: nkpt, shortname: k, default: 1, help_string: k-points}'//f_cr//&
        '- {name: wgts, shortname: w, default: 1.0, help_string: weigths}'//f_cr//&
        '- {name: occopt, shortname: o, default: 1, help_string: smearing method}'//f_cr//&
-       '- {name: tel, shortname: t, default: 1.e-3, help_string: temperature}')
+       '- {name: tel, shortname: t, default: 1.e-3, help_string: temperature}', &
+       usage='Check the determination of the Fermi level')
   
   norbud=0
   norbud=options//'norb'

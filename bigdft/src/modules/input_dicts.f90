@@ -1319,6 +1319,8 @@ contains
     implicit none
     type(yaml_cl_parse), intent(inout) :: parser
 
+    call yaml_cl_parse_usage(parser,'Wavelet-based Density Functional Theory program (see http://bigdft.org)')
+
     call yaml_cl_parse_option(parser,'name','None',&
          'name of the run','n',&
          dict_new('Usage' .is. &
