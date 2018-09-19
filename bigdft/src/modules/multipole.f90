@@ -274,27 +274,6 @@ module multipole
 !!$      perx=(at%astruct%geocode /= 'F')
 !!$      pery=(at%astruct%geocode == 'P')
 !!$      perz=(at%astruct%geocode /= 'F')
-!!$      if (perx) then
-!!$          j1s = -1
-!!$          j1e = 1
-!!$      else
-!!$          j1s = 0
-!!$          j1e = 0
-!!$      end if
-!!$      if (pery) then
-!!$          j2s = -1
-!!$          j2e = 1
-!!$      else
-!!$          j2s = 0
-!!$          j2e = 0
-!!$      end if
-!!$      if (perz) then
-!!$          j3s = -1
-!!$          j3e = 1
-!!$      else
-!!$          j3s = 0
-!!$          j3e = 0
-!!$      end if
 
       peri=cell_periodic_dims(denspot%dpbox%mesh)
       perx=peri(1)
@@ -321,6 +300,29 @@ module multipole
           j3s = 0
           j3e = 0
       end if
+
+      if (perx) then
+          j1s = -1
+          j1e = 1
+      else
+          j1s = 0
+          j1e = 0
+      end if
+      if (pery) then
+          j2s = -1
+          j2e = 1
+      else
+          j2s = 0
+          j2e = 0
+      end if
+      if (perz) then
+          j3s = -1
+          j3e = 1
+      else
+          j3s = 0
+          j3e = 0
+      end if
+
       
 !!$          hhh = hx*hy*hz
       hhh = denspot%dpbox%mesh%volume_element
@@ -2362,6 +2364,7 @@ module multipole
       character(len=2) :: lname, mname
       character(len=14) :: matname
       character(len=128) :: sparse_format
+      logical, dimension(3) :: peri
 
 
       call f_routine(id='multipole_analysis_driver')
@@ -2370,9 +2373,14 @@ module multipole
       !!    call f_err_throw('Atomic multipole analysis not yet ready for nspin>1')
       !!end if
 
-      perx=(smmd%geocode /= 'F')
-      pery=(smmd%geocode == 'P')
-      perz=(smmd%geocode /= 'F')
+!!$      perx=(smmd%geocode /= 'F')
+!!$      pery=(smmd%geocode == 'P')
+!!$      perz=(smmd%geocode /= 'F')
+      peri=bc_periodic_dims(geocode_to_bc(smmd%geocode))
+      perx=peri(1)
+      pery=peri(2)
+      perz=peri(3)
+
 
       ! Check that the proper optional arguments are present
       if (trim(do_ortho)==yes .and. calculate_multipole_matrices) then
@@ -2924,11 +2932,11 @@ module multipole
                   call yaml_sequence(advance='no')
                   call yaml_mapping_open('Up to multipole l='//trim(yaml_toa(lcheck)))
                   call yaml_mapping_open('Electric Dipole Moment (Debye)')
-                  call yaml_map('P vector',dipole_check(1:3),fmt='(1es13.4)')
-                  call yaml_map('norm(P)',sqrt(sum(dipole_check**2)),fmt='(1es14.6)')
+                  call yaml_map('P vector',dipole_check(1:3),fmt='(1es15.6)')
+                  call yaml_map('norm(P)',sqrt(sum(dipole_check**2)),fmt='(1es16.8)')
                   call yaml_mapping_close()
                   call yaml_mapping_open('Quadrupole Moment (AU)')
-                  call yaml_map('Q matrix',quadrupole_check,fmt='(1es13.4)')
+                  call yaml_map('Q matrix',quadrupole_check,fmt='(1es15.6)')
                   call yaml_map('trace',quadrupole_check(1,1)+quadrupole_check(2,2)+quadrupole_check(3,3),fmt='(es12.2)')
                   call yaml_mapping_close()
                   call yaml_sequence_open('Average relative error of resulting potential in the Exterior region')
@@ -4938,13 +4946,13 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
   if(bigdft_mpi%iproc==0 .and. .not.quiet) then
      call yaml_map('Multipole analysis origin',charge_center_cores,fmt='(1pe14.6)')
      call yaml_mapping_open('Electric Dipole Moment (AU)')
-       call yaml_map('P vector',tmpdip(1:3),fmt='(1pe13.4)')
-       call yaml_map('norm(P)',sqrt(sum(tmpdip**2)),fmt='(1pe14.6)')
+       call yaml_map('P vector',tmpdip(1:3),fmt='(1pe15.6)')
+       call yaml_map('norm(P)',sqrt(sum(tmpdip**2)),fmt='(1pe16.8)')
      call yaml_mapping_close()
      tmpdip=tmpdip/Debye_AU  ! au2debye
      call yaml_mapping_open('Electric Dipole Moment (Debye)')
-       call yaml_map('P vector',tmpdip(1:3),fmt='(1pe13.4)')
-       call yaml_map('norm(P)',sqrt(sum(tmpdip**2)),fmt='(1pe14.6)')
+       call yaml_map('P vector',tmpdip(1:3),fmt='(1pe15.6)')
+       call yaml_map('norm(P)',sqrt(sum(tmpdip**2)),fmt='(1pe16.8)')
      call yaml_mapping_close()
 
 

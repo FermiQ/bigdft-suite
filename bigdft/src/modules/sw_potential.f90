@@ -143,6 +143,8 @@ contains
          & deallocate_atomic_neighbours
     use dynamic_memory
     use f_utils
+    use module_base, only: f_err_throw
+    use box, only: bc_periodic_dims,geocode_to_bc
 
     implicit none
 
@@ -157,7 +159,7 @@ contains
     real(gp), dimension(3*astruct%nat), target :: pos_normalised
     real(gp), dimension(3*astruct%nat) :: box_vec
     real(gp), dimension(:), pointer :: pos
-    real(gp), dimension(3) :: box
+    real(gp), dimension(3) :: lbox
     integer :: NATOMS
     real(gp)  :: SIGMA 
     real(gp)  :: A 
@@ -172,7 +174,7 @@ contains
     real(gp) :: A_EPS
 
     real(gp), dimension(:), pointer :: xa, ya, za
-
+    logical, dimension(3) :: peri
     integer :: i, j, i_id, j_id, k, k_id
     integer :: my_counter_i
     real(gp) :: invsig
@@ -194,16 +196,25 @@ contains
     pos(1:NATOMS) = rxyz(1, :) * Bohr_Ang
     pos(1 + NATOMS:2 * NATOMS) = rxyz(2, :) * Bohr_Ang
     pos(1 + 2 * NATOMS:3 * NATOMS) = rxyz(3, :) * Bohr_Ang
-    box = astruct%cell_dim * Bohr_Ang
-    if (astruct%geocode == "S") box(2) = 1._gp
+    lbox = astruct%cell_dim * Bohr_Ang
 
-    box_vec(1:natoms) = box(1)
-    box_vec(1+natoms:2*natoms) = box(2)
-    box_vec(1+natoms+natoms:3*natoms) = box(3)
+    peri=bc_periodic_dims(geocode_to_bc(astruct%geocode))
 
-    if ( astruct%geocode .eq. 'P') pos = modulo(pos, box_vec) !apply PBC implement surface later on
-    if ( astruct%geocode .eq. 'S') pos(1:natoms) = modulo(pos(1:natoms), box_vec(1:natoms))
-    if ( astruct%geocode .eq. 'S') pos(2*natoms+1:3*natoms) = modulo(pos(2*natoms+1:3*natoms), box_vec(2*natoms+1:3*natoms))
+    where(.not. peri) lbox = 1._gp
+
+    box_vec(1:natoms) = lbox(1)
+    box_vec(1+natoms:2*natoms) = lbox(2)
+    box_vec(1+natoms+natoms:3*natoms) = lbox(3)
+
+    if (peri(1)) pos(1:natoms) = modulo(pos(1:natoms), box_vec(1:natoms))
+    if (peri(2)) pos(natoms+1:2*natoms) = modulo(pos(natoms+1:2*natoms), box_vec(natoms+1:2*natoms))
+    if (peri(3)) pos(2*natoms+1:3*natoms) = modulo(pos(2*natoms+1:3*natoms), box_vec(2*natoms+1:3*natoms))
+       
+!!$    if ( astruct%geocode .eq. 'P') pos = modulo(pos, box_vec) !apply PBC implement surface later on
+!!$    if ( astruct%geocode .eq. 'S') pos(1:natoms) = modulo(pos(1:natoms), box_vec(1:natoms))
+!!$    if ( astruct%geocode .eq. 'W') pos(natoms+1:2*natoms) = modulo(pos(natoms+1:2*natoms), box_vec(natoms+1:2*natoms))
+!!$    if ( astruct%geocode .eq. 'S') pos(2*natoms+1:3*natoms) = modulo(pos(2*natoms+1:3*natoms), box_vec(2*natoms+1:3*natoms))
+
 
     ! Generate a neighbour list
     call astruct_neighbours(astruct, rxyz, nei)
@@ -246,9 +257,9 @@ contains
           endif
 
           ! Rescale the lengths into Angstroems
-          xij = xij * box(1)
-          yij = yij * box(2)
-          zij = zij * box(3)
+          xij = xij * lbox(1)
+          yij = yij * lbox(2)
+          zij = zij * lbox(3)
 
           rij2 = xij*xij + yij*yij + zij*zij
 
@@ -321,9 +332,9 @@ contains
                 endif
 
                 ! Rescale the lengths into Angstroems
-                xik = xik * box(1)
-                yik = yik * box(2)
-                zik = zik * box(3)
+                xik = xik * lbox(1)
+                yik = yik * lbox(2)
+                zik = zik * lbox(3)
 
                 rik2 = xik*xik + yik*yik + zik*zik
 

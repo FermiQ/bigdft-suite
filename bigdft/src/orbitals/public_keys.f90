@@ -309,6 +309,7 @@ module public_keys
   character(len=*), parameter :: ASTRUCT_POSITIONS = 'positions'
   character(len=*), parameter :: ASTRUCT_PROPERTIES = 'properties'
   character(len=*), parameter :: ASTRUCT_ATT_FROZEN = 'Frozen'
+  character(len=*), parameter :: ASTRUCT_REDUCED = 'reduced'
   character(len=*), parameter :: ASTRUCT_ATT_IGSPIN = 'IGSpin'
   character(len=*), parameter :: ASTRUCT_ATT_IGCHRG = 'IGChg'
   character(len=*), parameter :: ASTRUCT_ATT_IGMOM  = 'IGMom'

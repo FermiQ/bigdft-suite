@@ -71,15 +71,15 @@ program GPS_3D
    !integer :: m1,m2,m3,md1,md2,md3,nd1,nd2,nd3,n1,n2,n3,
    integer :: itype_scf,n_cell,iproc,nproc,ixc,n01,n02,n03,ifx,ify,ifz
    integer, parameter :: FUNC_GAUSSIAN = 2
-   real(kind=8) :: hx,hy,hz,hgrid,sume,delta
+   real(kind=8) :: hx,hy,hz,hgrid,delta
    real(kind=8) :: einit,IntSur,IntVol
    real(kind=8) :: ehartree,offset,epr,depsr,cc,kk,y,d
    real(kind=8) :: x1,x2,x3,fx,fy,fz,fx1,fy1,fz1,fx2,fy2,fz2,factor,ax,ay,az,bx,by,bz,length,r2,dd
-   real(kind=8), dimension(:,:,:,:), allocatable :: density,rhopot,rvApp,rhoele,rhoion,potsol,rhopotf,densityf
+   real(kind=8), dimension(:,:,:,:), allocatable :: density,rhopot,rvApp
 
    logical :: logyes
    ! Now start modification for check.
-   real(kind=8), dimension(:,:,:,:,:), allocatable :: dens_check,pot_check
+   !real(kind=8), dimension(:,:,:,:,:), allocatable :: dens_check,pot_check
    integer :: i_check,unt,igpu
    ! To set 1 for normal run, 3 for check V[\rho,\epsilon] + V[\rho_ion,epsilon] is = to V[\rho + \rho_ion, epsilon]
    integer, parameter :: n_check = 1 
@@ -88,7 +88,7 @@ program GPS_3D
    real(kind=8), dimension(:), allocatable :: radii
    type(coulomb_operator) :: pkernel
 !   type(mpi_environment), intent(in), optional :: mpi_env
-   real(kind=8), dimension(:,:,:), allocatable :: eps,potential,pot_ion,epsf,potentialf,dsurfdrho
+   real(kind=8), dimension(:,:,:), allocatable :: eps,potential,pot_ion,dsurfdrho
    real(kind=8), dimension(:,:,:), allocatable :: rho,nabla2rho,deltarho,depsdrho
    real(kind=8), dimension(:,:,:,:), allocatable :: nabla_eps
    integer :: i1,i2,i3
@@ -203,18 +203,13 @@ program GPS_3D
 
    density=f_malloc([n01,n02,n03,nspden],id='density')
    rhopot =f_malloc([n01,n02,n03,nspden],id='rhopot')
-   potsol =f_malloc([n01,n02,n03,nspden],id='potsol')
    rvApp  =f_malloc([n01,n02,n03,nspden],id='rvApp')
-   rhoele =f_malloc([n01,n02,n03,nspden],id='rhoele')
-   rhoion =f_malloc([n01,n02,n03,nspden],id='rhoion')
-   dens_check =f_malloc([n01,n02,n03,nspden,n_check],id='dens_check')
-   pot_check =f_malloc([n01,n02,n03,nspden,n_check],id='pot_check')
+   !dens_check =f_malloc([n01,n02,n03,nspden,n_check],id='dens_check')
+   !pot_check =f_malloc([n01,n02,n03,nspden,n_check],id='pot_check')
    rxyz   =f_malloc([3,nat],id='rxyz')
    radii   =f_malloc([nat],id='radii')
    !here ndimsf was not initialized!!!
    ndimsf=[n01,n02,n03]
-   rhopotf =f_malloc([ndimsf(1),ndimsf(2),ndimsf(3),nspden],id='rhopotf')
-   densityf =f_malloc([ndimsf(1),ndimsf(2),ndimsf(3),nspden],id='densityf')
    
    eps=f_malloc([n01,n02,n03],id='eps')
    dlogeps=f_malloc([3,n01,n02,n03],id='dlogeps')
@@ -223,10 +218,8 @@ program GPS_3D
    corr=f_malloc([n01,n02,n03],id='corr')
    potential=f_malloc([n01,n02,n03],id='potential')
    pot_ion=f_malloc([n01,n02,n03],id='pot_ion')
-   nabla_eps=f_malloc([n01,n02,n03,3],id='nabla_eps')
-   dsurfdrho=f_malloc([n01,n02,n03],id='dsurfdrho')
-   epsf=f_malloc([ndimsf(1),ndimsf(2),ndimsf(3)],id='epsf')
-   potentialf=f_malloc([ndimsf(1),ndimsf(2),ndimsf(3)],id='potentialf')
+   !nabla_eps=f_malloc([n01,n02,n03,3],id='nabla_eps')
+   !dsurfdrho=f_malloc([n01,n02,n03],id='dsurfdrho')
 
    n_cell = max(n01,n02,n03)
    hgrid=max(hx,hy,hz)
@@ -238,7 +231,7 @@ program GPS_3D
    ! Set environment, namely permittivity epsilon, rhoele = electron charge density and rhoion = ion charge density .
 
    if (SetEps.eq.3) then
-      call get_rho(n01,n02,n03,nspden,nat,rhoele,rhoion,sume,rxyz,iproc)
+      !call get_rho(n01,n02,n03,nspden,nat,rhoele,rhoion,sume,rxyz,iproc)
    else
     if (nat.eq.1) then
      rxyz(1,1) = hx*real((n01-1)/2,kind=8)
@@ -262,16 +255,16 @@ program GPS_3D
       delta=0.3d0
       radii=[1.4d0,1.0d0,1.0d0]
     end if
-    rhoele(:,:,:,:) = 0.d0
-    rhoion(:,:,:,:) = 0.d0
+    !rhoele(:,:,:,:) = 0.d0
+    !rhoion(:,:,:,:) = 0.d0
    end if
 
 
 !------------------------------------------------------------------------
 !!! Old set up for input analytical functions.
    if (.false.) then
-    call SetEpsilon(mesh,n01,n02,n03,nspden,nord,nat,iproc,acell,a_gauss,hx,hy,hz,erfL,erfR,sigmaeps,&
-           4,geocode,PSol,eps,dlogeps,oneoeps,oneosqrteps,corr,rhoele,rxyz,radii,delta)
+    !call SetEpsilon(mesh,n01,n02,n03,nspden,nord,nat,iproc,acell,a_gauss,hx,hy,hz,erfL,erfR,sigmaeps,&
+    !       4,geocode,PSol,eps,dlogeps,oneoeps,oneosqrteps,corr,rhoele,rxyz,radii,delta)
  
     if (SetEps.lt.5) then
      if ( trim(PSol)=='VAC') then
@@ -374,13 +367,13 @@ program GPS_3D
      call writeroutinePot(n01,n02,n03,1,density,0,rvApp)
   end if
 
-  if (n_check.eq.1) then
-   dens_check(:,:,:,:,1) = density(:,:,:,:)
-  else if (n_check.eq.3) then
-   dens_check(:,:,:,:,1) = rhoion(:,:,:,:)
-   dens_check(:,:,:,:,2) = -rhoele(:,:,:,:)
-   dens_check(:,:,:,:,3) = rhoion(:,:,:,:) - rhoele(:,:,:,:)
-  end if
+  !if (n_check.eq.1) then
+  ! dens_check(:,:,:,:,1) = density(:,:,:,:)
+  !else if (n_check.eq.3) then
+  ! dens_check(:,:,:,:,1) = rhoion(:,:,:,:)
+  ! dens_check(:,:,:,:,2) = -rhoele(:,:,:,:)
+  ! dens_check(:,:,:,:,3) = rhoion(:,:,:,:) - rhoele(:,:,:,:)
+  !end if
 
  do i_check=1,n_check
  
@@ -389,13 +382,17 @@ program GPS_3D
   end if
 
 !  if (SetEps.eq.3) then
-   rhopot(:,:,:,:) = dens_check(:,:,:,:,i_check)
+   !rhopot(:,:,:,:) = dens_check(:,:,:,:,i_check)
+   rhopot(:,:,:,:) = density(:,:,:,:)
 !  else
 !   rhopot(:,:,:,:) = density(:,:,:,:)
 !  end if
 
+  if (usegpu) then
+    call dict_set(dict_input//'setup'//'accel','CUDA')
+    call dict_set(dict_input//'setup'//'use_gpu_direct','No')
+  end if
 
-   if (usegpu) call dict_set(dict_input//'setup'//'accel','CUDA')
    call dict_set(dict_input//'environment'//'delta',delta)
    if (trim(PSol) /= 'VAC') then
       call dict_set(dict_input//'environment'//'cavity','soft-sphere')
@@ -469,7 +466,7 @@ program GPS_3D
       call Poisson_Boltzmann_good(n01,n02,n03,nspden,iproc,rhopot,eps,pkernel,potential)
   end select
 
-  pot_check(:,:,:,:,i_check) = rhopot(:,:,:,:)
+  !pot_check(:,:,:,:,i_check) = rhopot(:,:,:,:)
 
   if (iproc==0) then
      call writeroutinePot(n01,n02,n03,nspden,rhopot,pkernel%max_iter,potential)
@@ -514,33 +511,33 @@ program GPS_3D
 ! call Polarization_charge(n01,n02,n03,nspden,hx,hy,hz,rhopot,rvApp,acell,eps,nord)
 
 !------------------------------------------------------------------
- if (n_check.eq.3 .and. SetEps.eq.3) then
-
-  write(*,'(a)')'--------------------------------------------------------------------------------------------'
-  write(*,'(a)')'Difference between V[\rho,\epsilon] + V[\rho_ion,epsilon] and V[\rho + \rho_ion, epsilon]'
-  potential(:,:,:)= pot_check(:,:,:,1,1) + pot_check(:,:,:,1,2)
-  call writeroutinePot(n01,n02,n03,nspden,rhopot,pkernel%max_iter,potential)
-
-      unt=f_get_free_unit(21)
-      call f_open_file(unt,file='final_ion_ele.dat')
-      i1=(n01-1)/2+1
-      do i2=1,n02
-         do i3=1,n03
-            write(unt,'(2(1x,I4),2(1x,e14.7))')i2,i3,pot_check(i1,i2,i3,1,1),pot_check(i1,i2,i3,1,2)
-         end do
-      end do
-      call f_close(unt)
-
-      unt=f_get_free_unit(22)
-      call f_open_file(unt,file='final_ion_ele_line.dat')
-      i1=(n01-1)/2+1
-      i3=(n03-1)/2+1
-      do i2=1,n02
-       write(unt,'(1x,I8,2(1x,e22.15))')i2,pot_check(i1,i2,i3,1,1),pot_check(i1,i2,i3,1,2)
-      end do
-      call f_close(unt)
-
- end if
+! if (n_check.eq.3 .and. SetEps.eq.3) then
+!
+!  write(*,'(a)')'--------------------------------------------------------------------------------------------'
+!  write(*,'(a)')'Difference between V[\rho,\epsilon] + V[\rho_ion,epsilon] and V[\rho + \rho_ion, epsilon]'
+!  potential(:,:,:)= pot_check(:,:,:,1,1) + pot_check(:,:,:,1,2)
+!  call writeroutinePot(n01,n02,n03,nspden,rhopot,pkernel%max_iter,potential)
+!
+!      unt=f_get_free_unit(21)
+!      call f_open_file(unt,file='final_ion_ele.dat')
+!      i1=(n01-1)/2+1
+!      do i2=1,n02
+!         do i3=1,n03
+!            write(unt,'(2(1x,I4),2(1x,e14.7))')i2,i3,pot_check(i1,i2,i3,1,1),pot_check(i1,i2,i3,1,2)
+!         end do
+!      end do
+!      call f_close(unt)
+!
+!      unt=f_get_free_unit(22)
+!      call f_open_file(unt,file='final_ion_ele_line.dat')
+!      i1=(n01-1)/2+1
+!      i3=(n03-1)/2+1
+!      do i2=1,n02
+!       write(unt,'(1x,I8,2(1x,e22.15))')i2,pot_check(i1,i2,i3,1,1),pot_check(i1,i2,i3,1,2)
+!      end do
+!      call f_close(unt)
+!
+! end if
 
  call pkernel_free(pkernel)
 
@@ -576,10 +573,6 @@ program GPS_3D
  fy2=0.d0
  fz2=0.d0
  factor=0.d0
- rho=f_malloc([n01,n02,n03],id='rho')
- nabla2rho=f_malloc([n01,n02,n03],id='nabla2rho')
- deltarho=f_malloc([n01,n02,n03],id='deltarho')
- depsdrho=f_malloc([n01,n02,n03],id='depsdrho')
 
  if (dsurfcheck) then
 
@@ -589,13 +582,9 @@ program GPS_3D
   call f_free(oneosqrteps)
   call f_free(corr)
   call f_free(potential)
-  call f_free(nabla_eps)
-  call f_free(dsurfdrho)
+  !call f_free(nabla_eps)
+  !call f_free(dsurfdrho)
   call f_free(pot_ion)
-  call f_free(rho)
-  call f_free(nabla2rho)
-  call f_free(deltarho)
-  call f_free(depsdrho)
 
   ndims(1)=200
   ndims(2)=200
@@ -851,37 +840,32 @@ program GPS_3D
   end if
 
   call pkernel_free(pkernel)
+
+  call f_free(rho)
+  call f_free(nabla2rho)
+  call f_free(deltarho)
+  call f_free(depsdrho)
+  call f_free(nabla_eps)
+  call f_free(dsurfdrho)
+
  end if
 
 !----------------------------------------------------------------
 
   call f_free(density)
-  call f_free(densityf)
   call f_free(rhopot)
-  call f_free(rhopotf)
-  call f_free(potsol)
-  call f_free(rhoele)
-  call f_free(rhoion)
-  call f_free(dens_check)
-  call f_free(pot_check)
+  !call f_free(dens_check)
+  !call f_free(pot_check)
   call f_free(rxyz)
   call f_free(radii)
   call f_free(rvApp)
   call f_free(eps)
-  call f_free(epsf)
   call f_free(dlogeps)
   call f_free(oneoeps)
   call f_free(oneosqrteps)
   call f_free(corr)
   call f_free(potential)
-  call f_free(potentialf)
   call f_free(pot_ion)
-  call f_free(nabla_eps)
-  call f_free(dsurfdrho)
-  call f_free(rho)
-  call f_free(nabla2rho)
-  call f_free(deltarho)
-  call f_free(depsdrho)
 
   call mpifinalize()
   call f_lib_finalize()

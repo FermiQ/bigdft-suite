@@ -25,11 +25,12 @@ class AxisSet(Axes):
     ax.create_twin()
 
 class FigureSet():
-  """Define a container for a plot with the possiblity to switch between simple and gnuplot plotting
+  """
+  Define a container for a plot with the possiblity to switch between simple and gnuplot plotting
   Arguments:
   title: The title of the master figure
   **kwargs: arguments for the axis instance
-"""
+  """
   def __init__(self,**kwargs):
     import matplotlib.pyplot as plt
     from Yaml import kw_pop

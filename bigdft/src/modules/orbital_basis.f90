@@ -901,8 +901,8 @@ contains
                lr%wfd%keygloc,lr%wfd%keyvloc, &
                cprecr,hgrids(1),hgrids(2),hgrids(3),hpsi)
        case('W')
-          call f_err_throw("Wires bc has to be implemented here", &
-               err_name='BIGDFT_RUNTIME_ERROR')
+          call f_err_throw("Wires bc will not work with ncong=0", &
+                 err_name='BIGDFT_RUNTIME_ERROR')
        end select
     else !normal preconditioner
        !case active only in the linear scaling case

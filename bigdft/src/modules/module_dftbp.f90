@@ -37,8 +37,6 @@ subroutine dftbp_energy_forces(policy,nat,alat,astruct,geocode,rxyz, fxyz,strten
     integer, intent(out) :: istat
     !local
     real(gp) :: cell(3,3)
-    integer:: ierr
-    character(len=5) :: cierr
 !!integer :: clck_counts_beg, clck_counts_end, clck_rate
 !!call system_clock ( clck_counts_beg, clck_rate )
     istat=0

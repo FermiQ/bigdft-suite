@@ -1,7 +1,7 @@
 !> @file
 !!  Define handling of the psp parameters
 !! @author
-!!    Copyright (C) 2015-2015 BigDFT group (LG)
+!!    Copyright (C) 2015-2018 BigDFT group (LG)
 !!    This file is distributed under the terms of the
 !!    GNU General Public License, see ~/COPYING file
 !!    or http://www.gnu.org/copyleft/gpl.txt .
@@ -215,7 +215,7 @@ contains
          call f_err_throw('The pseudopotential parameter file "'//&
               trim(filename)//&
               '" is lacking, and no registered pseudo found for "'//&
-              trim(atomname),err_name='BIGDFT_INPUT_FILE_ERROR')
+              trim(atomname)//'"',err_name='BIGDFT_INPUT_FILE_ERROR')
          return
       end if
 
@@ -587,6 +587,7 @@ contains
       use yaml_output
       use dictionaries
       use public_keys, only: SOURCE_KEY
+      use f_iostream
       implicit none
       !Arguments
       type(dictionary), pointer :: dict
@@ -748,7 +749,9 @@ contains
       use f_utils
       use m_pawpsp, only: pawpsp_read_header_2
       use yaml_output
+      use f_iostream
       implicit none
+
 
       type(io_stream), intent(inout) :: ios
       integer, intent(out) :: nzatom, nelpsp, npspcode, ixcpsp
@@ -1059,7 +1062,7 @@ contains
       use dictionaries, only: max_field_length
       use dynamic_memory
       use f_utils
-
+      use f_iostream
       implicit none
 
       type(pawrad_type), intent(out) :: pawrad
@@ -1140,12 +1143,12 @@ contains
       do i = 1, pawtab%basis_size
          l = pawtab%orbitals(i) + 1
          if (psppar(l, 0) > 0._gp) cycle
-         
-         call paw_spline(pawrad%rad, pawtab%tproj(1, i), pawrad%mesh_size, 0._dp, 0._dp, d2)
+
+         call paw_spline(pawrad%rad, pawtab%tproj(1, i), size(pawtab%tproj, 1), 0._dp, 0._dp, d2)
          nrm = 0._gp
          do ii = 1, nsteps
             r = ii * eps
-            call paw_splint(pawrad%mesh_size, pawrad%rad, pawtab%tproj(1, i), d2, &
+            call paw_splint(size(pawtab%tproj, 1), pawrad%rad, pawtab%tproj(1, i), d2, &
                  & 1, [r], raux, ierr)
             psppar(l, 0) = psppar(l, 0) + r * r * raux(1) * raux(1) * eps
             nrm = nrm + raux(1) * raux(1) * eps

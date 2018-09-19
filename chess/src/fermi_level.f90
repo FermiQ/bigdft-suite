@@ -510,9 +510,10 @@ module fermi_level
       !local variables
       real(mp) :: arg,x,a,f,df
 
+      arg=(e-ef)/kT
       select case(occopt)
       case(SMEARING_DIST_ERF)
-         s=0.5_mp*kT*oneosqrtpi*safe_exp(-((e-ef)/kt)**2)
+         s=0.5_mp*kT*oneosqrtpi*safe_exp(-(arg)**2)
       case(SMEARING_DIST_FERMI)
          call get_occupation(occopt,e,ef,kT,f,df)
          s=-kT*(f*safe_log(f) + (1.0_mp-f)*safe_log(1._mp-f))
@@ -566,7 +567,7 @@ module fermi_level
          df=-safe_exp(-x**2) * (a*x**3 -x**2 -1.5d0*a*x +1.5d0)*oneosqrtpi   ! df:=df/darg=-df/dx
          !POSHM=(2.D0-qe_erfc(X))+(-2.d0*a*x*x+2*x+a)*EXP(-X*X)/SQRT(PI)/2.d0
       case(SMEARING_DIST_COLD2)
-         !a=-.8165d0
+         a=-.8165d0
          x= -arg-1.0_mp/sqrt(2.0_mp)
          !call abi_derf_ab(res,x)
          !res=safe_derf(x-1.0_mp/sqrt(2.0_mp))

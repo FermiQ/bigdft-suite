@@ -1,7 +1,7 @@
 !> @file
 !!  Routines to build the kernel used by the Poisson solver
 !! @author
-!!    Copyright (C) 2006-2011 BigDFT group (LG)
+!!    Copyright (C) 2006-2017 BigDFT group (LG)
 !!    This file is distributed under the terms of the
 !!    GNU General Public License, see ~/COPYING file
 !!    or http://www.gnu.org/copyleft/gpl.txt .
@@ -2306,7 +2306,7 @@ subroutine Wires_Kernel(iproc,nproc,n01,n02,n03,n1,n2,n3,nker1,nker2,nker3,h1,h2
      !mu = 2.0d0/max(h1*n01,h2*n02)
 
      ! because of the scaling properties of the log function we have to add the following:
-     karray(1,1,1) = karray(1,1,1) - (n1*n3)*log(mu)
+     if (i3s == 1) karray(1,1,1) = karray(1,1,1) - (n1*n3)*log(mu)
   else
      alpha => p2
      w => w2

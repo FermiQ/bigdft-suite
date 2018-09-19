@@ -31,7 +31,7 @@ module f_allgather
   !> Interface for MPI_ALLGATHERV routine
   interface fmpi_allgather
      module procedure mpiallgatherv_d0,mpiallgatherv_d1,mpiallgatherv_d2d3,mpiallgatherv_i2
-     module procedure mpiallgatherv_i0!,mpiallgatherv_i0i1
+     module procedure mpiallgatherv_i0,mpiallgatherv_i1!,mpiallgatherv_i0i1
   end interface fmpi_allgather
 
   interface mpi_get_to_allgatherv
@@ -143,6 +143,19 @@ contains
     integer(f_integer), dimension(:), allocatable :: copybuf
     include 'allgather-inc.f90'
   end subroutine mpiallgatherv_i0
+
+  recursive subroutine mpiallgatherv_i1(sendbuf,sendcount,recvbuf,recvcount,&
+       recvcounts,displs,comm,win,algorithm)
+    !    use yaml_strings, only: yaml_toa
+    use dictionaries, only: f_err_throw
+    use dynamic_memory
+    implicit none
+    integer(f_integer), dimension(:), intent(in) :: sendbuf
+    integer(f_integer), dimension(:), intent(inout), optional :: recvbuf
+    integer(f_integer), dimension(:), allocatable :: copybuf
+    include 'allgather-inc.f90'
+  end subroutine mpiallgatherv_i1
+
 
 !!$  subroutine mpiallgatherv_i0i1(sendbuf,sendcount,recvbuf,recvcount,&
 !!$       recvcounts,displs,comm,win,algorithm)

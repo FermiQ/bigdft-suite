@@ -215,6 +215,7 @@ end subroutine test_dictionaries0
 
 
 subroutine test_dictionaries1()
+  use f_precisions
   use yaml_output
   use yaml_strings
   use dictionaries
@@ -226,7 +227,8 @@ subroutine test_dictionaries1()
    type(dictionary), pointer :: dict2
    type(dictionary), pointer :: dict,dictA
    type(dictionary), pointer :: dictA2,dict_tmp,zero1,zero2
-   double precision, dimension(3) :: tmp_arr
+   real(f_double), dimension(3) :: tmp_arr
+   real(f_double), dimension(3,3) :: tmp_mat,mat
    character(len=20) :: name
 
    !testing add
@@ -270,6 +272,9 @@ subroutine test_dictionaries1()
 
    !print dictionary status
    call yaml_dict_dump(dict,flow=.true.)
+
+   mat=1.0_f_double
+   mat(2,3)=0.0_f_double
 
    !popping a term from the dictionary
    !only a normal pointer can be used
@@ -377,6 +382,7 @@ subroutine test_dictionaries1()
    call set(dictA//'Stack2',(/'1','2','3'/))
    call set(dictA//'Stack3',(/'4 ','AQ','3g'/))
    call set(dictA//'Stack4',12)
+   call set(dictA//'Matrix',mat)
 
    call yaml_dict_dump(dictA)
 
@@ -406,6 +412,16 @@ subroutine test_dictionaries1()
    !retrieve the value from the a scalar
    tmp_arr=dictA//'Stack'//0
    call yaml_map('Array filled with a scalar',tmp_arr,fmt='(1pg12.5)')
+
+   
+
+   tmp_mat=45.0_f_double
+   !retrieve now a rank-two array
+   tmp_mat=dictA//'Matrix'
+
+   !and verify its values
+   call yaml_map('Small matrix',tmp_mat)
+   call yaml_map('Original matrix',mat)
 
 !!$   !try to see if extra information can be added after the value
 !!$   call set(dictA//'Test Field',6,fmt='(i6.6)')

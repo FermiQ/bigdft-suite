@@ -25,6 +25,7 @@ subroutine CalculateTailCorrection(iproc,nproc,at,rbuf,orbs,&
   use compression
   use orbitalbasis
   use psp_projectors
+  use box, only: cell_geocode
   implicit none
   type(atoms_data), intent(in) :: at
   type(orbitals_data), intent(in) :: orbs
@@ -94,7 +95,8 @@ subroutine CalculateTailCorrection(iproc,nproc,at,rbuf,orbs,&
   nb3=n3+2*nbuf
 
   ! Create new structure with modified grid sizes
-  call init_lr(lr,Glr%geocode,0.5*hgrid,nb1,nb2,nb3,&
+!!$  call init_lr(lr,Glr%geocode,0.5*hgrid,nb1,nb2,nb3,&
+  call init_lr(lr,cell_geocode(Glr%mesh),0.5*hgrid,nb1,nb2,nb3,&
        Glr%d%nfl1,Glr%d%nfl2,Glr%d%nfl3,Glr%d%nfu1,Glr%d%nfu2,Glr%d%nfu3,&
        .true.,bnds=Glr%bounds)
  

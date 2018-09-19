@@ -317,10 +317,12 @@ contains
     call deallocate_nonlocal_psp_descriptors(projs%region)
     proj => projs%projs
     do while (associated(proj))
+       !print *,'shape',shape(proj%coeff)
        call f_free_ptr(proj%coeff)
        doomed => proj
        proj => proj%next
        deallocate(doomed)
+       nullify(doomed)
     end do
   end subroutine deallocate_daubechies_projectors
 
@@ -784,12 +786,12 @@ contains
     d2 = f_malloc(pawrad%mesh_size, id = "d2")
     eps = 1.05_gp * pawtab%rpaw / real(nsteps, gp)
     do iproj = 1, size(pawtab%tproj, 2)
-       call paw_spline(pawrad%rad, pawtab%tproj(1, iproj), pawrad%mesh_size, &
+       call paw_spline(pawrad%rad, pawtab%tproj(1, iproj), size(pawtab%tproj, 1), &
             & (pawtab%tproj(2, iproj) - pawtab%tproj(1, iproj)) / (pawrad%rad(2) - pawrad%rad(1)), 0._dp, d2)
        aproj%normalized(iproj) = 0._gp
        do i = 1, nsteps
           r = (i - 1) * eps
-          call paw_splint(pawrad%mesh_size, pawrad%rad, pawtab%tproj(1, iproj), d2, &
+          call paw_splint(size(pawtab%tproj, 1), pawrad%rad, pawtab%tproj(1, iproj), d2, &
                & 1, [r], raux, ierr)
           aproj%normalized(iproj) = aproj%normalized(iproj) + raux(1) * raux(1) * eps
        end do

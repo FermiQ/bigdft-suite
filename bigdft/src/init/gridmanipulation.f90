@@ -310,6 +310,8 @@ END SUBROUTINE correct_grid
 subroutine export_grids(fname, atoms, rxyz, hx, hy, hz, n1, n2, n3, logrid_c, logrid_f)
   use module_defs, only: gp
   use module_types
+  use module_base, only: f_err_throw
+  use module_atoms, only: write_xyz_bc
   implicit none
   character(len = *), intent(in) :: fname
   type(atoms_data), intent(in) :: atoms
@@ -342,14 +344,21 @@ subroutine export_grids(fname, atoms, rxyz, hx, hy, hz, n1, n2, n3, logrid_c, lo
   ! Create the file grid.xyz to visualize the grid of functions
   open(unit=22,file=fname,status='unknown')
   write(22,*) nvctr+atoms%astruct%nat,' atomic'
-  if (atoms%astruct%geocode=='F') then
-     write(22,*)'complete simulation grid with low and high resolution points'
-  else if (atoms%astruct%geocode =='S') then
-     write(22,'(a,2x,3(1x,1pe24.17))')'surface',atoms%astruct%cell_dim(1),atoms%astruct%cell_dim(2),atoms%astruct%cell_dim(3)
-  else if (atoms%astruct%geocode =='P') then
-     write(22,'(a,2x,3(1x,1pe24.17))')'periodic',atoms%astruct%cell_dim(1),atoms%astruct%cell_dim(2),&
-          atoms%astruct%cell_dim(3)
-  end if
+
+  call write_xyz_bc(22,atoms%astruct%geocode,1.0_gp,atoms%astruct%cell_dim)
+
+!!$  if (atoms%astruct%geocode=='F') then
+!!$     write(22,*)'complete simulation grid with low and high resolution points'
+!!$  else if (atoms%astruct%geocode =='S') then
+!!$     write(22,'(a,2x,3(1x,1pe24.17))')'surface',atoms%astruct%cell_dim(1),atoms%astruct%cell_dim(2),atoms%astruct%cell_dim(3)
+!!$  else if (atoms%astruct%geocode =='P') then
+!!$     write(22,'(a,2x,3(1x,1pe24.17))')'periodic',atoms%astruct%cell_dim(1),atoms%astruct%cell_dim(2),&
+!!$          atoms%astruct%cell_dim(3)
+!!$  else if (atoms%astruct%geocode =='W') then
+!!$     call f_err_throw("Wires bc has to be implemented here", &
+!!$          err_name='BIGDFT_RUNTIME_ERROR')
+!!$  end if
+!!$
   do iat=1,atoms%astruct%nat
      write(22,'(a6,2x,3(1x,e12.5),3x)') &
           &   trim(atoms%astruct%atomnames(atoms%astruct%iatype(iat))),rxyz(1,iat),rxyz(2,iat),rxyz(3,iat)

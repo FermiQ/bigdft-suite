@@ -13,6 +13,7 @@ subroutine fillPcProjOnTheFly(PPD, Glr, iat, at, hx,hy,hz,startjorb,ecut_pc,   i
   use module_types
   use locregs, only: allocate_wfd,deallocate_wfd,locreg_descriptors
   use module_abscalc
+  use yaml_output
   implicit none
   type(pcproj_data_type),  intent(in) ::PPD
   type(locreg_descriptors),  intent(in):: Glr
@@ -34,8 +35,8 @@ subroutine fillPcProjOnTheFly(PPD, Glr, iat, at, hx,hy,hz,startjorb,ecut_pc,   i
   Plr%d%n1 = Glr%d%n1
   Plr%d%n2 = Glr%d%n2
   Plr%d%n3 = Glr%d%n3
-  Plr%geocode = at%astruct%geocode
-
+!!$  Plr%geocode = at%astruct%geocode
+  call yaml_warning('Here Plr%mesh has to be implemented. Needed for gaussians_to_wavelets_orb.')
 
   call plr_segs_and_vctrs(PPD%pc_nl%projs(iat)%region%plr,&
        Plr%wfd%nseg_c,Plr%wfd%nseg_f,Plr%wfd%nvctr_c,Plr%wfd%nvctr_f)
@@ -101,6 +102,7 @@ subroutine fillPawProjOnTheFly(PAWD, Glr, iat,  hx,hy,hz,kx,ky,kz,startjorb,   i
   use module_types
   use locregs, only: allocate_wfd,deallocate_wfd,locreg_descriptors
   use module_abscalc
+  use yaml_output
   implicit none
   type(pawproj_data_type),  intent(in) ::PAWD
   type(locreg_descriptors),  intent(in):: Glr
@@ -129,7 +131,8 @@ subroutine fillPawProjOnTheFly(PAWD, Glr, iat,  hx,hy,hz,kx,ky,kz,startjorb,   i
   Plr%d%n1 = Glr%d%n1
   Plr%d%n2 = Glr%d%n2
   Plr%d%n3 = Glr%d%n3
-  Plr%geocode = geocode
+!!$  Plr%geocode = geocode
+  call yaml_warning('Here Plr%mesh has to be implemented. Needed for gaussians_c_to_wavelets_orb.')
 
   call plr_segs_and_vctrs(PAWD%paw_nl%projs(iat)%region%plr,&
        Plr%wfd%nseg_c,Plr%wfd%nseg_f,Plr%wfd%nvctr_c,Plr%wfd%nvctr_f)
@@ -196,13 +199,12 @@ subroutine createPcProjectorsArrays(iproc,nproc,n1,n2,n3,rxyz,at,orbs,&
      PPD, Glr)
   !use module_base
   use module_types
-  use locregs, only: allocate_wfd,deallocate_wfd
+  use locregs, only: allocate_wfd,deallocate_wfd,locreg_descriptors
   use module_abscalc
   use module_interfaces, only: gaussian_pswf_basis
   use gaussians, only: deallocate_gwf
   use psp_projectors, only: bounds_to_plr_limits
   use psp_projectors_base
-  use locregs
   implicit none
   integer, intent(in) :: iproc,nproc,n1,n2,n3
   real(gp), intent(in) :: cpmult,fpmult,hx,hy,hz

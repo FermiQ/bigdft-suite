@@ -29,7 +29,7 @@ program IO_wf_test
   call f_lib_initialize()
 
   call MPI_INIT(ierr)
-  call f_malloc_set_status(memory_limit=0.e0)
+  call f_malloc_set_status()!memory_limit=0.e0)
 
   call get_command_argument(1, value = filename)
 
@@ -41,8 +41,8 @@ program IO_wf_test
   call yaml_map('ETSF wavefunction file (nou, nod, nk, sp)', [ norbu, norbd, nkpt, nspinor ])
   if (.not. lstat) stop
 
-  call read_wave_to_isf(lstat, trim(filename), len(trim(filename)), iorbp, hx, hy, hz, &
-       & n1, n2, n3, nspinor, psiscf)
+!!$  call read_wave_to_isf(lstat, trim(filename), len(trim(filename)), iorbp, hx, hy, hz, &
+!!$       & n1, n2, n3, nspinor, psiscf)
   if (.not. lstat) stop
 
   nrm = real(0, wp)
