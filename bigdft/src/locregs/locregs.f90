@@ -81,7 +81,8 @@ module locregs
   public :: deallocate_locreg_descriptors,deallocate_wfd
   public :: allocate_wfd,copy_locreg_descriptors,copy_grid_dimensions
   public :: check_overlap,check_overlap_cubic_periodic,check_overlap_from_descriptors_periodic,lr_box
-  public :: init_lr,reset_lr
+  public :: init_lr,reset_lr,extract_lr,store_lr,gather_locreg_storage
+  public :: lr_storage_init, lr_storage_free
   public :: communicate_locreg_descriptors_basics
   public :: get_isf_offset,ensure_locreg_bounds
 
@@ -166,6 +167,7 @@ contains
   end function lr_ptr_sizeof
 
   subroutine allocate_locregs_ptr(array,m)
+    use dynamic_memory
     implicit none
     type(locregs_ptr), dimension(:), pointer, intent(inout) :: array
     type(malloc_information_ptr), intent(in) :: m
@@ -296,7 +298,7 @@ contains
   subroutine locreg_decode(src,lr_size,lr)
     implicit none
     integer, intent(in) :: lr_size
-    type(locreg_descriptors), intent(out) :: lr
+    type(locreg_descriptors), target, intent(out) :: lr
     integer, dimension(lr_size), intent(in) :: src
 
     lr=transfer(src,lr)   
@@ -305,6 +307,7 @@ contains
   end subroutine locreg_decode
 
   subroutine locreg_full_decode(src,lr_size,lr_full_size,lr,bounds)
+    use compression
     implicit none
     integer, intent(in) :: lr_full_size,lr_size
     type(locreg_descriptors), intent(out) :: lr
@@ -462,7 +465,8 @@ contains
        encoding_buffer_size=encoding_buffer_size+lr_full_size
     end do
     lr_sizes=f_malloc([2,iilr],id='lr_sizes')
-    call f_memcpy(n=2*iilr,src=lr_storage%lr_full_sizes,dest=lr_sizes(1,1))
+    if (iilr > 0) &
+         & call f_memcpy(n=2*iilr,src=lr_storage%lr_full_sizes,dest=lr_sizes(1,1))
 
     call fmpi_allgather(sendbuf=lr_sizes,recvbuf=lr_storage%lr_full_sizes,&
          comm=bigdft_mpi%mpi_comm,win=win_counts)

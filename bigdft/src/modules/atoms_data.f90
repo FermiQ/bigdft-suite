@@ -570,7 +570,6 @@ contains
     real(gp), intent(in) :: charge,sigma
     type(gaussian_real_space), intent(out) :: g
     !local variables
-    real(gp) :: rloc
     real(gp), dimension(1) :: charge_
     integer, dimension(1) :: zero1
     integer, dimension(3) :: zeros
@@ -1742,7 +1741,7 @@ contains
        nsym = 0
        call symmetry_get_n_sym(atoms%astruct%sym%symObj, nsym, ierr)
        mpsang = -1
-       do iat = 1, atoms%astruct%nat
+       do iat = 1, size(atoms%pawtab)
           mpsang = max(mpsang, maxval(atoms%pawtab(iat)%orbitals))
        end do
        call abi_pawinit(1, gsqcut_shp, pawlcutd, pawlmix, mpsang + 1, &

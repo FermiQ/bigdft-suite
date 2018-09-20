@@ -382,10 +382,10 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
      call density_descriptors(iproc,nproc,denspot%xc,in%nspin,in%crmult,in%frmult,atoms,&
           denspot%dpbox,in%rho_commun,rxyz,denspot%rhod)
      !allocate the arrays.
-     call allocateRhoPot(Lzd%Glr,in%nspin,atoms,rxyz,denspot)
+     call allocateRhoPot(in%nspin,atoms,rxyz,denspot)
      !here insert the conditional for the constrained field dynamics
      if (in%calculate_magnetic_torque) then
-        call set_cfd_data(denspot%cfd,Lzd%Glr%mesh,atoms%astruct,rxyz)
+        call set_cfd_data(denspot%cfd,denspot%dpbox%mesh,atoms%astruct,rxyz)
      end if
      if (in%do_spin_dynamics) then
         if (in%calculate_magnetic_torque) then

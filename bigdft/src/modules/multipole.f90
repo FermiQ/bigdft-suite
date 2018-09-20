@@ -174,11 +174,12 @@ module multipole
     !! LG: this routine should nt be written like that. Too many conditional branches connected together.
     !! Difficult to read, to optimize, to debug and to maintain.
     subroutine potential_from_charge_multipoles(iproc, nproc, at, denspot, ep, &
-               is1, ie1, is2, ie2, is3, ie3, hx, hy, hz, shift, &
-               verbosity, ixc, lzd, pot, &
+               shift, &
+               verbosity, ixc, pot, &
                center_cores, rxyz, ixyz0, write_directory, dipole_total, quadrupole_total, all_norms_ok, &
                rho_mp, pot_mp)
-      use module_types, only: DFT_local_fields, local_zone_descriptors
+      use module_types, only: DFT_local_fields
+      use locregs, only: locreg_descriptors
       use Poisson_Solver, except_dp => dp
       use module_atoms, only: atoms_data
       use bounds, only: ext_buffers,isf_box_buffers
@@ -195,11 +196,8 @@ module multipole
       type(atoms_data),intent(in) :: at
       type(DFT_local_fields),intent(inout) :: denspot
       type(external_potential_descriptors),intent(in) :: ep
-      integer,intent(in) :: is1, ie1, is2, ie2, is3, ie3
-      real(gp),intent(in) :: hx, hy, hz
       real(gp),dimension(3),intent(in) :: shift !< global shift of the atomic positions
-      type(local_zone_descriptors),intent(in) :: lzd
-      real(gp),dimension(is1:ie1,is2:ie2,is3:ie3),intent(inout) :: pot
+      real(gp),dimension(:,:,:,:),intent(inout) :: pot
       real(kind=8),dimension(3,ep%nmpl),intent(in),optional :: center_cores
       real(kind=8),dimension(3,at%astruct%nat),intent(in),optional :: rxyz
       integer,dimension(3),intent(in),optional :: ixyz0
@@ -207,13 +205,14 @@ module multipole
       real(kind=8),dimension(3),intent(out),optional :: dipole_total
       real(kind=8),dimension(3,3),intent(out),optional :: quadrupole_total
       logical,intent(out),optional :: all_norms_ok
-      real(kind=8),dimension(is1:ie1,is2:ie2,is3:ie3),intent(out),optional :: rho_mp, pot_mp
+      real(kind=8),dimension(:,:,:),intent(out),optional :: rho_mp, pot_mp
 
       ! Local variables
+      integer :: is1, ie1, is2, ie2, is3, ie3
       integer :: i1, i2, i3, ii1, ii2, ii3, impl, l, m, ii, mm, nthread, ithread, ll
       real(dp) :: x, y, z, rnrm1, rnrm2, rnrm3, rnrm5, mp, ehart_ps, tt, ttt, gg, hhh, tt0, tt1, tt2
       real(dp),dimension(3) :: r
-      logical, dimension(3) :: peri
+      logical, dimension(3) :: peri, perif
       real(kind=8) :: dr
       real(dp),dimension(:,:,:),allocatable :: density, density_cores
       real(dp),dimension(:,:,:,:),allocatable :: density_loc, potential_loc
@@ -263,6 +262,14 @@ module multipole
 
       call f_zero(rholeaked)
 
+      is1 = 1
+      ie1 = denspot%dpbox%mesh%ndims(1)
+      is2 = 1
+      ie2 = denspot%dpbox%mesh%ndims(2)
+      is3 = denspot%dpbox%nscatterarr(denspot%dpbox%mpi_env%iproc,3)+1
+      ie3 = denspot%dpbox%nscatterarr(denspot%dpbox%mpi_env%iproc,3)+&
+           denspot%dpbox%nscatterarr(denspot%dpbox%mpi_env%iproc,2)
+
 !!$      ! Conditions for periodicity
 !!$      perx=(at%astruct%geocode /= 'F')
 !!$      pery=(at%astruct%geocode == 'P')
@@ -272,7 +279,6 @@ module multipole
       perx=peri(1)
       pery=peri(2)
       perz=peri(3)
-
       if (perx) then
           j1s = -1
           j1e = 1
@@ -294,7 +300,6 @@ module multipole
           j3s = 0
           j3e = 0
       end if
-
       
 !!$          hhh = hx*hy*hz
       hhh = denspot%dpbox%mesh%volume_element
@@ -322,22 +327,21 @@ module multipole
       nonzero_startend2 = f_malloc((/2,ep%nmpl/),id='nonzero_startend2')
       nonzero_startend3 = f_malloc((/2,ep%nmpl/),id='nonzero_startend3')
 
-      do ilr=1,lzd%nlr
-!!$              if (lzd%Llr(ilr)%geocode/='F') then
-         if (cell_geocode(lzd%Llr(ilr)%mesh) /='F') then
-            call f_err_throw('support function locregs must always have free BC')
-         end if
-      end do
-      nbuf=isf_box_buffers(cell_periodic_dims(lzd%Llr(lzd%nlr)%mesh),&
-           cell_periodic_dims(lzd%glr%mesh))
+      perif(1) = .false.
+      perif(2) = .false.
+      perif(3) = .false.
+      nbuf=isf_box_buffers(perif, cell_periodic_dims(denspot%dpbox%mesh))
       nl1=nbuf(1)
       nl2=nbuf(2)
       nl3=nbuf(3)
       !! This will not works for wires bc.
       !call geocode_buffers('F', cell_geocode(lzd%glr%mesh), nl1, nl2, nl3)
-      call calculate_gaussian(is1, ie1, 1, nl1, lzd%glr%d%n1i, perx, hx, shift, ep, gaussians1, nonzero_startend1)
-      call calculate_gaussian(is2, ie2, 2, nl2, lzd%glr%d%n2i, pery, hy, shift, ep, gaussians2, nonzero_startend2)
-      call calculate_gaussian(is3, ie3, 3, nl3, lzd%glr%d%n3i, perz, hz, shift, ep, gaussians3, nonzero_startend3)
+      call calculate_gaussian_1D(is1, ie1, 1, &
+           & denspot%dpbox%mesh, shift, ep, gaussians1, nonzero_startend1)
+      call calculate_gaussian_1D(is2, ie2, 2, &
+           & denspot%dpbox%mesh, shift, ep, gaussians2, nonzero_startend2)
+      call calculate_gaussian_1D(is3, ie3, 3, &
+           & denspot%dpbox%mesh, shift, ep, gaussians3, nonzero_startend3)
 !!$
 !!$          !here we define a set of gaussians to verify if the norm is preserved
 !!$          do impl=1,ep%nmpl
@@ -531,9 +535,9 @@ module multipole
          !rmax(impl) = min(denspot%dpbox%mesh%ndims(1)*0.25d0*hx, &
          !                 denspot%dpbox%mesh%ndims(2)*0.25d0*hy, &
          !                 denspot%dpbox%mesh%ndims(3)*0.25d0*hz)
-         rmax(impl) = min((denspot%dpbox%mesh%ndims(1)-31)*0.25d0*hx, &
-              (denspot%dpbox%mesh%ndims(2)-31)*0.25d0*hy, &
-              (denspot%dpbox%mesh%ndims(3)-31)*0.25d0*hz)
+         rmax(impl) = min((denspot%dpbox%mesh%ndims(1)-31)*0.25d0*denspot%dpbox%mesh%hgrids(1), &
+              (denspot%dpbox%mesh%ndims(2)-31)*0.25d0*denspot%dpbox%mesh%hgrids(2), &
+              (denspot%dpbox%mesh%ndims(3)-31)*0.25d0*denspot%dpbox%mesh%hgrids(3))
       end do
 
 
@@ -591,7 +595,8 @@ module multipole
                !z = real(ii3,kind=8)*hz + shift(3)
                r(3) = huge(r(3))
                do j3=j3s,j3e
-                  dr = real(ii3+j3*lzd%glr%d%n3i,kind=8)*hz + shift(3) - ep%mpl(impl)%rxyz(3)
+                  dr = real(ii3+j3*denspot%dpbox%mesh%ndims(3),kind=8)*&
+                       & denspot%dpbox%mesh%hgrids(3) + shift(3) - ep%mpl(impl)%rxyz(3)
                   if (abs(dr)<abs(r(3))) r(3) = dr
                end do
                i2loop: do i2=is2,ie2
@@ -600,7 +605,8 @@ module multipole
                   !y = real(ii2,kind=8)*hy + shift(2)
                   r(2) = huge(r(2))
                   do j2=j2s,j2e
-                     dr = real(ii2+j2*lzd%glr%d%n2i,kind=8)*hy + shift(2) - ep%mpl(impl)%rxyz(2)
+                     dr = real(ii2+j2*denspot%dpbox%mesh%ndims(2),kind=8)*&
+                          & denspot%dpbox%mesh%hgrids(2) + shift(2) - ep%mpl(impl)%rxyz(2)
                      if (abs(dr)<abs(r(2))) r(2) = dr
                   end do
                   i1loop: do i1=is1,ie1
@@ -609,7 +615,8 @@ module multipole
                      !x = real(ii1,kind=8)*hx + shift(1)
                      r(1) = huge(r(1))
                      do j1=j1s,j1e
-                        dr = real(ii1+j1*lzd%glr%d%n1i,kind=8)*hx + shift(1) - ep%mpl(impl)%rxyz(1)
+                        dr = real(ii1+j1*denspot%dpbox%mesh%ndims(1),kind=8)*&
+                             & denspot%dpbox%mesh%hgrids(1) + shift(1) - ep%mpl(impl)%rxyz(1)
                         if (abs(dr)<abs(r(1))) r(1) = dr
                      end do
                      !r(1) = x - ep%mpl(impl)%rxyz(1)
@@ -757,21 +764,24 @@ module multipole
                      !z = real(ii3,kind=8)*hz + shift(3)
                      r(3) = huge(r(3))
                      do j3=j3s,j3e
-                        dr = real(ii3+j3*lzd%glr%d%n3i,kind=8)*hz + shift(3) - ep%mpl(impl)%rxyz(3)
+                        dr = real(ii3+j3*denspot%dpbox%mesh%ndims(3),kind=8)*&
+                             & denspot%dpbox%mesh%hgrids(3) + shift(3) - ep%mpl(impl)%rxyz(3)
                         if (abs(dr)<abs(r(3))) r(3) = dr
                      end do
                      do i2=is2,ie2
                         ii2 = i2 - nl2 -1
                         r(2) = huge(r(2))
                         do j2=j2s,j2e
-                           dr = real(ii2+j2*lzd%glr%d%n2i,kind=8)*hy + shift(2) - ep%mpl(impl)%rxyz(2)
+                           dr = real(ii2+j2*denspot%dpbox%mesh%ndims(2),kind=8)*&
+                                & denspot%dpbox%mesh%hgrids(2) + shift(2) - ep%mpl(impl)%rxyz(2)
                            if (abs(dr)<abs(r(2))) r(2) = dr
                         end do
                         do i1=is1,ie1
                            ii1 = i1 - nl1 -1
                            r(1) = huge(r(1))
                            do j1=j1s,j1e
-                              dr = real(ii1+j1*lzd%glr%d%n1i,kind=8)*hx + shift(1) - ep%mpl(impl)%rxyz(1)
+                              dr = real(ii1+j1*denspot%dpbox%mesh%ndims(1),kind=8)*&
+                                   & denspot%dpbox%mesh%hgrids(1) + shift(1) - ep%mpl(impl)%rxyz(1)
                               if (abs(dr)<abs(r(1))) r(1) = dr
                            end do
                            !r(1) = x - ep%mpl(impl)%rxyz(1)
@@ -860,7 +870,7 @@ module multipole
             ! Gather the total density
             call axpy((ie1-is1+1)*(ie2-is2+1)*(ie3-is3+1), 1.0_gp, density_loc(is1,is2,is3,ithread), 1, density(is1,is2,is3), 1)
             ! Gather the total potential, store it directly in pot
-            call axpy((ie1-is1+1)*(ie2-is2+1)*(ie3-is3+1), 1.0_gp, potential_loc(is1,is2,is3,ithread), 1, pot(is1,is2,is3), 1)
+            call axpy((ie1-is1+1)*(ie2-is2+1)*(ie3-is3+1), 1.0_gp, potential_loc(is1,is2,is3,ithread), 1, pot(1,1,1,1), 1)
          end do
       end if
 
@@ -1024,18 +1034,23 @@ module multipole
             call axpy((ie1-is1+1)*(ie2-is2+1)*(ie3-is3+1), 1.0_gp, density_cores(is1,is2,is3), 1, density(is1,is2,is3), 1)
          end if
 
-
+        call plot_density(0,1,'add_dens.cube',&
+             at,at%astruct%rxyz,denspot%pkernel,1,density)
          call H_potential('D',denspot%pkernel,density,denspot%V_ext,ehart_ps,0.0_dp,.false.,&
               quiet='yes')!,rho_ion=denspot%rho_ion)
+        call plot_density(0,1,'add_pot.cube',&
+             at,at%astruct%rxyz,denspot%pkernel,1,density)
 
          if (present(pot_mp)) then
             call f_memcpy(src=density, dest=pot_mp)
          end if
 
-         !write(*,*) 'ehart_ps',ehart_ps
+         write(*,*) 'ehart_ps',ehart_ps
          !LG: attention to stack overflow here !
          !pot = pot + density
          call daxpy(size(density),1.0_gp,density,1,pot,1)
+        call plot_density(0,1,'full_pot.cube',&
+             at,at%astruct%rxyz,denspot%pkernel,1,pot)
 !!$
 !!$         !what if this API for axpy? Maybe complicated to understand
 !!$         pot = f_axpy(1.d0,density)
@@ -2287,7 +2302,7 @@ module multipole
       real(kind=8),dimension(:,:,:),pointer :: atomic_multipoles
       real(kind=8),dimension(:,:),pointer :: mp_centers
       real(kind=8),dimension(:),pointer :: atomic_monopoles_analytic
-      real(kind=8),dimension(:,:,:),allocatable :: test_pot
+      real(kind=8),dimension(:,:,:,:),allocatable :: test_pot
       real(kind=8),dimension(:,:,:,:),allocatable :: lmp_extracted
       real(kind=8),dimension(:,:,:),allocatable :: qmat_tilde, kp
       real(kind=8),dimension(:,:,:),allocatable :: kernel_extracted, multipole_extracted
@@ -2818,7 +2833,7 @@ module multipole
           ! Calculate the total dipole moment resulting from the previously calculated multipoles.
           ! This is done by calling the following routine (which actually calculates the potential, but also
           ! has the option to calculate the dipole on the fly).
-          test_pot = f_malloc((/size(denspot%V_ext,1),size(denspot%V_ext,2),size(denspot%V_ext,3)/),id='test_pot')
+          test_pot = f_malloc((/size(denspot%V_ext,1),size(denspot%V_ext,2),size(denspot%V_ext,3),1/),id='test_pot')
           if (iproc==0) call yaml_sequence_open('Checking the total multipoles based on the atomic multipoles')
           is1 = 1
           ie1 = denspot%dpbox%mesh%ndims(1)
@@ -2857,14 +2872,9 @@ module multipole
                   end do
               end do
               call dcopy(size(denspot%V_ext,1)*size(denspot%V_ext,2)*size(denspot%V_ext,3), &
-                   denspot%V_ext(1,1,1,1), 1, test_pot(1,1,1), 1)
+                   denspot%V_ext(1,1,1,1), 1, test_pot(1,1,1,1), 1)
               call potential_from_charge_multipoles(iproc, nproc, at, denspot, ep_check, &
-                   1, denspot%dpbox%mesh%ndims(1), 1, denspot%dpbox%mesh%ndims(2), &
-                   denspot%dpbox%nscatterarr(denspot%dpbox%mpi_env%iproc,3)+1, &
-                   denspot%dpbox%nscatterarr(denspot%dpbox%mpi_env%iproc,3)+&
-                   denspot%dpbox%nscatterarr(denspot%dpbox%mpi_env%iproc,2), &
-                   denspot%dpbox%mesh%hgrids(1),denspot%dpbox%mesh%hgrids(2),denspot%dpbox%mesh%hgrids(3), &
-                   shift, verbosity=0, ixc=ixc, lzd=lzd, pot=test_pot, center_cores=smmd%rxyz, &
+                   shift, verbosity=0, ixc=ixc, pot=test_pot, center_cores=smmd%rxyz, &
                    rxyz=rxyz, dipole_total=dipole_check, quadrupole_total=quadrupole_check, &
                    all_norms_ok=all_norms_ok, &
                    rho_mp=rho_mp, pot_mp=pot_mp)
@@ -4420,22 +4430,24 @@ module multipole
 
  !!end subroutine get_optimal_sigmas
 
- subroutine calculate_gaussian(is, ie, idim, nl, nglob, periodic, hh, shift, ep, gaussian_array, nonzero_startend)
+ subroutine calculate_gaussian_1D(is, ie, idim, mesh, shift, ep, gaussian_array, nonzero_startend)
    use module_base
+   use box
+   use bounds, only: isf_box_buffers
    use multipole_base, only: lmax, external_potential_descriptors
    implicit none
 
    ! Calling arguments
-   integer,intent(in) :: is, ie, idim, nl, nglob
-   logical,intent(in) :: periodic
-   real(kind=8),intent(in) :: hh
+   integer,intent(in) :: is, ie, idim
+   type(cell), intent(in) :: mesh
    real(kind=8),dimension(3),intent(in) :: shift
    type(external_potential_descriptors),intent(in) :: ep
    real(kind=8),dimension(0:lmax,is:ie,ep%nmpl),intent(out) :: gaussian_array
    integer,dimension(2,ep%nmpl),intent(out) :: nonzero_startend
 
    ! Local variables
-   integer :: i, ii, impl, l, isx, iex, n, imod, nn, nu, nd, js, je, j
+   logical :: peri(3), perif(3)
+   integer :: i, impl, l, isx, iex, n, imod, nn, nu, nd, js, je, j, nbuf(3)
    real(kind=8) :: x, tt, sig, dr, gg
    logical :: nonzero, nonzero_segment
 
@@ -4445,19 +4457,23 @@ module multipole
    !    write(*,*) 'idim, shift(idim), ep%mpl(impl)%rxyz(idim)', idim, shift(idim), ep%mpl(impl)%rxyz(idim)
    !end do
 
-
    call f_zero(gaussian_array)
 
    ! Calculate the boundaries of the Gaussian to be calculated. To make it simple, take always the maximum:
    ! - free BC: entire box
    ! - periodic BC: half of the box size, with periodic wrap around
-   if (.not.periodic) then
+   peri=cell_periodic_dims(mesh)
+   if (.not.peri(idim)) then
        js = 0
        je = 0
    else
        js = -1
        je = 1
    end if
+   perif(1) = .false.
+   perif(2) = .false.
+   perif(3) = .false.
+   nbuf=isf_box_buffers(perif, peri)
 
    !$omp parallel default(none) &
    !$omp shared(is, ie, hh, shift, idim, ep, gaussian_array, js, je, nl, nglob, nonzero_startend) &
@@ -4469,11 +4485,11 @@ module multipole
        nonzero_startend(1,impl) = is
        nonzero_startend(2,impl) = ie
        do i=is,ie
-           ii = i - nl - 1
            tt = huge(1.0_gp)
            do j=js,je
-               dr = real(ii+j*nglob,kind=8)*hh + shift(idim) - ep%mpl(impl)%rxyz(idim)
-               if (abs(dr)<abs(tt)) tt = dr
+              dr = cell_r(mesh, i - nbuf(idim) + j * mesh%ndims(idim), idim) + &
+                   & shift(idim) - ep%mpl(impl)%rxyz(idim)
+              if (abs(dr)<abs(tt)) tt = dr
            end do
            tt = tt**2
            nonzero = .false.
@@ -4496,7 +4512,7 @@ module multipole
                nonzero_segment = .false.
            end if
        end do
-       !write(*,*) 'B: impl, se', impl, nonzero_startend(1,impl), nonzero_startend(2,impl)
+       !write(*,*) 'B: impl, se', impl, is, ie, nonzero_startend(1,impl), nonzero_startend(2,impl)
        if (nonzero_startend(2,impl)<nonzero_startend(1,impl)) then
            ! This is the case of a periodic wrap around
            nonzero_startend(2,impl) = ie + nonzero_startend(2,impl) - is + 1
@@ -4530,7 +4546,7 @@ module multipole
 
      end function gaussian
 
- end subroutine calculate_gaussian
+   end subroutine calculate_gaussian_1D
 
  subroutine calculate_gaussian_norm(bitp,nproc, is1, ie1, is2, ie2, is3, ie3, ep, &
             hhh, gaussian, norm)

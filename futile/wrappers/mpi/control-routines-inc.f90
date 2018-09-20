@@ -67,7 +67,7 @@
        me=mpirank(comm=comm)
        ctr%counts=f_malloc_ptr(0.to.ourselves-1,id='count_')
        ctr%counts(me)=int(buf_size)
-       call fmpi_allgather(ctr%counts,sendcount=1,comm=comm)
+       call fmpi_allgather(ctr%counts,recvcount=1,comm=comm)
     end if
     ctr%counts_allocated=present(counts)
     ctr%displs=>get_displacements(ctr%counts,displs)
