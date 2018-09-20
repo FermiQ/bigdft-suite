@@ -53,6 +53,7 @@ module compression
   public :: cproj_dot,cproj_pr_p_psi,pr_dot_psi
   public :: wfd_to_wfd_skip,free_tolr_ptr,init_tolr,wnrm2
   public :: nullify_wfd_pointers,broadcast_wfd_keys
+  public :: wfd_keys_from_buffer
 
 contains
 
