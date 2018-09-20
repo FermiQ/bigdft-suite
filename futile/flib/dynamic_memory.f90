@@ -196,6 +196,11 @@ module dynamic_memory_base
   public :: f_routine,f_release_routine,f_malloc_set_status,f_malloc_initialize,f_malloc_finalize
   public :: f_memcpy,f_maxdiff,f_update_database,f_purge_database,f_subptr
   public :: assignment(=),operator(.to.),operator(.plus.)
+  ! To be integrated in f_update_database ?
+  interface update_allocation_database
+     module procedure update_allocation_database, update_allocation_database_ptr
+  end interface update_allocation_database
+  public :: update_allocation_database
 
   !for internal f_lib usage
   public :: dynamic_memory_errors,malloc_validate,f_subptr2,free_validate
@@ -342,6 +347,25 @@ contains
          iadd,m%array_id,m%routine_id,m%info)
 
   end subroutine update_allocation_database
+
+  subroutine update_allocation_database_ptr(address,size,kind,m)
+    implicit none
+    type(malloc_information_ptr), intent(in) :: m
+    integer(f_address), intent(in) :: address
+    integer(f_long), intent(in) :: size
+    integer, intent(in) :: kind
+    !local variables
+    integer(f_address) :: iadd
+
+    !profile the array allocation
+    iadd=int(0,f_address)
+    !write the address of the first element in the address string
+    if (m%profile .and. track_origins) iadd=address
+
+    call f_update_database(size,kind,m%rank,&
+         iadd,m%array_id,m%routine_id,m%info)
+
+  end subroutine update_allocation_database_ptr
 
   function free_validate(ierror) result(ok)
     implicit none

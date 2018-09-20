@@ -58,9 +58,10 @@ contains
     
   end subroutine get_ntot_and_offset
 
-  subroutine get_srcounts(me,sendcnt,recvcnt,sendcount,recvcount,recvcounts)
+  subroutine get_srcounts(me,buf_size,sendcnt,recvcnt,sendcount,recvcount,recvcounts)
     implicit none
     integer, intent(in) :: me
+    integer(f_long), intent(in) :: buf_size
     integer, intent(out) :: sendcnt,recvcnt
     integer, intent(in), optional :: sendcount
     integer, intent(in), optional :: recvcount
@@ -73,9 +74,7 @@ contains
     else if (present(sendcount)) then
        recvcnt=sendcount
     else
-       call f_err_throw('Unable to determine recvcount. '//&
-            'one of recvcounts, recvcount or sendcount should be present',&
-            err_name='ERR_MPI_WRAPPERS')
+       recvcnt=int(buf_size)
     end if
 
     !determine sendcnt
@@ -83,8 +82,10 @@ contains
        sendcnt=sendcount
     else if (present(recvcount)) then
        sendcnt=recvcount
-    else
+    else if (present(recvcounts)) then
        sendcnt=recvcounts(me+1)
+    else
+       sendcnt=int(buf_size)
     end if
 
   end subroutine get_srcounts
