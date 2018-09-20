@@ -301,6 +301,7 @@ contains
 
     lr=transfer(src,lr)   
     call nullify_lr_pointers(lr)
+    lr%bit%mesh => lr%mesh
   end subroutine locreg_decode
 
   subroutine locreg_full_decode(src,lr_size,lr_full_size,lr,bounds)
