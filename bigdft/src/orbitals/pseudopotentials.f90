@@ -1072,7 +1072,7 @@ contains
       integer, intent(in) :: nzatom, nelpsp, ixc
       real(gp), dimension(0:4, 0:6), intent(out) :: psppar
 
-      integer:: icoulomb,ipsp, i, ii, ierr, l
+      integer:: icoulomb,ipsp, i, ii, ierr, l, n
       integer:: pawxcdev,usewvl,usexcnhat,xclevel
       integer::pspso
       real(dp) :: xc_denpos, r, eps, nrm, rloc
@@ -1144,11 +1144,12 @@ contains
          l = pawtab%orbitals(i) + 1
          if (psppar(l, 0) > 0._gp) cycle
 
-         call paw_spline(pawrad%rad, pawtab%tproj(1, i), size(pawtab%tproj, 1), 0._dp, 0._dp, d2)
+         n = min(size(pawrad%rad), size(pawtab%tproj, 1))
+         call paw_spline(pawrad%rad, pawtab%tproj(1, i), n, 0._dp, 0._dp, d2)
          nrm = 0._gp
          do ii = 1, nsteps
             r = ii * eps
-            call paw_splint(size(pawtab%tproj, 1), pawrad%rad, pawtab%tproj(1, i), d2, &
+            call paw_splint(n, pawrad%rad, pawtab%tproj(1, i), d2, &
                  & 1, [r], raux, ierr)
             psppar(l, 0) = psppar(l, 0) + r * r * raux(1) * raux(1) * eps
             nrm = nrm + raux(1) * raux(1) * eps

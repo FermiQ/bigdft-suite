@@ -769,7 +769,7 @@ contains
     type(pawtab_type), intent(in), target :: pawtab
 
     real(gp) :: eps, r
-    integer :: i, iproj, ierr
+    integer :: i, iproj, ierr, n
     real(dp), dimension(1) :: raux
     real(gp), dimension(:), allocatable :: d2
     integer, parameter :: nsteps = 100
@@ -786,12 +786,13 @@ contains
     d2 = f_malloc(pawrad%mesh_size, id = "d2")
     eps = 1.05_gp * pawtab%rpaw / real(nsteps, gp)
     do iproj = 1, size(pawtab%tproj, 2)
-       call paw_spline(pawrad%rad, pawtab%tproj(1, iproj), size(pawtab%tproj, 1), &
+       n = min(size(pawrad%rad), size(pawtab%tproj, 1))
+       call paw_spline(pawrad%rad, pawtab%tproj(1, iproj), n, &
             & (pawtab%tproj(2, iproj) - pawtab%tproj(1, iproj)) / (pawrad%rad(2) - pawrad%rad(1)), 0._dp, d2)
        aproj%normalized(iproj) = 0._gp
        do i = 1, nsteps
           r = (i - 1) * eps
-          call paw_splint(size(pawtab%tproj, 1), pawrad%rad, pawtab%tproj(1, iproj), d2, &
+          call paw_splint(n, pawrad%rad, pawtab%tproj(1, iproj), d2, &
                & 1, [r], raux, ierr)
           aproj%normalized(iproj) = aproj%normalized(iproj) + raux(1) * raux(1) * eps
        end do
