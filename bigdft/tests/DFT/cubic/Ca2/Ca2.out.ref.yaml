@@ -428,8 +428,8 @@
    PSP XC                              : "XC: Teter 93"
   #----------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : angstroem
-   Positions:
+   units                               : angstroem
+   positions:
    - Ca: [ 4.894889201,  4.894889201,  4.850126531] # [  18.50,  18.50,  18.33 ] 0001
    - Ca: [ 4.894889201,  4.894889201,  7.850126531] # [  18.50,  18.50,  29.67 ] 0002
    Rigid Shift Applied (AU)            :  [  9.2500,  9.2500,  9.1654 ]

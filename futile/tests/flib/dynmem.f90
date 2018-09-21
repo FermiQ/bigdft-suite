@@ -541,7 +541,8 @@ call f_free(weight)
    call yaml_map('Original pointer',test_long)
    call f_free_ptr(test_long)
 
-   aligned_ptr=f_malloc_ptr(750,id='toto',info='{alignment: 32}')
+   aligned_ptr=f_malloc_ptr(35937,id='toto',info='{alignment: 32}')
+   call f_zero(aligned_ptr)
    call inspect_pointer(aligned_ptr,'aligned subpointer')
 
    call f_free_ptr(aligned_ptr)

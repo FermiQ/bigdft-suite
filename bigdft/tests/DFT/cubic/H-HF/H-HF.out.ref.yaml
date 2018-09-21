@@ -422,8 +422,8 @@
     #WARNING: PSP generated with a different XC. Input XC is "Hartree-Fock Exchange only"
   #----------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : bohr
-   Positions:
+   units                               : bohr
+   positions:
    -  {H: [ 4.200000000,  4.200000000,  4.200000000],  # [  10.50,  10.50,  10.50 ] 0001
  IGSpin:  1}
    Rigid Shift Applied (AU)            :  [  4.2000,  4.2000,  4.2000 ]

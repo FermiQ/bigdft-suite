@@ -1774,6 +1774,7 @@ END SUBROUTINE input_memory_linear
 
 
 !> Input wavefunctions from disk
+!! Read the wavefunctions from the directory dir_output (<outdir>/data-<name>)
 subroutine input_wf_disk(iproc, nproc, input_wf_format, d, hx, hy, hz, &
      in, atoms, rxyz, GPU, Lzd, wfd, orbs, psi, denspot, nlpsp, paw)
   use module_base
@@ -3576,7 +3577,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
           KSwfn%psi,KSwfn%hpsi,KSwfn%psit,in%orthpar)
   end if
 
-  if (iproc==0) call yaml_mapping_close() !input hamiltonian
+  if (iproc==0) call yaml_mapping_close() ! Close map 'Input Hamiltonian'
 
 !!$  if(inputpsi /= INPUT_PSI_LINEAR_AO .and. inputpsi /= INPUT_PSI_DISK_LINEAR .and. &
 !!$     inputpsi /= INPUT_PSI_MEMORY_LINEAR) then

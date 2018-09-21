@@ -1,4 +1,3 @@
-
 !>  @file
 !!  File where most relevant screen output are collected
 !!  Routines which are present in this file should have *all* arguments as intent(in)

@@ -420,7 +420,7 @@
     #WARNING: PSP generated with a different XC. Input XC is "XC: Perdew, Burke & Ernzerhof"
   #-------------------------------------------------------------------------- Atom Positions
  Atomic structure:
-   Positions:
+   positions:
    - Ti: [ 8.623978943,  10.80000000,  10.80000000] # [  19.16,  24.00,  24.00 ] 0001
    - Na: [ 13.33068340,  10.80000000,  10.80000000] # [  29.62,  24.00,  24.00 ] 0002
    Rigid Shift Applied (AU)            :  [  8.9773,  10.800,  10.800 ]

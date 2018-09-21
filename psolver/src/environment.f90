@@ -743,7 +743,7 @@ contains
   end function PB_charge
 
 
-  !> take the input density and the present potenital and provdes the new charge density for GPS operation
+  !> take the input density and the present potentital and provdes the new charge density for GPS operation
   subroutine PB_iteration(n1,n23,i23s,eta,cavity,density,pot,eps,rho_ions,rho_new,res_PB)
     implicit none
     integer, intent(in) :: n1,n23,i23s
