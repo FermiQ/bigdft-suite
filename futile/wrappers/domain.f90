@@ -348,7 +348,7 @@ contains
     
   end function units_enum_from_str
 
-  pure function units_enum_from_int(iunit) result(units)
+  function units_enum_from_int(iunit) result(units)
     implicit none
     integer, intent(in) :: iunit
     type(f_enumerator) :: units
@@ -445,7 +445,7 @@ contains
   end subroutine domain_merge_to_dict
 
   ! determine the array of BC from a geometry code
-  pure function geocode_to_bc(geocode) result(bc)
+  function geocode_to_bc(geocode) result(bc)
     use dictionaries, only: f_err_throw
     implicit none
     character(len=1), intent(in) :: geocode

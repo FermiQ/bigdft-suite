@@ -453,8 +453,6 @@ module multipole
       !write(*,*) 'ep%nmpl, n1i, n2i, n3i', ep%nmpl, n1i, n2i, n3i
 
 
-
-
       ! Generate the density that comes from the pseudopotential atoms
       ndensity = (ie1-is1+1)*(ie2-is2+1)*(ie3-is3+1)
       !psp_source = f_malloc(ep%nmpl,id='psp_source')
@@ -547,12 +545,12 @@ module multipole
       quadrupole = 0.d0
       !$omp parallel &
       !$omp default(none) &
-      !$omp shared(is1, ie1, is2, ie2, is3, ie3, hx, hy, hz, hhh, ep, shift, nthread, norm_ok) &
+      !$omp shared(is1, ie1, is2, ie2, is3, ie3, hhh, ep, shift, nthread, norm_ok) &
       !$omp shared(norm_check, monopole, dipole, quadrupole, density, density_loc, potential_loc) &
       !$omp shared (rmax, rmin) &
       !$omp shared (gaussians1, gaussians2, gaussians3) &
       !          !$omp shared (nl1, nl2, nl3, lzd) &
-      !$omp shared (j1s, j1e, j2s, j2e, j3s, j3e, nl1, nl2, nl3, lzd) &
+      !$omp shared (j1s, j1e, j2s, j2e, j3s, j3e, nl1, nl2, nl3) &
       !$omp shared (bit,cen,rc,drxyz,denspot) & !,gaussian) &
       !$omp private(i1, i2, i3, ii1, ii2, ii3, x, y, z, impl, r, l, gg, m, mm, tt, ttt, ttl, ithread, center, ll) &
       !$omp private(rnrm1, rnrm2, rnrm3, rnrm5, qq, ii, sig, lmax_avail, found_non_associated, j1, j2, j3, dr)
@@ -4476,8 +4474,8 @@ module multipole
    nbuf=isf_box_buffers(perif, peri)
 
    !$omp parallel default(none) &
-   !$omp shared(is, ie, hh, shift, idim, ep, gaussian_array, js, je, nl, nglob, nonzero_startend) &
-   !$omp private(i, ii, x, impl, tt, l, sig, j, dr, gg, nonzero, nonzero_segment)
+   !$omp shared(is, ie, shift, idim, ep, gaussian_array, js, je, nonzero_startend,nbuf,mesh) &
+   !$omp private(i, x, impl, tt, l, sig, j, dr, gg, nonzero, nonzero_segment)
    !$omp do
    do impl=1,ep%nmpl
        nonzero_segment = .false.
