@@ -845,7 +845,7 @@ contains
        ithread=0
        nthread=1
        !$omp parallel default(shared)&
-       !$omp private(ithread, r) &
+       !$omp private(ithread, r, raux, ierr, factor) &
        !$omp firstprivate(boxit) 
        !$ ithread=omp_get_thread_num()
        !$ nthread=omp_get_num_threads()
