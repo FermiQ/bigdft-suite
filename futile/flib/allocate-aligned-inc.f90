@@ -1,7 +1,7 @@
   alignment=0
   if(len_trim(m%info) > 0) then
     info => yaml_load(m%info)
-    alignment = dict_get(info,'alignment',0)
+    alignment = dict_get(info,INFO_ALIGNMENT_KEY,0)
     call dict_free(info)
   end if
   if (alignment /=0) then

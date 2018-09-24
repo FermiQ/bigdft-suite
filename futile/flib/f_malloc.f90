@@ -32,6 +32,11 @@ module module_f_malloc
   logical, save, public :: f_malloc_default_profiling=.true.
   character(len=f_malloc_namelen), save, public :: f_malloc_routine_name=repeat(' ',f_malloc_namelen)
 
+  character(len=*), parameter, public :: INFO_TYPE_KEY='Type'
+  character(len=*), parameter, public :: INFO_ALIGNMENT_KEY='alignment'
+  character(len=*), parameter, public :: INFO_SHARED_TYPE='SHARED'
+  
+
   type, public:: f_workspace
      integer(f_long) :: pos_r,pos_d,pos_i,pos_li,pos_l
      integer(f_integer), dimension(:), pointer :: ptr_i

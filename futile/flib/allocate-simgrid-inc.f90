@@ -2,10 +2,10 @@
   if(len_trim(m%info) > 0) then
      info => yaml_load(m%info)
      val=' '
-     val=info .get. 'Type'
+     val=info .get. INFO_TYPE_KEY
      call dict_free(info)
      select case(trim(val))
-     case('SHARED')
+     case(INFO_SHARED_TYPE)
         c_allocation=.true.
      end select
   end if
