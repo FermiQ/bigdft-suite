@@ -58,11 +58,11 @@ contains
     implicit none
     type(aoig_data) :: aoig
     !aoig%iasctype=0
-    !aoig%nao=0
-    !aoig%nao_sc=0
-    !aoig%nl=0
-    !aoig%nl_sc=0
-    !aoig%aocc=real(0.0,kind=kind(aoig%aocc))
+    aoig%nao=0
+    aoig%nao_sc=0
+    aoig%nl=0
+    aoig%nl_sc=0
+    aoig%aocc=real(0.0,kind=kind(aoig%aocc))
   end function aoig_data_null
 
 
