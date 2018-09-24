@@ -363,7 +363,8 @@
     #WARNING: PSP generated with a different XC. Input XC is "XC: PBEH (PBE0)"
   #-------------------------------------------------------------------------- Atom Positions
  Atomic structure:
-   Positions:
+   units                               : bohr
+   positions:
    -  {Fe: [ 7.875000000,  7.875000000,  7.875000000],  # [  17.50,  17.50,  17.50 ] 0001
  IGSpin:  4}
    Rigid Shift Applied (AU)            :  [  7.8750,  7.8750,  7.8750 ]

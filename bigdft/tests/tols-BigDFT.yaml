@@ -446,7 +446,7 @@ CH4-D3:
  etot: 2.92e-11
  Etot: 2.9e-11
  Ion-Ion interaction energy: 9.0e-11
- Positions: 1.01e-9
+ positions: 1.01e-9
 
 NLCC: &NLCCs
  Energies: 1.2e-10
@@ -2692,14 +2692,14 @@ C2-chain_wire:
   Epot: 1.2e-10
   Residues per orbital: 3.0e-10
   Total electronic charge: 2.2e-11
-  EKS: 2.80e-11
+  EKS: 3.2e-11
 
 C2-chain_periodic:
   EH: 1.2e-10
   Epot: 1.2e-10
   Residues per orbital: 3.0e-10
   Total electronic charge: 2.2e-11
-  EKS: 2.80e-11
+  EKS: 3.2e-11
 
 pexsi:
   Energy (Hartree): 2.3e-11

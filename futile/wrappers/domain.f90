@@ -437,9 +437,12 @@ contains
        call set(dict//DOMAIN_ABC,dom%abc)
     else if (any(dom%bc == PERIODIC)) then
        call bc_and_cell_to_dict(dict//DOMAIN_CELL,bc_enums_from_int(dom%bc),dom%acell)
-       if (dom%angrad(BC_) /= onehalf*pi) call set(dict//DOMAIN_ALPHA,dom%angrad(BC_))
-       if (dom%angrad(AC_) /= onehalf*pi) call set(dict//DOMAIN_BETA,dom%angrad(AC_))
-       if (dom%angrad(AB_) /= onehalf*pi) call set(dict//DOMAIN_GAMMA,dom%angrad(AB_))
+       if (dom%angrad(BC_) /= onehalf*pi) &
+            call set(dict//DOMAIN_ALPHA,dom%angrad(BC_))
+       if (dom%angrad(AC_) /= onehalf*pi) &
+            call set(dict//DOMAIN_BETA,dom%angrad(AC_))
+       if (dom%angrad(AB_) /= onehalf*pi) &
+            call set(dict//DOMAIN_GAMMA,dom%angrad(AB_))
     end if
 
   end subroutine domain_merge_to_dict
