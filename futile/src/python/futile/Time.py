@@ -33,7 +33,7 @@ class FigureSet():
   """
   def __init__(self,**kwargs):
     import matplotlib.pyplot as plt
-    from Yaml import kw_pop
+    from YamlIO import kw_pop
     newkw,title=kw_pop('title','',**kwargs)    
     self.title=title
     self.figures=[]
@@ -382,7 +382,7 @@ class TimeData:
     only_last = kwargs.get('only_last',False)
     self.log=[]
     for filename in filenames:
-      import Yaml
+      import YamlIO as Yaml
       tmplogs=Yaml.load(filename,doc_lists=True)
       if only_last:
         self.log+=[[ a for a in tmplogs][-1]]

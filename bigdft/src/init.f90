@@ -260,7 +260,7 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
   type(locreg_storage) :: lr_storage
   integer, dimension(:), allocatable :: nbsegs_cf,keyg_lin
   logical, dimension(:,:,:), allocatable :: logrid
-  integer,dimension(:,:),allocatable :: reducearr
+  !integer,dimension(:,:),allocatable :: reducearr
   real(gp) :: r, tt, eps
   
   call f_routine(id=subname)
@@ -345,7 +345,7 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
   do iat=1,at%astruct%nat
       nseg = max(nseg,nl%projs(iat)%region%plr%wfd%nseg_c + nl%projs(iat)%region%plr%wfd%nseg_f)
   end do
-  reducearr = f_malloc0((/5*nseg+9,at%astruct%nat/),id='reducearr')
+!  reducearr = f_malloc0((/5*nseg+9,at%astruct%nat/),id='reducearr')
 
   call lr_storage_init(lr_storage,at%astruct%nat)
 
@@ -414,25 +414,25 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
      !!call f_free_ptr(nl%pspd(iat)%plr%wfd%keyvloc)
      !!nl%pspd(iat)%plr%wfd%keyvloc => nl%pspd(iat)%plr%wfd%keyvglob
 
-     ! Copy the data for the communication
-     nseg = nl%projs(iat)%region%plr%wfd%nseg_c + nl%projs(iat)%region%plr%wfd%nseg_f
-     ist = 1
-     call vcopy(2*nseg, nl%projs(iat)%region%plr%wfd%keyglob(1,1), 1, reducearr(ist,iat), 1)
-     ist = ist + 2*nseg
-     call vcopy(nseg, nl%projs(iat)%region%plr%wfd%keyvglob(1), 1, reducearr(ist,iat), 1)
-     ist = ist + nseg
-     call vcopy(2*nseg, nl%projs(iat)%region%plr%wfd%keygloc(1,1), 1, reducearr(ist,iat), 1)
-     ist = ist + 2*nseg
-     reducearr(ist+0,iat) = nl%projs(iat)%region%plr%d%n1
-     reducearr(ist+1,iat) = nl%projs(iat)%region%plr%d%n2
-     reducearr(ist+2,iat) = nl%projs(iat)%region%plr%d%n3
-     reducearr(ist+3,iat) = nl%projs(iat)%region%plr%d%nfl1
-     reducearr(ist+4,iat) = nl%projs(iat)%region%plr%d%nfl2
-     reducearr(ist+5,iat) = nl%projs(iat)%region%plr%d%nfl3
-     reducearr(ist+6,iat) = nl%projs(iat)%region%plr%d%nfu1
-     reducearr(ist+7,iat) = nl%projs(iat)%region%plr%d%nfu2
-     reducearr(ist+8,iat) = nl%projs(iat)%region%plr%d%nfu3
-     !@todo: broadcast the meshes also, please.
+!!$     ! Copy the data for the communication
+!!$     nseg = nl%projs(iat)%region%plr%wfd%nseg_c + nl%projs(iat)%region%plr%wfd%nseg_f
+!!$     ist = 1
+!!$     call vcopy(2*nseg, nl%projs(iat)%region%plr%wfd%keyglob(1,1), 1, reducearr(ist,iat), 1)
+!!$     ist = ist + 2*nseg
+!!$     call vcopy(nseg, nl%projs(iat)%region%plr%wfd%keyvglob(1), 1, reducearr(ist,iat), 1)
+!!$     ist = ist + nseg
+!!$     call vcopy(2*nseg, nl%projs(iat)%region%plr%wfd%keygloc(1,1), 1, reducearr(ist,iat), 1)
+!!$     ist = ist + 2*nseg
+!!$     reducearr(ist+0,iat) = nl%projs(iat)%region%plr%d%n1
+!!$     reducearr(ist+1,iat) = nl%projs(iat)%region%plr%d%n2
+!!$     reducearr(ist+2,iat) = nl%projs(iat)%region%plr%d%n3
+!!$     reducearr(ist+3,iat) = nl%projs(iat)%region%plr%d%nfl1
+!!$     reducearr(ist+4,iat) = nl%projs(iat)%region%plr%d%nfl2
+!!$     reducearr(ist+5,iat) = nl%projs(iat)%region%plr%d%nfl3
+!!$     reducearr(ist+6,iat) = nl%projs(iat)%region%plr%d%nfu1
+!!$     reducearr(ist+7,iat) = nl%projs(iat)%region%plr%d%nfu2
+!!$     reducearr(ist+8,iat) = nl%projs(iat)%region%plr%d%nfu3
+!!$     !@todo: broadcast the meshes also, please.
   enddo
 
   !put the locreg storage in a buffer
@@ -443,10 +443,13 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
   do iat=1,at%astruct%nat
       if (nl%projs(iat)%mproj <= 0) cycle
 
-      if (iat >= isat+1 .and. iat <= isat+natp) then
-         if (init_projectors_completely) call ensure_locreg_bounds(nl%projs(iat)%region%plr)
+      if (lr_is_stored(lr_storage,iat)) then
+         if (init_projectors_completely) &
+              call ensure_locreg_bounds(nl%projs(iat)%region%plr)
       else
-         call extract_lr(lr_storage,iat,nl%projs(iat)%region%plr,bounds=init_projectors_completely)
+         call deallocate_locreg_descriptors(nl%projs(iat)%region%plr)
+         call extract_lr(lr_storage,iat,nl%projs(iat)%region%plr,&
+              bounds=init_projectors_completely)
       end if
 
 !!$      nseg = nl%projs(iat)%region%plr%wfd%nseg_c + nl%projs(iat)%region%plr%wfd%nseg_f
@@ -486,7 +489,7 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
 !!$      call f_free_ptr(nl%projs(iat)%region%plr%wfd%keyvloc)
 !!$      nl%projs(iat)%region%plr%wfd%keyvloc => nl%projs(iat)%region%plr%wfd%keyvglob
   end do
-  call f_free(reducearr)
+  !call f_free(reducearr)
 
   call lr_storage_free(lr_storage)
 

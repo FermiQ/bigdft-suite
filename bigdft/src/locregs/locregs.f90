@@ -84,7 +84,7 @@ module locregs
   public :: init_lr,reset_lr,extract_lr,store_lr,gather_locreg_storage
   public :: lr_storage_init, lr_storage_free
   public :: communicate_locreg_descriptors_basics
-  public :: get_isf_offset,ensure_locreg_bounds
+  public :: get_isf_offset,ensure_locreg_bounds,lr_is_stored
 
 contains
 
@@ -438,6 +438,14 @@ contains
     lr_storage%lrs_ptr(ilr)%lr => lr
   end subroutine store_lr
 
+  pure function lr_is_stored(lr_storage,ilr) result(ok)
+    implicit none
+    type(locreg_storage), intent(in) :: lr_storage
+    integer, intent(in) :: ilr
+    logical :: ok
+    ok=associated(lr_storage%lrs_ptr(ilr)%lr)
+  end function lr_is_stored
+
   !> Communicate the total locreg quantities given in a pointer of localisation regions
   !! WARNING: we assume that the association of the storage is performed in a mutually exclusive way, that if a locreg is associated on one proc it is not in the others.
   subroutine gather_locreg_storage(lr_storage)
@@ -453,11 +461,11 @@ contains
 
 
     nlr=size(lr_storage%lrs_ptr)
-    lr_storage%lr_full_sizes=f_malloc_ptr([2,nlr],id='lr_full_sizes')
+    lr_storage%lr_full_sizes=f_malloc0_ptr([2,nlr],id='lr_full_sizes')
     encoding_buffer_size=0
     iilr=0
     do ilr=1,nlr
-       if ( .not. associated(lr_storage%lrs_ptr(ilr)%lr)) cycle
+       if ( .not. lr_is_stored(lr_storage,ilr)) cycle
        iilr=iilr+1
        lr_full_size=get_locreg_full_encode_size(lr_storage%lrs_ptr(ilr)%lr)
        lr_storage%lr_full_sizes(SIZE_,iilr)=lr_full_size
@@ -476,7 +484,7 @@ contains
     encoding_buffer_idx=1
     iilr=0
     do ilr=1,nlr
-       if ( .not. associated(lr_storage%lrs_ptr(ilr)%lr)) cycle
+       if ( .not. lr_is_stored(lr_storage,ilr)) cycle
        iilr=iilr+1
        lr_full_size=lr_sizes(SIZE_,iilr)
        call locreg_full_encode(lr_storage%lrs_ptr(ilr)%lr,lr_storage%lr_size,lr_full_size,encoding_buffer(encoding_buffer_idx))

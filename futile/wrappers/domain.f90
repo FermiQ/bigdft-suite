@@ -286,7 +286,9 @@ contains
 
   end subroutine bc_and_cell_to_dict
 
-  pure elemental function bc_enum_from_int(ibc) result(bc)
+  
+  !that function cannot be pure
+  function bc_enum_from_int(ibc) result(bc)
     implicit none
     integer, intent(in) :: ibc
     type(f_enumerator) :: bc
@@ -300,6 +302,27 @@ contains
        bc=FREE_BC
     end select
   end function bc_enum_from_int
+
+  function bc_enums_from_int(ibc) result(bc)
+    implicit none
+    integer, dimension(3), intent(in) :: ibc
+    type(f_enumerator), dimension(3) :: bc
+    !local variables
+    integer :: idim
+
+    do idim=1,3
+       select case(ibc(idim))
+       case(PERIODIC)
+          bc(idim)=PERIODIC_BC
+       case(FREE)
+          bc(idim)=FREE_BC
+       case default
+          bc(idim)=FREE_BC
+       end select
+    end do
+
+  end function bc_enums_from_int
+
 
   function units_enum_from_str(str) result(units)
     implicit none
@@ -325,7 +348,7 @@ contains
     
   end function units_enum_from_str
 
-  pure function units_enum_from_int(iunit) result(units)
+  function units_enum_from_int(iunit) result(units)
     implicit none
     integer, intent(in) :: iunit
     type(f_enumerator) :: units
@@ -413,16 +436,19 @@ contains
     if (all(dom%bc == PERIODIC)) then
        call set(dict//DOMAIN_ABC,dom%abc)
     else if (any(dom%bc == PERIODIC)) then
-       call bc_and_cell_to_dict(dict//DOMAIN_CELL,bc_enum_from_int(dom%bc),dom%acell)
-       if (dom%angrad(BC_) /= onehalf*pi) call set(dict//DOMAIN_ALPHA,dom%angrad(BC_))
-       if (dom%angrad(AC_) /= onehalf*pi) call set(dict//DOMAIN_BETA,dom%angrad(AC_))
-       if (dom%angrad(AB_) /= onehalf*pi) call set(dict//DOMAIN_GAMMA,dom%angrad(AB_))
+       call bc_and_cell_to_dict(dict//DOMAIN_CELL,bc_enums_from_int(dom%bc),dom%acell)
+       if (dom%angrad(BC_) /= onehalf*pi) &
+            call set(dict//DOMAIN_ALPHA,dom%angrad(BC_))
+       if (dom%angrad(AC_) /= onehalf*pi) &
+            call set(dict//DOMAIN_BETA,dom%angrad(AC_))
+       if (dom%angrad(AB_) /= onehalf*pi) &
+            call set(dict//DOMAIN_GAMMA,dom%angrad(AB_))
     end if
 
   end subroutine domain_merge_to_dict
 
   ! determine the array of BC from a geometry code
-  pure function geocode_to_bc(geocode) result(bc)
+  function geocode_to_bc(geocode) result(bc)
     use dictionaries, only: f_err_throw
     implicit none
     character(len=1), intent(in) :: geocode
