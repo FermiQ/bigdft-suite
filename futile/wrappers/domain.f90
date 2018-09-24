@@ -348,7 +348,7 @@ contains
     
   end function units_enum_from_str
 
-  pure function units_enum_from_int(iunit) result(units)
+  function units_enum_from_int(iunit) result(units)
     implicit none
     integer, intent(in) :: iunit
     type(f_enumerator) :: units
@@ -437,15 +437,18 @@ contains
        call set(dict//DOMAIN_ABC,dom%abc)
     else if (any(dom%bc == PERIODIC)) then
        call bc_and_cell_to_dict(dict//DOMAIN_CELL,bc_enums_from_int(dom%bc),dom%acell)
-       if (dom%angrad(BC_) /= onehalf*pi) call set(dict//DOMAIN_ALPHA,dom%angrad(BC_))
-       if (dom%angrad(AC_) /= onehalf*pi) call set(dict//DOMAIN_BETA,dom%angrad(AC_))
-       if (dom%angrad(AB_) /= onehalf*pi) call set(dict//DOMAIN_GAMMA,dom%angrad(AB_))
+       if (dom%angrad(BC_) /= onehalf*pi) &
+            call set(dict//DOMAIN_ALPHA,dom%angrad(BC_))
+       if (dom%angrad(AC_) /= onehalf*pi) &
+            call set(dict//DOMAIN_BETA,dom%angrad(AC_))
+       if (dom%angrad(AB_) /= onehalf*pi) &
+            call set(dict//DOMAIN_GAMMA,dom%angrad(AB_))
     end if
 
   end subroutine domain_merge_to_dict
 
   ! determine the array of BC from a geometry code
-  pure function geocode_to_bc(geocode) result(bc)
+  function geocode_to_bc(geocode) result(bc)
     use dictionaries, only: f_err_throw
     implicit none
     character(len=1), intent(in) :: geocode

@@ -92,6 +92,7 @@ class GIBinding():
         else:
             var = inputfile.copy()
             dict_merge(var,{'dft': {'inputpsiid': 1}})
+        from gi.repository import BigDFT
         self.runObj.update(BigDFT.Dict(var))
 
     def run(self):
@@ -99,6 +100,7 @@ class GIBinding():
         return self.out
 
     def set(self, inputfile=None):
+        from gi.repository import BigDFT
         if inputfile is None:
             var = {}
         else:
@@ -114,6 +116,7 @@ class GIBinding():
         # MPI finalisation.
         self.out = None
         self.runObj = None
+        from gi.repository import BigDFT
         BigDFT.lib_finalize()
 
 

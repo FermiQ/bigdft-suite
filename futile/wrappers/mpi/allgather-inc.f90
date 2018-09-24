@@ -37,7 +37,7 @@
   end if
 
   ctr=get_control_buffers(buf_size,recvcount,recvcounts,displs,comm)
-  call get_srcounts(iproc,sendcnt,recvcnt,sendcount,recvcount,recvcounts)
+  call get_srcounts(iproc,buf_size,sendcnt,recvcnt,sendcount,recvcount,recvcounts)
 
   !check the validity of the buffers
   if (int(sendcnt,f_long)*sendsize /= int(recvcnt,f_long)*recvsize) &
@@ -120,7 +120,7 @@
      end if
   case(VARIABLE_ONE_SIDED_GET_ALGO)
      !here the arguments have to be passed and are used natively
-     call fmpi_win_create(window_,sendbuf,sendcount,comm=comm)
+     call fmpi_win_create(window_,sendbuf,sendcnt,comm=comm)
      call fmpi_win_fence(window_,FMPI_WIN_OPEN)
      if (ctr%count == -1) then
         do jproc=0,nproc-1

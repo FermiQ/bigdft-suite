@@ -446,7 +446,7 @@ CH4-D3:
  etot: 2.92e-11
  Etot: 2.9e-11
  Ion-Ion interaction energy: 9.0e-11
- Positions: 1.01e-9
+ positions: 1.01e-9
 
 NLCC: &NLCCs
  Energies: 1.2e-10
@@ -504,15 +504,13 @@ PAW-GGA:
    #- Average noise forces
    #- Clean forces norm (Ha/Bohr)
    #- Stress Tensor
-   - Epaw
- Compensation charge on libPAW mesh: 5e-10
- Compensation charge on wavelet grid: 5e-10
- Total electronic charge: 5e-10
- Orbitals: 2e-10
+ Compensation charge on libPAW mesh: 6e-10
+ Compensation charge on wavelet grid: 6e-10
+ Total electronic charge: 6e-11
  Energies: 1e-9
- EKS: 1e-9
- Energy (Hartree): 4.3e-10
- norm(P): 1.01e-6
+ EKS: 1e-10
+ Orbitals: 1e-10
+ Q matrix: 5e-9
 
 taskgroups:
   Energies: 1.1e-10
@@ -2678,6 +2676,8 @@ Mg-cubic_ortho:
   Total ionic charge: 1.50e-11
 
 Na8-multipole:
+  Keys to ignore:
+   - Electronic charge changed by rho compression
   Electronic charge changed by rho compression: 4.6e-11
   EH: 5.1e-11
   EKS: 1.9e-11

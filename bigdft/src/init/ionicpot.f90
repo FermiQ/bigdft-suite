@@ -834,7 +834,6 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
   real(gp), dimension(:), allocatable  :: mpx,mpy,mpz
   !real(dp), dimension(:), allocatable :: den_aux
   type(atoms_iterator) :: atit
-  type(dpbox_iterator) :: boxit
   type(box_iterator) :: bitp
   type(gaussian_real_space) :: g
   type(pspiof_potential_t) :: pot
@@ -984,15 +983,7 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
               if (at%npspcode(atit%ityp) == PSPCODE_PAW .or. &
                    & at%npspcode(atit%ityp) == PSPCODE_PSPIO) then
                  rr1(1)=distance(dpbox%bitp%mesh,dpbox%bitp%rxyz,rxyz(1,atit%iat))
-                 if (at%npspcode(atit%ityp) == PSPCODE_PAW) then
-                    call paw_splint(at%pawtab(atit%ityp)%wvl%rholoc%msz, &
-                         & at%pawtab(atit%ityp)%wvl%rholoc%rad, &
-                         & at%pawtab(atit%ityp)%wvl%rholoc%d(:,3), &
-                         & at%pawtab(atit%ityp)%wvl%rholoc%d(:,4), &
-                         & 1,rr1,raux1,ierr)
-                 else
-                    raux1(1) = pspiof_potential_eval(pot, rr1(1))
-                 end if
+                 ! Analytical part, to be removed, obtained by Poisson solver.
                  if (rr1(1) < 1e-6_dp) then
                     tt = -at%nelpsp(atit%ityp) / sqrt(2._dp * pi) / at%psppar(0,0,atit%ityp) * 2._dp
                  else
@@ -1000,6 +991,21 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
                     tt = safe_erf(rr1(1) / sqrt(2._dp) / at%psppar(0,0,atit%ityp))
                     tt = -at%nelpsp(atit%ityp) * tt / rr1(1)
                  end if
+                 ! Numerical part, to be added
+                 if (at%npspcode(atit%ityp) == PSPCODE_PAW) then
+                    if (rr1(1) < at%pawtab(atit%ityp)%rpaw) then
+                       call paw_splint(at%pawtab(atit%ityp)%wvl%rholoc%msz, &
+                            & at%pawtab(atit%ityp)%wvl%rholoc%rad, &
+                            & at%pawtab(atit%ityp)%wvl%rholoc%d(:,3), &
+                            & at%pawtab(atit%ityp)%wvl%rholoc%d(:,4), &
+                            & 1,rr1,raux1,ierr)
+                    else
+                       raux1(1) = tt
+                    end if
+                 else
+                    raux1(1) = pspiof_potential_eval(pot, rr1(1))
+                 end if
+                 
                  pot_add(dpbox%bitp%ind) = pot_add(dpbox%bitp%ind) + raux1(1) - tt
                  if (cell_geocode(dpbox%mesh) == 'P') psoff = psoff + raux1(1) - tt
               end if
@@ -1007,6 +1013,34 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
            call box_iter_expand_nbox(dpbox%bitp)
            rholeaked=0.0_dp
 
+!!$           ! hgrid independant estimation of psoffset due to pot_add
+!!$           if (at%npspcode(atit%ityp) == PSPCODE_PAW .or. &
+!!$                & at%npspcode(atit%ityp) == PSPCODE_PSPIO) then
+!!$              psoff = 0._gp
+!!$              do i1 = 1, 1000, 1
+!!$                 rr1(1) = real(i1 - 1, gp) / 1000._gp * at%pawtab(atit%ityp)%rpaw
+!!$                 ! Analytical part, to be removed, obtained by Poisson solver.
+!!$                 if (rr1(1) < 1e-6_dp) then
+!!$                    tt = -at%nelpsp(atit%ityp) / sqrt(2._dp * pi) / at%psppar(0,0,atit%ityp) * 2._dp
+!!$                 else
+!!$                    !call abi_derf_ab(tt, rr1(1) / sqrt(2._dp) / at%psppar(0,0,atit%ityp))
+!!$                    tt = safe_erf(rr1(1) / sqrt(2._dp) / at%psppar(0,0,atit%ityp))
+!!$                    tt = -at%nelpsp(atit%ityp) * tt / rr1(1)
+!!$                 end if
+!!$                 ! Numerical part, to be added
+!!$                 if (at%npspcode(atit%ityp) == PSPCODE_PAW) then
+!!$                    call paw_splint(at%pawtab(atit%ityp)%wvl%rholoc%msz, &
+!!$                         & at%pawtab(atit%ityp)%wvl%rholoc%rad, &
+!!$                         & at%pawtab(atit%ityp)%wvl%rholoc%d(:,3), &
+!!$                         & at%pawtab(atit%ityp)%wvl%rholoc%d(:,4), &
+!!$                         & 1,rr1,raux1,ierr)
+!!$                 else
+!!$                    raux1(1) = pspiof_potential_eval(pot, rr1(1))
+!!$                 end if
+!!$                 psoff = psoff + (raux1(1) - tt) * rr1(1) * rr1(1) / real(1000, gp) * at%pawtab(atit%ityp)%rpaw * real(4, gp) * pi
+!!$              end do
+!!$              psoff = psoff / dpbox%mesh%volume_element
+!!$           end if
      enddo
 
 !!$     !De-allocate for multipole preserving
@@ -1289,12 +1323,11 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
         !!-           end do
         !!-        end do
 
-        boxit = dpbox_iter(dpbox,DPB_POT_ION)
-        do while(dpbox_iter_next(boxit))
+        do while(box_next_point(dpbox%bitp))
            call sum_erfcr(at%astruct%nat,at%astruct%ntypes, &
-                &         boxit%x,boxit%y,boxit%z, &
+                &         dpbox%bitp%rxyz(1),dpbox%bitp%rxyz(2),dpbox%bitp%rxyz(3), &
                 &         at%astruct%iatype,at%nelpsp,at%psppar,rxyz,potxyz)
-           pot_ion(boxit%ind) = pot_ion(boxit%ind) + potxyz
+           pot_ion(dpbox%bitp%ind) = pot_ion(dpbox%bitp%ind) + potxyz
         end do
 
      end if

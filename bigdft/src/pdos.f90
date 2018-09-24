@@ -269,7 +269,7 @@ subroutine local_analysis(iproc,nproc,hx,hy,hz,at,rxyz,lr,orbs,orbsv,psi,psivirt
    !    call vcopy(G%ncoeff*orbs%nspinor*(orbs%norbp+norbpv),allpsigau(1,1),1,dualcoeffs(1,1),1)
    !end if
    !build dual coefficients
-   call dual_gaussian_coefficients(orbs%nspinor*(orbs%norbp+norbpv),G,dualcoeffs)
+   call dual_gaussian_coefficients(lr%mesh,orbs%nspinor*(orbs%norbp+norbpv),G,dualcoeffs)
 
 
    !here we can calculate the Mulliken charge population

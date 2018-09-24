@@ -27,8 +27,8 @@
    |_____|_____|_____|_____|_____|______                    www.bigdft.org   "
 
  Reference Paper                       : The Journal of Chemical Physics 129, 014109 (2008)
- Version Number                        : 1.8.2
- Timestamp of this run                 : 2018-03-23 14:14:55.273
+ Version Number                        : 1.8.3
+ Timestamp of this run                 : 2018-09-19 16:20:52.781
  Root process Hostname                 : myrte
  Number of MPI tasks                   :  4
  OpenMP parallelization                :  No
@@ -36,15 +36,14 @@
   #------------------------------------------------------------------ Code compiling options
  Compilation options:
    Configure arguments:
-     " '--prefix' '/local/caliste/bigdft-jhbuild/tmp/install' 'FC=mpif90' 'CFLAGS=-Wall -g 
+     " '--prefix' '/local/caliste/bigdft-proj/tmp/install' 'FC=mpif90' 'CFLAGS=-Wall -g 
      -O2' 'CXXFLAGS=-g -O2' 'FCFLAGS=-O2 -g -Wall -fbounds-check' 
-     '--with-pyyaml-path=/local/caliste/bigdft-jhbuild/tmp/install/lib/python2.7/site-package
-     s' '--enable-dynamic-libraries' 
-     'LDFLAGS=-L/local/caliste/bigdft-jhbuild/tmp/install/lib' 
-     'C_INCLUDE_PATH=/local/caliste/bigdft-jhbuild/tmp/install/include' 
-     'PKG_CONFIG_PATH=/local/caliste/bigdft-jhbuild/tmp/install/lib/pkgconfig:/local/caliste/
-     bigdft-jhbuild/tmp/install/share/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/lib/
-     pkgconfig:/usr/share/pkgconfig'"
+     '--with-pyyaml-path=/local/caliste/bigdft-proj/tmp/install/lib/python2.7/site-packages' 
+     '--enable-dynamic-libraries' 'LDFLAGS=-L/local/caliste/bigdft-proj/tmp/install/lib' 
+     'C_INCLUDE_PATH=/local/caliste/bigdft-proj/tmp/install/include' 
+     'PKG_CONFIG_PATH=/local/caliste/bigdft-proj/tmp/install/lib/pkgconfig:/local/caliste/big
+     dft-proj/tmp/install/share/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/lib/pkgcon
+     fig:/usr/share/pkgconfig'"
    Compilers (CC, FC, CXX)             :  [ gcc, mpif90, g++ ]
    Compiler flags:
      CFLAGS                            : -Wall -g -O2 -fPIC
@@ -171,7 +170,7 @@
    domain                              : ~ #      Domain to add to the hostname to find the IP
    inguess_geopt                       : 0 #      Input guess to be used during the optimization
    store_index                         : Yes #    Store indices or recalculate them for linear scaling
-   multipole_preserving                : No #     (EXPERIMENTAL) Preserve the multipole moment of the ionic density
+   multipole_preserving                : No #     (EXPERIMENTAL) Preserve the multipole moments of the ionic density
    mp_isf                              : 16 #     (EXPERIMENTAL) Interpolating scaling function or lifted dual order for the multipole 
     #                                              preserving
    mixing_after_inputguess             : 1 #      Mixing step after linear input guess
@@ -264,7 +263,7 @@
    verbosity                           : 2 #      Verbosity of the output
    atomic_density_matrix               : None #   Dictionary of the atoms for which the atomic density matrix has to be plotted
    sdos                                : No #     Spatially-resolved density of states
-   orbitals                            : No #     Write KS orbitals in the full simulation domain (might take lot of disk space!)
+   orbitals                            : None #   Write KS orbitals in the full simulation domain (might take lot of disk space!)
    outputpsiid                         : wavefunction # basename of the output wavefunctions files written in the data directory
  kpt:
    method                              : manual # K-point sampling method
@@ -477,7 +476,7 @@
      -  [  0.00000,  0.00000,  0.00000 ]
      -  [  0.00000,  0.00000,  0.00000 ]
    - Channel (l)                       :  1
-     Rloc                              :  0.56803
+     Rloc                              :  0.56780
      h_ij matrix:
      -  [  0.00000,  0.00000,  0.00000 ]
      -  [  0.00000,  0.00000,  0.00000 ]
@@ -662,26 +661,26 @@
      Box                               :  [  109,  109,  109 ]
      MPI tasks                         :  4
    Expected kinetic energy             :  3.5467903569
-   Energies: {Ekin:  3.54701269480E+00, Epot: -5.34501380551E+00, Enl:  6.60479854934E-01, 
+   Energies: {Ekin:  3.54701269480E+00, Epot: -5.34405723138E+00, Enl:  6.60479854935E-01, 
                 EH:  4.49169992391E+00,  EXC: -1.44963069334E+00, EvXC: -1.85098405058E+00}
-   EKS                                 : -5.22786782245268444E+00
+   EKS                                 : -5.22691124832012743E+00
    Input Guess Overlap Matrices: {Calculated:  Yes, Diagonalized:  Yes}
     #Eigenvalues and New Occupation Numbers
    Orbitals: [
- {e: -4.556459612187E-01, f:  2.0000},  # 00001
- {e: -1.131149083087E-01, f:  0.6667},  # 00002
- {e: -1.131149083087E-01, f:  0.6667},  # 00003
- {e: -1.131141834172E-01, f:  0.6667}] # 00004
+ {e: -4.553813867445E-01, f:  2.0000},  # 00001
+ {e: -1.129084065160E-01, f:  0.6667},  # 00002
+ {e: -1.128972285105E-01, f:  0.6667},  # 00003
+ {e: -1.128972285105E-01, f:  0.6667}] # 00004
    IG wavefunctions defined            :  Yes
    Accuracy estimation for this run:
      Energy                            :  2.22E-04
      Convergence Criterion             :  5.56E-05
    Compensation charge on libPAW mesh  :  3.9740094855670607E-002
     #  ****** Psp strength Dij in Ha (atom      1) *****
-    #   0.34747  -0.00000  -0.00000  -0.00000
-    #  -0.00000  -0.04859  -0.00000  -0.00000
-    #  -0.00000  -0.00000  -0.04859  -0.00000
-    #  -0.00000  -0.00000  -0.00000  -0.04859
+    #   0.34754  -0.00000  -0.00000  -0.00000
+    #  -0.00000  -0.04837  -0.00000  -0.00000
+    #  -0.00000  -0.00000  -0.04837  -0.00000
+    #  -0.00000  -0.00000  -0.00000  -0.04837
    Calculating wavelets expansion of projectors, found warnings:  4
     #WARNING: Projectors too rough: Consider modifying hgrid and/or the localisation radii.
   #------------------------------------------------------------------- Self-Consistent Cycle
@@ -690,226 +689,228 @@
    - Subspace Optimization: &itrep001-01
        Wavefunctions Iterations:
        -  { #---------------------------------------------------------------------- iter: 1
- GPU acceleration:  No, Rho Commun: RED_SCT, Total electronic charge:  3.959484245785, 
+ GPU acceleration:  No, Rho Commun: RED_SCT, Total electronic charge:  3.959484245755, 
   #  *********** RHOIJ (atom   1) **********
-  #   1.86309   0.00001   0.00001   0.00001
-  #   0.00001   0.69874   0.00000   0.00000
-  #   0.00001   0.00000   0.69874   0.00000
-  #   0.00001   0.00000   0.00000   0.69874
- Compensation charge on wavelet grid:  4.0531666713868063E-002, 
+  #   1.86309   0.00004   0.00004   0.00004
+  #   0.00004   0.69874   0.00000   0.00000
+  #   0.00004   0.00000   0.69874   0.00000
+  #   0.00004   0.00000   0.00000   0.69874
+ Compensation charge on wavelet grid:  4.0531666744684169E-002, 
  Poisson Solver: {BC: Free, Box:  [  109,  109,  109 ], MPI tasks:  4}, 
- Compensation charge on libPAW mesh:  4.0515740547523806E-002, 
+ Compensation charge on libPAW mesh:  4.0515740578327825E-002, 
   #  ****** Psp strength Dij in Ha (atom      1) *****
-  #   0.34744  -0.00000  -0.00000  -0.00000
-  #  -0.00000  -0.04813   0.00000   0.00000
-  #  -0.00000   0.00000  -0.04813   0.00000
-  #  -0.00000   0.00000   0.00000  -0.04813
+  #   0.34752  -0.00000  -0.00000  -0.00000
+  #  -0.00000  -0.04790   0.00000   0.00000
+  #  -0.00000   0.00000  -0.04790   0.00000
+  #  -0.00000   0.00000   0.00000  -0.04790
  Hamiltonian Applied:  Yes, 
- Max. violation of rotational invariance:  1.5636139722037689E-011, Orthoconstraint:  Yes, 
+ Max. violation of rotational invariance:  1.8139041570313446E-010, Orthoconstraint:  Yes, 
      Preconditioning:  Yes, 
- Energies: {Ekin:  3.50243570930E+00, Epot: -5.25113175704E+00, Enl:  5.46434012535E-01, 
-              EH:  4.52577790894E+00,  EXC: -1.43116054273E+00, EvXC: -1.82693756365E+00, 
-            Epaw: -6.74744481886E-03}, 
- iter:  1, EKS: -5.33901036805097728E+00, gnrm:  4.24E-01, D: -1.11E-01, 
+ Energies: {Ekin:  3.50243571098E+00, Epot: -5.25018430406E+00, Enl:  5.47043683731E-01, 
+              EH:  4.52577790952E+00,  EXC: -1.43116054288E+00, EvXC: -1.82693756384E+00, 
+            Epaw: -6.74744481614E-03}, 
+ iter:  1, EKS: -5.33745324272177957E+00, gnrm:  4.24E-01, D: -1.11E-01, 
  DIIS weights: [ 1.00E+00,  1.00E+00], Orthogonalization Method:  0}
        -  { #---------------------------------------------------------------------- iter: 2
- GPU acceleration:  No, Rho Commun: RED_SCT, Total electronic charge:  3.959912553327, 
+ GPU acceleration:  No, Rho Commun: RED_SCT, Total electronic charge:  3.959945203427, 
   #  *********** RHOIJ (atom   1) **********
-  #   1.93915   0.00028   0.00028   0.00028
-  #   0.00028   0.68098   0.00045   0.00045
-  #   0.00028   0.00045   0.68098   0.00045
-  #   0.00028   0.00045   0.00045   0.68098
- Compensation charge on wavelet grid:  4.010320149956232E-002, 
+  #   1.93773   0.00031   0.00031   0.00031
+  #   0.00031   0.68041   0.00046   0.00046
+  #   0.00031   0.00046   0.68041   0.00046
+  #   0.00031   0.00046   0.00046   0.68041
+ Compensation charge on wavelet grid:  4.0070538192187054E-002, 
  Poisson Solver: {BC: Free, Box:  [  109,  109,  109 ], MPI tasks:  4}, 
- Compensation charge on libPAW mesh:  4.0087443690673637E-002, 
+ Compensation charge on libPAW mesh:  4.0054793217738902E-002, 
   #  ****** Psp strength Dij in Ha (atom      1) *****
-  #   0.34724   0.00000   0.00000   0.00000
-  #   0.00000  -0.04907   0.00000   0.00000
-  #   0.00000   0.00000  -0.04907   0.00000
-  #   0.00000   0.00000   0.00000  -0.04907
+  #   0.34730   0.00000   0.00000   0.00000
+  #   0.00000  -0.04886   0.00000   0.00000
+  #   0.00000   0.00000  -0.04886   0.00000
+  #   0.00000   0.00000   0.00000  -0.04886
  Hamiltonian Applied:  Yes, 
- Max. violation of rotational invariance:  4.547705137485599E-008, Orthoconstraint:  Yes, 
+ Max. violation of rotational invariance:  4.4703971353957514E-008, Orthoconstraint:  Yes, 
      Preconditioning:  Yes, 
- Energies: {Ekin:  3.22266777809E+00, Epot: -5.14488798445E+00, Enl:  5.73095882455E-01, 
-              EH:  4.40615599205E+00,  EXC: -1.39701677179E+00, EvXC: -1.78286051209E+00, 
-            Epaw: -7.17059461995E-03}, 
- iter:  2, EKS: -5.37660717028590796E+00, gnrm:  1.17E-01, D: -3.76E-02, 
- DIIS weights: [-2.86E-01,  1.29E+00, -3.26E-04], Orthogonalization Method:  0}
+ Energies: {Ekin:  3.22103471248E+00, Epot: -5.14287492120E+00, Enl:  5.73238104384E-01, 
+              EH:  4.40498376337E+00,  EXC: -1.39669336198E+00, EvXC: -1.78244210027E+00, 
+            Epaw: -7.14617375583E-03}, 
+ iter:  2, EKS: -5.37498330317258066E+00, gnrm:  1.16E-01, D: -3.75E-02, 
+ DIIS weights: [-2.84E-01,  1.28E+00, -3.28E-04], Orthogonalization Method:  0}
        -  { #---------------------------------------------------------------------- iter: 3
- GPU acceleration:  No, Rho Commun: RED_SCT, Total electronic charge:  3.960018682249, 
+ GPU acceleration:  No, Rho Commun: RED_SCT, Total electronic charge:  3.960071948624, 
   #  *********** RHOIJ (atom   1) **********
-  #   1.98582  -0.00096  -0.00096  -0.00096
-  #  -0.00096   0.67357   0.00036   0.00036
-  #  -0.00096   0.00036   0.67357   0.00036
-  #  -0.00096   0.00036   0.00036   0.67357
- Compensation charge on wavelet grid:  3.999704262030384E-002, 
+  #   1.98101  -0.00095  -0.00095  -0.00095
+  #  -0.00095   0.67290   0.00037   0.00037
+  #  -0.00095   0.00037   0.67290   0.00037
+  #  -0.00095   0.00037   0.00037   0.67290
+ Compensation charge on wavelet grid:  3.9943755451115906E-002, 
  Poisson Solver: {BC: Free, Box:  [  109,  109,  109 ], MPI tasks:  4}, 
- Compensation charge on libPAW mesh:  3.9981326524576914E-002, 
+ Compensation charge on libPAW mesh:  3.9928060293593366E-002, 
+  #  ****** Psp strength Dij in Ha (atom      1) *****
+  #   0.34730  -0.00000  -0.00000  -0.00000
+  #  -0.00000  -0.04906   0.00000   0.00000
+  #  -0.00000   0.00000  -0.04906   0.00000
+  #  -0.00000   0.00000   0.00000  -0.04906
+ Hamiltonian Applied:  Yes, 
+ Max. violation of rotational invariance:  2.7216203900949905E-008, Orthoconstraint:  Yes, 
+     Preconditioning:  Yes, 
+ Energies: {Ekin:  3.14560081768E+00, Epot: -5.11337836503E+00, Enl:  5.88958197727E-01, 
+              EH:  4.37547932818E+00,  EXC: -1.38851800469E+00, EvXC: -1.77194631026E+00, 
+            Epaw: -7.43677200172E-03}, 
+ iter:  3, EKS: -5.37830714422611411E+00, gnrm:  1.90E-02, D: -3.32E-03, 
+ DIIS weights: [-5.02E-03, -3.12E-01,  1.32E+00, -1.54E-05], Orthogonalization Method:  0}
+       -  { #---------------------------------------------------------------------- iter: 4
+ GPU acceleration:  No, Rho Commun: RED_SCT, Total electronic charge:  3.960334686289, 
+  #  *********** RHOIJ (atom   1) **********
+  #   1.98593  -0.00027  -0.00027  -0.00027
+  #  -0.00027   0.66653   0.00016   0.00016
+  #  -0.00027   0.00016   0.66653   0.00016
+  #  -0.00027   0.00016   0.00016   0.66653
+ Compensation charge on wavelet grid:  3.9680903509477686E-002, 
+ Poisson Solver: {BC: Free, Box:  [  109,  109,  109 ], MPI tasks:  4}, 
+ Compensation charge on libPAW mesh:  3.9665311634748186E-002, 
   #  ****** Psp strength Dij in Ha (atom      1) *****
   #   0.34725   0.00000   0.00000   0.00000
-  #   0.00000  -0.04926   0.00000   0.00000
-  #   0.00000   0.00000  -0.04926   0.00000
-  #   0.00000   0.00000   0.00000  -0.04926
+  #   0.00000  -0.04917   0.00000   0.00000
+  #   0.00000   0.00000  -0.04917   0.00000
+  #   0.00000   0.00000   0.00000  -0.04917
  Hamiltonian Applied:  Yes, 
- Max. violation of rotational invariance:  2.6307325116920212E-008, Orthoconstraint:  Yes, 
+ Max. violation of rotational invariance:  3.1162033833703418E-009, Orthoconstraint:  Yes, 
      Preconditioning:  Yes, 
- Energies: {Ekin:  3.14701959579E+00, Epot: -5.11613965648E+00, Enl:  5.90029684756E-01, 
-              EH:  4.37695732078E+00,  EXC: -1.38890959868E+00, EvXC: -1.77244897216E+00, 
-            Epaw: -7.49675467600E-03}, 
- iter:  3, EKS: -5.38000507790546667E+00, gnrm:  1.90E-02, D: -3.40E-03, 
- DIIS weights: [-6.73E-03, -3.06E-01,  1.31E+00, -1.55E-05], Orthogonalization Method:  0}
-       -  { #---------------------------------------------------------------------- iter: 4
- GPU acceleration:  No, Rho Commun: RED_SCT, Total electronic charge:  3.960281375707, 
-  #  *********** RHOIJ (atom   1) **********
-  #   1.99102  -0.00031  -0.00031  -0.00031
-  #  -0.00031   0.66716   0.00015   0.00015
-  #  -0.00031   0.00015   0.66716   0.00015
-  #  -0.00031   0.00015   0.00015   0.66716
- Compensation charge on wavelet grid:  3.9734234930913478E-002, 
- Poisson Solver: {BC: Free, Box:  [  109,  109,  109 ], MPI tasks:  4}, 
- Compensation charge on libPAW mesh:  3.9718622100591461E-002, 
-  #  ****** Psp strength Dij in Ha (atom      1) *****
-  #   0.34720   0.00000   0.00000   0.00000
-  #   0.00000  -0.04937   0.00000   0.00000
-  #   0.00000   0.00000  -0.04937   0.00000
-  #   0.00000   0.00000   0.00000  -0.04937
- Hamiltonian Applied:  Yes, 
- Max. violation of rotational invariance:  3.0634584983133998E-009, Orthoconstraint:  Yes, 
-     Preconditioning:  Yes, 
- Energies: {Ekin:  3.12377332973E+00, Epot: -5.10528919936E+00, Enl:  5.92454534517E-01, 
-              EH:  4.36637717761E+00,  EXC: -1.38612646373E+00, EvXC: -1.76888331193E+00, 
-            Epaw: -7.43068669113E-03}, 
- iter:  4, EKS: -5.38011235121316300E+00, gnrm:  7.48E-03, D: -1.07E-04, 
- DIIS weights: [-6.14E-03,  6.40E-02, -2.65E-01,  1.21E+00, -2.14E-06], 
+ Energies: {Ekin:  3.12255898953E+00, Epot: -5.10254917893E+00, Enl:  5.91275100939E-01, 
+              EH:  4.36498574516E+00,  EXC: -1.38576321242E+00, EvXC: -1.76841811205E+00, 
+            Epaw: -7.36841280003E-03}, 
+ iter:  4, EKS: -5.37841434679747188E+00, gnrm:  7.41E-03, D: -1.07E-04, 
+ DIIS weights: [-6.42E-03,  6.27E-02, -2.58E-01,  1.20E+00, -2.18E-06], 
      Orthogonalization Method:  0}
        -  { #---------------------------------------------------------------------- iter: 5
- GPU acceleration:  No, Rho Commun: RED_SCT, Total electronic charge:  3.960340758922, 
+ GPU acceleration:  No, Rho Commun: RED_SCT, Total electronic charge:  3.960393331239, 
   #  *********** RHOIJ (atom   1) **********
-  #   1.99419  -0.00022  -0.00022  -0.00022
-  #  -0.00022   0.66550   0.00008   0.00008
-  #  -0.00022   0.00008   0.66550   0.00008
-  #  -0.00022   0.00008   0.00008   0.66550
- Compensation charge on wavelet grid:  3.9674829603948088E-002, 
+  #   1.98919  -0.00019  -0.00019  -0.00019
+  #  -0.00019   0.66487   0.00008   0.00008
+  #  -0.00019   0.00008   0.66487   0.00008
+  #  -0.00019   0.00008   0.00008   0.66487
+ Compensation charge on wavelet grid:  3.9622236676555206E-002, 
  Poisson Solver: {BC: Free, Box:  [  109,  109,  109 ], MPI tasks:  4}, 
- Compensation charge on libPAW mesh:  3.9659240115847073E-002, 
+ Compensation charge on libPAW mesh:  3.9606667853869106E-002, 
   #  ****** Psp strength Dij in Ha (atom      1) *****
-  #   0.34720  -0.00000  -0.00000  -0.00000
-  #  -0.00000  -0.04937   0.00000   0.00000
-  #  -0.00000   0.00000  -0.04937   0.00000
-  #  -0.00000   0.00000   0.00000  -0.04937
+  #   0.34725  -0.00000  -0.00000  -0.00000
+  #  -0.00000  -0.04917   0.00000   0.00000
+  #  -0.00000   0.00000  -0.04917   0.00000
+  #  -0.00000   0.00000   0.00000  -0.04917
  Hamiltonian Applied:  Yes, 
- Max. violation of rotational invariance:  7.4370034606546044E-010, Orthoconstraint:  Yes, 
+ Max. violation of rotational invariance:  7.7833232516703502E-010, Orthoconstraint:  Yes, 
      Preconditioning:  Yes, 
- Energies: {Ekin:  3.12274709352E+00, Epot: -5.10565611782E+00, Enl:  5.93801093932E-01, 
-              EH:  4.36635837166E+00,  EXC: -1.38617115464E+00, EvXC: -1.76894186213E+00, 
-            Epaw: -7.43152942363E-03}, 
- iter:  5, EKS: -5.38012712395424231E+00, gnrm:  1.80E-03, D: -1.48E-05, 
- DIIS weights: [-2.33E-03,  1.91E-02, -8.17E-02, -3.20E-01,  1.39E+00, -1.53E-07], 
+ Energies: {Ekin:  3.12151008670E+00, Epot: -5.10292970856E+00, Enl:  5.92653424291E-01, 
+              EH:  4.36496041118E+00,  EXC: -1.38580563010E+00, EvXC: -1.76847363507E+00, 
+            Epaw: -7.37027948303E-03}, 
+ iter:  5, EKS: -5.37842888327132407E+00, gnrm:  1.79E-03, D: -1.45E-05, 
+ DIIS weights: [-2.44E-03,  1.98E-02, -8.30E-02, -3.24E-01,  1.39E+00, -1.55E-07], 
      Orthogonalization Method:  0}
        -  { #---------------------------------------------------------------------- iter: 6
- GPU acceleration:  No, Rho Commun: RED_SCT, Total electronic charge:  3.960376551583, 
+ GPU acceleration:  No, Rho Commun: RED_SCT, Total electronic charge:  3.960429213080, 
   #  *********** RHOIJ (atom   1) **********
-  #   1.99476  -0.00006  -0.00006  -0.00006
-  #  -0.00006   0.66464   0.00002   0.00002
-  #  -0.00006   0.00002   0.66464   0.00002
-  #  -0.00006   0.00002   0.00002   0.66464
- Compensation charge on wavelet grid:  3.9639022647522427E-002, 
+  #   1.98983  -0.00002  -0.00002  -0.00002
+  #  -0.00002   0.66400   0.00003   0.00003
+  #  -0.00002   0.00003   0.66400   0.00003
+  #  -0.00002   0.00003   0.00003   0.66400
+ Compensation charge on wavelet grid:  3.9586340536754347E-002, 
  Poisson Solver: {BC: Free, Box:  [  109,  109,  109 ], MPI tasks:  4}, 
- Compensation charge on libPAW mesh:  3.9623447229100432E-002, 
+ Compensation charge on libPAW mesh:  3.9570785818790324E-002, 
   #  ****** Psp strength Dij in Ha (atom      1) *****
-  #   0.34719  -0.00000  -0.00000  -0.00000
-  #  -0.00000  -0.04938   0.00000   0.00000
-  #  -0.00000   0.00000  -0.04938   0.00000
-  #  -0.00000   0.00000   0.00000  -0.04938
+  #   0.34724  -0.00000  -0.00000  -0.00000
+  #  -0.00000  -0.04918   0.00000   0.00000
+  #  -0.00000   0.00000  -0.04918   0.00000
+  #  -0.00000   0.00000   0.00000  -0.04918
  Hamiltonian Applied:  Yes, 
- Max. violation of rotational invariance:  2.8602533788097885E-011, Orthoconstraint:  Yes, 
+ Max. violation of rotational invariance:  3.1028880449543215E-011, Orthoconstraint:  Yes, 
      Preconditioning:  Yes, 
- Energies: {Ekin:  3.12186483546E+00, Epot: -5.10545134148E+00, Enl:  5.94106581491E-01, 
-              EH:  4.36597684223E+00,  EXC: -1.38609330533E+00, EvXC: -1.76884266179E+00, 
-            Epaw: -7.42139443618E-03}, 
- iter:  6, EKS: -5.38012880474158095E+00, gnrm:  4.50E-04, D: -1.68E-06, 
- DIIS weights: [ 6.22E-04, -3.70E-03,  1.33E-02,  3.36E-02, -2.31E-01,  1.19E+00, 
-                -7.31E-09],           Orthogonalization Method:  0}
+ Energies: {Ekin:  3.12061257594E+00, Epot: -5.10273707993E+00, Enl:  5.92987417748E-01, 
+              EH:  4.36457936481E+00,  EXC: -1.38572786758E+00, EvXC: -1.76837447813E+00, 
+            Epaw: -7.36072218974E-03}, 
+ iter:  6, EKS: -5.37843056268677788E+00, gnrm:  4.53E-04, D: -1.68E-06, 
+ DIIS weights: [ 6.01E-04, -3.51E-03,  1.26E-02,  3.53E-02, -2.29E-01,  1.18E+00, 
+                -7.35E-09],           Orthogonalization Method:  0}
        -  { #---------------------------------------------------------------------- iter: 7
- GPU acceleration:  No, Rho Commun: RED_SCT, Total electronic charge:  3.960374723347, 
+ GPU acceleration:  No, Rho Commun: RED_SCT, Total electronic charge:  3.960427368838, 
   #  *********** RHOIJ (atom   1) **********
-  #   1.99512  -0.00006  -0.00006  -0.00006
-  #  -0.00006   0.66464   0.00001   0.00001
-  #  -0.00006   0.00001   0.66464   0.00001
-  #  -0.00006   0.00001   0.00001   0.66464
- Compensation charge on wavelet grid:  3.9640851606209476E-002, 
+  #   1.99019  -0.00002  -0.00002  -0.00002
+  #  -0.00002   0.66401   0.00002   0.00002
+  #  -0.00002   0.00002   0.66401   0.00002
+  #  -0.00002   0.00002   0.00002   0.66401
+ Compensation charge on wavelet grid:  3.9588185504147715E-002, 
  Poisson Solver: {BC: Free, Box:  [  109,  109,  109 ], MPI tasks:  4}, 
- Compensation charge on libPAW mesh:  3.9625275469132207E-002, 
+ Compensation charge on libPAW mesh:  3.9572630061238019E-002, 
   #  ****** Psp strength Dij in Ha (atom      1) *****
-  #   0.34719  -0.00000  -0.00000  -0.00000
-  #  -0.00000  -0.04938   0.00000   0.00000
-  #  -0.00000   0.00000  -0.04938   0.00000
-  #  -0.00000   0.00000   0.00000  -0.04938
- Hamiltonian Applied:  Yes, Orthoconstraint:  Yes, Preconditioning:  Yes, 
- Energies: {Ekin:  3.12194977342E+00, Epot: -5.10559955873E+00, Enl:  5.94236673514E-01, 
-              EH:  4.36604524977E+00,  EXC: -1.38611238831E+00, EvXC: -1.76886688909E+00, 
-            Epaw: -7.42498838459E-03}, 
- iter:  7, EKS: -5.38012884917572176E+00, gnrm:  9.70E-05, D: -4.44E-08, 
- DIIS weights: [-1.47E-03,  6.20E-03, -2.77E-03, -3.54E-02,  1.58E-02,  1.02E+00, 
-                -8.21E-10],           Orthogonalization Method:  0}
-       -  &FINAL001  { #----------------------------------------------------------- iter: 8
- GPU acceleration:  No, Rho Commun: RED_SCT, Total electronic charge:  3.960375014578, 
-  #  *********** RHOIJ (atom   1) **********
-  #   1.99508  -0.00006  -0.00006  -0.00006
-  #  -0.00006   0.66464   0.00001   0.00001
-  #  -0.00006   0.00001   0.66464   0.00001
-  #  -0.00006   0.00001   0.00001   0.66464
- Compensation charge on wavelet grid:  3.9640560264276703E-002, 
- Poisson Solver: {BC: Free, Box:  [  109,  109,  109 ], MPI tasks:  4}, 
- Compensation charge on libPAW mesh:  3.9624984241676819E-002, 
-  #  ****** Psp strength Dij in Ha (atom      1) *****
-  #   0.34719  -0.00000  -0.00000  -0.00000
-  #  -0.00000  -0.04938   0.00000   0.00000
-  #  -0.00000   0.00000  -0.04938   0.00000
-  #  -0.00000   0.00000   0.00000  -0.04938
+  #   0.34724  -0.00000  -0.00000  -0.00000
+  #  -0.00000  -0.04918   0.00000   0.00000
+  #  -0.00000   0.00000  -0.04918   0.00000
+  #  -0.00000   0.00000   0.00000  -0.04918
  Hamiltonian Applied:  Yes, 
- iter:  8, EKS: -5.38012885166140808E+00, gnrm:  9.70E-05, D: -2.49E-09,  #FINAL
- Energies: {Ekin:  3.12194077226E+00, Epot: -5.10559581488E+00, Enl:  5.94221349832E-01, 
-              EH:  4.36602332987E+00,  EXC: -1.38610638847E+00, EvXC: -1.76885909080E+00, 
-            Epaw: -7.42453132975E-03,                     Exc(rhoc): -1.56676207801E-02}, 
+ Max. violation of rotational invariance:  1.1027992262776575E-012, Orthoconstraint:  Yes, 
+     Preconditioning:  Yes, 
+ Energies: {Ekin:  3.12069453139E+00, Epot: -5.10288487901E+00, Enl:  5.93118106460E-01, 
+              EH:  4.36464553454E+00,  EXC: -1.38574617552E+00, EvXC: -1.76839767730E+00, 
+            Epaw: -7.36433291779E-03}, 
+ iter:  7, EKS: -5.37843060683254315E+00, gnrm:  9.58E-05, D: -4.41E-08, 
+ DIIS weights: [-1.49E-03,  6.28E-03, -2.87E-03, -3.46E-02,  1.29E-02,  1.02E+00, 
+                -8.35E-10],           Orthogonalization Method:  0}
+       -  &FINAL001  { #----------------------------------------------------------- iter: 8
+ GPU acceleration:  No, Rho Commun: RED_SCT, Total electronic charge:  3.960427657774, 
+  #  *********** RHOIJ (atom   1) **********
+  #   1.99015  -0.00002  -0.00002  -0.00002
+  #  -0.00002   0.66401   0.00002   0.00002
+  #  -0.00002   0.00002   0.66401   0.00002
+  #  -0.00002   0.00002   0.00002   0.66401
+ Compensation charge on wavelet grid:  3.958789645654115E-002, 
+ Poisson Solver: {BC: Free, Box:  [  109,  109,  109 ], MPI tasks:  4}, 
+ Compensation charge on libPAW mesh:  3.9572341127207263E-002, 
+  #  ****** Psp strength Dij in Ha (atom      1) *****
+  #   0.34724  -0.00000  -0.00000  -0.00000
+  #  -0.00000  -0.04918   0.00000   0.00000
+  #  -0.00000   0.00000  -0.04918   0.00000
+  #  -0.00000   0.00000   0.00000  -0.04918
+ Hamiltonian Applied:  Yes, 
+ iter:  8, EKS: -5.37843060936261708E+00, gnrm:  9.58E-05, D: -2.53E-09,  #FINAL
+ Energies: {Ekin:  3.12068607416E+00, Epot: -5.10288096209E+00, Enl:  5.93101872203E-01, 
+              EH:  4.36462341626E+00,  EXC: -1.38574010433E+00, EvXC: -1.76838978510E+00, 
+            Epaw: -7.36385814480E-03,                     Exc(rhoc): -1.56676207801E-02}, 
  }
-       Non-Hermiticity of Hamiltonian in the Subspace:  3.13E-32
+       Non-Hermiticity of Hamiltonian in the Subspace:  1.70E-31
         #Eigenvalues and New Occupation Numbers
        Orbitals: [
- {e: -4.965046178280E-01, f:  2.0000},  # 00001
- {e: -1.982125246288E-01, f:  0.6667},  # 00002
- {e: -1.982125246288E-01, f:  0.6667},  # 00003
- {e: -1.982116364534E-01, f:  0.6667}] # 00004
+ {e: -4.964327265462E-01, f:  2.0000},  # 00001
+ {e: -1.981201950860E-01, f:  0.6667},  # 00002
+ {e: -1.981105744406E-01, f:  0.6667},  # 00003
+ {e: -1.981105744406E-01, f:  0.6667}] # 00004
  Last Iteration                        : *FINAL001
   #---------------------------------------------------------------------- Forces Calculation
  GPU acceleration                      :  No
  Rho Commun                            : RED_SCT
- Total electronic charge               :  3.960375014583
+ Total electronic charge               :  3.960427657775
  Poisson Solver:
    BC                                  : Free
    Box                                 :  [  109,  109,  109 ]
    MPI tasks                           :  4
  Multipole analysis origin             :  [  7.8E+00,  7.800000E+00,  7.800000E+00 ]
  Electric Dipole Moment (AU):
-   P vector                            :  [ -7.244E-04, -7.2440E-04, -7.2440E-04 ]
-   norm(P)                             :  1.254700E-03
+   P vector                            :  [ -7.390618E-04, -7.390618E-04, -7.390618E-04 ]
+   norm(P)                             :  1.28009254E-03
  Electric Dipole Moment (Debye):
-   P vector                            :  [ -1.8412E-03, -1.8412E-03, -1.8412E-03 ]
-   norm(P)                             :  3.189130E-03
+   P vector                            :  [ -1.878507E-03, -1.878507E-03, -1.878507E-03 ]
+   norm(P)                             :  3.25367040E-03
  Quadrupole Moment (AU):
    Q matrix:
-   -  [-2.8422E-13,  1.3360E-04,  1.3360E-04]
-   -  [ 1.3360E-04, -2.5935E-13,  1.3360E-04]
-   -  [ 1.3360E-04,  1.3360E-04,  5.4357E-13]
-   trace                               :  0.00E+00
- Spreads of the electronic density (AU):  [  1.100316E+00,  1.100316E+00,  1.100316E+00 ]
+   -  [-2.6112E-13,  1.6534E-04,  1.6534E-04]
+   -  [ 1.6534E-04, -2.4691E-13,  1.6534E-04]
+   -  [ 1.6534E-04,  1.6534E-04,  5.0449E-13]
+   trace                               : -3.55E-15
+ Spreads of the electronic density (AU):  [  1.100646E+00,  1.100646E+00,  1.100646E+00 ]
   #-------------------------------- Warnings obtained during the run, check their relevance!
  WARNINGS:
  - Projectors too rough: Consider modifying hgrid and/or the localisation radii.
   #-------------------------------------------------------------------- Timing for root process
  Timings for root process:
-   CPU time (s)                        :  5.82
-   Elapsed time (s)                    :  3.50
+   CPU time (s)                        :  13.70
+   Elapsed time (s)                    :  8.19
  BigDFT infocode                       :  0
  Average noise forces: {x:  0.00000000E+00, y:  0.00000000E+00, z:  0.00000000E+00, 
                     total:  0.00000000E+00}
@@ -918,17 +919,17 @@
   #------------------------------------------------------------------------------ Atomic Forces
  Atomic Forces (Ha/Bohr):
  -  {C: [ 0.000000000000E+00,  0.000000000000E+00,  0.000000000000E+00]} # 0001
- Energy (Hartree)                      : -5.38012885166140808E+00
+ Energy (Hartree)                      : -5.37843060936261708E+00
  Force Norm (Hartree/Bohr)             :  0.00000000000000000E+00
  Memory Consumption Report:
-   Tot. No. of Allocations             :  2776
-   Tot. No. of Deallocations           :  2776
+   Tot. No. of Allocations             :  2754
+   Tot. No. of Deallocations           :  2754
    Remaining Memory (B)                :  0
    Memory occupation:
-     Peak Value (MB)                   :  96.648
+     Peak Value (MB)                   :  96.606
      for the array                     : wz
      in the routine                    : input_wf
-     Memory Peak of process            : 121.824 MB
- Walltime since initialization         :  00:00:03.718343003
- Max No. of dictionaries used          :  4880 #( 1172 still in use)
+     Memory Peak of process            : 115.196 MB
+ Walltime since initialization         :  00:00:08.447011987
+ Max No. of dictionaries used          :  4874 #( 1172 still in use)
  Number of dictionary folders allocated:  1

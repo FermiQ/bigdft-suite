@@ -260,7 +260,7 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
   type(locreg_storage) :: lr_storage
   integer, dimension(:), allocatable :: nbsegs_cf,keyg_lin
   logical, dimension(:,:,:), allocatable :: logrid
-  integer,dimension(:,:),allocatable :: reducearr
+  !integer,dimension(:,:),allocatable :: reducearr
   real(gp) :: r, tt, eps
   
   call f_routine(id=subname)
@@ -345,9 +345,9 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
   do iat=1,at%astruct%nat
       nseg = max(nseg,nl%projs(iat)%region%plr%wfd%nseg_c + nl%projs(iat)%region%plr%wfd%nseg_f)
   end do
-  reducearr = f_malloc0((/5*nseg+9,at%astruct%nat/),id='reducearr')
+!  reducearr = f_malloc0((/5*nseg+9,at%astruct%nat/),id='reducearr')
 
-!!$  call lr_storage_init(lr_storage,at%astruct%nat)
+  call lr_storage_init(lr_storage,at%astruct%nat)
 
   ! After having determined the size of the projector descriptor arrays fill them
   !do iat=1,at%astruct%nat
@@ -400,8 +400,8 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
              nl%projs(iat)%region%plr%wfd%keygloc(1,iseg))
      end if
 
-!!$     !store the data for communication
-!!$     call store_lr(lr_storage,iat,nl%projs(iat)%region%plr)
+     !store the data for communication
+     call store_lr(lr_storage,iat,nl%projs(iat)%region%plr)
 
 !!!in the case of linear scaling this section has to be built again
      !!if (init_projectors_completely) then
@@ -414,58 +414,61 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
      !!call f_free_ptr(nl%pspd(iat)%plr%wfd%keyvloc)
      !!nl%pspd(iat)%plr%wfd%keyvloc => nl%pspd(iat)%plr%wfd%keyvglob
 
-     ! Copy the data for the communication
-     nseg = nl%projs(iat)%region%plr%wfd%nseg_c + nl%projs(iat)%region%plr%wfd%nseg_f
-     ist = 1
-     call vcopy(2*nseg, nl%projs(iat)%region%plr%wfd%keyglob(1,1), 1, reducearr(ist,iat), 1)
-     ist = ist + 2*nseg
-     call vcopy(nseg, nl%projs(iat)%region%plr%wfd%keyvglob(1), 1, reducearr(ist,iat), 1)
-     ist = ist + nseg
-     call vcopy(2*nseg, nl%projs(iat)%region%plr%wfd%keygloc(1,1), 1, reducearr(ist,iat), 1)
-     ist = ist + 2*nseg
-     reducearr(ist+0,iat) = nl%projs(iat)%region%plr%d%n1
-     reducearr(ist+1,iat) = nl%projs(iat)%region%plr%d%n2
-     reducearr(ist+2,iat) = nl%projs(iat)%region%plr%d%n3
-     reducearr(ist+3,iat) = nl%projs(iat)%region%plr%d%nfl1
-     reducearr(ist+4,iat) = nl%projs(iat)%region%plr%d%nfl2
-     reducearr(ist+5,iat) = nl%projs(iat)%region%plr%d%nfl3
-     reducearr(ist+6,iat) = nl%projs(iat)%region%plr%d%nfu1
-     reducearr(ist+7,iat) = nl%projs(iat)%region%plr%d%nfu2
-     reducearr(ist+8,iat) = nl%projs(iat)%region%plr%d%nfu3
-     !@todo: broadcast the meshes also, please.
+!!$     ! Copy the data for the communication
+!!$     nseg = nl%projs(iat)%region%plr%wfd%nseg_c + nl%projs(iat)%region%plr%wfd%nseg_f
+!!$     ist = 1
+!!$     call vcopy(2*nseg, nl%projs(iat)%region%plr%wfd%keyglob(1,1), 1, reducearr(ist,iat), 1)
+!!$     ist = ist + 2*nseg
+!!$     call vcopy(nseg, nl%projs(iat)%region%plr%wfd%keyvglob(1), 1, reducearr(ist,iat), 1)
+!!$     ist = ist + nseg
+!!$     call vcopy(2*nseg, nl%projs(iat)%region%plr%wfd%keygloc(1,1), 1, reducearr(ist,iat), 1)
+!!$     ist = ist + 2*nseg
+!!$     reducearr(ist+0,iat) = nl%projs(iat)%region%plr%d%n1
+!!$     reducearr(ist+1,iat) = nl%projs(iat)%region%plr%d%n2
+!!$     reducearr(ist+2,iat) = nl%projs(iat)%region%plr%d%n3
+!!$     reducearr(ist+3,iat) = nl%projs(iat)%region%plr%d%nfl1
+!!$     reducearr(ist+4,iat) = nl%projs(iat)%region%plr%d%nfl2
+!!$     reducearr(ist+5,iat) = nl%projs(iat)%region%plr%d%nfl3
+!!$     reducearr(ist+6,iat) = nl%projs(iat)%region%plr%d%nfu1
+!!$     reducearr(ist+7,iat) = nl%projs(iat)%region%plr%d%nfu2
+!!$     reducearr(ist+8,iat) = nl%projs(iat)%region%plr%d%nfu3
+!!$     !@todo: broadcast the meshes also, please.
   enddo
 
-!!$  !put the locreg storage in a buffer
-!!$  call gather_locreg_storage(lr_storage)
+  !put the locreg storage in a buffer
+  call gather_locreg_storage(lr_storage)
 
   ! Distribute the data to all process, using an allreduce
-  call fmpi_allreduce(reducearr, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
+!!$  call fmpi_allreduce(reducearr, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
   do iat=1,at%astruct%nat
       if (nl%projs(iat)%mproj <= 0) cycle
 
-!!$      if (iat >= isat+1 .and. iat <= isat+natp) then
-!!$         if (init_projectors_completely) call ensure_locreg_bounds(nl%projs(iat)%region%plr)
-!!$      else
-!!$         call extract_lr(lr_storage,iat,nl%projs(iat)%region%plr,bounds=init_projectors_completely)
-!!$      end if
+      if (lr_is_stored(lr_storage,iat)) then
+         if (init_projectors_completely) &
+              call ensure_locreg_bounds(nl%projs(iat)%region%plr)
+      else
+         call deallocate_locreg_descriptors(nl%projs(iat)%region%plr)
+         call extract_lr(lr_storage,iat,nl%projs(iat)%region%plr,&
+              bounds=init_projectors_completely)
+      end if
 
-      nseg = nl%projs(iat)%region%plr%wfd%nseg_c + nl%projs(iat)%region%plr%wfd%nseg_f
-      ist = 1
-      call vcopy(2*nseg, reducearr(ist,iat), 1, nl%projs(iat)%region%plr%wfd%keyglob(1,1), 1)
-      ist = ist + 2*nseg
-      call vcopy(nseg, reducearr(ist,iat), 1, nl%projs(iat)%region%plr%wfd%keyvglob(1), 1)
-      ist = ist + nseg
-      call vcopy(2*nseg, reducearr(ist,iat), 1, nl%projs(iat)%region%plr%wfd%keygloc(1,1), 1)
-      ist = ist + 2*nseg
-      nl%projs(iat)%region%plr%d%n1   = nl%projs(iat)%region%plr%d%n1
-      nl%projs(iat)%region%plr%d%n2   = nl%projs(iat)%region%plr%d%n2
-      nl%projs(iat)%region%plr%d%n3   = nl%projs(iat)%region%plr%d%n3
-      nl%projs(iat)%region%plr%d%nfl1 = nl%projs(iat)%region%plr%d%nfl1
-      nl%projs(iat)%region%plr%d%nfl2 = nl%projs(iat)%region%plr%d%nfl2
-      nl%projs(iat)%region%plr%d%nfl3 = nl%projs(iat)%region%plr%d%nfl3
-      nl%projs(iat)%region%plr%d%nfu1 = nl%projs(iat)%region%plr%d%nfu1
-      nl%projs(iat)%region%plr%d%nfu2 = nl%projs(iat)%region%plr%d%nfu2
-      nl%projs(iat)%region%plr%d%nfu3 = nl%projs(iat)%region%plr%d%nfu3
+!!$      nseg = nl%projs(iat)%region%plr%wfd%nseg_c + nl%projs(iat)%region%plr%wfd%nseg_f
+!!$      ist = 1
+!!$      call vcopy(2*nseg, reducearr(ist,iat), 1, nl%projs(iat)%region%plr%wfd%keyglob(1,1), 1)
+!!$      ist = ist + 2*nseg
+!!$      call vcopy(nseg, reducearr(ist,iat), 1, nl%projs(iat)%region%plr%wfd%keyvglob(1), 1)
+!!$      ist = ist + nseg
+!!$      call vcopy(2*nseg, reducearr(ist,iat), 1, nl%projs(iat)%region%plr%wfd%keygloc(1,1), 1)
+!!$      ist = ist + 2*nseg
+!!$      nl%projs(iat)%region%plr%d%n1   = nl%projs(iat)%region%plr%d%n1
+!!$      nl%projs(iat)%region%plr%d%n2   = nl%projs(iat)%region%plr%d%n2
+!!$      nl%projs(iat)%region%plr%d%n3   = nl%projs(iat)%region%plr%d%n3
+!!$      nl%projs(iat)%region%plr%d%nfl1 = nl%projs(iat)%region%plr%d%nfl1
+!!$      nl%projs(iat)%region%plr%d%nfl2 = nl%projs(iat)%region%plr%d%nfl2
+!!$      nl%projs(iat)%region%plr%d%nfl3 = nl%projs(iat)%region%plr%d%nfl3
+!!$      nl%projs(iat)%region%plr%d%nfu1 = nl%projs(iat)%region%plr%d%nfu1
+!!$      nl%projs(iat)%region%plr%d%nfu2 = nl%projs(iat)%region%plr%d%nfu2
+!!$      nl%projs(iat)%region%plr%d%nfu3 = nl%projs(iat)%region%plr%d%nfu3
 !!$      nl%projs(iat)%region%plr%geocode = "F"
 !!$      nl%projs(iat)%region%plr%d%n1i = lr%d%n1i
 !!$      nl%projs(iat)%region%plr%d%n2i = lr%d%n2i
@@ -475,10 +478,10 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
       if (init_projectors_completely) then
          call set_wfd_to_wfd(lr,nl%projs(iat)%region%plr,&
               keyg_lin,nbsegs_cf,nl%projs(iat)%region%noverlap,nl%projs(iat)%region%lut_tolr,nl%projs(iat)%region%tolr)
-         !let us try what happens with the new method
-         !consideration, we should conceive differently the
-         !initialization of the localisation regions
-         call ensure_locreg_bounds(nl%projs(iat)%region%plr)
+!!$         !let us try what happens with the new method
+!!$         !consideration, we should conceive differently the
+!!$         !initialization of the localisation regions
+!!$         call ensure_locreg_bounds(nl%projs(iat)%region%plr)
       end if
 
 !!$      ! This is done for wavefunctions but not for projectors ?
@@ -486,9 +489,9 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
 !!$      call f_free_ptr(nl%projs(iat)%region%plr%wfd%keyvloc)
 !!$      nl%projs(iat)%region%plr%wfd%keyvloc => nl%projs(iat)%region%plr%wfd%keyvglob
   end do
-  call f_free(reducearr)
+  !call f_free(reducearr)
 
-!!$  call lr_storage_free(lr_storage)
+  call lr_storage_free(lr_storage)
 
   call f_free(logrid)
   call f_free(keyg_lin)
@@ -763,10 +766,10 @@ subroutine input_wf_memory_history_2(iproc,nproc,orbs,atoms,comms,wfn_history,is
 use module_base
 use module_types
 use yaml_output
-use bigdft_run
-use module_interfaces
-use communications, only: transpose_v
-use communications_base, only: comms_cubic
+!!$use bigdft_run
+!!$use module_interfaces
+!!$use communications, only: transpose_v
+!!$use communications_base, only: comms_cubic
 !TODO wfn_extap could be a general wfn extrapolation utility routine
 use wfn_extrap
 
@@ -1943,8 +1946,8 @@ subroutine input_wf_disk_paw(iproc, nproc, at, GPU, Lzd, orbs, psig, denspot, nl
 !!$     write(*,*) sum(denspot%V_XC), maxval(denspot%V_XC), minval(denspot%V_XC)
 !!$     write(*,*) sum(denspot%rhov), maxval(denspot%rhov), minval(denspot%rhov)
 end subroutine input_wf_disk_paw
-
-
+!!$
+!!$
 !> Input guess wavefunction diagonalization
 subroutine input_wf_diag(iproc,nproc,at,denspot,&
      orbs,nvirt,comms,Lzd,energs,rxyz,&
