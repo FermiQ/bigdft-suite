@@ -651,7 +651,7 @@ contains
     end if
   end subroutine f_write
 
-  !> open a filename and retrieve the unteger for the unit
+  !> Open a filename and retrieve the integer for the unit
   subroutine f_open_file(unit,file,status,position,action,binary)
     use yaml_strings, only: f_strcpy
     implicit none
@@ -661,11 +661,11 @@ contains
     integer, intent(inout) :: unit
     !> filename
     character(len=*), intent(in) :: file
-    !> status
+    !> status (unknown, old)
     character(len=*), intent(in), optional :: status
     !> position
     character(len=*), intent(in), optional :: position
-    !> action
+    !> action (readwrite by default)
     character(len=*), intent(in), optional :: action
     !> if true, the file will be opened in the unformatted i/o
     !! if false or absent, the file will be opened for formatted i/o

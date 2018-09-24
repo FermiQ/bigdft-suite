@@ -30,11 +30,11 @@
       character(len = 1024), intent(out) :: comment
       logical, intent(in), optional :: disableTrans_
       interface
-         subroutine getline(line,ifile,eof)
+         subroutine getLine(line,ifile,eof)
            integer, intent(in) :: ifile
            character(len=256), intent(out) :: line
            logical, intent(out) :: eof
-         END SUBROUTINE getline
+         END SUBROUTINE getLine
       end interface
       !local variables
       character(len=*), parameter :: subname='read_atomic_positions'
@@ -343,7 +343,7 @@ END SUBROUTINE read_xyz_positions
 
 
 !> Read atomic positions of ascii files.
-subroutine read_ascii_positions(ifile,filename,astruct,comment,energy,fxyz,getline,disableTrans_)
+subroutine read_ascii_positions(ifile,filename,astruct,comment,energy,fxyz,getLine,disableTrans_)
   use module_base
   use dictionaries
   use yaml_parse
@@ -357,11 +357,11 @@ subroutine read_ascii_positions(ifile,filename,astruct,comment,energy,fxyz,getli
   character(len = 1024), intent(out) :: comment
   logical, intent(in), optional :: disableTrans_
   interface
-     subroutine getline(line,ifile,eof)
+     subroutine getLine(line,ifile,eof)
        integer, intent(in) :: ifile
        character(len=256), intent(out) :: line
        logical, intent(out) :: eof
-     END SUBROUTINE getline
+     END SUBROUTINE getLine
   end interface
   !local variables
   character(len=*), parameter :: subname='read_ascii_positions'
@@ -392,7 +392,7 @@ subroutine read_ascii_positions(ifile,filename,astruct,comment,energy,fxyz,getli
   ! First pass to store the file in a string buffer.
   nlines = 1
   do
-     call getline(lines(nlines), ifile, eof)
+     call getLine(lines(nlines), ifile, eof)
      if (eof) then
         exit
      end if
@@ -636,11 +636,11 @@ subroutine read_int_positions(iproc,ifile,astruct,comment,energy,fxyz,getLine,di
   character(len = 1024), intent(out) :: comment
   logical, intent(in), optional :: disableTrans_
   interface
-     subroutine getline(line,ifile,eof)
+     subroutine getLine(line,ifile,eof)
        integer, intent(in) :: ifile
        character(len=256), intent(out) :: line
        logical, intent(out) :: eof
-     END SUBROUTINE getline
+     END SUBROUTINE getLine
   end interface
   !local variables
   character(len=*), parameter :: subname='read_atomic_positions'

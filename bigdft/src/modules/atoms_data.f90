@@ -1089,7 +1089,7 @@ contains
     !We found a file
     select case (astruct%inputfile_format)
     case("xyz")
-       call f_open_file(unit=iunit,file=trim(filename),status='old')
+       call f_open_file(unit=iunit,file=trim(filename),status='old',action='read')
        !read atomic positions
        if (.not.archive) then
           call read_xyz_positions(iunit,filename,astruct,comment_,energy_,fxyz_,directGetLine,disableTrans)
@@ -1098,7 +1098,7 @@ contains
        end if
 
     case("ascii")
-       call f_open_file(unit=iunit,file=trim(filename),status='old')
+       call f_open_file(unit=iunit,file=trim(filename),status='old',action='read')
        !read atomic positions
        if (.not.archive) then
           call read_ascii_positions(iunit,filename,astruct,comment_,energy_,fxyz_,directGetLine,disableTrans)
@@ -1107,7 +1107,7 @@ contains
        end if
 
     case("int")
-       call f_open_file(unit=iunit,file=trim(filename),status='old')
+       call f_open_file(unit=iunit,file=trim(filename),status='old',action='read')
        !read atomic positions
        if (.not.archive) then
           call read_int_positions(iproc,iunit,astruct,comment_,energy_,fxyz_,directGetLine,disableTrans)
@@ -1270,7 +1270,7 @@ contains
 
     call yaml_map('input posinp',dict)
 
-    !take the default vfalues if the key does not exists in the dictionary
+    !take the default values if the key does not exists in the dictionary
     alpha=90.0_gp
     beta=90.0_gp
     gamma=90.0_gp
