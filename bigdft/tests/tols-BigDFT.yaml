@@ -947,7 +947,7 @@ geopt_foe:
  energy: 3.6e-9
  relative difference: 5.8e-9
  Maxdiff for overlap calculation: 4.5e-08
- Maxdiff for transpose (checksum): 1.2e-10
+ Maxdiff for transpose (checksum): 1.8e-10
  Ion-Ion interaction energy: 1.2e-11
 
 geopt_diag:
@@ -2407,13 +2407,13 @@ extendedfrags_nofrags:
  Energies: 1.1e-10
  Pressure: 3.4e-11
  Omega: 2.8e-11
- PV (Ha): 4.0e-11
+ PV (Ha): 7.0e-11
  Total charge: 4.3e-09
  difference: 5.7e-09
  energy: 2.9e-09
  relative difference: 6.1e-10
  trace(Ktilde): 4.3e-09
- trace(KH): 4.5e-11
+ trace(KH): 5.5e-11
 
 extendedfrags_read:
  Omega: 2.3e-6

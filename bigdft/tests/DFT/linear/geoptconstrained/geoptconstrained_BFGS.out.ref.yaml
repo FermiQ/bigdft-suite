@@ -504,8 +504,8 @@
    PSP XC                              : "XC: Teter 93"
   #----------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : bohr
-   Positions:
+   units                               : bohr
+   positions:
    - C: [ 7.425000031,  7.650000049,  6.451459184] # [  16.50,  17.00,  14.34 ] 0001
    -  {C: [ 7.425000031,  7.650000049,  9.298540634],  # [  16.50,  17.00,  20.66 ] 0002
  Frozen: fb}
@@ -1746,8 +1746,8 @@
    PSP XC                              : "XC: Teter 93"
   #-------------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : bohr
-   Positions:
+   units                               : bohr
+   positions:
    - C: [ 7.425000055,  7.650000049,  6.451459184] # [  16.50,  17.00,  14.34 ] 0001
    -  {C: [ 7.425000055,  7.650000049,  9.298540634],  # [  16.50,  17.00,  20.66 ] 0002
  Frozen: fb}
@@ -2995,8 +2995,8 @@
    PSP XC                              : "XC: Teter 93"
   #-------------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : bohr
-   Positions:
+   units                               : bohr
+   positions:
    - C: [ 7.425795744,  7.648432451,  6.452615099] # [  16.50,  17.00,  14.34 ] 0001
    -  {C: [ 7.425795744,  7.648432451,  9.299696550],  # [  16.50,  17.00,  20.67 ] 0002
  Frozen: fb}
@@ -4244,8 +4244,8 @@
    PSP XC                              : "XC: Teter 93"
   #-------------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : bohr
-   Positions:
+   units                               : bohr
+   positions:
    - C: [ 7.428683330,  7.643493681,  6.457918860] # [  16.51,  16.99,  14.35 ] 0001
    -  {C: [ 7.428683330,  7.643493681,  9.305000310],  # [  16.51,  16.99,  20.68 ] 0002
  Frozen: fb}
@@ -5493,8 +5493,8 @@
    PSP XC                              : "XC: Teter 93"
   #-------------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : bohr
-   Positions:
+   units                               : bohr
+   positions:
    - C: [ 7.429804789,  7.642489409,  6.460925043] # [  16.51,  16.98,  14.36 ] 0001
    -  {C: [ 7.429804789,  7.642489409,  9.308006494],  # [  16.51,  16.98,  20.68 ] 0002
  Frozen: fb}
