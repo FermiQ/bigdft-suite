@@ -114,7 +114,7 @@ module dictionaries
 !!$   end interface dict_reduce
 
    interface dict_get
-      module procedure dict_get_l,dict_get_c,dict_get_i
+      module procedure dict_get_l,dict_get_c
    end interface dict_get
 
    interface dict_iter
@@ -1378,16 +1378,6 @@ contains
      val=default
      val=dict .get. key
    end function dict_get_c
-
-   function dict_get_i(dict,key,default) result(val)
-     implicit none
-     type(dictionary), pointer :: dict
-     character(len=*), intent(in) :: key
-     integer(f_integer), intent(in) :: default
-     integer(f_integer) :: val
-     val=default
-     val=dict .get. key
-   end function dict_get_i
 
    !> Internal procedure for .get. operator interface
    function list_container_if_key_exists(dict,key) result(list)

@@ -196,12 +196,13 @@ subroutine createPcProjectorsArrays(iproc,nproc,n1,n2,n3,rxyz,at,orbs,&
      PPD, Glr)
   !use module_base
   use module_types
-  use locregs, only: allocate_wfd,deallocate_wfd,locreg_descriptors
+  use locregs, only: allocate_wfd,deallocate_wfd
   use module_abscalc
   use module_interfaces, only: gaussian_pswf_basis
   use gaussians, only: deallocate_gwf
   use psp_projectors, only: bounds_to_plr_limits
   use psp_projectors_base
+  use locregs
   implicit none
   integer, intent(in) :: iproc,nproc,n1,n2,n3
   real(gp), intent(in) :: cpmult,fpmult,hx,hy,hz

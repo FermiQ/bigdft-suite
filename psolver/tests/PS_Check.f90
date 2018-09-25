@@ -84,10 +84,7 @@ program PS_Check
   usegpu = options//'accel'
 
   call dict_init(dict_input)
-  if (usegpu) then 
-    call dict_set(dict_input//'setup'//'accel','CUDA')
-    call dict_set(dict_input//'setup'//'use_gpu_direct','No')
-  end if
+  if (usegpu) call dict_set(dict_input//'setup'//'accel','CUDA')
   call dict_set(dict_input//'setup'//'taskgroup_size',nproc/2)
 
   if ('input' .in. options) &

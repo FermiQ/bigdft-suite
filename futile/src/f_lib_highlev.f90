@@ -50,7 +50,7 @@ subroutine initialize_flib_errors()
   call dictionaries_errors()
   call f_utils_errors()
   call yaml_output_errors()
-  !Initialize the error to parse yaml documents
+  !Intilialize the error to parse yaml documents
   call yaml_parse_errors()
   call refcnts_errors()
   call dynamic_memory_errors()
@@ -104,13 +104,13 @@ subroutine f_lib_initialize()
   call f_timing_initialize()
   !initialization of internal timing categories of f_lib
   call initialize_flib_timing_categories()
-  !initialization of bibliography database
+  ! initialization of bibliography database
   call f_bib_initialize()
 
 end subroutine f_lib_initialize
 
 
-!> Calls f_err_severe from outside the module
+!> calls f_err_severe from outside the module
 subroutine f_lib_err_severe_external(message)
   use dictionaries, only: f_err_severe
   implicit none

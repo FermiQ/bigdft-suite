@@ -368,9 +368,6 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
              nl%projs(iat)%region%plr%wfd%nseg_c,&
              nl%projs(iat)%region%plr%wfd%keyglob(1,1),nl%projs(iat)%region%plr%wfd%keyvglob(1))
 
-        call f_memcpy(n = nl%projs(iat)%region%plr%wfd%nseg_c, &
-             & src = nl%projs(iat)%region%plr%wfd%keyvglob(1), &
-             & dest = nl%projs(iat)%region%plr%wfd%keyvloc(1))
         call transform_keyglob_to_keygloc(lr,nl%projs(iat)%region%plr,nl%projs(iat)%region%plr%wfd%nseg_c,&
              nl%projs(iat)%region%plr%wfd%keyglob,nl%projs(iat)%region%plr%wfd%keygloc)
 
@@ -390,12 +387,8 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
                 logrid,mseg,nl%projs(iat)%region%plr%wfd%keyglob(1,iseg),&
                 nl%projs(iat)%region%plr%wfd%keyvglob(iseg))
 
-           call f_memcpy(n = mseg, &
-                & src = nl%projs(iat)%region%plr%wfd%keyvglob(iseg), &
-                & dest = nl%projs(iat)%region%plr%wfd%keyvloc(iseg))
            call transform_keyglob_to_keygloc(lr,nl%projs(iat)%region%plr,mseg,nl%projs(iat)%region%plr%wfd%keyglob(1,iseg),&
                 nl%projs(iat)%region%plr%wfd%keygloc(1,iseg))
-
         end if
         !!!in the case of linear scaling this section has to be built again
         !!if (init_projectors_completely) then
@@ -2863,7 +2856,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
      !now the meaning is KS potential
      do ispin=1,denspot%dpbox%nrhodim
         call f_memcpy(n=denspot%dpbox%ndimpot,&
-             src=denspot%V_ext(1,1,1,1),&
+             src=denspot%V_ext(1,1,1,ispin),&
              dest=denspot%rhov(1+(ispin-1)*denspot%dpbox%ndimpot))
      end do
      call denspot_set_rhov_status(denspot, KS_POTENTIAL, 0, iproc, nproc)

@@ -475,7 +475,7 @@ contains
     integer, intent(in) :: n_w !< number of complex components of the wavefunction
     type(wavefunctions_descriptors), intent(in) :: wfd_p !< descriptors of projectors
     type(wavefunctions_descriptors), intent(in) :: wfd_w !< descriptors of wavefunction
-    !> interaction between the wavefunction and the psp projector
+    !> interaction between the wavefuntion and the psp projector
     type(wfd_to_wfd), intent(in) :: tolr
     !> components of the projectors, real and imaginary parts
     real(wp), dimension(wfd_p%nvctr_c+7*wfd_p%nvctr_f,ncplx_p,n_p), intent(in) :: pr

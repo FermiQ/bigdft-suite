@@ -510,13 +510,12 @@ contains
     unt2=unt
   end function f_get_free_unit
 
-
   !> Create a directory from CWD path
   subroutine f_mkdir(dir,path)
     use f_precisions, only: f_integer
     implicit none
-    character(len=*), intent(in) :: dir   !< Directory to be created
-    character(len=*), intent(out) :: path !< Path of the created directory (trailing slash added)
+    character(len=*), intent(in) :: dir !<directory to be created
+    character(len=*), intent(out) :: path !<path of the created directory (trailing slash added)
     !local variables
     integer(f_integer) :: ierr
     integer(f_integer) :: lin,lout
@@ -534,7 +533,6 @@ contains
 
   end subroutine f_mkdir
 
-  
   subroutine f_delete_file(file)
     implicit none
     character(len=*), intent(in) :: file

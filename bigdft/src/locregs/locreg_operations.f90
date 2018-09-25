@@ -354,7 +354,7 @@ module locreg_operations
 
          !allocation of work arrays
          if (allocate_arrays) then
-            w%y_c = f_malloc_ptr((/ w%nyc, nspinor /),id='w%y_c',info='{alignment: 32}')
+            w%y_c = f_malloc_ptr((/ w%nyc, nspinor /),id='w%y_c')
             w%y_f = f_malloc_ptr((/ w%nyf, nspinor /),id='w%y_f')
             w%x_c = f_malloc_ptr((/ w%nxc, nspinor /),id='w%x_c')
             w%x_f = f_malloc_ptr((/ w%nxf, nspinor /),id='w%x_f')
@@ -388,7 +388,7 @@ module locreg_operations
          !allocation of work arrays
          if (allocate_arrays) then
             w%x_c = f_malloc_ptr((/ w%nxc, nspinor /),id='w%x_c')
-            w%y_c = f_malloc_ptr((/ w%nyc, nspinor /),id='w%y_c',info='{alignment: 32}')
+            w%y_c = f_malloc_ptr((/ w%nyc, nspinor /),id='w%y_c')
          end if
 
       case('P')
@@ -414,7 +414,7 @@ module locreg_operations
             w%nxf2=nf
             w%nxf3=nf
 
-            w%y_c = f_malloc_ptr((/ w%nyc, nspinor /),id='w%y_c',info='{alignment: 32}')
+            w%y_c = f_malloc_ptr((/ w%nyc, nspinor /),id='w%y_c')
             w%y_f = f_malloc_ptr((/ w%nyf, nspinor /),id='w%y_f')
             w%x_c = f_malloc_ptr((/ w%nxc, nspinor /),id='w%x_c')
             w%x_f = f_malloc_ptr((/ w%nxf, nspinor /),id='w%x_f')
@@ -438,7 +438,7 @@ module locreg_operations
 
             if (allocate_arrays) then
                w%x_c = f_malloc_ptr((/ w%nxc, nspinor /),id='w%x_c')
-               w%y_c = f_malloc_ptr((/ w%nyc, nspinor /),id='w%y_c',info='{alignment: 32}')
+               w%y_c = f_malloc_ptr((/ w%nyc, nspinor /),id='w%y_c')
             end if
          endif
       end select
@@ -515,7 +515,7 @@ module locreg_operations
 
          !allocation of work arrays
          if (allocate_arrays) then
-            w%y_c = f_malloc_ptr((/ w%nyc, nspinor /),id='w%y_c',info='{alignment: 32}')
+            w%y_c = f_malloc_ptr((/ w%nyc, nspinor /),id='w%y_c')
             w%y_f = f_malloc_ptr((/ w%nyf, nspinor /),id='w%y_f')
             w%x_c = f_malloc_ptr((/ w%nxc, nspinor /),id='w%x_c')
             w%x_f = f_malloc_ptr((/ w%nxf, nspinor /),id='w%x_f')
@@ -549,7 +549,7 @@ module locreg_operations
          !allocation of work arrays
          if (allocate_arrays) then
             w%x_c = f_malloc_ptr((/ w%nxc, nspinor /),id='w%x_c')
-            w%y_c = f_malloc_ptr((/ w%nyc, nspinor /),id='w%y_c',info='{alignment: 32}')
+            w%y_c = f_malloc_ptr((/ w%nyc, nspinor /),id='w%y_c')
          end if
 
       case('P')
@@ -575,7 +575,7 @@ module locreg_operations
             w%nxf2=nf
             w%nxf3=nf
 
-            w%y_c = f_malloc_ptr((/ w%nyc, nspinor /),id='w%y_c',info='{alignment: 32}')
+            w%y_c = f_malloc_ptr((/ w%nyc, nspinor /),id='w%y_c')
             w%y_f = f_malloc_ptr((/ w%nyf, nspinor /),id='w%y_f')
             w%x_c = f_malloc_ptr((/ w%nxc, nspinor /),id='w%x_c')
             w%x_f = f_malloc_ptr((/ w%nxf, nspinor /),id='w%x_f')
@@ -599,7 +599,7 @@ module locreg_operations
 
             if (allocate_arrays) then
                w%x_c = f_malloc_ptr((/ w%nxc, nspinor /),id='w%x_c')
-               w%y_c = f_malloc_ptr((/ w%nyc, nspinor /),id='w%y_c',info='{alignment: 32}')
+               w%y_c = f_malloc_ptr((/ w%nyc, nspinor /),id='w%y_c')
             end if
          endif
       case('W')

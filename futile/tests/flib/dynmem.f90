@@ -34,7 +34,7 @@ subroutine test_dynamic_memory()
    real(kind=8), dimension(:), pointer :: extra_ref
    real(kind=8), dimension(:,:), save, allocatable :: ab
    real(kind=8), dimension(:,:), allocatable :: b
-   real(f_double), dimension(:), pointer :: test_association,tmp1, aligned_ptr
+   real(f_double), dimension(:), pointer :: test_association,tmp1
    integer(f_long), dimension(:), pointer :: test_long,tmp_long
    integer, dimension(:), pointer :: arrayA,arrayB,arrayC,arrayD,arrayE,arrayF,arrayG,arrayH
    integer, dimension(:), allocatable :: i_arrA,i_arrB,i_arrC,i_arrD,i_arrE,i_arrF,i_arrG,i_arrH
@@ -541,10 +541,7 @@ call f_free(weight)
    call yaml_map('Original pointer',test_long)
    call f_free_ptr(test_long)
 
-   aligned_ptr=f_malloc_ptr(750,id='toto',info='{alignment: 32}')
-   call inspect_pointer(aligned_ptr,'aligned subpointer')
 
-   call f_free_ptr(aligned_ptr)
 
    call f_release_routine()
 

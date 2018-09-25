@@ -1,6 +1,6 @@
 pyfutile_PYTHON= \
 	__init__.py \
-	YamlIO.py \
+	Yaml.py \
 	Time.py \
 	Utils.py
 

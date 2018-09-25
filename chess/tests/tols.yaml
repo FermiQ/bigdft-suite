@@ -22,7 +22,7 @@ driver_random:
   mean error relative: 4.5e-10
 
 driver_foe:
-  difference: 4.6e-10
+  difference: 2.0e-11
   trace(KS): 1.8e-11
   max diff of eigenvectors: 2.5e-11
   penalty: 241001

@@ -42,19 +42,8 @@
 !          kind(array)*padding)
 !  end if
 !  !END--- allocate_profile-inc.f90
-!  alignment=0
-!  if(len_trim(m%info) > 0) then
-!     info => yaml_load(m%info)
-!     alignment=info//'Alignment'
-!     call dict_free(info)
-!  end if
-!  if (alignment /=0)
-!    array=aligned_alloc(align_size,size)
-!  else
-
 !  !allocate the array
 !  allocate(array(m%lbounds(1):m%ubounds(1)+ndebug),stat=ierror)
-!end
 !  !--- allocate-inc.f90
 !  if (f_nan_pad_size > 0) call togglepadding(0)
 !  if (ierror/=0) then
@@ -796,8 +785,7 @@ subroutine d1_ptr(array,m)
   type(c_ptr) :: p
   !local variables
   include 'allocate-profile-inc.f90' 
-  include 'allocate-ptr-inc.f90'
-  include 'allocate-aligned-inc.f90'
+  include 'allocate-ptr-inc.f90' 
   include 'allocate-simgrid-inc.f90' 
   !allocate the array
   allocate(array(m%lbounds(1):m%ubounds(1)+ndebug),stat=ierror)
@@ -861,8 +849,7 @@ subroutine d2_ptr(array,m)
   type(c_ptr) :: p
   double precision, dimension(:,:), pointer, intent(inout) :: array
   include 'allocate-profile-inc.f90'
-  include 'allocate-ptr-inc.f90'
-  include 'allocate-aligned-inc.f90'
+  include 'allocate-ptr-inc.f90' 
   include 'allocate-simgrid-inc.f90' 
   !allocate the array
   allocate(array(m%lbounds(1):m%ubounds(1),m%lbounds(2):m%ubounds(2)+ndebug),stat=ierror)
@@ -911,7 +898,6 @@ subroutine d3_ptr(array,m)
   type(c_ptr) :: p
   include 'allocate-profile-inc.f90'
   include 'allocate-ptr-inc.f90' 
-  include 'allocate-aligned-inc.f90'
   include 'allocate-simgrid-inc.f90' 
   !allocate the array
   allocate(array(m%lbounds(1):m%ubounds(1),m%lbounds(2):m%ubounds(2),&
@@ -1005,8 +991,7 @@ subroutine d4_ptr(array,m)
   double precision :: d
   type(c_ptr) :: p
   include 'allocate-profile-inc.f90'
-  include 'allocate-ptr-inc.f90'
-  include 'allocate-aligned-inc.f90'
+  include 'allocate-ptr-inc.f90' 
   include 'allocate-simgrid-inc.f90' 
   !allocate the array
   allocate(array(m%lbounds(1):m%ubounds(1),m%lbounds(2):m%ubounds(2),&
@@ -1032,8 +1017,7 @@ subroutine d5_ptr(array,m)
   double precision :: d
   type(c_ptr) :: p
   include 'allocate-profile-inc.f90'
-  include 'allocate-ptr-inc.f90'
-  include 'allocate-aligned-inc.f90'
+  include 'allocate-ptr-inc.f90' 
   include 'allocate-simgrid-inc.f90' 
   !allocate the array
   allocate(array(m%lbounds(1):m%ubounds(1),m%lbounds(2):m%ubounds(2),&
@@ -1060,8 +1044,7 @@ subroutine d6_ptr(array,m)
   double precision :: d
   type(c_ptr) :: p
   include 'allocate-profile-inc.f90'
-  include 'allocate-ptr-inc.f90'
-  include 'allocate-aligned-inc.f90'
+  include 'allocate-ptr-inc.f90' 
   include 'allocate-simgrid-inc.f90' 
   !allocate the array
   allocate(array(m%lbounds(1):m%ubounds(1),m%lbounds(2):m%ubounds(2),&

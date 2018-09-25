@@ -317,12 +317,10 @@ contains
     call deallocate_nonlocal_psp_descriptors(projs%region)
     proj => projs%projs
     do while (associated(proj))
-       !print *,'shape',shape(proj%coeff)
        call f_free_ptr(proj%coeff)
        doomed => proj
-       deallocate(doomed)
-       nullify(doomed)
        proj => proj%next
+       deallocate(doomed)
     end do
   end subroutine deallocate_daubechies_projectors
 

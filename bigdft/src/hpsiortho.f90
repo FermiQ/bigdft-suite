@@ -694,6 +694,7 @@ subroutine LocalHamiltonianApplication(iproc,nproc,at,npsidim_orbs,orbs,&
   ipotmethod=0
   if (exctX) ipotmethod=1
 
+
   !the PZ-SIC correction does not makes sense for virtual orbitals procedure
   !if alphaSIC is zero no SIC correction
   if (SIC%approach == 'PZ' .and. .not. present(orbsocc) .and. SIC%alpha /= 0.0_gp ) ipotmethod=2
@@ -701,9 +702,11 @@ subroutine LocalHamiltonianApplication(iproc,nproc,at,npsidim_orbs,orbs,&
 
   !the poisson kernel should be present and associated in the case of SIC
   if ((ipotmethod /= 0) .and. present(pkernel)) then
-     if (.not. associated(pkernel%kernel)) call f_err_throw(&
-             'ERROR(LocalHamiltonianApplication): Poisson Kernel must be associated in SIC / Exct case',&
-             err_name='BIGDFT_RUNTIME_ERROR')
+     if (.not. associated(pkernel%kernel)) then
+        if (iproc ==0) write(*,*)&
+             &   'ERROR(LocalHamiltonianApplication): Poisson Kernel must be associated in SIC case'
+        stop
+     end if
   end if
 
   !associate the poisson kernel pointer in case of SIC
@@ -774,7 +777,7 @@ subroutine LocalHamiltonianApplication(iproc,nproc,at,npsidim_orbs,orbs,&
 
            ndim=Lzd%Glr%d%n1i*Lzd%Glr%d%n2i*Lzd%Glr%d%n3i
 
-           symmetric=.false.
+           symmetric=.true.
            call f_zero(ndim*orbs%norbp,pot(ispot))
            !if (iproc==0) call yaml_map('Orbital repartition',nobj_par)
            !Comment because the test is not fully operational.
@@ -820,10 +823,9 @@ subroutine LocalHamiltonianApplication(iproc,nproc,at,npsidim_orbs,orbs,&
            !we need to get the result back from the card (and synchronize with it, finally)
            if(pkernel%igpu==1 .and. pkernel%stay_on_gpu==1) then
               call get_gpu_data(1, energs%eexctX, pkernel%w%eexctX_GPU )
-              call synchronize()
               call cudamemset(pkernel%w%eexctX_GPU,0,1,i_stat)
               if (i_stat /= 0) call f_err_throw('error cudamalloc eexctX_GPU (GPU out of memory ?) ')
-              !              pkernel%stay_on_gpu=0
+              pkernel%stay_on_gpu=0
            end if
            call free_OP2P_data(OP2P)
            if (nproc>1) call fmpi_allreduce(energs%eexctX,1,FMPI_SUM,comm=bigdft_mpi%mpi_comm)

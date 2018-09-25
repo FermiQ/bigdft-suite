@@ -433,9 +433,8 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
           accuracy_function=in%cp%foe%accuracy_ice, accuracy_penalty=in%cp%foe%accuracy_penalty, &
           betax=in%cp%foe%betax_ice, occupation_function=in%cp%foe%occupation_function, &
           adjust_fscale=in%cp%foe%adjust_fscale, &
-          diff_tolerance=in%cp%foe%diff_tolerance, &
-          diff_target=in%cp%foe%diff_target, &
-          adjust_fscale_smooth=in%cp%foe%adjust_fscale_smooth)
+          fscale_ediff_low=in%cp%foe%fscale_ediff_low, &
+          fscale_ediff_up=in%cp%foe%fscale_ediff_up)
      call f_free(charge_fake)
 
      !!call f_free(locreg_centers)
@@ -713,7 +712,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
            inputpsi,input_wf_format,norbv,lzd_old,psi_old,rxyz_old,tmb_old,ref_frags,cdft)
    end if
 
-  nvirt=min(in%nvirt,norbv)
+  nvirt=max(in%nvirt,norbv)
 
   ! modified by SM
   call deallocate_local_zone_descriptors(lzd_old)
@@ -1473,24 +1472,22 @@ contains
   subroutine deallocate_before_exiting
     use communications_base, only: deallocate_comms
     use module_cfd, only: cfd_free
-    use PStypes
     implicit none
     external :: gather_timings
   !when this condition is verified we are in the middle of the SCF cycle
     if (infocode /=0 .and. infocode /=1 .and. inputpsi /= 'INPUT_PSI_EMPTY') then
        call f_free_ptr(denspot%V_ext)
 
-       if (pkernel_seq_is_needed(in,denspot)) then ! .and. nproc >1) then
-          !if (.not. associated(denspot%pkernelseq%kernel,target=denspot%pkernel%kernel) .and. &
-          !     associated(denspot%pkernelseq%kernel)) then
-          call pkernel_free(denspot%pkernelseq)
+       if (((in%exctxpar == 'OP2P' .and. xc_exctXfac(denspot%xc) /= 0.0_gp) &
+            .or. in%SIC%alpha /= 0.0_gp) .and. nproc >1) then
+          if (.not. associated(denspot%pkernelseq%kernel,target=denspot%pkernel%kernel) .and. &
+               associated(denspot%pkernelseq%kernel)) then
+             call pkernel_free(denspot%pkernelseq)
+          end if
+       else if (nproc == 1 .and. (in%exctxpar == 'OP2P' .or. in%SIC%alpha /= 0.0_gp)) then
+          nullify(denspot%pkernelseq%kernel)
        end if
-       !else if (nproc == 1 .and. (in%exctxpar == 'OP2P' .or. in%SIC%alpha /= 0.0_gp)) then
-       !   nullify(denspot%pkernelseq%kernel)
-       !end if
        call pkernel_free(denspot%pkernel)
-       denspot%pkernel   =pkernel_null()
-       denspot%pkernelseq=pkernel_null()
 
        ! calc_tail false
        call f_free_ptr(denspot%rhov)

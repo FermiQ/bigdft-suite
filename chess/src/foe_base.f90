@@ -49,15 +49,8 @@ module foe_base
     real(mp) :: accuracy_penalty !< Accuracy of the Chebyshev fit for the penalty function to estimate the eigenvalue bounds
     integer :: occupation_function !< Function to determine the occupation numbers
     logical :: adjust_fscale !< dynamically adjust fscale or not
-    real(kind=mp) :: diff_target  !< target energy difference between the normal kernel and the control kernel
-    real(kind=mp) :: diff_tolerance !< tolerance factor (with respect to diff_target) beyond which the calculation will be repeated
-    !!real(kind=mp) :: fscale_inc_factor !< factor to increase fscale in case it is too small
-    !!real(kind=mp) :: fscale_dec_factor !< factor to decrease fscale in case it is too small
-    !!real(kind=mp) :: fscale_inc_factor_min !< minimal factor to increase fscale in case it is too small
-    !!real(kind=mp) :: fscale_inc_factor_max !< maximal factor to increase fscale in case it is too small
-    !!real(kind=mp) :: fscale_dec_factor_min !< minimal factor to decrease fscale in case it is too small
-    !!real(kind=mp) :: fscale_dec_factor_max !< maximal factor to decrease fscale in case it is too small
-    logical :: adjust_fscale_smooth !< new smooth way to adjust fscale
+    real(kind=mp) :: fscale_ediff_low !< lower bound for the optimal relative energy difference between the kernel and the control kernel
+    real(kind=mp) :: fscale_ediff_up  !< upper bound for the optimal relative energy difference between the kernel and the control kernel
   end type foe_data
 
 
@@ -105,15 +98,8 @@ module foe_base
       foe_obj%accuracy_penalty       =f_none()
       foe_obj%occupation_function    =f_none()
       foe_obj%adjust_fscale          =f_none()
-      foe_obj%diff_tolerance         =f_none()
-      foe_obj%diff_target            =f_none()
-      !foe_obj%fscale_inc_factor      =f_none()
-      !foe_obj%fscale_dec_factor      =f_none()
-      !foe_obj%fscale_inc_factor_min  =f_none()
-      !foe_obj%fscale_inc_factor_max  =f_none()
-      !foe_obj%fscale_dec_factor_min  =f_none()
-      !foe_obj%fscale_dec_factor_max  =f_none()
-      foe_obj%adjust_fscale_smooth   =f_none()
+      foe_obj%fscale_ediff_low       =f_none()
+      foe_obj%fscale_ediff_up        =f_none()
     end subroutine nullify_foe_data
 
     pure function foe_data_null() result(foe_obj)
@@ -165,15 +151,8 @@ module foe_base
       foe_obj_out%accuracy_penalty       = foe_obj_in%accuracy_penalty
       foe_obj_out%occupation_function    = foe_obj_in%occupation_function
       foe_obj_out%adjust_fscale          = foe_obj_in%adjust_fscale
-      foe_obj_out%diff_tolerance         = foe_obj_in%diff_tolerance
-      foe_obj_out%diff_target            = foe_obj_in%diff_target
-      !foe_obj_out%fscale_inc_factor      = foe_obj_in%fscale_inc_factor
-      !foe_obj_out%fscale_dec_factor      = foe_obj_in%fscale_dec_factor
-      !foe_obj_out%fscale_inc_factor_min  = foe_obj_in%fscale_inc_factor_min
-      !foe_obj_out%fscale_inc_factor_max  = foe_obj_in%fscale_inc_factor_max
-      !foe_obj_out%fscale_dec_factor_min  = foe_obj_in%fscale_dec_factor_min
-      !foe_obj_out%fscale_dec_factor_max  = foe_obj_in%fscale_dec_factor_max
-      foe_obj_out%adjust_fscale_smooth   = foe_obj_in%adjust_fscale_smooth
+      foe_obj_out%fscale_ediff_low       = foe_obj_in%fscale_ediff_low
+      foe_obj_out%fscale_ediff_up        = foe_obj_in%fscale_ediff_up
     end subroutine copy_foe_data
 
 
@@ -326,22 +305,10 @@ module foe_base
           foe_obj%accuracy_function = val
       case ("accuracy_penalty")
           foe_obj%accuracy_penalty = val
-      case ("diff_tolerance")
-          foe_obj%diff_tolerance = val
-      case ("diff_target")
-          foe_obj%diff_target = val
-      !case ("fscale_inc_factor")
-      !    foe_obj%fscale_inc_factor = val
-      !case ("fscale_dec_factor")
-      !    foe_obj%fscale_dec_factor = val
-      !case ("fscale_inc_factor_min")
-      !    foe_obj%fscale_inc_factor_min = val
-      !case ("fscale_inc_factor_max")
-      !    foe_obj%fscale_inc_factor_max = val
-      !case ("fscale_dec_factor_min")
-      !    foe_obj%fscale_dec_factor_min = val
-      !case ("fscale_dec_factor_max")
-      !    foe_obj%fscale_dec_factor_max = val
+      case ("fscale_ediff_low")
+          foe_obj%fscale_ediff_low = val
+      case ("fscale_ediff_up")
+          foe_obj%fscale_ediff_up = val
       case default
           call f_err_throw("wrong argument for "//trim(fieldname))
       end select
@@ -419,22 +386,10 @@ module foe_base
           val = foe_obj%accuracy_function
       case ("accuracy_penalty")
           val = foe_obj%accuracy_penalty
-      case ("diff_tolerance")
-          val = foe_obj%diff_tolerance
-      case ("diff_target")
-          val = foe_obj%diff_target
-      !case ("fscale_inc_factor")
-      !    val = foe_obj%fscale_inc_factor
-      !case ("fscale_dec_factor")
-      !    val = foe_obj%fscale_dec_factor
-      !case ("fscale_inc_factor_min")
-      !    val = foe_obj%fscale_inc_factor_min
-      !case ("fscale_inc_factor_max")
-      !    val = foe_obj%fscale_inc_factor_max
-      !case ("fscale_dec_factor_min")
-      !    val = foe_obj%fscale_dec_factor_min
-      !case ("fscale_dec_factor_max")
-      !    val = foe_obj%fscale_dec_factor_max
+      case ("fscale_ediff_low")
+          val = foe_obj%fscale_ediff_low
+      case ("fscale_ediff_up")
+          val = foe_obj%fscale_ediff_up
       case default
           call f_err_throw("wrong argument for "//trim(fieldname))
       end select
@@ -450,8 +405,6 @@ module foe_base
       select case (fieldname)
       case ("adjust_fscale")
           foe_obj%adjust_fscale = val
-      case ("adjust_fscale_smooth")
-          foe_obj%adjust_fscale_smooth = val
       case default
           call f_err_throw("wrong argument for "//trim(fieldname))
       end select
@@ -466,8 +419,6 @@ module foe_base
       select case (fieldname)
       case ("adjust_fscale")
           val = foe_obj%adjust_fscale
-      case ("adjust_fscale_smooth")
-          val = foe_obj%adjust_fscale_smooth
       case default
           call f_err_throw("wrong argument for "//trim(fieldname))
       end select

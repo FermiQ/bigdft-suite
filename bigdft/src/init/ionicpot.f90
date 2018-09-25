@@ -36,6 +36,7 @@ subroutine IonicEnergyandForces(iproc,nproc,dpbox,at,elecfield,&
   use sparsematrix_init, only: distribute_on_tasks
   use gaussians
   use box
+  use bounds
   implicit none
   !Arguments
   type(denspot_distribution), intent(inout) :: dpbox

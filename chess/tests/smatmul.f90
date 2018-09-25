@@ -34,11 +34,9 @@ program smatmul
   use sparsematrix_init, only: bigdft_to_sparsebigdft, distribute_columns_on_processes_simple, check_symmetry, &
                                init_matrix_taskgroups_wrapper, write_sparsematrix_info
   use sparsematrix, only: write_matrix_compressed, &
-                          sparsemm_newnew, sequential_acces_matrix_fast2, &
+                          sparsemm_new, sequential_acces_matrix_fast2, &
                           compress_matrix_distributed_wrapper, &
-                          resize_matrix_to_taskgroup, &
-                          uncompress_matrix, &
-                          compress_matrix
+                          resize_matrix_to_taskgroup
   use sparsematrix_io, only: read_sparse_matrix, write_sparse_matrix
   use sparsematrix_highlevel, only: sparse_matrix_and_matrices_init_from_file_bigdft
   implicit none
@@ -47,7 +45,7 @@ program smatmul
 
   ! Variables
   integer :: iproc, nproc, ncol, nnonzero, nseg, ncolp, iscol, ierr, nspin,comm
-  integer :: nfvctr, nvctr, isfvctr, nfvctrp, nit, it, verbosity, nat, ntypes, matmul_matrix
+  integer :: nfvctr, nvctr, isfvctr, nfvctrp, nit, it, verbosity, nat, ntypes
   !character(len=*),parameter :: filename='matrix.dat'
   character(len=1024) :: filename
   character(len=1) :: geocode
@@ -56,13 +54,12 @@ program smatmul
   character(len=20),dimension(:),pointer :: atomnames
   real(kind=8),dimension(:,:),pointer :: rxyz
   type(sparse_matrix),dimension(1) :: smat
-  type(matrices) :: matA, matB
+  type(matrices) :: matA
   real(kind=8) :: max_error, mean_error
   logical :: symmetric
   real(kind=8) :: time_start, time_end
   real(kind=8),dimension(:),pointer :: mat_compr
-  real(kind=8),dimension(:),pointer :: mat_seq
-  real(kind=8),dimension(:),allocatable :: vector_in, vector_out
+  real(kind=8),dimension(:),allocatable :: mat_seq, vector_in, vector_out
   type(dictionary), pointer :: dict_timing_info
   type(dictionary), pointer :: options
   type(yaml_cl_parse) :: parser !< command line parser
@@ -81,9 +78,7 @@ program smatmul
   filename = options//'filename'
   nit = options//'nit'
   verbosity = options//'verbosity'
-  matmul_matrix = options//'matmul_matrix'
   call dict_free(options)
-
 
   if (verbosity<1 .or. verbosity>2) then
       call f_err_throw('wrong value for the verbosity, only 1 or 2 is allowed', &
@@ -105,16 +100,6 @@ program smatmul
 
   if (iproc==0) then
       call yaml_new_document()
-  end if
-
-
-  if (iproc==0) then
-      call yaml_mapping_open('Input parameters')
-      call yaml_map('filename',filename)
-      call yaml_map('nit',nit)
-      call yaml_map('verbosity',verbosity)
-      call yaml_map('matmul_matrix',matmul_matrix)
-      call yaml_mapping_close()
   end if
 
   call f_timing_reset(filename='time.yaml',master=iproc==0,verbose_mode=.true. .and. nproc>1)
@@ -143,7 +128,7 @@ program smatmul
   !!matA%matrix_compr = mat_compr
 
   call sparse_matrix_and_matrices_init_from_file_bigdft('serial_text', filename, iproc, nproc,comm, smat(1), matA, &
-       init_matmul=.true., filename_mult=filename, matmul_matrix=matmul_matrix)!, nat=nat, ntypes=ntypes, nzatom=nzatom, nelpsp=nelpsp, &
+       init_matmul=.true., filename_mult=filename)!, nat=nat, ntypes=ntypes, nzatom=nzatom, nelpsp=nelpsp, &
        !atomnames=atomnames, iatype=iatype, rxyz=rxyz, on_which_atom=on_which_atom)
 
   call init_matrix_taskgroups_wrapper(iproc, nproc, mpi_comm_world, .true., 1, smat)
@@ -171,37 +156,16 @@ program smatmul
   call fmpi_barrier(comm)
   time_start = mpi_wtime()
 
+  mat_seq = sparsematrix_malloc(smat(1), iaction=SPARSEMM_SEQ, id='mat_seq')
   vector_in = f_malloc0(smat(1)%smmm%nvctrp,id='vector_in')
   vector_out = f_malloc0(smat(1)%smmm%nvctrp,id='vector_out')
-  !call sequential_acces_matrix_fast2(smat(1), matA%matrix_compr, mat_seq)
-  !!write(*,*) 'sum(mat_seq)', sum(mat_seq)
-
-  !!! # DEBUG ####################
-  !!matA%matrix = sparsematrix_malloc0_ptr(smat(1), iaction=DENSE_FULL, id='matA%matrix')
-  !!matB%matrix = sparsematrix_malloc0_ptr(smat(1), iaction=DENSE_FULL, id='matB%matrix')
-  !!matB%matrix_compr = sparsematrix_malloc0_ptr(smat(1), iaction=SPARSE_FULL, id='matB%matrix_compr')
-  !!call uncompress_matrix(iproc,nproc,smat(1),matA%matrix_compr,matA%matrix)
-  !!call dgemm('n', 'n', smat(1)%nfvctr, smat(1)%nfvctr, smat(1)%nfvctr, 1.d0, &
-  !!          matA%matrix, smat(1)%nfvctr, matA%matrix, smat(1)%nfvctr, &
-  !!          0.d0, matB%matrix, smat(1)%nfvctr)
-  !!call compress_matrix(iproc,nproc,smat(1),matB%matrix,matB%matrix_compr)
-  !!if (verbosity==2) then
-  !!    call write_matrix_compressed(iproc, nproc, mpiworld(), 'correct result', smat(1), matB)
-  !!end if
-  !!! # DEBUG ####################
+  call sequential_acces_matrix_fast2(smat(1), matA%matrix_compr, mat_seq)
 
   !call vcopy(smat(1)%smmm%nvctrp, matA%matrix_compr(smat(1)%smmm%isvctr_mm_par(iproc)+1), 1, vector_in(1), 1)
   call vcopy(smat(1)%smmm%nvctrp, matA%matrix_compr(smat(1)%smmm%isvctr_mm_par(iproc)+1-smat(1)%isvctrp_tg), &
        1, vector_in(1), 1)
-  if (smat(1)%smmm%matmul_matrix == MATMUL_ORIGINAL_MATRIX) then
-      mat_seq => matA%matrix_compr
-  else if (smat(1)%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
-      mat_seq = sparsematrix_malloc_ptr(smat(1), iaction=SPARSEMM_SEQ, id='mat_seq')
-      call sequential_acces_matrix_fast2(smat(1), matA%matrix_compr, mat_seq)
-  end if
   do it=1,nit
-      !call sparsemm_new(iproc, smat(1), mat_seq, vector_in, vector_out)
-      call sparsemm_newnew(iproc, smat(1), mat_seq, vector_in, vector_out)
+      call sparsemm_new(iproc, smat(1), mat_seq, vector_in, vector_out)
       call vcopy(smat(1)%smmm%nvctrp, vector_out(1), 1, vector_in(1), 1)
   end do
 
@@ -223,9 +187,7 @@ program smatmul
   call deallocate_matrices(matA)
   !call f_free_ptr(keyv)
   !call f_free_ptr(keyg)
-  if (smat(1)%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
-      call f_free_ptr(mat_seq)
-  end if
+  call f_free(mat_seq)
   !call f_free_ptr(mat_compr)
   call f_free(vector_in)
   call f_free(vector_out)
@@ -316,15 +278,8 @@ subroutine commandline_options(parser)
   call yaml_cl_parse_option(parser,'verbosity','2',&
        'verbosity of the output','v',&
        dict_new('Usage' .is. &
-       'If the verbosity is high, the final result will be printed to the screen',&
+       'If the verbosity is high, the final result will be printed to the scree',&
        'Allowed values' .is. &
        'Integer. Only 1 or 2 is possible'))
-
-  call yaml_cl_parse_option(parser,'matmul_matrix','301',&
-       'storage format of the sparse matrix for the sparse matrix multiplications','m',&
-       dict_new('Usage' .is. &
-       'Indicate storage format of the sparse matrix for the sparse matrix multiplications.',&
-       'Allowed values' .is. &
-       'Integer. Only 301 (MATMUL_REPLICATE_MATRIX) or 302 (MATMUL_ORIGINAL_MATRIX) is possible'))
 
 end subroutine commandline_options

@@ -450,8 +450,7 @@ contains
   END SUBROUTINE count_atomic_shells
 
 
-  !> Fill the corresponding arrays with atomic information, compressed as indicated in the module.
-  !! Start from input polarization and charge if present
+  !> Fill the corresponding arrays with atomic information, compressed as indicated in the module. start from input polarization and charge if present
   function aoig_set(zatom,zion,input_pol,nspin) result(aoig)
     use yaml_strings, only: yaml_toa
     implicit none
@@ -532,8 +531,7 @@ contains
     end if
   end function aoig_set
 
-
-  !> Fill electronic configuration of the atom from the input dictionary
+  !> fill electronic configuration of the atom from the input dictionary
   function aoig_set_from_dict(dict,nspin_in,aoig_source) result(aoig)
     use module_defs, only: gp, UNINITIALIZED
     use dictionaries
@@ -645,7 +643,7 @@ contains
              read(key(is:is), "(I1)") n
           else
              call f_err_throw('Error in parsing occupation dictionary, the key "'//&
-                  trim(key)//'" is expected to contain an integer inside.'//&
+                  trim(key)//'" is expected to contain a integer inside.'//&
                   'The other allowed value is "'//EXTRA_SHELLS_KEY//'".',&
                   err_name='BIGDFT_INPUT_VARIABLES_ERROR')
           end if

@@ -39,7 +39,7 @@ subroutine initialize_potential( )
       !now we define the fitting zone
       call initialize_fitting_zone()
       call fit_SW_potential()
-      call fmpi_barrier()
+      call mpibarrier()
       elseif (energy_type == "BAY") then
       call init_potential_SW()
       call bigdft_init_art(nbr_quantum, iproc, nproc, my_gnrm,passivate,natoms )
@@ -53,7 +53,7 @@ subroutine initialize_potential( )
 
       !we prepare the first bayes data set
       call create_bayes_data()
-      call fmpi_barrier()
+      call mpibarrier()
    else
       write(*,*) "You have not chosen a proper energy type. Choose SWP or BIG in ENERGY_CALC"
       stop

@@ -41,7 +41,7 @@ module time_profiling
   !Error codes
   integer, public, save :: TIMING_INVALID
  
-  !> Contains all global variables associated to time profiling
+  !> contains all global variables associated to time profiling
   type :: time_ctrl
      logical :: master !<flag to store whether the instance can write on a file
      logical :: debugmode !<flag to store how to process the information
@@ -52,10 +52,10 @@ module time_profiling
      integer(f_long) :: epoch !<time of the creation of the routine
      double precision :: time0 !<reference time since last checkpoint
      double precision :: t0 !<reference time since last opening action
-     double precision, dimension(ncat_max+1) :: clocks       !< timings of different categories
+     double precision, dimension(ncat_max+1) :: clocks !< timings of different categories
      double precision, dimension(nctr_max) :: counter_clocks !< times of the partial counters
      character(len=10), dimension(nctr_max) :: counter_names !< names of the partial counters, to be assigned
-     character(len=128) :: report_file                    !< name of the file to write the report on
+     character(len=128) :: report_file !<name of the file to write the report on
      type(dictionary), pointer :: dict_timing_categories  !< categories definitions
      type(dictionary), pointer :: dict_timing_groups      !< group definitions
   end type time_ctrl
@@ -95,8 +95,7 @@ module time_profiling
       nullify(time%dict_timing_groups)
     end subroutine nullify_time_ctrl
 
-
-    !> Check if the module has been initialized
+    !> check if the module has been initialized
     subroutine check_initialization()
       implicit none
       if (ictrl==0) then 
@@ -105,8 +104,7 @@ module time_profiling
       end if
     end subroutine check_initialization
 
-
-    !> For the moment the timing callback is a severe error.
+    !>for the moment the timing callback is a severe error.
     !! we should decide what to do to override this
     subroutine f_timing_callback()
       use yaml_output
@@ -210,8 +208,7 @@ module time_profiling
       end if
     end subroutine f_timing_category
 
-
-    !> Initialize the timing by putting to zero all the chronometers
+    !initialize the timing by putting to zero all the chronometers
     subroutine f_timing_initialize()
       use yaml_strings, only: yaml_toa
       implicit none
@@ -238,16 +235,14 @@ module time_profiling
       times(ictrl)%timing_ncat=0
     end subroutine f_timing_initialize
 
-
-    !> Get the walltime since most recent call of the f_timing initialize
+    !> get the walltime since most recent call of the f_timing initialize
     function f_clock()
       implicit none
       integer(f_long) :: f_clock !< elapsed walltime since last call of the initialize
       f_clock=f_time()-times(ictrl)%epoch
     end function f_clock
 
-
-    !> Finalize the timing by putting to zero all the chronometers
+    !finalize the timing by putting to zero all the chronometers
     subroutine f_timing_finalize(walltime)
       use yaml_output
       implicit none
@@ -261,8 +256,7 @@ module time_profiling
       ictrl=ictrl-1
     end subroutine f_timing_finalize
 
-
-    !> Re-initialize the timing by putting to zero all the chronometers (old action IN)
+    !re-initialize the timing by putting to zero all the chronometers (old action IN)
     subroutine f_timing_reset(filename,master,verbose_mode)
       use yaml_output, only: yaml_new_document
       implicit none
@@ -316,8 +310,7 @@ module time_profiling
       end if
     end subroutine f_timing_reset
 
-
-    !> Perform a checkpoint of the chronometer with a partial counter
+    !>perform a checkpoint of the chronometer with a partial counter
     !! the last active category is halted and a summary of the timing 
     !! is printed out
     subroutine f_timing_checkpoint(ctr_name,mpi_comm,nproc,gather_routine)
@@ -548,7 +541,6 @@ module time_profiling
       times(ictrl)%timing_nctr=0 !no partial counters activated anymore
     end subroutine f_timing_stop
 
-
     !> The same timing routine but with system_clock (in case of a supported specs)
     subroutine f_timing(cat_id,action)
       use dictionaries, only: f_err_raise,f_err_throw
@@ -689,8 +681,7 @@ module time_profiling
 
     END SUBROUTINE f_timing
 
-
-    !> Opens the file of the timing unit
+    !>opens the file of the timing unit
     subroutine timing_open_stream(iunit_def)
       use yaml_output, only: yaml_get_default_stream,yaml_set_stream
       implicit none
@@ -705,8 +696,7 @@ module time_profiling
 
     end subroutine timing_open_stream
 
-
-    !> Close the stream and restore old default unit
+    !> close the stream and restore old default unit
     subroutine timing_close_stream(iunit_def)
       use yaml_output, only: yaml_set_default_stream,yaml_close_stream
       implicit none
@@ -719,8 +709,7 @@ module time_profiling
       if (iunit_def /= timing_unit) call yaml_close_stream(unit=timing_unit)
     end subroutine timing_close_stream
 
-
-    !> Dump the line of the timings for time.yaml form
+    !> dump the line of the timings for time.yaml form
     subroutine timing_dump_line(name,tabbing,pc,secs,unit,loads)
       use yaml_output
       use yaml_strings
@@ -756,10 +745,9 @@ module time_profiling
 
     end subroutine timing_dump_line
 
-
-    !> Put the average value of timeall in the timesum array
-    !! then rewrite each element with the deviation from it (in debug mode)
-    !! in normal mode write only the max and min deviations (only in parallel)
+    !>put the average value of timeall in the timesum array
+    !then rewrite each element with the deviation from it (in debug mode)
+    !in normal mode write only the max and min deviations (only in parallel)
     subroutine timing_data_synthesis(nproc,ncats,timeall,timesum_tot)
       implicit none
       integer, intent(in) :: nproc,ncats
@@ -794,8 +782,7 @@ module time_profiling
       end do
     end subroutine timing_data_synthesis
 
-
-    !> Dump the final information of the partial counters
+    !>dump the final information of the partial counters
     subroutine timing_dump_counters(ncounters,nproc,pcnames,timecnt,dict_info)
       use yaml_output
       use yaml_strings, only: yaml_date_and_time_toa
@@ -829,7 +816,6 @@ module time_profiling
 
     end subroutine timing_dump_counters
 
-
     subroutine dump_extra_info_dict(dict_info)
       use yaml_strings, only: yaml_date_and_time_toa
       use yaml_output
@@ -842,8 +828,7 @@ module time_profiling
       
     end subroutine dump_extra_info_dict
 
-    
-    !> Dump the results of the nonzero timings of the categories in the file indicated by filename_time
+    !> dump the results of the nonzero timings of the categories in the file indicated by filename_time
     !! the array timesum should contain the timings for each processor (from 0 to nproc-1)
     !! and will also contain the average value (in position nproc)
     subroutine timing_dump_results(ncat,nproc,message,timeall,dict_info)

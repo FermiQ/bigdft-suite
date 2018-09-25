@@ -515,9 +515,9 @@
     default: No
   orbitals:
     COMMENT: Write KS orbitals in the full simulation domain (might take lot of disk space!)
-    default: None
+    default: No
     EXCLUSIVE:
-       None: No output
+       No: No output
        text: Output in wavelet basis
        binary: Binary file output
        text_with_densities: In addition output wavefunction densities in interpolating scaling functions (cube file)
@@ -624,8 +624,11 @@
  geopt:
    DESCRIPTION: |
           This character string specifies the method used for the geometry optimization.
+
           - VSSD Variable Stepsize Steepest Descent method.
+
           - SDCG A combination of Steepest Descent and Conjugate Gradient.
+
           - LBFGS Limited Memory BFGS.
 
      #    - BFGS Preconditioned steepest descent with energy feedback. A preconditioning matrix is build
@@ -1417,7 +1420,7 @@
      COMMENT: Calculate pseudopotential projectors on the fly
      default: Yes
    multipole_preserving:
-     COMMENT: (EXPERIMENTAL) Preserve the multipole moments of the ionic density
+     COMMENT: (EXPERIMENTAL) Preserve the multipole moment of the ionic density
      default: No
    mp_isf:
      COMMENT: (EXPERIMENTAL) Interpolating scaling function or lifted dual order for the multipole preserving
@@ -1754,29 +1757,6 @@
      consider_entropy:
        COMMENT: Indicate whether the entropy contribution to the total energy shall be considered
        default: False
-     pvt_method:
-       COMMENT: Pivoting scheme to reduce the bandwith of the sparse matrices
-       EXCLUSIVE:
-         0: None
-         1: Cuthill-Mckee
-         2: rev-Cuthill-Mckee
-         3: Gibbs-Poole-Stockmeyer
-         4: rev-Gibbs-Poole-Stockmeyer
-         5: Peripheral-Connect-Graph
-         6: rev-Peripheral-Connect-Graph
-         7: General-Gibbs-Poole-Stockmeyer
-         8: rev-General-Gibbs-Poole-Stockmeyer
-       default: None
-       # shortcuts
-       None                              : 0
-       Cuthill-Mckee                     : 1 
-       rev-Cuthill-Mckee                 : 2 
-       Gibbs-Poole-Stockmeyer            : 3
-       rev-Gibbs-Poole-Stockmeyer        : 4
-       Peripheral-Connect-Graph          : 5
-       rev-Peripheral-Connect-Graph      : 6
-       General-Gibbs-Poole-Stockmeyer    : 7
-       rev-General-Gibbs-Poole-Stockmeyer: 8
 #Parameters for the localised basis set (or support function) for the linear scaling version
  lin_basis:
      nit:

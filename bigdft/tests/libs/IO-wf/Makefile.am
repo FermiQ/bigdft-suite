@@ -51,15 +51,6 @@ else
 bigdft_library = $(top_builddir)/src/libbigdft-1.a @LIB_BIGDFT_DEPS@
 endif
 
-if HAVE_OPENBABEL
-bigdft_library += $(top_builddir)/src/modules/libbabel.so.@BIGDFT_MINOR_VERSION@
-if BUILD_DYNAMIC_LIBS
-else
-AM_LDFLAGS += -Wl,-rpath=$(abs_top_builddir)/src/modules
-endif
-endif
-
-
 AM_FCFLAGS = -I$(top_builddir)/includes -I$(top_builddir)/src/PSolver -I$(top_srcdir)/src/PSolver -I. @LIBABINIT_INCLUDE@ @LIB_XC_CFLAGS@  @MPI_INCLUDE@
 
 check_lib_SOURCES = check_lib.f90

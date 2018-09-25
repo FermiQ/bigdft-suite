@@ -22,14 +22,6 @@ else
 bigdft_library = $(top_builddir)/src/libbigdft-1.a @LIB_BIGDFT_DEPS@
 endif
 
-if HAVE_OPENBABEL
-bigdft_library += $(top_builddir)/src/modules/libbabel.so.@BIGDFT_MINOR_VERSION@
-if BUILD_DYNAMIC_LIBS
-else
-AM_LDFLAGS += -Wl,-rpath=$(abs_top_builddir)/src/modules
-endif
-endif
-
 kpts_check_SOURCES = kpts_check.f90
 kpts_check_LDADD = $(bigdft_library)
 

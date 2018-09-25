@@ -55,16 +55,6 @@ bigdft_library = $(top_builddir)/src/libbigdft-1.a @LIB_BIGDFT_DEPS@
 endif
 
 
-if HAVE_OPENBABEL
-bigdft_library += $(top_builddir)/src/modules/libbabel.so.@BIGDFT_MINOR_VERSION@
-if BUILD_DYNAMIC_LIBS
-bigdft_library += -Lmodules -lbabel
-else
-AM_LDFLAGS = @FC_RPATH@$(DESTDIR)$(dynlibdir)
-endif
-endif
-
-
 # Additional rules for the dev tutorial.
 dev.check: dev-test/toy_model
 

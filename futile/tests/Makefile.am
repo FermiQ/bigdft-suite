@@ -16,10 +16,6 @@ SUBDIRS = \
 python_PYTHON = fldiff_yaml.py yaml_hl.py report.py fldiff.py f_regtest.py UniParse.py
 dist_python_DATA = yaml_hl.cfg yaml_hl_remarks.cfg
 
-#remove some files in order to create it with the right path (possible to use nodist option)
-dist-hook:
-	rm -f report.py fldiff.py
-
 if USE_OCL
 oclrun_message = oclrun
 else
