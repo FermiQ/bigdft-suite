@@ -29,7 +29,7 @@ subroutine restart_from_gaussians(iproc,nproc,orbs,Lzd,hx,hy,hz,psi,G,coeffs)
   
   !call gaussian_orthogonality(iproc,nproc,norb,norbp,G,coeffs)
 
-  call dual_gaussian_coefficients(orbs%norbp,G,coeffs)
+  call dual_gaussian_coefficients(Lzd%Glr%mesh,orbs%norbp,G,coeffs)
 
   !call gaussians_to_wavelets(iproc,nproc,lr%geocode,orbs,lr%d,hx,hy,hz,lr%wfd,G,coeffs,psi)
   call gaussians_to_wavelets_new(iproc,nproc,Lzd,orbs,G,coeffs,psi)
@@ -1103,21 +1103,60 @@ subroutine orbital_projection(lr,n1,n2,n3,nat,rxyz,thetaphi,nshell,ndoc,nam,xp,p
 END SUBROUTINE orbital_projection
 
 
-subroutine dual_gaussian_coefficients(norbp,G,coeffs)
-  use module_base
+subroutine dual_gaussian_coefficients(bcell,norbp,G,coeffs)
+  use module_base, except => pi
   use gaussians
+  use dynamic_memory
+  use box
   implicit none
+  type(cell), intent(in) :: bcell
   integer, intent(in) :: norbp
   type(gaussian_basis), intent(in) :: G
   real(gp), dimension(G%ncoeff,norbp), intent(inout) :: coeffs !warning: the precision here should be wp
   !local variables
   character(len=*), parameter :: subname='dual_gaussian_coefficients'
-  integer :: nwork,info
+  integer :: nwork,info,i,j,k,ni,pi,nj,pj,nk,pk,iat,u
   integer, dimension(:), allocatable :: iwork
   real(gp), dimension(:), allocatable :: ovrlp,work
+  type(gaussian_basis) :: dG
+  logical, dimension(3) :: peri
+
+  ovrlp = f_malloc0(G%ncoeff*G%ncoeff,id='ovrlp')
+  work = f_malloc(G%ncoeff*G%ncoeff,id='work')
+  ! Crude periodicity handling.
+  peri = cell_periodic_dims(bcell)
+  ni = 0
+  if (peri(1)) ni = -1
+  pi = 0
+  if (peri(1)) pi = 1
+  nj = 0
+  if (peri(1)) nj = -1
+  pj = 0
+  if (peri(1)) pj = 1
+  nk = 0
+  if (peri(1)) nk = -1
+  pk = 0
+  if (peri(1)) pk = 1
+  do i = ni, pi, 1
+     do j = nj, pj, 1
+        do k = nk, pk, 1
+           dG = G
+           dG%rxyz = f_malloc_ptr(src_ptr = G%rxyz, id = "dg%rxyz")
+           do iat = 1, dG%nat
+              dG%rxyz(:,iat) = dG%rxyz(:,iat) + (/ &
+                   & i * bcell%ndims(1) * bcell%hgrids(1), &
+                   & j * bcell%ndims(2) * bcell%hgrids(2), &
+                   & k * bcell%ndims(3) * bcell%hgrids(3) /)
+           end do
+           call gaussian_overlap(G,dG,work)
+           ovrlp = ovrlp + work
+           call f_free_ptr(dG%rxyz)
+        end do
+     end do
+  end do
+  call f_free(work)
 
   iwork = f_malloc(G%ncoeff,id='iwork')
-  ovrlp = f_malloc(G%ncoeff*G%ncoeff,id='ovrlp')
 
   !temporary allocation of the work array, workspace query in dsysv
   work = f_malloc(100,id='work')
@@ -1130,8 +1169,6 @@ subroutine dual_gaussian_coefficients(norbp,G,coeffs)
 
   call f_free(work)
   work = f_malloc(nwork,id='work')
-
-  call gaussian_overlap(G,G,ovrlp)
 
   !!  !overlap matrix, print it for convenience
   !!  do icoeff=1,G%ncoeff

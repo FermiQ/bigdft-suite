@@ -325,8 +325,8 @@
    PSP XC                              : "XC: Perdew, Burke & Ernzerhof"
   #-------------------------------------------------------------------------- Atom Positions
  Atomic structure:
-   Units                               : angstroem
-   Positions:
+   units                               : angstroem
+   positions:
    -  {O_old: [ 4.445088572,  4.445088572,  4.476101225],  # [  28.00,  28.00,  28.20 ] 0001
  IGSpin:  2}
    - O_old: [ 4.445088572,  4.445088572,  5.684101225] # [  28.00,  28.00,  35.80 ] 0002

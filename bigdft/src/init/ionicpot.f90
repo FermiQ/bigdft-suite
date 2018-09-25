@@ -36,7 +36,6 @@ subroutine IonicEnergyandForces(iproc,nproc,dpbox,at,elecfield,&
   use sparsematrix_init, only: distribute_on_tasks
   use gaussians
   use box
-  use bounds
   implicit none
   !Arguments
   type(denspot_distribution), intent(inout) :: dpbox
@@ -70,6 +69,7 @@ subroutine IonicEnergyandForces(iproc,nproc,dpbox,at,elecfield,&
   real(gp), dimension(3) :: cc
   type(atoms_iterator) :: atit
   type(gaussian_real_space) :: g
+  logical, dimension(3) :: peri
 
   call f_routine(id='IonicEnergyandForces')
   call timing(iproc,'ionic_energy','ON')
@@ -338,15 +338,19 @@ subroutine IonicEnergyandForces(iproc,nproc,dpbox,at,elecfield,&
   !activate for the moment only the slow calculation of the ionic energy and forces
   !the slowion command has also to be activated for the cavity calculation
   !if (at%astruct%geocode == 'S' .or. at%astruct%geocode == 'P') slowion=.true.
-  if (at%astruct%geocode == 'S' .or. pkernel%method /= 'VAC') slowion=.true.
+  if (at%astruct%geocode == 'S' .or. at%astruct%geocode == 'W' .or. pkernel%method /= 'VAC') slowion=.true.
 
   slowion_if: if (slowion) then
 
      !case of slow ionic calculation
      !conditions for periodicity in the three directions
-     perx=(at%astruct%geocode /= 'F')
-     pery=(at%astruct%geocode == 'P')
-     perz=(at%astruct%geocode /= 'F')
+!!$     perx=(at%astruct%geocode /= 'F')
+!!$     pery=(at%astruct%geocode == 'P')
+!!$     perz=(at%astruct%geocode /= 'F')
+     peri=cell_periodic_dims(dpbox%mesh)
+     perx=peri(1)
+     pery=peri(2)
+     perz=peri(3)
 
      call ext_buffers(perx,nbl1,nbr1)
      call ext_buffers(pery,nbl2,nbr2)
@@ -387,13 +391,13 @@ subroutine IonicEnergyandForces(iproc,nproc,dpbox,at,elecfield,&
         !then calculate the hartree energy and forces of the charge distributions
         !(and save the values for the ionic potential)
 
-        !Determine the maximal bounds for mpx, mpy, mpz (1D-integral)
-        call mp_range(at%multipole_preserving,at%mp_isf,1,&
-             hxh,hyh,hzh,maxval(at%psppar(0,0,:)),mpnx,mpny,mpnz)
-        !Separable function: do 1-D integrals before and store it.
-        mpx = f_malloc( (/ 0 .to. mpnx /),id='mpx')
-        mpy = f_malloc( (/ 0 .to. mpny /),id='mpy')
-        mpz = f_malloc( (/ 0 .to. mpnz /),id='mpz')
+!!$        !Determine the maximal bounds for mpx, mpy, mpz (1D-integral)
+!!$        call mp_range(at%multipole_preserving,at%mp_isf,1,&
+!!$             hxh,hyh,hzh,maxval(at%psppar(0,0,:)),mpnx,mpny,mpnz)
+!!$        !Separable function: do 1-D integrals before and store it.
+!!$        mpx = f_malloc( (/ 0 .to. mpnx /),id='mpx')
+!!$        mpy = f_malloc( (/ 0 .to. mpny /),id='mpy')
+!!$        mpz = f_malloc( (/ 0 .to. mpnz /),id='mpz')
 
         atit = atoms_iter(at%astruct)
         do while(atoms_iter_next(atit))
@@ -482,8 +486,8 @@ subroutine IonicEnergyandForces(iproc,nproc,dpbox,at,elecfield,&
 
         enddo
 
-        !De-allocate the 1D temporary arrays for separability
-        call f_free(mpx,mpy,mpz)
+!!$        !De-allocate the 1D temporary arrays for separability
+!!$        call f_free(mpx,mpy,mpz)
 
      end if
 
@@ -830,7 +834,6 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
   real(gp), dimension(:), allocatable  :: mpx,mpy,mpz
   !real(dp), dimension(:), allocatable :: den_aux
   type(atoms_iterator) :: atit
-  type(dpbox_iterator) :: boxit
   type(box_iterator) :: bitp
   type(gaussian_real_space) :: g
   type(pspiof_potential_t) :: pot
@@ -880,13 +883,13 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
 
   if (dpbox%n3pi >0 .and. .not. htoobig) then
 
-     !Determine the maximal bounds for mpx, mpy, mpz (1D-integral)
-     call mp_range(at%multipole_preserving,at%mp_isf,at%astruct%nat,&
-         hxh,hyh,hzh,maxval(at%psppar(0,0,:)),mpnx,mpny,mpnz)
-     !Separable function: do 1-D integrals before and store it.
-     mpx = f_malloc( (/ 0 .to. mpnx /),id='mpx')
-     mpy = f_malloc( (/ 0 .to. mpny /),id='mpy')
-     mpz = f_malloc( (/ 0 .to. mpnz /),id='mpz')
+!!$     !Determine the maximal bounds for mpx, mpy, mpz (1D-integral)
+!!$     call mp_range(at%multipole_preserving,at%mp_isf,at%astruct%nat,&
+!!$         hxh,hyh,hzh,maxval(at%psppar(0,0,:)),mpnx,mpny,mpnz)
+!!$     !Separable function: do 1-D integrals before and store it.
+!!$     mpx = f_malloc( (/ 0 .to. mpnx /),id='mpx')
+!!$     mpy = f_malloc( (/ 0 .to. mpny /),id='mpy')
+!!$     mpz = f_malloc( (/ 0 .to. mpnz /),id='mpz')
 
      atit = atoms_iter(at%astruct)
      do while(atoms_iter_next(atit))
@@ -980,15 +983,7 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
               if (at%npspcode(atit%ityp) == PSPCODE_PAW .or. &
                    & at%npspcode(atit%ityp) == PSPCODE_PSPIO) then
                  rr1(1)=distance(dpbox%bitp%mesh,dpbox%bitp%rxyz,rxyz(1,atit%iat))
-                 if (at%npspcode(atit%ityp) == PSPCODE_PAW) then
-                    call paw_splint(at%pawtab(atit%ityp)%wvl%rholoc%msz, &
-                         & at%pawtab(atit%ityp)%wvl%rholoc%rad, &
-                         & at%pawtab(atit%ityp)%wvl%rholoc%d(:,3), &
-                         & at%pawtab(atit%ityp)%wvl%rholoc%d(:,4), &
-                         & 1,rr1,raux1,ierr)
-                 else
-                    raux1(1) = pspiof_potential_eval(pot, rr1(1))
-                 end if
+                 ! Analytical part, to be removed, obtained by Poisson solver.
                  if (rr1(1) < 1e-6_dp) then
                     tt = -at%nelpsp(atit%ityp) / sqrt(2._dp * pi) / at%psppar(0,0,atit%ityp) * 2._dp
                  else
@@ -996,6 +991,21 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
                     tt = safe_erf(rr1(1) / sqrt(2._dp) / at%psppar(0,0,atit%ityp))
                     tt = -at%nelpsp(atit%ityp) * tt / rr1(1)
                  end if
+                 ! Numerical part, to be added
+                 if (at%npspcode(atit%ityp) == PSPCODE_PAW) then
+                    if (rr1(1) < at%pawtab(atit%ityp)%rpaw) then
+                       call paw_splint(at%pawtab(atit%ityp)%wvl%rholoc%msz, &
+                            & at%pawtab(atit%ityp)%wvl%rholoc%rad, &
+                            & at%pawtab(atit%ityp)%wvl%rholoc%d(:,3), &
+                            & at%pawtab(atit%ityp)%wvl%rholoc%d(:,4), &
+                            & 1,rr1,raux1,ierr)
+                    else
+                       raux1(1) = tt
+                    end if
+                 else
+                    raux1(1) = pspiof_potential_eval(pot, rr1(1))
+                 end if
+                 
                  pot_add(dpbox%bitp%ind) = pot_add(dpbox%bitp%ind) + raux1(1) - tt
                  if (cell_geocode(dpbox%mesh) == 'P') psoff = psoff + raux1(1) - tt
               end if
@@ -1003,10 +1013,38 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
            call box_iter_expand_nbox(dpbox%bitp)
            rholeaked=0.0_dp
 
+!!$           ! hgrid independant estimation of psoffset due to pot_add
+!!$           if (at%npspcode(atit%ityp) == PSPCODE_PAW .or. &
+!!$                & at%npspcode(atit%ityp) == PSPCODE_PSPIO) then
+!!$              psoff = 0._gp
+!!$              do i1 = 1, 1000, 1
+!!$                 rr1(1) = real(i1 - 1, gp) / 1000._gp * at%pawtab(atit%ityp)%rpaw
+!!$                 ! Analytical part, to be removed, obtained by Poisson solver.
+!!$                 if (rr1(1) < 1e-6_dp) then
+!!$                    tt = -at%nelpsp(atit%ityp) / sqrt(2._dp * pi) / at%psppar(0,0,atit%ityp) * 2._dp
+!!$                 else
+!!$                    !call abi_derf_ab(tt, rr1(1) / sqrt(2._dp) / at%psppar(0,0,atit%ityp))
+!!$                    tt = safe_erf(rr1(1) / sqrt(2._dp) / at%psppar(0,0,atit%ityp))
+!!$                    tt = -at%nelpsp(atit%ityp) * tt / rr1(1)
+!!$                 end if
+!!$                 ! Numerical part, to be added
+!!$                 if (at%npspcode(atit%ityp) == PSPCODE_PAW) then
+!!$                    call paw_splint(at%pawtab(atit%ityp)%wvl%rholoc%msz, &
+!!$                         & at%pawtab(atit%ityp)%wvl%rholoc%rad, &
+!!$                         & at%pawtab(atit%ityp)%wvl%rholoc%d(:,3), &
+!!$                         & at%pawtab(atit%ityp)%wvl%rholoc%d(:,4), &
+!!$                         & 1,rr1,raux1,ierr)
+!!$                 else
+!!$                    raux1(1) = pspiof_potential_eval(pot, rr1(1))
+!!$                 end if
+!!$                 psoff = psoff + (raux1(1) - tt) * rr1(1) * rr1(1) / real(1000, gp) * at%pawtab(atit%ityp)%rpaw * real(4, gp) * pi
+!!$              end do
+!!$              psoff = psoff / dpbox%mesh%volume_element
+!!$           end if
      enddo
 
-     !De-allocate for multipole preserving
-     call f_free(mpx,mpy,mpz)
+!!$     !De-allocate for multipole preserving
+!!$     call f_free(mpx,mpy,mpz)
 
   end if
 
@@ -1285,12 +1323,11 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
         !!-           end do
         !!-        end do
 
-        boxit = dpbox_iter(dpbox,DPB_POT_ION)
-        do while(dpbox_iter_next(boxit))
+        do while(box_next_point(dpbox%bitp))
            call sum_erfcr(at%astruct%nat,at%astruct%ntypes, &
-                &         boxit%x,boxit%y,boxit%z, &
+                &         dpbox%bitp%rxyz(1),dpbox%bitp%rxyz(2),dpbox%bitp%rxyz(3), &
                 &         at%astruct%iatype,at%nelpsp,at%psppar,rxyz,potxyz)
-           pot_ion(boxit%ind) = pot_ion(boxit%ind) + potxyz
+           pot_ion(dpbox%bitp%ind) = pot_ion(dpbox%bitp%ind) + potxyz
         end do
 
      end if
@@ -1926,8 +1963,11 @@ subroutine external_potential(iproc,verb,at,rxyz,&
         call f_err_throw('The constant electric field is not allowed for Fully Periodic BC.', &
              err_name='BIGDFT_RUNTIME_ERROR')
         !constant electric field allowed for surface BC only normal to the surface
-     elseif (cell_geocode(dpbox%mesh) == 'S' .and. (elecfield(1) /= 0.0_gp .or. elecfield(3) /= 0.0_gp) ) then
-        call f_err_throw('Only normal constant electric field (Ex=Ez=0) is allowed for Surface BC.', &
+     else if (cell_geocode(dpbox%mesh) == 'S' .and. (elecfield(1) /= 0.0_gp .or. elecfield(3) /= 0.0_gp) ) then
+        call f_err_throw('Only zero xz electric field (Ex=Ez=0) is allowed for Surface BC.', &
+             err_name='BIGDFT_RUNTIME_ERROR')
+     else if (cell_geocode(dpbox%mesh) == 'W' .and. elecfield(3) /= 0.0_gp) then
+        call f_err_throw("Only zero z electric field (Ez=0) is allowed for Wires BC", &
              err_name='BIGDFT_RUNTIME_ERROR')
      end if
      if (verb) call yaml_map('Constant electric field (Ha/Bohr)',elecfield(1:3),fmt='(es10.2)')

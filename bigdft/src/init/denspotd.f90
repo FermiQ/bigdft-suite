@@ -15,6 +15,7 @@ subroutine initialize_DFT_local_fields(denspot, ixc, nspden, alpha_hf)
   use module_types
   use module_xc
   use public_enums
+  use PStypes
   implicit none
   type(DFT_local_fields), intent(inout) :: denspot
   integer, intent(in) :: ixc, nspden
@@ -41,8 +42,9 @@ subroutine initialize_DFT_local_fields(denspot, ixc, nspden, alpha_hf)
      denspot%PSquiet='YES'
   end if
 
-  call initialize_coulomb_operator(denspot%pkernel)
-  call initialize_coulomb_operator(denspot%pkernelseq)
+  denspot%pkernel=pkernel_null()
+  denspot%pkernelseq=pkernel_null()
+
   call initialize_rho_descriptors(denspot%rhod)
   denspot%dpbox=dpbox_null()
 
@@ -54,19 +56,6 @@ subroutine initialize_DFT_local_fields(denspot, ixc, nspden, alpha_hf)
      call xc_init(denspot%xc, ixc, XC_ABINIT, nspden, alpha_hf)
   end if
 end subroutine initialize_DFT_local_fields
-
-
-subroutine initialize_coulomb_operator(kernel)
-  use module_base
-  use module_types
-  implicit none
-  type(coulomb_operator), intent(out) :: kernel
-
-  nullify(kernel%kernel)
-
-
-end subroutine initialize_coulomb_operator
-
 
 subroutine initialize_rho_descriptors(rhod)
   use module_base
@@ -381,27 +370,27 @@ END SUBROUTINE denspot_emit_v_ext
 
 
 !> Allocate density and potentials.
-subroutine allocateRhoPot(Glr,nspin,atoms,rxyz,denspot)
+subroutine allocateRhoPot(nspin,atoms,rxyz,denspot)
   use module_base
   use module_types
   use module_interfaces, only: calculate_rhocore
-  use locregs
   implicit none
   integer, intent(in) :: nspin
-  type(locreg_descriptors), intent(in) :: Glr
   type(atoms_data), intent(in) :: atoms
   real(gp), dimension(3,atoms%astruct%nat), intent(in) :: rxyz
   type(DFT_local_fields), intent(inout) :: denspot
 
   !allocate ionic potential
   if (denspot%dpbox%n3pi > 0) then
-     denspot%V_ext = f_malloc_ptr((/ Glr%d%n1i , Glr%d%n2i , denspot%dpbox%n3pi , 1 /),id='denspot%V_ext')
+     denspot%V_ext = f_malloc_ptr((/ denspot%dpbox%mesh%ndims(1) , &
+          & denspot%dpbox%mesh%ndims(2) , denspot%dpbox%n3pi , 1 /),id='denspot%V_ext')
   else
      denspot%V_ext = f_malloc_ptr((/ 1 , 1 , 1 , 1 /),id='denspot%V_ext')
   end if
   !Allocate XC potential
   if (denspot%dpbox%n3p >0) then
-     denspot%V_XC = f_malloc_ptr((/ Glr%d%n1i , Glr%d%n2i , denspot%dpbox%n3p , nspin /),id='denspot%V_XC')
+     denspot%V_XC = f_malloc_ptr((/ denspot%dpbox%mesh%ndims(1) , &
+          & denspot%dpbox%mesh%ndims(2) , denspot%dpbox%n3p , nspin /),id='denspot%V_XC')
   else
      denspot%V_XC = f_malloc_ptr((/ 1 , 1 , 1 , nspin /),id='denspot%V_XC')
   end if
@@ -409,7 +398,8 @@ subroutine allocateRhoPot(Glr,nspin,atoms,rxyz,denspot)
   !allocate ionic density in the case of a cavity calculation
   if (denspot%pkernel%method /= 'VAC') then
      if (denspot%dpbox%n3pi > 0) then
-        denspot%rho_ion = f_malloc_ptr([ Glr%d%n1i , Glr%d%n2i , denspot%dpbox%n3pi , 1 ],id='denspot%rho_ion')
+        denspot%rho_ion = f_malloc_ptr([ denspot%dpbox%mesh%ndims(1) , &
+             & denspot%dpbox%mesh%ndims(2) , denspot%dpbox%n3pi , 1 ],id='denspot%rho_ion')
      else
         denspot%rho_ion = f_malloc_ptr([ 1 , 1 , 1 , 1 ],id='denspot%rho_ion')
      end if
@@ -418,7 +408,8 @@ subroutine allocateRhoPot(Glr,nspin,atoms,rxyz,denspot)
   end if
 
   if (denspot%dpbox%n3d >0) then
-     denspot%rhov = f_malloc_ptr(Glr%d%n1i*Glr%d%n2i*denspot%dpbox%n3d*&
+     denspot%rhov = f_malloc_ptr(denspot%dpbox%mesh%ndims(1) * &
+          & denspot%dpbox%mesh%ndims(2)*denspot%dpbox%n3d*&
           denspot%dpbox%nrhodim,id='denspot%rhov')
   else
      denspot%rhov = f_malloc0_ptr(denspot%dpbox%nrhodim,id='denspot%rhov')
@@ -456,6 +447,7 @@ subroutine density_descriptors(iproc,nproc,xc,nspin,crmult,frmult,atoms,dpbox,&
   use module_dpbox, only:  denspot_distribution
   use module_types
   use module_xc
+  use box, only: cell_geocode
   implicit none
   integer, intent(in) :: iproc,nproc,nspin
   type(xc_info), intent(in) :: xc

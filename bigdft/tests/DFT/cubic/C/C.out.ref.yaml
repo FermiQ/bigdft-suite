@@ -396,8 +396,8 @@
    PSP XC                              : "XC: Teter 93"
   #----------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : bohr
-   Positions:
+   units                               : bohr
+   positions:
    -  {C: [ 7.200000000,  7.200000000,  7.200000000],  # [  16.00,  16.00,  16.00 ] 0001
  IGSpin:  2}
    Rigid Shift Applied (AU)            :  [  7.2000,  7.2000,  7.2000 ]

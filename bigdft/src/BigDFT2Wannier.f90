@@ -1811,6 +1811,7 @@ subroutine write_functions(w_sph, w_ang, w_rad, fn1, fn2, fn3, np, Glr, &
    real(kind=8), dimension(3,atoms%astruct%nat), intent(in) :: rxyz
    real(kind=8), dimension(Glr%d%n1i,Glr%d%n2i,Glr%d%n3i), intent(in) :: sph_har, func_r, ylm
    ! Local variables
+   logical, dimension(3) :: peri
    character(len=13) :: subname1
    character(len=12) :: subname2
    character(len=9) :: subname3
@@ -1847,34 +1848,64 @@ subroutine write_functions(w_sph, w_ang, w_rad, fn1, fn2, fn3, np, Glr, &
       end if
    end if
 
-  !conditions for periodicity in the three directions
-  !value of the buffer in the x and z direction
-  if (atoms%astruct%geocode /= 'F') then
-     nl1=1
-     nl3=1
-     nbx = 1
-     nbz = 1
-     nc1=Glr%d%n1i
-     nc3=Glr%d%n3i
-  else
-     nl1=15
-     nl3=15
-     nbx = 0
-     nbz = 0
-     nc1=Glr%d%n1i-31
-     nc3=Glr%d%n3i-31
-  end if
-  !value of the buffer in the y direction
-  if (atoms%astruct%geocode == 'P') then
-     nl2=1
-     nby = 1
-     nc2=Glr%d%n2i
-  else
-     nl2=15
-     nby = 0
-     nc2=Glr%d%n2i-31
-  end if
-
+   peri=bc_periodic_dims(geocode_to_bc(atoms%astruct%geocode))
+   if (peri(1)) then
+      nl1=1
+      nbx = 1
+      nc1=Glr%d%n1i
+   else
+      nl1=15
+      nbx = 0
+      nc1=Glr%d%n1i-31
+   end if
+   if (peri(2)) then
+      nl2=1
+      nby = 1
+      nc2=Glr%d%n2i
+   else
+      nl2=15
+      nby = 0
+      nc2=Glr%d%n2i-31
+   end if
+   if (peri(3)) then
+      nl3=1
+      nbz = 1
+      nc3=Glr%d%n3i
+   else
+      nl3=15
+      nbz = 0
+      nc3=Glr%d%n3i-31
+   end if
+   
+!!$  !conditions for periodicity in the three directions
+!!$  !value of the buffer in the x and z direction
+!!$  if (atoms%astruct%geocode /= 'F') then
+!!$     nl1=1
+!!$     nl3=1
+!!$     nbx = 1
+!!$     nbz = 1
+!!$     nc1=Glr%d%n1i
+!!$     nc3=Glr%d%n3i
+!!$  else
+!!$     nl1=15
+!!$     nl3=15
+!!$     nbx = 0
+!!$     nbz = 0
+!!$     nc1=Glr%d%n1i-31
+!!$     nc3=Glr%d%n3i-31
+!!$  end if
+!!$  !value of the buffer in the y direction
+!!$  if (atoms%astruct%geocode == 'P') then
+!!$     nl2=1
+!!$     nby = 1
+!!$     nc2=Glr%d%n2i
+!!$  else
+!!$     nl2=15
+!!$     nby = 0
+!!$     nc2=Glr%d%n2i-31
+!!$  end if
+!!$  if (atoms%astruct%geocode == 'W') call f_err_throw("Wires bc has to be implemented here", &
+!!$                                         err_name='BIGDFT_RUNTIME_ERROR')
 
    rem=nc3-floor(nc3/6.d0)*6
 

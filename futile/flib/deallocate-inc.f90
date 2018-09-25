@@ -19,28 +19,32 @@
   call f_purge_database(ilsize,kind(array),iadd,info=info)
 
   if (associated(info)) then
-     val=' '
-     val=info .get. 'Type'
-     select case(trim(val))
-     case('SHARED')
+     val=dict_get(info,INFO_TYPE_KEY,default=' ')
+     if (trim(val) == INFO_SHARED_TYPE .or. &
+          (INFO_ALIGNMENT_KEY .in. info)) then
+     !val=info .get. 'Type'
+     !select case(trim(val))
+     !case('SHARED')
         call bindfree(iadd)
         ierror=0
-     case default
+     else !case default
         !fallback to traditional deallocation
         deallocate(array,stat=ierror) !temporary
-     end select
+     end if !select
      call dict_free(info)
   else
      !fortran deallocation (here we should modify the calls if the array has been allocated by c)
      deallocate(array,stat=ierror)
   end if
 
-  if (ierror/=0) then
-     call f_timer_resume()!TCAT_ARRAY_ALLOCATIONS
-     call f_err_throw('Deallocation problem, error code '//trim(yaml_toa(ierror)),&
-          ERR_DEALLOCATE)
-     return
-  end if
+  if (.not. free_validate(ierror)) return
+
+!!$  if (ierror/=0) then
+!!$     call f_timer_resume()!TCAT_ARRAY_ALLOCATIONS
+!!$     call f_err_throw('Deallocation problem, error code '//trim(yaml_toa(ierror)),&
+!!$          ERR_DEALLOCATE)
+!!$     return
+!!$  end if
 
   call f_timer_resume()!TCAT_ARRAY_ALLOCATIONS
   

@@ -24,6 +24,8 @@
 subroutine wb_correction(geocode,n1,n2,n3,n3grad,wbl,wbr,f_i,hx,hy,hz,nspden,&
      wb_vxc)
   use Poisson_Solver, only: dp
+  use module_base, only: f_err_throw
+  use box, only: bc_periodic_dims,geocode_to_bc
  implicit none
  !Arguments
  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
@@ -33,11 +35,14 @@ subroutine wb_correction(geocode,n1,n2,n3,n3grad,wbl,wbr,f_i,hx,hy,hz,nspden,&
  real(dp), dimension(n1,n2,n3,nspden), intent(inout) :: wb_vxc
  !Local variables
  integer :: i1,i2,i3,ispden
+ logical, dimension(3) :: peri
  !Filters of finite difference derivative for order 4
  real(dp), parameter :: a1=0.8d0, a2=-0.2d0
  real(dp), parameter :: a3=0.038095238095238095238d0, a4=-0.0035714285714285714286d0
  real(dp) :: derx,dery,derz,c1,c2,c3,c4
  !Body
+
+ peri=bc_periodic_dims(geocode_to_bc(geocode))
 
  !Some check
  if ((n3 /= n3grad + wbl + wbr -2)) then
@@ -45,7 +50,7 @@ subroutine wb_correction(geocode,n1,n2,n3,n3grad,wbl,wbr,f_i,hx,hy,hz,nspden,&
          'wbl=',wbl,'wbr=',wbr
     stop
  end if
- if (geocode /='F' .and. wbl /= wbr ) then
+ if (peri(3) .and. wbl /= wbr ) then
     print *,'wb_correction:incompatibility of the dimensions, n3=',n3,'n3grad=',n3grad,&
          'wbl=',wbl,'wbr=',wbr,'geocode',geocode
     stop
@@ -64,7 +69,7 @@ subroutine wb_correction(geocode,n1,n2,n3,n3grad,wbl,wbr,f_i,hx,hy,hz,nspden,&
     !loop over the different directions
 
     !x direction
-    if (geocode == 'F') then
+    if (.not. peri(1)) then
        do i3=wbl,n3grad+wbl-1
           do i2=1,n2
              derx=-c1*f_i(1,i2,i3,1,ispden)&
@@ -189,7 +194,7 @@ subroutine wb_correction(geocode,n1,n2,n3,n3grad,wbl,wbr,f_i,hx,hy,hz,nspden,&
     end if
 
     !y direction
-    if (geocode /= 'P') then
+    if (.not. peri(2)) then
        !only the periodic case is periodic in y
        do i3=wbl,n3grad+wbl-1
           do i1=1,n1
@@ -331,7 +336,7 @@ subroutine wb_correction(geocode,n1,n2,n3,n3grad,wbl,wbr,f_i,hx,hy,hz,nspden,&
     end if
 
     !z direction
-    if (geocode == 'F') then
+    if (.not. peri(3)) then
        if(wbl <= 1) then
           do i2=1,n2
              do i1=1,n1
@@ -567,6 +572,8 @@ subroutine calc_gradient(geocode,n1,n2,n3,n3grad,deltaleft,deltaright,rhoinp,nsp
   use memory_profiling
   use wrapper_linalg
   use dynamic_memory
+  use module_base, only: f_err_throw
+  use box, only: bc_periodic_dims,geocode_to_bc
  implicit none
  !Arguments
  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
@@ -578,6 +585,7 @@ subroutine calc_gradient(geocode,n1,n2,n3,n3grad,deltaleft,deltaright,rhoinp,nsp
  !Local variables
  character(len=*), parameter :: subname='calc_gradient'
  integer :: i1,i2,i3,j3,ispden
+ logical, dimension(3) :: peri
  !filters of finite difference derivative for order 4
  real(dp), parameter :: a1=0.8d0, a2=-0.2d0
  real(dp), parameter :: a3=0.038095238095238095238d0, a4=-0.0035714285714285714286d0
@@ -592,7 +600,9 @@ subroutine calc_gradient(geocode,n1,n2,n3,n3grad,deltaleft,deltaright,rhoinp,nsp
     stop
  end if
 
- if (geocode /= 'F' .and. deltaleft/=deltaright) then
+ peri=bc_periodic_dims(geocode_to_bc(geocode))
+
+ if (peri(3) .and. deltaleft/=deltaright) then
     print *,'calc_gradient:incompatibility of the dimensions, n3=',n3,'n3grad=',n3grad,&
          'deltaleft=',deltaleft,'deltaright=',deltaright,'geocode=',geocode
     stop
@@ -602,60 +612,8 @@ subroutine calc_gradient(geocode,n1,n2,n3,n3grad,deltaleft,deltaright,rhoinp,nsp
  density = f_malloc((/ n1+8 , n2+8 , n3grad+8/),id='density')
 
  do ispden=1,nspden !loop over up/dw densities
-    select case(geocode)
-    case('F')
-       do i3=1,4-deltaleft
-          do i2=5,n2+4
-             do i1=5,n1+4
-                density(i1,i2,i3)=rhoinp(i1-4,i2-4,1,ispden)
-             end do
-          end do
-       end do
-       do i3=1,deltaleft
-          do i2=5,n2+4
-             do i1=5,n1+4
-                density(i1,i2,i3+4-deltaleft)=rhoinp(i1-4,i2-4,i3,ispden)
-             end do
-          end do
-       end do
-       do i3=deltaleft+1,n3grad+deltaleft
-          do i2=1,4
-             do i1=5,n1+4
-                density(i1,i2,i3+4-deltaleft)=rhoinp(i1-4,1,i3,ispden)
-             end do
-          end do
-          do i2=5,n2+4
-             do i1=1,4
-                density(i1,i2,i3+4-deltaleft)=rhoinp(1,i2-4,i3,ispden)
-             end do
-             do i1=5,n1+4
-                density(i1,i2,i3+4-deltaleft)=rhoinp(i1-4,i2-4,i3,ispden)
-             end do
-             do i1=n1+5,n1+8
-                density(i1,i2,i3+4-deltaleft)=rhoinp(n1,i2-4,i3,ispden)
-             end do
-          end do
-          do i2=n2+5,n2+8
-             do i1=5,n1+4
-                density(i1,i2,i3+4-deltaleft)=rhoinp(i1-4,n2,i3,ispden)
-             end do
-          end do
-       end do
-       do i3=n3grad+deltaleft+1,n3
-          do i2=5,n2+4
-             do i1=5,n1+4
-                density(i1,i2,i3+4-deltaleft)=rhoinp(i1-4,i2-4,i3,ispden)
-             end do
-          end do
-       end do
-       do i3=1,4-deltaright
-          do i2=5,n2+4
-             do i1=5,n1+4
-                density(i1,i2,i3+n3+4-deltaleft)=rhoinp(i1-4,i2-4,n3,ispden)
-             end do
-          end do
-       end do
-    case('P')
+
+    if (peri(3)) then
        !periodic BC, deltaleft/right are zero only if the array is not cut
        do i3=1,4-deltaleft
           do i2=5,n2+4
@@ -664,97 +622,81 @@ subroutine calc_gradient(geocode,n1,n2,n3,n3grad,deltaleft,deltaright,rhoinp,nsp
              end do
           end do
        end do
-       !normal case, the array rhoinp contains all the necessary
-       do i3=1,deltaleft
+    else
+       do i3=1,4-deltaleft
           do i2=5,n2+4
              do i1=5,n1+4
-                density(i1,i2,i3+4-deltaleft)=rhoinp(i1-4,i2-4,i3,ispden)
+                density(i1,i2,i3)=rhoinp(i1-4,i2-4,1,ispden)
              end do
           end do
        end do
-       do i3=deltaleft+1,n3grad+deltaleft
+    end if
+    do i3=1,deltaleft
+       do i2=5,n2+4
+          do i1=5,n1+4
+             density(i1,i2,i3+4-deltaleft)=rhoinp(i1-4,i2-4,i3,ispden)
+          end do
+       end do
+    end do
+    do i3=deltaleft+1,n3grad+deltaleft
+       if (peri(2)) then
           do i2=1,4
              do i1=5,n1+4
                 density(i1,i2,i3+4-deltaleft)=rhoinp(i1-4,n2-4+i2,i3,ispden)
              end do
           end do
-          do i2=5,n2+4
-             do i1=1,4
-                density(i1,i2,i3+4-deltaleft)=rhoinp(n1-4+i1,i2-4,i3,ispden)
-             end do
-             do i1=5,n1+4
-                density(i1,i2,i3+4-deltaleft)=rhoinp(i1-4,i2-4,i3,ispden)
-             end do
-             do i1=n1+5,n1+8
-                density(i1,i2,i3+4-deltaleft)=rhoinp(i1-n1-4,i2-4,i3,ispden)
-             end do
-          end do
-          do i2=n2+5,n2+8
-             do i1=5,n1+4
-                density(i1,i2,i3+4-deltaleft)=rhoinp(i1-4,i2-n2-4,i3,ispden)
-             end do
-          end do
-       end do
-       do i3=n3grad+deltaleft+1,n3
-          do i2=5,n2+4
-             do i1=5,n1+4
-                density(i1,i2,i3+4-deltaleft)=rhoinp(i1-4,i2-4,i3,ispden)
-             end do
-          end do
-       end do
-       do i3=1,4-deltaright
-          do i2=5,n2+4
-             do i1=5,n1+4
-                density(i1,i2,i3+n3+4-deltaleft)=rhoinp(i1-4,i2-4,i3,ispden)
-             end do
-          end do
-       end do
-    case('S')
-       !surface case, periodic in x and z while isolated for y
-       do i3=1,4-deltaleft
-          do i2=5,n2+4
-             do i1=5,n1+4
-                density(i1,i2,i3)=rhoinp(i1-4,i2-4,n3-4+i3,ispden)
-             end do
-          end do
-       end do
-       do i3=1,deltaleft
-          do i2=5,n2+4
-             do i1=5,n1+4
-                density(i1,i2,i3+4-deltaleft)=rhoinp(i1-4,i2-4,i3,ispden)
-             end do
-          end do
-       end do
-       do i3=deltaleft+1,n3grad+deltaleft
+       else
           do i2=1,4
              do i1=5,n1+4
                 density(i1,i2,i3+4-deltaleft)=rhoinp(i1-4,1,i3,ispden)
              end do
           end do
-          do i2=5,n2+4
+       end if
+       do i2=5,n2+4
+          if(peri(1)) then
              do i1=1,4
                 density(i1,i2,i3+4-deltaleft)=rhoinp(n1-4+i1,i2-4,i3,ispden)
              end do
-             do i1=5,n1+4
-                density(i1,i2,i3+4-deltaleft)=rhoinp(i1-4,i2-4,i3,ispden)
+          else
+             do i1=1,4
+                density(i1,i2,i3+4-deltaleft)=rhoinp(1,i2-4,i3,ispden)
              end do
+          end if
+          do i1=5,n1+4
+             density(i1,i2,i3+4-deltaleft)=rhoinp(i1-4,i2-4,i3,ispden)
+          end do
+          if(peri(1)) then
              do i1=n1+5,n1+8
                 density(i1,i2,i3+4-deltaleft)=rhoinp(i1-n1-4,i2-4,i3,ispden)
              end do
+          else
+             do i1=n1+5,n1+8
+                density(i1,i2,i3+4-deltaleft)=rhoinp(n1,i2-4,i3,ispden)
+             end do
+          end if
+       end do
+       if (peri(2)) then
+          do i2=n2+5,n2+8
+             do i1=5,n1+4
+                density(i1,i2,i3+4-deltaleft)=rhoinp(i1-4,i2-n2-4,i3,ispden)
+             end do
           end do
+       else
           do i2=n2+5,n2+8
              do i1=5,n1+4
                 density(i1,i2,i3+4-deltaleft)=rhoinp(i1-4,n2,i3,ispden)
              end do
           end do
-       end do
-       do i3=n3grad+deltaleft+1,n3
-          do i2=5,n2+4
-             do i1=5,n1+4
-                density(i1,i2,i3+4-deltaleft)=rhoinp(i1-4,i2-4,i3,ispden)
-             end do
+       end if
+    end do
+    do i3=n3grad+deltaleft+1,n3
+       do i2=5,n2+4
+          do i1=5,n1+4
+             density(i1,i2,i3+4-deltaleft)=rhoinp(i1-4,i2-4,i3,ispden)
           end do
        end do
+    end do   
+    if (peri(3)) then
        do i3=1,4-deltaright
           do i2=5,n2+4
              do i1=5,n1+4
@@ -762,10 +704,181 @@ subroutine calc_gradient(geocode,n1,n2,n3,n3grad,deltaleft,deltaright,rhoinp,nsp
              end do
           end do
        end do
-    case default
-       write(*,*)' Wrong geocode for gradient calculation:',geocode
-       stop
-    end select
+    else
+       do i3=1,4-deltaright
+          do i2=5,n2+4
+             do i1=5,n1+4
+                density(i1,i2,i3+n3+4-deltaleft)=rhoinp(i1-4,i2-4,n3,ispden)
+             end do
+          end do
+       end do
+    end if
+
+
+!!$    select case(geocode)
+!!$    case('F')
+!!$       do i3=1,4-deltaleft
+!!$          do i2=5,n2+4
+!!$             do i1=5,n1+4
+!!$                density(i1,i2,i3)=rhoinp(i1-4,i2-4,1,ispden)
+!!$             end do
+!!$          end do
+!!$       end do
+!!$       do i3=1,deltaleft
+!!$          do i2=5,n2+4
+!!$             do i1=5,n1+4
+!!$                density(i1,i2,i3+4-deltaleft)=rhoinp(i1-4,i2-4,i3,ispden)
+!!$             end do
+!!$          end do
+!!$       end do
+!!$       do i3=deltaleft+1,n3grad+deltaleft
+!!$          do i2=1,4
+!!$             do i1=5,n1+4
+!!$                density(i1,i2,i3+4-deltaleft)=rhoinp(i1-4,1,i3,ispden)
+!!$             end do
+!!$          end do
+!!$          do i2=5,n2+4
+!!$             do i1=1,4
+!!$                density(i1,i2,i3+4-deltaleft)=rhoinp(1,i2-4,i3,ispden)
+!!$             end do
+!!$             do i1=5,n1+4
+!!$                density(i1,i2,i3+4-deltaleft)=rhoinp(i1-4,i2-4,i3,ispden)
+!!$             end do
+!!$             do i1=n1+5,n1+8
+!!$                density(i1,i2,i3+4-deltaleft)=rhoinp(n1,i2-4,i3,ispden)
+!!$             end do
+!!$          end do
+!!$          do i2=n2+5,n2+8
+!!$             do i1=5,n1+4
+!!$                density(i1,i2,i3+4-deltaleft)=rhoinp(i1-4,n2,i3,ispden)
+!!$             end do
+!!$          end do
+!!$       end do
+!!$       do i3=n3grad+deltaleft+1,n3
+!!$          do i2=5,n2+4
+!!$             do i1=5,n1+4
+!!$                density(i1,i2,i3+4-deltaleft)=rhoinp(i1-4,i2-4,i3,ispden)
+!!$             end do
+!!$          end do
+!!$       end do
+!!$       do i3=1,4-deltaright
+!!$          do i2=5,n2+4
+!!$             do i1=5,n1+4
+!!$                density(i1,i2,i3+n3+4-deltaleft)=rhoinp(i1-4,i2-4,n3,ispden)
+!!$             end do
+!!$          end do
+!!$       end do
+!!$    case('P')
+!!$       !periodic BC, deltaleft/right are zero only if the array is not cut
+!!$       do i3=1,4-deltaleft
+!!$          do i2=5,n2+4
+!!$             do i1=5,n1+4
+!!$                density(i1,i2,i3)=rhoinp(i1-4,i2-4,n3-4+i3,ispden)
+!!$             end do
+!!$          end do
+!!$       end do
+!!$       !normal case, the array rhoinp contains all the necessary
+!!$       do i3=1,deltaleft
+!!$          do i2=5,n2+4
+!!$             do i1=5,n1+4
+!!$                density(i1,i2,i3+4-deltaleft)=rhoinp(i1-4,i2-4,i3,ispden)
+!!$             end do
+!!$          end do
+!!$       end do
+!!$       do i3=deltaleft+1,n3grad+deltaleft
+!!$          do i2=1,4
+!!$             do i1=5,n1+4
+!!$                density(i1,i2,i3+4-deltaleft)=rhoinp(i1-4,n2-4+i2,i3,ispden)
+!!$             end do
+!!$          end do
+!!$          do i2=5,n2+4
+!!$             do i1=1,4
+!!$                density(i1,i2,i3+4-deltaleft)=rhoinp(n1-4+i1,i2-4,i3,ispden)
+!!$             end do
+!!$             do i1=5,n1+4
+!!$                density(i1,i2,i3+4-deltaleft)=rhoinp(i1-4,i2-4,i3,ispden)
+!!$             end do
+!!$             do i1=n1+5,n1+8
+!!$                density(i1,i2,i3+4-deltaleft)=rhoinp(i1-n1-4,i2-4,i3,ispden)
+!!$             end do
+!!$          end do
+!!$          do i2=n2+5,n2+8
+!!$             do i1=5,n1+4
+!!$                density(i1,i2,i3+4-deltaleft)=rhoinp(i1-4,i2-n2-4,i3,ispden)
+!!$             end do
+!!$          end do
+!!$       end do
+!!$       do i3=n3grad+deltaleft+1,n3
+!!$          do i2=5,n2+4
+!!$             do i1=5,n1+4
+!!$                density(i1,i2,i3+4-deltaleft)=rhoinp(i1-4,i2-4,i3,ispden)
+!!$             end do
+!!$          end do
+!!$       end do
+!!$       do i3=1,4-deltaright
+!!$          do i2=5,n2+4
+!!$             do i1=5,n1+4
+!!$                density(i1,i2,i3+n3+4-deltaleft)=rhoinp(i1-4,i2-4,i3,ispden)
+!!$             end do
+!!$          end do
+!!$       end do
+!!$    case('S')
+!!$       !surface case, periodic in x and z while isolated for y
+!!$       do i3=1,4-deltaleft
+!!$          do i2=5,n2+4
+!!$             do i1=5,n1+4
+!!$                density(i1,i2,i3)=rhoinp(i1-4,i2-4,n3-4+i3,ispden)
+!!$             end do
+!!$          end do
+!!$       end do
+!!$       do i3=1,deltaleft
+!!$          do i2=5,n2+4
+!!$             do i1=5,n1+4
+!!$                density(i1,i2,i3+4-deltaleft)=rhoinp(i1-4,i2-4,i3,ispden)
+!!$             end do
+!!$          end do
+!!$       end do
+!!$       do i3=deltaleft+1,n3grad+deltaleft
+!!$          do i2=1,4
+!!$             do i1=5,n1+4
+!!$                density(i1,i2,i3+4-deltaleft)=rhoinp(i1-4,1,i3,ispden)
+!!$             end do
+!!$          end do
+!!$          do i2=5,n2+4
+!!$             do i1=1,4
+!!$                density(i1,i2,i3+4-deltaleft)=rhoinp(n1-4+i1,i2-4,i3,ispden)
+!!$             end do
+!!$             do i1=5,n1+4
+!!$                density(i1,i2,i3+4-deltaleft)=rhoinp(i1-4,i2-4,i3,ispden)
+!!$             end do
+!!$             do i1=n1+5,n1+8
+!!$                density(i1,i2,i3+4-deltaleft)=rhoinp(i1-n1-4,i2-4,i3,ispden)
+!!$             end do
+!!$          end do
+!!$          do i2=n2+5,n2+8
+!!$             do i1=5,n1+4
+!!$                density(i1,i2,i3+4-deltaleft)=rhoinp(i1-4,n2,i3,ispden)
+!!$             end do
+!!$          end do
+!!$       end do
+!!$       do i3=n3grad+deltaleft+1,n3
+!!$          do i2=5,n2+4
+!!$             do i1=5,n1+4
+!!$                density(i1,i2,i3+4-deltaleft)=rhoinp(i1-4,i2-4,i3,ispden)
+!!$             end do
+!!$          end do
+!!$       end do
+!!$       do i3=1,4-deltaright
+!!$          do i2=5,n2+4
+!!$             do i1=5,n1+4
+!!$                density(i1,i2,i3+n3+4-deltaleft)=rhoinp(i1-4,i2-4,i3,ispden)
+!!$             end do
+!!$          end do
+!!$       end do
+!!$    case default
+!!$       write(*,*)' Wrong geocode for gradient calculation:',geocode
+!!$       stop
+!!$    end select
 
     if (associated(rhocore)) then
        !calculating the gradient by using the auxiliary array

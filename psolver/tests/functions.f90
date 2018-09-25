@@ -433,6 +433,75 @@ subroutine fill_functions_arrays(separable,mesh,funcs,factor,density,potential)
   end if
 end subroutine fill_functions_arrays
 
+
+subroutine fill_functions_arrays_wires(mesh,density,potential)
+  use PSbase, only: dp
+  use numerics, only: fourpi
+  use box
+  use f_functions
+  implicit none
+  type(cell), intent(in) :: mesh !<definition of the cell
+  real(dp), dimension(mesh%ndim), intent(out) :: density,potential
+  !local variables
+  type(box_iterator) :: bit
+  real(dp) :: r,r2,factor,e1
+  real(kind=8), parameter :: EulerGamma = 0.5772156649015328d0
+
+  factor = 2.0d0
+
+  bit=box_iter(mesh,centered=.true.)
+  do while(box_next_point(bit))
+     r2=bit%rxyz(1)**2 + bit%rxyz(2)**2
+     r = sqrt(r2)
+     if  (r == 0.d0) then
+         density(bit%ind) = dexp(-factor*r2)
+         potential(bit%ind) = (-EulerGamma - dlog(factor))/(4.0d0*factor)
+      else
+         call e1xb(factor*r2,e1)
+         density(bit%ind) = dexp(-factor*r2)
+         potential(bit%ind) = (e1+dlog(r2))/(4.0d0*factor)
+      end if
+      potential(bit%ind) = -16.0d0*datan(1.0d0)*potential(bit%ind)
+  end do
+
+end subroutine fill_functions_arrays_wires
+
+!> Purpose: Compute exponential integral E1(x)
+subroutine e1xb(x,e1)
+  implicit none
+  !Arguments
+  real(kind=8), intent(in) :: x   !< x  Argument of E1(x)
+  real(kind=8), intent(out) :: e1 !< E1 --- E1(x)  ( x > 0 )
+  !Local variables
+  real(kind=8), parameter :: ga=0.5772156649015328d0 !< EulerGamma
+  real(kind=8) :: r,t0,t
+  integer :: k,m
+
+  if (x.eq.0.0) then
+     e1=1.0d+300
+  else if (x.le.1.0) then
+     e1=1.0d0
+     r=1.0d0
+     do k=1,25
+        r=-r*k*x/(k+1.0d0)**2
+        e1=e1+r
+        if (abs(r) <= abs(e1)*1.0d-15) then
+           exit
+        end if
+     end do
+      e1=-ga-dlog(x)+x*e1
+   else
+        m=20+int(80.0/x)
+        t0=0.0d0
+        do k=m,1,-1
+           t0=k/(1.0d0+k/(x+t0))
+        end do
+           t=1.0d0/(x+t0)
+           e1=dexp(-x)*t
+        endif
+
+end subroutine e1xb
+
 subroutine test_functions_new(mesh,nspden,a_gauss,&
      density,potential,rhopot,pot_ion,offset)
   use box
@@ -461,10 +530,10 @@ subroutine test_functions_new(mesh,nspden,a_gauss,&
   do i=1,3
      if (pers(i)) then
         funcs(i)=f_function_new(f_exp_cosine,&
-             length=mesh%ndims(1)*mesh%hgrids(1),frequency=2.0_dp)
+             length=mesh%ndims(i)*mesh%hgrids(i),frequency=2.0_dp)
      else
         funcs(i)=f_function_new(f_shrink_gaussian,&
-             length=mesh%ndims(1)*mesh%hgrids(1))
+             length=mesh%ndims(i)*mesh%hgrids(i))
      end if
   end do
 
@@ -473,8 +542,14 @@ subroutine test_functions_new(mesh,nspden,a_gauss,&
   case('P')
      !parameters for the test functions
      factor =1.0_dp
+     !laplacian potential = -4pi density
+     call fill_functions_arrays(cell_geocode(mesh) /= 'F',mesh,funcs,factor,&
+          density,potential)
   case('S')
      factor =oneofourpi
+     !laplacian potential = -4pi density
+     call fill_functions_arrays(cell_geocode(mesh) /= 'F',mesh,funcs,factor,&
+          density,potential)
   case('F')
      a2 = a_gauss**2
      !Normalization
@@ -484,14 +559,17 @@ subroutine test_functions_new(mesh,nspden,a_gauss,&
 
      !test call
      call radial_3d_function_mp(mesh,0.5_dp*a2,density)
-  case('W')
-     factor=oneofourpi
-     !the different modes for the wires-like bc are not used here
-  end select
 
-  !laplacian potential = -4pi density
-  call fill_functions_arrays(cell_geocode(mesh) /= 'F',mesh,funcs,factor,&
+     !laplacian potential = -4pi density
+     call fill_functions_arrays(cell_geocode(mesh) /= 'F',mesh,funcs,factor,&
        density,potential)
+  case('W')
+     call fill_functions_arrays_wires(mesh,density,potential)
+!     factor=oneofourpi
+!     call fill_functions_arrays(cell_geocode(mesh) /= 'F',mesh,funcs,factor,&
+!          density,potential)
+     !the different modes for the wires-like bc are not used here
+   end select
 
   !treatment for rhopot and pot_ion
   call f_memcpy(src=density,dest=rhopot)

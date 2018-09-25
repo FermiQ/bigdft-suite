@@ -34,6 +34,7 @@ module rhopotential
     use Poisson_Solver, except_dp => dp, except_gp => gp
     use yaml_output
     use box
+    use PSbox
     implicit none
     
     ! Calling arguments
@@ -80,7 +81,7 @@ module rhopotential
             denspot%dpbox%mesh%ndims(1),denspot%dpbox%mesh%ndims(2),denspot%dpbox%mesh%ndims(3),denspot%xc,&
             denspot%dpbox%mesh%hgrids,&
             denspot%rhov,energs%exc,energs%evxc,nspin,denspot%rho_C,denspot%rhohat,denspot%V_XC,xcstr)
-    
+
        call H_potential('D',denspot%pkernel,denspot%rhov,denspot%V_ext,ehart_ps,0.0_dp,.true.,&
             quiet=denspot%PSquiet,rho_ion=denspot%rho_ion) !optional argument
 

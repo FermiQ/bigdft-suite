@@ -412,6 +412,7 @@ subroutine read_pos(iunit,whichone,nat,pos,nrep)
   integer, intent(in) :: iunit,nat,nrep
   real(kind=8), dimension(3,nrep**3*nat), intent(out) :: pos
   !local variables
+  logical :: peri
   character(len=5) :: fn4
   integer :: i,iat,ityp,i1,i2,i3
   real(kind=8) :: x,y,z,vx,vy,vz,xlo,xhi,ylo,yhi,zlo,zhi,alat(3)
@@ -444,12 +445,17 @@ subroutine read_pos(iunit,whichone,nat,pos,nrep)
      call allocate_atoms_nat(atoms)
      call allocate_atoms_ntypes(atoms)
      !transform the positions in reduced coordinates
-     alat(1) = atoms%astruct%cell_dim(1)
-     if (atoms%astruct%geocode == 'F') alat(1) = 1.d0
-     alat(2) = atoms%astruct%cell_dim(2)
-     if (atoms%astruct%geocode == 'F' .or. atoms%astruct%geocode == 'S') alat(2) = 1.d0
-     alat(3) = atoms%astruct%cell_dim(3)
-     if (atoms%astruct%geocode == 'F') alat(3) = 1.d0
+     peri=bc_periodic_dims(geocode_to_bc(atoms%astruct%geocode))
+     alat=1.d0
+     where(peri) alat=atoms%astruct%cell_dim
+!!$     alat(1) = atoms%astruct%cell_dim(1)
+!!$     if (atoms%astruct%geocode == 'F') alat(1) = 1.d0
+!!$     alat(2) = atoms%astruct%cell_dim(2)
+!!$     if (atoms%astruct%geocode == 'F' .or. atoms%astruct%geocode == 'S') alat(2) = 1.d0
+!!$     alat(3) = atoms%astruct%cell_dim(3)
+!!$     if (atoms%astruct%geocode == 'F') alat(3) = 1.d0
+!!$     if (atoms%astruct%geocode == 'W') call f_err_throw("Wires bc has to be implemented here", &
+!!$                                            err_name='BIGDFT_RUNTIME_ERROR')
      do iat=1,nat
         pos(1,iat)=atoms%astruct%rxyz(1,iat)/alat(1)
         pos(2,iat)=atoms%astruct%rxyz(2,iat)/alat(2)

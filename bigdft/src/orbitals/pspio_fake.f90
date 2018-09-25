@@ -95,6 +95,7 @@ contains
   function pspiof_pspdata_alloc(data)
     type(pspiof_pspdata_t) :: data
     integer :: pspiof_pspdata_alloc
+    pspiof_pspdata_alloc=0
 
     stop "FAKE PSPIO."
   end function pspiof_pspdata_alloc
@@ -104,6 +105,7 @@ contains
     integer :: kind
     character(len=1) :: filename(*)
     integer :: pspiof_pspdata_read
+    pspiof_pspdata_read=0
 
     stop "FAKE PSPIO."
   end function pspiof_pspdata_read
@@ -111,6 +113,7 @@ contains
   function pspiof_pspdata_get_format_guessed(data)
     type(pspiof_pspdata_t) :: data
     integer :: pspiof_pspdata_get_format_guessed
+    pspiof_pspdata_get_format_guessed=0
 
     stop "FAKE PSPIO."
   end function pspiof_pspdata_get_format_guessed
@@ -118,6 +121,7 @@ contains
   function pspiof_pspdata_get_z(data)
     type(pspiof_pspdata_t) :: data
     double precision :: pspiof_pspdata_get_z
+    pspiof_pspdata_get_z=0.0
 
     stop "FAKE PSPIO."
   end function pspiof_pspdata_get_z
@@ -125,6 +129,7 @@ contains
   function pspiof_pspdata_get_zvalence(data)
     type(pspiof_pspdata_t) :: data
     double precision :: pspiof_pspdata_get_zvalence
+    pspiof_pspdata_get_zvalence=0.0
 
     stop "FAKE PSPIO."
   end function pspiof_pspdata_get_zvalence
@@ -132,6 +137,7 @@ contains
   function pspiof_pspdata_get_nelvalence(data)
     type(pspiof_pspdata_t) :: data
     integer :: pspiof_pspdata_get_nelvalence
+    pspiof_pspdata_get_nelvalence=0
 
     stop "FAKE PSPIO."
   end function pspiof_pspdata_get_nelvalence
@@ -153,8 +159,9 @@ contains
 
   function pspiof_pspdata_get_projector_energy(data, i, j)
     type(pspiof_pspdata_t) :: data
-    double precision :: pspiof_pspdata_get_projector_energy
     integer :: i, j
+    double precision :: pspiof_pspdata_get_projector_energy
+    pspiof_pspdata_get_projector_energy=0.0
 
     stop "FAKE PSPIO."
   end function pspiof_pspdata_get_projector_energy
@@ -162,6 +169,7 @@ contains
   function pspiof_pspdata_get_n_projectors(data)
     type(pspiof_pspdata_t) :: data
     integer :: pspiof_pspdata_get_n_projectors
+    pspiof_pspdata_get_n_projectors=0
 
     stop "FAKE PSPIO."
   end function pspiof_pspdata_get_n_projectors
@@ -176,6 +184,7 @@ contains
   function pspiof_qn_get_n(data)
     type(pspiof_qn_t) :: data
     integer :: pspiof_qn_get_n
+    pspiof_qn_get_n=0
 
     stop "FAKE PSPIO."
   end function pspiof_qn_get_n
@@ -183,6 +192,7 @@ contains
   function pspiof_qn_get_l(data)
     type(pspiof_qn_t) :: data
     integer :: pspiof_qn_get_l
+    pspiof_qn_get_l=0
 
     stop "FAKE PSPIO."
   end function pspiof_qn_get_l
@@ -190,6 +200,7 @@ contains
   function pspiof_projector_get_energy(data)
     type(pspiof_projector_t) :: data
     double precision :: pspiof_projector_get_energy
+    pspiof_projector_get_energy=0.0
 
     stop "FAKE PSPIO."
   end function pspiof_projector_get_energy
@@ -204,24 +215,26 @@ contains
 
   function pspiof_potential_eval(data, r)
     type(pspiof_potential_t) :: data
-    double precision :: pspiof_potential_eval
     double precision :: r
+    double precision :: pspiof_potential_eval
+    pspiof_potential_eval=0.0
 
     stop "FAKE PSPIO."
   end function pspiof_potential_eval
 
   function pspiof_potential_eval_deriv(data, r)
     type(pspiof_potential_t) :: data
-    double precision :: pspiof_potential_eval_deriv
     double precision :: r
+    double precision :: pspiof_potential_eval_deriv
+    pspiof_potential_eval_deriv=0.0
 
     stop "FAKE PSPIO."
   end function pspiof_potential_eval_deriv
 
   function pspiof_potential_eval_deriv2(data, r)
     type(pspiof_potential_t) :: data
-    double precision :: pspiof_potential_eval_deriv2
     double precision :: r
+    pspiof_potential_eval_deriv2=0.0
 
     stop "FAKE PSPIO."
   end function pspiof_potential_eval_deriv2
@@ -229,6 +242,7 @@ contains
   function pspiof_pspdata_get_symbol(data)
     type(pspiof_pspdata_t) :: data
     character(len = 3) :: pspiof_pspdata_get_symbol
+    pspiof_pspdata_get_symbol=""
 
     stop "FAKE PSPIO."
   end function pspiof_pspdata_get_symbol
@@ -236,6 +250,7 @@ contains
   function pspiof_xc_get_exchange(data)
     type(pspiof_xc_t) :: data
     integer :: pspiof_xc_get_exchange
+    pspiof_xc_get_exchange=0
 
     stop "FAKE PSPIO."
   end function pspiof_xc_get_exchange
@@ -243,6 +258,7 @@ contains
   function pspiof_xc_get_correlation(data)
     type(pspiof_xc_t) :: data
     integer :: pspiof_xc_get_correlation
+    pspiof_xc_get_correlation=0
 
     stop "FAKE PSPIO."
   end function pspiof_xc_get_correlation
@@ -262,6 +278,7 @@ contains
   function pspiof_projector_copy(data, p)
     type(pspiof_projector_t) :: data, p
     integer :: pspiof_projector_copy
+    pspiof_projector_copy=0
 
     stop "FAKE PSPIO."
   end function pspiof_projector_copy

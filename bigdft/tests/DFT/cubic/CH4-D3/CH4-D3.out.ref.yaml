@@ -368,8 +368,8 @@
    PSP XC                              : "XC: Perdew, Burke & Ernzerhof"
   #----------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : angstroem
-   Positions:
+   units                               : angstroem
+   positions:
    - C: [ 4.762594898,  4.762594898,  8.457404548] # [  22.50,  22.50,  39.96 ] 0001
    - H: [ 4.762594898,  4.762594898,  9.552529048] # [  22.50,  22.50,  45.13 ] 0002
    - H: [ 4.033473688,  5.491716108,  8.089851418] # [  19.06,  25.94,  38.22 ] 0003
@@ -720,8 +720,8 @@
    PSP XC                              : "XC: Perdew, Burke & Ernzerhof"
   #-------------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : angstroem
-   Positions:
+   units                               : angstroem
+   positions:
    - C: [ 4.762594898,  4.762594898,  8.457404548] # [  22.50,  22.50,  39.96 ] 0001
    - H: [ 4.762594898,  4.762594898,  9.552529048] # [  22.50,  22.50,  45.13 ] 0002
    - H: [ 4.033473688,  5.491716108,  8.089851418] # [  19.06,  25.94,  38.22 ] 0003
@@ -965,8 +965,8 @@
    PSP XC                              : "XC: Perdew, Burke & Ernzerhof"
   #-------------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : angstroem
-   Positions:
+   units                               : angstroem
+   positions:
    - C: [ 4.868445386,  4.868416264,  8.458497685] # [  23.00,  23.00,  39.96 ] 0001
    - H: [ 4.868513703,  4.868341710,  9.552584500] # [  23.00,  23.00,  45.13 ] 0002
    - H: [ 4.138713527,  5.598151101,  8.089747728] # [  19.55,  26.45,  38.22 ] 0003
@@ -1246,8 +1246,8 @@
    PSP XC                              : "XC: Perdew, Burke & Ernzerhof"
   #-------------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : angstroem
-   Positions:
+   units                               : angstroem
+   positions:
    - C: [ 4.868336342,  4.868519442,  8.458090233] # [  23.00,  23.00,  39.96 ] 0001
    - H: [ 4.868593426,  4.868263752,  9.553253036] # [  23.00,  23.00,  45.13 ] 0002
    - H: [ 4.138628780,  5.598233363,  8.089966717] # [  19.55,  26.45,  38.22 ] 0003
@@ -1518,8 +1518,8 @@
    PSP XC                              : "XC: Perdew, Burke & Ernzerhof"
   #-------------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : angstroem
-   Positions:
+   units                               : angstroem
+   positions:
    - C: [ 4.762457716,  4.762731709,  8.458270727] # [  22.50,  22.50,  39.96 ] 0001
    - H: [ 4.762841406,  4.762352218,  9.553355187] # [  22.50,  22.50,  45.13 ] 0002
    - H: [ 4.032744482,  5.492446962,  8.090238030] # [  19.05,  25.95,  38.22 ] 0003
@@ -1790,8 +1790,8 @@
    PSP XC                              : "XC: Perdew, Burke & Ernzerhof"
   #-------------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : angstroem
-   Positions:
+   units                               : angstroem
+   positions:
    - C: [ 4.762132842,  4.763010882,  8.459560133] # [  22.50,  22.50,  39.97 ] 0001
    - H: [ 4.763385351,  4.761800985,  9.554395548] # [  22.50,  22.50,  45.14 ] 0002
    - H: [ 4.032181938,  5.493011034,  8.092397581] # [  19.05,  25.95,  38.23 ] 0003
@@ -2071,8 +2071,8 @@
    PSP XC                              : "XC: Perdew, Burke & Ernzerhof"
   #-------------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : angstroem
-   Positions:
+   units                               : angstroem
+   positions:
    - C: [ 4.759699917,  4.765599347,  8.468030559] # [  22.49,  22.51,  40.01 ] 0001
    - H: [ 4.767534242,  4.757769112,  9.562654579] # [  22.52,  22.48,  45.18 ] 0002
    - H: [ 4.028375340,  5.496969815,  8.108236581] # [  19.03,  25.97,  38.31 ] 0003

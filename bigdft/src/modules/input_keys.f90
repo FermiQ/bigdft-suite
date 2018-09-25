@@ -173,7 +173,9 @@ module module_input_keys
      character(len=100) :: file_lin
      character(len=100) :: file_frag   !< Fragments
      character(len=max_field_length) :: dir_output  !< Strings of the directory which contains all data output files
-     character(len=max_field_length) :: naming_id
+     character(len=max_field_length) :: outdir      !< Strings of the directory which contains 
+                                                    !! logfile, iput_minimal, and forces_xxx
+     character(len=max_field_length) :: naming_id   !< Name of the job
      !integer :: files                  !< Existing files.
 
      !> Miscellaneous variables
@@ -628,7 +630,6 @@ contains
     use fragment_base
     use f_utils, only: f_get_free_unit
     use wrapper_MPI, only: fmpi_barrier
-    use abi_interfaces_add_libpaw, only : abi_pawinit
     use PStypes, only: SETUP_VARIABLES,VERBOSITY
     use vdwcorrection, only: vdwcorrection_warnings
     implicit none
@@ -741,18 +742,18 @@ contains
        lvl => dict_next(lvl)
     end do
 
-    ! Generate the dir_output
+    ! Generate the in%dir_output and in%outdir
     !outdir has to be initialized
     call f_zero(outdir)
     call dict_get_run_properties(dict, naming_id = run_id, posinp_id = posinp_id, input_id = input_id, outdir_id = outdir)
+    call f_strcpy(dest = in%outdir, src = trim(outdir))
     call f_strcpy(dest = in%dir_output, src = trim(outdir) // "data" // trim(run_id))
     call f_strcpy(dest= in%naming_id, src=trim(run_id))
     call set_cache_size(in%ncache_fft)
 
     !status of the allocation verbosity and profiling
     !filename of the memory allocation status, if needed
-    call f_strcpy(src=trim(outdir) // 'memstatus' // trim(run_id) // '.yaml',&
-         dest=filename)
+    call f_strcpy(src=trim(in%outdir) // 'memstatus' // trim(run_id) // '.yaml', dest=filename)
     if (.not. in%debug) then
        if (in%verbosity==3) then
           call f_malloc_set_status(output_level=1, iproc=bigdft_mpi%iproc,logfile_name=filename)!,profiling_depth=in%profiling_depth)
@@ -823,25 +824,6 @@ contains
          in%gen_norbu, in%gen_norbd, in%gen_occup, &
          in%gen_nkpt, in%nspin, in%norbsempty, qelec_up, qelec_down, norb_max)
     in%gen_norb = in%gen_norbu + in%gen_norbd
-
-!!$    ! Complement PAW initialisation.
-!!$    if (any(atoms%npspcode == PSPCODE_PAW)) then
-!!$     call xc_init(xc, in%ixc, XC_MIXED, 1, in%alpha_hartree_fock)
-!!$     xclevel = 1 ! xclevel=XC functional level (1=LDA, 2=GGA)
-!!$     if (xc_isgga(xc)) xclevel = 2
-!!$     call xc_end(xc)
-!!$     !gsqcut_shp = two*abs(dtset%diecut)*dtset%dilatmx**2/pi**2
-!!$     gsqcut_shp = 2._gp * 2.2_gp / pi_param ** 2
-!!$     nsym = 0
-!!$     call symmetry_get_n_sym(atoms%astruct%sym%symObj, nsym, ierr)
-!!$     mpsang = -1
-!!$     do iat = 1, atoms%astruct%nat
-!!$        mpsang = max(mpsang, maxval(atoms%pawtab(iat)%orbitals))
-!!$     end do
-!!$     call abi_pawinit(1, gsqcut_shp, pawlcutd, pawlmix, mpsang + 1, &
-!!$          & pawnphi, nsym, pawntheta, atoms%pawang, atoms%pawrad, 0, &
-!!$          & atoms%pawtab, pawxcdev, xclevel, usepotzero)
-!!$    end if
 
     if (in%gen_nkpt > 1 .and. (in%inputpsiid .hasattr. 'GAUSSIAN')) then
        call f_err_throw('Gaussian projection is not implemented with k-point support',err_name='BIGDFT_INPUT_VARIABLES_ERROR')
@@ -941,7 +923,7 @@ contains
        call dict_get_run_properties(dict, input_id = run_id , minimal_file = filename)
        !       call f_strcpy(src=trim(run_id)//'_minimal.yaml',dest=filename)
        unt=f_get_free_unit(99971)
-       call yaml_set_stream(unit=unt,filename=trim(outdir)//trim(filename)//'.yaml',&
+       call yaml_set_stream(unit=unt,filename=trim(in%outdir)//trim(filename)//'.yaml',&
             record_length=92,istat=ierr,setdefault=.false.,tabbing=0,position='rewind')
        if (ierr==0) then
           call yaml_comment('Minimal input file',hfill='-',unit=unt)
@@ -980,17 +962,17 @@ contains
     !shouldwrite=.false.
 
     shouldwrite= &!shouldwrite .or. &
-         in%output_wf /= ENUM_EMPTY .or. &    !write wavefunctions
-         in%output_denspot /= ENUM_EMPTY .or. & !write output density
+         in%output_wf /= ENUM_EMPTY .or. &               !write wavefunctions
+         in%output_denspot /= ENUM_EMPTY .or. &          !write output density
          in%ncount_cluster_x > 1 .or. &                  !write posouts or posmds
          (in%inputPsiId .hasattr. 'FILE') .or. &
-         (in%inputPsiId .hasattr. 'GAUSSIAN') .or. &   !Mulliken and local density of states
+         (in%inputPsiId .hasattr. 'GAUSSIAN') .or. &     !Mulliken and local density of states
          bigdft_mpi%ngroup > 1   .or. &                  !taskgroups have been inserted
          mod(in%lin%plotBasisFunctions,10) > 0 .or. &    !dumping of basis functions for locreg runs
          !in%write_orbitals>0 .or. &                      !writing the KS orbitals in the linear case
          mod(in%lin%output_mat_format,10)>0 .or. &       !writing the sparse linear matrices
-         mod(in%lin%output_coeff_format,10)>0 .or. &          !writing the linear KS coefficients
-         in%mdsteps>0                                !write the MD restart file always in dir_output
+         mod(in%lin%output_coeff_format,10)>0 .or. &     !writing the linear KS coefficients
+         in%mdsteps>0                                    !write the MD restart file always in dir_output
 
     !here you can check whether the etsf format is compiled
 
@@ -1003,11 +985,16 @@ contains
        call fmpi_bcast(dirname,comm=bigdft_mpi%mpi_comm)
        !in%dir_output=dirname
        call f_strcpy(src=dirname,dest=in%dir_output)
-       if (iproc==0) call yaml_map('Data Writing directory',trim(in%dir_output))
+       if (iproc==0) &
+            call yaml_map('Data Writing directory',trim(in%dir_output))
     else
-       if (iproc==0) call yaml_map('Data Writing directory','./')
-       call f_zero(in%dir_output)!=repeat(' ',len(in%dir_output))
+       !We use outdir for time-xxx.yaml avoiding to create data directory
+       call f_strcpy(src=in%outdir,dest=in%dir_output)
+       !call f_zero(in%dir_output)!=repeat(' ',len(in%dir_output))
+       if (iproc==0) &
+            call yaml_map('Data Writing directory','./')
     end if
+
 
   END SUBROUTINE check_for_data_writing_directory
 
@@ -1556,13 +1543,14 @@ contains
 
   end subroutine set_output_wf
 
+
   subroutine set_output_wf_from_text(profile,output_wf)
     implicit none
     character(len=*), intent(in) :: profile
     type(f_enumerator), intent(out) :: output_wf
 
     select case(trim(profile))
-    case('No')
+    case('None')
        output_wf=ENUM_EMPTY
     case('text')
        output_wf=ENUM_TEXT
@@ -2952,6 +2940,7 @@ contains
     use yaml_output
     use public_keys
     use f_utils
+    use box, only: bc_periodic_dims,geocode_to_bc
     implicit none
     !Arguments
     integer, intent(in) :: iproc
@@ -2963,7 +2952,8 @@ contains
     !local variables
     logical :: lstat,read_wgts
     character(len=*), parameter :: subname='kpt_input_analyse'
-    integer :: ierror,i, nshiftk, ikpt, j, ncount, nseg, iseg_, ngranularity_
+    integer :: ierror,i, nshiftk, ikpt, j, ncount, nseg, iseg_, ngranularity_,idir
+    logical, dimension(3) :: peri
     integer, dimension(3) :: ngkpt_
     real(gp), dimension(3) :: alat_
     real(gp), dimension(3,8) :: shiftk_
@@ -2982,6 +2972,8 @@ contains
     call free_kpt_variables(in)
     nullify(in%kptv, in%nkptsv_group)
     nullify(in%gen_kpt, in%gen_wkpt)
+
+    peri=bc_periodic_dims(geocode_to_bc(geocode))
 
     method = dict // KPT_METHOD
     if (trim(method) .eqv. 'auto') then
@@ -3007,7 +2999,9 @@ contains
     else if (trim(method) .eqv. 'mpgrid') then
        !take the points of Monkhorst-pack grid
        ngkpt_(1:3) = dict // NGKPT
-       if (geocode == 'S') ngkpt_(2) = 1
+       where (.not. peri) ngkpt_=1
+       !if (geocode == 'S' .or. geocode == 'W') ngkpt_(2) = 1
+       !if (geocode == 'W') ngkpt_(1) = 1
        !shift
        nshiftk=1
        shiftk_=0.0_gp
@@ -3062,10 +3056,12 @@ contains
        end if
        do i=1,in%gen_nkpt
           in%gen_kpt(1:3, i) = dict // KPT // (i-1)
-          if (geocode == 'S' .and. in%gen_kpt(2,i) /= 0.) then
-             in%gen_kpt(2,i) = 0.
-             if (iproc==0) call yaml_warning('Surface conditions, suppressing k-points along y.')
-          end if
+          do idir=1,3
+             if (.not. peri(idir) .and. in%gen_kpt(idir,i) /= 0.0_gp) then
+                in%gen_kpt(idir,i) = 0.
+                if (iproc==0) call yaml_warning('Suppressing manual k-points along free BC directions.')
+             end if
+          end do
           if (read_wgts) then
              in%gen_wkpt(i) = dict // WKPT // (i-1)
           else
@@ -3088,11 +3084,7 @@ contains
 
     ! Convert reduced coordinates into BZ coordinates.
     alat_ = alat
-    if (geocode /= 'P') alat_(2) = 1.0_gp
-    if (geocode == 'F') then
-       alat_(1)=1.0_gp
-       alat_(3)=1.0_gp
-    end if
+    where( .not. peri) alat_=1.0_gp
     do i = 1, in%gen_nkpt, 1
        in%gen_kpt(:, i) = in%gen_kpt(:, i) / alat_(:) * two_pi
     end do
@@ -3449,11 +3441,11 @@ contains
     call yaml_map('DIIS History length',in%idsx)
     call yaml_map('Max. Wfn Iterations',in%itermax,label='itermax')
     call yaml_map('Max. Subspace Diagonalizations',in%nrepmax)
-    call yaml_map('Input wavefunction policy',  trim(str(in%inputPsiId)), advance="no")
+    call yaml_map('Input wavefunction policy',  trim(toa(in%inputPsiId)), advance="no")
     call yaml_comment(trim(yaml_toa(f_int(in%inputPsiId))))
-    call yaml_map('Output wavefunction policy', trim(str(in%output_wf)), advance="no")
+    call yaml_map('Output wavefunction policy', trim(toa(in%output_wf)), advance="no")
     call yaml_comment(trim(yaml_toa(f_int(in%output_wf))))
-    call yaml_map('Output grid policy',trim(str(in%output_denspot)),advance='no')
+    call yaml_map('Output grid policy',trim(toa(in%output_denspot)),advance='no')
     call yaml_comment(trim(yaml_toa(f_int(in%output_denspot))))
     if (in%output_denspot .hasattr. 'TEXT') then
        call yaml_map('Output grid format','TEXT',advance='no')

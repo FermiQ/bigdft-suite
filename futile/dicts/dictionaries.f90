@@ -12,7 +12,7 @@
 module dictionaries
    use exception_callbacks
    use dictionaries_base
-   use f_precisions, only: f_address,f_loc
+   use f_precisions, only: f_address,f_loc,f_double
    use yaml_strings, only: read_fraction_string,yaml_toa,f_strcpy
    implicit none
 
@@ -95,7 +95,7 @@ module dictionaries
 
    interface set
       module procedure put_child,put_value,put_list,put_integer,put_real,put_double,put_long,put_lg
-      module procedure put_listd,put_listi
+      module procedure put_listd,put_listi,put_matd
    end interface
 
    interface add
@@ -114,7 +114,7 @@ module dictionaries
 !!$   end interface dict_reduce
 
    interface dict_get
-      module procedure dict_get_l,dict_get_c
+      module procedure dict_get_l,dict_get_c,dict_get_i
    end interface dict_get
 
    interface dict_iter
@@ -539,7 +539,7 @@ contains
    subroutine add_double(dict,val, last_item_ptr)
      implicit none
      type(dictionary), pointer :: dict
-     double precision, intent(in) :: val
+     real(f_double), intent(in) :: val
      type(dictionary), pointer, optional :: last_item_ptr
      include 'dict_add-inc.f90'
    end subroutine add_double
@@ -645,7 +645,7 @@ contains
 
    pure function dict_cont_new_with_dbl(key, val) result(cont)
      implicit none
-     double precision, intent(in) :: val
+     real(f_double), intent(in) :: val
      include 'dict_cont-inc.f90'
    end function dict_cont_new_with_dbl
 
@@ -669,7 +669,7 @@ contains
 
    function dict_cont_new_with_dbl_v(key, val) result(cont)
      implicit none
-     double precision, dimension(:), intent(in) :: val
+     real(f_double), dimension(:), intent(in) :: val
      include 'dict_cont_arr-inc.f90'
    end function dict_cont_new_with_dbl_v
 
@@ -805,7 +805,7 @@ contains
          !local variables
          logical :: l1,l2
          integer :: i1,i2
-         double precision :: r1,r2
+         real(f_double) :: r1,r2
 
 
          !dictionaries associated
@@ -1310,7 +1310,7 @@ contains
 
    subroutine put_listd(dict,list)
      implicit none
-     double precision, dimension(:), intent(in) :: list
+     real(f_double), dimension(:), intent(in) :: list
      include 'set_arr-inc.f90'
    end subroutine put_listd
 
@@ -1319,6 +1319,21 @@ contains
      integer, dimension(:), intent(in) :: list
      include 'set_arr-inc.f90'
    end subroutine put_listi
+
+
+   subroutine put_matd(dict,mat)
+     implicit none
+     type(dictionary), pointer :: dict
+       real(f_double), dimension(:,:), intent(in) :: mat
+     !local variables
+     integer :: j,jj
+
+     jj=0
+     do j=lbound(mat,2),ubound(mat,2)
+        call set(dict//jj,mat(:,j))
+        jj=jj+1
+     end do
+   end subroutine put_matd
 
 
    elemental function item_char(val) result(elem)
@@ -1332,7 +1347,7 @@ contains
 
    elemental function item_dbl(val) result(elem)
      implicit none
-     double precision, intent(in) :: val
+     real(f_double), intent(in) :: val
      type(list_container) :: elem
 
      elem%val(1:max_field_length)=yaml_toa(val)
@@ -1347,8 +1362,6 @@ contains
      elem%val(1:max_field_length)=yaml_toa(val)
 
    end function item_int
-
-
 
    function item_dict(val) result(elem)
      implicit none
@@ -1378,6 +1391,16 @@ contains
      val=default
      val=dict .get. key
    end function dict_get_c
+
+   function dict_get_i(dict,key,default) result(val)
+     implicit none
+     type(dictionary), pointer :: dict
+     character(len=*), intent(in) :: key
+     integer(f_integer), intent(in) :: default
+     integer(f_integer) :: val
+     val=default
+     val=dict .get. key
+   end function dict_get_i
 
    !> Internal procedure for .get. operator interface
    function list_container_if_key_exists(dict,key) result(list)
@@ -1536,10 +1559,11 @@ contains
    subroutine get_d2vec(arr,dict)
      implicit none
      real(f_double), dimension(:,:), intent(out) :: arr
-     type(dictionary), pointer, intent(in) :: dict
+     type(dictionary), intent(in), target :: dict
      !local variables
      integer :: j,ny
      real(f_double) :: tmp
+     type(dictionary), pointer :: dict_tmp
      
      if (dict%data%nitems == 0) then
         tmp=dict
@@ -1553,8 +1577,9 @@ contains
           err_id=DICT_CONVERSION_ERROR)
         return
      end if
+     dict_tmp => dict
      do j=1,ny
-        arr(:,j)=dict//(j-1)
+        arr(:,j)=dict_tmp//(j-1)
      end do
 
    end subroutine get_d2vec
@@ -1566,7 +1591,7 @@ contains
      real(f_double), dimension(:), intent(out) :: arr
      type(dictionary), intent(in) :: dict
      !local variables
-     double precision :: tmp
+     real(f_double) :: tmp
      include 'dict_getvec-inc.f90'
    end subroutine get_dvec
 
@@ -1633,7 +1658,7 @@ contains
      type(dictionary), intent(in) :: dict
      !local variables
      integer :: ierror
-     double precision :: dval
+     real(f_double) :: dval
      character(len=max_field_length) :: val
 
      !take value

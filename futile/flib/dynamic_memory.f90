@@ -184,13 +184,26 @@ module dynamic_memory_base
      module procedure get_lbnd_d0,get_lbnd_i0,get_lbnd_li0
   end interface get_lbnd
 
+  interface aligned_alloc
+    function aligned_alloc(align_size, size)  bind(C, name="aligned_alloc")
+      use iso_c_binding, only:  c_ptr,c_size_t
+      integer(c_size_t), value :: align_size, size
+      type(c_ptr) :: aligned_alloc
+    end function aligned_alloc
+  end interface
+
   public :: f_free,f_free_ptr,f_free_str,f_free_str_ptr,f_malloc_dump_status
   public :: f_routine,f_release_routine,f_malloc_set_status,f_malloc_initialize,f_malloc_finalize
   public :: f_memcpy,f_maxdiff,f_update_database,f_purge_database,f_subptr
   public :: assignment(=),operator(.to.),operator(.plus.)
+  ! To be integrated in f_update_database ?
+  interface update_allocation_database
+     module procedure update_allocation_database, update_allocation_database_ptr
+  end interface update_allocation_database
+  public :: update_allocation_database
 
   !for internal f_lib usage
-  public :: dynamic_memory_errors,malloc_validate,f_subptr2
+  public :: dynamic_memory_errors,malloc_validate,f_subptr2,free_validate
 
 contains
 
@@ -316,6 +329,59 @@ contains
          mems(ictrl)%profiling_depth ==-1
   end subroutine set_depth
 
+  subroutine update_allocation_database(address,size,kind,m)
+    implicit none
+    type(malloc_information_all), intent(in) :: m
+    integer(f_address), intent(in) :: address
+    integer(f_long), intent(in) :: size
+    integer, intent(in) :: kind
+    !local variables
+    integer(f_address) :: iadd
+
+    !profile the array allocation
+    iadd=int(0,f_address)
+    !write the address of the first element in the address string
+    if (m%profile .and. track_origins) iadd=address
+
+    call f_update_database(size,kind,m%rank,&
+         iadd,m%array_id,m%routine_id,m%info)
+
+  end subroutine update_allocation_database
+
+  subroutine update_allocation_database_ptr(address,size,kind,m)
+    implicit none
+    type(malloc_information_ptr), intent(in) :: m
+    integer(f_address), intent(in) :: address
+    integer(f_long), intent(in) :: size
+    integer, intent(in) :: kind
+    !local variables
+    integer(f_address) :: iadd
+
+    !profile the array allocation
+    iadd=int(0,f_address)
+    !write the address of the first element in the address string
+    if (m%profile .and. track_origins) iadd=address
+
+    call f_update_database(size,kind,m%rank,&
+         iadd,m%array_id,m%routine_id,m%info)
+
+  end subroutine update_allocation_database_ptr
+
+  function free_validate(ierror) result(ok)
+    implicit none
+    integer, intent(in) :: ierror
+    logical :: ok
+
+    ok=.false.
+    if (ierror/=0) then
+       call f_timer_resume()!TCAT_ARRAY_ALLOCATIONS
+       call f_err_throw('Deallocation problem, error code '//trim(yaml_toa(ierror)),&
+            ERR_DEALLOCATE)
+       return
+    end if
+    ok=.true.
+
+  end function free_validate
 
   function validate_allocation_all(ierror,rank,m) result(ok)
     implicit none
@@ -706,7 +772,7 @@ contains
           call f_strcpy(dest=routine_id,src='Unknown')
        end if
     end if
-
+    
     call memstate_update(memstate,-ilsize,trim(array_id),trim(routine_id))
     !here in the case of output_level == 2 the data can be extracted  
     if (mems(ictrl)%output_level==2) then

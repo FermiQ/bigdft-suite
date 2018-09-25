@@ -229,7 +229,7 @@
  - Li: {AU:  [  10.35,  10.35,  10.35 ], GU:  [  23.0,  23.0,  23.0 ]} # 0001
  Rigid Shift Applied (AU)              :  [  10.35,  10.35,  10.35 ]
  Atomic structure:
-   Positions:
+   positions:
    -  {Li: [ 10.35,  10.35,  10.35],  # [  23.0,  23.0,  23.0 ] 0001
  IGChg:  1}
    Rigid Shift Applied (AU)            :  [  10.35,  10.35,  10.35 ]

@@ -48,7 +48,7 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
   use locregs_init, only: small_to_large_locreg
   use public_enums
   use multipole, only: multipole_analysis_driver_new, &
-                       support_function_gross_multipoles, potential_from_charge_multipoles, &
+                       support_function_gross_multipoles, &
                        calculate_and_write_multipole_matrices
   use transposed_operations, only: calculate_overlap_transposed
   use foe_base, only: foe_data_set_real

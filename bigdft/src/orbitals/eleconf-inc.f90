@@ -298,6 +298,19 @@ subroutine eleconf(nzatom,nvalelec,symbol,rcov,rprb,ehomo,neleconf,nsccode,mxpl,
      neleconf(3,1)=1
      amu=26.981539d0
 
+  case(13*1000+11)
+     ! -----------------------          17
+     ! Al          13           11     Symbol, Z, Zion
+     symbol = "Al"
+     rcov=2.23d0
+     rprb=4.45d0
+     ehomo=-0.102545d0
+     neleconf(2,0)=2
+     neleconf(2,1)=6
+     neleconf(3,0)=2
+     neleconf(3,1)=1
+     amu=26.981539d0
+
   case(14*1000+4)
      ! -----------------------          18
      ! Si          14           4     Symbol, Z, Zion

@@ -637,12 +637,9 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
   !Calculate effective ionic potential, including counter ions if any.
   call createEffectiveIonicPotential(iproc,(iproc == 0),in,atoms,rxyz,atoms%astruct%shift,&
        denspot%dpbox,denspot%pkernel,denspot%V_ext,denspot%rho_ion,in%elecfield,denspot%psoffset)
-  call potential_from_charge_multipoles(iproc, nproc, atoms, denspot, in%ep, 1, denspot%dpbox%mesh%ndims(1), 1,&
-       denspot%dpbox%mesh%ndims(2), &
-       denspot%dpbox%nscatterarr(denspot%dpbox%mpi_env%iproc,3)+1, &
-       denspot%dpbox%nscatterarr(denspot%dpbox%mpi_env%iproc,3)+denspot%dpbox%nscatterarr(denspot%dpbox%mpi_env%iproc,2), &
-       denspot%dpbox%mesh%hgrids(1),denspot%dpbox%mesh%hgrids(2),denspot%dpbox%mesh%hgrids(3), atoms%astruct%shift, verbosity=1, &
-       ixc=in%ixc, lzd=tmb%lzd, pot=denspot%V_ext, &
+  call potential_from_charge_multipoles(iproc, nproc, atoms, denspot, in%ep,&
+       atoms%astruct%shift, verbosity=1, &
+       ixc=in%ixc, pot=denspot%V_ext, &
        rxyz=rxyz, ixyz0=in%plot_mppot_axes, write_directory=trim(in%dir_output))
   call interaction_multipoles_ions(bigdft_mpi%iproc, KSwfn%Lzd%Glr%mesh, in%ep, atoms, energs%eion, fion)
 !!$  call interaction_multipoles_ions(bigdft_mpi%iproc, in%ep, atoms, energs%eion, fion)
@@ -712,7 +709,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
            inputpsi,input_wf_format,norbv,lzd_old,psi_old,rxyz_old,tmb_old,ref_frags,cdft)
    end if
 
-  nvirt=max(in%nvirt,norbv)
+  nvirt=min(in%nvirt,norbv)
 
   ! modified by SM
   call deallocate_local_zone_descriptors(lzd_old)
@@ -921,7 +918,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
         call write_gaussian_information(iproc,nproc,KSwfn%orbs,KSwfn%gbd,KSwfn%gaucoeffs,trim(in%dir_output) // 'wavefunctions.gau')
 
         !build dual coefficients
-        call dual_gaussian_coefficients(KSwfn%orbs%norbp*KSwfn%orbs%nspinor,KSwfn%gbd,KSwfn%gaucoeffs)
+        call dual_gaussian_coefficients(KSwfn%Lzd%Glr%mesh,KSwfn%orbs%norbp*KSwfn%orbs%nspinor,KSwfn%gbd,KSwfn%gaucoeffs)
 
         !control the accuracy of the expansion
         call check_gaussian_expansion(iproc,nproc,KSwfn%orbs,KSwfn%Lzd,KSwfn%psi,KSwfn%gbd,KSwfn%gaucoeffs)
@@ -1003,7 +1000,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
 
      call kswfn_post_treatments(iproc, nproc, KSwfn, tmb, &
           inputpsi .hasattr. 'LINEAR',&
-          fxyz, fnoise, fion, fdisp, fpulay, &
+          fxyz, fion, fdisp, fpulay, &
           strten, pressure, ewaldstr, xcstr, GPU, denspot, atoms, rxyz, nlpsp, &
           output_denspot, in%dir_output, gridformat, refill_proj, calculate_dipole, calculate_quadrupole, &
           in%calculate_strten,in%nspin, in%plot_pot_axes)
@@ -1472,22 +1469,24 @@ contains
   subroutine deallocate_before_exiting
     use communications_base, only: deallocate_comms
     use module_cfd, only: cfd_free
+    use PStypes
     implicit none
     external :: gather_timings
   !when this condition is verified we are in the middle of the SCF cycle
     if (infocode /=0 .and. infocode /=1 .and. inputpsi /= 'INPUT_PSI_EMPTY') then
        call f_free_ptr(denspot%V_ext)
 
-       if (((in%exctxpar == 'OP2P' .and. xc_exctXfac(denspot%xc) /= 0.0_gp) &
-            .or. in%SIC%alpha /= 0.0_gp) .and. nproc >1) then
-          if (.not. associated(denspot%pkernelseq%kernel,target=denspot%pkernel%kernel) .and. &
-               associated(denspot%pkernelseq%kernel)) then
-             call pkernel_free(denspot%pkernelseq)
-          end if
-       else if (nproc == 1 .and. (in%exctxpar == 'OP2P' .or. in%SIC%alpha /= 0.0_gp)) then
-          nullify(denspot%pkernelseq%kernel)
+       if (pkernel_seq_is_needed(in,denspot)) then ! .and. nproc >1) then
+          !if (.not. associated(denspot%pkernelseq%kernel,target=denspot%pkernel%kernel) .and. &
+          !     associated(denspot%pkernelseq%kernel)) then
+          call pkernel_free(denspot%pkernelseq)
        end if
+       !else if (nproc == 1 .and. (in%exctxpar == 'OP2P' .or. in%SIC%alpha /= 0.0_gp)) then
+       !   nullify(denspot%pkernelseq%kernel)
+       !end if
        call pkernel_free(denspot%pkernel)
+       denspot%pkernel   =pkernel_null()
+       denspot%pkernelseq=pkernel_null()
 
        ! calc_tail false
        call f_free_ptr(denspot%rhov)
@@ -2005,7 +2004,7 @@ END SUBROUTINE kswfn_optimization_loop
 
 
 subroutine kswfn_post_treatments(iproc, nproc, KSwfn, tmb, linear, &
-     & fxyz, fnoise, fion, fdisp, fpulay, &
+     & fxyz, fion, fdisp, fpulay, &
      & strten, pressure, ewaldstr, xcstr, &
      & GPU, denspot, atoms, rxyz, nlpsp, &
      & output_denspot, dir_output, gridformat, refill_proj, &
@@ -2044,7 +2043,8 @@ subroutine kswfn_post_treatments(iproc, nproc, KSwfn, tmb, linear, &
   real(gp), dimension(3, atoms%astruct%nat), intent(inout) :: fion
   real(dp), dimension(6), intent(in) :: ewaldstr
   real(dp), dimension(6), intent(inout) :: xcstr
-  real(gp), intent(out) :: fnoise, pressure
+  !real(gp), intent(out) :: fnoise
+  real(gp), intent(out) :: pressure
   real(gp), dimension(6), intent(out) :: strten
   real(gp), dimension(3, atoms%astruct%nat), intent(out) :: fxyz
   integer,dimension(3),intent(in) :: plot_pot_axes
@@ -2059,6 +2059,7 @@ subroutine kswfn_post_treatments(iproc, nproc, KSwfn, tmb, linear, &
   real(gp) :: ehart_fake, exc_fake, evxc_fake
   type(orbital_basis) :: ob
   type(PSolver_energies) :: PSenergies
+  real(dp), dimension(:), pointer :: rhocore_ptr
 
   call f_routine(id=subname)
   !manipulate scatter array for avoiding the GGA shift
@@ -2192,10 +2193,13 @@ subroutine kswfn_post_treatments(iproc, nproc, KSwfn, tmb, linear, &
      ! an MPI gather. To avoid out of bounds errors, rho_C is now allocted min max(n3d,1).
      !if (associated(denspot%rho_C) .and. denspot%dpbox%n3d>0) then
      if (associated(denspot%rho_C)) then
+        !create a temporary array in which to copy the core density
+        rhocore_ptr => f_subptr(denspot%rho_C(1,1,i3xcsh_old+1,1),size=denspot%dpbox%ndimpot)
         if (iproc == 0) call yaml_map('Writing core density in file','core_density'//gridformat)
         call plot_density(iproc,nproc,trim(dir_output)//'core_density' // gridformat,&
-             atoms,rxyz,denspot%pkernel,1,denspot%rho_C(1:,1:,i3xcsh_old+1:,1:))
+             atoms,rxyz,denspot%pkernel,1,rhocore_ptr)
      end if
+
      if (associated(denspot%rhohat)) then
         if (iproc == 0) call yaml_map('Writing compensation density in file', 'hat_density'//gridformat)
         call plot_density(iproc,nproc,trim(dir_output)//'hat_density' // gridformat,&

@@ -74,9 +74,11 @@ subroutine MemoryEstimator(nproc,idsx,lr,norb,nspinor,nkpt,nprojel,nspin,itrpmax
      n02=2*n2+31
      n03=2*n3+31
     case('W')
-     call f_err_throw("Wires bc has to be implemented here", &
-          err_name='BIGDFT_RUNTIME_ERROR')
-  end select
+       call W_FFT_dimensions(2*n1+31,2*n2+31,2*n3+2,m1,m2,m3,n1,n2,n3,md1,md2,md3,nd1,nd2,nd3,nproc,0,.false.)
+       n01=2*n1+31
+       n02=2*n2+31
+       n03=2*n3+2
+    end select
   tt = 8.d0*real(n1*n2*n3,kind=8)/real(n01*n02*n03,kind=8)
 
   !density memory

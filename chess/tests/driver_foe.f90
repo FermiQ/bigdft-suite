@@ -381,8 +381,8 @@ program driver_foe
           if (smat(2)%nspin/=1) call f_err_throw('The kernel calculation with LAPACK is currently not possible for nspin/=1')
           ii = nint(0.5_mp*foe_data_get_real(foe_obj(it),"charge",1))
           occup(1:ii) = 2.0_mp
-          call eval_to_occ(iproc, nproc, norbu, norbd, norb, 1, (/1.0_mp/), &
-               eval_occup, occup, .false., .true., pexsi_temperature, SMEARING_DIST_ERF, efermi, eTS, &
+          call eval_to_occ(iproc, norbu, norbd, norb, 1, (/1.0_mp/), &
+               eval_occup, occup, .true., pexsi_temperature, SMEARING_DIST_ERF, efermi, eTS, &
                norbu, norbd)
           call distribute_on_tasks(norb, iproc, nproc, norbp, isorb)
           ! Density kernel
@@ -555,8 +555,8 @@ program driver_foe
       if (smat(2)%nspin/=1) call f_err_throw('The kernel calculation with LAPACK is currently not possible for nspin/=1')
       ii = nint(0.5_mp*foe_data_get_real(foe_obj(1),"charge",1))
       occup(1:ii) = 2.0_mp
-      call eval_to_occ(iproc, nproc, norbu, norbd, norb, 1, (/1.0_mp/), &
-           eval_occup, occup, .false., .true., pexsi_temperature, SMEARING_DIST_ERF, efermi, eTS, &
+      call eval_to_occ(iproc, norbu, norbd, norb, 1, (/1.0_mp/), &
+           eval_occup, occup, .true., pexsi_temperature, SMEARING_DIST_ERF, efermi, eTS, &
            norbu, norbd)
       call distribute_on_tasks(norb, iproc, nproc, norbp, isorb)
       ! Density kernel... Use mat_ek to store this reference kernel.
@@ -714,8 +714,8 @@ program driver_foe
       call fmpi_bcast(nit)
       call fmpi_bcast(betax)
       call fmpi_bcast(inversion_method)
-      call fmpi_bcast(fscale_ediff_low)
-      call fmpi_bcast(fscale_ediff_up)
+      !call fmpi_bcast(diff_tolerance)
+      !call fmpi_bcast(diff_target)
       ! Since there is no wrapper for logicals...
       if (iproc==0) then
           if (check_spectrum) then

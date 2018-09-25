@@ -89,6 +89,7 @@ contains
   !! out of atom centered spheres
   subroutine pregion_size(geocode,rxyz,radius,rmult,hx,hy,hz,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3)
     !use module_base, only: gp
+    use box
     implicit none
     character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
     integer, intent(in) :: n1,n2,n3
@@ -98,56 +99,104 @@ contains
     !Local variables
     double precision, parameter :: eps_mach=1.d-12
     !n(c) real(kind=8) :: onem
-    real(gp) :: cxmax,cymax,czmax,cxmin,cymin,czmin,rad
+    type(cell) :: mesh
+    logical, dimension(3) :: peri
+    real(gp) :: rad !cxmax,cymax,czmax,cxmin,cymin,czmin,rad
+    integer, dimension(2,3) :: nbox
+
+    mesh=cell_new(geocode,[n1+1,n2+1,n3+1],[hx,hy,hz]) 
 
     rad=radius*rmult
-    cxmax=rxyz(1)+rad ; cxmin=rxyz(1)-rad
-    cymax=rxyz(2)+rad ; cymin=rxyz(2)-rad
-    czmax=rxyz(3)+rad ; czmin=rxyz(3)-rad
-    !n(c) onem=1.d0-eps_mach
 
-    nl1=ceiling(real(cxmin/hx,kind=8) - eps_mach)
-    nl2=ceiling(real(cymin/hy,kind=8) - eps_mach)
-    nl3=ceiling(real(czmin/hz,kind=8) - eps_mach)
-    nu1=floor(real(cxmax/hx,kind=8) + eps_mach)
-    nu2=floor(real(cymax/hy,kind=8) + eps_mach)
-    nu3=floor(real(czmax/hz,kind=8) + eps_mach)
+    nbox=box_nbox_from_cutoff(mesh,rxyz,rad+maxval(mesh%hgrids)*eps_mach)
+    nl1=nbox(1,1)
+    nl2=nbox(1,2)
+    nl3=nbox(1,3)
+    nu1=nbox(2,1)
+    nu2=nbox(2,2)
+    nu3=nbox(2,3)
 
-    !for non-free BC the projectors are not allowed to be also outside the box
-    if (geocode == 'F') then
-       if (nl1 < 0)   stop 'nl1: projector region outside cell'
-       if (nl2 < 0)   stop 'nl2: projector region outside cell'
-       if (nl3 < 0)   stop 'nl3: projector region outside cell'
-       if (nu1 > n1)   stop 'nu1: projector region outside cell'
-       if (nu2 > n2)   stop 'nu2: projector region outside cell'
-       if (nu3 > n3)   stop 'nu3: projector region outside cell'
-    else if (geocode == 'S') then
-       !correct the extremes if they run outside the box
+!!$    cxmax=rxyz(1)+rad ; cxmin=rxyz(1)-rad
+!!$    cymax=rxyz(2)+rad ; cymin=rxyz(2)-rad
+!!$    czmax=rxyz(3)+rad ; czmin=rxyz(3)-rad
+!!$    !n(c) onem=1.d0-eps_mach
+!!$
+!!$    nl1=ceiling(real(cxmin/hx,kind=8) - eps_mach)
+!!$    nl2=ceiling(real(cymin/hy,kind=8) - eps_mach)
+!!$    nl3=ceiling(real(czmin/hz,kind=8) - eps_mach)
+!!$    nu1=floor(real(cxmax/hx,kind=8) + eps_mach)
+!!$    nu2=floor(real(cymax/hy,kind=8) + eps_mach)
+!!$    nu3=floor(real(czmax/hz,kind=8) + eps_mach)
+
+    peri=cell_periodic_dims(mesh)
+    if (peri(1)) then
        if (nl1 < 0 .or. nu1 > n1) then
           nl1=0
           nu1=n1
        end if
-       if (nl2 < 0)   stop 'nl2: projector region outside cell'
-       if (nu2 > n2)   stop 'nu2: projector region outside cell'
-       if (nl3 < 0 .or. nu3 > n3) then
-          nl3=0
-          nu3=n3
-       end if
-    else if (geocode == 'P') then
-       !correct the extremes if they run outside the box
-       if (nl1 < 0 .or. nu1 > n1) then
-          nl1=0
-          nu1=n1
-       end if
+    else
+       if (nl1 < 0) call f_err_throw('nl1: projector region outside cell',err_name='BIGDFT_RUNTIME_ERROR')
+       if (nu1 > n1) call f_err_throw('nu1: projector region outside cell',err_name='BIGDFT_RUNTIME_ERROR')
+    end if
+    if (peri(2)) then
        if (nl2 < 0 .or. nu2 > n2) then
           nl2=0
           nu2=n2
        end if
+    else
+       if (nl2 < 0) call f_err_throw('nl2: projector region outside cell',err_name='BIGDFT_RUNTIME_ERROR')
+       if (nu2 > n2) call f_err_throw('nu2: projector region outside cell',err_name='BIGDFT_RUNTIME_ERROR')
+    end if
+    if (peri(3)) then
        if (nl3 < 0 .or. nu3 > n3) then
           nl3=0
           nu3=n3
        end if
+    else
+       if (nl3 < 0)  call f_err_throw('nl3: projector region outside cell',err_name='BIGDFT_RUNTIME_ERROR')
+       if (nu3 > n3) call f_err_throw('nu3: projector region outside cell',err_name='BIGDFT_RUNTIME_ERROR')
     end if
+
+!!$
+!!$
+!!$    !for non-free BC the projectors are not allowed to be also outside the box
+!!$    if (geocode == 'F') then
+!!$       if (nl1 < 0)   stop 'nl1: projector region outside cell'
+!!$       if (nl2 < 0)   stop 'nl2: projector region outside cell'
+!!$       if (nl3 < 0)   stop 'nl3: projector region outside cell'
+!!$       if (nu1 > n1)   stop 'nu1: projector region outside cell'
+!!$       if (nu2 > n2)   stop 'nu2: projector region outside cell'
+!!$       if (nu3 > n3)   stop 'nu3: projector region outside cell'
+!!$    else if (geocode == 'S') then
+!!$       !correct the extremes if they run outside the box
+!!$       if (nl1 < 0 .or. nu1 > n1) then
+!!$          nl1=0
+!!$          nu1=n1
+!!$       end if
+!!$       if (nl2 < 0)   stop 'nl2: projector region outside cell'
+!!$       if (nu2 > n2)   stop 'nu2: projector region outside cell'
+!!$       if (nl3 < 0 .or. nu3 > n3) then
+!!$          nl3=0
+!!$          nu3=n3
+!!$       end if
+!!$    else if (geocode == 'P') then
+!!$       !correct the extremes if they run outside the box
+!!$       if (nl1 < 0 .or. nu1 > n1) then
+!!$          nl1=0
+!!$          nu1=n1
+!!$       end if
+!!$       if (nl2 < 0 .or. nu2 > n2) then
+!!$          nl2=0
+!!$          nu2=n2
+!!$       end if
+!!$       if (nl3 < 0 .or. nu3 > n3) then
+!!$          nl3=0
+!!$          nu3=n3
+!!$       end if
+!!$    else if (geocode == 'W') then
+!!$      call f_err_throw("Wires bc has to be implemented here", &
+!!$           err_name='BIGDFT_RUNTIME_ERROR')
+!!$    end if
 
   END SUBROUTINE pregion_size
 
@@ -380,7 +429,7 @@ contains
        if (f_err_raise(.not. associated(proj), "Non existing projector.", &
             & err_name='BIGDFT_RUNTIME_ERROR')) return
        proj%idir = idir
-       if (.not. associated(proj%coeff)) proj%coeff = f_malloc_ptr(a_it%nproj * a_it%nc)
+       if (.not. associated(proj%coeff)) proj%coeff = f_malloc_ptr(a_it%nproj * a_it%nc,id='coeff')
        iter%coeff => proj%coeff
     end if
     call atomic_projector_iter_set_destination(a_it, iter%coeff)
@@ -413,6 +462,7 @@ contains
     use compression
     use ao_inguess, only: lmax_ao
     implicit none
+    !Arguments
     type(DFT_PSP_projector_iter), intent(in) :: psp_it
     type(ket), intent(in) :: psi_it
     type(atoms_data), intent(in) :: at

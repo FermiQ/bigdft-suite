@@ -22,8 +22,6 @@
   type(fmpi_win) :: window_
 
 
-  buf_size=f_size(sendbuf)
-  if (present(recvbuf)) buf_size=f_size(recvbuf)
   !check of the arguments
   sendsize=kind(sendbuf)
   recvsize=sendsize
@@ -32,8 +30,14 @@
   iproc=mpirank(mpi_comm)
   nproc=mpisize(mpi_comm)
 
+  if (present(recvbuf)) then
+     buf_size=f_size(sendbuf)
+  else
+     buf_size=f_size(sendbuf)/nproc !assuming that the sendbuf is not malformed
+  end if
+
   ctr=get_control_buffers(buf_size,recvcount,recvcounts,displs,comm)
-  call get_srcounts(iproc,sendcnt,recvcnt,sendcount,recvcount,recvcounts)
+  call get_srcounts(iproc,buf_size,sendcnt,recvcnt,sendcount,recvcount,recvcounts)
 
   !check the validity of the buffers
   if (int(sendcnt,f_long)*sendsize /= int(recvcnt,f_long)*recvsize) &
@@ -104,7 +108,7 @@
         !not supporting MPI_IN_PLACE
         !therefore a temporary buffer has to be created at the place of 
         !the sendbuffer
-        !its size must be bigger as the sendbuf
+        !its size must be as large as the sendbuf
         call get_ntot_and_offset(iproc,nproc,ctr,ntot,offset)
         copybuf = f_malloc(ntot,id='copybuf')
         call f_memcpy(n=int(ntot,f_integer),src=sendbuf,dest=copybuf(1))
@@ -116,7 +120,7 @@
      end if
   case(VARIABLE_ONE_SIDED_GET_ALGO)
      !here the arguments have to be passed and are used natively
-     call fmpi_win_create(window_,sendbuf,sendcount,comm=comm)
+     call fmpi_win_create(window_,sendbuf,sendcnt,comm=comm)
      call fmpi_win_fence(window_,FMPI_WIN_OPEN)
      if (ctr%count == -1) then
         do jproc=0,nproc-1

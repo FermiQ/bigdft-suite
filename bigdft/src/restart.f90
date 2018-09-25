@@ -89,20 +89,24 @@ subroutine reformatmywaves(iproc,orbs,at,&
   type(cell) :: mesh
   real(wp), dimension(:,:,:), allocatable :: psifscf
   real(wp), dimension(:,:,:,:,:,:), allocatable :: psigold
+  logical, dimension(3) :: peri
 
 
   mesh=cell_new(at%astruct%geocode,[n1+1,n2+1,n3+1],[hx,hy,hz])
   !conditions for periodicity in the three directions
-  perx=(at%astruct%geocode /= 'F')
-  pery=(at%astruct%geocode == 'P')
-  perz=(at%astruct%geocode /= 'F')
+!!$  perx=(at%astruct%geocode /= 'F')
+!!$  pery=(at%astruct%geocode == 'P')
+!!$  perz=(at%astruct%geocode /= 'F')
+  peri=cell_periodic_dims(mesh)
+  perx=peri(1)
+  pery=peri(2)
+  perz=peri(3)
 
   !buffers related to periodicity
   !WARNING: the boundary conditions are not assumed to change between new and old
   call ext_buffers_coarse(perx,nb1)
   call ext_buffers_coarse(pery,nb2)
   call ext_buffers_coarse(perz,nb3)
-
 
   psifscf = f_malloc((/ -nb1.to.2*n1+1+nb1, -nb2.to.2*n2+1+nb2, -nb3.to.2*n3+1+nb3 /),id='psifscf')
 
@@ -307,6 +311,7 @@ subroutine readrhoij(unitf, lbin, nat, pawrhoij)
   end if
 END SUBROUTINE readrhoij
 
+
 !> Reads wavefunction from file and transforms it properly if hgrid or size of simulation cell
 !!  have changed
 subroutine readmywaves(iproc,filename,iformat,orbs,n1,n2,n3,hx,hy,hz,at,rxyz_old,rxyz,  &
@@ -319,6 +324,7 @@ subroutine readmywaves(iproc,filename,iformat,orbs,n1,n2,n3,hx,hy,hz,at,rxyz_old
   use bounds, only: ext_buffers_coarse
   use compression
   use m_pawrhoij
+  use box, only: bc_periodic_dims,geocode_to_bc
   implicit none
   integer, intent(in) :: iproc,n1,n2,n3, iformat
   real(gp), intent(in) :: hx,hy,hz
@@ -338,6 +344,7 @@ subroutine readmywaves(iproc,filename,iformat,orbs,n1,n2,n3,hx,hy,hz,at,rxyz_old
   real(kind=4) :: tr0,tr1
   real(kind=8) :: tel
   real(wp), dimension(:,:,:), allocatable :: psifscf
+  logical, dimension(3) :: peri
   !integer, dimension(orbs%norb) :: orblist2
 
   call cpu_time(tr0)
@@ -356,9 +363,13 @@ subroutine readmywaves(iproc,filename,iformat,orbs,n1,n2,n3,hx,hy,hz,at,rxyz_old
           wfd,psi)
   else if (iformat == WF_FORMAT_BINARY .or. iformat == WF_FORMAT_PLAIN) then
      !conditions for periodicity in the three directions
-     perx=(at%astruct%geocode /= 'F')
-     pery=(at%astruct%geocode == 'P')
-     perz=(at%astruct%geocode /= 'F')
+!!$     perx=(at%astruct%geocode /= 'F')
+!!$     pery=(at%astruct%geocode == 'P')
+!!$     perz=(at%astruct%geocode /= 'F')
+     peri=bc_periodic_dims(geocode_to_bc(at%astruct%geocode))
+     perx=peri(1)
+     pery=peri(2)
+     perz=peri(3)
 
      !buffers related to periodicity
      !WARNING: the boundary conditions are not assumed to change between new and old
@@ -586,6 +597,7 @@ subroutine filename_of_iorb(lbin,filename,orbs,iorb,ispinor,filename_out,iorb_ou
   !print *,'filename: ',filename_out
 end subroutine filename_of_iorb
 
+
 subroutine wfn_filename(filename_out,filename,lbin,ikpt,nspinor,nspin,ispinor,spin,iorb)
   use f_ternary
   use yaml_strings
@@ -647,47 +659,6 @@ subroutine open_filename_of_iorb(unitfile,lbin,filename,orbs,iorb,ispinor,iorb_o
 end subroutine open_filename_of_iorb
 
 
-
-
-subroutine read_wave_to_isf(lstat, filename, ln, iorbp, hx, hy, hz, &
-     & n1, n2, n3, nspinor, psiscf)
-  use module_base
-  use module_types
-  use module_interfaces, only: readwavetoisf, readwavetoisf_etsf
-  use public_enums
-  use module_input_keys
-  implicit none
-
-  integer, intent(in) :: ln
-  character, intent(in) :: filename(ln)
-  integer, intent(in) :: iorbp
-  integer, intent(out) :: n1, n2, n3, nspinor
-  real(gp), intent(out) :: hx, hy, hz
-  real(wp), dimension(:,:,:,:), pointer :: psiscf
-  logical, intent(out) :: lstat
-
-  character(len = 1024) :: filename_
-  integer :: iformat, i
-
-  write(filename_, "(A)") " "
-  do i = 1, ln, 1
-     filename_(i:i) = filename(i)
-  end do
-
-  ! Find format from name.
-  iformat = wave_format_from_filename(1, trim(filename_))
-
-  ! Call proper wraping routine.
-  if (iformat == WF_FORMAT_ETSF) then
-     call readwavetoisf_etsf(lstat, trim(filename_), iorbp, hx, hy, hz, &
-          & n1, n2, n3, nspinor, psiscf)
-  else
-     call readwavetoisf(lstat, trim(filename_), (iformat == WF_FORMAT_PLAIN), hx, hy, hz, &
-          & n1, n2, n3, nspinor, psiscf)
-  end if
-END SUBROUTINE read_wave_to_isf
-
-
 !!$subroutine free_wave_to_isf(psiscf)
 !!$  use module_base
 !!$  implicit none
@@ -699,7 +670,6 @@ END SUBROUTINE read_wave_to_isf
 !!$  deallocate(psiscf,stat=i_stat)
 !!$  call memocc(i_stat,i_all,'psiscf',"free_wave_to_isf_etsf")
 !!$END SUBROUTINE free_wave_to_isf
-
 
 subroutine read_wave_descr(lstat, filename, ln, &
      & norbu, norbd, iorbs, ispins, nkpt, ikpts, nspinor, ispinor)
@@ -739,10 +709,11 @@ subroutine read_wave_descr(lstat, filename, ln, &
   end if
 END SUBROUTINE read_wave_descr
 
-! make sure we have one locreg which is defined on all MPI so that we can use it for onsite overlap
-! need to make sure that there are no other bigger locrads
-! it would be helpful to make a variable indicating which locreg we have, but don't want to edit structures unnecessarily...
-! just in case there is some noise in the locrads
+
+!> Make sure we have one locreg which is defined on all MPI so that we can use it for onsite overlap
+!! need to make sure that there are no other bigger locrads
+!! it would be helpful to make a variable indicating which locreg we have, but don't want to edit structures unnecessarily...
+!! just in case there is some noise in the locrads
 subroutine identify_on_all_mpi(lzd)
   use module_types, only: local_zone_descriptors
   use module_defs, only: gp
@@ -767,6 +738,7 @@ subroutine identify_on_all_mpi(lzd)
 
 end subroutine identify_on_all_mpi
 
+
 subroutine identify_locreg_proc(ilr,orbs,source)
   use module_types, only: orbitals_data
   implicit none
@@ -788,7 +760,6 @@ subroutine identify_locreg_proc(ilr,orbs,source)
      end do
   end do find_proc
 end subroutine identify_locreg_proc
-
 
 
 subroutine tmb_overlap_onsite(iproc, nproc, imethod_overlap, at, tmb, rxyz)
@@ -2347,7 +2318,7 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
   use rototranslations
   use reformatting
   use locregs, only: lr_box,reset_lr
-  use box, only: cell_new
+  use box, only: cell_new,cell_geocode
   implicit none
   integer, intent(in) :: iproc, nproc
   integer, intent(in) :: iformat
@@ -2511,7 +2482,8 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
               nbox(2,3)=tmb%lzd%glr%d%nfu3
                    
               !call lr_box(Lzd_old%Llr(ilr),tmb%lzd%glr,lzd_old%hgrids)!,nbox,.false.)
-              call reset_lr(Lzd_old%Llr(ilr),'F',lzd_old%hgrids,nbox,tmb%lzd%glr%geocode)
+!!$              call reset_lr(Lzd_old%Llr(ilr),'F',lzd_old%hgrids,nbox,tmb%lzd%glr%geocode)
+              call reset_lr(Lzd_old%Llr(ilr),'F',lzd_old%hgrids,nbox,cell_geocode(tmb%lzd%glr%mesh))
 
               ! DEBUG: print*,iproc,iorb,iorb+orbs%isorb,iorb_old,iorb_out
 
@@ -2874,8 +2846,9 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
 
 
   ! hack to make reformatting work for case when hgrid changes, here the ndims is meaningless
-  Lzd_old%glr%mesh_coarse=&
-       cell_new(tmb%lzd%glr%geocode,tmb%lzd%glr%mesh_coarse%ndims,lzd_old%hgrids)
+!!$  Lzd_old%glr%mesh_coarse=&
+!!$       cell_new(tmb%lzd%glr%geocode,tmb%lzd%glr%mesh_coarse%ndims,lzd_old%hgrids)
+  Lzd_old%glr%mesh_coarse = tmb%lzd%glr%mesh_coarse
  
   call timing(iproc,'tmbrestart','OF')
   call reformat_supportfunctions(iproc,nproc,&
@@ -2997,6 +2970,7 @@ END SUBROUTINE readmywaves_linear_new
       use module_atoms, only: deallocate_atomic_structure, nullify_atomic_structure, set_astruct_from_file
       use io, only: dist_and_shift
       use rototranslations
+      use box, only: bc_periodic_dims,geocode_to_bc
       implicit none
       integer, intent(in) :: isfat
       type(atoms_data), intent(in) :: at
@@ -3024,6 +2998,7 @@ END SUBROUTINE readmywaves_linear_new
       logical :: perx, pery, perz, wrong_atom, check_for_ghosts, ghosts_exist
 
       character(len=2) :: atom_ref, atom_trial
+      logical, dimension(3) :: peri
 
       ! we only want to check for ghost atoms if they appear in the enviornment coordinates
       ! AND if we aren't ignoring species
@@ -3148,9 +3123,13 @@ END SUBROUTINE readmywaves_linear_new
       end do
 
       ! find distances from this atom BEFORE shifting
-      perx=(at%astruct%geocode /= 'F')
-      pery=(at%astruct%geocode == 'P')
-      perz=(at%astruct%geocode /= 'F')
+!!$      perx=(at%astruct%geocode /= 'F')
+!!$      pery=(at%astruct%geocode == 'P')
+!!$      perz=(at%astruct%geocode /= 'F')
+      peri=bc_periodic_dims(geocode_to_bc(at%astruct%geocode))
+      perx=peri(1)
+      pery=peri(2)
+      perz=peri(3)
 
       !if coordinates wrap around (in periodic), correct before shifting
       !assume that the fragment itself doesn't, just the environment...
@@ -3758,6 +3737,7 @@ subroutine reformat_supportfunctions(iproc,nproc,at,rxyz_old,rxyz,add_derivative
   use rototranslations
   use reformatting
   use locregs, only: lr_box
+  use box, only: bc_periodic_dims,geocode_to_bc
   implicit none
   integer, intent(in) :: iproc,nproc
   integer, intent(in) :: ndim_old
@@ -4079,9 +4059,10 @@ subroutine reformat_supportfunctions(iproc,nproc,at,rxyz_old,rxyz,add_derivative
              !print*,'using psirold to reformat',iiorb
              ! recalculate centres
              !conditions for periodicity in the three directions
-             per(1)=(at%astruct%geocode /= 'F')
-             per(2)=(at%astruct%geocode == 'P')
-             per(3)=(at%astruct%geocode /= 'F')
+!!$             per(1)=(at%astruct%geocode /= 'F')
+!!$             per(2)=(at%astruct%geocode == 'P')
+!!$             per(3)=(at%astruct%geocode /= 'F')
+             per=bc_periodic_dims(geocode_to_bc(at%astruct%geocode))
 
              !buffers related to periodicity
              !WARNING: the boundary conditions are not assumed to change between new and old

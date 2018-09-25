@@ -80,7 +80,7 @@ recursive subroutine f_utils_test()
   call f_enum_attr(f1,attr=greetings)
   call f_enum_attr(f2,attr=greetings)
 
-  call yaml_map('Enum1 char',str(f1))
+  call yaml_map('Enum1 char',toa(f1))
   call yaml_map('Enum1 int',toi(f1))
   call yaml_map('Enum1 check',f1=='Ciao')
 
