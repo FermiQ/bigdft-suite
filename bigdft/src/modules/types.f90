@@ -1404,8 +1404,8 @@ contains
     call broadcast_kpt_objects(nproc, orbs%nkpts, orbs%norb, &
          &   orbs%eval, orbs%ikptproc)
 
-    call eval_to_occ(iproc, nproc, orbs%norbu, orbs%norbd, orbs%norb, &
-         orbs%nkpts, orbs%kwgts, orbs%eval, orbs%occup, filewrite, &
+    call eval_to_occ(iproc, orbs%norbu, orbs%norbd, orbs%norb, &
+         orbs%nkpts, orbs%kwgts, orbs%eval, orbs%occup, &
          orbs%efermi == UNINITIALIZED(orbs%efermi), wf0, occopt, orbs%efermi, orbs%eTS, &
          newnorbu, newnorbd)
 
