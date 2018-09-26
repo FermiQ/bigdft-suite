@@ -243,10 +243,10 @@ contains
        call num_segkeys(gmesh%ndims(1)-1, gmesh%ndims(2)-1, gmesh%ndims(3)-1, &
             & nl1, nu1, nl2, nu2, nl3, nu3, logrid, plr%wfd%nseg_f, plr%wfd%nvctr_f)
        if (full .and. plr%wfd%nseg_f > 0) then
-          keygf = f_malloc((/ 2, plr%wfd%nseg_c /), id = "keygf")
-          keyvf = f_malloc((/ plr%wfd%nseg_c /), id = "keyvf")
+          keygf = f_malloc((/ 2, plr%wfd%nseg_f /), id = "keygf")
+          keyvf = f_malloc((/ plr%wfd%nseg_f /), id = "keyvf")
           call segkeys(gmesh%ndims(1)-1, gmesh%ndims(2)-1, gmesh%ndims(3)-1, &
-               & ns1t, n1t, ns2t, n2t, ns3t, n3t, logrid, &
+               & nl1, nu1, nl2, nu2, nl3, nu3, logrid, &
                & plr%wfd%nseg_f, keygf(1,1), keyvf(1))
        end if
 

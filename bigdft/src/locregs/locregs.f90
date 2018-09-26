@@ -64,6 +64,7 @@ module locregs
   !!communicating the descriptors
   type, public :: locregs_ptr
      type(locreg_descriptors), pointer :: lr=>null()
+     logical :: owner
   end type locregs_ptr
 
   type, public :: locreg_storage
@@ -81,7 +82,7 @@ module locregs
   public :: deallocate_locreg_descriptors,deallocate_wfd
   public :: allocate_wfd,copy_locreg_descriptors,copy_grid_dimensions
   public :: check_overlap,check_overlap_cubic_periodic,check_overlap_from_descriptors_periodic,lr_box
-  public :: init_lr,reset_lr,extract_lr,store_lr,gather_locreg_storage
+  public :: init_lr,reset_lr,extract_lr,store_lr,steal_lr,gather_locreg_storage
   public :: lr_storage_init, lr_storage_free
   public :: communicate_locreg_descriptors_basics
   public :: get_isf_offset,ensure_locreg_bounds,lr_is_stored
@@ -192,7 +193,17 @@ contains
     implicit none
     type(locregs_ptr), dimension(:), pointer, intent(inout) :: array
     !local variables
-    integer :: ierror
+    integer :: ierror, i
+
+    ! Deallocate the locregs we are owner of.
+    do i = 1, size(array)
+       if (array(i)%owner) then
+          call deallocate_locreg_descriptors(array(i)%lr)
+          deallocate(array(i)%lr)
+       end if
+    end do
+
+    ! Deallocate container.
     call f_timer_interrupt(TCAT_ARRAY_ALLOCATIONS)
 
     call f_purge_database(product(int(shape(array),f_long)),lr_ptr_sizeof(array),&
@@ -436,7 +447,20 @@ contains
     type(locreg_descriptors), intent(in), target :: lr
 
     lr_storage%lrs_ptr(ilr)%lr => lr
+    lr_storage%lrs_ptr(ilr)%owner = .false. ! Caller is responsible to free lr later
   end subroutine store_lr
+
+  !take ownership of the localization region lr in the lrs_ptr array
+  subroutine steal_lr(lr_storage,ilr,lr)
+    implicit none
+    type(locreg_storage), intent(inout) :: lr_storage
+    integer, intent(in) :: ilr
+    type(locreg_descriptors), intent(in) :: lr
+
+    allocate(lr_storage%lrs_ptr(ilr)%lr)
+    lr_storage%lrs_ptr(ilr)%lr = lr
+    lr_storage%lrs_ptr(ilr)%owner = .true. ! Caller should not touch lr anymore
+  end subroutine steal_lr
 
   pure function lr_is_stored(lr_storage,ilr) result(ok)
     implicit none

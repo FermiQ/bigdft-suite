@@ -344,7 +344,7 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,orbs,&
      plr = locreg_for_atomic_projector(nl%pbasis(iat), &
           & lr%mesh_coarse, .not. dry_run, logrid)
      !store the data for communication
-     call store_lr(lr_storage, iat, plr)
+     call steal_lr(lr_storage, iat, plr)
   end do
   call f_free(logrid)
   ! Store other non atomic lr here.
