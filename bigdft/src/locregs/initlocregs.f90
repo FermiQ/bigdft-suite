@@ -1501,12 +1501,14 @@ subroutine fracture_periodic_zone(nzones,Glr,Llr,outofzone,astart,aend)
 END SUBROUTINE fracture_periodic_zone
 
 !> routine moved as external to the module to avoid the compiler to create temporary arrays in the stack
-subroutine transform_keyglob_to_keygloc(Glr,Llr,nseg,keyglob,keygloc)
+subroutine transform_keyglob_to_keygloc(gmesh,Llr,nseg,keyglob,keygloc)
   use module_base
   use locregs, only: locreg_descriptors
+  use box
   !use module_interfaces
   implicit none
-  type(locreg_descriptors),intent(in) :: Glr, Llr
+  type(cell), intent(in) :: gmesh
+  type(locreg_descriptors),intent(in) :: Llr
   integer, intent(in) :: nseg
   integer, dimension(2,nseg),intent(in) :: keyglob
   integer, dimension(2,nseg),intent(out) :: keygloc
@@ -1515,8 +1517,8 @@ subroutine transform_keyglob_to_keygloc(Glr,Llr,nseg,keyglob,keygloc)
 
   call f_routine(id='transform_keyglob_to_keygloc')
 
-  n1p1=Glr%d%n1+1
-  np=n1p1*(Glr%d%n2+1)
+  n1p1=gmesh%ndims(1)
+  np=n1p1*gmesh%ndims(2)
   do i = 1 , 2
      do j = 1, nseg
         ! Writing keyglob in cartesian coordinates
@@ -1526,6 +1528,11 @@ subroutine transform_keyglob_to_keygloc(Glr,Llr,nseg,keyglob,keygloc)
         ii = ii-iz*np
         iy = ii/n1p1
         ix = ii-iy*n1p1
+
+        ! Apply periodicity
+        call withPer(ix, Llr%ns1, Llr%d%n1, gmesh%ndims(1), gmesh%bc(1) == 1)
+        call withPer(iy, Llr%ns2, Llr%d%n2, gmesh%ndims(2), gmesh%bc(2) == 1)
+        call withPer(iz, Llr%ns3, Llr%d%n3, gmesh%ndims(3), gmesh%bc(3) == 1)
 
         ! Checking consistency
         if(iz < Llr%ns3 .or. iy < Llr%ns2 .or. ix < Llr%ns1) stop 'transform_keyglob_to_keygloc : minimum overflow'
@@ -1539,6 +1546,21 @@ subroutine transform_keyglob_to_keygloc(Glr,Llr,nseg,keyglob,keygloc)
 
   call f_release_routine()
 
+contains
+  subroutine withPer(i, is, in, N, per)
+    implicit none
+    integer, intent(inout) :: i
+    integer, intent(in) :: is, in, N
+    logical, intent(in) :: per
+
+    if (.not. per) return
+    do while (i > is + in)
+       i = i - N
+    end do
+    do while (i < is)
+       i = i + N
+    end do
+  end subroutine withPer
 end subroutine transform_keyglob_to_keygloc
 
 
@@ -1660,20 +1682,20 @@ END SUBROUTINE segkeys
 
 !> Set up an array logrid(i1,i2,i3) that specifies whether the grid point
 !! i1,i2,i3 is the center of a scaling function/wavelet
-subroutine fill_logrid(geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,nbuf,nat,  &
-     &   ntypes,iatype,rxyz,radii,rmult,hx,hy,hz,logrid)
+subroutine fill_logrid(mesh,nl1,nu1,nl2,nu2,nl3,nu3,nbuf,nat,  &
+     &   ntypes,iatype,rxyz,radii,rmult,logrid)
   use module_base
   use sparsematrix_init, only: distribute_on_tasks
   use box
   implicit none
   !Arguments
-  character(len=*), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
-  integer, intent(in) :: n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,nbuf,nat,ntypes
-  real(gp), intent(in) :: rmult,hx,hy,hz
+  type(cell), intent(in) :: mesh
+  integer, intent(in) :: nl1,nu1,nl2,nu2,nl3,nu3,nbuf,nat,ntypes
+  real(gp), intent(in) :: rmult
   integer, dimension(nat), intent(in) :: iatype
   real(gp), dimension(ntypes), intent(in) :: radii
   real(gp), dimension(3,nat), intent(in) :: rxyz
-  logical, dimension(0:n1,0:n2,0:n3), intent(out) :: logrid
+  logical, dimension(0:mesh%ndims(1)-1,0:mesh%ndims(2)-1,0:mesh%ndims(3)-1), intent(out) :: logrid
   !local variables
   integer, parameter :: START_=1,END_=2
   real(kind=8), parameter :: eps_mach=1.d-12
@@ -1685,13 +1707,10 @@ subroutine fill_logrid(geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,nbuf,nat,  &
   logical :: parallel
   integer, dimension(2,3) :: nbox_limit,nbox,nbox_tmp
 !  logical, dimension(0:n1,0:n2,0:n3) :: logrid_tmp
-  type(cell) :: mesh
   type(box_iterator) :: bit
   !logical, dimension(0:n1,0:n2,0:n3) :: logrid_tmp
 
   call f_routine(id='fill_logrid')
-
-  mesh=cell_new(geocode,[n1+1,n2+1,n3+1],[hx,hy,hz]) 
 
   nbox_limit(START_,1)=nl1
   nbox_limit(END_,1)=nu1
@@ -1700,13 +1719,13 @@ subroutine fill_logrid(geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,nbuf,nat,  &
   nbox_limit(START_,3)=nl3
   nbox_limit(END_,3)=nu3
 
-  if (geocode(1:1) /= 'F' .and. nbuf /=0) then
+  if (any(mesh%bc /= 0) .and. nbuf /=0) then
         call f_err_throw('ERROR: a nonzero value of nbuf is allowed only for Free BC (tails)',&
              err_name='BIGDFT_RUNTIME_ERROR')
         return
   end if
 
-  if (geocode(1:1) == 'F') then
+  if (all(mesh%bc == 0)) then
      !$omp parallel default(none) &
      !$omp shared(nl3, nu3, nl2, nu2, nl1, nu1, logrid) &
      !$omp private(i3, i2, i1)
@@ -1723,13 +1742,12 @@ subroutine fill_logrid(geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,nbuf,nat,  &
   else !
      !Special case if no atoms (homogeneous electron gas): all points are used (TD)
      if (nat == 0) then
-        !$omp parallel default(none) &
-        !$omp shared(n3, n2, n1, logrid) &
+        !$omp parallel default(shared) &
         !$omp private(i3, i2, i1)
         !$omp do schedule(static)
-        do i3=0,n3 
-           do i2=0,n2 
-              do i1=0,n1
+        do i3=0,mesh%ndims(3) - 1
+           do i2=0,mesh%ndims(2) - 1
+              do i1=0,mesh%ndims(1) - 1
                  logrid(i1,i2,i3)=.true.
               enddo
            enddo
@@ -1737,13 +1755,12 @@ subroutine fill_logrid(geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,nbuf,nat,  &
         !$omp end do
         !$omp end parallel
      else
-        !$omp parallel default(none) &
-        !$omp shared(n3, n2, n1, logrid) &
+        !$omp parallel default(shared) &
         !$omp private(i3, i2, i1)
         !$omp do schedule(static)
-        do i3=0,n3 
-           do i2=0,n2 
-              do i1=0,n1
+        do i3=0,mesh%ndims(3) - 1
+           do i2=0,mesh%ndims(2) - 1
+              do i1=0,mesh%ndims(1) - 1
                  logrid(i1,i2,i3)=.false.
                  !logrid_tmp(i1,i2,i3)=.false.
               enddo
