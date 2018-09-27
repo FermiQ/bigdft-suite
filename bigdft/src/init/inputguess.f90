@@ -244,6 +244,7 @@ subroutine readAtomicOrbitals(at,norbe,norbsc,nspin,nspinor,norbsc_arr,locrad)
 
 END SUBROUTINE readAtomicOrbitals
 
+
 !> Generate atomic orbitals
 subroutine AtomicOrbitals(iproc,at,rxyz,norbe,orbse,norbsc,&
       &   nspin,eks,G,gaucoeff,iorbtolr,mapping,quartic_prefactor)

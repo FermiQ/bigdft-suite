@@ -573,7 +573,7 @@ contains
     !first, check if the dictionary of the atoms has an explicit
     !expression or if it only gives the empty shells
 
-      if (EXTRA_ORBITALS_KEY .in. dict) then
+    if (EXTRA_ORBITALS_KEY .in. dict) then
        if (dict_size(dict) > 1) call f_err_throw('If the "'//EXTRA_ORBITALS_KEY//&
             '" is present in the "'//IG_OCCUPATION//&
             '" key, no others can be present',&
