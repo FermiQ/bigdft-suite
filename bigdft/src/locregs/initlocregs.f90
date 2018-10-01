@@ -1519,29 +1519,27 @@ subroutine transform_keyglob_to_keygloc(gmesh,Llr,nseg,keyglob,keygloc)
 
   n1p1=gmesh%ndims(1)
   np=n1p1*gmesh%ndims(2)
-  do i = 1 , 2
-     do j = 1, nseg
-        ! Writing keyglob in cartesian coordinates
-        j0 = keyglob(i,j)
-        ii = j0-1
-        iz = ii/np
-        ii = ii-iz*np
-        iy = ii/n1p1
-        ix = ii-iy*n1p1
+  do j = 1, nseg
+     ! Writing keyglob in cartesian coordinates
+     j0 = keyglob(1,j)
+     ii = j0-1
+     iz = ii/np
+     ii = ii-iz*np
+     iy = ii/n1p1
+     ix = ii-iy*n1p1
 
-        ! Apply periodicity
-        call withPer(ix, Llr%ns1, Llr%d%n1, gmesh%ndims(1), gmesh%bc(1) == 1)
-        call withPer(iy, Llr%ns2, Llr%d%n2, gmesh%ndims(2), gmesh%bc(2) == 1)
-        call withPer(iz, Llr%ns3, Llr%d%n3, gmesh%ndims(3), gmesh%bc(3) == 1)
+     ! Apply periodicity
+     call withPer(ix, Llr%ns1, Llr%d%n1, gmesh%ndims(1), gmesh%bc(1) == 1)
+     call withPer(iy, Llr%ns2, Llr%d%n2, gmesh%ndims(2), gmesh%bc(2) == 1)
+     call withPer(iz, Llr%ns3, Llr%d%n3, gmesh%ndims(3), gmesh%bc(3) == 1)
+     ! Checking consistency
+     if(iz < Llr%ns3 .or. iy < Llr%ns2 .or. ix < Llr%ns1) &
+          & stop 'transform_keyglob_to_keygloc : minimum overflow'
+     if(iz > Llr%ns3+Llr%d%n3 .or. iy > Llr%ns2+Llr%d%n2 .or. ix > Llr%ns1+Llr%d%n1) &
+          & stop 'transform_keyglob_to_keygloc : maximum overflow'
 
-        ! Checking consistency
-        if(iz < Llr%ns3 .or. iy < Llr%ns2 .or. ix < Llr%ns1) stop 'transform_keyglob_to_keygloc : minimum overflow'
-        if(iz > Llr%ns3+Llr%d%n3 .or. iy > Llr%ns2+Llr%d%n2 .or. ix > Llr%ns1+Llr%d%n1)&
-             stop 'transform_keyglob_to_keygloc : maximum overflow'
-
-        ! Using coordinates to write keygloc      
-        keygloc(i,j) = (iz-Llr%ns3)*(Llr%d%n1+1)*(Llr%d%n2+1) + (iy-Llr%ns2)*(Llr%d%n1+1) + (ix-Llr%ns1) + 1
-     end do
+     keygloc(1,j) = (iz-Llr%ns3)*(Llr%d%n1+1)*(Llr%d%n2+1) + (iy-Llr%ns2)*(Llr%d%n1+1) + (ix-Llr%ns1) + 1
+     keygloc(2,j) = keygloc(1,j) + (keyglob(2, j) - keyglob(1, j))
   end do
 
   call f_release_routine()

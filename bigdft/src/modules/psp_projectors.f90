@@ -213,7 +213,7 @@ contains
     integer :: ns1t,ns2t,ns3t,n1t,n2t,n3t
     integer, dimension(:,:), allocatable :: keygc, keygf
     integer, dimension(:), allocatable :: keyvc, keyvf
-    integer, dimension(2,3) :: nbox, nboxf
+    integer, dimension(2,3) :: nbox!, nboxf
     double precision, parameter :: eps_mach=1.d-12
     type(cell) :: fmesh
 
@@ -257,12 +257,14 @@ contains
        fmesh%bc = 0 ! Free in every directions
        nbox = box_nbox_from_cutoff(fmesh, atproj%rxyz, atproj%radius + &
             & maxval(gmesh%hgrids) * eps_mach)
-       nboxf = box_nbox_from_cutoff(fmesh, atproj%rxyz, atproj%fine_radius + &
-            & maxval(gmesh%hgrids) * eps_mach)
-       call init_lr(plr, 'F', 0.5_gp * gmesh%hgrids, &
-            & nbox(2,1), nbox(2,2), nbox(2,3), nboxf(1,1), nboxf(1,2), nboxf(1,3), &
-            & nboxf(2,1), nboxf(2,2), nboxf(2,3), &
+!!$       nboxf = box_nbox_from_cutoff(fmesh, atproj%rxyz, atproj%fine_radius + &
+!!$            & maxval(gmesh%hgrids) * eps_mach)
+       call init_lr(plr, 'F', 0.5_gp * fmesh%hgrids, &
+            & nbox(2,1), nbox(2,2), nbox(2,3), &
+            & nbox(1,1), nbox(1,2), nbox(1,3), nbox(2,1), nbox(2,2), nbox(2,3), &
+!!$            & nboxf(1,1), nboxf(1,2), nboxf(1,3), nboxf(2,1), nboxf(2,2), nboxf(2,3), &
             & .false., nbox(1,1), nbox(1,2), nbox(1,3), cell_geocode(gmesh))
+       
 
        !also the fact of allocating pointers with size zero has to be discussed
        !for the moments the bounds are not needed for projectors
