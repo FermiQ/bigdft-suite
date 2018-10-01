@@ -6,7 +6,7 @@ def handle_autobuild_error(input_path, exception):
 
 def customized_builddir(project,builddir):
     from os import path as p
-    return p.abspath(p.join(builddir,project))
+    return p.abspath(p.join(builddir,'html',project))
 
 def project_builder(project,builddir=None):
     """

@@ -16,10 +16,14 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-import os
+from os import path as p
 import sys
-sys.path.insert(0, os.path.abspath('../'))
-sys.path.insert(0, os.path.abspath('../notebooks'))
+sourcepath=p.abspath(p.realpath(__file__))
+pybigdftpath=p.dirname(sourcepath)
+bigdftsuitepath=p.dirname(pybigdftpath)
+sys.path.insert(0, p.abspath(p.join(bigdftsuitepath,'futile','src','python')))
+sys.path.insert(0, p.abspath(pybigdftpath))
+sys.path.insert(0, p.abspath(p.join(pybigdftpath,'notebooks')))
 
 # -- General configuration ------------------------------------------------
 
@@ -189,10 +193,10 @@ epub_exclude_files = ['search.html']
 intersphinx_mapping = {'https://docs.python.org/': None}
 
 # tools to be done in the readthedocs environment
-import os
-on_rtd = os.environ.get('READTHEDOCS') == 'True'
-if on_rtd:
-    sys.path.insert(0, os.path.abspath('../../futile/src/python/'))
+#import os
+#on_rtd = os.environ.get('READTHEDOCS') == 'True'
+#if on_rtd:
+#    sys.path.insert(0, p.abspath('../../futile/src/python/'))
 #    import sys
 #    from unittest.mock import MagicMock
 #
