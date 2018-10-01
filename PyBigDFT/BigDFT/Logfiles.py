@@ -511,7 +511,7 @@ class Logfile():
             if hasattr(l,'forcemax') and hasattr(l,'energy'):
                 forces.append(l.forcemax)
                 energies.append(l.energy-self.energy)
-                ferr.append(0.0 if not hasattr(l,'force_fluct') else self.force_fluct)
+                ferr.append(0.0 if not hasattr(l,'force_fluct') else (self.force_fluct if hasattr(self,'force_fluct') else 0.0))
         if len(forces) > 1:
             import matplotlib.pyplot as plt
             plt.errorbar(energies, forces,yerr=ferr, fmt='.-',label=self.label)

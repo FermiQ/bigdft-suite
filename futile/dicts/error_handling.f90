@@ -144,10 +144,12 @@
   !> This function returns true if a generic error has been raised
   !! in case of specified errors, it returns true if an error of this kind has been raised
   function f_err_check(err_id,err_name)
+    !Returns `.true.` is the error identified by the input arguments is present, `.false.` otherwse. If the arguments are absent 
+    !returns `.true.` if any arror has been produced
     implicit none
-    integer, intent(in), optional :: err_id            !< The code of the error to be checked for
-    character(len=*), intent(in), optional :: err_name !< Name of the error to search
-    logical :: f_err_check                             !< Return code
+    integer, intent(in), optional :: err_id            !The code of the error to be checked for
+    character(len=*), intent(in), optional :: err_name ! Name of the error to search
+    logical :: f_err_check                             ! 
     include 'get_err-inc.f90'
 
     !check if a particular error has been found
@@ -432,7 +434,7 @@
     implicit none
     integer :: f_get_no_of_errors
 
-    f_get_no_of_errors=dict_len(dict_present_error)
+    f_get_no_of_errors=max(dict_len(dict_present_error),0)
   end function f_get_no_of_errors
 
 

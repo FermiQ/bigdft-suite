@@ -245,7 +245,11 @@ class DoS():
             #)
         if len(self.labels) > 1 and legend: plt.legend(loc='best')
         axcolor = 'lightgoldenrodyellow'
-        axsigma = plt.axes([0.2, 0.93, 0.65, 0.03], facecolor=axcolor)
+        try:
+            axsigma = plt.axes([0.2, 0.93, 0.65, 0.03], facecolor=axcolor)
+        except:
+            axsigma = plt.axes([0.2, 0.93, 0.65, 0.03], axisbg=axcolor)
+
         self.ssig = Slider(axsigma, 'Smearing', 0.0, 0.4, valinit=sigma)
         self.ssig.on_changed(self.update)
         if hasattr(self,'sdos') and self.sdos:
