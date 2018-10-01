@@ -190,7 +190,7 @@ epub_exclude_files = ['search.html']
 
 on_rtd = os.environ.get('READTHEDOCS') == 'True'
 if on_rtd:
-    builddir=os.environ['BUILDDIR']
+    builddir='_build'
 else:
     builddir=None
 
