@@ -20,7 +20,6 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath('.'))
 sourcepath=os.path.abspath(os.path.realpath(__file__))
-sys.path.insert(0, os.path.join(sourcepath,'futile','src','python'))
 
 
 # -- General configuration ------------------------------------------------
