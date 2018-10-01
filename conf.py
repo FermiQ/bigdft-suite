@@ -205,7 +205,7 @@ def project_tuple(project):
     object_path=os.path.abspath(html_path)
     return (object_path,os.path.join(object_path,'objects.inv'))
 
-intersphinx_mapping = {'https://docs.python.org/3/': None, 
+intersphinx_mapping = {'https://docs.python.org/': None, 
                        'futile': project_tuple('futile'),
                        'PyBigDFT': project_tuple('PyBigDFT')}
 
