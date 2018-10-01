@@ -1,3 +1,4 @@
+from __future__ import print_function
 # You can register a handler that will be called when a symlink
 # Can't be created or deleted.
 def handle_autobuild_error(input_path, exception):
@@ -15,6 +16,7 @@ def project_builder(project):
     source=p.join(projpath,'source')
     tmp=p.join(projpath,'tmp')
     build=p.join(projpath,'build')
+    print('Creating builder for package: ',project)
     # Instantiate multi builder. The last two params are optional.
     return SphinxMultiBuilder(# input directories
         [source],
