@@ -19,7 +19,9 @@
 import os
 import sys
 import sphinx_bootstrap_theme
-sys.path.insert(0, os.path.abspath('../dicts'))
+sourcepath=os.path.abspath(os.path.realpath(__file__))
+futilepath=os.path.dirname(sourcepath)
+sys.path.insert(0, os.path.abspath(os.path.join(futilepath,'dicts')))
 
 
 # -- General configuration ------------------------------------------------
@@ -197,9 +199,7 @@ epub_exclude_files = ['search.html']
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {'https://docs.python.org/': None}
 
-futile_path=os.path.abspath('../')
-
-fortran_src= [os.path.join(futile_path,'dicts')]
+fortran_src= [os.path.join(futilepath,'dicts')]
 fortran_ext= ['f90']
 
 autosummary_generate = True
