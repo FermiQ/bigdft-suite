@@ -188,26 +188,19 @@ epub_copyright = copyright
 # A list of files that should not be packed into the epub file.
 epub_exclude_files = ['search.html']
 
+on_rtd = os.environ.get('READTHEDOCS') == 'True'
+if on_rtd:
+    builddir=os.environ['BUILDDIR']
+else:
+    builddir=None
+
 
 #try to run the build for the various subprojects
 import sphinxprebuild as spb
-spb.project_builder('futile').build()
-spb.project_builder('PyBigDFT').build()
-
-# Example configuration for intersphinx: refer to the Python standard library.
-def project_tuple(project):
-    """
-    Function which is needed to retrieve the absolute paths
-    for the local intersphinx mapping file `objects.inv`.
-    Thanks to this functions the `BigDFT-suite` packages can
-    be referred each other.
-    """
-    import os
-    html_path=os.path.join(project,'build','html')
-    object_path=os.path.abspath(html_path)
-    return (object_path,os.path.join(object_path,'objects.inv'))
+spb.project_builder('futile',builddir).build()
+spb.project_builder('PyBigDFT',builddir).build()
 
 intersphinx_mapping = {'https://docs.python.org/': None, 
-                       'futile': project_tuple('futile'),
-                       'PyBigDFT': project_tuple('PyBigDFT')}
+                       'futile': spb.project_tuple('futile',builddir),
+                       'PyBigDFT': spb.project_tuple('PyBigDFT',builddir)}
 

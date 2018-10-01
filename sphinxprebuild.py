@@ -4,7 +4,7 @@ from __future__ import print_function
 def handle_autobuild_error(input_path, exception):
     pass
 
-def project_builder(project):
+def project_builder(project,builddir=None):
     """
     Build the project indicated by the input.
     A temporary directory is created next to the source directory
@@ -15,7 +15,7 @@ def project_builder(project):
     projpath=p.abspath(project)
     source=p.join(projpath,'source')
     tmp=p.join(projpath,'tmp')
-    build=p.join(projpath,'build')
+    build=p.join(projpath,'build') if builddir is None else builddir
     print('Creating builder for package: ',project)
     # Instantiate multi builder. The last two params are optional.
     return SphinxMultiBuilder(# input directories
@@ -33,6 +33,20 @@ def project_builder(project):
         # error occurs during autobuilding. (optional)
         #handle_autobuild_error
         )
+
+# Example configuration for intersphinx: refer to the Python standard library.
+def project_tuple(project,builddir=None):
+    """
+    Function which is needed to retrieve the absolute paths
+    for the local intersphinx mapping file `objects.inv`.
+    Thanks to this functions the `BigDFT-suite` packages can
+    be referred each other.
+    """
+    import os
+    build_path=os.path.join(project,'build') if builddir is None else builddir
+    html_path=os.path.join(build_path,'html')
+    object_path=os.path.abspath(html_path)
+    return (object_path,os.path.join(object_path,'objects.inv'))
 
 
 if __name__=='__main__':
