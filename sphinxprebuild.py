@@ -4,6 +4,10 @@ from __future__ import print_function
 def handle_autobuild_error(input_path, exception):
     pass
 
+def customized_builddir(project,builddir):
+    from os import path as p
+    return p.abspath(p.join(builddir,project))
+
 def project_builder(project,builddir=None):
     """
     Build the project indicated by the input.
@@ -15,7 +19,7 @@ def project_builder(project,builddir=None):
     projpath=p.abspath(project)
     source=p.join(projpath,'source')
     tmp=p.join(projpath,'tmp')
-    build=p.join(projpath,'build') if builddir is None else builddir
+    build=p.join(projpath,'build') if builddir is None else customized_builddir(project,builddir)
     print('Creating builder for package: ',project)
     # Instantiate multi builder. The last two params are optional.
     return SphinxMultiBuilder(# input directories
@@ -43,7 +47,7 @@ def project_tuple(project,builddir=None):
     be referred each other.
     """
     import os
-    build_path=os.path.join(project,'build') if builddir is None else builddir
+    build_path=os.path.join(project,'build') if builddir is None else customized_builddir(project,builddir)
     html_path=os.path.join(build_path,'html')
     object_path=os.path.abspath(html_path)
     return (object_path,os.path.join(object_path,'objects.inv'))
