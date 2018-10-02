@@ -17,7 +17,7 @@ to install, run and employ the BigDFT code for production calculations.
 
 
 Example of link  to :ref:`futile:futile_index`, followed by exemple
-to :ref:`PyBigDFT:(Py)BigDFT Tutorials`
+to :ref:`PyBigDFT:pybigdft_tutorials`
 
    
 
