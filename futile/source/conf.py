@@ -29,7 +29,7 @@ sys.path.insert(0, futilepath)
 #where are we, for RTD compilation
 print('Present directory: ',sourcepath)
 print('Futile directory: ',futilepath)
-print('List of the files in the directory:',os.listdir())
+print('List of the files in the directory:',os.listdir(futilepath))
 
 #sys.path.insert(0, os.path.abspath(os.path.join(futilepath,'dicts')))
 
