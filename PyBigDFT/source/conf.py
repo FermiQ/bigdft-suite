@@ -19,7 +19,7 @@
 from os import path as p
 import sys
 sourcepath=p.abspath(p.realpath(__file__))
-pybigdftpath=p.dirname(sourcepath)
+pybigdftpath=p.dirname(p.dirname(sourcepath))
 bigdftsuitepath=p.dirname(pybigdftpath)
 sys.path.insert(0, p.abspath(p.join(bigdftsuitepath,'futile','src','python')))
 sys.path.insert(0, p.abspath(pybigdftpath))
