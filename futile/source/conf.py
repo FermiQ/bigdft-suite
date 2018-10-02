@@ -24,7 +24,7 @@ futilepath=os.path.dirname(os.path.dirname(sourcepath))
 pythonfutilepath=os.path.join(futilepath,'src','python')
 sys.path.insert(0,pythonfutilepath)
 sys.path.insert(0, futilepath)
-sys.path.insert(0, os.path.abspath(os.path.join(futilepath,'dicts')))
+#sys.path.insert(0, os.path.abspath(os.path.join(futilepath,'dicts')))
 
 
 # -- General configuration ------------------------------------------------
@@ -202,7 +202,7 @@ epub_exclude_files = ['search.html']
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {'https://docs.python.org/': None}
 
-fortran_src= ['dicts']
+fortran_src= [os.path.abspath(os.path.join(futilepath,'dicts'))]
 fortran_ext= ['f90']
 
 autosummary_generate = True
