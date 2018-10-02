@@ -189,19 +189,19 @@ epub_copyright = copyright
 epub_exclude_files = ['search.html']
 
 builddir=None
-#on_rtd = os.environ.get('READTHEDOCS') == 'True'
-#if on_rtd:
-#    builddir='_build'
-#else:
-#    builddir=None
-
-
-#try to run the build for the various subprojects
-import sphinxprebuild as spb
-spb.project_builder('futile',builddir).build()
-spb.project_builder('PyBigDFT',builddir).build()
+on_rtd = os.environ.get('READTHEDOCS') == 'True'
+if on_rtd:
+    intersphinx_futile='https://bigdft-suite.readthedocs.io/projects/futile/en/latest/'
+    intersphinx_pybigdft='https://bigdft-suite.readthedocs.io/projects/PyBigDFT/en/latest/'
+else:
+    #try to run the build for the various subprojects
+    import sphinxprebuild as spb
+    spb.project_builder('futile',builddir).build()
+    spb.project_builder('PyBigDFT',builddir).build()
+    intersphinx_futile=spb.project_tuple('futile')
+    intersphinx_pybigdft=spb.project_tuple('PyBigDFT')
 
 intersphinx_mapping = {'https://docs.python.org/': None, 
-                       'futile': spb.project_tuple('futile',builddir),
-                       'PyBigDFT': spb.project_tuple('PyBigDFT',builddir)}
+                       'futile': intersphinx_futile,
+                       'PyBigDFT': intersphinx_pybigdft}
 
