@@ -1,0 +1,7 @@
+sphinx==1.6.7
+sphinx-fortran==1.0.1
+sphinxcontrib-programoutput
+sphinx_bootstrap_theme
+sphinx-multibuild
+ase
+nbsphinx
