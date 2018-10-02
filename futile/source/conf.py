@@ -215,8 +215,8 @@ srcf=[ os.path.abspath(os.path.join(dictsdir,f)) for f in os.listdir(dictsdir)] 
 
 print('srcf',srcf)
 
-fortran_src= ['dicts'] #this works for local builds
-#fortran_src= ['../dicts'] 
+#fortran_src= ['dicts'] #this works for local builds
+fortran_src= ['/../dicts/f_precisions.f90'] 
 fortran_ext= ['f90']
 
 autosummary_generate = True
