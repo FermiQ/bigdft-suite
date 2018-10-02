@@ -3,7 +3,7 @@ indeControl of the precision :f:mod:`f_precision`
 
 Work in progress: here the automodule documentation of f_precision should appear
 
-.. f:automodule:: f/f_precisions
+.. f:automodule:: f_precisions
 
 
 Now I write some customized information here: 
