@@ -13,7 +13,7 @@ Welcome to BigDFT-suite's documentation!
    installation
 
 
-Link to :ref:`futile:futile_index`
+Example of link  to :ref:`futile:futile_index`
    
 
 Example of link :py:class:`zipfile.ZipFile` to python class 

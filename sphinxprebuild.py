@@ -8,6 +8,22 @@ def customized_builddir(project,builddir):
     from os import path as p
     return p.abspath(p.join(builddir,'html',project))
 
+def fetch_inventory(uri):           
+    from sphinx.ext import intersphinx  
+    import warnings
+    """Read a Sphinx inventory file into a dictionary."""
+    class MockConfig(object):
+        intersphinx_timeout = None  # type: int
+        tls_verify = False
+
+    class MockApp(object):
+        srcdir = ''
+        config = MockConfig()
+        def warn(self, msg):
+            warnings.warn(msg)
+    return intersphinx.fetch_inventory(MockApp(), '', uri)
+
+
 def project_builder(project,builddir=None):
     """
     Build the project indicated by the input.
