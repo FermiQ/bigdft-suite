@@ -17,12 +17,12 @@ to install, run and employ the BigDFT code for production calculations.
 
 
 Example of link  to :ref:`futile:futile_index`, followed by exemple
-to :ref:`PyBigDFT:pybigdft_tutorials`
+to :ref:`pybigdft:pybigdft_tutorials`, actualized.
 
    
 
 Example of link :py:class:`zipfile.ZipFile` to python class 
-or to :f:mod:`f/f_precisions` or maybe :py:func:`futile.Utils.find_files` this, or again :py:mod:`BigDFT.Logfiles`. Conclusion: *intersphinx* seems to work.
+or to :f:mod:`f/f_precisions` or maybe :py:func:`futile.Utils.find_files` this, or again :py:mod:`BigDFT.Logfiles`. If all these links are not broken, we may reach the following conclusion: *intersphinx* seems to work.
 
 
 Indices and tables
