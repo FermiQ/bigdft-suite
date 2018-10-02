@@ -210,7 +210,7 @@ epub_exclude_files = ['search.html']
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {'https://docs.python.org/': None}
 
-fortran_src= [os.path.abspath(os.path.join(futilepath,'dicts'))]
+fortran_src= ['dicts']
 fortran_ext= ['f90']
 
 autosummary_generate = True
