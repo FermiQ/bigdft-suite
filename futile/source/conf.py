@@ -211,14 +211,8 @@ epub_exclude_files = ['search.html']
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {'https://docs.python.org/': None}
 
-
-srcf=[ os.path.abspath(os.path.join(dictsdir,f)) for f in os.listdir(dictsdir)] #[os.path.join(futilepath,'dicts''dicts']
-
-print('srcf',srcf)
-print('f_precision path',os.path.abspath(os.path.join(dictsdir,'f_precisions.f90')))
-
-#fortran_src= ['dicts'] #this works for local builds
-fortran_src= [os.path.abspath(dictsdir)] 
+fortran_src= ['../dicts','../flib/f_utils.f90'] #this works for local builds
+#fortran_src= [os.path.abspath(dictsdir)] 
 fortran_ext= ['f90']
 
 autosummary_generate = True
