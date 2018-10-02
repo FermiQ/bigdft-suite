@@ -1,7 +1,7 @@
 indeControl of the precision :f:mod:`f_precision`
 =================================================
 
-.. .. f:automodule:: f_precisions
+.. f:automodule:: f_precisions
 
 Now I write some customized information here
 

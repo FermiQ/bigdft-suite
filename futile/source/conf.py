@@ -23,7 +23,9 @@ import sphinx_bootstrap_theme
 sourcepath=os.path.abspath(os.path.realpath(__file__))
 futilepath=os.path.dirname(os.path.dirname(sourcepath))
 pythonfutilepath=os.path.join(futilepath,'src','python')
+dictsdir=os.path.join(futilepath,'dicts')
 sys.path.insert(0,pythonfutilepath)
+sys.path.insert(0,dictsdir)
 
 #where are we, for RTD compilation
 print('Current working directory: ',os.path.abspath('.'))
@@ -209,7 +211,6 @@ epub_exclude_files = ['search.html']
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {'https://docs.python.org/': None}
 
-dictsdir=os.path.join(futilepath,'dicts')
 
 srcf=[ os.path.abspath(os.path.join(dictsdir,f)) for f in os.listdir(dictsdir)] #[os.path.join(futilepath,'dicts''dicts']
 
