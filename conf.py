@@ -193,8 +193,8 @@ intersphinx_mapping = {'https://docs.python.org/': None}
 builddir=None
 on_rtd = os.environ.get('READTHEDOCS') == 'True'
 if on_rtd:
-    intersphinx_mapping['https://bigdft-suite.readthedocs.io/projects/futile/en/latest/']=None
-    intersphinx_mapping['https://bigdft-suite.readthedocs.io/projects/PyBigDFT/en/latest/']=None
+    intersphinx_mapping['futile']=('https://bigdft-suite.readthedocs.io/projects/futile/en/latest/',None)
+    intersphinx_mapping['PyBigDFT']=('https://bigdft-suite.readthedocs.io/projects/PyBigDFT/en/latest/',None)
 else:
     #try to run the build for the various subprojects
     import sphinxprebuild as spb

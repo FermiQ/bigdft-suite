@@ -6,6 +6,9 @@
 Welcome to BigDFT-suite's documentation!
 ========================================
 
+The `BigDFT-suite` project regroup the packages which are needed
+to install, run and employ the BigDFT code for production calculations.
+
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
@@ -13,7 +16,9 @@ Welcome to BigDFT-suite's documentation!
    installation
 
 
-Example of link  to :ref:`futile:futile_index`
+Example of link  to :ref:`futile:futile_index`, followed by exemple
+to :ref:`PyBigDFT:(Py)BigDFT Tutorials`
+
    
 
 Example of link :py:class:`zipfile.ZipFile` to python class 
