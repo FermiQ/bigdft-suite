@@ -191,8 +191,8 @@ epub_exclude_files = ['search.html']
 builddir=None
 on_rtd = os.environ.get('READTHEDOCS') == 'True'
 if on_rtd:
-    intersphinx_futile='https://bigdft-suite.readthedocs.io/projects/futile/en/latest/'
-    intersphinx_pybigdft='https://bigdft-suite.readthedocs.io/projects/PyBigDFT/en/latest/'
+    intersphinx_futile='https://bigdft-suite.readthedocs.io/projects/futile/en/latest/objects.inv'
+    intersphinx_pybigdft='https://bigdft-suite.readthedocs.io/projects/PyBigDFT/en/latest/objects.inv'
 else:
     #try to run the build for the various subprojects
     import sphinxprebuild as spb
