@@ -203,5 +203,5 @@ else:
 
 intersphinx_mapping = {'https://docs.python.org/': None, 
                        'futile': intersphinx_futile,
-                       'PyBigDFT': intersphinx_pybigdft}
+                       'https://bigdft-suite.readthedocs.io/projects/PyBigDFT/en/latest/': None} #'PyBigDFT': intersphinx_pybigdft}
 
