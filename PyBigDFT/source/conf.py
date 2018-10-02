@@ -193,10 +193,10 @@ epub_exclude_files = ['search.html']
 intersphinx_mapping = {'https://docs.python.org/': None}
 
 # tools to be done in the readthedocs environment
-import os
-on_rtd = os.environ.get('READTHEDOCS') == 'True'
-if on_rtd:
-    sys.path.insert(0, p.abspath('../../futile/src/python/'))
+#import os
+#on_rtd = os.environ.get('READTHEDOCS') == 'True'
+#if on_rtd:
+#    sys.path.insert(0, p.abspath('../../futile/src/python/'))
 #    import sys
 #    from unittest.mock import MagicMock
 #

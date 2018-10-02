@@ -188,11 +188,11 @@ epub_copyright = copyright
 # A list of files that should not be packed into the epub file.
 epub_exclude_files = ['search.html']
 
-on_rtd = os.environ.get('READTHEDOCS') == 'True'
-if on_rtd:
-    builddir='_build'
-else:
-    builddir=None
+#on_rtd = os.environ.get('READTHEDOCS') == 'True'
+#if on_rtd:
+#    builddir='_build'
+#else:
+#    builddir=None
 
 
 #try to run the build for the various subprojects
