@@ -34,7 +34,7 @@ Now I write some customized information here
 
        .. todo::
 
-	  Some text
+	  Some text 2
 
 
 .. f:currentmodule:: 

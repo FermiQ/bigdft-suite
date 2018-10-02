@@ -31,7 +31,7 @@ Mapping and Lists: the :f:mod:`dictionaries` module
 
 .. f:function:: dict_free(dict [,dictA, dictB, ...])
 
-    Free and nullify the dictionary. Optionally accepts up to ten different dictionaries as arguments
+    Free and nullify the dictionary. Optionally accepts up to ten different dictionaries as arguments.
 
     :p dictionary dict [inout,pointer]: 
 
