@@ -21,11 +21,10 @@ import os
 import sys
 import sphinx_bootstrap_theme
 sourcepath=os.path.abspath(os.path.realpath(__file__))
-futilepath=os.path.dirname(os.path.dirname(sourcepath))
+#futilepath=os.path.dirname(os.path.dirname(sourcepath))
+futilepath=sourcepath
 pythonfutilepath=os.path.join(futilepath,'src','python')
 sys.path.insert(0,pythonfutilepath)
-sys.path.insert(0, futilepath)
-sys.path.insert(0,os.path.join(futilepath,'dicts'))
 
 #where are we, for RTD compilation
 print('Current working directory: ',os.path.abspath('.'))
