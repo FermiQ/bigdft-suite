@@ -21,8 +21,7 @@ import os
 import sys
 import sphinx_bootstrap_theme
 sourcepath=os.path.abspath(os.path.realpath(__file__))
-#futilepath=os.path.dirname(os.path.dirname(sourcepath))
-futilepath=sourcepath
+futilepath=os.path.dirname(os.path.dirname(sourcepath))
 pythonfutilepath=os.path.join(futilepath,'src','python')
 sys.path.insert(0,pythonfutilepath)
 
