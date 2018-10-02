@@ -27,7 +27,8 @@ sys.path.insert(0,pythonfutilepath)
 sys.path.insert(0, futilepath)
 
 #where are we, for RTD compilation
-print('Present directory: ',sourcepath)
+print('Current working directory: ',os.path.abspath('.'))
+print('File directory: ',sourcepath)
 print('Futile directory: ',futilepath)
 print('List of the files in the directory:',os.listdir(futilepath))
 
