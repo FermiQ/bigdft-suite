@@ -16,6 +16,7 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
+from __future__ import print_function
 import os
 import sys
 import sphinx_bootstrap_theme
@@ -24,6 +25,12 @@ futilepath=os.path.dirname(os.path.dirname(sourcepath))
 pythonfutilepath=os.path.join(futilepath,'src','python')
 sys.path.insert(0,pythonfutilepath)
 sys.path.insert(0, futilepath)
+
+#where are we, for RTD compilation
+print('Present directory: ',sourcepath)
+print('Futile directory: ',futilepath)
+print('List of the files in the directory:',os.listdir())
+
 #sys.path.insert(0, os.path.abspath(os.path.join(futilepath,'dicts')))
 
 
