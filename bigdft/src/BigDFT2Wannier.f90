@@ -25,6 +25,8 @@ program BigDFT2Wannier
    use locreg_operations
    use io, only: writemywaves
    use locregs_init, only: lr_set
+   use f_allreduce
+   use box, only: cell_periodic_dims 
    implicit none
    character :: filetype*4
    !etsf
@@ -48,7 +50,7 @@ program BigDFT2Wannier
    real(kind=8),parameter :: eps6=1.0d-6!, eps8=1.0d-8
    real(gp), dimension(:,:), pointer :: rxyz_old
    real(wp), allocatable :: psi_etsf(:,:),psi_etsfv(:),sph_har_etsf(:),psir(:),psir_re(:),psir_im(:),sph_daub(:)
-   real(wp), allocatable :: psi_daub_im(:),psi_daub_re(:),psi_etsf2(:) !!,pvirt(:)
+   real(wp), allocatable :: psi_daub_im(:),psi_daub_re(:),psi_etsf2(:,:) !!,pvirt(:)
    real(wp), allocatable :: mmnk_v_re(:), mmnk_v_im(:)
    real(wp), pointer :: pwork(:)!,sph_daub(:)
    character(len=max_field_length) :: filename, run_id
@@ -79,7 +81,7 @@ program BigDFT2Wannier
    type(dictionary), pointer :: user_inputs
    type(dictionary), pointer :: options
    external :: gather_timings
-
+   logical, dimension(3) :: peri
 
    call f_lib_initialize()
    !-finds the number of taskgroup size
@@ -323,9 +325,13 @@ program BigDFT2Wannier
          end if
 
          !calculate buffer shifts
-         perx=(lzd%Glr%geocode /= 'F')
-         pery=(lzd%Glr%geocode == 'P')
-         perz=(lzd%Glr%geocode /= 'F')
+!!$         perx=(lzd%Glr%geocode /= 'F')
+!!$         pery=(lzd%Glr%geocode == 'P')
+!!$         perz=(lzd%Glr%geocode /= 'F')
+         peri=cell_periodic_dims(lzd%Glr%mesh)
+         perx=peri(1)
+         pery=peri(2)
+         perz=peri(3)
          call ext_buffers(perx,nbl1,nbr1)
          call ext_buffers(pery,nbl2,nbr2)
          call ext_buffers(perz,nbl3,nbr3)
@@ -381,7 +387,7 @@ program BigDFT2Wannier
          call gemm('T','N',orbsp%norb,orbsp%norb,nvctrp,1.0_wp,sph_daub(1),max(1,nvctrp),&
             &   sph_daub(1),max(1,nvctrp),0.0_wp,overlap_proj(1,1),orbsp%norb)
          if(nproc > 1) then
-            call mpiallred(overlap_proj(1,1),orbsp%norb*orbsp%norb,MPI_SUM)
+            call fmpi_allreduce(overlap_proj,FMPI_SUM)
          end if
          !print *,'overlap_proj',overlap_proj
          !print *,'orbsp%norb',orbsp%norb
@@ -404,7 +410,7 @@ program BigDFT2Wannier
             &   sph_daub(1),max(1,nvctrp),0.0_wp,amnk(1,1),orbsv%norb)
 
          ! Construction of the whole Amnk_guess matrix.
-         if(nproc > 1) call mpiallred(amnk,MPI_SUM)
+         if(nproc > 1) call fmpi_allreduce(amnk,FMPI_SUM)
 
          ! For each unoccupied orbitals, check how they project on spherical harmonics.
          ! The greater amnk_guess(nb) is, the more they project on spherical harmonics.
@@ -517,7 +523,7 @@ program BigDFT2Wannier
       end if
       ! For bin files, the eigenvalues are distributed, so reduce them
       if((filetype == 'bin' .or. filetype == 'BIN') .and. nproc > 0) then
-        call mpiallred(orbs%eval(1),orbs%norb*orbs%nkpts,MPI_SUM)
+         call fmpi_allreduce(orbs%eval,FMPI_SUM)
       end if
       ! Write the eigenvalues into a file to output the hamiltonian matrix elements in Wannier functions
       if(iproc==0) then     
@@ -552,7 +558,7 @@ program BigDFT2Wannier
       if(residentity)then
          orbsv%eval = 99.0_dp  !What to put for the energy?
       else if((filetype == 'bin' .or. filetype == 'BIN') .and.  nproc > 0 .and. orbsv%norb>0) then
-         call mpiallred(orbsv%eval(1),orbsv%norb*orbsv%nkpts,MPI_SUM)
+         call fmpi_allreduce(orbsv%eval,FMPI_SUM)
       end if
       ! Write the eigenvalues into a file to output the hamiltonian matrix elements in Wannier functions
       if(iproc==0) then
@@ -591,9 +597,13 @@ program BigDFT2Wannier
          sph_daub = f_malloc0(npsidim2,id='sph_daub')
          !if(npsidim2 > 0) call f_zero(npsidim2,sph_daub(1))
          !calculate buffer shifts
-         perx=(lzd%Glr%geocode /= 'F')
-         pery=(lzd%Glr%geocode == 'P')
-         perz=(lzd%Glr%geocode /= 'F')
+!!$         perx=(lzd%Glr%geocode /= 'F')
+!!$         pery=(lzd%Glr%geocode == 'P')
+!!$         perz=(lzd%Glr%geocode /= 'F')
+         peri=cell_periodic_dims(lzd%Glr%mesh)
+         perx=peri(1)
+         pery=peri(2)
+         perz=peri(3)
          call ext_buffers(perx,nbl1,nbr1)
          call ext_buffers(pery,nbl2,nbr2)
          call ext_buffers(perz,nbl3,nbr3)
@@ -649,7 +659,7 @@ program BigDFT2Wannier
          call gemm('T','N',orbsp%norb,orbsp%norb,nvctrp,1.0_wp,sph_daub(1),max(1,nvctrp),&
             &   sph_daub(1),max(1,nvctrp),0.0_wp,overlap_proj(1,1),orbsp%norb)
          if(nproc > 1) then
-            call mpiallred(overlap_proj(1,1),orbsp%norb*orbsp%norb,MPI_SUM)
+            call fmpi_allreduce(overlap_proj,FMPI_SUM)
          end if
          !print *,'overlap_proj',overlap_proj
          ipiv = f_malloc(orbsp%norb,id='ipiv')
@@ -670,36 +680,36 @@ program BigDFT2Wannier
       if(.not. residentity)then
          ! Tranposition of the distribution of the BigDFT wavefunctions : orbitals -> components.
          npsidim=max((lzd%Glr%wfd%nvctr_c+7*lzd%Glr%wfd%nvctr_f)*orbsb%norbp*orbsb%nspinor,sum(commsb%ncntt(0:nproc-1)))
-         psi_etsf2 = f_malloc0(npsidim,id='psi_etsf2')
+         psi_etsf2 = f_malloc0([npsidim, 1],id='psi_etsf2')
          !call f_zero(npsidim,psi_etsf2)
          if(nproc > 1) then
             pwork = f_malloc_ptr(npsidim,id='pwork')
-            call transpose_v(iproc,nproc,orbsb,lzd%glr%wfd,commsb,psi_etsf,pwork,out_add=psi_etsf2)
+            call transpose_v(iproc,nproc,orbsb,lzd%glr%wfd,commsb,psi_etsf,pwork,recvbuf=psi_etsf2)
             call f_free_ptr(pwork)
          else
-            call vcopy(orbsb%norb*orbsb%nspinor*(lzd%Glr%wfd%nvctr_c+7*lzd%Glr%wfd%nvctr_f),psi_etsf(1,1),1,psi_etsf2(1),1)
+            call vcopy(orbsb%norb*orbsb%nspinor*(lzd%Glr%wfd%nvctr_c+7*lzd%Glr%wfd%nvctr_f),psi_etsf(1,1),1,psi_etsf2(1,1),1)
          end if
       else
          ! Tranposition of the distribution of the BigDFT occupied wavefunctions : orbitals -> components.
          npsidim=max((lzd%Glr%wfd%nvctr_c+7*lzd%Glr%wfd%nvctr_f)*orbsb%norbp*orbsb%nspinor,sum(commsb%ncntt(0:nproc-1)))
-         psi_etsf2 = f_malloc0(npsidim,id='psi_etsf2')
+         psi_etsf2 = f_malloc0([npsidim,1],id='psi_etsf2')
          !call f_zero(npsidim,psi_etsf2)
          if(nproc > 1) then
             pwork = f_malloc_ptr(npsidim,id='pwork')
-            call transpose_v(iproc,nproc,orbsb,lzd%glr%wfd,commsb,psi_etsf,pwork,out_add=psi_etsf2)
+            call transpose_v(iproc,nproc,orbsb,lzd%glr%wfd,commsb,psi_etsf,pwork,recvbuf=psi_etsf2)
             call f_free_ptr(pwork)
          else
-            call vcopy(orbsb%norb*orbs%nspinor*(lzd%Glr%wfd%nvctr_c+7*lzd%Glr%wfd%nvctr_f),psi_etsf(1,1),1,psi_etsf2(1),1)
+            call vcopy(orbsb%norb*orbs%nspinor*(lzd%Glr%wfd%nvctr_c+7*lzd%Glr%wfd%nvctr_f),psi_etsf(1,1),1,psi_etsf2(1,1),1)
          end if
 
          ! Scalar product of amnk=<sph_daub|occ> in parallel.
          nvctrp=commsb%nvctr_par(iproc,1)
-         call gemm('T','N',orbsb%norb,orbsp%norb,nvctrp,1.0_wp,psi_etsf2(1),max(1,nvctrp),&
+         call gemm('T','N',orbsb%norb,orbsp%norb,nvctrp,1.0_wp,psi_etsf2(1,1),max(1,nvctrp),&
             &   sph_daub(1),max(1,nvctrp),0.0_wp,amnk(1,1),orbsb%norb)
 
          ! Construction of the occupied Amnk submatrix.
          if(nproc > 1) then
-            call mpiallred(amnk(1,1),orbsb%norb*orbsp%norb,MPI_SUM)
+            call fmpi_allreduce(amnk,FMPI_SUM)
          end if
 
          ! Now build the new states corresponding to: sph_daub - sum{amnk occ} and place them at the virtual states
@@ -708,11 +718,11 @@ program BigDFT2Wannier
          shft  = nvctrp*orbs%norb
          do np=1, orbsp%norb
             !np=npp+orbsp%isorb 
-            call vcopy(nvctrp,sph_daub(1+pshft),1,psi_etsf2(1+shft),1)
+            call vcopy(nvctrp,sph_daub(1+pshft),1,psi_etsf2(1+shft,1),1)
             wshft = 0
             do nb = 1,orbs%norb*orbs%nspinor    !Should be on all occupied bands
                do j=1,nvctrp
-                  psi_etsf2(j+shft) = psi_etsf2(j+shft) - amnk(nb,np)*psi_etsf2(j+wshft) 
+                  psi_etsf2(j+shft,1) = psi_etsf2(j+shft,1) - amnk(nb,np)*psi_etsf2(j+wshft,1) 
                end do
                wshft = wshft + nvctrp
             end do
@@ -726,7 +736,7 @@ program BigDFT2Wannier
             call untranspose_v(iproc,nproc,orbsb,lzd%Glr%wfd,commsb,psi_etsf2,pwork,out_add=psi_etsf)
             call f_free_ptr(pwork)
          else
-            call vcopy(orbsb%norb*orbsb%nspinor*(lzd%Glr%wfd%nvctr_c+7*lzd%Glr%wfd%nvctr_f),psi_etsf2(1),1,psi_etsf(1,1),1)
+            call vcopy(orbsb%norb*orbsb%nspinor*(lzd%Glr%wfd%nvctr_c+7*lzd%Glr%wfd%nvctr_f),psi_etsf2(1,1),1,psi_etsf(1,1),1)
          end if
          ! Should write the symmetrized projectors to file
          if(write_resid .and. orbsv%norbp > 0)then
@@ -741,13 +751,11 @@ program BigDFT2Wannier
 
       ! Scalar product of amnk=<sph_daub|psi> in parallel.
       nvctrp=commsb%nvctr_par(iproc,1)
-      call gemm('T','N',orbsb%norb,orbsp%norb,nvctrp,1.0_wp,psi_etsf2(1),max(1,nvctrp),&
+      call gemm('T','N',orbsb%norb,orbsp%norb,nvctrp,1.0_wp,psi_etsf2(1,1),max(1,nvctrp),&
          &   sph_daub(1),max(1,nvctrp),0.0_wp,amnk(1,1),orbsb%norb)
 
       ! Construction of the whole Amnk matrix.
-      if(nproc > 0) then
-         call mpiallred(amnk(1,1),orbsb%norb*orbsp%norb,MPI_SUM)
-      end if
+      if (nproc > 0) call fmpi_allreduce(amnk,FMPI_SUM)
 
       call f_zero(amnk_tot)
       if (iproc==0) then
@@ -822,9 +830,13 @@ program BigDFT2Wannier
       call mmnk_calculation_allocation()
 
       !calculate buffer shifts
-      perx=(lzd%Glr%geocode /= 'F')
-      pery=(lzd%Glr%geocode == 'P')
-      perz=(lzd%Glr%geocode /= 'F')
+!!$      perx=(lzd%Glr%geocode /= 'F')
+!!$      pery=(lzd%Glr%geocode == 'P')
+!!$      perz=(lzd%Glr%geocode /= 'F')
+      peri=cell_periodic_dims(lzd%Glr%mesh)
+      perx=peri(1)
+      pery=peri(2)
+      perz=peri(3)
       call ext_buffers(perx,nbl1,nbr1)
       call ext_buffers(pery,nbl2,nbr2)
       call ext_buffers(perz,nbl3,nbr3)
@@ -883,14 +895,14 @@ program BigDFT2Wannier
          mmnk_v_im = f_malloc(orbsb%norb*orbsb%norb,id='mmnk_v_im')
 
          call gemm('T','N',orbsb%norb,orbsb%norb,nvctrp,1.0_wp,psi_daub_re(1),max(1,nvctrp),&
-            &   psi_etsf2(1),max(1,nvctrp),0.0_wp,mmnk_v_re(1),orbsb%norb)
+            &   psi_etsf2(1,1),max(1,nvctrp),0.0_wp,mmnk_v_re(1),orbsb%norb)
          call gemm('T','N',orbsb%norb,orbsb%norb,nvctrp,1.0_wp,psi_daub_im(1),max(1,nvctrp),&
-            &   psi_etsf2(1),max(1,nvctrp),0.0_wp,mmnk_v_im(1),orbsb%norb)
+            &   psi_etsf2(1,1),max(1,nvctrp),0.0_wp,mmnk_v_im(1),orbsb%norb)
 
          ! Reduce the overlap matrix between all the processors
          if (nproc > 1) then
-            call mpiallred(mmnk_v_re(1),orbsb%norb*orbsb%norb,MPI_SUM)
-            call mpiallred(mmnk_v_im(1),orbsb%norb*orbsb%norb,MPI_SUM)
+            call fmpi_allreduce(mmnk_v_re,FMPI_SUM)
+            call fmpi_allreduce(mmnk_v_im,FMPI_SUM)
          end if
 
          ! Reshape the overlap matrix elements into a more manageable disposition
@@ -1799,6 +1811,7 @@ subroutine write_functions(w_sph, w_ang, w_rad, fn1, fn2, fn3, np, Glr, &
    real(kind=8), dimension(3,atoms%astruct%nat), intent(in) :: rxyz
    real(kind=8), dimension(Glr%d%n1i,Glr%d%n2i,Glr%d%n3i), intent(in) :: sph_har, func_r, ylm
    ! Local variables
+   logical, dimension(3) :: peri
    character(len=13) :: subname1
    character(len=12) :: subname2
    character(len=9) :: subname3
@@ -1835,34 +1848,64 @@ subroutine write_functions(w_sph, w_ang, w_rad, fn1, fn2, fn3, np, Glr, &
       end if
    end if
 
-  !conditions for periodicity in the three directions
-  !value of the buffer in the x and z direction
-  if (atoms%astruct%geocode /= 'F') then
-     nl1=1
-     nl3=1
-     nbx = 1
-     nbz = 1
-     nc1=Glr%d%n1i
-     nc3=Glr%d%n3i
-  else
-     nl1=15
-     nl3=15
-     nbx = 0
-     nbz = 0
-     nc1=Glr%d%n1i-31
-     nc3=Glr%d%n3i-31
-  end if
-  !value of the buffer in the y direction
-  if (atoms%astruct%geocode == 'P') then
-     nl2=1
-     nby = 1
-     nc2=Glr%d%n2i
-  else
-     nl2=15
-     nby = 0
-     nc2=Glr%d%n2i-31
-  end if
-
+   peri=bc_periodic_dims(geocode_to_bc(atoms%astruct%geocode))
+   if (peri(1)) then
+      nl1=1
+      nbx = 1
+      nc1=Glr%d%n1i
+   else
+      nl1=15
+      nbx = 0
+      nc1=Glr%d%n1i-31
+   end if
+   if (peri(2)) then
+      nl2=1
+      nby = 1
+      nc2=Glr%d%n2i
+   else
+      nl2=15
+      nby = 0
+      nc2=Glr%d%n2i-31
+   end if
+   if (peri(3)) then
+      nl3=1
+      nbz = 1
+      nc3=Glr%d%n3i
+   else
+      nl3=15
+      nbz = 0
+      nc3=Glr%d%n3i-31
+   end if
+   
+!!$  !conditions for periodicity in the three directions
+!!$  !value of the buffer in the x and z direction
+!!$  if (atoms%astruct%geocode /= 'F') then
+!!$     nl1=1
+!!$     nl3=1
+!!$     nbx = 1
+!!$     nbz = 1
+!!$     nc1=Glr%d%n1i
+!!$     nc3=Glr%d%n3i
+!!$  else
+!!$     nl1=15
+!!$     nl3=15
+!!$     nbx = 0
+!!$     nbz = 0
+!!$     nc1=Glr%d%n1i-31
+!!$     nc3=Glr%d%n3i-31
+!!$  end if
+!!$  !value of the buffer in the y direction
+!!$  if (atoms%astruct%geocode == 'P') then
+!!$     nl2=1
+!!$     nby = 1
+!!$     nc2=Glr%d%n2i
+!!$  else
+!!$     nl2=15
+!!$     nby = 0
+!!$     nc2=Glr%d%n2i-31
+!!$  end if
+!!$  if (atoms%astruct%geocode == 'W') call f_err_throw("Wires bc has to be implemented here", &
+!!$                                         err_name='BIGDFT_RUNTIME_ERROR')
 
    rem=nc3-floor(nc3/6.d0)*6
 
@@ -2115,6 +2158,7 @@ subroutine write_unk_bin(Glr,orbs,orbsv,orbsb,input,atoms,rxyz,n_occ,n_virt,virt
    use locreg_operations
    use module_interfaces, only: readmywaves
    use locregs
+   use box, only: cell_periodic_dims 
    implicit none
    ! I/O variables
    type(locreg_descriptors), intent(in) :: Glr
@@ -2134,6 +2178,7 @@ subroutine write_unk_bin(Glr,orbs,orbsv,orbsb,input,atoms,rxyz,n_occ,n_virt,virt
    real(wp), dimension(Glr%wfd%nvctr_c+7*Glr%wfd%nvctr_f,n_occ+n_virt) :: psi_etsf
    real(gp), dimension(3,atoms%astruct%nat) :: rxyz_old
    type(workarr_sumrho) :: w
+   logical, dimension(3) :: peri
 
    n_bands=n_occ+n_virt
 
@@ -2189,9 +2234,13 @@ subroutine write_unk_bin(Glr,orbs,orbsv,orbsb,input,atoms,rxyz,n_occ,n_virt,virt
    end if
 
    !calculate buffer shifts
-   perx=(Glr%geocode /= 'F')
-   pery=(Glr%geocode == 'P')
-   perz=(Glr%geocode /= 'F')
+!!$   perx=(Glr%geocode /= 'F')
+!!$   pery=(Glr%geocode == 'P')
+!!$   perz=(Glr%geocode /= 'F')
+   peri=cell_periodic_dims(Glr%mesh)
+   perx=peri(1)
+   pery=peri(2)
+   perz=peri(3)
    call ext_buffers(perx,nbl1,nbr1)
    call ext_buffers(pery,nbl2,nbr2)
    call ext_buffers(perz,nbl3,nbr3)

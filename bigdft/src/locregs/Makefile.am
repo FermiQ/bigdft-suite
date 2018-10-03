@@ -43,10 +43,10 @@ CLEANFILES = *.@MODULE_EXT@
 
 AM_FCFLAGS = -I. -I$(srcdir) @LIB_FUTILE_CFLAGS@
 
-check_PROGRAMS = locreg_test
+#check_PROGRAMS = locreg_test
 
-locreg_test_SOURCES = locreg_test.f90
-locreg_test_LDADD = -L$(builddir) -llocregs @LIB_FUTILE_LIBS@ @LINALG_LIBS@
+#locreg_test_SOURCES = locreg_test.f90
+#locreg_test_LDADD = -L$(builddir) -llocregs @LIB_FUTILE_LIBS@ @LINALG_LIBS@
 
 # Hack for MIC compilation.
 if USE_MIC
@@ -62,10 +62,11 @@ reformatting.o: base.o locreg_operations.o
 bounds.o: compression.o
 locreg_operations.o: locregs.o
 locregs_basics.o: locreg_operations.o
-locreg_test.o: liblocregs.a
+#locreg_test.o: liblocregs.a
 rototranslations.o: base.o
 initlocregs.o: locregs.o
-base.o compression.o scalar_product.o: defs.o
+base.o scalar_product.o: defs.o
+compression.o : base.o
 $(modules): $(liblocregs_a_OBJECTS)
 
 #liblocregs.a: $(liblocregs_a_OBJECTS) insmod

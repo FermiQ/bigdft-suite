@@ -2317,8 +2317,9 @@ character(len=*), parameter :: subname='cholesky'
 real(kind=8), dimension(:,:), allocatable :: raux
 integer :: ist, info, ispin, ikptp, ikpt, ncomp, norbs, norb,nspinor, iscprj
 integer :: iat
-logical :: usepaw=.false.
+logical :: usepaw
 
+usepaw=.false.
 if(present(paw))usepaw=paw%usepaw
  
 ! Set the starting index to 1.

@@ -98,14 +98,14 @@ contains
     call dict_free(info)
   end subroutine print_reformat_summary
 
-  subroutine rototranslations_shifts(rt,mesh_glr,llr_src,llr_dest,&
+  subroutine rototranslations_shifts(rt,mesh_glr_src,mesh_glr_dest,llr_src,llr_dest,&
        centre_src,centre_dest,da)
     use rototranslations
     use locregs
     use box
     implicit none
     type(rototranslation), intent(in) :: rt
-    type(cell), intent(in) :: mesh_glr
+    type(cell), intent(in) :: mesh_glr_src,mesh_glr_dest
     type(locreg_descriptors), intent(in) :: llr_src,llr_dest
     real(gp), dimension(3), intent(out) :: centre_src,centre_dest,da
     !local variables
@@ -114,11 +114,14 @@ contains
 !!$    oxyz_src=true_origin(llr_src%mesh,llr_src)
 !!$    oxyz_dest=true_origin(llr_dest%mesh,llr_dest)
     !mesh coarse vs mesh fine for free BC
-    oxyz_src=true_origin(mesh_glr,llr_src)
-    oxyz_dest=true_origin(mesh_glr,llr_dest)
+    !not sure if the correct thing to be passed is true_origin
+    !perhaps the shift might be inferred from the value of the
+    !offset of the box iterator of the localization regions
+    oxyz_src=true_origin(mesh_glr_src,llr_src)
+    oxyz_dest=true_origin(mesh_glr_dest,llr_dest)
 
-    centre_src=closest_r(mesh_glr,rt%rot_center_src,oxyz_src)
-    centre_dest=closest_r(mesh_glr,rt%rot_center_dest,oxyz_dest)
+    centre_src=closest_r(mesh_glr_src,rt%rot_center_src,oxyz_src)
+    centre_dest=closest_r(mesh_glr_dest,rt%rot_center_dest,oxyz_dest)
 
     da = centre_dest-centre_src-&
          (llr_src%mesh_coarse%hgrids-llr_dest%mesh_coarse%hgrids)*0.5_gp
@@ -166,12 +169,10 @@ contains
     real(gp), dimension(3) :: centre_src,centre_dest,da
     type(dictionary), pointer :: info_reformat
 
-    call rototranslations_shifts(frag_trans,dest_glr_mesh,&
+    call rototranslations_shifts(frag_trans,src_glr_mesh,dest_glr_mesh,&
          src_llr,dest_llr,&
          centre_src,centre_dest,da)
-!!$    call calculate_origins(dest_llr,src_llr,oxyz_src,oxyz_dest)
-!!$    call calculate_shifts(frag_trans,src_llr%mesh_coarse,dest_llr%mesh_coarse,oxyz_src,oxyz_dest,&
-!!$         centre_src,centre_dest,da)
+
     displ=square_gd(dest_llr%mesh_coarse,da)
 
     call dict_set(info // DISPL_KEY ,sqrt(displ))
@@ -358,7 +359,7 @@ contains
   end function true_origin
 
   !> Make frag_trans the argument so can eliminate need for interface
-  subroutine reformat_one_supportfunction(llr,llr_old,dest_glr_mesh,&!geocode,hgrids_old,&
+  subroutine reformat_one_supportfunction(llr,llr_old,dest_glr_mesh,src_glr_mesh,&!geocode,hgrids_old,&
        n_old,psigold,&
        !hgrids,&
        n,&
@@ -376,7 +377,7 @@ contains
 !    real(gp), dimension(3), intent(in) :: hgrids,hgrids_old
     !type(wavefunctions_descriptors), intent(in) :: wfd
     type(locreg_descriptors), intent(in) :: llr, llr_old
-    type(cell), intent(in) :: dest_glr_mesh
+    type(cell), intent(in) :: dest_glr_mesh, src_glr_mesh
 !    real(gp), dimension(3), intent(in) :: centre_old,centre_new,da
     type(rototranslation), intent(in) :: frag_trans
     real(wp), dimension(0:n_old(1),2,0:n_old(2),2,0:n_old(3),2), intent(in) :: psigold
@@ -386,7 +387,7 @@ contains
 
     !local variables
     character(len=*), parameter :: subname='reformatonesupportfunction'
-    character(len=1) :: geocode !< @copydoc poisson_solver::doc::geocode
+    character(len=1) :: geocode
     logical, dimension(3) :: per
     integer, dimension(3) :: nb
 !!$  integer, dimension(3) :: ndims_tmp
@@ -396,7 +397,7 @@ contains
     real(wp), dimension(:), allocatable :: ww,wwold
     real(wp), dimension(:,:,:,:,:,:), allocatable :: psig
     real(wp), dimension(:,:,:), allocatable :: psir
-    real(wp), dimension(:,:,:), pointer :: psifscfold, psifscf !no reason for pointers
+    real(wp), dimension(:,:,:), allocatable :: psifscfold, psifscf !no reason for pointers
     integer :: i,j,k
     ! isf version
     type(workarr_sumrho) :: w
@@ -418,8 +419,7 @@ contains
        call ext_buffers_coarse(per(2),nb(2))
        call ext_buffers_coarse(per(3),nb(3))
 
-       psifscf = f_malloc_ptr(-nb.to.2*n+1+nb,id='psifscf')
-       psifscfold = f_malloc_ptr(-nb.to.2*n_old+1+nb,id='psifscfold')
+       psifscfold = f_malloc(-nb.to.2*n_old+1+nb,id='psifscfold')
 
        wwold = f_malloc((2*n_old(1)+2+2*nb(1))*(2*n_old(2)+2+2*nb(2))*(2*n_old(3)+2+2*nb(3)),id='wwold')
 
@@ -460,9 +460,10 @@ contains
 !!$    end if
 
     !call calculate_origins(llr,llr_old,oxyz_src,oxyz_dest)
-    call rototranslations_shifts(frag_trans,dest_glr_mesh,llr_old,llr,&
+    call rototranslations_shifts(frag_trans,src_glr_mesh,dest_glr_mesh,llr_old,llr,&
          centre_src,centre_dest,da)
     if (.not. present(psirold)) then
+       psifscf = f_malloc(-nb.to.2*n+1+nb,id='psifscf')
        call apply_rototranslation(frag_trans,.true.,&
             llr_old%mesh_fine,llr%mesh_fine,& 
             centre_src,centre_dest,da,&
@@ -500,7 +501,7 @@ contains
 
     !  print*, 'norm of psifscf ',dnrm2((2*n(1)+2+2*nb(1))*(2*n(2)+2+2*nb(1))*(2*n(3)+2+2*nb(1)),psifscf,1)
     if (.not. present(psirold)) then
-       call f_free_ptr(psifscfold)
+       call f_free(psifscfold)
        psig = f_malloc((/ 0.to.n(1), 1.to.2, 0.to.n(2), 1.to.2, 0.to.n(3), 1.to.2 /),id='psig')
        ww = f_malloc((2*n(1)+2+2*nb(1))*(2*n(2)+2+2*nb(2))*(2*n(3)+2+2*nb(3)),id='ww')
 
@@ -512,7 +513,7 @@ contains
           call analyse_per(n(1),n(2),n(3),ww,psifscf,psig)
        end if
 
-       call f_free_ptr(psifscf)
+       call f_free(psifscf)
 
 
        if (present(tag)) then
@@ -579,7 +580,7 @@ contains
     real(gp), dimension(3), intent(in) :: oxyz_src,oxyz_dest
     real(gp), dimension(3), intent(out) :: centre_src,centre_dest,da
 
-        !here for periodic BC we should check the correctness of the centre definition
+    !here for periodic BC we should check the correctness of the centre definition
     !in particular it appears weird that mesh_dest is always used for closest r
     !as well as the shift of hgrid/2 that have to be imposed for the detection of da array
     centre_src=closest_r(mesh_dest,rt%rot_center_src,oxyz_src)
@@ -973,8 +974,8 @@ contains
 
     !print *,'3d'
     call f_routine(id='field_rototranslation3D')
-    work =f_malloc(ndims_new(1)*(maxval(ndims_old))**2,id='work')
-    work2=f_malloc(ndims_new(1)*ndims_new(2)*maxval(ndims_old),id='work2')
+    work =f_malloc0(ndims_new(1)*(maxval(ndims_old))**2,id='work')
+    work2=f_malloc0(ndims_new(1)*ndims_new(2)*maxval(ndims_old),id='work2')
 
     m_isf=nrange_phi/2
     !shf=f_malloc(-m_isf .to. m_isf,id='shf')

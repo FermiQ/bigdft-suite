@@ -167,6 +167,7 @@ module module_types
      real(gp), dimension(3) :: hgrids                       !< Grid spacings of wavelet grid (coarser resolution)
      type(locreg_descriptors) :: Glr                        !< Global region descriptors
      type(locreg_descriptors), dimension(:), pointer :: Llr !< Local region descriptors (dimension = nlr)
+     integer :: llr_on_all_mpi                              !< index of locreg which is available on all MPI
   end type local_zone_descriptors
 
   !!> Fermi Operator Expansion parameters
@@ -422,9 +423,11 @@ module module_types
  integer, save, public :: TCAT_EXCHANGECORR=TIMING_UNINITIALIZED
  integer, parameter, private :: ncls_max=6,ncat_bigdft=158   ! define timimg categories and classes
  character(len=*), parameter, private :: tgrp_paw='PAW'
+ character(len=*), parameter, private :: tgrp_io='IO'
  integer, save, public :: TCAT_LIBPAW    = TIMING_UNINITIALIZED
  integer, save, public :: TCAT_PAW_DIJ   = TIMING_UNINITIALIZED
  integer, save, public :: TCAT_PAW_RHOIJ = TIMING_UNINITIALIZED
+ integer, save, public :: TCAT_IO_MULTIPOLES = TIMING_UNINITIALIZED
  character(len=14), dimension(ncls_max), parameter, private :: clss = (/ &
       'Communications'    ,  &
       'Convolutions  '    ,  &
@@ -624,7 +627,7 @@ module module_types
  public :: nullify_orbitals_data, nullify_DFT_wavefunctions
  public :: SIC_data,orthon_data,input_variables,evaltoocc
  public :: linear_matrices_null, linmat_auxiliary_null, deallocate_linmat_auxiliary
- public :: deallocate_linear_matrices
+ public :: deallocate_linear_matrices,pkernel_seq_is_needed
  !public :: matrixindex_in_compressed_fortransposed_null
  public :: matrixindex_in_compressed_fortransposed2_null
 
@@ -681,6 +684,7 @@ contains
     lzd%ndimpotisf=0
     lzd%hgrids=(/0.0_gp,0.0_gp,0.0_gp/)
     lzd%Glr=locreg_null()
+    lzd%llr_on_all_mpi=0
     nullify(lzd%Llr)
   end function default_lzd
  
@@ -767,24 +771,16 @@ contains
     call f_free_ptr(orbs%norb_par)
     call f_free_ptr(orbs%norbu_par)
     call f_free_ptr(orbs%norbd_par)
-
     call f_free_ptr(orbs%occup)
     call f_free_ptr(orbs%spinsgn)
     call f_free_ptr(orbs%kpts)
     call f_free_ptr(orbs%kwgts)
-
     call f_free_ptr(orbs%iokpt)
-
     call f_free_ptr(orbs%ikptproc)
-
     call f_free_ptr(orbs%inwhichlocreg)
-
     call f_free_ptr(orbs%onwhichatom)
-
     call f_free_ptr(orbs%isorb_par)
-    if (associated(orbs%ispot)) then
-       call f_free_ptr(orbs%ispot)
-    end if
+    call f_free_ptr(orbs%ispot)
 
   END SUBROUTINE deallocate_orbs
 
@@ -794,80 +790,73 @@ contains
     implicit none
     type(rho_descriptors) :: rhodsc
 
-    if (associated(rhodsc%spkey))then
-       call f_free_ptr(rhodsc%spkey)
-    end if
-    if (associated(rhodsc%dpkey))then
-       call f_free_ptr(rhodsc%dpkey)
-    end if
-    if (associated(rhodsc%cseg_b))then
-       call f_free_ptr(rhodsc%cseg_b)
-    end if
-    if (associated(rhodsc%fseg_b))then
-       call f_free_ptr(rhodsc%fseg_b)
-    end if
-
+    call f_free_ptr(rhodsc%spkey)
+    call f_free_ptr(rhodsc%dpkey)
+    call f_free_ptr(rhodsc%cseg_b)
+    call f_free_ptr(rhodsc%fseg_b)
   end subroutine deallocate_rho_descriptors
 
-
-  subroutine deallocate_Lzd(Lzd)
-    use module_base
-    !Arguments
-    type(local_zone_descriptors) :: Lzd
-    !Local variables
-    integer :: ilr
-
-!   nullify the bounds of Glr
-    if ((Lzd%Glr%geocode == 'P' .and. Lzd%Glr%hybrid_on) .or. Lzd%Glr%geocode == 'F') then
-       nullify(Lzd%Glr%bounds%kb%ibyz_f)
-       nullify(Lzd%Glr%bounds%kb%ibxz_f)
-       nullify(Lzd%Glr%bounds%kb%ibxy_f)
-       nullify(Lzd%Glr%bounds%sb%ibxy_ff)
-       nullify(Lzd%Glr%bounds%sb%ibzzx_f)
-       nullify(Lzd%Glr%bounds%sb%ibyyzz_f)
-       nullify(Lzd%Glr%bounds%gb%ibyz_ff)
-       nullify(Lzd%Glr%bounds%gb%ibzxx_f)
-       nullify(Lzd%Glr%bounds%gb%ibxxyy_f)
-    end if
-    !the arrays which are needed only for free BC
-    if (Lzd%Glr%geocode == 'F') then
-       nullify(Lzd%Glr%bounds%kb%ibyz_c)
-       nullify(Lzd%Glr%bounds%kb%ibxz_c)
-       nullify(Lzd%Glr%bounds%kb%ibxy_c)
-       nullify(Lzd%Glr%bounds%sb%ibzzx_c)
-       nullify(Lzd%Glr%bounds%sb%ibyyzz_c)
-       nullify(Lzd%Glr%bounds%gb%ibzxx_c)
-       nullify(Lzd%Glr%bounds%gb%ibxxyy_c)
-       nullify(Lzd%Glr%bounds%ibyyzz_r)
-    end if
-
-! nullify the wfd of Glr
-   nullify(Lzd%Glr%wfd%keyglob)
-   nullify(Lzd%Glr%wfd%keygloc)
-!   nullify(Lzd%Glr%wfd%keyv)
-   nullify(Lzd%Glr%wfd%keyvloc)
-   nullify(Lzd%Glr%wfd%keyvglob)
-
-! nullify the Gnlpspd
-!   call deallocate_proj_descr(Lzd%Gnlpspd,subname)
-!!$   nullify(Lzd%Gnlpspd%nvctr_p)
-!!$   nullify(Lzd%Gnlpspd%nseg_p)
-!!$   nullify(Lzd%Gnlpspd%keyv_p)
-!!$   nullify(Lzd%Gnlpspd%keyg_p)
-!!$   nullify(Lzd%Gnlpspd%nboxp_c)
-!!$   nullify(Lzd%Gnlpspd%nboxp_f)
- 
-!Now destroy the Llr
-    do ilr = 1, Lzd%nlr
-       call deallocate_locreg_descriptors(Lzd%Llr(ilr))
-       !call deallocate_lr(Lzd%Llr(ilr))
-!       call deallocate_Lnlpspd(Lzd%Lnlpspd(ilr),subname)
-    end do
-     nullify(Lzd%Llr)
-!     nullify(Lzd%Lnlpspd)
-
-  END SUBROUTINE deallocate_Lzd
-
+!!!  subroutine deallocate_Lzd(Lzd)
+!!!    use module_base
+!!!    use box, only: cell_geocode
+!!!    !Arguments
+!!!    type(local_zone_descriptors) :: Lzd
+!!!    !Local variables
+!!!    integer :: ilr
+!!!
+!!!!   nullify the bounds of Glr
+!!!!!$    if ((Lzd%Glr%geocode == 'P' .and. Lzd%Glr%hybrid_on) .or. Lzd%Glr%geocode == 'F') then
+!!!    if ((cell_geocode(Lzd%Glr%mesh) == 'P' .and. Lzd%Glr%hybrid_on) .or. cell_geocode(Lzd%Glr%mesh) == 'F') then
+!!!       nullify(Lzd%Glr%bounds%kb%ibyz_f)
+!!!       nullify(Lzd%Glr%bounds%kb%ibxz_f)
+!!!       nullify(Lzd%Glr%bounds%kb%ibxy_f)
+!!!       nullify(Lzd%Glr%bounds%sb%ibxy_ff)
+!!!       nullify(Lzd%Glr%bounds%sb%ibzzx_f)
+!!!       nullify(Lzd%Glr%bounds%sb%ibyyzz_f)
+!!!       nullify(Lzd%Glr%bounds%gb%ibyz_ff)
+!!!       nullify(Lzd%Glr%bounds%gb%ibzxx_f)
+!!!       nullify(Lzd%Glr%bounds%gb%ibxxyy_f)
+!!!    end if
+!!!    !the arrays which are needed only for free BC
+!!!!!$    if (Lzd%Glr%geocode == 'F') then
+!!!    if (cell_geocode(Lzd%Glr%mesh) == 'F') then
+!!!       nullify(Lzd%Glr%bounds%kb%ibyz_c)
+!!!       nullify(Lzd%Glr%bounds%kb%ibxz_c)
+!!!       nullify(Lzd%Glr%bounds%kb%ibxy_c)
+!!!       nullify(Lzd%Glr%bounds%sb%ibzzx_c)
+!!!       nullify(Lzd%Glr%bounds%sb%ibyyzz_c)
+!!!       nullify(Lzd%Glr%bounds%gb%ibzxx_c)
+!!!       nullify(Lzd%Glr%bounds%gb%ibxxyy_c)
+!!!       nullify(Lzd%Glr%bounds%ibyyzz_r)
+!!!    end if
+!!!
+!!!! nullify the wfd of Glr
+!!!   nullify(Lzd%Glr%wfd%keyglob)
+!!!   nullify(Lzd%Glr%wfd%keygloc)
+!!!!   nullify(Lzd%Glr%wfd%keyv)
+!!!   nullify(Lzd%Glr%wfd%keyvloc)
+!!!   nullify(Lzd%Glr%wfd%keyvglob)
+!!!
+!!!! nullify the Gnlpspd
+!!!!   call deallocate_proj_descr(Lzd%Gnlpspd,subname)
+!!!!!$   nullify(Lzd%Gnlpspd%nvctr_p)
+!!!!!$   nullify(Lzd%Gnlpspd%nseg_p)
+!!!!!$   nullify(Lzd%Gnlpspd%keyv_p)
+!!!!!$   nullify(Lzd%Gnlpspd%keyg_p)
+!!!!!$   nullify(Lzd%Gnlpspd%nboxp_c)
+!!!!!$   nullify(Lzd%Gnlpspd%nboxp_f)
+!!! 
+!!!!Now destroy the Llr
+!!!    do ilr = 1, Lzd%nlr
+!!!       call deallocate_locreg_descriptors(Lzd%Llr(ilr))
+!!!       !call deallocate_lr(Lzd%Llr(ilr))
+!!!!       call deallocate_Lnlpspd(Lzd%Lnlpspd(ilr),subname)
+!!!    end do
+!!!     nullify(Lzd%Llr)
+!!!!     nullify(Lzd%Lnlpspd)
+!!!
+!!!  END SUBROUTINE deallocate_Lzd
+!!!
 !!$  !> Nullify a DFT_local_fields structure
 !!$  subroutine nullify_DFT_local_fields(denspot)
 !!$    implicit none
@@ -1066,6 +1055,19 @@ contains
     end if
   end subroutine cprj_to_array
 
+  function pkernel_seq_is_needed(in,denspot) result(yes)
+    use module_xc
+    implicit none
+    type(input_variables), intent(in) :: in
+    type(DFT_local_fields), intent(in) :: denspot
+    logical :: yes
+
+    yes = (in%exctxpar == 'OP2P' .and. xc_exctXfac(denspot%xc) /= 0.0_gp) &
+            .or. in%SIC%alpha /= 0.0_gp
+
+  end function pkernel_seq_is_needed
+
+
 
   pure function work_mpiaccumulate_null() result(w)
     implicit none
@@ -1122,6 +1124,7 @@ contains
     lzd%lintyp=0
     lzd%ndimpotisf=0
     lzd%hgrids=0.0_gp
+    lzd%llr_on_all_mpi=0
     call nullify_locreg_descriptors(lzd%glr)
     nullify(lzd%llr) 
   end subroutine nullify_local_zone_descriptors
@@ -1183,6 +1186,7 @@ contains
     !initialize groups
     call f_timing_category_group(tgrp_pot,'Operations for local potential construction (mainly XC)')
     call f_timing_category_group(tgrp_paw,'Operations done for PAW treatment')
+    call f_timing_category_group(tgrp_io,'Operations related to I/O')
 
     do icls=2,ncls_max
        call f_timing_category_group(trim(clss(icls)),'Empty description for the moment')
@@ -1200,6 +1204,11 @@ contains
          TCAT_PAW_DIJ)
     call f_timing_category('paw rhoij',tgrp_paw, 'Computation of PAW rhoij terms',&
          TCAT_PAW_RHOIJ)
+
+    ! define the categories for the I/O
+    call f_timing_category('dump multipoles', tgrp_io, 'Output of the multipoles to the standard output ',&
+         TCAT_IO_MULTIPOLES)
+
 
     !! little by little, these categories should be transformed in the 
     !! new scheme dictated by f_timing API in time_profiling module of f_lib.
@@ -1395,8 +1404,8 @@ contains
     call broadcast_kpt_objects(nproc, orbs%nkpts, orbs%norb, &
          &   orbs%eval, orbs%ikptproc)
 
-    call eval_to_occ(iproc, nproc, orbs%norbu, orbs%norbd, orbs%norb, &
-         orbs%nkpts, orbs%kwgts, orbs%eval, orbs%occup, filewrite, &
+    call eval_to_occ(iproc, orbs%norbu, orbs%norbd, orbs%norb, &
+         orbs%nkpts, orbs%kwgts, orbs%eval, orbs%occup, &
          orbs%efermi == UNINITIALIZED(orbs%efermi), wf0, occopt, orbs%efermi, orbs%eTS, &
          newnorbu, newnorbd)
 

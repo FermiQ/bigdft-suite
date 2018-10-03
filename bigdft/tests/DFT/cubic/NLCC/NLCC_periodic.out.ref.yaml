@@ -332,9 +332,9 @@
    PSP XC                              : "XC: Perdew, Burke & Ernzerhof"
   #-------------------------------------------------------------------------- Atom Positions
  Atomic structure:
-   Units                               : angstroem
-   Cell                                :  [  3.0,  3.0,  3.0 ]
-   Positions:
+   units                               : angstroem
+   cell                                :  [  3.0,  3.0,  3.0 ]
+   positions:
    -  {O_old: [ 0.000000000,  0.000000000,  0.000000000],  # [  0.00,  0.00,  0.00 ] 0001
  IGSpin:  2}
    Rigid Shift Applied (AU)            :  [ -0.0000, -0.0000, -0.0000 ]
@@ -562,16 +562,18 @@
    MPI tasks                           :  2
  Multipole analysis origin             :  [  0.0E+00,  0.000000E+00,  0.000000E+00 ]
  Electric Dipole Moment (AU):
-   P vector                            :  [ -1.5894E+01, -1.5590E+01, -1.5590E+01 ]
-   norm(P)                             :  2.717876E+01
+   P vector                            :  [ -8.8239E-03, -1.1933E-02, -1.1933E-02 ]
+   norm(P)                             :  1.904309E-02
  Electric Dipole Moment (Debye):
-   P vector                            :  [ -4.0398E+01, -3.9625E+01, -3.9625E+01 ]
-   norm(P)                             :  6.908152E+01
+   P vector                            :  [ -2.2428E-02, -3.0330E-02, -3.0330E-02 ]
+   norm(P)                             :  4.840269E-02
  Quadrupole Moment (AU):
    Q matrix:
-   -  [-3.2147E-01, -1.2374E+02, -1.2374E+02]
-   -  [-1.2374E+02,  1.6073E-01, -1.2152E+02]
-   -  [-1.2374E+02, -1.2152E+02,  1.6073E-01]
+   -  [-1.0301E+00, -4.9169E-04, -4.9169E-04]
+   -  [-4.9169E-04,  5.1506E-01, -6.7222E-04]
+   -  [-4.9169E-04, -6.7222E-04,  5.1506E-01]
+   trace                               :  0.00E+00
+ Spreads of the electronic density (AU):  [  8.00873E-01,  7.453536E-01,  7.453536E-01 ]
  Calculate local forces: Yes
  Calculate NLCC forces                 :  Yes
  Calculate Non Local forces            :  Yes

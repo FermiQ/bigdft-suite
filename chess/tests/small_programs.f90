@@ -23,7 +23,7 @@ program small_things
   use fermi_level
   implicit none
   integer, parameter :: UP_=1,DOWN_=2
-  integer :: occopt,nkpt
+  integer :: occopt,nkpt,ncharge,ne
   real(f_double) :: kT,efermi,eTS
   integer, dimension(2) :: norbud
   real(f_double), dimension(:), allocatable :: wgts,eval,occup
@@ -34,7 +34,9 @@ program small_things
   call f_lib_initialize()
   !input variables
   call yaml_argparse(options,&
-       '- {name: norb, shortname: n, default: 10, help_string: norb (tuple)}'//f_cr//&
+       '- {name: evals, shortname: e, default: None, help_string: eigenvalues (list)}'//f_cr//&
+       '- {name: charge, shortname: c, default: None, help_string: charge}'//f_cr//&
+       '- {name: norb, shortname: n, default: 10, help_string: norb (tuple up, down)}'//f_cr//&
        '- {name: nkpt, shortname: k, default: 1, help_string: k-points}'//f_cr//&
        '- {name: wgts, shortname: w, default: 1.0, help_string: weigths}'//f_cr//&
        '- {name: occopt, shortname: o, default: 1, help_string: smearing method}'//f_cr//&
@@ -47,19 +49,29 @@ program small_things
   wgts=options//'wgts'
   occopt=options//'occopt'
   kT=options//'tel'
-  call dict_free(options)
+  ncharge=dict_get(options,'charge',default=norbud(UP_)/2+norbud(DOWN_)/2)
+  
   !determine fermi level starting from a random set of energies
   eval=f_malloc(sum(norbud),id='eval')
   occup=f_malloc0(sum(norbud),id='occup')
   ipiv=f_malloc(sum(norbud),id='ipiv')
-  call f_random_number(eval)
+
+  if ('evals' .in. options) then
+    eval = options//'evals'
+  else
+    call f_random_number(eval)
+  end if
+  call dict_free(options)
 
   !manipulate separately spin up and spin down
   p_up=>f_subptr(occup,1.to.norbud(UP_))
   p_dw=>f_subptr(occup,from=norbud(UP_)+1,size=norbud(DOWN_))
   !determine the charge
-  p_up(1:norbud(UP_)/2)=1.0_f_double
-  p_dw(1:norbud(DOWN_)/2)=1.0_f_double
+  ne=ncharge/2
+  p_dw(1:ne)=1.0_f_double
+  p_up(1:(ncharge-ne))=1.0_f_double
+  !p_up(1:norbud(UP_)/2)=1.0_f_double
+  !p_dw(1:norbud(DOWN_)/2)=1.0_f_double
 
   !now sort the energies
   p_up=>f_subptr(eval,1.to.norbud(UP_))
@@ -74,8 +86,8 @@ program small_things
   call yaml_map('Test energies',eval)
   call yaml_map('Electronic temperature',kT)
 
-  call eval_to_occ(0,1,norbud(1),norbud(2),sum(norbud), nkpt, wgts, &
-       eval, occup, .false., .true., kT, occopt, efermi, eTS, &
+  call eval_to_occ(0,norbud(1),norbud(2),sum(norbud), nkpt, wgts, &
+       eval, occup, .true., kT, occopt, efermi, eTS, &
        norbud(1),norbud(2))
 
   call yaml_map('Fermi level',efermi)

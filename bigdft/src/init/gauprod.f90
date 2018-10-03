@@ -29,7 +29,7 @@ subroutine restart_from_gaussians(iproc,nproc,orbs,Lzd,hx,hy,hz,psi,G,coeffs)
   
   !call gaussian_orthogonality(iproc,nproc,norb,norbp,G,coeffs)
 
-  call dual_gaussian_coefficients(orbs%norbp,G,coeffs)
+  call dual_gaussian_coefficients(Lzd%Glr%mesh,orbs%norbp,G,coeffs)
 
   !call gaussians_to_wavelets(iproc,nproc,lr%geocode,orbs,lr%d,hx,hy,hz,lr%wfd,G,coeffs,psi)
   call gaussians_to_wavelets_new(iproc,nproc,Lzd,orbs,G,coeffs,psi)
@@ -1025,12 +1025,14 @@ END FUNCTION xfac
 !>   Calculate the projection of norb wavefunctions on a gaussian basis set
 !!
 !!
-subroutine wavelets_to_gaussians(geocode,norbp,nspinor,n1,n2,n3,G,thetaphi,hx,hy,hz,wfd,psi,coeffs)
+subroutine wavelets_to_gaussians(lr,norbp,nspinor,n1,n2,n3,G,thetaphi,hx,hy,hz,wfd,psi,coeffs)
   use module_base
   use module_types
   use compression
+  use locregs
   implicit none
-  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+!!$  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+  type(locreg_descriptors), intent(in) :: lr
   integer, intent(in) :: norbp,n1,n2,n3,nspinor
   real(gp), intent(in) :: hx,hy,hz
   type(gaussian_basis), intent(in) :: G
@@ -1043,7 +1045,7 @@ subroutine wavelets_to_gaussians(geocode,norbp,nspinor,n1,n2,n3,G,thetaphi,hx,hy
   
   do iorb=1,norbp
      do ispinor=1,nspinor
-        call orbital_projection(geocode,n1,n2,n3,G%nat,G%rxyz,thetaphi,&
+        call orbital_projection(lr,n1,n2,n3,G%nat,G%rxyz,thetaphi,&
              G%nshell,G%ndoc,G%nam,G%xp(1,:),G%psiat(1,:),G%nshltot,G%nexpo,G%ncoeff,&
              hx,hy,hz,wfd,psi(1,ispinor,iorb),coeffs(1,ispinor,iorb))
         !print *,'iorb, coeffs',iorb,coeffs(:,1,iorb)
@@ -1058,14 +1060,16 @@ END SUBROUTINE wavelets_to_gaussians
 !!   a set of points
 !!
 !!
-subroutine orbital_projection(geocode,n1,n2,n3,nat,rxyz,thetaphi,nshell,ndoc,nam,xp,psiat,&
+subroutine orbital_projection(lr,n1,n2,n3,nat,rxyz,thetaphi,nshell,ndoc,nam,xp,psiat,&
      nshltot,nexpo,ncoeff,hx,hy,hz,wfd,psi,coeffs)
   use module_base
   use module_types
   use gaussians
   use compression
+  use locregs
   implicit none
-  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+!!$  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+  type(locreg_descriptors), intent(in) :: lr
   integer, intent(in) :: n1,n2,n3,nat,nshltot,nexpo,ncoeff
   real(gp), intent(in) :: hx,hy,hz
   type(wavefunctions_descriptors), intent(in) :: wfd
@@ -1087,7 +1091,7 @@ subroutine orbital_projection(geocode,n1,n2,n3,nat,rxyz,thetaphi,nshell,ndoc,nam
         ishell=ishell+1
         ng=ndoc(ishell)
         l=nam(ishell)
-        call lsh_projection(geocode,l,ng,xp(iexpo),psiat(iexpo),n1,n2,n3,rxyz(1,iat),&
+        call lsh_projection(lr,l,ng,xp(iexpo),psiat(iexpo),n1,n2,n3,rxyz(1,iat),&
              thetaphi(1,iat),hx,hy,hz,wfd,psi,coeffs(icoeff))
         iexpo=iexpo+ng
         icoeff=icoeff+2*l-1
@@ -1099,21 +1103,60 @@ subroutine orbital_projection(geocode,n1,n2,n3,nat,rxyz,thetaphi,nshell,ndoc,nam
 END SUBROUTINE orbital_projection
 
 
-subroutine dual_gaussian_coefficients(norbp,G,coeffs)
-  use module_base
+subroutine dual_gaussian_coefficients(bcell,norbp,G,coeffs)
+  use module_base, except => pi
   use gaussians
+  use dynamic_memory
+  use box
   implicit none
+  type(cell), intent(in) :: bcell
   integer, intent(in) :: norbp
   type(gaussian_basis), intent(in) :: G
   real(gp), dimension(G%ncoeff,norbp), intent(inout) :: coeffs !warning: the precision here should be wp
   !local variables
   character(len=*), parameter :: subname='dual_gaussian_coefficients'
-  integer :: nwork,info
+  integer :: nwork,info,i,j,k,ni,pi,nj,pj,nk,pk,iat,u
   integer, dimension(:), allocatable :: iwork
   real(gp), dimension(:), allocatable :: ovrlp,work
+  type(gaussian_basis) :: dG
+  logical, dimension(3) :: peri
+
+  ovrlp = f_malloc0(G%ncoeff*G%ncoeff,id='ovrlp')
+  work = f_malloc(G%ncoeff*G%ncoeff,id='work')
+  ! Crude periodicity handling.
+  peri = cell_periodic_dims(bcell)
+  ni = 0
+  if (peri(1)) ni = -1
+  pi = 0
+  if (peri(1)) pi = 1
+  nj = 0
+  if (peri(1)) nj = -1
+  pj = 0
+  if (peri(1)) pj = 1
+  nk = 0
+  if (peri(1)) nk = -1
+  pk = 0
+  if (peri(1)) pk = 1
+  do i = ni, pi, 1
+     do j = nj, pj, 1
+        do k = nk, pk, 1
+           dG = G
+           dG%rxyz = f_malloc_ptr(src_ptr = G%rxyz, id = "dg%rxyz")
+           do iat = 1, dG%nat
+              dG%rxyz(:,iat) = dG%rxyz(:,iat) + (/ &
+                   & i * bcell%ndims(1) * bcell%hgrids(1), &
+                   & j * bcell%ndims(2) * bcell%hgrids(2), &
+                   & k * bcell%ndims(3) * bcell%hgrids(3) /)
+           end do
+           call gaussian_overlap(G,dG,work)
+           ovrlp = ovrlp + work
+           call f_free_ptr(dG%rxyz)
+        end do
+     end do
+  end do
+  call f_free(work)
 
   iwork = f_malloc(G%ncoeff,id='iwork')
-  ovrlp = f_malloc(G%ncoeff*G%ncoeff,id='ovrlp')
 
   !temporary allocation of the work array, workspace query in dsysv
   work = f_malloc(100,id='work')
@@ -1126,8 +1169,6 @@ subroutine dual_gaussian_coefficients(norbp,G,coeffs)
 
   call f_free(work)
   work = f_malloc(nwork,id='work')
-
-  call gaussian_overlap(G,G,ovrlp)
 
   !!  !overlap matrix, print it for convenience
   !!  do icoeff=1,G%ncoeff
@@ -1156,13 +1197,15 @@ END SUBROUTINE dual_gaussian_coefficients
 !!   centered on a given point and rotated by theta(along z) and phi(along x)
 !!
 !!
-subroutine lsh_projection(geocode,l,ng,xp,psiat,n1,n2,n3,rxyz,thetaphi,hx,hy,hz,&
+subroutine lsh_projection(lr,l,ng,xp,psiat,n1,n2,n3,rxyz,thetaphi,hx,hy,hz,&
      wfd,psi,coeffs)
   use module_base
   use module_types
   use compression
+  use locregs
   implicit none
-  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+!!$  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+  type(locreg_descriptors), intent(in) :: lr
   integer, intent(in) :: l,ng,n1,n2,n3
   real(gp), intent(in) :: hx,hy,hz
   type(wavefunctions_descriptors), intent(in) :: wfd
@@ -1181,7 +1224,7 @@ subroutine lsh_projection(geocode,l,ng,xp,psiat,n1,n2,n3,rxyz,thetaphi,hx,hy,hz,
      !for the moment theta and phi are ignored but a new routine should be made
      call calc_coeff_inguess(l,m,nterm_max,nterm,lx,ly,lz,fac_arr)
 
-     call wavetogau(geocode,n1,n2,n3,ng,nterm,lx,ly,lz,fac_arr,xp,psiat,&
+     call wavetogau(lr,n1,n2,n3,ng,nterm,lx,ly,lz,fac_arr,xp,psiat,&
         & rxyz(1),rxyz(2),rxyz(3),hx,hy,hz,wfd%nseg_c,wfd%nvctr_c,wfd%keygloc,wfd%keyvloc,&
         & wfd%nseg_f,wfd%nvctr_f,&
         & wfd%keygloc(1,wfd%nseg_c+min(1,wfd%nseg_f)),&
@@ -1246,11 +1289,14 @@ END SUBROUTINE lsh_rotation
 !!                  \sum_j=1..nterm psiat(j) [exp(-r^2/(2*(xp(j)^2)))] 
 !!                      *((x-rx)^lx(i) *(y-ry)^ly(i) * (z-rz)^lz(i) ))} psi(x,y,z)@f$
 !!   Expressed in Daubechies Basis in the arrays psi_c, psi_f
-subroutine wavetogau(geocode,n1,n2,n3,nterm,ntp,lx,ly,lz,fac_arr,xp,psiat,rx,ry,rz,hx,hy,hz, & 
+subroutine wavetogau(lr,n1,n2,n3,nterm,ntp,lx,ly,lz,fac_arr,xp,psiat,rx,ry,rz,hx,hy,hz, & 
      nseg_c,mvctr_c,keyg_c,keyv_c,nseg_f,mvctr_f,keyg_f,keyv_f,psi_c,psi_f,overlap)
   use module_base
+  use locregs
+  use box, only: cell_periodic_dims
   implicit none
-  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+!!$  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+  type(locreg_descriptors), intent(in) :: lr
   integer, intent(in) :: n1,n2,n3,nterm,ntp,nseg_c,nseg_f,mvctr_c,mvctr_f
   real(gp), intent(in) :: rx,ry,rz,hx,hy,hz
   integer, dimension(ntp), intent(in) :: lx,ly,lz
@@ -1272,11 +1318,16 @@ subroutine wavetogau(geocode,n1,n2,n3,nterm,ntp,lx,ly,lz,fac_arr,xp,psiat,rx,ry,
   real(gp) :: gau_a,te
   real(wp), dimension(0:nw,2) :: work
   real(wp), dimension(:,:), allocatable :: wprojx,wprojy,wprojz
+  logical, dimension(3) :: peri
 
   !conditions for periodicity in the three directions
-  perx=(geocode /= 'F')
-  pery=(geocode == 'P')
-  perz=(geocode /= 'F')
+!!$  perx=(geocode /= 'F')
+!!$  pery=(geocode == 'P')
+!!$  perz=(geocode /= 'F')
+  peri=cell_periodic_dims(lr%mesh)
+  perx=peri(1)
+  pery=peri(2)
+  perz=peri(3)
 
   wprojx = f_malloc((/ 0.to.n1, 1.to.2 /),id='wprojx')
   wprojy = f_malloc((/ 0.to.n2, 1.to.2 /),id='wprojy')

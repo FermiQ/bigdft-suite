@@ -33,6 +33,7 @@ routines = $(CONV_SOURCES) \
 	conv_per_common.f90 \
 	convolut_common_slab.f90 \
 	convolut_common_per.f90 \
+        convolut_common_wire.f90 \
 	convolut_new_per.f90 \
 	convolut_simple_per_k.f90 \
 	convolut_simple_slab_k.f90 \
@@ -66,13 +67,24 @@ modules = public_keys.@MODULE_EXT@ \
 	communications_base.@MODULE_EXT@
 endif
 
+if HAVE_PSPIO
+else
+mod_src += pspio_fake.f90
+pspio_deps = pspio_fake.o
+if CAPITALIZE
+modules += PSPIOF_M.@MODULE_EXT@
+else
+modules += pspiof_m.@MODULE_EXT@
+endif
+endif
+
 CLEANFILES = *.@MODULE_EXT@
 
 AM_FCFLAGS = -I. -I$(srcdir) -I$(top_builddir)/includes @LIBABINIT_INCLUDE@ @LIB_XC_CFLAGS@ @LIB_FUTILE_CFLAGS@
 
 #dependencies
 ao_inguess.o: $(AO_INCLUDES) public_keys.o
-pseudopotentials.o: ao_inguess.o public_keys.o xc.o
+pseudopotentials.o: ao_inguess.o public_keys.o xc.o $(pspio_deps)
 
 $(modules): $(liborbitals_a_OBJECTS)
 

@@ -20,9 +20,10 @@ module PSbox
   end interface PS_reduce
   
 
-  public :: PS_reduce,PS_gather
+  public :: PS_reduce,PS_gather,PS_dump_field
 
 contains
+   
 
   !>gather a distributed array to have a full array
   !!if only src is present this is assumed to be a full array
@@ -46,7 +47,7 @@ contains
        if (kernel%mpi_env%nproc > 1) then
           isrc=1
           do ispin=1,nspin
-             call mpiallgather(src(isrc),recvbuf=dest(1,1,1,ispin),&
+             call fmpi_allgather(src(isrc),recvbuf=dest(1,1,1,ispin),&
                recvcounts=kernel%counts,&
                displs=kernel%displs,comm=kernel%mpi_env%mpi_comm)
              isrc=isrc+kernel%grid%m1*kernel%grid%m3*kernel%grid%n3p
@@ -58,7 +59,7 @@ contains
        if (kernel%mpi_env%nproc > 1) then
           isrc=1
           do ispin=1,nspin
-             call mpiallgather(src(isrc),recvcounts=kernel%counts,&
+             call fmpi_allgather(src(isrc),recvcounts=kernel%counts,&
                   displs=kernel%displs,comm=kernel%mpi_env%mpi_comm)
              isrc=isrc+kernel%grid%m1*kernel%grid%m3*kernel%grid%n3p
           end do

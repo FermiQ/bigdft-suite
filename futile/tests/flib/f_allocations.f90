@@ -13,45 +13,45 @@ program f_buffer_allocations
   logical, dimension(:), allocatable ::             l1
   logical, dimension(:,:), allocatable ::           l2
   logical, dimension(:,:,:), allocatable ::         l3
-  logical, dimension(:,:,:,:), allocatable ::       l4
-  logical, dimension(:,:,:,:,:), allocatable ::     l5
-  logical, dimension(:,:,:,:,:,:), allocatable ::   l6
-  logical, dimension(:,:,:,:,:,:,:), allocatable :: l7
+  !logical, dimension(:,:,:,:), allocatable ::       l4
+  !logical, dimension(:,:,:,:,:), allocatable ::     l5
+  !logical, dimension(:,:,:,:,:,:), allocatable ::   l6
+  !logical, dimension(:,:,:,:,:,:,:), allocatable :: l7
   logical(f_byte), dimension(:), allocatable ::             b1
   logical(f_byte), dimension(:,:), allocatable ::           b2
-  logical(f_byte), dimension(:,:,:), allocatable ::         b3
-  logical(f_byte), dimension(:,:,:,:), allocatable ::       b4
-  logical(f_byte), dimension(:,:,:,:,:), allocatable ::     b5
-  logical(f_byte), dimension(:,:,:,:,:,:), allocatable ::   b6
-  logical(f_byte), dimension(:,:,:,:,:,:,:), allocatable :: b7
+  !logical(f_byte), dimension(:,:,:), allocatable ::         b3
+  !logical(f_byte), dimension(:,:,:,:), allocatable ::       b4
+  !logical(f_byte), dimension(:,:,:,:,:), allocatable ::     b5
+  !logical(f_byte), dimension(:,:,:,:,:,:), allocatable ::   b6
+  !logical(f_byte), dimension(:,:,:,:,:,:,:), allocatable :: b7
   integer(f_integer), dimension(:), allocatable ::             i1
   integer(f_integer), dimension(:,:), allocatable ::           i2
   integer(f_integer), dimension(:,:,:), allocatable ::         i3
   integer(f_integer), dimension(:,:,:,:), allocatable ::       i4
-  integer(f_integer), dimension(:,:,:,:,:), allocatable ::     i5
-  integer(f_integer), dimension(:,:,:,:,:,:), allocatable ::   i6
-  integer(f_integer), dimension(:,:,:,:,:,:,:), allocatable :: i7
-  integer(f_short), dimension(:), allocatable ::             s1
-  integer(f_short), dimension(:,:), allocatable ::           s2
-  integer(f_short), dimension(:,:,:), allocatable ::         s3
-  integer(f_short), dimension(:,:,:,:), allocatable ::       s4
-  integer(f_short), dimension(:,:,:,:,:), allocatable ::     s5
-  integer(f_short), dimension(:,:,:,:,:,:), allocatable ::   s6
-  integer(f_short), dimension(:,:,:,:,:,:,:), allocatable :: s7
+  !integer(f_integer), dimension(:,:,:,:,:), allocatable ::     i5
+  !integer(f_integer), dimension(:,:,:,:,:,:), allocatable ::   i6
+  !integer(f_integer), dimension(:,:,:,:,:,:,:), allocatable :: i7
+  !integer(f_short), dimension(:), allocatable ::             s1
+  !integer(f_short), dimension(:,:), allocatable ::           s2
+  !integer(f_short), dimension(:,:,:), allocatable ::         s3
+  !integer(f_short), dimension(:,:,:,:), allocatable ::       s4
+  !integer(f_short), dimension(:,:,:,:,:), allocatable ::     s5
+  !integer(f_short), dimension(:,:,:,:,:,:), allocatable ::   s6
+  !integer(f_short), dimension(:,:,:,:,:,:,:), allocatable :: s7
   integer(f_long), dimension(:), allocatable ::             li1
   integer(f_long), dimension(:,:), allocatable ::           li2
   integer(f_long), dimension(:,:,:), allocatable ::         li3
   integer(f_long), dimension(:,:,:,:), allocatable ::       li4
-  integer(f_long), dimension(:,:,:,:,:), allocatable ::     li5
-  integer(f_long), dimension(:,:,:,:,:,:), allocatable ::   li6
-  integer(f_long), dimension(:,:,:,:,:,:,:), allocatable :: li7
+  !integer(f_long), dimension(:,:,:,:,:), allocatable ::     li5
+  !integer(f_long), dimension(:,:,:,:,:,:), allocatable ::   li6
+  !integer(f_long), dimension(:,:,:,:,:,:,:), allocatable :: li7
   real(f_simple), dimension(:), allocatable ::             r1
   real(f_simple), dimension(:,:), allocatable ::           r2
   real(f_simple), dimension(:,:,:), allocatable ::         r3
   real(f_simple), dimension(:,:,:,:), allocatable ::       r4
-  real(f_simple), dimension(:,:,:,:,:), allocatable ::     r5
-  real(f_simple), dimension(:,:,:,:,:,:), allocatable ::   r6
-  real(f_simple), dimension(:,:,:,:,:,:,:), allocatable :: r7
+  !real(f_simple), dimension(:,:,:,:,:), allocatable ::     r5
+  !real(f_simple), dimension(:,:,:,:,:,:), allocatable ::   r6
+  !real(f_simple), dimension(:,:,:,:,:,:,:), allocatable :: r7
   real(f_double), dimension(:), allocatable ::             d1
   real(f_double), dimension(:,:), allocatable ::           d2
   real(f_double), dimension(:,:,:), allocatable ::         d3
@@ -59,97 +59,97 @@ program f_buffer_allocations
   real(f_double), dimension(:,:,:,:,:), allocatable ::     d5
   real(f_double), dimension(:,:,:,:,:,:), allocatable ::   d6
   real(f_double), dimension(:,:,:,:,:,:,:), allocatable :: d7
-  real(f_quadruple), dimension(:), allocatable ::             q1
-  real(f_quadruple), dimension(:,:), allocatable ::           q2
-  real(f_quadruple), dimension(:,:,:), allocatable ::         q3
-  real(f_quadruple), dimension(:,:,:,:), allocatable ::       q4
-  real(f_quadruple), dimension(:,:,:,:,:), allocatable ::     q5
-  real(f_quadruple), dimension(:,:,:,:,:,:), allocatable ::   q6
-  real(f_quadruple), dimension(:,:,:,:,:,:,:), allocatable :: q7
-  complex(f_simple), dimension(:), allocatable ::             c1
-  complex(f_simple), dimension(:,:), allocatable ::           c2
-  complex(f_simple), dimension(:,:,:), allocatable ::         c3
-  complex(f_simple), dimension(:,:,:,:), allocatable ::       c4
-  complex(f_simple), dimension(:,:,:,:,:), allocatable ::     c5
-  complex(f_simple), dimension(:,:,:,:,:,:), allocatable ::   c6
-  complex(f_simple), dimension(:,:,:,:,:,:,:), allocatable :: c7
-  complex(f_double), dimension(:), allocatable ::             z1
+  !real(f_quadruple), dimension(:), allocatable ::             q1
+  !real(f_quadruple), dimension(:,:), allocatable ::           q2
+  !real(f_quadruple), dimension(:,:,:), allocatable ::         q3
+  !real(f_quadruple), dimension(:,:,:,:), allocatable ::       q4
+  !real(f_quadruple), dimension(:,:,:,:,:), allocatable ::     q5
+  !real(f_quadruple), dimension(:,:,:,:,:,:), allocatable ::   q6
+  !real(f_quadruple), dimension(:,:,:,:,:,:,:), allocatable :: q7
+  !complex(f_simple), dimension(:), allocatable ::             c1
+  !complex(f_simple), dimension(:,:), allocatable ::           c2
+  !complex(f_simple), dimension(:,:,:), allocatable ::         c3
+  !complex(f_simple), dimension(:,:,:,:), allocatable ::       c4
+  !complex(f_simple), dimension(:,:,:,:,:), allocatable ::     c5
+  !complex(f_simple), dimension(:,:,:,:,:,:), allocatable ::   c6
+  !complex(f_simple), dimension(:,:,:,:,:,:,:), allocatable :: c7
+  !complex(f_double), dimension(:), allocatable ::             z1
   complex(f_double), dimension(:,:), allocatable ::           z2
   complex(f_double), dimension(:,:,:), allocatable ::         z3
-  complex(f_double), dimension(:,:,:,:), allocatable ::       z4
-  complex(f_double), dimension(:,:,:,:,:), allocatable ::     z5
-  complex(f_double), dimension(:,:,:,:,:,:), allocatable ::   z6
-  complex(f_double), dimension(:,:,:,:,:,:,:), allocatable :: z7
+  !complex(f_double), dimension(:,:,:,:), allocatable ::       z4
+  !complex(f_double), dimension(:,:,:,:,:), allocatable ::     z5
+  !complex(f_double), dimension(:,:,:,:,:,:), allocatable ::   z6
+  !complex(f_double), dimension(:,:,:,:,:,:,:), allocatable :: z7
   logical, dimension(:), pointer ::             l1_ptr
   logical, dimension(:,:), pointer ::           l2_ptr
   logical, dimension(:,:,:), pointer ::         l3_ptr
-  logical, dimension(:,:,:,:), pointer ::       l4_ptr
-  logical, dimension(:,:,:,:,:), pointer ::     l5_ptr
-  logical, dimension(:,:,:,:,:,:), pointer ::   l6_ptr
-  logical, dimension(:,:,:,:,:,:,:), pointer :: l7_ptr
-  logical(f_byte), dimension(:), pointer ::             b1_ptr
-  logical(f_byte), dimension(:,:), pointer ::           b2_ptr
-  logical(f_byte), dimension(:,:,:), pointer ::         b3_ptr
-  logical(f_byte), dimension(:,:,:,:), pointer ::       b4_ptr
-  logical(f_byte), dimension(:,:,:,:,:), pointer ::     b5_ptr
-  logical(f_byte), dimension(:,:,:,:,:,:), pointer ::   b6_ptr
-  logical(f_byte), dimension(:,:,:,:,:,:,:), pointer :: b7_ptr
+  !logical, dimension(:,:,:,:), pointer ::       l4_ptr
+  !logical, dimension(:,:,:,:,:), pointer ::     l5_ptr
+  !logical, dimension(:,:,:,:,:,:), pointer ::   l6_ptr
+  !logical, dimension(:,:,:,:,:,:,:), pointer :: l7_ptr
+  !logical(f_byte), dimension(:), pointer ::             b1_ptr
+  !logical(f_byte), dimension(:,:), pointer ::           b2_ptr
+  !logical(f_byte), dimension(:,:,:), pointer ::         b3_ptr
+  !logical(f_byte), dimension(:,:,:,:), pointer ::       b4_ptr
+  !logical(f_byte), dimension(:,:,:,:,:), pointer ::     b5_ptr
+  !logical(f_byte), dimension(:,:,:,:,:,:), pointer ::   b6_ptr
+  !logical(f_byte), dimension(:,:,:,:,:,:,:), pointer :: b7_ptr
   integer(f_integer), dimension(:), pointer ::             i1_ptr
   integer(f_integer), dimension(:,:), pointer ::           i2_ptr
   integer(f_integer), dimension(:,:,:), pointer ::         i3_ptr
   integer(f_integer), dimension(:,:,:,:), pointer ::       i4_ptr
-  integer(f_integer), dimension(:,:,:,:,:), pointer ::     i5_ptr
-  integer(f_integer), dimension(:,:,:,:,:,:), pointer ::   i6_ptr
-  integer(f_integer), dimension(:,:,:,:,:,:,:), pointer :: i7_ptr
-  integer(f_short), dimension(:), pointer ::             s1_ptr
-  integer(f_short), dimension(:,:), pointer ::           s2_ptr
-  integer(f_short), dimension(:,:,:), pointer ::         s3_ptr
-  integer(f_short), dimension(:,:,:,:), pointer ::       s4_ptr
-  integer(f_short), dimension(:,:,:,:,:), pointer ::     s5_ptr
-  integer(f_short), dimension(:,:,:,:,:,:), pointer ::   s6_ptr
-  integer(f_short), dimension(:,:,:,:,:,:,:), pointer :: s7_ptr
+  !integer(f_integer), dimension(:,:,:,:,:), pointer ::     i5_ptr
+  !integer(f_integer), dimension(:,:,:,:,:,:), pointer ::   i6_ptr
+  !integer(f_integer), dimension(:,:,:,:,:,:,:), pointer :: i7_ptr
+  !integer(f_short), dimension(:), pointer ::             s1_ptr
+  !integer(f_short), dimension(:,:), pointer ::           s2_ptr
+  !integer(f_short), dimension(:,:,:), pointer ::         s3_ptr
+  !integer(f_short), dimension(:,:,:,:), pointer ::       s4_ptr
+  !integer(f_short), dimension(:,:,:,:,:), pointer ::     s5_ptr
+  !integer(f_short), dimension(:,:,:,:,:,:), pointer ::   s6_ptr
+  !integer(f_short), dimension(:,:,:,:,:,:,:), pointer :: s7_ptr
   integer(f_long), dimension(:), pointer ::             li1_ptr
-  integer(f_long), dimension(:,:), pointer ::           li2_ptr
-  integer(f_long), dimension(:,:,:), pointer ::         li3_ptr
-  integer(f_long), dimension(:,:,:,:), pointer ::       li4_ptr
-  integer(f_long), dimension(:,:,:,:,:), pointer ::     li5_ptr
-  integer(f_long), dimension(:,:,:,:,:,:), pointer ::   li6_ptr
-  integer(f_long), dimension(:,:,:,:,:,:,:), pointer :: li7_ptr
-  real(f_simple), dimension(:), pointer ::             r1_ptr
-  real(f_simple), dimension(:,:), pointer ::           r2_ptr
-  real(f_simple), dimension(:,:,:), pointer ::         r3_ptr
-  real(f_simple), dimension(:,:,:,:), pointer ::       r4_ptr
-  real(f_simple), dimension(:,:,:,:,:), pointer ::     r5_ptr
-  real(f_simple), dimension(:,:,:,:,:,:), pointer ::   r6_ptr
-  real(f_simple), dimension(:,:,:,:,:,:,:), pointer :: r7_ptr
+  !integer(f_long), dimension(:,:), pointer ::           li2_ptr
+  !integer(f_long), dimension(:,:,:), pointer ::         li3_ptr
+  !integer(f_long), dimension(:,:,:,:), pointer ::       li4_ptr
+  !integer(f_long), dimension(:,:,:,:,:), pointer ::     li5_ptr
+  !integer(f_long), dimension(:,:,:,:,:,:), pointer ::   li6_ptr
+  !integer(f_long), dimension(:,:,:,:,:,:,:), pointer :: li7_ptr
+  !real(f_simple), dimension(:), pointer ::             r1_ptr
+  !real(f_simple), dimension(:,:), pointer ::           r2_ptr
+  !real(f_simple), dimension(:,:,:), pointer ::         r3_ptr
+  !real(f_simple), dimension(:,:,:,:), pointer ::       r4_ptr
+  !real(f_simple), dimension(:,:,:,:,:), pointer ::     r5_ptr
+  !real(f_simple), dimension(:,:,:,:,:,:), pointer ::   r6_ptr
+  !real(f_simple), dimension(:,:,:,:,:,:,:), pointer :: r7_ptr
   real(f_double), dimension(:), pointer ::             d1_ptr
   real(f_double), dimension(:,:), pointer ::           d2_ptr
   real(f_double), dimension(:,:,:), pointer ::         d3_ptr
   real(f_double), dimension(:,:,:,:), pointer ::       d4_ptr
   real(f_double), dimension(:,:,:,:,:), pointer ::     d5_ptr
   real(f_double), dimension(:,:,:,:,:,:), pointer ::   d6_ptr
-  real(f_double), dimension(:,:,:,:,:,:,:), pointer :: d7_ptr
-  real(f_quadruple), dimension(:), pointer ::             q1_ptr
-  real(f_quadruple), dimension(:,:), pointer ::           q2_ptr
-  real(f_quadruple), dimension(:,:,:), pointer ::         q3_ptr
-  real(f_quadruple), dimension(:,:,:,:), pointer ::       q4_ptr
-  real(f_quadruple), dimension(:,:,:,:,:), pointer ::     q5_ptr
-  real(f_quadruple), dimension(:,:,:,:,:,:), pointer ::   q6_ptr
-  real(f_quadruple), dimension(:,:,:,:,:,:,:), pointer :: q7_ptr
-  complex(f_simple), dimension(:), pointer ::             c1_ptr
-  complex(f_simple), dimension(:,:), pointer ::           c2_ptr
-  complex(f_simple), dimension(:,:,:), pointer ::         c3_ptr
-  complex(f_simple), dimension(:,:,:,:), pointer ::       c4_ptr
-  complex(f_simple), dimension(:,:,:,:,:), pointer ::     c5_ptr
-  complex(f_simple), dimension(:,:,:,:,:,:), pointer ::   c6_ptr
-  complex(f_simple), dimension(:,:,:,:,:,:,:), pointer :: c7_ptr
-  complex(f_double), dimension(:), pointer ::             z1_ptr
-  complex(f_double), dimension(:,:), pointer ::           z2_ptr
-  complex(f_double), dimension(:,:,:), pointer ::         z3_ptr
-  complex(f_double), dimension(:,:,:,:), pointer ::       z4_ptr
-  complex(f_double), dimension(:,:,:,:,:), pointer ::     z5_ptr
-  complex(f_double), dimension(:,:,:,:,:,:), pointer ::   z6_ptr
-  complex(f_double), dimension(:,:,:,:,:,:,:), pointer :: z7_ptr
+  !real(f_double), dimension(:,:,:,:,:,:,:), pointer :: d7_ptr
+  !real(f_quadruple), dimension(:), pointer ::             q1_ptr
+  !real(f_quadruple), dimension(:,:), pointer ::           q2_ptr
+  !real(f_quadruple), dimension(:,:,:), pointer ::         q3_ptr
+  !real(f_quadruple), dimension(:,:,:,:), pointer ::       q4_ptr
+  !real(f_quadruple), dimension(:,:,:,:,:), pointer ::     q5_ptr
+  !real(f_quadruple), dimension(:,:,:,:,:,:), pointer ::   q6_ptr
+  !real(f_quadruple), dimension(:,:,:,:,:,:,:), pointer :: q7_ptr
+  !complex(f_simple), dimension(:), pointer ::             c1_ptr
+  !complex(f_simple), dimension(:,:), pointer ::           c2_ptr
+  !complex(f_simple), dimension(:,:,:), pointer ::         c3_ptr
+  !complex(f_simple), dimension(:,:,:,:), pointer ::       c4_ptr
+  !complex(f_simple), dimension(:,:,:,:,:), pointer ::     c5_ptr
+  !complex(f_simple), dimension(:,:,:,:,:,:), pointer ::   c6_ptr
+  !complex(f_simple), dimension(:,:,:,:,:,:,:), pointer :: c7_ptr
+  !complex(f_double), dimension(:), pointer ::             z1_ptr
+  !complex(f_double), dimension(:,:), pointer ::           z2_ptr
+  !complex(f_double), dimension(:,:,:), pointer ::         z3_ptr
+  !complex(f_double), dimension(:,:,:,:), pointer ::       z4_ptr
+  !complex(f_double), dimension(:,:,:,:,:), pointer ::     z5_ptr
+  !complex(f_double), dimension(:,:,:,:,:,:), pointer ::   z6_ptr
+  !complex(f_double), dimension(:,:,:,:,:,:,:), pointer :: z7_ptr
   !allocation ranges
   integer, dimension(1) :: n1
   integer, dimension(2) :: n2
@@ -421,7 +421,7 @@ program f_buffer_allocations
   call f_zero(d1_ptr)
   call detect_dnan(d1_ptr,shape(d1_ptr))
   call f_free_ptr(d1_ptr)
-  d2_ptr=f_malloc_ptr(n2,id='d2_ptr')
+  d2_ptr=f_malloc_ptr(n2,id='d2_ptr',info='{alignment: 32}')
   call buffer_info(shape(d2_ptr),lbound(d2_ptr),ubound(d2_ptr),kind(d2_ptr),'Double_ptr')
   !here we might detect some NaN
   call f_zero(d2_ptr)
@@ -592,7 +592,6 @@ program f_buffer_allocations
       integer, intent(in) :: n
       real(f_double), dimension(:), allocatable :: origin
       real(f_double), dimension(:), allocatable, target :: array
-      type(c_ptr) :: p
       
       call yaml_map('Original address',f_loc(origin))
       call yaml_map('Original shape',shape(origin))

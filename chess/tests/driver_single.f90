@@ -119,10 +119,10 @@ program driver_single
   end if
 
   ! Send the input parameters to all MPI tasks
-  call mpibcast(filename_in, root=0, comm=mpi_comm_world)
-  call mpibcast(filename_out, root=0, comm=mpi_comm_world)
-  call mpibcast(filename_out_matmul, root=0, comm=mpi_comm_world)
-  call mpibcast(exp_power, root=0, comm=mpi_comm_world)
+  call fmpi_bcast(filename_in)
+  call fmpi_bcast(filename_out)
+  call fmpi_bcast(filename_out_matmul)
+  call fmpi_bcast(exp_power)
 
   ! Read the input matrix descriptors and the matrix itself, and create the correpsonding structures
   if (iproc==0) then
@@ -271,7 +271,7 @@ program driver_single
        gather_routine=gather_timings)
 
 
-  call build_dict_info(iproc, nproc, dict_timing_info)
+  call build_dict_info(dict_timing_info)
   call f_timing_stop(mpi_comm=mpi_comm_world, nproc=nproc, &
        gather_routine=gather_timings, dict_info=dict_timing_info)
   call dict_free(dict_timing_info)

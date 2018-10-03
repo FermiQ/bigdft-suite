@@ -506,9 +506,9 @@
    PSP XC                              : "XC: Perdew, Burke & Ernzerhof"
   #----------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : angstroem
-   Cell                                :  [  12.0,  13.0,  12.0 ]
-   Positions:
+   units                               : angstroem
+   cell                                :  [  12.0,  13.0,  12.0 ]
+   positions:
    - H: [ 7.287691116,  3.888086319,  7.829164505] # [  25.51,  14.36,  27.40 ] 0001
    - O: [ 7.287691116,  3.888086319,  8.800254822] # [  25.51,  14.36,  30.80 ] 0002
    - H: [ 7.287691116,  2.949720383,  9.050948143] # [  25.51,  10.89,  31.68 ] 0003
@@ -2381,3 +2381,244 @@
        PCCP 17, 31360 (2015)
      DESCRIPTION:
        Paper describing the suitability of Linear scaling approach for a wide class of systems
+---
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ CHESS TOOLBOX
+ Timestamp of the run                  : 2018-02-09 17:10:45.305
+ Parallel environment:
+   MPI tasks                           :  2
+   OpenMP threads                      :  2
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data-periodic/overlap_sparse.txt
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data-periodic/overlap_sparse.txt
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data-periodic/hamiltonian_sparse.txt
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data-periodic/hamiltonian_sparse.txt
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Diagonalizing the matrix
+ mode                                  : sequential
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Matrix successfully diagonalized
+ Wavefunction coefficients written     :  Yes
+ Memory Consumption Report:
+   Tot. No. of Allocations             :  97
+   Tot. No. of Deallocations           :  97
+   Remaining Memory (B)                :  0
+   Memory occupation:
+     Peak Value (MB)                   :  0.002
+     for the array                     : work
+     in the routine                    : dsygv_parallel
+     Memory Peak of process            : 20.680 MB
+ Walltime since initialization         :  00:00:00.386036987
+ Max No. of dictionaries used          :  462 #( 306 still in use)
+ Number of dictionary folders allocated:  1
+# /home/stephan/Software/openmpi-1.8.4_gnu/bin/mpirun -np 2 /home/stephan/Documents/BigDFT/candbranch/Build-gnu-openmpi_debug_test/install/bin/chess_toolbox solve-eigensystem 1 serial_text data-periodic/sparsematrix_metadata.dat data-periodic/hamiltonian_sparse.txt data-periodic/overlap_sparse.txt data-periodic/coeffs.txt data-periodic/evals.txt F -1
+---
+ Code logo:
+   "__________________________________ A fast and precise DFT wavelet code
+   |     |     |     |     |     |
+   |     |     |     |     |     |      BBBB         i       gggggg
+   |_____|_____|_____|_____|_____|     B    B               g
+   |     |  :  |  :  |     |     |    B     B        i     g
+   |     |-0+--|-0+--|     |     |    B    B         i     g        g
+   |_____|__:__|__:__|_____|_____|___ BBBBB          i     g         g
+   |  :  |     |     |  :  |     |    B    B         i     g         g
+   |--+0-|     |     |-0+--|     |    B     B     iiii     g         g
+   |__:__|_____|_____|__:__|_____|    B     B        i      g        g
+   |     |  :  |  :  |     |     |    B BBBB        i        g      g
+   |     |-0+--|-0+--|     |     |    B        iiiii          gggggg
+   |_____|__:__|__:__|_____|_____|__BBBBB
+   |     |     |     |  :  |     |                           TTTTTTTTT
+   |     |     |     |--+0-|     |  DDDDDD          FFFFF        T
+   |_____|_____|_____|__:__|_____| D      D        F        TTTT T
+   |     |     |     |  :  |     |D        D      F        T     T
+   |     |     |     |--+0-|     |D         D     FFFF     T     T
+   |_____|_____|_____|__:__|_____|D___      D     F         T    T
+   |     |     |  :  |     |     |D         D     F          TTTTT
+   |     |     |--+0-|     |     | D        D     F         T    T
+   |_____|_____|__:__|_____|_____|          D     F        T     T
+   |     |     |     |     |     |         D               T    T
+   |     |     |     |     |     |   DDDDDD       F         TTTT
+   |_____|_____|_____|_____|_____|______                    www.bigdft.org   "
+
+ Reference Paper                       : The Journal of Chemical Physics 129, 014109 (2008)
+ Version Number                        : 1.8.1
+ Timestamp of this run                 : 2018-02-09 17:10:45.739
+ Root process Hostname                 : stephan-Latitude-E7450
+ Number of MPI tasks                   :  2
+ OpenMP parallelization                :  Yes
+ Maximal OpenMP threads per MPI task   :  2
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ BIGDFT PRE-/POST-PROCESSING
+ Parallel environment:
+   MPI tasks                           :  2
+   OpenMP threads                      :  2
+ Atomic System Properties:
+   Types of atoms                      :  [ H, O ]
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data-periodic/overlap_sparse.txt
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data-periodic/overlap_sparse.txt
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data-periodic/density_kernel_sparse.txt
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data-periodic/density_kernel_sparse.txt
+  #~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data-periodic/density_kernel_sparse_matmul.txt
+ sparse matmul load balancing naive / optimized:  [  1.00,  1.00 ]
+ Sparse matrix multiplications before optimization:
+   Load unbalancing:
+     Minimal number of columns         :  3
+     Maximal number of columns         :  3
+     Average number of columns         :  3.0
+     Minimal time                      :  9.66E-07
+     Maximal time                      :  1.65E-06
+     Ideal time                        :  1.31E-06
+     Unbalancing in %                  :  26.03
+ Main memory requirements for sparse matrix matrix multiplications (in MB):
+   Matrix sequential:
+     Minimal                           :  0
+     Maximal                           :  0
+     Average                           :  0
+   ivectorindex_new:
+     Minimal                           :  0
+     Maximal                           :  0
+     Average                           :  0
+   onedimindices_new:
+     Minimal                           :  0
+     Maximal                           :  0
+     Average                           :  0
+ Sparse matrix multiplications after optimization:
+   Load unbalancing:
+     Minimal number of columns         :  1
+     Maximal number of columns         :  5
+     Average number of columns         :  3.0
+     Minimal time                      :  2.81E-05
+     Maximal time                      :  8.34E-05
+     Ideal time                        :  5.58E-05
+     Unbalancing in %                  :  49.57
+ Main memory requirements for sparse matrix matrix multiplications (in MB):
+   Matrix sequential:
+     Minimal                           :  0
+     Maximal                           :  0
+     Average                           :  0
+   ivectorindex_new:
+     Minimal                           :  0
+     Maximal                           :  0
+     Average                           :  0
+   onedimindices_new:
+     Minimal                           :  0
+     Maximal                           :  0
+     Average                           :  0
+ Matrix properties:
+   Overlap matrix:
+     total elements                    :  36
+     segments                          :  6
+     non-zero elements                 :  36
+     sparsity in %                     :  0.00
+     sparse matrix multiplication initialized:  No
+     taskgroup summary:
+       number of taskgroups            :  1
+       taskgroups overview:
+       -  {number of tasks:  2, start / end:  [  1,  36 ], 
+      start / end disjoint:  [  1,  36 ]}
+   Density kernel:
+     total elements                    :  36
+     segments                          :  6
+     non-zero elements                 :  36
+     sparsity in %                     :  0.00
+     sparse matrix multiplication initialized:  Yes
+     sparse matrix multiplication setup:
+       segments                        :  6
+       non-zero elements               :  36
+       sparsity in %                   :  0.00
+     taskgroup summary:
+       number of taskgroups            :  1
+       taskgroups overview:
+       -  {number of tasks:  2, start / end:  [  1,  36 ], 
+      start / end disjoint:  [  1,  36 ]}
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data-periodic/mpmat_0_0.txt
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data-periodic/mpmat_1_-1.txt
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data-periodic/mpmat_1_0.txt
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data-periodic/mpmat_1_1.txt
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data-periodic/mpmat_2_-2.txt
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data-periodic/mpmat_2_-1.txt
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data-periodic/mpmat_2_0.txt
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data-periodic/mpmat_2_1.txt
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data-periodic/mpmat_2_2.txt
+ beta for penaltyfunction              : -1000.0
+ determine eigenvalue bounds:
+ -  {npl:  110, npl penalty:  110, npl determined by: penalty, scale:  1.00E+00, 
+ bounds:  [  0.500,  1.500 ], exp accur:  [  7.24E-14 ], 
+ Load unbalancing: {Minimal time:  2.01E-02, Maximal time:  2.01E-02, 
+                      Ideal time:  2.01E-02, Unbalancing in %:  0.01}, 
+ penalty:  6.8E-09, npl calculated:  110, ok:  [  Yes,  Yes ]}
+ summary: {npl:  110, npl determined by: penalty, scale:  1.00E+00, 
+ bounds:  [  0.500,  1.500 ], exp accur:  [  7.24E-14 ]}
+ Orbital occupation:
+ - Orbital ID                          : -1
+   Fragment multipoles:
+   - Atom IDs                          :  [  1 ]
+     Atom names                        :  [ H ]
+     Neutral fragment charge           :  1.000000E+00
+     Purity indicator                  : -4.506408E-01
+     q0                                :  [ -6.858053E-01 ]
+     q1                                :  [  9.650301E-03,  1.309913E-01,  1.126031E-04 ]
+     q2: [ 1.135701E-04,  6.154603E-03,  2.941734E-02, -3.854451E-04,  3.523649E-03]
+   - Atom IDs                          :  [  2 ]
+     Atom names                        :  [ O ]
+     Neutral fragment charge           :  6.000000E+00
+     Purity indicator                  : -1.491654E-01
+     q0                                :  [ -6.631984E+00 ]
+     q1                                :  [ -2.918581E-01, -2.243356E-01, -5.161974E-03 ]
+     q2: [ 1.951435E-03, -3.539038E-01,  4.978012E-01,  1.000125E-03, -6.705001E-01]
+   - Atom IDs                          :  [  3 ]
+     Atom names                        :  [ H ]
+     Neutral fragment charge           :  1.000000E+00
+     Purity indicator                  : -4.495045E-01
+     q0                                :  [ -6.822093E-01 ]
+     q1                                :  [  1.286353E-01, -2.389046E-02,  3.039846E-04 ]
+     q2: [-4.541883E-04, -6.365919E-03, -1.748504E-02,  2.752910E-04, -2.184948E-02]
+   - Atom IDs                          :  [  1,  2,  3 ]
+     Atom names                        :  [ H, O, H ]
+     Neutral fragment charge           :  8.000000E+00
+     Purity indicator                  : -1.369932E-07
+     q0                                :  [ -7.999999E+00 ]
+     q1                                :  [  5.241474E-01,  3.922237E-01, -6.926363E-03 ]
+     q2: [ 4.852482E-03, -1.871975E+00,  2.515492E+00,  2.303748E-03, -3.333325E+00]
+ - Orbital ID                          :  4
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data-periodic/coeffs.txt
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data-periodic/coeffs.txt
+   Fragment multipoles:
+   - Atom IDs                          :  [  1 ]
+     Atom names                        :  [ H ]
+     Neutral fragment charge           :  1.000000E+00
+     Purity indicator                  :  2.442102E-07
+     q0                                :  [  2.442101E-07 ]
+     q1                                :  [ -3.4364E-09, -4.664501E-08, -4.009712E-11 ]
+     q2: [-4.044147E-11, -2.191608E-09, -1.047530E-08,  1.372541E-10, -1.254745E-09]
+   - Atom IDs                          :  [  2 ]
+     Atom names                        :  [ O ]
+     Neutral fragment charge           :  6.000000E+00
+     Purity indicator                  :  3.442313E-08
+     q0                                :  [ -2.0E+00 ]
+     q1                                :  [  1.126238E-01,  8.669564E-02, -4.847699E-03 ]
+     q2: [ 1.023784E-04,  2.193711E-02,  8.505682E-01, -1.715465E-04, -1.485054E+00]
+   - Atom IDs                          :  [  3 ]
+     Atom names                        :  [ H ]
+     Neutral fragment charge           :  1.000000E+00
+     Purity indicator                  :  4.250084E-07
+     q0                                :  [  4.250083E-07 ]
+     q1                                :  [ -8.013825E-08,  1.488347E-08, -1.893788E-10 ]
+     q2: [ 2.829539E-10,  3.965891E-09,  1.089297E-08, -1.715030E-10,  1.361197E-08]
+   - Atom IDs                          :  [  1,  2,  3 ]
+     Atom names                        :  [ H, O, H ]
+     Neutral fragment charge           :  8.000000E+00
+     Purity indicator                  : -5.783491E-08
+     q0                                :  [ -2.0E+00 ]
+     q1                                :  [  5.559364E-01,  4.270331E-01, -5.048006E-03 ]
+     q2: [ 2.173200E-03,  8.612434E-02,  8.548086E-01,  1.427308E-03, -1.526912E+00]
+ Memory Consumption Report:
+   Tot. No. of Allocations             :  715
+   Tot. No. of Deallocations           :  715
+   Remaining Memory (B)                :  0
+   Memory occupation:
+     Peak Value (MB)                   :  0.123
+     for the array                     : cc
+     in the routine                    : get_polynomial_degree
+     Memory Peak of process            : 23.288 MB
+ Walltime since initialization         :  00:00:00.435524501
+ Max No. of dictionaries used          :  2117 #( 1063 still in use)
+ Number of dictionary folders allocated:  1
+# /home/stephan/Software/openmpi-1.8.4_gnu/bin/mpirun -np 2 /home/stephan/Documents/BigDFT/candbranch/Build-gnu-openmpi_debug_test/bigdft/src/utilities fragment-multipoles serial_text data-periodic/sparsematrix_metadata.dat frag.yaml data-periodic/overlap_sparse.txt data-periodic/density_kernel_sparse.txt data-periodic/density_kernel_sparse_matmul.txt data-periodic/mpmat_0_0.txt data-periodic/mpmat_1_-1.txt data-periodic/mpmat_1_0.txt data-periodic/mpmat_1_1.txt data-periodic/mpmat_2_-2.txt data-periodic/mpmat_2_-1.txt data-periodic/mpmat_2_0.txt data-periodic/mpmat_2_1.txt data-periodic/mpmat_2_2.txt orbital.yaml data-periodic/coeffs.txt

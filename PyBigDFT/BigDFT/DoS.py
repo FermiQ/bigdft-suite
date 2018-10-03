@@ -1,5 +1,9 @@
+"""
+This module is used to display the Density of States (DoS).
+"""
+
 import numpy
-from futile.Utils import write
+from futile.Utils import write as safe_print
 
 AU_eV=27.21138386
 
@@ -77,9 +81,12 @@ def _bandarray_to_data(jspin,bandarrays):
     return kptlists,lbl
 
 
-#definition of the density of state class
 class DoS():
-    def __init__(self,bandarrays=None,energies=None,evals=None,units='eV',label='1',sigma=0.2/AU_eV,npts=2500,fermi_level=None,norm=1.0,sdos=None):
+    """
+    Definition of the density of state class
+    """
+    def __init__(self,bandarrays=None,energies=None,evals=None,units='eV',label='1',sigma=0.2/AU_eV,
+                 npts=2500,fermi_level=None,norm=1.0,sdos=None):
         "Extract a quantity which is associated to the DoS, that can be plotted"
         import numpy as np
         self.ens=[]
@@ -88,10 +95,12 @@ class DoS():
         self.npts=npts
         if bandarrays is not None: self.append_from_bandarray(bandarrays,label)
         if evals is not None: self.append_from_dict(evals,label)
-        if energies is not None: self.append(np.array([energies]),label=label,units=units,norm=(np.array([norm]) if type(norm)==type(1.0) else norm))
+        if energies is not None: self.append(np.array([energies]),label=label,units=units,
+                                             norm=(np.array([norm]) if type(norm)==type(1.0) else norm))
         self.sigma=self.conversion_factor(units)*sigma
         self.fermi_level(fermi_level,units=units)
         if sdos is not None: self._embed_sdos(sdos)
+    
     def _embed_sdos(self,sdos):
         import numpy as np
         self.sdos=[]
@@ -106,16 +115,17 @@ class DoS():
                 except:
                     self.ens[jdos]['sdos']=[d]
                 jdos+=1
-
-
+    
     def append_from_bandarray(self,bandarrays,label):
-        "Important for kpoints DOS"
+        """
+        Add a new band array to the previous DoS. Important for kpoints DOS
+        """
         import numpy as np
         for jspin in range(2):
             kptlists,lbl=_bandarray_to_data(jspin,bandarrays)
             self.append(np.array(kptlists[0]),label=label+lbl,units='AU',
                         norm=np.array(kptlists[1]))
-
+    
     def append_from_dict(self,evals,label):
         import numpy as np
         "Get the energies from the different flavours given by the dict"
@@ -137,6 +147,7 @@ class DoS():
             if len(energs)==0: continue
             self.append(np.array(energs),label=label,units='AU',norm=1.0-2.0*i)
         if ef: self.fermi_level(ef,units='AU')
+    
     def get_ev(self,ev,keys=None):
         "Get the correct list of the energies for this eigenvalue"
         res=False
@@ -154,6 +165,7 @@ class DoS():
                     if type(res) != type([]): res=[res]
                     break
         return res
+    
     def append(self,energies,label=None,units='eV',norm=1.0):
         if type(norm)!=type(1.0) and len(norm)==0: return
         dos=self.conversion_factor(units)*energies
@@ -162,17 +174,20 @@ class DoS():
         self.labels.append(lbl)
         #self.norms.append(norm)
         self.range=self._set_range()
+    
     def conversion_factor(self,units):
         if units == 'AU':
             fac = AU_eV
         elif units == 'eV':
             fac=1.0
         else:
-            raise 'Unrecognized units (',unit,')'
+            raise ValueError('Unrecognized units ('+unit+')')
         return fac
+    
     def fermi_level(self,fermi_level,units='eV'):
         if fermi_level is not None:
             self.ef=fermi_level*self.conversion_factor(units)
+    
     def _set_range(self,npts=None):
         import numpy as np
         if npts is None: npts=self.npts
@@ -183,6 +198,7 @@ class DoS():
             e_min=min(e_min,mn)
             e_max=max(e_max,mx)
         return np.arange( e_min, e_max, (e_max-e_min)/npts )
+    
     def curve(self,dos,norm,sigma=None):
         import numpy as np
         if sigma is None: sigma=self.sigma
@@ -198,15 +214,17 @@ class DoS():
                 value=np.sum(np.exp( - (e_i - dos[:])**2 / (2.0 * sigma**2))/nrm)
             dos_g.append(value) #Append data corresponding to each energy grid
         return np.array(dos_g)
+    
     def dump(self,sigma=None):
         "For Gnuplot"
         if sigma is None: sigma=self.sigma
         #data=[self.curve(dos,norm=self.norms[i],sigma=sigma) for i,dos in enumerate(self.ens)]
         data=[ dos['dos'].curve(self.range,sigma=sigma)[1] for dos in self.ens]
-
+        
         for i,e in enumerate(self.range):
-            print e,' '.join(map(str,[d[i] for d in data]))
-    def plot(self,sigma=None,legend=False):
+            safe_print(e,' '.join(map(str,[d[i] for d in data])))
+    
+    def plot(self,sigma=None,legend=True):
         import matplotlib.pyplot as plt
         from matplotlib.widgets import Slider#, Button, RadioButtons
         import numpy
@@ -225,28 +243,34 @@ class DoS():
             #        xytext=(self.ef, 10),
             #    arrowprops=dict(facecolor='white', shrink=0.05),
             #)
-        if len(self.labels) > 1 or legend: plt.legend()
+        if len(self.labels) > 1 and legend: plt.legend(loc='best')
         axcolor = 'lightgoldenrodyellow'
-        axsigma = plt.axes([0.2, 0.93, 0.65, 0.03], axisbg=axcolor)
+        try:
+            axsigma = plt.axes([0.2, 0.93, 0.65, 0.03], facecolor=axcolor)
+        except:
+            axsigma = plt.axes([0.2, 0.93, 0.65, 0.03], axisbg=axcolor)
+
         self.ssig = Slider(axsigma, 'Smearing', 0.0, 0.4, valinit=sigma)
         self.ssig.on_changed(self.update)
         if hasattr(self,'sdos') and self.sdos:
             self._set_sdos_selector()
             self._set_sdos()
         plt.show()
+    
     def _set_sdos_selector(self):
         import matplotlib.pyplot as plt
         from matplotlib.widgets import RadioButtons
-        self.sdos_selector = RadioButtons(plt.axes([0.93, 0.05, 0.04, 0.11], axisbg='lightgoldenrodyellow'), ('x','y','z'),active=1)
+        self.sdos_selector = RadioButtons(
+            plt.axes([0.93, 0.05, 0.04, 0.11], axisbg='lightgoldenrodyellow'), ('x','y','z'),active=1)
         self.isdos=1
         self.sdos_selector.on_clicked(self._update_sdos)
-
+    
     def _set_sdos(self):
         import numpy
         xs=self.sdos[self.isdos]['coord']
         self._set_sdos_sliders(numpy.min(xs),numpy.max(xs))
         self._update_sdos(0.0) #fake value as it is unused
-
+    
     def _sdos_curve(self,sdos,vmin,vmax):
         import numpy
         xs=self.sdos[self.isdos]['coord']
@@ -260,7 +284,7 @@ class DoS():
         #tocurve=numpy.sum([ d[ispin] for d in doslist[imin:imax+1]],axis=0)
         return tocurve
         #float(len(xs))/float(imax+1-imin)*tocurve,norms
-
+    
     def _update_sdos(self,val):
         isdos=self.isdos
         if val=='x':
@@ -272,7 +296,7 @@ class DoS():
         if isdos != self.isdos:
             self.isdos=isdos
             self._set_sdos()
-
+        
         vmin,vmax=(s.val for s in self.ssdos)
         if vmax< vmin: 
             self.ssdos[1].set_val(vmin)
@@ -303,7 +327,7 @@ class DoS():
     def _set_sdos_sliders(self,cmin,cmax):
         import matplotlib.pyplot as plt
         from matplotlib.widgets import Slider#, Button, RadioButtons
-        from futile.Utils import VertSlider
+        from futile.Figures import VertSlider
         if hasattr(self,'ssdos'):
             self.ssdos[0].ax.clear()
             self.ssdos[0].__init__(self.ssdos[0].ax, 'SDos', cmin, cmax, valinit=cmin)
@@ -320,15 +344,17 @@ class DoS():
         self.ssdos[1].valtext.set_ha('left')
         self.ssdos[0].on_changed(self._update_sdos)
         self.ssdos[1].on_changed(self._update_sdos)
+    
     def update(self,val):
         sig = self.ssig.val
         for i,dos in enumerate(self.ens):
             self.plotl[i][0].set_ydata(dos['dos'].curve(self.range,sigma=sig)[1])
             #self.plotl[i][0].set_ydata(self.curve(dos,norm=self.norms[i],sigma=sig))
-
+        
         self.ax1.relim()
         self.ax1.autoscale_view()
         self.fig.canvas.draw_idle()
+
 
 if __name__ == "__main__":
     import numpy as np

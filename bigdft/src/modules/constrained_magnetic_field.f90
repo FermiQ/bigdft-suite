@@ -216,6 +216,7 @@ contains
       real(gp) :: K=-0.3d0, T_s= 0.3d0, T_i=3.0d0, T_d=-0.1d0
       !real(gp) :: K=-0.3d0, T_s= 0.3d0, T_i=1.5d0, T_d=-0.1d0 !best so far
       ! u_k = K*(e_k+I_k-1+T_s/T_i*e_k + T_d/T_s*(e_k-e_k_1))
+      real(dp), external :: dnrm2
 
       !!!   cfd_prefac=b2t*omega/(dfftp%nr1*dfftp%nr2*dfftp%nr3)
       if(i_cons==0) return
@@ -235,13 +236,13 @@ contains
          if (i_cons==2) then
             ! Lagrange multiplier without orthogonalization 
             !
-            mom_tmp(:,na) = cfd%m_at(:,na)/norm2(cfd%m_at(:,na)) - cfd%m_at_ref(:,na)
+            mom_tmp(:,na) = cfd%m_at(:,na)/dnrm2(cfd%m_at(:,na)) - cfd%m_at_ref(:,na)
             ! Gramm-Schmidt step
             etcon = etcon + lambda_t * sum(mom_tmp(:,na)**2)
          else if (i_cons==3) then
             ! Lagrange multiplier with orthogonalization (b _|_ m)
             !
-            mom_tmp(:,na) = cfd%m_at(:,na)/norm2(cfd%m_at(:,na)) - cfd%m_at_ref(:,na)
+            mom_tmp(:,na) = cfd%m_at(:,na)/dnrm2(cfd%m_at(:,na)) - cfd%m_at_ref(:,na)
             ! Gramm-Schmidt step
             mom_tmp(:,na) = mom_tmp(:,na) - sum(mom_tmp(:,na)*cfd%m_at_ref(:,na)) * cfd%m_at_ref(:,na)
             etcon = etcon + lambda_t * sum(mom_tmp(:,na)**2)
@@ -264,7 +265,7 @@ contains
                c_in=cfd%B_at(:,na)
                ! Direction only
                e_out=cfd%m_at(:,na)/mnorm
-               e_i =cfd%m_at_ref(:,na)/norm2(cfd%m_at_ref(:,na))
+               e_i =cfd%m_at_ref(:,na)/dnrm2(cfd%m_at_ref(:,na))
                !! Direction and magnitude
                !e_out=cfd%m_at(:,na)
                !e_i =cfd%m_at_ref(:,na)
@@ -274,34 +275,34 @@ contains
                ! Perp direction (works for bcc fe)
                !m_delta=-(cfd%m_at(:,na)-sum(cfd%m_at(:,na)*e_i)*e_i)
                m_delta=(cfd%m_at(:,na)-sum(cfd%m_at(:,na)*e_i)*e_i)
-               !m_delta=-(e_out-norm2(e_out*e_i)*e_i)
+               !m_delta=-(e_out-dnrm2(e_out*e_i)*e_i)
             end if
             !
             ! Reducing the effect for first iteration (ie when cfd%d_delta=0)
-            if(norm2(cfd%d_delta(:,na))<1e-15) m_delta=0.1_gp*m_delta
+            if(dnrm2(cfd%d_delta(:,na))<1e-15) m_delta=0.1_gp*m_delta
             ! e) m_delta=-lambda_t*(cfd%m_at(:,na)-sum(cfd%m_at(:,na)*e_i)*e_i)*10.0_gp
             ! others:lambda_t=0.1
             !gs
-            !m_delta=-(e_out-norm2(e_out*e_i)*e_i)
+            !m_delta=-(e_out-dnrm2(e_out*e_i)*e_i)
             !
             ! Check to don't mix first iteration (dd_delta=derivative)
-            if(norm2(cfd%d_delta(:,na))>1e-15) cfd%dd_delta(:,na)=m_delta-cfd%d_delta(:,na)
+            if(dnrm2(cfd%d_delta(:,na))>1e-15) cfd%dd_delta(:,na)=m_delta-cfd%d_delta(:,na)
             !
             if (iproc==0) then
                call yaml_mapping_open('CFD information for atom'//trim(yaml_toa(na)))
                call yaml_map('Output moments',cfd%m_at(:,na))
-               call yaml_map('Target direction',cfd%m_at_ref(:,na)/norm2(cfd%m_at_ref(:,na)))
+               call yaml_map('Target direction',cfd%m_at_ref(:,na)/dnrm2(cfd%m_at_ref(:,na)))
                call yaml_map('Output direction',e_out)
                call yaml_map('Input field',cfd%B_at(:,na))
                call yaml_mapping_close()
             end if
 !!$            if(iproc==0) write (stdout,'(4x,a,i4,3f15.8)' ) " | Output moments     for atom ",na,cfd%m_at(:,na)
-!!$            if(iproc==0) write (stdout,'(4x,a,i4,3f15.8)' ) " | Target direction   for atom ",na,cfd%m_at_ref(:,na)/norm2(cfd%m_at_ref(:,na))
+!!$            if(iproc==0) write (stdout,'(4x,a,i4,3f15.8)' ) " | Target direction   for atom ",na,cfd%m_at_ref(:,na)/dnrm2(cfd%m_at_ref(:,na))
 !!$            if(iproc==0) write (stdout,'(4x,a,i4,3f15.8)' ) " | Outut direction    for atom ",na,e_out
 !!$            if(iproc==0) write (stdout,'(4x,a,i4,3f15.8)' ) " | Input field        for atom ",na,cfd%B_at(:,na)
             !
             ! Check to don't mix first iteration (s_delta=integral=I_k)
-            if(norm2(cfd%d_delta(:,na))>1e-15) cfd%s_delta(:,na)=cfd%s_delta(:,na)+T_s/T_i*m_delta!*0.5_gp
+            if(dnrm2(cfd%d_delta(:,na))>1e-15) cfd%s_delta(:,na)=cfd%s_delta(:,na)+T_s/T_i*m_delta!*0.5_gp
 
             !cfd%B_at(:,na)=lambda_t*(1.20_gp*m_delta+0.35_gp*cfd%s_delta(:,na)+0.10_gp*cfd%dd_delta(:,na))
             !cfd%B_at(:,na)=lambda_t*(1.30_gp*m_delta+0.35_gp*cfd%s_delta(:,na)-0.10_gp*cfd%dd_delta(:,na))   !<-- use this for atoms
@@ -345,7 +346,7 @@ contains
                if(iproc==0) write (stdout,'(4x,a,i4,3f15.8)' ) " | Input field        for atom ",na,cfd%B_at(:,na)
                !
                e_out=cfd%m_at(:,na)
-               e_i =cfd%m_at_ref(:,na)/norm2(cfd%m_at_ref(:,na))*ma
+               e_i =cfd%m_at_ref(:,na)/dnrm2(cfd%m_at_ref(:,na))*ma
                !e_dot=e_out(1)*e_i (1)+e_out(2)*e_i (2)+e_out(3)*e_i (3)
                ! new constraining field
                !cfd%B_at_new=-10.0_gp*lambda_t*(e_out-e_i)
@@ -454,9 +455,9 @@ contains
       !!! cfd%constrained_mom_err=0.0_gp
       !!! do iat=1,cfd%nat
       !!!    e_in=cfd%m_at_ref(:,iat)
-      !!!    e_in=e_in/norm2(e_in+1.0e-12_gp)
+      !!!    e_in=e_in/dnrm2(e_in+1.0e-12_gp)
       !!!    e_out=cfd%m_at(:,iat)
-      !!!    e_out=e_out/norm2(e_out+1.0e-12_gp)
+      !!!    e_out=e_out/dnrm2(e_out+1.0e-12_gp)
       !!!    cfd%constrained_mom_err=cfd%constrained_mom_err+sum((e_in-e_out)**2)
       !!!    !print '(7f12.6)',e_in,e_out,cfd%constrained_mom_err
       !!! end do

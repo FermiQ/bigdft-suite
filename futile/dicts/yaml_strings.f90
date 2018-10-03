@@ -29,12 +29,15 @@ module yaml_strings
   character(len=*), parameter :: escape_bold=char(27)//"[0;1m"
   character(len=*), parameter :: escape_blink=char(27)//"[0;5m"
 
+  character(len=*), parameter, public :: YAML_INFINITY='.inf'
+
   !> structure containing the string and its length
   !! for the moment implement it basically, we might then
   !! identifty a strategy to allocate the string according to the needs
   type, public :: f_string
      character(len=4*max_value_length) :: msg
   end type f_string
+
   interface yaml_toa
      module procedure yaml_itoa,yaml_litoa,yaml_ftoa,yaml_dtoa,yaml_ltoa,yaml_ctoa
      module procedure yaml_dvtoa,yaml_ivtoa,yaml_cvtoa,yaml_ztoa,yaml_zvtoa,yaml_lvtoa,yaml_rvtoa
@@ -483,8 +486,8 @@ contains
 
   end function yaml_date_and_time_toa
 
-  !> Yaml Spaced format for Date
   function yaml_date_toa(values)
+    ! Yaml Spaced format for Date
     implicit none
     integer, dimension(8), optional, intent(in) :: values
     character(len=max_value_length) :: yaml_date_toa
@@ -996,7 +999,7 @@ contains
     character(len=*), intent(out) :: dest
     !local variables
     integer :: i
-    dest=' '
+    dest(1:len(dest))=' '
     seek_and_copy: do i=1,len(dest)
        if (src(i)==char(0)) exit seek_and_copy
        dest(i:i)=src(i)

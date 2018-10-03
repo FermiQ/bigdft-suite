@@ -114,6 +114,7 @@ AC_CHECK_LIB([rt], [clock_gettime])
 AC_CHECK_LIB([dl], [dlopen])
 AC_CHECK_FUNCS([clock_gettime])
 AC_CHECK_FUNCS([strndup])
+AC_CHECK_FUNCS([aligned_alloc])
 AC_LANG_POP(C)
 
 dnl Test Python availability
@@ -127,11 +128,13 @@ if test x"$ax_have_glib" = x"yes" ; then
 fi
 if test x"$ax_have_glib" = x"yes" ; then
   AC_DEFINE([HAVE_GLIB], [], [If set, we can call glib.h])
+  AC_SUBST([GLIB_PKG], ["glib-2.0"])
   AC_SUBST([GLIB_TRUE], [""])
   AC_SUBST([GLIB_END_TRUE], [""])
   AC_SUBST([GLIB_FALSE], ["/*"])
   AC_SUBST([GLIB_END_FALSE], ["*/"])
 else
+  AC_SUBST([GLIB_PKG], [""])
   AC_SUBST([GLIB_TRUE], ["/*"])
   AC_SUBST([GLIB_END_TRUE], ["*/"])
   AC_SUBST([GLIB_FALSE], [""])

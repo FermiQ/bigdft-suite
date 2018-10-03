@@ -1,166 +1,3 @@
-from matplotlib.axes import Axes
-
-def axis_from_data(fig,ax,data):
-  "Transform a data tuple into axis coordinates"
-  trans=fig.transFigure.inverted()
-  ll=trans.transform(ax.transData.transform(data))
-  return list(ll)
-
-def data_from_data(fig,dst,src,data):
-  "Transform a data tuple of anothe axis in the figure into data of another axis"
-  trans=dst.transData.inverted()
-  ll=trans.transform(src.transAxes.transform(data))
-  return list(ll)
-
-class AxisSet(Axes):
-  def create_twin(self):
-    self.twin=self.twinx()
-  def cla(self):
-    if hasattr(self,'twin'): self.twin.cla()
-    super(AxisSet,self).cla()
-  @classmethod
-  def twinify(cls,ax):
-    "Include the axis provided as a radix of the set"
-    ax.__class__=cls
-    ax.create_twin()
-
-class FigureSet():
-  """Define a container for a plot with the possiblity to switch between simple and gnuplot plotting
-  Arguments:
-  title: The title of the master figure
-  **kwargs: arguments for the axis instance
-"""
-  def __init__(self,**kwargs):
-    import matplotlib.pyplot as plt
-    from Yaml import kw_pop
-    newkw,title=kw_pop('title','',**kwargs)    
-    self.title=title
-    self.figures=[]
-    self.showing=False
-    self.add(**newkw)
-
-  def __getitem__(self,idx):
-    if isinstance(idx,int):
-      return self._get_figure(idx)
-    else:
-      return self._get_figure(figname=idx)
-
-  def _locate(self,figname):
-    for i,fig in enumerate(self.figures):
-      if figname==fig['Title']: 
-        return i,fig
-    return None
-
-  def exists(self,figname):
-    "True if the Figure exists in the Set"
-    return self._locate(figname) is not None
-
-  def invoke(self,idx):
-    import matplotlib.pyplot as plt
-    "Invoke the Figure if it exists. Return None otherwise"
-    if isinstance(idx,int):
-      if idx >= len(self.figures): return None
-      i=idx
-    else:
-      if not self.exists(idx): return None
-      i,fig=self._locate(idx)
-    figname=self.figures[i]['TrueTitle']
-    return plt.figure(figname)
-
-  def add(self,**kwargs):
-    import matplotlib.pyplot as plt
-    toadd=str(len(self.figures)+1)
-    title=kwargs.get('title','Figure '+toadd if self.title is '' else self.title)
-    if self.title != '' and len(self.figures)>0: 
-      newtitle=title+' ('+self.title+')'
-    else:
-      newtitle=title
-    quitbutton=kwargs.get('QuitButton',False)
-    newfig=plt.figure(newtitle)
-    axargs=kwargs.get('axes')
-    #cfm=plt.get_current_fig_manager()
-    totwin=False
-    if 'twinaxes' in kwargs: totwin=kwargs.pop('twinaxes')
-    if axargs is None:
-      newax=newfig.add_subplot(111)
-    else:
-      rect=axargs.pop('rect')
-      newax=plt.axes(rect,**axargs)
-    if totwin: 
-      AxisSet.twinify(newax)
-    #connect the home key execpt for the first figure
-    from functools import partial
-    newfig.canvas.mpl_connect('key_press_event',partial(self._onkey_home,len(self.figures)))
-    figdict={'Figure':newfig,'Axes':newax,'Title':title,'TrueTitle':newtitle}
-    if quitbutton: figdict.update(self._put_quitbutton())
-    self.figures.append(figdict)
-    return newfig,newax
-
-  def _onkey_home(self,ifig,event):
-    import matplotlib.pyplot as plt
-    number=event.key
-    #print "pressed",number,'end'
-    #return to the main figure if the key "home" is pressed
-    if str(number)=='home': 
-      #print 'raising window'
-      self._raisewindow(0)
-    elif number == 'q' or number == 'Q':
-      if ifig==0: 
-        self._quitall()
-      else:
-        figax=self.figures[ifig]
-        plt.close(figax['Figure'])
-
-  def _put_quitbutton(self):
-    import matplotlib.pyplot as plt
-    from matplotlib.widgets import Button
-    quitbutton=Button(plt.axes([0.0, 0.0, 0.1, 0.075]), 'Quit')
-    quitbutton.on_clicked(self._onclick_quitButton)
-    return {'QuitButton':quitbutton}
-
-  def _raisewindow(self,index):
-    import matplotlib.pyplot as plt
-    if self.invoke(index) is None: return
-    cfm=plt.get_current_fig_manager()
-    try:
-      cfm.window.activateWindow()
-      cfm.window.raise_()
-    except:
-      cfm.window.attributes('-topmost', True)
-      #cfm.window.attributes('-topmost', False)
-    return cfm
-
-  def _quitall(self):
-    import matplotlib.pyplot as plt
-    for figax in self.figures:
-      plt.close(figax['Figure'])
-    self.showing=False
-    #self.figures=[] #dereference everything
-      
-  def _onclick_quitButton(self,event):
-    print "Good bye!"
-    self._quitall()
-
-  def _get_figure(self,index=0,figname=None):
-    if figname is not None:
-      for fig in self.figures:
-        if figname==fig['Title']: break
-    else:
-      fig=self.figures[index]
-    fx=fig["Figure"]
-    ax=fig["Axes"]
-    return fx,ax
-
-  def show(self,figname=None):
-    import matplotlib.pyplot as plt
-    if figname is not None and self.exists(figname): 
-      fx,ax=self._get_figure(figname=figname)
-      if not self.showing: self.show()
-      fx.show()
-    elif figname is None:
-      self.showing=True
-      plt.show()
-
 #defines the class of the polar plot
 class polar_axis():
   step=5
@@ -373,18 +210,26 @@ class TimeData:
     fontsize: Determine fontsize of the bar chart plot 
     nokey: Remove the visualization of the key from the main plot
     counter: retrieve as reference value the counter provided
+    only_last: retrieve only the last document in the time.yaml
     """
     #here a try-catch section should be added for multiple documents
     #if (len(filename) > 1
-    import yaml
+    import Figures as Fig
+    only_last = kwargs.get('only_last',False)
     self.log=[]
     for filename in filenames:
-      try:
-        self.log+=[yaml.load(open(filename, "r").read(), Loader = yaml.CLoader)]
-      except:
-        self.log+=yaml.load_all(open(filename, "r").read(), Loader = yaml.CLoader)
+      import YamlIO as Yaml
+      tmplogs=Yaml.load(filename,doc_lists=True)
+      if only_last:
+        self.log+=[[ a for a in tmplogs][-1]]
+      else:
+        self.log+=tmplogs
+      #try:
+      #  self.log+=[yaml.load(open(filename, "r").read(), Loader = yaml.CLoader)]
+      #except:
+      #  self.log+=yaml.load_all(open(filename, "r").read(), Loader = yaml.CLoader)
     #create the figure environemnt
-    self.figures=FigureSet(title='Profiling',QuitButton=True,twinaxes=True)
+    self.figures=Fig.FigureSet(title='Profiling',QuitButton=True,twinaxes=True)
     #self.barfig = None
     #self.axbars = None
     #self.newfigs =[]
@@ -434,7 +279,7 @@ class TimeData:
         if mpit is not None:
             mpi=mpit.get('MPI tasks')
             omp=mpit.get('OMP threads')
-            if title is None: 
+            if title is "Unknown": 
               title=str(mpi) if omp is None else str(mpi)+'-'+str(omp)
             ncores=mpi
             if omp is not None: ncores*=omp
@@ -444,9 +289,6 @@ class TimeData:
         self.ncores.append(ncores)
     self.classes.sort()
     self.classes.append("Unknown") #an evergreen
-    #self.classes=["Communications","Convolutions","BLAS-LAPACK","Linear Algebra",
-    #        "Other","PS Computation","Potential",
-    #        "Flib LowLevel","Initialization","Unknown"]
       
   def inspect_counter(self,counter,unit=None):
     self.routines=[]
@@ -495,6 +337,7 @@ class TimeData:
     import numpy as np
     from matplotlib.widgets import RadioButtons,Button
     import matplotlib.pyplot as plt
+    import Figures as Fig
     if self.static: fig.patch.set_facecolor("white")
     #write the plot in the axis
     self._draw_barplot(axis,data[0],self.vals,title=title,nokey=self.nokey)
@@ -507,8 +350,8 @@ class TimeData:
                                 active=1 if self.vals=='Percent' else 0)
       self.radio.on_clicked(self.replot)
       tt=axis.get_xticks()
-      routics=[axis_from_data(fig,axis,(tic-0.45*self.barwidth,self.barwidth)) for tic in tt]
-      unbtics=[axis_from_data(fig,axis,(tic+0.15*self.barwidth,self.barwidth)) for tic in tt]
+      routics=[Fig.axis_from_data(fig,axis,(tic-0.45*self.barwidth,self.barwidth)) for tic in tt]
+      unbtics=[Fig.axis_from_data(fig,axis,(tic+0.15*self.barwidth,self.barwidth)) for tic in tt]
       self.routine_buttons=[]
       from functools import partial
       for i,t in enumerate(routics):
@@ -628,11 +471,12 @@ class TimeData:
         break
     #print 'category',category
     if category is not None and category != "Unknown": self.inspect_category(category)  
-  def _barplot_gnuplot(self,data,ids,lookup=None):
+  def _barplot_gnuplot(self,data,ids,lookup=None,select_category=None):
       import Gnuplot
       import numpy as np
       gpdata=[]
       for cat,dat in data:
+        if select_category is not None and cat not in select_category: continue
         #gpdata.append(Gnuplot.Data(np.arange(len(dat)),dat,title=cat))
         lup=np.arange(len(dat)) if lookup is None else lookup
         toplt=[dat[0]]+dat[lup].tolist()
@@ -663,11 +507,11 @@ class TimeData:
       result.append((newkeys,newdata[newkeys]))
     return result
 
-  def gnuplot_figure(self,lookup=None,epsfile=None,aggregate=None):
+  def gnuplot_figure(self,lookup=None,epsfile=None,aggregate=None,select_category=None):
       import Gnuplot,numpy as np
       data=self.collect_categories(self.scf,self.vals)
       dataplot=data[0] if aggregate is None else self._aggregate_names(data[0],aggregate)
-      gpdata,names=self._barplot_gnuplot(dataplot,self.ids,lookup)
+      gpdata,names=self._barplot_gnuplot(dataplot,self.ids,lookup,select_category)
       gp=Gnuplot.Gnuplot()
       gp("""
 set style fill  pattern 1 border -1

@@ -153,7 +153,7 @@ program smatmul
        gather_routine=gather_timings)
 
   ! Calculate the inverse
-  call mpibarrier(comm)
+  call fmpi_barrier(comm)
   time_start = mpi_wtime()
 
   mat_seq = sparsematrix_malloc(smat(1), iaction=SPARSEMM_SEQ, id='mat_seq')
@@ -177,7 +177,7 @@ program smatmul
       call write_matrix_compressed(iproc, nproc, mpiworld(), 'final result', smat(1), matA)
   end if
 
-  call mpibarrier(comm)
+  call fmpi_barrier(comm)
   time_end = mpi_wtime()
   call f_timing_checkpoint(ctr_name='CALC',mpi_comm=comm,nproc=nproc,&
        gather_routine=gather_timings)
@@ -201,7 +201,7 @@ program smatmul
   call f_timing_checkpoint(ctr_name='FINISH',mpi_comm=comm,nproc=nproc,&
        gather_routine=gather_timings)
 
-  call build_dict_info(iproc, nproc, dict_timing_info)
+  call build_dict_info(dict_timing_info)
   call f_timing_stop(mpi_comm=comm, nproc=nproc, &
        gather_routine=gather_timings, dict_info=dict_timing_info)
   call dict_free(dict_timing_info)

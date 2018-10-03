@@ -63,7 +63,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
   integer, dimension(:), allocatable :: norb_par, norbu_par, norbd_par
   real(kind=8), dimension(:), allocatable :: locrad, times_convol
   integer :: ilr, iilr
-  real(kind=8),dimension(:),allocatable :: totaltimes
+  real(kind=8),dimension(:),allocatable :: totaltimes, locrads
   real(kind=8),dimension(2) :: time_max, time_average
   !real(kind=8) :: ratio_before, ratio_after
   logical :: init_projectors_completely
@@ -90,10 +90,12 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
   if (present(locregcenters)) then
       do iat=1,atoms%astruct%nat
           locregcenters(1:3,iat)=locregcenters(1:3,iat)-atoms%astruct%shift(1:3)
-          if (locregcenters(1,iat)<dble(0)*lzd%hgrids(1) .or. locregcenters(1,iat)>dble(lzd%glr%d%n1+1)*lzd%hgrids(1) .or. &
-              locregcenters(2,iat)<dble(0)*lzd%hgrids(2) .or. locregcenters(2,iat)>dble(lzd%glr%d%n2+1)*lzd%hgrids(2) .or. &
-              locregcenters(3,iat)<dble(0)*lzd%hgrids(3) .or. locregcenters(3,iat)>dble(lzd%glr%d%n3+1)*lzd%hgrids(3)) then
-              call f_err_throw('locregcenter outside of global box!', err_name='BIGDFT_RUNTIME_ERROR')
+          if (any(locregcenters(:,iat) < 0.0_gp .or. &
+               locregcenters(:,iat) > lzd%glr%mesh_coarse%ndims*lzd%glr%mesh_coarse%hgrids)) then
+!!$          if (locregcenters(1,iat)<dble(0)*lzd%hgrids(1) .or. locregcenters(1,iat)>dble(lzd%glr%d%n1+1)*lzd%hgrids(1) .or. &
+!!$              locregcenters(2,iat)<dble(0)*lzd%hgrids(2) .or. locregcenters(2,iat)>dble(lzd%glr%d%n2+1)*lzd%hgrids(2) .or. &
+!!$              locregcenters(3,iat)<dble(0)*lzd%hgrids(3) .or. locregcenters(3,iat)>dble(lzd%glr%d%n3+1)*lzd%hgrids(3)) then
+             call f_err_throw('locregcenter outside of global box!', err_name='BIGDFT_RUNTIME_ERROR')
           end if
        end do
   end if
@@ -110,7 +112,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
 
      ! Create the Poisson solver kernels.
      call system_initKernels(.true.,iproc,nproc,atoms%astruct%geocode,in,denspot)
-     call system_createKernels(denspot, (get_verbose_level() > 1))
+     call system_createKernels(in,denspot, (get_verbose_level() > 1))
      if (denspot%pkernel%method .hasattr. 'rigid') then
         call epsilon_cavity(atoms,rxyz,denspot%pkernel)
         !allocate cavity, in the case of nonvacuum treatment
@@ -359,12 +361,12 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
   call orbital_basis_associate(ob,orbs=orbs,Lzd=Lzd,id='system_initialization')
   call createProjectorsArrays(iproc,nproc,Lzd%Glr,rxyz,atoms,ob,&
        in%frmult,in%frmult,Lzd%hgrids(1),Lzd%hgrids(2),&
-       Lzd%hgrids(3),dry_run,nlpsp,init_projectors_completely)
+       Lzd%hgrids(3),in%projection,dry_run,nlpsp,init_projectors_completely)
   call orbital_basis_release(ob)
   if (iproc == 0 .and. dump) call print_nlpsp(nlpsp)
   if (iproc == 0 .and. .not. nlpsp%on_the_fly .and. .false.) then
      call writemyproj("proj",WF_FORMAT_BINARY,orbs,Lzd%hgrids(1),Lzd%hgrids(2),&
-       Lzd%hgrids(3),atoms,rxyz,nlpsp)
+       Lzd%hgrids(3),atoms,rxyz,nlpsp,lzd%glr)
   end if
   !the complicated part of the descriptors has not been filled
   if (dry_run) then
@@ -380,10 +382,10 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
      call density_descriptors(iproc,nproc,denspot%xc,in%nspin,in%crmult,in%frmult,atoms,&
           denspot%dpbox,in%rho_commun,rxyz,denspot%rhod)
      !allocate the arrays.
-     call allocateRhoPot(Lzd%Glr,in%nspin,atoms,rxyz,denspot)
+     call allocateRhoPot(in%nspin,atoms,rxyz,denspot)
      !here insert the conditional for the constrained field dynamics
      if (in%calculate_magnetic_torque) then
-        call set_cfd_data(denspot%cfd,Lzd%Glr%mesh,atoms%astruct,rxyz)
+        call set_cfd_data(denspot%cfd,denspot%dpbox%mesh,atoms%astruct,rxyz)
      end if
      if (in%do_spin_dynamics) then
         if (in%calculate_magnetic_torque) then
@@ -473,13 +475,6 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
            do iorb=lorbs%norbu+1,lorbs%norb
                lorbs%inwhichlocreg(iorb)=lorbs%inwhichlocreg(iorb-lorbs%norbu)+lorbs%norbu
            end do
-
-           !i_all=-product(shape(inwhichlocreg_old))*kind(inwhichlocreg_old)
-           !deallocate(inwhichlocreg_old,stat=i_stat)
-           !call memocc(i_stat,i_all,'inwhichlocreg_old',subname)
-           !i_all=-product(shape(onwhichatom_old))*kind(onwhichatom_old)
-           !deallocate(onwhichatom_old,stat=i_stat)
-           !call memocc(i_stat,i_all,'onwhichatom_old',subname)
        end if
      end subroutine init_linear_orbs
 
@@ -525,9 +520,12 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
        end do
 
        if (.not. dry_run) then
+          locrads = f_malloc(lzd_lin%nlr)
+          locrads = lzd_lin%llr(:)%locrad
           call initLocregs(iproc, nproc, lzd_lin, Lzd_lin%hgrids(1), Lzd_lin%hgrids(2),Lzd_lin%hgrids(3), &
-               atoms%astruct%rxyz,lzd_lin%llr(:)%locrad, lorbs, Lzd_lin%Glr, 's')
+               atoms%astruct%rxyz,locrads, lorbs, Lzd_lin%Glr, 's')
           call update_wavefunctions_size(lzd_lin,lnpsidim_orbs,lnpsidim_comp,lorbs,iproc,nproc)
+          call f_free(locrads)
        else
           call yaml_warning("Locregs not initialized for linear.")
        end if
@@ -587,7 +585,8 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
           else
              ncplx=1
           end if
-          call allocate_work_arrays(lzd_lin%llr(ilr)%geocode, lzd_lin%llr(ilr)%hybrid_on, &
+!!$          call allocate_work_arrays(lzd_lin%llr(ilr)%geocode, lzd_lin%llr(ilr)%hybrid_on, &
+          call allocate_work_arrays(lzd_lin%llr(ilr)%mesh, lzd_lin%llr(ilr)%hybrid_on, &
                ncplx, lzd_lin%llr(ilr)%d, precond_workarrays(iorb))
       end do
 
@@ -649,7 +648,8 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
            else
               ncplx=1
            end if
-           call deallocate_work_arrays(lzd_lin%llr(ilr)%geocode, lzd_lin%llr(ilr)%hybrid_on, &
+!!$           call deallocate_work_arrays(lzd_lin%llr(ilr)%geocode, lzd_lin%llr(ilr)%hybrid_on, &
+           call deallocate_work_arrays(lzd_lin%llr(ilr)%mesh, lzd_lin%llr(ilr)%hybrid_on, &
                 ncplx, precond_workarrays(iorb))
        end do
        deallocate(precond_convol_workarrays)
@@ -874,6 +874,7 @@ subroutine system_initKernels(verb, iproc, nproc, geocode, in, denspot)
   use module_xc
   use Poisson_Solver, except_dp => dp, except_gp => gp
   use module_base
+  use dictionaries
   implicit none
   logical, intent(in) :: verb
   integer, intent(in) :: iproc, nproc
@@ -883,21 +884,19 @@ subroutine system_initKernels(verb, iproc, nproc, geocode, in, denspot)
 
   integer, parameter :: ndegree_ip = 16
 
-!!$  denspot%pkernel=pkernel_init(verb, iproc,nproc,in%matacc%PSolver_igpu,&
-!!$       geocode,denspot%dpbox%mesh%ndims,denspot%dpbox%hgrids,ndegree_ip,&
-!!$       mpi_env=denspot%dpbox%mpi_env,alg=in%GPS_method,cavity=in%set_epsilon)
+! deactivate GPU in all cases for this kernel  
+  if (pkernel_seq_is_needed(in,denspot)) &
+       call dict_set(in%PS_dict//'setup'//'accel','No')
   denspot%pkernel=pkernel_init(iproc,nproc,in%PS_dict,&
        geocode,denspot%dpbox%mesh%ndims,denspot%dpbox%mesh%hgrids,&
        mpi_env=denspot%dpbox%mpi_env)
 
   !create the sequential kernel if the exctX parallelisation scheme requires it
-  if ((xc_exctXfac(denspot%xc) /= 0.0_gp .and. in%exctxpar=='OP2P' .or. in%SIC%alpha /= 0.0_gp)&
-       .and. denspot%dpbox%mpi_env%nproc > 1) then
+!  if ((xc_exctXfac(denspot%xc) /= 0.0_gp .or. in%SIC%alpha /= 0.0_gp))then
+  if (pkernel_seq_is_needed(in,denspot)) then
+!       .and. denspot%dpbox%mpi_env%nproc > 1) then
      !the communicator of this kernel is bigdft_mpi%mpi_comm
      !this might pose problems when using SIC or exact exchange with taskgroups
-!!$     denspot%pkernelseq=pkernel_init(iproc==0 .and. verb,0,1,in%matacc%PSolver_igpu,&
-!!$          geocode,denspot%dpbox%mesh%ndims,denspot%dpbox%hgrids,ndegree_ip,&
-!!$          alg=in%GPS_method,cavity=in%set_epsilon)
      denspot%pkernelseq=pkernel_init(0,1,in%PS_dict_seq,&
           geocode,denspot%dpbox%mesh%ndims,denspot%dpbox%mesh%hgrids)
   else 
@@ -906,20 +905,22 @@ subroutine system_initKernels(verb, iproc, nproc, geocode, in, denspot)
 
 END SUBROUTINE system_initKernels
 
-subroutine system_createKernels(denspot, verb)
+subroutine system_createKernels(in,denspot, verb)
   use module_base
   use module_types
   use Poisson_Solver, except_dp => dp, except_gp => gp
   implicit none
   logical, intent(in) :: verb
+  type(input_variables), intent(in) :: in
   type(DFT_local_fields), intent(inout) :: denspot
   call pkernel_set(denspot%pkernel,verbose=verb)
-    !create the sequential kernel if pkernelseq is not pkernel
-  if (denspot%pkernelseq%mpi_env%nproc == 1 .and. denspot%pkernel%mpi_env%nproc /= 1) then
+      !create the sequential kernel if pkernelseq is not pkernel
+  if (pkernel_seq_is_needed(in,denspot)) then !.not. associated(denspot%pkernelseq%kernel,target=denspot%pkernel%kernel)) then
      call pkernel_set(denspot%pkernelseq,verbose=.false.)
-  else
+  else !reassociate it after initialization
      denspot%pkernelseq = denspot%pkernel
   end if
+     
 
 END SUBROUTINE system_createKernels
 
@@ -933,7 +934,7 @@ subroutine epsilon_cavity(atoms,rxyz,pkernel)
   use numerics, only : Bohr_Ang
   use module_base, only: bigdft_mpi,f_zero
   use module_defs, only: UNINITIALIZED
-  use f_enums, f_str => str
+  use f_enums, f_str => toa
   use yaml_output
   use dictionaries, only: f_err_throw
   use box
@@ -957,7 +958,7 @@ subroutine epsilon_cavity(atoms,rxyz,pkernel)
   real(gp), dimension(:,:,:,:), allocatable :: dlogeps
 !!$  real(gp), dimension(:,:,:), allocatable :: epst,oneoepst,oneosqrtepst,corrt
   real(gp), dimension(:,:,:,:), allocatable :: dlogepst
-  type(cell) :: mesh
+  !type(cell) :: mesh
   real(dp), dimension(3) :: origin
   integer, parameter :: radii_cav = 3 ! 1 for Pauling, 2 for Bondi, 3 for UFF.
   character(2) :: atname
@@ -972,11 +973,6 @@ subroutine epsilon_cavity(atoms,rxyz,pkernel)
   oneoeps=f_malloc(pkernel%mesh%ndims,id='oneoeps')
   oneosqrteps=f_malloc(pkernel%mesh%ndims,id='oneosqrteps')
   corr=f_malloc(pkernel%mesh%ndims,id='corr')
-!!$  epst=f_malloc(pkernel%mesh%ndims,id='epst')
-!!$  dlogepst=f_malloc([3,pkernel%mesh%ndims(1),pkernel%mesh%ndims(2),pkernel%mesh%ndims(3)],id='dlogepst')
-!!$  oneoepst=f_malloc(pkernel%mesh%ndims,id='oneoepst')
-!!$  oneosqrtepst=f_malloc(pkernel%mesh%ndims,id='oneosqrtepst')
-!!$  corrt=f_malloc(pkernel%mesh%ndims,id='corrt')
 
   it=atoms_iter(atoms%astruct)
   !python metod
@@ -1002,219 +998,24 @@ subroutine epsilon_cavity(atoms,rxyz,pkernel)
   do while(atoms_iter_next(it))
      radii(it%iat)=fact*radii(it%iat)/Bohr_Ang
   end do
-!  if (bigdft_mpi%iproc==0) call yaml_map('Covalent radii',radii)
-
-  !if(bigdft_mpi%iproc==0) call yaml_map('Bohr_Ang',Bohr_Ang)
-
-!!$  fact=pkernel%cavity%fact_rigid
-!!$  if(bigdft_mpi%iproc==0) call yaml_map('fact_rigid',fact)
-!!!  do i=1,atoms%astruct%nat
-!!!     atname=trim(atoms%astruct%atomnames(atoms%astruct%iatype(i)))
-!!!!!$   if (radii_cav.eq.1) then
-!!!!!$    !radii(i) = fact_Pau*radii_Pau(atname)/Bohr_Ang + 1.22d0*pkernel%cavity%delta
-!!!!!$    radii(i) = fact*radii_Pau(atname)/Bohr_Ang
-!!!!!$   else if (radii_cav.eq.2) then
-!!!!!$    radii(i) = fact*radii_Bondi(atname)/Bohr_Ang
-!!!!!$   else if (radii_cav.eq.3) then
-!!!!!$    radii(i) = fact*radii_UFF(atname)/Bohr_Ang
-!!!!!$   end if
-!!!   call astruct_at_from_dict(cavity_radius=rcav)
-!!!   if (rcav==UNINITIALIZED(rcav)) then
-!!!      radii(i)=pkernel_get_radius(pkernel,atname)
-!!!   else
-!!!      radii(i)=rcav
-!!!   end if
-!!!
-!!!  end do
-!!!
-
-!--------------------------------------------
-
-! Calculation of non-electrostatic contribution. Use of raddi without fact
-! multiplication.
-!  call epsilon_rigid_cavity_error_multiatoms_bc(atoms%astruct%geocode,pkernel%ndims,pkernel%hgrids,&
-!       atoms%astruct%nat,rxyz,radii_nofact,&
-!       epsilon0,delta,eps,dlogeps,oneoeps,oneosqrteps,corr,IntSur,IntVol)
-!  call epsilon_rigid_cavity_new_multiatoms(atoms%astruct%geocode,pkernel%ndims,pkernel%hgrids,atoms%astruct%nat,rxyz,radii_nofact,&
-!       epsilon0,delta,eps,dlogeps,oneoeps,oneosqrteps,corr,IntSur,IntVol)
-
-!  if (bigdft_mpi%iproc==0) then
-!     call yaml_map('Surface integral',IntSur)
-!     call yaml_map('Volume integral',IntVol)
-!  end if
-!  Cavene= 72.d-13*Bohr_Ang*IntSur/8.238722514d-8*627.509469d0
-!  Repene=-22.d-13*Bohr_Ang*IntSur/8.238722514d-8*627.509469d0
-!  Disene=-0.35d9*IntVol*2.942191219d-13*627.509469d0
-!  noeleene=Cavene+Repene+Disene
-!  if (bigdft_mpi%iproc==0) then
-!     call yaml_map('Cavity energy',Cavene)
-!     call yaml_map('Repulsion energy',Repene)
-!     call yaml_map('Dispersion energy',Disene)
-!     call yaml_map('Total non-electrostatic energy',noeleene)
-!  end if
-
-!--------------------------------------------
-
-!!$!  call epsilon_rigid_cavity(atoms%astruct%geocode,pkernel%ndims,pkernel%hgrids,atoms%astruct%nat,rxyz,radii,&
-!!$!       epsilon0,delta,eps)
-!!$  call epsilon_rigid_cavity_error_multiatoms_bc(atoms%astruct%geocode,pkernel%ndims,pkernel%hgrids,atoms%astruct%nat,rxyz,radii,&
-!!$       pkernel%cavity%epsilon0,pkernel%cavity%delta,epst,dlogepst,oneoepst,oneosqrtepst,corrt,IntSurt,IntVolt)
-!!$!  call epsilon_rigid_cavity_new_multiatoms(atoms%astruct%geocode,pkernel%ndims,pkernel%hgrids,atoms%astruct%nat,rxyz,radii,&
-!!$!       epsilon0,delta,eps,dlogeps,oneoeps,oneosqrteps,corr,IntSur,IntVol)
-!!$
-!!$!------New way to calculate cavity vectors--------------------------
-!!$  mesh=cell_new(atoms%astruct%geocode,pkernel%ndims,pkernel%hgrids)
-!!$
-!!$  call epsilon_rigid_cavity_soft_PCM(mesh,atoms%astruct%nat,rxyz,radii,pkernel%cavity,&
-!!$       eps,dlogeps,oneoeps,oneosqrteps,corr,IntSur,IntVol)
-!!$
-!!$  call check_accuracy_3d(pkernel%ndims(1),pkernel%ndims(2),pkernel%ndims(3),i,eps,epst)
-!!$  call check_accuracy_4d(pkernel%ndims(1),pkernel%ndims(2),pkernel%ndims(3),i,dlogeps,dlogepst)
-!!$  call check_accuracy_3d(pkernel%ndims(1),pkernel%ndims(2),pkernel%ndims(3),i,oneoeps,oneoepst)
-!!$  call check_accuracy_3d(pkernel%ndims(1),pkernel%ndims(2),pkernel%ndims(3),i,oneosqrteps,oneosqrtepst)
-!!$  call check_accuracy_3d(pkernel%ndims(1),pkernel%ndims(2),pkernel%ndims(3),i,corr,corrt)
-!!$
-!-------------------------------------------------------------------
-
-!!$  if (pkernel%mpi_env%iproc /=0) call f_zero(IntSur)
-!!$  if (pkernel%mpi_env%iproc /=0) call f_zero(IntVol)
-!!$  pkernel%IntSur=IntSur
-!!$  pkernel%IntVol=IntVol
-!!$
-!!$  diffSur=IntSurt-pkernel%IntSur
-!!$  diffVol=IntVolt-pkernel%IntVol
-
-  !set the epsilon to the poisson solver kernel
-!  call pkernel_set_epsilon(pkernel,eps=eps)
-
-  !!!!!set the fake cavity to restore the value in vacuum
-!!$  corr=0.d0
-!!$  oneosqrteps=1.d0
-
-  !if(bigdft_mpi%iproc==0) call yaml_map('Im here',1)
 
   !here the pkernel_set_epsilon routine should been modified to accept
   !already the radii and the atoms
 
-  mesh=cell_new(atoms%astruct%geocode,pkernel%mesh%ndims,pkernel%mesh%hgrids)
-  origin=locreg_mesh_origin(mesh)
+  !mesh=cell_new(atoms%astruct%geocode,pkernel%mesh%ndims,pkernel%mesh%hgrids)
+  origin=locreg_mesh_origin(pkernel%mesh)
   rxyz_shifted=f_malloc([3,atoms%astruct%nat],id='rxyz_shifted')
   do iat=1,atoms%astruct%nat
      rxyz_shifted(:,iat)=rxyz(:,iat)+origin
   end do
   call pkernel_set_epsilon(pkernel,nat=atoms%astruct%nat,rxyz=rxyz_shifted,radii=radii)
   call f_free(rxyz_shifted)
-
-
-!!! To be printed for rigid cavity!
-
-!  if (bigdft_mpi%iproc==0) then
-!     call yaml_map('Surface integral',pkernel%IntSur)
-!     call yaml_map('Volume integral',pkernel%IntVol)
-!  end if
-
-!  Cavene= pkernel%cavity%gammaS*pkernel%IntSur*627.509469d0
-!  Repene= pkernel%cavity%alphaS*pkernel%IntSur*627.509469d0
-!  Disene= pkernel%cavity%betaV*pkernel%IntVol*627.509469d0
-!  noeleene=Cavene+Repene+Disene
-!  if (bigdft_mpi%iproc==0) then
-!     !call yaml_map('Cavitation prefactor gamma',pkernel%cavity%gammaS)
-!     !call yaml_map('Repulsion prefactor alpha',pkernel%cavity%alphaS)
-!     !call yaml_map('Dispersion prefactor beta',pkernel%cavity%betaV)
-!     call yaml_map('Cavity energy [kcal/mol]',Cavene)
-!     call yaml_map('Repulsion energy [kcal/mol]',Repene)
-!     call yaml_map('Dispersion energy [kcal/mol]',Disene)
-!     call yaml_map('Total non-electrostatic energy [kcal/mol]',noeleene)
-!  end if
-!!$  select case(trim(f_str(pkernel%method)))
-!!$  case('PCG')
-!!$
-!!$ !starting point in third direction
-!!$  i3s=pkernel%grid%istart+1
-!!$  i23=1
-!!$  do i3=i3s,i3s+pkernel%grid%n3p-1!kernel%ndims(3)
-!!$     do i2=1,pkernel%ndims(2)
-!!$        do i1=1,pkernel%ndims(1)
-!!$           eps(i1,i2,i3)=pkernel%w%eps(i1,i23)
-!!$           oneosqrteps(i1,i2,i3)=pkernel%w%oneoeps(i1,i23)
-!!$           corr(i1,i2,i3)=pkernel%w%corr(i1,i23)
-!!$        end do
-!!$        i23=i23+1
-!!$     end do
-!!$  end do
-!!$  if (bigdft_mpi%iproc==0) then
-!!$  call check_accuracy_3d(pkernel%ndims(1),pkernel%ndims(2),pkernel%ndims(3),i,eps,epst)
-!!$  call check_accuracy_3d(pkernel%ndims(1),pkernel%ndims(2),pkernel%ndims(3),i,oneosqrteps,oneosqrtepst)
-!!$  call check_accuracy_3d(pkernel%ndims(1),pkernel%ndims(2),pkernel%ndims(3),i,corr,corrt)
-!!$  end if
-!!$
-!!$  case('PI') 
-!!$
-!!$ !starting point in third direction
-!!$  i3s=pkernel%grid%istart+1
-!!$  i23=1
-!!$  do i3=i3s,i3s+pkernel%grid%n3p-1!kernel%ndims(3)
-!!$     do i2=1,pkernel%ndims(2)
-!!$        do i1=1,pkernel%ndims(1)
-!!$           eps(i1,i2,i3)=pkernel%w%eps(i1,i23)
-!!$           dlogeps(:,i1,i2,i3)=pkernel%w%dlogeps(:,i1,i2,i3)
-!!$           oneoeps(i1,i2,i3)=pkernel%w%oneoeps(i1,i23)
-!!$        end do
-!!$        i23=i23+1
-!!$     end do
-!!$  end do
-!!$  if (bigdft_mpi%iproc==0) then
-!!$  call check_accuracy_3d(pkernel%ndims(1),pkernel%ndims(2),pkernel%ndims(3),i,eps,epst)
-!!$  call check_accuracy_4d(pkernel%ndims(1),pkernel%ndims(2),pkernel%ndims(3),i,dlogeps,dlogepst)
-!!$  call check_accuracy_3d(pkernel%ndims(1),pkernel%ndims(2),pkernel%ndims(3),i,oneoeps,oneoepst)
-!!$  end if
-!!$
-!!$  end select
-
-!!$  select case(trim(f_str(pkernel%method)))
-!!$  case('PCG')
-!!$   call pkernel_set_epsilon(pkernel,eps=eps,oneosqrteps=oneosqrteps,corr=corr)
-!!$!   call pkernel_set_epsilon(pkernel,eps=eps)
-!!$  case('PI') 
-!!$   call pkernel_set_epsilon(pkernel,eps=eps,oneoeps=oneoeps,dlogeps=dlogeps)
-!!$!   call pkernel_set_epsilon(pkernel,eps=eps)
-!!$  end select
-
-!!$  !starting point in third direction
-!!$  i3s=pkernel%grid%istart+1
-!!$  i23=1
-!!$  do i3=i3s,i3s+pkernel%grid%n3p-1!kernel%ndims(3)
-!!$     do i2=1,pkernel%ndims(2)
-!!$        do i1=1,pkernel%ndims(1)
-!!$           pkernel%cavity(i1,i23)=eps(i1,i2,i3)
-!!$        end do
-!!$        i23=i23+1
-!!$     end do
-!!$  end do
-
-!!$  unt=f_get_free_unit(21)
-!!$  call f_open_file(unt,file='oneoepsilon.dat')
-!!$  i1=1!n03/2
-!!$  do i2=1,pkernel%ndims(2)
-!!$     do i3=1,pkernel%ndims(3)
-!!$        write(unt,'(2(1x,I4),2(1x,e14.7))')i2,i3,pkernel%oneoeps(i1,i2+(i3-1)*pkernel%ndims(2)),&
-!!$             pkernel%oneoeps(pkernel%ndims(1)/2,i2+(i3-1)*pkernel%ndims(2))
-!!$     end do
-!!$  end do
-!!$  call f_close(unt)
-
   call f_free(radii)
-  !call f_free(radii_nofact)
   call f_free(eps)
   call f_free(dlogeps)
   call f_free(oneoeps)
   call f_free(oneosqrteps)
   call f_free(corr)
-!!$  call f_free(epst)
-!!$  call f_free(dlogepst)
-!!$  call f_free(oneoepst)
-!!$  call f_free(oneosqrtepst)
-!!$  call f_free(corrt)
 end subroutine epsilon_cavity
 
 !> Check the difference of two 3 dimensional vectors
@@ -1337,7 +1138,7 @@ subroutine epsinnersccs_cavity(atoms,rxyz,pkernel)
   !use yaml_output
   use numerics, only : Bohr_Ang
   use module_base, only: bigdft_mpi
-  use f_enums, f_str => str
+  use f_enums, f_str => toa
   use yaml_output
   use dictionaries, only: f_err_throw
   use PStypes, only: epsilon_inner_cavity
@@ -1356,40 +1157,14 @@ subroutine epsinnersccs_cavity(atoms,rxyz,pkernel)
   real(gp), dimension(:,:,:), allocatable :: eps
 
   radii=f_malloc(atoms%astruct%nat,id='radii')
-!!$  eps=f_malloc(pkernel%mesh%ndims,id='eps')
-
-!!$  it=atoms_iter(atoms%astruct)
-!!$  !python metod
-!!$  do while(atoms_iter_next(it))
-!!$     !only amu is extracted here
-!!$     call atomic_info(atoms%nzatom(it%ityp),atoms%nelpsp(it%ityp),&
-!!$          rcov=radii(it%iat))
-!!$  end do
-
-!  if(bigdft_mpi%iproc==0) call yaml_map('Bohr_Ang',Bohr_Ang)
 
   delta=2.0*maxval(pkernel%mesh%hgrids)
-!  if(bigdft_mpi%iproc==0) call yaml_map('Delta cavity',delta)
   do i=1,atoms%astruct%nat
    radii(i) = 0.5d0/Bohr_Ang
   end do
-!  if (bigdft_mpi%iproc==0) call yaml_map('Covalent radii',radii)
-
   call epsilon_inner_cavity(pkernel,atoms%astruct%nat,rxyz,radii,delta,locreg_mesh_origin(pkernel%mesh))
 
-!!$  call epsinnersccs_rigid_cavity_error_multiatoms_bc(atoms%astruct%geocode,&
-!!$       pkernel%mesh%ndims,pkernel%hgrids,atoms%astruct%nat,rxyz,radii,delta,eps)
-!!$
-!!$  n1=pkernel%mesh%ndims(1)
-!!$  n23=pkernel%mesh%ndims(2)*pkernel%grid%n3p
-!!$  !starting point in third direction
-!!$  i3s=pkernel%grid%istart+1
-!!$  if (pkernel%grid%n3p==0) i3s=1
-!!$
-!!$  call f_memcpy(n=n1*n23,src=eps(1,1,i3s),dest=pkernel%w%epsinnersccs)
-
   call f_free(radii)
-!!$  call f_free(eps)
 end subroutine epsinnersccs_cavity
 
 !> Calculate the important objects related to the physical properties of the system
@@ -1526,7 +1301,7 @@ subroutine calculate_rhocore(at,rxyz,dpbox,rhocore)
                 & dpbox%i3s,dpbox%n3d,core_mesh, rhocore, ncmax, ifftsph, &
                 & rr, rcart, raux)
         else
-           call calc_rhocore_iat(bigdft_mpi%iproc,at,ityp,rx,ry,rz,cutoff,&
+           call calc_rhocore_iat(dpbox,bigdft_mpi%iproc,at,ityp,rx,ry,rz,cutoff,&
                 & dpbox%mesh%hgrids(1),dpbox%mesh%hgrids(2),dpbox%mesh%hgrids(3), &
                 & dpbox%mesh%ndims(1), dpbox%mesh%ndims(2),dpbox%mesh%ndims(3), &
                 & dpbox%i3s,dpbox%n3d,chgat,rhocore)
@@ -1586,14 +1361,12 @@ subroutine calculate_rhocore(at,rxyz,dpbox,rhocore)
 END SUBROUTINE calculate_rhocore
 
 
-
-
 !> Calculate the number of electrons and check the polarisation (mpol)
 subroutine read_n_orbitals(iproc, qelec_up, qelec_down, norbe, &
      & atoms, qcharge, nspin, mpol, norbsempty)
   use module_atoms, only: atoms_data
   use ao_inguess, only: charge_and_spol
-  use module_defs, only: gp
+  use module_defs, only: gp, BIGDFT_INPUT_VARIABLES_ERROR,BIGDFT_RUNTIME_ERROR  
   use dictionaries, only: f_err_throw
   use yaml_strings
   use yaml_output, only: yaml_warning, yaml_comment
@@ -1632,33 +1405,43 @@ subroutine read_n_orbitals(iproc, qelec_up, qelec_down, norbe, &
 
   if(qelec < 0.0_gp ) then
     call f_err_throw('Number of electrons is negative:' // trim(yaml_toa(qelec)) // &
-      & '. FIX: decrease value of qcharge.', err_name='BIGDFT_RUNTIME_ERROR')
+      & '. FIX: decrease value of qcharge.', err_id=BIGDFT_INPUT_VARIABLES_ERROR)
   end if
 
-  ! Number of orbitals
+  ! Determine the number of orbitals versus nspin
   if (nspin==1) then
      qelec_up=qelec
      qelec_down=0.0_gp
+
   else if(nspin==4) then
      qelec_up=qelec
      qelec_down=0.0_gp
-  else 
-     if (mod(nel+mpol,2) /=0 .and. int_charge) then
-          call f_err_throw('The mpol polarization should have the same parity of the (rounded) number of electrons. ' // &
-            & '(mpol='+mpol+' and qelec='+qelec+')', &
-            & err_name='BIGDFT_INPUT_VARIABLES_ERROR')
 
-     end if
-     !put the charge according to the polarization.
-     !non-integer part always goes to the upper spin shell
-     !nelec_up=min((nelec+mpol)/2,nelec) !this is the integer part (rounded)
-     nel_up=min((nel+mpol)/2,nel)
-     nel_dwn=nel-nel_up
-     qelec_down=real(nel_dwn,gp)
-     !then the elec_up part is redefined with the actual charge
-     qelec_up=qelec-qelec_down
+  else if(nspin==2) then
+!TD!    if (mod(nel+mpol,2) /=0 .and. int_charge) &
+!TD!       r&  call f_err_throw('Spin-Polarized calculation (nspin=' // trim(yaml_toa(nspin)) // &
+!TD!           & '). The mpol polarization should have the same parity of the (rounded) number of electrons. ' // &
+!TD!           & '(mpol='+trim(yaml_toa(mpol)) // 'and qelec='+qelec+')', &
+!TD!           & err_id=BIGDFT_INPUT_VARIABLES_ERROR)
 
-     !test if the spin is compatible with the input guess polarisations
+     if (abs(mpol) > nel) call f_err_throw('Spin-Polarized calculation (nspin=' // trim(yaml_toa(nspin)) // &
+            & '). The mpol polarization should be less than the number of electrons' // &
+            & '(mpol='+trim(yaml_toa(mpol)) // 'and nel='//trim(yaml_toa(nel))//')', &
+            & err_id=BIGDFT_INPUT_VARIABLES_ERROR)
+
+     !Put the charge according to the polarization.
+!TD!    !non-integer part always goes to the upper spin shell
+!TD!    nelec_up=min((nelec+mpol)/2,nelec) !this is the integer part (rounded)
+!TD!    nel_up=min((nel+mpol)/2,nel)
+!TD!    nel_dwn=nel-nel_up
+!TD!    qelec_down=real(nel_dwn,gp)
+!TD!    !then the elec_up part is redefined with the actual charge
+!TD!    qelec_up=qelec-qelec_down
+
+     qelec_up=(qelec+real(mpol,gp))/2.0
+     qelec_down=qelec-qelec_up
+
+     !test if the spin is compatible with the input guess polarizations
      ispinsum=0
      ichgsum=0
      iabspol=0
@@ -1669,24 +1452,25 @@ subroutine read_n_orbitals(iproc, qelec_up, qelec_down, norbe, &
         iabspol=iabspol+abs(ispol)
      end do
 
-     if (ispinsum /= nel_up-nel_dwn .and. int_charge) then
-        call f_err_throw('Total polarisation for the input guess (found ' // &
-             trim(yaml_toa(ispinsum)) // &
-             ') must be equal to rounded nel_up-nel_dwn ' // &
-             '(nelec=' // trim(yaml_toa(qelec)) // ', mpol=' // trim(yaml_toa(mpol)) // &
-             ', nel_up-nel_dwn=' // trim((yaml_toa(nel_up-nel_dwn))) // &
-             ', nel_up=' // trim((yaml_toa(nel_up))) // &
-             ', nel_dwn=' // trim((yaml_toa(nel_dwn))) // &
-             '). Use the keyword "IGSpin" or add a spin component for the input guess per atom.', &
-             err_name='BIGDFT_INPUT_VARIABLES_ERROR')
-     end if
-
-     if (ichgsum /= nchg .and. ichgsum /= 0) then
-        call f_err_throw('Total input charge (found ' // trim(yaml_toa(ichgsum)) // &
-             & ') cannot be different than rounded charge. With charge =' // trim(yaml_toa(qcharge)) // &
-             & ' and input charge=' // trim(yaml_toa(ichgsum)), &
-             & err_name='BIGDFT_INPUT_VARIABLES_ERROR')
-     end if
+!TD!    if (ispinsum /= nel_up-nel_dwn .and. int_charge) then
+!TD!       call f_err_throw('Total polarization for the input guess (found' // &
+!TD!            trim(yaml_toa(ispinsum)) // &
+!TD!            ') must be equal to rounded nel_up-nel_dwn ' // &
+!TD!            '(nelec=' // trim(yaml_toa(qelec)) // ', mpol=' // trim(yaml_toa(mpol)) // &
+!TD!            ', nel_up-nel_dwn=' // trim((yaml_toa(nel_up-nel_dwn))) // &
+!TD!            ', nel_up=' // trim((yaml_toa(nel_up))) // &
+!TD!            ', nel_dwn=' // trim((yaml_toa(nel_dwn))) // &
+!TD!            '). By default, each atom has an input guess polarization (IGSpin) equal to 0. ' // &
+!TD!            'Use the keyword "IGSpin" or add a spin component for the input guess per atom.', &
+!TD!            err_name='BIGDFT_INPUT_VARIABLES_ERROR')
+!TD!    end if
+!TD!
+!TD!    if (ichgsum /= nchg .and. ichgsum /= 0) then
+!TD!       call f_err_throw('Total input charge (found ' // trim(yaml_toa(ichgsum)) // &
+!TD!            & ') cannot be different than rounded charge. With charge =' // trim(yaml_toa(qcharge)) // &
+!TD!            & ' and input charge=' // trim(yaml_toa(ichgsum)), &
+!TD!            & err_name='BIGDFT_INPUT_VARIABLES_ERROR')
+!TD!    end if
 
      !now warn if there is no input guess spin polarisation
 !!$     ispinsum=0
@@ -1695,8 +1479,12 @@ subroutine read_n_orbitals(iproc, qelec_up, qelec_down, norbe, &
 !!$        ispinsum=ispinsum+abs(ispol)
 !!$     end do
 !!$     if (ispinsum == 0) then
-     if (iabspol == 0 .and. iproc==0 .and. norbsempty == 0) &
-          call yaml_warning('Found no input polarisation, add it for a correct input guess')
+!TD!    if (iabspol == 0 .and. iproc==0 .and. norbsempty == 0) &
+!TD!         call yaml_warning('Found no input polarisation, add it for a correct input guess')
+
+  else
+     call f_err_throw('The value of nspin ('//trim(yaml_toa(nspin))//' is not correct', &
+     err_id=BIGDFT_RUNTIME_ERROR)
   end if
 
   norbe = 0
@@ -2467,12 +2255,9 @@ subroutine pawpatch_from_file( filename, atoms,ityp, paw_tot_l, &
      ! if (iproc.eq.0) write(*,*) 'opening PSP file ',filename
      open(unit=11,file=trim(filename),status='old',iostat=ierror)
      !Check the open statement
-     if (ierror /= 0) then
-        write(*,*) ': Failed to open the PAWpatch file "',&
-             trim(filename),'"'
-        stop
-     end if
-     
+     if (f_err_raise(ierror /= 0, 'Failed to open the PAWpatch file "' // &
+          & trim(filename) // '".', err_name='BIGDFT_RUNTIME_ERROR')) &
+          & return
      !! search for paw_patch informations
      
      atoms%paw_NofL(ityp)=0

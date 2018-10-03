@@ -1,6 +1,6 @@
 !> test program for the function projection in wavelets
 program projection
-  use module_defs, only: UNINITIALIZED
+  use module_defs, only: UNINITIALIZED, gp
   use futile
   use box
   use f_functions
@@ -12,13 +12,15 @@ program projection
   use numerics
   use compression, only: wnrm2
   use multipole_preserving
+  use psp_projectors_base
   implicit none
   real(f_double) :: crmult,frmult,maxdiff_RS,maxdiff_MP,maxdiff_RS_MP,sigma
   type(locreg_descriptors) :: lr
   real(f_double), dimension(3) :: kpoint,oxyz,angrad,hgrids
   type(f_tree) :: dict_posinp
-  type(workarrays_projectors) :: wp
-  real(f_double), dimension(:,:,:), allocatable :: psi,RSpsi,MPpsi
+  type(atomic_projectors) :: aproj
+  type(atomic_projector_iter) :: iter, iterRS, iterMP
+  real(f_double), dimension(:), allocatable :: proj, projRS, projMP
   type(dictionary), pointer :: options
   real(f_double), dimension(3) :: rxyz
   integer :: n !<principal quantum number
@@ -28,11 +30,11 @@ program projection
   integer, parameter :: lmax=4 !<maximum angular momentum of the shell
   integer, parameter :: ider=0 !<direction in which to perform the derivative (0 if any)
   integer, parameter :: nterm_max=20
+  integer, parameter :: nat = 1, iat = 1
   integer, parameter :: ncplx_g=1 !< 1 or 2 if the gaussian factor is real or complex respectively
-  integer, parameter :: ncplx_p=1 !< 2 if the projector is supposed to be complex, 1 otherwise
   real(f_double), dimension(ncplx_g) :: expo !<exponents (1/2sigma^2 for the first element) of the gaussian (real and imaginary part)
   real(f_double), dimension(ncplx_g) :: coeff !<prefactor of the gaussian
-  integer :: iproc,nn,qn,ql,nstart,nend,lstart,lend
+  integer :: iproc,qn,ql,nstart,nend,lstart,lend
   !type(workarr_sumrho) :: w
   !real(f_double), dimension(:), allocatable :: projector_real,gaussian
   !real(f_double), dimension(:), allocatable :: ps,RSps,MPps 
@@ -74,7 +76,6 @@ program projection
 
   call dict_free(options)
 
-  
   call define_lr(lr,dict_posinp,crmult,frmult,hgrids)
 
   call f_tree_free(dict_posinp)
@@ -91,64 +92,98 @@ program projection
      lend=ql
   end if
 
+  ! Create the gaussians for various (n, l) tuples.
+  aproj%iat = 1
+  aproj%rxyz = rxyz
+  aproj%normalized = .true.
+  aproj%kind = PROJ_DESCRIPTION_GAUSSIAN
+  aproj%gau_cut = UNINITIALIZED(1.0_gp)
+  call init_gaussian_basis(nat, [(lend - lstart + 1) * (nend - nstart + 1)], rxyz, aproj%gbasis)
   do n=nstart,nend
      do l=lstart,lend
-   
+        call gaussian_basis_add_one(aproj%gbasis, iat, n, l, ncplx_g, coeff, expo)
+     end do
+  end do
+
+  call initialize_real_space_conversion(isf_m=16)
+  
+  call atomic_projector_iter_new(iter, aproj, lr, kpoint)
+  proj = f_malloc0([iter%nc * iter%nproj], id = 'proj')  
+  call atomic_projector_iter_set_destination(iter, proj, size(proj), 1)
+  call atomic_projector_iter_set_method(iter, PROJECTION_1D_SEPARABLE, lr)
+  
+  call atomic_projector_iter_new(iterRS, aproj, lr, kpoint)
+  projRS = f_malloc0([iter%nc * iter%nproj], id = 'projRS')
+  call atomic_projector_iter_set_destination(iterRS, projRS, size(projRS), 1)
+  call atomic_projector_iter_set_method(iterRS, PROJECTION_RS_COLLOCATION)
+
+  call atomic_projector_iter_new(iterMP, aproj, lr, kpoint)
+  projMP = f_malloc0([iter%nc * iter%nproj], id = 'projMP')
+  call atomic_projector_iter_set_destination(iterMP, projMP, size(projMP), 1)
+  call atomic_projector_iter_set_method(iterMP, PROJECTION_MP_COLLOCATION)
+
+  call atomic_projector_iter_start(iter)
+  call atomic_projector_iter_start(iterRS)
+  call atomic_projector_iter_start(iterMP)
+  do while(atomic_projector_iter_next(iter) .and. &
+       & atomic_projector_iter_next(iterRS) .and. &
+       & atomic_projector_iter_next(iterMP))
+     if (iproc==0) then
+        call yaml_comment('Projectors check',hfill='-')
+        call yaml_mapping_open('Projector type')
+        call yaml_map('principal quantum number n', iter%n)
+        call yaml_map('angular momentum of the shell l', iter%l)
+     end if
+
+     ! Use standard 1D separability.
+     call atomic_projector_iter_to_wavelets(iter, 0)
+     ! Use of the Collocation-based separable Projection
+     call atomic_projector_iter_to_wavelets(iterRS, 0)
+     ! Use of the Multipole-preserving-based separable Projection
+     call atomic_projector_iter_to_wavelets(iterMP, 0)
+
+     do m=1,iter%mproj
+
+        !calculate norm and difference of the two arrays
+        call f_diff(int(iter%nc, f_long), &
+             & iter%proj(iter%istart_c + iter%nc * (m - 1):iter%istart_c + iter%nc * m - 1), &
+             & iterRS%proj(iterRS%istart_c + iterRS%nc * (m - 1):iterRS%istart_c + iterRS%nc * m - 1), maxdiff_RS)
+        call f_diff(int(iter%nc, f_long), &
+             & iter%proj(iter%istart_c + iter%nc * (m - 1):iter%istart_c + iter%nc * m - 1), &
+             & iterMP%proj(iterMP%istart_c + iterMP%nc * (m - 1):iterMP%istart_c + iterMP%nc * m - 1), maxdiff_MP)
+        call f_diff(int(iterRS%nc, f_long), &
+             & iterRS%proj(iterRS%istart_c + iterRS%nc * (m - 1):iterRS%istart_c + iterRS%nc * m - 1), &
+             & iterMP%proj(iterMP%istart_c + iterMP%nc * (m - 1):iterMP%istart_c + iterMP%nc * m - 1), maxdiff_RS_MP)
+
         if (iproc==0) then
-          call yaml_comment('Projectors check',hfill='-')
-          call yaml_mapping_open('Projector type')
-          call yaml_map('principal quantum number n', n)
-          call yaml_map('angular momentum of the shell l', l)
+           call yaml_mapping_open('Shell projectors')
+           call yaml_map('magnetic number m', m)
+           call yaml_mapping_open('Checks')
+
+           call yaml_mapping_open('Traditional separable Projection')
+           call yaml_map('Norm of the calculated projector', &
+                & atomic_projector_iter_wnrm2(iter, m))
+           call yaml_mapping_close()
+
+           call yaml_mapping_open('Collocation-based separable Projection')
+           call yaml_map('Norm of the calculated projector', &
+                & atomic_projector_iter_wnrm2(iterRS, m))
+           call yaml_map('Maximum difference with Traditional',maxdiff_RS)
+           call yaml_mapping_close()
+
+           call yaml_mapping_open('Multipole-preserving-based separable Projection')
+           call yaml_map('Norm of the calculated projector', &
+                & atomic_projector_iter_wnrm2(iterMP, m))
+           call yaml_map('Maximum difference with Traditional',maxdiff_MP)
+           call yaml_mapping_close()
+
+           call yaml_map('Maximum difference between C-b and M-p',maxdiff_RS_MP)
+
+           call yaml_mapping_close()
+           call yaml_mapping_close()
         end if
-        call allocate_workarrays_projectors(lr%d%n1, lr%d%n2, lr%d%n3, wp)
-        nn=lr%wfd%nvctr_c+7*lr%wfd%nvctr_f 
-        psi=f_malloc0([nn,ncplx_p,2*l-1],id='psi')
-        RSpsi=f_malloc0([nn,ncplx_p,2*l-1],id='RSpsi')
-        MPpsi=f_malloc0([nn,ncplx_p,2*l-1],id='MPpsi')
-      
-        call project(psi,PROJECTION_1D_SEPARABLE)
 
-        call initialize_real_space_conversion(isf_m=16)
-
-        ! Use of the Collocation-based separable Projection
-        call project(RSpsi,PROJECTION_RS_COLLOCATION)
-
-        ! Use of the Multipole-preserving-based separable Projection
-        call project(MPpsi,PROJECTION_MP_COLLOCATION)
-
-        do m=1,2*l-1
-      
-           !calculate norm and difference of the two arrays
-           call f_diff(f_size(psi(1:nn,ncplx_p,m)),psi(1:nn,ncplx_p,m),RSpsi(1:nn,ncplx_p,m),maxdiff_RS)
-           call f_diff(f_size(psi(1:nn,ncplx_p,m)),psi(1:nn,ncplx_p,m),MPpsi(1:nn,ncplx_p,m),maxdiff_MP)
-           call f_diff(f_size(RSpsi(1:nn,ncplx_p,m)),RSpsi(1:nn,ncplx_p,m),MPpsi(1:nn,ncplx_p,m),maxdiff_RS_MP)
-
-           if (iproc==0) then
-              call yaml_mapping_open('Shell projectors')
-              call yaml_map('magnetic numer m', m)
-              call yaml_mapping_open('Checks')
-
-              call yaml_mapping_open('Traditional separable Projection')
-              call yaml_map('Norm of the calculated projector',wnrm2(1,lr%wfd,psi(1:nn,ncplx_p,m)))
-              call yaml_mapping_close()
-      
-              call yaml_mapping_open('Collocation-based separable Projection')
-              call yaml_map('Norm of the calculated projector',wnrm2(1,lr%wfd,RSpsi(1:nn,ncplx_p,m)))
-              call yaml_map('Maximum difference with Traditional',maxdiff_RS)
-              call yaml_mapping_close()
-      
-              call yaml_mapping_open('Multipole-preserving-based separable Projection')
-              call yaml_map('Norm of the calculated projector',wnrm2(1,lr%wfd,MPpsi(1:nn,ncplx_p,m)))
-              call yaml_map('Maximum difference with Traditional',maxdiff_MP)
-              call yaml_mapping_close()
-
-              call yaml_map('Maximum difference between C-b and M-p',maxdiff_RS_MP)
-
-              call yaml_mapping_close()
-              call yaml_mapping_close()
-           end if
-
-        end do ! loop on m quantum number
+     end do ! loop on m quantum number
 
       !---------------------------------------------------------------------------------------
       !  ! printing of the projectors for debug
@@ -174,10 +209,6 @@ program projection
       !  call deallocate_work_arrays_sumrho(w)
       !---------------------------------------------------------------------------------------
 
-        call f_free(psi)
-        call f_free(RSpsi)
-        call f_free(MPpsi)
-      
       !---------------------------------------------------------------------------------------
       !  ! compare input analytical gaussian and the roundtrip one to the daubechies
       !  projector_real=f_malloc(lr%mesh%ndim,id='projector_real') 
@@ -199,30 +230,25 @@ program projection
       !  call f_free(gaussian)
       !---------------------------------------------------------------------------------------
       
-        call finalize_real_space_conversion()
-        call deallocate_workarrays_projectors(wp)
-      
-        if (iproc==0) call yaml_mapping_close()
+     if (iproc==0) call yaml_mapping_close()
    
-     end do ! loop on l quantum number
-  end do ! loop on n quantum number
+  end do
+  
+  call atomic_projector_iter_free(iter)
+  call atomic_projector_iter_free(iterRS)
+  call atomic_projector_iter_free(iterMP)
 
   call deallocate_locreg_descriptors(lr)
 
+  call f_free(projMP)
+  call f_free(projRS)
+  call f_free(proj)
+
+  call gaussian_basis_free(aproj%gbasis)
+
+  call finalize_real_space_conversion()
+     
   call f_lib_finalize()
-
-  contains
-
-    subroutine project(psi,method)
-      use f_enums
-      implicit none
-      type(f_enumerator), intent(in) :: method
-      real(f_double), dimension(*) :: psi
-      call gaussian_to_wavelets_locreg(lr%mesh_coarse,0,&
-           ncplx_g,coeff,expo,UNINITIALIZED(1.0_f_double),&
-           n,l,rxyz,kpoint,&
-           ncplx_p,lr,wp,psi,method=method)
-    end subroutine project    
 
 end program projection
 

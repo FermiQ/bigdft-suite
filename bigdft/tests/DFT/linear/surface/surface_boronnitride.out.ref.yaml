@@ -611,9 +611,9 @@
    PSP XC                              : "XC: Perdew, Burke & Ernzerhof"
   #----------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : bohr
-   Cell: [ 33.22885513305664, .inf,  32.88803863525391]
-   Positions:
+   units                               : bohr
+   cell: [ 33.22885513305664, .inf,  32.88803863525391]
+   positions:
    - N: [ 10.17465973,  5.502577944,  0.3549766541] # [  14.70,  7.86,  0.52 ] 0001
    -  {N: [ 5.581115723,  5.675408749,  0.5138587952],  # [  8.06,  8.11,  0.75 ] 0002
  IGSpin:  1}
@@ -2082,6 +2082,14 @@
  Electric Dipole Moment (Debye):
    P vector                            :  [  1.4578E+02, -8.9244E+00,  3.1866E+02 ]
    norm(P)                             :  3.505402E+02
+ Multipole analysis origin             :  [ -1.48003E-01,  5.536220E+00, -4.083711E-01 ]
+ Electric Dipole Moment (AU):
+   P vector                            :  [  9.3473E+00, -3.5111E+00, -6.0657E+01 ]
+   norm(P)                             :  6.147344E+01
+ Electric Dipole Moment (Debye):
+   P vector                            :  [  2.3758E+01, -8.9244E+00, -1.5417E+02 ]
+   norm(P)                             :  1.562499E+02
+ Spreads of the electronic density (AU):  [  9.641975E+00,  7.321418E-01,  1.080872E+01 ]
  Calculate local forces                :  Yes
  Calculate NLCC forces                 :  Yes
  Calculate Non Local forces            :  Yes

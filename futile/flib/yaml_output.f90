@@ -2328,6 +2328,7 @@ contains
     logical, intent(in), optional :: verbatim       !< if .true. print as comments the calls performed
     integer, intent(in), optional :: unit           !< unit in which the dump has to be
     !local variables
+    !logical :: flowrite
     logical :: verb
     integer :: unt,idoc
 
@@ -2419,12 +2420,12 @@ contains
     !is passed only if present
     call yaml_mapping_open(mapname,label=label,flow=flow,unit=unit)
     !then the central indication for the enumerator
-    call yaml_map(trim(str(mapvalue)),toi(mapvalue),unit=unit)
+    call yaml_map(trim(toa(mapvalue)),toi(mapvalue),unit=unit)
     iter=>mapvalue%family
     if (associated(iter)) then
        call yaml_mapping_open('Attributes',unit=unit)
        do while(associated(iter))
-          call yaml_map(trim(str(iter)),toi(iter),unit=unit)
+          call yaml_map(trim(toa(iter)),toi(iter),unit=unit)
           iter => iter%family
        end do
        call yaml_mapping_close(unit=unit)

@@ -155,20 +155,20 @@ module sparsematrix_io
           end if
 
           ! Communicate to the other tasks
-          call mpibcast(nspin, count=1, root=0, comm=comm)
-          call mpibcast(nfvctr, count=1, root=0, comm=comm)
-          call mpibcast(nseg, count=1, root=0, comm=comm)
-          call mpibcast(nvctr, count=1, root=0, comm=comm)
+          call fmpi_bcast(nspin, count=1, root=0, comm=comm)
+          call fmpi_bcast(nfvctr, count=1, root=0, comm=comm)
+          call fmpi_bcast(nseg, count=1, root=0, comm=comm)
+          call fmpi_bcast(nvctr, count=1, root=0, comm=comm)
           if (iproc/=0) then
               keyv = f_malloc_ptr(nseg,id='keyv')
               keyg = f_malloc_ptr((/2,2,nseg/),id='keyg')
           end if
-          call mpibcast(keyv, root=0, comm=comm)
-          call mpibcast(keyg, root=0, comm=comm)
+          call fmpi_bcast(keyv, root=0, comm=comm)
+          call fmpi_bcast(keyg, root=0, comm=comm)
           if (iproc/=0) then
               mat_compr = f_malloc_ptr(nvctr*nspin,id='mat_compr')
           end if
-          call mpibcast(mat_compr, root=0, comm=comm)
+          call fmpi_bcast(mat_compr, root=0, comm=comm)
 
       else
           call f_err_throw("wrong value for 'mode'")
@@ -195,7 +195,7 @@ module sparsematrix_io
       real(kind=mp),dimension(:),pointer,intent(out) :: mat_compr
 
       ! Local variables
-      integer :: i, ii, np, is, size_of_integer, size_of_double, ierr, thefile
+      integer :: i, ii, np, is, size_of_integer, size_of_double, ierr, thefile, ispin, ioffset
       !character(len=1024) :: filename_base, filename_extension, filename_matmul
       integer(kind=mpi_offset_kind) :: disp
       integer,dimension(4) :: workarr_header
@@ -245,16 +245,20 @@ module sparsematrix_io
       call fmpi_allreduce(keyv, FMPI_SUM, comm=comm)
       call fmpi_allreduce(keyg, FMPI_SUM, comm=comm)
 
-      ! Write the matrices
+      ! Read the matrices
       mat_compr = f_malloc0_ptr(nvctr*nspin,id='mat_compr')
       call distribute_on_tasks(nvctr, iproc, nproc, np, is)
-      is_long = int(is,kind=f_long)
-      nseg_long = int(nseg,kind=f_long)
-      disp = int((four_long+five_long*nseg_long)*size_of_integer_long+is_long*size_of_double_long,kind=mpi_offset_kind)
-      call mpi_file_set_view(thefile, disp, mpi_double_precision, mpi_double_precision, 'native', mpi_info_null, ierr) 
-      if (np>1) then
-          call mpi_file_read(thefile, mat_compr(is+1), np, mpi_double_precision, mpi_status_ignore, ierr)
-      end if
+      do ispin=1,nspin
+          ioffset = (ispin-1)*nvctr
+          is = is + ioffset
+          is_long = int(is,kind=f_long)
+          nseg_long = int(nseg,kind=f_long)
+          disp = int((four_long+five_long*nseg_long)*size_of_integer_long+is_long*size_of_double_long,kind=mpi_offset_kind)
+          call mpi_file_set_view(thefile, disp, mpi_double_precision, mpi_double_precision, 'native', mpi_info_null, ierr) 
+          if (np>1) then
+              call mpi_file_read(thefile, mat_compr(is+1), np, mpi_double_precision, mpi_status_ignore, ierr)
+          end if
+      end do
       call fmpi_allreduce(mat_compr, FMPI_SUM, comm=comm)
 
       call mpi_file_close(thefile, ierr)      
@@ -471,11 +475,11 @@ module sparsematrix_io
       integer,intent(in) :: nspin, nfvctr, nseg, nvctr
       integer,dimension(nseg),intent(in) :: keyv
       integer,dimension(2,2,nseg),intent(in) :: keyg
-      real(kind=mp),dimension(nvctr),intent(in) :: matrix_compr
+      real(kind=mp),dimension(nvctr*nspin),intent(in) :: matrix_compr
       character(len=*),intent(in) :: filename
 
       ! Local variables
-      integer :: i, ii, np, is, size_of_integer, size_of_double, ierr, thefile
+      integer :: i, ii, np, is, size_of_integer, size_of_double, ierr, thefile, ispin, ioffset
       !character(len=1024) :: filename_base, filename_extension, filename_matmul
       integer(kind=mpi_offset_kind) :: disp
       integer,dimension(4) :: workarr_header
@@ -525,13 +529,17 @@ module sparsematrix_io
 
       ! Write the matrices
       call distribute_on_tasks(nvctr, iproc, nproc, np, is)
-      is_long = int(is,kind=f_long)
-      nseg_long = int(nseg,kind=f_long)
-      disp = int((four_long+five_long*nseg_long)*size_of_integer_long+is_long*size_of_double_long,kind=mpi_offset_kind)
-      call mpi_file_set_view(thefile, disp, mpi_double_precision, mpi_double_precision, 'native', mpi_info_null, ierr)
-      if (np>1) then
-          call mpi_file_write(thefile, matrix_compr(is+1), np, mpi_double_precision, mpi_status_ignore, ierr)
-      end if
+      do ispin=1,nspin
+          ioffset = (ispin-1)*nvctr
+          is = is + ioffset
+          is_long = int(is,kind=f_long)
+          nseg_long = int(nseg,kind=f_long)
+          disp = int((four_long+five_long*nseg_long)*size_of_integer_long+is_long*size_of_double_long,kind=mpi_offset_kind)
+          call mpi_file_set_view(thefile, disp, mpi_double_precision, mpi_double_precision, 'native', mpi_info_null, ierr)
+          if (np>1) then
+              call mpi_file_write(thefile, matrix_compr(is+1), np, mpi_double_precision, mpi_status_ignore, ierr)
+          end if
+      end do
 
       call mpi_file_close(thefile, ierr)      
 
@@ -683,6 +691,7 @@ module sparsematrix_io
                nspin, ntmb, nfvctr, eval, coeff)
       use sparsematrix_init, only: distribute_on_tasks
       use wrapper_linalg, only: vcopy
+      use wrapper_mpi, only: fmpi_bcast
       use yaml_output
       implicit none
 
@@ -702,6 +711,9 @@ module sparsematrix_io
       real(mp),dimension(:,:),allocatable :: workarr_coeff
 
       call f_routine(id='write_linear_coefficients_parallel')
+
+      ! Make sure that all processes have the same filename
+      call fmpi_bcast(filename, root=0, comm=comm)
 
       call mpi_file_open(comm, trim(filename), & 
            mpi_mode_wronly + mpi_mode_create, & 
@@ -758,11 +770,11 @@ module sparsematrix_io
           !call f_memcpy(n=nfvctr, src=coeff(1:nfvctr,ii:ii), dest=workarr_coeff(1:nfvctr,i:i))
           call vcopy(nfvctr, coeff(1,ii), 1, workarr_coeff(1,i), 1)
       end do
-      write(*,*) 'workarr_coeff',workarr_coeff
       disp = int(three_long*size_of_integer_long+(ntmb_long+is_long*nfvctr_long)*size_of_double_long,kind=mpi_offset_kind)
       call mpi_file_set_view(thefile, disp, mpi_double_precision, mpi_double_precision, 'native', mpi_info_null, ierr) 
       call mpi_file_write(thefile, workarr_coeff, nfvctr*np, mpi_double_precision, mpi_status_ignore, ierr)
       call f_free(workarr_coeff)
+
 
       call f_release_routine()
     
@@ -779,17 +791,28 @@ module sparsematrix_io
       ! Local variables
       integer :: iunit, i
 
-      call f_routine(id='write_linear_coefficients')
+      call f_routine(id='write_linear_eigenvalues')
 
       if (iproc==iroot) then
 
           iunit = 99
           call f_open_file(iunit, file=trim(filename), binary=.false.)
     
-          write(iunit,'(3i12,a)') nspin, ntmb, nfvctr, '   # nspin, ntmb, nfvctr'
+          call yaml_map('nspin',nspin,unit=iunit)
+          call yaml_map('ntmb',ntmb,unit=iunit)
+          call yaml_map('nfvctr',nfvctr,unit=iunit)
+          call yaml_sequence_open('Eigenvalues',unit=iunit)
           do i=1,ntmb
-              write(iunit,'(es24.16,a,i0)') eval(i), '   # eval no. ', i
+              call yaml_sequence(yaml_toa(eval(i)),advance='no',unit=iunit)
+              !call yaml_sequence(advance='no',unit=iunit)
+              !call yaml_map('e',eval(i),unit=iunit,advance='no')
+              call yaml_comment(adjustl(trim(yaml_toa(i))),unit=iunit)
           end do
+          call yaml_sequence_close()
+          !!write(iunit,'(3i12,a)') nspin, ntmb, nfvctr, '   # nspin, ntmb, nfvctr'
+          !!do i=1,ntmb
+          !!    write(iunit,'(es24.16,a,i0)') eval(i), '   # eval no. ', i
+          !!end do
 
           call f_close(iunit)
 
@@ -972,7 +995,7 @@ module sparsematrix_io
       real(mp),dimension(:),allocatable :: workarr_eval
       real(mp),dimension(:,:),allocatable :: workarr_coeff
 
-      call f_routine(id='write_linear_coefficients_parallel')
+      call f_routine(id='read_linear_coefficients_parallel')
 
       call mpi_file_open(comm, trim(filename), & 
            mpi_mode_rdonly, & 
@@ -1004,24 +1027,26 @@ module sparsematrix_io
           disp = int(three_long*size_of_integer_long+is_long*size_of_double_long,kind=mpi_offset_kind)
           call mpi_file_set_view(thefile, disp, mpi_double_precision, mpi_double_precision, 'native', mpi_info_null, ierr) 
           call mpi_file_read(thefile, workarr_eval, np, mpi_double_precision, mpi_status_ignore, ierr)
-          eval = f_malloc_ptr(ntmb,id='eval')
+          eval = f_malloc0_ptr(ntmb,id='eval')
           do i=1,np
               ii = is + i
               eval(ii) = workarr_eval(i) 
           end do
           call f_free(workarr_eval)
+          call fmpi_allreduce(eval, FMPI_SUM, comm=comm)
       end if
 
       workarr_coeff = f_malloc((/nfvctr,np/),id='workarr_coeff')
       disp = int(three_long*size_of_integer_long+(ntmb_long+is_long*nfvctr_long)*size_of_double_long,kind=mpi_offset_kind)
       call mpi_file_set_view(thefile, disp, mpi_double_precision, mpi_double_precision, 'native', mpi_info_null, ierr) 
       call mpi_file_read(thefile, workarr_coeff, nfvctr*np, mpi_double_precision, mpi_status_ignore, ierr)
-      coeff = f_malloc_ptr((/nfvctr,ntmb/),id='coeff')
+      coeff = f_malloc0_ptr((/nfvctr,ntmb/),id='coeff')
       do i=1,np
           ii = is + i
           call vcopy(nfvctr, workarr_coeff(1,i), 1, coeff(1,ii), 1)
       end do
       call f_free(workarr_coeff)
+      call fmpi_allreduce(coeff, FMPI_SUM, comm=comm)
 
       call f_release_routine()
     
@@ -1142,12 +1167,12 @@ module sparsematrix_io
           end if
 
           ! Communicate the matrix
-          call mpibcast(nfvctr, root=0, comm=comm)
-          call mpibcast(nspin, root=0, comm=comm)
+          call fmpi_bcast(nfvctr, root=0, comm=comm)
+          call fmpi_bcast(nspin, root=0, comm=comm)
           if (iproc/=0) then
               matrix = f_malloc_ptr((/nfvctr,nfvctr,nspin/),id='matrix')
           end if
-          call mpibcast(matrix, root=0, comm=comm)
+          call fmpi_bcast(matrix, root=0, comm=comm)
 
       end if
 

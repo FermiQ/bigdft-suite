@@ -29,6 +29,7 @@ program WaCo
    use locreg_operations, only: psi_to_locreg2,workarr_sumrho,&
         initialize_work_arrays_sumrho,deallocate_work_arrays_sumrho
    use locregs_init, only: lr_set
+   use box, only: distance
    implicit none
    character :: filetype*4,outputype*4
    type(locreg_descriptors) :: Glr
@@ -39,7 +40,7 @@ program WaCo
    type(comms_cubic), target :: commsw
    type(local_zone_descriptors) :: Lzd             !< debug only
    integer :: iiband,ldim,gdim                     !< debug only
-   logical, dimension(:),allocatable :: calcbounds !< debug only
+!   logical, dimension(:),allocatable :: calcbounds !< debug only
    real(gp), parameter :: b2a=0.5291772108_dp
    real :: tcpu0,tcpu1
    real(gp) :: tel
@@ -328,7 +329,8 @@ program WaCo
          ncenters(iwann) = 0
          iat = 0
          do i = 1, atoms%astruct%nat
-            call get_mindist(Glr%geocode,rxyz_wann(1,i),cxyz(1,iwann),box,dist)
+!!$            call get_mindist(Glr%geocode,rxyz_wann(1,i),cxyz(1,iwann),box,dist)
+            dist = distance(Glr%mesh,rxyz_wann(:,i),cxyz(:,iwann))
             if (dist**2 <= sprdfact * sprd(iwann)) then    !for normal distribution: 1=68%, 1.64=80%, 3=94%
                ncenters(iwann) = ncenters(iwann) +1
                iat = iat +1
@@ -368,7 +370,8 @@ program WaCo
       do iwann = 1, plotwann
          distw = 0.0_dp
          do iat = 1, ncenters(iwann)
-            call get_mindist(Glr%geocode,rxyz_wann(1,Zatoms(iat,iwann)),cxyz(1,iwann),box,distw(iat))
+!!$            call get_mindist(Glr%geocode,rxyz_wann(1,Zatoms(iat,iwann)),cxyz(1,iwann),box,distw(iat))
+            distw(iat) = distance(Glr%mesh,rxyz_wann(:,Zatoms(iat,iwann)),cxyz(:,iwann))
          end do
          prodw = 0.0_dp
          do iat = 1, ncenters(iwann)
@@ -932,7 +935,8 @@ program WaCo
         end do
 
         ! Construction of the Wannier function.
-        call mpiallred(wann,MPI_SUM)
+!        call mpiallred(wann,MPI_SUM)
+        call fmpi_allreduce(wann,op=FMPI_SUM,comm=bigdft_mpi%mpi_comm)
 
         if(iproc == 0) then
            write(num,'(i4.4)') iwann
@@ -1207,6 +1211,7 @@ program WaCo
 !  call MPI_FINALIZE(ierr)
 
 end program Waco
+
 
 subroutine Waco_input_variables(iproc,filename,nband,nwann,bondAna,Stereo,hamilAna,WannCon,filetype,nwannCon,refpos,units,&
            sprdfact,sprddiff,enediff,iformat,linear,nbandmB,sprdmult)
@@ -1732,6 +1737,7 @@ subroutine write_wannier_cube(jfile,filename,atoms,Glr,input,rxyz,wannr)
    use module_types
    use bounds, only: ext_buffers
    use locregs
+   use box, only: cell_periodic_dims
    implicit none
    character(len=*), intent(in) :: filename
    integer, intent(in) :: jfile
@@ -1744,10 +1750,16 @@ subroutine write_wannier_cube(jfile,filename,atoms,Glr,input,rxyz,wannr)
    logical :: perx, pery, perz
    integer :: nbl1,nbr1,nbl2,nbr2,nbl3,nbr3,rem
    integer :: i,j,ix,iy,iz,ind,ifile
+   logical, dimension(3) :: peri
    
-   perx=(Glr%geocode /= 'F')
-   pery=(Glr%geocode == 'P')
-   perz=(Glr%geocode /= 'F')
+!!$   perx=(Glr%geocode /= 'F')
+!!$   pery=(Glr%geocode == 'P')
+!!$   perz=(Glr%geocode /= 'F')
+   peri=cell_periodic_dims(Glr%mesh)
+   perx=peri(1)
+   pery=peri(2)
+   perz=peri(3)
+
    call ext_buffers(perx,nbl1,nbr1)
    call ext_buffers(pery,nbl2,nbr2)
    call ext_buffers(perz,nbl3,nbr3)
@@ -2881,46 +2893,46 @@ integer :: i,j
 END SUBROUTINE read_spread_file
 
 
-subroutine get_mindist(geocode,rxyz,cxyz,box,distw)
-  use module_defs, only :gp
-   use module_types
-   implicit none
-   character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
-   real(gp),dimension(3), intent(in) :: rxyz, cxyz, box
-   real(gp),intent(out) :: distw
-   !Local variables
-   integer :: i
-   real(gp) :: dist1, dist2,dist3
-   real(gp),dimension(3) :: distp
-
-   if(geocode == 'F') then
-     do i=1,3
-        distp(i) = (rxyz(i)-cxyz(i))**2
-     end do
-   else if(geocode == 'S') then
-      do i=1,3
-         dist1 = (rxyz(i)-cxyz(i))**2
-         if(i/=2) then
-            dist2 = (rxyz(i)-cxyz(i)-box(i))**2
-            dist3 = (rxyz(i)-cxyz(i)+box(i))**2
-         else
-            dist2 = box(i)
-            dist3 = box(i)
-         end if
-         distp(i) = min(dist1,dist2,dist3)
-      end do
-   else if(geocode == 'P') then
-      do i=1,3
-         dist1 = (rxyz(i)-cxyz(i))**2
-         dist2 = (rxyz(i)-cxyz(i)-box(i))**2
-         dist3 = (rxyz(i)-cxyz(i)+box(i))**2
-         distp(i) = min(dist1,dist2,dist3)
-      end do
-   end if
-
-   distw = sqrt(distp(1) + distp(2) + distp(3))
-
-END SUBROUTINE get_mindist 
+!!$subroutine get_mindist(geocode,rxyz,cxyz,box,distw)
+!!$  use module_defs, only :gp
+!!$   use module_types
+!!$   implicit none
+!!$   character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+!!$   real(gp),dimension(3), intent(in) :: rxyz, cxyz, box
+!!$   real(gp),intent(out) :: distw
+!!$   !Local variables
+!!$   integer :: i
+!!$   real(gp) :: dist1, dist2,dist3
+!!$   real(gp),dimension(3) :: distp
+!!$
+!!$   if(geocode == 'F') then
+!!$     do i=1,3
+!!$        distp(i) = (rxyz(i)-cxyz(i))**2
+!!$     end do
+!!$   else if(geocode == 'S') then
+!!$      do i=1,3
+!!$         dist1 = (rxyz(i)-cxyz(i))**2
+!!$         if(i/=2) then
+!!$            dist2 = (rxyz(i)-cxyz(i)-box(i))**2
+!!$            dist3 = (rxyz(i)-cxyz(i)+box(i))**2
+!!$         else
+!!$            dist2 = box(i)
+!!$            dist3 = box(i)
+!!$         end if
+!!$         distp(i) = min(dist1,dist2,dist3)
+!!$      end do
+!!$   else if(geocode == 'P') then
+!!$      do i=1,3
+!!$         dist1 = (rxyz(i)-cxyz(i))**2
+!!$         dist2 = (rxyz(i)-cxyz(i)-box(i))**2
+!!$         dist3 = (rxyz(i)-cxyz(i)+box(i))**2
+!!$         distp(i) = min(dist1,dist2,dist3)
+!!$      end do
+!!$   end if
+!!$
+!!$   distw = sqrt(distp(1) + distp(2) + distp(3))
+!!$
+!!$END SUBROUTINE get_mindist 
 
 !subroutine writeonewave_linear(unitwf,useFormattedOutput,iorb,n1,n2,n3,hx,hy,hz,locregCenter,&
 !     locrad,confPotOrder,confPotprefac,nat,rxyz, nseg_c,nvctr_c,keyg_c,keyv_c,  &

@@ -17,7 +17,7 @@ module bigdft_run
   use f_refcnts, only: f_reference_counter,f_ref_new,f_ref,f_unref,&
        nullify_f_ref,f_ref_free
   use f_utils
-  use f_enums, f_str => str
+  use f_enums, f_str => toa
   use module_input_dicts, only: bigdft_set_run_properties => dict_set_run_properties,&
        bigdft_get_run_properties => dict_get_run_properties,&
        final_positions_filename
@@ -428,9 +428,6 @@ contains
     if (rst%version == LINEAR_VERSION) then
        call destroy_DFT_wavefunction(rst%tmb)
     end if
-    !always deallocate lzd for new input guess
-    !call deallocate_lzd(rst%tmb%lzd)
-    ! Modified by SM
     call deallocate_local_zone_descriptors(rst%tmb%lzd)
 
     call deallocate_locreg_descriptors(rst%KSwfn%Lzd%Glr)
@@ -588,7 +585,7 @@ contains
     if (size(outs%fxyz)>0) call f_memcpy(n=size(outs%fxyz),src=outs%fxyz(1,1),dest=data(4))
     call f_memcpy(n=size(outs%strten),src=outs%strten(1),dest=data(4+size(outs%fxyz)))
 
-    call mpibcast(data,comm=bigdft_mpi%mpi_comm,&
+    call fmpi_bcast(data,comm=bigdft_mpi%mpi_comm,&
          maxdiff=maxdiff)
     if (maxdiff > epsilon(1.0_gp)) then
        if (bigdft_mpi%iproc==0) then
@@ -1132,7 +1129,7 @@ contains
   !> Currently, set_run_objects() is not set recursively.
   !! This routine, handle a subpar of it for sections.
   subroutine set_section_objects(runObj)
-    use module_base, only: bigdft_mpi,mpibarrier
+    use module_base, only: bigdft_mpi,fmpi_barrier
     use module_interfaces, only: atoms_new, inputs_new
     use module_atoms, only: atomic_structure, astruct_at_from_dict, &
          & astruct_merge_to_dict, deallocate_atomic_structure
@@ -1796,7 +1793,7 @@ contains
     use module_lenosky_si
     use public_enums
     use module_defs
-    use module_base, only: bigdft_mpi,mpibcast,Bohr_Ang,kcalMolAng_HaBohr,&
+    use module_base, only: bigdft_mpi,fmpi_bcast,Bohr_Ang,kcalMolAng_HaBohr,&
          ev_Ha,evang_habohr,Kcalmol_ha,f_increment
     use dynamic_memory, only: f_memcpy,f_routine,f_release_routine
     use yaml_strings
@@ -1856,7 +1853,7 @@ contains
 
     !Check the consistency between MPI processes of the atomic coordinates and broadcast them
     if (bigdft_mpi%nproc >1) then
-       call mpibcast(rxyz_ptr,comm=bigdft_mpi%mpi_comm,&
+       call fmpi_bcast(rxyz_ptr,comm=bigdft_mpi%mpi_comm,&
             maxdiff=maxdiff)
        if (maxdiff > epsilon(1.0_gp)) then
           if (bigdft_mpi%iproc==0) then
@@ -2040,9 +2037,11 @@ contains
     call f_routine(id='process_run (id="'+id+'")')
 
     if (bigdft_mpi%iproc==0 .and. .not. (runObj%run_mode .hasattr. RUN_MODE_CREATE_DOCUMENT)) &
-         call yaml_sequence_open('Initializing '//trim(str(runObj%run_mode)))
+         call yaml_sequence_open('Initializing '//trim(toa(runObj%run_mode)))
 
-    if(trim(runObj%inputs%geopt_approach)/='SOCK') call bigdft_state(runObj,outs,infocode)
+    if(trim(runObj%inputs%geopt_approach)/='SOCK') then
+        call bigdft_state(runObj,outs,infocode)
+    end if
 
     if (runObj%inputs%ncount_cluster_x > 1) then
        if (bigdft_mpi%iproc ==0 ) call yaml_map('Wavefunction Optimization Finished, exit signal',infocode)
@@ -2104,7 +2103,7 @@ contains
     !integer :: iat
     external :: cluster
     !put a barrier for all the processes
-    call mpibarrier(bigdft_mpi%mpi_comm)
+    call fmpi_barrier(bigdft_mpi%mpi_comm)
 
     call f_routine(id=subname)
     !fill the rxyz array with the positions
@@ -2115,9 +2114,6 @@ contains
     call set_verbose_level(runObj%inputs%verbosity)
 
     ! Use the restart for the linear scaling version... probably to be modified.
-!!$    if(runObj%inputs%inputPsiId == INPUT_PSI_MEMORY_WVL) then
-!!$       if (runObj%rst%version == LINEAR_VERSION) then
-!!$          runObj%inputs%inputPsiId = INPUT_PSI_MEMORY_LINEAR
     if ((runObj%inputs%inputPsiId .hasattr. 'LINEAR') .and. &
          (runObj%inputs%inputPsiId .hasattr. 'MEMORY')) then
        if (any(runObj%inputs%lin%locrad_lowaccuracy /= &
@@ -2192,7 +2188,7 @@ contains
 
              !test if stderr works
              write(0,*) 'unnormal end'
-             call mpibarrier(bigdft_mpi%mpi_comm)
+             call fmpi_barrier(bigdft_mpi%mpi_comm)
              call f_err_throw('Convergence error (probably gnrm>4.0), cannot proceed. '//&
                   'Writing positions in file posfail.xyz',err_name='BIGDFT_RUNTIME_ERROR')
           end if
@@ -2228,7 +2224,7 @@ contains
 !!$
 !!$          !test if stderr works
 !!$          write(0,*) 'unnormal end'
-!!$          call mpibarrier(bigdft_mpi%mpi_comm)
+!!$          call fmpi_barrier(bigdft_mpi%mpi_comm)
 !!$          call f_err_throw('Convergence error (probably gnrm>4.0), cannot proceed. '//&
 !!$               'Writing positions in file posfail.xyz',err_name='BIGDFT_RUNTIME_ERROR')
 !!$       else
@@ -2242,7 +2238,7 @@ contains
 
     !put a barrier for all the processes
     call f_release_routine()
-    call mpibarrier(bigdft_mpi%mpi_comm)
+    call fmpi_barrier(bigdft_mpi%mpi_comm)
 
   END SUBROUTINE quantum_mechanical_state
 
@@ -2329,6 +2325,7 @@ contains
     use module_atoms, only: move_this_coordinate
     use module_forces
     use module_input_keys, only: inputpsiid_set_policy
+    use box, only: bc_periodic_dims,geocode_to_bc
     implicit none
     integer, intent(in) :: iproc,nproc
     integer, intent(inout) :: infocode
@@ -2339,6 +2336,7 @@ contains
     real(gp), dimension(3,atoms%astruct%nat), intent(inout) :: fxyz
     !local variables
     character(len=*), parameter :: subname='forces_via_finite_differences'
+    logical, dimension(3) :: peri
     character(len=4) :: cc
     integer :: ik,km,n_order,iat,ii,i,k,order,iorb_ref
     real(gp) :: dd,alat,functional_ref,fd_alpha,energy_ref,pressure
@@ -2394,8 +2392,9 @@ contains
     rxyz_ref = f_malloc(src=rst%rxyz_new,id='rxyz_ref')
     fxyz_fake = f_malloc((/ 3, atoms%astruct%nat /),id='fxyz_fake')
 
+    !get the periodic dimension
+    peri=bc_periodic_dims(geocode_to_bc(atoms%astruct%geocode))
     do iat=1,atoms%astruct%nat
-
        do i=1,3 !a step in each of the three directions
 
           if (.not.move_this_coordinate(atoms%astruct%ifrztyp(iat),i)) then
@@ -2430,13 +2429,22 @@ contains
                 write(*,"(1x,a,i0,a,a,a,1pe20.10,a)") &
                      '=FD Move the atom ',iat,' in the direction ',cc,' by ',dd,' bohr'
              end if
-             if (atoms%astruct%geocode == 'P') then
-                rst%rxyz_new(i,iat)=modulo(rxyz_ref(i,iat)+dd,alat)
-             else if (atoms%astruct%geocode == 'S') then
+             if (peri(i)) then
                 rst%rxyz_new(i,iat)=modulo(rxyz_ref(i,iat)+dd,alat)
              else
                 rst%rxyz_new(i,iat)=rxyz_ref(i,iat)+dd
              end if
+
+!!$             if (atoms%astruct%geocode == 'P') then
+!!$                rst%rxyz_new(i,iat)=modulo(rxyz_ref(i,iat)+dd,alat)
+!!$             else if (atoms%astruct%geocode == 'S') then
+!!$                rst%rxyz_new(i,iat)=modulo(rxyz_ref(i,iat)+dd,alat)
+!!$             else if (atoms%astruct%geocode == 'W') then
+!!$                call f_err_throw("Wires bc has to be implemented here", &
+!!$                     err_name='BIGDFT_RUNTIME_ERROR')
+!!$             else
+!!$                rst%rxyz_new(i,iat)=rxyz_ref(i,iat)+dd
+!!$             end if
              !inputs%inputPsiId=1
              call inputpsiid_set_policy(ENUM_MEMORY,inputs%inputPsiId)
              !here we should call cluster

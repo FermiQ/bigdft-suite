@@ -169,7 +169,8 @@ subroutine sumrho(dpbox,orbs,Lzd,GPU,symObj,rhodsc,xc,psi,rho_p,mapping)
    !after validation this point can be deplaced after the allreduce such as to reduce the number of operations
    !probably previous line is not suitable due to the fact that a extra communication would be needed
    if (symObj%symObj >= 0) then
-      call symmetrise_density(0,1,Lzd%Glr%geocode,&
+!!$      call symmetrise_density(0,1,Lzd%Glr%geocode,&
+      call symmetrise_density(0,1,Lzd%Glr%mesh,&
            dpbox%mesh%ndims(1),dpbox%mesh%ndims(2),dpbox%mesh%ndims(3),orbs%nspin,rho_p,symObj)
    end if
    call timing(dpbox%mpi_env%iproc,'Rho_comput    ','OF')
@@ -380,6 +381,7 @@ subroutine local_partial_density(nproc,rsflag,nscatterarr,&
    use module_interfaces, only: partial_density_free
    use locreg_operations
    use locregs
+   use box, only: cell_geocode
    implicit none
    logical, intent(in) :: rsflag
    integer, intent(in) :: nproc,nrhotot
@@ -415,11 +417,11 @@ subroutine local_partial_density(nproc,rsflag,nscatterarr,&
    psir = f_malloc((/ lr%d%n1i*lr%d%n2i*lr%d%n3i, npsir /),id='psir')
    !initialisation
    !print *,iproc,'there'
-   if (lr%geocode == 'F') call f_zero(psir)
+   if (cell_geocode(lr%mesh) == 'F') call f_zero(psir)
 
    do iorb=1,orbs%norbp
       !print *,'norbp',orbs%norbp,orbs%norb,orbs%nkpts,orbs%kwgts,orbs%iokpt,orbs%occup
-      hfac=orbs%kwgts(orbs%iokpt(iorb))*(orbs%occup(orbs%isorb+iorb)/(hxh*hyh*hzh))
+      hfac=orbs%kwgts(orbs%iokpt(iorb))*(orbs%occup(orbs%isorb+iorb)/lr%mesh%volume_element)
       spinval=orbs%spinsgn(orbs%isorb+iorb)
 
       if (hfac /= 0.d0) then
@@ -437,26 +439,19 @@ subroutine local_partial_density(nproc,rsflag,nscatterarr,&
             !print *,'iorb,nrm',iorb,npsir,&
             !     nrm2(lr%d%n1i*lr%d%n2i*lr%d%n3i*npsir,psir(1,1),1)
 
-            select case(lr%geocode)
-            case('F')
+            if (cell_geocode(lr%mesh) == 'F') then
 
                call partial_density_free(rsflag,nproc,lr%d%n1i,lr%d%n2i,lr%d%n3i,&
                   &   npsir,nspinn,nrhotot,&
                   &   hfac,nscatterarr,spinval,psir,rho_p,lr%bounds%ibyyzz_r)
 
-            case('P')
+            else
 
                call partial_density(rsflag,nproc,lr%d%n1i,lr%d%n2i,lr%d%n3i,&
                   &   npsir,nspinn,nrhotot,&
                   &   hfac,nscatterarr,spinval,psir,rho_p)
 
-            case('S')
-
-               call partial_density(rsflag,nproc,lr%d%n1i,lr%d%n2i,lr%d%n3i,&
-                  &   npsir,nspinn,nrhotot,&
-                  &   hfac,nscatterarr,spinval,psir,rho_p)
-
-            end select
+            end if
 
          end do
       end if
@@ -700,16 +695,18 @@ END SUBROUTINE partial_density_free
 
 
 !> Symmetrise the density using the symmetry operation
-subroutine symmetrise_density(iproc,nproc,geocode,n1i,n2i,n3i,nspin,rho,& !n(c) nscatterarr (arg:6)
+subroutine symmetrise_density(iproc,nproc,mesh,n1i,n2i,n3i,nspin,rho,& !n(c) nscatterarr (arg:6)
      sym)
   use module_base!, only: gp,dp,wp,ndebug,memocc
   use module_types
   use m_ab6_symmetry
   use yaml_output, only: yaml_warning
+  use box, only: cell,cell_geocode
   implicit none
   !Arguments
   integer, intent(in) :: iproc,nproc,nspin, n1i, n2i, n3i
-  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+!!$  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+  type(cell), intent(in) :: mesh
   !n(c) integer, dimension(0:nproc-1,4), intent(in) :: nscatterarr !n3d,n3p,i3s+i3xcsh-1,i3xcsh
   real(dp), dimension(n1i,n2i,n3i,nspin), intent(inout) :: rho
   type(symmetry_data), intent(in) :: sym
@@ -728,7 +725,8 @@ subroutine symmetrise_density(iproc,nproc,geocode,n1i,n2i,n3i,nspin,rho,& !n(c) 
 
   call symmetry_get_matrices_p(sym%symObj, nSym, symRel, transNon, symAfm, errno = errno)
   if (nSym == 1) return
-  if (geocode == 'F') then
+!!$  if (geocode == 'F') then
+  if (cell_geocode(mesh) == 'F') then
      !call yaml_warning('The symmetrization of the density is not implemented for the isolated systems')
      return
   end if
@@ -737,7 +735,8 @@ subroutine symmetrise_density(iproc,nproc,geocode,n1i,n2i,n3i,nspin,rho,& !n(c) 
 !!$  ! and the same for n2,n3. Not needed for the moment
 !!$  call dimensions_fft(n1,n2,n3,nd1,nd2,nd3,n1f,n3f,n1b,n3b,nd1f,nd3f,nd1b,nd3b)
   n2i_eff = n2i
-  if (geocode == "S") then
+!!$  if (geocode == "S") then
+  if (cell_geocode(mesh) == "S") then
      n2i_eff = 1
      zw = f_malloc((/ 2, ncache/4, 2 /),id='zw')
      !use this check also for the magnetic density orientation
@@ -782,7 +781,8 @@ subroutine symmetrise_density(iproc,nproc,geocode,n1i,n2i,n3i,nspin,rho,& !n(c) 
         inzee=1
         isign=-1
 
-        if (geocode /= "S") then
+!!$        if (geocode /= "S") then
+        if (cell_geocode(mesh) /= "S") then
            call fft(n1i,n2i_eff,n3i,n1i+1,n2i_eff+1,n3i+1,rhog,isign,inzee)
         else
            call fft2d(n1i,n3i,n1i+1,n3i+1,rhog,isign,inzee,zw,ncache)
@@ -896,7 +896,8 @@ subroutine symmetrise_density(iproc,nproc,geocode,n1i,n2i,n3i,nspin,rho,& !n(c) 
         !!     call fourdp(cplex,rhog,work,1,mpi_enreg,nfft,ngfft,paral_kgb,0)
 
         isign=1
-        if (geocode /= "S") then
+!!$        if (geocode /= "S") then
+        if (cell_geocode(mesh) /= "S") then
            call fft(n1i,n2i_eff,n3i,n1i+1,n2i_eff+1,n3i+1,rhog,isign,inzee)
         else
            call fft2d(n1i,n3i,n1i+1,n3i+1,rhog,isign,inzee,zw,ncache)
@@ -918,7 +919,8 @@ subroutine symmetrise_density(iproc,nproc,geocode,n1i,n2i,n3i,nspin,rho,& !n(c) 
   end do ! ispden
 
   call f_free(rhog)
-  if (geocode == "S") then
+!!$  if (geocode == "S") then
+  if (cell_geocode(mesh) == "S") then
      call f_free(zw)
   end if
 
@@ -1164,7 +1166,6 @@ subroutine rho_segkey(iproc,at,rxyz,crmult,frmult,&
    !parameter to adjust the single precision and double precision regions
    spadd=5.0_gp
    dpmult=1.0_gp
-
 
    ! calculate the corrections of the grid when transforming from 
    ! n1,n2,n3 to n1i, n2i, n3i
@@ -1429,31 +1430,58 @@ END SUBROUTINE rho_segkey
 
 
 subroutine gridcorrection(nbx,nby,nbz,nl1,nl2,nl3,geocode)
+   use box
    implicit none
    character(len=1),intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
    integer,intent(out) :: nbx,nby,nbz,nl1,nl2,nl3
 
    !conditions for periodicity in the three directions
    !value of the buffer in the x and z direction
-   if (geocode /= 'F') then
+   logical, dimension(3) :: peri
+
+   peri=bc_periodic_dims(geocode_to_bc(geocode))
+   if (peri(1)) then
       nl1=1
-      nl3=1
-      nbx = 1
-      nbz = 1
+      nbx=1
    else
       nl1=15
-      nl3=15
       nbx = 0
-      nbz = 0
    end if
-   !value of the buffer in the y direction
-   if (geocode == 'P') then
+   if (peri(2)) then
       nl2=1
-      nby = 1
+      nby=1
    else
       nl2=15
       nby = 0
    end if
+   if (peri(3)) then
+      nl3=1
+      nbz=1
+   else
+      nl3=15
+      nbz = 0
+   end if
+
+!!$   if (geocode /= 'F') then
+!!$      nl1=1
+!!$      nl3=1
+!!$      nbx = 1
+!!$      nbz = 1
+!!$   else
+!!$      nl1=15
+!!$      nl3=15
+!!$      nbx = 0
+!!$      nbz = 0
+!!$   end if
+!!$   !value of the buffer in the y direction
+!!$   if (geocode == 'P') then
+!!$      nl2=1
+!!$      nby = 1
+!!$   else
+!!$      nl2=15
+!!$      nby = 0
+!!$   end if
+
 END SUBROUTINE gridcorrection
 
 

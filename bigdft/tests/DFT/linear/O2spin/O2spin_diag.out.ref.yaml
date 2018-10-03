@@ -170,7 +170,7 @@
     #                                              automatic
    taylor_order                        : 0 #      Order of the Taylor approximation; 0 -> exact
    output_wf                           : 0 #      Output basis functions; 0 no output, 1 formatted output, 2 Fortran bin, 3 ETSF
-   output_mat                          : 0 #      Output sparse matrices; 0 no output, 1 formatted sparse, 11 formatted dense, 21 
+   output_mat                          : 1 #      Output sparse matrices; 0 no output, 1 formatted sparse, 11 formatted dense, 21 
     #                                              formatted both
    output_coeff                        : 0 #      Output KS coefficients; 0 no output, 1 formatted output
    output_fragments                    : 0 #      Output support functions, kernel and coeffs; 0 fragments and full system, 1 
@@ -189,7 +189,7 @@
     #                                              only), must be equal to norbsempty
    calculate_onsite_overlap            : No #     Calculate the onsite overlap matrix (has only an effect if the matrices are all 
     #                                              written to disk)
-   charge_multipoles                   : 0 #      Calculate the atom-centered multipole coefficients; 0 no, 1 old approach Loewdin, 2 
+   charge_multipoles                   : 11 #     Calculate the atom-centered multipole coefficients; 0 no, 1 old approach Loewdin, 2 
     #                                              new approach Projector
    support_function_multipoles         : False #  Calculate the multipole moments of the support functions
    plot_locreg_grids                   : False #  Plot the scaling function and wavelets grid of each localization region
@@ -410,8 +410,8 @@
    PSP XC                              : "XC: Perdew, Burke & Ernzerhof"
   #----------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : angstroem
-   Positions:
+   units                               : angstroem
+   positions:
    -  {O: [ 3.143312633,  3.143312633,  3.206075919],  # [  16.50,  16.50,  16.83 ] 0001
  IGSpin:  2}
    -  {O: [ 3.143312633,  3.143312633,  4.414075919],  # [  16.50,  16.50,  23.17 ] 0002

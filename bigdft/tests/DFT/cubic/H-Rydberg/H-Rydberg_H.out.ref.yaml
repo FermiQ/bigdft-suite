@@ -381,8 +381,8 @@
     #WARNING: PSP generated with a different XC. Input XC is "No Hartree and XC terms"
   #----------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : bohr
-   Positions:
+   units                               : bohr
+   positions:
    -  {H: [ 21.60000000,  21.60000000,  21.60000000],  # [  27.00,  27.00,  27.00 ] 0001
  IGSpin:  1, Frozen: fxyz}
    Rigid Shift Applied (AU)            :  [  21.600,  21.600,  21.600 ]

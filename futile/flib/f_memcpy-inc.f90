@@ -51,7 +51,6 @@ subroutine f_memcpy_i3(dest,src)
   include 'f_memcpy-base-inc.f90'
 end subroutine f_memcpy_i3
 
-
 !!$subroutine f_memcpy_il0(dest,src,n)
 !!$  implicit none
 !!$  integer, intent(in) :: n !<nelems
@@ -89,8 +88,8 @@ end subroutine f_memcpy_li1
 
 subroutine f_memcpy_i1i2(dest,src)
   implicit none
-  integer(f_integer), dimension(:), intent(inout) :: dest !<destination buffer
-  integer(f_integer), dimension(:,:), intent(in) :: src !<source buffer 
+  integer(f_integer), dimension(:,:), intent(inout) :: dest !<destination buffer
+  integer(f_integer), dimension(:), intent(in) :: src !<source buffer 
   !local variables
   integer(f_long) :: ns,nd
   nd=f_sizeof(dest)
@@ -122,8 +121,8 @@ end subroutine f_memcpy_li1li2
 
 subroutine f_memcpy_i2i1(dest,src)
   implicit none
-  integer(f_integer), dimension(:,:), intent(inout) :: dest !<destination buffer
-  integer(f_integer), dimension(:), intent(in) :: src !<source buffer 
+  integer(f_integer), dimension(:), intent(inout) :: dest !<destination buffer
+  integer(f_integer), dimension(:,:), intent(in) :: src !<source buffer 
   !local variables
   integer(f_long) :: ns,nd
   nd=f_sizeof(dest)
@@ -371,6 +370,29 @@ subroutine f_memcpy_d4(dest,src)
   include 'f_memcpy-base-inc.f90'
 end subroutine f_memcpy_d4
 
+subroutine f_memcpy_d6d3(dest,src)
+  implicit none
+  real(f_double), dimension(:,:,:), intent(inout) :: dest !<destination buffer
+  real(f_double), dimension(:,:,:,:,:,:), intent(in) :: src !<source buffer 
+  !local variables
+  integer(f_long) :: ns,nd
+  nd=f_sizeof(dest)
+  ns=f_sizeof(src)
+  include 'f_memcpy-base-inc.f90'
+end subroutine f_memcpy_d6d3
+
+subroutine f_memcpy_d2d3(dest,src)
+  implicit none
+  real(f_double), dimension(:,:,:), intent(inout) :: dest !<destination buffer
+  real(f_double), dimension(:,:), intent(in) :: src !<source buffer 
+  !local variables
+  integer(f_long) :: ns,nd
+  nd=f_sizeof(dest)
+  ns=f_sizeof(src)
+  include 'f_memcpy-base-inc.f90'
+end subroutine f_memcpy_d2d3
+
+
 subroutine f_memcpy_r0r1(dest,src,n)
   implicit none
   integer, intent(in) :: n !<nelems
@@ -480,6 +502,18 @@ subroutine f_memcpy_i0i1(dest,src,n)
   include 'f_memcpy-base-inc.f90'
 end subroutine f_memcpy_i0i1
 
+subroutine f_memcpy_i1i0(dest,src,n)
+  implicit none
+  integer, intent(in) :: n !<nelems
+  integer(f_integer), intent(inout) :: dest !<destination buffer address
+  integer(f_integer), dimension(:), intent(in) :: src !<source buffer address
+  !local variables
+  integer(f_long) :: ns,nd
+  nd=f_sizeof(src)
+  ns=n*kind(src)
+  include 'f_memcpy-base-inc.f90'
+end subroutine f_memcpy_i1i0
+
 subroutine f_memcpy_i2i0(dest,src,n)
   implicit none
   integer, intent(in) :: n !<nelems
@@ -491,6 +525,7 @@ subroutine f_memcpy_i2i0(dest,src,n)
   ns=n*kind(src)
   include 'f_memcpy-base-inc.f90'
 end subroutine f_memcpy_i2i0
+
 
 subroutine f_memcpy_li2li0(dest,src,n)
   implicit none
@@ -508,8 +543,8 @@ end subroutine f_memcpy_li2li0
 
 subroutine f_memcpy_d1d2(dest,src)
   implicit none
-  double precision, dimension(:), intent(inout) :: dest !<destination buffer
-  double precision, dimension(:,:), intent(in) :: src !<source buffer 
+  double precision, dimension(:,:), intent(inout) :: dest !<destination buffer
+  double precision, dimension(:), intent(in) :: src !<source buffer 
   !local variables
   integer(f_long) :: ns,nd
   nd=f_sizeof(dest)
@@ -528,21 +563,10 @@ subroutine f_memcpy_d1d3(dest,src)
   include 'f_memcpy-base-inc.f90'
 end subroutine f_memcpy_d1d3
 
-subroutine f_memcpy_d2d3(dest,src)
+subroutine f_memcpy_d3d2(dest,src)
   implicit none
   double precision, dimension(:,:), intent(inout) :: dest !<destination buffer
   double precision, dimension(:,:,:), intent(in) :: src !<source buffer 
-  !local variables
-  integer(f_long) :: ns,nd
-  nd=f_sizeof(dest)
-  ns=f_sizeof(src)
-  include 'f_memcpy-base-inc.f90'
-end subroutine f_memcpy_d2d3
-
-subroutine f_memcpy_d3d2(dest,src)
-  implicit none
-  double precision, dimension(:,:,:), intent(inout) :: dest !<destination buffer
-  double precision, dimension(:,:), intent(in) :: src !<source buffer 
   !local variables
   integer(f_long) :: ns,nd
   nd=f_sizeof(dest)
@@ -552,8 +576,8 @@ end subroutine f_memcpy_d3d2
 
 subroutine f_memcpy_d2d1(dest,src)
   implicit none
-  double precision, dimension(:,:), intent(inout) :: dest !<destination buffer
-  double precision, dimension(:), intent(in) :: src !<source buffer 
+  double precision, dimension(:), intent(inout) :: dest !<destination buffer
+  double precision, dimension(:,:), intent(in) :: src !<source buffer 
   !local variables
   integer(f_long) :: ns,nd
   nd=f_sizeof(dest)

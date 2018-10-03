@@ -51,7 +51,7 @@ module f_enums
        f_enum_null=f_enumerator(null_name,NULL_INT,null())
 
   interface operator(==)
-     module procedure enum_is_enum,enum_is_char,enum_is_int
+     module procedure enum_is_enum,enum_is_char,enum_is_int, int_is_enum
   end interface operator(==)
 
   interface operator(/=)
@@ -71,12 +71,12 @@ module f_enums
      module procedure int_enum
   end interface toi
 
-  interface str
+  interface toa
      module procedure char_enum
-  end interface str
+  end interface toa
 
   public :: f_enum_attr,operator(.hasattr.),nullify_f_enum,f_enum_update
-  public :: toi,str,f_enumerator_null,operator(==),operator(/=),operator(.getattr.)
+  public :: toi,toa,f_enumerator_null,operator(==),operator(/=),operator(.getattr.)
 
 contains
 
@@ -263,6 +263,14 @@ contains
     ok = en%id == int
   end function enum_is_int
 
+  elemental pure function int_is_enum(int,en) result(ok)
+    implicit none
+    type(f_enumerator), intent(in) :: en
+    integer, intent(in) :: int
+    logical :: ok
+    ok = en%id == int
+  end function int_is_enum
+  
   elemental pure function enum_is_char(en,char) result(ok)
     use yaml_strings, only: operator(.eqv.)
     implicit none

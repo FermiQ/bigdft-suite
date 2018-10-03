@@ -34,6 +34,7 @@ module rhopotential
     use Poisson_Solver, except_dp => dp, except_gp => gp
     use yaml_output
     use box
+    use PSbox
     implicit none
     
     ! Calling arguments
@@ -80,7 +81,7 @@ module rhopotential
             denspot%dpbox%mesh%ndims(1),denspot%dpbox%mesh%ndims(2),denspot%dpbox%mesh%ndims(3),denspot%xc,&
             denspot%dpbox%mesh%hgrids,&
             denspot%rhov,energs%exc,energs%evxc,nspin,denspot%rho_C,denspot%rhohat,denspot%V_XC,xcstr)
-    
+
        call H_potential('D',denspot%pkernel,denspot%rhov,denspot%V_ext,ehart_ps,0.0_dp,.true.,&
             quiet=denspot%PSquiet,rho_ion=denspot%rho_ion) !optional argument
 
@@ -323,7 +324,7 @@ module rhopotential
           !pot=pot1
           !call f_free_ptr(pot1)
           pot=>pot1
-       else if(iflag>0 .and. iflag<2) then
+       else if(iflag>0 .and. iflag<2) then !LG: why should not we write iflag==1 here?
           pot = f_malloc_ptr(lzd%ndimpotisf,id='pot')
           ! Cut potential
           istl=1
@@ -966,7 +967,7 @@ module rhopotential
        end if
 
        !rescale the density to apply that to ABINIT routines
-       if (nspin==1) call vscal(dpbox%ndimrho,0.5_dp,rho(1,1),1)
+       if (nspin==1 .and. dpbox%ndimrho > 0) call vscal(dpbox%ndimrho,0.5_dp,rho(1,1),1)
 
        !allocate array for XC potential enlarged for the WB procedure
        vxci = f_malloc0([ dpbox%mesh%ndims(1), dpbox%mesh%ndims(2), max(1, nwb), nspin],id='vxci')

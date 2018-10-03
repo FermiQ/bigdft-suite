@@ -79,7 +79,7 @@
      B97-D: -170 #to be verified
      B3LYP: -402
      HF: 100 #Hartree-Fock
-     NONE: 1000
+     NONE: 1000 #No Hartree and No XC (useful for H atom)
    qcharge:
      COMMENT: Charge of the system. Can be integer or real.
      DESCRIPTION: |
@@ -229,9 +229,21 @@
        100:   Linear AO
        101:   Linear restart
        102:   Linear on disk
+     #Useful shortcuts
+     LCAO: 0
+     RANDOM: -2
      #Here follow two shortcuts for linear
      linear: 100
      linear_restart: 102
+   projection:
+     COMMENT: Projector construction method
+     DESCRIPTION: |
+       Specifies how the projectors are expressed in Daubechies from atomic description
+     default: gaussian
+     EXCLUSIVE:
+       gaussian: tensor product of 1D separable gaussians
+       radial: real space collocation of radial functions
+       radial+mp: as radial, but using multipole preserving techniques
   #  output_wf:
   #    COMMENT: Output of the support functions
   #    DESCRIPTION: |
@@ -503,9 +515,9 @@
     default: No
   orbitals:
     COMMENT: Write KS orbitals in the full simulation domain (might take lot of disk space!)
-    default: No
+    default: None
     EXCLUSIVE:
-       No: No output
+       None: No output
        text: Output in wavelet basis
        binary: Binary file output
        text_with_densities: In addition output wavefunction densities in interpolating scaling functions (cube file)
@@ -612,11 +624,8 @@
  geopt:
    DESCRIPTION: |
           This character string specifies the method used for the geometry optimization.
-
           - VSSD Variable Stepsize Steepest Descent method.
-
           - SDCG A combination of Steepest Descent and Conjugate Gradient.
-
           - LBFGS Limited Memory BFGS.
 
      #    - BFGS Preconditioned steepest descent with energy feedback. A preconditioning matrix is build
@@ -1408,7 +1417,7 @@
      COMMENT: Calculate pseudopotential projectors on the fly
      default: Yes
    multipole_preserving:
-     COMMENT: (EXPERIMENTAL) Preserve the multipole moment of the ionic density
+     COMMENT: (EXPERIMENTAL) Preserve the multipole moments of the ionic density
      default: No
    mp_isf:
      COMMENT: (EXPERIMENTAL) Interpolating scaling function or lifted dual order for the multipole preserving
@@ -2088,7 +2097,8 @@
  ##     DESCRIPTION: Number of tasks used for the symbolic factorization within PEXSI. Too large values can apparently decrease the performance
  ##     default: 16
  ##     RANGE: [1,10000]
---- #here starts the document of possible profiles, that have to be evoked with the 'import' keyword
+--- 
+#here starts the document of possible profiles, that have to be evoked with the 'import' keyword
 linear_accurate:
   COMMENT: Appropriate input parameters for a high accuracy linear scaling calculation
   DESCRIPTION: |
@@ -2144,6 +2154,7 @@ linear_accurate:
     K:  {nbasis: 1, rloc: 8.0}
     Sn: {nbasis: 4, rloc: 6.5}
 
+
 linear_moderate:
   COMMENT: Appropriate input parameters for a moderate accuracy linear scaling calculation
   DESCRIPTION: |
@@ -2194,6 +2205,8 @@ linear_moderate:
     Na: {nbasis: 1, rloc: 7.5}
     K:  {nbasis: 1, rloc: 8.0}
     Sn: {nbasis: 4, rloc: 6.5}
+
+
 linear_fast:
   COMMENT: Appropriate input parameters for a low accuracy linear scaling calculation
   DESCRIPTION: |
@@ -2241,6 +2254,8 @@ linear_fast:
     Na: {nbasis: 1, rloc: 7.5}
     K:  {nbasis: 1, rloc: 8.0}
     Sn: {nbasis: 4, rloc: 6.5}
+
+
 linear_laura:
  COMMENT: temporary profile, to be merged
  DESCRIPTION: |
@@ -2297,21 +2312,23 @@ linear_laura:
    #gnrm_cv_coeff: 1.0E-003
    rpnrm_cv: 1.0E-010
    #alphamix: 1.0
- lin_basis_params:
-   C:
-     nbasis: 4
-     ao_confinement: -1.0
-     confinement: -1.0
-     rloc: 7.0 #6.9 
-     rloc_kernel: 10.0 #14.0 #10.0
-     rloc_kernel_foe: 10.0 #14.0 #10.0
-   H:
-     nbasis: 1
-     ao_confinement: -1.0
-     confinement: -1.0
-     rloc: 7.0 #6.9 
-     rloc_kernel: 10.0 #14.0 #10.0
-     rloc_kernel_foe: 10.0 #14.0 #10.0
+ #lin_basis_params:
+ #  C:
+ #    nbasis: 4
+ #    ao_confinement: -1.0
+ #    confinement: -1.0
+ #    rloc: 7.0 #6.9 
+ #    rloc_kernel: 10.0 #14.0 #10.0
+ #    rloc_kernel_foe: 10.0 #14.0 #10.0
+ #  H:
+ #    nbasis: 1
+ #    ao_confinement: -1.0
+ #    confinement: -1.0
+ #    rloc: 7.0 #6.9 
+ #    rloc_kernel: 10.0 #14.0 #10.0
+ #    rloc_kernel_foe: 10.0 #14.0 #10.0
+
+
 mixing:
   COMMENT: To be used for metallic systems
   DESCRIPTION: |
@@ -2330,6 +2347,8 @@ mixing:
    tel: 0.01
    alphamix: 0.8
    alphadiis: 1.d0
+
+
 linear:
  COMMENT: Linear parameters sufficient for PDoS, charge analysis, MD
  DESCRIPTION: |
@@ -2422,6 +2441,8 @@ linear:
      6s: 2.0
      5d: 4.0
      6p: 0.0
+
+
 linear_fragments:
   COMMENT: Input parameters to be added to the linear profile for fragment calculationn (templates ready)
   #import: linear #to be tested
@@ -2440,6 +2461,8 @@ linear_fragments:
     experimental_mode: No
     adjust_kernel_threshold: No
     adjust_kernel_iterations: No
+
+
 md:
   COMMENT: Molecular dynamics input parameters for H2O molecules
   geopt:

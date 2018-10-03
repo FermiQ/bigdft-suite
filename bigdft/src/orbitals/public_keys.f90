@@ -38,6 +38,7 @@ module public_keys
   character(len = *), parameter :: NCONG = "ncong", IDSX = "idsx"
   character(len = *), parameter :: DISPERSION = "dispersion"
   character(len = *), parameter :: INPUTPSIID = "inputpsiid"
+  character(len = *), parameter :: PROJECTION = "projection"
   character(len = *), parameter :: OUTPUT_WF = "output_wf"
   character(len = *), parameter :: OUTPUT_MAT = "output_mat"
   character(len = *), parameter :: OUTPUT_COEFF = "output_coeff"
@@ -308,6 +309,7 @@ module public_keys
   character(len=*), parameter :: ASTRUCT_POSITIONS = 'positions'
   character(len=*), parameter :: ASTRUCT_PROPERTIES = 'properties'
   character(len=*), parameter :: ASTRUCT_ATT_FROZEN = 'Frozen'
+  character(len=*), parameter :: ASTRUCT_REDUCED = 'reduced'
   character(len=*), parameter :: ASTRUCT_ATT_IGSPIN = 'IGSpin'
   character(len=*), parameter :: ASTRUCT_ATT_IGCHRG = 'IGChg'
   character(len=*), parameter :: ASTRUCT_ATT_IGMOM  = 'IGMom'
@@ -342,6 +344,7 @@ module public_keys
   character(len=*), parameter :: ATOMIC_NUMBER = 'Atomic number'
   character(len=*), parameter :: ELECTRON_NUMBER = 'No. of Electrons'
   character(len=*), parameter :: POSINP_SOURCE = 'source'
+  character(len=*), parameter :: BABEL_SOURCE = 'babel'
 end module public_keys
 
 !>module identifying constants that have to be used as enumerators
@@ -391,7 +394,6 @@ module public_enums
   integer, parameter :: ETSF=3
   integer, parameter :: CUBE=22
   integer, parameter :: MPI_NATIVE=4 !<native (i.e. non-portable) MPI format
-
 
   !> Output wf parameters.
   integer, parameter, public :: WF_FORMAT_NONE       = NONE
@@ -575,6 +577,7 @@ module public_enums
   integer, parameter, public :: PSPCODE_PAW = 7
   integer, parameter, public :: PSPCODE_HGH_K = 10
   integer, parameter, public :: PSPCODE_HGH_K_NLCC = 12
+  integer, parameter, public :: PSPCODE_PSPIO = 50
 
   !> Output for run modes
   type(f_enumerator), public :: RUN_MODE_CREATE_DOCUMENT = &

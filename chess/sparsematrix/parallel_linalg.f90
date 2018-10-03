@@ -173,7 +173,7 @@ module parallel_linalg
           do i=1,n
               if (nn>maxsize_mpibcast) then
                   !if (iproc==1) call yaml_map('1 i, is, nn',(/i, is, nn/))
-                  call mpibcast(c(1,is+1), count=nn, root=0, comm=comm)
+                  call fmpi_bcast(c(1,is+1), count=nn, root=0, comm=comm)
                   is = is + nn/ldc
                   nn = 0
               end if
@@ -181,7 +181,7 @@ module parallel_linalg
           end do
           if (nn>0) then
               !if (iproc==1) call yaml_map('2 i, is, nn',(/i, is, nn/))
-              call mpibcast(c(1,is+1), count=nn, root=0, comm=comm)
+              call fmpi_bcast(c(1,is+1), count=nn, root=0, comm=comm)
           end if
           call f_free(np_all)
           call f_free(is_all)
@@ -363,10 +363,9 @@ module parallel_linalg
     end subroutine dgemm_parallel
     
     
-    
-    
     subroutine dsyev_parallel(iproc, nproc, blocksize, comm, jobz, uplo, n, a, lda, w, info, quiet, algorithm)
       use dynamic_memory
+      use f_utils, only: f_pause
       implicit none
       
       ! Calling arguments

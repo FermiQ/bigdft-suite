@@ -815,8 +815,8 @@
    PSP XC                              : "XC: Perdew, Burke & Ernzerhof"
   #----------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : angstroem
-   Positions:
+   units                               : angstroem
+   positions:
    - H: [ 2.328379728,  2.829957207,  1.539646453] # [  8.00,  9.72,  5.29 ] 0001
    - C: [ 2.328379728,  2.206427236,  2.448606438] # [  8.00,  7.58,  8.41 ] 0002
    - H: [ 3.208379723,  1.546427210,  2.448606438] # [  11.02,  5.31,  8.41 ] 0003
@@ -12947,6 +12947,7 @@
  WARNINGS:
  - Chosen Grid spacings seem too high for the H atom type. At your own risk!
  - Projectors too rough: Consider modifying hgrid and/or the localisation radii.
+ - Inconsistency in Tr(H), check your cutoff radii
  - No orthogonalizing of the support functions
  - The support function localization radii might be too small, got 722 warnings
  - support function optimization not converged

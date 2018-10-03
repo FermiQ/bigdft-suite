@@ -322,7 +322,7 @@ module selinv
           call mpi_comm_free( readComm, ierr )
 
       call f_timing(TCAT_PEXSI_COMMUNICATE,'ON')
-      call mpibcast(inv_ovrlp, root=0, comm=comm) 
+      call fmpi_bcast(inv_ovrlp, root=0, comm=comm) 
       call f_timing(TCAT_PEXSI_COMMUNICATE,'OF')
 
       if (iproc==0) call yaml_comment('SelInv calculation of inverse finished',hfill='~')

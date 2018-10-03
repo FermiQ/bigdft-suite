@@ -1314,7 +1314,8 @@ module get_basis
           else
              ncplx=1
           end if
-          call allocate_work_arrays(lzd%llr(ilr)%geocode, lzd%llr(ilr)%hybrid_on, &
+!!$          call allocate_work_arrays(lzd%llr(ilr)%geocode, lzd%llr(ilr)%hybrid_on, &
+          call allocate_work_arrays(lzd%llr(ilr)%mesh, lzd%llr(ilr)%hybrid_on, &
                ncplx, lzd%llr(ilr)%d, precond_workarrays(iorb))
       end do
     
@@ -1348,7 +1349,8 @@ module get_basis
           else
              ncplx=1
           end if
-          call deallocate_work_arrays(lzd%llr(ilr)%geocode, lzd%llr(ilr)%hybrid_on, &
+!!$          call deallocate_work_arrays(lzd%llr(ilr)%geocode, lzd%llr(ilr)%hybrid_on, &
+          call deallocate_work_arrays(lzd%llr(ilr)%mesh, lzd%llr(ilr)%hybrid_on, &
                ncplx, precond_workarrays(iorb))
       end do
       deallocate(precond_convol_workarrays)
@@ -1420,7 +1422,8 @@ module get_basis
       ! Local variables
       integer :: iorb, iiorb, ilr, ncount, ierr, ist, ncnt, istat, iall, ii, jjorb, i
       integer :: lwork, info, ishift,ispin, iseg, request
-      real(kind=8) :: ddot, tt, fnrmOvrlp_tot, fnrm_tot, fnrmold_tot, tt2, trkw, trH_sendbuf
+      real(kind=8),dimension(2) :: trH_sendbuf, trH_recvbuf
+      real(kind=8) :: ddot, tt, fnrmOvrlp_tot, fnrm_tot, fnrmold_tot, tt2, trkw, trH_direct
       real(kind=8), dimension(:), pointer :: hpsittmp_c, hpsittmp_f
       real(kind=8), dimension(:), allocatable :: hpsi_conf, hpsit_c_orig, hpsit_f_orig
       real(kind=8), dimension(:), pointer :: kernel_compr_tmp
@@ -1493,6 +1496,8 @@ module get_basis
           !hpsit_f=2.d0*hpsit_f
           call vscal(tmb%ham_descr%collcom%ndimind_c, 2.d0, hpsit_c(1), 1)
           call vscal(7*tmb%ham_descr%collcom%ndimind_f, 2.d0, hpsit_f(1), 1)
+          call vscal(tmb%ham_descr%collcom%ndimind_c, 2.d0, hpsit_c_orig(1), 1)
+          call vscal(7*tmb%ham_descr%collcom%ndimind_f, 2.d0, hpsit_f_orig(1), 1)
       end if
     
     
@@ -1577,7 +1582,7 @@ module get_basis
            hpsit_c, hpsit_f, hpsit_c_orig, hpsit_f_orig, &
            tmb%ham_descr%can_use_transposed, &
            overlap_calculated, calculate_inverse, norder_taylor, max_inversion_error, &
-           tmb%npsidim_orbs, tmb%lzd, hpsi_noprecond, wt_philarge, wt_hphi)
+           tmb%npsidim_orbs, tmb%lzd, hpsi_noprecond, wt_philarge, wt_hphi, trH_direct)
 
       call f_free(hpsit_c_orig)
       call f_free(hpsit_f_orig)
@@ -1778,12 +1783,27 @@ module get_basis
           (target_function==TARGET_FUNCTION_IS_ENERGY .or. target_function==TARGET_FUNCTION_IS_HYBRID)) then
           if (iproc==0) call yaml_warning('divide the band stucture energy by 2.0, check this!')
           trH=0.5d0*trH
+          trH_direct=0.5d0*trH_direct
       end if
     
       ! trH is now the total energy (name is misleading, correct this)
       ! Multiply by 2 because when minimizing trace we don't have kernel
-      if(tmb%orbs%nspin==1 .and. target_function==TARGET_FUNCTION_IS_TRACE) trH=2.d0*trH
-      if (iproc==0) call yaml_map('Omega old',trH)
+      if(tmb%orbs%nspin==1 .and. target_function==TARGET_FUNCTION_IS_TRACE) then
+          trH=2.d0*trH
+          trH_direct=2.d0*trH_direct
+      end if
+      if (iproc==0) then
+          call yaml_newline()
+          call yaml_mapping_open('Tr(H)')
+          call yaml_map('Tr(<phi|H|phi>)',trH_direct,fmt='(es18.11)')
+          call yaml_map('Tr(S^-1<phi|SH|phi>)',trH,fmt='(es18.11)')
+          tt = abs((trH_direct-trH)/trH)
+          call yaml_map('rel diff',tt,fmt='(es9.2)')
+          call yaml_mapping_close()
+          if (tt>1.d-5) then
+              call yaml_warning('Inconsistency in Tr(H), check your cutoff radii')
+          end if
+      end if
       !!if (iproc==0) write(*,'(a,6es17.8)') 'eh, exc, evxc, eexctX, eion, edisp', &
       !!    energs%eh,energs%exc,energs%evxc,energs%eexctX,energs%eion,energs%edisp
       trH=trH-energs%eh+energs%exc-energs%evxc-energs%eexctX+energs%eion+energs%edisp
@@ -1984,10 +2004,11 @@ module get_basis
           call timing(iproc,'calctrace_comp','OF')
           call timing(iproc,'calctrace_comm','ON')
           if (nproc>1) then
-              trH_sendbuf = trH
               !call mpiiallred(trH_sendbuf, trH, 1, FMPI_SUM, bigdft_mpi%mpi_comm, request)
-              call fmpi_allreduce(sendbuf=trH_sendbuf,recvbuf=trH,&
-                   count=1,op=FMPI_SUM,comm=bigdft_mpi%mpi_comm, request=request)
+              trH_sendbuf(1) = trH
+              trH_sendbuf(2) = trH_direct
+              call fmpi_allreduce(sendbuf=trH_sendbuf,recvbuf=trH_recvbuf,&
+                   op=FMPI_SUM,comm=bigdft_mpi%mpi_comm, request=request)
           end if
           call timing(iproc,'calctrace_comm','OF')
     
@@ -2005,7 +2026,9 @@ module get_basis
           call f_routine(id='calculate_trace_finish')
           call timing(iproc,'calctrace_comm','ON')
           if (nproc>1) then
-              call mpiwait(request)
+              call fmpi_wait(request)
+              trH = trH_recvbuf(1)
+              trH_direct = trH_recvbuf(2)
           end if
           call timing(iproc,'calctrace_comm','OF')
     

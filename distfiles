@@ -6,6 +6,8 @@ rcfiles/
 m4/
 glib.patch
 glib2.patch
+glib3.patch
+v_sim-dev.patch
 libffi-toolexeclibdir.patch
 wannier90-2.0.0.patch
 distfiles

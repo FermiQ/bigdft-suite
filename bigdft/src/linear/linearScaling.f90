@@ -48,13 +48,13 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
   use locregs_init, only: small_to_large_locreg
   use public_enums
   use multipole, only: multipole_analysis_driver_new, &
-                       support_function_gross_multipoles, potential_from_charge_multipoles, &
-                       calculate_rpowerx_matrices
+                       support_function_gross_multipoles, &
+                       calculate_and_write_multipole_matrices
   use transposed_operations, only: calculate_overlap_transposed
   use foe_base, only: foe_data_set_real
   use rhopotential, only: full_local_potential
   use transposed_operations, only: calculate_overlap_transposed
-  use bounds, only: geocode_buffers
+!!$  use bounds, only: geocode_buffers
   use orthonormalization, only : orthonormalizeLocalized
   use multipole_base, only: lmax, external_potential_descriptors, deallocate_external_potential_descriptors
   use orbitalbasis
@@ -63,6 +63,7 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
   use coeffs, only: calculate_kernel_and_energy
   use foe, only: calculate_entropy_term
   use foe_base, only: foe_data_get_real
+  use locregs, only: get_isf_offset
   implicit none
 
   ! Calling arguments
@@ -434,7 +435,8 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
           end if
           ! Adjust the confining potential if required.
           call adjust_locregs_and_confinement(iproc, nproc, KSwfn%Lzd%hgrids(1), KSwfn%Lzd%hgrids(2), KSwfn%Lzd%hgrids(3), &
-               at, input, rxyz, KSwfn, tmb, denspot, nlpsp, ldiis, locreg_increased, lowaccur_converged, locrad)
+               at, input, rxyz, KSwfn, tmb, denspot, nlpsp, ldiis, locreg_increased, lowaccur_converged, &
+               input%cp%foe%matmul_optimize_load_balancing, locrad)
           orthonormalization_on=.true.
 
           call deallocate_precond_arrays(tmb%orbs, tmb%lzd, precond_convol_workarrays, precond_workarrays)
@@ -837,10 +839,11 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
       do iorb=1,tmb%orbs%norbp
           iiorb = tmb%orbs%isorb + iorb
           ilr = tmb%orbs%inwhichlocreg(iiorb)
-          call geocode_buffers(tmb%lzd%Llr(ilr)%geocode, tmb%lzd%glr%geocode, nl1, nl2, nl3)
-          ioffset_isf(1,iorb) = tmb%lzd%llr(ilr)%nsi1 - nl1 - 1
-          ioffset_isf(2,iorb) = tmb%lzd%llr(ilr)%nsi2 - nl2 - 1
-          ioffset_isf(3,iorb) = tmb%lzd%llr(ilr)%nsi3 - nl3 - 1
+!!$          call geocode_buffers(tmb%lzd%Llr(ilr)%geocode, tmb%lzd%glr%geocode, nl1, nl2, nl3)
+!!$          ioffset_isf(1,iorb) = tmb%lzd%llr(ilr)%nsi1 - nl1 - 1
+!!$          ioffset_isf(2,iorb) = tmb%lzd%llr(ilr)%nsi2 - nl2 - 1
+!!$          ioffset_isf(3,iorb) = tmb%lzd%llr(ilr)%nsi3 - nl3 - 1
+          ioffset_isf(:,iorb) = get_isf_offset(tmb%lzd%llr(ilr),tmb%lzd%glr%mesh)
           !write(*,'(a,i8,2es16.8)') 'iorb, rxyzConf(3), locregcenter(3)', iorb, tmb%confdatarr(iorb)%rxyzConf(3), tmb%lzd%llr(ilr)%locregcenter(3)
       end do
       call analyze_wavefunctions('Support functions extent analysis', 'local', &
@@ -850,11 +853,13 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
 
 
   if (input%output_wf /= ENUM_EMPTY) then
-     if (input%lin%fragment_calculation .and. write_fragments) then
-        frag_coeffs=.true.
-     else if (write_full_system) then
+     ! frag_coeffs is for when we want to just visualize the fragment HOMO etc, need
+     ! a better choice of input variables to determine when this is actually what we want to do...
+     !if (input%lin%fragment_calculation .and. write_fragments) then
+     !   frag_coeffs=.true.
+     !else if (write_full_system) then
         frag_coeffs=.false.
-     end if
+     !end if
      call build_ks_orbitals(iproc, nproc, tmb, KSwfn, at, rxyz, denspot, GPU, &
           energs, nlpsp, input, norder_taylor,&
           energy, energyDiff, energyold, ref_frags,frag_coeffs)
@@ -984,34 +989,38 @@ end if
 
   ! Diagonalize the matrix for the FOE/direct min case to get the coefficients. Only necessary if
   ! the Pulay forces are to be calculated, or if we are printing eigenvalues for restart
-  if ((input%lin%scf_mode==LINEAR_FOE.or.input%lin%scf_mode==LINEAR_DIRECT_MINIMIZATION)&
-       .and. (mod(input%lin%plotBasisFunctions,10) /= WF_FORMAT_NONE&
-       .or. input%lin%diag_end .or. mod(input%lin%output_coeff_format,10) /= WF_FORMAT_NONE)) then
+  if ((input%lin%scf_mode==LINEAR_FOE.or.input%lin%scf_mode==LINEAR_DIRECT_MINIMIZATION)) then
+      !!if(mod(input%lin%plotBasisFunctions,10) /= WF_FORMAT_NONE) then
+      !!    !Assigne an obvisouly wrong value to the eigenvalues
+      !!    tmb%orbs%eval(:) = -123456789.0d0
+      !!else if(input%lin%diag_end .or. mod(input%lin%output_coeff_format,10) /= WF_FORMAT_NONE) then
+      if(mod(input%lin%plotBasisFunctions,10) /= WF_FORMAT_NONE .or. &
+      input%lin%diag_end .or. mod(input%lin%output_coeff_format,10) /= WF_FORMAT_NONE) then
 
-       !!if (input%lin%scf_mode==LINEAR_FOE) then
-       !!    tmb%coeff=f_malloc_ptr((/tmb%orbs%norb,tmb%orbs%norb/),id='tmb%coeff')
-       !!end if
+          !!if (input%lin%scf_mode==LINEAR_FOE) then
+          !!    tmb%coeff=f_malloc_ptr((/tmb%orbs%norb,tmb%orbs%norb/),id='tmb%coeff')
+          !!end if
 
-       !!call extract_taskgroup_inplace(tmb%linmat%smat(3), tmb%linmat%kernel_)
-       call get_coeff(iproc,nproc,LINEAR_MIXDENS_SIMPLE,KSwfn%orbs,at,rxyz,denspot,GPU,&
-           infoCoeff,energs,nlpsp,input%SIC,tmb,pnrm,update_phi,.true.,.true.,.false.,&
-           .true.,input%lin%extra_states,itout,0,0,norder_taylor,input%lin%max_inversion_error,&
-           input%calculate_KS_residue,input%calculate_gap,energs_work,update_kernel,input%lin%coeff_factor, &
-           input%tel, input%occopt, &
-           input%cp%pexsi%pexsi_npoles,input%cp%pexsi%pexsi_nproc_per_pole,input%cp%pexsi%pexsi_mumin,&
-           input%cp%pexsi%pexsi_mumax,input%cp%pexsi%pexsi_mu,input%cp%pexsi%pexsi_DeltaE, &
-           input%cp%pexsi%pexsi_temperature,input%cp%pexsi%pexsi_tol_charge,input%cp%pexsi%pexsi_np_sym_fact, &
-           input%cp%pexsi%pexsi_do_inertia_count, input%cp%pexsi%pexsi_max_iter, &
-           input%cp%pexsi%pexsi_verbosity)
-       !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%smat(3), tmb%linmat%kernel_)
+          !!call extract_taskgroup_inplace(tmb%linmat%smat(3), tmb%linmat%kernel_)
+          call get_coeff(iproc,nproc,LINEAR_MIXDENS_SIMPLE,KSwfn%orbs,at,rxyz,denspot,GPU,&
+              infoCoeff,energs,nlpsp,input%SIC,tmb,pnrm,update_phi,.true.,.true.,.false.,&
+              .true.,input%lin%extra_states,itout,0,0,norder_taylor,input%lin%max_inversion_error,&
+              input%calculate_KS_residue,input%calculate_gap,energs_work,update_kernel,input%lin%coeff_factor, &
+              input%tel, input%occopt, &
+              input%cp%pexsi%pexsi_npoles,input%cp%pexsi%pexsi_nproc_per_pole,input%cp%pexsi%pexsi_mumin,&
+              input%cp%pexsi%pexsi_mumax,input%cp%pexsi%pexsi_mu,input%cp%pexsi%pexsi_DeltaE, &
+              input%cp%pexsi%pexsi_temperature,input%cp%pexsi%pexsi_tol_charge,input%cp%pexsi%pexsi_np_sym_fact, &
+              input%cp%pexsi%pexsi_do_inertia_count, input%cp%pexsi%pexsi_max_iter, &
+              input%cp%pexsi%pexsi_verbosity)
+          !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%smat(3), tmb%linmat%kernel_)
 
-       !!if (input%lin%scf_mode==LINEAR_FOE) then
-       !!    call f_free_ptr(tmb%coeff)
-       !!end if
-
-       if (bigdft_mpi%iproc ==0) then
-          call write_eigenvalues_data(0.1d0,tmb%orbs,mom_vec_fake)
-       end if
+          !!if (input%lin%scf_mode==LINEAR_FOE) then
+          !!    call f_free_ptr(tmb%coeff)
+          !!end if
+          if (bigdft_mpi%iproc ==0) then
+             call write_eigenvalues_data(0.1d0,tmb%orbs,mom_vec_fake)
+          end if
+      end if
   end if
 
   !!if (input%kernel_analysis) then
@@ -1384,6 +1393,17 @@ end if
       call write_linear_matrices(iproc,nproc,bigdft_mpi%mpi_comm,input%imethod_overlap,trim(input%dir_output),&
            input%lin%output_mat_format,tmb,at,rxyz,norder_taylor, &
            input%lin%calculate_onsite_overlap, write_SminusonehalfH=.false.)
+
+      nullify(mp_centers)
+      if (.not.input%mp_centers_auto) then
+          mp_centers => input%mp_centers
+      end if
+      call calculate_and_write_multipole_matrices(iproc, nproc, tmb%npsidim_orbs, &
+           max(tmb%collcom_sr%ndimpsi_c,1), tmb%psi, tmb%lzd%hgrids, tmb%orbs, &
+           tmb%collcom, tmb%lzd, tmb%linmat%smmd, tmb%linmat%smat(1), tmb%linmat%auxs, &
+           rxyz, at%astruct%shift, centers_auto=input%mp_centers_auto, &
+           filename=trim(input%dir_output), write_multipole_matrices_mode=input%lin%output_mat_format, &
+           multipole_centers=mp_centers)
 
       !temporary at the moment - to eventually be moved to more appropriate location
       !tmb%linmat%ovrlp_%matrix = sparsematrix_malloc_ptr(tmb%linmat%smat(1), iaction=DENSE_FULL, id='tmb%linmat%ovrlp_%matrix')

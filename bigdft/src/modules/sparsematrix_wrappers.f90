@@ -13,7 +13,7 @@ module sparsematrix_wrappers
   contains
 
     subroutine init_sparse_matrix_wrapper(iproc, nproc, nspin, orbs, lzd, astruct, &
-               store_index, init_matmul, imode, smat, smat_ref)
+               store_index, init_matmul, matmul_optimize_load_balancing, imode, smat, smat_ref)
       use module_types, only: orbitals_data, local_zone_descriptors, atomic_structure
       use sparsematrix_init, only: init_sparse_matrix
       implicit none
@@ -23,7 +23,7 @@ module sparsematrix_wrappers
       type(orbitals_data),intent(in) :: orbs
       type(local_zone_descriptors),intent(in) :: lzd
       type(atomic_structure),intent(in) :: astruct
-      logical,intent(in) :: store_index, init_matmul
+      logical,intent(in) :: store_index, init_matmul, matmul_optimize_load_balancing
       type(sparse_matrix),intent(out) :: smat
       type(sparse_matrix),intent(in),optional :: smat_ref !< reference sparsity pattern, in case smat must be at least as large as smat_ref
 
@@ -78,7 +78,8 @@ module sparsematrix_wrappers
       end if
       call init_sparse_matrix(iproc, nproc, bigdft_mpi%mpi_comm, &
            orbs%norbu, nnonzero, nonzero, nnonzero_mult, nonzero_mult, smat, &
-           init_matmul=init_matmul, nspin=nspin, geocode=astruct%geocode, &
+           init_matmul=init_matmul, matmul_optimize_load_balancing=matmul_optimize_load_balancing, &
+           nspin=nspin, geocode=astruct%geocode, &
            cell_dim=astruct%cell_dim, norbup=orbs%norbup, &
            isorbu=orbs%isorbu, store_index=store_index, on_which_atom=orbs%onwhichatom)
       call f_free_ptr(nonzero)
@@ -363,7 +364,8 @@ module sparsematrix_wrappers
           end do
           call init_sparse_matrix(iproc, nproc, bigdft_mpi%mpi_comm, &
                norb, norb*norbp, nonzero, norb*norbp, nonzero, smat(ispin), &
-               init_matmul=.false., nspin=input%nspin, geocode=geocode, &
+               init_matmul=.false., matmul_optimize_load_balancing=.false., &
+               nspin=input%nspin, geocode=geocode, &
                cell_dim=cell_dim, norbup=norbp, isorbu=isorb, &
                store_index=input%store_index, on_which_atom=orbs%onwhichatom, print_info=.false.)
           call f_free(nonzero)
@@ -397,7 +399,8 @@ module sparsematrix_wrappers
           call init_sparse_matrix(iproc, nproc, bigdft_mpi%mpi_comm, &
                orbs_aux%norb, orbs_aux%norbu*orbs_aux%norbup, nonzero, &
                orbs_aux%norbu*orbs_aux%norbup, nonzero, smat_extra(ispin), &
-               init_matmul=.false., nspin=input%nspin, geocode=geocode, cell_dim=cell_dim, &
+               init_matmul=.false., matmul_optimize_load_balancing=.false., &
+               nspin=input%nspin, geocode=geocode, cell_dim=cell_dim, &
                norbup=orbs_aux%norbp, isorbu=orbs_aux%isorb, &
                store_index=input%store_index, on_which_atom=orbs_aux%onwhichatom, print_info=.false.)
           call f_free(nonzero)
@@ -413,6 +416,7 @@ module sparsematrix_wrappers
     subroutine determine_sparsity_pattern_distance(orbs, lzd, astruct, cutoff, nnonzero, nonzero, smat_ref)
       use module_types
       use sparsematrix_init, only: matrixindex_in_compressed
+      use box, only: cell_periodic_dims
       implicit none
 
       ! Calling arguments
@@ -430,7 +434,9 @@ module sparsematrix_wrappers
       integer :: iorb, iiorb, ilr, iwa, itype, jjorb, jlr, jwa, jtype, ii
       integer :: ijs1, ije1, ijs2, ije2, ijs3, ije3, ind
       real(kind=8) :: tt, cut, xi, yi, zi, xj, yj, zj, x0, y0, z0
-      logical :: perx, pery, perz, present_smat_ref
+!!$      logical :: perx, pery, perz
+      logical :: present_smat_ref
+      logical, dimension(3) :: peri
 
       call f_routine('determine_sparsity_pattern_distance')
       call timing(bigdft_mpi%iproc,'determinespars','ON')
@@ -438,26 +444,27 @@ module sparsematrix_wrappers
       present_smat_ref = present(smat_ref)
 
       ! periodicity in the three directions
-      perx=(lzd%glr%geocode /= 'F')
-      pery=(lzd%glr%geocode == 'P')
-      perz=(lzd%glr%geocode /= 'F')
+!!$      perx=(lzd%glr%geocode /= 'F')
+!!$      pery=(lzd%glr%geocode == 'P')
+!!$      perz=(lzd%glr%geocode /= 'F')
+      peri=cell_periodic_dims(lzd%glr%mesh)
       ! For periodic boundary conditions, one has to check also in the neighboring
       ! cells (see in the loop below)
-      if (perx) then
+      if (peri(1)) then
           ijs1 = -1
           ije1 = 1
       else
           ijs1 = 0
           ije1 = 0
       end if
-      if (pery) then
+      if (peri(2)) then
           ijs2 = -1
           ije2 = 1
       else
           ijs2 = 0
           ije2 = 0
       end if
-      if (perz) then
+      if (peri(3)) then
           ijs3 = -1
           ije3 = 1
       else

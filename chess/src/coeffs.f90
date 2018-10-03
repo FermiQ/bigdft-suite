@@ -90,9 +90,9 @@ module coeffs
           ! all other tasks (in this way avoiding that different MPI tasks have different values)
           if (nproc>1) then
               if (iproc==0) call yaml_mapping_open('Cross-check among MPI tasks')
-              call mpibcast(ham_full(:,:,ispin), comm=comm, maxdiff=maxdiff)
+              call fmpi_bcast(ham_full(:,:,ispin), comm=comm, maxdiff=maxdiff)
               if (iproc==0) call yaml_map('max diff of eigenvectors',maxdiff,fmt='(es8.2)')
-              call mpibcast(eval, comm=comm, maxdiff=maxdiff)
+              call fmpi_bcast(eval, comm=comm, maxdiff=maxdiff)
               if (iproc==0) call yaml_map('max diff of eigenvalues',maxdiff,fmt='(es8.2)')
               if (iproc==0) call yaml_mapping_close()
           end if

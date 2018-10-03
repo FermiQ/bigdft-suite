@@ -27,18 +27,23 @@ module compression
 
   !> Used for lookup table for compressed wavefunctions
   type, public :: wavefunctions_descriptors
-     integer :: nvctr_c,nvctr_f,nseg_c,nseg_f
-     integer, dimension(:,:), pointer :: keyglob
-     integer, dimension(:,:), pointer :: keygloc
-     integer, dimension(:), pointer :: keyvloc,keyvglob
+     integer :: nvctr_c=0
+     integer :: nvctr_f=0
+     integer :: nseg_c=0
+     integer :: nseg_f=0
+     integer, dimension(:,:), pointer :: keyglob=>null()
+     integer, dimension(:,:), pointer :: keygloc=>null()
+     integer, dimension(:), pointer :: keyvloc=>null()
+     integer, dimension(:), pointer :: keyvglob=>null()
+     integer, dimension(:), pointer :: buffer=>null()
   end type wavefunctions_descriptors
 
   !> arrays defining how a given projector and a given wavefunction descriptor should interact
   type, public :: wfd_to_wfd
-     integer :: strategy !< can be STRATEGY_MASK,STRATEGY_KEYS,STRATEGY_MASK_PACK,STRATEGY_KEYS_PACK,STRATEGY_SKIP
-     integer :: nmseg_c !< number of segments intersecting in the coarse region
-     integer :: nmseg_f !< number of segments intersecting in the fine region
-     integer, dimension(:,:), pointer :: mask !<mask array of dimesion 3,nmseg_c+nmseg_f for psp application
+     integer :: strategy=STRATEGY_SKIP !< can be STRATEGY_MASK,STRATEGY_KEYS,STRATEGY_MASK_PACK,STRATEGY_KEYS_PACK,STRATEGY_SKIP
+     integer :: nmseg_c=0 !< number of segments intersecting in the coarse region
+     integer :: nmseg_f=0 !< number of segments intersecting in the fine region
+     integer, dimension(:,:), pointer :: mask=>null() !<mask array of dimesion 3,nmseg_c+nmseg_f for psp application
   end type wfd_to_wfd
 
 
@@ -47,28 +52,37 @@ module compression
   public :: nullify_wfd_to_wfd,tolr_set_strategy
   public :: cproj_dot,cproj_pr_p_psi,pr_dot_psi
   public :: wfd_to_wfd_skip,free_tolr_ptr,init_tolr,wnrm2
+  public :: nullify_wfd_pointers,broadcast_wfd_keys
+  public :: wfd_keys_from_buffer
 
 contains
 
   pure function wfd_null() result(wfd)
     implicit none
     type(wavefunctions_descriptors) :: wfd
-    call nullify_wfd(wfd)
+    !call nullify_wfd(wfd)
   end function wfd_null
 
   pure subroutine nullify_wfd(wfd)
     implicit none
     type(wavefunctions_descriptors), intent(out) :: wfd
-    wfd%nvctr_c=0
-    wfd%nvctr_f=0
-    wfd%nseg_c=0
-    wfd%nseg_f=0
-    nullify(wfd%keyglob)
-    nullify(wfd%keygloc)
-    nullify(wfd%keyvglob)
-    nullify(wfd%keyvloc)
+!!$    wfd%nvctr_c=0
+!!$    wfd%nvctr_f=0
+!!$    wfd%nseg_c=0
+!!$    wfd%nseg_f=0
+!!$    nullify(wfd%keyglob)
+!!$    nullify(wfd%keygloc)
+!!$    nullify(wfd%keyvglob)
+!!$    nullify(wfd%keyvloc)
   end subroutine nullify_wfd
 
+  pure subroutine nullify_wfd_pointers(wfd)
+    implicit none
+    type(wavefunctions_descriptors), intent(inout) :: wfd
+    call release_wfd(wfd)
+    nullify(wfd%buffer)   
+  end subroutine nullify_wfd_pointers
+  
   !creators
   pure function wfd_to_wfd_null() result(tolr)
     implicit none
@@ -78,10 +92,10 @@ contains
   pure subroutine nullify_wfd_to_wfd(tolr)
     implicit none
     type(wfd_to_wfd), intent(out) :: tolr
-    tolr%strategy=STRATEGY_SKIP
-    tolr%nmseg_c=0
-    tolr%nmseg_f=0
-    nullify(tolr%mask)
+!!$    tolr%strategy=STRATEGY_SKIP
+!!$    tolr%nmseg_c=0
+!!$    tolr%nmseg_f=0
+!!$    nullify(tolr%mask)
   end subroutine nullify_wfd_to_wfd
 
   !destructors
@@ -116,19 +130,151 @@ contains
 
 
   !> here we should have already defined the number of segments
-  subroutine allocate_wfd(wfd)
+  subroutine allocate_wfd(wfd,global)
     use dynamic_memory
     implicit none
     type(wavefunctions_descriptors), intent(inout) :: wfd
+    logical, intent(in), optional :: global
     !local variables
+    logical :: global_
     integer :: nsegs
 
+    global_=.false.
+    if(present(global)) global_=global
+
     nsegs=max(1,wfd%nseg_c+wfd%nseg_f)
-    wfd%keyvloc=f_malloc_ptr(nsegs,id='wfd%keyvloc')
-    wfd%keyvglob=f_malloc_ptr(nsegs,id='wfd%keyvglob')
-    wfd%keyglob=f_malloc_ptr((/2,nsegs/),id='wfd%keyglob')
-    wfd%keygloc=f_malloc_ptr((/2,nsegs/),id='wfd%keygloc')
+!!$    wfd%keyvloc=f_malloc_ptr(nsegs,id='wfd%keyvloc')
+!!$    wfd%keyvglob=f_malloc_ptr(nsegs,id='wfd%keyvglob')
+!!$    wfd%keyglob=f_malloc_ptr((/2,nsegs/),id='wfd%keyglob')
+!!$    wfd%keygloc=f_malloc_ptr((/2,nsegs/),id='wfd%keygloc')
+
+    !allocate continguous array for communications
+    if (.not. global_) then
+!!$    wfd%keyvloc=f_malloc_ptr(nsegs,id='wfd%keyvloc')
+!!$    wfd%keyvglob=f_malloc_ptr(nsegs,id='wfd%keyvglob')
+!!$    wfd%keyglob=f_malloc_ptr((/2,nsegs/),id='wfd%keyglob')
+!!$    wfd%keygloc=f_malloc_ptr((/2,nsegs/),id='wfd%keygloc')
+       wfd%buffer=f_malloc_ptr(6*nsegs,id='wfd%buffer')
+    else
+       wfd%buffer=f_malloc_ptr(3*nsegs,id='wfd%buffer')
+!!$       wfd%keyvglob=f_malloc_ptr(nsegs,id='wfd%keyvglob')
+!!$       wfd%keyvloc=>wfd%keyvglob
+!!$       wfd%keyglob=f_malloc_ptr((/2,nsegs/),id='wfd%keyglob')
+!!$       wfd%keygloc=>wfd%keyglob
+    end if
+    call associate_wfd(wfd,nsegs,global_)
+
   END SUBROUTINE allocate_wfd
+
+  pure function wfd_is_global(wfd) result(yes)
+    implicit none
+    type(wavefunctions_descriptors), intent(in) :: wfd
+    logical :: yes
+    yes=associated(wfd%keyvloc, target = wfd%keyvglob) .and. &
+         associated(wfd%keygloc, target = wfd%keyglob)
+    
+  end function wfd_is_global
+  
+  !wfd must be associated
+  pure function wfd_has_global_shape(wfd) result(yes)
+    type(wavefunctions_descriptors), intent(in) :: wfd
+    logical :: yes
+    !local variables
+    integer :: nseg_buffer,nseg
+
+    nseg=max(1,wfd%nseg_c+wfd%nseg_f)
+    nseg_buffer=size(wfd%buffer)
+
+    yes = nseg_buffer == 3*nseg
+  end function wfd_has_global_shape
+
+  subroutine assemble_wfd(wfd,global)
+    implicit none
+    type(wavefunctions_descriptors), intent(inout) :: wfd    
+    logical, intent(in), optional :: global
+    !local variables
+    logical :: global_
+
+    global_=wfd_has_global_shape(wfd) !.false.
+    if(present(global)) global_=global
+
+    call associate_wfd(wfd,max(1,wfd%nseg_c+wfd%nseg_f),global_)
+  end subroutine assemble_wfd
+
+  subroutine associate_wfd(wfd,nsegs,global)
+    use dynamic_memory
+    implicit none
+    integer, intent(in) :: nsegs
+    type(wavefunctions_descriptors), intent(inout) :: wfd
+    logical, intent(in) :: global
+
+    if (.not. global) then
+       wfd%keyvloc=>f_subptr(wfd%buffer,from=1,size=nsegs)
+       wfd%keyvglob=>f_subptr(wfd%buffer,from=nsegs+1,size=nsegs)
+       wfd%keyglob=>f_subptr2(wfd%buffer,from=2*nsegs+1,shape=[2,nsegs])
+       wfd%keygloc=>f_subptr2(wfd%buffer,from=4*nsegs+1,shape=[2,nsegs])
+    else
+       wfd%keyvglob=>f_subptr(wfd%buffer,from=1,size=nsegs)
+       wfd%keyglob=>f_subptr2(wfd%buffer,from=nsegs+1,shape=[2,nsegs])
+       wfd%keygloc => wfd%keyglob
+       wfd%keyvloc => wfd%keyvglob
+    end if
+  end subroutine associate_wfd
+
+  pure subroutine release_wfd(wfd)
+    implicit none
+    type(wavefunctions_descriptors), intent(inout) :: wfd
+    
+    nullify(wfd%keyvloc)
+    nullify(wfd%keyvglob)
+    nullify(wfd%keyglob)
+    nullify(wfd%keygloc)
+  end subroutine release_wfd
+
+  subroutine send_wfd_keys(wfd,dest,tag,request)
+    use module_base, only: bigdft_mpi,fmpi_send
+    implicit none
+    type(wavefunctions_descriptors), intent(in) :: wfd
+    integer, intent(in) :: dest !destination process
+    integer, intent(in) :: tag !tag of the communication
+    integer, intent(out) :: request !request of the immediate send
+
+    call fmpi_send(wfd%buffer,dest=dest,tag=tag,comm=bigdft_mpi%mpi_comm,request=request)
+  end subroutine send_wfd_keys
+
+  subroutine recv_wfd_keys(wfd,source,tag,request)
+    use module_base, only: bigdft_mpi,fmpi_recv
+    implicit none
+    type(wavefunctions_descriptors), intent(inout) :: wfd
+    integer, intent(in) :: source !destination process
+    integer, intent(in) :: tag !tag of the communication
+    integer, intent(out) :: request !request of the immediate recv
+
+    call fmpi_recv(wfd%buffer,source=source,tag=tag,comm=bigdft_mpi%mpi_comm,request=request)
+  end subroutine recv_wfd_keys
+
+  !> bring one localization region on all the mpi processes
+  !assume the in-place approach 
+  subroutine broadcast_wfd_keys(wfd,source)
+    use module_base, only: bigdft_mpi,fmpi_bcast
+    use dictionaries, only: f_err_throw
+    implicit none
+    integer, intent(in) :: source
+    type(wavefunctions_descriptors), intent(inout) :: wfd !assume that the segments are known by everyone
+    
+    if (bigdft_mpi%iproc /= source .and. associated(wfd%buffer)) call deallocate_wfd(wfd)
+
+    !assume the local approach with glob and loc allocated differently
+    if (.not. associated(wfd%buffer)) then
+       call allocate_wfd(wfd)
+    else if (wfd_is_global(wfd)) then
+       call f_err_throw('Broadcast of keys only works with local allocations',err_name='BIGDFT_RUNTIME_ERROR')
+       return
+    end if
+    !then fill the array
+    call fmpi_bcast(wfd%buffer,root=source,comm=bigdft_mpi%mpi_comm)
+  end subroutine broadcast_wfd_keys
+
 
   !> De-Allocate wavefunctions_descriptors
   subroutine deallocate_wfd(wfd)
@@ -136,24 +282,26 @@ contains
     implicit none
     type(wavefunctions_descriptors), intent(inout) :: wfd
 
-    !in case the two objects points to the same target
-    if (associated(wfd%keyglob, target = wfd%keygloc)) then
-       !assuming that globals has been created afterwards
-       nullify(wfd%keygloc)
-       call f_free_ptr(wfd%keyglob)
-    else
-       call f_free_ptr(wfd%keygloc)
-       call f_free_ptr(wfd%keyglob)
-    end if
-    if (associated(wfd%keyvloc, target= wfd%keyvglob)) then
-       nullify(wfd%keyvloc)
-       call f_free_ptr(wfd%keyvglob)
-    else
-       call f_free_ptr(wfd%keyvloc)
-       call f_free_ptr(wfd%keyvglob)
-    end if
+    call release_wfd(wfd)
+    call f_free_ptr(wfd%buffer)
+!!$
+!!$    !in case the two objects points to the same target
+!!$    if (associated(wfd%keyglob, target = wfd%keygloc)) then
+!!$       !assuming that globals has been created afterwards
+!!$       nullify(wfd%keygloc)
+!!$       call f_free_ptr(wfd%keyglob)
+!!$    else
+!!$       call f_free_ptr(wfd%keygloc)
+!!$       call f_free_ptr(wfd%keyglob)
+!!$    end if
+!!$    if (associated(wfd%keyvloc, target= wfd%keyvglob)) then
+!!$       nullify(wfd%keyvloc)
+!!$       call f_free_ptr(wfd%keyvglob)
+!!$    else
+!!$       call f_free_ptr(wfd%keyvloc)
+!!$       call f_free_ptr(wfd%keyvglob)
+!!$    end if
   END SUBROUTINE deallocate_wfd
-
 
   subroutine copy_wavefunctions_descriptors(wfdin, wfdout)
     use dynamic_memory
@@ -174,19 +322,32 @@ contains
     wfdout%nseg_f = wfdin%nseg_f
 
     !new method
-    wfdout%keygloc=f_malloc_ptr(src_ptr=wfdin%keygloc,id='wfdout%keygloc')
-    wfdout%keyglob=f_malloc_ptr(src_ptr=wfdin%keyglob,id='wfdout%keyglob')
-    wfdout%keyvloc=f_malloc_ptr(src_ptr=wfdin%keyvloc,id='wfdout%keyvloc')
-    wfdout%keyvglob=f_malloc_ptr(src_ptr=wfdin%keyvglob,id='wfdout%keyvglob')
+    if (.not. associated(wfdin%buffer)) return
+    call wfd_keys_from_buffer(wfdout,wfdin%buffer)
 
-!!$    !no need to insert lbounds as the allocation start from 1
-!!$    if (associated(wfdin%keygloc)) wfdout%keygloc=f_malloc_ptr(src=wfdin%keygloc,id='wfdout%keygloc')
-!!$    if (associated(wfdin%keyglob)) wfdout%keyglob=f_malloc_ptr(src=wfdin%keyglob,id='wfdout%keyglob')
-!!$    if (associated(wfdin%keyvloc)) wfdout%keyvloc=f_malloc_ptr(src=wfdin%keyvloc,id='wfdout%keyvloc')
-!!$    if (associated(wfdin%keyvglob))wfdout%keyvglob=f_malloc_ptr(src=wfdin%keyvglob,id='wfdout%keyvglob')
+!!$    wfdout%buffer=f_malloc_ptr(src_ptr=wfdin%buffer,id='wfdout%buffer')
+!!$    if (.not. associated(wfdout%buffer)) return
+!!$    call assemble_wfd(wfdout,wfd_is_global(wfdin))
 
+!!$    wfdout%keygloc=f_malloc_ptr(src_ptr=wfdin%keygloc,id='wfdout%keygloc')
+!!$    wfdout%keyglob=f_malloc_ptr(src_ptr=wfdin%keyglob,id='wfdout%keyglob')
+!!$    wfdout%keyvloc=f_malloc_ptr(src_ptr=wfdin%keyvloc,id='wfdout%keyvloc')
+!!$    wfdout%keyvglob=f_malloc_ptr(src_ptr=wfdin%keyvglob,id='wfdout%keyvglob')
 
   end subroutine copy_wavefunctions_descriptors
+
+  !to be used if buffer is not a nullified pointer
+  subroutine wfd_keys_from_buffer(wfd,buffer)
+    use dynamic_memory
+    implicit none
+    type(wavefunctions_descriptors), intent(inout) :: wfd
+    integer, dimension(:), intent(in) :: buffer
+
+    !new method
+    wfd%buffer=f_malloc_ptr(src=buffer,id='wfd%buffer')
+    call assemble_wfd(wfd)
+    
+  end subroutine wfd_keys_from_buffer
 
   !> initialize the wfd_to_wfd descriptor starting from 
   !! the descriptors of the localization regions
@@ -344,7 +505,7 @@ contains
     integer, intent(in) :: n_w !< number of complex components of the wavefunction
     type(wavefunctions_descriptors), intent(in) :: wfd_p !< descriptors of projectors
     type(wavefunctions_descriptors), intent(in) :: wfd_w !< descriptors of wavefunction
-    !> interaction between the wavefuntion and the psp projector
+    !> interaction between the wavefunction and the psp projector
     type(wfd_to_wfd), intent(in) :: tolr
     !> components of the projectors, real and imaginary parts
     real(wp), dimension(wfd_p%nvctr_c+7*wfd_p%nvctr_f,ncplx_p,n_p), intent(in) :: pr

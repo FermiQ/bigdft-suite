@@ -39,7 +39,7 @@ module module_dpbox
      !! the same holds for non-collinear calculations
      integer :: i3rho_add             !< dpbox%ndims(1)*dpbox%ndims(2)*dpbox%i3xcsh+1
      integer :: ndimpot               !< n1i*n2i*n3p = dpbox%ndims(1)dpbox%ndims(2)*dpbox%n3p
-     integer :: ndimrho             !< n1i*n2i*n3i = dpbox%ndims(1)*dpbox%ndims(2)*dpbox%ndims(3)
+     integer :: ndimrho               !< n1i*n2i*n3i = dpbox%ndims(1)*dpbox%ndims(2)*dpbox%ndims(3)
      integer :: ndimrhopot            !< dpbox%ndims(1)*dpbox%ndims(2)*dpbox%n3d*dpbox%nrhodim
      type(cell) :: mesh !<defines the cell of the system
      !>iterator over the potential degrees of freedom
@@ -163,6 +163,7 @@ contains
     type(denspot_distribution), intent(out) :: dpbox
     !local variables
     integer :: npsolver_groupsize,i3sd,n3p,n3d,i3sp,igpu
+    real(gp), dimension(3) :: or
 
     dpbox=dpbox_null()
 
@@ -191,10 +192,10 @@ contains
     n3p=dpbox%nscatterarr(dpbox%mpi_env%iproc,2)
     n3d=dpbox%nscatterarr(dpbox%mpi_env%iproc,1)
 
-!!$  dpbox%bitd=box_iter(dpbox%mesh,&
+!!$    dpbox%bitd=box_iter(dpbox%mesh,&
 !!$       origin=locreg_mesh_origin(dpbox%mesh),i3s=i3sd,n3p=n3d)
-    dpbox%bitp=box_iter(dpbox%mesh,&
-         origin=locreg_mesh_origin(dpbox%mesh),i3s=i3sp,n3p=n3p)
+    or = locreg_mesh_origin(dpbox%mesh)
+    dpbox%bitp=box_iter(dpbox%mesh,origin=or,i3s=i3sp,n3p=n3p)
 
   end subroutine dpbox_set
 

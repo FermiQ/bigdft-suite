@@ -500,9 +500,9 @@
    PSP XC                              : "XC: Perdew, Burke & Ernzerhof"
   #----------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : bohr
-   Cell: [ 20.52170753479004,  20.52170753479004,  20.52170753479004]
-   Positions:
+   units                               : bohr
+   cell: [ 20.52170753479004,  20.52170753479004,  20.52170753479004]
+   positions:
    - Si: [ 5.130426884,  5.130426884,  5.130426884] # [  9.00,  9.00,  9.00 ] 0001
    - Si: [ 10.26085377,  10.26085377,  5.130426884] # [  18.00,  18.00,  9.00 ] 0002
    - Si: [ 10.26085377,  5.130426884,  10.26085377] # [  18.00,  9.00,  18.00 ] 0003
@@ -1023,19 +1023,20 @@
    BC                                  : Periodic
    Box                                 :  [  72,  72,  72 ]
    MPI tasks                           :  2
- Multipole analysis origin             :  [  9.328049E+00,  9.607890E+00,  9.887732E+00 ]
+ Multipole analysis origin             :  [  1.492488E+00,  1.399207E+00,  1.305927E+00 ]
  Electric Dipole Moment (AU):
-   P vector                            :  [ -1.3404E+02, -1.1054E+02, -8.4782E+01 ]
-   norm(P)                             :  1.933184E+02
+   P vector                            :  [ -9.6993E+01, -1.3789E+01, -1.0172E+01 ]
+   norm(P)                             :  9.849503E+01
  Electric Dipole Moment (Debye):
-   P vector                            :  [ -3.4069E+02, -2.8096E+02, -2.1549E+02 ]
-   norm(P)                             :  4.913663E+02
+   P vector                            :  [ -2.4653E+02, -3.5047E+01, -2.5854E+01 ]
+   norm(P)                             :  2.503494E+02
  Quadrupole Moment (AU):
    Q matrix:
-   -  [-1.5602E+02,  7.9995E+01,  2.4339E+02]
-   -  [ 7.9995E+01,  2.0475E+01,  3.1521E+02]
-   -  [ 2.4339E+02,  3.1521E+02,  1.3554E+02]
-   trace                               :  1.07E-11
+   -  [ 1.5333E+02,  1.1276E+03,  1.0556E+03]
+   -  [ 1.1276E+03, -1.5898E+01,  9.3519E+02]
+   -  [ 1.0556E+03,  9.3519E+02, -1.3743E+02]
+   trace                               :  0.00E+00
+ Spreads of the electronic density (AU):  [  6.045505E+00,  6.143558E+00,  6.217728E+00 ]
  Calculate local forces                :  Yes
  Calculate Non Local forces            :  Yes
  Stress Tensor calculated              :  Yes
@@ -1050,6 +1051,7 @@
      PV (Ha)                           : -111.81408233131
   #-------------------------------- Warnings obtained during the run, check their relevance!
  WARNINGS:
+ - Inconsistency in Tr(H), check your cutoff radii
  - No orthogonalizing of the support functions
  - The support function localization radii might be too small, got 220 warnings
  - density optimization not converged

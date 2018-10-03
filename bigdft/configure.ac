@@ -7,7 +7,7 @@ dnl  - PACKAGE_TARNAME, the name used for the tarball ;
 dnl  - PACKAGE_VERSION, the version ;
 dnl  - PACKAGE_STRING, the name + the version ;
 dnl  - PACKAGE_BUGREPORT, the mail.
-AC_INIT([BigDFT - DFT over wavelets],[1.8.1],[Damien.Caliste@cea.fr],[bigdft])
+AC_INIT([BigDFT - DFT over wavelets],[1.8.3],[Damien.Caliste@cea.fr],[bigdft])
 
 dnl All temporary building files are put in this directory.
 dnl his must be called before AM_INIT_AUTOMAKE
@@ -202,6 +202,8 @@ AX_LIBGAIN()
 AX_ARCHIVE()
 AX_AMBERTOOLS()
 AX_ALBORZ()
+AX_PSPIO()
+AM_CONDITIONAL(HAVE_PSPIO, test "$ax_have_PSPIO" = "yes")
 dnl we might think of inserting this option in the suitepkg.m4 file
 ax_have_OPENBABEL_search="yes"
 AC_ARG_ENABLE(openbabel, AS_HELP_STRING([--enable-openbabel], [Enable detection of openbabel compilation (enabled by default).]),
@@ -317,7 +319,7 @@ else
 fi
 
 dnl Agregate all the optional libs.
-LIB_BIGDFT_DEPS="$LIB_ABINIT_LIBS $LIB_XC_LIBS $LIB_GAIN_LIBS $CP2K_LINKLINE $LIB_AMBERTOOLS_LIBS $LIB_ALBORZ_LIBS $LIBOCL_LIBS $LIBETSFIO_LIBS $LIB_ARCHIVE_LIBS $LIB_CHESS_DYNAMIC_LIBS $LIB_PSOLVER_DYNAMIC_LIBS $LIB_FUTILE_LIBS $PEXSI_LINKLINE"
+LIB_BIGDFT_DEPS="$LIB_PSPIO_LIBS $LIB_ABINIT_LIBS $LIB_XC_LIBS $LIB_GAIN_LIBS $CP2K_LINKLINE $LIB_AMBERTOOLS_LIBS $LIB_ALBORZ_LIBS $LIBOCL_LIBS $LIBETSFIO_LIBS $LIB_ARCHIVE_LIBS $LIB_CHESS_DYNAMIC_LIBS $LIB_PSOLVER_DYNAMIC_LIBS $LIB_FUTILE_LIBS $PEXSI_LINKLINE"
 if test $ax_FUTILE_static != "yes" ; then
    LIB_BIGDFT_DEPS="$LIB_BIGDFT_DEPS $LIBCUDA_LIBS $LINALG_LIBS $GLIB_LIBS $MPI_LDFLAGS $MPI_LIBS $PYTHON_LIBS"
 fi

@@ -31,6 +31,7 @@ module input_old_text_format
 
   !public :: read_input_dict_from_files!input_from_old_text_format
   public :: input_from_old_text_format
+
 contains
 
   function input_psi_names(id)
@@ -79,6 +80,7 @@ contains
     end do
   end subroutine input_psi_help
 
+
   subroutine output_wf_format_help()
     integer :: i
 
@@ -89,7 +91,7 @@ contains
     end do
   end subroutine output_wf_format_help
 
-    !Arguments
+
   subroutine input_from_old_text_format(radical,mpi_env,dict)
     use public_keys
     use wrapper_MPI
@@ -139,7 +141,7 @@ contains
       to_out=>list_new(.item. OUTPUT_WF)
       conversion=>dict_new(OUTPUT_WF .is. &
            dict_new('key' .is. WRITE_ORBITALS,&
-           '0' .is. 'No', '1' .is. 'text', '2' .is. 'binary', '3' .is. 'etsf'))
+           '0' .is. 'None', '1' .is. 'text', '2' .is. 'binary', '3' .is. 'etsf'))
       nullify(iter)
       do while(iterating(iter,on=to_out))
          key=dict_value(iter)
@@ -203,6 +205,7 @@ contains
 
   end subroutine input_from_old_text_format
 
+
   !> Set and check the input file
   !! if radical is empty verify if the file input.ext exists.
   !! otherwise search for radical.ext
@@ -225,6 +228,7 @@ contains
     if (.not. exists .and. (trim(radical) /= "input" .and. trim(radical) /= "")) &
          & write(filename, "(A,A,A)") "default", ".", trim(ext)
   end subroutine set_inputfile
+
 
   subroutine read_dft_from_text_format(iproc,dict,filename)
     use module_base
@@ -922,7 +926,7 @@ contains
     type(dictionary), pointer :: dict_basis
 
     !call f_err_throw('For the linear version the input parameters must be read in the .yaml format, &
-    !    &the old version is deprecated', err_name='BIGDFT_INPUT_VARIABLES_ERROR')
+    !    &the old version is deprecated', err_id=BIGDFT_INPUT_VARIABLES_ERROR)
 
     filename=repeat(' ',len(filename))
     call set_inputfile(filename, trim(run_name),    "lin")
@@ -1176,9 +1180,11 @@ contains
 
   end subroutine read_neb_from_text_format
 
+
   !> Read fragment input parameters
   subroutine fragment_input_variables_from_text_format(iproc,dump,filename,shouldexist,dict)
-    use module_defs, only: gp
+    use module_base, only : f_err_throw
+    use module_defs, only: gp, BIGDFT_INPUT_VARIABLES_ERROR
     use fragment_base
     use module_input
     use dictionaries
@@ -1204,7 +1210,7 @@ contains
 
     if (.not. exists .and. shouldexist) then ! we should be doing a fragment calculation, so this is a problem
        call f_err_throw("The file 'input.frag' is missing and fragment calculation was specified",&
-            err_name='BIGDFT_INPUT_VARIABLES_ERROR')
+            err_id=BIGDFT_INPUT_VARIABLES_ERROR)
        call input_free(.false.)
        return
     end if
@@ -1236,7 +1242,7 @@ contains
        call input_var(frag_num,'1',ranges=(/1,frag%nfrag_ref/))
        if (frag_num/=ifrag) then
           call f_err_throw("The file 'input.frag'  has an error when specifying"//&
-               " the reference fragments",err_name='BIGDFT_INPUT_VARIABLES_ERROR')
+               " the reference fragments",err_id=BIGDFT_INPUT_VARIABLES_ERROR)
        end if
        call input_var(frag%label(frag_num),' ',comment=comments)
        frag%label(frag_num)=trim(frag%label(frag_num))
@@ -1253,7 +1259,7 @@ contains
        call input_var(frag_num,'1',ranges=(/1,frag%nfrag/))
        if (frag_num/=ifrag) then
           call f_err_throw("The file 'input.frag'  has an error when specifying"//&
-               " the system fragments",err_name='BIGDFT_INPUT_VARIABLES_ERROR')
+               " the system fragments",err_id=BIGDFT_INPUT_VARIABLES_ERROR)
        end if
        call input_var(frag%frag_index(frag_num),'1',ranges=(/0,100000/))
        call input_var(charge,'0.d0',ranges=(/-500.d0,500.d0/),comment=comments)
@@ -1369,6 +1375,7 @@ contains
     run => dict_new(RADICAL_NAME .is. ' ')
   end subroutine dict_run_new
 
+
   subroutine set_dict_run_file(run_id,options)
     implicit none
     character(len=*), intent(in) :: run_id
@@ -1449,7 +1456,7 @@ contains
 
     ! We put a barrier here to be sure that non master proc will be stopped
     ! by any issue on the master proc.
-    call mpibarrier(comm=mpi_env%mpi_comm)
+    call fmpi_barrier(comm=mpi_env%mpi_comm)
 
     call f_release_routine()
   end subroutine read_input_dict_from_files
@@ -1586,6 +1593,7 @@ contains
     use dictionaries
     use yaml_output
     use yaml_strings, only: operator(.eqv.)
+    use module_defs, only: BIGDFT_INPUT_VARIABLES_ERROR
     use module_base, only: bigdft_mpi
     use public_keys, only: POSINP, PERF_VARIABLES, DFT_VARIABLES, KPT_VARIABLES, &
          & GEOPT_VARIABLES, MD_VARIABLES, MIX_VARIABLES, SIC_VARIABLES, TDDFT_VARIABLES, LIN_GENERAL, &
@@ -1682,7 +1690,7 @@ contains
           call yaml_map('Invalid entries of the input dictionary',invalid_entries)
        end if
        call f_err_throw('The input dictionary contains invalid entries,'//&
-            ' check above the valid entries',err_name='BIGDFT_INPUT_VARIABLES_ERROR')
+            ' check above the valid entries',err_id=BIGDFT_INPUT_VARIABLES_ERROR)
     !else if (loginput) then
     !      call yaml_warning('This input file has been created from a logfile')
     end if
@@ -1701,8 +1709,8 @@ contains
     use dictionaries
     implicit none
     type(dictionary), pointer :: dict
-    logical, intent(out) :: dict_from_files !<identifies if the dictionary comes from files
-    logical, intent(out), optional :: skip !<if .true. the code should not be run as the logfile is existing already
+    logical, intent(out) :: dict_from_files !< Identifies if the dictionary comes from files
+    logical, intent(out), optional :: skip  !< If .true. the code should not be run as the logfile is existing already
     !local variables
     integer, parameter :: ntrials=1
     logical :: log_to_disk,skip_tmp
@@ -1724,7 +1732,7 @@ contains
           call f_mkdir(writing_directory,path)
        end if
        if (bigdft_mpi%nproc>1) then
-           call mpibcast(path,comm=bigdft_mpi%mpi_comm)
+           call fmpi_bcast(path,comm=bigdft_mpi%mpi_comm)
        end if
        call f_strcpy(src=path,dest=writing_directory)
     end if
@@ -1764,7 +1772,7 @@ contains
              !this section has to be done sequentially for each of the
              !!taskgroups of BigDFT
              !we should implement a lock, but for the moment let us do it three times for the processes which
-             !!did not had problem
+             !! had problems
              do trials=1,ntrials
                 call ensure_log_file(trim(writing_directory), trim(logfilename), ierr)
                 !if (ierr /= 0) call MPI_ABORT(bigdft_mpi%mpi_comm,ierror,ierr)
@@ -1816,10 +1824,12 @@ contains
 
   END SUBROUTINE create_log_file
 
+
   pure subroutine final_positions_filename(singlepoint,id,filename)
     use yaml_strings
     implicit none
     logical, intent(in) :: singlepoint
+!    character(len=max_field_length), intent(in) :: outdir
     character(len=*), intent(in) :: id
     character(len=*), intent(out) :: filename
     if (singlepoint) then
@@ -1829,7 +1839,8 @@ contains
     end if
   end subroutine final_positions_filename
 
-  !> get the information about the final file position
+
+  !> Get the information about the final file position
   subroutine final_file_exists(id,exists)
     use f_utils
     use yaml_strings
@@ -1837,6 +1848,7 @@ contains
     use module_base, only: bigdft_mpi
     implicit none
     character(len=*), intent(in) :: id
+!    character(len = max_field_length), intent(in) :: outdir
     logical, intent(out) :: exists
     !local variables
     integer, parameter :: next=4
@@ -1859,6 +1871,7 @@ contains
            filename+'.'+exts(iext),unit=6)
 
   end subroutine final_file_exists
+
 
   !> Routine to read YAML input files and create input dictionary.
   !! Update the input dictionary with the result of yaml_parse
@@ -1891,7 +1904,7 @@ contains
        !call mpi_bcast(cbuf_len, 1, MPI_INTEGER8, 0, mpi_env%mpi_comm, ierr)
     end if
 
-    if (mpi_env%nproc > 1) call mpibcast(cbuf_len,comm=mpi_env%mpi_comm)
+    if (mpi_env%nproc > 1) call fmpi_bcast(cbuf_len,comm=mpi_env%mpi_comm)
     fbuf=f_malloc0_str(1,int(cbuf_len),id='fbuf')
 
     if (mpi_env%iproc == 0) then
@@ -1900,7 +1913,7 @@ contains
     end if
 
     !this call can be replaced with the size of the character array
-    if (mpi_env%nproc > 1) call mpibcast(fbuf,comm=mpi_env%mpi_comm)
+    if (mpi_env%nproc > 1) call fmpi_bcast(fbuf,comm=mpi_env%mpi_comm)
 
     id=0
     if (present(document_id)) id=document_id
@@ -1965,20 +1978,39 @@ contains
   !end subroutine aocc_to_dict
 
 
+  !> Determine the number of up (norbu) and down (norbd) orbitals
+  !! and the occupation numbers from the dictionary
+  !! occupation:
+  !!   K point 1:
+  !!     Orbital 2: 2/3
+  !!     Orbital 3: 2/3
+  !!     Orbital 4: 2/3
+  !!   K point 2: 
+  !!     Orbital 2: 2
+  !!
+  !! If not K point, you can remove the keyword 'K points 1'
+  !! if nspin=2
+  !! occupation:
+  !!   up:
+  !!     Orbital 1: 1
+  !!   down:
+  !!     Orbital 1: 0
   subroutine occupation_set_from_dict(dict, key, norbu, norbd, occup, &
        & nkpts, nspin, norbsempty, qelec_up, qelec_down, norb_max)
-    use module_defs, only: gp
+    use module_defs, only: gp, BIGDFT_INPUT_VARIABLES_ERROR, BIGDFT_INPUT_FILE_ERROR
+    use module_base, only : f_err_throw
     use dynamic_memory
     use yaml_strings, only: yaml_toa
     use yaml_output
     implicit none
+    !Arguments
     type(dictionary), pointer :: dict
     character(len = *), intent(in) :: key
     real(gp), dimension(:), pointer :: occup
     integer, intent(in) :: nkpts, nspin, norbsempty, norb_max
     real(gp), intent(in) :: qelec_up, qelec_down
     integer, intent(out) :: norbu, norbd
-
+    !Local variables
     integer :: norb
     integer :: ikpt,ne_up,ne_dwn
     type(dictionary), pointer :: occup_src
@@ -2039,12 +2071,12 @@ contains
 
     ! Summarize and check.
     norb = norbu + norbd
-    if (((nspin == 1 .or. nspin == 2) .and. (norbu > norb_max .or. norbd > norb_max)) &
+    if ( ((nspin == 1 .or. nspin == 2) .and. (norbu > norb_max .or. norbd > norb_max)) &
          & .or. (nspin == 4 .and. (norbu > 2 * norb_max .or. norbd > 0))) then
-       call yaml_warning('Total number of orbitals (found ' // trim(yaml_toa(norb)) &
+       call f_err_throw('Total number of orbitals (found ' // trim(yaml_toa(norb)) &
             & // ') exceeds the available input guess orbitals (being ' &
-            & // trim(yaml_toa(norb_max)) // ').')
-       stop
+            & // trim(yaml_toa(norb_max)) // ').',&
+            & err_id=BIGDFT_INPUT_VARIABLES_ERROR)
     end if
 
     ! Allocate occupation accordingly.
@@ -2084,7 +2116,7 @@ contains
        call f_err_throw('The total number of electrons ' &
             & // trim(yaml_toa(sum(occup) / nkpts,fmt='(f13.6)')) &
             & // ' is not equal to' // trim(yaml_toa(qelec_up + qelec_down)),&
-            err_name='BIGDFT_INPUT_FILE_ERROR')
+            err_id=BIGDFT_INPUT_FILE_ERROR)
     end if
 
     call f_release_routine()
@@ -2101,19 +2133,22 @@ contains
       if (qelec - real(ne,gp) > 1.e-12_gp) ne=ne+1
     end function int_elec
 
+    
     subroutine count_for_kpt(occ)
+      use module_defs, only: BIGDFT_INPUT_VARIABLES_ERROR
       implicit none
       type(dictionary), pointer :: occ
 
       if (nspin == 2) then
-         if (.not. has_key(occ, "up") .or. &
-              & .not. has_key(occ, "down")) stop "missing up or down"
+         if (.not. has_key(occ, "up") .or.  .not. has_key(occ, "down")) &
+            call f_err_throw("missing up or down in 'occup'",err_id=BIGDFT_INPUT_VARIABLES_ERROR)
          call count_orbs(norbu, occ // "up")
          call count_orbs(norbd, occ // "down")
       else
          call count_orbs(norbu, occ)
       end if
     end subroutine count_for_kpt
+
 
     subroutine count_orbs(n, occ)
       implicit none
@@ -2175,7 +2210,7 @@ contains
 
 
   subroutine occupation_data_file_merge_to_dict(dict, key, filename)
-    use module_defs, only: gp, UNINITIALIZED
+    use module_defs, only: gp, UNINITIALIZED, BIGDFT_INPUT_VARIABLES_ERROR
     use yaml_output
     use yaml_strings, only: yaml_toa
     implicit none
@@ -2192,10 +2227,9 @@ contains
 
     open(unit=91,file=filename,status='old',iostat=ierror)
     !Check the open statement
-    if (ierror /= 0) then
-       call yaml_warning('Failed to open the existing file '// trim(filename))
-       stop
-    end if
+    if (ierror /= 0) &
+       call f_err_throw('Failed to open the existing file '// trim(filename),&
+            & err_id=BIGDFT_INPUT_VARIABLES_ERROR)
 
     !The first line gives the number of orbitals
     read(unit=91,fmt='(a100)') line
@@ -2205,7 +2239,9 @@ contains
        !The first line gives the number of orbitals
        ntd = 0
        read(line,fmt=*,iostat=ierror) ntu
-       if (ierror /=0) stop 'ERROR: reading the number of orbitals.'
+       if (ierror /=0) &
+          call f_err_throw('ERROR: reading the number of orbitals.', &
+          & err_id=BIGDFT_INPUT_VARIABLES_ERROR)
     end if
 
     call dict_init(valu)
@@ -2238,11 +2274,9 @@ contains
        nt=nt+1
 
        if (iorb<0 .or. iorb>ntu + ntd) then
-          !if (iproc==0) then
-          write(*,'(1x,a,i0,a)') 'ERROR in line ',nt,' of the file "[name].occ"'
-          write(*,'(10x,a,i0,a)') 'The orbital index ',iorb,' is incorrect'
-          !end if
-          stop
+          call f_err_throw('ERROR in line '//trim(yaml_toa(nt))//' of the file "'//&
+               & trim(filename)//'.occ". The orbital index '//trim(yaml_toa(iorb))//' is incorrect.',&
+               & err_id=BIGDFT_INPUT_VARIABLES_ERROR)
        else
           if (iorb <= ntu) then
              call set(valu // ("Orbital" // trim(yaml_toa(iorb, fmt = "(I0)"))), string)

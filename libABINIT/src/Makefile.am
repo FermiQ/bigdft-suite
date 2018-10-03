@@ -197,6 +197,7 @@ modules = \
 	ABI_INTERFACES_RECIPSPACE.@MODULE_EXT@ \
 	ABI_INTERFACES_COMMON.@MODULE_EXT@ \
 	ABI_INTERFACES_ADD_LIBPAW.@MODULE_EXT@ \
+	M_ABI_DISTRIBFFT.@MODULE_EXT@ \
 	M_LIBPAW_MPI.@MODULE_EXT@ \
 	M_AB6_MOLDYN.@MODULE_EXT@ \
 	M_AB6_KPOINTS.@MODULE_EXT@ \
@@ -237,6 +238,7 @@ modules = \
 	abi_interfaces_recipspace.@MODULE_EXT@ \
 	abi_interfaces_common.@MODULE_EXT@ \
 	abi_interfaces_add_libpaw.@MODULE_EXT@ \
+	m_abi_distribfft.@MODULE_EXT@ \
 	m_libpaw_mpi.@MODULE_EXT@ \
 	m_ab6_moldyn.@MODULE_EXT@ \
 	m_ab6_kpoints.@MODULE_EXT@ \

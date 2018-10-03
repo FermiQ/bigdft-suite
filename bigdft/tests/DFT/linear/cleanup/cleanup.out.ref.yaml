@@ -179,8 +179,8 @@
    taylor_order                        : 0 #      Order of the Taylor approximation; 0 -> exact
    max_inversion_error                 : 1.d0 #   Linear scaling maximal error of the Taylor approximations to calculate the inverse of 
     #                                              the overlap matrix
-   output_wf                           : 0 #      Output basis functions; 0 no output, 1 formatted output, 2 Fortran bin, 3 ETSF
-   output_mat                          : 0 #      Output sparse matrices; 0 no output, 1 formatted sparse, 11 formatted dense, 21 
+   output_wf                           : 1 #      Output basis functions; 0 no output, 1 formatted output, 2 Fortran bin, 3 ETSF
+   output_mat                          : 4 #      Output sparse matrices; 0 no output, 1 formatted sparse, 11 formatted dense, 21 
     #                                              formatted both
    output_coeff                        : 0 #      Output KS coefficients; 0 no output, 1 formatted output
    output_fragments                    : 0 #      Output support functions, kernel and coeffs; 0 fragments and full system, 1 
@@ -461,8 +461,8 @@
    PSP XC                              : "XC: Teter 93"
   #----------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : bohr
-   Positions:
+   units                               : bohr
+   positions:
    - O: [ 7.576416548,  5.980391168,  5.963296743] # [  15.15,  11.96,  11.93 ] 0001
    - H: [ 5.771698586,  5.702495041,  5.771181082] # [  11.54,  11.40,  11.54 ] 0002
    - H: [ 7.728301414,  7.297504959,  7.228818918] # [  15.46,  14.60,  14.46 ] 0003
@@ -1481,3 +1481,443 @@
  Walltime since initialization         :  00:00:02.405446249
  Max No. of dictionaries used          :  8061 #( 1025 still in use)
  Number of dictionary folders allocated:  1
+---
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ CHESS TOOLBOX
+ Timestamp of the run                  : 2017-12-19 21:17:06.224
+ Parallel environment:
+   MPI tasks                           :  2
+   OpenMP threads                      :  2
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/overlap_sparse.mpi
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/overlap_sparse.mpi
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/hamiltonian_sparse.mpi
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/hamiltonian_sparse.mpi
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Diagonalizing the matrix
+ mode                                  : sequential
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Matrix successfully diagonalized
+ Memory Consumption Report:
+   Tot. No. of Allocations             :  137
+   Tot. No. of Deallocations           :  137
+   Remaining Memory (B)                :  0
+   Memory occupation:
+     Peak Value (MB)                   :  0.002
+     for the array                     : work
+     in the routine                    : dsygv_parallel
+     Memory Peak of process            : 20.276 MB
+ Walltime since initialization         :  00:00:00.375561177
+ Max No. of dictionaries used          :  563 #( 306 still in use)
+ Number of dictionary folders allocated:  1
+# /home/stephan/Software/openmpi-1.8.4_gnu/bin/mpirun -np 2 /home/stephan/Documents/BigDFT/stablebranch/Build-gnu-openmpi_debug_test/install/bin/chess_toolbox solve-eigensystem 1 parallel_mpi-native data/sparsematrix_metadata.dat data/hamiltonian_sparse.mpi data/overlap_sparse.mpi data/coeffs.mpi data/evals.mpi F -1
+---
+ Code logo:
+   "__________________________________ A fast and precise DFT wavelet code
+   |     |     |     |     |     |
+   |     |     |     |     |     |      BBBB         i       gggggg
+   |_____|_____|_____|_____|_____|     B    B               g
+   |     |  :  |  :  |     |     |    B     B        i     g
+   |     |-0+--|-0+--|     |     |    B    B         i     g        g
+   |_____|__:__|__:__|_____|_____|___ BBBBB          i     g         g
+   |  :  |     |     |  :  |     |    B    B         i     g         g
+   |--+0-|     |     |-0+--|     |    B     B     iiii     g         g
+   |__:__|_____|_____|__:__|_____|    B     B        i      g        g
+   |     |  :  |  :  |     |     |    B BBBB        i        g      g
+   |     |-0+--|-0+--|     |     |    B        iiiii          gggggg
+   |_____|__:__|__:__|_____|_____|__BBBBB
+   |     |     |     |  :  |     |                           TTTTTTTTT
+   |     |     |     |--+0-|     |  DDDDDD          FFFFF        T
+   |_____|_____|_____|__:__|_____| D      D        F        TTTT T
+   |     |     |     |  :  |     |D        D      F        T     T
+   |     |     |     |--+0-|     |D         D     FFFF     T     T
+   |_____|_____|_____|__:__|_____|D___      D     F         T    T
+   |     |     |  :  |     |     |D         D     F          TTTTT
+   |     |     |--+0-|     |     | D        D     F         T    T
+   |_____|_____|__:__|_____|_____|          D     F        T     T
+   |     |     |     |     |     |         D               T    T
+   |     |     |     |     |     |   DDDDDD       F         TTTT
+   |_____|_____|_____|_____|_____|______                    www.bigdft.org   "
+
+ Reference Paper                       : The Journal of Chemical Physics 129, 014109 (2008)
+ Version Number                        : 1.8.1
+ Timestamp of this run                 : 2017-12-19 21:17:06.657
+ Root process Hostname                 : stephan-Latitude-E7450
+ Number of MPI tasks                   :  2
+ OpenMP parallelization                :  Yes
+ Maximal OpenMP threads per MPI task   :  2
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ BIGDFT PRE-/POST-PROCESSING
+ Parallel environment:
+   MPI tasks                           :  2
+   OpenMP threads                      :  2
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/sparsematrix_metadata.dat
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/coeffs.mpi
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/coeffs.mpi
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/KSgrid.dat
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/minBasis*
+ Check normalization of KS orbitals:
+ - KS orbital nr. 4                    :  0.9999999999995562
+ - KS orbital nr. 5                    :  1.000000000000041
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Writing to file KS_post*
+ Write wavefunctions to file           : KS_post.*
+  # 4th wavefunction written
+ Write Waves Time:
+ -  {Process:  0, Timing:  [  1.6E-02,  1.500E-02 ]}
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Writing to file KS_post-Dens*
+ Memory Consumption Report:
+   Tot. No. of Allocations             :  161
+   Tot. No. of Deallocations           :  161
+   Remaining Memory (B)                :  0
+   Memory occupation:
+     Peak Value (MB)                   :  11.312
+     for the array                     : psir
+     in the routine                    : write_orbital_density
+     Memory Peak of process            : 32.132 MB
+ Walltime since initialization         :  00:00:00.514529226
+ Max No. of dictionaries used          :  1275 #( 1058 still in use)
+ Number of dictionary folders allocated:  1
+# /home/stephan/Software/openmpi-1.8.4_gnu/bin/mpirun -np 2 /home/stephan/Documents/BigDFT/stablebranch/Build-gnu-openmpi_debug_test/bigdft/src/utilities build-KS-orbitals parallel_mpi-native data/sparsematrix_metadata.dat data/coeffs.mpi data/KSgrid.dat data/minBasis 4 5
+---
+ Code logo:
+   "__________________________________ A fast and precise DFT wavelet code
+   |     |     |     |     |     |
+   |     |     |     |     |     |      BBBB         i       gggggg
+   |_____|_____|_____|_____|_____|     B    B               g
+   |     |  :  |  :  |     |     |    B     B        i     g
+   |     |-0+--|-0+--|     |     |    B    B         i     g        g
+   |_____|__:__|__:__|_____|_____|___ BBBBB          i     g         g
+   |  :  |     |     |  :  |     |    B    B         i     g         g
+   |--+0-|     |     |-0+--|     |    B     B     iiii     g         g
+   |__:__|_____|_____|__:__|_____|    B     B        i      g        g
+   |     |  :  |  :  |     |     |    B BBBB        i        g      g
+   |     |-0+--|-0+--|     |     |    B        iiiii          gggggg
+   |_____|__:__|__:__|_____|_____|__BBBBB
+   |     |     |     |  :  |     |                           TTTTTTTTT
+   |     |     |     |--+0-|     |  DDDDDD          FFFFF        T
+   |_____|_____|_____|__:__|_____| D      D        F        TTTT T
+   |     |     |     |  :  |     |D        D      F        T     T
+   |     |     |     |--+0-|     |D         D     FFFF     T     T
+   |_____|_____|_____|__:__|_____|D___      D     F         T    T
+   |     |     |  :  |     |     |D         D     F          TTTTT
+   |     |     |--+0-|     |     | D        D     F         T    T
+   |_____|_____|__:__|_____|_____|          D     F        T     T
+   |     |     |     |     |     |         D               T    T
+   |     |     |     |     |     |   DDDDDD       F         TTTT
+   |_____|_____|_____|_____|_____|______                    www.bigdft.org   "
+
+ Reference Paper                       : The Journal of Chemical Physics 129, 014109 (2008)
+ Version Number                        : 1.8.1
+ Timestamp of this run                 : 2017-12-21 10:11:12.995
+ Root process Hostname                 : stephan-Latitude-E7450
+ Number of MPI tasks                   :  2
+ OpenMP parallelization                :  Yes
+ Maximal OpenMP threads per MPI task   :  2
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ BIGDFT PRE-/POST-PROCESSING
+ Parallel environment:
+   MPI tasks                           :  2
+   OpenMP threads                      :  2
+ Atomic System Properties:
+   Types of atoms                      :  [ O, H ]
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/overlap_sparse.mpi
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/overlap_sparse.mpi
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/density_kernel_sparse.mpi
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/density_kernel_sparse.mpi
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/density_kernel_sparse_matmul.mpi
+ Sparse matrix multiplications before optimization:
+   Load unbalancing:
+     Minimal number of columns         :  3
+     Maximal number of columns         :  3
+     Average number of columns         :  3.0
+     Minimal time                      :  8.94E-07
+     Maximal time                      :  1.10E-06
+     Ideal time                        :  9.95E-07
+     Unbalancing in %                  :  10.18
+ Sparse matrix multiplications after optimization:
+   Load unbalancing:
+     Minimal number of columns         :  1
+     Maximal number of columns         :  5
+     Average number of columns         :  3.0
+     Minimal time                      :  0.00E+00
+     Maximal time                      :  2.15E-06
+     Ideal time                        :  1.07E-06
+     Unbalancing in %                  :  100.00
+ Matrix properties:
+   Overlap matrix:
+     total elements                    :  36
+     segments                          :  6
+     non-zero elements                 :  36
+     sparsity in %                     :  0.00
+     sparse matrix multiplication initialized:  No
+     taskgroup summary:
+       number of taskgroups            :  1
+       taskgroups overview:
+       -  {number of tasks:  2, start / end:  [  1,  36 ], 
+      start / end disjoint:  [  1,  36 ]}
+   Density kernel:
+     total elements                    :  36
+     segments                          :  6
+     non-zero elements                 :  36
+     sparsity in %                     :  0.00
+     sparse matrix multiplication initialized:  Yes
+     sparse matrix multiplication setup:
+       segments                        :  6
+       non-zero elements               :  36
+       sparsity in %                   :  0.00
+     taskgroup summary:
+       number of taskgroups            :  1
+       taskgroups overview:
+       -  {number of tasks:  2, start / end:  [  1,  36 ], 
+      start / end disjoint:  [  1,  36 ]}
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/mpmat_0_0.mpi
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/mpmat_1_-1.mpi
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/mpmat_1_0.mpi
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/mpmat_1_1.mpi
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/mpmat_2_-2.mpi
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/mpmat_2_-1.mpi
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/mpmat_2_0.mpi
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/mpmat_2_1.mpi
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/mpmat_2_2.mpi
+ beta for penaltyfunction              : -1000.0
+ determine eigenvalue bounds:
+ -  {npl:  110, npl penalty:  110, npl determined by: penalty, scale:  1.00E+00, 
+ bounds:  [  0.500,  1.500 ], exp accur:  [  7.24E-14 ], 
+ Load unbalancing: {Minimal time:  2.06E-02, Maximal time:  3.01E-02, 
+                      Ideal time:  2.53E-02, Unbalancing in %:  18.79}, 
+ penalty:  4.2E-15, npl calculated:  110, ok:  [  Yes,  Yes ]}
+ summary: {npl:  110, npl determined by: penalty, scale:  1.00E+00, 
+ bounds:  [  0.500,  1.500 ], exp accur:  [  7.24E-14 ]}
+ Orbital occupation:
+ - Orbital ID                          : -1
+   Fragment multipoles:
+   - 
+     Atom IDs                          :  [  1 ]
+     Atom names                        :  [ O ]
+     Neutral fragment charge           :  6.000000E+00
+     Purity indicator                  : -1.424192E-01
+     q0                                :  [ -6.762561E+00 ]
+     q1                                :  [  1.45941E-01,  1.525267E-01, -2.478839E-01 ]
+     q2: [ 2.473529E-01,  3.217454E-01, -1.111588E-01,  2.122932E-01,  1.501183E-01]
+   - 
+     Atom IDs                          :  [  2 ]
+     Atom names                        :  [ H ]
+     Neutral fragment charge           :  1.000000E+00
+     Purity indicator                  : -4.238760E-01
+     q0                                :  [ -6.098104E-01 ]
+     q1                                :  [  4.600343E-02,  3.200010E-02,  2.852390E-01 ]
+     q2: [-1.844626E-02,  2.295479E-02,  4.485482E-02, -9.594741E-03, -8.111706E-02]
+   - 
+     Atom IDs                          :  [  3 ]
+     Atom names                        :  [ H ]
+     Neutral fragment charge           :  1.000000E+00
+     Purity indicator                  : -4.306609E-01
+     q0                                :  [ -6.276048E-01 ]
+     q1                                :  [ -2.193346E-01, -2.104483E-01, -2.870624E-02 ]
+     q2: [-2.249613E-03, -7.278905E-02, -3.488160E-02, -2.478008E-03,  6.393262E-02]
+   - 
+     Atom IDs                          :  [  1,  2,  3 ]
+     Atom names                        :  [ O, H, H ]
+     Neutral fragment charge           :  8.000000E+00
+     Purity indicator                  : -2.555653E-06
+     q0                                :  [ -7.99998E+00 ]
+     q1                                :  [ -4.00088E-01, -4.212859E-01,  6.899258E-01 ]
+     q2: [ 1.714313E+00,  3.909242E+00, -1.151487E+00,  1.344809E+00,  1.587097E+00]
+ Memory Consumption Report:
+   Tot. No. of Allocations             :  668
+   Tot. No. of Deallocations           :  668
+   Remaining Memory (B)                :  0
+   Memory occupation:
+     Peak Value (MB)                   :  0.123
+     for the array                     : cc
+     in the routine                    : get_polynomial_degree
+     Memory Peak of process            : 22.732 MB
+ Walltime since initialization         :  00:00:00.426513210
+ Max No. of dictionaries used          :  2127 #( 1058 still in use)
+ Number of dictionary folders allocated:  1
+# /home/stephan/Software/openmpi-1.8.4_gnu/bin/mpirun -np 2 /home/stephan/Documents/BigDFT/stablebranch/Build-gnu-openmpi_debug_test/bigdft/src/utilities fragment-multipoles parallel_mpi-native data/sparsematrix_metadata.dat fragments.yaml data/overlap_sparse.mpi data/density_kernel_sparse.mpi data/density_kernel_sparse_matmul.mpi data/mpmat_0_0.mpi data/mpmat_1_-1.mpi data/mpmat_1_0.mpi data/mpmat_1_1.mpi data/mpmat_2_-2.mpi data/mpmat_2_-1.mpi data/mpmat_2_0.mpi data/mpmat_2_1.mpi data/mpmat_2_2.mpi -1 coeff.txt
+---
+ Code logo:
+   "__________________________________ A fast and precise DFT wavelet code
+   |     |     |     |     |     |
+   |     |     |     |     |     |      BBBB         i       gggggg
+   |_____|_____|_____|_____|_____|     B    B               g
+   |     |  :  |  :  |     |     |    B     B        i     g
+   |     |-0+--|-0+--|     |     |    B    B         i     g        g
+   |_____|__:__|__:__|_____|_____|___ BBBBB          i     g         g
+   |  :  |     |     |  :  |     |    B    B         i     g         g
+   |--+0-|     |     |-0+--|     |    B     B     iiii     g         g
+   |__:__|_____|_____|__:__|_____|    B     B        i      g        g
+   |     |  :  |  :  |     |     |    B BBBB        i        g      g
+   |     |-0+--|-0+--|     |     |    B        iiiii          gggggg
+   |_____|__:__|__:__|_____|_____|__BBBBB
+   |     |     |     |  :  |     |                           TTTTTTTTT
+   |     |     |     |--+0-|     |  DDDDDD          FFFFF        T
+   |_____|_____|_____|__:__|_____| D      D        F        TTTT T
+   |     |     |     |  :  |     |D        D      F        T     T
+   |     |     |     |--+0-|     |D         D     FFFF     T     T
+   |_____|_____|_____|__:__|_____|D___      D     F         T    T
+   |     |     |  :  |     |     |D         D     F          TTTTT
+   |     |     |--+0-|     |     | D        D     F         T    T
+   |_____|_____|__:__|_____|_____|          D     F        T     T
+   |     |     |     |     |     |         D               T    T
+   |     |     |     |     |     |   DDDDDD       F         TTTT
+   |_____|_____|_____|_____|_____|______                    www.bigdft.org   "
+
+ Reference Paper                       : The Journal of Chemical Physics 129, 014109 (2008)
+ Version Number                        : 1.8.1
+ Timestamp of this run                 : 2017-12-21 18:48:18.256
+ Root process Hostname                 : stephan-Latitude-E7450
+ Number of MPI tasks                   :  2
+ OpenMP parallelization                :  Yes
+ Maximal OpenMP threads per MPI task   :  2
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ BIGDFT PRE-/POST-PROCESSING
+ Parallel environment:
+   MPI tasks                           :  2
+   OpenMP threads                      :  2
+ Atomic System Properties:
+   Types of atoms                      :  [ O, H ]
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/overlap_sparse.mpi
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/overlap_sparse.mpi
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/density_kernel_sparse.mpi
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/density_kernel_sparse.mpi
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/density_kernel_sparse_matmul.mpi
+ Sparse matrix multiplications before optimization:
+   Load unbalancing:
+     Minimal number of columns         :  3
+     Maximal number of columns         :  3
+     Average number of columns         :  3.0
+     Minimal time                      :  1.16E-06
+     Maximal time                      :  1.82E-06
+     Ideal time                        :  1.49E-06
+     Unbalancing in %                  :  22.40
+ Sparse matrix multiplications after optimization:
+   Load unbalancing:
+     Minimal number of columns         :  1
+     Maximal number of columns         :  5
+     Average number of columns         :  3.0
+     Minimal time                      :  0.00E+00
+     Maximal time                      :  9.54E-07
+     Ideal time                        :  4.77E-07
+     Unbalancing in %                  :  100.00
+ Matrix properties:
+   Overlap matrix:
+     total elements                    :  36
+     segments                          :  6
+     non-zero elements                 :  36
+     sparsity in %                     :  0.00
+     sparse matrix multiplication initialized:  No
+     taskgroup summary:
+       number of taskgroups            :  1
+       taskgroups overview:
+       -  {number of tasks:  2, start / end:  [  1,  36 ], 
+      start / end disjoint:  [  1,  36 ]}
+   Density kernel:
+     total elements                    :  36
+     segments                          :  6
+     non-zero elements                 :  36
+     sparsity in %                     :  0.00
+     sparse matrix multiplication initialized:  Yes
+     sparse matrix multiplication setup:
+       segments                        :  6
+       non-zero elements               :  36
+       sparsity in %                   :  0.00
+     taskgroup summary:
+       number of taskgroups            :  1
+       taskgroups overview:
+       -  {number of tasks:  2, start / end:  [  1,  36 ], 
+      start / end disjoint:  [  1,  36 ]}
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/mpmat_0_0.mpi
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/mpmat_1_-1.mpi
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/mpmat_1_0.mpi
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/mpmat_1_1.mpi
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/mpmat_2_-2.mpi
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/mpmat_2_-1.mpi
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/mpmat_2_0.mpi
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/mpmat_2_1.mpi
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/mpmat_2_2.mpi
+ beta for penaltyfunction              : -1000.0
+ determine eigenvalue bounds:
+ -  {npl:  110, npl penalty:  110, npl determined by: penalty, scale:  1.00E+00, 
+ bounds:  [  0.500,  1.500 ], exp accur:  [  7.24E-14 ], 
+ Load unbalancing: {Minimal time:  2.24E-02, Maximal time:  2.83E-02, 
+                      Ideal time:  2.53E-02, Unbalancing in %:  11.68}, 
+ penalty:  4.2E-15, npl calculated:  110, ok:  [  Yes,  Yes ]}
+ summary: {npl:  110, npl determined by: penalty, scale:  1.00E+00, 
+ bounds:  [  0.500,  1.500 ], exp accur:  [  7.24E-14 ]}
+ Orbital occupation:
+ - Orbital ID                          :  4
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/coeffs.mpi
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/coeffs.mpi
+   Fragment multipoles:
+   - Atom IDs                          :  [  1 ]
+     Atom names                        :  [ O ]
+     Neutral fragment charge           :  6.000000E+00
+     Purity indicator                  : -7.277654E-06
+     q0                                :  [ -1.999956E+00 ]
+     q1                                :  [ -6.265744E-02, -5.975427E-02,  9.659879E-02 ]
+     q2: [ 4.760802E-02,  1.593729E+00, -5.188537E-01, -7.704586E-02,  7.745936E-01]
+   - Atom IDs                          :  [  2 ]
+     Atom names                        :  [ H ]
+     Neutral fragment charge           :  1.000000E+00
+     Purity indicator                  : -2.282004E-05
+     q0                                :  [ -2.28203E-05 ]
+     q1                                :  [  1.721538E-06,  1.197506E-06,  1.067420E-05 ]
+     q2: [-6.902952E-07,  8.590131E-07,  1.678555E-06, -3.590540E-07, -3.035559E-06]
+   - Atom IDs                          :  [  3 ]
+     Atom names                        :  [ H ]
+     Neutral fragment charge           :  1.000000E+00
+     Purity indicator                  : -1.255935E-05
+     q0                                :  [ -1.255943E-05 ]
+     q1                                :  [ -4.389256E-06, -4.211427E-06, -5.744604E-07 ]
+     q2: [-4.501856E-08, -1.456632E-06, -6.980398E-07, -4.958913E-08,  1.279400E-06]
+   - Atom IDs                          :  [  1,  2,  3 ]
+     Atom names                        :  [ O, H, H ]
+     Neutral fragment charge           :  8.000000E+00
+     Purity indicator                  : -1.035857E-06
+     q0                                :  [ -1.999992E+00 ]
+     q1                                :  [ -3.173466E-01, -3.334140E-01,  5.095813E-01 ]
+     q2: [ 5.646732E-04,  1.626122E+00, -5.296999E-01, -1.309264E-01,  7.991577E-01]
+ - Orbital ID                          :  5
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/coeffs.mpi
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Reading from file data/coeffs.mpi
+   Fragment multipoles:
+   - Atom IDs                          :  [  1 ]
+     Atom names                        :  [ O ]
+     Neutral fragment charge           :  6.000000E+00
+     Purity indicator                  : -7.158084E-02
+     q0                                :  [ -6.244605E-01 ]
+     q1                                :  [ -1.558515E-01, -1.637476E-01,  2.569337E-01 ]
+     q2: [ 5.416310E-02, -1.525015E-01,  5.574940E-02,  6.998856E-02, -9.457163E-02]
+   - Atom IDs                          :  [  2 ]
+     Atom names                        :  [ H ]
+     Neutral fragment charge           :  1.000000E+00
+     Purity indicator                  : -4.637675E-01
+     q0                                :  [ -7.308066E-01 ]
+     q1                                :  [  5.513125E-02,  3.834943E-02,  3.418351E-01 ]
+     q2: [-2.210630E-02,  2.750939E-02,  5.375474E-02, -1.149849E-02, -9.721200E-02]
+   - Atom IDs                          :  [  3 ]
+     Atom names                        :  [ H ]
+     Neutral fragment charge           :  1.000000E+00
+     Purity indicator                  : -4.368917E-01
+     q0                                :  [ -6.447303E-01 ]
+     q1                                :  [ -2.253196E-01, -2.161908E-01, -2.948955E-02 ]
+     q2: [-2.310998E-03, -7.477525E-02, -3.583341E-02, -2.545625E-03,  6.567715E-02]
+   - Atom IDs                          :  [  1,  2,  3 ]
+     Atom names                        :  [ O, H, H ]
+     Neutral fragment charge           :  8.000000E+00
+     Purity indicator                  : -4.350855E-07
+     q0                                :  [ -1.999997E+00 ]
+     q1                                :  [  7.399945E-02,  8.737928E-02, -2.897916E-01 ]
+     q2: [ 2.607388E+00,  2.529980E+00, -8.091921E-01,  2.332025E+00,  9.933640E-01]
+ Memory Consumption Report:
+   Tot. No. of Allocations             :  674
+   Tot. No. of Deallocations           :  673
+   Remaining Memory (B)                :  288
+   Memory occupation:
+     Peak Value (MB)                   :  0.123
+     for the array                     : cc
+     in the routine                    : get_polynomial_degree
+     Memory Peak of process            : 23.128 MB
+ Walltime since initialization         :  00:00:00.592959401
+ Max No. of dictionaries used          :  2157 #( 1058 still in use)
+ Number of dictionary folders allocated:  1
+# /home/stephan/Software/openmpi-1.8.4_gnu/bin/mpirun -np 2 /home/stephan/Documents/BigDFT/stablebranch/Build-gnu-openmpi_debug_test/bigdft/src/utilities fragment-multipoles parallel_mpi-native data/sparsematrix_metadata.dat fragments.yaml data/overlap_sparse.mpi data/density_kernel_sparse.mpi data/density_kernel_sparse_matmul.mpi data/mpmat_0_0.mpi data/mpmat_1_-1.mpi data/mpmat_1_0.mpi data/mpmat_1_1.mpi data/mpmat_2_-2.mpi data/mpmat_2_-1.mpi data/mpmat_2_0.mpi data/mpmat_2_1.mpi data/mpmat_2_2.mpi 4 data/coeffs.mpi

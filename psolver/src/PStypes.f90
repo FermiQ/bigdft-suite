@@ -7,7 +7,7 @@
 !!    This file is distributed under the terms of the
 !!    GNU General Public License, see ~/COPYING file
 !!    or http://www.gnu.org/copyleft/gpl.txt .
-!!    For the list of contributors, see ~/AUTHORS 
+!!    For the list of contributors, see ~/AUTHORS
 
 !> Define the fortran types and the related routines to handle it.
 module PStypes
@@ -25,52 +25,52 @@ module PStypes
   private
 
   character(len=*), parameter :: KERNEL_VARIABLES        = 'kernel'
-  character(len=*), parameter :: SCREENING               = 'screening' 
-  character(len=*), parameter :: ISF_ORDER               = 'isf_order' 
-  character(len=*), parameter :: STRESS_TENSOR           = 'stress_tensor' 
+  character(len=*), parameter :: SCREENING               = 'screening'
+  character(len=*), parameter :: ISF_ORDER               = 'isf_order'
+  character(len=*), parameter :: STRESS_TENSOR           = 'stress_tensor'
   character(len=*), parameter :: ENVIRONMENT_VARIABLES   = 'environment'
-  character(len=*), parameter :: CAVITY_KEY              = 'cavity' 
-  character(len=*), parameter :: EPSILON_KEY             = 'epsilon' 
-  character(len=*), parameter :: EDENSMAXMIN             = 'edensmaxmin' 
-  character(len=*), parameter :: DELTA_KEY               = 'delta' 
-  character(len=*), parameter :: FACT_RIGID              = 'fact_rigid' 
-  character(len=*), parameter :: CAVITATION              = 'cavitation' 
-  character(len=*), parameter :: GAMMAS_KEY              = 'gammaS' 
-  character(len=*), parameter :: ALPHAS_KEY              = 'alphaS' 
-  character(len=*), parameter :: BETAV_KEY               = 'betaV' 
+  character(len=*), parameter :: CAVITY_KEY              = 'cavity'
+  character(len=*), parameter :: EPSILON_KEY             = 'epsilon'
+  character(len=*), parameter :: EDENSMAXMIN             = 'edensmaxmin'
+  character(len=*), parameter :: DELTA_KEY               = 'delta'
+  character(len=*), parameter :: FACT_RIGID              = 'fact_rigid'
+  character(len=*), parameter :: CAVITATION              = 'cavitation'
+  character(len=*), parameter :: GAMMAS_KEY              = 'gammaS'
+  character(len=*), parameter :: ALPHAS_KEY              = 'alphaS'
+  character(len=*), parameter :: BETAV_KEY               = 'betaV'
   character(len=*), parameter :: GPS_ALGORITHM           = 'gps_algorithm'
   character(len=*), parameter :: RADII_SET               = 'radii_set'
   character(len=*), parameter :: ATOMIC_RADII            = 'atomic_radii'
-  character(len=*), parameter :: PI_ETA                  = 'pi_eta' 
-  character(len=*), parameter :: INPUT_GUESS             = 'input_guess' 
-  character(len=*), parameter :: FD_ORDER                = 'fd_order' 
-  character(len=*), parameter :: ITERMAX                 = 'itermax' 
-  character(len=*), parameter :: MINRES                  = 'minres' 
-  character(len=*), parameter :: PB_METHOD               = 'pb_method' 
-  character(len=*), parameter :: PB_MINRES               = 'pb_minres' 
-  character(len=*), parameter :: PB_ITERMAX              = 'pb_itermax' 
-  character(len=*), parameter :: PB_INPUT_GUESS          = 'pb_input_guess' 
+  character(len=*), parameter :: PI_ETA                  = 'pi_eta'
+  character(len=*), parameter :: INPUT_GUESS             = 'input_guess'
+  character(len=*), parameter :: FD_ORDER                = 'fd_order'
+  character(len=*), parameter :: ITERMAX                 = 'itermax'
+  character(len=*), parameter :: MINRES                  = 'minres'
+  character(len=*), parameter :: PB_METHOD               = 'pb_method'
+  character(len=*), parameter :: PB_MINRES               = 'pb_minres'
+  character(len=*), parameter :: PB_ITERMAX              = 'pb_itermax'
+  character(len=*), parameter :: PB_INPUT_GUESS          = 'pb_input_guess'
   character(len=*), parameter :: PB_ETA                  = 'pb_eta'
   character(len=*), parameter, public :: SETUP_VARIABLES = 'setup'
-  character(len=*), parameter :: ACCEL                   = 'accel' 
-  character(len=*), parameter :: KEEP_GPU_MEMORY         = 'keep_gpu_memory' 
-  character(len=*), parameter :: USE_GPU_DIRECT          = 'use_gpu_direct' 
-  character(len=*), parameter :: TASKGROUP_SIZE_KEY      = 'taskgroup_size' 
-  character(len=*), parameter :: GLOBAL_DATA             = 'global_data' 
-  character(len=*), parameter, public :: VERBOSITY               = 'verbose' 
-  character(len=*), parameter :: OUTPUT                  = 'output' 
+  character(len=*), parameter :: ACCEL                   = 'accel'
+  character(len=*), parameter :: KEEP_GPU_MEMORY         = 'keep_gpu_memory'
+  character(len=*), parameter :: USE_GPU_DIRECT          = 'use_gpu_direct'
+  character(len=*), parameter :: TASKGROUP_SIZE_KEY      = 'taskgroup_size'
+  character(len=*), parameter :: GLOBAL_DATA             = 'global_data'
+  character(len=*), parameter, public :: VERBOSITY               = 'verbose'
+  character(len=*), parameter :: OUTPUT                  = 'output'
   character(len=*), parameter :: DICT_COMPLETED          = '__dict_has_been_checked__'//ATTRS
 
   integer, parameter :: RADII_PAULING_ID = 1
   integer, parameter :: RADII_BONDI_ID = 2
   integer, parameter :: RADII_UFF_ID = 3
-  
+
 
   !> Defines the internal information for application of the FFT between the kernel and the density
   type, public :: FFT_metadata
      integer :: m1,m2,m3 !<original real dimension, with m2 in z direction and and m3 in y direction
      integer :: n1,n2,n3 !<dimension of the FFT operation, taking into account the zero padding if needed
-     integer :: md1,md2,md3 !< Dimension of the real unpadded space, 
+     integer :: md1,md2,md3 !< Dimension of the real unpadded space,
      !!md2 is further enlarged to be a multiple of number of processes
      integer :: nd1,nd2,nd3 !<fourier dimensions for which the kernel is injective,
      !!                formally 1/8 of the fourier grid. Here the dimension nd3 is
@@ -100,16 +100,16 @@ module PStypes
      !! in the case of the Preconditioned Conjugate Gradient (PCG)
      real(dp), dimension(:,:), pointer :: oneoeps
      !> correction term, given in terms of the multiplicative factor of nabla*eps*nabla
-     !! to be used for Preconditioned Conjugate Gradient 
+     !! to be used for Preconditioned Conjugate Gradient
      real(dp), dimension(:,:), pointer :: corr
      !> ionic density, in the case of a Poisson-Boltzmann (PB) approach
      real(dp), dimension(:,:), pointer :: rho_ions
      !> inner rigid cavity to be integrated in the sccs method to avoit inner
      !! cavity discontinuity due to near-zero edens near atoms
      real(dp), dimension(:,:), pointer :: epsinnersccs
-     !>work array needed to store the zero-padded part of the 
+     !>work array needed to store the zero-padded part of the
      !!density and the potential. Cannot be used as-is, it must be
-     !!copied back into a distributed array with the 
+     !!copied back into a distributed array with the
      !!finalize_hartree_results routine.
      real(dp), dimension(:,:,:), pointer :: zf
      !> input guess vectors to be preserved for future use
@@ -122,8 +122,8 @@ module PStypes
      !> arrays for the execution of the PCG algorithm
      real(dp), dimension(:,:), pointer :: res,z,p,q
 
-     integer(f_address) :: work1_GPU,work2_GPU,rho_GPU,pot_ion_GPU,k_GPU !<addresses for the GPU memory 
-     integer(f_address) :: p_GPU,q_GPU,r_GPU,x_GPU,z_GPU,oneoeps_GPU,corr_GPU!<addresses for the GPU memory 
+     integer(f_address) :: work1_GPU,work2_GPU,rho_GPU,pot_ion_GPU,k_GPU !<addresses for the GPU memory
+     integer(f_address) :: p_GPU,q_GPU,r_GPU,x_GPU,z_GPU,oneoeps_GPU,corr_GPU!<addresses for the GPU memory
      !> GPU scalars. Event if they are scalars of course their address is needed
      integer(f_address) :: alpha_GPU, beta_GPU, kappa_GPU, beta0_GPU, eexctX_GPU, reduc_GPU, ehart_GPU
   end type PS_workarrays
@@ -192,7 +192,7 @@ module PStypes
 !!$     !! this enumerator contains the algorithm and has the attribute associated to the 
 !!$     !! type of cavity to be used
      type(f_enumerator) :: method
-     type(cell) :: mesh !< structure which includes all cell informations 
+     type(cell) :: mesh !< structure which includes all cell informations
 !!$     integer, dimension(3) :: ndims   !< dimension of the box of the density
 !!$     real(gp), dimension(3) :: hgrids !<grid spacings in each direction
 !!$     real(gp), dimension(3) :: angrad !< angles in radiants between each of the axis
@@ -208,7 +208,7 @@ module PStypes
      type(mpi_environment) :: mpi_env !< complete environment for the Poisson Solver
      type(mpi_environment) :: inplane_mpi,part_mpi !<mpi_environment for internal ini-plane parallelization
      type(FFT_metadata) :: grid !<dimensions of the FFT grid associated to this kernel
-     logical :: use_gpu_direct 
+     logical :: use_gpu_direct
      integer :: igpu !< control the usage of the GPU
      integer :: gpuPCGRed !< control if GPU can be used for PCG reductions
      integer :: initCufftPlan
@@ -232,7 +232,7 @@ module PStypes
      real(dp) :: PB_eta     !< Mixing scheme for PB
      real(dp) :: IntVol     !< Volume integral needed for the non-electrostatic energy contributions
      real(dp) :: IntSur     !< Surface integral needed for the non-electrostatic energy contributions
-     
+
      integer, dimension(:), pointer :: counts    !< Array needed to gather the information of the Poisson solver
      integer, dimension(:), pointer :: displs    !< Array needed to gather the information of the Poisson solver
      integer, dimension(:), pointer :: rhocounts !< Array needed to gather the information of the Poisson solver on multiple gpus
@@ -242,13 +242,13 @@ module PStypes
 
   !> Define the energy terms for the Poisson and Generalized poisson operator applications
   type, public :: PSolver_energies
-     !> hartree energy, defined as the @f$\int \rho(\mathbf{r}) V(\mathbf{r}) \mathrm d r @f$, with @f$\rho@f$ being the 
+     !> hartree energy, defined as the @f$\int \rho(\mathbf{r}) V(\mathbf{r}) \mathrm d r @f$, with @f$\rho@f$ being the
      !! input density and @f$V@f$ the potential defined by this density
      !! in the case when rho_ion is passed, the electrostatic contribution is only filled
-     real(gp) :: hartree 
+     real(gp) :: hartree
      !> electrostatic energy, defined as the hartree energy but with @f$\rho@f$ and @f$V@f$ coming from @f$\rho + \rho_{ion}@f$
      !! the hartree energy can be obtained by subtraction with the potential energy terms
-     real(gp) :: elec 
+     real(gp) :: elec
      !> Energetic term coming from the @f$\int \rho V_extra@f$, in the case of a @f$\rho@f$-dependent cavity.
      !! Clearly this term is calculated only if the potential is corrected. When the cavity is fixed, the eVextra is zero.
      real(gp) :: eVextra
@@ -458,7 +458,6 @@ contains
           call cudafree(w%k_GPU)
        endif
     end if
-
   end subroutine free_PS_workarrays
 
   subroutine release_PS_potential(keepzf,w,use_input_guess)
@@ -562,7 +561,7 @@ contains
     !-------------------
     nthreads=0
     if (kernel%mpi_env%iproc == 0 .and. kernel%mpi_env%igroup == 0 .and. kernel%opt%verbosity_level==1) then
-       if (kernel%mu==0.0_gp) then 
+       if (kernel%mu==0.0_gp) then
           call yaml_comment('Kernel Initialization',hfill='-')
           call yaml_mapping_open('Poisson Kernel Initialization')
        else
@@ -575,7 +574,7 @@ contains
        call yaml_map('MPI tasks',kernel%mpi_env%nproc)
        if (nthreads /=0) call yaml_map('OpenMP threads per MPI task',nthreads)
        if (kernel%igpu==1) call yaml_map('Kernel copied on GPU',.true.)
-       if (kernel%method /= 'VAC') call yaml_map('Iterative method for Generalised Equation',str(kernel%method))
+       if (kernel%method /= 'VAC') call yaml_map('Iterative method for Generalised Equation',toa(kernel%method))
        if (kernel%method .hasattr. PS_RIGID_ENUM) call yaml_map('Cavity determination','rigid')
        if (kernel%method .hasattr. PS_SCCS_ENUM) call yaml_map('Cavity determination','sccs')
        call yaml_mapping_close() !kernel
@@ -750,7 +749,7 @@ contains
              call f_enum_attr(k%method,PS_NONE_ENUM)
           case('soft-sphere')
              call f_enum_attr(k%method,PS_RIGID_ENUM)
-          case('sccs')   
+          case('sccs')
              call f_enum_attr(k%method,PS_SCCS_ENUM)
           end select
        case (EPSILON_KEY)
@@ -761,7 +760,7 @@ contains
           k%cavity%edensmax=dummy_gp(2)
        case (DELTA_KEY)
           dummy_d=val
-          ! Divided by 4 because both rigid cavities are 4*delta spread 
+          ! Divided by 4 because both rigid cavities are 4*delta spread
           k%cavity%delta=dummy_d  !0.25_gp*dummy_d
        case (FACT_RIGID)
           k%cavity%fact_rigid=val
@@ -832,7 +831,7 @@ contains
                call yaml_warning("unknown input key '" // trim(level) // "/" // trim(dict_key(val)) // "'")
        end select
     case (SETUP_VARIABLES)
-       select case (trim(dict_key(val)))       
+       select case (trim(dict_key(val)))
        case (ACCEL)
           strn=val
           select case(trim(strn))
@@ -902,7 +901,7 @@ contains
     n23=kernel%grid%m3*kernel%grid%n3p
     n1=kernel%grid%m1
 
-    select case(trim(str(kernel%method)))
+    select case(trim(toa(kernel%method)))
     case('PCG')
 !!$       if (use_input_guess .and. &
 !!$            associated(kernel%w%pot)) then
@@ -949,7 +948,7 @@ contains
 
   end subroutine PS_allocate_lowlevel_workarrays
 
-  !> this is useful to deallocate useless space and to 
+  !> this is useful to deallocate useless space and to
   !! also perform extra treatment for the inputguess
   subroutine PS_release_lowlevel_workarrays(kernel,keep_rhopol)
     use wrapper_linalg, only: axpy
@@ -957,13 +956,13 @@ contains
     type(coulomb_operator), intent(inout) :: kernel
     logical, intent(in) :: keep_rhopol
 
-    select case(trim(str(kernel%method)))
+    select case(trim(toa(kernel%method)))
     case('PCG')
        call f_free_ptr(kernel%w%res)
        call f_free_ptr(kernel%w%q)
        call f_free_ptr(kernel%w%p)
        call f_free_ptr(kernel%w%z)
-       if (.not. keep_rhopol) call f_free_ptr(kernel%w%rho_pol) 
+       if (.not. keep_rhopol) call f_free_ptr(kernel%w%rho_pol)
     case('PI')
        call f_free_ptr(kernel%w%rho)
        if (.not. keep_rhopol) call f_free_ptr(kernel%w%rho_pol)
@@ -985,7 +984,7 @@ contains
     type(f_enumerator), intent(in) :: method
     type(PS_workarrays), intent(inout) :: w
 
-    select case(trim(str(method)))
+    select case(trim(toa(method)))
     case('PCG')
        !w%rho_pol=f_malloc_ptr([n1,n23],id='rho_pol') !>>>>>>>>>>here the switch
        w%eps=f_malloc_ptr([n1,n23],id='eps')
@@ -1006,7 +1005,7 @@ contains
 
    end subroutine PS_allocate_cavity_workarrays
 
-  !> create the memory space needed to store the arrays for the 
+  !> create the memory space needed to store the arrays for the
   !! description of the cavity
   subroutine pkernel_allocate_cavity(kernel,vacuum)
     use psolver_environment, only: PS_SCCS_ENUM,vacuum_eps
@@ -1023,7 +1022,7 @@ contains
 !!$         kernel%method,kernel%w)
     if (present(vacuum)) then
        if (vacuum) then
-          select case(trim(str(kernel%method)))
+          select case(trim(toa(kernel%method)))
           case('PCG')
              call f_zero(kernel%w%corr)
              do i23=1,n23
@@ -1056,7 +1055,7 @@ contains
     implicit none
     !> Poisson Solver kernel
     type(coulomb_operator), intent(inout) :: kernel
-    !> name of the atom 
+    !> name of the atom
     character(len=*), intent(in) :: atname
     !> radii of each of the atom types, calculated on the basis of the input values
     real(dp)  :: radius
@@ -1177,9 +1176,9 @@ contains
          call f_err_throw('All rxyz, radii and nat have to be present in the '//&
          'pkernel_set_epsilon routine')
 
-    if (all(prst) .and. .not. (kernel%method .hasattr. 'rigid')) then 
+    if (all(prst) .and. .not. (kernel%method .hasattr. 'rigid')) then
          call f_err_throw('Where rxyz, radii and nat are present in the '//&
-         'pkernel_set_epsilon routine the cavity has to be set to "rigid"') 
+         'pkernel_set_epsilon routine the cavity has to be set to "rigid"')
     else if (all(prst)) then
        kernel%w%nat=nat
        kernel%w%rxyz=f_malloc_ptr([3,nat],id='rxyz')
@@ -1197,7 +1196,7 @@ contains
     i3s=kernel%grid%istart+1
     if (kernel%grid%n3p==0) i3s=1
 
-    select case(trim(str(kernel%method)))
+    select case(trim(toa(kernel%method)))
     case('PCG')
        !check the dimensions of the associated arrays
        if (all([associated(kernel%w%corr),associated(kernel%w%oneoeps)])) then
@@ -1255,7 +1254,7 @@ contains
              kernel%IntVol=kernel%IntVol*hh/epsm1
              kernel%IntSur=kernel%IntSur*hh/epsm1
           else
-             call f_err_throw('For method "PCG" the arrays corr or epsilon should be present')   
+             call f_err_throw('For method "PCG" the arrays corr or epsilon should be present')
           end if
           if (present(oneosqrteps)) then
              call f_memcpy(n=n1*n23,src=oneosqrteps(1,1,i3s),&
@@ -1425,10 +1424,10 @@ contains
     implicit none
     type(coulomb_operator), intent(inout) :: kernel
     real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2)*kernel%grid%n3p), intent(in) :: rho,nabla2_rho,delta_rho,cc_rho
-    !> functional derivative of the sc epsilon with respect to 
+    !> functional derivative of the sc epsilon with respect to
     !! the electronic density, in distributed memory
     real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2)*kernel%grid%n3p), intent(out) :: depsdrho
-    !> functional derivative of the surface integral with respect to 
+    !> functional derivative of the surface integral with respect to
     !! the electronic density, in distributed memory
     real(dp), dimension(kernel%mesh%ndims(1),kernel%mesh%ndims(2)*kernel%grid%n3p), intent(out) :: dsurfdrho
     real(dp), intent(out) :: IntSur,IntVol
@@ -1447,7 +1446,7 @@ contains
     i3s=kernel%grid%istart+1
     epsm1=(kernel%cavity%epsilon0-vacuum_eps)
     !now fill the pkernel arrays according the the chosen method
-    select case(trim(str(kernel%method)))
+    select case(trim(toa(kernel%method)))
     case('PCG')
        !in PCG we only need corr, oneosqrtepsilon
        i23=1
@@ -1455,7 +1454,7 @@ contains
           !do i3=1,n03
           do i2=1,n02
              do i1=1,n01
-                if (kernel%w%epsinnersccs(i1,i23).gt.innervalue) then 
+                if (kernel%w%epsinnersccs(i1,i23).gt.innervalue) then
                    kernel%w%eps(i1,i23)=1.d0 !eps(i1,i2,i3)
                    kernel%w%oneoeps(i1,i23)=1.d0 !oneosqrteps(i1,i2,i3)
                    kernel%w%corr(i1,i23)=0.d0 !corr(i1,i2,i3)
@@ -1500,7 +1499,7 @@ contains
                    de=epsprime(rh,kernel%cavity)
                    depsdrho(i1,i23)=de
                    kernel%w%eps(i1,i23)=eps(rh,kernel%cavity)
-                   kernel%w%oneoeps(i1,i23)=oneoeps(rh,kernel%cavity) 
+                   kernel%w%oneoeps(i1,i23)=oneoeps(rh,kernel%cavity)
                    dsurfdrho(i1,i23)=-surf_term(rh,d2,dd,cc_rho(i1,i23),kernel%cavity)/epsm1
 
                    !evaluate surfaces and volume integrals
@@ -1517,12 +1516,12 @@ contains
     !IntVol=IntVol*product(kernel%mesh%hgrids)/epsm1
     IntSur=IntSur*kernel%mesh%volume_element/epsm1
     IntVol=IntVol*kernel%mesh%volume_element/epsm1
-     
+
 
   end subroutine build_cavity_from_rho
 
 
-!!!  !> calculates the inner cavity vector epsinnersccs for sccs run 
+!!!  !> calculates the inner cavity vector epsinnersccs for sccs run
 !!!  !! given a set of centres. Based on error function.
 !!!  !! Need the radius of the cavit and its smoothness
 !!!  subroutine epsinnersccs_rigid_cavity_error_multiatoms_bc(geocode,ndims,hgrids,natreal,rxyzreal,radiireal,delta,eps)

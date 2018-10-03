@@ -396,8 +396,8 @@
    PSP XC                              : "XC: Teter 93"
   #----------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : bohr
-   Positions:
+   units                               : bohr
+   positions:
    -  {C: [ 7.200000000,  7.200000000,  7.200000000],  # [  16.00,  16.00,  16.00 ] 0001
  IGSpin:  2}
    Rigid Shift Applied (AU)            :  [  7.2000,  7.2000,  7.2000 ]
@@ -658,8 +658,8 @@
    Effective box size (AU)             :  [  2.43E+01,  2.43000E+01,  2.43000E+01 ]
    Grid spacing units                  :  [  54,  54,  54 ]
    Extremes for the new high resolution grid points:  [  22,  32,  22,  32,  22,  32 ]
-   Coarse resolution grid: {Segments:  2377, Points:  2377}
-   Fine resolution grid: {Segments:  81, Points:  81}
+   Coarse resolution grid: {Segments:  2377, Points:  86791}
+   Fine resolution grid: {Segments:  81, Points:  515}
    Wavefunction memory occupation in the extended grid (Bytes)::  723168
     #Calculating tail corrections, orbitals are processed separately
    Corrected Energies: {Ekin:  3.38031478029E+00, Epot: -5.41961184476E+00, 

@@ -46,7 +46,6 @@ libmodules_a_SOURCES = ab7_mixing.f90 \
 	psp_projectors.f90 \
 	psp_projectors_base.f90 \
 	input_keys.f90 \
-	gaussdaub.f90 \
 	input_dicts.f90 \
 	types.f90 \
 	input.f90 \
@@ -100,7 +99,8 @@ libmodules_a_SOURCES = ab7_mixing.f90 \
 	sw_potential.f90 \
 	get_basis.f90 \
 	asd_fake.f90 \
-	get_kernel.f90
+	get_kernel.f90 \
+	module_utilities.f90
 
 # Modules
 if CAPITALIZE
@@ -109,7 +109,6 @@ modules = MODULE_TYPES.@MODULE_EXT@ \
 	MODULE_INTERFACES.@MODULE_EXT@ \
 	MODULE_PRIVATE_API.@MODULE_EXT@ \
 	MODULE_INPUT.@MODULE_EXT@ \
-	GAUSSDAUB.@MODULE_EXT@ \
 	BIGDFT_API.@MODULE_EXT@ \
 	VDWCORRECTION.@MODULE_EXT@ \
 	MODULE_FRAGMENTS.@MODULE_EXT@ \
@@ -158,14 +157,14 @@ modules = MODULE_TYPES.@MODULE_EXT@ \
 	MODULE_CP2K.@MODULE_EXT@ \
 	SWPOTENTIAL.@MODULE_EXT@ \
 	GET_BASIS.@MODULE_EXT@ \
-	GET_KERNEL.@MODULE_EXT@
+	GET_KERNEL.@MODULE_EXT@ \
+	MODULE_UTILITIES.@MODULE_EXT@
 else
 modules = module_types.@MODULE_EXT@ \
 	module_mixing.@MODULE_EXT@ \
 	module_interfaces.@MODULE_EXT@ \
 	module_private_api.@MODULE_EXT@ \
 	module_input.@MODULE_EXT@ \
-	gaussdaub.@MODULE_EXT@ \
 	bigdft_api.@MODULE_EXT@ \
 	vdwcorrection.@MODULE_EXT@ \
 	module_fragments.@MODULE_EXT@ \
@@ -215,11 +214,12 @@ modules = module_types.@MODULE_EXT@ \
 	module_bazant.@MODULE_EXT@ \
 	swpotential.@MODULE_EXT@ \
 	get_basis.@MODULE_EXT@ \
-	get_kernel.@MODULE_EXT@
+	get_kernel.@MODULE_EXT@ \
+	module_utilities.@MODULE_EXT@
 endif
 
 ATOMS_INCLUDES = astruct-inc.f90
-COMMS_INCLUDES = check_array-inc.f90
+COMMS_INCLUDES = transpose-inc.f90
 
 if HAVE_OPENBABEL
 openbabel_dynamic_sources = openbabel.cpp
@@ -249,10 +249,10 @@ $(modules): $(libmodules_a_OBJECTS)
 
 input.o: fragment_base.o
 input_dicts.o: fragment_base.o input.o
-atoms_data.o: $(ATOMS_INCLUDES) internal_coordinates.o input_dicts.o
+atoms_data.o: $(ATOMS_INCLUDES) multipole_base.o internal_coordinates.o input_dicts.o
 input_keys.o: multipole_base.o atoms_data.o input.o fragment_base.o vdwcorrection.o
 types.o: psp_projectors_base.o atoms_data.o input_keys.o \
-	ab7_mixing.o multipole_base.o dpbox.o constrained_magnetic_field.o
+	ab7_mixing.o multipole_base.o dpbox.o constrained_magnetic_field.o module_asd.o
 interfaces.o: types.o fragments.o diis_module.o constrained_dft.o input_keys.o
 
 BigDFT_API.o: types.o interfaces.o atoms_data.o input_dicts.o psp_projectors.o communications_init.o bigdft_run.o
@@ -262,13 +262,13 @@ diis_module.o: types.o
 fragments.o: input_keys.o types.o fragment_base.o
 constrained_dft.o: input_keys.o
 #psp_projectors_base.o:  gaussians.o
-psp_projectors.o: locregs_init.o psp_projectors_base.o
+psp_projectors.o: locregs_init.o psp_projectors_base.o atoms_data.o orbital_basis.o
 #communications_base.o: base.o
 #dpbox.o: base.o bounds.o
 communications_init.o: types.o
-communications.o: types.o
+communications.o: $(COMMS_INCLUDES) types.o
 sparsematrix_wrappers.o: types.o interfaces.o
-gaussdaub.o: psp_projectors_base.o
+#gaussdaub.o: psp_projectors_base.o
 #module_sqn.o: base.o
 bigdft_run.o: types.o input_dicts.o interfaces.o module_forces.o module_lenosky_si.o module_lj.o module_morse_bulk.o \
 		module_tersoff.o module_alborz.o module_bornmayerhugginstosifumi.o module_cp2k.o module_dftbp.o sw_potential.o module_tdpot.o \
@@ -300,6 +300,7 @@ sw_potential.o: atoms_data.o
 bigdft_matrices.o: types.o sparsematrix_wrappers.o
 get_basis.o: types.o interfaces.o communications.o rhopotential.o constrained_dft.o fragment_base.o fragments.o transposed_operations.o locregs_init.o get_kernel.o io.o
 get_kernel.o: types.o interfaces.o diis_module.o communications.o constrained_dft.o rhopotential.o transposed_operations.o locregs_init.o orthonormalization.o
+module_utilities.o: multipole.o
 ##pexsi.o also depends on pexsi_interfaces, but it is not known which one...
 #if HAVE_PEXSI
 #pexsi_interfaces.o: pexsi_base.o

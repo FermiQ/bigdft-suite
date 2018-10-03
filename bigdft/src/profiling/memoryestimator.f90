@@ -16,6 +16,7 @@ subroutine MemoryEstimator(nproc,idsx,lr,norb,nspinor,nkpt,nprojel,nspin,itrpmax
   use Poisson_Solver
   use locreg_operations, only: memspace_work_arrays_sumrho,memspace_work_arrays_locham
   use locregs
+  use box, only: cell_geocode
   implicit none
 
   !Arguments
@@ -53,22 +54,31 @@ subroutine MemoryEstimator(nproc,idsx,lr,norb,nspinor,nkpt,nprojel,nspin,itrpmax
   !wavefunction memory per orbitals
   omemwf=real(nvctrp*nproc*8,kind=8)
   
-  if (lr%geocode == 'P') then
+!!$  if (lr%geocode == 'P') then
+  select case(cell_geocode(lr%mesh))
+    case('P')
      call P_FFT_dimensions(2*n1+2,2*n2+2,2*n3+2,m1,m2,m3,n01,n02,n03,md1,md2,md3,nd1,nd2,nd3,nproc,.false.)
      n01=2*n1+2
      n02=2*n2+2
      n03=2*n3+2
-  else if (lr%geocode == 'S') then
+!!$  else if (lr%geocode == 'S') then
+    case('S')
      call S_FFT_dimensions(2*n1+2,2*n2+31,2*n3+2,m1,m2,m3,n01,n02,n03,md1,md2,md3,nd1,nd2,nd3,nproc,0,.false.)
      n01=2*n1+2
      n02=2*n2+31
      n03=2*n3+2
-  else if (lr%geocode == 'F') then
+!!$  else if (lr%geocode == 'F') then
+    case('F')
      call F_FFT_dimensions(2*n1+31,2*n2+31,2*n3+31,m1,m2,m3,n01,n02,n03,md1,md2,md3,nd1,nd2,nd3,nproc,0,.false.)
      n01=2*n1+31
      n02=2*n2+31
      n03=2*n3+31
-  end if
+    case('W')
+       call W_FFT_dimensions(2*n1+31,2*n2+31,2*n3+2,m1,m2,m3,n1,n2,n3,md1,md2,md3,nd1,nd2,nd3,nproc,0,.false.)
+       n01=2*n1+31
+       n02=2*n2+31
+       n03=2*n3+2
+    end select
   tt = 8.d0*real(n1*n2*n3,kind=8)/real(n01*n02*n03,kind=8)
 
   !density memory

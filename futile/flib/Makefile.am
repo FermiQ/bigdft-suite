@@ -90,9 +90,9 @@ getarg_files = get_command_argument_fake.f90
 endif
 libflib_a_SOURCES = utils.c utils.h utilsadd.c f_plugin.c malloc_repad.c \
 	f_malloc.f90 f_enums.f90 \
-	f_utils.f90 f_refcnts.f90 f_trees.f90 \
+	f_utils.f90 f_refcnts.f90 f_trees.f90 performances.f90 \
 	yaml_output.f90 mem_profiling.f90 dynamic_memory.f90 \
-	razero.f90 getadd.f90 time.f90 f_bibliography.f90 \
+	razero.f90 getadd.f90 time.f90 f_bibliography.f90 f_iostream.f90 \
 	yaml_parser.c yaml_parse.f90 f_jmp.f90 \
 	f_input_file.f90 randomData.f90 \
 	f_ternary.f90 f_objects.f90 fpython.f90 f_environment.f90 f_arrays.f90\
@@ -106,6 +106,7 @@ DYN_INCLUDES =  deallocate-inc.f90 allocate-inc.f90 \
 	f_memcpy-inc.f90 f_memcpy-base-inc.f90 f_maxdiff-base-inc.f90 \
 	allocate-ptr-inc.f90 f_map-inc.f90 \
 	deallocate-simgrid-inc.f90 allocate-simgrid-inc.f90 \
+        allocate-aligned-inc.f90\
 	allocate-inc-base.f90 allocate-inc-end.f90 allocation-validation-inc.f90
 
 F_MALLOC_INCLUDES = f_malloc-inc.f90 f_malloc-extra-inc.f90 \
@@ -136,6 +137,8 @@ modules = YAML_OUTPUT.@MODULE_EXT@ \
 	F_RANDOM.@MODULE_EXT@ \
 	MEMORY_PROFILING.@MODULE_EXT@ \
 	F_UTILS.@MODULE_EXT@ \
+	F_IOSTREAM.@MODULE_EXT@ \
+	F_PERFS.@MODULE_EXT@ \
 	F_BIBLIOGRAPHY.@MODULE_EXT@ \
 	F_REFCNTS.@MODULE_EXT@ \
 	F_TREES.@MODULE_EXT@ \
@@ -161,6 +164,8 @@ modules = f_enums.@MODULE_EXT@ \
 	f_bibliography.@MODULE_EXT@ \
 	memory_profiling.@MODULE_EXT@ \
 	f_utils.@MODULE_EXT@ \
+	f_iostream.@MODULE_EXT@ \
+	f_perfs.@MODULE_EXT@ \
 	f_input_file.@MODULE_EXT@ \
 	f_refcnts.@MODULE_EXT@ \
 	f_trees.@MODULE_EXT@ \
@@ -202,7 +207,7 @@ $(NVTX_DEP): $(NOOMP_INCLUDES)
 $(SIMGRID_DEP): $(NOOMP_INCLUDES)
 f_malloc.o: $(SIMGRID_DEP) $(F_MALLOC_INCLUDES)
 f_input_file.o: yaml_output.o dynamic_memory.o f_utils.o
-dynamic_memory.o: getadd.o yaml_output.o yaml_parse.o mem_profiling.o f_malloc.o f_utils.o $(DYN_INCLUDES) f_environment.o \
+dynamic_memory.o: getadd.o yaml_output.o yaml_parse.o mem_profiling.o f_malloc.o f_utils.o $(DYN_INCLUDES) f_environment.o performances.o\
 	$(SIMGRID_SHARED_DEP)
 mem_profiling.o: yaml_output.o yaml_parse.o f_environment.o
 f_lib_highlev.o: yaml_output.o dynamic_memory.o yaml_parse.o $(NVTX_DEP) $(SIMGRID_DEP) time.o f_utils.o f_input_file.o
@@ -217,3 +222,4 @@ fpython.o: yaml_output.o f_objects.o
 time.o: $(NOOMP_INCLUDES) dynamic_memory.o f_utils.o $(NVTX_DEP) f_jmp.o 
 
 f_jmp.o: dynamic_memory.o
+f_iostream.o: f_utils.o

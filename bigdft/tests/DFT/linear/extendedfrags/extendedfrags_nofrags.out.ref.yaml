@@ -177,7 +177,7 @@
    subspace_diag                       : No #     Diagonalization at the end
    extra_states                        : 0 #      Number of extra states to include in support function and kernel optimization (dmin 
     #                                              only), must be equal to norbsempty
-   calculate_onsite_overlap            : No #     Calculate the onsite overlap matrix (has only an effect if the matrices are all 
+   calculate_onsite_overlap            : Yes #     Calculate the onsite overlap matrix (has only an effect if the matrices are all 
     #                                              written to disk)
    charge_multipoles                   : 0 #      Calculate the atom-centered multipole coefficients; 0 no, 1 old approach Loewdin, 2 
     #                                              new approach Projector
@@ -452,9 +452,9 @@
    PSP XC                              : "XC: Teter 93"
   #----------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : angstroem
-   Cell                                :  [  16.0,  16.0,  12.74 ]
-   Positions:
+   units                               : angstroem
+   cell                                :  [  16.0,  16.0,  12.74 ]
+   positions:
    - C: [ 8.000000000,  8.000000000,  0.000000000] # [  35.00,  35.00,  0.00 ] 0001
    - C: [ 8.000000000,  8.000000000,  1.257000000] # [  35.00,  35.00,  5.33 ] 0002
    - C: [ 8.000000000,  8.000000000,  2.548000000] # [  35.00,  35.00,  10.80 ] 0003
@@ -3671,6 +3671,7 @@
   #-------------------------------- Warnings obtained during the run, check their relevance!
  WARNINGS:
  - The coarse grid does not fill the entire periodic box
+ - Inconsistency in Tr(H), check your cutoff radii
  - No orthogonalizing of the support functions
  - The support function localization radii might be too small, got 20 warnings
  - density optimization not converged

@@ -136,9 +136,9 @@ subroutine write_sdos(bit,norbp,norb,epsx,epsy,epsz,output_dir)
   real(wp), dimension(:), pointer :: epsx_tot,epsy_tot,epsz_tot
 
   !here we may gather the results and write the file
-  epsx_tot=>mpigathered(epsx,comm=bigdft_mpi%mpi_comm)
-  epsy_tot=>mpigathered(epsy,comm=bigdft_mpi%mpi_comm)
-  epsz_tot=>mpigathered(epsz,comm=bigdft_mpi%mpi_comm)
+  epsx_tot=>fmpi_gather_ptr(epsx,comm=bigdft_mpi%mpi_comm)
+  epsy_tot=>fmpi_gather_ptr(epsy,comm=bigdft_mpi%mpi_comm)
+  epsz_tot=>fmpi_gather_ptr(epsz,comm=bigdft_mpi%mpi_comm)
 
   unt=82
   if (bigdft_mpi%iproc==0) then
@@ -252,12 +252,14 @@ subroutine local_analysis(iproc,nproc,hx,hy,hz,at,rxyz,lr,orbs,orbsv,psi,psivirt
    allpsigau = f_malloc((/ G%ncoeff*orbs%nspinor, orbs%norbp+norbpv /),id='allpsigau')
 !print *,'there'
    !this routine should be simplified like gaussians_to_wavelets
-   call wavelets_to_gaussians(lr%geocode,orbs%norbp,orbs%nspinor,&
+!!$   call wavelets_to_gaussians(lr%geocode,orbs%norbp,orbs%nspinor,&
+   call wavelets_to_gaussians(lr,orbs%norbp,orbs%nspinor,&
         lr%d%n1,lr%d%n2,lr%d%n3,G,thetaphi,hx,hy,hz,lr%wfd,psi,allpsigau)
 !print *,'here'
    !the same can be done for virtual orbitals if orbsv%norb > 0
    if (orbsv%norb > 0) then
-      call wavelets_to_gaussians(lr%geocode,norbpv,orbsv%nspinor,&
+!!$      call wavelets_to_gaussians(lr%geocode,norbpv,orbsv%nspinor,&
+      call wavelets_to_gaussians(lr,norbpv,orbsv%nspinor,&
            lr%d%n1,lr%d%n2,lr%d%n3,G,thetaphi,hx,hy,hz,lr%wfd,psivirt,&
            allpsigau(1,orbs%norbp+min(1,norbpv)))
    end if
@@ -267,7 +269,7 @@ subroutine local_analysis(iproc,nproc,hx,hy,hz,at,rxyz,lr,orbs,orbsv,psi,psivirt
    !    call vcopy(G%ncoeff*orbs%nspinor*(orbs%norbp+norbpv),allpsigau(1,1),1,dualcoeffs(1,1),1)
    !end if
    !build dual coefficients
-   call dual_gaussian_coefficients(orbs%nspinor*(orbs%norbp+norbpv),G,dualcoeffs)
+   call dual_gaussian_coefficients(lr%mesh,orbs%nspinor*(orbs%norbp+norbpv),G,dualcoeffs)
 
 
    !here we can calculate the Mulliken charge population

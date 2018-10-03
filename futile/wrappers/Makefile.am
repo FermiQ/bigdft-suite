@@ -41,17 +41,20 @@ libwrappers_a_SOURCES = $(DGEMMSY_SOURCES) $(CUBLAS_SOURCES) $(OCL_SOURCES) \
 	numerics.f90 \
 	f_functions.f90 \
 	box.f90 \
+	domain.f90 \
 	harmonics.f90
 
+EXTRA_DIST = FiniteDiffCorff.inc
 # Dependencies
 $(modules): $(libwrappers_a_OBJECTS)
 interface_cuda_fake.o: linalg.o
 interface_dgemmsy_fake.o: linalg.o
 f_blas.o: linalg.o
-f_functions.o: numerics.o box.o
+f_functions.o: numerics.o box.o FiniteDiffCorff.inc
 op2p_module.o: linalg.o
-harmonics.o: numerics.o
-box.o: linalg.o
+harmonics.o: numerics.o box.o
+box.o: linalg.o domain.o
+domain.o: numerics.o
 #fft2d.o: fft3d.o
 
 AM_FCFLAGS = -I. -I$(top_builddir)/dicts/ -I$(top_builddir)/flib/ -I$(builddir)/mpi #@MPI_INCLUDE@
@@ -69,6 +72,7 @@ modules = MODULE_FFT_SG.@MODULE_EXT@ \
 	F_FUNCTIONS.@MODULE_EXT@ \
 	F_HARMONICS.@MODULE_EXT@ \
 	NUMERICS.@MODULE_EXT@ \
+	AT_DOMAIN.@MODULE_EXT@ \
 	BOX.@MODULE_EXT@
 else
 modules = module_fft_sg.@MODULE_EXT@ \
@@ -78,6 +82,7 @@ modules = module_fft_sg.@MODULE_EXT@ \
 	f_functions.@MODULE_EXT@ \
 	f_harmonics.@MODULE_EXT@ \
 	numerics.@MODULE_EXT@ \
+	at_domain.@MODULE_EXT@ \
 	box.@MODULE_EXT@
 endif
 CLEANFILES = *.@MODULE_EXT@

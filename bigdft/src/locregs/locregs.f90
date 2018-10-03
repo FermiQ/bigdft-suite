@@ -18,17 +18,27 @@ module locregs
 
   private 
 
+  integer, parameter :: SIZE_=1,LR_=2
+
   !> Grid dimensions in all different wavelet basis
   type, public :: grid_dimensions
-     integer :: n1,n2,n3                      !< Coarse grid dimensions
-     integer :: nfl1,nfu1,nfl2,nfu2,nfl3,nfu3 !< Lower and upper indices of fine grid in 3D 
-     integer :: n1i,n2i,n3i                   !< ISF grid dimension (roughly 2*n+buffer)
+     integer :: n1   = 0
+     integer :: n2   = 0
+     integer :: n3   = 0 !< Coarse grid dimensions
+     integer :: nfl1 = 0
+     integer :: nfu1 = 0
+     integer :: nfl2 = 0
+     integer :: nfu2 = 0
+     integer :: nfl3 = 0
+     integer :: nfu3 = 0 !< Lower and upper indices of fine grid in 3D 
+     integer :: n1i  = 0
+     integer :: n2i  = 0
+     integer :: n3i  = 0 !< ISF grid dimension (roughly 2*n+buffer)
   end type grid_dimensions
-
 
   !> Contains the information needed for describing completely a wavefunction localisation region
   type, public :: locreg_descriptors
-     character(len=1) :: geocode            !< @copydoc poisson_solver::doc::geocode
+!!$     character(len=1) :: geocode            !< @copydoc poisson_solver::doc::geocode
      logical :: hybrid_on                   !< Interesting for global, periodic, localisation regions
      integer :: ns1,ns2,ns3                 !< Starting point of the localisation region in global coordinates
      integer :: nsi1,nsi2,nsi3              !< Starting point of locreg for interpolating grid
@@ -50,28 +60,36 @@ module locregs
      type(box_iterator) :: bit
   end type locreg_descriptors
 
+  !>storage of localization regions, to be used for
+  !!communicating the descriptors
+  type, public :: locregs_ptr
+     type(locreg_descriptors), pointer :: lr=>null()
+  end type locregs_ptr
+
+  type, public :: locreg_storage
+     type(locregs_ptr), dimension(:), pointer  :: lrs_ptr=>null()
+     integer, dimension(:), pointer :: encode_buffer => null()
+     integer, dimension(:,:), pointer :: lr_full_sizes => null()
+     integer :: lr_size = 0
+  end type locreg_storage
+
+  interface assignment(=)
+     module procedure allocate_locregs_ptr
+  end interface assignment(=)
+
   public :: nullify_locreg_descriptors,locreg_null
   public :: deallocate_locreg_descriptors,deallocate_wfd
   public :: allocate_wfd,copy_locreg_descriptors,copy_grid_dimensions
   public :: check_overlap,check_overlap_cubic_periodic,check_overlap_from_descriptors_periodic,lr_box
-  public :: init_lr
+  public :: init_lr,reset_lr,extract_lr,store_lr,gather_locreg_storage
+  public :: lr_storage_init, lr_storage_free
+  public :: communicate_locreg_descriptors_basics
+  public :: get_isf_offset,ensure_locreg_bounds,lr_is_stored
 
 contains
 
   pure function grid_null() result(g)
     type(grid_dimensions) :: g
-    g%n1   =0
-    g%n2   =0
-    g%n3   =0
-    g%nfl1 =0
-    g%nfu1 =0
-    g%nfl2 =0
-    g%nfu2 =0
-    g%nfl3 =0
-    g%nfu3 =0
-    g%n1i  =0
-    g%n2i  =0
-    g%n3i  =0
   end function grid_null
 
   pure function locreg_null() result(lr)
@@ -85,7 +103,7 @@ contains
     use bounds, only: nullify_convolutions_bounds
     implicit none
     type(locreg_descriptors), intent(out) :: lr
-    lr%geocode='F'
+!!$    lr%geocode='F'
     lr%hybrid_on=.false.   
     lr%ns1=0
     lr%ns2=0
@@ -106,6 +124,11 @@ contains
     call nullify_box_iterator(lr%bit)
   end subroutine nullify_locreg_descriptors
 
+  pure subroutine nullify_lr_storage(lr_storage)
+    implicit none
+    type(locreg_storage), intent(out) :: lr_storage
+  end subroutine nullify_lr_storage
+
   !> Destructors
   subroutine deallocate_locreg_descriptors(lr)
     use bounds
@@ -118,6 +141,404 @@ contains
     
   end subroutine deallocate_locreg_descriptors
 
+  subroutine nullify_lr_pointers(lr)
+    use bounds
+    use compression
+    implicit none
+    type(locreg_descriptors), intent(inout) :: lr
+    
+    !nullify pointers internal to the structure to avoid fake deallocation
+    call nullify_wfd_pointers(lr%wfd)
+    call nullify_convolutions_bounds(lr%bounds)
+  end subroutine nullify_lr_pointers
+
+  function lr_ptr_sizeof(array)
+    implicit none
+    type(locregs_ptr), dimension(:), intent(in) :: array
+    integer :: lr_ptr_sizeof
+    !local variables
+    type(locregs_ptr), dimension(2) :: lrs_ptr
+
+    if (size(array) > 1) then
+       lr_ptr_sizeof=int(f_loc(array(2))-f_loc(array(1)))
+    else
+       lr_ptr_sizeof=int(f_loc(lrs_ptr(2))-f_loc(lrs_ptr(1)))
+    end if
+  end function lr_ptr_sizeof
+
+  subroutine allocate_locregs_ptr(array,m)
+    use dynamic_memory
+    implicit none
+    type(locregs_ptr), dimension(:), pointer, intent(inout) :: array
+    type(malloc_information_ptr), intent(in) :: m
+    !local variables
+    integer :: ierror
+    
+    call f_timer_interrupt(TCAT_ARRAY_ALLOCATIONS)
+
+    allocate(array(m%lbounds(1):m%ubounds(1)),stat=ierror)
+
+    if (.not. malloc_validate(ierror,size(shape(array)),m)) return
+
+    !here the database for the allocation might be updated
+    call update_allocation_database(f_loc(array),&
+         product(int(m%shape(1:m%rank),f_long)),lr_ptr_sizeof(array),m)
+
+    call f_timer_resume()!TCAT_ARRAY_ALLOCATIONS
+
+  end subroutine allocate_locregs_ptr
+
+  subroutine locregs_ptr_free(array)
+    implicit none
+    type(locregs_ptr), dimension(:), pointer, intent(inout) :: array
+    !local variables
+    integer :: ierror
+    call f_timer_interrupt(TCAT_ARRAY_ALLOCATIONS)
+
+    call f_purge_database(product(int(shape(array),f_long)),lr_ptr_sizeof(array),&
+         f_loc(array))
+
+    deallocate(array,stat=ierror)
+
+    if (.not. free_validate(ierror)) return
+    nullify(array)
+    call f_timer_resume()!TCAT_ARRAY_ALLOCATIONS
+  end subroutine locregs_ptr_free
+
+  subroutine lr_storage_init(lr_storage,nlr)
+    implicit none
+    type(locreg_storage), intent(out) :: lr_storage
+    integer, intent(in) :: nlr
+
+    lr_storage%lrs_ptr=f_malloc_ptr(nlr,id='lrs_ptr')
+    lr_storage%lr_size=get_locreg_encode_size()
+  end subroutine lr_storage_init
+
+  subroutine lr_storage_free(lr_storage)
+    implicit none
+    type(locreg_storage), intent(inout) :: lr_storage
+    call locregs_ptr_free(lr_storage%lrs_ptr)
+    call f_free_ptr(lr_storage%encode_buffer)
+    call f_free_ptr(lr_storage%lr_full_sizes)
+    call nullify_lr_storage(lr_storage)
+  end subroutine lr_storage_free
+
+  !>methods to encode and decode the structure
+  !might be used in favour of copying of the datatypes
+  function get_locreg_encode_size() result(s)
+    implicit none
+    integer :: s
+    !local variable
+    type(locreg_descriptors) :: lr
+    integer, dimension(3) :: dummy_char_mold
+
+    s=size(transfer(lr,dummy_char_mold))
+
+  end function get_locreg_encode_size
+
+  function get_locreg_full_encode_size(lr) result(s)
+    implicit none
+    type(locreg_descriptors), intent(in) :: lr
+    integer :: s
+
+    s=get_locreg_encode_size()
+    if (associated(lr%wfd%buffer)) s=s+size(lr%wfd%buffer)
+
+  end function get_locreg_full_encode_size
+
+  subroutine locreg_encode(lr,lr_size,dest)
+    implicit none
+    type(locreg_descriptors), intent(in) :: lr
+    integer, intent(in) :: lr_size !<obtained from locreg_encode_size
+    !array of dimension at least equal to locreg_encode_size
+    integer, dimension(lr_size), intent(out) :: dest
+    
+    dest=transfer(lr,dest)
+  end subroutine locreg_encode
+
+  subroutine locreg_full_encode(lr,lr_size,lr_full_size,dest)
+    implicit none
+    type(locreg_descriptors), intent(in) :: lr
+    integer, intent(in) :: lr_size,lr_full_size !<obtained from locreg_encode_size
+    !array of dimension at least equal to locreg_full_encode_size
+    integer, dimension(lr_full_size), intent(out) :: dest
+
+    call locreg_encode(lr,lr_size,dest)
+    call f_memcpy(n=lr_full_size-lr_size,src=lr%wfd%buffer,dest=dest(lr_size+1))
+
+  end subroutine locreg_full_encode
+
+  subroutine locregs_encode(llr,nlr,lr_size,dest_arr,mask)
+    implicit none
+    integer, intent(in) :: lr_size,nlr
+    type(locreg_descriptors), dimension(nlr), intent(in) :: llr
+    !>array of minimal second dimension count(mask(nlr)), if present
+    integer, dimension(lr_size,*), intent(out) :: dest_arr
+    !> array of logical telling the locregs to mask
+    logical, dimension(nlr), intent(in), optional :: mask
+    !local variables
+    integer :: ilr,iilr
+
+    iilr=0
+    do ilr=1,nlr
+       iilr=iilr+1
+       if (present(mask)) then
+          if (.not. mask(ilr)) then
+             iilr=iilr-1
+             cycle
+          end if
+       end if
+       call locreg_encode(llr(ilr),lr_size,dest_arr(1,iilr))
+    end do
+
+  end subroutine locregs_encode
+
+  !>decode a locreg from a src array
+  !! warning, the status of the pointers of lr is nullified after communication
+  subroutine locreg_decode(src,lr_size,lr)
+    implicit none
+    integer, intent(in) :: lr_size
+    type(locreg_descriptors), target, intent(out) :: lr
+    integer, dimension(lr_size), intent(in) :: src
+
+    lr=transfer(src,lr)   
+    call nullify_lr_pointers(lr)
+    lr%bit%mesh => lr%mesh
+  end subroutine locreg_decode
+
+  subroutine locreg_full_decode(src,lr_size,lr_full_size,lr,bounds)
+    use compression
+    implicit none
+    integer, intent(in) :: lr_full_size,lr_size
+    type(locreg_descriptors), intent(out) :: lr
+    integer, dimension(lr_full_size), intent(in) :: src
+    logical, intent(in), optional :: bounds
+    !local variables
+    logical :: bounds_
+    integer, dimension(:), pointer :: buffer
+    
+    call locreg_decode(src,lr_size,lr)
+    if (lr_size == lr_full_size) return 
+    buffer => f_subptr(src,from=lr_size+1,size=lr_full_size-lr_size)
+    call wfd_keys_from_buffer(lr%wfd,buffer)
+
+    if (f_get_option(default=.true.,opt=bounds)) call ensure_locreg_bounds(lr)
+
+  end subroutine locreg_full_decode
+
+  !>decode a group of locregs given a src array
+  subroutine locregs_decode(src_arr,lr_size,nlr,llr,ipiv)
+    implicit none
+    integer, intent(in) :: lr_size,nlr
+    type(locreg_descriptors), dimension(nlr), intent(inout) :: llr
+    integer, dimension(lr_size,nlr), intent(in) :: src_arr
+    integer, dimension(nlr), optional  :: ipiv !<array expressing the order of the lrs in the src_arr. When its values are put to zero  the update is not performed
+    !local variables
+    integer :: ilr,iilr
+    
+    do ilr=1,nlr
+       iilr=ilr
+       if (present(ipiv)) iilr=ipiv(ilr)
+       !only decode locregs which were not present already
+       if (iilr /= 0) call locreg_decode(src_arr(1,ilr),lr_size,llr(iilr))
+    end do
+    
+  end subroutine locregs_decode
+
+  !> Locreg communication
+  subroutine communicate_locreg_descriptors_basics(iproc, nproc, nlr, rootarr, llr)
+    implicit none
+
+    ! Calling arguments
+    integer,intent(in) :: iproc, nproc, nlr
+    integer,dimension(nlr),intent(in) :: rootarr
+    type(locreg_descriptors), dimension(nlr), intent(inout) :: llr
+
+    ! Local variables
+    character(len=*),parameter :: subname='communicate_locreg_descriptors_basics'
+    integer :: ilr,iilr,jlr,jproc,lr_size,nlrp
+    !type(locreg_descriptors) :: lr_tmp
+    logical, dimension(:), allocatable :: mask
+    integer, dimension(:), allocatable :: ipiv,recvcounts
+    integer, dimension(:,:), allocatable :: encoded_send,encoded_recv
+
+    call f_routine(id=subname)
+
+    !first encode and communicate
+    mask=f_malloc(nlr,id='mask')    
+    recvcounts=f_malloc0(0.to.nproc-1,id='recvcounts')
+
+    do ilr=1,nlr
+       !count order the locregs per process
+       jproc=rootarr(ilr)
+       recvcounts(jproc)=recvcounts(jproc)+1
+       !mask the number of locreg that are associated to the 
+       !present mpi process
+       mask(ilr) = iproc == jproc
+    end do
+
+    nlrp=recvcounts(iproc)
+
+    lr_size=get_locreg_encode_size()
+    encoded_send=f_malloc([lr_size,nlrp],id='encoded_send')
+
+!!$    iilr=0
+!!$    do ilr=1,nlr
+!!$       if (mask(ilr)) then
+!!$          iilr=iilr+1
+!!$          print *,'ilr,iproc',iproc,ilr,llr(ilr)%wfd%nseg_c
+!!$          call locreg_encode(llr(ilr),lr_size,encoded_send(1,iilr))
+!!$          call locreg_decode(encoded_send(1,iilr),lr_size,lr_tmp)
+!!$          print *,'ilr,iproc,after',iproc,ilr,lr_tmp%wfd%nseg_c
+!!$       end if
+!!$    end do
+
+    call locregs_encode(llr,nlr,lr_size,encoded_send,mask)
+
+    encoded_recv=f_malloc([lr_size,nlr],id='encoded_recv')
+
+    recvcounts=lr_size*recvcounts
+
+    call fmpi_allgather(sendbuf=encoded_send,&
+         recvbuf=encoded_recv,&
+         recvcounts=recvcounts,comm=bigdft_mpi%mpi_comm)
+
+    call f_free(mask)
+    call f_free(recvcounts)
+    call f_free(encoded_send)
+
+    !then decode
+    ipiv=f_malloc(nlr,id='ipiv')
+    iilr=0
+    do jproc=0,nproc-1
+       do ilr=1,nlr
+          jlr=ilr
+          if (jproc == iproc) jlr=0 !do not decode locregs already present on the process
+          if (rootarr(ilr) == jproc) then
+             iilr=iilr+1
+             ipiv(iilr)=jlr
+          end if
+       end do
+    end do
+    call locregs_decode(encoded_recv,lr_size,nlr,llr,ipiv)
+    call f_free(ipiv)
+    call f_free(encoded_recv)
+
+    call f_release_routine()
+
+  end subroutine communicate_locreg_descriptors_basics
+
+  !put the localization region lr in the lrs_ptr array
+  subroutine store_lr(lr_storage,ilr,lr)
+    implicit none
+    type(locreg_storage), intent(inout) :: lr_storage
+    integer, intent(in) :: ilr
+    type(locreg_descriptors), intent(in), target :: lr
+
+    lr_storage%lrs_ptr(ilr)%lr => lr
+  end subroutine store_lr
+
+  pure function lr_is_stored(lr_storage,ilr) result(ok)
+    implicit none
+    type(locreg_storage), intent(in) :: lr_storage
+    integer, intent(in) :: ilr
+    logical :: ok
+    ok=associated(lr_storage%lrs_ptr(ilr)%lr)
+  end function lr_is_stored
+
+  !> Communicate the total locreg quantities given in a pointer of localisation regions
+  !! WARNING: we assume that the association of the storage is performed in a mutually exclusive way, that if a locreg is associated on one proc it is not in the others.
+  subroutine gather_locreg_storage(lr_storage)
+    implicit none
+    type(locreg_storage), intent(inout) :: lr_storage
+    !local variables
+    integer :: ilr,iilr,nproc,encoding_buffer_idx,nlr
+    integer :: lr_full_size,nlrp,encoding_buffer_size
+    integer(f_long) :: full_encoding_buffer_size
+    type(fmpi_win) :: win_counts
+    integer, dimension(:), allocatable :: encoding_buffer
+    integer, dimension(:,:), allocatable :: lr_sizes
+
+
+    nlr=size(lr_storage%lrs_ptr)
+    lr_storage%lr_full_sizes=f_malloc0_ptr([2,nlr],id='lr_full_sizes')
+    encoding_buffer_size=0
+    iilr=0
+    do ilr=1,nlr
+       if ( .not. lr_is_stored(lr_storage,ilr)) cycle
+       iilr=iilr+1
+       lr_full_size=get_locreg_full_encode_size(lr_storage%lrs_ptr(ilr)%lr)
+       lr_storage%lr_full_sizes(SIZE_,iilr)=lr_full_size
+       lr_storage%lr_full_sizes(LR_,iilr)=ilr
+       encoding_buffer_size=encoding_buffer_size+lr_full_size
+    end do
+    lr_sizes=f_malloc([2,iilr],id='lr_sizes')
+    if (iilr > 0) &
+         & call f_memcpy(n=2*iilr,src=lr_storage%lr_full_sizes,dest=lr_sizes(1,1))
+
+    call fmpi_allgather(sendbuf=lr_sizes,recvbuf=lr_storage%lr_full_sizes,&
+         comm=bigdft_mpi%mpi_comm,win=win_counts)
+
+    encoding_buffer=f_malloc(encoding_buffer_size,id='encoding_buffer')
+    !redo the loop to fill the encoding buffer
+    encoding_buffer_idx=1
+    iilr=0
+    do ilr=1,nlr
+       if ( .not. lr_is_stored(lr_storage,ilr)) cycle
+       iilr=iilr+1
+       lr_full_size=lr_sizes(SIZE_,iilr)
+       call locreg_full_encode(lr_storage%lrs_ptr(ilr)%lr,lr_storage%lr_size,lr_full_size,encoding_buffer(encoding_buffer_idx))
+       encoding_buffer_idx=encoding_buffer_idx+lr_full_size
+    end do
+
+    !close the previous communication window
+    call fmpi_win_shut(win_counts)
+
+    !allocate the full sized array
+    full_encoding_buffer_size=0
+    do ilr=1,nlr
+       full_encoding_buffer_size=full_encoding_buffer_size+lr_storage%lr_full_sizes(SIZE_,ilr)
+    end do
+    lr_storage%encode_buffer=f_malloc_ptr(full_encoding_buffer_size,id='lr_storage%encode_buffer')
+
+    !gather the array in the full encoding buffer
+    call fmpi_allgather(sendbuf=encoding_buffer,recvbuf=lr_storage%encode_buffer,comm=bigdft_mpi%mpi_comm) 
+
+    call f_free(encoding_buffer)
+    call f_free(lr_sizes)
+
+  end subroutine gather_locreg_storage
+
+  subroutine extract_lr(lr_storage,ilr,lr,bounds)
+    implicit none
+    type(locreg_storage), intent(in) :: lr_storage
+    integer, intent(in) :: ilr
+    type(locreg_descriptors), intent(out) :: lr
+    logical, intent(in), optional :: bounds
+    !local variables
+    integer :: iilr,nlr
+    integer(f_long) :: encoding_buffer_idx
+    integer, dimension(:), pointer :: src_buf
+
+    nlr=size(lr_storage%lr_full_sizes,dim=2)
+    !assume that lr_storage is ready for extraction
+    encoding_buffer_idx=1
+    do iilr=1,nlr
+       if (lr_storage%lr_full_sizes(LR_,iilr) == ilr) exit
+       encoding_buffer_idx=encoding_buffer_idx+lr_storage%lr_full_sizes(SIZE_,iilr)
+    end do
+    if (iilr == nlr+1) call f_err_throw('The locreg has not been found in the lr_storage',&
+         err_name='BIGDFT_RUNTIME_ERROR')
+
+    !we should generalize the API for the from optional variable
+    src_buf => f_subptr(lr_storage%encode_buffer,&
+         from=int(encoding_buffer_idx),size=lr_storage%lr_full_sizes(SIZE_,iilr))
+
+    call locreg_full_decode(src_buf,&
+         lr_storage%lr_size,lr_storage%lr_full_sizes(SIZE_,iilr),lr,bounds)
+    
+  end subroutine extract_lr
+
   !> Methods for copying the structures, can be needed to avoid recalculating them
   !! should be better by defining a f_malloc inheriting the shapes and the structure from other array
   !! of the type dest=f_malloc(src=source,id='dest')
@@ -128,7 +549,9 @@ contains
     type(locreg_descriptors), intent(in) :: glrin !<input locreg. Unchanged on exit.
     type(locreg_descriptors), intent(out):: glrout !<output locreg. Must be freed on input.
 
-    glrout%geocode = glrin%geocode
+    !we should here use encode and decode for safety
+
+!!$    glrout%geocode = glrin%geocode
     glrout%hybrid_on = glrin%hybrid_on
     glrout%ns1 = glrin%ns1
     glrout%ns2 = glrin%ns2
@@ -172,6 +595,20 @@ contains
     dout%n3i = din%n3i
 
   end subroutine copy_grid_dimensions
+
+  subroutine ensure_locreg_bounds(lr)
+    use bounds, only: locreg_bounds
+    implicit none
+    type(locreg_descriptors), intent(inout) :: lr
+    
+    !take this as exemple of already associated bounds
+    if (associated(lr%bounds%kb%ibyz_c)) return
+
+    call locreg_bounds(lr%d%n1,lr%d%n2,lr%d%n3,&
+         lr%d%nfl1,lr%d%nfu1,lr%d%nfl2,lr%d%nfu2,&
+         lr%d%nfl3,lr%d%nfu3,lr%wfd,lr%bounds)
+
+  end subroutine ensure_locreg_bounds
 
   !> Almost degenerate with get_number_of_overlap_region
   !! should merge the two... prefering this one since argument list is better 
@@ -351,7 +788,6 @@ contains
       type(grid_dimensions) :: g
       !local variables
       integer, parameter :: ISF_GROW_BUFFER=31
-      integer :: isx,isy,isz
       
       g%n1=n1-ns1
       g%n2=n2-ns2
@@ -410,17 +846,30 @@ contains
       integer, dimension(3) :: ndims
       real(gp), dimension(3) :: oxyz,hgrids
 
-      lr%geocode=geocode
-      lr%ns1=0
-      lr%ns2=0
-      lr%ns3=0
-      if (present(isx)) lr%ns1=isx
-      if (present(isy)) lr%ns2=isy
-      if (present(isz)) lr%ns3=isz
+      call f_routine(id='init_lr')
 
-      peri(1)=geocode /= 'F'
-      peri(2)=geocode == 'P'
-      peri(3)=geocode /= 'F'
+!!$      lr%geocode=geocode
+      if (present(isx)) then
+         lr%ns1=isx
+      else
+         lr%ns1=0
+      end if
+      if (present(isy)) then
+         lr%ns2=isy
+      else
+         lr%ns2=0
+      end if
+      if (present(isz)) then
+         lr%ns3=isz
+      else
+         lr%ns3=0
+      end if
+
+!!$      peri(1)=geocode /= 'F'
+!!$      peri(2)=geocode == 'P'
+!!$      peri(3)=geocode /= 'F'
+
+      peri=bc_periodic_dims(geocode_to_bc(geocode))
 
       lr%d=grid_init(peri,n1,n2,n3,nfl1,nfl2,nfl3,nfu1,nfu2,nfu3,&
          lr%ns1,lr%ns2,lr%ns3)
@@ -467,7 +916,6 @@ contains
       if (present(isx)) lr%nsi1= 2 * lr%ns1 - (Lnbl1 - Gnbl1)
       if (present(isy)) lr%nsi2= 2 * lr%ns2 - (Lnbl2 - Gnbl2)
       if (present(isz)) lr%nsi3= 2 * lr%ns3 - (Lnbl3 - Gnbl3)
-      
 
       lr%hybrid_on = hybrid_flag
       lr%hybrid_on=lr%hybrid_on .and. (nfu1-nfl1+S0_GROW_BUFFER < n1+1)
@@ -475,42 +923,62 @@ contains
       lr%hybrid_on=lr%hybrid_on .and. (nfu3-nfl3+S0_GROW_BUFFER < n3+1)
 
       if (present(wfd)) lr%wfd=wfd !it just associates the pointers
+
+      !this is a point where the geocode is stull used
       if (geocode == 'F' .and. present(bnds)) lr%bounds=bnds
 
+      !here we have to put the modifications of the origin for the 
+      !iterator of the lr. get_isf_offset should be used as 
+      !soon as global_geocode is replaced
       oxyz=locreg_mesh_origin(lr%mesh)
       lr%bit=box_iter(lr%mesh,origin=oxyz)
 
+      call f_release_routine()
+
     END SUBROUTINE init_lr
 
-    !> initalize the box-related components of the localization regions
-    subroutine lr_box(lr,Glr,hgrids,nbox,correction)
-      use bounds, only: ext_buffers
+    subroutine correct_dimensions(is,ie,ns,n,ln,outofzone,correct,periodic)
       implicit none
-      !> Sub-box to iterate over the points (ex. around atoms)
-      !! start and end points for each direction
-      real(gp), dimension(3), intent(in) :: hgrids
-      type(locreg_descriptors), intent(in) :: Glr
+      logical, intent(in) :: correct
+      integer, intent(in) :: ns,n,ln
+      integer, intent(inout) :: outofzone
+      logical, intent(inout) :: periodic
+      integer, intent(inout) :: is,ie
+
+      if (ie - is >= n) then       
+         is=ns
+         ie=ns + n
+         periodic = .true.
+      else
+         if (correct) then
+            is=modulo(is,n+1) + ns
+            ie= ln + is
+         end if
+         if (ie > ns+n) then
+            outofzone=modulo(ie,n+1)
+         end if
+      end if
+    end subroutine correct_dimensions
+
+
+    subroutine correct_lr_extremes(lr,Glr,geocode,correct,nbox_lr,nbox)
+      use box, only: cell_geocode,cell_periodic_dims
+      implicit none
+      logical, intent(in) :: correct
       type(locreg_descriptors), intent(inout) :: lr
+      type(locreg_descriptors), intent(in) :: Glr
+      character(len=1), intent(out) :: geocode
+      integer, dimension(2,3), intent(out) :: nbox_lr
       integer, dimension(2,3), intent(in), optional :: nbox
-      logical, intent(in), optional :: correction
       !local variables
-      character(len=1) :: geocode
-      logical :: Gperx,Gpery,Gperz,xperiodic,yperiodic,zperiodic,correct
+      logical :: xperiodic,yperiodic,zperiodic
       integer :: isx,iex,isy,iey,isz,iez
-      !!$ integer :: Gnbl1,Gnbl2,Gnbl3,Gnbr1,Gnbr2,Gnbr3
-      integer :: Lnbl1,Lnbl2,Lnbl3,Lnbr1,Lnbr2,Lnbr3
       integer :: ln1,ln2,ln3
       logical, dimension(3) :: peri
-      integer, dimension(3) :: outofzone
-      real(gp), dimension(3) :: hgridsh
 
-      call f_routine(id='lr_box')
 
       !initialize out of zone
-      outofzone (:) = 0
-
-      correct=.false.
-      if (present(correction)) correct=correction
+      lr%outofzone (:) = 0
 
       if (present(nbox)) then
          ! Localization regions should have free boundary conditions by default
@@ -538,124 +1006,204 @@ contains
       yperiodic = .false.
       zperiodic = .false. 
 
-      !assign the starting/ending points and outofzone for the different
-      ! geometries
-      select case(Glr%geocode)
-      case('F')
+      peri=cell_periodic_dims(Glr%mesh)
+      if (peri(1)) then
+         call correct_dimensions(isx,iex,Glr%ns1,Glr%d%n1,ln1,lr%outofzone(1),correct,xperiodic)
+      else
          isx=max(isx,Glr%ns1)
-         isy=max(isy,Glr%ns2)
-         isz=max(isz,Glr%ns3)
-
          iex=min(iex,Glr%ns1+Glr%d%n1)
-         iey=min(iey,Glr%ns2+Glr%d%n2)
-         iez=min(iez,Glr%ns3+Glr%d%n3)
-
-      case('S')
-         ! Get starting and ending for x direction     
-         if (iex - isx >= Glr%d%n1) then       
-            isx=Glr%ns1
-            iex=Glr%ns1 + Glr%d%n1
-            xperiodic = .true.
-         else
-            if (correct) then
-               isx=modulo(isx,Glr%d%n1+1) + Glr%ns1
-               iex= ln1 + isx
-            end if
-            if (iex > Glr%ns1+Glr%d%n1) then
-               outofzone(1)=modulo(iex,Glr%d%n1+1)
-            end if
-         end if
-
-         ! Get starting and ending for y direction (perpendicular to surface)
+         lr%outofzone(1) = 0
+      end if
+      if (peri(2)) then
+         call correct_dimensions(isy,iey,Glr%ns2,Glr%d%n2,ln2,lr%outofzone(2),correct,yperiodic)
+      else
          isy=max(isy,Glr%ns2)
-         iey=min(iey,Glr%ns2 + Glr%d%n2)
-         outofzone(2) = 0
+         iey=min(iey,Glr%ns2+Glr%d%n2)
+         lr%outofzone(2) = 0
+      end if
+      if (peri(3)) then
+         call correct_dimensions(isz,iez,Glr%ns3,Glr%d%n3,ln3,lr%outofzone(3),correct,zperiodic)
+      else
+         isz=max(isz,Glr%ns3)
+         iez=min(iez,Glr%ns3+Glr%d%n3)
+         lr%outofzone(3) = 0
+      end if
+      if (zperiodic) geocode = 'W'
+      if (xperiodic .and. zperiodic) geocode = 'S'
+      if (xperiodic .and. yperiodic .and. zperiodic) geocode = 'P'
 
-         !Get starting and ending for z direction
-         if (iez - isz >= Glr%d%n3) then
-            isz=Glr%ns3 
-            iez=Glr%ns3 + Glr%d%n3
-            zperiodic = .true.
-         else
-            if (correct) then
-               isz=modulo(isz,Glr%d%n3+1) +  Glr%ns3
-               iez= ln3 + isz
-            end if
-            if (iez > Glr%ns3+Glr%d%n3) then
-               outofzone(3)=modulo(iez,Glr%d%n3+1)
-            end if
-         end if
-         if(xperiodic .and. zperiodic) then
-            geocode = 'S'
-         end if
-
-      case('P')
-         ! Get starting and ending for x direction     
-         if (iex - isx >= Glr%d%n1) then       
-            isx=Glr%ns1
-            iex=Glr%ns1 + Glr%d%n1
-            xperiodic = .true.
-         else
-            if (correct) then
-               isx=modulo(isx,Glr%d%n1+1) + Glr%ns1
-               iex= ln1 + isx
-            end if
-            if (iex > Glr%ns1+Glr%d%n1) then
-               outofzone(1)=modulo(iex,Glr%d%n1+1)
-            end if
-         end if
-
-         ! Get starting and ending for y direction (perpendicular to surface)
-         if (iey - isy >= Glr%d%n2) then       
-            isy=Glr%ns2
-            iey=Glr%ns2 + Glr%d%n2
-            yperiodic = .true.
-         else
-            if (correct) then
-               isy=modulo(isy,Glr%d%n2+1) + Glr%ns2
-               iey= ln2 + isy
-            end if
-            if (iey > Glr%ns2+Glr%d%n2) then
-               outofzone(2)=modulo(iey,Glr%d%n2+1)
-            end if
-         end if
-
-         !Get starting and ending for z direction
-         if (iez - isz >= Glr%d%n3) then
-            isz=Glr%ns3 
-            iez=Glr%ns3 + Glr%d%n3
-            zperiodic = .true.
-         else
-            if (correct) then
-               isz=modulo(isz,Glr%d%n3+1) +  Glr%ns3
-               iez= ln3 + isz
-            end if
-            if (iez > Glr%ns3+Glr%d%n3) then
-               outofzone(3)=modulo(iez,Glr%d%n3+1)
-            end if
-         end if
-         if(xperiodic .and. yperiodic .and. zperiodic ) then
-            geocode = 'P'
-         end if
-      end select
-
+!!$      !assign the starting/ending points and outofzone for the different
+!!$      ! geometries
+!!$      !!!select case(Glr%geocode)
+!!$      select case(cell_geocode(Glr%mesh))
+!!$      case('F')
+!!$         isx=max(isx,Glr%ns1)
+!!$         isy=max(isy,Glr%ns2)
+!!$         isz=max(isz,Glr%ns3)
+!!$
+!!$         iex=min(iex,Glr%ns1+Glr%d%n1)
+!!$         iey=min(iey,Glr%ns2+Glr%d%n2)
+!!$         iez=min(iez,Glr%ns3+Glr%d%n3)
+!!$      case('S')
+!!$         ! Get starting and ending for x direction     
+!!$         if (iex - isx >= Glr%d%n1) then       
+!!$            isx=Glr%ns1
+!!$            iex=Glr%ns1 + Glr%d%n1
+!!$            xperiodic = .true.
+!!$         else
+!!$            if (correct) then
+!!$               isx=modulo(isx,Glr%d%n1+1) + Glr%ns1
+!!$               iex= ln1 + isx
+!!$            end if
+!!$            if (iex > Glr%ns1+Glr%d%n1) then
+!!$               lr%outofzone(1)=modulo(iex,Glr%d%n1+1)
+!!$            end if
+!!$         end if
+!!$
+!!$         ! Get starting and ending for y direction (perpendicular to surface)
+!!$         isy=max(isy,Glr%ns2)
+!!$         iey=min(iey,Glr%ns2 + Glr%d%n2)
+!!$         lr%outofzone(2) = 0
+!!$
+!!$         !Get starting and ending for z direction
+!!$         if (iez - isz >= Glr%d%n3) then
+!!$            isz=Glr%ns3 
+!!$            iez=Glr%ns3 + Glr%d%n3
+!!$            zperiodic = .true.
+!!$         else
+!!$            if (correct) then
+!!$               isz=modulo(isz,Glr%d%n3+1) +  Glr%ns3
+!!$               iez= ln3 + isz
+!!$            end if
+!!$            if (iez > Glr%ns3+Glr%d%n3) then
+!!$               lr%outofzone(3)=modulo(iez,Glr%d%n3+1)
+!!$            end if
+!!$         end if
+!!$         if(xperiodic .and. zperiodic) then
+!!$            geocode = 'S'
+!!$         end if
+!!$
+!!$      case('P')
+!!$         ! Get starting and ending for x direction     
+!!$         if (iex - isx >= Glr%d%n1) then       
+!!$            isx=Glr%ns1
+!!$            iex=Glr%ns1 + Glr%d%n1
+!!$            xperiodic = .true.
+!!$         else
+!!$            if (correct) then
+!!$               isx=modulo(isx,Glr%d%n1+1) + Glr%ns1
+!!$               iex= ln1 + isx
+!!$            end if
+!!$            if (iex > Glr%ns1+Glr%d%n1) then
+!!$               lr%outofzone(1)=modulo(iex,Glr%d%n1+1)
+!!$            end if
+!!$         end if
+!!$
+!!$         ! Get starting and ending for y direction (perpendicular to surface)
+!!$         if (iey - isy >= Glr%d%n2) then       
+!!$            isy=Glr%ns2
+!!$            iey=Glr%ns2 + Glr%d%n2
+!!$            yperiodic = .true.
+!!$         else
+!!$            if (correct) then
+!!$               isy=modulo(isy,Glr%d%n2+1) + Glr%ns2
+!!$               iey= ln2 + isy
+!!$            end if
+!!$            if (iey > Glr%ns2+Glr%d%n2) then
+!!$               lr%outofzone(2)=modulo(iey,Glr%d%n2+1)
+!!$            end if
+!!$         end if
+!!$
+!!$         !Get starting and ending for z direction
+!!$         if (iez - isz >= Glr%d%n3) then
+!!$            isz=Glr%ns3 
+!!$            iez=Glr%ns3 + Glr%d%n3
+!!$            zperiodic = .true.
+!!$         else
+!!$            if (correct) then
+!!$               isz=modulo(isz,Glr%d%n3+1) +  Glr%ns3
+!!$               iez= ln3 + isz
+!!$            end if
+!!$            if (iez > Glr%ns3+Glr%d%n3) then
+!!$               lr%outofzone(3)=modulo(iez,Glr%d%n3+1)
+!!$            end if
+!!$         end if
+!!$         if(xperiodic .and. yperiodic .and. zperiodic ) then
+!!$            geocode = 'P'
+!!$         end if
+!!$      case('W')
+!!$         call f_err_throw("Wires bc has to be implemented here", &
+!!$              err_name='BIGDFT_RUNTIME_ERROR')
+!!$      end select
       ! Make sure that the localization regions are not periodic
       if (xperiodic .or. yperiodic .or. zperiodic) then
-         call f_err_throw('The size of the localization region '&
-              &//&!trim(yaml_toa(ilr,fmt='(i0)'))//&
-              &' is larger than that of the global region.&
-              & Reduce the localization radii or use the cubic version',&
-              & err_name='BIGDFT_RUNTIME_ERROR')
+         call f_err_throw('The localization region '//&
+              ' is supposed to be fully free BC.'//&
+              ' Reduce the localization radii or use the cubic version',&
+              err_name='BIGDFT_RUNTIME_ERROR')
       end if
 
+      nbox_lr(1,1)=isx
+      nbox_lr(1,2)=isy
+      nbox_lr(1,3)=isz
+
+      nbox_lr(2,1)=iex
+      nbox_lr(2,2)=iey
+      nbox_lr(2,3)=iez
+
+    end subroutine correct_lr_extremes
+
+
+    !initialize the parts of lr that can be initialized from a load from a
+    !traditional restart. The output files have to be redefined such that
+    !this routine would not need to be called
+    subroutine reset_lr(lr,geocode,hgrids,nbox,global_geocode)
+      implicit none
+      character(len=1), intent(in) :: geocode,global_geocode
+      real(gp), dimension(3), intent(in) :: hgrids
+      integer, dimension(2,3), intent(in) :: nbox !fine box of the environmental region
+      type(locreg_descriptors), intent(inout) :: lr
+
+      call init_lr(lr,geocode,0.5_gp*hgrids,&
+           lr%ns1+lr%d%n1,lr%ns2+lr%d%n2,lr%ns3+lr%d%n3,&
+           nbox(1,1),nbox(1,2),nbox(1,3),&
+           nbox(2,1),nbox(2,2),nbox(2,3),&
+           .false.,lr%ns1,lr%ns2,lr%ns3,global_geocode)
+      
+    end subroutine reset_lr
+
+    !> initalize the box-related components of the localization regions
+    subroutine lr_box(lr,Glr,hgrids,nbox,correction)
+      use bounds, only: ext_buffers
+      use box, only: cell_geocode
+      implicit none
+      !> Sub-box to iterate over the points (ex. around atoms)
+      !! start and end points for each direction
+      real(gp), dimension(3), intent(in) :: hgrids
+      type(locreg_descriptors), intent(in) :: Glr
+      type(locreg_descriptors), intent(inout) :: lr
+      integer, dimension(2,3), intent(in), optional :: nbox
+      logical, intent(in), optional :: correction
+      !local variables
+      character(len=1) :: geocode
+      logical :: correct
+      integer, dimension(2,3) :: nbox_lr
+      real(gp), dimension(3) :: hgridsh
+
+      call f_routine(id='lr_box')
+
+      correct=.false.
+      if (present(correction)) correct=correction
+
+      call correct_lr_extremes(lr,Glr,geocode,correct,nbox_lr,nbox)
+
       hgridsh=0.5_gp*hgrids
-      call init_lr(lr,geocode,hgridsh,iex,iey,iez,&
+      call init_lr(lr,geocode,hgridsh,nbox_lr(2,1),nbox_lr(2,2),nbox_lr(2,3),&
            Glr%d%nfl1,Glr%d%nfl2,Glr%d%nfl3,&
            Glr%d%nfu1,Glr%d%nfu2,Glr%d%nfu3,&
-           .false.,isx,isy,isz,Glr%geocode)
+!!$           .false.,nbox_lr(1,1),nbox_lr(1,2),nbox_lr(1,3),Glr%geocode)
+           .false.,nbox_lr(1,1),nbox_lr(1,2),nbox_lr(1,3),cell_geocode(Glr%mesh))
 
-      !assign outofzone
-      lr%outofzone(:) = outofzone(:)
       ! Make sure that the extent of the interpolating functions grid for the
       ! locreg is not larger than the that of the global box.
       if (lr%d%n1i>Glr%d%n1i) then
@@ -686,6 +1234,33 @@ contains
       call f_release_routine()
       
     end subroutine lr_box
+
+    !>get the offset of the isf description of the support function
+    pure function get_isf_offset(lr,mesh_global) result(ioffset)
+      use box, only: cell,cell_periodic_dims
+      use bounds, only: isf_box_buffers
+      implicit none
+      type(locreg_descriptors), intent(in) :: lr
+      type(cell), intent(in) :: mesh_global
+      integer, dimension(3) :: ioffset
+      !local variables
+      logical, dimension(3) :: peri_local,peri_global
+      integer, dimension(3) :: nli
+      !integer :: nl1, nl2, nl3, nr1, nr2, nr3
+
+      !geocode_buffers
+      !conditions for periodicity in the three directions
+      peri_local=cell_periodic_dims(lr%mesh)
+      peri_global=cell_periodic_dims(mesh_global)
+
+      nli=isf_box_buffers(peri_local,peri_global)
+
+      ! offset
+      ioffset(1) = lr%nsi1 - nli(1) - 1
+      ioffset(2) = lr%nsi2 - nli(2) - 1
+      ioffset(3) = lr%nsi3 - nli(3) - 1
+
+    end function get_isf_offset
 
 
 end module locregs

@@ -20,7 +20,7 @@ program wvl
   use module_input_dicts
   use module_input_keys
   use module_atoms, only: deallocate_atoms_data
-  use module_dpbox, only: denspot_distribution,dpbox_free
+  use module_dpbox, only: denspot_distribution,dpbox_free,dpbox_set
   use communications_base, only: deallocate_comms
   use communications_init, only: orbitals_communicators
   use communications, only: transpose_v, untranspose_v
@@ -32,7 +32,7 @@ program wvl
   type(input_variables)             :: inputs
   type(atoms_data)                  :: atoms
 
-  type(local_zone_descriptors)          :: Lzd
+  type(local_zone_descriptors)      :: Lzd
   type(orbitals_data)               :: orbs
   type(comms_cubic)       :: comms
   type(workarr_sumrho)              :: wisf
@@ -95,7 +95,8 @@ program wvl
 !  allocate(radii_cf(atoms%astruct%ntypes,3))
   call system_properties(iproc,nproc,inputs,atoms,orbs)!,radii_cf)
   Lzd=default_lzd()
-  call lzd_set_hgrids(Lzd,(/inputs%hx,inputs%hy,inputs%hz/))
+  !call lzd_set_hgrids(Lzd,(/inputs%hx,inputs%hy,inputs%hz/))
+  Lzd%hgrids=(/ inputs%hx, inputs%hy, inputs%hz /)
   call lr_set(lzd%Glr,iproc,GPU%OCLconv,.true.,inputs%crmult,inputs%frmult,&
        Lzd%hgrids,atoms%astruct%rxyz,atoms,.true.,.false.)
 !!$  call system_size(atoms,atoms%astruct%rxyz,inputs%crmult,inputs%frmult, &
@@ -114,9 +115,10 @@ program wvl
   call check_linear_and_create_Lzd(iproc,nproc,inputs%linear,Lzd,atoms,orbs,inputs%nspin,atoms%astruct%rxyz)
   call xc_init(xc, inputs%ixc, XC_ABINIT, inputs%nspin)
   !grid spacings and box of the density
-  call dpbox_set(dpcom,Lzd,xc,iproc,nproc,MPI_COMM_WORLD,&
+  call dpbox_set(dpcom,Lzd%Glr%mesh,xc,iproc,nproc,MPI_COMM_WORLD,&
        !inputs%PSolver_groupsize, &
-       & inputs%SIC%approach,atoms%astruct%geocode, inputs%nspin)!,inputs%matacc%PSolver_igpu)
+       & inputs%SIC%approach, & !atoms%astruct%geocode, 
+       & inputs%nspin)!,inputs%matacc%PSolver_igpu)
 
   ! Read wavefunctions from disk and store them in psi.
   allocate(orbs%eval(orbs%norb*orbs%nkpts))
@@ -126,7 +128,7 @@ program wvl
   call readmywaves(iproc,"data/wavefunction",WF_FORMAT_PLAIN,orbs,Lzd%Glr%d%n1,Lzd%Glr%d%n2,Lzd%Glr%d%n3, &
        & inputs%hx,inputs%hy,inputs%hz,atoms,rxyz_old,atoms%astruct%rxyz,Lzd%Glr%wfd,psi)
   if (nproc>1) then
-      call mpiallred(orbs%eval(1),orbs%norb*orbs%nkpts,MPI_SUM)
+      call fmpi_allreduce(orbs%eval(1),orbs%norb*orbs%nkpts,op=FMPI_SUM)
   end if
 
 
@@ -165,7 +167,7 @@ program wvl
   !---------------------------!
   allocate(w(max(orbs%npsidim_orbs,orbs%npsidim_comp)))
   ! Transpose the psi wavefunction
-  call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,psi(1),work_add=w(1))
+  call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,psi,workbuf=w)
   !write(*,*) "Proc", iproc, " treats ", comms%nvctr_par(iproc, 0) * orbs%norb, "components of all orbitals."
   call yaml_comment("Proc" // trim(yaml_toa(iproc)) // " treats " // &
                    & trim(yaml_toa(comms%nvctr_par(iproc, 0) * orbs%norb)) // "components of all orbitals.")
@@ -185,7 +187,7 @@ program wvl
   !  call syrk('L','T',orbs%norb,comms%nvctr_par(iproc, 0),1.0_wp,psi(1), &
   !       & max(1,comms%nvctr_par(iproc, 0)),0.0_wp,ovrlp(1,1),orbs%norb)
   if (nproc>1) then
-      call mpiallred(ovrlp(1,1),orbs%norb * orbs%norb,MPI_SUM)
+      call fmpi_allreduce(ovrlp(1,1),orbs%norb * orbs%norb,op=FMPI_SUM)
   end if
   if (iproc == 0) then
      !uses yaml_output routine to provide example
@@ -206,7 +208,7 @@ program wvl
   deallocate(ovrlp)
 
   ! Retranspose the psi wavefunction
-  call untranspose_v(iproc,nproc,orbs,Lzd%glr%wfd,comms,psi(1),work_add=w(1))
+  call untranspose_v(iproc,nproc,orbs,Lzd%glr%wfd,comms,psi,work_add=w)
   deallocate(w)
 
   call yaml_flush_document()
@@ -233,7 +235,7 @@ program wvl
      end do
   end do
   if (nproc>1) then
-      call mpiallred(rhor(1),Lzd%Glr%d%n1i * Lzd%Glr%d%n2i * Lzd%Glr%d%n3i,MPI_SUM)
+      call fmpi_allreduce(rhor(1),Lzd%Glr%d%n1i * Lzd%Glr%d%n2i * Lzd%Glr%d%n3i,op=FMPI_SUM)
   end if
   !if (iproc == 0) write(*,*) "System has", sum(rhor), "electrons."
   if (iproc == 0) call yaml_map("Number of electrons", sum(rhor))
@@ -295,7 +297,7 @@ program wvl
   epot_sum = epot_sum * inputs%hx / 2._gp * inputs%hy / 2._gp * inputs%hz / 2._gp
   call free_full_potential(dpcom%mpi_env%nproc,0,xc,potential)
   if (nproc>1) then
-      call mpiallred(epot_sum,1,MPI_SUM)
+      call fmpi_allreduce(epot_sum,1,op=FMPI_SUM)
   end if
 
   !if (iproc == 0) write(*,*) "System pseudo energy is", epot_sum, "Ht."

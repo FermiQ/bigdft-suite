@@ -163,11 +163,9 @@ contains
     implicit none
     type(dictionary), intent(in) :: dict
     logical :: no_key
-    !TEST
     no_key=(len_trim(dict%data%key) == 0 .and. dict%data%item == -1) .and. &
          associated(dict%parent)
   end function no_key
-
 
   pure function no_value(dict)
     implicit none
@@ -338,8 +336,23 @@ contains
 
 
   subroutine dict_init(dict)
+    !Initialize a dictionary, ready for usage.
+    !The dictionary may be undefined on input, thus care must be taken in freeing previously
+    !initialized instances before calling :f:subr:`dict_init` again.
+    !:Example:
+    ! .. code-block:: fortran
+    !
+    !       program dictinit
+    !         use dictionaries
+    !         implicit none
+    !         type(dictionary), pointer :: dict
+    !         call dict_init(dict)
+    !         ![...] perform actions with the dict
+    !         call dict_free(dict)
+    !         !and then dict (which is now nullified) might be reinitialized again
+    !       end program dictinit
     implicit none
-    type(dictionary), pointer :: dict
+    type(dictionary), pointer :: dict !the dictionary to be iniitalized
     !local variables
     !integer :: nres
 
@@ -447,11 +460,33 @@ contains
 
   end subroutine dict_free
 
-  !> Return the length of the list
-  pure function dict_len(dict)
+  pure &!do not remove this continuation line, needed for autodoc
+       function dict_len(dict)
+    !Provides the length of the dictionary in the case it is used as a *list* of objects.
+    !Returns 0 if the dictionary is a mapping or a scalar. The return value is -1 is the 
+    !dictionary is nullified. For mapping the :f:func:`dict_size` function will have to be used.
+    !
+    !:Attributes: pure
+    !
+    !:Example:
+    ! .. code-block:: fortran
+    !
+    !       program dictlen
+    !         use dictionaries
+    !         implicit none
+    !         integer :: ilen
+    !         type(dictionary), pointer :: dict
+    !         call dict_init(dict)
+    !         call dict_add(dict,'item1')
+    !         call dict_add(dict,'item2')
+    !         call dict_add(dict,'item3')
+    !         ilen = dict_len(dict) !ilen has value 3
+    !         call dict_free(dict)
+    !         ilen = dict_len(dict) !ilen has value -1
+    !       end program dictlen
     implicit none
-    type(dictionary), intent(in), pointer :: dict
-    integer :: dict_len
+    type(dictionary), intent(in), pointer :: dict 
+    integer :: dict_len !Length of the dict as list container
     
     if (associated(dict)) then
        dict_len=dict%data%nitems
@@ -462,10 +497,33 @@ contains
 
 
   !> Return the size of the dictionary
-  pure function dict_size(dict)
+  pure &!do not remove this continuation line, needed for autodoc
+       function dict_size(dict)
+    !Provides the length of the dictionary in the case it is used as a *mapping* of objects.
+    !Returns 0 if the dictionary is a list or a scalar. The return value is -1 is the 
+    !dictionary is nullified. For lists the :f:func:`dict_len` function will have to be used.
+    !
+    !:Attributes: pure
+    !
+    !:Example:
+  ! .. code-block:: fortran
+    !
+    !       program dictlen
+    !         use dictionaries
+    !         implicit none
+    !         integer :: isize
+    !         type(dictionary), pointer :: dict
+    !         call dict_init(dict)
+    !         call dict_set(dict//'key1','value1')
+    !         call dict_set(dict//'key2','value2')
+    !         call dict_set(dict//'key2','value3')
+    !         isize = dict_size(dict) !ilen has value 3
+    !         call dict_free(dict)
+    !         isize = dict_size(dict) !ilen has value -1
+    !       end program dictlen
     implicit none
     type(dictionary), intent(in), pointer :: dict
-    integer :: dict_size
+    integer :: dict_size  !Length of the dict as mapping container
     
     if (associated(dict)) then
        dict_size=dict%data%nelems
@@ -478,7 +536,8 @@ contains
   !> This function returns the key if present otherwise the value of the element if in a list
   !! this is a function indended for internal flib usage which 
   !! can be used for lists of hash table, as dictionary type is "polymorph"
-  pure function name_is(dict,name)
+  !pure 
+  function name_is(dict,name)
     implicit none
     type(dictionary), pointer, intent(in) :: dict
     character(len=*), intent(in) :: name
@@ -503,9 +562,23 @@ contains
   end function name_is
 
   !> Returns the value of the key of the dictionary
-  pure function dict_key(dict)
-    type(dictionary), pointer, intent(in) :: dict
-    character(len=max_field_length) :: dict_key
+  pure &!do not remove, for autodoc
+       function dict_key(dict)
+  !Returns the value of the key of the dictionary. Useful especially when using 
+  !the dictionary as an iterator among a mapping
+  !
+  !:Attributes: pure
+  !
+  !:Example:
+  !
+  !   .. literalinclude:: ../tests/flib/dicts.f90
+  !      :language: fortran
+  !      :start-after: perform an iterator on dictA
+  !      :end-before: end of perform an iterator on dictA
+  !
+  implicit none
+    type(dictionary), pointer, intent(in) :: dict 
+    character(len=max_field_length) :: dict_key !key of `dict`, empty string if nullified
     
     if (associated(dict)) then 
        !call check_key(dict)
@@ -517,9 +590,23 @@ contains
 
 
   !> Returns the value of the key of the dictionary
-  pure function dict_item(dict)
+  pure &!for autodoc
+       function dict_item(dict)
+  !Returns the value of the item of the dictionary. Useful especially when using 
+  !the dictionary as an iterator among a mapping
+  !
+  !:Attributes: pure
+  !
+  !:Example:
+  !
+  !   .. literalinclude:: ../tests/flib/dicts.f90
+  !      :language: fortran
+  !      :start-after: perform an iterator with item on dict
+  !      :end-before: end of perform an iterator with item
+  !
+  implicit none
     type(dictionary), pointer, intent(in) :: dict
-    integer :: dict_item
+    integer :: dict_item !item of `dict`, -1 if nullified
 
     if (associated(dict)) then 
        dict_item=dict%data%item
@@ -531,9 +618,24 @@ contains
   
   !> Value of the dictionary, if present, otherwise empty
   !! if the value is a dictionary, it returns __dict__ in the character
-  pure function dict_value(dict)
+  pure &!
+       function dict_value(dict)
+  !Returns the value dictionary. Useful especially when using 
+  !the dictionary as an iterator among a mapping. Useful for scalar values.
+  !If the value is not a scalar, it returns either :f:var`TYPE_DICT` or :f:var:`TYPE_LIST`.
+  !
+  !:Attributes: pure
+  !
+  !:Example:
+  !
+  !   .. literalinclude:: ../tests/flib/dicts.f90
+  !      :language: fortran
+  !      :start-after: perform an iterator with item on dict
+  !      :end-before: end of perform an iterator with item
+  !
+    implicit none
     type(dictionary), pointer, intent(in) :: dict
-    character(len=max_field_length) :: dict_value
+    character(len=max_field_length) :: dict_value !value of the dictionary, meaningful if scalar.
 
     if (associated(dict)) then 
        !call check_key(dict)
@@ -543,7 +645,8 @@ contains
           else if (dict%data%nelems > 0) then
              dict_value=TYPE_DICT
           else
-             dict_value= NOT_A_VALUE !illegal condition
+             !illegal condition
+             dict_value= NOT_A_VALUE
           end if
        else if (trim(dict%data%value) == NOT_A_VALUE) then
           dict_value=repeat(' ',len(dict_value))
@@ -670,7 +773,6 @@ contains
     !local variables
     logical :: crt
     type(dictionary), pointer :: iter
-    integer(kind=8), external :: f_loc
 
     crt=.false.
     if (present(create)) crt=create
@@ -703,6 +805,12 @@ contains
           call set_elem(iter%next,key)
           dict_ptr => iter%next
        end if
+!!$       !might be refactored into
+!!$       if (.not. associated(dict_ptr)) then
+!!$          call init_next(iter)
+!!$          call set_elem(iter,key)
+!!$          dict_ptr=>iter
+!!$       end if
     end if
   end function get_dict_from_key
 !!$
@@ -778,9 +886,7 @@ contains
           item_ptr=>item_ptr%next
           cycle find_item
        end if
-       if (.not. no_key(item_ptr)) then
-          call init_next(item_ptr)
-       end if
+       if (.not. no_key(item_ptr)) call init_next(item_ptr)
        call set_item(item_ptr,item)
        exit find_item
     end do find_item

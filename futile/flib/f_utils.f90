@@ -28,13 +28,7 @@ module f_utils
 
   !preprocessed include file with processor-specific values
   !defines recl_kind
-  include 'f_utils.inc' 
-
-  !> This type can be used to get strings from a file or a dictionary long string.
-  type, public :: io_stream
-     integer :: iunit = 0
-     type(dictionary), pointer :: lstring => null()
-  end type io_stream
+  include 'f_utils.inc'
 
   !> This type can be used to dump strings at bunches in a file
   type, public :: f_dump_buffer
@@ -75,7 +69,7 @@ module f_utils
      module procedure f_sizeof_r1,f_sizeof_r2,f_sizeof_r3,f_sizeof_r4,f_sizeof_r5
      module procedure f_sizeof_d1,f_sizeof_d2,f_sizeof_d3,f_sizeof_d4,f_sizeof_d5,f_sizeof_d6,f_sizeof_d7
      module procedure f_sizeof_z1,f_sizeof_z2,f_sizeof_z3,f_sizeof_z4,f_sizeof_z5
-     module procedure f_sizeof_c0,f_sizeof_c1
+     module procedure f_sizeof_c0,f_sizeof_c1,f_sizeof_c2
   end interface f_sizeof
 
   interface f_size
@@ -88,7 +82,6 @@ module f_utils
      module procedure f_size_z1,f_size_z2,f_size_z3,f_size_z4,f_size_z5
      module procedure f_size_c0,f_size_c1
   end interface f_size
-
 
   !> Initialize to zero an array (should be called f_memset)
   interface f_zero
@@ -130,6 +123,10 @@ module f_utils
      end subroutine nanosec
   end interface
 
+  interface f_get_option
+     module procedure f_get_option_l
+  end interface f_get_option
+
   interface assignment(=)
      module procedure f_null_i0,f_null_d0,f_null_r0
      module procedure f_null_d1_ptr
@@ -140,13 +137,13 @@ module f_utils
   public :: f_diff,f_file_unit,f_mkdir,f_savetxt
   public :: f_utils_errors,f_utils_recl,f_file_exists,f_close,f_zero
   public :: f_get_free_unit,f_delete_file,f_getpid,f_rewind,f_open_file
-  public :: f_iostream_from_file,f_iostream_from_lstring,f_increment
-  public :: f_iostream_get_line,f_iostream_release,f_time,f_pause,f_move_file
+  public :: f_increment
+  public :: f_time,f_pause,f_move_file
   public :: f_progress_bar_new,update_progress_bar,f_tty,f_humantime,f_system
-  public :: assignment(=),f_none,f_assert,f_sizeof,f_size
+  public :: assignment(=),f_none,f_assert,f_sizeof,f_size,f_get_option
 
 contains
- 
+
   subroutine f_utils_errors()
 
     call f_err_define('INPUT_OUTPUT_ERROR',&
@@ -161,7 +158,7 @@ contains
     type(f_none_object) :: f_none
     f_none%none=NULL_
   end function f_none
- 
+
   pure function f_time()
     integer(f_long) :: f_time
     !local variables
@@ -186,7 +183,6 @@ contains
   end subroutine f_assert
 
   subroutine f_assert_str(condition,id,err_id,err_name)
-    use module_f_malloc, only: f_malloc_routine_name
     use yaml_strings
     use dictionaries
     implicit none
@@ -217,6 +213,16 @@ contains
     call f_assert(abs(condition)< tol_,id=id,err_id=err_id,err_name=err_name)
 
   end subroutine f_assert_double
+
+  pure function f_get_option_l(default,opt) result(val)
+    implicit none
+    logical, intent(in) :: default
+    logical, intent(in), optional :: opt
+    logical :: val
+    val=default
+    if (present(opt)) val=opt
+  end function f_get_option_l
+
 
   pure function f_progress_bar_new(nstep) result(bar)
     implicit none
@@ -498,7 +504,7 @@ contains
     unt=7
     if (present(unit)) unt=unit
     inquire(unit=unt,opened=unit_is_open,iostat=ierr)
-    do while(unit_is_open .and. ierr==0)     
+    do while(unit_is_open .and. ierr==0)
        unt=unt+1
        inquire(unit=unt,opened=unit_is_open,iostat=ierr)
     end do
@@ -510,12 +516,13 @@ contains
     unt2=unt
   end function f_get_free_unit
 
+
   !> Create a directory from CWD path
   subroutine f_mkdir(dir,path)
     use f_precisions, only: f_integer
     implicit none
-    character(len=*), intent(in) :: dir !<directory to be created
-    character(len=*), intent(out) :: path !<path of the created directory (trailing slash added)
+    character(len=*), intent(in) :: dir   !< Directory to be created
+    character(len=*), intent(out) :: path !< Path of the created directory (trailing slash added)
     !local variables
     integer(f_integer) :: ierr
     integer(f_integer) :: lin,lout
@@ -533,6 +540,7 @@ contains
 
   end subroutine f_mkdir
 
+  
   subroutine f_delete_file(file)
     implicit none
     character(len=*), intent(in) :: file
@@ -552,7 +560,7 @@ contains
             trim(file)//'iostat='//trim(yaml_toa(ierr)),&
             err_id=INPUT_OUTPUT_ERROR)
     end if
-    
+
   end subroutine f_delete_file
 
   subroutine f_move_file(src,dest)
@@ -560,7 +568,7 @@ contains
     character(len=*), intent(in) :: src,dest
     !local variables
     integer(f_integer) :: ierr
-    
+
     call movefile(trim(src),int(len_trim(src),f_integer),&
          trim(dest),int(len_trim(dest),f_integer),ierr)
     if (ierr /= 0) call f_err_throw('Error in moving file='//&
@@ -607,7 +615,7 @@ contains
     if (ierr /=0) call f_err_throw('Error in rewind unit='//&
          trim(yaml_toa(unit))//'iostat='//trim(yaml_toa(ierr)),&
          err_id=INPUT_OUTPUT_ERROR)
-    
+
   end subroutine f_rewind
 
   !>tentative example of writing the data in a buffer
@@ -624,7 +632,7 @@ contains
     integer :: lpos
     character(len=3) :: adv
     character(len=len(cr)) :: crtmp
-    
+
     adv='yes'
     if (present(advance)) call f_strcpy(src=advance,dest=adv)
 
@@ -632,7 +640,7 @@ contains
        !determine the size of the input
        lpos=len(msg)
        call f_zero(crtmp)
-       if (adv .eqv. 'yes') crtmp=cr 
+       if (adv .eqv. 'yes') crtmp=cr
        lpos=lpos+len_trim(cr)
        !copy the values we would like to add in the buffer
        !check if the total length is bigger than buffer size
@@ -640,7 +648,7 @@ contains
           write(unit=unit,fmt='(a)') buffer%buf(:buffer%ipos)
           buffer%ipos=1
        end if
-       !copy the data 
+       !copy the data
        !call f_memcpy(n=lpos,src=msg+crtmp,dest=buffer%buf(buffer%ipos))
        buffer%ipos=buffer%ipos+lpos
     else
@@ -648,12 +656,12 @@ contains
        write(unit=unit,fmt='(a)',advance=adv) msg
     end if
   end subroutine f_write
-  
+
   !> open a filename and retrieve the unteger for the unit
   subroutine f_open_file(unit,file,status,position,action,binary)
     use yaml_strings, only: f_strcpy
     implicit none
-    !> integer of the unit. On entry, it indicates the 
+    !> integer of the unit. On entry, it indicates the
     !! suggested unit number. On exit, it indicates the free unit
     !! which has been used for the file opening
     integer, intent(inout) :: unit
@@ -736,75 +744,6 @@ contains
     call f_close(unt)
   end subroutine f_savetxt_d2
 
-  subroutine f_iostream_from_file(ios, filename)
-    implicit none
-    type(io_stream), intent(out) :: ios
-    character(len = *), intent(in) :: filename
-    !Local variables
-    integer :: ierror
-
-    ios%iunit=f_get_free_unit(742)
-    open(unit=ios%iunit,file=trim(filename),status='old',iostat=ierror)
-    !Check the open statement
-    if (ierror /= 0) call f_err_throw('Error in opening file='//&
-         trim(filename)//' iostat='//trim(yaml_toa(ierror)),&
-         err_id=INPUT_OUTPUT_ERROR)
-    nullify(ios%lstring)
-  end subroutine f_iostream_from_file
-
-  subroutine f_iostream_from_lstring(ios, dict)
-    implicit none
-    type(io_stream), intent(out) :: ios
-    type(dictionary), pointer :: dict
-
-    ios%iunit = 0
-    if (dict_len(dict) < 0) call f_err_throw('Error dict is not a long string',&
-         err_id=INPUT_OUTPUT_ERROR)
-    ios%lstring => dict
-  end subroutine f_iostream_from_lstring
-
-  subroutine f_iostream_get_line(ios, line, eof)
-    implicit none
-    !Arguments
-    type(io_stream), intent(inout) :: ios
-    character(len=max_field_length), intent(out) :: line
-    logical, optional, intent(out) :: eof
-    !Local variables
-    integer :: i_stat
-    character(len=8) :: fmt
-
-    if (ios%iunit > 0) then
-       write(fmt, "(A,I0,A)") "(A", max_field_length, ")"
-       if (present(eof)) then
-          read(ios%iunit, trim(fmt), iostat = i_stat) line
-       else
-          read(ios%iunit, trim(fmt)) line
-          i_stat = 0
-       end if
-       if (i_stat /= 0) then
-          close(ios%iunit)
-          ios%iunit = 0
-       end if
-       if (present(eof)) eof = (i_stat /= 0)
-    else if (associated(ios%lstring)) then
-       if (dict_len(ios%lstring) > 0) ios%lstring => dict_iter(ios%lstring)
-       line = dict_value(ios%lstring)
-       ios%lstring => dict_next(ios%lstring)
-       if (present(eof)) eof = .not. associated(ios%lstring)
-    else if (present(eof)) then
-       eof = .true.
-    end if
-  end subroutine f_iostream_get_line
-
-  subroutine f_iostream_release(ios)
-    implicit none
-    type(io_stream), intent(inout) :: ios
-
-    if (ios%iunit > 0) close(ios%iunit)
-    ios%iunit = 0
-    nullify(ios%lstring)
-  end subroutine f_iostream_release
-
   !>nullification information
   pure subroutine f_null_i0(val,nl)
     implicit none
@@ -858,7 +797,7 @@ contains
     if (nl%none==NULL_) val=.false.
   end subroutine f_null_l0
 
-  
+
   !>increment a integer, to be used in low-performance routines
   !to improve readability
   pure elemental subroutine f_inc_i0(i,inc)
@@ -1305,46 +1244,46 @@ contains
   subroutine put_to_zero_double_3(da)
     implicit none
     double precision, dimension(:,:,:), intent(out) :: da
-    call f_timer_interrupt(TCAT_INIT_TO_ZERO) 
+    call f_timer_interrupt(TCAT_INIT_TO_ZERO)
     !call razero(size(da),da(lbound(da,1),lbound(da,2),lbound(da,3)))
     call setzero(int(size(da),f_long)*kind(da),da)
-    call f_timer_resume() 
+    call f_timer_resume()
   end subroutine put_to_zero_double_3
 
   subroutine put_to_zero_double_4(da)
     implicit none
     double precision, dimension(:,:,:,:), intent(out) :: da
-    call f_timer_interrupt(TCAT_INIT_TO_ZERO) 
+    call f_timer_interrupt(TCAT_INIT_TO_ZERO)
     !call razero(size(da),da(lbound(da,1),lbound(da,2),lbound(da,3),lbound(da,4)))
     call setzero(int(size(da),f_long)*kind(da),da)
-    call f_timer_resume() 
+    call f_timer_resume()
   end subroutine put_to_zero_double_4
 
   subroutine put_to_zero_double_5(da)
     implicit none
     double precision, dimension(:,:,:,:,:), intent(out) :: da
-    call f_timer_interrupt(TCAT_INIT_TO_ZERO) 
+    call f_timer_interrupt(TCAT_INIT_TO_ZERO)
     !call razero(size(da),da(lbound(da,1),lbound(da,2),lbound(da,3),lbound(da,4),lbound(da,5)))
     call setzero(int(size(da),f_long)*kind(da),da)
-    call f_timer_resume() 
+    call f_timer_resume()
   end subroutine put_to_zero_double_5
 
   subroutine put_to_zero_double_6(da)
     implicit none
     double precision, dimension(:,:,:,:,:,:), intent(out) :: da
-    call f_timer_interrupt(TCAT_INIT_TO_ZERO) 
+    call f_timer_interrupt(TCAT_INIT_TO_ZERO)
     !call razero(size(da),da(lbound(da,1),lbound(da,2),lbound(da,3),lbound(da,4),lbound(da,5),lbound(da,6)))
     call setzero(int(size(da),f_long)*kind(da),da)
-    call f_timer_resume() 
+    call f_timer_resume()
   end subroutine put_to_zero_double_6
 
   subroutine put_to_zero_double_7(da)
     implicit none
     double precision, dimension(:,:,:,:,:,:,:), intent(out) :: da
-    call f_timer_interrupt(TCAT_INIT_TO_ZERO) 
+    call f_timer_interrupt(TCAT_INIT_TO_ZERO)
     !call razero(size(da),da(lbound(da,1),lbound(da,2),lbound(da,3),lbound(da,4),lbound(da,5),lbound(da,6),lbound(da,7)))
     call setzero(int(size(da),f_long)*kind(da),da)
-    call f_timer_resume() 
+    call f_timer_resume()
   end subroutine put_to_zero_double_7
 
   subroutine put_to_zero_integer(n,da)
@@ -1567,6 +1506,12 @@ contains
     character(len=ln), dimension(:), intent(in) :: datatype
     integer(f_long) :: s; s=product(int(shape(datatype),f_long))*int(ln,f_long)
   end function f_sizeof_c1
+  pure function f_sizeof_c2(ln,datatype) result(s)
+    integer, intent(in) :: ln
+    character(len=ln), dimension(:,:), intent(in) :: datatype
+    integer(f_long) :: s; s=product(int(shape(datatype),f_long))*int(ln,f_long)
+  end function f_sizeof_c2
+
 
   pure function f_sizeof_z1(datatype) result(s)
     complex(f_double), dimension(:), intent(in) :: datatype

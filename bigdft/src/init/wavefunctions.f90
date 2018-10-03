@@ -194,10 +194,6 @@ subroutine orbitals_descriptors(iproc,nproc,norb,norbu,norbd,nspin,nspinor,nkpt,
      stop
   end if
 
-  !allocate(orbs%ikptsp(orbs%nkptsp+ndebug),stat=i_stat)
-  !call memocc(i_stat,orbs%ikptsp,'orbs%ikptsp',subname)
-  !orbs%ikptsp(1:orbs%nkptsp)=mykpts(1:orbs%nkptsp)
-
   !this array will be reconstructed in the orbitals_communicators routine
   call f_free(norb_par)
   call f_free(norbu_par)
@@ -299,8 +295,8 @@ subroutine orbitals_descriptors(iproc,nproc,norb,norbu,norbd,nspin,nspinor,nkpt,
   end do
 
   !this mpiflag is added to make memguess working
-  call MPI_Initialized(mpiflag,ierr)
-  if(nproc >1 .and. mpiflag /= 0) &
+  !call MPI_Initialized(mpiflag,ierr)
+  if(nproc >1 .and. mpiinitialized()) &
        call fmpi_allreduce(orbs%isorb_par(0),nproc,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
 
   call f_release_routine()

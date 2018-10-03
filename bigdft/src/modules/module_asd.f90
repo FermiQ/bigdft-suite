@@ -47,7 +47,7 @@ module module_asd
       !
    end type asd_data
 
-   type(asd_data) :: asd
+   type(asd_data), save :: asd
    public :: asd_allocate,asd_free, asd
    public :: asd_read_external, asd_wrapper
 

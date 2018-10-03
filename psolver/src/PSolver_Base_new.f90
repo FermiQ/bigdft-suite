@@ -218,7 +218,7 @@ subroutine finalize_hartree_results(sumpion,gpu,kernel,pot_ion,m1,m2,m3p,&
   if(gpu) then
 
      !in VAC case, rho and zf are already on the card and untouched
-     if( kernel%stay_on_gpu /= 1 .and. trim(str(kernel%method))/='VAC') then
+     if( kernel%stay_on_gpu /= 1 .and. trim(toa(kernel%method))/='VAC') then
         call reset_gpu_data(m1*m2*m3p,rho,kernel%w%rho_GPU)
         call reset_gpu_data(m1*m2*m3p,zf,kernel%w%work1_GPU)
      end if
@@ -343,6 +343,8 @@ subroutine G_PoissonSolver(iproc,nproc,planes_comm,iproc_inplane,inplane_comm,nc
   use dynamic_memory
   use dictionaries ! for f_err_throw
   use box
+  use f_perfs
+  use f_utils, only: f_size,f_sizeof
   implicit none
   !to be preprocessed
   include 'perfdata.inc'
@@ -379,10 +381,14 @@ subroutine G_PoissonSolver(iproc,nproc,planes_comm,iproc_inplane,inplane_comm,nc
   integer, dimension(7) :: after2,now2,before2,after3,now3,before3
   real(gp), dimension(6) :: strten_omp
   !integer :: ncount0,ncount1,ncount_max,ncount_rate
+  logical, dimension(3) :: peri
   integer :: maxIter, nthreadx
   integer :: n3pr1,n3pr2,j1start,n1p,n2dimp
   integer :: ithread, nthread
   integer,parameter :: max_memory_zt = 500 !< maximal memory for zt array, in megabytes
+  !integer(f_long) :: readb,writeb
+  real(f_double) :: gflops_fft
+  type(f_perf) :: performance_info
   ! OpenMP variables
   !$ integer :: omp_get_thread_num, omp_get_max_threads !, omp_get_num_threads
 
@@ -396,9 +402,13 @@ subroutine G_PoissonSolver(iproc,nproc,planes_comm,iproc_inplane,inplane_comm,nc
   !conditions for periodicity in the three directions
   !perx=(geocode /= 'F' .and. geocode /= 'W' .and. geocode /= 'H')
   geocode=cell_geocode(mesh)
-  perx=(geocode == 'P' .or. geocode == 'S')
-  pery=(geocode == 'P')
-  perz=(geocode /= 'F' .and. geocode /= 'H')
+  peri=cell_periodic_dims(mesh)
+  perx=peri(1)
+  pery=peri(2)
+  perz=peri(3)
+!!$  perx=(geocode == 'P' .or. geocode == 'S')
+!!$  pery=(geocode == 'P')
+!!$  perz=(geocode /= 'F' .and. geocode /= 'H')
 
   cplx= (ncplx == 2)
 
@@ -561,7 +571,7 @@ subroutine G_PoissonSolver(iproc,nproc,planes_comm,iproc_inplane,inplane_comm,nc
   !write(*,*) 'nthread', nthread
   zw = f_malloc((/ 1.to.2,1.to.ncache/4,1.to.2,0.to.nthread-1 /),id='zw')
   zt = f_malloc((/ 1.to.2,1.to.lzt/n3pr1,1.to.n1p,0.to.nthread-1 /),id='zt')
-
+    
   ithread = 0
   !$omp parallel num_threads(nthread) &
   !$omp default(shared)&
@@ -619,6 +629,8 @@ subroutine G_PoissonSolver(iproc,nproc,planes_comm,iproc_inplane,inplane_comm,nc
   !$omp end do
   ! DO NOT USE NOWAIT, removes the implicit barrier
 
+  gflops_fft=5*2*real(n1dim*maxIter,f_double)*n3dim*log(real(n3dim,f_double))
+
   !$omp master
     nd3=nd3/n3pr1
     !Interprocessor data transposition
@@ -651,6 +663,10 @@ subroutine G_PoissonSolver(iproc,nproc,planes_comm,iproc_inplane,inplane_comm,nc
     endif
   endif
 
+  gflops_fft=gflops_fft+5*2*maxIter*(real(n2dimp/n3pr1*n1,f_double)*log(real(n1,f_double))+&
+       real(n1p/n3pr1*n2,f_double)*log(real(n2,f_double)))
+  gflops_fft=gflops_fft+2*f_size(pot)
+  
   strten_omp=0
 
   !$omp do schedule(static)
@@ -915,6 +931,8 @@ subroutine G_PoissonSolver(iproc,nproc,planes_comm,iproc_inplane,inplane_comm,nc
   end do
   !$omp end do
 
+
+
   !$omp end parallel
 
   call f_free(zw)
@@ -939,7 +957,12 @@ subroutine G_PoissonSolver(iproc,nproc,planes_comm,iproc_inplane,inplane_comm,nc
      call f_free(zmpi1)
   end if
   call f_timing(TCAT_PSOLV_COMPUT,'OF')
-  call f_release_routine()
+
+  call f_perf_set_model(performance_info,F_PERF_GFLOPS,nint(gflops_fft,f_long))
+  call f_perf_set_model(performance_info,F_PERF_READB,f_sizeof(zf)+f_sizeof(pot))
+  call f_perf_set_model(performance_info,F_PERF_WRITEB,f_sizeof(zf))
+  call f_release_routine(performance_info=performance_info)
+  call f_perf_free(performance_info)
   !call system_clock(ncount1,ncount_rate,ncount_max)
   !write(*,*) 'TIMING:PS ', real(ncount1-ncount0)/real(ncount_rate)
 END SUBROUTINE G_PoissonSolver

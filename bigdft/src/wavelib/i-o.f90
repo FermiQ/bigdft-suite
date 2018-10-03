@@ -39,6 +39,7 @@ subroutine reformatonewave(displ,wfd,at,hx_old,hy_old,hz_old,n1_old,n2_old,n3_ol
   real(wp), dimension(:,:,:), allocatable :: psifscfold
   real(gp), dimension(3) :: rd
   type(cell) :: mesh
+  logical, dimension(3) :: peri
   !real(kind=4) :: t0, t1
   !real(kind=8) :: time
 
@@ -47,9 +48,13 @@ subroutine reformatonewave(displ,wfd,at,hx_old,hy_old,hz_old,n1_old,n2_old,n3_ol
 
   mesh=cell_new(at%astruct%geocode,[n1,n2,n3],[hx,hy,hz])
   !conditions for periodicity in the three directions
-  perx=(at%astruct%geocode /= 'F')
-  pery=(at%astruct%geocode == 'P')
-  perz=(at%astruct%geocode /= 'F')
+!!$  perx=(at%astruct%geocode /= 'F')
+!!$  pery=(at%astruct%geocode == 'P')
+!!$  perz=(at%astruct%geocode /= 'F')
+  peri=cell_periodic_dims(mesh)
+  perx=peri(1)
+  pery=peri(2)
+  perz=peri(3)
 
   !buffers related to periodicity
   !WARNING: the boundary conditions are not assumed to change between new and old
@@ -66,6 +71,8 @@ subroutine reformatonewave(displ,wfd,at,hx_old,hy_old,hz_old,n1_old,n2_old,n3_ol
      call synthese_slab(n1_old,n2_old,n3_old,wwold,psigold,psifscfold)
   else if (at%astruct%geocode=='P') then
      call synthese_per(n1_old,n2_old,n3_old,wwold,psigold,psifscfold)
+  else if (at%astruct%geocode=='W') then
+     call synthese_wire(n1_old,n2_old,n3_old,wwold,psigold,psifscfold)
   end if
 
   call f_free(wwold)
@@ -225,6 +232,8 @@ subroutine reformatonewave(displ,wfd,at,hx_old,hy_old,hz_old,n1_old,n2_old,n3_ol
      call analyse_slab(n1,n2,n3,ww,psifscf,psig)
   else if (at%astruct%geocode == 'P') then
      call analyse_per(n1,n2,n3,ww,psifscf,psig)
+  else if (at%astruct%geocode=='W') then
+     call analyse_wire(n1,n2,n3,ww,psifscf,psig)
   end if
 
   !write(100+iproc,*) 'norm new psig ',dnrm2(8*(n1+1)*(n2+1)*(n3+1),psig,1)
@@ -300,7 +309,7 @@ subroutine readonewave(unitwf,useFormattedInput,iorb,iproc,n1,n2,n3,&
   !local variables
   character(len=*), parameter :: subname='readonewave'
   character(len = 256) :: error
-  logical :: perx,pery,perz,lstat
+  logical :: lstat
   integer :: iorb_old,n1_old,n2_old,n3_old,iat,iel,nvctr_c_old,nvctr_f_old,i1,i2,i3
   real(wp) :: tt,t1,t2,t3,t4,t5,t6,t7
   real(gp) :: tx,ty,tz,displ,hx_old,hy_old,hz_old!,mindist
@@ -317,22 +326,8 @@ subroutine readonewave(unitwf,useFormattedInput,iorb,iproc,n1,n2,n3,&
   if (.not. lstat) call io_error(trim(error))
   if (iorb_old /= iorb) stop 'readonewave'
 
-  !conditions for periodicity in the three directions
-  perx=(at%astruct%geocode /= 'F')
-  pery=(at%astruct%geocode == 'P')
-  perz=(at%astruct%geocode /= 'F')
 
-  ! tx=0.0_gp
-  ! ty=0.0_gp
-  ! tz=0.0_gp
-  ! displ=0.0_gp
-  ! do iat=1,at%astruct%nat
-  !    tx=tx+mindist(perx,at%astruct%cell_dim(1),rxyz(1,iat),rxyz_old(1,iat))**2
-  !    ty=ty+mindist(pery,at%astruct%cell_dim(2),rxyz(2,iat),rxyz_old(2,iat))**2
-  !    tz=tz+mindist(perz,at%astruct%cell_dim(3),rxyz(3,iat),rxyz_old(3,iat))**2
-  ! enddo
-  ! displ=sqrt(tx+ty+tz)
-
+  
   displ=0.0_gp
   do iat=1,at%astruct%nat
     displ=displ+distance(mesh,rxyz(:,iat),rxyz_old(:,iat))**2
@@ -365,7 +360,6 @@ subroutine readonewave(unitwf,useFormattedInput,iorb,iproc,n1,n2,n3,&
 
      psigold = f_malloc0((/ 0.to.n1_old, 1.to.2, 0.to.n2_old, 1.to.2, 0.to.n3_old, 1.to.2 /),id='psigold')
 
-     !call to_zero(8*(n1_old+1)*(n2_old+1)*(n3_old+1),psigold(0,1,0,1,0,1))
      do iel=1,nvctr_c_old
         if (useFormattedInput) then
            read(unitwf,*) i1,i2,i3,tt
@@ -400,168 +394,6 @@ subroutine readonewave(unitwf,useFormattedInput,iorb,iproc,n1,n2,n3,&
   call f_release_routine()
 
 END SUBROUTINE readonewave
-
-subroutine readwavetoisf(lstat, filename, formatted, hx, hy, hz, &
-     & n1, n2, n3, nspinor, psiscf)
-  use module_base
-!  use module_types
-  use io, only: io_open, io_read_descr, io_warning, read_psi_compress, io_gcoordtolocreg
-  use locregs
-  use locreg_operations
-  implicit none
-
-  character(len = *), intent(in) :: filename
-  logical, intent(in) :: formatted
-  integer, intent(out) :: n1, n2, n3, nspinor
-  real(gp), intent(out) :: hx, hy, hz
-  real(wp), dimension(:,:,:,:), pointer :: psiscf
-  logical, intent(out) :: lstat
-
-  character(len = *), parameter :: subname = "readwavetoisf"
-  integer :: unitwf, iorb, ispinor, ispin, ikpt
-  integer, dimension(:,:), allocatable :: gcoord_c, gcoord_f
-  real(wp) :: eval
-  real(wp), dimension(:), allocatable :: psi
-  type(locreg_descriptors) :: lr
-  character(len = 256) :: error
-  type(workarr_sumrho) :: w
-  character(len = 1024) :: fileRI
-  integer :: n1_old, n2_old, n3_old, nvctr_c_old, nvctr_f_old
-  real(gp) :: hx_old, hy_old, hz_old
-
-  call f_routine(id=subname)
-
-
-  ! We open the Fortran file
-  call io_open(unitwf, filename, formatted)
-  if (unitwf < 0) then
-     call f_release_routine()
-     return
-  end if
-
-  ! We read the basis set description and the atomic definition.
-  call io_read_descr(unitwf, formatted, iorb, eval, n1, n2, n3, &
-       & hx, hy, hz, lstat, error,  nvctr_c_old, nvctr_f_old)
-  if (.not. lstat) then
-     call io_warning(trim(error))
-     call f_release_routine()
-     return
-  end if
-  ! Do a magic here with the filenames...
-  call readwavedescr(lstat, filename, iorb, ispin, ikpt, ispinor, nspinor, fileRI)
-  if (.not. lstat) then
-     call io_warning("cannot read wave ids from filename.")
-     call f_release_routine()
-     return
-  end if
-
-  ! Initial allocations.
-  gcoord_c = f_malloc((/ 3, nvctr_c_old  /),id='gcoord_c')
-  gcoord_f = f_malloc((/ 3, nvctr_f_old  /),id='gcoord_f')
-  psi = f_malloc( nvctr_c_old + 7 * nvctr_f_old ,id='psi')
-  ! Read psi and the basis-set
-  call read_psi_compress(unitwf, formatted, nvctr_c_old, nvctr_f_old, psi, lstat, error, gcoord_c, gcoord_f)
-  if (.not. lstat) then
-     call io_warning(trim(error))
-     call deallocate_local()
-     return
-  end if
-  call io_gcoordToLocreg(n1, n2, n3, nvctr_c_old, nvctr_f_old, &
-       & gcoord_c, gcoord_f, lr)
-
-  psiscf = f_malloc_ptr((/ lr%d%n1i, lr%d%n2i, lr%d%n3i, nspinor  /),id='psiscf')
-
-  call initialize_work_arrays_sumrho(lr,.true.,w)
-
-  ! Magic-filter to isf
-  call daub_to_isf(lr, w, psi, psiscf(1,1,1,ispinor))
-
-  ! Read the other psi part, if any
-  if (nspinor > 1) then
-     close(unitwf)
-     n1_old = n1
-     n2_old = n2
-     n3_old = n3
-     hx_old = hx
-     hy_old = hy
-     hz_old = hz
-     nvctr_c_old = lr%wfd%nvctr_c
-     nvctr_f_old = lr%wfd%nvctr_f
-
-     ispinor = modulo(ispinor, 2) + 1
-     call io_open(unitwf, trim(fileRI), formatted)
-     if (unitwf < 0) then
-        call io_warning("cannot read other spinor part from '" // trim(fileRI) // "'.")
-        call deallocate_local()
-        return
-     end if
-     ! We read the basis set description and the atomic definition.
-     call io_read_descr(unitwf, formatted, iorb, eval, n1, n2, n3, &
-          & hx, hy, hz, lstat, error, lr%wfd%nvctr_c, lr%wfd%nvctr_f)
-     if (.not. lstat) then
-        call io_warning(trim(error))
-        call deallocate_local()
-        return
-     end if
-
-     ! Check consistency of the basis-set.
-     if (n1_old == n1 .and. n2_old == n2 .and. n3_old == n3 .and. &
-          & hx_old == hx .and. hy_old == hy .and. hz_old == hz .and. &
-          & nvctr_c_old == lr%wfd%nvctr_c .and. nvctr_f_old == lr%wfd%nvctr_f) then
-        call read_psi_compress(unitwf, formatted, lr%wfd%nvctr_c, lr%wfd%nvctr_f, psi, lstat, error)
-        if (.not. lstat) then
-           call io_warning(trim(error))
-           call deallocate_local()
-           return
-        end if
-        call daub_to_isf(lr, w, psi, psiscf(1,1,1,ispinor))
-     else
-        call io_warning("It exists a file with the same naming convention" // &
-             & " but with a different basis-set.")
-        hx = hx_old
-        hy = hy_old
-        hz = hz_old
-        psiscf(:,:,:,ispinor) = real(0, wp)
-     end if
-  end if
-
-  ! We update the size values to match the allocation of psiscf.
-  n1 = lr%d%n1i
-  n2 = lr%d%n2i
-  n3 = lr%d%n3i
-  hx = hx * 0.5d0
-  hy = hy * 0.5d0
-  hz = hz * 0.5d0
-
-  call deallocate_local()
-  lstat = .true.
-
-contains
-
-  subroutine deallocate_local()
-    implicit none
-
-    ! We close the file.
-    close(unit=unitwf)
-
-    !allocation status of a allocatable array is undefined, cannot do that
-    !as we do not have any way to deallocate an array
-    call f_free(psi)
-    call f_free(gcoord_c)
-    call f_free(gcoord_f)
-
-    if (associated(w%x_c)) then
-       call deallocate_work_arrays_sumrho(w)
-    end if
-    call deallocate_locreg_descriptors(lr)
-    !call deallocate_convolutions_bounds(lr%bounds)
-    !call deallocate_wfd(lr%wfd)
-
-    call f_release_routine()
-  END SUBROUTINE deallocate_local
-
-END SUBROUTINE readwavetoisf
-
 
 subroutine readwavedescr(lstat, filename, iorb, ispin, ikpt, ispinor, nspinor, fileRI)
   use module_base

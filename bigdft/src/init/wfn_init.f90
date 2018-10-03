@@ -201,7 +201,7 @@ END SUBROUTINE Gaussian_DiagHam
 
 
 subroutine LDiagHam(iproc,nproc,natsc,nspin,orbs,Lzd,Lzde,comms,&
-     psi,hpsi,psit,orthpar,passmat,mixing,Tel,occopt,& !mandatory
+     psi,hpsi,psit,orthpar,mixing,Tel,occopt,& !mandatory
      orbse,commse,etol,norbsc_arr) !optional
   use module_base
   use module_types
@@ -220,7 +220,6 @@ subroutine LDiagHam(iproc,nproc,natsc,nspin,orbs,Lzd,Lzde,comms,&
   type(comms_cubic), intent(in) :: comms
   type(orbitals_data), intent(inout) :: orbs
   type(orthon_data), intent(in):: orthpar 
-  real(wp), dimension(*), intent(out) :: passmat !< passage matrix for building the eigenvectors (the size depends of the optional arguments)
   real(wp), dimension(:), pointer :: psi,hpsi,psit
   real(gp), intent(in) :: etol
   type(orbitals_data), intent(inout) :: orbse
@@ -435,6 +434,7 @@ end if
 
         if (iproc==0) call yaml_map('Noise added to input eigenvalues to determine occupation numbers',&
              max(Tel,1.0e-3_gp),fmt='(1pe12.5)')
+        call f_random_seed(0) !for uniformity
 !        !add a small displacement in the eigenvalues
         do iorb=1,orbse%norb*orbse%nkpts
            !tt=builtin_rand(idum)
@@ -487,7 +487,7 @@ end if
 
         call build_eigenvectors(orbs%norbu,orbs%norbd,orbs%norb,norbtot,nvctrp,&
              natsceff,nspin,nspinor,orbs%nspinor,ndim_hamovr,norbgrp,hamovr(1,1,ikpt),&
-             psi(ispsie:),psit(ispsi:),passmat(ispm))
+             psi(ispsie:),psit(ispsi:))
         ispsi=ispsi+nvctrp*orbs%norb*orbs%nspinor
         ispsie=ispsie+nvctrp*norbtot*orbs%nspinor
         ispm=ispm+ncplx*(orbse%norbu*orbs%norbu+orbse%norbd*orbs%norbd)
@@ -832,7 +832,7 @@ END SUBROUTINE solve_eigensystem
 
 
 subroutine build_eigenvectors(norbu,norbd,norb,norbe,nvctrp,natsc,nspin,nspinore,nspinor,&
-      &   ndim_hamovr,norbsc_arr,hamovr,psi,ppsit,passmat)
+      &   ndim_hamovr,norbsc_arr,hamovr,psi,ppsit)
    use module_base
    implicit none
    !Arguments
@@ -841,7 +841,6 @@ subroutine build_eigenvectors(norbu,norbd,norb,norbe,nvctrp,natsc,nspin,nspinore
    real(wp), dimension(nspin*ndim_hamovr), intent(in) :: hamovr
    real(wp), dimension(nvctrp*nspinore,norbe), intent(in) :: psi
    real(wp), dimension(nvctrp*nspinor,norb), intent(out) :: ppsit
-   real(wp), dimension(*), intent(out) :: passmat !< passage matrix between ppsit and psi (the size depends of the complex arguments)
    !Local variables
    !n(c) character(len=*), parameter :: subname='build_eigenvectors'
    !n(c) integer, parameter :: iunit=1978
@@ -890,8 +889,6 @@ subroutine build_eigenvectors(norbu,norbd,norb,norbe,nvctrp,natsc,nspin,nspinore
                &   psi(1,iorbst),max(1,ncomp*nvctrp),hamovr(imatrst),norbi,&
                &   (0.0_wp,0.0_wp),ppsit(1,iorbst2),max(1,ncomp*nvctrp))
          end if
-         !store the values of the passage matrix in passmat array
-         call vcopy(ncplx*norbi**2,hamovr(imatrst),1,passmat(imatrst),1)
 
          iorbst=iorbst+norbi
          iorbst2=iorbst2+norbi
@@ -914,9 +911,6 @@ subroutine build_eigenvectors(norbu,norbd,norb,norbe,nvctrp,natsc,nspin,nspinore
 
          end if
       end if
-      !store the values of the passage matrix in passmat array
-      !print *,'iproc,BBBB11111,',iproc,ispm,norbi,norbj
-      call vcopy(ncplx*norbi*norbj,hamovr(imatrst),1,passmat(ispm),1)
       ispm=ispm+ncplx*norbi*norbj
       !print *,'iproc,BBBB,',iproc,ispm,norbi,norbj
 

@@ -38,6 +38,7 @@ program memguess
    !use postprocessing_linear, only: loewdin_charge_analysis_core
    use public_enums
    use module_input_keys, only: print_dft_parameters
+   use orbitalbasis
    use IObox
    use io, only: plot_density
    use f_enums, only: toi
@@ -118,6 +119,7 @@ program memguess
    real(kind=8),parameter :: eps_roundoff=1.d-5
    type(sparse_matrix) :: smat_s, smat_m, smat_l
    type(f_enumerator) :: inputpsi
+   type(orbital_basis) :: ob
 
    call f_lib_initialize()
    !initialize errors and timings as bigdft routines are called
@@ -215,20 +217,22 @@ program memguess
       output_grid=0
       loop_getargs: do
          call get_command_argument(i_arg, value = tatonam, status = istat)
-         !call getarg(i_arg,tatonam)
-         if(trim(tatonam)=='' .or. istat > 0) then
-            exit loop_getargs
-         else if (trim(tatonam)=='y') then
+ 
+         if(istat > 0) exit loop_getargs
+
+         !first restructuring in view of better behaviour
+         select case(trim(tatonam))
+         case('y')
             output_grid=1
             write(*,'(1x,a)') 'The system grid will be displayed in the "grid.xyz" file'
             exit loop_getargs
-         else if (trim(tatonam)=='o') then
+         case('o')
             optimise=.true.
             output_grid=1
             write(*,'(1x,a)')&
-               &   'The optimised system grid will be displayed in the "grid.xyz" file and "posopt.xyz"'
+                 &   'The optimised system grid will be displayed in the "grid.xyz" file and "posopt.xyz"'
             exit loop_getargs
-         else if (trim(tatonam)=='GPUtest') then
+         case('GPUtest')
             GPUtest=.true.
             write(*,'(1x,a)')&
                &   'Perform the test with GPU, if present.'
@@ -247,7 +251,7 @@ program memguess
                read(unit=tatonam,fmt=*,iostat=ierror) norbgpu
             end if
             exit loop_getargs
-         else if (trim(tatonam)=='convert') then
+         case('convert')
             convert=.true.
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = fileFrom)
@@ -256,10 +260,9 @@ program memguess
             call get_command_argument(i_arg, value = fileTo)
             !call getarg(i_arg,fileTo)
             write(*,'(1x,5a)')&
-               &   'convert "', trim(fileFrom),'" file to "', trim(fileTo),'"'
+                 &   'convert "', trim(fileFrom),'" file to "', trim(fileTo),'"'
             exit loop_getargs
-
-         else if (trim(tatonam)=='exportwf') then
+         case('exportwf')
             !Export wavefunctions (cube format)
             exportwf=.true.
             i_arg = i_arg + 1
@@ -299,24 +302,24 @@ program memguess
                read(unit=tatonam,fmt=*) export_wf_ispinor
             end if
             exit loop_getargs
-         else if (trim(tatonam)=='exportproj') then
+         case('exportproj')
             !Export wavefunctions (cube format)
             exportproj=.true.
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = filename_proj)
             exit loop_getargs
-         else if (trim(tatonam)=='atwf') then
+         case('atwf')
             atwf=.true.
             write(*,'(1x,a)')&
-               &   'Perform the calculation of atomic wavefunction of the first atom'
+                 &   'Perform the calculation of atomic wavefunction of the first atom'
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = tatonam)
             !call getarg(i_arg,tatonam)
             read(unit=tatonam,fmt=*,iostat=ierror) ng
             write(*,'(1x,a,i0,a)')&
-               &   'Use gaussian basis of',ng,' elements.'
+                 &   'Use gaussian basis of',ng,' elements.'
             exit loop_getargs
-         else if (trim(tatonam)=='convert-positions') then
+         case('convert-positions')
             convertpos=.true.
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = fileFrom)
@@ -325,9 +328,9 @@ program memguess
             call get_command_argument(i_arg, value = fileTo)
             !call getarg(i_arg,fileTo)
             write(*,'(1x,5a)')&
-               &   'convert input file "', trim(fileFrom),'" file to "', trim(fileTo),'"'
+                 &   'convert input file "', trim(fileFrom),'" file to "', trim(fileTo),'"'
             exit loop_getargs
-         else if (trim(tatonam)=='transform-coordinates') then
+         case('transform-coordinates')
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = direction)
             i_arg = i_arg + 1
@@ -335,10 +338,10 @@ program memguess
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = fileTo)
             write(*,'(1x,5a)')&
-               &   'convert input file "', trim(fileFrom),'" file to "', trim(fileTo),'"'
+                 &   'convert input file "', trim(fileFrom),'" file to "', trim(fileTo),'"'
             transform_coordinates=.true.
             exit loop_getargs
-         else if (trim(tatonam)=='pdos') then
+         case('pdos')
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = coeff_file)
             i_arg = i_arg + 1
@@ -363,11 +366,11 @@ program memguess
             !call get_command_argument(i_arg, value = posinp_file)
             npdos = 1
             write(*,'(1x,a,i0,3a)')&
-               &   'calculate ', npdos,' PDOS based on the coeffs in the file "', trim(coeff_file),'"'
-               !&   'calculate ', npdos,' PDOS based on the coeffs (', ntmb, 'x', norbks, ') in the file "', trim(coeff_file),'"'
+                 &   'calculate ', npdos,' PDOS based on the coeffs in the file "', trim(coeff_file),'"'
+            !&   'calculate ', npdos,' PDOS based on the coeffs (', ntmb, 'x', norbks, ') in the file "', trim(coeff_file),'"'
             calculate_pdos=.true.
             exit loop_getargs
-         else if (trim(tatonam)=='dos') then
+         case('dos')
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = coeff_file)
             i_arg = i_arg + 1
@@ -381,10 +384,10 @@ program memguess
             call get_command_argument(i_arg, value = npts_)
             read(npts_,fmt=*,iostat=ierror) npts
             write(*,'(1x,3a)')&
-               &   'calculate total DOS based on the coeffs in the file "', trim(coeff_file),'"'
+                 &   'calculate total DOS based on the coeffs in the file "', trim(coeff_file),'"'
             calculate_dos=.true.
             exit loop_getargs
-         else if (trim(tatonam)=='kernel-analysis') then
+         case('kernel-analysis')
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = coeff_file)
             i_arg = i_arg + 1
@@ -399,11 +402,11 @@ program memguess
             call get_command_argument(i_arg, value = nat_)
             read(nat_,fmt=*,iostat=ierror) nat
             write(*,'(1x,5a)')&
-               &   'calculate a full kernel from the coeffs in "', trim(coeff_file), &
-               &'" and compres it to the sparse kernel in "', trim(kernel_file),'"'
+                 &   'calculate a full kernel from the coeffs in "', trim(coeff_file), &
+                 &'" and compres it to the sparse kernel in "', trim(kernel_file),'"'
             kernel_analysis = .true.
             exit loop_getargs
-         else if (trim(tatonam)=='extract-submatrix') then
+         case('extract-submatrix')
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = matrix_file)
             i_arg = i_arg + 1
@@ -416,10 +419,10 @@ program memguess
             call get_command_argument(i_arg, value = nsubmatrices_)
             read(nsubmatrices_,fmt=*,iostat=ierror) nsubmatrices
             write(*,'(1x,a,i0,3a,2(i0,a))')&
-               &   'extract ',nsubmatrices,' submatrices from the matrix in "', trim(matrix_file),'" (size ',ntmb,'x',ntmb,')'
+                 &   'extract ',nsubmatrices,' submatrices from the matrix in "', trim(matrix_file),'" (size ',ntmb,'x',ntmb,')'
             extract_submatrix = .true.
             exit loop_getargs
-         else if (trim(tatonam)=='solve-eigensystem') then
+         case('solve-eigensystem')
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = ham_file)
             i_arg = i_arg + 1
@@ -434,10 +437,10 @@ program memguess
             call get_command_argument(i_arg, value = coeff_file)
             read(nsubmatrices_,fmt=*,iostat=ierror) nsubmatrices
             write(*,'(1x,2(a,i0))')&
-               &   'solve the eigensystem Hc=lSc of size ',ntmb,'x',ntmb
+                 &   'solve the eigensystem Hc=lSc of size ',ntmb,'x',ntmb
             solve_eigensystem = .true.
             exit loop_getargs
-         else if (trim(tatonam)=='analyze-coeffs') then
+         case('analyze-coeffs')
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = coeff_file)
             i_arg = i_arg + 1
@@ -453,10 +456,10 @@ program memguess
             call get_command_argument(i_arg, value = ncategories_)
             read(ncategories_,fmt=*,iostat=ierror) ncategories
             write(*,'(1x,a)')&
-               &   'analyze the coeffs'
+                 &   'analyze the coeffs'
             analyze_coeffs = .true.
             exit loop_getargs
-         else if (trim(tatonam)=='peel-matrix') then
+         case('peel-matrix')
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = matrix_file)
             i_arg = i_arg + 1
@@ -469,10 +472,10 @@ program memguess
             call get_command_argument(i_arg, value = cutoff_)
             read(cutoff_,fmt=*,iostat=ierror) cutoff
             write(*,'(1x,a)')&
-               &   'peel the matrix'
+                 &   'peel the matrix'
             peel_matrix = .true.
             exit loop_getargs
-         else if (trim(tatonam)=='multiply-matrices') then
+         case('multiply-matrices')
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = amatrix_file)
             i_arg = i_arg + 1
@@ -487,10 +490,10 @@ program memguess
             read(nat_,fmt=*,iostat=ierror) nat
             i_arg = i_arg + 1
             write(*,'(1x,a,2(i0,a))')&
-               &   'multiply the matrices (size ',ntmb,'x',ntmb,')'
+                 &   'multiply the matrices (size ',ntmb,'x',ntmb,')'
             multiply_matrices = .true.
             exit loop_getargs
-         else if (trim(tatonam)=='matrixpower') then
+         case('matrixpower')
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = inmatrix_file)
             i_arg = i_arg + 1
@@ -506,42 +509,44 @@ program memguess
             read(power_,fmt=*,iostat=ierror) power
             i_arg = i_arg + 1
             write(*,'(1x,a,2(i0,a))')&
-               &   'calculate the power of a matrix'
+                 &   'calculate the power of a matrix'
             matrixpower = .true.
             exit loop_getargs
-         else if (trim(tatonam)=='plot-wavefunction') then
+         case('plot-wavefunction')
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = wf_file)
             write(*,'(1x,a,2(i0,a))')&
-               &   'plot the wave function from file ',trim(wf_file)
+                 &   'plot the wave function from file ',trim(wf_file)
             plot_wavefunction = .true.
             exit loop_getargs
-         else if (trim(tatonam)=='suggest-cutoff') then
+         case('suggest-cutoff')
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = posinp_file)
             write(*,'(1x,2a)')&
-               &   'suggest cutoff radii based on the atomic positions in ',trim(posinp_file)
+                 &   'suggest cutoff radii based on the atomic positions in ',trim(posinp_file)
             suggest_cutoff = .true.
             exit loop_getargs
-         else if (trim(tatonam)=='charge-analysis') then
+         case('charge-analysis')
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = overlap_file)
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = kernel_file)
             write(*,'(1x,2a)')&
-               &   'perform a Loewdin charge analysis'
+                 &   'perform a Loewdin charge analysis'
             charge_analysis = .true.
             exit loop_getargs
-         else if (trim(tatonam) == 'dd') then
+         case('dd')
             ! dd: disable deprecation message
             disable_deprecation = .true.
-         else if (trim(tatonam) == 'l') then
+         case('l')
             ! l: log to disk
             logfile = .true.
-         else
+         case('')
+            exit loop_getargs
+         case default
             ! Use value as radical for input files.
             write(radical, "(A)") trim(tatonam)
-         end if
+         end select
          i_arg = i_arg + 1
       end do loop_getargs
    end if
@@ -1608,23 +1613,29 @@ program memguess
    if (exportproj) then
       call free_DFT_PSP_projectors(nlpsp)
       DistProjApply = .true.
+      call orbital_basis_associate(ob,orbs=runObj%rst%KSwfn%orbs,&
+           & Lzd=runObj%rst%KSwfn%Lzd,id='memguess')
       call createProjectorsArrays(iproc,nproc,runObj%rst%KSwfn%Lzd%Glr, &
-           & runObj%atoms%astruct%rxyz,runObj%atoms,runObj%rst%KSwfn%orbs, &
+           & runObj%atoms%astruct%rxyz,runObj%atoms,ob, &
            & runObj%inputs%frmult,runObj%inputs%frmult, &
            & runObj%rst%KSwfn%Lzd%hgrids(1),runObj%rst%KSwfn%Lzd%hgrids(2), &
-           & runObj%rst%KSwfn%Lzd%hgrids(3),.false.,nlpsp)
-      call f_free_ptr(nlpsp%proj)
+           & runObj%rst%KSwfn%Lzd%hgrids(3),runObj%inputs%projection,.false.,nlpsp,.true.)
+      call orbital_basis_release(ob)
+      ikpt = 1
+      iat = 1
+      iproj = 1
+      icplx = 1
       call take_proj_from_file(filename_proj, &
            & runObj%rst%KSwfn%Lzd%hgrids(1),runObj%rst%KSwfn%Lzd%hgrids(2),runObj%rst%KSwfn%Lzd%hgrids(3), &
            & nlpsp, runObj%atoms, runObj%atoms%astruct%rxyz, &
            & ikpt,iat,iproj,icplx)
-      call filename_of_proj(.false.,"proj",ikpt,iat,iproj,icplx,filename_wfn)
+      call filename_of_proj(.false.,"proj2",ikpt,iat,iproj,icplx,filename_wfn)
 !!$      nlpsp%pspd(iat)%plr%wfd%keygloc = nlpsp%pspd(iat)%plr%wfd%keyglob
 !!$      nlpsp%pspd(iat)%plr%wfd%keyvloc = nlpsp%pspd(iat)%plr%wfd%keyvglob
 !!$      ! Doing this is buggy.
 !!$      runObj%rst%KSwfn%Lzd%Glr%wfd = nlpsp%pspd(iat)%plr%wfd
-      call plot_wf(.false.,filename_wfn,1,runObj%atoms,1.0_wp,runObj%rst%KSwfn%Lzd%Glr, &
-           & runObj%rst%KSwfn%Lzd%hgrids,runObj%atoms%astruct%rxyz, nlpsp%proj(1:))
+      call plot_wf(.false.,filename_wfn,1,runObj%atoms,1.0_wp,nlpsp%projs(iat)%region%plr, &
+           & runObj%rst%KSwfn%Lzd%hgrids,runObj%atoms%astruct%rxyz,nlpsp%shared_proj(1:))
    end if
 
    if (GPUtest) then
@@ -1992,6 +2003,8 @@ subroutine calc_vol(geocode,nat,rxyz,vol)
       vol=(cxmax-cxmin)*(cymax-cymin)*(czmax-czmin)
    else if (geocode == 'S') then
       vol=(cxmax-cxmin)*(czmax-czmin)
+   else if (geocode == 'W') then
+      vol=(czmax-czmin)
    end if
 
 END SUBROUTINE calc_vol
@@ -2065,7 +2078,7 @@ subroutine compare_cpu_gpu_hamiltonian(iproc,nproc,matacc,at,orbs,&
    !call to_zero(Lzd%Glr%wfd%nvctr_c+7*Lzd%Glr%wfd%nvctr_f*orbs%nspinor*orbs%norbp,hpsi)
 
    !convert the gaussians in wavelets
-   call gaussians_to_wavelets(iproc,nproc,at%astruct%geocode,orbs,Lzd%Glr%d,&
+   call gaussians_to_wavelets(iproc,nproc,Lzd%Glr%mesh,orbs,Lzd%Glr%d,&
            hx,hy,hz,Lzd%Glr%wfd,G,gaucoeffs,psi)
 
    call f_free(gaucoeffs)
@@ -2131,7 +2144,7 @@ subroutine compare_cpu_gpu_hamiltonian(iproc,nproc,matacc,at,orbs,&
    !allocate arrays for the GPU if a card is present
    if (GPU%OCLconv) then
       !the same with OpenCL, but they cannot exist at same time
-      call allocate_data_OCL(Lzd%Glr%d%n1,Lzd%Glr%d%n2,Lzd%Glr%d%n3,Lzd%Glr%geocode,&
+      call allocate_data_OCL(Lzd%Glr%d%n1,Lzd%Glr%d%n2,Lzd%Glr%d%n3,Lzd%Glr%mesh_coarse,&
            nspin,Lzd%Glr%wfd,orbs,GPU)
    end if
    if (iproc == 0) write(*,*)&
@@ -2427,6 +2440,7 @@ subroutine take_proj_from_file(filename, hx, hy, hz, nl, at, rxyz, &
   use public_enums, only: WF_FORMAT_PLAIN, WF_FORMAT_BINARY, WF_FORMAT_ETSF
   use module_input_keys, only: wave_format_from_filename
   use bounds, only: ext_buffers_coarse
+  use box, only: bc_periodic_dims,geocode_to_bc
   implicit none
   real(gp), intent(in) :: hx,hy,hz
   integer, intent(inout) :: ikpt, iat, iproj, icplx
@@ -2441,28 +2455,30 @@ subroutine take_proj_from_file(filename, hx, hy, hz, nl, at, rxyz, &
   real(wp) :: eproj
   real(wp), dimension(:,:,:), allocatable :: psifscf
   real(gp), dimension(:,:), allocatable :: rxyz_file
+  logical, dimension(3) :: peri
 
   rxyz_file = f_malloc((/ at%astruct%nat, 3 /),id='rxyz_file')
 
   iformat = wave_format_from_filename(0, filename)
   if (iformat == WF_FORMAT_PLAIN .or. iformat == WF_FORMAT_BINARY) then
      i = index(filename, "-k", back = .true.)+2
-     read(filename(i:i+2),*) ikpt
+     if (i > 2) read(filename(i:i+2),*) ikpt
      i = index(filename, "-a", back = .true.)+2
-     read(filename(i:i+3),*) iat
+     if (i > 2) read(filename(i:i+3),*) iat
      i = index(filename, "-", back = .true.)+1
-     if (filename(i:i) == "R") icplx = 1
-     if (filename(i:i) == "I") icplx = 2
+     if (i > 1 .and. filename(i:i) == "R") icplx = 1
+     if (i > 1 .and. filename(i:i) == "I") icplx = 2
      i = index(filename, ".", back = .true.)+1
-     read(filename(i:i+2),*) iproj
-
-     nl%proj = f_malloc_ptr(nl%pspd(iat)%plr%wfd%nvctr_c + &
-          & 7 * nl%pspd(iat)%plr%wfd%nvctr_f, id = "proj")
+     if (i > 2) read(filename(i:i+2),*) iproj
 
      !conditions for periodicity in the three directions
-     perx=(at%astruct%geocode /= 'F')
-     pery=(at%astruct%geocode == 'P')
-     perz=(at%astruct%geocode /= 'F')
+!!$     perx=(at%astruct%geocode /= 'F')
+!!$     pery=(at%astruct%geocode == 'P')
+!!$     perz=(at%astruct%geocode /= 'F')
+     peri=bc_periodic_dims(geocode_to_bc(at%astruct%geocode))
+     perx=peri(1)
+     pery=peri(2)
+     perz=peri(3)
 
      !buffers related to periodicity
      !WARNING: the boundary conditions are not assumed to change between new and old
@@ -2470,9 +2486,9 @@ subroutine take_proj_from_file(filename, hx, hy, hz, nl, at, rxyz, &
      call ext_buffers_coarse(pery,nb2)
      call ext_buffers_coarse(perz,nb3)
 
-     psifscf = f_malloc((/ -nb1.to.2*nl%pspd(iat)%plr%d%n1+1+nb1, &
-          & -nb2.to.2*nl%pspd(iat)%plr%d%n2+1+nb2, &
-          & -nb3.to.2*nl%pspd(iat)%plr%d%n3+1+nb3 /),id='psifscf')
+     psifscf = f_malloc((/ -nb1.to.2*nl%projs(iat)%region%plr%d%n1+1+nb1, &
+          & -nb2.to.2*nl%projs(iat)%region%plr%d%n2+1+nb2, &
+          & -nb3.to.2*nl%projs(iat)%region%plr%d%n3+1+nb3 /),id='psifscf')
 
      if (iformat == WF_FORMAT_BINARY) then
         open(unit=99,file=trim(filename),status='unknown',form="unformatted")
@@ -2481,10 +2497,12 @@ subroutine take_proj_from_file(filename, hx, hy, hz, nl, at, rxyz, &
      end if
 
      call readonewave(99, (iformat == WF_FORMAT_PLAIN),iproj,0,&
-          & nl%pspd(iat)%plr%d%n1,nl%pspd(iat)%plr%d%n2,nl%pspd(iat)%plr%d%n3, &
-          & hx,hy,hz,at,nl%pspd(iat)%plr%wfd,rxyz_file,rxyz,nl%proj,eproj,psifscf)
+          & nl%projs(iat)%region%plr%d%n1,nl%projs(iat)%region%plr%d%n2,nl%projs(iat)%region%plr%d%n3, &
+          & hx,hy,hz,at,nl%projs(iat)%region%plr%wfd,rxyz_file,rxyz,nl%shared_proj,eproj,psifscf)
 
      close(99)
+
+     call f_free(psifscf)
 
   else if (iformat == WF_FORMAT_ETSF) then
      stop "No ETSF proj implementation"
@@ -2504,6 +2522,7 @@ subroutine take_psi_from_file(filename,in_frag,hgrids,lr,at,rxyz,orbs,psi,iorbp,
    use public_enums
    use bounds, only: ext_buffers_coarse
    use locregs
+   use box, only: bc_periodic_dims,geocode_to_bc
    implicit none
    integer, intent(inout) :: iorbp, ispinor
    real(gp), dimension(3), intent(in) :: hgrids
@@ -2534,15 +2553,20 @@ subroutine take_psi_from_file(filename,in_frag,hgrids,lr,at,rxyz,orbs,psi,iorbp,
    character(len=100) :: filename_start
    real(wp), allocatable, dimension(:) :: lpsi
    type(orbitals_data) :: lin_orbs
+   logical, dimension(3) :: peri
 
    rxyz_file = f_malloc((/3, at%astruct%nat /),id='rxyz_file')
 
    iformat = wave_format_from_filename(0, filename)
    if (iformat == WF_FORMAT_PLAIN .or. iformat == WF_FORMAT_BINARY) then
       !conditions for periodicity in the three directions
-      perx=(at%astruct%geocode /= 'F')
-      pery=(at%astruct%geocode == 'P')
-      perz=(at%astruct%geocode /= 'F')
+!!$      perx=(at%astruct%geocode /= 'F')
+!!$      pery=(at%astruct%geocode == 'P')
+!!$      perz=(at%astruct%geocode /= 'F')
+      peri=bc_periodic_dims(geocode_to_bc(at%astruct%geocode))
+      perx=peri(1)
+      pery=peri(2)
+      perz=peri(3)
 
       !buffers related to periodicity
       !WARNING: the boundary conditions are not assumed to change between new and old

@@ -13,6 +13,7 @@ subroutine fillPcProjOnTheFly(PPD, Glr, iat, at, hx,hy,hz,startjorb,ecut_pc,   i
   use module_types
   use locregs, only: allocate_wfd,deallocate_wfd,locreg_descriptors
   use module_abscalc
+  use yaml_output
   implicit none
   type(pcproj_data_type),  intent(in) ::PPD
   type(locreg_descriptors),  intent(in):: Glr
@@ -34,10 +35,10 @@ subroutine fillPcProjOnTheFly(PPD, Glr, iat, at, hx,hy,hz,startjorb,ecut_pc,   i
   Plr%d%n1 = Glr%d%n1
   Plr%d%n2 = Glr%d%n2
   Plr%d%n3 = Glr%d%n3
-  Plr%geocode = at%astruct%geocode
+!!$  Plr%geocode = at%astruct%geocode
+  call yaml_warning('Here Plr%mesh has to be implemented. Needed for gaussians_to_wavelets_orb.')
 
-
-  call plr_segs_and_vctrs(PPD%pc_nl%pspd(iat)%plr,&
+  call plr_segs_and_vctrs(PPD%pc_nl%projs(iat)%region%plr,&
        Plr%wfd%nseg_c,Plr%wfd%nseg_f,Plr%wfd%nvctr_c,Plr%wfd%nvctr_f)
 !!$  Plr%wfd%nvctr_c  =PPD%pc_nlpspd%nvctr_p(2*iat-1)-PPD%pc_nlpspd%nvctr_p(2*iat-2)
 !!$  Plr%wfd%nvctr_f  =PPD%pc_nlpspd%nvctr_p(2*iat  )-PPD%pc_nlpspd%nvctr_p(2*iat-1)
@@ -47,9 +48,9 @@ subroutine fillPcProjOnTheFly(PPD, Glr, iat, at, hx,hy,hz,startjorb,ecut_pc,   i
   call allocate_wfd(Plr%wfd)
 
   call vcopy(Plr%wfd%nseg_c+Plr%wfd%nseg_f,&
-       PPD%pc_nl%pspd(iat)%plr%wfd%keyvglob(1),1,Plr%wfd%keyvglob(1),1)
+       PPD%pc_nl%projs(iat)%region%plr%wfd%keyvglob(1),1,Plr%wfd%keyvglob(1),1)
   call vcopy(2*(Plr%wfd%nseg_c+Plr%wfd%nseg_f),&
-       PPD%pc_nl%pspd(iat)%plr%wfd%keyglob(1,1),1,Plr%wfd%keyglob(1,1),1)
+       PPD%pc_nl%projs(iat)%region%plr%wfd%keyglob(1,1),1,Plr%wfd%keyglob(1,1),1)
 
 !!$   Plr%wfd%keyv(:)  = &
 !!$        PPD%pc_nlpspd%keyv_p(  PPD%pc_nlpspd%nseg_p(2*iat-2)+1:  PPD%pc_nlpspd%nseg_p(2*iat)   )
@@ -70,7 +71,7 @@ subroutine fillPcProjOnTheFly(PPD, Glr, iat, at, hx,hy,hz,startjorb,ecut_pc,   i
         Gocc(jorb)=1.0_wp
         ncplx=1
         call gaussians_to_wavelets_orb(ncplx,Plr,hx,hy,hz,kx,ky,kz,PPD%G,&
-             Gocc(1),PPD%pc_nl%proj(istart_c))
+             Gocc(1),PPD%pc_nl%shared_proj(1))
         Gocc(jorb)=0.0_wp
 
         !! ---------------  use this to plot projectors
@@ -101,6 +102,7 @@ subroutine fillPawProjOnTheFly(PAWD, Glr, iat,  hx,hy,hz,kx,ky,kz,startjorb,   i
   use module_types
   use locregs, only: allocate_wfd,deallocate_wfd,locreg_descriptors
   use module_abscalc
+  use yaml_output
   implicit none
   type(pawproj_data_type),  intent(in) ::PAWD
   type(locreg_descriptors),  intent(in):: Glr
@@ -129,17 +131,18 @@ subroutine fillPawProjOnTheFly(PAWD, Glr, iat,  hx,hy,hz,kx,ky,kz,startjorb,   i
   Plr%d%n1 = Glr%d%n1
   Plr%d%n2 = Glr%d%n2
   Plr%d%n3 = Glr%d%n3
-  Plr%geocode = geocode
+!!$  Plr%geocode = geocode
+  call yaml_warning('Here Plr%mesh has to be implemented. Needed for gaussians_c_to_wavelets_orb.')
 
-  call plr_segs_and_vctrs(PAWD%paw_nl%pspd(iat)%plr,&
+  call plr_segs_and_vctrs(PAWD%paw_nl%projs(iat)%region%plr,&
        Plr%wfd%nseg_c,Plr%wfd%nseg_f,Plr%wfd%nvctr_c,Plr%wfd%nvctr_f)
 
   call allocate_wfd(Plr%wfd)
 
   call vcopy(Plr%wfd%nseg_c+Plr%wfd%nseg_f,&
-       PAWD%paw_nl%pspd(iat)%plr%wfd%keyvglob(1),1,Plr%wfd%keyvglob(1),1)
+       PAWD%paw_nl%projs(iat)%region%plr%wfd%keyvglob(1),1,Plr%wfd%keyvglob(1),1)
   call vcopy(2*(Plr%wfd%nseg_c+Plr%wfd%nseg_f),&
-       PAWD%paw_nl%pspd(iat)%plr%wfd%keyglob(1,1),1,Plr%wfd%keyglob(1,1),1)
+       PAWD%paw_nl%projs(iat)%region%plr%wfd%keyglob(1,1),1,Plr%wfd%keyglob(1,1),1)
 
 !!$   Plr%wfd%keyv(:)  = PAWD%paw_nlpspd%keyv_p(  PAWD%paw_nlpspd%nseg_p(2*iat-2)+1:  PAWD%paw_nlpspd%nseg_p(2*iat)   )
 !!$   Plr%wfd%keyg(1:2, :)  = PAWD%paw_nlpspd%keyg_p( 1:2,  PAWD%paw_nlpspd%nseg_p(2*iat-2)+1:  PAWD%paw_nlpspd%nseg_p(2*iat)   )
@@ -167,7 +170,7 @@ subroutine fillPawProjOnTheFly(PAWD, Glr, iat,  hx,hy,hz,kx,ky,kz,startjorb,   i
      Gocc(jorb)=1.0_wp
 
      call gaussians_c_to_wavelets_orb(ncplx,Plr,hx,hy,hz,kx,ky,kz,PAWD%G,&
-          &   Gocc(1),  PAWD%paw_nl%proj(istart_c), cutoff  )
+          &   Gocc(1),  PAWD%paw_nl%shared_proj(1), cutoff  )
 
      Gocc(jorb)=0.0_wp
 !!$     !! ---------------  use this to plot projectors
@@ -196,12 +199,12 @@ subroutine createPcProjectorsArrays(iproc,nproc,n1,n2,n3,rxyz,at,orbs,&
      PPD, Glr)
   !use module_base
   use module_types
-  use locregs, only: allocate_wfd,deallocate_wfd
+  use locregs, only: allocate_wfd,deallocate_wfd,locreg_descriptors
   use module_abscalc
   use module_interfaces, only: gaussian_pswf_basis
   use gaussians, only: deallocate_gwf
   use psp_projectors, only: bounds_to_plr_limits
-  use locregs
+  use psp_projectors_base
   implicit none
   integer, intent(in) :: iproc,nproc,n1,n2,n3
   real(gp), intent(in) :: cpmult,fpmult,hx,hy,hz
@@ -259,7 +262,7 @@ subroutine createPcProjectorsArrays(iproc,nproc,n1,n2,n3,rxyz,at,orbs,&
 
 
   PPD%pc_nl%natoms=at%astruct%nat
-  allocate(PPD%pc_nl%pspd(at%astruct%nat))
+  call allocate_daubechies_projectors_ptr(PPD%pc_nl%projs, at%astruct%nat)
 
   logrid = f_malloc((/ 0.to.n1, 0.to.n2, 0.to.n3 /),id='logrid')
 
@@ -275,7 +278,7 @@ subroutine createPcProjectorsArrays(iproc,nproc,n1,n2,n3,rxyz,at,orbs,&
   !here the allocation is possible
   do iat=1,PPD%pc_nl%natoms
      !for the moments the bounds are not needed for projectors
-     call allocate_wfd(PPD%pc_nl%pspd(iat)%plr%wfd)
+     call allocate_wfd(PPD%pc_nl%projs(iat)%region%plr%wfd)
   end do
 
 
@@ -307,7 +310,7 @@ subroutine createPcProjectorsArrays(iproc,nproc,n1,n2,n3,rxyz,at,orbs,&
      end do
 
      mprojtot=mprojtot+mproj
-     PPD%pc_nl%pspd(iat)%mproj=mproj
+     PPD%pc_nl%projs(iat)%mproj=mproj
      PPD%pc_nl%nproj=PPD%pc_nl%nproj+mproj
 
 
@@ -315,36 +318,36 @@ subroutine createPcProjectorsArrays(iproc,nproc,n1,n2,n3,rxyz,at,orbs,&
 
         nprojel_tmp=0
 
-        call bounds_to_plr_limits(.false.,1,PPD%pc_nl%pspd(iat)%plr,nl1,nl2,nl3,nu1,nu2,nu3)
+        call bounds_to_plr_limits(.false.,1,PPD%pc_nl%projs(iat)%region%plr,nl1,nl2,nl3,nu1,nu2,nu3)
 
         call fill_logrid(at%astruct%geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,0,1,  &
              &   at%astruct%ntypes,at%astruct%iatype(iat),rxyz(1,iat),at%radii_cf(1,3),Pcpmult,hx,hy,hz,logrid)
 
-        mseg=PPD%pc_nl%pspd(iat)%plr%wfd%nseg_c
+        mseg=PPD%pc_nl%projs(iat)%region%plr%wfd%nseg_c
 
         call segkeys(n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,  & 
 
-             logrid,mseg,PPD%pc_nl%pspd(iat)%plr%wfd%keyglob(1,1),PPD%pc_nl%pspd(iat)%plr%wfd%keyvglob(1))
+             logrid,mseg,PPD%pc_nl%projs(iat)%region%plr%wfd%keyglob(1,1),PPD%pc_nl%projs(iat)%region%plr%wfd%keyvglob(1))
 
 
-        mvctr =PPD%pc_nl%pspd(iat)%plr%wfd%nvctr_c
+        mvctr =PPD%pc_nl%projs(iat)%region%plr%wfd%nvctr_c
 
         nprojel_tmp =nprojel_tmp +mproj*mvctr
 
-        call bounds_to_plr_limits(.false.,2,PPD%pc_nl%pspd(iat)%plr,nl1,nl2,nl3,nu1,nu2,nu3)
+        call bounds_to_plr_limits(.false.,2,PPD%pc_nl%projs(iat)%region%plr,nl1,nl2,nl3,nu1,nu2,nu3)
         call fill_logrid(at%astruct%geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,0,1,  &
              &   at%astruct%ntypes,at%astruct%iatype(iat),rxyz(1,iat),at%radii_cf(1,2),fpmult,hx,hy,hz,logrid)
-        iseg=PPD%pc_nl%pspd(iat)%plr%wfd%nseg_c+1
-        mseg=PPD%pc_nl%pspd(iat)%plr%wfd%nseg_f
+        iseg=PPD%pc_nl%projs(iat)%region%plr%wfd%nseg_c+1
+        mseg=PPD%pc_nl%projs(iat)%region%plr%wfd%nseg_f
 
         if (mseg > 0) then
            call segkeys(n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,  & 
                 logrid,mseg,&
                                 !!$                 PPD%pc_nlpspd%keyg_p(1,iseg),PPD%pc_nlpspd%keyv_p(iseg))
-                PPD%pc_nl%pspd(iat)%plr%wfd%keyglob(1,iseg),&
-                PPD%pc_nl%pspd(iat)%plr%wfd%keyvglob(iseg))
+                PPD%pc_nl%projs(iat)%region%plr%wfd%keyglob(1,iseg),&
+                PPD%pc_nl%projs(iat)%region%plr%wfd%keyvglob(iseg))
 
-           mvctr =PPD%pc_nl%pspd(iat)%plr%wfd%nvctr_f!PPD%pc_nlpspd%nvctr_p(2*iat)-PPD%pc_nlpspd%nvctr_p(2*iat-1)
+           mvctr =PPD%pc_nl%projs(iat)%region%plr%wfd%nvctr_f!PPD%pc_nlpspd%nvctr_p(2*iat)-PPD%pc_nlpspd%nvctr_p(2*iat-1)
 
            nprojel_tmp=nprojel_tmp+mproj*mvctr*7
 
@@ -361,7 +364,7 @@ subroutine createPcProjectorsArrays(iproc,nproc,n1,n2,n3,rxyz,at,orbs,&
   enddo
 
 
-  PPD%pc_nl%proj=f_malloc0_ptr(PPD%pc_nl%nprojel,id='pc_proj')
+  PPD%pc_nl%shared_proj=f_malloc0_ptr(PPD%pc_nl%nprojel,id='pc_proj')
 !  allocate(PPD%pc_nl%proj(PPD%pc_nl%nprojel+ndebug),stat=i_stat)
 !  call memocc(i_stat,PPD%pc_proj,'pc_proj',subname)
 
@@ -390,8 +393,8 @@ subroutine createPcProjectorsArrays(iproc,nproc,n1,n2,n3,rxyz,at,orbs,&
 
      PPD%ilr_to_mproj(iat)=mproj
      if( mproj>0) then
-        nvctr_c  =PPD%pc_nl%pspd(iat)%plr%wfd%nvctr_c!PPD%pc_nlpspd%nvctr_p(2*iat-1)-PPD%pc_nlpspd%nvctr_p(2*iat-2)
-        nvctr_f  =PPD%pc_nl%pspd(iat)%plr%wfd%nvctr_f!PPD%pc_nlpspd%nvctr_p(2*iat  )-PPD%pc_nlpspd%nvctr_p(2*iat-1)
+        nvctr_c  =PPD%pc_nl%projs(iat)%region%plr%wfd%nvctr_c!PPD%pc_nlpspd%nvctr_p(2*iat-1)-PPD%pc_nlpspd%nvctr_p(2*iat-2)
+        nvctr_f  =PPD%pc_nl%projs(iat)%region%plr%wfd%nvctr_f!PPD%pc_nlpspd%nvctr_p(2*iat  )-PPD%pc_nlpspd%nvctr_p(2*iat-1)
 
         jorb=startjorb
         do while( jorb<=PPD%G%ncoeff         .and. PPD%iorbtolr(jorb)== iat) 
@@ -453,7 +456,7 @@ subroutine createPcProjectorsArrays(iproc,nproc,n1,n2,n3,rxyz,at,orbs,&
 !!$     call deallocate_nonlocal_psp_descriptors(PPD%pc_nl%pspd(iat))
 !!$  end do
 
-  call f_free_ptr(PPD%pc_nl%proj)
+  call f_free_ptr(PPD%pc_nl%shared_proj)
 
   call f_free(logrid)
   call f_free_ptr(Gocc)
@@ -547,9 +550,9 @@ subroutine createPawProjectorsArrays(iproc,n1,n2,n3,rxyz,at,orbs,&
   ! allocations for arrays holding the projectors and their data descriptors
   do iat=1,PAWD%paw_nl%natoms
      !for the moments the bounds are not needed for projectors
-     call allocate_wfd(PAWD%paw_nl%pspd(iat)%plr%wfd)
+     call allocate_wfd(PAWD%paw_nl%projs(iat)%region%plr%wfd)
   end do
-  PAWD%paw_nl%proj=f_malloc0_ptr(PAWD%paw_nl%nprojel,id='paw_proj')
+  PAWD%paw_nl%shared_proj=f_malloc0_ptr(PAWD%paw_nl%nprojel,id='paw_proj')
 
 !!$  allocate(PAWD%paw_proj(PAWD%paw_nlpspd%nprojel+ndebug),stat=i_stat)
 !!$  call memocc(i_stat,PAWD%paw_proj,'paw_proj',subname)
@@ -576,35 +579,35 @@ subroutine createPawProjectorsArrays(iproc,n1,n2,n3,rxyz,at,orbs,&
         PAWD%paw_nl%nproj=PAWD%paw_nl%nproj+mproj
         if (mproj.ne.0) then 
 
-           call bounds_to_plr_limits(.false.,1,PAWD%paw_nl%pspd(iat)%plr,nl1,nl2,nl3,nu1,nu2,nu3)
+           call bounds_to_plr_limits(.false.,1,PAWD%paw_nl%projs(iat)%region%plr,nl1,nl2,nl3,nu1,nu2,nu3)
 
            call fill_logrid(at%astruct%geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,0,1,  &
                 &   at%astruct%ntypes,at%astruct%iatype(iatat),rxyz(1,iatat),at%radii_cf(1,3),Pcpmult,hx,hy,hz,logrid)
 
-           mseg=PAWD%paw_nl%pspd(iat)%plr%wfd%nseg_c
+           mseg=PAWD%paw_nl%projs(iat)%region%plr%wfd%nseg_c
 
            call segkeys(n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,  & 
                 logrid,mseg,&
-                PAWD%paw_nl%pspd(iat)%plr%wfd%keyglob(1,1),&
-                PAWD%paw_nl%pspd(iat)%plr%wfd%keyvglob(1))
+                PAWD%paw_nl%projs(iat)%region%plr%wfd%keyglob(1,1),&
+                PAWD%paw_nl%projs(iat)%region%plr%wfd%keyvglob(1))
 
-           mvctr =PAWD%paw_nl%pspd(iat)%plr%wfd%nvctr_c
+           mvctr =PAWD%paw_nl%projs(iat)%region%plr%wfd%nvctr_c
 
-           call bounds_to_plr_limits(.false.,2,PAWD%paw_nl%pspd(iat)%plr,&
+           call bounds_to_plr_limits(.false.,2,PAWD%paw_nl%projs(iat)%region%plr,&
                 nl1,nl2,nl3,nu1,nu2,nu3)
            call fill_logrid(at%astruct%geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,0,1,  &
                 &   at%astruct%ntypes,at%astruct%iatype(iatat),rxyz(1,iatat),at%radii_cf(1,2),1*fpmult,hx,hy,hz,logrid)
 
-           iseg=PAWD%paw_nl%pspd(iat)%plr%wfd%nseg_c+1
-           mseg=PAWD%paw_nl%pspd(iat)%plr%wfd%nseg_f
+           iseg=PAWD%paw_nl%projs(iat)%region%plr%wfd%nseg_c+1
+           mseg=PAWD%paw_nl%projs(iat)%region%plr%wfd%nseg_f
 
            if (mseg > 0) then
               call segkeys(n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,  & 
                    logrid,mseg,&
-                   PAWD%paw_nl%pspd(iat)%plr%wfd%keyglob(1,iseg),&
-                   PAWD%paw_nl%pspd(iat)%plr%wfd%keyvglob(iseg))
+                   PAWD%paw_nl%projs(iat)%region%plr%wfd%keyglob(1,iseg),&
+                   PAWD%paw_nl%projs(iat)%region%plr%wfd%keyvglob(iseg))
 
-              mvctr =PAWD%paw_nl%pspd(iat)%plr%wfd%nvctr_f
+              mvctr =PAWD%paw_nl%projs(iat)%region%plr%wfd%nvctr_f
            end if
         endif
      endif
@@ -651,8 +654,8 @@ subroutine createPawProjectorsArrays(iproc,n1,n2,n3,rxyz,at,orbs,&
 
            PAWD%ilr_to_mproj(iat)=mproj
            if( mproj>0) then
-              nvctr_c  =PAWD%paw_nl%pspd(iat)%plr%wfd%nvctr_c
-              nvctr_f  =PAWD%paw_nl%pspd(iat)%plr%wfd%nvctr_f
+              nvctr_c  =PAWD%paw_nl%projs(iat)%region%plr%wfd%nvctr_c
+              nvctr_f  =PAWD%paw_nl%projs(iat)%region%plr%wfd%nvctr_f
 
               jorb=startjorb
               do while( jorb<=PAWD%G%ncoeff  .and. PAWD%iorbtolr(jorb)== iat) 
@@ -699,7 +702,7 @@ subroutine localize_projectors_paw(iproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,&
   !use module_base
   use module_types
   use module_abscalc
-  use psp_projectors_base, only: nonlocal_psp_descriptors_null
+  use psp_projectors_base
   use psp_projectors, only: pregion_size, bounds_to_plr_limits
   implicit none
   integer, intent(in) :: iproc,n1,n2,n3
@@ -761,12 +764,7 @@ subroutine localize_projectors_paw(iproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,&
   end do
   PAWD%paw_nl%natoms=natpaw
 
-  allocate(PAWD%paw_nl%pspd(PAWD%paw_nl%natoms))
-  
-  do iat=1,PAWD%paw_nl%natoms
-     PAWD%paw_nl%pspd(iat)=nonlocal_psp_descriptors_null()
-  end do
-
+  call allocate_daubechies_projectors_ptr(PAWD%paw_nl%projs, PAWD%paw_nl%natoms)
 
   natpaw=0
   do iat=1,at%astruct%nat
@@ -777,22 +775,22 @@ subroutine localize_projectors_paw(iproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,&
 
         if (mproj /= 0) then 
            natpaw=natpaw+1
-           PAWD%paw_nl%pspd(iat)%mproj=mproj
+           PAWD%paw_nl%projs(iat)%mproj=mproj
            PAWD%paw_nl%nproj=PAWD%paw_nl%nproj+mproj
 
            ! coarse grid quantities
            call pregion_size(at%astruct%geocode,rxyz(1,iat),at%radii_cf(at%astruct%iatype(iat),3),cpmult, &
                 hx,hy,hz,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3)
 
-           call bounds_to_plr_limits(.true.,1,PAWD%paw_nl%pspd(natpaw)%plr,&
+           call bounds_to_plr_limits(.true.,1,PAWD%paw_nl%projs(natpaw)%region%plr,&
                  nl1,nl2,nl3,nu1,nu2,nu3)
 
            call fill_logrid(at%astruct%geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,0,1,  &
                 at%astruct%ntypes,at%astruct%iatype(iat),rxyz(1,iat),at%radii_cf(1,3),cpmult,hx,hy,hz,logrid)
            call num_segkeys(n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,logrid,mseg,mvctr)
 
-           PAWD%paw_nl%pspd(natpaw)%plr%wfd%nseg_c=mseg
-           PAWD%paw_nl%pspd(natpaw)%plr%wfd%nvctr_c=mvctr
+           PAWD%paw_nl%projs(natpaw)%region%plr%wfd%nseg_c=mseg
+           PAWD%paw_nl%projs(natpaw)%region%plr%wfd%nvctr_c=mvctr
 
            istart=istart+mvctr*mproj
 
@@ -806,7 +804,7 @@ subroutine localize_projectors_paw(iproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,&
                 fpmult,&
                 hx,hy,hz,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3)
 
-           call bounds_to_plr_limits(.true.,2,PAWD%paw_nl%pspd(natpaw)%plr,&
+           call bounds_to_plr_limits(.true.,2,PAWD%paw_nl%projs(natpaw)%region%plr,&
                  nl1,nl2,nl3,nu1,nu2,nu3)
 
            call fill_logrid(at%astruct%geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,0,1,  &
@@ -814,8 +812,8 @@ subroutine localize_projectors_paw(iproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,&
                 at%radii_cf(1,2),fpmult,hx,hy,hz,logrid)
            call num_segkeys(n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,logrid,mseg,mvctr)
            !if (iproc.eq.0) write(*,'(1x,a,2(1x,i0))') 'mseg,mvctr, fine  projectors ',mseg,mvctr
-           PAWD%paw_nl%pspd(natpaw)%plr%wfd%nseg_f=mseg
-           PAWD%paw_nl%pspd(natpaw)%plr%wfd%nvctr_f=mvctr
+           PAWD%paw_nl%projs(natpaw)%region%plr%wfd%nseg_f=mseg
+           PAWD%paw_nl%projs(natpaw)%region%plr%wfd%nvctr_f=mvctr
 
            istart=istart+7*mvctr*mproj
            nprojelat=nprojelat+7*mvctr*mproj
@@ -826,10 +824,10 @@ subroutine localize_projectors_paw(iproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,&
 
         else  !(atom has no nonlocal PSP, e.g. H)
 
-           PAWD%paw_nl%pspd(natpaw)%plr%wfd%nseg_c=0
-           PAWD%paw_nl%pspd(natpaw)%plr%wfd%nvctr_c=0
-           PAWD%paw_nl%pspd(natpaw)%plr%wfd%nseg_f=0
-           PAWD%paw_nl%pspd(natpaw)%plr%wfd%nvctr_f=0
+           PAWD%paw_nl%projs(natpaw)%region%plr%wfd%nseg_c=0
+           PAWD%paw_nl%projs(natpaw)%region%plr%wfd%nvctr_c=0
+           PAWD%paw_nl%projs(natpaw)%region%plr%wfd%nseg_f=0
+           PAWD%paw_nl%projs(natpaw)%region%plr%wfd%nvctr_f=0
 
            !! the following is necessary to the creation of preconditioning projectors
 
@@ -837,14 +835,14 @@ subroutine localize_projectors_paw(iproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,&
            call pregion_size(at%astruct%geocode,rxyz(1,iat),at%radii_cf(at%astruct%iatype(iat),3),cpmult, &
                 hx,hy,hz,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3)
            
-           call bounds_to_plr_limits(.true.,1,PAWD%paw_nl%pspd(natpaw)%plr,&
+           call bounds_to_plr_limits(.true.,1,PAWD%paw_nl%projs(natpaw)%region%plr,&
                 nl1,nl2,nl3,nu1,nu2,nu3)
 
            ! fine grid quantities
            call pregion_size(at%astruct%geocode,rxyz(1,iat),at%radii_cf(at%astruct%iatype(iat),2),fpmult,&
                 hx,hy,hz,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3)
 
-           call bounds_to_plr_limits(.true.,2,PAWD%paw_nl%pspd(natpaw)%plr,&
+           call bounds_to_plr_limits(.true.,2,PAWD%paw_nl%projs(natpaw)%region%plr,&
                 nl1,nl2,nl3,nu1,nu2,nu3)
         endif
      endif

@@ -19,8 +19,10 @@ module psp_projectors
   private
 
   public :: projector_has_overlap,get_proj_locreg
+  public :: DFT_PSP_projector_iter, DFT_PSP_projectors_iter_new
+  public :: DFT_PSP_projectors_iter_next, DFT_PSP_projectors_iter_ensure
+  public :: DFT_PSP_projectors_iter_apply
   public :: bounds_to_plr_limits,pregion_size
-  public :: hgh_psp_application
   public :: update_nlpsp
 
   !routines which are typical of the projector application or creation follow
@@ -87,6 +89,7 @@ contains
   !! out of atom centered spheres
   subroutine pregion_size(geocode,rxyz,radius,rmult,hx,hy,hz,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3)
     !use module_base, only: gp
+    use box
     implicit none
     character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
     integer, intent(in) :: n1,n2,n3
@@ -96,56 +99,104 @@ contains
     !Local variables
     double precision, parameter :: eps_mach=1.d-12
     !n(c) real(kind=8) :: onem
-    real(gp) :: cxmax,cymax,czmax,cxmin,cymin,czmin,rad
+    type(cell) :: mesh
+    logical, dimension(3) :: peri
+    real(gp) :: rad !cxmax,cymax,czmax,cxmin,cymin,czmin,rad
+    integer, dimension(2,3) :: nbox
+
+    mesh=cell_new(geocode,[n1+1,n2+1,n3+1],[hx,hy,hz]) 
 
     rad=radius*rmult
-    cxmax=rxyz(1)+rad ; cxmin=rxyz(1)-rad
-    cymax=rxyz(2)+rad ; cymin=rxyz(2)-rad
-    czmax=rxyz(3)+rad ; czmin=rxyz(3)-rad
-    !n(c) onem=1.d0-eps_mach
 
-    nl1=ceiling(real(cxmin/hx,kind=8) - eps_mach)
-    nl2=ceiling(real(cymin/hy,kind=8) - eps_mach)
-    nl3=ceiling(real(czmin/hz,kind=8) - eps_mach)
-    nu1=floor(real(cxmax/hx,kind=8) + eps_mach)
-    nu2=floor(real(cymax/hy,kind=8) + eps_mach)
-    nu3=floor(real(czmax/hz,kind=8) + eps_mach)
+    nbox=box_nbox_from_cutoff(mesh,rxyz,rad+maxval(mesh%hgrids)*eps_mach)
+    nl1=nbox(1,1)
+    nl2=nbox(1,2)
+    nl3=nbox(1,3)
+    nu1=nbox(2,1)
+    nu2=nbox(2,2)
+    nu3=nbox(2,3)
 
-    !for non-free BC the projectors are not allowed to be also outside the box
-    if (geocode == 'F') then
-       if (nl1 < 0)   stop 'nl1: projector region outside cell'
-       if (nl2 < 0)   stop 'nl2: projector region outside cell'
-       if (nl3 < 0)   stop 'nl3: projector region outside cell'
-       if (nu1 > n1)   stop 'nu1: projector region outside cell'
-       if (nu2 > n2)   stop 'nu2: projector region outside cell'
-       if (nu3 > n3)   stop 'nu3: projector region outside cell'
-    else if (geocode == 'S') then
-       !correct the extremes if they run outside the box
+!!$    cxmax=rxyz(1)+rad ; cxmin=rxyz(1)-rad
+!!$    cymax=rxyz(2)+rad ; cymin=rxyz(2)-rad
+!!$    czmax=rxyz(3)+rad ; czmin=rxyz(3)-rad
+!!$    !n(c) onem=1.d0-eps_mach
+!!$
+!!$    nl1=ceiling(real(cxmin/hx,kind=8) - eps_mach)
+!!$    nl2=ceiling(real(cymin/hy,kind=8) - eps_mach)
+!!$    nl3=ceiling(real(czmin/hz,kind=8) - eps_mach)
+!!$    nu1=floor(real(cxmax/hx,kind=8) + eps_mach)
+!!$    nu2=floor(real(cymax/hy,kind=8) + eps_mach)
+!!$    nu3=floor(real(czmax/hz,kind=8) + eps_mach)
+
+    peri=cell_periodic_dims(mesh)
+    if (peri(1)) then
        if (nl1 < 0 .or. nu1 > n1) then
           nl1=0
           nu1=n1
        end if
-       if (nl2 < 0)   stop 'nl2: projector region outside cell'
-       if (nu2 > n2)   stop 'nu2: projector region outside cell'
-       if (nl3 < 0 .or. nu3 > n3) then
-          nl3=0
-          nu3=n3
-       end if
-    else if (geocode == 'P') then
-       !correct the extremes if they run outside the box
-       if (nl1 < 0 .or. nu1 > n1) then
-          nl1=0
-          nu1=n1
-       end if
+    else
+       if (nl1 < 0) call f_err_throw('nl1: projector region outside cell',err_name='BIGDFT_RUNTIME_ERROR')
+       if (nu1 > n1) call f_err_throw('nu1: projector region outside cell',err_name='BIGDFT_RUNTIME_ERROR')
+    end if
+    if (peri(2)) then
        if (nl2 < 0 .or. nu2 > n2) then
           nl2=0
           nu2=n2
        end if
+    else
+       if (nl2 < 0) call f_err_throw('nl2: projector region outside cell',err_name='BIGDFT_RUNTIME_ERROR')
+       if (nu2 > n2) call f_err_throw('nu2: projector region outside cell',err_name='BIGDFT_RUNTIME_ERROR')
+    end if
+    if (peri(3)) then
        if (nl3 < 0 .or. nu3 > n3) then
           nl3=0
           nu3=n3
        end if
+    else
+       if (nl3 < 0)  call f_err_throw('nl3: projector region outside cell',err_name='BIGDFT_RUNTIME_ERROR')
+       if (nu3 > n3) call f_err_throw('nu3: projector region outside cell',err_name='BIGDFT_RUNTIME_ERROR')
     end if
+
+!!$
+!!$
+!!$    !for non-free BC the projectors are not allowed to be also outside the box
+!!$    if (geocode == 'F') then
+!!$       if (nl1 < 0)   stop 'nl1: projector region outside cell'
+!!$       if (nl2 < 0)   stop 'nl2: projector region outside cell'
+!!$       if (nl3 < 0)   stop 'nl3: projector region outside cell'
+!!$       if (nu1 > n1)   stop 'nu1: projector region outside cell'
+!!$       if (nu2 > n2)   stop 'nu2: projector region outside cell'
+!!$       if (nu3 > n3)   stop 'nu3: projector region outside cell'
+!!$    else if (geocode == 'S') then
+!!$       !correct the extremes if they run outside the box
+!!$       if (nl1 < 0 .or. nu1 > n1) then
+!!$          nl1=0
+!!$          nu1=n1
+!!$       end if
+!!$       if (nl2 < 0)   stop 'nl2: projector region outside cell'
+!!$       if (nu2 > n2)   stop 'nu2: projector region outside cell'
+!!$       if (nl3 < 0 .or. nu3 > n3) then
+!!$          nl3=0
+!!$          nu3=n3
+!!$       end if
+!!$    else if (geocode == 'P') then
+!!$       !correct the extremes if they run outside the box
+!!$       if (nl1 < 0 .or. nu1 > n1) then
+!!$          nl1=0
+!!$          nu1=n1
+!!$       end if
+!!$       if (nl2 < 0 .or. nu2 > n2) then
+!!$          nl2=0
+!!$          nu2=n2
+!!$       end if
+!!$       if (nl3 < 0 .or. nu3 > n3) then
+!!$          nl3=0
+!!$          nu3=n3
+!!$       end if
+!!$    else if (geocode == 'W') then
+!!$      call f_err_throw("Wires bc has to be implemented here", &
+!!$           err_name='BIGDFT_RUNTIME_ERROR')
+!!$    end if
 
   END SUBROUTINE pregion_size
 
@@ -164,16 +215,18 @@ contains
     type(locreg_descriptors), dimension(nlr), intent(in) :: lrs
     type(DFT_PSP_projectors), intent(inout) :: nl
     !local variables
-    integer :: nbseg_dim,nkeyg_dim,iat,ilr
+    type(DFT_PSP_projector_iter) :: iter
+    integer :: nbseg_dim,nkeyg_dim,ilr
     integer, dimension(:), allocatable :: nbsegs_cf,keyg_lin
 
     call f_routine(id='update_nlpsp')
 
     !find allocating dimensions for work arrays
     nbseg_dim=0
-    do iat=1,nl%natoms
+    call DFT_PSP_projectors_iter_new(iter, nl)
+    do while(DFT_PSP_projectors_iter_next(iter))
        nbseg_dim=max(nbseg_dim,&
-            nl%pspd(iat)%plr%wfd%nseg_c+nl%pspd(iat)%plr%wfd%nseg_f)
+            iter%pspd%plr%wfd%nseg_c+iter%pspd%plr%wfd%nseg_f)
     end do
     nkeyg_dim=0
     do ilr=1,nlr
@@ -184,14 +237,15 @@ contains
     nbsegs_cf=f_malloc(nbseg_dim,id='nbsegs_cf')
     keyg_lin=f_malloc(nkeyg_dim,id='keyg_lin')
     !reconstruct the projectors for any of the atoms
-    do iat=1,nl%natoms
-       call free_tolr_ptr(nl%pspd(iat)%tolr)
-       call f_free_ptr(nl%pspd(iat)%lut_tolr)
-       if (nl%pspd(iat)%mproj > 0) then
+    call DFT_PSP_projectors_iter_new(iter, nl)
+    do while(DFT_PSP_projectors_iter_next(iter))
+       call free_tolr_ptr(iter%pspd%tolr)
+       call f_free_ptr(iter%pspd%lut_tolr)
+       if (iter%mproj > 0) then
           !then fill it again, if the locreg is demanded
-          nl%pspd(iat)%nlr=nlr
-          call set_wfd_to_wfd(Glr,nl%pspd(iat)%plr,&
-               keyg_lin,nbsegs_cf,nl%pspd(iat)%noverlap,nl%pspd(iat)%lut_tolr,nl%pspd(iat)%tolr,lrs,lr_mask)
+          iter%pspd%nlr=nlr
+          call set_wfd_to_wfd(Glr,iter%pspd%plr,&
+               keyg_lin,nbsegs_cf,iter%pspd%noverlap,iter%pspd%lut_tolr,iter%pspd%tolr,lrs,lr_mask)
        end if
     end do
 
@@ -201,82 +255,6 @@ contains
     call f_release_routine()
 
   end subroutine update_nlpsp
-
-  !> applies a projector of HGH type, written in a localization region
-  !! onto a wavefunction written in the same formalism
-  !! uses the desctiptors for the application which have been defined previously
-  ! replace the routine nl_HGH_application as it does not need allocating arrays anymore
-  subroutine hgh_psp_application(hij,ncplx_p,n_p,wfd_p,proj,&
-       ncplx_w,n_w,wfd_w,tolr,psi_pack,scpr,pdpsi,hpdpsi,psi,hpsi,eproj)
-    use pseudopotentials, only: apply_hij_coeff,atomic_proj_coeff
-    use locreg_operations
-    use compression
-    implicit none
-    integer, intent(in) :: ncplx_p !< number of complex components of the projector
-    integer, intent(in) :: n_p !< number of elements of the projector
-    integer, intent(in) :: ncplx_w !< number of complex components of the wavefunction
-    integer, intent(in) :: n_w !< number of complex components of the wavefunction
-    type(wavefunctions_descriptors), intent(in) :: wfd_p !< descriptors of projectors
-    type(wavefunctions_descriptors), intent(in) :: wfd_w !< descriptors of wavefunction
-    !> interaction between the wavefuntion and the psp projector
-    type(wfd_to_wfd), intent(in) :: tolr
-    !> matrix of nonlocal HGH psp
-    !real(gp), dimension(3,3,4), intent(in) :: hij
-    type(atomic_proj_coeff), dimension(3,3,4) :: hij
-    !> components of the projectors, real and imaginary parts
-    real(wp), dimension(wfd_p%nvctr_c+7*wfd_p%nvctr_f,ncplx_p,n_p), intent(in) :: proj
-    !> components of wavefunctions, real and imaginary parts
-    real(wp), dimension(wfd_w%nvctr_c+7*wfd_w%nvctr_f,ncplx_w,n_w), intent(in) :: psi
-    !> components of wavefunctions after application, real and imaginary parts
-    real(wp), dimension(wfd_w%nvctr_c+7*wfd_w%nvctr_f,ncplx_w,n_w), intent(inout) :: hpsi
-    !> workspaces for the packing array
-    real(wp), dimension(wfd_p%nvctr_c+7*wfd_p%nvctr_f,n_w*ncplx_w), intent(inout) :: psi_pack
-    !> array of the scalar product between the projectors and the wavefunctions
-    real(wp), dimension(ncplx_w,n_w,ncplx_p,n_p), intent(inout) :: scpr
-    !> array of the coefficients of the hgh projectors
-    real(wp), dimension(max(ncplx_w,ncplx_p),n_w,n_p), intent(inout) :: pdpsi
-    !> array of the coefficients of the hgh projectors multiplied by HGH matrix
-    real(wp), dimension(max(ncplx_w,ncplx_p),n_w,n_p), intent(inout) :: hpdpsi
-    real(gp), intent(out) :: eproj !< energy of the projectors
-
-    eproj=0.0_gp
-
-    call pr_dot_psi(ncplx_p,n_p,wfd_p,proj,ncplx_w,n_w,wfd_w,psi,tolr,&
-         psi_pack,scpr,pdpsi)
-
-!!$    !put to zero the array
-!!$    !call to_zero((wfd_p%nvctr_c+7*wfd_p%nvctr_f)*n_w*ncplx_w,psi_pack(1,1))
-!!$    call f_zero(psi_pack)
-!!$
-!!$    !here also the strategy can be considered
-!!$    call proj_dot_psi(n_p*ncplx_p,wfd_p,proj,n_w*ncplx_w,wfd_w,psi,&
-!!$         tolr,psi_pack,scpr)
-!!$
-!!$    !first create the coefficients for the application of the matrix
-!!$    !pdpsi = < p_i | psi >
-!!$    call full_coefficients('C',ncplx_p,n_p,'N',ncplx_w,n_w,scpr,'N',pdpsi)
-
-    call apply_hij_coeff(hij,max(ncplx_w,ncplx_p)*n_w,n_p,pdpsi,hpdpsi)
-
-    call cproj_dot(ncplx_p,n_p,ncplx_w,n_w,scpr,pdpsi,hpdpsi,eproj)
-
-!!$    !then create the coefficients for the evaluation of the projector energy
-!!$    !pdpsi= < psi | p_i> = conj(< p_i | psi >)
-!!$    call full_coefficients('N',ncplx_p,n_p,'C',ncplx_w,n_w,scpr,'C',pdpsi)
-!!$
-!!$    !the energy can be calculated here
-!!$    eproj=dot(max(ncplx_p,ncplx_w)*n_w*n_p,pdpsi(1,1,1),1,hpdpsi(1,1,1),1)
-
-    call cproj_pr_p_psi(hpdpsi,ncplx_p,n_p,wfd_p,proj,ncplx_w,n_w,wfd_w,hpsi,tolr,&
-         psi_pack,scpr)
-
-!!$    !then the coefficients have to be transformed for the projectors
-!!$    call reverse_coefficients(ncplx_p,n_p,ncplx_w,n_w,hpdpsi,scpr)
-!!$
-!!$    call scpr_proj_p_hpsi(n_p*ncplx_p,wfd_p,proj,n_w*ncplx_w,wfd_w,&
-!!$         tolr,psi_pack,scpr,hpsi)
-
-  end subroutine hgh_psp_application
 
 !!$  !> Calculate the scalar product with the projectors of a given set of 
 !!$  !! orbitals (or support functions) given in the same localization region
@@ -329,17 +307,17 @@ contains
 
   !> find the locreg that is associated to the given projector of atom iat
   !! for a locreg of label ilr. Shoudl the locreg not be found, the result is zero.
-  function get_proj_locreg(nl,iat,ilr) result(iilr)
+  function get_proj_locreg(pspd,ilr) result(iilr)
     implicit none
-    integer, intent(in) :: iat,ilr
-    type(DFT_PSP_projectors), intent(in) :: nl
+    integer, intent(in) :: ilr
+    type(nonlocal_psp_descriptors),intent(in) :: pspd
     integer :: iilr
     !local variables
     integer :: jlr
 
     iilr=0
-    do jlr=1,nl%pspd(iat)%noverlap
-       if (nl%pspd(iat)%lut_tolr(jlr)==ilr) then
+    do jlr=1, pspd%noverlap
+       if (pspd%lut_tolr(jlr) == ilr) then
           iilr=jlr
           exit
        end if
@@ -347,159 +325,274 @@ contains
 
   end function get_proj_locreg
 
-  function projector_has_overlap(iat, ilr, llr, glr, nl) result(overlap)
+  function projector_has_overlap(ilr, llr, glr, pspd) result(overlap)
     use compression, only: wfd_to_wfd_skip
     implicit none
     ! Calling arguments
-    integer,intent(in) :: iat, ilr
+    integer,intent(in) :: ilr
     type(locreg_descriptors),intent(in) :: llr, glr
-    type(DFT_PSP_projectors),intent(in) :: nl
+    type(nonlocal_psp_descriptors),intent(in) :: pspd
     logical :: overlap
     ! Local variables
-    logical :: goon
-    integer :: mproj, iilr
-!!$ integer :: jlr
+    integer :: iilr
 
     overlap = .false.
 
-    ! Check whether the projectors of this atom have an overlap with locreg ilr
-    iilr=get_proj_locreg(nl,iat,ilr)
-    goon=iilr/=0
-    if (.not.goon) return
-
-    mproj=nl%pspd(iat)%mproj
     !no projector on this atom
-    if(mproj == 0) return
-    if(wfd_to_wfd_skip(nl%pspd(iat)%tolr(iilr))) return
+    !if(pspd%mproj == 0) return
 
-    call check_overlap(llr, nl%pspd(iat)%plr, glr, overlap)
+    ! Check whether the projectors of this atom have an overlap with locreg ilr
+    iilr = get_proj_locreg(pspd, ilr)
+    if (iilr == 0) return
+    if (wfd_to_wfd_skip(pspd%tolr(iilr))) return
+
+    call check_overlap(llr, pspd%plr, glr, overlap)
 
   end function projector_has_overlap
 
+  recursive function DFT_PSP_projectors_iter_next(iter, ilr, lr, glr) result(ok)
+    use compression, only: wfd_to_wfd_skip
+    implicit none
+    type(DFT_PSP_projector_iter), intent(inout) :: iter
+    integer, intent(in), optional :: ilr
+    type(locreg_descriptors), intent(in), optional :: lr, glr
+    logical :: ok
+
+    logical :: overlap
+    integer :: iilr
+
+    ok = .false.
+    nullify(iter%coeff)
+    iter%iat = iter%iat + 1
+    if (iter%iat > size(iter%parent%projs)) return
+    
+    ok = .true.
+    iter%current => iter%parent%projs(iter%iat)
+    iter%pspd => iter%current%region
+    iter%mproj = iter%current%mproj
+    if (iter%mproj == 0) ok = DFT_PSP_projectors_iter_next(iter, ilr, lr, glr)
+    if (present(ilr) .and. present(lr) .and. present(glr)) then
+       iilr = get_proj_locreg(iter%pspd, ilr)
+       if (iilr > 0) iter%tolr => iter%pspd%tolr(iilr)
+       overlap = (iilr > 0)
+       if (overlap) overlap = .not. wfd_to_wfd_skip(iter%pspd%tolr(iilr))
+       if (overlap) call check_overlap(lr, iter%pspd%plr, glr, overlap)
+       if (.not. overlap) ok = DFT_PSP_projectors_iter_next(iter, ilr, lr, glr)
+    end if
+  end function DFT_PSP_projectors_iter_next
+
+  subroutine DFT_PSP_projectors_iter_ensure(iter, kpt, idir, nwarnings, glr)
+    implicit none
+    type(DFT_PSP_projector_iter), intent(inout) :: iter
+    real(gp), dimension(3) :: kpt
+    integer, intent(in) :: idir
+    integer, intent(out) :: nwarnings
+    type(locreg_descriptors), intent(in), optional :: glr
+    
+    type(projector_coefficients), pointer :: proj
+    type(atomic_projector_iter) :: a_it
+
+    if (all(kpt == 0.0_gp)) then
+       iter%ncplx = 1
+    else
+       iter%ncplx = 2
+    end if
+    
+    ! Ensure that projector exists for this kpoint, or build it if not.
+    nullify(proj)
+    if (.not. iter%parent%on_the_fly) then
+       proj => iter%current%projs
+       do while (associated(proj))
+          if (proj%kpt(1) == kpt(1) .and. proj%kpt(2) == kpt(2) .and. proj%kpt(3) == kpt(3)) exit
+          proj => proj%next
+       end do
+       if (.not. associated(proj)) then
+          allocate(proj)
+          proj%kpt = kpt
+          proj%idir = idir
+          nullify(proj%coeff)
+          proj%next => iter%current%projs
+          iter%current%projs => proj
+       end if
+       if (associated(proj%coeff) .and. proj%idir == idir) then
+          iter%coeff => proj%coeff
+          return
+       end if
+    end if
+
+    ! Rebuild fallback.
+    call atomic_projector_iter_new(a_it, iter%parent%pbasis(iter%iat), &
+         & iter%pspd%plr, kpt)
+    if (iter%parent%on_the_fly) then
+       iter%coeff => iter%parent%shared_proj
+    else
+       if (f_err_raise(.not. associated(proj), "Non existing projector.", &
+            & err_name='BIGDFT_RUNTIME_ERROR')) return
+       proj%idir = idir
+       if (.not. associated(proj%coeff)) proj%coeff = f_malloc_ptr(a_it%nproj * a_it%nc,id='coeff')
+       iter%coeff => proj%coeff
+    end if
+    call atomic_projector_iter_set_destination(a_it, iter%coeff)
+    if (PROJECTION_1D_SEPARABLE == iter%parent%method) then
+       if (iter%parent%pbasis(iter%iat)%kind == PROJ_DESCRIPTION_GAUSSIAN .and. &
+            & present(glr)) then
+          call atomic_projector_iter_set_method(a_it, PROJECTION_1D_SEPARABLE, glr)
+       else
+          call atomic_projector_iter_set_method(a_it, PROJECTION_RS_COLLOCATION) 
+       end if
+    else
+       call atomic_projector_iter_set_method(a_it, iter%parent%method)
+    end if
+
+    call atomic_projector_iter_start(a_it)
+    ! Loop on shell.
+    do while (atomic_projector_iter_next(a_it))
+       call atomic_projector_iter_to_wavelets(a_it, idir, nwarnings)
+    end do
+
+    call atomic_projector_iter_free(a_it)
+  end subroutine DFT_PSP_projectors_iter_ensure
+  
+  subroutine DFT_PSP_projectors_iter_apply(psp_it, psi_it, at, eproj, &
+       & hcproj_in, hcproj_out, hpsi, paw)
+    use module_atoms
+    use module_types
+    use orbitalbasis
+    use pseudopotentials
+    use compression
+    use ao_inguess, only: lmax_ao
+    implicit none
+    !Arguments
+    type(DFT_PSP_projector_iter), intent(in) :: psp_it
+    type(ket), intent(in) :: psi_it
+    type(atoms_data), intent(in) :: at
+    real(wp), intent(out) :: eproj
+    real(wp), dimension(max(psp_it%ncplx, psp_it%ncplx), psi_it%n_ket, psp_it%mproj), intent(in), optional :: hcproj_in
+    real(wp), dimension(max(psp_it%ncplx, psp_it%ncplx), psi_it%n_ket, psp_it%mproj), intent(out), optional :: hcproj_out
+    !real(wp), dimension(psi_it%ob%orbs%npsidim_orbs), intent(inout), optional :: hpsi !the dimension of the hpsi should be specified differently
+    real(wp), dimension(:), intent(inout), optional :: hpsi !the dimension of the hpsi should be specified differently
+    type(paw_objects), intent(inout), optional :: paw
+
+    logical :: usepaw
+    integer :: ityp, nc, m, mm
+    real(gp), dimension(3,3,4) :: hij
+    type(atomic_proj_matrix) :: prj
+    real(wp), dimension(:), pointer :: hpsi_ptr, spsi_ptr
+
+    call pr_dot_psi(psp_it%ncplx, psp_it%mproj, psp_it%pspd%plr%wfd, &
+         & psp_it%coeff, psi_it%ncplx, psi_it%n_ket, psi_it%lr%wfd, &
+         & psi_it%phi_wvl, psp_it%tolr, psp_it%parent%wpack, &
+         & psp_it%parent%scpr, psp_it%parent%cproj)
+
+    !here the cproj can be extracted to update the density matrix for the atom iat 
+    if (associated(psp_it%parent%iagamma) .and. .not. present(hcproj_in)) then
+       call cproj_to_gamma(psp_it%parent%pbasis(psp_it%iat), &
+            & psi_it%n_ket, psp_it%mproj, lmax_ao, max(psi_it%ncplx, psp_it%ncplx), &
+            & psp_it%parent%cproj, psi_it%kwgt * psi_it%occup, &
+            & psp_it%parent%iagamma(0, psp_it%iat), psp_it%parent%gamma_mmp(1,1,1,1,psi_it%ispin))
+    end if
+    usepaw = .false.
+    if (present(paw)) usepaw = paw%usepaw
+    if (usepaw) then
+       ! Can be done in a better way I guess...
+       mm = 1
+       nc = max(psp_it%ncplx, psi_it%ncplx) * psi_it%n_ket
+       do m = 1, psp_it%mproj
+          paw%cprj(psp_it%iat, psi_it%iorb)%cp(1:nc, m) = &
+               & psp_it%parent%cproj(mm:mm+nc-1)
+          mm = mm + nc
+       end do
+    end if
+
+    if (.not. present(hcproj_in)) then
+       nc = max(psi_it%ncplx, psp_it%ncplx) * psi_it%n_ket
+       ! Compute hcproj.
+       if (.not. usepaw) then
+          ityp = at%astruct%iatype(psp_it%iat)
+          call hgh_hij_matrix(at%npspcode(ityp), at%psppar(0,0,ityp), hij)
+          if (associated(at%gamma_targets) .and. psp_it%parent%apply_gamma_target) then
+             call allocate_atomic_proj_matrix(hij, psp_it%iat, psi_it%ispin, prj, &
+                  & at%gamma_targets)
+          else
+             call allocate_atomic_proj_matrix(hij, psp_it%iat, psi_it%ispin, prj)
+          end if
+
+          if (present(hcproj_out)) then
+             call apply_hij_coeff(prj, nc, psp_it%mproj, psp_it%parent%cproj, &
+                  & hcproj_out)
+          else
+             call apply_hij_coeff(prj, nc, psp_it%mproj, psp_it%parent%cproj, &
+                  & psp_it%parent%hcproj)
+          end if
+
+          call free_atomic_proj_matrix(prj)
+       else
+          if (present(hcproj_out)) then
+             call apply_paw_coeff(paw%paw_ij(psp_it%iat)%dij, &
+                  & paw%paw_ij(psp_it%iat)%cplex_dij, nc, psp_it%mproj, &
+                  & psp_it%parent%cproj, hcproj_out)
+          else
+             call apply_paw_coeff(paw%paw_ij(psp_it%iat)%dij, &
+                  & paw%paw_ij(psp_it%iat)%cplex_dij, nc, psp_it%mproj, &
+                  & psp_it%parent%cproj, psp_it%parent%hcproj)
+          end if
+       end if
+    end if
+
+    nullify(hpsi_ptr)
+    if (present(hpsi)) hpsi_ptr => ob_ket_map(hpsi, psi_it)
+    if (present(hcproj_in)) then
+       call cproj_dot(psp_it%ncplx, psp_it%mproj, psi_it%ncplx, psi_it%n_ket, &
+            & psp_it%parent%scpr, psp_it%parent%cproj, hcproj_in, eproj)
+       if (associated(hpsi_ptr)) &
+            & call cproj_pr_p_psi(hcproj_in, psp_it%ncplx, psp_it%mproj, &
+            & psp_it%pspd%plr%wfd, psp_it%coeff, psi_it%ncplx, psi_it%n_ket, &
+            & psi_it%lr%wfd, hpsi_ptr, psp_it%tolr, &
+            & psp_it%parent%wpack, psp_it%parent%scpr)
+    else if (present(hcproj_out)) then
+       call cproj_dot(psp_it%ncplx, psp_it%mproj, psi_it%ncplx, psi_it%n_ket, &
+            & psp_it%parent%scpr, psp_it%parent%cproj, hcproj_out, eproj)
+       if (associated(hpsi_ptr)) &
+            & call cproj_pr_p_psi(hcproj_out, psp_it%ncplx, psp_it%mproj, &
+            & psp_it%pspd%plr%wfd, psp_it%coeff, psi_it%ncplx, psi_it%n_ket, &
+            & psi_it%lr%wfd, hpsi_ptr, psp_it%tolr, &
+            & psp_it%parent%wpack, psp_it%parent%scpr)
+    else
+       call cproj_dot(psp_it%ncplx, psp_it%mproj, psi_it%ncplx, psi_it%n_ket, &
+            & psp_it%parent%scpr, psp_it%parent%cproj, psp_it%parent%hcproj, eproj)
+       if (associated(hpsi_ptr)) &
+            & call cproj_pr_p_psi(psp_it%parent%hcproj, psp_it%ncplx, psp_it%mproj, &
+            & psp_it%pspd%plr%wfd, psp_it%coeff, psi_it%ncplx, psi_it%n_ket, &
+            & psi_it%lr%wfd, hpsi_ptr, psp_it%tolr, &
+            & psp_it%parent%wpack, psp_it%parent%scpr)
+    end if
+
+    if (usepaw .and. present(hpsi)) then
+       ityp = at%astruct%iatype(psp_it%iat)
+       nc = max(psi_it%ncplx, psp_it%ncplx) * psi_it%n_ket
+       call apply_paw_coeff(at%pawtab(ityp)%sij, 1, nc, psp_it%mproj, &
+            & psp_it%parent%cproj, psp_it%parent%hcproj)
+
+       spsi_ptr => ob_ket_map(paw%spsi, psi_it)
+       call cproj_pr_p_psi(psp_it%parent%hcproj, psp_it%ncplx, psp_it%mproj, &
+            & psp_it%pspd%plr%wfd, psp_it%coeff, psi_it%ncplx, psi_it%n_ket, &
+            & psi_it%lr%wfd, spsi_ptr, psp_it%tolr, &
+            & psp_it%parent%wpack, psp_it%parent%scpr)
+    end if
+  end subroutine DFT_PSP_projectors_iter_apply
+
 end module psp_projectors
 
-!>routine to drive the application of the projector in HGH formalism
-subroutine NL_HGH_application(hij,ncplx_p,n_p,wfd_p,proj,&
-     ncplx_w,n_w,wfd_w,tolr,psi_pack,scpr,pdpsi,hpdpsi,psi,hpsi,eproj)
-  use module_defs, only : gp,wp
-  use psp_projectors, only: hgh_psp_application
-  use compression, only: wfd_to_wfd,wavefunctions_descriptors
-  implicit none
-  integer, intent(in) :: ncplx_p,n_p,ncplx_w,n_w
-  !> interaction between the wavefuntion and the psp projector
-  type(wfd_to_wfd), intent(in) :: tolr 
-  type(wavefunctions_descriptors), intent(in) :: wfd_p !< descriptors of projectors
-  type(wavefunctions_descriptors), intent(in) :: wfd_w !< descriptors of wavefunction
-  !> matrix of nonlocal HGH psp
-  real(gp), dimension(3,3,4), intent(in) :: hij
-  real(wp), dimension(wfd_p%nvctr_c+7*wfd_p%nvctr_f,ncplx_p,n_p), intent(in) :: proj !< components of the projectors, real and imaginary parts
-  real(wp), dimension(wfd_w%nvctr_c+7*wfd_w%nvctr_f,ncplx_w,n_w), intent(in) :: psi !< components of wavefunctions, real and imaginary parts
-
-  real(wp), dimension(wfd_w%nvctr_c+7*wfd_w%nvctr_f,ncplx_w,n_w), intent(inout) :: hpsi !< components of wavefunctions, real and imaginary parts
-  !> workspaces for the packing array
-  real(wp), dimension(wfd_p%nvctr_c+7*wfd_p%nvctr_f,n_w*ncplx_w), intent(inout) :: psi_pack
-  !> array of the scalar product between the projectors and the wavefunctions
-  real(wp), dimension(ncplx_w,n_w,ncplx_p,n_p), intent(inout) :: scpr
-  !> array of the coefficients of the hgh projectors
-  real(wp), dimension(max(ncplx_w,ncplx_p),n_w,n_p), intent(inout) :: pdpsi
-  !> array of the coefficients of the hgh projectors multiplied by HGH matrix
-  real(wp), dimension(max(ncplx_w,ncplx_p),n_w,n_p), intent(inout) :: hpdpsi
-  real(gp), intent(out) :: eproj
-
-!!$  call hgh_psp_application(hij,ncplx_p,n_p,wfd_p,proj,&
-!!$       ncplx_w,n_w,wfd_w,tolr,psi_pack,scpr,pdpsi,hpdpsi,psi,hpsi,eproj)
-
-end subroutine NL_HGH_application
-
-!> Applies one real projector operator in the form |p> hp <p| onto a set of wavefunctions described by the same descriptors
-!! accumulate the result on the array hpsi and calculate scpr @f$<p|psi_w>$@f such that energy can be expressed in the form @f$\sum_w <psi_w|p> hp <p|psi_w>@f$
-subroutine apply_oneproj_operator(wfd_p,proj,hp,n_w,wfd_w,psi,hpsi,scpr)
-  use module_base
-  use compression, only: wavefunctions_descriptors
-  implicit none
-  integer, intent(in) :: n_w !< complex components of the wavefunction
-  real(wp), intent(in) :: hp !<coefficient of the projector operator
-  type(wavefunctions_descriptors), intent(in) :: wfd_p !< descriptors of projectors
-  type(wavefunctions_descriptors), intent(in) :: wfd_w !< descriptors of wavefunction
-  !  real(gp), dimension(ncplx_o,ncomp_p,ncomp_p,ncomp_w), intent(in) :: hij !< matrix of operator in nonlocal projectors basis
-  real(wp), dimension(wfd_p%nvctr_c+7*wfd_p%nvctr_f), intent(in) :: proj !< components of the projector
-  real(wp), dimension(wfd_w%nvctr_c+7*wfd_w%nvctr_f,n_w), intent(in) :: psi !< components of wavefunction
-  real(wp), dimension(wfd_w%nvctr_c+7*wfd_w%nvctr_f,n_w), intent(inout) :: hpsi !<application of NL operator on psi
-  real(wp), dimension(n_w), intent(out) :: scpr !<array of <p|psi_w>, to be used to evaluate energy terms
-  !local variables
-  character(len=*), parameter :: subname='apply_oneproj'
-  integer :: is_w,is_sw,is_p,is_sp,iw
-  integer, dimension(:,:), allocatable :: psi_mask
-  !routines which are optimized in separate files
-  external :: wpdot_keys,wpdot_mask,waxpy_mask
-
-  call f_routine(id=subname)
-
-  !calculate starting points of the fine regions
-  !they have to be calculated considering that there could be no fine grid points
-  !therefore the array values should not go out of bounds even though their value is actually not used
-  is_w=wfd_w%nvctr_c+min(wfd_w%nvctr_f,1)
-  is_sw=wfd_w%nseg_c+min(wfd_w%nseg_f,1)
-
-  is_p=wfd_p%nvctr_c+min(wfd_p%nvctr_f,1)
-  is_sp=wfd_p%nseg_c+min(wfd_p%nseg_f,1)
-
-  !mask array to avoid multiple calls to bitonic search routines
-  psi_mask=f_malloc0((/3,wfd_w%nseg_c+wfd_w%nseg_f/),id='psi_mask')
-  call wpdot_keys(wfd_w%nvctr_c,wfd_w%nvctr_f,wfd_w%nseg_c,wfd_w%nseg_f,&
-       wfd_w%keyvglob(1),wfd_w%keyvglob(is_sw),wfd_w%keyglob(1,1),wfd_w%keyglob(1,is_sw),&
-       psi(1,1),psi(is_w,1),&
-       wfd_p%nvctr_c,wfd_p%nvctr_f,wfd_p%nseg_c,wfd_p%nseg_f,&
-       wfd_p%keyvglob(1),wfd_p%keyvglob(is_sp),wfd_p%keyglob(1,1),wfd_p%keyglob(1,is_sp),&
-       proj(1),proj(is_p),&
-       scpr(1))
-  !use now mask arrays to calculate the rest of the scalar product
-  do iw=2,n_w
-     call wpdot_keys(wfd_w%nvctr_c,wfd_w%nvctr_f,wfd_w%nseg_c,wfd_w%nseg_f,&
-          wfd_w%keyvglob(1),wfd_w%keyvglob(is_sw),&
-          wfd_w%keyglob(1,1),wfd_w%keyglob(1,is_sw),&
-          psi(1,iw),psi(is_w,iw),&
-          wfd_p%nvctr_c,wfd_p%nvctr_f,wfd_p%nseg_c,wfd_p%nseg_f,&
-          wfd_p%keyvglob(1),wfd_p%keyvglob(is_sp),&
-          wfd_p%keyglob(1,1),wfd_p%keyglob(1,is_sp),&
-          proj(1),proj(is_p),&
-          scpr(iw))
-
-!!$     call wpdot_mask(wfd_w%nvctr_c,wfd_w%nvctr_f,wfd_w%nseg_c,wfd_w%nseg_f,&
-!!$          psi_mask(1,1),psi_mask(1,is_sw),psi(1,iw),psi(is_w,iw),&
-!!$          wfd_p%nvctr_c,wfd_p%nvctr_f,proj(1),proj(is_p),scpr(iw))
-  end do
-
-  !then reduce the projector in the wavefunction
-  do iw=1,n_w
-     call waxpy(hp*scpr(iw),wfd_p%nvctr_c,wfd_p%nvctr_f,&
-          wfd_p%nseg_c,wfd_p%nseg_f,&
-          wfd_p%keyvglob(1),wfd_p%keyvglob(is_sp),&
-          wfd_p%keyglob(1,1),wfd_p%keyglob(1,is_sp),proj(1),proj(is_p),&
-          wfd_w%nvctr_c,wfd_w%nvctr_f,wfd_w%nseg_c,wfd_w%nseg_f,&
-          wfd_w%keyvglob(1),wfd_w%keyvglob(is_sw),&
-          wfd_w%keyglob(1,1),wfd_w%keyglob(1,is_sw),&
-          hpsi(1,iw),hpsi(is_w,iw))
-!!$     call waxpy_mask(wfd_w%nvctr_c,wfd_w%nvctr_f,wfd_w%nseg_c,wfd_w%nseg_f,&
-!!$          psi_mask(1,1),psi_mask(1,is_sw),hpsi(1,iw),hpsi(is_w,iw),&
-!!$          wfd_p%nvctr_c,wfd_p%nvctr_f,proj(1),proj(is_p),&
-!!$          hp*scpr(iw))
-  end do
-
-  call f_free(psi_mask)
-
-  call f_release_routine()
-
-end subroutine apply_oneproj_operator
-
 !> calculate the density matrix of the system from the scalar product with the projectors
-subroutine cproj_to_gamma(iat,proj_G,n_w,mproj,lmax,ncplx,cproj,factor,iagamma,gamma_mmp)
+subroutine cproj_to_gamma(aproj,n_w,mproj,lmax,ncplx,cproj,factor,iagamma,gamma_mmp)
   use module_defs, only: wp
+  use module_base, only: f_err_raise
   use gaussians
+  use psp_projectors_base, only: atomic_projectors, PROJ_DESCRIPTION_GAUSSIAN
   implicit none
-  integer, intent(in) :: mproj,iat,ncplx,lmax,n_w
+  integer, intent(in) :: mproj,ncplx,lmax,n_w
   real(wp), intent(in) :: factor
-  type(gaussian_basis_new), intent(in) :: proj_G
+  type(atomic_projectors), intent(in) :: aproj
   integer, dimension(2*lmax+1), intent(in) :: iagamma
   real(wp), dimension(ncplx,n_w,mproj), intent(in) :: cproj
   real(wp), dimension(2*n_w,2*lmax+1,2*lmax+1,*), intent(inout) :: gamma_mmp 
@@ -507,11 +600,14 @@ subroutine cproj_to_gamma(iat,proj_G,n_w,mproj,lmax,ncplx,cproj,factor,iagamma,g
   integer :: iproj
   type(gaussian_basis_iter) :: iter
 
-  call gaussian_iter_start(proj_G, iat, iter)
+  if (f_err_raise(aproj%kind /= PROJ_DESCRIPTION_GAUSSIAN, "Not implemented.", &
+       & err_name = 'BIGDFT_RUNTIME_ERROR')) return
+  
+  call gaussian_iter_start(aproj%gbasis, 1, iter)
 
   ! Loop on shell.
   iproj=1
-  do while (gaussian_iter_next_shell(proj_G, iter))
+  do while (gaussian_iter_next_shell(aproj%gbasis, iter))
      if (iter%n ==1 .and. iagamma(iter%l)/=0) then
         call atomic_PSP_density_matrix_update('C',lmax,iter%l-1,ncplx,n_w,cproj(1,1,iproj),&
              factor,gamma_mmp(1,1,1,iagamma(iter%l)))
@@ -585,7 +681,6 @@ subroutine atomic_PSP_density_matrix_update(transp,lmax,l,ncplx,n_w,sp,fac,gamma
       real(wp), dimension(4), intent(in) :: psim
       real(wp), dimension(4) :: rho
       !local variables
-      real(wp) :: p1,p2,p3,p4,pp1,pp2,pp3,pp4
       real(wp), dimension(4) :: p,pp
 
       p=psim

@@ -339,9 +339,9 @@
    PSP XC                              : "XC: Perdew, Burke & Ernzerhof"
   #-------------------------------------------------------------------------- Atom Positions
  Atomic structure:
-   Units                               : angstroem
-   Cell                                :  [  3.0,  3.0,  3.0 ]
-   Positions:
+   units                               : angstroem
+   cell                                :  [  3.0,  3.0,  3.0 ]
+   positions:
    -  {O: [ 0.000000000,  0.000000000,  0.000000000],  # [  0.00,  0.00,  0.00 ] 0001
  IGSpin:  2}
    - O: [ 0.000000000,  0.000000000,  1.208000000] # [  0.00,  0.00,  8.05 ] 0002
@@ -660,17 +660,18 @@
    MPI tasks                           :  2
  Multipole analysis origin             :  [  0.0E+00,  0.000000E+00,  1.141395E+00 ]
  Electric Dipole Moment (AU):
-   P vector                            :  [ -3.1438E+01, -3.1438E+01, -1.6199E+01 ]
-   norm(P)                             :  4.731924E+01
+   P vector                            :  [ -1.5876E-02, -1.5876E-02, -1.7628E-01 ]
+   norm(P)                             :  1.777084E-01
  Electric Dipole Moment (Debye):
-   P vector                            :  [ -7.9908E+01, -7.9908E+01, -4.1174E+01 ]
-   norm(P)                             :  1.202735E+02
+   P vector                            :  [ -4.0353E-02, -4.0353E-02, -4.4807E-01 ]
+   norm(P)                             :  4.516897E-01
  Quadrupole Moment (AU):
    Q matrix:
-   -  [-1.0321E+02, -2.4673E+02, -1.2732E+02]
-   -  [-2.4673E+02, -1.0321E+02, -1.2732E+02]
-   -  [-1.2732E+02, -1.2732E+02,  2.0641E+02]
-   trace                               : -9.66E-13
+   -  [-4.1165E-01, -7.9302E-04, -3.0233E-03]
+   -  [-7.9302E-04, -4.1165E-01, -3.0233E-03]
+   -  [-3.0233E-03, -3.0233E-03,  8.2329E-01]
+   trace                               :  7.11E-15
+ Spreads of the electronic density (AU):  [  7.517405E-01,  7.517405E-01,  1.354023E+00 ]
  Calculate local forces: Yes
  Calculate NLCC forces                 :  Yes
  Calculate Non Local forces            :  Yes

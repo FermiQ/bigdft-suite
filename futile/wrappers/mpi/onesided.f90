@@ -21,13 +21,17 @@ module f_onesided
     module procedure mpiwindowl_i0,mpiwindowi_i0
     module procedure mpiwindowl_li0,mpiwindowi_li0
     module procedure mpiwindowl_d1,mpiwindowi_d1
+    module procedure mpiwindowl_d2,mpiwindowi_d2
     module procedure mpiwindowl_i1,mpiwindowi_i1
+    module procedure mpiwindowl_i2,mpiwindowi_i2
     module procedure mpiwindowl_li1,mpiwindowi_li1
+    module procedure mpiwindowl_l0, mpiwindowi_l0
  end interface fmpi_win_create
 
   interface fmpi_get
      module procedure fmpi_get_d0,fmpi_get_i0,fmpi_get_li0
-     module procedure fmpi_get_li1,fmpi_get_d1,fmpi_get_i1
+     module procedure fmpi_get_li1,fmpi_get_d1,fmpi_get_i1,fmpi_get_d2
+     module procedure fmpi_get_i2,fmpi_get_d3
   end interface fmpi_get
 
   interface mpiput
@@ -169,6 +173,25 @@ module f_onesided
 
     end subroutine mpiwindowi_d1
 
+    subroutine mpiwindowl_d2(win,base,size,comm,dict_info,info)
+      implicit none
+      real(f_double), dimension(:,:), intent(in) :: base
+      integer(f_long),intent(in) :: size
+
+      include 'win-create-inc.f90'
+
+    end subroutine mpiwindowl_d2
+
+    subroutine mpiwindowi_d2(win,base,size,comm,dict_info,info)
+      implicit none
+      real(f_double), dimension(:,:), intent(in) :: base
+      integer(f_integer),intent(in) :: size
+
+      include 'win-create-inc.f90'
+
+    end subroutine mpiwindowi_d2
+
+
 
     subroutine mpiwindowi_i0(win,base,size,comm,dict_info,info)
       implicit none
@@ -205,6 +228,25 @@ module f_onesided
       include 'win-create-inc.f90'
 
     end subroutine mpiwindowl_i1
+
+    subroutine mpiwindowi_i2(win,base,size,comm,dict_info,info)
+      implicit none
+      integer(f_integer), dimension(:,:), intent(in) :: base
+      integer(f_integer),intent(in) :: size
+
+      include 'win-create-inc.f90'
+
+    end subroutine mpiwindowi_i2
+
+    subroutine mpiwindowl_i2(win,base,size,comm,dict_info,info)
+      implicit none
+      integer(f_integer), dimension(:,:), intent(in) :: base
+      integer(f_long),intent(in) :: size
+
+      include 'win-create-inc.f90'
+
+    end subroutine mpiwindowl_i2
+
 
 
     subroutine mpiwindowi_li0(win,base,size,comm,dict_info,info)
@@ -243,6 +285,23 @@ module f_onesided
 
     end subroutine mpiwindowl_li1
 
+    subroutine mpiwindowi_l0(win,base,size,comm,dict_info,info)
+      implicit none
+      logical :: base
+      integer(f_integer),intent(in) :: size
+
+      include 'win-create-inc.f90'
+
+    end subroutine mpiwindowi_l0
+
+    subroutine mpiwindowl_l0(win,base,size,comm,dict_info,info)
+      implicit none
+      logical :: base
+      integer(f_long),intent(in) :: size
+
+      include 'win-create-inc.f90'
+
+    end subroutine mpiwindowl_l0
 
 
     
@@ -624,6 +683,29 @@ module f_onesided
     include 'get-inc.f90'
   end subroutine fmpi_get_d1
 
+  subroutine fmpi_get_d2(origin_addr,target_rank,win,count,target_disp,origin_displ)
+    use dynamic_memory, only: f_subptr
+    implicit none
+    real(f_double), dimension(:,:), intent(in) :: origin_addr
+    !local variables
+    real(f_double), dimension(:), pointer :: origin_ptr
+    include 'get-decl-inc.f90'
+    origin_ptr=>f_subptr(origin_addr(1,1),size=count,from=from)
+    include 'get-end-inc.f90'
+  end subroutine fmpi_get_d2
+
+  subroutine fmpi_get_d3(origin_addr,target_rank,win,count,target_disp,origin_displ)
+    use dynamic_memory, only: f_subptr
+    implicit none
+    real(f_double), dimension(:,:,:), intent(in) :: origin_addr
+    !local variables
+    real(f_double), dimension(:), pointer :: origin_ptr
+    include 'get-decl-inc.f90'
+    origin_ptr=>f_subptr(origin_addr(1,1,1),size=count,from=from)
+    include 'get-end-inc.f90'
+  end subroutine fmpi_get_d3
+
+
 
   subroutine fmpi_get_i0(origin_addr,target_rank,win,count,target_disp,origin_displ)
     use dynamic_memory, only: f_subptr
@@ -642,6 +724,17 @@ module f_onesided
     integer(f_integer), dimension(:), pointer :: origin_ptr
     include 'get-inc.f90'
   end subroutine fmpi_get_i1
+
+    subroutine fmpi_get_i2(origin_addr,target_rank,win,count,target_disp,origin_displ)
+    use dynamic_memory, only: f_subptr
+    implicit none
+    integer(f_integer), dimension(:,:), intent(in) :: origin_addr
+    !local variables
+    integer(f_integer), dimension(:), pointer :: origin_ptr
+    include 'get-decl-inc.f90'
+    origin_ptr=>f_subptr(origin_addr(1,1),size=count,from=from)
+    include 'get-end-inc.f90'
+  end subroutine fmpi_get_i2
 
   subroutine fmpi_get_li0(origin_addr,target_rank,win,count,target_disp,origin_displ)
     use dynamic_memory, only: f_subptr

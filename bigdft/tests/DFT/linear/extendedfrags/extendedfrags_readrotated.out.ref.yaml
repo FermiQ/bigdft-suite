@@ -455,9 +455,9 @@
    PSP XC                              : "XC: Teter 93"
   #----------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : angstroem
-   Cell                                :  [  12.74,  16.0,  16.0 ]
-   Positions:
+   units                               : angstroem
+   cell                                :  [  12.74,  16.0,  16.0 ]
+   positions:
    - C: [ 0.000000000,  8.000000000,  8.000000000] # [  0.00,  35.00,  35.00 ] 0001
    - C: [ 1.257000000,  8.000000000,  8.000000000] # [  5.33,  35.00,  35.00 ] 0002
    - C: [ 2.548000000,  8.000000000,  8.000000000] # [  10.80,  35.00,  35.00 ] 0003
@@ -607,7 +607,7 @@
  Interaction energy multipoles multipoles:  0.0
   #--------------------------------------------------------- Reading Wavefunctions from disk
  Input Hamiltonian:
-   max shift of a locreg center        :  4.28E-01
+   max shift of a locreg center        :  5.51E-01
    Overview of the reformatting (several categories may apply):
      No reformatting required          :  0
      Grid spacing has changed          :  40

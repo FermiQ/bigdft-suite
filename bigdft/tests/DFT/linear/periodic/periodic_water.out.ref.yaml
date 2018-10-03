@@ -592,9 +592,9 @@
    PSP XC                              : "XC: Perdew, Burke & Ernzerhof"
   #----------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : angstroem
-   Cell: [ 14.46100521087646,  16.68319511413574,  16.97224426269531]
-   Positions:
+   units                               : angstroem
+   cell: [ 14.46100521087646,  16.68319511413574,  16.97224426269531]
+   positions:
    - H: [ 7.287691116,  8.888086319,  7.829164505] # [  24.19,  28.77,  24.91 ] 0001
    - O: [ 7.287691116,  8.888086319,  8.800254822] # [  24.19,  28.77,  28.00 ] 0002
    - H: [ 7.287691116,  7.949720383,  9.050948143] # [  24.19,  25.73,  28.80 ] 0003
@@ -1702,13 +1702,14 @@
    BC                                  : Periodic
    Box                                 :  [  96,  108,  108 ]
    MPI tasks                           :  2
- Multipole analysis origin             :  [  1.366485E+01,  1.666949E+01,  1.572744E+01 ]
+ Multipole analysis origin             :  [  9.606324E-02,  2.493530E-01, -1.976453E-01 ]
  Electric Dipole Moment (AU):
-   P vector                            :  [  5.3684E+01,  7.6474E+01,  1.8692E+01 ]
-   norm(P)                             :  9.528665E+01
+   P vector                            :  [ -8.961E+01,  1.0313E+02,  6.9467E+01 ]
+   norm(P)                             :  1.532690E+02
  Electric Dipole Moment (Debye):
-   P vector                            :  [  1.3645E+02,  1.9438E+02,  4.7510E+01 ]
-   norm(P)                             :  2.421945E+02
+   P vector                            :  [ -2.2776E+02,  2.6213E+02,  1.7657E+02 ]
+   norm(P)                             :  3.895708E+02
+ Spreads of the electronic density (AU):  [  7.984728E+00,  9.676575E+00,  9.260840E+00 ]
  Calculate local forces                :  Yes
  Calculate NLCC forces                 :  Yes
  Calculate Non Local forces            :  Yes

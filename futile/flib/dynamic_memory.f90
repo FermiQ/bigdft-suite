@@ -48,6 +48,7 @@ module dynamic_memory_base
   character(len=*), parameter :: no_of_calls='No. of calls'
   character(len=*), parameter :: t0_time='Time of last opening'
   character(len=*), parameter :: tot_time='Total time (s)'
+  character(len=*), parameter :: performance_info_key='Performance Information'
   character(len=*), parameter :: prof_enabled='Profiling Enabled'
   character(len=*), parameter :: main='Main_program'
 
@@ -105,7 +106,7 @@ module dynamic_memory_base
      module procedure li1_ptr
      module procedure z1_ptr,z2_ptr
      !strings and pointers for characters
-     module procedure c1_all
+     module procedure c1_all,c2_all
      module procedure c1_ptr
   end interface
 
@@ -121,6 +122,10 @@ module dynamic_memory_base
      module procedure li1_all_free,li2_all_free,li3_all_free,li4_all_free
   end interface f_free
 
+  interface f_free_str
+     module procedure c1_all_free,c2_all_free
+  end interface f_free_str
+
   interface f_free_ptr
      module procedure i1_ptr_free,i2_ptr_free,i3_ptr_free,i4_ptr_free
      module procedure i1_ptr_free_multi
@@ -133,13 +138,15 @@ module dynamic_memory_base
   interface f_memcpy
      module procedure f_memcpy_i0,f_memcpy_i1,f_memcpy_i2,f_memcpy_i3
      module procedure f_memcpy_i0i1,f_memcpy_i1i2,f_memcpy_i1i3,f_memcpy_i2i1,f_memcpy_i2i0,f_memcpy_i3i1
+     module procedure f_memcpy_i1i0
      module procedure f_memcpy_li0,f_memcpy_li1
      module procedure f_memcpy_li0li1,f_memcpy_li1li2,f_memcpy_li2li1,f_memcpy_li2li0
      module procedure f_memcpy_l1
      module procedure f_memcpy_r0,f_memcpy_r0r1
      module procedure f_memcpy_d0,f_memcpy_d1,f_memcpy_d2,f_memcpy_d3,f_memcpy_d0d1
      module procedure f_memcpy_d1d2,f_memcpy_d1d3,f_memcpy_d2d1,f_memcpy_d2d3,f_memcpy_d4,f_memcpy_d1d0
-     module procedure f_memcpy_d0d3,f_memcpy_d0d2,f_memcpy_d3d0,f_memcpy_d2d0,f_memcpy_d3d2
+     module procedure f_memcpy_d0d3,f_memcpy_d0d2,f_memcpy_d3d0,f_memcpy_d2d0
+     module procedure f_memcpy_d3d2,f_memcpy_d6d3
      module procedure f_memcpy_l0,f_memcpy_l0l1
      module procedure f_memcpy_c1i1,f_memcpy_i1c1,f_memcpy_c0i1
      module procedure f_memcpy_c1li1,f_memcpy_li1c1,f_memcpy_c0li1,f_memcpy_z2
@@ -163,6 +170,11 @@ module dynamic_memory_base
      module procedure f_subptr_li1,f_subptr_i1
   end interface f_subptr
 
+  ! for rank-two pointers
+  interface f_subptr2
+     module procedure f_subptr2_i1
+  end interface f_subptr2
+
   interface malloc_validate
      module procedure validate_allocation_all,validate_allocation_ptr
      module procedure validate_allocation_str_ptr,validate_allocation_str_all
@@ -172,13 +184,26 @@ module dynamic_memory_base
      module procedure get_lbnd_d0,get_lbnd_i0,get_lbnd_li0
   end interface get_lbnd
 
+  interface aligned_alloc
+    function aligned_alloc(align_size, size)  bind(C, name="aligned_alloc")
+      use iso_c_binding, only:  c_ptr,c_size_t
+      integer(c_size_t), value :: align_size, size
+      type(c_ptr) :: aligned_alloc
+    end function aligned_alloc
+  end interface
+
   public :: f_free,f_free_ptr,f_free_str,f_free_str_ptr,f_malloc_dump_status
   public :: f_routine,f_release_routine,f_malloc_set_status,f_malloc_initialize,f_malloc_finalize
   public :: f_memcpy,f_maxdiff,f_update_database,f_purge_database,f_subptr
   public :: assignment(=),operator(.to.),operator(.plus.)
+  ! To be integrated in f_update_database ?
+  interface update_allocation_database
+     module procedure update_allocation_database, update_allocation_database_ptr
+  end interface update_allocation_database
+  public :: update_allocation_database
 
   !for internal f_lib usage
-  public :: dynamic_memory_errors,malloc_validate
+  public :: dynamic_memory_errors,malloc_validate,f_subptr2,free_validate
 
 contains
 
@@ -304,6 +329,59 @@ contains
          mems(ictrl)%profiling_depth ==-1
   end subroutine set_depth
 
+  subroutine update_allocation_database(address,size,kind,m)
+    implicit none
+    type(malloc_information_all), intent(in) :: m
+    integer(f_address), intent(in) :: address
+    integer(f_long), intent(in) :: size
+    integer, intent(in) :: kind
+    !local variables
+    integer(f_address) :: iadd
+
+    !profile the array allocation
+    iadd=int(0,f_address)
+    !write the address of the first element in the address string
+    if (m%profile .and. track_origins) iadd=address
+
+    call f_update_database(size,kind,m%rank,&
+         iadd,m%array_id,m%routine_id,m%info)
+
+  end subroutine update_allocation_database
+
+  subroutine update_allocation_database_ptr(address,size,kind,m)
+    implicit none
+    type(malloc_information_ptr), intent(in) :: m
+    integer(f_address), intent(in) :: address
+    integer(f_long), intent(in) :: size
+    integer, intent(in) :: kind
+    !local variables
+    integer(f_address) :: iadd
+
+    !profile the array allocation
+    iadd=int(0,f_address)
+    !write the address of the first element in the address string
+    if (m%profile .and. track_origins) iadd=address
+
+    call f_update_database(size,kind,m%rank,&
+         iadd,m%array_id,m%routine_id,m%info)
+
+  end subroutine update_allocation_database_ptr
+
+  function free_validate(ierror) result(ok)
+    implicit none
+    integer, intent(in) :: ierror
+    logical :: ok
+
+    ok=.false.
+    if (ierror/=0) then
+       call f_timer_resume()!TCAT_ARRAY_ALLOCATIONS
+       call f_err_throw('Deallocation problem, error code '//trim(yaml_toa(ierror)),&
+            ERR_DEALLOCATE)
+       return
+    end if
+    ok=.true.
+
+  end function free_validate
 
   function validate_allocation_all(ierror,rank,m) result(ok)
     implicit none
@@ -393,6 +471,9 @@ contains
 
           nullify(mems(ictrl)%dict_routine)
        end if
+
+       !this section should go in a open_routine part
+
        !this means that the previous routine has not been closed yet
        if (mems(ictrl)%routine_opened) then
           !call open_routine(dict_codepoint)
@@ -401,20 +482,8 @@ contains
        mems(ictrl)%routine_opened=.true.
        !call add(dict_codepoint,trim(id))
        !see if the key existed in the codepoint
-       if (has_key(mems(ictrl)%dict_codepoint,trim(id))) then
-          !retrieve number of calls and increase it
-          ncalls=mems(ictrl)%dict_codepoint//trim(id)//no_of_calls
-          call set(mems(ictrl)%dict_codepoint//trim(id)//no_of_calls,ncalls+1)
-          !write the starting point for the time
-          call set(mems(ictrl)%dict_codepoint//trim(id)//t0_time,itime)
-          call set(mems(ictrl)%dict_codepoint//trim(id)//prof_enabled,mems(ictrl)%profile_routine)
-       else
-          !create a new dictionary
-          call set(mems(ictrl)%dict_codepoint//trim(id),&
-               dict_new((/no_of_calls .is. yaml_toa(1), t0_time .is. yaml_toa(itime),&
-               tot_time .is. yaml_toa(0.d0,fmt='(f4.1)'), &
-               prof_enabled .is. yaml_toa(mems(ictrl)%profile_routine)/)))
-       end if
+       call open_routine_dict(mems(ictrl)%dict_codepoint,trim(id),itime,mems(ictrl)%profile_routine)
+
        !then fix the new codepoint from this one
        mems(ictrl)%dict_codepoint=>mems(ictrl)%dict_codepoint//trim(id)
 
@@ -455,12 +524,15 @@ contains
   end function bigdebug_stream
 
   !> Close a previously opened routine
-  subroutine f_release_routine()
+  subroutine f_release_routine(performance_info)
+    use f_perfs
     use yaml_output, only: yaml_dict_dump,yaml_map,yaml_flush_document,yaml_mapping_close,&
          yaml_comment
     use f_utils, only: f_rewind
     use yaml_strings, only: yaml_time_toa
     implicit none
+    type(f_perf), intent(in), optional :: performance_info
+    !local variables
     integer :: jproc,unit_dbg
 
     if (ictrl == 0) then
@@ -492,27 +564,29 @@ contains
        call f_timer_resume()
        return
     end if
-    call close_routine(mems(ictrl)%dict_codepoint,.not. mems(ictrl)%routine_opened)!trim(dict_key(dict_codepoint)))
+!!$    call close_routine(mems(ictrl)%dict_codepoint,.not. mems(ictrl)%routine_opened)!trim(dict_key(dict_codepoint)))
 
-    !last_opened_routine=trim(dict_key(dict_codepoint))!repeat(' ',namelen)
-    !the main program is opened until there is a subprograms keyword
-    if (.not. associated(mems(ictrl)%dict_codepoint%parent)) then
-       call f_err_throw('parent not associated(A)',&
-            ERR_MALLOC_INTERNAL)
-       call f_timer_resume()
-       return
-    end if
-    if (dict_key(mems(ictrl)%dict_codepoint%parent) == subprograms) then    
-       mems(ictrl)%dict_codepoint=>mems(ictrl)%dict_codepoint%parent
-       if (.not. associated(mems(ictrl)%dict_codepoint%parent)) then
-          call f_err_throw('parent not associated(B)',ERR_MALLOC_INTERNAL)
-          call f_timer_resume()
-          return
-       end if
-       mems(ictrl)%dict_codepoint=>mems(ictrl)%dict_codepoint%parent
-    else !back in the main program
-       mems(ictrl)%routine_opened=.false.
-    end if
+    call close_routine(mems(ictrl)%dict_codepoint,mems(ictrl)%routine_opened,performance_info)!trim(dict_key(dict_codepoint)))
+
+!!$    !last_opened_routine=trim(dict_key(dict_codepoint))!repeat(' ',namelen)
+!!$    !the main program is opened until there is a subprograms keyword
+!!$    if (.not. associated(mems(ictrl)%dict_codepoint%parent)) then
+!!$       call f_err_throw('parent not associated(A)',&
+!!$            ERR_MALLOC_INTERNAL)
+!!$       call f_timer_resume()
+!!$       return
+!!$    end if
+!!$    if (dict_key(mems(ictrl)%dict_codepoint%parent) == subprograms) then    
+!!$       mems(ictrl)%dict_codepoint=>mems(ictrl)%dict_codepoint%parent
+!!$       if (.not. associated(mems(ictrl)%dict_codepoint%parent)) then
+!!$          call f_err_throw('parent not associated(B)',ERR_MALLOC_INTERNAL)
+!!$          call f_timer_resume()
+!!$          return
+!!$       end if
+!!$       mems(ictrl)%dict_codepoint=>mems(ictrl)%dict_codepoint%parent
+!!$    else !back in the main program
+!!$       mems(ictrl)%routine_opened=.false.
+!!$    end if
 
     mems(ictrl)%present_routine(1:len(mems(ictrl)%present_routine))=&
          trim(dict_key(mems(ictrl)%dict_codepoint))
@@ -698,7 +772,7 @@ contains
           call f_strcpy(dest=routine_id,src='Unknown')
        end if
     end if
-
+    
     call memstate_update(memstate,-ilsize,trim(array_id),trim(routine_id))
     !here in the case of output_level == 2 the data can be extracted  
     if (mems(ictrl)%output_level==2) then
@@ -747,12 +821,125 @@ contains
 !!$
 !!$ end subroutine open_routine
 
-
-  subroutine close_routine(dict,jump_up)
-    !use yaml_output !debug
+  subroutine aggregate_routine_dict(dict,id,time,percent,dict_pt)
     implicit none
     type(dictionary), pointer :: dict
-    logical, intent(in) :: jump_up
+    character(len=*), intent(in) :: id
+    real(f_double), intent(in) :: time
+    character(len=*), intent(in) :: percent
+    type(dictionary), pointer :: dict_pt
+    !local variables
+    integer :: icalls
+    type(dictionary), pointer :: dict_tmp,iter,dict_tmp2
+
+    dict_tmp=>dict_new()
+    call add(dict_tmp//id,yaml_toa(time,fmt='(1pg12.3)'))
+    icalls=dict//no_of_calls
+    call add(dict_tmp//id,icalls)
+    call add(dict_tmp//id,percent)
+    
+    !try to steal the data
+    iter=dict .get. performance_info_key
+    if (associated(iter)) then
+       nullify(dict_tmp2)
+       call dict_copy(src=iter,dest=dict_tmp2)
+!!$    nullify(iter)
+!!$    do while (iterating(iter,on=dict))
+!!$       if (dict_key(iter) == subprograms) cycle
+!!$       call dict_copy(src=iter,dest=dict_tmp2//trim(dict_key(iter)))
+!!$    end do
+       call add(dict_tmp//id,dict_tmp2)
+    end if
+
+    call add(dict_pt,dict_tmp)
+
+  end subroutine aggregate_routine_dict
+
+
+  subroutine open_routine_dict(dict,id,itime,do_profile)
+    implicit none
+    character(len=*), intent(in) :: id
+    type(dictionary), pointer :: dict
+    integer(f_long), intent(in) :: itime
+    logical, intent(in) :: do_profile
+    !local variables
+    logical already_there
+    integer :: ncalls
+    type(dictionary), pointer :: dict_tmp
+
+    already_there=id .in. dict
+
+    if (already_there) then
+       dict_tmp=>dict//id
+       !retrieve number of calls and increase it
+       ncalls=dict_tmp//no_of_calls
+    else
+       dict_tmp=>dict_new()
+       ncalls=0
+    end if
+    !here the specification for the runtime dictionary for a routine
+    call set(dict_tmp//no_of_calls,ncalls+1)
+    !write the starting point for the time
+    call set(dict_tmp//t0_time,itime)
+    call set(dict_tmp//prof_enabled,do_profile)
+
+    if (.not. already_there) then
+       call set(dict_tmp//tot_time,0.0_f_double,fmt='(f4.1)')
+       call set(dict//id,dict_tmp)
+!!$    else
+!!$       !create a new dictionary
+!!$       call set(dict//id,&
+!!$            dict_new((/no_of_calls .is. yaml_toa(1), &
+!!$            t0_time .is. yaml_toa(itime),&
+!!$            tot_time .is. yaml_toa(0.d0,fmt='(f4.1)'), &
+!!$            prof_enabled .is. yaml_toa(do_profile)/)))
+    end if
+  end subroutine open_routine_dict
+
+  subroutine close_routine_dict(dict,itime,perf_info)
+    use f_perfs
+    implicit none
+    type(dictionary), pointer :: dict
+    integer(f_long), intent(in) :: itime
+    type(f_perf), intent(in), optional :: perf_info !further information about performances
+    
+    !local variables
+    integer(f_long) :: jtime
+    real(f_double) :: rtime
+
+    !update the total time, if the starting point is present
+    if (t0_time .in. dict) then
+       jtime=dict//t0_time
+       jtime=itime-jtime
+       rtime=dict//tot_time
+       call set(dict//tot_time,rtime+real(jtime,f_double)*1.d-9,fmt='(1pe15.7)')
+       call dict_remove(dict,t0_time)
+    else
+       call f_err_throw('Key '//t0_time//&
+            ' not found, most likely f_release_routine has been called too many times',&
+            err_id=ERR_INVALID_MALLOC)
+    end if
+
+    if (present(perf_info)) then
+       call f_perf_aggregate(src=perf_info,dest=dict//performance_info_key)
+!!$       call dict_update(dest=dict,src=dict_info,reduce_op
+!!$       nullify(iter)
+!!$       do while(iterating(iter,on=dict_info))
+!!$          key=dict_key(iter)
+!!$          call set(dict//key,dict//key+iter)
+!!$       end do
+    end if
+
+  end subroutine close_routine_dict
+
+
+  subroutine close_routine(dict,dont_jump_up,perf_info)
+    use f_perfs
+    !use yaml_output !debug
+    implicit none
+    type(dictionary), pointer :: dict !inout dictionary, should be positioned to the parent routine
+    logical, intent(inout) :: dont_jump_up
+    type(f_perf), intent(in), optional :: perf_info !further information about performances
     !character(len=*), intent(in) :: name
     !local variables
     integer(kind=8) :: itime,jtime
@@ -769,35 +956,53 @@ contains
 !!$    call yaml_comment('We should jump up '//trim(yaml_toa(jump_up)),hfill='}')
     !end debug
 
-    !update the total time, if the starting point is present
-    if (has_key(dict,t0_time)) then
-       jtime=dict//t0_time
-       jtime=itime-jtime
-       rtime=dict//tot_time
-       call set(dict//tot_time,rtime+real(jtime,kind=8)*1.d-9,fmt='(1pe15.7)')
-       call dict_remove(dict,t0_time)
-    else
-       call f_err_throw('Key '//t0_time//&
-            ' not found, most likely f_release_routine has been called too many times',&
-            err_id=ERR_INVALID_MALLOC)
-    end if
+    call close_routine_dict(dict,itime,perf_info)
+!!$    !update the total time, if the starting point is present
+!!$    if (has_key(dict,t0_time)) then
+!!$       jtime=dict//t0_time
+!!$       jtime=itime-jtime
+!!$       rtime=dict//tot_time
+!!$       call set(dict//tot_time,rtime+real(jtime,kind=8)*1.d-9,fmt='(1pe15.7)')
+!!$       call dict_remove(dict,t0_time)
+!!$    else
+!!$       call f_err_throw('Key '//t0_time//&
+!!$            ' not found, most likely f_release_routine has been called too many times',&
+!!$            err_id=ERR_INVALID_MALLOC)
+!!$    end if
 
     !we should go up of three levels
-    if (jump_up) then
+    if (.not. dont_jump_up) then
        dict_tmp=>dict%parent
        if (f_err_raise(.not. associated(dict_tmp),'parent not associated(1)',&
          ERR_MALLOC_INTERNAL)) return
-!       call yaml_map('Present Key 1',dict_key(dict_tmp))
        dict_tmp=>dict_tmp%parent
        if (f_err_raise(.not. associated(dict_tmp),'parent not associated(2)',&
             ERR_MALLOC_INTERNAL)) return
-!       call yaml_map('Present Key 2',dict_key(dict_tmp))
        if (f_err_raise(.not. associated(dict_tmp%parent),'parent not associated(3)',&
             ERR_MALLOC_INTERNAL)) return
        dict_tmp=>dict_tmp%parent
        if (f_err_raise(.not. associated(dict_tmp%parent),'parent not associated(4)',&
             ERR_MALLOC_INTERNAL)) return
        dict=>dict_tmp%parent
+    end if
+
+    !we put here the ugly thing about the jump up for the codepoint
+    !last_opened_routine=trim(dict_key(dict_codepoint))!repeat(' ',namelen)
+    !the main program is opened until there is a subprograms keyword
+    if (.not. associated(dict%parent)) then
+       call f_err_throw('parent not associated(A)',ERR_MALLOC_INTERNAL)
+       return
+    end if
+    if (dict_key(dict%parent) == subprograms) then    
+       dict=>dict%parent
+       if (.not. associated(dict%parent)) then
+          call f_err_throw('parent not associated(B)',ERR_MALLOC_INTERNAL)
+          call f_timer_resume()
+          return
+       end if
+       dict=>dict%parent
+    else !back in the main program
+       dont_jump_up=.false.
     end if
 
   end subroutine close_routine
@@ -1107,20 +1312,24 @@ contains
     implicit none
     character(len=*), intent(in), optional :: filename  !< file to which the memory should be dumped
     !> If present, this dictionary is filled with the summary of the 
-    !! dumped dictionary. Its presence disables the normal dumping
-    type(dictionary), pointer, optional, intent(out) :: dict_summary 
+    !! dumped dictionary. Its presence disables the normal dumping. Should be initialized
+    type(dictionary), pointer, optional, intent(inout) :: dict_summary 
     !local variables
     integer, parameter :: iunit=97 !<if used switch to default
     integer :: iunt,iunit_def,istat
-    type(dictionary), pointer :: dict_compact
+    type(dictionary), pointer :: dict_compact,dict_tmp
 
     if (f_err_raise(ictrl == 0,&
          'ERROR (f_malloc_dump_status): the routine f_malloc_initialize has not been called',&
          ERR_MALLOC_INTERNAL)) return
     if (present(dict_summary)) then
-       call dict_init(dict_summary)
+       call dict_init(dict_tmp)
        call postreatment_of_calling_sequence(-1.d0,&
-            mems(ictrl)%dict_calling_sequence,dict_summary)
+            mems(ictrl)%dict_calling_sequence,dict_tmp)
+       call set(dict_summary//'Routines timing and number of calls',dict_tmp)      
+!!$       call dict_init(dict_summary)
+!!$       call postreatment_of_calling_sequence(-1.d0,&
+!!$            mems(ictrl)%dict_calling_sequence,dict_summary)
        !call yaml_map('Codepoint',trim(dict_key(mems(ictrl)%dict_codepoint)))
        return
     end if
@@ -1234,14 +1443,6 @@ contains
          'ERROR (f_subptr): expected lbound does not match, '//&
          trim(yaml_toa(get_lbnd(win)))//' vs. '//trim(yaml_toa(lb)),&
          ERR_MALLOC_INTERNAL)
-
-    if (f_loc(win(lb)) /= f_loc(ptr_addr)) &
-         !.or. &
-         !f_loc(win(ub)) /= f_loc(ptr_addr)+int(size,f_address)*kind(ptr_addr)) 
-         call f_err_throw(&
-         'ERROR (f_subptr): addresses do not match, the allocating system has performed a copy',&
-         ERR_MALLOC_INTERNAL)
-
   end function f_subptr_d0
 
   function f_subptr_i0(ptr_addr,region,size,from,lbound) result(win)
@@ -1276,14 +1477,6 @@ contains
          'ERROR (f_subptr): expected lbound does not match, '//&
          trim(yaml_toa(get_lbnd(win)))//' vs. '//trim(yaml_toa(lb)),&
          ERR_MALLOC_INTERNAL)
-
-    if (f_loc(win(lb)) /= f_loc(ptr_addr)) &
-         !.or. &
-         !f_loc(win(ub)) /= f_loc(ptr_addr)+int(size,f_address)*kind(ptr_addr)) 
-         call f_err_throw(&
-         'ERROR (f_subptr): addresses do not match, the allocating system has performed a copy',&
-         ERR_MALLOC_INTERNAL)
-
   end function f_subptr_i0
 
   function f_subptr_li0(ptr_addr,region,size,from,lbound) result(win)
@@ -1318,15 +1511,6 @@ contains
          'ERROR (f_subptr): expected lbound does not match, '//&
          trim(yaml_toa(get_lbnd(win)))//' vs. '//trim(yaml_toa(lb)),&
          ERR_MALLOC_INTERNAL)
-
-    if (f_loc(win(lb)) /= f_loc(ptr_addr)) then
-       !.or. &
-       !f_loc(win(ub)) /= f_loc(ptr_addr)+int(size,f_address)*kind(ptr_addr)) 
-       !print *,f_loc(win(lb)),f_loc(ptr_addr),shape(win),from,size
-       call f_err_throw(&
-            'ERROR (f_subptr): addresses do not match, the allocating system has performed a copy',&
-            ERR_MALLOC_INTERNAL)
-    end if
 
   end function f_subptr_li0
 
@@ -1461,6 +1645,48 @@ contains
     get_lbnd=lbound(win,1)
   end function get_lbnd_li0
 
+  pure function get_lbnd2_i0(win) result(get_lbnd)
+    implicit none
+    integer(f_integer), dimension(:,:), pointer :: win
+    integer, dimension(2) :: get_lbnd
+    get_lbnd=lbound(win)
+  end function get_lbnd2_i0
+
+
+  !>points toward a region of a given pointer
+  function f_subptr2_i1(ptr,shape,from,lbound) result(win)
+    implicit none
+    integer(f_integer), dimension(:), target :: ptr
+    integer(f_integer), dimension(:,:), pointer :: win
+    integer, dimension(2), intent(in) :: shape
+    integer, intent(in), optional :: from
+    integer, dimension(2), intent(in), optional :: lbound !<in the case of different bounds for the pointer
+    !local variables
+    integer :: size
+    integer(f_kind), dimension(2) :: lbs,ubs
+    integer, dimension(:), pointer :: ptr2
+
+    nullify(win)
+    lbs=1
+    if (present(lbound)) lbs=lbound
+    ubs=lbs+shape-1
+    size=int(product(shape))
+    ptr2 => f_subptr(ptr,from=from,size=size)
+    call remap_bounds_i2(lbs,ubs,ptr2,win)
+
+    !then perform the check for the subpointer region
+    if (any(get_lbnd2_i0(win) /= lbs)) call f_err_throw(&
+         'ERROR (f_subptr2): expected shape does not match, '//&
+         trim(yaml_toa(get_lbnd2_i0(win)))//' vs. '//trim(yaml_toa(lbs)),&
+         ERR_MALLOC_INTERNAL)
+
+    if (f_loc(win(lbs(1),lbs(2))) /= f_loc(ptr(from)) .or. &
+         f_loc(win(ubs(1),ubs(2))) /= f_loc(ptr(from+size-1))) call f_err_throw(&
+         'ERROR (f_subptr2): addresses do not match, the allocating system has performed a copy',&
+         ERR_MALLOC_INTERNAL)
+
+  end function f_subptr2_i1
+
 
   !> This routine identifies for each of the routines the most time consuming parts and print it in the logfile
   recursive subroutine postreatment_of_calling_sequence(base_time,&
@@ -1468,8 +1694,8 @@ contains
     implicit none
     !> Time on which percentages has to be given
     double precision, intent(in) :: base_time !< needs to be explained
-    type(dictionary), pointer :: dict_pt      !< needs to be explained
-    type(dictionary), pointer :: dict_cs      !< needs to be explained
+    type(dictionary), pointer :: dict_pt      !< postreated dictionary
+    type(dictionary), pointer :: dict_cs      !< calling sequence dictionary
     !local variables
     logical :: found
     integer :: ikey,jkey,nkey,icalls,ikeystar
@@ -1521,27 +1747,26 @@ contains
     call sort_positions(nkey,time,ipiv)
     do ikey=1,nkey
        jkey=ipiv(ikey)
-       icalls=dict_cs//trim(keys(jkey))//no_of_calls
        !add to the dictionary the information associated to this routine
        if (jkey == ikeystar) then
           extra='*'
        else
           extra=' '
        end if
-
        if (base_time > 0.d0) then
-!!$          call f_strcpy(src=trim(yaml_toa(time(jkey)/base_time*100.d0,fmt='(f6.2)'))//'%'//extra,&
-!!$               dest=percent)
           percent(1:len(percent))=&
                trim(yaml_toa(time(jkey)/base_time*100.d0,fmt='(f6.2)'))//'%'//extra
        else
-!!$          call f_strcpy(src='~'//extra,dest=percent)
           percent(1:len(percent))='~'//extra
        end if
-       call add(dict_pt,dict_new(trim(keys(jkey)) .is. &
-            list_new(.item. yaml_toa(time(jkey),fmt='(1pg12.3)'),&
-            .item. yaml_toa(icalls), .item. percent)&
-            ))
+
+       call aggregate_routine_dict(dict_cs//trim(keys(jkey)),trim(keys(jkey)),time(jkey),percent,&
+            dict_pt)
+
+!!$       call add(dict_pt,dict_new(trim(keys(jkey)) .is. &
+!!$            list_new(.item. yaml_toa(time(jkey),fmt='(1pg12.3)'),&
+!!$            .item. yaml_toa(icalls), .item. percent)&
+!!$            ))
     end do
     if (f_err_check()) then
        deallocate(ipiv,keys,time)

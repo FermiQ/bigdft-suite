@@ -368,13 +368,14 @@ end subroutine glr_set_wave_descriptors
 
 subroutine glr_set_bounds(lr)
   use locregs
-  use bounds, only: locreg_bounds
+  !use bounds, only: locreg_bounds
   implicit none
   type(locreg_descriptors), intent(inout) :: lr
   
-  call locreg_bounds(lr%d%n1,lr%d%n2,lr%d%n3, &
-       & lr%d%nfl1,lr%d%nfu1,lr%d%nfl2,lr%d%nfu2,lr%d%nfl3,lr%d%nfu3, &
-       & lr%wfd,lr%bounds)
+  call ensure_locreg_bounds(lr)
+  !call locreg_bounds(lr%d%n1,lr%d%n2,lr%d%n3, &
+  !     & lr%d%nfl1,lr%d%nfu1,lr%d%nfl2,lr%d%nfu2,lr%d%nfl3,lr%d%nfu3, &
+  !     & lr%wfd,lr%bounds)
 END SUBROUTINE glr_set_bounds
 
 
@@ -460,30 +461,30 @@ subroutine lzd_empty(lzd)
 END SUBROUTINE lzd_empty
 
 
-subroutine lzd_set_nlr(lzd, nlr, geocode)
-  use locregs
-  use module_types, only: local_zone_descriptors
-  implicit none
-  type(local_zone_descriptors), intent(inout) :: lzd
-  integer, intent(in) :: nlr
-  character, intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
-
-  integer :: i
-  
-  if (lzd%nlr > 0) then
-     do i = 1, lzd%nlr, 1
-        call deallocate_locreg_descriptors(lzd%Llr(i))
-     end do
-     deallocate(lzd%llr)
-  end if
-
-  lzd%nlr = nlr
-  allocate(lzd%Llr(Lzd%nlr))
-  do i = 1, nlr, 1
-     call nullify_locreg_descriptors(lzd%Llr(i))
-     lzd%Llr(i)%geocode = geocode
-  end do
-END SUBROUTINE lzd_set_nlr
+!!$subroutine lzd_set_nlr(lzd, nlr, geocode)
+!!$  use locregs
+!!$  use module_types, only: local_zone_descriptors
+!!$  implicit none
+!!$  type(local_zone_descriptors), intent(inout) :: lzd
+!!$  integer, intent(in) :: nlr
+!!$  character, intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+!!$
+!!$  integer :: i
+!!$  
+!!$  if (lzd%nlr > 0) then
+!!$     do i = 1, lzd%nlr, 1
+!!$        call deallocate_locreg_descriptors(lzd%Llr(i))
+!!$     end do
+!!$     deallocate(lzd%llr)
+!!$  end if
+!!$
+!!$  lzd%nlr = nlr
+!!$  allocate(lzd%Llr(Lzd%nlr))
+!!$  do i = 1, nlr, 1
+!!$     call nullify_locreg_descriptors(lzd%Llr(i))
+!!$     lzd%Llr(i)%geocode = geocode
+!!$  end do
+!!$END SUBROUTINE lzd_set_nlr
 
 
 subroutine lzd_get_hgrids(Lzd, hgrids)
@@ -1235,6 +1236,7 @@ subroutine wf_iorbp_to_psi(psir, psi, lr)
   use module_base, only: wp,f_zero
   use locregs
   use locreg_operations
+  use box, only: cell_geocode
   implicit none
   type(locreg_descriptors), intent(in) :: lr
   real(wp), dimension(lr%wfd%nvctr_c+7*lr%wfd%nvctr_f), intent(in) :: psi
@@ -1246,7 +1248,8 @@ subroutine wf_iorbp_to_psi(psir, psi, lr)
   call initialize_work_arrays_sumrho(lr,.true.,w)
 
   !initialisation
-  if (lr%geocode == 'F') then
+  !if (lr%geocode == 'F') then
+  if (cell_geocode(lr%mesh_coarse) == 'F') then
      call f_zero(psir)
   end if
 
@@ -1494,7 +1497,7 @@ subroutine optloop_emit_iter(optloop, id, energs, iproc, nproc)
         ! After handling the signal, iproc 0 broadcasts to other
         ! proc to continue (jproc == -1).
         message = SIGNAL_DONE
-        call mpibcast(message,1,comm= bigdft_mpi%mpi_comm)
+        call fmpi_bcast(message,1,comm= bigdft_mpi%mpi_comm)
      end if
   else
      message = SIGNAL_WAIT
@@ -1502,7 +1505,7 @@ subroutine optloop_emit_iter(optloop, id, energs, iproc, nproc)
         if (message == SIGNAL_DONE) then
            exit
         end if
-        call mpibcast(message, 1,comm=bigdft_mpi%mpi_comm)
+        call fmpi_bcast(message, 1,comm=bigdft_mpi%mpi_comm)
         
         if (message >= 0) then
            ! sync values from proc 0.
@@ -1540,8 +1543,8 @@ subroutine optloop_bcast(optloop, iproc)
      !zero=0
      !call MPI_BCAST(zero, 1, MPI_INTEGER, 0, bigdft_mpi%mpi_comm, ierr)
   end if
-  call mpibcast(iData,comm=bigdft_mpi%mpi_comm)
-  call mpibcast(rData,comm=bigdft_mpi%mpi_comm)
+  call fmpi_bcast(iData,comm=bigdft_mpi%mpi_comm)
+  call fmpi_bcast(rData,comm=bigdft_mpi%mpi_comm)
   if (iproc /= 0) then
      call set_scf_mode(idata(1),optloop%scf)
      optloop%itrpmax = iData(2)

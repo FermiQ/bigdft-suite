@@ -12,6 +12,7 @@
   character(len=info_length) :: val
   type(dictionary), pointer :: info
   logical :: c_allocation
+  integer(f_kind) :: alignment
   integer :: padding
   ! integer(kind=8) :: ilsize
 

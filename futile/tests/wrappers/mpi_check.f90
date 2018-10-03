@@ -15,7 +15,9 @@ program mpi_check
   use yaml_strings
   use f_utils
   use f_enums
+  use test_mpi_wrappers
   implicit none
+
   logical :: failed
   integer :: ntot,ierr,i,iproc,nproc,nspin,nother
   integer, dimension(:,:), allocatable  :: isizes
@@ -63,9 +65,15 @@ program mpi_check
   
   deallocate(buffer,copybuffer,isizes)
 
+  call test_mpi_alltoallv(iproc, nproc,fmpi_comm(),ntot,1)
+
   !wait all processes before finalisation
-  call MPI_BARRIER(MPI_COMM_WORLD,ierr)
-  if (iproc==0) call yaml_map('Reduce Test succeeded',.true.)
+  call fmpi_barrier()
+
+  !verify the mpiallgather
+  call test_mpi_allgather(ntot,fmpi_comm())
+
+  if (iproc==0) call yaml_map('MPI Test succeeded',.true.)
   call MPI_FINALIZE(ierr)
 
 contains
