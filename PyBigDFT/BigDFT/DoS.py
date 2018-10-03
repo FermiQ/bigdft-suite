@@ -327,7 +327,7 @@ class DoS():
     def _set_sdos_sliders(self,cmin,cmax):
         import matplotlib.pyplot as plt
         from matplotlib.widgets import Slider#, Button, RadioButtons
-        from futile.Utils import VertSlider
+        from futile.Figures import VertSlider
         if hasattr(self,'ssdos'):
             self.ssdos[0].ax.clear()
             self.ssdos[0].__init__(self.ssdos[0].ax, 'SDos', cmin, cmax, valinit=cmin)
