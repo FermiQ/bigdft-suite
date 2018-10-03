@@ -37,7 +37,6 @@ using binding (GIBinding) or using system call (SystemCalculator).
 
 import os
 import shutil
-import yaml
 import copy
 from futile.Utils import write as safe_print
 import BigDFT.Logfiles as Lf
@@ -279,6 +278,7 @@ class SystemCalculator(Runner):
         #check if the debug file will be updated (case of erroneous run)
         timedbg=get_debugfile_date()
         #Creating the yaml input file
+        import yaml
         open(input_file,"w").write(yaml.dump(local_input,default_flow_style=None))
         if verbose: safe_print('Creating the yaml input file "%s"' % input_file)
         #Check if it is a dry run

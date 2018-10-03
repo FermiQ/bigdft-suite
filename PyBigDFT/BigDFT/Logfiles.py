@@ -5,9 +5,6 @@ like the energy, the eigenvalues and so on.
 """
 
 #This module needs: os, yaml, futile, matplotlib, numpy, BZ, DoS
-import os
-import yaml
-from futile.Utils import write
 
 EVAL = "eval"
 SETUP = "let"
