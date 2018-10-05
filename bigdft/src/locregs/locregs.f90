@@ -275,7 +275,8 @@ contains
     integer, dimension(lr_full_size), intent(out) :: dest
 
     call locreg_encode(lr,lr_size,dest)
-    call f_memcpy(n=lr_full_size-lr_size,src=lr%wfd%buffer,dest=dest(lr_size+1))
+    if (lr_full_size-lr_size > 0) &
+         & call f_memcpy(n=lr_full_size-lr_size,src=lr%wfd%buffer,dest=dest(lr_size+1))
 
   end subroutine locreg_full_encode
 
@@ -496,27 +497,31 @@ contains
        lr_storage%lr_full_sizes(LR_,iilr)=ilr
        encoding_buffer_size=encoding_buffer_size+lr_full_size
     end do
-    lr_sizes=f_malloc([2,iilr],id='lr_sizes')
-    if (iilr > 0) &
-         & call f_memcpy(n=2*iilr,src=lr_storage%lr_full_sizes,dest=lr_sizes(1,1))
 
-    call fmpi_allgather(sendbuf=lr_sizes,recvbuf=lr_storage%lr_full_sizes,&
-         comm=bigdft_mpi%mpi_comm,win=win_counts)
+    if (bigdft_mpi%nproc > 1) then
+       lr_sizes=f_malloc([2,iilr],id='lr_sizes')
+       if (iilr > 0) &
+            & call f_memcpy(n=2*iilr,src=lr_storage%lr_full_sizes,dest=lr_sizes(1,1))
+       call fmpi_allgather(sendbuf=lr_sizes,recvbuf=lr_storage%lr_full_sizes,&
+            comm=bigdft_mpi%mpi_comm,win=win_counts)
+    end if
 
     encoding_buffer=f_malloc(encoding_buffer_size,id='encoding_buffer')
     !redo the loop to fill the encoding buffer
     encoding_buffer_idx=1
-    iilr=0
     do ilr=1,nlr
        if ( .not. lr_is_stored(lr_storage,ilr)) cycle
-       iilr=iilr+1
-       lr_full_size=lr_sizes(SIZE_,iilr)
-       call locreg_full_encode(lr_storage%lrs_ptr(ilr)%lr,lr_storage%lr_size,lr_full_size,encoding_buffer(encoding_buffer_idx))
+       lr_full_size=lr_storage%lr_full_sizes(SIZE_,ilr)
+       call locreg_full_encode(lr_storage%lrs_ptr(ilr)%lr,lr_storage%lr_size, &
+            & lr_full_size,encoding_buffer(encoding_buffer_idx))
        encoding_buffer_idx=encoding_buffer_idx+lr_full_size
     end do
 
     !close the previous communication window
-    call fmpi_win_shut(win_counts)
+    if (bigdft_mpi%nproc > 1) then
+       call fmpi_win_shut(win_counts)
+       call f_free(lr_sizes)
+    end if
 
     !allocate the full sized array
     full_encoding_buffer_size=0
@@ -526,10 +531,13 @@ contains
     lr_storage%encode_buffer=f_malloc_ptr(full_encoding_buffer_size,id='lr_storage%encode_buffer')
 
     !gather the array in the full encoding buffer
-    call fmpi_allgather(sendbuf=encoding_buffer,recvbuf=lr_storage%encode_buffer,comm=bigdft_mpi%mpi_comm) 
+    if (bigdft_mpi%nproc > 1) then
+       call fmpi_allgather(sendbuf=encoding_buffer,recvbuf=lr_storage%encode_buffer,comm=bigdft_mpi%mpi_comm)
+    else
+       call f_memcpy(n = encoding_buffer_size, src = encoding_buffer, dest = lr_storage%encode_buffer(1))
+    end if
 
     call f_free(encoding_buffer)
-    call f_free(lr_sizes)
 
   end subroutine gather_locreg_storage
 
