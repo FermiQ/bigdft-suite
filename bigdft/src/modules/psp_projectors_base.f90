@@ -586,8 +586,8 @@ contains
        else if (iter%method == PROJECTION_RS_COLLOCATION) then
           call paw_to_wavelets_collocation(iter%parent%pawrad, &
                & iter%parent%pawtab%tproj(1, iter%riter), &
-               & ider, iter%lr, iter%parent%rxyz, iter%l, iter%cplx, &
-               & iter%proj, iter%proj_tmp, iter%wcol)
+               & ider, iter%lr, iter%parent%rxyz, iter%parent%radius, &
+               & iter%l, iter%cplx, iter%proj, iter%proj_tmp, iter%wcol)
        else if (iter%method == PROJECTION_MP_COLLOCATION) then
           call f_err_throw("Multipole preserving projection is not implemented for PAW.", &
                & err_name = 'BIGDFT_RUNTIME_ERROR')
@@ -801,7 +801,7 @@ contains
   end subroutine rfunc_basis_from_paw
 
   subroutine paw_to_wavelets_collocation(pawrad, tproj, &
-       & ider, lr, rxyz, l, ncplx_p, psi, projector_real, w, mp_order)
+       & ider, lr, rxyz, radius, l, ncplx_p, psi, projector_real, w, mp_order)
     use box
     use m_paw_numeric
     use f_utils, only: f_zero
@@ -811,7 +811,8 @@ contains
     real(dp), dimension(pawrad%mesh_size), intent(in) :: tproj
     integer, intent(in) :: ider !<direction in which to perform the derivative (0 if any)
     type(locreg_descriptors), intent(in) :: lr !<projector descriptors for wavelets representation
-    real(gp), dimension(3), intent(in) :: rxyz !<center of the Gaussian
+    real(gp), dimension(3), intent(in) :: rxyz !<center of the projector
+    real(gp), intent(in) :: radius !<size of the projector
     integer, intent(in) :: l !< angular momentum
     integer, intent(in) :: ncplx_p !< 2 if the projector is supposed to be complex, 1 otherwise
     real(wp), dimension(lr%wfd%nvctr_c+7*lr%wfd%nvctr_f,ncplx_p, 2 * l - 1), intent(out) :: psi
@@ -826,6 +827,8 @@ contains
     type(ylm_coefficients) :: ylm
     real(dp), dimension(1) :: raux
     real(gp), dimension(:), allocatable :: d2
+    integer, dimension(2,3) :: nbox
+    double precision, parameter :: eps_mach=1.d-12
     !$ integer, external :: omp_get_thread_num, omp_get_num_threads
 
     call f_zero(psi)
@@ -841,7 +844,13 @@ contains
 
     do while(ylm_coefficients_next_m(ylm))
        call f_zero(projector_real)
-       boxit = lr%bit
+       if (all(lr%mesh%bc == 0)) then
+          boxit = lr%bit
+       else
+          nbox = box_nbox_from_cutoff(lr%mesh, rxyz, radius + &
+               & maxval(lr%mesh%hgrids) * eps_mach)
+          boxit = box_iter(lr%mesh, nbox)
+       end if
        ithread=0
        nthread=1
        !$omp parallel default(shared)&
@@ -859,9 +868,7 @@ contains
        end do
        call box_iter_merge(boxit)
        !$omp end parallel
-       write(*,*) l, ylm%m, sum(projector_real*projector_real)
        call isf_to_daub(lr, w, projector_real, psi(1,1, ylm%m))
-       write(*,*) l, ylm%m, sum(psi(:,:, ylm%m)*psi(:,:, ylm%m))
     end do
     call f_free(d2)
   end subroutine paw_to_wavelets_collocation

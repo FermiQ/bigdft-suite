@@ -213,9 +213,10 @@ contains
     integer :: ns1t,ns2t,ns3t,n1t,n2t,n3t
     integer, dimension(:,:), allocatable :: keygc, keygf
     integer, dimension(:), allocatable :: keyvc, keyvf
-    integer, dimension(2,3) :: nbox!, nboxf
+    integer, dimension(2,3) :: nbox, nboxf
     double precision, parameter :: eps_mach=1.d-12
     type(cell) :: fmesh
+    character(len = 1) :: geocode
 
     call nullify_locreg_descriptors(plr)
     call atomic_projector_iter_new(iter, atproj)
@@ -257,19 +258,31 @@ contains
        fmesh%bc = 0 ! Free in every directions
        nbox = box_nbox_from_cutoff(fmesh, atproj%rxyz, atproj%radius + &
             & maxval(gmesh%hgrids) * eps_mach)
-!!$       nboxf = box_nbox_from_cutoff(fmesh, atproj%rxyz, atproj%fine_radius + &
-!!$            & maxval(gmesh%hgrids) * eps_mach)
-       call init_lr(plr, 'F', 0.5_gp * fmesh%hgrids, &
+       geocode = 'F'
+       if (any((nbox(2, :) - nbox(1, :)) > gmesh%ndims(:) .and. gmesh%bc(:) == 1)) then
+          ! Projector does not fit inside the global mesh.
+          geocode = cell_geocode(gmesh)
+          nbox(1, :) = 0
+          nbox(2, :) = gmesh%ndims(:) - 1
+          nboxf(1, 1) = nl1
+          nboxf(1, 2) = nl2
+          nboxf(1, 3) = nl3
+          nboxf(2, 1) = nu1
+          nboxf(2, 2) = nu2
+          nboxf(2, 3) = nu3
+       else
+          nboxf = box_nbox_from_cutoff(fmesh, atproj%rxyz, atproj%fine_radius + &
+               & maxval(gmesh%hgrids) * eps_mach)
+       end if
+       call init_lr(plr, geocode, 0.5_gp * gmesh%hgrids, &
             & nbox(2,1), nbox(2,2), nbox(2,3), &
-            & nbox(1,1), nbox(1,2), nbox(1,3), nbox(2,1), nbox(2,2), nbox(2,3), &
-!!$            & nboxf(1,1), nboxf(1,2), nboxf(1,3), nboxf(2,1), nboxf(2,2), nboxf(2,3), &
+            & nboxf(1,1), nboxf(1,2), nboxf(1,3), nboxf(2,1), nboxf(2,2), nboxf(2,3), &
             & .false., nbox(1,1), nbox(1,2), nbox(1,3), cell_geocode(gmesh))
-       
 
        !also the fact of allocating pointers with size zero has to be discussed
        !for the moments the bounds are not needed for projectors
        if (full) then
-          call allocate_wfd(plr%wfd, global=.false.)
+          call allocate_wfd(plr%wfd, global = .false.)
           call f_memcpy(n = 2 * plr%wfd%nseg_c, src = keygc, dest = plr%wfd%keyglob(1,1))
           call transform_keyglob_to_keygloc(gmesh, plr, plr%wfd%nseg_c, &
                & keygc, plr%wfd%keygloc)

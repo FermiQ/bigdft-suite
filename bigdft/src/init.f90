@@ -359,8 +359,10 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,orbs,&
   nel_tot  =0
   call allocate_daubechies_projectors_ptr(nl%projs, nl%nregions)
   do ireg = 1, nl%nregions
-     call extract_lr(lr_storage, ireg, nl%projs(ireg)%region%plr,&
-          bounds = init_projectors_completely .and. .not. dry_run)
+     call extract_lr(lr_storage, ireg, nl%projs(ireg)%region%plr, &
+          bounds = init_projectors_completely .and. .not. dry_run &
+          & .and. (nl%method /= PROJECTION_1D_SEPARABLE .or. &
+          & nl%pbasis(ireg)%kind /= PROJ_DESCRIPTION_GAUSSIAN))
 
      call atomic_projector_iter_new(iter, nl%pbasis(ireg))
      nl%projs(ireg)%mproj = iter%nproj

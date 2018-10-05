@@ -1513,34 +1513,40 @@ subroutine transform_keyglob_to_keygloc(gmesh,Llr,nseg,keyglob,keygloc)
   integer, dimension(2,nseg),intent(in) :: keyglob
   integer, dimension(2,nseg),intent(out) :: keygloc
   !local variables
-  integer :: i, j, j0, ii, iz, iy, ix, n1p1, np
+  integer :: i, j, j0, ii, iz, iy, ix, n1p1, np, span
 
   call f_routine(id='transform_keyglob_to_keygloc')
 
-  n1p1=gmesh%ndims(1)
-  np=n1p1*gmesh%ndims(2)
-  do j = 1, nseg
-     ! Writing keyglob in cartesian coordinates
-     j0 = keyglob(1,j)
-     ii = j0-1
-     iz = ii/np
-     ii = ii-iz*np
-     iy = ii/n1p1
-     ix = ii-iy*n1p1
+  if (all(Llr%mesh%bc == 0)) then
+     n1p1=gmesh%ndims(1)
+     np=n1p1*gmesh%ndims(2)
+     do j = 1, nseg
+        ! Writing keyglob in cartesian coordinates
+        j0 = keyglob(1,j)
+        span = keyglob(2, j) - keyglob(1, j)
+        ii = j0-1
+        iz = ii/np
+        ii = ii-iz*np
+        iy = ii/n1p1
+        ix = ii-iy*n1p1
 
-     ! Apply periodicity
-     call withPer(ix, Llr%ns1, Llr%d%n1, gmesh%ndims(1), gmesh%bc(1) == 1)
-     call withPer(iy, Llr%ns2, Llr%d%n2, gmesh%ndims(2), gmesh%bc(2) == 1)
-     call withPer(iz, Llr%ns3, Llr%d%n3, gmesh%ndims(3), gmesh%bc(3) == 1)
-     ! Checking consistency
-     if(iz < Llr%ns3 .or. iy < Llr%ns2 .or. ix < Llr%ns1) &
-          & stop 'transform_keyglob_to_keygloc : minimum overflow'
-     if(iz > Llr%ns3+Llr%d%n3 .or. iy > Llr%ns2+Llr%d%n2 .or. ix > Llr%ns1+Llr%d%n1) &
-          & stop 'transform_keyglob_to_keygloc : maximum overflow'
+        ! Apply periodicity
+        call withPer(ix, Llr%ns1, Llr%d%n1, gmesh%ndims(1), gmesh%bc(1) == 1)
+        call withPer(iy, Llr%ns2, Llr%d%n2, gmesh%ndims(2), gmesh%bc(2) == 1)
+        call withPer(iz, Llr%ns3, Llr%d%n3, gmesh%ndims(3), gmesh%bc(3) == 1)
+        ! Checking consistency
+        if(iz < Llr%ns3 .or. iy < Llr%ns2 .or. ix < Llr%ns1) &
+             & stop 'transform_keyglob_to_keygloc : minimum overflow'
+        if(iz > Llr%ns3+Llr%d%n3 .or. iy > Llr%ns2+Llr%d%n2 .or. ix > Llr%ns1+Llr%d%n1 .or. ix + span > Llr%ns1+Llr%d%n1) &
+             & stop 'transform_keyglob_to_keygloc : maximum overflow'
 
-     keygloc(1,j) = (iz-Llr%ns3)*(Llr%d%n1+1)*(Llr%d%n2+1) + (iy-Llr%ns2)*(Llr%d%n1+1) + (ix-Llr%ns1) + 1
-     keygloc(2,j) = keygloc(1,j) + (keyglob(2, j) - keyglob(1, j))
-  end do
+        keygloc(1,j) = (iz-Llr%ns3)*(Llr%d%n1+1)*(Llr%d%n2+1) + (iy-Llr%ns2)*(Llr%d%n1+1) + (ix-Llr%ns1) + 1
+!!$        if (ix + span > Llr%ns1 + Llr%d%n1) span = Llr%ns1 + Llr%d%n1 - ix
+        keygloc(2,j) = keygloc(1,j) + span
+     end do
+  else
+     call f_memcpy(n = nseg * 2, src = keyglob, dest = keygloc(1,1))
+  end if
 
   call f_release_routine()
 
