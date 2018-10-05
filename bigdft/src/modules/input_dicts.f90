@@ -1555,9 +1555,9 @@ contains
           !run_id = " "
        end if
     end if
-    if (present(outdir_id) .and. has_key(run, OUTDIR)) outdir_id = run // OUTDIR
-    if (present(log_to_disk) .and. has_key(run, LOGFILE)) log_to_disk = run // LOGFILE
-    if (present(run_from_files) .and. has_key(run, USE_FILES)) run_from_files = run // USE_FILES
+    if (present(outdir_id)) outdir_id = run .get. OUTDIR
+    if (present(log_to_disk)) log_to_disk = run .get. LOGFILE
+    if (present(run_from_files)) run_from_files = run .get. USE_FILES
     if (present(skip_if_logfile_exists)) skip_if_logfile_exists = run .get. SKIP_IF_LOGFILE
 
     if (present(minimal_file)) then
@@ -1743,6 +1743,7 @@ contains
 
     ! Test if logging on disk is required.
     log_to_disk = (bigdft_mpi%ngroup > 1)
+    skip_tmp = .false.
     call dict_get_run_properties(dict, log_to_disk = log_to_disk,skip_if_logfile_exists=skip_tmp) !< May overwrite with user choice
 
     ! Save modified infos in dict.
