@@ -1,24 +1,18 @@
 import yaml
 from Utils import write
     
-def kw_pop(*args,**kwargs):
-    """Treatment of kwargs. Eliminate from kwargs the tuple in args."""
-    arg=kwargs.copy()
-    key,default=args
-    if key in arg:
-        return arg,arg.pop(key)
-    else:
-        return arg,default
-
 #function which removes from a set of lines the yaml_fields contained in the to_remove list
 def clean_logfile(logfile_lines,to_remove):
-  """
+  """Remove yaml fields from a list of lines.
+
   Removes from a set of lines the yaml_fields contained in the to_remove list.
 
-  :param list logfile_lines: list of the lines of the logfile
-  :param list to_remove: list of lines to removed
-  :return: a list of lines (str)
-  :rtype: list of str
+  Arguments:
+      logfile_lines (list): list of the lines of the logfile. Generated from a file by e.g. :py:meth:`~io.IOBase.readlines`.
+      to_remove (list): list of keys to remove from logfile_lines
+
+  Returns:
+      list of lines where the removed keys have as values the `"<folded>"` string
   """
   line_rev=logfile_lines #list of the lines of the logfile
   #loop in the reversed from (such as to parse by blocks)
@@ -108,65 +102,102 @@ def clean_logfile(logfile_lines,to_remove):
          # mark that the key has been removed
          if (remove_it not in removed):
            removed.append(remove_it)
-           print 'removed: ',remove_it
+           write('removed: ',remove_it)
   # then print out the line 
     cleaned_logfile.append(to_print)
 
   # check that everything has been removed, at least once
   if (set(removed) != set(to_remove)):
-    print 'WARNING, not all the requested items have been removed!'
-    print 'To_remove : ',to_remove
-    print 'removed   : ',removed
-    print 'Difference: ',list(set(to_remove) - set(removed) )
+    write('WARNING, not all the requested items have been removed!')
+    write('To_remove : ',to_remove)
+    write('removed   : ',removed)
+    write('Difference: ',list(set(to_remove) - set(removed) ))
   return cleaned_logfile
 
 
 def load(file=None,stream=None,doc_lists=True,safe_mode=False):
-    """
-    Return a list of loaded logfiles from files, which is a list
-    of paths leading to logfiles.
+    """Encapsulate the loading of yaml documents.
     
-    :param str file: the yaml file containing the stream to be loaded
-    :param str stream: the stream to load (a chain of character of yaml documents)
-    - doc_lists: if True ensures that the results is always in a form 
-             of lists of documents, event in the case of a single doc
-             When False, the return type is either a dictionary or a generator according
-             to the specifications of yaml.load and yaml.load_all respectively
-    : param bool safe_mode: When true, in the case of multiple documents 
-             in the stream, it loads the document one after another. 
-             This is useful to avoid losing of all the document list 
-             in the case when one of the document is 
-             not yaml compliant. Works only when the separation of the 
-             documents is indicated by the usual syntax "---\n" 
-             (i.e. no yaml tags)
-                 
+    Provides a dictionary, or a list of dictionaries, which 
+    represents the structure of the stream to be loaded.
+    It also wraps the yaml loader to perform a optimized parsing when the
+    `minloader` of PyYaml 3.13 is available.
+    This wrapper ensures to extract from the stream the maximum possible information
+    by choosing the best loader available.
+
+    Arguments:
+        file (str): path of the yaml-compliant file containing the stream to be loaded
+
+        stream (str): the stream to load, overrides the ``file`` argument if present
+
+        doc_lists (bool): if True, ensures that the results is always in a form 
+           of lists of documents, even in the case of a single doc
+           When False, the return type is either a dictionary or a generator according
+           to the specifications of yaml.load and yaml.load_all respectively.
+
+        safe_mode (bool): When true, in the case of multiple documents 
+           in the stream, it loads the document one after another. 
+           This is useful to avoid losing of all the document list 
+           in the case when one of the document is 
+           not yaml compliant, like in the case of a broken logfile. 
+           It may works only when the separation of the 
+           documents is indicated by the usual syntax ``"---\\n"`` 
+           (i.e. no yaml tags between documents)
+
+    Returns:
+        * a list of dictionaries, if ``doc_lists`` is set to ``True``;
+        * a dictionary, if the stream or the file contains a single yaml document;
+        * a generator if the parsed stream is made of multiple documents *and* ``safe_mode`` = ``False``;
+        * a list of dictionaries if the stream is made of multiple documents and ``safe_mode`` is ``True``.
     """
     #Detect None otherwise a doc == '' gives an error
     strm=stream if stream != None else open(file,'r').read()
+    #choose the loader
     try:
-        ldr=yaml.MinLoader #seems only to work with the strings
+        ldr=yaml.MinLoader
     except:
-        ldr=yaml.CLoader
+        try:
+            ldr=yaml.CLoader
+        except:
+            ldr=yaml.Loader
+
     #load the documents
     ld=[]
     try:
         ld=yaml.load(strm,Loader=ldr)
         if doc_lists: ld=[ld]
-    except Exception,e:
+    except Exception as e:
         if safe_mode:
             ld = []
             documents = [v for v in strm.split('---\n') if len(v) > 0]
             for i,raw_doc in enumerate(documents):
                 try:
                     ld.append(yaml.load(raw_doc,Loader=ldr))
-                except Exception,f:
-                    print 'Document',i,'of stream NOT loaded, error:',f
+                except Exception as f:
+                    write('Document',i,'of stream NOT loaded, error:',f)
         else:
             ld=yaml.load_all(strm,Loader=ldr)
             if doc_lists: ld=[l for l in ld]
     return ld
 
-def dump(data,filename=None,raw=False,tar=None):
+def dump(data,filename=None,raw=False,tar=False):
+    """Encapsulate the dumping of dictionaries.
+    
+    This function is useful to dump a dictionary in yaml or json-compliant form.
+    This may be used as an alternative to the usual :py:meth:`yaml.dump <https://pyyaml.org/wiki/PyYAMLDocumentation>` method,
+    especially when the dictionary to be dump'ed is heavy.
+    No particular attention is paid in human readability of the output.
+    The dumped information can then be parsed either from json or yaml interpreter.
+
+    Arguments:
+       data (dict,list): the information to be dumped
+       filename (str): path of the file in which the information will be stored.
+          If absent, the information is written on :py:func:`sys.stdout`.
+       raw (bool): if ``True`` the output is in json-style, otherwise it is pre-processed by :py:meth:yaml.dump, 
+          but ``None`` is passed to ``default_flow_style``.
+       tar (bool): if ``True`` the filename is assumed to be a compressed tarfile. 
+          The :py:mod:`tarfile` module is used to create and append information.
+    """
     todump=str(data) if raw else yaml.dump(data,default_flow_style=None)
     if filename:
         if tar:
@@ -208,6 +239,7 @@ class YamlDB(dict):
     """
     def __init__(self,*args,**kwargs): #stream=None,singledoc=False):
         """Extract the database information"""
+        from Utils import kw_pop
         newkw,self.singledoc=kw_pop('singledoc',False,**kwargs)
         newkw,self.file=kw_pop('file',None,**newkw)
         newkw,self.stream=kw_pop('stream',None,**newkw)
@@ -269,13 +301,13 @@ class YamlDB(dict):
         #first find the stream of the document start
         startpos=0
         import sys
-        print 'Loading...'
+        write('Loading...')
         while startpos < len(stream):
             try:
                 startpos+=self._event_finder(stream[startpos:],yaml.events.DocumentEndEvent)
             except:
                 startpos=len(stream)
-            print int((100.0*startpos)/len(stream)),'%'
+            write(int((100.0*startpos)/len(stream)),'%')
             yield startpos
     def _load(self):
         #clean the logfile if needed
@@ -304,7 +336,7 @@ class YamlDB(dict):
                     return startpos
         #in the case of absent event
         if end:
-            print 'here',present,'end'
+            write( 'here',present,'end')
             return 'nothing','',len(present)
         else:
             return len(present)  

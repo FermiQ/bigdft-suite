@@ -26,7 +26,7 @@ class VertSlider(AxesWidget):
     For the slider to remain responsive you must maintain a
     reference to it.
 
-    The following attributes are defined
+    Attributes:
       *ax*        : the slider :class:`matplotlib.axes.Axes` instance
 
       *val*       : the current slider value
@@ -256,15 +256,18 @@ class AxisSet(Axes):
     ax.create_twin()
 
 class FigureSet():
-  """
+  """Container for multiple figures.
+
   Define a container for a plot with the possiblity to switch between simple and gnuplot plotting
+
   Arguments:
   title: The title of the master figure
   **kwargs: arguments for the axis instance
+
   """
   def __init__(self,**kwargs):
     import matplotlib.pyplot as plt
-    from YamlIO import kw_pop
+    from Utils import kw_pop
     newkw,title=kw_pop('title','',**kwargs)    
     self.title=title
     self.figures=[]

@@ -12,6 +12,62 @@ def write(*args,**kwargs):
     """
     return print(*args,**kwargs)
 
+def push_path(inp,*keys):
+    """
+    Follow in the dictionary inp the path indicated by the keys.
+    If this path does not exists creates it.
+
+    Args:
+       inp (dict): dictionary
+       keys (str): keys of the path to follow
+
+    Returns:
+       (``branch``,``key``) tuple, where
+
+       * ``branch`` (dict): the dictionary of the second-last item of the path
+       * ``key`` (str): the last item of the path
+    """
+    tmp=inp
+    for i,key in enumerate(keys):
+        k=key
+        if i==len(keys)-1: break
+        tmp[key]={}
+        tmp=tmp[key]
+    return tmp,k
+
+
+def dict_set(inp,*subfields):
+    """Ensure the provided fields and set the value
+    
+    Provide a entry point to the dictionary.
+    Useful to define a key in a dictionary that may not have the 
+    previous keys already defined.
+    
+    Arguments:
+       inp (dict): the top-level dictionary
+       subfields (str,object): keys, ordered by level, that have to be retrieved from topmost level of ``inp``.
+          The last item correspond to the value to be set .
+
+    Example:
+       
+       >>> inp={}
+       >>> dict_set(inp,'dft','nspin','mpol',2)
+       >>> print (inp)
+       {'nspin': {'mpol': 2}}
+
+    """
+    if len(subfields) <= 1:
+        raise ValueError, 'invalid subfields'
+    keys=subfields[:-1]
+    tmp,key=push_path(inp,*keys)
+    #tmp=inp
+    #for i,key in enumerate(subfields):
+    #    k=key
+    #    if i==len(subfields)-2: break
+    #    tmp[key]={}
+    #    tmp=tmp[key]
+    tmp[key]=subfields[-1]
+
 def file_time(filename):
     """
     Gives the date of the creation of the file, if exists.
@@ -25,6 +81,15 @@ def file_time(filename):
         return os.path.getmtime(filename)
     else:
         return 0
+
+def kw_pop(*args,**kwargs):
+    """Treatment of kwargs. Eliminate from kwargs the tuple in args."""
+    arg=kwargs.copy()
+    key,default=args
+    if key in arg:
+        return arg,arg.pop(key)
+    else:
+        return arg,default
 
 
 def find_files(regexp, archive=None):

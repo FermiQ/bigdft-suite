@@ -203,10 +203,12 @@ class SystemCalculator(Runner):
         Initialize the SystemCalculator defining the Unix command, the number of openMP threads and MPI processes.
         """
         #Use the initialization from the Runner class (so all options inside __global_options)
-        Runner.__init__(self,omp=omp,mpi_run=mpi_run,dry_run=dry_run,skip=skip,verbose=verbose)
+        Runner.__init__(self,omp=str(omp),mpi_run=mpi_run,dry_run=dry_run,skip=skip,verbose=verbose)
         assert 'BIGDFT_ROOT' in os.environ      # Verify if $BIGDFT_ROOT is in the environment
+        executable=os.path.join(os.environ['BIGDFT_ROOT'],'bigdft')
+        assert os.path.isfile(executable) #the bigdft file should be present in the BIGDFT_ROOT directory
         #Build the command setting the number of omp threads
-        self.command = (self._global_options['mpi_run'] + ' ' + os.environ['BIGDFT_ROOT']+'/bigdft').strip()
+        self.command = (self._global_options['mpi_run'] + ' ' + executable).strip()
         safe_print('Initialize a Calculator with OMP_NUM_THREADS=%s and command %s' % (self._global_options['omp'],self.command) )
 
     def run(self, **kwargs):
@@ -278,8 +280,9 @@ class SystemCalculator(Runner):
         #check if the debug file will be updated (case of erroneous run)
         timedbg=get_debugfile_date()
         #Creating the yaml input file
-        import yaml
-        open(input_file,"w").write(yaml.dump(local_input,default_flow_style=None))
+        from futile import YamlIO as Y
+        Y.dump(local_input,filename=input_file)
+        #open(input_file,"w").write(yaml.dump(local_input,default_flow_style=None))
         if verbose: safe_print('Creating the yaml input file "%s"' % input_file)
         #Check if it is a dry run
         if dry_run:
@@ -309,9 +312,26 @@ class SystemCalculator(Runner):
         if get_debugfile_date() > timedbg :
             if verbose: 
                 safe_print("ERROR: some problem occured during the execution of the command, check the 'debug/' directory and the logfile")
+                #the debug file is sane, we may print out the error message
+                self._dump_debugfile_info()
             return None
         return self.post_processing(logname)
-    
+
+    def _dump_debugfile_info(self):
+        from futile import YamlIO as Y
+        debugfile=os.path.join('debug','bigdft-err-0.yaml')
+        if os.path.isfile(debugfile):
+            debugdict=Y.load(debugfile,doc_lists=False)
+            safe_print('The error occured is',self._get_error_key(debugdict))
+            safe_print('Additional Info: ',debugdict['Additional Info'])
+
+    def _get_error_key(self,debugdict):
+        for key in debugdict:
+            if 'Calling sequence' in key: continue
+            if 'Global dictionary' in key: continue
+            if 'Additional Info' in key: continue
+            return key
+
     def post_processing(self,logname):
         """
         Check the existence and the log file and return an instance logfile

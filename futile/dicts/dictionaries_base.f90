@@ -516,7 +516,7 @@ contains
     !         call dict_init(dict)
     !         call dict_set(dict//'key1','value1')
     !         call dict_set(dict//'key2','value2')
-    !         call dict_set(dict//'key2','value3')
+    !         call dict_set(dict//'key3','value3')
     !         isize = dict_size(dict) !ilen has value 3
     !         call dict_free(dict)
     !         isize = dict_size(dict) !ilen has value -1
