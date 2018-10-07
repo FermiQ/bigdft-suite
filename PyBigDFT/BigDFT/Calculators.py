@@ -255,7 +255,9 @@ class SystemCalculator(Runner):
             os.mkdir(run_dir)
             if verbose: safe_print("Create the sub-directory '%s'" % run_dir)
         #Create the input file (deepcopy because we modify it!)
-        local_input=copy.deepcopy(inp)
+        local_tmp=copy.deepcopy(inp)
+        local_input={}
+        local_input.update(local_tmp) # from here onwards the local input is a dict and nothing more
         #Check posinp file
         if posinp != None:
             #Check if the file does exist
@@ -281,6 +283,7 @@ class SystemCalculator(Runner):
         timedbg=get_debugfile_date()
         #Creating the yaml input file
         from futile import YamlIO as Y
+
         Y.dump(local_input,filename=input_file)
         #open(input_file,"w").write(yaml.dump(local_input,default_flow_style=None))
         if verbose: safe_print('Creating the yaml input file "%s"' % input_file)

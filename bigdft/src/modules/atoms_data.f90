@@ -1086,7 +1086,7 @@ contains
 
     !if the file does not exists we have to check if babel is able to read it
     if (f_err_raise(.not.file_exists, &
-         "Atomic input file not found. Files looked for were: "//&
+         "Atomic input file not found. We looked for files as "//&
          trim(files) //"but none matched.", &
          err_id=BIGDFT_INPUT_FILE_ERROR)) return
 

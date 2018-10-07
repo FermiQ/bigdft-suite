@@ -22,16 +22,19 @@ Note:
    remove
    set_xc
    set_hgrid
+   set_rmult
    set_atomic_positions
    set_mesh_sizes
    optimize_geometry
    spin_polarize
    charge
+   charge_and_polarize
    apply_electric_field
    set_random_inputguess
    write_orbitals_on_disk
    read_orbitals_from_disk
    write_density_on_disk
+   make_cation
    use_gpu_acceleration
    change_data_directory
    connect_run_data
@@ -100,6 +103,16 @@ def set_hgrid(inp,hgrids=0.4):
     """
     __set__(inp,'dft','hgrids',hgrids)
 
+def set_rmult(inp,rmult=[5.0,8.0]):
+    """
+    Set the wavelet grid extension by modifying the multiplicative radii.
+
+    Args:
+       rmult (float,list): list of two values that have to be used for the coarse and the fine resolution grid. It may also be a scalar.
+    """
+    __set__(inp,'dft','rmult',rmult)
+
+
 def set_mesh_sizes(inp,ngrids=64):
     """
     Constrain the number of grid points in each direction.
@@ -139,7 +152,7 @@ def apply_electric_field(inp,elecfield=[0,0,1.e-3]):
     """
     __set__(inp,'dft','elecfield',elecfield)
 
-def make_cation(inp):
+def charge_and_polarize(inp):
     """
     Charge the system by removing one electron. Assume that the original system is closed shell, thus polarize.
     """
@@ -282,7 +295,7 @@ def connect_run_data(inp,log):
     by retrieving the data directory name of the logfile.
     
     Args:
-       log (BigDFT.Logfile): instance of a Logfile class
+       log (Logfile): instance of a Logfile class
     """
     ll=log if len(log)==0 else log[0]
     change_data_directory(inp,ll.log['radical'])
