@@ -141,7 +141,7 @@ def charge(inp,charge=-1):
     Arguments:
         charge (int,float): value of the charge in units of *e* (the electron has charge -1). Also accept floating point numbers.
     """
-    __set__(inp,'dft','charge',charge)
+    __set__(inp,'dft','qcharge',charge)
 
 def apply_electric_field(inp,elecfield=[0,0,1.e-3]):
     """
