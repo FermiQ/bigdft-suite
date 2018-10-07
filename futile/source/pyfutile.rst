@@ -20,6 +20,14 @@ YamlIO module
     :undoc-members:
     :show-inheritance:
 
+Inputvars module
+----------------
+
+.. automodule:: futile.Inputvars
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 
 Figures module
 --------------

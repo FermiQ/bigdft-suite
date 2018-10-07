@@ -7,21 +7,38 @@ Users might also inspire to the actions performed in order to customize the runs
 All the functions of this module have as first argument ``inp``, the dictionary of the input parameters.
 
 Many other actions are available in BigDFT code. This module only regroups the most common.
+Any of these functionalities might be removed from the input file by the :py:func:`remove` function.
+
+Note:
+   
+   Any of the action of this module, including the :py:func:`remove` function, can be also applied
+   to an instance of the :py:class:`BigDFT.Inputfiles.Inputfile` class, by removing the first argument (``inp``).
+   This adds extra flexibility as the same method may be used to a dictionary instance or to a BigDFT input files.
+   See the example :ref:`input_action_example`.
+
 
 .. autosummary::
 
+   remove
    set_xc
+   set_hgrid
    set_atomic_positions
+   set_mesh_sizes
    optimize_geometry
    spin_polarize
    charge
+   apply_electric_field
    set_random_inputguess
    write_orbitals_on_disk
    read_orbitals_from_disk
    write_density_on_disk
+   use_gpu_acceleration
    change_data_directory
+   connect_run_data
    add_empty_SCF_orbitals
+   extract_virtual_states
    set_electronic_temperature
+   calculate_tddft_coupling_matrix
 
 
 """
@@ -35,22 +52,27 @@ This is the pointer to the set function, useful to modify the action with the un
 
 """
 
-def undo(inp,*subfields):
+def __undo__(inp,*subfields):
     """
     Eliminate the last item of the subfields as provided to dict_set
     """
     from futile.Utils import push_path
-    keys=subfields[:-1]
-    tmp,k=push_path(inp,*keys)
-    tmp.pop(k)
+    #remove the last key until the parent is empty
+    lastkey=-1
+    tmp={}
+    while len(subfields) > -lastkey and tmp=={}: 
+        keys=subfields[:lastkey]
+        tmp,k=push_path(inp,*keys)
+        tmp.pop(k)
+        lastkey -=1
 
-
-def remove(action):
-    """Remove input action.
+def remove(inp,action):
+    """Remove action from the input dictionary.
     
     Remove an action from the input file, thereby restoring the **default** value, as if the action were not specified.
 
     Args:
+       inp (dict): dictionary to remove the action from.
        action (func): one of the actions of this module. It does not need to be specified before, in which case it produces no effect.
     
     Example:
@@ -62,12 +84,32 @@ def remove(action):
        >>> log=code.run(input=inp) # perform calculations
        >>> remove(write_orbitals_on_disk) #remove the action
        >>> read_orbitals_from_disk(inp)
-       >>> log2=code.run(input=inp) #this will restart from the previous one
+       >>> log2=code.run(input=inp) #this will restart the SCF from the previous orbitals
     """
     global __set__
-    __set__ = undo
+    __set__ = __undo__
     action(inp)
     __set__ = dict_set
+
+def set_hgrid(inp,hgrids=0.4):
+    """
+    Set the wavelet grid spacing.
+
+    Args:
+       hgrid (float,list): list of the grid spacings in the three directions. It might also be a scalar, which implies the same spacing
+    """
+    __set__(inp,'dft','hgrids',hgrids)
+
+def set_mesh_sizes(inp,ngrids=64):
+    """
+    Constrain the number of grid points in each direction.
+    This is useful when performing periodic system calculations with variable cells which need to be compared each other.
+    In this way the number of degrees of freedom is kept constant throughout the various simuilations.
+
+    Args:
+       ngrids (int,list): list of the number of mesh points in each direction. Might be a scalar.
+    """
+    __set__(inp,'dft','ngrids',ngrids)
 
 def spin_polarize(inp,mpol=1):
     """
@@ -87,6 +129,15 @@ def charge(inp,charge=-1):
         charge (int,float): value of the charge in units of *e* (the electron has charge -1). Also accept floating point numbers.
     """
     __set__(inp,'dft','charge',charge)
+
+def apply_electric_field(inp,elecfield=[0,0,1.e-3]):
+    """
+    Apply an external electric field on the system
+    
+    Args:
+       electric (list, float): Values of the Electric Field in the three directions. Might also be a scalar.
+    """
+    __set__(inp,'dft','elecfield',elecfield)
 
 def make_cation(inp):
     """
@@ -163,7 +214,7 @@ def optimize_geometry(inp,method='FIRE',nsteps=50):
           * SQNM:   Stabilized quasi-Newton minimzer
     """
     __set__(inp,'geopt','method',method)
-    if nsteps !=50: __set__(inp,'geopt','ncount_cluster_x',nsteps)
+    __set__(inp,'geopt','ncount_cluster_x',nsteps)
 
 def set_xc(inp,xc='PBE'):
     """
@@ -183,6 +234,16 @@ def write_density_on_disk(inp):
     """
     __set__(inp,'dft','output_denspot',21)
 
+def use_gpu_acceleration(inp):
+    """
+    Employ gpu acceleration when available, for convolutions and Fock operator
+    
+    Todo:
+       Verify what happens when only one of the functionality is enabled at compile-time
+    """
+    __set__(inp,'perf','accel','OCLGPU')
+    __set__(inp,'psolver','setup','accel','CUDA')
+
 
 def change_data_directory(inp,name=''):
     """
@@ -191,4 +252,37 @@ def change_data_directory(inp,name=''):
     """
     __set__(inp,'radical',name)
 
+def calculate_tddft_coupling_matrix(inp,tda=False):
+    """
+    Perform a casida TDDFT coupling matrix extraction.
+    If tda is set to True, Tamm-Dancoff approximation is used for the
+    extraction of the coupling matrix
 
+    Warning:
+       Presently the LR-TDDFT casida is only availavble for LDA functional
+    """
+    approach='TDA' if tda else 'full'
+    __set__(inp,'tddft','tddft_approach',approach)
+
+def extract_virtual_states(inp,nvirt,davidson=False):
+    """
+    Extract a given number of empty states **after** the scf cycle.
+
+    Args:
+       davidson (bool): If set to ``True`` activates davidson calculation, otherwise Trace Minimization of the Hamiltonian is employed.
+    """
+    nv=nvirt if davidson else -nvirt 
+    __set__(inp,'dft','norbv',nv)
+    __set__(inp,'dft','nvirt',nvirt)
+    __set__(inp,'dft','itermax_virt',150)
+
+def connect_run_data(inp,log):
+    """
+    Associate the data of the run of a given logfile to the input
+    by retrieving the data directory name of the logfile.
+    
+    Args:
+       log (BigDFT.Logfile): instance of a Logfile class
+    """
+    ll=log if len(log)==0 else log[0]
+    change_data_directory(inp,ll.log['radical'])

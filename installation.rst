@@ -329,3 +329,8 @@ which should give you an output similar to this one:
 
 This is the link line that you can now use in your other software to
 link with CheSS.
+
+The BigDFT Installer class
+==========================
+
+.. autoclass:: Installer.BigDFTInstaller

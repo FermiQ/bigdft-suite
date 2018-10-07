@@ -31,7 +31,7 @@ def push_path(inp,*keys):
     for i,key in enumerate(keys):
         k=key
         if i==len(keys)-1: break
-        tmp[key]={}
+        if key not in tmp: tmp[key]={}
         tmp=tmp[key]
     return tmp,k
 
@@ -53,7 +53,7 @@ def dict_set(inp,*subfields):
        >>> inp={}
        >>> dict_set(inp,'dft','nspin','mpol',2)
        >>> print (inp)
-       {'nspin': {'mpol': 2}}
+       {'dft': {'nspin': {'mpol': 2}}}
 
     """
     if len(subfields) <= 1:

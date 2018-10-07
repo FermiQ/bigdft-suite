@@ -25,7 +25,7 @@ futilepath=os.path.dirname(os.path.dirname(sourcepath))
 pythonfutilepath=os.path.join(futilepath,'src','python')
 dictsdir=os.path.join(futilepath,'dicts')
 sys.path.insert(0,pythonfutilepath)
-sys.path.insert(0,dictsdir)
+#sys.path.insert(0,dictsdir)
 sys.path.insert(0,os.path.join(futilepath,'doc','sphinx-fortran-master'))
 
 #where are we, for RTD compilation
@@ -214,7 +214,9 @@ epub_exclude_files = ['search.html']
 intersphinx_mapping = {'https://docs.python.org/': None}
 
 #fortran_src= ['../dicts','../flib/f_utils.f90'] #this works for local builds
-fortran_src= [os.path.abspath(dictsdir),os.path.abspath(os.path.join(futilepath,'flib','f_utils.f90'))]
+fortran_src= [os.path.abspath(dictsdir),
+              os.path.abspath(os.path.join(futilepath,'flib','f_utils.f90')),
+              os.path.abspath(os.path.join(futilepath,'flib','f_input_file.f90'))]
 fortran_ext= ['f90']
 
 autosummary_generate = True

@@ -15,6 +15,8 @@ Welcome to futile's documentation!
 
    yaml_str
 
+   inputfile
+
    pyfutile
 
 Indices and tables

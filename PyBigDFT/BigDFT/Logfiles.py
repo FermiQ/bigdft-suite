@@ -76,10 +76,9 @@ def floatify(scalar):
     Returns:
        float. The value associated to scalar as a floating point number
 
-    This function works like that:
-
-    >>> floatify('1.d-4') #this would be the same with "1.e-4" or with 0.0001
-    1.e-4
+    Example:
+       >>> floatify('1.d-4') #this would be the same with "1.e-4" or with 0.0001
+       1.e-4
 
     """
     import numpy
