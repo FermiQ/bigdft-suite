@@ -19,16 +19,18 @@
   call f_purge_database(ilsize,kind(array),iadd,info=info)
 
   if (associated(info)) then
-     val=' '
-     val=info .get. 'Type'
-     select case(trim(val))
-     case('SHARED')
+     val=dict_get(info,INFO_TYPE_KEY,default=' ')
+     if (trim(val) == INFO_SHARED_TYPE .or. &
+          (INFO_ALIGNMENT_KEY .in. info)) then
+     !val=info .get. 'Type'
+     !select case(trim(val))
+     !case('SHARED')
         call bindfree(iadd)
         ierror=0
-     case default
+     else !case default
         !fallback to traditional deallocation
         deallocate(array,stat=ierror) !temporary
-     end select
+     end if !select
      call dict_free(info)
   else
      !fortran deallocation (here we should modify the calls if the array has been allocated by c)
