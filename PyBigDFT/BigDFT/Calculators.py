@@ -41,34 +41,6 @@ import copy
 from futile.Utils import write as safe_print
 import BigDFT.Logfiles as Lf
 
-import collections
-
-def dict_merge(dct, merge_dct):
-    """ Recursive dict merge. Inspired by :meth:``dict.update()``, instead of
-    updating only top-level keys, dict_merge recurses down into dicts nested
-    to an arbitrary depth, updating keys. The ``merge_dct`` is merged into
-    ``dct``.
-    :param dct: dict onto which the merge is executed
-    :param merge_dct: dct merged into dct
-    :return: None
-    
-    From [angstwad/dict-merge.py](https://gist.github.com/angstwad/bf22d1822c38a92ec0a9)
-    """
-    for k, v in merge_dct.iteritems():
-        if (k in dct and isinstance(dct[k], dict)
-                and isinstance(merge_dct[k], collections.Mapping)):
-            dict_merge(dct[k], merge_dct[k])
-        else:
-            dct[k] = merge_dct[k]
-
-
-def get_debugfile_date():
-    """
-    Get the information about the debug time of the last file in the current directory
-    """
-    from futile.Utils import file_time
-    return file_time(os.path.join('debug','bigdft-err-0.yaml'))
-
 
 class GIBinding():
     """
@@ -86,6 +58,7 @@ class GIBinding():
     def update(self, inputfile):
         # If the inputpsiid is not present in the inputfile
         # assumes that the user wants to do a restart
+        from futile.Utils import dict_merge
         if "dft" in inputfile and "inputpsiid" in inputfile["dft"]:
             var = inputfile
         else:
@@ -120,78 +93,154 @@ class GIBinding():
 
 
 class Runner():
-    """
-    Define a generic class parent of SystemCalculator and Workflow which
-    defines a run method and functions to handle some global options.
-    The method run can be used many times.
+    """Run of something.
+
+    Object dealing with global and local options of a run method.
     All arguments in the __init__ call is stored as global options.
-    For each run, these global options are used updated by the arguments of the run call
-    all stored in a run_options dictionary which can be used by the run call.
+    For each run, these global options may updated by the arguments of the run call.
     """
     def __init__(self,**kwargs):
-        """All arguments for the runs are saved in a private dictionary of global options"""
+        """
+        All arguments for the runs are saved in a private dictionary of global options
+        """
         import copy
         self._global_options=copy.deepcopy(kwargs)
 
     def global_options(self):
-        """Get all global options"""
+        """
+
+        Get all global options
+
+        Returns:
+            The dictionary of the global options in its current status
+        """
         return self._global_options
 
     def get_global_option(self,key):
-        """Get one key in global options"""
+        """
+        
+        Get one key in global options
+
+        Args:
+           key (string): the global option key
+
+        Returns:
+            The value of the global options labelled by ``key``
+      
+        """
         return self._global_options[key]
 
     def update_global_options(self,**kwargs):
-        """Update the global options"""
+        """
+        Update the global options by providing keyword arguments.
+        """
         self._global_options.update(kwargs)
 
-    def unset_global_option(self,key):
-        """Remove a given global option"""
+    def pop_global_option(self,key):
+        """
+        Remove a given global option from the global option dictionary
+
+        Args:
+           key (string): the global option key
+
+        Returns:
+           The value of the global option
+        """
         self._global_option.pop(key)
 
     def _run_options(self,**kwargs):
-        """Create a local dictionary for a specific run."""
+        """
+        Create a local dictionary for a specific run.
+        It combines the present status of global option with the local dictionary of the run
+        """
         import copy
         #First deepcopy from global_options and update from kwargs (warning: a dictionary is not update)
         self.run_options=copy.deepcopy(self._global_options)
+        """Local options of process_run.
+
+        dict: This dictionary can be accessed during the definition of the process_run method.
+        It contains all the relevant keys for the definition of the runner.
+        """
+
         self.run_options.update(kwargs)
 
     def run(self,**kwargs):
-        """Implement a run method by default (do nothing except updating run options)"""
+        """
+        Run method of the class. It performs the following actions:
+        
+         * Constructs the local dictionary to be passed as ``*kwargs*`` to the `process_run` function
+         * Calls the ``pre_processing`` method (intended to prepare some actions associated to the ``process_run`` method
+         * Calls ``process_run``
+         * Returns the object passed by the call to ``post_processing`` class method
+        
+        """
+        from futile.Utils import dict_merge
         self._run_options(**kwargs)
-        #Do nothing
-        return self.post_processing()
+        run_args=self.pre_processing()
+        run_results=self.process_run(**run_args)
+        #safe_print('run_args',run_args,'run_results',run_results)
+        dict_merge(dest=run_args,src=run_results)
+        #safe_print('run_updated, again',run_args)
+        return self.post_processing(**run_args)
     
-    def post_processing(self):
-        """Post-processing"""
+    def pre_processing(self):
+        """
+        Pre-treat the keyword arguments and the options, if needed.
+
+        Returns:
+           dictionary of the pre-treated keyword arguments that have to be actually considered by process_run.
+        """
+        return self.run_options
+
+    def process_run(self,**kwargs):
+        """
+        Main item of the runner, defines the information that have to be post_processed by post_processing.
+
+        Args:
+          **kwargs** (dict): keyword arguments as returned from the :meth:`pre_processing` method.
+
+        Returns:
+          objects to be passed to post_processing
+        """
+        return kwargs
+
+    def post_processing(self,**kwargs):
+        """
+        Post-processing, take the arguments as they are provided by the process_run.
+
+        Returns:
+           The final object that each call to the ``run`` method is supposed to provide.
+        """
         return None
 
 class SystemCalculator(Runner):
-    """
-    Define a BigDFT calculator.
+    """Define a BigDFT calculator.
 
-    :param int omp: number of OpenMP threads
-      It defaults to the $OMP_NUM_THREADS variable in the environment (if present), otherwise it fixes the run to 1 thread
-    :param str mpi_run: define the MPI command to be used.
-      It defaults to the value $BIGDFT_MPIRUN of the environment, if present
-      When using this calculator into a job submission script, the value of
-      $BIGDFT_MPIRUN variable may be set appropriately to launch the bigdft executable.
-    :param bool skip: if True, do not run the calculation if the corresponding logfile exists.
-    :param bool verbose: default verbosity (2 levels true or False)      
-    :param bool dry_run: check the input, estimate the memory but do not perform the calculation
-    :param int dry_mpi: Number of MPI processes for the estimation of the memory when dry_run is True
+    Main calculator of BigDFT code. It performs :py:meth:`os.system` calls to the main ``bigdft`` executable
+    in the ``$BIGDFT_ROOT`` directory. It is designed for two purposes:
+      
+      * Run the code in a workstation-based environment, for exemple within notebooks or scripts.
+      * Run the code from a python script that is submitted to a batch scheduler in a potnentially large-scale supercomputer.
 
-    Check if the environment variable $BIGDFT_ROOT is defined.
-    This is a signal that the environment has been properly set prior to the evaluation of the python command.
-    Use also two environment variables:
-        * OMP_NUM_THREADS to set the number of OMP_NUM_THREADS
-        * BIGDFT_MPIRUN to define the MPI execution command.
+    For triggering the execution, this code gets two variables from the environment:
 
-    :Example:
+        * The value of ``OMP_NUM_THREADS`` to set the number of OMP_NUM_THREADS. If this variable is not present in the environment,
+          :class:`SystemCalculator` sets it to the value provided by the ``omp`` keyword at initialization.
+           
+        * The value of ``BIGDFT_MPIRUN`` to define the MPI execution command. If absent, the run is executed simply by ``$BIGDFT_ROOT/bigdft``,
+          followed by the command given by post-processing.
+
+    Warning:
+       At the initialization, `SystemCalculator` checks if the environment variable $BIGDFT_ROOT is defined.
+       This would mean (although not guarantee) that the environment has been properly set prior to the evaluation of the python command.
+       Also, it checks that the executable file ``bigdft`` might be found in the ``$BIGDFT_ROOT/bigdft`` path.
+
+    Example:
         >>> inpdict = { 'dft': { 'ixc': 'LDA' }} #a simple input file
         >>> study = SystemCalculator(omp=1)
         >>> logf = study.run(name="test",input=inpdict)
-        Executing command:  $BIGDFT_MPIRUN <path_to_$BIGDFT_ROOT>/bigdft test
+        Executing command:  $BIGDFT_MPIRUN <path_to_$BIGDFT_ROOT>/bigdft test       
+
     """
 
     import os,shutil
@@ -200,7 +249,20 @@ class SystemCalculator(Runner):
                  mpi_run=os.environ.get('BIGDFT_MPIRUN',''),
                  dry_run=False,skip=False,verbose=True):
         """
-        Initialize the SystemCalculator defining the Unix command, the number of openMP threads and MPI processes.
+        Initialize the SystemCalculator defining the command, the number of openMP threads and MPI processes.
+    
+        Arguments:
+         omp (int): number of OpenMP threads.
+            It defaults to the $OMP_NUM_THREADS variable in the environment, if present, otherwise it fixes the run to 1 thread.
+         mpi_run (str): define the MPI command to be used.
+            It defaults to the value $BIGDFT_MPIRUN of the environment, if present.
+            When using this calculator into a job submission script, the value of
+            $BIGDFT_MPIRUN variable may be set appropriately to launch the bigdft executable.
+         skip (bool): if ``True``, do not run the calculation if the corresponding logfile exists.
+         verbose (bool): if ``True`` the class prints out informations about the operations that are being performed by the calculator
+         dry_run (bool): check the input, estimate the memory but do not perform the calculation.
+         dry_mpi (int): Number of MPI processes for the estimation of the memory when ``dry_run`` is ``True``
+
         """
         #Use the initialization from the Runner class (so all options inside __global_options)
         Runner.__init__(self,omp=str(omp),mpi_run=mpi_run,dry_run=dry_run,skip=skip,verbose=verbose)
@@ -211,7 +273,7 @@ class SystemCalculator(Runner):
         self.command = (self._global_options['mpi_run'] + ' ' + executable).strip()
         safe_print('Initialize a Calculator with OMP_NUM_THREADS=%s and command %s' % (self._global_options['omp'],self.command) )
 
-    def run(self, **kwargs):
+    def pre_processing(self):
     #def run(self, name='', outdir='', run_name='', input={}, posinp=None,**kwargs):
         """
         Run a calculation building the input file from a dictionary.
@@ -235,90 +297,155 @@ class SystemCalculator(Runner):
            Set the return value of run in the case of a run_file. It should be a list of Logfile classes
 
         """
-        #Create a temporary dictionary of options
-        self._run_options(**kwargs)
-        #Give the default values in case of unset_global_options are called
-        name = self.run_options.get('name','')
-        outdir = self.run_options.get('outdir','')
-        run_dir = self.run_options.get('run_dir','.')
-        run_name = self.run_options.get('run_name','')
-        posinp = self.run_options.get('posinp',None)
+        self._ensure_run_directory()
+        #Create the input file (deepcopy because we modify it)
         inp = self.run_options.get('input',{})
-        verbose = self.run_options['verbose']
-        dry_run = self.run_options['dry_run']
-        #Restrict run_dir to a sub-directory
-        if  ("/" in run_dir or run_dir == ".."):
-            raise ValueError("run_dir '%s' where bigdft is executed must be a sub-directory" % run_dir)
-        #Create the run_dir if not exist
-        if not os.path.exists(run_dir):
-            #Creation of the sub-directory run_dir
-            os.mkdir(run_dir)
-            if verbose: safe_print("Create the sub-directory '%s'" % run_dir)
-        #Create the input file (deepcopy because we modify it!)
         local_tmp=copy.deepcopy(inp)
         local_input={}
-        local_input.update(local_tmp) # from here onwards the local input is a dict and nothing more
-        #Check posinp file
-        if posinp != None:
-            #Check if the file does exist
-            if not os.path.isfile(posinp):
-                raise ValueError("posinp: The atomic position file '%s' does not exist" % posinp)
-            #Add into the dictionary a posinp key
-            if run_dir == '.':
-                local_input['posinp'] = posinp
-            else:
-                #Copy the posinp if not identical
-                cp_posinp = "%s/%s" % (run_dir,posinp)
-                if not (os.path.isfile(cp_posinp) and os.stat(posinp) != os.stat(cp_posinp)):
-                    shutil.copy2(posinp,run_dir)
-                    if verbose: safe_print("Copy the posinp file '%s' into '%s'" % (posinp,run_dir))
-                local_input['posinp'] = os.path.basename(posinp)
-        if len(name) > 0:
-            input_file = "%s/%s.yaml" % (run_dir,name)
-            logname = "%s/log-%s.yaml" % (run_dir,name)
-        else:
-            input_file = "input.yaml" #default name
-            logname = "log.yaml"
-        #check if the debug file will be updated (case of erroneous run)
-        timedbg=get_debugfile_date()
+        local_input.update(local_tmp) # from here onwards the local input is a dict and not anymore anothe class
+        #Add into the dictionary a posinp key
+        posinp = self.run_options.get('posinp',None)
+        if posinp != None: local_input['posinp'] = self._posinp_dictionary_value(posinp)
         #Creating the yaml input file
         from futile import YamlIO as Y
-
+        input_file=self._get_inputfilename()
         Y.dump(local_input,filename=input_file)
-        #open(input_file,"w").write(yaml.dump(local_input,default_flow_style=None))
-        if verbose: safe_print('Creating the yaml input file "%s"' % input_file)
-        #Check if it is a dry run
-        if dry_run:
-            #Use bigdft-tool (do not use BIGDFT_MPIRUN because it is a python script)
-            command = os.environ['BIGDFT_ROOT']+'/bigdft-tool -a memory-estimation -l'
-            if len(name) > 0:
-                command += ' --name='+name
-        else:   
-            # Adjust the command line with options
-            command = self.command
-            if len(name) > 0:
-                command += ' -n ' + name
-            if len(run_name) > 0:
-                command += ' -r ' + run_name
-            if len(outdir) > 0:
-                command += ' -d ' + outdir
-                #Change logname
-                logname = outdir+"/"+logname
-            if self.run_options['skip']:
-                command += ' -s Yes'
-        if verbose: safe_print('Executing command: ', command)
+        if self.run_options['verbose']: safe_print('Creating the yaml input file "%s"' % input_file)
+        return {'command':self._get_command()}
+
+    def process_run(self,command):
+        """Finally launch the code.
+        
+        Routine associated to the running of the ``bigdft`` executable.
+
+        Arguments:
+           command (str): the command as it is set by the ``pre_processing`` method.
+        """
+        #check if the debug file will be updated (case of erroneous run)
+        timedbg=self._get_debugfile_date()
+        verbose = self.run_options['verbose']
         # Set the number of omp threads
         os.environ['OMP_NUM_THREADS'] = self.run_options['omp']
+        if verbose: 
+            if self.run_dir != '.': safe_print('Run directory', self.run_dir)
+            safe_print('Executing command: ', command)
         #Run the command
-        os.system("cd "+run_dir+"; "+command)
+        os.system("cd "+self.run_dir+"; "+command)
+        return {'timedbg':timedbg,'logname': self._get_logname()}
+
+    def post_processing(self,timedbg,logname,command):
+        """
+        Check the existence and the log file and return an instance logfile.
+
+        Returns:
+           A `BigDFT.Logfile` class instance associated to the run which has been just performed.
+           If the run failed for some reasons, the logfile seem not existing or it cannot be parsed it returns `None`.
+ 
+        """
         #verify that no debug file has been created
-        if get_debugfile_date() > timedbg :
+        if self._get_debugfile_date() > timedbg :
+            verbose = self.run_options['verbose']
             if verbose: 
                 safe_print("ERROR: some problem occured during the execution of the command, check the 'debug/' directory and the logfile")
                 #the debug file is sane, we may print out the error message
                 self._dump_debugfile_info()
             return None
-        return self.post_processing(logname)
+        if os.path.exists(logname):
+            from futile.Utils import file_time
+            from time import time
+            inputname=self._get_inputfilename()
+            if file_time(logname) < file_time(inputname) and not self.run_options['skip']:
+                safe_print("ERROR: The logfile (",logname,") is older than the inputfile (",inputname,").")
+                return None
+            else:
+                return Lf.Logfile(logname)
+        else:
+            safe_print("ERROR: The logfile (",logname,") does not exist.")
+            return None
+
+    def _get_command(self):
+        name = self.run_options.get('name','')
+        dry_run = self.run_options['dry_run']
+        run_name = self.run_options.get('run_name','')               
+        outdir = self.run_options.get('outdir','')
+        #Check if it is a dry run
+        if dry_run:
+            #Use bigdft-tool (do not use BIGDFT_MPIRUN because it is a python script)
+            command = os.path.join(os.environ['BIGDFT_ROOT'],'bigdft-tool')+' -a memory-estimation -l'
+            if name > 0: command += ' --name='+name
+        else:   
+            # Adjust the command line with options
+            command = self.command
+            if name: command += ' -n ' + name
+            if run_name: command += ' -r ' + run_name
+            if outdir: command += ' -d ' + outdir
+            if self.run_options['skip']: command += ' -s Yes'
+        return command
+
+    def _get_logname(self):
+        import os
+        outdir = self.run_options.get('outdir','')
+        name = self.run_options.get('name','')
+        logname = 'log-'+name+'.yaml' if name else 'log.yaml'
+        if outdir: logname=os.path.join(outdir,logname)
+        logname = os.path.join(self.run_dir,logname)
+        return logname
+
+    def _get_inputfilename(self):
+        import os
+        name = self.run_options.get('name','')
+        input_file = name+'.yaml' if name else 'input.yaml'
+        return os.path.join(self.run_dir,input_file)
+
+    def _ensure_run_directory(self):
+        from futile.Utils import ensure_dir
+        run_dir = self.run_options.get('run_dir','.')
+        #Restrict run_dir to a sub-directory
+        if  ("/" in run_dir or run_dir == ".."):
+            raise ValueError("run_dir '%s' where bigdft is executed must be a sub-directory" % run_dir)
+        #Create the run_dir if not exist
+        if ensure_dir(run_dir) and self.run_options['verbose']: safe_print("Create the sub-directory '%s'" % run_dir)
+        self.run_dir=run_dir
+        """Run directory.
+        str: the directory where the inputfile has been copied to.
+              Might be useful to associate to each of the calculation of a given run a different directory.
+              Note that this is different than setting the ``outdir`` or the ``name`` arguments at it refers
+              to the directory of the inputfile.
+        Note:
+            This is not a global property of the calculator, as the same calculator instance might be used for various workflows.
+        """
+
+    def _posinp_dictionary_value(self,posinp):
+        """
+        Create the dictionary value associated to posinp field
+        
+        Args:
+          posinp (str): path of the posinp file. Might be relative or absolute. Copied into `run_dir` if not existing.
+    
+        Returns:
+          str: the value of the key ``posinp`` of the input file.
+        """
+        import os
+        from futile.Utils import ensure_copy
+        #Check if the file does exist
+        if not os.path.isfile(posinp):
+            raise ValueError("posinp: The atomic position file '%s' does not exist" % posinp)
+        posinpdict=posinp
+        posinpfile=os.path.basename(posinp)
+        #Copy the posinp if not identical
+        cp_posinp = os.path.join(self.run_dir,posinpfile)  #LG: not like that "%s/%s" % (self.run_dir,posinp)
+        copied=ensure_copy(src=posinp,dest=cp_posinp)
+        if copied:
+            posinpdict=posinpfile
+            if self.run_options['verbose']: safe_print("Copy the posinp file '%s' into '%s'" % (posinp,self.run_dir))
+        return posinpdict
+
+    def _get_debugfile_date(self):
+        """
+        Get the information about the debug time of the last file in the current directory
+        """
+        from futile.Utils import file_time
+        return file_time(os.path.join('debug','bigdft-err-0.yaml'))
 
     def _dump_debugfile_info(self):
         from futile import YamlIO as Y
@@ -334,16 +461,6 @@ class SystemCalculator(Runner):
             if 'Global dictionary' in key: continue
             if 'Additional Info' in key: continue
             return key
-
-    def post_processing(self,logname):
-        """
-        Check the existence and the log file and return an instance logfile
-        valid only without run_name
-        """
-        if os.path.exists(logname):
-            return Lf.Logfile(logname)
-        else:
-            return None
 
 
 # Test the calculators

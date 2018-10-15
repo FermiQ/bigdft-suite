@@ -68,6 +68,26 @@ def dict_set(inp,*subfields):
     #    tmp=tmp[key]
     tmp[key]=subfields[-1]
 
+
+def dict_merge(dest, src):
+    """ Recursive dict merge. Inspired by :meth:`dict.update`, instead of
+    updating only top-level keys, dict_merge recurses down into dicts nested
+    to an arbitrary depth, updating keys. The ``src`` is merged into
+    ``dest``.  From :ref:`angstwad/dict-merge.py <https://gist.github.com/angstwad/bf22d1822c38a92ec0a9>`
+
+    Arguments:
+       dest (dict): dict onto which the merge is executed
+       src (dict): dict merged into dest
+
+    """
+    import collections
+    for k, v in src.iteritems():
+        if (k in dest and isinstance(dest[k], dict)
+                and isinstance(src[k], collections.Mapping)):
+            dict_merge(dest[k], src[k])
+        else:
+            dest[k] = src[k]
+
 def file_time(filename):
     """
     Gives the date of the creation of the file, if exists.
@@ -152,12 +172,42 @@ def _find_files_from_archive(re, archive):
         return [f for f in arch.getnames() 
                 if all(pattern in f for pattern in re.split('*'))]
 
+def ensure_copy(src,dest):
+    """Copy src into dest.
+    
+    Guarantees that the file indicated by ``dest`` is a copy of the file ``src``
+
+    Args:
+      src (str): path of the source file. Should be valid.
+      dest (src): path of the destination file
+
+    Returns:
+      bool: ``True`` if the file needed to be copied, ``False`` if ``src`` and ``dest`` are identical
+    """
+    import shutil,os
+    copied=False
+    if (os.path.isfile(dest) and os.stat(dest) != os.stat(src)) or not os.path.isfile(dest):
+        shutil.copy2(src,os.path.dirname(dest))
+        copied=True
+    return copied
+
 def ensure_dir(file_path):
-    """ Guarantees the existance on the directory given by the (relative) file_path """
+    """ 
+    Guarantees the existance on the directory given by the (relative) file_path 
+    
+    Args:
+       file_path (str): path of thh directory to be created
+
+    Returns:
+       bool: True if the directory needed to be created, False if it existed already
+    """
     import os
     directory = file_path
+    created=False
     if not os.path.exists(directory):
         os.makedirs(directory)
+        created=True
+    return created
 
 if __name__ == '__main__':
     import os
