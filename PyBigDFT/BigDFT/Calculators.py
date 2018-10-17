@@ -229,6 +229,18 @@ class SystemCalculator(Runner):
         * The value of ``BIGDFT_MPIRUN`` to define the MPI execution command. If absent, the run is executed simply by ``$BIGDFT_ROOT/bigdft``,
           followed by the command given by post-processing.
 
+    Arguments:
+         omp (int): number of OpenMP threads.
+            It defaults to the $OMP_NUM_THREADS variable in the environment, if present, otherwise it fixes the run to 1 thread.
+         mpi_run (str): define the MPI command to be used.
+            It defaults to the value $BIGDFT_MPIRUN of the environment, if present.
+            When using this calculator into a job submission script, the value of
+            $BIGDFT_MPIRUN variable may be set appropriately to launch the bigdft executable.
+         skip (bool): if ``True``, do not run the calculation if the corresponding logfile exists.
+         verbose (bool): if ``True`` the class prints out informations about the operations that are being performed by the calculator
+         dry_run (bool): check the input, estimate the memory but do not perform the calculation.
+         dry_mpi (int): Number of MPI processes for the estimation of the memory when ``dry_run`` is ``True``
+
     Warning:
        At the initialization, `SystemCalculator` checks if the environment variable $BIGDFT_ROOT is defined.
        This would mean (although not guarantee) that the environment has been properly set prior to the evaluation of the python command.
@@ -247,22 +259,6 @@ class SystemCalculator(Runner):
                  omp=os.environ.get('OMP_NUM_THREADS','1'),
                  mpi_run=os.environ.get('BIGDFT_MPIRUN',''),
                  dry_run=False,skip=False,verbose=True):
-        """
-        Initialize the SystemCalculator defining the command, the number of openMP threads and MPI processes.
-    
-        Arguments:
-         omp (int): number of OpenMP threads.
-            It defaults to the $OMP_NUM_THREADS variable in the environment, if present, otherwise it fixes the run to 1 thread.
-         mpi_run (str): define the MPI command to be used.
-            It defaults to the value $BIGDFT_MPIRUN of the environment, if present.
-            When using this calculator into a job submission script, the value of
-            $BIGDFT_MPIRUN variable may be set appropriately to launch the bigdft executable.
-         skip (bool): if ``True``, do not run the calculation if the corresponding logfile exists.
-         verbose (bool): if ``True`` the class prints out informations about the operations that are being performed by the calculator
-         dry_run (bool): check the input, estimate the memory but do not perform the calculation.
-         dry_mpi (int): Number of MPI processes for the estimation of the memory when ``dry_run`` is ``True``
-
-        """
         #Use the initialization from the Runner class (so all options inside __global_options)
         Runner.__init__(self,omp=str(omp),mpi_run=mpi_run,dry_run=dry_run,skip=skip,verbose=verbose)
         assert 'BIGDFT_ROOT' in os.environ      # Verify if $BIGDFT_ROOT is in the environment

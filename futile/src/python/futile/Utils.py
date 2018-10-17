@@ -102,7 +102,7 @@ def file_time(filename):
     else:
         return 0
 
-def make_dict(self,inp):
+def make_dict(inp):
     """
     Transform the instance ``inp`` into a python dictionary. If inp is already a dictionary, it perfroms a copy.
     
