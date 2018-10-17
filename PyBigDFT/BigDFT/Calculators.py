@@ -37,7 +37,6 @@ using binding (GIBinding) or using system call (SystemCalculator).
 
 import os
 import shutil
-import copy
 from futile.Utils import write as safe_print
 import BigDFT.Logfiles as Lf
 
@@ -297,12 +296,12 @@ class SystemCalculator(Runner):
            Set the return value of run in the case of a run_file. It should be a list of Logfile classes
 
         """
+        from futile.Utils import make_dict
         self._ensure_run_directory()
         #Create the input file (deepcopy because we modify it)
         inp = self.run_options.get('input',{})
-        local_tmp=copy.deepcopy(inp)
-        local_input={}
-        local_input.update(local_tmp) # from here onwards the local input is a dict and not anymore anothe class
+        # from here onwards the local input is a dict and not anymore anothe class
+        local_input = make_dict(inp)
         #Add into the dictionary a posinp key
         posinp = self.run_options.get('posinp',None)
         if posinp != None: local_input['posinp'] = self._posinp_dictionary_value(posinp)
@@ -420,13 +419,14 @@ class SystemCalculator(Runner):
         Create the dictionary value associated to posinp field
         
         Args:
-          posinp (str): path of the posinp file. Might be relative or absolute. Copied into `run_dir` if not existing.
-    
+          posinp (str,dict): path of the posinp file. Might be relative or absolute. Copied into `run_dir` if not existing. 
+                It might also contain the dictionary of the atomic positions.
         Returns:
-          str: the value of the key ``posinp`` of the input file.
+          str,dict: the value of the key ``posinp`` of the input file, if posinp is a string, otherwise the posinp dictionary
         """
         import os
-        from futile.Utils import ensure_copy
+        from futile.Utils import ensure_copy,make_dict
+        if isinstance(posinp,dict): return make_dict(posinp)
         #Check if the file does exist
         if not os.path.isfile(posinp):
             raise ValueError("posinp: The atomic position file '%s' does not exist" % posinp)

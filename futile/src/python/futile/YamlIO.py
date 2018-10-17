@@ -71,7 +71,7 @@ def clean_logfile(logfile_lines,to_remove):
             try:
               for i in yaml.parse(stream,Loader=yaml.CLoader):
                 endpos=i.end_mark.index
-            except Exception, e:
+            except Exception(e):
               #  print 'error',str(e),stream
               #convert back the valid stream into a list
               #if needed the stream can be loaded into a document
@@ -319,7 +319,7 @@ class YamlDB(dict):
             stream=self.stream
         try:
             return yaml.load(stream,Loader=yaml.CLoader)
-        except Exception, e:
+        except Exception(e):
             #here we might put a bigger 
             return None
     def _event_finder(self,present,event,end=False):
@@ -346,7 +346,7 @@ class YamlDB(dict):
         try:
             for i in yaml.parse(stream,Loader=yaml.CLoader):
                 endpos=i.end_mark.index
-        except yaml.YAMLError,e:
+        except yaml.YAMLError(e):
             #stop at the last carriage return
             endpos=e.problem_mark.index
             endpos=stream.rfind('\n',0,endpos)

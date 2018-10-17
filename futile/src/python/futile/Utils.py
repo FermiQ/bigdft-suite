@@ -57,7 +57,7 @@ def dict_set(inp,*subfields):
 
     """
     if len(subfields) <= 1:
-        raise ValueError, 'invalid subfields'
+        raise ValueError('invalid subfields')
     keys=subfields[:-1]
     tmp,key=push_path(inp,*keys)
     #tmp=inp
@@ -102,8 +102,27 @@ def file_time(filename):
     else:
         return 0
 
+def make_dict(self,inp):
+    """
+    Transform the instance ``inp`` into a python dictionary. If inp is already a dictionary, it perfroms a copy.
+    
+    Args:
+       inp (dict): a instance of a Class which inherits from dict
+    
+    Returns: 
+       dict: the copy of the class, converted as a dictionary
+    """
+    import copy
+    local_tmp=copy.deepcopy(inp)
+    local_input={}
+    local_input.update(local_tmp) 
+    return local_input
+
+
 def kw_pop(*args,**kwargs):
-    """Treatment of kwargs. Eliminate from kwargs the tuple in args."""
+    """
+    Treatment of kwargs. Eliminate from kwargs the tuple in args.
+    """
     arg=kwargs.copy()
     key,default=args
     if key in arg:
