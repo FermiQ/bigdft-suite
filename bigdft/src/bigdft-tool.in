@@ -24,11 +24,11 @@ if not PyYAML_path == "system":
 
 # This list can be converted in a dictionary with also the extra arguments
 actions = ["memory-estimation", "rotate", "convert-field",
-           "export-wf", "export-grid", "atomic-wf", "GPU-test", 
+           "export-wf", "export-grid", "atomic-wf", "GPU-test",
            "convert-positions", "manual", "wizard", "transform-coordinates",
-           "pdos", "kernel-analysis", "extract-submatrix", "solve-eigensystem", 
-           "analyze-coeffs", "peel-matrix", "multiply-matrices", "matrixpower", 
-           "plot-wavefunction", "suggest-cutoff", "multipole-analysis", "dos", 
+           "pdos", "kernel-analysis", "extract-submatrix", "solve-eigensystem",
+           "analyze-coeffs", "peel-matrix", "multiply-matrices", "matrixpower",
+           "plot-wavefunction", "suggest-cutoff", "multipole-analysis", "dos",
            "export-proj", "fit-proj",
            "convert-matrix-format", "calculate-selected-eigenvalues",
            "kernel-purity", "build-KS-orbitals", "manipulate-eigenvalue-spectrum"]
@@ -559,7 +559,7 @@ def input_info(h, n, screen, menu, parent):
     for (i, ratio) in matching_keys:
         if ratio > 0.6 and i not in foundkeys:
             for f in find_files(params, i):
-                text += '%s (Field: %s, similarity=%4.2f)\n' % (i,f,ratio) 
+                text += '%s (Field: %s, similarity=%4.2f)\n' % (i,f,ratio)
                 text += yaml.dump(params[f][i], default_flow_style=False, explicit_start=False)
                 foundkeys.append(i)
                 text += '\n'
@@ -577,7 +577,7 @@ def input_info(h, n, screen, menu, parent):
     if text == '':
         iy += 1
         dump_pad.addstr(iy, 4, "No key found", curses.A_NORMAL)
-    else:   
+    else:
         for chain in text.split('\n'):
             iy += 1
             if 'Field:' in chain:
@@ -670,13 +670,13 @@ def fitHelperResid(p, fit, prev):
   res = fit.proj - fit.gauss_eval(p, prev)
   print (res ** 2).sum()
   return res
-  
+
 class GaussianFit:
   I_FREAL = 0
   I_FIMAG = 1
   I_PHASE = 3
   I_DAMP = 2
-  
+
   def __init__(self, id, l, N, x, proj, cutoff = None, init = None):
     import numpy
     self.id = id
@@ -791,7 +791,7 @@ def fitPAW(file, N):
 
   jobs = [GaussianFit(proj.get('state'), projs[proj.get('state')]['l'], N, grids[proj.get('grid')], numpy.fromstring(proj.text.replace('\n',''), sep = ' ', dtype = numpy.float64), cutoff) for proj in psp.findall('projector_function')]
   fits = Pool().map(jobFit, jobs)
-  
+
   # Save projector and fit to disk.
   o = open("projs.yaml", "w")
   for (g, p) in zip(jobs, fits):
@@ -1038,7 +1038,7 @@ options:
                     dico['DESCRIPTION'] = params[f][k]
                     #dico['title'] += ' (%s)' % dico['DESCRIPTION']
                     continue
-                dd = {'type': PROMPT, 
+                dd = {'type': PROMPT,
                       'title': k + '     (' + str(params[f][k]['COMMENT']) + ')',
                       'subtitle': "Extended description for the input keyword '%s'" % str(k),
                       'DESCRIPTION': 'No extended description for this key specified yet.\n',
@@ -1053,14 +1053,14 @@ options:
             inputfile = infiles[f]
             helpstr = ''
             if infiles[f].has_key('DESCRIPTION'):
-                helpstr += inputfile.pop('DESCRIPTION') 
+                helpstr += inputfile.pop('DESCRIPTION')
             if infiles[f].has_key('COMMENT'):
                 comment = inputfile.pop('COMMENT')
             else:
                 comment = ''
             helpstr += "List of specific keys associated with the import key '%s'.\n\n" % str(f)
             helpstr += yaml.dump(inputfile, default_flow_style=False)
-            dico = {'type': PROMPT, 
+            dico = {'type': PROMPT,
                     'title': f + '     (' + str(comment) + ')',
                     'subtitle': "Extended description for the import key '%s'" % str(f),
                     'DESCRIPTION': helpstr}
@@ -1099,7 +1099,7 @@ options:
             sys.stdout.write("ERROR: The window is too thin!\n")
         os.system('clear')
 
-    #Conversion coordinates        
+    #Conversion coordinates
     if options.action == "transform-coordinates":
         print 'calling memguess for coordinate conversion'
         infile_names = options.infile.split(".")

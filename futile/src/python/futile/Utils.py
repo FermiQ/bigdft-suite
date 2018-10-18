@@ -7,7 +7,7 @@ from __future__ import print_function
 def write(*args,**kwargs):
     """
     Wrapper for print function or print to ensure compatibility with python 2
-    The arguments are used similarly as the print_function 
+    The arguments are used similarly as the print_function
     They can also be generalized to python 2 cases
     """
     return print(*args,**kwargs)
@@ -38,18 +38,18 @@ def push_path(inp,*keys):
 
 def dict_set(inp,*subfields):
     """Ensure the provided fields and set the value
-    
+
     Provide a entry point to the dictionary.
-    Useful to define a key in a dictionary that may not have the 
+    Useful to define a key in a dictionary that may not have the
     previous keys already defined.
-    
+
     Arguments:
        inp (dict): the top-level dictionary
        subfields (str,object): keys, ordered by level, that have to be retrieved from topmost level of ``inp``.
           The last item correspond to the value to be set .
 
     Example:
-       
+
        >>> inp={}
        >>> dict_set(inp,'dft','nspin','mpol',2)
        >>> print (inp)
@@ -91,7 +91,7 @@ def dict_merge(dest, src):
 def file_time(filename):
     """
     Gives the date of the creation of the file, if exists.
-    
+
     :param str filename: name of the file
     :returns: if the file exists, the date of the filename as per os.path.getmtime.
      Otherwise it returns 0
@@ -105,30 +105,30 @@ def file_time(filename):
 def make_dict(inp):
     """
     Transform the instance ``inp`` into a python dictionary. If inp is already a dictionary, it perfroms a copy.
-    
+
     Args:
        inp (dict): a instance of a Class which inherits from dict
-    
-    Returns: 
+
+    Returns:
        dict: the copy of the class, converted as a dictionary
     """
     import copy
     local_tmp=copy.deepcopy(inp)
     local_input={}
-    local_input.update(local_tmp) 
+    local_input.update(local_tmp)
     return local_input
 
 def function_signature_regenerator(target_kwargs_function,fun_name='',fun_docstring='',**kwargs):
     '''
-    Generate the function of the name provided by `fun_name`, with signature provided by the 
+    Generate the function of the name provided by `fun_name`, with signature provided by the
     kwargs dictionary.
-    
+
     Args:
        target_kwargs_function (func): keyword arguments function that will be used for the generated function.
        fun_name (str): name of the regenerated function. If empty it will be the ``target_kwargs_functon.__name__`` prefixed by ``regenerated``, which will be copied in the docstring of the regenerated function.
        fun_docstring (str): docstring of the generated function, if empty it will take the docstring from ``target_kwargs_function``.
        **kwargs: keyword arguments which will represent the signature of the generated function.
-       
+
     Example:
         >>> def write_kwargs(**kwargs):
         >>>     """
@@ -144,18 +144,39 @@ def function_signature_regenerator(target_kwargs_function,fun_name='',fun_docstr
               Convert keyword arguments into a string
 
         {'opt1': 'default1', 'opt2': 'default2'}
-        
+
     '''
-    signature=form_command_line(',',**kwargs).lstrip(',')
+    signature=option_line_generator(',',**kwargs).lstrip(',')
     docstring=target_kwargs_function.__doc__ if not fun_docstring else fun_docstring
     if docstring is None: docstring="Automatically generated function from the target function '"+target_kwargs_function.__name__+"'"
     docstring='   """\n'+docstring+'\n   """'
     fname="regenerated_"+target_kwargs_function.__name__ if  not fun_name else fun_name
-    function="def %s(%s):\n%s\n   return target_function(%s)" % (fname,signature,docstring,signature)
+    function="def %s(%s):\n%s\n   return target_function(**locals())" % (fname,signature,docstring)
     gen_locals={}
     gen_object=compile(function,'generated_fun','exec')
     eval(gen_object,{'target_function':target_kwargs_function},gen_locals)
     return gen_locals[fname]
+
+def option_line_generator(separator='--',**kwargs):
+    """
+    Associate to each of the keyword arguments a command line argument.
+
+    Args:
+       separator (str): The string needed to separate the options.
+       Might be '--' for command-line arguments, but also ',' for function signatures.
+
+    Warning:
+        The separator comes **before** the first argument therefore pay attention to
+        lstrip it in case you want to use it as a function signature string.
+
+    Example:
+        >>> option_line_generator(arg1='val1',arg2='val2')
+        '--arg1=val1 --arg2=val2'
+    """
+    command=''
+    for option,value in kwargs.items():
+        command+=separator+option+'="'+str(value)+'" '
+    return command
 
 def kw_pop(*args,**kwargs):
     """
@@ -172,14 +193,14 @@ def kw_pop(*args,**kwargs):
 def find_files(regexp, archive=None):
     """
     Returns a list of the paths to the files that follow the regular expression
-    regexp. They are searched from the current working directory or from an archive 
+    regexp. They are searched from the current working directory or from an archive
     given as optional argument.
 
 
     :param regexp: A regular expression
     :type regexp: string
     :param archive: an opened tarfile archive (optional)
-    :type archive: 
+    :type archive:
     :returns: a list of all the paths that agree with the regexp
     :rtype: list of strings
     :raises: ValueError if the regexp does not find a single path.
@@ -188,10 +209,10 @@ def find_files(regexp, archive=None):
     Example::
 
         #Find all python files in the current working directory
-        find_files('*py') 
+        find_files('*py')
 
         #An exmple outside of the current working directory
-        find_files('*/log-*.yaml') 
+        find_files('*/log-*.yaml')
 
         #Example using a tarfile
         import tarfile
@@ -202,7 +223,7 @@ def find_files(regexp, archive=None):
 
     #Get a list of all paths to files satisfying the regexp
     if archive is not None:
-        paths = _find_files_from_archive(regexp, archive) 
+        paths = _find_files_from_archive(regexp, archive)
     else:
         paths = os.popen('ls '+regexp).read().splitlines()
 
@@ -216,22 +237,22 @@ def find_files(regexp, archive=None):
 
 def _find_files_from_archive(re, archive):
     """
-    This function retrieves the list of Logfiles instances 
-    from the file archived satisfying a regular expression.   
-    #function to identify an archive out of its regexp, 
+    This function retrieves the list of Logfiles instances
+    from the file archived satisfying a regular expression.
+    #function to identify an archive out of its regexp,
     #solves the bug in re for '*' (solved in Python 2.7.6)
     """
-    import tarfile    
+    import tarfile
 
     #Open the archive
     with tarfile.open(archive, 'r') as arch:
     #Return paths to logfiles satisfying the regexp
-        return [f for f in arch.getnames() 
+        return [f for f in arch.getnames()
                 if all(pattern in f for pattern in re.split('*'))]
 
 def ensure_copy(src,dest):
     """Copy src into dest.
-    
+
     Guarantees that the file indicated by ``dest`` is a copy of the file ``src``
 
     Args:
@@ -249,9 +270,9 @@ def ensure_copy(src,dest):
     return copied
 
 def ensure_dir(file_path):
-    """ 
-    Guarantees the existance on the directory given by the (relative) file_path 
-    
+    """
+    Guarantees the existance on the directory given by the (relative) file_path
+
     Args:
        file_path (str): path of thh directory to be created
 
@@ -279,7 +300,7 @@ if __name__ == '__main__':
     print("Test finding the Utils.py file in this directory")
     print(find_files("Utils.py"))
     print()
- 
+
     #
     print("Test raising a ValueError because the regexp leads to no files")
     try:

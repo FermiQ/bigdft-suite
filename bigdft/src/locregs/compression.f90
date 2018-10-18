@@ -11,7 +11,7 @@ module compression
   use module_defs, only: wp
   implicit none
 
-  private 
+  private
 
   !> Parameters identifying the different strategy for the application of a projector
   !! in a localisation region
@@ -80,9 +80,9 @@ contains
     implicit none
     type(wavefunctions_descriptors), intent(inout) :: wfd
     call release_wfd(wfd)
-    nullify(wfd%buffer)   
+    nullify(wfd%buffer)
   end subroutine nullify_wfd_pointers
-  
+
   !creators
   pure function wfd_to_wfd_null() result(tolr)
     implicit none
@@ -103,7 +103,10 @@ contains
     use dynamic_memory
     implicit none
     type(wfd_to_wfd), intent(inout) :: tolr
+
+        WRITE(*,*) "::::::>>1"
     call f_free_ptr(tolr%mask)
+        WRITE(*,*) "::::::>>2"
   end subroutine deallocate_wfd_to_wfd
 
   subroutine free_tolr_ptr(tolr)
@@ -172,9 +175,9 @@ contains
     logical :: yes
     yes=associated(wfd%keyvloc, target = wfd%keyvglob) .and. &
          associated(wfd%keygloc, target = wfd%keyglob)
-    
+
   end function wfd_is_global
-  
+
   !wfd must be associated
   pure function wfd_has_global_shape(wfd) result(yes)
     type(wavefunctions_descriptors), intent(in) :: wfd
@@ -190,7 +193,7 @@ contains
 
   subroutine assemble_wfd(wfd,global)
     implicit none
-    type(wavefunctions_descriptors), intent(inout) :: wfd    
+    type(wavefunctions_descriptors), intent(inout) :: wfd
     logical, intent(in), optional :: global
     !local variables
     logical :: global_
@@ -224,7 +227,7 @@ contains
   pure subroutine release_wfd(wfd)
     implicit none
     type(wavefunctions_descriptors), intent(inout) :: wfd
-    
+
     nullify(wfd%keyvloc)
     nullify(wfd%keyvglob)
     nullify(wfd%keyglob)
@@ -254,14 +257,14 @@ contains
   end subroutine recv_wfd_keys
 
   !> bring one localization region on all the mpi processes
-  !assume the in-place approach 
+  !assume the in-place approach
   subroutine broadcast_wfd_keys(wfd,source)
     use module_base, only: bigdft_mpi,fmpi_bcast
     use dictionaries, only: f_err_throw
     implicit none
     integer, intent(in) :: source
     type(wavefunctions_descriptors), intent(inout) :: wfd !assume that the segments are known by everyone
-    
+
     if (bigdft_mpi%iproc /= source .and. associated(wfd%buffer)) call deallocate_wfd(wfd)
 
     !assume the local approach with glob and loc allocated differently
@@ -347,9 +350,8 @@ contains
     !new method
     wfd%buffer=f_malloc_ptr(src=buffer,id='wfd%buffer')
     call assemble_wfd(wfd)
-    
-  end subroutine wfd_keys_from_buffer
 
+  end subroutine wfd_keys_from_buffer
 
   !> Initialize the wfd_to_wfd descriptor starting from 
   !! the descriptors of the localization regions
@@ -406,7 +408,7 @@ contains
     case default
        call f_err_throw('Unknown wfd_to_wfd strategy')
     end select
-    
+
   end subroutine tolr_set_strategy
 
   !>find the size of the mask array for a given couple plr - llr
@@ -467,7 +469,7 @@ contains
     !> number of common segments of the wfd_w for each of the segment of wfd_p.
     !! should be created by mask_sizes routine
     integer, dimension(wfd_p%nseg_c+wfd_p%nseg_f), intent(in) :: nbsegs_cf
-    !>masking array. On output, it indicates for any of the segments 
+    !>masking array. On output, it indicates for any of the segments
     !which are common between the wavefunction and the projector
     !the starting positions in the packed arrays of projectors and wavefunction
     !respectively
@@ -493,7 +495,7 @@ contains
     type(wavefunctions_descriptors), intent(in) :: wfd
     real(wp), dimension(wfd%nvctr_c+7*wfd%nvctr_f,ncplx), intent(in) :: psi
     real(wp) :: wnrm2
-    
+
     call wnrm_wrap(ncplx,wfd%nvctr_c,wfd%nvctr_f,psi,wnrm2)
   end function wnrm2
 
@@ -512,7 +514,7 @@ contains
     !> components of the projectors, real and imaginary parts
     real(wp), dimension(wfd_p%nvctr_c+7*wfd_p%nvctr_f,ncplx_p,n_p), intent(in) :: pr
     !> components of wavefunctions, real and imaginary parts
-    real(wp), dimension(wfd_w%nvctr_c+7*wfd_w%nvctr_f,ncplx_w,n_w), intent(in) :: psi 
+    real(wp), dimension(wfd_w%nvctr_c+7*wfd_w%nvctr_f,ncplx_w,n_w), intent(in) :: psi
     !> workspaces for the packing array
     real(wp), dimension(wfd_p%nvctr_c+7*wfd_p%nvctr_f,n_w*ncplx_w), intent(out) :: wpack
     !> array of the scalar product between the projectors and the wavefunctions
@@ -553,7 +555,7 @@ contains
     eproj=dot(max(ncplx_p,ncplx_w)*n_w*n_p,a(1,1,1),1,b(1,1,1),1)
   end subroutine cproj_dot
 
-  !> update of the psi 
+  !> update of the psi
   subroutine cproj_pr_p_psi(cproj,ncplx_p,n_p,wfd_p,pr,ncplx_w,n_w,wfd_w,psi,tolr,&
        wpack,scpr)
     implicit none
@@ -570,7 +572,7 @@ contains
     !> components of the projectors, real and imaginary parts
     real(wp), dimension(wfd_p%nvctr_c+7*wfd_p%nvctr_f,ncplx_p,n_p), intent(in) :: pr
     !> components of wavefunctions, real and imaginary parts
-    real(wp), dimension(wfd_w%nvctr_c+7*wfd_w%nvctr_f,ncplx_w,n_w), intent(inout) :: psi 
+    real(wp), dimension(wfd_w%nvctr_c+7*wfd_w%nvctr_f,ncplx_w,n_w), intent(inout) :: psi
     !> workspaces for the packing array
     real(wp), dimension(wfd_p%nvctr_c+7*wfd_p%nvctr_f,n_w*ncplx_w), intent(out) :: wpack
     !> array of the scalar product between the projectors and the wavefunctions
@@ -604,7 +606,7 @@ contains
 !!$      !indicating the points where data have to be taken for dot product
 !!$      ! always produced. Has to be initialized to zero first
     real(wp), dimension(wfd_p%nvctr_c+7*wfd_p%nvctr_f,n_w), intent(inout) :: psi_pack !< packed array of psi in projector form
-    !needed only when n_p is bigger than one 
+    !needed only when n_p is bigger than one
     real(wp), dimension(n_w,n_p), intent(out) :: scpr !< array of the scalar product of all the components
     !local variables
     logical :: mask,pack!, parameter :: mask=.true.,pack=.true.
@@ -639,7 +641,7 @@ contains
                   proj(1,1),proj(is_p,1),&
                   psi_pack(1,iw),psi_pack(is_p,iw),scpr(iw,1))
           end do
-       else 
+       else
           do iw=1,n_w
              call wpdot_mask_pack(wfd_w%nvctr_c,wfd_w%nvctr_f,tolr%nmseg_c,tolr%nmseg_f,&
                   tolr%mask(1,1),tolr%mask(1,is_sm),psi(1,iw),psi(is_w,iw),&
@@ -698,7 +700,7 @@ contains
     !indicating the points where data have to be taken for dot product
     ! always produced. Has to be initialized to zero first
     real(wp), dimension(wfd_p%nvctr_c+7*wfd_p%nvctr_f,n_w), intent(inout) :: hpsi_pack !< work array of hpsi in projector form
-    !needed only when n_p is bigger than one 
+    !needed only when n_p is bigger than one
 
     real(wp), dimension(wfd_w%nvctr_c+7*wfd_w%nvctr_f,n_w), intent(inout) :: hpsi !< wavefunction result
     !local variables
@@ -856,7 +858,7 @@ contains
              prfr=scpr(1,iw,1,ip)
              if (cplx_p) pifr=scpr(1,iw,2,ip)
              if (cplx_w) prfi=scpr(2,iw,1,ip)
-             if (cplx_pw) pifi=scpr(2,iw,2,ip)   
+             if (cplx_pw) pifi=scpr(2,iw,2,ip)
              !real part
              pdpsi(1,iw,ip)=prfr-ieps_p*ieps_w*pifi
              !imaginary part

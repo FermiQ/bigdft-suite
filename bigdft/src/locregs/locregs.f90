@@ -16,7 +16,7 @@ module locregs
   use bounds, only: convolutions_bounds
   implicit none
 
-  private 
+  private
 
   integer, parameter :: SIZE_=1,LR_=2
 
@@ -30,7 +30,7 @@ module locregs
      integer :: nfl2 = 0
      integer :: nfu2 = 0
      integer :: nfl3 = 0
-     integer :: nfu3 = 0 !< Lower and upper indices of fine grid in 3D 
+     integer :: nfu3 = 0 !< Lower and upper indices of fine grid in 3D
      integer :: n1i  = 0
      integer :: n2i  = 0
      integer :: n3i  = 0 !< ISF grid dimension (roughly 2*n+buffer)
@@ -44,17 +44,17 @@ module locregs
      integer :: nsi1,nsi2,nsi3              !< Starting point of locreg for interpolating grid
      integer :: Localnorb                   !< Number of orbitals contained in locreg
      integer, dimension(3) :: outofzone     !< Vector of points outside of the zone outside Glr for periodic systems
-     real(gp), dimension(3) :: locregCenter !< Center of the locreg 
+     real(gp), dimension(3) :: locregCenter !< Center of the locreg
      real(gp) :: locrad                     !< Cutoff radius of the localization region
      real(gp) :: locrad_kernel              !< Cutoff radius of the localization region (kernel)
      real(gp) :: locrad_mult                !< Cutoff radius of the localization region for the sparse matrix multiplications
      type(grid_dimensions) :: d             !< Grid dimensions in old different wavelet basis
      type(wavefunctions_descriptors) :: wfd
      type(convolutions_bounds) :: bounds
-     type(cell) :: mesh !<defines the cell of the system 
+     type(cell) :: mesh !<defines the cell of the system
                         !! (should replace the other geometrical informations)
      !> grid in the fine scaling functions box
-     type(cell) :: mesh_fine 
+     type(cell) :: mesh_fine
      type(cell) :: mesh_coarse !<discretization of the coarse egrees of freedom
      !>iterator over the mesh degrees of freedom
      type(box_iterator) :: bit
@@ -108,19 +108,19 @@ contains
     implicit none
     type(locreg_descriptors), intent(out) :: lr
 !!$    lr%geocode='F'
-    lr%hybrid_on=.false.   
+    lr%hybrid_on=.false.
     lr%ns1=0
     lr%ns2=0
-    lr%ns3=0 
+    lr%ns3=0
     lr%nsi1=0
     lr%nsi2=0
-    lr%nsi3=0  
-    lr%Localnorb=0  
-    lr%outofzone=(/0,0,0/) 
+    lr%nsi3=0
+    lr%Localnorb=0
+    lr%outofzone=(/0,0,0/)
     lr%d=grid_null()
     call nullify_wfd(lr%wfd)
     call nullify_convolutions_bounds(lr%bounds)
-    lr%locregCenter=(/0.0_gp,0.0_gp,0.0_gp/) 
+    lr%locregCenter=(/0.0_gp,0.0_gp,0.0_gp/)
     lr%locrad=0
     lr%mesh=cell_null()
     lr%mesh_fine=cell_null()
@@ -140,9 +140,11 @@ contains
     ! Calling arguments
     type(locreg_descriptors),intent(inout):: lr
 
+    WRITE(*,*) "::::1"
     call deallocate_wfd(lr%wfd)
+        WRITE(*,*) "::::2"
     call deallocate_convolutions_bounds(lr%bounds)
-    
+
   end subroutine deallocate_locreg_descriptors
 
 
@@ -151,7 +153,7 @@ contains
     use compression
     implicit none
     type(locreg_descriptors), intent(inout) :: lr
-    
+
     !nullify pointers internal to the structure to avoid fake deallocation
     call nullify_wfd_pointers(lr%wfd)
     call nullify_convolutions_bounds(lr%bounds)
@@ -178,7 +180,7 @@ contains
     type(malloc_information_ptr), intent(in) :: m
     !local variables
     integer :: ierror
-    
+
     call f_timer_interrupt(TCAT_ARRAY_ALLOCATIONS)
 
     allocate(array(m%lbounds(1):m%ubounds(1)),stat=ierror)
@@ -256,7 +258,7 @@ contains
     integer, intent(in) :: lr_size !<obtained from locreg_encode_size
     !array of dimension at least equal to locreg_encode_size
     integer, dimension(lr_size), intent(out) :: dest
-    
+
     dest=transfer(lr,dest)
   end subroutine locreg_encode
 
@@ -306,7 +308,7 @@ contains
     type(locreg_descriptors), target, intent(out) :: lr
     integer, dimension(lr_size), intent(in) :: src
 
-    lr=transfer(src,lr)   
+    lr=transfer(src,lr)
     call nullify_lr_pointers(lr)
     lr%bit%mesh => lr%mesh
   end subroutine locreg_decode
@@ -323,9 +325,9 @@ contains
     !local variables
     logical :: bounds_
     integer, dimension(:), pointer :: buffer
-    
+
     call locreg_decode(src,lr_size,lr)
-    if (lr_size == lr_full_size) return 
+    if (lr_size == lr_full_size) return
     buffer => f_subptr(src,from=lr_size+1,size=lr_full_size-lr_size)
     call wfd_keys_from_buffer(lr%wfd,buffer)
 
@@ -342,14 +344,14 @@ contains
                                                !!When its values are put to zero the update is not performed
     !local variables
     integer :: ilr,iilr
-    
+
     do ilr=1,nlr
        iilr=ilr
        if (present(ipiv)) iilr=ipiv(ilr)
        !only decode locregs which were not present already
        if (iilr /= 0) call locreg_decode(src_arr(1,ilr),lr_size,llr(iilr))
     end do
-    
+
   end subroutine locregs_decode
 
 
@@ -373,14 +375,14 @@ contains
     call f_routine(id=subname)
 
     !first encode and communicate
-    mask=f_malloc(nlr,id='mask')    
+    mask=f_malloc(nlr,id='mask')
     recvcounts=f_malloc0(0.to.nproc-1,id='recvcounts')
 
     do ilr=1,nlr
        !count order the locregs per process
        jproc=rootarr(ilr)
        recvcounts(jproc)=recvcounts(jproc)+1
-       !mask the number of locreg that are associated to the 
+       !mask the number of locreg that are associated to the
        !present mpi process
        mask(ilr) = iproc == jproc
     end do
@@ -510,7 +512,7 @@ contains
     lr_storage%encode_buffer=f_malloc_ptr(full_encoding_buffer_size,id='lr_storage%encode_buffer')
 
     !gather the array in the full encoding buffer
-    call fmpi_allgather(sendbuf=encoding_buffer,recvbuf=lr_storage%encode_buffer,comm=bigdft_mpi%mpi_comm) 
+    call fmpi_allgather(sendbuf=encoding_buffer,recvbuf=lr_storage%encode_buffer,comm=bigdft_mpi%mpi_comm)
 
     call f_free(encoding_buffer)
     call f_free(lr_sizes)
@@ -544,7 +546,7 @@ contains
 
     call locreg_full_decode(src_buf,&
          lr_storage%lr_size,lr_storage%lr_full_sizes(SIZE_,iilr),lr,bounds)
-    
+
   end subroutine extract_lr
 
   !> Methods for copying the structures, can be needed to avoid recalculating them
@@ -611,7 +613,7 @@ contains
     use bounds, only: locreg_bounds
     implicit none
     type(locreg_descriptors), intent(inout) :: lr
-    
+
     !take this as exemple of already associated bounds
     if (associated(lr%bounds%kb%ibyz_c)) return
 
@@ -623,7 +625,7 @@ contains
 
 
   !> Almost degenerate with get_number_of_overlap_region
-  !! should merge the two... prefering this one since argument list is better 
+  !! should merge the two... prefering this one since argument list is better
   subroutine check_overlap_cubic_periodic(Glr,Ilr,Jlr,isoverlap)
     use module_base
     use bounds, only: check_whether_bounds_overlap
@@ -638,7 +640,7 @@ contains
   !!  integer :: azones,bzones,ii,izones,jzones !, i_stat, i_all
   !!  logical :: go1, go2, go3
   !!  integer,dimension(3,8) :: astart,bstart,aend,bend
-  
+
   !!  azones = 1
   !!  bzones = 1
   !!! Calculate the number of regions to cut alr and blr
@@ -666,8 +668,8 @@ contains
   !!      end if
   !!    end do
   !!  end do loop_izones
-  
-  
+
+
     !@ NEW VERSION #########################################
     ! Shift all the indices into the periodic cell. This can result is starting
     ! indices being larger than ending indices
@@ -695,18 +697,18 @@ contains
             end if
         end if
     end if
-  
+
     !!if (overlap1 .and. overlap2 .and. overlap3) then
     !!    isoverlap = .true.
     !!else
     !!    isoverlap = .false.
     !!end if
-        
+
     !@ END NEW VERSION #####################################
-  
+
     !!!debug
     !!isoverlap=.true.
-  
+
   end subroutine check_overlap_cubic_periodic
 
     subroutine check_overlap(Llr_i, Llr_j, Glr, overlap)
@@ -729,7 +731,7 @@ contains
 
     ! check if Llrs overlap from there descriptors
     ! The periodicity is hidden in the fact that we are using the keyglobs
-    ! which are correctly defined. 
+    ! which are correctly defined.
     subroutine check_overlap_from_descriptors_periodic(nseg_i, nseg_j, keyg_i, keyg_j,  &
          isoverlap, onseg)
       implicit none
@@ -800,7 +802,7 @@ contains
       type(grid_dimensions) :: g
       !local variables
       integer, parameter :: ISF_GROW_BUFFER=31
-      
+
       g%n1=n1-ns1
       g%n2=n2-ns2
       g%n3=n3-ns3
@@ -846,7 +848,7 @@ contains
       real(gp), dimension(3), intent(in) :: hgridsh
       character(len=1), intent(in), optional :: global_geocode
       !>have to be present with global_geocode
-      integer, intent(in), optional :: isx,isy,isz 
+      integer, intent(in), optional :: isx,isy,isz
       type(wavefunctions_descriptors), intent(in), optional :: wfd
       type(convolutions_bounds), intent(in), optional :: bnds
       type(locreg_descriptors), intent(inout) :: lr
@@ -939,8 +941,8 @@ contains
       !this is a point where the geocode is stull used
       if (geocode == 'F' .and. present(bnds)) lr%bounds=bnds
 
-      !here we have to put the modifications of the origin for the 
-      !iterator of the lr. get_isf_offset should be used as 
+      !here we have to put the modifications of the origin for the
+      !iterator of the lr. get_isf_offset should be used as
       !soon as global_geocode is replaced
       oxyz=locreg_mesh_origin(lr%mesh)
       lr%bit=box_iter(lr%mesh,origin=oxyz)
@@ -957,7 +959,7 @@ contains
       logical, intent(inout) :: periodic
       integer, intent(inout) :: is,ie
 
-      if (ie - is >= n) then       
+      if (ie - is >= n) then
          is=ns
          ie=ns + n
          periodic = .true.
@@ -1016,7 +1018,7 @@ contains
 
       xperiodic = .false.
       yperiodic = .false.
-      zperiodic = .false. 
+      zperiodic = .false.
 
       peri=cell_periodic_dims(Glr%mesh)
       if (peri(1)) then
@@ -1057,8 +1059,8 @@ contains
 !!$         iey=min(iey,Glr%ns2+Glr%d%n2)
 !!$         iez=min(iez,Glr%ns3+Glr%d%n3)
 !!$      case('S')
-!!$         ! Get starting and ending for x direction     
-!!$         if (iex - isx >= Glr%d%n1) then       
+!!$         ! Get starting and ending for x direction
+!!$         if (iex - isx >= Glr%d%n1) then
 !!$            isx=Glr%ns1
 !!$            iex=Glr%ns1 + Glr%d%n1
 !!$            xperiodic = .true.
@@ -1079,7 +1081,7 @@ contains
 !!$
 !!$         !Get starting and ending for z direction
 !!$         if (iez - isz >= Glr%d%n3) then
-!!$            isz=Glr%ns3 
+!!$            isz=Glr%ns3
 !!$            iez=Glr%ns3 + Glr%d%n3
 !!$            zperiodic = .true.
 !!$         else
@@ -1096,8 +1098,8 @@ contains
 !!$         end if
 !!$
 !!$      case('P')
-!!$         ! Get starting and ending for x direction     
-!!$         if (iex - isx >= Glr%d%n1) then       
+!!$         ! Get starting and ending for x direction
+!!$         if (iex - isx >= Glr%d%n1) then
 !!$            isx=Glr%ns1
 !!$            iex=Glr%ns1 + Glr%d%n1
 !!$            xperiodic = .true.
@@ -1112,7 +1114,7 @@ contains
 !!$         end if
 !!$
 !!$         ! Get starting and ending for y direction (perpendicular to surface)
-!!$         if (iey - isy >= Glr%d%n2) then       
+!!$         if (iey - isy >= Glr%d%n2) then
 !!$            isy=Glr%ns2
 !!$            iey=Glr%ns2 + Glr%d%n2
 !!$            yperiodic = .true.
@@ -1128,7 +1130,7 @@ contains
 !!$
 !!$         !Get starting and ending for z direction
 !!$         if (iez - isz >= Glr%d%n3) then
-!!$            isz=Glr%ns3 
+!!$            isz=Glr%ns3
 !!$            iez=Glr%ns3 + Glr%d%n3
 !!$            zperiodic = .true.
 !!$         else
@@ -1181,7 +1183,7 @@ contains
            nbox(1,1),nbox(1,2),nbox(1,3),&
            nbox(2,1),nbox(2,2),nbox(2,3),&
            .false.,lr%ns1,lr%ns2,lr%ns3,global_geocode)
-      
+
     end subroutine reset_lr
 
     !> initalize the box-related components of the localization regions
@@ -1244,7 +1246,7 @@ contains
       end if
 
       call f_release_routine()
-      
+
     end subroutine lr_box
 
     !>get the offset of the isf description of the support function

@@ -425,14 +425,19 @@ contains
     !check if the object can be freed
     call f_ref_free(rst%refcnt)
 
+    WRITE(*,*) "::1"
     if (rst%version == LINEAR_VERSION) then
        call destroy_DFT_wavefunction(rst%tmb)
     end if
+        WRITE(*,*) "::2"
     call deallocate_local_zone_descriptors(rst%tmb%lzd)
 
+        WRITE(*,*) "::3"
     call deallocate_locreg_descriptors(rst%KSwfn%Lzd%Glr)
 
+        WRITE(*,*) "::4"
     call f_free_ptr(rst%KSwfn%psi)
+        WRITE(*,*) "::5"
     call f_free_ptr(rst%KSwfn%orbs%eval)
     if (associated(rst%KSwfn%oldpsis)) then
        do istep=0,product(shape(rst%KSwfn%oldpsis))-1
@@ -440,16 +445,22 @@ contains
        end do
        deallocate(rst%KSwfn%oldpsis)
     end if
+        WRITE(*,*) "::6"
     call f_free_ptr(rst%rxyz_old)
+        WRITE(*,*) "::7"
     call f_free_ptr(rst%rxyz_new)
+        WRITE(*,*) "::8"
 
     !The gaussian basis descriptors are always allocated together
     !with the gaussian coefficients
+        WRITE(*,*) "::9"
     if (associated(rst%KSwfn%gbd%rxyz)) then
        nullify(rst%KSwfn%gbd%rxyz)
        call deallocate_gwf(rst%KSwfn%gbd)
     end if
+        WRITE(*,*) "::10"
     call f_free_ptr(rst%KSwfn%gaucoeffs)
+        WRITE(*,*) "::11"
 
     !finalise the material accelearion usage
     call release_material_acceleration(rst%GPU)
@@ -1003,36 +1014,45 @@ contains
     end if
 
     if (release) then
+       WRITE(*,*) "1"
        call dict_free(runObj%user_inputs)
+          WRITE(*,*) "1.5"
        if (associated(runObj%rst)) then
           call free_QM_restart_objects(runObj%rst)
           deallocate(runObj%rst)
        end if
+          WRITE(*,*) "2"
        if (associated(runObj%mm_rst)) then
           call free_MM_restart_objects(runObj%mm_rst)
           deallocate(runObj%mm_rst)
        end if
+          WRITE(*,*) "3"
        if (associated(runObj%atoms)) then
           call deallocate_atoms_data(runObj%atoms)
           deallocate(runObj%atoms)
        end if
+          WRITE(*,*) "4"
        if (associated(runObj%inputs)) then
           call free_input_variables(runObj%inputs)
           deallocate(runObj%inputs)
        end if
+          WRITE(*,*) "5"
        if (associated(runObj%py_hooks)) then
           call dict_free(runObj%py_hooks)
        end if
+          WRITE(*,*) "6"
        if (associated(runObj%sections)) then
           do i = 1, size(runObj%sections)
              call release_run_objects(runObj%sections(i))
           end do
           deallocate(runObj%sections)
        end if
+          WRITE(*,*) "7"
        if (associated(runObj%astruct_map)) then
           call f_free_ptr(runObj%astruct_map)
           nullify(runObj%astruct_map)
        end if
+          WRITE(*,*) "8"
        call nullify_run_objects(runObj)
     else
        call run_objects_wrapper_attach(runObj%c_obj, runObj)
@@ -1082,7 +1102,7 @@ contains
     end if
 
     call f_release_routine()
-    
+
   END SUBROUTINE set_run_objects
 
   !> @todo make this routine private by reacting on a change to main coordinates.
@@ -1346,7 +1366,7 @@ contains
     call f_release_routine()
 
   END SUBROUTINE run_objects_init
-  
+
   subroutine run_objects_update(runObj, dict)
     use module_base, only: bigdft_mpi
     use dictionaries!, only: dictionary, dict_update,dict_copy,dict_free,dict_iter,dict_next
@@ -1981,7 +2001,7 @@ contains
             'energies and forces is unknown: '+ enum_int(runObj%run_mode)//&
             '('+f_str(runObj%run_mode)+')',err_name='BIGDFT_RUNTIME_ERROR')
     end select
-    
+
     if (runObj%add_coulomb_force)&
          call coulomb_energyandforces(nat, rxyz_ptr, outs%fxyz, outs%energy)
 !!         anoise=2.d-5
