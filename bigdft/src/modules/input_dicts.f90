@@ -16,9 +16,9 @@ module input_old_text_format
   integer, parameter :: WF_N_FORMAT      = 4
   character(len = 12), dimension(0:WF_N_FORMAT-1), parameter :: wf_format_names = &
        (/ "none        ", &
-       "plain text  ", &
-       "Fortran bin.", &
-       "ETSF        " /)
+        & "plain text  ", &
+        & "Fortran bin.", &
+        & "ETSF        " /)
 
 
   !> All possible values of input psi (determination of the input guess)
@@ -1318,6 +1318,8 @@ contains
     use dictionaries, only: dict_new,operator(.is.)
     implicit none
     type(yaml_cl_parse), intent(inout) :: parser
+
+    call yaml_cl_parse_usage(parser,'Wavelet-based Density Functional Theory program (see http://bigdft.org)')
 
     call yaml_cl_parse_option(parser,'name','None',&
          'name of the run','n',&

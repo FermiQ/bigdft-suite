@@ -1093,7 +1093,7 @@ contains
     !We found a file
     select case (astruct%inputfile_format)
     case("xyz")
-       call f_open_file(unit=iunit,file=trim(filename),status='old')
+       call f_open_file(unit=iunit,file=trim(filename),status='old',action='read')
        !read atomic positions
        if (.not.archive) then
           call read_xyz_positions(iunit,filename,astruct,comment_,energy_,fxyz_,directGetLine,disableTrans)
@@ -1102,7 +1102,7 @@ contains
        end if
 
     case("ascii")
-       call f_open_file(unit=iunit,file=trim(filename),status='old')
+       call f_open_file(unit=iunit,file=trim(filename),status='old',action='read')
        !read atomic positions
        if (.not.archive) then
           call read_ascii_positions(iunit,filename,astruct,comment_,energy_,fxyz_,directGetLine,disableTrans)
@@ -1111,7 +1111,7 @@ contains
        end if
 
     case("int")
-       call f_open_file(unit=iunit,file=trim(filename),status='old')
+       call f_open_file(unit=iunit,file=trim(filename),status='old',action='read')
        !read atomic positions
        if (.not.archive) then
           call read_int_positions(iproc,iunit,astruct,comment_,energy_,fxyz_,directGetLine,disableTrans)
@@ -1145,7 +1145,7 @@ contains
             & " The format should be 'yaml', 'int', 'ascii' or 'xyz'.",err_id=BIGDFT_INPUT_FILE_ERROR)
 
     end select
-    !if an error has been produced return
+    !if an error or both (f_open_file and read) have been produced return
     if (f_err_check()) return
 
     !Check the number of atoms (should be more a f_assert that a error raise)
@@ -1824,6 +1824,7 @@ contains
         & BIGDFT_INPUT_FILE_ERROR,f_free_ptr
     use public_keys, only: POSINP,GOUT_FORCES,GOUT_ENERGY,POSINP_SOURCE
     use yaml_strings
+    use yaml_output, only: yaml_map
     use dictionaries
     use module_input_dicts, only: dict_get_run_properties
     implicit none
@@ -1836,10 +1837,10 @@ contains
     type(atomic_structure) :: astruct
     !type(DFT_global_output) :: outs
     character(len=max_field_length) :: msg,radical
-    integer :: ierr,iat
+    integer :: ierr,iat,ie
     real(gp) :: energy
     real(gp), dimension(:,:), pointer :: fxyz
-    type(dictionary), pointer :: dict_tmp,pos
+    type(dictionary), pointer :: dict_tmp,pos,list_msg
 
     call f_routine(id='astruct_file_merge_to_dict')
 
@@ -1856,10 +1857,32 @@ contains
     !       energy = energy, fxyz = fxyz)
     !end if
     !print *,'test2',associated(fxyz)
-    !Check if BIGDFT_INPUT_FILE_ERROR
-    ierr = f_get_last_error(msg)
+
+    !Collect only two erros INPUT_OUTPUT_ERROR or BIGDFT_INPUT_FILE_ERROR
+    !Check if INPUT_OUTPUT_ERROR (collect all errors)
+    call dict_init(list_msg)
+    ierr=f_err_pop(err_name='INPUT_OUTPUT_ERROR',add_msg=msg)
+    if (ierr /= 0) then
+      !Found a file but error when opening the file: collect all same errors
+      do
+        call add(list_msg,msg)
+        ie = f_err_pop(err_name='INPUT_OUTPUT_ERROR',add_msg=msg)
+        if (ie == 0) exit
+      end do
+    else 
+      !Check if input file is correct
+      ierr = f_err_pop(err_id=BIGDFT_INPUT_FILE_ERROR,add_msg=msg)
+      do
+        call add(list_msg,msg)
+        ie = f_err_pop(err_id=BIGDFT_INPUT_FILE_ERROR,add_msg=msg)
+        if (ie == 0) exit
+      end do
+    end if
+
+    !ierr = f_get_last_error(msg)
     call f_err_close_try()
 
+    !Check errors and actions
     if (ierr == 0) then
       dict_tmp => dict // key
       !No errors: we have all information in astruct and put into dict
@@ -1879,19 +1902,26 @@ contains
       !call global_output_merge_to_dict(dict // key, outs, astruct)
       call deallocate_atomic_structure(astruct)
 
-    else if (ierr == BIGDFT_INPUT_FILE_ERROR) then
-      !Found no file, raise an error
-      call f_strcpy(src='input',dest=radical)
-      !modify the radical name if it exists
-      call dict_get_run_properties(dict, input_id = radical)
-      msg = "No section 'posinp' for the atomic positions in the file '"//&
-            & trim(radical) // ".yaml'. " // trim(msg)
-      call f_err_throw(err_msg=msg,err_id=ierr)
-    else
+    else 
       ! Raise an error
+      call yaml_map('Found errors',list_msg)
+
+      if (ierr == BIGDFT_INPUT_FILE_ERROR) then
+        !Found no file, raise an error
+        call f_strcpy(src='input',dest=radical)
+        !modify the radical name if it exists
+        call dict_get_run_properties(dict, input_id = radical)
+        msg = "No section 'posinp' for the atomic positions in the file '"//&
+              & trim(radical) // ".yaml'. "
+
+      else
+        msg='Error when opening the input file'
+      end if
       call f_err_throw(err_msg=msg,err_id=ierr)
+
     end if
 
+    call dict_free(list_msg)
     call f_free_ptr(fxyz)
     call f_release_routine()
 

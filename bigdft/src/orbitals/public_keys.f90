@@ -287,6 +287,7 @@ module public_keys
   character(len=*), parameter :: FOE_RESTART="FOE_restart"
   character(len=*), parameter :: IMETHOD_OVERLAP = "imethod_overlap"
   character(len=*), parameter :: EXTRA_SHELLS_KEY='empty_shells'
+  character(len=*), parameter :: EXTRA_ORBITALS_KEY='empty_orbitals'
   character(len=*), parameter :: ENABLE_MATRIX_TASKGROUPS='enable_matrix_taskgroups'
   character(len=*), parameter :: HAMAPP_RADIUS_INCR='hamapp_radius_incr'
   character(len=*), parameter :: ADJUST_KERNEL_ITERATIONS='adjust_kernel_iterations'
@@ -347,7 +348,8 @@ module public_keys
   character(len=*), parameter :: BABEL_SOURCE = 'babel'
 end module public_keys
 
-!>module identifying constants that have to be used as enumerators
+
+!> Module identifying constants that have to be used as enumerators
 !! they can be used to define f_enumerator types or directly as integers
 module public_enums
   use f_enums

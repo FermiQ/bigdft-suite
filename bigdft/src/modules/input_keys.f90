@@ -1018,7 +1018,8 @@ contains
     type(dictionary), pointer :: as_is,nested,dict_ps_min,dict_chess_min,tmp,tmpdft,tmppos
     character(max_field_length) :: meth
     real(gp) :: dtmax_, betax_
-    logical :: free,dftvar,symbool
+    logical :: free,dftvar
+!!$    logical :: symbool
     integer :: nat
     integer, parameter :: natoms_dump = 500
 

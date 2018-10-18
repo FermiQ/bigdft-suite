@@ -88,15 +88,19 @@ module locregs
 
 contains
 
+
+  !> Create a grid_dimensions instance with all dimensions equal to 0.
   pure function grid_null() result(g)
     type(grid_dimensions) :: g
   end function grid_null
+
 
   pure function locreg_null() result(lr)
     implicit none
     type(locreg_descriptors) :: lr
     call nullify_locreg_descriptors(lr)
   end function locreg_null
+
 
   pure subroutine nullify_locreg_descriptors(lr)
     use box
@@ -140,6 +144,7 @@ contains
     call deallocate_convolutions_bounds(lr%bounds)
     
   end subroutine deallocate_locreg_descriptors
+
 
   subroutine nullify_lr_pointers(lr)
     use bounds
@@ -223,7 +228,6 @@ contains
     call nullify_lr_storage(lr_storage)
   end subroutine lr_storage_free
 
-  !>methods to encode and decode the structure
   !might be used in favour of copying of the datatypes
   function get_locreg_encode_size() result(s)
     implicit none
@@ -293,7 +297,8 @@ contains
 
   end subroutine locregs_encode
 
-  !>decode a locreg from a src array
+
+  !> Decode a locreg from a src array
   !! warning, the status of the pointers of lr is nullified after communication
   subroutine locreg_decode(src,lr_size,lr)
     implicit none
@@ -306,6 +311,8 @@ contains
     lr%bit%mesh => lr%mesh
   end subroutine locreg_decode
 
+
+  !> Decode a group of locregs given a src array
   subroutine locreg_full_decode(src,lr_size,lr_full_size,lr,bounds)
     use compression
     implicit none
@@ -326,13 +333,13 @@ contains
 
   end subroutine locreg_full_decode
 
-  !>decode a group of locregs given a src array
   subroutine locregs_decode(src_arr,lr_size,nlr,llr,ipiv)
     implicit none
     integer, intent(in) :: lr_size,nlr
     type(locreg_descriptors), dimension(nlr), intent(inout) :: llr
     integer, dimension(lr_size,nlr), intent(in) :: src_arr
-    integer, dimension(nlr), optional  :: ipiv !<array expressing the order of the lrs in the src_arr. When its values are put to zero  the update is not performed
+    integer, dimension(nlr), optional  :: ipiv !<array expressing the order of the lrs in the src_arr. 
+                                               !!When its values are put to zero the update is not performed
     !local variables
     integer :: ilr,iilr
     
@@ -344,6 +351,7 @@ contains
     end do
     
   end subroutine locregs_decode
+
 
   !> Locreg communication
   subroutine communicate_locreg_descriptors_basics(iproc, nproc, nlr, rootarr, llr)
@@ -575,6 +583,8 @@ contains
     glrout%mesh_coarse=glrin%mesh_coarse
     glrout%bit=glrin%bit
   end subroutine copy_locreg_descriptors
+
+
   pure subroutine copy_grid_dimensions(din, dout)
     implicit none
     ! Calling arguments
@@ -596,6 +606,7 @@ contains
 
   end subroutine copy_grid_dimensions
 
+
   subroutine ensure_locreg_bounds(lr)
     use bounds, only: locreg_bounds
     implicit none
@@ -609,6 +620,7 @@ contains
          lr%d%nfl3,lr%d%nfu3,lr%wfd,lr%bounds)
 
   end subroutine ensure_locreg_bounds
+
 
   !> Almost degenerate with get_number_of_overlap_region
   !! should merge the two... prefering this one since argument list is better 
