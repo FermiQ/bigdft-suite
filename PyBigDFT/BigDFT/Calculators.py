@@ -189,7 +189,7 @@ class Runner():
         Returns:
            dictionary of the pre-treated keyword arguments that have to be actually considered by process_run.
         """
-        return self.run_options
+        return {}
 
     def process_run(self,**kwargs):
         """
