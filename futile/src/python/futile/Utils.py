@@ -178,6 +178,27 @@ def option_line_generator(separator='--',**kwargs):
         command+=separator+option+'="'+str(value)+'" '
     return command
 
+def option_line_generator(separator='--',**kwargs):
+    """
+    Associate to each of the keyword arguments a command line argument.
+
+    Args:
+       separator (str): The string needed to separate the options.
+       Might be '--' for command-line arguments, but also ',' for function signatures.
+
+    Warning:
+        The separator comes **before** the first argument therefore pay attention to
+        lstrip it in case you want to use it as a function signature string.
+
+    Example:
+        >>> option_line_generator(arg1='val1',arg2='val2')
+        '--arg1=val1 --arg2=val2'
+    """
+    command=''
+    for option,value in kwargs.items():
+        command+=separator+option+'="'+str(value)+'" '
+    return command
+
 def kw_pop(*args,**kwargs):
     """
     Treatment of kwargs. Eliminate from kwargs the tuple in args.

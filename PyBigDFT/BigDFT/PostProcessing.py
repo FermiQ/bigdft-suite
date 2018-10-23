@@ -156,8 +156,18 @@ class BigDFTool(object):
         from os.path import join
         from inspect import getargspec
 
+        # Convert the arguments of the function to a dictionary
         args, vargs, keywords, default = getargspec(self.fragment_multipoles)
         options = {a:d for a,d in zip(args, default)}
+
+        # Replace the default directory with the appropriate one if it is
+        # available
+        if logfile.log["radical"]:
+            data_dir = "data-" + logfile.log["radical"]
+            for a, d in options.items():
+                if a == "mpirun" or a == "action" or a == "matrix_format":
+                    continue
+                options[a] = join(data_dir, d.lstrip("data/"))
 
         self.fragment_multipoles(**options)
 
