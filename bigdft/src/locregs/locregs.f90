@@ -64,6 +64,7 @@ module locregs
   !!communicating the descriptors
   type, public :: locregs_ptr
      type(locreg_descriptors), pointer :: lr=>null()
+     logical :: owner
   end type locregs_ptr
 
   type, public :: locreg_storage
@@ -81,7 +82,7 @@ module locregs
   public :: deallocate_locreg_descriptors,deallocate_wfd
   public :: allocate_wfd,copy_locreg_descriptors,copy_grid_dimensions
   public :: check_overlap,check_overlap_cubic_periodic,check_overlap_from_descriptors_periodic,lr_box
-  public :: init_lr,reset_lr,extract_lr,store_lr,gather_locreg_storage
+  public :: init_lr,reset_lr,extract_lr,store_lr,steal_lr,gather_locreg_storage
   public :: lr_storage_init, lr_storage_free
   public :: communicate_locreg_descriptors_basics
   public :: get_isf_offset,ensure_locreg_bounds,lr_is_stored
@@ -197,7 +198,17 @@ contains
     implicit none
     type(locregs_ptr), dimension(:), pointer, intent(inout) :: array
     !local variables
-    integer :: ierror
+    integer :: ierror, i
+
+    ! Deallocate the locregs we are owner of.
+    do i = 1, size(array)
+       if (array(i)%owner) then
+          call deallocate_locreg_descriptors(array(i)%lr)
+          deallocate(array(i)%lr)
+       end if
+    end do
+
+    ! Deallocate container.
     call f_timer_interrupt(TCAT_ARRAY_ALLOCATIONS)
 
     call f_purge_database(product(int(shape(array),f_long)),lr_ptr_sizeof(array),&
@@ -268,7 +279,8 @@ contains
     integer, dimension(lr_full_size), intent(out) :: dest
 
     call locreg_encode(lr,lr_size,dest)
-    call f_memcpy(n=lr_full_size-lr_size,src=lr%wfd%buffer,dest=dest(lr_size+1))
+    if (lr_full_size-lr_size > 0) &
+         & call f_memcpy(n=lr_full_size-lr_size,src=lr%wfd%buffer,dest=dest(lr_size+1))
 
   end subroutine locreg_full_encode
 
@@ -444,7 +456,20 @@ contains
     type(locreg_descriptors), intent(in), target :: lr
 
     lr_storage%lrs_ptr(ilr)%lr => lr
+    lr_storage%lrs_ptr(ilr)%owner = .false. ! Caller is responsible to free lr later
   end subroutine store_lr
+
+  !take ownership of the localization region lr in the lrs_ptr array
+  subroutine steal_lr(lr_storage,ilr,lr)
+    implicit none
+    type(locreg_storage), intent(inout) :: lr_storage
+    integer, intent(in) :: ilr
+    type(locreg_descriptors), intent(in) :: lr
+
+    allocate(lr_storage%lrs_ptr(ilr)%lr)
+    lr_storage%lrs_ptr(ilr)%lr = lr
+    lr_storage%lrs_ptr(ilr)%owner = .true. ! Caller should not touch lr anymore
+  end subroutine steal_lr
 
   pure function lr_is_stored(lr_storage,ilr) result(ok)
     implicit none
@@ -480,27 +505,31 @@ contains
        lr_storage%lr_full_sizes(LR_,iilr)=ilr
        encoding_buffer_size=encoding_buffer_size+lr_full_size
     end do
-    lr_sizes=f_malloc([2,iilr],id='lr_sizes')
-    if (iilr > 0) &
-         & call f_memcpy(n=2*iilr,src=lr_storage%lr_full_sizes,dest=lr_sizes(1,1))
 
-    call fmpi_allgather(sendbuf=lr_sizes,recvbuf=lr_storage%lr_full_sizes,&
-         comm=bigdft_mpi%mpi_comm,win=win_counts)
+    if (bigdft_mpi%nproc > 1) then
+       lr_sizes=f_malloc([2,iilr],id='lr_sizes')
+       if (iilr > 0) &
+            & call f_memcpy(n=2*iilr,src=lr_storage%lr_full_sizes,dest=lr_sizes(1,1))
+       call fmpi_allgather(sendbuf=lr_sizes,recvbuf=lr_storage%lr_full_sizes,&
+            comm=bigdft_mpi%mpi_comm,win=win_counts)
+    end if
 
     encoding_buffer=f_malloc(encoding_buffer_size,id='encoding_buffer')
     !redo the loop to fill the encoding buffer
     encoding_buffer_idx=1
-    iilr=0
     do ilr=1,nlr
        if ( .not. lr_is_stored(lr_storage,ilr)) cycle
-       iilr=iilr+1
-       lr_full_size=lr_sizes(SIZE_,iilr)
-       call locreg_full_encode(lr_storage%lrs_ptr(ilr)%lr,lr_storage%lr_size,lr_full_size,encoding_buffer(encoding_buffer_idx))
+       lr_full_size=lr_storage%lr_full_sizes(SIZE_,ilr)
+       call locreg_full_encode(lr_storage%lrs_ptr(ilr)%lr,lr_storage%lr_size, &
+            & lr_full_size,encoding_buffer(encoding_buffer_idx))
        encoding_buffer_idx=encoding_buffer_idx+lr_full_size
     end do
 
     !close the previous communication window
-    call fmpi_win_shut(win_counts)
+    if (bigdft_mpi%nproc > 1) then
+       call fmpi_win_shut(win_counts)
+       call f_free(lr_sizes)
+    end if
 
     !allocate the full sized array
     full_encoding_buffer_size=0
@@ -510,10 +539,13 @@ contains
     lr_storage%encode_buffer=f_malloc_ptr(full_encoding_buffer_size,id='lr_storage%encode_buffer')
 
     !gather the array in the full encoding buffer
-    call fmpi_allgather(sendbuf=encoding_buffer,recvbuf=lr_storage%encode_buffer,comm=bigdft_mpi%mpi_comm) 
+    if (bigdft_mpi%nproc > 1) then
+       call fmpi_allgather(sendbuf=encoding_buffer,recvbuf=lr_storage%encode_buffer,comm=bigdft_mpi%mpi_comm)
+    else
+       call f_memcpy(n = encoding_buffer_size, src = encoding_buffer, dest = lr_storage%encode_buffer(1))
+    end if
 
     call f_free(encoding_buffer)
-    call f_free(lr_sizes)
 
   end subroutine gather_locreg_storage
 

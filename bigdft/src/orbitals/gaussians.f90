@@ -2364,7 +2364,7 @@ contains
 
     !this should be in absolute coordinates
     vect = rxyz_ortho(boxit%mesh, closest_r(boxit%mesh, boxit%rxyz, rxyz))
-    r = distance(boxit%mesh, boxit%rxyz, rxyz)
+    r = sqrt(vect(1) * vect(1) + vect(2) * vect(2) + vect(3) * vect(3))!distance(boxit%mesh, boxit%rxyz, rxyz)
     tt = 0._gp
     offset = sum(ylm%ntpd(1:ylm%m - 1))
     do i = 1, ylm%ntpd(ylm%m)
