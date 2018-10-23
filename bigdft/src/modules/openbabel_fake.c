@@ -17,10 +17,8 @@ void FC_FUNC_(openbabel_dump, OPENBABEL_DUMP)(f90_dictionary_pointer *dict_posin
 {
 }
 
-/*
 //extern "C"
 void FC_FUNC_(openbabel_formats,OPENBABEL_FORMATS)(f90_dictionary_pointer* input_formats,
                                                    f90_dictionary_pointer* output_formats)
 {
 }
-*/
