@@ -281,8 +281,8 @@ class Fragment():
     def append(self,atom=None,sym=None,positions=None):
         """
         Include an atom in the fragment.
-        
-        :param dictionary atom: 
+
+        :param dictionary atom:
              The dictionary of the atom. Should be provided in the yaml format of BigDFT atomic positions.
         :param string sym: The symbol of the atom. Need positions when specified.
         :param list positions: The atomic positions, given in fragment units.
@@ -547,6 +547,27 @@ class System():
             posarr=[ np.ravel(r) for r in frag.positions]
             f.append(posarr,names=names,attributes=[{'frag': [frag.id, i+1]}]*len(frag))
         f.dump()
+    def write_fragfile(self,filename="log.yaml"):
+        """
+        Create a fragment list file and write it to the disk.
+
+        Args:
+          filename (string): the name of the file to write to.
+        """
+        import yaml
+
+        # Form the list
+        flist = []
+        ii = 1
+        for frag in self.fragments:
+            flist.append([])
+            for i in range(ii, ii+len(frag.atoms)):
+                flist[-1].append(i)
+            ii = ii + len(frag.atoms)
+
+        # Write to file
+        with open(filename, "w") as f:
+            f.write(yaml.dump(flist))
     def dict(self,filename=None):
         atoms=[]
         for f in self.fragments:

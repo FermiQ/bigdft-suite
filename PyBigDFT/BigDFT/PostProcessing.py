@@ -75,9 +75,10 @@ class BigDFTool(object):
         from futile.Utils import option_line_generator
         _system_command(command, option_line_generator(**kwargs))
 
-    def _run_fragment_multipoles(self, logfile):
+    def _run_fragment_multipoles(self, log, system=None, orbitals=None):
         from os.path import join
         from inspect import getargspec
+        import yaml
 
         # Convert the arguments of the function to a dictionary
         args, vargs, keywords, default = getargspec(self.fragment_multipoles)
@@ -85,18 +86,32 @@ class BigDFTool(object):
 
         # Replace the default directory with the appropriate one if it is
         # available
-        if logfile.log["radical"]:
-            data_dir = join(logfile.srcdir, "data-" + logfile.log["radical"])
+        if log.log["radical"]:
+            data_dir = join(log.srcdir, "data-" + log.log["radical"])
             for a, d in options.items():
                 if a == "mpirun" or a == "action" or a == "matrix_format":
                     continue
-                options[a] = join(data_dir, d.lstrip("data/"))
-                
+                options[a] = join(data_dir,d)
+
+        # Create the frag.yaml file from the provided system.
+        if system:
+            system.write_fragfile(filename=options["fragment_file"])
+
+        # Create the orbitals.yaml file from the provided orbitals.
+        if orbitals is None:
+            with open(options["orbital_file"], "w") as ofile:
+                ofile.write(yaml.dump([-1]))
+
         self.fragment_multipoles(**options)
 
-    def get_fragment_multipoles(self, logfile):
+    def get_fragment_multipoles(self, log, system):
         """
         Extract the fragment multipoles coming from a run specified by the
         passed logfile.
+
+        Args:
+          log (Logfile): instance of a Logfile class
+          system (System): instance of a System class, which defines the
+          fragments we will use.
         """
-        self._run_fragment_multipoles(logfile)
+        self._run_fragment_multipoles(log, system)
