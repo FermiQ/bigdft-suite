@@ -142,16 +142,11 @@ module bounds
       implicit none
       type(convolutions_bounds),intent(inout):: bounds
 
-          WRITE(*,*) "::::::1"
       call f_free_ptr(bounds%ibyyzz_r)
 
-          WRITE(*,*) "::::::2"
       call deallocate_kinetic_bounds(bounds%kb)
-          WRITE(*,*) "::::::3"
       call deallocate_shrink_bounds(bounds%sb)
-          WRITE(*,*) "::::::4"
       call deallocate_grow_bounds(bounds%gb)
-          WRITE(*,*) "::::::5"
 
     end subroutine deallocate_convolutions_bounds
 
