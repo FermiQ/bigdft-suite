@@ -1,95 +1,7 @@
-"""A module for post processing.
+"""A module for post processing BigDFT calculations.
 
 """
 
-database = """
-fragment_multipoles:
-  help: |
-    Compute the multipoles and purity value of a system given its
-    partitioning into fragments.
-  args:
-  - matrix_format:
-      shorthelp: format of the sparse matrices.
-      default: serial_text
-  - metadata_file:
-      shorthelp: input file with the sparse matrix metadata
-      default: data/sparsematrix_metadata.dat
-  - fragment_file:
-      shorthelp: file with the fragment to be analyzed
-      default: data/fragment.dat
-  - overlap_file:
-      shorthelp: input file with the overlap matrix
-      default: data/overlap_sparse.txt
-  - kernel_file:
-      shorthelp: input file with the coefficients
-      default: data/density_kernel_sparse.txt
-  - kernel_matmul_file:
-      shorthelp: kernel matrix multiplication sparsity pattern file.
-      default: data/density_kernel_sparse_matmul.txt
-  - multipole_matrix_0_0:
-      default: data/mpmat_0_0.txt
-  - multipole_matrix_1_0:
-      default: data/mpmat_1_-1.txt
-  - multipole_matrix_1_1:
-      default: data/mpmat_1_0.txt
-  - multipole_matrix_1_2:
-      default: data/mpmat_1_1.txt
-  - multipole_matrix_2_0:
-      default: data/mpmat_2_-2.txt
-  - multipole_matrix_2_1:
-      default: data/mpmat_2_-1.txt
-  - multipole_matrix_2_2:
-      default: data/mpmat_2_0.txt
-  - multipole_matrix_2_3:
-      default: data/mpmat_2_1.txt
-  - multipole_matrix_2_4:
-      default: data/mpmat_2_2.txt
-  - orbital_file:
-      shorthelp: input file specifying which orbitals to include
-      default: data/orbitals.yaml
-  - coeff_file:
-      shorthelp: input file with the coefficients
-      default: data/coeff.txt
-"""
-# from Futile import YamlIO as _Y
-# db = _Y.load(stream=database)
-
-
-# def function_generator(spec):
-#     """
-#     Method for generating a function according to the arguments provided
-#     by the ``spec`` dictionary.
-#
-#     Args:
-#       spec (dict): specification of the function provided as a dictionary
-#         of the keyword arguments that the function will have. The
-#         key ``help`` of the spec dictionary is passed as a docstring of
-#         the function. The other keys are considered as arguments and
-#         should contain the default values and help information provided
-#         in the ``default`` and the ``shorthelp`` keys respectively.
-#
-#         Example:
-#           {"help": "Compute the multipoles and purity value.",
-#            "matrix_format": {
-#            "shorthelp": "format of the sparse matrices.",
-#            "default": "parallel_mpi-native"},
-#            "metadata_file": {
-#            "shorthelp": "input file with the sparse matrix metadata",
-#            "default": "sparsematrix_metadata.dat"}}
-#
-#     """
-#     docstring = spec.pop("help")
-#     if "shorthelp" in spec:
-#         spec.pop("shorthelp")
-#     fun_args = {key: spec[key]["default"] for key in spec}
-#
-#     def fun(**fun_args):
-#         command = ""
-#         for key in fun_args:
-#             command += "--" + key + "=" + fun_args[key] + " "
-#         return command
-#     fun.__doc__ = docstring
-#     return fun
 
 def _system_command(command, options):
     """
@@ -116,26 +28,37 @@ class BigDFTool(object):
 
     Args:
       omp (int): number of OpenMP threads.
-        It defaults to the $OMP_NUM_THREADS variable in the environment, if present, otherwise it fixes the run to 1 thread.
+        It defaults to the $OMP_NUM_THREADS variable in the environment,
+        if present, otherwise it fixes the run to 1 thread.
       mpi_run (str): define the MPI command to be used.
         It defaults to the value $BIGDFT_MPIRUN of the environment, if present.
         When using this calculator into a job submission script, the value of
-        $BIGDFT_MPIRUN variable may be set appropriately to launch the bigdft executable.
+        $BIGDFT_MPIRUN variable may be set appropriately to launch the bigdft
+        executable.
     """
 
     def __init__(self, omp=1, mpi_run=""):
         from futile.YamlArgparse import get_python_function
         from futile import YamlIO
-        import os
+        from os import environ
+        from os.path import join
         from functools import partial
         from copy import deepcopy
 
-        self.bigdft_tool_command = "$BIGDFT_ROOT/bigdft-tool"
-        self.utilities_command = mpi_run + "$BIGDFT_ROOT/utilities"
-        self.memguess_command = "$BIGDFT_ROOT/memguess"
-        os.environ['OMP_NUM_THREADS'] = str(omp)
+        # Executables
+        self.bigdft_tool_command = join("$BIGDFT_ROOT", "bigdft-tool")
+        self.utilities_command = mpi_run + join("$BIGDFT_ROOT", "utilities")
+        self.memguess_command = join("$BIGDFT_ROOT", "memguess")
+        environ['OMP_NUM_THREADS'] = str(omp)
 
-        db = YamlIO.load(stream=database, doc_lists=False)
+        # Load the dictionary that defines all the operations.
+        # This path should be easier to specify if you use the python
+        # egg setup.
+        with open(join(environ['PYTHONPATH'], "BigDFT", "Database",
+                       "postprocess.yaml")) as ifile:
+            db = YamlIO.load(stream=ifile)[0]
+
+        # Create the subroutines of the class from the dictionary
         for action, spec in db.items():
             naction = action.replace("_", "-")
             nspec = deepcopy(spec)
@@ -158,21 +81,22 @@ class BigDFTool(object):
 
         # Convert the arguments of the function to a dictionary
         args, vargs, keywords, default = getargspec(self.fragment_multipoles)
-        options = {a:d for a,d in zip(args, default)}
+        options = {a: d for a, d in zip(args, default)}
 
         # Replace the default directory with the appropriate one if it is
         # available
         if logfile.log["radical"]:
-            data_dir = "data-" + logfile.log["radical"]
+            data_dir = join(logfile.srcdir, "data-" + logfile.log["radical"])
             for a, d in options.items():
                 if a == "mpirun" or a == "action" or a == "matrix_format":
                     continue
                 options[a] = join(data_dir, d.lstrip("data/"))
-
+                
         self.fragment_multipoles(**options)
 
     def get_fragment_multipoles(self, logfile):
         """
-        Extract the fragment multipoles coming from a run specified by
+        Extract the fragment multipoles coming from a run specified by the
+        passed logfile.
         """
         self._run_fragment_multipoles(logfile)

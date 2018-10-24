@@ -1,0 +1,47 @@
+fragment_multipoles:
+  help: |
+    Compute the multipoles and purity value of a system given its
+    partitioning into fragments.
+  args:
+  - matrix_format:
+      shorthelp: format of the sparse matrices.
+      default: serial_text
+  - metadata_file:
+      shorthelp: input file with the sparse matrix metadata
+      default: data/sparsematrix_metadata.dat
+  - fragment_file:
+      shorthelp: file with the fragment to be analyzed
+      default: data/fragment.dat
+  - overlap_file:
+      shorthelp: input file with the overlap matrix
+      default: data/overlap_sparse.txt
+  - kernel_file:
+      shorthelp: input file with the coefficients
+      default: data/density_kernel_sparse.txt
+  - kernel_matmul_file:
+      shorthelp: kernel matrix multiplication sparsity pattern file.
+      default: data/density_kernel_sparse_matmul.txt
+  - multipole_matrix_0_0:
+      default: data/mpmat_0_0.txt
+  - multipole_matrix_1_0:
+      default: data/mpmat_1_-1.txt
+  - multipole_matrix_1_1:
+      default: data/mpmat_1_0.txt
+  - multipole_matrix_1_2:
+      default: data/mpmat_1_1.txt
+  - multipole_matrix_2_0:
+      default: data/mpmat_2_-2.txt
+  - multipole_matrix_2_1:
+      default: data/mpmat_2_-1.txt
+  - multipole_matrix_2_2:
+      default: data/mpmat_2_0.txt
+  - multipole_matrix_2_3:
+      default: data/mpmat_2_1.txt
+  - multipole_matrix_2_4:
+      default: data/mpmat_2_2.txt
+  - orbital_file:
+      shorthelp: input file specifying which orbitals to include
+      default: data/orbitals.yaml
+  - coeff_file:
+      shorthelp: input file with the coefficients
+      default: data/coeff.txt
