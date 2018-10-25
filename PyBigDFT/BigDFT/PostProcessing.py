@@ -3,10 +3,12 @@
 """
 
 
-def _system_command(command, options):
+def _system_command(command, options, outfile=None):
     """
     Run the command as ``os.system (command + options)``
 
+    Todo:
+       remove outfile, this should be controlled by the script.
     Args:
        command (str):
        options (str):
@@ -14,7 +16,10 @@ def _system_command(command, options):
     from os import system
 
     command_str = command + " " + options
-    system(command_str + " > check.txt")
+    if outfile:
+        system(command_str + " > " + outfile)
+    else:
+        system(command_str)
 
 
 class BigDFTool(object):
@@ -73,7 +78,7 @@ class BigDFTool(object):
 
     def __invoke_command(self, command, **kwargs):
         from futile.Utils import option_line_generator
-        _system_command(command, option_line_generator(**kwargs))
+        _system_command(command, option_line_generator(**kwargs), self.outfile)
 
     def _run_fragment_multipoles(self, log, system=None, orbitals=None):
         from os.path import join
@@ -91,7 +96,7 @@ class BigDFTool(object):
             for a, d in options.items():
                 if a == "mpirun" or a == "action" or a == "matrix_format":
                     continue
-                options[a] = join(data_dir,d)
+                options[a] = join(data_dir, d)
 
         # Create the frag.yaml file from the provided system.
         if system:
@@ -104,14 +109,31 @@ class BigDFTool(object):
 
         self.fragment_multipoles(**options)
 
-    def get_fragment_multipoles(self, log, system):
+    def set_fragment_multipoles(self, system, log):
         """
-        Extract the fragment multipoles coming from a run specified by the
-        passed logfile.
+        Set the fragment multipoles of a system based on a run.
+
+        The multipoles and purity values of the system are
+        updated by this call.
 
         Args:
-          log (Logfile): instance of a Logfile class
           system (System): instance of a System class, which defines the
           fragments we will use.
+          log (Logfile): instance of a Logfile class
         """
+        from os.path import join
+        from futile.YamlIO import load
+
+        self.outfile = join(log.srcdir, "mp.yaml")
         self._run_fragment_multipoles(log, system)
+
+        # Update multipoles and purity values.
+        mp_data = load(self.outfile, doc_lists=False)
+        mp_dict = mp_data["Orbital occupation"][0]["Fragment multipoles"]
+
+        for frag, fdata in zip(system.fragments, mp_dict):
+            frag.set_purity_indicator(float(fdata["Purity indicator"]))
+            q0 = [float(x) for x in fdata["q0"]]
+            q1 = [float(x) for x in fdata["q1"]]
+            q2 = [float(x) for x in fdata["q2"]]
+            frag.set_fragment_multipoles(q0, q1, q2)
