@@ -226,7 +226,7 @@ openbabel_dynamic_sources = openbabel.cpp
 openbabel_dynamic_library = libbabel.so.@BIGDFT_MINOR_VERSION@.0.@BIGDFT_MICRO_VERSION@
 openbabel_soname_library = libbabel.so.@BIGDFT_MINOR_VERSION@
 openbabel_library = $(openbabel_soname_library)
-AM_LDFLAGS = -Wl,-rpath=$(DESTDIR)$(dynlibdir)
+AM_LDFLAGS = @FC_RPATH@$(DESTDIR)$(dynlibdir)
 else
 openbabel_static_sources = openbabel_fake.c
 AM_CFLAGS = -I. -I$(srcdir) -I$(top_builddir)/includes @MPI_INCLUDE@ @LIBABINIT_INCLUDE@ @LIB_XC_CFLAGS@ @LIB_FUTILE_CFLAGS@

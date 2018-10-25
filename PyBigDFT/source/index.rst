@@ -18,6 +18,14 @@ Also, calculators and workflows are supposed to be created and inspected with mo
 Module Members
 ==============
 
+Input file representation  and usage from Python
+  
+.. toctree:: inputfiles
+
+Input Actions on the BigDFT input file
+  
+.. toctree:: inputactions
+
 Analysis of Logfiles and Ground-state related properties
 
 .. toctree:: BigDFT.Logfiles

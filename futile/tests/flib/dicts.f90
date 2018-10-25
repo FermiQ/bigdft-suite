@@ -50,7 +50,9 @@ subroutine test_dictionaries0()
   !call dict_init(dict1)
 
 !!! [Creation]
+  !example of dict_new usage1
   dict1=>dict_new()
+  !end of example of dict_new usage1
 !!! [Creation]
   call f_err_open_try()
   ival=dict1//'Toto'
@@ -83,7 +85,9 @@ subroutine test_dictionaries0()
   !search for a list element
   call yaml_map('1.0 index',dict1//'List' .index. '1.0')
 
+  !example of a list
   dict_tmp => list_new([.item. 'one',.item. '4',.item. '1.1'])
+  !end of example of a list
   call yaml_map('1.1 index',dict_tmp .index. '1.1')
   call dict_free(dict_tmp)
   nullify(dict_tmp)
@@ -122,8 +126,9 @@ subroutine test_dictionaries0()
   call dict_free(dict1)
 
   !new test, build dictionary on-the-fly
-  dict1=>dict_new((/'Key1' .is. 'One',&
-       'Key2' .is. 'Two','Key3' .is. 'Three'/))
+  dict1=>dict_new(['Key1' .is. 'One',&
+       'Key2' .is. 'Two','Key3' .is. 'Three'])
+  !end of new test, build dictionary
 
   call yaml_dict_dump(dict1)
   call dict_free(dict1)
@@ -525,6 +530,7 @@ subroutine test_dictionaries1()
       call yaml_map('Value of dictA',dict_value(dict_tmp))
       dict_tmp=>dict_next(dict_tmp)
    end do
+   !end of perform an iterator on dictA
 
 !!! [newiter]
    nullify(dict_tmp)
@@ -573,7 +579,8 @@ subroutine test_dictionaries1()
    call dict_free(dictA)
 
    !perform an iterator on a scalar, should not provide output
-   dictA=>dict_new('Key' .is. 'Scalar')
+  dictA=>dict_new('Key' .is. 'Scalar')
+   !end of perform an iterator
    dict_tmp=>dict_iter(dictA//'Key')
    do while(associated(dict_tmp))
       call yaml_map('Item of dict scalar',dict_item(dict_tmp))
@@ -617,7 +624,7 @@ subroutine test_dictionaries1()
    call yaml_dict_dump(dictA,flow=.true.)
    call yaml_sequence_close()
 
-   !perform an iterator on dict
+   !perform an iterator with item on dict
    dict_tmp=>dict_next(dictA)
    do while(associated(dict_tmp))
       call yaml_map('Item of dictA',dict_item(dict_tmp))
@@ -626,6 +633,8 @@ subroutine test_dictionaries1()
       dict_tmp=>dict_next(dict_tmp)
    end do
    call dict_free(dictA)
+   !end of perform an iterator with item
+   
 
 !!$   !try to steel a argument (does not work, should arrange routine set to be full-proof)
 !!$   !fill a list and iterate over it
@@ -748,10 +757,12 @@ subroutine test_dictionaries1()
    call dict_free(cpy)
    call yaml_mapping_close()
 
+   !another comprehensive test
    subd => dict_new(  &
          & "__exclusive__" .is. dict_new( "123" .is. "operation 123", &
          &                                  "456" .is. "operation 456" ), &
          & "__default__"   .is. list_new(.item."1.", .item."2.", .item."3." ) )
+   !end of another comprehensive test
    call yaml_mapping_open("test dict_update")
    call dict_update(dict, subd)
    call yaml_mapping_open("additional")

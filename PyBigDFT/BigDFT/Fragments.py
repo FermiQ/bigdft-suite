@@ -252,7 +252,7 @@ class Fragment():
         return len(self.atoms)
     #def __str__(self):
     #    import yaml
-    #    return yaml.dump({'Positions': self.atoms,'Properties': {'name': self.id}})
+    #    return yaml.dump({'positions': self.atoms,'Properties': {'name': self.id}})
     def set_id(self,id):
         self.id=id
     def set_purity_indicator(self, pi):

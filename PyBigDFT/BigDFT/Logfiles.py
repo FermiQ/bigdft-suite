@@ -5,9 +5,6 @@ like the energy, the eigenvalues and so on.
 """
 
 #This module needs: os, yaml, futile, matplotlib, numpy, BZ, DoS
-import os
-import yaml
-from futile.Utils import write
 
 EVAL = "eval"
 SETUP = "let"
@@ -79,10 +76,9 @@ def floatify(scalar):
     Returns:
        float. The value associated to scalar as a floating point number
 
-    This function works like that:
-
-    >>> floatify('1.d-4') #this would be the same with "1.e-4" or with 0.0001
-    1.e-4
+    Example:
+       >>> floatify('1.d-4') #this would be the same with "1.e-4" or with 0.0001
+       1.e-4
 
     """
     import numpy
@@ -480,7 +476,7 @@ class Logfile():
             #raise
         mesh=self.kpt_mesh #: K-points grid
         if isinstance(mesh,int): mesh=[mesh,]*3
-        if self.astruct['Cell'][1]==float('inf'): mesh[1]=1
+        if self.astruct['cell'][1]==float('inf'): mesh[1]=1
         return BZ.BrillouinZone(self.astruct,mesh,self.evals,self.fermi_level)
     #
     def wfn_plot(self):
@@ -511,7 +507,7 @@ class Logfile():
             if hasattr(l,'forcemax') and hasattr(l,'energy'):
                 forces.append(l.forcemax)
                 energies.append(l.energy-self.energy)
-                ferr.append(0.0 if not hasattr(l,'force_fluct') else self.force_fluct)
+                ferr.append(0.0 if not hasattr(l,'force_fluct') else (self.force_fluct if hasattr(self,'force_fluct') else 0.0))
         if len(forces) > 1:
             import matplotlib.pyplot as plt
             plt.errorbar(energies, forces,yerr=ferr, fmt='.-',label=self.label)
@@ -529,12 +525,12 @@ class Logfile():
         """Display short information about the logfile (used by str)."""
         import yaml,numpy
         #summary=[{'Atom types':
-        #          numpy.unique([ at.keys()[0] for at in self.astruct['Positions']]).tolist()},
-        #         {'Cell':
-        #          self.astruct.get('Cell','Free BC')}]
+        #          numpy.unique([ at.keys()[0] for at in self.astruct['positions']]).tolist()},
+        #         {'cell':
+        #          self.astruct.get('cell','Free BC')}]
         summary=[{'Atom types': self.log['Atomic System Properties']['Types of atoms']},
-                 {'Cell':
-                  self.astruct.get('Cell','Free BC')}]
+                 {'cell':
+                  self.astruct.get('cell','Free BC')}]
         #normal printouts in the document, according to definition
         for field in BUILTIN:
             name=BUILTIN[field].get(PRINT)
