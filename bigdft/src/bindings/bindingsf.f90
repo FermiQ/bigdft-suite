@@ -461,30 +461,30 @@ subroutine lzd_empty(lzd)
 END SUBROUTINE lzd_empty
 
 
-subroutine lzd_set_nlr(lzd, nlr, geocode)
-  use locregs
-  use module_types, only: local_zone_descriptors
-  implicit none
-  type(local_zone_descriptors), intent(inout) :: lzd
-  integer, intent(in) :: nlr
-  character, intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
-
-  integer :: i
-  
-  if (lzd%nlr > 0) then
-     do i = 1, lzd%nlr, 1
-        call deallocate_locreg_descriptors(lzd%Llr(i))
-     end do
-     deallocate(lzd%llr)
-  end if
-
-  lzd%nlr = nlr
-  allocate(lzd%Llr(Lzd%nlr))
-  do i = 1, nlr, 1
-     call nullify_locreg_descriptors(lzd%Llr(i))
-     lzd%Llr(i)%geocode = geocode
-  end do
-END SUBROUTINE lzd_set_nlr
+!!$subroutine lzd_set_nlr(lzd, nlr, geocode)
+!!$  use locregs
+!!$  use module_types, only: local_zone_descriptors
+!!$  implicit none
+!!$  type(local_zone_descriptors), intent(inout) :: lzd
+!!$  integer, intent(in) :: nlr
+!!$  character, intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+!!$
+!!$  integer :: i
+!!$  
+!!$  if (lzd%nlr > 0) then
+!!$     do i = 1, lzd%nlr, 1
+!!$        call deallocate_locreg_descriptors(lzd%Llr(i))
+!!$     end do
+!!$     deallocate(lzd%llr)
+!!$  end if
+!!$
+!!$  lzd%nlr = nlr
+!!$  allocate(lzd%Llr(Lzd%nlr))
+!!$  do i = 1, nlr, 1
+!!$     call nullify_locreg_descriptors(lzd%Llr(i))
+!!$     lzd%Llr(i)%geocode = geocode
+!!$  end do
+!!$END SUBROUTINE lzd_set_nlr
 
 
 subroutine lzd_get_hgrids(Lzd, hgrids)

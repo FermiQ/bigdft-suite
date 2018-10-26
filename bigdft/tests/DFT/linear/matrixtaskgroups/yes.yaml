@@ -436,10 +436,27 @@
      format: xyz
      source: yes.xyz
  chess:
-   perf:
-     matmul_matrix: original_matrix
+   lapack:
+    
+    
+    
+    
    foe:
+    
      ef_interpol_chargediff: 1.0
+    
+    
+    
+    
      eval_range_foe: [-1.0, 1.0]
      fscale: 5.0E-002
      matmul_optimize_load_balancing: yes
+   pexsi:
+    
+    
+    
+    
+    
+    
+    
+    

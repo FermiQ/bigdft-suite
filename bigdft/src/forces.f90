@@ -125,6 +125,7 @@ subroutine calculate_forces(iproc,nproc,psolver_groupsize,Glr,atoms,ob,nlpsp,rxy
   !for a taksgroup Poisson Solver, multiply by the ratio.
   !it is important that the forces are bitwise identical among the processors.
   if (psolver_groupsize < nproc) call vscal(3*atoms%astruct%nat,real(psolver_groupsize,gp)/real(nproc,gp),fxyz(1,1),1)
+
   
   !if (iproc == 0 .and. verbose > 1) write( *,'(1x,a)',advance='no')'Calculate nonlocal forces...'
   if (extra_timing) call cpu_time(tr0)
@@ -139,6 +140,9 @@ subroutine calculate_forces(iproc,nproc,psolver_groupsize,Glr,atoms,ob,nlpsp,rxy
      call nonlocal_forces_linear(iproc,nproc,tmb%npsidim_orbs,tmb%lzd%glr,hx,hy,hz,atoms,rxyz,&
           tmb%orbs,nlpsp,tmb%lzd,tmb%psi,tmb%linmat%smat(3),tmb%linmat%kernel_,fxyz,refill_proj,&
           calculate_strten .and. (atoms%astruct%geocode == 'P'),strtens(1,2))
+     !fxyz_tmp = fxyz - fxyz_tmp
+     !do iat=1,atoms%astruct%nat
+     !    write(1000+iproc,'(a,2i8,3es15.6)') 'iproc, iat, fxyz(:,iat)', iproc, iat, fxyz(:,iat)
   case default
      call f_err_throw('Wrong imode',err_name='BIGDFT_RUNTIME_ERROR')
      !stop 'wrong imode'
@@ -329,7 +333,6 @@ subroutine rhocore_forces(iproc,atoms,dpbox,nspin,rxyz,potxc,fxyz)
 !!$  n3p = dpbox%n3p
 !!$  i3s = dpbox%i3s + dpbox%i3xcsh
 
-
   if (atoms%donlcc) then
      !if (iproc == 0) write(*,'(1x,a)',advance='no')'Calculate NLCC forces...'
 
@@ -433,7 +436,7 @@ subroutine rhocore_forces(iproc,atoms,dpbox,nspin,rxyz,potxc,fxyz)
               end do
               call box_iter_expand_nbox(dpbox%bitp)
 !!$ end new giuseppe ----------------------------------------------------------------------
-!!$ stat old ----------------------------------------------------------------------
+!!$ start old ----------------------------------------------------------------------
 !!$                 frcx=0.0_gp
 !!$                 frcy=0.0_gp
 !!$                 frcz=0.0_gp
@@ -446,11 +449,9 @@ subroutine rhocore_forces(iproc,atoms,dpbox,nspin,rxyz,potxc,fxyz)
 !!$                 iez=ceiling((rz+cutoff)/hzh)
 !!$
 !!$                 do ispin=1,nspin
-!!$                    check=.true.
 !!$                    ispinsh=0
 !!$                    if (ispin==2) ispinsh=n1i*n2i*n3p
 !!$                    do i3=isz,iez
-!!$                       icheck=i3
 !!$                       z=real(i3,kind=8)*hzh-rz
 !!$                       !call ind_positions(perz,i3,n3,j3,goz)
 !!$                       call ind_positions_new(perz,i3,n3i,j3,goz)
@@ -466,14 +467,6 @@ subroutine rhocore_forces(iproc,atoms,dpbox,nspin,rxyz,potxc,fxyz)
 !!$                                   !call ind_positions(perx,i1,n1,j1,gox)
 !!$                                   call ind_positions_new(perx,i1,n1i,j1,gox)
 !!$                                   if (gox) then
-!!$                                      if (check) then
-!!$                                       print *, 'Inside old loop'
-!!$                                       print *, i1,i2,i3,icheck
-!!$                                       print *, x,y,z
-!!$                                       print *, rx,ry,rz
-!!$                                       print *, r2
-!!$                                       check=.false.
-!!$                                      end if
 !!$                                      r2=x**2+y**2+z**2
 !!$                                      ilcc=islcc
 !!$                                      drhov=0.0_dp
@@ -3805,6 +3798,8 @@ subroutine symmetrise_forces(fxyz, astruct)
   use module_atoms, only: atomic_structure
   use yaml_output
   use abi_interfaces_numeric, only: abi_mati3inv
+  use module_base, only: f_err_throw
+  use box, only: bc_periodic_dims,geocode_to_bc
 
   implicit none
 
@@ -3816,6 +3811,7 @@ subroutine symmetrise_forces(fxyz, astruct)
   integer :: indsym(4, AB6_MAX_SYMMETRIES)
   real(gp) :: summ
   real(gp) :: alat(3)
+  logical, dimension(3) :: peri
   real(gp), allocatable :: dedt(:,:)
   integer, allocatable :: symrec(:,:,:)
   integer, pointer  :: sym(:,:,:)
@@ -3834,8 +3830,15 @@ subroutine symmetrise_forces(fxyz, astruct)
      call abi_mati3inv(sym(:,:,isym), symrec(:,:,isym))
   end do
 
-  alat =astruct%cell_dim
-  if (astruct%geocode == 'S') alat(2) = real(1, gp)
+  peri=bc_periodic_dims(geocode_to_bc(astruct%geocode))
+  alat=1.d0
+  where(peri) alat=astruct%cell_dim
+
+!!$  alat =astruct%cell_dim
+!!$  if (astruct%geocode == 'S') alat(2) = real(1, gp)
+!!$
+!!$  if (astruct%geocode == 'W') call f_err_throw("Wires bc has to be implemented here", &
+!!$                                   err_name='BIGDFT_RUNTIME_ERROR')
 
   !Save fxyz into dedt.
   allocate(dedt(3,astruct%nat))

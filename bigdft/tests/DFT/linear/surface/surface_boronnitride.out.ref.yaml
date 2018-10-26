@@ -611,9 +611,9 @@
    PSP XC                              : "XC: Perdew, Burke & Ernzerhof"
   #----------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : bohr
-   Cell: [ 33.22885513305664, .inf,  32.88803863525391]
-   Positions:
+   units                               : bohr
+   cell: [ 33.22885513305664, .inf,  32.88803863525391]
+   positions:
    - N: [ 10.17465973,  5.502577944,  0.3549766541] # [  14.70,  7.86,  0.52 ] 0001
    -  {N: [ 5.581115723,  5.675408749,  0.5138587952],  # [  8.06,  8.11,  0.75 ] 0002
  IGSpin:  1}

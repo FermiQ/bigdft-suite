@@ -436,9 +436,26 @@
      format: xyz
      source: no.xyz
  chess:
-   perf:
-     matmul_matrix: replicate_matrix
+   lapack:
+    
+    
+    
+    
    foe:
+    
      ef_interpol_chargediff: 1.0
+    
+    
+    
+    
      eval_range_foe: [-1.0, 1.0]
      fscale: 5.0E-002
+   pexsi:
+    
+    
+    
+    
+    
+    
+    
+    

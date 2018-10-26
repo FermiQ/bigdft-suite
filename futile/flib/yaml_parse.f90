@@ -33,14 +33,12 @@ module yaml_parse
   character(len=*), parameter :: OPTSNAME   = 'shortname'
   character(len=*), parameter :: OPTSHELP   = 'shorthelp'
   character(len=*), parameter :: OPTHELP    = 'help'
-  character(len=*), parameter :: OPTCONFL   = 'conflicts'
+  character(len=*), parameter :: OPTCONFL    = 'conflicts'
 
   !> command line parser to determine options
   type, public :: yaml_cl_parse
-     !> default value of the key for the first command line options
+     !>default value of the key for the first command line options
      character(len=max_field_length) :: first_command_key
-     !> Usage of the command
-     character(len=max_field_length) :: usage
      !> dictionary specifying the valid options
      type(dictionary), pointer :: options
      !> parsed dictionary, filled by options which have valid default value
@@ -55,7 +53,7 @@ module yaml_parse
   public :: yaml_parse_from_char_array
   public :: yaml_parse_from_string,yaml_parse_database
   public :: yaml_cl_parse_null,yaml_cl_parse_free
-  public :: yaml_cl_parse_option,yaml_cl_parse_usage,yaml_argparse
+  public :: yaml_cl_parse_option,yaml_argparse
 
   !for internal f_lib usage
   public :: yaml_parse_errors
@@ -77,7 +75,6 @@ contains
     type(yaml_cl_parse), intent(out) :: parser
 
     call f_strcpy(src=' ',dest=parser%first_command_key)
-    call f_strcpy(src=' ',dest=parser%usage)
     nullify(parser%options)
     nullify(parser%args)
   end subroutine nullify_yaml_cl_parse
@@ -91,8 +88,7 @@ contains
     parser = yaml_cl_parse_null()
   end subroutine yaml_cl_parse_free
 
-
-  !> Used to set up input parameters
+  !> used to set up input parameters
   !! similar behaviour as python optparse options
   subroutine yaml_cl_parse_option(parser,name,default,help_string,&
        shortname,help_dict,first_option,conflicts)
@@ -120,7 +116,7 @@ contains
     !!The check is performed at the end of the parsing procedure
     character(len=*), intent(in), optional :: conflicts
 
-    !> help dict intended as a more extended help, to be invoked when help on command line is given
+    !> help dict intended as a more eextended help, to be invoked when help on command line is given
     !! this dictionary is stolen by the parser and nullified at exit
     type(dictionary), pointer, optional :: help_dict
     !local variables
@@ -207,18 +203,7 @@ contains
 
   end subroutine yaml_cl_parse_option
 
- 
-  !> Add a string about the usage in parser
-  subroutine yaml_cl_parse_usage(parser,string)
-    implicit none
-    !> the parser which has to be updated
-    type(yaml_cl_parse), intent(inout) :: parser
-    character(len=*), intent(in) :: string
-    parser%usage = trim(string)
-  end subroutine yaml_cl_parse_usage
-
-
-  !> Accept the definition of the input variable from a yaml_string
+  !> accept the definition of the input variable from a yaml_string
   subroutine yaml_cl_parse_option_from_string(parser,string)
     use dictionaries
     implicit none
@@ -282,28 +267,20 @@ contains
    
   end subroutine yaml_cl_parse_option_from_dict
 
-
-  !> Parse the input arguments and return a dictionary of options
-  subroutine yaml_argparse(options,string,usage)
+  subroutine yaml_argparse(options,string)
     use dictionaries
     use f_utils, only: f_zero
     implicit none
     !> the dictionary of the options, should be nullified as input
     type(dictionary), pointer :: options 
-    !> definition of the input variables, given with a single string
+    !>definition of the input variables, given with a single string
     character(len=*), intent(in) :: string
-    !> Definition of the usage of the code displayed with the help (Usage: ...)
-    character(len=*), intent(in), optional :: usage
     !local variables
     type(yaml_cl_parse) :: parser !< command line parser
 
     !define command-line options
     parser=yaml_cl_parse_null()
     call yaml_cl_parse_option(parser,string)
-    !Add the usage
-    if (present(usage)) then
-      call yaml_cl_parse_usage(parser,usage)
-    end if
     !parse command line, and retrieve arguments
     call yaml_cl_parse_cmd_line(parser,args=options)
     !free command line parser information
@@ -336,7 +313,7 @@ contains
   end subroutine yaml_cl_parse_init
 
 
-  !> Dump on stdout the long help for each of the options
+  !> dump on stdout the long help for each of the options
   subroutine parser_help(parser,short)
     use dictionaries
     use yaml_output
@@ -349,10 +326,6 @@ contains
     type(dictionary), pointer :: iter
 
     call yaml_comment('Command-line arguments help',hfill='-',unit=6)
-    !Display the usage
-    if (len_trim(parser%usage) /= 0) then
-      call yaml_map('Usage',parser%usage,unit=6)
-    end if
     !iterate on all the options
     iter => dict_iter(parser%options)
     do while(associated(iter))
@@ -401,7 +374,7 @@ contains
   end subroutine parser_help
 
   
-  !> Routine for parsing the command line
+  !> routine for parsing the command line
   subroutine yaml_cl_parse_cmd_line(parser,args)
     use dictionaries
     use yaml_strings, only:f_strcpy

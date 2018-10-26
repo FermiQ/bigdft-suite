@@ -19,7 +19,7 @@ module io
 
   public :: io_error, io_warning, io_open
   public :: io_read_descr, read_psi_compress
-  public :: io_gcoordToLocreg
+!!$  public :: io_gcoordToLocreg
   public :: read_psig
   public :: read_dense_matrix_local
   public :: dist_and_shift
@@ -695,6 +695,7 @@ module io
       use module_base
       use yaml_strings, only: f_strcpy
       use rototranslations, only: frag_center
+      use box, only: bc_periodic_dims,geocode_to_bc
       implicit none
       integer, intent(in) :: num_neighbours
       type(atoms_data), intent(in) :: at
@@ -718,10 +719,9 @@ module io
       real(kind=8), dimension(3) :: frag_centre
       real(kind=8), allocatable, dimension(:) :: dist
       real(kind=8), allocatable, dimension(:,:) :: rxyz_frag, rxyz_not_frag, rxyz_frag_and_env
-
       type(atomic_structure) :: astruct_ghost
-
       logical :: on_frag, perx, pery, perz, ghosts_exist
+      logical, dimension(3) :: peri
 
       if (closest_only) then
          tol=0.1d0
@@ -826,9 +826,13 @@ module io
       dist = f_malloc(nat_not_frag,id='dist')
       ipiv = f_malloc(nat_not_frag,id='ipiv')
       ! find distances from this atom BEFORE shifting
-      perx=(at%astruct%geocode /= 'F')
-      pery=(at%astruct%geocode == 'P')
-      perz=(at%astruct%geocode /= 'F')
+!!$      perx=(at%astruct%geocode /= 'F')
+!!$      pery=(at%astruct%geocode == 'P')
+!!$      perz=(at%astruct%geocode /= 'F')
+      peri=bc_periodic_dims(geocode_to_bc(at%astruct%geocode))
+      perx=peri(1)
+      pery=peri(2)
+      perz=peri(3)
 
       ! if coordinates wrap around (in periodic), take this into account
       ! assume that the fragment and environment are written in free bc
@@ -1700,88 +1704,6 @@ module io
       lstat = .true.
     END SUBROUTINE io_read_descr
   
-  
-    subroutine io_gcoordToLocreg(n1, n2, n3, nvctr_c, nvctr_f, gcoord_c, gcoord_f, lr)
-      use module_base
-      use locregs
-      implicit none
-      !Arguments
-      integer, intent(in) :: n1, n2, n3, nvctr_c, nvctr_f
-      integer, dimension(3, nvctr_c), intent(in) :: gcoord_c
-      integer, dimension(3, nvctr_f), intent(in) :: gcoord_f
-      type(locreg_descriptors), intent(out) :: lr
-      !Local variables
-      character(len = *), parameter :: subname = "io_gcoordToLocreg"
-      integer :: i
-      logical, dimension(:,:,:), allocatable :: logrid_c, logrid_f
-  
-      call f_routine(id=subname)
-  
-      call nullify_locreg_descriptors(lr)
-  
-      lr%geocode = "P"
-      lr%hybrid_on = .false.
-  
-      lr%ns1 = 0
-      lr%ns2 = 0
-      lr%ns3 = 0
-  
-      lr%d%n1 = n1
-      lr%d%n2 = n2
-      lr%d%n3 = n3
-  
-      lr%d%n1i = 2 * n1 + 2
-      lr%d%n2i = 2 * n2 + 2
-      lr%d%n3i = 2 * n3 + 2
-  
-      logrid_c = f_malloc((/ 0.to.n1, 0.to.n2, 0.to.n3 /),id='logrid_c')
-      logrid_f = f_malloc((/ 0.to.n1, 0.to.n2, 0.to.n3 /),id='logrid_f')
-  
-      lr%d%nfl1 = n1
-      lr%d%nfl2 = n2
-      lr%d%nfl3 = n3
-      lr%d%nfu1 = 0
-      lr%d%nfu2 = 0
-      lr%d%nfu3 = 0
-  
-      logrid_c(:,:,:) = .false.
-      do i = 1, nvctr_c, 1
-         logrid_c(gcoord_c(1, i), gcoord_c(2, i), gcoord_c(3, i)) = .true.
-      end do
-      logrid_f(:,:,:) = .false.
-      do i = 1, nvctr_f, 1
-         logrid_f(gcoord_f(1, i), gcoord_f(2, i), gcoord_f(3, i)) = .true.
-         lr%d%nfl1 = min(lr%d%nfl1, gcoord_f(1, i))
-         lr%d%nfl2 = min(lr%d%nfl2, gcoord_f(2, i))
-         lr%d%nfl3 = min(lr%d%nfl3, gcoord_f(3, i))
-         lr%d%nfu1 = max(lr%d%nfu1, gcoord_f(1, i))
-         lr%d%nfu2 = max(lr%d%nfu2, gcoord_f(2, i))
-         lr%d%nfu3 = max(lr%d%nfu3, gcoord_f(3, i))
-      end do
-  
-      !correct the values of the delimiter if there are no wavelets
-      if (lr%d%nfl1 == n1 .and. lr%d%nfu1 == 0) then
-         lr%d%nfl1 = n1 / 2
-         lr%d%nfu1 = n1 / 2
-      end if
-      if (lr%d%nfl2 == n2 .and. lr%d%nfu2 == 0) then
-         lr%d%nfl2 = n2 / 2
-         lr%d%nfu2 = n2 / 2
-      end if
-      if (lr%d%nfl3 == n3 .and. lr%d%nfu3 == 0) then
-         lr%d%nfl3 = n3 / 2
-         lr%d%nfu3 = n3 / 2
-      end if
-  
-      call wfd_from_grids(logrid_c, logrid_f, .true., lr)
-  
-      call f_free(logrid_c)
-      call f_free(logrid_f)
-  
-      call f_release_routine()
-  
-    END SUBROUTINE io_gcoordToLocreg
-  
     subroutine read_psi_compress(unitwf, formatted, nvctr_c, nvctr_f, psi, lstat, error, gcoord_c, gcoord_f)
       use module_base
       use module_types
@@ -2469,6 +2391,7 @@ module io
       use module_types
       use locregs
       use locreg_operations, only: lpsi_to_global2
+      use module_atoms, only: write_xyz_bc
       implicit none
       
       ! Calling arguments
@@ -2505,15 +2428,20 @@ module io
     
       !write(2000+iproc,*) llr%wfd%nvctr_c+llr%wfd%nvctr_f+atoms%astruct%nat,' atomic'
       write(2000+iproc,*) glr%wfd%nvctr_c+glr%wfd%nvctr_f+llr%wfd%nvctr_c+llr%wfd%nvctr_f+atoms%astruct%nat,' atomic'
-      if (atoms%astruct%geocode=='F') then
-         write(2000+iproc,*)'complete simulation grid with low and high resolution points'
-      else if (atoms%astruct%geocode =='S') then
-         write(2000+iproc,'(a,2x,3(1x,1pe24.17))')'surface',atoms%astruct%cell_dim(1),atoms%astruct%cell_dim(2),&
-              atoms%astruct%cell_dim(3)
-      else if (atoms%astruct%geocode =='P') then
-         write(2000+iproc,'(a,2x,3(1x,1pe24.17))')'periodic',atoms%astruct%cell_dim(1),atoms%astruct%cell_dim(2),&
-              atoms%astruct%cell_dim(3)
-      end if
+      call write_xyz_bc(2000+iproc,atoms%astruct%geocode,1.0_gp,atoms%astruct%cell_dim)
+
+!!$      if (atoms%astruct%geocode=='F') then
+!!$         write(2000+iproc,*)'complete simulation grid with low and high resolution points'
+!!$      else if (atoms%astruct%geocode =='S') then
+!!$         write(2000+iproc,'(a,2x,3(1x,1pe24.17))')'surface',atoms%astruct%cell_dim(1),atoms%astruct%cell_dim(2),&
+!!$              atoms%astruct%cell_dim(3)
+!!$      else if (atoms%astruct%geocode =='P') then
+!!$         write(2000+iproc,'(a,2x,3(1x,1pe24.17))')'periodic',atoms%astruct%cell_dim(1),atoms%astruct%cell_dim(2),&
+!!$              atoms%astruct%cell_dim(3)
+!!$      else if (atoms%astruct%geocode =='W') then
+!!$         call f_err_throw("Wires bc has to be implemented here", &
+!!$              err_name='BIGDFT_RUNTIME_ERROR')
+!!$      end if
     
       do iat=1,atoms%astruct%nat
         write(2000+iproc,'(a6,2x,3(1x,e12.5),3x)') trim(atoms%astruct%atomnames(atoms%astruct%iatype(iat))),&

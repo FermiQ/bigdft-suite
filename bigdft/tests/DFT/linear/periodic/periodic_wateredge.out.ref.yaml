@@ -575,9 +575,9 @@
    PSP XC                              : "XC: Perdew, Burke & Ernzerhof"
   #----------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : angstroem
-   Cell                                :  [  25.0,  25.0,  25.0 ]
-   Positions:
+   units                               : angstroem
+   cell                                :  [  25.0,  25.0,  25.0 ]
+   positions:
    - H: [ 5.980010033,  6.642127037,  5.974520683] # [  21.53,  23.91,  21.51 ] 0001
    - O: [ 5.980010033,  6.642127037,  6.945610523] # [  21.53,  23.91,  25.00 ] 0002
    - H: [ 5.980010033,  5.703761101,  7.196303844] # [  21.53,  20.53,  25.91 ] 0003

@@ -371,6 +371,133 @@ END SUBROUTINE apply_hp_slab_k
 
 !> Applies the operator (KE+cprecr*I)*x=y
 !! array x is input, array y is output
+subroutine apply_hp_wire_k(n1,n2,n3, &
+     nseg_c,nvctr_c,nseg_f,nvctr_f,keyg,keyv, &
+     cprecr,hx,hy,hz,kx,ky,kz,x,y,psifscf,ww,scal)
+  use module_base
+  implicit none
+  integer, intent(in) :: n1,n2,n3
+  integer, intent(in) :: nseg_c,nvctr_c,nseg_f,nvctr_f
+  real(gp), intent(in) :: hx,hy,hz,cprecr,kx,ky,kz
+  integer, dimension(2,nseg_c+nseg_f), intent(in) :: keyg
+  integer, dimension(nseg_c+nseg_f), intent(in) :: keyv
+  real(wp), dimension(0:7), intent(in) :: scal
+  real(wp), intent(in) ::  x(nvctr_c+7*nvctr_f,2)  
+  real(wp), intent(out) ::  y(nvctr_c+7*nvctr_f,2)
+  real(wp), dimension((2*n1+16)*(2*n2+16)*(2*n3+2),2) :: ww,psifscf
+  !local variables
+  integer :: idx
+  real(gp) :: hgridh(3)
+
+  ! x: input, ww:work
+  ! psifscf: output
+  do idx=1,2
+     call uncompress_wire_scal(n1,n2,n3,nseg_c,nvctr_c,keyg(1,1),keyv(1),   &
+          nseg_f,nvctr_f,keyg(1,nseg_c+1),keyv(nseg_c+1),   &
+          x(1,idx),x(nvctr_c+1,idx),psifscf(1,idx),ww(1,idx),scal)
+  end do
+
+  hgridh(1)=hx*.5_gp
+  hgridh(2)=hy*.5_gp
+  hgridh(3)=hz*.5_gp
+  !transpose (to be included in the uncompression)
+  call transpose_for_kpoints(2,2*n1+16,2*n2+16,2*n3+2,&
+       psifscf,ww,.true.)
+
+  ! psifscf: input, ww: output
+  call convolut_kinetic_wire_c_k(2*n1+15,2*n2+15,2*n3+1,hgridh,psifscf,ww,cprecr,&
+       kx,ky,kz)
+
+  call transpose_for_kpoints(2,2*n1+16,2*n2+16,2*n3+2,&
+       ww,psifscf,.false.)
+
+  ! ww:intput, psifscf: work
+  ! y:output
+  do idx=1,2
+     call compress_wire_scal(n1,n2,n3,nseg_c,nvctr_c,keyg(1,1),keyv(1),& 
+          nseg_f,nvctr_f,keyg(1,nseg_c+1),keyv(nseg_c+1),& 
+          ww(1,idx),y(1,idx),y(nvctr_c+1,idx),psifscf(1,idx),scal)
+  end do
+
+END SUBROUTINE apply_hp_wire_k
+
+!>   Applies the operator (KE+cprecr*I)*x=y
+!!   array x is input, array y is output
+subroutine apply_hp_wire_sd(n1,n2,n3, &
+     nseg_c,nvctr_c,nseg_f,nvctr_f,keyg,keyv, &
+     cprecr,x,y,psifscf,ww,modul3,a,b,c,e)
+  use module_base
+  implicit none
+  integer, intent(in) :: n1,n2,n3
+  integer, intent(in) :: nseg_c,nvctr_c,nseg_f,nvctr_f
+  real(gp), intent(in) :: cprecr
+  integer, dimension(2,nseg_c+nseg_f), intent(in) :: keyg
+  integer, dimension(nseg_c+nseg_f), intent(in) :: keyv
+  real(wp), intent(in) ::  x(nvctr_c+7*nvctr_f)  
+  real(wp), intent(out) ::  y(nvctr_c+7*nvctr_f)
+  integer, parameter :: lowfil=-14,lupfil=14
+  real(wp),dimension((2*n1+16)*(2*n2+16)*(2*n3+2))::ww,psifscf
+  integer,intent(in)::modul3(lowfil:n3+lupfil)
+  real(gp),intent(in)::a(lowfil:lupfil,3)
+  real(gp),intent(in)::b(lowfil:lupfil,3)
+  real(gp),intent(in)::c(lowfil:lupfil,3)
+  real(gp),intent(in)::e(lowfil:lupfil,3)
+
+  call uncompress_sd(n1,n2,n3,nseg_c,nvctr_c,keyg(1,1),keyv(1),   &
+       nseg_f,nvctr_f,keyg(1,nseg_c+min(1,nseg_f)),keyv(nseg_c+min(1,nseg_f)),   &
+       x(1),x(nvctr_c+min(1,nvctr_f)),psifscf)
+
+  ! psifscf: input, ww: output
+  call convolut_kinetic_wire_sdc(n1,n2,n3,psifscf,ww,cprecr,modul3,a,b,c,e)
+
+  ! ww:intput
+  ! y:output
+  call compress_sd(n1,n2,n3,nseg_c,nvctr_c,keyg(1,1),keyv(1),& 
+       nseg_f,nvctr_f,keyg(1,nseg_c+min(1,nseg_f)),keyv(nseg_c+min(1,nseg_f)),& 
+       ww,y(1),y(nvctr_c+min(1,nvctr_f)))
+END SUBROUTINE apply_hp_wire_sd
+
+
+!>   Applies the operator (KE+cprecr*I)*x=y
+!!   array x is input, array y is output
+subroutine apply_hp_wire_sd_scal(n1,n2,n3, &
+     nseg_c,nvctr_c,nseg_f,nvctr_f,keyg,keyv, &
+     cprecr,x,y,psifscf,ww,modul3,a,b,c,e,scal)
+  use module_base
+  implicit none
+  integer, intent(in) :: n1,n2,n3
+  integer, intent(in) :: nseg_c,nvctr_c,nseg_f,nvctr_f
+  real(gp),intent(in) :: scal(0:7)
+  real(gp), intent(in) :: cprecr
+  integer, dimension(2,nseg_c+nseg_f), intent(in) :: keyg
+  integer, dimension(nseg_c+nseg_f), intent(in) :: keyv
+  real(wp), intent(in) ::  x(nvctr_c+7*nvctr_f)  
+  real(wp), intent(out) ::  y(nvctr_c+7*nvctr_f)
+  integer, parameter :: lowfil=-14,lupfil=14
+  real(wp),dimension((2*n1+16)*(2*n2+16)*(2*n3+2))::ww,psifscf
+  integer,intent(in)::modul3(lowfil:n3+lupfil)
+  real(gp),intent(in)::a(lowfil:lupfil,3)
+  real(gp),intent(in)::b(lowfil:lupfil,3)
+  real(gp),intent(in)::c(lowfil:lupfil,3)
+  real(gp),intent(in)::e(lowfil:lupfil,3)
+  ! x: input
+  ! psifscf: output
+  call uncompress_sd_scal(n1,n2,n3,nseg_c,nvctr_c,keyg(1,1),keyv(1),   &
+       nseg_f,nvctr_f,keyg(1,nseg_c+min(1,nseg_f)),keyv(nseg_c+min(1,nseg_f)),&
+       x(1),x(nvctr_c+min(1,nvctr_f)),psifscf,scal)
+
+  ! psifscf: input, ww: output
+  call convolut_kinetic_wire_sdc(n1,n2,n3,psifscf,ww,cprecr,modul3,a,b,c,e)
+  ! ww:intput
+  ! y:output
+  call compress_sd_scal(n1,n2,n3,nseg_c,nvctr_c,keyg(1,1),keyv(1),& 
+       nseg_f,nvctr_f,keyg(1,nseg_c+min(1,nseg_f)),keyv(nseg_c+min(1,nseg_f)),& 
+       ww,y(1),y(nvctr_c+min(1,nvctr_f)),scal)
+
+END SUBROUTINE apply_hp_wire_sd_scal
+
+!> Applies the operator (KE+cprecr*I)*x=y
+!! array x is input, array y is output
 subroutine apply_hp_per_k(n1,n2,n3, &
      nseg_c,nvctr_c,nseg_f,nvctr_f,keyg,keyv, &
      cprecr,hx,hy,hz,k1,k2,k3,x,y,psifscf,ww,scal)

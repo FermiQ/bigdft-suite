@@ -54,7 +54,6 @@ else
 bigdft_library = $(top_builddir)/src/libbigdft-1.a @LIB_BIGDFT_DEPS@
 endif
 
-
 if HAVE_OPENBABEL
 bigdft_library += $(top_builddir)/src/modules/libbabel.so.@BIGDFT_MINOR_VERSION@
 if BUILD_DYNAMIC_LIBS

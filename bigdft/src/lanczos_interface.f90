@@ -845,8 +845,8 @@ contains
 !!$    call allocate_work_arrays('P',.true.,1,ha%Lzd%Glr%d,w)
     call allocate_work_arrays(ha%Lzd%Glr%mesh,.true.,1,ha%Lzd%Glr%d,w)
 
-    if (cell_geocode(ha%Lzd%Glr%mesh) == 'W') &
-       call f_err_throw("Wires bc has to be implemented here",err_name='BIGDFT_RUNTIME_ERROR')
+    if (cell_geocode(ha%Lzd%Glr%mesh) /= 'P') &
+       call f_err_throw("Only Periodic BC should work here",err_name='BIGDFT_RUNTIME_ERROR')
 !!$
 !!$    hh(1)=.5_wp/ha%hx**2
 !!$    hh(2)=.5_wp/ha%hy**2

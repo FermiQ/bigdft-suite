@@ -16,6 +16,7 @@ contains
     use etsf_io_low_level
     use etsf_io
     use dynamic_memory
+    use box
     implicit none
     character(len=*), intent(in) :: filename,message
     character(len = 1), intent(in) :: geocode
@@ -33,6 +34,7 @@ contains
     double precision, dimension(:), allocatable, target :: znucl
     double precision, dimension(:,:), allocatable :: buffer
     logical :: lstat
+    logical, dimension(3) :: peri
     character(len = etsf_io_low_error_len) :: error_string
     character(len = *), parameter :: subname = "write_etsf_density"
 
@@ -42,31 +44,72 @@ contains
 
     !conditions for periodicity in the three directions
     !value of the buffer in the x and z direction
-    if (geocode /= 'F') then
-       nl1=1
-       nl3=1
-       nbx = 1
-       nbz = 1
+
+    peri=bc_periodic_dims(geocode_to_bc(geocode))
+
+    if (peri(1)) then
        nc1=ndims(1)
-       nc3=ndims(3)
     else
-       nl1=15
-       nl3=15
-       nbx = 0
-       nbz = 0
        nc1=ndims(1)-31
-       nc3=ndims(3)-31
     end if
-    !value of the buffer in the y direction
-    if (geocode == 'P') then
-       nl2=1
-       nby = 1
+    if (peri(2)) then
        nc2=ndims(2)
     else
-       nl2=15
-       nby = 0
        nc2=ndims(2)-31
     end if
+    if (peri(3)) then
+       nc3=ndims(3)
+    else
+       nc3=ndims(3)-31
+    end if
+    if (peri(1)) then
+       nl1 = 1
+       nbx = 1
+    else
+       nl1=15
+       nbx=0
+    end if
+    if (peri(2)) then
+       nl2 = 1
+       nby = 1
+    else
+       nl2=15
+       nby=0
+    end if
+    if (peri(3)) then
+       nl3 = 1
+       nbz = 1
+    else
+       nl3 = 15
+       nbz = 0
+    end if
+
+
+!!$    if (geocode /= 'F') then
+!!$       nl1=1
+!!$       nl3=1
+!!$       nbx = 1
+!!$       nbz = 1
+!!$       nc1=ndims(1)
+!!$       nc3=ndims(3)
+!!$    else
+!!$       nl1=15
+!!$       nl3=15
+!!$       nbx = 0
+!!$       nbz = 0
+!!$       nc1=ndims(1)-31
+!!$       nc3=ndims(3)-31
+!!$    end if
+!!$    !value of the buffer in the y direction
+!!$    if (geocode == 'P') then
+!!$       nl2=1
+!!$       nby = 1
+!!$       nc2=ndims(2)
+!!$    else
+!!$       nl2=15
+!!$       nby = 0
+!!$       nc2=ndims(2)-31
+!!$    end if
 
     call etsf_io_low_open_create(ncid, trim(filename) // ".etsf.nc", 3.3, lstat, &
          & error_data = error, title = 'Case for '//trim(message), overwrite = .true.)

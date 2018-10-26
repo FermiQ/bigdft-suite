@@ -29,6 +29,8 @@ module yaml_strings
   character(len=*), parameter :: escape_bold=char(27)//"[0;1m"
   character(len=*), parameter :: escape_blink=char(27)//"[0;5m"
 
+  character(len=*), parameter, public :: YAML_INFINITY='.inf'
+
   !> structure containing the string and its length
   !! for the moment implement it basically, we might then
   !! identifty a strategy to allocate the string according to the needs
@@ -484,8 +486,8 @@ contains
 
   end function yaml_date_and_time_toa
 
-  !> Yaml Spaced format for Date
   function yaml_date_toa(values)
+    ! Yaml Spaced format for Date
     implicit none
     integer, dimension(8), optional, intent(in) :: values
     character(len=max_value_length) :: yaml_date_toa

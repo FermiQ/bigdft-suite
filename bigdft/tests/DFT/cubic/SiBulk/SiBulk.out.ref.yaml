@@ -338,7 +338,6 @@
    rloc_kernel_foe                     : 14.0 #   Cutoff radius for the FOE matrix vector multiplications
  posinp:
     #---------------------------------------------- Atomic positions (by default bohr units)
-   units                               : reduced
    cell: [10.26085381075144, 10.26085381075144, 10.26085381075144]
    positions:
    - Si: [0.0, 0.0, 0.0]
@@ -350,6 +349,7 @@
    - Si: [0.75, 0.25, 0.75]
    - Si: [0.25, 0.75, 0.75]
    properties:
+     reduced                           : Yes
      format                            : xyz
      source                            : posinp.xyz
   #--------------------------------------------------------------------------------------- |
@@ -437,8 +437,9 @@
    PSP XC                              : "XC: Perdew, Burke & Ernzerhof"
   #----------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Cell: [ 10.26085381075144,  10.26085381075144,  10.26085381075144]
-   Positions:
+   units                               : bohr
+   cell: [ 10.26085381075144,  10.26085381075144,  10.26085381075144]
+   positions:
    - Si: [ 0.000000000,  0.000000000,  0.000000000] # [  0.00,  0.00,  0.00 ] 0001
    - Si: [ 5.130426905,  5.130426905,  0.000000000] # [  12.00,  12.00,  0.00 ] 0002
    - Si: [ 5.130426905,  0.000000000,  5.130426905] # [  12.00,  0.00,  12.00 ] 0003

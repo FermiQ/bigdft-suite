@@ -1319,8 +1319,6 @@ contains
     implicit none
     type(yaml_cl_parse), intent(inout) :: parser
 
-    call yaml_cl_parse_usage(parser,'Wavelet-based Density Functional Theory program (see http://bigdft.org)')
-
     call yaml_cl_parse_option(parser,'name','None',&
          'name of the run','n',&
          dict_new('Usage' .is. &
@@ -1723,14 +1721,14 @@ contains
     integer :: iproc_node, nproc_node
 
     ! Get user input writing_directory.
-    writing_directory = "./"
+    writing_directory = "."
     call dict_get_run_properties(dict, outdir_id = writing_directory)
     ! Create writing_directory and parents if needed and broadcast everything.
-    if (trim(writing_directory) /= './') then
+    if (trim(writing_directory) /= '.') then
        !path=repeat(' ',len(path))
        call f_zero(path)
        !add the output directory in the directory name
-       if (bigdft_mpi%iproc == 0 .and. trim(writing_directory) /= './') then
+       if (bigdft_mpi%iproc == 0 .and. trim(writing_directory) /= '.') then
           call f_mkdir(writing_directory,path)
        end if
        if (bigdft_mpi%nproc>1) then
@@ -1755,7 +1753,7 @@ contains
        call dict_get_run_properties(dict, naming_id = run_name, posinp_id = posinp_id)
        logfilename = "log"//trim(run_name)//".yaml"
        call f_file_exists(trim(writing_directory)//trim(logfilename),skip)
-       if (skip) call final_file_exists(posinp_id,writing_directory,skip)
+       if (skip) call final_file_exists(posinp_id,skip)
        if (skip) return
     end if
 
@@ -1827,30 +1825,30 @@ contains
   END SUBROUTINE create_log_file
 
 
-  pure subroutine final_positions_filename(singlepoint,id,outdir,filename)
+  pure subroutine final_positions_filename(singlepoint,id,filename)
     use yaml_strings
     implicit none
     logical, intent(in) :: singlepoint
-    character(len=max_field_length), intent(in) :: outdir
+!    character(len=max_field_length), intent(in) :: outdir
     character(len=*), intent(in) :: id
     character(len=*), intent(out) :: filename
     if (singlepoint) then
-       call f_strcpy(src=trim(outdir)//'forces_'+id,dest=filename)
+       call f_strcpy(src='forces_'+id,dest=filename)
     else
-       call f_strcpy(src=trim(outdir)//'final_'+id,dest=filename)
+       call f_strcpy(src='final_'+id,dest=filename)
     end if
   end subroutine final_positions_filename
 
 
   !> Get the information about the final file position
-  subroutine final_file_exists(id,outdir,exists)
+  subroutine final_file_exists(id,exists)
     use f_utils
     use yaml_strings
     use yaml_output, only: yaml_map
     use module_base, only: bigdft_mpi
     implicit none
     character(len=*), intent(in) :: id
-    character(len = max_field_length), intent(in) :: outdir
+!    character(len = max_field_length), intent(in) :: outdir
     logical, intent(out) :: exists
     !local variables
     integer, parameter :: next=4
@@ -1862,10 +1860,10 @@ contains
     do iext=1,next
        !search if the file witnessing the successful end exists
        !try both single point or not
-       call final_positions_filename(.false.,id,outdir,filename)
+       call final_positions_filename(.false.,id,filename)
        call f_file_exists(filename+'.'+exts(iext),exists)
        if (exists) exit
-       call final_positions_filename(.true.,id,outdir,filename)
+       call final_positions_filename(.true.,id,filename)
        call f_file_exists(filename+'.'+exts(iext),exists)
        if (exists) exit
     end do

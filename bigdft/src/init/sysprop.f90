@@ -17,7 +17,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
   use module_base
   use module_types
   use module_interfaces, only: createWavefunctionsDescriptors, &
-       & init_orbitals_data_for_linear, orbitals_descriptors, get_locrads_and_centers
+       & init_orbitals_data_for_linear, orbitals_descriptors
   use module_xc
   use module_fragments
   use vdwcorrection
@@ -34,7 +34,6 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
   use chess_base, only: chess_init
   use module_dpbox, only: dpbox_set
   use rhopotential, only: set_cfd_data
-!!$  use bigdft_matrices, only: reduce_matrix_bandwidth
   implicit none
   integer, intent(in) :: iproc,nproc 
   logical, intent(in) :: dry_run, dump
@@ -65,7 +64,6 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
   real(kind=8), dimension(:), allocatable :: locrad, times_convol
   integer :: ilr, iilr
   real(kind=8),dimension(:),allocatable :: totaltimes, locrads
-  real(kind=8),dimension(:,:),allocatable :: lrc
   real(kind=8),dimension(2) :: time_max, time_average
   !real(kind=8) :: ratio_before, ratio_after
   logical :: init_projectors_completely
@@ -114,7 +112,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
 
      ! Create the Poisson solver kernels.
      call system_initKernels(.true.,iproc,nproc,atoms%astruct%geocode,in,denspot)
-     call system_createKernels(denspot, (get_verbose_level() > 1))
+     call system_createKernels(in,denspot, (get_verbose_level() > 1))
      if (denspot%pkernel%method .hasattr. 'rigid') then
         call epsilon_cavity(atoms,rxyz,denspot%pkernel)
         !allocate cavity, in the case of nonvacuum treatment
@@ -180,23 +178,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
         call f_free(norbd_par)
      end if
      call fragment_stuff()
-     locrad = f_malloc(lorbs%norb,id='locrad')
-     lrc = f_malloc([3,lorbs%norb],id='lrc')
-     if (present(locregcenters)) then
-         call get_locrads_and_centers(lorbs%norb, in, atoms%astruct, locregcenters, lorbs, &
-              locrad_kernel=locrad, locregcenter=lrc) 
-     else
-         call get_locrads_and_centers(lorbs%norb, in, atoms%astruct, atoms%astruct%rxyz, lorbs, &
-              locrad_kernel=locrad, locregcenter=lrc) 
-     end if
-!!$     call reduce_matrix_bandwidth(iproc, nproc, bigdft_mpi%mpi_comm, lorbs%norb, lzd%glr, &
-!!$          atoms%astruct, lzd%hgrids, lrc, locrad, in%lin%pvt_method, lorbs)
      call init_lzd_linear()
-     !!lzd_lin=default_lzd()
-     !!call nullify_local_zone_descriptors(lzd_lin)
-     !!lzd_lin%nlr = 0
-     !!call init_lzd_linear()
-     !!write(*,*) 'after reduce_matrix_bandwidth 1'
      ! For restart calculations, the suport function distribution must not be modified
      !if (inputpsi == INPUT_PSI_LINEAR_AO .or. inputpsi == INPUT_PSI_DISK_LINEAR .or. in%lin%fragment_calculation) then
      !SM: added the ".or. fin%lin%fragment_calculation", as this came from a merge with Laura...
@@ -236,14 +218,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
          call init_linear_orbs(LINEAR_PARTITION_OPTIMAL)
          totaltimes = f_malloc0(nproc,id='totaltimes')
          call fragment_stuff()
-!!$         call reduce_matrix_bandwidth(iproc, nproc, bigdft_mpi%mpi_comm, lorbs%norb, lzd%glr, &
-!!$              atoms%astruct, lzd%hgrids, lrc, locrad, in%lin%pvt_method, lorbs)
          call init_lzd_linear()
-         !!lzd_lin=default_lzd()
-         !!call nullify_local_zone_descriptors(lzd_lin)
-         !!lzd_lin%nlr = 0
-         !!call init_lzd_linear()
-         !!write(*,*) 'after reduce_matrix_bandwidth 2'
          call test_preconditioning()
          time_max(2) = sum(times_convol(lorbs%isorb+1:lorbs%isorb+lorbs%norbp))
          time_average(2) = time_max(2)/real(nproc,kind=8)
@@ -266,8 +241,6 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
          call f_free(times_convol)
          call f_free(totaltimes)
      end if
-     call f_free(locrad)
-     call f_free(lrc)
   end if
 
   !In the case in which the number of orbitals is not "trivial" check whether they are too many
@@ -409,10 +382,10 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
      call density_descriptors(iproc,nproc,denspot%xc,in%nspin,in%crmult,in%frmult,atoms,&
           denspot%dpbox,in%rho_commun,rxyz,denspot%rhod)
      !allocate the arrays.
-     call allocateRhoPot(Lzd%Glr,in%nspin,atoms,rxyz,denspot)
+     call allocateRhoPot(in%nspin,atoms,rxyz,denspot)
      !here insert the conditional for the constrained field dynamics
      if (in%calculate_magnetic_torque) then
-        call set_cfd_data(denspot%cfd,Lzd%Glr%mesh,atoms%astruct,rxyz)
+        call set_cfd_data(denspot%cfd,denspot%dpbox%mesh,atoms%astruct,rxyz)
      end if
      if (in%do_spin_dynamics) then
         if (in%calculate_magnetic_torque) then
@@ -910,17 +883,17 @@ subroutine system_initKernels(verb, iproc, nproc, geocode, in, denspot)
   type(DFT_local_fields), intent(inout) :: denspot
 
   integer, parameter :: ndegree_ip = 16
+
 ! deactivate GPU in all cases for this kernel  
-  if (xc_exctXfac(denspot%xc) /= 0.0_gp .and. in%exctxpar=='OP2P' .or. in%SIC%alpha /= 0.0_gp) then
-    call dict_set(in%PS_dict//'setup'//'accel','No')
-  end if
+  if (pkernel_seq_is_needed(in,denspot)) &
+       call dict_set(in%PS_dict//'setup'//'accel','No')
   denspot%pkernel=pkernel_init(iproc,nproc,in%PS_dict,&
        geocode,denspot%dpbox%mesh%ndims,denspot%dpbox%mesh%hgrids,&
        mpi_env=denspot%dpbox%mpi_env)
 
   !create the sequential kernel if the exctX parallelisation scheme requires it
 !  if ((xc_exctXfac(denspot%xc) /= 0.0_gp .or. in%SIC%alpha /= 0.0_gp))then
-  if (xc_exctXfac(denspot%xc) /= 0.0_gp .and. in%exctxpar=='OP2P' .or. in%SIC%alpha /= 0.0_gp) then
+  if (pkernel_seq_is_needed(in,denspot)) then
 !       .and. denspot%dpbox%mpi_env%nproc > 1) then
      !the communicator of this kernel is bigdft_mpi%mpi_comm
      !this might pose problems when using SIC or exact exchange with taskgroups
@@ -932,18 +905,23 @@ subroutine system_initKernels(verb, iproc, nproc, geocode, in, denspot)
 
 END SUBROUTINE system_initKernels
 
-subroutine system_createKernels(denspot, verb)
+subroutine system_createKernels(in,denspot, verb)
   use module_base
   use module_types
   use Poisson_Solver, except_dp => dp, except_gp => gp
   implicit none
   logical, intent(in) :: verb
+  type(input_variables), intent(in) :: in
   type(DFT_local_fields), intent(inout) :: denspot
   call pkernel_set(denspot%pkernel,verbose=verb)
-    !create the sequential kernel if pkernelseq is not pkernel
-  if (.not. associated(denspot%pkernelseq%kernel,target=denspot%pkernel%kernel)) then
-    call pkernel_set(denspot%pkernelseq,verbose=.false.)
+      !create the sequential kernel if pkernelseq is not pkernel
+  if (pkernel_seq_is_needed(in,denspot)) then !.not. associated(denspot%pkernelseq%kernel,target=denspot%pkernel%kernel)) then
+     call pkernel_set(denspot%pkernelseq,verbose=.false.)
+  else !reassociate it after initialization
+     denspot%pkernelseq = denspot%pkernel
   end if
+     
+
 END SUBROUTINE system_createKernels
 
 !> calculate the dielectric function for the cavitBy
@@ -956,7 +934,7 @@ subroutine epsilon_cavity(atoms,rxyz,pkernel)
   use numerics, only : Bohr_Ang
   use module_base, only: bigdft_mpi,f_zero
   use module_defs, only: UNINITIALIZED
-  use f_enums, f_str => str
+  use f_enums, f_str => toa
   use yaml_output
   use dictionaries, only: f_err_throw
   use box
@@ -1160,7 +1138,7 @@ subroutine epsinnersccs_cavity(atoms,rxyz,pkernel)
   !use yaml_output
   use numerics, only : Bohr_Ang
   use module_base, only: bigdft_mpi
-  use f_enums, f_str => str
+  use f_enums, f_str => toa
   use yaml_output
   use dictionaries, only: f_err_throw
   use PStypes, only: epsilon_inner_cavity

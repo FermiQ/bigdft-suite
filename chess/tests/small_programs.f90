@@ -40,8 +40,7 @@ program small_things
        '- {name: nkpt, shortname: k, default: 1, help_string: k-points}'//f_cr//&
        '- {name: wgts, shortname: w, default: 1.0, help_string: weigths}'//f_cr//&
        '- {name: occopt, shortname: o, default: 1, help_string: smearing method}'//f_cr//&
-       '- {name: tel, shortname: t, default: 1.e-3, help_string: temperature}', &
-       usage='Check the determination of the Fermi level')
+       '- {name: tel, shortname: t, default: 1.e-3, help_string: temperature}')
   
   norbud=0
   norbud=options//'norb'
@@ -87,8 +86,8 @@ program small_things
   call yaml_map('Test energies',eval)
   call yaml_map('Electronic temperature',kT)
 
-  call eval_to_occ(0,1,norbud(1),norbud(2),sum(norbud), nkpt, wgts, &
-       eval, occup, .false., .true., kT, occopt, efermi, eTS, &
+  call eval_to_occ(0,norbud(1),norbud(2),sum(norbud), nkpt, wgts, &
+       eval, occup, .true., kT, occopt, efermi, eTS, &
        norbud(1),norbud(2))
 
   call yaml_map('Fermi level',efermi)

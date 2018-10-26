@@ -37,6 +37,7 @@ subroutine calc_rhocore_iat(dpbox,iproc,atoms,ityp,rx,ry,rz,cutoff,hxh,hyh,hzh,&
   real(gp) :: x,y,z,r2,rhov,rhoc,chv,chc
   real(gp) :: charge_from_gaussians,spherical_gaussian_value
   real(gp) :: drhoc,drhov,drhodr2
+  logical, dimension(3) :: peri
 
   !find the correct position of the nlcc parameters
   call nlcc_start_position(ityp,atoms,ngv,ngc,islcc)
@@ -70,9 +71,13 @@ subroutine calc_rhocore_iat(dpbox,iproc,atoms,ityp,rx,ry,rz,cutoff,hxh,hyh,hzh,&
   !if (iproc == 0) write(*,'(1x,a,f12.6)',advance='no')' analytic core charge: ',chc-chv
 
 !!$  !conditions for periodicity in the three directions
-  perx=(atoms%astruct%geocode /= 'F')
-  pery=(atoms%astruct%geocode == 'P')
-  perz=(atoms%astruct%geocode /= 'F')
+!!$  perx=(atoms%astruct%geocode /= 'F')
+!!$  pery=(atoms%astruct%geocode == 'P')
+!!$  perz=(atoms%astruct%geocode /= 'F')
+  peri=cell_periodic_dims(dpbox%mesh)
+  perx=peri(1)
+  pery=peri(2)
+  perz=peri(3)
 
   call ext_buffers(perx,nbl1,nbr1)
   call ext_buffers(pery,nbl2,nbr2)
@@ -265,7 +270,7 @@ subroutine mkcore_paw_iat(iproc,atoms,ityp,rx,ry,rz,cutoff,hxh,hyh,hzh,&
   use dynamic_memory
   use dictionaries, only: f_err_raise
   use f_utils
-
+  use box, only: bc_periodic_dims,geocode_to_bc
   use m_pawrad,  only : pawrad_type, pawrad_init, pawrad_free
   use m_paw_numeric, only: paw_sort_dp, paw_splint
   use bounds, only: ext_buffers
@@ -294,6 +299,7 @@ subroutine mkcore_paw_iat(iproc,atoms,ityp,rx,ry,rz,cutoff,hxh,hyh,hzh,&
   real(gp) :: xx,yy,zz
   logical :: perx,pery,perz,gox,goy,goz
   integer, dimension(:), allocatable :: iperm
+  logical, dimension(3) :: peri
 
   ! *************************************************************************
 
@@ -301,9 +307,13 @@ subroutine mkcore_paw_iat(iproc,atoms,ityp,rx,ry,rz,cutoff,hxh,hyh,hzh,&
   ucvol = n1i * n2i * n3i / hxh / hyh / hzh
 
   !Conditions for periodicity in the three directions
-  perx=(atoms%astruct%geocode /= 'F')
-  pery=(atoms%astruct%geocode == 'P')
-  perz=(atoms%astruct%geocode /= 'F')
+!!$  perx=(atoms%astruct%geocode /= 'F')
+!!$  pery=(atoms%astruct%geocode == 'P')
+!!$  perz=(atoms%astruct%geocode /= 'F')
+  peri=bc_periodic_dims(geocode_to_bc(atoms%astruct%geocode))
+  perx=peri(1)
+  pery=peri(2)
+  perz=peri(3)
 
   !Compute values of external buffers
   call ext_buffers(perx,nbl1,nbr1) 
@@ -716,7 +726,7 @@ subroutine XC_potential(geocode,datacode,iproc,nproc,mpi_comm,n01,n02,n03,xcObj,
   end if
 
   !if rhohat is present, add it to charge density
-  if(associated(rhohat) .and. m1*m3*nxc .gt.0) then
+  if(associated(rhohat) .and. m1*m3*nxc > 0) then
      call axpy(m1*m3*nxc,1._wp,rhohat(1,1,1,1),1,rho(1),1)
      if (nspin==2) call axpy(m1*m3*nxc,1._wp,rhohat(1,1,1,2),1,&
           rho(1+m1*m3*nxt),1)
@@ -727,7 +737,7 @@ subroutine XC_potential(geocode,datacode,iproc,nproc,mpi_comm,n01,n02,n03,xcObj,
 
   !if rhocore is associated we then remove it from the charge density
   !and subtract its contribution from the evaluation of the XC potential integral vexcu
-  if (associated(rhocore) .and. m1*m3*nxc .gt.0) then
+  if (associated(rhocore) .and. m1*m3*nxc > 0) then
      !at this stage the density is not anymore spin-polarised
      !sum the complete core density for non-spin polarised calculations
      call axpy(m1*m3*nxc,-1.0_wp,rhocore(1,1,i3xcsh_fake+1,1),1,rho(1),1)

@@ -54,11 +54,21 @@
     integer, dimension(0:), intent(in), optional, target :: counts,displs
     type(fmpi_counts) :: ctr
     !local variables
+    integer :: ourselves,me
     logical :: variable
 
     ctr=fmpi_counts_null()
-    !extract from the passed arguments the counts and displacements to deal with
-    ctr%counts=>get_counts(count,counts,comm,control)
+    if (present(count) .or. present(counts)) then
+       !extract from the passed arguments the counts and displacements to deal with
+       ctr%counts=>get_counts(count,counts,comm,control)
+    else
+       !if nothing is specified as counts use the buffer size and gather it
+       ourselves=mpisize(comm=comm)
+       me=mpirank(comm=comm)
+       ctr%counts=f_malloc_ptr(0.to.ourselves-1,id='count_')
+       ctr%counts(me)=int(buf_size)
+       call fmpi_allgather(ctr%counts,recvcount=1,comm=comm)
+    end if
     ctr%counts_allocated=present(counts)
     ctr%displs=>get_displacements(ctr%counts,displs)
     ctr%displs_allocated=present(displs)

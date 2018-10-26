@@ -218,7 +218,7 @@ subroutine finalize_hartree_results(sumpion,gpu,kernel,pot_ion,m1,m2,m3p,&
   if(gpu) then
 
      !in VAC case, rho and zf are already on the card and untouched
-     if( kernel%stay_on_gpu /= 1 .and. trim(str(kernel%method))/='VAC') then
+     if( kernel%stay_on_gpu /= 1 .and. trim(toa(kernel%method))/='VAC') then
         call reset_gpu_data(m1*m2*m3p,rho,kernel%w%rho_GPU)
         call reset_gpu_data(m1*m2*m3p,zf,kernel%w%work1_GPU)
      end if
@@ -381,6 +381,7 @@ subroutine G_PoissonSolver(iproc,nproc,planes_comm,iproc_inplane,inplane_comm,nc
   integer, dimension(7) :: after2,now2,before2,after3,now3,before3
   real(gp), dimension(6) :: strten_omp
   !integer :: ncount0,ncount1,ncount_max,ncount_rate
+  logical, dimension(3) :: peri
   integer :: maxIter, nthreadx
   integer :: n3pr1,n3pr2,j1start,n1p,n2dimp
   integer :: ithread, nthread
@@ -401,9 +402,13 @@ subroutine G_PoissonSolver(iproc,nproc,planes_comm,iproc_inplane,inplane_comm,nc
   !conditions for periodicity in the three directions
   !perx=(geocode /= 'F' .and. geocode /= 'W' .and. geocode /= 'H')
   geocode=cell_geocode(mesh)
-  perx=(geocode == 'P' .or. geocode == 'S')
-  pery=(geocode == 'P')
-  perz=(geocode /= 'F' .and. geocode /= 'H')
+  peri=cell_periodic_dims(mesh)
+  perx=peri(1)
+  pery=peri(2)
+  perz=peri(3)
+!!$  perx=(geocode == 'P' .or. geocode == 'S')
+!!$  pery=(geocode == 'P')
+!!$  perz=(geocode /= 'F' .and. geocode /= 'H')
 
   cplx= (ncplx == 2)
 

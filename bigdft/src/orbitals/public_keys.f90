@@ -235,7 +235,6 @@ module public_keys
   character(len = *), parameter :: CALCULATE_FOE_EIGENVALUES = "calculate_FOE_eigenvalues"
   character(len = *), parameter :: PRECISION_FOE_EIGENVALUES = "precision_FOE_eigenvalues"
   character(len = *), parameter :: CONSIDER_ENTROPY = "consider_entropy"
-  character(len = *), parameter :: PVT_METHOD = "pvt_method"
 
   !keys for linear input variables
   !level keys
@@ -311,6 +310,7 @@ module public_keys
   character(len=*), parameter :: ASTRUCT_POSITIONS = 'positions'
   character(len=*), parameter :: ASTRUCT_PROPERTIES = 'properties'
   character(len=*), parameter :: ASTRUCT_ATT_FROZEN = 'Frozen'
+  character(len=*), parameter :: ASTRUCT_REDUCED = 'reduced'
   character(len=*), parameter :: ASTRUCT_ATT_IGSPIN = 'IGSpin'
   character(len=*), parameter :: ASTRUCT_ATT_IGCHRG = 'IGChg'
   character(len=*), parameter :: ASTRUCT_ATT_IGMOM  = 'IGMom'
@@ -580,7 +580,6 @@ module public_enums
   integer, parameter, public :: PSPCODE_HGH_K = 10
   integer, parameter, public :: PSPCODE_HGH_K_NLCC = 12
   integer, parameter, public :: PSPCODE_PSPIO = 50
-
 
   !> Output for run modes
   type(f_enumerator), public :: RUN_MODE_CREATE_DOCUMENT = &

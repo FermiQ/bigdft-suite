@@ -425,9 +425,9 @@
    PSP XC                              : "XC: Teter 93"
   #----------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : angstroem
-   Cell: [ 3.203999996185303,  3.203999996185303,  3.203999996185303]
-   Positions:
+   units                               : angstroem
+   cell: [ 3.203999996185303,  3.203999996185303,  3.203999996185303]
+   positions:
    - Mg: [ 0.000000000,  0.000000000,  0.000000000] # [  0.00,  0.00,  0.00 ] 0001
    Rigid Shift Applied (AU)            :  [  0.0000,  0.0000,  0.0000 ]
   #------------------------------------------------------------------------- Grid properties
@@ -634,17 +634,17 @@
    MPI tasks                           :  1
  Multipole analysis origin             :  [  0.0E+00,  0.000000E+00,  0.000000E+00 ]
  Electric Dipole Moment (AU):
-   P vector                            :  [ -5.9212E+00, -5.9212E+00, -5.9212E+00 ]
-   norm(P)                             :  1.025587E+01
+   P vector                            :  [ -1.0866E-01, -1.0866E-01, -1.0866E-01 ]
+   norm(P)                             :  1.881990E-01
  Electric Dipole Moment (Debye):
-   P vector                            :  [ -1.505E+01, -1.5050E+01, -1.5050E+01 ]
-   norm(P)                             :  2.606781E+01
+   P vector                            :  [ -2.7618E-01, -2.7618E-01, -2.7618E-01 ]
+   norm(P)                             :  4.783540E-01
  Quadrupole Moment (AU):
    Q matrix:
-   -  [ 1.1266E-13, -5.2585E+01, -5.2585E+01]
-   -  [-5.2585E+01, -3.1569E-14, -5.2585E+01]
-   -  [-5.2585E+01, -5.2585E+01, -6.3089E-13]
-   trace                               : -5.50E-13
+   -  [ 1.4211E-13, -1.6195E-02, -1.6195E-02]
+   -  [-1.6195E-02,  2.2737E-13, -1.6195E-02]
+   -  [-1.6195E-02, -1.6195E-02, -3.7659E-13]
+   trace                               : -7.11E-15
  Calculate local forces                :  Yes
  Calculate Non Local forces            :  Yes
  Stress Tensor calculated              :  Yes

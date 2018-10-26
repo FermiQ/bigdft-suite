@@ -732,7 +732,7 @@ subroutine preconditionall_OCL(orbs,lr,hx,hy,hz,ncong,hpsi,gnrm,gnrm_zero,GPU)
          ncplx=1
        end if
 
-        call cprecr_from_eval(lr%geocode,eval_zero,orbs%eval(orbs%isorb+iorb),cprecr)
+        call cprecr_from_eval(lr%mesh_coarse,eval_zero,orbs%eval(orbs%isorb+iorb),cprecr)
 
         do inds=1,orbs%nspinor,ncplx !the streams should be more if nspinor>1
 

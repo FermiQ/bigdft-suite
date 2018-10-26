@@ -43,7 +43,8 @@
   </autotools>
 
   <autotools id="v_sim-dev" autogen-sh="autoreconf" skip-autogen="true">
-    <branch repo="v_sim-dev" module="v_sim-dev.tar.bz2"
+    <!-- <branch repo="v_sim-dev" module="v_sim-dev.tar.bz2" -->
+    <branch repo="local-optional" module="v_sim-dev.tar.bz2" 
             version="3.99" checkoutdir="v_sim-dev">
       <patch file="v_sim-dev.patch" />
     </branch>
@@ -139,7 +140,7 @@
 
   <autotools id="bigdft" autogen-sh="autoreconf">
     <!--<branch repo="bigdft" module="bigdft" version="1.7.5"/>-->
-    <branch repo="local" module="bigdft-1.8.2.tar.gz" version="1.8.2" checkoutdir="bigdft"/>
+    <branch repo="local" module="bigdft-1.8.3.tar.gz" version="1.8.3" checkoutdir="bigdft"/>
     <dependencies>
       <dep package="futile"/>
       <dep package="chess"/>

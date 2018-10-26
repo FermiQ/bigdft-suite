@@ -30,13 +30,6 @@ module f_utils
   !defines recl_kind
   include 'f_utils.inc'
 
-  !> This type can be used to get strings from a file or a dictionary long string.
-  !! it should be amended to also contain the same information from a character buffer
-  type, public :: io_stream
-     integer :: iunit = 0
-     type(dictionary), pointer :: lstring => null()
-  end type io_stream
-
   !> This type can be used to dump strings at bunches in a file
   type, public :: f_dump_buffer
      integer :: ipos
@@ -90,7 +83,6 @@ module f_utils
      module procedure f_size_c0,f_size_c1
   end interface f_size
 
-
   !> Initialize to zero an array (should be called f_memset)
   interface f_zero
      module procedure zero_string
@@ -131,6 +123,10 @@ module f_utils
      end subroutine nanosec
   end interface
 
+  interface f_get_option
+     module procedure f_get_option_l
+  end interface f_get_option
+
   interface assignment(=)
      module procedure f_null_i0,f_null_d0,f_null_r0
      module procedure f_null_d1_ptr
@@ -141,10 +137,10 @@ module f_utils
   public :: f_diff,f_file_unit,f_mkdir,f_savetxt
   public :: f_utils_errors,f_utils_recl,f_file_exists,f_close,f_zero
   public :: f_get_free_unit,f_delete_file,f_getpid,f_rewind,f_open_file
-  public :: f_iostream_from_file,f_iostream_from_lstring,f_increment
-  public :: f_iostream_get_line,f_iostream_release,f_time,f_pause,f_move_file
+  public :: f_increment
+  public :: f_time,f_pause,f_move_file
   public :: f_progress_bar_new,update_progress_bar,f_tty,f_humantime,f_system
-  public :: assignment(=),f_none,f_assert,f_sizeof,f_size
+  public :: assignment(=),f_none,f_assert,f_sizeof,f_size,f_get_option
 
 contains
 
@@ -217,6 +213,16 @@ contains
     call f_assert(abs(condition)< tol_,id=id,err_id=err_id,err_name=err_name)
 
   end subroutine f_assert_double
+
+  pure function f_get_option_l(default,opt) result(val)
+    implicit none
+    logical, intent(in) :: default
+    logical, intent(in), optional :: opt
+    logical :: val
+    val=default
+    if (present(opt)) val=opt
+  end function f_get_option_l
+
 
   pure function f_progress_bar_new(nstep) result(bar)
     implicit none
@@ -737,75 +743,6 @@ contains
 
     call f_close(unt)
   end subroutine f_savetxt_d2
-
-  subroutine f_iostream_from_file(ios, filename)
-    implicit none
-    type(io_stream), intent(out) :: ios
-    character(len = *), intent(in) :: filename
-    !Local variables
-    integer :: ierror
-
-    ios%iunit=f_get_free_unit(742)
-    open(unit=ios%iunit,file=trim(filename),status='old',iostat=ierror)
-    !Check the open statement
-    if (ierror /= 0) call f_err_throw('Error in opening file='//&
-         trim(filename)//' iostat='//trim(yaml_toa(ierror)),&
-         err_id=INPUT_OUTPUT_ERROR)
-    nullify(ios%lstring)
-  end subroutine f_iostream_from_file
-
-  subroutine f_iostream_from_lstring(ios, dict)
-    implicit none
-    type(io_stream), intent(out) :: ios
-    type(dictionary), pointer :: dict
-
-    ios%iunit = 0
-    if (dict_len(dict) < 0) call f_err_throw('Error dict is not a long string',&
-         err_id=INPUT_OUTPUT_ERROR)
-    ios%lstring => dict
-  end subroutine f_iostream_from_lstring
-
-  subroutine f_iostream_get_line(ios, line, eof)
-    implicit none
-    !Arguments
-    type(io_stream), intent(inout) :: ios
-    character(len=max_field_length), intent(out) :: line
-    logical, optional, intent(out) :: eof
-    !Local variables
-    integer :: i_stat
-    character(len=8) :: fmt
-
-    if (ios%iunit > 0) then
-       write(fmt, "(A,I0,A)") "(A", max_field_length, ")"
-       if (present(eof)) then
-          read(ios%iunit, trim(fmt), iostat = i_stat) line
-       else
-          read(ios%iunit, trim(fmt)) line
-          i_stat = 0
-       end if
-       if (i_stat /= 0) then
-          close(ios%iunit)
-          ios%iunit = 0
-       end if
-       if (present(eof)) eof = (i_stat /= 0)
-    else if (associated(ios%lstring)) then
-       if (dict_len(ios%lstring) > 0) ios%lstring => dict_iter(ios%lstring)
-       line = dict_value(ios%lstring)
-       ios%lstring => dict_next(ios%lstring)
-       if (present(eof)) eof = .not. associated(ios%lstring)
-    else if (present(eof)) then
-       eof = .true.
-    end if
-  end subroutine f_iostream_get_line
-
-  subroutine f_iostream_release(ios)
-    implicit none
-    type(io_stream), intent(inout) :: ios
-
-    if (ios%iunit > 0) close(ios%iunit)
-    ios%iunit = 0
-    nullify(ios%lstring)
-  end subroutine f_iostream_release
 
   !>nullification information
   pure subroutine f_null_i0(val,nl)

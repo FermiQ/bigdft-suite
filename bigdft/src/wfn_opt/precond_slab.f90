@@ -289,6 +289,41 @@ END SUBROUTINE prec_fft_slab_fast
 
 !> Solves (KE+cprecr*I)*xx=yy by conjugate gradient method
 !! hpsi is the right hand side on input and the solution on output
+subroutine prec_fft_wire_fast(n1,n2,n3, &
+     nseg_c,nvctr_c,nseg_f,nvctr_f,keyg,keyv, &
+     cprecr,hx,hy,hz,hpsi,kern_k3,z,x_c)
+  use module_base
+  implicit none 
+  integer, intent(in) :: n1,n2,n3
+  integer, intent(in) :: nseg_c,nvctr_c,nseg_f,nvctr_f
+  real(gp), intent(in) :: hx,hy,hz,cprecr
+  integer, dimension(2,nseg_c+nseg_f), intent(in) :: keyg
+  integer, dimension(nseg_c+nseg_f), intent(in) :: keyv
+  real(wp), intent(inout) ::  hpsi(nvctr_c+7*nvctr_f)
+  !local variables
+  real(gp) :: kern_k3(0:n3)
+  real(wp) :: x_c(0:n1,0:n2,0:n3)! in and out of Fourier preconditioning
+  real(wp) :: z(2,0:(n1+1)/2,0:n2,0:n3)! work array for FFT
+
+  ! diagonally precondition the wavelet part  
+  if (nvctr_f > 0) then
+     call wscal_f(nvctr_f,hpsi(nvctr_c+1),hx,hy,hz,cprecr)
+  end if
+
+  call make_kernel(n3,hz,kern_k3)
+
+  call uncompress_c(hpsi,x_c,keyg(1,1),keyv(1),nseg_c,nvctr_c,n1,n2,n3)
+
+  !   solve the helmholtz equation for the scfunction part  
+!  call hit_with_kernel_wire(x_c,z,kern_k3,n1,n2,n3,cprecr,hx,hy)   
+
+  call compress_c(hpsi,x_c,keyg(1,1),keyv(1),nseg_c,nvctr_c,n1,n2,n3)
+
+END SUBROUTINE prec_fft_wire_fast
+
+
+!> Solves (KE+cprecr*I)*xx=yy by conjugate gradient method
+!! hpsi is the right hand side on input and the solution on output
 subroutine prec_fft_slab(n1,n2,n3, &
      nseg_c,nvctr_c,nseg_f,nvctr_f,keyg,keyv, &
      cprecr,hx,hy,hz,hpsi)
@@ -339,6 +374,57 @@ contains
   END SUBROUTINE deallocate_all
 
 END SUBROUTINE prec_fft_slab
+
+
+!> Solves (KE+cprecr*I)*xx=yy by conjugate gradient method
+!! hpsi is the right hand side on input and the solution on output
+subroutine prec_fft_wire(n1,n2,n3, &
+     nseg_c,nvctr_c,nseg_f,nvctr_f,keyg,keyv, &
+     cprecr,hx,hy,hz,hpsi)
+  use module_base
+  implicit none 
+  integer, intent(in) :: n1,n2,n3
+  integer, intent(in) :: nseg_c,nvctr_c,nseg_f,nvctr_f
+  real(gp), intent(in) :: hx,hy,hz,cprecr
+  integer, dimension(2,nseg_c+nseg_f), intent(in) :: keyg
+  integer, dimension(nseg_c+nseg_f), intent(in) :: keyv
+  real(wp), intent(inout) ::  hpsi(nvctr_c+7*nvctr_f)
+  !local variables
+  real(gp), dimension(:), allocatable :: kern_k3
+  real(wp), dimension(:,:,:), allocatable :: x_c! in and out of Fourier preconditioning
+  real(wp), allocatable::z(:,:,:,:) ! work array for FFT
+
+  call allocate_all
+
+  ! diagonally precondition the wavelet part  
+  call wscal_f(nvctr_f,hpsi(nvctr_c+1),hx,hy,hz,cprecr)
+
+  call make_kernel(n3,hz,kern_k3)
+
+  call uncompress_c(hpsi,x_c,keyg(1,1),keyv(1),nseg_c,nvctr_c,n1,n2,n3)
+
+  !   solve the helmholtz equation for the scfunction part  
+!  call hit_with_kernel_wire(x_c,z,kern_k3,n1,n2,n3,cprecr,hx,hy)
+
+  call compress_c(hpsi,x_c,keyg(1,1),keyv(1),nseg_c,nvctr_c,n1,n2,n3)
+
+  call deallocate_all
+
+contains
+
+  subroutine allocate_all
+    kern_k3 = f_malloc(0.to.n3,id='kern_k3')
+    z = f_malloc((/ 1.to.2, 0.to.(n1+1)/2, 0.to.n2, 0.to.n3 /),id='z') ! check if size should be different wrt surface BC.
+    x_c = f_malloc((/ 0.to.n1, 0.to.n2, 0.to.n3 /),id='x_c')
+  END SUBROUTINE allocate_all
+
+  subroutine deallocate_all
+    call f_free(kern_k3)
+    call f_free(z)
+    call f_free(x_c)
+  END SUBROUTINE deallocate_all
+
+END SUBROUTINE prec_fft_wire
 
 
 !> Solve the discretized equation

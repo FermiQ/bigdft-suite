@@ -138,12 +138,12 @@ subroutine PZ_SIC_potential(nspin,nspinor,hfac,spinval,lr,xc,&
      !here the density should be transformed into a potential which is associated to the orbital
      if(nspinor==4) then
         !this wrapper can be inserted inside the XC_potential routine
-        call PSolverNC(lr%geocode,'D',0,1,lr%d%n1i,lr%d%n2i,lr%d%n3i,lr%d%n3i,&
+        call PSolverNC(cell_geocode(lr%mesh),'D',0,1,lr%d%n1i,lr%d%n2i,lr%d%n3i,lr%d%n3i,&
              xc,hgridsh,&
              rhopoti,pkernel%kernel,rhopoti,ehi,eexi,vexi,0.d0,.false.,4)
         !the potential is here ready to be applied to psir
      else
-        call XC_potential(lr%geocode,'D',0,1,bigdft_mpi%mpi_comm,&
+        call XC_potential(cell_geocode(lr%mesh),'D',0,1,bigdft_mpi%mpi_comm,&
              lr%d%n1i,lr%d%n2i,lr%d%n3i,xc,hgridsh,&
              rhopoti,eexi,vexi,nspin,rhocore_fake,rhocore_fake,vSICi,xcstr) 
 
@@ -227,6 +227,7 @@ subroutine NK_SIC_potential(lr,orbs,xc,fref,hgrids,pkernel,psi,poti,eSIC_DC,pota
   use Poisson_Solver, except_dp => dp, except_gp => gp
   use locreg_operations
   use locregs
+  use box, only: cell_geocode
   implicit none
   real(gp), intent(in) :: fref
   type(locreg_descriptors), intent(in) :: lr
@@ -301,7 +302,7 @@ subroutine NK_SIC_potential(lr,orbs,xc,fref,hgrids,pkernel,psi,poti,eSIC_DC,pota
      !print *,'here',poti(1,1),deltarho(1,1)
 
      !put the XC potential in the wxd term, which is the same for all the orbitals
-     call XC_potential(lr%geocode,'D',0,1,bigdft_mpi%mpi_comm,&
+     call XC_potential(cell_geocode(lr%mesh),'D',0,1,bigdft_mpi%mpi_comm,&
           lr%d%n1i,lr%d%n2i,lr%d%n3i,xc,hgrids,&
           deltarho,eexu,vexu,orbs%nspin,rhocore_fake,rhocore_fake,wxd,xcstr)
 
@@ -375,7 +376,7 @@ subroutine NK_SIC_potential(lr,orbs,xc,fref,hgrids,pkernel,psi,poti,eSIC_DC,pota
         !if (savewxd) call xc_clean_rho(lr%d%n1i*lr%d%n2i*lr%d%n3i*orbs%nspin,deltarho,1)
 
         !calculate its vXC and fXC
-        call XC_potential(lr%geocode,'D',0,1,bigdft_mpi%mpi_comm,&
+        call XC_potential(cell_geocode(lr%mesh),'D',0,1,bigdft_mpi%mpi_comm,&
              lr%d%n1i,lr%d%n2i,lr%d%n3i,xc,hgrids,&
              deltarho,eexi,vexi,orbs%nspin,rhocore_fake,rhocore_fake,vxci,xcstr,fxci)
 
@@ -440,7 +441,7 @@ subroutine NK_SIC_potential(lr,orbs,xc,fref,hgrids,pkernel,psi,poti,eSIC_DC,pota
            call xc_clean_rho(xc,lr%d%n1i*lr%d%n2i*lr%d%n3i*orbs%nspin,deltarho,1)
 
            !calculate its XC potential
-           call XC_potential(lr%geocode,'D',0,1,bigdft_mpi%mpi_comm,&
+           call XC_potential(cell_geocode(lr%mesh),'D',0,1,bigdft_mpi%mpi_comm,&
                 lr%d%n1i,lr%d%n2i,lr%d%n3i,xc,hgrids,&
                 deltarho,eexi,vexi,orbs%nspin,rhocore_fake,rhocore_fake,vxci,xcstr) 
            !saves the values for the double-counting term

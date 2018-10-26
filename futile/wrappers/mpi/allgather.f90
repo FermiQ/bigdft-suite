@@ -31,7 +31,7 @@ module f_allgather
   !> Interface for MPI_ALLGATHERV routine
   interface fmpi_allgather
      module procedure mpiallgatherv_d0,mpiallgatherv_d1,mpiallgatherv_d2d3,mpiallgatherv_i2
-     module procedure mpiallgatherv_i0!,mpiallgatherv_i0i1
+     module procedure mpiallgatherv_i0,mpiallgatherv_i1!,mpiallgatherv_i0i1
   end interface fmpi_allgather
 
   interface mpi_get_to_allgatherv
@@ -58,9 +58,10 @@ contains
     
   end subroutine get_ntot_and_offset
 
-  subroutine get_srcounts(me,sendcnt,recvcnt,sendcount,recvcount,recvcounts)
+  subroutine get_srcounts(me,buf_size,sendcnt,recvcnt,sendcount,recvcount,recvcounts)
     implicit none
     integer, intent(in) :: me
+    integer(f_long), intent(in) :: buf_size
     integer, intent(out) :: sendcnt,recvcnt
     integer, intent(in), optional :: sendcount
     integer, intent(in), optional :: recvcount
@@ -73,9 +74,7 @@ contains
     else if (present(sendcount)) then
        recvcnt=sendcount
     else
-       call f_err_throw('Unable to determine recvcount. '//&
-            'one of recvcounts, recvcount or sendcount should be present',&
-            err_name='ERR_MPI_WRAPPERS')
+       recvcnt=int(buf_size)
     end if
 
     !determine sendcnt
@@ -83,8 +82,10 @@ contains
        sendcnt=sendcount
     else if (present(recvcount)) then
        sendcnt=recvcount
-    else
+    else if (present(recvcounts)) then
        sendcnt=recvcounts(me+1)
+    else
+       sendcnt=int(buf_size)
     end if
 
   end subroutine get_srcounts
@@ -143,6 +144,19 @@ contains
     integer(f_integer), dimension(:), allocatable :: copybuf
     include 'allgather-inc.f90'
   end subroutine mpiallgatherv_i0
+
+  recursive subroutine mpiallgatherv_i1(sendbuf,sendcount,recvbuf,recvcount,&
+       recvcounts,displs,comm,win,algorithm)
+    !    use yaml_strings, only: yaml_toa
+    use dictionaries, only: f_err_throw
+    use dynamic_memory
+    implicit none
+    integer(f_integer), dimension(:), intent(in) :: sendbuf
+    integer(f_integer), dimension(:), intent(inout), optional :: recvbuf
+    integer(f_integer), dimension(:), allocatable :: copybuf
+    include 'allgather-inc.f90'
+  end subroutine mpiallgatherv_i1
+
 
 !!$  subroutine mpiallgatherv_i0i1(sendbuf,sendcount,recvbuf,recvcount,&
 !!$       recvcounts,displs,comm,win,algorithm)

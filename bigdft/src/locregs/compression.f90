@@ -40,10 +40,10 @@ module compression
 
   !> arrays defining how a given projector and a given wavefunction descriptor should interact
   type, public :: wfd_to_wfd
-     integer :: strategy !< can be STRATEGY_MASK,STRATEGY_KEYS,STRATEGY_MASK_PACK,STRATEGY_KEYS_PACK,STRATEGY_SKIP
-     integer :: nmseg_c !< number of segments intersecting in the coarse region
-     integer :: nmseg_f !< number of segments intersecting in the fine region
-     integer, dimension(:,:), pointer :: mask !<mask array of dimesion 3,nmseg_c+nmseg_f for psp application
+     integer :: strategy=STRATEGY_SKIP !< can be STRATEGY_MASK,STRATEGY_KEYS,STRATEGY_MASK_PACK,STRATEGY_KEYS_PACK,STRATEGY_SKIP
+     integer :: nmseg_c=0 !< number of segments intersecting in the coarse region
+     integer :: nmseg_f=0 !< number of segments intersecting in the fine region
+     integer, dimension(:,:), pointer :: mask=>null() !<mask array of dimesion 3,nmseg_c+nmseg_f for psp application
   end type wfd_to_wfd
 
 
@@ -53,6 +53,7 @@ module compression
   public :: cproj_dot,cproj_pr_p_psi,pr_dot_psi
   public :: wfd_to_wfd_skip,free_tolr_ptr,init_tolr,wnrm2
   public :: nullify_wfd_pointers,broadcast_wfd_keys
+  public :: wfd_keys_from_buffer
 
 contains
 
@@ -91,10 +92,10 @@ contains
   pure subroutine nullify_wfd_to_wfd(tolr)
     implicit none
     type(wfd_to_wfd), intent(out) :: tolr
-    tolr%strategy=STRATEGY_SKIP
-    tolr%nmseg_c=0
-    tolr%nmseg_f=0
-    nullify(tolr%mask)
+!!$    tolr%strategy=STRATEGY_SKIP
+!!$    tolr%nmseg_c=0
+!!$    tolr%nmseg_f=0
+!!$    nullify(tolr%mask)
   end subroutine nullify_wfd_to_wfd
 
   !destructors
@@ -173,6 +174,19 @@ contains
          associated(wfd%keygloc, target = wfd%keyglob)
     
   end function wfd_is_global
+  
+  !wfd must be associated
+  pure function wfd_has_global_shape(wfd) result(yes)
+    type(wavefunctions_descriptors), intent(in) :: wfd
+    logical :: yes
+    !local variables
+    integer :: nseg_buffer,nseg
+
+    nseg=max(1,wfd%nseg_c+wfd%nseg_f)
+    nseg_buffer=size(wfd%buffer)
+
+    yes = nseg_buffer == 3*nseg
+  end function wfd_has_global_shape
 
   subroutine assemble_wfd(wfd,global)
     implicit none
@@ -181,7 +195,7 @@ contains
     !local variables
     logical :: global_
 
-    global_=.false.
+    global_=wfd_has_global_shape(wfd) !.false.
     if(present(global)) global_=global
 
     call associate_wfd(wfd,max(1,wfd%nseg_c+wfd%nseg_f),global_)
@@ -309,9 +323,12 @@ contains
     wfdout%nseg_f = wfdin%nseg_f
 
     !new method
-    wfdout%buffer=f_malloc_ptr(src_ptr=wfdin%buffer,id='wfdout%buffer')
-    if (.not. associated(wfdout%buffer)) return
-    call assemble_wfd(wfdout,wfd_is_global(wfdin))
+    if (.not. associated(wfdin%buffer)) return
+    call wfd_keys_from_buffer(wfdout,wfdin%buffer)
+
+!!$    wfdout%buffer=f_malloc_ptr(src_ptr=wfdin%buffer,id='wfdout%buffer')
+!!$    if (.not. associated(wfdout%buffer)) return
+!!$    call assemble_wfd(wfdout,wfd_is_global(wfdin))
 
 !!$    wfdout%keygloc=f_malloc_ptr(src_ptr=wfdin%keygloc,id='wfdout%keygloc')
 !!$    wfdout%keyglob=f_malloc_ptr(src_ptr=wfdin%keyglob,id='wfdout%keyglob')
@@ -319,6 +336,19 @@ contains
 !!$    wfdout%keyvglob=f_malloc_ptr(src_ptr=wfdin%keyvglob,id='wfdout%keyvglob')
 
   end subroutine copy_wavefunctions_descriptors
+
+  !to be used if buffer is not a nullified pointer
+  subroutine wfd_keys_from_buffer(wfd,buffer)
+    use dynamic_memory
+    implicit none
+    type(wavefunctions_descriptors), intent(inout) :: wfd
+    integer, dimension(:), intent(in) :: buffer
+
+    !new method
+    wfd%buffer=f_malloc_ptr(src=buffer,id='wfd%buffer')
+    call assemble_wfd(wfd)
+    
+  end subroutine wfd_keys_from_buffer
 
 
   !> Initialize the wfd_to_wfd descriptor starting from 

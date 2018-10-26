@@ -117,7 +117,7 @@ program wvl
   !grid spacings and box of the density
   call dpbox_set(dpcom,Lzd%Glr%mesh,xc,iproc,nproc,MPI_COMM_WORLD,&
        !inputs%PSolver_groupsize, &
-       & inputs%SIC%approach,& !atoms%astruct%geocode, 
+       & inputs%SIC%approach, & !atoms%astruct%geocode, 
        & inputs%nspin)!,inputs%matacc%PSolver_igpu)
 
   ! Read wavefunctions from disk and store them in psi.

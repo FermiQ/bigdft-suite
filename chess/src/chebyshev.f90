@@ -38,13 +38,13 @@ module chebyshev
  
     !> Again assuming all matrices have same sparsity, still some tidying to be done
     subroutine chebyshev_clean(iproc, nproc, comm, npl, cc, kernel, ham_compr, &
-               calculate_SHS, nsize_polynomial, ncalc, resume, mat, vectors_new, &
+               calculate_SHS, nsize_polynomial, ncalc, resume, mat_seq, vectors_new, &
                fermi_new, penalty_ev_new, chebyshev_polynomials, emergency_stop, &
                invovrlp_compr, npl_resume)
       use wrapper_mpi
       use sparsematrix_init, only: matrixindex_in_compressed
-      !!use sparsematrix, only: sequential_acces_matrix_fast, sequential_acces_matrix_fast2, &
-      use sparsematrix, only: compress_matrix_distributed_wrapper, sparsemm_newnew
+      use sparsematrix, only: sequential_acces_matrix_fast, sequential_acces_matrix_fast2, &
+                              compress_matrix_distributed_wrapper, sparsemm_new
       implicit none
     
       ! Calling arguments
@@ -54,7 +54,7 @@ module chebyshev
       real(kind=mp),dimension(kernel%nvctrp_tg),intent(in) :: ham_compr
       logical,intent(in) :: calculate_SHS
       logical,intent(in) :: resume
-      real(kind=mp),dimension(:),intent(in) :: mat
+      real(kind=mp),dimension(kernel%smmm%nseq),intent(in) :: mat_seq
       real(kind=mp),dimension(kernel%smmm%nvctrp,4),intent(inout) :: vectors_new
       !real(kind=mp),dimension(kernel%nvctrp_tg),intent(inout) :: workarr_compr
       real(kind=mp),dimension(kernel%smmm%nvctrp,ncalc),intent(out) :: fermi_new
@@ -93,7 +93,7 @@ module chebyshev
           if (kernel%smmm%nvctrp>0) then
               do ipl=npl_resume,npl
                   !!write(*,*) 'ipl', ipl
-                  call sparsemm_newnew(iproc, kernel, mat, vectors_new(1,1), vectors_new(1,2))
+                  call sparsemm_new(iproc, kernel, mat_seq, vectors_new(1,1), vectors_new(1,2))
                   !!write(*,*) 'after sparsemm_new'
                   call axbyz_kernel_vectors_new(kernel, 2.d0, vectors_new(1,2), -1.d0, vectors_new(1,4), vectors_new(1,3))
                   !!write(*,*) 'after axbyz_kernel_vectors_new'
@@ -194,7 +194,7 @@ module chebyshev
               !call axpy(kernel%smmm%nvctrp, 0.5d0*cc(1,3,1), vectors_new(1,4), 1, penalty_ev_new(1,2), 1)
               !write(*,*) ' before loop: sum(penalty_ev_new)', sum(penalty_ev_new(:,1)), sum(penalty_ev_new(:,2))
             
-              call sparsemm_newnew(iproc, kernel, mat, vectors_new(1,3), vectors_new(1,1))
+              call sparsemm_new(iproc, kernel, mat_seq, vectors_new(1,3), vectors_new(1,1))
               call vcopy(kernel%smmm%nvctrp, vectors_new(1,1), 1, vectors_new(1,2), 1)
     
 
@@ -220,7 +220,7 @@ module chebyshev
               !!call fmpi_get(global_stop, 0, window, 1, int(0,fmpi_address))
               !!write(*,*) 'AFTER TEST'
               main_loop: do ipl=3,npl
-                  call sparsemm_newnew(iproc, kernel, mat, vectors_new(1,1), vectors_new(1,2))
+                  call sparsemm_new(iproc, kernel, mat_seq, vectors_new(1,1), vectors_new(1,2))
                   call axbyz_kernel_vectors_new(kernel, 2.d0, vectors_new(1,2), -1.d0, vectors_new(1,4), vectors_new(1,3))
                   call compress_polynomial_vector_new(iproc, nproc, nsize_polynomial, &
                        kernel%nfvctr, kernel%smmm%nfvctrp, kernel, &

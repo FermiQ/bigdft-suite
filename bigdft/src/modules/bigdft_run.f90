@@ -17,7 +17,7 @@ module bigdft_run
   use f_refcnts, only: f_reference_counter,f_ref_new,f_ref,f_unref,&
        nullify_f_ref,f_ref_free
   use f_utils
-  use f_enums, f_str => str
+  use f_enums, f_str => toa
   use module_input_dicts, only: bigdft_set_run_properties => dict_set_run_properties,&
        bigdft_get_run_properties => dict_get_run_properties,&
        final_positions_filename
@@ -136,14 +136,12 @@ module bigdft_run
 !!$     END SUBROUTINE geopt
 !!$
 !!$  end interface
-
   !> Keys of a run dict. All private, use get_run_prop() and set_run_prop() to change them.
   character(len = *), parameter :: RADICAL_NAME = "radical"
   character(len = *), parameter :: INPUT_NAME   = "input_file"
   character(len = *), parameter :: OUTDIR       = "outdir"
   character(len = *), parameter :: LOGFILE      = "logfile"
   character(len = *), parameter :: USE_FILES    = "run_from_files"
-
 contains
 
   !> All in one routine to initialise and set-up restart objects.
@@ -430,9 +428,6 @@ contains
     if (rst%version == LINEAR_VERSION) then
        call destroy_DFT_wavefunction(rst%tmb)
     end if
-    !always deallocate lzd for new input guess
-    !call deallocate_lzd(rst%tmb%lzd)
-    ! Modified by SM
     call deallocate_local_zone_descriptors(rst%tmb%lzd)
 
     call deallocate_locreg_descriptors(rst%KSwfn%Lzd%Glr)
@@ -745,7 +740,6 @@ contains
     if (associated(runObj%atoms)) astruct => runObj%atoms%astruct
   end function bigdft_get_astruct_ptr
 
-
   !> Routine to dump the atomic file in normal BigDFT mode
   subroutine bigdft_write_atomic_file(runObj,outs,filename,comment,&
        cwd_path)
@@ -756,8 +750,8 @@ contains
     type(state_properties), intent(in) :: outs
     character(len=*), intent(in) :: filename,comment
     !> when present and true, output the file in the main
-    !! outdir directory (where the logfile is present)
-    !! and not automatically in dir_output
+    !! working directory (where input files are present)
+    !! and not in dir_output
     logical, intent(in), optional :: cwd_path
     !local variables
     logical :: indir
@@ -774,7 +768,7 @@ contains
             energy=outs%energy,forces=outs%fxyz)
     else
        call astruct_dump_to_file(bigdft_get_astruct_ptr(runObj),&
-            trim(filename),comment,&
+            trim(runObj%inputs%dir_output)//trim(filename),comment,&
             energy=outs%energy,forces=outs%fxyz)
     end if
 
@@ -1352,7 +1346,6 @@ contains
     call f_release_routine()
 
   END SUBROUTINE run_objects_init
-
   
   subroutine run_objects_update(runObj, dict)
     use module_base, only: bigdft_mpi
@@ -1584,8 +1577,7 @@ contains
 
   end subroutine bigdft_init
 
-
-  !> Identify the options from command line
+  !>identify the options from command line
   !! and write the result in options dict
   subroutine bigdft_command_line_options(options)
     use yaml_parse
@@ -2045,7 +2037,7 @@ contains
     call f_routine(id='process_run (id="'+id+'")')
 
     if (bigdft_mpi%iproc==0 .and. .not. (runObj%run_mode .hasattr. RUN_MODE_CREATE_DOCUMENT)) &
-         call yaml_sequence_open('Initializing '//trim(str(runObj%run_mode)))
+         call yaml_sequence_open('Initializing '//trim(toa(runObj%run_mode)))
 
     if(trim(runObj%inputs%geopt_approach)/='SOCK') then
         call bigdft_state(runObj,outs,infocode)
@@ -2071,13 +2063,13 @@ contains
 
     if (runObj%inputs%ncount_cluster_x > 1) then
        !call f_strcpy(src='final_'+id,dest=filename)
-       call final_positions_filename(.false.,id,runObj%inputs%outdir,filename)
+       call final_positions_filename(.false.,id,filename)
        call bigdft_write_atomic_file(runObj,outs,filename,&
             'FINAL CONFIGURATION',cwd_path=.true.)
 
     else
        !call f_strcpy(src='forces_'+id,dest=filename)
-       call final_positions_filename(.true.,id,runObj%inputs%outdir,filename)
+       call final_positions_filename(.true.,id,filename)
        call bigdft_write_atomic_file(runObj,outs,filename,&
             'Geometry + metaData forces',cwd_path=.true.)
 
@@ -2333,6 +2325,7 @@ contains
     use module_atoms, only: move_this_coordinate
     use module_forces
     use module_input_keys, only: inputpsiid_set_policy
+    use box, only: bc_periodic_dims,geocode_to_bc
     implicit none
     integer, intent(in) :: iproc,nproc
     integer, intent(inout) :: infocode
@@ -2343,6 +2336,7 @@ contains
     real(gp), dimension(3,atoms%astruct%nat), intent(inout) :: fxyz
     !local variables
     character(len=*), parameter :: subname='forces_via_finite_differences'
+    logical, dimension(3) :: peri
     character(len=4) :: cc
     integer :: ik,km,n_order,iat,ii,i,k,order,iorb_ref
     real(gp) :: dd,alat,functional_ref,fd_alpha,energy_ref,pressure
@@ -2398,8 +2392,9 @@ contains
     rxyz_ref = f_malloc(src=rst%rxyz_new,id='rxyz_ref')
     fxyz_fake = f_malloc((/ 3, atoms%astruct%nat /),id='fxyz_fake')
 
+    !get the periodic dimension
+    peri=bc_periodic_dims(geocode_to_bc(atoms%astruct%geocode))
     do iat=1,atoms%astruct%nat
-
        do i=1,3 !a step in each of the three directions
 
           if (.not.move_this_coordinate(atoms%astruct%ifrztyp(iat),i)) then
@@ -2434,13 +2429,22 @@ contains
                 write(*,"(1x,a,i0,a,a,a,1pe20.10,a)") &
                      '=FD Move the atom ',iat,' in the direction ',cc,' by ',dd,' bohr'
              end if
-             if (atoms%astruct%geocode == 'P') then
-                rst%rxyz_new(i,iat)=modulo(rxyz_ref(i,iat)+dd,alat)
-             else if (atoms%astruct%geocode == 'S') then
+             if (peri(i)) then
                 rst%rxyz_new(i,iat)=modulo(rxyz_ref(i,iat)+dd,alat)
              else
                 rst%rxyz_new(i,iat)=rxyz_ref(i,iat)+dd
              end if
+
+!!$             if (atoms%astruct%geocode == 'P') then
+!!$                rst%rxyz_new(i,iat)=modulo(rxyz_ref(i,iat)+dd,alat)
+!!$             else if (atoms%astruct%geocode == 'S') then
+!!$                rst%rxyz_new(i,iat)=modulo(rxyz_ref(i,iat)+dd,alat)
+!!$             else if (atoms%astruct%geocode == 'W') then
+!!$                call f_err_throw("Wires bc has to be implemented here", &
+!!$                     err_name='BIGDFT_RUNTIME_ERROR')
+!!$             else
+!!$                rst%rxyz_new(i,iat)=rxyz_ref(i,iat)+dd
+!!$             end if
              !inputs%inputPsiId=1
              call inputpsiid_set_policy(ENUM_MEMORY,inputs%inputPsiId)
              !here we should call cluster

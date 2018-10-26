@@ -574,7 +574,7 @@ contains
        call yaml_map('MPI tasks',kernel%mpi_env%nproc)
        if (nthreads /=0) call yaml_map('OpenMP threads per MPI task',nthreads)
        if (kernel%igpu==1) call yaml_map('Kernel copied on GPU',.true.)
-       if (kernel%method /= 'VAC') call yaml_map('Iterative method for Generalised Equation',str(kernel%method))
+       if (kernel%method /= 'VAC') call yaml_map('Iterative method for Generalised Equation',toa(kernel%method))
        if (kernel%method .hasattr. PS_RIGID_ENUM) call yaml_map('Cavity determination','rigid')
        if (kernel%method .hasattr. PS_SCCS_ENUM) call yaml_map('Cavity determination','sccs')
        call yaml_mapping_close() !kernel
@@ -901,7 +901,7 @@ contains
     n23=kernel%grid%m3*kernel%grid%n3p
     n1=kernel%grid%m1
 
-    select case(trim(str(kernel%method)))
+    select case(trim(toa(kernel%method)))
     case('PCG')
 !!$       if (use_input_guess .and. &
 !!$            associated(kernel%w%pot)) then
@@ -956,7 +956,7 @@ contains
     type(coulomb_operator), intent(inout) :: kernel
     logical, intent(in) :: keep_rhopol
 
-    select case(trim(str(kernel%method)))
+    select case(trim(toa(kernel%method)))
     case('PCG')
        call f_free_ptr(kernel%w%res)
        call f_free_ptr(kernel%w%q)
@@ -984,7 +984,7 @@ contains
     type(f_enumerator), intent(in) :: method
     type(PS_workarrays), intent(inout) :: w
 
-    select case(trim(str(method)))
+    select case(trim(toa(method)))
     case('PCG')
        !w%rho_pol=f_malloc_ptr([n1,n23],id='rho_pol') !>>>>>>>>>>here the switch
        w%eps=f_malloc_ptr([n1,n23],id='eps')
@@ -1022,7 +1022,7 @@ contains
 !!$         kernel%method,kernel%w)
     if (present(vacuum)) then
        if (vacuum) then
-          select case(trim(str(kernel%method)))
+          select case(trim(toa(kernel%method)))
           case('PCG')
              call f_zero(kernel%w%corr)
              do i23=1,n23
@@ -1196,7 +1196,7 @@ contains
     i3s=kernel%grid%istart+1
     if (kernel%grid%n3p==0) i3s=1
 
-    select case(trim(str(kernel%method)))
+    select case(trim(toa(kernel%method)))
     case('PCG')
        !check the dimensions of the associated arrays
        if (all([associated(kernel%w%corr),associated(kernel%w%oneoeps)])) then
@@ -1446,7 +1446,7 @@ contains
     i3s=kernel%grid%istart+1
     epsm1=(kernel%cavity%epsilon0-vacuum_eps)
     !now fill the pkernel arrays according the the chosen method
-    select case(trim(str(kernel%method)))
+    select case(trim(toa(kernel%method)))
     case('PCG')
        !in PCG we only need corr, oneosqrtepsilon
        i23=1

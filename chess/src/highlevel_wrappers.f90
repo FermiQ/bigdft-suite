@@ -75,8 +75,7 @@ module highlevel_wrappers
            init_matmul=.false.)
       call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, trim(kernel_file), &
            iproc, nproc, mpiworld(), smat(3), kernel_mat, &
-           init_matmul=.true., filename_mult=trim(kernel_matmul_file), &
-           matmul_matrix=MATMUL_REPLICATE_MATRIX)
+           init_matmul=.true., filename_mult=trim(kernel_matmul_file))
 
       call init_matrix_taskgroups_wrapper(iproc, nproc, mpi_comm_world, .true., 3, smat) 
       call resize_matrix_to_taskgroup(smat(1), ovrlp_mat)

@@ -144,6 +144,7 @@ subroutine clean_forces_dft(iproc,astruct,rxyz,fxyz,fnoise)
   use module_base
   use module_atoms
   use yaml_output
+  use box, only: bc_periodic_dims,geocode_to_bc
   implicit none
   !Arguments
   integer, intent(in) :: iproc
@@ -152,11 +153,13 @@ subroutine clean_forces_dft(iproc,astruct,rxyz,fxyz,fnoise)
   real(gp), dimension(3,astruct%nat), intent(inout) :: fxyz
   real(gp), intent(out) :: fnoise
   !local variables
+  logical, dimension(3) :: peri
   integer :: iat
   real(gp) :: sumx,sumy,sumz
   !my variables
   real(gp):: fmax1,t1,t2,t3,fnrm1
   real(gp):: fmax2,fnrm2
+  real(gp), dimension(:,:), allocatable :: fxyz_notorque
   !local variables for blocs (FL)
 
   !The maximum force and force norm is computed prior to modification of the forces
@@ -209,19 +212,35 @@ subroutine clean_forces_dft(iproc,astruct,rxyz,fxyz,fnoise)
 !!$     write(*,'(a,1x,1pe24.17)') 'translational force along z=', sumz  
   end if
   
+  peri=bc_periodic_dims(geocode_to_bc(astruct%geocode))
+  do iat=1,astruct%nat
+     if (.not. peri(1)) fxyz(1,iat)=fxyz(1,iat)-sumx
+     if (.not. peri(2)) fxyz(2,iat)=fxyz(2,iat)-sumy
+     if (.not. peri(3)) fxyz(3,iat)=fxyz(3,iat)-sumz
+  enddo
   if (astruct%geocode == 'F') then
-     do iat=1,astruct%nat
-        fxyz(1,iat)=fxyz(1,iat)-sumx
-        fxyz(2,iat)=fxyz(2,iat)-sumy
-        fxyz(3,iat)=fxyz(3,iat)-sumz
-     enddo
+!!$     do iat=1,astruct%nat
+!!$        fxyz(1,iat)=fxyz(1,iat)-sumx
+!!$        fxyz(2,iat)=fxyz(2,iat)-sumy
+!!$        fxyz(3,iat)=fxyz(3,iat)-sumz
+!!$     enddo
      
-     call elim_torque_reza(astruct%nat,rxyz,fxyz)
-     
+     call elim_torque_reza(astruct%nat,rxyz,fxyz)     
   else if (astruct%geocode == 'S') then
+!!$     do iat=1,astruct%nat
+!!$        fxyz(2,iat)=fxyz(2,iat)-sumy
+!!$     enddo
+  else if (astruct%geocode == 'W') then
+     fxyz_notorque = f_malloc(src=fxyz,id='fxyz_notorque')
      do iat=1,astruct%nat
-        fxyz(2,iat)=fxyz(2,iat)-sumy
-     enddo
+        fxyz_notorque(3,iat)=0.0_gp
+     end do
+     call elim_torque_reza(astruct%nat,rxyz,fxyz_notorque)
+     do iat=1,astruct%nat
+        fxyz(1,iat)=fxyz_notorque(1,iat)
+        fxyz(2,iat)=fxyz_notorque(2,iat)
+     end do
+     call f_free(fxyz_notorque)
   end if
 
   call clean_forces_base(astruct,fxyz)

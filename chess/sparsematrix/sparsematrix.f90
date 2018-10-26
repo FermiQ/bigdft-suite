@@ -41,8 +41,7 @@ module sparsematrix
   public :: compress_matrix_distributed_wrapper
   public :: uncompress_matrix_distributed2
   public :: sequential_acces_matrix_fast, sequential_acces_matrix_fast2
-  !!public :: sparsemm_new
-  public :: sparsemm_newnew
+  public :: sparsemm_new
   public :: gather_matrix_from_taskgroups, gather_matrix_from_taskgroups_inplace
   public :: extract_taskgroup_inplace, extract_taskgroup
   public :: write_matrix_compressed
@@ -1310,172 +1309,7 @@ module sparsematrix
 
 
 
-   !!subroutine sparsemm_new(iproc, smat, a_seq, b, c)
-   !!  use yaml_output
-   !!  use dynamic_memory
-   !!  implicit none
-   !!
-   !!  !Calling Arguments
-   !!  integer,intent(in) :: iproc
-   !!  type(sparse_matrix),intent(in) :: smat
-   !!  real(kind=mp), dimension(smat%smmm%nvctrp),intent(in) :: b
-   !!  real(kind=mp), dimension(smat%smmm%nseq),intent(in) :: a_seq
-   !!  real(kind=mp), dimension(smat%smmm%nvctrp), intent(out) :: c
-   !!
-   !!  !Local variables
-   !!  !character(len=*), parameter :: subname='sparsemm'
-   !!  integer :: i,jorb,jjorb,iend,nblock, iblock, ncount
-   !!  integer :: ii, ilen, iout, iiblock, isblock, is,ie
-   !!  real(kind=mp) :: tt0
-   !!  integer :: n_dense
-   !!  real(kind=mp),dimension(:,:),allocatable :: a_dense, b_dense, c_dense
-   !!  !real(kind=mp),dimension(:),allocatable :: b_dense, c_dense
-   !!  !!integer,parameter :: MATMUL_NEW = 101
-   !!  !!integer,parameter :: MATMUL_OLD = 102
-   !!  !!integer,parameter :: matmul_version = MATMUL_NEW 
-   !!  logical,parameter :: count_flops = .false.
-   !!  real(kind=mp) :: ts, te, op, gflops
-   !!  real(kind=mp),parameter :: flop_per_op = 2.d0 !<number of FLOPS per operations
-   !!
-   !!  call f_routine(id='sparsemm')
-
-   !!  if (.not.smat%smatmul_initialized) then
-   !!      call f_err_throw('sparse matrix multiplication not initialized', &
-   !!           err_name='SPARSEMATRIX_RUNTIME_ERROR')
-   !!  end if
-
-   !!  if (count_flops) then
-   !!      n_dense = nint(sqrt(real(smat%smmm%nseq,kind=mp)))
-   !!      !n_dense = smat%nfvctr
-   !!      a_dense = f_malloc((/n_dense,n_dense/),id='a_dense')
-   !!      b_dense = f_malloc((/n_dense,1/),id='b_dense')
-   !!      c_dense = f_malloc((/n_dense,1/),id='c_dense')
-   !!  end if
-   !!  !call timing(iproc, 'sparse_matmul ', 'IR')
-   !!  call f_timing(TCAT_SMAT_MULTIPLICATION,'IR')
-
-
-   !!  ! The choice for matmul_version can be made in sparsematrix_base
-   !!  if (matmul_version==MATMUL_NEW) then
-
-   !!      if (count_flops) then
-   !!          ! Start time
-   !!          ts = mpi_wtime()
-   !!      end if
-   !!      !$omp parallel default(private) shared(smat, a_seq, b, c)
-   !!      !$omp do schedule(guided)
-   !!      do iout=1,smat%smmm%nout
-   !!          i=smat%smmm%onedimindices_new(1,iout)
-   !!          nblock=smat%smmm%onedimindices_new(4,iout)
-   !!          isblock=smat%smmm%onedimindices_new(5,iout)
-   !!          tt0=0.d0
-
-   !!          is = isblock + 1
-   !!          ie = isblock + nblock
-   !!          !do iblock=1,nblock
-   !!          do iblock=is,ie
-   !!              !iiblock = isblock + iblock
-   !!              jorb = smat%smmm%consecutive_lookup(1,iblock)
-   !!              jjorb = smat%smmm%consecutive_lookup(2,iblock)
-   !!              ncount = smat%smmm%consecutive_lookup(3,iblock)
-   !!              !tt0 = tt0 + ddot(ncount, b(jjorb), 1, a_seq(jorb), 1)
-   !!              !avoid calling ddot from OpenMP region on BG/Q as too expensive
-   !!              !tt0=tt0+my_dot(ncount,b(jjorb:jjorb+ncount-1),a_seq(jorb:jorb+ncount-1))
-   !!              tt0=tt0+my_dot(ncount,b(jjorb),a_seq(jorb))
-   !!          end do
-
-   !!          c(i) = tt0
-   !!      end do 
-   !!      !$omp end do
-   !!      !$omp end parallel
-
-   !!      if (count_flops) then
-   !!          ! End time
-   !!          te = mpi_wtime()
-   !!          ! Count the operations
-   !!          op = 0.d0
-   !!          do iout=1,smat%smmm%nout
-   !!              nblock=smat%smmm%onedimindices_new(4,iout)
-   !!              isblock=smat%smmm%onedimindices_new(5,iout)
-   !!              do iblock=1,nblock
-   !!                  iiblock = isblock + iblock
-   !!                  ncount = smat%smmm%consecutive_lookup(3,iiblock)
-   !!                  op = op + real(ncount,kind=mp)
-   !!              end do
-   !!          end do
-   !!          gflops = 1.d-9*op/(te-ts)*flop_per_op
-   !!          call yaml_map('SPARSE: operations',op,fmt='(es9.3)')
-   !!          call yaml_map('SPARSE: time',te-ts,fmt='(es9.3)')
-   !!          call yaml_map('SPARSE: GFLOPS',gflops)
-
-   !!          ! Compare with dgemm of comparable size
-   !!          ts = mpi_wtime()
-   !!          call dgemv('n', n_dense, n_dense, 1.d0, a_dense, n_dense, b_dense, 1, 0.d0, c_dense, 1)
-   !!          !call dgemm('n', 'n', n_dense, n_dense, n_dense, 1.d0, a_dense, n_dense, &
-   !!          !     b_dense, n_dense, 0.d0, c_dense, n_dense)
-   !!          te = mpi_wtime()
-   !!          op = real(n_dense,kind=mp)*real(n_dense,kind=mp)
-   !!          gflops = 1.d-9*op/(te-ts)*flop_per_op
-   !!          call yaml_map('DGEMV: operations',op,fmt='(es9.3)')
-   !!          call yaml_map('DGEMV: time',te-ts,fmt='(es9.3)')
-   !!          call yaml_map('DGEMV: GFLOPS',gflops)
-   !!      end if
-
-
-   !!  else if (matmul_version==MATMUL_OLD) then
-
-   !!      !$omp parallel default(private) shared(smat, a_seq, b, c)
-   !!      !$omp do
-   !!      do iout=1,smat%smmm%nout
-   !!          i=smat%smmm%onedimindices_new(1,iout)
-   !!          ilen=smat%smmm%onedimindices_new(2,iout)
-   !!          ii=smat%smmm%onedimindices_new(3,iout)
-   !!          tt0=0.d0
-
-   !!          iend=ii+ilen-1
-
-   !!          do jorb=ii,iend
-   !!             jjorb=smat%smmm%ivectorindex_new(jorb)
-   !!             tt0 = tt0 + b(jjorb)*a_seq(jorb)
-   !!          end do
-   !!          c(i) = tt0
-   !!      end do 
-   !!      !$omp end do
-   !!      !$omp end parallel
-
-
-   !!  else
-
-   !!      stop 'wrong value of matmul_version'
-
-   !!  end if
-
-   !!
-   !!  !call timing(iproc, 'sparse_matmul ', 'RS')
-   !!  call f_timing(TCAT_SMAT_MULTIPLICATION,'RS')
-   !!  call f_release_routine()
-
-   !!     contains
-
-   !!  pure function my_dot(n,x,y) result(tt)
-   !!    implicit none
-   !!    integer , intent(in) :: n
-   !!    double precision :: tt
-   !!    double precision, dimension(n), intent(in) :: x,y
-   !!    !local variables
-   !!    integer :: i
-
-   !!    tt=0.d0
-   !!    do i=1,n
-   !!       tt=tt+x(i)*y(i)
-   !!    end do
-   !!  end function
-   !!    
-   !!end subroutine sparsemm_new
-
-
-
-   subroutine sparsemm_newnew(iproc, smat, a, b, c)
+   subroutine sparsemm_new(iproc, smat, a_seq, b, c)
      use yaml_output
      use dynamic_memory
      implicit none
@@ -1483,16 +1317,16 @@ module sparsematrix
      !Calling Arguments
      integer,intent(in) :: iproc
      type(sparse_matrix),intent(in) :: smat
-     real(kind=mp), dimension(:),intent(in) :: a
      real(kind=mp), dimension(smat%smmm%nvctrp),intent(in) :: b
+     real(kind=mp), dimension(smat%smmm%nseq),intent(in) :: a_seq
      real(kind=mp), dimension(smat%smmm%nvctrp), intent(out) :: c
    
      !Local variables
      !character(len=*), parameter :: subname='sparsemm'
      integer :: i,jorb,jjorb,iend,nblock, iblock, ncount
-     integer :: ii, ilen, iout, iiblock, isblock, is,ie, ind, idebug, lookupindex, ishift
+     integer :: ii, ilen, iout, iiblock, isblock, is,ie
      real(kind=mp) :: tt0
-     integer :: n_dense, j
+     integer :: n_dense
      real(kind=mp),dimension(:,:),allocatable :: a_dense, b_dense, c_dense
      !real(kind=mp),dimension(:),allocatable :: b_dense, c_dense
      !!integer,parameter :: MATMUL_NEW = 101
@@ -1520,28 +1354,14 @@ module sparsematrix
      call f_timing(TCAT_SMAT_MULTIPLICATION,'IR')
 
 
-     ! The choice for matmul_version can be made in sparsematrix_defs
+     ! The choice for matmul_version can be made in sparsematrix_base
      if (matmul_version==MATMUL_NEW) then
-
-         if (smat%smmm%matmul_matrix == MATMUL_ORIGINAL_MATRIX) then
-             if (size(a) /= smat%nvctrp_tg) then
-                 call f_err_throw(trim(yaml_toa(size(a)))//'=size(a) /= smat%nvctrp_tg='//trim(yaml_toa(smat%nvctrp_tg)))
-             end if
-             lookupindex = 4
-             ishift = smat%isvctrp_tg
-         else if (smat%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
-             if (size(a) /= smat%smmm%nseq) then
-                 call f_err_throw(trim(yaml_toa(size(a)))//'=size(a) /= smat%smmm%nseq='//trim(yaml_toa(smat%smmm%nseq)))
-             end if
-             lookupindex = 1
-             ishift = 0
-         end if
 
          if (count_flops) then
              ! Start time
              ts = mpi_wtime()
          end if
-         !$omp parallel default(private) shared(smat, a, b, c, lookupindex, ishift)
+         !$omp parallel default(private) shared(smat, a_seq, b, c)
          !$omp do schedule(guided)
          do iout=1,smat%smmm%nout
              i=smat%smmm%onedimindices_new(1,iout)
@@ -1551,12 +1371,16 @@ module sparsematrix
 
              is = isblock + 1
              ie = isblock + nblock
+             !do iblock=1,nblock
              do iblock=is,ie
+                 !iiblock = isblock + iblock
                  jorb = smat%smmm%consecutive_lookup(1,iblock)
                  jjorb = smat%smmm%consecutive_lookup(2,iblock)
                  ncount = smat%smmm%consecutive_lookup(3,iblock)
-                 ind = smat%smmm%consecutive_lookup(lookupindex,iblock) - ishift
-                 tt0=tt0+my_dot(ncount,b(jjorb:),a(ind:))
+                 !tt0 = tt0 + ddot(ncount, b(jjorb), 1, a_seq(jorb), 1)
+                 !avoid calling ddot from OpenMP region on BG/Q as too expensive
+                 !tt0=tt0+my_dot(ncount,b(jjorb:jjorb+ncount-1),a_seq(jorb:jorb+ncount-1))
+                 tt0=tt0+my_dot(ncount,b(jjorb),a_seq(jorb))
              end do
 
              c(i) = tt0
@@ -1599,24 +1423,24 @@ module sparsematrix
 
      else if (matmul_version==MATMUL_OLD) then
 
-     !!    !$omp parallel default(private) shared(smat, a_seq, b, c)
-     !!    !$omp do
-     !!    do iout=1,smat%smmm%nout
-     !!        i=smat%smmm%onedimindices_new(1,iout)
-     !!        ilen=smat%smmm%onedimindices_new(2,iout)
-     !!        ii=smat%smmm%onedimindices_new(3,iout)
-     !!        tt0=0.d0
+         !$omp parallel default(private) shared(smat, a_seq, b, c)
+         !$omp do
+         do iout=1,smat%smmm%nout
+             i=smat%smmm%onedimindices_new(1,iout)
+             ilen=smat%smmm%onedimindices_new(2,iout)
+             ii=smat%smmm%onedimindices_new(3,iout)
+             tt0=0.d0
 
-     !!        iend=ii+ilen-1
+             iend=ii+ilen-1
 
-     !!        do jorb=ii,iend
-     !!           jjorb=smat%smmm%ivectorindex_new(jorb)
-     !!           tt0 = tt0 + b(jjorb)*a_seq(jorb)
-     !!        end do
-     !!        c(i) = tt0
-     !!    end do 
-     !!    !$omp end do
-     !!    !$omp end parallel
+             do jorb=ii,iend
+                jjorb=smat%smmm%ivectorindex_new(jorb)
+                tt0 = tt0 + b(jjorb)*a_seq(jorb)
+             end do
+             c(i) = tt0
+         end do 
+         !$omp end do
+         !$omp end parallel
 
 
      else
@@ -1646,7 +1470,7 @@ module sparsematrix
        end do
      end function
        
-   end subroutine sparsemm_newnew
+   end subroutine sparsemm_new
 
 
    !!function orb_from_index(smat, ival)
@@ -1815,8 +1639,7 @@ module sparsematrix
          recvdspls = f_malloc0(0.to.nproc-1,id='recvdspls')
          !call to_zero(nproc, recvcounts(0))
          !call to_zero(nproc, recvdspls(0))
-         !ncount = smat%smmm%istartend_mm_dj(2) - smat%smmm%istartend_mm_dj(1) + 1
-         ncount = smat%nvctrp
+         ncount = smat%smmm%istartend_mm_dj(2) - smat%smmm%istartend_mm_dj(1) + 1
          recvcounts(iproc) = ncount
          call fmpi_allreduce(recvcounts(0), nproc, FMPI_SUM, comm=comm)
          recvdspls(0) = 0
@@ -1825,10 +1648,7 @@ module sparsematrix
          end do
          do ispin=1,smat%nspin
              ishift = (ispin-1)*smat%nvctr
-             !ist_send = smat%smmm%istartend_mm_dj(1) - smat%isvctrp_tg + ishift
-             ist_send = smat%isvctr + 1 - smat%isvctrp_tg + ishift
-             ! The following condition is necessary for ncount=0, in order to avoid out of bound problems
-             ist_send = min(ist_send,ispin*smat%nvctrp_tg)
+             ist_send = smat%smmm%istartend_mm_dj(1) - smat%isvctrp_tg + ishift
              call fmpi_allgather(mat%matrix_compr(ist_send), ncount, &
                   mat_global(ishift+1), recvcounts=recvcounts, &
                   displs=recvdspls, comm=comm,&
@@ -2191,7 +2011,7 @@ module sparsematrix
       real(kind=mp),dimension(nvctrp_l),intent(out),optional :: matrix_l_out
       real(kind=mp),dimension(nvctrp_s),intent(out),optional :: matrix_s_out
       ! Local variables
-      integer :: i, ii, ind, iline, icolumn, iseg
+      integer :: i, ii, ind, iline, icolumn
 
       call f_routine(id='transform_sparsity_pattern')
       !call timing(iproc, 'transformspars', 'ON')
@@ -2206,10 +2026,6 @@ module sparsematrix
                 call f_err_throw("'matrix_s_out' not present",err_name='BIGDFT_RUNTIME_ERROR')
             end if
 
-            !!do iseg=1,nseg_l
-            !!    write(*,*) 'iseg, keyg_l(:,:,iseg)', iseg, keyg_l(:,:,iseg)
-            !!end do
-
             ! No need for f_zero since every value will be overwritten.
             !$omp parallel default(none) &
             !$omp shared(nvctrp_s, isvctr_s, isvctr_l, line_and_column_s) &
@@ -2223,7 +2039,6 @@ module sparsematrix
                 icolumn = line_and_column_s(2,i)
                 ind = matrixindex_in_compressed_lowlevel(icolumn, iline, nfvctr, &
                       nseg_l, keyv_l, keyg_l, istsegline_l)
-                !!write(*,*) 'iline, icolumn, ind', iline, icolumn, ind
                 ind = ind - isvctr_l
                 matrix_s_out(i) = matrix_l_in(ind)
             end do
@@ -2277,13 +2092,11 @@ module sparsematrix
       ! Calling arguments
       integer,intent(in) :: iproc, nproc
       type(sparse_matrix),intent(in) :: smat
-      real(kind=mp),dimension(smat%nvctrp_tg),target,intent(in) :: a
-      real(kind=mp),dimension(smat%nvctrp_tg),intent(in) :: b
+      real(kind=mp),dimension(smat%nvctrp_tg),intent(in) :: a, b
       real(kind=mp),dimension(smat%nvctrp_tg),intent(inout) :: c
 
       ! Local variables
-      real(kind=mp),dimension(:),allocatable :: b_exp, c_exp
-      real(kind=mp),dimension(:),pointer :: a_seq
+      real(kind=mp),dimension(:),allocatable :: b_exp, c_exp, a_seq
 
       call f_routine(id='matrix_matrix_mult_wrapper')
 
@@ -2294,12 +2107,9 @@ module sparsematrix
 
       b_exp = f_malloc(smat%smmm%nvctrp, id='b_exp')
       c_exp = f_malloc(smat%smmm%nvctrp, id='c_exp')
-      if (smat%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
-          a_seq = sparsematrix_malloc_ptr(smat, iaction=SPARSEMM_SEQ, id='a_seq')
-          call sequential_acces_matrix_fast2(smat, a, a_seq)
-      else if (smat%smmm%matmul_matrix == MATMUL_ORIGINAL_MATRIX) then
-          a_seq => a
-      end if
+      a_seq = sparsematrix_malloc(smat, iaction=SPARSEMM_SEQ, id='a_seq')
+
+      call sequential_acces_matrix_fast2(smat, a, a_seq)
       if (smat%smmm%nvctrp_mm>0) then !to avoid out of bounds error...
           call transform_sparsity_pattern(iproc, smat%nfvctr, smat%smmm%nvctrp_mm, smat%smmm%isvctr_mm, &
                smat%nseg, smat%keyv, smat%keyg, &
@@ -2308,15 +2118,13 @@ module sparsematrix
                smat%smmm%nseg, smat%smmm%keyv, smat%smmm%keyg, smat%smmm%istsegline, &
                'small_to_large', matrix_s_in=b(smat%smmm%isvctr_mm-smat%isvctrp_tg+1), matrix_l_out=b_exp)
       end if
-      call sparsemm_newnew(iproc, smat, a_seq, b_exp, c_exp)
+      call sparsemm_new(iproc, smat, a_seq, b_exp, c_exp)
       call compress_matrix_distributed_wrapper(iproc, nproc, smat, SPARSE_MATMUL_LARGE, &
            c_exp, ONESIDED_FULL, c)
 
       call f_free(b_exp)
       call f_free(c_exp)
-      if (smat%smmm%matmul_matrix == MATMUL_REPLICATE_MATRIX) then
-          call f_free_ptr(a_seq)
-      end if
+      call f_free(a_seq)
 
       call f_release_routine()
 

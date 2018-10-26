@@ -128,15 +128,13 @@ define F_REGTEST_INSTRUCTIONS
         --kernel_file=$(srcdir)/density_kernel_ccs.txt \
         --kernel_matmul_file=$(srcdir)/density_kernel_matmul_ccs.txt \
         --check_spectrum=yes \
-		--adjust_fscale=.true. \
 		--betax=-1000
 - smatmul:
    binary: smatmul
    runs:
     - $(run_parallel) ./smatmul \
         --filename=$(srcdir)/mat_114_8986.txt \
-        --nit=10 \
-        --matmul_matrix=301
+        --nit=10
     - $(run_parallel) ./smatmul \
         --filename=$(srcdir)/mat_600_33620.txt \
         --nit=100 \

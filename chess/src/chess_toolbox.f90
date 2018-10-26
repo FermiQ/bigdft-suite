@@ -1462,8 +1462,7 @@ program chess_toolbox
             init_matmul=.false.)
        call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, trim(kernel_file), &
             iproc, nproc, mpiworld(), smat(2), kernel_mat, &
-            init_matmul=.true., filename_mult=trim(kernel_matmul_file), &
-            matmul_matrix=MATMUL_REPLICATE_MATRIX)
+            init_matmul=.true., filename_mult=trim(kernel_matmul_file))
        !!if (iproc==0) then
        !!    write(*,*) 'FIRST: sum(abs(ovrlp_mat%matrix_compr))',sum(abs(ovrlp_mat%matrix_compr))
        !!    write(*,*) 'FIRST: sum(abs(ovrlp_large%matrix_compr))',sum(abs(ovrlp_large%matrix_compr))
@@ -1741,8 +1740,7 @@ program chess_toolbox
             init_matmul=.false.)
        call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, trim(kernel_file), &
             iproc, nproc, mpiworld(), smat_l, ovrlp_minus_one_half(1), &
-            init_matmul=.true., filename_mult=trim(kernel_matmul_file), &
-            matmul_matrix=MATMUL_REPLICATE_MATRIX)
+            init_matmul=.true., filename_mult=trim(kernel_matmul_file))
 
        if (iproc==0) then
            call yaml_mapping_open('Matrix properties')
@@ -2108,8 +2106,7 @@ program chess_toolbox
             init_matmul=.false.)
        call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, trim(kernel_file), &
             iproc, nproc, mpiworld(), smat(2), kernel_mat, &
-            init_matmul=.true., filename_mult=trim(kernel_matmul_file), &
-            matmul_matrix=MATMUL_REPLICATE_MATRIX)
+            init_matmul=.true., filename_mult=trim(kernel_matmul_file))
        call init_matrix_taskgroups_wrapper(iproc, nproc, mpiworld(), .false., 2, smat)
        call resize_matrix_to_taskgroup(smat(1), ovrlp_mat)
        call resize_matrix_to_taskgroup(smat(2), kernel_mat)
@@ -2281,8 +2278,7 @@ program chess_toolbox
             init_matmul=.false.)
        call sparse_matrix_and_matrices_init_from_file_bigdft(matrix_format, trim(kernel_file), &
             iproc, nproc, mpiworld(), smat(2), kernel_mat, &
-            init_matmul=.true., filename_mult=trim(kernel_matmul_file), &
-            matmul_matrix=MATMUL_REPLICATE_MATRIX)
+            init_matmul=.true., filename_mult=trim(kernel_matmul_file))
        call init_matrix_taskgroups_wrapper(iproc, nproc, mpiworld(), .false., 2, smat)
        call resize_matrix_to_taskgroup(smat(1), ovrlp_mat)
        call resize_matrix_to_taskgroup(smat(2), kernel_mat)

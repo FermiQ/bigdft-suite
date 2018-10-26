@@ -12,14 +12,13 @@ endif
 mod_src = sparsematrix_base.f90 \
           sparsematrix_init.f90 \
           sparsematrix.f90 \
-    	  sparsematrix_io.f90 \
-    	  parallel_linalg.f90 \
-    	  sparsematrix_errorhandling.f90 \
-    	  sparsematrix_timing.f90 \
-    	  sparsematrix_types.f90 \
-    	  sparsematrix_memory.f90 \
-    	  sparsematrix_defs.f90 \
-    	  $(BLACS)
+	  sparsematrix_io.f90 \
+	  parallel_linalg.f90 \
+	  sparsematrix_errorhandling.f90 \
+	  sparsematrix_timing.f90 \
+	  sparsematrix_types.f90 \
+	  sparsematrix_memory.f90 \
+	  $(BLACS)
 
 libsparsematrix_a_SOURCES = $(mod_src)
 
@@ -28,35 +27,32 @@ if CAPITALIZE
 modules = SPARSEMATRIX_BASE.@MODULE_EXT@ \
           SPARSEMATRIX_INIT.@MODULE_EXT@ \
           SPARSEMATRIX.@MODULE_EXT@ \
-    	  PARALLEL_LINALG.@MODULE_EXT@ \
-    	  SPARSEMATRIX_IO.@MODULE_EXT@ \
-    	  SPARSEMATRIX_ERRORHANDLING.@MODULE_EXT@ \
-    	  SPARSEMATRIX_TIMING.@MODULE_EXT@ \
-    	  SPARSEMATRIX_TYPES.@MODULE_EXT@ \
-    	  SPARSEMATRIX_MEMORY.@MODULE_EXT@ \
-    	  SPARSEMATRIX_DEFS.@MODULE_EXT@
+	  PARALLEL_LINALG.@MODULE_EXT@ \
+	  SPARSEMATRIX_IO.@MODULE_EXT@ \
+	  SPARSEMATRIX_ERRORHANDLING.@MODULE_EXT@ \
+	  SPARSEMATRIX_TIMING.@MODULE_EXT@ \
+	  SPARSEMATRIX_TYPES.@MODULE_EXT@ \
+	  SPARSEMATRIX_MEMORY.@MODULE_EXT@
 else
 modules = sparsematrix_base.@MODULE_EXT@ \
           sparsematrix_init.@MODULE_EXT@ \
           sparsematrix.@MODULE_EXT@ \
-    	  parallel_linalg.@MODULE_EXT@ \
-    	  sparsematrix_io.@MODULE_EXT@ \
-    	  sparsematrix_errorhandling.@MODULE_EXT@ \
-    	  sparsematrix_timing.@MODULE_EXT@ \
-    	  sparsematrix_types.@MODULE_EXT@ \
-    	  sparsematrix_memory.@MODULE_EXT@ \
-    	  sparsematrix_defs.@MODULE_EXT@
+	  parallel_linalg.@MODULE_EXT@ \
+	  sparsematrix_io.@MODULE_EXT@ \
+	  sparsematrix_errorhandling.@MODULE_EXT@ \
+	  sparsematrix_timing.@MODULE_EXT@ \
+	  sparsematrix_types.@MODULE_EXT@ \
+	  sparsematrix_memory.@MODULE_EXT@
 endif
 
 CLEANFILES = *.@MODULE_EXT@
 
-AM_FCFLAGS = -I. -I$(srcdir) -I$(top_builddir)/includes @LIB_FUTILE_CFLAGS@ @LIBETSFIO_INCLUDE@ @MPI_INCLUDE@
+AM_FCFLAGS = -I. -I$(srcdir) @LIB_FUTILE_CFLAGS@ @LIBETSFIO_INCLUDE@ @MPI_INCLUDE@
 
 #dependencies
 $(modules): $(libsparsematrix_a_OBJECTS)
-sparsematrix_defs.o: 
-sparsematrix_memory.o: sparsematrix_errorhandling.o sparsematrix_types.o sparsematrix_defs.o
-sparsematrix_base.o: sparsematrix_errorhandling.o sparsematrix_timing.o sparsematrix_types.o sparsematrix_memory.o sparsematrix_defs.o
+sparsematrix_memory.o: sparsematrix_errorhandling.o sparsematrix_types.o
+sparsematrix_base.o: sparsematrix_errorhandling.o sparsematrix_timing.o sparsematrix_types.o sparsematrix_memory.o
 parallel_linalg.o: sparsematrix_base.o sparsematrix_init.o
 sparsematrix_init.o: sparsematrix_base.o
 sparsematrix.o: sparsematrix_base.o sparsematrix_init.o parallel_linalg.o
