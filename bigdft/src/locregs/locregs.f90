@@ -39,16 +39,20 @@ module locregs
   !> Contains the information needed for describing completely a wavefunction localisation region
   type, public :: locreg_descriptors
 !!$     character(len=1) :: geocode            !< @copydoc poisson_solver::doc::geocode
-     logical :: hybrid_on                   !< Interesting for global, periodic, localisation regions
-     integer :: ns1,ns2,ns3                 !< Starting point of the localisation region in global coordinates
-     integer :: nsi1,nsi2,nsi3              !< Starting point of locreg for interpolating grid
-     integer :: Localnorb                   !< Number of orbitals contained in locreg
-     integer, dimension(3) :: outofzone     !< Vector of points outside of the zone outside Glr for periodic systems
-     real(gp), dimension(3) :: locregCenter !< Center of the locreg 
-     real(gp) :: locrad                     !< Cutoff radius of the localization region
-     real(gp) :: locrad_kernel              !< Cutoff radius of the localization region (kernel)
-     real(gp) :: locrad_mult                !< Cutoff radius of the localization region for the sparse matrix multiplications
-     type(grid_dimensions) :: d             !< Grid dimensions in old different wavelet basis
+     logical :: hybrid_on = .false.                  !< Interesting for global, periodic, localisation regions
+     integer :: ns1 = 0
+     integer :: ns2 = 0
+     integer :: ns3 = 0                     !< Starting point of the localisation region in global coordinates
+     integer :: nsi1 = 0
+     integer :: nsi2 = 0 
+     integer :: nsi3 = 0                    !< Starting point of locreg for interpolating grid
+     integer :: Localnorb = 0                  !< Number of orbitals contained in locreg
+     integer, dimension(3) :: outofzone = 0     !< Vector of points outside of the zone outside Glr for periodic systems
+     real(gp), dimension(3) :: locregCenter = 0.0_gp !< Center of the locreg 
+     real(gp) :: locrad = 0.0_gp                    !< Cutoff radius of the localization region
+     real(gp) :: locrad_kernel = 0.0_gp             !< Cutoff radius of the localization region (kernel)
+     real(gp) :: locrad_mult = 0.0_gp               !< Cutoff radius of the localization region for the sparse matrix multiplications
+     type(grid_dimensions) :: d               !< Grid dimensions in old different wavelet basis
      type(wavefunctions_descriptors) :: wfd
      type(convolutions_bounds) :: bounds
      type(cell) :: mesh !<defines the cell of the system 
@@ -64,7 +68,7 @@ module locregs
   !!communicating the descriptors
   type, public :: locregs_ptr
      type(locreg_descriptors), pointer :: lr=>null()
-     logical :: owner
+     logical :: owner = .false.
   end type locregs_ptr
 
   type, public :: locreg_storage
@@ -85,7 +89,7 @@ module locregs
   public :: init_lr,reset_lr,extract_lr,store_lr,steal_lr,gather_locreg_storage
   public :: lr_storage_init, lr_storage_free
   public :: communicate_locreg_descriptors_basics
-  public :: get_isf_offset,ensure_locreg_bounds,lr_is_stored
+  public :: get_isf_offset,ensure_locreg_bounds
 
 contains
 
@@ -108,7 +112,6 @@ contains
     use bounds, only: nullify_convolutions_bounds
     implicit none
     type(locreg_descriptors), intent(out) :: lr
-!!$    lr%geocode='F'
     lr%hybrid_on=.false.   
     lr%ns1=0
     lr%ns2=0
@@ -118,11 +121,13 @@ contains
     lr%nsi3=0  
     lr%Localnorb=0  
     lr%outofzone=(/0,0,0/) 
-    lr%d=grid_null()
+         lr%d=grid_null()
     call nullify_wfd(lr%wfd)
     call nullify_convolutions_bounds(lr%bounds)
     lr%locregCenter=(/0.0_gp,0.0_gp,0.0_gp/) 
-    lr%locrad=0
+    lr%locrad_kernel = 0.0_gp 
+    lr%locrad_mult = 0.0_gp 
+    lr%locrad=0.0_gp
     lr%mesh=cell_null()
     lr%mesh_fine=cell_null()
     lr%mesh_coarse=cell_null()
@@ -205,6 +210,7 @@ contains
        if (array(i)%owner) then
           call deallocate_locreg_descriptors(array(i)%lr)
           deallocate(array(i)%lr)
+          nullify(array(i)%lr)
        end if
     end do
 
@@ -281,7 +287,6 @@ contains
     call locreg_encode(lr,lr_size,dest)
     if (lr_full_size-lr_size > 0) &
          & call f_memcpy(n=lr_full_size-lr_size,src=lr%wfd%buffer,dest=dest(lr_size+1))
-
   end subroutine locreg_full_encode
 
   subroutine locregs_encode(llr,nlr,lr_size,dest_arr,mask)
@@ -468,6 +473,7 @@ contains
 
     allocate(lr_storage%lrs_ptr(ilr)%lr)
     lr_storage%lrs_ptr(ilr)%lr = lr
+    !call copy_locreg_descriptors(lr,lr_storage%lrs_ptr(ilr)%lr)
     lr_storage%lrs_ptr(ilr)%owner = .true. ! Caller should not touch lr anymore
   end subroutine steal_lr
 
@@ -476,8 +482,17 @@ contains
     type(locreg_storage), intent(in) :: lr_storage
     integer, intent(in) :: ilr
     logical :: ok
-    ok=associated(lr_storage%lrs_ptr(ilr)%lr)
+    ok=associated(lr_storage%lrs_ptr(ilr)%lr) .and. .not. lr_storage%lrs_ptr(ilr)%owner
   end function lr_is_stored
+
+  pure function lr_is_stolen(lr_storage,ilr) result(ok)
+    implicit none
+    type(locreg_storage), intent(in) :: lr_storage
+    integer, intent(in) :: ilr
+    logical :: ok
+    ok=associated(lr_storage%lrs_ptr(ilr)%lr) .and. lr_storage%lrs_ptr(ilr)%owner
+  end function lr_is_stolen
+
 
   !> Communicate the total locreg quantities given in a pointer of localisation regions
   !! WARNING: we assume that the association of the storage is performed in a mutually exclusive way, that if a locreg is associated on one proc it is not in the others.
@@ -490,7 +505,7 @@ contains
     integer(f_long) :: full_encoding_buffer_size
     type(fmpi_win) :: win_counts
     integer, dimension(:), allocatable :: encoding_buffer
-    integer, dimension(:,:), allocatable :: lr_sizes
+    integer, dimension(:,:), pointer :: lr_sizes
 
 
     nlr=size(lr_storage%lrs_ptr)
@@ -498,7 +513,7 @@ contains
     encoding_buffer_size=0
     iilr=0
     do ilr=1,nlr
-       if ( .not. lr_is_stored(lr_storage,ilr)) cycle
+       if ( .not. associated(lr_storage%lrs_ptr(ilr)%lr)) cycle
        iilr=iilr+1
        lr_full_size=get_locreg_full_encode_size(lr_storage%lrs_ptr(ilr)%lr)
        lr_storage%lr_full_sizes(SIZE_,iilr)=lr_full_size
@@ -507,19 +522,23 @@ contains
     end do
 
     if (bigdft_mpi%nproc > 1) then
-       lr_sizes=f_malloc([2,iilr],id='lr_sizes')
+       lr_sizes=f_malloc_ptr([2,iilr],id='lr_sizes')
        if (iilr > 0) &
             & call f_memcpy(n=2*iilr,src=lr_storage%lr_full_sizes,dest=lr_sizes(1,1))
        call fmpi_allgather(sendbuf=lr_sizes,recvbuf=lr_storage%lr_full_sizes,&
             comm=bigdft_mpi%mpi_comm,win=win_counts)
+    else
+       lr_sizes => lr_storage%lr_full_sizes
     end if
 
     encoding_buffer=f_malloc(encoding_buffer_size,id='encoding_buffer')
     !redo the loop to fill the encoding buffer
     encoding_buffer_idx=1
+    iilr=0
     do ilr=1,nlr
-       if ( .not. lr_is_stored(lr_storage,ilr)) cycle
-       lr_full_size=lr_storage%lr_full_sizes(SIZE_,ilr)
+       if ( .not. associated(lr_storage%lrs_ptr(ilr)%lr)) cycle
+       iilr=iilr+1
+       lr_full_size=lr_sizes(SIZE_,iilr) !storage%lr_full_sizes(SIZE_,ilr)
        call locreg_full_encode(lr_storage%lrs_ptr(ilr)%lr,lr_storage%lr_size, &
             & lr_full_size,encoding_buffer(encoding_buffer_idx))
        encoding_buffer_idx=encoding_buffer_idx+lr_full_size
@@ -528,7 +547,9 @@ contains
     !close the previous communication window
     if (bigdft_mpi%nproc > 1) then
        call fmpi_win_shut(win_counts)
-       call f_free(lr_sizes)
+       call f_free_ptr(lr_sizes)
+    else
+       nullify(lr_sizes)
     end if
 
     !allocate the full sized array
@@ -570,7 +591,7 @@ contains
     if (iilr == nlr+1) call f_err_throw('The locreg has not been found in the lr_storage',&
          err_name='BIGDFT_RUNTIME_ERROR')
 
-    !we should generalize the API for the from optional variable
+    !we should generalize the API for the from optional variable (it should accept also f_long)
     src_buf => f_subptr(lr_storage%encode_buffer,&
          from=int(encoding_buffer_idx),size=lr_storage%lr_full_sizes(SIZE_,iilr))
 
@@ -587,7 +608,7 @@ contains
     implicit none
     ! Calling arguments
     type(locreg_descriptors), intent(in) :: glrin !<input locreg. Unchanged on exit.
-    type(locreg_descriptors), intent(out):: glrout !<output locreg. Must be freed on input.
+    type(locreg_descriptors), intent(out), target :: glrout !<output locreg. Must be freed on input.
 
     !we should here use encode and decode for safety
 
@@ -614,6 +635,7 @@ contains
     glrout%mesh_fine=glrin%mesh_fine
     glrout%mesh_coarse=glrin%mesh_coarse
     glrout%bit=glrin%bit
+    glrout%bit%mesh => glrout%mesh
   end subroutine copy_locreg_descriptors
 
 
@@ -756,7 +778,6 @@ contains
          call check_overlap_from_descriptors_periodic(Llr_i%wfd%nseg_c, Llr_j%wfd%nseg_c,&
               Llr_i%wfd%keyglob, Llr_j%wfd%keyglob, overlap, onseg)
       end if
-
     end subroutine check_overlap
 
     ! check if Llrs overlap from there descriptors

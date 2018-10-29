@@ -126,15 +126,15 @@ module psp_projectors_base
   end type atomic_projector_iter
 
   type, public :: DFT_PSP_projector_iter
-     type(DFT_PSP_projectors), pointer :: parent
-     type(daubechies_projectors), pointer :: current
+     type(DFT_PSP_projectors), pointer :: parent => null()
+     type(daubechies_projectors), pointer :: current => null()
 
-     type(nonlocal_psp_descriptors), pointer :: pspd
-     type(wfd_to_wfd), pointer :: tolr
-     integer :: iregion
-     integer :: mproj
-     integer :: ncplx
-     real(wp), dimension(:), pointer :: coeff
+     type(nonlocal_psp_descriptors), pointer :: pspd => null()
+     type(wfd_to_wfd), pointer :: tolr => null()
+     integer :: iregion=0
+     integer :: mproj=0
+     integer :: ncplx=0
+     real(wp), dimension(:), pointer :: coeff => null()
   end type DFT_PSP_projector_iter
 
   public :: free_DFT_PSP_projectors

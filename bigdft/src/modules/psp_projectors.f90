@@ -204,10 +204,10 @@ contains
     implicit none
     type(atomic_projectors), intent(in) :: atproj
     type(cell), intent(in) :: gmesh
-    type(locreg_descriptors) :: plr
     logical, intent(in) :: full
     logical, dimension(:,:,:), intent(inout) :: logrid
-
+    type(locreg_descriptors) :: plr
+    !local variables
     type(atomic_projector_iter) :: iter
     integer :: nl1,nu1,nl2,nu2,nl3,nu3
     integer :: ns1t,ns2t,ns3t,n1t,n2t,n3t
@@ -489,7 +489,6 @@ contains
     nullify(iter%coeff)
     iter%iregion = iter%iregion + 1
     if (iter%iregion > size(iter%parent%projs)) return
-    
     ok = .true.
     iter%current => iter%parent%projs(iter%iregion)
     iter%pspd => iter%current%region
@@ -502,7 +501,9 @@ contains
        if (overlap) overlap = .not. wfd_to_wfd_skip(iter%pspd%tolr(iilr))
        if (overlap) call check_overlap(lr, iter%pspd%plr, glr, overlap)
        if (.not. overlap) ok = DFT_PSP_projectors_iter_next(iter, ilr, lr, glr)
+
     end if
+
   end function DFT_PSP_projectors_iter_next
 
   subroutine DFT_PSP_projectors_iter_ensure(iter, kpt, idir, nwarnings, glr)
