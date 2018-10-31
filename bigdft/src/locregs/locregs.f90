@@ -140,9 +140,7 @@ contains
     ! Calling arguments
     type(locreg_descriptors),intent(inout):: lr
 
-    WRITE(*,*) "::::1"
     call deallocate_wfd(lr%wfd)
-        WRITE(*,*) "::::2"
     call deallocate_convolutions_bounds(lr%bounds)
 
   end subroutine deallocate_locreg_descriptors

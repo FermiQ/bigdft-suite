@@ -3,21 +3,23 @@
  
 #Add the condition testing to run tests and includes PyYaml
 conditions.add("testing")
+
 #List the module the this rcfile will build
 modules = ['spred',]
+
 #example of the potentialities of the python syntax in this file
 def env_configuration():
-    return  """ "FC=mpifort" "CC=gcc-8" "CXX=g++-8" "FCFLAGS=-O0 -fopenmp -mtune=native" "--with-ext-linalg=-framework Accelerate" "--disable-openbabel" """ 
-##    return  """ "FC=mpifort" "CC=gcc-8" "CXX=g++-8" "FCFLAGS=-O0 -Wno-error -fbounds-check -fbacktrace -ffpe-trap=invalid,zero,overflow -fopenmp -m64 -g -ldl" "--with-ext-linalg=-framework Accelerate -ldl" """ 
+    return  (""" "FC=mpifort" "CC=gcc-8" "CXX=g++-8" "FCFLAGS=-O2 -fopenmp -mtune=native" """
+            """"--with-ext-linalg=-framework Accelerate" """)
+    #return  (""" "FC=mpifort" "CC=gcc-8" "CXX=g++-8" "FCFLAGS=-O0 -fopenmp -mtune=native" """
+    #        """"--with-ext-linalg=-framework Accelerate" """)
+
 #the following command sets the environment variable to give these settings
 #to all the modules
 import os
 os.environ['BIGDFT_CONFIGURE_FLAGS']=env_configuration()
 #here follow the configuration instructions for the modules built
 #we specify the configurations for the modules to customize the options if needed
-
-#module_cmakeargs.update({
-#'openbabel': """-DCMAKE_C_COMPILER=gcc-8 -DCMAKE_CXX_COMPILER=g++-8 """})
 
 module_autogenargs.update({
    
@@ -39,7 +41,4 @@ module_autogenargs.update({
    
 'spred': env_configuration(),
 
-'v_sim-dev': '--with-abinit --with-archives --with-openbabel --with-cube --without-strict-cflags --enable-debug-messages'
-   
-   
 })

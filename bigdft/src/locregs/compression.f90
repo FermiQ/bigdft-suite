@@ -104,9 +104,7 @@ contains
     implicit none
     type(wfd_to_wfd), intent(inout) :: tolr
 
-        WRITE(*,*) "::::::>>1"
     call f_free_ptr(tolr%mask)
-        WRITE(*,*) "::::::>>2"
   end subroutine deallocate_wfd_to_wfd
 
   subroutine free_tolr_ptr(tolr)
