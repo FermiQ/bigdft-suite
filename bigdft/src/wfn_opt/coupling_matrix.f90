@@ -51,7 +51,7 @@ subroutine calculate_coupling_matrix(iproc,nproc,dir_output,boxit,tddft_approach
   use box
   use f_harmonics
   implicit none
-  character(len=4), intent(in) :: tddft_approach
+  type(f_enumerator), intent(in) :: tddft_approach
   character(len=*), intent(in) :: dir_output
   integer, intent(in) :: iproc,nproc,nspin,ndimp
   real(gp), dimension(3) :: center_of_charge
@@ -63,6 +63,7 @@ subroutine calculate_coupling_matrix(iproc,nproc,dir_output,boxit,tddft_approach
   type(box_iterator) :: boxit
   !local variables
   integer, parameter :: ALPHA_=2,P_=1,SPIN_=3
+  logical :: do_rpa,do_fxc
   integer :: imulti,jmulti,spinindex,ialpha,ip,ibeta,iq,ispin,jspin,ntda
   integer :: nmulti,ndipoles,iap,ibq,nalphap,istep
   real(wp) :: eap,ebq,krpa,kfxc,q,rho_bq,kfxc_od
@@ -81,6 +82,9 @@ subroutine calculate_coupling_matrix(iproc,nproc,dir_output,boxit,tddft_approach
 
   if(iproc==0) call yaml_comment('Linear-Response TDDFT calculations',hfill='-')
 
+  do_rpa=tddft_approach .hasattr. 'rpa'
+  do_fxc=tddft_approach .hasattr. 'fxc'
+  
   call allocate_transitions_lookup()
   nmulti=nalphap
   ndipoles=nmulti
@@ -102,7 +106,7 @@ subroutine calculate_coupling_matrix(iproc,nproc,dir_output,boxit,tddft_approach
 
   !$ nthreads=omp_get_max_threads()
 
-  call PS_set_options(pkernel,verbose=.false.)
+  if (do_rpa) call PS_set_options(pkernel,verbose=.false.)
   istep=0
   do iap=1,nalphap
        ialpha=transitions(ALPHA_,iap)
@@ -126,13 +130,15 @@ subroutine calculate_coupling_matrix(iproc,nproc,dir_output,boxit,tddft_approach
 
        !for every rho iap  calculate the corresponding potential
        !copy the transition  density in the inout structure
-       call f_memcpy(src=rho_ias,dest=v_ias)
-       call Electrostatic_Solver(pkernel,v_ias)
+       if (do_rpa) then
+          call f_memcpy(src=rho_ias,dest=v_ias)
+          call Electrostatic_Solver(pkernel,v_ias)
+       end if
 
        !now we have to calculate the corresponding element of the RPA part of the coupling matrix
        !$omp parallel do if (iap>=6*nthreads .and. nthreads>1) default(none) &
        !$omp shared(transitions,orbsvirt,orbsocc,ispin,iap,psirocc,psivirtr)&
-       !$omp shared(v_ias,rho_ias,dvxcdrho,K,Kaux,nspin,tddft_approach,eap)&
+       !$omp shared(v_ias,rho_ias,dvxcdrho,K,Kaux,nspin,tddft_approach,eap,do_rpa,do_fxc)&
        !$omp private(ibq,ibeta,iq,jspin,ebq,spinindex,krpa,kfxc,kfxc_od,rho_bq)&
        !$omp firstprivate(boxit)
        do ibq=1,iap
@@ -150,10 +156,12 @@ subroutine calculate_coupling_matrix(iproc,nproc,dir_output,boxit,tddft_approach
          kfxc_od=0.0_wp
          do while(box_next_point(boxit))
             rho_bq=psirocc(boxit%ind,iq)*psivirtr(boxit%ind,ibeta) !volume element for the integration is considered inside
-            krpa=krpa+v_ias(boxit%ind)*rho_bq
-            kfxc=kfxc+rho_ias(boxit%ind)*rho_bq*dvxcdrho(boxit%ind,spinindex)
-            !in the nspin=1 case we also have to calculate the off-diagonal term
-            if (nspin==1) kfxc_od=kfxc_od+rho_ias(boxit%ind)*rho_bq*dvxcdrho(boxit%ind,2)
+            if (do_rpa) krpa=krpa+v_ias(boxit%ind)*rho_bq
+            if (do_fxc) then
+               kfxc=kfxc+rho_ias(boxit%ind)*rho_bq*dvxcdrho(boxit%ind,spinindex)
+               !in the nspin=1 case we also have to calculate the off-diagonal term
+               if (nspin==1) kfxc_od=kfxc_od+rho_ias(boxit%ind)*rho_bq*dvxcdrho(boxit%ind,2)
+            end if
          end do
 !!$         krpa=dot(ndimp,rho_ias(1,ibq),1,v_ias(1),1)*boxit%mesh%volume_element
 
@@ -219,12 +227,12 @@ subroutine calculate_coupling_matrix(iproc,nproc,dir_output,boxit,tddft_approach
      ntda=1
   end if
 
-  !Add the diagonal part: {\omega_i}^{1+ntda} \delta_{i,j}
+  !Add the diagonal part: {\omega_i}^{1+ntda} \delta_{i,j} (only in the RPA case)
   do iap=1,nalphap
      ialpha=transitions(ALPHA_,iap)
      ip=transitions(P_,iap)
      eap=orbsvirt%eval(ialpha)-orbsocc%eval(ip)
-     K(iap,iap)=K(iap,iap)+eap**(ntda+1)
+     if (do_rpa) K(iap,iap)=K(iap,iap)+eap**(ntda+1)
      !put the sqrt of the transition energies in the first place of the array
      !as the monopole of a codensity is always 0
      transition_quantities(1,iap)=sqrt(eap)
@@ -250,7 +258,12 @@ subroutine calculate_coupling_matrix(iproc,nproc,dir_output,boxit,tddft_approach
 
   !here the matrix can be written on disk, together with the transition dipoles
   if (iproc==0) then
-     call f_savetxt(dir_output//'coupling_matrix.txt',Kbig)
+     if (tddft_approach .hasattr. 'complete') then
+        call f_savetxt(dir_output//'coupling_matrix.txt',Kbig)
+     else
+        if (do_fxc) call f_savetxt(dir_output//'coupling_matrix_fxc.txt',Kbig)
+        if (do_rpa) call f_savetxt(dir_output//'coupling_matrix_rpa.txt',Kbig)
+     end if
      !call f_savetxt(dir_output//'transition_dipoles.txt',dipoles)
      call f_savetxt(dir_output//'transition_quantities.txt',transition_quantities)
   end if
@@ -344,7 +357,7 @@ subroutine coupling_matrix_prelim(iproc,nproc,geocode,tddft_approach,nspin,lr,or
   !local variables
   character(len=*), parameter :: subname='coupling_matrix_prelim'
   !logical :: tda=.true.
-  logical :: dofH=.true.,dofxc=.true.,dodiag=.true.,perx,pery,perz
+  logical :: dofH=.true.,dofxc=.true.,dodiag=.true.
   integer :: imulti,jmulti,jorba,jorbi,spinindex
   integer :: i1,i2,i3p,iorbi,iorba,indi,indj,inda,indb,ind2,ind3,ntda,ispin,jspin
   integer :: ik,jk,nmulti,lwork,info,nbl1,nbl2,nbl3,nbr3,nbr2,nbr1,ndipoles
@@ -411,17 +424,6 @@ subroutine coupling_matrix_prelim(iproc,nproc,geocode,tddft_approach,nspin,lr,or
   if(iproc==0) call yaml_comment('Linear-Response TDDFT calculations',hfill='-')
   !if(iproc==0) write(*,'(1x,a)')"=========================================================="
   !if(iproc==0) write(*,'(1x,a)')" Linear-Response TDDFT calculations"
-
-
-
-  !conditions for periodicity in the three directions
-  perx=(geocode /= 'F')
-  pery=(geocode == 'P')
-  perz=(geocode /= 'F')
-
-  call ext_buffers(perx,nbl1,nbr1)
-  call ext_buffers(pery,nbl2,nbr2)
-  call ext_buffers(perz,nbl3,nbr3)
 
 
   !Calculate nmulti, the number of allowed transitions between an occupied KS state and a virtual KS state.
