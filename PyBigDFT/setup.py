@@ -19,6 +19,7 @@ setup(name = "PyBigDFT",
     #This dict maps the package name =to=> directories
     #It says, package *needs* these files.
     #package_data = {'package' : files },
+    include_package_data = True,
     #'runner' is in the root.
     #scripts = ["runner"],
     long_description = """

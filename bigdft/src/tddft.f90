@@ -21,7 +21,7 @@ subroutine tddft_casida(iproc,nproc,dir_output,atoms,rxyz,n3p,n3parr,Glr,tddft_a
   type(atoms_data), intent(in) :: atoms
   type(orbitals_data), intent(in) :: orbs,orbsv
   type(locreg_descriptors), intent(in) :: Glr
-  character(len=4), intent(in) :: tddft_approach
+  type(f_enumerator), intent(in) :: tddft_approach
   character(len=*), intent(in) :: dir_output
   integer, dimension(0:nproc-1), intent(in) :: n3parr
   real(gp), dimension(3,atoms%astruct%nat), intent(in) :: rxyz

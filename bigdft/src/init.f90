@@ -57,10 +57,10 @@ subroutine createWavefunctionsDescriptors(iproc,hx,hy,hz,atoms,rxyz,&
 
   ! coarse/fine grid quantities
   if (atoms%astruct%ntypes > 0) then
-     call fill_logrid(atoms%astruct%geocode,n1,n2,n3,0,n1,0,n2,0,n3,0,atoms%astruct%nat,&
-          &   atoms%astruct%ntypes,atoms%astruct%iatype,rxyz,atoms%radii_cf(1,1),crmult,hx,hy,hz,logrid_c)
-     call fill_logrid(atoms%astruct%geocode,n1,n2,n3,0,n1,0,n2,0,n3,0,atoms%astruct%nat,&
-          &   atoms%astruct%ntypes,atoms%astruct%iatype,rxyz,atoms%radii_cf(1,2),frmult,hx,hy,hz,logrid_f)
+     call fill_logrid(Glr%mesh_coarse,0,n1,0,n2,0,n3,0,atoms%astruct%nat,&
+          &   atoms%astruct%ntypes,atoms%astruct%iatype,rxyz,atoms%radii_cf(1,1),crmult,logrid_c)
+     call fill_logrid(Glr%mesh_coarse,0,n1,0,n2,0,n3,0,atoms%astruct%nat,&
+          &   atoms%astruct%ntypes,atoms%astruct%iatype,rxyz,atoms%radii_cf(1,2),frmult,logrid_f)
   else
      logrid_c=.true.
      logrid_f=.true.
@@ -69,8 +69,8 @@ subroutine createWavefunctionsDescriptors(iproc,hx,hy,hz,atoms,rxyz,&
 
   if (atoms%astruct%geocode == 'P' .and. .not. Glr%hybrid_on .and. Glr%wfd%nvctr_c /= (n1+1)*(n2+1)*(n3+1) ) then
      if (iproc ==0) then
-        call yaml_warning('The coarse grid does not fill the entire periodic box')
-        call yaml_comment('Errors due to translational invariance breaking may occur')
+        call yaml_warning('The coarse grid does not fill the entire periodic box. '// &
+             & 'Errors due to translational invariance breaking may occur')
      end if
   end if
 
@@ -221,19 +221,18 @@ END SUBROUTINE wfd_from_grids
 
 
 !> Determine localization region for all projectors, but do not yet fill the descriptor arrays
-subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
-     cpmult,fpmult,hx,hy,hz,method,dry_run,nl,&
+subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,orbs,&
+     cpmult,fpmult,method,dry_run,nl,&
      init_projectors_completely)
   use module_base
   use psp_projectors_base
-  use psp_projectors, only: bounds_to_plr_limits
+  use psp_projectors, only: locreg_for_atomic_projector
   use module_types
   use gaussians, only: gaussian_basis_from_psp
   use public_enums, only: PSPCODE_PAW, PSPCODE_GTH, PSPCODE_HGH, PSPCODE_HGH_K, &
        & PSPCODE_HGH_K_NLCC, PSPCODE_PSPIO
-  use orbitalbasis
   use ao_inguess, only: lmax_ao
-  use locreg_operations, only: set_wfd_to_wfd, allocate_workarrays_projectors
+  use locreg_operations, only: set_wfd_to_wfd
   use sparsematrix_init,only: distribute_on_tasks
   use locregs
   use f_ternary
@@ -241,337 +240,227 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,ob,&
   use yaml_output, only: yaml_warning
   implicit none
   integer,intent(in) :: iproc,nproc
-  real(gp), intent(in) :: cpmult,fpmult,hx,hy,hz
+  real(gp), intent(in) :: cpmult,fpmult
   type(f_enumerator), intent(in) :: method
   type(locreg_descriptors),intent(in) :: lr
   type(atoms_data), intent(in) :: at
-  !type(orbitals_data), intent(in) :: orbs
-  type(orbital_basis), intent(in) :: ob
+  type(orbitals_data), intent(in) :: orbs
   real(gp), dimension(3,at%astruct%nat), intent(in) :: rxyz
-  !real(gp), dimension(at%astruct%ntypes,3), intent(in) :: radii_cf
   logical, intent(in) :: dry_run !< .true. to compute the size only and don't allocate
   type(DFT_PSP_projectors), intent(out) :: nl
   logical,intent(in) :: init_projectors_completely !< decide if the projectors has to be filled
   !local variables
   character(len=*), parameter :: subname='createProjectorsArrays'
-  integer :: n1,n2,n3,nl1,nl2,nl3,nu1,nu2,nu3,mseg,nbseg_dim,npack_dim,mproj_max
-  integer :: iat,iseg,nseg,isat,natp,ist,ityp,i, ii
-  !type(orbital_basis) :: ob
+  integer :: nbseg_dim,npack_dim,mproj_max,nel_tot,n,i
+  integer :: ireg,isat,natp,ityp,iat, ikpt, ikptp, nkptsproj
+  integer :: igamma,l,nmat
+  real(gp) :: maxfullvol,totfullvol,totzerovol,fullvol,maxrad,maxzerovol,rad,zerovol
+  type(atomic_projector_iter) :: iter
+  type(locreg_descriptors) :: plr
   type(locreg_storage) :: lr_storage
   integer, dimension(:), allocatable :: nbsegs_cf,keyg_lin
   logical, dimension(:,:,:), allocatable :: logrid
-  !integer,dimension(:,:),allocatable :: reducearr
-  real(gp) :: r, tt, eps
   
   call f_routine(id=subname)
 
-  call init_structure()
-
-  do iat = 1, at%astruct%nat
-     ityp = at%astruct%iatype(iat)
-     nl%pbasis(iat)%iat = iat
-     nl%pbasis(iat)%rxyz = rxyz(:, iat)
-     if (at%npspcode(at%astruct%iatype(iat)) == PSPCODE_GTH .or. &
-          & at%npspcode(at%astruct%iatype(iat)) == PSPCODE_HGH .or. &
-          & at%npspcode(at%astruct%iatype(iat)) == PSPCODE_HGH_K .or. &
-          & at%npspcode(at%astruct%iatype(iat)) == PSPCODE_HGH_K_NLCC) then
-        nl%pbasis(iat)%kind = PROJ_DESCRIPTION_GAUSSIAN
-        call gaussian_basis_from_psp(1, [1], nl%pbasis(iat)%rxyz, &
-             & at%psppar(:,:,ityp:ityp), 1, nl%pbasis(iat)%gbasis)
-     else if (at%npspcode(at%astruct%iatype(iat)) == PSPCODE_PSPIO) then
-        call rfunc_basis_from_pspio(nl%pbasis(iat), at%pspio(ityp))
-     else if (at%npspcode(at%astruct%iatype(iat)) == PSPCODE_PAW) then
-        call rfunc_basis_from_paw(nl%pbasis(iat), at%pawrad(ityp), at%pawtab(ityp))
+  !start from a null structure
+  nl = DFT_PSP_projectors_null()
+  nl%nregions = at%astruct%nat
+  
+  totzerovol=0.0_gp
+  maxfullvol=0.0_gp
+  totfullvol=0.0_gp
+  maxzerovol=0.0_gp
+  igamma = 0
+  if (any(at%dogamma)) &
+       & nl%iagamma   = f_malloc0_ptr([0.to.lmax_ao,1.to.at%astruct%nat], id = 'iagamma')
+  call allocate_atomic_projectors_ptr(nl%pbasis, nl%nregions)
+  do ireg = 1, nl%nregions
+     if (ireg <= at%astruct%nat) then
+        ityp = at%astruct%iatype(ireg)
+        nl%pbasis(ireg)%iat = ireg
+        nl%pbasis(ireg)%rxyz = rxyz(:, ireg)
+        nl%pbasis(ireg)%radius = at%radii_cf(ityp,3) * cpmult
+        nl%pbasis(ireg)%fine_radius = at%radii_cf(ityp,2) * fpmult
+        if (at%npspcode(ityp) == PSPCODE_GTH .or. &
+             & at%npspcode(ityp) == PSPCODE_HGH .or. &
+             & at%npspcode(ityp) == PSPCODE_HGH_K .or. &
+             & at%npspcode(ityp) == PSPCODE_HGH_K_NLCC) then
+           nl%pbasis(ireg)%kind = PROJ_DESCRIPTION_GAUSSIAN
+           call gaussian_basis_from_psp(1, [1], nl%pbasis(ireg)%rxyz, &
+                & at%psppar(:,:,ityp:ityp), 1, nl%pbasis(ireg)%gbasis)
+           maxrad=min(maxval(at%psppar(1:4,0,ityp)),cpmult/15.0_gp*at%radii_cf(ityp,3))
+           zerovol=0.0_gp
+           fullvol=0.0_gp
+           do l=1,4
+              do i=1,3
+                 if (at%psppar(l,i,ityp) /= 0.0_gp) then
+                    rad=min(at%psppar(l,0,ityp),cpmult/15.0_gp*at%radii_cf(ityp,3))
+                    zerovol=zerovol+(maxrad**3-rad**3)
+                    fullvol=fullvol+maxrad**3
+                 end if
+              end do
+           end do
+           if (fullvol >= maxfullvol .and. fullvol > 0.0_gp) then
+              maxzerovol=zerovol/fullvol
+              maxfullvol=fullvol
+           end if
+           totzerovol=totzerovol+zerovol
+           totfullvol=totfullvol+fullvol
+        else if (at%npspcode(ityp) == PSPCODE_PSPIO) then
+           call rfunc_basis_from_pspio(nl%pbasis(ireg), at%pspio(ityp))
+        else if (at%npspcode(ityp) == PSPCODE_PAW) then
+           call rfunc_basis_from_paw(nl%pbasis(ireg), at%pawrad(ityp), at%pawtab(ityp))
+        else
+           call f_err_throw("Unknown PSP code for atom " // trim(yaml_toa(ireg)), &
+                & err_name = 'BIGDFT_RUNTIME_ERROR')
+        end if
+        do l = 0, lmax_ao
+           !setup the iagamma array in the case of needed density matrix
+           if (at%dogamma(l, ireg) .and. (at%psppar(l+1,1,ityp) /= 0.0_gp)) then
+              igamma = igamma + 1
+              nl%iagamma(l, ireg) = igamma
+           end if
+        end do
      else
-        call f_err_throw("Unknown PSP code for atom " // trim(yaml_toa(iat)), &
+        call f_err_throw("Non atomic PSP not implemented.", &
              & err_name = 'BIGDFT_RUNTIME_ERROR')
      end if
   end do
   nl%method = method
-  
-  ! define the region dimensions
-  n1 = lr%d%n1
-  n2 = lr%d%n2
-  n3 = lr%d%n3
-
-  ! determine localization region for all projectors, but do not yet fill the descriptor arrays
-  logrid=f_malloc((/0.to.n1,0.to.n2,0.to.n3/),id='logrid')
-
-  call localize_projectors(iproc,nproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,&
-       rxyz,logrid,at,ob%orbs,nl)
-
-  ! Check radial projector norm for pseudos from PSPIO.
-  do ityp = 1, at%astruct%ntypes
-     if (at%npspcode(ityp) == PSPCODE_PSPIO) then
-        do i = 1, pspiof_pspdata_get_n_projectors(at%pspio(ityp))
-           tt = 0._gp
-           eps = 1d-4
-           do ii = 1, int(10.d0 / eps)
-              r = eps * ii;
-              tt = tt + (pspiof_projector_eval(pspiof_pspdata_get_projector(at%pspio(ityp), &
-                   & i), r) ** 2)  * r * r * 1d-4
-           end do
-        end do
-        if (abs(1.d0-tt) > 1.d-2 .and. bigdft_mpi%iproc == 0) call yaml_warning( &
-                'Norm of the nonlocal PSP atom type ' // trim(at%astruct%atomnames(ityp)) // &
-                ' l=' // trim(yaml_toa(1)) // ' is ' // trim(yaml_toa(tt)) // &
-                ' while it is supposed to be about 1.0.')
-     end if
-  end do
-
-  if (dry_run) then
-     call f_free(logrid)
-     call f_release_routine()
-     return
+  if (igamma > 0) then
+     nmat = .if. (orbs%nspin == 4) .then. 4 .else. 2
+     nl%gamma_mmp = f_malloc_ptr([nmat, 2*lmax_ao+1, 2*lmax_ao+1, igamma, 2], &
+          & id = 'gamma_mmp')
+     nl%apply_gamma_target = associated(at%gamma_targets)
   end if
-
-  !here the allocation is possible
-  call allocate_arrays()
-
-  !for the work arrays assume always the maximum components
-  nl%wpack=f_malloc_ptr(4*npack_dim,id='wpack')
-  nl%scpr=f_malloc_ptr(4*2*mproj_max,id='scpr')
-  nl%cproj=f_malloc_ptr(4*mproj_max,id='cproj')
-  nl%hcproj=f_malloc_ptr(4*mproj_max,id='hcproj')
-
-  !allocate the work arrays for building tolr array of structures
-  nbsegs_cf=f_malloc(nbseg_dim,id='nbsegs_cf')
-  keyg_lin=f_malloc(lr%wfd%nseg_c+lr%wfd%nseg_f,id='keyg_lin')
+  
+  call lr_storage_init(lr_storage, nl%nregions)
 
   ! Parallelize over the atoms
+  logrid = f_malloc(lr%mesh_coarse%ndims,id='logrid')
   call distribute_on_tasks(at%astruct%nat, iproc, nproc, natp, isat)
-
-  nseg = 0
-  do iat=1,at%astruct%nat
-      nseg = max(nseg,nl%projs(iat)%region%plr%wfd%nseg_c + nl%projs(iat)%region%plr%wfd%nseg_f)
-  end do
-!  reducearr = f_malloc0((/5*nseg+9,at%astruct%nat/),id='reducearr')
-
-  call lr_storage_init(lr_storage,at%astruct%nat)
-
-  ! After having determined the size of the projector descriptor arrays fill them
-  !do iat=1,at%astruct%nat
-  do iat=isat+1,isat+natp
-     if (nl%projs(iat)%mproj <= 0) cycle
-
-     call bounds_to_plr_limits(.false.,1,nl%projs(iat)%region%plr,&
-          nl1,nl2,nl3,nu1,nu2,nu3)
-
-!!$        !most likely the call can here be replaced by
-!!$        call fill_logrid(at%astruct%geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,0,1,  &
-!!$             1,(/1/),rxyz(1,iat),radii_cf(at%astruct%iatype(iat),3),&
-!!$             cpmult,hx,hy,hz,logrid)
-!!$        !which make radiicf and rxyz the only external data needed
-
-     call fill_logrid(at%astruct%geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,0,1,  &
-          at%astruct%ntypes,at%astruct%iatype(iat),rxyz(1,iat),at%radii_cf(1,3),&
-          cpmult,hx,hy,hz,logrid)
-
-     call segkeys(n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,logrid,&
-          nl%projs(iat)%region%plr%wfd%nseg_c,&
-          nl%projs(iat)%region%plr%wfd%keyglob(1,1),nl%projs(iat)%region%plr%wfd%keyvglob(1))
-
-     call f_memcpy(n = nl%projs(iat)%region%plr%wfd%nseg_c, &
-          & src = nl%projs(iat)%region%plr%wfd%keyvglob(1), &
-          & dest = nl%projs(iat)%region%plr%wfd%keyvloc(1))
-     call transform_keyglob_to_keygloc(lr,nl%projs(iat)%region%plr,nl%projs(iat)%region%plr%wfd%nseg_c,&
-          nl%projs(iat)%region%plr%wfd%keyglob,nl%projs(iat)%region%plr%wfd%keygloc)
-
-     ! fine grid quantities
-     call bounds_to_plr_limits(.false.,2,nl%projs(iat)%region%plr,&
-          nl1,nl2,nl3,nu1,nu2,nu3)
-
-     call fill_logrid(at%astruct%geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,0,1,  &
-          & at%astruct%ntypes,at%astruct%iatype(iat),rxyz(1,iat),at%radii_cf(1,2),&
-          fpmult,hx,hy,hz,logrid)
-
-     mseg=nl%projs(iat)%region%plr%wfd%nseg_f
-     iseg=nl%projs(iat)%region%plr%wfd%nseg_c+1
-
-     if (mseg > 0) then
-        call segkeys(n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,  &
-             logrid,mseg,nl%projs(iat)%region%plr%wfd%keyglob(1,iseg),&
-             nl%projs(iat)%region%plr%wfd%keyvglob(iseg))
-
-        call f_memcpy(n = mseg, &
-             & src = nl%projs(iat)%region%plr%wfd%keyvglob(iseg), &
-             & dest = nl%projs(iat)%region%plr%wfd%keyvloc(iseg))
-        call transform_keyglob_to_keygloc(lr,nl%projs(iat)%region%plr,mseg,nl%projs(iat)%region%plr%wfd%keyglob(1,iseg),&
-             nl%projs(iat)%region%plr%wfd%keygloc(1,iseg))
-     end if
-
+  do iat = isat + 1, isat + natp
+     plr = locreg_for_atomic_projector(nl%pbasis(iat), &
+          & lr%mesh_coarse, .not. dry_run, logrid)
      !store the data for communication
-     call store_lr(lr_storage,iat,nl%projs(iat)%region%plr)
-
-!!!in the case of linear scaling this section has to be built again
-     !!if (init_projectors_completely) then
-     !!   call set_wfd_to_wfd(lr,nl%pspd(iat)%plr,&
-     !!        keyg_lin,nbsegs_cf,nl%pspd(iat)%noverlap,nl%pspd(iat)%lut_tolr,nl%pspd(iat)%tolr)
-     !!end if
-
-!!! This is done for wavefunctions but not for projectors ?
-!!! Otherwise, keyvloc is allocated but not filled.
-     !!call f_free_ptr(nl%pspd(iat)%plr%wfd%keyvloc)
-     !!nl%pspd(iat)%plr%wfd%keyvloc => nl%pspd(iat)%plr%wfd%keyvglob
-
-!!$     ! Copy the data for the communication
-!!$     nseg = nl%projs(iat)%region%plr%wfd%nseg_c + nl%projs(iat)%region%plr%wfd%nseg_f
-!!$     ist = 1
-!!$     call vcopy(2*nseg, nl%projs(iat)%region%plr%wfd%keyglob(1,1), 1, reducearr(ist,iat), 1)
-!!$     ist = ist + 2*nseg
-!!$     call vcopy(nseg, nl%projs(iat)%region%plr%wfd%keyvglob(1), 1, reducearr(ist,iat), 1)
-!!$     ist = ist + nseg
-!!$     call vcopy(2*nseg, nl%projs(iat)%region%plr%wfd%keygloc(1,1), 1, reducearr(ist,iat), 1)
-!!$     ist = ist + 2*nseg
-!!$     reducearr(ist+0,iat) = nl%projs(iat)%region%plr%d%n1
-!!$     reducearr(ist+1,iat) = nl%projs(iat)%region%plr%d%n2
-!!$     reducearr(ist+2,iat) = nl%projs(iat)%region%plr%d%n3
-!!$     reducearr(ist+3,iat) = nl%projs(iat)%region%plr%d%nfl1
-!!$     reducearr(ist+4,iat) = nl%projs(iat)%region%plr%d%nfl2
-!!$     reducearr(ist+5,iat) = nl%projs(iat)%region%plr%d%nfl3
-!!$     reducearr(ist+6,iat) = nl%projs(iat)%region%plr%d%nfu1
-!!$     reducearr(ist+7,iat) = nl%projs(iat)%region%plr%d%nfu2
-!!$     reducearr(ist+8,iat) = nl%projs(iat)%region%plr%d%nfu3
-!!$     !@todo: broadcast the meshes also, please.
-  enddo
+     call steal_lr(lr_storage, iat, plr)
+  end do
+  call f_free(logrid)
+  ! Store other non atomic lr here.
 
   !put the locreg storage in a buffer
   call gather_locreg_storage(lr_storage)
 
   ! Distribute the data to all process, using an allreduce
-!!$  call fmpi_allreduce(reducearr, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
-  do iat=1,at%astruct%nat
-      if (nl%projs(iat)%mproj <= 0) cycle
+  nbseg_dim=0
+  npack_dim=0
+  mproj_max=0
+  nel_tot  =0
+  call allocate_daubechies_projectors_ptr(nl%projs, nl%nregions)
+  do ireg = 1, nl%nregions
+     call extract_lr(lr_storage, ireg, nl%projs(ireg)%region%plr, &
+          bounds = init_projectors_completely .and. .not. dry_run &
+          & .and. (nl%method /= PROJECTION_1D_SEPARABLE .or. &
+          & nl%pbasis(ireg)%kind /= PROJ_DESCRIPTION_GAUSSIAN))
 
-      if (lr_is_stored(lr_storage,iat)) then
-         if (init_projectors_completely) &
-              call ensure_locreg_bounds(nl%projs(iat)%region%plr)
-      else
-         call deallocate_locreg_descriptors(nl%projs(iat)%region%plr)
-         call extract_lr(lr_storage,iat,nl%projs(iat)%region%plr,&
-              bounds=init_projectors_completely)
-      end if
-
-!!$      nseg = nl%projs(iat)%region%plr%wfd%nseg_c + nl%projs(iat)%region%plr%wfd%nseg_f
-!!$      ist = 1
-!!$      call vcopy(2*nseg, reducearr(ist,iat), 1, nl%projs(iat)%region%plr%wfd%keyglob(1,1), 1)
-!!$      ist = ist + 2*nseg
-!!$      call vcopy(nseg, reducearr(ist,iat), 1, nl%projs(iat)%region%plr%wfd%keyvglob(1), 1)
-!!$      ist = ist + nseg
-!!$      call vcopy(2*nseg, reducearr(ist,iat), 1, nl%projs(iat)%region%plr%wfd%keygloc(1,1), 1)
-!!$      ist = ist + 2*nseg
-!!$      nl%projs(iat)%region%plr%d%n1   = nl%projs(iat)%region%plr%d%n1
-!!$      nl%projs(iat)%region%plr%d%n2   = nl%projs(iat)%region%plr%d%n2
-!!$      nl%projs(iat)%region%plr%d%n3   = nl%projs(iat)%region%plr%d%n3
-!!$      nl%projs(iat)%region%plr%d%nfl1 = nl%projs(iat)%region%plr%d%nfl1
-!!$      nl%projs(iat)%region%plr%d%nfl2 = nl%projs(iat)%region%plr%d%nfl2
-!!$      nl%projs(iat)%region%plr%d%nfl3 = nl%projs(iat)%region%plr%d%nfl3
-!!$      nl%projs(iat)%region%plr%d%nfu1 = nl%projs(iat)%region%plr%d%nfu1
-!!$      nl%projs(iat)%region%plr%d%nfu2 = nl%projs(iat)%region%plr%d%nfu2
-!!$      nl%projs(iat)%region%plr%d%nfu3 = nl%projs(iat)%region%plr%d%nfu3
-!!$      nl%projs(iat)%region%plr%geocode = "F"
-!!$      nl%projs(iat)%region%plr%d%n1i = lr%d%n1i
-!!$      nl%projs(iat)%region%plr%d%n2i = lr%d%n2i
-!!$      nl%projs(iat)%region%plr%d%n3i = lr%d%n3i
-
-      !in the case of linear scaling this section has to be built again
-      if (init_projectors_completely) then
-         call set_wfd_to_wfd(lr,nl%projs(iat)%region%plr,&
-              keyg_lin,nbsegs_cf,nl%projs(iat)%region%noverlap,nl%projs(iat)%region%lut_tolr,nl%projs(iat)%region%tolr)
-!!$         !let us try what happens with the new method
-!!$         !consideration, we should conceive differently the
-!!$         !initialization of the localisation regions
-!!$         call ensure_locreg_bounds(nl%projs(iat)%region%plr)
-      end if
-
-!!$      ! This is done for wavefunctions but not for projectors ?
-!!$      ! Otherwise, keyvloc is allocated but not filled.
-!!$      call f_free_ptr(nl%projs(iat)%region%plr%wfd%keyvloc)
-!!$      nl%projs(iat)%region%plr%wfd%keyvloc => nl%projs(iat)%region%plr%wfd%keyvglob
+     call atomic_projector_iter_new(iter, nl%pbasis(ireg))
+     nl%projs(ireg)%mproj = iter%nproj
+     nl%projs(ireg)%region%nlr = 0
+     nl%nproj   = nl%nproj + nl%projs(ireg)%mproj
+     n = (nl%projs(ireg)%region%plr%wfd%nvctr_c + &
+          & 7 * nl%projs(ireg)%region%plr%wfd%nvctr_f) * nl%projs(ireg)%mproj
+     nl%nprojel = max(nl%nprojel, n)
+     nel_tot = nel_tot + n
+     if (nl%projs(ireg)%mproj>0) then
+        nl%projs(ireg)%region%nlr = 1
+        nbseg_dim = max(nbseg_dim, &
+             nl%projs(ireg)%region%plr%wfd%nseg_c+nl%projs(ireg)%region%plr%wfd%nseg_f)
+        mproj_max = max(mproj_max, nl%projs(ireg)%mproj)
+        npack_dim = max(npack_dim, &
+             nl%projs(ireg)%region%plr%wfd%nvctr_c+7*nl%projs(ireg)%region%plr%wfd%nvctr_f)
+     end if
   end do
-  !call f_free(reducearr)
 
   call lr_storage_free(lr_storage)
+  
+  !allocate the work arrays for building tolr array of structures
+  if (init_projectors_completely .and. .not. dry_run) then
+     keyg_lin = f_malloc(lr%wfd%nseg_c+lr%wfd%nseg_f, id='keyg_lin')
+     nbsegs_cf= f_malloc(nbseg_dim, id='nbsegs_cf')
+     do ireg = 1, nl%nregions
+        if (nl%projs(ireg)%mproj <= 0) cycle
+        !in the case of linear scaling this section has to be built again
+        call set_wfd_to_wfd(lr,nl%projs(ireg)%region%plr,&
+             keyg_lin,nbsegs_cf,nl%projs(ireg)%region%noverlap,nl%projs(ireg)%region%lut_tolr,nl%projs(ireg)%region%tolr)
+     end do
+     call f_free(keyg_lin)
+     call f_free(nbsegs_cf)
+  end if
 
-  call f_free(logrid)
-  call f_free(keyg_lin)
-  call f_free(nbsegs_cf)
-  if (nl%on_the_fly) then
-     nl%shared_proj=f_malloc_ptr(nl%nprojel,id='proj')
+  !control the strategy to be applied following the memory limit
+  !if the projectors takes too much memory allocate only one atom at the same time
+  !control the memory of the projectors expressed in GB
+  if (memorylimit /= 0.e0 .and. .not. DistProjApply .and. &
+       real(nel_tot,kind=4) > memorylimit*134217728.0e0) then
+     DistProjApply = .true.
+  end if
+
+  !assign the distprojapply value to the structure
+  nl%on_the_fly = DistProjApply
+  if (.not. nl%on_the_fly) nl%nprojel = nel_tot
+  !Compute the multiplying coefficient for nprojel in case of imaginary k points.
+  !activate the complex projector if there are kpoints
+  !TO BE COMMENTED OUT
+  !n(c) cmplxprojs= (orbs%kpts(1,1)**2+orbs%kpts(2,1)**2+orbs%kpts(3,1)**2 >0) .or. orbs%nkpts>1
+  nkptsproj=1
+  if ((.not. nl%on_the_fly) .and. orbs%norbp > 0) then
+     nkptsproj = 0
+     do ikptp=1,orbs%nkptsp
+        ikpt=orbs%iskpts+ikptp
+        if (any(orbs%kpts(:,ikpt) /= 0.0_gp) .and. &
+             &  orbs%nspinor > 1) then
+           nkptsproj = nkptsproj + 2
+        else
+           nkptsproj = nkptsproj + 1
+        end if
+     end do
+  else if (nl%on_the_fly) then
+     do ikptp=1,orbs%nkptsp
+        ikpt=orbs%iskpts+ikptp
+        if (any(orbs%kpts(:,ikpt) /= 0.0_gp) .and. &
+             &  orbs%nspinor > 1) then
+           nkptsproj = max(nkptsproj, 2)
+        end if
+     end do
+  !else if (orbs%norbp == 0) then
+  !   nkptsproj=0 !no projectors to fill without on-the-fly
+  end if
+  nl%nprojel = nkptsproj * nl%nprojel
+  
+  !for the work arrays assume always the maximum components
+  if (.not. dry_run) then
+     nl%wpack=f_malloc_ptr(4*npack_dim,id='wpack')
+     nl%scpr=f_malloc_ptr(4*2*mproj_max,id='scpr')
+     nl%cproj=f_malloc_ptr(4*mproj_max,id='cproj')
+     nl%hcproj=f_malloc_ptr(4*mproj_max,id='hcproj')
+
+     if (nl%on_the_fly) then
+        nl%shared_proj=f_malloc_ptr(nl%nprojel,id='proj')
+     end if
+  end if
+
+  !assign the total quantity per atom
+  nl%zerovol=0.d0
+  if (totfullvol /= 0.0_gp) then
+     if (nl%on_the_fly) then
+        nl%zerovol=maxzerovol
+     else
+        nl%zerovol=totzerovol/totfullvol
+     end if
   end if
 
   call f_release_routine()
-
-  contains
-
-    subroutine init_structure()
-      implicit none
-      !local variables
-      integer :: igamma,l,nmat
-
-      call f_routine(id='init_structure')
-
-      !start from a null structure
-      nl=DFT_PSP_projectors_null()
-
-      !allocate the different localization regions of the projectors
-      nl%natoms=at%astruct%nat
-      !for a structure let the allocator crash when allocating
-      call allocate_daubechies_projectors_ptr(nl%projs, nl%natoms)
-      call allocate_atomic_projectors_ptr(nl%pbasis, nl%natoms)
-
-      !allocate the iagamma array in the case of needed density matrix
-      if (any(at%dogamma)) then
-         nmat=.if. (ob%orbs%nspin == 4) .then. 4 .else. 2
-        nl%iagamma=f_malloc0_ptr([0.to.lmax_ao,1.to.nl%natoms],id='iagamma')
-        igamma=0
-        do iat=1,nl%natoms
-           do l=0,lmax_ao
-              if (at%dogamma(l,iat) .and. &
-                   (at%psppar(l+1,1,at%astruct%iatype(iat)) /= 0.0_gp)) then
-                 igamma=igamma+1
-                 nl%iagamma(l,iat)=igamma
-              end if
-           end do
-        end do
-        !then all the information for the density matrix allocation is available
-        nl%gamma_mmp=f_malloc_ptr([nmat,2*lmax_ao+1,2*lmax_ao+1,igamma,2],id='gamma_mmp')
-        nl%apply_gamma_target=associated(at%gamma_targets)
-     end if
-
-      call f_release_routine()
-
-    end subroutine init_structure
-
-    subroutine allocate_arrays()
-      use locregs, only: allocate_wfd
-      implicit none
-
-      call f_routine(id='allocate_arrays')
-
-      nbseg_dim=0
-      npack_dim=0
-      mproj_max=0
-      do iat=1,nl%natoms
-         !also the fact of allocating pointers with size zero has to be discussed
-         !for the moments the bounds are not needed for projectors
-         call allocate_wfd(nl%projs(iat)%region%plr%wfd,global=.false.)
-         if (nl%projs(iat)%mproj>0) then
-            nbseg_dim=max(nbseg_dim,&
-                 nl%projs(iat)%region%plr%wfd%nseg_c+nl%projs(iat)%region%plr%wfd%nseg_f)
-            mproj_max=max(mproj_max,nl%projs(iat)%mproj)
-            npack_dim=max(npack_dim,&
-                 nl%projs(iat)%region%plr%wfd%nvctr_c+7*nl%projs(iat)%region%plr%wfd%nvctr_f)
-            !packing array (for the moment all the projectors contribute)
-            npack_dim=max(npack_dim,nl%projs(iat)%region%plr%wfd%nvctr_c+&
-                 7*nl%projs(iat)%region%plr%wfd%nvctr_f)
-         end if
-      end do
-
-      call f_release_routine()
-
-    end subroutine allocate_arrays
-
 END SUBROUTINE createProjectorsArrays
 
 
@@ -2847,9 +2736,10 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
   case(INPUT_PSI_EMPTY)
      if (iproc == 0) then
         !write( *,'(1x,a)')&
-        !     &   '------------------------------------------------- Empty wavefunctions initialization'
-        call yaml_comment('Empty wavefunctions initialization',hfill='-')
-        call yaml_mapping_open("Input Hamiltonian")
+        !     &   '------------------------------------------------- Empty Wavefunctions initialization'
+        call yaml_comment('Empty Wavefunctions Initialization',hfill='-')
+        call yaml_mapping_open('Input Hamiltonian')
+        call yaml_map('Policy','Empty Wavefunctions')
      end if
 
      call input_wf_empty(iproc, nproc,KSwfn%psi, KSwfn%hpsi, KSwfn%psit, KSwfn%orbs, &
@@ -2858,9 +2748,10 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
   case(INPUT_PSI_RANDOM)
      if (iproc == 0) then
         !write( *,'(1x,a)')&
-        !     &   '------------------------------------------------ Random wavefunctions initialization'
-        call yaml_comment('Random wavefunctions Initialization',hfill='-')
-        call yaml_mapping_open("Input Hamiltonian")
+        !     &   '------------------------------------------------ Random Wavefunctions initialization'
+        call yaml_comment('Random Wavefunctions Initialization',hfill='-')
+        call yaml_mapping_open('Input Hamiltonian')
+        call yaml_map('Policy','Random Wavefunctions')
      end if
 
      call input_wf_random(KSwfn%psi, KSwfn%orbs)
@@ -2878,7 +2769,8 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
         !write(*,'(1x,a)')&
         !     &   '--------------------------------------------------------- Import Gaussians from CP2K'
         call yaml_comment('Import Gaussians from CP2K',hfill='-')
-        call yaml_mapping_open("Input Hamiltonian")
+        call yaml_mapping_open('Input Hamiltonian')
+        call yaml_map('Policy','Import Gaussians from CP2K')
      end if
 
      call input_wf_cp2k(iproc, nproc, in%nspin, atoms, rxyz, KSwfn%Lzd, &
@@ -2909,9 +2801,8 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
         end do
 
         call orbital_basis_associate(ob,orbs=KSwfn%orbs,Lzd=KSwfn%Lzd,id='input_wf')
-        call createProjectorsArrays(iproc,nproc,KSwfn%Lzd%Glr,rxyz,atoms,ob,&
-             in%frmult,in%frmult,KSwfn%Lzd%hgrids(1),KSwfn%Lzd%hgrids(2),&
-             KSwfn%Lzd%hgrids(3),in%projection,.false.,nl,.true.)
+        call createProjectorsArrays(iproc,nproc,KSwfn%Lzd%Glr,rxyz,atoms,ob%orbs,&
+             in%frmult,in%frmult,in%projection,.false.,nl,.true.)
         call orbital_basis_release(ob)
         if (iproc == 0) call print_nlpsp(nl)
      else
@@ -2923,6 +2814,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
         !     &   '------------------------------------------------------- Input Wavefunctions Creation'
         call yaml_comment('Wavefunctions from PSP Atomic Orbitals Initialization',hfill='-')
         call yaml_mapping_open('Input Hamiltonian')
+        call yaml_map('Policy','Wavefunctions from PSP Atomic Orbitals')
      end if
 
      nspin=in%nspin
@@ -2940,12 +2832,13 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
      end if
 
   case(INPUT_PSI_MEMORY_WVL)
-     !restart from previously calculated wavefunctions, in memory
+     !restart from previously calculated Wavefunctions, in memory
      if (iproc == 0) then
         !write( *,'(1x,a)')&
         !     &   '-------------------------------------------------------------- Wavefunctions Restart'
         call yaml_comment('Wavefunctions Restart',hfill='-')
-        call yaml_mapping_open("Input Hamiltonian")
+        call yaml_mapping_open('Input Hamiltonian')
+        call yaml_map('Policy','Wavefunctions Restart')
      end if
 
      mesh=cell_new(atoms%astruct%geocode,[KSwfn%lzd%Glr%d%n1,KSwfn%lzd%Glr%d%n2,KSwfn%lzd%Glr%d%n3],&
@@ -3007,7 +2900,8 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
   case(INPUT_PSI_MEMORY_LINEAR)
      if (iproc == 0) then
         call yaml_comment('Support functions Restart',hfill='-')
-        call yaml_mapping_open("Input Hamiltonian")
+        call yaml_mapping_open('Input Hamiltonian')
+        call yaml_map('Policy','Support functions Restart')
      end if
       call input_memory_linear(iproc, nproc, atoms, KSwfn, tmb, tmb_old, denspot, in, &
            rxyz_old, rxyz, denspot0, energs, nlpsp, GPU, ref_frags, cdft)
@@ -3017,7 +2911,8 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
         !write( *,'(1x,a)')&
         !     &   '---------------------------------------------------- Reading Wavefunctions from disk'
         call yaml_comment('Reading Wavefunctions from disk',hfill='-')
-        call yaml_mapping_open("Input Hamiltonian")
+        call yaml_mapping_open('Input Hamiltonian')
+        call yaml_map('Policy','Reading Wavefunctions from disk')
      end if
      call input_wf_disk(iproc, nproc, input_wf_format, KSwfn%Lzd%Glr%d,&
           KSwfn%Lzd%hgrids(1),KSwfn%Lzd%hgrids(2),KSwfn%Lzd%hgrids(3),&
@@ -3030,8 +2925,9 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
      if (iproc == 0) then
         !write( *,'(1x,a)')&
         !     &   '---------------------------------------------------- Reading Wavefunctions from disk'
-        call yaml_comment('Reading plane-wave wavefunctions from disk',hfill='-')
-        call yaml_mapping_open("Input Hamiltonian")
+        call yaml_comment('Reading plane-wave Wavefunctions from disk',hfill='-')
+        call yaml_mapping_open('Input Hamiltonian')
+        call yaml_map('Policy','Reading plane-wave Wavefunctions from disk')
      end if
      call input_wf_disk_pw("pawo_WFK-etsf.nc", iproc, nproc, atoms, rxyz, GPU, &
           & KSwfn%Lzd, KSwfn%orbs, KSwfn%psi, denspot, nlpsp, KSwfn%paw)
@@ -3044,7 +2940,8 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
         !write( *,'(1x,a)')&
         !     &   '--------------------------------------- Quick Wavefunctions Restart (Gaussian basis)'
         call yaml_comment('Quick Wavefunctions Restart (Gaussian basis)',hfill='-')
-        call yaml_mapping_open("Input Hamiltonian")
+        call yaml_mapping_open('Input Hamiltonian')
+        call yaml_map('Policy','Quick Wavefunctions Restart (Gaussian basis)')
      end if
      call restart_from_gaussians(iproc,nproc,KSwfn%orbs,KSwfn%Lzd,&
           KSwfn%Lzd%hgrids(1),KSwfn%Lzd%hgrids(2),KSwfn%Lzd%hgrids(3),&
@@ -3056,7 +2953,8 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
         !write( *,'(1x,a)')&
         !     &   '------------------------------------------- Reading Wavefunctions from gaussian file'
         call yaml_comment('Reading Wavefunctions from gaussian file',hfill='-')
-        call yaml_mapping_open("Input Hamiltonian")
+        call yaml_mapping_open('Input Hamiltonian')
+        call yaml_map('Policy','Reading Wavefunctions from gaussian file')
      end if
      call read_gaussian_information(KSwfn%orbs,KSwfn%gbd,KSwfn%gaucoeffs,&
           trim(in%dir_output)//'wavefunctions.gau')
@@ -3082,7 +2980,8 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
         !write(*,'(1x,a)')&
         !     '------------------------------------------------------- Input Wavefunctions Creation'
         call yaml_comment('Input Wavefunctions Creation',hfill='-')
-        call yaml_mapping_open("Input Hamiltonian")
+        call yaml_mapping_open('Input Hamiltonian')
+        call yaml_map('Policy','Input Wavefunctions Creation')
      end if
 
      ! By doing an LCAO input guess
@@ -3102,7 +3001,8 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
         !write( *,'(1x,a)')&
         !     &   '---------------------------------------------------- Reading Wavefunctions from disk'
         call yaml_comment('Reading Wavefunctions from disk',hfill='-')
-        call yaml_mapping_open("Input Hamiltonian")
+        call yaml_mapping_open('Input Hamiltonian')
+        call yaml_map('Policy','Reading Wavefunctions from disk')
      end if
 
      !if (in%lin%scf_mode==LINEAR_FOE) then

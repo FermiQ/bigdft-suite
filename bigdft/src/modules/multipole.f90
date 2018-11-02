@@ -4800,30 +4800,30 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
       quiet = .false.
   end if
 
-  !call center_of_charge(at,at%astruct%rxyz,charge_center_cores)
-  call f_zero(charge_center_cores)
-  call f_multipoles_create(mp_cores,1)!,center=charge_center_cores)
-  call vector_multipoles(mp_cores,at%astruct%nat,rxyz,dpbox%mesh,&
-       charges=real(at%nelpsp,dp),lookup=at%astruct%iatype)
-  qtot=get_monopole(mp_cores)
-  dipole_cores=get_dipole(mp_cores)
-  !this defines the origin of the coordinate system
-  if (qtot /=0.0_gp) charge_center_cores=dipole_cores/qtot
-  call f_multipoles_release(mp_cores)
-
-  !now the cores dipole should become zero
-
-!!$  qtot=0.d0
-!!$  call f_zero(dipole_cores)!(1:3)=0._gp
+!!$  !call center_of_charge(at,at%astruct%rxyz,charge_center_cores)
 !!$  call f_zero(charge_center_cores)
-!!$  do iat=1,at%astruct%nat
-!!$     !write(*,*) 'iat, rxyz(1:3,iat)',iat, rxyz(1:3,iat)
-!!$     q=at%nelpsp(at%astruct%iatype(iat))
-!!$     dipole_cores(1:3)=dipole_cores(1:3)+q * rxyz(1:3,iat)
-!!$     qtot=qtot+q
-!!$  end do
+!!$  call f_multipoles_create(mp_cores,1)!,center=charge_center_cores)
+!!$  call vector_multipoles(mp_cores,at%astruct%nat,rxyz,dpbox%mesh,&
+!!$       charges=real(at%nelpsp,dp),lookup=at%astruct%iatype)
+!!$  qtot=get_monopole(mp_cores)
+!!$  dipole_cores=get_dipole(mp_cores)
 !!$  !this defines the origin of the coordinate system
 !!$  if (qtot /=0.0_gp) charge_center_cores=dipole_cores/qtot
+!!$  call f_multipoles_release(mp_cores)
+!!$
+!!$  !now the cores dipole should become zero
+!!$
+  qtot=0.d0
+  call f_zero(dipole_cores)!(1:3)=0._gp
+  call f_zero(charge_center_cores)
+  do iat=1,at%astruct%nat
+     !write(*,*) 'iat, rxyz(1:3,iat)',iat, rxyz(1:3,iat)
+     q=at%nelpsp(at%astruct%iatype(iat))
+     dipole_cores(1:3)=dipole_cores(1:3)+q * rxyz(1:3,iat)
+     qtot=qtot+q
+  end do
+  !this defines the origin of the coordinate system
+  if (qtot /=0.0_gp) charge_center_cores=dipole_cores/qtot
 
   !!write(*,*) 'dipole_cores',dipole_cores
   !!write(*,*) 'nc3',nc3

@@ -1359,7 +1359,7 @@ subroutine print_nlpsp(nlpsp)
   maxmask=0
   totmask=0
   totpack=0
-  do iat=1,nlpsp%natoms
+  do iat=1,nlpsp%nregions
      if (nlpsp%projs(iat)%mproj>0) then
         totpack=max(totpack,nlpsp%projs(iat)%region%plr%wfd%nvctr_c+&
              7*nlpsp%projs(iat)%region%plr%wfd%nvctr_f)

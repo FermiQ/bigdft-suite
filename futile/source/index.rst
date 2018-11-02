@@ -15,13 +15,11 @@ Welcome to futile's documentation!
 
    yaml_str
 
+   inputfile
 
-Another test
+   yaml_parse
 
-.. automodule:: futile.Utils
-    :members:
-    :undoc-members:
-    :show-inheritance:
+   pyfutile
 
 Indices and tables
 ==================

@@ -8,28 +8,34 @@ module bounds
   !> Bounds for coarse and fine grids for kinetic operations
   !! Useful only for isolated systems AND in CPU
   type, public :: kinetic_bounds
-     integer, dimension(:,:,:), pointer :: ibyz_c !< coarse (2,0:n2,0:n3)
-     integer, dimension(:,:,:), pointer :: ibxz_c !< coarse (2,0:n1,0:n3)
-     integer, dimension(:,:,:), pointer :: ibxy_c !< coarse (2,0:n1,0:n2)
-     integer, dimension(:,:,:), pointer :: ibyz_f !< fine (2,0:n2,0:n3)
-     integer, dimension(:,:,:), pointer :: ibxz_f !< fine (2,0:n1,0:n3)
-     integer, dimension(:,:,:), pointer :: ibxy_f !< fine (2,0:n1,0:n2)
+     integer, dimension(:,:,:), pointer :: ibyz_c => null() !< coarse (2,0:n2,0:n3)
+     integer, dimension(:,:,:), pointer :: ibxz_c => null() !< coarse (2,0:n1,0:n3)
+     integer, dimension(:,:,:), pointer :: ibxy_c => null() !< coarse (2,0:n1,0:n2)
+     integer, dimension(:,:,:), pointer :: ibyz_f => null() !< fine (2,0:n2,0:n3)
+     integer, dimension(:,:,:), pointer :: ibxz_f => null() !< fine (2,0:n1,0:n3)
+     integer, dimension(:,:,:), pointer :: ibxy_f => null() !< fine (2,0:n1,0:n2)
   end type kinetic_bounds
 
 
   !> Bounds to compress the wavefunctions
   !! Useful only for isolated systems AND in CPU
   type, public :: shrink_bounds
-     integer, dimension(:,:,:), pointer :: ibzzx_c,ibyyzz_c
-     integer, dimension(:,:,:), pointer :: ibxy_ff,ibzzx_f,ibyyzz_f
+     integer, dimension(:,:,:), pointer :: ibzzx_c => null()
+     integer, dimension(:,:,:), pointer :: ibyyzz_c => null()
+     integer, dimension(:,:,:), pointer :: ibxy_ff => null()
+     integer, dimension(:,:,:), pointer :: ibzzx_f => null()
+     integer, dimension(:,:,:), pointer :: ibyyzz_f => null()
   end type shrink_bounds
 
 
   !> Bounds to uncompress the wavefunctions
   !! Useful only for isolated systems AND in CPU
   type, public :: grow_bounds
-     integer, dimension(:,:,:), pointer :: ibzxx_c,ibxxyy_c
-     integer, dimension(:,:,:), pointer :: ibyz_ff,ibzxx_f,ibxxyy_f
+     integer, dimension(:,:,:), pointer :: ibzxx_c => null()
+     integer, dimension(:,:,:), pointer :: ibxxyy_c => null()
+     integer, dimension(:,:,:), pointer :: ibyz_ff => null()
+     integer, dimension(:,:,:), pointer :: ibzxx_f => null()
+     integer, dimension(:,:,:), pointer :: ibxxyy_f => null()
   end type grow_bounds
 
 
@@ -39,7 +45,7 @@ module bounds
      type(kinetic_bounds) :: kb
      type(shrink_bounds) :: sb
      type(grow_bounds) :: gb
-     integer, dimension(:,:,:), pointer :: ibyyzz_r !< real space border
+     integer, dimension(:,:,:), pointer :: ibyyzz_r => null() !< real space border
   end type convolutions_bounds
 
 

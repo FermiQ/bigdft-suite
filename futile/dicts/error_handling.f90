@@ -162,6 +162,7 @@
 
   end function f_err_check
 
+
   function f_err_raise_str(condition,err_msg,err_id,err_name,callback,callback_data) result(f_err_raise)
     use yaml_strings, only: yaml_toa,f_string
     !use yaml_output, only: yaml_dict_dump,yaml_map
@@ -545,6 +546,7 @@
     end if
   end function f_err_pop
 
+
   !> Activate the exception handling for all errors
   !! also the errors which have f_err_severe as callbacks
   !! multiple calls to f_err_open_try have the same effect of one call
@@ -560,6 +562,7 @@
     dict_present_error=>error_pipelines%current
 
   end subroutine f_err_open_try
+
 
   !> Close the try environment. At the end of the try environment
   !! the errors are cleaned. To recover an error in a try environment
