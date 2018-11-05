@@ -219,7 +219,7 @@ def set_SCF_method(inp,method='dirmin',mixing_on='density',mixing_scheme='Pulay'
     if method != 'MIXING': __set__(inp,'lin_kernel','linear_method',method)
     if method=='DIRMIN':
        __set__(inp,'mix','iscf',0)
-        return
+       return
     iscf=0
     if mixing_on == 'density': iscf+=10
     if mixing_scheme == 'Pulay': iscf+=7
