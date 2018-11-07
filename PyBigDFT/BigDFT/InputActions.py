@@ -202,10 +202,15 @@ def set_SCF_method(inp,method='dirmin',mixing_on='density',mixing_scheme='Pulay'
        mixing_on (str): May be ``"density"`` or ``"potential"`` in the ``"mixing"`` case, decide to which quantity the mixing to be performed
 
        mixing_scheme (str): May be:
+          
           * Pulay : DIIS mixing on the last 7 iterations
+
           * Simple: Simple mixing 
+          
           * Anderson: Anderson scheme
+          
           * Anderson2: Anderson scheme based on the two pervious iterations
+          
           * CG: Conjugate Gradient based on the minimum of the energy with respect of the potential 
        
     Warning:
