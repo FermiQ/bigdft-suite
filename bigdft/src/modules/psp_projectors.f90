@@ -24,6 +24,7 @@ module psp_projectors
   public :: DFT_PSP_projectors_iter_apply
   public :: bounds_to_plr_limits,pregion_size
   public :: update_nlpsp
+  public :: locreg_for_atomic_projector
 
   !routines which are typical of the projector application or creation follow
 contains
@@ -87,24 +88,20 @@ contains
 
   !> Finds the size of the smallest subbox that contains a localization region made
   !! out of atom centered spheres
-  subroutine pregion_size(geocode,rxyz,radius,rmult,hx,hy,hz,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3)
+  subroutine pregion_size(mesh,rxyz,radius,rmult,nl1,nu1,nl2,nu2,nl3,nu3)
     !use module_base, only: gp
     use box
     implicit none
-    character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
-    integer, intent(in) :: n1,n2,n3
-    real(gp), intent(in) :: hx,hy,hz,rmult,radius
+    type(cell), intent(in) :: mesh
+    real(gp), intent(in) :: rmult,radius
     real(gp), dimension(3), intent(in) :: rxyz
     integer, intent(out) :: nl1,nu1,nl2,nu2,nl3,nu3
     !Local variables
     double precision, parameter :: eps_mach=1.d-12
     !n(c) real(kind=8) :: onem
-    type(cell) :: mesh
     logical, dimension(3) :: peri
     real(gp) :: rad !cxmax,cymax,czmax,cxmin,cymin,czmin,rad
     integer, dimension(2,3) :: nbox
-
-    mesh=cell_new(geocode,[n1+1,n2+1,n3+1],[hx,hy,hz]) 
 
     rad=radius*rmult
 
@@ -130,31 +127,31 @@ contains
 
     peri=cell_periodic_dims(mesh)
     if (peri(1)) then
-       if (nl1 < 0 .or. nu1 > n1) then
+       if (nl1 < 0 .or. nu1 >= mesh%ndims(1)) then
           nl1=0
-          nu1=n1
+          nu1=mesh%ndims(1) - 1
        end if
     else
        if (nl1 < 0) call f_err_throw('nl1: projector region outside cell',err_name='BIGDFT_RUNTIME_ERROR')
-       if (nu1 > n1) call f_err_throw('nu1: projector region outside cell',err_name='BIGDFT_RUNTIME_ERROR')
+       if (nu1 >= mesh%ndims(1)) call f_err_throw('nu1: projector region outside cell',err_name='BIGDFT_RUNTIME_ERROR')
     end if
     if (peri(2)) then
-       if (nl2 < 0 .or. nu2 > n2) then
+       if (nl2 < 0 .or. nu2 >= mesh%ndims(2)) then
           nl2=0
-          nu2=n2
+          nu2=mesh%ndims(2) - 1
        end if
     else
        if (nl2 < 0) call f_err_throw('nl2: projector region outside cell',err_name='BIGDFT_RUNTIME_ERROR')
-       if (nu2 > n2) call f_err_throw('nu2: projector region outside cell',err_name='BIGDFT_RUNTIME_ERROR')
+       if (nu2 >= mesh%ndims(2)) call f_err_throw('nu2: projector region outside cell',err_name='BIGDFT_RUNTIME_ERROR')
     end if
     if (peri(3)) then
-       if (nl3 < 0 .or. nu3 > n3) then
+       if (nl3 < 0 .or. nu3 >= mesh%ndims(3)) then
           nl3=0
-          nu3=n3
+          nu3=mesh%ndims(3) - 1
        end if
     else
        if (nl3 < 0)  call f_err_throw('nl3: projector region outside cell',err_name='BIGDFT_RUNTIME_ERROR')
-       if (nu3 > n3) call f_err_throw('nu3: projector region outside cell',err_name='BIGDFT_RUNTIME_ERROR')
+       if (nu3 >= mesh%ndims(3)) call f_err_throw('nu3: projector region outside cell',err_name='BIGDFT_RUNTIME_ERROR')
     end if
 
 !!$
@@ -199,6 +196,133 @@ contains
 !!$    end if
 
   END SUBROUTINE pregion_size
+
+  function locreg_for_atomic_projector(atproj, gmesh, full, logrid) result(plr)
+    use locregs
+    use box
+    use compression
+    implicit none
+    type(atomic_projectors), intent(in) :: atproj
+    type(cell), intent(in) :: gmesh
+    logical, intent(in) :: full
+    logical, dimension(:,:,:), intent(inout) :: logrid
+    type(locreg_descriptors) :: plr
+    !local variables
+    type(atomic_projector_iter) :: iter
+    integer :: nl1,nu1,nl2,nu2,nl3,nu3
+    integer :: ns1t,ns2t,ns3t,n1t,n2t,n3t
+    integer, dimension(:,:), allocatable :: keygc, keygf
+    integer, dimension(:), allocatable :: keyvc, keyvf
+    integer, dimension(2,3) :: nbox, nboxf
+    double precision, parameter :: eps_mach=1.d-12
+    type(cell) :: fmesh
+    character(len = 1) :: geocode
+
+    call nullify_locreg_descriptors(plr)
+    call atomic_projector_iter_new(iter, atproj)
+    if (iter%nproj > 0) then
+       ! coarse grid quantities
+       call pregion_size(gmesh, atproj%rxyz, atproj%radius, &
+            & real(1, gp), ns1t, n1t, ns2t, n2t, ns3t, n3t)
+       call fill_logrid(gmesh, ns1t, n1t, ns2t, n2t, ns3t, n3t, &
+            & 0, 1, 1, (/1/), atproj%rxyz, atproj%radius, real(1, gp), logrid)
+       call num_segkeys(gmesh%ndims(1)-1, gmesh%ndims(2)-1, gmesh%ndims(3)-1, &
+            & ns1t, n1t, ns2t, n2t, ns3t, n3t, logrid, plr%wfd%nseg_c, plr%wfd%nvctr_c)
+       if (full) then
+          keygc = f_malloc((/ 2, plr%wfd%nseg_c /), id = "keygc")
+          keyvc = f_malloc((/ plr%wfd%nseg_c /), id = "keyvc")
+          call segkeys(gmesh%ndims(1)-1, gmesh%ndims(2)-1, gmesh%ndims(3)-1, &
+               & ns1t, n1t, ns2t, n2t, ns3t, n3t, logrid, &
+               & plr%wfd%nseg_c, keygc(1,1), keyvc(1))
+       end if
+
+       ! fine grid quantities
+       call pregion_size(gmesh, atproj%rxyz, atproj%fine_radius, &
+            & real(1, gp), nl1, nu1, nl2, nu2, nl3, nu3)
+       call fill_logrid(gmesh, nl1, nu1, nl2, nu2, nl3, nu3, &
+            & 0, 1, 1, (/1/), atproj%rxyz, atproj%fine_radius, real(1, gp), logrid)
+       call num_segkeys(gmesh%ndims(1)-1, gmesh%ndims(2)-1, gmesh%ndims(3)-1, &
+            & nl1, nu1, nl2, nu2, nl3, nu3, logrid, plr%wfd%nseg_f, plr%wfd%nvctr_f)
+       if (full .and. plr%wfd%nseg_f > 0) then
+          keygf = f_malloc((/ 2, plr%wfd%nseg_f /), id = "keygf")
+          keyvf = f_malloc((/ plr%wfd%nseg_f /), id = "keyvf")
+          call segkeys(gmesh%ndims(1)-1, gmesh%ndims(2)-1, gmesh%ndims(3)-1, &
+               & nl1, nu1, nl2, nu2, nl3, nu3, logrid, &
+               & plr%wfd%nseg_f, keygf(1,1), keyvf(1))
+       end if
+
+       !to be tested, particularly with respect to the
+       !shift of the locreg for the origin of the
+       !coordinate system
+       fmesh = gmesh
+       fmesh%bc = 0 ! Free in every directions
+       nbox = box_nbox_from_cutoff(fmesh, atproj%rxyz, atproj%radius + &
+            & maxval(gmesh%hgrids) * eps_mach)
+       geocode = 'F'
+       if (any((nbox(2, :) - nbox(1, :)) > gmesh%ndims(:) .and. gmesh%bc(:) == 1)) then
+          ! Projector does not fit inside the global mesh.
+          geocode = cell_geocode(gmesh)
+          nbox(1, :) = 0
+          nbox(2, :) = gmesh%ndims(:) - 1
+          nboxf(1, 1) = nl1
+          nboxf(1, 2) = nl2
+          nboxf(1, 3) = nl3
+          nboxf(2, 1) = nu1
+          nboxf(2, 2) = nu2
+          nboxf(2, 3) = nu3
+       else
+          nboxf = box_nbox_from_cutoff(fmesh, atproj%rxyz, atproj%fine_radius + &
+               & maxval(gmesh%hgrids) * eps_mach)
+       end if
+       call init_lr(plr, geocode, 0.5_gp * gmesh%hgrids, &
+            & nbox(2,1), nbox(2,2), nbox(2,3), &
+            & nboxf(1,1), nboxf(1,2), nboxf(1,3), nboxf(2,1), nboxf(2,2), nboxf(2,3), &
+            & .false., nbox(1,1), nbox(1,2), nbox(1,3), cell_geocode(gmesh))
+
+       !also the fact of allocating pointers with size zero has to be discussed
+       !for the moments the bounds are not needed for projectors
+       if (full) then
+          call allocate_wfd(plr%wfd, global = .false.)
+          call f_memcpy(n = 2 * plr%wfd%nseg_c, src = keygc, dest = plr%wfd%keyglob(1,1))
+          call transform_keyglob_to_keygloc(gmesh, plr, plr%wfd%nseg_c, &
+               & keygc, plr%wfd%keygloc)
+          call f_free(keygc)
+          call f_memcpy(n = plr%wfd%nseg_c, src = keyvc, dest = plr%wfd%keyvglob(1))
+          call f_memcpy(n = plr%wfd%nseg_c, src = keyvc, dest = plr%wfd%keyvloc(1))
+          call f_free(keyvc)
+          if (plr%wfd%nseg_f > 0) then
+             call f_memcpy(n = 2 * plr%wfd%nseg_f, src = keygf, &
+                  & dest = plr%wfd%keyglob(1, plr%wfd%nseg_c+1))
+             call transform_keyglob_to_keygloc(gmesh, plr, plr%wfd%nseg_f, &
+                  & keygf, plr%wfd%keygloc(1, plr%wfd%nseg_c+1))
+             call f_free(keygf)
+             call f_memcpy(n = plr%wfd%nseg_f, src = keyvf, &
+                  & dest = plr%wfd%keyvglob(plr%wfd%nseg_c+1))
+             call f_memcpy(n = plr%wfd%nseg_f, src = keyvf, &
+                  & dest = plr%wfd%keyvloc(plr%wfd%nseg_c+1))
+             call f_free(keyvf)
+          end if
+       end if
+    else
+       ! Strangely enough the nullify_wfd() is not doing this.
+       plr%wfd%nseg_c=0
+       plr%wfd%nvctr_c=0
+       plr%wfd%nseg_f=0
+       plr%wfd%nvctr_f=0
+
+       !! the following is necessary to the creation of preconditioning projectors
+       !! coarse grid quantities ( when used preconditioners are applied to all atoms
+       !! even H if present )
+       call pregion_size(gmesh, atproj%rxyz, atproj%radius, &
+            & real(1, gp), nl1, nu1, nl2, nu2, nl3, nu3)
+       call bounds_to_plr_limits(.true., 1, plr, nl1, nl2, nl3, nu1, nu2, nu3)
+
+       ! fine grid quantities
+       call pregion_size(gmesh, atproj%rxyz, atproj%fine_radius, &
+            & real(1, gp), nl1, nu1, nl2, nu2, nl3, nu3)
+       call bounds_to_plr_limits(.true., 2, plr, nl1, nl2, nl3, nu1, nu2, nu3)
+    end if
+  end function locreg_for_atomic_projector
 
   !> routine to update the PSP descriptors as soon as the localization regions
   ! are modified
@@ -363,11 +487,10 @@ contains
 
     ok = .false.
     nullify(iter%coeff)
-    iter%iat = iter%iat + 1
-    if (iter%iat > size(iter%parent%projs)) return
-    
+    iter%iregion = iter%iregion + 1
+    if (iter%iregion > size(iter%parent%projs)) return
     ok = .true.
-    iter%current => iter%parent%projs(iter%iat)
+    iter%current => iter%parent%projs(iter%iregion)
     iter%pspd => iter%current%region
     iter%mproj = iter%current%mproj
     if (iter%mproj == 0) ok = DFT_PSP_projectors_iter_next(iter, ilr, lr, glr)
@@ -378,7 +501,9 @@ contains
        if (overlap) overlap = .not. wfd_to_wfd_skip(iter%pspd%tolr(iilr))
        if (overlap) call check_overlap(lr, iter%pspd%plr, glr, overlap)
        if (.not. overlap) ok = DFT_PSP_projectors_iter_next(iter, ilr, lr, glr)
+
     end if
+
   end function DFT_PSP_projectors_iter_next
 
   subroutine DFT_PSP_projectors_iter_ensure(iter, kpt, idir, nwarnings, glr)
@@ -421,7 +546,7 @@ contains
     end if
 
     ! Rebuild fallback.
-    call atomic_projector_iter_new(a_it, iter%parent%pbasis(iter%iat), &
+    call atomic_projector_iter_new(a_it, iter%parent%pbasis(iter%iregion), &
          & iter%pspd%plr, kpt)
     if (iter%parent%on_the_fly) then
        iter%coeff => iter%parent%shared_proj
@@ -434,7 +559,7 @@ contains
     end if
     call atomic_projector_iter_set_destination(a_it, iter%coeff)
     if (PROJECTION_1D_SEPARABLE == iter%parent%method) then
-       if (iter%parent%pbasis(iter%iat)%kind == PROJ_DESCRIPTION_GAUSSIAN .and. &
+       if (iter%parent%pbasis(iter%iregion)%kind == PROJ_DESCRIPTION_GAUSSIAN .and. &
             & present(glr)) then
           call atomic_projector_iter_set_method(a_it, PROJECTION_1D_SEPARABLE, glr)
        else
@@ -486,10 +611,11 @@ contains
 
     !here the cproj can be extracted to update the density matrix for the atom iat 
     if (associated(psp_it%parent%iagamma) .and. .not. present(hcproj_in)) then
-       call cproj_to_gamma(psp_it%parent%pbasis(psp_it%iat), &
+       call cproj_to_gamma(psp_it%parent%pbasis(psp_it%iregion), &
             & psi_it%n_ket, psp_it%mproj, lmax_ao, max(psi_it%ncplx, psp_it%ncplx), &
             & psp_it%parent%cproj, psi_it%kwgt * psi_it%occup, &
-            & psp_it%parent%iagamma(0, psp_it%iat), psp_it%parent%gamma_mmp(1,1,1,1,psi_it%ispin))
+            & psp_it%parent%iagamma(0, psp_it%iregion), &
+            & psp_it%parent%gamma_mmp(1,1,1,1,psi_it%ispin))
     end if
     usepaw = .false.
     if (present(paw)) usepaw = paw%usepaw
@@ -498,7 +624,7 @@ contains
        mm = 1
        nc = max(psp_it%ncplx, psi_it%ncplx) * psi_it%n_ket
        do m = 1, psp_it%mproj
-          paw%cprj(psp_it%iat, psi_it%iorb)%cp(1:nc, m) = &
+          paw%cprj(psp_it%iregion, psi_it%iorb)%cp(1:nc, m) = &
                & psp_it%parent%cproj(mm:mm+nc-1)
           mm = mm + nc
        end do
@@ -508,13 +634,13 @@ contains
        nc = max(psi_it%ncplx, psp_it%ncplx) * psi_it%n_ket
        ! Compute hcproj.
        if (.not. usepaw) then
-          ityp = at%astruct%iatype(psp_it%iat)
+          ityp = at%astruct%iatype(psp_it%iregion)
           call hgh_hij_matrix(at%npspcode(ityp), at%psppar(0,0,ityp), hij)
           if (associated(at%gamma_targets) .and. psp_it%parent%apply_gamma_target) then
-             call allocate_atomic_proj_matrix(hij, psp_it%iat, psi_it%ispin, prj, &
+             call allocate_atomic_proj_matrix(hij, psp_it%iregion, psi_it%ispin, prj, &
                   & at%gamma_targets)
           else
-             call allocate_atomic_proj_matrix(hij, psp_it%iat, psi_it%ispin, prj)
+             call allocate_atomic_proj_matrix(hij, psp_it%iregion, psi_it%ispin, prj)
           end if
 
           if (present(hcproj_out)) then
@@ -528,12 +654,12 @@ contains
           call free_atomic_proj_matrix(prj)
        else
           if (present(hcproj_out)) then
-             call apply_paw_coeff(paw%paw_ij(psp_it%iat)%dij, &
-                  & paw%paw_ij(psp_it%iat)%cplex_dij, nc, psp_it%mproj, &
+             call apply_paw_coeff(paw%paw_ij(psp_it%iregion)%dij, &
+                  & paw%paw_ij(psp_it%iregion)%cplex_dij, nc, psp_it%mproj, &
                   & psp_it%parent%cproj, hcproj_out)
           else
-             call apply_paw_coeff(paw%paw_ij(psp_it%iat)%dij, &
-                  & paw%paw_ij(psp_it%iat)%cplex_dij, nc, psp_it%mproj, &
+             call apply_paw_coeff(paw%paw_ij(psp_it%iregion)%dij, &
+                  & paw%paw_ij(psp_it%iregion)%cplex_dij, nc, psp_it%mproj, &
                   & psp_it%parent%cproj, psp_it%parent%hcproj)
           end if
        end if
@@ -568,7 +694,7 @@ contains
     end if
 
     if (usepaw .and. present(hpsi)) then
-       ityp = at%astruct%iatype(psp_it%iat)
+       ityp = at%astruct%iatype(psp_it%iregion)
        nc = max(psi_it%ncplx, psp_it%ncplx) * psi_it%n_ket
        call apply_paw_coeff(at%pawtab(ityp)%sij, 1, nc, psp_it%mproj, &
             & psp_it%parent%cproj, psp_it%parent%hcproj)
