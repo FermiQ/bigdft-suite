@@ -16,8 +16,8 @@ class DiracSuperposition():
     def __init__(self,dos,wgts=[1.0]):
         """
         Parameters:
-        dos: array containing the density of states per eack k-point. Should be of shape 2
-        wgts: containts the weights of each of the k-points
+           dos: array containing the density of states per eack k-point. Should be of shape 2
+           wgts: contains the weights of each of the k-points
         """
         import numpy as np
         self.dos=dos 

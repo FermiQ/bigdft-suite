@@ -375,17 +375,30 @@ def change_data_directory(inp,name=''):
     """
     __set__(inp,'radical',name)
 
-def calculate_tddft_coupling_matrix(inp,tda=False):
+def calculate_tddft_coupling_matrix(inp,tda=False,rpa=True,fxc=True):
     """
     Perform a casida TDDFT coupling matrix extraction.
-    If tda is set to True, Tamm-Dancoff approximation is used for the
-    extraction of the coupling matrix
+
+    Args:
+       tda (bool): when ``True``, Tamm-Dancoff approximation is used for the extraction of the coupling matrix
+       rpa (bool): when ``False``, the calculation of the RPA term (the linear response of the hartree potential) is switched off
+       fxc (bool): when ``False``, the calculation of the fxc term (the linear response of the XC operator) is switched off.
+
+    Note: 
+       The arguments ``fxc`` and ``rpa`` should not be simultaneously ``False``.
 
     Warning:
-       Presently the LR-TDDFT casida is only availavble for LDA functional
+       Presently the LR-TDDFT casida fxc is only available for LDA functionals in ABINIT flavour.
     """
     approach='TDA' if tda else 'full'
     __set__(inp,'tddft','tddft_approach',approach)
+    if rpa and fxc:
+        output='complete'
+    elif rpa:
+        output='rpa'
+    else:
+        output='fxc'
+    __set__(inp,'output','coupling_matrix',output)
 
 def extract_virtual_states(inp,nvirt,davidson=False):
     """
