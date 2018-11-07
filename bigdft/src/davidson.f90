@@ -1031,7 +1031,7 @@ subroutine davidson(iproc,nproc,in,at,&
             ish1=8*ndimovrlp(ispin,ikpt-1)+1
             ish2=8*ndimovrlp(ispin,ikpt-1)+4*norbs*norb+1
 
-            if(msg)then
+            if(msg .and. norbs<20)then
                call yaml_mapping_open("subspace matrices, upper triangular (diagonal elements first)")
                write(*,'(1x)')
                call yaml_sequence_open("subspace H")

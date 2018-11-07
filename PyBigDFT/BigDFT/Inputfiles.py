@@ -42,7 +42,7 @@ class Inputfile(dict):
 
     """
     def __init__(self,*args,**kwargs):
-        import InputActions as A
+        import BigDFT.InputActions as A
         dict.__init__(self,*args,**kwargs)
         functions = dir(A)
         for action in functions:

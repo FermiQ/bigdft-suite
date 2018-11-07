@@ -16,6 +16,11 @@ Note:
    This adds extra flexibility as the same method may be used to a dictionary instance or to a BigDFT input files.
    See the example :ref:`input_action_example`.
 
+Note:
+   
+   Each of the actions here **must** have default value for the arguments (except the input dictionary ``inp``).
+   This is needed for a good behaviour of the function `remove`.
+
 
 .. autosummary::
 
@@ -103,14 +108,17 @@ def set_hgrid(inp,hgrids=0.4):
     """
     __set__(inp,'dft','hgrids',hgrids)
 
-def set_rmult(inp,rmult=[5.0,8.0]):
+def set_rmult(inp,rmult=None,coarse=5.0,fine=8.0):
     """
     Set the wavelet grid extension by modifying the multiplicative radii.
 
     Args:
        rmult (float,list): list of two values that have to be used for the coarse and the fine resolution grid. It may also be a scalar.
+       coarse (float): if the argument ``rmult`` is not provided it sets the coarse radius multiplier
+       fine (float): if the argument ``rmult`` is not provided it sets the fine radius multiplier
     """
-    __set__(inp,'dft','rmult',rmult)
+    rmlt=[coarse,fine] if rmult is None else rmult
+    __set__(inp,'dft','rmult',rmlt)
 
 
 def set_mesh_sizes(inp,ngrids=64):
@@ -289,13 +297,17 @@ def extract_virtual_states(inp,nvirt,davidson=False):
     __set__(inp,'dft','nvirt',nvirt)
     __set__(inp,'dft','itermax_virt',150)
 
-def connect_run_data(inp,log):
+def connect_run_data(inp,log=None):
     """
     Associate the data of the run of a given logfile to the input
     by retrieving the data directory name of the logfile.
     
     Args:
        log (Logfile): instance of a Logfile class
+
     """
-    ll=log if len(log)==0 else log[0]
-    change_data_directory(inp,ll.log['radical'])
+    if log is None:
+        change_data_directory(inp) #no effect
+    else:
+        ll=log if len(log)==0 else log[0]
+        change_data_directory(inp,ll.log['radical'])

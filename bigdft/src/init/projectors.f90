@@ -7,13 +7,13 @@
 !!    or http://www.gnu.org/copyleft/gpl.txt .
 !!    For the list of contributors, see ~/AUTHORS 
 
-
 !> Localize the projectors for pseudopotential calculations
-subroutine localize_projectors(iproc,nproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,&
+subroutine localize_projectors(iproc,nproc,mesh,cpmult,fpmult,rxyz,&
      logrid,at,orbs,nl)
   use module_base
   use module_types, only: atoms_data,orbitals_data
   use yaml_output
+  use box
   use psp_projectors_base, only: DFT_PSP_projectors, atomic_projector_iter, &
        & atomic_projector_iter_new, atomic_projector_iter_next
   use psp_projectors, only: bounds_to_plr_limits, pregion_size
@@ -21,14 +21,15 @@ subroutine localize_projectors(iproc,nproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,
   use sparsematrix_init, only: distribute_on_tasks
   use locregs, only: init_lr
   implicit none
-  integer, intent(in) :: iproc,nproc,n1,n2,n3
-  real(gp), intent(in) :: cpmult,fpmult,hx,hy,hz
+  integer, intent(in) :: iproc,nproc
+  real(gp), intent(in) :: cpmult,fpmult
+  type(cell), intent(in) :: mesh
   type(atoms_data), intent(in) :: at
   type(orbitals_data), intent(in) :: orbs
   type(DFT_PSP_projectors), intent(inout) :: nl
   real(gp), dimension(3,at%astruct%nat), intent(in) :: rxyz
   !real(gp), dimension(at%astruct%ntypes,3), intent(in) :: radii_cf
-  logical, dimension(0:n1,0:n2,0:n3), intent(inout) :: logrid
+  logical, dimension(0:mesh%ndims(1)-1,0:mesh%ndims(2)-1,0:mesh%ndims(3)-1), intent(inout) :: logrid
   !Local variables
   !n(c) logical :: cmplxprojs
   type(atomic_projector_iter) :: iter
@@ -68,17 +69,17 @@ subroutine localize_projectors(iproc,nproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,
         nl%nproj=nl%nproj+mproj
 
         ! coarse grid quantities
-        call pregion_size(at%astruct%geocode,rxyz(1,iat),at%radii_cf(at%astruct%iatype(iat),3),&
-             cpmult,hx,hy,hz,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3)
+        call pregion_size(mesh,rxyz(1,iat),at%radii_cf(at%astruct%iatype(iat),3),&
+             cpmult,nl1,nu1,nl2,nu2,nl3,nu3)
 
         ns1t=nl1; ns2t=nl2; ns3t=nl3
         n1t=nu1; n2t=nu2; n3t=nu3
 
         !these routines are associated to the handling of a locreg
-        call fill_logrid(at%astruct%geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,0,1,&
+        call fill_logrid(mesh,nl1,nu1,nl2,nu2,nl3,nu3,0,1,&
              at%astruct%ntypes,at%astruct%iatype(iat),rxyz(1,iat),at%radii_cf(1,3),&
-             cpmult,hx,hy,hz,logrid)
-        call num_segkeys(n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,logrid,mseg,mvctr)
+             cpmult,logrid)
+        call num_segkeys(mesh%ndims(1)-1,mesh%ndims(2)-1,mesh%ndims(3)-1,nl1,nu1,nl2,nu2,nl3,nu3,logrid,mseg,mvctr)
 
         nl%projs(iat)%region%plr%wfd%nseg_c=mseg
         nl%projs(iat)%region%plr%wfd%nvctr_c=mvctr
@@ -90,19 +91,19 @@ subroutine localize_projectors(iproc,nproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,
         !print *,'iat,mvctr',iat,mvctr,mseg,mproj
 
         ! fine grid quantities
-        call pregion_size(at%astruct%geocode,rxyz(1,iat),at%radii_cf(at%astruct%iatype(iat),2),fpmult,&
-             hx,hy,hz,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3)
+        call pregion_size(mesh,rxyz(1,iat),at%radii_cf(at%astruct%iatype(iat),2),fpmult,&
+             nl1,nu1,nl2,nu2,nl3,nu3)
 
-        call fill_logrid(at%astruct%geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,0,1,  &
+        call fill_logrid(mesh,nl1,nu1,nl2,nu2,nl3,nu3,0,1,  &
              at%astruct%ntypes,at%astruct%iatype(iat),rxyz(1,iat),&
-             at%radii_cf(1,2),fpmult,hx,hy,hz,logrid)
-        call num_segkeys(n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,logrid,mseg,mvctr)
+             at%radii_cf(1,2),fpmult,logrid)
+        call num_segkeys(mesh%ndims(1)-1,mesh%ndims(2)-1,mesh%ndims(3)-1,nl1,nu1,nl2,nu2,nl3,nu3,logrid,mseg,mvctr)
         !if (iproc.eq.0) write(*,'(1x,a,2(1x,i0))') 'mseg,mvctr, fine  projectors ',mseg,mvctr
 
         !to be tested, particularly with respect to the
         !shift of the locreg for the origin of the
         !coordinate system
-        call init_lr(nl%projs(iat)%region%plr, 'F', 0.5_gp * [hx, hy, hz], &
+        call init_lr(nl%projs(iat)%region%plr, 'F', 0.5_gp * mesh%hgrids, &
              n1t, n2t, n3t, nl1, nl2, nl3, nu1, nu2, nu3, &
              .false., ns1t, ns2t, ns3t, at%astruct%geocode)
 
@@ -131,16 +132,16 @@ subroutine localize_projectors(iproc,nproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,
         !! the following is necessary to the creation of preconditioning projectors
         !! coarse grid quantities ( when used preconditioners are applied to all atoms
         !! even H if present )
-        call pregion_size(at%astruct%geocode,rxyz(1,iat),&
+        call pregion_size(mesh,rxyz(1,iat),&
              at%radii_cf(at%astruct%iatype(iat),3),cpmult, &
-             hx,hy,hz,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3)
+             nl1,nu1,nl2,nu2,nl3,nu3)
 
         call bounds_to_plr_limits(.true.,1,nl%projs(iat)%region%plr,&
              nl1,nl2,nl3,nu1,nu2,nu3)
 
         ! fine grid quantities
-        call pregion_size(at%astruct%geocode,rxyz(1,iat),at%radii_cf(at%astruct%iatype(iat),2),fpmult,&
-             hx,hy,hz,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3)
+        call pregion_size(mesh,rxyz(1,iat),at%radii_cf(at%astruct%iatype(iat),2),fpmult,&
+             nl1,nu1,nl2,nu2,nl3,nu3)
 
         call bounds_to_plr_limits(.true.,2,nl%projs(iat)%region%plr,&
              nl1,nl2,nl3,nu1,nu2,nu3)
@@ -216,6 +217,7 @@ subroutine localize_projectors(iproc,nproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,
   totzerovol=0.0_gp
   maxfullvol=0.0_gp
   totfullvol=0.0_gp
+  maxzerovol=0.0_gp
   do iat=1,at%astruct%nat
      ityp=at%astruct%iatype(iat)
      if (at%npspcode(ityp) == PSPCODE_GTH .or. &
@@ -294,119 +296,119 @@ subroutine localize_projectors(iproc,nproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,
 
 END SUBROUTINE localize_projectors
 
-!> Localize the projectors for pseudopotential calculations
-subroutine localize_projectors_new(n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,&
-     logrid,at,nl)
-  use module_base
-  use module_types, only: atoms_data,orbitals_data
-  use psp_projectors_base, only: DFT_PSP_projectors, atomic_projector_iter, &
-       & atomic_projector_iter_new, atomic_projector_iter_next
-  use psp_projectors_base, only: DFT_PSP_projectors
-  use psp_projectors, only: bounds_to_plr_limits, pregion_size
-  implicit none
-  integer, intent(in) :: n1,n2,n3
-  real(gp), intent(in) :: cpmult,fpmult,hx,hy,hz
-  type(atoms_data), intent(in) :: at
-  type(DFT_PSP_projectors), intent(inout) :: nl
-  real(gp), dimension(3,at%astruct%nat), intent(in) :: rxyz
-  !real(gp), dimension(at%astruct%ntypes,3), intent(in) :: radii_cf
-  logical, dimension(0:n1,0:n2,0:n3), intent(inout) :: logrid
-  !Local variables
-  !n(c) logical :: cmplxprojs
-  integer :: istart,ityp,iat,mproj,nl1,nu1,nl2,nu2,nl3,nu3,mvctr,mseg,i,l
-  integer :: izero
-  type(atomic_projector_iter) :: iter
-
-  call f_routine(id='localize_projectors')
-
-  nl%nproj=0
-
-  do iat=1,at%astruct%nat
-
-     call atomic_projector_iter_new(iter, nl%pbasis(iat))
-     mproj = iter%nproj
-
-     !assign the number of projector to the localization region
-     nl%projs(iat)%mproj=mproj
-
-     if (mproj /= 0) then 
-
-        !if some projectors are there at least one locreg interacts with the psp
-        nl%projs(iat)%region%nlr=1
-
-        !if (iproc.eq.0) write(*,'(1x,a,2(1x,i0))')&
-        !     'projector descriptors for atom with mproj ',iat,mproj
-        nl%nproj=nl%nproj+mproj
-
-        ! coarse grid quantities
-        call pregion_size(at%astruct%geocode,rxyz(1,iat),at%radii_cf(at%astruct%iatype(iat),3),&
-             cpmult,hx,hy,hz,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3)
-
-        call bounds_to_plr_limits(.true.,1,nl%projs(iat)%region%plr,&
-             nl1,nl2,nl3,nu1,nu2,nu3)
-
-        !these routines are associated to the handling of a locreg
-        call fill_logrid(at%astruct%geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,0,1,&
-             at%astruct%ntypes,at%astruct%iatype(iat),rxyz(1,iat),at%radii_cf(1,3),&
-             cpmult,hx,hy,hz,logrid)
-        call num_segkeys(n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,logrid,mseg,mvctr)
-
-        nl%projs(iat)%region%plr%wfd%nseg_c=mseg
-        nl%projs(iat)%region%plr%wfd%nvctr_c=mvctr
-
-        !print *,'iat,mvctr',iat,mvctr,mseg,mproj
-
-        ! fine grid quantities
-        call pregion_size(at%astruct%geocode,rxyz(1,iat),at%radii_cf(at%astruct%iatype(iat),2),fpmult,&
-             hx,hy,hz,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3)
-
-        call bounds_to_plr_limits(.true.,2,nl%projs(iat)%region%plr,&
-             nl1,nl2,nl3,nu1,nu2,nu3)
-
-        call fill_logrid(at%astruct%geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,0,1,  &
-             at%astruct%ntypes,at%astruct%iatype(iat),rxyz(1,iat),&
-             at%radii_cf(1,2),fpmult,hx,hy,hz,logrid)
-        call num_segkeys(n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,logrid,mseg,mvctr)
-        !if (iproc.eq.0) write(*,'(1x,a,2(1x,i0))') 'mseg,mvctr, fine  projectors ',mseg,mvctr
-
-        nl%projs(iat)%region%plr%wfd%nseg_f=mseg
-        nl%projs(iat)%region%plr%wfd%nvctr_f=mvctr
-
-     else  !(atom has no nonlocal PSP, e.g. H)
-        !Pb of inout
-        izero=0
-
-        !this is not really needed, see below
-        call bounds_to_plr_limits(.true.,1,nl%projs(iat)%region%plr,&
-             izero,izero,izero,izero,izero,izero)
-
-        nl%projs(iat)%region%plr%wfd%nseg_c=0
-        nl%projs(iat)%region%plr%wfd%nvctr_c=0
-        nl%projs(iat)%region%plr%wfd%nseg_f=0
-        nl%projs(iat)%region%plr%wfd%nvctr_f=0
-
-        !! the following is necessary to the creation of preconditioning projectors
-        !! coarse grid quantities ( when used preconditioners are applied to all atoms
-        !! even H if present )
-        call pregion_size(at%astruct%geocode,rxyz(1,iat),&
-             at%radii_cf(at%astruct%iatype(iat),3),cpmult, &
-             hx,hy,hz,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3)
-
-        call bounds_to_plr_limits(.true.,1,nl%projs(iat)%region%plr,&
-             nl1,nl2,nl3,nu1,nu2,nu3)
-
-        ! fine grid quantities
-        call pregion_size(at%astruct%geocode,rxyz(1,iat),at%radii_cf(at%astruct%iatype(iat),2),fpmult,&
-             hx,hy,hz,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3)
-
-        call bounds_to_plr_limits(.true.,2,nl%projs(iat)%region%plr,&
-             nl1,nl2,nl3,nu1,nu2,nu3)
-     endif
-  enddo
-
-  call f_release_routine()
-
-END SUBROUTINE localize_projectors_new
+!!$!> Localize the projectors for pseudopotential calculations
+!!$subroutine localize_projectors_new(n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,&
+!!$     logrid,at,nl)
+!!$  use module_base
+!!$  use module_types, only: atoms_data,orbitals_data
+!!$  use psp_projectors_base, only: DFT_PSP_projectors, atomic_projector_iter, &
+!!$       & atomic_projector_iter_new, atomic_projector_iter_next
+!!$  use psp_projectors_base, only: DFT_PSP_projectors
+!!$  use psp_projectors, only: bounds_to_plr_limits, pregion_size
+!!$  implicit none
+!!$  integer, intent(in) :: n1,n2,n3
+!!$  real(gp), intent(in) :: cpmult,fpmult,hx,hy,hz
+!!$  type(atoms_data), intent(in) :: at
+!!$  type(DFT_PSP_projectors), intent(inout) :: nl
+!!$  real(gp), dimension(3,at%astruct%nat), intent(in) :: rxyz
+!!$  !real(gp), dimension(at%astruct%ntypes,3), intent(in) :: radii_cf
+!!$  logical, dimension(0:n1,0:n2,0:n3), intent(inout) :: logrid
+!!$  !Local variables
+!!$  !n(c) logical :: cmplxprojs
+!!$  integer :: iat,mproj,nl1,nu1,nl2,nu2,nl3,nu3,mvctr,mseg
+!!$  integer :: izero
+!!$  type(atomic_projector_iter) :: iter
+!!$
+!!$  call f_routine(id='localize_projectors')
+!!$
+!!$  nl%nproj=0
+!!$
+!!$  do iat=1,at%astruct%nat
+!!$
+!!$     call atomic_projector_iter_new(iter, nl%pbasis(iat))
+!!$     mproj = iter%nproj
+!!$
+!!$     !assign the number of projector to the localization region
+!!$     nl%projs(iat)%mproj=mproj
+!!$
+!!$     if (mproj /= 0) then 
+!!$
+!!$        !if some projectors are there at least one locreg interacts with the psp
+!!$        nl%projs(iat)%region%nlr=1
+!!$
+!!$        !if (iproc.eq.0) write(*,'(1x,a,2(1x,i0))')&
+!!$        !     'projector descriptors for atom with mproj ',iat,mproj
+!!$        nl%nproj=nl%nproj+mproj
+!!$
+!!$        ! coarse grid quantities
+!!$        call pregion_size(at%astruct%geocode,rxyz(1,iat),at%radii_cf(at%astruct%iatype(iat),3),&
+!!$             cpmult,hx,hy,hz,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3)
+!!$
+!!$        call bounds_to_plr_limits(.true.,1,nl%projs(iat)%region%plr,&
+!!$             nl1,nl2,nl3,nu1,nu2,nu3)
+!!$
+!!$        !these routines are associated to the handling of a locreg
+!!$        call fill_logrid(at%astruct%geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,0,1,&
+!!$             at%astruct%ntypes,at%astruct%iatype(iat),rxyz(1,iat),at%radii_cf(1,3),&
+!!$             cpmult,hx,hy,hz,logrid)
+!!$        call num_segkeys(n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,logrid,mseg,mvctr)
+!!$
+!!$        nl%projs(iat)%region%plr%wfd%nseg_c=mseg
+!!$        nl%projs(iat)%region%plr%wfd%nvctr_c=mvctr
+!!$
+!!$        !print *,'iat,mvctr',iat,mvctr,mseg,mproj
+!!$
+!!$        ! fine grid quantities
+!!$        call pregion_size(at%astruct%geocode,rxyz(1,iat),at%radii_cf(at%astruct%iatype(iat),2),fpmult,&
+!!$             hx,hy,hz,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3)
+!!$
+!!$        call bounds_to_plr_limits(.true.,2,nl%projs(iat)%region%plr,&
+!!$             nl1,nl2,nl3,nu1,nu2,nu3)
+!!$
+!!$        call fill_logrid(at%astruct%geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,0,1,  &
+!!$             at%astruct%ntypes,at%astruct%iatype(iat),rxyz(1,iat),&
+!!$             at%radii_cf(1,2),fpmult,hx,hy,hz,logrid)
+!!$        call num_segkeys(n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,logrid,mseg,mvctr)
+!!$        !if (iproc.eq.0) write(*,'(1x,a,2(1x,i0))') 'mseg,mvctr, fine  projectors ',mseg,mvctr
+!!$
+!!$        nl%projs(iat)%region%plr%wfd%nseg_f=mseg
+!!$        nl%projs(iat)%region%plr%wfd%nvctr_f=mvctr
+!!$
+!!$     else  !(atom has no nonlocal PSP, e.g. H)
+!!$        !Pb of inout
+!!$        izero=0
+!!$
+!!$        !this is not really needed, see below
+!!$        call bounds_to_plr_limits(.true.,1,nl%projs(iat)%region%plr,&
+!!$             izero,izero,izero,izero,izero,izero)
+!!$
+!!$        nl%projs(iat)%region%plr%wfd%nseg_c=0
+!!$        nl%projs(iat)%region%plr%wfd%nvctr_c=0
+!!$        nl%projs(iat)%region%plr%wfd%nseg_f=0
+!!$        nl%projs(iat)%region%plr%wfd%nvctr_f=0
+!!$
+!!$        !! the following is necessary to the creation of preconditioning projectors
+!!$        !! coarse grid quantities ( when used preconditioners are applied to all atoms
+!!$        !! even H if present )
+!!$        call pregion_size(at%astruct%geocode,rxyz(1,iat),&
+!!$             at%radii_cf(at%astruct%iatype(iat),3),cpmult, &
+!!$             hx,hy,hz,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3)
+!!$
+!!$        call bounds_to_plr_limits(.true.,1,nl%projs(iat)%region%plr,&
+!!$             nl1,nl2,nl3,nu1,nu2,nu3)
+!!$
+!!$        ! fine grid quantities
+!!$        call pregion_size(at%astruct%geocode,rxyz(1,iat),at%radii_cf(at%astruct%iatype(iat),2),fpmult,&
+!!$             hx,hy,hz,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3)
+!!$
+!!$        call bounds_to_plr_limits(.true.,2,nl%projs(iat)%region%plr,&
+!!$             nl1,nl2,nl3,nu1,nu2,nu3)
+!!$     endif
+!!$  enddo
+!!$
+!!$  call f_release_routine()
+!!$
+!!$END SUBROUTINE localize_projectors_new
 
 subroutine get_projector_coeffs(ncplx_g,l,i,idir,nterm_max,factor,expo,&
      nterms,lxyz,sigma_and_expo,factors)

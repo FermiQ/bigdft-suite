@@ -28,6 +28,14 @@ Inputvars module
     :undoc-members:
     :show-inheritance:
 
+ArgParse module
+----------------
+
+.. automodule:: futile.YamlArgparse
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 
 Figures module
 --------------

@@ -57,7 +57,7 @@ def dict_set(inp,*subfields):
 
     """
     if len(subfields) <= 1:
-        raise ValueError, 'invalid subfields'
+        raise ValueError('invalid subfields')
     keys=subfields[:-1]
     tmp,key=push_path(inp,*keys)
     #tmp=inp
@@ -67,6 +67,26 @@ def dict_set(inp,*subfields):
     #    tmp[key]={}
     #    tmp=tmp[key]
     tmp[key]=subfields[-1]
+
+
+def dict_merge(dest, src):
+    """ Recursive dict merge. Inspired by :meth:`dict.update`, instead of
+    updating only top-level keys, dict_merge recurses down into dicts nested
+    to an arbitrary depth, updating keys. The ``src`` is merged into
+    ``dest``.  From :ref:`angstwad/dict-merge.py <https://gist.github.com/angstwad/bf22d1822c38a92ec0a9>`
+
+    Arguments:
+       dest (dict): dict onto which the merge is executed
+       src (dict): dict merged into dest
+
+    """
+    import collections
+    for k, v in src.iteritems():
+        if (k in dest and isinstance(dest[k], dict)
+                and isinstance(src[k], collections.Mapping)):
+            dict_merge(dest[k], src[k])
+        else:
+            dest[k] = src[k]
 
 def file_time(filename):
     """
@@ -82,8 +102,65 @@ def file_time(filename):
     else:
         return 0
 
+def make_dict(inp):
+    """
+    Transform the instance ``inp`` into a python dictionary. If inp is already a dictionary, it perfroms a copy.
+    
+    Args:
+       inp (dict): a instance of a Class which inherits from dict
+    
+    Returns: 
+       dict: the copy of the class, converted as a dictionary
+    """
+    import copy
+    local_tmp=copy.deepcopy(inp)
+    local_input={}
+    local_input.update(local_tmp) 
+    return local_input
+
+def function_signature_regenerator(target_kwargs_function,fun_name='',fun_docstring='',**kwargs):
+    '''
+    Generate the function of the name provided by `fun_name`, with signature provided by the 
+    kwargs dictionary.
+    
+    Args:
+       target_kwargs_function (func): keyword arguments function that will be used for the generated function.
+       fun_name (str): name of the regenerated function. If empty it will be the ``target_kwargs_functon.__name__`` prefixed by ``regenerated``, which will be copied in the docstring of the regenerated function.
+       fun_docstring (str): docstring of the generated function, if empty it will take the docstring from ``target_kwargs_function``.
+       **kwargs: keyword arguments which will represent the signature of the generated function.
+       
+    Example:
+        >>> def write_kwargs(**kwargs):
+        >>>     """
+        >>>     Convert keyword arguments into a string
+        >>>     """
+        >>>     return str(kwargs)
+        >>> write_opts=function_signature_regenerator(write_kwargs,fun_name='write_opts',opt1='default1',opt2='default2')
+        >>> help(write_opts)
+        >>> print (write_opts())
+        Help on function write_opts:
+
+        write_opts(opt1='default1', opt2='default2')
+              Convert keyword arguments into a string
+
+        {'opt1': 'default1', 'opt2': 'default2'}
+        
+    '''
+    signature=form_command_line(',',**kwargs).lstrip(',')
+    docstring=target_kwargs_function.__doc__ if not fun_docstring else fun_docstring
+    if docstring is None: docstring="Automatically generated function from the target function '"+target_kwargs_function.__name__+"'"
+    docstring='   """\n'+docstring+'\n   """'
+    fname="regenerated_"+target_kwargs_function.__name__ if  not fun_name else fun_name
+    function="def %s(%s):\n%s\n   return target_function(%s)" % (fname,signature,docstring,signature)
+    gen_locals={}
+    gen_object=compile(function,'generated_fun','exec')
+    eval(gen_object,{'target_function':target_kwargs_function},gen_locals)
+    return gen_locals[fname]
+
 def kw_pop(*args,**kwargs):
-    """Treatment of kwargs. Eliminate from kwargs the tuple in args."""
+    """
+    Treatment of kwargs. Eliminate from kwargs the tuple in args.
+    """
     arg=kwargs.copy()
     key,default=args
     if key in arg:
@@ -152,12 +229,42 @@ def _find_files_from_archive(re, archive):
         return [f for f in arch.getnames() 
                 if all(pattern in f for pattern in re.split('*'))]
 
+def ensure_copy(src,dest):
+    """Copy src into dest.
+    
+    Guarantees that the file indicated by ``dest`` is a copy of the file ``src``
+
+    Args:
+      src (str): path of the source file. Should be valid.
+      dest (src): path of the destination file
+
+    Returns:
+      bool: ``True`` if the file needed to be copied, ``False`` if ``src`` and ``dest`` are identical
+    """
+    import shutil,os
+    copied=False
+    if (os.path.isfile(dest) and os.stat(dest) != os.stat(src)) or not os.path.isfile(dest):
+        shutil.copy2(src,os.path.dirname(dest))
+        copied=True
+    return copied
+
 def ensure_dir(file_path):
-    """ Guarantees the existance on the directory given by the (relative) file_path """
+    """ 
+    Guarantees the existance on the directory given by the (relative) file_path 
+    
+    Args:
+       file_path (str): path of thh directory to be created
+
+    Returns:
+       bool: True if the directory needed to be created, False if it existed already
+    """
     import os
     directory = file_path
+    created=False
     if not os.path.exists(directory):
         os.makedirs(directory)
+        created=True
+    return created
 
 if __name__ == '__main__':
     import os
