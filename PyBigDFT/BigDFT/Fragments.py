@@ -13,7 +13,6 @@ Debye_to_AU = 0.393430307
 MULTIPOLE_ANALYSIS_KEYS = ['q0', 'q1', 'q2', 'sigma']
 PROTECTED_KEYS = MULTIPOLE_ANALYSIS_KEYS + ["frag"]
 
-
 class Lattice():
     """
     Defines the fundamental objects to deal with periodic systems
@@ -147,7 +146,6 @@ class Fragment():
        Define and describe if this API is also suitable for solid-state fragments
 
     """
-
     def __init__(self, atomlist=None, id='Unknown', units='AU'):
         self.atoms = []
         self.id = id
@@ -172,7 +170,6 @@ class Fragment():
     # def __str__(self):
     #    import yaml
     #    return yaml.dump({'Positions': self.atoms,'Properties': {'name': self.id}})
-
     def xyz(self, filename=None, units='atomic'):
         """
         Write the fragment positions in a xyz file.
@@ -853,7 +850,6 @@ def find_reference_fragment(refs, transformed):
         where_for_frags.append(
             [i + 1 for i, t in enumerate(transformed) if t == r])
     return where_for_frags
-
 
 def frag_average(ref, flist, clean_monopole=True):
     """

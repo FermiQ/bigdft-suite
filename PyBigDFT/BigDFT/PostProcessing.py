@@ -125,6 +125,7 @@ class BigDFTool(object):
 
         self.fragment_multipoles(**options)
 
+
     def set_fragment_multipoles(self, system, log):
         """
         Set the fragment multipoles of a system based on a run.
