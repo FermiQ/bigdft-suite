@@ -2,6 +2,7 @@
 
 """
 
+
 def _system_command(command, options, outfile=None):
     """
     Run the command as ``os.system (command + options)``
@@ -165,7 +166,8 @@ class BigDFTool(object):
             fragments with.
         """
         from os.path import join
-        from Spillage import compute_spillbase, process_metadata
+        from Spillage import compute_spillbase, process_metadata, \
+            compute_spillage
 
         # Define the input files.
         self.outfile = join(log.srcdir, "spillage.yaml")
@@ -183,10 +185,13 @@ class BigDFTool(object):
                                    outfile=houtfile)
 
         # Read in the matrices from file
-        sinvxh2 = compute_spillbase(soutfile, houtfile)
+        sinvxh, sinvxh2 = compute_spillbase(soutfile, houtfile)
 
         # Next we compute the indices associated with the target fragment.
         metadatafile = join(data_dir, "sparsematrix_metadata.dat")
         frag_indices = process_metadata(metadatafile, system)
+
+        spillage_array = compute_spillage(
+            sinvxh, sinvxh2, frag_indices, target)
 
         return spillage_array
