@@ -306,7 +306,7 @@ module module_input_keys
      real(gp), dimension(6) :: strtarget
      real(gp), dimension(:), pointer :: qmass
      real(gp) :: dtinit, dtmax           !< For FIRE
-     character(len=10) :: tddft_approach !< TD-DFT variables from *.tddft
+     type(f_enumerator) :: tddft_approach 
      character(len=max_field_length) :: dir_perturbation  !< Strings of the directory which contains the perturbation
      type(SIC_data) :: SIC               !< Parameters for the SIC methods
      !variables for SQNM
@@ -384,6 +384,9 @@ module module_input_keys
      !>id of the output wavefunctions
      character(len=64) :: outputpsiid
 
+     !> dump coupling matrix method
+     type(f_enumerator) :: dump_coupling_matrix
+     
      type(external_potential_descriptors) :: ep !< contains the multipoles for the external potential
      logical :: mp_centers_auto !< indicates whether the multipole centers shall be determined automatically (i.e. the atoms) or provided manually
      real(kind=8),dimension(:,:),pointer :: mp_centers !< contains the positions of the multipoles to be calculated
@@ -1695,6 +1698,18 @@ contains
           call set_output_wf_from_text(str,in%output_wf)
        case (OUTPUTPSIID)
           in%outputpsiid=val
+       case (DUMP_COUPLING_MATRIX)
+          str=val
+          select case(trim(str))
+          case('complete')
+             in%dump_coupling_matrix=DUMP_COUPLING_MATRIX_RPA_ENUM
+             call f_enum_attr(in%dump_coupling_matrix,DUMP_COUPLING_MATRIX_FXC_ENUM)
+             call f_enum_attr(in%dump_coupling_matrix,DUMP_COUPLING_MATRIX_SUM_ENUM)
+          case('rpa')
+             in%dump_coupling_matrix=DUMP_COUPLING_MATRIX_RPA_ENUM
+          case('fxc')
+             in%dump_coupling_matrix=DUMP_COUPLING_MATRIX_FXC_ENUM
+          end select
        end select
     case (DFT_VARIABLES)
        ! the DFT variables ------------------------------------------------------
@@ -2154,7 +2169,13 @@ contains
        ! the TDDFT variables ----------------------------------------------------
        select case (trim(dict_key(val)))
        case (TDDFT_APPROACH)
-          in%tddft_approach = val
+          str=val
+          select case(trim(str))
+          case('full')
+             in%tddft_approach = TDDFT_FULL_ENUM
+          case('TDA')
+             in%tddft_approach = TDDFT_TDA_ENUM
+          end select
        case (DECOMPOSE_PERTURBATION)
           in%dir_perturbation = val
           !add a slash to the directory name if not present
@@ -2521,6 +2542,7 @@ contains
     call f_zero(in%dir_perturbation)
     call f_zero(in%outputpsiid)
     call f_zero(in%naming_id)
+    in%dump_coupling_matrix=f_enumerator_null()
     in%projection=f_enumerator_null()
     nullify(in%gen_kpt)
     nullify(in%gen_wkpt)
@@ -2672,7 +2694,7 @@ contains
     implicit none
     type(input_variables), intent(inout) :: in
 
-    in%tddft_approach='NONE'
+    in%tddft_approach=ENUM_EMPTY
 
   END SUBROUTINE tddft_input_variables_default
 
@@ -2928,6 +2950,10 @@ contains
             err_name='BIGDFT_INPUT_VARIABLES_ERROR')
     end select
 
+
+    !determine the TDDFT approach, including the coupling matrix policy
+    if (in%tddft_approach /= 'NONE') call f_enum_attr(in%tddft_approach,in%dump_coupling_matrix)
+    
     call f_release_routine()
   END SUBROUTINE input_analyze
 

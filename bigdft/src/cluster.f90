@@ -1181,7 +1181,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
         !start the Casida's treatment
         !if (in%tddft_approach=='TDA') then
         
-        if (in%tddft_approach .ne. 'none') then
+        if (in%tddft_approach /= 'NONE') then
 
            !does it make sense to use GPU only for a one-shot sumrho?
            if (GPU%OCLconv) then
