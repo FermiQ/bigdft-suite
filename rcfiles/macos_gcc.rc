@@ -9,10 +9,10 @@ modules = ['spred',]
 
 #example of the potentialities of the python syntax in this file
 def env_configuration():
-    #return  (""" "FC=mpifort" "CC=gcc-8" "CXX=g++-8" "FCFLAGS=-O2 -fopenmp -mtune=native" """
-    #        """"--with-ext-linalg=-framework Accelerate" """)
-    return  (""" "FC=mpifort" "CC=gcc-8" "CXX=g++-8" "FCFLAGS=-O0 -fopenmp -mtune=native" """
+    return  (""" "FC=mpifort" "CC=gcc-8" "CXX=g++-8" "FCFLAGS=-O2 -fopenmp -mtune=native" """
             """"--with-ext-linalg=-framework Accelerate" """)
+    #return  (""" "FC=mpifort" "CC=gcc-8" "CXX=g++-8" "FCFLAGS=-O0 -fopenmp -mtune=native" """
+    #        """"--with-ext-linalg=-framework Accelerate" """)
 
 #the following command sets the environment variable to give these settings
 #to all the modules

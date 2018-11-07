@@ -13,16 +13,13 @@ def _system_command(command, options, outfile=None):
        command (str):
        options (str):
     """
-    from os import system
-
-    command_str = command + " " + options
-
-    print(command_str)
+    from subprocess import call
 
     if outfile:
-        system(command_str + " > " + outfile)
+        with open(outfile, "w") as ofile:
+            call(command_str, shell=True, stdout=ofile)
     else:
-        system(command_str)
+        call(command_str, shell=True)
 
 
 def _get_datadir(log):
@@ -67,9 +64,10 @@ class BigDFTool(object):
         from copy import deepcopy
 
         # Executables
-        self.bigdft_tool_command = join("$BIGDFT_ROOT", "bigdft-tool")
-        self.utilities_command = mpi_run + join("$BIGDFT_ROOT", "utilities")
-        self.memguess_command = join("$BIGDFT_ROOT", "memguess")
+        bigdftroot = environ['BIGDFT_ROOT']
+        self.bigdft_tool_command = join(bigdftroot, "bigdft-tool")
+        self.utilities_command = mpi_run + join(bigdftroot, "utilities")
+        self.memguess_command = join(bigdftroot, "memguess")
         environ['OMP_NUM_THREADS'] = str(omp)
 
         # Load the dictionary that defines all the operations.
@@ -148,7 +146,7 @@ class BigDFTool(object):
         mp_dict = mp_data["Orbital occupation"][0]["Fragment multipoles"]
 
         for frag, fdata in zip(system.fragments, mp_dict):
-            frag.set_purity_indicator(float(fdata["Purity indicator"]))
+            frag.purity_indicator = float(fdata["Purity indicator"])
             q0 = [float(x) for x in fdata["q0"]]
             q1 = [float(x) for x in fdata["q1"]]
             q2 = [float(x) for x in fdata["q2"]]
