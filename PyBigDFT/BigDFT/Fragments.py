@@ -347,6 +347,13 @@ class Fragment():
             dipole = np.array([dipole[2], dipole[0], dipole[1]])
         return dipole
 
+    def qcharge(self):
+        netcharge = self.Q(order=0)
+        for at in self.atoms:
+            zcharge = at["nzion"]
+            netcharge += zcharge
+        return netcharge
+
     def Q(self, atom=None, order=0):
         """
         Fragment Monopole, when the information is available.
