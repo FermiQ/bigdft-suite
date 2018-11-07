@@ -16,10 +16,26 @@ def _system_command(command, options, outfile=None):
     from os import system
 
     command_str = command + " " + options
+
+    print(command_str)
+
     if outfile:
         system(command_str + " > " + outfile)
     else:
         system(command_str)
+
+
+def _get_datadir(log):
+    """
+    Given a log file, this returns the path to the data directory.
+
+    Args:
+      log (Logfile): logfile from a BigDFT run.
+    Returns:
+      str: path to the data directory.
+    """
+    from os.path import join
+    return join(log.srcdir, "data-" + log.log["radical"])
 
 
 class BigDFTool(object):
@@ -92,7 +108,7 @@ class BigDFTool(object):
         # Replace the default directory with the appropriate one if it is
         # available
         if log.log["radical"]:
-            data_dir = join(log.srcdir, "data-" + log.log["radical"])
+            data_dir = _get_datadir(log)
             for a, d in options.items():
                 if a == "mpirun" or a == "action" or a == "matrix_format":
                     continue
@@ -137,3 +153,40 @@ class BigDFTool(object):
             q1 = [float(x) for x in fdata["q1"]]
             q2 = [float(x) for x in fdata["q2"]]
             frag.set_fragment_multipoles(q0, q1, q2)
+
+    def compute_spillage(self, system, log, target):
+        """
+        Compute a measure of the spillage interaction between fragments.
+
+        Args:
+          system (System): instance of a System class, which defines the
+          fragments we will use.
+          log (Logfile): instance of a Logfile class
+          target (int): which fragment to compute the spillage of all other
+            fragments with.
+        """
+        from os.path import join
+        from Spillage import compute_spillbase
+
+        # Define the input files.
+        self.outfile = join(log.srcdir, "spillage.yaml")
+        spillage_array = []
+        data_dir = _get_datadir(log)
+        sfile = join(data_dir, "overlap_sparse.txt")
+        soutfile = join(data_dir, "overlap_sparse.ccs")
+        hfile = join(data_dir, "hamiltonian_sparse.txt")
+        houtfile = join(data_dir, "hamiltonian_sparse.ccs")
+
+        # First convert to CCS matrix format
+        self.convert_matrix_format(conversion="bigdft_to_ccs", infile=sfile,
+                                   outfile=soutfile)
+        self.convert_matrix_format(conversion="bigdft_to_ccs", infile=hfile,
+                                   outfile=houtfile)
+
+        # Read in the matrices from file
+        sinvxh2 = compute_spillbase(soutfile, houtfile)
+
+        # Next we compute the indices associated with the target fragment.
+
+
+        return spillage_array
