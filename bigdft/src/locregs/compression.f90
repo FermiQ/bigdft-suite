@@ -46,7 +46,6 @@ module compression
      integer, dimension(:,:), pointer :: mask=>null() !<mask array of dimesion 3,nmseg_c+nmseg_f for psp application
   end type wfd_to_wfd
 
-
   public :: allocate_wfd,deallocate_wfd,copy_wavefunctions_descriptors
   public :: deallocate_wfd_to_wfd,nullify_wfd
   public :: nullify_wfd_to_wfd,tolr_set_strategy
@@ -60,20 +59,21 @@ contains
   pure function wfd_null() result(wfd)
     implicit none
     type(wavefunctions_descriptors) :: wfd
-    !call nullify_wfd(wfd)
+    call nullify_wfd(wfd)
   end function wfd_null
 
   pure subroutine nullify_wfd(wfd)
     implicit none
     type(wavefunctions_descriptors), intent(out) :: wfd
-!!$    wfd%nvctr_c=0
-!!$    wfd%nvctr_f=0
-!!$    wfd%nseg_c=0
-!!$    wfd%nseg_f=0
-!!$    nullify(wfd%keyglob)
-!!$    nullify(wfd%keygloc)
-!!$    nullify(wfd%keyvglob)
-!!$    nullify(wfd%keyvloc)
+    wfd%nvctr_c=0
+    wfd%nvctr_f=0
+    wfd%nseg_c=0
+    wfd%nseg_f=0
+    nullify(wfd%keyglob)
+    nullify(wfd%keygloc)
+    nullify(wfd%keyvglob)
+    nullify(wfd%keyvloc)
+    nullify(wfd%buffer)
   end subroutine nullify_wfd
 
   pure subroutine nullify_wfd_pointers(wfd)
@@ -92,10 +92,10 @@ contains
   pure subroutine nullify_wfd_to_wfd(tolr)
     implicit none
     type(wfd_to_wfd), intent(out) :: tolr
-!!$    tolr%strategy=STRATEGY_SKIP
-!!$    tolr%nmseg_c=0
-!!$    tolr%nmseg_f=0
-!!$    nullify(tolr%mask)
+    tolr%strategy=STRATEGY_SKIP
+    tolr%nmseg_c=0
+    tolr%nmseg_f=0
+    nullify(tolr%mask)
   end subroutine nullify_wfd_to_wfd
 
   !destructors
@@ -132,6 +132,7 @@ contains
   !> here we should have already defined the number of segments
   subroutine allocate_wfd(wfd,global)
     use dynamic_memory
+    use f_utils, only: f_get_option
     implicit none
     type(wavefunctions_descriptors), intent(inout) :: wfd
     logical, intent(in), optional :: global
@@ -139,8 +140,9 @@ contains
     logical :: global_
     integer :: nsegs
 
-    global_=.false.
-    if(present(global)) global_=global
+    global_=f_get_option(opt=global,default=.false.)
+!!$    global_=.false.
+!!$    if(present(global)) global_=global
 
     nsegs=max(1,wfd%nseg_c+wfd%nseg_f)
 !!$    wfd%keyvloc=f_malloc_ptr(nsegs,id='wfd%keyvloc')
@@ -189,14 +191,17 @@ contains
   end function wfd_has_global_shape
 
   subroutine assemble_wfd(wfd,global)
+    use f_utils, only: f_get_option
     implicit none
     type(wavefunctions_descriptors), intent(inout) :: wfd    
     logical, intent(in), optional :: global
     !local variables
     logical :: global_
 
-    global_=wfd_has_global_shape(wfd) !.false.
-    if(present(global)) global_=global
+!!$    global_=wfd_has_global_shape(wfd) !.false.
+!!$    if(present(global)) global_=global
+    
+    global_=f_get_option(opt=global,default=wfd_has_global_shape(wfd))
 
     call associate_wfd(wfd,max(1,wfd%nseg_c+wfd%nseg_f),global_)
   end subroutine assemble_wfd
@@ -475,7 +480,7 @@ contains
 
     call fill_wblas_segs(wfd_w%nseg_c,wfd_p%nseg_c,nmseg_c,&
          nbsegs_cf(1),keyag_lin_cf(1),wfd_w%keyglob(1,1),wfd_p%keyglob(1,1),&
-         wfd_w%keyvglob(1),wfd_p%keyvglob(1),mask(1,1))
+         wfd_w%keyvglob(1),wfd_p%keyvglob(1),mask)
     if (nmseg_f > 0) then
        call fill_wblas_segs(wfd_w%nseg_f,wfd_p%nseg_f,nmseg_f,&
             nbsegs_cf(wfd_p%nseg_c+1),keyag_lin_cf(wfd_w%nseg_c+1),&

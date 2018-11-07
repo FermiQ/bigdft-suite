@@ -261,13 +261,13 @@ subroutine createPcProjectorsArrays(iproc,nproc,n1,n2,n3,rxyz,at,orbs,&
 
 
 
-  PPD%pc_nl%natoms=at%astruct%nat
+  PPD%pc_nl%nregions=at%astruct%nat
   call allocate_daubechies_projectors_ptr(PPD%pc_nl%projs, at%astruct%nat)
 
   logrid = f_malloc((/ 0.to.n1, 0.to.n2, 0.to.n3 /),id='logrid')
 
 
-  call localize_projectors(iproc,nproc,n1,n2,n3,hx,hy,hz,Pcpmult,fpmult,rxyz,&
+  call localize_projectors(iproc,nproc,Glr%mesh_coarse,Pcpmult,fpmult,rxyz,&
        logrid,at,orbs,PPD%pc_nl)
 
   ! the above routine counts atomic projector and the number of their element for psp
@@ -276,7 +276,7 @@ subroutine createPcProjectorsArrays(iproc,nproc,n1,n2,n3,rxyz,at,orbs,&
 
   ! allocations for arrays holding the projectors and their data descriptors
   !here the allocation is possible
-  do iat=1,PPD%pc_nl%natoms
+  do iat=1,PPD%pc_nl%nregions
      !for the moments the bounds are not needed for projectors
      call allocate_wfd(PPD%pc_nl%projs(iat)%region%plr%wfd)
   end do
@@ -320,8 +320,8 @@ subroutine createPcProjectorsArrays(iproc,nproc,n1,n2,n3,rxyz,at,orbs,&
 
         call bounds_to_plr_limits(.false.,1,PPD%pc_nl%projs(iat)%region%plr,nl1,nl2,nl3,nu1,nu2,nu3)
 
-        call fill_logrid(at%astruct%geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,0,1,  &
-             &   at%astruct%ntypes,at%astruct%iatype(iat),rxyz(1,iat),at%radii_cf(1,3),Pcpmult,hx,hy,hz,logrid)
+        call fill_logrid(Glr%mesh_coarse,nl1,nu1,nl2,nu2,nl3,nu3,0,1,  &
+             &   at%astruct%ntypes,at%astruct%iatype(iat),rxyz(1,iat),at%radii_cf(1,3),Pcpmult,logrid)
 
         mseg=PPD%pc_nl%projs(iat)%region%plr%wfd%nseg_c
 
@@ -335,8 +335,8 @@ subroutine createPcProjectorsArrays(iproc,nproc,n1,n2,n3,rxyz,at,orbs,&
         nprojel_tmp =nprojel_tmp +mproj*mvctr
 
         call bounds_to_plr_limits(.false.,2,PPD%pc_nl%projs(iat)%region%plr,nl1,nl2,nl3,nu1,nu2,nu3)
-        call fill_logrid(at%astruct%geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,0,1,  &
-             &   at%astruct%ntypes,at%astruct%iatype(iat),rxyz(1,iat),at%radii_cf(1,2),fpmult,hx,hy,hz,logrid)
+        call fill_logrid(Glr%mesh_coarse,nl1,nu1,nl2,nu2,nl3,nu3,0,1,  &
+             &   at%astruct%ntypes,at%astruct%iatype(iat),rxyz(1,iat),at%radii_cf(1,2),fpmult,logrid)
         iseg=PPD%pc_nl%projs(iat)%region%plr%wfd%nseg_c+1
         mseg=PPD%pc_nl%projs(iat)%region%plr%wfd%nseg_f
 
@@ -548,7 +548,7 @@ subroutine createPawProjectorsArrays(iproc,n1,n2,n3,rxyz,at,orbs,&
   !-------------------
 
   ! allocations for arrays holding the projectors and their data descriptors
-  do iat=1,PAWD%paw_nl%natoms
+  do iat=1,PAWD%paw_nl%nregions
      !for the moments the bounds are not needed for projectors
      call allocate_wfd(PAWD%paw_nl%projs(iat)%region%plr%wfd)
   end do
@@ -581,8 +581,8 @@ subroutine createPawProjectorsArrays(iproc,n1,n2,n3,rxyz,at,orbs,&
 
            call bounds_to_plr_limits(.false.,1,PAWD%paw_nl%projs(iat)%region%plr,nl1,nl2,nl3,nu1,nu2,nu3)
 
-           call fill_logrid(at%astruct%geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,0,1,  &
-                &   at%astruct%ntypes,at%astruct%iatype(iatat),rxyz(1,iatat),at%radii_cf(1,3),Pcpmult,hx,hy,hz,logrid)
+           call fill_logrid(Glr%mesh_coarse,nl1,nu1,nl2,nu2,nl3,nu3,0,1,  &
+                &   at%astruct%ntypes,at%astruct%iatype(iatat),rxyz(1,iatat),at%radii_cf(1,3),Pcpmult,logrid)
 
            mseg=PAWD%paw_nl%projs(iat)%region%plr%wfd%nseg_c
 
@@ -595,8 +595,8 @@ subroutine createPawProjectorsArrays(iproc,n1,n2,n3,rxyz,at,orbs,&
 
            call bounds_to_plr_limits(.false.,2,PAWD%paw_nl%projs(iat)%region%plr,&
                 nl1,nl2,nl3,nu1,nu2,nu3)
-           call fill_logrid(at%astruct%geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,0,1,  &
-                &   at%astruct%ntypes,at%astruct%iatype(iatat),rxyz(1,iatat),at%radii_cf(1,2),1*fpmult,hx,hy,hz,logrid)
+           call fill_logrid(Glr%mesh_coarse,nl1,nu1,nl2,nu2,nl3,nu3,0,1,  &
+                &   at%astruct%ntypes,at%astruct%iatype(iatat),rxyz(1,iatat),at%radii_cf(1,2),1*fpmult,logrid)
 
            iseg=PAWD%paw_nl%projs(iat)%region%plr%wfd%nseg_c+1
            mseg=PAWD%paw_nl%projs(iat)%region%plr%wfd%nseg_f
@@ -703,6 +703,7 @@ subroutine localize_projectors_paw(iproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,&
   use module_types
   use module_abscalc
   use psp_projectors_base
+  use box
   use psp_projectors, only: pregion_size, bounds_to_plr_limits
   implicit none
   integer, intent(in) :: iproc,n1,n2,n3
@@ -720,6 +721,7 @@ subroutine localize_projectors_paw(iproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,&
   integer :: ikpt,nkptsproj,ikptp
   real(gp) :: maxfullvol,totfullvol,totzerovol,zerovol,fullvol,maxrad,maxzerovol,rad
   integer :: natpaw
+  type(cell) :: mesh
 
   if (iproc.eq.0) then
      write(*,'(1x,a)')&
@@ -762,9 +764,10 @@ subroutine localize_projectors_paw(iproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,&
         end if
      end if
   end do
-  PAWD%paw_nl%natoms=natpaw
+  PAWD%paw_nl%nregions=natpaw
 
-  call allocate_daubechies_projectors_ptr(PAWD%paw_nl%projs, PAWD%paw_nl%natoms)
+  call allocate_daubechies_projectors_ptr(PAWD%paw_nl%projs, PAWD%paw_nl%nregions)
+  mesh=cell_new(at%astruct%geocode,[n1+1,n2+1,n3+1],[hx,hy,hz])
 
   natpaw=0
   do iat=1,at%astruct%nat
@@ -779,8 +782,8 @@ subroutine localize_projectors_paw(iproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,&
            PAWD%paw_nl%nproj=PAWD%paw_nl%nproj+mproj
 
            ! coarse grid quantities
-           call pregion_size(at%astruct%geocode,rxyz(1,iat),at%radii_cf(at%astruct%iatype(iat),3),cpmult, &
-                hx,hy,hz,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3)
+           call pregion_size(mesh,rxyz(1,iat),at%radii_cf(at%astruct%iatype(iat),3),cpmult, &
+                nl1,nu1,nl2,nu2,nl3,nu3)
 
            call bounds_to_plr_limits(.true.,1,PAWD%paw_nl%projs(natpaw)%region%plr,&
                  nl1,nl2,nl3,nu1,nu2,nu3)
@@ -800,9 +803,9 @@ subroutine localize_projectors_paw(iproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,&
 
            ! fine grid quantities
 
-           call pregion_size(at%astruct%geocode,rxyz(1,iat),at%radii_cf(at%astruct%iatype(iat),2),&
+           call pregion_size(mesh,rxyz(1,iat),at%radii_cf(at%astruct%iatype(iat),2),&
                 fpmult,&
-                hx,hy,hz,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3)
+                nl1,nu1,nl2,nu2,nl3,nu3)
 
            call bounds_to_plr_limits(.true.,2,PAWD%paw_nl%projs(natpaw)%region%plr,&
                  nl1,nl2,nl3,nu1,nu2,nu3)
@@ -832,15 +835,15 @@ subroutine localize_projectors_paw(iproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,&
            !! the following is necessary to the creation of preconditioning projectors
 
            ! coarse grid quantities
-           call pregion_size(at%astruct%geocode,rxyz(1,iat),at%radii_cf(at%astruct%iatype(iat),3),cpmult, &
-                hx,hy,hz,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3)
+           call pregion_size(mesh,rxyz(1,iat),at%radii_cf(at%astruct%iatype(iat),3),cpmult, &
+                nl1,nu1,nl2,nu2,nl3,nu3)
            
            call bounds_to_plr_limits(.true.,1,PAWD%paw_nl%projs(natpaw)%region%plr,&
                 nl1,nl2,nl3,nu1,nu2,nu3)
 
            ! fine grid quantities
-           call pregion_size(at%astruct%geocode,rxyz(1,iat),at%radii_cf(at%astruct%iatype(iat),2),fpmult,&
-                hx,hy,hz,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3)
+           call pregion_size(mesh,rxyz(1,iat),at%radii_cf(at%astruct%iatype(iat),2),fpmult,&
+                nl1,nu1,nl2,nu2,nl3,nu3)
 
            call bounds_to_plr_limits(.true.,2,PAWD%paw_nl%projs(natpaw)%region%plr,&
                 nl1,nl2,nl3,nu1,nu2,nu3)

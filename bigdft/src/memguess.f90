@@ -1616,10 +1616,9 @@ program memguess
       call orbital_basis_associate(ob,orbs=runObj%rst%KSwfn%orbs,&
            & Lzd=runObj%rst%KSwfn%Lzd,id='memguess')
       call createProjectorsArrays(iproc,nproc,runObj%rst%KSwfn%Lzd%Glr, &
-           & runObj%atoms%astruct%rxyz,runObj%atoms,ob, &
+           & runObj%atoms%astruct%rxyz,runObj%atoms,ob%orbs, &
            & runObj%inputs%frmult,runObj%inputs%frmult, &
-           & runObj%rst%KSwfn%Lzd%hgrids(1),runObj%rst%KSwfn%Lzd%hgrids(2), &
-           & runObj%rst%KSwfn%Lzd%hgrids(3),runObj%inputs%projection,.false.,nlpsp,.true.)
+           & runObj%inputs%projection,.false.,nlpsp,.true.)
       call orbital_basis_release(ob)
       ikpt = 1
       iat = 1

@@ -976,9 +976,9 @@ contains
       type(pspiof_projector_t) :: proj
       type(pspiof_xc_t) :: xc
       integer, dimension(2, 12) :: indices
-      integer :: ierr, i, n, l, j
+      integer :: ierr, i, n, l, j, ii
       character(len = PSPIO_STRLEN_ERROR) :: expl
-      real(gp) :: rloc, r, pot
+      real(gp) :: rloc, r, pot, tt
       real(gp), parameter :: eps = 1e-4_gp
 
       if (f_err_raise(pspiof_pspdata_alloc(pspio) /= PSPIO_SUCCESS, &
@@ -1011,6 +1011,18 @@ contains
                if (psppar(l, n) == 0._gp) exit
             end do
          end if
+         ! Check radial projector norm for pseudos from PSPIO.
+         tt = 0._gp
+         do ii = 1, int(10.d0 / eps)
+            r = eps * ii
+            tt = tt + (pspiof_projector_eval(proj, r) ** 2)  * r * r * 1d-4
+         end do
+         if (f_err_raise(abs(1.d0-tt) > 1.d-2, &
+              & "Norm of the nonlocal PSP atom type " // filename // &
+              ' l=' // trim(yaml_toa(1)) // ' is ' // trim(yaml_toa(tt)) // &
+              " while it is supposed to be about 1.0.", err_name='BIGDFT_RUNTIME_ERROR')) &
+              & return
+         
          indices(:, i) = [l, n]
          psppar(l, n) = pspiof_projector_get_energy(proj)
          if (n == 1) then

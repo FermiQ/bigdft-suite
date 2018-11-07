@@ -491,7 +491,7 @@ module forces_linear
                   ilr=orbs%inwhichlocreg(iiorb)
                   call DFT_PSP_projectors_iter_new(iter, nlpsp)
                   do while (DFT_PSP_projectors_iter_next(iter, ilr, lzd%llr(ilr), lzd%glr))
-                     supfun_per_atom(iter%iat) = supfun_per_atom(iter%iat) + 1
+                     supfun_per_atom(iter%iregion) = supfun_per_atom(iter%iregion) + 1
                      nscalprod_send = nscalprod_send + 1 !ii
                   end do
                end do
