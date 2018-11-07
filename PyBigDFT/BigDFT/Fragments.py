@@ -14,136 +14,6 @@ MULTIPOLE_ANALYSIS_KEYS = ['q0', 'q1', 'q2', 'sigma']
 PROTECTED_KEYS = MULTIPOLE_ANALYSIS_KEYS + ["frag"]
 
 
-class XYZfile():
-    """
-    .. |filename_docs| replace::
-         The file which will be created. If None, the file will be eventually dumped in :class:~`sys.stdout`.
-
-    A class associated to a xyz input file as processed by BigDFT
-
-    :param filename: |filename_docs|
-    :type filename: string
-    :param units: The units of measure of the positions. Allowed avlues are 'atomic' or 'angstroem'
-    :type units: string
-    """
-
-    def __init__(self, filename=None, units='atomic'):
-        self.filename = filename
-        self.lines = []
-        self.units = units
-        self.fac = 1.0
-        if units == 'angstroem':
-            self.fac = AU_to_A
-
-    def append(self, array, basename='', names=None, attributes=None):
-        """
-        Add lines to the file position list
-
-        :param array: list of the atomic positions
-        :type array: list of  float triples
-        :param basename: base for the name of the atoms
-        :type basename: string
-        :param names: list of atom names. Will be appended to `basename` if the latter is present
-        :type names: list of strings
-        :param attributes: list of further attributes to be associated to each of the atoms.
-            Will be serialized close to each of the atomic positions
-        :type attributes: list of dictionaries
-        """
-        nm = basename
-        for i, r in enumerate(array):
-            if names is not None:
-                nm = basename + names[i]
-            line = str(nm)
-            for t in r:
-                line += ' ' + str(self.fac * t)
-            if attributes is not None:
-                line += ' ' + str(attributes[i])
-            self.lines.append(line + '\n')
-
-    def dump(self, position='w'):
-        """
-        Dump the file on the file system if filename has been provided,
-        otherwise dump on sys.stdout.
-
-        :param position: filename position statement. Only menaingful for a file dumping.
-        :type position: char
-        """
-        import sys
-        f = sys.stdout
-        if self.filename is not None:
-            f = open(self.filename, position)
-        f.write(str(len(self.lines)) + ' ' + str(self.units) + '\n')
-        f.write('# xyz dump \n')
-        # then the positions
-        for l in self.lines:
-            f.write(l)
-        if self.filename is not None:
-            f.close()
-
-
-def open_xyz(filename, nat, unit, comment, position='a'):
-    import sys
-    f = sys.stdout
-    if filename is not None:
-        f = open(filename, position)
-    if (position != 'a'):
-        f.write(str(nat) + ' ' + str(unit) + '\n')
-        f.write(comment + '\n')
-    return f
-
-
-def close_xyz(f, filename):
-    if filename is not None:
-        f.close()
-
-
-def dump_xyz_positions(f, array, basename='', names=None):
-    nm = basename
-    for i, r in enumerate(array):
-        if names is not None:
-            nm = basename + names[i]
-        f.write(str(nm) + ' ' + str(r[0]) + ' ' +
-                str(r[1]) + ' ' + str(r[2]) + '\n')
-
-
-def xyz_bc_spec(cell):
-    """
-    Defines the specification for expressing the Boundary Conditions starting from a cell vector.
-
-    :param cell: array of the (orthorhombic) cell. Should be 0.0 on directions with free BC.
-       If None is given, the BC are assumed to be Free.
-    :type cell: triple of floats or None
-    :returns: comment Line of the xyz file specifying the bc
-    :rtype: string
-    """
-    if cell is None:
-        return ""
-    elif cell[1] == 0.0 and cell[2] != 0.0:
-        return "surface " + str(cell[0]) + " 0.0 " + str(cell[2]) + " "
-    elif cell[1] == 0.0 and cell[2] == 0.0:
-        return "wire 0.0 0.0 " + cell[2] + " "
-    else:
-        return "periodic " + str(cell[0]) + " " + str(cell[1]) + " " + str(cell[2]) + " "
-
-
-def dump_xyz(array, basename='', units='atomic', names=None, filename=None, position='a', comment=None, cell=None):
-    """
-    Create a BigDFT xyz filename. Duplicates the meaning of the :class:`XYZfile` class.
-
-    :param filename: |filename_docs|
-    :type filename: string
-
-    .. todo::
-       Remove the duplication of operations in favour or the class.
-       Move the related operation into a lower-level module.
-    """
-    cmt = xyz_bc_spec(cell)
-    cmt += comment if comment is not None else '# xyz dump with basename "' + basename + '"'
-    f = open_xyz(filename, len(array), units, cmt, position)
-    dump_xyz_positions(f, array, basename=basename, names=names)
-    close_xyz(f, filename)
-
-
 class Lattice():
     """
     Defines the fundamental objects to deal with periodic systems
@@ -179,7 +49,9 @@ class Lattice():
 
 
 class RotoTranslation():
-    "Define a transformation which can be applied to a group of atoms"
+    """
+    Define a transformation which can be applied to a group of atoms
+    """
 
     def __init__(self, pos1, pos2):
         try:
@@ -190,7 +62,9 @@ class RotoTranslation():
             self.R, self.t, self.J = (None, None, 1.0e10)
 
     def dot(self, pos):
-        "Apply the rototranslations on the set of positions provided by pos"
+        """
+        Apply the rototranslations on the set of positions provided by pos
+        """
         import wahba as w
         import numpy as np
         if self.t is None:
@@ -253,9 +127,10 @@ class Fragment():
     Introduce the concept of fragment. This is a subportion of the system
     (it may also coincide with the system itself) that is made of atoms.
     Such fragment might have quantities associated to it, like its
-    electrostatic multipoles (charge, dipole, etc.) and also geometrical information
-    (center of mass, principla axis etc.). A Fragment might also be rototranslated
-    and combined with other moieteies to form a :class:`System`.
+    electrostatic multipoles (charge, dipole, etc.) and also geometrical
+    information (center of mass, principla axis etc.). A Fragment might also
+    be rototranslated and combined with other moieteies to form a
+    :class:`System`.
 
     :param list-type atomlist: list of atomic dictionaries defining the fragment
     :param string id: label of the fragment
@@ -275,7 +150,7 @@ class Fragment():
 
     def __init__(self, atomlist=None, id='Unknown', units='AU'):
         self.atoms = []
-        self.id = self.set_id(id)
+        self.id = id
         self.purity_indicator = 0
         self.to_AU = 1.0
         if units == 'A':
@@ -298,15 +173,16 @@ class Fragment():
     #    import yaml
     #    return yaml.dump({'Positions': self.atoms,'Properties': {'name': self.id}})
 
-    def set_id(self, id):
-        self.id = id
-
-    def set_purity_indicator(self, pi):
-        self.purity_indicator = pi
-
     def xyz(self, filename=None, units='atomic'):
-        "Write the fragment positions in a xyz file"
+        """
+        Write the fragment positions in a xyz file.
+
+        Args:
+            filename (str): the file to write to.
+            units (str): the units of the positions to write.
+        """
         import numpy as np
+        from XYZ import XYZfile
         f = XYZfile(filename, units=units)
         names = [self.element(at) for at in self.atoms]
         posarr = [np.ravel(r) for r in self.positions]
@@ -319,16 +195,19 @@ class Fragment():
         is suitable for putting in the posinp entry of an input file.
 
         Args:
-          units (str): units to write
+            units (str): units to write
         """
-        outdict = {"positions":[]}
+        outdict = {"positions": []}
         for at in self.atoms:
-            outdict["positions"].append({at["sym"]:at["r"]})
+            outdict["positions"].append({at["sym"]: at["r"]})
         outdict["units"] = units
         return outdict
 
     def dict(self):
-        "Transform the fragment information into a dictionary ready to be put as external potential"
+        """
+        Transform the fragment information into a dictionary ready to be put
+        as an external potential.
+        """
         lat = []
         for at in self.atoms:
             dat = at.copy()
@@ -347,10 +226,11 @@ class Fragment():
         """
         Include an atom in the fragment.
 
-        :param dictionary atom:
-             The dictionary of the atom. Should be provided in the yaml format of BigDFT atomic positions.
-        :param string sym: The symbol of the atom. Need positions when specified.
-        :param list positions: The atomic positions, given in fragment units.
+        Args:
+            atom (dict): The dictionary of the atom. Should be provided in the
+                yaml format of BigDFT atomic positions.
+            sym (str): The symbol of the atom. Need positions when specified.
+            positions (list): The atomic positions, given in fragment units.
         """
         if atom is not None:
             self.atoms.append(atom)
@@ -360,7 +240,12 @@ class Fragment():
             self.positions = self.__positions()  # update positions
 
     def element(self, atom):
-        "Provides the name of the element"
+        """
+        Provides the name of the element.
+
+        Args:
+            atom (dict): the atom for which to get the symbol of.
+        """
         el = GetSymbol(atom)
         if el == 'r':
             el = atom['sym']
@@ -392,7 +277,9 @@ class Fragment():
         return cc / qtot
 
     def transform(self, Rt):  # R=None,t=None):
-        "Apply a rototranslation of the fragment positions"
+        """
+        Apply a rototranslation of the fragment positions
+        """
         import numpy as np
         self.positions = Rt.dot(self.positions)
         #import wahba as w,numpy as np
@@ -410,7 +297,10 @@ class Fragment():
         # they should be transfomed accordingly, up the the dipoles at least
 
     def line_up(self):
-        "Align the principal axis of inertia of the fragments along the coordinate axis. Also shift the fragment such as its centroid is zero."
+        """
+        Align the principal axis of inertia of the fragments along the
+        coordinate axis. Also shift the fragment such as its centroid is zero.
+        """
         import numpy
         Shift = Translation(self.centroid())
         Shift.invert()
@@ -439,14 +329,18 @@ class Fragment():
         return I
 
     def q0(self, atom):
-        "Provides the charge of the atom"
+        """
+        Provides the charge of the atom
+        """
         charge = atom.get('q0')
         if charge is not None:
             charge = charge[0]
         return charge
 
     def q1(self, atom):
-        "Provides the dipole of the atom"
+        """
+        Provides the dipole of the atom
+        """
         import numpy as np
         dipole = atom.get('q1')  # they are (so far) always given in AU
         if dipole is not None:
@@ -505,7 +399,9 @@ class Fragment():
         self.q2_val = q2
 
     def d0(self, center=None):
-        "Fragment dipole, calculated only from the atomic charges"
+        """
+        Fragment dipole, calculated only from the atomic charges
+        """
         # one might added a treatment for non-neutral fragments
         # but if the center of charge is used the d0 value is zero
         import numpy as np
@@ -525,7 +421,9 @@ class Fragment():
             return None
 
     def d1(self, center=None):
-        "Fragment dipole including the atomic dipoles"
+        """
+        Fragment dipole including the atomic dipoles
+        """
         import numpy as np
         d1 = np.zeros(3)
         dtot = self.d0(center)
@@ -639,7 +537,9 @@ class System():
         return 'angstroem' if self.units == 'A' else 'atomic'
 
     def fill_from_xyz(self, file, nat_reference):
-        "Import the fragment information from a xyz file"
+        """
+        Import the fragment information from a xyz file
+        """
         fil = open(file, 'r')
         nat = 0
         iat = 0
@@ -715,7 +615,7 @@ class System():
         frag = Fragment(units=self.units)
         for iat, at in enumerate(mpd):
             frag.append(at)
-            if iat+1 in partition_table:
+            if iat + 1 in partition_table:
                 if len(frag) != 0:
                     self.append(frag)
                 frag = Fragment(units=self.units)
@@ -730,12 +630,13 @@ class System():
                 sym = GetSymbol(at_dict)
                 rxyz = at_dict[sym]
                 fragtemp.append({sym: rxyz})
-            fragtemp.set_id(frag[0])
+            fragtemp.id = frag[0]
             self.append(fragtemp)
         pass
 
     def xyz(self, filename=None, units='atomic'):
         import numpy as np
+        from XYZ import XYZfile
         f = XYZfile(filename, units)
         for i, frag in enumerate(self.fragments):
             names = [frag.element(at) for at in frag.atoms]
@@ -778,29 +679,39 @@ class System():
         return dc
 
     def append(self, frag):
-        "Append a fragment to the System class"
+        """
+        Append a fragment to the System class
+        """
         assert isinstance(frag, Fragment)
         self.fragments.append(frag)
         self.CMs.append(frag.centroid())  # update center of mass
 
     def pop(self, ifrag):
-        "Pop the fragment ifrag from the list of fragments"
+        """
+        Pop the fragment ifrag from the list of fragments
+        """
         self.CMs.pop(ifrag)
         return self.fragments.pop(ifrag)
 
     def centroid(self):
-        "Center of mass of the system"
+        """
+        Center of mass of the system
+        """
         import numpy
         return numpy.mean(self.CMs, axis=0)
 
     def central_fragment(self):
-        "Returns the fragment whose center of mass is closest to the centroid"
+        """
+        Returns the fragment whose center of mass is closest to the centroid
+        """
         import numpy as np
         return np.argmin([np.dot(dd, dd.T) for dd in (self.CMs - self.centroid())])
         # return self.fragments[imin]
 
     def fragment_transformation(self, frag1, frag2):
-        "returns the transformation among fragments if exists"
+        """
+        Returns the transformation among fragments if exists
+        """
         return RotoTranslation(frag1.positions, frag2.positions)
         # try:
         #    import wahba
@@ -811,7 +722,9 @@ class System():
         # return roto,translation,J
 
     def decompose(self, reference_fragments):
-        "Decompose the system into reference fragments"
+        """
+        Decompose the system into reference fragments
+        """
         assert type(reference_fragments) == type([])
         self.decomposition = []
         for frag in self.fragments:
@@ -832,7 +745,9 @@ class System():
             self.decomposition.append(ref)
 
     def recompose(self, transformations=None, reference_fragments=None):
-        "Rebuild the system from a set of transformations"
+        """
+        Rebuild the system from a set of transformations
+        """
         import copy
         import numpy as np
         if transformations is not None:
@@ -856,11 +771,17 @@ class System():
             self.append(frag)
 
     def Q(self):
-        "Provides the global monopole of the system given as a sum of the monopoles of the atoms"
+        """
+        Provides the global monopole of the system given as a sum of the
+        monopoles of the atoms
+        """
         return sum([f.Q() for f in self.fragments])
 
     def fragdict(self):
-        """ Provides the value of the dictionary fragment to be used for the inputfile in a fragment calculation """
+        """
+        Provides the value of the dictionary fragment to be used for the
+        inputfile in a fragment calculation
+        """
         refs = []
         for t in self.templates:
             if t not in refs:
@@ -875,7 +796,9 @@ class System():
 # create the directory of the template file
 
 
-def prepare_fragment_inputs(name, directory='.', flavour='Isolated', system=None, template=None, template_dir=None, template_name=None):
+def prepare_fragment_inputs(name, directory='.', flavour='Isolated',
+                            system=None, template=None, template_dir=None,
+                            template_name=None):
     import shutil
     import os
     import yaml
@@ -913,7 +836,10 @@ def prepare_fragment_inputs(name, directory='.', flavour='Isolated', system=None
 
 
 def find_reference_fragment(refs, transformed):
-    """generate the list of fragments that are associates to a given list of templates"""
+    """
+    Generate the list of fragments that are associates to a given list of
+    templates
+    """
     import numpy as np
     where_for_frags = []
     for r in refs:
@@ -923,7 +849,10 @@ def find_reference_fragment(refs, transformed):
 
 
 def frag_average(ref, flist, clean_monopole=True):
-    "Perform the average in attributes of the fragments provided by the list, with the position of the first fragment"
+    """
+    Perform the average in attributes of the fragments provided by the
+    list, with the position of the first fragment
+    """
     import copy
     import numpy as np
     keys = ['q0', 'q1', 'q2']
@@ -951,7 +880,9 @@ def frag_average(ref, flist, clean_monopole=True):
 
 
 def distance(i, j, cell=None):
-    "Distance between fragments, defined as distance between center of mass"
+    """
+    Distance between fragments, defined as distance between center of mass
+    """
     import numpy
     vec = i.centroid() - j.centroid()
     if cell:
@@ -962,12 +893,17 @@ def distance(i, j, cell=None):
 
 
 def build_transformations(RTlist, ref):
-    "Build the transformation list to be passed to the systems' creation via the transformation keyword"
+    """
+    Build the transformation list to be passed to the systems' creation via
+    the transformation keyword
+    """
     return [{'RT': RT, 'ref': ref} for RT in RTlist]
 
 
 def wahba_fragment(frag1, frag2):
-    "Solve the wahba's problem among fragments, deprecated routine"
+    """
+    Solve the wahba's problem among fragments, deprecated routine
+    """
     import wahba  # should be cleaned
     # For each of the fragment build the list of the coordinates
     roto, translation, J = wahba.rigid_transform_3D(
@@ -976,7 +912,9 @@ def wahba_fragment(frag1, frag2):
 
 
 def rotot_collection(ref_frag, lookup, fragments):
-    "Deprecated routine, only for backward compatibility"
+    """
+    Deprecated routine, only for backward compatibility
+    """
     W = []
     for f in lookup:
         refF = lookup[ref_frag]
@@ -1001,6 +939,7 @@ if __name__ == '__main__':
     # extract fragments
     import sys
     import numpy
+    from XYZ import XYZfile
     one1 = System(xyz='one-1.xyz')
     safe_print('Parsed', len(one1.fragments))
     safe_print(one1.xyz())

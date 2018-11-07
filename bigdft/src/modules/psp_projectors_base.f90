@@ -42,6 +42,7 @@ module psp_projectors_base
      integer :: iat !< Index of the atom this structure refers to.
      real(gp), dimension(3) :: rxyz !< Position of the center.
      real(gp), dimension(:), pointer :: normalized !< The normalisation value.
+     real(gp) :: radius, fine_radius
      integer :: kind
 
      ! Gaussian specifics
@@ -71,7 +72,7 @@ module psp_projectors_base
      logical :: on_the_fly             !< strategy for projector creation
      logical :: apply_gamma_target     !< apply the target identified by the gamma_mmp value
      type(f_enumerator) :: method                 !< Prefered projection method
-     integer :: nproj,nprojel,natoms   !< Number of projectors and number of elements
+     integer :: nproj,nprojel,nregions   !< Number of projectors and number of elements
      real(gp) :: zerovol               !< Proportion of zero components.
      type(atomic_projectors), dimension(:), pointer :: pbasis !< Projectors in their own basis.
      type(daubechies_projectors), dimension(:), pointer :: projs !< Projectors in their region in daubechies.
@@ -125,15 +126,15 @@ module psp_projectors_base
   end type atomic_projector_iter
 
   type, public :: DFT_PSP_projector_iter
-     type(DFT_PSP_projectors), pointer :: parent
-     type(daubechies_projectors), pointer :: current
+     type(DFT_PSP_projectors), pointer :: parent => null()
+     type(daubechies_projectors), pointer :: current => null()
 
-     type(nonlocal_psp_descriptors), pointer :: pspd
-     type(wfd_to_wfd), pointer :: tolr
-     integer :: iat
-     integer :: mproj
-     integer :: ncplx
-     real(wp), dimension(:), pointer :: coeff
+     type(nonlocal_psp_descriptors), pointer :: pspd => null()
+     type(wfd_to_wfd), pointer :: tolr => null()
+     integer :: iregion=0
+     integer :: mproj=0
+     integer :: ncplx=0
+     real(wp), dimension(:), pointer :: coeff => null()
   end type DFT_PSP_projector_iter
 
   public :: free_DFT_PSP_projectors
@@ -241,7 +242,7 @@ contains
 !!$    nl%method = f_enumerator_null()
     nl%nproj=0
     nl%nprojel=0
-    nl%natoms=0
+    nl%nregions=0
     nl%zerovol=100.0_gp
     nullify(nl%pbasis)
     nullify(nl%iagamma)
@@ -585,8 +586,8 @@ contains
        else if (iter%method == PROJECTION_RS_COLLOCATION) then
           call paw_to_wavelets_collocation(iter%parent%pawrad, &
                & iter%parent%pawtab%tproj(1, iter%riter), &
-               & ider, iter%lr, iter%parent%rxyz, iter%l, iter%cplx, &
-               & iter%proj, iter%proj_tmp, iter%wcol)
+               & ider, iter%lr, iter%parent%rxyz, iter%parent%radius, &
+               & iter%l, iter%cplx, iter%proj, iter%proj_tmp, iter%wcol)
        else if (iter%method == PROJECTION_MP_COLLOCATION) then
           call f_err_throw("Multipole preserving projection is not implemented for PAW.", &
                & err_name = 'BIGDFT_RUNTIME_ERROR')
@@ -601,7 +602,6 @@ contains
        do np = 1, iter%mproj
           !here the norm should be done with the complex components
           scpr = atomic_projector_iter_wnrm2(iter, np)
-          !print '(a,3(i6),1pe14.7,2(i6))','iat,l,m,scpr',iter%parent%iat,iter%l,np,scpr,ider,iter%istart_c
           if (abs(iter%normalisation-scpr) > 1.d-2) then
              if (abs(iter%normalisation-scpr) > 1.d-1) then
                 if (bigdft_mpi%iproc == 0) call yaml_warning( &
@@ -636,9 +636,9 @@ contains
     implicit none
     type(DFT_PSP_projectors), intent(inout) :: nlpsp
     type(locreg_descriptors), intent(in) :: lr, lr0
-    real(gp), dimension(3, nlpsp%natoms), intent(in) :: rxyz
+    real(gp), dimension(3, nlpsp%nregions), intent(in) :: rxyz
 
-    integer :: iat, iseg, j0, j1, ii, i0, i1, i2, i3, n1, n2, nb1, nb2, nbuf, nseg
+    integer :: ireg, iseg, j0, j1, ii, i0, i1, i2, i3, n1, n2, nb1, nb2, nbuf, nseg
     integer, dimension(:), allocatable :: nbsegs_cf,keyg_lin
 
     nb1 = lr%d%n1
@@ -647,17 +647,17 @@ contains
     n2 = lr0%d%n2
     nbuf = (nb1 - n1) / 2
     nseg = 0
-    do iat = 1, nlpsp%natoms
-       nseg = max(nseg, nlpsp%projs(iat)%region%plr%wfd%nseg_c+nlpsp%projs(iat)%region%plr%wfd%nseg_f)
+    do ireg = 1, nlpsp%nregions
+       nseg = max(nseg, nlpsp%projs(ireg)%region%plr%wfd%nseg_c+nlpsp%projs(ireg)%region%plr%wfd%nseg_f)
     end do
     nbsegs_cf = f_malloc(nseg, id = 'nbsegs_cf')
     keyg_lin = f_malloc(lr%wfd%nseg_c + lr%wfd%nseg_f, id = 'keyg_lin')
-    do iat = 1, nlpsp%natoms
-       call atomic_projectors_set_position(nlpsp%pbasis(iat), rxyz(:, iat))
-       nseg = nlpsp%projs(iat)%region%plr%wfd%nseg_c+nlpsp%projs(iat)%region%plr%wfd%nseg_f
+    do ireg = 1, nlpsp%nregions
+       call atomic_projectors_set_position(nlpsp%pbasis(ireg), rxyz(:, ireg))
+       nseg = nlpsp%projs(ireg)%region%plr%wfd%nseg_c+nlpsp%projs(ireg)%region%plr%wfd%nseg_f
        do iseg = 1, nseg
-          j0=nlpsp%projs(iat)%region%plr%wfd%keyglob(1,iseg)
-          j1=nlpsp%projs(iat)%region%plr%wfd%keyglob(2,iseg)
+          j0=nlpsp%projs(ireg)%region%plr%wfd%keyglob(1,iseg)
+          j1=nlpsp%projs(ireg)%region%plr%wfd%keyglob(2,iseg)
           ii=j0-1
           i3=ii/((n1+1)*(n2+1))
           ii=ii-i3*(n1+1)*(n2+1)
@@ -670,16 +670,16 @@ contains
           i0=i0+nbuf
           j0=i3*((nb1+1)*(nb2+1)) + i2*(nb1+1) + i0+1
           j1=i3*((nb1+1)*(nb2+1)) + i2*(nb1+1) + i1+1
-          nlpsp%projs(iat)%region%plr%wfd%keyglob(1,iseg)=j0
-          nlpsp%projs(iat)%region%plr%wfd%keyglob(2,iseg)=j1
+          nlpsp%projs(ireg)%region%plr%wfd%keyglob(1,iseg)=j0
+          nlpsp%projs(ireg)%region%plr%wfd%keyglob(2,iseg)=j1
        end do
-       nlpsp%projs(iat)%region%plr%mesh%ndims = lr%mesh%ndims
-       call f_free_ptr(nlpsp%projs(iat)%region%lut_tolr)
-       call free_tolr_ptr(nlpsp%projs(iat)%region%tolr)
+       nlpsp%projs(ireg)%region%plr%mesh%ndims = lr%mesh%ndims
+       call f_free_ptr(nlpsp%projs(ireg)%region%lut_tolr)
+       call free_tolr_ptr(nlpsp%projs(ireg)%region%tolr)
        if (nseg > 0) then
-          call set_wfd_to_wfd(lr, nlpsp%projs(iat)%region%plr, &
-               & keyg_lin, nbsegs_cf, nlpsp%projs(iat)%region%noverlap, &
-               & nlpsp%projs(iat)%region%lut_tolr, nlpsp%projs(iat)%region%tolr)
+          call set_wfd_to_wfd(lr, nlpsp%projs(ireg)%region%plr, &
+               & keyg_lin, nbsegs_cf, nlpsp%projs(ireg)%region%noverlap, &
+               & nlpsp%projs(ireg)%region%lut_tolr, nlpsp%projs(ireg)%region%tolr)
        end if
     end do
     call f_free(keyg_lin)
@@ -801,7 +801,7 @@ contains
   end subroutine rfunc_basis_from_paw
 
   subroutine paw_to_wavelets_collocation(pawrad, tproj, &
-       & ider, lr, rxyz, l, ncplx_p, psi, projector_real, w, mp_order)
+       & ider, lr, rxyz, radius, l, ncplx_p, psi, projector_real, w, mp_order)
     use box
     use m_paw_numeric
     use f_utils, only: f_zero
@@ -811,7 +811,8 @@ contains
     real(dp), dimension(pawrad%mesh_size), intent(in) :: tproj
     integer, intent(in) :: ider !<direction in which to perform the derivative (0 if any)
     type(locreg_descriptors), intent(in) :: lr !<projector descriptors for wavelets representation
-    real(gp), dimension(3), intent(in) :: rxyz !<center of the Gaussian
+    real(gp), dimension(3), intent(in) :: rxyz !<center of the projector
+    real(gp), intent(in) :: radius !<size of the projector
     integer, intent(in) :: l !< angular momentum
     integer, intent(in) :: ncplx_p !< 2 if the projector is supposed to be complex, 1 otherwise
     real(wp), dimension(lr%wfd%nvctr_c+7*lr%wfd%nvctr_f,ncplx_p, 2 * l - 1), intent(out) :: psi
@@ -826,6 +827,8 @@ contains
     type(ylm_coefficients) :: ylm
     real(dp), dimension(1) :: raux
     real(gp), dimension(:), allocatable :: d2
+    integer, dimension(2,3) :: nbox
+    double precision, parameter :: eps_mach=1.d-12
     !$ integer, external :: omp_get_thread_num, omp_get_num_threads
 
     call f_zero(psi)
@@ -841,7 +844,13 @@ contains
 
     do while(ylm_coefficients_next_m(ylm))
        call f_zero(projector_real)
-       boxit = lr%bit
+       if (all(lr%mesh%bc == 0)) then
+          boxit = lr%bit
+       else
+          nbox = box_nbox_from_cutoff(lr%mesh, rxyz, radius + &
+               & maxval(lr%mesh%hgrids) * eps_mach)
+          boxit = box_iter(lr%mesh, nbox)
+       end if
        ithread=0
        nthread=1
        !$omp parallel default(shared)&
@@ -871,7 +880,7 @@ contains
 
     iter%parent => nlpsp
     nullify(iter%current)
-    iter%iat = 0
+    iter%iregion = 0
     nullify(iter%pspd)
     nullify(iter%tolr)
     iter%mproj = 0

@@ -956,7 +956,7 @@ subroutine nonlocal_forces(lr,at,ob,nlpsp,paw,fsep,calculate_strten,strten)
 
                  !write(*,*) idir, psp_it%iat, falpha
                  if (idir < 4) then
-                    fsep(idir, psp_it%iat) = fsep(idir, psp_it%iat) + &
+                    fsep(idir, psp_it%iregion) = fsep(idir, psp_it%iregion) + &
                          & falpha * psi_it%kwgt * psi_it%occup * 2.0_gp
                  else
                     strten(idir - 3) = strten(idir - 3) + &
