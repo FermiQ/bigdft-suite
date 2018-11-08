@@ -10,8 +10,8 @@ def _system_command(command, options, outfile=None):
     Todo:
        remove outfile, this should be controlled by the script.
     Args:
-       command (str):
-       options (str):
+       command (str): the actual command to run.
+       options (str): the options to pass to the command.
     """
     from subprocess import call
 
@@ -87,12 +87,12 @@ class BigDFTool(object):
                 {"mpirun": {"default": "" + mpi_run + ""}}] + nspec["args"]
             nspec["args"] = [
                 {"action": {"default": "" + naction + ""}}] + nspec["args"]
-            my_action = get_python_function(partial(self.__invoke_command,
+            my_action = get_python_function(partial(self._invoke_command,
                                                     self.bigdft_tool_command),
                                             action, nspec)
             setattr(self, action, my_action)
 
-    def __invoke_command(self, command, **kwargs):
+    def _invoke_command(self, command, **kwargs):
         from futile.Utils import option_line_generator
         _system_command(command, option_line_generator(**kwargs), self.outfile)
 
@@ -167,31 +167,32 @@ class BigDFTool(object):
             fragments with.
         """
         from os.path import join
-        from Spillage import compute_spillbase, process_metadata, \
-            compute_spillage
+        from Spillage import MatrixMetadata, compute_spillbase, compute_spillage
 
         # Define the input files.
         self.outfile = join(log.srcdir, "spillage.yaml")
         spillage_array = []
         data_dir = _get_datadir(log)
         sfile = join(data_dir, "overlap_sparse.txt")
-        soutfile = join(data_dir, "overlap_sparse.ccs")
         hfile = join(data_dir, "hamiltonian_sparse.txt")
-        houtfile = join(data_dir, "hamiltonian_sparse.ccs")
 
-        # First convert to CCS matrix format
+        # First convert to binary matrix format
+        soutfile = join(data_dir, "overlap_sparse.ccs")
+        houtfile = join(data_dir, "hamiltonian_sparse.ccs")
         self.convert_matrix_format(conversion="bigdft_to_ccs", infile=sfile,
                                    outfile=soutfile)
         self.convert_matrix_format(conversion="bigdft_to_ccs", infile=hfile,
                                    outfile=houtfile)
 
-        # Read in the matrices from file
+        # Get the metadata
+        metadatafile = join(data_dir, "sparsematrix_metadata.dat")
+        metadata = MatrixMetadata(metadatafile)
+        frag_indices = metadata.get_frag_indices(system)
+
+        # Compute the necessary arrays
         sinvxh, sinvxh2 = compute_spillbase(soutfile, houtfile)
 
-        # Next we compute the indices associated with the target fragment.
-        metadatafile = join(data_dir, "sparsematrix_metadata.dat")
-        frag_indices = process_metadata(metadatafile, system)
-
+        # Compute the spillage array
         spillage_array = compute_spillage(
             sinvxh, sinvxh2, frag_indices, target)
 

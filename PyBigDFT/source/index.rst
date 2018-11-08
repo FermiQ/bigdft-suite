@@ -19,11 +19,11 @@ Module Members
 ==============
 
 Input file representation  and usage from Python
-  
+
 .. toctree:: inputfiles
 
 Input Actions on the BigDFT input file
-  
+
 .. toctree:: inputactions
 
 Analysis of Logfiles and Ground-state related properties
@@ -38,9 +38,13 @@ Calculators to be used with BigDFT package to trigger runs of the code
 
 .. toctree:: BigDFT.Calculators
 
+Actions you can perform to post process BigDFT results
+
+.. toctree:: BigDFT.PostProcessing
+
 (Py)BigDFT Tutorial page
 
-.. toctree:: 
+.. toctree::
    :maxdepth: 1
 
    tutorials

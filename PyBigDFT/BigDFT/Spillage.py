@@ -5,6 +5,81 @@ A module which contains the routines needed for computing the spillage values.
 #: Conversion between Atomic Units and Bohr
 AU_to_A = 0.52917721092
 
+class MatrixMetadata:
+    def __init__(self, filename):
+        """
+        This class contains the information stored in the sparse matrix
+        metadata file.
+
+        Args:
+          filename (str): the name of the metadata file to initialize from.
+
+        Attributes:
+          atoms (list): a list of atoms with their positions and associated
+            basis functions.
+          matdim (int): the dimension of the matrix.
+        """
+        self.atoms = []
+        symbol_lookup = []
+        with open(filename, "r") as ifile:
+            # Read the first line
+            matinfo = next(ifile).split()
+            self.matdim, natoms, ntypes = [int(x) for x in matinfo[:3]]
+            # Units
+            units = next(ifile).split()[0]
+            # skip geocode
+            line = next(ifile)
+            # skip shift?
+            line = next(ifile)
+            # get the symbol lookup information
+            for i in range(0, ntypes):
+                line = next(ifile).split()
+                symbol_lookup.append(line[2])
+            # Get the atom positions
+            for i in range(0, natoms):
+                line = next(ifile).split()
+                adict = {}
+                adict["sym"] = symbol_lookup[int(line[0]) - 1]
+                positions = [float(x) for x in line[1:4]]
+                if units == "angstroem":
+                    positions = [x * AU_to_A for x in positions]
+                adict["r"] = positions
+                adict["indices"] = []
+                self.atoms.append(adict)
+            # Get the indices
+            for i in range(0, self.matdim):
+                line = next(ifile).split()
+                self.atoms[int(line[0]) - 1]["indices"].append(i)
+
+    def get_frag_indices(self, system):
+        """
+        Retrive the indices of the matrix associated with each fragment
+        of a system.
+
+        Args:
+          system (Fragments.System): the set of fragments to get the indices
+            of.
+        """
+
+        from numpy import array
+        from numpy.linalg import norm
+        # Distance threshold to consider two atoms equal
+        thresh = 1e-5
+
+        # Now we associate this information with fragments.
+        frag_indices = []
+        for fragment in system.fragments:
+            temp_ind = []
+            # Find the atom that matches
+            for aj in fragment.atoms:
+                for ai in self.atoms:
+                    if norm(array(aj["r"]) - array(ai["r"])) < thresh:
+                        found = True
+                        temp_ind += ai["indices"]
+                        break
+            frag_indices.append(sorted(temp_ind))
+
+        return frag_indices
 
 def compute_spillage(sinvxh, sinvxh2, frag_indices, target):
     """
@@ -47,86 +122,6 @@ def compute_spillage(sinvxh, sinvxh2, frag_indices, target):
         spillage_values.append(right_t / denom_t)
 
     return spillage_values
-
-
-def process_metadata(mfile, system):
-    """
-    This routine processes the sparse matrix meta data file.
-
-    Args:
-      mfile (str): the filename of the metadata file.
-      system (list): the system associated with the file.
-    Returns:
-      list: a list that has for each fragment the indices of the matrix
-        associated with it.
-    """
-    from numpy import array
-    from numpy.linalg import norm
-    # Distance threshold to consider two atoms equal
-    thresh = 1e-5
-
-    # Get information about to each atom
-    atoms = _getatoms_from_metadata(mfile)
-
-    # Now we associate this information with fragments.
-    frag_indices = []
-    for fragment in system.fragments:
-        temp_ind = []
-        # Find the atom that matches
-        for aj in fragment.atoms:
-            for ai in atoms:
-                if norm(array(aj["r"]) - array(ai["r"])) < thresh:
-                    found = True
-                    temp_ind += ai["indices"]
-                    break
-        frag_indices.append(sorted(temp_ind))
-
-    return frag_indices
-
-
-def _getatoms_from_metadata(mfile):
-    """
-    This routine gets per atom information from a metadata file.
-
-    Args:
-      mfile (str): the filename of the metadata file.
-    Returns:
-      list: a list that has for each atom the information provided in the
-        metadata file in dictionary form.
-    """
-    atoms = []
-    symbol_lookup = []
-    with open(mfile, "r") as ifile:
-        # Read the first line
-        matinfo = next(ifile).split()
-        dim, natoms, ntypes = [int(x) for x in matinfo[:3]]
-        # Units
-        units = next(ifile).split()[0]
-        # skip geocode
-        line = next(ifile)
-        # skip shift?
-        line = next(ifile)
-        # get the symbol lookup information
-        for i in range(0, ntypes):
-            line = next(ifile).split()
-            symbol_lookup.append(line[2])
-        # Get the atom positions
-        for i in range(0, natoms):
-            line = next(ifile).split()
-            adict = {}
-            adict["sym"] = symbol_lookup[int(line[0]) - 1]
-            positions = [float(x) for x in line[1:4]]
-            if units == "angstroem":
-                positions = [x * AU_to_A for x in positions]
-            adict["r"] = positions
-            adict["indices"] = []
-            atoms.append(adict)
-        # Get the indices
-        for i in range(0, dim):
-            line = next(ifile).split()
-            atoms[int(line[0]) - 1]["indices"].append(i)
-
-        return atoms
 
 
 def compute_spillbase(sfile, hfile):
