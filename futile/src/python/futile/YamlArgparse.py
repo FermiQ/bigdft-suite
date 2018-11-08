@@ -32,10 +32,7 @@ def get_python_function(target_kwargs_function,func_name,func_spec):
     docstring=fspec.pop("help")
     if "shorthelp" in fspec: fspec.pop("shorthelp")
 
-    key_args = {}
-    for argspec in fspec["args"]:
-        key = argspec.keys()[0]
-        val = argspec[key]["default"]
-        key_args[key] = val
+    key_args = {key: val["default"] for (key, val) in fspec["args"].items()}
 
-    return fsr(target_kwargs_function,fun_name=func_name,fun_docstring=docstring,**key_args)
+    return fsr(target_kwargs_function, fun_name=func_name,
+               fun_docstring=docstring,**key_args)

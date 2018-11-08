@@ -4,46 +4,46 @@ fragment_multipoles:
     partitioning into fragments.
   tool: bigdft-tool
   args:
-  - matrix_format:
+    matrix_format:
       shorthelp: format of the sparse matrices.
       default: serial_text
-  - metadata_file:
+    metadata_file:
       shorthelp: input file with the sparse matrix metadata
       default: sparsematrix_metadata.dat
-  - fragment_file:
+    fragment_file:
       shorthelp: file with the fragment to be analyzed
       default: fragment.dat
-  - overlap_file:
+    overlap_file:
       shorthelp: input file with the overlap matrix
       default: overlap_sparse.txt
-  - kernel_file:
+    kernel_file:
       shorthelp: input file with the coefficients
       default: density_kernel_sparse.txt
-  - kernel_matmul_file:
+    kernel_matmul_file:
       shorthelp: kernel matrix multiplication sparsity pattern file.
       default: density_kernel_sparse_matmul.txt
-  - multipole_matrix_0_0:
+    multipole_matrix_0_0:
       default: mpmat_0_0.txt
-  - multipole_matrix_1_0:
+    multipole_matrix_1_0:
       default: mpmat_1_-1.txt
-  - multipole_matrix_1_1:
+    multipole_matrix_1_1:
       default: mpmat_1_0.txt
-  - multipole_matrix_1_2:
+    multipole_matrix_1_2:
       default: mpmat_1_1.txt
-  - multipole_matrix_2_0:
+    multipole_matrix_2_0:
       default: mpmat_2_-2.txt
-  - multipole_matrix_2_1:
+    multipole_matrix_2_1:
       default: mpmat_2_-1.txt
-  - multipole_matrix_2_2:
+    multipole_matrix_2_2:
       default: mpmat_2_0.txt
-  - multipole_matrix_2_3:
+    multipole_matrix_2_3:
       default: mpmat_2_1.txt
-  - multipole_matrix_2_4:
+    multipole_matrix_2_4:
       default: mpmat_2_2.txt
-  - orbital_file:
+    orbital_file:
       shorthelp: input file specifying which orbitals to include
       default: orbitals.yaml
-  - coeff_file:
+    coeff_file:
       shorthelp: input file with the coefficients
       default: coeff.txt
 matrixpower:
@@ -51,19 +51,19 @@ matrixpower:
   help: |
     Compute the powers of a matrix.
   args:
-  - inmatrix_file:
+    inmatrix_file:
       shorthelp: matrix A. Binary format.
       default: inmatrix.bin
-  - outmatrix_file:
+    outmatrix_file:
       shorthelp: matrix B. Binary format.
       default: outmatrix.bin
-  - nat:
+    nat:
       shorthelp: number of atoms
       default: 1
-  - nbasis:
+    nbasis:
       shorthelp: number of support functions
       default: 1
-  - power:
+    power:
       shorthelp: which power to raise the matrix to.
       default: 1.0
 multiply_matrices:
@@ -71,19 +71,19 @@ multiply_matrices:
     Multiply two matrices.
   tool: memguess
   args:
-  - amatrix_file:
+    amatrix_file:
       shorthelp: matrix A
       default: amatrix.bin
-  - bmatrix_file:
+    bmatrix_file:
       shorthelp: matrix B
       default: bmatrix.bin
-  - cmatrix_file:
+    cmatrix_file:
       shorthelp: matrix C
       default: cmatrix.bin
-  - nat:
+    nat:
       shorthelp: number of atoms
       default: 1
-  - nbasis:
+    nbasis:
       shorthelp: number of support functions
       default: 1
 convert_matrix_format:
@@ -91,12 +91,12 @@ convert_matrix_format:
     Convert between different matrix formats.
   tool: chess_toolbox
   args:
-  - conversion:
+    conversion:
       shorthelp: From which format to convert from and to.
       default: none
-  - infile:
+    infile:
       shorthelp: matrix to convert from.
       default: infile.dat
-  - outfile:
+    outfile:
       shorthelp: matrix to convert to.
       default: outfile.dat

@@ -83,10 +83,8 @@ class BigDFTool(object):
         for action, spec in db.items():
             naction = action.replace("_", "-")
             nspec = deepcopy(spec)
-            nspec["args"] = [
-                {"mpirun": {"default": "" + mpi_run + ""}}] + nspec["args"]
-            nspec["args"] = [
-                {"action": {"default": "" + naction + ""}}] + nspec["args"]
+            nspec["args"]["mpirun"] = {"default": "" + mpi_run + ""}
+            nspec["args"]["action"] = {"default": "" + naction + ""}
             my_action = get_python_function(partial(self._invoke_command,
                                                     self.bigdft_tool_command),
                                             action, nspec)
