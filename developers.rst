@@ -16,7 +16,7 @@ Choose the correct package in which to insert the developments
 The first question to ask yourself is the *generality* of the
 functionality you are going to implement.
 The spirit is to work at the lowest possible level for a given task.
-The main idea is to make available the functionality also to other potential
+The idea is to make available the functionality also to other potential
 users of the ```BigDFt-suite`` subpackages.
 This will also help in a better structure of the API of each package.
 

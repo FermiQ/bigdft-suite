@@ -28,13 +28,13 @@ module communications_init
       use module_base
       use module_types
       implicit none
-      
+
       ! Calling arguments
       integer,intent(in) :: iproc, nproc, imethod_overlap, npsidim_orbs, nspin
       type(orbitals_data),intent(in) :: orbs
       type(local_zone_descriptors),intent(in) :: lzd
       type(comms_linear),intent(inout) :: collcom
-      
+
       ! Local variables
       integer :: iorb, iiorb, ilr, istartp_seg_c, iendp_seg_c, istartp_seg_f, iendp_seg_f, i3, ii3, jj3min, jj3max, jj3
       integer :: ipt, nvalp_c, nvalp_f, i3s, n3p, ii, i, jjproc, jproc, ii3min, ii3max, np, n1p1, iseg, j0, j1
@@ -47,13 +47,13 @@ module communications_init
       integer :: i3start, i3end
       type(fmpi_win) :: window_c,window_f
       real(kind=8) :: weight_c_tot_check, weight_f_tot_check
-      
+
       real(kind=4) :: tr0, tr1, trt0, trt1
       real(kind=8) :: time0, time1, time2, time3, time4, time5, ttime
       logical, parameter :: extra_timing=.false.
 
       call timing(iproc,'init_collcomm ','ON')
-      if (extra_timing) call cpu_time(trt0)   
+      if (extra_timing) call cpu_time(trt0)
       call f_routine('init_comms_linear')
 
       ! method to calculate the overlap
@@ -142,12 +142,12 @@ module communications_init
       !!        end do
       !!    end if
       !!end do
-      
+
       !!write(*,*) 'ii3min, ii3max, jj3min, jj3max', ii3min, ii3max, jj3min, jj3max
 
       ii3min=i3start
       ii3max=i3end
-    
+
       !!index_in_global_c=f_malloc((/0.to.lzd%glr%d%n1,0.to.lzd%glr%d%n2,0.to.lzd%glr%d%n3/),id='index_in_global_c')
       !!index_in_global_f=f_malloc((/0.to.lzd%glr%d%n1,0.to.lzd%glr%d%n2,0.to.lzd%glr%d%n3/),id='index_in_global_f')
       !index_in_global_c=f_malloc((/0.to.lzd%glr%d%n1,0.to.lzd%glr%d%n2,ii3min.to.ii3max/),id='index_in_global_c')
@@ -160,12 +160,12 @@ module communications_init
       weightppp_c=f_malloc0((/0.to.lzd%glr%d%n1,0.to.lzd%glr%d%n2,1.to.max(1,n3p)/),id='weightppp_c')
       weightppp_f=f_malloc0((/0.to.lzd%glr%d%n1,0.to.lzd%glr%d%n2,1.to.max(1,n3p)/),id='weightppp_c')
 
-      
-    
+
+
       call get_weights(iproc, nproc, orbs, lzd, i3s, n3p, i3start, i3end, j3start, j3end, &
            weightloc_c, weightloc_f, window_c, window_f, weightppp_c, weightppp_f, &
            weight_c_tot_check, weight_f_tot_check)
-    
+
       ! Assign the grid points to the processes such that the work is equally distributed
       istartend_c=f_malloc((/1.to.2,0.to.nproc-1/),id='istartend_c')
       istartend_f=f_malloc((/1.to.2,0.to.nproc-1/),id='istartend_f')
@@ -182,7 +182,7 @@ module communications_init
 
       call f_free(weightloc_c)
       call f_free(weightloc_f)
-     
+
       if (extra_timing) call cpu_time(tr1)
       if (extra_timing) time0=real(tr1-tr0,kind=8)
 
@@ -193,26 +193,26 @@ module communications_init
       if (extra_timing) call cpu_time(tr1)
       if (extra_timing) time1=real(tr1-tr0,kind=8)
 
-      if (extra_timing) call cpu_time(tr0)   
+      if (extra_timing) call cpu_time(tr0)
       ! Determine the index of a grid point i1,i2,i3 in the compressed array
       call get_index_in_global2(lzd%glr, j3start, j3end, i3start, index_in_global_c, index_in_global_f)
-      if (extra_timing) call cpu_time(tr1)   
+      if (extra_timing) call cpu_time(tr1)
       if (extra_timing) time2=real(tr1-tr0,kind=8)
 
-      if (extra_timing) call cpu_time(tr0) 
+      if (extra_timing) call cpu_time(tr0)
       ! Determine values for mpi_alltoallv
       call allocate_MPI_communication_arrays(nproc, collcom)
       call determine_communication_arrays(iproc, nproc, npsidim_orbs, orbs, nspin, lzd, istartend_c, istartend_f, &
            j3start, j3end, i3start, index_in_global_c, index_in_global_f, nvalp_c, nvalp_f, &
            collcom%nsendcounts_c, collcom%nsenddspls_c, collcom%nrecvcounts_c, collcom%nrecvdspls_c, &
            collcom%nsendcounts_f, collcom%nsenddspls_f, collcom%nrecvcounts_f, collcom%nrecvdspls_f)
-      if (extra_timing) call cpu_time(tr1)   
+      if (extra_timing) call cpu_time(tr1)
       if (extra_timing) time3=real(tr1-tr0,kind=8)
-    
+
       !Now set some integers in the collcomm structure
       collcom%ndimind_c = sum(collcom%nrecvcounts_c)
       collcom%ndimind_f = sum(collcom%nrecvcounts_f)
-    
+
       ! Now rearrange the data on the process to communicate them
       collcom%ndimpsi_c=0
       do iorb=1,orbs%norbp
@@ -226,20 +226,20 @@ module communications_init
           ilr=orbs%inwhichlocreg(iiorb)
           collcom%ndimpsi_f=collcom%ndimpsi_f+lzd%llr(ilr)%wfd%nvctr_f
       end do
-    
+
       call allocate_local_comms_cubic(collcom)
-    
-      if (extra_timing) call cpu_time(tr0) 
+
+      if (extra_timing) call cpu_time(tr0)
       call determine_num_orbs_per_gridpoint_new(iproc, nproc, lzd, i3s, n3p, weightppp_c, weightppp_f, &
            i3start, istartend_c, istartend_f, &
            istartp_seg_c, iendp_seg_c, istartp_seg_f, iendp_seg_f, &
            weightp_c, weightp_f, collcom%nptsp_c, collcom%nptsp_f, &
            collcom%norb_per_gridpoint_c, collcom%norb_per_gridpoint_f)
-      if (extra_timing) call cpu_time(tr1)   
+      if (extra_timing) call cpu_time(tr1)
       if (extra_timing) time4=real(tr1-tr0,kind=8)
       call f_free(weightppp_c)
       call f_free(weightppp_f)
-      if (extra_timing) call cpu_time(tr0)   
+      if (extra_timing) call cpu_time(tr0)
       call get_switch_indices(iproc, nproc, orbs, lzd, nspin, &
            collcom%nptsp_c, collcom%nptsp_f, collcom%norb_per_gridpoint_c, collcom%norb_per_gridpoint_f, &
            collcom%ndimpsi_c, collcom%ndimpsi_f, istartend_c, istartend_f, &
@@ -250,9 +250,9 @@ module communications_init
            weightp_c, weightp_f, collcom%isendbuf_c, collcom%irecvbuf_c, collcom%isendbuf_f, collcom%irecvbuf_f, &
            collcom%indexrecvorbital_c, collcom%iextract_c, collcom%iexpand_c, &
            collcom%indexrecvorbital_f, collcom%iextract_f, collcom%iexpand_f)
-      if (extra_timing) call cpu_time(tr1)   
+      if (extra_timing) call cpu_time(tr1)
       if (extra_timing) time5=real(tr1-tr0,kind=8)
-    
+
       ! These variables are used in various subroutines to speed up the code
       collcom%isptsp_c(1) = 0
       do ipt=2,collcom%nptsp_c
@@ -262,7 +262,7 @@ module communications_init
           call f_err_throw(yaml_toa(maxval(collcom%isptsp_c))+'=maxval(collcom%isptsp_c) >&
                & collcom%ndimind_c='+yaml_toa(collcom%ndimind_c))
       end if
-    
+
       collcom%isptsp_f(1) = 0
       do ipt=2,collcom%nptsp_f
             collcom%isptsp_f(ipt) = collcom%isptsp_f(ipt-1) + collcom%norb_per_gridpoint_f(ipt-1)
@@ -271,23 +271,23 @@ module communications_init
           call f_err_throw(yaml_toa(maxval(collcom%isptsp_f))+'=maxval(collcom%isptsp_f) >&
                & collcom%ndimind_f='+yaml_toa(collcom%ndimind_f))
       end if
-    
+
       ! Not used any more, so deallocate...
       call f_free(istartend_c)
       call f_free(istartend_f)
-    
+
       call f_free(index_in_global_c)
       call f_free(index_in_global_f)
-        
+
       call f_release_routine()
-      
+
       call timing(iproc,'init_collcomm ','OF')
-      if (extra_timing) call cpu_time(trt1)   
+      if (extra_timing) call cpu_time(trt1)
       if (extra_timing) ttime=real(trt1-trt0,kind=8)
 
       if (extra_timing.and.iproc==0) print*,'time0,time1',time0,time1,time2,time3,time4,time5,&
            time0+time1+time2+time3+time4+time5,ttime
-  
+
     end subroutine init_comms_linear
 
 
@@ -304,7 +304,7 @@ module communications_init
       use bounds, only: get_extent_of_overlap
       use sparsematrix_init, only: distribute_on_threads
       implicit none
-      
+
       ! Calling arguments
       integer,intent(in) :: iproc, nproc, i3s, n3p, i3start, i3end, j3start, j3end
       type(orbitals_data),intent(in) :: orbs
@@ -315,7 +315,7 @@ module communications_init
       type(fmpi_win) ,intent(inout) :: window_c, window_f
       real(kind=8),dimension(0:lzd%glr%d%n1,0:lzd%glr%d%n2,1:max(1,n3p)),intent(out) :: weightppp_c, weightppp_f
       real(kind=8),intent(out) :: weight_c_tot_check, weight_f_tot_check
-      
+
       ! Local variables
       integer :: iorb, iiorb, i0, i1, i2, i3, ii, iseg, ilr, istart, iend, i, j0, j1, ii1, ii2, ii3, n1p1, np
       integer :: i3e, ii3s, ii3e, is, ie, jproc, ncount, jj3s, jj3e
@@ -329,23 +329,23 @@ module communications_init
       logical :: communicate
       integer,dimension(:,:),pointer :: ise
       !$ integer :: omp_get_thread_num
-    
+
       call f_routine(id='get_weights')
-    
+
       ii=(lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*(lzd%glr%d%n3+1)
-    
-   
+
+
 !      orbs_it=>orbital_iterator(orbs)
 !      do while(associated(orbs_it))
 !        iorb=get_absolute_orbital(orbs_it)
 !        ilr=get_orbital_locreg(orbs_it)
-!        
+!
 !        [....]
 !
 !        orbs_it=>orbital_next(orbs_it)
 !      end do
 
-    
+
       i3startend = f_malloc0((/1.to.4,0.to.nproc-1/),id='i3startend')
       i3startend(1,iproc) = i3start+1
       i3startend(2,iproc) = i3end+1
@@ -454,7 +454,7 @@ module communications_init
           !!    ! Start and end on task iproc, possibly out of box
           !!    ! The min is for cases where a task has more than the entire box
           !!    is=modulo(i3startend(1,iproc)-1,lzd%glr%d%n3+1)+1
-          !!    if (i3startend(2,iproc)-i3startend(1,iproc)>lzd%glr%d%n3) then 
+          !!    if (i3startend(2,iproc)-i3startend(1,iproc)>lzd%glr%d%n3) then
           !!        ie=modulo(min(is-1,i3startend(2,iproc))-1,lzd%glr%d%n3+1)+1
           !!    else
           !!        ie=modulo(i3startend(2,iproc)-1,lzd%glr%d%n3+1)+1
@@ -574,7 +574,7 @@ module communications_init
           !!    ! Start and end on task iproc, possibly out of box
           !!    ! The min is for cases where a task has more than the entire box
           !!    is=modulo(i3startend(1,iproc)-1,lzd%glr%d%n3+1)+1
-          !!    if (i3startend(2,iproc)-i3startend(1,iproc)>lzd%glr%d%n3) then 
+          !!    if (i3startend(2,iproc)-i3startend(1,iproc)>lzd%glr%d%n3) then
           !!        ie=modulo(min(is-1,i3startend(2,iproc))-1,lzd%glr%d%n3+1)+1
           !!    else
           !!        ie=modulo(i3startend(2,iproc)-1,lzd%glr%d%n3+1)+1
@@ -611,7 +611,7 @@ module communications_init
       call f_free(reducearr)
 
       call f_release_routine()
-    
+
     end subroutine get_weights
 
 
@@ -623,7 +623,7 @@ module communications_init
       use module_base
       use module_types
       implicit none
-      
+
       ! Calling arguments
       integer,intent(in) :: iproc, nproc, i3s, n3p
       type(local_zone_descriptors),intent(in) :: lzd
@@ -636,7 +636,7 @@ module communications_init
       real(kind=8),intent(out) :: weightp_c, weightp_f
       integer,intent(out) :: nptsp_c, nptsp_f
       integer,intent(out) :: nvalp_c, nvalp_f
-      
+
       ! Local variables
       integer :: jproc, i1, i2, i3, ii, istart, iend, j0, j1, ii_c, ii_f, n1p1, np, jjproc, jjjproc
       !!$$integer :: ii2, iiseg, jprocdone
@@ -656,8 +656,9 @@ module communications_init
       if (nproc>1) then
           !!call mpi_win_fence(0, window_c, ierr)
           !!call mpi_win_free(window_c, ierr)
-         call fmpi_win_fence(window_c,FMPI_WIN_CLOSE)
-         call fmpi_win_free(window_c)
+        !call fmpi_win_fence(window_c,FMPI_WIN_CLOSE)
+        !call fmpi_win_free(window_c)
+        call fmpi_win_shut(window_c)
          !call mpi_fenceandfree(window_c)
       end if
 
@@ -667,7 +668,8 @@ module communications_init
       end if
       if (tt/=weight_c_tot_check) then
           !write(*,'(a,2es20.10)') 'tt, weight_c_tot_check', tt, weight_c_tot_check
-          call f_err_throw(yaml_toa(tt)+'=tt /= weight_c_tot_check='+yaml_toa(weight_c_tot_check))
+          call f_err_throw(yaml_toa(tt)+'=tt /= weight_c_tot_check='+yaml_toa(weight_c_tot_check),&
+           err_name='BIGDFT_RUNTIME_ERROR')
       end if
 
       !write(*,*) 'sum(weightppp_c)', sum(weightppp_c)
@@ -691,14 +693,14 @@ module communications_init
       if (nproc>1) then
           call fmpi_allreduce(weight_tot_c, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
       end if
-    
-    
+
+
       weights_c_startend = f_malloc((/ 1.to.2, 0.to.nproc-1 /),id='weights_c_startend')
       weights_f_startend = f_malloc((/ 1.to.2, 0.to.nproc-1 /),id='weights_f_startend')
 
       ! Ideal weight per process.
       weight_c_ideal=weight_tot_c/dble(nproc)
-    
+
       tt=0.d0
       weights_c_startend(1,0)=0.d0
       do jproc=0,nproc-2
@@ -707,7 +709,7 @@ module communications_init
           weights_c_startend(1,jproc+1)=dble(floor(tt,kind=8))+1.d0
       end do
       weights_c_startend(2,nproc-1)=weight_tot_c
-    
+
       ! Iterate through all grid points and assign them to processes such that the
       ! load balancing is optimal.
 
@@ -867,7 +869,7 @@ module communications_init
           call f_free(istartendseg_c)
           call f_free(nval_c)
           call f_free(weightpp_c)
-          !write(*,'(a,i7,100i12)') 'new: iproc, istartend_c',iproc, istartend_c 
+          !write(*,'(a,i7,100i12)') 'new: iproc, istartend_c',iproc, istartend_c
           !!write(*,'(a,i7,100i12)') 'new: iproc, istartp_seg_c', iproc, istartp_seg_c
           !!write(*,'(a,i7,100i12)') 'new: iproc, iendp_seg_c', iproc, iendp_seg_c
           !!write(*,'(a,i7,100i12)') 'new: iproc, nvalp_c', iproc, nvalp_c
@@ -883,7 +885,7 @@ module communications_init
              write(*,*) 'ii_c/=lzd%glr%wfd%nvctr_c',ii_c,lzd%glr%wfd%nvctr_c
              stop
           end if
-    
+
           if (nproc > 1) then
              call fmpi_allreduce(weightp_c,1,FMPI_SUM,comm=bigdft_mpi%mpi_comm,recvbuf=tt)
           else
@@ -907,7 +909,7 @@ module communications_init
 
 
       !!end if
-    
+
       ! Same for fine region
 
       ! Wait for the completion of the mpi_accumulate call started in get_weights
@@ -1116,7 +1118,7 @@ module communications_init
           call f_free(istartendseg_f)
           call f_free(nval_f)
           call f_free(weightpp_f)
-          !write(*,'(a,i7,100i12)') 'new: iproc, istartend_f',iproc, istartend_f 
+          !write(*,'(a,i7,100i12)') 'new: iproc, istartend_f',iproc, istartend_f
           !!write(*,'(a,i7,100i12)') 'new: iproc, istartp_seg_f', iproc, istartp_seg_f
           !!write(*,'(a,i7,100i12)') 'new: iproc, iendp_seg_f', iproc, iendp_seg_f
           !write(*,'(a,i7,100i12)') 'new: iproc, nvalp_f', iproc, nvalp_f
@@ -1132,7 +1134,7 @@ module communications_init
              write(*,*) 'ii_f/=lzd%glr%wfd%nvctr_f',ii_f,lzd%glr%wfd%nvctr_f
              stop
           end if
-    
+
           if (nproc > 1) then
              call fmpi_allreduce(weightp_f,1,FMPI_SUM, comm=bigdft_mpi%mpi_comm,recvbuf=tt)
           else
@@ -1156,14 +1158,14 @@ module communications_init
 
 
       end if
-    
-    
+
+
       call f_free(weights_c_startend)
       call f_free(weights_f_startend)
-    
+
 
       call f_release_routine()
-      
+
     end subroutine assign_weight_to_process
 
 !!    subroutine assign_weight_to_process_new(iproc, nproc, lzd, weight_c, weight_f, weight_tot_c, weight_tot_f, &
@@ -1172,7 +1174,7 @@ module communications_init
 !!      use module_base
 !!      use module_types
 !!      implicit none
-!!      
+!!
 !!      ! Calling arguments
 !!      integer,intent(in) :: iproc, nproc
 !!      type(local_zone_descriptors),intent(in) :: lzd
@@ -1183,7 +1185,7 @@ module communications_init
 !!      real(kind=8),intent(out) :: weightp_c, weightp_f
 !!      integer,intent(out) :: nptsp_c, nptsp_f
 !!      integer,intent(out) :: nvalp_c, nvalp_f
-!!      
+!!
 !!      ! Local variables
 !!      integer :: jproc, i1, i2, i3, ii, istart, iend, j0, j1, ii_c, ii_f, n1p1, np, it, npr
 !!      integer :: i, iseg, i0, iitot, eproc, sproc, ith, nth, ierr, eseg, iitotseg, iitote
@@ -1192,14 +1194,14 @@ module communications_init
 !!      real(kind=4) :: tr0, tr1
 !!      real(kind=8) :: time1, time2
 !!      !$ integer  :: omp_get_thread_num,omp_get_max_threads
-!!    
+!!
 !!      ! Ideal weight per process.
 !!      weight_c_ideal=weight_tot_c/dble(nproc)
 !!      weight_f_ideal=weight_tot_f/dble(nproc)
-!!    
+!!
 !!      weights_c_startend = f_malloc((/ 1.to.2, 0.to.nproc-1 /),id='weights_c_startend')
 !!      weights_f_startend = f_malloc((/ 1.to.2, 0.to.nproc-1 /),id='weights_f_startend')
-!!    
+!!
 !!      tt=0.d0
 !!      weights_c_startend(1,0)=0.d0
 !!      do jproc=0,nproc-2
@@ -1216,7 +1218,7 @@ module communications_init
 !!      if (nproc==1) then
 !!         istartend_c(1,0)=1
 !!         istartend_c(2,0)=lzd%glr%wfd%nvctr_c
-!!         weightp_c = weight_tot_c 
+!!         weightp_c = weight_tot_c
 !!         istartp_seg_c=istart
 !!         iendp_seg_c=iend
 !!         ttt=0.d0
@@ -1298,7 +1300,7 @@ module communications_init
 !!          weights_f_startend(1,jproc+1)=dble(floor(tt,kind=8))+1.d0
 !!      end do
 !!      weights_f_startend(2,nproc-1)=weight_tot_f
-!!    
+!!
 !!      istart=lzd%glr%wfd%nseg_c+min(1,lzd%glr%wfd%nseg_f)
 !!      iend=istart+lzd%glr%wfd%nseg_f-1
 !!
@@ -1371,10 +1373,10 @@ module communications_init
 !!
 !!      call f_free(weights_c_startend)
 !!      call f_free(weights_f_startend)
-!!    
+!!
 !!      nptsp_c=istartend_c(2,iproc)-istartend_c(1,iproc)+1
 !!      nptsp_f=istartend_f(2,iproc)-istartend_f(1,iproc)+1
-!!        
+!!
 !!      ! some check
 !!      ii_f=istartend_f(2,iproc)-istartend_f(1,iproc)+1
 !!      if (nproc > 1) then
@@ -1390,7 +1392,7 @@ module communications_init
 !!         end if
 !!         stop
 !!      end if
-!!     
+!!
 !!      ii_c=istartend_c(2,iproc)-istartend_c(1,iproc)+1
 !!      if (nproc > 1) then
 !!        call fmpi_allreduce(ii_c, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
@@ -1399,7 +1401,7 @@ module communications_init
 !!         write(*,*) 'ii_c/=lzd%glr%wfd%nvctr_c',ii_c,lzd%glr%wfd%nvctr_c
 !!         stop
 !!      end if
-!!    
+!!
 !!      ! some checks
 !!      if (nproc > 1) then
 !!         call fmpi_allreduce(weightp_c,1,FMPI_SUM, comm=bigdft_mpi%mpi_comm,recvbuf=tt)
@@ -1416,7 +1418,7 @@ module communications_init
 !!         !call mpi_allreduce(weightp_f, tt, 1, mpi_double_precision, FMPI_SUM, bigdft_mpi%mpi_comm, ierr)
 !!      else
 !!          tt=weightp_f
-!!      end if     
+!!      end if
 !!      if(tt/=weight_tot_f) then
 !!         write(*,*) 'wrong partition of fine weights',tt,weight_tot_f
 !!         stop
@@ -1441,7 +1443,7 @@ module communications_init
 !!         write(*,*) 'wrong partition of fine grid points',ii,lzd%glr%wfd%nvctr_f
 !!         stop
 !!      end if
-!!      
+!!
 !!    end subroutine assign_weight_to_process_new
 !!
 !!    !better name and change names to indicate coarse OR fine
@@ -1451,7 +1453,7 @@ module communications_init
 !!      use module_base
 !!      use module_types
 !!      implicit none
-!!      
+!!
 !!      ! Calling arguments
 !!      integer,intent(in) :: iproc, nproc
 !!      type(local_zone_descriptors),intent(in) :: lzd
@@ -1466,11 +1468,11 @@ module communications_init
 !!      real(kind=8), intent(in) :: ttseg
 !!      integer, intent(in) :: jprocs
 !!      integer, intent(out) :: nvalp_c
-!!      
+!!
 !!      ! Local variables
 !!      integer ::  jproc, i1, i2, i3, ii, j0, j1, n1p1, np, i, iseg, i0, iitot
 !!      real(kind=8) :: tt2, tt, ttt
-!!    
+!!
 !!      ! Iterate through all grid points and assign them to processes such that the
 !!      ! load balancing is optimal.
 !!      jproc=jprocs
@@ -1523,11 +1525,11 @@ module communications_init
 !!            end if
 !!         end do
 !!      end do loop_nseg_c
-!!    
+!!
 !!      do jproc=jprocs,nproc-2
 !!         istartend_c(2,jproc)=istartend_c(1,jproc+1)-1
 !!      end do
-!!      istartend_c(2,nproc-1)=iitot    
+!!      istartend_c(2,nproc-1)=iitot
 !!
 !!      if(iproc==nproc-1) then
 !!         weightp_c=tt2
@@ -1542,7 +1544,7 @@ module communications_init
 !!      use module_base
 !!      use module_types
 !!      implicit none
-!!      
+!!
 !!      ! Calling arguments
 !!      integer,intent(in) :: iproc, nproc !technically nproc isn't full nproc...
 !!      type(local_zone_descriptors),intent(in) :: lzd
@@ -1551,7 +1553,7 @@ module communications_init
 !!      integer, intent(in) :: istart, iend
 !!      integer, intent(out) :: iitot, iseg
 !!      real(kind=8), intent(out) :: ttseg
-!!      
+!!
 !!      ! Local variables
 !!      integer ::  i1, i2, i3, ii, j0, j1, n1p1, np, i, i0
 !!      real(kind=8) :: tt
@@ -1581,20 +1583,20 @@ module communications_init
     use module_base
     use locregs
     implicit none
-    
+
     ! Calling arguments
     type(locreg_descriptors),intent(in) :: lr
     integer,intent(in) :: ii3min, ii3max, jj3min
     integer,dimension(0:lr%d%n1,0:lr%d%n2,ii3min:ii3max),intent(out) :: index_in_global_c, index_in_global_f
-    
+
     ! Local variables
     integer :: iitot, iseg, j0, j1, ii, i1, i2, i3, i0, i, istart, iend, np, n1p1, jj3
-    
+
     call f_routine(id='get_index_in_global2')
 
     ! Could optimize these loops by cycling and updating iitot as soon as
     ! (i3<ii3min .or. i3>ii3max)
-    
+
     iitot=0
     n1p1=lr%d%n1+1
     np=n1p1*(lr%d%n2+1)
@@ -1616,9 +1618,9 @@ module communications_init
               index_in_global_c(i,i2,jj3)=iitot
           end if
        end do
-    end do 
-    
-    
+    end do
+
+
     iitot=0
     istart=lr%wfd%nseg_c+min(1,lr%wfd%nseg_f)
     iend=istart+lr%wfd%nseg_f-1
@@ -1643,7 +1645,7 @@ module communications_init
     end do
 
     call f_release_routine()
-    
+
     end subroutine get_index_in_global2
 
 
@@ -1655,10 +1657,10 @@ module communications_init
       use dictionaries
       use wrapper_mpi
       use module_base, only: bigdft_mpi
- 
+
       use module_types
       implicit none
-      
+
       ! Calling arguments
       integer,intent(in) :: iproc, nproc, npsidim_orbs, nspin, ii3min, ii3max, jj3min
       type(orbitals_data),intent(in) :: orbs
@@ -1668,7 +1670,7 @@ module communications_init
       integer,intent(in) :: nvalp_c, nvalp_f
       integer,dimension(0:nproc-1),intent(out) :: nsendcounts_c, nsenddspls_c, nrecvcounts_c, nrecvdspls_c
       integer,dimension(0:nproc-1),intent(out) :: nsendcounts_f, nsenddspls_f, nrecvcounts_f, nrecvdspls_f
-      
+
       ! Local variables
       integer :: iorb, iiorb, i1, i2, i3, ii, jproc, jproctarget, ilr, j0, j1, i0, i, ind, n1p1, np
       integer :: ii1, ii2, ii3, iseg, istart, iend, jj3
@@ -1676,12 +1678,12 @@ module communications_init
       character(len=*),     parameter :: subname='determine_communication_arrays'
 
       call f_routine(id='determine_communication_arrays')
-    
+
       ! Determine values for mpi_alltoallv
       ! first nsendcounts
       nsendcounts_c=0
       nsendcounts_f=0
-    
+
       !$omp parallel default(private) shared(ilr,nproc,orbs,lzd,index_in_global_c,istartend_c,nsendcounts_c,nsendcounts_f) &
       !$omp shared(istartend_f,index_in_global_f,n1p1,np,jj3min)
       do iorb=1,orbs%norbp
@@ -1726,7 +1728,7 @@ module communications_init
               !$omp end do
           end if
       end do
-    
+
       do iorb=1,orbs%norbp
           iiorb=orbs%isorb+iorb
           ilr=orbs%inwhichlocreg(iiorb)
@@ -1773,8 +1775,8 @@ module communications_init
           end if
        end do
        !$omp end parallel
-    
-    
+
+
       ! The first check is to make sure that there is no stop in case this process has no orbitals (in which case
       ! npsidim_orbs is 1 and not 0 as assumed by the check)
       if(npsidim_orbs>1 .and. sum(nsendcounts_c)+7*sum(nsendcounts_f)/=npsidim_orbs) then
@@ -1793,7 +1795,7 @@ module communications_init
       do jproc=1,nproc-1
           nsenddspls_f(jproc)=nsenddspls_f(jproc-1)+nsendcounts_f(jproc-1)
       end do
-   
+
       ! now nrecvcounts
       ! use an mpi_alltoallv to gather the data
       nsendcounts_tmp = f_malloc(0.to.nproc-1,id='nsendcounts_tmp')
@@ -1822,7 +1824,7 @@ module communications_init
       call f_free(nsenddspls_tmp)
       call f_free(nrecvcounts_tmp)
       call f_free(nrecvdspls_tmp)
-    
+
       ! now recvdspls
       nrecvdspls_c(0)=0
       do jproc=1,nproc-1
@@ -1832,7 +1834,7 @@ module communications_init
       do jproc=1,nproc-1
           nrecvdspls_f(jproc)=nrecvdspls_f(jproc-1)+nrecvcounts_f(jproc-1)
       end do
-    
+
       if(sum(nrecvcounts_c)/=nspin*nvalp_c) then
           write(*,*) 'sum(nrecvcounts_c), nspin*nvalp_c', sum(nrecvcounts_c), nspin*nvalp_c
           stop 'sum(nrecvcounts_c)/=nspin*nvalp_c'
@@ -1843,7 +1845,7 @@ module communications_init
       end if
 
       call f_release_routine()
-    
+
     end subroutine determine_communication_arrays
 
 
@@ -1855,7 +1857,7 @@ module communications_init
       use module_base
       use module_types
       implicit none
-      
+
       ! Calling arguments
       integer,intent(in):: iproc, nproc, i3s, n3p, nptsp_c, nptsp_f, jj3min, istartp_seg_c, iendp_seg_c, istartp_seg_f, iendp_seg_f
       type(local_zone_descriptors),intent(in):: lzd
@@ -1864,7 +1866,7 @@ module communications_init
       real(kind=8),dimension(0:lzd%glr%d%n1,0:lzd%glr%d%n2,1:max(1,n3p)),intent(in),target :: weightppp_c, weightppp_f
       integer,dimension(nptsp_c),intent(out):: norb_per_gridpoint_c
       integer,dimension(nptsp_f),intent(out):: norb_per_gridpoint_f
-      
+
       ! Local variables
       integer :: ii, i1, i2, i3, iipt, iseg, jj, j0, j1, iitot, i, i0
       integer :: icheck_c,icheck_f,npgp_c,npgp_f,np,n1p1, jj3
@@ -1875,19 +1877,19 @@ module communications_init
       !!integer,dimension(:),allocatable:: iseg_start_c, iseg_start_f
       ! 8 Byte integers to avoid integer overflows
       integer(kind=8) :: iiorb_c, iiorb_f
-    
+
       call f_routine(id='determine_num_orbs_per_gridpoint_new')
-    
+
       icheck_c = 0
       icheck_f = 0
       iipt=0
-    
+
       n1p1=lzd%glr%d%n1+1
       np=n1p1*(lzd%glr%d%n2+1)
 
 
       !@NEW ######################################
-       
+
 
        ! Initialize the MPI window
        if (nproc>1) then
@@ -1985,7 +1987,7 @@ module communications_init
 
 
       !@ENDNEW ######################################
-    
+
       if(icheck_c/=nptsp_c) then
           call f_err_throw(trim(yaml_toa(icheck_c))//'=icheck_c /= nptsp_c='//trim(yaml_toa(nptsp_c)), &
                err_name='BIGDFT_RUNTIME_ERROR')
@@ -1994,11 +1996,11 @@ module communications_init
           call f_err_throw(trim(yaml_toa(iiorb_c))//'=iiorb_c /= weightp_c='//trim(yaml_toa(nint(weightp_c,kind=8))), &
                err_name='BIGDFT_RUNTIME_ERROR')
       end if
-    
-    
+
+
 
       !@NEW ######################################
-       
+
 
        if (nproc>1) then
            ! These arrays start at one instead of 0
@@ -2093,7 +2095,7 @@ module communications_init
 
 
       !@ENDNEW ######################################
-    
+
       if(icheck_f/=nptsp_f) then
           call f_err_throw(trim(yaml_toa(icheck_f))//'=icheck_f /= nptsp_f='//trim(yaml_toa(nptsp_f)), &
                err_name='BIGDFT_RUNTIME_ERROR')
@@ -2104,7 +2106,7 @@ module communications_init
       end if
 
       call f_release_routine()
-    
+
     end subroutine determine_num_orbs_per_gridpoint_new
 
 
@@ -2121,7 +2123,7 @@ module communications_init
       use module_base
       use module_types
       implicit none
-      
+
       ! Calling arguments
       integer,intent(in) :: iproc, nproc, nspin, nptsp_c, nptsp_f, ndimpsi_c, ndimpsi_f, ndimind_c,ndimind_f
       integer,intent(in) :: istartp_seg_c, iendp_seg_c, istartp_seg_f, iendp_seg_f, ii3min, ii3max, jj3min
@@ -2138,7 +2140,7 @@ module communications_init
       integer,dimension(ndimpsi_f),intent(out) :: isendbuf_f, irecvbuf_f
       integer,dimension(ndimind_c),intent(out) :: indexrecvorbital_c, iextract_c, iexpand_c
       integer,dimension(ndimind_f),intent(out) :: indexrecvorbital_f, iextract_f, iexpand_f
-      
+
       ! Local variables
       integer :: i, iorb, iiorb, i1, i2, i3, ind, jproc, jproctarget, ii, iseg, iitot, ilr, n1p1, np
       integer :: i3min_c, i3max_c, i3min_f, i3max_f, jj3
@@ -2148,10 +2150,10 @@ module communications_init
       integer,dimension(:),allocatable :: indexsendorbital_c, indexsendbuf_c, indexrecvbuf_c
       integer,dimension(:),allocatable :: indexsendorbital_f, indexsendbuf_f, indexrecvbuf_f
       character(len=*),parameter :: subname='get_switch_indices'
-    
-    
+
+
       call f_routine(id='get_switch_indices')
-      
+
       indexsendorbital_c = f_malloc(max(ndimpsi_c,1),id='indexsendorbital_c')
       indexsendbuf_c = f_malloc(max(ndimpsi_c,1),id='indexsendbuf_c')
       indexrecvbuf_c = f_malloc(sum(nrecvcounts_c),id='indexrecvbuf_c')
@@ -2171,23 +2173,23 @@ module communications_init
 
 
       !!write(*,'(a,i7,4i9)') 'iproc, i3min_c, i3max_c, i3min_f, i3max_f', iproc, i3min_c, i3max_c, i3min_f, i3max_f
-    
+
       !write(*,*) 'ndimpsi_f, sum(nrecvcounts_f)', ndimpsi_f, sum(nrecvcounts_f)
-    
+
       nsend_c = f_malloc(0.to.nproc-1,id='nsend_c')
       nsend_f = f_malloc(0.to.nproc-1,id='nsend_f')
-    
+
       nsend_c=0
       nsend_f=0
-    
+
       !$omp parallel default(private) shared(orbs,lzd,index_in_global_c,index_in_global_f,istartend_c,istartend_f)&
       !$omp shared(nsend_c,nsend_f,nsenddspls_c,nsenddspls_f,ndimpsi_c,ndimpsi_f,nsendcounts_c,nsendcounts_f,nproc,jj3min) &
       !$omp shared(isendbuf_c,isendbuf_f,indexsendbuf_c,indexsendbuf_f,indexsendorbital_c,indexsendorbital_f)
-    
+
       !$omp sections
       !$omp section
       iitot=0
-     
+
       do iorb=1,orbs%norbp
           iiorb=orbs%isorb+iorb
           ilr=orbs%inwhichlocreg(iiorb)
@@ -2226,7 +2228,7 @@ module communications_init
                   end if
                end do
                !write(600+iproc,'(a,2(i0,1x),i0,a,i0)') 'point ',ii1,ii2,ii3,' goes to process ',jproctarget
-              
+
                if (jproctarget/=-1) then
                   nsend_c(jproctarget)=nsend_c(jproctarget)+1
                   ind=nsenddspls_c(jproctarget)+nsend_c(jproctarget)
@@ -2248,7 +2250,7 @@ module communications_init
           call f_err_throw(trim(yaml_toa(minval(indexsendorbital_c(1:ndimpsi_c))))//&
                &' = minval(indexsendorbital_c(1:ndimpsi_c)) < 1')
       end if
-    
+
       !check
       do jproc=0,nproc-1
           if(nsend_c(jproc)/=nsendcounts_c(jproc)) then
@@ -2257,8 +2259,8 @@ module communications_init
                    &trim(yaml_toa(nsendcounts_c(jproc))))
           end if
       end do
-    
-    
+
+
       !$omp section
       ! fine part
       iitot=0
@@ -2312,9 +2314,9 @@ module communications_init
                !indexsendorbital(ind)=iiorb
             end do
          end do
-     
+
       end do
-      
+
       if(iitot/=ndimpsi_f) then
           call f_err_throw(trim(yaml_toa(iitot))//' = iitot /= ndimpsi_f = '//trim(yaml_toa(ndimpsi_f)))
       end if
@@ -2323,10 +2325,10 @@ module communications_init
       if (minval(indexsendorbital_f(1:ndimpsi_f))<1) then
           call f_err_throw(trim(yaml_toa(minval(indexsendorbital_f(1:ndimpsi_f))))//' = minval(indexsendorbital_f(1:ndimpsi_f) < 1')
       end if
-    
+
       !$omp end sections
       !$omp end parallel
-    
+
       !check
       do jproc=0,nproc-1
           !write(*,*) 'nsend(jproc), nsendcounts_f(jproc)', nsend(jproc), nsendcounts_f(jproc)
@@ -2336,17 +2338,17 @@ module communications_init
                   trim(yaml_toa(nsendcounts_f(jproc))))
          end if
       end do
-    
+
       indexsendorbital2 = f_malloc(max(1,ndimpsi_c),id='indexsendorbital2')
       call vcopy(ndimpsi_c, indexsendorbital_c(1), 1, indexsendorbital2(1), 1)
       do i=1,ndimpsi_c
           ind=isendbuf_c(i)
           indexsendorbital_c(ind)=indexsendorbital2(i)
       end do
-    
+
       ! Inverse of isendbuf
       call get_reverse_indices(ndimpsi_c, isendbuf_c, irecvbuf_c)
-    
+
       call f_free(indexsendorbital2)
       indexsendorbital2 = f_malloc(max(1,ndimpsi_f),id='indexsendorbital2')
       call vcopy(ndimpsi_f, indexsendorbital_f(1), 1, indexsendorbital2(1), 1)
@@ -2354,13 +2356,13 @@ module communications_init
           ind=isendbuf_f(i)
           indexsendorbital_f(ind)=indexsendorbital2(i)
       end do
-    
+
       ! Inverse of isendbuf
-    
+
       call get_reverse_indices(ndimpsi_f, isendbuf_f, irecvbuf_f)
       call f_free(indexsendorbital2)
-    
-    
+
+
       if(nproc>1) then
           ! Communicate indexsendbuf
          !call mpialltoallv(indexsendbuf_c, nsendcounts_c, nsenddspls_c, &
@@ -2373,7 +2375,7 @@ module communications_init
           ! Communicate indexsendorbitals
           call fmpi_alltoall(sendbuf=indexsendorbital_c,sendcounts=nsendcounts_c,sdispls=nsenddspls_c, &
                recvbuf=indexrecvorbital_c,recvcounts=nrecvcounts_c,rdispls=nrecvdspls_c,comm=bigdft_mpi%mpi_comm)
-          
+
           ! Communicate indexsendbuf
           call fmpi_alltoall(sendbuf=indexsendbuf_f,sendcounts=nsendcounts_f,sdispls=nsenddspls_f, &
                recvbuf=indexrecvbuf_f,recvcounts=nrecvcounts_f,rdispls=nrecvdspls_f,comm=bigdft_mpi%mpi_comm)
@@ -2393,8 +2395,8 @@ module communications_init
            indexrecvbuf_f=indexsendbuf_f
            indexrecvorbital_f=indexsendorbital_f
        end if
-    
-        
+
+
 
       ! gridpoint_start is the starting index of a given grid point in the overall array
       ii=1
@@ -2426,8 +2428,8 @@ module communications_init
           gridpoint_start_tmp_c=gridpoint_start_c
           gridpoint_start_tmp_f=gridpoint_start_f
       end if
-        
-    
+
+
       if(maxval(gridpoint_start_c)>sum(nrecvcounts_c)) then
          call f_err_throw(trim(yaml_toa(maxval(gridpoint_start_c)))//&
               &' = maxval(gridpoint_start_c) > sum(nrecvcounts_c) = '//&
@@ -2445,7 +2447,7 @@ module communications_init
               ii=indexrecvbuf_c(i)
               ind=gridpoint_start_c(ii)
               iextract_c(i)=ind
-              gridpoint_start_c(ii)=gridpoint_start_c(ii)+1  
+              gridpoint_start_c(ii)=gridpoint_start_c(ii)+1
           end do
       else
           do i=1,sum(nrecvcounts_c)
@@ -2457,7 +2459,7 @@ module communications_init
                   ind = ind + (ndimind_c/2-norb_per_gridpoint_c(ii-istartend_c(1,iproc)+1))
               end if
               iextract_c(i)=ind
-              gridpoint_start_c(ii)=gridpoint_start_c(ii)+1  
+              gridpoint_start_c(ii)=gridpoint_start_c(ii)+1
           end do
       end if
       !write(*,'(a,2i12)') 'sum(iextract_c), nint(weightp_c*(weightp_c+1.d0)*.5d0)', sum(iextract_c), nint(weightp_c*(weightp_c+1.d0)*.5d0)
@@ -2470,7 +2472,7 @@ module communications_init
       if(minval(iextract_c)<1) then
           call f_err_throw(trim(yaml_toa(minval(iextract_c)))//' = minval(iextract_c) < 1')
       end if
-    
+
       ! Rearrange the communicated data
       if (nspin==1) then
           do i=1,sum(nrecvcounts_f)
@@ -2478,7 +2480,7 @@ module communications_init
               ind=gridpoint_start_f(ii)
               !if(ind<1) write(*,*) 'ERROR: ind<1, i, ii, ind',i, ii, ind
               iextract_f(i)=ind
-              gridpoint_start_f(ii)=gridpoint_start_f(ii)+1  
+              gridpoint_start_f(ii)=gridpoint_start_f(ii)+1
           end do
       else
           do i=1,sum(nrecvcounts_f)
@@ -2489,7 +2491,7 @@ module communications_init
                   ind = ind + (ndimind_f/2-norb_per_gridpoint_f(ii-istartend_f(1,iproc)+1))
               end if
               iextract_f(i)=ind
-              gridpoint_start_f(ii)=gridpoint_start_f(ii)+1  
+              gridpoint_start_f(ii)=gridpoint_start_f(ii)+1
           end do
       end if
       if(maxval(iextract_f)>sum(nrecvcounts_f)) then
@@ -2500,13 +2502,13 @@ module communications_init
       if(minval(iextract_f)<1) then
           call f_err_throw(trim(yaml_toa(minval(iextract_f)))//' = minval(iextract_f) < 1')
       end if
-        
-    
+
+
       ! Get the array to transfrom back the data
       call get_reverse_indices(sum(nrecvcounts_c), iextract_c, iexpand_c)
       call get_reverse_indices(sum(nrecvcounts_f), iextract_f, iexpand_f)
-          
-    
+
+
       indexrecvorbital2 = f_malloc(sum(nrecvcounts_c),id='indexrecvorbital2')
       indexrecvorbital2=indexrecvorbital_c
       do i=1,sum(nrecvcounts_c)
@@ -2521,8 +2523,8 @@ module communications_init
           indexrecvorbital_f(ind)=indexrecvorbital2(i)
       end do
       call f_free(indexrecvorbital2)
-    
-    
+
+
       if(minval(indexrecvorbital_c)<1) then
           call f_err_throw(trim(yaml_toa(minval(indexrecvorbital_c)))//&
                &' = minval(indexrecvorbital_c) < 1')
@@ -2539,7 +2541,7 @@ module communications_init
          call f_err_throw(trim(yaml_toa(maxval(indexrecvorbital_f)))//&
               &' = maxval(indexrecvorbital_f) > orbs%norb = '//trim(yaml_toa(orbs%norb)))
       end if
-    
+
 
       call f_free(indexsendorbital_c)
       call f_free(indexsendbuf_c)
@@ -2558,7 +2560,7 @@ module communications_init
 
 
       call f_release_routine()
-    
+
     end subroutine get_switch_indices
 
 
@@ -2566,18 +2568,18 @@ module communications_init
     subroutine get_reverse_indices(n, indices, reverse_indices)
       use module_base
       implicit none
-      
+
       ! Calling arguments
       integer,intent(in) :: n
       integer,dimension(n),intent(in) :: indices
       integer,dimension(n),intent(out) :: reverse_indices
-    
+
       ! Local variables
       integer :: i, j, m, j0, j1, j2, j3
-    
+
       !$omp parallel default(private) &
       !$omp shared(n, m, indices, reverse_indices)
-    
+
       m=mod(n,4)
       if (m/=0) then
           do i=1,m
@@ -2585,7 +2587,7 @@ module communications_init
               reverse_indices(j)=i
           end do
       end if
-    
+
       !$omp do
       do i=m+1,n,4
           j0=indices(i+0)
@@ -2598,14 +2600,14 @@ module communications_init
           reverse_indices(j3)=i+3
       end do
       !$omp end do
-    
+
       !$omp end parallel
-    
+
       !!do i=1,n
       !!    j=indices(i)
       !!    reverse_indices(j)=i
       !!end do
-    
+
     end subroutine get_reverse_indices
 
 
@@ -2616,7 +2618,7 @@ module communications_init
       use module_base
       use module_types
       implicit none
-      
+
       ! Calling arguments
       integer,intent(in) :: iproc, nproc,ndimind_c,ndimind_f,i3min_c,i3max_c,i3min_f,i3max_f
       type(local_zone_descriptors),intent(in) :: lzd
@@ -2626,11 +2628,11 @@ module communications_init
       real(kind=8),dimension(0:lzd%glr%d%n1,0:lzd%glr%d%n2,i3min_c:i3max_c),intent(out) :: weight_c
       real(kind=8),dimension(0:lzd%glr%d%n1,0:lzd%glr%d%n2,i3min_f:i3max_f),intent(out) :: weight_f
       integer,dimension((lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*(lzd%glr%d%n3+1)),intent(out) :: gridpoint_start_c, gridpoint_start_f
-      
+
       ! Local variables
       integer :: i, ii, jj, i1, i2, i3, n1p1, np
-    
-    
+
+
       !weight_c=0.d0
       !call to_zero((lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*(i3max_c-i3min_c+1), weight_c(0,0,i3min_c))
       !call to_zero((lzd%glr%d%n1+1)*(lzd%glr%d%n2+1)*(i3max_f-i3min_f+1), weight_f(0,0,i3min_f))
@@ -2642,7 +2644,7 @@ module communications_init
 
       !!$omp parallel default(private) shared(lzd,nrecvcounts_c,indexrecvbuf_c,weight_c,gridpoint_start_c) &
       !!$omp shared(nrecvcounts_f,indexrecvbuf_f,weight_f,gridpoint_start_f,np,n1p1)
-    
+
       !!$omp sections
       !!$omp section
       do i=1,sum(nrecvcounts_c)
@@ -2655,9 +2657,9 @@ module communications_init
           i1=jj-i2*n1p1
           weight_c(i1,i2,i3)=weight_c(i1,i2,i3)+1.d0
       end do
-    
+
       !write(*,*) 'in get_gridpoint_start: maxval(weight_c)', maxval(weight_c)
-    
+
       ii=1
       i=0
       !gridpoint_start_c=0
@@ -2674,9 +2676,9 @@ module communications_init
               end do
           end do
       end do
-    
+
       !!$omp section
-     
+
       do i=1,sum(nrecvcounts_f)
           ii=indexrecvbuf_f(i)
           write(*,*) 'i, ii', i, ii
@@ -2687,8 +2689,8 @@ module communications_init
           i1=jj-i2*n1p1
           weight_f(i1,i2,i3)=weight_f(i1,i2,i3)+1.d0
       end do
-    
-    
+
+
       ii=1
       i=0
       !gridpoint_start_f=0
@@ -2705,10 +2707,10 @@ module communications_init
               end do
           end do
       end do
-    
+
       !!$omp end sections
       !!$omp end parallel
-    
+
     end subroutine get_gridpoint_start
 
 
@@ -2717,14 +2719,14 @@ module communications_init
       use module_base
       use module_types
       implicit none
-    
+
       ! Calling arguments
       integer,intent(in) :: iproc, nproc, nspin
       type(local_zone_descriptors),intent(in) :: lzd
       type(orbitals_data),intent(in) :: orbs
       integer,dimension(0:nproc-1,4),intent(in) :: nscatterarr !n3d,n3p,i3s+i3xcsh-1,i3xcsh
       type(comms_linear),intent(inout) :: collcom_sr
-    
+
       ! Local variables
       integer :: ipt, ii
       real(kind=8) :: weight_tot, weight_ideal
@@ -2733,23 +2735,23 @@ module communications_init
       real(kind=8),dimension(:),allocatable :: weights_per_slice, weights_per_zpoint
 
       call f_routine(id='init_comms_linear_sumrho')
-    
+
       ! Note: all weights are double precision to avoid integer overflow
       call timing(iproc,'init_collco_sr','ON')
-    
+
       istartend = f_malloc((/ 1.to.2, 0.to.nproc-1 /),id='istartend')
       weights_per_slice = f_malloc(0.to.nproc-1,id='weights_per_slice')
       weights_per_zpoint = f_malloc(lzd%glr%d%n3i,id='weights_per_zpoint')
       call get_weights_sumrho(iproc, nproc, orbs, lzd, nscatterarr, weight_tot, weight_ideal, &
            weights_per_slice, weights_per_zpoint)
 
-    
+
       call assign_weight_to_process_sumrho(iproc, nproc, weight_tot, weight_ideal, weights_per_slice, &
            lzd, orbs, nscatterarr, istartend, collcom_sr%nptsp_c)
 
-    
+
       call f_free(weights_per_slice)
-    
+
 
       call allocate_MPI_communication_arrays(nproc, collcom_sr, only_coarse=.true.)
 
@@ -2763,47 +2765,47 @@ module communications_init
       call allocate_local_comms_cubic(collcom_sr, only_coarse=.true.)
       ! For the sumrho operations, this array is not needed (there is no transpose_unswitch_psir)
       call f_free_ptr(collcom_sr%irecvbuf_c)
-    
+
       call determine_num_orbs_per_gridpoint_sumrho(iproc, nproc, collcom_sr%nptsp_c, lzd, orbs, &
            istartend, weight_tot, weights_per_zpoint, collcom_sr%norb_per_gridpoint_c)
-    
+
       ! Some check
       ii=sum(collcom_sr%norb_per_gridpoint_c)
       if (nspin*ii/=collcom_sr%ndimind_c) then
           write(*,*) 'nspin*ii/=collcom_sr%ndimind_c', ii, collcom_sr%ndimind_c
           stop 'nspin*ii/=collcom_sr%ndimind_c'
       end if
-    
-    
+
+
       collcom_sr%psit_c=f_malloc_ptr(collcom_sr%ndimind_c,id='collcom_sr%psit_c')
-    
+
       call get_switch_indices_sumrho(iproc, nproc, collcom_sr%nptsp_c, collcom_sr%ndimpsi_c, collcom_sr%ndimind_c, lzd, &
            orbs, nspin, istartend, collcom_sr%norb_per_gridpoint_c, collcom_sr%nsendcounts_c, collcom_sr%nsenddspls_c, &
            collcom_sr%nrecvcounts_c, collcom_sr%nrecvdspls_c, collcom_sr%isendbuf_c, & !collcom_sr%irecvbuf_c, &
            collcom_sr%iextract_c, collcom_sr%iexpand_c, collcom_sr%indexrecvorbital_c)
 
-    
+
       ! These variables are used in various subroutines to speed up the code
       collcom_sr%isptsp_c(1) = 0
       do ipt=2,collcom_sr%nptsp_c
             collcom_sr%isptsp_c(ipt) = collcom_sr%isptsp_c(ipt-1) + collcom_sr%norb_per_gridpoint_c(ipt-1)
       end do
-    
+
       !!call allocate_MPI_comms_cubic_repartition(nproc, collcom_sr)
-    
+
       !!call communication_arrays_repartitionrho(iproc, nproc, lzd, nscatterarr, istartend, &
       !!     collcom_sr%nsendcounts_repartitionrho, collcom_sr%nsenddspls_repartitionrho, &
       !!     collcom_sr%nrecvcounts_repartitionrho, collcom_sr%nrecvdspls_repartitionrho)
-    
-      call communication_arrays_repartitionrho_general(iproc, nproc, lzd, nscatterarr, istartend, & 
+
+      call communication_arrays_repartitionrho_general(iproc, nproc, lzd, nscatterarr, istartend, &
            collcom_sr%ncomms_repartitionrho, collcom_sr%commarr_repartitionrho)
-    
+
       call f_free(weights_per_zpoint)
       call f_free(istartend)
-    
+
       call timing(iproc,'init_collco_sr','OF')
       call f_release_routine()
-    
+
     end subroutine init_comms_linear_sumrho
 
 
@@ -2815,12 +2817,12 @@ module communications_init
       use wrapper_mpi
       use f_utils
       use module_base, only: bigdft_mpi
- 
- 
+
+
       use module_types
       use bounds, only: check_whether_bounds_overlap
       implicit none
-    
+
       ! Calling arguments
       integer,intent(in) :: iproc, nproc
       type(orbitals_data),intent(in) :: orbs
@@ -2829,21 +2831,21 @@ module communications_init
       real(kind=8),intent(out) :: weight_tot, weight_ideal
       real(kind=8),dimension(0:nproc-1),intent(out) :: weights_per_slice
       real(kind=8),dimension(lzd%glr%d%n3i),intent(out) :: weights_per_zpoint
-    
+
       ! Local variables
       integer :: iorb, ilr, i3, i2, i1, is1, ie1, is2, ie2, is3, ie3, js3, je3, ii1, ii2
       real(kind=8) :: tt, zz
       real(kind=8),dimension(:,:),allocatable :: weight_xy
-    
+
       call f_routine(id='get_weights_sumrho')
-    
+
       !call to_zero(lzd%glr%d%n3i, weights_per_zpoint(1))
       call f_zero(weights_per_zpoint)
-    
+
       weight_xy=f_malloc((/lzd%glr%d%n1i,lzd%glr%d%n2i/),id='weight_xy')
-    
+
       !write(*,*) 'iproc, nscatterarr', iproc, nscatterarr(iproc,:)
-    
+
       tt=0.d0
       weights_per_slice(:) = 0.0d0
       js3=nscatterarr(iproc,3)+1
@@ -2918,12 +2920,12 @@ module communications_init
          weight_tot=tt
       end if
       call f_free(weight_xy)
-    
+
       ! Ideal weight per process
       weight_ideal = weight_tot/dble(nproc)
-    
+
       call f_release_routine()
-    
+
     end subroutine get_weights_sumrho
 
 
@@ -2933,7 +2935,7 @@ module communications_init
       use module_types
       use bounds, only: check_whether_bounds_overlap
       implicit none
-    
+
       ! Calling arguments
       integer,intent(in) :: iproc, nproc
       real(kind=8),intent(in) :: weight_tot, weight_ideal
@@ -2943,7 +2945,7 @@ module communications_init
       integer,dimension(0:nproc-1,4),intent(in) :: nscatterarr !n3d,n3p,i3s+i3xcsh-1,i3xcsh
       integer(kind=8),dimension(2,0:nproc-1),intent(out) :: istartend
       integer,intent(out) :: nptsp
-    
+
       ! Local variables
       integer :: jproc, i1, i2, i3, iorb, ilr, is1, ie1, is2, ie2, is3, ie3, jproc_out, ierr
       integer,dimension(:),allocatable :: recvcounts, displs
@@ -2951,11 +2953,11 @@ module communications_init
       real(kind=8), dimension(:,:),allocatable :: weights_startend
       real(kind=8) :: tt
       integer(kind=8) :: ii, sendbuf
-    
+
       call f_routine(id='assign_weight_to_process_sumrho')
-    
+
       weights_startend=f_malloc((/1.to.2,0.to.nproc-1/),id='weights_startend')
-    
+
       tt=0.d0
       weights_startend(1,0)=0.d0
       do jproc=0,nproc-2
@@ -2964,7 +2966,7 @@ module communications_init
           weights_startend(1,jproc+1)=dble(floor(tt,kind=8))+1.d0
       end do
       weights_startend(2,nproc-1)=weight_tot
-    
+
       ! Iterate through all grid points and assign them to processes such that the
       ! load balancing is optimal.
       if (nproc==1) then
@@ -3032,8 +3034,8 @@ module communications_init
             end do outer_loop
             call f_free(slicearr)
       end if
-    
-        
+
+
       if (nproc > 1) then
           ! call fmpi_allreduce(istartend(1,0), 2*nproc, FMPI_SUM, bigdft_mpi%mpi_comm)
           recvcounts = f_malloc(0.to.nproc-1,id='recvcounts')
@@ -3048,20 +3050,20 @@ module communications_init
           call f_free(recvcounts)
           call f_free(displs)
       end if
-    
+
       do jproc=0,nproc-2
           istartend(2,jproc)=istartend(1,jproc+1)-1
       end do
       istartend(2,nproc-1)=int(lzd%glr%d%n1i,kind=8)*int(lzd%glr%d%n2i,kind=8)*int(lzd%glr%d%n3i,kind=8)
-    
+
       nptsp = int(istartend(2,iproc)-istartend(1,iproc),kind=4) + 1
 
       !!write(*,*) 'iproc, npts', iproc, lzd%glr%d%n1i*lzd%glr%d%n2i*lzd%glr%d%n3i
       !!write(*,*) 'iproc, istartend', iproc, istartend
       !!write(*,*) 'weight_tot', weight_tot
-    
+
       call f_free(weights_startend)
-    
+
       ! Some check
       tt=real(nptsp,kind=8)
       if (nproc > 1) then
@@ -3074,9 +3076,9 @@ module communications_init
                &' = tt /= lzd%glr%d%n1i*lzd%glr%d%n2i*lzd%glr%d%n3i = '//&
                &trim(yaml_toa(lzd%glr%d%n1i*lzd%glr%d%n2i*lzd%glr%d%n3i)))
       end if
-    
+
       call f_release_routine()
-    
+
     end subroutine assign_weight_to_process_sumrho
 
 
@@ -3092,7 +3094,7 @@ module communications_init
       use yaml_output
       use dictionaries
       implicit none
-    
+
       ! Calling arguments
       integer,intent(in) :: iproc, nproc, nptsp
       type(local_zone_descriptors),intent(in) :: lzd
@@ -3101,12 +3103,12 @@ module communications_init
       real(kind=8),intent(in) :: weight_tot
       real(kind=8),dimension(lzd%glr%d%n3i),intent(in) :: weights_per_zpoint
       integer,dimension(nptsp),intent(out) :: norb_per_gridpoint
-    
+
       ! Local variables
       integer :: i3, i2, i1, ipt, ilr, is1, ie1, is2, ie2, is3, ie3, iorb, i, jproc, j1, j2
       real(kind=8) :: tt, weight_check
-      integer(kind=8) :: ii, ii2, ii3    
-    
+      integer(kind=8) :: ii, ii2, ii3
+
       if (nptsp>0) then
          !call to_zero(nptsp, norb_per_gridpoint(1))
           call f_zero(norb_per_gridpoint)
@@ -3193,7 +3195,7 @@ module communications_init
               weight_check**'(1pe25.17)')
 
       end if
-    
+
     end subroutine determine_num_orbs_per_gridpoint_sumrho
 
 
@@ -3205,10 +3207,10 @@ module communications_init
       use wrapper_mpi
       use f_utils
       use module_base, only: bigdft_mpi
-      use yaml_strings, only: yaml_toa 
+      use yaml_strings, only: yaml_toa
       use module_types
       implicit none
-    
+
       ! Calling arguments
       integer,intent(in) :: iproc, nproc, nptsp
       type(local_zone_descriptors),intent(in) :: lzd
@@ -3216,18 +3218,18 @@ module communications_init
       integer(kind=8),dimension(2,0:nproc-1),intent(in) :: istartend
       integer,dimension(0:nproc-1),intent(out) :: nsendcounts, nsenddspls, nrecvcounts, nrecvdspls
       integer,intent(out) :: ndimpsi
-    
+
       ! Local variables
       integer :: iorb, iiorb, ilr, is1, ie1, is2, ie2, is3, ie3, jproc, i3, i2, i1, ii, ierr, ii0, j1, j2, j3
       !integer :: ierr
       integer,dimension(:),allocatable :: nsendcounts_tmp, nsenddspls_tmp, nrecvcounts_tmp, nrecvdspls_tmp
       character(len=*),parameter :: subname='determine_communication_arrays_sumrho'
       integer(kind=8) :: ind, ii2, ii3
-    
-    
+
+
       call f_zero(nsendcounts)
-     
-    
+
+
       do iorb=1,orbs%norbp
           iiorb=orbs%isorb+iorb
           ilr=orbs%inwhichlocreg(iiorb)
@@ -3279,8 +3281,8 @@ module communications_init
              nsendcounts(jproc)=nsendcounts(jproc)+ii
            end do
       end do
-    
-    
+
+
       ! Some check
       ii=0
       do iorb=1,orbs%norbp
@@ -3295,13 +3297,13 @@ module communications_init
                err_name='BIGDFT_RUNTIME_ERROR')
       end if
       ndimpsi=ii
-    
-    
+
+
       nsenddspls(0)=0
       do jproc=1,nproc-1
           nsenddspls(jproc)=nsenddspls(jproc-1)+nsendcounts(jproc-1)
       end do
-    
+
       nsendcounts_tmp = f_malloc(0.to.nproc-1,id='nsendcounts_tmp')
       nsenddspls_tmp = f_malloc(0.to.nproc-1,id='nsenddspls_tmp')
       nrecvcounts_tmp = f_malloc(0.to.nproc-1,id='nrecvcounts_tmp')
@@ -3323,18 +3325,18 @@ module communications_init
       call f_free(nsenddspls_tmp)
       call f_free(nrecvcounts_tmp)
       call f_free(nrecvdspls_tmp)
-    
+
       !!ndimind = sum(nrecvcounts)
-    
+
       !!! Some check
       !!ii=sum(norb_per_gridpoint)
       !!if (ii/=ndimind) stop 'ii/=sum(nrecvcounts)'
-    
+
       nrecvdspls(0)=0
       do jproc=1,nproc-1
           nrecvdspls(jproc)=nrecvdspls(jproc-1)+nrecvcounts(jproc-1)
       end do
-    
+
     end subroutine determine_communication_arrays_sumrho
 
 
@@ -3346,7 +3348,7 @@ module communications_init
       use module_types
       use wrapper_mpi
       implicit none
-    
+
       ! Calling arguments
       integer,intent(in) :: iproc, nproc, nptsp, ndimpsi, ndimind, nspin
       type(local_zone_descriptors),intent(in) :: lzd
@@ -3356,7 +3358,7 @@ module communications_init
       integer,dimension(0:nproc-1),intent(in) :: nsendcounts, nsenddspls, nrecvcounts, nrecvdspls
       integer,dimension(ndimpsi),intent(out) :: isendbuf!, irecvbuf
       integer,dimension(ndimind),intent(out) :: iextract, iexpand, indexrecvorbital
-    
+
       ! Local variables
       integer :: jproc, iitot, iiorb, ilr, is1, ie1, is2, ie2, is3, ie3, i3, i2, i1, ind, ierr, ii, j1, j2, j3
       ! integer :: ierr
@@ -3369,15 +3371,15 @@ module communications_init
       integer(kind=8) :: iilong, ilong
 
       call f_routine(id='get_switch_indices_sumrho')
-    
-    
+
+
       nsend = f_malloc(0.to.nproc-1,id='nsend')
       nsend=0
       indexsendbuf = f_malloc(max(1,ndimpsi),id='indexsendbuf')
       indexsendorbital = f_malloc(max(1,ndimpsi),id='indexsendorbital')
       !!allocate(isendbuf(ndimpsi), stat=istat)
       !!call memocc(istat, isendbuf, 'isendbuf', subname)
-    
+
       iitot=0
       !!$omp parallel default(shared) &
       !!$omp private(iorb, iiorb, ilr, is1, ie1, is2, ie2, is3, ie3, i3, i2, i1, indglob, ind)
@@ -3434,42 +3436,42 @@ module communications_init
       end do
       !!$omp end do
       !!$omp end parallel
-    
-    
+
+
       if(iitot/=ndimpsi) stop 'iitot/=ndimpsi'
-    
+
       !check
       do jproc=0,nproc-1
           if(nsend(jproc)/=nsendcounts(jproc)) stop 'nsend(jproc)/=nsendcounts(jproc)'
       end do
-    
+
     !!call mpi_barrier(bigdft_mpi%mpi_comm, ierr)
     !!t2=mpi_wtime()
     !!tt=t2-t1
     !!if(iproc==0) write(*,*) 'time 5.1: iproc', iproc, tt
-    
-    
-    
+
+
+
       !!allocate(irecvbuf(ndimpsi), stat=istat)
       !!call memocc(istat, irecvbuf, 'irecvbuf', subname)
-    
+
       indexsendorbital2 = f_malloc(max(1,ndimpsi),id='indexsendorbital2')
       call vcopy(ndimpsi, indexsendorbital(1), 1, indexsendorbital2(1), 1)
       do i=1,ndimpsi
           ind=isendbuf(i)
           indexsendorbital(ind)=indexsendorbital2(i)
       end do
-    
+
       ! Inverse of isendbuf... not needed
       !call get_reverse_indices(ndimpsi, isendbuf, irecvbuf)
-    
+
       call f_free(indexsendorbital2)
-    
-    
+
+
       indexrecvbuf = f_malloc(ndimind,id='indexrecvbuf')
       !!allocate(indexrecvorbital(ndimind), stat=istat)
       !!call memocc(istat, indexrecvorbital, 'indexrecvorbital', subname)
-    
+
       if(nproc>1) then
           ! Communicate indexsendbuf
           !call mpialltoallv(indexsendbuf, nsendcounts, nsenddspls, &
@@ -3496,19 +3498,19 @@ module communications_init
            indexrecvbuf=indexsendbuf
            indexrecvorbital=indexsendorbital
        end if
-    
+
       call f_free(indexsendbuf)
-    
+
       call f_free(indexsendorbital)
     !!call mpi_barrier(bigdft_mpi%mpi_comm, ierr)
     !!t2=mpi_wtime()
     !!tt=t2-t1
     !!if(iproc==0) write(*,*) 'time 5.2: iproc', iproc, tt
-    
-    
+
+
        gridpoint_start = f_malloc(0.to.int(istartend(2,iproc)-istartend(1,iproc),kind=4),id='gridpoint_start')
        gridpoint_start_tmp = f_malloc(0.to.int(istartend(2,iproc)-istartend(1,iproc),kind=4),id='gridpoint_start_tmp')
-    
+
        ii=1
        do ipt=1,nptsp
            ilong=int(ipt,kind=8)+istartend(1,iproc)-int(1,kind=8)
@@ -3519,7 +3521,7 @@ module communications_init
            end if
            ii=ii+norb_per_gridpoint(ipt)
        end do
-    
+
        if (nspin*ii/=ndimind+nspin) then
            call f_err_throw('(nspin*ii/=ndimind+nspin)')
        end if
@@ -3535,12 +3537,12 @@ module communications_init
           call f_err_throw(trim(yaml_toa(maxval(indexrecvbuf)))//&
               &'=maxval(indexrecvbuf) > istartend(2,iproc)='//trim(yaml_toa(istartend(2,iproc))))
        end if
-    
+
        !!allocate(iextract(ndimind), stat=istat)
        !!call memocc(istat, iextract, 'iextract', subname)
 
        gridpoint_start_tmp = gridpoint_start
-    
+
       ! Rearrange the communicated data
       do i=1,ndimind
           iilong=indexrecvbuf(i)
@@ -3555,31 +3557,31 @@ module communications_init
           gridpoint_start(iilong-istartend(1,iproc))=gridpoint_start(iilong-istartend(1,iproc))+1
       end do
 
-    
+
       if(maxval(iextract)>ndimind) then
           stop 'maxval(iextract)>ndimind'
       end if
       if(minval(iextract)<1) stop 'minval(iextract)<1'
-    
+
       call f_free(indexrecvbuf)
-    
-    
+
+
       !! allocate(iexpand(ndimind), stat=istat)
       !! call memocc(istat, iexpand, 'iexpand', subname)
       ! Get the array to transfrom back the data
       call get_reverse_indices(ndimind, iextract, iexpand)
-    
+
     !!call mpi_barrier(bigdft_mpi%mpi_comm, ierr)
     !!t2=mpi_wtime()
     !!tt=t2-t1
     !!if(iproc==0) write(*,*) 'time 5.3: iproc', iproc, tt
-    
+
       indexrecvorbital2 = f_malloc(ndimind,id='indexrecvorbital2')
-    
+
       if (ndimind>0) then
           call vcopy(ndimind, indexrecvorbital(1), 1, indexrecvorbital2(1), 1)
       end if
-    
+
       !$omp parallel default(none) &
       !$omp shared(ndimind, iextract, indexrecvorbital, indexrecvorbital2) private(i, ind)
       !$omp do
@@ -3589,9 +3591,9 @@ module communications_init
       end do
       !$omp end do
       !$omp end parallel
-    
+
       call f_free(indexrecvorbital2)
-    
+
       if(minval(indexrecvorbital)<1) then
           call f_err_throw(trim(yaml_toa(minval(indexrecvorbital)))//'=minval(indexrecvorbital) < 1')
       end if
@@ -3599,14 +3601,14 @@ module communications_init
           call f_err_throw(trim(yaml_toa(maxval(indexrecvorbital)))//'=maxval(indexrecvorbital) >&
               & orbs%norb='//trim(yaml_toa(orbs%norb)))
       end if
-    
-    
+
+
       call f_free(gridpoint_start)
       call f_free(gridpoint_start_tmp)
       call f_free(nsend)
-    
+
       call f_release_routine()
-    
+
     end subroutine get_switch_indices_sumrho
 
 
@@ -3617,7 +3619,7 @@ module communications_init
       use module_base
       use module_types
       implicit none
-    
+
       ! Calling arguments
       integer,intent(in) :: iproc, nproc
       type(local_zone_descriptors),intent(in) :: lzd
@@ -3625,11 +3627,11 @@ module communications_init
       integer(kind=8),dimension(2,0:nproc-1),intent(in) :: istartend
       integer,dimension(0:nproc-1),intent(out) :: nsendcounts_repartitionrho, nsenddspls_repartitionrho
       integer,dimension(0:nproc-1),intent(out) :: nrecvcounts_repartitionrho, nrecvdspls_repartitionrho
-    
+
       ! Local variables
       integer :: jproc_send, jproc_recv, i3, i2, i1, jproc
       integer(kind=8) :: ii
-    
+
       jproc_send=0
       jproc_recv=0
       ii=int(0,kind=8)
@@ -3654,7 +3656,7 @@ module communications_init
               end do
           end do
       end do
-    
+
       nsenddspls_repartitionrho(0)=0
       nrecvdspls_repartitionrho(0)=0
       do jproc=1,nproc-1
@@ -3663,17 +3665,17 @@ module communications_init
           nrecvdspls_repartitionrho(jproc)=nrecvdspls_repartitionrho(jproc-1)+&
                                                       nrecvcounts_repartitionrho(jproc-1)
       end do
-    
+
     end subroutine communication_arrays_repartitionrho
-    
-    
+
+
     subroutine communication_arrays_repartitionrho_general(iproc, nproc, lzd, nscatterarr, istartend, &
                ncomms_repartitionrho, commarr_repartitionrho)
       use module_base
       use module_types
       use bounds, only: get_extent_of_overlap
       implicit none
-    
+
       ! Calling arguments
       integer,intent(in) :: iproc, nproc
       type(local_zone_descriptors),intent(in) :: lzd
@@ -3682,7 +3684,7 @@ module communications_init
       integer,intent(out) :: ncomms_repartitionrho
       integer,dimension(:,:),pointer,intent(out) :: commarr_repartitionrho
       character(len=*),parameter :: subname='communication_arrays_repartitionrho_general'
-    
+
       ! Local variables
       integer :: i1, i2, i3, jproc, jproc_send, iidest, nel, ioverlaps, iassign, is3, ie3, iis3, iie3, i
       logical :: started
@@ -3691,15 +3693,15 @@ module communications_init
       integer(kind=8) :: is
       integer(kind=8) :: n
       integer :: j
-    
+
       call f_routine(id='communication_arrays_repartitionrho_general')
 
       !!write(*,'(a,4i8,3x,6i8)') 'n1, n2, n3, ntot, istartend',lzd%glr%d%n1i,lzd%glr%d%n2i,lzd%glr%d%n3i,lzd%glr%d%n1i*lzd%glr%d%n2i*lzd%glr%d%n3i,istartend
       !!write(*,'(a,2i8,3x,6i8)') 'iproc, n3i, nscatterarr(iproc,:)', iproc, lzd%glr%d%n3i, nscatterarr(iproc,:)
-    
+
       ! only do this if task iproc has to receive a part of the potential
       if (nscatterarr(iproc,1)>0) then
-        
+
           !!!! First process from which iproc has to receive data
           !!!ncomms_repartitionrho=0
           !!!i3=nscatterarr(iproc,3)-nscatterarr(iproc,4)
@@ -3712,7 +3714,7 @@ module communications_init
           !!!        exit
           !!!    end if
           !!!end do
-        
+
           !!!! The remaining processes
           !!!iidest=0
           !!!nel=0
@@ -3742,7 +3744,7 @@ module communications_init
           ! Due to perdiodic boundary conditions, iie3 might be smaller than iis3
           iis3=modulo(is3-1,lzd%glr%d%n3i)+1
           iie3=modulo(ie3-1,lzd%glr%d%n3i)+1
-          
+
           ! Starting and ending point of the density required by task iproc (in global coordinates)
           iis=int(iis3-1,kind=8)*int(lzd%glr%d%n2i,kind=8)*int(lzd%glr%d%n1i,kind=8)+int(1,kind=8)
           iie=int(iie3,kind=8)*int(lzd%glr%d%n2i,kind=8)*int(lzd%glr%d%n1i,kind=8)
@@ -3762,11 +3764,11 @@ module communications_init
               !end if
           end do
           !@END NEW #####################
-        
-        
+
+
           call allocate_MPI_comms_cubic_repartitionp2p(ncomms_repartitionrho, commarr_repartitionrho)
-        
-        
+
+
           !!! First process from which iproc has to receive data
           !!ioverlaps=0
           !!i3=nscatterarr(iproc,3)-nscatterarr(iproc,4)
@@ -3778,8 +3780,8 @@ module communications_init
           !!        exit
           !!    end if
           !!end do
-        
-        
+
+
           !!! The remaining processes
           !!iassign=0
           !!iidest=0
@@ -3865,7 +3867,7 @@ module communications_init
           !!do i=1,ncomms_repartitionrho
           !!    write(*,'(a,i5,3x,4i8)') 'SECOND: iproc, cr(1:4,i)', iproc, commarr_repartitionrho(1:4,i)
           !!end do
-        
+
           ! some checks
           nel=0
           !nel_array=f_malloc0(0.to.nproc-1,id='nel_array')
@@ -3884,15 +3886,15 @@ module communications_init
           !!    !stop 'nel_array(iproc)/=istartend(2,iproc)-istartend(1,iproc)+1'
           !!end if
           !!call f_free(nel_array)
-    
+
       else
           ncomms_repartitionrho=0
           call allocate_MPI_comms_cubic_repartitionp2p(1, commarr_repartitionrho)
-    
+
       end if
-    
+
       call f_release_routine()
-    
+
     end subroutine communication_arrays_repartitionrho_general
 
 
@@ -3905,7 +3907,7 @@ module communications_init
       use communications_base, only: p2pComms_null, bgq
       use bounds, only: get_extent_of_overlap, check_whether_bounds_overlap
       implicit none
-      
+
       ! Calling arguments
       integer,intent(in):: iproc, nproc
       integer,dimension(0:nproc-1,4),intent(in):: nscatterarr !n3d,n3p,i3s+i3xcsh-1,i3xcsh
@@ -3913,7 +3915,7 @@ module communications_init
       type(local_zone_descriptors),intent(in):: lzd
       integer,intent(in) :: nspin
       type(p2pComms),intent(out):: comgp
-      
+
       ! Local variables
       integer:: is1, ie1, is2, ie2, is3, ie3, ilr, ii, iorb, iiorb, jproc, kproc, istsource, is, ie, iie3j
       integer:: ioverlap, is3j, ie3j, is3k, ie3k, mpidest, istdest, ioffsetx, ioffsety, ioffsetz, iel
@@ -3931,14 +3933,14 @@ module communications_init
 
 
       call timing(iproc,'init_commPot  ','ON')
-      
+
       !call nullify_p2pComms(comgp)
       comgp = p2pComms_null()
-    
+
       !allocate(comgp%ise(6,0:nproc-1), stat=istat)
       !call memocc(istat, comgp%ise, 'comgp%ise', subname)
       !!comgp%ise = f_malloc_ptr((/1.to.6,0.to.nproc-1/),id='comgp%ise')
-      
+
       ! Determine the bounds of the potential that we need for
       ! the orbitals on this process.
       !iiorb=0
@@ -3950,10 +3952,10 @@ module communications_init
       ie3=-1000000000
       !do iorb=1,orbs%norbu_par(jproc,0)
       do iorb=1,orbs%norbp
-          
-          iiorb=orbs%isorb+iorb 
+
+          iiorb=orbs%isorb+iorb
           ilr=orbs%inwhichlocreg(iiorb)
-      
+
           is=modulo(1+lzd%Llr(ilr)%nsi1-1,lzd%glr%d%n1i)+1
           if(is < is1) then
               is1=is
@@ -3963,7 +3965,7 @@ module communications_init
           if(ie > ie1) then
               ie1=ie
           end if
-      
+
           is=modulo(1+lzd%Llr(ilr)%nsi2-1,lzd%glr%d%n2i)+1
           if(is < is2) then
               is2=is
@@ -3973,7 +3975,7 @@ module communications_init
           if(ie > ie2) then
               ie2=ie
           end if
-      
+
           !ii=1+lzd%Llr(ilr)%nsi3
           is=modulo(1+lzd%Llr(ilr)%nsi3-1,lzd%glr%d%n3i)+1
           if(is < is3) then
@@ -3987,7 +3989,7 @@ module communications_init
 
           !!write(*,'(a,7i8)') 'ilr, lnsi1, lni1, gnsi1, gni1, is1, ie1', ilr, lzd%Llr(ilr)%nsi1, lzd%llr(ilr)%d%n1i, lzd%glr%nsi1, lzd%glr%d%n1i, is1, ie1
           !!write(*,'(a,7i8)') 'ilr, lnsi3, lni3, gnsi3, gni3, is, ie', ilr, lzd%Llr(ilr)%nsi3, lzd%llr(ilr)%d%n3i, lzd%glr%nsi3, lzd%glr%d%n3i, is, ie
-      
+
       end do
       !!write(*,'(a,i4,3x,9i6)') 'iproc, is1, ie1, n1, is2, ie2, n2, is3, ie3, n3', iproc, is1, ie1, lzd%glr%d%n1i, is2, ie2, lzd%glr%d%n2i, is3, ie3, lzd%glr%d%n3i
 
@@ -4030,10 +4032,10 @@ module communications_init
       end if
       comgp%ise(5)=is3
       comgp%ise(6)=ie3
-    
+
       !!write(*,'(a,i5,6i6)') 'iproc, ise', iproc, comgp%ise
-    
-      
+
+
       ! Determine how many slices each process receives.
       !allocate(comgp%noverlaps(0:nproc-1), stat=istat)
       !call memocc(istat, comgp%noverlaps, 'comgp%noverlaps', subname)
@@ -4059,7 +4061,7 @@ module communications_init
               !!write(*,'(a,6i8,l6)') 'iproc, is3j, ie3j, iie3j, is3k, ie3k, overlap', iproc, is3j, ie3j, iie3j, is3k, ie3k, check_whether_bounds_overlap(is3j, iie3j, is3k, ie3k)
               !!if(check_whether_bounds_overlap(is3j, iie3j, is3k, ie3k)) then
               !!    ioverlap=ioverlap+1
-              !!    !if(iproc==0) write(*,'(2(a,i0),a)') 'process ',jproc,' gets potential from process ',kproc,'.' 
+              !!    !if(iproc==0) write(*,'(2(a,i0),a)') 'process ',jproc,' gets potential from process ',kproc,'.'
               !!!TAKE INTO ACCOUNT THE PERIODICITY HERE
               !!!else if(ie3j > lzd%Glr%d%n3i .and. lzd%Glr%geocode /= 'F') then
               !!!    stop 'periodicity here deprecated'
@@ -4078,7 +4080,7 @@ module communications_init
           comgp%noverlaps=ioverlap
           !!if(iproc==0) write(*,'(2(a,i0),a)') 'Process ',jproc,' gets ',ioverlap,' potential slices.'
       !end do
-      
+
       ! Determine the parameters for the communications.
       !allocate(comgp%comarr(6,nmaxoverlap,0:nproc-1))
       !call memocc(istat, comgp%comarr, 'comgp%comarr', subname)
@@ -4092,7 +4094,7 @@ module communications_init
       comgp%nrecvBuf = 0
       is3min=0
       ie3max=0
-    
+
       ! Only do this if we have more than one MPI task
       !nproc_if: if (nproc>1) then
           is3j=comgp%ise(5)
@@ -4402,30 +4404,30 @@ module communications_init
           !if(ioverlap/=comgp%noverlaps) stop 'ioverlap/=comgp%noverlaps'
           if (ioverlap/=comgp%noverlaps) call f_err_throw( &
              'initialize_communication_potential: ioverlap /= comgp%noverlaps! ', err_name='BIGDFT_RUNTIME_ERROR')
-    
+
       !else nproc_if ! monoproc
 
       !    !write(*,*) 'comgp%ise',comgp%ise
-    
+
       !    !comgp%nrecvbuf = (comgp%ise(2)-comgp%ise(1)+1)*(comgp%ise(4)-comgp%ise(3)+1)*&
       !    !                 (comgp%ise(6)-comgp%ise(5)+1)
       !    ! Probably too much, but ok for the moment
       !    comgp%nrecvbuf = lzd%glr%d%n1i*lzd%glr%d%n2i*lzd%glr%d%n3i
       !
       !end if nproc_if
-    
+
       ! This is the size of the communication buffer without spin
       comgp%nrecvbuf=max(comgp%nrecvbuf,1)
 
       ! Copy the spin value
       comgp%nspin=nspin
-      
+
       ! To indicate that no communication is going on.
       comgp%communication_complete=.true.
       !!comgp%messages_posted=.false.
-    
+
       call timing(iproc,'init_commPot  ','OF')
-    
+
     end subroutine initialize_communication_potential
 
 
@@ -4438,7 +4440,7 @@ module communications_init
     !!
     !! Calculate the number of elements to be sent to each process
     !! and the array of displacements.
-    !! Cubic strategy: 
+    !! Cubic strategy:
     !!    - the components are equally distributed among the wavefunctions
     !!    - each processor has all the orbitals in transposed form
     !!    - each wavefunction is equally distributed in its transposed form
@@ -4463,26 +4465,26 @@ module communications_init
       integer, dimension(:,:), allocatable :: nvctr_par,norb_par !<for all the components and orbitals (with k-pts)
 
       call f_routine(id='orbitals_communicators')
-      
+
       !check of allocation of important arrays
       if (.not. associated(orbs%norb_par)) then
          write(*,*)'ERROR: norb_par array not allocated'
          stop
       end if
-   
+
       !Allocations of nvctr_par and norb_par
       nvctr_par = f_malloc((/ 0.to.nproc-1, 0.to.orbs%nkpts /),id='nvctr_par')
       norb_par = f_malloc((/ 0.to.nproc-1, 0.to.orbs%nkpts /),id='norb_par')
       mykpts = f_malloc(orbs%nkpts,id='mykpts')
-    
+
       !initialise the arrays
       do ikpts=0,orbs%nkpts
          do jproc=0,nproc-1
-            nvctr_par(jproc,ikpts)=0 
-            norb_par(jproc,ikpts)=0 
+            nvctr_par(jproc,ikpts)=0
+            norb_par(jproc,ikpts)=0
          end do
       end do
-    
+
       !calculate the same k-point distribution for the orbitals
       !assign the k-point to the given orbital, counting one orbital after each other
       jorb=1
@@ -4514,28 +4516,28 @@ module communications_init
             end if
          end do
       end if
-    
+
       !balance the components between processors
       !in the most symmetric way
       !here the components are taken into account for all the k-points
-    
-      !create an array which indicate which processor has a GPU associated 
+
+      !create an array which indicate which processor has a GPU associated
       !from the viewpoint of the BLAS routines (deprecated, not used anymore)
 !!$      GPU_for_comp = f_malloc(0.to.nproc-1,id='GPU_for_comp')
-!!$    
+!!$
 !!$      if (nproc > 1) then
 !!$         call MPI_ALLGATHER(GPUblas,1,MPI_LOGICAL,GPU_for_comp(0),1,MPI_LOGICAL,&
 !!$              bigdft_mpi%mpi_comm,ierr)
 !!$      else
 !!$         GPU_for_comp(0)=GPUblas
 !!$      end if
-!!$    
+!!$
 !!$      call f_free(GPU_for_comp)
-    
+
       !old k-point repartition
     !!$  !decide the repartition for the components in the same way as the orbitals
     !!$  call parallel_repartition_with_kpoints(nproc,orbs%nkpts,(lr%wfd%nvctr_c+7*lr%wfd%nvctr_f),nvctr_par)
-    
+
     !!$  ikpts=1
     !!$  ncomp_res=(lr%wfd%nvctr_c+7*lr%wfd%nvctr_f)
     !!$  do jproc=0,nproc-1
@@ -4558,7 +4560,7 @@ module communications_init
     !!$
     !!$     end do loop_comps
     !!$  end do
-    
+
       !new k-point repartition
       if (present(basedist)) then
          do jkpt=1,orbs%nkpts
@@ -4592,7 +4594,7 @@ module communications_init
               & trim(yaml_toa( (/ nproc,orbs%nkpts,orbs%norb,(lr%wfd%nvctr_c+7*lr%wfd%nvctr_f) /) )), &
               & err_id=BIGDFT_RUNTIME_ERROR)
       end if
-    
+
     !write(*,'(a,i2,3x,8i7,i10)') 'iproc, nvctr_par(jproc), sum', iproc, (nvctr_par(jproc,1), jproc=0,nproc-1), sum(nvctr_par(:,1))
     !write(*,*) 'iproc, (lr%wfd%nvctr_c+7*lr%wfd%nvctr_f)*orbs%norbp', iproc, (lr%wfd%nvctr_c+7*lr%wfd%nvctr_f)*orbs%norbp
       !some checks
@@ -4608,7 +4610,7 @@ module communications_init
             stop
          end if
       end do
-    
+
       !this function which associates a given k-point to a processor in the component distribution
       !the association is chosen such that each k-point is associated to only
       !one processor
@@ -4621,11 +4623,11 @@ module communications_init
             end if
          end do loop_jproc
       end do
-      
+
       !print*,'check',orbs%ikptproc(:)
-    
+
     !write(*,*) 'orbs%norb_par',orbs%norb_par
-    
+
       !calculate the number of k-points treated by each processor in both
       ! the component distribution and the orbital distribution.
       !to have a correct distribution, a k-point should be divided between the same processors
@@ -4639,17 +4641,17 @@ module communications_init
          end if
       end do
       orbs%nkptsp=nkptsp
-    
+
     !!$  allocate(orbs%ikptsp(orbs%nkptsp+ndebug),stat=i_stat)
     !!$  call memocc(i_stat,orbs%ikptsp,'orbs%ikptsp',subname)
     !!$  orbs%ikptsp(1:orbs%nkptsp)=mykpts(1:orbs%nkptsp)
-    
+
       !print the distribution scheme used for this set of orbital
       !in the case of multiple k-points
       if (iproc == 0 .and. get_verbose_level() > 1 .and. orbs%nkpts > 1) then
          call print_distribution_schemes(nproc,orbs%nkpts,norb_par(0,1),nvctr_par(0,1))
       end if
-    
+
       !print *,iproc,orbs%nkptsp,orbs%norbp,orbs%norb,orbs%nkpts
       !call MPI_BARRIER(bigdft_mpi%mpi_comm,ierr)
       !call MPI_FINALIZE(ierr)
@@ -4676,7 +4678,7 @@ module communications_init
             end if
          end do
       end if
-    
+
       !before printing the distribution schemes, check that the two distributions contain
       !the same k-points
       yesorb=.false.
@@ -4691,10 +4693,10 @@ module communications_init
             call MPI_ABORT(bigdft_mpi%mpi_comm, ierr)
          end if
       end do kpt_components
-    
+
       yescomp=.false.
       kpt_orbitals: do jorb=1,orbs%norbp
-         ikpt=orbs%iokpt(jorb)   
+         ikpt=orbs%iokpt(jorb)
          do ikpts=1,orbs%nkptsp
             if (orbs%iskpts+ikpts == ikpt) yescomp=.true.
          end do
@@ -4704,37 +4706,37 @@ module communications_init
             call MPI_ABORT(bigdft_mpi%mpi_comm, ierr)
          end if
       end do kpt_orbitals
-    
+
       !print *,'AAAAiproc',iproc,orbs%iskpts,orbs%iskpts+orbs%nkptsp
-    
+
       !allocate communication arrays
       comms%nvctr_par = f_malloc_ptr((/ 0.to.nproc-1, 0.to.orbs%nkpts /),id='comms%nvctr_par')
       comms%ncntd = f_malloc_ptr(0.to.nproc-1,id='comms%ncntd')
       comms%ncntt = f_malloc_ptr(0.to.nproc-1,id='comms%ncntt')
       comms%ndspld = f_malloc_ptr(0.to.nproc-1,id='comms%ndspld')
       comms%ndsplt = f_malloc_ptr(0.to.nproc-1,id='comms%ndsplt')
-    
+
       !assign the partition of the k-points to the communication array
       !calculate the number of componenets associated to the k-point
       do jproc=0,nproc-1
          comms%nvctr_par(jproc,0)=0
          do ikpt=1,orbs%nkpts
             comms%nvctr_par(jproc,0)=comms%nvctr_par(jproc,0)+&
-                 nvctr_par(jproc,ikpt) 
+                 nvctr_par(jproc,ikpt)
             comms%nvctr_par(jproc,ikpt)=nvctr_par(jproc,ikpt)
          end do
       end do
     !!$  do ikpts=1,orbs%nkptsp
     !!$     ikpt=orbs%iskpts+ikpts!orbs%ikptsp(ikpts)
     !!$     do jproc=0,nproc-1
-    !!$        comms%nvctr_par(jproc,ikpts)=nvctr_par(jproc,ikpt) 
+    !!$        comms%nvctr_par(jproc,ikpts)=nvctr_par(jproc,ikpt)
     !!$     end do
     !!$  end do
-    
+
       !with this distribution the orbitals and the components are ordered following k-points
       !there must be no overlap for the components
       !here we will print out the k-points components distribution, in the transposed and in the direct way
-    
+
       do jproc=0,nproc-1
          comms%ncntd(jproc)=0
          do ikpts=1,orbs%nkpts
@@ -4758,23 +4760,23 @@ module communications_init
       do jproc=1,nproc-1
          comms%ndsplt(jproc)=comms%ndsplt(jproc-1)+comms%ncntt(jproc-1)
       end do
-    
+
       !print *,'iproc,comms',iproc,comms%ncntd,comms%ndspld,comms%ncntt,comms%ndsplt
-    
+
       call f_free(nvctr_par)
       call f_free(norb_par)
       call f_free(mykpts)
-    
+
       !calculate the dimension of the wavefunction
       !for the given processor (this is only the cubic strategy)
       orbs%npsidim_orbs=(lr%wfd%nvctr_c+7*lr%wfd%nvctr_f)*orbs%norb_par(iproc,0)*orbs%nspinor
       orbs%npsidim_comp=sum(comms%ncntt(0:nproc-1))
-        
+
     !!$  orbs%npsidim=max((lr%wfd%nvctr_c+7*lr%wfd%nvctr_f)*orbs%norb_par(iproc,0)*orbs%nspinor,&
     !!$       sum(comms%ncntt(0:nproc-1)))
 
       call f_release_routine()
-    
+
     END SUBROUTINE orbitals_communicators
 
 
@@ -4804,7 +4806,7 @@ module communications_init
           ! Start and end on task iproc, possibly out of box
           ! The min is for cases where a task has more than the entire box
           is=modulo(i3startend(1,iproc)-1,n3+1)+1
-          if (i3startend(2,iproc)-i3startend(1,iproc)>n3) then 
+          if (i3startend(2,iproc)-i3startend(1,iproc)>n3) then
               ie=modulo(min(is-1,i3startend(2,iproc))-1,n3+1)+1
           else
               ie=modulo(i3startend(2,iproc)-1,n3+1)+1
@@ -4850,7 +4852,7 @@ module communications_init
       integer,intent(in) :: iproc, nproc, comm
       character(len=*),intent(in) :: message
       type(comms_linear),intent(in) :: comms
-      
+
       ! Local variables
       integer(kind=8) :: nsize_direct, nsize_direct_min, nsize_direct_max, nsize_direct_all
       integer(kind=8) :: nsize_transposed, nsize_transposed_min, nsize_transposed_max, nsize_transposed_all
