@@ -7,24 +7,30 @@ conditions.add("testing")
 #List the module the this rcfile will build
 modules = ['spred',]
 
+def fflags():
+  return """ "FCFLAGS=-O2 -fopenmp -mtune=native" """
+
+
 #example of the potentialities of the python syntax in this file
 def env_configuration():
-    return '''"FC=mpifort" "CC=gcc" "FCFLAGS=-O2 -fopenmp -mtune=native" \
-    "--with-ext-linalg=-framework Accelerate" '''
+    return  (""" "FC=mpifort" "CC=gcc-8" "CXX=g++-8" """ + fflags() +
+             """ "--with-ext-linalg=-framework Accelerate" """)
+def cmake_configuration():
+  return ( """-DFORTRAN_ONLY=YES -DF_TOOLCHAINFLAGS=""" + fflags() +
+           """-DCMAKE_Fortran_COMPILER=mpifort """)
 
 #the following command sets the environment variable to give these settings
 #to all the modules
 import os
 os.environ['BIGDFT_CONFIGURE_FLAGS']=env_configuration()
+#here follow the configuration instructions for the modules built
+#we specify the configurations for the modules to customize the options if needed
 
 # For NTPoly
 module_cmakeargs.update({
-'ntpoly': """-DFORTRAN_ONLY=YES \
-          -DF_TOOLCHAINFLAGS="-O2 -fopenmp -mtune=native" \
-          -DCMAKE_Fortran_COMPILER=mpifort """})
+'ntpoly': cmake_configuration()
+})
 
-#here follow the configuration instructions for the modules built
-#we specify the configurations for the modules to customize the options if needed
 module_autogenargs.update({
 
 'libyaml': env_configuration(),
