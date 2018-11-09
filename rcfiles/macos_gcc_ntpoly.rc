@@ -10,14 +10,18 @@ modules = ['spred',]
 def fflags():
   return """ "FCFLAGS=-O2 -fopenmp -mtune=native" """
 
-
 #example of the potentialities of the python syntax in this file
 def env_configuration():
     return  (""" "FC=mpifort" "CC=gcc-8" "CXX=g++-8" """ + fflags() +
              """ "--with-ext-linalg=-framework Accelerate" """)
+
 def cmake_configuration():
+  def getcwd():
+    import os
+    return os.getcwd()
   return ( """-DFORTRAN_ONLY=YES -DF_TOOLCHAINFLAGS=""" + fflags() +
-           """-DCMAKE_Fortran_COMPILER=mpifort """)
+           """-DCMAKE_Fortran_COMPILER=mpifort """ +
+           """-DCMAKE_PREFIX_PATH="""+getcwd()+"""/install""")
 
 #the following command sets the environment variable to give these settings
 #to all the modules
@@ -28,7 +32,8 @@ os.environ['BIGDFT_CONFIGURE_FLAGS']=env_configuration()
 
 # For NTPoly
 module_cmakeargs.update({
-'ntpoly': cmake_configuration()
+'ntpoly': cmake_configuration(),
+'bigpoly': cmake_configuration()
 })
 
 module_autogenargs.update({
