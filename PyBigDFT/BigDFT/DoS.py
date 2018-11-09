@@ -224,7 +224,7 @@ class DoS():
         for i,e in enumerate(self.range):
             safe_print(e,' '.join(map(str,[d[i] for d in data])))
     
-    def plot(self,sigma=None,legend=True):
+    def plot(self,sigma=None,legend=True,xlmin=None,xlmax=None,ylmin=None,ylmax=None):
         import matplotlib.pyplot as plt
         from matplotlib.widgets import Slider#, Button, RadioButtons
         import numpy
@@ -235,6 +235,14 @@ class DoS():
             #self.plotl.append(self.ax1.plot(self.range,self.curve(dos,norm=self.norms[i],sigma=sigma),label=self.labels[i]))
             self.plotl.append(self.ax1.plot(
                 *dos['dos'].curve(self.range,sigma=sigma),label=self.labels[i]))
+        if xlmax is not None:
+            plt.xlim(xmax = xlmax)
+        if xlmin is not None:
+            plt.xlim(xmin = xlmin)
+        if ylmax is not None:
+            plt.ylim(ymax = ylmax)
+        if ylmin is not None:
+            plt.ylim(ymin = ylmin)
         plt.xlabel('Energy [eV]', fontsize=18)
         plt.ylabel('DoS', fontsize=18)
         if self.ef is not None:

@@ -1251,8 +1251,13 @@ contains
                    end do
                 end do
              end do
-             kernel%IntVol=kernel%IntVol*hh/epsm1
-             kernel%IntSur=kernel%IntSur*hh/epsm1
+             if (epsm1 /= 0.0_dp) then
+                kernel%IntVol=kernel%IntVol*hh/epsm1
+                kernel%IntSur=kernel%IntSur*hh/epsm1
+             else
+                kernel%IntVol=0.0_dp
+                kernel%IntSur=0.0_dp
+             end if
           else
              call f_err_throw('For method "PCG" the arrays corr or epsilon should be present')
           end if

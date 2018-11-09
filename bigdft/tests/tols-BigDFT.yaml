@@ -2676,6 +2676,8 @@ Mg-cubic_ortho:
   Total ionic charge: 1.50e-11
 
 Na8-multipole:
+  Keys to ignore:
+   - Electronic charge changed by rho compression
   Electronic charge changed by rho compression: 4.6e-11
   EH: 5.1e-11
   EKS: 1.9e-11
