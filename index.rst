@@ -10,12 +10,20 @@ The `BigDFT-suite` project regroup the packages which are needed
 to install, run and employ the BigDFT code for production calculations.
 
 
+Overview of BigDFT
+------------------
+
+.. toctree::
+   :maxdepth: 2
+
+   overview
+
+
 Users' instructions
 -------------------
 
 .. toctree::
    :maxdepth: 2
-
 
    users
 
@@ -26,6 +34,9 @@ Developers' instructions
    :maxdepth: 2
 
    developers
+
+
+
 
 Example of link  to :ref:`futile:futile_index`, followed by exemple
 to :ref:`pybigdft:pybigdft_tutorials`, actualized.

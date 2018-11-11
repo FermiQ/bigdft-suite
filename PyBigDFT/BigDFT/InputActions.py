@@ -34,6 +34,7 @@ Note:
    spin_polarize
    charge
    charge_and_polarize
+   set_symmetry
    apply_electric_field
    set_random_inputguess
    write_orbitals_on_disk
@@ -120,6 +121,25 @@ def set_rmult(inp,rmult=None,coarse=5.0,fine=8.0):
     rmlt=[coarse,fine] if rmult is None else rmult
     __set__(inp,'dft','rmult',rmlt)
 
+def set_symmetry(inp,yes=True):
+    """
+    Set the symmetry detection for the charge density and the ionic forces and stressdef set_symmetry(inp,yes=True):
+    
+    Args: 
+       yes (bool): If ``False`` the symmetry detection is disabled
+    """
+    __set__(inp,'dft','disablesym', not yes)
+
+def set_linear_scaling(inp):
+    """
+    Activates the linear scaling mode
+    """
+    newid='linear'
+    previous_ipid=inp.get('dft','False')
+    if previous_ipid: previous_ipid=inp.get('inputpsiid','False')
+    if previous_ipid == 2: newid=102
+
+    __set__(inp,'dft','inputpsiid',newid)
 
 def set_mesh_sizes(inp,ngrids=64):
     """
@@ -167,14 +187,82 @@ def charge_and_polarize(inp):
     charge(inp,charge=1)
     spin_polarize(inp,mpol=1)
 
+def set_SCF_method(inp,method='dirmin',mixing_on='density',mixing_scheme='Pulay'):
+    """
+    Set the algorithm for SCF.
+
+    Args:
+       method (str): The algoritm chosen. Might be different for the cubic (CS) or linear scaling (LS) algorithm.
+         * dirmin: Direct minimization approach (valid both to LS and CS)
+         * mixing: Mixing scheme (only CS)
+         * foe: Fermi Operator Expansion (only LS)
+         * pexsi: Pole EXpansion and Selected Inversion method (only LS, require PEXSI compilation)
+         * diag: Explicit diagonalization (only LS, for validation purposes)
+            
+       mixing_on (str): May be ``"density"`` or ``"potential"`` in the ``"mixing"`` case, decide to which quantity the mixing to be performed
+
+       mixing_scheme (str): May be:
+          
+          * Pulay : DIIS mixing on the last 7 iterations
+
+          * Simple: Simple mixing 
+          
+          * Anderson: Anderson scheme
+          
+          * Anderson2: Anderson scheme based on the two pervious iterations
+          
+          * CG: Conjugate Gradient based on the minimum of the energy with respect of the potential 
+       
+    Warning:
+       Only the FOE method exhibit asymptotic linear scaling regime. 
+    
+    Todo:
+       Check if the linear scaling case needs another input variable for the mixing of the potential (density)
+    
+    """
+    method.upper()
+    if method != 'MIXING': __set__(inp,'lin_kernel','linear_method',method)
+    if method=='DIRMIN':
+       __set__(inp,'mix','iscf',0)
+       return
+    iscf=0
+    if mixing_on == 'density': iscf+=10
+    if mixing_scheme == 'Pulay': iscf+=7
+    if mixing_scheme == 'Anderson': iscf+=3
+    if mixing_scheme == 'Anderson2': iscf+=4
+    if mixing_scheme == 'Simple': iscf+=2
+    if mixing_scheme == 'CG': iscf+=5
+    __set__(inp,'mix','iscf',iscf)
+
+      
+
 def add_empty_SCF_orbitals(inp,norbs=10):
     """
     Insert ``norbs`` empty orbitals in the SCF procedure
 
     Args:
        norbs (int): Number of empty orbitals
+
+    Warning:
+       In linear scaling case, this is only meaningful for the direct minimization approach.
     """
     __set__(inp,'mix','norbsempty',norbs)
+    __set__(inp,'lin_general','extra_states',norbs)
+
+def write_cubefiles_around_fermi_level(inp,nplot=1):
+    """
+    Writes the ``nplot`` orbitals around the fermi level in cube format
+
+    Args:
+      nplot (int): the number of orbitals to print around the fermi level.
+
+    Warning:
+       This is presently meaningful only for a empty states calculation.
+
+    Warning: 
+       This would work only for the cubic scaling code at present.
+    """
+    __set__(inp,'dft','nplot',nplot)
 
 def write_orbitals_on_disk(inp,format='binary'):
     """
@@ -182,14 +270,24 @@ def write_orbitals_on_disk(inp,format='binary'):
 
     Args:
       format (str): The format to write the orbitals with. Accepts the strings:
-
          * 'binary'
          * 'text'
-         * 'text_with_densities'
-         * 'text_with_cube'
          * 'etsf' (requires etsf-io enabled)
+
+    Todo:
+      Verify if this option works for a linear scaling calulation.
     """
-    __set__(inp,'output','orbitals',format)
+    fmt=format
+    __set__(inp,'output','orbitals',fmt)
+
+def write_support_functions_on_disk(inp,format='binary',matrices=True,coefficients=False):
+    pass
+
+def write_support_function_matrices(inp,):
+    """
+    Write the matrices of the linear scaling formats.
+    """
+    pass
 
 def set_atomic_positions(inp,posinp=None):
     """
@@ -201,7 +299,11 @@ def read_orbitals_from_disk(inp):
     """
     Read the orbitals from data directory, if available
     """
-    __set__(inp,'dft','inputpsiid',2)
+    newid=2
+    previous_ipid=inp.get('dft','False')
+    if previous_ipid: previous_ipid=inp.get('inputpsiid','False')
+    if previous_ipid == 'linear' or previous_id==100: newid=102
+    __set__(inp,'dft','inputpsiid',102)
 
 def set_random_inputguess(inp):
     """

@@ -1,4 +1,4 @@
-Bigdft-suite manifesto
+BigDFT-suite manifesto
 =======================
 
 The code is not a monolithic piece of software but a collection of *independent*
@@ -17,7 +17,7 @@ The first question to ask yourself is the *generality* of the
 functionality you are going to implement.
 The spirit is to work at the lowest possible level for a given task.
 The idea is to make available the functionality also to other potential
-users of the ```BigDFt-suite`` subpackages.
+users of the ``BigDFT-suite`` subpackages.
 This will also help in a better structure of the API of each package.
 
 For instance, suppose you would like to implement a continuum solvent
@@ -34,14 +34,24 @@ For a general overview one might say that:
 
  * <to_B_continued>
 
+
+Read the coding rules
+---------------------
+
+For some inspiration on coding style and strategies, read this_.
+
+.. _this: http://bigdft.org/Wiki/index.php?title=Coding_Rules
+
+
 Document the API of the high-level routines
 -------------------------------------------
 
+.. todo:: write something here
 
 Create a test for the functionality
 -----------------------------------
 
-each of the package has its own continuous integration procedure,  refer to
+Each of the packages has its own continuous integration procedure,  refer to
 it for a suitable implementation.
 
  * ``futile``, ``psolver``: F_REGTEST_INSTRUCTION (to be documented)
@@ -49,10 +59,14 @@ it for a suitable implementation.
 
 .. _here: http://bigdft.org/Wiki/index.php?title=Inserting_a_new_test_in_the_distribution
 
-Make a Notebook which demonstrates the fuunctionality in PyBigDFT
------------------------------------------------------------------
+Make a notebook which demonstrates the functionality in PyBigDFT
+----------------------------------------------------------------
 
-for high level functionalities only
+For each new high level functionality, you should create a jupyter notebook which demonstrates the new capability.  The idea is to ensure continuity and to help acquaint users with the new feature.  Some examples of notebooks can be found on github_.
+
+.. _github: https://github.com/luigigenovese/BigDFT-nb
 
 Insert the notebook as a tutorial in the PyBigDFT documentation
 ---------------------------------------------------------------
+
+Once an appropriate notebook has been written, this should be added to the tutorial directory (``BIGDFT_ROOT/PyBigDFT/source/tutorials``), so that the documentation will be automatically generated and available as a tutorial at :ref:`pybigdft:pybigdft_tutorials`.
