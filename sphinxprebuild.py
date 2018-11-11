@@ -81,7 +81,7 @@ if __name__=='__main__':
 	logging.basicConfig(format='%(message)s', level=loglevel)
 	
 	
-	builder = build_project('futile')
+	builder = project_builder('PyBigDFT')
 	# build once
 	builder.build()
 	

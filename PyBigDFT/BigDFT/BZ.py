@@ -31,10 +31,10 @@ def astruct_to_cell(astruct):
     the cell structure as needed from spglib    
     """
     import spglib,numpy
-    celltmp=[ a if a!=float('inf') else 1.0 for a in astruct['Cell']]
+    celltmp=[ a if a!=float('inf') else 1.0 for a in astruct['cell']]
     lattice=numpy.diag(celltmp)
-    pos=[ [ a/b if b!=float('inf') else 0.0 for a,b in zip(at.values()[0], celltmp)]for at in astruct['Positions']]
-    atoms=[ at.keys()[0] for at in astruct['Positions']]
+    pos=[ [ a/b if b!=float('inf') else 0.0 for a,b in zip(at.values()[0], celltmp)]for at in astruct['positions']]
+    atoms=[ at.keys()[0] for at in astruct['positions']]
     ianames,iatype=numpy.unique(atoms,return_inverse=True)
     return (lattice,pos,iatype)
 
@@ -124,11 +124,11 @@ class BrillouinZone():
         import spglib,numpy
         cell=astruct_to_cell(astruct)
         self.lattice=cell[0]
-        #celltmp=[ a if a!=float('inf') else 1.0 for a in astruct['Cell']]
+        #celltmp=[ a if a!=float('inf') else 1.0 for a in astruct['cell']]
         #self.lattice=numpy.diag(celltmp)
         #print 'lattice',self.lattice
-        #pos=[ [ a/b if b!=float('inf') else 0.0 for a,b in zip(at.values()[0], celltmp)]for at in astruct['Positions']]
-        #atoms=[ at.keys()[0] for at in astruct['Positions']]
+        #pos=[ [ a/b if b!=float('inf') else 0.0 for a,b in zip(at.values()[0], celltmp)]for at in astruct['positions']]
+        #atoms=[ at.keys()[0] for at in astruct['positions']]
         #ianames,iatype=numpy.unique(atoms,return_inverse=True) #[1,]*4+[2,]*4 #we should write a function for the iatype
         #print 'iatype', iatype
         #cell=(self.lattice,pos,iatype)
@@ -136,7 +136,7 @@ class BrillouinZone():
         #then define the pathes and special points
         import ase.dft.kpoints as ase
         #we should adapt the 'cubic'
-        cell_tmp=astruct['Cell']
+        cell_tmp=astruct['cell']
         #print 'cell',cell_tmp,numpy.allclose(cell_tmp,[cell_tmp[0],]*len(cell_tmp))
         if numpy.allclose(cell_tmp,[cell_tmp[0],]*len(cell_tmp)):
             lattice_string='cubic'

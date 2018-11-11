@@ -24,7 +24,7 @@ module f_alltoall
      module procedure mpialltoallw_d22,mpialltoallw_d12
      !module procedure mpialltoallw_d00,mpialltoallw_i00
   end interface fmpi_alltoall
-  
+
 !!$  interface mpialltoallv
 !!$     module procedure mpialltoallv_int11, mpialltoallv_long11, mpialltoallv_double11
 !!$     !module procedure mpialltoallv_double61
@@ -39,7 +39,7 @@ module f_alltoall
 !!$  end interface mpi_get_alltoallv
 
   public :: fmpi_alltoall
-  
+
   contains
 
     !>choose the correct algorithm to be applied as a function of the sendrecv arrays
@@ -58,7 +58,7 @@ module f_alltoall
       integer :: algo
       !local variables
       !>maximal number of elements sent and/or received on a proc using the standard MPI function
-      integer, parameter :: max_size = 100000000 
+      integer, parameter :: max_size = 100000000
       logical :: large
       integer(f_long) :: sizecomms,sizecommr
 
@@ -127,7 +127,7 @@ module f_alltoall
          call fmpi_allreduce(large, 1,FMPI_LOR, comm=comm)
          if (large) algo=VARIABLE_ONE_SIDED_GET_ALGO
       end if
-     
+
     end function alltoall_algorithm
 
 !!$    recursive subroutine mpialltoallw_i00(sendbuf, recvbuf, &

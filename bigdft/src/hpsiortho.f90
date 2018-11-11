@@ -264,7 +264,7 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
                 call yaml_map('Moments in',denspot%cfd%m_at_ref,fmt='(f12.6)')
 !!$             if(iproc==0) print *, 'Calling ASD! moments_in:'
 !!$             if(iproc==0) print '(3f12.6)', denspot%cfd%m_at_ref
-                !if(iproc==0) 
+                !if(iproc==0)
                 call asd_wrapper(asd,denspot%cfd%m_at_ref,denspot%cfd%B_at,denspot%cfd%nat)
              end if
              call fmpi_bcast(denspot%cfd%m_at_ref,root=0,comm=bigdft_mpi%mpi_comm)!,check=.true.)
@@ -272,7 +272,7 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
                 call yaml_map('Moments out',denspot%cfd%m_at_ref,fmt='(f12.6)')
                 call yaml_mapping_close()
              end if
-!!$             if(iproc==0) print *, 'ASD called... moments_out' 
+!!$             if(iproc==0) print *, 'ASD called... moments_out'
 !!$             if(iproc==0) print '(3f12.6)', denspot%cfd%m_at_ref
           end if
      end if
@@ -420,7 +420,7 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
   if (denspot%rhov_is /= KS_POTENTIAL) &
        call f_err_throw('psitohpsi: KS_potential not available, control the operations on rhov',&
        err_name='BIGDFT_RUNTIME_ERROR')
-  
+
 
   !temporary, to be corrected with comms structure
   if (wfn%exctxpar == 'OP2P') energs%eexctX = UNINITIALIZED(1.0_gp)

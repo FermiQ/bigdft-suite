@@ -529,7 +529,15 @@
     DESCRIPTION: |
       Define the basename of all the files associated to the output of the wavefunctions.
       Can be reused in the inputpsiid input parameter.
-
+  coupling_matrix:
+    COMMENT: kind of the coupling matrix which have to be plotted
+    DESCRIPTION: |
+       Useful to separate the various contributions of the couling matrix. May be plotted exclusively, separately or in complete form.
+    default: complete
+    EXCLUSIVE:
+       complete: dump the total coupling matrix
+       rpa: only dump the RPA term
+       fxc: only dump the fxc term
   #potentials:
   #  format: CUBE
   #  frequence: iteration, SCF
