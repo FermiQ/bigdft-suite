@@ -12,4 +12,4 @@ libvol_a_SOURCES = vol.f90
 SUFFIXES = .so
 
 .a.so:
-	$(FC) @FC_BUILD_SHARED@ -o $@ $($(<:.a=_a_OBJECTS))
+	$(FC) @FC_BUILD_SHARED@ -o $@ $($(<:.a=_a_OBJECTS)) @LIB_BIGDFT_DEPS@ @LINALG_LIBS@

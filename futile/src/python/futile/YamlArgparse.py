@@ -6,42 +6,21 @@ or to generate python functions that have the same signature than the provided c
 
 """
 
-def option_line_generator(separator='--',**kwargs):
-    """
-    Associate to each of the keyword arguments a command line argument.
-    
-    Args:
-       separator (str): The string needed to separate the options. 
-       Might be '--' for command-line arguments, but also ',' for function signatures.
-       
-    Warning:
-        The separator comes **before** the first argument therefore pay attention to 
-        lstrip it in case you want to use it as a function signature string.
-    
-    Example:
-        >>> form_command_line(arg1='val1',arg2='val2')
-        >>> '--arg1=val1 --arg2=val2'
-    """
-    command=''
-    for option,value in kwargs.items():
-        command+=separator+option+'="'+str(value)+'" '
-    return command
-
 def get_python_function(target_kwargs_function,func_name,func_spec):
     """Convert a argparse spec into a python function
-    
+
     This function provides a python function with a signature indicated by the ``fun_spec`` dictionary
-    With the conventions of the :f:mod:`yaml_argparse` modules. 
+    With the conventions of the :f:mod:`yaml_argparse` modules.
     The :py:func:`futile.Utils.function_signature_regenerator` function is used for the conversion
 
     Args:
        target_kwargs_function (func): the keyword arguments function we want to give the signature to.
        func_name (str): Name of the function, usually the key of the dictionary whose ``func_spec`` is the value
-       func_spec (dict) : dictionary of the function specifications to be provided to the 
+       func_spec (dict) : dictionary of the function specifications to be provided to the
           :py:func:`futile.Utils.function_signature_regenerator` function.
 
-    Returns: 
-       func: the genreated function with signature given by the arguments of ``func_spec`` 
+    Returns:
+       func: the genreated function with signature given by the arguments of ``func_spec``
          defaulting to their default value.
 
     Todo:
@@ -52,9 +31,11 @@ def get_python_function(target_kwargs_function,func_name,func_spec):
     fspec=deepcopy(func_spec)
     docstring=fspec.pop("help")
     if "shorthelp" in fspec: fspec.pop("shorthelp")
-    key_args={key:keyspec['default'] for (key,keyspec) in fspec.items()}
+
+    key_args = {}
+    for argspec in fspec["args"]:
+        key = argspec.keys()[0]
+        val = argspec[key]["default"]
+        key_args[key] = val
+
     return fsr(target_kwargs_function,fun_name=func_name,fun_docstring=docstring,**key_args)
-    
-    
-
-
