@@ -478,7 +478,7 @@ class Logfile():
             #raise
         mesh=self.kpt_mesh #: K-points grid
         if isinstance(mesh,int): mesh=[mesh,]*3
-        if self.astruct['Cell'][1]==float('inf'): mesh[1]=1
+        if self.astruct['cell'][1]==float('inf'): mesh[1]=1
         return BZ.BrillouinZone(self.astruct,mesh,self.evals,self.fermi_level)
     #
     def wfn_plot(self):
@@ -527,12 +527,12 @@ class Logfile():
         """Display short information about the logfile (used by str)."""
         import yaml,numpy
         #summary=[{'Atom types':
-        #          numpy.unique([ at.keys()[0] for at in self.astruct['Positions']]).tolist()},
-        #         {'Cell':
-        #          self.astruct.get('Cell','Free BC')}]
+        #          numpy.unique([ at.keys()[0] for at in self.astruct['positions']]).tolist()},
+        #         {'cell':
+        #          self.astruct.get('cell','Free BC')}]
         summary=[{'Atom types': self.log['Atomic System Properties']['Types of atoms']},
-                 {'Cell':
-                  self.astruct.get('Cell','Free BC')}]
+                 {'cell':
+                  self.astruct.get('cell','Free BC')}]
         #normal printouts in the document, according to definition
         for field in BUILTIN:
             name=BUILTIN[field].get(PRINT)

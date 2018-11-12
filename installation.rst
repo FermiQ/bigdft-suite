@@ -86,6 +86,8 @@ should work. We have prepared a script, called ``Installer.py``, which
 should take care on the main actions related to BigDFT suite compilation
 and installation. Let us investigate how it works.
 
+.. _installer-script-label:
+
 Usage of the ``Installer.py`` script
 ====================================
 
@@ -300,7 +302,7 @@ the following steps:
 | ``cd CheSS-0.1.1``
 | ``mkdir Build``
 | ``cd Build``
-| ``../Installer.py build chess -d -c FC=``\ \ `` CC=``\ \ `` FCFLAGS=``\ \ `` --with-ext-linalg=``\ 
+| ``../Installer.py build chess -d -c FC=``\ \ `` CC=``\ \ `` FCFLAGS=``\ \ `` --with-ext-linalg=``\
 
 A dialogue similar to this one should appear:
 

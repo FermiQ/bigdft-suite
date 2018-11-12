@@ -70,7 +70,7 @@ module f_onesided
   integer, parameter :: FMPI_END_READ=103
   integer, parameter :: FMPI_START_WRITE=104
   integer, parameter :: FMPI_END_WRITE=105
-  
+
   type(f_enumerator), public :: FMPI_WIN_OPEN =f_enumerator('WIN_OPEN',FMPI_OPEN,null())
   type(f_enumerator), public :: FMPI_WIN_CLOSE =f_enumerator('WIN_CLOSE',FMPI_CLOSE,null())
 
@@ -304,7 +304,7 @@ module f_onesided
     end subroutine mpiwindowl_l0
 
 
-    
+
 !!$    function mpiwindow_i0(size,base,comm) result(window)
 !!$      use dictionaries, only: f_err_throw,f_err_define
 !!$      implicit none
@@ -524,7 +524,7 @@ module f_onesided
     type(f_enumerator), intent(in) :: why
     !local variables
     integer(fmpi_integer) :: ierr
-    
+
     select case(toi(why))
     case(FMPI_OPEN)
        !this should be executed by evarybody in the communicator
@@ -774,7 +774,7 @@ module f_onesided
   end subroutine mpiput_d0
 
   subroutine mpiaccumulate_d0(origin,count,target_rank,target_disp,op,win)
-    use yaml_strings    
+    use yaml_strings
     implicit none
     real(f_double) :: origin !<fake intent(in)
     integer,intent(in) :: count, target_rank
@@ -785,6 +785,7 @@ module f_onesided
     ! Local variables
     integer :: ierr
 
+    ierr=0
     if (count<0) then
         call f_err_throw('count<0, value='//trim(yaml_toa(count)))
     end if
