@@ -44,7 +44,7 @@ module locregs
      integer :: ns2 = 0
      integer :: ns3 = 0                     !< Starting point of the localisation region in global coordinates
      integer :: nsi1 = 0
-     real(gp), dimension(3) :: locregCenter !< Center of the locreg
+     integer :: nsi2 = 0
      integer :: nsi3 = 0                    !< Starting point of locreg for interpolating grid
      integer :: Localnorb = 0                  !< Number of orbitals contained in locreg
      integer, dimension(3) :: outofzone = 0     !< Vector of points outside of the zone outside Glr for periodic systems

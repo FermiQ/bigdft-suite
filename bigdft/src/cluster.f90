@@ -1383,7 +1383,6 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
   end if
   if (pkernel_seq_is_needed(in,denspot)) then ! .and. nproc >1) then
         call pkernel_free(denspot%pkernelseq)
-     end if
   else if (nproc == 1 .and. (in%exctxpar == 'OP2P' .or. in%SIC%alpha /= 0.0_gp)) then
      nullify(denspot%pkernelseq%kernel)
   end if
