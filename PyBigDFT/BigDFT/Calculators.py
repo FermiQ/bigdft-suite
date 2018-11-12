@@ -239,7 +239,8 @@ class SystemCalculator(Runner):
          skip (bool): if ``True``, do not run the calculation if the corresponding logfile exists.
          verbose (bool): if ``True`` the class prints out informations about the operations that are being performed by the calculator
          dry_run (bool): check the input, estimate the memory but do not perform the calculation.
-         dry_mpi (int): Number of MPI processes for the estimation of the memory when ``dry_run`` is ``True``
+         dry_mpi (int): Number of MPI processes for the estimation of the memory when ``dry_run`` is ``True`` (not yet implemented)
+         taskgroup_size (int): number of MPI processes of each of the taskgroup in the case of a runs_file.
 
     Warning:
        At the initialization, `SystemCalculator` checks if the environment variable $BIGDFT_ROOT is defined.
@@ -366,6 +367,7 @@ class SystemCalculator(Runner):
         dry_run = self.run_options['dry_run']
         run_name = self.run_options.get('run_name','')
         outdir = self.run_options.get('outdir','')
+	taskgroup_size = self.run_options.get('taskgroup_size','')
         #Check if it is a dry run
         if dry_run:
             #Use bigdft-tool (do not use BIGDFT_MPIRUN because it is a python script)
@@ -377,6 +379,7 @@ class SystemCalculator(Runner):
             if name: command += ' -n ' + name
             if run_name: command += ' -r ' + run_name
             if outdir: command += ' -d ' + outdir
+	    if taskgroup_size: command += ' -t '+taskgroup_size
             if self.run_options['skip']: command += ' -s Yes'
         return command
 

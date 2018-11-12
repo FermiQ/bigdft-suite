@@ -694,7 +694,7 @@ module get_basis
           exit_loop(1) = (it>=nit_exit)
           exit_loop(2) = (it_tot>=3*nit_basis)
           exit_loop(3) = energy_diff
-          exit_loop(4) = (fnrm%receivebuf(1)<conv_crit .and. experimental_mode)
+          exit_loop(4) = fnrm%receivebuf(1)<conv_crit
           exit_loop(5) = (experimental_mode .and. fnrm%receivebuf(1)<dynamic_convcrit &
                          .and. fnrm%receivebuf(1)<min_gnrm_for_dynamic &
                          .and. (it>1 .or. has_already_converged)) ! first overall convergence not allowed in a first iteration
