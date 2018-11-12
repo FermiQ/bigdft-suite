@@ -48,7 +48,7 @@ module communications
       use wrapper_linalg, only: vcopy
       use dynamic_memory
       implicit none
-      
+
       ! Calling arguments
       integer, intent(in) :: npsidim_orbs
       type(orbitals_data),intent(in) :: orbs
@@ -57,53 +57,53 @@ module communications
       real(kind=8),dimension(collcom%ndimpsi_c),intent(out) :: psiwork_c
       real(kind=8),dimension(7*collcom%ndimpsi_f),intent(out) :: psiwork_f
       type(local_zone_descriptors),intent(in),optional :: lzd
-      
+
       ! Local variables
       integer :: i_tot, i_c, i_f, iorb, iiorb, ilr, i, ind, m, ind7, i7
       real(kind=8),dimension(:),allocatable :: psi_c, psi_f
       character(len=*),parameter :: subname='transpose_switch_psi'
 
       call f_routine(id='transpose_switch_psi')
-    
+
       psi_c = f_malloc(collcom%ndimpsi_c,id='psi_c')
       psi_f = f_malloc(7*collcom%ndimpsi_f,id='psi_f')
-    
-    
+
+
       if(present(lzd)) then
       ! split up psi into coarse and fine part
-    
-      
+
+
           i_tot=0
           i_c=0
           i_f=0
-    
+
           do iorb=1,orbs%norbp
              iiorb=orbs%isorb+iorb
              ilr=orbs%inwhichlocreg(iiorb)
-    
+
              call vcopy(lzd%llr(ilr)%wfd%nvctr_c,psi(i_tot+1),1,psi_c(i_c+1),1)
-    
+
              i_c = i_c + lzd%llr(ilr)%wfd%nvctr_c
              i_tot = i_tot + lzd%llr(ilr)%wfd%nvctr_c
-    
+
              call vcopy(7*lzd%llr(ilr)%wfd%nvctr_f,psi(i_tot+1),1,psi_f(i_f+1),1)
-    
+
              i_f = i_f + 7*lzd%llr(ilr)%wfd%nvctr_f
              i_tot = i_tot + 7*lzd%llr(ilr)%wfd%nvctr_f
-    
+
           end do
-        
-    
+
+
       else
           ! only coarse part is used...
           call vcopy(collcom%ndimpsi_c, psi(1), 1, psi_c(1), 1)
       end if
-    
+
       ! coarse part
-    
+
       !$omp parallel default(private) &
       !$omp shared(collcom, psi, psiwork_c, psiwork_f, lzd, psi_c,psi_f,m)
-    
+
       m = mod(collcom%ndimpsi_c,7)
       if(m/=0) then
          do i=1,m
@@ -122,9 +122,9 @@ module communications
          psiwork_c(collcom%isendbuf_c(i+6)) = psi_c(i+6)
       end do
       !$omp end do
-     
+
       ! fine part
-    
+
       !$omp do
        do i=1,collcom%ndimpsi_f
           ind=collcom%isendbuf_f(i)
@@ -140,13 +140,13 @@ module communications
       end do
       !$omp end do
       !$omp end parallel
-    
-    
+
+
       call f_free(psi_c)
       call f_free(psi_f)
 
       call f_release_routine()
-      
+
     end subroutine transpose_switch_psi
 
 
@@ -157,7 +157,7 @@ module communications
       use communications_base, only: work_transpose, TRANSPOSE_FULL, TRANSPOSE_POST, &
                                      TRANSPOSE_GATHER
       implicit none
-      
+
       ! Calling arguments
       integer,intent(in) :: iproc, nproc, transpose_action
       type(comms_linear),intent(in) :: collcom
@@ -166,19 +166,19 @@ module communications
       type(work_transpose),intent(inout) :: wt
       real(kind=8),dimension(collcom%ndimind_c),intent(out) :: psitwork_c
       real(kind=8),dimension(7*collcom%ndimind_f),intent(out) :: psitwork_f
-      
+
       ! Local variables
       integer :: ist, ist_c, ist_f, iisend, iirecv, jproc
       !integer :: ierr
       !!real(kind=8),dimension(:),allocatable :: psiwork, psitwork
       !!integer,dimension(:),allocatable :: nsendcounts, nsenddspls, nrecvcounts, nrecvdspls
       !!character(len=*),parameter :: subname='transpose_communicate_psi'
-    
+
       !call mpi_comm_size(bigdft_mpi%mpi_comm, nproc, ierr)
       !call mpi_comm_rank(bigdft_mpi%mpi_comm, iproc, ierr)
 
       call f_routine(id='transpose_communicate_psi')
-    
+
       if (transpose_action == TRANSPOSE_FULL .or. &
           transpose_action == TRANSPOSE_POST) then
           !!wt%psiwork = f_malloc_ptr(max(collcom%ndimpsi_c+7*collcom%ndimpsi_f,1),id='wt%psiwork')
@@ -187,7 +187,7 @@ module communications
           !!wt%nsenddspls = f_malloc_ptr(0.to.nproc-1,id='wt%nsenddspls')
           !!wt%nrecvcounts = f_malloc_ptr(0.to.nproc-1,id='wt%nrecvcounts')
           !!wt%nrecvdspls = f_malloc_ptr(0.to.nproc-1,id='wt%nrecvdspls')
-    
+
           ist=1
           ist_c=1
           ist_f=1
@@ -211,12 +211,12 @@ module communications
               iisend=iisend+wt%nsendcounts(jproc)
               iirecv=iirecv+wt%nrecvcounts(jproc)
           end do
-    
+
           !write(*,'(a,i4,4x,100i8)') 'iproc, nsendcounts', iproc, nsendcounts
           !write(*,'(a,i4,4x,100i8)') 'iproc, nsenddspls', iproc, nsenddspls
           !write(*,'(a,i4,4x,100i8)') 'iproc, nrecvcounts', iproc, nrecvcounts
           !write(*,'(a,i4,4x,100i8)') 'iproc, nrecvdspls', iproc, nrecvdspls
-          
+
           !!! coarse part
           !!call mpi_alltoallv(psiwork_c, collcom%nsendcounts_c, collcom%nsenddspls_c, mpi_double_precision, psitwork_c, &
           !!     collcom%nrecvcounts_c, collcom%nrecvdspls_c, mpi_double_precision, bigdft_mpi%mpi_comm, ierr)
@@ -237,7 +237,7 @@ module communications
               wt%request = MPI_REQUEST_NULL
           end if
       end if
-    
+
       if (transpose_action == TRANSPOSE_FULL .or. &
           transpose_action == TRANSPOSE_GATHER) then
 
@@ -260,7 +260,7 @@ module communications
               ist_f=ist_f+7*collcom%nrecvcounts_f(jproc)
               ist=ist+7*collcom%nrecvcounts_f(jproc)
           end do
-    
+
           !!call f_free_ptr(wt%psiwork)
           !!call f_free_ptr(wt%psitwork)
           !!call f_free_ptr(wt%nsendcounts)
@@ -268,9 +268,9 @@ module communications
           !!call f_free_ptr(wt%nrecvcounts)
           !!call f_free_ptr(wt%nrecvdspls)
       end if
-    
+
       call f_release_routine()
-    
+
     end subroutine transpose_communicate_psi
 
 
@@ -278,37 +278,37 @@ module communications
     subroutine transpose_unswitch_psit(collcom, psitwork_c, psitwork_f, psit_c, psit_f)
       use module_base
       implicit none
-      
+
       ! Calling arguments
       type(comms_linear),intent(in) :: collcom
       real(kind=8),dimension(collcom%ndimind_c),intent(in) :: psitwork_c
       real(kind=8),dimension(7*collcom%ndimind_f),intent(in) :: psitwork_f
       real(kind=8),dimension(collcom%ndimind_c),intent(out) :: psit_c
       real(kind=8),dimension(7*collcom%ndimind_f),intent(out) :: psit_f
-      
+
       ! Local variables
       integer :: i,ind,sum_c,sum_f,m,i7,ind7
 
       call f_routine(id='transpose_unswitch_psit')
-    
+
       sum_c = sum(collcom%nrecvcounts_c)
       sum_f = sum(collcom%nrecvcounts_f)
-    
+
       !$omp parallel private(i,ind,i7,ind7) &
       !$omp shared(psit_c,psit_f, psitwork_c, psitwork_f,collcom,sum_c,sum_f,m)
-    
-    
+
+
       m = mod(sum_c,7)
-    
+
       if(m/=0) then
         do i = 1,m
           ind=collcom%iextract_c(i)
           psit_c(ind)=psitwork_c(i)
         end do
       end if
-    
+
       ! coarse part
-    
+
       !$omp do
       do i=m+1, sum_c,7
           psit_c(collcom%iextract_c(i+0))=psitwork_c(i+0)
@@ -320,9 +320,9 @@ module communications
           psit_c(collcom%iextract_c(i+6))=psitwork_c(i+6)
       end do
       !$omp end do
-    
+
       ! fine part
-    
+
       !$omp do
       do i=1,sum_f
           ind=collcom%iextract_f(i)
@@ -337,11 +337,11 @@ module communications
           psit_f(ind7-0)=psitwork_f(i7-0)
       end do
       !$omp end do
-      
+
       !$omp end parallel
 
       call f_release_routine()
-    
+
     end subroutine transpose_unswitch_psit
 
 
@@ -349,36 +349,36 @@ module communications
     subroutine transpose_switch_psit(collcom, psit_c, psit_f, psitwork_c, psitwork_f)
       use module_base
       implicit none
-    
+
       ! Calling arguments
       type(comms_linear),intent(in) :: collcom
       real(kind=8),dimension(collcom%ndimind_c),intent(in) :: psit_c
       real(kind=8),dimension(7*collcom%ndimind_f),intent(in) :: psit_f
       real(kind=8),dimension(collcom%ndimind_c),intent(out) :: psitwork_c
       real(kind=8),dimension(7*collcom%ndimind_f),intent(out) :: psitwork_f
-      
+
       ! Local variables
       integer :: i, ind, sum_c,sum_f,m, i7, ind7
 
       call f_routine(id='transpose_switch_psit')
-    
+
       sum_c = sum(collcom%nrecvcounts_c)
       sum_f = sum(collcom%nrecvcounts_f)
-    
+
       !$omp parallel default(private) &
       !$omp shared(collcom, psit_c,psit_f, psitwork_c, psitwork_f,sum_c,sum_f,m)
-    
+
       m = mod(sum_c,7)
-    
+
       if(m/=0) then
         do i=1,m
            ind = collcom%iexpand_c(i)
            psitwork_c(ind) = psit_c(i)
         end do
       end if
-    
+
       ! coarse part
-    
+
       !$omp do
       do i=m+1,sum_c,7
           psitwork_c(collcom%iexpand_c(i+0))=psit_c(i+0)
@@ -390,9 +390,9 @@ module communications
           psitwork_c(collcom%iexpand_c(i+6))=psit_c(i+6)
       end do
       !$omp end do
-    
+
       ! fine part
-    
+
       !$omp do
       do i=1,sum_f
           i7=7*i
@@ -410,7 +410,7 @@ module communications
       !$omp end parallel
 
       call f_release_routine()
-    
+
     end subroutine transpose_switch_psit
 
 
@@ -421,7 +421,7 @@ module communications
       use communications_base, only: work_transpose, TRANSPOSE_FULL, TRANSPOSE_POST, &
                                      TRANSPOSE_GATHER
       implicit none
-    
+
       ! Calling arguments
       integer,intent(in) :: iproc, nproc, transpose_action
       type(comms_linear),intent(in) :: collcom
@@ -430,19 +430,19 @@ module communications
       type(work_transpose),intent(inout) :: wt
       real(kind=8),dimension(collcom%ndimpsi_c),intent(out) :: psiwork_c
       real(kind=8),dimension(7*collcom%ndimpsi_f),intent(out) :: psiwork_f
-      
+
       ! Local variables
       integer :: ist, ist_c, ist_f, jproc, iisend, iirecv
       !integer :: ierr
       !!real(kind=8),dimension(:),allocatable :: psiwork, psitwork
       !!integer,dimension(:),allocatable :: nsendcounts, nsenddspls, nrecvcounts, nrecvdspls
       !!character(len=*),parameter :: subname='transpose_communicate_psit'
-    
+
       !call mpi_comm_size(bigdft_mpi%mpi_comm, nproc, ierr)
       !call mpi_comm_rank(bigdft_mpi%mpi_comm, iproc, ierr)
 
       call f_routine(id='transpose_communicate_psit')
-    
+
       if (transpose_action == TRANSPOSE_FULL .or. &
           transpose_action == TRANSPOSE_POST) then
           !!wt%psiwork = f_malloc_ptr(max(collcom%ndimpsi_c+7*collcom%ndimpsi_f,1),id='wt%psiwork')
@@ -451,7 +451,7 @@ module communications
           !!wt%nsenddspls = f_malloc_ptr(0.to.nproc-1,id='wt%nsenddspls')
           !!wt%nrecvcounts = f_malloc_ptr(0.to.nproc-1,id='wt%nrecvcounts')
           !!wt%nrecvdspls = f_malloc_ptr(0.to.nproc-1,id='wt%nrecvdspls')
-    
+
           ist=1
           ist_c=1
           ist_f=1
@@ -475,11 +475,11 @@ module communications
               iisend=iisend+wt%nsendcounts(jproc)
               iirecv=iirecv+wt%nrecvcounts(jproc)
           end do
-    
+
           !!! coarse part
           !! call mpi_alltoallv(psitwork_c, collcom%nrecvcounts_c, collcom%nrecvdspls_c, mpi_double_precision, psiwork_c, &
           !!      collcom%nsendcounts_c, collcom%nsenddspls_c, mpi_double_precision, bigdft_mpi%mpi_comm, ierr)
-    
+
           !!! fine part
           !! call mpi_alltoallv(psitwork_f, 7*collcom%nrecvcounts_f, 7*collcom%nrecvdspls_f, mpi_double_precision, psiwork_f, &
           !!      7*collcom%nsendcounts_f, 7*collcom%nsenddspls_f, mpi_double_precision, bigdft_mpi%mpi_comm, ierr)
@@ -494,7 +494,7 @@ module communications
               wt%request = MPI_REQUEST_NULL
           end if
       end if
-    
+
       if (transpose_action == TRANSPOSE_FULL .or. &
           transpose_action == TRANSPOSE_GATHER) then
 
@@ -517,7 +517,7 @@ module communications
               ist_f=ist_f+7*collcom%nsendcounts_f(jproc)
               ist=ist+7*collcom%nsendcounts_f(jproc)
           end do
-    
+
           !!call f_free_ptr(wt%psiwork)
           !!call f_free_ptr(wt%psitwork)
           !!call f_free_ptr(wt%nsendcounts)
@@ -527,7 +527,7 @@ module communications
       end if
 
       call f_release_routine()
-    
+
     end subroutine transpose_communicate_psit
 
     subroutine transpose_unswitch_psi(npsidim_orbs, orbs, collcom, psiwork_c, psiwork_f, psi, lzd)
@@ -535,7 +535,7 @@ module communications
       use wrapper_linalg, only: vcopy
       use dynamic_memory
       implicit none
-      
+
       ! Caling arguments
       integer, intent(in) :: npsidim_orbs
       type(orbitals_data),intent(in) :: orbs
@@ -544,31 +544,31 @@ module communications
       real(kind=8),dimension(7*collcom%ndimpsi_f),intent(in) :: psiwork_f
       real(kind=8),dimension(npsidim_orbs),intent(out) :: psi
       type(local_zone_descriptors),intent(in),optional :: lzd
-      
+
       ! Local variables
       integer :: i, ind, iorb, iiorb, ilr, i_tot, i_c, i_f, m, i7, ind7
       real(kind=8),dimension(:),allocatable :: psi_c, psi_f
       character(len=*),parameter :: subname='transpose_unswitch_psi'
-      
+
       call f_routine(id='transpose_unswitch_psi')
-      
+
       psi_c = f_malloc(collcom%ndimpsi_c,id='psi_c')
       psi_f = f_malloc(7*collcom%ndimpsi_f,id='psi_f')
-      
+
       !$omp parallel default(private) &
       !$omp shared(collcom, psiwork_c, psi_c,psi_f,psiwork_f,m)
-    
+
       m = mod(collcom%ndimpsi_c,7)
-    
+
       if(m/=0) then
         do i = 1,m
          ind=collcom%irecvbuf_c(i)
-         psi_c(ind)=psiwork_c(i) 
+         psi_c(ind)=psiwork_c(i)
         end do
       end if
-    
+
       ! coarse part
-    
+
       !$omp do
         do i=m+1,collcom%ndimpsi_c,7
             psi_c(collcom%irecvbuf_c(i+0))=psiwork_c(i+0)
@@ -580,9 +580,9 @@ module communications
             psi_c(collcom%irecvbuf_c(i+6))=psiwork_c(i+6)
         end do
       !$omp end do
-      
+
       ! fine part
-     
+
       !$omp do
        do i=1,collcom%ndimpsi_f
             ind=collcom%irecvbuf_f(i)
@@ -598,41 +598,41 @@ module communications
         end do
       !$omp end do
       !$omp end parallel
-    
+
         if(present(lzd)) then
             ! glue together coarse and fine part
-    
+
             i_tot=0
             i_c=0
             i_f=0
             do iorb=1,orbs%norbp
                 iiorb=orbs%isorb+iorb
                 ilr=orbs%inwhichlocreg(iiorb)
-    
+
                 call vcopy(lzd%llr(ilr)%wfd%nvctr_c,psi_c(i_c+1),1,psi(i_tot+1),1)
-    
+
                 i_c = i_c + lzd%llr(ilr)%wfd%nvctr_c
                 i_tot = i_tot + lzd%llr(ilr)%wfd%nvctr_c
-                
+
                 call vcopy(7*lzd%llr(ilr)%wfd%nvctr_f,psi_f(i_f+1),1,psi(i_tot+1),1)
-    
-    
+
+
                 i_f = i_f + 7*lzd%llr(ilr)%wfd%nvctr_f
                 i_tot = i_tot + 7*lzd%llr(ilr)%wfd%nvctr_f
-    
-    
+
+
             end do
-        !!$omp end parallel 
-    
+        !!$omp end parallel
+
         else
             call vcopy(collcom%ndimpsi_c, psi_c(1), 1, psi(1), 1)
         end if
-      
+
       call f_free(psi_c)
       call f_free(psi_f)
 
       call f_release_routine()
-    
+
     end subroutine transpose_unswitch_psi
 
 
@@ -647,7 +647,7 @@ module communications
                                      TRANSPOSE_GATHER, ERR_LINEAR_TRANSPOSITION
       !use module_interfaces, except_this_one => transpose_localized
       implicit none
-      
+
       ! Calling arguments
       integer,intent(in) :: iproc, nproc, npsidim_orbs, transpose_action
       type(orbitals_data),intent(in) :: orbs
@@ -657,7 +657,7 @@ module communications
       real(kind=8),dimension(7*collcom%ndimind_f),intent(out) :: psit_f
       type(local_zone_descriptors),intent(in) :: lzd
       type(work_transpose),intent(inout),target,optional :: wt_
-      
+
       ! Local variables
       !!real(kind=8),dimension(:),allocatable :: psiwork_c, psiwork_f, psitwork_c, psitwork_f
       character(len=*),parameter :: subname='transpose_localized'
@@ -717,7 +717,7 @@ module communications
       end if
 
 
-      
+
       !!psiwork_c = f_malloc(collcom%ndimpsi_c,id='psiwork_c')
       !!psiwork_f = f_malloc(7*collcom%ndimpsi_f,id='psiwork_f')
       !!psitwork_c = f_malloc(collcom%ndimind_c,id='psitwork_c')
@@ -738,12 +738,12 @@ module communications
           !#wt%nrecvdspls = f_malloc_ptr(0.to.nproc-1,id='wt%nrecvdspls')
       end if
       call timing(iproc,'Un-TransSwitch','OF')
-    
+
       call timing(iproc,'Un-TransComm  ','ON')
       call transpose_communicate_psi(iproc, nproc, collcom, transpose_action, &
            wt%psiwork_c, wt%psiwork_f, wt, wt%psitwork_c, wt%psitwork_f)
       call timing(iproc,'Un-TransComm  ','OF')
-    
+
       call timing(iproc,'Un-TransSwitch','ON')
       if (transpose_action == TRANSPOSE_FULL .or. &
           transpose_action == TRANSPOSE_GATHER) then
@@ -756,7 +756,7 @@ module communications
           call transpose_unswitch_psit(collcom, wt%psitwork_c, wt%psitwork_f, psit_c, psit_f)
       end if
 
-      
+
       !!call f_free(psiwork_c)
       !!call f_free(psiwork_f)
       !!call f_free(psitwork_c)
@@ -786,7 +786,7 @@ module communications
 
       call f_release_routine()
       call timing(iproc,'Un-TransSwitch','OF')
-      
+
     end subroutine transpose_localized
 
 
@@ -800,7 +800,7 @@ module communications
                                      TRANSPOSE_FULL, TRANSPOSE_POST, &
                                      TRANSPOSE_GATHER, ERR_LINEAR_TRANSPOSITION
       implicit none
-      
+
       ! Calling arguments
       integer,intent(in) :: iproc, nproc, npsidim_orbs, transpose_action
       type(orbitals_data),intent(in) :: orbs
@@ -810,7 +810,7 @@ module communications
       real(kind=8),dimension(npsidim_orbs),intent(out) :: psi
       type(local_zone_descriptors),intent(in) :: lzd
       type(work_transpose),intent(inout),target,optional :: wt_
-      
+
       ! Local variables
       type(work_transpose),pointer :: wt
 
@@ -870,12 +870,12 @@ module communications
       !##    transpose_action == TRANSPOSE_POST) then
       !##    wt = work_transpose_null()
       !##end if
-      
+
       !##wt%psiwork_c = f_malloc_ptr(collcom%ndimpsi_c,id='psiwork_c')
       !##wt%psiwork_f = f_malloc_ptr(7*collcom%ndimpsi_f,id='psiwork_f')
       !##wt%psitwork_c = f_malloc_ptr(collcom%ndimind_c,id='psitwork_c')
       !##wt%psitwork_f = f_malloc_ptr(7*collcom%ndimind_f,id='psitwork_f')
-    
+
       call timing(iproc,'Un-TransSwitch','ON')
       if (transpose_action == TRANSPOSE_FULL .or. &
           transpose_action == TRANSPOSE_POST) then
@@ -888,12 +888,12 @@ module communications
           !##wt%nrecvdspls = f_malloc_ptr(0.to.nproc-1,id='wt%nrecvdspls')
       end if
       call timing(iproc,'Un-TransSwitch','OF')
-    
+
       call timing(iproc,'Un-TransComm  ','ON')
       call transpose_communicate_psit(iproc, nproc, collcom, transpose_action, &
            wt%psitwork_c, wt%psitwork_f, wt, wt%psiwork_c, wt%psiwork_f)
       call timing(iproc,'Un-TransComm  ','OF')
-    
+
       call timing(iproc,'Un-TransSwitch','ON')
       if (transpose_action == TRANSPOSE_FULL .or. &
           transpose_action == TRANSPOSE_GATHER) then
@@ -906,7 +906,7 @@ module communications
           call transpose_unswitch_psi(npsidim_orbs, orbs, collcom, wt%psiwork_c, wt%psiwork_f, psi, lzd)
       end if
       call timing(iproc,'Un-TransSwitch','OF')
-      
+
       !##call f_free_ptr(wt%psiwork_c)
       !##call f_free_ptr(wt%psiwork_f)
       !##call f_free_ptr(wt%psitwork_c)
@@ -931,27 +931,27 @@ module communications
       end if
 
       call f_release_routine()
-      
+
     end subroutine untranspose_localized
 
 
     subroutine transpose_switch_psir(collcom_sr, psir, psirwork)
       use module_base
       implicit none
-    
+
       ! Calling arguments
       type(comms_linear),intent(in) :: collcom_sr
       real(kind=8),dimension(collcom_sr%ndimpsi_c),intent(in) :: psir
       real(kind=8),dimension(collcom_sr%ndimpsi_c),intent(out) :: psirwork
-    
+
       ! Local variables
       integer :: i, m, ind
 
       call f_routine(id='transpose_switch_psir')
-    
+
       !$omp parallel default(private) &
       !$omp shared(collcom_sr, psir, psirwork, m)
-    
+
       m = mod(collcom_sr%ndimpsi_c,7)
       if(m/=0) then
           do i=1,m
@@ -971,27 +971,27 @@ module communications
       end do
       !$omp end do
       !$omp end parallel
-    
+
       call f_release_routine()
 
     end subroutine transpose_switch_psir
 
-    
+
     subroutine transpose_communicate_psir(iproc, nproc, collcom_sr, psirwork, psirtwork)
       use module_base
       use wrapper_linalg, only: vcopy
       !use wrapper_mpi, only: mpi_get_alltoallv
       implicit none
-    
+
       ! Calling arguments
       integer,intent(in) :: iproc, nproc
       type(comms_linear),intent(in) :: collcom_sr
       real(kind=8),dimension(collcom_sr%ndimpsi_c),intent(in) :: psirwork
       real(kind=8),dimension(collcom_sr%ndimind_c),intent(out) :: psirtwork
-    
+
       ! Local variables
       integer :: ierr
-    
+
       call f_routine(id='transpose_communicate_psir')
 
       if (nproc>1) then
@@ -1003,39 +1003,39 @@ module communications
          !call vcopy(collcom_sr%ndimpsi_c, psirwork(1), 1, psirtwork(1), 1)
          call f_memcpy(src=psirwork,dest=psirtwork)
       end if
-    
+
       call f_release_routine()
-    
+
     end subroutine transpose_communicate_psir
-    
+
     subroutine transpose_unswitch_psirt(collcom_sr, psirtwork, psirt)
       use module_base
       implicit none
-    
+
       ! Calling arguments
       type(comms_linear),intent(in) :: collcom_sr
       real(kind=8),dimension(collcom_sr%ndimind_c),intent(in) :: psirtwork
       real(kind=8),dimension(collcom_sr%ndimind_c),intent(out) :: psirt
-    
+
       ! Local variables
       integer :: i, ind, sum_c, m
 
       call f_routine(id='transpose_unswitch_psirt')
-    
+
       sum_c = sum(collcom_sr%nrecvcounts_c)
-    
+
       !$omp parallel private(i,ind) &
       !$omp shared(psirt, psirtwork, collcom_sr, sum_c, m)
-    
+
       m = mod(sum_c,7)
-    
+
       if(m/=0) then
         do i = 1,m
           ind=collcom_sr%iextract_c(i)
           psirt(ind)=psirtwork(i)
         end do
       end if
-    
+
       !$omp do
       do i=m+1, sum_c,7
           psirt(collcom_sr%iextract_c(i+0))=psirtwork(i+0)
@@ -1050,17 +1050,17 @@ module communications
       !$omp end parallel
 
       call f_release_routine()
-    
+
     end subroutine transpose_unswitch_psirt
-    
-    
+
+
     subroutine start_onesided_communication(iproc, nproc, n1, n2, n3p, sendbuf, nrecvbuf, recvbuf, comm, lzd)
       use module_base
       use module_types, only: local_zone_descriptors
       use communications_base, only: p2pComms, bgq, RMA_SYNC_ACTIVE, RMA_SYNC_PASSIVE, rma_sync, &
                                      TYPES_NESTED, TYPES_SIMPLE, type_strategy
       implicit none
-      
+
       ! Calling arguments
       integer, intent(in):: iproc, nproc, n1, n2, nrecvbuf
       integer,dimension(0:nproc-1),intent(in) :: n3p
@@ -1068,7 +1068,7 @@ module communications
       real(kind=8), dimension(n1*n2*n3p(iproc)*comm%nspin), intent(in):: sendbuf
       real(kind=8), dimension(nrecvbuf), intent(out):: recvbuf
       type(local_zone_descriptors), intent(in) :: lzd
-      
+
       ! Local variables
       !character(len=*), parameter :: subname='start_onesided_communication'
       integer :: joverlap, mpisource, istsource, mpidest, istdest, ierr, nit, ispin, ispin_shift
@@ -1093,8 +1093,8 @@ module communications
       !recvbuf=-123456789.d0
 
       !write(*,'(a,i12,es16.8)') 'in start_onesided_communication: nsendbuf, sum(sendbuf)', nsendbuf, sum(sendbuf)
-    
-    
+
+
       call f_routine(id='start_onesided_communication')
       call timing(iproc, 'Pot_comm start', 'ON')
 
@@ -1115,7 +1115,7 @@ module communications
       !!    call mpiallred(npotarr(0), nproc, mpi_sum, bigdft_mpi%mpi_comm)
       !!end if
       !npot=nsendbuf/comm%nspin
-    
+
       if(.not.comm%communication_complete) then
           call f_err_throw('ERROR: there is already a p2p communication going on...')
       end if
@@ -1125,7 +1125,7 @@ module communications
           spin_loop: do ispin=1,comm%nspin
 
               ispin_shift = (ispin-1)*comm%nrecvbuf
-    
+
               ! Allocate MPI memory window. Only necessary in the first iteration.
               if (ispin==1) then
                   if (nproc>1) then
@@ -1143,7 +1143,7 @@ module communications
 !!$                      !     size_of_double, MPI_INFO_NULL, bigdft_mpi%mpi_comm, comm%window, ierr)
 !!$                      comm%window = mpiwindow(n1*n2*n3p(iproc)*comm%nspin, sendbuf(1), bigdft_mpi%mpi_comm)
                   end if
-    
+
                   !!if (rma_sync==RMA_SYNC_ACTIVE) then
                   !!    call mpi_win_fence(mpi_mode_noprecede, comm%window, ierr)
                   !!end if
@@ -1151,7 +1151,7 @@ module communications
                   !!    call mpi_win_lock_all(0, comm%window, ierr)
                   !!end if
               end if
-              
+
               do joverlap=1,comm%noverlaps
                   mpisource=comm%comarr(1,joverlap)
                   istsource=comm%comarr(2,joverlap)
@@ -1279,7 +1279,7 @@ module communications
                        !!end if
                   end if
               end do
-    
+
           end do spin_loop
 
           if (nproc>1) then
@@ -1296,33 +1296,33 @@ module communications
       !    comm%communication_complete=.true.
 
       !end if nproc_if
-      
+
 
       call f_free(npotarr)
       call f_free(blocklengths)
       call f_free(displacements)
       call f_free(types)
-    
+
       call timing(iproc, 'Pot_comm start', 'OF')
       call f_release_routine()
-    
+
     end subroutine start_onesided_communication
-    
-    
+
+
     subroutine synchronize_onesided_communication(iproc, nproc, comm)
       use module_base
       use communications_base, only: p2pComms, bgq, RMA_SYNC_ACTIVE, RMA_SYNC_PASSIVE, rma_sync
       implicit none
-      
+
       ! Calling arguments
       integer,intent(in):: iproc, nproc
       type(p2pComms),intent(inout):: comm
-      
+
       ! Local variables
       integer:: ierr, joverlap
       !integer :: mpidest, mpisource
-      
-      call timing(iproc, 'Pot_comm start', 'ON')      
+
+      call timing(iproc, 'Pot_comm start', 'ON')
 
       if(.not.comm%communication_complete) then
           if (rma_sync==RMA_SYNC_ACTIVE) then
@@ -1348,11 +1348,11 @@ module communications
               call mpi_type_free(comm%mpi_datatypes(joverlap), ierr)
           end do
       end if
-    
+
       ! Flag indicating that the communication is complete
       comm%communication_complete=.true.
-          
-      call timing(iproc, 'Pot_comm start', 'OF')      
+
+      call timing(iproc, 'Pot_comm start', 'OF')
 
     end subroutine synchronize_onesided_communication
 
@@ -1363,13 +1363,13 @@ module communications
       use module_types, only: orbitals_data
       use locregs, only: locreg_descriptors
       implicit none
-    
+
       ! Calling arguments
       integer,intent(in) :: iproc, nproc, nlr
       integer,dimension(nlr),intent(in) :: rootarr
       type(orbitals_data),intent(in) :: orbs
       type(locreg_descriptors),dimension(nlr),intent(inout) :: llr
-    
+
       ! Local variables
       integer:: ierr, ilr, iilr, jproc
       ! integer:: istat, iall
@@ -1381,20 +1381,20 @@ module communications
       character(len=*),parameter :: subname='communicate_locreg_descriptors_basics'
 
       call f_routine(id=subname)
-    
+
 !!$      worksend_char= f_malloc_str(len(worksend_char),orbs%norbp,&
 !!$           id='worksend_char')
       worksend_log = f_malloc(orbs%norbp,id='worksend_log')
       worksend_int = f_malloc((/ 27, orbs%norbp /),id='worksend_int')
       worksend_dbl = f_malloc((/ 6, orbs%norbp /),id='worksend_dbl')
-    
+
 !!$      workrecv_char= f_malloc_str(len(workrecv_char),orbs%norb,&
 !!$           id='workrecv_char')
       workrecv_log = f_malloc(orbs%norb,id='workrecv_log')
       workrecv_int = f_malloc((/ 27, orbs%norb /),id='workrecv_int')
       workrecv_dbl = f_malloc((/ 6, orbs%norb /),id='workrecv_dbl')
-    
-    
+
+
       iilr=0
       do ilr=1,nlr
           if (iproc==rootarr(ilr)) then
@@ -1437,7 +1437,7 @@ module communications
       do jproc=0,nproc-1
           norb_par(jproc) = orbs%norb_par(jproc,0)
       end do
-    
+
 !!$      call mpi_allgatherv(worksend_char, orbs%norbp, mpi_character, workrecv_char, norb_par, &
 !!$           orbs%isorb_par, mpi_character, bigdft_mpi%mpi_comm, ierr)
       call mpi_allgatherv(worksend_log, orbs%norbp, mpi_logical, workrecv_log, norb_par, &
@@ -1457,7 +1457,7 @@ module communications
       call f_free(isorb_par)
 
        call f_free(norb_par)
-    
+
       do ilr=1,nlr
           iilr=workrecv_int(1,ilr)
 !!$          llr(iilr)%geocode=workrecv_char(ilr)
@@ -1491,13 +1491,13 @@ module communications
           llr(iilr)%locrad_kernel=workrecv_dbl(5,ilr)
           llr(iilr)%locrad_mult=workrecv_dbl(6,ilr)
       end do
-    
+
       call f_free(worksend_int)
       call f_free(workrecv_int)
       !!worksend_int = f_malloc((/ 13, orbs%norbp /),id='worksend_int')
       !!workrecv_int = f_malloc((/ 13, orbs%norb /),id='workrecv_int')
-    
-    
+
+
       !!iilr=0
       !!do ilr=1,nlr
       !!    if (iproc==rootarr(ilr)) then
@@ -1517,10 +1517,10 @@ module communications
       !!        worksend_int(13,iilr)=ilr
       !!    end if
       !!end do
-    
+
       !!call mpi_allgatherv(worksend_int, 13*orbs%norbp, mpi_integer, workrecv_int, 13*orbs%norb_par(:,0), &
       !!     13*orbs%isorb_par, mpi_integer, bigdft_mpi%mpi_comm, ierr)
-    
+
       !!do ilr=1,nlr
       !!    iilr=workrecv_int(13,ilr)
       !!    llr(iilr)%d%n1=workrecv_int(1,ilr)
@@ -1536,7 +1536,7 @@ module communications
       !!    llr(iilr)%d%n2i=workrecv_int(11,ilr)
       !!    llr(iilr)%d%n3i=workrecv_int(12,ilr)
       !!end do
-    
+
 !!$      call f_free_str(len(worksend_char),worksend_char)
       call f_free(worksend_log)
       !!call f_free(worksend_int)
@@ -1548,9 +1548,9 @@ module communications
       call f_free(workrecv_dbl)
 
       call f_release_routine()
-    
+
     end subroutine communicate_locreg_descriptors_basics_deprecated
-    
+
     subroutine communicate_locreg_descriptors_keys(iproc, nproc, nlr, glr, llr, orbs, rootarr, onwhichmpi, llr_on_all_mpi)
        use dynamic_memory
        use dictionaries
@@ -1562,7 +1562,7 @@ module communications
        use locregs, only: allocate_wfd, check_overlap_cubic_periodic
        use yaml_output
        implicit none
-    
+
        ! Calling arguments
        integer,intent(in):: iproc, nproc, nlr
        type(locreg_descriptors),intent(in) :: glr
@@ -1571,7 +1571,7 @@ module communications
        integer,dimension(nlr),intent(in) :: rootarr
        integer,dimension(orbs%norb),intent(in) :: onwhichmpi
        integer, intent(in) :: llr_on_all_mpi
-    
+
        ! Local variables
        integer :: ierr, jorb, ilr, jlr, root, max_sim_comms, norb_max
        !integer :: icomm, ilr_old, jtask, nalloc, nrecv
@@ -1628,7 +1628,7 @@ module communications
                ! don't communicate to ourselves, or if we've already sent this locreg
                if (iproc == root .or. covered(ilr) .or. ilr==llr_on_all_mpi) cycle
                call check_overlap_cubic_periodic(glr,llr(ilr),llr(jlr),isoverlap)
-               if (isoverlap) then         
+               if (isoverlap) then
                    covered(ilr)=.true.
                end if
            end do
@@ -1640,7 +1640,7 @@ module communications
                ! don't communicate to ourselves, or if we've already sent this locreg
                if (iproc == root .or. covered(ilr) .or. ilr==llr_on_all_mpi) cycle
                call check_overlap_cubic_periodic(glr,llr(ilr),llr(jlr),isoverlap)
-               if (isoverlap) then         
+               if (isoverlap) then
                    covered(ilr)=.true.
                end if
            end do
@@ -1872,14 +1872,14 @@ module communications
        !@ END NEW VESRION ##########################################
 
 
-    
+
 !!!       ! This maxval is put out of the allocate to avoid compiler crash with PathScale.
 !!!       jorb = maxval(orbs%norb_par(:,0))
 !!!       requests = f_malloc(8*nproc*jorb,id='requests')
 !!!       covered = f_malloc((/ 1.to.nlr, 0.to.nproc-1 /),id='covered')
 !!!       worksend_int = f_malloc((/ 4, nlr /),id='worksend_int')
 !!!       workrecv_int = f_malloc((/ 4, nlr /),id='workrecv_int')
-!!!    
+!!!
 !!!       ! divide communications into chunks to avoid problems with memory (too many communications)
 !!!       ! set maximum number of simultaneous communications.
 !!!       ! SM: set this value such tag the MPI tag is never greater than 4000000 (otherwise crash on Cray... is the limit maybe 2^22?)
@@ -1902,7 +1902,7 @@ module communications
 !!!               ! don't communicate to ourselves, or if we've already sent this locreg
 !!!               if (jtask == root .or. covered(ilr,jtask)) cycle
 !!!               call check_overlap_cubic_periodic(glr,llr(ilr),llr(jlr),isoverlap)
-!!!               if (isoverlap) then         
+!!!               if (isoverlap) then
 !!!                   covered(ilr,jtask)=.true.
 !!!                   if (iproc == root) then
 !!!                   !!   !write(*,'(5(a,i0))') 'process ',iproc,' sends locreg ',ilr,' to process ',&
@@ -1935,15 +1935,15 @@ module communications
 !!!           !!   icomm=0
 !!!           !!end if
 !!!       end do
-!!!      
+!!!
 !!!       !!call mpi_waitall(icomm, requests(1), mpi_statuses_ignore, ierr)
 !!!       !!call mpi_barrier(mpi_comm_world,ierr)
-!!!    
+!!!
 !!!       call f_free(worksend_int)
-!!!    
+!!!
 !!!       nalloc=0
 !!!       maxrecvdim=0
-!!!       do jlr=1,nlr 
+!!!       do jlr=1,nlr
 !!!          !write(*,*) 'iproc, jlr, covered, nseg_c', iproc, jlr, covered(jlr,iproc), llr(jlr)%wfd%nseg_c
 !!!          if (covered(jlr,iproc)) then
 !!!             !!llr(jlr)%wfd%nvctr_c=workrecv_int(1,jlr)
@@ -1958,13 +1958,13 @@ module communications
 !!!       if (f_err_raise(nalloc /= nrecv,'problem in communicate locregs: mismatch in receives '//&
 !!!            trim(yaml_toa(nrecv))//' and allocates '//trim(yaml_toa(nalloc))//' for process '//trim(yaml_toa(iproc)),&
 !!!            err_name='BIGDFT_RUNTIME_ERROR')) return
-!!!    
+!!!
 !!!       call f_free(workrecv_int)
-!!!    
+!!!
 !!!       !should reduce memory by not allocating for all llr
 !!!       workrecv_int = f_malloc((/ 6*maxrecvdim, nlr /),id='workrecv_int')
 !!!       worksend_int = f_malloc((/ 6*maxsenddim, nlr /),id='worksend_int')
-!!!    
+!!!
 !!!       !!! divide communications into chunks to avoid problems with memory (too many communications)
 !!!       !!! set maximum number of simultaneous communications
 !!!       !!!total_sent=0
@@ -2012,10 +2012,10 @@ module communications
 !!!             ilr_old=ilr
 !!!          end if
 !!!       end do
-!!!    
+!!!
 !!!       call f_free(worksend_int)
-!!!    
-!!!       do ilr=1,nlr 
+!!!
+!!!       do ilr=1,nlr
 !!!          if (covered(ilr,iproc)) then
 !!!             call vcopy(2*(llr(ilr)%wfd%nseg_c+llr(ilr)%wfd%nseg_f),workrecv_int(1,ilr),1,llr(ilr)%wfd%keyglob(1,1),1)
 !!!             call vcopy(2*(llr(ilr)%wfd%nseg_c+llr(ilr)%wfd%nseg_f),&
@@ -2026,29 +2026,29 @@ module communications
 !!!                  workrecv_int(5*(llr(ilr)%wfd%nseg_c+llr(ilr)%wfd%nseg_f)+1,ilr),1,llr(ilr)%wfd%keyvglob(1),1)
 !!!          end if
 !!!       end do
-!!!    
+!!!
 !!!       call f_free(workrecv_int)
-!!!    
+!!!
 !!!       !print*,'iproc,sent,received,num sent,num received',iproc,total_sent,total_recv,nsend,nrecv
 !!!       call f_free(requests)
 !!!       call f_free(covered)
 
        call f_release_routine()
-    
+
     contains
-    
+
      pure function itag(ilr,recv)
      implicit none
      integer, intent(in) :: ilr,recv
      integer :: itag
-    
+
      !itag=ilr+recv*nlr
      !itag=ilr+recv*max_sim_comms
      itag = mod(ilr-1,max_sim_comms)*nproc + recv + 1
-    
+
      end function itag
 
-    
+
     END SUBROUTINE communicate_locreg_descriptors_keys
 
 
@@ -2119,7 +2119,7 @@ module communications
       !call f_release_routine()
 
     end function get_offset
-    
+
 
     subroutine transpose_v_d1(iproc,nproc,orbs,wfd,comms,sendbuf,workbuf,&
          recvbuf) !optional
@@ -2152,7 +2152,7 @@ module communications
       include 'transpose-inc.f90'
 
     END SUBROUTINE transpose_v_d2
-    
+
     subroutine transpose_v_d212(iproc,nproc,orbs,wfd,comms,sendbuf,workbuf,&
          recvbuf) !optional
       use module_base
@@ -2170,7 +2170,7 @@ module communications
     END SUBROUTINE transpose_v_d212
 
 
-    
+
     !> Transposition of the arrays, variable version (non homogeneous)
     subroutine transpose_v111(iproc,nproc,orbs,wfd,comms,psi_add,work_add,&
                out_add) !optional
@@ -2204,7 +2204,7 @@ module communications
       else
           call transpose_v_core(iproc,nproc,orbs,wfd,comms,nsize_psi,psi_add,nsize_work,work_add)
       end if
-    
+
     END SUBROUTINE transpose_v111
 
 
@@ -2228,7 +2228,7 @@ module communications
       real(wp), dimension(:,:), optional :: out_add
       !local variables
       integer :: nsize_psi, nsize_work
-    
+
       nsize_psi = size(psi_add)
       nsize_work = size(work_add)
       if (present(out_add)) then
@@ -2240,7 +2240,7 @@ module communications
       else
           call transpose_v_core(iproc,nproc,orbs,wfd,comms,nsize_psi,psi_add,nsize_work,work_add)
       end if
-    
+
     END SUBROUTINE transpose_v222
 
 
@@ -2264,7 +2264,7 @@ module communications
       real(wp), dimension(:,:), optional :: out_add
       !local variables
       integer :: nsize_psi, nsize_work
-    
+
       nsize_psi = size(psi_add)
       nsize_work = size(work_add)
       if (present(out_add)) then
@@ -2276,7 +2276,7 @@ module communications
       else
           call transpose_v_core(iproc,nproc,orbs,wfd,comms,nsize_psi,psi_add,nsize_work,work_add)
       end if
-    
+
     END SUBROUTINE transpose_v212
 
     !> Transposition of the arrays, variable version (non homogeneous)
@@ -2299,7 +2299,7 @@ module communications
       real(wp), dimension(:), optional :: out_add
       !local variables
       integer :: nsize_psi, nsize_work
-    
+
       nsize_psi = size(psi_add)
       nsize_work = size(work_add)
       if (present(out_add)) then
@@ -2311,7 +2311,7 @@ module communications
       else
           call transpose_v_core(iproc,nproc,orbs,wfd,comms,nsize_psi,psi_add,nsize_work,work_add)
       end if
-    
+
     END SUBROUTINE transpose_v211
 
     !> Transposition of the arrays, variable version (non homogeneous)
@@ -2336,13 +2336,13 @@ module communications
       character(len=*), parameter :: subname='transpose_v1'
       integer :: ierr
       external :: switch_waves_v,psitransspi!,MPI_ALLTOALLV
-    
+
       call timing(iproc,'Un-TransSwitch','ON')
-    
+
       if (nproc > 1) then
          call switch_waves_v(nproc,orbs,&
               wfd%nvctr_c+7*wfd%nvctr_f,comms%nvctr_par(0,1),psi_add,work_add)
-    
+
          call timing(iproc,'Un-TransSwitch','OF')
          call timing(iproc,'Un-TransComm  ','ON')
          if (present(out_add)) then
@@ -2360,13 +2360,13 @@ module communications
             call psitransspi(wfd%nvctr_c+7*wfd%nvctr_f,orbs,psi_add,.true.)
          end if
       end if
-    
+
       call timing(iproc,'Un-TransSwitch','OF')
-    
+
     END SUBROUTINE transpose_v_core
 
-    
-    
+
+
 
     subroutine untranspose_v111(iproc,nproc,orbs,wfd,comms,psi_add,&
          work_add,out_add) !optional
@@ -2384,7 +2384,7 @@ module communications
       real(wp),dimension(:),intent(out),optional :: out_add !< Optional argument
       !local variables
       integer :: nsize_psi, nsize_work
-    
+
       nsize_psi = size(psi_add)
       nsize_work = size(work_add)
       if (present(out_add)) then
@@ -2416,7 +2416,7 @@ module communications
       real(wp),dimension(:,:),intent(out),optional :: out_add !< Optional argument
       !local variables
       integer :: nsize_psi, nsize_work
-    
+
       nsize_psi = size(psi_add)
       nsize_work = size(work_add)
       if (present(out_add)) then
@@ -2448,7 +2448,7 @@ module communications
       real(wp),dimension(:,:),intent(out),optional :: out_add !< Optional argument
       !local variables
       integer :: nsize_psi, nsize_work
-    
+
       nsize_psi = size(psi_add)
       nsize_work = size(work_add)
       if (present(out_add)) then
@@ -2480,7 +2480,7 @@ module communications
       real(wp),dimension(:),intent(out),optional :: out_add !< Optional argument
       !local variables
       integer :: nsize_psi, nsize_work
-    
+
       nsize_psi = size(psi_add)
       nsize_work = size(work_add)
       if (present(out_add)) then
@@ -2513,10 +2513,10 @@ module communications
       !local variables
       integer :: ierr
       external :: switch_waves_v,psitransspi!,MPI_ALLTOALLV
-    
-    
+
+
       call timing(iproc,'Un-TransSwitch','ON')
-    
+
       if (nproc > 1) then
          call timing(iproc,'Un-TransSwitch','OF')
          call timing(iproc,'Un-TransComm  ','ON')
@@ -2542,11 +2542,11 @@ module communications
             call psitransspi(wfd%nvctr_c+7*wfd%nvctr_f,orbs,psi_add,.false.)
          end if
       end if
-    
+
       call timing(iproc,'Un-TransSwitch','OF')
     END SUBROUTINE untranspose_v_core
 
-    
+
 
     !> Transposition of the arrays, variable version (non homogeneous)
     subroutine toglobal_and_transpose(iproc,nproc,orbs,Lzd,comms,psi,&
@@ -2571,7 +2571,7 @@ module communications
 
       call f_routine(id='toglobal_and_transpose')
       call timing(iproc,'Un-TransSwitch','ON')
-    
+
       !for linear scaling must project the wavefunctions to whole simulation box
       if(Lzd%linear) then
     !     if(.not. present(work) .or. .not. associated(work)) stop 'transpose_v needs optional argument work with Linear Scaling'
@@ -2584,7 +2584,7 @@ module communications
          do iorb=1,orbs%norbp
             ilr = orbs%inwhichlocreg(iorb+orbs%isorb)
             ldim = (Lzd%Llr(ilr)%wfd%nvctr_c+7*Lzd%Llr(ilr)%wfd%nvctr_f)*orbs%nspinor
-    
+
             !!call Lpsi_to_global(Lzd%Glr,Gdim,Lzd%Llr(ilr),psi(psishift1),&
             !!     ldim,orbs%norbp,orbs%nspinor,orbs%nspin,totshift,workarr)
             call Lpsi_to_global2(iproc, ldim, gdim, orbs%norbp, &
@@ -2592,19 +2592,19 @@ module communications
             psishift1 = psishift1 + ldim
             totshift = totshift + (Lzd%Glr%wfd%nvctr_c+7*Lzd%Glr%wfd%nvctr_f)*orbs%nspinor
          end do
-    
+
          !reallocate psi to the global dimensions
          call f_free_ptr(psi)
          psi = f_malloc_ptr(Gdim,id='psi')
          call vcopy(Gdim,workarr(1),1,psi(1),1) !psi=work
          call f_free_ptr(workarr)
       end if
-    
+
       if (nproc > 1 .and. present(work)) then
          if (.not. associated(work)) call f_err_throw('The working pointer must be associated',&
               err_name='BIGDFT_RUNTIME_ERROR')
       end if
-    
+
       if (present(outadd)) then
           call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,psi,work,outadd)
       else if(present(work)) then
@@ -2612,7 +2612,7 @@ module communications
       else
          call transpose_v(iproc,nproc,orbs,lzd%glr%wfd,comms,psi,workbuf=psi) !here psi should not be used
       end if
-    
+
       !!if (nproc > 1) then
       !!   !control check
       !!   if (.not. present(work) .or. .not. associated(work)) then
@@ -2620,13 +2620,13 @@ module communications
       !!           "ERROR: Unproper work array for transposing in parallel"
       !!      stop
       !!   end if
-    
-    
+
+
       !!   !!call switch_waves_v(nproc,orbs,&
       !!   !!     Lzd%Glr%wfd%nvctr_c+7*Lzd%Glr%wfd%nvctr_f,comms%nvctr_par(0,1),psi,work)
       !!   call switch_waves_v(nproc,orbs,&
       !!        Lzd%Glr%wfd%nvctr_c+7*Lzd%Glr%wfd%nvctr_f,comms%nvctr_par,psi,work)
-    
+
       !!   call timing(iproc,'Un-TransSwitch','OF')
       !!   call timing(iproc,'Un-TransComm  ','ON')
       !!   if (present(outadd)) then
@@ -2636,7 +2636,7 @@ module communications
       !!      call MPI_ALLTOALLV(work,comms%ncntd,comms%ndspld,mpidtypw, &
       !!           psi,comms%ncntt,comms%ndsplt,mpidtypw,bigdft_mpi%mpi_comm,ierr)
       !!   end if
-    
+
       !!   call timing(iproc,'Un-TransComm  ','OF')
       !!   call timing(iproc,'Un-TransSwitch','ON')
       !!else
@@ -2645,11 +2645,11 @@ module communications
       !!      call psitransspi(Lzd%Glr%wfd%nvctr_c+7*Lzd%Glr%wfd%nvctr_f,orbs,psi,.true.)
       !!   end if
       !!end if
-    
+
       !!call timing(iproc,'Un-TransSwitch','OF')
 
       call f_release_routine()
-      
+
     END SUBROUTINE toglobal_and_transpose
 
 
@@ -2658,25 +2658,25 @@ module communications
       use module_types, only: local_zone_descriptors, orbitals_data, comms_linear
       use locreg_operations, only: workarr_sumrho, initialize_work_arrays_sumrho, deallocate_work_arrays_sumrho
       implicit none
-      
+
       ! Calling arguments
       integer,intent(in) :: iproc, nproc, npsidim
       type(local_zone_descriptors),intent(in) :: lzd
       type(orbitals_data),intent(in) :: orbs
       real(kind=8),dimension(npsidim),intent(in) :: lphi
       type(comms_linear),intent(inout) :: collcom_sr
-      
+
       ! Local variables
       integer :: ist, istr, iorb, iiorb, ilr
       real(kind=8),dimension(:),allocatable :: psir, psirwork, psirtwork
       type(workarr_sumrho) :: w
       character(len=*),parameter :: subname='comm_basis_for_dens_coll'
-    
+
       call timing(iproc,'commbasis4dens','ON')
       call f_routine(id='communicate_basis_for_density_collective')
-    
+
       psir = f_malloc(collcom_sr%ndimpsi_c,id='psir')
-    
+
       ! Allocate the communication buffers for the calculation of the charge density.
       !call allocateCommunicationbufferSumrho(iproc, comsr, subname)
       ! Transform all orbitals to real space.
@@ -2695,26 +2695,26 @@ module communications
           write(*,'(a,i0,a)') 'ERROR on process ',iproc,' : istr/=collcom_sr%ndimpsi_c+1'
           stop
       end if
-    
+
       psirwork = f_malloc(collcom_sr%ndimpsi_c,id='psirwork')
-    
+
       call transpose_switch_psir(collcom_sr, psir, psirwork)
-    
+
       call f_free(psir)
-    
+
       psirtwork = f_malloc(collcom_sr%ndimind_c,id='psirtwork')
-    
+
       call transpose_communicate_psir(iproc, nproc, collcom_sr, psirwork, psirtwork)
-    
+
       call f_free(psirwork)
-    
+
       call transpose_unswitch_psirt(collcom_sr, psirtwork, collcom_sr%psit_c)
-    
+
       call f_free(psirtwork)
-    
+
       call f_release_routine()
       call timing(iproc,'commbasis4dens','OF')
-    
+
     end subroutine communicate_basis_for_density_collective
 
 
@@ -2894,7 +2894,7 @@ subroutine unswitch_waves_v(nproc,orbs,nvctr,nvctr_par,psiw,psi)
      !and starting point for psi
      ispsi=ispsi+orbs%nspinor*nvctr*norbp_kpt
   end do
-  
+
 END SUBROUTINE unswitch_waves_v
 
 
@@ -2982,6 +2982,3 @@ subroutine psitransspi(nvctrp,orbs,psi,forward)
 
   call f_free(tpsit)
 END SUBROUTINE psitransspi
-
-
-

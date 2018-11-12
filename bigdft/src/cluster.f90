@@ -1381,10 +1381,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
 !!$        call f_free(hpsi_tmp)
      end if
   end if
-  if (((in%exctxpar == 'OP2P' .and. xc_exctXfac(denspot%xc) /= 0.0_gp) &
-       .or. in%SIC%alpha /= 0.0_gp) .and. nproc >1) then
-     if (.not. associated(denspot%pkernelseq%kernel,target=denspot%pkernel%kernel) .and. &
-          associated(denspot%pkernelseq%kernel)) then
+  if (pkernel_seq_is_needed(in,denspot)) then ! .and. nproc >1) then
         call pkernel_free(denspot%pkernelseq)
      end if
   else if (nproc == 1 .and. (in%exctxpar == 'OP2P' .or. in%SIC%alpha /= 0.0_gp)) then

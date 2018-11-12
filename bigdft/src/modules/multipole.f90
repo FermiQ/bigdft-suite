@@ -300,7 +300,7 @@ module multipole
           j3s = 0
           j3e = 0
       end if
-      
+
 !!$          hhh = hx*hy*hz
       hhh = denspot%dpbox%mesh%volume_element
 
@@ -1032,18 +1032,18 @@ module multipole
             call axpy((ie1-is1+1)*(ie2-is2+1)*(ie3-is3+1), 1.0_gp, density_cores(is1,is2,is3), 1, density(is1,is2,is3), 1)
          end if
 
-        call plot_density(0,1,'add_dens.cube',&
-             at,at%astruct%rxyz,denspot%pkernel,1,density)
+        !call plot_density(0,1,'add_dens.cube',&
+      !       at,at%astruct%rxyz,denspot%pkernel,1,density)
          call H_potential('D',denspot%pkernel,density,denspot%V_ext,ehart_ps,0.0_dp,.false.,&
               quiet='yes')!,rho_ion=denspot%rho_ion)
-        call plot_density(0,1,'add_pot.cube',&
-             at,at%astruct%rxyz,denspot%pkernel,1,density)
+        !call plot_density(0,1,'add_pot.cube',&
+      !       at,at%astruct%rxyz,denspot%pkernel,1,density)
 
          if (present(pot_mp)) then
             call f_memcpy(src=density, dest=pot_mp)
          end if
 
-         write(*,*) 'ehart_ps',ehart_ps
+      !   write(*,*) 'ehart_ps',ehart_ps
          !LG: attention to stack overflow here !
          !pot = pot + density
          call daxpy(size(density),1.0_gp,density,1,pot,1)
@@ -1863,7 +1863,7 @@ module multipole
       type(box_iterator) :: bit
       !$ integer, external:: omp_get_num_threads,omp_get_thread_num
       !$ integer :: ithread,nthread
-      
+
 
       call f_routine(id='apply_Slm')
 
@@ -2010,7 +2010,7 @@ module multipole
       integer, dimension(3) :: ioffset_isf
       type(box_iterator) :: bit
       !$ integer, external:: omp_get_num_threads,omp_get_thread_num
-      
+
 
       call f_routine(id='Qlm_phi')
 
@@ -2053,7 +2053,7 @@ module multipole
 !!$            !$omp shared(psi_it, lrcntr, sphere, rmax, Qlm_work, phi2r, lmax) &
 !!$            !$omp private(l, m,rc,rxyz)
 !!$            !$omp reduction(+: Qlm_work)
-!!$            !$omp firstprivate(bit)           
+!!$            !$omp firstprivate(bit)
 !!$            !$ call box_iter_split(bit,omp_get_num_threads(),omp_get_thread_num())
             do while (box_next_point(bit))
                 rc=closest_r(psi_it%lr%mesh,bit%rxyz,lrcntr)
@@ -4828,11 +4828,11 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
   !!write(*,*) 'dipole_cores',dipole_cores
   !!write(*,*) 'nc3',nc3
 
-  !now reset the multipole quantities 
+  !now reset the multipole quantities
   call f_multipoles_create(mp_electrons,2,center=charge_center_cores)
   call field_multipoles(dpbox%bitp,rho,nspin,mp_electrons)
   call f_multipoles_reduce(mp_electrons,comm=bigdft_mpi%mpi_comm)
-  !in case there is no ionic charge the dipole of the 
+  !in case there is no ionic charge the dipole of the
   !electronic density is set to zero by default
   if (qtot==0.0_dp) then
      call f_zero(dipole_el)
@@ -4862,7 +4862,7 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
   !quadrupole should be calculated with the shifted positions!
   quadrupole_if: if (calculate_quadrupole) then
 
-     !now reset the multipole quantities 
+     !now reset the multipole quantities
      call f_multipoles_create(mp_cores,2,center=charge_center_cores)
      call vector_multipoles(mp_cores,at%astruct%nat,rxyz,dpbox%mesh,&
           charges=real(at%nelpsp,dp),lookup=at%astruct%iatype)
@@ -6576,7 +6576,7 @@ END SUBROUTINE calculate_dipole_moment
               call f_zero(multipole_matrix%matrix_compr)
               ! Calculate the multipole matrix
               call calculate_multipole_matrix(iproc, nproc, l, m, nphi, lphi, lphi, nphir, hgrids, &
-                   orbs, collcom, lzd, smmd, smats, auxs, locregcenter, 'box', multipole_matrix) 
+                   orbs, collcom, lzd, smmd, smats, auxs, locregcenter, 'box', multipole_matrix)
               ! Write the multipole matrix
               call get_sparse_matrix_format(write_multipole_matrices_mode, sparse_format)
               write(lname,'(i0)') l

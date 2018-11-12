@@ -117,7 +117,7 @@ class Runner():
 
     def get_global_option(self,key):
         """
-        
+
         Get one key in global options
 
         Args:
@@ -125,7 +125,7 @@ class Runner():
 
         Returns:
             The value of the global options labelled by ``key``
-      
+
         """
         return self._global_options[key]
 
@@ -166,12 +166,12 @@ class Runner():
     def run(self,**kwargs):
         """
         Run method of the class. It performs the following actions:
-        
+
          * Constructs the local dictionary to be passed as ``*kwargs*`` to the `process_run` function
          * Calls the ``pre_processing`` method (intended to prepare some actions associated to the ``process_run`` method
          * Calls ``process_run``
          * Returns the object passed by the call to ``post_processing`` class method
-        
+
         """
         from futile.Utils import dict_merge
         self._run_options(**kwargs)
@@ -181,7 +181,7 @@ class Runner():
         dict_merge(dest=run_args,src=run_results)
         #safe_print('run_updated, again',run_args)
         return self.post_processing(**run_args)
-    
+
     def pre_processing(self):
         """
         Pre-treat the keyword arguments and the options, if needed.
@@ -217,7 +217,7 @@ class SystemCalculator(Runner):
 
     Main calculator of BigDFT code. It performs :py:meth:`os.system` calls to the main ``bigdft`` executable
     in the ``$BIGDFT_ROOT`` directory. It is designed for two purposes:
-      
+
       * Run the code in a workstation-based environment, for exemple within notebooks or scripts.
       * Run the code from a python script that is submitted to a batch scheduler in a potnentially large-scale supercomputer.
 
@@ -225,7 +225,7 @@ class SystemCalculator(Runner):
 
         * The value of ``OMP_NUM_THREADS`` to set the number of OMP_NUM_THREADS. If this variable is not present in the environment,
           :class:`SystemCalculator` sets it to the value provided by the ``omp`` keyword at initialization.
-           
+
         * The value of ``BIGDFT_MPIRUN`` to define the MPI execution command. If absent, the run is executed simply by ``$BIGDFT_ROOT/bigdft``,
           followed by the command given by post-processing.
 
@@ -250,12 +250,12 @@ class SystemCalculator(Runner):
         >>> inpdict = { 'dft': { 'ixc': 'LDA' }} #a simple input file
         >>> study = SystemCalculator(omp=1)
         >>> logf = study.run(name="test",input=inpdict)
-        Executing command:  $BIGDFT_MPIRUN <path_to_$BIGDFT_ROOT>/bigdft test       
+        Executing command:  $BIGDFT_MPIRUN <path_to_$BIGDFT_ROOT>/bigdft test
 
     """
 
     import os,shutil
-    def __init__(self, 
+    def __init__(self,
                  omp=os.environ.get('OMP_NUM_THREADS','1'),
                  mpi_run=os.environ.get('BIGDFT_MPIRUN',''),
                  dry_run=False,skip=False,verbose=True):
@@ -276,19 +276,19 @@ class SystemCalculator(Runner):
         :param str name: naming scheme of the run i.e. <name>.yaml is the input file and log-<name>.yaml the output one.
            Data will then be written in the directory `data-<name>.yaml`, unless the "radical" keyword is specified in the input dictionary.
         :param str run_dir: specify the directory where bigdft will be executed (the input and log file will be created in it)
-                            it must be a simple 
+                            it must be a simple
         :param str outdir: specify the output directory for all data coming from bigdft (parameter of bigdft)
-        :param str run_name: File containing the list of the run ids which have to be launched independently 
+        :param str run_name: File containing the list of the run ids which have to be launched independently
                              (list in yaml format). The option runs-file is not compatible with the name option.
         :param input: give the input parameters (a dictionary or a list of dictionary)
         :type input: dict
-        :param posinp: indicate the posinp file (atomic position file). 
+        :param posinp: indicate the posinp file (atomic position file).
         :type posinp: filename
         :return: a Logfile instance is returned. It returns None if an error occurred
         :rtype: Logfile
 
         .. todo::
-           
+
            Set the return value of run in the case of a run_file. It should be a list of Logfile classes
 
         """
@@ -310,7 +310,7 @@ class SystemCalculator(Runner):
 
     def process_run(self,command):
         """Finally launch the code.
-        
+
         Routine associated to the running of the ``bigdft`` executable.
 
         Arguments:
@@ -321,7 +321,7 @@ class SystemCalculator(Runner):
         verbose = self.run_options['verbose']
         # Set the number of omp threads
         os.environ['OMP_NUM_THREADS'] = self.run_options['omp']
-        if verbose: 
+        if verbose:
             if self.run_dir != '.': safe_print('Run directory', self.run_dir)
             safe_print('Executing command: ', command)
         #Run the command
@@ -335,16 +335,19 @@ class SystemCalculator(Runner):
         Returns:
            A `BigDFT.Logfile` class instance associated to the run which has been just performed.
            If the run failed for some reasons, the logfile seem not existing or it cannot be parsed it returns `None`.
- 
+
         """
         #verify that no debug file has been created
         if self._get_debugfile_date() > timedbg :
             verbose = self.run_options['verbose']
-            if verbose: 
+            if verbose:
                 safe_print("ERROR: some problem occured during the execution of the command, check the 'debug/' directory and the logfile")
                 #the debug file is sane, we may print out the error message
                 self._dump_debugfile_info()
-            return None
+            try:
+                return Lf.Logfile(logname)
+            except:
+                return None
         if os.path.exists(logname):
             from futile.Utils import file_time
             from time import time
@@ -361,14 +364,14 @@ class SystemCalculator(Runner):
     def _get_command(self):
         name = self.run_options.get('name','')
         dry_run = self.run_options['dry_run']
-        run_name = self.run_options.get('run_name','')               
+        run_name = self.run_options.get('run_name','')
         outdir = self.run_options.get('outdir','')
         #Check if it is a dry run
         if dry_run:
             #Use bigdft-tool (do not use BIGDFT_MPIRUN because it is a python script)
             command = os.path.join(os.environ['BIGDFT_ROOT'],'bigdft-tool')+' -a memory-estimation -l'
             if name > 0: command += ' --name='+name
-        else:   
+        else:
             # Adjust the command line with options
             command = self.command
             if name: command += ' -n ' + name
@@ -413,10 +416,11 @@ class SystemCalculator(Runner):
     def _posinp_dictionary_value(self,posinp):
         """
         Create the dictionary value associated to posinp field
-        
+
         Args:
-          posinp (str,dict): path of the posinp file. Might be relative or absolute. Copied into `run_dir` if not existing. 
-                It might also contain the dictionary of the atomic positions.
+          posinp (str, dict): path of the posinp file. Might be relative or absolute. Copied into `run_dir` if not existing. If it is a dictionary, it is a representation
+          of the atomic position.
+
         Returns:
           str,dict: the value of the key ``posinp`` of the input file, if posinp is a string, otherwise the posinp dictionary
         """

@@ -24,15 +24,24 @@ AC_DEFUN([AX_FLAG_PIC],
   {
      # default result to be checked
      ax_compiler_export_symbols='-E'
-     ax_compiler_rpath='-rpath='
+     ax_compiler_rpath='-rpath '
      case $[1] in
+      #ax_compiler_rpath='-rpath='
       # GCC compiler.
       gcc*)
         ax_compiler_wl='-Wl,'
         ax_compiler_pic='-fPIC'
         ax_compiler_static='-static'
 	ax_compiler_export_symbols='-E'
-	ax_compiler_rpath='-rpath='
+	ax_compiler_rpath='-rpath '
+        ;;
+      # Clang compiler.
+      *Homebrew* | Apple*)
+        ax_compiler_wl='-Wl,'
+        ax_compiler_pic='-fPIC'
+        ax_compiler_static='-static'
+	ax_compiler_export_symbols='-E'
+	ax_compiler_rpath='-rpath '
         ;;
       # old Intel for x86_64 which still supported -KPIC.
       ecc*)
