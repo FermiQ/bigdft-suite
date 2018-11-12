@@ -465,7 +465,13 @@ def CreateFragList(frag_dict, merge_list=None):
 
 
 class System():
-    "A system is defined by a collection of Fragments. It might be given by one single fragment"
+    """
+    A system is defined by a collection of Fragments. It might be given by one single fragment
+
+    Todo:
+       Specify the problem when a xyz file without units is passed as the ``xyz`` argument, and the cell is not correctly specified.
+       Problems like these are more easily solvable by defining a single XYZFile class instance like it is done in this module
+    """
     def __init__(self,mp_dict=None,xyz=None,nat_reference=None,units='AU',transformations=None,reference_fragments=None,posinp_dict=None):
         self.fragments=[]
         self.CMs=[]
@@ -490,7 +496,10 @@ class System():
         nat=0
         iat=0
         frag=None
+        iline=0
         for l in fil:
+            iline+=1
+            if iline == 2: continue
             try:
                 pos=l.split()
                 if len(pos) <=2: #these are the number of atoms
@@ -510,7 +519,7 @@ class System():
                     frag.append({pos[0]: map(float,pos[1:])})
                     nat+=1
                     iat+=1
-            except Exception(e):
+            except Exception,e:
                 safe_print('Warning, line not parsed: "',l,e,'"')
         if iat != 0: self.append(frag) #append the remaining fragment
     def fill_from_mp_dict(self,mpd,nat_reference=None):
