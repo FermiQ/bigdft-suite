@@ -23,7 +23,7 @@ def apply_Rt(R,t,A):
 # R = 3x3 rotation matrix
 # t = 3x1 column vector
 
-def rigid_transform_3D(A, B):
+def rigid_transform_3D(A, B,verbose=False):
     "Find the transformation R and t such that R*A + t ~= B, with an error quantified by J"
     assert len(A) == len(B)
 
@@ -48,7 +48,7 @@ def rigid_transform_3D(A, B):
 
     # special reflection case
     if linalg.det(R) < 0:
-       safe_print("#Reflection detected")
+       if verbose: safe_print("#Reflection detected")
        Vt[2,:] *= -1
        R = Vt.T * U.T
 

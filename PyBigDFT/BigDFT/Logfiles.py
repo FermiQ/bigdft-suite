@@ -20,6 +20,8 @@ PRE_POST = [EVAL, SETUP, INITIALIZATION]
 #Builtin paths to define the search paths
 BUILTIN={
     'astruct': {PATH: [ ['Atomic structure']]},
+    'dipole': {PATH: [ ['Electric Dipole Moment (AU)', 'P vector']],
+               PRINT: "Dipole (AU)"},
     'electrostatic_multipoles': {PATH: [['Multipole coefficients','values']]},
     'energy': {PATH: [["Last Iteration", "FKS"],["Last Iteration", "EKS"], ["Energy (Hartree)"]],
                  PRINT: "Energy", GLOBAL: False},
@@ -450,7 +452,7 @@ class Logfile():
     def get_dos(self,label=None,npts=2500):
         """
         Get the density of states from the logfile.
-        
+
         :param label: id of the density of states.
         :type label: string
         :param npts: number of points of the DoS curve
@@ -537,7 +539,7 @@ class Logfile():
             if name == True: name=field
             if not name or not hasattr(self,field): continue
             summary.append({name: getattr(self,field)})
-        if hasattr(self,'evals'): 
+        if hasattr(self,'evals'):
             nspin=self.log['dft']['nspin']
             if nspin == 4: nspin=1
             cmt=( ' per k-point'  if hasattr(self,'kpts') else '' )

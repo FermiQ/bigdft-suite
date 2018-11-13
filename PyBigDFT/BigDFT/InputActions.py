@@ -1,7 +1,7 @@
 """Actions to define on the Input parameters.
 
-This module defines some of the most common actions that a BigDFT user might like to 
-perform on the input file. Such module therefore set some of the keys of the input 
+This module defines some of the most common actions that a BigDFT user might like to
+perform on the input file. Such module therefore set some of the keys of the input
 dictionary to the values needed to perform the operations.
 Users might also inspire to the actions performed in order to customize the runs in a different way.
 All the functions of this module have as first argument ``inp``, the dictionary of the input parameters.
@@ -10,14 +10,14 @@ Many other actions are available in BigDFT code. This module only regroups the m
 Any of these functionalities might be removed from the input file by the :py:func:`remove` function.
 
 Note:
-   
+
    Any of the action of this module, including the :py:func:`remove` function, can be also applied
    to an instance of the :py:class:`BigDFT.Inputfiles.Inputfile` class, by removing the first argument (``inp``).
    This adds extra flexibility as the same method may be used to a dictionary instance or to a BigDFT input files.
    See the example :ref:`input_action_example`.
 
 Note:
-   
+
    Each of the actions here **must** have default value for the arguments (except the input dictionary ``inp``).
    This is needed for a good behaviour of the function `remove`.
 
@@ -34,12 +34,13 @@ Note:
    spin_polarize
    charge
    charge_and_polarize
+   set_symmetry
    apply_electric_field
    set_random_inputguess
    write_orbitals_on_disk
    read_orbitals_from_disk
    write_density_on_disk
-   make_cation
+   calculate_dipole
    use_gpu_acceleration
    change_data_directory
    connect_run_data
@@ -68,7 +69,7 @@ def __undo__(inp,*subfields):
     #remove the last key until the parent is empty
     lastkey=-1
     tmp={}
-    while len(subfields) > -lastkey and tmp=={}: 
+    while len(subfields) > -lastkey and tmp=={}:
         keys=subfields[:lastkey]
         tmp,k=push_path(inp,*keys)
         tmp.pop(k)
@@ -76,13 +77,13 @@ def __undo__(inp,*subfields):
 
 def remove(inp,action):
     """Remove action from the input dictionary.
-    
+
     Remove an action from the input file, thereby restoring the **default** value, as if the action were not specified.
 
     Args:
        inp (dict): dictionary to remove the action from.
        action (func): one of the actions of this module. It does not need to be specified before, in which case it produces no effect.
-    
+
     Example:
        >>> from Calculators import SystemCalculator as C
        >>> code=C()
@@ -120,6 +121,25 @@ def set_rmult(inp,rmult=None,coarse=5.0,fine=8.0):
     rmlt=[coarse,fine] if rmult is None else rmult
     __set__(inp,'dft','rmult',rmlt)
 
+def set_symmetry(inp,yes=True):
+    """
+    Set the symmetry detection for the charge density and the ionic forces and stressdef set_symmetry(inp,yes=True):
+    
+    Args: 
+       yes (bool): If ``False`` the symmetry detection is disabled
+    """
+    __set__(inp,'dft','disablesym', not yes)
+
+def set_linear_scaling(inp):
+    """
+    Activates the linear scaling mode
+    """
+    newid='linear'
+    previous_ipid=inp.get('dft','False')
+    if previous_ipid: previous_ipid=inp.get('inputpsiid','False')
+    if previous_ipid == 2: newid=102
+
+    __set__(inp,'dft','inputpsiid',newid)
 
 def set_mesh_sizes(inp,ngrids=64):
     """
@@ -154,7 +174,7 @@ def charge(inp,charge=-1):
 def apply_electric_field(inp,elecfield=[0,0,1.e-3]):
     """
     Apply an external electric field on the system
-    
+
     Args:
        electric (list, float): Values of the Electric Field in the three directions. Might also be a scalar.
     """
@@ -167,14 +187,82 @@ def charge_and_polarize(inp):
     charge(inp,charge=1)
     spin_polarize(inp,mpol=1)
 
+def set_SCF_method(inp,method='dirmin',mixing_on='density',mixing_scheme='Pulay'):
+    """
+    Set the algorithm for SCF.
+
+    Args:
+       method (str): The algoritm chosen. Might be different for the cubic (CS) or linear scaling (LS) algorithm.
+         * dirmin: Direct minimization approach (valid both to LS and CS)
+         * mixing: Mixing scheme (only CS)
+         * foe: Fermi Operator Expansion (only LS)
+         * pexsi: Pole EXpansion and Selected Inversion method (only LS, require PEXSI compilation)
+         * diag: Explicit diagonalization (only LS, for validation purposes)
+            
+       mixing_on (str): May be ``"density"`` or ``"potential"`` in the ``"mixing"`` case, decide to which quantity the mixing to be performed
+
+       mixing_scheme (str): May be:
+          
+          * Pulay : DIIS mixing on the last 7 iterations
+
+          * Simple: Simple mixing 
+          
+          * Anderson: Anderson scheme
+          
+          * Anderson2: Anderson scheme based on the two pervious iterations
+          
+          * CG: Conjugate Gradient based on the minimum of the energy with respect of the potential 
+       
+    Warning:
+       Only the FOE method exhibit asymptotic linear scaling regime. 
+    
+    Todo:
+       Check if the linear scaling case needs another input variable for the mixing of the potential (density)
+    
+    """
+    method.upper()
+    if method != 'MIXING': __set__(inp,'lin_kernel','linear_method',method)
+    if method=='DIRMIN':
+       __set__(inp,'mix','iscf',0)
+       return
+    iscf=0
+    if mixing_on == 'density': iscf+=10
+    if mixing_scheme == 'Pulay': iscf+=7
+    if mixing_scheme == 'Anderson': iscf+=3
+    if mixing_scheme == 'Anderson2': iscf+=4
+    if mixing_scheme == 'Simple': iscf+=2
+    if mixing_scheme == 'CG': iscf+=5
+    __set__(inp,'mix','iscf',iscf)
+
+      
+
 def add_empty_SCF_orbitals(inp,norbs=10):
     """
     Insert ``norbs`` empty orbitals in the SCF procedure
 
     Args:
        norbs (int): Number of empty orbitals
+
+    Warning:
+       In linear scaling case, this is only meaningful for the direct minimization approach.
     """
     __set__(inp,'mix','norbsempty',norbs)
+    __set__(inp,'lin_general','extra_states',norbs)
+
+def write_cubefiles_around_fermi_level(inp,nplot=1):
+    """
+    Writes the ``nplot`` orbitals around the fermi level in cube format
+
+    Args:
+      nplot (int): the number of orbitals to print around the fermi level.
+
+    Warning:
+       This is presently meaningful only for a empty states calculation.
+
+    Warning: 
+       This would work only for the cubic scaling code at present.
+    """
+    __set__(inp,'dft','nplot',nplot)
 
 def write_orbitals_on_disk(inp,format='binary'):
     """
@@ -182,14 +270,24 @@ def write_orbitals_on_disk(inp,format='binary'):
 
     Args:
       format (str): The format to write the orbitals with. Accepts the strings:
-
          * 'binary'
          * 'text'
-         * 'text_with_densities'
-         * 'text_with_cube'
          * 'etsf' (requires etsf-io enabled)
+
+    Todo:
+      Verify if this option works for a linear scaling calulation.
     """
-    __set__(inp,'output','orbitals',format)
+    fmt=format
+    __set__(inp,'output','orbitals',fmt)
+
+def write_support_functions_on_disk(inp,format='binary',matrices=True,coefficients=False):
+    pass
+
+def write_support_function_matrices(inp,):
+    """
+    Write the matrices of the linear scaling formats.
+    """
+    pass
 
 def set_atomic_positions(inp,posinp=None):
     """
@@ -201,7 +299,11 @@ def read_orbitals_from_disk(inp):
     """
     Read the orbitals from data directory, if available
     """
-    __set__(inp,'dft','inputpsiid',2)
+    newid=2
+    previous_ipid=inp.get('dft','False')
+    if previous_ipid: previous_ipid=inp.get('inputpsiid','False')
+    if previous_ipid == 'linear' or previous_id==100: newid=102
+    __set__(inp,'dft','inputpsiid',102)
 
 def set_random_inputguess(inp):
     """
@@ -216,7 +318,7 @@ def set_electronic_temperature(inp,kT=1.e-3,T=0):
     TtokT=8.617343e-5/27.21138505
     tel= TtoKT*T if T != 0 else kT
     __set__(inp,'mix','tel',tel)
-    
+
 def optimize_geometry(inp,method='FIRE',nsteps=50):
     """
     Optimize the geometry of the system
@@ -240,7 +342,7 @@ def optimize_geometry(inp,method='FIRE',nsteps=50):
 def set_xc(inp,xc='PBE'):
     """
     Set the exchange and correlation approximation
-    
+
     Args:
        xc (str): the Acronym of the XC approximation
 
@@ -258,7 +360,7 @@ def write_density_on_disk(inp):
 def use_gpu_acceleration(inp):
     """
     Employ gpu acceleration when available, for convolutions and Fock operator
-    
+
     Todo:
        Verify what happens when only one of the functionality is enabled at compile-time
     """
@@ -305,7 +407,7 @@ def extract_virtual_states(inp,nvirt,davidson=False):
     Args:
        davidson (bool): If set to ``True`` activates davidson calculation, otherwise Trace Minimization of the Hamiltonian is employed.
     """
-    nv=nvirt if davidson else -nvirt 
+    nv=nvirt if davidson else -nvirt
     __set__(inp,'dft','norbv',nv)
     __set__(inp,'dft','nvirt',nvirt)
     __set__(inp,'dft','itermax_virt',150)
@@ -314,7 +416,7 @@ def connect_run_data(inp,log=None):
     """
     Associate the data of the run of a given logfile to the input
     by retrieving the data directory name of the logfile.
-    
+
     Args:
        log (Logfile): instance of a Logfile class
 
@@ -324,3 +426,13 @@ def connect_run_data(inp,log=None):
     else:
         ll=log if len(log)==0 else log[0]
         change_data_directory(inp,ll.log['radical'])
+
+def calculate_dipole(inp):
+    """
+    Extract the dipole momenet from the total charge density.
+
+    Note:
+      This function is useful for the linear scaling setup as the cubic
+      scaling approach always calculates the charge density multipoles.
+    """
+    __set__(inp,'lin_general','calc_dipole',True)

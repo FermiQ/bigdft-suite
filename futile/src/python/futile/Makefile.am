@@ -4,6 +4,7 @@ pyfutile_PYTHON= \
 	Time.py \
 	Utils.py \
 	Inputvars.py \
-	Figures.py
+	Figures.py \
+	YamlArgparse.py
 
 pyfutiledir= $(pythondir)/futile
