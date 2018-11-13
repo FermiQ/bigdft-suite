@@ -11,7 +11,7 @@
 
 !> Handling of input guess creation from basis of atomic orbitals
 module ao_inguess
-  use module_base, only: gp,f_err_raise,f_zero,f_err_throw,bigdft_mpi
+  use module_base, only: gp,f_err_raise,f_zero,f_err_throw,f_increment,bigdft_mpi
   use public_enums, only: PSPCODE_GTH, PSPCODE_HGH, PSPCODE_HGH_K, PSPCODE_HGH_K_NLCC, PSPCODE_PAW
 
   implicit none
@@ -36,11 +36,11 @@ module ao_inguess
 !!$     !! where n_l are the number of semicore orbitals for a given angular momentum
 !!$     !! starting from the lower principal quantum number of course
 !!$     integer :: iasctype
-     integer :: nao     !< Number of atomic orbitals, counting the total number of shells with nonzero occupation
-     integer :: nao_sc  !< Number of atomic orbitals which have to be considered as semicore orbitals
-     integer, dimension(0:lmax_ao) :: nl      !< Number of orbitals in each of the shells
-     integer, dimension(0:lmax_ao) :: nl_sc   !< Number of semicore orbitals in each of the shells
-     real(gp), dimension(nelecmax_ao) :: aocc !< Compressed information of the occupation numbers.
+     integer :: nao=0     !< Number of atomic orbitals, counting the total number of shells with nonzero occupation
+     integer :: nao_sc=0  !< Number of atomic orbitals which have to be considered as semicore orbitals
+     integer, dimension(0:lmax_ao) :: nl=0      !< Number of orbitals in each of the shells
+     integer, dimension(0:lmax_ao) :: nl_sc=0   !< Number of semicore orbitals in each of the shells
+     real(gp), dimension(nelecmax_ao) :: aocc=0.0_gp !< Compressed information of the occupation numbers.
   end type aoig_data
 
 
@@ -539,7 +539,7 @@ contains
     use dictionaries
     use yaml_output, only: yaml_map
     use yaml_strings, only: yaml_toa
-    use public_keys, only: EXTRA_SHELLS_KEY, IG_OCCUPATION
+    use public_keys, only: EXTRA_ORBITALS_KEY, EXTRA_SHELLS_KEY, IG_OCCUPATION
     use yaml_strings, only: is_atoi
     implicit none
     type(dictionary), pointer :: dict
@@ -573,7 +573,57 @@ contains
     !first, check if the dictionary of the atoms has an explicit
     !expression or if it only gives the empty shells
 
-    if (EXTRA_SHELLS_KEY .in. dict) then
+    if (EXTRA_ORBITALS_KEY .in. dict) then
+       if (dict_size(dict) > 1) call f_err_throw('If the "'//EXTRA_ORBITALS_KEY//&
+            '" is present in the "'//IG_OCCUPATION//&
+            '" key, no others can be present',&
+            err_name='BIGDFT_INPUT_VARIABLES_ERROR')
+       !use the previousy created ao_ig data
+       !put the values in the aocc array
+       !first, copy the structure from the source
+       aoig=aoig_source
+
+
+       !Find the empty shells
+       nempty=dict_len(dict // EXTRA_ORBITALS_KEY)
+       call determine_nl_empty(nempty,nl_empty)
+
+       aocc_new(:)=0.0_gp
+       iocc=0
+       iocc_old=0
+       do l=1,lmax_ao+1
+          iocc=iocc+1
+          iocc_old=iocc_old+1
+          aocc_new(iocc)=real(aoig%nl(l-1)+nl_empty(l),gp)
+          !insert the old values
+          do inl=1,aoig%nl(l-1)
+             do ispin=1,nspin
+                do m=1,2*l-1
+                   do icoll=1,noncoll !non-trivial only for nspinor=4
+                      iocc=iocc+1
+                      iocc_old=iocc_old+1
+                      aocc_new(iocc)=aoig%aocc(iocc_old)
+                   end do
+                end do
+             end do
+          end do
+          !insert the new ones (only zeroes)
+          do inl=1,nl_empty(l)
+             do ispin=1,nspin
+                do m=1,2*l-1
+                   do icoll=1,noncoll !non-trivial only for nspinor=4
+                      iocc=iocc+1
+                      aocc_new(iocc)=0.0_gp
+                   end do
+                end do
+             end do
+          end do
+          !increase the number of shells
+          aoig%nl(l-1)=aoig%nl(l-1)+nl_empty(l)
+       end do
+       aoig%aocc=aocc_new
+
+    else if (EXTRA_SHELLS_KEY .in. dict) then
        if (dict_size(dict) > 1) call f_err_throw('If the "'//EXTRA_SHELLS_KEY//&
             '" is present in the "'//IG_OCCUPATION//&
             '" key, no others can be present',&
@@ -831,6 +881,27 @@ contains
     end do
 
   end function aoig_set_from_dict
+
+
+  pure subroutine determine_nl_empty(nempty,nl_empty)
+    implicit none
+    integer, intent(in) :: nempty
+    integer, dimension(0:lmax_ao), intent(out) :: nl_empty
+    !Local variables
+    integer :: norb,inl
+    
+    norb = nempty
+    nl_empty=0
+    norb_loop: do while (norb > 0)
+       do inl=lmax_ao,0,-1
+         if (norb >= 2*inl+1) then
+           call f_increment(nl_empty(inl))
+           call f_increment(norb,-(2*inl+1))
+           cycle norb_loop
+         end if
+       end do
+    end do norb_loop
+  end subroutine determine_nl_empty
 
 
   !> Print the electronic configuration, with the semicore orbitals

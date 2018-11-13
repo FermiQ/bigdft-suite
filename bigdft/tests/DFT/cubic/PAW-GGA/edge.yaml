@@ -1,0 +1,18 @@
+psppar.C: 
+  Source: C.GGA_PBE-JTH.xml 
+posinp:
+  cell: [20., 20., 20.]
+  positions:
+  - {C: [0., 10., 10.]}
+dft:
+  hgrids: 0.6
+  rmult: [20, 10]
+  ixc: PBE
+  disablesym: yes
+occupation:
+  K point 1:
+    Orbital 2: 2/3
+    Orbital 3: 2/3
+    Orbital 4: 2/3
+perf:
+  psp_onfly: False

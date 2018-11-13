@@ -1,0 +1,2 @@
+include BigDFT/Database/XYZs/*.xyz
+include BigDFT/scripts/CIFs/*.cif

@@ -272,7 +272,7 @@ class Fragment():
             dat=at.copy()
             dat['r']=list(at[GetSymbol(at)])
             dat['sym']=self.element(at)
-            #assume that the provided charge is alway the net charge
+            #assume that the provided charge is always the net charge
             if 'nzion' in dat: dat.pop('nzion') #for the modification of the conventions
             for k in MULTIPOLE_ANALYSIS_KEYS:
                 if k in at: dat[k]=list(at[k]) #.tolist()

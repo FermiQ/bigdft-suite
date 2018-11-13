@@ -58,8 +58,7 @@ subroutine init_foe_wrapper(iproc, nproc, input, orbs_KS, tmprtr, foe_obj)
 end subroutine init_foe_wrapper
 
 
-
-
+!> See if linear scaling should be activated and build the correct Lzd 
 subroutine check_linear_and_create_Lzd(iproc,nproc,linType,Lzd,atoms,orbs,nspin,rxyz)
   use module_base
   use module_types

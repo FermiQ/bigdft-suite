@@ -17,6 +17,8 @@ Welcome to futile's documentation!
 
    inputfile
 
+   yaml_parse
+
    pyfutile
 
 Indices and tables

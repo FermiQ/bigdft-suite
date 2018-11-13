@@ -216,7 +216,8 @@ intersphinx_mapping = {'https://docs.python.org/': None}
 #fortran_src= ['../dicts','../flib/f_utils.f90'] #this works for local builds
 fortran_src= [os.path.abspath(dictsdir),
               os.path.abspath(os.path.join(futilepath,'flib','f_utils.f90')),
-              os.path.abspath(os.path.join(futilepath,'flib','f_input_file.f90'))]
+              os.path.abspath(os.path.join(futilepath,'flib','f_input_file.f90')),
+              os.path.abspath(os.path.join(futilepath,'flib','yaml_parse.f90'))]
 fortran_ext= ['f90']
 
 autosummary_generate = True

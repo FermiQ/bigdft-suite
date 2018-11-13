@@ -171,6 +171,7 @@ subroutine test_box_functions()
   call loop_box_function('distance',mesh_ortho)
   call loop_box_function('box_cutoff',mesh_ortho)
   call loop_box_function('consistency_check',mesh_ortho)
+  call loop_box_function('box_folding',mesh_ortho)
 
   angrad(1) = 90.0_gp/180.0_gp*pi
   angrad(2) = 70.0_gp/180.0_gp*pi
@@ -523,6 +524,22 @@ subroutine loop_box_function(fcheck,mesh)
      call yaml_map('Cell angles cosine input',cos(mesh%angrad))
      call yaml_mapping_close()
      if (any(abs(ang - cos(mesh%angrad)) >= ths2)) call yaml_map('Inconsistency between angles and primitive cell vectors','')
+     call yaml_mapping_close()
+  case('box_folding')
+     call yaml_mapping_open('Check box folding in iterator')
+     ! Create an arbitrary nbox bigger than the mesh.
+     nbox(1, :) = 0
+     nbox(2, :) = mesh%ndims + 2
+     bit=box_iter(mesh, nbox)
+     totvol_Bcutoff = 0
+     IntaS = 0
+     do while(box_next_point(bit))
+        if (bit%ind == 1) IntaS = IntaS + 1._f_double
+        totvol_Bcutoff=totvol_Bcutoff+1._f_double
+     end do
+     call yaml_map('check counted points', int(totvol_Bcutoff) == product(nbox(2, :) - nbox(1, :) + 1))
+     call yaml_map('check folding', (int(IntaS) == 2 ** sum(mesh%bc)))
+     call yaml_mapping_close()
   case('other')
   end select
 

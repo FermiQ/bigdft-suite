@@ -25,7 +25,7 @@ subroutine CalculateTailCorrection(iproc,nproc,at,rbuf,orbs,&
   use compression
   use orbitalbasis
   use psp_projectors
-  use box, only: cell_geocode
+  use box, only: cell_geocode, cell, cell_new
   implicit none
   type(atoms_data), intent(in) :: at
   type(orbitals_data), intent(in) :: orbs
@@ -52,6 +52,7 @@ subroutine CalculateTailCorrection(iproc,nproc,at,rbuf,orbs,&
   type(orbital_basis), target :: ob
   type(ket) :: psi_it
   type(DFT_PSP_projector_iter) :: psp_it
+  type(cell) :: mesh
   logical, dimension(:,:,:), allocatable :: logrid_c,logrid_f
   integer, dimension(:,:,:), allocatable :: ibbyz_c,ibbyz_f,ibbxz_c,ibbxz_f,ibbxy_c,ibbxy_f
   real(kind=8), dimension(:,:), allocatable :: wrkallred
@@ -175,8 +176,9 @@ subroutine CalculateTailCorrection(iproc,nproc,at,rbuf,orbs,&
   ibbyyzz_r = f_malloc((/ 1.to.2, -14.to.2*nb2+16, -14.to.2*nb3+16 /),id='ibbyyzz_r')
 
   ! coarse grid quantities
-  call fill_logrid('F',nb1,nb2,nb3,0,nb1,0,nb2,0,nb3,nbuf,at%astruct%nat,at%astruct%ntypes,at%astruct%iatype,txyz, & 
-       at%radii_cf(1,1),crmult,hgrid(1),hgrid(1),hgrid(1),logrid_c)
+  mesh = cell_new('F', [nb1+1, nb2+1, nb3+1], hgrid)
+  call fill_logrid(mesh,0,nb1,0,nb2,0,nb3,nbuf,at%astruct%nat,at%astruct%ntypes,at%astruct%iatype,txyz, & 
+       at%radii_cf(1,1),crmult,logrid_c)
   call num_segkeys(nb1,nb2,nb3,0,nb1,0,nb2,0,nb3,logrid_c,nsegb_c,nvctrb_c)
   lr%wfd%nseg_c = nsegb_c
   lr%wfd%nvctr_c = nvctrb_c
@@ -193,8 +195,8 @@ subroutine CalculateTailCorrection(iproc,nproc,at,rbuf,orbs,&
   call make_bounds(nb1,nb2,nb3,logrid_c,ibbyz_c,ibbxz_c,ibbxy_c)
 
   ! fine grid quantities
-  call fill_logrid('F',nb1,nb2,nb3,0,nb1,0,nb2,0,nb3,0,at%astruct%nat,at%astruct%ntypes,at%astruct%iatype,txyz, & 
-       at%radii_cf(1,2),frmult,hgrid(1),hgrid(1),hgrid(1),logrid_f)
+  call fill_logrid(mesh,0,nb1,0,nb2,0,nb3,0,at%astruct%nat,at%astruct%ntypes,at%astruct%iatype,txyz, & 
+       at%radii_cf(1,2),frmult,logrid_f)
   call num_segkeys(nb1,nb2,nb3,0,nb1,0,nb2,0,nb3,logrid_f,nsegb_f,nvctrb_f)
   lr%wfd%nseg_f = nsegb_f
   lr%wfd%nvctr_f = nvctrb_f

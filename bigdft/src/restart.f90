@@ -4486,7 +4486,7 @@ subroutine writemyproj(filename,iformat,orbs,hx,hy,hz,at,rxyz,nl,glr)
            do iproj = 1, psp_it%mproj
               do icplx = 1, psp_it%ncplx
                  call filename_of_proj(lbin,filename,&
-                      & ikpt,psp_it%iat,iproj,icplx,filename_out)
+                      & ikpt,psp_it%iregion,iproj,icplx,filename_out)
                  if (lbin) then
                     open(unit=99,file=trim(filename_out),&
                          & status='unknown',form="unformatted")
