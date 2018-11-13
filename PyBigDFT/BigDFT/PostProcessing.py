@@ -70,6 +70,7 @@ class BigDFTool(object):
         self.bigdft_tool_command = join(bigdftroot, "bigdft-tool")
         self.utilities_command = mpi_run + join(bigdftroot, "utilities")
         self.memguess_command = join(bigdftroot, "memguess")
+        self.bigpoly_command = join(bigdftroot, "BigPoly")
         environ['OMP_NUM_THREADS'] = str(omp)
 
         # Load the dictionary that defines all the operations.
@@ -123,7 +124,6 @@ class BigDFTool(object):
 
         self.fragment_multipoles(**options)
 
-
     def set_fragment_multipoles(self, system, log):
         """
         Set the fragment multipoles of a system based on a run.
@@ -164,7 +164,7 @@ class BigDFTool(object):
           target (int): which fragment to compute the spillage of all other
             fragments with.
         """
-        from os.path import join
+        from os.path import join, isfile
         from Spillage import MatrixMetadata, compute_spillbase, compute_spillage
 
         # Define the input files.
@@ -174,21 +174,25 @@ class BigDFTool(object):
         sfile = join(data_dir, "overlap_sparse.txt")
         hfile = join(data_dir, "hamiltonian_sparse.txt")
 
-        # First convert to binary matrix format
-        soutfile = join(data_dir, "overlap_sparse.ccs")
-        houtfile = join(data_dir, "hamiltonian_sparse.ccs")
-        self.convert_matrix_format(conversion="bigdft_to_ccs", infile=sfile,
-                                   outfile=soutfile)
-        self.convert_matrix_format(conversion="bigdft_to_ccs", infile=hfile,
-                                   outfile=houtfile)
-
         # Get the metadata
         metadatafile = join(data_dir, "sparsematrix_metadata.dat")
         metadata = MatrixMetadata(metadatafile)
         frag_indices = metadata.get_frag_indices(system)
 
-        # Compute the necessary arrays
-        sinvxh, sinvxh2 = compute_spillbase(soutfile, houtfile)
+        # Check whether to use python or bigpoly version
+        # And then perform the computational of the inverse etc
+        if isfile(self.bigpoly_command):
+            sinvxh, sinvxh2 = compute_spillbase(sfile, hfile, bigpoly=True)
+        else:
+            # First convert to binary matrix format
+            soutfile = join(data_dir, "overlap_sparse.ccs")
+            houtfile = join(data_dir, "hamiltonian_sparse.ccs")
+            self.convert_matrix_format(conversion="bigdft_to_ccs", infile=sfile,
+                                       outfile=soutfile)
+            self.convert_matrix_format(conversion="bigdft_to_ccs", infile=hfile,
+                                       outfile=houtfile)
+            sinvxh, sinvxh2 = compute_spillbase(soutfile, houtfile,
+                                                bigpoly=False)
 
         # Compute the spillage array
         spillage_array = compute_spillage(

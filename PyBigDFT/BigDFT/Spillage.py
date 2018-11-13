@@ -5,6 +5,7 @@ A module which contains the routines needed for computing the spillage values.
 #: Conversion between Atomic Units and Bohr
 AU_to_A = 0.52917721092
 
+
 class MatrixMetadata:
     def __init__(self, filename):
         """
@@ -81,6 +82,7 @@ class MatrixMetadata:
 
         return frag_indices
 
+
 def compute_spillage(sinvxh, sinvxh2, frag_indices, target):
     """
     Computes the actual spillage values.
@@ -124,7 +126,7 @@ def compute_spillage(sinvxh, sinvxh2, frag_indices, target):
     return spillage_values
 
 
-def compute_spillbase(sfile, hfile):
+def compute_spillbase(sfile, hfile, bigpoly=False):
     """
     This routine computes the matrix (S^-1 * H)^2.
 
@@ -134,22 +136,53 @@ def compute_spillbase(sfile, hfile):
       Compute this matrix with a Fortran routine.
 
     Args:
-      sfile (str): the file name of a CCS representation of the overlap matrix.
-      hfile (str): the file name of a CCS representation of the hamiltonian.
+      sfile (str): the file name of the overlap matrix. Must be in ccs format
+        if ``bigpoly=False``, bigdft format otherwise.
+      hfile (str): the file name of the hamiltonian. Must be in ccs format
+        if ``bigpoly=False``, bigdft format otherwise.
+      bigpoly (bool): set to true if we can use the BigPoly program.
 
      Returns:
-       scipy.sparse.csc: (S^-1 * H)^2
+       (scipy.sparse.csc, scipy.sparse.csc): (S^-1 * H), (S^-1 * H)^2
     """
     from scipy.sparse.linalg import inv
+    from scipy.sparse import csc_matrix
+    from scipy.io import mmread
+    from os.path import dirname, isfile, join
+    from os import environ
+    from subprocess import call
 
-    # Read from file
-    smat = _read_ccs(sfile)
-    hmat = _read_ccs(hfile)
+    # Check if the Spillage Program is availableself.
+    bigdftroot = environ['BIGDFT_ROOT']
+    if bigpoly:
+        # File names
+        dir = dirname(hfile)
+        sinvxhfile = join(dir, "sinvxhfile.mtx")
+        sinvxh2file = join(dir, "sinvxh2file.mtx")
 
-    # Compute the matrix (S^-1H)^2
-    sinv = inv(smat)
-    sinvxh = sinv.dot(hmat)
-    sinvxh2 = sinvxh.dot(sinvxh)
+        # Build the command string
+        command_str = join(bigdftroot, "BigPoly")
+        command_str += " --action=compute_spillage"
+        command_str += " --infile=" + hfile
+        command_str += " --infile2=" + sfile
+        command_str += " --outfile=" + sinvxhfile
+        command_str += " --outfile2=" + sinvxh2file
+
+        # Run
+        call(command_str, shell=True)
+
+        # Read from file
+        sinvxh = csc_matrix(mmread(sinvxhfile))
+        sinvxh2 = csc_matrix(mmread(sinvxh2file))
+    else:  # do it with numpy
+        # Read from file
+        smat = _read_ccs(sfile)
+        hmat = _read_ccs(hfile)
+
+        # Compute the matrix (S^-1H)^2
+        sinv = inv(smat)
+        sinvxh = sinv.dot(hmat)
+        sinvxh2 = sinvxh.dot(sinvxh)
 
     return sinvxh, sinvxh2
 
