@@ -229,7 +229,7 @@ libabscalc_a_SOURCES = \
 	esatto.f90
 
 pspconf.f90: init/pspconf.in.f90
-	python $(top_srcdir)/config/pspconf.py > psp.inc
+	$(PYTHON) $(top_srcdir)/config/pspconf.py > psp.inc
 	sed '/!!PSP_TABLE!!/r psp.inc' $(srcdir)/init/pspconf.in.f90 > pspconf.f90
 	rm -f psp.inc
 
