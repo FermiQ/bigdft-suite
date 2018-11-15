@@ -23,26 +23,39 @@ class Dataset(Runner):
              can be overridden by the specific inputs of the run
 
     """
-    def __init__(self,label='BigDFT dataset',run_dir='runs',input={}):
+    def __init__(self,label='BigDFT dataset',run_dir='runs',**kwargs):
         """
         Set the dataset ready for appending new runs
         """
         from copy import deepcopy
         from futile.Utils import make_dict
-        Runner.__init__(self,label=label,run_dir=run_dir,input=make_dict(input))
+        newkwargs=deepcopy(kwargs)
+        Runner.__init__(self,label=label,run_dir=run_dir,**newkwargs)
         self.runs=[]
-        """List of the runs which have to be treated by the dataset. Set is organized by calculators in order to
-           run separate instances of the calculators to be performed
+        """List of the runs which have to be treated by the dataset these runs contain the input parameter to be passed to the various runners.
         """
         self.calculators=[]
         """
-        Calculators which will be used by the run method, useful to gather the inputs in the case of a multiple sending.
-        """
-        self.results={}
-        """ Set of the results of each of the runs
+        Calculators which will be used by the run method, useful to gather the inputs in the case of a multiple run.
         """
 
-        self._post_processing_function=self._silent_callback
+        self.results={}
+        """
+        Set of the results of each of the runs. The set is not ordered as the runs may be executed asynchronously.
+        """
+
+        self.ids=[]
+        """
+        List of run ids, to be used in order to classify and fetch the results
+        """
+
+        self.names=[]
+        """
+        List of run names, needed for distinguishing the logfiles and input files.
+        Eah name should be unique to correctly identify a run.
+        """
+
+        self._post_processing_function=None
 
     def append_run(self,id,runner,**kwargs):
         """Add a run into the dataset.
@@ -54,24 +67,32 @@ class Dataset(Runner):
              different keyword. For example a run might be classified as ``id = {'hgrid':0.35, 'crmult': 5}``.
           runner (Runner): the runner class to which the remaining keyword arguments will be passed at the input.
 
+        Raises:
+          ValueError: if the provided id is identical to another previously appended run.
+
         Todo:
            include id in the runs spcification
 
         """
         from copy import deepcopy
+        name=self._name_from_id(id)
+        if name in self.names:
+            raise ValueError('The run id',name,' is already provided, modify the run id.')
+        self.names.append(name)
+        #create the input file for the run, combining run_dict and input
+        inp_to_append=deepcopy(self._global_options)
+        inp_to_append.update(deepcopy(kwargs))
         #get the number of this run
         irun=len(self.runs)
-        #create the input file for the run, combining run_dict and input
-        inp_to_append=deepcopy(kwargs)
-        inp_to_append.update(self.global_options['input'])
-        inp_to_append['run_dir']=self.global_options['run_dir']
         #append it to the runs list
         self.runs.append(inp_to_append)
+        #append id and name
+        self.ids.append(id)
         #search if the calculator already exists
         found = False
         for calc in self.calculators:
             if calc['calc'] == runner:
-                calc['runs'].append[irun]
+                calc['runs'].append(irun)
                 found=True
                 break
         if not found:
@@ -85,15 +106,10 @@ class Dataset(Runner):
             calc=c['calc']
             #we must here differentiate between a taskgroup run and a separate run
             for r in c['runs']:
-                inp=self.inputs[r]
-                self.results[r]=calc.run(**inp)
+                inp=self.runs[r]
+                name=self.names[r]
+                self.results[r]=calc.run(name=name,**inp)
         return {}
-
-    def _silent_callback(self,**kwargs):
-        """
-        Default value of the dataset run method.
-        """
-        return self.results
 
     def set_postprocessing_function(self,func):
         """Set the callback of run.
@@ -103,7 +119,7 @@ class Dataset(Runner):
         Args:
            func (func): function that process the `inputs` `results` and returns the
                value of the `run` method of the dataset.
-               The function is called as ``func(self.inputs,self.results,self.run_options)``.
+               The function is called as ``func(self)``.
 
         """
         self._post_processing_function=func
@@ -112,8 +128,52 @@ class Dataset(Runner):
         """
         Calls the Dataset function with the results of the runs as arguments
         """
-        return self._post_processing_function(self.inputs,self.results,self.run_options)
+        if self._post_processing_function is not None:
+            return self._post_processing_function(self)
+        else:
+            return self.results
 
+    def _name_from_id(self,id):
+        """
+        Construct the name of the run from the id dictionary
+        """
+        keys=id.keys()
+        keys.sort()
+        name=''
+        for k in keys:
+            name += k+':'+str(id[k])+','
+        return name.rstrip(',')
+
+    def fetch_results(self,id=None,attribute=None):
+        """Retrieve some attribute from some of the results.
+
+        Selects out of the results the objects which have in their ``id``
+        at least the dictionary specified as input. May return an attribute
+        of each result if needed.
+
+        Args:
+           id (dict): dictionary of the retrieved id. Return a list of the runs that
+               have the ``id`` argument inside the provided ``id`` in the order provided by :py:meth:`append_run`.
+           attribute (str): if present, provide the attribute of each of the results instead of the result object
+
+        Example:
+           >>> study=Dataset()
+           >>> study.append_run(id={'cr': 3},input={'dft':{'rmult':[3,8]}})
+           >>> study.append_run(id={'cr': 4},input={'dft':{'rmult':[4,8]}})
+           >>> study.append_run(id={'cr': 3, 'h': 0.5},
+           >>>                  input={'dft':{'hgrids': 0.5, 'rmult':[4,8]}})
+           >>> #append other runs if needed
+           >>> study.run()  #run the calculations
+           >>> # returns a list of the energies of first and the third result in this example
+           >>> data=study.fetch_results(id={'cr': 3},attribute='energy')
+        """
+        name='' if id is None else self._name_from_id(id)
+        data=[]
+        for irun,n in enumerate(self.names):
+            if name not in n: continue
+            r=self.results[irun]
+            data.append(r if attribute is None else getattr(r,attribute))
+        return data
 
 def combine_datasets(*args):
     """
