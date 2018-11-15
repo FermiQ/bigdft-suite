@@ -1,5 +1,5 @@
 #This is the configuration file for the BigDFT installer
-#This is a python script which is executed by the build suite 
+#This is a python script which is executed by the build suite
 
 print "Do before 'module load icc impi mkl python'"
 
@@ -18,23 +18,23 @@ makeargs = '-j1'
 #here follow the configuration instructions for the modules built
 #we specify the configurations for the modules to customize the options if needed
 module_autogenargs.update({
-   
+
 'libyaml': env_configuration(),
-   
+
 'futile': env_configuration(),
-   
+
 'psolver': env_configuration(),
-   
+
 'chess': env_configuration(),
-   
+
 'libxc': env_configuration(),
-   
+
 'libABINIT': env_configuration(),
-   
+
 'GaIn': env_configuration(),
-   
+
 'bigdft': env_configuration(),
-   
+
 'spred': env_configuration(),
-   
+
 })
