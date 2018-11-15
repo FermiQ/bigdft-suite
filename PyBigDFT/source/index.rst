@@ -33,7 +33,7 @@ How to generate documentation
 -----------------------------
 
  * Install ``sphinx`` package and the requirements written in the file  ``source/requirements.txt`` of
-   provided with the package.
+   provided with the sources of ``PyBigDFT``.
 
  * Copy the quick build file ``Makefile-sphinxbuild`` of the ``PyBigDFT`` source directory into ``Makefile``
 
