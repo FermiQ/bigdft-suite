@@ -274,26 +274,26 @@ contains
         do i=1,3
          i1=mod(i,3)+1
          i2=mod(i+1,3)+1
-         if (abs(mesh%angrad(i1) - onehalf*pi) .lt. 1.0d-15) then
-          if (abs(mesh%angrad(i2) - onehalf*pi) .lt. 1.0d-15) then
+         if (abs(mesh%dom%angrad(i1) - onehalf*pi) .lt. 1.0d-15) then
+          if (abs(mesh%dom%angrad(i2) - onehalf*pi) .lt. 1.0d-15) then
            hf=1.0_gp
           else
-           c=cos(mesh%angrad(i2))/sin(mesh%angrad(i))
+           c=cos(mesh%dom%angrad(i2))/sin(mesh%dom%angrad(i))
            hf=sqrt(1.0_gp-c**2)
           end if
-         else if (abs(mesh%angrad(i2) - onehalf*pi) .lt. 1.0d-15) then
-          if (abs(mesh%angrad(i1) - onehalf*pi) .lt. 1.0d-15) then
+         else if (abs(mesh%dom%angrad(i2) - onehalf*pi) .lt. 1.0d-15) then
+          if (abs(mesh%dom%angrad(i1) - onehalf*pi) .lt. 1.0d-15) then
            hf=1.0_gp
           else
-           c=cos(mesh%angrad(i1))/sin(mesh%angrad(i))
+           c=cos(mesh%dom%angrad(i1))/sin(mesh%dom%angrad(i))
            hf=sqrt(1.0_gp-c**2)
           end if
          else
-          aa=1.0_gp/cos(mesh%angrad(i2))
-          b=1.0_gp/cos(mesh%angrad(i1))
-          c=sqrt(aa**2+b**2-2.0_gp*aa*b*cos(mesh%angrad(i)))
-          p=(tan(mesh%angrad(i2))+tan(mesh%angrad(i1))+c)*0.5_gp
-          area=sqrt(p*(p-tan(mesh%angrad(i2)))*(p-tan(mesh%angrad(i1)))*(p-c))
+          aa=1.0_gp/cos(mesh%dom%angrad(i2))
+          b=1.0_gp/cos(mesh%dom%angrad(i1))
+          c=sqrt(aa**2+b**2-2.0_gp*aa*b*cos(mesh%dom%angrad(i)))
+          p=(tan(mesh%dom%angrad(i2))+tan(mesh%dom%angrad(i1))+c)*0.5_gp
+          area=sqrt(p*(p-tan(mesh%dom%angrad(i2)))*(p-tan(mesh%dom%angrad(i1)))*(p-c))
           h=2.0_gp*area/c
           l=sqrt(1.0_gp+h**2)
           p2=(1.0_gp+h+l)*0.5_gp
@@ -846,20 +846,20 @@ contains
     mesh%ndim=product(int(ndims,f_long))
 
     !default orthorhombic
-    mesh%angrad=onehalf*pi
+    mesh%dom%angrad=onehalf*pi
 
-    if (present(alpha_bc)) mesh%angrad(1)=alpha_bc
-    if (present(beta_ac)) mesh%angrad(2)=beta_ac
-    if (present(gamma_ab)) mesh%angrad(3)=gamma_ab
+    if (present(alpha_bc)) mesh%dom%angrad(1)=alpha_bc
+    if (present(beta_ac)) mesh%dom%angrad(2)=beta_ac
+    if (present(gamma_ab)) mesh%dom%angrad(3)=gamma_ab
 
-    call f_assert(all(mesh%angrad > 0.0_gp),'Error, Cell new, some of the angles are not positive')
+    call f_assert(all(mesh%dom%angrad > 0.0_gp),'Error, Cell new, some of the angles are not positive')
 
     if (geocode == 'S') then
-       call f_assert(mesh%angrad(1)-onehalf*pi,id='Alpha angle invalid')
-       call f_assert(mesh%angrad(3)-onehalf*pi,id='Gamma angle invalid')
+       call f_assert(mesh%dom%angrad(1)-onehalf*pi,id='Alpha angle invalid')
+       call f_assert(mesh%dom%angrad(3)-onehalf*pi,id='Gamma angle invalid')
     end if
 
-    mesh%orthorhombic=all(mesh%angrad==onehalf*pi)
+    mesh%orthorhombic=all(mesh%dom%angrad==onehalf*pi)
 
     if ((geocode == 'F' .or. geocode== 'W') .and. (.not. mesh%orthorhombic)) &
          call f_err_throw('For geocode="F","W" the cell must be orthorhombic')
@@ -867,10 +867,10 @@ contains
     if (.not. mesh%orthorhombic) then
        !some consistency check on the angles should be performed
        !1) sum(angrad) < twopi
-       if (all(mesh%angrad==mesh%angrad(1))) then
+       if (all(mesh%dom%angrad==mesh%dom%angrad(1))) then
           !Treat the case of equal angles (except all right angles) :
           !generates trigonal symmetry wrt third axis
-          cosang=cos(mesh%angrad(1))
+          cosang=cos(mesh%dom%angrad(1))
           a2=2.0_gp/3.0_gp*(1.0_gp-cosang)
           aa=sqrt(a2)
           cc=sqrt(1.0_gp-a2)
@@ -879,64 +879,64 @@ contains
           mesh%habc(1,3)=-0.5_gp*aa ; mesh%habc(2,3)=-sqrt(3.0_gp)*0.5_gp*aa ; mesh%habc(3,3)=cc
           !Set the covariant metric
           mesh%gd(1,1) = 1.0_gp
-          mesh%gd(1,2) = cos(mesh%angrad(3)) !gamma_ab
-          mesh%gd(1,3) = cos(mesh%angrad(2)) !beta_ac
+          mesh%gd(1,2) = cos(mesh%dom%angrad(3)) !gamma_ab
+          mesh%gd(1,3) = cos(mesh%dom%angrad(2)) !beta_ac
           mesh%gd(2,2) = 1.0_gp
-          mesh%gd(2,3) = cos(mesh%angrad(1)) !alpha_bc
+          mesh%gd(2,3) = cos(mesh%dom%angrad(1)) !alpha_bc
           mesh%gd(3,3) = 1.0_gp
           !Set the determinant of the covariant metric
-          mesh%detgd = 1.0_gp - cos(mesh%angrad(1))**2 - cos(mesh%angrad(2))**2 - cos(mesh%angrad(3))**2 +&
-               2.0_gp*cos(mesh%angrad(1))*cos(mesh%angrad(2))*cos(mesh%angrad(3))
+          mesh%detgd = 1.0_gp - cos(mesh%dom%angrad(1))**2 - cos(mesh%dom%angrad(2))**2 - cos(mesh%dom%angrad(3))**2 +&
+               2.0_gp*cos(mesh%dom%angrad(1))*cos(mesh%dom%angrad(2))*cos(mesh%dom%angrad(3))
           !Set the contravariant metric
-          mesh%gu(1,1) = (sin(mesh%angrad(1))**2)/mesh%detgd
-          mesh%gu(1,2) = (cos(mesh%angrad(2))*cos(mesh%angrad(1))-cos(mesh%angrad(3)))/mesh%detgd
-          mesh%gu(1,3) = (cos(mesh%angrad(3))*cos(mesh%angrad(1))-cos(mesh%angrad(2)))/mesh%detgd
-          mesh%gu(2,2) = (sin(mesh%angrad(2))**2)/mesh%detgd
-          mesh%gu(2,3) = (cos(mesh%angrad(3))*cos(mesh%angrad(2))-cos(mesh%angrad(1)))/mesh%detgd
-          mesh%gu(3,3) = (sin(mesh%angrad(3))**2)/mesh%detgd
+          mesh%gu(1,1) = (sin(mesh%dom%angrad(1))**2)/mesh%detgd
+          mesh%gu(1,2) = (cos(mesh%dom%angrad(2))*cos(mesh%dom%angrad(1))-cos(mesh%dom%angrad(3)))/mesh%detgd
+          mesh%gu(1,3) = (cos(mesh%dom%angrad(3))*cos(mesh%dom%angrad(1))-cos(mesh%dom%angrad(2)))/mesh%detgd
+          mesh%gu(2,2) = (sin(mesh%dom%angrad(2))**2)/mesh%detgd
+          mesh%gu(2,3) = (cos(mesh%dom%angrad(3))*cos(mesh%dom%angrad(2))-cos(mesh%dom%angrad(1)))/mesh%detgd
+          mesh%gu(3,3) = (sin(mesh%dom%angrad(3))**2)/mesh%detgd
        else if (geocode == 'P') then
           mesh%habc=0.0_gp
           mesh%habc(1,1)=1.0_gp
-          mesh%habc(1,2)=cos(mesh%angrad(3))
-          mesh%habc(2,2)=sin(mesh%angrad(3))
-          mesh%habc(1,3)=cos(mesh%angrad(2))
-          mesh%habc(2,3)=(cos(mesh%angrad(1))-mesh%habc(1,2)*mesh%habc(1,3))/mesh%habc(2,2)
+          mesh%habc(1,2)=cos(mesh%dom%angrad(3))
+          mesh%habc(2,2)=sin(mesh%dom%angrad(3))
+          mesh%habc(1,3)=cos(mesh%dom%angrad(2))
+          mesh%habc(2,3)=(cos(mesh%dom%angrad(1))-mesh%habc(1,2)*mesh%habc(1,3))/mesh%habc(2,2)
           mesh%habc(3,3)=sqrt(1.0_gp-mesh%habc(1,3)**2-mesh%habc(2,3)**2)
           !Set the covariant metric
           mesh%gd(1,1) = 1.0_gp
-          mesh%gd(1,2) = cos(mesh%angrad(3)) !gamma_ab
-          mesh%gd(1,3) = cos(mesh%angrad(2)) !beta_ac
+          mesh%gd(1,2) = cos(mesh%dom%angrad(3)) !gamma_ab
+          mesh%gd(1,3) = cos(mesh%dom%angrad(2)) !beta_ac
           mesh%gd(2,2) = 1.0_gp
-          mesh%gd(2,3) = cos(mesh%angrad(1)) !alpha_bc
+          mesh%gd(2,3) = cos(mesh%dom%angrad(1)) !alpha_bc
           mesh%gd(3,3) = 1.0_gp
           !Set the determinant of the covariant metric
-          mesh%detgd = 1.0_gp - cos(mesh%angrad(1))**2 - cos(mesh%angrad(2))**2 - cos(mesh%angrad(3))**2 +&
-               2.0_gp*cos(mesh%angrad(1))*cos(mesh%angrad(2))*cos(mesh%angrad(3))
+          mesh%detgd = 1.0_gp - cos(mesh%dom%angrad(1))**2 - cos(mesh%dom%angrad(2))**2 - cos(mesh%dom%angrad(3))**2 +&
+               2.0_gp*cos(mesh%dom%angrad(1))*cos(mesh%dom%angrad(2))*cos(mesh%dom%angrad(3))
           !Set the contravariant metric
-          mesh%gu(1,1) = (sin(mesh%angrad(1))**2)/mesh%detgd
-          mesh%gu(1,2) = (cos(mesh%angrad(2))*cos(mesh%angrad(1))-cos(mesh%angrad(3)))/mesh%detgd
-          mesh%gu(1,3) = (cos(mesh%angrad(3))*cos(mesh%angrad(1))-cos(mesh%angrad(2)))/mesh%detgd
-          mesh%gu(2,2) = (sin(mesh%angrad(2))**2)/mesh%detgd
-          mesh%gu(2,3) = (cos(mesh%angrad(3))*cos(mesh%angrad(2))-cos(mesh%angrad(1)))/mesh%detgd
-          mesh%gu(3,3) = (sin(mesh%angrad(3))**2)/mesh%detgd
+          mesh%gu(1,1) = (sin(mesh%dom%angrad(1))**2)/mesh%detgd
+          mesh%gu(1,2) = (cos(mesh%dom%angrad(2))*cos(mesh%dom%angrad(1))-cos(mesh%dom%angrad(3)))/mesh%detgd
+          mesh%gu(1,3) = (cos(mesh%dom%angrad(3))*cos(mesh%dom%angrad(1))-cos(mesh%dom%angrad(2)))/mesh%detgd
+          mesh%gu(2,2) = (sin(mesh%dom%angrad(2))**2)/mesh%detgd
+          mesh%gu(2,3) = (cos(mesh%dom%angrad(3))*cos(mesh%dom%angrad(2))-cos(mesh%dom%angrad(1)))/mesh%detgd
+          mesh%gu(3,3) = (sin(mesh%dom%angrad(3))**2)/mesh%detgd
        else !only Surfaces is possible here
           mesh%habc=0.0_gp
           mesh%habc(1,1)=1.0_gp
           mesh%habc(2,2)=1.0_gp
-          mesh%habc(1,3)=cos(mesh%angrad(2))
-          mesh%habc(3,3)=sin(mesh%angrad(2))
+          mesh%habc(1,3)=cos(mesh%dom%angrad(2))
+          mesh%habc(3,3)=sin(mesh%dom%angrad(2))
           !Set the covariant metric
           mesh%gd=0.0_gp
           mesh%gd(1,1) = 1.0_gp
-          mesh%gd(1,3) = cos(mesh%angrad(2)) !beta_ac
+          mesh%gd(1,3) = cos(mesh%dom%angrad(2)) !beta_ac
           mesh%gd(2,2) = 1.0_gp
           mesh%gd(3,3) = 1.0_gp
           !Set the determinant of the covariant metric
-          mesh%detgd = sin(mesh%angrad(2))**2
+          mesh%detgd = sin(mesh%dom%angrad(2))**2
           !Set the contravariant metric
           mesh%gu=0.0_gp
           mesh%gu(1,1) = 1.0_gp/mesh%detgd
-          mesh%gu(1,3) = -cos(mesh%angrad(2))/mesh%detgd
+          mesh%gu(1,3) = -cos(mesh%dom%angrad(2))/mesh%detgd
           mesh%gu(2,2) = 1.0_gp!/mesh%detgd
           mesh%gu(3,3) = 1.0_gp/mesh%detgd
        end if
@@ -957,7 +957,7 @@ contains
           mesh%habc(i,i)=hgrids(i)
           mesh%uabc(i,i)=1.0_gp
        end do
-       mesh%angrad=onehalf*pi
+       mesh%dom%angrad=onehalf*pi
        mesh%volume_element=product(mesh%hgrids)
        mesh%gd(1,1) = 1.0_gp
        mesh%gd(1,2) = 0.0_gp
