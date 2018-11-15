@@ -552,7 +552,10 @@ class System():
         nat = 0
         iat = 0
         frag = None
+        iline=0
         for l in fil:
+            iline+=1
+            if iline == 2: continue
             try:
                 pos = l.split()
                 if len(pos) <= 2:  # these are the number of atoms
@@ -575,7 +578,7 @@ class System():
                     frag.append({pos[0]: map(float, pos[1:])})
                     nat += 1
                     iat += 1
-            except Exception(e):
+            except Exception,e:
                 safe_print('Warning, line not parsed: "', l, e, '"')
         if iat != 0:
             self.append(frag)  # append the remaining fragment
