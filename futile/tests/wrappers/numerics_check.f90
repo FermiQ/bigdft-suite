@@ -82,6 +82,8 @@ program numeric_check
   !here some tests about the box usage
   call test_box_functions()
 
+  call test_domain()
+
   call f_lib_finalize()
 
 end program numeric_check
@@ -139,20 +141,20 @@ subroutine test_box_functions()
   v1=f_malloc([3,ndims(1),ndims(2),ndims(3)],id='v1')
   v2=f_malloc([3,ndims(1),ndims(2),ndims(3)],id='v2')
 
-  call loop_dotp('SEQ',mesh_ortho,v1,v2,tseq)   
-  call yaml_map('Normal loop, seq (ns)',tseq)
-  
-  call loop_dotp('OMP',mesh_ortho,v1,v2,tomp)
-  call yaml_map('Normal loop, omp (ns)',tomp)
-
-  call loop_dotp('ITR',mesh_ortho,v1,v2,tseq)
-  call yaml_map('Normal loop, itr (ns)',tseq)
-
-  call loop_dotp('IOM',mesh_ortho,v1,v2,tseq)
-  call yaml_map('Normal loop, iom (ns)',tseq)
-
-  call loop_dotp('ITM',mesh_ortho,v1,v2,tseq)
-  call yaml_map('Normal loop, mpi (ns)',tseq)
+!!  call loop_dotp('SEQ',mesh_ortho,v1,v2,tseq)   
+!!  call yaml_map('Normal loop, seq (ns)',tseq)
+!!  
+!!  call loop_dotp('OMP',mesh_ortho,v1,v2,tomp)
+!!  call yaml_map('Normal loop, omp (ns)',tomp)
+!!
+!!  call loop_dotp('ITR',mesh_ortho,v1,v2,tseq)
+!!  call yaml_map('Normal loop, itr (ns)',tseq)
+!!
+!!  call loop_dotp('IOM',mesh_ortho,v1,v2,tseq)
+!!  call yaml_map('Normal loop, iom (ns)',tseq)
+!!
+!!  call loop_dotp('ITM',mesh_ortho,v1,v2,tseq)
+!!  call yaml_map('Normal loop, mpi (ns)',tseq)
 
   ndims=70
 
@@ -200,7 +202,7 @@ subroutine test_box_functions()
   call loop_box_function('box_cutoff',mesh_noortho)
   call loop_box_function('consistency_check',mesh_noortho)
 
-! to be set 2oo to have the sphere inside the whole box
+! to be set 200 to have the sphere inside the whole box
   ndims=150
   !ndims=200
   angrad(1) = 20.0_gp/180.0_gp*pi
@@ -216,6 +218,89 @@ subroutine test_box_functions()
   call f_free(v2)
 
 end subroutine test_box_functions
+
+subroutine test_domain()
+  use futile, gp=>f_double
+  use box
+  use numerics, only: pi
+  use yaml_parse, only: yaml_parse_from_file
+  use at_domain
+  implicit none
+  !local variables
+  type(dictionary), pointer :: yaml_file_dict
+  character(len = 128) :: filename
+  type(domain), intent(out) :: dom
+  integer(f_long) :: tomp,tseq
+  type(cell) :: mesh_ortho,mesh_noortho
+  integer, dimension(3) :: ndims
+  real(gp), dimension(:,:,:,:), allocatable :: v1,v2
+  real(gp), dimension(3) :: angrad
+
+  write(filename, "(A)") 'domain.yaml'
+  nullify(yaml_file_dict)
+  call yaml_parse_from_file(yaml_file_dict,trim(filename))
+
+  call domain_set_from_dict(yaml_file_dict,dom)
+
+  ndims=70
+
+  mesh_ortho=cell_null()
+  mesh_ortho=cell_new('F',ndims,[1.0_gp,1.0_gp,1.0_gp])
+  call loop_box_function('distance',mesh_ortho)
+  call loop_box_function('box_cutoff',mesh_ortho)
+   
+  mesh_ortho=cell_null()
+  mesh_ortho=cell_new('S',ndims,[1.0_gp,1.0_gp,1.0_gp])
+  call loop_box_function('distance',mesh_ortho)
+  call loop_box_function('box_cutoff',mesh_ortho)
+
+  mesh_ortho=cell_null()
+  mesh_ortho=cell_new('P',ndims,[1.0_gp,1.0_gp,1.0_gp])
+  call loop_box_function('distance',mesh_ortho)
+  call loop_box_function('box_cutoff',mesh_ortho)
+  call loop_box_function('consistency_check',mesh_ortho)
+  call loop_box_function('box_folding',mesh_ortho)
+
+  angrad(1) = 90.0_gp/180.0_gp*pi
+  angrad(2) = 70.0_gp/180.0_gp*pi
+  angrad(3) = 90.0_gp/180.0_gp*pi
+  
+  mesh_noortho=cell_new('S',ndims,[1.0_gp,1.0_gp,1.0_gp],alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3)) 
+  call loop_box_function('distance',mesh_noortho)
+  call loop_box_function('box_cutoff',mesh_noortho)
+
+  angrad(1) = 80.0_gp/180.0_gp*pi
+  angrad(2) = 80.0_gp/180.0_gp*pi
+  angrad(3) = 80.0_gp/180.0_gp*pi
+  
+  mesh_noortho=cell_null()
+  mesh_noortho=cell_new('P',ndims,[1.0_gp,1.0_gp,1.0_gp],alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3)) 
+  call loop_box_function('distance',mesh_noortho)
+  call loop_box_function('box_cutoff',mesh_noortho)
+
+  angrad(1) = 60.0_gp/180.0_gp*pi
+  angrad(2) = 50.0_gp/180.0_gp*pi
+  angrad(3) = 90.0_gp/180.0_gp*pi
+  
+  mesh_noortho=cell_null()
+  mesh_noortho=cell_new('P',ndims,[1.0_gp,1.0_gp,1.0_gp],alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3)) 
+  call loop_box_function('distance',mesh_noortho)
+  call loop_box_function('box_cutoff',mesh_noortho)
+  call loop_box_function('consistency_check',mesh_noortho)
+
+! to be set 200 to have the sphere inside the whole box
+  ndims=150
+  !ndims=200
+  angrad(1) = 20.0_gp/180.0_gp*pi
+  angrad(2) = 25.0_gp/180.0_gp*pi
+  angrad(3) = 30.0_gp/180.0_gp*pi
+  
+  mesh_noortho=cell_null()
+  mesh_noortho=cell_new('P',ndims,[1.0_gp,1.0_gp,1.0_gp],alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3)) 
+  call loop_box_function('distance',mesh_noortho)
+  call loop_box_function('box_cutoff',mesh_noortho)
+
+end subroutine test_domain
 
 subroutine loop_box_function(fcheck,mesh)
   use futile

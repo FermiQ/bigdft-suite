@@ -12,6 +12,7 @@ module box
 
   use f_precisions, gp=>f_double
   use numerics, only: onehalf,pi
+  use at_domain
 
   private
 
@@ -27,16 +28,17 @@ module box
   !> data type which stores all informations of the simulation box. 
   !! It contains also the metric for nonorthorhombic cells.
   type, public :: cell
+     type(domain) :: dom !< data type for the simulation domain
      logical :: orthorhombic !<true if the cell is orthorhombic
-     integer, dimension(3) :: bc !< boundary conditions on each direction (FREE=0, PERIODIC=1)
+     !integer, dimension(3) :: bc !< boundary conditions on each direction (FREE=0, PERIODIC=1)
      integer, dimension(3) :: ndims !< number of grid points on each direction
      real(gp), dimension(3) :: hgrids !< real space grid on each direction
-     real(gp), dimension(3) :: angrad !<angles between the dimensions in radiant (alpha_bc,beta_ac,gamma_bc)
+     !real(gp), dimension(3) :: angrad !<angles between the dimensions in radiant (alpha_bc,beta_ac,gamma_bc)
      !derived data
      integer(f_long) :: ndim !< product of the dimension, long integer to avoid overflow
      real(gp) :: volume_element !< volume element of the primitive cell
      real(gp), dimension(3,3) :: habc !<primitive volume elements in the translation vectors direction
-     real(gp), dimension(3,3) :: uabc !<matrix of the normalized translation vectors direction
+     !real(gp), dimension(3,3) :: uabc !<matrix of the normalized translation vectors direction
      real(gp), dimension(3,3) :: gd !<covariant metric needed for non-orthorhombic operations
      real(gp), dimension(3,3) :: gu !<controvariant metric needed for non-orthorhombic operations
      real(gp) :: detgd !<determinant of the covariant matrix
@@ -101,16 +103,17 @@ contains
   pure function cell_null() result(me)
    implicit none
    type(cell) :: me
+   me%dom=domain_null()
    me%orthorhombic=.true.
-   me%bc=0
+   !me%bc=0
    me%ndims=0
    me%hgrids=0.0_gp
-   me%angrad=0.0_gp
+   !me%angrad=0.0_gp
    !derived data
    me%ndim=0
    me%volume_element=0.0_gp
    me%habc=0.0_gp
-   me%uabc=0.0_gp
+   !me%uabc=0.0_gp
    me%gd=0.0_gp
    me%gu=0.0_gp
    me%detgd=0.0_gp
@@ -199,7 +202,7 @@ contains
     if(present(nbox)) then
        bit%nbox=nbox
        bit%whole=.false.
-       call set_subbox(bit%mesh%bc,bit%mesh%ndims,bit%nbox,bit%subbox)
+       call set_subbox(bit%mesh%dom%bc,bit%mesh%ndims,bit%nbox,bit%subbox)
        call box_iter_rewind(bit)
     else if (present(cutoff)) then
 !!$
@@ -207,7 +210,7 @@ contains
 !!$       bit%nbox(END_,:)=ceiling((oxyz+cutoff)/bit%mesh%hgrids)
        bit%nbox=box_nbox_from_cutoff(bit%mesh,oxyz,cutoff)
        bit%whole=.false.
-       call set_subbox(bit%mesh%bc,bit%mesh%ndims,bit%nbox,bit%subbox)
+       call set_subbox(bit%mesh%dom%bc,bit%mesh%ndims,bit%nbox,bit%subbox)
        call box_iter_rewind(bit)
     else
        call box_iter_expand_nbox(bit)
@@ -321,7 +324,7 @@ contains
     bit%whole=.true.
     bit%nbox(START_,:)=1
     bit%nbox(END_,:)=bit%mesh%ndims
-    call set_subbox(bit%mesh%bc,bit%mesh%ndims,bit%nbox,bit%subbox)
+    call set_subbox(bit%mesh%dom%bc,bit%mesh%ndims,bit%nbox,bit%subbox)
     call box_iter_rewind(bit)
   end subroutine box_iter_expand_nbox
 
@@ -364,7 +367,7 @@ contains
     do i=1,3
        subdims(i)=bit%subbox(END_,i)-bit%subbox(START_,i)+1
     end do
-    impossible_wrap_on_z=bit%mesh%bc(Z_) /= PERIODIC.or. bit%subbox(END_,Z_)-bit%subbox(START_,Z_) < bit%mesh%ndims(Z_)
+    impossible_wrap_on_z=bit%mesh%dom%bc(Z_) /= PERIODIC.or. bit%subbox(END_,Z_)-bit%subbox(START_,Z_) < bit%mesh%ndims(Z_)
     if (impossible_wrap_on_z) subdims(3)=min(subdims(3),bit%i3e-bit%i3s+1)
 
     !first, count if the iterator covers all the required points
@@ -393,17 +396,17 @@ contains
 
     do iz=1,subdims(Z_)
        jz=iz+bit%subbox(START_,Z_)-1
-       if (bit%mesh%bc(Z_) == PERIODIC) jz=modulo(jz-1,bit%mesh%ndims(Z_))+1
+       if (bit%mesh%dom%bc(Z_) == PERIODIC) jz=modulo(jz-1,bit%mesh%ndims(Z_))+1
        lz(iz)=jz
     end do
     do iy=1,subdims(Y_)
        jy=iy+bit%subbox(START_,Y_)-1
-       if (bit%mesh%bc(Y_) == PERIODIC) jy=modulo(jy-1,bit%mesh%ndims(Y_))+1
+       if (bit%mesh%dom%bc(Y_) == PERIODIC) jy=modulo(jy-1,bit%mesh%ndims(Y_))+1
        ly(iy)=jy
     end do
     do ix=1,subdims(X_)
        jx=ix+bit%subbox(START_,X_)-1
-       if (bit%mesh%bc(X_) == PERIODIC) jx=modulo(jx-1,bit%mesh%ndims(X_))+1
+       if (bit%mesh%dom%bc(X_) == PERIODIC) jx=modulo(jx-1,bit%mesh%ndims(X_))+1
        lx(ix)=jx
     end do
 
@@ -461,7 +464,7 @@ contains
     !'Error sep boxit, icnt='+icnt+', itgt='+itgt)
       end if
     !complete mode
-    if (all( bit%subbox(END_,:)-bit%subbox(START_,:) < bit%mesh%ndims) .or. all(bit%mesh%bc == FREE)) then
+    if (all( bit%subbox(END_,:)-bit%subbox(START_,:) < bit%mesh%ndims) .or. all(bit%mesh%dom%bc == FREE)) then
        icnt=int(0,f_long)
        do while(box_next_point(bit))
           icnt=icnt+1
@@ -527,7 +530,7 @@ contains
        if (bit%whole) then
           bit%k=bit%inext(Z_)
        else
-          call internal_point(bit%mesh%bc(Z_),bit%inext(Z_),bit%mesh%ndims(Z_),&
+          call internal_point(bit%mesh%dom%bc(Z_),bit%inext(Z_),bit%mesh%ndims(Z_),&
                bit%k,bit%i3s,bit%i3e,ok)
 !          print *,'ok1.2',ok,bit%inext(Z_),bit%k
           if (.not. ok) bit%inext(Z_)=bit%inext(Z_)+1
@@ -592,7 +595,7 @@ contains
     if (bit%whole) then
        indi=bit%inext(idim)
     else
-       if (bit%mesh%bc(idim) == PERIODIC) then
+       if (bit%mesh%dom%bc(idim) == PERIODIC) then
           indi=modulo(bit%inext(idim)-1,bit%mesh%ndims(idim))+1
        else
           indi=bit%inext(idim)
@@ -775,7 +778,7 @@ contains
     implicit none
     type(box_iterator), intent(inout) :: boxit
     boxit%subbox=boxit%nbox
-    call set_subbox(boxit%mesh%bc,boxit%mesh%ndims,boxit%nbox,boxit%subbox)
+    call set_subbox(boxit%mesh%dom%bc,boxit%mesh%ndims,boxit%nbox,boxit%subbox)
     call box_iter_rewind(boxit)
   end subroutine box_iter_merge
 
@@ -836,7 +839,7 @@ contains
     real(gp) :: aa,cc,a2,cosang
     integer :: i,j
 
-    mesh%bc=geocode_to_bc(geocode)
+    mesh%dom%bc=geocode_to_bc(geocode)
 
     mesh%ndims=ndims
     mesh%hgrids=hgrids
@@ -1006,7 +1009,7 @@ contains
     logical, dimension(3) :: peri
     !local variables
 
-    peri=bc_periodic_dims(mesh%bc)
+    peri=bc_periodic_dims(mesh%dom%bc)
 
   end function cell_periodic_dims
 
@@ -1111,7 +1114,7 @@ contains
     if (mesh%orthorhombic) then
        d2=0.0_gp
        do i=1,3
-          d2=d2+r_wrap(mesh%bc(i),mesh%hgrids(i)*mesh%ndims(i),&
+          d2=d2+r_wrap(mesh%dom%bc(i),mesh%hgrids(i)*mesh%ndims(i),&
                r(i),c(i))**2
        end do
        d=sqrt(d2)
@@ -1211,7 +1214,7 @@ contains
 
     if (mesh%orthorhombic) then
        do i=1,3
-          r(i)=r_wrap(mesh%bc(i),mesh%hgrids(i)*mesh%ndims(i),&
+          r(i)=r_wrap(mesh%dom%bc(i),mesh%hgrids(i)*mesh%ndims(i),&
                v(i),center(i))
        end do
     else
@@ -1220,7 +1223,7 @@ contains
        jcurr=0
        kcurr=0
        do ii=1,3
-        if (mesh%bc(ii)==PERIODIC) then
+        if (mesh%dom%bc(ii)==PERIODIC) then
           ri(ii)=mod(v(ii),mesh%ndims(ii)*mesh%hgrids(ii))
           ci(ii)=mod(center(ii),mesh%ndims(ii)*mesh%hgrids(ii))
         else
@@ -1229,9 +1232,9 @@ contains
         end if
        end do
        ri=ri-ci
-       do i=-mesh%bc(1),mesh%bc(1)
-        do j=-mesh%bc(2),mesh%bc(2)
-         do k=-mesh%bc(3),mesh%bc(3)
+       do i=-mesh%dom%bc(1),mesh%dom%bc(1)
+        do j=-mesh%dom%bc(2),mesh%dom%bc(2)
+         do k=-mesh%dom%bc(3),mesh%dom%bc(3)
             rt(1)=ri(1)+real(i,gp)*mesh%ndims(1)*mesh%hgrids(1)
             rt(2)=ri(2)+real(j,gp)*mesh%ndims(2)*mesh%hgrids(2)
             rt(3)=ri(3)+real(k,gp)*mesh%ndims(3)*mesh%hgrids(3)
