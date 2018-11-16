@@ -27,7 +27,7 @@ module_autogenargs.update({
 
 'chess': env_configuration(),
 
-'libxc': env_configuration(),
+'libxc': "FC=mpiifort FCFLAGS=-O2",
 
 'libABINIT': env_configuration(),
 

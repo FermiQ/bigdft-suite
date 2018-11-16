@@ -18,7 +18,7 @@ pkgconfig_DATA = bigdft.pc
 
 SUBDIRS = src
 
-if FC_AUTOBUILD_DYNAMIC_LIBS
+if BUILD_DYNAMIC_LIBS
 SUBDIRS += plugins
 endif
 
