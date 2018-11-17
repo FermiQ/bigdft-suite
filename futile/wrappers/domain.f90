@@ -341,19 +341,43 @@ contains
        abc(Y_,B_)=1.0_gp
        
        abc(X_,C_)=cos(angrad(AC_))
-       abc(Z_,C_)=sin(angrad(AC_))
+       !abc(Z_,C_)=sin(angrad(AC_))
+       abc(Z_,C_)=sqrt(1.0_gp-abc(X_,C_)**2)
     else if (angrad(BC_)/= onehalf*pi .and. angrad(AB_) == onehalf*pi .and. angrad(AC_)==onehalf*pi ) then
        abc=0.0_gp      
        abc(X_,A_)=1.0_gp
        abc(Y_,B_)=1.0_gp
        abc(Y_,C_)=cos(angrad(BC_))
-       abc(Z_,C_)=sin(angrad(BC_))
+       !abc(Z_,C_)=sin(angrad(BC_))
+       abc(Z_,C_)=sqrt(1.0_gp-abc(Y_,C_)**2)
     else if (angrad(AB_)/= onehalf*pi .and. angrad(AC_) == onehalf*pi .and. angrad(BC_)==onehalf*pi ) then
        abc=0.0_gp      
        abc(X_,A_)=1.0_gp
        abc(X_,B_)=cos(angrad(AB_))
        abc(Y_,B_)=sin(angrad(AB_))
        abc(Z_,C_)=1.0_gp
+    else if (angrad(AC_)/= onehalf*pi .and. angrad(AB_) /= onehalf*pi .and. angrad(BC_)==onehalf*pi ) then
+       abc=0.0_gp
+       abc(X_,A_)=1.0_gp
+       abc(X_,B_)=cos(angrad(AB_))
+       abc(Y_,B_)=sin(angrad(AB_))
+       abc(X_,C_)=cos(angrad(AC_))
+       abc(Y_,C_)=(-abc(X_,B_)*abc(X_,C_))/abc(Y_,B_)
+       abc(Z_,C_)=sqrt(1.0_gp-abc(X_,C_)**2-abc(Y_,C_)**2)
+    else if (angrad(AC_)/= onehalf*pi .and. angrad(AB_) == onehalf*pi .and. angrad(BC_)/=onehalf*pi ) then
+       abc=0.0_gp
+       abc(X_,A_)=1.0_gp
+       abc(Y_,B_)=1.0_gp
+       abc(X_,C_)=cos(angrad(AC_))
+       abc(Y_,C_)=cos(angrad(BC_))
+       abc(Z_,C_)=sqrt(1.0_gp-abc(X_,C_)**2-abc(Y_,C_)**2)
+    else if (angrad(AC_)== onehalf*pi .and. angrad(AB_) /= onehalf*pi .and. angrad(BC_)/=onehalf*pi ) then
+       abc=0.0_gp
+       abc(X_,A_)=1.0_gp
+       abc(X_,B_)=cos(angrad(AB_))
+       abc(Y_,B_)=sin(angrad(AB_))
+       abc(Y_,C_)=cos(angrad(BC_))/abc(Y_,B_)
+       abc(Z_,C_)=sqrt(1.0_gp-abc(Y_,C_)**2)
     else if (all((angrad) /= onehalf*pi)) then
        abc=0.0_gp
        abc(X_,A_)=1.0_gp

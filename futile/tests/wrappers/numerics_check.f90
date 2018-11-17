@@ -82,7 +82,7 @@ program numeric_check
   !here some tests about the box usage
   call test_box_functions()
 
-  call test_domain()
+!  call test_domain()
 
   call f_lib_finalize()
 
@@ -151,20 +151,20 @@ subroutine test_box_functions()
   v1=f_malloc([3,ndims(1),ndims(2),ndims(3)],id='v1')
   v2=f_malloc([3,ndims(1),ndims(2),ndims(3)],id='v2')
 
-!!  call loop_dotp('SEQ',mesh_ortho,v1,v2,tseq)   
-!!  call yaml_map('Normal loop, seq (ns)',tseq)
-!!  
-!!  call loop_dotp('OMP',mesh_ortho,v1,v2,tomp)
-!!  call yaml_map('Normal loop, omp (ns)',tomp)
-!!
-!!  call loop_dotp('ITR',mesh_ortho,v1,v2,tseq)
-!!  call yaml_map('Normal loop, itr (ns)',tseq)
-!!
-!!  call loop_dotp('IOM',mesh_ortho,v1,v2,tseq)
-!!  call yaml_map('Normal loop, iom (ns)',tseq)
-!!
-!!  call loop_dotp('ITM',mesh_ortho,v1,v2,tseq)
-!!  call yaml_map('Normal loop, mpi (ns)',tseq)
+  call loop_dotp('SEQ',mesh_ortho,v1,v2,tseq)   
+  call yaml_map('Normal loop, seq (ns)',tseq)
+  
+  call loop_dotp('OMP',mesh_ortho,v1,v2,tomp)
+  call yaml_map('Normal loop, omp (ns)',tomp)
+
+  call loop_dotp('ITR',mesh_ortho,v1,v2,tseq)
+  call yaml_map('Normal loop, itr (ns)',tseq)
+
+  call loop_dotp('IOM',mesh_ortho,v1,v2,tseq)
+  call yaml_map('Normal loop, iom (ns)',tseq)
+
+  call loop_dotp('ITM',mesh_ortho,v1,v2,tseq)
+  call yaml_map('Normal loop, mpi (ns)',tseq)
 
   ndims=70
 
@@ -205,7 +205,7 @@ subroutine test_box_functions()
   call loop_box_function('distance',mesh_ortho)
   call loop_box_function('box_cutoff',mesh_ortho)
   call loop_box_function('consistency_check',mesh_ortho)
-  call loop_box_function('box_folding',mesh_ortho)
+!  call loop_box_function('box_folding',mesh_ortho)
 
   angrad(1) = 90.0_gp/180.0_gp*pi
   angrad(2) = 70.0_gp/180.0_gp*pi
