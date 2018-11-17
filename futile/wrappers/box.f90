@@ -29,7 +29,7 @@ module box
   !! It contains also the metric for nonorthorhombic cells.
   type, public :: cell
      type(domain) :: dom !< data type for the simulation domain
-     logical :: orthorhombic !<true if the cell is orthorhombic
+     !logical :: orthorhombic !<true if the cell is orthorhombic
      !integer, dimension(3) :: bc !< boundary conditions on each direction (FREE=0, PERIODIC=1)
      integer, dimension(3) :: ndims !< number of grid points on each direction
      real(gp), dimension(3) :: hgrids !< real space grid on each direction
@@ -39,9 +39,9 @@ module box
      real(gp) :: volume_element !< volume element of the primitive cell
      real(gp), dimension(3,3) :: habc !<primitive volume elements in the translation vectors direction
      !real(gp), dimension(3,3) :: uabc !<matrix of the normalized translation vectors direction
-     real(gp), dimension(3,3) :: gd !<covariant metric needed for non-orthorhombic operations
-     real(gp), dimension(3,3) :: gu !<controvariant metric needed for non-orthorhombic operations
-     real(gp) :: detgd !<determinant of the covariant matrix
+     !real(gp), dimension(3,3) :: gd !<covariant metric needed for non-orthorhombic operations
+     !real(gp), dimension(3,3) :: gu !<controvariant metric needed for non-orthorhombic operations
+     !real(gp) :: detgd !<determinant of the covariant matrix
   end type cell
 
   !> defines the object to iterate around the real-space grid points.
@@ -104,19 +104,19 @@ contains
    implicit none
    type(cell) :: me
    me%dom=domain_null()
-   me%orthorhombic=.true.
-   !me%bc=0
+!!$   me%orthorhombic=.true.
+!!$   me%bc=0
    me%ndims=0
    me%hgrids=0.0_gp
-   !me%angrad=0.0_gp
+!!$   me%angrad=0.0_gp
    !derived data
    me%ndim=0
    me%volume_element=0.0_gp
    me%habc=0.0_gp
-   !me%uabc=0.0_gp
-   me%gd=0.0_gp
-   me%gu=0.0_gp
-   me%detgd=0.0_gp
+!!$   me%uabc=0.0_gp
+!!$   me%gd=0.0_gp
+!!$   me%gu=0.0_gp
+!!$   me%detgd=0.0_gp
   end function cell_null
 
   !> Nullify the iterator dpbox type
@@ -264,7 +264,7 @@ contains
     !for non-orthorhombic cells the concept of distance has to be inserted here (the box should contain the sphere)
     ! compute the inverse of mesh%uabc
 
-    if (mesh%orthorhombic) then
+    if (mesh%dom%orthorhombic) then
         rbox(START_,:)=oxyz-cutoff
         rbox(END_,:)=oxyz+cutoff
     else
@@ -821,172 +821,179 @@ contains
     end select
   end function geocode_to_bc     
 
-  function cell_new(geocode,ndims,hgrids,alpha_bc,beta_ac,gamma_ab,abc) result(mesh)
+  function cell_new(dom,ndims,hgrids) result(mesh)
+  !function cell_new(geocode,ndims,hgrids,alpha_bc,beta_ac,gamma_ab,abc) result(mesh)
     use numerics, only: onehalf,pi
     use wrapper_linalg, only: det_3x3
     use f_utils, only: f_assert
     use dictionaries, only: f_err_throw
     implicit none
-    character(len=1), intent(in) :: geocode
+    !character(len=1), intent(in) :: geocode
+    type(domain), intent(in) :: dom !< data type for the simulation domain
     integer, dimension(3), intent(in) :: ndims
     real(gp), dimension(3), intent(in) :: hgrids
     !real(gp), dimension(3), intent(in), optional :: angrad
-    real(gp), intent(in), optional :: alpha_bc,beta_ac,gamma_ab
+    !real(gp), intent(in), optional :: alpha_bc,beta_ac,gamma_ab
     !> arrays of the unit vectors of the cell. Normalized, in fortran order a_i=abc(i,1), b_i=abc(i,2)
-    real(gp), dimension(3,3), intent(in), optional :: abc
+    !real(gp), dimension(3,3), intent(in), optional :: abc
     type(cell) :: mesh
     !local variables
-    real(gp) :: aa,cc,a2,cosang
+    !real(gp) :: aa,cc,a2,cosang
     integer :: i,j
 
-    mesh%dom%bc=geocode_to_bc(geocode)
+!!$    mesh%bc=geocode_to_bc(geocode)
 
+    mesh%dom=dom
     mesh%ndims=ndims
     mesh%hgrids=hgrids
     mesh%ndim=product(int(ndims,f_long))
 
-    !default orthorhombic
-    mesh%dom%angrad=onehalf*pi
-
-    if (present(alpha_bc)) mesh%dom%angrad(1)=alpha_bc
-    if (present(beta_ac)) mesh%dom%angrad(2)=beta_ac
-    if (present(gamma_ab)) mesh%dom%angrad(3)=gamma_ab
-
-    call f_assert(all(mesh%dom%angrad > 0.0_gp),'Error, Cell new, some of the angles are not positive')
-
-    if (geocode == 'S') then
-       call f_assert(mesh%dom%angrad(1)-onehalf*pi,id='Alpha angle invalid')
-       call f_assert(mesh%dom%angrad(3)-onehalf*pi,id='Gamma angle invalid')
-    end if
-
-    mesh%orthorhombic=all(mesh%dom%angrad==onehalf*pi)
-
-    if ((geocode == 'F' .or. geocode== 'W') .and. (.not. mesh%orthorhombic)) &
-         call f_err_throw('For geocode="F","W" the cell must be orthorhombic')
-
-    if (.not. mesh%orthorhombic) then
-       !some consistency check on the angles should be performed
-       !1) sum(angrad) < twopi
-       if (all(mesh%dom%angrad==mesh%dom%angrad(1))) then
-          !Treat the case of equal angles (except all right angles) :
-          !generates trigonal symmetry wrt third axis
-          cosang=cos(mesh%dom%angrad(1))
-          a2=2.0_gp/3.0_gp*(1.0_gp-cosang)
-          aa=sqrt(a2)
-          cc=sqrt(1.0_gp-a2)
-          mesh%habc(1,1)=aa; mesh%habc(2,1)=0.0_gp; mesh%habc(3,1)=cc
-          mesh%habc(1,2)=-0.5_gp*aa ; mesh%habc(2,2)=sqrt(3.0_gp)*0.5_gp*aa ; mesh%habc(3,2)=cc
-          mesh%habc(1,3)=-0.5_gp*aa ; mesh%habc(2,3)=-sqrt(3.0_gp)*0.5_gp*aa ; mesh%habc(3,3)=cc
-          !Set the covariant metric
-          mesh%gd(1,1) = 1.0_gp
-          mesh%gd(1,2) = cos(mesh%dom%angrad(3)) !gamma_ab
-          mesh%gd(1,3) = cos(mesh%dom%angrad(2)) !beta_ac
-          mesh%gd(2,2) = 1.0_gp
-          mesh%gd(2,3) = cos(mesh%dom%angrad(1)) !alpha_bc
-          mesh%gd(3,3) = 1.0_gp
-          !Set the determinant of the covariant metric
-          mesh%detgd = 1.0_gp - cos(mesh%dom%angrad(1))**2 - cos(mesh%dom%angrad(2))**2 - cos(mesh%dom%angrad(3))**2 +&
-               2.0_gp*cos(mesh%dom%angrad(1))*cos(mesh%dom%angrad(2))*cos(mesh%dom%angrad(3))
-          !Set the contravariant metric
-          mesh%gu(1,1) = (sin(mesh%dom%angrad(1))**2)/mesh%detgd
-          mesh%gu(1,2) = (cos(mesh%dom%angrad(2))*cos(mesh%dom%angrad(1))-cos(mesh%dom%angrad(3)))/mesh%detgd
-          mesh%gu(1,3) = (cos(mesh%dom%angrad(3))*cos(mesh%dom%angrad(1))-cos(mesh%dom%angrad(2)))/mesh%detgd
-          mesh%gu(2,2) = (sin(mesh%dom%angrad(2))**2)/mesh%detgd
-          mesh%gu(2,3) = (cos(mesh%dom%angrad(3))*cos(mesh%dom%angrad(2))-cos(mesh%dom%angrad(1)))/mesh%detgd
-          mesh%gu(3,3) = (sin(mesh%dom%angrad(3))**2)/mesh%detgd
-       else if (geocode == 'P') then
-          mesh%habc=0.0_gp
-          mesh%habc(1,1)=1.0_gp
-          mesh%habc(1,2)=cos(mesh%dom%angrad(3))
-          mesh%habc(2,2)=sin(mesh%dom%angrad(3))
-          mesh%habc(1,3)=cos(mesh%dom%angrad(2))
-          mesh%habc(2,3)=(cos(mesh%dom%angrad(1))-mesh%habc(1,2)*mesh%habc(1,3))/mesh%habc(2,2)
-          mesh%habc(3,3)=sqrt(1.0_gp-mesh%habc(1,3)**2-mesh%habc(2,3)**2)
-          !Set the covariant metric
-          mesh%gd(1,1) = 1.0_gp
-          mesh%gd(1,2) = cos(mesh%dom%angrad(3)) !gamma_ab
-          mesh%gd(1,3) = cos(mesh%dom%angrad(2)) !beta_ac
-          mesh%gd(2,2) = 1.0_gp
-          mesh%gd(2,3) = cos(mesh%dom%angrad(1)) !alpha_bc
-          mesh%gd(3,3) = 1.0_gp
-          !Set the determinant of the covariant metric
-          mesh%detgd = 1.0_gp - cos(mesh%dom%angrad(1))**2 - cos(mesh%dom%angrad(2))**2 - cos(mesh%dom%angrad(3))**2 +&
-               2.0_gp*cos(mesh%dom%angrad(1))*cos(mesh%dom%angrad(2))*cos(mesh%dom%angrad(3))
-          !Set the contravariant metric
-          mesh%gu(1,1) = (sin(mesh%dom%angrad(1))**2)/mesh%detgd
-          mesh%gu(1,2) = (cos(mesh%dom%angrad(2))*cos(mesh%dom%angrad(1))-cos(mesh%dom%angrad(3)))/mesh%detgd
-          mesh%gu(1,3) = (cos(mesh%dom%angrad(3))*cos(mesh%dom%angrad(1))-cos(mesh%dom%angrad(2)))/mesh%detgd
-          mesh%gu(2,2) = (sin(mesh%dom%angrad(2))**2)/mesh%detgd
-          mesh%gu(2,3) = (cos(mesh%dom%angrad(3))*cos(mesh%dom%angrad(2))-cos(mesh%dom%angrad(1)))/mesh%detgd
-          mesh%gu(3,3) = (sin(mesh%dom%angrad(3))**2)/mesh%detgd
-       else !only Surfaces is possible here
-          mesh%habc=0.0_gp
-          mesh%habc(1,1)=1.0_gp
-          mesh%habc(2,2)=1.0_gp
-          mesh%habc(1,3)=cos(mesh%dom%angrad(2))
-          mesh%habc(3,3)=sin(mesh%dom%angrad(2))
-          !Set the covariant metric
-          mesh%gd=0.0_gp
-          mesh%gd(1,1) = 1.0_gp
-          mesh%gd(1,3) = cos(mesh%dom%angrad(2)) !beta_ac
-          mesh%gd(2,2) = 1.0_gp
-          mesh%gd(3,3) = 1.0_gp
-          !Set the determinant of the covariant metric
-          mesh%detgd = sin(mesh%dom%angrad(2))**2
-          !Set the contravariant metric
-          mesh%gu=0.0_gp
-          mesh%gu(1,1) = 1.0_gp/mesh%detgd
-          mesh%gu(1,3) = -cos(mesh%dom%angrad(2))/mesh%detgd
-          mesh%gu(2,2) = 1.0_gp!/mesh%detgd
-          mesh%gu(3,3) = 1.0_gp/mesh%detgd
-       end if
-       mesh%uabc=0.0_gp
-       mesh%uabc(1:3,1:3)=mesh%habc(1:3,1:3)
-
-       !Rescale habc using hgrid
-       mesh%habc(:,1)=hgrids*mesh%habc(:,1)
-       mesh%habc(:,2)=hgrids*mesh%habc(:,2)
-       mesh%habc(:,3)=hgrids*mesh%habc(:,3)
+!!$    !default orthorhombic
+!!$    mesh%angrad=onehalf*pi
+!!$
+!!$    if (present(alpha_bc)) mesh%angrad(1)=alpha_bc
+!!$    if (present(beta_ac)) mesh%angrad(2)=beta_ac
+!!$    if (present(gamma_ab)) mesh%angrad(3)=gamma_ab
+!!$
+!!$    call f_assert(all(mesh%angrad > 0.0_gp),'Error, Cell new, some of the angles are not positive')
+!!$
+!!$    if (geocode == 'S') then
+!!$       call f_assert(mesh%angrad(1)-onehalf*pi,id='Alpha angle invalid')
+!!$       call f_assert(mesh%angrad(3)-onehalf*pi,id='Gamma angle invalid')
+!!$    end if
+!!$
+!!$    mesh%orthorhombic=all(mesh%dom%angrad==onehalf*pi)
+!!$
+!!$    if ((geocode == 'F' .or. geocode== 'W') .and. (.not. mesh%orthorhombic)) &
+!!$         call f_err_throw('For geocode="F","W" the cell must be orthorhombic')
+!!$
+    if (.not. dom%orthorhombic) then
+!!$       !some consistency check on the angles should be performed
+!!$       !1) sum(angrad) < twopi
+!!$       if (all(mesh%dom%angrad==mesh%dom%angrad(1))) then
+!!$          !Treat the case of equal angles (except all right angles) :
+!!$          !generates trigonal symmetry wrt third axis
+!!$          cosang=cos(mesh%dom%angrad(1))
+!!$          a2=2.0_gp/3.0_gp*(1.0_gp-cosang)
+!!$          aa=sqrt(a2)
+!!$          cc=sqrt(1.0_gp-a2)
+!!$          mesh%habc(1,1)=aa; mesh%habc(2,1)=0.0_gp; mesh%habc(3,1)=cc
+!!$          mesh%habc(1,2)=-0.5_gp*aa ; mesh%habc(2,2)=sqrt(3.0_gp)*0.5_gp*aa ; mesh%habc(3,2)=cc
+!!$          mesh%habc(1,3)=-0.5_gp*aa ; mesh%habc(2,3)=-sqrt(3.0_gp)*0.5_gp*aa ; mesh%habc(3,3)=cc
+!!$          !Set the covariant metric
+!!$          mesh%gd(1,1) = 1.0_gp
+!!$          mesh%gd(1,2) = cos(mesh%dom%angrad(3)) !gamma_ab
+!!$          mesh%gd(1,3) = cos(mesh%dom%angrad(2)) !beta_ac
+!!$          mesh%gd(2,2) = 1.0_gp
+!!$          mesh%gd(2,3) = cos(mesh%dom%angrad(1)) !alpha_bc
+!!$          mesh%gd(3,3) = 1.0_gp
+!!$          !Set the determinant of the covariant metric
+!!$          mesh%detgd = 1.0_gp - cos(mesh%dom%angrad(1))**2 - cos(mesh%dom%angrad(2))**2 - cos(mesh%dom%angrad(3))**2 +&
+!!$               2.0_gp*cos(mesh%dom%angrad(1))*cos(mesh%dom%angrad(2))*cos(mesh%dom%angrad(3))
+!!$          !Set the contravariant metric
+!!$          mesh%gu(1,1) = (sin(mesh%dom%angrad(1))**2)/mesh%detgd
+!!$          mesh%gu(1,2) = (cos(mesh%dom%angrad(2))*cos(mesh%dom%angrad(1))-cos(mesh%dom%angrad(3)))/mesh%detgd
+!!$          mesh%gu(1,3) = (cos(mesh%dom%angrad(3))*cos(mesh%dom%angrad(1))-cos(mesh%dom%angrad(2)))/mesh%detgd
+!!$          mesh%gu(2,2) = (sin(mesh%dom%angrad(2))**2)/mesh%detgd
+!!$          mesh%gu(2,3) = (cos(mesh%dom%angrad(3))*cos(mesh%dom%angrad(2))-cos(mesh%dom%angrad(1)))/mesh%detgd
+!!$          mesh%gu(3,3) = (sin(mesh%dom%angrad(3))**2)/mesh%detgd
+!!$       else if (geocode == 'P') then
+!!$          mesh%habc=0.0_gp
+!!$          mesh%habc(1,1)=1.0_gp
+!!$          mesh%habc(1,2)=cos(mesh%dom%angrad(3))
+!!$          mesh%habc(2,2)=sin(mesh%dom%angrad(3))
+!!$          mesh%habc(1,3)=cos(mesh%dom%angrad(2))
+!!$          mesh%habc(2,3)=(cos(mesh%dom%angrad(1))-mesh%habc(1,2)*mesh%habc(1,3))/mesh%habc(2,2)
+!!$          mesh%habc(3,3)=sqrt(1.0_gp-mesh%habc(1,3)**2-mesh%habc(2,3)**2)
+!!$          !Set the covariant metric
+!!$          mesh%gd(1,1) = 1.0_gp
+!!$          mesh%gd(1,2) = cos(mesh%dom%angrad(3)) !gamma_ab
+!!$          mesh%gd(1,3) = cos(mesh%dom%angrad(2)) !beta_ac
+!!$          mesh%gd(2,2) = 1.0_gp
+!!$          mesh%gd(2,3) = cos(mesh%dom%angrad(1)) !alpha_bc
+!!$          mesh%gd(3,3) = 1.0_gp
+!!$          !Set the determinant of the covariant metric
+!!$          mesh%detgd = 1.0_gp - cos(mesh%dom%angrad(1))**2 - cos(mesh%dom%angrad(2))**2 - cos(mesh%dom%angrad(3))**2 +&
+!!$               2.0_gp*cos(mesh%dom%angrad(1))*cos(mesh%dom%angrad(2))*cos(mesh%dom%angrad(3))
+!!$          !Set the contravariant metric
+!!$          mesh%gu(1,1) = (sin(mesh%dom%angrad(1))**2)/mesh%detgd
+!!$          mesh%gu(1,2) = (cos(mesh%dom%angrad(2))*cos(mesh%dom%angrad(1))-cos(mesh%dom%angrad(3)))/mesh%detgd
+!!$          mesh%gu(1,3) = (cos(mesh%dom%angrad(3))*cos(mesh%dom%angrad(1))-cos(mesh%dom%angrad(2)))/mesh%detgd
+!!$          mesh%gu(2,2) = (sin(mesh%dom%angrad(2))**2)/mesh%detgd
+!!$          mesh%gu(2,3) = (cos(mesh%dom%angrad(3))*cos(mesh%dom%angrad(2))-cos(mesh%dom%angrad(1)))/mesh%detgd
+!!$          mesh%gu(3,3) = (sin(mesh%dom%angrad(3))**2)/mesh%detgd
+!!$       else !only Surfaces is possible here
+!!$          mesh%habc=0.0_gp
+!!$          mesh%habc(1,1)=1.0_gp
+!!$          mesh%habc(2,2)=1.0_gp
+!!$          mesh%habc(1,3)=cos(mesh%dom%angrad(2))
+!!$          mesh%habc(3,3)=sin(mesh%dom%angrad(2))
+!!$          !Set the covariant metric
+!!$          mesh%gd=0.0_gp
+!!$          mesh%gd(1,1) = 1.0_gp
+!!$          mesh%gd(1,3) = cos(mesh%dom%angrad(2)) !beta_ac
+!!$          mesh%gd(2,2) = 1.0_gp
+!!$          mesh%gd(3,3) = 1.0_gp
+!!$          !Set the determinant of the covariant metric
+!!$          mesh%detgd = sin(mesh%dom%angrad(2))**2
+!!$          !Set the contravariant metric
+!!$          mesh%gu=0.0_gp
+!!$          mesh%gu(1,1) = 1.0_gp/mesh%detgd
+!!$          mesh%gu(1,3) = -cos(mesh%dom%angrad(2))/mesh%detgd
+!!$          mesh%gu(2,2) = 1.0_gp!/mesh%detgd
+!!$          mesh%gu(3,3) = 1.0_gp/mesh%detgd
+!!$       end if
+!!$       mesh%uabc=0.0_gp
+!!$       mesh%uabc(1:3,1:3)=mesh%habc(1:3,1:3)
+!!$
+!!$       !Rescale habc using hgrid
+!!$       mesh%habc(:,1)=hgrids*mesh%habc(:,1)
+!!$       mesh%habc(:,2)=hgrids*mesh%habc(:,2)
+!!$       mesh%habc(:,3)=hgrids*mesh%habc(:,3)
+       ! here we assume the dom%uabc = mesh%uabc
+       mesh%habc(:,1)=hgrids*dom%uabc(:,1)
+       mesh%habc(:,2)=hgrids*dom%uabc(:,2)
+       mesh%habc(:,3)=hgrids*dom%uabc(:,3)
        !the volume element
        !Compute unit cell volume
        mesh%volume_element=det_3x3(mesh%habc)
     else
        mesh%habc=0.0_gp
-       mesh%uabc=0.0_gp
+!!$       mesh%uabc=0.0_gp
        do i=1,3
           mesh%habc(i,i)=hgrids(i)
-          mesh%uabc(i,i)=1.0_gp
+!!$          mesh%uabc(i,i)=1.0_gp
        end do
-       mesh%dom%angrad=onehalf*pi
+!!$       mesh%dom%angrad=onehalf*pi
        mesh%volume_element=product(mesh%hgrids)
-       mesh%gd(1,1) = 1.0_gp
-       mesh%gd(1,2) = 0.0_gp
-       mesh%gd(1,3) = 0.0_gp
-       mesh%gd(2,2) = 1.0_gp
-       mesh%gd(2,3) = 0.0_gp
-       mesh%gd(3,3) = 1.0_gp
-       mesh%detgd = 1.0_gp
-       !Set the contravariant metric
-       mesh%gu(1,1) = 1.0_gp
-       mesh%gu(1,2) = 0.0_gp
-       mesh%gu(1,3) = 0.0_gp
-       mesh%gu(2,2) = 1.0_gp
-       mesh%gu(2,3) = 0.0_gp
-       mesh%gu(3,3) = 1.0_gp
+!!$       mesh%gd(1,1) = 1.0_gp
+!!$       mesh%gd(1,2) = 0.0_gp
+!!$       mesh%gd(1,3) = 0.0_gp
+!!$       mesh%gd(2,2) = 1.0_gp
+!!$       mesh%gd(2,3) = 0.0_gp
+!!$       mesh%gd(3,3) = 1.0_gp
+!!$       mesh%detgd = 1.0_gp
+!!$       !Set the contravariant metric
+!!$       mesh%gu(1,1) = 1.0_gp
+!!$       mesh%gu(1,2) = 0.0_gp
+!!$       mesh%gu(1,3) = 0.0_gp
+!!$       mesh%gu(2,2) = 1.0_gp
+!!$       mesh%gu(2,3) = 0.0_gp
+!!$       mesh%gu(3,3) = 1.0_gp
     end if
-    mesh%gd(2,1) = mesh%gd(1,2)
-    mesh%gd(3,1) = mesh%gd(1,3)
-    mesh%gd(3,2) = mesh%gd(2,3)
-
-    mesh%gu(2,1) = mesh%gu(1,2)
-    mesh%gu(3,1) = mesh%gu(1,3)
-    mesh%gu(3,2) = mesh%gu(2,3)
+!!$    mesh%gd(2,1) = mesh%gd(1,2)
+!!$    mesh%gd(3,1) = mesh%gd(1,3)
+!!$    mesh%gd(3,2) = mesh%gd(2,3)
+!!$
+!!$    mesh%gu(2,1) = mesh%gu(1,2)
+!!$    mesh%gu(3,1) = mesh%gu(1,3)
+!!$    mesh%gu(3,2) = mesh%gu(2,3)
     do i=1,3
        do j=1,3
           if (abs(mesh%habc(i,j)).lt.1.0d-15) mesh%habc(i,j)=0.0_gp
-          if (abs(mesh%uabc(i,j)).lt.1.0d-15) mesh%uabc(i,j)=0.0_gp
-          if (abs(mesh%gd(i,j)).lt.1.0d-15) mesh%gd(i,j)=0.0_gp
-          if (abs(mesh%gu(i,j)).lt.1.0d-15) mesh%gu(i,j)=0.0_gp
+!!$          if (abs(mesh%uabc(i,j)).lt.1.0d-15) mesh%uabc(i,j)=0.0_gp
+!!$          if (abs(mesh%gd(i,j)).lt.1.0d-15) mesh%gd(i,j)=0.0_gp
+!!$          if (abs(mesh%gu(i,j)).lt.1.0d-15) mesh%gu(i,j)=0.0_gp
        end do
     end do
 
@@ -1058,13 +1065,13 @@ contains
     ! local variables
     integer :: i,j
 
-    if (mesh%orthorhombic) then
+    if (mesh%dom%orthorhombic) then
      rxyz_ortho(1:3)=rxyz(1:3)
     else
      do i=1,3
       rxyz_ortho(i)=0.0_gp
       do j=1,3
-       rxyz_ortho(i)=rxyz_ortho(i)+mesh%uabc(i,j)*rxyz(j)
+       rxyz_ortho(i)=rxyz_ortho(i)+mesh%dom%uabc(i,j)*rxyz(j)
       end do
      end do
     end if
@@ -1082,7 +1089,7 @@ contains
     ! local variables
     integer :: i,j
 
-    if (mesh%orthorhombic) then
+    if (mesh%dom%orthorhombic) then
      rxyz_nonortho(1:3)=rxyz(1:3)
     else
      do i=1,3
@@ -1111,7 +1118,7 @@ contains
     d=sqrt(d2)
 
     d=0.0_gp
-    if (mesh%orthorhombic) then
+    if (mesh%dom%orthorhombic) then
        d2=0.0_gp
        do i=1,3
           d2=d2+r_wrap(mesh%dom%bc(i),mesh%hgrids(i)*mesh%ndims(i),&
@@ -1212,7 +1219,7 @@ contains
     real(gp) :: d,d2,dold
     real(gp), dimension(3) :: rt,ri,ci!,c_ortho,r_ortho
 
-    if (mesh%orthorhombic) then
+    if (mesh%dom%orthorhombic) then
        do i=1,3
           r(i)=r_wrap(mesh%dom%bc(i),mesh%hgrids(i)*mesh%ndims(i),&
                v(i),center(i))
@@ -1267,7 +1274,7 @@ contains
     type(cell), intent(in) :: mesh !<definition of the cell
     real(gp) :: square
 
-    if (mesh%orthorhombic) then
+    if (mesh%dom%orthorhombic) then
        square=v(1)**2+v(2)**2+v(3)**2
     else
        square=dotp_gu(mesh,v,v)
@@ -1282,10 +1289,10 @@ contains
     type(cell), intent(in) :: mesh !<definition of the cell
     real(gp) :: square
 
-    if (mesh%orthorhombic) then
+    if (mesh%dom%orthorhombic) then
        call dotp_external_ortho(v_add,v_add,square)
     else
-       call dotp_external_nonortho(mesh%gu,v_add,v_add,square)
+       call dotp_external_nonortho(mesh%dom%gu,v_add,v_add,square)
     end if
 
   end function square_add
@@ -1300,7 +1307,7 @@ contains
     type(cell), intent(in) :: mesh !<definition of the cell
     real(gp) :: square_gd
 
-    if (mesh%orthorhombic) then
+    if (mesh%dom%orthorhombic) then
        square_gd=v(1)**2+v(2)**2+v(3)**2
     else
        square_gd=dotp_gd(mesh,v,v)
@@ -1315,10 +1322,10 @@ contains
     type(cell), intent(in) :: mesh !<definition of the cell
     real(gp) :: square
 
-    if (mesh%orthorhombic) then
+    if (mesh%dom%orthorhombic) then
        call dotp_external_ortho(v_add,v_add,square)
     else
-       call dotp_external_nonortho(mesh%gd,v_add,v_add,square)
+       call dotp_external_nonortho(mesh%dom%gd,v_add,v_add,square)
     end if
 
   end function square_gd_add
@@ -1331,13 +1338,13 @@ contains
     !local variables
     integer :: i,j
 
-    if (mesh%orthorhombic) then
+    if (mesh%dom%orthorhombic) then
        dotp_gu=v1(1)*v2(1)+v1(2)*v2(2)+v1(3)*v2(3)
     else
        dotp_gu=0.0_gp
        do i=1,3
           do j=1,3
-             dotp_gu=dotp_gu+mesh%gu(i,j)*v1(i)*v2(j)
+             dotp_gu=dotp_gu+mesh%dom%gu(i,j)*v1(i)*v2(j)
           end do
        end do
     end if
@@ -1351,10 +1358,10 @@ contains
     type(cell), intent(in) :: mesh !<definition of the cell
     real(gp) :: dotp
 
-    if (mesh%orthorhombic) then
+    if (mesh%dom%orthorhombic) then
        call dotp_external_ortho(v1,v2_add,dotp)
     else
-       call dotp_external_nonortho(mesh%gu,v1,v2_add,dotp)
+       call dotp_external_nonortho(mesh%dom%gu,v1,v2_add,dotp)
     end if
 
   end function dotp_gu_add2
@@ -1366,10 +1373,10 @@ contains
     type(cell), intent(in) :: mesh !<definition of the cell
     real(gp) :: dotp
 
-    if (mesh%orthorhombic) then
+    if (mesh%dom%orthorhombic) then
        call dotp_external_ortho(v1_add,v2,dotp)
     else
-       call dotp_external_nonortho(mesh%gu,v1_add,v2,dotp)
+       call dotp_external_nonortho(mesh%dom%gu,v1_add,v2,dotp)
     end if
 
   end function dotp_gu_add1
@@ -1382,13 +1389,13 @@ contains
     !local variables
     integer :: i,j
 
-    if (mesh%orthorhombic) then
+    if (mesh%dom%orthorhombic) then
        dotp_gd=v1(1)*v2(1)+v1(2)*v2(2)+v1(3)*v2(3)
     else
        dotp_gd=0.0_gp
        do i=1,3
           do j=1,3
-             dotp_gd=dotp_gd+mesh%gd(i,j)*v1(i)*v2(j)
+             dotp_gd=dotp_gd+mesh%dom%gd(i,j)*v1(i)*v2(j)
           end do
        end do
     end if
@@ -1402,10 +1409,10 @@ contains
     type(cell), intent(in) :: mesh !<definition of the cell
     real(gp) :: dotp
 
-    if (mesh%orthorhombic) then
+    if (mesh%dom%orthorhombic) then
        call dotp_external_ortho(v1,v2_add,dotp)
     else
-       call dotp_external_nonortho(mesh%gd,v1,v2_add,dotp)
+       call dotp_external_nonortho(mesh%dom%gd,v1,v2_add,dotp)
     end if
 
   end function dotp_gd_add2
@@ -1417,10 +1424,10 @@ contains
     type(cell), intent(in) :: mesh !<definition of the cell
     real(gp) :: dotp
 
-    if (mesh%orthorhombic) then
+    if (mesh%dom%orthorhombic) then
        call dotp_external_ortho(v1_add,v2,dotp)
     else
-       call dotp_external_nonortho(mesh%gd,v1_add,v2,dotp)
+       call dotp_external_nonortho(mesh%dom%gd,v1_add,v2,dotp)
     end if
 
   end function dotp_gd_add1
@@ -1431,10 +1438,10 @@ contains
     type(cell), intent(in) :: mesh !<definition of the cell
     real(gp) :: dotp
 
-    if (mesh%orthorhombic) then
+    if (mesh%dom%orthorhombic) then
        call dotp_external_ortho(v1_add,v2_add,dotp)
     else
-       call dotp_external_nonortho(mesh%gd,v1_add,v2_add,dotp)
+       call dotp_external_nonortho(mesh%dom%gd,v1_add,v2_add,dotp)
     end if
 
   end function dotp_gd_add12

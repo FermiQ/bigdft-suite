@@ -125,18 +125,28 @@ end subroutine test_f_functions
 subroutine test_box_functions()
   use futile, gp=>f_double
   use box
-  use numerics, only: pi
+  use numerics, only: onehalf,pi
+  use at_domain
   implicit none
   !local variables
   integer(f_long) :: tomp,tseq
+  type(domain) :: dom_ortho,dom_noortho
   type(cell) :: mesh_ortho,mesh_noortho
   integer, dimension(3) :: ndims
   real(gp), dimension(:,:,:,:), allocatable :: v1,v2
   real(gp), dimension(3) :: angrad
+  real(gp), dimension(3) :: acell
 
   ndims=[300,300,300]
 
-  mesh_ortho=cell_new('S',ndims,[1.0_gp,1.0_gp,1.0_gp])
+  angrad(1) = 90.0_gp/180.0_gp*pi
+  angrad(2) = 90.0_gp/180.0_gp*pi
+  angrad(3) = 90.0_gp/180.0_gp*pi
+
+!!$  mesh_ortho=cell_new('S',ndims,[1.0_gp,1.0_gp,1.0_gp])
+  dom_ortho=domain_new(ATOMIC_UNITS,[PERIODIC_BC,FREE_BC,PERIODIC_BC],&
+              alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3),acell=real(ndims,kind=8))
+  mesh_ortho=cell_new(dom_ortho,ndims,[1.0_gp,1.0_gp,1.0_gp])
 
   v1=f_malloc([3,ndims(1),ndims(2),ndims(3)],id='v1')
   v2=f_malloc([3,ndims(1),ndims(2),ndims(3)],id='v2')
@@ -158,18 +168,40 @@ subroutine test_box_functions()
 
   ndims=70
 
+!!$  mesh_ortho=cell_null()
+!!$  mesh_ortho=cell_new('F',ndims,[1.0_gp,1.0_gp,1.0_gp])
+
+  dom_ortho=domain_null()
+  dom_ortho = domain_new(ATOMIC_UNITS,[FREE_BC,FREE_BC,FREE_BC],&
+              alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3),acell=real(ndims,kind=8))
+
   mesh_ortho=cell_null()
-  mesh_ortho=cell_new('F',ndims,[1.0_gp,1.0_gp,1.0_gp])
+  mesh_ortho = cell_new(dom_ortho,ndims,[1.0_gp,1.0_gp,1.0_gp])
+
   call loop_box_function('distance',mesh_ortho)
   call loop_box_function('box_cutoff',mesh_ortho)
    
+!!$  mesh_ortho=cell_null()
+!!$  mesh_ortho=cell_new('S',ndims,[1.0_gp,1.0_gp,1.0_gp])
+
+  dom_ortho=domain_null()
+  dom_ortho=domain_new(ATOMIC_UNITS,[PERIODIC_BC,FREE_BC,PERIODIC_BC],&
+              alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3),acell=real(ndims,kind=8))
   mesh_ortho=cell_null()
-  mesh_ortho=cell_new('S',ndims,[1.0_gp,1.0_gp,1.0_gp])
+  mesh_ortho = cell_new(dom_ortho,ndims,[1.0_gp,1.0_gp,1.0_gp])
+
   call loop_box_function('distance',mesh_ortho)
   call loop_box_function('box_cutoff',mesh_ortho)
 
+!!$  mesh_ortho=cell_null()
+!!$  mesh_ortho=cell_new('P',ndims,[1.0_gp,1.0_gp,1.0_gp])
+
+  dom_ortho=domain_null()
+  dom_ortho=domain_new(ATOMIC_UNITS,[PERIODIC_BC,PERIODIC_BC,PERIODIC_BC],&
+              alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3),acell=real(ndims,kind=8))
   mesh_ortho=cell_null()
-  mesh_ortho=cell_new('P',ndims,[1.0_gp,1.0_gp,1.0_gp])
+  mesh_ortho = cell_new(dom_ortho,ndims,[1.0_gp,1.0_gp,1.0_gp])
+
   call loop_box_function('distance',mesh_ortho)
   call loop_box_function('box_cutoff',mesh_ortho)
   call loop_box_function('consistency_check',mesh_ortho)
@@ -179,7 +211,12 @@ subroutine test_box_functions()
   angrad(2) = 70.0_gp/180.0_gp*pi
   angrad(3) = 90.0_gp/180.0_gp*pi
   
-  mesh_noortho=cell_new('S',ndims,[1.0_gp,1.0_gp,1.0_gp],alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3)) 
+!!$  mesh_noortho=cell_new('S',ndims,[1.0_gp,1.0_gp,1.0_gp],alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3)) 
+
+  dom_noortho=domain_new(ATOMIC_UNITS,[PERIODIC_BC,FREE_BC,PERIODIC_BC],&
+              alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3),acell=real(ndims,kind=8))
+  mesh_noortho = cell_new(dom_noortho,ndims,[1.0_gp,1.0_gp,1.0_gp])
+
   call loop_box_function('distance',mesh_noortho)
   call loop_box_function('box_cutoff',mesh_noortho)
 
@@ -187,8 +224,15 @@ subroutine test_box_functions()
   angrad(2) = 80.0_gp/180.0_gp*pi
   angrad(3) = 80.0_gp/180.0_gp*pi
   
+!!$  mesh_noortho=cell_null()
+!!$  mesh_noortho=cell_new('P',ndims,[1.0_gp,1.0_gp,1.0_gp],alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3)) 
+
+  dom_noortho=domain_null()
+  dom_noortho=domain_new(ATOMIC_UNITS,[PERIODIC_BC,PERIODIC_BC,PERIODIC_BC],&
+              alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3),acell=real(ndims,kind=8))
   mesh_noortho=cell_null()
-  mesh_noortho=cell_new('P',ndims,[1.0_gp,1.0_gp,1.0_gp],alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3)) 
+  mesh_noortho = cell_new(dom_noortho,ndims,[1.0_gp,1.0_gp,1.0_gp])
+
   call loop_box_function('distance',mesh_noortho)
   call loop_box_function('box_cutoff',mesh_noortho)
 
@@ -196,8 +240,15 @@ subroutine test_box_functions()
   angrad(2) = 50.0_gp/180.0_gp*pi
   angrad(3) = 90.0_gp/180.0_gp*pi
   
+!!$  mesh_noortho=cell_null()
+!!$  mesh_noortho=cell_new('P',ndims,[1.0_gp,1.0_gp,1.0_gp],alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3)) 
+
+  dom_noortho=domain_null()
+  dom_noortho=domain_new(ATOMIC_UNITS,[PERIODIC_BC,PERIODIC_BC,PERIODIC_BC],&
+              alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3),acell=real(ndims,kind=8))
   mesh_noortho=cell_null()
-  mesh_noortho=cell_new('P',ndims,[1.0_gp,1.0_gp,1.0_gp],alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3)) 
+  mesh_noortho = cell_new(dom_noortho,ndims,[1.0_gp,1.0_gp,1.0_gp])
+
   call loop_box_function('distance',mesh_noortho)
   call loop_box_function('box_cutoff',mesh_noortho)
   call loop_box_function('consistency_check',mesh_noortho)
@@ -209,8 +260,15 @@ subroutine test_box_functions()
   angrad(2) = 25.0_gp/180.0_gp*pi
   angrad(3) = 30.0_gp/180.0_gp*pi
   
+!!$  mesh_noortho=cell_null()
+!!$  mesh_noortho=cell_new('P',ndims,[1.0_gp,1.0_gp,1.0_gp],alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3)) 
+
+  dom_noortho=domain_null()
+  dom_noortho=domain_new(ATOMIC_UNITS,[PERIODIC_BC,PERIODIC_BC,PERIODIC_BC],&
+              alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3),acell=real(ndims,kind=8))
   mesh_noortho=cell_null()
-  mesh_noortho=cell_new('P',ndims,[1.0_gp,1.0_gp,1.0_gp],alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3)) 
+  mesh_noortho = cell_new(dom_noortho,ndims,[1.0_gp,1.0_gp,1.0_gp])
+
   call loop_box_function('distance',mesh_noortho)
   call loop_box_function('box_cutoff',mesh_noortho)
 
@@ -229,7 +287,7 @@ subroutine test_domain()
   !local variables
   type(dictionary), pointer :: yaml_file_dict
   character(len = 128) :: filename
-  type(domain), intent(out) :: dom
+  type(domain) :: dom
   integer(f_long) :: tomp,tseq
   type(cell) :: mesh_ortho,mesh_noortho
   integer, dimension(3) :: ndims
@@ -241,64 +299,6 @@ subroutine test_domain()
   call yaml_parse_from_file(yaml_file_dict,trim(filename))
 
   call domain_set_from_dict(yaml_file_dict,dom)
-
-  ndims=70
-
-  mesh_ortho=cell_null()
-  mesh_ortho=cell_new('F',ndims,[1.0_gp,1.0_gp,1.0_gp])
-  call loop_box_function('distance',mesh_ortho)
-  call loop_box_function('box_cutoff',mesh_ortho)
-   
-  mesh_ortho=cell_null()
-  mesh_ortho=cell_new('S',ndims,[1.0_gp,1.0_gp,1.0_gp])
-  call loop_box_function('distance',mesh_ortho)
-  call loop_box_function('box_cutoff',mesh_ortho)
-
-  mesh_ortho=cell_null()
-  mesh_ortho=cell_new('P',ndims,[1.0_gp,1.0_gp,1.0_gp])
-  call loop_box_function('distance',mesh_ortho)
-  call loop_box_function('box_cutoff',mesh_ortho)
-  call loop_box_function('consistency_check',mesh_ortho)
-  call loop_box_function('box_folding',mesh_ortho)
-
-  angrad(1) = 90.0_gp/180.0_gp*pi
-  angrad(2) = 70.0_gp/180.0_gp*pi
-  angrad(3) = 90.0_gp/180.0_gp*pi
-  
-  mesh_noortho=cell_new('S',ndims,[1.0_gp,1.0_gp,1.0_gp],alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3)) 
-  call loop_box_function('distance',mesh_noortho)
-  call loop_box_function('box_cutoff',mesh_noortho)
-
-  angrad(1) = 80.0_gp/180.0_gp*pi
-  angrad(2) = 80.0_gp/180.0_gp*pi
-  angrad(3) = 80.0_gp/180.0_gp*pi
-  
-  mesh_noortho=cell_null()
-  mesh_noortho=cell_new('P',ndims,[1.0_gp,1.0_gp,1.0_gp],alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3)) 
-  call loop_box_function('distance',mesh_noortho)
-  call loop_box_function('box_cutoff',mesh_noortho)
-
-  angrad(1) = 60.0_gp/180.0_gp*pi
-  angrad(2) = 50.0_gp/180.0_gp*pi
-  angrad(3) = 90.0_gp/180.0_gp*pi
-  
-  mesh_noortho=cell_null()
-  mesh_noortho=cell_new('P',ndims,[1.0_gp,1.0_gp,1.0_gp],alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3)) 
-  call loop_box_function('distance',mesh_noortho)
-  call loop_box_function('box_cutoff',mesh_noortho)
-  call loop_box_function('consistency_check',mesh_noortho)
-
-! to be set 200 to have the sphere inside the whole box
-  ndims=150
-  !ndims=200
-  angrad(1) = 20.0_gp/180.0_gp*pi
-  angrad(2) = 25.0_gp/180.0_gp*pi
-  angrad(3) = 30.0_gp/180.0_gp*pi
-  
-  mesh_noortho=cell_null()
-  mesh_noortho=cell_new('P',ndims,[1.0_gp,1.0_gp,1.0_gp],alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3)) 
-  call loop_box_function('distance',mesh_noortho)
-  call loop_box_function('box_cutoff',mesh_noortho)
 
 end subroutine test_domain
 
@@ -325,7 +325,7 @@ subroutine loop_box_function(fcheck,mesh)
   integer, parameter :: START_=1,END_=2
   logical :: enter
 
-  angdeg = mesh%angrad*180.0_f_double/pi
+  angdeg = mesh%dom%angrad*180.0_f_double/pi
   select case(trim(fcheck))
   case('distance')
      bit=box_iter(mesh)
@@ -335,17 +335,17 @@ subroutine loop_box_function(fcheck,mesh)
      ! rxyz_ortho, distance, r_wrap, closest_r, 
      ! square_gu, square_gd, dotp_gu, dotp_gd.
      call yaml_mapping_open('Check of functions distance, closest_r, rxyz_ortho')
-     call yaml_map('Cell orthorhombic',mesh%orthorhombic)
+     call yaml_map('Cell orthorhombic',mesh%dom%orthorhombic)
      call yaml_map('Cell ndims',mesh%ndims)
      call yaml_map('Cell hgrids',mesh%hgrids)
      call yaml_map('Cell angles deg',angdeg)
-     call yaml_map('Cell angles rad',mesh%angrad)
-     call yaml_map('Cell periodity (FREE=0,PERIODIC=1)',mesh%bc)
+     call yaml_map('Cell angles rad',mesh%dom%angrad)
+     call yaml_map('Cell periodity (FREE=0,PERIODIC=1)',mesh%dom%bc)
      call yaml_map('Volume element',mesh%volume_element)
-     call yaml_map('Contravariant matrix',mesh%gu)
-     call yaml_map('Covariant matrix',mesh%gd)
-     call yaml_map('Product of the two',matmul(mesh%gu,mesh%gd))
-     call yaml_map('uabc matrix',mesh%uabc)
+     call yaml_map('Contravariant matrix',mesh%dom%gu)
+     call yaml_map('Covariant matrix',mesh%dom%gd)
+     call yaml_map('Product of the two',matmul(mesh%dom%gu,mesh%dom%gd))
+     call yaml_map('uabc matrix',mesh%dom%uabc)
      call yaml_map('Sphere radius or cube side',r)
      do i=1,3
         totvolS=0.0_f_double
@@ -357,9 +357,9 @@ subroutine loop_box_function(fcheck,mesh)
         if (i==2) cen=mesh%ndims(1)*0.5_f_double
         if (i==3) cen=mesh%ndims(1)*1.5_f_double
         rxyz0=[cen,cen,cen]
-        if (mesh%bc(1)==0) rxyz0(1)=mesh%ndims(1)*0.5_f_double
-        if (mesh%bc(2)==0) rxyz0(2)=mesh%ndims(2)*0.5_f_double
-        if (mesh%bc(3)==0) rxyz0(3)=mesh%ndims(3)*0.5_f_double
+        if (mesh%dom%bc(1)==0) rxyz0(1)=mesh%ndims(1)*0.5_f_double
+        if (mesh%dom%bc(2)==0) rxyz0(2)=mesh%ndims(2)*0.5_f_double
+        if (mesh%dom%bc(3)==0) rxyz0(3)=mesh%ndims(3)*0.5_f_double
         do while(box_next_point(bit))
            ! Sphere volume integral with distance
            if (distance(bit%mesh,bit%rxyz,rxyz0) .le. r) then
@@ -434,17 +434,17 @@ subroutine loop_box_function(fcheck,mesh)
      ! To check the functions box_nbox_from_cutoff and 
      ! cell_cutoff_extremao of box.f90.
      call yaml_mapping_open('Check of box cutoff')
-     call yaml_map('Cell orthorhombic',mesh%orthorhombic)
+     call yaml_map('Cell orthorhombic',mesh%dom%orthorhombic)
      call yaml_map('Cell ndims',mesh%ndims)
      call yaml_map('Cell hgrids',mesh%hgrids)
      call yaml_map('Cell angles deg',angdeg)
-     call yaml_map('Cell angles rad',mesh%angrad)
-     call yaml_map('Cell periodity (FREE=0,PERIODIC=1)',mesh%bc)
+     call yaml_map('Cell angles rad',mesh%dom%angrad)
+     call yaml_map('Cell periodity (FREE=0,PERIODIC=1)',mesh%dom%bc)
      call yaml_map('Volume element',mesh%volume_element)
-     call yaml_map('Contravariant matrix',mesh%gu)
-     call yaml_map('Covariant matrix',mesh%gd)
-     call yaml_map('Product of the two',matmul(mesh%gu,mesh%gd))
-     call yaml_map('uabc matrix',mesh%uabc)
+     call yaml_map('Contravariant matrix',mesh%dom%gu)
+     call yaml_map('Covariant matrix',mesh%dom%gd)
+     call yaml_map('Product of the two',matmul(mesh%dom%gu,mesh%dom%gd))
+     call yaml_map('uabc matrix',mesh%dom%uabc)
      call yaml_map('Sphere radius or cube side',r)
      call yaml_map('Box cube cutoff',cutoff)
      do i=2,2
@@ -456,9 +456,9 @@ subroutine loop_box_function(fcheck,mesh)
         if (i==2) cen=mesh%ndims(1)*0.5_f_double
         if (i==3) cen=mesh%ndims(1)*1.5_f_double
         rxyz0=[cen,cen,cen]
-        if (mesh%bc(1)==0) rxyz0(1)=mesh%ndims(1)*0.5_f_double
-        if (mesh%bc(2)==0) rxyz0(2)=mesh%ndims(2)*0.5_f_double
-        if (mesh%bc(3)==0) rxyz0(3)=mesh%ndims(3)*0.5_f_double
+        if (mesh%dom%bc(1)==0) rxyz0(1)=mesh%ndims(1)*0.5_f_double
+        if (mesh%dom%bc(2)==0) rxyz0(2)=mesh%ndims(2)*0.5_f_double
+        if (mesh%dom%bc(3)==0) rxyz0(3)=mesh%ndims(3)*0.5_f_double
         call yaml_map('Sphere or cube center',rxyz0)
         bit=box_iter(mesh)
         call yaml_map('bit%nbox whole box',bit%nbox)
@@ -561,23 +561,23 @@ subroutine loop_box_function(fcheck,mesh)
      call yaml_mapping_close()
   case('consistency_check')
      call yaml_mapping_open('Check of consistency of cell data')
-     call yaml_map('Cell orthorhombic',mesh%orthorhombic)
+     call yaml_map('Cell orthorhombic',mesh%dom%orthorhombic)
      call yaml_map('Cell ndims',mesh%ndims)
      call yaml_map('Cell hgrids',mesh%hgrids)
      call yaml_map('Cell angles deg',angdeg)
-     call yaml_map('Cell angles rad',mesh%angrad)
-     call yaml_map('Cell periodity (FREE=0,PERIODIC=1)',mesh%bc)
+     call yaml_map('Cell angles rad',mesh%dom%angrad)
+     call yaml_map('Cell periodity (FREE=0,PERIODIC=1)',mesh%dom%bc)
      call yaml_map('Volume element',mesh%volume_element)
-     call yaml_map('Contravariant matrix',mesh%gu)
-     call yaml_map('Covariant matrix',mesh%gd)
-     call yaml_map('Product of the two',matmul(mesh%gu,mesh%gd))
-     call yaml_map('uabc matrix',mesh%uabc)
+     call yaml_map('Contravariant matrix',mesh%dom%gu)
+     call yaml_map('Covariant matrix',mesh%dom%gd)
+     call yaml_map('Product of the two',matmul(mesh%dom%gu,mesh%dom%gd))
+     call yaml_map('uabc matrix',mesh%dom%uabc)
 
-     abc = mesh%uabc
+     abc = mesh%dom%uabc
 
-     alpha=mesh%angrad(1)
-     beta=mesh%angrad(2)
-     gamma=mesh%angrad(3)
+     alpha=mesh%dom%angrad(1)
+     beta=mesh%dom%angrad(2)
+     gamma=mesh%dom%angrad(3)
      ths1 = 1.0d-15
 
      ! check if vectors are normalized. In this case vectors are given by column
@@ -606,9 +606,9 @@ subroutine loop_box_function(fcheck,mesh)
         ang(i) = dot_product(abc(:,i1),abc(:,i2))
      end do
      call yaml_map('Cell angles cosine from abc',ang)
-     call yaml_map('Cell angles cosine input',cos(mesh%angrad))
+     call yaml_map('Cell angles cosine input',cos(mesh%dom%angrad))
      call yaml_mapping_close()
-     if (any(abs(ang - cos(mesh%angrad)) >= ths2)) call yaml_map('Inconsistency between angles and primitive cell vectors','')
+     if (any(abs(ang - cos(mesh%dom%angrad)) >= ths2)) call yaml_map('Inconsistency between angles and primitive cell vectors','')
      call yaml_mapping_close()
   case('box_folding')
      call yaml_mapping_open('Check box folding in iterator')
@@ -623,7 +623,7 @@ subroutine loop_box_function(fcheck,mesh)
         totvol_Bcutoff=totvol_Bcutoff+1._f_double
      end do
      call yaml_map('check counted points', int(totvol_Bcutoff) == product(nbox(2, :) - nbox(1, :) + 1))
-     call yaml_map('check folding', (int(IntaS) == 2 ** sum(mesh%bc)))
+     call yaml_map('check folding', (int(IntaS) == 2 ** sum(mesh%dom%bc)))
      call yaml_mapping_close()
   case('other')
   end select

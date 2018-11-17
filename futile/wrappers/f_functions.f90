@@ -623,7 +623,7 @@ module f_functions
       !local variables
       real(f_double) :: fx,fy,fz,fx1,fx2,fy1,fy2,fz1,fz2
 
-      if (.not. bit%mesh%orthorhombic) then
+      if (.not. bit%mesh%dom%orthorhombic) then
          do while(box_next_z(bit))
             fz=eval(funcs(3),bit%rxyz(3))
             fz1=diff(funcs(3),bit%rxyz(3))
@@ -636,9 +636,9 @@ module f_functions
                   fx=eval(funcs(1),bit%rxyz(1))
                   fx1=diff(funcs(1),bit%rxyz(1))
                   fx2=diff(funcs(1),bit%rxyz(1),order=2)
-                  f(bit%ind) = factor*((bit%mesh%gu(1,1)*fx2*fy*fz+bit%mesh%gu(2,2)*fx*fy2*fz+&
-                       bit%mesh%gu(3,3)*fx*fy*fz2)+&
-                       2.0_f_double*(bit%mesh%gu(1,2)*fx1*fy1*fz+bit%mesh%gu(1,3)*fx1*fy*fz1+bit%mesh%gu(2,3)*fx*fy1*fz1))
+                  f(bit%ind) = factor*((bit%mesh%dom%gu(1,1)*fx2*fy*fz+bit%mesh%dom%gu(2,2)*fx*fy2*fz+&
+                       bit%mesh%dom%gu(3,3)*fx*fy*fz2)+&
+                       2.0_f_double*(bit%mesh%dom%gu(1,2)*fx1*fy1*fz+bit%mesh%dom%gu(1,3)*fx1*fy*fz1+bit%mesh%dom%gu(2,3)*fx*fy1*fz1))
                end do
             end do
          end do

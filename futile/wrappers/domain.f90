@@ -44,22 +44,62 @@ module at_domain
   !as it can be used in enum_attr calls
   type(f_enumerator), public :: DOUBLE_PRECISION_ENUM=f_enumerator('double precision',487,null())
 
+!!$  !>data type for the simulation domain
+!!$  type, public :: domain
+!!$     integer :: units=NULL_PAR
+!!$     logical :: orthorhombic=.true. !<true if the cell is orthorhombic
+!!$     integer, dimension(3) :: bc=NULL_PAR !< boundary conditions on each direction
+!!$     real(gp), dimension(3) :: angrad=0.0_gp !<angles between the dimensions in radians (alpha_bc,beta_ac,gamma_bc)
+!!$     real(gp), dimension(3,3) :: abc=0.0_gp !<matrix of the normalized translation vectors direction
+!!$     real(gp), dimension(3,3) :: uabc=0.0_gp !<matrix of the normalized translation vectors direction
+!!$     real(gp), dimension(3) :: acell=0.0_gp !lengths of the primitive vectors abc
+!!$     real(gp), dimension(3,3) :: gd=0.0_gp !<covariant metric needed for non-orthorhombic operations
+!!$     real(gp), dimension(3,3) :: gu=0.0_gp !<controvariant metric needed for non-orthorhombic operations
+!!$     real(gp) :: detgd=0.0_gp !<determinant of the covariant matrix
+!!$  end type domain
+
   !>data type for the simulation domain
   type, public :: domain
-     integer :: units=NULL_PAR
-     integer, dimension(3) :: bc=NULL_PAR !< boundary conditions on each direction
-     real(gp), dimension(3) :: angrad=0.0_gp !<angles between the dimensions in radians (alpha_bc,beta_ac,gamma_bc)
-     real(gp), dimension(3,3) :: abc=0.0_gp !<matrix of the normalized translation vectors direction
-     real(gp), dimension(3) :: acell=0.0_gp !lengths of the primitive vectors abc
+     integer :: units
+     logical :: orthorhombic !<true if the cell is orthorhombic
+     integer, dimension(3) :: bc !< boundary conditions on each direction
+     real(gp), dimension(3) :: angrad !<angles between the dimensions in radians (alpha_bc,beta_ac,gamma_bc)
+     real(gp), dimension(3,3) :: abc !<matrix of the normalized translation vectors direction
+     real(gp), dimension(3,3) :: uabc !<matrix of the normalized translation vectors direction
+     real(gp), dimension(3) :: acell !lengths of the primitive vectors abc
+     real(gp), dimension(3,3) :: gd !<covariant metric needed for non-orthorhombic operations
+     real(gp), dimension(3,3) :: gu !<controvariant metric needed for non-orthorhombic operations
+     real(gp) :: detgd !<determinant of the covariant matrix
   end type domain
 
-  public :: domain_null,domain_set_from_dict,domain_geocode,units_enum_from_str
+  public :: domain_null,domain_set_from_dict,domain_geocode,units_enum_from_str,domain_new
 
 contains
 
-  function domain_null()
-    type(domain) :: domain_null
+!!$  function domain_null()
+!!$    type(domain) :: domain_null
+!!$  end function domain_null
+
+  pure function domain_null() result(dom)
+    implicit none
+    type(domain) :: dom
+    call nullify_domain(dom)
   end function domain_null
+
+  pure subroutine nullify_domain(dom)
+    implicit none
+    type(domain), intent(out) :: dom
+    dom%units=NULL_PAR
+    dom%orthorhombic=.true.
+    dom%bc=NULL_PAR
+    dom%angrad=0.0_gp
+    dom%abc=0.0_gp
+    dom%uabc=0.0_gp
+    dom%acell=0.0_gp
+    dom%gd=0.0_gp
+    dom%gu=0.0_gp
+    dom%detgd=0.0_gp
+  end subroutine nullify_domain
 
   pure elemental function bc_is_periodic(bc) result(yes)
     implicit none
@@ -79,9 +119,39 @@ contains
     real(gp), dimension(3,3), intent(in), optional :: abc
     real(gp), intent(in), optional :: alpha_bc,beta_ac,gamma_ab
     type(domain) :: dom
+    !local variables
+    integer :: i,j
 
     dom%units=toi(units)
     dom%bc=toi(bc)
+
+    !default orthorhombic
+    dom%orthorhombic=.true.
+    dom%angrad=onehalf*pi
+    !Set the covariant metric
+    dom%gd(1,1) = 1.0_gp
+    dom%gd(1,2) = 0.0_gp
+    dom%gd(1,3) = 0.0_gp
+    dom%gd(2,2) = 1.0_gp
+    dom%gd(2,3) = 0.0_gp
+    dom%gd(3,3) = 1.0_gp
+    dom%gd(2,1) = dom%gd(1,2)
+    dom%gd(3,1) = dom%gd(1,3)
+    dom%gd(3,2) = dom%gd(2,3)
+
+    dom%detgd = 1.0_gp
+    !Set the contravariant metric
+    dom%gu(1,1) = 1.0_gp
+    dom%gu(1,2) = 0.0_gp
+    dom%gu(1,3) = 0.0_gp
+    dom%gu(2,2) = 1.0_gp
+    dom%gu(2,3) = 0.0_gp
+    dom%gu(3,3) = 1.0_gp
+    dom%gu(2,1) = dom%gu(1,2)
+    dom%gu(3,1) = dom%gu(1,3)
+    dom%gu(3,2) = dom%gu(2,3)
+
+    dom%uabc=dom%gd
 
     !this means free BC
     if (.not. any(bc_is_periodic(bc))) return
@@ -97,13 +167,14 @@ contains
        call abc_to_angrad_and_acell(abc,dom%angrad,dom%acell)
     else
        dom%acell=acell
-       !default orthorhombic
-       dom%angrad=onehalf*pi
        if (present(alpha_bc)) dom%angrad(BC_)=alpha_bc
        if (present(beta_ac)) dom%angrad(AC_)=beta_ac
        if (present(gamma_ab)) dom%angrad(AB_)=gamma_ab      
        call angrad_and_acell_to_abc(dom%angrad,dom%acell,dom%abc)
     end if
+    do i=1,3
+       dom%uabc(:,i)=dom%abc(:,i)/dom%acell(i)
+    end do
 
     call f_assert(all(dom%angrad > 0.0_gp),'Domain inconsistency: some of the angles are not positive')
     if (dom%angrad(AB_) /= onehalf*pi .and. .not.(bc_is_periodic(bc(A_)) .and. bc_is_periodic(bc(B_)))) &
@@ -113,8 +184,104 @@ contains
     if (dom%angrad(AC_) /= onehalf*pi .and. .not.(bc_is_periodic(bc(A_)) .and. bc_is_periodic(bc(C_)))) &
          call f_err_throw('Domain inconsistency: cannot provide angle beta_ac if the dimensions a and c are not periodic')
 
-     call f_assert(get_abc_angrad_acell_consistency(dom%abc,dom%angrad,dom%acell)< 1.e-10,&
+    call f_assert(get_abc_angrad_acell_consistency(dom%abc,dom%angrad,dom%acell)< 1.e-10,&
           'Domain inconsisntency: bad definition of angles angrad or acell wrt abc')
+
+    dom%orthorhombic=all(dom%angrad==onehalf*pi)
+
+    if ((domain_geocode(dom) == 'F' .or. domain_geocode(dom) == 'W') .and. (.not. dom%orthorhombic)) &
+         call f_err_throw('For geocode="F","W" the cell must be orthorhombic')
+
+    if (.not. dom%orthorhombic) then
+       !some consistency check on the angles should be performed
+       !1) sum(angrad) < twopi
+       if (all(dom%angrad==dom%angrad(1))) then
+          !Treat the case of equal angles (except all right angles) :
+          !generates trigonal symmetry wrt third axis
+          !Set the covariant metric
+          dom%gd(1,1) = 1.0_gp
+          dom%gd(1,2) = cos(dom%angrad(3)) !gamma_ab
+          dom%gd(1,3) = cos(dom%angrad(2)) !beta_ac
+          dom%gd(2,2) = 1.0_gp
+          dom%gd(2,3) = cos(dom%angrad(1)) !alpha_bc
+          dom%gd(3,3) = 1.0_gp
+          !Set the determinant of the covariant metric
+          dom%detgd = 1.0_gp - cos(dom%angrad(1))**2 - cos(dom%angrad(2))**2 - cos(dom%angrad(3))**2 +&
+               2.0_gp*cos(dom%angrad(1))*cos(dom%angrad(2))*cos(dom%angrad(3))
+          !Set the contravariant metric
+          dom%gu(1,1) = (sin(dom%angrad(1))**2)/dom%detgd
+          dom%gu(1,2) = (cos(dom%angrad(2))*cos(dom%angrad(1))-cos(dom%angrad(3)))/dom%detgd
+          dom%gu(1,3) = (cos(dom%angrad(3))*cos(dom%angrad(1))-cos(dom%angrad(2)))/dom%detgd
+          dom%gu(2,2) = (sin(dom%angrad(2))**2)/dom%detgd
+          dom%gu(2,3) = (cos(dom%angrad(3))*cos(dom%angrad(2))-cos(dom%angrad(1)))/dom%detgd
+          dom%gu(3,3) = (sin(dom%angrad(3))**2)/dom%detgd
+       else if (domain_geocode(dom) == 'P') then
+          !Set the covariant metric
+          dom%gd(1,1) = 1.0_gp
+          dom%gd(1,2) = cos(dom%angrad(3)) !gamma_ab
+          dom%gd(1,3) = cos(dom%angrad(2)) !beta_ac
+          dom%gd(2,2) = 1.0_gp
+          dom%gd(2,3) = cos(dom%angrad(1)) !alpha_bc
+          dom%gd(3,3) = 1.0_gp
+          !Set the determinant of the covariant metric
+          dom%detgd = 1.0_gp - cos(dom%angrad(1))**2 - cos(dom%angrad(2))**2 - cos(dom%angrad(3))**2 +&
+               2.0_gp*cos(dom%angrad(1))*cos(dom%angrad(2))*cos(dom%angrad(3))
+          !Set the contravariant metric
+          dom%gu(1,1) = (sin(dom%angrad(1))**2)/dom%detgd
+          dom%gu(1,2) = (cos(dom%angrad(2))*cos(dom%angrad(1))-cos(dom%angrad(3)))/dom%detgd
+          dom%gu(1,3) = (cos(dom%angrad(3))*cos(dom%angrad(1))-cos(dom%angrad(2)))/dom%detgd
+          dom%gu(2,2) = (sin(dom%angrad(2))**2)/dom%detgd
+          dom%gu(2,3) = (cos(dom%angrad(3))*cos(dom%angrad(2))-cos(dom%angrad(1)))/dom%detgd
+          dom%gu(3,3) = (sin(dom%angrad(3))**2)/dom%detgd
+       else !only Surfaces is possible here
+          !Set the covariant metric
+          dom%gd=0.0_gp
+          dom%gd(1,1) = 1.0_gp
+          dom%gd(1,3) = cos(dom%angrad(2)) !beta_ac
+          dom%gd(2,2) = 1.0_gp
+          dom%gd(3,3) = 1.0_gp
+          !Set the determinant of the covariant metric
+          dom%detgd = sin(dom%angrad(2))**2
+          !Set the contravariant metric
+          dom%gu=0.0_gp
+          dom%gu(1,1) = 1.0_gp/dom%detgd
+          dom%gu(1,3) = -cos(dom%angrad(2))/dom%detgd
+          dom%gu(2,2) = 1.0_gp!/mesh%detgd
+          dom%gu(3,3) = 1.0_gp/dom%detgd
+       end if
+    else
+       dom%angrad=onehalf*pi
+       !Set the covariant metric
+       dom%gd(1,1) = 1.0_gp
+       dom%gd(1,2) = 0.0_gp
+       dom%gd(1,3) = 0.0_gp
+       dom%gd(2,2) = 1.0_gp
+       dom%gd(2,3) = 0.0_gp
+       dom%gd(3,3) = 1.0_gp
+       dom%detgd = 1.0_gp
+       !Set the contravariant metric
+       dom%gu(1,1) = 1.0_gp
+       dom%gu(1,2) = 0.0_gp
+       dom%gu(1,3) = 0.0_gp
+       dom%gu(2,2) = 1.0_gp
+       dom%gu(2,3) = 0.0_gp
+       dom%gu(3,3) = 1.0_gp
+    end if
+    dom%gd(2,1) = dom%gd(1,2)
+    dom%gd(3,1) = dom%gd(1,3)
+    dom%gd(3,2) = dom%gd(2,3)
+
+    dom%gu(2,1) = dom%gu(1,2)
+    dom%gu(3,1) = dom%gu(1,3)
+    dom%gu(3,2) = dom%gu(2,3)
+    do i=1,3
+       do j=1,3
+          if (abs(dom%gd(i,j)).lt.1.0d-15) dom%gd(i,j)=0.0_gp
+          if (abs(dom%gu(i,j)).lt.1.0d-15) dom%gu(i,j)=0.0_gp
+       end do
+    end do
+
+    !here we should verify that the the inverse metric times the metric is the identity
 
   end function domain_new
 
