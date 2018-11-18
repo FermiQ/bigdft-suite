@@ -166,7 +166,7 @@ subroutine wfd_from_grids(logrid_c, logrid_f, calculate_bounds, Glr)
    !that is the point where the association is given
    !one should consider the possiblity of associating the
    !arrays with f_associate
-  
+
 !!$   call f_free_ptr(Glr%wfd%keygloc)
 !!$   Glr%wfd%keygloc => Glr%wfd%keyglob
 !!$
@@ -260,18 +260,20 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,orbs,&
   type(locreg_storage) :: lr_storage
   integer, dimension(:), allocatable :: nbsegs_cf,keyg_lin
   logical, dimension(:,:,:), allocatable :: logrid
-  
+  integer, dimension(1) :: onevec
+
   call f_routine(id=subname)
 
   !start from a null structure
   nl = DFT_PSP_projectors_null()
   nl%nregions = at%astruct%nat
-  
+
   totzerovol=0.0_gp
   maxfullvol=0.0_gp
   totfullvol=0.0_gp
   maxzerovol=0.0_gp
   igamma = 0
+  onevec=[1]
   if (any(at%dogamma)) &
        & nl%iagamma   = f_malloc0_ptr([0.to.lmax_ao,1.to.at%astruct%nat], id = 'iagamma')
   call allocate_atomic_projectors_ptr(nl%pbasis, nl%nregions)
@@ -287,7 +289,7 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,orbs,&
              & at%npspcode(ityp) == PSPCODE_HGH_K .or. &
              & at%npspcode(ityp) == PSPCODE_HGH_K_NLCC) then
            nl%pbasis(ireg)%kind = PROJ_DESCRIPTION_GAUSSIAN
-           call gaussian_basis_from_psp(1, [1], nl%pbasis(ireg)%rxyz, &
+           call gaussian_basis_from_psp(1, onevec, nl%pbasis(ireg)%rxyz, &
                 & at%psppar(:,:,ityp:ityp), 1, nl%pbasis(ireg)%gbasis)
            maxrad=min(maxval(at%psppar(1:4,0,ityp)),cpmult/15.0_gp*at%radii_cf(ityp,3))
            zerovol=0.0_gp
@@ -334,7 +336,7 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,orbs,&
           & id = 'gamma_mmp')
      nl%apply_gamma_target = associated(at%gamma_targets)
   end if
-  
+
   call lr_storage_init(lr_storage, nl%nregions)
 
   ! Parallelize over the atoms
@@ -383,7 +385,7 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,orbs,&
   end do
 
   call lr_storage_free(lr_storage)
-  
+
   !allocate the work arrays for building tolr array of structures
   if (init_projectors_completely .and. .not. dry_run) then
      keyg_lin = f_malloc(lr%wfd%nseg_c+lr%wfd%nseg_f, id='keyg_lin')
@@ -437,7 +439,7 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,orbs,&
   !   nkptsproj=0 !no projectors to fill without on-the-fly
   end if
   nl%nprojel = nkptsproj * nl%nprojel
-  
+
   !for the work arrays assume always the maximum components
   if (.not. dry_run) then
      nl%wpack=f_malloc_ptr(4*npack_dim,id='wpack')
@@ -481,7 +483,7 @@ subroutine input_wf_empty(iproc, nproc, psi, hpsi, psit, orbs, &
   use yaml_output
   use public_enums
   use IObox
-  use locregs  
+  use locregs
   implicit none
   integer, intent(in) :: iproc, nproc
   type(orbitals_data), intent(in) :: orbs
@@ -672,7 +674,7 @@ use wfn_extrap
   type(old_wavefunction), dimension(0:wfn_history+1), intent(inout) :: oldpsis
   integer, intent(inout) :: istep_history
   real(wp), dimension(Lzd%Glr%wfd%nvctr_c+7*Lzd%Glr%wfd%nvctr_f,orbs%nspinor*orbs%norbp), intent(out) :: psi
-  
+
   !local variables
   character(len=*), parameter :: subname='input_wf_memory_history'
   logical, parameter :: debug_flag=.false.
@@ -2787,7 +2789,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
         do ityp = 1, atoms%astruct%ntypes
            if (atoms%npspcode(ityp) /= PSPCODE_PAW .and. &
                 & atoms%npspcode(ityp) /= PSPCODE_PSPIO) continue
-           
+
            atoms%npspcode(ityp) = PSPCODE_HGH
            ixc_ = in%ixc
            call psp_from_data(trim(atoms%astruct%atomnames(ityp)), nzatom_, nelpsp_, &
