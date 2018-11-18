@@ -1,4 +1,4 @@
-class Molecule():
+class Molecule(dict):
     def __init__(self,name):
         import os
         from BigDFT.Fragments import System
@@ -8,4 +8,8 @@ class Molecule():
         if not os.path.isfile(filename):
             raise ValueError('Molecule not available')
         system = System(xyz=filename)
-        return system.dict()
+        self.update(system.dict())
+        #temporary change of the keys 'values' into 'positions'
+        self['positions']=self.pop('values')
+        for at in self['positions']:
+            if 'r' in at: at.pop('r')
