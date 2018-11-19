@@ -536,9 +536,9 @@ class System():
 
     def _get_units(self, unt):
         self.units = unt
-        if unt == 'angstroem':
+        if unt == 'angstroem' or unt == 'angstroemd0':
             self.units = 'A'
-        elif unt == 'atomic' or unt == 'bohr':
+        elif unt == 'atomic' or unt == 'bohr' or unt == 'atomicd0' or unt == 'bohrd0':
             self.units = 'AU'
 
     def _bigdft_units(self):
@@ -685,8 +685,8 @@ class System():
         # if self.units != 'A':
         #    print 'Dictionary version not available if the system is given in AU'
         #    raise Exception
-        dc = {'units': self._bigdft_units(), 'global monopole': float(
-            self.Q()), 'values': atoms}
+        dc = {'units': self._bigdft_units(), 'values': atoms}
+        if hasattr(self,'Q'): dc['global monopole']=float(self.Q())
         return dc
 
     def append(self, frag):
@@ -787,6 +787,9 @@ class System():
         monopoles of the atoms
         """
         return sum([f.Q() for f in self.fragments])
+            return sum([f.Q() for f in self.fragments if hasattr(f,'Q') and f.Q() is not None])
+        else:
+            return None
 
     def fragdict(self):
         """
