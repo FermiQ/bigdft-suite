@@ -76,13 +76,14 @@ program numeric_check
 !!$  boxit = box_iter(mesh,origin=rxyz,cutoff=cutoff)
 !!$  call finalize_real_space_conversion()
 
+  call test_domain()
+
   call test_f_functions()
 
   call dict_free(options)
   !here some tests about the box usage
   call test_box_functions()
 
-!  call test_domain()
 
   call f_lib_finalize()
 
@@ -300,7 +301,30 @@ subroutine test_domain()
 
   call domain_set_from_dict(yaml_file_dict,dom)
 
+  call print_domain(dom)
+
 end subroutine test_domain
+
+subroutine print_domain(dom)
+  use at_domain
+  use futile
+  implicit none
+  type(domain) :: dom
+
+  call yaml_mapping_open('Check of domain')
+  call yaml_map('units',dom%units)
+  call yaml_map('orthorhombic',dom%orthorhombic)
+  call yaml_map('bc',dom%bc)
+  call yaml_map('angrad',dom%angrad)
+  call yaml_map('abc',dom%abc)
+  call yaml_map('uabc',dom%uabc)
+  call yaml_map('acell',dom%acell)
+  call yaml_map('gd',dom%gd)
+  call yaml_map('gu',dom%gu)
+  call yaml_map('detgd',dom%detgd)
+  call yaml_mapping_close()
+
+end subroutine print_domain
 
 subroutine loop_box_function(fcheck,mesh)
   use futile
