@@ -125,6 +125,9 @@ class F90toRst(object):
         self._ic = ic
         self._ulc = ulc
         self._sst = sst
+        self._members = []
+        self._undoc_members = []
+        self.exclude_private = True
 
     # Indexing ---
 
@@ -590,9 +593,9 @@ class F90toRst(object):
         module = module.lower()
         assert module in self.modules.keys(), "Wrong module name"
         baselist = getattr(self, choice).values()
-        return [v for v in baselist if 'module' in v and v['module'] == module.lower()]
+        return [v for v in baselist if 'module' in v and v['module'] == module.lower() and self.is_member(v)]
 
-    # Formating ---
+    # Formatting ---
 
     def set_ulc(self, ulc):
         """Set the underline character for title inside module description"""
@@ -618,9 +621,39 @@ class F90toRst(object):
         return self._sst
     sst = property(get_sst, set_sst, doc='Subsection type ("title" or "rubric")')
 
+    def set_members(self,members):
+        """Add the members in the list of wanted members"""
+        self._members = members
+    def get_members(self):
+        """Get the the list of wanted members"""
+        return self._members
+    members = property(get_members,set_members, doc='Members to be documented')
+
+    def set_undoc_members(self,members):
+        """Add the members in the list of un-wanted members"""
+        self._undoc_members = members
+    def get_undoc_members(self):
+        """Get the the list of un-wanted members"""
+        return self._undoc_members
+    undoc_members = property(get_undoc_members,set_undoc_members, doc='Members not to be documented')
+
     def indent(self, n):
         """Get a proper indentation"""
         return n*self.ic
+
+    def is_member(self,object):
+        """Define if an object have to be documented"""
+        if False:
+            print 'ZZZZdebugZZZZ',object.get('name'),object.get('attrspec')
+            if object.get('name') is None:
+                print object
+            print 'AAA',self.exclude_private
+        name=object.get('name')
+        ok='private' not in object.get('attrspec',[]) or self.exclude_private is None
+        if ok:
+            if self.members: ok = name is None or name in self.members
+            if self.undoc_members: ok = name is None or name not in self.undoc_members
+        return ok
 
     def format_lines(self, lines, indent=0, bullet=None, nlc='\n', strip=False):
         """Convert a list of lines to text"""
@@ -1100,7 +1133,7 @@ class F90toRst(object):
         """Format the description of all fortran types"""
         types = []
         for subblock in block['body']:
-            if subblock['block']=='type':
+            if subblock['block']=='type' and self.is_member(subblock):
                 types.append(self.format_type(subblock, indent=indent))
         if types:
             types = self.format_subsection('Types', indent=indent)+'\n'.join(types)
@@ -1113,8 +1146,8 @@ class F90toRst(object):
         variables = ''
         if block['vars']:
             for bvar in block['vars'].values():
-                variables += self.format_var(bvar, indent=indent)
-            variables = self.format_subsection('Variables', indent=indent)+variables+'\n\n'
+                if self.is_member(bvar): variables += self.format_var(bvar, indent=indent)
+            if variables: variables = self.format_subsection('Variables', indent=indent)+variables+'\n\n'
         return variables
 
     def format_description(self, block, indent=0):
@@ -1131,7 +1164,7 @@ class F90toRst(object):
         blocks = block if isinstance(block, list) else block['body']
         fdecs = []
         for subblock in blocks: #block['body']:
-            if subblock['block'] in ['function', 'subroutine']:
+            if subblock['block'] in ['function', 'subroutine'] and self.is_member(subblock):
                 fdecs.append(self.format_routine(subblock, indent))
         if fdecs:
             fdecs = '\n'.join(fdecs)
@@ -1278,8 +1311,9 @@ def fmt_indent(string):
 
 class FortranAutoModuleDirective(Directive):
     has_content = True
-    option_spec = dict(title_underline=unchanged, indent=fmt_indent,
-        subsection_type=unchanged)
+    option_spec = {'title_underline': unchanged, 'indent':fmt_indent,
+                   'subsection_type': unchanged,'members': unchanged,
+                   'undoc-members': unchanged, 'include-private': unchanged}
     required_arguments = 1
     optional_arguments = 0
 
@@ -1299,14 +1333,23 @@ class FortranAutoModuleDirective(Directive):
 #            self.warn('Wrong fortran module name: '+module)
 
         # Options
-        ic = f90torst.ic
-        ulc = f90torst.ulc
-        if self.options.get('indent'):
-            f90torst.ic = self.options['indent']
-        if self.options.get('title_underline'):
-            f90torst.ulc = self.options['title_underline']
-        if self.options.get('subsection_type'):
-            f90torst.ulc = self.options['subsection_type']
+        prev_opts={}
+        attropts=[('ic','indent'),('ulc','title_underline'),('sst','subsection_type'),
+                  ('members','members'),('undoc_members','undoc-members'),
+                  ('exclude_private','include-private')]
+        for attr,opt in attropts:
+            if self.options.get(opt):
+                prev_opts[(opt,attr)]=getattr(f90torst,attr)
+                setattr(f90torst,attr,self.options[opt])
+        #ic = f90torst.ic
+        #ulc = f90torst.ulc
+        #sst = f90torst.sst
+        #if self.options.get('indent'):
+        #    f90torst.ic = self.options['indent']
+        #if self.options.get('title_underline'):
+        #    f90torst.ulc = self.options['title_underline']
+        #if self.options.get('subsection_type'):
+        #    f90torst.sst = self.options['subsection_type'] #this was ulc before
 
         # Get rst
         raw_text = f90torst.format_module(module)
@@ -1318,9 +1361,11 @@ class FortranAutoModuleDirective(Directive):
         self.state_machine.insert_input(include_lines,source)
 
         # Restore defaults
-        if 'indent' in self.options: f90torst.ic = ic
-        if 'title_underline' in self.options: f90torst.ulc = ulc
-        if 'subsection_type' in self.options: f90torst.sst = sst
+        for opt,attr in prev_opts:
+            setattr(f90torst,attr,prev_opts[(opt,attr)])
+        #if 'indent' in self.options: f90torst.ic = ic
+        #if 'title_underline' in self.options: f90torst.ulc = ulc
+        #if 'subsection_type' in self.options: f90torst.sst = sst
 
         return []
 
@@ -1492,4 +1537,3 @@ def setup(app):
         autosrcfile=FortranAutoSrcfileDirective,
     )
     app.connect('builder-inited', fortran_parse)
-
