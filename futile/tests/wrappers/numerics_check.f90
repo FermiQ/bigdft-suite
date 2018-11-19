@@ -310,6 +310,7 @@ subroutine loop_box_function(fcheck,mesh)
   use yaml_strings
   use wrapper_MPI
   use numerics, only:pi
+  use at_domain
   implicit none
   character(len=*), intent(in) :: fcheck
   type(cell), intent(in) :: mesh
@@ -362,12 +363,15 @@ subroutine loop_box_function(fcheck,mesh)
         if (mesh%dom%bc(3)==0) rxyz0(3)=mesh%ndims(3)*0.5_f_double
         do while(box_next_point(bit))
            ! Sphere volume integral with distance
-           if (distance(bit%mesh,bit%rxyz,rxyz0) .le. r) then
+           !if (distance(bit%mesh,bit%rxyz,rxyz0) .le. r) then
+           if (box_iter_distance(bit,rxyz0) .le. r) then
               totvolS=totvolS+1.0_f_double
            end if
            ! Sphere volume integral with rxyz_ortho
-           rd=closest_r(bit%mesh,bit%rxyz,rxyz0)
-           rv=rxyz_ortho(bit%mesh,rd)
+           !rd=closest_r(bit%mesh,bit%rxyz,rxyz0)
+           rd=box_iter_closest_r(bit,rxyz0)
+           !rv=rxyz_ortho(bit%mesh,rd)
+           rv=box_iter_closest_r(bit,rxyz0,orthorhombic=.true.)
            d2=0.0_f_double
            do ii=1,3
               d2=d2+rv(ii)**2
@@ -376,7 +380,8 @@ subroutine loop_box_function(fcheck,mesh)
            if (dist1 .le. r) then
               totvolS1=totvolS1+1.0_f_double
            end if
-           d2=square_gd(mesh,rd)
+           !d2=square_gd(mesh,rd)
+           d2=square_gd(mesh%dom,rd)
            dist2=sqrt(d2)
            ! Sphere volume integral with rxyz_ortho
            if (dist2 .le. r) then
@@ -470,7 +475,8 @@ subroutine loop_box_function(fcheck,mesh)
         do while(box_next_point(bit))
 
            ! Sphere volume integral with distance
-           if (distance(bit%mesh,bit%rxyz,rxyz0) .le. r) then
+           !if (distance(bit%mesh,bit%rxyz,rxyz0) .le. r) then
+           if (box_iter_distance(bit,rxyz0) .le. r) then
              nbox_ref(START_,1)=min(bit%i,nbox_ref(START_,1))
              nbox_ref(END_,1)=max(bit%i,nbox_ref(END_,1))
              nbox_ref(START_,2)=min(bit%j,nbox_ref(START_,2))
@@ -486,14 +492,17 @@ subroutine loop_box_function(fcheck,mesh)
 !            print*, bit%i,bit%j,bit%k
 !           end if
 
-           rd=closest_r(bit%mesh,bit%rxyz,rxyz0)
-           rv=rxyz_ortho(bit%mesh,rd)
+           !rd=closest_r(bit%mesh,bit%rxyz,rxyz0)
+           rd=box_iter_closest_r(bit,rxyz0)
+           !rv=rxyz_ortho(bit%mesh,rd)
+           rv=box_iter_closest_r(bit,rxyz0,orthorhombic=.true.)
+
            d2=0.0_f_double
            do ii=1,3
               d2=d2+rv(ii)**2
            end do
            dist1=sqrt(d2)
-           d2=square_gd(mesh,rd)
+           d2=square_gd(mesh%dom,rd)
            dist2=sqrt(d2)
            diff_old=abs(dist2-dist1)
            if (diff_old.gt.diff) then
@@ -636,6 +645,7 @@ subroutine loop_dotp(strategy,mesh,v1,v2,time)
   use f_utils
   use yaml_strings
   use wrapper_MPI
+  use at_domain
   implicit none
   character(len=*), intent(in) :: strategy
   type(cell), intent(in) :: mesh
@@ -670,7 +680,7 @@ subroutine loop_dotp(strategy,mesh,v1,v2,time)
      do i3=1,mesh%ndims(3)
         do i2=1,mesh%ndims(2)
            do i1=1,mesh%ndims(1)
-              res=dotp_gd(mesh,v1(1,i1,i2,i3),v2(1,i1,i2,i3))
+              res=dotp_gd(mesh%dom,v1(1,i1,i2,i3),v2(1,i1,i2,i3))
               res=res/20.0_f_double
               totdot=totdot+res
               v2(:,i1,i2,i3)=res
@@ -687,7 +697,7 @@ subroutine loop_dotp(strategy,mesh,v1,v2,time)
      do i3=1,mesh%ndims(3)
         do i2=1,mesh%ndims(2)
            do i1=1,mesh%ndims(1)
-              res=dotp_gd(mesh,v1(1,i1,i2,i3),v2(1,i1,i2,i3))
+              res=dotp_gd(mesh%dom,v1(1,i1,i2,i3),v2(1,i1,i2,i3))
               res=res/20.0_f_double
               totdot=totdot+res
               v2(:,i1,i2,i3)=res
@@ -701,7 +711,7 @@ subroutine loop_dotp(strategy,mesh,v1,v2,time)
      totdot=0.0_f_double
      t0=f_time()
      do while(box_next_point(bit))
-        res=dotp_gd(bit%mesh,v1(1,bit%i,bit%j,bit%k),v2(1,bit%i,bit%j,bit%k))
+        res=dotp_gd(bit%mesh%dom,v1(1,bit%i,bit%j,bit%k),v2(1,bit%i,bit%j,bit%k))
         res=res/20.0_f_double
         totdot=totdot+res
         v2(:,bit%i,bit%j,bit%k)=res
@@ -721,7 +731,7 @@ subroutine loop_dotp(strategy,mesh,v1,v2,time)
      !$ nthread=omp_get_num_threads()
      call box_iter_split(bit,nthread,ithread)
      do while(box_next_point(bit))
-        res=dotp_gd(bit%mesh,v1(1,bit%i,bit%j,bit%k),v2(1,bit%i,bit%j,bit%k))
+        res=dotp_gd(bit%mesh%dom,v1(1,bit%i,bit%j,bit%k),v2(1,bit%i,bit%j,bit%k))
         res=res/20.0_f_double
         totdot=totdot+res
         v2(:,bit%i,bit%j,bit%k)=res
@@ -741,7 +751,7 @@ subroutine loop_dotp(strategy,mesh,v1,v2,time)
      totdot=0.0_f_double
      t0=f_time()
      do while(box_next_point(bit))
-        res=dotp_gd(bit%mesh,v1(1,bit%i,bit%j,bit%k),v2(1,bit%i,bit%j,bit%k))
+        res=dotp_gd(bit%mesh%dom,v1(1,bit%i,bit%j,bit%k),v2(1,bit%i,bit%j,bit%k))
         res=res/20.0_f_double
         totdot=totdot+res
         v2(:,bit%i,bit%j,bit%k)=res

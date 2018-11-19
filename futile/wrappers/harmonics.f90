@@ -100,8 +100,9 @@ module f_harmonics
       do ispin=1,nfield
          do while(box_next_point(bit))
             q= field(bit%ind,ispin)*bit%mesh%volume_element
-            bit%tmp=closest_r(bit%mesh,bit%rxyz,mp%rxyz)
-            bit%tmp=rxyz_ortho(bit%mesh,bit%tmp)
+            !bit%tmp=closest_r(bit%mesh,bit%rxyz,mp%rxyz)
+            !bit%tmp=rxyz_ortho(bit%mesh,bit%tmp)
+            bit%tmp=box_iter_closest_r(bit,mp%rxyz,orthorhombic=.true.)
             !here we should put the orthorxyz
             call accumulate_multipoles(bit%tmp,q,mp%nmonomials,mp%monomials)
          end do
@@ -111,6 +112,7 @@ module f_harmonics
 
     subroutine vector_multipoles(mp,nat,rxyz,mesh,origin,charges,lookup)
       use box
+      use at_domain
       implicit none
       type(cell), intent(in) :: mesh
       integer, intent(in) :: nat
@@ -125,8 +127,8 @@ module f_harmonics
       oxyz=mp%rxyz
       if (present(origin)) oxyz=origin
       do iat=1,nat
-         tmp=closest_r(mesh,rxyz(:,iat),oxyz)
-         tmp=rxyz_ortho(mesh,tmp)
+         tmp=closest_r(mesh%dom,rxyz(:,iat),oxyz)
+         tmp=rxyz_ortho(mesh%dom,tmp)
          jat=iat
          if (present(lookup)) jat=lookup(iat)
          call accumulate_multipoles(tmp,charges(jat),&

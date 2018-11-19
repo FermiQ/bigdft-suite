@@ -72,7 +72,26 @@ module at_domain
      real(gp) :: detgd !<determinant of the covariant matrix
   end type domain
 
-  public :: domain_null,domain_set_from_dict,domain_geocode,units_enum_from_str,domain_new
+  interface dotp_gu
+     module procedure dotp_gu,dotp_gu_add1,dotp_gu_add2
+  end interface dotp_gu
+
+  interface square_gu
+     module procedure square,square_add
+  end interface square_gu
+
+  interface dotp_gd
+     module procedure dotp_gd,dotp_gd_add1,dotp_gd_add2,dotp_gd_add12
+  end interface dotp_gd
+
+  interface square_gd
+     module procedure square_gd,square_gd_add
+  end interface square_gd
+
+  public :: domain_null,domain_set_from_dict,units_enum_from_str,domain_new
+  public :: rxyz_ortho,distance,closest_r
+  public :: dotp_gu,dotp_gd,square_gu,square_gd
+  public :: domain_geocode,bc_periodic_dims,geocode_to_bc,domain_periodic_dims
 
 contains
 
@@ -476,7 +495,6 @@ contains
     end do
 
   end subroutine bc_and_cell_to_dict
-
   
   !that function cannot be pure
   function bc_enum_from_int(ibc) result(bc)
@@ -513,7 +531,6 @@ contains
     end do
 
   end function bc_enums_from_int
-
 
   function units_enum_from_str(str) result(units)
     implicit none
@@ -639,7 +656,7 @@ contains
   end subroutine domain_merge_to_dict
 
   ! determine the array of BC from a geometry code
-  function geocode_to_bc(geocode) result(bc)
+  function geocode_to_bc_enum(geocode) result(bc)
     use dictionaries, only: f_err_throw
     implicit none
     character(len=1), intent(in) :: geocode
@@ -659,30 +676,460 @@ contains
     case default
        bc=FREE_BC
     end select
-  end function geocode_to_bc
+  end function geocode_to_bc_enum
+
+  ! determine the array of BC from a geometry code
+  pure function geocode_to_bc(geocode) result(bc)
+    use dictionaries, only: f_err_throw
+    implicit none
+    character(len=1), intent(in) :: geocode
+    integer, dimension(3) :: bc
+    select case(geocode)
+    case('P')
+       bc=PERIODIC
+    case('S')
+       bc=PERIODIC
+       bc(2)=FREE
+    case('F')
+       bc=FREE
+    case('W')
+       bc=FREE
+       bc(3)=PERIODIC
+    case default
+       bc=NULL_PAR
+    end select
+  end function geocode_to_bc     
  
   !>give the associated geocode, 'X' for unknown
-  pure function domain_geocode(dom) result(cell_geocode)
+  pure function domain_geocode(dom) result(dom_geocode)
     implicit none
     type(domain), intent(in) :: dom
-    character(len=1) :: cell_geocode
+    character(len=1) :: dom_geocode
     !local variables
     logical, dimension(3) :: peri
 
     peri= dom%bc == PERIODIC
     if (all(peri)) then
-       cell_geocode='P'
+       dom_geocode='P'
     else if (.not. any(peri)) then
-       cell_geocode='F'
+       dom_geocode='F'
     else if (peri(1) .and. .not. peri(2) .and. peri(3)) then
-       cell_geocode='S'
+       dom_geocode='S'
     else if (.not. peri(1) .and. .not. peri(2) .and. peri(3)) then
-       cell_geocode='W'
+       dom_geocode='W'
     else
-       cell_geocode='X'
+       dom_geocode='X'
     end if
 
   end function domain_geocode 
+
+  !> returns a logical array of size 3 which is .true. for all the periodic dimensions
+  pure function bc_periodic_dims(bc) result(peri)
+    implicit none
+    integer, dimension(3), intent(in) :: bc
+    logical, dimension(3) :: peri
+    peri= bc == PERIODIC
+  end function bc_periodic_dims
+
+  !> returns a logical array of size 3 which is .true. for all the periodic dimensions
+  pure function domain_periodic_dims(dom) result(peri)
+    implicit none
+    type(domain), intent(in) :: dom
+    logical, dimension(3) :: peri
+    !local variables
+
+    peri=bc_periodic_dims(dom%bc)
+
+  end function domain_periodic_dims
+
+  !> Calculates the square of the vector r in the domain defined by dom
+  !! Takes into account the non-orthorhombicity of the box
+  !! with the controvariant metric (dom%gu)
+  pure function square(dom,v)
+    implicit none
+    !> array of coordinate in the domain reference frame
+    real(gp), dimension(3), intent(in) :: v
+    type(domain), intent(in) :: dom !<definition of the domain
+    real(gp) :: square
+
+    if (dom%orthorhombic) then
+       square=v(1)**2+v(2)**2+v(3)**2
+    else
+       square=dotp_gu(dom,v,v)
+    end if
+
+  end function square
+
+  function square_add(dom,v_add) result(square)
+    implicit none
+    !> array of coordinate in the domain reference frame
+    real(gp) :: v_add
+    type(domain), intent(in) :: dom !<definition of the domain
+    real(gp) :: square
+
+    if (dom%orthorhombic) then
+       call dotp_external_ortho(v_add,v_add,square)
+    else
+       call dotp_external_nonortho(dom%gu,v_add,v_add,square)
+    end if
+
+  end function square_add
+
+  !> Calculates the square of the vector r in the domain defined by dom
+  !! Takes into account the non-orthorhombicity of the box
+  !! with the covariant metric (dom%gd)
+  pure function square_gd(dom,v)
+    implicit none
+    !> array of coordinate in the domain reference frame
+    real(gp), dimension(3), intent(in) :: v
+    type(domain), intent(in) :: dom !<definition of the domain
+    real(gp) :: square_gd
+
+    if (dom%orthorhombic) then
+       square_gd=v(1)**2+v(2)**2+v(3)**2
+    else
+       square_gd=dotp_gd(dom,v,v)
+    end if
+
+  end function square_gd
+
+  function square_gd_add(dom,v_add) result(square)
+    implicit none
+    !> array of coordinate in the domain reference frame
+    real(gp) :: v_add
+    type(domain), intent(in) :: dom !<definition of the domain
+    real(gp) :: square
+
+    if (dom%orthorhombic) then
+       call dotp_external_ortho(v_add,v_add,square)
+    else
+       call dotp_external_nonortho(dom%gd,v_add,v_add,square)
+    end if
+
+  end function square_gd_add
+
+  pure function dotp_gu(dom,v1,v2)
+    implicit none
+    real(gp), dimension(3), intent(in) :: v1,v2
+    type(domain), intent(in) :: dom !<definition of the domain
+    real(gp) :: dotp_gu
+    !local variables
+    integer :: i,j
+
+    if (dom%orthorhombic) then
+       dotp_gu=v1(1)*v2(1)+v1(2)*v2(2)+v1(3)*v2(3)
+    else
+       dotp_gu=0.0_gp
+       do i=1,3
+          do j=1,3
+             dotp_gu=dotp_gu+dom%gu(i,j)*v1(i)*v2(j)
+          end do
+       end do
+    end if
+
+  end function dotp_gu
+
+  function dotp_gu_add2(dom,v1,v2_add) result(dotp)
+    implicit none
+    real(gp), dimension(3), intent(in) :: v1
+    real(gp) :: v2_add !<intent in, cannot be declared as such
+    type(domain), intent(in) :: dom !<definition of the domain
+    real(gp) :: dotp
+
+    if (dom%orthorhombic) then
+       call dotp_external_ortho(v1,v2_add,dotp)
+    else
+       call dotp_external_nonortho(dom%gu,v1,v2_add,dotp)
+    end if
+
+  end function dotp_gu_add2
+
+  function dotp_gu_add1(dom,v1_add,v2) result(dotp)
+    implicit none
+    real(gp), dimension(3), intent(in) :: v2
+    real(gp) :: v1_add !<intent in, cannot be declared as such
+    type(domain), intent(in) :: dom !<definition of the domain
+    real(gp) :: dotp
+
+    if (dom%orthorhombic) then
+       call dotp_external_ortho(v1_add,v2,dotp)
+    else
+       call dotp_external_nonortho(dom%gu,v1_add,v2,dotp)
+    end if
+
+  end function dotp_gu_add1
+
+  pure function dotp_gd(dom,v1,v2)
+    implicit none
+    real(gp), dimension(3), intent(in) :: v1,v2
+    type(domain), intent(in) :: dom !<definition of the domain
+    real(gp) :: dotp_gd
+    !local variables
+    integer :: i,j
+
+    if (dom%orthorhombic) then
+       dotp_gd=v1(1)*v2(1)+v1(2)*v2(2)+v1(3)*v2(3)
+    else
+       dotp_gd=0.0_gp
+       do i=1,3
+          do j=1,3
+             dotp_gd=dotp_gd+dom%gd(i,j)*v1(i)*v2(j)
+          end do
+       end do
+    end if
+
+  end function dotp_gd
+
+  function dotp_gd_add2(dom,v1,v2_add) result(dotp)
+    implicit none
+    real(gp), dimension(3), intent(in) :: v1
+    real(gp) :: v2_add !<intent in, cannot be declared as such
+    type(domain), intent(in) :: dom !<definition of the domain
+    real(gp) :: dotp
+
+    if (dom%orthorhombic) then
+       call dotp_external_ortho(v1,v2_add,dotp)
+    else
+       call dotp_external_nonortho(dom%gd,v1,v2_add,dotp)
+    end if
+
+  end function dotp_gd_add2
+
+  function dotp_gd_add1(dom,v1_add,v2) result(dotp)
+    implicit none
+    real(gp), dimension(3), intent(in) :: v2
+    real(gp) :: v1_add !<intent in, cannot be declared as such
+    type(domain), intent(in) :: dom !<definition of the domain
+    real(gp) :: dotp
+
+    if (dom%orthorhombic) then
+       call dotp_external_ortho(v1_add,v2,dotp)
+    else
+       call dotp_external_nonortho(dom%gd,v1_add,v2,dotp)
+    end if
+
+  end function dotp_gd_add1
+
+  function dotp_gd_add12(dom,v1_add,v2_add) result(dotp)
+    implicit none
+    real(gp) :: v1_add,v2_add !<intent in, cannot be declared as such
+    type(domain), intent(in) :: dom !<definition of the domain
+    real(gp) :: dotp
+
+    if (dom%orthorhombic) then
+       call dotp_external_ortho(v1_add,v2_add,dotp)
+    else
+       call dotp_external_nonortho(dom%gd,v1_add,v2_add,dotp)
+    end if
+
+  end function dotp_gd_add12
+
+  !>gives the value of the coordinates for an orthorhombic reference system
+  !! from their value wrt a nonorthorhombic system
+  pure function rxyz_ortho(dom,rxyz)
+    implicit none
+    type(domain), intent(in) :: dom
+    real(gp), dimension(3), intent(in) :: rxyz
+    real(gp), dimension(3) :: rxyz_ortho
+    ! local variables
+    integer :: i,j
+
+    if (dom%orthorhombic) then
+     rxyz_ortho(1:3)=rxyz(1:3)
+    else
+     do i=1,3
+      rxyz_ortho(i)=0.0_gp
+      do j=1,3
+       rxyz_ortho(i)=rxyz_ortho(i)+dom%uabc(i,j)*rxyz(j)
+      end do
+     end do
+    end if
+
+  end function rxyz_ortho
+
+  !>gives the value of the coordinates for a nonorthorhombic reference system
+  !! from their value wrt an orthorhombic system
+  pure function rxyz_nonortho(dom,rxyz,mtmp)
+    implicit none
+    type(domain), intent(in) :: dom
+    real(gp), dimension(3), intent(in) :: rxyz
+    real(gp), dimension(3,3), intent(in) :: mtmp
+    real(gp), dimension(3) :: rxyz_nonortho
+    ! local variables
+    integer :: i,j
+
+    if (dom%orthorhombic) then
+     rxyz_nonortho(1:3)=rxyz(1:3)
+    else
+     do i=1,3
+      rxyz_nonortho(i)=0.0_gp
+      do j=1,3
+       rxyz_nonortho(i)=rxyz_nonortho(i)+mtmp(i,j)*rxyz(j)
+      end do
+     end do
+    end if
+
+  end function rxyz_nonortho
+
+  pure function distance(dom,r,c) result(d)
+    use dictionaries, only: f_err_throw
+    implicit none
+    real(gp), dimension(3), intent(in) :: r,c
+    type(domain), intent(in) :: dom
+    real(gp) :: d
+    !local variables
+    integer :: i !,j,k,ii
+    real(gp) :: d2!,dold
+    real(gp), dimension(3) :: rt!,ri,ci
+
+!!$    rt=closest_r(mesh,r,c)
+!!$    d2=square_gd(mesh,rt)
+!!$    d=sqrt(d2)
+
+    d=0.0_gp
+    if (dom%orthorhombic) then
+       d2=0.0_gp
+       do i=1,3
+          d2=d2+r_wrap(dom%bc(i),dom%acell(i),r(i),c(i))**2
+       end do
+       d=sqrt(d2)
+    else
+       rt=closest_r(dom,r,c)
+       d2=square_gd(dom,rt)
+       d=sqrt(d2)
+!       dold=1.0d100 !huge_number
+!       do ii=1,3
+!        if (mesh%bc(ii)==PERIODIC) then
+!          ri(ii)=mod(r(ii),mesh%ndims(ii)*mesh%hgrids(ii))
+!          ci(ii)=mod(c(ii),mesh%ndims(ii)*mesh%hgrids(ii))
+!        else
+!          ri(ii)=r(ii)
+!          ci(ii)=c(ii)
+!        end if
+!       end do
+!       do i=-mesh%bc(1),mesh%bc(1)
+!        do j=-mesh%bc(2),mesh%bc(2)
+!         do k=-mesh%bc(3),mesh%bc(3)
+!            rt(1)=ri(1)+real(i,kind=8)*mesh%ndims(1)*mesh%hgrids(1)
+!            rt(2)=ri(2)+real(j,kind=8)*mesh%ndims(2)*mesh%hgrids(2)
+!            rt(3)=ri(3)+real(k,kind=8)*mesh%ndims(3)*mesh%hgrids(3)
+!            d2=square_gd(mesh,rt-ci)
+!            d=sqrt(d2)
+!            if (d.lt.dold) then
+!               dold=d
+!            end if
+!         end do
+!        end do
+!       end do
+!       d=dold
+    end if
+
+  end function distance
+
+  !> Calculates the minimum difference between two coordinates
+  !!@warning: this is only valid if the coordinates wrap once.
+  pure function r_wrap(bc,alat,ri,ci)
+    implicit none
+    integer, intent(in) :: bc
+    real(gp), intent(in) :: ri,ci,alat
+    real(gp) :: r_wrap
+    ! local variables
+    real(gp) :: r,c
+
+    !for periodic BC calculate mindist only if the center of mass can be defined without the modulo
+    r=ri
+    c=ci
+    r_wrap=r-c
+    if (bc==PERIODIC) then
+      r=mod(ri,alat)
+      c=mod(ci,alat)
+      r_wrap=r-c
+       if (abs(r_wrap) > 0.5_gp*alat) then
+          if (r < 0.5_gp*alat) then
+             r_wrap=r+alat-c
+          else
+             r_wrap=r-alat-c
+          end if
+       end if
+    end if
+
+  end function r_wrap
+
+!!$  pure function min_dist(bc,alat,r,r_old)
+!!$    implicit none
+!!$    integer, intent(in) :: bc
+!!$    real(gp), intent(in) :: r,r_old,alat
+!!$    real(gp) :: min_dist
+!!$
+!!$    !for periodic BC calculate mindist only if the center of mass can be defined without the modulo
+!!$    min_dist=abs(r-r_old)
+!!$    if (bc==PERIODIC) then
+!!$       if (min_dist > 0.5_gp*alat) then
+!!$          if (r < 0.5_gp*alat) then
+!!$             min_dist=abs(r+alat-r_old)
+!!$          else
+!!$             min_dist=abs(r-alat-r_old)
+!!$          end if
+!!$       end if
+!!$    end if
+!!$
+!!$  end function min_dist
+
+  !>find the closest center according to the periodiciy of the
+  !! box and provide the vector
+  pure function closest_r(dom,v,center) result(r)
+    implicit none
+    real(gp), dimension(3), intent(in) :: v,center
+    type(domain), intent(in) :: dom
+    real(gp), dimension(3) :: r
+    !local variables
+    integer :: i,j,k,ii,icurr,jcurr,kcurr
+    real(gp) :: d,d2,dold
+    real(gp), dimension(3) :: rt,ri,ci!,c_ortho,r_ortho
+
+    if (dom%orthorhombic) then
+       do i=1,3
+          r(i)=r_wrap(dom%bc(i),dom%acell(i),v(i),center(i))
+       end do
+    else
+       dold=1.0d100 !huge_number
+       icurr=0
+       jcurr=0
+       kcurr=0
+       do ii=1,3
+        if (dom%bc(ii)==PERIODIC) then
+          ri(ii)=mod(v(ii),dom%acell(ii))
+          ci(ii)=mod(center(ii),dom%acell(ii))
+        else
+          ri(ii)=v(ii)
+          ci(ii)=center(ii)
+        end if
+       end do
+       ri=ri-ci
+       do i=-dom%bc(1),dom%bc(1)
+        do j=-dom%bc(2),dom%bc(2)
+         do k=-dom%bc(3),dom%bc(3)
+            rt(1)=ri(1)+real(i,gp)*dom%acell(1)
+            rt(2)=ri(2)+real(j,gp)*dom%acell(2)
+            rt(3)=ri(3)+real(k,gp)*dom%acell(3)
+            d2=square_gd(dom,rt)!-ci)
+            d=sqrt(d2)
+            if (d.lt.dold) then
+               dold=d
+               icurr=i
+               jcurr=j
+               kcurr=k
+            end if
+         end do
+        end do
+       end do
+       d=dold
+       r(1)=ri(1)+real(icurr,gp)*dom%acell(1)! - ci(1)
+       r(2)=ri(2)+real(jcurr,gp)*dom%acell(2)! - ci(2)
+       r(3)=ri(3)+real(kcurr,gp)*dom%acell(3)! - ci(3)
+    end if
+
+  end function closest_r
 
 !!$  subroutine parse_xyz_header(ios,dom_dict)
 !!$    use f_iostream
@@ -735,3 +1182,29 @@ contains
 !!$
 
 end module at_domain
+
+subroutine dotp_external_ortho(v1,v2,dotp)
+  use f_precisions, only: gp=>f_double
+  implicit none
+  real(gp), dimension(3), intent(in) :: v1,v2
+  real(gp), intent(out) :: dotp
+
+  dotp=v1(1)*v2(1)+v1(2)*v2(2)+v1(3)*v2(3)
+end subroutine dotp_external_ortho
+
+subroutine dotp_external_nonortho(g,v1,v2,dotp)
+  use f_precisions, only: gp=>f_double
+  implicit none
+  real(gp), dimension(3,3), intent(in) :: g
+  real(gp), dimension(3), intent(in) :: v1,v2
+  real(gp), intent(out) :: dotp
+  !local variables
+  integer :: i,j
+
+       dotp=0.0_gp
+       do i=1,3
+          do j=1,3
+             dotp=dotp+g(i,j)*v1(i)*v2(j)
+          end do
+       end do
+end subroutine dotp_external_nonortho

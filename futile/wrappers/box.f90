@@ -17,7 +17,7 @@ module box
   private
 
   !>parameter for the definition of the bc
-  integer, parameter :: NULL_BC=-100
+!!$  integer, parameter :: NULL_BC=-100
   integer, parameter :: FREE=0
   integer, parameter :: PERIODIC=1
 
@@ -74,28 +74,10 @@ module box
 !!$     module procedure box_iter_c,box_iter_base
 !!$  end interface box_iter
 
-  interface dotp_gu
-     module procedure dotp_gu,dotp_gu_add1,dotp_gu_add2
-  end interface dotp_gu
-
-  interface square_gu
-     module procedure square,square_add
-  end interface square_gu
-
-  interface dotp_gd
-     module procedure dotp_gd,dotp_gd_add1,dotp_gd_add2,dotp_gd_add12
-  end interface dotp_gd
-
-
-  interface square_gd
-     module procedure square_gd,square_gd_add
-  end interface square_gd
-
-  public :: cell_r,cell_periodic_dims,rxyz_ortho,distance,closest_r,square_gu,square_gd,cell_new,box_iter,box_next_point
-  public :: cell_geocode,box_next_x,box_next_y,box_next_z,dotp_gu,dotp_gd,cell_null,nullify_box_iterator
+  public :: cell_r,cell_new,box_iter,box_next_point
+  public :: cell_geocode,box_next_x,box_next_y,box_next_z,cell_null,nullify_box_iterator
   public :: box_iter_rewind,box_iter_split,box_iter_merge,box_iter_set_nbox,box_iter_expand_nbox,box_nbox_from_cutoff
-  public :: bc_periodic_dims,geocode_to_bc
-
+  public :: box_iter_square_gd,box_iter_closest_r,box_iter_distance
 
 contains
 
@@ -800,27 +782,6 @@ contains
 
   end subroutine internal_point
 
-  pure function geocode_to_bc(geocode) result(bc)
-    use dictionaries, only: f_err_throw
-    implicit none
-    character(len=1), intent(in) :: geocode
-    integer, dimension(3) :: bc
-    select case(geocode)
-    case('P')
-       bc=PERIODIC
-    case('S')
-       bc=PERIODIC
-       bc(2)=FREE
-    case('F')
-       bc=FREE
-    case('W')
-       bc=FREE
-       bc(3)=PERIODIC
-    case default
-       bc=NULL_BC
-    end select
-  end function geocode_to_bc     
-
   function cell_new(dom,ndims,hgrids) result(mesh)
   !function cell_new(geocode,ndims,hgrids,alpha_bc,beta_ac,gamma_ab,abc) result(mesh)
     use numerics, only: onehalf,pi
@@ -1001,25 +962,6 @@ contains
 
   end function cell_new
 
-  !> returns a logical array of size 3 which is .true. for all the periodic dimensions
-  pure function bc_periodic_dims(bc) result(peri)
-    implicit none
-    integer, dimension(3), intent(in) :: bc
-    logical, dimension(3) :: peri
-    peri= bc == PERIODIC
-  end function bc_periodic_dims
-
-  !> returns a logical array of size 3 which is .true. for all the periodic dimensions
-  pure function cell_periodic_dims(mesh) result(peri)
-    implicit none
-    type(cell), intent(in) :: mesh
-    logical, dimension(3) :: peri
-    !local variables
-
-    peri=bc_periodic_dims(mesh%dom%bc)
-
-  end function cell_periodic_dims
-
   !>give the associated geocode, 'X' for unknown
   pure function cell_geocode(mesh)
     implicit none
@@ -1028,7 +970,8 @@ contains
     !local variables
     logical, dimension(3) :: peri
 
-    peri=cell_periodic_dims(mesh)
+!    peri=cell_periodic_dims(mesh)
+    peri= mesh%dom%bc == PERIODIC
     if (all(peri)) then
        cell_geocode='P'
     else if (.not. any(peri)) then
@@ -1043,7 +986,6 @@ contains
 
   end function cell_geocode
 
-
   !>gives the value of the coordinate from the grid point
   elemental pure function cell_r(mesh,i,dim) result(t)
     implicit none
@@ -1055,422 +997,44 @@ contains
     t=mesh%hgrids(dim)*(i-1)
   end function cell_r
 
-  !>gives the value of the coordinates for an orthorhombic reference system
-  !! from their value wrt a nonorthorhombic system
-  pure function rxyz_ortho(mesh,rxyz)
+  pure function box_iter_square_gd(bit) 
     implicit none
-    type(cell), intent(in) :: mesh
+    type(box_iterator), intent(in) :: bit
+    real(gp) :: box_iter_square_gd
+
+    box_iter_square_gd=square_gd(bit%mesh%dom,bit%rxyz)
+    
+  end function box_iter_square_gd
+
+  pure function box_iter_closest_r(bit,rxyz,orthorhombic) result (r)
+    !use f_utils, only: f_get_option
+    implicit none
+    type(box_iterator), intent(in) :: bit
     real(gp), dimension(3), intent(in) :: rxyz
-    real(gp), dimension(3) :: rxyz_ortho
-    ! local variables
-    integer :: i,j
-
-    if (mesh%dom%orthorhombic) then
-     rxyz_ortho(1:3)=rxyz(1:3)
-    else
-     do i=1,3
-      rxyz_ortho(i)=0.0_gp
-      do j=1,3
-       rxyz_ortho(i)=rxyz_ortho(i)+mesh%dom%uabc(i,j)*rxyz(j)
-      end do
-     end do
-    end if
-
-  end function rxyz_ortho
-
-  !>gives the value of the coordinates for a nonorthorhombic reference system
-  !! from their value wrt an orthorhombic system
-  pure function rxyz_nonortho(mesh,rxyz,mtmp)
-    implicit none
-    type(cell), intent(in) :: mesh
-    real(gp), dimension(3), intent(in) :: rxyz
-    real(gp), dimension(3,3), intent(in) :: mtmp
-    real(gp), dimension(3) :: rxyz_nonortho
-    ! local variables
-    integer :: i,j
-
-    if (mesh%dom%orthorhombic) then
-     rxyz_nonortho(1:3)=rxyz(1:3)
-    else
-     do i=1,3
-      rxyz_nonortho(i)=0.0_gp
-      do j=1,3
-       rxyz_nonortho(i)=rxyz_nonortho(i)+mtmp(i,j)*rxyz(j)
-      end do
-     end do
-    end if
-
-  end function rxyz_nonortho
-
-  pure function distance(mesh,r,c) result(d)
-    use dictionaries, only: f_err_throw
-    implicit none
-    real(gp), dimension(3), intent(in) :: r,c
-    type(cell), intent(in) :: mesh
-    real(gp) :: d
-    !local variables
-    integer :: i !,j,k,ii
-    real(gp) :: d2!,dold
-    real(gp), dimension(3) :: rt!,ri,ci
-
-    rt=closest_r(mesh,r,c)
-    d2=square_gd(mesh,rt)
-    d=sqrt(d2)
-
-    d=0.0_gp
-    if (mesh%dom%orthorhombic) then
-       d2=0.0_gp
-       do i=1,3
-          d2=d2+r_wrap(mesh%dom%bc(i),mesh%hgrids(i)*mesh%ndims(i),&
-               r(i),c(i))**2
-       end do
-       d=sqrt(d2)
-    else
-       rt=closest_r(mesh,r,c)
-       d2=square_gd(mesh,rt)
-       d=sqrt(d2)
-!       dold=1.0d100 !huge_number
-!       do ii=1,3
-!        if (mesh%bc(ii)==PERIODIC) then
-!          ri(ii)=mod(r(ii),mesh%ndims(ii)*mesh%hgrids(ii))
-!          ci(ii)=mod(c(ii),mesh%ndims(ii)*mesh%hgrids(ii))
-!        else
-!          ri(ii)=r(ii)
-!          ci(ii)=c(ii)
-!        end if
-!       end do
-!       do i=-mesh%bc(1),mesh%bc(1)
-!        do j=-mesh%bc(2),mesh%bc(2)
-!         do k=-mesh%bc(3),mesh%bc(3)
-!            rt(1)=ri(1)+real(i,kind=8)*mesh%ndims(1)*mesh%hgrids(1)
-!            rt(2)=ri(2)+real(j,kind=8)*mesh%ndims(2)*mesh%hgrids(2)
-!            rt(3)=ri(3)+real(k,kind=8)*mesh%ndims(3)*mesh%hgrids(3)
-!            d2=square_gd(mesh,rt-ci)
-!            d=sqrt(d2)
-!            if (d.lt.dold) then
-!               dold=d
-!            end if
-!         end do
-!        end do
-!       end do
-!       d=dold
-    end if
-
-  end function distance
-
-!!$  pure function min_dist(bc,alat,r,r_old)
-!!$    implicit none
-!!$    integer, intent(in) :: bc
-!!$    real(gp), intent(in) :: r,r_old,alat
-!!$    real(gp) :: min_dist
-!!$
-!!$    !for periodic BC calculate mindist only if the center of mass can be defined without the modulo
-!!$    min_dist=abs(r-r_old)
-!!$    if (bc==PERIODIC) then
-!!$       if (min_dist > 0.5_gp*alat) then
-!!$          if (r < 0.5_gp*alat) then
-!!$             min_dist=abs(r+alat-r_old)
-!!$          else
-!!$             min_dist=abs(r-alat-r_old)
-!!$          end if
-!!$       end if
-!!$    end if
-!!$
-!!$  end function min_dist
-
-  !> Calculates the minimum difference between two coordinates
-  !!@warning: this is only valid if the coordinates wrap once.
-  pure function r_wrap(bc,alat,ri,ci)
-    implicit none
-    integer, intent(in) :: bc
-    real(gp), intent(in) :: ri,ci,alat
-    real(gp) :: r_wrap
-    ! local variables
-    real(gp) :: r,c
-
-    !for periodic BC calculate mindist only if the center of mass can be defined without the modulo
-    r=ri
-    c=ci
-    r_wrap=r-c
-    if (bc==PERIODIC) then
-      r=mod(ri,alat)
-      c=mod(ci,alat)
-      r_wrap=r-c
-       if (abs(r_wrap) > 0.5_gp*alat) then
-          if (r < 0.5_gp*alat) then
-             r_wrap=r+alat-c
-          else
-             r_wrap=r-alat-c
-          end if
-       end if
-    end if
-
-  end function r_wrap
-
-  !>find the closest center according to the periodiciy of the
-  !! box and provide the vector
-  pure function closest_r(mesh,v,center) result(r)
-    implicit none
-    real(gp), dimension(3), intent(in) :: v,center
-    type(cell), intent(in) :: mesh
+    logical, intent(in), optional :: orthorhombic
     real(gp), dimension(3) :: r
-    !local variables
-    integer :: i,j,k,ii,icurr,jcurr,kcurr
-    real(gp) :: d,d2,dold
-    real(gp), dimension(3) :: rt,ri,ci!,c_ortho,r_ortho
+    ! local variables
+    logical :: orthorhombic_
 
-    if (mesh%dom%orthorhombic) then
-       do i=1,3
-          r(i)=r_wrap(mesh%dom%bc(i),mesh%hgrids(i)*mesh%ndims(i),&
-               v(i),center(i))
-       end do
-    else
-       dold=1.0d100 !huge_number
-       icurr=0
-       jcurr=0
-       kcurr=0
-       do ii=1,3
-        if (mesh%dom%bc(ii)==PERIODIC) then
-          ri(ii)=mod(v(ii),mesh%ndims(ii)*mesh%hgrids(ii))
-          ci(ii)=mod(center(ii),mesh%ndims(ii)*mesh%hgrids(ii))
-        else
-          ri(ii)=v(ii)
-          ci(ii)=center(ii)
-        end if
-       end do
-       ri=ri-ci
-       do i=-mesh%dom%bc(1),mesh%dom%bc(1)
-        do j=-mesh%dom%bc(2),mesh%dom%bc(2)
-         do k=-mesh%dom%bc(3),mesh%dom%bc(3)
-            rt(1)=ri(1)+real(i,gp)*mesh%ndims(1)*mesh%hgrids(1)
-            rt(2)=ri(2)+real(j,gp)*mesh%ndims(2)*mesh%hgrids(2)
-            rt(3)=ri(3)+real(k,gp)*mesh%ndims(3)*mesh%hgrids(3)
-            d2=square_gd(mesh,rt)!-ci)
-            d=sqrt(d2)
-            if (d.lt.dold) then
-               dold=d
-               icurr=i
-               jcurr=j
-               kcurr=k
-            end if
-         end do
-        end do
-       end do
-       d=dold
-       r(1)=ri(1)+real(icurr,gp)*mesh%ndims(1)*mesh%hgrids(1)! - ci(1)
-       r(2)=ri(2)+real(jcurr,gp)*mesh%ndims(2)*mesh%hgrids(2)! - ci(2)
-       r(3)=ri(3)+real(kcurr,gp)*mesh%ndims(3)*mesh%hgrids(3)! - ci(3)
-    end if
+    !orthorhombic_=f_get_option(orthorhombic,.false.)
+    orthorhombic_=.false.
+    if (present(orthorhombic)) orthorhombic_=orthorhombic
 
-  end function closest_r
+    r=closest_r(bit%mesh%dom,bit%rxyz,rxyz)
 
-  !> Calculates the square of the vector r in the cell defined by mesh
-  !! Takes into account the non-orthorhombicity of the box
-  !! with the controvariant metric (mesh%gu)
-  pure function square(mesh,v)
+    if (orthorhombic_) r=rxyz_ortho(bit%mesh%dom,r)
+    
+  end function box_iter_closest_r
+
+  pure function box_iter_distance(bit,rxyz0) 
     implicit none
-    !> array of coordinate in the mesh reference frame
-    real(gp), dimension(3), intent(in) :: v
-    type(cell), intent(in) :: mesh !<definition of the cell
-    real(gp) :: square
+    type(box_iterator), intent(in) :: bit
+    real(gp), dimension(3), intent(in) :: rxyz0
+    real(gp) :: box_iter_distance
 
-    if (mesh%dom%orthorhombic) then
-       square=v(1)**2+v(2)**2+v(3)**2
-    else
-       square=dotp_gu(mesh,v,v)
-    end if
-
-  end function square
-
-  function square_add(mesh,v_add) result(square)
-    implicit none
-    !> array of coordinate in the mesh reference frame
-    real(gp) :: v_add
-    type(cell), intent(in) :: mesh !<definition of the cell
-    real(gp) :: square
-
-    if (mesh%dom%orthorhombic) then
-       call dotp_external_ortho(v_add,v_add,square)
-    else
-       call dotp_external_nonortho(mesh%dom%gu,v_add,v_add,square)
-    end if
-
-  end function square_add
-
-  !> Calculates the square of the vector r in the cell defined by mesh
-  !! Takes into account the non-orthorhombicity of the box
-  !! with the covariant metric (mesh%gd)
-  pure function square_gd(mesh,v)
-    implicit none
-    !> array of coordinate in the mesh reference frame
-    real(gp), dimension(3), intent(in) :: v
-    type(cell), intent(in) :: mesh !<definition of the cell
-    real(gp) :: square_gd
-
-    if (mesh%dom%orthorhombic) then
-       square_gd=v(1)**2+v(2)**2+v(3)**2
-    else
-       square_gd=dotp_gd(mesh,v,v)
-    end if
-
-  end function square_gd
-
-  function square_gd_add(mesh,v_add) result(square)
-    implicit none
-    !> array of coordinate in the mesh reference frame
-    real(gp) :: v_add
-    type(cell), intent(in) :: mesh !<definition of the cell
-    real(gp) :: square
-
-    if (mesh%dom%orthorhombic) then
-       call dotp_external_ortho(v_add,v_add,square)
-    else
-       call dotp_external_nonortho(mesh%dom%gd,v_add,v_add,square)
-    end if
-
-  end function square_gd_add
-
-  pure function dotp_gu(mesh,v1,v2)
-    implicit none
-    real(gp), dimension(3), intent(in) :: v1,v2
-    type(cell), intent(in) :: mesh !<definition of the cell
-    real(gp) :: dotp_gu
-    !local variables
-    integer :: i,j
-
-    if (mesh%dom%orthorhombic) then
-       dotp_gu=v1(1)*v2(1)+v1(2)*v2(2)+v1(3)*v2(3)
-    else
-       dotp_gu=0.0_gp
-       do i=1,3
-          do j=1,3
-             dotp_gu=dotp_gu+mesh%dom%gu(i,j)*v1(i)*v2(j)
-          end do
-       end do
-    end if
-
-  end function dotp_gu
-
-  function dotp_gu_add2(mesh,v1,v2_add) result(dotp)
-    implicit none
-    real(gp), dimension(3), intent(in) :: v1
-    real(gp) :: v2_add !<intent in, cannot be declared as such
-    type(cell), intent(in) :: mesh !<definition of the cell
-    real(gp) :: dotp
-
-    if (mesh%dom%orthorhombic) then
-       call dotp_external_ortho(v1,v2_add,dotp)
-    else
-       call dotp_external_nonortho(mesh%dom%gu,v1,v2_add,dotp)
-    end if
-
-  end function dotp_gu_add2
-
-  function dotp_gu_add1(mesh,v1_add,v2) result(dotp)
-    implicit none
-    real(gp), dimension(3), intent(in) :: v2
-    real(gp) :: v1_add !<intent in, cannot be declared as such
-    type(cell), intent(in) :: mesh !<definition of the cell
-    real(gp) :: dotp
-
-    if (mesh%dom%orthorhombic) then
-       call dotp_external_ortho(v1_add,v2,dotp)
-    else
-       call dotp_external_nonortho(mesh%dom%gu,v1_add,v2,dotp)
-    end if
-
-  end function dotp_gu_add1
-
-  pure function dotp_gd(mesh,v1,v2)
-    implicit none
-    real(gp), dimension(3), intent(in) :: v1,v2
-    type(cell), intent(in) :: mesh !<definition of the cell
-    real(gp) :: dotp_gd
-    !local variables
-    integer :: i,j
-
-    if (mesh%dom%orthorhombic) then
-       dotp_gd=v1(1)*v2(1)+v1(2)*v2(2)+v1(3)*v2(3)
-    else
-       dotp_gd=0.0_gp
-       do i=1,3
-          do j=1,3
-             dotp_gd=dotp_gd+mesh%dom%gd(i,j)*v1(i)*v2(j)
-          end do
-       end do
-    end if
-
-  end function dotp_gd
-
-  function dotp_gd_add2(mesh,v1,v2_add) result(dotp)
-    implicit none
-    real(gp), dimension(3), intent(in) :: v1
-    real(gp) :: v2_add !<intent in, cannot be declared as such
-    type(cell), intent(in) :: mesh !<definition of the cell
-    real(gp) :: dotp
-
-    if (mesh%dom%orthorhombic) then
-       call dotp_external_ortho(v1,v2_add,dotp)
-    else
-       call dotp_external_nonortho(mesh%dom%gd,v1,v2_add,dotp)
-    end if
-
-  end function dotp_gd_add2
-
-  function dotp_gd_add1(mesh,v1_add,v2) result(dotp)
-    implicit none
-    real(gp), dimension(3), intent(in) :: v2
-    real(gp) :: v1_add !<intent in, cannot be declared as such
-    type(cell), intent(in) :: mesh !<definition of the cell
-    real(gp) :: dotp
-
-    if (mesh%dom%orthorhombic) then
-       call dotp_external_ortho(v1_add,v2,dotp)
-    else
-       call dotp_external_nonortho(mesh%dom%gd,v1_add,v2,dotp)
-    end if
-
-  end function dotp_gd_add1
-
-  function dotp_gd_add12(mesh,v1_add,v2_add) result(dotp)
-    implicit none
-    real(gp) :: v1_add,v2_add !<intent in, cannot be declared as such
-    type(cell), intent(in) :: mesh !<definition of the cell
-    real(gp) :: dotp
-
-    if (mesh%dom%orthorhombic) then
-       call dotp_external_ortho(v1_add,v2_add,dotp)
-    else
-       call dotp_external_nonortho(mesh%dom%gd,v1_add,v2_add,dotp)
-    end if
-
-  end function dotp_gd_add12
+    box_iter_distance=distance(bit%mesh%dom,bit%rxyz,rxyz0)
+    
+  end function box_iter_distance
 
 
 end module box
-
-subroutine dotp_external_ortho(v1,v2,dotp)
-  use f_precisions, only: gp=>f_double
-  implicit none
-  real(gp), dimension(3), intent(in) :: v1,v2
-  real(gp), intent(out) :: dotp
-
-  dotp=v1(1)*v2(1)+v1(2)*v2(2)+v1(3)*v2(3)
-end subroutine dotp_external_ortho
-
-subroutine dotp_external_nonortho(g,v1,v2,dotp)
-  use f_precisions, only: gp=>f_double
-  implicit none
-  real(gp), dimension(3,3), intent(in) :: g
-  real(gp), dimension(3), intent(in) :: v1,v2
-  real(gp), intent(out) :: dotp
-  !local variables
-  integer :: i,j
-
-       dotp=0.0_gp
-       do i=1,3
-          do j=1,3
-             dotp=dotp+g(i,j)*v1(i)*v2(j)
-          end do
-       end do
-end subroutine dotp_external_nonortho

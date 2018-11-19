@@ -578,7 +578,8 @@ module f_functions
       real(f_double) :: r2,r
 
       do while(box_next_point(bit))
-         r2=square_gd(bit%mesh,bit%rxyz)
+         !r2=square_gd(bit%mesh,bit%rxyz)
+         r2=box_iter_square_gd(bit)
          r = sqrt(r2)
          !f(bit%i,bit%j,bit%k) =factor*eval(func,r)
          f(bit%ind) =factor*eval(func,r)
