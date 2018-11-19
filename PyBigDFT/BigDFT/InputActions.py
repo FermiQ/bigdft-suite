@@ -124,8 +124,8 @@ def set_rmult(inp,rmult=None,coarse=5.0,fine=8.0):
 def set_symmetry(inp,yes=True):
     """
     Set the symmetry detection for the charge density and the ionic forces and stressdef set_symmetry(inp,yes=True):
-    
-    Args: 
+
+    Args:
        yes (bool): If ``False`` the symmetry detection is disabled
     """
     __set__(inp,'dft','disablesym', not yes)
@@ -178,7 +178,7 @@ def apply_electric_field(inp,elecfield=[0,0,1.e-3]):
     Args:
        electric (list, float): Values of the Electric Field in the three directions. Might also be a scalar.
     """
-    __set__(inp,'dft','elecfield',elecfield)
+    __set__(inp,'dft','elecfield',[ e for e in elecfield])
 
 def charge_and_polarize(inp):
     """
@@ -198,27 +198,27 @@ def set_SCF_method(inp,method='dirmin',mixing_on='density',mixing_scheme='Pulay'
          * foe: Fermi Operator Expansion (only LS)
          * pexsi: Pole EXpansion and Selected Inversion method (only LS, require PEXSI compilation)
          * diag: Explicit diagonalization (only LS, for validation purposes)
-            
+
        mixing_on (str): May be ``"density"`` or ``"potential"`` in the ``"mixing"`` case, decide to which quantity the mixing to be performed
 
        mixing_scheme (str): May be:
-          
+
           * Pulay : DIIS mixing on the last 7 iterations
 
-          * Simple: Simple mixing 
-          
+          * Simple: Simple mixing
+
           * Anderson: Anderson scheme
-          
+
           * Anderson2: Anderson scheme based on the two pervious iterations
-          
-          * CG: Conjugate Gradient based on the minimum of the energy with respect of the potential 
-       
+
+          * CG: Conjugate Gradient based on the minimum of the energy with respect of the potential
+
     Warning:
-       Only the FOE method exhibit asymptotic linear scaling regime. 
-    
+       Only the FOE method exhibit asymptotic linear scaling regime.
+
     Todo:
        Check if the linear scaling case needs another input variable for the mixing of the potential (density)
-    
+
     """
     method.upper()
     if method != 'MIXING': __set__(inp,'lin_kernel','linear_method',method)
@@ -234,7 +234,7 @@ def set_SCF_method(inp,method='dirmin',mixing_on='density',mixing_scheme='Pulay'
     if mixing_scheme == 'CG': iscf+=5
     __set__(inp,'mix','iscf',iscf)
 
-      
+
 
 def add_empty_SCF_orbitals(inp,norbs=10):
     """
@@ -259,7 +259,7 @@ def write_cubefiles_around_fermi_level(inp,nplot=1):
     Warning:
        This is presently meaningful only for a empty states calculation.
 
-    Warning: 
+    Warning:
        This would work only for the cubic scaling code at present.
     """
     __set__(inp,'dft','nplot',nplot)
@@ -384,7 +384,7 @@ def calculate_tddft_coupling_matrix(inp,tda=False,rpa=True,fxc=True):
        rpa (bool): when ``False``, the calculation of the RPA term (the linear response of the hartree potential) is switched off
        fxc (bool): when ``False``, the calculation of the fxc term (the linear response of the XC operator) is switched off.
 
-    Note: 
+    Note:
        The arguments ``fxc`` and ``rpa`` should not be simultaneously ``False``.
 
     Warning:
