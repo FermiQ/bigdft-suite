@@ -114,6 +114,7 @@ contains
     use numerics
     use box
     use multipole_preserving
+    use at_domain, only: square_gd,rxyz_ortho
     implicit none
     real(gp), dimension(3), intent(in) :: rxyz
     type(gaussian_real_space), intent(in) :: g
@@ -153,12 +154,12 @@ contains
        !r2=g%exponent*r**2
        !bit%tmp=bit%mesh%hgrids*(bit%inext-2)-rxyz-bit%oxyz
        bit%tmp=bit%rxyz_nbox-rxyz
-       r2=square_gd(bit%mesh,bit%tmp)
+       r2=square_gd(bit%mesh%dom,bit%tmp)
        !bit%tmp=closest_r(bit%mesh,bit%rxyz,rxyz)
        !r2=square_gd(bit%mesh,bit%tmp)*g%exponent
        fe=safe_exp(-r2*g%exponent,underflow=1.e-120_f_double)
        !rclosest = closest_r(bit%mesh,bit%rxyz,rxyz)
-       vect=rxyz_ortho(bit%mesh,bit%tmp)
+       vect=rxyz_ortho(bit%mesh%dom,bit%tmp)
        ! ATTENTION: Thanks to the projector test Giuseppe detected a segmentation fault when g%pows /= 0 and the size of
        !g%lxyz(:,i). nterms maybe not the same for g%lxyz(:,i) and g%pows.
        ! The implemented approach does not work for mixed conditions, when both
@@ -224,6 +225,7 @@ contains
     use numerics
     use box
     use multipole_preserving
+    use at_domain, only: square_gd
     implicit none
     type(gaussian_real_space), intent(in) :: g
     real(gp), dimension(3), intent(in) :: rxyz
@@ -240,7 +242,7 @@ contains
 
     !bit%tmp = bit%mesh%hgrids*(bit%inext-2)-rxyz-bit%oxyz
     bit%tmp = bit%rxyz_nbox-rxyz
-    r2 = square_gd(bit%mesh,bit%tmp)
+    r2 = square_gd(bit%mesh%dom,bit%tmp)
     fe = gaussian_radial_value(g,rxyz(1),bit)
     f = (rhoc(1)+r2*rhoc(2)+r2**2*rhoc(3)+r2**3*rhoc(4))*fe
     if (ider ==1) then !first derivative with respect to r2
@@ -494,6 +496,7 @@ contains
     use box
     use locregs
     use locreg_operations
+    use at_domain, only: domain_geocode
     implicit none
     type(gaussian_basis_new), intent(in) :: G
     type(gaussian_basis_iter), intent(inout) :: iter
@@ -513,12 +516,12 @@ contains
 
     ! Loop on contraction, treat the first gaussian separately for performance reasons.
     if (gaussian_iter_next_gaussian(G, iter, coeff, expo)) &
-         call gaussian_projector(cell_geocode(mesh), ider, iter%l, iter%n, coeff, expo, &
+         call gaussian_projector(domain_geocode(mesh%dom), ider, iter%l, iter%n, coeff, expo, &
          distance_cutoff, rxyz,mesh%ndims, mesh%hgrids,kpoint, ncplx_p,G%ncplx, &
          lr%wfd, wpr,psi)
     do
        if (.not. gaussian_iter_next_gaussian(G, iter, coeff, expo)) exit
-         call gaussian_projector(cell_geocode(mesh), ider, iter%l, iter%n, coeff, expo, &
+         call gaussian_projector(domain_geocode(mesh%dom), ider, iter%l, iter%n, coeff, expo, &
          distance_cutoff, rxyz,mesh%ndims, mesh%hgrids,kpoint, ncplx_p,G%ncplx, &
          lr%wfd, wpr,proj_tmp)
          call axpy((lr%wfd%nvctr_c+7*lr%wfd%nvctr_f)*ncplx_p*(2*iter%l-1), &
@@ -2363,7 +2366,8 @@ contains
     real(gp), dimension(3) :: vect
 
     !this should be in absolute coordinates
-    vect = rxyz_ortho(boxit%mesh, closest_r(boxit%mesh, boxit%rxyz, rxyz))
+    !vect = rxyz_ortho(boxit%mesh%dom, closest_r(boxit%mesh%dom, boxit%rxyz, rxyz))
+    vect = box_iter_closest_r(boxit,rxyz,orthorhombic=.true.)
     r = sqrt(vect(1) * vect(1) + vect(2) * vect(2) + vect(3) * vect(3))!distance(boxit%mesh, boxit%rxyz, rxyz)
     tt = 0._gp
     offset = sum(ylm%ntpd(1:ylm%m - 1))

@@ -1434,7 +1434,7 @@ contains
     use numerics, only: Bohr_Ang
     use dictionaries
     use yaml_strings
-    use box, only: geocode_to_bc,bc_periodic_dims
+    use at_domain, only: geocode_to_bc,bc_periodic_dims
     use ao_inguess, only: charge_and_spol
     use yaml_output !tmp
     

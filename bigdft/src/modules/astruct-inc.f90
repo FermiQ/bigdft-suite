@@ -14,7 +14,7 @@
       use module_defs, only: gp,UNINITIALIZED, BIGDFT_INPUT_VARIABLES_ERROR
       use dictionaries, dict_set => set
       use dynamic_memory
-      use box, only: geocode_to_bc,bc_periodic_dims
+      use at_domain, only: geocode_to_bc,bc_periodic_dims
       use numerics, only: Bohr_Ang
       use module_base, only: bigdft_mpi
       use yaml_parse, only: yaml_parse_from_string
@@ -381,7 +381,7 @@ subroutine read_ascii_positions(ifile,filename,astruct,comment,energy,fxyz,getLi
   use dictionaries, dict_set=>set
   use yaml_parse
   use yaml_output
-  use box, only: geocode_to_bc,bc_periodic_dims
+  use at_domain, only: geocode_to_bc,bc_periodic_dims
   use public_keys, only: ASTRUCT_REDUCED
   implicit none
   integer, intent(in) :: ifile
@@ -684,7 +684,7 @@ subroutine read_int_positions(iproc,ifile,astruct,comment,energy,fxyz,getLine,di
   use dynamic_memory
   use numerics, only: Bohr_Ang,Radian_Degree
   use yaml_strings, only: yaml_toa
-  use box, only: geocode_to_bc,bc_periodic_dims
+  use at_domain, only: geocode_to_bc,bc_periodic_dims
   implicit none
   integer, intent(in) :: iproc,ifile
   type(atomic_structure), intent(inout) :: astruct
@@ -999,7 +999,7 @@ END SUBROUTINE archiveGetLine
 subroutine rxyz_inside_box(astruct,rxyz)
   use module_defs, only: gp
   use dynamic_memory, only: f_memcpy, f_routine, f_release_routine
-  use box, only: geocode_to_bc,bc_periodic_dims
+  use at_domain, only: geocode_to_bc,bc_periodic_dims
   implicit none
   !> description of the atomic structure
   type(atomic_structure), intent(inout) :: astruct
