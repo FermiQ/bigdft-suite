@@ -2967,7 +2967,7 @@ contains
     use yaml_output
     use public_keys
     use f_utils
-    use box, only: bc_periodic_dims,geocode_to_bc
+    use at_domain, only: bc_periodic_dims,geocode_to_bc
     implicit none
     !Arguments
     integer, intent(in) :: iproc

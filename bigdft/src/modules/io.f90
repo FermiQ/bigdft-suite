@@ -695,7 +695,7 @@ module io
       use module_base
       use yaml_strings, only: f_strcpy
       use rototranslations, only: frag_center
-      use box, only: bc_periodic_dims,geocode_to_bc
+      use at_domain, only: bc_periodic_dims,geocode_to_bc
       implicit none
       integer, intent(in) :: num_neighbours
       type(atoms_data), intent(in) :: at
