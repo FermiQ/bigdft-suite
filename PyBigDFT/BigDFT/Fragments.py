@@ -542,6 +542,30 @@ class Fragment():
         else:
             return None
 
+def fragmentation_dict(pattern,repeat,labels=None):
+	"""
+	Define a dictionary associated to fragmentation.
+
+	Args:
+	   pattern (list): number of atoms to be considered for each froagment
+	   repeat (int): number of times to apply the pattern to
+       labels (list): list of strings, of length *either* ``len(pattern)``,
+           in which casethe labels are repeated ``repeat`` times *or*
+           ``len(pattern)*repeat``, in which case the labels are uniquely assigned to each of the fragments
+
+	"""
+	iat=0
+	frag=[]
+    ifrag=0
+	import numpy
+	for i in range(repeat):
+		for nat in pattern:
+            label = 'frag'+str(ifrag) if labels is None else labels[ifrag % len(labels)]
+			frag.append([label,numpy.arange(iat,iat+nat).tolist()])
+			iat+=nat
+            ifrag+=1
+	return frag
+
 
 def CreateFragDict(start):
     frag_dict = {}
@@ -611,12 +635,12 @@ class System():
 
     def __init__(self, mp_dict=None, xyz=None, nat_reference=None,
                  units='AU', transformations=None, reference_fragments=None,
-                 posinp_dict=None, frag_partition=None):
+                 posinp_dict=None, frag_partition=None,fragmentation=None):
         self.fragments = []
         self.CMs = []
         self._get_units(units)
         if xyz is not None:
-            self.fill_from_xyz(xyz, nat_reference=nat_reference)
+            self.fill_from_xyz(xyz, nat_reference=nat_reference,fragmentation=fragmentation)
         if mp_dict is not None:
             self.fill_from_mp_dict(mp_dict, nat_reference=nat_reference,
                                    frag_partition=frag_partition)
@@ -638,12 +662,22 @@ class System():
     def _bigdft_units(self):
         return 'angstroem' if self.units == 'A' else 'atomic'
 
-    def fill_from_xyz(self, file, nat_reference):
-        "Import the fragment information from a xyz file"
+    def fill_from_xyz(self, file, nat_reference,fragmentation):
+        """
+        Import the fragment information from a xyz file
+
+        Args:
+           file (str): path of the ``xyz`` file to be opened
+           nat_reference (int): number of atoms to be assigned to each of the fragments.
+               Only useful in the case of uniform fragmentation
+           fragmentation (list): contains the fragment identification as a list of ``['label', ats ]``
+            where ``ats`` is a list of the atoms id associated to the fragment of label ``label``.
+        """
         fil = open(file, 'r')
         nat = 0
         iat = 0
         frag = None
+        ifrag=0
         iline=0
         for l in fil:
             iline+=1
@@ -662,11 +696,15 @@ class System():
                     iat = 0
                 elif len(pos) > 0:
                     # we should break the fragment, alternative strategy
-                    if nat_reference is not None and iat == nat_reference:
+                    nat_ref=nat_reference if nat_reference is not None else len(fragmentation[ifrag][1])
+                    if iat == nat_ref:
                         if frag is not None:
                             self.append(frag)
                         frag = Fragment(units=self.units)
+                        if fragmentation is not None:
+                            frag.set_id(fragmentation[ifrag][0])
                         iat = 0
+                        ifrag += 1
                     frag.append({pos[0]: map(float, pos[1:])})
                     nat += 1
                     iat += 1
@@ -674,6 +712,8 @@ class System():
                 safe_print('Warning, line not parsed: "', l, e, '"')
         if iat != 0:
             self.append(frag)  # append the remaining fragment
+            if fragmentation is not None:
+                frag.set_id(fragmentation[ifrag][0])
 
     def _build_partition(self, num_atoms, frag_size=None, frag_partition=None):
         """
