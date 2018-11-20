@@ -77,7 +77,7 @@ program numeric_check
 !!$  call finalize_real_space_conversion()
 
   call test_domain()
-
+  stop
   call test_f_functions()
 
   call dict_free(options)
