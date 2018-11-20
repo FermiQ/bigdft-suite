@@ -35,8 +35,8 @@ module yaml_parse
   character(len=*), parameter :: OPTHELP    = 'help'
   character(len=*), parameter :: OPTCONFL    = 'conflicts'
 
-  !> command line parser to determine options
   type, public :: yaml_cl_parse
+     !> command line parser to determine options
      !>default value of the key for the first command line options
      character(len=max_field_length) :: first_command_key
      !> dictionary specifying the valid options
@@ -48,7 +48,7 @@ module yaml_parse
   interface yaml_cl_parse_option
      module procedure yaml_cl_parse_option_from_string,yaml_cl_parse_option,yaml_cl_parse_option_from_dict
   end interface
-  
+
   public :: yaml_parse_from_file
   public :: yaml_parse_from_char_array
   public :: yaml_parse_from_string,yaml_parse_database
@@ -110,9 +110,9 @@ contains
     !> shortkey name. in this case the option invoked is as -k value
     !! the only protected key if h as it stands for shorthelp
     character(len=1), intent(in), optional :: shortname
-    !> character string containing list (in yaml format) of 
+    !> character string containing list (in yaml format) of
     !! options that conflicts with the one given
-    !! the options may not have been defined yet. 
+    !! the options may not have been defined yet.
     !!The check is performed at the end of the parsing procedure
     character(len=*), intent(in), optional :: conflicts
 
@@ -214,7 +214,7 @@ contains
     character(len=*), intent(in) :: string
     !local variables
     type(dictionary), pointer :: dict,iter
-    
+
     !load the input variable definition
     dict=>yaml_load(string)
 
@@ -264,7 +264,7 @@ contains
 
     call yaml_cl_parse_option(parser,name,default,help_string,&
          shortname,help_dict,first_option,conflicts)
-   
+
   end subroutine yaml_cl_parse_option_from_dict
 
   subroutine yaml_argparse(options,string)
@@ -272,7 +272,7 @@ contains
     use f_utils, only: f_zero
     implicit none
     !> the dictionary of the options, should be nullified as input
-    type(dictionary), pointer :: options 
+    type(dictionary), pointer :: options
     !>definition of the input variables, given with a single string
     character(len=*), intent(in) :: string
     !local variables
@@ -287,7 +287,7 @@ contains
     call yaml_cl_parse_free(parser)
 
   end subroutine yaml_argparse
-  
+
 
   !> Fill the parsed dictionary with default values
   subroutine yaml_cl_parse_init(parser)
@@ -319,7 +319,7 @@ contains
     use yaml_output
     implicit none
     logical, intent(in) :: short
-    type(yaml_cl_parse), intent(in) :: parser  
+    type(yaml_cl_parse), intent(in) :: parser
     !local variables
     character(len=1) :: shortopt
     character(len=max_field_length) :: default
@@ -330,7 +330,7 @@ contains
     iter => dict_iter(parser%options)
     do while(associated(iter))
        !find if this is the first option
-       if (trim(parser%first_command_key) /= dict_key(iter)) then 
+       if (trim(parser%first_command_key) /= dict_key(iter)) then
           call option_help(iter)
        end if
        iter => dict_next(iter)
@@ -342,8 +342,8 @@ contains
        call option_help(parser%options//trim(parser%first_command_key))
        call yaml_comment('The above option can also be specified as a first argument')
     end if
-   
-    contains 
+
+    contains
 
       subroutine option_help(opt)
         implicit none
@@ -373,7 +373,7 @@ contains
 
   end subroutine parser_help
 
-  
+
   !> routine for parsing the command line
   subroutine yaml_cl_parse_cmd_line(parser,args)
     use dictionaries
@@ -406,7 +406,7 @@ contains
        call dict_free(dict)
     end do
 
-    !coherence checks. 
+    !coherence checks.
     dict => dict_iter(parser%args)
     do while(associated(dict))
        !See if some option conflicts with others
@@ -420,12 +420,12 @@ contains
           end if
           conf => dict_next(conf)
        end do
-       
+
        dict => dict_next(dict)
     end do
 
     if (present(args)) then
-       nullify(args) 
+       nullify(args)
        call dict_copy(src=parser%args,dest=args)
     end if
 
@@ -589,7 +589,7 @@ contains
          err_msg='YAML parse error.',&
          err_action='Modify your inputs.',&
          err_id=YAML_PARSE_ERROR)
-         
+
     !Define a dictionary to have a more verbosity of yaml_parse_error
     dict_yaml_errs => dict_new("<document start>" .is. &
          & "The first indentation is different at this line in front of the given key.", &
@@ -615,7 +615,7 @@ contains
     implicit none
     type(dictionary), pointer :: dict
     character(len = *), intent(in) :: fname
-    
+
     integer(kind = 8) :: parser
 
     call yaml_parser_c_init(parser, fname, len(fname))
@@ -653,7 +653,7 @@ contains
     implicit none
     type(dictionary), pointer :: dict
     character, dimension(:), intent(in) :: carr
-    
+
     integer(kind = 8) :: parser
 
     call yaml_parser_c_init_from_buf(parser, carr(1), size(carr))
@@ -666,7 +666,7 @@ contains
     implicit none
     type(dictionary), pointer :: dict
     character(len = *), intent(in) :: str
-    
+
     integer(kind = 8) :: parser
 
     call yaml_parser_c_init_from_buf(parser, str, len_trim(str))
@@ -843,9 +843,9 @@ contains
           call set(m // key, "*" // trim(val))
           key(1:max_field_length) = " "
        end if
-       
+
        if (f_err_check(YAML_PARSE_ERROR)) return
-       
+
     end do
   end function build_map
 
@@ -890,9 +890,9 @@ contains
           ! Fallback to stringified alias.
           call add(seq, "*" // trim(val), s)
        end if
-       
+
        if (f_err_check(YAML_PARSE_ERROR)) return
-       
+
     end do
 
   end function build_seq
@@ -911,7 +911,7 @@ contains
     type(dictionary), pointer :: loaded_string,test
     !parse from the given string
     call yaml_parse_from_string(loaded_string,string)
-    
+
     !extract the first document
     dict => loaded_string .pop. 0
 
@@ -930,7 +930,7 @@ contains
           dict=>test
        end select
     end if
-    
+
   end function yaml_load
 
   !> Throw an error with YAML_PARSE_ERROR trying to give a better understandable message

@@ -75,7 +75,7 @@ module box
 !!$  end interface box_iter
 
   public :: cell_r,cell_new,box_iter,box_next_point
-  public :: cell_geocode,box_next_x,box_next_y,box_next_z,cell_null,nullify_box_iterator
+  public :: box_next_x,box_next_y,box_next_z,cell_null,nullify_box_iterator
   public :: box_iter_rewind,box_iter_split,box_iter_merge,box_iter_set_nbox,box_iter_expand_nbox,box_nbox_from_cutoff
   public :: box_iter_square_gd,box_iter_closest_r,box_iter_distance
 
@@ -961,30 +961,6 @@ contains
     !here we should verify that the the inverse metric times the metric is the identity
 
   end function cell_new
-
-  !>give the associated geocode, 'X' for unknown
-  pure function cell_geocode(mesh)
-    implicit none
-    type(cell), intent(in) :: mesh
-    character(len=1) :: cell_geocode
-    !local variables
-    logical, dimension(3) :: peri
-
-!    peri=cell_periodic_dims(mesh)
-    peri= mesh%dom%bc == PERIODIC
-    if (all(peri)) then
-       cell_geocode='P'
-    else if (.not. any(peri)) then
-       cell_geocode='F'
-    else if (peri(1) .and. .not. peri(2) .and. peri(3)) then
-       cell_geocode='S'
-    else if (.not. peri(1) .and. .not. peri(2) .and. peri(3)) then
-       cell_geocode='W'
-    else
-       cell_geocode='X'
-    end if
-
-  end function cell_geocode
 
   !>gives the value of the coordinate from the grid point
   elemental pure function cell_r(mesh,i,dim) result(t)

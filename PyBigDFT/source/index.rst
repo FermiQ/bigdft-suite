@@ -11,19 +11,22 @@ of BigDFT input and output files. Such modules are supposed to enhance the BigDF
 by high-level approach.
 Also, calculators and workflows are supposed to be created and inspected with modules of the PyBigDFT package.
 
+The documentation of this package is described in
+
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+   :maxdepth: 1
+
+   docGeneration
 
 Module Members
 ==============
 
 Input file representation  and usage from Python
-  
+
 .. toctree:: inputfiles
 
 Input Actions on the BigDFT input file
-  
+
 .. toctree:: inputactions
 
 Analysis of Logfiles and Ground-state related properties
@@ -38,9 +41,13 @@ Calculators to be used with BigDFT package to trigger runs of the code
 
 .. toctree:: BigDFT.Calculators
 
+Organize runs and analyze output in a dataset
+
+.. toctree:: datasets
+
 (Py)BigDFT Tutorial page
 
-.. toctree:: 
+.. toctree::
    :maxdepth: 1
 
    tutorials

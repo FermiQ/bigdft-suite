@@ -92,6 +92,7 @@ module at_domain
   public :: rxyz_ortho,distance,closest_r
   public :: dotp_gu,dotp_gd,square_gu,square_gd
   public :: domain_geocode,bc_periodic_dims,geocode_to_bc,domain_periodic_dims
+  public :: geocode_to_bc_enum
 
 contains
 

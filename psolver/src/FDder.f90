@@ -29,6 +29,7 @@ module FDder
     subroutine nabla_u_and_square(mesh,u,du,du2,nord)
       use dictionaries, only: f_err_throw
       use box
+      use at_domain, only: domain_periodic_dims
       implicit none
 
       !c..declare the pass
@@ -57,7 +58,7 @@ module FDder
 
       !buffers associated to the geocode
       !conditions for periodicity in the three directions
-      peri=cell_periodic_dims(mesh)
+      peri=domain_periodic_dims(mesh%dom)
 
       ! Beware that n_cell has to be > than n.
       if (n_cell.lt.n) then
@@ -229,6 +230,7 @@ module FDder
     subroutine nabla_u_square(mesh,u,du2,nord)
       use box
       use dictionaries, only: f_err_throw
+      use at_domain, only: domain_periodic_dims
       implicit none
 
       !c..declare the pass
@@ -256,7 +258,7 @@ module FDder
 
       !buffers associated to the geocode
       !conditions for periodicity in the three directions
-      peri=cell_periodic_dims(mesh)
+      peri=domain_periodic_dims(mesh%dom)
 
       ! Beware that n_cell has to be > than n.
       if (n_cell.lt.n) then
@@ -427,6 +429,7 @@ module FDder
     !!declare the pass
     subroutine div_u_i(mesh,u,du,nord,cc)
       use box
+      use at_domain, only: domain_periodic_dims
       implicit none
 
       type(cell), intent(in) :: mesh !< @copydoc poisson_solver::doc::mesh
@@ -455,7 +458,7 @@ module FDder
 
       !buffers associated to the geocode
       !conditions for periodicity in the three directions
-      peri=cell_periodic_dims(mesh)
+      peri=domain_periodic_dims(mesh%dom)
 
       ! Beware that n_cell has to be > than n.
       if (n_cell < n) then
@@ -780,6 +783,7 @@ module FDder
 
     subroutine nabla_u_epsilon(mesh,u,du,nord,eps)
       use box
+      use at_domain, only: domain_periodic_dims
       implicit none
 
       !c..this routine computes 'nord' order accurate first derivatives
@@ -819,7 +823,7 @@ module FDder
 
       !buffers associated to the geocode
       !conditions for periodicity in the three directions
-      peri=cell_periodic_dims(mesh)
+      peri=domain_periodic_dims(mesh%dom)
       perx=peri(1)
       pery=peri(2)
       perz=peri(3)
@@ -977,6 +981,7 @@ module FDder
 
     subroutine nabla_u(mesh,u,du,nord)
       use box
+      use at_domain, only: domain_periodic_dims
       implicit none
 
       !c..this routine computes 'nord' order accurate first derivatives
@@ -1014,7 +1019,7 @@ module FDder
 
       !buffers associated to the geocode
       !conditions for periodicity in the three directions
-      peri=cell_periodic_dims(mesh)
+      peri=domain_periodic_dims(mesh%dom)
       perx=peri(1) 
       pery=peri(2)
       perz=peri(3)
@@ -1170,6 +1175,7 @@ module FDder
     subroutine update_rhopol(mesh,u,nord,eta,eps,dlogeps,rhopol,rhores2)
       use numerics, only: oneofourpi
       use box
+      use at_domain, only: domain_periodic_dims
       implicit none
 
       !c..this routine computes 'nord' order accurate first derivatives
@@ -1216,7 +1222,7 @@ module FDder
 
       !buffers associated to the geocode
       !conditions for periodicity in the three directions
-      peri=cell_periodic_dims(mesh)
+      peri=domain_periodic_dims(mesh%dom)
       perx=peri(1)
       pery=peri(2)
       perz=peri(3)

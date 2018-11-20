@@ -23,6 +23,7 @@ program PS_StressCheck
   use numerics
   use box
   use f_utils
+  use at_domain
   implicit none
   !include 'mpif.h'
   !Order of interpolating scaling function
@@ -104,6 +105,7 @@ program PS_StressCheck
   real(kind=8), dimension(:,:,:,:), pointer :: rhocore_fake
   type(dictionary), pointer :: options,input
   external :: gather_timings  
+  type(domain) :: dom
   nullify(rhocore_fake)
 
 
@@ -164,13 +166,18 @@ program PS_StressCheck
   !grid for the free BC case
   hgrid=max(hx,hy,hz)
 
-  mesh=cell_new(geocode,ndims,hgrids,alpha_bc=alpha,beta_ac=beta,gamma_ab=gamma)
+  !mesh=cell_new(geocode,ndims,hgrids,alpha_bc=alpha,beta_ac=beta,gamma_ab=gamma)
+  dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(geocode),&
+           alpha_bc=alpha,beta_ac=beta,gamma_ab=gamma,acell=ndims*hgrids)
+  mesh=cell_new(dom,ndims,hgrids)
+
+
    if (iproc==0) then
     call yaml_map('Angles',[alpha,beta,gamma]*180.0_dp*oneopi)
-    call yaml_map('Contravariant Metric',mesh%gu)
-    call yaml_map('Covariant Metric',mesh%gd)
-    call yaml_map('Product of the two',matmul(mesh%gu,mesh%gd))
-    call yaml_map('Covariant determinant',mesh%detgd)
+    call yaml_map('Contravariant Metric',mesh%dom%gu)
+    call yaml_map('Covariant Metric',mesh%dom%gd)
+    call yaml_map('Product of the two',matmul(mesh%dom%gu,mesh%dom%gd))
+    call yaml_map('Covariant determinant',mesh%dom%detgd)
    end if
 
    !Allocation of the energy vs acell vector
@@ -360,7 +367,7 @@ program PS_StressCheck
               end do
            end do
         end do
-        offset=offset*hx*hy*hz*sqrt(mesh%detgd) ! /// to be fixed ///
+        offset=offset*hx*hy*hz*sqrt(mesh%dom%detgd) ! /// to be fixed ///
         !write(*,*) 'offset = ',offset
         if (iproc==0) call yaml_map('offset',offset)
      end if
@@ -420,17 +427,17 @@ program PS_StressCheck
   
      val(is,ii)=0.d0
      do i=1,3
-      val(is,ii)=val(is,ii)+mesh%gu(i,ii)*stress_3_3(i,ii)
+      val(is,ii)=val(is,ii)+mesh%dom%gu(i,ii)*stress_3_3(i,ii)
      end do
-     detgd(is)=mesh%detgd
+     detgd(is)=mesh%dom%detgd
      volele(is)=mesh%volume_element
      if (iproc==0) then
-    call yaml_map('Controvariant Metric',mesh%gu)
+    call yaml_map('Controvariant Metric',mesh%dom%gu)
     call yaml_map('Stress 3x3',stress_3_3)
     call yaml_map('sum_i mesh%gu(i,ii)*stress_3_3(i,ii)',val(is,ii))
     end if
 
-     eexcu=sum(density)*hx*hy*hx*sqrt(mesh%detgd)
+     eexcu=sum(density)*hx*hy*hx*sqrt(mesh%dom%detgd)
      if (nproc >1) call fmpi_allreduce(eexcu,1,op=FMPI_SUM)
      if (iproc==0) call yaml_map('potential integral',eexcu)
 
@@ -630,7 +637,7 @@ program PS_StressCheck
      stress_ana(is,ii)=-dene(is)/(acell_var*acell_var)
     else
      !stress_ana(is,ii)=-dene(is)/(acell*acell)/mesh%detgd
-     stress_ana(is,ii)=-dene(is)/(acell*acell)/sqrt(mesh%detgd)
+     stress_ana(is,ii)=-dene(is)/(acell*acell)/sqrt(mesh%dom%detgd)
     end if
     if (wrtfiles) write(unit3,'(1(1x,i8),13(1x,1pe26.14e3))')is,acell_var,ene_acell(is),dene(is),&
                   stress_ana(is,ii),val(is,ii),detgd(is),volele(is),&
@@ -657,10 +664,10 @@ program PS_StressCheck
   else  
    if (iproc==0) then
     call yaml_map('Angles',[alpha,beta,gamma]*180.0_dp*oneopi)
-    call yaml_map('Contravariant Metric',mesh%gu)
-    call yaml_map('Covariant Metric',mesh%gd)
-    call yaml_map('Product of the two',matmul(mesh%gu,mesh%gd))
-    call yaml_map('Covariant determinant',mesh%detgd)
+    call yaml_map('Contravariant Metric',mesh%dom%gu)
+    call yaml_map('Covariant Metric',mesh%dom%gd)
+    call yaml_map('Product of the two',matmul(mesh%dom%gu,mesh%dom%gd))
+    call yaml_map('Covariant determinant',mesh%dom%detgd)
    end if
 
    if (iproc == 0) then
@@ -944,10 +951,10 @@ subroutine test_functions(geocode,ixc,n01,n02,n03,acell,acell_var,a_gauss,hx,hy,
 !!              density(i1,i2,i3) = density(i1,i2,i3) + gu(1,1)*fx2*fy*fz+gu(2,2)*fx*fy2*fz+gu(3,3)*fx*fy*fz2
 !!              density(i1,i2,i3) = density(i1,i2,i3) + 2.0_dp*(gu(1,2)*fx1*fy1*fz+gu(1,3)*fx1*fy*fz1+gu(2,3)*fx*fy1*fz1)
               density(i1,i2,i3) = -mu0**2*fx*fy*fz
-              density(i1,i2,i3) = density(i1,i2,i3) + mesh%gu(1,1)*fx2*fy*fz+mesh%gu(2,2)*fx*fy2*fz+&
-                                  mesh%gu(3,3)*fx*fy*fz2
-              density(i1,i2,i3) = density(i1,i2,i3) + 2.0_dp*(mesh%gu(1,2)*fx1*fy1*fz+&
-                                  mesh%gu(1,3)*fx1*fy*fz1+mesh%gu(2,3)*fx*fy1*fz1)
+              density(i1,i2,i3) = density(i1,i2,i3) + mesh%dom%gu(1,1)*fx2*fy*fz+mesh%dom%gu(2,2)*fx*fy2*fz+&
+                                  mesh%dom%gu(3,3)*fx*fy*fz2
+              density(i1,i2,i3) = density(i1,i2,i3) + 2.0_dp*(mesh%dom%gu(1,2)*fx1*fy1*fz+&
+                                  mesh%dom%gu(1,3)*fx1*fy*fz1+mesh%dom%gu(2,3)*fx*fy1*fz1)
               if (gauss_dens) density(i1,i2,i3) = fx*fy*fz
               denval=max(denval,-density(i1,i2,i3))
            end do
@@ -1079,10 +1086,10 @@ subroutine test_functions(geocode,ixc,n01,n02,n03,acell,acell_var,a_gauss,hx,hy,
 !!              density(i1,i2,i3) = density(i1,i2,i3) + gu(1,1)*fx2*fy*fz+gu(2,2)*fx*fy2*fz+gu(3,3)*fx*fy*fz2
 !!              density(i1,i2,i3) = density(i1,i2,i3) + 2.0_dp*(gu(1,2)*fx1*fy1*fz+gu(1,3)*fx1*fy*fz1+gu(2,3)*fx*fy1*fz1)
               density(i1,i2,i3) = -mu0**2*fx*fy*fz
-              density(i1,i2,i3) = density(i1,i2,i3) + mesh%gu(1,1)*fx2*fy*fz+mesh%gu(2,2)*fx*fy2*fz+&
-                                  mesh%gu(3,3)*fx*fy*fz2
-              density(i1,i2,i3) = density(i1,i2,i3) + 2.0_dp*(mesh%gu(1,2)*fx1*fy1*fz+&
-                                  mesh%gu(1,3)*fx1*fy*fz1+mesh%gu(2,3)*fx*fy1*fz1)
+              density(i1,i2,i3) = density(i1,i2,i3) + mesh%dom%gu(1,1)*fx2*fy*fz+mesh%dom%gu(2,2)*fx*fy2*fz+&
+                                  mesh%dom%gu(3,3)*fx*fy*fz2
+              density(i1,i2,i3) = density(i1,i2,i3) + 2.0_dp*(mesh%dom%gu(1,2)*fx1*fy1*fz+&
+                                  mesh%dom%gu(1,3)*fx1*fy*fz1+mesh%dom%gu(2,3)*fx*fy1*fz1)
               !old:
               !density(i1,i2,i3) = fx2*fy*fz+fx*fy2*fz+fx*fy*fz2 - mu0**2*fx*fy*fz
               denval=max(denval,-density(i1,i2,i3))
@@ -1196,10 +1203,10 @@ subroutine test_functions(geocode,ixc,n01,n02,n03,acell,acell_var,a_gauss,hx,hy,
               call functions(x1,ax,bx,fx,fx1,fx2,ifx)
               potential(i1,i2,i3) =  -fourpi*fx*fy*fz
               density(i1,i2,i3) = -mu0**2*fx*fy*fz
-              density(i1,i2,i3) = density(i1,i2,i3) + mesh%gu(1,1)*fx2*fy*fz+mesh%gu(2,2)*fx*fy2*fz+&
-                                  mesh%gu(3,3)*fx*fy*fz2
-              density(i1,i2,i3) = density(i1,i2,i3) + 2.0_dp*(mesh%gu(1,2)*fx1*fy1*fz+&
-                                  mesh%gu(1,3)*fx1*fy*fz1+mesh%gu(2,3)*fx*fy1*fz1)
+              density(i1,i2,i3) = density(i1,i2,i3) + mesh%dom%gu(1,1)*fx2*fy*fz+mesh%dom%gu(2,2)*fx*fy2*fz+&
+                                  mesh%dom%gu(3,3)*fx*fy*fz2
+              density(i1,i2,i3) = density(i1,i2,i3) + 2.0_dp*(mesh%dom%gu(1,2)*fx1*fy1*fz+&
+                                  mesh%dom%gu(1,3)*fx1*fy*fz1+mesh%dom%gu(2,3)*fx*fy1*fz1)
               !old:
               !density(i1,i2,i3) = fx2*fy*fz+fx*fy2*fz+fx*fy*fz2 - mu0**2*fx*fy*fz
               denval=max(denval,-density(i1,i2,i3))
