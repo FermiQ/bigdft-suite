@@ -153,16 +153,18 @@ class BigDFTool(object):
             q2 = [float(x) for x in fdata["q2"]]
             frag.set_fragment_multipoles(q0, q1, q2)
 
-    def compute_spillage(self, system, log, target):
+    def compute_spillage(self, system, log, targetid):
         """
         Compute a measure of the spillage interaction between fragments.
 
         Args:
           system (System): instance of a System class, which defines the
-          fragments we will use.
+            fragments we will use.
           log (Logfile): instance of a Logfile class
-          target (int): which fragment to compute the spillage of all other
-            fragments with.
+          targetid (str): which fragment to compute the spillage of all other
+            fragments with. You can either set this or target.
+        Result:
+          (dict): for each fragment id, what the spillage value is.
         """
         from os.path import join, isfile
         from Spillage import MatrixMetadata, compute_spillbase, compute_spillage
@@ -196,6 +198,29 @@ class BigDFTool(object):
 
         # Compute the spillage array
         spillage_array = compute_spillage(
-            sinvxh, sinvxh2, frag_indices, target)
+            sinvxh, sinvxh2, frag_indices, targetid)
 
         return spillage_array
+
+    def plot_spillage(self, fig, axs, spillvals):
+        """
+        Plot the spillage values.
+
+        fig: the figure we should plot on.
+        axs: the axs we we should plot on.
+        """
+        from Fragments import GetFragTuple
+        xvals = []
+        svals = []
+        labels = []
+        for id, val in spillvals.items():
+            xvals.append(GetFragTuple(id)[1])
+            svals.append(val)
+            labels.append(id)
+        axs.plot([x for _,x in sorted(zip(xvals,svals))], 'x--')
+
+        axs.set_xticks(range(len(labels)))
+        axs.set_xticklabels([x for _, x in sorted(zip(xvals, labels))],
+                            rotation=90)
+        axs.set_xlabel("Fragment", fontsize=12)
+        axs.set_ylabel("Spillage Values", fontsize=12)

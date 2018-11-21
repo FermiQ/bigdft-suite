@@ -68,8 +68,9 @@ class MatrixMetadata:
         thresh = 1e-5
 
         # Now we associate this information with fragments.
-        frag_indices = []
+        frag_indices = {}
         for fragment in system.fragments:
+            frag_indices[fragment.id] = []
             temp_ind = []
             # Find the atom that matches
             for aj in fragment.atoms:
@@ -78,7 +79,7 @@ class MatrixMetadata:
                         found = True
                         temp_ind += ai["indices"]
                         break
-            frag_indices.append(sorted(temp_ind))
+            frag_indices[fragment.id] = sorted(temp_ind)
 
         return frag_indices
 
@@ -98,7 +99,7 @@ def compute_spillage(sinvxh, sinvxh2, frag_indices, target):
     """
     from numpy import trace
     indices_f = frag_indices[target]
-    spillage_values = []
+    spillage_values = {}
 
     # Compute the denominator tr(HRfHRf)
     denom = sinvxh[:, indices_f]
@@ -112,7 +113,7 @@ def compute_spillage(sinvxh, sinvxh2, frag_indices, target):
     left_t = trace(H2T.todense())
 
     # Compute the right side values tr(HRgHRf)
-    for indices_g in frag_indices:
+    for id_g, indices_g in frag_indices.items():
         TFH = sinvxh[indices_f, :]
         TFHTG = TFH[:, indices_g]
 
@@ -121,7 +122,7 @@ def compute_spillage(sinvxh, sinvxh2, frag_indices, target):
 
         right_mat = (TFHTG.dot(TGHTF))
         right_t = trace(right_mat.todense())
-        spillage_values.append(right_t / denom_t)
+        spillage_values[id_g] = right_t / denom_t
 
     return spillage_values
 
