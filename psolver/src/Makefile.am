@@ -28,14 +28,6 @@ PS_input_variables_fetch.o: PS_input_variables_definition-inc.h
 PS_input_variables_definition-inc.h: PS_input_variables_definition.yaml
 	$(SED) -e "s/^/\"/;s/$$/\\\n\"/" $< > $@
 
-if HAVE_ETSF_IO
-etsf_files = IOetsf.f90
-etsf_dep   = IOetsf.o
-else
-etsf_files = IOetsf_fake.f90
-etsf_dep   = IOetsf_fake.o
-endif
-
 fdder_file=FDder.f90
 
 # Code source.
@@ -55,11 +47,8 @@ libPSolver_1_a_SOURCES = Build_Kernel.f90 \
 	PSbox.f90 \
 	PSbase.f90 \
 	exctx_calculation.f90 \
-	mp_quadrature.f90 \
 	$(fdder_file) \
-	IObox.f90 \
-	$(c_level) \
-	$(etsf_files)
+	$(c_level)
 
 # Modules.
 if CAPITALIZE
@@ -68,20 +57,14 @@ modules = POISSON_SOLVER.@MODULE_EXT@ \
 	PSTYPES.@MODULE_EXT@ \
 	PSBASE.@MODULE_EXT@ \
 	PSBOX.@MODULE_EXT@ \
-	FDDER.@MODULE_EXT@ \
-	IOBOXETSF.@MODULE_EXT@ \
-	MULTIPOLE_PRESERVING.@MODULE_EXT@ \
-	IOBOX.@MODULE_EXT@
+	FDDER.@MODULE_EXT@
 else
 modules = poisson_solver.@MODULE_EXT@ \
 	psolver_environment.@MODULE_EXT@ \
 	pstypes.@MODULE_EXT@ \
 	psbase.@MODULE_EXT@ \
 	psbox.@MODULE_EXT@ \
-	fdder.@MODULE_EXT@ \
-	ioboxetsf.@MODULE_EXT@ \
-	multipole_preserving.@MODULE_EXT@ \
-	iobox.@MODULE_EXT@
+	fdder.@MODULE_EXT@
 endif
 
 CLEANFILES = *.@MODULE_EXT@ $(psolver_dynamic_library) $(psolver_library_soname) libPSolver-1.so
@@ -133,7 +116,7 @@ conv_check_fftw_SOURCES = conv_check_fftw.f90 fftw.cpp
 conv_check_fftw_LDADD = $(psolver_library) -lfftw3 -lfftw3_threads
 
 AM_FCFLAGS = -I. -I$(srcdir) @LIB_FUTILE_CFLAGS@ @LIBETSFIO_INCLUDE@ @MPI_INCLUDE@
-AM_CPPFLAGS = -I. -I$(top_builddir) -I@CUDA_PATH@/include/ 
+AM_CPPFLAGS = -I. -I$(top_builddir) -I@CUDA_PATH@/include/
 AM_LDFLAGS = -L$(top_builddir)/src
 
 if BUILD_DYNAMIC_LIBS
@@ -169,12 +152,9 @@ Poisson_Solver.o: $(SOURCES_MOD) configure.inc environment.o PStypes.o PSbox.o P
 PStypes.o: environment.o FDder.o
 PSbox.o: PStypes.o PSbase.o IObox.o
 FDder.o: PSbase.o
-IObox.o: PSbase.o $(etsf_dep)
 environment.o: PSbase.o
 conv_check_fft.o: cufft.o
 conv_check_fftw.o: fftw.o
-IOetsf.o: PSbase.o
-IOetsf_fake.o: PSbase.o
 exctx_calculation.o wofz.o Build_Kernel.o scaling_function.o PSolver_Base_new.o: Poisson_Solver.o
 
 .cu.o:

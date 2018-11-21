@@ -24,11 +24,25 @@ MKFILE='Makefile'
 SETUP=' setup '
 GREP_M4_COMMENTS=" | grep -v dnl | grep -v '#' "
 
+def grep_command(fr,*args):
+    """
+    Args:
+       fr (str): path of the directory to grep from
+       *args (str): arguments to search from
+    """
+    cmd = 'grep -R '+args[0]+' '+fr
+    for arg in args[1:]:
+        cmd += ' | grep '+arg
+    return cmd + GREP_M4_COMMENTS
 
-CHECKMODULES= ['futile','chess','psolver','bigdft','PyBigDFT','spred']
-MAKEMODULES= ['futile','chess','psolver','libABINIT','bigdft','PyBigDFT','spred']
-MANUALMAKEMODULES = ['futile','chess','psolver','libABINIT','bigdft','spred']
+from copy import deepcopy
+CHECKMODULES= ['futile','atlab','chess','psolver','bigdft','PyBigDFT','spred']
 
+MAKEMODULES= deepcopy(CHECKMODULES)
+MAKEMODULES.insert(CHECKMODULES.index('bigdft'),'libABINIT')
+
+MANUALMAKEMODULES = deepcopy(MAKEMODULES)
+MANUALMAKEMODULES.remove('PyBigDFT')
 #allowed actions and corresponding description
 ACTIONS={'build':
          'Compile and install the code with the given configuration.',
@@ -65,6 +79,7 @@ TARGETS={
     'futile': ['lib','libfutile-1.a'],
     'PyBigDFT': ['bin','bigdft'], #not really a target
     'psolver': ['lib','libPSolver-1.a'],
+    'atlab': ['lib','libatlab-1.a']
     }
 
 class BigDFTInstaller():
@@ -102,7 +117,7 @@ class BigDFTInstaller():
         #jhbuild script
         self.jhb=os.path.join(self.srcdir,'jhbuild.py ')
         if self.rcfile != '': self.jhb += '-f '+self.rcfile
-        
+
         #conditions to be added
         if len(self.conditions) > 0: self.jhb += ' --conditions=+'+self.conditions[0]
         for cond in self.conditions[1:]:
@@ -205,8 +220,8 @@ class BigDFTInstaller():
             print indent + 'Configuration options:'
             print indent*2 + "Source: Configuration file '%s'" % os.path.abspath(self.rcfile)
         while not self.yes:
-            if not self.branch: 
-                print indent + '#WARNING: You are compiling from a User Branch. Developments are discouraged in this case' 
+            if not self.branch:
+                print indent + '#WARNING: You are compiling from a User Branch. Developments are discouraged in this case'
                 print indent + '# as compilation errors might lead to source deletion. For extensive developments the usage'
                 print indent + '# of a versioned branch is advised. Please ignore this warning if you are not a developer.'
             ok = raw_input('Do you want to continue (Y/n)? ')
@@ -267,19 +282,19 @@ class BigDFTInstaller():
         import os
         m4args=set()
         if os.path.isfile(tgt):
-            for dd in self.get_output('grep '+acmacro+' '+tgt+GREP_M4_COMMENTS).split('\n'):
+            for dd in self.get_output(grep_command(tgt,acmacro)).split('\n'):
                 if len(dd) == 0: continue
                 m4=dd.split('[')[1]
                 m4args.add(m4.split(']')[0])
         return list(m4args)
-                
+
     def get_m4_macros(self,tgt,previous_macros=[]):
         "Identify the name of the proprietary m4 macros used in configure.ac"
         import os
         macros=set()
         if os.path.isfile(tgt):
             for regexp in self.m4_re:
-                for m4 in self.get_output('grep '+regexp+' '+tgt+GREP_M4_COMMENTS).split('\n'):
+                for m4 in self.get_output(grep_command(tgt,regexp)).split('\n'):
                     if len(m4)>0:
                         m4t=m4.split('(')[0]
                         if m4t not in previous_macros: macros.add(m4t)
@@ -299,8 +314,9 @@ class BigDFTInstaller():
         files=set()
         #localize then the associated file in the m4 repository
         tgt=os.path.join(self.srcdir,'m4')+os.sep
+        #print 'XXXXX',macros
         for m in macros:
-            ffs=self.get_output('grep -R '+m+' '+tgt+'| grep AC_DEFUN'+GREP_M4_COMMENTS).split(':')[0]
+            ffs=self.get_output(grep_command(tgt,m,'AC_DEFUN')).split(':')[0]
             if ffs!='': files.add(ffs)
         #now for each of the files get all the macros which are required but not explicitly called
         files=list(files)
@@ -308,11 +324,11 @@ class BigDFTInstaller():
         for f in files:
             tgt=os.path.join(self.srcdir,f)
             newm=self.get_m4_macros(tgt,previous_macros=macros)
-            #print 'new macros',newm
+            #print 'new macros',newm,f
             for m4 in newm:
                 newm4.add(m4)
         newm4 = list(newm4)
-        #print "new macros which have to be added",newm4
+        #print "new macros which have to be added",newm4,files
         if len(newm4) > 0: files=self.get_m4_files(macros+newm4)
         return list(files)
 
@@ -321,7 +337,7 @@ class BigDFTInstaller():
         import os
         tgt=os.path.join(self.srcdir,mod,'configure.ac')
         return self.get_ac_argument(tgt,'AC_CONFIG_MACRO_DIR')
-    
+
     def copyfiles(self,filelist,dest):
         import os,shutil
         if not os.path.isdir(dest): return
@@ -345,12 +361,13 @@ class BigDFTInstaller():
             #print 'initial macros',mod,macros
             files=self.get_m4_files(macros)
             #print 'related files',files
+            #print 'directory to copy files',self.get_m4_dir(mod)
             #now copy the files, overwriting the previously existing ones
             for d in self.get_m4_dir(mod):
                 self.copyfiles(files,os.path.join(self.srcdir,mod,d))
         os.system(self.jhb+SETUP+self.package)
-        #self.shellaction(self.srcdir,self.modulelist,'autoreconf -fi')    
-        
+        #self.shellaction(self.srcdir,self.modulelist,'autoreconf -fi')
+
     def check(self):
         "Perform the check action"
         self.shellaction('.',CHECKMODULES,'make check',hidden=not self.verbose)
@@ -417,7 +434,7 @@ class BigDFTInstaller():
         self.get_output(self.jhb+SETUP+mod+startat+mod)
         print 'Building: ',mod
         self.get_output(self.jhb+BUILDONE+mod)
-        
+
     def startover(self):
         "Wipe files in the makemodules directory"
         if not self.branch:
@@ -431,7 +448,7 @@ class BigDFTInstaller():
         for mod in self.selected(MAKEMODULES):
             self._buildone(mod)
         self.build()
-        
+
     def dry_run(self):
         "Do dry build"
         self.get_output(self.jhb+DOT+self.package+DOTCMD)
@@ -484,7 +501,7 @@ all: build
         if os.path.isfile(self.rcfile) and not os.path.isfile(RCFILE):
             from shutil import copyfile
             copyfile(self.rcfile,RCFILE)
-            print 'The configuration file used has been copied in the build tree, file "'+RCFILE+'"' 
+            print 'The configuration file used has been copied in the build tree, file "'+RCFILE+'"'
             return
         if BIGDFT_CFG not in os.environ.keys() or os.path.isfile(RCFILE): return
         print 'The suite has been built from a single configure line.'

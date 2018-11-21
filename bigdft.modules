@@ -125,6 +125,14 @@
     <branch repo="local" module="psolver-1.8.tar.gz" version="1.8.0" checkoutdir="psolver"/>
     <dependencies>
       <dep package="futile"/>
+      <dep package="atlab"/>
+    </dependencies>
+  </autotools>
+
+  <autotools id="atlab" autogen-sh="autoreconf">
+    <branch repo="local" module="atlab-1.0.tar.gz" version="1.0.0" checkoutdir="atlab"/>
+    <dependencies>
+      <dep package="futile"/>
     </dependencies>
   </autotools>
 

@@ -814,7 +814,7 @@ contains
     end if
   end subroutine get_matrix_from_dict
 
-  
+
   !> Initialize atomic data from the dict (key='ig_occupation')
   subroutine atomic_data_set_from_dict(dict, key, atoms, nspin)
     use module_defs, only: gp
@@ -1139,7 +1139,7 @@ contains
        !get atomic extension
        l=index(filename,'.',back=.true.)+1
        call f_strcpy(src=filename(l:),dest=astruct%inputfile_format)
-     
+
     case default
        call f_err_throw(err_msg="The specified format '" // trim(astruct%inputfile_format) // "' is not recognised."// &
             & " The format should be 'yaml', 'int', 'ascii' or 'xyz'.",err_id=BIGDFT_INPUT_FILE_ERROR)
@@ -1172,7 +1172,8 @@ contains
        write(comment, "(A)") comment_
     end if
     if (present(fxyz)) then
-       if (associated(fxyz_)) then
+
+      if (associated(fxyz_)) then
           !fxyz = f_malloc_ptr(src = fxyz_, id = "fxyz") not needed anymore
           fxyz => fxyz_
        else
@@ -1185,75 +1186,18 @@ contains
 
   END SUBROUTINE set_astruct_from_file
 
-
   subroutine set_astruct_from_openbabel(astruct, obfile)
-    use dictionaries
-    use yaml_strings, only: f_char_ptr
-    use yaml_output
-    use f_utils
     implicit none
     type(atomic_structure), intent(out) :: astruct
     character(len = *), intent(in) :: obfile
 
-    type(dictionary), pointer :: dict,indict,outdict
-
-    interface
-       subroutine openbabel_load(d, f)!,ln)
-         use dictionaries
-         implicit none
-         type(dictionary), pointer :: d
-         !character(len = *), intent(in) :: f
-         character, dimension(*), intent(in) :: f
-         !integer, intent(in) :: ln
-       end subroutine openbabel_load
-       subroutine openbabel_formats(indict,outdict)
-         use dictionaries, only: dictionary
-         implicit none
-         type(dictionary), pointer :: indict,outdict
-       end subroutine openbabel_formats
-    end interface
-
-    call dict_init(dict)
-    call openbabel_load(dict,f_char_ptr(trim(obfile)))!,len(obfile))
-    call openbabel_formats(indict,outdict)
-
-    call yaml_map('Supported input formats',indict)
-    call yaml_map('Supported output formats',outdict)
-    call dict_free(indict,outdict)
-
-      call yaml_map('Parsed posinp dict from openbabel',dict)
-
+      call load_dict_from_openbabel(dict,obfile)
     ! giuseppe line
     !call analyse_posinp_dict(dict)
 
     call astruct_set_from_dict(dict, astruct)
     call dict_free(dict)
   end subroutine set_astruct_from_openbabel
-
-
-  subroutine dump_dict_with_openbabel(dict,dict_types,fout)
-    use dictionaries
-    use yaml_strings, only: f_char_ptr
-    implicit none
-    type(dictionary), pointer :: dict,dict_types
-    character(len=*), intent(in) :: fout
-    !local variables
-
-    interface
-       subroutine openbabel_dump(d, dt, f)!,ln)
-         use dictionaries
-         implicit none
-         type(dictionary), pointer :: d,dt
-         !character(len = *), intent(in) :: f
-         character, dimension(*), intent(in) :: f
-         !integer, intent(in) :: ln
-       end subroutine openbabel_dump
-    end interface
-
-    call openbabel_dump(dict,dict_types,f_char_ptr(trim(fout)))! fout,len_trim(fout))
-
-  end subroutine dump_dict_with_openbabel
-
 
   subroutine analyse_posinp_dict(dict)
     use dictionaries
@@ -1278,7 +1222,7 @@ contains
 
     !put clean values in the dictionary
 
-    !loop on the atomic positions and 
+    !loop on the atomic positions and
     !remove duplicated atoms
     nullify(iter)
     dict_atoms => dict// ASTRUCT_POSITIONS
@@ -1293,7 +1237,7 @@ contains
        end do
        if (boundary) then
        end if
-      
+
     end do
 
     !then put the correct units (for example from openbabel put the angstroem keyword)
@@ -1437,7 +1381,7 @@ contains
     use box, only: geocode_to_bc,bc_periodic_dims
     use ao_inguess, only: charge_and_spol
     use yaml_output !tmp
-    
+
     implicit none
     type(dictionary), pointer :: dict
     type(atomic_structure), intent(in) :: astruct
@@ -1470,7 +1414,7 @@ contains
 
     peri=bc_periodic_dims(geocode_to_bc(astruct%geocode))
     do i=1,3
-       if (peri(i)) then         
+       if (peri(i)) then
           call set(dict // ASTRUCT_CELL // (i-1), yaml_toa(astruct%cell_dim(i)*factor(i)))
           if (reduced) factor(i) = 1._gp / astruct%cell_dim(i)
        else
@@ -1869,7 +1813,7 @@ contains
         ie = f_err_pop(err_name='INPUT_OUTPUT_ERROR',add_msg=msg)
         if (ie == 0) exit
       end do
-    else 
+    else
       !Check if input file is correct
       ierr = f_err_pop(err_id=BIGDFT_INPUT_FILE_ERROR,add_msg=msg)
       do
@@ -1902,7 +1846,7 @@ contains
       !call global_output_merge_to_dict(dict // key, outs, astruct)
       call deallocate_atomic_structure(astruct)
 
-    else 
+    else
       ! Raise an error
       call yaml_map('Found errors',list_msg)
 
@@ -1978,7 +1922,7 @@ contains
          astruct%inputfile_format='yaml'
     end if
 
-      call domain_set_from_dict(dict,astruct%dom)    
+      call domain_set_from_dict(dict,astruct%dom)
 
       ! Temporary assignation before removal - WARNING, reduced coordinates have to be still defined
       units = astruct%dom%units

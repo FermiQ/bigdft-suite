@@ -2,14 +2,6 @@
 noinst_LIBRARIES = libmodules.a
 module_DATA = $(modules)
 dynlibdir = $(libdir)
-dynlib_DATA = $(openbabel_dynamic_library)
-noinst_DATA = $(openbabel_soname_library)
-
-#if USE_MPI
-#mpi_include =
-#else
-#mpi_include = mpif.h
-#endif
 
 if HAVE_CP2K
 cp2k_interfacemod = module_cp2k.f90
@@ -92,7 +84,6 @@ libmodules_a_SOURCES = ab7_mixing.f90 \
 	configure.c \
 	$(alborz_interfacemod) \
 	$(cp2k_interfacemod) \
-	$(openbabel_static_sources) \
 	module_dftbp.f90 \
 	constrained_magnetic_field.f90 \
 	module_asd.f90 \
@@ -221,22 +212,11 @@ endif
 ATOMS_INCLUDES = astruct-inc.f90
 COMMS_INCLUDES = transpose-inc.f90
 
-if HAVE_OPENBABEL
-openbabel_dynamic_sources = openbabel.cpp
-openbabel_dynamic_library = libbabel.so.@BIGDFT_MINOR_VERSION@.0.@BIGDFT_MICRO_VERSION@
-openbabel_soname_library = libbabel.so.@BIGDFT_MINOR_VERSION@
-openbabel_library = $(openbabel_soname_library)
-AM_LDFLAGS = @FC_RPATH@$(DESTDIR)$(dynlibdir)
-else
-openbabel_static_sources = openbabel_fake.c
-AM_CFLAGS = -I. -I$(srcdir) -I$(top_builddir)/includes @MPI_INCLUDE@ @LIBABINIT_INCLUDE@ @LIB_XC_CFLAGS@ @LIB_FUTILE_CFLAGS@
-endif
 
-EXTRA_DIST = $(ATOMS_INCLUDES) $(COMMS_INCLUDES) openbabel.cpp
-CLEANFILES = *.@MODULE_EXT@ libbabel.so*
+EXTRA_DIST = $(ATOMS_INCLUDES) $(COMMS_INCLUDES)
+CLEANFILES = *.@MODULE_EXT@
 
 AM_FCFLAGS = -I. -I$(srcdir) -I$(top_builddir)/includes @MPI_INCLUDE@ @LIBABINIT_INCLUDE@ @LIB_XC_CFLAGS@ @LIB_FUTILE_CFLAGS@
-AM_CXXFLAGS = @LIB_FUTILE_CFLAGS@ @LIB_OPENBABEL_CFLAGS@
 
 # Hack for XLF strange DEFS option.
 PPFCCOMPILE = $(FC) $(DEFS:-D%=@FCDEFS@%) $(DEFAULT_INCLUDES) $(INCLUDES) \
@@ -280,13 +260,13 @@ bigdft_run.o: types.o input_dicts.o interfaces.o module_forces.o module_lenosky_
 #module_morse_bulk.o: base.o
 module_coulomb.o: types.o
 module_bazant.o: types.o
-module_dftbp.o: types.o 
+module_dftbp.o: types.o
 module_tersoff.o: atoms_data.o
 module_alborz.o: atoms_data.o
 module_bornmayerhugginstosifumi.o: atoms_data.o
 #module_lenosky_si.o: base.o defs.o
 transposed_operations.o: types.o bigdft_matrices.o
-module_forces.o: types.o 
+module_forces.o: types.o
 unitary_tests.o: types.o interfaces.o communications_init.o communications.o transposed_operations.o rhopotential.o
 io.o: types.o interfaces.o input_keys.o
 postprocessing_linear.o: types.o interfaces.o communications.o transposed_operations.o rhopotential.o sort.o communications_init.o locregs_init.o multipole_base.o multipole.o io.o get_kernel.o
@@ -321,19 +301,3 @@ insmod: $(modules) libmodules.a
 	  $(INSTALL) -m 644  $$mod $(top_builddir)/includes ; \
 	done
 #	test -z "$(mpi_include)" || $(INSTALL) -m 644 mpif.h $(top_builddir)/includes
-
-$(openbabel_dynamic_library): $(openbabel_dynamic_sources)
-	$(CXX) $(CXXFLAGS) @CC_PIC_FLAG@ @LIB_OPENBABEL_CFLAGS@ -shared -I$(top_builddir) @GLIB_CFLAGS@ @LIB_FUTILE_CFLAGS@ $(LDFLAGS) $(AM_LDFLAGS) -Wl,-soname=$(openbabel_soname_library) -o $@ $< @LIB_OPENBABEL_LIBS@ @LIB_LIBDICTS_LIBS@ 
-	@chmod a+x $@
-
-$(openbabel_soname_library): $(openbabel_dynamic_library)
-	ln -fs $^ $@
-	ln -fs $@ libbabel.so
-
-install-data-hook:
-	if test -n "$(openbabel_dynamic_library)" ; then \
-	  cd $(DESTDIR)$(dynlibdir) ; \
-	  chmod a+x $(openbabel_dynamic_library) ; \
-	  ln -fs $(openbabel_dynamic_library) $(openbabel_soname_library) ; \
-	  ln -fs $(openbabel_soname_library) libbabel.so ; \
-	fi
