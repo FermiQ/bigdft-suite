@@ -19,6 +19,22 @@ MULTIPOLE_ANALYSIS_KEYS = ['q0', 'q1', 'q2', 'sigma']
 PROTECTED_KEYS = MULTIPOLE_ANALYSIS_KEYS + ["frag"]
 
 class Fragment(MutableSequence):
+     """
+    Introduce the concept of fragment. This is a subportion of the system
+    (it may also coincide with the system itself) that is made of atoms.
+    Such fragment might have quantities associated to it, like its
+    electrostatic multipoles (charge, dipole, etc.) and also geometrical
+    information (center of mass, principla axis etc.). A Fragment might also
+    be rototranslated and combined with other moieteies to form a
+    :class:`System`.
+
+    atomlist (list): list of atomic dictionaries defining the fragment
+    xyzfile (XYZReader): an XYZ file to read from.
+
+    .. todo::
+       Define and describe if this API is also suitable for solid-state fragments
+
+    """
     def __init__(self, atomlist=None, xyzfile=None):
         from Atom import Atom
         self.atoms = []
@@ -55,13 +71,27 @@ class Fragment(MutableSequence):
         self.atoms.__setitem__(index, Atom(value))
 
     def __getitem__(self, index):
-        return self.atoms.__getitem__(index)
+        if isinstance(index, slice):
+            return Fragment(atomlist=self.atoms.__getitem__(index))
+        else:
+            return self.atoms.__getitem__(index)
 
     def d0(self, center=None):
         pass
 
     def d1(self, center=None):
         pass
+
+def System(MutableSequence):
+    """
+    A system is defined by a collection of Fragments.
+
+    It might be given by one single fragment
+    """
+    def __init__(self, frag_dict=None):
+        self.frags = {}
+        pass
+
 
 if __name__ == "__main__":
     from XYZ import XYZReader, XYZWriter
@@ -99,3 +129,10 @@ if __name__ == "__main__":
         for at in frag3:
             writer.write(at)
     system("cat test.xyz")
+    safe_print()
+
+    safe_print("We can also extract using the indices")
+    print(dict(frag3[0]))
+    sub_frag = frag3[1:3]
+    for at in sub_frag:
+        print(dict(at))

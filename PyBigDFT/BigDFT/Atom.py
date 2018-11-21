@@ -68,13 +68,37 @@ class Atom(MutableMapping):
         pos = array([float(x) for x in pos])
 
         # Make sure the units are correct
-        internal = self.store["units"]
-        if internal == "angstroem" or internal == "angstroemd0":
+        if _IsAngstroem(self.store["units"]):
             pos /= AU_to_A
-        if units == "angstroem" or units == "angstroemd0":
+        if _IsAngstroem(units):
             pos *= AU_to_A
 
         return [float(x) for x in pos]
+
+    def set_position(self, new_pos, units="bohr"):
+        """
+        Set the position of the atom.
+
+        Args:
+          new_pos (list): a list of floats defining the new position.
+          units(str): the units of the new position being passed. Default is
+            bohr.
+        """
+        from numpy import array
+        # Convert the input to the right units.
+        pos = array(new_pos)
+        if _IsAngstroem(units):
+            pos /= AU_to_A
+        if _IsAngstroem(self.store["units"]):
+            pos *= AU_to_A
+        pos = [x for x in pos]
+
+        # Insert
+        if 'r' in self.store:
+            self.store['r'] = pos
+        else:
+            self.store[self.sym] = pos
+        pass
 
     def __getitem__(self, key):
         return self.store[self.__keytransform__(key)]
@@ -136,6 +160,9 @@ def _GetSymbol(atom):
                 return k
 
     raise ValueError
+
+def _IsAngstroem(units):
+    return units == "angstroem" or units == "angstroemd0"
 
 if __name__ == "__main__":
     """Test the atom module"""
@@ -200,4 +227,12 @@ if __name__ == "__main__":
     safe_print(new_atom.sym, new_atom.get_position())
     safe_print(test_atom.sym, test_atom.get_position())
     safe_print(new_atom == test_atom)
+    safe_print()
+
+    safe_print("We can also update the position")
+    safe_print(test_atom.get_position())
+    safe_print(dict(test_atom))
+    test_atom.set_position([1.0, 1.0, 1.0], units="angstroem")
+    safe_print(test_atom.get_position(units="angstroem"))
+    safe_print(dict(test_atom))
     safe_print()
