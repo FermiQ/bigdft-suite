@@ -1148,6 +1148,7 @@ module rhopotential
        use module_atoms
        use dynamic_memory
        use yaml_output
+       use at_domain, only: distance
        implicit none
        type(atomic_structure), intent(in) :: astruct
        type(cell), intent(in) :: mesh
@@ -1178,7 +1179,7 @@ module rhopotential
           call astruct_neighbours_iter(nnit, atit%iat)
           do while(astruct_neighbours_next(nnit, jat))
              !set the radius as the distance bw the atom iat and its nearest
-             r=distance(mesh,rxyz(1,atit%iat),rxyz(1,jat))
+             r=distance(mesh%dom,rxyz(1,atit%iat),rxyz(1,jat))
              call cfd_set_radius(cfd,atit%iat,0.5_gp*r)
              cycle loop_at
           end do

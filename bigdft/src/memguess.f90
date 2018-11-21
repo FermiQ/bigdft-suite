@@ -2439,7 +2439,7 @@ subroutine take_proj_from_file(filename, hx, hy, hz, nl, at, rxyz, &
   use public_enums, only: WF_FORMAT_PLAIN, WF_FORMAT_BINARY, WF_FORMAT_ETSF
   use module_input_keys, only: wave_format_from_filename
   use bounds, only: ext_buffers_coarse
-  use box, only: bc_periodic_dims,geocode_to_bc
+  use at_domain, only: bc_periodic_dims,geocode_to_bc
   implicit none
   real(gp), intent(in) :: hx,hy,hz
   integer, intent(inout) :: ikpt, iat, iproj, icplx
@@ -2521,7 +2521,7 @@ subroutine take_psi_from_file(filename,in_frag,hgrids,lr,at,rxyz,orbs,psi,iorbp,
    use public_enums
    use bounds, only: ext_buffers_coarse
    use locregs
-   use box, only: bc_periodic_dims,geocode_to_bc
+   use at_domain, only: bc_periodic_dims,geocode_to_bc
    implicit none
    integer, intent(inout) :: iorbp, ispinor
    real(gp), dimension(3), intent(in) :: hgrids

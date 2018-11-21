@@ -31,6 +31,7 @@ subroutine PSolver(geocode,datacode,iproc,nproc,n01,n02,n03,xc,hgrids,&
   use box
   use Poisson_Solver, except_dp => dp, except_gp => gp
   use module_interfaces, only: xc_energy
+  use at_domain
   implicit none
   !Arguments
   character(len=1), intent(in) :: geocode  !< @copydoc poisson_solver::doc::geocode
@@ -93,6 +94,7 @@ subroutine PSolver(geocode,datacode,iproc,nproc,n01,n02,n03,xc,hgrids,&
   real(gp), dimension(:), allocatable :: energies_mpi
   real(dp) :: detg
   type(cell) :: mesh
+  type(domain) :: dom
 
   call f_timing(TCAT_EXCHANGECORR,'ON')
   !call timing(iproc,'Exchangecorr  ','ON')
@@ -122,7 +124,11 @@ subroutine PSolver(geocode,datacode,iproc,nproc,n01,n02,n03,xc,hgrids,&
 !!$  end if
 
 
-     mesh=cell_new(geocode,[n01,n02,n03],hgrids)
+     !mesh=cell_new(geocode,[n01,n02,n03],hgrids)
+     dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(geocode),&
+              alpha_bc=alphat,beta_ac=betat,gamma_ab=gammat,acell=[n01,n02,n03]*hgrids)
+     mesh=cell_new(dom,[n01,n02,n03],hgrids)
+
  
   detg = 1.0_dp - dcos(alphat)**2 - dcos(betat)**2 - dcos(gammat)**2 + 2.0_dp*dcos(alphat)*dcos(betat)*dcos(gammat)
 
@@ -716,7 +722,8 @@ subroutine atomic_magnetic_moments(bitp,nrhodim,nat,rxyz,radii,rho,rho_at,m_at)
      rat_tmp=0.0_dp
      func=f_function_new(f_erf,scale=1.0_dp)
      do while(box_next_point(bitp))
-        r=distance(bitp%mesh,bitp%rxyz,rxyz(:,iat))
+        !r=distance(bitp%mesh,bitp%rxyz,rxyz(:,iat))
+        r=box_iter_distance(bitp,rxyz(:,iat))
         !smearing=0.5_gp*(1.0_dp-eval(func,r-radii(iat)))*bitp%mesh%volume_element
         smearing=.if. (r<radii(iat)) .then. bitp%mesh%volume_element .else. 0.0_gp
         rat_tmp=rat_tmp+smearing*rho(bitp%ind,1)
@@ -755,7 +762,8 @@ subroutine atomic_magnetic_field(bitp,npotdim,nat,rxyz,radii,B_at,pot)
      !iterate on the cell, centering of the atoms
      func=f_function_new(f_erf,scale=radii(iat))
      do while(box_next_point(bitp))
-        r=distance(bitp%mesh,bitp%rxyz,rxyz(:,iat))
+        !r=distance(bitp%mesh,bitp%rxyz,rxyz(:,iat))
+        r=box_iter_distance(bitp,rxyz(:,iat))
         !smearing=1.0_dp-eval(func,r)
         smearing=.if. (r<radii(iat)) .then. 1.0_gp .else. 0.0_gp
         !!!$ pot(bitp%ind,1)=pot(bitp%ind,1)+B_at(3,iat)*smearing

@@ -18,7 +18,7 @@ subroutine exact_exchange_potential(iproc,nproc,xc,nspin,lr,orbs,n3parr,n3p,&
   use yaml_output
   use locreg_operations
   use locregs
-  use box, only: cell_geocode
+  use at_domain, only: domain_geocode
   implicit none
 !!$  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode             !< Determine Boundary conditions
   integer, intent(in) :: iproc,nproc                  !< MPI information
@@ -65,7 +65,7 @@ subroutine exact_exchange_potential(iproc,nproc,xc,nspin,lr,orbs,n3parr,n3p,&
   psiw = f_malloc(max(max(lr%d%n1i*lr%d%n2i*lr%d%n3i*orbs%norbp, n3parr(0)*orbs%norb), 1),id='psiw')
 
 !!$  if (geocode == 'F') then
-  if (cell_geocode(lr%mesh) == 'F') then
+  if (domain_geocode(lr%mesh%dom) == 'F') then
      !call to_zero(lr%d%n1i*lr%d%n2i*lr%d%n3i*orbs%norbp,psiw)
      call f_zero(psiw)
   end if
@@ -334,7 +334,7 @@ subroutine prepare_psirocc(iproc,nproc,lr,orbsocc,n3p,n3parr,psiocc,psirocc)
   use module_types
   use locreg_operations
   use locregs
-  use box, only: cell_geocode
+  use at_domain, only: domain_geocode
   implicit none
   integer, intent(in) :: iproc,nproc,n3p
   type(locreg_descriptors), intent(in) :: lr
@@ -357,7 +357,7 @@ subroutine prepare_psirocc(iproc,nproc,lr,orbsocc,n3p,n3parr,psiocc,psirocc)
   !call to_zero(max(max(lr%d%n1i*lr%d%n2i*lr%d%n3i*orbsocc%norbp,n3parr(0)*orbsocc%norb),1),psiwocc)
 
 !!$  if (lr%geocode == 'F') then
-  if (cell_geocode(lr%mesh) == 'F') then
+  if (domain_geocode(lr%mesh%dom) == 'F') then
      !call f_zero(lr%d%n1i*lr%d%n2i*lr%d%n3i*orbsocc%norbp,psirocc)
      call f_zero(psirocc)
   end if
@@ -447,7 +447,7 @@ subroutine exact_exchange_potential_virt(iproc,nproc,nspin,lr,orbsocc,orbsvirt,n
   use yaml_output
   use locreg_operations
   use locregs
-  use box, only: cell_geocode
+  use at_domain, only: domain_geocode
   implicit none
 !!$  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
   integer, intent(in) :: iproc,nproc,n3p,nspin
@@ -483,7 +483,7 @@ subroutine exact_exchange_potential_virt(iproc,nproc,nspin,lr,orbsocc,orbsvirt,n
   psiwvirt = f_malloc(max(max(lr%d%n1i*lr%d%n2i*lr%d%n3i*orbsvirt%norbp, n3parr(0)*orbsvirt%norb), 1),id='psiwvirt')
 
 !!$  if (geocode == 'F') then
-  if (cell_geocode(lr%mesh) == 'F') then
+  if (domain_geocode(lr%mesh%dom) == 'F') then
      call f_zero(psiwvirt)
   end if
 

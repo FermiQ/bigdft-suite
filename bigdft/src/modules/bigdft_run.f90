@@ -2325,7 +2325,7 @@ contains
     use module_atoms, only: move_this_coordinate
     use module_forces
     use module_input_keys, only: inputpsiid_set_policy
-    use box, only: bc_periodic_dims,geocode_to_bc
+    use at_domain, only: bc_periodic_dims,geocode_to_bc
     implicit none
     integer, intent(in) :: iproc,nproc
     integer, intent(inout) :: infocode

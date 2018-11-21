@@ -713,7 +713,7 @@ subroutine gaussians_to_wavelets_orb(ncplx,lr,hx,hy,hz,kx,ky,kz,G,wfn_gau,psi)
   use module_types
   use gaussians
   use locregs
-  use box, only: cell_periodic_dims
+  use at_domain, only: domain_periodic_dims
   implicit none
   integer,parameter:: ncplx_g=1 !this is true for NC pseudos
   integer, intent(in) :: ncplx
@@ -752,7 +752,7 @@ subroutine gaussians_to_wavelets_orb(ncplx,lr,hx,hy,hz,kx,ky,kz,G,wfn_gau,psi)
 !!$  perx=(lr%geocode /= 'F')
 !!$  pery=(lr%geocode == 'P')
 !!$  perz=(lr%geocode /= 'F')
-  peri=cell_periodic_dims(lr%mesh_coarse)
+  peri=domain_periodic_dims(lr%mesh_coarse%dom)
 
   !initialize the wavefunction
   call f_zero(psi)
@@ -846,7 +846,7 @@ subroutine gaussians_c_to_wavelets_orb(ncplx,lr,hx,hy,hz,kx,ky,kz,G,wfn_gau,psi,
   use module_types
   use gaussians
   use locregs
-  use box, only: cell_periodic_dims
+  use at_domain, only: domain_periodic_dims
   implicit none
   integer, intent(in) :: ncplx
   real(gp), intent(in) :: hx,hy,hz,kx,ky,kz
@@ -895,7 +895,7 @@ subroutine gaussians_c_to_wavelets_orb(ncplx,lr,hx,hy,hz,kx,ky,kz,G,wfn_gau,psi,
 !!$  perx=(lr%geocode /= 'F')
 !!$  pery=(lr%geocode == 'P')
 !!$  perz=(lr%geocode /= 'F')
-  peri=cell_periodic_dims(lr%mesh)
+  peri=domain_periodic_dims(lr%mesh%dom)
   perx=peri(1)
   pery=peri(2)
   perz=peri(3)
@@ -2321,7 +2321,8 @@ subroutine crtonewave(mesh,n1,n2,n3,nterm,ntp,lx,ly,lz,fac_arr,xp,psiat,rx,ry,rz
      nl1_c,nu1_c,nl2_c,nu2_c,nl3_c,nu3_c,nl1_f,nu1_f,nl2_f,nu2_f,nl3_f,nu3_f,  &
      nseg_c,mvctr_c,keyg_c,keyv_c,nseg_f,mvctr_f,keyg_f,keyv_f,psi_c,psi_f)
   use module_base
-  use box, only: cell,cell_periodic_dims
+  use box, only: cell
+  use at_domain, only: domain_periodic_dims
   implicit none
 !!#  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
   type(cell), intent(in) :: mesh
@@ -2354,7 +2355,7 @@ subroutine crtonewave(mesh,n1,n2,n3,nterm,ntp,lx,ly,lz,fac_arr,xp,psiat,rx,ry,rz
 !!$  perx=(geocode /= 'F')
 !!$  pery=(geocode == 'P')
 !!$  perz=(geocode /= 'F')
-  peri=cell_periodic_dims(mesh)
+  peri=domain_periodic_dims(mesh%dom)
   perx=peri(1)
   pery=peri(2)
   perz=peri(3)

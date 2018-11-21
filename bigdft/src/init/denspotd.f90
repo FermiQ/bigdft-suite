@@ -447,7 +447,6 @@ subroutine density_descriptors(iproc,nproc,xc,nspin,crmult,frmult,atoms,dpbox,&
   use module_dpbox, only:  denspot_distribution
   use module_types
   use module_xc
-  use box, only: cell_geocode
   implicit none
   integer, intent(in) :: iproc,nproc,nspin
   type(xc_info), intent(in) :: xc

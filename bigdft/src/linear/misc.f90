@@ -1219,7 +1219,7 @@ subroutine analyze_one_wavefunction(lr, hgrids, npsidim, psi, ioffset, center, s
   use module_types
   use locreg_operations
   use locregs
-  use box, only: cell_geocode
+  use at_domain, only: domain_geocode
   implicit none
 
   ! Calling arguments
@@ -1242,7 +1242,7 @@ subroutine analyze_one_wavefunction(lr, hgrids, npsidim, psi, ioffset, center, s
   psir = f_malloc(lr%d%n1i*lr%d%n2i*lr%d%n3i,id='psir')
   ! Initialisation
 !!$  if (lr%geocode == 'F') call f_zero(psir)
-  if (cell_geocode(lr%mesh) == 'F') call f_zero(psir)
+  if (domain_geocode(lr%mesh%dom) == 'F') call f_zero(psir)
 
   call daub_to_isf(lr, w, psi, psir)
 

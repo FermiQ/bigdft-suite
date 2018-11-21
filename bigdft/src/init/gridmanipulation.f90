@@ -16,7 +16,9 @@ subroutine system_size(atoms,rxyz,crmult,frmult,hx,hy,hz,OCLconv,Glr)
    use module_types
    use yaml_strings, only: yaml_toa
    use locregs
-   use box, only: bc_periodic_dims,geocode_to_bc,cell,box_nbox_from_cutoff,cell_new
+   use at_domain
+   use box, only: cell,box_nbox_from_cutoff,cell_new
+   use numerics, only: onehalf,pi
    implicit none
    type(atoms_data), intent(inout) :: atoms
    real(gp), intent(in) :: crmult,frmult
@@ -34,8 +36,9 @@ subroutine system_size(atoms,rxyz,crmult,frmult,hx,hy,hz,OCLconv,Glr)
    real(gp) :: ri,rad,cxmin,cxmax,cymin,cymax,czmin,czmax!,alatrue1,alatrue2,alatrue3
    real(gp), dimension(3) :: hgridsh,alat
    logical, dimension(3) :: peri
-   integer, dimension(3) :: ndims
+   integer, dimension(3) :: ndims,ndims1
    integer, dimension(2,3) :: nbox,nbox_tmp
+   type(domain) :: dom
 
    !check the geometry code with the grid spacings
    if (atoms%astruct%geocode == 'F' .and. (hx/=hy .or. hx/=hz .or. hy/=hz)) then
@@ -185,7 +188,11 @@ subroutine system_size(atoms,rxyz,crmult,frmult,hx,hy,hz,OCLconv,Glr)
 
    !here we will put the nformations about the cell angles
    !we will also have to decide where the mesh should be in astruct or not
-   mesh_coarse=cell_new(atoms%astruct%geocode,ndims+1,hgridsh)
+   !mesh_coarse=cell_new(atoms%astruct%geocode,ndims+1,hgridsh)
+   ndims1=ndims+1
+   dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(atoms%astruct%geocode),&
+            alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=ndims1*hgridsh)
+   mesh_coarse=cell_new(dom,ndims1,hgridsh)
   
    do iat=1,atoms%astruct%nat
       rad=atoms%radii_cf(atoms%astruct%iatype(iat),2)*frmult

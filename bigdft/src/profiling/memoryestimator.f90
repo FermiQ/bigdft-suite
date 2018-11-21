@@ -16,7 +16,7 @@ subroutine MemoryEstimator(nproc,idsx,lr,norb,nspinor,nkpt,nprojel,nspin,itrpmax
   use Poisson_Solver
   use locreg_operations, only: memspace_work_arrays_sumrho,memspace_work_arrays_locham
   use locregs
-  use box, only: cell_geocode
+  use at_domain, only: domain_geocode
   implicit none
 
   !Arguments
@@ -55,7 +55,7 @@ subroutine MemoryEstimator(nproc,idsx,lr,norb,nspinor,nkpt,nprojel,nspin,itrpmax
   omemwf=real(nvctrp*nproc*8,kind=8)
   
 !!$  if (lr%geocode == 'P') then
-  select case(cell_geocode(lr%mesh))
+  select case(domain_geocode(lr%mesh%dom))
     case('P')
      call P_FFT_dimensions(2*n1+2,2*n2+2,2*n3+2,m1,m2,m3,n01,n02,n03,md1,md2,md3,nd1,nd2,nd3,nproc,.false.)
      n01=2*n1+2
