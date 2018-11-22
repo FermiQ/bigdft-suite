@@ -31,15 +31,50 @@ class Atom(MutableMapping):
         A dictionary of miscellaneous values to associate with this atom.
     """
 
-    def __init__(self, data):
+    def __init__(self, *args, **kwargs):
         self.store = dict()
-        self.update(data)
+        self.update(dict(*args, **kwargs))
 
     def dict(self):
         """
         Convert to a dictionary.
         """
         return self.store
+
+    @property
+    def external_potential(self):
+        """
+        Transform the atom into a dictionary ready to be put as external
+        potential.
+        """
+        return_dict = {}
+        return_dict["sym"] = self.sym
+        return_dict["pos"] = self.get_position()
+        for k in MULTIPOLE_ANALYSIS_KEYS:
+            return_dict[k] = list(self[k])
+
+        return return_dict
+
+    @property
+    def q0(self):
+        """
+        Provides the charge of the atom
+        """
+        charge = self.get('q0')
+        if charge is not None:
+            charge = charge[0]
+        return charge
+
+    @property
+    def q1(self):
+        """
+        Provides the dipole of the atom
+        """
+        import numpy as np
+        dipole = self.get('q1')  # they are (so far) always given in AU
+        if dipole is not None:
+            dipole = np.array([dipole[2], dipole[0], dipole[1]])
+        return dipole
 
     @property
     def sym(self):
@@ -184,7 +219,7 @@ if __name__ == "__main__":
     safe_print()
 
     safe_print("Now other times we get an array that looks more like this")
-    test_atom = Atom({'He': [1.0, 0.0, 0.0], 'units': 'bohr'})
+    test_atom = Atom(He = [1.0, 0.0, 0.0], units='bohr')
     safe_print(dict(test_atom))
     safe_print("But everything else works as expected")
     safe_print(test_atom.sym)
