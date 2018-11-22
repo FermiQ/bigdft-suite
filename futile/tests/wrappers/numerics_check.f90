@@ -77,7 +77,7 @@ program numeric_check
 !!$  call finalize_real_space_conversion()
 
   call test_domain()
-  stop
+
   call test_f_functions()
 
   call dict_free(options)
@@ -284,24 +284,44 @@ subroutine test_domain()
   use numerics, only: pi
   use yaml_parse, only: yaml_parse_from_file
   use at_domain
+  use f_utils
+  use dictionaries
   implicit none
   !local variables
   type(dictionary), pointer :: yaml_file_dict
-  character(len = 128) :: filename
+  character(len=64) :: filename
+  integer, parameter :: file_number=14
+  character(len=64), dimension(file_number) :: filenames
   type(domain) :: dom
-  integer(f_long) :: tomp,tseq
-  type(cell) :: mesh_ortho,mesh_noortho
-  integer, dimension(3) :: ndims
-  real(gp), dimension(:,:,:,:), allocatable :: v1,v2
-  real(gp), dimension(3) :: angrad
+  logical :: exists
+  integer :: i
+  
+filenames =['domain_ortho_fbc.yaml','domain_ortho_wbc.yaml','domain_ortho_sbc.yaml',&
+'domain_ortho_pbc.yaml','domain_noortho_90_90_74.yaml','domain_noortho_90_64_90.yaml',&
+'domain_noortho_43_90_90.yaml','domain_noortho_90_85_52.yaml','domain_noortho_49_90_67.yaml',&
+'domain_noortho_49_85_90.yaml','domain_noortho_120_80_55.yaml','domain_noortho_surface.yaml',&
+'domain_abc.yaml','domain_abc_from_ang_ace.yaml']
 
-  write(filename, "(A)") 'domain.yaml'
-  nullify(yaml_file_dict)
-  call yaml_parse_from_file(yaml_file_dict,trim(filename))
-
-  call domain_set_from_dict(yaml_file_dict,dom)
-
-  call print_domain(dom)
+  call yaml_mapping_open('Check of domain')
+  do i=1,file_number
+      call yaml_map('-------------------------------','---')
+      exists=.false.
+      !write(filename, "(A)") 'domain_ortho.yaml'
+      !nullify(yaml_file_dict)
+      call f_strcpy(src=filenames(i),dest=filename)
+      call f_file_exists(trim(filename),exists)
+      if (exists) then
+       call yaml_map('File exist',filename)
+       call yaml_parse_from_file(yaml_file_dict,trim(filename))
+       !call yaml_dict_dump(yaml_file_dict)
+       call domain_set_from_dict(yaml_file_dict//0,dom)
+    
+       call print_domain(dom)
+      else
+       call yaml_map('File does not exist',filename)
+      end if
+  end do
+  call yaml_mapping_close()
 
 end subroutine test_domain
 

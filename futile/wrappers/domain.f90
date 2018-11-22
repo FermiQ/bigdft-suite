@@ -172,9 +172,13 @@ contains
     dom%gu(3,2) = dom%gu(2,3)
 
     dom%uabc=dom%gd
+    dom%abc=0.0_gp
+    dom%acell=0.0_gp
 
-    !this means free BC
-    if (.not. any(bc_is_periodic(bc))) return
+    !!this means free BC
+    !if (.not. any(bc_is_periodic(bc))) return
+    !this means only Periodic BC go ahead
+    if (any(bc_is_periodic(bc) .eqv. .false.)) return
 
     !check of the availablilty of the options
     if (present(acell) .eqv. present(abc)) call f_err_throw('Domain inconsistency: only acell or abc may be given')
@@ -619,7 +623,9 @@ contains
     angrad(AC_)=beta/Radian_Degree
     angrad(AB_)=gamma/Radian_Degree
 
-    if (all(dom%bc==PERIODIC_BC) .and. (DOMAIN_ABC .in. dict)) then
+    !if (all(dom%bc==PERIODIC_BC) .and. (DOMAIN_ABC .in. dict)) then
+    if (DOMAIN_ABC .in. dict) then
+       bc=PERIODIC_BC
        call f_zero(abc)
        abc = dict//DOMAIN_ABC
        if (DOMAIN_CELL .in. dict) then
@@ -627,6 +633,7 @@ contains
           if (tol > 1.e-6) call yaml_warning('Inconsitency of tol="'//trim(yaml_toa(tol,fmt='1pe12.5'))//&
                'for the provided domain dictionary, assuming abc is correct')
        end if
+       write(*,*)abc
        dom=domain_new(units,bc,abc=abc)
     else
        !in this case abc is not provided
