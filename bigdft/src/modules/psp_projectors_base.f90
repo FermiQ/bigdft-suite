@@ -502,7 +502,7 @@ contains
        if (iter%n == 0) then
           iter%n = 1
        end if
-       iter%normalisation = 1._gp
+       iter%normalisation = iter%parent%normalized(iter%riter)
     else if (iter%parent%kind == PROJ_DESCRIPTION_PAW) then
        next = (iter%riter < iter%parent%pawtab%basis_size)
        if (.not. next) return
@@ -688,20 +688,32 @@ contains
 
   subroutine rfunc_basis_from_pspio(aproj, pspio)
     use pspiof_m, only: pspiof_pspdata_t, pspiof_pspdata_get_n_projectors, &
-         & pspiof_pspdata_get_projector, pspiof_projector_copy, PSPIO_SUCCESS
+         & pspiof_pspdata_get_projector, pspiof_projector_copy, PSPIO_SUCCESS, &
+         & pspiof_projector_eval
     implicit none
     type(atomic_projectors), intent(inout) :: aproj
     type(pspiof_pspdata_t), intent(in) :: pspio
 
-    integer :: i, n
+    integer :: i, ii, n
+    real(gp) :: r
+    real(gp), parameter :: eps = 1d-4
 
     aproj%kind = PROJ_DESCRIPTION_PSPIO
     n = pspiof_pspdata_get_n_projectors(pspio)
     allocate(aproj%rfuncs(n))
+    aproj%normalized = f_malloc_ptr(n, id = "normalized")
     do i = 1, n
        if (f_err_raise(pspiof_projector_copy(pspiof_pspdata_get_projector(pspio, i), &
             & aproj%rfuncs(i)) /= PSPIO_SUCCESS, "Cannot copy projector " // &
             & trim(yaml_toa(i)), err_name = 'BIGDFT_RUNTIME_ERROR')) return
+       ! Compute normalisation.
+       aproj%normalized(i) = 0._gp
+       do ii = 1, int(10.d0 / eps)
+          r = eps * ii
+          aproj%normalized(i) = aproj%normalized(i) + &
+               & (pspiof_projector_eval(aproj%rfuncs(i), r) ** 2)  * r * r * eps
+       end do
+
     end do
   end subroutine rfunc_basis_from_pspio
 
@@ -729,6 +741,9 @@ contains
     type(box_iterator) :: boxit
     integer :: ithread, nthread
     type(ylm_coefficients) :: ylm
+    integer, dimension(2,3) :: nbox
+    double precision, parameter :: radius=10.d0
+    double precision, parameter :: eps_mach=1.d-12
     !$ integer, external :: omp_get_thread_num, omp_get_num_threads
 
     call f_zero(psi)
@@ -740,11 +755,17 @@ contains
     v = sqrt(lr%mesh%volume_element)
     do while(ylm_coefficients_next_m(ylm))
        call f_zero(projector_real)
-       boxit = lr%bit
+       if (all(lr%mesh%bc == 0)) then
+          boxit = lr%bit
+       else
+          nbox = box_nbox_from_cutoff(lr%mesh, rxyz, radius + &
+               & maxval(lr%mesh%hgrids) * eps_mach)
+          boxit = box_iter(lr%mesh, nbox)
+       end if
        ithread=0
        nthread=1
        !$omp parallel default(shared)&
-       !$omp private(ithread, r) &
+       !$omp private(ithread, r, factor) &
        !$omp firstprivate(boxit) 
        !$ ithread=omp_get_thread_num()
        !$ nthread=omp_get_num_threads()

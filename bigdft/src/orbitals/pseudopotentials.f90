@@ -586,7 +586,7 @@ contains
       use f_utils
       use yaml_output
       use dictionaries
-      use public_keys, only: SOURCE_KEY
+      use public_keys, only: SOURCE_KEY, PSP_TYPE, ATOMIC_NUMBER
       use f_iostream
       implicit none
       !Arguments
@@ -629,6 +629,20 @@ contains
          radii_cf = UNINITIALIZED(1._gp)
          rcore = UNINITIALIZED(rcore)
          qcore = UNINITIALIZED(qcore)
+         if (nzatom == 0) then
+            if (f_err_raise(.not. (ATOMIC_NUMBER .in. dict // key), &
+                 & "Pseudo do not provide atomic number, add it with '" // &
+                 & ATOMIC_NUMBER // "'", err_name='BIGDFT_RUNTIME_ERROR')) &
+                 & return
+            nzatom = dict // key // ATOMIC_NUMBER
+         end if
+         if (ixcpsp == 0) then
+            if (f_err_raise(.not. (PSPXC_KEY .in. dict // key), &
+                 & "Pseudo do not provide xc used for generation, add it with '" // &
+                 & PSPXC_KEY // "'", err_name='BIGDFT_RUNTIME_ERROR')) &
+                 & return
+            ixcpsp = dict // key // PSPXC_KEY
+         end if
       else
          call psp_from_stream(ios, nzatom, nelpsp, npspcode, ixcpsp, &
               & psppar, donlcc, rcore, qcore, radii_cf, pawpatch)
@@ -997,7 +1011,11 @@ contains
       nelpsp = max(int(pspiof_pspdata_get_nelvalence(pspio)), &
            & int(pspiof_pspdata_get_zvalence(pspio)))
       xc = pspiof_pspdata_get_xc(pspio)
-      ixcpsp = -(pspiof_xc_get_exchange(xc) + 1000 * pspiof_xc_get_correlation(xc))
+      if (pspiof_associated(xc)) then
+         ixcpsp = -(pspiof_xc_get_exchange(xc) + 1000 * pspiof_xc_get_correlation(xc))
+      else
+         ixcpsp = 0
+      end if
       symbol = pspiof_pspdata_get_symbol(pspio)
 
       psppar = 0._gp
@@ -1015,13 +1033,13 @@ contains
          tt = 0._gp
          do ii = 1, int(10.d0 / eps)
             r = eps * ii
-            tt = tt + (pspiof_projector_eval(proj, r) ** 2)  * r * r * 1d-4
+            tt = tt + (pspiof_projector_eval(proj, r) ** 2)  * r * r * eps
          end do
-         if (f_err_raise(abs(1.d0-tt) > 1.d-2, &
-              & "Norm of the nonlocal PSP atom type " // filename // &
-              ' l=' // trim(yaml_toa(1)) // ' is ' // trim(yaml_toa(tt)) // &
-              " while it is supposed to be about 1.0.", err_name='BIGDFT_RUNTIME_ERROR')) &
-              & return
+!!$         if (f_err_raise(abs(1.d0-tt) > 1.d-2, &
+!!$              & "Norm of the nonlocal PSP atom type " // filename // &
+!!$              ' l=' // trim(yaml_toa(1)) // ' is ' // trim(yaml_toa(tt)) // &
+!!$              " while it is supposed to be about 1.0.", err_name='BIGDFT_RUNTIME_ERROR')) &
+!!$              & return
          
          indices(:, i) = [l, n]
          psppar(l, n) = pspiof_projector_get_energy(proj)
@@ -1036,7 +1054,7 @@ contains
                rloc = rloc + r ** 4 * pspiof_projector_eval(proj, r) ** 2 * eps
                !write(92+i, *) r, pspiof_projector_eval(proj, r)
             end do
-            psppar(l, 0) = sqrt(rloc / 3._gp * 2._gp)
+            psppar(l, 0) = sqrt(rloc / tt / 3._gp * 2._gp)
          end if
       end do
       ! Add the non diagonal parts, must wait for all diagonal parts to be done.

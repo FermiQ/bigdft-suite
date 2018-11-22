@@ -297,4 +297,13 @@ contains
     stop "FAKE PSPIO."
   end subroutine pspiof_error_string
 
+  logical function pspiof_xc_associated(xc) result(is_associated)
+    type(pspiof_xc_t), intent(in) :: xc
+
+    stop "FAKE PSPIO."
+  end function pspiof_xc_associated
+
+  interface pspiof_associated
+    module procedure pspiof_xc_associated
+  end interface
 end module pspiof_m
