@@ -289,7 +289,7 @@ subroutine test_domain()
   implicit none
   !local variables
   type(dictionary), pointer :: yaml_file_dict
-  character(len=64) :: filename
+  character(len=64) :: mainfile
   integer, parameter :: file_number=14
   character(len=64), dimension(file_number) :: filenames
   type(domain) :: dom
@@ -302,36 +302,34 @@ filenames =['domain_ortho_fbc.yaml','domain_ortho_wbc.yaml','domain_ortho_sbc.ya
 'domain_noortho_49_85_90.yaml','domain_noortho_120_80_55.yaml','domain_noortho_surface.yaml',&
 'domain_abc.yaml','domain_abc_from_ang_ace.yaml']
 
+  call f_strcpy(src='domain.yaml',dest=mainfile)
+  call f_file_exists(trim(mainfile),exists)
   call yaml_mapping_open('Check of domain')
-  do i=1,file_number
-      call yaml_map('-------------------------------','---')
-      exists=.false.
-      !write(filename, "(A)") 'domain_ortho.yaml'
-      !nullify(yaml_file_dict)
-      call f_strcpy(src=filenames(i),dest=filename)
-      call f_file_exists(trim(filename),exists)
-      if (exists) then
-       call yaml_map('File exist',filename)
-       call yaml_parse_from_file(yaml_file_dict,trim(filename))
-       !call yaml_dict_dump(yaml_file_dict)
-       call domain_set_from_dict(yaml_file_dict//0,dom)
-    
-       call print_domain(dom)
-      else
-       call yaml_map('File does not exist',filename)
-      end if
-  end do
+  if (exists) then
+      call yaml_map('File exist',mainfile)
+      call yaml_parse_from_file(yaml_file_dict,trim(mainfile))
+      !call yaml_dict_dump(yaml_file_dict)
+      do i=0,file_number-1
+       call domain_set_from_dict(yaml_file_dict//i,dom)
+       call print_domain(filenames(i+1),dom)
+      end do
+  else
+      call yaml_map('File does not exist',mainfile)
+  end if
   call yaml_mapping_close()
+  call dict_free(yaml_file_dict)
 
 end subroutine test_domain
 
-subroutine print_domain(dom)
+subroutine print_domain(filename,dom)
   use at_domain
   use futile
   implicit none
-  type(domain) :: dom
+  character(len=64), intent(in) :: filename
+  type(domain), intent(in) :: dom
 
-  call yaml_mapping_open('Check of domain')
+  call yaml_mapping_open('Domain')
+  call yaml_map('filename',filename)
   call yaml_map('units',dom%units)
   call yaml_map('orthorhombic',dom%orthorhombic)
   call yaml_map('bc',dom%bc)
