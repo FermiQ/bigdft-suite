@@ -18,6 +18,7 @@ subroutine createWavefunctionsDescriptors(iproc,hx,hy,hz,atoms,rxyz,&
   use yaml_output
   use module_interfaces, only: export_grids
   use locregs
+  use at_domain, only: domain_geocode
   implicit none
   !Arguments
   type(atoms_data), intent(in) :: atoms
@@ -67,7 +68,7 @@ subroutine createWavefunctionsDescriptors(iproc,hx,hy,hz,atoms,rxyz,&
   end if
   call wfd_from_grids(logrid_c,logrid_f,calculate_bounds,Glr)
 
-  if (atoms%astruct%geocode == 'P' .and. .not. Glr%hybrid_on .and. Glr%wfd%nvctr_c /= (n1+1)*(n2+1)*(n3+1) ) then
+  if (domain_geocode(atoms%astruct%dom) == 'P' .and. .not. Glr%hybrid_on .and. Glr%wfd%nvctr_c /= (n1+1)*(n2+1)*(n3+1) ) then
      if (iproc ==0) then
         call yaml_warning('The coarse grid does not fill the entire periodic box. '// &
              & 'Errors due to translational invariance breaking may occur')
@@ -484,6 +485,7 @@ subroutine input_wf_empty(iproc, nproc, psi, hpsi, psit, orbs, &
   use public_enums
   use IObox
   use locregs
+  use at_domain, only: domain_geocode
   implicit none
   integer, intent(in) :: iproc, nproc
   type(orbitals_data), intent(in) :: orbs
@@ -515,11 +517,11 @@ subroutine input_wf_empty(iproc, nproc, psi, hpsi, psit, orbs, &
         call yaml_map('Reading local potential from file',trim(band_structure_filename))
         !write(*,'(1x,a)')'Reading local potential from file:'//trim(band_structure_filename)
         call read_field_dimensions(trim(band_structure_filename),&
-             atoms%astruct%geocode,ndims,nspin)
+             domain_geocode(atoms%astruct%dom),ndims,nspin)
         denspot%Vloc_KS = f_malloc_ptr([ndims(1),ndims(2),ndims(3),input_spin],id='denspot%Vloc_KS')
         !> Read a density file using file format depending on the extension.
         call read_field(trim(band_structure_filename),&
-             atoms%astruct%geocode,ndims,hgrids,nspin,product(ndims),input_spin,denspot%Vloc_KS)
+             domain_geocode(atoms%astruct%dom),ndims,hgrids,nspin,product(ndims),input_spin,denspot%Vloc_KS)
         if (f_err_raise(nspin /= input_spin,&
              'The value nspin reading from the file is not the same',&
              err_name='BIGDFT_RUNTIME_ERROR')) return
@@ -1866,6 +1868,7 @@ subroutine input_wf_diag(iproc,nproc,at,denspot,&
   use public_enums
   use psp_projectors, only: update_nlpsp
   use locreg_operations, only: confpot_data
+  use at_domain, only: domain_geocode
   implicit none
   !Arguments
   integer, intent(in) :: iproc,nproc,ixc
@@ -2256,7 +2259,7 @@ subroutine input_wf_diag(iproc,nproc,at,denspot,&
   etol=accurex/real(orbse%norbu,gp)
 
   !if (iproc == 0 .and. verbose > 1 .and. at%astruct%geocode=='F') write(*,'(1x,a,2(f19.10))') 'done. ekin_sum,eks:',energs%ekin,eks
-  if (iproc == 0 .and. get_verbose_level() > 1 .and. at%astruct%geocode=='F') &
+  if (iproc == 0 .and. get_verbose_level() > 1 .and. domain_geocode(at%astruct%dom)=='F') &
        call yaml_map('Expected kinetic energy',eks,fmt='(f19.10)')
   if (iproc==0) call yaml_newline()
 
@@ -2368,7 +2371,7 @@ contains
 
     if (iproc == 0) then
        !gaussian estimation valid only for Free BC
-       if (at%astruct%geocode == 'F') then
+       if (domain_geocode(at%astruct%dom) == 'F') then
           call yaml_newline()
           call yaml_mapping_open('Accuracy estimation for this run')
           call yaml_map('Energy',accurex,fmt='(1pe9.2)')
