@@ -20,6 +20,7 @@ subroutine localize_projectors(iproc,nproc,mesh,cpmult,fpmult,rxyz,&
   use public_enums, only: PSPCODE_GTH, PSPCODE_HGH, PSPCODE_HGH_K, PSPCODE_HGH_K_NLCC
   use sparsematrix_init, only: distribute_on_tasks
   use locregs, only: init_lr
+  use at_domain, only: domain_geocode
   implicit none
   integer, intent(in) :: iproc,nproc
   real(gp), intent(in) :: cpmult,fpmult
@@ -105,7 +106,7 @@ subroutine localize_projectors(iproc,nproc,mesh,cpmult,fpmult,rxyz,&
         !coordinate system
         call init_lr(nl%projs(iat)%region%plr, 'F', 0.5_gp * mesh%hgrids, &
              n1t, n2t, n3t, nl1, nl2, nl3, nu1, nu2, nu3, &
-             .false., ns1t, ns2t, ns3t, at%astruct%geocode)
+             .false., ns1t, ns2t, ns3t, domain_geocode(at%astruct%dom))
 
         nl%projs(iat)%region%plr%wfd%nseg_f=mseg
         nl%projs(iat)%region%plr%wfd%nvctr_f=mvctr
@@ -524,6 +525,7 @@ subroutine crtproj(geocode,nterm,ns1,ns2,ns3,n1,n2,n3, &
   use module_types
   !use psp_projectors_base, only: workarrays_projectors, NCPLX_MAX
   use locreg_operations, only: workarrays_projectors,NCPLX_MAX
+  use at_domain, only: bc_periodic_dims,geocode_to_bc
   !use gaussians
   implicit none
   character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
@@ -545,6 +547,7 @@ subroutine crtproj(geocode,nterm,ns1,ns2,ns3,n1,n2,n3, &
   integer :: ncplx_w,n1p1,np,i0jj
   integer :: j1,i0,j0,jj,ii,i,iseg,ind_f,ind_c
   integer :: mvctr1, mvctr2, mvctr_cf, mvctr_cf2, iskip
+  logical, dimension(3) :: peri
   !integer :: counter !test
   !real(wp) :: re_cmplx_prod,im_cmplx_prod
   real(gp), dimension(ncplx_g) :: factor, one
@@ -627,9 +630,14 @@ subroutine crtproj(geocode,nterm,ns1,ns2,ns3,n1,n2,n3, &
   !allocate(wprojz(1:ncplx_w,0:n3,1:2,1:nterm))
 
   !conditions for periodicity in the three directions
-  perx=(geocode /= 'F')
-  pery=(geocode == 'P')
-  perz=(geocode /= 'F')
+!!$  perx=(geocode /= 'F')
+!!$  pery=(geocode == 'P')
+!!$  perz=(geocode /= 'F')
+  peri=bc_periodic_dims(geocode_to_bc(geocode))
+  perx=peri(1)
+  pery=peri(2)
+  perz=peri(3)
+
   one = real(1, gp)
   if (ncplx_g == 2) one(2) = real(0, gp)
 

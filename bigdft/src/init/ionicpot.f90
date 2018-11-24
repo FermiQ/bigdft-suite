@@ -36,7 +36,7 @@ subroutine IonicEnergyandForces(iproc,nproc,dpbox,at,elecfield,&
   use sparsematrix_init, only: distribute_on_tasks
   use gaussians
   use box
-  use at_domain, only: domain_periodic_dims
+  use at_domain, only: domain_periodic_dims,domain_geocode
   implicit none
   !Arguments
   type(denspot_distribution), intent(inout) :: dpbox
@@ -94,7 +94,7 @@ subroutine IonicEnergyandForces(iproc,nproc,dpbox,at,elecfield,&
 
   psoffset=0.0_gp
   ewaldstr=0.0_gp
-  if (at%astruct%geocode == 'P') then
+  if (domain_geocode(at%astruct%dom) == 'P') then
      !here we insert the calculation of the ewald forces
      fewald = f_malloc((/ 3, at%astruct%nat /),id='fewald')
      xred = f_malloc((/ 3, at%astruct%nat /),id='xred')
@@ -225,7 +225,7 @@ subroutine IonicEnergyandForces(iproc,nproc,dpbox,at,elecfield,&
      !!-
      !!-     end if
 
-  else if (at%astruct%geocode == 'F') then
+  else if (domain_geocode(at%astruct%dom) == 'F') then
 
      eion=0.0_gp
      eself=0.0_gp
@@ -339,7 +339,7 @@ subroutine IonicEnergyandForces(iproc,nproc,dpbox,at,elecfield,&
   !activate for the moment only the slow calculation of the ionic energy and forces
   !the slowion command has also to be activated for the cavity calculation
   !if (at%astruct%geocode == 'S' .or. at%astruct%geocode == 'P') slowion=.true.
-  if (at%astruct%geocode == 'S' .or. at%astruct%geocode == 'W' .or. pkernel%method /= 'VAC') slowion=.true.
+  if (domain_geocode(at%astruct%dom) == 'S' .or. domain_geocode(at%astruct%dom) == 'W' .or. pkernel%method /= 'VAC') slowion=.true.
 
   slowion_if: if (slowion) then
 
