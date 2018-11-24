@@ -468,6 +468,8 @@ subroutine read_waves_from_list_etsf(iproc,filename,n1,n2,n3,hx,hy,hz,at,rxyz_ol
    use etsf_io
    use internal_etsf
    use box
+   use at_domain
+   use numerics, only: onehalf,pi
 
    implicit none
 
@@ -497,8 +499,13 @@ subroutine read_waves_from_list_etsf(iproc,filename,n1,n2,n3,hx,hy,hz,at,rxyz_ol
    logical :: lstat
    type(cell) :: mesh
    logical, dimension(3) :: peri
+   type(domain) :: dom
 
-   mesh=cell_new(at%astruct%geocode,[n1,n2,n3],[hx,hy,hz])
+   !mesh=cell_new(at%astruct%geocode,[n1,n2,n3],[hx,hy,hz])
+   dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(at%astruct%geocode),&
+            alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=[n1,n2,n3]*[hx,hy,hz])
+   mesh=cell_new(dom,[n1,n2,n3],[hx,hy,hz])
+
 
    ! We open the ETSF file
    call etsf_io_low_open_read(ncid, filename, lstat, error_data = error)

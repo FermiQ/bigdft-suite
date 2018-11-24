@@ -72,13 +72,13 @@ subroutine reformatonewave(displ,wfd,at,hx_old,hy_old,hz_old,n1_old,n2_old,n3_ol
   psifscfold = f_malloc((/ -nb1.to.2*n1_old+1+nb1, -nb2.to.2*n2_old+1+nb2, -nb3.to.2*n3_old+1+nb3 /),id='psifscfold')
   wwold = f_malloc((2*n1_old+2+2*nb1)*(2*n2_old+2+2*nb2)*(2*n3_old+2+2*nb3),id='wwold')
 
-  if (at%astruct%geocode=='F') then
+  if (domain_geocode(at%astruct%dom)=='F') then
      call synthese_grow(n1_old,n2_old,n3_old,wwold,psigold,psifscfold)
-  else if (at%astruct%geocode=='S') then
+  else if (domain_geocode(at%astruct%dom) =='S') then
      call synthese_slab(n1_old,n2_old,n3_old,wwold,psigold,psifscfold)
-  else if (at%astruct%geocode=='P') then
+  else if (domain_geocode(at%astruct%dom) =='P') then
      call synthese_per(n1_old,n2_old,n3_old,wwold,psigold,psifscfold)
-  else if (at%astruct%geocode=='W') then
+  else if (domain_geocode(at%astruct%dom) =='W') then
      call synthese_wire(n1_old,n2_old,n3_old,wwold,psigold,psifscfold)
   end if
 
@@ -233,13 +233,13 @@ subroutine reformatonewave(displ,wfd,at,hx_old,hy_old,hz_old,n1_old,n2_old,n3_ol
   psig = f_malloc((/ 0.to.n1, 1.to.2, 0.to.n2, 1.to.2, 0.to.n3, 1.to.2 /),id='psig')
   ww = f_malloc((2*n1+2+2*nb1)*(2*n2+2+2*nb2)*(2*n3+2+2*nb3),id='ww')
 
-  if (at%astruct%geocode=='F') then
+  if (domain_geocode(at%astruct%dom) =='F') then
      call analyse_shrink(n1,n2,n3,ww,psifscf,psig)
-  else if (at%astruct%geocode == 'S') then
+  else if (domain_geocode(at%astruct%dom) == 'S') then
      call analyse_slab(n1,n2,n3,ww,psifscf,psig)
-  else if (at%astruct%geocode == 'P') then
+  else if (domain_geocode(at%astruct%dom) == 'P') then
      call analyse_per(n1,n2,n3,ww,psifscf,psig)
-  else if (at%astruct%geocode=='W') then
+  else if (domain_geocode(at%astruct%dom) =='W') then
      call analyse_wire(n1,n2,n3,ww,psifscf,psig)
   end if
 
