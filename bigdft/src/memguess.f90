@@ -42,6 +42,7 @@ program memguess
    use IObox
    use io, only: plot_density
    use f_enums, only: toi
+   use at_domain, only: domain_geocode
    implicit none
    character(len=*), parameter :: subname='memguess'
    character(len=30) :: tatonam, radical
@@ -582,11 +583,13 @@ program memguess
 
 
    if (convert) then
-      at%astruct%geocode = "P"
+      !at%astruct%geocode = "P"
       write(*,*) "Read density file..."
-      call read_field_dimensions(trim(fileFrom),at%astruct%geocode,dpbox%mesh%ndims,nspin)
+      !call read_field_dimensions(trim(fileFrom),at%astruct%geocode,dpbox%mesh%ndims,nspin)
+      call read_field_dimensions(trim(fileFrom),"P",dpbox%mesh%ndims,nspin)
       rhocoeff=f_malloc_ptr([dpbox%mesh%ndims(1),dpbox%mesh%ndims(2),dpbox%mesh%ndims(3),nspin],id='rhocoeff')
-      call read_field(trim(fileFrom), at%astruct%geocode,dpbox%mesh%ndims, &
+      !call read_field(trim(fileFrom), at%astruct%geocode,dpbox%mesh%ndims, &
+      call read_field(trim(fileFrom), "P",dpbox%mesh%ndims, &
            dpbox%mesh%hgrids,nspin2,product(dpbox%mesh%ndims),&
            nspin,rhocoeff,at%astruct%nat, at%astruct%rxyz, at%astruct%iatype, at%nzatom)
       at%astruct%ntypes = size(at%nzatom)
@@ -1459,7 +1462,7 @@ program memguess
    call dict_free(run)
 
    if (optimise) then
-      if (runObj%atoms%astruct%geocode =='F') then
+      if (domain_geocode(runObj%atoms%astruct%dom) =='F') then
          call optimise_volume(runObj%atoms,&
               & runObj%inputs%crmult,runObj%inputs%frmult,&
               & runObj%inputs%hx,runObj%inputs%hy,runObj%inputs%hz,&
@@ -1872,6 +1875,7 @@ END SUBROUTINE optimise_volume
 subroutine shift_periodic_directions(at,rxyz,radii_cf)
    use module_base
    use module_types
+   use at_domain, only: domain_geocode
    implicit none
    type(atoms_data), intent(inout) :: at
    real(gp), dimension(at%astruct%ntypes,3), intent(in) :: radii_cf
@@ -1891,9 +1895,9 @@ subroutine shift_periodic_directions(at,rxyz,radii_cf)
 
    txyz = f_malloc((/ 3, at%astruct%nat /),id='txyz')
 
-   call calc_vol(at%astruct%geocode,at%astruct%nat,rxyz,vol)
+   call calc_vol(domain_geocode(at%astruct%dom),at%astruct%nat,rxyz,vol)
 
-   if (at%astruct%geocode /= 'F') then
+   if (domain_geocode(at%astruct%dom) /= 'F') then
       loop_shiftx: do i=1,5000 ! loop over all trial rotations
          ! create a random orthogonal (rotation) matrix
          call random_number(shiftx)
@@ -1905,7 +1909,7 @@ subroutine shift_periodic_directions(at,rxyz,radii_cf)
             txyz(3,iat)=rxyz(3,iat)
          end do
 
-         call calc_vol(at%astruct%geocode,at%astruct%nat,txyz,tvol)
+         call calc_vol(domain_geocode(at%astruct%dom),at%astruct%nat,txyz,tvol)
          !print *,'vol',tvol
 
          if (tvol < vol) then
@@ -1916,7 +1920,7 @@ subroutine shift_periodic_directions(at,rxyz,radii_cf)
       end do loop_shiftx
    end if
 
-   if (at%astruct%geocode == 'P') then
+   if (domain_geocode(at%astruct%dom) == 'P') then
       loop_shifty: do i=1,5000 ! loop over all trial rotations
          ! create a random orthogonal (rotation) matrix
          call random_number(shifty)
@@ -1928,7 +1932,7 @@ subroutine shift_periodic_directions(at,rxyz,radii_cf)
             txyz(3,iat)=rxyz(3,iat)
          end do
 
-         call calc_vol(at%astruct%geocode,at%astruct%nat,txyz,tvol)
+         call calc_vol(domain_geocode(at%astruct%dom),at%astruct%nat,txyz,tvol)
 
          if (tvol < vol) then
             write(*,'(1x,a,1pe16.8,1x,i0,1x,f15.5)')'Found new best volume: ',tvol
@@ -1938,7 +1942,7 @@ subroutine shift_periodic_directions(at,rxyz,radii_cf)
       end do loop_shifty
    end if
 
-   if (at%astruct%geocode /= 'F') then
+   if (domain_geocode(at%astruct%dom) /= 'F') then
       loop_shiftz: do i=1,5000 ! loop over all trial rotations
          ! create a random orthogonal (rotation) matrix
          call random_number(shiftz)
@@ -1950,7 +1954,7 @@ subroutine shift_periodic_directions(at,rxyz,radii_cf)
             txyz(3,iat)=modulo(rxyz(3,iat)+shiftz*maxsh,at%astruct%cell_dim(3))
          end do
 
-         call calc_vol(at%astruct%geocode,at%astruct%nat,txyz,tvol)
+         call calc_vol(domain_geocode(at%astruct%dom),at%astruct%nat,txyz,tvol)
 
          if (tvol < vol) then
             write(*,'(1x,a,1pe16.8,1x,i0,1x,f15.5)')'Found new best volume: ',tvol
@@ -2019,6 +2023,7 @@ subroutine compare_cpu_gpu_hamiltonian(iproc,nproc,matacc,at,orbs,&
    use module_xc
    use module_input_keys
    use locreg_operations, only: confpot_data
+   use at_domain, only: domain_geocode
    implicit none
    integer, intent(in) :: iproc,nproc,nspin,ncong,ixc,ntimes
    real(gp), intent(in) :: hx,hy,hz
@@ -2102,8 +2107,8 @@ subroutine compare_cpu_gpu_hamiltonian(iproc,nproc,matacc,at,orbs,&
 
    !normally nproc=1
    do jproc=0,nproc-1
-      call PS_dim4allocation(at%astruct%geocode,'D',jproc,nproc,Lzd%Glr%d%n1i,Lzd%Glr%d%n2i,Lzd%Glr%d%n3i,xc_isgga(xc),(ixc/=13),&
-         &   0,n3d,n3p,n3pi,i3xcsh,i3s)
+      call PS_dim4allocation(domain_geocode(at%astruct%dom),'D',jproc,nproc,Lzd%Glr%d%n1i,Lzd%Glr%d%n2i,&
+              Lzd%Glr%d%n3i,xc_isgga(xc),(ixc/=13),0,n3d,n3p,n3pi,i3xcsh,i3s)
       nscatterarr(jproc,1)=n3d
       nscatterarr(jproc,2)=n3p
       nscatterarr(jproc,3)=i3s+i3xcsh-1
@@ -2439,7 +2444,7 @@ subroutine take_proj_from_file(filename, hx, hy, hz, nl, at, rxyz, &
   use public_enums, only: WF_FORMAT_PLAIN, WF_FORMAT_BINARY, WF_FORMAT_ETSF
   use module_input_keys, only: wave_format_from_filename
   use bounds, only: ext_buffers_coarse
-  use at_domain, only: bc_periodic_dims,geocode_to_bc
+  use at_domain, only: domain_periodic_dims
   implicit none
   real(gp), intent(in) :: hx,hy,hz
   integer, intent(inout) :: ikpt, iat, iproj, icplx
@@ -2474,7 +2479,8 @@ subroutine take_proj_from_file(filename, hx, hy, hz, nl, at, rxyz, &
 !!$     perx=(at%astruct%geocode /= 'F')
 !!$     pery=(at%astruct%geocode == 'P')
 !!$     perz=(at%astruct%geocode /= 'F')
-     peri=bc_periodic_dims(geocode_to_bc(at%astruct%geocode))
+     !peri=bc_periodic_dims(geocode_to_bc(at%astruct%geocode))
+     peri=domain_periodic_dims(at%astruct%dom)
      perx=peri(1)
      pery=peri(2)
      perz=peri(3)
@@ -2521,7 +2527,7 @@ subroutine take_psi_from_file(filename,in_frag,hgrids,lr,at,rxyz,orbs,psi,iorbp,
    use public_enums
    use bounds, only: ext_buffers_coarse
    use locregs
-   use at_domain, only: bc_periodic_dims,geocode_to_bc
+   use at_domain, only: domain_periodic_dims
    implicit none
    integer, intent(inout) :: iorbp, ispinor
    real(gp), dimension(3), intent(in) :: hgrids
@@ -2562,7 +2568,8 @@ subroutine take_psi_from_file(filename,in_frag,hgrids,lr,at,rxyz,orbs,psi,iorbp,
 !!$      perx=(at%astruct%geocode /= 'F')
 !!$      pery=(at%astruct%geocode == 'P')
 !!$      perz=(at%astruct%geocode /= 'F')
-      peri=bc_periodic_dims(geocode_to_bc(at%astruct%geocode))
+      !peri=bc_periodic_dims(geocode_to_bc(at%astruct%geocode))
+      peri=domain_periodic_dims(at%astruct%dom)
       perx=peri(1)
       pery=peri(2)
       perz=peri(3)
