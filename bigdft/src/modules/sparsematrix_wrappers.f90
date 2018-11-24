@@ -16,6 +16,7 @@ module sparsematrix_wrappers
                store_index, init_matmul, matmul_optimize_load_balancing, imode, smat, smat_ref)
       use module_types, only: orbitals_data, local_zone_descriptors, atomic_structure
       use sparsematrix_init, only: init_sparse_matrix
+      use at_domain, only: domain_geocode
       implicit none
 
       ! Calling arguments
@@ -79,7 +80,7 @@ module sparsematrix_wrappers
       call init_sparse_matrix(iproc, nproc, bigdft_mpi%mpi_comm, &
            orbs%norbu, nnonzero, nonzero, nnonzero_mult, nonzero_mult, smat, &
            init_matmul=init_matmul, matmul_optimize_load_balancing=matmul_optimize_load_balancing, &
-           nspin=nspin, geocode=astruct%geocode, &
+           nspin=nspin, geocode=domain_geocode(astruct%dom), &
            cell_dim=astruct%cell_dim, norbup=orbs%norbup, &
            isorbu=orbs%isorbu, store_index=store_index, on_which_atom=orbs%onwhichatom)
       call f_free_ptr(nonzero)

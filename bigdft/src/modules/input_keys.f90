@@ -635,6 +635,7 @@ contains
     use wrapper_MPI, only: fmpi_barrier
     use PStypes, only: SETUP_VARIABLES,VERBOSITY
     use vdwcorrection, only: vdwcorrection_warnings
+    use at_domain, only: domain_geocode
     implicit none
     !Arguments
     type(input_variables), intent(out) :: in
@@ -803,7 +804,7 @@ contains
     call astruct_set_symmetries(atoms%astruct, in%disableSym, in%symTol, in%elecfield, in%nspin)
 
     call kpt_input_analyse(bigdft_mpi%iproc, in, dict//KPT_VARIABLES, &
-         & atoms%astruct%sym, atoms%astruct%geocode, atoms%astruct%cell_dim)
+         & atoms%astruct%sym, domain_geocode(atoms%astruct%dom), atoms%astruct%cell_dim)
 
     call atoms_fill(atoms,dict,in%nspin,&
          in%multipole_preserving,in%mp_isf,in%ixc,in%alpha_hartree_fock)
@@ -2862,6 +2863,7 @@ contains
     use yaml_strings, only: operator(.eqv.)
     use yaml_output
     use module_base, only: bigdft_mpi
+    use at_domain, only: domain_geocode
     implicit none
     type(input_variables), intent(inout) :: in
     type(atomic_structure), intent(in) :: astruct
@@ -2906,12 +2908,12 @@ contains
        in%last_run=0
     end if
 
-    if (astruct%geocode == 'F' .or. astruct%nat == 0) then
+    if (domain_geocode(astruct%dom) == 'F' .or. astruct%nat == 0) then
        !Disable the symmetry
        in%disableSym = .true.
     end if
 
-    if (in%inguess_geopt == 1 .and. astruct%geocode /= 'F') then
+    if (in%inguess_geopt == 1 .and. domain_geocode(astruct%dom) /= 'F') then
        if (bigdft_mpi%iproc==0) &
             call yaml_warning('The input guess strategy "1" for the restart is only allowed for free BC')
        in%inguess_geopt = 0
@@ -3224,6 +3226,7 @@ contains
     use abi_defs_basis
     use yaml_output
     use yaml_strings, only: operator(.eqv.),yaml_toa
+    use at_domain, only: domain_geocode
     implicit none
     !Arguments
     type(input_variables), intent(in) :: in
@@ -3258,25 +3261,25 @@ contains
        end if
     end if
     !Boundary Conditions
-    select case(atoms%astruct%geocode)
+    select case(domain_geocode(atoms%astruct%dom))
     case('P')
        call yaml_map('Boundary Conditions','Periodic',advance='no')
-       call yaml_comment('Code: '//atoms%astruct%geocode)
+       call yaml_comment('Code: '//domain_geocode(atoms%astruct%dom))
        call yaml_map('Box Sizes (AU)',(/atoms%astruct%cell_dim(1),atoms%astruct%cell_dim(2),&
             atoms%astruct%cell_dim(3)/),fmt='(1pe12.5)')
     case('S')
        call yaml_map('Boundary Conditions','Surface',advance='no')
-       call yaml_comment('Code: '//atoms%astruct%geocode)
+       call yaml_comment('Code: '//domain_geocode(atoms%astruct%dom))
        call yaml_map('Box Sizes (AU)',(/atoms%astruct%cell_dim(1),atoms%astruct%cell_dim(2),&
             atoms%astruct%cell_dim(3)/),fmt='(1pe12.5)')
     case('W')
        call yaml_map('Boundary Conditions','Wire',advance='no')
-       call yaml_comment('Code: '//atoms%astruct%geocode)
+       call yaml_comment('Code: '//domain_geocode(atoms%astruct%dom))
        call yaml_map('Box Sizes (AU)',(/atoms%astruct%cell_dim(1),atoms%astruct%cell_dim(2),&
             atoms%astruct%cell_dim(3)/),fmt='(1pe12.5)')
     case('F')
        call yaml_map('Boundary Conditions','Free',advance='no')
-       call yaml_comment('Code: '//atoms%astruct%geocode)
+       call yaml_comment('Code: '//domain_geocode(atoms%astruct%dom))
     end select
 
     !Symmetries
@@ -3343,7 +3346,7 @@ contains
     end if
 
     !Output for K points
-    if (atoms%astruct%geocode /= 'F') then
+    if (domain_geocode(atoms%astruct%dom) /= 'F') then
        call yaml_comment('K points description (Reduced and Brillouin zone coordinates, Weight)',hfill='-')
        !write(*,'(1x,a)') '--- (file: input.kpt) ----------------------------------------------------- k-points'
        if (in%disableSym .and. in%gen_nkpt > 1) then
@@ -3424,6 +3427,7 @@ contains
     use module_xc
     use f_enums, only: f_int => toi
     use yaml_strings, only: yaml_toa
+    use at_domain, only: domain_geocode
     implicit none
     type(input_variables), intent(in) :: in
     type(atoms_data), intent(in) :: atoms
@@ -3494,7 +3498,7 @@ contains
     call yaml_mapping_close()
     call yaml_mapping_close()
 
-    if (atoms%astruct%geocode == 'F') then
+    if (domain_geocode(atoms%astruct%dom) == 'F') then
        call yaml_mapping_open('Post Optimization Parameters')
 
        call yaml_mapping_open('Finite-Size Effect estimation')
