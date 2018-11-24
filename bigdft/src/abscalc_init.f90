@@ -480,6 +480,7 @@ subroutine createPawProjectorsArrays(iproc,n1,n2,n3,rxyz,at,orbs,&
   use psp_projectors_base, only: DFT_PSP_projectors_null
   use psp_projectors, only: bounds_to_plr_limits
   use module_abscalc
+  use at_domain, only: domain_geocode
   implicit none
   integer, intent(in) :: iproc,n1,n2,n3
   real(gp), intent(in) :: cpmult,fpmult,hx,hy,hz
@@ -669,7 +670,7 @@ subroutine createPawProjectorsArrays(iproc,n1,n2,n3,rxyz,at,orbs,&
               if( .not. PAWD%DistProjApply) then
                  istart_c= istart_c-mproj*(nvctr_c+7*nvctr_f)*ncplx
                  call fillPawProjOnTheFly(PAWD, Glr, iat,  hx,hy,hz, kx,ky,kz, startjorb,&
-                      &   istart_c, at%astruct%geocode , at, iatat) 
+                      &   istart_c, domain_geocode(at%astruct%dom) , at, iatat) 
                  istart_c= istart_c+mproj*(nvctr_c+7*nvctr_f)*ncplx
               endif
            end if
@@ -707,6 +708,7 @@ subroutine localize_projectors_paw(iproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,&
   use at_domain
   use psp_projectors, only: pregion_size, bounds_to_plr_limits
   use numerics, only: onehalf,pi
+  use at_domain, only: domain_geocode
   implicit none
   integer, intent(in) :: iproc,n1,n2,n3
   real(gp), intent(in) :: cpmult,fpmult,hx,hy,hz
@@ -794,7 +796,7 @@ subroutine localize_projectors_paw(iproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,&
            call bounds_to_plr_limits(.true.,1,PAWD%paw_nl%projs(natpaw)%region%plr,&
                  nl1,nl2,nl3,nu1,nu2,nu3)
 
-           call fill_logrid(at%astruct%geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,0,1,  &
+           call fill_logrid(domain_geocode(at%astruct%dom),n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,0,1,  &
                 at%astruct%ntypes,at%astruct%iatype(iat),rxyz(1,iat),at%radii_cf(1,3),cpmult,hx,hy,hz,logrid)
            call num_segkeys(n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,logrid,mseg,mvctr)
 
@@ -816,7 +818,7 @@ subroutine localize_projectors_paw(iproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,&
            call bounds_to_plr_limits(.true.,2,PAWD%paw_nl%projs(natpaw)%region%plr,&
                  nl1,nl2,nl3,nu1,nu2,nu3)
 
-           call fill_logrid(at%astruct%geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,0,1,  &
+           call fill_logrid(domain_geocode(at%astruct%dom),n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,0,1,  &
                 at%astruct%ntypes,at%astruct%iatype(iat),rxyz(1,iat),&
                 at%radii_cf(1,2),fpmult,hx,hy,hz,logrid)
            call num_segkeys(n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,logrid,mseg,mvctr)

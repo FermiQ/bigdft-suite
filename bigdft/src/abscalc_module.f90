@@ -242,6 +242,7 @@ contains
     use module_base
     use module_types
     use locregs
+    use at_domain, only: domain_geocode
     implicit none
 
     type(orbitals_data), intent(inout) :: orbs
@@ -335,7 +336,7 @@ contains
                             if(jorb<PAWD%G%ncoeff) then
                                call fillPawProjOnTheFly(PAWD,Glr,iat,hx,hy,hz,&
                                     &   kx,ky,kz,&
-                                    &   jorb,istart_c,at%astruct%geocode,at,iatat ) 
+                                    &   jorb,istart_c,domain_geocode(at%astruct%dom),at,iatat ) 
                             endif
                          end if
                       endif

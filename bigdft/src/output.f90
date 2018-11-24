@@ -1137,6 +1137,7 @@ subroutine wtyaml(iunit,energy,rxyz,astruct,wrtforces,forces, &
   use yaml_strings
   use module_atoms, only: atomic_structure,frozen_itof
   use ao_inguess, only: charge_and_spol
+  use at_domain, only: domain_geocode
   use public_keys, only: ASTRUCT_UNITS,ASTRUCT_CELL,ASTRUCT_POSITIONS,&
        ASTRUCT_ATT_IGSPIN,ASTRUCT_ATT_IGCHRG,ASTRUCT_ATT_FROZEN
   implicit none
@@ -1180,7 +1181,7 @@ subroutine wtyaml(iunit,energy,rxyz,astruct,wrtforces,forces, &
   perx = .false.
   pery = .false.
   perz = .false.
-  BC :select case(astruct%geocode)
+  BC :select case(domain_geocode(astruct%dom))
   case('S')
      call yaml_sequence_open(ASTRUCT_CELL, flow=.true., unit = iunit)
      call yaml_sequence(yaml_toa(astruct%cell_dim(1)*factor), unit = iunit) !x
