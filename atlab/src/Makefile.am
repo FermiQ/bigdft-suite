@@ -27,6 +27,7 @@ libatlab_1_a_SOURCES = f_functions.f90 \
     domain.f90  \
     IObox.f90 \
     mp_quadrature.f90 \
+    numerics.f90 \
     $(openbabel_static_sources) \
     openbabel_wrapper.f90 \
     $(etsf_files)

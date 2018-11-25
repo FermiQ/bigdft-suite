@@ -140,6 +140,7 @@
     <branch repo="local" module="CheSS-0.2.4.tar.gz" version="0.2.4" checkoutdir="chess"/>
     <dependencies>
       <dep package="futile"/>
+      <dep package="atlab"/>
       <if condition-set="ntpoly">
         <dep package="ntpoly"/>
       </if>
@@ -151,6 +152,7 @@
     <branch repo="local" module="bigdft-1.8.3.tar.gz" version="1.8.3" checkoutdir="bigdft"/>
     <dependencies>
       <dep package="futile"/>
+      <dep package="atlab"/>
       <dep package="chess"/>
       <dep package="libxc"/>
       <dep package="psolver"/>

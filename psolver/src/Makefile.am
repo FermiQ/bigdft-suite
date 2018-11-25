@@ -115,7 +115,7 @@ conv_check_fft_LDADD = $(psolver_library)
 conv_check_fftw_SOURCES = conv_check_fftw.f90 fftw.cpp
 conv_check_fftw_LDADD = $(psolver_library) -lfftw3 -lfftw3_threads
 
-AM_FCFLAGS = -I. -I$(srcdir) @LIB_FUTILE_CFLAGS@ @LIBETSFIO_INCLUDE@ @MPI_INCLUDE@
+AM_FCFLAGS = -I. -I$(srcdir) @LIB_ATLAB_CFLAGS@ @MPI_INCLUDE@
 AM_CPPFLAGS = -I. -I$(top_builddir) -I@CUDA_PATH@/include/
 AM_LDFLAGS = -L$(top_builddir)/src
 
@@ -150,7 +150,7 @@ install-data-hook:
 $(modules): $(libPSolver_1_a_OBJECTS)
 Poisson_Solver.o: $(SOURCES_MOD) configure.inc environment.o PStypes.o PSbox.o PSbase.o FDder.o
 PStypes.o: environment.o FDder.o
-PSbox.o: PStypes.o PSbase.o IObox.o
+PSbox.o: PStypes.o PSbase.o
 FDder.o: PSbase.o
 environment.o: PSbase.o
 conv_check_fft.o: cufft.o
