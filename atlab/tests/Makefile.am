@@ -1,12 +1,11 @@
-EXTRA_DIST = \
-	numerics_check.ref.yaml
+EXTRA_DIST = numerics_check.ref.yaml
 
 check_PROGRAMS = numerics_check
 
 check: regtest report
 
 report:
-  @if test $(MAKELEVEL) = 0 ; then python $(top_builddir)/tests/report.py ; fi
+	@if test $(MAKELEVEL) = 0 ; then python $(top_builddir)/tests/report.py ; fi
 
 CLEANFILES = *.out.yaml *.report.yaml *.@MODULE_EXT@ report_remarks
 

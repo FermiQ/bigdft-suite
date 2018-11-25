@@ -103,19 +103,14 @@ module_nopoison = {}
 # Specific autogenargs by default
 module_autogenargs['PyYAML'] = "build_ext -I%(prefix)s/include -L%(prefix)s/lib --rpath=%(prefix)s/lib " % {"prefix": prefix}
 module_autogenargs['etsf_io'] = "--with-moduledir=%(prefix)s/include " % {"prefix": prefix}
+autogen_packages=['libyaml','GaIn','libxc','chess','bigdft','libABINIT','futile','psolver','spred']
+
 if basic_configuration() is not None:
-    module_autogenargs['libyaml'  ]= basic_configuration() 
-    module_autogenargs['GaIn'     ]= basic_configuration()
-    module_autogenargs['libxc'    ]= basic_configuration()
-    module_autogenargs['chess'    ]= basic_configuration()
-    module_autogenargs['bigdft'   ]= basic_configuration()
-    module_autogenargs['libABINIT']= basic_configuration()
-    module_autogenargs['futile'   ]= basic_configuration()
-    module_autogenargs['psolver'  ]= basic_configuration()
-    module_autogenargs['spred'    ]= basic_configuration()
+    for pkg in autogen_packages:
+        module_autogenargs[pkg]= basic_configuration()
 
 #branches['PyYAML']='minloader'
- 
+
 # control parts of the build process
 nonetwork     = False  # never touch the network
 alwaysautogen = False  # always call autogen.sh

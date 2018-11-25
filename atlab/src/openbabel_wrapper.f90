@@ -8,14 +8,14 @@
 !!    GNU Lesser General Public License, see ~/COPYING file
 !!    or http://www.gnu.org/copyleft/gpl.txt .
 !!    For the list of contributors, see ~/AUTHORS
-end module at_babel
+module at_babel
+
   implicit none
 
 
 contains
 
   subroutine load_dict_from_openbabel(dict,obfile)
-    implicit none
     use dictionaries
     use yaml_strings, only: f_char_ptr
     use yaml_output

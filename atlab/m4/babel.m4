@@ -16,10 +16,7 @@ AC_ARG_ENABLE(openbabel, AS_HELP_STRING([--enable-openbabel], [Enable detection 
 if test x"$ax_have_OPENBABEL_search" = "xyes" ; then
 AX_PACKAGE([OPENBABEL],[2.0],[-lopenbabel],[],[],
            [
-#include <openbabel/obmolecformat.h>
-#include <openbabel/mol.h>
-
-using namespace OpenBabel;
+#include <openbabel/obconversion.h>
 
 int main(int argc, char **argv)
 {
@@ -31,7 +28,7 @@ int main(int argc, char **argv)
 }
 ],
            [OpenBabel::OBConversion conv],
-           [C++], [openbabel-2.0])
+           [C++], [openbabel-2.0],[#include <openbabel/obconversion.h>])
 else
   ax_have_OPENBABEL="no"
 fi

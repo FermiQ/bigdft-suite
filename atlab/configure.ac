@@ -166,9 +166,14 @@ Basics:
 
 Build:
   Dynamic library:           $ax_build_dynamic
+  Openbabel support:         $ax_have_OPENBABEL
+  ETSF-IO support:           $ax_have_etsf_io 
 
-Options:
-  With OpenMP:               $ax_fc_openmp_msg
+Compilation Options (from FUTILE lib when not specified):
+  Fortran Compiler:          $FUTILE_FC
+  Fortran Flags:             $FUTILE_FCFLAGS
+  OpenMP flag:               $ax_fc_openmp_msg
+  Dynamic libraries flags    $FUTILE_DYNLIB_FLAG
   With MPI:                  $ac_use_mpi
    | include dir.:           $MPI_INCLUDE
    | linker flags:           $MPI_LDFLAGS

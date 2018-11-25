@@ -19,6 +19,7 @@ atlab_dynlib =
 atlab_linklib =
 endif
 
+$(modules): $(libatlab_1_a_OBJECTS)
 
 libatlab_1_a_SOURCES = f_functions.f90 \
     harmonics.f90 \
@@ -37,6 +38,7 @@ f_functions.o: numerics.o box.o FiniteDiffCorff.inc
 harmonics.o: numerics.o box.o
 box.o: domain.o
 domain.o: numerics.o
+mp_quadrature.o IObox.o IOetsf.o IOetsf_fake.o: box.o
 
 if HAVE_ETSF_IO
 etsf_files = IOetsf.f90
@@ -50,8 +52,8 @@ AM_FCFLAGS = -I. -I$(srcdir) @LIB_FUTILE_CFLAGS@ @LIBETSFIO_INCLUDE@
 
 if HAVE_OPENBABEL
 openbabel_dynamic_sources = openbabel.cpp
-openbabel_dynamic_library = libbabel.so.@BIGDFT_MINOR_VERSION@.0.@BIGDFT_MICRO_VERSION@
-openbabel_soname_library = libbabel.so.@BIGDFT_MINOR_VERSION@
+openbabel_dynamic_library = libbabel.so.@ATLAB_MINOR_VERSION@.0.@ATLAB_MICRO_VERSION@
+openbabel_soname_library = libbabel.so.@ATLAB_MINOR_VERSION@
 openbabel_library = $(openbabel_soname_library)
 AM_LDFLAGS = @FC_RPATH@$(DESTDIR)$(dynlibdir)
 else
