@@ -370,7 +370,11 @@ class System(MutableMapping):
         idx = np.argmin([np.dot(dd, dd.T) for dd in (CMs - self.centroid)])
         return self.keys()[idx], self.values()[idx]
 
-    def plot_purity(ax):
+    def get_posinp(self, units):
+        return [{at.sym: at.get_position(units)}
+                for frag in self.values() for at in frag]
+
+    def plot_purity(self, ax):
         """
         Plot the purity values of the fragments in this system.
         This assumes they have already been set.
