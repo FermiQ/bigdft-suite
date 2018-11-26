@@ -103,7 +103,7 @@ class Atom(MutableMapping):
         pos = array([float(x) for x in pos])
 
         # Make sure the units are correct
-        if _IsAngstroem(self.store["units"]):
+        if _IsAngstroem(self):
             pos /= AU_to_A
         if _IsAngstroem(units):
             pos *= AU_to_A
@@ -124,7 +124,7 @@ class Atom(MutableMapping):
         pos = array(new_pos)
         if _IsAngstroem(units):
             pos /= AU_to_A
-        if _IsAngstroem(self.store["units"]):
+        if _IsAngstroem(self):
             pos *= AU_to_A
         pos = [x for x in pos]
 
@@ -197,7 +197,19 @@ def _GetSymbol(atom):
     raise ValueError
 
 def _IsAngstroem(units):
-    return units == "angstroem" or units == "angstroemd0"
+    """
+    Checks if a string or atom has angstroem as its units.
+
+    Args:
+      units: either a string, or an ``Atom``.
+    """
+    if isinstance(units, Atom):
+        check = units.store.get("units")
+        if not check:
+            return False
+    else:
+        check = units
+    return check == "angstroem" or check == "angstroemd0"
 
 if __name__ == "__main__":
     """Test the atom module"""

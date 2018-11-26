@@ -10,6 +10,22 @@ try:
 except:
     from collections import MutableMapping, MutableSequence
 
+def distance(i, j, cell=None):
+    """
+    Distance between fragments, defined as distance between center of mass
+
+    Args:
+      i (Fragment): first fragment.
+      j (Fragment): second fragment.
+      cell (array): an array describing the unit cell.
+    """
+    import numpy
+    vec = i.centroid - j.centroid
+    if cell:
+        per = numpy.where(cell > 0.0)
+        for i, p in enumerate(per):
+            vec -= cell[i] * int(round(vec[i] / cell[i]))
+    return numpy.sqrt(numpy.dot(vec, vec.T))
 
 class Lattice():
     """
@@ -109,6 +125,7 @@ class Fragment(MutableSequence):
 
     def __init__(self, atomlist=None, xyzfile=None):
         from Atom import Atom
+        from XYZ import XYZReader
         self.atoms = []
 
         # insert atoms.
@@ -148,6 +165,12 @@ class Fragment(MutableSequence):
             return Fragment(atomlist=self.atoms.__getitem__(index))
         else:
             return self.atoms.__getitem__(index)
+
+    def __add__(self, other):
+        from copy import deepcopy
+        rval = deepcopy(self)
+        rval += other
+        return rval
 
     @property
     def centroid(self):
@@ -228,7 +251,7 @@ class Fragment(MutableSequence):
         import numpy as np
         I = np.mat(np.zeros(9).reshape(3, 3))
         for at in self:
-            rxyz = at.get_position() - center
+            rxyz = np.array(at.get_position()) - center
             I[0, 0] += rxyz[0]**2  # rxyz[1]**2+rxyz[2]**2
             I[1, 1] += rxyz[1]**2  # rxyz[0]**2+rxyz[2]**2
             I[2, 2] += rxyz[2]**2  # rxyz[1]**2+rxyz[0]**2
@@ -276,9 +299,9 @@ class Fragment(MutableSequence):
         """
         Apply a rototranslation of the fragment positions
         """
-        import numpy as np
+        from numpy import outer, array
         for at in self:
-            at.set_position(Rt.dot(at.get_position()))
+            at.set_position(Rt.dot(array(at.get_position()).T))
         #import wahba as w,numpy as np
         # if t is None:
         #    self.positions=w.apply_R(R,self.positions)
@@ -331,16 +354,21 @@ class System(MutableMapping):
         Center of mass of the system
         """
         from numpy import mean
-        mean([frag.centroid in self], axis=0)
+        return mean([frag.centroid for frag in self.values()], axis=0)
 
     @property
     def central_fragment(self):
         """
         Returns the fragment whose center of mass is closest to the centroid
+
+        Returns:
+          (str): the name of the fragment.
+          (Fragment): the fragment object
         """
         import numpy as np
-        CMs = [frag.centroid in self]
-        return np.argmin([np.dot(dd, dd.T) for dd in (CMs - self.centroid)])
+        CMs = [frag.centroid for frag in self.values()]
+        idx = np.argmin([np.dot(dd, dd.T) for dd in (CMs - self.centroid)])
+        return self.keys()[idx], self.values()[idx]
 
     def plot_purity(ax):
         """

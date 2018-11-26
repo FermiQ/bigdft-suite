@@ -38,6 +38,8 @@ class XYZReader():
         line = next(self._handle).split()
         if len(line) == 0:
             self.cell = None
+        elif line[0] == "#": # Comment line
+            self.cell = None
         elif line[0] == "free":
             self.cell = None
         else:
