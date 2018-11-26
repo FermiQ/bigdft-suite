@@ -1071,8 +1071,7 @@ contains
       do j = 1, int(10._gp / eps)
          r = real(j, gp) * eps
          pot = pspiof_potential_eval(pspiof_pspdata_get_vlocal(pspio), r)
-         !write(92, *) r, pot
-         if (abs(pot + pspiof_pspdata_get_zvalence(pspio) / r) > 1e-7) rloc = r
+         if (abs(pot + pspiof_pspdata_get_zvalence(pspio) / r) * r * r > 1e-3) rloc = r
       end do
       psppar(0, 0) = max(rloc / 6._gp, 0.2_gp) ! Avoid too sharp gaussians.
 
