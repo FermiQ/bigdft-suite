@@ -201,7 +201,7 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
   ldiis_coeff_hist=input%lin%dmin_hist_lowaccuracy
   reduce_conf=.false.
   ldiis_coeff_changed = .false.
-  orthonormalization_on=.true.
+  orthonormalization_on=input%lin%orthogonalize_sfs
   dmin_diag_it=0
   dmin_diag_freq=-1
   reorder=.false.
@@ -383,14 +383,7 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
                convCritMix_init, lowaccur_converged, nit_scc, mix_hist, alpha_mix, locrad, target_function, nit_basis, &
                convcrit_dmin, nitdmin, conv_crit_TMB)
           if (itout==1) then
-              call allocate_precond_arrays(tmb%orbs, tmb%lzd, tmb%confdatarr, precond_convol_workarrays, precond_workarrays)
-              wt_philarge = work_transpose_null()
-              wt_hphi = work_transpose_null()
-              wt_phi = work_transpose_null()
-              call allocate_work_transpose(nproc, tmb%ham_descr%collcom, wt_philarge)
-              call allocate_work_transpose(nproc, tmb%ham_descr%collcom, wt_hphi)
-              call allocate_work_transpose(nproc, tmb%collcom, wt_phi)
-              hphi_pspandkin = f_malloc(tmb%ham_descr%npsidim_orbs,id='hphi_pspandkin')
+              call allocate_work_arrays()
           end if
           !!if (iproc==0) write(*,*) 'AFTER: lowaccur_converged,associated(precond_workarrays)',lowaccur_converged,associated(precond_workarrays)
           if (keep_value) then
@@ -402,14 +395,7 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
                target_function, nit_basis, nit_scc, mix_hist, locrad, alpha_mix, convCritMix_init, conv_crit_TMB)
                convcrit_dmin=input%lin%convCritDmin_highaccuracy
                nitdmin=input%lin%nItdmin_highaccuracy
-          call allocate_precond_arrays(tmb%orbs, tmb%lzd, tmb%confdatarr, precond_convol_workarrays, precond_workarrays)
-          wt_philarge = work_transpose_null()
-          wt_hphi = work_transpose_null()
-          wt_phi = work_transpose_null()
-          call allocate_work_transpose(nproc, tmb%ham_descr%collcom, wt_philarge)
-          call allocate_work_transpose(nproc, tmb%ham_descr%collcom, wt_hphi)
-          call allocate_work_transpose(nproc, tmb%collcom, wt_phi)
-          hphi_pspandkin = f_malloc(tmb%ham_descr%npsidim_orbs,id='hphi_pspandkin')
+          call allocate_work_arrays()
       end if
       call timing(iproc,'linscalinit','OF')
 
@@ -437,22 +423,12 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
           call adjust_locregs_and_confinement(iproc, nproc, KSwfn%Lzd%hgrids(1), KSwfn%Lzd%hgrids(2), KSwfn%Lzd%hgrids(3), &
                at, input, rxyz, KSwfn, tmb, denspot, nlpsp, ldiis, locreg_increased, lowaccur_converged, &
                input%cp%foe%matmul_optimize_load_balancing, locrad)
-          orthonormalization_on=.true.
+          ! if we have just started high accuracy, turn orthogonalization back on
+          ! except in experimental_mode where we only do it in the extended IG
+          orthonormalization_on=input%lin%orthogonalize_sfs
 
-          call deallocate_precond_arrays(tmb%orbs, tmb%lzd, precond_convol_workarrays, precond_workarrays)
-          call deallocate_work_transpose(wt_philarge)
-          call deallocate_work_transpose(wt_hphi)
-          call deallocate_work_transpose(wt_phi)
-          call f_free(hphi_pspandkin)
-
-          call allocate_precond_arrays(tmb%orbs, tmb%lzd, tmb%confdatarr, precond_convol_workarrays, precond_workarrays)
-          wt_philarge = work_transpose_null()
-          wt_hphi = work_transpose_null()
-          wt_phi = work_transpose_null()
-          call allocate_work_transpose(nproc, tmb%ham_descr%collcom, wt_philarge)
-          call allocate_work_transpose(nproc, tmb%ham_descr%collcom, wt_hphi)
-          call allocate_work_transpose(nproc, tmb%collcom, wt_phi)
-          hphi_pspandkin = f_malloc(tmb%ham_descr%npsidim_orbs,id='hphi_pspandkin')
+          call deallocate_work_arrays()
+          call allocate_work_arrays()
 
           ! is this really necessary if the locrads haven't changed?  we should check this!
           ! for now for CDFT don't do the extra get_coeffs, as don't want to add extra CDFT loop here
@@ -601,10 +577,10 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
            !    if (iproc==0) write(*,*) 'set ldiis%isx=0)'
            !    ldiis%isx=0
            !end if
-           if (input%experimental_mode) then
+           !if (input%experimental_mode) orthonormalization_on=.false.
+           if (.not. orthonormalization_on) then
                if (iproc==0) call yaml_warning('No orthogonalizing of the support functions')
                !if (iproc==0) write(*,*) 'WARNING: set orthonormalization_on to false'
-               orthonormalization_on=.false.
            end if
            if (iproc==0) then
                call yaml_comment('support function optimization',hfill='=')
@@ -824,14 +800,7 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
   end do outerLoop
 
 
-  if (nit_lowaccuracy+nit_highaccuracy>0) then
-      call deallocate_precond_arrays(tmb%orbs, tmb%lzd, precond_convol_workarrays, precond_workarrays)
-      call deallocate_work_transpose(wt_philarge)
-      call deallocate_work_transpose(wt_hphi)
-      call deallocate_work_transpose(wt_phi)
-      call f_free(hphi_pspandkin)
-  end if
-
+  if (nit_lowaccuracy+nit_highaccuracy>0) call deallocate_work_arrays()
 
 
   if (input%wf_extent_analysis) then
@@ -1535,11 +1504,35 @@ end if
 
   contains
 
+    ! copied here to improve code readability
+    subroutine allocate_work_arrays()
+       implicit none
+
+       call allocate_precond_arrays(tmb%orbs, tmb%lzd, tmb%confdatarr, precond_convol_workarrays, precond_workarrays)
+       wt_philarge = work_transpose_null()
+       wt_hphi = work_transpose_null()
+       wt_phi = work_transpose_null()
+       call allocate_work_transpose(nproc, tmb%ham_descr%collcom, wt_philarge)
+       call allocate_work_transpose(nproc, tmb%ham_descr%collcom, wt_hphi)
+       call allocate_work_transpose(nproc, tmb%collcom, wt_phi)
+       hphi_pspandkin = f_malloc(tmb%ham_descr%npsidim_orbs,id='hphi_pspandkin')
+    end subroutine allocate_work_arrays
+
+    ! copied here to improve code readability
+    subroutine deallocate_work_arrays()
+       implicit none
+          call deallocate_precond_arrays(tmb%orbs, tmb%lzd, precond_convol_workarrays, precond_workarrays)
+          call deallocate_work_transpose(wt_philarge)
+          call deallocate_work_transpose(wt_hphi)
+          call deallocate_work_transpose(wt_phi)
+          call f_free(hphi_pspandkin)
+    end subroutine deallocate_work_arrays
+
     !> This loop is simply copied down here such that it can again be called
     !! in a post-processing way.
     !SM: Must be cleaned up a lot!
     subroutine scf_kernel(nit_scc, remove_coupling_terms, update_phi)
-      use module_interfaces, only: write_eigenvalues_data
+       use module_interfaces, only: write_eigenvalues_data
        implicit none
 
        ! Calling arguments

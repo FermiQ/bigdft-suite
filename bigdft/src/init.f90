@@ -1195,7 +1195,7 @@ subroutine input_memory_linear(iproc, nproc, at, KSwfn, tmb, tmb_old, denspot, i
    ! normalize tmbs - only really needs doing if we reformatted, but will need to calculate transpose after anyway
 
    ! Normalize the input guess. If FOE is used, the input guess will be generated below.
-   if (input%lin%scf_mode/=LINEAR_FOE .or. (FOE_restart==RESTART_REFORMAT .and. .not.input%experimental_mode)) then
+   if (input%lin%scf_mode/=LINEAR_FOE .or. (FOE_restart==RESTART_REFORMAT .and. input%lin%orthogonalize_sfs)) then
        tmb%can_use_transposed=.true.
        overlap_calculated=.false.
 
@@ -1211,7 +1211,7 @@ subroutine input_memory_linear(iproc, nproc, at, KSwfn, tmb, tmb_old, denspot, i
             TRANSPOSE_FULL, tmb%psit_c, tmb%psit_f, tmb%psi, tmb%lzd)
 
        call f_free(norm)
-   else if (FOE_restart==RESTART_REFORMAT .and. input%experimental_mode .and. max_shift>0.d0) then
+   else if (FOE_restart==RESTART_REFORMAT .and. (.not.input%lin%orthogonalize_sfs) .and. max_shift>0.d0) then
       if (.not. input%lin%iterative_orthogonalization) then
          !!%%  ! Orthonormalize
          !!%%  tmb%can_use_transposed=.false.
@@ -1653,7 +1653,7 @@ subroutine input_memory_linear(iproc, nproc, at, KSwfn, tmb, tmb_old, denspot, i
   end if
 
   ! Orthonormalize the input guess if necessary
-  if (input%experimental_mode .and. input%lin%scf_mode/=LINEAR_FOE) then
+  if ((.not. input%lin%orthogonalize_sfs) .and. input%lin%scf_mode/=LINEAR_FOE) then
       if (iproc==0) call yaml_map('orthonormalization of input guess','standard')
       tmb%can_use_transposed = .false.
       methTransformOverlap=-1

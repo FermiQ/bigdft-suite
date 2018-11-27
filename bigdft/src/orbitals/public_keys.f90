@@ -33,6 +33,8 @@ module public_keys
   character(len = *), parameter :: GNRM_CV_VIRT = "gnrm_cv_virt"
   character(len = *), parameter :: GNRM_IG = "gnrm_ig"
   character(len = *), parameter :: NIT_IG = "nit_ig"
+  character(len = *), parameter :: EXTENDED_IG = "extended_ig"
+  character(len = *), parameter :: ORTHOGONALIZE_SFS = "orthogonalize_sfs"
   character(len = *), parameter :: ITERMAX = "itermax",ITERMIN = "itermin", NREPMAX = "nrepmax"
   character(len = *), parameter :: ITERMAX_VIRT = "itermax_virt"
   character(len = *), parameter :: NCONG = "ncong", IDSX = "idsx"

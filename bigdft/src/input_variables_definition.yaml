@@ -1776,6 +1776,12 @@
        COMMENT:  maximal number of iterations to optimize the support functions in the extended input guess (experimental mode only)
        RANGE: [0,100]
        default: 50 #just for backward compatibility, should be smaller
+     extended_ig:
+       COMMENT:  whether or not to do an extended input guess (will be activated by default in experimental mode)
+       default: No
+     orthogonalize_sfs:
+       COMMENT:  whether or not to explicitly orthogonalize SFs (will be activated by default except in experimental mode, and may eventually be automatically turned off)
+       default: Yes
      idsx:
        COMMENT: DIIS history for optimization of the support functions (low/high accuracy); 0 -> SD
        DESCRIPTION: |

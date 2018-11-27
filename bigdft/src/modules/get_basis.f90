@@ -1006,7 +1006,7 @@ module get_basis
 
 
 
-    subroutine improveOrbitals(iproc, nproc, tmb, nspin, ldiis, alpha, gradient, experimental_mode)
+    subroutine improveOrbitals(iproc, nproc, tmb, nspin, ldiis, alpha, gradient, one_diis_mat)
       use module_base
       use module_types
       implicit none
@@ -1017,7 +1017,7 @@ module get_basis
       type(localizedDIISParameters),intent(inout) :: ldiis
       real(kind=8),dimension(tmb%orbs%norbp),intent(in) :: alpha
       real(kind=wp),dimension(tmb%npsidim_orbs),intent(inout) :: gradient
-      logical,intent(in) :: experimental_mode
+      logical,intent(in) :: one_diis_mat
       
       ! Local variables
       integer :: istart, iorb, iiorb, ilr, ncount
@@ -1043,7 +1043,7 @@ module get_basis
           end if
           call optimizeDIIS(iproc, nproc, max(tmb%npsidim_orbs,tmb%npsidim_comp), &
                tmb%orbs, nspin, tmb%lzd, gradient, tmb%psi, ldiis, &
-               experimental_mode)
+               one_diis_mat)
       end if
     
       call f_release_routine()
@@ -2134,6 +2134,7 @@ module get_basis
       ! Improve the orbitals, depending on the choice made above.
       if (present(psidiff)) call vcopy(tmb%npsidim_orbs, tmb%psi(1), 1, psidiff(1), 1)
       if(.not.ldiis%switchSD) then
+          ! this call should use one_diis_mat rather than experimental mode
           call improveOrbitals(iproc, nproc, tmb, tmb%linmat%smat(1)%nspin, ldiis, alpha, hpsi_small, experimental_mode)
       else
           if (iproc==0) then
@@ -2170,6 +2171,8 @@ module get_basis
           if (iproc == 0) then
               call yaml_map('Orthogonalization',.true.)
           end if
+
+      ! not sure how this connects with experimental_mode...
       else if (experimental_mode .or. .not.ldiis%switchSD) then
           ist=1
           do iorb=1,tmb%orbs%norbp
