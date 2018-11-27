@@ -50,9 +50,10 @@ subroutine reformatonewave(displ,wfd,at,hx_old,hy_old,hz_old,n1_old,n2_old,n3_ol
 
 
   !mesh=cell_new(at%astruct%geocode,[n1,n2,n3],[hx,hy,hz])
-  dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(at%astruct%geocode),&
-            alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=[n1,n2,n3]*[hx,hy,hz])
-  mesh=cell_new(dom,[n1,n2,n3],[hx,hy,hz])
+  !dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(at%astruct%geocode),&
+  !          alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=[n1,n2,n3]*[hx,hy,hz])
+  !mesh=cell_new(dom,[n1,n2,n3],[hx,hy,hz])
+  mesh=cell_new(at%astruct%dom,[n1,n2,n3],[hx,hy,hz])
 
   !conditions for periodicity in the three directions
 !!$  perx=(at%astruct%geocode /= 'F')
@@ -329,9 +330,10 @@ subroutine readonewave(unitwf,useFormattedInput,iorb,iproc,n1,n2,n3,&
   call f_routine(id=subname)
 
   !mesh=cell_new(at%astruct%geocode,[n1,n2,n3],[hx,hy,hz])
-  dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(at%astruct%geocode),&
-            alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=[n1,n2,n3]*[hx,hy,hz])
-  mesh=cell_new(dom,[n1,n2,n3],[hx,hy,hz])
+  !dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(at%astruct%geocode),&
+  !          alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=[n1,n2,n3]*[hx,hy,hz])
+  !mesh=cell_new(dom,[n1,n2,n3],[hx,hy,hz])
+  mesh=cell_new(at%astruct%dom,[n1,n2,n3],[hx,hy,hz])
 
   !write(*,*) 'INSIDE readonewave'
   call io_read_descr(unitwf, useFormattedInput, iorb_old, eval, n1_old, n2_old, n3_old, &
