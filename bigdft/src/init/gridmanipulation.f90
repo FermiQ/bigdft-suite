@@ -191,9 +191,10 @@ subroutine system_size(atoms,rxyz,crmult,frmult,hx,hy,hz,OCLconv,Glr)
    !we will also have to decide where the mesh should be in astruct or not
    !mesh_coarse=cell_new(atoms%astruct%geocode,ndims+1,hgridsh)
    ndims1=ndims+1
-   dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(domain_geocode(atoms%astruct%dom)),&
-            alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=ndims1*hgridsh)
-   mesh_coarse=cell_new(dom,ndims1,hgridsh)
+!   dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(domain_geocode(atoms%astruct%dom)),&
+   !         alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=ndims1*hgridsh)
+   !mesh_coarse=cell_new(dom,ndims1,hgridsh)
+   mesh_coarse=cell_new(atoms%astruct%dom,ndims1,hgridsh)
   
    do iat=1,atoms%astruct%nat
       rad=atoms%radii_cf(atoms%astruct%iatype(iat),2)*frmult
