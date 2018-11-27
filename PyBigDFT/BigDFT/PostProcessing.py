@@ -201,25 +201,23 @@ class BigDFTool(object):
 
         return spillage_array
 
-    def plot_spillage(self, fig, axs, spillvals):
+    def plot_spillage(self, axs, spillvals):
         """
         Plot the spillage values.
 
-        fig: the figure we should plot on.
-        axs: the axs we we should plot on.
+        Args:
+          axs: the axs we we should plot on.
+          spillvals (dict): a dictionary mapping fragments to spillage values.
         """
-        from Fragments import GetFragTuple
-        xvals = []
         svals = []
         labels = []
         for id, val in spillvals.items():
-            xvals.append(GetFragTuple(id)[1])
             svals.append(val)
             labels.append(id)
-        axs.plot([x for _, x in sorted(zip(xvals, svals))], 'x--')
+        axs.plot(svals, 'x--')
 
         axs.set_xticks(range(len(labels)))
-        axs.set_xticklabels([x for _, x in sorted(zip(xvals, labels))],
-                            rotation=90)
+        axs.set_xticklabels(labels, rotation=90)
         axs.set_xlabel("Fragment", fontsize=12)
         axs.set_ylabel("Spillage Values", fontsize=12)
+        axs.set_yscale("log")

@@ -10,6 +10,18 @@ try:
 except:
     from collections import MutableMapping, MutableSequence
 
+def GetFragTuple(fragid):
+    """
+    Fragment ids should have the form: "NAME:NUMBER". This splits the fragment
+    into the name and number value.
+
+    Args:
+      fragid (str): the fragment id string.
+
+    Return:
+      (tuple): fragment name, fragment number
+    """
+    return (fragid.split(":")[0], fragid.split(":").split[1])
 
 def distance(i, j, cell=None):
     """
@@ -398,9 +410,9 @@ class System(MutableMapping):
         Args:
           axs: the axs we we should plot on.
         """
-        pvals = [frag.purity_indicator for frag in self.values()]
+        pvals = [abs(frag.purity_indicator) for frag in self.values()]
         ax.plot(pvals, 'x--')
-
+        ax.set_yscale("log")
         ax.set_xticks(range(len(self.keys())))
         ax.set_xticklabels(self.keys(), rotation=90)
         ax.set_xlabel("Fragment", fontsize=12)

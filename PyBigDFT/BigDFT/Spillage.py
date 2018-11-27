@@ -20,6 +20,7 @@ class MatrixMetadata:
             basis functions.
           matdim (int): the dimension of the matrix.
         """
+        from Atom import Atom
         self.atoms = []
         symbol_lookup = []
         with open(filename, "r") as ifile:
@@ -41,12 +42,12 @@ class MatrixMetadata:
                 line = next(ifile).split()
                 adict = {}
                 adict["sym"] = symbol_lookup[int(line[0]) - 1]
-                positions = [float(x) for x in line[1:4]]
-                if units == "angstroem":
-                    positions = [x * AU_to_A for x in positions]
-                adict["r"] = positions
+                adict["r"] = [float(x) for x in line[1:4]]
+                # THIS IS BECAUSE THE METADATA FILE CURRENTLY PRINTS THE
+                # WRONG UNITS!
+                adict["units"] = "bohr"
                 adict["indices"] = []
-                self.atoms.append(adict)
+                self.atoms.append(Atom(adict))
             # Get the indices
             for i in range(0, self.matdim):
                 line = next(ifile).split()
@@ -69,17 +70,17 @@ class MatrixMetadata:
 
         # Now we associate this information with fragments.
         frag_indices = {}
-        for fragment in system.fragments:
-            frag_indices[fragment.id] = []
+        for fragid, frag in system.items():
+            frag_indices[fragid] = []
             temp_ind = []
             # Find the atom that matches
-            for aj in fragment.atoms:
+            for aj in frag.atoms:
                 for ai in self.atoms:
-                    if norm(array(aj["r"]) - array(ai["r"])) < thresh:
+                    if aj == ai:
                         found = True
                         temp_ind += ai["indices"]
                         break
-            frag_indices[fragment.id] = sorted(temp_ind)
+            frag_indices[fragid] = sorted(temp_ind)
 
         return frag_indices
 
