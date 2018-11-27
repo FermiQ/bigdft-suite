@@ -9,7 +9,7 @@ except:
 from futile.Utils import write as safe_print
 
 AU_to_A = 0.52917721092
-MULTIPOLE_ANALYSIS_KEYS = ['q0', 'q1', 'q2', 'sigma']
+MULTIPOLE_ANALYSIS_KEYS = ['q0', 'q1', 'q2', 'sigma', 'multipole character']
 PROTECTED_KEYS = MULTIPOLE_ANALYSIS_KEYS + ["frag"] + ["r", "units"]
 
 
@@ -26,8 +26,9 @@ def nzion(sym):
     return _nzion[sym]
 
 
-_nzion = {"H": 1.0, "He": 2.0, "Li": 3.0, "Be": 4.0, "B": 5.0, "C": 6.0, "N": 7.0,
-          "O": 8.0, "F": 9.0, "Ne:": 10.0}
+_nzion = {"H":  1.0, "He": 2.0, \
+          "Li": 1.0, "Be": 2.0, "B":  3.0, "C":  4.0,
+          "N":  5.0, "O":  6.0, "F":  7.0, "Ne": 8.0}
 
 
 class Atom(MutableMapping):
@@ -58,17 +59,21 @@ class Atom(MutableMapping):
         """
         return self.store
 
-    @property
-    def external_potential(self):
+    def get_external_potential(self, units="bohr"):
         """
         Transform the atom into a dictionary ready to be put as external
         potential.
         """
+        from numpy import ndarray
         return_dict = {}
         return_dict["sym"] = self.sym
-        return_dict["r"] = self.get_position()
+        return_dict["r"] = self.get_position(units)
         for k in MULTIPOLE_ANALYSIS_KEYS:
-            return_dict[k] = list(self[k])
+            val = self[k]
+            if isinstance(val, ndarray):
+                return_dict[k] = list(val)
+            else:
+                return_dict[k] = val
 
         return return_dict
 

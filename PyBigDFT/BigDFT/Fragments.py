@@ -265,13 +265,12 @@ class Fragment(MutableSequence):
             I[2, 1] += rxyz[2] * rxyz[1]
         return I
 
-    @property
-    def external_potential(self):
+    def get_external_potential(self, units="bohr"):
         """
         Transform the fragment information into a dictionary ready to be
         put as an external potential.
         """
-        return [at.external_potential for at in self]
+        return [at.get_external_potential(units) for at in self]
 
     def line_up(self):
         """
@@ -376,16 +375,15 @@ class System(MutableMapping):
         idx = np.argmin([np.dot(dd, dd.T) for dd in (CMs - self.centroid)])
         return self.keys()[idx], self.values()[idx]
 
-    @property
-    def external_potential(self):
+    def get_external_potential(self, units="bohr"):
         """
         Transform the system information into a dictionary ready to be
         put as an external potential.
         """
-        ret_dict = {"units":"bohr", "global monopole": self.q0[0]}
+        ret_dict = {"units":units, "global monopole": self.q0[0]}
         ret_dict["values"] = []
         for frag in self.values():
-            ret_dict["values"].extend(frag.external_potential)
+            ret_dict["values"].extend(frag.get_external_potential(units))
         return ret_dict
 
     def get_posinp(self, units):
