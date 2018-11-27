@@ -10,6 +10,7 @@ try:
 except:
     from collections import MutableMapping, MutableSequence
 
+
 def distance(i, j, cell=None):
     """
     Distance between fragments, defined as distance between center of mass
@@ -26,6 +27,7 @@ def distance(i, j, cell=None):
         for i, p in enumerate(per):
             vec -= cell[i] * int(round(vec[i] / cell[i]))
     return numpy.sqrt(numpy.dot(vec, vec.T))
+
 
 class Lattice():
     """
@@ -289,9 +291,13 @@ class Fragment(MutableSequence):
 
     @property
     def qcharge(self):
-        netcharge = self.q0
+        from Atom import nzion
+        netcharge = self.q0[0]
         for at in self:
-            zcharge = at["nzion"]
+            if "nzion" in at:
+                zcharge = at.qcharge["nzion"]
+            else:
+                zcharge = nzion(at.sym)
             netcharge += zcharge
         return netcharge
 
@@ -370,6 +376,18 @@ class System(MutableMapping):
         idx = np.argmin([np.dot(dd, dd.T) for dd in (CMs - self.centroid)])
         return self.keys()[idx], self.values()[idx]
 
+    @property
+    def external_potential(self):
+        """
+        Transform the system information into a dictionary ready to be
+        put as an external potential.
+        """
+        ret_dict = {"units":"bohr", "global monopole": self.q0[0]}
+        ret_dict["values"] = []
+        for frag in self.values():
+            ret_dict["values"].extend(frag.external_potential)
+        return ret_dict
+
     def get_posinp(self, units):
         return [{at.sym: at.get_position(units)}
                 for frag in self.values() for at in frag]
@@ -385,10 +403,10 @@ class System(MutableMapping):
         pvals = [frag.purity_indicator for frag in self.values()]
         ax.plot(pvals, 'x--')
 
-        axs.set_xticks(range(len(self.keys())))
-        axs.set_xticklabels(self.keys(), rotation=90)
-        axs.set_xlabel("Fragment", fontsize=12)
-        axs.set_ylabel("Purity Values", fontsize=12)
+        ax.set_xticks(range(len(self.keys())))
+        ax.set_xticklabels(self.keys(), rotation=90)
+        ax.set_xlabel("Fragment", fontsize=12)
+        ax.set_ylabel("Purity Values", fontsize=12)
 
     @property
     def q0(self):
@@ -398,7 +416,65 @@ class System(MutableMapping):
         """
         if len(self) == 0:
             return None
-        return sum(filter(None, [frag.q0 for frag in self]))
+        return [sum(filter(None, [frag.q0[0] for frag in self.values()]))]
+
+    @property
+    def qcharge(self):
+        return sum([frag.qcharge for frag in self.values()])
+
+    def set_atom_multipoles(self, logfile):
+        """
+        After a run is completed, we have a set of multipoles defined on
+        each atom. This routine will set those values on to each atom
+        in the system.
+
+        logfile (Logfiles.Logfile): logfile with the multipole values.
+        """
+        mp = logfile.electrostatic_multipoles
+        for pole in mp["values"]:
+            pole["units"] = mp["units"]
+        for frag in self.values():
+            for at in frag:
+                # Find the multipole associated with that frag
+                idx = [i for i, v in enumerate(mp["values"]) if v == at][0]
+                # Set those values
+                at.set_multipole(mp["values"][idx])
+
+    def write_fragfile(self, filename, logfile):
+        """
+        Write out the file needed as input to the fragment analysis routine.
+
+        Args:
+          filename (str): name of the file to write to.
+          logfile (Logfiles.Logfile): the log file this calculation is based
+            on (to ensure a matching order of atoms).
+        """
+        from yaml import dump
+        from numpy import array
+
+        log_frag = Fragment(logfile.astruct["positions"])
+        # Set the units
+        for at in log_frag:
+            at["units"] = logfile.astruct["units"]
+
+        # Apply the rigid shift.
+        # this should be done with the rototranslation
+        shiftval = logfile.astruct["Rigid Shift Applied (AU)"]
+        shiftval = array([float(x) for x in shiftval])
+        for at in log_frag:
+            at.set_position(array(at.get_position()) - shiftval)
+
+        # Get the indices of the atoms in each fragment
+        outlist = []
+        for frag in self.values():
+            outlist.append([])
+            for at in frag:
+                idx = [i for i, v in enumerate(log_frag) if v == at][0] + 1
+                outlist[-1].append(idx)
+
+        # Write
+        with open(filename, "w") as ofile:
+            dump(outlist, ofile)
 
 
 if __name__ == "__main__":

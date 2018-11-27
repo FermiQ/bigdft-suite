@@ -115,7 +115,7 @@ class BigDFTool(object):
 
         # Create the frag.yaml file from the provided system.
         if system:
-            system.write_fragfile(filename=options["fragment_file"])
+            system.write_fragfile(options["fragment_file"], log)
 
         # Create the orbitals.yaml file from the provided orbitals.
         if orbitals is None:
@@ -146,12 +146,11 @@ class BigDFTool(object):
         mp_data = load(self.outfile, doc_lists=False)
         mp_dict = mp_data["Orbital occupation"][0]["Fragment multipoles"]
 
-        for frag, fdata in zip(system.fragments, mp_dict):
+        for frag, fdata in zip(system.values(), mp_dict):
             frag.purity_indicator = float(fdata["Purity indicator"])
-            q0 = [float(x) for x in fdata["q0"]]
-            q1 = [float(x) for x in fdata["q1"]]
-            q2 = [float(x) for x in fdata["q2"]]
-            frag.set_fragment_multipoles(q0, q1, q2)
+            frag.q0 = [float(x) for x in fdata["q0"]]
+            frag.q1 = [float(x) for x in fdata["q1"]]
+            frag.q2 = [float(x) for x in fdata["q2"]]
 
     def compute_spillage(self, system, log, targetid):
         """
@@ -217,7 +216,7 @@ class BigDFTool(object):
             xvals.append(GetFragTuple(id)[1])
             svals.append(val)
             labels.append(id)
-        axs.plot([x for _,x in sorted(zip(xvals,svals))], 'x--')
+        axs.plot([x for _, x in sorted(zip(xvals, svals))], 'x--')
 
         axs.set_xticks(range(len(labels)))
         axs.set_xticklabels([x for _, x in sorted(zip(xvals, labels))],

@@ -10,7 +10,24 @@ from futile.Utils import write as safe_print
 
 AU_to_A = 0.52917721092
 MULTIPOLE_ANALYSIS_KEYS = ['q0', 'q1', 'q2', 'sigma']
-PROTECTED_KEYS = MULTIPOLE_ANALYSIS_KEYS + ["frag"] + ["r"]
+PROTECTED_KEYS = MULTIPOLE_ANALYSIS_KEYS + ["frag"] + ["r", "units"]
+
+
+def nzion(sym):
+    """
+    Returns the charge of the nucleus associated with an atomic symbol.
+
+    Args:
+      sym (str): the atomic symbol of this atom.
+
+    Returns:
+      (float): the charge of that nucleus.
+    """
+    return _nzion[sym]
+
+
+_nzion = {"H": 1.0, "He": 2.0, "Li": 3.0, "Be": 4.0, "B": 5.0, "C": 6.0, "N": 7.0,
+          "O": 8.0, "F": 9.0, "Ne:": 10.0}
 
 
 class Atom(MutableMapping):
@@ -49,7 +66,7 @@ class Atom(MutableMapping):
         """
         return_dict = {}
         return_dict["sym"] = self.sym
-        return_dict["pos"] = self.get_position()
+        return_dict["r"] = self.get_position()
         for k in MULTIPOLE_ANALYSIS_KEYS:
             return_dict[k] = list(self[k])
 
@@ -75,6 +92,17 @@ class Atom(MutableMapping):
         if dipole is not None:
             dipole = np.array([dipole[2], dipole[0], dipole[1]])
         return dipole
+
+    def set_multipole(self, mp):
+        """
+        Given another atom or a dictionary, this sets the multipole related
+        values of this with those values.
+
+        Args:
+          mp (dict/Atom): an atom which contains information about multipoles.
+        """
+        for key in MULTIPOLE_ANALYSIS_KEYS:
+            self[key] = mp[key]
 
     @property
     def sym(self):
@@ -173,7 +201,7 @@ class Atom(MutableMapping):
         pos2 = array(othercomp.get_position())
         sym2 = othercomp.sym
 
-        return norm(pos1 - pos2) < 1e-10 and sym1 == sym2
+        return norm(pos1 - pos2) < 1e-4 and sym1 == sym2
 
 
 def _GetSymbol(atom):
@@ -196,6 +224,7 @@ def _GetSymbol(atom):
 
     raise ValueError
 
+
 def _IsAngstroem(units):
     """
     Checks if a string or atom has angstroem as its units.
@@ -210,6 +239,7 @@ def _IsAngstroem(units):
     else:
         check = units
     return check == "angstroem" or check == "angstroemd0"
+
 
 if __name__ == "__main__":
     """Test the atom module"""
@@ -231,7 +261,7 @@ if __name__ == "__main__":
     safe_print()
 
     safe_print("Now other times we get an array that looks more like this")
-    test_atom = Atom(He = [1.0, 0.0, 0.0], units='bohr')
+    test_atom = Atom(He=[1.0, 0.0, 0.0], units='bohr')
     safe_print(dict(test_atom))
     safe_print("But everything else works as expected")
     safe_print(test_atom.sym)
