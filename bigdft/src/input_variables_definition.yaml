@@ -1694,7 +1694,11 @@
        DESCRIPTION: |
          possible value: 1 positive real number
        default: 1.e-2
-       RANGE: [1.e-20,1.0]
+       RANGE: [1.e-20,1000.0]
+     cdft_nit:
+       COMMENT: Number of iterations for CDFT loop over V_c
+       default: 100
+       RANGE: [1,1000]
      calc_dipole:
        DESCRIPTION: |
          Indicates whether the dipole moment should be calculated after the run or not

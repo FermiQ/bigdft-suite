@@ -1596,7 +1596,7 @@ end if
 
 
                  ! The self consistency cycle. Here we try to get a self consistent density/potential with the fixed basis.
-                 cdft_loop : do cdft_it=1,100
+                 cdft_loop : do cdft_it=1,cdft%nit
                     call get_coeff(iproc,nproc,input%lin%scf_mode,KSwfn%orbs,at,rxyz,denspot,GPU,&
                          infoCoeff,energs,nlpsp,input%SIC,tmb,pnrm,calculate_overlap,&
                          invert_overlap_matrix,calculate_pspandkin,update_phi,&
@@ -1658,7 +1658,7 @@ end if
                  vold=cdft%lag_mult
 
                  ! The self consistency cycle. Here we try to get a self consistent density/potential with the fixed basis.
-                 cdft_loop1 : do cdft_it=1,100
+                 cdft_loop1 : do cdft_it=1,cdft%nit
                     call get_coeff(iproc,nproc,input%lin%scf_mode,KSwfn%orbs,at,rxyz,denspot,GPU,&
                          infoCoeff,energs,nlpsp,input%SIC,tmb,pnrm,calculate_overlap,&
                          invert_overlap_matrix,calculate_pspandkin,update_phi,&
