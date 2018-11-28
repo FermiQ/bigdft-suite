@@ -138,7 +138,8 @@ subroutine PZ_SIC_potential(nspin,nspinor,hfac,spinval,lr,xc,&
      !here the density should be transformed into a potential which is associated to the orbital
      if(nspinor==4) then
         !this wrapper can be inserted inside the XC_potential routine
-        call PSolverNC(domain_geocode(lr%mesh%dom),'D',0,1,lr%d%n1i,lr%d%n2i,lr%d%n3i,lr%d%n3i,&
+        !call PSolverNC(domain_geocode(lr%mesh%dom),'D',0,1,lr%d%n1i,lr%d%n2i,lr%d%n3i,lr%d%n3i,&
+        call PSolverNC(lr%mesh%dom,'D',0,1,lr%d%n1i,lr%d%n2i,lr%d%n3i,lr%d%n3i,&
              xc,hgridsh,&
              rhopoti,pkernel%kernel,rhopoti,ehi,eexi,vexi,0.d0,.false.,4)
         !the potential is here ready to be applied to psir

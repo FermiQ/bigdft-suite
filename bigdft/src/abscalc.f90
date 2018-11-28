@@ -1641,7 +1641,8 @@ subroutine extract_potential_for_spectra(iproc,nproc,at,rhod,dpcom,&
   end if
   if(orbs%nspinor==4) then
      !this wrapper can be inserted inside the poisson solver 
-     call PSolverNC(domain_geocode(at%astruct%dom),'D',iproc,nproc,Lzde%Glr%d%n1i,Lzde%Glr%d%n2i,Lzde%Glr%d%n3i,&
+     !call PSolverNC(domain_geocode(at%astruct%dom),'D',iproc,nproc,Lzde%Glr%d%n1i,Lzde%Glr%d%n2i,Lzde%Glr%d%n3i,&
+     call PSolverNC(at%astruct%dom,'D',iproc,nproc,Lzde%Glr%d%n1i,Lzde%Glr%d%n2i,Lzde%Glr%d%n3i,&
           dpcom%nscatterarr(iproc,1),& !this is n3d
           xc,[hxh,hyh,hzh],&
           rhopot,pkernel%kernel,pot_ion,ehart,eexcu,vexcu,0.d0,.true.,4)

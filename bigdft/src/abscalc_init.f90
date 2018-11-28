@@ -708,7 +708,6 @@ subroutine localize_projectors_paw(iproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,&
   use at_domain
   use psp_projectors, only: pregion_size, bounds_to_plr_limits
   use numerics, only: onehalf,pi
-  use at_domain, only: domain_geocode
   implicit none
   integer, intent(in) :: iproc,n1,n2,n3
   real(gp), intent(in) :: cpmult,fpmult,hx,hy,hz
@@ -773,9 +772,10 @@ subroutine localize_projectors_paw(iproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,&
 
   call allocate_daubechies_projectors_ptr(PAWD%paw_nl%projs, PAWD%paw_nl%nregions)
   !mesh=cell_new(at%astruct%geocode,[n1+1,n2+1,n3+1],[hx,hy,hz])
-  dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(at%astruct%geocode),&
-            alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=[n1+1,n2+1,n3+1]*[hx,hy,hz])
-  mesh=cell_new(dom,[n1+1,n2+1,n3+1],[hx,hy,hz])
+  !dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(at%astruct%geocode),&
+  !          alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=[n1+1,n2+1,n3+1]*[hx,hy,hz])
+  !mesh=cell_new(dom,[n1+1,n2+1,n3+1],[hx,hy,hz])
+  mesh=cell_new(at%astruct%dom,[n1+1,n2+1,n3+1],[hx,hy,hz])
 
   natpaw=0
   do iat=1,at%astruct%nat
