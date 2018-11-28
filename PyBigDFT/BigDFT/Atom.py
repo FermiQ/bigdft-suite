@@ -206,7 +206,7 @@ class Atom(MutableMapping):
         pos2 = array(othercomp.get_position())
         sym2 = othercomp.sym
 
-        return norm(pos1 - pos2) < 1e-4 and sym1 == sym2
+        return norm(pos1 - pos2) < 1e-3 and sym1 == sym2
 
 
 def _GetSymbol(atom):
