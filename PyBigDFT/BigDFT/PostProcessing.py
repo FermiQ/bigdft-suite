@@ -34,7 +34,7 @@ def _get_datadir(log):
       str: path to the data directory.
     """
     from os.path import join
-    return join(log.srcdir, "data-" + log.log["radical"])
+    return join(log.srcdir, log.data_directory)
 
 
 class BigDFTool(object):
@@ -139,7 +139,7 @@ class BigDFTool(object):
         from os.path import join
         from futile.YamlIO import load
 
-        self.outfile = join(log.srcdir, "mp.yaml")
+        self.outfile = join(_get_datadir(log), "mp.yaml")
         self._run_fragment_multipoles(log, system)
 
         # Update multipoles and purity values.
@@ -222,6 +222,6 @@ class BigDFTool(object):
 
         axs.set_xticks(range(len(labels)))
         axs.set_xticklabels(sorted(labels, key=lambda x: GetFragTuple(x)[1]),
-                           rotation=90)
+                            rotation=90)
         axs.plot([v for _, v in sorted(zip(labels, svals),
-                 key=lambda x: GetFragTuple(x[0])[1])], 'x--')
+                                       key=lambda x: GetFragTuple(x[0])[1])], 'x--')

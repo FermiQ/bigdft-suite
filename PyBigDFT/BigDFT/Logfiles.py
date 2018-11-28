@@ -20,6 +20,7 @@ PRE_POST = [EVAL, SETUP, INITIALIZATION]
 #Builtin paths to define the search paths
 BUILTIN={
     'astruct': {PATH: [ ['Atomic structure']]},
+    'data_directory': {PATH: [ ['Data Writing directory']]},
     'dipole': {PATH: [ ['Electric Dipole Moment (AU)', 'P vector']],
                PRINT: "Dipole (AU)"},
     'electrostatic_multipoles': {PATH: [['Multipole coefficients']]},
