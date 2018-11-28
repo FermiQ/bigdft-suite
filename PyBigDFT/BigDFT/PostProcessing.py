@@ -209,15 +209,19 @@ class BigDFTool(object):
           axs: the axs we we should plot on.
           spillvals (dict): a dictionary mapping fragments to spillage values.
         """
+        from Fragments import GetFragTuple
+        axs.set_xlabel("Fragment", fontsize=12)
+        axs.set_ylabel("Spillage Values", fontsize=12)
+        axs.set_yscale("log")
+
         svals = []
         labels = []
         for id, val in spillvals.items():
             svals.append(val)
             labels.append(id)
-        axs.plot(svals, 'x--')
 
         axs.set_xticks(range(len(labels)))
-        axs.set_xticklabels(labels, rotation=90)
-        axs.set_xlabel("Fragment", fontsize=12)
-        axs.set_ylabel("Spillage Values", fontsize=12)
-        axs.set_yscale("log")
+        axs.set_xticklabels(sorted(labels, key=lambda x: GetFragTuple(x)[1]),
+                           rotation=90)
+        axs.plot([v for _, v in sorted(zip(labels, svals),
+                 key=lambda x: GetFragTuple(x[0])[1])], 'x--')

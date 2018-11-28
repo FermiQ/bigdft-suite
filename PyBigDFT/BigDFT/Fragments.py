@@ -10,6 +10,7 @@ try:
 except:
     from collections import MutableMapping, MutableSequence
 
+
 def GetFragTuple(fragid):
     """
     Fragment ids should have the form: "NAME:NUMBER". This splits the fragment
@@ -21,7 +22,8 @@ def GetFragTuple(fragid):
     Return:
       (tuple): fragment name, fragment number
     """
-    return (fragid.split(":")[0], fragid.split(":").split[1])
+    return (fragid.split(":")[0], fragid.split(":")[1])
+
 
 def distance(i, j, cell=None):
     """
@@ -319,7 +321,7 @@ class Fragment(MutableSequence):
         from numpy import outer, array
         for at in self:
             at.set_position(Rt.dot(array(at.get_position()).T))
-        #import wahba as w,numpy as np
+        # import wahba as w,numpy as np
         # if t is None:
         #    self.positions=w.apply_R(R,self.positions)
         # elif R is None:
@@ -392,7 +394,7 @@ class System(MutableMapping):
         Transform the system information into a dictionary ready to be
         put as an external potential.
         """
-        ret_dict = {"units":units, "global monopole": self.q0[0]}
+        ret_dict = {"units": units, "global monopole": self.q0[0]}
         ret_dict["values"] = []
         for frag in self.values():
             ret_dict["values"].extend(frag.get_external_potential(units))
@@ -410,13 +412,16 @@ class System(MutableMapping):
         Args:
           axs: the axs we we should plot on.
         """
-        pvals = [abs(frag.purity_indicator) for frag in self.values()]
-        ax.plot(pvals, 'x--')
-        ax.set_yscale("log")
-        ax.set_xticks(range(len(self.keys())))
-        ax.set_xticklabels(self.keys(), rotation=90)
         ax.set_xlabel("Fragment", fontsize=12)
         ax.set_ylabel("Purity Values", fontsize=12)
+        ax.set_xticks(range(len(self.keys())))
+        ax.set_yscale("log")
+
+        ax.set_xticklabels(sorted(self.keys(),
+           key=lambda x: GetFragTuple(x)[1]), rotation=90)
+        pvals=[abs(frag.purity_indicator) for frag in self.values()]
+        ax.plot([v for _, v in sorted(zip(self.keys(), pvals),
+                 key=lambda x: GetFragTuple(x[0])[1])], 'x--')
 
     @property
     def q0(self):
@@ -440,13 +445,13 @@ class System(MutableMapping):
 
         logfile (Logfiles.Logfile): logfile with the multipole values.
         """
-        mp = logfile.electrostatic_multipoles
+        mp=logfile.electrostatic_multipoles
         for pole in mp["values"]:
-            pole["units"] = mp["units"]
+            pole["units"]=mp["units"]
         for frag in self.values():
             for at in frag:
                 # Find the multipole associated with that frag
-                idx = [i for i, v in enumerate(mp["values"]) if v == at][0]
+                idx=[i for i, v in enumerate(mp["values"]) if v == at][0]
                 # Set those values
                 at.set_multipole(mp["values"][idx])
 
@@ -462,24 +467,24 @@ class System(MutableMapping):
         from yaml import dump
         from numpy import array
 
-        log_frag = Fragment(logfile.astruct["positions"])
+        log_frag=Fragment(logfile.astruct["positions"])
         # Set the units
         for at in log_frag:
-            at["units"] = logfile.astruct["units"]
+            at["units"]=logfile.astruct["units"]
 
         # Apply the rigid shift.
         # this should be done with the rototranslation
-        shiftval = logfile.astruct["Rigid Shift Applied (AU)"]
-        shiftval = array([float(x) for x in shiftval])
+        shiftval=logfile.astruct["Rigid Shift Applied (AU)"]
+        shiftval=array([float(x) for x in shiftval])
         for at in log_frag:
             at.set_position(array(at.get_position()) - shiftval)
 
         # Get the indices of the atoms in each fragment
-        outlist = []
+        outlist=[]
         for frag in self.values():
             outlist.append([])
             for at in frag:
-                idx = [i for i, v in enumerate(log_frag) if v == at][0] + 1
+                idx=[i for i, v in enumerate(log_frag) if v == at][0] + 1
                 outlist[-1].append(idx)
 
         # Write
@@ -494,25 +499,25 @@ if __name__ == "__main__":
     from copy import deepcopy
 
     safe_print("Read in an xyz file and build from a list.")
-    atom_list = []
+    atom_list=[]
     with XYZReader(join("Database", "XYZs", "SiO.xyz")) as reader:
         for at in reader:
             atom_list.append(at)
-    frag1 = Fragment(atomlist=atom_list)
+    frag1=Fragment(atomlist=atom_list)
     for at in frag1:
         safe_print(at.sym, at.get_position())
     safe_print("Centroid", frag1.centroid)
     safe_print()
 
     safe_print("Build from an xyz file directory.")
-    reader = XYZReader(join("Database", "XYZs", "Si4.xyz"))
-    frag2 = Fragment(xyzfile=reader)
+    reader=XYZReader(join("Database", "XYZs", "Si4.xyz"))
+    frag2=Fragment(xyzfile=reader)
     for at in frag2:
         safe_print(at.sym, at.get_position())
     safe_print()
 
     safe_print("We can combine two fragments with +=")
-    frag3 = deepcopy(frag1)
+    frag3=deepcopy(frag1)
     frag3 += frag2
     for at in frag3:
         print(at.sym, at.get_position())
@@ -528,14 +533,14 @@ if __name__ == "__main__":
 
     safe_print("We can also extract using the indices")
     print(dict(frag3[0]))
-    sub_frag = frag3[1:3]
+    sub_frag=frag3[1:3]
     for at in sub_frag:
         print(dict(at))
     safe_print()
 
     safe_print("Now we move on to testing the system class.")
     safe_print("We might first begin in the easiest way.")
-    sys = System(frag1=frag1, frag2=frag2)
+    sys=System(frag1=frag1, frag2=frag2)
     for at in sys["frag1"]:
         print(dict(at))
     for at in sys["frag2"]:
@@ -550,8 +555,8 @@ if __name__ == "__main__":
     safe_print()
 
     safe_print("What if I want to split a fragment by atom indices?")
-    temp_frag = sys.pop("frag1")
-    sys["frag1"], sys["frag2"] = temp_frag[0:3], temp_frag[3:]
+    temp_frag=sys.pop("frag1")
+    sys["frag1"], sys["frag2"]=temp_frag[0:3], temp_frag[3:]
     for at in sys["frag1"]:
         print(dict(at))
     for at in sys["frag2"]:
@@ -559,11 +564,11 @@ if __name__ == "__main__":
     safe_print()
 
     safe_print("Construct a system from an XYZ file.")
-    fname = join("Database", "XYZs", "BH2.xyz")
-    sys2 = System(frag1=Fragment(xyzfile=XYZReader(fname)))
+    fname=join("Database", "XYZs", "BH2.xyz")
+    sys2=System(frag1=Fragment(xyzfile=XYZReader(fname)))
 
     safe_print("Split it to fragments")
-    sys2["frag1"], sys2["frag2"] = sys2["frag1"][0:1], sys2["frag1"][1:]
+    sys2["frag1"], sys2["frag2"]=sys2["frag1"][0:1], sys2["frag1"][1:]
 
     safe_print("And write to file")
     with XYZWriter("test.xyz", len(frag3), "angstroem") as writer:
