@@ -502,9 +502,10 @@ subroutine read_waves_from_list_etsf(iproc,filename,n1,n2,n3,hx,hy,hz,at,rxyz_ol
    type(domain) :: dom
 
    !mesh=cell_new(at%astruct%geocode,[n1,n2,n3],[hx,hy,hz])
-   dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(at%astruct%geocode),&
-            alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=[n1,n2,n3]*[hx,hy,hz])
-   mesh=cell_new(dom,[n1,n2,n3],[hx,hy,hz])
+   !dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(at%astruct%geocode),&
+   !         alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=[n1,n2,n3]*[hx,hy,hz])
+   !mesh=cell_new(dom,[n1,n2,n3],[hx,hy,hz])
+   mesh=cell_new(at%astruct%dom,[n1,n2,n3],[hx,hy,hz])
 
 
    ! We open the ETSF file
