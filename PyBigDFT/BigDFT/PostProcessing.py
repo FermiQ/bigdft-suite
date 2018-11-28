@@ -104,6 +104,14 @@ class BigDFTool(object):
         args, vargs, keywords, default = getargspec(self.fragment_multipoles)
         options = {a: d for a, d in zip(args, default)}
 
+        # Use the logfile to determine the right matrix format
+        format = log.log["lin_general"]["output_mat"]
+        if format == 4:
+            options["matrix_format"] = "parallel_mpi-native"
+            for key in options:
+                if ".txt" in options[key]:
+                    options[key] = options[key].replace(".txt", ".mpi")
+
         # Replace the default directory with the appropriate one if it is
         # available
         if log.log["radical"]:
@@ -174,6 +182,15 @@ class BigDFTool(object):
         data_dir = _get_datadir(log)
         sfile = join(data_dir, "overlap_sparse.txt")
         hfile = join(data_dir, "hamiltonian_sparse.txt")
+
+        # Convert to text format if necessary
+        self.outfile = join(_get_datadir(log), "conversion.yaml")
+        if log.log["lin_general"]["output_mat"] == 4:
+            for fname in ["overlap_sparse.txt", "hamiltonian_sparse.txt"]:
+                infile = join(data_dir, fname.replace(".txt", ".mpi"))
+                outfile = join(data_dir, fname)
+                self.convert_matrix_format(conversion="binary_to_bigdft",
+                                           infile=infile, outfile=outfile)
 
         # Get the metadata
         metadatafile = join(data_dir, "sparsematrix_metadata.dat")
