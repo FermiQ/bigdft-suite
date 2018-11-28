@@ -2853,9 +2853,10 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
      !mesh=cell_new(atoms%astruct%geocode,[KSwfn%lzd%Glr%d%n1,KSwfn%lzd%Glr%d%n2,KSwfn%lzd%Glr%d%n3],&
      ! KSwfn%lzd%hgrids)
      nxyz=[KSwfn%lzd%Glr%d%n1,KSwfn%lzd%Glr%d%n2,KSwfn%lzd%Glr%d%n3]
-     dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(atoms%astruct%geocode),&
-            alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=nxyz*KSwfn%lzd%hgrids)
-     mesh=cell_new(dom,nxyz,KSwfn%lzd%hgrids)
+     !dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(atoms%astruct%geocode),&
+     !       alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=nxyz*KSwfn%lzd%hgrids)
+     !mesh=cell_new(dom,nxyz,KSwfn%lzd%hgrids)
+     mesh=cell_new(atoms%astruct%dom,nxyz,KSwfn%lzd%hgrids)
 
       displ=0.0_gp
       do iat=1,atoms%astruct%nat

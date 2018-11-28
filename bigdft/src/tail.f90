@@ -180,9 +180,12 @@ subroutine CalculateTailCorrection(iproc,nproc,at,rbuf,orbs,&
 
   ! coarse grid quantities
   !mesh = cell_new('F', [nb1+1, nb2+1, nb3+1], hgrid)
-  dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum('F'),&
-            alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=[nb1+1, nb2+1, nb3+1]*hgrid)
-  mesh=cell_new(dom,[nb1+1, nb2+1, nb3+1],hgrid)
+  !dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum('F'),&
+  !          alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=[nb1+1, nb2+1, nb3+1]*hgrid)
+  !mesh=cell_new(dom,[nb1+1, nb2+1, nb3+1],hgrid)
+  if (domain_geocode(at%astruct%dom) /= 'F') call f_err_throw('Geocode has to be F to set mesh here',&
+       err_name='BIGDFT_RUNTIME_ERROR')
+  mesh=cell_new(at%astruct%dom,[nb1+1, nb2+1, nb3+1],hgrid)
 
   call fill_logrid(mesh,0,nb1,0,nb2,0,nb3,nbuf,at%astruct%nat,at%astruct%ntypes,at%astruct%iatype,txyz, & 
        at%radii_cf(1,1),crmult,logrid_c)
