@@ -3,7 +3,7 @@
 """
 
 
-def _system_command(command, options, outfile=None):
+def _system_command(command, options):
     """
     Run the command as ``os.system (command + options)``
 
@@ -16,12 +16,7 @@ def _system_command(command, options, outfile=None):
     from subprocess import call
 
     command_str = command + " " + options
-
-    if outfile:
-        with open(outfile, "w") as ofile:
-            call(command_str, shell=True, stdout=ofile)
-    else:
-        call(command_str, shell=True)
+    call(command_str, shell=True)
 
 
 def _get_datadir(log):
@@ -93,12 +88,22 @@ class BigDFTool(object):
 
     def _invoke_command(self, command, **kwargs):
         from futile.Utils import option_line_generator
-        _system_command(command, option_line_generator(**kwargs), self.outfile)
+        _system_command(command, option_line_generator(**kwargs))
 
     def _run_fragment_multipoles(self, log, system=None, orbitals=None):
-        from os.path import join
+        """
+        Performs the actual run of the fragment multipoles. This means we
+        process the default parameters, override the parameters if they are
+        specified, write all the necessary input files, and then run.
+
+        Returns:
+          (str): the name of the file containing the multipoles
+        """
+        from os.path import join, isfile
+        from os import remove
         from inspect import getargspec
-        import yaml
+        from yaml import dump
+        from futile.YamlIO import load
 
         # Convert the arguments of the function to a dictionary
         args, vargs, keywords, default = getargspec(self.fragment_multipoles)
@@ -128,9 +133,14 @@ class BigDFTool(object):
         # Create the orbitals.yaml file from the provided orbitals.
         if orbitals is None:
             with open(options["orbital_file"], "w") as ofile:
-                ofile.write(yaml.dump([-1]))
+                ofile.write(dump([-1]))
 
+        if isfile(options["log_file"]):
+            remove(options["log_file"])
         self.fragment_multipoles(**options)
+
+
+        return load(options["log_file"], doc_lists=False)
 
     def set_fragment_multipoles(self, system, log):
         """
@@ -145,13 +155,11 @@ class BigDFTool(object):
           log (Logfile): instance of a Logfile class
         """
         from os.path import join
-        from futile.YamlIO import load
+        from os import remove
 
-        self.outfile = join(_get_datadir(log), "mp.yaml")
-        self._run_fragment_multipoles(log, system)
+        mp_data = self._run_fragment_multipoles(log, system)
 
         # Update multipoles and purity values.
-        mp_data = load(self.outfile, doc_lists=False)
         mp_dict = mp_data["Orbital occupation"][0]["Fragment multipoles"]
 
         for frag, fdata in zip(system.values(), mp_dict):
@@ -177,14 +185,12 @@ class BigDFTool(object):
         from Spillage import MatrixMetadata, compute_spillbase, compute_spillage
 
         # Define the input files.
-        self.outfile = join(log.srcdir, "spillage.yaml")
         spillage_array = []
         data_dir = _get_datadir(log)
         sfile = join(data_dir, "overlap_sparse.txt")
         hfile = join(data_dir, "hamiltonian_sparse.txt")
 
         # Convert to text format if necessary
-        self.outfile = join(_get_datadir(log), "conversion.yaml")
         if log.log["lin_general"]["output_mat"] == 4:
             for fname in ["overlap_sparse.txt", "hamiltonian_sparse.txt"]:
                 infile = join(data_dir, fname.replace(".txt", ".mpi"))

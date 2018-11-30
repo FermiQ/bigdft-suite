@@ -46,6 +46,9 @@ fragment_multipoles:
     coeff_file:
       shorthelp: input file with the coefficients
       default: coeff.txt
+    log_file:
+      shorthelp: the output file to write to.
+      default: mp.yaml
 matrixpower:
   tool: memguess
   help: |
