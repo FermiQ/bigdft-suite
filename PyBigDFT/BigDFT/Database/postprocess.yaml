@@ -3,6 +3,7 @@ fragment_multipoles:
     Compute the multipoles and purity value of a system given its
     partitioning into fragments.
   tool: bigdft-tool
+  mpi: false
   args:
     matrix_format:
       shorthelp: format of the sparse matrices.
@@ -53,6 +54,7 @@ matrixpower:
   tool: memguess
   help: |
     Compute the powers of a matrix.
+  mpi: false
   args:
     inmatrix_file:
       shorthelp: matrix A. Binary format.
@@ -73,6 +75,7 @@ multiply_matrices:
   help: |
     Multiply two matrices.
   tool: memguess
+  mpi: false
   args:
     amatrix_file:
       shorthelp: matrix A
@@ -93,6 +96,7 @@ convert_matrix_format:
   help: |
     Convert between different matrix formats.
   tool: chess_toolbox
+  mpi: false
   args:
     conversion:
       shorthelp: From which format to convert from and to.
@@ -103,3 +107,30 @@ convert_matrix_format:
     outfile:
       shorthelp: matrix to convert to.
       default: outfile.dat
+compute_spillage:
+  help: |
+    Run routines associated with the BigPoly tool
+  tool: BigPoly
+  mpi: true
+  args:
+    matrix_format:
+      shorthelp: format of the sparse matrices.
+      default: serial_text
+    infile:
+      shorthelp: first input file.
+      default: infile.dat
+    infile2:
+      shorthelp: second input file.
+      default: infile2.dat
+    outfile:
+      shorthelp: result is stored here.
+      default: outfile.dat
+    outfile2:
+      shorthelp: any secondary result is stored here.
+      default: outfile2.dat
+    threshold:
+      shorthelp: for flushing small values to zero.
+      default: 1e-6
+    convergence_threshold:
+      shorthelp: a convergence criteria for stopping iterations.
+      default: 1e-4

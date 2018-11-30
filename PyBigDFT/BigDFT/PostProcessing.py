@@ -62,10 +62,6 @@ class BigDFTool(object):
 
         # Executables
         bigdftroot = environ['BIGDFT_ROOT']
-        self.bigdft_tool_command = join(bigdftroot, "bigdft-tool")
-        self.utilities_command = mpi_run + join(bigdftroot, "utilities")
-        self.memguess_command = join(bigdftroot, "memguess")
-        self.bigpoly_command = join(bigdftroot, "BigPoly")
         environ['OMP_NUM_THREADS'] = str(omp)
 
         # Load the dictionary that defines all the operations.
@@ -79,10 +75,13 @@ class BigDFTool(object):
         for action, spec in db.items():
             naction = action.replace("_", "-")
             nspec = deepcopy(spec)
-            nspec["args"]["mpirun"] = {"default": "" + mpi_run + ""}
+            cmd =  join(bigdftroot,nspec["tool"])
+            if nspec["mpi"]:
+                cmd = mpi_run + " " + cmd
+            else:
+                nspec["args"]["mpirun"] = {"default": "" + mpi_run + ""}
             nspec["args"]["action"] = {"default": "" + naction + ""}
-            my_action = get_python_function(partial(self._invoke_command,
-                                                    self.bigdft_tool_command),
+            my_action = get_python_function(partial(self._invoke_command, cmd),
                                             action, nspec)
             setattr(self, action, my_action)
 
@@ -168,7 +167,7 @@ class BigDFTool(object):
             frag.q1 = [float(x) for x in fdata["q1"]]
             frag.q2 = [float(x) for x in fdata["q2"]]
 
-    def compute_spillage(self, system, log, targetid):
+    def run_compute_spillage(self, system, log, targetid):
         """
         Compute a measure of the spillage interaction between fragments.
 
@@ -182,7 +181,11 @@ class BigDFTool(object):
           (dict): for each fragment id, what the spillage value is.
         """
         from os.path import join, isfile
-        from Spillage import MatrixMetadata, compute_spillbase, compute_spillage
+        from os import environ
+        from Spillage import MatrixMetadata, compute_spillage_values
+        from Spillage import serial_compute_spillbase
+        from scipy.sparse import csc_matrix
+        from scipy.io import mmread
 
         # Define the input files.
         spillage_array = []
@@ -204,22 +207,33 @@ class BigDFTool(object):
         frag_indices = metadata.get_frag_indices(system)
 
         # Check whether to use python or bigpoly version
-        # And then perform the computational of the inverse etc
-        if isfile(self.bigpoly_command):
-            sinvxh, sinvxh2 = compute_spillbase(sfile, hfile, bigpoly=True)
+        # And then perform the computation of the inverse etc
+        if isfile(join(environ['BIGDFT_ROOT'], "BigPoly")):
+            options = {}
+            options["action"] = "compute_spillage"
+            options["infile"] = hfile
+            options["infile2"] = sfile
+            options["outfile"] = join(data_dir, "sinvxhfile.mtx")
+            options["outfile2"] = join(data_dir, "sinvxh2file.mtx")
+
+            self.compute_spillage(**options)
+
+            # Read from file
+            sinvxh = csc_matrix(mmread(options["outfile"]))
+            sinvxh2 = csc_matrix(mmread(options["outfile2"] ))
         else:
-            # First convert to binary matrix format
+            # First convert to ccs matrix format
             soutfile = join(data_dir, "overlap_sparse.ccs")
             houtfile = join(data_dir, "hamiltonian_sparse.ccs")
             self.convert_matrix_format(conversion="bigdft_to_ccs", infile=sfile,
                                        outfile=soutfile)
             self.convert_matrix_format(conversion="bigdft_to_ccs", infile=hfile,
                                        outfile=houtfile)
-            sinvxh, sinvxh2 = compute_spillbase(soutfile, houtfile,
-                                                bigpoly=False)
+            # Then compute with python
+            sinvxh, sinvxh2 = serial_compute_spillbase(soutfile, houtfile)
 
         # Compute the spillage array
-        spillage_array = compute_spillage(
+        spillage_array = compute_spillage_values(
             sinvxh, sinvxh2, frag_indices, targetid)
 
         return spillage_array
