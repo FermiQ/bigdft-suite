@@ -52,7 +52,7 @@ class BigDFTool(object):
         executable.
     """
 
-    def __init__(self, omp=1, mpi_run=""):
+    def __init__(self, omp=1, mpi_run=None):
         from futile.YamlArgparse import get_python_function
         from futile import YamlIO
         from os import environ
@@ -63,6 +63,8 @@ class BigDFTool(object):
         # Executables
         bigdftroot = environ['BIGDFT_ROOT']
         environ['OMP_NUM_THREADS'] = str(omp)
+        if not mpi_run:
+            mpi_run = environ["BIGDFT_MPIRUN"]
 
         # Load the dictionary that defines all the operations.
         # This path should be easier to specify if you use the python

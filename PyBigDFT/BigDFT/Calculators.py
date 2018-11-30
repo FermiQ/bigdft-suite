@@ -367,7 +367,7 @@ class SystemCalculator(Runner):
         dry_run = self.run_options['dry_run']
         run_name = self.run_options.get('run_name','')
         outdir = self.run_options.get('outdir','')
-	taskgroup_size = self.run_options.get('taskgroup_size','')
+    	taskgroup_size = self.run_options.get('taskgroup_size','')
         #Check if it is a dry run
         if dry_run:
             #Use bigdft-tool (do not use BIGDFT_MPIRUN because it is a python script)
