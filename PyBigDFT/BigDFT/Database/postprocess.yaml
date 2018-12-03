@@ -95,7 +95,7 @@ multiply_matrices:
 convert_matrix_format:
   help: |
     Convert between different matrix formats.
-  tool: chess_toolbox
+  tool: bigdft-tool
   mpi: false
   args:
     conversion:
