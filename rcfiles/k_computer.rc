@@ -6,19 +6,40 @@ def getcwd():
   import os
   return os.getcwd()
 
+def fflags():
+  return """'FCFLAGS=-SSL2BLAMP -SCALAPACK -O3 -Kfast,openmp' """
+
 #Add the condition testing to run tests and includes PyYaml
 conditions.add("testing")
 #List the module the this rcfile will build
 modules = ['spred',]
 #example of the potentialities of the python syntax in this file
 def env_configuration():
-    return """ 'FCFLAGS=-SSL2BLAMP -SCALAPACK -O3 -Kfast,openmp' \
-           'CC=fccpx' 'CXX=FCCpx' 'FC=mpifrtpx' \
+    return fflags() + \
+           """ 'CC=fccpx' 'CXX=FCCpx' 'FC=mpifrtpx' \
            'CFLAGS=-g -O3 -I""" + getcwd() + """/install/include' \
            '--with-ext-linalg=-lfjscalapack -fjlapackex' \
            'LIBS=-SSL2BLAMP -SCALAPACK -O3 -Kfast,openmp' \
            '--build=x86_64-redhat-linux' '--host=sparc-fujitsu-linux' \
            """
+def cmake_configuration():
+  def getcwd():
+    import os
+    return os.getcwd()
+  return ( """-DFORTRAN_ONLY=YES \
+              -DF_TOOLCHAINFLAGS=' """ + fflags() + """ '\
+              -DTOOLCHAIN_LIBS='-lfjscalapack -fjlapackex -SSL2BLAMP -SCALAPACK -O3 -Kfast,openmp'\
+              -DCMAKE_C_COMPILER=mpifccpx \
+              -DCMAKE_CXX_COMPILER=mpiFCCpx \
+              -DCMAKE_Fortran_COMPILER=mpifrtpx \
+              -DCMAKE_Fortran_MODDIR_FLAG="-M" \
+              -DCMAKE_Fortran_FLAGS="-Kfast,-Kparallel,openmp,optmsg=2 -Cpp" \
+              -DCMAKE_PREFIX_PATH="""+getcwd()+"""/install""")
+
+module_cmakeargs.update({
+'ntpoly': cmake_configuration(),
+'bigpoly': cmake_configuration()
+})
 #'--disable-binaries' 
 #here follow the configuration instructions for the modules built
 module_autogenargs.update({

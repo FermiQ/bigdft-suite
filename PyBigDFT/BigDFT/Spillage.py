@@ -70,11 +70,11 @@ class MatrixMetadata:
 
         # Now we associate this information with fragments.
         frag_indices = {}
-        for fragid, frag in system.items():
+        for fragid in system:
             frag_indices[fragid] = []
             temp_ind = []
             # Find the atom that matches
-            for aj in frag.atoms:
+            for aj in system[fragid].atoms:
                 for ai in self.atoms:
                     if aj == ai:
                         found = True
@@ -114,7 +114,8 @@ def compute_spillage_values(sinvxh, sinvxh2, frag_indices, target):
     left_t = trace(H2T.todense())
 
     # Compute the right side values tr(HRgHRf)
-    for id_g, indices_g in frag_indices.items():
+    for id_g in frag_indices:
+        indices_g = frag_indices[id_g]
         TFH = sinvxh[indices_f, :]
         TFHTG = TFH[:, indices_g]
 
