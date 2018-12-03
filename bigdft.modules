@@ -42,7 +42,7 @@
     </branch>
   </autotools>
 
-  <autotools id="v_sim-dev" autogen-sh="autoreconf" skip-autogen="true">
+  <autotools id="v_sim-dev" autogen-sh="autogen.sh+configure" skip-autogen="true">
     <!-- <branch repo="local-optional" module="v_sim-dev.tar.bz2" -->
     <branch repo="v_sim-dev" module="v_sim"
             version="3.99" checkoutdir="v_sim-dev">
