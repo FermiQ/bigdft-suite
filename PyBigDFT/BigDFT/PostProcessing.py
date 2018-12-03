@@ -201,7 +201,6 @@ class BigDFTool(object):
                 outfile = join(data_dir, fname)
                 self.convert_matrix_format(conversion="binary_to_bigdft",
                                            infile=infile, outfile=outfile)
-
         # Get the metadata
         metadatafile = join(data_dir, "sparsematrix_metadata.dat")
         metadata = MatrixMetadata(metadatafile)
