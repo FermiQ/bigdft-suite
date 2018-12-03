@@ -49,7 +49,10 @@
       <patch file="v_sim-dev.patch" />
     </branch>
     <dependencies>
+      <dep package="PyYAML"/>
       <dep package="openbabel"/>
+      <dep package="intltool"/>
+      <dep package="libglu1-mesa-dev"/>
       <!-- <if condition-set="python">
         <dep package="pygobject"/>
         <dep package="gobject-introspection"/>
@@ -248,6 +251,29 @@
       <dep package="cmake-dev"/>
     </dependencies> -->
   </makesys>
+
+  <metamodule id="upstream-suite">
+    <dependencies>
+      <dep package="v_sim-dev"/>
+      <dep package="libxc"/>
+    </dependencies>
+  </metamodule>
+
+  <systemmodule id="intltool">
+    <branch repo="system"/>
+    <systemdependencies>
+      <dep type="path" name="intltool-extract"/>
+    </systemdependencies>
+  </systemmodule>
+
+  <systemmodule id="libglu1-mesa-dev">
+    <branch repo="system"/>
+    <systemdependencies>
+      <dep type="c_include" name="GL/gl.h"/>
+    </systemdependencies>
+  </systemmodule>
+
+
 
   <metamodule id="bigdft-suite">
     <dependencies>
