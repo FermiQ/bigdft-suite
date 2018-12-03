@@ -77,7 +77,7 @@ class BigDFTool(object):
         for action, spec in db.items():
             naction = action.replace("_", "-")
             nspec = deepcopy(spec)
-            cmd =  join(bigdftroot,nspec["tool"])
+            cmd = join(bigdftroot, nspec["tool"])
             if nspec["mpi"]:
                 cmd = mpi_run + " " + cmd
             else:
@@ -139,7 +139,6 @@ class BigDFTool(object):
         if isfile(options["log_file"]):
             remove(options["log_file"])
         self.fragment_multipoles(**options)
-
 
         return load(options["log_file"], doc_lists=False)
 
@@ -222,7 +221,7 @@ class BigDFTool(object):
 
             # Read from file
             sinvxh = csc_matrix(mmread(options["outfile"]))
-            sinvxh2 = csc_matrix(mmread(options["outfile2"] ))
+            sinvxh2 = csc_matrix(mmread(options["outfile2"]))
         else:
             # First convert to ccs matrix format
             soutfile = join(data_dir, "overlap_sparse.ccs")
@@ -260,7 +259,9 @@ class BigDFTool(object):
             labels.append(id)
 
         axs.set_xticks(range(len(labels)))
-        axs.set_xticklabels(sorted(labels, key=lambda x: GetFragTuple(x)[1]),
+        axs.set_xticklabels(sorted(labels, key=lambda x:
+                                   int(GetFragTuple(x)[1])),
                             rotation=90)
         axs.plot([v for _, v in sorted(zip(labels, svals),
-                                       key=lambda x: GetFragTuple(x[0])[1])], 'x--')
+                                       key=lambda x: int(GetFragTuple(x[0])[1]))
+                  ], 'x--')

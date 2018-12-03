@@ -418,10 +418,12 @@ class System(MutableMapping):
         ax.set_yscale("log")
 
         ax.set_xticklabels(sorted(self.keys(),
-                                  key=lambda x: GetFragTuple(x)[1]), rotation=90)
+                                  key=lambda x: int(GetFragTuple(x)[1])),
+                           rotation=90)
         pvals = [abs(frag.purity_indicator) for frag in self.values()]
         ax.plot([v for _, v in sorted(zip(self.keys(), pvals),
-                                      key=lambda x: GetFragTuple(x[0])[1])], 'x--')
+                                      key=lambda x:
+                                      int(GetFragTuple(x[0])[1]))], 'x--')
 
     @property
     def q0(self):
