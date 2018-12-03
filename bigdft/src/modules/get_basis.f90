@@ -444,11 +444,13 @@ module get_basis
           if (present(cdft)) then
               ! calculate |phi> Vc (S^-1 W + W S^-1)
 
-              cdft%weight_matrix_%matrix = sparsematrix_malloc_ptr(cdft%weight_matrix,iaction=DENSE_FULL,id='weight_matrix_%matrix')
+              cdft%weight_matrix_%matrix = sparsematrix_malloc_ptr(cdft%weight_matrix,&
+                   iaction=DENSE_FULL,id='weight_matrix_%matrix')
               call uncompress_matrix2(bigdft_mpi%iproc, bigdft_mpi%nproc, bigdft_mpi%mpi_comm, &
                    cdft%weight_matrix, cdft%weight_matrix_%matrix_compr, cdft%weight_matrix_%matrix)
 
-              tmb%linmat%ovrlppowers_(1)%matrix = sparsematrix_malloc_ptr(tmb%linmat%smat(3),iaction=DENSE_FULL,id='weight_matrix_%matrix')
+              tmb%linmat%ovrlppowers_(1)%matrix = sparsematrix_malloc_ptr(tmb%linmat%smat(3),&
+                   iaction=DENSE_FULL,id='weight_matrix_%matrix')
               call uncompress_matrix2(bigdft_mpi%iproc, bigdft_mpi%nproc, bigdft_mpi%mpi_comm, &
                    tmb%linmat%smat(3), tmb%linmat%ovrlppowers_(1)%matrix_compr, tmb%linmat%ovrlppowers_(1)%matrix)
 
@@ -469,15 +471,16 @@ module get_basis
               call f_free_ptr(tmb%linmat%ovrlppowers_(1)%matrix)
 
               if (bigdft_mpi%nproc>1) then
-                 call mpi_allgatherv(weight_matrixp, tmb%orbs%norb*tmb%orbs%norbp, mpi_double_precision, cdft%weight_matrix_%matrix, &
-                      tmb%orbs%norb*tmb%orbs%norb_par(:,0), tmb%orbs%norb*tmb%orbs%isorb_par, &
-                      mpi_double_precision, bigdft_mpi%mpi_comm, ierr)
+                 call mpi_allgatherv(weight_matrixp, tmb%orbs%norb*tmb%orbs%norbp, mpi_double_precision, &
+                      cdft%weight_matrix_%matrix, tmb%orbs%norb*tmb%orbs%norb_par(:,0), &
+                      tmb%orbs%norb*tmb%orbs%isorb_par, mpi_double_precision, bigdft_mpi%mpi_comm, ierr)
               else
                   ! not just here...
                   if (cdft%weight_matrix%nspin/=1) then
                       stop 'NEED TO FIX THE SPIN HERE: calculate_weight_matrix_lowdin'
                   end if
-                 call vcopy(tmb%orbs%norb*tmb%orbs%norb*cdft%weight_matrix%nspin,weight_matrixp(1,1,1),1,cdft%weight_matrix_%matrix(1,1,1),1)
+                 call vcopy(tmb%orbs%norb*tmb%orbs%norb*cdft%weight_matrix%nspin,weight_matrixp(1,1,1),1,&
+                      cdft%weight_matrix_%matrix(1,1,1),1)
               end if
               call f_free_ptr(weight_matrixp)
 
