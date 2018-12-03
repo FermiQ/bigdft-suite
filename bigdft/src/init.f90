@@ -236,7 +236,7 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,orbs,&
   use sparsematrix_init,only: distribute_on_tasks
   use locregs
   use f_ternary
-  use pspiof_m, only: pspiof_projector_eval, pspiof_pspdata_get_projector, pspiof_pspdata_get_n_projectors
+  use pspiof_m, only: pspiof_pspdata_get_projector, pspiof_pspdata_get_n_projectors
   use yaml_output, only: yaml_warning
   implicit none
   integer,intent(in) :: iproc,nproc
