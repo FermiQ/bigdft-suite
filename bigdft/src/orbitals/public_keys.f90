@@ -33,6 +33,8 @@ module public_keys
   character(len = *), parameter :: GNRM_CV_VIRT = "gnrm_cv_virt"
   character(len = *), parameter :: GNRM_IG = "gnrm_ig"
   character(len = *), parameter :: NIT_IG = "nit_ig"
+  character(len = *), parameter :: EXTENDED_IG = "extended_ig"
+  character(len = *), parameter :: ORTHOGONALIZE_SFS = "orthogonalize_sfs"
   character(len = *), parameter :: ITERMAX = "itermax",ITERMIN = "itermin", NREPMAX = "nrepmax"
   character(len = *), parameter :: ITERMAX_VIRT = "itermax_virt"
   character(len = *), parameter :: NCONG = "ncong", IDSX = "idsx"
@@ -260,6 +262,7 @@ module public_keys
   character(len=*), parameter :: CALC_QUADRUPOLE ='calc_quadrupole'
   character(len=*), parameter :: CDFT_LAG_MULT_INIT='cdft_lag_mult_init'
   character(len=*), parameter :: CDFT_CONV_CRIT  ='cdft_conv_crit'
+  character(len=*), parameter :: CDFT_NIT        ='cdft_nit'
   character(len=*), parameter :: SUBSPACE_DIAG   ='subspace_diag'
   character(len=*), parameter :: ALPHA_DIIS      ='alpha_diis'
   character(len=*), parameter :: ALPHA_SD        ='alpha_sd'

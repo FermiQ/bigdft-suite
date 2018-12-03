@@ -147,6 +147,8 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
   real(kind=8) :: tt, ddot, max_error, ef, ef_low, ef_up, fac, eTS
   type(matrices), dimension(24) :: rpower_matrix
   character(len=20) :: method, do_ortho, projectormode
+  logical :: output_eigenvalues
+  real(kind=8), dimension(:), allocatable :: occup_tmp
 
   real(kind=8), dimension(:,:), allocatable :: ovrlp_fullp
   real(kind=8) :: max_deviation, mean_deviation, max_deviation_p, mean_deviation_p
@@ -201,7 +203,7 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
   ldiis_coeff_hist=input%lin%dmin_hist_lowaccuracy
   reduce_conf=.false.
   ldiis_coeff_changed = .false.
-  orthonormalization_on=.true.
+  orthonormalization_on=input%lin%orthogonalize_sfs
   dmin_diag_it=0
   dmin_diag_freq=-1
   reorder=.false.
@@ -383,14 +385,7 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
                convCritMix_init, lowaccur_converged, nit_scc, mix_hist, alpha_mix, locrad, target_function, nit_basis, &
                convcrit_dmin, nitdmin, conv_crit_TMB)
           if (itout==1) then
-              call allocate_precond_arrays(tmb%orbs, tmb%lzd, tmb%confdatarr, precond_convol_workarrays, precond_workarrays)
-              wt_philarge = work_transpose_null()
-              wt_hphi = work_transpose_null()
-              wt_phi = work_transpose_null()
-              call allocate_work_transpose(nproc, tmb%ham_descr%collcom, wt_philarge)
-              call allocate_work_transpose(nproc, tmb%ham_descr%collcom, wt_hphi)
-              call allocate_work_transpose(nproc, tmb%collcom, wt_phi)
-              hphi_pspandkin = f_malloc(tmb%ham_descr%npsidim_orbs,id='hphi_pspandkin')
+              call allocate_work_arrays()
           end if
           !!if (iproc==0) write(*,*) 'AFTER: lowaccur_converged,associated(precond_workarrays)',lowaccur_converged,associated(precond_workarrays)
           if (keep_value) then
@@ -402,14 +397,7 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
                target_function, nit_basis, nit_scc, mix_hist, locrad, alpha_mix, convCritMix_init, conv_crit_TMB)
                convcrit_dmin=input%lin%convCritDmin_highaccuracy
                nitdmin=input%lin%nItdmin_highaccuracy
-          call allocate_precond_arrays(tmb%orbs, tmb%lzd, tmb%confdatarr, precond_convol_workarrays, precond_workarrays)
-          wt_philarge = work_transpose_null()
-          wt_hphi = work_transpose_null()
-          wt_phi = work_transpose_null()
-          call allocate_work_transpose(nproc, tmb%ham_descr%collcom, wt_philarge)
-          call allocate_work_transpose(nproc, tmb%ham_descr%collcom, wt_hphi)
-          call allocate_work_transpose(nproc, tmb%collcom, wt_phi)
-          hphi_pspandkin = f_malloc(tmb%ham_descr%npsidim_orbs,id='hphi_pspandkin')
+          call allocate_work_arrays()
       end if
       call timing(iproc,'linscalinit','OF')
 
@@ -437,22 +425,12 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
           call adjust_locregs_and_confinement(iproc, nproc, KSwfn%Lzd%hgrids(1), KSwfn%Lzd%hgrids(2), KSwfn%Lzd%hgrids(3), &
                at, input, rxyz, KSwfn, tmb, denspot, nlpsp, ldiis, locreg_increased, lowaccur_converged, &
                input%cp%foe%matmul_optimize_load_balancing, locrad)
-          orthonormalization_on=.true.
+          ! if we have just started high accuracy, turn orthogonalization back on
+          ! except in experimental_mode where we only do it in the extended IG
+          orthonormalization_on=input%lin%orthogonalize_sfs
 
-          call deallocate_precond_arrays(tmb%orbs, tmb%lzd, precond_convol_workarrays, precond_workarrays)
-          call deallocate_work_transpose(wt_philarge)
-          call deallocate_work_transpose(wt_hphi)
-          call deallocate_work_transpose(wt_phi)
-          call f_free(hphi_pspandkin)
-
-          call allocate_precond_arrays(tmb%orbs, tmb%lzd, tmb%confdatarr, precond_convol_workarrays, precond_workarrays)
-          wt_philarge = work_transpose_null()
-          wt_hphi = work_transpose_null()
-          wt_phi = work_transpose_null()
-          call allocate_work_transpose(nproc, tmb%ham_descr%collcom, wt_philarge)
-          call allocate_work_transpose(nproc, tmb%ham_descr%collcom, wt_hphi)
-          call allocate_work_transpose(nproc, tmb%collcom, wt_phi)
-          hphi_pspandkin = f_malloc(tmb%ham_descr%npsidim_orbs,id='hphi_pspandkin')
+          call deallocate_work_arrays()
+          call allocate_work_arrays()
 
           ! is this really necessary if the locrads haven't changed?  we should check this!
           ! for now for CDFT don't do the extra get_coeffs, as don't want to add extra CDFT loop here
@@ -601,10 +579,10 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
            !    if (iproc==0) write(*,*) 'set ldiis%isx=0)'
            !    ldiis%isx=0
            !end if
-           if (input%experimental_mode) then
+           !if (input%experimental_mode) orthonormalization_on=.false.
+           if (.not. orthonormalization_on) then
                if (iproc==0) call yaml_warning('No orthogonalizing of the support functions')
                !if (iproc==0) write(*,*) 'WARNING: set orthonormalization_on to false'
-               orthonormalization_on=.false.
            end if
            if (iproc==0) then
                call yaml_comment('support function optimization',hfill='=')
@@ -615,7 +593,23 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
                               'it_supfun'//trim(adjustl(yaml_toa(itout,fmt='(i3.3)'))))
            end if
            !!call extract_taskgroup_inplace(tmb%linmat%smat(3), tmb%linmat%kernel_)
-           if (input%lin%constrained_dft) then
+           ! the first iteration of CDFT, don't update the basis, since the initial kernel is likely to be poor and should first be converged to meet the constraint
+           if (input%lin%constrained_dft .and. itout == 1) then
+              call getLocalizedBasis(iproc,nproc,at,KSwfn%orbs,rxyz,denspot,GPU,trace,trace_old,fnrm_tmb,&
+                  info_basis_functions,nlpsp,input%lin%scf_mode,ldiis,input%SIC,tmb,energs,&
+                  input%lin%iterative_orthogonalization,input%lin%norbsPerType,&
+                  input%lin%nItPrecond,target_function,input%lin%correctionOrthoconstraint,&
+                  1,&
+                  ratio_deltas,orthonormalization_on,input%lin%extra_states,itout,conv_crit_TMB,input%experimental_mode,&
+                  input%lin%early_stop, input%lin%gnrm_dynamic, input%lin%min_gnrm_for_dynamic, &
+                  can_use_ham, norder_taylor, input%lin%max_inversion_error, input%kappa_conv,&
+                  input%correction_co_contra, &
+                  precond_convol_workarrays, precond_workarrays, &
+                  wt_philarge, wt_hphi, wt_phi, fnrm_work, energs_work, input%lin%fragment_calculation, &
+                  input%lin%reset_DIIS_history, &
+                  cdft, input%frag, ref_frags, &
+                  hphi_pspandkin=hphi_pspandkin,eproj=eproj,ekin=ekin)
+           else if (input%lin%constrained_dft) then
               call getLocalizedBasis(iproc,nproc,at,KSwfn%orbs,rxyz,denspot,GPU,trace,trace_old,fnrm_tmb,&
                   info_basis_functions,nlpsp,input%lin%scf_mode,ldiis,input%SIC,tmb,energs,&
                   input%lin%iterative_orthogonalization,input%lin%norbsPerType,&
@@ -653,17 +647,17 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
                call yaml_sequence_close()
            end if
 
-    !       !update weight matrix following basis optimization (could add check to ensure this is really necessary)
-    !       if (input%lin%constrained_dft) then
-    !          if (trim(cdft%method)=='fragment_density') then ! fragment density approach
-    !             if (input%lin%diag_start) stop 'fragment_density not allowed'
-    !          else if (trim(cdft%method)=='lowdin') then ! direct weight matrix approach
-    !             !should already have overlap matrix so no need to recalculate
-    !             call calculate_weight_matrix_lowdin_wrapper(cdft,tmb,input,ref_frags,.false.,input%lin%order_taylor)
-    !          else
-    !             stop 'Error invalid method for calculating CDFT weight matrix'
-    !          end if
-    !       end if
+           !update weight matrix following basis optimization (could add check to ensure this is really necessary)
+           if (input%lin%constrained_dft) then
+              if (trim(cdft%method)=='fragment_density') then ! fragment density approach
+                 if (input%lin%diag_start) stop 'fragment_density not allowed'
+              else if (trim(cdft%method)=='lowdin') then ! direct weight matrix approach
+                 !should already have overlap matrix so no need to recalculate
+                 call calculate_weight_matrix_lowdin_wrapper(cdft,tmb,input,ref_frags,.false.,input%lin%order_taylor)
+              else
+                 stop 'Error invalid method for calculating CDFT weight matrix'
+              end if
+           end if
 
            tmb%can_use_transposed=.false. !since basis functions have changed...
 
@@ -824,14 +818,7 @@ subroutine linearScaling(iproc,nproc,KSwfn,tmb,at,input,rxyz,denspot,rhopotold,n
   end do outerLoop
 
 
-  if (nit_lowaccuracy+nit_highaccuracy>0) then
-      call deallocate_precond_arrays(tmb%orbs, tmb%lzd, precond_convol_workarrays, precond_workarrays)
-      call deallocate_work_transpose(wt_philarge)
-      call deallocate_work_transpose(wt_hphi)
-      call deallocate_work_transpose(wt_phi)
-      call f_free(hphi_pspandkin)
-  end if
-
+  if (nit_lowaccuracy+nit_highaccuracy>0) call deallocate_work_arrays()
 
 
   if (input%wf_extent_analysis) then
@@ -987,15 +974,19 @@ tmb%can_use_transposed=.false.
    end if
 end if
 
+  output_eigenvalues = .false.
   ! Diagonalize the matrix for the FOE/direct min case to get the coefficients. Only necessary if
   ! the Pulay forces are to be calculated, or if we are printing eigenvalues for restart
-  if ((input%lin%scf_mode==LINEAR_FOE.or.input%lin%scf_mode==LINEAR_DIRECT_MINIMIZATION)) then
+  if (input%lin%scf_mode==LINEAR_FOE.or.input%lin%scf_mode==LINEAR_DIRECT_MINIMIZATION) then
       !!if(mod(input%lin%plotBasisFunctions,10) /= WF_FORMAT_NONE) then
       !!    !Assigne an obvisouly wrong value to the eigenvalues
       !!    tmb%orbs%eval(:) = -123456789.0d0
       !!else if(input%lin%diag_end .or. mod(input%lin%output_coeff_format,10) /= WF_FORMAT_NONE) then
       if(mod(input%lin%plotBasisFunctions,10) /= WF_FORMAT_NONE .or. &
       input%lin%diag_end .or. mod(input%lin%output_coeff_format,10) /= WF_FORMAT_NONE) then
+
+          ! setting this variable to avoid code repetition later
+          output_eigenvalues = .true.
 
           !!if (input%lin%scf_mode==LINEAR_FOE) then
           !!    tmb%coeff=f_malloc_ptr((/tmb%orbs%norb,tmb%orbs%norb/),id='tmb%coeff')
@@ -1017,9 +1008,6 @@ end if
           !!if (input%lin%scf_mode==LINEAR_FOE) then
           !!    call f_free_ptr(tmb%coeff)
           !!end if
-          if (bigdft_mpi%iproc ==0) then
-             call write_eigenvalues_data(0.1d0,tmb%orbs,mom_vec_fake)
-          end if
       end if
   end if
 
@@ -1028,10 +1016,20 @@ end if
   !!end if
 
   ! only print eigenvalues if they have meaning, i.e. diag or the case above
-  if (input%lin%scf_mode==LINEAR_MIXPOT_SIMPLE.or.input%lin%scf_mode==LINEAR_MIXDENS_SIMPLE) then
-     if (bigdft_mpi%iproc ==0) then
-        call write_eigenvalues_data(0.1d0,tmb%orbs,mom_vec_fake)
-     end if
+  if (input%lin%scf_mode==LINEAR_MIXPOT_SIMPLE.or.input%lin%scf_mode==LINEAR_MIXDENS_SIMPLE & 
+            .or.output_eigenvalues) then
+      if (bigdft_mpi%iproc ==0) then
+         ! it would be more useful to have the actual KS occupancies here,
+         ! but we print ntmb eigenvalues, so need to temporarily override tmb%orbs%occup
+         ! not sure that we actually (ever) need it, but best to be safe for now
+         occup_tmp=f_malloc(tmb%orbs%norb,id='occup_tmp')
+         call vcopy(tmb%orbs%norb, tmb%orbs%occup(1), 1, occup_tmp(1), 1)
+         call f_zero(tmb%orbs%occup)
+         call vcopy(KSwfn%orbs%norb, KSwfn%orbs%occup(1), 1, tmb%orbs%occup(1), 1)
+         call write_eigenvalues_data(0.1d0,tmb%orbs,mom_vec_fake)
+         call vcopy(KSwfn%orbs%norb, occup_tmp(1), 1, tmb%orbs%occup(1), 1)
+         call f_free(occup_tmp)
+      end if
   end if
 
 
@@ -1535,11 +1533,35 @@ end if
 
   contains
 
+    ! copied here to improve code readability
+    subroutine allocate_work_arrays()
+       implicit none
+
+       call allocate_precond_arrays(tmb%orbs, tmb%lzd, tmb%confdatarr, precond_convol_workarrays, precond_workarrays)
+       wt_philarge = work_transpose_null()
+       wt_hphi = work_transpose_null()
+       wt_phi = work_transpose_null()
+       call allocate_work_transpose(nproc, tmb%ham_descr%collcom, wt_philarge)
+       call allocate_work_transpose(nproc, tmb%ham_descr%collcom, wt_hphi)
+       call allocate_work_transpose(nproc, tmb%collcom, wt_phi)
+       hphi_pspandkin = f_malloc(tmb%ham_descr%npsidim_orbs,id='hphi_pspandkin')
+    end subroutine allocate_work_arrays
+
+    ! copied here to improve code readability
+    subroutine deallocate_work_arrays()
+       implicit none
+          call deallocate_precond_arrays(tmb%orbs, tmb%lzd, precond_convol_workarrays, precond_workarrays)
+          call deallocate_work_transpose(wt_philarge)
+          call deallocate_work_transpose(wt_hphi)
+          call deallocate_work_transpose(wt_phi)
+          call f_free(hphi_pspandkin)
+    end subroutine deallocate_work_arrays
+
     !> This loop is simply copied down here such that it can again be called
     !! in a post-processing way.
     !SM: Must be cleaned up a lot!
     subroutine scf_kernel(nit_scc, remove_coupling_terms, update_phi)
-      use module_interfaces, only: write_eigenvalues_data
+       use module_interfaces, only: write_eigenvalues_data
        implicit none
 
        ! Calling arguments
@@ -1603,7 +1625,7 @@ end if
 
 
                  ! The self consistency cycle. Here we try to get a self consistent density/potential with the fixed basis.
-                 cdft_loop : do cdft_it=1,100
+                 cdft_loop : do cdft_it=1,cdft%nit
                     call get_coeff(iproc,nproc,input%lin%scf_mode,KSwfn%orbs,at,rxyz,denspot,GPU,&
                          infoCoeff,energs,nlpsp,input%SIC,tmb,pnrm,calculate_overlap,&
                          invert_overlap_matrix,calculate_pspandkin,update_phi,&
@@ -1665,7 +1687,7 @@ end if
                  vold=cdft%lag_mult
 
                  ! The self consistency cycle. Here we try to get a self consistent density/potential with the fixed basis.
-                 cdft_loop1 : do cdft_it=1,100
+                 cdft_loop1 : do cdft_it=1,cdft%nit
                     call get_coeff(iproc,nproc,input%lin%scf_mode,KSwfn%orbs,at,rxyz,denspot,GPU,&
                          infoCoeff,energs,nlpsp,input%SIC,tmb,pnrm,calculate_overlap,&
                          invert_overlap_matrix,calculate_pspandkin,update_phi,&
@@ -2191,7 +2213,7 @@ end if
           call yaml_map('D',energyDiff,fmt='(es10.3)')
 
           if (input%lin%constrained_dft) then
-              call yaml_map('Tr(KW)',ebs,fmt='(es14.4)')
+              call yaml_map('Tr(KW)',ebs,fmt='(es20.12)')
           end if
 
           call yaml_mapping_close()

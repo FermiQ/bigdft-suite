@@ -887,7 +887,7 @@ subroutine inputguessConfinement(iproc, nproc, at, input, hx, hy, hz, &
  energs_work%ncount = 4
  call allocate_work_mpiaccumulate(energs_work)
 
- if (input%experimental_mode) then
+ if (input%lin%extended_ig) then
      ! NEW: TRACE MINIMIZATION WITH ORTHONORMALIZATION ####################################
      ortho_on=.true.
      call initializeDIIS(input%lin%DIIS_hist_lowaccur, tmb%lzd, tmb%orbs, ldiis)

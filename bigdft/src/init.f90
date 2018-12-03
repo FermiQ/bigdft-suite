@@ -1195,7 +1195,7 @@ subroutine input_memory_linear(iproc, nproc, at, KSwfn, tmb, tmb_old, denspot, i
    ! normalize tmbs - only really needs doing if we reformatted, but will need to calculate transpose after anyway
 
    ! Normalize the input guess. If FOE is used, the input guess will be generated below.
-   if (input%lin%scf_mode/=LINEAR_FOE .or. (FOE_restart==RESTART_REFORMAT .and. .not.input%experimental_mode)) then
+   if (input%lin%scf_mode/=LINEAR_FOE .or. (FOE_restart==RESTART_REFORMAT .and. input%lin%orthogonalize_sfs)) then
        tmb%can_use_transposed=.true.
        overlap_calculated=.false.
 
@@ -1211,7 +1211,7 @@ subroutine input_memory_linear(iproc, nproc, at, KSwfn, tmb, tmb_old, denspot, i
             TRANSPOSE_FULL, tmb%psit_c, tmb%psit_f, tmb%psi, tmb%lzd)
 
        call f_free(norm)
-   else if (FOE_restart==RESTART_REFORMAT .and. input%experimental_mode .and. max_shift>0.d0) then
+   else if (FOE_restart==RESTART_REFORMAT .and. (.not.input%lin%orthogonalize_sfs) .and. max_shift>0.d0) then
       if (.not. input%lin%iterative_orthogonalization) then
          !!%%  ! Orthonormalize
          !!%%  tmb%can_use_transposed=.false.
@@ -1272,7 +1272,7 @@ subroutine input_memory_linear(iproc, nproc, at, KSwfn, tmb, tmb_old, denspot, i
      nullify(in_frag_charge)
      if (input%lin%constrained_dft) then
         call cdft_data_init(cdft,input%frag,KSwfn%Lzd%Glr%d%n1i*KSwfn%Lzd%Glr%d%n2i*denspot%dpbox%n3d,&
-             input%lin%calc_transfer_integrals,input%lin%cdft_lag_mult_init)
+             input%lin%calc_transfer_integrals,input%lin%cdft_lag_mult_init,input%lin%cdft_nit)
         if (input%lin%calc_transfer_integrals) then
            in_frag_charge=f_malloc_ptr(input%frag%nfrag,id='in_frag_charge')
            call vcopy(input%frag%nfrag,input%frag%charge(1),1,in_frag_charge(1),1)
@@ -1653,7 +1653,7 @@ subroutine input_memory_linear(iproc, nproc, at, KSwfn, tmb, tmb_old, denspot, i
   end if
 
   ! Orthonormalize the input guess if necessary
-  if (input%experimental_mode .and. input%lin%scf_mode/=LINEAR_FOE) then
+  if ((.not. input%lin%orthogonalize_sfs) .and. input%lin%scf_mode/=LINEAR_FOE) then
       if (iproc==0) call yaml_map('orthonormalization of input guess','standard')
       tmb%can_use_transposed = .false.
       methTransformOverlap=-1
@@ -3061,7 +3061,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
      nullify(in_frag_charge)
      if (in%lin%constrained_dft) then
         call cdft_data_init(cdft,in%frag,KSwfn%Lzd%Glr%d%n1i*KSwfn%Lzd%Glr%d%n2i*denspot%dpbox%n3d,&
-             in%lin%calc_transfer_integrals,in%lin%cdft_lag_mult_init)
+             in%lin%calc_transfer_integrals,in%lin%cdft_lag_mult_init,in%lin%cdft_nit)
         if (in%lin%calc_transfer_integrals) then
            in_frag_charge=f_malloc_ptr(in%frag%nfrag,id='in_frag_charge')
            call vcopy(in%frag%nfrag,in%frag%charge(1),1,in_frag_charge(1),1)

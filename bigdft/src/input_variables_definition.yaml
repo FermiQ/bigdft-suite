@@ -1694,7 +1694,11 @@
        DESCRIPTION: |
          possible value: 1 positive real number
        default: 1.e-2
-       RANGE: [1.e-20,1.0]
+       RANGE: [1.e-20,1000.0]
+     cdft_nit:
+       COMMENT: Number of iterations for CDFT loop over V_c
+       default: 100
+       RANGE: [1,1000]
      calc_dipole:
        DESCRIPTION: |
          Indicates whether the dipole moment should be calculated after the run or not
@@ -1776,6 +1780,12 @@
        COMMENT:  maximal number of iterations to optimize the support functions in the extended input guess (experimental mode only)
        RANGE: [0,100]
        default: 50 #just for backward compatibility, should be smaller
+     extended_ig:
+       COMMENT:  whether or not to do an extended input guess (will be activated by default in experimental mode)
+       default: No
+     orthogonalize_sfs:
+       COMMENT:  whether or not to explicitly orthogonalize SFs (will be activated by default except in experimental mode, and may eventually be automatically turned off)
+       default: Yes
      idsx:
        COMMENT: DIIS history for optimization of the support functions (low/high accuracy); 0 -> SD
        DESCRIPTION: |
