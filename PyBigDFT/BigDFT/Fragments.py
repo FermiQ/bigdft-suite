@@ -543,28 +543,28 @@ class Fragment():
             return None
 
 def fragmentation_dict(pattern,repeat,labels=None):
-	"""
-	Define a dictionary associated to fragmentation.
+    """
+    Define a dictionary associated to fragmentation.
 
-	Args:
-	   pattern (list): number of atoms to be considered for each froagment
+    Args:
+       pattern (list): number of atoms to be considered for each froagment
 	   repeat (int): number of times to apply the pattern to
        labels (list): list of strings, of length *either* ``len(pattern)``,
            in which casethe labels are repeated ``repeat`` times *or*
            ``len(pattern)*repeat``, in which case the labels are uniquely assigned to each of the fragments
+    """
 
-	"""
-	iat=0
-	frag=[]
+    iat=0
+    frag=[]
     ifrag=0
-	import numpy
-	for i in range(repeat):
-		for nat in pattern:
+    import numpy
+    for i in range(repeat):
+        for nat in pattern:
             label = 'frag'+str(ifrag) if labels is None else labels[ifrag % len(labels)]
-			frag.append([label,numpy.arange(iat,iat+nat).tolist()])
-			iat+=nat
+            frag.append([label,numpy.arange(iat,iat+nat).tolist()])
+            iat+=nat
             ifrag+=1
-	return frag
+    return frag
 
 
 def CreateFragDict(start):
