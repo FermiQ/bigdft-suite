@@ -493,7 +493,7 @@ PAW:
  Epot: 1.91e-10
  EvXC: 4.01e-11
  norm(P): 1.e-7
- Keys to ignore: 
+ Keys to ignore:
    - Epaw
    - NonLocal PSP Parameters
 
@@ -536,6 +536,10 @@ base:
   Maxdiff for transpose (checksum): 1.2e-10
   Pseudo Fermi level for occupations: 7.5e-10
   Q matrix: 5
+  TRACE: 6.773e-11
+  Total charge: 1.101e-11
+  f: 1.001
+  history length: 1.001
 
 Davidson-SiH4:
   e_virtual: 1.7e-11
@@ -709,6 +713,7 @@ GEOPT-all_vssd:
 
 rotatesmall_write:
   Maxdiff for transpose (checksum): 5.9e-11
+  f: 1.001
   Keys to ignore:
   - Wavefunction written No.
 
@@ -850,12 +855,22 @@ cdft_oh-:
  EH: 1.1e-10
  Maxdiff for overlap calculation: 4.9e-09
  Maxdiff for transpose (checksum): 5.9e-11
+ Ekin: 1.001e-10
+ eBS: 6.854e-11
+ energy: 1.102e-11
+ energydiff: 1.413e-11
+ f: 1.001
 
 cdft_oh-a:
  EH: 1.1e-10
  Epot: 1.01e-10
  Maxdiff for overlap calculation: 4.7e-09
  Maxdiff for transpose (checksum): 7.3e-11
+ Ekin: 2.001e-11
+ eBS: 6.904e-11
+ energydiff: 1.402e-11
+ f: 1.001
+
 
 fructose:
  Epot: 2.1e-09
@@ -1232,7 +1247,7 @@ experimentalfoe_short:
  difference: 8.1e-11
  highest eigenvalue: 1.7e-11
  lowest eigenvalue: 1.3e-11
- trace(Ktilde): 3.5e-07 
+ trace(Ktilde): 3.5e-07
 
 experimentalfoe_medium:
  D Tr(K): 2.5e-7
@@ -1771,6 +1786,7 @@ verysparse:
  Maxdiff for overlap calculation: 1.2e-05
  Maxdiff for transpose (checksum): 9.4e-10
  trace(Ktilde): 8.1e-06
+ f: 1.001
  Keys to ignore:
   - Calculating wavelets expansion of projectors, found warnings
   - found warnings
@@ -2821,7 +2837,7 @@ H2Omultipoles_1:
   Average noise forces: 1.0e-10
   Raw forces norm (Ha/Bohr): 1.4e-11
   e: 1.2e-11
-  trace(KH): 1.8e-11  
+  trace(KH): 1.8e-11
   Q matrix: 5
 
 H2Omultipoles_11:
