@@ -238,15 +238,21 @@ class BigDFTool(object):
 
         return spillage_array
 
-    def plot_spillage(self, axs, spillvals):
+    def plot_spillage(self, axs, spillvals, colors=None):
         """
         Plot the spillage values.
 
         Args:
           axs: the axs we we should plot on.
           spillvals (dict): a dictionary mapping fragments to spillage values.
+          colors (dict): you can optionally pass a dictionary which sets
+            the colors of the plot. The keys are floating point numbers and
+            the values are colors, where all spillage values above that key
+            are colored with the value.
         """
         from Fragments import GetFragTuple
+        from numpy.ma import masked_less
+
         axs.set_xlabel("Fragment", fontsize=12)
         axs.set_ylabel("Spillage Values", fontsize=12)
         axs.set_yscale("log")
@@ -258,9 +264,14 @@ class BigDFTool(object):
             labels.append(id)
 
         axs.set_xticks(range(len(labels)))
-        axs.set_xticklabels(sorted(labels, key=lambda x:
-                                   int(GetFragTuple(x)[1])),
-                            rotation=90)
-        axs.plot([v for _, v in sorted(zip(labels, svals),
-                                       key=lambda x: int(GetFragTuple(x[0])[1]))
-                  ], 'x--')
+        sorted_labels = sorted(labels, key=lambda x: int(GetFragTuple(x)[1]))
+        axs.set_xticklabels(sorted_labels, rotation=90)
+        sorted_values = [v for _, v in sorted(zip(labels, svals),
+                                              key=lambda x:
+                                              int(GetFragTuple(x[0])[1]))]
+        axs.plot(sorted_values, marker='o', color='black', linestyle='--')
+        if colors:
+            for thresh, col in sorted(colors.items()):
+                axs.plot(masked_less(sorted_values, thresh),
+                         color=col, marker='o', markersize=12, linestyle='--',
+                         markeredgewidth='1.5', markeredgecolor='black')
