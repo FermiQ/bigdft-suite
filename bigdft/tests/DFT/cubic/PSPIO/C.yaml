@@ -1,0 +1,17 @@
+psppar.C:
+  Source: carbon.recpot
+  Pseudopotential type: PSPIO
+  Pseudopotential XC: 1
+  Atomic number: 6
+posinp:
+  positions:
+  - {C: [0, 0, 0]}
+dft:
+  hgrids: 0.4
+occupation:
+  K point 1:
+    Orbital 2: 2/3
+    Orbital 3: 2/3
+    Orbital 4: 2/3
+perf:
+  psp_onfly: False

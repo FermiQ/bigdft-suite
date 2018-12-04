@@ -42,7 +42,7 @@
     </branch>
   </autotools>
 
-  <autotools id="v_sim-dev" autogen-sh="autoreconf" skip-autogen="true">
+  <autotools id="v_sim-dev" autogen-sh="autogen.sh+configure" skip-autogen="true">
     <!-- <branch repo="local-optional" module="v_sim-dev.tar.bz2" -->
     <branch repo="v_sim-dev" module="v_sim"
             version="3.99" checkoutdir="v_sim-dev">
@@ -78,8 +78,10 @@
   </cmake>
 
   <autotools id="pspio" autogen-sh="autogen.sh+configure" autogenargs="--enable-fortran">
-    <branch repo="esl" module="pspio" version="0.2.0"/>
+    <!--<branch repo="esl" module="pspio" version="0.2.0"/>-->
+    <branch repo="esl" module="pspio" revision="recpot"/>
   </autotools>
+
   <distutils id="PyYAML">
     <!--<branch repo="libyaml" module="PyYAML-3.10.tar.gz" version="3.10"/>-->
     <!--<branch repo="local" module="PyYAML-3.11.tar.gz" version="3.11" checkoutdir="PyYAML"/>-->
