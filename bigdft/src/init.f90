@@ -221,7 +221,7 @@ END SUBROUTINE wfd_from_grids
 
 
 !> Determine localization region for all projectors, but do not yet fill the descriptor arrays
-subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,orbs,&
+subroutine createProjectorsArrays(lr,rxyz,at,orbs,&
      cpmult,fpmult,method,dry_run,nl,&
      init_projectors_completely)
   use module_base
@@ -239,7 +239,6 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,orbs,&
   use pspiof_m, only: pspiof_pspdata_get_projector, pspiof_pspdata_get_n_projectors
   use yaml_output, only: yaml_warning
   implicit none
-  integer,intent(in) :: iproc,nproc
   real(gp), intent(in) :: cpmult,fpmult
   type(f_enumerator), intent(in) :: method
   type(locreg_descriptors),intent(in) :: lr
@@ -339,7 +338,7 @@ subroutine createProjectorsArrays(iproc,nproc,lr,rxyz,at,orbs,&
 
   ! Parallelize over the atoms
   logrid = f_malloc(lr%mesh_coarse%ndims,id='logrid')
-  call distribute_on_tasks(at%astruct%nat, iproc, nproc, natp, isat)
+  call distribute_on_tasks(at%astruct%nat, bigdft_mpi%iproc, bigdft_mpi%nproc, natp, isat)
   do iat = isat + 1, isat + natp
      plr = locreg_for_atomic_projector(nl%pbasis(iat), &
           & lr%mesh_coarse, .not. dry_run, logrid)
@@ -2798,7 +2797,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
         end do
 
         call orbital_basis_associate(ob,orbs=KSwfn%orbs,Lzd=KSwfn%Lzd,id='input_wf')
-        call createProjectorsArrays(iproc,nproc,KSwfn%Lzd%Glr,rxyz,atoms,ob%orbs,&
+        call createProjectorsArrays(KSwfn%Lzd%Glr,rxyz,atoms,ob%orbs,&
              in%frmult,in%frmult,in%projection,.false.,nl,.true.)
         call orbital_basis_release(ob)
         if (iproc == 0) call print_nlpsp(nl)
