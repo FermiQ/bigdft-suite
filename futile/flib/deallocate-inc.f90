@@ -28,9 +28,14 @@
         call bindfree(iadd)
         ierror=0
      else !case default
-        !fallback to traditional deallocation
-        deallocate(array,stat=ierror) !temporary
-     end if !select
+        if ("alignment" .in. info) then
+           call bindfree(iadd)
+           ierror=0
+        else
+           !fallback to traditional deallocation
+           deallocate(array,stat=ierror) !temporary
+        end if
+     !end select
      call dict_free(info)
   else
      !fortran deallocation (here we should modify the calls if the array has been allocated by c)
