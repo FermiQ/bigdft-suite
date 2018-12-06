@@ -2163,9 +2163,10 @@ subroutine calc_moments(iproc,nproc,norb,norb_par,nvctr,nspinor,psi,mom_vec)
          do jproc=1,nproc-1
             norb_displ(jproc)=norb_displ(jproc-1)+norb_par(jproc-1)
          end do
+         norb_displ=4*norb_displ
 
          call MPI_GATHERV(mom_vec(1,1,2),4*norb_par(iproc),mpidtypw,&
-            &   mom_vec(1,1,1),4*norb_par,4*norb_displ,mpidtypw,&
+            &   mom_vec(1,1,1),4*norb_par,norb_displ,mpidtypw,&
          0,bigdft_mpi%mpi_comm,ierr)
 
          call f_free(norb_displ)

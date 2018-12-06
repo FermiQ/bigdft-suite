@@ -29,7 +29,7 @@ AC_FC_SRCEXT(f90)
 
 AX_FC_DEFS()
 
-dnl Set if the module name are capitalized or not with the FC compiler. 
+dnl Set if the module name are capitalized or not with the FC compiler.
 AX_FC_MOD()
 AM_CONDITIONAL(CAPITALIZE, test "$ax_fc_mod_capitalize" = "yes")
 AC_SUBST(MODULE_EXT, $ax_fc_mod_ext)
@@ -52,7 +52,7 @@ if test "$ar" = ":" ; then
 fi
 
 AX_MPI()
-
+AX_DYNAMIC_LIBRARIES([], [f_lib_initialize], [$LIB_FUTILE_LIBS])
 dnl Test the libPAW library.
 ac_internal_libpaw="yes"
 AC_ARG_WITH(internal-libpaw, AS_HELP_STRING([--with-internal-libpaw],
