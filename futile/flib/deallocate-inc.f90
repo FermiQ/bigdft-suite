@@ -26,8 +26,13 @@
         call bindfree(iadd)
         ierror=0
      case default
-        !fallback to traditional deallocation
-        deallocate(array,stat=ierror) !temporary
+        if ("alignment" .in. info) then
+           call bindfree(iadd)
+           ierror=0
+        else
+           !fallback to traditional deallocation
+           deallocate(array,stat=ierror) !temporary
+        end if
      end select
      call dict_free(info)
   else
