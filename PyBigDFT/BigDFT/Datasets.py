@@ -6,21 +6,26 @@ with the code, and to deal with parallel executions of multiple instances of the
 
 """
 
+from Calculators import Runner
+
 class Dataset(Runner):
     """A set of calculations.
 
     Such class contains the various instances of a set of calculations with the code.
     The different calculations are labelled by parameter values and information that might then be
     retrieved for inspection and plotting.
+
+    Args:
+      label (str): The label of the dataset. It will be needed to identify the instance for example
+          in plot titles or in the running directory.
+      run_dir (str): path of the directory where the runs will be performed.
+      input (dict): Inputfile to be used for the runs as default,
+             can be overridden by the specific inputs of the run
+
     """
     def __init__(self,label='BigDFT dataset',run_dir='runs',input={}):
         """
         Set the dataset ready for appending new runs
-
-        Args:
-           label (str): The label of the dataset. It will be needed to identify it in plotting 
-           run_dir (str): path of the directory where the runs will be performed.
-           input (dict): Inputfile to be used for the runs, can be overridden by the inputs of the run
         """
         from copy import deepcopy
         from futile.Utils import make_dict
@@ -30,21 +35,28 @@ class Dataset(Runner):
            run separate instances of the calculators to be performed
         """
         self.calculators=[]
-        """ 
+        """
         Calculators which will be used by the run method, useful to gather the inputs in the case of a multiple sending.
         """
         self.results={}
         """ Set of the results of each of the runs
         """
+
+        self._post_processing_function=self._silent_callback
+
     def append_run(self,id,runner,**kwargs):
         """Add a run into the dataset.
-        
+
         Append to the list of runs to be performed the corresponding runner and the arguments which are associated to it.
-     
+
         Args:
           id (dict): the id of the run, useful to identify the run in the dataset. It has to be a dictionary as it may contain
              different keyword. For example a run might be classified as ``id = {'hgrid':0.35, 'crmult': 5}``.
           runner (Runner): the runner class to which the remaining keyword arguments will be passed at the input.
+
+        Todo:
+           include id in the runs spcification
+
         """
         from copy import deepcopy
         #get the number of this run
@@ -76,6 +88,48 @@ class Dataset(Runner):
                 inp=self.inputs[r]
                 self.results[r]=calc.run(**inp)
         return {}
-    
-            
 
+    def _silent_callback(self,**kwargs):
+        """
+        Default value of the dataset run method.
+        """
+        return self.results
+
+    def set_postprocessing_function(self,func):
+        """Set the callback of run.
+
+        Calls the function ``func`` after having performed the appended runs.
+
+        Args:
+           func (func): function that process the `inputs` `results` and returns the
+               value of the `run` method of the dataset.
+               The function is called as ``func(self.inputs,self.results,self.run_options)``.
+
+        """
+        self._post_processing_function=func
+
+    def post_processing(self,**kwargs):
+        """
+        Calls the Dataset function with the results of the runs as arguments
+        """
+        return self._post_processing_function(self.inputs,self.results,self.run_options)
+
+
+def combine_datasets(*args):
+    """
+    Define a new instance of the dataset class that should provide
+    as a result a list of the runs of the datasets
+    """
+    full=Dataset(label='combined_dataset')
+    #append the runs or each dataset
+    for dt in args:
+        for irun,runs in enumerate(dt.runs):
+            calc=dt.get_runner(irun)
+            id,dt.get_id(irun)
+            full.append_run(id,calc,**runs)
+
+    full.set_postprocessing_function(_combined_postprocessing_functions)
+
+
+def _combined_postprocessing_functions(runs,results,**kwargs):
+    pass

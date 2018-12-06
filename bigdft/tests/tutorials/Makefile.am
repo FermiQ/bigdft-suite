@@ -1,6 +1,6 @@
 # Give here the list of existing tests
 
-#SUBDIRS = Xabs/pawpatchgen  Xabs/scfpotgen   Xabs/spectra    
+#SUBDIRS = Xabs/pawpatchgen  Xabs/scfpotgen   Xabs/spectra
 
 EXTRA_TESTDIRS =
 SHORT_TESTDIRS =
@@ -12,7 +12,7 @@ else
 endif
 
 SHORT_TESTDIRS += H2O-slab \
-	CH4	
+	CH4
 
 LONG_TESTDIRS += $(SHORT_TESTDIRS) \
 	  CH3- \
@@ -59,7 +59,7 @@ bigdft_library += $(top_builddir)/src/modules/libbabel.so.@BIGDFT_MINOR_VERSION@
 if BUILD_DYNAMIC_LIBS
 bigdft_library += -Lmodules -lbabel
 else
-AM_LDFLAGS = @FC_RPATH@$(DESTDIR)$(dynlibdir)
+AM_LDFLAGS += @FC_RPATH@$(DESTDIR)$(dynlibdir)
 endif
 endif
 
@@ -75,7 +75,7 @@ dev-test/toy_model: $(abs_top_srcdir)/tests/tutorials/dev/toy_model.f90
 toy_model:
 	cd ..; $(MAKE) dev/toy_model
 dev-N2.out.post-out: dev-N2.out.out toy_model
-	rm -f input.perf 
+	rm -f input.perf
 	$(run_serial) ./toy_model > log-model.yaml
 dev.post-clean:
 	rm -f toy_model
@@ -97,6 +97,6 @@ dev.post-clean:
 	if test -n "$$name" ; then log=log-$$name.yaml ; else log=log.yaml ; fi ;\
 	echo $$log; \
 	python $(pythondir)/fldiff_yaml.py \
-		-r $< -d $$log -t $(abs_top_srcdir)/tests/tols-BigDFT.yaml --label=$$tols -o $@ 
+		-r $< -d $$log -t $(abs_top_srcdir)/tests/tols-BigDFT.yaml --label=$$tols -o $@
 
 include $(srcdir)/../check.mk

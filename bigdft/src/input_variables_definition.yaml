@@ -529,7 +529,15 @@
     DESCRIPTION: |
       Define the basename of all the files associated to the output of the wavefunctions.
       Can be reused in the inputpsiid input parameter.
-
+  coupling_matrix:
+    COMMENT: kind of the coupling matrix which have to be plotted
+    DESCRIPTION: |
+       Useful to separate the various contributions of the couling matrix. May be plotted exclusively, separately or in complete form.
+    default: complete
+    EXCLUSIVE:
+       complete: dump the total coupling matrix
+       rpa: only dump the RPA term
+       fxc: only dump the fxc term
   #potentials:
   #  format: CUBE
   #  frequence: iteration, SCF
@@ -2097,7 +2105,7 @@
  ##     DESCRIPTION: Number of tasks used for the symbolic factorization within PEXSI. Too large values can apparently decrease the performance
  ##     default: 16
  ##     RANGE: [1,10000]
---- 
+---
 #here starts the document of possible profiles, that have to be evoked with the 'import' keyword
 linear_accurate:
   COMMENT: Appropriate input parameters for a high accuracy linear scaling calculation
@@ -2284,7 +2292,7 @@ linear_laura:
    rpnrm_cv: 1.0e-10 #5.0e-11 #1.0e-10
    output_wf: 1 #21 #22
    output_mat: 11
-   #output_fragments: 1 
+   #output_fragments: 1
    calculate_onsite_overlap: Yes
    charge_multipoles: 11
    extra_states: 0
@@ -2308,7 +2316,7 @@ linear_laura:
    alphamix: 0.1 #5 #2 #5
    linear_method: FOE
    #eval_range_foe: [-1.0, 1.0]
-   #fscale_foe: 5.0E-002 
+   #fscale_foe: 5.0E-002
    #gnrm_cv_coeff: 1.0E-003
    rpnrm_cv: 1.0E-010
    #alphamix: 1.0
@@ -2317,14 +2325,14 @@ linear_laura:
  #    nbasis: 4
  #    ao_confinement: -1.0
  #    confinement: -1.0
- #    rloc: 7.0 #6.9 
+ #    rloc: 7.0 #6.9
  #    rloc_kernel: 10.0 #14.0 #10.0
  #    rloc_kernel_foe: 10.0 #14.0 #10.0
  #  H:
  #    nbasis: 1
  #    ao_confinement: -1.0
  #    confinement: -1.0
- #    rloc: 7.0 #6.9 
+ #    rloc: 7.0 #6.9
  #    rloc_kernel: 10.0 #14.0 #10.0
  #    rloc_kernel_foe: 10.0 #14.0 #10.0
 
