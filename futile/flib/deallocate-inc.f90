@@ -13,7 +13,7 @@
   ilsize=product(int(shape(array),kind=8))
   !retrieve the address of the first element if the size is not zero
   !iadd=int(0,kind=8)
-  !if (ilsize /= int(0,kind=8)) 
+  !if (ilsize /= int(0,kind=8))
   iadd=loc_arr(array)!call getlongaddress(array,iadd)
 
   call f_purge_database(ilsize,kind(array),iadd,info=info)
@@ -35,6 +35,7 @@
            !fallback to traditional deallocation
            deallocate(array,stat=ierror) !temporary
         end if
+    end if
      !end select
      call dict_free(info)
   else
@@ -52,5 +53,3 @@
 !!$  end if
 
   call f_timer_resume()!TCAT_ARRAY_ALLOCATIONS
-  
-  
