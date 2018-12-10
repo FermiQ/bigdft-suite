@@ -1540,15 +1540,15 @@ subroutine input_memory_linear(iproc, nproc, at, KSwfn, tmb, tmb_old, denspot, i
            !     at,rxyz,denspot%dpbox,1,denspot%rhov)
            ! debug
         else
-           stop 'Error invalid method for calculating CDFT weight matrix'
+            stop 'Error invalid method for calculating CDFT weight matrix'
         end if
      end if
 
      call timing(iproc,'constraineddft','OF')
 
-      call vcopy(max(denspot%dpbox%mesh%ndims(1)*denspot%dpbox%mesh%ndims(2)*denspot%dpbox%n3p,1)*input%nspin, &
+     call vcopy(max(denspot%dpbox%mesh%ndims(1)*denspot%dpbox%mesh%ndims(2)*denspot%dpbox%n3p,1)*input%nspin, &
            denspot%rhov(1), 1, denspot0(1), 1)
-      if (input%lin%scf_mode/=LINEAR_MIXPOT_SIMPLE) then
+     if (input%lin%scf_mode/=LINEAR_MIXPOT_SIMPLE) then
          ! set the initial charge density
          call mix_rhopot(iproc,nproc,denspot%mix%nfft*denspot%mix%nspden,0.d0,denspot%mix,&
               denspot%rhov,1,denspot%dpbox%mesh%ndims(1),denspot%dpbox%mesh%ndims(2),denspot%dpbox%mesh%ndims(3),&
@@ -1556,6 +1556,7 @@ subroutine input_memory_linear(iproc, nproc, at, KSwfn, tmb, tmb_old, denspot, i
               pnrm,denspot%dpbox%nscatterarr)
       end if
       call updatePotential(input%nspin,denspot,energs)!%eh,energs%exc,energs%evxc)
+
       if (input%lin%scf_mode==LINEAR_MIXPOT_SIMPLE) then
          ! set the initial potential
          call mix_rhopot(iproc,nproc,denspot%mix%nfft*denspot%mix%nspden,0.d0,denspot%mix,&
@@ -1778,6 +1779,7 @@ subroutine input_wf_disk_pw(filename, iproc, nproc, at, rxyz, GPU, Lzd, orbs, ps
 
 END SUBROUTINE input_wf_disk_pw
 
+
 subroutine input_wf_disk_paw(iproc, nproc, at, GPU, Lzd, orbs, psig, denspot, nlpsp, paw)
   use module_defs, only: gp, wp
   use module_types, only: orbitals_data, paw_objects, DFT_local_fields, &
@@ -1820,7 +1822,6 @@ subroutine input_wf_disk_paw(iproc, nproc, at, GPU, Lzd, orbs, psig, denspot, nl
   ! Create KS potential.
   energs = energy_terms_null()
   call updatePotential(orbs%nspin, denspot, energs)
-  call denspot_set_rhov_status(denspot, KS_POTENTIAL, 0, iproc, nproc)
 
   ! Compute |s|psi>.
   call paw_compute_dij(paw, at, denspot, denspot%V_XC(1,1,1,1), energs%epaw, energs%epawdc, compch_sph)
@@ -2096,17 +2097,8 @@ subroutine input_wf_diag(iproc,nproc,at,denspot,&
         end do
      end if
      !Now update the potential
-
      call updatePotential(nspin,denspot,energs)!%eh,energs%exc,energs%evxc)
-  else
-     !Put to zero the density if no Hartree
-     irho_add = 1
-     do ispin=1,input%nspin
-        !call vcopy(Lzde%Glr%d%n1i*Lzde%Glr%d%n2i*denspot%dpbox%nscatterarr(iproc,2),&
-        !     denspot%V_ext,1,denspot%rhov(irho_add),1)
-        call f_memcpy(n=size(denspot%V_ext),src=denspot%V_ext(1,1,1,1),dest=denspot%rhov(irho_add))
-        irho_add=irho_add+Lzde%Glr%d%n1i*Lzde%Glr%d%n2i*denspot%dpbox%nscatterarr(iproc,2)
-     end do
+
   end if
 
   orbse%nspin=nspin_ig
@@ -2418,6 +2410,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
        & read_gaussian_information, readmywaves_linear_new, &
        & restart_from_gaussians, sumrho, write_orbital_density
   use get_kernel, only: get_coeff
+  use module_xc, only: XC_NO_HARTREE
   use module_fragments
   use constrained_dft
   use dynamic_memory
@@ -2747,6 +2740,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
      call input_wf_empty(iproc, nproc,KSwfn%psi, KSwfn%hpsi, KSwfn%psit, KSwfn%orbs, &
           in%band_structure_filename, in%nspin, atoms, KSwfn%Lzd%Glr%d, denspot)
 
+
   case(INPUT_PSI_RANDOM)
      if (iproc == 0) then
         !write( *,'(1x,a)')&
@@ -2757,13 +2751,6 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
      end if
 
      call input_wf_random(KSwfn%psi, KSwfn%orbs)
-     !now the meaning is KS potential
-     do ispin=1,denspot%dpbox%nrhodim
-        call f_memcpy(n=denspot%dpbox%ndimpot,&
-             src=denspot%V_ext(1,1,1,1),&
-             dest=denspot%rhov(1+(ispin-1)*denspot%dpbox%ndimpot))
-     end do
-     call denspot_set_rhov_status(denspot, KS_POTENTIAL, 0, iproc, nproc)
 
 
   case(INPUT_PSI_CP2K)
@@ -2777,6 +2764,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
 
      call input_wf_cp2k(iproc, nproc, in%nspin, atoms, rxyz, KSwfn%Lzd, &
           KSwfn%psi,KSwfn%orbs)
+
 
   case(INPUT_PSI_LCAO,INPUT_PSI_LCAO_GAUSS)
      ! PAW case, generate nlpsp on the fly with psppar data instead of paw data.
@@ -2832,6 +2820,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
         atoms%psppar = psppar
         call f_free(psppar)
      end if
+
 
   case(INPUT_PSI_MEMORY_WVL)
      !restart from previously calculated Wavefunctions, in memory
@@ -2899,6 +2888,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
      if (in%scf .hasattr. 'MIXING') &
            call evaltoocc(iproc,nproc,.false.,in%Tel,KSwfn%orbs,in%occopt)
 
+
   case(INPUT_PSI_MEMORY_LINEAR)
      if (iproc == 0) then
         call yaml_comment('Support functions Restart',hfill='-')
@@ -2907,6 +2897,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
      end if
       call input_memory_linear(iproc, nproc, atoms, KSwfn, tmb, tmb_old, denspot, in, &
            rxyz_old, rxyz, denspot0, energs, nlpsp, GPU, ref_frags, cdft)
+
 
   case(INPUT_PSI_DISK_WVL)
      if (iproc == 0) then
@@ -2923,6 +2914,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
           & KSwfn%hpsi = f_malloc_ptr(max(KSwfn%orbs%npsidim_comp, &
           & KSwfn%orbs%npsidim_orbs),id='KSwfn%hpsi')
 
+
   case(INPUT_PSI_DISK_PW)
      if (iproc == 0) then
         !write( *,'(1x,a)')&
@@ -2936,6 +2928,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
      KSwfn%hpsi = f_malloc_ptr(max(KSwfn%orbs%npsidim_comp, &
           & KSwfn%orbs%npsidim_orbs),id='KSwfn%hpsi')
 
+
   case(INPUT_PSI_MEMORY_GAUSS)
      !restart from previously calculated gaussian coefficients
      if (iproc == 0) then
@@ -2948,6 +2941,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
      call restart_from_gaussians(iproc,nproc,KSwfn%orbs,KSwfn%Lzd,&
           KSwfn%Lzd%hgrids(1),KSwfn%Lzd%hgrids(2),KSwfn%Lzd%hgrids(3),&
           KSwfn%psi,KSwfn%gbd,KSwfn%gaucoeffs)
+
 
   case(INPUT_PSI_DISK_GAUSS)
      !reading wavefunctions from gaussian file
@@ -2977,6 +2971,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
           KSwfn%Lzd%hgrids(1),KSwfn%Lzd%hgrids(2),KSwfn%Lzd%hgrids(3),&
           KSwfn%psi,KSwfn%gbd,KSwfn%gaucoeffs)
 
+
   case (INPUT_PSI_LINEAR_AO)
      if (iproc == 0) then
         !write(*,'(1x,a)')&
@@ -2997,6 +2992,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
      !!    call f_free_ptr(tmb%psit_c)
      !!    call f_free_ptr(tmb%psit_f)
      !!end if
+
 
   case (INPUT_PSI_DISK_LINEAR)
      if (iproc == 0) then
@@ -3100,7 +3096,6 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
      !         end do
      !end do
 
-
      !currently equivalent to diagonal kernel - all these options need tidying/stabilizing
      !atomic weight option needs figuring out - put in with kernel? just use coeffs for coeffs (and random? -> switch this to kernel too, just need to purify)
      !ADD a check somewhere that diag and kernel only work for FOE
@@ -3159,7 +3154,6 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
      end if
 
      call f_free_ptr(frag_env_mapping)
-
 
      ! hack occup to make density neutral with full occupations, then unhack after extra diagonalization (using nstates max)
      ! use nstates_max - tmb%orbs%occup set in fragment_coeffs_to_kernel
@@ -3330,6 +3324,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
      !!call deallocateCommunicationbufferSumrho(tmb%comsr, subname)
 
      call updatePotential(in%nspin,denspot,energs)!%eh,energs%exc,energs%evxc)
+
      if (in%lin%scf_mode==LINEAR_MIXPOT_SIMPLE) then
         ! set the initial potential
         call mix_rhopot(iproc,nproc,denspot%mix%nfft*denspot%mix%nspden,0.d0,denspot%mix,&
@@ -3430,6 +3425,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
      !call f_free_ptr(tmb%linmat%kernel_%matrix)
      !! end debug
 
+
   case default
      !call input_psi_help()
      call f_err_throw('Illegal value of inputPsiId (' // trim(toa(in%inputPsiId)) // ')', &
@@ -3448,6 +3444,17 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
      denspot%rho_work = f_malloc_ptr(denspot%dpbox%ndimpot*denspot%dpbox%nrhodim,id='denspot%rho_work')
      call vcopy(denspot%dpbox%ndimpot*denspot%dpbox%nrhodim,&
           denspot%rhov(1),1,denspot%rho_work(1),1)
+
+  else if (in%ixc == XC_NO_HARTREE) then
+     !KS potential == V_ext if no Hartree (no scf after)
+     do ispin=1,denspot%dpbox%nrhodim
+        call f_memcpy(n=denspot%dpbox%ndimpot,&
+             src=denspot%V_ext(1,1,1,1),&
+             dest=denspot%rhov(1+(ispin-1)*denspot%dpbox%ndimpot))
+     end do
+     !now the meaning is KS potential
+     call denspot_set_rhov_status(denspot, KS_POTENTIAL, 0, iproc, nproc)
+
   end if
 
   ! Additional steps for PAW in case of HGH input.
@@ -3465,6 +3472,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
      call first_orthon(iproc, nproc, KSwfn%orbs, KSwfn%Lzd, KSwfn%comms, &
           & KSwfn%psi, KSwfn%hpsi, KSwfn%psit, KSwfn%orthpar, KSwfn%paw)
   end if
+
   !all the input format need first_orthon except the LCAO input_guess
   ! WARNING: at the momemt the linear scaling version does not need first_orthon.
   ! hpsi and psit have been allocated during the LCAO input guess.
@@ -3512,7 +3520,7 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
      end if
   end if
 
-   call f_release_routine()
+  call f_release_routine()
 
 END SUBROUTINE input_wf
 
