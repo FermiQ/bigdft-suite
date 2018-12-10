@@ -1,11 +1,11 @@
-!> @file 
+!> @file
 !! Handle operation about density (rho) and local potential
 !! @author
-!!   Copyright (C) 2011-2015 BigDFT group 
+!!   Copyright (C) 2011-2015 BigDFT group
 !!   This file is distributed under the terms of the
 !!   GNU General Public License, see ~/COPYING file
 !!   or http://www.gnu.org/copyleft/gpl.txt .
-!!   For the list of contributors, see ~/AUTHORS 
+!!   For the list of contributors, see ~/AUTHORS
 
 
 !> Handle operation about density (rho) and local potential
@@ -25,45 +25,51 @@ module rhopotential
 
   contains
 
-    !> Calculates the potential and energy
+    !> Calculates the KS potential and energy
     subroutine updatePotential(nspin,denspot,energs)!ehart,eexcu,vexcu)
-    
+
     use module_base
     use module_types
     use module_interfaces, only: XC_potential
+    use public_enums, only: ELECTRONIC_DENSITY, KS_POTENTIAL
     use Poisson_Solver, except_dp => dp, except_gp => gp
     use yaml_output
     use box
     use PSbox
     implicit none
-    
+
     ! Calling arguments
     integer, intent(in) :: nspin                     !< Spin number
-    type(DFT_local_fields), intent(inout) :: denspot !< in=density, out=pot
+    type(DFT_local_fields), intent(inout) :: denspot !< in=density, out=KS potential
     type(energy_terms), intent(inout) :: energs
     !real(kind=8), intent(out) :: ehart, eexcu, vexcu !> Energies (Hartree, XC and XC potential energy)
-    
+
     ! Local variables
     character(len=*), parameter :: subname='updatePotential'
     logical :: nullifyVXC
     real(gp) :: ehart_ps
     real(dp), dimension(6) :: xcstr
-    
+
     call f_routine(id='updatePotential')
-    
+
     nullifyVXC=.false.
-    
+
+    ! rhov should be the electronic density
+    if (denspot%rhov_is /= ELECTRONIC_DENSITY) &
+         call f_err_throw('updatePotential: ELECTRONIC_DENSITY not available, control the operations on rhov',&
+         err_name='BIGDFT_RUNTIME_ERROR')
+
     if(nspin==4) then
-       !this wrapper can be inserted inside the poisson solver 
+       !this wrapper can be inserted inside the poisson solver
        call PSolverNC(cell_geocode(denspot%dpbox%mesh),'D',denspot%pkernel%mpi_env%iproc,denspot%pkernel%mpi_env%nproc,&
             denspot%dpbox%mesh%ndims(1),denspot%dpbox%mesh%ndims(2),&
             denspot%dpbox%mesh%ndims(3),&
             denspot%dpbox%n3d,denspot%xc,&
             denspot%dpbox%mesh%hgrids,&
             denspot%rhov,denspot%pkernel%kernel,denspot%V_ext,energs%eh,energs%exc,energs%evxc,0.d0,.true.,4)
-    
+
     else
-       if (.not. associated(denspot%V_XC)) then   
+       if (.not. associated(denspot%V_XC)) then
           !Allocate XC potential
           if (denspot%dpbox%n3p >0) then
              denspot%V_XC = f_malloc_ptr((/ denspot%dpbox%mesh%ndims(1),&
@@ -75,7 +81,7 @@ module rhopotential
           end if
           nullifyVXC=.true.
        end if
-    
+
        call XC_potential(cell_geocode(denspot%dpbox%mesh),'D',denspot%pkernel%mpi_env%iproc,denspot%pkernel%mpi_env%nproc,&
             denspot%pkernel%mpi_env%mpi_comm,&
             denspot%dpbox%mesh%ndims(1),denspot%dpbox%mesh%ndims(2),denspot%dpbox%mesh%ndims(3),denspot%xc,&
@@ -92,7 +98,7 @@ module rhopotential
           energs%eelec=0.0_gp
           energs%eh=ehart_ps
        end if
-       
+
        !sum the two potentials in rhopot array
        !fill the other part, for spin, polarised
        if (nspin == 2) then
@@ -104,13 +110,16 @@ module rhopotential
        !denspot%dpbox%ndims(1)*denspot%dpbox%ndims(2)*denspot%dpbox%n3p
        call axpy(denspot%dpbox%ndimpot*nspin,1.0_dp,denspot%V_XC(1,1,1,1),1,&
             denspot%rhov(1),1)
-       
+
        if (nullifyVXC) call f_free_ptr(denspot%V_XC)
 
     end if
-    
+
+    !now the meaning is KS potential
+    call denspot_set_rhov_status(denspot, KS_POTENTIAL, 0, denspot%pkernel%mpi_env%iproc,denspot%pkernel%mpi_env%nproc)
+
     call f_release_routine()
-    
+
     END SUBROUTINE updatePotential
 
 
@@ -135,7 +144,7 @@ module rhopotential
        type(local_zone_descriptors),intent(in) :: Lzd
        type(denspot_distribution), intent(in) :: dpbox
        type(xc_info), intent(in) :: xc
-       !integer, dimension(0:nproc-1,2), intent(in) :: ngatherarr 
+       !integer, dimension(0:nproc-1,2), intent(in) :: ngatherarr
        real(wp), dimension(max(dpbox%ndimrhopot,orbs%nspin)), intent(in), target :: potential !< Distributed potential. Might contain the density for the SIC treatments
        real(wp), dimension(:), pointer :: pot
        !type(p2pCommsGatherPot),intent(inout), optional:: comgp
@@ -150,14 +159,14 @@ module rhopotential
        real(wp), dimension(:), pointer :: pot1
        integer :: i1shift, i2shift, i3shift
        !integer :: i
-       
+
        call timing(iproc,'Pot_commun    ','ON')
        call f_routine(id='full_local_potential')
-    
+
        odp = (xc_exctXfac(xc) /= 0.0_gp .or. (dpbox%i3rho_add /= 0 .and. orbs%norbp > 0))
-    
+
        !!write(*,'(a,100i4)') 'in full_local_potential: orbs%inwhichlocreg',orbs%inwhichlocreg
-    
+
        !############################################################################
        ! Build the potential on the whole simulation box
        ! NOTE: in the linear scaling case this should be done for a given localisation
@@ -165,7 +174,7 @@ module rhopotential
        ! WARNING : orbs%nspin and nspin are not the same !! Check if orbs%nspin should be replaced everywhere
        !#############################################################################
        if (iflag<2) then
-    
+
           !determine the dimension of the potential array
           if (odp) then
              if (xc_exctXfac(xc) /= 0.0_gp) then
@@ -181,12 +190,12 @@ module rhopotential
     !      write(*,*) 'dpbox%ndimgrid, orbs%norbp, npot, odp', dpbox%ndimgrid, orbs%norbp, npot, odp
     !      write(*,*)'nspin',orbs%nspin,dpbox%i3rho_add,dpbox%ndimpot,dpbox%ndimrhopot,sum(potential)
     !      write(*,*)'iproc',iproc,'ngatherarr',dpbox%ngatherarr(:,1),dpbox%ngatherarr(:,2)
-    
+
           !build the potential on the whole simulation box
           !in the linear scaling case this should be done for a given localisation region
           !this routine should then be modified or integrated in HamiltonianApplication
           if (dpbox%mpi_env%nproc > 1) then
-    
+
              pot1 = f_malloc_ptr(npot,id='pot1')
              ispot=1
              ispotential=1
@@ -226,9 +235,9 @@ module rhopotential
            !!call wait_p2p_communication(iproc, nproc, comgp)
            call synchronize_onesided_communication(iproc, nproc, comgp)
        end if
-    
-       call timing(iproc,'Pot_commun    ','OF') 
-    
+
+       call timing(iproc,'Pot_commun    ','OF')
+
        !########################################################################
        ! Determine the dimension of the potential array and orbs%ispot
        !########################################################################
@@ -240,9 +249,9 @@ module rhopotential
     !!$   end if
     !!$   allocate(orbs%ispot(orbs%norbp),stat=i_stat)
     !!$   call memocc(i_stat,orbs%ispot,'orbs%ispot',subname)
-    
+
        call timing(iproc,'Pot_after_comm','ON')
-       
+
        if(Lzd%nlr > 1 .or. iflag==2) then !nlr>1 not enough to activate linear scaling (linear scaling with only one locreg is possible...)
           ilrtable = f_malloc(orbs%norbp,id='ilrtable')
           !call f_zero(orbs%norbp*2,ilrtable(1,1))
@@ -255,7 +264,7 @@ module rhopotential
                  ilr = orbs%inwhichlocreg(iorb+orbs%isorb)
                  !spin state of the orbital
                  if (orbs%spinsgn(orbs%isorb+iorb) > 0.0_gp) then
-                    iispin = 1       
+                    iispin = 1
                  else
                     iispin=2
                  end if
@@ -279,17 +288,17 @@ module rhopotential
           end do
           !number of inequivalent potential regions
           nilr = ii
-       else 
+       else
           ilrtable = f_malloc(1,id='ilrtable')
           nilr = 1
           ilrtable=1
        end if
-    
+
        !!write(*,'(a,100i4)') 'in full_local_potential: ilrtable', ilrtable
-    
-    
-    !!$   !calculate the dimension of the potential in the gathered form 
-    !!$   !this part has been deplaced in check_linear_and_create_Lzd routine 
+
+
+    !!$   !calculate the dimension of the potential in the gathered form
+    !!$   !this part has been deplaced in check_linear_and_create_Lzd routine
     !!$   lzd%ndimpotisf=0
     !!$   do iilr=1,nilr
     !!$      ilr=ilrtable(iilr,1)
@@ -310,15 +319,15 @@ module rhopotential
     !!$   !part which refers to exact exchange
     !!$   if (exctX) then
     !!$      lzd%ndimpotisf = lzd%ndimpotisf + &
-    !!$           max(max(ndimgrid*orbs%norbp,ngatherarr(0,1)*orbs%norb),1) 
+    !!$           max(max(ndimgrid*orbs%norbp,ngatherarr(0,1)*orbs%norb),1)
     !!$   end if
-    
+
        !#################################################################################################################################################
        ! Depending on the scheme, cut out the local pieces of the potential
        !#################################################################################################################################################
        if(iflag==0) then
           !       allocate(pot(lzd%ndimpotisf),stat=i_stat)
-          !       call vcopy(lzd%ndimpotisf,pot,1,pot,1) 
+          !       call vcopy(lzd%ndimpotisf,pot,1,pot,1)
           ! This is due to the dynamic memory managment. The original version was: pot=>pot1
           !pot = f_malloc_ptr(npot,id='pot')
           !pot=pot1
@@ -337,10 +346,10 @@ module rhopotential
        else
           if(.not.associated(pot)) then !otherwise this has been done already... Should be improved.
              !pot = f_malloc_ptr(lzd%ndimpotisf,id='pot')
-    
+
 
              size_lpot_max = 0
-    
+
              !!ist=1
              do iorb=1,nilr
                 ilr = ilrtable(iorb)
@@ -356,7 +365,7 @@ module rhopotential
 
                 size_lpot_max = max(size_lpot_max,size_lpot)
 
-                
+
                 !!if (orbs%spinsgn(iiorb)>0.d0) then
                 !!    ispin=1
                 !!else
@@ -364,15 +373,15 @@ module rhopotential
                 !!end if
 
                 !!call extract_potential(ispin, ilr, size_lpot, lzd, pot(ist:), comgp)
-    
+
                 !!ist = ist + size_lpot
              end do
              pot = f_malloc_ptr(size_lpot_max,id='pot')
           end if
        end if
-    
+
        call f_free(ilrtable)
-    
+
        ! Deallocate pot.
        if (iflag<2 .and. iflag>0) then
           if (dpbox%mpi_env%nproc > 1) then
@@ -385,14 +394,14 @@ module rhopotential
              end if
           end if
        end if
-    
+
        call f_release_routine()
        call timing(iproc,'Pot_after_comm','OF')
-    
+
        !!call mpi_finalize(ierr)
        !!stop
-    
-    
+
+
     END SUBROUTINE full_local_potential
 
 
@@ -407,7 +416,7 @@ module rhopotential
       use sparsematrix_base, only: sparse_matrix, matrices
       use module_types, only: linmat_auxiliary, comms_linear
       implicit none
-    
+
       ! Calling arguments
       integer,intent(in) :: iproc, nproc, ndimrho
       real(kind=8),intent(in) :: hx, hy, hz
@@ -418,7 +427,7 @@ module rhopotential
       real(kind=8),dimension(ndimrho),intent(out) :: rho
       logical,intent(out) :: rho_negative
       logical,intent(in),optional :: print_results
-    
+
       ! Local variables
       integer :: ipt, ii, i0, iiorb, jjorb, iorb, jorb, i, j, ierr, ind, ispin, ishift, ishift_mat, iorb_shift, ia, ib
       real(8) :: tt, total_charge, hxh, hyh, hzh, factor, tt1, tt2, rho_neg
@@ -429,14 +438,14 @@ module rhopotential
       logical :: print_local
       integer :: size_of_double, mpisource, istsource, istdest, nsize, jproc, ishift_dest, ishift_source
       !integer :: info
-    
+
       call f_routine('sumrho_for_TMBs')
 
       !!call get_modulo_array(denskern%nfvctr, aux%mat_ind_compr, moduloarray)
-    
+
       ! check whether all entries of the charge density are positive
       rho_negative=.false.
-    
+
       if (present(print_results)) then
           if (print_results) then
               print_local=.true.
@@ -446,18 +455,18 @@ module rhopotential
       else
           print_local=.true.
       end if
-    
-    
+
+
       rho_local = f_malloc(collcom_sr%nptsp_c*denskern%nspin,id='rho_local')
-    
+
       ! Define some constant factors.
       hxh=.5d0*hx
       hyh=.5d0*hy
       hzh=.5d0*hz
       factor=1.d0/(hxh*hyh*hzh)
-    
+
       call timing(iproc,'sumrho_TMB    ','ON')
-      
+
       ! Initialize rho. (not necessary for the moment)
       !if (xc_isgga()) then
       !    call f_zero(collcom_sr%nptsp_c, rho_local)
@@ -466,13 +475,13 @@ module rhopotential
        !   ! 10^-20 and not 10^-20/nproc.
       !    rho_local=1.d-20
       !end if
-    
-    
+
+
       !!if (print_local .and. iproc==0) write(*,'(a)', advance='no') 'Calculating charge density... '
-    
+
       total_charge=0.d0
       rho_neg=0.d0
-    
+
     !ispin=1
       !SM: check if the modulo operations take a lot of time. If so, try to use an
       !auxiliary array with shifted bounds in order to access smat%matrixindex_in_compressed_fortransposed
@@ -486,11 +495,11 @@ module rhopotential
           ishift_mat=(ispin-1)*denskern%nvctr
           !$omp parallel default(private) &
           !$omp shared(total_charge, collcom_sr, factor, denskern, aux, denskern_, rho_local, moduloarray) &
-          !$omp shared(rho_neg, ispin, ishift, ishift_mat, iorb_shift) 
+          !$omp shared(rho_neg, ispin, ishift, ishift_mat, iorb_shift)
           !$omp do schedule(static,200) reduction(+:total_charge, rho_neg)
           do ipt=1,collcom_sr%nptsp_c
               ii=collcom_sr%norb_per_gridpoint_c(ipt)
-        
+
               i0=collcom_sr%isptsp_c(ipt)+ishift
               tt=1.e-20_dp
               do i=1,ii
@@ -525,38 +534,38 @@ module rhopotential
           !$omp end do
           !$omp end parallel
       end do
-    
+
       !call f_free_ptr(moduloarray)
-    
+
       !if (print_local .and. iproc==0) write(*,'(a)') 'done.'
-    
+
       call timing(iproc,'sumrho_TMB    ','OF')
-    
-    
+
+
       call communicate_density_for_TMBs()
-    
-    
+
+
       !!if (nproc > 1) then
       !!   call fmpi_allreduce(irho, 1, FMPI_SUM, bigdft_mpi%mpi_comm)
       !!end if
-    
+
       if (rho_neg>0.d0) then
           rho_negative=.true.
       end if
-    
+
       call f_free(rho_local)
-    
+
       call f_release_routine()
-    
+
       contains
-    
+
         subroutine communicate_density_for_TMBs()
           implicit none
           real(kind=8),dimension(2) :: reducearr
-    
+
           call f_routine(id='communicate_density')
           call timing(iproc,'sumrho_allred','ON')
-        
+
           ! Communicate the density to meet the shape required by the Poisson solver.
           !!if (nproc>1) then
           !!    call mpi_alltoallv(rho_local, collcom_sr%nsendcounts_repartitionrho, collcom_sr%nsenddspls_repartitionrho, &
@@ -565,13 +574,13 @@ module rhopotential
           !!else
           !!    call vcopy(ndimrho, rho_local(1), 1, rho(1), 1)
           !!end if
-        
+
           !!!!do ierr=1,size(rho)
           !!!!    write(200+iproc,*) ierr, rho(ierr)
           !!!!end do
-        
-        
-        
+
+
+
           if (nproc>1) then
               !!call mpi_type_size(mpi_double_precision, size_of_double, ierr)
               !!call mpi_info_create(info, ierr)
@@ -587,12 +596,12 @@ module rhopotential
               isend_total = f_malloc0(0.to.nproc-1,id='isend_total')
               isend_total(iproc)=collcom_sr%nptsp_c
               call fmpi_allreduce(isend_total, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
-        
+
 
               !collcom_sr%window = mpiwindow(collcom_sr%nptsp_c*denskern%nspin, rho_local(1), bigdft_mpi%mpi_comm)
               call fmpi_win_create(collcom_sr%window, rho_local(1), collcom_sr%nptsp_c*denskern%nspin, bigdft_mpi%mpi_comm)
               call fmpi_win_fence(collcom_sr%window,FMPI_WIN_OPEN)
-        
+
               do ispin=1,denskern%nspin
                   !ishift_dest=(ispin-1)*sum(collcom_sr%commarr_repartitionrho(4,:)) !spin shift for the receive buffer
                   ishift_dest=(ispin-1)*ndimrho/denskern%nspin
@@ -616,18 +625,18 @@ module rhopotential
               !!call mpi_win_free(collcom_sr%window, ierr)
               !call mpi_fenceandfree(collcom_sr%window)
               call fmpi_win_shut(collcom_sr%window)
-        
+
               call f_free(isend_total)
           else
               call vcopy(ndimrho, rho_local(1), 1, rho(1), 1)
           end if
-        
+
           !do ierr=1,size(rho)
           !    write(300+iproc,*) ierr, rho(ierr)
           !end do
           !call mpi_finalize(ierr)
           !stop
-        
+
           if (nproc > 1) then
               reducearr(1) = total_charge
               reducearr(2) = rho_neg
@@ -636,15 +645,15 @@ module rhopotential
               rho_neg = reducearr(2)
              !call fmpi_allreduce(total_charge, 1, FMPI_SUM, bigdft_mpi%mpi_comm)
           end if
-        
+
           !!if(print_local .and. iproc==0) write(*,'(3x,a,es20.12)') 'Calculation finished. TOTAL CHARGE = ', total_charge*hxh*hyh*hzh
           if (iproc==0 .and. print_local) then
               call yaml_map('Total charge',total_charge*hxh*hyh*hzh,fmt='(es20.12)')
           end if
-          
+
           call timing(iproc,'sumrho_allred','OF')
           call f_release_routine()
-    
+
         end subroutine communicate_density_for_TMBs
 
 
@@ -665,12 +674,12 @@ module rhopotential
         !    end if
         !    ind = smat%matrixindex_in_compressed_fortransposed(jjorb,iiorb)
         !end function get_transposed_index
-    
+
       !!write(*,*) 'after deallocate'
       !!call mpi_finalize(ierr)
       !!stop
-    
-    
+
+
     end subroutine sumrho_for_TMBs
 
 
@@ -679,19 +688,19 @@ module rhopotential
       use yaml_output
       use dynamic_memory
       implicit none
-    
+
       ! Calling arguments
       integer, intent(in) :: iproc, nproc
       type(atoms_data), intent(in) :: at
       type(DFT_local_fields), intent(inout) :: denspot
-    
+
       call f_routine(id='corrections_for_negative_charge')
-    
+
       if (iproc==0) call yaml_warning('No increase of FOE cutoff')
       call clean_rho(iproc, nproc, denspot%dpbox%ndimrhopot, denspot%rhov)
-    
+
       call f_release_routine()
-    
+
     end subroutine corrections_for_negative_charge
 
 
@@ -700,21 +709,21 @@ module rhopotential
       use module_base
       use yaml_output
       implicit none
-    
+
       ! Calling arguments
       integer, intent(in) :: iproc, nproc, npt
       real(kind=8),dimension(npt), intent(inout) :: rho
-    
+
       ! Local variables
       integer :: ncorrection, ipt
       real(kind=8) :: charge_correction
-    
+
       if (iproc==0) then
           call yaml_newline()
           call yaml_map('Need to correct charge density',.true.)
           call yaml_warning('set to 1.d-20 instead of 0.d0')
       end if
-    
+
       ncorrection=0
       charge_correction=0.d0
       do ipt=1,npt
@@ -730,7 +739,7 @@ module rhopotential
                   ! only print first time this occurs
                   if (ncorrection==0) then
                       call yaml_warning('considerable negative rho, value: '//&
-                        &trim(yaml_toa(rho(ipt),fmt='(es12.4)'))) 
+                        &trim(yaml_toa(rho(ipt),fmt='(es12.4)')))
                   end if
                   charge_correction=charge_correction+rho(ipt)
                   !rho(ipt)=0.d0
@@ -739,12 +748,12 @@ module rhopotential
               end if
           end if
       end do
-    
+
       if (nproc > 1) then
           call fmpi_allreduce(ncorrection, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
           call fmpi_allreduce(charge_correction, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
       end if
-    
+
       if (iproc==0) then
           call yaml_newline()
           call yaml_map('number of corrected points',ncorrection)
@@ -752,7 +761,7 @@ module rhopotential
           call yaml_map('total charge correction',abs(charge_correction),fmt='(es14.5)')
           call yaml_newline()
       end if
-      
+
     end subroutine clean_rho
 
 
@@ -770,10 +779,10 @@ module rhopotential
 
       ! Local variables
       integer :: ishift, i1s, i1e, i2s, i2e, i3s, i3e, ni1, ni2, ni3, i1shift, i2shift, i3shift
-    
+
       ! spin shift of the potential in the receive buffer
       ishift=(ispin-1)*comgp%nrecvBuf
-    
+
       ! Extract the part of the potential which is needed for the current localization region.
       i3s=modulo(lzd%Llr(ilr)%nsi3-1,lzd%glr%d%n3i)+1-comgp%ise(5)+2 ! starting index of localized  potential with respect to total potential in comgp%recvBuf
       i3e=i3s+lzd%Llr(ilr)%d%n3i-1 ! ending index of localized potential with respect to total potential in comgp%recvBuf
@@ -798,7 +807,7 @@ module rhopotential
          write(*,'(a,i0,3x,i0)') 'ERROR: i3e-i3s+1 /= Lzd%Llr(ilr)%d%n3i',i3e-i3s+1, Lzd%Llr(ilr)%d%n3i
          stop
       end if
-    
+
       if (comgp%ise(6)<comgp%ise(5)) then
           i3shift=comgp%ise(6)
       else
@@ -833,7 +842,7 @@ module rhopotential
        !>on input, the components of the electronic density (either collinear or spinorial).
        !! on output, the first component is overwritten with the charge density that have to
        !! be passed to the Poisson Solver for the Hartree potential.
-       real(dp), dimension(dpbox%ndimrho,nspin), intent(inout) :: rho 
+       real(dp), dimension(dpbox%ndimrho,nspin), intent(inout) :: rho
        real(wp), dimension(:,:,:,:), pointer :: rhocore !associated if useful
        real(wp), dimension(:,:,:,:), pointer :: rhohat !associated if useful
        real(wp), dimension(dpbox%ndimpot,nspin), intent(out) :: potxc
@@ -890,7 +899,7 @@ module rhopotential
        !>on input, the components of the electronic density (either collinear or spinorial).
        !! on output, the first component is overwritten with the charge density that have to
        !! be passed to the Poisson Solver for the Hartree potential.
-       real(dp), dimension(dpbox%ndimrho,nspin), intent(inout) :: rho 
+       real(dp), dimension(dpbox%ndimrho,nspin), intent(inout) :: rho
        real(wp), dimension(:,:,:,:), pointer :: rhocore !associated if useful
        real(wp), dimension(:,:,:,:), pointer :: rhohat !associated if useful
        real(wp), dimension(dpbox%ndimpot,nspin), intent(out) :: potxc
@@ -975,7 +984,7 @@ module rhopotential
        !allocate the array of the second derivative of the XC energy if it is needed
        !Allocations of the exchange-correlation terms, depending on the ixc value
        if (present(dvxcdrho)) then
-          !if (nspin==1) then 
+          !if (nspin==1) then
           order=.if. (nspin==1) .then. -2 .else. 2
           !else
           !   order=2
@@ -1012,7 +1021,7 @@ module rhopotential
           end if
        end if
 
-       if (dpbox%n3p>0) then 
+       if (dpbox%n3p>0) then
           call xc_energy_new(cell_geocode(dpbox%mesh),dpbox%mesh%ndims(1), dpbox%mesh%ndims(2),&
                nxc,nwb,nxt,nwbl,nwbr,nxcl,nxcr,&
                xcObj,dpbox%mesh%hgrids(1),dpbox%mesh%hgrids(2),dpbox%mesh%hgrids(3),&
@@ -1067,7 +1076,7 @@ module rhopotential
           exc=energies_mpi(3)
           vxc=energies_mpi(4)
 
-          call f_free(energies_mpi)  
+          call f_free(energies_mpi)
 
        else
           exc=real(eexcuLOC,gp)
@@ -1181,7 +1190,7 @@ module rhopotential
              cycle loop_at
           end do
        end do loop_at
-       call deallocate_atomic_neighbours(nnit)       
+       call deallocate_atomic_neighbours(nnit)
      end subroutine set_cfd_data
 
 

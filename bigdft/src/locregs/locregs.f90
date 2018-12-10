@@ -563,7 +563,7 @@ contains
     if (bigdft_mpi%nproc > 1) then
        call fmpi_allgather(sendbuf=encoding_buffer,recvbuf=lr_storage%encode_buffer,comm=bigdft_mpi%mpi_comm)
     else
-       call f_memcpy(n = encoding_buffer_size, src = encoding_buffer, dest = lr_storage%encode_buffer(1))
+       call f_memcpy(src = encoding_buffer, dest = lr_storage%encode_buffer)
     end if
 
     call f_free(encoding_buffer)
