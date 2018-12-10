@@ -359,8 +359,7 @@ class SystemCalculator(Runner):
             else:
                 return Lf.Logfile(logname)
         else:
-            safe_print("ERROR: The logfile (",logname,") does not exist.")
-            return None
+            raise ValueError("The logfile (",logname,") does not exist.")
 
     def _get_command(self):
         name = self.run_options.get('name','')

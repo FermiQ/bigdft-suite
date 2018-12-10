@@ -1615,7 +1615,7 @@ program memguess
       DistProjApply = .true.
       call orbital_basis_associate(ob,orbs=runObj%rst%KSwfn%orbs,&
            & Lzd=runObj%rst%KSwfn%Lzd,id='memguess')
-      call createProjectorsArrays(iproc,nproc,runObj%rst%KSwfn%Lzd%Glr, &
+      call createProjectorsArrays(runObj%rst%KSwfn%Lzd%Glr, &
            & runObj%atoms%astruct%rxyz,runObj%atoms,ob%orbs, &
            & runObj%inputs%frmult,runObj%inputs%frmult, &
            & runObj%inputs%projection,.false.,nlpsp,.true.)
