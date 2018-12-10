@@ -267,7 +267,7 @@
    rloc_kernel                         : 9.0 #    localization radius for the density kernel
    rloc_kernel_foe                     : 14.0 #   cutoff radius for the FOE matrix vector multiplications
  posinp:
-    #---------------------------------------------------------------------- Atomic positions
+    #---------------------------------------------- Atomic positions (by default bohr units)
    cell: [ 15.0,  15.0,  15.0]
    properties:
      format                            : xyz
@@ -282,7 +282,7 @@
    Box Sizes (AU)                      :  [  1.5E+01,  1.50000E+01,  1.50000E+01 ]
    Number of Symmetries                :  0
    Space group                         : disabled
-  #------------------------------ Geometry optimization Input Parameters (file: input.geopt)
+  #-------------------------------------------------- Geometry optimization Input Parameters
  Geometry Optimization Parameters:
    Maximum steps                       :  1
    Algorithm                           : none
@@ -429,8 +429,9 @@
  Total ionic charge                    :  0.000000000000
  Interaction energy ions multipoles    :  0.0
  Interaction energy multipoles multipoles:  0.0
-  #----------------------------------------------------- Random wavefunctions Initialization
+  #----------------------------------------------------- Random Wavefunctions Initialization
  Input Hamiltonian:
+   Policy                              : Random Wavefunctions
   #------------------------------------------------------------------- Self-Consistent Cycle
  Ground State Optimization:
  - Hamiltonian Optimization: &itrp001

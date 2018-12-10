@@ -20,9 +20,10 @@ PRE_POST = [EVAL, SETUP, INITIALIZATION]
 #Builtin paths to define the search paths
 BUILTIN={
     'astruct': {PATH: [ ['Atomic structure']]},
+    'data_directory': {PATH: [ ['Data Writing directory']]},
     'dipole': {PATH: [ ['Electric Dipole Moment (AU)', 'P vector']],
                PRINT: "Dipole (AU)"},
-    'electrostatic_multipoles': {PATH: [['Multipole coefficients','values']]},
+    'electrostatic_multipoles': {PATH: [['Multipole coefficients']]},
     'energy': {PATH: [["Last Iteration", "FKS"],["Last Iteration", "EKS"], ["Energy (Hartree)"]],
                  PRINT: "Energy", GLOBAL: False},
     'evals': {PATH: [ ["Complete list of energy eigenvalues"], [ "Ground State Optimization", -1, "Orbitals"],

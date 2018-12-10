@@ -339,6 +339,7 @@ def parse():
     group.add_option("--KSgrid_file", type="string", default='KSgrid.dat', metavar="NAME",)
     group.add_option("--basis_file", type="string", default='minBasis', metavar="NAME",)
     group.add_option("--orbital_file", type="string", default='orbitals.yaml', metavar="NUM",)
+    group.add_option("--log_file", type="string", default='mp.yaml', metavar="NUM",)
 
     return parser
 
@@ -1168,7 +1169,7 @@ options:
         print '# '+command
     if options.action == "fragment-multipoles":
         #print 'calling utilities to perform a Loewdin multipole analysis'
-        command = "%s %s fragment-multipoles %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s" % (options.mpirun, utilities, options.matrix_format, options.metadata_file, options.fragment_file, options.overlap_file, options.kernel_file, options.kernel_matmul_file, options.multipole_matrix_0_0, options.multipole_matrix_1_0, options.multipole_matrix_1_1, options.multipole_matrix_1_2, options.multipole_matrix_2_0, options.multipole_matrix_2_1, options.multipole_matrix_2_2, options.multipole_matrix_2_3, options.multipole_matrix_2_4, options.orbital_file, options.coeff_file)
+        command = "%s %s fragment-multipoles %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s" % (options.mpirun, utilities, options.matrix_format, options.metadata_file, options.fragment_file, options.overlap_file, options.kernel_file, options.kernel_matmul_file, options.multipole_matrix_0_0, options.multipole_matrix_1_0, options.multipole_matrix_1_1, options.multipole_matrix_1_2, options.multipole_matrix_2_0, options.multipole_matrix_2_1, options.multipole_matrix_2_2, options.multipole_matrix_2_3, options.multipole_matrix_2_4, options.orbital_file, options.coeff_file, options.log_file)
         print '# '+command
     if options.action == 'dos':
         print 'calling memguess for DOS'

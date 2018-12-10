@@ -603,8 +603,10 @@
        Non-Hermiticity of Hamiltonian in the Subspace:  2.77E-30
         #WARNING: Wavefunctions not converged after cycle  1
         #restart after diagonalisation
-       Suggested Fermi Level           : -1.59330972437121E-03
-       Suggested Spin pol.             :  2
+       Determine Fermi level and occupation numbers:
+         Smearing method               :  1
+         Electronic temperature        :  0.0
+        #WARNING: Fermilevel could not have been adjusted in the available iterations
        Total magnetization             :  2.000000
         #Eigenvalues and New Occupation Numbers
        Orbitals: [
@@ -615,8 +617,8 @@
  {e: -5.901774116088E-01, f:  1.0000, s:  1},  {e: -4.511414490304E-01, f:  1.0000, s: -1},  # 00005
  {e: -3.919733156903E-01, f:  1.0000, s:  1},  {e: -2.241629788036E-01, f:  0.0000, s: -1},  # 00006
  {e: -3.461301111289E-01, f:  1.0000, s:  1},  # 00007
- {e: -1.593309724371E-03, f:  0.0000, s:  1}] # 00008
-       Fermi Energy                    : -1.59330972437121E-03
+ {e: -1.593309724325E-03, f:  0.0000, s:  1}] # 00008
+       Fermi Energy                    : -2.86724340363535E-01
    - Subspace Optimization: &itrep001-02
        Wavefunctions Iterations:
        -  { #---------------------------------------------------------------------- iter: 1
@@ -671,8 +673,10 @@
         #WARNING: No convergence within the allowed number of minimization steps
        Non-Hermiticity of Hamiltonian in the Subspace:  2.80E-31
         #WARNING: Wavefunctions not converged after cycle  2
-       Suggested Fermi Level           :  7.15671565397567E-02
-       Suggested Spin pol.             :  2
+       Determine Fermi level and occupation numbers:
+         Smearing method               :  1
+         Electronic temperature        :  0.0
+        #WARNING: Fermilevel could not have been adjusted in the available iterations
        Total magnetization             :  2.000000
         #Eigenvalues and New Occupation Numbers
        Orbitals: [
@@ -680,11 +684,11 @@
  {e: -7.565736714418E-01, f:  1.0000, s:  1},  {e: -6.892939234384E-01, f:  1.0000, s: -1},  # 00002
  {e: -5.024637107134E-01, f:  1.0000, s:  1},  {e: -4.665817712713E-01, f:  1.0000, s: -1},  # 00003
  {e: -5.024216103105E-01, f:  1.0000, s:  1},  {e: -4.263864425113E-01, f:  1.0000, s: -1},  # 00004
- {e: -4.975181366910E-01, f:  1.0000, s:  1},  {e: -4.263472903514E-01, f:  1.0000, s: -1},  # 00005
- {e: -2.557840345154E-01, f:  1.0000, s:  1},  {e: -1.606238129332E-01, f:  0.0000, s: -1},  # 00006
- {e: -2.557313250572E-01, f:  1.0000, s:  1},  # 00007
- {e:  7.156715653976E-02, f:  0.0000, s:  1}] # 00008
-       Fermi Energy                    :  7.15671565397567E-02
+ {e: -4.975181366911E-01, f:  1.0000, s:  1},  {e: -4.263472903515E-01, f:  1.0000, s: -1},  # 00005
+ {e: -2.557840345155E-01, f:  1.0000, s:  1},  {e: -1.606238129332E-01, f:  0.0000, s: -1},  # 00006
+ {e: -2.557313250573E-01, f:  1.0000, s:  1},  # 00007
+ {e:  7.156715653975E-02, f:  0.0000, s:  1}] # 00008
+       Fermi Energy                    : -2.11810455574171E-01
   #---------------------------------------------------------------------- Forces Calculation
  GPU acceleration                      :  No
  Rho Commun                            : RED_SCT
@@ -706,6 +710,7 @@
    -  [-2.1545E-03,  3.6435E-01,  2.5319E-04]
    -  [ 2.5319E-04,  2.5319E-04, -7.2871E-01]
    trace                               : -1.71E-12
+ Spreads of the electronic density (AU):  [  7.897337E-01,  7.897337E-01,  1.398865E+00 ]
  Calculate local forces                :  Yes
  Calculate Non Local forces            :  Yes
   #WARNING: Self-consistent cycle did not meet convergence criteria
@@ -713,6 +718,7 @@
  WARNINGS:
  - No convergence within the allowed number of minimization steps
  - Wavefunctions not converged after cycle  1
+ - Fermilevel could not have been adjusted in the available iterations
  - Wavefunctions not converged after cycle  2
  - Self-consistent cycle did not meet convergence criteria
   #-------------------------------------------------------------------- Timing for root process

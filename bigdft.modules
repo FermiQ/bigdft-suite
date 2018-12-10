@@ -17,6 +17,7 @@
   <repository type="tarball" name="simgrid" href="http://gforge.inria.fr/frs/download.php/file/35817/"/>
   <repository type="git" name="simgrid-dev" href="https://scm.gforge.inria.fr/anonscm/git/"/>
   <repository type="tarball" name="ntpoly" href="https://github.com/william-dawson/NTPoly/archive/"/>
+  <repository type="tarball" name="bigpoly" href="https://github.com/william-dawson/BigPoly/archive/"/>
   <repository type="git" name="pyyaml" href="https://github.com/dcaliste/"/>
   <repository type="git" name="ipython" href="https://github.com/ipython/"/>
   <repository type="git" name="esl" href="https://gitlab.e-cam2020.eu/esl/"/>
@@ -61,12 +62,18 @@
   </autotools>
 
   <cmake id="ntpoly">
-    <branch repo="ntpoly" module="v1.2.1.tar.gz" version="1.2.1" checkoutdir="ntpoly"/>
+    <branch repo="ntpoly" module="v2.0.tar.gz" version="2.0" checkoutdir="ntpoly"/>
+  </cmake>
+  <cmake id="bigpoly">
+    <branch repo="bigpoly" module="bigpoly-0.2.0.tar.gz" version="0.2.0" checkoutdir="bigpoly"/>
   </cmake>
 
   <autotools id="libyaml" autogen-sh="autoreconf" skip-autogen="true">
     <!--<branch repo="libyaml" module="yaml-0.1.4.tar.gz" version="0.1.4"/>-->
-    <branch repo="local" module="yaml-0.1.6.tar.gz" version="0.1.6" checkoutdir="yaml"/>
+    <branch repo="local" module="yaml-0.1.6.tar.gz" version="0.1.6" checkoutdir="yaml" >
+      <patch file="yaml-doxygen.patch" />
+      <patch file="yaml-doxygen-in.patch" />
+    </branch>
   </autotools>
 
   <cmake id="openbabel">
@@ -234,6 +241,10 @@
   <distutils id="PyBigDFT">
     <branch repo="local" module="PyBigDFT-0.1.tar.gz" version="0.1" checkoutdir="PyBigDFT"/>
     <dependencies>
+      <if condition-set="ntpoly">
+        <dep package="ntpoly"/>
+        <dep package="bigpoly"/>
+      </if>
       <dep package="PyYAML"/>
     </dependencies>
   </distutils>
