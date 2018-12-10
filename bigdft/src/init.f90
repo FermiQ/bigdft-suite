@@ -2075,7 +2075,19 @@ subroutine input_wf_diag(iproc,nproc,at,denspot,&
   !spin adaptation for the IG in the spinorial case
   orbse%nspin=nspin
 
-  if (ixc /= XC_NO_HARTREE) then
+  if (ixc == XC_NO_HARTREE) then
+
+    !Put to zero the density if no Hartree term
+    irho_add = 1
+    do ispin=1,input%nspin
+       !call vcopy(Lzde%Glr%d%n1i*Lzde%Glr%d%n2i*denspot%dpbox%nscatterarr(iproc,2),&
+       !     denspot%V_ext,1,denspot%rhov(irho_add),1)
+       call f_memcpy(n=size(denspot%V_ext),src=denspot%V_ext(1,1,1,1),dest=denspot%rhov(irho_add))
+       irho_add=irho_add+Lzde%Glr%d%n1i*Lzde%Glr%d%n2i*denspot%dpbox%nscatterarr(iproc,2)
+    end do
+    call denspot_set_rhov_status(denspot, ELECTRONIC_DENSITY, 0, iproc, nproc)
+
+  else
 
      !> Calculate the electronic density
      call sumrho(denspot%dpbox,orbse,Lzde,GPUe,at%astruct%sym,denspot%rhod,denspot%xc,psi,denspot%rho_psi)
