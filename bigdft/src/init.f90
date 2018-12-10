@@ -2085,7 +2085,7 @@ subroutine input_wf_diag(iproc,nproc,at,denspot,&
        call f_memcpy(n=size(denspot%V_ext),src=denspot%V_ext(1,1,1,1),dest=denspot%rhov(irho_add))
        irho_add=irho_add+Lzde%Glr%d%n1i*Lzde%Glr%d%n2i*denspot%dpbox%nscatterarr(iproc,2)
     end do
-    call denspot_set_rhov_status(denspot, ELECTRONIC_DENSITY, 0, iproc, nproc)
+    call denspot_set_rhov_status(denspot, KS_POTENTIAL, 0, iproc, nproc)
 
   else
 
