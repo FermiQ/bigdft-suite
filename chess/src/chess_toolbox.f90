@@ -141,7 +141,7 @@ double precision x(n),fvec(m)
           fvec(i) = fvec(i) + x(j)*xold(j,i-(n+2))
       end do
   end do
-  
+
   !write(*,'(a,12(f8.3),es12.4)') 'fvec**2',fvec(1:12)**2, sum(fvec(1:12)**2)
   !write(*,'(a,es12.4)') 'sum(fvec**2)', sum(fvec**2)
 
@@ -233,17 +233,17 @@ end module fragment_functions
 !!   Copyright (C) 2016 CheSS developers
 !!
 !!   This file is part of CheSS.
-!!   
+!!
 !!   CheSS is free software: you can redistribute it and/or modify
 !!   it under the terms of the GNU Lesser General Public License as published by
 !!   the Free Software Foundation, either version 3 of the License, or
 !!   (at your option) any later version.
-!!   
+!!
 !!   CheSS is distributed in the hope that it will be useful,
 !!   but WITHOUT ANY WARRANTY; without even the implied warranty of
 !!   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 !!   GNU Lesser General Public License for more details.
-!!   
+!!
 !!   You should have received a copy of the GNU Lesser General Public License
 !!   along with CheSS.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -295,14 +295,14 @@ program chess_toolbox
    !character(len=1) :: geocode
    !character(len=3) :: do_ortho
    character(len=30) :: tatonam, radical, colorname, linestart, lineend, cname
-   character(len=128) :: overlap_file, hamiltonian_file, hamiltonian_manipulated_file
-   character(len=128) :: kernel_file, coeff_file, eval_file, pdos_file, metadata_file, output_file, output_bins_file
-   character(len=128) :: line, cc, output_pdos, conversion, infile, outfile, iev_min_, iev_max_, fscale_
-   character(len=128) :: ihomo_state_, homo_value_, lumo_value_, smallest_value_, largest_value_, scalapack_blocksize_, kT_
-   character(len=128) :: accuracy_entropy_, nbin_, itype_, only_evals_, only_binned_values_
-   character(len=128) :: frag_elements_start_, frag_elements_end_
+   character(len=256) :: overlap_file, hamiltonian_file, hamiltonian_manipulated_file
+   character(len=256) :: kernel_file, coeff_file, eval_file, pdos_file, metadata_file, output_file, output_bins_file
+   character(len=256) :: line, cc, output_pdos, conversion, infile, outfile, iev_min_, iev_max_, fscale_
+   character(len=256) :: ihomo_state_, homo_value_, lumo_value_, smallest_value_, largest_value_, scalapack_blocksize_, kT_
+   character(len=256) :: accuracy_entropy_, nbin_, itype_, only_evals_, only_binned_values_
+   character(len=256) :: frag_elements_start_, frag_elements_end_
    !!character(len=128),dimension(-lmax:lmax,0:lmax) :: multipoles_files
-   character(len=128) :: kernel_matmul_file, fragment_file, manipulation_mode, diag_algorithm
+   character(len=256) :: kernel_matmul_file, fragment_file, manipulation_mode, diag_algorithm
    !logical :: multipole_analysis = .false.
    logical :: solve_eigensystem = .false.
    logical :: calculate_pdos = .false.
@@ -584,7 +584,7 @@ program chess_toolbox
       write(*,'(1x,a)')&
          &   '[option] can be the following: '
       write(*,'(1x,a)')&
-           &   '"multipoles-analysis"" ' 
+           &   '"multipoles-analysis"" '
       write(*,'(1x,a)')&
            & 'perform a charge analysis (Loewdin or Mulliken)'
 
@@ -1066,7 +1066,7 @@ program chess_toolbox
        if (iproc==0) then
            call yaml_sequence_open('Atoms and support functions to be taken into account for each partial density of states')
        end if
-           do 
+           do
                !read(iunit01,*,iostat=ios) cc, ival
                read(iunit,'(a128)',iostat=ios) line
                if (ios/=0) exit
@@ -1082,7 +1082,7 @@ program chess_toolbox
                        call yaml_sequence(advance='no')
                        call yaml_mapping_open(trim(pdos_name(ipdos)))
                    end if
-                   cycle 
+                   cycle
                end if
                read(line,*,iostat=ios) cc, ival
                if (iproc==0) then
@@ -1533,7 +1533,7 @@ program chess_toolbox
            else
                exit search_fragments
            end if
-           
+
            ! Count how many support functions belong to the fragment
            nfvctr_frag = 0
            do i=1,smat(2)%nfvctr
@@ -2249,7 +2249,7 @@ program chess_toolbox
                    if (darr(iil)>=dstart .and. darr(iil)<=dend) then
                        val_mean = val_mean + valarr(iil)
                        jjl = jjl + int(1,f_long)
-                   end if 
+                   end if
                end do
                if (jjl>0) then
                    write(iunit,'(2es20.12)') 0.5_mp*(dstart+dend), val_mean/real(jjl,f_double)
@@ -2639,7 +2639,7 @@ subroutine extract_fragment_submatrix(smmd, smat, mat, nat_frag, nfvctr_frag, &
       end if
       ii=smat%keyv(iseg)
       iirow = 0
-      do i=smat%keyg(1,1,iseg),smat%keyg(2,1,iseg) 
+      do i=smat%keyg(1,1,iseg),smat%keyg(2,1,iseg)
           irow = i
           irow_atom = smmd%on_which_atom(irow)
           ! Search whether this column belongs to the fragment
@@ -2687,8 +2687,8 @@ function get_minimal_distance(ra, rb, cell, periodic) result(d)
       di = abs(ra(i)-rb(i))/cell(i)
       !write(*,*) 'i, di', i, di
       if (periodic(i)) then
-          !If the distance is larger than half the box size 
-          !(which is 1 due to the reduced coordinates), 
+          !If the distance is larger than half the box size
+          !(which is 1 due to the reduced coordinates),
           !we have to make a periodic wrap around
           shift=real(floor(di+0.5_mp),kind=mp)
       else
@@ -2700,6 +2700,3 @@ function get_minimal_distance(ra, rb, cell, periodic) result(d)
   d = sqrt(d)
 
 end function get_minimal_distance
-
-
-

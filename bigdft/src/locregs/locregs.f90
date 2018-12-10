@@ -48,7 +48,7 @@ module locregs
      integer :: nsi3 = 0                    !< Starting point of locreg for interpolating grid
      integer :: Localnorb = 0                  !< Number of orbitals contained in locreg
      integer, dimension(3) :: outofzone = 0     !< Vector of points outside of the zone outside Glr for periodic systems
-     real(gp), dimension(3) :: locregCenter = 0.0_gp !< Center of the locreg 
+     real(gp), dimension(3) :: locregCenter = 0.0_gp !< Center of the locreg
      real(gp) :: locrad = 0.0_gp                    !< Cutoff radius of the localization region
      real(gp) :: locrad_kernel = 0.0_gp             !< Cutoff radius of the localization region (kernel)
      real(gp) :: locrad_mult = 0.0_gp               !< Cutoff radius of the localization region for the sparse matrix multiplications
@@ -125,8 +125,8 @@ contains
     call nullify_wfd(lr%wfd)
     call nullify_convolutions_bounds(lr%bounds)
     lr%locregCenter=(/0.0_gp,0.0_gp,0.0_gp/)
-    lr%locrad_kernel = 0.0_gp 
-    lr%locrad_mult = 0.0_gp 
+    lr%locrad_kernel = 0.0_gp
+    lr%locrad_mult = 0.0_gp
     lr%locrad=0.0_gp
     lr%mesh=cell_null()
     lr%mesh_fine=cell_null()
@@ -355,7 +355,7 @@ contains
     integer, intent(in) :: lr_size,nlr
     type(locreg_descriptors), dimension(nlr), intent(inout) :: llr
     integer, dimension(lr_size,nlr), intent(in) :: src_arr
-    integer, dimension(nlr), optional  :: ipiv !<array expressing the order of the lrs in the src_arr. 
+    integer, dimension(nlr), optional  :: ipiv !<array expressing the order of the lrs in the src_arr.
                                                !!When its values are put to zero the update is not performed
     !local variables
     integer :: ilr,iilr
@@ -561,7 +561,7 @@ contains
 
     !gather the array in the full encoding buffer
     if (bigdft_mpi%nproc > 1) then
-    call fmpi_allgather(sendbuf=encoding_buffer,recvbuf=lr_storage%encode_buffer,comm=bigdft_mpi%mpi_comm)
+       call fmpi_allgather(sendbuf=encoding_buffer,recvbuf=lr_storage%encode_buffer,comm=bigdft_mpi%mpi_comm)
     else
        call f_memcpy(n = encoding_buffer_size, src = encoding_buffer, dest = lr_storage%encode_buffer(1))
     end if
